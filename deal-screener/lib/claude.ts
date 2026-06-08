@@ -117,3 +117,88 @@ Keep it concise — this is a screening memo, not full DD.`;
     .join("\n")
     .trim();
 }
+
+function textOf(response: Anthropic.Message): string {
+  return response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
+}
+
+// ----- LP Reporting: parse a natural-language report request --------------
+export const ReportRequestSchema = z.object({
+  fund: z.string(),
+  period: z.string(),
+  reportType: z.string(),
+  style: z.string(),
+});
+export type ReportRequest = z.infer<typeof ReportRequestSchema>;
+
+export async function parseReportRequest(args: {
+  message: string;
+  funds: string[];
+  periods: string[];
+}): Promise<ReportRequest> {
+  const prompt = `Interpret this request for a fund report and map it to the available options. Pick the closest match for each field; if a field is unstated, choose a sensible default (latest period, "LP Quarterly Report", "Institutional / Formal").
+
+Available funds: ${args.funds.join(" | ")}
+Available periods: ${args.periods.join(" | ")}
+Report types: LP Quarterly Report | Board Deck | Fund Fact Sheet
+Styles: Institutional / Formal | Concise / Board | Detailed / Data-rich
+
+Return the exact fund name and period string from the lists above.
+
+REQUEST: ${args.message}`;
+
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 500,
+    messages: [{ role: "user", content: prompt }],
+    output_config: { format: zodOutputFormat(ReportRequestSchema) },
+  });
+  if (!response.parsed_output) throw new Error("Could not interpret the report request.");
+
+  // Snap fund/period back to valid values defensively.
+  const out = response.parsed_output;
+  out.fund = args.funds.find((f) => f === out.fund) ?? args.funds[0];
+  out.period = args.periods.find((p) => p === out.period) ?? args.periods[0];
+  return out;
+}
+
+// ----- LP Reporting: manager commentary from the computed snapshot --------
+export async function draftReportCommentary(args: {
+  report: unknown;
+}): Promise<string> {
+  const styleNote =
+    "Match the requested style: 'Concise / Board' = 2-3 sentences; 'Institutional / Formal' = one full paragraph; 'Detailed / Data-rich' = two paragraphs citing the specific figures.";
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 1200,
+    system: `You are a real-estate fund manager writing the manager-commentary section of an LP report. Use ONLY the figures in the provided JSON snapshot — never invent numbers. ${styleNote} Output plain prose (no headings, no markdown), suitable to drop straight into the report.`,
+    messages: [
+      {
+        role: "user",
+        content: `Write the manager commentary for this report snapshot:\n\n${JSON.stringify(args.report, null, 2)}`,
+      },
+    ],
+  });
+  return textOf(response);
+}
+
+// ----- Debt & Covenants: portfolio risk narrative ------------------------
+export async function draftDebtNarrative(args: { dashboard: unknown }): Promise<string> {
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 1200,
+    system: `You are a treasury / debt analyst. Write a short risk narrative (2-4 sentences) summarising the portfolio's debt position and the most pressing forward-looking actions. Use ONLY the figures and alerts in the provided JSON. Output plain prose, no markdown headings.`,
+    messages: [
+      {
+        role: "user",
+        content: `Summarise the debt position and priorities:\n\n${JSON.stringify(args.dashboard, null, 2)}`,
+      },
+    ],
+  });
+  return textOf(response);
+}

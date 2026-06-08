@@ -19,3 +19,61 @@ model Deal {
   underwrite String // JSON string of the computed underwrite + hurdle results
   memo       String // markdown IC memo
 }
+
+// ---- Reference data for LP Reporting and Debt & Covenants -----------------
+
+model Fund {
+  id             String         @id @default(cuid())
+  name           String         @unique
+  currency       String         @default("SAR")
+  strategy       String?
+  // Fund-level returns (from the cashflow models — not derivable from one period)
+  netIrrPct      Float
+  equityMultiple Float
+  yieldOnCostPct Float
+  dscr           Float
+  assets         Asset[]
+  distributions  Distribution[]
+}
+
+model Asset {
+  id           String    @id @default(cuid())
+  name         String
+  type         String
+  location     String
+  fund         Fund      @relation(fields: [fundId], references: [id])
+  fundId       String
+  valuationM   Float
+  noiM         Float
+  occupancyPct Float?
+  waleYears    Float?
+  conceptStage Boolean   @default(false)
+  facility     Facility?
+}
+
+model Distribution {
+  id      String @id @default(cuid())
+  fund    Fund   @relation(fields: [fundId], references: [id])
+  fundId  String
+  period  String
+  amountM Float
+
+  @@unique([fundId, period])
+}
+
+model Facility {
+  id             String   @id @default(cuid())
+  asset          Asset    @relation(fields: [assetId], references: [id])
+  assetId        String   @unique
+  lender         String
+  drawnM         Float
+  ratePct        Float // all-in
+  marginBps      Int
+  ltvPct         Float
+  dscr           Float
+  icr            Float
+  covenantDscr   Float
+  covenantLtvPct Float
+  maturity       DateTime
+}
+
