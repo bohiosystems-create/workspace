@@ -5228,6 +5228,20 @@
   .wf-check.pass { background: var(--ink); color: var(--bg); }
   .wf-check.fail { border-color: var(--alert); color: var(--alert); }
 
+  /* LP reporting chatbot */
+  .wfr-chat { border: 1px solid var(--ink); background: var(--paper); display: flex; flex-direction: column; height: 460px; }
+  .wfr-chat-head { padding: 13px 16px; border-bottom: 1px solid var(--ink-hairline); display: flex; align-items: center; gap: 9px; }
+  .wfr-chat-head .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink); }
+  .wfr-chat-head .t { font-size: 8px; letter-spacing: 0.3em; text-transform: uppercase; font-weight: 700; }
+  .wfr-chat-log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .wfr-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
+  .wfr-chips .k-chip { flex: 0 0 auto; padding: 6px 11px; border-radius: 30px; font-size: 10px; }
+  .wfr-chat .fs-karaya-input { border-top: 1px solid var(--ink-hairline); padding: 10px 12px; display: flex; gap: 8px; }
+  .wfr-typing { display: inline-flex; gap: 3px; align-items: center; }
+  .wfr-typing span { width: 5px; height: 5px; border-radius: 50%; background: rgba(0,9,25,0.4); animation: wfrbounce 1s infinite; }
+  .wfr-typing span:nth-child(2){ animation-delay: 0.15s; } .wfr-typing span:nth-child(3){ animation-delay: 0.3s; }
+  @keyframes wfrbounce { 0%,60%,100%{ transform: translateY(0); opacity: 0.4; } 30%{ transform: translateY(-4px); opacity: 1; } }
+
 </style>
 </head>
 <body class="on-landing">
@@ -5373,39 +5387,6 @@
     </div>
 
     <div class="nav-section" style="margin-top:16px;">
-      <div class="nav-item" id="nav-pm-toggle" onclick="togglePMDropdown()" style="cursor:pointer;">
-        <span style="display:flex;align-items:center;gap:8px;"><span class="pm-arrow" id="pm-arrow" style="font-size:8px;transition:transform 0.2s ease;">▸</span>Property Management</span>
-        <span class="nav-count" style="border-color:var(--alert);color:var(--alert);">4</span>
-      </div>
-      <div id="pm-dropdown" style="display:none;padding-left:18px;">
-        <div class="nav-item" id="nav-pm-contracts" onclick="goTo('ch-dashboard')">
-          <span>Contracts Hub</span>
-        </div>
-        <div class="nav-item" id="nav-pm-leases-tl" onclick="goTo('ch-dashboard');setTimeout(()=>chShowPage('leases'),50)">
-          <span>Leases Timeline</span>
-        </div>
-        <div class="nav-item" id="nav-pm-maintenance" onclick="goTo('ch-dashboard');setTimeout(()=>chShowPage('capex'),50)">
-          <span>Maintenance</span>
-        </div>
-        <div class="nav-item" id="nav-pm-procurement" onclick="goTo('pm-procurement')">
-          <span>Procurement</span>
-        </div>
-        <div class="nav-item" id="nav-pm-fin-report" onclick="goTo('pm-fin-report')">
-          <span>Financial Reporting</span>
-        </div>
-        <div class="nav-item" id="nav-pm-forecasting" onclick="goTo('pm-forecasting')">
-          <span>Forecasting</span>
-        </div>
-      </div>
-      <div class="nav-item" id="nav-analytics" onclick="goTo('analytics')">
-        <span>Portfolio Analytics</span>
-      </div>
-      <div class="nav-item" id="nav-ir" onclick="goTo('ir')">
-        <span>Investor Relations</span>
-      </div>
-    </div>
-
-    <div class="nav-section" style="margin-top:16px;">
       <div class="nav-label">AI Workflows</div>
       <div class="nav-item" id="nav-wf-reporting" onclick="goTo('wf-reporting')">
         <span>LP &amp; Board Reporting</span>
@@ -5419,19 +5400,6 @@
       </div>
     </div>
 
-    <div class="nav-section ch-subnav" id="ch-subnav" style="display:none;">
-      <div class="nav-label">Contracts Hub</div>
-      <div class="nav-item active" id="ch-nav-dashboard" onclick="chShowPage('dashboard')"><span>Dashboard</span></div>
-      <div class="nav-item" id="ch-nav-map" onclick="chShowPage('map')"><span>Portfolio Map</span></div>
-      <div class="nav-item" id="ch-nav-leases" onclick="chShowPage('leases')"><span>Leases</span><span class="nav-count">12</span></div>
-      <div class="nav-item" id="ch-nav-contracts" onclick="chShowPage('contracts')"><span>Service Contracts</span><span class="nav-count">8</span></div>
-      <div class="nav-item" id="ch-nav-amendments" onclick="chShowPage('amendments')"><span>Amendments</span><span class="nav-count">5</span></div>
-      <div class="nav-item" id="ch-nav-documents" onclick="chShowPage('documents')"><span>Doc Viewer</span><span class="nav-count">25</span></div>
-      <div class="nav-item" id="ch-nav-deadlines" onclick="chShowPage('deadlines')"><span>Deadlines</span><span class="nav-count" style="border-color:var(--alert);color:var(--alert);">4</span></div>
-      <div class="nav-item" id="ch-nav-renewals" onclick="chShowPage('renewals')"><span>Renewals</span></div>
-      <div class="nav-item" id="ch-nav-capex" onclick="chShowPage('capex')"><span>Maintenance CapEx</span></div>
-      <div class="nav-item" id="ch-nav-parties" onclick="chShowPage('parties')"><span>Parties & Contacts</span></div>
-    </div>
     <div class="copyright-footer" style="margin-top:auto;padding:18px 24px;font-size:8px;letter-spacing:0.18em;">© 2026 Bohio Systems LTD<br/>All Rights Reserved</div>
   </aside>
 
@@ -5500,258 +5468,6 @@
       <div id="community-feed" style="display:flex;flex-direction:column;gap:18px;"></div>
     </div>
 
-    <!-- PORTFOLIO ANALYTICS -->
-    <div class="page" id="page-analytics" style="height:100%;overflow:hidden;">
-      <div style="display:grid;grid-template-columns:1fr 280px;height:100%;overflow:hidden;">
-        <div style="overflow-y:auto;padding:28px 36px;">
-          <div class="section-header">
-            <h2 class="section-title">Portfolio Analytics</h2>
-            <div style="display:flex;align-items:center;gap:12px;">
-              <button class="action-btn" onclick="openStudioAnalytics()">Model Studio</button>
-              <button class="action-btn">Export Report</button>
-              <button class="action-btn">Share</button>
-            </div>
-          </div>
-
-      <div class="studio-kpis" style="margin-bottom:28px;">
-        <div class="kpi-card" style="cursor:pointer;" onclick="analyticsInspect('Avg IRR','18.2%','=AVERAGE(IRR_Marina, IRR_AshShati, IRR_Rawdah, IRR_Olaya, IRR_Nahdah)','Weighted average internal rate of return across all five active projects in the base case scenario.')"><div class="kpi-val">14</div><div class="kpi-label">Active Models</div></div>
-        <div class="kpi-card" style="cursor:pointer;" onclick="analyticsInspect('Projects','06','=COUNT(Workspace.Projects)','Total number of active projects in the Bohio Workspace.')"><div class="kpi-val">06</div><div class="kpi-label">Projects</div></div>
-        <div class="kpi-card" style="cursor:pointer;" onclick="analyticsInspect('Avg IRR','18.2%','=AVERAGE(IRR_Marina, IRR_AshShati, IRR_Rawdah, IRR_Olaya, IRR_Nahdah)','Portfolio-weighted average IRR across base case projections. Marina Tower at 18.2%, Ash Shati at 18.6%, Rawdah at 16.1%, Olaya at 19.1%, Nahdah at 20.3%.')"><div class="kpi-val">18.2%</div><div class="kpi-label">Avg IRR</div><div class="kpi-delta">Across base cases</div></div>
-        <div class="kpi-card" style="cursor:pointer;" onclick="analyticsInspect('Avg YoC','7.1%','=AVERAGE(YoC_All)','Average yield-on-cost. The 30 bps decline from last quarter is driven primarily by the Marina Tower opex revision.')"><div class="kpi-val">7.1%</div><div class="kpi-label">Avg YoC</div></div>
-        <div class="kpi-card" style="cursor:pointer;" onclick="analyticsInspect('Total GFA','612.8k sqm','=SUM(GFA_Marina, GFA_AshShati, GFA_Rawdah, GFA_Olaya, GFA_Nahdah, GFA_Andalus)','Aggregate gross floor area across all six projects including the concept-stage Andalus Quarter.')"><div class="kpi-val">612.8</div><div class="kpi-label">Total GFA (k sqm)</div></div>
-      </div>
-
-      <div class="studio-charts">
-        <div class="chart-card">
-          <div class="chart-label">IRR by Project</div>
-          <div class="chart-area" style="flex-direction:column;justify-content:center;gap:6px;">
-            <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="analyticsInspect('Marina Tower IRR','18.2%','=IRR(CF_Marina_Y1:Y5)','Project-level unlevered IRR for Marina Tower. Driven by hospitality NOI ramp and residential absorption.')"><span style="font-size:7px;color:var(--ink-soft);width:90px;text-align:right;text-transform:uppercase;">Marina Tower</span><div style="flex:1;height:16px;background:rgba(0,9,25,0.04);"><div style="height:100%;width:81%;background:var(--ink);"></div></div><span style="font-family:'Courier New',monospace;font-size:10px;font-weight:700;width:36px;">18.2%</span></div>
-            <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="analyticsInspect('Ash Shati IRR','18.6%','=IRR(CF_AshShati_Y1:Y5)','Branded residence cluster. Higher IRR driven by lower construction cost per sqm relative to revenue.')"><span style="font-size:7px;color:var(--ink-soft);width:90px;text-align:right;text-transform:uppercase;">Ash Shati</span><div style="flex:1;height:16px;background:rgba(0,9,25,0.04);"><div style="height:100%;width:83%;background:var(--ink);"></div></div><span style="font-family:'Courier New',monospace;font-size:10px;font-weight:700;width:36px;">18.6%</span></div>
-            <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="analyticsInspect('Rawdah Plaza IRR','16.1%','=IRR(CF_Rawdah_Y1:Y5)','Lowest portfolio IRR. Capex overrun on façade and tighter leasing market contribute to below-average returns.')"><span style="font-size:7px;color:var(--ink-soft);width:90px;text-align:right;text-transform:uppercase;">Rawdah Plaza</span><div style="flex:1;height:16px;background:rgba(0,9,25,0.04);"><div style="height:100%;width:72%;background:var(--ink);"></div></div><span style="font-family:'Courier New',monospace;font-size:10px;font-weight:700;width:36px;">16.1%</span></div>
-            <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="analyticsInspect('Olaya Block IRR','19.1%','=IRR(CF_Olaya_Y1:Y5)','Office-led scheme with strong pre-leasing. REIT exit pathway further improves levered returns.')"><span style="font-size:7px;color:var(--ink-soft);width:90px;text-align:right;text-transform:uppercase;">Olaya Block</span><div style="flex:1;height:16px;background:rgba(0,9,25,0.04);"><div style="height:100%;width:85%;background:var(--ink);"></div></div><span style="font-family:'Courier New',monospace;font-size:10px;font-weight:700;width:36px;">19.1%</span></div>
-            <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="analyticsInspect('Nahdah Logistics IRR','20.3%','=IRR(CF_Nahdah_Y1:Y5)','Highest portfolio IRR. Single-tenant pre-let structure eliminates lease-up risk, driving superior risk-adjusted returns.')"><span style="font-size:7px;color:var(--ink-soft);width:90px;text-align:right;text-transform:uppercase;">Nahdah Log.</span><div style="flex:1;height:16px;background:rgba(0,9,25,0.04);"><div style="height:100%;width:90%;background:var(--ink);"></div></div><span style="font-family:'Courier New',monospace;font-size:10px;font-weight:700;width:36px;">20.3%</span></div>
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-label">Asset Class Allocation</div>
-          <div class="chart-area" style="align-items:center;justify-content:center;">
-            <div class="donut-wrap">
-              <svg viewBox="0 0 120 120" width="105" height="105">
-                <circle cx="60" cy="60" r="45" fill="none" stroke="var(--ink)" stroke-width="24" stroke-dasharray="113 283" stroke-dashoffset="0" transform="rotate(-90 60 60)" style="cursor:pointer;" onclick="analyticsInspect('Mixed Use Allocation','40%','=SUM(GFA_Marina,GFA_AshShati)/Total_GFA','Mixed-use assets (Marina Tower + Ash Shati) represent 40% of portfolio GFA. This is the largest allocation, consistent with the Jeddah Corniche development thesis.')"/>
-                <circle cx="60" cy="60" r="45" fill="none" stroke="rgba(0,9,25,0.5)" stroke-width="24" stroke-dasharray="85 283" stroke-dashoffset="-113" transform="rotate(-90 60 60)" style="cursor:pointer;" onclick="analyticsInspect('Residential Allocation','30%','=GFA_Andalus/Total_GFA','Residential exposure through the Andalus Quarter masterplan. Currently concept-stage — GFA subject to test-fit confirmation.')"/>
-                <circle cx="60" cy="60" r="45" fill="none" stroke="rgba(0,9,25,0.25)" stroke-width="24" stroke-dasharray="57 283" stroke-dashoffset="-198" transform="rotate(-90 60 60)" style="cursor:pointer;" onclick="analyticsInspect('Commercial Allocation','20%','=(GFA_Rawdah+GFA_Olaya)/Total_GFA','Commercial assets (Rawdah Plaza + Olaya Block) at 20%. Office-led with retail components. Rawdah carries elevated risk due to capex overruns.')"/>
-                <circle cx="60" cy="60" r="45" fill="none" stroke="rgba(0,9,25,0.12)" stroke-width="24" stroke-dasharray="28 283" stroke-dashoffset="-255" transform="rotate(-90 60 60)" style="cursor:pointer;" onclick="analyticsInspect('Logistics Allocation','10%','=GFA_Nahdah/Total_GFA','Logistics is the smallest allocation by GFA but the highest IRR contributor (20.3%). Pre-let structure reduces risk.')"/>
-              </svg>
-              <div class="donut-legend">
-                <div class="donut-item"><div class="donut-swatch" style="background:var(--ink);"></div>Mixed Use · 40%</div>
-                <div class="donut-item"><div class="donut-swatch" style="background:rgba(0,9,25,0.5);"></div>Residential · 30%</div>
-                <div class="donut-item"><div class="donut-swatch" style="background:rgba(0,9,25,0.25);"></div>Commercial · 20%</div>
-                <div class="donut-item"><div class="donut-swatch" style="background:rgba(0,9,25,0.12);"></div>Logistics · 10%</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="chart-wide" style="border:1px solid var(--ink-hairline);padding:18px;background:var(--paper);margin-bottom:20px;">
-        <div class="chart-label">Portfolio NOI Projection (SAR M)</div>
-        <div style="height:220px;padding-top:10px;">
-          <svg viewBox="0 0 500 200" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;overflow:visible;">
-            <defs>
-              <linearGradient id="portfolioGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#000919" stop-opacity="0.15"/>
-                <stop offset="100%" stop-color="#000919" stop-opacity="0.02"/>
-              </linearGradient>
-            </defs>
-            <!-- grid lines -->
-            <line x1="45" y1="170" x2="480" y2="170" stroke="rgba(0,9,25,0.08)" stroke-width="0.5"/>
-            <line x1="45" y1="142" x2="480" y2="142" stroke="rgba(0,9,25,0.08)" stroke-width="0.5"/>
-            <line x1="45" y1="114" x2="480" y2="114" stroke="rgba(0,9,25,0.08)" stroke-width="0.5"/>
-            <line x1="45" y1="86" x2="480" y2="86" stroke="rgba(0,9,25,0.08)" stroke-width="0.5"/>
-            <line x1="45" y1="58" x2="480" y2="58" stroke="rgba(0,9,25,0.08)" stroke-width="0.5"/>
-            <line x1="45" y1="30" x2="480" y2="30" stroke="rgba(0,9,25,0.08)" stroke-width="0.5"/>
-            <!-- Y axis labels -->
-            <text x="40" y="173" text-anchor="end" font-size="7" fill="rgba(0,9,25,0.45)" font-family="Courier New">0</text>
-            <text x="40" y="145" text-anchor="end" font-size="7" fill="rgba(0,9,25,0.45)" font-family="Courier New">10</text>
-            <text x="40" y="117" text-anchor="end" font-size="7" fill="rgba(0,9,25,0.45)" font-family="Courier New">20</text>
-            <text x="40" y="89" text-anchor="end" font-size="7" fill="rgba(0,9,25,0.45)" font-family="Courier New">30</text>
-            <text x="40" y="61" text-anchor="end" font-size="7" fill="rgba(0,9,25,0.45)" font-family="Courier New">40</text>
-            <text x="40" y="33" text-anchor="end" font-size="7" fill="rgba(0,9,25,0.45)" font-family="Courier New">50</text>
-            <!-- area -->
-            <polygon points="
-              45,170
-              45,119.08
-              153.75,107.36
-              262.5,92.16
-              371.25,81.80
-              480,69.76
-              480,170
-            " fill="url(#portfolioGrad)"/>
-            <!-- line -->
-            <polyline points="
-              45,119.08
-              153.75,107.36
-              262.5,92.16
-              371.25,81.80
-              480,69.76
-            " fill="none" stroke="#000919" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-            <!-- dots + value labels -->
-            <circle cx="45" cy="119.08" r="5" fill="#e6e2e2" stroke="#000919" stroke-width="2" style="cursor:pointer;" onclick="analyticsInspect('Portfolio NOI Y1','18.2 SAR M','=SUM(NOI_Marina_Y1, NOI_AshShati_Y1, NOI_Rawdah_Y1, NOI_Olaya_Y1, NOI_Nahdah_Y1)','Year 1 aggregate NOI across all five projects. Marina Tower contributes 42% of the total.')"/>
-            <text x="45" y="112" text-anchor="middle" font-size="8" fill="#000919" font-weight="700" font-family="Courier New">18.2</text>
-            <text x="45" y="184" text-anchor="middle" font-size="7" fill="rgba(0,9,25,0.5)" letter-spacing="0.1em">Y1</text>
-
-            <circle cx="153.75" cy="107.36" r="5" fill="#e6e2e2" stroke="#000919" stroke-width="2" style="cursor:pointer;" onclick="analyticsInspect('Portfolio NOI Y2','22.4 SAR M','=SUM(NOI_All_Y2)','23% growth over Y1 driven by hospitality ramp-up at Marina Tower and Ash Shati lease stabilisation.')"/>
-            <text x="153.75" y="100" text-anchor="middle" font-size="8" fill="#000919" font-weight="700" font-family="Courier New">22.4</text>
-            <text x="153.75" y="184" text-anchor="middle" font-size="7" fill="rgba(0,9,25,0.5)" letter-spacing="0.1em">Y2</text>
-
-            <circle cx="262.5" cy="92.16" r="5" fill="#e6e2e2" stroke="#000919" stroke-width="2" style="cursor:pointer;" onclick="analyticsInspect('Portfolio NOI Y3','27.8 SAR M','=SUM(NOI_All_Y3)','All projects stabilised by Y3. NOI growth decelerates to 24% as base effects normalise.')"/>
-            <text x="262.5" y="85" text-anchor="middle" font-size="8" fill="#000919" font-weight="700" font-family="Courier New">27.8</text>
-            <text x="262.5" y="184" text-anchor="middle" font-size="7" fill="rgba(0,9,25,0.5)" letter-spacing="0.1em">Y3</text>
-
-            <circle cx="371.25" cy="81.80" r="5" fill="#e6e2e2" stroke="#000919" stroke-width="2" style="cursor:pointer;" onclick="analyticsInspect('Portfolio NOI Y4','31.5 SAR M','=SUM(NOI_All_Y4)','13% growth over Y3. Olaya Block contributes incremental NOI as leasing schedule ramps.')"/>
-            <text x="371.25" y="75" text-anchor="middle" font-size="8" fill="#000919" font-weight="700" font-family="Courier New">31.5</text>
-            <text x="371.25" y="184" text-anchor="middle" font-size="7" fill="rgba(0,9,25,0.5)" letter-spacing="0.1em">Y4</text>
-
-            <circle cx="480" cy="69.76" r="5" fill="#000919" stroke="#000919" stroke-width="2" style="cursor:pointer;" onclick="analyticsInspect('Portfolio NOI Y5','35.8 SAR M','=SUM(NOI_All_Y5)','Terminal year NOI. 18.4% CAGR over 5 years. This is the exit-year capitalisation base for portfolio valuation.')"/>
-            <text x="480" y="63" text-anchor="middle" font-size="8" fill="#000919" font-weight="700" font-family="Courier New">35.8</text>
-            <text x="480" y="184" text-anchor="middle" font-size="7" fill="rgba(0,9,25,0.5)" letter-spacing="0.1em">Y5</text>
-          </svg>
-        </div>
-      </div>
-
-      <div class="chart-wide" style="border:1px solid var(--ink-hairline);padding:18px;background:var(--paper);margin-bottom:20px;">
-        <div class="chart-label">Risk Exposure by Project</div>
-        <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:8px;">
-          <thead><tr><th style="background:var(--ink);color:var(--bg);padding:8px;font-size:7px;letter-spacing:0.12em;border:1px solid rgba(230,226,226,0.15);text-align:left;">Project</th><th style="background:var(--ink);color:var(--bg);padding:8px;font-size:7px;border:1px solid rgba(230,226,226,0.15);">IRR</th><th style="background:var(--ink);color:var(--bg);padding:8px;font-size:7px;border:1px solid rgba(230,226,226,0.15);">YoC</th><th style="background:var(--ink);color:var(--bg);padding:8px;font-size:7px;border:1px solid rgba(230,226,226,0.15);">DSCR</th><th style="background:var(--ink);color:var(--bg);padding:8px;font-size:7px;border:1px solid rgba(230,226,226,0.15);">Equity (SAR M)</th><th style="background:var(--ink);color:var(--bg);padding:8px;font-size:7px;border:1px solid rgba(230,226,226,0.15);">Risk</th></tr></thead>
-          <tbody>
-            <tr style="cursor:pointer;" onclick="analyticsInspect('Marina Tower','IRR 18.2% · YoC 7.1% · DSCR 2.24x','=IRR(CF_Marina_Y1:Y5)','Largest equity exposure at 59.4 SAR M. Medium risk driven by opex revision and exit cap sensitivity.')"><td style="padding:8px;border:1px solid var(--ink-hairline);font-weight:700;">Marina Tower</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">18.2%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">7.1%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">2.24x</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">59.4</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">Medium</td></tr>
-            <tr style="cursor:pointer;" onclick="analyticsInspect('Ash Shati','IRR 18.6% · YoC 7.4% · DSCR 1.95x','=IRR(CF_AshShati_Y1:Y5)','DSCR tighter than portfolio average. Hospitality split sensitivity is the primary risk factor.')"><td style="padding:8px;border:1px solid var(--ink-hairline);font-weight:700;">Ash Shati</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">18.6%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">7.4%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">1.95x</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">44.2</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">Medium</td></tr>
-            <tr style="cursor:pointer;" onclick="analyticsInspect('Rawdah Plaza','IRR 16.1% · YoC 6.8% · DSCR 1.68x','=IRR(CF_Rawdah_Y1:Y5)','Highest risk. Façade capex overrun + tightest DSCR in portfolio at 1.68x. Below 1.25x covenant threshold in downside.')"><td style="padding:8px;border:1px solid var(--ink-hairline);font-weight:700;">Rawdah Plaza</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">16.1%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">6.8%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">1.68x</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">18.6</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);color:#b51e3b;">High</td></tr>
-            <tr style="cursor:pointer;" onclick="analyticsInspect('Olaya Block','IRR 19.1% · YoC 7.6% · DSCR 2.41x','=IRR(CF_Olaya_Y1:Y5)','Strong metrics across the board. REIT exit pathway adds optionality. Low risk.')"><td style="padding:8px;border:1px solid var(--ink-hairline);font-weight:700;">Olaya Block</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">19.1%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">7.6%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">2.41x</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">32.8</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">Low</td></tr>
-            <tr style="cursor:pointer;" onclick="analyticsInspect('Nahdah Logistics','IRR 20.3% · YoC 8.1% · DSCR 2.56x','=IRR(CF_Nahdah_Y1:Y5)','Best risk-adjusted return. Pre-let structure eliminates lease-up risk. Lowest equity exposure.')"><td style="padding:8px;border:1px solid var(--ink-hairline);font-weight:700;">Nahdah Logistics</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">20.3%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">8.1%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">2.56x</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">12.4</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">Low</td></tr>
-            <tr style="font-weight:700;border-top:2px solid var(--ink);"><td style="padding:8px;border:1px solid var(--ink-hairline);">Portfolio Total</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">18.5%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">7.4%</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">2.17x</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">167.4</td><td style="padding:8px;text-align:center;border:1px solid var(--ink-hairline);">—</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="copyright-footer">© 2026 Bohio Systems LTD All Rights Reserved</div>
-        </div>
-        <div style="background:var(--karaya-bg);border-left:1px solid rgba(0,9,25,0.08);display:flex;flex-direction:column;overflow:hidden;">
-          <div class="fs-col-head">Portfolio Insights</div>
-          <div class="fs-col-body" id="analytics-karaya-msgs" style="overflow-y:auto;overflow-x:hidden;word-break:break-word;overflow-wrap:break-word;min-width:0;">
-            <div class="k-msg bot">
-              I'm connected to your portfolio data. Click any chart or KPI to inspect it, or ask me to generate insights, run comparisons, or build new views.
-              <span class="k-meta">Karaya</span>
-            </div>
-          </div>
-          <div class="fs-karaya-input">
-            <input type="text" id="analytics-karaya-input" placeholder="Ask about your portfolio…" onkeypress="if(event.key==='Enter')analyticsKarayaSend()" />
-            <button class="k-send" onclick="analyticsKarayaSend()">Send</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- INVESTOR RELATIONS -->
-    <div class="page workspace-page" id="page-ir">
-      <div class="section-header">
-        <h2 class="section-title">Investor Relations</h2>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <button class="action-btn" onclick="shareReport()">Share Report with Investor</button>
-          <button class="action-btn">+ Add Investor</button>
-        </div>
-      </div>
-
-      <!-- Investors Grid -->
-      <div style="font-size:11px;letter-spacing:0.3em;text-transform:uppercase;font-weight:700;margin-bottom:16px;">Active Investors</div>
-      <div style="font-size:11px;letter-spacing:0.3em;text-transform:uppercase;font-weight:700;margin-bottom:16px;">GP / Sponsor</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:28px;">
-        <div class="ir-card" onclick="viewInvestor('nakheel')">
-          <div class="ir-card-head">
-            <div>
-              <div class="ir-name">Nakheel Partners</div>
-              <div class="ir-role">General Partner · Sponsor Equity</div>
-            </div>
-            <div class="ir-status ir-active">Active</div>
-          </div>
-          <div class="ir-stats">
-            <div><span class="ir-stat-label">Committed</span><span class="ir-stat-val">45.0 SAR M</span></div>
-            <div><span class="ir-stat-label">Drawn</span><span class="ir-stat-val">32.8 SAR M</span></div>
-            <div><span class="ir-stat-label">Projects</span><span class="ir-stat-val">2</span></div>
-          </div>
-          <div class="ir-last">Last AI Q&A · 2h ago · 4 threads</div>
-        </div>
-      </div>
-
-      <div style="font-size:11px;letter-spacing:0.3em;text-transform:uppercase;font-weight:700;margin-bottom:16px;">LP / Limited Partners</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:28px;">
-        <div class="ir-card" onclick="viewInvestor('suhail')">
-          <div class="ir-card-head">
-            <div>
-              <div class="ir-name">Suhail Capital</div>
-              <div class="ir-role">Limited Partner · Fund Investor</div>
-            </div>
-            <div class="ir-status ir-active">Active</div>
-          </div>
-          <div class="ir-stats">
-            <div><span class="ir-stat-label">Committed</span><span class="ir-stat-val">120.0 SAR M</span></div>
-            <div><span class="ir-stat-label">Drawn</span><span class="ir-stat-val">88.4 SAR M</span></div>
-            <div><span class="ir-stat-label">Projects</span><span class="ir-stat-val">4</span></div>
-          </div>
-          <div class="ir-last">Last AI Q&A · 1d ago · 12 threads</div>
-        </div>
-
-        <div class="ir-card" onclick="viewInvestor('wadi')">
-          <div class="ir-card-head">
-            <div>
-              <div class="ir-name">Wadi Ventures</div>
-              <div class="ir-role">Limited Partner · Family Office</div>
-            </div>
-            <div class="ir-status ir-active">Active</div>
-          </div>
-          <div class="ir-stats">
-            <div><span class="ir-stat-label">Committed</span><span class="ir-stat-val">28.0 SAR M</span></div>
-            <div><span class="ir-stat-label">Drawn</span><span class="ir-stat-val">28.0 SAR M</span></div>
-            <div><span class="ir-stat-label">Projects</span><span class="ir-stat-val">1</span></div>
-          </div>
-          <div class="ir-last">Last AI Q&A · 5d ago · 7 threads</div>
-        </div>
-      </div>
-
-      <div style="font-size:11px;letter-spacing:0.3em;text-transform:uppercase;font-weight:700;margin-bottom:16px;">Co-Invest / JV Partners</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:36px;">
-        <div class="ir-card" onclick="viewInvestor('qasr')">
-          <div class="ir-card-head">
-            <div>
-              <div class="ir-name">Qasr Holdings</div>
-              <div class="ir-role">Co-Investor · Joint Venture</div>
-            </div>
-            <div class="ir-status" style="color:var(--ink-soft);">Reviewing</div>
-          </div>
-          <div class="ir-stats">
-            <div><span class="ir-stat-label">Proposed</span><span class="ir-stat-val">60.0 SAR M</span></div>
-            <div><span class="ir-stat-label">Drawn</span><span class="ir-stat-val">—</span></div>
-            <div><span class="ir-stat-label">Projects</span><span class="ir-stat-val">1</span></div>
-          </div>
-          <div class="ir-last">Last AI Q&A · 3d ago · 2 threads</div>
-        </div>
-      </div>
-
-      <!-- Shared Documents -->
-      <div style="font-size:11px;letter-spacing:0.3em;text-transform:uppercase;font-weight:700;margin-bottom:16px;">Shared Documents</div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:36px;">
-        <div class="ir-doc-row"><span class="ir-doc-name">Portfolio Analytics — Q1 2026</span><span class="ir-doc-meta">PDF · Shared with 4 investors · Apr 28</span></div>
-        <div class="ir-doc-row"><span class="ir-doc-name">Marina Tower IC Memo</span><span class="ir-doc-meta">PDF · Shared with Taiba, SEDCO · Apr 22</span></div>
-        <div class="ir-doc-row"><span class="ir-doc-name">Quarterly Returns Summary</span><span class="ir-doc-meta">PDF · Shared with all · Apr 15</span></div>
-      </div>
-
-      <!-- Investor AI Chat Logs -->
-      <div style="font-size:11px;letter-spacing:0.3em;text-transform:uppercase;font-weight:700;margin-bottom:16px;">Investor AI Q&A Activity</div>
-      <div id="ir-chat-logs"></div>
-
-      <div class="copyright-footer">© 2026 Bohio Systems LTD All Rights Reserved</div>
-    </div>
-
     <!-- ============ WORKFLOW 1 · LP & BOARD REPORTING ============ -->
     <div class="page wf-page" id="page-wf-reporting">
       <div class="section-header">
@@ -5764,24 +5480,24 @@
         Pull NOI, occupancy, WALE, valuations and distributions from scattered project models and asset data into one branded, source-traceable output — LP quarterly letters, board decks and fund fact sheets. Every figure links back to its model cell.
       </div>
 
-      <div class="wf-config" style="grid-template-columns:1fr 1fr 1fr auto;">
-        <div class="wf-field"><label>Fund / Vehicle</label>
-          <select id="wfr-fund">
-            <option>Bevilacqua Holdings — GP Portfolio</option>
-            <option>Meridian Capital Partners — JV/LP</option>
-            <option>Al-Harbi Development — Local JV</option>
-          </select>
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start;">
+        <!-- Report Assistant chatbot -->
+        <div class="wfr-chat">
+          <div class="wfr-chat-head"><span class="dot"></span><span class="t">Report Assistant · Karaya</span></div>
+          <div class="wfr-chat-log" id="wfr-chat-log">
+            <div class="k-msg bot">Hi Matteo — I build <em>LP quarterly reports</em>, <em>board decks</em> and <em>fund fact sheets</em> straight from your live models. Tell me <em>which report</em> you want, for <em>which fund &amp; period</em>, and in <em>what style</em>.<span class="k-meta">Karaya · just now</span></div>
+          </div>
+          <div class="wfr-chips" id="wfr-chips">
+            <button class="k-chip" onclick="wfrChip('Generate an LP quarterly report for Bevilacqua, Q1 2026, institutional style')">LP quarterly · institutional</button>
+            <button class="k-chip" onclick="wfrChip('Create a concise board deck for Meridian, Q1 2026')">Board deck · concise</button>
+            <button class="k-chip" onclick="wfrChip('Build a detailed fund fact sheet for Al-Harbi, Q4 2025')">Fact sheet · detailed</button>
+          </div>
+          <div class="fs-karaya-input">
+            <input type="text" id="wfr-input" placeholder="e.g. Q1 2026 LP report for Bevilacqua, formal institutional style" onkeypress="if(event.key==='Enter')wfrChatSend()" />
+            <button class="k-send" onclick="wfrChatSend()">Send</button>
+          </div>
         </div>
-        <div class="wf-field"><label>Reporting Period</label>
-          <select id="wfr-period"><option>Q1 2026</option><option>Q4 2025</option><option>Q3 2025</option></select>
-        </div>
-        <div class="wf-field"><label>Output Type</label>
-          <select id="wfr-type"><option>LP Quarterly Report</option><option>Board Deck</option><option>Fund Fact Sheet</option></select>
-        </div>
-        <button class="wf-run-btn" id="wfr-run" onclick="wfrRun()">Generate</button>
-      </div>
-
-      <div style="display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start;">
+        <!-- pipeline + sources -->
         <div>
           <div class="wf-pipeline" id="wfr-pipeline">
             <div class="chart-label">Generation Pipeline</div>
@@ -5801,10 +5517,11 @@
             </div>
           </div>
         </div>
-        <div id="wfr-output">
-          <div class="chart-card" style="text-align:center;padding:54px 20px;color:var(--ink-soft);font-size:11px;letter-spacing:0.06em;">
-            Select a fund and period, then press <strong style="color:var(--ink);">Generate</strong> to build the branded report.
-          </div>
+      </div>
+
+      <div id="wfr-output" style="margin-top:20px;">
+        <div class="chart-card" style="text-align:center;padding:54px 20px;color:var(--ink-soft);font-size:11px;letter-spacing:0.06em;">
+          Ask the assistant for the report you need — it will confirm the fund, period and style, then build it here.
         </div>
       </div>
       <div class="copyright-footer">© 2026 Bohio Systems LTD All Rights Reserved</div>
@@ -6083,401 +5800,6 @@ Tenure: Freehold · Vendor seeks Q3 2026 close</textarea>
     </div>
 
 
-    <!-- ===== CONTRACT HUB PAGE ===== -->
-    <div class="page workspace-page" id="page-ch" style="height:100%;overflow-y:auto;">
-      <div style="padding:28px 36px 60px;">
-        <!-- CH sub-navigation bar -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
-          <div style="display:flex;align-items:center;gap:16px;">
-            <div style="font-size:22px;letter-spacing:0.3em;text-transform:uppercase;font-weight:700;">Property Management</div>
-            <div style="font-size:8px;letter-spacing:0.25em;text-transform:uppercase;color:var(--ink-soft);">Contracts · Leases · CapEx</div>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button class="ch-action-btn" onclick="chToggleNotifications()" style="position:relative;">
-              Alerts
-              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--alert);margin-left:6px;vertical-align:middle;"></span>
-            </button>
-          </div>
-        </div>
-    <div class="ch-page ch-content-page" id="ch-page-dashboard">
-      <div style="padding: 32px 40px 60px;">
-        <!-- Stats row -->
-        <div class="ch-dash-stats">
-          <div class="ch-dash-stat">
-            <div class="ch-dash-stat-label">Total Documents</div>
-            <div class="ch-dash-stat-val">25</div>
-            <div class="ch-dash-stat-sub">Leases · Contracts · Amendments</div>
-          </div>
-          <div class="ch-dash-stat">
-            <div class="ch-dash-stat-label">Active Leases</div>
-            <div class="ch-dash-stat-val">12</div>
-            <div class="ch-dash-stat-sub">SAR 4.2M Annual Rent</div>
-          </div>
-          <div class="ch-dash-stat">
-            <div class="ch-dash-stat-label">Expiring ≤ 90 Days</div>
-            <div class="ch-dash-stat-val alert-color">4</div>
-            <div class="ch-dash-stat-sub">Action Required</div>
-          </div>
-          <div class="ch-dash-stat">
-            <div class="ch-dash-stat-label">Overdue Items</div>
-            <div class="ch-dash-stat-val alert-color">2</div>
-            <div class="ch-dash-stat-sub">Immediate Attention</div>
-          </div>
-          <div class="ch-dash-stat">
-            <div class="ch-dash-stat-label">Occupancy Rate</div>
-            <div class="ch-dash-stat-val green-color">87%</div>
-            <div class="ch-dash-stat-sub">Across Portfolio</div>
-          </div>
-        </div>
-
-        <!-- Expiry Timeline -->
-        <div class="ch-timeline-section">
-          <div class="ch-section-header">
-            <div class="ch-section-title">Expiry Timeline — 2026</div>
-            <div class="ch-section-meta">12-month view</div>
-          </div>
-          <div class="ch-timeline-bar">
-            <div class="ch-timeline-month" title="Jan — 0 events"><div class="fill" style="height:0%"></div></div>
-            <div class="ch-timeline-month" title="Feb — 1 renewal"><div class="fill" style="height:20%"></div></div>
-            <div class="ch-timeline-month" title="Mar — 0 events"><div class="fill" style="height:0%"></div></div>
-            <div class="ch-timeline-month" title="Apr — 1 expiry" style=""><div class="fill" style="height:25%"></div></div>
-            <div class="ch-timeline-month current has-alert" title="May — 3 deadlines"><div class="fill" style="height:60%"></div></div>
-            <div class="ch-timeline-month" title="Jun — 1 review"><div class="fill" style="height:20%"></div></div>
-            <div class="ch-timeline-month has-alert" title="Jul — 2 expiries"><div class="fill" style="height:45%"></div></div>
-            <div class="ch-timeline-month" title="Aug — 1 renewal"><div class="fill" style="height:20%"></div></div>
-            <div class="ch-timeline-month" title="Sep — 0 events"><div class="fill" style="height:0%"></div></div>
-            <div class="ch-timeline-month has-alert" title="Oct — 2 expiries"><div class="fill" style="height:40%"></div></div>
-            <div class="ch-timeline-month" title="Nov — 1 renewal"><div class="fill" style="height:20%"></div></div>
-            <div class="ch-timeline-month" title="Dec — 1 review"><div class="fill" style="height:25%"></div></div>
-          </div>
-          <div class="ch-timeline-labels">
-            <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
-            <span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
-          </div>
-        </div>
-
-        <!-- Recent activity -->
-        <div class="ch-section-header" style="margin-top:28px;">
-          <div class="ch-section-title">Recent Documents</div>
-          <div style="display:flex;gap:8px;">
-            <button class="ch-action-btn" onclick="chShowPage('leases')">View All</button>
-          </div>
-        </div>
-        <div class="ch-activity-table">
-          <div class="ch-activity-row thead">
-            <div></div>
-            <div>Document</div>
-            <div>Counterparty</div>
-            <div>Key Date</div>
-            <div>Status</div>
-            <div>Type</div>
-          </div>
-          <div class="ch-activity-row" onclick="chOpenDetail('lease-001')">
-            <div class="ch-row-icon">📄</div>
-            <div><div class="ch-row-name">Unit 4A — Al Rawdah Tower</div><div class="ch-row-sub">Commercial Lease · 240 sqm</div></div>
-            <div class="ch-row-party">Al Faisal Holdings</div>
-            <div class="ch-row-date overdue">29 Apr 2026</div>
-            <div><span class="ch-status-pill expired">Expired</span></div>
-            <div><span class="ch-type-pill">Lease</span></div>
-          </div>
-          <div class="ch-activity-row" onclick="chOpenDetail('lease-003')">
-            <div class="ch-row-icon">📄</div>
-            <div><div class="ch-row-name">Suite 12 — King Road Office</div><div class="ch-row-sub">Office Lease · 180 sqm</div></div>
-            <div class="ch-row-party">Jeddah Business Park</div>
-            <div class="ch-row-date soon">14 May 2026</div>
-            <div><span class="ch-status-pill expiring">Expiring</span></div>
-            <div><span class="ch-type-pill">Lease</span></div>
-          </div>
-          <div class="ch-activity-row">
-            <div class="ch-row-icon">🔧</div>
-            <div><div class="ch-row-name">HVAC Maintenance — Portfolio</div><div class="ch-row-sub">Annual Service Contract</div></div>
-            <div class="ch-row-party">CoolTech Arabia</div>
-            <div class="ch-row-date">28 May 2026</div>
-            <div><span class="ch-status-pill active">Active</span></div>
-            <div><span class="ch-type-pill">Contract</span></div>
-          </div>
-          <div class="ch-activity-row">
-            <div class="ch-row-icon">📄</div>
-            <div><div class="ch-row-name">Floor 3 — Tahlia Commercial</div><div class="ch-row-sub">Retail Lease · 520 sqm</div></div>
-            <div class="ch-row-party">Landmark Retail Co.</div>
-            <div class="ch-row-date">15 Jul 2026</div>
-            <div><span class="ch-status-pill active">Active</span></div>
-            <div><span class="ch-type-pill">Lease</span></div>
-          </div>
-          <div class="ch-activity-row">
-            <div class="ch-row-icon">📝</div>
-            <div><div class="ch-row-name">Rent Escalation Amendment</div><div class="ch-row-sub">Amendment #2 to Unit 7B Lease</div></div>
-            <div class="ch-row-party">Saudi Ventures</div>
-            <div class="ch-row-date">01 May 2026</div>
-            <div><span class="ch-status-pill renewed">Signed</span></div>
-            <div><span class="ch-type-pill">Amendment</span></div>
-          </div>
-          <div class="ch-activity-row">
-            <div class="ch-row-icon">🛡️</div>
-            <div><div class="ch-row-name">Property Insurance — Tawuniya</div><div class="ch-row-sub">Comprehensive Coverage Policy</div></div>
-            <div class="ch-row-party">Tawuniya Insurance</div>
-            <div class="ch-row-date soon">28 May 2026</div>
-            <div><span class="ch-status-pill expiring">Renew</span></div>
-            <div><span class="ch-type-pill">Insurance</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== LEASES PAGE ===== -->
-    <div class="ch-page ch-content-page" id="ch-page-leases">
-      <div style="padding: 32px 40px 60px;">
-        <div class="ch-section-header">
-          <div class="ch-section-title">Leases</div>
-          <div style="display:flex;gap:8px;">
-            <button class="ch-action-btn primary">+ New Lease</button>
-            <button class="ch-action-btn">Export</button>
-          </div>
-        </div>
-        <div class="ch-filter-bar">
-          <button class="ch-filter-chip active" onclick="chFilterLeases(this,'all')">All</button>
-          <button class="ch-filter-chip" onclick="chFilterLeases(this,'active')">Active</button>
-          <button class="ch-filter-chip" onclick="chFilterLeases(this,'expiring')">Expiring Soon</button>
-          <button class="ch-filter-chip" onclick="chFilterLeases(this,'expired')">Expired</button>
-          <input class="ch-search-input" placeholder="Search leases..." />
-        </div>
-        <div class="docs-grid" id="ch-leases-grid">
-          <!-- Lease cards rendered by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== CONTRACTS PAGE ===== -->
-    <div class="ch-page ch-content-page" id="ch-page-contracts">
-      <div style="padding: 32px 40px 60px;">
-        <div class="ch-section-header">
-          <div class="ch-section-title">Service Contracts</div>
-          <div style="display:flex;gap:8px;">
-            <button class="ch-action-btn primary">+ New Contract</button>
-          </div>
-        </div>
-        <div class="ch-filter-bar">
-          <button class="ch-filter-chip active">All</button>
-          <button class="ch-filter-chip">Maintenance</button>
-          <button class="ch-filter-chip">Security</button>
-          <button class="ch-filter-chip">Insurance</button>
-          <button class="ch-filter-chip">Cleaning</button>
-          <input class="ch-search-input" placeholder="Search contracts..." />
-        </div>
-        <div class="ch-contracts-grid" id="ch-contracts-grid">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== AMENDMENTS PAGE ===== -->
-    <div class="ch-page ch-content-page" id="ch-page-amendments">
-      <div style="padding: 32px 40px 60px;">
-        <div class="ch-section-header">
-          <div class="ch-section-title">Amendments & Addenda</div>
-          <button class="ch-action-btn primary">+ New Amendment</button>
-        </div>
-        <div class="ch-activity-table" id="ch-amendments-table">
-          <div class="ch-activity-row thead">
-            <div></div>
-            <div>Amendment</div>
-            <div>Parent Contract</div>
-            <div>Effective Date</div>
-            <div>Status</div>
-            <div>Type</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== DEADLINES PAGE ===== -->
-    <div class="ch-page ch-content-page" id="ch-page-deadlines">
-      <div style="padding: 32px 40px 60px;">
-        <div class="ch-section-header">
-          <div class="ch-section-title">Deadline Tracker</div>
-          <div style="display:flex;gap:8px;">
-            <button class="ch-action-btn">Export Calendar</button>
-            <button class="ch-action-btn primary">+ Add Deadline</button>
-          </div>
-        </div>
-        <div class="ch-filter-bar">
-          <button class="ch-filter-chip active">All</button>
-          <button class="ch-filter-chip">Overdue</button>
-          <button class="ch-filter-chip">This Month</button>
-          <button class="ch-filter-chip">Next 90 Days</button>
-          <input class="ch-search-input" placeholder="Search deadlines..." />
-        </div>
-        <div class="ch-deadlines-list" id="ch-deadlines-list">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== RENEWALS PAGE ===== -->
-    <div class="ch-page ch-content-page" id="ch-page-renewals">
-      <div style="padding: 32px 40px 60px;">
-        <div class="ch-section-header">
-          <div class="ch-section-title">Renewal Pipeline</div>
-          <div class="ch-section-meta">Upcoming renewals & options</div>
-        </div>
-        <div class="ch-activity-table" id="ch-renewals-table">
-          <div class="ch-activity-row thead">
-            <div></div>
-            <div>Document</div>
-            <div>Counterparty</div>
-            <div>Renewal Date</div>
-            <div>Status</div>
-            <div>Action</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== PARTIES PAGE ===== -->
-    <div class="ch-page ch-content-page" id="ch-page-parties">
-      <div style="padding: 32px 40px 60px;">
-        <div class="ch-section-header">
-          <div class="ch-section-title">Parties & Contacts</div>
-          <button class="ch-action-btn primary">+ Add Party</button>
-        </div>
-        <div class="ch-contracts-grid" id="ch-parties-grid">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== MAP PAGE ===== -->
-    <div class="ch-page ch-content-page" id="ch-page-map">
-      <div style="padding: 32px 40px 60px;">
-        <div class="ch-section-header">
-          <div class="ch-section-title">Portfolio Map — Jeddah</div>
-          <div style="display:flex;gap:8px;">
-            <button class="ch-filter-chip active" onclick="chMapFilter(this,'all')">All Properties</button>
-            <button class="ch-filter-chip" onclick="chMapFilter(this,'active')">Active</button>
-            <button class="ch-filter-chip" onclick="chMapFilter(this,'expiring')">Expiring</button>
-            <button class="ch-filter-chip" onclick="chMapFilter(this,'expired')">Expired</button>
-          </div>
-        </div>
-        <div class="ch-map-stats-bar">
-          <div class="ch-map-stat">
-            <div class="ch-map-stat-label">Properties</div>
-            <div class="ch-map-stat-val">6</div>
-          </div>
-          <div class="ch-map-stat">
-            <div class="ch-map-stat-label">Total GLA</div>
-            <div class="ch-map-stat-val">3,940</div>
-          </div>
-          <div class="ch-map-stat">
-            <div class="ch-map-stat-label">Annual Rent</div>
-            <div class="ch-map-stat-val">1.65M</div>
-          </div>
-          <div class="ch-map-stat">
-            <div class="ch-map-stat-label">Avg / sqm</div>
-            <div class="ch-map-stat-val">419</div>
-          </div>
-        </div>
-        <div class="ch-map-container" id="ch-map-container">
-          <!-- SVG map rendered by JS -->
-          <div class="ch-map-tooltip" id="ch-map-tooltip"></div>
-          <div class="ch-map-legend">
-            <div class="ch-map-legend-title">Status</div>
-            <div class="ch-map-legend-item"><div class="ch-map-legend-dot" style="background:#15803d;"></div> Active</div>
-            <div class="ch-map-legend-item"><div class="ch-map-legend-dot" style="background:#b45309;"></div> Expiring</div>
-            <div class="ch-map-legend-item"><div class="ch-map-legend-dot" style="background:var(--alert);"></div> Expired</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== DOCUMENTS PAGE ===== -->
-    <div class="ch-page ch-content-page" id="ch-page-documents">
-      <div style="padding: 32px 40px 60px;">
-        <div class="ch-section-header">
-          <div class="ch-section-title">Document Library</div>
-          <div style="display:flex;gap:8px;">
-            <button class="ch-action-btn primary">+ Upload</button>
-            <button class="ch-action-btn">Export All</button>
-          </div>
-        </div>
-        <div class="ch-filter-bar">
-          <button class="ch-filter-chip active">All</button>
-          <button class="ch-filter-chip">Leases</button>
-          <button class="ch-filter-chip">Service Contracts</button>
-          <button class="ch-filter-chip">Amendments</button>
-          <button class="ch-filter-chip">Insurance</button>
-          <input class="ch-search-input" placeholder="Search documents..." />
-        </div>
-        <div class="ch-docs-grid" id="ch-docs-grid">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== CAPEX PAGE ===== -->
-    <div class="ch-page ch-content-page" id="ch-page-capex">
-      <div style="padding: 32px 40px 60px;">
-        <div class="ch-section-header">
-          <div class="ch-section-title">Maintenance CapEx Tracker</div>
-          <div style="display:flex;gap:8px;">
-            <button class="ch-action-btn">Export Report</button>
-            <button class="ch-action-btn primary">+ Log Expense</button>
-          </div>
-        </div>
-
-        <!-- Summary cards -->
-        <div class="ch-capex-dashboard" id="ch-capex-summary">
-          <!-- Rendered by JS -->
-        </div>
-
-        <!-- Prediction cards -->
-        <div class="ch-section-header" style="margin-top:8px;">
-          <div class="ch-section-title">CapEx Forecast</div>
-          <div class="ch-section-meta">ML-predicted · based on asset age, condition & history</div>
-        </div>
-        <div class="ch-capex-prediction-row" id="ch-capex-predictions">
-          <!-- Rendered by JS -->
-        </div>
-
-        <!-- Chart: Budget vs Actual + Prediction -->
-        <div class="ch-capex-dashboard" style="margin-top:24px;">
-          <div class="ch-capex-card full-width">
-            <div class="ch-capex-card-title">
-              <span>Annual CapEx — Budget vs Actual vs Predicted</span>
-              <span style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.04em;color:var(--ink-soft);">FY2022 — FY2028E</span>
-            </div>
-            <div class="ch-capex-chart" id="ch-capex-chart-main">
-              <!-- SVG rendered by JS -->
-            </div>
-          </div>
-        </div>
-
-        <!-- Asset-level detail table -->
-        <div class="ch-section-header" style="margin-top:8px;">
-          <div class="ch-section-title">Asset-Level CapEx Log</div>
-          <div class="ch-section-meta">Last 12 months</div>
-        </div>
-        <table class="ch-capex-table" id="ch-capex-table">
-          <thead>
-            <tr>
-              <th>Asset</th>
-              <th>Category</th>
-              <th>Description</th>
-              <th>Cost (SAR)</th>
-              <th>Date</th>
-              <th>Next Predicted</th>
-              <th>Risk</th>
-            </tr>
-          </thead>
-          <tbody id="ch-capex-table-body">
-            <!-- Rendered by JS -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-      </div>
-    </div>
-
         <!-- MODEL EDITOR -->
     <div class="page" id="page-editor" style="height:100%;overflow:hidden;">
       <div class="model-editor">
@@ -6578,35 +5900,6 @@ Tenure: Freehold · Vendor seeks Q3 2026 close</textarea>
     </div>
   </div>
 
-</div>
-
-<!-- INVESTOR DETAIL -->
-<div class="investor-overlay" id="investor-overlay">
-  <div class="compare-topbar">
-    <span class="studio-title" id="inv-detail-name"></span>
-    <span class="studio-sub" id="inv-detail-role"></span>
-    <button class="action-btn" onclick="closeInvestorDetail()">Back to IR</button>
-    <button class="action-btn">Share Document</button>
-  </div>
-  <div class="investor-body">
-    <div class="investor-main">
-      <div style="display:flex;gap:24px;margin-bottom:28px;" id="inv-detail-stats"></div>
-      <div style="font-size:11px;letter-spacing:0.3em;text-transform:uppercase;font-weight:700;margin-bottom:14px;">Shared Documents</div>
-      <div id="inv-detail-docs" style="margin-bottom:32px;"></div>
-      <div style="font-size:11px;letter-spacing:0.3em;text-transform:uppercase;font-weight:700;margin-bottom:14px;">AI Q&A History</div>
-      <div id="inv-detail-chats"></div>
-    </div>
-    <div class="investor-karaya">
-      <div class="fs-col-head">Karaya</div>
-      <div class="fs-col-body" id="inv-karaya-msgs">
-        <div class="k-msg bot">Viewing investor profile. Ask me to generate reports, summarise Q&A activity, or draft communications.<span class="k-meta">Karaya</span></div>
-      </div>
-      <div class="fs-karaya-input">
-        <input type="text" id="inv-karaya-input" placeholder="Ask about this investor…" onkeypress="if(event.key==='Enter')invKarayaSend()" />
-        <button class="k-send" onclick="invKarayaSend()">Send</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- VERSION COMPARE -->
@@ -7187,19 +6480,13 @@ Tenure: Freehold · Vendor seeks Q3 2026 close</textarea>
       setActiveNav('nav-community');
       setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Community'}]);
       renderCommunity();
-    } else if(page==='analytics'){
-      document.getElementById('page-analytics').classList.add('active');
-      setActiveNav('nav-analytics');
-      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Portfolio Analytics'}]);
-    } else if(page==='ir'){
-      document.getElementById('page-ir').classList.add('active');
-      setActiveNav('nav-ir');
-      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Investor Relations'}]);
-      renderIRChatLogs();
     } else if(page==='wf-reporting'){
       document.getElementById('page-wf-reporting').classList.add('active');
       setActiveNav('nav-wf-reporting');
       setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'AI Workflows'},{label:'LP & Board Reporting'}]);
+      // This workflow has its own in-page Report Assistant — hide the global Karaya panel.
+      document.querySelector('.app-shell').classList.add('karaya-hidden');
+      document.getElementById('karaya-handle').style.display='none';
     } else if(page==='wf-debt'){
       document.getElementById('page-wf-debt').classList.add('active');
       setActiveNav('nav-wf-debt');
@@ -7208,39 +6495,6 @@ Tenure: Freehold · Vendor seeks Q3 2026 close</textarea>
       document.getElementById('page-wf-screening').classList.add('active');
       setActiveNav('nav-wf-screening');
       setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'AI Workflows'},{label:'Deal Screening'}]);
-    } else if(page==='ch-dashboard'){
-      document.getElementById('page-ch').classList.add('active');
-      document.getElementById('ch-subnav').style.display='block';
-      document.getElementById('pm-dropdown').style.display='block';
-      document.getElementById('pm-arrow').style.transform='rotate(90deg)';
-      setActiveNav('nav-pm-contracts');
-      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Property Management'},{label:'Contracts Hub'}]);
-      chShowPage(chCurrentSubPage || 'dashboard');
-      if (!window.chInitialized) { chInitAll(); window.chInitialized = true; }
-    } else if(page==='pm-procurement'){
-      document.getElementById('page-ch').classList.add('active');
-      document.getElementById('pm-dropdown').style.display='block';
-      document.getElementById('pm-arrow').style.transform='rotate(90deg)';
-      setActiveNav('nav-pm-procurement');
-      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Property Management'},{label:'Procurement'}]);
-      chShowPage('contracts');
-      if (!window.chInitialized) { chInitAll(); window.chInitialized = true; }
-    } else if(page==='pm-fin-report'){
-      document.getElementById('page-ch').classList.add('active');
-      document.getElementById('pm-dropdown').style.display='block';
-      document.getElementById('pm-arrow').style.transform='rotate(90deg)';
-      setActiveNav('nav-pm-fin-report');
-      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Property Management'},{label:'Financial Reporting'}]);
-      chShowPage('dashboard');
-      if (!window.chInitialized) { chInitAll(); window.chInitialized = true; }
-    } else if(page==='pm-forecasting'){
-      document.getElementById('page-ch').classList.add('active');
-      document.getElementById('pm-dropdown').style.display='block';
-      document.getElementById('pm-arrow').style.transform='rotate(90deg)';
-      setActiveNav('nav-pm-forecasting');
-      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Property Management'},{label:'Forecasting'}]);
-      chShowPage('capex');
-      if (!window.chInitialized) { chInitAll(); window.chInitialized = true; }
     } else if(page==='workspace'){
       document.getElementById('page-workspace').classList.add('active');
       document.getElementById('ws-subnav').style.display='block';
@@ -9823,23 +9077,75 @@ Tenure: Freehold · Vendor seeks Q3 2026 close</textarea>
     'Al-Harbi Development — Local JV':{nav:'132.0',noi:'9.6',occ:'95.2%',wale:'6.0 yrs',val:'176.4',dist:'4.1',irr:'19.1%',moic:'1.41x',yoc:'7.6%',dscr:'2.41x',
       assets:[['Olaya Block','176.4','96.2%','6.0 yrs','9.6']]},
   };
-  function wfrRun(){
-    const fund=document.getElementById('wfr-fund').value;
-    const period=document.getElementById('wfr-period').value;
-    const type=document.getElementById('wfr-type').value;
-    const btn=document.getElementById('wfr-run');
-    document.getElementById('wfr-output').innerHTML='<div class="chart-card" style="text-align:center;padding:54px 20px;color:var(--ink-soft);font-size:11px;letter-spacing:0.06em;">Building report…</div>';
-    wfRunPipeline(document.getElementById('wfr-pipeline'), btn, 'Generating', 'Regenerate', ()=>wfrRender(fund,period,type));
+  // -- Report Assistant chatbot --
+  function wfrChatPush(role, html){
+    const log=document.getElementById('wfr-chat-log');
+    const m=document.createElement('div');
+    m.className='k-msg '+role;
+    m.innerHTML = html + (role==='bot' ? '<span class="k-meta">Karaya · just now</span>' : '');
+    log.appendChild(m);
+    log.scrollTop=log.scrollHeight;
+    return m;
   }
-  function wfrRender(fund,period,type){
+  function wfrChip(text){
+    document.getElementById('wfr-input').value=text;
+    wfrChatSend();
+  }
+  function wfrParse(q){
+    const t=q.toLowerCase();
+    let fund='Bevilacqua Holdings — GP Portfolio';
+    if(/meridian|lp\b/.test(t)) fund='Meridian Capital Partners — JV/LP';
+    else if(/harbi|local\s*jv/.test(t)) fund='Al-Harbi Development — Local JV';
+    let type='LP Quarterly Report';
+    if(/board\s*deck|board/.test(t)) type='Board Deck';
+    else if(/fact\s*sheet|factsheet|fact-sheet/.test(t)) type='Fund Fact Sheet';
+    let period='Q1 2026';
+    const pm=t.match(/q([1-4])\s*'?\s*(20\d{2})/);
+    if(pm) period='Q'+pm[1]+' '+pm[2];
+    else if(/q4\b/.test(t)) period='Q4 2025';
+    else if(/q3\b/.test(t)) period='Q3 2025';
+    let style='Institutional / Formal';
+    if(/concise|short|brief|summary|board/.test(t)) style='Concise / Board';
+    else if(/detailed|comprehensive|data|in-?depth|granular/.test(t)) style='Detailed / Data-rich';
+    else if(/institutional|formal/.test(t)) style='Institutional / Formal';
+    return {fund,period,type,style};
+  }
+  function wfrChatSend(){
+    const input=document.getElementById('wfr-input');
+    const q=input.value.trim();
+    if(!q) return;
+    wfrChatPush('user', q);
+    input.value='';
+    const spec=wfrParse(q);
+    const fundShort=spec.fund.split(' — ')[0];
+    // typing indicator
+    const typing=wfrChatPush('bot','<span class="wfr-typing"><span></span><span></span><span></span></span>');
+    setTimeout(()=>{
+      typing.remove();
+      wfrChatPush('bot', `Understood — generating a <em>${spec.style}</em> <em>${spec.type}</em> for <em>${fundShort}</em>, <em>${spec.period}</em>. Pulling NOI, occupancy, WALE, valuations &amp; distributions from the linked models now — watch the pipeline on the right.`);
+      document.getElementById('wfr-output').innerHTML='<div class="chart-card" style="text-align:center;padding:54px 20px;color:var(--ink-soft);font-size:11px;letter-spacing:0.06em;">Building report…</div>';
+      wfRunPipeline(document.getElementById('wfr-pipeline'), null, '', '', ()=>{
+        wfrRender(spec.fund, spec.period, spec.type, spec.style);
+        wfrChatPush('bot', `Done — your ${spec.type.toLowerCase()} is rendered below. Every figure traces to a source-model cell. Want a different style, period, or a board-deck version?`);
+      });
+    }, 750);
+  }
+  function wfrRender(fund,period,type,style){
+    style = style || 'Institutional / Formal';
     const d=WFR_DATA[fund];
+    // style tailors the manager commentary
+    const commentary = {
+      'Institutional / Formal':`Portfolio NOI grew on the back of contractual indexation and successful lease renewals, lifting weighted occupancy to ${d.occ}. Valuations held firm despite outward yield pressure, supported by income growth. The manager continues to monitor near-term debt maturities and refinancing windows — see the Debt &amp; Covenants workflow for detail.`,
+      'Concise / Board':`NOI up YoY on indexation and renewals; occupancy ${d.occ}. Valuations stable. Watch items: near-term maturities and one covenant headroom flag. No action required from the board this quarter.`,
+      'Detailed / Data-rich':`Portfolio NOI grew on contractual CPI indexation (avg. +4.1%) and three lease renewals, lifting weighted occupancy to ${d.occ} and extending WALE to ${d.wale}. Valuations held firm despite a 15&nbsp;bps outward shift in prime yields, fully offset by income growth; the Knight Frank valuation reconciles to the asset models within tolerance. Net IRR of ${d.irr} and a ${d.dscr} DSCR leave comfortable covenant headroom outside the Rawdah facility, which is flagged in the Debt &amp; Covenants workflow.`,
+    }[style];
     const rows=d.assets.map(a=>`<tr><td style="font-weight:700;">${a[0]}</td><td class="num">${a[1]}</td><td class="num">${a[2]}</td><td class="num">${a[3]}</td><td class="num">${a[4]}</td></tr>`).join('');
     document.getElementById('wfr-output').innerHTML=`
     <div class="wf-doc wf-fade">
       <div class="wf-doc-head">
         <div class="wf-doc-kicker">Bohio · ${type}</div>
         <div class="wf-doc-title">${fund}</div>
-        <div class="wf-doc-sub">${period} · Confidential — for Limited Partners only</div>
+        <div class="wf-doc-sub">${period} · ${style} · Confidential — for Limited Partners only</div>
       </div>
       <div class="wf-doc-body">
         <h4>Fund Snapshot</h4>
@@ -9863,8 +9169,8 @@ Tenure: Freehold · Vendor seeks Q3 2026 close</textarea>
         </table>
         <h4>Distributions</h4>
         <p>A distribution of <strong>SAR ${d.dist}M</strong> was declared for ${period}, reflecting stable in-place cash flow and CPI-linked rental uplifts across the portfolio. Capital accounts and waterfall allocations have been reconciled to the fund ledger.</p>
-        <h4>Manager Commentary <span class="wf-tag">AI draft · review before send</span></h4>
-        <p>Portfolio NOI grew on the back of contractual indexation and successful lease renewals, lifting weighted occupancy to ${d.occ}. Valuations held firm despite outward yield pressure, supported by income growth. The manager continues to monitor near-term debt maturities and refinancing windows — see the Debt &amp; Covenants workflow for detail.</p>
+        <h4>Manager Commentary <span class="wf-tag">${style} · AI draft · review before send</span></h4>
+        <p>${commentary}</p>
       </div>
       <div class="wf-doc-foot">Generated by Bohio · ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})} · Every figure traces to a source model cell. Draft — partner sign-off required before distribution.</div>
     </div>`;
