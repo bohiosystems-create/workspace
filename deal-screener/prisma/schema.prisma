@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Deal {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  assetName  String
+  assetType  String?
+  location   String?
+  fund       String
+  verdict    String // PASS | REVIEW | FAIL
+  extracted  String // JSON string of the extracted figures
+  underwrite String // JSON string of the computed underwrite + hurdle results
+  memo       String // markdown IC memo
+}
