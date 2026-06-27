@@ -10,7 +10,10 @@ and a tiny zero-dependency server wires the AI features to a real Claude model.
 
 ## What's in the demo
 
-- **Workspace home** — Karaya AI command bar, models & template library, tasks.
+- **Workspace home** — a Karaya AI command bar that answers questions about
+  *anything in the workspace*: any project, document, financial model, template,
+  fund/LP, incoming deal, stakeholder, capital stack, budget or negotiation. It
+  grounds every answer in the app's actual data, with follow-up memory.
 - **AI Deal Screening** — screens an incoming deal against the firm's investment
   mandate (nine criteria), animates a fit gauge, and returns a committee-ready
   PROCEED / REVIEW / PASS verdict. Includes an **IC Memo generator**.

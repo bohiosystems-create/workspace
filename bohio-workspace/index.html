@@ -15152,22 +15152,131 @@ Reply as the agent:`;
     document.getElementById('contact-sales-form').style.display = 'block';
   }
 
-  function landingKarayaSend() {
+  // ===== Homepage Karaya — workspace-wide AI chat =========================
+  // Karaya on the home screen can answer questions about anything in the
+  // workspace: any project, document, model, fund, deal, stakeholder, task or
+  // negotiation. We assemble a compact snapshot of the app's data and hand it
+  // to the model as grounding context, then keep a short rolling history so
+  // follow-up questions work.
+  var LANDING_KARAYA_HISTORY = [];
+  var _KARAYA_CTX_CACHE = null;
+
+  function _kjson(v, max) {
+    if (v == null) return null;
+    try {
+      var s = JSON.stringify(v, function (k, val) { return typeof val === 'function' ? undefined : val; });
+      if (!s) return null;
+      if (s.length > max) s = s.slice(0, max) + '…(truncated)';
+      return s;
+    } catch (e) { return null; }
+  }
+
+  // Build (once) a grounding snapshot from the in-app data structures. Each
+  // section is size-capped and wrapped in a guard so a missing/renamed dataset
+  // never breaks the chat.
+  function buildWorkspaceContext() {
+    if (_KARAYA_CTX_CACHE) return _KARAYA_CTX_CACHE;
+    var V = function (name) { try { return eval('typeof ' + name + " !== 'undefined' ? " + name + ' : null'); } catch (e) { return null; } };
+    var sections = [
+      ['PROJECTS (id → name, location, lead, phase, team, description, documents)', V('P'), 6000],
+      ['MY MODELS (financial models: type, name, version, last updated, notes)', V('MY_MODELS'), 2600],
+      ['TEMPLATE LIBRARY (prebuilt models: category, name, description, tabs)', V('TEMPLATES'), 2600],
+      ['FUNDS & LPs / INVESTORS (committed & drawn capital, stats, documents)', V('INVESTOR_DATA'), 3000],
+      ['INVESTMENT MANDATE', V('MANDATE'), 1200],
+      ['INCOMING DEALS being screened', V('DEALS'), 2600],
+      ['STAKEHOLDER ORGANISATIONS (name, role, location, GAV, IRR)', V('ORGS'), 1800],
+      ['AI AGENTS in the workspace (who each represents and its scope)', V('AGENTS'), 2400],
+      ['STAKEHOLDERS BY PROJECT', V('STAKEHOLDERS'), 1600],
+      ['CAPITAL STACK BY PROJECT (sources & uses, tranches)', V('CAP_STACK'), 1800],
+      ['GOVERNANCE BY PROJECT (IC, approval matrix, fees)', V('GOVERNANCE'), 1800],
+      ['PROJECT ERP / COST LEDGER (budget vs committed vs actual)', V('PROJECT_ERP'), 1600],
+      ['OPEN NEGOTIATION TOPICS (positions across parties)', V('NEGOTIATION_TOPICS'), 2400],
+      ['DAILY PROJECT BRIEFS (priorities & action items)', V('PROJECT_BRIEFS'), 2000],
+      ['DOCUMENTS — leases, service contracts & amendments', V('documents'), 2600],
+      ['CONTRACT PARTIES / COUNTERPARTIES', V('parties'), 1200],
+      ['INVESTOR-RELATIONS CHATS (LP Q&A history)', V('IR_CHATS'), 1600],
+      ['COMMUNITY POSTS (shared models & tips)', V('COMMUNITY_POSTS'), 1400],
+    ];
+    var out = [], total = 0, CAP = 26000;
+    for (var i = 0; i < sections.length; i++) {
+      var label = sections[i][0], data = sections[i][1], max = sections[i][2];
+      var s = _kjson(data, max);
+      if (!s || s === 'null' || s === '{}' || s === '[]') continue;
+      var block = '### ' + label + '\n' + s;
+      if (total + block.length > CAP) continue;
+      out.push(block); total += block.length;
+    }
+    _KARAYA_CTX_CACHE = out.join('\n\n');
+    return _KARAYA_CTX_CACHE;
+  }
+
+  // Lightweight formatter: escape, then allow **bold**, bullets and paragraphs.
+  function fmtKaraya(text) {
+    var esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+    var lines = String(text || '').replace(/\r/g, '').split('\n');
+    var html = '', list = null;
+    var inline = function (t) { return esc(t).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>'); };
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i].trim();
+      if (!ln) { if (list) { html += list + '</ul>'; list = null; } continue; }
+      var m = ln.match(/^[-•*]\s+(.*)$/) || ln.match(/^\d+[.)]\s+(.*)$/);
+      if (m) { if (list === null) list = '<ul style="margin:4px 0 4px 16px;padding:0;">'; list += '<li style="margin:3px 0;">' + inline(m[1]) + '</li>'; }
+      else { if (list) { html += list + '</ul>'; list = null; } html += '<div style="margin:5px 0;">' + inline(ln) + '</div>'; }
+    }
+    if (list) html += list + '</ul>';
+    return html;
+  }
+
+  async function landingKarayaSend() {
     const input = document.getElementById('landing-karaya-input');
-    const q = input.value.trim();
+    const q = (input.value || '').trim();
     if (!q) return;
     const msgs = document.getElementById('landing-karaya-msgs');
+
     const userMsg = document.createElement('div');
     userMsg.style.cssText = 'padding:10px 14px;font-size:11px;letter-spacing:0.03em;line-height:1.65;background:var(--ink);color:var(--bg);align-self:flex-end;max-width:80%;';
     userMsg.textContent = q;
     msgs.appendChild(userMsg);
     input.value = '';
-    setTimeout(() => {
-      const bot = document.createElement('div');
-      bot.style.cssText = 'padding:10px 14px;font-size:11px;letter-spacing:0.03em;line-height:1.65;background:rgba(0,9,25,0.05);color:var(--ink);border:1px solid var(--ink-hairline);align-self:flex-start;max-width:80%;';
-      bot.innerHTML = 'I\'m on it. Let me pull the relevant data and get back to you with what you need.<span style="display:block;font-size:7px;letter-spacing:0.25em;text-transform:uppercase;color:var(--ink-soft);margin-top:8px;">Karaya · just now</span>';
-      msgs.appendChild(bot);
-    }, 600);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    // typing indicator
+    const bot = document.createElement('div');
+    bot.style.cssText = 'padding:10px 14px;font-size:11px;letter-spacing:0.03em;line-height:1.65;background:rgba(0,9,25,0.05);color:var(--ink);border:1px solid var(--ink-hairline);align-self:flex-start;max-width:80%;';
+    bot.innerHTML = '<span style="opacity:0.55;">Karaya is reading your workspace…</span>';
+    msgs.appendChild(bot);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    const history = LANDING_KARAYA_HISTORY.slice(-6)
+      .map(m => (m.role === 'user' ? 'User: ' : 'Karaya: ') + m.text).join('\n');
+
+    const prompt =
+`You are Karaya, the AI analyst embedded in Bohio Workspace — an institutional real-estate investment platform used by Matteo Bevilacqua's firm. You can see the firm's entire workspace and answer any question about any project, document, financial model, template, fund/LP, incoming deal, stakeholder, capital stack, governance item, budget, negotiation, brief or contract.
+
+Answer using the WORKSPACE DATA below as your source of truth. Be specific: cite the actual names, figures, dates, statuses and parties from the data. Keep it concise and conversational (2-6 sentences, or a short bulleted list when comparing items). Use plain text; you may use **bold** for key figures. If the answer genuinely isn't in the data, say what you do have and where in the workspace they'd find the rest — don't invent facts.
+
+===== WORKSPACE DATA =====
+${buildWorkspaceContext()}
+===== END WORKSPACE DATA =====
+${history ? '\nConversation so far:\n' + history + '\n' : ''}
+User's question: "${q}"
+
+Answer as Karaya:`;
+
+    let answer = '';
+    try {
+      answer = await window.claude.complete(prompt);
+    } catch (e) { answer = ''; }
+    if (!answer || !answer.trim()) {
+      answer = "I couldn't reach the analysis engine just now. Live answers need the demo server running with an ANTHROPIC_API_KEY set — once that's on, I can pull from any project, document, model or fund in the workspace. In the meantime, try the quick actions below or open a project from the sidebar.";
+    }
+
+    LANDING_KARAYA_HISTORY.push({ role: 'user', text: q });
+    LANDING_KARAYA_HISTORY.push({ role: 'karaya', text: answer });
+
+    bot.innerHTML = fmtKaraya(answer) +
+      '<span style="display:block;font-size:7px;letter-spacing:0.25em;text-transform:uppercase;color:var(--ink-soft);margin-top:8px;">Karaya · just now</span>';
+    msgs.scrollTop = msgs.scrollHeight;
   }
 
   function selectPlan(el, plan) {
