@@ -722,13 +722,17 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
               <span class="num">01</span><span class="t">Summarise</span>
               <span class="s">Karaya reads the OM and distils the opportunity into a short briefing.</span>
             </button>
-            <button class="opp-act" onclick="oppDeliverable()">
-              <span class="num">02</span><span class="t">Generate Deliverable</span>
-              <span class="s">Draft an investment-committee memo, ready to circulate.</span>
+            <button class="opp-act primary" onclick="oppBuildModel()">
+              <span class="num">02</span><span class="t">Build Financial Model →</span>
+              <span class="s">Karaya reads the brief end-to-end and builds a full base-case model — cashflow, returns and sensitivity.</span>
             </button>
             <button class="opp-act primary" onclick="oppScreen()">
               <span class="num">03</span><span class="t">Screen with AI →</span>
               <span class="s">Score it against your mandate for a PROCEED / PASS verdict.</span>
+            </button>
+            <button class="opp-act" onclick="oppDeliverable()">
+              <span class="num">04</span><span class="t">Generate IC Memo</span>
+              <span class="s">Draft an investment-committee memo, ready to circulate.</span>
             </button>
           </div>
           <div class="opp-result" id="opp-result"></div>
@@ -774,6 +778,88 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
       if (typeof window.screenDeal === 'function') window.screenDeal();
     }, 120);
   };
+
+  // Build a base-case financial model straight from the opportunity brief:
+  // an animated build, then a grounded model read-out (outputs, cashflow,
+  // sensitivity) derived from the deal's own figures. Works for any deal.
+  window.oppBuildModel = async function () {
+    const host = document.getElementById('opp-result'); if (!host) return;
+    const d = DEALS[currentDeal]; if (!d) return;
+    const steps = [
+      'Reading the brief — programme, GFA splits and tenure',
+      'Building the cost stack — land, hard, soft, financing',
+      'Wiring the base-case cashflow (development → stabilised)',
+      'Mapping the brief’s assumptions into the model',
+      'Running returns — levered IRR, equity multiple, peak equity',
+      'Generating the sensitivity grid — exit yield × delivery',
+      'Finalising the workbook',
+    ];
+    host.innerHTML = `<div class="opp-sumcard"><div class="h"><span class="dot"></span>Karaya is building the model · ${esc(d.name)}</div>
+      <div style="margin-top:10px;">
+        <div id="opp-build-step" style="font-size:12px;color:var(--ink-soft);letter-spacing:0.02em;margin-bottom:10px;">${esc(steps[0])}</div>
+        <div style="height:4px;background:var(--ink-hairline);overflow:hidden;"><div id="opp-build-fill" style="height:100%;width:0%;background:var(--ink);transition:width .5s ease;"></div></div>
+      </div></div>`;
+    host.scrollIntoView({ block: 'nearest' });
+
+    // In parallel with the animation, ask the model (if available) for a one-line
+    // base-case read; falls back to the deal's own headline if AI is offline.
+    let insight = (d.fallback && d.fallback.headline) || '';
+    const aiPromise = (async () => {
+      try {
+        const prompt = `You are Karaya building a base-case real-estate financial model from this brief. In ONE sentence (max 26 words), state the base-case investment read — the headline return and the single biggest assumption the model hinges on. Plain text.\n\nBRIEF: ${d.text}`;
+        const r = await window.claude.complete({ messages: [{ role: 'user', content: prompt }] });
+        if (r && r.trim()) insight = r.trim().replace(/\*\*/g, '').replace(/\s+/g, ' ');
+      } catch (e) {}
+    })();
+
+    const stepEl = document.getElementById('opp-build-step');
+    const fillEl = document.getElementById('opp-build-fill');
+    let i = 0;
+    await new Promise((resolve) => {
+      const t = setInterval(() => {
+        i++;
+        if (i < steps.length) { stepEl.textContent = steps[i]; fillEl.style.width = ((i / steps.length) * 100) + '%'; }
+        else { fillEl.style.width = '100%'; stepEl.textContent = 'Model built · workbook ready'; clearInterval(t); resolve(); }
+      }, 600);
+    });
+    await aiPromise;
+    renderOppModel(host, d, insight);
+  };
+
+  function renderOppModel(host, d, insight) {
+    const F = {}; (d.facts || []).forEach(f => { F[f[0]] = f[1]; });
+    const cells = [['GDV', F['GDV']], ['Equity', F['Equity']], ['Base IRR', F['Base IRR']],
+      ['Equity multiple', F['Equity multiple']], ['LTV', F['LTV']], ['Hold', F['Hold']]].filter(c => c[1]);
+    const yrs = Math.max(3, Math.min(6, parseInt(F['Hold'], 10) || 5));
+    // development years draw equity (negative), then income builds, exit spike in the final year
+    const bars = [];
+    for (let y = 1; y <= yrs; y++) {
+      const v = y <= 2 ? -1 : (y === yrs ? 3 : 1);
+      const h = 16 + Math.abs(v) * 15;
+      bars.push(`<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;height:100%;">
+        <div style="width:78%;height:${h}px;background:${v >= 0 ? 'var(--ink)' : 'rgba(0,9,25,0.22)'};"></div>
+        <span style="font-size:8px;color:var(--ink-soft);">Y${y}</span></div>`);
+    }
+    const tabs = ['Assumptions', 'Cost Build-Up', 'Cashflow', 'Returns', 'Sensitivity', 'Equity Waterfall'];
+    const flag = (d.fallback && (d.fallback.flags || [])[0]) || '';
+    host.innerHTML = `<div class="opp-sumcard">
+      <div class="h"><span class="dot"></span>Financial model built · ${esc(d.name)}</div>
+      <p style="margin:6px 0 14px;font-size:12px;color:var(--ink-soft);line-height:1.6;">${esc(insight)}</p>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+        ${tabs.map(t => `<span style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;border:1px solid var(--ink-hairline);padding:5px 9px;color:var(--ink-soft);">${t}</span>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--ink-hairline);border:1px solid var(--ink-hairline);margin-bottom:18px;">
+        ${cells.map(c => `<div style="background:var(--paper);padding:12px 14px;"><div style="font-family:var(--font-display);font-size:22px;line-height:1;">${esc(c[1])}</div><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-top:6px;">${esc(c[0])}</div></div>`).join('')}
+      </div>
+      <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;">Base-case cashflow · equity in → income → exit</div>
+      <div style="display:flex;align-items:flex-end;gap:8px;height:84px;margin-bottom:18px;">${bars.join('')}</div>
+      ${flag ? `<div style="border-left:3px solid var(--alert);padding:9px 12px;background:rgba(255,77,106,0.06);font-size:11px;color:var(--ink);line-height:1.55;margin-bottom:18px;"><span style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);display:block;margin-bottom:4px;">Karaya tagged for review</span>${esc(flag)}</div>` : ''}
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <button class="dm-btn" onclick="oppScreen()">Screen against mandate →</button>
+        <button class="dm-btn ghost" onclick="oppDeliverable()">Generate IC memo</button>
+      </div></div>`;
+    host.scrollIntoView({ block: 'nearest' });
+  }
 
   /* ===================== FUNDS & STAKEHOLDERS ===================== */
   let currentFund = null;
