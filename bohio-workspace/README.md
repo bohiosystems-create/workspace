@@ -56,6 +56,37 @@ The server reads `ANTHROPIC_API_KEY` from, in order of precedence:
 settings: `ANTHROPIC_MODEL` (default `claude-opus-4-8`) and `PORT` (default
 `5173`). See `.env.example`.
 
+## Deploy to Vercel
+
+This folder is Vercel-ready. The static files (`index.html`, `assets/`,
+`studio/`) are served as-is, and the two server-side routes run as serverless
+functions in `api/` (no `server.mjs` needed in the cloud):
+
+- `api/complete.js` → `POST /api/complete` (the AI proxy; key stays server-side)
+- `api/vendor/[...path].js` → `/vendor/*` (proxies React/ReactDOM/Babel for the
+  studio dashboards; `vercel.json` rewrites `/vendor/*` onto it)
+- `api/health.js` → `GET /api/health`
+
+**Steps**
+
+1. Push this repo to GitHub (already done if you're reading this on the branch).
+2. In Vercel: **Add New → Project → Import** your repo.
+3. **Set the Root Directory to `bohio-workspace`.** (The repo root holds other
+   projects; this step is required.)
+4. Framework preset: **Other**. No build command. Output is automatic.
+5. **Environment Variables →** add `ANTHROPIC_API_KEY` = your key (and
+   optionally `ANTHROPIC_MODEL`). Apply to Production + Preview.
+6. **Deploy.** When it's live, open `/api/health` — `"ai": true` confirms the
+   key is wired. Then open the site and try the homepage Karaya chat.
+
+Local `node server.mjs` still works unchanged — the `api/` functions are only
+used by Vercel.
+
+> ⚠️ **Protect your key on a public URL.** The AI route uses your Anthropic key
+> with no authentication, so anyone with the link can spend your credits. Set a
+> monthly spend limit on the key in the Anthropic console, and/or add a simple
+> password gate before sharing the URL widely.
+
 Check `GET /api/health` to confirm whether live AI is on:
 
 ```json
