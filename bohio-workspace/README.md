@@ -124,7 +124,7 @@ bohio-workspace/
 │   │   ├── claude.js         # window.claude.complete bridge
 │   │   ├── client-demos.js   # screening / funds / IC-memo demo logic
 │   │   └── image-slot.js     # <image-slot> web component
-│   └── fonts/                # Space Grotesk (woff2)
+│   └── fonts/                # Dallas Light (display) + Space Grotesk (body), woff2
 ├── studio/                # six Model-Studio dashboards (iframed)
 └── studio-vendor/         # React/ReactDOM/Babel cache (generated, gitignored)
 ```
