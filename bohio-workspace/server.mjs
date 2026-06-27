@@ -6,27 +6,57 @@
    • Exposes POST /api/complete which proxies to the Anthropic Messages API,
      giving the demo's AI features (deal screening, IC memos, agent chats,
      negotiation room, …) real Claude responses.
+   • Caches the studio dashboards' React/ReactDOM/Babel libraries under
+     /vendor so they render on any internet-connected machine and then keep
+     working fully offline (no third-party CDN dependency at runtime).
 
    Run:
-     ANTHROPIC_API_KEY=sk-ant-... node server.mjs
+     # put your key in a .env file (ANTHROPIC_API_KEY=sk-ant-...), then:
+     node server.mjs
+     # or pass it inline:  ANTHROPIC_API_KEY=sk-ant-... node server.mjs
      # then open http://localhost:5173
 
    Without a key the server still serves the UI; AI calls return 503 and the
    app uses its built-in fallback responses, so the demo stays fully usable.
    ========================================================================== */
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, writeFile, stat, mkdir } from 'node:fs/promises';
+import { existsSync, readFileSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
+
+// ---- .env loading (zero-dependency) --------------------------------------
+// Loads KEY=VALUE pairs from a local .env file without overriding anything
+// already present in the real environment. Keeps the Anthropic API key out of
+// the source tree and off the command line.
+function loadDotEnv(file) {
+  if (!existsSync(file)) return;
+  let raw;
+  try { raw = readFileSync(file, 'utf8'); } catch { return; }
+  for (const line of raw.split(/\r?\n/)) {
+    const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!m) continue;
+    let [, k, v] = m;
+    if (k.startsWith('#')) continue;
+    v = v.replace(/^\s*['"]?/, '').replace(/['"]?\s*$/, ''); // strip optional quotes
+    if (process.env[k] === undefined) process.env[k] = v;
+  }
+}
+loadDotEnv(join(ROOT, '.env'));
+
 const PORT = Number(process.env.PORT) || 5173;
 
 const API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
 const API_URL = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com') + '/v1/messages';
+
+// Where vendored CDN libraries (React/ReactDOM/Babel) get cached on first load.
+const VENDOR_DIR = join(ROOT, 'studio-vendor');
+const VENDOR_UPSTREAM = process.env.VENDOR_UPSTREAM || 'https://unpkg.com';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -106,6 +136,36 @@ async function handleComplete(req, res) {
   }
 }
 
+// ---- /vendor: cache React/ReactDOM/Babel for the studio dashboards --------
+// The dashboards request e.g. /vendor/react@18.3.1/umd/react.production.min.js.
+// We serve it from disk if cached, otherwise fetch the exact bytes from the
+// upstream CDN once, cache them, and serve. The bytes are unchanged, so the
+// dashboards' Subresource Integrity (SRI) hashes still validate. After the
+// first online load the dashboards work with no network at all.
+async function handleVendor(req, res, urlPath) {
+  const rel = decodeURIComponent(urlPath.replace(/^\/vendor\//, '').split('?')[0]);
+  if (!rel || rel.includes('..')) return send(res, 400, 'bad vendor path');
+  const safe = rel.replace(/[^A-Za-z0-9._@/-]/g, '_');
+  const cachePath = join(VENDOR_DIR, safe);
+  const type = MIME[extname(rel).toLowerCase()] || 'application/javascript';
+  // serve from cache
+  try {
+    const buf = await readFile(cachePath);
+    return send(res, 200, buf, { 'Content-Type': type, 'Cache-Control': 'public, max-age=31536000, immutable' });
+  } catch {}
+  // fetch from upstream and cache
+  try {
+    const up = await fetch(VENDOR_UPSTREAM + '/' + rel);
+    if (!up.ok) return send(res, 502, 'vendor upstream ' + up.status);
+    const buf = Buffer.from(await up.arrayBuffer());
+    try { await mkdir(dirname(cachePath), { recursive: true }); await writeFile(cachePath, buf); } catch {}
+    return send(res, 200, buf, { 'Content-Type': type, 'Cache-Control': 'public, max-age=31536000, immutable' });
+  } catch (err) {
+    console.error('vendor fetch failed for', rel, '-', err.message);
+    return send(res, 504, 'vendor fetch failed (no network?): ' + rel);
+  }
+}
+
 async function serveStatic(req, res, urlPath) {
   let rel = decodeURIComponent(urlPath.split('?')[0]);
   if (rel === '/' || rel === '') rel = '/index.html';
@@ -137,6 +197,7 @@ const server = createServer(async (req, res) => {
         { 'Content-Type': 'application/json' });
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
+    if (url.pathname.startsWith('/vendor/')) return handleVendor(req, res, url.pathname);
     return serveStatic(req, res, url.pathname);
   } catch (err) {
     console.error(err);
