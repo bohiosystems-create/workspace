@@ -1,0 +1,13 @@
+{
+  "name": "bohio-workspace-demo",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Bohio Workspace 3.0 — standalone interactive demo with optional live Claude AI",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,92 @@
+# Bohio Workspace 3.0 — Demo
+
+A fully functioning, interactive demo of the Bohio Workspace — an institutional
+real-estate investment platform with an embedded AI analyst ("Karaya").
+
+This is the standalone `Bohio_Workspace_3.0` build unpacked into a clean,
+runnable project: the single self-extracting HTML has been turned into plain
+files (one `index.html`, fonts, JS modules and the six Model-Studio dashboards),
+and a tiny zero-dependency server wires the AI features to a real Claude model.
+
+## What's in the demo
+
+- **Workspace home** — Karaya AI command bar, models & template library, tasks.
+- **AI Deal Screening** — screens an incoming deal against the firm's investment
+  mandate (nine criteria), animates a fit gauge, and returns a committee-ready
+  PROCEED / REVIEW / PASS verdict. Includes an **IC Memo generator**.
+- **Funds & Stakeholders** — multi-fund command center with an animated
+  stakeholder network, capital-deployment metrics and a live project pipeline.
+- **Agent chats & negotiation room** — in-character AI counterparties.
+- **Model Studio dashboards** — six asset-class dashboards loaded into the
+  workspace (hotel, office, retail, single-tenant, waterfall, lifestyle).
+
+Every AI feature is driven by `window.claude.complete(...)`. When a Claude API
+key is configured (see below) those calls hit a real model; without one, each
+feature falls back to a rich built-in response, so the demo is **fully
+interactive either way**.
+
+## Run it
+
+Requires Node.js 18+ (no `npm install` needed — zero dependencies).
+
+```bash
+cd bohio-workspace
+
+# Optional: live AI responses from Claude
+export ANTHROPIC_API_KEY=sk-ant-...
+# Optional overrides:
+# export ANTHROPIC_MODEL=claude-opus-4-8   # default
+# export PORT=5173                         # default
+
+npm start            # or: node server.mjs
+```
+
+Then open <http://localhost:5173>. Sign-in is a demo gate — click **Sign In**
+(any/empty credentials) to enter the workspace.
+
+Check `GET /api/health` to confirm whether live AI is on:
+
+```json
+{ "ok": true, "ai": true, "model": "claude-opus-4-8" }
+```
+
+### Without a server
+
+You can also open `index.html` directly in a browser. The full UI works and all
+AI features use their built-in fallback responses (the `/api/complete` call
+simply fails and the app degrades gracefully). For **live** AI you must run the
+server, because the Anthropic API key has to stay on the server side.
+
+## How it's wired
+
+```
+browser ──window.claude.complete()──▶ assets/js/claude.js
+            (string or {messages})        │  POST /api/complete
+                                          ▼
+                                      server.mjs ──▶ Anthropic Messages API
+                                      (injects ANTHROPIC_API_KEY,
+                                       returns plain text)
+```
+
+- `assets/js/claude.js` — the `window.claude` bridge. Accepts both call shapes
+  the app uses (`complete("prompt")` and `complete({ messages: [...] })`) and
+  returns a plain-text string.
+- `server.mjs` — zero-dependency Node HTTP server: serves the static demo and
+  proxies `POST /api/complete` to the Anthropic Messages API. The API key is
+  never exposed to the browser.
+
+## Project layout
+
+```
+bohio-workspace/
+├── index.html            # the app (unpacked from the standalone bundle)
+├── server.mjs            # static server + /api/complete AI proxy
+├── package.json
+├── assets/
+│   ├── js/
+│   │   ├── claude.js         # window.claude.complete bridge
+│   │   ├── client-demos.js   # screening / funds / IC-memo demo logic
+│   │   └── image-slot.js     # <image-slot> web component
+│   └── fonts/                # Space Grotesk (woff2)
+└── studio/                # six Model-Studio dashboards (iframed)
+```
