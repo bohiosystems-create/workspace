@@ -452,7 +452,7 @@ DEAL: ${d.text}
 Return exactly this shape:
 {"verdict":"PROCEED"|"REVIEW"|"PASS","fitScore":<integer 0-100>,"headline":"<=140 chars","criteria":[{"name":"Strategy","status":"aligned"|"partial"|"breach","note":"<=90 chars"}, ... one row each for Strategy, Sector, Geography, Equity ticket, Net IRR, Equity multiple, LTV, Hold],"strengths":["",""],"flags":["",""],"recommendation":"<=200 chars, committee-ready"}
 verdict logic: PROCEED if it broadly fits and clears return hurdles; REVIEW if mixed/partial; PASS if multiple breaches. Be rigorous and specific to the numbers.`;
-      const raw = await window.claude.complete({ messages: [{ role: 'user', content: prompt }] });
+      const raw = await window.claude.complete({ messages: [{ role: 'user', content: prompt }], task: 'screening' });
       result = parseScreen(raw);
     } catch (e) { result = null; }
     if (!result) result = normalizeFallback(d.fallback);
@@ -596,7 +596,7 @@ verdict logic: PROCEED if it broadly fits and clears return hurdles; REVIEW if m
     let ans = '';
     try {
       const ctx = `You are Karaya, an institutional real-estate investment AI. The firm's mandate: ${MANDATE.text}\nThe deal under review: ${d.text}\nYour screening verdict was ${lastScreen ? lastScreen.verdict + ' (' + lastScreen.fitScore + '/100): ' + lastScreen.headline : 'n/a'}.\nAnswer the user concisely (max 90 words), specific to the numbers, in a professional investment tone.`;
-      ans = await window.claude.complete({ messages: [{ role: 'user', content: ctx + '\n\nQuestion: ' + q }] });
+      ans = await window.claude.complete({ messages: [{ role: 'user', content: ctx + '\n\nQuestion: ' + q }], task: 'screening_chat' });
     } catch (e) { ans = 'I lost connection to the model for a moment — please ask that again.'; }
     const el = document.getElementById(id);
     el.innerHTML = esc(ans) + '<span class="who">Karaya</span>';
@@ -625,7 +625,7 @@ DEAL: ${d.text}
 SCREENING: verdict ${r.verdict}, fit ${r.fitScore}/100. ${r.headline} Recommendation: ${r.recommendation}
 STRENGTHS: ${(r.strengths||[]).join('; ')}
 FLAGS: ${(r.flags||[]).join('; ')}`;
-      memo = await window.claude.complete({ messages: [{ role: 'user', content: prompt }] });
+      memo = await window.claude.complete({ messages: [{ role: 'user', content: prompt }], task: 'ic_memo' });
     } catch (e) { memo = ''; }
     if (!memo || memo.length < 40) memo = fallbackMemo(d, r);
     c.innerHTML = `<div class="icm-body">
@@ -751,7 +751,7 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
     let txt = '';
     try {
       const prompt = `You are Karaya, an institutional real-estate investment AI. In 3 short paragraphs, summarise this incoming deal for a busy principal: (1) what the opportunity is, (2) the headline economics, (3) the single biggest thing to verify. Plain text, no markdown headers.\n\nDEAL: ${d.text}`;
-      txt = await window.claude.complete({ messages: [{ role: 'user', content: prompt }] });
+      txt = await window.claude.complete({ messages: [{ role: 'user', content: prompt }], task: 'opportunity_summary' });
     } catch (e) { txt = ''; }
     if (!txt || txt.length < 30) {
       txt = `${d.name} (${d.loc}) is a ${d.sector.toLowerCase()} opportunity sourced via ${(OPP_META[currentDeal]||{}).via || 'the deal inbox'}.\n\nHeadline economics: ${d.facts.map(f=>f[0]+' '+f[1]).slice(0,5).join(', ')}.\n\n${d.fallback.headline} The key item to verify before committing is the assumption highlighted in the flags: ${(d.fallback.flags||[])[0]||'the base-case demand assumption'}.`;
@@ -807,7 +807,7 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
     const aiPromise = (async () => {
       try {
         const prompt = `You are Karaya building a base-case real-estate financial model from this brief. In ONE sentence (max 26 words), state the base-case investment read — the headline return and the single biggest assumption the model hinges on. Plain text.\n\nBRIEF: ${d.text}`;
-        const r = await window.claude.complete({ messages: [{ role: 'user', content: prompt }] });
+        const r = await window.claude.complete({ messages: [{ role: 'user', content: prompt }], task: 'quick_insight' });
         if (r && r.trim()) insight = r.trim().replace(/\*\*/g, '').replace(/\s+/g, ' ');
       } catch (e) {}
     })();
@@ -1162,7 +1162,7 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
     let ans = '';
     try {
       const persona = `You are the AI agent representing ${ov.dataset.name}, acting as ${ov.dataset.role} on the real-estate development fund "${ov.dataset.fund}" managed by Bohio. Answer the fund manager's question in-character, concisely (max 80 words), in a professional institutional tone. Stay consistent with that role's typical interests.`;
-      ans = await window.claude.complete({ messages: [{ role: 'user', content: persona + '\n\nQuestion: ' + q }] });
+      ans = await window.claude.complete({ messages: [{ role: 'user', content: persona + '\n\nQuestion: ' + q }], task: 'fund_agent' });
     } catch (e) { ans = 'I couldn’t reach the agent network just now — please try again in a moment.'; }
     document.getElementById(id).innerHTML = esc(ans) + `<span class="who">${esc(ov.dataset.name)}</span>`;
     thread.scrollTop = thread.scrollHeight;

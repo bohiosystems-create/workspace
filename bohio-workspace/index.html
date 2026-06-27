@@ -11996,7 +11996,7 @@ ${convo}
 
 Reply as the agent:`;
     try {
-      const reply = await window.claude.complete(prompt);
+      const reply = await window.claude.complete(prompt, { task: 'agent_chat' });
       AGENT_HISTORY[id] = AGENT_HISTORY[id].filter(m => m.role !== 'typing');
       AGENT_HISTORY[id].push({ role:'agent', text:(reply||'').trim() });
     } catch (e) {
@@ -15265,7 +15265,7 @@ Answer as Karaya:`;
 
     let answer = '';
     try {
-      answer = await window.claude.complete(prompt);
+      answer = await window.claude.complete(prompt, { task: 'home_chat' });
     } catch (e) { answer = ''; }
     if (!answer || !answer.trim()) {
       answer = "I couldn't reach the analysis engine just now. Live answers need the demo server running with an ANTHROPIC_API_KEY set — once that's on, I can pull from any project, document, model or fund in the workspace. In the meantime, try the quick actions below or open a project from the sidebar.";
@@ -16817,7 +16817,7 @@ User's question: "${text.replace(/"/g, '\\"')}"
 Respond in 2-4 sentences. Plain text only, no markdown headers. You may use <strong> for emphasis and reference a section like "(Section C.1, p.18)". Do not start with "Great question" or similar filler — go straight to the substance.`;
 
     try {
-      const reply = await window.claude.complete(prompt);
+      const reply = await window.claude.complete(prompt, { task: 'file_qa' });
       CB_QA_HISTORY[pid] = CB_QA_HISTORY[pid].filter(m => m.role !== 'typing');
       CB_QA_HISTORY[pid].push({ role: 'wsp', text: (reply || '').trim(), ts: 'just now' });
     } catch (e) {
@@ -17126,7 +17126,7 @@ Matteo (the sponsor, user) just said: "${text.replace(/"/g,'\\"')}"
 Generate 1-2 short, diplomatic, in-character responses from the most-relevant non-user participants. Each at most 2 sentences. For external humans, prefix the text with "<em>From [their name] via email bridge:</em><br>" and wrap their quoted reply in quotation marks. For extai, prefix with "<strong>[their org name] AI</strong> · " and frame as data. Bohio agents speak in-character for their org.
 
 Return a strict JSON array of objects: [{"author":"<participant_id>","text":"<message html>"}]. Use only participant_ids from this list: ${currentTopic.participants.filter(p => p !== 'sponsor').join(', ')}. No markdown fences, no explanation, JSON only.`;
-      const result = await window.claude.complete(prompt);
+      const result = await window.claude.complete(prompt, { task: 'negotiation' });
       let arr = [];
       try {
         arr = JSON.parse(result.replace(/```json|```/g,'').trim());
@@ -17987,7 +17987,7 @@ Return a strict JSON array of objects: [{"author":"<participant_id>","text":"<me
 The sponsor (Matteo, MB) just said: "${text.replace(/"/g,'\\"')}"
 
 Respond with 2-3 short messages from the most relevant agents (NOT Matteo and NOT Karaya). Each message should be at most 2 sentences, diplomatic but representing the agent's principal. Format your response as a strict JSON array of objects with keys "agent" (one of: jv, lp, debt, mezz, consultant, operator, contractor, opsmgr, heritage) and "text". Example: [{"agent":"lp","text":"..."},{"agent":"debt","text":"..."}]. Return JSON only, no markdown, no explanation.`;
-      const result = await window.claude.complete(prompt);
+      const result = await window.claude.complete(prompt, { task: 'negotiation' });
       // Parse
       let arr = [];
       try {

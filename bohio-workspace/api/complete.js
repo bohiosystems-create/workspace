@@ -3,6 +3,8 @@
    Anthropic Messages API, keeping ANTHROPIC_API_KEY server-side. Returns
    { text } so the window.claude.complete bridge (assets/js/claude.js) works
    unchanged. */
+import { resolveModel } from '../lib/models.mjs';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -12,7 +14,6 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY || '';
   if (!apiKey) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not set' });
 
-  const model = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
   const apiUrl = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com') + '/v1/messages';
 
   let body = req.body;
@@ -22,6 +23,7 @@ export default async function handler(req, res) {
   const messages = Array.isArray(body.messages) ? body.messages : [];
   if (!messages.length) return res.status(400).json({ error: 'no messages' });
   const max_tokens = Math.min(Number(body.max_tokens) || 1500, 4096);
+  const model = resolveModel(body.task, body.model); // route to the right model for this task
 
   try {
     const upstream = await fetch(apiUrl, {
@@ -43,7 +45,7 @@ export default async function handler(req, res) {
       .filter((b) => b.type === 'text')
       .map((b) => b.text)
       .join('');
-    return res.status(200).json({ text });
+    return res.status(200).json({ text, model });
   } catch (err) {
     console.error('proxy failure', err);
     return res.status(502).json({ error: 'proxy failure' });

@@ -25,6 +25,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import { resolveModel, routingTable } from './lib/models.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
@@ -51,7 +52,6 @@ loadDotEnv(join(ROOT, '.env'));
 const PORT = Number(process.env.PORT) || 5173;
 
 const API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
 const API_URL = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com') + '/v1/messages';
 
 // Where vendored CDN libraries (React/ReactDOM/Babel) get cached on first load.
@@ -107,6 +107,7 @@ async function handleComplete(req, res) {
     return send(res, 400, JSON.stringify({ error: 'no messages' }), { 'Content-Type': 'application/json' });
   }
   const max_tokens = Math.min(Number(payload.max_tokens) || 1500, 4096);
+  const model = resolveModel(payload.task, payload.model);
 
   try {
     const upstream = await fetch(API_URL, {
@@ -116,7 +117,7 @@ async function handleComplete(req, res) {
         'x-api-key': API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({ model: MODEL, max_tokens, messages }),
+      body: JSON.stringify({ model, max_tokens, messages }),
     });
     if (!upstream.ok) {
       const errText = await upstream.text();
@@ -129,7 +130,8 @@ async function handleComplete(req, res) {
       .filter((b) => b.type === 'text')
       .map((b) => b.text)
       .join('');
-    return send(res, 200, JSON.stringify({ text }), { 'Content-Type': 'application/json' });
+    if (payload.task) console.log('[complete] task=' + payload.task + ' → ' + model);
+    return send(res, 200, JSON.stringify({ text, model }), { 'Content-Type': 'application/json' });
   } catch (err) {
     console.error('proxy failure', err);
     return send(res, 502, JSON.stringify({ error: 'proxy failure' }), { 'Content-Type': 'application/json' });
@@ -193,7 +195,7 @@ const server = createServer(async (req, res) => {
       return handleComplete(req, res);
     }
     if (url.pathname === '/api/health') {
-      return send(res, 200, JSON.stringify({ ok: true, ai: Boolean(API_KEY), model: MODEL }),
+      return send(res, 200, JSON.stringify({ ok: true, ai: Boolean(API_KEY), routing: routingTable() }),
         { 'Content-Type': 'application/json' });
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
@@ -206,6 +208,9 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
+  const t = routingTable().tiers;
   console.log('Bohio Workspace demo  →  http://localhost:' + PORT);
-  console.log('Live AI: ' + (API_KEY ? 'ON (model ' + MODEL + ')' : 'OFF — set ANTHROPIC_API_KEY for real responses; canned fallbacks active'));
+  console.log('Live AI: ' + (API_KEY
+    ? 'ON — per-task routing (opus=' + t.opus + ', sonnet=' + t.sonnet + ', haiku=' + t.haiku + ')'
+    : 'OFF — set ANTHROPIC_API_KEY for real responses; canned fallbacks active'));
 });

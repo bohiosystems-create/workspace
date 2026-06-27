@@ -56,6 +56,35 @@ The server reads `ANTHROPIC_API_KEY` from, in order of precedence:
 settings: `ANTHROPIC_MODEL` (default `claude-opus-4-8`) and `PORT` (default
 `5173`). See `.env.example`.
 
+## Per-task model routing
+
+Karaya routes each kind of work to the most appropriate Claude model, so you're
+not paying Opus prices for a one-line summary or sending a committee memo to a
+small model:
+
+| Task (examples) | Model | Why |
+|---|---|---|
+| Deal screening, IC memo, negotiation, deal structuring | **Opus** | Rigorous reasoning, accuracy matters most |
+| Home chat, agent replies, file Q&A, opportunity summary | **Sonnet** | Fast, capable, conversational |
+| Model-build insight line, suggestions | **Haiku** | Cheap one-liners |
+
+How it works: each call names its task (`window.claude.complete(prompt, { task:
+'screening' })`); the **server** owns the task→model map (`lib/models.mjs`), so
+the model id is never exposed to the browser and the mapping stays configurable.
+Resolution precedence: an explicit per-call `model` → the task's tier →
+`ANTHROPIC_MODEL` (default for untagged calls) → Opus.
+
+Tune it without touching code, via env vars:
+
+```bash
+# bump a tier's concrete model id
+ANTHROPIC_MODEL_SONNET=claude-sonnet-4-6
+# re-route specific tasks (JSON: task → tier or model id)
+ANTHROPIC_TASK_MODELS='{"home_chat":"opus","file_qa":"haiku"}'
+```
+
+`GET /api/health` returns the live routing table so you can confirm what's wired.
+
 ## Deploy to Vercel
 
 This folder is Vercel-ready. The static files (`index.html`, `assets/`,
