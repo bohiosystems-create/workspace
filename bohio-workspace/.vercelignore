@@ -1,0 +1,9 @@
+# Files only needed for local dev / docs — keep them out of the Vercel deploy.
+# (api/ functions, lib/, assets/, studio/, index.html, vercel.json are kept.)
+server.mjs
+README.md
+.env
+.env.example
+.gitignore
+*.log
+studio-vendor/
