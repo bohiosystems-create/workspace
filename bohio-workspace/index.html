@@ -9932,6 +9932,9 @@
       <div class="nav-item" id="nav-workspace" onclick="goTo('workspace')">
         <span>Bohio Workspace</span>
       </div>
+      <div class="nav-item" id="nav-documents" onclick="goTo('documents')">
+        <span>Documents</span>
+      </div>
     </div>
 
     <!-- Fund Management menu (shown within workspace) -->
@@ -10059,6 +10062,9 @@
 
     <!-- FUNDS & STAKEHOLDERS (demo) -->
     <div class="page workspace-page" id="page-funds"></div>
+
+    <!-- DOCUMENTS (organised repository + approvals) -->
+    <div class="page workspace-page" id="page-documents"></div>
 
     <!-- WORKSPACE LIST -->
     <div class="page workspace-page" id="page-workspace">
@@ -11076,6 +11082,11 @@
         if (!_sh.classList.contains('karaya-hidden')) _sh.classList.add('karaya-hidden');
         if (typeof syncHandles === 'function') syncHandles();
       }
+    } else if(page==='documents'){
+      document.getElementById('page-documents').classList.add('active');
+      setActiveNav('nav-documents');
+      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Documents'}]);
+      if (typeof renderDocumentsPage === 'function') renderDocumentsPage();
     }
     currentPage=page;
     document.querySelector('.main-content').scrollTop=0;
@@ -11086,6 +11097,146 @@
     const nav=document.getElementById('nav-tasks');
     ts.classList.toggle('open');
     nav.classList.toggle('active');
+  }
+
+  // ================= DOCUMENTS — organised repository + approvals =================
+  // A single place to store and sign off the firm's documents: fund/LP papers,
+  // leases & landlord agreements, service contracts and amendments. Each document
+  // can be routed for approval; approvers sign off (simulated) and the status
+  // updates live.
+  const DOC_APPROVERS = {
+    SH:{init:'SH',name:'S. Al-Harbi',role:'Managing Partner'},
+    NK:{init:'NK',name:'N. Khan',role:'Investment Committee'},
+    FA:{init:'FA',name:'F. Aziz',role:'Finance Director'},
+    RM:{init:'RM',name:'R. Marini',role:'Asset Manager'},
+    DM:{init:'DM',name:'D. Mansour',role:'Deal Lead'},
+    AS:{init:'AS',name:'A. Saleh',role:'Legal Counsel'},
+  };
+  const DOC_APPROVAL_STATE = {}; // docId -> { status:'pending'|'approved', keys:[...], approvers:[{key,status}] }
+
+  const FUND_DOCUMENTS = [
+    {id:'fd1', name:'Limited Partnership Agreement — Bohio Development Fund II', type:'PDF', meta:'Executed · 42 pp', status:'active'},
+    {id:'fd2', name:'Private Placement Memorandum — Fund II', type:'PDF', meta:'v.3 · 88 pp', status:'active'},
+    {id:'fd3', name:'Subscription Agreement — Meridian Pension', type:'PDF', meta:'Countersigned · SAR 300M', status:'active'},
+    {id:'fd4', name:'Capital Call Notice #7 — SAR 120M', type:'PDF', meta:'Issued 12 Apr · due 26 Apr', status:'expiring'},
+    {id:'fd5', name:'Q1 2026 LP Report — Fund II', type:'PDF', meta:'28 pp · draft for sign-off', status:'draft'},
+    {id:'fd6', name:'Side Letter — Gulf Sovereign Co-Invest', type:'PDF', meta:'Executed', status:'active'},
+  ];
+
+  function _docStatusPill(status){
+    const map={active:['#15803d','#dbf3e3','Active'],expiring:['#b45309','#fdecd8','Expiring'],expired:['#b51e3b','#fde2e6','Expired'],renewed:['#15803d','#dbf3e3','Renewed'],draft:['#475569','#e2e8f0','Draft']};
+    const s=map[status]||['#475569','#e2e8f0',(status||'—')];
+    return `<span style="font-size:8px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;padding:3px 8px;color:${s[0]};background:${s[1]};white-space:nowrap;">${s[2]}</span>`;
+  }
+
+  function _approvalCellHtml(docId, keys){
+    const st=DOC_APPROVAL_STATE[docId];
+    if(!st){
+      return `<button class="dm-btn" style="padding:8px 14px;font-size:9px;letter-spacing:0.18em;" onclick="submitDocApproval('${docId}','${keys.join(',')}')">Submit for approval</button>`;
+    }
+    const avatars=st.approvers.map(a=>{
+      const info=DOC_APPROVERS[a.key]||{init:'?',name:'?',role:''};
+      const done=a.status==='approved';
+      return `<span title="${info.name} · ${info.role}${done?' · approved':' · pending'}" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:8px;font-weight:700;margin-left:-6px;border:2px solid var(--paper);background:${done?'#15803d':'rgba(0,9,25,0.12)'};color:${done?'#fff':'var(--ink-soft)'};transition:all .3s ease;">${info.init}</span>`;
+    }).join('');
+    const done=st.approvers.filter(a=>a.status==='approved').length;
+    const label = st.status==='approved'
+      ? `<span style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:#15803d;">✓ Approved</span>`
+      : `<span style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">${done}/${st.approvers.length} approving…</span>`;
+    return `<div style="display:flex;align-items:center;gap:12px;justify-content:flex-end;"><div style="display:flex;padding-left:6px;">${avatars}</div>${label}</div>`;
+  }
+
+  function _paintApproval(docId, keys){
+    const cell=document.getElementById('apc-'+docId);
+    if(cell) cell.innerHTML=_approvalCellHtml(docId, keys);
+  }
+
+  function submitDocApproval(docId, keysCsv){
+    const keys=keysCsv.split(',');
+    DOC_APPROVAL_STATE[docId]={status:'pending', keys, approvers:keys.map(k=>({key:k,status:'pending'}))};
+    _paintApproval(docId, keys);
+    _updateDocSummary();
+    keys.forEach((k,i)=>{
+      setTimeout(()=>{
+        const st=DOC_APPROVAL_STATE[docId]; if(!st) return;
+        st.approvers[i].status='approved';
+        if(st.approvers.every(a=>a.status==='approved')) st.status='approved';
+        _paintApproval(docId, keys);
+        _updateDocSummary();
+      }, 900+i*950);
+    });
+  }
+
+  function _updateDocSummary(){
+    const el=document.getElementById('doc-approval-summary'); if(!el) return;
+    const vals=Object.values(DOC_APPROVAL_STATE);
+    const pending=vals.filter(s=>s.status==='pending').length;
+    const approved=vals.filter(s=>s.status==='approved').length;
+    el.innerHTML = `<strong style="color:var(--ink);">${approved}</strong> approved · <strong style="color:var(--ink);">${pending}</strong> in review · <strong style="color:var(--ink);">${_ALL_DOC_COUNT}</strong> documents stored`;
+  }
+
+  let _ALL_DOC_COUNT = 0;
+
+  function _docRow(doc, keys){
+    return `<div style="display:grid;grid-template-columns:44px 1fr auto auto;gap:16px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--ink-hairline);">
+      <div style="width:36px;height:44px;border:1px solid var(--ink-hairline);display:flex;align-items:flex-end;justify-content:center;font-size:7px;letter-spacing:0.1em;font-weight:700;color:var(--ink-soft);padding-bottom:5px;background:var(--paper);">${(doc.type||'DOC')}</div>
+      <div style="min-width:0;">
+        <div style="font-size:13px;letter-spacing:0.01em;color:var(--ink);line-height:1.35;">${doc.name}</div>
+        <div style="font-size:10px;letter-spacing:0.04em;color:var(--ink-soft);margin-top:3px;">${doc.meta||''}</div>
+      </div>
+      <div>${_docStatusPill(doc.status)}</div>
+      <div id="apc-${doc.id}" style="min-width:200px;text-align:right;">${_approvalCellHtml(doc.id, keys)}</div>
+    </div>`;
+  }
+
+  function _docSection(title, sub, docs, keys){
+    if(!docs.length) return '';
+    return `<div class="dm-card" style="margin-bottom:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 18px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:11px;letter-spacing:0.26em;text-transform:uppercase;font-weight:700;color:var(--ink);">${title}</div>
+        <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">${docs.length} · ${sub}</div>
+      </div>
+      ${docs.map(d=>_docRow(d, keys)).join('')}
+    </div>`;
+  }
+
+  function renderDocumentsPage(){
+    const page=document.getElementById('page-documents');
+    if(!page) return;
+    // Map the existing data into a common document shape
+    const fund = FUND_DOCUMENTS;
+    const leaseDocs = (typeof leases!=='undefined'?leases:[]).map(l=>({
+      id:'ls-'+l.id, name:l.name, type:(l.type||'Lease'),
+      meta:[l.party, l.rent?('Rent '+l.rent):'', l.endDate?('Expires '+l.endDate):''].filter(Boolean).join(' · '),
+      status:l.status }));
+    const svcDocs = (typeof serviceContracts!=='undefined'?serviceContracts:[]).map(c=>({
+      id:'sc-'+c.id, name:c.name, type:(c.type||'Contract'),
+      meta:[c.party, c.value?('Value '+c.value):'', c.endDate?('Renews '+c.endDate):''].filter(Boolean).join(' · '),
+      status:c.status }));
+    const amdDocs = (typeof amendments!=='undefined'?amendments:[]).map((a,i)=>({
+      id:'am-'+i, name:a.name, type:'Amend.',
+      meta:[a.parent?('to '+a.parent):'', a.date, a.type].filter(Boolean).join(' · '),
+      status:a.status }));
+    _ALL_DOC_COUNT = fund.length + leaseDocs.length + svcDocs.length + amdDocs.length;
+
+    page.innerHTML = `
+      <div class="section-header" style="display:flex;justify-content:space-between;align-items:flex-end;">
+        <div>
+          <div class="dm-eyebrow">Repository</div>
+          <h2 class="section-title">Documents</h2>
+          <div class="dm-sub">Every fund paper, lease, landlord agreement, service contract and amendment — stored in one place and routed for sign-off.</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin:6px 0 24px;font-size:11px;letter-spacing:0.06em;color:var(--ink-soft);">
+        <span style="width:7px;height:7px;border-radius:50%;background:var(--alert);"></span>
+        <span id="doc-approval-summary"></span>
+      </div>
+      ${_docSection('Fund Documents','LPA, PPM, subscriptions & reporting', fund, ['SH','NK','FA'])}
+      ${_docSection('Leases &amp; Landlord Agreements','tenancy & landlord contracts', leaseDocs, ['SH','RM'])}
+      ${_docSection('Service Contracts','vendor & facilities agreements', svcDocs, ['FA','SH'])}
+      ${_docSection('Amendments','lease & contract variations', amdDocs, ['AS','DM','SH'])}
+    `;
+    _updateDocSummary();
   }
 
   function showProject(id){
