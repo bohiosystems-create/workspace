@@ -9842,10 +9842,12 @@
   <div class="login-logo">Bohio</div>
 
   <div class="login-form" id="login-form">
-    <input class="login-field" type="email" placeholder="Email">
-    <input class="login-field" type="password" placeholder="Password">
-    <button class="login-btn" onclick="document.getElementById('login-page').classList.add('hidden')">Sign In</button>
-    <div style="text-align:center;margin-top:14px;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-soft);">No account? <a href="#" onclick="event.preventDefault();showPricing()" style="color:var(--ink);text-decoration:underline;">View plans</a></div>
+    <input class="login-field" type="text" id="login-name" placeholder="Your name" onkeypress="if(event.key==='Enter')signIn()">
+    <input class="login-field" type="email" id="login-email" placeholder="Email" onkeypress="if(event.key==='Enter')signIn()">
+    <input class="login-field" type="password" placeholder="Password" onkeypress="if(event.key==='Enter')signIn()">
+    <button class="login-btn" onclick="signIn()">Sign In</button>
+    <div style="text-align:center;margin-top:12px;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">Demo — sign in as anyone. Your name personalises the workspace.</div>
+    <div style="text-align:center;margin-top:10px;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-soft);">No account? <a href="#" onclick="event.preventDefault();showPricing()" style="color:var(--ink);text-decoration:underline;">View plans</a></div>
   </div>
 
   <div class="plans-grid" id="plans-grid" style="display:none;margin-top:32px;">
@@ -9896,14 +9898,14 @@
   </div>
   <h1 class="title" style="cursor:pointer;" onclick="goTo('landing')">Bohio</h1>
   <div class="topbar-right">
-    <span>Matteo&nbsp;Bevilacqua</span>
+    <span data-user="name">Matteo&nbsp;Bevilacqua</span>
     <div class="bell" onclick="openSettingsModal()" title="Settings" style="position:relative;">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </svg>
     </div>
-    <div class="avatar" style="cursor:pointer;" onclick="toggleProfileMenu(event)">MB</div>
+    <div class="avatar" style="cursor:pointer;" onclick="toggleProfileMenu(event)" data-user="initials">MB</div>
     <div class="profile-menu" id="profile-menu">
       <button class="profile-menu-item" onclick="goTo('landing'); closeProfileMenu();">Home</button>
       <button class="profile-menu-item" onclick="showSubscription(); closeProfileMenu();">Subscription</button>
@@ -9992,7 +9994,7 @@
     <!-- LANDING -->
     <div class="landing-page active" id="page-landing">
       <div class="landing-center">
-      <div class="landing-logo" style="margin-bottom:40px;font-size:38px;letter-spacing:0.42em;">Welcome, Matteo</div>
+      <div class="landing-logo" style="margin-bottom:40px;font-size:38px;letter-spacing:0.42em;" data-user="welcome">Welcome, Matteo</div>
 
       <div style="width:100%;max-width:640px;display:flex;gap:8px;">
         <input type="text" id="landing-karaya-input" placeholder="Ask Karaya anything…" onkeypress="if(event.key==='Enter')landingKarayaSend()" style="flex:1;background:transparent;border:1px solid var(--ink);padding:16px 20px;font-family:inherit;font-size:14px;letter-spacing:0.06em;color:var(--ink);outline:none;text-align:left;">
@@ -10401,7 +10403,7 @@
         <span class="k-meta">Karaya · proactive</span>
       </div>
       <div class="k-msg bot">
-        Welcome back, Matteo. I'm <em>Karaya</em>, your AI analyst. I can help you query any model in your workspace, run comparisons, or surface insights across your portfolio.
+        Welcome back, <span data-user="first">Matteo</span>. I'm <em>Karaya</em>, your AI analyst. I can help you query any model in your workspace, run comparisons, or surface insights across your portfolio.
         <span class="k-meta">Karaya · just now</span>
       </div>
       <div class="k-msg bot">
@@ -11989,7 +11991,7 @@
       .map(m => (m.role === 'me' ? 'User (Matteo): ' : 'You: ') + m.text).join('\n');
     const prompt = `${a.persona}
 
-You are speaking inside Bohio, the firm\u2019s deal workspace, to Matteo Bevilacqua (or his delegate). Keep replies concise (2-4 sentences), professional, and specific to real-estate development/investment. Use concrete figures where natural. Plain text only; you may use <strong> for emphasis. Do not use markdown headers or bullet lists. Do not start with filler like "Certainly" — answer directly.
+You are speaking inside Bohio, the firm\u2019s deal workspace, to ${(window.DEMO_USER&&window.DEMO_USER.name)||'Matteo Bevilacqua'} (or their delegate). Keep replies concise (2-4 sentences), professional, and specific to real-estate development/investment. Use concrete figures where natural. Plain text only; you may use <strong> for emphasis. Do not use markdown headers or bullet lists. Do not start with filler like "Certainly" — answer directly.
 
 Conversation so far:
 ${convo}
@@ -15054,6 +15056,62 @@ Reply as the agent:`;
     openSettingsModal();
   }
 
+  // ============ DEMO USER (fake sign-in + customisable name) ============
+  // The demo signs in as whatever name the presenter types; that name flows to
+  // the topbar, avatar initials, the home welcome, Karaya's greeting and the AI
+  // prompts. Persisted in localStorage so it survives reloads.
+  window.DEMO_USER = { name: 'Matteo Bevilacqua', first: 'Matteo', initials: 'MB', email: 'matteo@bohio.io' };
+
+  function deriveUser(name, email) {
+    name = (name || '').trim().replace(/\s+/g, ' ') || 'Matteo Bevilacqua';
+    const parts = name.split(' ');
+    const first = parts[0];
+    const initials = ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+    email = (email || '').trim() || (first.toLowerCase() + '@bohio.io');
+    return { name, first, initials, email };
+  }
+
+  function setDemoUser(name, email) {
+    const u = deriveUser(name, email);
+    window.DEMO_USER = u;
+    try { localStorage.setItem('bohio_demo_user', JSON.stringify(u)); } catch (e) {}
+    document.querySelectorAll('[data-user]').forEach(el => {
+      const k = el.getAttribute('data-user');
+      if (k === 'name') el.textContent = u.name;
+      else if (k === 'initials') el.textContent = u.initials;
+      else if (k === 'first') el.textContent = u.first;
+      else if (k === 'welcome') el.textContent = 'Welcome, ' + u.first;
+      else if (k === 'account') el.textContent = u.name + ' · ' + u.email;
+    });
+    const si = document.getElementById('set-username-input'); if (si) si.value = u.name;
+    return u;
+  }
+
+  function signIn() {
+    const nameEl = document.getElementById('login-name');
+    const emailEl = document.getElementById('login-email');
+    setDemoUser(nameEl ? nameEl.value : '', emailEl ? emailEl.value : '');
+    document.getElementById('login-page').classList.add('hidden');
+  }
+
+  // Save from the Settings modal
+  function saveDemoUserName() {
+    const si = document.getElementById('set-username-input');
+    if (!si) return;
+    setDemoUser(si.value, window.DEMO_USER && window.DEMO_USER.email);
+    const btn = document.getElementById('set-username-save');
+    if (btn) { const t = btn.textContent; btn.textContent = 'Saved ✓'; setTimeout(() => btn.textContent = t, 1400); }
+  }
+
+  function initDemoUser() {
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem('bohio_demo_user') || 'null'); } catch (e) {}
+    if (stored && stored.name) setDemoUser(stored.name, stored.email);
+    // prefill the login name field so returning presenters see their name
+    const ln = document.getElementById('login-name');
+    if (ln && stored && stored.name) ln.value = stored.name;
+  }
+
   function openSettingsModal() {
     let m = document.getElementById('settings-modal');
     if (!m) {
@@ -15081,9 +15139,19 @@ Reply as the agent:`;
               </div>
             </div>
             <div class="settings-row">
+              <div style="flex:1;">
+                <div class="settings-row-label">Your name</div>
+                <div class="settings-row-sub" style="margin-bottom:8px;">Personalises the workspace for this demo</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input id="set-username-input" class="login-field" type="text" placeholder="Your name" style="margin:0;flex:1;max-width:260px;" onkeypress="if(event.key==='Enter')saveDemoUserName()">
+                  <button class="settings-action" id="set-username-save" onclick="saveDemoUserName()">Save</button>
+                </div>
+              </div>
+            </div>
+            <div class="settings-row">
               <div>
                 <div class="settings-row-label">Account</div>
-                <div class="settings-row-sub">Matteo Bevilacqua · matteo@bohio.io</div>
+                <div class="settings-row-sub" data-user="account">Matteo Bevilacqua · matteo@bohio.io</div>
               </div>
               <button class="settings-action" onclick="showSubscription();closeSettingsModal();">Manage</button>
             </div>
@@ -15108,6 +15176,8 @@ Reply as the agent:`;
     }
     m.classList.add('open');
     document.getElementById('theme-switch').classList.toggle('on', document.documentElement.classList.contains('dark-mode'));
+    const si = document.getElementById('set-username-input');
+    if (si && window.DEMO_USER) si.value = window.DEMO_USER.name;
   }
   function closeSettingsModal() {
     const m = document.getElementById('settings-modal');
@@ -15121,6 +15191,8 @@ Reply as the agent:`;
   }
   // restore theme on load
   try { if (localStorage.getItem('bohio-theme') === 'dark') document.documentElement.classList.add('dark-mode'); } catch(e) {}
+  // restore the demo user's name on load (fake sign-in personalisation)
+  initDemoUser();
 
   function logout() {
     closeProfileMenu();
@@ -15251,7 +15323,7 @@ Reply as the agent:`;
       .map(m => (m.role === 'user' ? 'User: ' : 'Karaya: ') + m.text).join('\n');
 
     const prompt =
-`You are Karaya, the AI analyst embedded in Bohio Workspace — an institutional real-estate investment platform used by Matteo Bevilacqua's firm. You can see the firm's entire workspace and answer any question about any project, document, financial model, template, fund/LP, incoming deal, stakeholder, capital stack, governance item, budget, negotiation, brief or contract.
+`You are Karaya, the AI analyst embedded in Bohio Workspace — an institutional real-estate investment platform used by ${(window.DEMO_USER&&window.DEMO_USER.name)||'Matteo Bevilacqua'}'s firm. You can see the firm's entire workspace and answer any question about any project, document, financial model, template, fund/LP, incoming deal, stakeholder, capital stack, governance item, budget, negotiation, brief or contract.
 
 Answer using the WORKSPACE DATA below as your source of truth. Be specific: cite the actual names, figures, dates, statuses and parties from the data. Keep it concise and conversational (2-6 sentences, or a short bulleted list when comparing items). Use plain text; you may use **bold** for key figures. If the answer genuinely isn't in the data, say what you do have and where in the workspace they'd find the rest — don't invent facts.
 
@@ -16802,7 +16874,7 @@ Answer as Karaya:`;
     }
 
     const findings = (briefData.items || []).map(it => `- ${it.title} (${(it.meta||[]).join(', ')})`).join('\n');
-    const prompt = `You are Karaya, the user's AI analyst. You have just read a 50-page Offering Memorandum for the Marina Tower mixed-use waterfront opportunity in Jeddah (issued by the vendor's advisor, Cordoba Capital Markets) and built a financial model from it. You are answering the user (Matteo Bevilacqua) about the deal.
+    const prompt = `You are Karaya, the user's AI analyst. You have just read a 50-page Offering Memorandum for the Marina Tower mixed-use waterfront opportunity in Jeddah (issued by the vendor's advisor, Cordoba Capital Markets) and built a financial model from it. You are answering the user (${(window.DEMO_USER&&window.DEMO_USER.name)||'Matteo Bevilacqua'}) about the deal.
 
 Tone: technical, precise, professional. Give an independent read on the opportunity, citing OM section references (e.g. "Section C.1, p.18") when relevant. Do not speculate beyond what the OM and your model support.
 
