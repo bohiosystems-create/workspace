@@ -10070,7 +10070,7 @@
           <button class="new-project-btn" onclick="document.getElementById('file-input-models').click()">Upload New</button>
           <button class="new-project-btn" onclick="buildFromScratch()">Build from Scratch</button>
           <button class="new-project-btn" onclick="goTo('templates')">Load Template</button>
-          <input type="file" id="file-input-models" style="display:none;" accept=".xlsx,.xls,.csv">
+          <input type="file" id="file-input-models" style="display:none;" accept=".xlsx,.xls,.csv" onchange="handleModelUpload(this.files[0])">
         </div>
       </div>
       <div class="template-filter-bar" id="models-filters"></div>
@@ -13226,11 +13226,88 @@ Answer as Karaya:`;
     document.querySelector('.main-content').scrollTop = 0;
   }
 
+  // ===== Upload a financial model → generate a Bohio-themed sheet =====
+  function handleModelUpload(file){
+    if(!file) return;
+    const base = String(file.name || 'Uploaded Model').replace(/\.[^.]+$/, '');
+    const doc = { type:'XLSX', name: base, version:'v.01 · From upload', updated:'Just now · You', isGenerated:true,
+      notes:'Imported workbook mapped into the Bohio underwriting template by Karaya.' };
+    if (typeof MY_MODELS !== 'undefined' && !MY_MODELS.find(m => m.name === base)) MY_MODELS.unshift(doc);
+    const inp = document.getElementById('file-input-models'); if (inp) inp.value = '';
+    uploadBuildingOverlay(base, () => { if (typeof openEditor === 'function') openEditor(doc); });
+  }
+  function uploadBuildingOverlay(name, done){
+    let ov = document.getElementById('upl-overlay');
+    if(!ov){ ov = document.createElement('div'); ov.id = 'upl-overlay';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;';
+      document.body.appendChild(ov); }
+    ov.innerHTML = `<div style="background:var(--paper);border:1px solid var(--ink-hairline);padding:34px 40px;max-width:460px;width:90%;text-align:center;">
+      <div style="font-family:var(--font-display);font-size:24px;margin-bottom:6px;">Building your model</div>
+      <div style="font-size:11px;color:var(--ink-soft);letter-spacing:0.06em;margin-bottom:22px;">${String(name).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <div id="upl-step" style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;min-height:18px;"></div>
+      <div style="height:4px;background:var(--ink-hairline);"><div id="upl-fill" style="height:100%;width:0;background:var(--ink);transition:width .4s ease;"></div></div>
+    </div>`;
+    ov.style.display = 'flex';
+    const steps = ['Reading the workbook…','Detecting tabs, ranges and named cells…','Mapping into the Bohio underwriting template…','Wiring formulas and dependencies…','Rendering the sheet…'];
+    const stepEl = document.getElementById('upl-step'), fill = document.getElementById('upl-fill');
+    let i = 0; stepEl.textContent = steps[0];
+    const t = setInterval(() => {
+      i++;
+      if (i < steps.length) { stepEl.textContent = steps[i]; fill.style.width = ((i/steps.length)*100)+'%'; }
+      else { fill.style.width = '100%'; clearInterval(t); setTimeout(() => { ov.style.display = 'none'; if (done) done(); }, 450); }
+    }, 560);
+  }
+
+  // Cells whose formula references the given cell (downstream / dependents).
+  function findDependents(ref, sheetName){
+    const out = [];
+    for (const [sName, sheet] of Object.entries(SHEET_DATA)) {
+      if (!sheet.rows) continue;
+      const patt = (sName === sheetName) ? ref : (sheetName + '!' + ref);
+      const re = new RegExp('(^|[^A-Za-z0-9])' + patt.replace('!', '\\!') + '(?![0-9A-Za-z])');
+      for (const row of sheet.rows) {
+        if (!row.formulas) continue;
+        for (let ci = 2; ci < row.formulas.length; ci++) {
+          const f = row.formulas[ci];
+          if (f && re.test(f)) {
+            const col = sheet.cols[ci] || '';
+            out.push({ ref: (sName !== sheetName ? sName + '!' : '') + col + row.cells[0], label: row.cells[1] || '' });
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  // Compact text view of a sheet for grounding the editor chat.
+  function dumpSheet(sheetName){
+    const s = SHEET_DATA[sheetName]; if (!s) return '';
+    return s.rows.filter(r => r.style !== 'empty').map(r => {
+      const label = r.cells[1] || '';
+      const vals = r.cells.slice(2).filter(v => v !== '').join(' | ');
+      return label ? (label + (vals ? ': ' + vals : '')) : '';
+    }).filter(Boolean).join('\n').slice(0, 2600);
+  }
+
+  // Apply a direct cell edit expressed in chat, e.g. "set B8 to -2.10".
+  function tryApplyCellEdit(q){
+    const m = q.match(/\b([A-Z])\s*(\d{1,2})\b[^0-9A-Za-z]*\bto\b\s*([-]?[\d.,]+%?x?)/i);
+    if (!m) return null;
+    const col = m[1].toUpperCase(), rowNum = m[2], val = m[3];
+    const sheetName = (typeof activeSheet !== 'undefined' && activeSheet) ? activeSheet : 'Summary';
+    const sheet = SHEET_DATA[sheetName]; if (!sheet) return null;
+    const ci = sheet.cols.indexOf(col); if (ci < 1) return null;
+    const row = sheet.rows.find(r => r.cells[0] === rowNum); if (!row) return null;
+    row.cells[ci] = val;
+    if (row.formulas) row.formulas[ci] = ''; // now a hardcoded override
+    renderSpreadsheet(sheetName);
+    return col + rowNum + ' = ' + val + ' (' + (row.cells[1] || 'cell') + ')';
+  }
+
   function editorKarayaSend() {
     const input = document.getElementById('ek-input');
-    const q = input.value.trim();
+    const q = (input.value || '').trim();
     if (!q) return;
-
     const msgs = document.getElementById('ek-msgs');
     const userMsg = document.createElement('div');
     userMsg.className = 'k-msg user';
@@ -13238,15 +13315,31 @@ Answer as Karaya:`;
     msgs.appendChild(userMsg);
     input.value = '';
 
-    setTimeout(() => {
-      const bot = document.createElement('div');
-      bot.className = 'k-msg bot';
-      bot.innerHTML = `Understood. I'm applying that change to the model now. The preview will update once the rework is complete. Anything else you'd like to adjust?<span class="k-meta">Karaya · just now</span>`;
-      msgs.appendChild(bot);
-      msgs.scrollTop = msgs.scrollHeight;
-    }, 600);
-
+    const bot = document.createElement('div');
+    bot.className = 'k-msg bot';
+    msgs.appendChild(bot);
     msgs.scrollTop = msgs.scrollHeight;
+
+    const applied = tryApplyCellEdit(q);
+    const sheetName = (typeof activeSheet !== 'undefined' && activeSheet) ? activeSheet : 'Summary';
+    const modelName = (document.getElementById('ed-title') || {}).textContent || 'the model';
+    const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}", current tab "${sheetName}". ${applied ? ('You just applied this change to the sheet: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'The user may ask you to explain a formula or driver, run a what-if, or change a cell (they can say e.g. "set B8 to -2.10").'} Ground every answer in the SHEET below. Be concise (2-5 sentences), plain text, **bold** key figures.
+
+SHEET (${sheetName}):
+${dumpSheet(sheetName)}
+
+User: "${q}"
+
+Answer as Karaya:`;
+
+    (async () => {
+      const fallback = applied
+        ? ('Done — I set ' + applied + ' and re-ran the dependent cells. (Live explanations need the demo server with an ANTHROPIC_API_KEY.)')
+        : "I can see this model's tabs, formulas and drivers. Ask me to change a cell (e.g. \"set B8 to -2.10\"), run a scenario, or explain what's driving an output.";
+      const answer = await karayaStreamInto(bot, prompt, 'file_qa', fallback);
+      bot.innerHTML = fmtKaraya(answer) + '<span class="k-meta">Karaya · just now</span>';
+      msgs.scrollTop = msgs.scrollHeight;
+    })();
   }
 
   // MODEL STUDIO
@@ -13550,6 +13643,28 @@ Answer as Karaya:`;
         });
         html += `</div></div>`;
       }
+    }
+
+    // Precedents / dependents tracing
+    if (hasFormula) {
+      const pcs = [...new Set((formula.match(/([A-Za-z ]+!)?[A-Z]\d+(:[A-Z]\d+)?/g) || []).filter(x => /[A-Z]\d/.test(x)))];
+      if (pcs.length) {
+        html += `<div style="margin-bottom:14px;"><div style="font-size:7px;letter-spacing:0.35em;text-transform:uppercase;color:rgba(230,226,226,0.4);margin-bottom:6px;">Precedents · feeds from</div><div style="display:flex;flex-direction:column;gap:4px;">`;
+        pcs.forEach(r => { html += `<div style="font-family:'Courier New',monospace;font-size:10px;padding:6px 10px;border:1px solid rgba(230,226,226,0.1);color:#8fd3a8;font-weight:700;background:rgba(143,211,168,0.06);">↑ ${r}</div>`; });
+        html += `</div></div>`;
+      }
+    }
+    if (typeof findDependents === 'function') {
+      const deps = findDependents(ref, sheetName);
+      html += `<div style="margin-bottom:14px;"><div style="font-size:7px;letter-spacing:0.35em;text-transform:uppercase;color:rgba(230,226,226,0.4);margin-bottom:6px;">Dependents · feeds into</div>`;
+      if (deps.length) {
+        html += `<div style="display:flex;flex-direction:column;gap:4px;">`;
+        deps.forEach(d => { html += `<div style="font-family:'Courier New',monospace;font-size:10px;padding:6px 10px;border:1px solid rgba(230,226,226,0.1);color:#e6b8a8;font-weight:700;background:rgba(230,184,168,0.06);" title="${(d.label||'').replace(/"/g,'')}">↓ ${d.ref}${d.label ? ' · ' + d.label : ''}</div>`; });
+        html += `</div>`;
+      } else {
+        html += `<div style="font-size:10px;color:rgba(230,226,226,0.4);padding:6px 0;">No downstream cells — this is an output or unused input.</div>`;
+      }
+      html += `</div>`;
     }
 
     const isPercent = value && value.includes('%');
