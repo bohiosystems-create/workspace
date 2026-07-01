@@ -1,6 +1,38 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <script src="assets/js/claude.js"></script>
+<style>
+@keyframes kr-blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+.kr-caret { display:inline-block; margin-left:1px; animation:kr-blink 1s steps(1) infinite; opacity:0.6; font-weight:400; }
+.kr-stream-text { white-space:pre-wrap; }
+
+/* ===== Emulated Karaya chatbot (light, clean) — scoped to #karaya-panel ===== */
+#karaya-panel.kr-emu { background:#faf8f8; color:var(--ink); }
+#karaya-panel.kr-emu .karaya-head { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--ink-hairline); }
+#karaya-panel.kr-emu .karaya-title { color:var(--ink); text-transform:uppercase; letter-spacing:0.3em; font-weight:700; }
+#karaya-panel.kr-emu .kr-head-actions { display:flex; align-items:center; gap:12px; }
+#karaya-panel.kr-emu .kr-history { background:transparent; border:none; color:var(--ink-soft); font-family:inherit; font-size:9px; letter-spacing:0.16em; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; gap:5px; }
+#karaya-panel.kr-emu .kr-history:hover { color:var(--ink); }
+#karaya-panel.kr-emu .karaya-close-btn { color:var(--ink-soft); }
+#karaya-panel.kr-emu .k-msg.bot { background:#fff; color:var(--ink); border:1px solid var(--ink-hairline); }
+#karaya-panel.kr-emu .k-msg.user { background:var(--ink); color:var(--bg); }
+#karaya-panel.kr-emu .k-meta { color:var(--ink-soft); }
+#karaya-panel.kr-emu .kr-empty { text-align:center; padding:44px 26px 26px; display:flex; flex-direction:column; align-items:center; gap:14px; }
+#karaya-panel.kr-emu .kr-empty-logo { font-family:var(--font-display); font-size:32px; letter-spacing:0.14em; color:var(--ink); }
+#karaya-panel.kr-emu .kr-empty-sub { font-size:12px; line-height:1.7; color:var(--ink-soft); max-width:300px; }
+#karaya-panel.kr-emu:not(.kr-chatting) .karaya-suggestions { display:flex !important; flex-wrap:wrap; gap:8px; padding:4px 16px 12px; justify-content:center; overflow:visible; }
+#karaya-panel.kr-emu.kr-chatting .kr-empty { display:none; }
+#karaya-panel.kr-emu .k-chip { border-radius:999px; border:1px solid var(--ink-hairline); background:transparent; color:var(--ink); text-transform:none; letter-spacing:0.01em; font-size:11px; font-weight:400; padding:9px 15px; text-align:center; white-space:normal; }
+#karaya-panel.kr-emu .k-chip:hover { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+#karaya-panel.kr-emu .kr-suggest-btn { margin:0 16px 10px; border-radius:999px; border:1px solid var(--ink); background:transparent; color:var(--ink); font-family:inherit; font-size:10px; letter-spacing:0.2em; text-transform:uppercase; font-weight:700; padding:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:all .18s ease; }
+#karaya-panel.kr-emu .kr-suggest-btn:hover { background:var(--ink); color:var(--bg); }
+#karaya-panel.kr-emu .karaya-input { border-top:1px solid var(--ink-hairline); background:#faf8f8; display:flex; gap:10px; align-items:center; }
+#karaya-panel.kr-emu .karaya-input input { background:#fff; border:1px solid var(--ink-hairline); color:var(--ink); border-radius:999px; padding:12px 18px; }
+#karaya-panel.kr-emu .karaya-input input::placeholder { color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.14em; font-size:10px; }
+#karaya-panel.kr-emu .kr-send { width:42px; height:42px; min-width:42px; border-radius:50%; background:var(--ink); color:var(--bg); border:none; display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; transition:all .18s ease; }
+#karaya-panel.kr-emu .kr-send:hover { background:rgba(0,9,25,0.82); }
+#karaya-panel.kr-emu .kr-disclaimer { text-align:center; font-size:9px; letter-spacing:0.04em; color:var(--ink-soft); padding:0 16px 14px; }
+</style>
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10391,47 +10423,36 @@
   </div>
 
   <!-- KARAYA CHATBOT -->
-  <div class="karaya-panel" id="karaya-panel">
+  <div class="karaya-panel kr-emu" id="karaya-panel">
     <div class="karaya-resize-handle" id="karaya-resize"></div>
-    <button class="karaya-close-btn" onclick="toggleKaraya()" title="Hide Karaya">Close</button>
     <div class="karaya-head">
       <div class="karaya-title">Karaya</div>
+      <button class="karaya-close-btn" onclick="toggleKaraya()" title="Hide Karaya">Close</button>
     </div>
 
     <div class="karaya-messages" id="karaya-msgs">
-      <div class="k-msg bot" style="border-left:3px solid #e6e2e2;padding-left:14px;background:rgba(230,226,226,0.04);">
-        <div style="font-size:8px;letter-spacing:0.28em;text-transform:uppercase;color:rgba(230,226,226,0.5);font-weight:700;margin-bottom:8px;font-family:'Space Grotesk',sans-serif;">New · Just now · Marina Tower</div>
-        <strong>Cordoba Capital Markets</strong> just sent an <em>Offering Memorandum for Marina Tower</em> — 50 pages. I can read it end-to-end and build a financial model from it so we can analyse the opportunity. Want me to start?
-        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
-          <button class="k-chip" style="background:#e6e2e2;color:var(--ink);border-color:#e6e2e2;font-weight:700;" onclick="openFeasibilityFromKaraya()">Open &amp; build model</button>
-          <button class="k-chip" onclick="karayaAsk('What\\'s in the new Marina Tower OM?')">Tell me what's in it</button>
-        </div>
-        <span class="k-meta">Karaya · proactive</span>
-      </div>
-      <div class="k-msg bot">
-        Welcome back, <span data-user="first">Matteo</span>. I'm <em>Karaya</em>, your AI analyst. I can help you query any model in your workspace, run comparisons, or surface insights across your portfolio.
-        <span class="k-meta">Karaya · just now</span>
-      </div>
-      <div class="k-msg bot">
-        You have <em>5 open tasks</em> and <em>3 projects with new activity</em>. The Marina Tower master model was updated 2 hours ago — yield-on-cost moved from 7.4% to 7.1%.
-        <span class="k-meta">Karaya · just now</span>
+      <div class="kr-empty" id="kr-empty">
+        <div class="kr-empty-logo">Karaya</div>
+        <div class="kr-empty-sub">Ask me anything about your workspace. I can analyse any deal or model, query the numbers, explain a formula, and draft documents.</div>
       </div>
     </div>
 
     <div class="karaya-suggestions" id="karaya-suggestions">
-      <button class="k-chip" style="background:#e6e2e2;color:var(--ink);border-color:#e6e2e2;font-weight:700;" onclick="openFeasibilityFromKaraya()">Read the Marina Tower OM</button>
+      <button class="k-chip" onclick="openFeasibilityFromKaraya()">Read the Marina Tower OM</button>
       <button class="k-chip" onclick="karayaAsk(this.textContent)">Compare IRR across all active projects</button>
-      <button class="k-chip" onclick="karayaAsk(this.textContent)">What changed in the Marina Tower v.12 update?</button>
-      <button class="k-chip" onclick="karayaAsk(this.textContent)">Show my overdue tasks across all projects</button>
       <button class="k-chip" onclick="karayaAsk(this.textContent)">Which leases expire in the next 90 days?</button>
-      <button class="k-chip" onclick="karayaAsk(this.textContent)">What is the capex forecast for this year?</button>
-      <button class="k-chip" onclick="karayaAsk(this.textContent)">Generate a deal structure for this project</button>
+      <button class="k-chip" onclick="karayaAsk(this.textContent)">Show my overdue tasks</button>
     </div>
 
+    <button class="kr-suggest-btn" onclick="karayaAsk('Suggest changes — give me 3 concrete, high-impact recommendations across my active projects, with the numbers.')"><span class="kr-spark">✦</span> Suggest Changes</button>
+
     <div class="karaya-input">
-      <input type="text" id="karaya-input" placeholder="Ask Karaya anything…" onkeypress="if(event.key==='Enter')karayaAsk(this.value)">
-      <button class="k-send" onclick="karayaAsk(document.getElementById('karaya-input').value)">Send</button>
+      <input type="text" id="karaya-input" placeholder="Ask Karaya…" onkeypress="if(event.key==='Enter')karayaAsk(this.value)">
+      <button class="k-send kr-send" onclick="karayaAsk(document.getElementById('karaya-input').value)" aria-label="Send" title="Send">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
     </div>
+    <div class="kr-disclaimer">Karaya can make mistakes. Verify important financial data.</div>
   </div>
 
 </div>
@@ -12648,58 +12669,47 @@ Reply as the agent:`;
   }
 
   // KARAYA
+  const KARAYA_HISTORY = [];
   function karayaAsk(q){
     if(!q||!q.trim())return;
+    q = q.trim();
     const msgs=document.getElementById('karaya-msgs');
+    const panel=document.getElementById('karaya-panel'); if(panel) panel.classList.add('kr-chatting');
+    const empty=document.getElementById('kr-empty'); if(empty) empty.style.display='none';
+
     const userMsg=document.createElement('div');
     userMsg.className='k-msg user';
-    userMsg.textContent=q.trim();
+    userMsg.textContent=q;
     msgs.appendChild(userMsg);
+    const inp=document.getElementById('karaya-input'); if(inp) inp.value='';
 
-    document.getElementById('karaya-input').value='';
-    document.getElementById('karaya-suggestions').style.display='none';
-
-    // Check if this is a deal structure generation request
-    const ql = q.trim().toLowerCase();
-    const isDealGen = /deal structure|cap(ital)? stack|generate.*structure|equity.*split|gp.*lp|tranche/i.test(ql);
-
-    // Check if this is a Contract Hub query
-    let chResponse = null;
-    if (typeof karayaResponses !== 'undefined') {
-      for (const [key, val] of Object.entries(karayaResponses)) {
-        if (key !== 'default' && ql.includes(key)) {
-          chResponse = val;
-          break;
-        }
-      }
-    }
-
-    setTimeout(()=>{
-      const bot=document.createElement('div');
-      bot.className='k-msg bot';
-      if (isDealGen && currentProject) {
-        bot.innerHTML=`I can generate a deal structure chart from your description. Let me open the generator for you.<span class="k-meta">Karaya · just now</span>`;
-        msgs.appendChild(bot);
-        msgs.scrollTop=msgs.scrollHeight;
-        setTimeout(() => {
-          openDealGen();
-          // Pre-fill the chat input with the user's description if it contains specifics
-          if (ql.length > 30) {
-            document.getElementById('dg-chat-input').value = q.trim();
-          }
-        }, 400);
-      } else if (chResponse) {
-        bot.innerHTML=`${chResponse.text}<br><span class="k-meta" style="display:block;margin-top:8px;opacity:0.5;">⬡ ${chResponse.source}</span><span class="k-meta">Karaya · just now</span>`;
-        msgs.appendChild(bot);
-        msgs.scrollTop=msgs.scrollHeight;
-      } else {
-        bot.innerHTML=`I'm analysing your request across the workspace data. Let me pull the relevant models and run the comparison for you.<span class="k-meta">Karaya · just now</span>`;
-        msgs.appendChild(bot);
-        msgs.scrollTop=msgs.scrollHeight;
-      }
-    },600);
-
+    // bot bubble — starts writing immediately as tokens stream in
+    const bot=document.createElement('div');
+    bot.className='k-msg bot';
+    msgs.appendChild(bot);
     msgs.scrollTop=msgs.scrollHeight;
+
+    const history=KARAYA_HISTORY.slice(-6).map(m=>(m.role==='user'?'User: ':'Karaya: ')+m.text).join('\n');
+    const ctx=(typeof buildWorkspaceContext==='function')?buildWorkspaceContext():'';
+    const uname=(window.DEMO_USER&&window.DEMO_USER.name)||'Matteo Bevilacqua';
+    const prompt=`You are Karaya, the AI analyst inside Bohio Workspace — an institutional real-estate investment platform used by ${uname}'s firm. Answer any question about any project, document, financial model, template, fund/LP, deal, stakeholder, capital stack, budget, brief, contract or negotiation, using the WORKSPACE DATA below as your source of truth. Be specific — cite the actual names, figures, dates and parties. Keep it concise and conversational (2-6 sentences, or a short bulleted list when comparing). Plain text; you may use **bold** for key figures. Don't invent facts not in the data.
+
+===== WORKSPACE DATA =====
+${ctx}
+===== END WORKSPACE DATA =====
+${history? '\nConversation so far:\n'+history+'\n':''}
+User's question: "${q}"
+
+Answer as Karaya:`;
+
+    (async()=>{
+      const fallback="I couldn't reach the analysis engine just now — live answers need the demo server running with an ANTHROPIC_API_KEY set. Once that's on, I can pull from any project, model, fund or document in the workspace.";
+      const answer=await karayaStreamInto(bot, prompt, 'home_chat', fallback);
+      KARAYA_HISTORY.push({role:'user',text:q});
+      KARAYA_HISTORY.push({role:'karaya',text:answer});
+      bot.innerHTML=fmtKaraya(answer)+'<span class="k-meta">Karaya · just now</span>';
+      msgs.scrollTop=msgs.scrollHeight;
+    })();
   }
 
   // MY MODELS DATA
@@ -15450,6 +15460,36 @@ Reply as the agent:`;
     return html;
   }
 
+  // Stream a Karaya answer into a bubble so it starts writing immediately.
+  // Falls back to a full (non-streamed) response, then a canned line, if needed.
+  function _krScroll(bot){ const m = bot && bot.parentElement; if (m) m.scrollTop = m.scrollHeight; }
+  function _krTypewriter(el, text, bot){
+    return new Promise(res => {
+      let i = 0; el.textContent = '';
+      const n = Math.max(1, Math.round(String(text).length / 140));
+      const step = () => { i += n; el.textContent = String(text).slice(0, i); _krScroll(bot); if (i < String(text).length) setTimeout(step, 16); else res(); };
+      step();
+    });
+  }
+  async function karayaStreamInto(bot, prompt, task, fallbackText){
+    bot.innerHTML = '<span class="kr-stream-text"></span><span class="kr-caret" aria-hidden="true">▍</span>';
+    const textEl = bot.querySelector('.kr-stream-text');
+    const caret = bot.querySelector('.kr-caret');
+    let full = '';
+    try {
+      await window.claude.stream({ messages:[{ role:'user', content: prompt }], task },
+        {}, (t) => { full += t; textEl.textContent = full; _krScroll(bot); });
+    } catch (e) {
+      try { full = (await window.claude.complete({ messages:[{ role:'user', content: prompt }], task })) || ''; }
+      catch (e2) { full = ''; }
+      if (!full || !full.trim()) full = fallbackText || '';
+      await _krTypewriter(textEl, full, bot);
+    }
+    if (!full || !full.trim()) { full = fallbackText || ''; await _krTypewriter(textEl, full, bot); }
+    if (caret) caret.remove();
+    return full;
+  }
+
   async function landingKarayaSend() {
     const input = document.getElementById('landing-karaya-input');
     const q = (input.value || '').trim();
@@ -15463,10 +15503,9 @@ Reply as the agent:`;
     input.value = '';
     msgs.scrollTop = msgs.scrollHeight;
 
-    // typing indicator
+    // bot bubble — starts writing immediately as tokens stream in
     const bot = document.createElement('div');
     bot.style.cssText = 'padding:10px 14px;font-size:11px;letter-spacing:0.03em;line-height:1.65;background:rgba(0,9,25,0.05);color:var(--ink);border:1px solid var(--ink-hairline);align-self:flex-start;max-width:80%;';
-    bot.innerHTML = '<span style="opacity:0.55;">Karaya is reading your workspace…</span>';
     msgs.appendChild(bot);
     msgs.scrollTop = msgs.scrollHeight;
 
@@ -15486,17 +15525,13 @@ User's question: "${q}"
 
 Answer as Karaya:`;
 
-    let answer = '';
-    try {
-      answer = await window.claude.complete(prompt, { task: 'home_chat' });
-    } catch (e) { answer = ''; }
-    if (!answer || !answer.trim()) {
-      answer = "I couldn't reach the analysis engine just now. Live answers need the demo server running with an ANTHROPIC_API_KEY set — once that's on, I can pull from any project, document, model or fund in the workspace. In the meantime, try the quick actions below or open a project from the sidebar.";
-    }
+    const fallback = "I couldn't reach the analysis engine just now. Live answers need the demo server running with an ANTHROPIC_API_KEY set — once that's on, I can pull from any project, document, model or fund in the workspace. In the meantime, try the quick actions below or open a project from the sidebar.";
+    const answer = await karayaStreamInto(bot, prompt, 'home_chat', fallback);
 
     LANDING_KARAYA_HISTORY.push({ role: 'user', text: q });
     LANDING_KARAYA_HISTORY.push({ role: 'karaya', text: answer });
 
+    // finalise with formatting + timestamp
     bot.innerHTML = fmtKaraya(answer) +
       '<span style="display:block;font-size:7px;letter-spacing:0.25em;text-transform:uppercase;color:var(--ink-soft);margin-top:8px;">Karaya · just now</span>';
     msgs.scrollTop = msgs.scrollHeight;

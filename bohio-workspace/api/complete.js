@@ -24,6 +24,7 @@ export default async function handler(req, res) {
   if (!messages.length) return res.status(400).json({ error: 'no messages' });
   const max_tokens = Math.min(Number(body.max_tokens) || 1500, 4096);
   const model = resolveModel(body.task, body.model); // route to the right model for this task
+  const wantStream = body.stream === true;
 
   try {
     const upstream = await fetch(apiUrl, {
@@ -33,13 +34,44 @@ export default async function handler(req, res) {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({ model, max_tokens, messages }),
+      body: JSON.stringify({ model, max_tokens, messages, stream: wantStream }),
     });
     if (!upstream.ok) {
       const errText = await upstream.text();
       console.error('Anthropic error', upstream.status, errText.slice(0, 500));
       return res.status(502).json({ error: 'upstream ' + upstream.status });
     }
+
+    // ---- streaming: forward Anthropic SSE text deltas as a plain chunked stream
+    if (wantStream) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.status(200);
+      const reader = upstream.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (line.startsWith('data:')) {
+            const d = line.slice(5).trim();
+            if (d && d !== '[DONE]') {
+              try {
+                const j = JSON.parse(d);
+                if (j.type === 'content_block_delta' && j.delta && j.delta.text) res.write(j.delta.text);
+              } catch (e) {}
+            }
+          }
+        }
+      }
+      return res.end();
+    }
+
     const data = await upstream.json();
     const text = (data.content || [])
       .filter((b) => b.type === 'text')
@@ -48,6 +80,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ text, model });
   } catch (err) {
     console.error('proxy failure', err);
+    if (res.headersSent) return res.end();
     return res.status(502).json({ error: 'proxy failure' });
   }
 }

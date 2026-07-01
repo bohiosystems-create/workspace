@@ -108,6 +108,7 @@ async function handleComplete(req, res) {
   }
   const max_tokens = Math.min(Number(payload.max_tokens) || 1500, 4096);
   const model = resolveModel(payload.task, payload.model);
+  const wantStream = payload.stream === true;
 
   try {
     const upstream = await fetch(API_URL, {
@@ -117,7 +118,7 @@ async function handleComplete(req, res) {
         'x-api-key': API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({ model, max_tokens, messages }),
+      body: JSON.stringify({ model, max_tokens, messages, stream: wantStream }),
     });
     if (!upstream.ok) {
       const errText = await upstream.text();
@@ -125,15 +126,45 @@ async function handleComplete(req, res) {
       return send(res, 502, JSON.stringify({ error: 'upstream ' + upstream.status }),
         { 'Content-Type': 'application/json' });
     }
+    if (payload.task) console.log('[complete] task=' + payload.task + ' → ' + model + (wantStream ? ' (stream)' : ''));
+
+    // ---- streaming: forward Anthropic SSE text deltas as a plain chunked stream
+    if (wantStream) {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' });
+      const reader = upstream.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (line.startsWith('data:')) {
+            const d = line.slice(5).trim();
+            if (d && d !== '[DONE]') {
+              try {
+                const j = JSON.parse(d);
+                if (j.type === 'content_block_delta' && j.delta && j.delta.text) res.write(j.delta.text);
+              } catch (e) {}
+            }
+          }
+        }
+      }
+      return res.end();
+    }
+
     const data = await upstream.json();
     const text = (data.content || [])
       .filter((b) => b.type === 'text')
       .map((b) => b.text)
       .join('');
-    if (payload.task) console.log('[complete] task=' + payload.task + ' → ' + model);
     return send(res, 200, JSON.stringify({ text, model }), { 'Content-Type': 'application/json' });
   } catch (err) {
     console.error('proxy failure', err);
+    if (res.headersSent) return res.end();
     return send(res, 502, JSON.stringify({ error: 'proxy failure' }), { 'Content-Type': 'application/json' });
   }
 }

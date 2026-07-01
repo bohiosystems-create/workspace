@@ -55,6 +55,56 @@
     return data.text || '';
   }
 
+  // Streaming variant — starts delivering text as soon as the model produces it.
+  // Calls onToken(deltaText) for each chunk and resolves with the full string.
+  // Degrades gracefully: if the server returns JSON (no streaming) it emits the
+  // whole text once; throws on error so callers can fall back to complete().
+  async function stream(arg, opts, onToken) {
+    opts = opts || {};
+    const messages = toMessages(arg);
+    const o = (arg && typeof arg === 'object') ? arg : {};
+    const body = {
+      messages: messages,
+      max_tokens: opts.max_tokens || o.max_tokens || 1500,
+      task: opts.task || o.task || null,
+      model: opts.model || o.model || null,
+      stream: true,
+    };
+    const res = await fetch('/api/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      let detail = '';
+      try { detail = (await res.json()).error || ''; } catch (e) {}
+      throw new Error('claude.stream failed (' + res.status + ') ' + detail);
+    }
+    const ct = res.headers.get('content-type') || '';
+    if (ct.indexOf('application/json') !== -1) { // server didn't stream — take the full text
+      const data = await res.json();
+      const text = data.text || '';
+      if (onToken && text) onToken(text);
+      return text;
+    }
+    if (!res.body || !res.body.getReader) {
+      const text = await res.text();
+      if (onToken && text) onToken(text);
+      return text;
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let full = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = dec.decode(value, { stream: true });
+      if (chunk) { full += chunk; if (onToken) onToken(chunk); }
+    }
+    return full;
+  }
+
   window.claude = window.claude || {};
   window.claude.complete = complete;
+  window.claude.stream = stream;
 })();
