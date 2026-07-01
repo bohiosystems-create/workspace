@@ -20,6 +20,13 @@ and a tiny zero-dependency server wires the AI features to a real Claude model.
 - **Funds & Stakeholders** — multi-fund command center with an animated
   stakeholder network, capital-deployment metrics and a live project pipeline.
 - **Agent chats & negotiation room** — in-character AI counterparties.
+- **Documents repository** — a central place that stores the firm's documents
+  in an organised way (fund papers, leases & landlord agreements, service
+  contracts, amendments) and lets you route any of them for approval; approvers
+  sign off live. Documents can also be approved from within a project.
+- **Fake sign-in with a customisable name** — sign in as anyone; your name
+  personalises the topbar, home welcome, Karaya's greeting and the AI prompts.
+  Editable any time in Settings and remembered across reloads.
 - **Model Studio dashboards** — six asset-class dashboards loaded into the
   workspace (hotel, office, retail, single-tenant, waterfall, lifestyle).
 
