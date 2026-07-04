@@ -20,6 +20,13 @@ and a tiny zero-dependency server wires the AI features to a real Claude model.
 - **Funds & Stakeholders** — multi-fund command center with an animated
   stakeholder network, capital-deployment metrics and a live project pipeline.
 - **Agent chats & negotiation room** — in-character AI counterparties.
+- **Contract Management** — every lease & landlord agreement in one place;
+  Karaya reads the contract terms (rent, escalation, term, breaks) and **builds
+  a portfolio cashflow model straight from the leases** — a projected
+  contracted-income table + chart with an AI insight.
+- Every Karaya chatbot across the app (home, project rail, model editor, model
+  studio, fullscreen sheet, file Q&A, screening, funds, negotiation) is
+  connected to the Claude API and **streams its answer as it writes**.
 - **Documents repository** — a central place that stores the firm's documents
   in an organised way (fund papers, leases & landlord agreements, service
   contracts, amendments) and lets you route any of them for approval; approvers

@@ -10152,19 +10152,18 @@
         <div class="proj-squircle" data-org="mc" onclick="showProject(6)"><div class="psq-top"><span class="psq-notif has-new">4</span></div><div class="psq-body"><h3 class="psq-name">Nahdah Logistics</h3><div class="psq-role">JV · LP</div></div><div class="psq-foot"><span class="psq-loc">Jeddah · East</span><span class="psq-status"><span class="psq-dot"></span>Active</span></div></div>
       </div>
 
-      <!-- ============ MY AGENTS ============ -->
+      <!-- ============ CONTRACT MANAGEMENT ============ -->
       <div class="section-header" style="margin-top:48px;">
-        <h2 class="section-title">My Agents</h2>
+        <h2 class="section-title">Contract Management</h2>
         <div style="display:flex;align-items:center;gap:18px;">
-          <span class="section-meta">Manage your agents' communications &amp; negotiations</span>
+          <span class="section-meta">Leases &amp; landlord agreements → build a cashflow model</span>
         </div>
       </div>
       <p style="font-size:12px;line-height:1.65;letter-spacing:0.02em;color:var(--ink-soft);max-width:760px;margin:2px 0 22px;">
-        Your agents work your deals on your behalf — exchanging communications and negotiating contract terms with counterparties. Track what each is working on, review open terms, and step in where they flag they need your call.
+        Every lease and landlord agreement in one place. Karaya reads the contract terms — rent, escalation, term and break clauses — and builds a portfolio cashflow model straight from them.
       </p>
 
-      <div class="myagents-summary" id="myagents-summary"></div>
-      <div class="myagents-list" id="myagents-list"></div>
+      <div id="contract-mgmt"></div>
 
     </div>
 
@@ -11095,6 +11094,7 @@
       setActiveNav('nav-workspace');
       document.getElementById('nav-projects')?.classList.add('active');
       setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Workspace'}]);
+      if (typeof renderContractMgmt === 'function') renderContractMgmt();
       // Keep the left sidebar OPEN on workspace; only auto-hide the right Karaya panel
       const _sh = document.querySelector('.app-shell');
       if (_sh) {
@@ -12003,7 +12003,123 @@
       list.appendChild(card);
     });
   }
-  renderMyAgents();
+  // (My Agents replaced by Contract Management — rendered on demand from goTo('workspace'))
+
+  // ================= CONTRACT MANAGEMENT — leases → cashflow model =================
+  function _sar(n){ return 'SAR ' + Math.round(n).toLocaleString('en-US'); }
+  function _leaseRentNum(l){ const m=(l.rent||'').replace(/,/g,'').match(/([\d.]+)/); return m?parseFloat(m[1]):0; }
+  function _leaseEscRate(l){
+    const c=(l.clauses||[]).find(x=>/escalat/i.test((x.title||'')+' '+(x.text||'')));
+    const m=c && c.text && c.text.match(/([\d.]+)\s*%/);
+    return m?parseFloat(m[1])/100:0.05;
+  }
+  function _cmParseDate(s){
+    const m=(s||'').match(/(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})/); if(!m) return null;
+    const months={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+    const mo=months[m[2].slice(0,3).toLowerCase()]; if(mo==null) return null;
+    return new Date(parseInt(m[3],10), mo, parseInt(m[1],10));
+  }
+  function _leaseTermYears(l){
+    const s=_cmParseDate(l.startDate), e=_cmParseDate(l.endDate);
+    if(!s||!e) return 5;
+    const yrs=Math.round((e-s)/(365.25*86400000));
+    return Math.max(1, yrs||1);
+  }
+
+  function renderContractMgmt(){
+    const host=document.getElementById('contract-mgmt');
+    if(!host || typeof leases==='undefined') return;
+    const rows=leases.map(l=>{
+      const esc=_leaseEscRate(l), term=_leaseTermYears(l);
+      const pill=(typeof _docStatusPill==='function')?_docStatusPill(l.status):('<span>'+(l.status||'')+'</span>');
+      return `<label class="cm-row" style="display:grid;grid-template-columns:24px 1fr auto auto auto auto;gap:16px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--ink-hairline);cursor:pointer;">
+        <input type="checkbox" class="cm-check" data-id="${l.id}" checked style="accent-color:var(--ink);width:15px;height:15px;">
+        <div style="min-width:0;"><div style="font-size:13px;color:var(--ink);">${l.name}</div><div style="font-size:10px;color:var(--ink-soft);margin-top:2px;">${l.type} · ${l.party}</div></div>
+        <div style="text-align:right;"><div style="font-size:12px;font-weight:600;white-space:nowrap;">${l.rent}</div><div style="font-size:7px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);">rent</div></div>
+        <div style="text-align:right;"><div style="font-size:12px;">${(esc*100).toFixed(0)}%</div><div style="font-size:7px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);">escalation</div></div>
+        <div style="text-align:right;"><div style="font-size:12px;">${term} yr</div><div style="font-size:7px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);">term</div></div>
+        <div>${pill}</div>
+      </label>`;
+    }).join('');
+    host.innerHTML=`<div class="dm-card" style="margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 16px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:11px;letter-spacing:0.26em;text-transform:uppercase;font-weight:700;">Lease Agreements</div>
+        <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">${leases.length} contracts</div>
+      </div>
+      ${rows}
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap;">
+      <button class="dm-btn" onclick="buildLeaseCashflow()">Build cashflow model →</button>
+      <span style="font-size:11px;color:var(--ink-soft);">Karaya reads the selected leases and projects contracted income.</span>
+    </div>
+    <div id="cm-cashflow"></div>`;
+  }
+
+  function buildLeaseCashflow(){
+    const host=document.getElementById('cm-cashflow'); if(!host) return;
+    const ids=[...document.querySelectorAll('.cm-check:checked')].map(c=>c.dataset.id);
+    const sel=leases.filter(l=>ids.indexOf(l.id)>=0);
+    if(!sel.length){ host.innerHTML='<div style="color:var(--ink-soft);font-size:12px;">Select at least one lease to model.</div>'; return; }
+    const steps=['Reading the lease agreements…','Extracting rent, escalation, term & breaks…','Projecting contracted income year by year…','Aggregating the portfolio cashflow…','Rendering the model…'];
+    host.innerHTML=`<div class="dm-card" style="padding:22px 24px;"><div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;" id="cm-step">${steps[0]}</div><div style="height:4px;background:var(--ink-hairline);"><div id="cm-fill" style="height:100%;width:0;background:var(--ink);transition:width .4s ease;"></div></div></div>`;
+    const stepEl=document.getElementById('cm-step'), fill=document.getElementById('cm-fill');
+    let i=0;
+    const t=setInterval(()=>{ i++;
+      if(i<steps.length){ stepEl.textContent=steps[i]; fill.style.width=((i/steps.length)*100)+'%'; }
+      else { fill.style.width='100%'; clearInterval(t); setTimeout(()=>renderLeaseCashflow(host, sel), 420); }
+    }, 520);
+  }
+
+  function renderLeaseCashflow(host, sel){
+    const N=5, years=[1,2,3,4,5];
+    const perLease=sel.map(l=>{
+      const rent=_leaseRentNum(l), esc=_leaseEscRate(l), term=_leaseTermYears(l);
+      return { l, cf: years.map(y=> y<=term ? rent*Math.pow(1+esc,y-1) : 0) };
+    });
+    const totals=years.map((_,yi)=> perLease.reduce((a,p)=>a+p.cf[yi],0));
+    const grand=totals.reduce((a,b)=>a+b,0);
+    const maxTot=Math.max.apply(null, totals.concat([1]));
+    const fmt=n=> n>0 ? _sar(n) : '—';
+    const rowsHtml=perLease.map(p=>`<tr>
+      <td style="padding:9px 12px;font-size:12px;border-bottom:1px solid var(--ink-hairline);">${p.l.name}<div style="font-size:9px;color:var(--ink-soft);">${p.l.party}</div></td>
+      ${p.cf.map(v=>`<td style="padding:9px 12px;font-size:12px;text-align:right;border-bottom:1px solid var(--ink-hairline);font-variant-numeric:tabular-nums;">${fmt(v)}</td>`).join('')}
+    </tr>`).join('');
+    const barHtml=totals.map((tt,yi)=>`<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%;"><div style="width:66%;height:${Math.round(88*tt/maxTot)}px;background:var(--ink);"></div><span style="font-size:8px;color:var(--ink-soft);">Y${yi+1}</span></div>`).join('');
+    host.innerHTML=`<div class="dm-card" style="padding:0;overflow:hidden;margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 18px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:11px;letter-spacing:0.26em;text-transform:uppercase;font-weight:700;">Contracted Income Cashflow · ${sel.length} leases</div>
+        <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">built from lease terms</div>
+      </div>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:520px;">
+        <thead><tr><th style="text-align:left;padding:10px 12px;font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);border-bottom:1px solid var(--ink-hairline);">Lease</th>${years.map(y=>`<th style="text-align:right;padding:10px 12px;font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);border-bottom:1px solid var(--ink-hairline);">Year ${y}</th>`).join('')}</tr></thead>
+        <tbody>${rowsHtml}
+          <tr style="background:rgba(0,9,25,0.03);"><td style="padding:11px 12px;font-size:12px;font-weight:700;">Total contracted income</td>${totals.map(tt=>`<td style="padding:11px 12px;font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums;">${_sar(tt)}</td>`).join('')}</tr>
+        </tbody>
+      </table></div>
+      <div style="padding:16px 18px;">
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:10px;">Total contracted income by year</div>
+        <div style="display:flex;align-items:flex-end;gap:10px;height:100px;">${barHtml}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--ink-hairline);border:1px solid var(--ink-hairline);margin-bottom:16px;">
+      <div style="background:var(--paper);padding:14px 16px;"><div style="font-family:var(--font-display);font-size:22px;line-height:1;">${_sar(totals[0])}</div><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;">Year 1 income</div></div>
+      <div style="background:var(--paper);padding:14px 16px;"><div style="font-family:var(--font-display);font-size:22px;line-height:1;">${_sar(grand)}</div><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;">5-yr contracted total</div></div>
+      <div style="background:var(--paper);padding:14px 16px;"><div style="font-family:var(--font-display);font-size:22px;line-height:1;">${sel.length}</div><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;">leases modelled</div></div>
+    </div>
+    <div class="dm-card" id="cm-insight" style="padding:14px 18px;font-size:12px;color:var(--ink);line-height:1.6;"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>`;
+
+    const insightEl=document.getElementById('cm-insight');
+    const textEl=insightEl.querySelector('.kr-stream-text');
+    const caret=insightEl.querySelector('.kr-caret');
+    const prompt=`You are Karaya. You just built a 5-year contracted-income cashflow model from ${sel.length} lease agreements. Year-1 contracted income is ${_sar(totals[0])}, the 5-year total ${_sar(grand)}. In ONE sentence (max 30 words), give the key insight — the income trajectory and the main risk (e.g. near-term lease expiries / holdover). Plain text, no markdown.`;
+    (async()=>{
+      let full='';
+      try { await window.claude.stream({messages:[{role:'user',content:prompt}], task:'quick_insight'}, {}, tok=>{ full+=tok; textEl.textContent=full; }); }
+      catch(e){ full=`Contracted income runs from ${_sar(totals[0])} in Year 1 toward ${_sar(totals[N-1])} by Year 5 as rents escalate — but watch the near-term expiries, where holdover or renewal risk could interrupt the projection.`; textEl.textContent=full; }
+      if(!full||!full.trim()){ full=`Contracted income escalates to ${_sar(totals[N-1])} by Year 5; the near-term lease expiries are the main risk to the projection.`; textEl.textContent=full; }
+      if(caret) caret.remove();
+    })();
+  }
 
   function openAgentActivity(id){
     const a = AGENTS[id], act = AGENT_ACTIVITY[id];
@@ -12275,11 +12391,21 @@ Reply as the agent:`;
   }
   function askFileAI() {
     const inp = document.getElementById('fd-ai-input');
-    const v = inp.value.trim(); if (!v) return;
+    const v = (inp.value || '').trim(); if (!v) return;
     const fd = ensureFileData(currentFile);
-    fd.ai.push({role:'user',text:v});
-    fd.ai.push({role:'ai',text:`Reviewing <strong>${currentFile.name}</strong> for that. The relevant cells are flagged in dependency view; I can also draft a summary or run a sensitivity if that's useful.`});
-    inp.value=''; switchFileTab('ai');
+    const fname = (currentFile && currentFile.name) || 'this document';
+    fd.ai.push({ role: 'user', text: v });
+    fd.ai.push({ role: 'ai', text: '<em>Reviewing…</em>', typing: true });
+    inp.value = ''; switchFileTab('ai');
+    const prompt = `You are Karaya reviewing the file "${fname}" inside a real-estate deal workspace. Answer the user's question about this file concisely (2-4 sentences), plain text; you may use <strong> for emphasis.\n\nUser: "${v}"`;
+    const finish = (txt) => {
+      fd.ai = fd.ai.filter(m => !m.typing);
+      const safe = String(txt || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      fd.ai.push({ role: 'ai', text: safe || `Reviewing <strong>${fname}</strong>. I can draft a summary or run a sensitivity if that's useful.` });
+      switchFileTab('ai');
+    };
+    window.claude.complete({ messages: [{ role: 'user', content: prompt }], task: 'file_qa' })
+      .then(finish).catch(() => finish(''));
   }
 
   // ============ APPROVAL FLOW ============
@@ -13452,25 +13578,25 @@ Answer as Karaya:`;
 
   function studioKarayaSend() {
     const input = document.getElementById('studio-karaya-input');
-    const q = input.value.trim();
+    const q = (input.value || '').trim();
     if (!q) return;
-
     const msgs = document.getElementById('studio-karaya-msgs');
     const userMsg = document.createElement('div');
     userMsg.className = 'k-msg user';
     userMsg.textContent = q;
     msgs.appendChild(userMsg);
     input.value = '';
-
-    setTimeout(() => {
-      const bot = document.createElement('div');
-      bot.className = 'k-msg bot';
-      bot.innerHTML = `I'm regenerating the visualisation based on your request. The charts will update momentarily.<span class="k-meta">Karaya · just now</span>`;
-      msgs.appendChild(bot);
-      msgs.scrollTop = msgs.scrollHeight;
-    }, 600);
-
+    const bot = document.createElement('div');
+    bot.className = 'k-msg bot';
+    msgs.appendChild(bot);
     msgs.scrollTop = msgs.scrollHeight;
+    const tab = (document.querySelector('#studio-tabs .studio-tab.active') || {}).textContent || 'the dashboard';
+    const prompt = `You are Karaya, an institutional real-estate analyst reading the "${tab}" deal dashboard (revenue, returns, sensitivity, cash flow and the equity waterfall) for the current model. Answer the user's question about the model or analysis. Be concise (2-5 sentences), plain text, **bold** key figures.\n\nUser: "${q}"\n\nAnswer as Karaya:`;
+    (async () => {
+      const a = await karayaStreamInto(bot, prompt, 'file_qa', "I'm reading the live dashboards — ask me about revenue, returns, the sensitivity grid or the equity waterfall.");
+      bot.innerHTML = fmtKaraya(a) + '<span class="k-meta">Karaya · just now</span>';
+      msgs.scrollTop = msgs.scrollHeight;
+    })();
   }
 
   // FULLSCREEN SPREADSHEET
@@ -13738,25 +13864,25 @@ Answer as Karaya:`;
 
   function fsKarayaSend() {
     const input = document.getElementById('fs-karaya-input');
-    const q = input.value.trim();
+    const q = (input.value || '').trim();
     if (!q) return;
-
     const msgs = document.getElementById('fs-karaya-msgs');
     const userMsg = document.createElement('div');
     userMsg.className = 'k-msg user';
     userMsg.textContent = q;
     msgs.appendChild(userMsg);
     input.value = '';
-
-    setTimeout(() => {
-      const bot = document.createElement('div');
-      bot.className = 'k-msg bot';
-      bot.innerHTML = `Updating the model based on your request. The spreadsheet will reflect the changes once applied.<span class="k-meta">Karaya · just now</span>`;
-      msgs.appendChild(bot);
-      msgs.scrollTop = msgs.scrollHeight;
-    }, 600);
-
+    const bot = document.createElement('div');
+    bot.className = 'k-msg bot';
+    msgs.appendChild(bot);
     msgs.scrollTop = msgs.scrollHeight;
+    const sheetName = (typeof fsActiveSheet !== 'undefined' && fsActiveSheet) ? fsActiveSheet : 'Summary';
+    const prompt = `You are Karaya in the Bohio financial-model editor, current tab "${sheetName}". Answer the user's question about the model — explain a formula or driver, or a what-if — grounded in the SHEET below. Concise (2-5 sentences), plain text, **bold** key figures.\n\nSHEET (${sheetName}):\n${(typeof dumpSheet === 'function' ? dumpSheet(sheetName) : '')}\n\nUser: "${q}"\n\nAnswer as Karaya:`;
+    (async () => {
+      const a = await karayaStreamInto(bot, prompt, 'file_qa', "I can see the model — ask me to explain a driver, or run a what-if.");
+      bot.innerHTML = fmtKaraya(a) + '<span class="k-meta">Karaya · just now</span>';
+      msgs.scrollTop = msgs.scrollHeight;
+    })();
   }
 
   // TEMPLATE LIBRARY DATA
