@@ -33,6 +33,12 @@
 #karaya-panel.kr-emu .kr-send { width:42px; height:42px; min-width:42px; border-radius:50%; background:var(--ink); color:var(--bg); border:none; display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; transition:all .18s ease; }
 #karaya-panel.kr-emu .kr-send:hover { background:rgba(0,9,25,0.82); }
 #karaya-panel.kr-emu .kr-disclaimer { text-align:center; font-size:9px; letter-spacing:0.04em; color:var(--ink-soft); padding:0 16px 14px; }
+/* ===== Ask-a-Department overlay — light chat, answers in ink ===== */
+#dept-overlay .k-msg.bot { background:#fff; color:#000919; border:1px solid var(--ink-hairline); }
+#dept-overlay .k-msg.bot strong, #dept-overlay .k-msg.bot b { color:#000919; }
+#dept-overlay .k-msg.bot .kr-stream-text, #dept-overlay .k-msg.bot .kr-caret { color:#000919; }
+#dept-overlay .k-msg .k-meta { color:var(--ink-soft); }
+#dept-overlay .k-msg.user { background:#000919; color:var(--bg); }
 </style>
 
 <meta charset="UTF-8">
@@ -10304,7 +10310,8 @@
             <input type="text" id="docs-search-input" class="docs-search-input" placeholder="Search documents…" oninput="filterDocs(this.value)" autocomplete="off">
             <button class="docs-search-clear" id="docs-search-clear" onclick="clearDocSearch()" title="Clear" style="display:none;">×</button>
           </div>
-          <button class="action-btn">+ Upload</button>
+          <button class="action-btn" onclick="document.getElementById('proj-doc-upload').click()">+ Upload</button>
+          <input type="file" id="proj-doc-upload" style="display:none;" accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.pptx,.ppt,.txt,.md" onchange="handleProjectDocUpload(this.files[0])">
         </div>
       </div>
       <div class="docs-grid" id="docs-grid"></div>
@@ -11436,6 +11443,7 @@
     const add=document.createElement('div');
     add.className='doc-square add';
     add.innerHTML='<div class="plus">+</div><div class="label">Add Document</div>';
+    add.onclick=()=>{ const inp=document.getElementById('proj-doc-upload'); if(inp) inp.click(); };
     g.appendChild(add);
     // Reset any active document search when (re)loading a project
     const _ds = document.getElementById('docs-search-input');
@@ -13572,7 +13580,7 @@ Answer as Karaya:`;
         {key:'pricing', label:'Pricing & incentives', on:true, hint:/pric|discount|list price|incentive|payment plan/i},
         {key:'buyers', label:'Buyer pipeline & CRM', on:false, hint:/buyer|\blead|\bcrm\b|prospect|pipeline/i},
       ],
-      ctx:'Marina Tower residences: 320 units, 58% sold, average achieved price SAR 2,150/sqft, absorption running 12 units/month. Live campaign: 5% payment-plan incentive. Buyer pipeline 140 active leads (not for external release).' },
+      ctx:'Marina Tower residences: 320 units total — 186 sold (58%), 24 reserved under deposit, 110 remaining. Average achieved price SAR 2,150/sqft vs SAR 2,080 list (+3.4%); absorption running 12 units/month (last month: 14 — Tower B launch). Sales revenue contracted to date SAR 512M, collections SAR 388M. Sell-out forecast Q3 2027. Ash Shati Residences: 184 units — 121 sold (66%), achieved SAR 1,890/sqft, absorption 9 units/month. Live campaign: 5% payment-plan incentive on Marina Tower Tower-B stock. Buyer pipeline 140 active leads (not for external release).' },
     projectmgmt: { name:'Project Management', mark:'PM', tag:'Programme · milestones · contractors',
       cats:[
         {key:'programme', label:'Programme & milestones', on:true, hint:/programme|milestone|schedule|timeline|completion|delay|slip|critical path/i},
@@ -13617,7 +13625,12 @@ Answer as Karaya:`;
     if(!key){ for(const k of Object.keys(DEPT_AGENTS)){ if(DEPT_NAME_RE[k]&&DEPT_NAME_RE[k].test(q)){ key=k; break; } } }
     if(!key) return false;
     const a=DEPT_AGENTS[key];
-    const hit=a.cats.find(c=>c.hint&&c.hint.test(q));
+    // Match categories against the question body only (strip the "ask Sales…"
+    // address so the department's own name can't satisfy a category hint), and
+    // decline if ANY locked category is touched — not just the first match.
+    const qBody = askM ? q.slice(askM[0].length) : q;
+    const hits=a.cats.filter(c=>c.hint&&c.hint.test(qBody));
+    const hit=hits.find(c=>!agentCatOn(key,c.key)) || hits[0] || null;
     if(hit && !agentCatOn(key,hit.key)){
       const txt=`I checked with the **${a.name} agent** — it isn't authorised to share ${hit.label.toLowerCase()}. You can enable that for the ${a.name} agent in Settings › AI Agents.`;
       bot.innerHTML=fmtKaraya(txt)+'<span class="k-meta">Karaya · via '+a.name+' agent</span>';
@@ -14403,6 +14416,30 @@ Answer as the ${a.name} agent:`;
     const inp = document.getElementById('file-input-models'); if (inp) inp.value = '';
     uploadBuildingOverlay(base, title, stepsByKind[kind], () => { if (typeof openEditor === 'function') openEditor(doc); });
   }
+  // Upload into the open project: Excel/CSV files become live Bohio models
+  // (reworkable by chat — modify cells, question drivers, add sheets); anything
+  // else is filed into the project's document grid.
+  function handleProjectDocUpload(file){
+    if(!file) return;
+    const pid=currentProject; const p=P[pid]; if(!p) return;
+    const base=String(file.name||'Document').replace(/\.[^.]+$/,'');
+    const ext=((String(file.name||'').match(/\.([^.]+)$/)||[,''])[1]||'').toLowerCase();
+    const inp=document.getElementById('proj-doc-upload'); if(inp) inp.value='';
+    const isSheet=['xlsx','xls','csv'].indexOf(ext)>=0;
+    if(isSheet){
+      // register on the project so it lives in this project's Financial Models grid
+      if(!p.docs.find(d=>d.name===base)) p.docs.unshift({type:'XLSX', name:base, version:'v.01 · From workbook', updated:'Just now · You', isGenerated:true,
+        notes:'Imported workbook mapped into the Bohio underwriting template by Karaya. Rework it by chatting — change cells, add/remove metrics, add sheets.'});
+      handleModelUpload(file); // build overlay → opens the reworkable Bohio editor
+      return;
+    }
+    const t=(ext||'doc').toUpperCase();
+    if(!p.docs.find(d=>d.name===base)) p.docs.push({type:t, name:base, version:'Just now', updated:'Just now · You'});
+    uploadBuildingOverlay(base, 'Filing into the data room', ['Reading the file…','Classifying the document…','Filing into the project data room…'], ()=>{
+      showProject(pid); // re-render grids; lands on the Documents section
+    });
+  }
+
   function uploadBuildingOverlay(name, title, steps, done){
     let ov = document.getElementById('upl-overlay');
     if(!ov){ ov = document.createElement('div'); ov.id = 'upl-overlay';
