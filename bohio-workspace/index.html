@@ -10150,19 +10150,6 @@
         <div class="proj-squircle" data-org="mc" onclick="showProject(6)"><div class="psq-top"><span class="psq-notif has-new">4</span></div><div class="psq-body"><h3 class="psq-name">Nahdah Logistics</h3><div class="psq-role">JV · LP</div></div><div class="psq-foot"><span class="psq-loc">Jeddah · East</span><span class="psq-status"><span class="psq-dot"></span>Active</span></div></div>
       </div>
 
-      <!-- ============ CONTRACT MANAGEMENT ============ -->
-      <div class="section-header" style="margin-top:48px;">
-        <h2 class="section-title">Contract Management</h2>
-        <div style="display:flex;align-items:center;gap:18px;">
-          <span class="section-meta">Leases &amp; landlord agreements → build a cashflow model</span>
-        </div>
-      </div>
-      <p style="font-size:12px;line-height:1.65;letter-spacing:0.02em;color:var(--ink-soft);max-width:760px;margin:2px 0 22px;">
-        Every lease and landlord agreement in one place. Karaya reads the contract terms — rent, escalation, term and break clauses — and builds a portfolio cashflow model straight from them.
-      </p>
-
-      <div id="contract-mgmt"></div>
-
     </div>
 
     <!-- PROJECT DETAIL -->
@@ -11103,7 +11090,6 @@
       setActiveNav('nav-workspace');
       document.getElementById('nav-projects')?.classList.add('active');
       setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Workspace'}]);
-      if (typeof renderContractMgmt === 'function') renderContractMgmt();
       // Keep the left sidebar OPEN on workspace; only auto-hide the right Karaya panel
       const _sh = document.querySelector('.app-shell');
       if (_sh) {
