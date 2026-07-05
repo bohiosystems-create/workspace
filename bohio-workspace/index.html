@@ -535,6 +535,8 @@
   .topbar .breadcrumb-bar { color: rgba(230,226,226,0.65); }
   .topbar .breadcrumb-bar a { color: #e6e2e2; }
   .topbar .breadcrumb-bar .sep { color: rgba(230,226,226,0.4); }
+  .topbar .breadcrumb-bar .bc-back { font-size: 18px; line-height: 1; cursor: pointer; padding: 4px 10px; border-radius: 999px; transition: background .15s ease; display: inline-flex; }
+  .topbar .breadcrumb-bar .bc-back:hover { background: rgba(230,226,226,0.12); }
   .topbar .panel-toggle {
     color: #e6e2e2;
     border-color: rgba(230,226,226,0.25);
@@ -11150,9 +11152,12 @@
     if(id)document.getElementById(id)?.classList.add('active');
   }
 
+  // Top-left: a simple back arrow to the parent page (no page-name trail).
   function setBreadcrumb(parts){
     const bc=document.getElementById('breadcrumb');
-    bc.innerHTML=parts.map((p,i)=>i<parts.length-1?`<a onclick="${p.fn}">${p.label}</a><span class="sep">/</span>`:`<span class="current">${p.label}</span>`).join('');
+    if(!parts || parts.length<2){ bc.innerHTML=''; return; }
+    const parent=parts[parts.length-2];
+    bc.innerHTML=`<a class="bc-back" onclick="${parent.fn}" title="Back to ${String(parent.label).replace(/"/g,'')}" aria-label="Back">←</a>`;
   }
 
   function goTo(page){
@@ -11195,16 +11200,18 @@
     } else if(page==='screening'){
       document.getElementById('page-screening').classList.add('active');
       document.getElementById('fund-subnav').style.display='block';
+      document.getElementById('ws-subnav').style.display='block';
       document.getElementById('main-nav').style.display='none';
       setActiveNav('nav-screening');
-      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Deal Screening'}]);
+      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Workspace',fn:"goTo('workspace')"},{label:'Deal Screening'}]);
       if (typeof renderScreening === 'function') renderScreening();
     } else if(page==='funds'){
       document.getElementById('page-funds').classList.add('active');
       document.getElementById('fund-subnav').style.display='block';
+      document.getElementById('ws-subnav').style.display='block';
       document.getElementById('main-nav').style.display='none';
       setActiveNav('nav-funds');
-      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Funds Management'}]);
+      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Workspace',fn:"goTo('workspace')"},{label:'Funds Management'}]);
       if (typeof renderFunds === 'function') renderFunds();
     } else if(page==='workspace'){
       document.getElementById('page-workspace').classList.add('active');
@@ -14473,9 +14480,11 @@ Answer as the ${a.name} agent:`;
   // ============ FORMULA ENGINE — makes the model actually recompute ============
   function _cellNum(v){
     if (v == null) return NaN;
-    const s = String(v).replace(/,/g, '').replace(/SAR|%|x/gi, '').trim();
+    let s = String(v).replace(/[, ]/g, '').replace(/SAR|AED|USD|EUR|GBP|\$|€|£|%|x/gi, '').trim();
+    let neg = false;
+    const par = s.match(/^\((.*)\)$/); if (par) { neg = true; s = par[1]; }   // (1,234) = negative
     const n = parseFloat(s);
-    return isNaN(n) ? NaN : n;
+    return isNaN(n) ? NaN : (neg ? -n : n);
   }
   function _getCellVal(sheetName, col, rowNum){
     const s = SHEET_DATA[sheetName]; if (!s) return NaN;
@@ -15196,7 +15205,7 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
   // specific names win. Lets "what is the project IRR" locate the IRR line even
   // when other rows mention "project".
   const _METRICS=[
-    {k:'IRR', re:/\b(irr|internal rate of return)\b/i},
+    {k:'IRR', re:/\b(irr|roi|internal rate of return|return on investment)\b/i},
     {k:'equity multiple', re:/\b(equity multiple|moic)\b/i},
     {k:'DSCR', re:/\b(dscr|debt[- ]service coverage)\b/i},
     {k:'yield-on-cost', re:/\b(yield[- ]?on[- ]?cost|yoc)\b/i},
@@ -15212,6 +15221,22 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     {k:'operating expenses', re:/\b(total opex|operating expenses|opex)\b/i},
     {k:'exit value', re:/\bexit (value|proceeds)\b/i},
   ];
+  // Metric resolution for solving: the dictionary first, then ANY row label in
+  // the model that the question names (so "GOP margin", "stabilised yield" or
+  // any custom metric can be goal-sought / flexed too).
+  function _metricFromQuestion(q){
+    const hit=_METRICS.find(mm=>mm.re.test(q));
+    if(hit) return hit;
+    const words=[...new Set((q.match(/[A-Za-z][A-Za-z\-]{3,}/g)||[]))]
+      .filter(w=>!/^(what|the|that|does|not|fall|below|above|least|most|keep|charge|lowest|highest|minimum|maximum|target|goal|seek|solve|much|many|never|stay|stays|remain|before|falls|drops|under|over|down|from|with|this|model|value|rate|price)$/i.test(w))
+      .sort((a,b)=>b.length-a.length);
+    for(const w of words){
+      const re=new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
+      const rows=_findRowsByLabel(re,[]);
+      if(rows.length) return {k:rows[0].label, re};
+    }
+    return null;
+  }
   function _matchMetric(q){
     const words=(q.match(/[A-Za-z][A-Za-z\-]{2,}/g)||[]);
     for(const m of _METRICS){
@@ -15234,7 +15259,7 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
   function _npv(rate, cf){ let s=0; for(let i=0;i<cf.length;i++) s+=cf[i]/Math.pow(1+rate,i); return s; }
   function _irr(cf){
     if(!cf||cf.length<2) return null;
-    let lo=-0.95, hi=5, flo=_npv(lo,cf), fhi=_npv(hi,cf);
+    let lo=-0.95, hi=50, flo=_npv(lo,cf), fhi=_npv(hi,cf);
     if(!(isFinite(flo)&&isFinite(fhi))||flo*fhi>0) return null;
     for(let i=0;i<120;i++){ const mid=(lo+hi)/2, fm=_npv(mid,cf); if(Math.abs(fm)<1e-8) return mid; if(flo*fm<0){hi=mid;fhi=fm;}else{lo=mid;flo=fm;} }
     return (lo+hi)/2;
@@ -15301,24 +15326,84 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
   function _findInputCell(re){ return _findInputCells(re)[0]||null; }
   // Among candidate inputs, return the first whose ±10% perturbation actually
   // changes the target metric (i.e. it's wired to the output).
-  function _pickResponsiveDriver(re, metricKey){
+  function _pickResponsiveDriver(re, metricKey, metricRe){
     const cands=_findInputCells(re);
     for(const d of cands){
       const orig=d.row.cells[d.ci], isPct=/%$/.test(String(orig));
       const set=(x)=>{ d.row.cells[d.ci]=_fmtLike(orig, isPct?x/100:x); recomputeAll(); };
-      const base=(set(d.num), _metricValue(metricKey));
-      const bumped=(set(d.num*1.1||d.num+0.1), _metricValue(metricKey));
+      const base=(set(d.num), _metricValue(metricKey, metricRe));
+      const bumped=(set(d.num*1.1||d.num+0.1), _metricValue(metricKey, metricRe));
       d.row.cells[d.ci]=orig; recomputeAll();
-      if(base!=null && bumped!=null && Math.abs(bumped-base)>1e-6) return d;
+      if(base!=null && bumped!=null && Math.abs(bumped-base)>1e-6) { d.responsive=true; return d; }
     }
-    return cands[0]||null; // fall back to best-scored even if unresponsive
+    const d=cands[0]||null; if(d) d.responsive=false;
+    return d; // best-scored even if unresponsive — caller can fall back to an estimate
   }
-  function _metricValue(metricKey){
-    if(/IRR/i.test(metricKey)){ const v=_equityCFVector(); const r=v?_irr(v):null; return r==null?null:r*100; }
+  // Best operating cash-flow series in the workbook (levered preferred).
+  function _operatingCF(){
+    const prefer=[/levered cash ?flow/i, /cash ?flow after debt|cfads/i, /annual net|net (annual )?(cash ?flow|cf)/i, /cash ?flow to equity/i, /net cash ?flow/i, /cash ?flow/i];
+    for(const re of prefer){
+      for(const t of Object.keys(SHEET_DATA)) for(const r of (SHEET_DATA[t].rows||[])){
+        const l=_rowLabel(r); if(!re.test(l)||/cumulative/i.test(l)) continue;
+        const n=_rowNums(r).map(_cellNum).filter(x=>!isNaN(x));
+        if(n.length>=4 && n.some(x=>x>0)) return {label:l,tab:t,nums:n};
+      }
+    }
+    return null;
+  }
+  function _equityAmt(){
+    let eq=_scalar(/equity (invested|contribution|outlay|requirement)|initial equity|total equity/i);
+    if(eq!=null) return Math.abs(eq);
+    const gav=_scalar(/gross asset value|\bgav\b|total (project )?cost|acquisition (price|cost)|purchase price|total uses/i);
+    const ltv=_scalar(/\bltv\b|loan[- ]to[- ]value|gearing/i);
+    if(gav!=null&&ltv!=null) return gav*(1-(ltv>1?ltv/100:ltv));
+    return null;
+  }
+  function _displayedIRR(){
+    const rows=_findRowsByLabel(/\birr\b|internal rate of return/i,[]);
+    for(const rr of rows){ const ns=rr.nums.map(_cellNum).filter(x=>!isNaN(x)&&x>0&&x<100); if(ns.length) return ns[ns.length-1]; }
+    return null;
+  }
+  function _metricValue(metricKey, metricRe){
+    if(/IRR|ROI/i.test(metricKey)){
+      // Tier 1: an explicit equity CF vector in the model
+      { const v=_equityCFVector(); if(v){ const r=_irr(v); if(r!=null) return r*100; } }
+      // Tier 2: construct it — operating CF + exit, with equity found or
+      // CALIBRATED from the model's own displayed IRR at the base state.
+      const op=_operatingCF(); if(!op) return _displayedIRR();
+      let cf=op.nums.slice(); let t0=null;
+      if(cf[0]<0) t0=cf.shift();
+      const exit=(_scalar(/net sale proceeds/i)) ?? (_scalar(/exit (value|proceeds)|terminal value|reversion value|sale price/i)) ?? 0;
+      let eq = t0!=null ? Math.abs(t0) : _equityAmt();
+      if(eq==null){
+        const disp=_displayedIRR(); if(disp==null) return null;
+        const key=((document.getElementById('ed-title')||{}).textContent||'m')+'|'+cf.length;
+        if(!window._irrCalib || window._irrCalib.key!==key){
+          // solve the equity E that reproduces the displayed IRR on this CF
+          const f=(E)=>{ const vec=[-E].concat(cf); vec[vec.length-1]+=exit; const r=_irr(vec); return r==null?NaN:(r*100-disp); };
+          const sum=cf.reduce((a,b)=>a+Math.abs(b),0)+exit;
+          let lo=0.05*sum, hi=3*sum, sol=null;
+          let flo=f(lo), g=0;
+          while(!isFinite(flo)&&g++<20){ lo*=1.5; if(lo>=hi) break; flo=f(lo); }
+          let fhi=f(hi); g=0;
+          while(!isFinite(fhi)&&g++<10){ hi*=1.5; fhi=f(hi); }
+          if(isFinite(flo)&&isFinite(fhi)&&flo*fhi<0){
+            for(let i=0;i<80;i++){ const m=(lo+hi)/2, fm=f(m); if(Math.abs(fm)<1e-4){sol=m;break;} if(flo*fm<0){hi=m;fhi=fm;}else{lo=m;flo=fm;} }
+            if(sol==null) sol=(lo+hi)/2;
+          }
+          if(sol==null) return disp;  // static display only
+          window._irrCalib={key, equity:sol};
+        }
+        eq=window._irrCalib.equity;
+      }
+      const vec=[-eq].concat(cf); vec[vec.length-1]+=exit;
+      const r=_irr(vec); return r==null?null:r*100;
+    }
     if(/NPV/i.test(metricKey)){ const v=_equityCFVector(); return v?_npv(0.10,v):null; }
     if(/equity multiple|moic/i.test(metricKey)){ const v=_equityCFVector(); if(!v)return null; const inflow=v.filter(x=>x>0).reduce((a,b)=>a+b,0),out=Math.abs(v.filter(x=>x<0).reduce((a,b)=>a+b,0)); return out?inflow/out:null; }
-    // otherwise read a live metric cell
-    const rows=_findRowsByLabel(_METRICS.find(m=>m.re.test(metricKey))?.re||new RegExp(metricKey,'i'),[]);
+    // otherwise read a live metric cell (metricRe carries fuzzy/custom metrics)
+    const re=metricRe || _METRICS.find(m=>m.re.test(metricKey))?.re || new RegExp(metricKey.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
+    const rows=_findRowsByLabel(re,[]);
     if(rows.length){ const nums=rows[0].nums.map(_cellNum).filter(x=>!isNaN(x)); return nums.length?nums[nums.length-1]:null; }
     return null;
   }
@@ -15349,7 +15434,7 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     if(!/\b(lowest|highest|minimum|maximum|max|min|what.*(rent|price|adr|rate|cost|occupanc|fee)|solve|goal.?seek|break.?even|how (low|high|much))\b/i.test(q)) return null;
     if(!/\b(so that|for|to (keep|be|stay|hit|reach|remain|not)|not (be )?(less|lower|below|more|higher|above)|does ?n.?t? fall|fall below|drop below|at least|at most|>=|<=|=|equal|target)\b/i.test(q)) return null;
     // metric + target
-    const metric=_METRICS.find(m=>m.re.test(q)); if(!metric) return null;
+    const metric=_metricFromQuestion(q); if(!metric) return null;
     const tgtM=q.match(/(-?[\d.]+)\s*(%|x)?/g); // pick the number nearest the metric / a percentage
     const pctM=q.match(/(-?[\d.]+)\s*%/); const xM=q.match(/(-?[\d.]+)\s*x\b/);
     let target=null, unit='';
@@ -15364,12 +15449,47 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     // driver
     const drRe=_driverFromQuestion(q);
     if(!drRe) return null;
-    const driver=_pickResponsiveDriver(drRe, metric.k);
+    const driver=_pickResponsiveDriver(drRe, metric.k, metric.re);
     if(!driver) return `I can solve that once the model has a matching input cell — I couldn't find one to vary. Try naming the exact assumption row (e.g. "ADR" or "Anchor Contracted Rent").`;
     // measure() sets the driver, recomputes, returns the metric value
     const original=driver.row.cells[driver.ci];
     const setDriver=(x)=>{ driver.row.cells[driver.ci]=_fmtLike(original, /%$/.test(String(original))? x/100 : x); recomputeAll(); };
-    const measure=(x)=>{ setDriver(x); return _metricValue(metric.k); };
+    const measure=(x)=>{ setDriver(x); return _metricValue(metric.k, metric.re); };
+
+    // Dead-chain fallback: the model's formulas don't recompute from this
+    // driver (e.g. unsupported Excel functions) — solve a first-order estimate
+    // instead: scale the driver's revenue line and flow it through the equity
+    // cash flows, then bisect the IRR to the target. Clearly labelled.
+    if(driver.responsive===false && /IRR|ROI/i.test(metric.k)){
+      driver.row.cells[driver.ci]=original; recomputeAll();
+      const revRe = /adr|room ?rate|daily rate/i.test(driver.label) ? /rooms? revenue/i
+                  : /rent/i.test(driver.label) ? /rent(al)? (income|revenue)|contracted (income|rent)|lease income/i
+                  : /revenue|income/i;
+      let rev=null;
+      for(const t of Object.keys(SHEET_DATA)){ for(const r of (SHEET_DATA[t].rows||[])){ const l=_rowLabel(r); if(revRe.test(l)&&!/cumulative/i.test(l)){ const n=_rowNums(r).map(_cellNum).filter(x=>!isNaN(x)); if(n.length>=3){ rev=n; break; } } } if(rev) break; }
+      const opcf=_operatingCF();
+      const base0=_metricValue(metric.k, metric.re);
+      if(rev && opcf && base0!=null){
+        const FT=/adr|rate/i.test(driver.label)?0.9:1.0;   // flow-through of the revenue delta
+        let cf=opcf.nums.slice(); let t0=cf[0]<0?Math.abs(cf.shift()):null;
+        const exit=(_scalar(/net sale proceeds/i))??(_scalar(/exit (value|proceeds)|terminal value|reversion value|sale price/i))??0;
+        const eq=t0!=null?t0:(_equityAmt()??(window._irrCalib&&window._irrCalib.equity));
+        if(eq!=null){
+          const k=Math.min(cf.length, rev.length);
+          const irrOf=(x)=>{ const scaled=cf.map((c,i)=> i<k ? c+rev[i]*((x/driver.num)-1)*FT : c);
+            const vec=[-eq].concat(scaled); vec[vec.length-1]+=exit; const r=_irr(vec); return r==null?null:r*100; };
+          const f=(x)=>{ const v=irrOf(x); return v==null?NaN:(v-target); };
+          let lo=Math.max(1e-6,driver.num*0.05), hi=driver.num*20, flo=f(lo), fhi=f(hi), sol=null;
+          if(isFinite(flo)&&isFinite(fhi)&&flo*fhi<0){ for(let i=0;i<80;i++){ const mid=(lo+hi)/2,fm=f(mid); if(Math.abs(fm)<1e-4){sol=mid;break;} if(flo*fm<0){hi=mid;fhi=fm;}else{lo=mid;flo=fm;} } if(sol==null) sol=(lo+hi)/2; }
+          if(sol!=null){
+            const solFmt=_fmtLike(original, /%$/.test(String(original))? sol/100 : sol);
+            return `The **${op==='gte'?'lowest':op==='lte'?'highest':'exact'} ${driver.label}** that keeps **${metric.k} ${op==='gte'?'≥':op==='lte'?'≤':'='} ${target}${unit}** is **≈ ${solFmt}** (currently ${original} → ${metric.k} ${base0.toFixed(2)}${unit}). *First-order estimate: this model's formula chain doesn't recompute in the browser, so I scaled its revenue line with ${driver.label} at ${(FT*100).toFixed(0)}% flow-through and re-solved the equity cash flows. Upload a fully-linked model for an exact solve.*`;
+          }
+        }
+      }
+      return `**${metric.k}** in this model isn't wired to recompute from **${driver.label}**, and I couldn't find the revenue line + equity basis to estimate it. I can solve for a live output like DSCR, NOI or yield-on-cost — or rebuild this as a fully-linked Bohio model where ${metric.k} reacts to ${driver.label}.`;
+    }
+
     const base=measure(driver.num);
     if(base==null){ driver.row.cells[driver.ci]=original; recomputeAll(); if(typeof renderSpreadsheet==='function') renderSpreadsheet(activeSheet);
       return `**${metric.k}** in this model isn't wired to recompute from **${driver.label}** (it's a fixed value, not a live formula), so I can't goal-seek it here. I can solve for a live output like DSCR, NOI or yield-on-cost — or rebuild this as a fully-linked model where IRR reacts to ${driver.label}.`; }
@@ -15392,9 +15512,9 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
   // Sensitivity: vary one driver across a grid and show the metric's response.
   function _sensitivity(q){
     if(!/\b(sensitiv|how (much )?(does|would|sensitive)|what (if|happens)|impact of|move|swing|tornado|scenario|stress|vary|\+\/?-|\bbps\b|elasticity)\b/i.test(q)) return null;
-    const metric=_METRICS.find(m=>m.re.test(q)); if(!metric) return null;
+    const metric=_metricFromQuestion(q); if(!metric) return null;
     const drRe=_driverFromQuestion(q); if(!drRe) return null;
-    const driver=_pickResponsiveDriver(drRe, metric.k); if(!driver) return null;
+    const driver=_pickResponsiveDriver(drRe, metric.k, metric.re); if(!driver) return null;
     const original=driver.row.cells[driver.ci];
     const isPct=/%$/.test(String(original));
     const isRate=/cap|rate|occupanc|vacanc|escalation|debt/i.test(driver.label);
@@ -15407,7 +15527,7 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
       // for pct-formatted rate inputs, driver.num already in % units (e.g. 6.75)
       const xv = isRate ? (driver.num + st*100) : driver.num*(1+st);
       setD(xv);
-      const mv=_metricValue(metric.k);
+      const mv=_metricValue(metric.k, metric.re);
       rows.push({label:(st===0?'base':(st>0?'+':'')+(isRate?(st*10000).toFixed(0)+' bps':(st*100).toFixed(0)+'%')), driver:_fmtLike(original,isPct?xv/100:xv), metric: mv==null?'—':(mv.toFixed(2)+(/IRR|yield|dscr|cap|occ|margin/i.test(metric.k)&&!/multiple/i.test(metric.k)?'%':(/multiple/i.test(metric.k)?'x':'')))});
     }
     driver.row.cells[driver.ci]=original; recomputeAll(); if(typeof renderSpreadsheet==='function') renderSpreadsheet(activeSheet);
