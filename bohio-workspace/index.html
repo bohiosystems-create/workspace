@@ -753,6 +753,10 @@
   }
   .landing-center > * { pointer-events: auto; }
   .app-shell.sidebar-hidden .sidebar { transform: translateX(-100%); opacity: 0; pointer-events: none; }
+  /* Home page: the left menu is always open — pin the column and disable collapse */
+  body.on-landing .app-shell { grid-template-columns: 260px 1fr 0 !important; }
+  body.on-landing .app-shell .sidebar { transform: none !important; opacity: 1 !important; pointer-events: auto !important; }
+  body.on-landing .sidebar-close-btn, body.on-landing #sidebar-handle, body.on-landing .sidebar-open-fab { display: none !important; }
   .app-shell.karaya-hidden .karaya-panel { transform: translateX(100%); opacity: 0; pointer-events: none; }
   .sidebar, .karaya-panel { transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
 
@@ -11129,7 +11133,7 @@
       const _sh = document.querySelector('.app-shell');
       _sh.style.gridTemplateColumns = '';
       _sh.classList.add('karaya-hidden');
-      _sh.classList.add('sidebar-hidden');
+      _sh.classList.remove('sidebar-hidden'); // home keeps the left menu open
       document.getElementById('karaya-handle').style.display = 'none';
       document.getElementById('contact-fab').style.display = 'block';
       if (typeof syncHandles === 'function') syncHandles();
@@ -18030,6 +18034,7 @@ Answer as Karaya:`;
 
   // ============ HIDE/SHOW PANELS ============
   function toggleSidebar() {
+    if (document.body.classList.contains('on-landing')) return; // home keeps the menu open
     const sh = document.querySelector('.app-shell');
     sh.style.gridTemplateColumns = '';
     sh.classList.toggle('sidebar-hidden');
