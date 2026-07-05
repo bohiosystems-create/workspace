@@ -20,11 +20,15 @@ and a tiny zero-dependency server wires the AI features to a real Claude model.
 - **Funds & Stakeholders** — multi-fund command center with an animated
   stakeholder network, capital-deployment metrics and a live project pipeline.
 - **Agent chats & negotiation room** — in-character AI counterparties.
-- **Contract Management** — every lease & landlord agreement in one place;
-  Karaya reads the contract terms (rent, escalation, term, breaks) and **builds
-  a portfolio cashflow model straight from the leases** — a projected
-  contracted-income table + chart with an AI insight. Available both as a
-  workspace section **and inside every project** (the "Contracts" section).
+- **Contract Management** — every lease & landlord agreement in one place.
+  Karaya reads the contract terms (rent, escalation, term, breaks) **and the
+  project's existing master financial model**, then **builds an updated cashflow
+  model** as a real Bohio Excel-like workbook: a *Lease Schedule* tab read from
+  the contracts, a *Contracted Income* projection, and an *Updated Cashflow* tab
+  that folds the new contracted income into the master model's NOI and debt
+  service (click any cell for its formula, precedents and dependents). It
+  exports to a multi-tab `.xls` in one click. Available both as a workspace
+  section **and inside every project** (the "Contracts" section).
 - **Build a model from a document** — with no upload, click *Build from a
   Document* in My Models to watch Karaya read a sample offering memorandum and
   structure it into a full Bohio-format underwriting model.

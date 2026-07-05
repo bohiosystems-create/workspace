@@ -9958,17 +9958,11 @@
   <aside class="sidebar">
     <button class="sidebar-close-btn" onclick="toggleSidebar()" title="Hide menu">close</button>
     <div class="nav-section" id="main-nav" style="margin-top:8px;">
-      <div class="nav-item" id="nav-models" onclick="goTo('models')">
-        <span>My Models</span>
-      </div>
       <div class="nav-item" id="nav-templates" onclick="goTo('templates')">
         <span>Template Library</span>
       </div>
       <div class="nav-item" id="nav-workspace" onclick="goTo('workspace')">
         <span>Bohio Workspace</span>
-      </div>
-      <div class="nav-item" id="nav-documents" onclick="goTo('documents')">
-        <span>Documents</span>
       </div>
     </div>
 
@@ -12161,65 +12155,225 @@
     const ids=[...document.querySelectorAll('.'+prefix+'-check:checked')].map(c=>c.dataset.id);
     const sel=leases.filter(l=>ids.indexOf(l.id)>=0);
     if(!sel.length){ host.innerHTML='<div style="color:var(--ink-soft);font-size:12px;">Select at least one lease to model.</div>'; return; }
-    const steps=['Reading the lease agreements…','Extracting rent, escalation, term & breaks…','Projecting contracted income year by year…','Aggregating the portfolio cashflow…','Rendering the model…'];
+    const steps=['Reading the lease agreements…','Extracting rent, escalation, term & breaks…','Loading the master financial model already in the workspace…','Merging contracted income into the master cashflow…','Building the updated Bohio model…'];
     host.innerHTML=`<div class="dm-card" style="padding:22px 24px;"><div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;" id="${prefix}-step">${steps[0]}</div><div style="height:4px;background:var(--ink-hairline);"><div id="${prefix}-fill" style="height:100%;width:0;background:var(--ink);transition:width .4s ease;"></div></div></div>`;
     const stepEl=document.getElementById(prefix+'-step'), fill=document.getElementById(prefix+'-fill');
     let i=0;
     const t=setInterval(()=>{ i++;
       if(i<steps.length){ stepEl.textContent=steps[i]; fill.style.width=((i/steps.length)*100)+'%'; }
-      else { fill.style.width='100%'; clearInterval(t); setTimeout(()=>renderLeaseCashflow(host, sel), 420); }
+      else { fill.style.width='100%'; clearInterval(t); setTimeout(()=>{ const wb=_buildLeaseWorkbook(sel); LEASE_WB[prefix]={wb, sel}; renderLeaseWorkbook(host, prefix, sel); }, 420); }
     }, 520);
   }
 
-  function renderLeaseCashflow(host, sel){
-    const N=5, years=[1,2,3,4,5];
-    const perLease=sel.map(l=>{
-      const rent=_leaseRentNum(l), esc=_leaseEscRate(l), term=_leaseTermYears(l);
-      return { l, cf: years.map(y=> y<=term ? rent*Math.pow(1+esc,y-1) : 0) };
-    });
-    const totals=years.map((_,yi)=> perLease.reduce((a,p)=>a+p.cf[yi],0));
-    const grand=totals.reduce((a,b)=>a+b,0);
-    const maxTot=Math.max.apply(null, totals.concat([1]));
-    const fmt=n=> n>0 ? _sar(n) : '—';
-    const rowsHtml=perLease.map(p=>`<tr>
-      <td style="padding:9px 12px;font-size:12px;border-bottom:1px solid var(--ink-hairline);">${p.l.name}<div style="font-size:9px;color:var(--ink-soft);">${p.l.party}</div></td>
-      ${p.cf.map(v=>`<td style="padding:9px 12px;font-size:12px;text-align:right;border-bottom:1px solid var(--ink-hairline);font-variant-numeric:tabular-nums;">${fmt(v)}</td>`).join('')}
-    </tr>`).join('');
-    const barHtml=totals.map((tt,yi)=>`<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%;"><div style="width:66%;height:${Math.round(88*tt/maxTot)}px;background:var(--ink);"></div><span style="font-size:8px;color:var(--ink-soft);">Y${yi+1}</span></div>`).join('');
-    host.innerHTML=`<div class="dm-card" style="padding:0;overflow:hidden;margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 18px;border-bottom:1px solid var(--ink-hairline);">
-        <div style="font-size:11px;letter-spacing:0.26em;text-transform:uppercase;font-weight:700;">Contracted Income Cashflow · ${sel.length} leases</div>
-        <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">built from lease terms</div>
-      </div>
-      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:520px;">
-        <thead><tr><th style="text-align:left;padding:10px 12px;font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);border-bottom:1px solid var(--ink-hairline);">Lease</th>${years.map(y=>`<th style="text-align:right;padding:10px 12px;font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);border-bottom:1px solid var(--ink-hairline);">Year ${y}</th>`).join('')}</tr></thead>
-        <tbody>${rowsHtml}
-          <tr style="background:rgba(0,9,25,0.03);"><td style="padding:11px 12px;font-size:12px;font-weight:700;">Total contracted income</td>${totals.map(tt=>`<td style="padding:11px 12px;font-size:12px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums;">${_sar(tt)}</td>`).join('')}</tr>
-        </tbody>
-      </table></div>
-      <div style="padding:16px 18px;">
-        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:10px;">Total contracted income by year</div>
-        <div style="display:flex;align-items:flex-end;gap:10px;height:100px;">${barHtml}</div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--ink-hairline);border:1px solid var(--ink-hairline);margin-bottom:16px;">
-      <div style="background:var(--paper);padding:14px 16px;"><div style="font-family:var(--font-display);font-size:22px;line-height:1;">${_sar(totals[0])}</div><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;">Year 1 income</div></div>
-      <div style="background:var(--paper);padding:14px 16px;"><div style="font-family:var(--font-display);font-size:22px;line-height:1;">${_sar(grand)}</div><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;">5-yr contracted total</div></div>
-      <div style="background:var(--paper);padding:14px 16px;"><div style="font-family:var(--font-display);font-size:22px;line-height:1;">${sel.length}</div><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;">leases modelled</div></div>
-    </div>
-    <div class="dm-card" id="cm-insight" style="padding:14px 18px;font-size:12px;color:var(--ink);line-height:1.6;"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>`;
+  // The lease-derived workbook, keyed by panel prefix so tab switches / export /
+  // cell clicks can reach it. Shape matches SHEET_DATA so it renders and exports
+  // exactly like a My-Models workbook.
+  const LEASE_WB = {};
 
-    const insightEl=document.getElementById('cm-insight');
-    const textEl=insightEl.querySelector('.kr-stream-text');
-    const caret=insightEl.querySelector('.kr-caret');
-    const prompt=`You are Karaya. You just built a 5-year contracted-income cashflow model from ${sel.length} lease agreements. Year-1 contracted income is ${_sar(totals[0])}, the 5-year total ${_sar(grand)}. In ONE sentence (max 30 words), give the key insight — the income trajectory and the main risk (e.g. near-term lease expiries / holdover). Plain text, no markdown.`;
+  // Pull a line (B..F, in SAR M) from the master model already in the workspace.
+  function _masterSummaryLine(label){
+    try {
+      const s = SHEET_DATA.Summary;
+      const row = s.rows.find(r => (r.cells[1]||'').toLowerCase() === label.toLowerCase());
+      if (!row) return null;
+      return [2,3,4,5,6].map(ci => { const n = parseFloat(String(row.cells[ci]).replace(/,/g,'')); return isNaN(n)?0:n; });
+    } catch(e){ return null; }
+  }
+
+  // Build the updated cashflow WORKBOOK from the leases + the master model.
+  function _buildLeaseWorkbook(sel){
+    const years=[1,2,3,4,5];
+    // ---- read the contracts -> per-lease escalated income (SAR M) ----
+    const per = sel.map(l => {
+      const rentM = _leaseRentNum(l)/1e6, esc=_leaseEscRate(l), term=_leaseTermYears(l);
+      const cf = years.map(y => y<=term ? rentM*Math.pow(1+esc,y-1) : 0);
+      return { l, rentM, esc, term, cf };
+    });
+    const contract = years.map((_,yi)=> per.reduce((a,p)=>a+p.cf[yi],0));
+    // ---- master model baseline (already in the workspace) ----
+    const baseNOI = _masterSummaryLine('Net Operating Income') || [7.60,8.95,10.40,11.18,11.95];
+    const debt    = _masterSummaryLine('Debt Service')         || [-5.34,-5.34,-5.34,-5.34,-5.34];
+    const updNOI  = years.map((_,yi)=> baseNOI[yi]+contract[yi]);
+    const cfe     = years.map((_,yi)=> updNOI[yi]+debt[yi]);
+    const dscr    = years.map((_,yi)=> debt[yi]?updNOI[yi]/Math.abs(debt[yi]):0);
+    const f2=(n)=> (n||0).toFixed(2);
+    const shortName=(l)=> (l.name||'').split('—')[0].trim() || l.name || l.party;
+
+    // ---- Tab 1: Lease Schedule (read straight from the contracts) ----
+    const schedRows = per.map((p,idx)=>({
+      cells:[String(idx+1), p.l.name, f2(p.rentM), (p.esc*100).toFixed(0)+'%', p.term+' yr', (p.l.status||'').toUpperCase()],
+      style:'data'
+    }));
+    const leaseSchedule = {
+      cols:['','A','B','C','D','E'],
+      headers:['','Tenant / Unit','Annual Rent (SAR M)','Escalation','Term','Status'],
+      rows: schedRows
+    };
+
+    // ---- Tab 2: Contracted Income (per-lease escalated projection) ----
+    const ciRows = per.map((p,idx)=>{
+      const n=idx+1;
+      return {
+        cells:[String(n), shortName(p.l), ...p.cf.map(f2)],
+        formulas:['','', ...years.map(y=> y<=p.term ? `='Lease Schedule'!B${n}*(${(1+p.esc).toFixed(3)}^${y-1})` : '=0')],
+        style:'data'
+      };
+    });
+    const totRowNum = ciRows.length+1;
+    ciRows.push({
+      cells:[String(totRowNum),'Total Contracted Income', ...contract.map(f2)],
+      formulas:['','', ...['B','C','D','E','F'].map(c=> `=SUM(${c}1:${c}${ciRows.length})`)],
+      style:'total'
+    });
+    const contractedIncome = {
+      cols:['','A','B','C','D','E','F'],
+      headers:['','Lease','Y1','Y2','Y3','Y4','Y5'],
+      rows: ciRows
+    };
+
+    // ---- Tab 3: Updated Cashflow (master model + new contract data) ----
+    const updated = {
+      cols:['','A','B','C','D','E','F'],
+      headers:['','','Y1','Y2','Y3','Y4','Y5'],
+      rows:[
+        { cells:['1','MASTER MODEL — already in the workspace','','','','',''], style:'section' },
+        { cells:['2','Base Operating NOI', ...baseNOI.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=Summary!${c}16`)], style:'data' },
+        { cells:['3','Debt Service', ...debt.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=Summary!${c}17`)], style:'neg' },
+        { cells:['4','','','','','',''], style:'empty' },
+        { cells:['5','NEW — READ FROM THE CONTRACTS','','','','',''], style:'section' },
+        { cells:['6','Contracted Lease Income', ...contract.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`='Contracted Income'!${c}${totRowNum}`)], style:'data' },
+        { cells:['7','','','','','',''], style:'empty' },
+        { cells:['8','UPDATED CASHFLOW','','','','',''], style:'section' },
+        { cells:['9','Updated NOI', ...updNOI.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=${c}2+${c}6`)], style:'total-pos' },
+        { cells:['10','Cash Flow to Equity', ...cfe.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=${c}9+${c}3`)], style:'total' },
+        { cells:['11','Updated DSCR', ...dscr.map(v=>v.toFixed(2)+'x')], formulas:['','', ...['B','C','D','E','F'].map(c=>`=${c}9/ABS(${c}3)`)], style:'data' },
+        { cells:['12','Uplift from contracts (Δ NOI)', ...contract.map(v=>'+'+f2(v))], formulas:['','', ...['B','C','D','E','F'].map(c=>`=${c}9-${c}2`)], style:'data' },
+      ]
+    };
+    return { 'Lease Schedule': leaseSchedule, 'Contracted Income': contractedIncome, 'Updated Cashflow': updated };
+  }
+
+  // Render one sheet of the lease workbook as a Bohio Excel-like sheet — the same
+  // tabs / cells / section+total styling as a My-Models workbook.
+  function _leaseSheetTableHtml(sheet){
+    const head = '<thead><tr>' + sheet.headers.map(h=>`<th>${_xmlEsc(h)}</th>`).join('') + '</tr></thead>';
+    const body = '<tbody>' + sheet.rows.map(row=>{
+      const tds = row.cells.map((val,ci)=>{
+        let cls='';
+        if (ci===0) cls='';
+        else if (ci===1){ cls = row.style==='section' ? 'section-cell' : (row.style==='empty' ? 'empty-cell' : 'label-cell'); }
+        else {
+          cls='num';
+          if ((row.style==='neg'||row.style==='total-neg') && String(val).startsWith('-')) cls+=' neg';
+          if (row.style==='total'||row.style==='total-pos'||row.style==='total-neg') cls+=' total-cell';
+          if (row.style==='total-pos') cls+=' pos';
+          if (row.style==='section') cls='section-cell';
+          if (row.style==='empty') cls='empty-cell';
+        }
+        const clickable = (row.style!=='empty' && val!=='' && ci!==0);
+        const ref = clickable ? (sheet.cols[ci]||'') + row.cells[0] : '';
+        const formula = (row.formulas && row.formulas[ci]) ? row.formulas[ci] : '';
+        const attrs = clickable ? ` style="cursor:cell;" data-ref="${ref}" data-formula="${_xmlEsc(formula)}" data-val="${_xmlEsc(val)}" data-label="${_xmlEsc(row.cells[1]||'')}"` : '';
+        return `<td class="${cls}"${attrs}>${_xmlEsc(val)}</td>`;
+      }).join('');
+      return '<tr>'+tds+'</tr>';
+    }).join('') + '</tbody>';
+    return head+body;
+  }
+  function renderLeaseWorkbook(host, prefix, sel){
+    const entry = LEASE_WB[prefix]; if(!entry) return;
+    const wb = entry.wb;
+    entry.active = entry.active && wb[entry.active] ? entry.active : 'Updated Cashflow';
+    const names = Object.keys(wb);
+    const tabs = names.map(n=>`<button class="sheet-tab${n===entry.active?' active':''}" data-sheet="${_xmlEsc(n)}">${_xmlEsc(n)}</button>`).join('');
+    host.innerHTML = `
+      <div class="dm-card" style="padding:0;overflow:hidden;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--ink-hairline);flex-wrap:wrap;gap:10px;">
+          <div>
+            <div style="font-size:11px;letter-spacing:0.26em;text-transform:uppercase;font-weight:700;">Updated Cashflow Model · Bohio format</div>
+            <div style="font-size:9px;letter-spacing:0.1em;color:var(--ink-soft);margin-top:3px;">Built by Karaya from ${sel.length} contract${sel.length===1?'':'s'} + the master model · figures in SAR M</div>
+          </div>
+          <button class="action-btn" onclick="exportLeaseModel('${prefix}')">Export to Excel</button>
+        </div>
+        <div class="sheet-tabs-bar" id="${prefix}-tabs">${tabs}</div>
+        <div class="spreadsheet-wrap" style="max-height:none;">
+          <table class="spreadsheet" id="${prefix}-sheet">${_leaseSheetTableHtml(wb[entry.active])}</table>
+        </div>
+        <div id="${prefix}-inspector" style="border-top:1px solid var(--ink-hairline);padding:11px 18px;font-size:11px;color:var(--ink-soft);min-height:16px;">Click a cell to see its formula, precedents and dependents.</div>
+      </div>
+      <div class="dm-card" id="${prefix}-insight" style="padding:14px 18px;font-size:12px;color:var(--ink);line-height:1.6;"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>`;
+
+    // wire tab switches
+    host.querySelectorAll('#'+prefix+'-tabs .sheet-tab').forEach(btn=>{
+      btn.onclick = () => { entry.active = btn.dataset.sheet; renderLeaseWorkbook(host, prefix, sel); };
+    });
+    // wire cell clicks -> inspector (formula + precedents + dependents)
+    const insp = document.getElementById(prefix+'-inspector');
+    host.querySelectorAll('#'+prefix+'-sheet td[data-ref]').forEach(td=>{
+      td.onclick = () => {
+        host.querySelectorAll('#'+prefix+'-sheet td.selected').forEach(c=>c.classList.remove('selected'));
+        td.classList.add('selected');
+        _leaseInspect(insp, wb, entry.active, td.dataset.ref, td.dataset.formula, td.dataset.val, td.dataset.label);
+      };
+    });
+
+    // AI insight — Karaya explains the merge of contracts + master model
+    const upd = wb['Updated Cashflow'].rows;
+    const nA = (lbl)=>{ const r=upd.find(x=>(x.cells[1]||'')===lbl); return r? parseFloat(r.cells[2]) : 0; };
+    const baseNOI1=nA('Base Operating NOI'), contr1=nA('Contracted Lease Income'), updNOI1=nA('Updated NOI');
+    const insightEl=document.getElementById(prefix+'-insight');
+    const textEl=insightEl.querySelector('.kr-stream-text'), caret=insightEl.querySelector('.kr-caret');
+    const prompt=`You are Karaya. You just built an UPDATED cashflow model by reading ${sel.length} lease contracts and merging the contracted income into the project's existing master financial model. In Year 1 the master model's base operating NOI was SAR ${baseNOI1.toFixed(2)}M; the contracts add SAR ${contr1.toFixed(2)}M of contracted lease income, lifting updated NOI to SAR ${updNOI1.toFixed(2)}M. In ONE sentence (max 32 words), give the key insight — what the contracts do to the model and the main risk (near-term lease expiries / holdover). Plain text, no markdown.`;
     (async()=>{
       let full='';
       try { await window.claude.stream({messages:[{role:'user',content:prompt}], task:'quick_insight'}, {}, tok=>{ full+=tok; textEl.textContent=full; }); }
-      catch(e){ full=`Contracted income runs from ${_sar(totals[0])} in Year 1 toward ${_sar(totals[N-1])} by Year 5 as rents escalate — but watch the near-term expiries, where holdover or renewal risk could interrupt the projection.`; textEl.textContent=full; }
-      if(!full||!full.trim()){ full=`Contracted income escalates to ${_sar(totals[N-1])} by Year 5; the near-term lease expiries are the main risk to the projection.`; textEl.textContent=full; }
+      catch(e){}
+      if(!full||!full.trim()){ full=`Folding the contracted leases into the master model lifts Year-1 NOI from SAR ${baseNOI1.toFixed(2)}M to SAR ${updNOI1.toFixed(2)}M — but the near-term expiries are the main risk, so watch renewal and holdover on the earliest-ending leases.`; textEl.textContent=full; }
       if(caret) caret.remove();
     })();
+  }
+  // Precedents = cells this formula references; dependents = cells that reference this ref.
+  function _leaseInspect(insp, wb, sheetName, ref, formula, val, label){
+    if(!insp) return;
+    const precedents = [];
+    if (formula){
+      const re=/(?:'([^']+)'!|([A-Za-z ]+)!)?([A-F])(\d+)/g; let m;
+      const seen=new Set();
+      while((m=re.exec(formula))){
+        const sh=m[1]||m[2]||sheetName, cell=m[3]+m[4], key=sh+'!'+cell;
+        if(!seen.has(key)){ seen.add(key); precedents.push((sh!==sheetName?sh+'!':'')+cell); }
+      }
+    }
+    const dependents=[];
+    for(const [sn,sh] of Object.entries(wb)){
+      (sh.rows||[]).forEach(r=>{
+        if(!r.formulas) return;
+        r.formulas.forEach((f,ci)=>{
+          if(!f) return;
+          const patt = (sn===sheetName) ? ref : ref; // ref may be referenced cross-sheet by name
+          const reSame = new RegExp('(^|[^A-Za-z0-9])'+ref+'(?![0-9])');
+          const reCross = new RegExp("(?:'"+sheetName+"'!|"+sheetName+"!)"+ref+'(?![0-9])');
+          if ((sn===sheetName && reSame.test(f)) || reCross.test(f)){
+            const col=sh.cols[ci]||''; dependents.push((sn!==sheetName?sn+'!':'')+col+r.cells[0]);
+          }
+        });
+      });
+    }
+    const chip=(t)=>`<span style="display:inline-block;border:1px solid var(--ink-hairline);padding:1px 7px;margin:0 4px 4px 0;border-radius:2px;font-size:10px;color:var(--ink);">${_xmlEsc(t)}</span>`;
+    insp.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:18px;align-items:baseline;">
+      <div><span style="font-weight:700;color:var(--ink);">${_xmlEsc(ref)}</span> <span style="color:var(--ink-soft);">${_xmlEsc(label||'')}</span></div>
+      <div style="font-family:'Courier New',monospace;color:var(--ink);">${formula?_xmlEsc(formula):_xmlEsc(val)}</div>
+    </div>
+    <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:22px;">
+      <div><span style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);">Precedents</span><div style="margin-top:5px;">${precedents.length?precedents.map(chip).join(''):'<span style="color:var(--ink-soft);">— none (input cell)</span>'}</div></div>
+      <div><span style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);">Dependents</span><div style="margin-top:5px;">${dependents.length?dependents.map(chip).join(''):'<span style="color:var(--ink-soft);">— none</span>'}</div></div>
+    </div>`;
+  }
+  function exportLeaseModel(prefix){
+    const entry=LEASE_WB[prefix]; if(!entry) return;
+    exportWorkbookXlsx(entry.wb, 'Updated Cashflow Model — from Contracts');
+    const insp=document.getElementById(prefix+'-inspector');
+    if(insp){ const prev=insp.innerHTML; insp.innerHTML='<span style="color:var(--ink);">Exported Updated_Cashflow_Model.xls · 3 tabs.</span>'; setTimeout(()=>{insp.innerHTML=prev;},2600); }
   }
 
   function openAgentActivity(id){
@@ -13982,15 +14136,18 @@ Answer as Karaya:`;
     }
     return `<Cell${style}><Data ss:Type="String">${_xmlEsc(txt)}</Data></Cell>`;
   }
-  function exportModelExcel(){
-    const title = ((document.getElementById('ed-title') || {}).textContent || 'Bohio Model').trim();
+  // Core: turn any workbook object ({ sheetName: {cols,headers,rows} }) into a
+  // downloaded multi-tab .xls (SpreadsheetML 2003). Reused by the model editor
+  // and by the lease-derived cashflow model, so both export identically.
+  function exportWorkbookXlsx(workbook, title){
+    title = (title || 'Bohio Model').trim();
     const styleFor = (st) => {
       if (st === 'section') return 'sec';
       if (st === 'total' || st === 'total-neg' || st === 'total-pos') return 'tot';
       return '';
     };
     let sheetsXml = '';
-    for (const [name, sheet] of Object.entries(SHEET_DATA)) {
+    for (const [name, sheet] of Object.entries(workbook)) {
       const wsName = _xmlEsc(name.slice(0, 31).replace(/[\\\/\?\*\[\]:]/g, ' '));
       // Header row (skip the internal row-index column at position 0).
       const heads = (sheet.headers || sheet.cols || []).slice(1);
@@ -14022,10 +14179,15 @@ Answer as Karaya:`;
     a.download = fname + '.xls';
     document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    return { fname, tabs: Object.keys(workbook).length };
+  }
+  function exportModelExcel(){
+    const title = ((document.getElementById('ed-title') || {}).textContent || 'Bohio Model').trim();
+    const r = exportWorkbookXlsx(SHEET_DATA, title);
     const status = document.getElementById('sheet-status');
     if (status) {
       const prev = status.textContent;
-      status.textContent = 'Exported ' + fname + '.xls · ' + Object.keys(SHEET_DATA).length + ' tabs';
+      status.textContent = 'Exported ' + r.fname + '.xls · ' + r.tabs + ' tabs';
       setTimeout(() => { status.textContent = prev || 'Ready'; }, 2400);
     }
   }
