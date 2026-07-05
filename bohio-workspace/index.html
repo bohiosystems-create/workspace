@@ -11650,12 +11650,54 @@
     setC('approvals', live > 0 ? (live + ' active') : (tiers + ' tiers'));
   }
 
+  // Documents routed TO the demo user for sign-off — approvable right here.
+  const INBOX_APPROVALS = {
+    1:{ id:'inb-1', name:'IC Memo — Marina Tower Q2 Model Refresh', from:'N. Khan · Investment Committee', sent:'2h ago', type:'PDF', status:'pending',
+        note:'Opex normalisation and revised yield-on-cost need your sign-off before the IC pre-read.' },
+    7:{ id:'inb-7', name:'Acquisition Recommendation — Corniche Gateway', from:'F. Aziz · Finance Director', sent:'Just now', type:'PDF', status:'pending',
+        note:'Underwriting pack based on the Knight Frank valuation and the anchor lease — routed to you as sponsor.' },
+  };
+  function approveInbox(pid, decision){
+    const item=INBOX_APPROVALS[pid]; if(!item) return;
+    item.status=decision;
+    renderProjectApprovals(pid);
+    if (typeof updateProjectSectionCounts==='function') updateProjectSectionCounts(pid);
+  }
+  function _inboxCardHtml(pid){
+    const item=INBOX_APPROVALS[pid]; if(!item) return '';
+    const me=(window.DEMO_USER&&window.DEMO_USER.name)||'you';
+    if(item.status!=='pending'){
+      const ok=item.status==='approved';
+      return `<div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:12px;">Sent to you for approval</div>
+      <div style="border:1px solid ${ok?'#bfe3cc':'#e6b8b8'};background:${ok?'#eaf6ee':'#fdf0f0'};padding:14px 16px;margin-bottom:28px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+        <div><div style="font-size:13px;color:var(--ink);">${item.name}</div>
+        <div style="font-size:10px;color:${ok?'#15803d':'#b51e3b'};margin-top:3px;font-weight:700;">${ok?'✓ Approved':'✕ Rejected'} by ${me} · just now · recorded on the audit log</div></div>
+      </div>`;
+    }
+    return `<div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:12px;">Sent to you for approval · action required</div>
+    <div style="border:1.5px solid var(--ink);padding:16px 18px;margin-bottom:28px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+        <div style="min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;"><span style="width:7px;height:7px;border-radius:50%;background:var(--alert);"></span><span style="font-size:13px;font-weight:700;color:var(--ink);">${item.name}</span></div>
+          <div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">From ${item.from} · ${item.sent} · awaiting <b>your</b> signature</div>
+          <div style="font-size:11px;color:var(--ink);margin-top:8px;line-height:1.6;max-width:520px;">${item.note}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+          <button class="dm-btn" style="background:#15803d;border-color:#15803d;" onclick="approveInbox(${pid},'approved')">✓ Approve</button>
+          <button class="dm-btn ghost" style="color:#b51e3b;border-color:#e6b8b8;" onclick="approveInbox(${pid},'rejected')">Reject</button>
+        </div>
+      </div>
+    </div>`;
+  }
   function renderProjectApprovals(id){
     const host = document.getElementById('proj-approvals-body');
     if (!host) return;
     const gov = (typeof GOVERNANCE !== 'undefined' && GOVERNANCE[id]) ? GOVERNANCE[id] : null;
     const live = Object.entries(APPROVALS).filter(([k]) => k.startsWith(id + '::')).map(([,v]) => v);
     let html = '';
+
+    // ---- Documents sent to YOU ----
+    html += _inboxCardHtml(id);
 
     // ---- Live approval requests ----
     html += `<div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:12px;">Live Approval Requests</div>`;
@@ -13441,6 +13483,95 @@ Answer as Karaya:`;
     msgs.scrollTop=msgs.scrollHeight;
   }
 
+  // ============ SIGNED PDF GENERATION (no libraries) ============
+  // Renders a document as a real PDF — A4, Helvetica, red ORIGINAL-EXECUTED
+  // stamp on page 1, signature blocks — shown in the browser's PDF viewer.
+  function _pdfEsc(s){ return String(s).replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,'-').replace(/ /g,' ').replace(/[^\x20-\x7E]/g,'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)'); }
+  function _wrapText(t, max){ const out=[]; let line=''; for(const w of String(t).split(/\s+/)){ if((line+' '+w).trim().length>max){ out.push(line.trim()); line=w; } else line+=' '+w; } if(line.trim()) out.push(line.trim()); return out; }
+  function _docBodyToBlocks(html){
+    const div=document.createElement('div'); div.innerHTML=html;
+    const blocks=[];
+    div.childNodes.forEach(n=>{
+      if(n.nodeType!==1){ const t=(n.textContent||'').trim(); if(t) blocks.push({t:'p',x:t}); return; }
+      const tag=n.tagName.toLowerCase();
+      if(tag==='h4') blocks.push({t:'h',x:n.textContent.trim()});
+      else if(tag==='table'){ n.querySelectorAll('tr').forEach(tr=>{ const cells=[...tr.querySelectorAll('th,td')].map(c=>c.textContent.trim()); blocks.push({t:'row',x:cells.join('   |   ')}); }); blocks.push({t:'gap'}); }
+      else { const t=n.textContent.replace(/\s+/g,' ').trim(); if(t) blocks.push({t: tag==='div'&&/text-align:center/.test(n.getAttribute('style')||'')?'title':'p', x:t}); }
+    });
+    return blocks;
+  }
+  function _makeSignedPdf(title, subtitle, blocks, sigs, dateLine){
+    const W=595, H=842, M=56, LEAD=15, MAXC=88;
+    const pages=[]; let s='';
+    const newPage=()=>{ if(s) pages.push(s); s=''; y=H-M; };
+    let y=H-M;
+    const need=(n)=>{ if(y-n<M+30) newPage(); };
+    const text=(x,yy,size,font,str,color)=>{ s+=`BT ${color||'0 0 0'} rg /${font} ${size} Tf 1 0 0 1 ${x.toFixed(1)} ${yy.toFixed(1)} Tm (${_pdfEsc(str)}) Tj ET\n`; };
+    // header page 1
+    text(M, y, 9, 'F1', 'BOHIO WORKSPACE - DATA ROOM ORIGINAL'); y-=6;
+    s+=`0.75 w 0 0 0 RG ${M} ${y} m ${W-M} ${y} l S\n`; y-=28;
+    text(M, y, 18, 'F2', title); y-=18;
+    if(subtitle){ text(M, y, 10, 'F1', subtitle, '0.35 0.35 0.35'); y-=14; }
+    // red ORIGINAL stamp top-right
+    s+=`1.4 w 0.72 0.11 0.11 RG ${W-M-158} ${H-M-34} 158 30 re S\n`;
+    text(W-M-148, H-M-16, 9, 'F2', 'ORIGINAL - EXECUTED COPY', '0.72 0.11 0.11');
+    text(W-M-148, H-M-28, 7, 'F1', 'Digitally certified in Bohio', '0.72 0.11 0.11');
+    y-=14;
+    for(const b of blocks){
+      if(b.t==='title'){ for(const ln of _wrapText(b.x, 70)){ need(LEAD+4); text(M, y, 11, 'F2', ln); y-=LEAD+2; } y-=4; }
+      else if(b.t==='h'){ need(30); y-=8; text(M, y, 11.5, 'F2', b.x.toUpperCase()); y-=6; s+=`0.5 w 0.6 0.6 0.6 RG ${M} ${y} m ${W-M} ${y} l S\n`; y-=LEAD;
+      }
+      else if(b.t==='row'){ for(const ln of _wrapText(b.x, 96)){ need(LEAD); text(M+6, y, 8.5, 'F1', ln, '0.15 0.15 0.15'); y-=12.5; } }
+      else if(b.t==='gap'){ y-=8; }
+      else { for(const ln of _wrapText(b.x, MAXC)){ need(LEAD); text(M, y, 10.5, 'F1', ln); y-=LEAD; } y-=6; }
+    }
+    // signature section
+    need(170); y-=18;
+    s+=`0.75 w 0 0 0 RG ${M} ${y} m ${W-M} ${y} l S\n`; y-=22;
+    text(M, y, 10, 'F2', 'IN WITNESS WHEREOF this document has been executed as an original.'); y-=26;
+    const colW=(W-2*M)/sigs.length;
+    sigs.forEach((sg,i)=>{
+      const x=M+i*colW;
+      text(x, y, 8, 'F1', sg.for.toUpperCase(), '0.35 0.35 0.35');
+      text(x, y-34, 17, 'F3', sg.name);                       // the "wet ink" signature
+      s+=`0.75 w 0 0 0 RG ${x} ${y-42} m ${x+colW-26} ${y-42} l S\n`;
+      text(x, y-54, 9, 'F1', sg.name+' - '+sg.role);
+      text(x, y-66, 8, 'F1', 'Signed: '+dateLine, '0.35 0.35 0.35');
+      if(sg.note) text(x, y-78, 7.5, 'F1', sg.note, '0.35 0.35 0.35');
+    });
+    y-=96;
+    text(M, y, 7.5, 'F1', 'This is the executed original copy held in the Corniche Gateway data room. SHA-256 fingerprint recorded on the Bohio audit log.', '0.45 0.45 0.45');
+    pages.push(s);
+    // assemble the PDF
+    const objs=[]; const add=(str)=>{ objs.push(str); return objs.length; };
+    const fontRefs='/F1 '+'{F1}'+' 0 R /F2 '+'{F2}'+' 0 R /F3 '+'{F3}'+' 0 R';
+    const f1=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+    const f2=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+    const f3=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>');
+    const contentIds=pages.map(pg=>add('<< /Length '+pg.length+' >>\nstream\n'+pg+'\nendstream'));
+    const pageIds=contentIds.map(cid=>add('<< /Type /Page /Parent {PAGES} 0 R /MediaBox [0 0 595 842] /Contents '+cid+' 0 R /Resources << /Font << /F1 '+f1+' 0 R /F2 '+f2+' 0 R /F3 '+f3+' 0 R >> >> >>'));
+    const pagesId=add('<< /Type /Pages /Kids ['+pageIds.map(p=>p+' 0 R').join(' ')+'] /Count '+pageIds.length+' >>');
+    const catId=add('<< /Type /Catalog /Pages '+pagesId+' 0 R >>');
+    let out='%PDF-1.4\n'; const offs=[0];
+    objs.forEach((o,i)=>{ o=o.replace(/\{PAGES\}/g,String(pagesId)); offs.push(out.length); out+=(i+1)+' 0 obj\n'+o+'\nendobj\n'; });
+    const xref=out.length;
+    out+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n';
+    for(let i=1;i<=objs.length;i++) out+=String(offs[i]).padStart(10,'0')+' 00000 n \n';
+    out+='trailer\n<< /Size '+(objs.length+1)+' /Root '+catId+' 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+    return new Blob([out],{type:'application/pdf'});
+  }
+  function _docToSignedPdfUrl(d){
+    if(d._pdfUrl) return d._pdfUrl;
+    const blocks=_docBodyToBlocks(d.docBody||'');
+    const sigs = d.isLandlord
+      ? [ {for:'Signed for the Landlord', name:'S. Al-Harbi', role:'Authorised Signatory, Corniche Gateway HoldCo'},
+          {for:'Signed for the Tenant',   name:'K. Al-Manar', role:'Chief Executive, Al Manar Retail Group'} ]
+      : [ {for:'Signed for Knight Frank', name:'J. Whitcombe', role:'Partner, Valuation & Advisory - MRICS', note:'TAQEEM-accredited valuer · Reg. 121-0448'} ];
+    const blob=_makeSignedPdf(d.name, (d.type||'PDF')+' · '+(d.version||''), blocks, sigs, '14 March 2026 · Jeddah');
+    d._pdfUrl=URL.createObjectURL(blob);
+    return d._pdfUrl;
+  }
+
   // Readable-document viewer: agreements & reports open as typeset documents
   // you can consult directly (and hand to Karaya for a summary).
   function openReadableDoc(d){
@@ -13449,18 +13580,26 @@ Answer as Karaya:`;
       ov.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
       ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; });
       document.body.appendChild(ov); }
-    ov.innerHTML=`<div style="background:#fdfcfa;border:1px solid var(--ink-hairline);max-width:780px;width:100%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:18px 26px;border-bottom:1px solid var(--ink-hairline);">
+    const asPdf = (d.isValuation || d.isLandlord) && d.docBody;
+    let pdfUrl='';
+    if(asPdf){ try{ pdfUrl=_docToSignedPdfUrl(d); }catch(e){ pdfUrl=''; } }
+    ov.innerHTML=`<div style="background:#fdfcfa;border:1px solid var(--ink-hairline);max-width:${pdfUrl?'900px':'780px'};width:100%;height:calc(100vh - 48px);display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:16px 24px;border-bottom:1px solid var(--ink-hairline);">
         <div style="min-width:0;">
-          <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">${d.type||'Document'} · ${d.version||''}</div>
-          <div style="font-family:var(--font-display);font-size:22px;margin-top:3px;line-height:1.2;">${String(d.name).replace(/</g,'&lt;')}</div>
+          <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">${d.type||'Document'} · ${d.version||''}${pdfUrl?' · <span style="color:#a11d1d;font-weight:700;">Original — executed copy</span>':''}</div>
+          <div style="font-family:var(--font-display);font-size:21px;margin-top:3px;line-height:1.2;">${String(d.name).replace(/</g,'&lt;')}</div>
         </div>
-        <button class="action-btn" onclick="document.getElementById('rdoc-overlay').style.display='none'">Close</button>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          ${pdfUrl?`<a class="action-btn" href="${pdfUrl}" download="${String(d.name).replace(/[^A-Za-z0-9]+/g,'_')}.pdf" style="text-decoration:none;">Download PDF</a>`:''}
+          <button class="action-btn" onclick="document.getElementById('rdoc-overlay').style.display='none'">Close</button>
+        </div>
       </div>
-      <div style="flex:1;overflow-y:auto;padding:26px 30px;font-size:13px;line-height:1.75;color:#1a1f2b;">${d.docBody||'<p>No preview available.</p>'}</div>
-      <div style="display:flex;align-items:center;gap:12px;padding:14px 26px;border-top:1px solid var(--ink-hairline);">
+      ${pdfUrl
+        ? `<iframe src="${pdfUrl}#toolbar=1&view=FitH" style="flex:1;border:none;width:100%;background:#4a4a4a;" title="${String(d.name).replace(/"/g,'')}"></iframe>`
+        : `<div style="flex:1;overflow-y:auto;padding:26px 30px;font-size:13px;line-height:1.75;color:#1a1f2b;">${d.docBody||'<p>No preview available.</p>'}</div>`}
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 24px;border-top:1px solid var(--ink-hairline);">
         <button class="dm-btn" onclick="document.getElementById('rdoc-overlay').style.display='none';karayaAsk('Summarise the key terms and risks of \\'${String(d.name).replace(/'/g,'')}\\' for me')">✦ Ask Karaya about this document</button>
-        <span style="font-size:10px;color:var(--ink-soft);">Karaya reads the full document, not just this extract.</span>
+        <span style="font-size:10px;color:var(--ink-soft);">${pdfUrl?'Signed original held in the data room · Karaya reads the full document.':'Karaya reads the full document, not just this extract.'}</span>
       </div>
     </div>`;
     ov.style.display='flex';
@@ -15407,6 +15546,65 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     if(rows.length){ const nums=rows[0].nums.map(_cellNum).filter(x=>!isNaN(x)); return nums.length?nums[nums.length-1]:null; }
     return null;
   }
+  // ============ PASEETAH MARKET-DATA PULL ============
+  // "Pull market assumptions from Paseetah" — reads the open model's input
+  // rows, fetches the market benchmark for each recognised assumption, applies
+  // them and reports the before/after impact on the returns.
+  window._paseetahOn = (function(){ try{ return localStorage.getItem('bohio_paseetah')!=='0'; }catch(e){ return true; } })();
+  const PASEETAH_BENCH=[
+    {re:/\badr\b|room ?rate|daily rate/i,           name:'ADR (comp set, upper-upscale)', kind:'mult', v:1.056},
+    {re:/anchor.*rent|contracted rent/i,            name:'Anchor rents (prime corniche)', kind:'mult', v:1.041},
+    {re:/retail rent|market rent|\brent\b(?!.*roll)/i, name:'Market rents (submarket)',   kind:'mult', v:1.041},
+    {re:/occupanc/i,                                name:'Stabilised occupancy',          kind:'abs-pct', v:74},
+    {re:/vacanc/i,                                  name:'Submarket vacancy',             kind:'abs-pct', v:5.8},
+    {re:/exit cap|cap rate/i,                       name:'Exit cap (comp trades)',        kind:'abs-pct', v:6.40},
+    {re:/rent growth|market rent growth|escalation/i, name:'Market rent growth',          kind:'abs-pct', v:4.1},
+    {re:/opex.*(ratio|%)|operating.*ratio/i,        name:'Opex ratio benchmark',          kind:'abs-pct', v:28},
+  ];
+  function _maybePullMarketData(q, bot, msgs){
+    if(!/\b(paseetah|market data|market assumptions|market rents?|market bench|refresh (the )?assumptions|pull .*market|market comps)\b/i.test(q)) return false;
+    if(window._paseetahOn===false){
+      bot.innerHTML=fmtKaraya(`The **Paseetah market-data connector** is disconnected, so I can't pull live comps. Reconnect it in <b>Settings › Connectors</b> and ask again.`)+'<span class="k-meta">Karaya · governance</span>';
+      msgs.scrollTop=msgs.scrollHeight; return true;
+    }
+    // find the input rows this model exposes and their market benchmark
+    const hits=[];
+    for(const b of PASEETAH_BENCH){
+      const cands=_findInputCells(b.re);
+      if(cands.length){ const d=cands[0]; if(!hits.find(h=>h.d.sheet===d.sheet&&h.d.rn===d.rn&&h.d.col===d.col)) hits.push({b, d}); }
+    }
+    if(!hits.length){
+      bot.innerHTML=fmtKaraya(`I queried **Paseetah** for this submarket, but this model has no recognisable assumption inputs (rent / ADR / occupancy / vacancy / cap rate / growth) for me to benchmark. Add an assumptions row and ask again.`)+'<span class="k-meta">Karaya · via Paseetah</span>';
+      msgs.scrollTop=msgs.scrollHeight; return true;
+    }
+    const irrBefore=_metricValue('IRR');
+    const steps=['Querying the Paseetah market-data API…','Matching the submarket comp set…','Benchmarking this model’s assumptions…','Applying market values & recomputing…'];
+    let i=0; bot.textContent='✦ '+steps[0];
+    const t=setInterval(()=>{
+      i++;
+      if(i<steps.length){ bot.textContent='✦ '+steps[i]; msgs.scrollTop=msgs.scrollHeight; return; }
+      clearInterval(t);
+      // apply
+      const rows=[];
+      for(const h of hits){
+        const orig=h.d.row.cells[h.d.ci]; const isPct=/%$/.test(String(orig));
+        const mkt = h.b.kind==='mult' ? h.d.num*h.b.v : h.b.v;
+        h.d.row.cells[h.d.ci]=_fmtLike(orig, isPct? mkt/100 : mkt);
+        if(h.d.row.formulas) h.d.row.formulas[h.d.ci]='';
+        rows.push({label:h.d.label, ref:h.d.col+h.d.rn+' · '+h.d.sheet, from:orig, to:h.d.row.cells[h.d.ci], src:h.b.name});
+      }
+      recomputeAll();
+      if(typeof renderSpreadsheet==='function') renderSpreadsheet(activeSheet);
+      const irrAfter=_metricValue('IRR');
+      const tbl='| Assumption | Was | Paseetah | Source |\n|---|---|---|---|\n'
+        + rows.map(r=>`| ${r.label} (${r.ref}) | ${r.from} | **${r.to}** | ${r.src} |`).join('\n');
+      const impact=(irrBefore!=null&&irrAfter!=null)?`\n\nReturns impact: levered **IRR ${irrBefore.toFixed(2)}% → ${irrAfter.toFixed(2)}%**.`:'';
+      bot.innerHTML=fmtKaraya(`Pulled the latest **Paseetah** comps for this submarket and applied them to ${rows.length} assumption${rows.length===1?'':'s'}:\n\n${tbl}${impact}\n\nEvery dependent cell has been re-run. Say "set <cell> to <value>" to override any of them.`)+'<span class="k-meta">Karaya · via Paseetah market data</span>';
+      msgs.scrollTop=msgs.scrollHeight;
+    }, 620);
+    return true;
+  }
+
   // Map the user's wording to the input row that drives it — synonym-aware
   // (room rate → ADR …), then fuzzy against the model's own input labels.
   const DRIVER_SYNONYMS=[
@@ -15719,8 +15917,9 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     msgs.appendChild(bot);
     msgs.scrollTop = msgs.scrollHeight;
 
-    // Deterministic solvers run first (math, not narration) so they work with or
-    // without a live API key: goal-seek and sensitivity analysis.
+    // Market-data pull (Paseetah) and deterministic solvers run first (math,
+    // not narration) so they work with or without a live API key.
+    if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
     { const solved = _goalSeek(q) || _sensitivity(q);
       if (solved) { bot.innerHTML = fmtKaraya(solved) + '<span class="k-meta">Karaya · just now</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
 
@@ -16296,6 +16495,7 @@ Answer as Karaya:`;
     bot.className = 'k-msg bot';
     msgs.appendChild(bot);
     msgs.scrollTop = msgs.scrollHeight;
+    if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
     { const solved = _goalSeek(q) || _sensitivity(q);
       if (solved) { bot.innerHTML = fmtKaraya(solved) + '<span class="k-meta">Karaya · just now</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     const sheetName = (typeof fsActiveSheet !== 'undefined' && fsActiveSheet) ? fsActiveSheet : Object.keys(SHEET_DATA)[0];
@@ -18003,6 +18203,8 @@ Answer as Karaya:`;
               {k:'yardi', name:'Yardi Voyager', cat:'Property Management', mark:'Y', connected:true, meta:'Synced 40m ago · rent roll, leases, opex'},
               {k:'sap', name:'SAP S/4HANA', cat:'ERP · Finance', mark:'S', connected:false, meta:'Cost ledger, commitments, actuals'},
               {k:'mri', name:'MRI Software', cat:'Property Management', mark:'M', connected:false, meta:'Lease admin, CAM reconciliations'},
+              {k:'paseetah', name:'Paseetah', cat:'Market Data API', mark:'P', connected:(window._paseetahOn!==false), meta:'Market rents, ADR, occupancy, cap-rate comps — feeds model assumptions'},
+              {k:'costar', name:'CoStar', cat:'Market Data API', mark:'C', connected:false, meta:'Comparable transactions & leasing analytics'},
             ].map(c => `
               <div class="settings-row" id="conn-${c.k}">
                 <div style="display:flex;align-items:center;gap:12px;">
@@ -18038,6 +18240,7 @@ Answer as Karaya:`;
     const btn = document.querySelector('#conn-' + k + ' .conn-btn');
     if (!btn) return;
     const connected = btn.classList.toggle('is-connected');
+    if (k === 'paseetah') { window._paseetahOn = connected; try{ localStorage.setItem('bohio_paseetah', connected?'1':'0'); }catch(e){} }
     if (connected) {
       btn.textContent = 'Connecting…';
       setTimeout(() => {
