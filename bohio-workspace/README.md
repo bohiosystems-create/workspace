@@ -23,7 +23,15 @@ and a tiny zero-dependency server wires the AI features to a real Claude model.
 - **Contract Management** — every lease & landlord agreement in one place;
   Karaya reads the contract terms (rent, escalation, term, breaks) and **builds
   a portfolio cashflow model straight from the leases** — a projected
-  contracted-income table + chart with an AI insight.
+  contracted-income table + chart with an AI insight. Available both as a
+  workspace section **and inside every project** (the "Contracts" section).
+- **Build a model from a document** — with no upload, click *Build from a
+  Document* in My Models to watch Karaya read a sample offering memorandum and
+  structure it into a full Bohio-format underwriting model.
+- **Export any model to Excel** — every Bohio-format model exports to a neat,
+  multi-tab `.xls` workbook (native SpreadsheetML, no libraries) with styled
+  headers/sections/totals and numbers typed as numbers, straight from the editor
+  or Model Studio.
 - Every Karaya chatbot across the app (home, project rail, model editor, model
   studio, fullscreen sheet, file Q&A, screening, funds, negotiation) is
   connected to the Claude API and **streams its answer as it writes**.

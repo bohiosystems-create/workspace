@@ -10071,6 +10071,7 @@
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
           <button class="new-project-btn" onclick="document.getElementById('file-input-models').click()" title="Upload an Excel model, or a PowerPoint / PDF / Word brief — Karaya builds it into a Bohio model">Upload Model</button>
+          <button class="new-project-btn" onclick="buildFromSampleDoc()" title="See Karaya turn a sample offering memorandum into a Bohio-format model — no file needed">Build from a Document</button>
           <button class="new-project-btn" onclick="buildFromScratch()">Build from Scratch</button>
           <button class="new-project-btn" onclick="goTo('templates')">Load Template</button>
           <input type="file" id="file-input-models" style="display:none;" accept=".xlsx,.xls,.csv,.pptx,.ppt,.pdf,.docx,.doc" onchange="handleModelUpload(this.files[0])">
@@ -10256,6 +10257,11 @@
           <div class="ssq-name">Approvals</div>
           <div class="ssq-sub">Governance &amp; sign-off status</div>
         </div>
+        <div class="section-squircle" data-sec="contracts" onclick="selectProjectSection('contracts')">
+          <div class="ssq-head"><span class="ssq-count" id="ssq-count-contracts">—</span></div>
+          <div class="ssq-name">Contracts</div>
+          <div class="ssq-sub">Leases &amp; cashflow model</div>
+        </div>
       </div>
 
       <!-- DOCUMENTS PANEL -->
@@ -10295,6 +10301,11 @@
         </div>
       </div>
       <div id="proj-approvals-body"></div>
+      </div>
+
+      <!-- CONTRACTS PANEL -->
+      <div class="proj-section-panel" id="proj-sec-contracts" style="display:none;">
+        <div id="proj-contract-mgmt"></div>
       </div>
 
       <!-- TOPICS PANEL -->
@@ -10378,7 +10389,7 @@
               <button class="action-btn" onclick="openCompare()">Compare Versions</button>
               <button class="action-btn" onclick="openModelApproval()">Submit for Approval</button>
               <button class="action-btn" onclick="openPresentation()">▸ Presentation</button>
-              <button class="action-btn">Export</button>
+              <button class="action-btn" onclick="exportModelExcel()">Export to Excel</button>
               <button class="action-btn">Add to Workspace</button>
             </div>
           </div>
@@ -10667,7 +10678,7 @@
     <span class="studio-title">Model Studio</span>
     <span class="studio-sub" id="studio-model-name"></span>
     <button class="action-btn" onclick="closeStudio()">Back to Editor</button>
-    <button class="action-btn">Export PDF</button>
+    <button class="action-btn" onclick="exportModelExcel()">Export to Excel</button>
     <button class="action-btn">Add to Workspace</button>
   </div>
   <div class="studio-body">
@@ -11410,7 +11421,7 @@
   }
 
   // ============ SECTION SQUIRCLES (Documents / Financial Models / Topics / Tasks / Approvals) ============
-  const PROJ_SECTIONS = ['documents','models','topics','tasks','approvals'];
+  const PROJ_SECTIONS = ['documents','models','topics','tasks','approvals','contracts'];
   // ============ DOCUMENT SEARCH ============
   function filterDocs(q){
     const grid = document.getElementById('docs-grid');
@@ -11446,6 +11457,14 @@
       const sq = document.querySelector('.section-squircle[data-sec="'+s+'"]');
       if (sq) sq.classList.toggle('active', s === name);
     });
+    // Lazily render the in-project contract management workspace on first open.
+    if (name === 'contracts') {
+      const host = document.getElementById('proj-contract-mgmt');
+      if (host && !host.dataset.rendered && typeof renderContractMgmt === 'function') {
+        renderContractMgmt('proj-contract-mgmt', 'pcm');
+        host.dataset.rendered = '1';
+      }
+    }
   }
   function updateProjectSectionCounts(id){
     const p = P[id];
@@ -11460,6 +11479,8 @@
     setC('topics', topics + (topics === 1 ? ' thread' : ' threads'));
     const tasks = (PROJECT_TASKS[id] || []).filter(t => !t.done).length;
     setC('tasks', tasks + ' open');
+    const leaseCount = (typeof leases !== 'undefined') ? leases.length : 0;
+    setC('contracts', leaseCount + (leaseCount === 1 ? ' lease' : ' leases'));
     // Approvals: live requests + governance tiers
     const live = Object.keys(APPROVALS).filter(k => k.startsWith(id + '::')).length;
     const gov = (typeof GOVERNANCE !== 'undefined' && GOVERNANCE[id]) ? GOVERNANCE[id] : null;
@@ -12104,14 +12125,15 @@
     return Math.max(1, yrs||1);
   }
 
-  function renderContractMgmt(){
-    const host=document.getElementById('contract-mgmt');
+  function renderContractMgmt(hostId, prefix){
+    hostId = hostId || 'contract-mgmt'; prefix = prefix || 'cm';
+    const host=document.getElementById(hostId);
     if(!host || typeof leases==='undefined') return;
     const rows=leases.map(l=>{
       const esc=_leaseEscRate(l), term=_leaseTermYears(l);
       const pill=(typeof _docStatusPill==='function')?_docStatusPill(l.status):('<span>'+(l.status||'')+'</span>');
       return `<label class="cm-row" style="display:grid;grid-template-columns:24px 1fr auto auto auto auto;gap:16px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--ink-hairline);cursor:pointer;">
-        <input type="checkbox" class="cm-check" data-id="${l.id}" checked style="accent-color:var(--ink);width:15px;height:15px;">
+        <input type="checkbox" class="${prefix}-check" data-id="${l.id}" checked style="accent-color:var(--ink);width:15px;height:15px;">
         <div style="min-width:0;"><div style="font-size:13px;color:var(--ink);">${l.name}</div><div style="font-size:10px;color:var(--ink-soft);margin-top:2px;">${l.type} · ${l.party}</div></div>
         <div style="text-align:right;"><div style="font-size:12px;font-weight:600;white-space:nowrap;">${l.rent}</div><div style="font-size:7px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);">rent</div></div>
         <div style="text-align:right;"><div style="font-size:12px;">${(esc*100).toFixed(0)}%</div><div style="font-size:7px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);">escalation</div></div>
@@ -12127,20 +12149,21 @@
       ${rows}
     </div>
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap;">
-      <button class="dm-btn" onclick="buildLeaseCashflow()">Build cashflow model →</button>
+      <button class="dm-btn" onclick="buildLeaseCashflow('${prefix}')">Build cashflow model →</button>
       <span style="font-size:11px;color:var(--ink-soft);">Karaya reads the selected leases and projects contracted income.</span>
     </div>
-    <div id="cm-cashflow"></div>`;
+    <div id="${prefix}-cashflow"></div>`;
   }
 
-  function buildLeaseCashflow(){
-    const host=document.getElementById('cm-cashflow'); if(!host) return;
-    const ids=[...document.querySelectorAll('.cm-check:checked')].map(c=>c.dataset.id);
+  function buildLeaseCashflow(prefix){
+    prefix = prefix || 'cm';
+    const host=document.getElementById(prefix+'-cashflow'); if(!host) return;
+    const ids=[...document.querySelectorAll('.'+prefix+'-check:checked')].map(c=>c.dataset.id);
     const sel=leases.filter(l=>ids.indexOf(l.id)>=0);
     if(!sel.length){ host.innerHTML='<div style="color:var(--ink-soft);font-size:12px;">Select at least one lease to model.</div>'; return; }
     const steps=['Reading the lease agreements…','Extracting rent, escalation, term & breaks…','Projecting contracted income year by year…','Aggregating the portfolio cashflow…','Rendering the model…'];
-    host.innerHTML=`<div class="dm-card" style="padding:22px 24px;"><div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;" id="cm-step">${steps[0]}</div><div style="height:4px;background:var(--ink-hairline);"><div id="cm-fill" style="height:100%;width:0;background:var(--ink);transition:width .4s ease;"></div></div></div>`;
-    const stepEl=document.getElementById('cm-step'), fill=document.getElementById('cm-fill');
+    host.innerHTML=`<div class="dm-card" style="padding:22px 24px;"><div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;" id="${prefix}-step">${steps[0]}</div><div style="height:4px;background:var(--ink-hairline);"><div id="${prefix}-fill" style="height:100%;width:0;background:var(--ink);transition:width .4s ease;"></div></div></div>`;
+    const stepEl=document.getElementById(prefix+'-step'), fill=document.getElementById(prefix+'-fill');
     let i=0;
     const t=setInterval(()=>{ i++;
       if(i<steps.length){ stepEl.textContent=steps[i]; fill.style.width=((i/steps.length)*100)+'%'; }
@@ -13608,6 +13631,48 @@ Answer as Karaya:`;
     }, 560);
   }
 
+  // ============ BUILD-FROM-A-DOCUMENT DEMO ============
+  // Self-contained: shows a realistic offering memorandum (no upload needed),
+  // Karaya extracts the salient terms, then builds them into a Bohio-format
+  // model and opens it in the editor. Demonstrates the doc → model pipeline.
+  function buildFromSampleDoc(){
+    let ov = document.getElementById('sdoc-overlay');
+    if(!ov){ ov = document.createElement('div'); ov.id = 'sdoc-overlay';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+      document.body.appendChild(ov); }
+    const close = () => { ov.style.display = 'none'; };
+    ov.innerHTML = `<div style="background:var(--paper);border:1px solid var(--ink-hairline);max-width:760px;width:100%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div>
+          <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">Sample document · PDF</div>
+          <div style="font-family:var(--font-display);font-size:20px;margin-top:3px;">Marina Gate Tower — Offering Memorandum</div>
+        </div>
+        <button class="action-btn" onclick="document.getElementById('sdoc-overlay').style.display='none'">Close</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:22px 26px;line-height:1.6;font-size:13px;color:var(--ink);">
+        <p style="margin:0 0 12px;"><strong>Asset.</strong> A 41-storey mixed-use tower on the Dubai Marina waterfront — 320 branded residences, a 180-key upper-upscale hotel and 4,200 sqm of curated ground-floor retail. Total GFA 96,500 sqm. Completion in the seller's Year 2; a 5-year hold is assumed.</p>
+        <p style="margin:0 0 12px;"><strong>Revenue.</strong> Residential sales are guided at an average AED 2,150 / sqft over a 30-month absorption. The hotel is underwritten to a stabilised NOI of AED 41.0M by Year 3 (ADR AED 920, 74% occupancy). Retail is fully pre-let at AED 3,400 / sqm on 10-year leases with 3.0% annual escalations.</p>
+        <p style="margin:0 0 12px;"><strong>Costs.</strong> Hard construction cost is AED 5,600 / sqm (QS estimate). Operating costs run at 14% of revenue with 2.5% annual inflation; a 4.0% capex reserve is held against revenue. Insurance and statutory charges are AED 6.2M p.a.</p>
+        <p style="margin:0 0 12px;"><strong>Financing.</strong> The capital stack is 55% senior debt / 45% equity. Indicative all-in cost of debt is 6.25% (EIBOR + 200 bps), interest-only through the hold with a bullet repayment at exit. Exit is modelled at a 6.25% cap rate on stabilised NOI.</p>
+        <p style="margin:0 0 4px;"><strong>Targeted returns.</strong> The seller guides a project IRR of ~18–19% and an equity multiple of ~2.1x over the five-year hold.</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding:16px 22px;border-top:1px solid var(--ink-hairline);">
+        <button class="dm-btn" onclick="_sampleDocToModel()">Turn into a Bohio model →</button>
+        <span style="font-size:11px;color:var(--ink-soft);">Karaya reads the memorandum and structures a full underwriting model.</span>
+      </div>
+    </div>`;
+    ov.style.display = 'flex';
+  }
+  function _sampleDocToModel(){
+    const sd = document.getElementById('sdoc-overlay'); if (sd) sd.style.display = 'none';
+    const base = 'Marina Gate Tower — Underwriting';
+    const doc = { type:'XLSX', name: base, version:'v.01 · From offering memorandum', updated:'Just now · You', isGenerated:true,
+      notes:'Model built by Karaya from the Marina Gate Tower offering memorandum, mapped into the Bohio underwriting template.' };
+    if (typeof MY_MODELS !== 'undefined' && !MY_MODELS.find(m => m.name === base)) MY_MODELS.unshift(doc);
+    const steps = ['Reading the memorandum end-to-end…','Extracting programme, revenue & cost assumptions…','Mapping AED figures into the Bohio underwriting template…','Wiring cashflow, returns and sensitivity…','Rendering the sheet…'];
+    uploadBuildingOverlay(base, 'Building a model from the memorandum', steps, () => { if (typeof openEditor === 'function') openEditor(doc); });
+  }
+
   // Cells whose formula references the given cell (downstream / dependents).
   function findDependents(ref, sheetName){
     const out = [];
@@ -13895,6 +13960,74 @@ Answer as Karaya:`;
       btn.style.color = '';
       btn.style.borderColor = '';
     }, 1200);
+  }
+
+  // ============ EXCEL EXPORT — every Bohio-format model → a neat .xls workbook ============
+  // Emits SpreadsheetML 2003 (a native, library-free Excel format): one worksheet
+  // per Bohio sheet, styled headers/sections/totals, numbers typed as numbers so
+  // Excel can sum and chart them. No dependencies, opens straight into Excel/Numbers.
+  function _xmlEsc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function _xlCell(raw, styleId){
+    const txt = raw == null ? '' : String(raw).trim();
+    const style = styleId ? ` ss:StyleID="${styleId}"` : '';
+    if (txt === '') return `<Cell${style}/>`;
+    // Treat a bare (optionally comma-grouped, signed, decimal) figure as a number.
+    if (/^-?[\d,]+(\.\d+)?$/.test(txt)) {
+      const n = txt.replace(/,/g, '');
+      return `<Cell${style}><Data ss:Type="Number">${n}</Data></Cell>`;
+    }
+    return `<Cell${style}><Data ss:Type="String">${_xmlEsc(txt)}</Data></Cell>`;
+  }
+  function exportModelExcel(){
+    const title = ((document.getElementById('ed-title') || {}).textContent || 'Bohio Model').trim();
+    const styleFor = (st) => {
+      if (st === 'section') return 'sec';
+      if (st === 'total' || st === 'total-neg' || st === 'total-pos') return 'tot';
+      return '';
+    };
+    let sheetsXml = '';
+    for (const [name, sheet] of Object.entries(SHEET_DATA)) {
+      const wsName = _xmlEsc(name.slice(0, 31).replace(/[\\\/\?\*\[\]:]/g, ' '));
+      // Header row (skip the internal row-index column at position 0).
+      const heads = (sheet.headers || sheet.cols || []).slice(1);
+      const headRow = '<Row>' + heads.map(h => _xlCell(h, 'hdr')).join('') + '</Row>';
+      const bodyRows = (sheet.rows || []).map(r => {
+        const sty = styleFor(r.style);
+        const cells = (r.cells || []).slice(1).map(c => _xlCell(c, sty)).join('');
+        return '<Row>' + cells + '</Row>';
+      }).join('');
+      sheetsXml += `<Worksheet ss:Name="${wsName}"><Table>${headRow}${bodyRows}</Table>`
+        + '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane></WorksheetOptions></Worksheet>';
+    }
+    const xml = `<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n`
+      + `<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"`
+      + ` xmlns:o="urn:schemas-microsoft-com:office:office"`
+      + ` xmlns:x="urn:schemas-microsoft-com:office:excel"`
+      + ` xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">`
+      + `<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office"><Title>${_xmlEsc(title)}</Title><Company>Bohio Workspace</Company></DocumentProperties>`
+      + `<Styles>`
+      + `<Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Bottom"/><Font ss:FontName="Calibri" ss:Size="11"/></Style>`
+      + `<Style ss:ID="hdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#000919" ss:Pattern="Solid"/><Alignment ss:Horizontal="Right"/></Style>`
+      + `<Style ss:ID="sec"><Font ss:Bold="1" ss:Color="#000919"/><Interior ss:Color="#ECEEF2" ss:Pattern="Solid"/></Style>`
+      + `<Style ss:ID="tot"><Font ss:Bold="1"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>`
+      + `</Styles>${sheetsXml}</Workbook>`;
+    const fname = title.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'Bohio_Model';
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname + '.xls';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    const status = document.getElementById('sheet-status');
+    if (status) {
+      const prev = status.textContent;
+      status.textContent = 'Exported ' + fname + '.xls · ' + Object.keys(SHEET_DATA).length + ' tabs';
+      setTimeout(() => { status.textContent = prev || 'Ready'; }, 2400);
+    }
   }
 
   function openFullscreen() {
