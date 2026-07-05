@@ -14663,6 +14663,9 @@ Answer as the ${a.name} agent:`;
   let _cellExplainToken = 0;
   function _explainCell(ref, value, formula, label, sheetName){
     const box = document.getElementById('cell-ai-explain'); if(!box) return;
+    // uploaded models often leave column A empty — recover the row's real label
+    if(!label){ const s=SHEET_DATA[sheetName]; const mm=ref.match(/^([A-Z]+)(\d+)$/);
+      const row=s&&mm&&s.rows.find(r=>r.cells[0]===mm[2]); if(row) label=_rowLabel(row); }
     const textEl = box.querySelector('.kr-stream-text'), caret = box.querySelector('.kr-caret');
     const myTok = ++_cellExplainToken;
     // precedents (values) for grounding
@@ -14809,7 +14812,7 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     if(/total|subtotal|\bsum\b|\bnoi\b|net operating|ebitda|cash ?flow to|grand/i.test(label)) return 'total';
     return 'data';
   }
-  const WB_MAX_COLS=12, WB_MAX_ROWS=80, WB_MAX_SHEETS=8;
+  const WB_MAX_COLS=16, WB_MAX_ROWS=220, WB_MAX_SHEETS=20;
   function _gridFromCells(cellsByRow, maxC){
     const C=Math.min(maxC, WB_MAX_COLS);
     const cols=[''].concat(Array.from({length:C},(_,i)=>_colLetter(i+1)));
@@ -14874,6 +14877,7 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
         });
       });
       if(Object.keys(cellsByRow).length) wb[sh.name.slice(0,28)]=_gridFromCells(cellsByRow, maxC);
+      else wb[sh.name.slice(0,28)]={cols:['','A'],headers:['',''],rows:[{cells:['1','(no readable cells were imported from this tab)'],style:'section'}]};
     }
     if(!Object.keys(wb).length) throw new Error('no readable sheets found in the workbook');
     return wb;
@@ -15054,25 +15058,35 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
   // Compact text view of a sheet for grounding the editor chat.
   function dumpSheet(sheetName){
     const s = SHEET_DATA[sheetName]; if (!s) return '';
-    return s.rows.filter(r => r.style !== 'empty').map(r => {
-      const label = r.cells[1] || '';
-      const vals = r.cells.slice(2).filter(v => v !== '').join(' | ');
-      return label ? (label + (vals ? ': ' + vals : '')) : '';
-    }).filter(Boolean).join('\n').slice(0, 2600);
+    return s.rows.filter(r => r.style !== 'empty').map(_dumpRow).filter(Boolean).join('\n').slice(0, 3400);
   }
 
+  // One grounding line per row. Reads the label from the first meaningful text
+  // cell (real models leave columns A/B as gutters) and values from any numeric
+  // cell — so imported workbooks with indented layouts still ground correctly.
+  function _dumpRow(r){
+    const label=_rowLabel(r);
+    const nums=_rowNums(r);
+    const f=(r.formulas||[]).filter(x=>x)[0];
+    if(!label && !nums.length) return '';
+    return (label||('(row '+r.cells[0]+')')) + (nums.length?': '+nums.join(' | '):'') + (f?('   ['+f+']'):'');
+  }
   // Whole-workbook text view — used to ground "describe the model" style asks.
+  // Budgeted PER TAB (not one global cut) so later tabs never read as "empty",
+  // with explicit truncation markers instead of silent loss.
   function dumpWorkbook(limit){
-    return Object.keys(SHEET_DATA).map(name=>{
+    const tabs=Object.keys(SHEET_DATA);
+    const total=limit||16000;
+    const per=Math.max(700, Math.floor(total/Math.max(tabs.length,1)));
+    return tabs.map(name=>{
       const s=SHEET_DATA[name];
-      const body=s.rows.filter(r=>r.style!=='empty').map(r=>{
-        const label=r.cells[1]||'';
-        const vals=r.cells.slice(2).filter(v=>v!=='').join(' | ');
-        const f=(r.formulas||[]).filter(x=>x).slice(0,1)[0];
-        return label ? (label + (vals?': '+vals:'') + (f?('   ['+f+']'):'')) : '';
-      }).filter(Boolean).join('\n');
-      return '### TAB: '+name+'\n'+body;
-    }).join('\n\n').slice(0, limit||6000);
+      const lines=(s.rows||[]).filter(r=>r.style!=='empty').map(_dumpRow).filter(Boolean);
+      let body='', used=0, shown=0;
+      for(const ln of lines){ if(used+ln.length+1>per) break; body+=ln+'\n'; used+=ln.length+1; shown++; }
+      if(shown<lines.length) body+='…(+'+(lines.length-shown)+' more populated rows on this tab)\n';
+      if(!lines.length) body='(no populated cells were imported on this tab)\n';
+      return '### TAB: '+name+' ('+lines.length+' populated rows)\n'+body.trimEnd();
+    }).join('\n\n');
   }
   // Offline description of the open model, read straight from its cells, so the
   // demo still describes the actual model without a live API key.
@@ -15524,7 +15538,7 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     // for focused questions to keep the prompt tight.
     const wantsWhole = !applied && /\b(describe|summar|overview|what (is|does)|explain the model|walk me|tell me about|assumption|risk|driver)\b/i.test(q);
     const grounding = wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('SHEET (' + sheetName + '):\n' + dumpSheet(sheetName));
-    const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}" (${Object.keys(SHEET_DATA).length} tabs: ${Object.keys(SHEET_DATA).join(', ')}). ${applied ? ('You just applied this change to the model: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'When asked to DESCRIBE or SUMMARISE the model, explain in plain language what it represents (asset/deal type, the horizon), the main revenue and cost drivers, the key assumptions, and the headline returns — citing the actual figures. You can also explain a formula, run a what-if, change a cell ("set B8 to -2.10"), add/remove a metric, or add a sheet.'} Ground every answer strictly in the data below — cite real labels and figures. Be specific and concise (3-6 sentences or short bullets), plain text, **bold** key figures. Don't invent line items that aren't present.
+    const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}" (${Object.keys(SHEET_DATA).length} tabs: ${Object.keys(SHEET_DATA).join(', ')}). ${applied ? ('You just applied this change to the model: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'When asked to DESCRIBE or SUMMARISE the model, explain in plain language what it represents (asset/deal type, the horizon), the main revenue and cost drivers, the key assumptions, and the headline returns — citing the actual figures. You can also explain a formula, run a what-if, change a cell ("set B8 to -2.10"), add/remove a metric, or add a sheet.'} Ground every answer strictly in the data below — cite real labels and figures. The data below IS the complete imported workbook (tabs marked "+N more rows" have additional rows not shown; tabs with no populated cells are marked as such): never claim the model failed to load — if a figure isn't visible, name the tab whose lines are closest and answer from what is present. Be specific and concise (3-6 sentences or short bullets), plain text, **bold** key figures. Don't invent line items that aren't present.
 
 ${grounding}
 
