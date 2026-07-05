@@ -10267,9 +10267,14 @@
       <div class="docs-header">
         <div class="docs-title">Financial Models</div>
         <div class="docs-actions">
-          <button class="action-btn">+ New Model</button>
+          <button class="action-btn" onclick="document.getElementById('proj-model-upload').click()" title="Upload an Excel model — Karaya recreates it in Bohio format, then rework it by chatting">Upload Excel Model</button>
+          <button class="action-btn" onclick="buildFromScratch()">Build from Scratch</button>
+          <input type="file" id="proj-model-upload" style="display:none;" accept=".xlsx,.xls,.csv,.pptx,.ppt,.pdf,.docx,.doc" onchange="handleModelUpload(this.files[0])">
         </div>
       </div>
+      <p style="font-size:12px;line-height:1.6;color:var(--ink-soft);max-width:760px;margin:0 0 18px;">
+        Upload an Excel financial model and Karaya recreates it as a live Bohio workbook. Then open it and chat to Karaya to rework it — change a cell, add or remove a metric, add a sheet, or question any driver.
+      </p>
       <div class="docs-grid" id="models-grid-proj"></div>
       </div>
 
@@ -11382,7 +11387,8 @@
     if (mg) {
       const addM=document.createElement('div');
       addM.className='doc-square add';
-      addM.innerHTML='<div class="plus">+</div><div class="label">New Model</div>';
+      addM.innerHTML='<div class="plus">+</div><div class="label">Upload Excel Model</div>';
+      addM.onclick=()=>{ const inp=document.getElementById('proj-model-upload'); if(inp) inp.click(); };
       mg.appendChild(addM);
     }
 
@@ -13860,6 +13866,87 @@ Answer as Karaya:`;
     return col + rowNum + ' = ' + val + ' (' + (row.cells[1] || 'cell') + ')';
   }
 
+  function _nextRowNum(sheet){
+    let mx = 0; sheet.rows.forEach(r => { const n = parseInt(r.cells[0], 10); if (!isNaN(n) && n > mx) mx = n; });
+    return String(mx + 1);
+  }
+  // Turn a chat instruction into a real edit of the open model: set a cell, add a
+  // metric/row, remove one, or add a whole sheet. Returns a short description of
+  // what changed (so Karaya can confirm it) or null if it was just a question.
+  function tryApplyModelCommand(q){
+    const cell = tryApplyCellEdit(q);
+    if (cell) return cell;
+    const sheetName = (typeof activeSheet !== 'undefined' && activeSheet) ? activeSheet : 'Summary';
+    let m;
+
+    // --- add a sheet / tab ---
+    if (/\badd\b/i.test(q) && /\b(sheet|tab)\b/i.test(q)) {
+      m = q.match(/\b(?:called|named|titled|for|:)\s*["']?([A-Za-z0-9 &\-\/]{2,32}?)["']?\s*(?:sheet|tab|$|\.)/i)
+        || q.match(/\b(?:called|named|titled|for)\b\s*["']?([A-Za-z0-9 &\-\/]{2,32})/i);
+      let name = (m && m[1] ? m[1] : 'New Sheet').trim();
+      let base = name, i = 2; while (SHEET_DATA[name]) { name = base + ' ' + i; i++; }
+      SHEET_DATA[name] = {
+        cols: ['', 'A', 'B', 'C', 'D', 'E', 'F'],
+        headers: ['', '', 'Y1', 'Y2', 'Y3', 'Y4', 'Y5'],
+        rows: [
+          { cells: ['1', name.toUpperCase(), '', '', '', '', ''], style: 'section' },
+          { cells: ['2', '', '', '', '', '', ''], style: 'empty' },
+        ],
+      };
+      renderSpreadsheet(name);
+      return 'added a new "' + name + '" sheet';
+    }
+
+    // --- remove a metric / row ---
+    if (/\b(remove|delete|drop)\b/i.test(q)) {
+      const sheet = SHEET_DATA[sheetName];
+      m = q.match(/\brow\s*(\d{1,2})\b/i);
+      if (sheet && m) {
+        const idx = sheet.rows.findIndex(r => r.cells[0] === m[1]);
+        if (idx >= 0) { const lbl = sheet.rows[idx].cells[1] || ('row ' + m[1]); sheet.rows.splice(idx, 1); renderSpreadsheet(sheetName); return 'removed the "' + lbl + '" row'; }
+      }
+      m = q.match(/\b(?:called|named)\b\s*["']?([A-Za-z0-9 %&\-\/().]{2,40})/i)
+        || q.match(/\b(?:remove|delete|drop)\b\s+(?:the\s+)?["']?([A-Za-z0-9 %&\-\/().]{2,40}?)["']?\s*(?:row|metric|line|driver)\b/i)
+        || q.match(/\b(?:the\s+)?["']?([A-Za-z0-9 %&\-\/().]{2,40}?)["']?\s*(?:row|metric|line|driver)\b/i);
+      if (sheet && m) {
+        const target = m[1].trim().toLowerCase();
+        const idx = sheet.rows.findIndex(r => r.style !== 'empty' && (r.cells[1] || '').toLowerCase().includes(target));
+        if (idx >= 0) { const lbl = sheet.rows[idx].cells[1]; sheet.rows.splice(idx, 1); renderSpreadsheet(sheetName); return 'removed the "' + lbl + '" row'; }
+      }
+    }
+
+    // --- add a metric / row / line ---
+    if (/\badd\b/i.test(q) && /\b(metric|row|line|driver)\b/i.test(q)) {
+      const sheet = SHEET_DATA[sheetName]; if (!sheet) return null;
+      m = q.match(/\b(?:called|named|titled|for)\b\s*["']?([A-Za-z0-9 %&\-\/().]{2,40}?)["']?\s*(?:=|with|,|\.|$|for the|to the)/i)
+        || q.match(/\badd\b\s+(?:a\s+)?(?:new\s+)?(?:metric|row|line|driver)\s+["']?([A-Za-z0-9 %&\-\/().]{2,40})/i);
+      const label = (m && m[1] ? m[1] : 'New Metric').trim();
+      const ncols = sheet.cols.length;
+      const cells = new Array(ncols).fill(''); cells[0] = _nextRowNum(sheet); cells[1] = label;
+      const formulas = new Array(ncols).fill('');
+      let note = '';
+      const fm = q.match(/=\s*(.+)$/);
+      const vm = q.match(/\b(?:with values|values?|of)\b\s*([-\d.,%x\s]+)$/i);
+      if (fm) {
+        const expr = '=' + fm[1].trim().replace(/["']$/, '');
+        formulas[2] = expr;
+        let val = null;
+        try { if (typeof evalFormula === 'function') { const v = evalFormula(expr, sheetName); if (v != null && !isNaN(v)) val = (Math.round(v * 100) / 100).toFixed(2); } } catch (e) {}
+        if (val != null) cells[2] = val;
+        note = ' with formula ' + expr;
+      } else if (vm) {
+        const vals = vm[1].split(/[,\s]+/).filter(Boolean);
+        for (let k = 0; k < vals.length && (2 + k) < ncols; k++) cells[2 + k] = vals[k];
+        note = ' = ' + vals.join(', ');
+      }
+      sheet.rows.push({ cells, formulas, style: 'data' });
+      renderSpreadsheet(sheetName);
+      return 'added a "' + label + '" metric' + note;
+    }
+
+    return null;
+  }
+
   function editorKarayaSend() {
     const input = document.getElementById('ek-input');
     const q = (input.value || '').trim();
@@ -13876,10 +13963,10 @@ Answer as Karaya:`;
     msgs.appendChild(bot);
     msgs.scrollTop = msgs.scrollHeight;
 
-    const applied = tryApplyCellEdit(q);
+    const applied = tryApplyModelCommand(q);
     const sheetName = (typeof activeSheet !== 'undefined' && activeSheet) ? activeSheet : 'Summary';
     const modelName = (document.getElementById('ed-title') || {}).textContent || 'the model';
-    const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}", current tab "${sheetName}". ${applied ? ('You just applied this change to the sheet: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'The user may ask you to explain a formula or driver, run a what-if, or change a cell (they can say e.g. "set B8 to -2.10").'} Ground every answer in the SHEET below. Be concise (2-5 sentences), plain text, **bold** key figures.
+    const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}", current tab "${sheetName}". ${applied ? ('You just applied this change to the model: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'The user can ask you to explain a formula or driver, run a what-if, change a cell ("set B8 to -2.10"), add a metric ("add a metric called Gross Margin = B5-B12"), remove a metric ("remove the DSCR row"), or add a sheet ("add a sheet called Debt Schedule"). Answer their question grounded in the sheet.'} Ground every answer in the SHEET below. Be concise (2-5 sentences), plain text, **bold** key figures.
 
 SHEET (${sheetName}):
 ${dumpSheet(sheetName)}
@@ -13890,8 +13977,8 @@ Answer as Karaya:`;
 
     (async () => {
       const fallback = applied
-        ? ('Done — I set ' + applied + ' and re-ran the dependent cells. (Live explanations need the demo server with an ANTHROPIC_API_KEY.)')
-        : "I can see this model's tabs, formulas and drivers. Ask me to change a cell (e.g. \"set B8 to -2.10\"), run a scenario, or explain what's driving an output.";
+        ? ('Done — I ' + applied + ' and re-ran the dependent cells. (Live explanations need the demo server with an ANTHROPIC_API_KEY.)')
+        : "I can see this model's tabs, formulas and drivers. Ask me to change a cell (\"set B8 to -2.10\"), add a metric (\"add a metric called Gross Margin = B5-B12\"), remove one (\"remove the DSCR row\"), add a sheet, or explain what's driving an output.";
       const answer = await karayaStreamInto(bot, prompt, 'file_qa', fallback);
       bot.innerHTML = fmtKaraya(answer) + '<span class="k-meta">Karaya · just now</span>';
       msgs.scrollTop = msgs.scrollHeight;
