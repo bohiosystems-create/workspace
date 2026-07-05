@@ -981,10 +981,6 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
         <div class="fd-block-h"><span>Stakeholder structure</span><span class="tag" style="letter-spacing:0.2em;">CAPITAL · FUND · PORTFOLIO · DELIVERY</span></div>
         <div style="border:1px solid var(--ink-hairline);background:var(--bg);overflow:hidden;">${buildFundStructureSVG(f)}</div>
         <div class="fd-sh-legend">${Object.keys(CAT_LABEL).map(k => `<span class="fd-leg"><span class="sw" style="background:${FUND_C[k]}"></span>${CAT_LABEL[k]}</span>`).join('')}</div>
-        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--ink-hairline);">
-          <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:12px;">Ask a stakeholder's AI agent</div>
-          <div class="fd-sh-grid">${stakeCards(f)}</div>
-        </div>
       </div>
 
       <div class="fd-block" style="padding-bottom:8px;">
