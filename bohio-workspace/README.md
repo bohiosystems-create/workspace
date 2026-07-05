@@ -34,6 +34,11 @@ and a tiny zero-dependency server wires the AI features to a real Claude model.
 - **Fake sign-in with a customisable name** — sign in as anyone; your name
   personalises the topbar, home welcome, Karaya's greeting and the AI prompts.
   Editable any time in Settings and remembered across reloads.
+- **Financial model workspace** — upload an **Excel** model (recreated in Bohio
+  format) or a **PowerPoint / PDF / Word** brief (Karaya builds a model from it).
+  The sheet actually recomputes — edit a cell (formula bar or by chatting, e.g.
+  "set B8 to -3.00") and Total Opex, NOI, DSCR and cross-tab cells update; click
+  any cell for its precedents & dependents; submit the model for approval.
 - **Model Studio dashboards** — six asset-class dashboards loaded into the
   workspace (hotel, office, retail, single-tenant, waterfall, lifestyle).
 

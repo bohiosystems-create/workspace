@@ -10068,10 +10068,10 @@
           <h2 class="section-title">My Models</h2>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
-          <button class="new-project-btn" onclick="document.getElementById('file-input-models').click()">Upload New</button>
+          <button class="new-project-btn" onclick="document.getElementById('file-input-models').click()" title="Upload an Excel model, or a PowerPoint / PDF / Word brief — Karaya builds it into a Bohio model">Upload Model</button>
           <button class="new-project-btn" onclick="buildFromScratch()">Build from Scratch</button>
           <button class="new-project-btn" onclick="goTo('templates')">Load Template</button>
-          <input type="file" id="file-input-models" style="display:none;" accept=".xlsx,.xls,.csv" onchange="handleModelUpload(this.files[0])">
+          <input type="file" id="file-input-models" style="display:none;" accept=".xlsx,.xls,.csv,.pptx,.ppt,.pdf,.docx,.doc" onchange="handleModelUpload(this.files[0])">
         </div>
       </div>
       <div class="template-filter-bar" id="models-filters"></div>
@@ -13482,28 +13482,47 @@ Answer as Karaya:`;
   }
 
   // ===== Upload a financial model → generate a Bohio-themed sheet =====
+  // Accepts Excel workbooks (recreated in Bohio format) AND PowerPoint decks /
+  // PDF & DOCX briefs (a model is built from the document). Either way you land
+  // in a working Bohio model you can question and modify.
   function handleModelUpload(file){
     if(!file) return;
     const base = String(file.name || 'Uploaded Model').replace(/\.[^.]+$/, '');
-    const doc = { type:'XLSX', name: base, version:'v.01 · From upload', updated:'Just now · You', isGenerated:true,
-      notes:'Imported workbook mapped into the Bohio underwriting template by Karaya.' };
+    const ext = (String(file.name||'').match(/\.([^.]+)$/) || [,''])[1].toLowerCase();
+    const isSheet = ['xlsx','xls','csv'].indexOf(ext) >= 0;
+    const kind = isSheet ? 'workbook'
+      : (['pptx','ppt'].indexOf(ext) >= 0 ? 'deck'
+      : (['pdf'].indexOf(ext) >= 0 ? 'pdf'
+      : (['docx','doc'].indexOf(ext) >= 0 ? 'brief' : 'file')));
+    const title = { workbook:'Recreating your workbook', deck:'Building a model from your deck', pdf:'Building a model from your brief', brief:'Building a model from your brief', file:'Building your model' }[kind];
+    const stepsByKind = {
+      workbook: ['Reading the workbook…','Detecting tabs, ranges and named cells…','Mapping into the Bohio underwriting template…','Wiring formulas and dependencies…','Rendering the sheet…'],
+      deck: ['Reading the presentation…','Extracting the programme, returns and assumptions from the slides…','Structuring the Bohio underwriting model…','Wiring cashflow, returns and sensitivity…','Rendering the sheet…'],
+      pdf: ['Reading the brief end-to-end…','Extracting programme, cost and revenue assumptions…','Structuring the Bohio underwriting model…','Wiring cashflow, returns and sensitivity…','Rendering the sheet…'],
+      brief: ['Reading the brief end-to-end…','Extracting programme, cost and revenue assumptions…','Structuring the Bohio underwriting model…','Wiring cashflow, returns and sensitivity…','Rendering the sheet…'],
+      file: ['Reading the file…','Extracting the key assumptions…','Structuring the Bohio underwriting model…','Wiring formulas and dependencies…','Rendering the sheet…'],
+    };
+    const versionLabel = isSheet ? 'v.01 · From workbook' : ('v.01 · From ' + (ext.toUpperCase()));
+    const noteLabel = isSheet ? 'Imported workbook mapped into the Bohio underwriting template by Karaya.'
+      : ('Model built by Karaya from an uploaded ' + ext.toUpperCase() + ' ' + (kind==='deck'?'presentation':'brief') + ', mapped into the Bohio underwriting template.');
+    const doc = { type:'XLSX', name: base, version: versionLabel, updated:'Just now · You', isGenerated:true, notes: noteLabel };
     if (typeof MY_MODELS !== 'undefined' && !MY_MODELS.find(m => m.name === base)) MY_MODELS.unshift(doc);
     const inp = document.getElementById('file-input-models'); if (inp) inp.value = '';
-    uploadBuildingOverlay(base, () => { if (typeof openEditor === 'function') openEditor(doc); });
+    uploadBuildingOverlay(base, title, stepsByKind[kind], () => { if (typeof openEditor === 'function') openEditor(doc); });
   }
-  function uploadBuildingOverlay(name, done){
+  function uploadBuildingOverlay(name, title, steps, done){
     let ov = document.getElementById('upl-overlay');
     if(!ov){ ov = document.createElement('div'); ov.id = 'upl-overlay';
       ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;';
       document.body.appendChild(ov); }
     ov.innerHTML = `<div style="background:var(--paper);border:1px solid var(--ink-hairline);padding:34px 40px;max-width:460px;width:90%;text-align:center;">
-      <div style="font-family:var(--font-display);font-size:24px;margin-bottom:6px;">Building your model</div>
+      <div style="font-family:var(--font-display);font-size:24px;margin-bottom:6px;">${title || 'Building your model'}</div>
       <div style="font-size:11px;color:var(--ink-soft);letter-spacing:0.06em;margin-bottom:22px;">${String(name).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
       <div id="upl-step" style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;min-height:18px;"></div>
       <div style="height:4px;background:var(--ink-hairline);"><div id="upl-fill" style="height:100%;width:0;background:var(--ink);transition:width .4s ease;"></div></div>
     </div>`;
     ov.style.display = 'flex';
-    const steps = ['Reading the workbook…','Detecting tabs, ranges and named cells…','Mapping into the Bohio underwriting template…','Wiring formulas and dependencies…','Rendering the sheet…'];
+    steps = steps || ['Reading the file…','Structuring the model…','Rendering the sheet…'];
     const stepEl = document.getElementById('upl-step'), fill = document.getElementById('upl-fill');
     let i = 0; stepEl.textContent = steps[0];
     const t = setInterval(() => {
