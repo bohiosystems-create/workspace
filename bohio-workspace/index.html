@@ -10289,6 +10289,7 @@
         <div class="docs-title">Financial Models</div>
         <div class="docs-actions">
           <button class="action-btn" onclick="document.getElementById('proj-model-upload').click()" title="Upload an Excel model — Karaya recreates it in Bohio format, then rework it by chatting">Upload Excel Model</button>
+          <button class="action-btn" onclick="runProjectAnalytics(currentProject)" title="Karaya compares property-management actuals with the underwriting and market data">AI Performance Analytics</button>
           <button class="action-btn" onclick="buildFromScratch()">Build from Scratch</button>
           <input type="file" id="proj-model-upload" style="display:none;" accept=".xlsx,.xls,.csv,.pptx,.ppt,.pdf,.docx,.doc" onchange="handleModelUpload(this.files[0])">
         </div>
@@ -10296,6 +10297,7 @@
       <p style="font-size:12px;line-height:1.6;color:var(--ink-soft);max-width:760px;margin:0 0 18px;">
         Upload an Excel financial model and Karaya recreates it as a live Bohio workbook. Then open it and chat to Karaya to rework it — change a cell, add or remove a metric, add a sheet, or question any driver.
       </p>
+      <div id="proj-analytics-canvas"></div>
       <div id="proj-model-canvas"></div>
       <div class="docs-grid" id="models-grid-proj"></div>
       </div>
@@ -13322,6 +13324,90 @@ Answer as Karaya:`;
   function exportProjectModel(pid){
     const entry=PROJ_MODEL_WB[pid]; if(!entry) return;
     exportWorkbookXlsx(entry.wb, (P[pid]?P[pid].name:'Project')+' — Financial Projections');
+  }
+
+  // ============ AI PERFORMANCE ANALYTICS (PM actuals vs underwriting vs market) ============
+  // Karaya pulls property-management actuals (Yardi), compares them against the
+  // underwriting, layers in Paseetah market data, and surfaces the variances.
+  function runProjectAnalytics(pid){
+    pid = pid || currentProject; if(!pid) return;
+    if (typeof selectProjectSection==='function') selectProjectSection('models');
+    const host=document.getElementById('proj-analytics-canvas'); if(!host) return;
+    const steps=[
+      'Pulling live actuals from property management (Yardi)…',
+      'Loading the project underwriting model…',
+      'Fetching market rents & cap-rate comps from Paseetah…',
+      'Reconciling actuals vs underwriting…',
+      'Writing the performance read…',
+    ];
+    host.innerHTML=`<div class="dm-card" style="padding:22px 24px;margin-bottom:20px;"><div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;" id="pa-step">${steps[0]}</div><div style="height:4px;background:var(--ink-hairline);"><div id="pa-fill" style="height:100%;width:0;background:var(--ink);transition:width .4s ease;"></div></div></div>`;
+    host.scrollIntoView({block:'start'});
+    let i=0; const stepEl=document.getElementById('pa-step'), fill=document.getElementById('pa-fill');
+    const t=setInterval(()=>{ i++;
+      if(i<steps.length){ stepEl.textContent=steps[i]; fill.style.width=((i/steps.length)*100)+'%'; }
+      else { fill.style.width='100%'; clearInterval(t); setTimeout(()=>renderProjectAnalytics(host, pid), 420); }
+    }, 560);
+  }
+  function renderProjectAnalytics(host, pid){
+    // Deterministic per-project offsets (no RNG) so the demo is stable.
+    const seed=(pid*37)%11, s=seed/100;
+    const rag=(v,amber,red)=> v<=amber?'#15803d':(v<=red?'#b45309':'#b51e3b');
+    // metric: [label, underwritten, actual, market, unit, betterIsHigh]
+    const rows=[
+      ['Occupancy', 93, 90-Math.round(s*10), 88, '%', true],
+      ['In-place Rent (SAR/sqm)', 1800, 1735-Math.round(s*40), 1810, '', true],
+      ['Opex Ratio', 28, 31+Math.round(s*8), 27, '%', false],
+      ['Collections', 98, 95-Math.round(s*10), null, '%', true],
+      ['NOI (SAR M)', 12.4, +(11.6-s*2).toFixed(1), null, '', true],
+      ['Exit Cap Rate', 6.50, null, 6.75+ s, '%', false],
+    ];
+    const fmt=(v,u)=> v==null?'—':(u==='%'?v.toFixed(v%1?2:0)+'%':(''+v));
+    const body=rows.map(r=>{
+      const [lbl,uw,act,mkt,u,hi]=r;
+      let varPct=null, flagCol='var(--ink-soft)', varTxt='—';
+      if(act!=null){
+        varPct=((act-uw)/Math.abs(uw))*100;
+        const adverse = hi ? varPct<0 : varPct>0;
+        const mag=Math.abs(varPct);
+        flagCol = !adverse ? '#15803d' : (mag<4?'#b45309':'#b51e3b');
+        varTxt=(varPct>0?'+':'')+varPct.toFixed(1)+'%';
+      }
+      return `<tr>
+        <td style="padding:11px 14px;font-size:12px;border-bottom:1px solid var(--ink-hairline);">${lbl}</td>
+        <td style="padding:11px 14px;font-size:12px;text-align:right;border-bottom:1px solid var(--ink-hairline);font-variant-numeric:tabular-nums;">${fmt(uw,u)}</td>
+        <td style="padding:11px 14px;font-size:12px;text-align:right;border-bottom:1px solid var(--ink-hairline);font-variant-numeric:tabular-nums;font-weight:700;">${fmt(act,u)}</td>
+        <td style="padding:11px 14px;font-size:12px;text-align:right;border-bottom:1px solid var(--ink-hairline);font-variant-numeric:tabular-nums;color:var(--ink-soft);">${fmt(mkt,u)}</td>
+        <td style="padding:11px 14px;font-size:12px;text-align:right;border-bottom:1px solid var(--ink-hairline);font-variant-numeric:tabular-nums;color:${flagCol};font-weight:700;">${varTxt}</td>
+      </tr>`;
+    }).join('');
+    const pname=P[pid]?P[pid].name:'this project';
+    host.innerHTML=`<div class="dm-card" style="padding:0;overflow:hidden;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 18px;border-bottom:1px solid var(--ink-hairline);flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-size:11px;letter-spacing:0.26em;text-transform:uppercase;font-weight:700;">Performance vs Underwriting</div>
+          <div style="font-size:9px;letter-spacing:0.1em;color:var(--ink-soft);margin-top:3px;">Yardi actuals · project underwriting · Paseetah market data</div>
+        </div>
+      </div>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:560px;">
+        <thead><tr>
+          ${['Metric','Underwritten','PM Actual','Market','Variance'].map((h,idx)=>`<th style="text-align:${idx?'right':'left'};padding:10px 14px;font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);border-bottom:1px solid var(--ink-hairline);">${h}</th>`).join('')}
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>
+      <div class="dm-card" id="pa-insight" style="margin:0;border:none;border-top:1px solid var(--ink-hairline);padding:16px 18px;font-size:12px;line-height:1.65;color:var(--ink);"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>
+    </div>`;
+    // AI narrative
+    const noi=rows.find(r=>/NOI/.test(r[0])), occ=rows.find(r=>/Occupancy/.test(r[0])), opex=rows.find(r=>/Opex/.test(r[0]));
+    const insightEl=document.getElementById('pa-insight');
+    const textEl=insightEl.querySelector('.kr-stream-text'), caret=insightEl.querySelector('.kr-caret');
+    const prompt=`You are Karaya. You compared property-management actuals (Yardi) with the underwriting for "${pname}", using Paseetah market data for context. Key reads: Occupancy actual ${occ[2]}% vs ${occ[1]}% underwritten; Opex ratio ${opex[2]}% vs ${opex[1]}% underwritten; NOI actual SAR ${noi[2]}M vs SAR ${noi[1]}M underwritten. In 2-3 sentences (max 60 words), give the performance read — what's driving the variance and one recommended action. Plain text, **bold** the key figures.`;
+    (async()=>{
+      let full='';
+      try { await window.claude.stream({messages:[{role:'user',content:prompt}], task:'quick_insight'}, {}, tok=>{ full+=tok; textEl.innerHTML=fmtKaraya(full); }); }
+      catch(e){}
+      if(!full||!full.trim()){ full=`Actual NOI of **SAR ${noi[2]}M** is running below the **SAR ${noi[1]}M** underwriting, driven by opex at **${opex[2]}%** (vs ${opex[1]}% underwritten) and occupancy of **${occ[2]}%**. Paseetah market rents support a recovery — prioritise an opex review and a targeted leasing push to close the gap.`; textEl.innerHTML=fmtKaraya(full); }
+      if(caret) caret.remove();
+    })();
   }
 
   // MY MODELS DATA
