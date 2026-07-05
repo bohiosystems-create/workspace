@@ -10463,7 +10463,7 @@
         <div class="editor-main">
           <div class="editor-head">
             <div>
-              <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;cursor:pointer;" onclick="goTo('models')">← Back to My Models</div>
+              <div id="ed-back" style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;cursor:pointer;" onclick="editorGoBack()">← Back</div>
               <h2 class="editor-title" id="ed-title"></h2>
               <div class="editor-meta">
                 <span id="ed-type"></span>
@@ -14646,6 +14646,12 @@ Answer as the ${a.name} agent:`;
     body.innerHTML = buildInspectorHTML(ref, value, formula, label, sheetName);
   }
 
+  let _editorOrigin = { kind:'workspace' };
+  function editorGoBack(){
+    const label = document.getElementById('ed-back');
+    if (_editorOrigin && _editorOrigin.kind==='project' && P[_editorOrigin.id]) { showProject(_editorOrigin.id); }
+    else { goTo('workspace'); }
+  }
   function openEditor(d) {
     document.querySelectorAll('.landing-page,.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-editor').classList.add('active');
@@ -14655,12 +14661,14 @@ Answer as the ${a.name} agent:`;
     const med = document.querySelector('.model-editor');
     if (med) { med.style.gridTemplateColumns = ''; med.classList.remove('karaya-hidden'); }
     document.getElementById('karaya-handle').style.display = 'none';
-    setActiveNav('nav-models');
-    setBreadcrumb([
-      {label:'Home',fn:"goTo('landing')"},
-      {label:'My Models',fn:"goTo('models')"},
-      {label: d.name}
-    ]);
+    // Editors opened from a project belong to that project — never "My Models"
+    // (which no longer exists). Remember the origin so the back link is correct.
+    const fromProject = (typeof currentProject !== 'undefined' && currentProject && P[currentProject]);
+    _editorOrigin = fromProject ? { kind:'project', id:currentProject } : { kind:'workspace' };
+    setActiveNav('nav-workspace');
+    setBreadcrumb(fromProject
+      ? [ {label:'Home',fn:"goTo('landing')"}, {label:'Workspace',fn:"goTo('workspace')"}, {label:P[currentProject].name,fn:"showProject("+currentProject+")"}, {label: d.name} ]
+      : [ {label:'Home',fn:"goTo('landing')"}, {label:'Workspace',fn:"goTo('workspace')"}, {label: d.name} ]);
 
     document.getElementById('ed-title').textContent = d.name;
     document.getElementById('ed-type').textContent = d.type;
