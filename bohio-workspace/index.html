@@ -15021,8 +15021,8 @@ Answer as the ${a.name} agent:`;
     const name=(document.getElementById('ed-title')||{}).textContent||'This model';
     const tabs=Object.keys(SHEET_DATA);
     const get=(re)=>{
-      for(const t of tabs){ for(const r of SHEET_DATA[t].rows){ if(re.test(r.cells[1]||'')){
-        const vals=r.cells.slice(2).filter(v=>v!==''); if(vals.length) return {label:r.cells[1],vals,tab:t}; } } }
+      for(const t of tabs){ for(const r of (SHEET_DATA[t].rows||[])){ const lbl=_rowLabel(r); if(lbl&&re.test(lbl)){
+        const vals=_rowNums(r); if(vals.length) return {label:lbl,vals,tab:t}; } } }
       return null;
     };
     const yrs=(SHEET_DATA[tabs[0]].headers||[]).filter(h=>/^Y\d+$/.test(h)).length;
@@ -15040,12 +15040,79 @@ Answer as the ${a.name} agent:`;
     return bits.join(' ');
   }
 
+  // A row's label = the text (non-numeric) cells joined; works even when an
+  // uploaded model puts the label in a different column than cells[1].
+  function _rowLabel(r){
+    for(let i=1;i<r.cells.length;i++){
+      const v=r.cells[i]; if(v==null) continue;
+      const s=String(v).trim();
+      if(!s || /^[—–\-.\s]+$/.test(s)) continue;   // skip blanks & dash placeholders
+      if(!isNaN(_cellNum(s))) continue;             // skip numeric cells
+      return s;                                     // first meaningful text = the label
+    }
+    return r.cells[1]||'';
+  }
+  function _rowNums(r){ return r.cells.slice(1).filter(v=>v!==''&&v!=null&&!isNaN(_cellNum(v))); }
+  // Find every row (across all tabs) whose label matches a regex and carries at
+  // least one number; rank by a relevance bonus (extra query words in the label).
+  function _findRowsByLabel(re, bonusWords){
+    const out=[];
+    for(const t of Object.keys(SHEET_DATA)){
+      for(const r of (SHEET_DATA[t].rows||[])){
+        if(r.style==='empty') continue;
+        const label=_rowLabel(r); if(!label||!re.test(label)) continue;
+        const nums=_rowNums(r); if(!nums.length) continue;
+        let score=nums.length?1:0;
+        (bonusWords||[]).forEach(w=>{ if(w.length>2 && new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i').test(label)) score+=2; });
+        // prefer a tight label (the metric IS the label) over an incidental mention
+        if(new RegExp('^\\W*'+re.source,'i').test(label)) score+=1;
+        out.push({r,tab:t,label,nums,score});
+      }
+    }
+    return out.sort((a,b)=>b.score-a.score);
+  }
+  // Known financial metrics → the regex that finds their row. Ordered so more
+  // specific names win. Lets "what is the project IRR" locate the IRR line even
+  // when other rows mention "project".
+  const _METRICS=[
+    {k:'IRR', re:/\b(irr|internal rate of return)\b/i},
+    {k:'equity multiple', re:/\b(equity multiple|moic)\b/i},
+    {k:'DSCR', re:/\b(dscr|debt[- ]service coverage)\b/i},
+    {k:'yield-on-cost', re:/\b(yield[- ]?on[- ]?cost|yoc)\b/i},
+    {k:'debt yield', re:/\bdebt yield\b/i},
+    {k:'cap rate', re:/\b(exit cap|cap(italisation)? rate)\b/i},
+    {k:'NOI', re:/\b(noi|net operating income)\b/i},
+    {k:'EBITDA', re:/\bebitda\b/i},
+    {k:'NPV', re:/\bnpv\b/i},
+    {k:'payback', re:/\bpayback\b/i},
+    {k:'cash flow to equity', re:/\b(cash ?flow to equity|levered cash ?flow|free cash ?flow|cfe)\b/i},
+    {k:'gross margin', re:/\bgross margin\b/i},
+    {k:'revenue', re:/\b(total revenue|gross income|effective gross|revenue)\b/i},
+    {k:'operating expenses', re:/\b(total opex|operating expenses|opex)\b/i},
+    {k:'exit value', re:/\bexit (value|proceeds)\b/i},
+  ];
+  function _matchMetric(q){
+    const words=(q.match(/[A-Za-z][A-Za-z\-]{2,}/g)||[]);
+    for(const m of _METRICS){
+      if(!m.re.test(q)) continue;
+      const rows=_findRowsByLabel(m.re, words);
+      if(rows.length){
+        const best=rows[0];
+        const vals=best.nums;
+        const series=vals.length>1 ? vals.join(' → ') : vals[0];
+        const f=(best.r.formulas||[]).filter(x=>x)[0];
+        return `**${best.label}** (${best.tab}) ${vals.length>1?'runs':'is'} **${series}**`+(f?`, calculated as \`${f}\``:'')+`.`+(rows.length>1?` (There ${rows.length-1===1?'is 1 other line':'are '+(rows.length-1)+' other lines'} referencing ${m.k} too — ask for one specifically if you meant a different tab.)`:'');
+      }
+    }
+    return null;
+  }
+
   // Content-grounded answer computed locally from the open workbook — so the
   // editor chat gives a REAL, question-specific answer even with no live API
   // key (and a strong fallback when the key is present but the call fails).
   function _editorLocalAnswer(q){
     const tabs=Object.keys(SHEET_DATA);
-    const findRow=(re)=>{ for(const t of tabs){ for(const r of SHEET_DATA[t].rows){ if(r.style!=='empty'&&r.style!=='section'&&re.test(r.cells[1]||'')) return {r,tab:t}; } } return null; };
+    const findRow=(re)=>{ for(const t of tabs){ for(const r of SHEET_DATA[t].rows){ if(r.style!=='empty'&&r.style!=='section'&&re.test(_rowLabel(r))) return {r,tab:t}; } } return null; };
     // 1) a specific cell reference, e.g. "explain B16"
     const cm=q.match(/\b([A-Z])\s*(\d{1,2})\b/);
     if(cm){
@@ -15059,10 +15126,13 @@ Answer as the ${a.name} agent:`;
         return `**${col}${rn}** on *${sheetName}* is **${row.cells[1]||'a cell'}** = **${val}**`+(f?`, driven by \`${f}\``:` (a direct input)`)+`.`+(deps.length?` It feeds ${deps.slice(0,4).map(d=>d.ref).join(', ')}${deps.length>4?'…':''}.`:'')+` Say "set ${col}${rn} to <value>" and I'll re-run everything downstream.`;
       }
     }
-    // 2) model-level: describe / summarise / overview / what is this model
+    // 2) a known financial metric named in the query (IRR, NOI, DSCR, yield…)
+    const met=_matchMetric(q);
+    if(met) return met;
+    // 3) model-level: describe / summarise / overview / what is this model
     if(/\b(describe|summar|overview|walk me through|what (is|does)|explain the model)\b/i.test(q) && !/\b(dscr|noi|irr|yield|opex|revenue|debt|capex|multiple|escalat|rent|cap rate|occupanc)\b/i.test(q))
       return _describeModelFallback();
-    // 3) a named metric / line item (DSCR, NOI, Yield-on-Cost, Debt Service…)
+    // 4) a named metric / line item (DSCR, NOI, Yield-on-Cost, Debt Service…)
     const words=(q.match(/[A-Za-z][A-Za-z\-&\/]{2,}/g)||[]).map(w=>w.trim()).filter(w=>!/^(what|the|is|are|of|and|for|model|this|that|tell|me|about|explain|show|give|value|does|how|why|main|line|item|number|figure|please|can|you)$/i.test(w));
     for(const w of words.sort((a,b)=>b.length-a.length)){
       const hit=findRow(new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
