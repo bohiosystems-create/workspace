@@ -11157,17 +11157,21 @@
   function _approvalCellHtml(docId, keys){
     const st=DOC_APPROVAL_STATE[docId];
     if(!st){
-      return `<button class="dm-btn" style="padding:8px 14px;font-size:9px;letter-spacing:0.18em;" onclick="submitDocApproval('${docId}','${keys.join(',')}')">Submit for approval</button>`;
+      return `<button class="dm-btn" style="padding:8px 14px;font-size:9px;letter-spacing:0.18em;" onclick="openDocReview('${docId}')">Review with AI →</button>`;
     }
     const avatars=st.approvers.map(a=>{
-      const info=DOC_APPROVERS[a.key]||{init:'?',name:'?',role:''};
+      const info=(a.key==='ME')
+        ? {init:((window.DEMO_USER&&window.DEMO_USER.initials)||'ME'), name:((window.DEMO_USER&&window.DEMO_USER.name)||'You'), role:'Approver'}
+        : (DOC_APPROVERS[a.key]||{init:'?',name:'?',role:''});
       const done=a.status==='approved';
       return `<span title="${info.name} · ${info.role}${done?' · approved':' · pending'}" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:8px;font-weight:700;margin-left:-6px;border:2px solid var(--paper);background:${done?'#15803d':'rgba(0,9,25,0.12)'};color:${done?'#fff':'var(--ink-soft)'};transition:all .3s ease;">${info.init}</span>`;
     }).join('');
     const done=st.approvers.filter(a=>a.status==='approved').length;
-    const label = st.status==='approved'
-      ? `<span style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:#15803d;">✓ Approved</span>`
-      : `<span style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">${done}/${st.approvers.length} approving…</span>`;
+    let label;
+    if(st.status==='approved') label=`<span style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:#15803d;">✓ Approved${st.self?' by you':''}</span>`;
+    else if(st.status==='rejected') label=`<span style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:#b51e3b;">✕ Rejected</span>`;
+    else if(st.status==='changes') label=`<span style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:#b45309;">Changes requested</span>`;
+    else label=`<span style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">${done}/${st.approvers.length} approving…</span>`;
     return `<div style="display:flex;align-items:center;gap:12px;justify-content:flex-end;"><div style="display:flex;padding-left:6px;">${avatars}</div>${label}</div>`;
   }
 
@@ -11202,7 +11206,77 @@
 
   let _ALL_DOC_COUNT = 0;
 
+  // ===== Review a document with AI, then approve / reject / route =====
+  function openDocReview(docId){
+    const doc = DOC_INDEX[docId]; if(!doc) return;
+    let ov = document.getElementById('docrev-overlay');
+    if(!ov){ ov = document.createElement('div'); ov.id='docrev-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:32px;';
+      ov.addEventListener('click', e => { if(e.target===ov) ov.style.display='none'; });
+      document.body.appendChild(ov); }
+    ov.innerHTML = `<div style="background:var(--paper);border:1px solid var(--ink-hairline);width:100%;max-width:560px;max-height:calc(100vh - 64px);display:flex;flex-direction:column;">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--ink-hairline);display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+        <div style="min-width:0;">
+          <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">Review &amp; approve · ${doc.type||'Document'}</div>
+          <div style="font-family:var(--font-display);font-size:20px;margin-top:3px;line-height:1.2;">${String(doc.name).replace(/</g,'&lt;')}</div>
+          <div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">${doc.meta||''}</div>
+        </div>
+        <button onclick="document.getElementById('docrev-overlay').style.display='none'" style="background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;flex-shrink:0;">Close</button>
+      </div>
+      <div style="padding:18px 22px;overflow-y:auto;flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:10px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--alert);"></span>Karaya's review</div>
+        <div id="docrev-body" style="font-size:12px;line-height:1.65;color:var(--ink);min-height:90px;"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>
+      </div>
+      <div style="padding:16px 22px;border-top:1px solid var(--ink-hairline);display:flex;gap:10px;flex-wrap:wrap;" id="docrev-actions">
+        <button class="dm-btn" onclick="docReviewDecide('${docId}','approve')" style="background:#15803d;border-color:#15803d;">Approve</button>
+        <button class="dm-btn ghost" onclick="docReviewDecide('${docId}','changes')">Request changes</button>
+        <button class="dm-btn ghost" onclick="docReviewDecide('${docId}','reject')" style="color:#b51e3b;border-color:#e6b8b8;">Reject</button>
+        <button class="dm-btn ghost" onclick="docReviewDecide('${docId}','route')" style="margin-left:auto;">Route to approvers →</button>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+
+    // Stream Karaya's review
+    const body = document.getElementById('docrev-body');
+    const textEl = body.querySelector('.kr-stream-text');
+    const caret = body.querySelector('.kr-caret');
+    const prompt = `You are Karaya, reviewing a document for approval inside a real-estate investment firm. Document: "${doc.name}" (${doc.type}${doc.meta?(' · '+doc.meta):''}, status: ${doc.status}). Give a crisp approver's review in this exact structure, plain text with these labels on their own lines: SUMMARY (1 sentence), KEY TERMS (2-3 short bullets starting with "- "), RISKS / FLAGS (1-2 bullets starting with "- "), RECOMMENDATION (Approve / Approve with conditions / Reject, plus one clause why). Keep it tight and specific to this kind of document.`;
+    const fallback = `SUMMARY\n${doc.name} is a ${String(doc.type||'document').toLowerCase()} ready for sign-off.\n\nKEY TERMS\n- ${doc.meta || 'Standard commercial terms for this document type.'}\n- Consistent with the firm's mandate and prior approvals.\n\nRISKS / FLAGS\n- Confirm the counterparty and effective dates before executing.\n\nRECOMMENDATION\nApprove with conditions — proceed once the dates and counterparty are verified.`;
+    (async () => {
+      let full = '';
+      try { await window.claude.stream({ messages:[{ role:'user', content: prompt }], task:'file_qa' }, {}, tok => { full += tok; textEl.textContent = full; body.scrollTop = body.scrollHeight; }); }
+      catch(e){ full = ''; }
+      if(!full || !full.trim()) full = fallback;
+      if(caret) caret.remove();
+      body.innerHTML = fmtKaraya(full);
+    })();
+  }
+
+  function docReviewDecide(docId, decision){
+    const doc = DOC_INDEX[docId] || {}; const keys = doc.keys || ['SH'];
+    const ov = document.getElementById('docrev-overlay');
+    if(decision === 'route'){
+      if(ov) ov.style.display='none';
+      submitDocApproval(docId, keys.join(','));
+      return;
+    }
+    const map = {
+      approve: { status:'approved', self:true, note:'Approved', color:'#15803d' },
+      changes: { status:'changes', self:true, note:'Changes requested', color:'#b45309' },
+      reject:  { status:'rejected', self:true, note:'Rejected', color:'#b51e3b' },
+    };
+    const d = map[decision]; if(!d) return;
+    DOC_APPROVAL_STATE[docId] = { status:d.status, self:true, keys:['ME'], approvers:[{ key:'ME', status: decision==='approve'?'approved':decision }] };
+    _paintApproval(docId, ['ME']);
+    _updateDocSummary();
+    // confirmation inside the overlay, then close
+    const actions = document.getElementById('docrev-actions');
+    if(actions) actions.innerHTML = `<div style="font-size:11px;letter-spacing:0.04em;color:${d.color};font-weight:700;">✓ ${d.note} — recorded against ${(window.DEMO_USER&&window.DEMO_USER.name)||'you'}.</div><button class="dm-btn ghost" style="margin-left:auto;" onclick="document.getElementById('docrev-overlay').style.display='none'">Done</button>`;
+  }
+
+  const DOC_INDEX = {}; // docId -> { name, type, meta, status, keys }
   function _docRow(doc, keys){
+    DOC_INDEX[doc.id] = { name: doc.name, type: doc.type, meta: doc.meta, status: doc.status, keys: keys };
     return `<div style="display:grid;grid-template-columns:44px 1fr auto auto;gap:16px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--ink-hairline);">
       <div style="width:36px;height:44px;border:1px solid var(--ink-hairline);display:flex;align-items:flex-end;justify-content:center;font-size:7px;letter-spacing:0.1em;font-weight:700;color:var(--ink-soft);padding-bottom:5px;background:var(--paper);">${(doc.type||'DOC')}</div>
       <div style="min-width:0;">
