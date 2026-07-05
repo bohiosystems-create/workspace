@@ -1284,6 +1284,22 @@
   .psq-dot.review { background: var(--alert); }
   .psq-dot.draft { opacity: 0.4; }
 
+  /* ---- agent-permission toggle switch (Settings › AI Agents) ---- */
+  .agperm-sw { width: 38px; height: 20px; border-radius: 999px; border: 1px solid var(--ink-hairline); background: rgba(0,9,25,0.08); position: relative; cursor: pointer; padding: 0; flex-shrink: 0; transition: background 0.18s ease, border-color 0.18s ease; }
+  .agperm-sw .ts-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-soft); transition: transform 0.18s ease, background 0.18s ease; }
+  .agperm-sw.on { background: #15803d; border-color: #15803d; }
+  .agperm-sw.on .ts-knob { transform: translateX(18px); background: #fff; }
+
+  /* ---- department-agent access cards (workspace home) ---- */
+  .dept-agents-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+  .dept-agent-card { border: 1px solid var(--ink-hairline); padding: 16px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; background: var(--paper); }
+  .dept-agent-card:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(0,9,25,0.12); border-color: var(--ink); }
+  .dept-agent-card .dac-top { display: flex; align-items: center; gap: 10px; }
+  .dept-agent-card .dac-mark { width: 30px; height: 30px; border: 1px solid var(--ink); display: grid; place-items: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .dept-agent-card .dac-name { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; }
+  .dept-agent-card .dac-tag { font-size: 9px; letter-spacing: 0.08em; color: var(--ink-soft); line-height: 1.5; }
+  .dept-agent-card .dac-ask { font-size: 8px; letter-spacing: 0.24em; text-transform: uppercase; font-weight: 700; color: var(--ink-soft); margin-top: auto; }
+
   /* ---- Apple-90s six-stripe rainbow — same palette as the deal structure diagram ---- */
   #projects-list .proj-squircle { border-color: transparent; color: #fff; }
   #projects-list .proj-squircle .psq-role,
@@ -10171,6 +10187,18 @@
         <div class="proj-squircle" data-org="mc" onclick="showProject(6)"><div class="psq-top"><span class="psq-notif has-new">4</span></div><div class="psq-body"><h3 class="psq-name">Nahdah Logistics</h3><div class="psq-role">JV · LP</div></div><div class="psq-foot"><span class="psq-loc">Jeddah · East</span><span class="psq-status"><span class="psq-dot"></span>Active</span></div></div>
       </div>
 
+      <!-- ============ DEPARTMENT AGENTS ============ -->
+      <div class="section-header" style="margin-top:48px;">
+        <h2 class="section-title">Ask a Department</h2>
+        <div style="display:flex;align-items:center;gap:18px;">
+          <span class="section-meta">Each team's AI agent answers instantly · governed in Settings</span>
+        </div>
+      </div>
+      <p style="font-size:12px;line-height:1.65;color:var(--ink-soft);max-width:760px;margin:2px 0 20px;">
+        Need a number from Finance, a figure from Sales, a read from Investments or a milestone from Project Management? Ask the department's AI agent directly, or just ask the Karaya chatbot (right) — e.g. <em>"ask Finance for the fund IRR"</em> — and it routes to the right agent. Each answers instantly from the context it already holds, and what each may share is governed in <span style="text-decoration:underline;cursor:pointer;" onclick="openSettingsModal()">Settings › AI Agents</span>.
+      </p>
+      <div class="dept-agents-grid" id="dept-agents-grid"></div>
+
     </div>
 
     <!-- PROJECT DETAIL -->
@@ -11122,6 +11150,7 @@
       setActiveNav('nav-workspace');
       document.getElementById('nav-projects')?.classList.add('active');
       setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Workspace'}]);
+      if (typeof renderDeptAgents === 'function') renderDeptAgents();
       // Keep the left sidebar OPEN on workspace; only auto-hide the right Karaya panel
       const _sh = document.querySelector('.app-shell');
       if (_sh) {
@@ -13093,6 +13122,10 @@ Reply as the agent:`;
     // the multi-source ingestion → Bohio financial model + cashflow.
     if (typeof _maybeBuildProjectModel === 'function' && _maybeBuildProjectModel(q, bot, msgs)) return;
 
+    // If the question is addressed to a department, Karaya consults that
+    // department's agent — honouring what it's allowed to disclose (Settings).
+    if (typeof _routeToDeptAgent === 'function' && _routeToDeptAgent(q, bot, msgs)) return;
+
     const history=KARAYA_HISTORY.slice(-6).map(m=>(m.role==='user'?'User: ':'Karaya: ')+m.text).join('\n');
     const ctx=(typeof buildWorkspaceContext==='function')?buildWorkspaceContext():'';
     const uname=(window.DEMO_USER&&window.DEMO_USER.name)||'Matteo Bevilacqua';
@@ -13483,6 +13516,214 @@ Answer as Karaya:`;
       catch(e){}
       if(!full||!full.trim()){ full=`Actual NOI of **SAR ${noi[2]}M** is running below the **SAR ${noi[1]}M** underwriting, driven by opex at **${opex[2]}%** (vs ${opex[1]}% underwritten) and occupancy of **${occ[2]}%**. Paseetah market rents support a recovery — prioritise an opex review and a targeted leasing push to close the gap.`; textEl.innerHTML=fmtKaraya(full); }
       if(caret) caret.remove();
+    })();
+  }
+
+  // ============ DEPARTMENT AI AGENTS (ask Finance / Legal / … directly) ============
+  // Each internal department is fronted by its own AI agent that answers instantly
+  // from the context it already holds. Governance (what each agent may disclose) is
+  // managed in Settings › AI Agents and enforced on every question.
+  const DEPT_AGENTS = {
+    finance: { name:'Finance', mark:'FN', tag:'Cashflows · budgets · capital · fees · returns',
+      cats:[
+        {key:'cashflow', label:'Cashflows & NOI', on:true,  hint:/cash ?flow|noi|income|revenue|operating|opex/i},
+        {key:'budget',   label:'Budgets & variances', on:true, hint:/budget|variance|forecast|overrun|actual/i},
+        {key:'returns',  label:'Returns, IRR & DSCR', on:true, hint:/irr|return|multiple|yield|dscr|equity multiple/i},
+        {key:'capital',  label:'Capital calls & LP commitments', on:false, hint:/capital call|commitment|\blp\b|drawdown|dry powder|uncalled/i},
+        {key:'fees',     label:'Fees, carry & promote', on:false, hint:/\bfee|carry|promote|carried interest|management fee/i},
+      ],
+      ctx:'Fund II: committed SAR 2.4bn, deployed SAR 1.7bn, dry powder SAR 0.7bn, weighted net IRR 18.4%. Marina Tower: Y1 NOI SAR 7.6M, DSCR 1.42x, yield-on-cost 6.4%. Capital Call #7 SAR 120M issued 12 Apr, due 26 Apr. Management fee 1.5%; carry 20% over an 8% preferred return.' },
+    investments: { name:'Investments', mark:'IV', tag:'Pipeline · screening · underwriting',
+      cats:[
+        {key:'pipeline', label:'Pipeline & screening', on:true, hint:/pipeline|screen|deal|opportunity|mandate/i},
+        {key:'underwriting', label:'Underwriting assumptions', on:true, hint:/underwrit|assumption|cap rate|exit|absorption/i},
+        {key:'ic', label:'IC memos & decisions', on:false, hint:/\bic\b|committee|memo|approval/i},
+      ],
+      ctx:'Live pipeline: Aurora Logistics Park (Riyadh, inbound, awaiting screening). Active underwriting: Marina Tower exit cap 6.5%, opex 15% of revenue. Mandate: core-plus SAR 150-400M tickets, Jeddah/Riyadh, IRR hurdle 16%.' },
+    legal: { name:'Legal', mark:'LG', tag:'Contracts · leases · compliance',
+      cats:[
+        {key:'leases', label:'Leases & landlord terms', on:true, hint:/lease|landlord|tenant|rent|escalation|break/i},
+        {key:'contracts', label:'Service contracts & amendments', on:true, hint:/contract|amendment|service|vendor/i},
+        {key:'disputes', label:'Disputes & litigation', on:false, hint:/dispute|litigation|claim|breach|arbitration/i},
+      ],
+      ctx:'Marina Tower anchor lease: 10-year term, 3% annual escalation, break at year 5. Two service contracts under renewal. No active disputes. NDA outstanding from JV partner.' },
+    assetmgmt: { name:'Asset Management', mark:'AM', tag:'Occupancy · opex · leasing',
+      cats:[
+        {key:'occupancy', label:'Occupancy & rent roll', on:true, hint:/occupancy|rent roll|vacancy|leasing|tenant/i},
+        {key:'opex', label:'Opex & maintenance', on:true, hint:/opex|maintenance|utilities|service charge/i},
+        {key:'valuations', label:'Valuations', on:false, hint:/valuation|appraisal|gav|market value/i},
+      ],
+      ctx:'Marina Tower: occupancy 90% (vs 93% underwritten), collections 95%, opex running 31% of EGI (vs 28% underwritten). Two lease expiries in the next 12 months. Latest independent valuation SAR 182M.' },
+    ir: { name:'Investor Relations', mark:'IR', tag:'LP reporting · communications',
+      cats:[
+        {key:'reporting', label:'LP reporting & performance', on:true, hint:/report|performance|update|quarterly|distribution/i},
+        {key:'lpdata', label:'LP identities & allocations', on:false, hint:/\blp\b|investor name|allocation|side letter|commitment/i},
+      ],
+      ctx:'Q1 2026 LP report in draft for sign-off. Fund II net IRR 18.4%, TVPI 1.4x. Next distribution scheduled Q3. 14 LPs across the fund.' },
+    sales: { name:'Sales', mark:'SL', tag:'Unit sales · pricing · absorption',
+      cats:[
+        {key:'sales', label:'Sales & absorption', on:true, hint:/\bsold\b|sales|absorption|reservation|units? (sold|remaining)|off.?plan/i},
+        {key:'pricing', label:'Pricing & incentives', on:true, hint:/pric|discount|list price|incentive|payment plan/i},
+        {key:'buyers', label:'Buyer pipeline & CRM', on:false, hint:/buyer|\blead|\bcrm\b|prospect|pipeline/i},
+      ],
+      ctx:'Marina Tower residences: 320 units, 58% sold, average achieved price SAR 2,150/sqft, absorption running 12 units/month. Live campaign: 5% payment-plan incentive. Buyer pipeline 140 active leads (not for external release).' },
+    projectmgmt: { name:'Project Management', mark:'PM', tag:'Programme · milestones · contractors',
+      cats:[
+        {key:'programme', label:'Programme & milestones', on:true, hint:/programme|milestone|schedule|timeline|completion|delay|slip|critical path/i},
+        {key:'cost', label:'Cost & contractor status', on:true, hint:/\bcost|contractor|\bgmp\b|variation|capex|procurement/i},
+        {key:'risk', label:'Risk register & claims', on:false, hint:/\brisk|claim|dispute|penalt|liquidated damage/i},
+      ],
+      ctx:'Marina Tower: Phase 2 of 6, 42% complete, on the critical path, completion targeted Q4 2027. Main contractor Al-Bawani, GMP SAR 5,600/sqm. Nahdah Logistics slipped 4 days vs the last milestone; escalation clause triggered. Two open variations under review.' },
+  };
+  // Department name/alias matchers — used to route homepage-chatbot questions.
+  const DEPT_NAME_RE = {
+    finance: /\bfinance\b|\bfinancial\b(?!\s+model)/i,
+    investments: /\binvestment(s)?\b|\bacquisition/i,
+    sales: /\bsales\b|\bselling\b|\bunits? sold\b/i,
+    projectmgmt: /\bproject management\b|\bproject manager\b|\bpm team\b|\bconstruction\b|\bdelivery team\b/i,
+    legal: /\blegal\b|\bcounsel\b/i,
+    assetmgmt: /\basset management\b|\basset manager\b|\bam team\b/i,
+    ir: /\binvestor relations\b|\bir team\b/i,
+  };
+  let AGENT_PERMS = {};
+  function _loadAgentPerms(){
+    try { AGENT_PERMS = JSON.parse(localStorage.getItem('bohio_agent_perms')||'{}'); } catch(e){ AGENT_PERMS={}; }
+    Object.keys(DEPT_AGENTS).forEach(k=>{
+      AGENT_PERMS[k]=AGENT_PERMS[k]||{};
+      DEPT_AGENTS[k].cats.forEach(c=>{ if(AGENT_PERMS[k][c.key]===undefined) AGENT_PERMS[k][c.key]=c.on; });
+    });
+  }
+  function _saveAgentPerms(){ try{ localStorage.setItem('bohio_agent_perms', JSON.stringify(AGENT_PERMS)); }catch(e){} }
+  _loadAgentPerms();
+  function agentCatOn(key,cat){ return AGENT_PERMS[key] && AGENT_PERMS[key][cat]; }
+  function toggleAgentPerm(key,cat){
+    AGENT_PERMS[key][cat]=!AGENT_PERMS[key][cat]; _saveAgentPerms();
+    const sw=document.querySelector('.agperm-sw[data-k="'+key+'"][data-c="'+cat+'"]');
+    if(sw) sw.classList.toggle('on', AGENT_PERMS[key][cat]);
+  }
+  // Homepage Karaya as the unified interface to the department agents: if the
+  // question names a department, Karaya consults that agent and enforces its
+  // disclosure settings before answering.
+  function _routeToDeptAgent(q, bot, msgs){
+    let key=null;
+    const askM=q.match(/^\s*(?:ask|check with|consult)\s+([a-z ]+?)[:,]?\s+/i);
+    if(askM){ const nm=askM[1].toLowerCase(); for(const k of Object.keys(DEPT_AGENTS)){ if(DEPT_NAME_RE[k]&&DEPT_NAME_RE[k].test(nm)){ key=k; break; } if(DEPT_AGENTS[k].name.toLowerCase().indexOf(nm.trim())>=0){ key=k; break; } } }
+    if(!key){ for(const k of Object.keys(DEPT_AGENTS)){ if(DEPT_NAME_RE[k]&&DEPT_NAME_RE[k].test(q)){ key=k; break; } } }
+    if(!key) return false;
+    const a=DEPT_AGENTS[key];
+    const hit=a.cats.find(c=>c.hint&&c.hint.test(q));
+    if(hit && !agentCatOn(key,hit.key)){
+      const txt=`I checked with the **${a.name} agent** — it isn't authorised to share ${hit.label.toLowerCase()}. You can enable that for the ${a.name} agent in Settings › AI Agents.`;
+      bot.innerHTML=fmtKaraya(txt)+'<span class="k-meta">Karaya · via '+a.name+' agent</span>';
+      KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:txt});
+      msgs.scrollTop=msgs.scrollHeight; return true;
+    }
+    const allowed=a.cats.filter(c=>agentCatOn(key,c.key)).map(c=>c.label).join(', ');
+    const denied=a.cats.filter(c=>!agentCatOn(key,c.key)).map(c=>c.label).join(', ');
+    const prompt=`You are Karaya, the orchestrator in Bohio Workspace. The user's question is for the ${a.name} department, so you consulted the ${a.name} agent. That agent is ONLY permitted to disclose: ${allowed||'(nothing)'}; it must NOT disclose: ${denied||'(nothing)'} (if asked, say it's restricted by the firm's agent-governance settings). Answer from the ${a.name} CONTEXT below, starting with "I checked with the ${a.name} agent —". Be concise (2-4 sentences), plain text, **bold** key figures.
+
+${a.name} CONTEXT: ${a.ctx}
+
+User: "${q}"
+
+Answer as Karaya:`;
+    (async()=>{
+      const fallback=`I checked with the ${a.name} agent — ${a.ctx.split('. ').slice(0,2).join('. ')}. (Live answers need the demo server with an ANTHROPIC_API_KEY.)`;
+      const answer=await karayaStreamInto(bot, prompt, 'home_chat', fallback);
+      KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:answer});
+      bot.innerHTML=fmtKaraya(answer)+'<span class="k-meta">Karaya · via '+a.name+' agent</span>';
+      msgs.scrollTop=msgs.scrollHeight;
+    })();
+    return true;
+  }
+
+  function renderDeptAgents(){
+    const grid=document.getElementById('dept-agents-grid'); if(!grid) return;
+    grid.innerHTML=Object.entries(DEPT_AGENTS).map(([k,a])=>`
+      <div class="dept-agent-card" onclick="openDeptAgent('${k}')">
+        <div class="dac-top"><div class="dac-mark">${a.mark}</div><div class="dac-name">${a.name}</div></div>
+        <div class="dac-tag">${a.tag}</div>
+        <div class="dac-ask">Ask agent ›</div>
+      </div>`).join('');
+  }
+  function agentPermsRowsHTML(){
+    return Object.entries(DEPT_AGENTS).map(([k,a])=>`
+      <div class="settings-row" style="display:block;padding:14px 0;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <div style="width:30px;height:30px;border:1px solid var(--ink-hairline);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--ink);background:var(--paper);">${a.mark}</div>
+          <div><div class="settings-row-label">${a.name} Agent</div><div class="settings-row-sub">${a.tag}</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;padding-left:42px;">
+          ${a.cats.map(c=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <span style="font-size:11px;color:var(--ink);">${c.label}</span>
+              <button class="theme-switch agperm-sw ${agentCatOn(k,c.key)?'on':''}" data-k="${k}" data-c="${c.key}" onclick="toggleAgentPerm('${k}','${c.key}')" aria-label="Toggle ${c.label}"><span class="ts-knob"></span></button>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+  }
+
+  // Ask overlay
+  function openDeptAgent(key){
+    const a=DEPT_AGENTS[key]; if(!a) return;
+    let ov=document.getElementById('dept-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='dept-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+      ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; });
+      document.body.appendChild(ov); }
+    const allowed=a.cats.filter(c=>agentCatOn(key,c.key));
+    const restricted=a.cats.filter(c=>!agentCatOn(key,c.key));
+    const chip=(t,on)=>`<span style="display:inline-block;border:1px solid ${on?'var(--ink-hairline)':'#e6b8b8'};color:${on?'var(--ink-soft)':'#b51e3b'};padding:2px 9px;margin:0 5px 5px 0;border-radius:999px;font-size:10px;">${on?'':'🔒 '}${t}</span>`;
+    ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);max-width:560px;width:100%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:38px;height:38px;border:1px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${a.mark}</div>
+          <div><div style="font-size:15px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;">${a.name} Agent</div><div style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-top:2px;">Answers from context it already holds</div></div>
+        </div>
+        <button class="action-btn" onclick="document.getElementById('dept-overlay').style.display='none'">Close</button>
+      </div>
+      <div style="padding:14px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;">This agent may share · <span style="cursor:pointer;text-decoration:underline;" onclick="document.getElementById('dept-overlay').style.display='none';openSettingsModal();">manage in Settings</span></div>
+        <div>${allowed.map(c=>chip(c.label,true)).join('')}${restricted.map(c=>chip(c.label,false)).join('')}</div>
+      </div>
+      <div id="dept-msgs" style="flex:1;overflow-y:auto;padding:18px 22px;min-height:120px;"></div>
+      <div style="display:flex;gap:10px;padding:14px 22px;border-top:1px solid var(--ink-hairline);">
+        <input type="text" id="dept-input" placeholder="Ask the ${a.name} agent…" style="flex:1;background:var(--paper);border:1px solid var(--ink-hairline);color:var(--ink);border-radius:999px;padding:11px 16px;font-family:inherit;font-size:12px;outline:none;" onkeypress="if(event.key==='Enter')deptAgentSend('${key}')">
+        <button class="dm-btn" onclick="deptAgentSend('${key}')">Ask</button>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+    setTimeout(()=>{ const i=document.getElementById('dept-input'); if(i) i.focus(); }, 50);
+  }
+  function deptAgentSend(key){
+    const a=DEPT_AGENTS[key]; if(!a) return;
+    const input=document.getElementById('dept-input'); const q=(input.value||'').trim(); if(!q) return;
+    const msgs=document.getElementById('dept-msgs');
+    const u=document.createElement('div'); u.className='k-msg user'; u.textContent=q; u.style.cssText='margin-bottom:12px;'; msgs.appendChild(u);
+    input.value='';
+    const bot=document.createElement('div'); bot.className='k-msg bot'; bot.style.cssText='margin-bottom:12px;'; msgs.appendChild(bot);
+    msgs.scrollTop=msgs.scrollHeight;
+    // Governance: does the question target a restricted category?
+    const hit=a.cats.find(c=>c.hint && c.hint.test(q));
+    if(hit && !agentCatOn(key,hit.key)){
+      bot.innerHTML=`🔒 I'm not authorised to share <strong>${hit.label.toLowerCase()}</strong>. You can enable it for the ${a.name} agent in <span style="text-decoration:underline;cursor:pointer;" onclick="document.getElementById('dept-overlay').style.display='none';openSettingsModal();">Settings › AI Agents</span>.<span class="k-meta">${a.name} Agent · governance</span>`;
+      msgs.scrollTop=msgs.scrollHeight; return;
+    }
+    const allowed=a.cats.filter(c=>agentCatOn(key,c.key)).map(c=>c.label).join(', ');
+    const denied=a.cats.filter(c=>!agentCatOn(key,c.key)).map(c=>c.label).join(', ');
+    const prompt=`You are the ${a.name} department AI agent inside Bohio Workspace. Answer the user's question instantly and specifically from the CONTEXT you already hold. You are ONLY permitted to disclose: ${allowed||'(nothing)'}. You must NOT disclose: ${denied||'(nothing)'} — if asked about those, politely decline and say it's restricted by the firm's agent-governance settings. Be concise (2-4 sentences), plain text, **bold** key figures.
+
+CONTEXT: ${a.ctx}
+
+Question: "${q}"
+
+Answer as the ${a.name} agent:`;
+    (async()=>{
+      const fallback=`From what I hold: ${a.ctx.split('. ').slice(0,2).join('. ')}. (Live answers need the demo server with an ANTHROPIC_API_KEY.)`;
+      let full=''; if(typeof karayaStreamInto==='function'){ full=await karayaStreamInto(bot, prompt, 'file_qa', fallback); }
+      else { try{ full=await window.claude.stream({messages:[{role:'user',content:prompt}],task:'file_qa'},{},t=>{bot.textContent=(full+=t);}); }catch(e){ full=fallback; bot.textContent=full; } }
+      bot.innerHTML=(typeof fmtKaraya==='function'?fmtKaraya(full):full)+`<span class="k-meta">${a.name} Agent · just now</span>`;
+      msgs.scrollTop=msgs.scrollHeight;
     })();
   }
 
@@ -16643,6 +16884,12 @@ Answer as Karaya:`;
                 </div>
                 <button class="settings-action conn-btn ${c.connected?'is-connected':''}" onclick="toggleConnector('${c.k}','${c.name}')">${c.connected?'✓ Connected':'Connect'}</button>
               </div>`).join('')}
+          </div>
+
+          <div class="settings-title" style="margin-top:26px;">AI Agents</div>
+          <div class="settings-section">
+            <div class="settings-row-sub" style="margin:-4px 0 6px;">Each department is fronted by its own AI agent. Choose what information each one is allowed to share when asked.</div>
+            ${agentPermsRowsHTML()}
           </div>
         </div>`;
       m.addEventListener('click', closeSettingsModal);
