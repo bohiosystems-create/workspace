@@ -1284,6 +1284,23 @@
   .psq-dot.review { background: var(--alert); }
   .psq-dot.draft { opacity: 0.4; }
 
+  /* ---- Apple-90s six-stripe rainbow — same palette as the deal structure diagram ---- */
+  #projects-list .proj-squircle { border-color: transparent; color: #fff; }
+  #projects-list .proj-squircle .psq-role,
+  #projects-list .proj-squircle .psq-loc,
+  #projects-list .proj-squircle .psq-notif { color: rgba(255,255,255,0.74); }
+  #projects-list .proj-squircle:nth-child(6n+1) { background: #61BB46; } /* green  */
+  #projects-list .proj-squircle:nth-child(6n+2) { background: #FDB827; color: var(--ink); } /* yellow */
+  #projects-list .proj-squircle:nth-child(6n+3) { background: #F58220; } /* orange */
+  #projects-list .proj-squircle:nth-child(6n+4) { background: #E03A3C; } /* red    */
+  #projects-list .proj-squircle:nth-child(6n+5) { background: #963D97; } /* violet */
+  #projects-list .proj-squircle:nth-child(6n+6) { background: #009DDC; } /* blue   */
+  /* yellow tile needs dark secondary text for contrast */
+  #projects-list .proj-squircle:nth-child(6n+2) .psq-role,
+  #projects-list .proj-squircle:nth-child(6n+2) .psq-loc,
+  #projects-list .proj-squircle:nth-child(6n+2) .psq-notif { color: var(--ink-soft); }
+  #projects-list .proj-squircle:hover { transform: translateY(-4px); box-shadow: 0 16px 36px rgba(0,9,25,0.22); filter: brightness(1.06); }
+
   /* ============ PROJECT PAGE · THREE SECTION SQUIRCLES ============ */
   .proj-sections {
     display: grid;
