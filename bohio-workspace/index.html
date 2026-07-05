@@ -1352,6 +1352,20 @@
     background: var(--ink);
     color: var(--bg);
   }
+  /* ---- Apple-90s rainbow on the in-project section squircles ---- */
+  .proj-sections .section-squircle { border-color: transparent; color: #fff; }
+  .proj-sections .section-squircle[data-sec="documents"] { background: #61BB46; }  /* green  */
+  .proj-sections .section-squircle[data-sec="models"]    { background: #FDB827; color: var(--ink); } /* yellow */
+  .proj-sections .section-squircle[data-sec="topics"]    { background: #F58220; }  /* orange */
+  .proj-sections .section-squircle[data-sec="tasks"]     { background: #E03A3C; }  /* red    */
+  .proj-sections .section-squircle[data-sec="approvals"] { background: #963D97; }  /* violet */
+  .proj-sections .section-squircle[data-sec="contracts"] { background: #009DDC; }  /* blue   */
+  .proj-sections .section-squircle .ssq-sub,
+  .proj-sections .section-squircle .ssq-count { color: rgba(255,255,255,0.78); }
+  .proj-sections .section-squircle[data-sec="models"] .ssq-sub,
+  .proj-sections .section-squircle[data-sec="models"] .ssq-count { color: var(--ink-soft); }
+  .proj-sections .section-squircle.active { box-shadow: inset 0 0 0 2.5px var(--ink), 0 10px 24px rgba(0,9,25,0.18); filter: none; }
+  .proj-sections .section-squircle:hover { filter: brightness(1.06); }
   .ssq-head {
     display: flex; justify-content: flex-end; align-items: center;
     margin-bottom: auto;
@@ -13692,21 +13706,40 @@ Answer as Karaya:`;
     assetmgmt: /\basset management\b|\basset manager\b|\bam team\b/i,
     ir: /\binvestor relations\b|\bir team\b/i,
   };
-  let AGENT_PERMS = {};
+  // Two guardrail scopes per category: what an agent may share with colleagues
+  // INSIDE the firm (internal) vs with counterparties/stakeholders OUTSIDE it
+  // (external). External defaults are stricter: only categories explicitly
+  // marked extOn are shareable externally out of the box.
+  const EXT_DEFAULT_ON = { 'sales:sales':true, 'ir:reporting':true, 'projectmgmt:programme':true };
+  let AGENT_PERMS = {};      // internal scope
+  let AGENT_PERMS_EXT = {};  // external scope
   function _loadAgentPerms(){
     try { AGENT_PERMS = JSON.parse(localStorage.getItem('bohio_agent_perms')||'{}'); } catch(e){ AGENT_PERMS={}; }
+    try { AGENT_PERMS_EXT = JSON.parse(localStorage.getItem('bohio_agent_perms_ext')||'{}'); } catch(e){ AGENT_PERMS_EXT={}; }
     Object.keys(DEPT_AGENTS).forEach(k=>{
       AGENT_PERMS[k]=AGENT_PERMS[k]||{};
-      DEPT_AGENTS[k].cats.forEach(c=>{ if(AGENT_PERMS[k][c.key]===undefined) AGENT_PERMS[k][c.key]=c.on; });
+      AGENT_PERMS_EXT[k]=AGENT_PERMS_EXT[k]||{};
+      DEPT_AGENTS[k].cats.forEach(c=>{
+        if(AGENT_PERMS[k][c.key]===undefined) AGENT_PERMS[k][c.key]=c.on;
+        if(AGENT_PERMS_EXT[k][c.key]===undefined) AGENT_PERMS_EXT[k][c.key]=!!EXT_DEFAULT_ON[k+':'+c.key];
+      });
     });
   }
-  function _saveAgentPerms(){ try{ localStorage.setItem('bohio_agent_perms', JSON.stringify(AGENT_PERMS)); }catch(e){} }
+  function _saveAgentPerms(){
+    try{ localStorage.setItem('bohio_agent_perms', JSON.stringify(AGENT_PERMS)); }catch(e){}
+    try{ localStorage.setItem('bohio_agent_perms_ext', JSON.stringify(AGENT_PERMS_EXT)); }catch(e){}
+  }
   _loadAgentPerms();
-  function agentCatOn(key,cat){ return AGENT_PERMS[key] && AGENT_PERMS[key][cat]; }
-  function toggleAgentPerm(key,cat){
-    AGENT_PERMS[key][cat]=!AGENT_PERMS[key][cat]; _saveAgentPerms();
-    const sw=document.querySelector('.agperm-sw[data-k="'+key+'"][data-c="'+cat+'"]');
-    if(sw) sw.classList.toggle('on', AGENT_PERMS[key][cat]);
+  function agentCatOn(key,cat,scope){
+    const m=(scope==='ext')?AGENT_PERMS_EXT:AGENT_PERMS;
+    return m[key] && m[key][cat];
+  }
+  function toggleAgentPerm(key,cat,scope){
+    scope=scope||'int';
+    const m=(scope==='ext')?AGENT_PERMS_EXT:AGENT_PERMS;
+    m[key][cat]=!m[key][cat]; _saveAgentPerms();
+    const sw=document.querySelector('.agperm-sw[data-k="'+key+'"][data-c="'+cat+'"][data-s="'+scope+'"]');
+    if(sw) sw.classList.toggle('on', m[key][cat]);
   }
   // Homepage Karaya as the unified interface to the department agents: if the
   // question names a department, Karaya consults that agent and enforces its
@@ -13759,33 +13792,47 @@ Answer as Karaya:`;
       </div>`).join('');
   }
   function agentPermsRowsHTML(){
-    return Object.entries(DEPT_AGENTS).map(([k,a])=>`
+    const colHead=`<div style="display:grid;grid-template-columns:1fr 64px 64px;gap:12px;align-items:center;padding-left:42px;margin-bottom:4px;">
+      <span></span>
+      <span style="font-size:7px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);text-align:center;">Internal</span>
+      <span style="font-size:7px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);text-align:center;">External</span>
+    </div>`;
+    return `<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin-bottom:12px;">Two guardrail scopes per topic: <b style="color:var(--ink);">Internal</b> — what the agent may share with colleagues in this workspace; <b style="color:var(--ink);">External</b> — what it may disclose to counterparties, stakeholders and anyone outside the firm.</div>`
+      + Object.entries(DEPT_AGENTS).map(([k,a])=>`
       <div class="settings-row" style="display:block;padding:14px 0;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
           <div style="width:30px;height:30px;border:1px solid var(--ink-hairline);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--ink);background:var(--paper);">${a.mark}</div>
           <div><div class="settings-row-label">${a.name} Agent</div><div class="settings-row-sub">${a.tag}</div></div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:8px;padding-left:42px;">
+        ${colHead}
+        <div style="display:flex;flex-direction:column;gap:8px;">
           ${a.cats.map(c=>`
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="display:grid;grid-template-columns:1fr 64px 64px;gap:12px;align-items:center;padding-left:42px;">
               <span style="font-size:11px;color:var(--ink);">${c.label}</span>
-              <button class="theme-switch agperm-sw ${agentCatOn(k,c.key)?'on':''}" data-k="${k}" data-c="${c.key}" onclick="toggleAgentPerm('${k}','${c.key}')" aria-label="Toggle ${c.label}"><span class="ts-knob"></span></button>
+              <span style="display:flex;justify-content:center;"><button class="theme-switch agperm-sw ${agentCatOn(k,c.key)?'on':''}" data-k="${k}" data-c="${c.key}" data-s="int" onclick="toggleAgentPerm('${k}','${c.key}','int')" aria-label="Internal · ${c.label}"><span class="ts-knob"></span></button></span>
+              <span style="display:flex;justify-content:center;"><button class="theme-switch agperm-sw ${agentCatOn(k,c.key,'ext')?'on':''}" data-k="${k}" data-c="${c.key}" data-s="ext" onclick="toggleAgentPerm('${k}','${c.key}','ext')" aria-label="External · ${c.label}"><span class="ts-knob"></span></button></span>
             </div>`).join('')}
         </div>
       </div>`).join('');
   }
 
-  // Ask overlay
+  // Ask overlay — with an audience switch: the same agent answers differently
+  // depending on whether it's talking to a colleague (internal guardrails) or
+  // an external counterparty (external guardrails).
+  let _deptScope='int';
+  function setDeptScope(key, scope){ _deptScope=scope; openDeptAgent(key); }
   function openDeptAgent(key){
     const a=DEPT_AGENTS[key]; if(!a) return;
     let ov=document.getElementById('dept-overlay');
     if(!ov){ ov=document.createElement('div'); ov.id='dept-overlay';
       ov.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
-      ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; });
+      ov.addEventListener('click',e=>{ if(e.target===ov){ ov.style.display='none'; _deptScope='int'; } });
       document.body.appendChild(ov); }
-    const allowed=a.cats.filter(c=>agentCatOn(key,c.key));
-    const restricted=a.cats.filter(c=>!agentCatOn(key,c.key));
+    const sc=_deptScope;
+    const allowed=a.cats.filter(c=>agentCatOn(key,c.key,sc));
+    const restricted=a.cats.filter(c=>!agentCatOn(key,c.key,sc));
     const chip=(t,on)=>`<span style="display:inline-block;border:1px solid ${on?'var(--ink-hairline)':'#e6b8b8'};color:${on?'var(--ink-soft)':'#b51e3b'};padding:2px 9px;margin:0 5px 5px 0;border-radius:999px;font-size:10px;">${on?'':'🔒 '}${t}</span>`;
+    const scopeBtn=(s,label)=>`<button onclick="setDeptScope('${key}','${s}')" style="font-family:inherit;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer;border:1px solid ${sc===s?'#000919':'var(--ink-hairline)'};background:${sc===s?'#000919':'transparent'};color:${sc===s?'#efebeb':'var(--ink-soft)'};">${label}</button>`;
     ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);max-width:560px;width:100%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--ink-hairline);">
         <div style="display:flex;align-items:center;gap:12px;">
@@ -13795,7 +13842,11 @@ Answer as Karaya:`;
         <button class="action-btn" onclick="document.getElementById('dept-overlay').style.display='none'">Close</button>
       </div>
       <div style="padding:14px 22px;border-bottom:1px solid var(--ink-hairline);">
-        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;">This agent may share · <span style="cursor:pointer;text-decoration:underline;" onclick="document.getElementById('dept-overlay').style.display='none';openSettingsModal();">manage in Settings</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+          <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);">Asking as</div>
+          <div style="display:flex;gap:6px;">${scopeBtn('int','Internal · colleague')}${scopeBtn('ext','External · counterparty')}</div>
+        </div>
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;">May share ${sc==='ext'?'externally':'internally'} · <span style="cursor:pointer;text-decoration:underline;" onclick="document.getElementById('dept-overlay').style.display='none';openSettingsModal();">manage in Settings</span></div>
         <div>${allowed.map(c=>chip(c.label,true)).join('')}${restricted.map(c=>chip(c.label,false)).join('')}</div>
       </div>
       <div id="dept-msgs" style="flex:1;overflow-y:auto;padding:18px 22px;min-height:120px;"></div>
@@ -13815,15 +13866,18 @@ Answer as Karaya:`;
     input.value='';
     const bot=document.createElement('div'); bot.className='k-msg bot'; bot.style.cssText='margin-bottom:12px;'; msgs.appendChild(bot);
     msgs.scrollTop=msgs.scrollHeight;
-    // Governance: does the question target a restricted category?
-    const hit=a.cats.find(c=>c.hint && c.hint.test(q));
-    if(hit && !agentCatOn(key,hit.key)){
-      bot.innerHTML=`🔒 I'm not authorised to share <strong>${hit.label.toLowerCase()}</strong>. You can enable it for the ${a.name} agent in <span style="text-decoration:underline;cursor:pointer;" onclick="document.getElementById('dept-overlay').style.display='none';openSettingsModal();">Settings › AI Agents</span>.<span class="k-meta">${a.name} Agent · governance</span>`;
+    // Governance: does the question target a category restricted for this audience?
+    const sc=_deptScope;
+    const scLabel=sc==='ext'?'with external parties':'internally';
+    const hits=a.cats.filter(c=>c.hint && c.hint.test(q));
+    const hit=hits.find(c=>!agentCatOn(key,c.key,sc)) || null;
+    if(hit){
+      bot.innerHTML=`🔒 I'm not authorised to share <strong>${hit.label.toLowerCase()}</strong> ${scLabel}. You can change the ${sc==='ext'?'External':'Internal'} guardrail for the ${a.name} agent in <span style="text-decoration:underline;cursor:pointer;" onclick="document.getElementById('dept-overlay').style.display='none';openSettingsModal();">Settings › AI Agents</span>.<span class="k-meta">${a.name} Agent · governance${sc==='ext'?' · external audience':''}</span>`;
       msgs.scrollTop=msgs.scrollHeight; return;
     }
-    const allowed=a.cats.filter(c=>agentCatOn(key,c.key)).map(c=>c.label).join(', ');
-    const denied=a.cats.filter(c=>!agentCatOn(key,c.key)).map(c=>c.label).join(', ');
-    const prompt=`You are the ${a.name} department AI agent inside Bohio Workspace. Answer the user's question instantly and specifically from the CONTEXT you already hold. You are ONLY permitted to disclose: ${allowed||'(nothing)'}. You must NOT disclose: ${denied||'(nothing)'} — if asked about those, politely decline and say it's restricted by the firm's agent-governance settings. Be concise (2-4 sentences), plain text, **bold** key figures.
+    const allowed=a.cats.filter(c=>agentCatOn(key,c.key,sc)).map(c=>c.label).join(', ');
+    const denied=a.cats.filter(c=>!agentCatOn(key,c.key,sc)).map(c=>c.label).join(', ');
+    const prompt=`You are the ${a.name} department AI agent inside Bohio Workspace, speaking to ${sc==='ext'?'an EXTERNAL counterparty outside the firm':'a colleague inside the firm'}. Answer the question instantly and specifically from the CONTEXT you already hold. For this audience you are ONLY permitted to disclose: ${allowed||'(nothing)'}. You must NOT disclose: ${denied||'(nothing)'} — if asked about those, politely decline and say it's restricted by the firm's agent-governance settings. Be concise (2-4 sentences), plain text, **bold** key figures.
 
 CONTEXT: ${a.ctx}
 
