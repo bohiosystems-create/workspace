@@ -4250,6 +4250,10 @@
     background: var(--karaya-bg);
     color: #e6e2e2;
   }
+  /* Focus mode — hide Karaya (and the inspector) for a truly full-screen model */
+  .fs-body.karaya-collapsed { grid-template-columns: 1fr; }
+  .fs-body.karaya-collapsed .fs-karaya-col,
+  .fs-body.karaya-collapsed .fs-inspector { display: none; }
 
   .fs-col-head {
     padding: 16px 18px 12px;
@@ -10710,7 +10714,10 @@
 <div class="fullscreen-overlay" id="fs-overlay">
   <div class="fs-topbar">
     <span class="fs-title" id="fs-title"></span>
-    <button class="fs-close" onclick="closeFullscreen()">Exit Fullscreen</button>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="fs-close" id="fs-focus-toggle" onclick="toggleFsKaraya()">Hide Karaya</button>
+      <button class="fs-close" onclick="closeFullscreen()">Exit Fullscreen</button>
+    </div>
   </div>
   <div class="fs-body">
     <div class="fs-sheet">
@@ -14501,6 +14508,15 @@ Answer as Karaya:`;
     document.getElementById('fs-title').textContent = currentModelDoc ? currentModelDoc.name : 'Model';
     renderFsSheet('Summary');
     document.getElementById('fs-overlay').classList.add('active');
+  }
+
+  // Focus mode: hide the Karaya chat (and inspector) so the model is truly full screen.
+  function toggleFsKaraya() {
+    const body = document.querySelector('#fs-overlay .fs-body');
+    const btn = document.getElementById('fs-focus-toggle');
+    if (!body) return;
+    const collapsed = body.classList.toggle('karaya-collapsed');
+    if (btn) btn.textContent = collapsed ? 'Show Karaya' : 'Hide Karaya';
   }
 
   function closeFullscreen() {

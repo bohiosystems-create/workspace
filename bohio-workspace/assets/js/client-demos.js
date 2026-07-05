@@ -896,7 +896,30 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
       </div>
 
       <div class="fd-grid" id="fd-grid"></div>
-      <div class="fd-detail" id="fd-detail"></div>`;
+      <div class="fd-detail" id="fd-detail"></div>
+
+      <div class="section-header" style="margin-top:44px;">
+        <div>
+          <span class="dm-eyebrow">Fund Papers</span>
+          <h2 class="section-title" style="margin-top:8px;">Fund Documents</h2>
+          <p class="dm-sub">LPA, PPM, subscriptions, capital-call notices, LP reporting and side letters — the fund's core papers in one place.</p>
+        </div>
+      </div>
+      <div id="fd-docs" style="margin-top:6px;"></div>`;
+
+    // Fund documents (reuses the workspace's fund-paper data + status pills)
+    try {
+      const fdocs = (typeof FUND_DOCUMENTS !== 'undefined') ? FUND_DOCUMENTS : [];
+      const pill = (typeof _docStatusPill === 'function') ? _docStatusPill : (() => '');
+      const host = document.getElementById('fd-docs');
+      if (host) host.innerHTML = fdocs.map(d => `
+        <div style="display:grid;grid-template-columns:24px 1fr auto auto;gap:16px;align-items:center;padding:14px 18px;border:1px solid var(--ink-hairline);border-bottom:none;">
+          <span style="font-size:8px;letter-spacing:0.14em;font-weight:700;color:var(--ink-soft);">${d.type||'DOC'}</span>
+          <div style="min-width:0;"><div style="font-size:13px;color:var(--ink);">${d.name}</div><div style="font-size:10px;color:var(--ink-soft);margin-top:2px;">${d.meta||''}</div></div>
+          <div>${pill(d.status)}</div>
+          <a onclick="goTo('documents')" style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-soft);cursor:pointer;white-space:nowrap;">Open ›</a>
+        </div>`).join('') + '<div style="border:1px solid var(--ink-hairline);"></div>';
+    } catch (e) {}
 
     document.getElementById('fd-grid').innerHTML = FUNDS.map(f => {
       const calledPct = Math.round(f.called / f.committed * 100);
