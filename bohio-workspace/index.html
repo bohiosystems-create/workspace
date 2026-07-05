@@ -33,6 +33,26 @@
 #karaya-panel.kr-emu .kr-send { width:42px; height:42px; min-width:42px; border-radius:50%; background:var(--ink); color:var(--bg); border:none; display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; transition:all .18s ease; }
 #karaya-panel.kr-emu .kr-send:hover { background:rgba(0,9,25,0.82); }
 #karaya-panel.kr-emu .kr-disclaimer { text-align:center; font-size:9px; letter-spacing:0.04em; color:var(--ink-soft); padding:0 16px 14px; }
+/* ===== Model editor right rail — light, aligned with the platform chatbot ===== */
+#editor-karaya-panel, #editor-deps-panel { background:#faf8f8 !important; border-left:1px solid var(--ink-hairline) !important; }
+#editor-karaya-panel .fs-col-head, #editor-deps-panel .fs-col-head { color:var(--ink) !important; border-bottom:1px solid var(--ink-hairline) !important; text-transform:uppercase; letter-spacing:0.3em; font-weight:700; }
+#editor-karaya-panel .karaya-close-btn { color:var(--ink-soft) !important; }
+#editor-karaya-panel .k-msg.bot { background:#fff !important; color:var(--ink) !important; border:1px solid var(--ink-hairline) !important; }
+#editor-karaya-panel .k-msg.bot em, #editor-karaya-panel .k-msg.bot strong, #editor-karaya-panel .k-msg.bot b { color:var(--ink) !important; }
+#editor-karaya-panel .k-msg.bot div { background:rgba(0,9,25,0.05) !important; color:var(--ink) !important; border-color:var(--ink-hairline) !important; }
+#editor-karaya-panel .k-msg.user { background:var(--ink) !important; color:var(--bg) !important; }
+#editor-karaya-panel .k-meta { color:var(--ink-soft) !important; }
+#editor-karaya-panel .kr-stream-text, #editor-karaya-panel .kr-caret { color:var(--ink) !important; }
+#editor-karaya-panel .fs-karaya-input { border-top:1px solid var(--ink-hairline) !important; background:#faf8f8 !important; }
+#editor-karaya-panel .fs-karaya-input input { background:#fff !important; border:1px solid var(--ink-hairline) !important; color:var(--ink) !important; border-radius:999px !important; padding:11px 16px !important; }
+#editor-karaya-panel .fs-karaya-input input::placeholder { color:var(--ink-soft) !important; }
+#editor-karaya-panel .k-send { border-radius:999px !important; background:var(--ink) !important; color:var(--bg) !important; border:none !important; }
+/* the dependencies inspector was authored dark — force it readable on light */
+#editor-deps-panel .fs-col-body, #editor-deps-panel .fs-col-body * { color:var(--ink) !important; border-color:var(--ink-hairline) !important; }
+#editor-deps-panel .fs-col-body [style*="background"] { background:rgba(0,9,25,0.045) !important; }
+#editor-deps-panel .fs-col-body [style*="color:rgba(230"], #editor-deps-panel .ek-deps-empty { color:var(--ink-soft) !important; }
+#editor-deps-panel .ed-deps-pill { background:rgba(0,9,25,0.05) !important; color:var(--ink) !important; border:1px solid var(--ink-hairline) !important; }
+#editor-deps-panel .ed-deps-pill.warn { background:rgba(180,83,9,0.12) !important; color:#b45309 !important; }
 /* ===== Document review — AI-suggested approver chips ===== */
 .docrev-appr { font-family:inherit; font-size:10px; letter-spacing:0.06em; border:1px solid var(--ink-hairline); background:transparent; color:var(--ink); border-radius:999px; padding:7px 13px; cursor:pointer; transition:all .15s ease; }
 .docrev-appr:hover { border-color:var(--ink); }
@@ -10095,11 +10115,12 @@
       <div class="landing-center">
       <div class="landing-logo" style="margin-bottom:40px;font-size:38px;letter-spacing:0.42em;" data-user="welcome">Welcome, Matteo</div>
 
+      <!-- answers stack ABOVE the text box and scroll -->
+      <div id="landing-karaya-msgs" style="width:100%;max-width:640px;display:flex;flex-direction:column;gap:10px;margin-bottom:18px;text-align:left;max-height:44vh;overflow-y:auto;overscroll-behavior:contain;padding-right:4px;"></div>
       <div style="width:100%;max-width:640px;display:flex;gap:8px;">
         <input type="text" id="landing-karaya-input" placeholder="Ask Karaya anything…" onkeypress="if(event.key==='Enter')landingKarayaSend()" style="flex:1;background:transparent;border:1px solid var(--ink);padding:16px 20px;font-family:inherit;font-size:14px;letter-spacing:0.06em;color:var(--ink);outline:none;text-align:left;">
         <button style="background:var(--ink);color:var(--bg);border:none;padding:16px 26px;font-family:inherit;font-size:12px;letter-spacing:0.3em;text-transform:uppercase;cursor:pointer;transition:all 0.2s ease;" onmouseenter="this.style.background='rgba(0,9,25,0.75)'" onmouseleave="this.style.background='var(--ink)'" onclick="landingKarayaSend()">Send</button>
       </div>
-      <div id="landing-karaya-msgs" style="width:100%;max-width:640px;display:flex;flex-direction:column;gap:10px;margin-top:18px;text-align:left;"></div>
 
       </div>
 
@@ -13242,21 +13263,78 @@ Answer as Karaya:`;
         desc:"Newly created project. The seller's property valuation and the anchor landlord agreement are already in the data room — ask Karaya (right) to build the financial projections and cashflow from them.",
         docs:[
           {type:'PDF',  name:'Property Valuation Report', version:'42 pp · Knight Frank', updated:'Just now · Data room', isValuation:true, isReadable:true,
-            docBody:`<p><strong>Valuation summary.</strong> We assess the Market Value of Corniche Gateway — a mixed-use waterfront asset on the North Corniche, Jeddah — at <strong>SAR 182,000,000</strong> as at the valuation date, on the basis of Market Value per RICS Red Book and TAQEEM standards.</p>
-<p><strong>Methodology.</strong> Income capitalisation cross-checked against comparable transactions. Stabilised net operating income is capitalised at <strong>6.75%</strong>, reflecting recent Corniche-corridor trades (6.4%–7.1%) adjusted for the asset's anchor covenant strength.</p>
-<p><strong>Income assumptions.</strong> Contracted anchor rent of <strong>SAR 6.4M p.a.</strong> (10-year term, 3% escalations — see the Anchor Landlord Agreement). Specialty retail, F&B and parking assessed at market: <strong>SAR 4.9M</strong> stabilised, with current occupancy at <strong>93%</strong> per the managing agent's rent roll.</p>
-<p><strong>Comparables.</strong> (i) Corniche Plaza North — SAR 168M, 6.9% cap; (ii) Al Shati Mixed-Use — SAR 214M, 6.4% cap; (iii) Red Sea Gateway Retail — SAR 96M, 7.1% cap.</p>
-<p><strong>Key risks.</strong> Single-anchor concentration (41% of income); F&B lease-up over months 1–24; potential service-charge leakage pending recovery audit.</p>
-<p><em>Knight Frank — Valuation & Advisory, Jeddah. 42 pages. This summary is an extract of the executed report held in the data room.</em></p>`},
+            docBody:`
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:18px;margin-bottom:22px;">
+  <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:#6b7280;">Knight Frank · Valuation &amp; Advisory · Jeddah</div>
+  <div style="font-size:22px;font-weight:700;margin-top:8px;">VALUATION REPORT</div>
+  <div style="font-size:12px;color:#4b5563;margin-top:6px;">Corniche Gateway — Mixed-Use Waterfront Asset · North Corniche, Jeddah</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">Prepared for Bevilacqua Holdings · Report ref. KF-JED-2026-0417 · 42 pages</div>
+</div>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">1 · Instruction &amp; Basis of Value</h4>
+<p>We are instructed by Bevilacqua Holdings to assess the Market Value of the freehold interest in Corniche Gateway for acquisition and secured-lending purposes. The valuation is prepared on the basis of Market Value as defined by the RICS Valuation — Global Standards ("Red Book") and the Saudi Authority for Accredited Valuers (TAQEEM), as at the valuation date.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">2 · Executive Summary</h4>
+<p>Market Value: <strong>SAR 182,000,000</strong> (One Hundred and Eighty-Two Million Saudi Riyals).<br>Stabilised net operating income: <strong>SAR 12.3M</strong> · Equivalent yield: <strong>6.75%</strong> · Current occupancy: <strong>93%</strong>.</p>
+<p>The asset is a waterfront mixed-use scheme anchored by a 10-year institutional-covenant lease, with specialty retail, F&amp;B and structured parking. Income security is strong through Year 5 (anchor break), with reversionary upside in the specialty units currently passing ~8% below market.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">3 · Property Description</h4>
+<p>A 2019-completed scheme of approximately <strong>21,400 sqm GLA</strong> across ground plus two levels, comprising an 8,400 sqm anchor unit, 46 specialty retail units (7,900 sqm), an F&amp;B terrace fronting the Corniche promenade (3,100 sqm), and 2,000 sqm of storage/ancillary with 640 structured parking bays. Reinforced-concrete frame, curtain-wall and GRC façade, VRF cooling replaced 2024. Site area 38,600 sqm with 165 m of direct Corniche frontage.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">4 · Tenure &amp; Tenancies</h4>
+<p>Freehold. The rent roll comprises 51 tenancies. The anchor — Al Manar Retail Group — holds a 10-year lease at <strong>SAR 6.4M p.a.</strong> with fixed 3% annual escalations and a Year-5 break (see the Anchor Landlord Agreement in the data room). Specialty and F&amp;B leases average 3.2 years unexpired, passing <strong>SAR 4.9M</strong> stabilised against our market assessment of SAR 5.3M. The managing agent reports collections at 95% over the trailing 12 months.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">5 · Market Commentary</h4>
+<p>Jeddah retail continues its post-2024 re-rating. Paseetah market data shows Corniche-corridor prime rents up <strong>4.1% y/y</strong> with vacancy compressing to 5.8%. Investment demand is led by institutional and family-office capital targeting income-producing waterfront assets; three comparable trades completed within nine months at caps between 6.4% and 7.1%.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">6 · Valuation Methodology</h4>
+<p>Income capitalisation (hardcore/top-slice) as the primary method: contracted anchor income capitalised at 6.25% reflecting covenant strength and fixed uplifts; specialty/F&amp;B income at 7.25% reflecting lease-up and rotation risk; blended equivalent yield <strong>6.75%</strong>. Cross-checked by direct comparison on a SAR/sqm basis and by a 10-year DCF at an 8.9% discount rate, both supporting the reported figure within ±2.5%.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">7 · Income &amp; Yield Analysis</h4>
+<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0 4px;">
+  <tr style="background:#f3f0ea;"><th style="text-align:left;padding:7px 10px;border:1px solid #d7d2c7;">Income line</th><th style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">Passing (SAR M)</th><th style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">Market (SAR M)</th><th style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">Cap rate</th></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">Anchor (Al Manar)</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">6.40</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">6.40</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">6.25%</td></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">Specialty retail</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">2.60</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">2.85</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">7.25%</td></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">F&amp;B / leisure</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">1.40</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">1.55</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">7.25%</td></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">Parking &amp; ancillary</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">0.90</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">0.90</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">7.00%</td></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td style="padding:7px 10px;border:1px solid #d7d2c7;">Total / blended</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">11.30</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">11.70</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">6.75%</td></tr>
+</table>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">8 · Comparable Evidence</h4>
+<p>(i) <strong>Corniche Plaza North</strong> — SAR 168M, Nov 2025, 6.9% cap, secondary anchor covenant. (ii) <strong>Al Shati Mixed-Use</strong> — SAR 214M, Feb 2026, 6.4% cap, dual-anchor, longer WAULT. (iii) <strong>Red Sea Gateway Retail</strong> — SAR 96M, Aug 2025, 7.1% cap, no waterfront frontage. Adjusted for covenant, frontage and WAULT, the evidence supports a 6.6%–6.9% range for the subject.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">9 · Principal Risks</h4>
+<p>(a) Single-anchor concentration at 41% of contracted income, with a Year-5 break; (b) F&amp;B lease-up over months 1–24 of the hold; (c) service-charge leakage of ~SAR 0.3M p.a. pending the recovery audit; (d) planned Corniche public-realm works 2027 — short-term footfall disruption, long-term accretive.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">10 · Assumptions &amp; Caveats</h4>
+<p>No structural survey undertaken; title information relied upon as provided; areas per the 2024 re-measurement exercise. This report is provided for the addressee only and no responsibility is accepted to any third party. Valid for 90 days from the valuation date.</p>
+<p style="margin-top:20px;border-top:1px solid #d7d2c7;padding-top:12px;"><em>Signed — Partner, Valuation &amp; Advisory, Knight Frank Jeddah · MRICS · TAQEEM-accredited.</em></p>`},
           {type:'DOCX', name:'Anchor Landlord Agreement',  version:'18 pp · Executed',    updated:'Just now · Data room', isLandlord:true, isReadable:true,
-            docBody:`<p><strong>Parties.</strong> Corniche Gateway HoldCo (the "Landlord") and Al Manar Retail Group (the "Tenant").</p>
-<p><strong>Premises & term.</strong> Anchor unit of 8,400 sqm GLA, ground and first floors. Term of <strong>10 years</strong> from handover, with one 5-year renewal option at the Tenant's election on 12 months' notice.</p>
-<p><strong>Rent.</strong> Base rent of <strong>SAR 6,400,000 per annum</strong>, payable quarterly in advance, escalating at <strong>3% per annum</strong> compounded on each anniversary of the commencement date.</p>
-<p><strong>Break option.</strong> Tenant break at the end of <strong>Year 5</strong>, on 9 months' written notice and payment of a break premium equal to 6 months' then-passing rent.</p>
-<p><strong>Permitted use.</strong> Department store, supermarket and ancillary F&B. Exclusivity within the scheme for grocery anchor use.</p>
-<p><strong>Repairs & service charge.</strong> Tenant responsible for internal repair; Landlord for structure and common parts, recoverable via service charge capped at SAR 240/sqm p.a., indexed to CPI.</p>
-<p><strong>Security.</strong> Bank guarantee equal to 6 months' rent, maintained throughout the term.</p>
-<p><em>Executed counterpart, 18 pages. Governing law: Kingdom of Saudi Arabia.</em></p>`},
+            docBody:`
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:18px;margin-bottom:22px;">
+  <div style="font-size:22px;font-weight:700;">LEASE AGREEMENT</div>
+  <div style="font-size:12px;color:#4b5563;margin-top:6px;">Anchor Unit · Corniche Gateway, North Corniche, Jeddah</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">Executed counterpart · 18 pages · Ref. CG-L-001/2026</div>
+</div>
+<p><strong>THIS LEASE</strong> is made between <strong>Corniche Gateway HoldCo</strong>, a limited company incorporated in the Kingdom of Saudi Arabia (the "Landlord"), and <strong>Al Manar Retail Group</strong>, a closed joint-stock company (the "Tenant").</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">1 · Definitions &amp; Interpretation</h4>
+<p>"Premises" means the anchor unit of approximately <strong>8,400 sqm GLA</strong> on ground and first floors, as shown edged red on Plan A; "Commencement Date" means the date of handover certified under Clause 3; "Base Rent" has the meaning in Clause 4; "Scheme" means the Corniche Gateway development including common parts and parking.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">2 · Demise &amp; Term</h4>
+<p>The Landlord demises the Premises to the Tenant for a term of <strong>ten (10) years</strong> from the Commencement Date, together with one option to renew for a further <strong>five (5) years</strong> exercisable by the Tenant on not less than twelve (12) months' written notice, at open market rent subject to Clause 5.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">3 · Handover &amp; Fit-Out</h4>
+<p>Handover in shell-and-core condition with capped services. The Tenant shall complete its fit-out within one hundred and twenty (120) days, to plans approved by the Landlord (approval not to be unreasonably withheld). A rent-free period of ninety (90) days applies from the Commencement Date.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">4 · Rent</h4>
+<p>Base Rent of <strong>SAR 6,400,000 per annum</strong>, payable quarterly in advance. The Base Rent shall increase by <strong>three per cent (3%) per annum</strong>, compounded, on each anniversary of the Commencement Date. No turnover rent applies to the initial term.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">5 · Rent Review</h4>
+<p>On renewal, rent shall be the higher of (a) the then-passing rent and (b) open market rent determined, failing agreement, by an independent TAQEEM-accredited valuer acting as expert, whose costs shall be shared equally.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">6 · Break Option</h4>
+<p>The Tenant may determine this Lease at the end of <strong>Year 5</strong> by not less than <strong>nine (9) months'</strong> prior written notice, conditional upon (a) payment of a break premium equal to <strong>six (6) months'</strong> then-passing Base Rent, and (b) vacant possession with all rent paid to the break date. Time is of the essence.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">7 · Permitted Use &amp; Exclusivity</h4>
+<p>Department store, supermarket and ancillary F&amp;B only. The Landlord covenants not to lease any other unit within the Scheme exceeding 1,500 sqm for primary grocery use during the term (the "Exclusivity").</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">8 · Repairs, Service Charge &amp; Insurance</h4>
+<p>The Tenant shall keep the interior in good repair; the Landlord shall maintain the structure, envelope and common parts, the cost recoverable through a service charge <strong>capped at SAR 240/sqm p.a.</strong>, indexed to CPI. The Landlord insures the Scheme; the Tenant insures contents and plate glass and reimburses a fair proportion of premiums.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">9 · Alienation</h4>
+<p>Assignment of the whole permitted with Landlord's consent, not to be unreasonably withheld for an assignee of demonstrably equivalent covenant strength. Underletting of up to 20% of GLA permitted for concessions consistent with the Permitted Use.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">10 · Security</h4>
+<p>The Tenant shall deliver on or before the Commencement Date, and maintain throughout the term, an unconditional bank guarantee from a Saudi licensed bank equal to <strong>six (6) months'</strong> Base Rent, adjusted upon each escalation.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">11 · Default &amp; Termination</h4>
+<p>Rent unpaid for thirty (30) days after notice, material breach unremedied for sixty (60) days, or insolvency events entitle the Landlord to terminate and draw on the security, without prejudice to accrued rights. Holdover converts to a monthly tenancy at 120% of passing rent.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">12 · Governing Law</h4>
+<p>This Lease is governed by the laws and regulations of the Kingdom of Saudi Arabia; disputes fall to the competent courts of Jeddah.</p>
+<div style="display:flex;gap:40px;margin-top:26px;border-top:1px solid #d7d2c7;padding-top:16px;">
+  <div style="flex:1;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#6b7280;">Signed for the Landlord</div><div style="margin-top:26px;border-top:1px solid #1a1f2b;padding-top:6px;font-size:11px;">Corniche Gateway HoldCo</div></div>
+  <div style="flex:1;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#6b7280;">Signed for the Tenant</div><div style="margin-top:26px;border-top:1px solid #1a1f2b;padding-top:6px;font-size:11px;">Al Manar Retail Group</div></div>
+</div>`},
         ],
       };
       STAKEHOLDERS[NEW_PROJECT_ID] = [
@@ -14333,6 +14411,14 @@ Answer as the ${a.name} agent:`;
   let activeSheet = "Summary";
   let selectedCell = null;
 
+  // The demo template workbook (used by the sample models). Uploaded workbooks
+  // are parsed for real and swapped in per document via _setSheetData.
+  const DEFAULT_SHEET_DATA = JSON.parse(JSON.stringify(SHEET_DATA));
+  function _setSheetData(wb){
+    Object.keys(SHEET_DATA).forEach(k=>delete SHEET_DATA[k]);
+    Object.assign(SHEET_DATA, JSON.parse(JSON.stringify(wb)));
+  }
+
   // ============ FORMULA ENGINE — makes the model actually recompute ============
   function _cellNum(v){
     if (v == null) return NaN;
@@ -14582,8 +14668,10 @@ Answer as the ${a.name} agent:`;
     const ekm = document.getElementById('ek-model-name');
     if (ekm) ekm.textContent = d.name;
 
-    // Render spreadsheet
-    renderSpreadsheet('Summary');
+    // Load this document's workbook: an uploaded file's parsed sheets, or the
+    // demo template for the sample models. Then render its first tab.
+    _setSheetData(d && d.wbData ? d.wbData : DEFAULT_SHEET_DATA);
+    renderSpreadsheet(Object.keys(SHEET_DATA)[0]);
 
     // Reset Karaya chat for this model
     const msgs = document.getElementById('ek-msgs');
@@ -14601,7 +14689,151 @@ Answer as the ${a.name} agent:`;
   // Accepts Excel workbooks (recreated in Bohio format) AND PowerPoint decks /
   // PDF & DOCX briefs (a model is built from the document). Either way you land
   // in a working Bohio model you can question and modify.
-  function handleModelUpload(file){
+  // ============ REAL XLSX/CSV PARSING (zero dependencies) ============
+  // .xlsx is a ZIP of XML. We read the ZIP with DataView + DecompressionStream,
+  // pull sharedStrings + each worksheet, and rebuild the workbook as a Bohio
+  // grid — actual values AND formulas — so the recreated model reflects the
+  // uploaded file, and the formula engine / chat / export work on it.
+  async function _unzip(buf, wanted){
+    const dv=new DataView(buf), u8=new Uint8Array(buf);
+    let eocd=-1;
+    for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-70000);i--){ if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;} }
+    if(eocd<0) throw new Error('not a valid .xlsx (zip) file');
+    const count=dv.getUint16(eocd+10,true); let off=dv.getUint32(eocd+16,true);
+    const entries=[];
+    const td=new TextDecoder();
+    for(let n=0;n<count;n++){
+      if(dv.getUint32(off,true)!==0x02014b50) break;
+      const method=dv.getUint16(off+10,true);
+      const csize=dv.getUint32(off+20,true);
+      const nlen=dv.getUint16(off+28,true), elen=dv.getUint16(off+30,true), clen=dv.getUint16(off+32,true);
+      const lho=dv.getUint32(off+42,true);
+      const name=td.decode(u8.subarray(off+46,off+46+nlen));
+      if(!wanted || wanted.test(name)) entries.push({name,method,csize,lho});
+      off+=46+nlen+elen+clen;
+    }
+    const out={};
+    for(const f of entries){
+      const lnlen=dv.getUint16(f.lho+26,true), lelen=dv.getUint16(f.lho+28,true);
+      const start=f.lho+30+lnlen+lelen;
+      const data=u8.subarray(start,start+f.csize);
+      if(f.method===0) out[f.name]=td.decode(data);
+      else {
+        const stream=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+        out[f.name]=await new Response(stream).text();
+      }
+    }
+    return out;
+  }
+  function _colIdx(letters){ let n=0; for(const ch of letters) n=n*26+(ch.charCodeAt(0)-64); return n; }
+  function _colLetter(n){ let s=''; while(n>0){ const r=(n-1)%26; s=String.fromCharCode(65+r)+s; n=Math.floor((n-1)/26); } return s; }
+  function _fmtNum(v){
+    const n=parseFloat(v);
+    if(isNaN(n)) return v;
+    if(String(v).indexOf('.')>=0 && String(Math.abs(n)).split('.')[1] && String(Math.abs(n)).split('.')[1].length>4) return String(Math.round(n*10000)/10000);
+    return String(v);
+  }
+  function _rowStyle(cells){
+    const label=String(cells[1]||'').trim();
+    const nonEmpty=cells.slice(1).filter(x=>String(x).trim()!=='').length;
+    if(nonEmpty===0) return 'empty';
+    if(nonEmpty===1 && label && !/[0-9]/.test(label)) return 'section';
+    if(/total|subtotal|\bsum\b|\bnoi\b|net operating|ebitda|cash ?flow to|grand/i.test(label)) return 'total';
+    return 'data';
+  }
+  const WB_MAX_COLS=12, WB_MAX_ROWS=80, WB_MAX_SHEETS=8;
+  function _gridFromCells(cellsByRow, maxC){
+    const C=Math.min(maxC, WB_MAX_COLS);
+    const cols=[''].concat(Array.from({length:C},(_,i)=>_colLetter(i+1)));
+    const headers=cols.slice();
+    const rowNums=Object.keys(cellsByRow).map(Number).sort((a,b)=>a-b).slice(0, WB_MAX_ROWS);
+    const rows=rowNums.map(r=>{
+      const rec=cellsByRow[r]||{};
+      const cells=[String(r)]; const formulas=[''];
+      for(let ci=1;ci<=C;ci++){ const c=rec[ci]||{}; cells.push(c.v!=null?String(c.v):''); formulas.push(c.f||''); }
+      const row={cells, style:_rowStyle(cells)};
+      if(formulas.some(f=>f)) row.formulas=formulas;
+      return row;
+    });
+    return {cols, headers, rows};
+  }
+  async function _xlsxToWb(file){
+    const buf=await file.arrayBuffer();
+    const files=await _unzip(buf, /^xl\/(workbook\.xml|sharedStrings\.xml|_rels\/workbook\.xml\.rels|worksheets\/sheet\d+\.xml)$/);
+    const parse=t=>new DOMParser().parseFromString(t,'application/xml');
+    // shared strings
+    const shared=[];
+    if(files['xl/sharedStrings.xml']){
+      parse(files['xl/sharedStrings.xml']).querySelectorAll('si').forEach(si=>{
+        let s=''; si.querySelectorAll('t').forEach(t=>{ s+=t.textContent; }); shared.push(s);
+      });
+    }
+    // sheet name → target file
+    const rels={};
+    if(files['xl/_rels/workbook.xml.rels']){
+      parse(files['xl/_rels/workbook.xml.rels']).querySelectorAll('Relationship').forEach(r=>{
+        rels[r.getAttribute('Id')]=String(r.getAttribute('Target')||'').replace(/^\/?(xl\/)?/,'xl/');
+      });
+    }
+    const sheets=[];
+    parse(files['xl/workbook.xml']||'<x/>').querySelectorAll('sheet').forEach(sh=>{
+      const rid=sh.getAttribute('r:id')||sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
+      sheets.push({name:sh.getAttribute('name')||('Sheet'+(sheets.length+1)), file:rels[rid]});
+    });
+    const wb={};
+    for(const sh of sheets.slice(0,WB_MAX_SHEETS)){
+      const xml=files[sh.file]; if(!xml) continue;
+      const doc=parse(xml);
+      const cellsByRow={}; let maxC=0;
+      doc.querySelectorAll('sheetData row').forEach(rw=>{
+        rw.querySelectorAll('c').forEach(c=>{
+          const ref=c.getAttribute('r')||''; const m=ref.match(/^([A-Z]+)(\d+)$/); if(!m) return;
+          const ci=_colIdx(m[1]), r=parseInt(m[2],10);
+          if(ci>WB_MAX_COLS) return;
+          const t=c.getAttribute('t')||'';
+          let vEl=null, fEl=null;
+          for(const ch of c.children){ if(ch.localName==='v') vEl=ch; else if(ch.localName==='f') fEl=ch; }
+          let val='';
+          if(t==='s') val=shared[parseInt(vEl?vEl.textContent:'-1',10)]??'';
+          else if(t==='inlineStr'){ const tt=c.querySelector('is t'); val=tt?tt.textContent:''; }
+          else if(vEl) val=_fmtNum(vEl.textContent);
+          const f=fEl?('='+fEl.textContent):'';
+          if(String(val).trim()!==''||f){
+            cellsByRow[r]=cellsByRow[r]||{};
+            cellsByRow[r][ci]={v:val,f};
+            if(ci>maxC) maxC=ci;
+          }
+        });
+      });
+      if(Object.keys(cellsByRow).length) wb[sh.name.slice(0,28)]=_gridFromCells(cellsByRow, maxC);
+    }
+    if(!Object.keys(wb).length) throw new Error('no readable sheets found in the workbook');
+    return wb;
+  }
+  function _csvToWb(text, name){
+    const lines=String(text||'').replace(/\r/g,'').split('\n').filter(l=>l.length);
+    const cellsByRow={}; let maxC=0;
+    lines.slice(0,WB_MAX_ROWS).forEach((line,i)=>{
+      // minimal CSV: handles quoted fields with commas
+      const vals=[]; let cur='', inQ=false;
+      for(const ch of line){
+        if(ch==='"'){ inQ=!inQ; continue; }
+        if(ch===','&&!inQ){ vals.push(cur); cur=''; continue; }
+        cur+=ch;
+      }
+      vals.push(cur);
+      vals.slice(0,WB_MAX_COLS).forEach((v,ci)=>{
+        if(String(v).trim()==='') return;
+        cellsByRow[i+1]=cellsByRow[i+1]||{};
+        cellsByRow[i+1][ci+1]={v:_fmtNum(v.trim()),f:''};
+        if(ci+1>maxC) maxC=ci+1;
+      });
+    });
+    if(!Object.keys(cellsByRow).length) throw new Error('the CSV appears to be empty');
+    return {[String(name||'Sheet1').slice(0,28)]:_gridFromCells(cellsByRow, maxC)};
+  }
+
+  async function handleModelUpload(file){
     if(!file) return;
     const base = String(file.name || 'Uploaded Model').replace(/\.[^.]+$/, '');
     const ext = (String(file.name||'').match(/\.([^.]+)$/) || [,''])[1].toLowerCase();
@@ -14619,11 +14851,27 @@ Answer as the ${a.name} agent:`;
       file: ['Reading the file…','Extracting the key assumptions…','Structuring the Bohio underwriting model…','Wiring formulas and dependencies…','Rendering the sheet…'],
     };
     const versionLabel = isSheet ? 'v.01 · From workbook' : ('v.01 · From ' + (ext.toUpperCase()));
-    const noteLabel = isSheet ? 'Imported workbook mapped into the Bohio underwriting template by Karaya.'
+    const noteLabel = isSheet ? 'Imported workbook recreated in Bohio format by Karaya — actual tabs, values and formulas from the uploaded file.'
       : ('Model built by Karaya from an uploaded ' + ext.toUpperCase() + ' ' + (kind==='deck'?'presentation':'brief') + ', mapped into the Bohio underwriting template.');
-    const doc = { type:'XLSX', name: base, version: versionLabel, updated:'Just now · You', isGenerated:true, notes: noteLabel };
-    if (typeof MY_MODELS !== 'undefined' && !MY_MODELS.find(m => m.name === base)) MY_MODELS.unshift(doc);
     const inp = document.getElementById('file-input-models'); if (inp) inp.value = '';
+
+    // ---- REAL parse: the recreated model must reflect the uploaded file ----
+    let wbData = null;
+    if (isSheet && typeof file.arrayBuffer === 'function') {
+      try {
+        if (ext === 'csv') wbData = _csvToWb(await file.text(), base);
+        else if (ext === 'xlsx' || ext === 'xlsm') wbData = await _xlsxToWb(file);
+        else if (ext === 'xls') throw new Error('legacy binary .xls — please save it as .xlsx and re-upload');
+      } catch(e) {
+        uploadBuildingOverlay(base, 'Couldn’t read this workbook', ['⚠ ' + (e && e.message ? e.message : 'unreadable file') + ' — nothing was imported.'], null);
+        setTimeout(()=>{ const ov=document.getElementById('upl-overlay'); if(ov) ov.style.display='none'; }, 3600);
+        return;
+      }
+    }
+
+    const doc = { type:'XLSX', name: base, version: versionLabel, updated:'Just now · You', isGenerated:true, notes: noteLabel };
+    if (wbData) { doc.wbData = wbData; doc.version = 'v.01 · ' + Object.keys(wbData).length + ' tabs imported'; }
+    if (typeof MY_MODELS !== 'undefined' && !MY_MODELS.find(m => m.name === base)) MY_MODELS.unshift(doc);
     uploadBuildingOverlay(base, title, stepsByKind[kind], () => { if (typeof openEditor === 'function') openEditor(doc); });
   }
   // Upload into the open project: Excel/CSV files become live Bohio models
@@ -15166,7 +15414,7 @@ Answer as Karaya:`;
 
   function openFullscreen() {
     document.getElementById('fs-title').textContent = currentModelDoc ? currentModelDoc.name : 'Model';
-    renderFsSheet('Summary');
+    renderFsSheet(SHEET_DATA[activeSheet] ? activeSheet : Object.keys(SHEET_DATA)[0]);
     document.getElementById('fs-overlay').classList.add('active');
   }
 
@@ -17354,6 +17602,13 @@ Answer as Karaya:`;
     bot.style.cssText = 'padding:10px 14px;font-size:11px;letter-spacing:0.03em;line-height:1.65;background:rgba(0,9,25,0.05);color:var(--ink);border:1px solid var(--ink-hairline);align-self:flex-start;max-width:80%;';
     msgs.appendChild(bot);
     msgs.scrollTop = msgs.scrollHeight;
+
+    // "ask Sales/Finance/…" routes to that department's agent here too,
+    // honouring the internal guardrails — same routing as the side panel.
+    if (typeof _routeToDeptAgent === 'function' && _routeToDeptAgent(q, bot, msgs)) {
+      LANDING_KARAYA_HISTORY.push({ role: 'user', text: q });
+      return;
+    }
 
     const history = LANDING_KARAYA_HISTORY.slice(-6)
       .map(m => (m.role === 'user' ? 'User: ' : 'Karaya: ') + m.text).join('\n');
