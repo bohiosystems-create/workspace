@@ -53,6 +53,12 @@
 #editor-deps-panel .fs-col-body [style*="color:rgba(230"], #editor-deps-panel .ek-deps-empty { color:var(--ink-soft) !important; }
 #editor-deps-panel .ed-deps-pill { background:rgba(0,9,25,0.05) !important; color:var(--ink) !important; border:1px solid var(--ink-hairline) !important; }
 #editor-deps-panel .ed-deps-pill.warn { background:rgba(180,83,9,0.12) !important; color:#b45309 !important; }
+/* ===== Sheet zoom controls ===== */
+.zoom-ctl { display:inline-flex; align-items:center; gap:5px; margin-left:10px; flex-shrink:0; }
+.zoom-btn { width:22px; height:22px; border-radius:50%; border:1px solid var(--ink-hairline); background:transparent; color:var(--ink); font-family:inherit; font-size:13px; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; transition:all .15s ease; }
+.zoom-btn:hover { border-color:var(--ink); background:var(--ink); color:var(--bg); }
+.zoom-pct { font-size:9px; letter-spacing:0.08em; color:var(--ink-soft); min-width:34px; text-align:center; cursor:pointer; user-select:none; }
+.zoom-pct:hover { color:var(--ink); }
 /* ===== Document review — AI-suggested approver chips ===== */
 .docrev-appr { font-family:inherit; font-size:10px; letter-spacing:0.06em; border:1px solid var(--ink-hairline); background:transparent; color:var(--ink); border-radius:999px; padding:7px 13px; cursor:pointer; transition:all .15s ease; }
 .docrev-appr:hover { border-color:var(--ink); }
@@ -10491,6 +10497,11 @@
               <span class="cell-ref" id="cell-ref">A1</span>
               <span style="font-size:8px;color:var(--ink-soft);letter-spacing:0.1em;">ƒ</span>
               <input class="formula-input" id="formula-input" value="" placeholder="Select a cell — type a value or =formula, press Enter" onkeydown="if(event.key==='Enter')applyFormulaBar()">
+              <span class="zoom-ctl" title="Zoom the sheet (Ctrl + / Ctrl −)">
+                <button class="zoom-btn" onclick="sheetZoom('out')" aria-label="Zoom out">−</button>
+                <span class="zoom-pct" onclick="sheetZoom('reset')" title="Reset zoom">100%</span>
+                <button class="zoom-btn" onclick="sheetZoom('in')" aria-label="Zoom in">+</button>
+              </span>
             </div>
             <div class="spreadsheet-wrap">
               <table class="spreadsheet" id="spreadsheet"></table>
@@ -10804,6 +10815,11 @@
         <span class="cell-ref" id="fs-cell-ref">—</span>
         <span style="font-size:8px;color:var(--ink-soft);letter-spacing:0.1em;">ƒ</span>
         <input class="formula-input" id="fs-formula-input" value="" readonly="">
+        <span class="zoom-ctl" title="Zoom the sheet (Ctrl + / Ctrl −)">
+          <button class="zoom-btn" onclick="sheetZoom('out')" aria-label="Zoom out">−</button>
+          <span class="zoom-pct" onclick="sheetZoom('reset')" title="Reset zoom">100%</span>
+          <button class="zoom-btn" onclick="sheetZoom('in')" aria-label="Zoom in">+</button>
+        </span>
       </div>
       <div class="spreadsheet-wrap">
         <table class="spreadsheet" id="fs-spreadsheet"></table>
@@ -14428,6 +14444,32 @@ Answer as the ${a.name} agent:`;
     Object.assign(SHEET_DATA, JSON.parse(JSON.stringify(wb)));
   }
 
+  // ============ SHEET ZOOM — zoom in/out while working on a model ============
+  let SHEET_ZOOM = (function(){ try{ const z=parseFloat(localStorage.getItem('bohio_sheet_zoom')); return (z>=0.5&&z<=1.7)?z:1; }catch(e){ return 1; } })();
+  function _applySheetZoom(){
+    document.querySelectorAll('table.spreadsheet').forEach(t=>{ t.style.zoom=SHEET_ZOOM; });
+    document.querySelectorAll('.zoom-pct').forEach(el=>{ el.textContent=Math.round(SHEET_ZOOM*100)+'%'; });
+  }
+  function sheetZoom(dir){
+    if(dir==='in') SHEET_ZOOM=Math.min(1.7, SHEET_ZOOM+0.1);
+    else if(dir==='out') SHEET_ZOOM=Math.max(0.5, SHEET_ZOOM-0.1);
+    else SHEET_ZOOM=1;
+    SHEET_ZOOM=Math.round(SHEET_ZOOM*10)/10;
+    try{ localStorage.setItem('bohio_sheet_zoom', String(SHEET_ZOOM)); }catch(e){}
+    _applySheetZoom();
+  }
+  // Ctrl/Cmd +/−/0 zoom the sheet whenever a model view is open
+  document.addEventListener('keydown', (e)=>{
+    if(!(e.ctrlKey||e.metaKey)) return;
+    const modelOpen = document.getElementById('page-editor')?.classList.contains('active')
+      || document.getElementById('fs-overlay')?.classList.contains('active')
+      || (document.getElementById('pmfs-overlay')||{}).style?.display==='flex';
+    if(!modelOpen) return;
+    if(e.key==='='||e.key==='+'){ e.preventDefault(); sheetZoom('in'); }
+    else if(e.key==='-'){ e.preventDefault(); sheetZoom('out'); }
+    else if(e.key==='0'){ e.preventDefault(); sheetZoom('reset'); }
+  });
+
   // ============ FORMULA ENGINE — makes the model actually recompute ============
   function _cellNum(v){
     if (v == null) return NaN;
@@ -14464,10 +14506,15 @@ Answer as the ${a.name} agent:`;
       const v = _refVal(mm, curSheet);
       return isNaN(v) ? mm : '(' + v + ')';
     });
-    e = e.replace(/ABS\(/gi, 'Math.abs(').replace(/\bMAX\(/gi, 'Math.max(').replace(/\bMIN\(/gi, 'Math.min(').replace(/\^/g, '**');
+    e = e.replace(/<>/g, '!=');
+    e = e.replace(/ABS\(/gi, 'Math.abs(').replace(/\bMAX\(/gi, 'Math.max(').replace(/\bMIN\(/gi, 'Math.min(')
+         .replace(/\bROUND\(/gi, '__R(').replace(/\bIF\(/gi, '__IF(').replace(/\^/g, '**');
     // any unresolved identifiers (named vars, IRR, etc.) → bail, keep static value
-    if (/[A-Za-z]/.test(e.replace(/Math\.(abs|max|min)/g, ''))) return null;
-    try { const val = Function('"use strict";return(' + e + ')')(); return (typeof val === 'number' && isFinite(val)) ? val : null; }
+    if (/[A-Za-z]/.test(e.replace(/Math\.(abs|max|min)|__R|__IF/g, ''))) return null;
+    try {
+      const val = Function('"use strict";const __R=(x,n)=>{n=n||0;const p=Math.pow(10,n);return Math.round(x*p)/p;};const __IF=(c,a,b)=>c?a:(b===undefined?0:b);return(' + e + ')')();
+      return (typeof val === 'number' && isFinite(val)) ? val : null;
+    }
     catch (err) { return null; }
   }
   function _fmtLike(existing, num){
@@ -14634,6 +14681,7 @@ Answer as the ${a.name} agent:`;
     document.getElementById('sheet-status').textContent = sheetName + ' · ' + sheet.rows.length + ' rows';
     document.getElementById('sheet-sum').textContent = '';
     selectedCell = null;
+    if (typeof _applySheetZoom === 'function') _applySheetZoom();
   }
 
   function selectCell(td, ref, value, formula, label, sheetName) {
@@ -15223,6 +15271,10 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     // fallback: an explicit net-equity row that already includes the t0 outflow
     for(const t of Object.keys(SHEET_DATA)) for(const r of (SHEET_DATA[t].rows||[])){
       if(/net equity cash|equity cash ?flow|net cf.*equity/i.test(_rowLabel(r))){ const n=_rowNums(r).map(_cellNum); if(n.length>=3 && n[0]<0) return n; } }
+    // last fallback: any net cash-flow series that starts with an outflow —
+    // e.g. an uploaded "Annual Net CF" row that already embeds t0 equity.
+    for(const t of Object.keys(SHEET_DATA)) for(const r of (SHEET_DATA[t].rows||[])){
+      if(/net (annual )?(cash ?flow|cf)|annual net|(^|\s)net cf|levered cash/i.test(_rowLabel(r))){ const n=_rowNums(r).map(_cellNum); if(n.length>=4 && n[0]<0 && n.some(x=>x>0)) return n; } }
     return null;
   }
   // Locate INPUT cells to vary (no formula), matching a driver word. Returns all
@@ -15270,9 +15322,32 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     if(rows.length){ const nums=rows[0].nums.map(_cellNum).filter(x=>!isNaN(x)); return nums.length?nums[nums.length-1]:null; }
     return null;
   }
+  // Map the user's wording to the input row that drives it — synonym-aware
+  // (room rate → ADR …), then fuzzy against the model's own input labels.
+  const DRIVER_SYNONYMS=[
+    {q:/\broom rate|nightly rate|average daily rate|daily rate|\badr\b|room price/i, label:/\badr\b|room ?rate|daily rate/i},
+    {q:/anchor rent|contracted rent|\brent\b/i, label:/rent/i},
+    {q:/\basp\b|selling price|sale price|price per|unit price|\bprice\b/i, label:/asp|price/i},
+    {q:/occupanc/i, label:/occupanc/i},
+    {q:/escalation|rent growth/i, label:/escalation|growth/i},
+    {q:/opex|operating cost/i, label:/opex|operating/i},
+    {q:/cost of debt|interest rate|all.?in rate/i, label:/cost of debt|interest|all.?in/i},
+    {q:/exit cap|cap rate/i, label:/exit cap|cap rate/i},
+    {q:/vacanc/i, label:/vacanc/i},
+    {q:/absorption/i, label:/absorption/i},
+    {q:/construction cost|capex/i, label:/construction|capex/i},
+    {q:/\bfee\b/i, label:/fee/i},
+  ];
+  function _driverFromQuestion(q){
+    for(const d of DRIVER_SYNONYMS){ if(d.q.test(q) && _findInputCells(d.label).length) return d.label; }
+    // last resort: any question word that names an actual input row in this model
+    const words=(q.match(/[A-Za-z]{3,}/g)||[]).filter(w=>!/^(what|the|lowest|highest|minimum|maximum|charge|that|does|not|fall|below|above|least|most|keep|can|will|need|target|goal|seek|solve|much|many|year|model|irr|dscr|noi|yield|multiple|equal|stay|remain|before|falls)$/i.test(w));
+    for(const w of words){ const re=new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'); if(_findInputCells(re).length) return re; }
+    return null;
+  }
   function _goalSeek(q){
     if(!/\b(lowest|highest|minimum|maximum|max|min|what.*(rent|price|adr|rate|cost|occupanc|fee)|solve|goal.?seek|break.?even|how (low|high|much))\b/i.test(q)) return null;
-    if(!/\b(so that|for|to (keep|be|stay|hit|reach|remain|not)|not (be )?(less|lower|below|more|higher|above)|at least|at most|>=|<=|=|equal|target)\b/i.test(q)) return null;
+    if(!/\b(so that|for|to (keep|be|stay|hit|reach|remain|not)|not (be )?(less|lower|below|more|higher|above)|does ?n.?t? fall|fall below|drop below|at least|at most|>=|<=|=|equal|target)\b/i.test(q)) return null;
     // metric + target
     const metric=_METRICS.find(m=>m.re.test(q)); if(!metric) return null;
     const tgtM=q.match(/(-?[\d.]+)\s*(%|x)?/g); // pick the number nearest the metric / a percentage
@@ -15283,15 +15358,14 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     else if(pctM){ target=parseFloat(pctM[1]); unit='%'; }
     else { const anyN=q.match(/(-?[\d.]+)/); if(anyN) target=parseFloat(anyN[1]); }
     if(target==null) return null;
-    // operator (handles "not to be less than", "at least", "no lower than", ≥ …)
-    const op = /not\s+(to\s+)?(be\s+)?(less|lower|below|under|drop)|at least|no (less|lower)|>=|≥|minimum|floor|above|higher than|exceed/i.test(q) ? 'gte'
-             : /not\s+(to\s+)?(be\s+)?(more|higher|above|exceed)|at most|no (more|higher)|<=|≤|maximum|cap of|ceiling|below|under/i.test(q) ? 'lte' : 'eq';
+    // operator (handles "not to be less than", "does not fall below", "at least", ≥ …)
+    const op = /not\s+(to\s+)?(be\s+)?(less|lower|below|under|drop)|(does ?n[o']?t|not|never|without)\s+(fall|drop|dip|go(ing)?)\s*(below|under)|at least|no (less|lower)|>=|≥|minimum|floor|stays? above|higher than|exceed/i.test(q) ? 'gte'
+             : /not\s+(to\s+)?(be\s+)?(more|higher|above|exceed)|(does ?n[o']?t|not|never)\s+(rise|go)\s*(above|over)|at most|no (more|higher)|<=|≤|maximum|cap of|ceiling|stays? below/i.test(q) ? 'lte' : 'eq';
     // driver
-    const drWord=(q.match(/\b(anchor rent|rent|adr|asp|price|occupanc\w*|escalation|opex|operating cost|cost of debt|cap rate|exit cap|absorption|fee|vacanc\w*)\b/i)||[])[1];
-    if(!drWord) return null;
-    const drRe=new RegExp(drWord.split(' ')[0],'i');
+    const drRe=_driverFromQuestion(q);
+    if(!drRe) return null;
     const driver=_pickResponsiveDriver(drRe, metric.k);
-    if(!driver) return `I can solve that once the model has a clear **${drWord}** input cell — I couldn't find one to vary in this model. Try naming the exact assumption (e.g. "Anchor Contracted Rent").`;
+    if(!driver) return `I can solve that once the model has a matching input cell — I couldn't find one to vary. Try naming the exact assumption row (e.g. "ADR" or "Anchor Contracted Rent").`;
     // measure() sets the driver, recomputes, returns the metric value
     const original=driver.row.cells[driver.ci];
     const setDriver=(x)=>{ driver.row.cells[driver.ci]=_fmtLike(original, /%$/.test(String(original))? x/100 : x); recomputeAll(); };
@@ -15319,9 +15393,8 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
   function _sensitivity(q){
     if(!/\b(sensitiv|how (much )?(does|would|sensitive)|what (if|happens)|impact of|move|swing|tornado|scenario|stress|vary|\+\/?-|\bbps\b|elasticity)\b/i.test(q)) return null;
     const metric=_METRICS.find(m=>m.re.test(q)); if(!metric) return null;
-    const drWord=(q.match(/\b(anchor rent|rent|adr|asp|price|occupanc\w*|escalation|opex|operating cost|cost of debt|cap rate|exit cap|absorption|fee|vacanc\w*|construction cost|capex)\b/i)||[])[1];
-    if(!drWord) return null;
-    const driver=_pickResponsiveDriver(new RegExp(drWord.split(' ')[0],'i'), metric.k); if(!driver) return null;
+    const drRe=_driverFromQuestion(q); if(!drRe) return null;
+    const driver=_pickResponsiveDriver(drRe, metric.k); if(!driver) return null;
     const original=driver.row.cells[driver.ci];
     const isPct=/%$/.test(String(original));
     const isRate=/cap|rate|occupanc|vacanc|escalation|debt/i.test(driver.label);
