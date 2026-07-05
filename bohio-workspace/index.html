@@ -4283,6 +4283,7 @@
     transition: all 0.15s ease;
   }
   .fs-close:hover { background: var(--ink); color: var(--bg); }
+  .fs-close.fs-close-x { width: 30px; height: 30px; padding: 0; font-size: 13px; letter-spacing: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
 
   .fs-body {
     flex: 1;
@@ -10793,7 +10794,7 @@
     <span class="fs-title" id="fs-title"></span>
     <div style="display:flex;align-items:center;gap:10px;">
       <button class="fs-close" id="fs-focus-toggle" onclick="toggleFsKaraya()">Hide Karaya</button>
-      <button class="fs-close" onclick="closeFullscreen()">Exit Fullscreen</button>
+      <button class="fs-close fs-close-x" onclick="closeFullscreen()" title="Exit full screen" aria-label="Exit full screen">✕</button>
     </div>
   </div>
   <div class="fs-body">
@@ -14993,6 +14994,83 @@ Answer as the ${a.name} agent:`;
     }).filter(Boolean).join('\n').slice(0, 2600);
   }
 
+  // Whole-workbook text view — used to ground "describe the model" style asks.
+  function dumpWorkbook(limit){
+    return Object.keys(SHEET_DATA).map(name=>{
+      const s=SHEET_DATA[name];
+      const body=s.rows.filter(r=>r.style!=='empty').map(r=>{
+        const label=r.cells[1]||'';
+        const vals=r.cells.slice(2).filter(v=>v!=='').join(' | ');
+        const f=(r.formulas||[]).filter(x=>x).slice(0,1)[0];
+        return label ? (label + (vals?': '+vals:'') + (f?('   ['+f+']'):'')) : '';
+      }).filter(Boolean).join('\n');
+      return '### TAB: '+name+'\n'+body;
+    }).join('\n\n').slice(0, limit||6000);
+  }
+  // Offline description of the open model, read straight from its cells, so the
+  // demo still describes the actual model without a live API key.
+  function _describeModelFallback(){
+    const name=(document.getElementById('ed-title')||{}).textContent||'This model';
+    const tabs=Object.keys(SHEET_DATA);
+    const get=(re)=>{
+      for(const t of tabs){ for(const r of SHEET_DATA[t].rows){ if(re.test(r.cells[1]||'')){
+        const vals=r.cells.slice(2).filter(v=>v!==''); if(vals.length) return {label:r.cells[1],vals,tab:t}; } } }
+      return null;
+    };
+    const yrs=(SHEET_DATA[tabs[0]].headers||[]).filter(h=>/^Y\d+$/.test(h)).length;
+    const noi=get(/net operating income/i)||get(/\bnoi\b/i), rev=get(/total revenue|gross income|effective gross/i);
+    const irr=get(/\birr\b/i), dscr=get(/dscr/i), em=get(/equity multiple/i);
+    const bits=[];
+    bits.push(`**${name}** is a ${yrs? yrs+'-year ':''}Bohio-format financial model across ${tabs.length} tab${tabs.length===1?'':'s'} — ${tabs.join(', ')}.`);
+    if(rev) bits.push(`It builds revenue (${rev.label} ${rev.vals[0]}→${rev.vals[rev.vals.length-1]})`+(noi?`, nets down to **${noi.label}** (${noi.vals[0]}→${noi.vals[noi.vals.length-1]})`:'')+`.`);
+    const rets=[irr&&`IRR ${irr.vals[irr.vals.length-1]}`, em&&`equity multiple ${em.vals[em.vals.length-1]}`, dscr&&`DSCR ${dscr.vals[0]}`].filter(Boolean);
+    if(rets.length) bits.push(`Headline returns: **${rets.join(', ')}**.`);
+    // assumptions from an Assumptions/Inputs tab
+    const asmTab=tabs.find(t=>/assumption|input/i.test(t));
+    if(asmTab){ const rows=SHEET_DATA[asmTab].rows.filter(r=>r.style==='data'&&r.cells[1]).slice(0,6).map(r=>r.cells[1]+' '+r.cells.slice(2).filter(v=>v!=='')[0]); if(rows.length) bits.push(`Main assumptions (`+asmTab+`): `+rows.join('; ')+`.`); }
+    bits.push(`Ask me to explain any driver, run a what-if, or change a cell — I'll re-run the dependents.`);
+    return bits.join(' ');
+  }
+
+  // Content-grounded answer computed locally from the open workbook — so the
+  // editor chat gives a REAL, question-specific answer even with no live API
+  // key (and a strong fallback when the key is present but the call fails).
+  function _editorLocalAnswer(q){
+    const tabs=Object.keys(SHEET_DATA);
+    const findRow=(re)=>{ for(const t of tabs){ for(const r of SHEET_DATA[t].rows){ if(r.style!=='empty'&&r.style!=='section'&&re.test(r.cells[1]||'')) return {r,tab:t}; } } return null; };
+    // 1) a specific cell reference, e.g. "explain B16"
+    const cm=q.match(/\b([A-Z])\s*(\d{1,2})\b/);
+    if(cm){
+      const col=cm[1].toUpperCase(), rn=cm[2];
+      const sheetName=(activeSheet&&SHEET_DATA[activeSheet])?activeSheet:tabs[0];
+      const s=SHEET_DATA[sheetName], ci=s.cols.indexOf(col);
+      const row=s.rows.find(r=>r.cells[0]===rn);
+      if(row&&ci>0){
+        const val=row.cells[ci]||'—', f=(row.formulas&&row.formulas[ci])||'';
+        const deps=(typeof findDependents==='function')?findDependents(col+rn, sheetName):[];
+        return `**${col}${rn}** on *${sheetName}* is **${row.cells[1]||'a cell'}** = **${val}**`+(f?`, driven by \`${f}\``:` (a direct input)`)+`.`+(deps.length?` It feeds ${deps.slice(0,4).map(d=>d.ref).join(', ')}${deps.length>4?'…':''}.`:'')+` Say "set ${col}${rn} to <value>" and I'll re-run everything downstream.`;
+      }
+    }
+    // 2) model-level: describe / summarise / overview / what is this model
+    if(/\b(describe|summar|overview|walk me through|what (is|does)|explain the model)\b/i.test(q) && !/\b(dscr|noi|irr|yield|opex|revenue|debt|capex|multiple|escalat|rent|cap rate|occupanc)\b/i.test(q))
+      return _describeModelFallback();
+    // 3) a named metric / line item (DSCR, NOI, Yield-on-Cost, Debt Service…)
+    const words=(q.match(/[A-Za-z][A-Za-z\-&\/]{2,}/g)||[]).map(w=>w.trim()).filter(w=>!/^(what|the|is|are|of|and|for|model|this|that|tell|me|about|explain|show|give|value|does|how|why|main|line|item|number|figure|please|can|you)$/i.test(w));
+    for(const w of words.sort((a,b)=>b.length-a.length)){
+      const hit=findRow(new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
+      if(hit){ const vals=hit.r.cells.slice(2).filter(v=>v!==''); const f=(hit.r.formulas||[]).filter(x=>x)[0];
+        return `**${hit.r.cells[1]}** (${hit.tab}) runs ${vals.join(' → ')}`+(f?`, calculated as \`${f}\``:'')+`. Want me to change it or trace what drives it?`; }
+    }
+    // 4) assumptions / drivers / risks
+    if(/\b(assumption|driver|input|risk|lever)/i.test(q)){
+      const asmTab=tabs.find(t=>/assumption|input/i.test(t))||tabs[0];
+      const rows=SHEET_DATA[asmTab].rows.filter(r=>r.style==='data'&&r.cells[1]).slice(0,8).map(r=>`• ${r.cells[1]}: ${r.cells.slice(2).filter(v=>v!=='')[0]||'—'}`);
+      return `Key assumptions on **${asmTab}**:\n${rows.join('\n')}`;
+    }
+    // 5) otherwise, a grounded snapshot of the model
+    return _describeModelFallback();
+  }
+
   // Apply a direct cell edit expressed in chat, e.g. "set B8 to -2.10".
   function tryApplyCellEdit(q){
     const m = q.match(/\b([A-Z])\s*(\d{1,2})\b[^0-9A-Za-z]*\bto\b\s*([-]?[\d.,]+%?x?)/i);
@@ -15107,21 +15185,26 @@ Answer as the ${a.name} agent:`;
     msgs.scrollTop = msgs.scrollHeight;
 
     const applied = tryApplyModelCommand(q);
-    const sheetName = (typeof activeSheet !== 'undefined' && activeSheet) ? activeSheet : 'Summary';
+    const sheetName = (typeof activeSheet !== 'undefined' && activeSheet) ? activeSheet : Object.keys(SHEET_DATA)[0];
     const modelName = (document.getElementById('ed-title') || {}).textContent || 'the model';
-    const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}", current tab "${sheetName}". ${applied ? ('You just applied this change to the model: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'The user can ask you to explain a formula or driver, run a what-if, change a cell ("set B8 to -2.10"), add a metric ("add a metric called Gross Margin = B5-B12"), remove a metric ("remove the DSCR row"), or add a sheet ("add a sheet called Debt Schedule"). Answer their question grounded in the sheet.'} Ground every answer in the SHEET below. Be concise (2-5 sentences), plain text, **bold** key figures.
+    // Whole-workbook grounding so "describe the model" sees every tab; single-tab
+    // for focused questions to keep the prompt tight.
+    const wantsWhole = !applied && /\b(describe|summar|overview|what (is|does)|explain the model|walk me|tell me about|assumption|risk|driver)\b/i.test(q);
+    const grounding = wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('SHEET (' + sheetName + '):\n' + dumpSheet(sheetName));
+    const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}" (${Object.keys(SHEET_DATA).length} tabs: ${Object.keys(SHEET_DATA).join(', ')}). ${applied ? ('You just applied this change to the model: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'When asked to DESCRIBE or SUMMARISE the model, explain in plain language what it represents (asset/deal type, the horizon), the main revenue and cost drivers, the key assumptions, and the headline returns — citing the actual figures. You can also explain a formula, run a what-if, change a cell ("set B8 to -2.10"), add/remove a metric, or add a sheet.'} Ground every answer strictly in the data below — cite real labels and figures. Be specific and concise (3-6 sentences or short bullets), plain text, **bold** key figures. Don't invent line items that aren't present.
 
-SHEET (${sheetName}):
-${dumpSheet(sheetName)}
+${grounding}
 
 User: "${q}"
 
 Answer as Karaya:`;
 
     (async () => {
+      // Query-aware offline answer computed from the actual workbook, so every
+      // prompt gets a distinct, grounded reply even without a live API key.
       const fallback = applied
-        ? ('Done — I ' + applied + ' and re-ran the dependent cells. (Live explanations need the demo server with an ANTHROPIC_API_KEY.)')
-        : "I can see this model's tabs, formulas and drivers. Ask me to change a cell (\"set B8 to -2.10\"), add a metric (\"add a metric called Gross Margin = B5-B12\"), remove one (\"remove the DSCR row\"), add a sheet, or explain what's driving an output.";
+        ? ('Done — I ' + applied + ' and re-ran the dependent cells.')
+        : _editorLocalAnswer(q);
       const answer = await karayaStreamInto(bot, prompt, 'file_qa', fallback);
       bot.innerHTML = fmtKaraya(answer) + '<span class="k-meta">Karaya · just now</span>';
       msgs.scrollTop = msgs.scrollHeight;
