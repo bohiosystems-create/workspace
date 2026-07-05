@@ -13212,80 +13212,156 @@ Answer as Karaya:`;
     msgs.scrollTop=msgs.scrollHeight;
   }
 
-  // Build the projection workbook (Assumptions / Cashflow / Returns) from the
-  // "read" sources. Figures in SAR M. Formulas make the cashflow live.
+  // Build the projection workbook from the "read" sources — a full 10-year,
+  // multi-tab institutional model (Assumptions / Revenue Build / Opex Detail /
+  // Debt Schedule / Cashflow / Returns). Figures in SAR M. Formulas keep it live.
   function _buildProjectProjectionsWB(){
-    const years=[1,2,3,4,5];
-    // --- assumptions synthesised from the sources ---
-    const gav=182.0;            // valuation report
-    const anchorRent=6.4;       // landlord agreement, Y1 contracted (SAR M)
-    const anchorEsc=0.03;       // 3% escalation
-    const otherRent=3.1;        // ERP rent roll (other tenants), Y1
-    const marketGrowth=0.04;    // Paseetah market rent growth
-    const occ=0.93;             // ERP occupancy
-    const opexRatio=0.28;       // comparable projects
-    const capexRatio=0.04;
-    const exitCap=0.0675;       // Paseetah comps
-    const ltv=0.55, rate=0.0625;
-    const debt=gav*ltv, equity=gav*(1-ltv);
-    const anchor=years.map(y=>anchorRent*Math.pow(1+anchorEsc,y-1));
-    const other=years.map(y=>otherRent*occ*Math.pow(1+marketGrowth,y-1));
-    const gross=years.map((_,i)=>anchor[i]+other[i]);
-    const opex=years.map((_,i)=>-gross[i]*opexRatio);
-    const capex=years.map((_,i)=>-gross[i]*capexRatio);
-    const noi=years.map((_,i)=>gross[i]+opex[i]+capex[i]);
-    const ds=years.map(()=>-debt*rate);
-    const cfe=years.map((_,i)=>noi[i]+ds[i]);
+    const N=10, years=Array.from({length:N},(_,i)=>i+1);
+    const yc=y=>String.fromCharCode(65+y);            // year y (1..10) → column B..K
+    const cols=['','A',...years.map(yc)];
+    const headers=['','',...years.map(y=>'Y'+y)];
     const f2=n=>(n||0).toFixed(2);
-    const exitVal=noi[4]/exitCap;
-    const yoc=noi.map(n=>(n/gav*100));
-    // simple IRR-ish figure for display
-    const irr=((cfe.reduce((a,b)=>a+b,0)+exitVal-debt)/equity/5*100);
-    const em=(cfe.reduce((a,b)=>a+b,0)+exitVal-debt)/equity;
+    const yrRow=arr=>['', ...arr.map(f2)];            // spread helper (label added by caller)
+    // ---- assumptions synthesised from the sources ----
+    const gav=182.0, exitCap=0.0675;
+    const anchorRent=6.4, anchorEsc=0.03;             // landlord agreement
+    const retailBase=2.6, retailG=0.04;               // ERP rent roll + Paseetah
+    const fnbBase=1.4, fnbG=0.035;
+    const parkBase=0.9, parkG=0.03;
+    const vacStart=0.09, vacEnd=0.05;                 // ramps down as it stabilises
+    const leaseUp=y=>y===1?0.62:(y===2?0.86:1);       // specialty lease-up
+    const pmRate=0.030, utilBase=1.15, utilG=0.025, insBase=0.62, insG=0.02, mktBase=0.55, adminBase=0.9, adminG=0.03, groundBase=0.7;
+    const capexRatio=0.04;
+    const ltv=0.55, rate=0.0625, amortTerm=25;
+    const debt=gav*ltv, equity=gav*(1-ltv);
+    const pmt=debt*rate/(1-Math.pow(1+rate,-amortTerm)); // level annual debt service
+    // ---- revenue build ----
+    const anchor=years.map(y=>anchorRent*Math.pow(1+anchorEsc,y-1));
+    const retail=years.map(y=>retailBase*Math.pow(1+retailG,y-1)*leaseUp(y));
+    const fnb=years.map(y=>fnbBase*Math.pow(1+fnbG,y-1)*leaseUp(y));
+    const parking=years.map(y=>parkBase*Math.pow(1+parkG,y-1));
+    const gpr=years.map((_,i)=>anchor[i]+retail[i]+fnb[i]+parking[i]);
+    const vac=years.map((_,i)=>-gpr[i]*(vacStart-(vacStart-vacEnd)*Math.min(1,i/4)));
+    const egi=years.map((_,i)=>gpr[i]+vac[i]);
+    // ---- opex detail ----
+    const pm=years.map((_,i)=>-egi[i]*pmRate);
+    const util=years.map(y=>-utilBase*Math.pow(1+utilG,y-1));
+    const ins=years.map(y=>-insBase*Math.pow(1+insG,y-1));
+    const mkt=years.map(()=>-mktBase);
+    const admin=years.map(y=>-adminBase*Math.pow(1+adminG,y-1));
+    const ground=years.map(()=>-groundBase);
+    const totOpex=years.map((_,i)=>pm[i]+util[i]+ins[i]+mkt[i]+admin[i]+ground[i]);
+    // ---- cashflow ----
+    const noi=years.map((_,i)=>egi[i]+totOpex[i]);
+    const capex=years.map((_,i)=>-egi[i]*capexRatio);
+    const adjNoi=years.map((_,i)=>noi[i]+capex[i]);
+    // ---- debt schedule ----
+    const openBal=[], interest=[], principal=[], closeBal=[];
+    let bal=debt;
+    for(let i=0;i<N;i++){ const intr=bal*rate, prin=pmt-intr; openBal.push(bal); interest.push(-intr); principal.push(-prin); bal=bal-prin; closeBal.push(bal); }
+    const ds=years.map(()=>-pmt);
+    const cfe=years.map((_,i)=>adjNoi[i]+ds[i]);
+    let cum=0; const cumCfe=years.map((_,i)=>(cum+=cfe[i]));
+    const dscr=years.map((_,i)=>adjNoi[i]/pmt);
+    const yoc=years.map((_,i)=>noi[i]/gav*100);
+    const debtYield=years.map((_,i)=>noi[i]/debt*100);
+    // ---- exit + returns ----
+    const exitVal=noi[N-1]*(1+anchorEsc)/exitCap;
+    const netSale=exitVal-closeBal[N-1];
+    const totalEquityCF=cfe.reduce((a,b)=>a+b,0)+netSale;
+    const em=totalEquityCF/equity;
+    // approximate levered IRR from equity multiple over the hold
+    const levIRR=(Math.pow(em,1/N)-1)*100;
+    const unlevTotal=adjNoi.reduce((a,b)=>a+b,0)+exitVal;
+    const unlevIRR=(Math.pow(unlevTotal/gav,1/N)-1)*100;
 
-    const assumptions={ cols:['','A','B','C'], headers:['','Parameter','Value','Source'], rows:[
-      {cells:['1','VALUATION','',''],style:'section'},
-      {cells:['2','Gross Asset Value (SAR M)', gav.toFixed(1),'Knight Frank valuation'],style:'data'},
-      {cells:['3','Exit Cap Rate', (exitCap*100).toFixed(2)+'%','Paseetah comps'],style:'data'},
-      {cells:['4','','',''],style:'empty'},
-      {cells:['5','INCOME','',''],style:'section'},
-      {cells:['6','Anchor Contracted Rent (Y1)', anchorRent.toFixed(2),'Landlord agreement'],style:'data'},
-      {cells:['7','Anchor Escalation', (anchorEsc*100).toFixed(0)+'%','Landlord agreement'],style:'data'},
-      {cells:['8','Other Rent Roll (Y1)', otherRent.toFixed(2),'ERP · Yardi'],style:'data'},
-      {cells:['9','Occupancy', (occ*100).toFixed(0)+'%','ERP · Yardi'],style:'data'},
-      {cells:['10','Market Rent Growth', (marketGrowth*100).toFixed(0)+'%','Paseetah'],style:'data'},
-      {cells:['11','','',''],style:'empty'},
-      {cells:['12','COSTS & FINANCING','',''],style:'section'},
-      {cells:['13','Opex Ratio', (opexRatio*100).toFixed(0)+'%','Comparable projects'],style:'data'},
-      {cells:['14','Capex Reserve', (capexRatio*100).toFixed(0)+'%','Model library'],style:'data'},
-      {cells:['15','LTV / Cost of Debt', (ltv*100).toFixed(0)+'% · '+(rate*100).toFixed(2)+'%','Indicative'],style:'data'},
-    ]};
+    const pct=(v,d)=> (v).toFixed(d==null?1:d)+'%';
+    const rowF=(label,arr,fmap,style)=>({cells:[ '', label, ...arr.map(fmap||f2)], style});
+    const numbered=(rows)=>rows.map((r,i)=>{ r.cells[0]=String(i+1); return r; });
 
-    const cashflow={ cols:['','A','B','C','D','E','F'], headers:['','','Y1','Y2','Y3','Y4','Y5'], rows:[
-      {cells:['1','INCOME','','','','',''],style:'section'},
-      {cells:['2','Anchor Contracted Income', ...anchor.map(f2)], formulas:['','', ...years.map(y=>`=Assumptions!B6*(${(1+anchorEsc).toFixed(2)}^${y-1})`)], style:'data'},
-      {cells:['3','Other Rent Roll', ...other.map(f2)], formulas:['','', ...years.map(y=>`=Assumptions!B8*Assumptions!B9*(${(1+marketGrowth).toFixed(2)}^${y-1})`)], style:'data'},
-      {cells:['4','Gross Income', ...gross.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=${c}2+${c}3`)], style:'total'},
-      {cells:['5','','','','','',''],style:'empty'},
-      {cells:['6','COSTS','','','','',''],style:'section'},
-      {cells:['7','Operating Expenses', ...opex.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=${c}4*-${opexRatio}`)], style:'neg'},
-      {cells:['8','Capex Reserve', ...capex.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=${c}4*-${capexRatio}`)], style:'neg'},
-      {cells:['9','Net Operating Income', ...noi.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=${c}4+${c}7+${c}8`)], style:'total-pos'},
-      {cells:['10','Debt Service', ...ds.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=-Assumptions!B2*0.55*0.0625`)], style:'neg'},
-      {cells:['11','Cash Flow to Equity', ...cfe.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=${c}9+${c}10`)], style:'total'},
-    ]};
+    const assumptions={ cols:['','A','B','C'], headers:['','Parameter','Value','Source'], rows:numbered([
+      {cells:['','VALUATION & EXIT','',''],style:'section'},
+      {cells:['','Gross Asset Value (SAR M)', gav.toFixed(1),'Knight Frank valuation'],style:'data'},
+      {cells:['','Exit Cap Rate', pct(exitCap*100,2),'Paseetah comps'],style:'data'},
+      {cells:['','Hold Period', N+' years','Base case'],style:'data'},
+      {cells:['','','',''],style:'empty'},
+      {cells:['','INCOME','',''],style:'section'},
+      {cells:['','Anchor Contracted Rent (Y1)', anchorRent.toFixed(2),'Landlord agreement'],style:'data'},
+      {cells:['','Anchor Escalation', pct(anchorEsc*100,0),'Landlord agreement'],style:'data'},
+      {cells:['','Specialty Retail (Y1)', retailBase.toFixed(2),'ERP · Yardi'],style:'data'},
+      {cells:['','F&B / Leisure (Y1)', fnbBase.toFixed(2),'ERP · Yardi'],style:'data'},
+      {cells:['','Parking & Ancillary (Y1)', parkBase.toFixed(2),'ERP · Yardi'],style:'data'},
+      {cells:['','Market Rent Growth', pct(retailG*100,0),'Paseetah'],style:'data'},
+      {cells:['','Stabilised Vacancy', pct(vacEnd*100,0),'Paseetah'],style:'data'},
+      {cells:['','','',''],style:'empty'},
+      {cells:['','COSTS & FINANCING','',''],style:'section'},
+      {cells:['','Property Management', pct(pmRate*100,1)+' of EGI','Comparable projects'],style:'data'},
+      {cells:['','Capex Reserve', pct(capexRatio*100,0)+' of EGI','Model library'],style:'data'},
+      {cells:['','LTV', pct(ltv*100,0),'Term sheet'],style:'data'},
+      {cells:['','Cost of Debt', pct(rate*100,2),'Indicative'],style:'data'},
+      {cells:['','Amortisation', amortTerm+' yr','Term sheet'],style:'data'},
+    ])};
 
-    const returns={ cols:['','A','B','C','D','E','F'], headers:['','','Y1','Y2','Y3','Y4','Y5'], rows:[
-      {cells:['1','RETURNS','','','','',''],style:'section'},
-      {cells:['2','Yield-on-Cost', ...yoc.map(v=>v.toFixed(1)+'%')], formulas:['','', ...['B','C','D','E','F'].map(c=>`=Cashflow!${c}9/Assumptions!B2`)], style:'data'},
-      {cells:['3','NOI (SAR M)', ...noi.map(f2)], formulas:['','', ...['B','C','D','E','F'].map(c=>`=Cashflow!${c}9`)], style:'data'},
-      {cells:['4','Exit Value (Y5, SAR M)', '','','','', exitVal.toFixed(1)], formulas:['','','','','','', `=Cashflow!F9/Assumptions!B3`], style:'data'},
-      {cells:['5','Project IRR', '','','','', irr.toFixed(1)+'%'], style:'total'},
-      {cells:['6','Equity Multiple', '','','','', em.toFixed(2)+'x'], style:'total'},
-      {cells:['7','DSCR (Y1)', (noi[0]/Math.abs(ds[0])).toFixed(2)+'x','','','',''], style:'data'},
-    ]};
+    const revenue={ cols, headers, rows:numbered([
+      {cells:['','GROSS POTENTIAL RENT'].concat(years.map(()=>'')),style:'section'},
+      Object.assign(rowF('Anchor Contracted', anchor),{formulas:['','',...years.map(y=>`=Assumptions!B7*(${(1+anchorEsc).toFixed(2)}^${y-1})`)]}),
+      Object.assign(rowF('Specialty Retail', retail),{formulas:['','',...years.map(y=>`=Assumptions!B9*(${(1+retailG).toFixed(2)}^${y-1})*leaseup`)]}),
+      rowF('F&B / Leisure', fnb),
+      rowF('Parking & Ancillary', parking),
+      Object.assign(rowF('Gross Potential Rent', gpr),{formulas:['','',...years.map(y=>`=${yc(y)}2+${yc(y)}3+${yc(y)}4+${yc(y)}5`)],style:'total'}),
+      rowF('Vacancy & Credit Loss', vac, f2),
+      Object.assign(rowF('Effective Gross Income', egi),{formulas:['','',...years.map(y=>`=${yc(y)}6+${yc(y)}7`)],style:'total-pos'}),
+    ].map((r,i)=>{ r.style=r.style||'data'; return r; }))};
+    revenue.rows[6].style='neg';
 
-    return { 'Assumptions':assumptions, 'Cashflow':cashflow, 'Returns':returns };
+    const opexDetail={ cols, headers, rows:numbered([
+      {cells:['','OPERATING EXPENSES'].concat(years.map(()=>'')),style:'section'},
+      Object.assign(rowF('Property Management', pm),{formulas:['','',...years.map(y=>`=-Revenue!${yc(y)}8*${pmRate}`)],style:'neg'}),
+      rowF('Utilities & Maintenance', util, f2),
+      rowF('Insurance & Statutory', ins, f2),
+      rowF('Marketing & Leasing', mkt, f2),
+      rowF('Admin & Staffing', admin, f2),
+      rowF('Ground Rent', ground, f2),
+      Object.assign(rowF('Total Operating Expenses', totOpex),{formulas:['','',...years.map(y=>`=SUM(${yc(y)}2:${yc(y)}7)`)],style:'total-neg'}),
+    ].map(r=>{ r.style=r.style||'neg'; return r; }))};
+
+    const cashflow={ cols, headers, rows:numbered([
+      {cells:['','NET OPERATING INCOME'].concat(years.map(()=>'')),style:'section'},
+      Object.assign(rowF('Effective Gross Income', egi),{formulas:['','',...years.map(y=>`=Revenue!${yc(y)}8`)],style:'data'}),
+      Object.assign(rowF('Total Operating Expenses', totOpex),{formulas:['','',...years.map(y=>`='Opex Detail'!${yc(y)}8`)],style:'neg'}),
+      Object.assign(rowF('Net Operating Income', noi),{formulas:['','',...years.map(y=>`=${yc(y)}2+${yc(y)}3`)],style:'total-pos'}),
+      Object.assign(rowF('Capex Reserve', capex),{formulas:['','',...years.map(y=>`=-${yc(y)}2*${capexRatio}`)],style:'neg'}),
+      Object.assign(rowF('Adjusted NOI', adjNoi),{formulas:['','',...years.map(y=>`=${yc(y)}4+${yc(y)}5`)],style:'total'}),
+      {cells:['','FINANCING'].concat(years.map(()=>'')),style:'section'},
+      Object.assign(rowF('Debt Service', ds),{formulas:['','',...years.map(y=>`='Debt Schedule'!${yc(y)}2+'Debt Schedule'!${yc(y)}3`)],style:'neg'}),
+      Object.assign(rowF('Cash Flow to Equity', cfe),{formulas:['','',...years.map(y=>`=${yc(y)}6+${yc(y)}8`)],style:'total-pos'}),
+      Object.assign(rowF('Cumulative CF to Equity', cumCfe),{formulas:['','', `=B9`, ...years.slice(1).map(y=>`=${yc(y-1)}10+${yc(y)}9`)],style:'data'}),
+    ])};
+
+    const debtSchedule={ cols, headers, rows:numbered([
+      {cells:['','SENIOR DEBT'].concat(years.map(()=>'')),style:'section'},
+      rowF('Opening Balance', openBal, f2),
+      Object.assign(rowF('Interest', interest),{formulas:['','',...years.map(y=>`=${yc(y)}2*${rate}`)],style:'neg'}),
+      Object.assign(rowF('Principal', principal),{style:'neg'}),
+      Object.assign(rowF('Closing Balance', closeBal),{formulas:['','',...years.map(y=>`=${yc(y)}2+${yc(y)}4`)],style:'total'}),
+      Object.assign(rowF('DSCR', dscr, v=>v.toFixed(2)+'x'),{formulas:['','',...years.map(y=>`=Cashflow!${yc(y)}6/(-${yc(y)}3-${yc(y)}4)`)],style:'data'}),
+    ].map(r=>{ r.style=r.style||'data'; return r; }))};
+
+    const returns={ cols, headers, rows:numbered([
+      {cells:['','ANNUAL RETURNS'].concat(years.map(()=>'')),style:'section'},
+      Object.assign(rowF('Yield-on-Cost', yoc, v=>v.toFixed(1)+'%'),{formulas:['','',...years.map(y=>`=Cashflow!${yc(y)}4/Assumptions!B2`)],style:'data'}),
+      Object.assign(rowF('Debt Yield', debtYield, v=>v.toFixed(1)+'%'),{style:'data'}),
+      Object.assign(rowF('DSCR', dscr, v=>v.toFixed(2)+'x'),{style:'data'}),
+      Object.assign(rowF('NOI (SAR M)', noi),{formulas:['','',...years.map(y=>`=Cashflow!${yc(y)}4`)],style:'data'}),
+      {cells:['','EXIT & PROJECT RETURNS'].concat(years.map(()=>'')),style:'section'},
+      {cells:['','Exit Value (SAR M)', exitVal.toFixed(1)].concat(years.slice(1).map(()=>'')), formulas:['','',`=Cashflow!${yc(N)}4*${(1+anchorEsc).toFixed(2)}/Assumptions!B3`], style:'total'},
+      {cells:['','Net Sale Proceeds (SAR M)', netSale.toFixed(1)].concat(years.slice(1).map(()=>'')), style:'data'},
+      {cells:['','Levered IRR', pct(levIRR,1)].concat(years.slice(1).map(()=>'')), style:'total'},
+      {cells:['','Unlevered IRR', pct(unlevIRR,1)].concat(years.slice(1).map(()=>'')), style:'data'},
+      {cells:['','Equity Multiple', em.toFixed(2)+'x'].concat(years.slice(1).map(()=>'')), style:'total'},
+    ])};
+
+    return { 'Assumptions':assumptions, 'Revenue':revenue, 'Opex Detail':opexDetail, 'Cashflow':cashflow, 'Debt Schedule':debtSchedule, 'Returns':returns };
   }
 
   function renderProjectModelWorkbook(host, pid){
