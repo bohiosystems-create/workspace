@@ -24,7 +24,7 @@
    ========================================================================== */
 export const TIERS = {
   opus: process.env.ANTHROPIC_MODEL_OPUS || 'claude-opus-4-8',
-  sonnet: process.env.ANTHROPIC_MODEL_SONNET || 'claude-sonnet-4-6',
+  sonnet: process.env.ANTHROPIC_MODEL_SONNET || 'claude-sonnet-5',
   haiku: process.env.ANTHROPIC_MODEL_HAIKU || 'claude-haiku-4-5-20251001',
 };
 

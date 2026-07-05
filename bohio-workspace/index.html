@@ -17054,6 +17054,17 @@ Answer as Karaya:`;
       step();
     });
   }
+  // When the AI call fails, say WHY: a 503 means no API key on the server, a 502
+  // means the key is set but the upstream call failed (e.g. a bad model id in the
+  // routing table) — pointing at /api/health makes that debuggable from the UI.
+  function _krFailText(err, fallbackText){
+    const m = String((err && err.message) || '');
+    if (m.indexOf('502') !== -1) {
+      return "The AI proxy reached the server, but the model call failed upstream (502). The API key looks set — check GET /api/health: one of the routed model ids may be invalid for your key, and you can override it with ANTHROPIC_MODEL_SONNET / _OPUS / _HAIKU.";
+    }
+    if (m.indexOf('503') !== -1) return fallbackText || '';
+    return fallbackText || '';
+  }
   async function karayaStreamInto(bot, prompt, task, fallbackText){
     bot.innerHTML = '<span class="kr-stream-text"></span><span class="kr-caret" aria-hidden="true">▍</span>';
     const textEl = bot.querySelector('.kr-stream-text');
@@ -17063,9 +17074,10 @@ Answer as Karaya:`;
       await window.claude.stream({ messages:[{ role:'user', content: prompt }], task },
         {}, (t) => { full += t; textEl.textContent = full; _krScroll(bot); });
     } catch (e) {
+      let failText = _krFailText(e, fallbackText);
       try { full = (await window.claude.complete({ messages:[{ role:'user', content: prompt }], task })) || ''; }
-      catch (e2) { full = ''; }
-      if (!full || !full.trim()) full = fallbackText || '';
+      catch (e2) { full = ''; failText = _krFailText(e2, failText); }
+      if (!full || !full.trim()) full = failText || '';
       await _krTypewriter(textEl, full, bot);
     }
     if (!full || !full.trim()) { full = fallbackText || ''; await _krTypewriter(textEl, full, bot); }

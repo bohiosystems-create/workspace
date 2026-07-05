@@ -109,7 +109,7 @@ Tune it without touching code, via env vars:
 
 ```bash
 # bump a tier's concrete model id
-ANTHROPIC_MODEL_SONNET=claude-sonnet-4-6
+ANTHROPIC_MODEL_SONNET=claude-sonnet-5
 # re-route specific tasks (JSON: task → tier or model id)
 ANTHROPIC_TASK_MODELS='{"home_chat":"opus","file_qa":"haiku"}'
 ```
