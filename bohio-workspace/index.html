@@ -5,6 +5,7 @@
 @keyframes kr-blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
 .kr-caret { display:inline-block; margin-left:1px; animation:kr-blink 1s steps(1) infinite; opacity:0.6; font-weight:400; }
 .kr-stream-text { white-space:pre-wrap; }
+.conn-btn.is-connected { color:#15803d !important; border-color:#bfe3cc !important; background:#eaf6ee !important; }
 
 /* ===== Emulated Karaya chatbot (light, clean) — scoped to #karaya-panel ===== */
 #karaya-panel.kr-emu { background:#faf8f8; color:var(--ink); }
@@ -10373,6 +10374,7 @@
             <div class="editor-actions">
               <button class="action-btn" onclick="openStudio()">Model Studio</button>
               <button class="action-btn" onclick="openCompare()">Compare Versions</button>
+              <button class="action-btn" onclick="openModelApproval()">Submit for Approval</button>
               <button class="action-btn" onclick="openPresentation()">▸ Presentation</button>
               <button class="action-btn">Export</button>
               <button class="action-btn">Add to Workspace</button>
@@ -10389,7 +10391,7 @@
             <div class="formula-bar">
               <span class="cell-ref" id="cell-ref">A1</span>
               <span style="font-size:8px;color:var(--ink-soft);letter-spacing:0.1em;">ƒ</span>
-              <input class="formula-input" id="formula-input" value="">
+              <input class="formula-input" id="formula-input" value="" placeholder="Select a cell — type a value or =formula, press Enter" onkeydown="if(event.key==='Enter')applyFormulaBar()">
             </div>
             <div class="spreadsheet-wrap">
               <table class="spreadsheet" id="spreadsheet"></table>
@@ -13215,6 +13217,132 @@ Answer as Karaya:`;
   let activeSheet = "Summary";
   let selectedCell = null;
 
+  // ============ FORMULA ENGINE — makes the model actually recompute ============
+  function _cellNum(v){
+    if (v == null) return NaN;
+    const s = String(v).replace(/,/g, '').replace(/SAR|%|x/gi, '').trim();
+    const n = parseFloat(s);
+    return isNaN(n) ? NaN : n;
+  }
+  function _getCellVal(sheetName, col, rowNum){
+    const s = SHEET_DATA[sheetName]; if (!s) return NaN;
+    const ci = s.cols.indexOf(col); if (ci < 1) return NaN;
+    const row = s.rows.find(r => r.cells[0] === String(rowNum)); if (!row) return NaN;
+    return _cellNum(row.cells[ci]);
+  }
+  function _refVal(token, curSheet){
+    let sheet = curSheet, cell = token;
+    const bang = token.indexOf('!');
+    if (bang >= 0) { sheet = token.slice(0, bang).replace(/'/g, '').trim(); cell = token.slice(bang + 1); }
+    const m = cell.match(/^([A-Z]+)(\d+)$/); if (!m) return NaN;
+    return _getCellVal(sheet, m[1], m[2]);
+  }
+  // Evaluate a formula string in the context of a sheet; returns a number or null.
+  function evalFormula(formula, curSheet){
+    if (!formula) return null;
+    let e = String(formula).replace(/^=/, '').trim();
+    // SUM(single-column range)
+    e = e.replace(/SUM\(\s*([A-Za-z ]+!)?([A-Z]+)(\d+):([A-Z]+)(\d+)\s*\)/g, (mm, sh, c1, r1, c2, r2) => {
+      const sheet = sh ? sh.replace('!', '').trim() : curSheet;
+      let sum = 0;
+      for (let r = Math.min(+r1, +r2); r <= Math.max(+r1, +r2); r++) { const v = _getCellVal(sheet, c1, r); if (!isNaN(v)) sum += v; }
+      return '(' + sum + ')';
+    });
+    // cell references (Sheet!A1 or A1) → numeric values
+    e = e.replace(/([A-Za-z][A-Za-z0-9 ]*!)?([A-Z]+)(\d+)/g, (mm) => {
+      const v = _refVal(mm, curSheet);
+      return isNaN(v) ? mm : '(' + v + ')';
+    });
+    e = e.replace(/ABS\(/gi, 'Math.abs(').replace(/\bMAX\(/gi, 'Math.max(').replace(/\bMIN\(/gi, 'Math.min(').replace(/\^/g, '**');
+    // any unresolved identifiers (named vars, IRR, etc.) → bail, keep static value
+    if (/[A-Za-z]/.test(e.replace(/Math\.(abs|max|min)/g, ''))) return null;
+    try { const val = Function('"use strict";return(' + e + ')')(); return (typeof val === 'number' && isFinite(val)) ? val : null; }
+    catch (err) { return null; }
+  }
+  function _fmtLike(existing, num){
+    const s = String(existing || '');
+    if (/%$/.test(s)) return (num * 100).toFixed(1) + '%';
+    if (/x$/.test(s)) return num.toFixed(2) + 'x';
+    const dec = /\.\d/.test(s) ? (s.split('.')[1].replace(/[^0-9]/g, '').length || 2) : 2;
+    return num.toFixed(Math.min(dec, 2));
+  }
+  function _recomputeOnce(sheetName){
+    const s = SHEET_DATA[sheetName]; if (!s) return;
+    for (const row of s.rows) {
+      if (!row.formulas) continue;
+      for (let ci = 2; ci < row.formulas.length; ci++) {
+        const f = row.formulas[ci]; if (!f) continue;
+        const val = evalFormula(f, sheetName);
+        if (val != null) row.cells[ci] = _fmtLike(row.cells[ci], val);
+      }
+    }
+  }
+  // Recompute all sheets a few passes so chains and cross-tab refs settle.
+  function recomputeAll(){
+    for (let pass = 0; pass < 6; pass++) { for (const name of Object.keys(SHEET_DATA)) _recomputeOnce(name); }
+  }
+  // Transitive set of cells (as "Sheet!Cell") that depend on the edited cell.
+  function _depsClosure(startRef, startSheet){
+    const seen = new Set();
+    const stack = [{ ref: startRef, sheet: startSheet }];
+    let guard = 0;
+    while (stack.length && guard++ < 500) {
+      const { ref, sheet } = stack.pop();
+      const deps = (typeof findDependents === 'function') ? findDependents(ref, sheet) : [];
+      for (const d of deps) {
+        let dSheet = sheet, dCell = d.ref;
+        const bang = d.ref.indexOf('!');
+        if (bang >= 0) { dSheet = d.ref.slice(0, bang); dCell = d.ref.slice(bang + 1); }
+        const key = dSheet + '!' + dCell;
+        if (!seen.has(key)) { seen.add(key); stack.push({ ref: dCell, sheet: dSheet }); }
+      }
+    }
+    return seen;
+  }
+  // Recompute only the cells downstream of an edit — leaves authored values intact.
+  function recomputeFrom(editedRef, sheetName){
+    const closure = _depsClosure(editedRef, sheetName);
+    for (let pass = 0; pass < 6; pass++) {
+      for (const key of closure) {
+        const bang = key.indexOf('!');
+        const sh = key.slice(0, bang), cell = key.slice(bang + 1);
+        const m = cell.match(/^([A-Z]+)(\d+)$/); if (!m) continue;
+        const s = SHEET_DATA[sh]; if (!s) continue;
+        const ci = s.cols.indexOf(m[1]); if (ci < 1) continue;
+        const row = s.rows.find(r => r.cells[0] === m[2]); if (!row || !row.formulas) continue;
+        const f = row.formulas[ci]; if (!f) continue;
+        const val = evalFormula(f, sh);
+        if (val != null) row.cells[ci] = _fmtLike(row.cells[ci], val);
+      }
+    }
+  }
+  function _reselectCell(ref){
+    const td = document.querySelector('#spreadsheet td[data-ref="' + ref + '"]');
+    if (td) td.click();
+  }
+  // Apply an edit typed into the formula bar (value or =formula), then recompute.
+  function applyFormulaBar(){
+    if (typeof selectedCell === 'undefined' || !selectedCell) return;
+    const raw = (document.getElementById('formula-input').value || '').trim();
+    const ref = selectedCell.ref, sheetName = selectedCell.sheetName || activeSheet;
+    const m = ref.match(/^([A-Z]+)(\d+)$/); if (!m) return;
+    const sheet = SHEET_DATA[sheetName]; if (!sheet) return;
+    const ci = sheet.cols.indexOf(m[1]); if (ci < 1) return;
+    const row = sheet.rows.find(r => r.cells[0] === m[2]); if (!row) return;
+    if (!row.formulas) row.formulas = row.cells.map(() => '');
+    if (raw.charAt(0) === '=') {
+      row.formulas[ci] = raw;
+      const v = evalFormula(raw, sheetName);
+      if (v != null) row.cells[ci] = _fmtLike(row.cells[ci] || '0.00', v);
+    } else {
+      row.cells[ci] = raw;
+      row.formulas[ci] = '';
+    }
+    recomputeFrom(ref, sheetName);
+    renderSpreadsheet(activeSheet);
+    _reselectCell(ref);
+  }
+
   function renderSpreadsheet(sheetName) {
     activeSheet = sheetName;
     const sheet = SHEET_DATA[sheetName];
@@ -13279,6 +13407,7 @@ Answer as Karaya:`;
           const rowNum = row.cells[0];
           const formula = (row.formulas && row.formulas[ci]) ? row.formulas[ci] : '';
           td.style.cursor = 'cell';
+          td.dataset.ref = colLetter + rowNum;
           td.onclick = () => selectCell(td, colLetter + rowNum, val, formula, row.cells[1] || '', sheet.name || sheetName || '');
         }
 
@@ -13426,6 +13555,7 @@ Answer as Karaya:`;
     const row = sheet.rows.find(r => r.cells[0] === rowNum); if (!row) return null;
     row.cells[ci] = val;
     if (row.formulas) row.formulas[ci] = ''; // now a hardcoded override
+    if (typeof recomputeFrom === 'function') recomputeFrom(col + rowNum, sheetName); // flow the change through dependents only
     renderSpreadsheet(sheetName);
     return col + rowNum + ' = ' + val + ' (' + (row.cells[1] || 'cell') + ')';
   }
@@ -13466,6 +13596,54 @@ Answer as Karaya:`;
       bot.innerHTML = fmtKaraya(answer) + '<span class="k-meta">Karaya · just now</span>';
       msgs.scrollTop = msgs.scrollHeight;
     })();
+  }
+
+  // ===== Document approval for a model (from My Models / the editor) =====
+  let MODEL_APPR = [];
+  function openModelApproval(){
+    const name=(document.getElementById('ed-title')||{}).textContent||'Financial Model';
+    MODEL_APPR=['SH','NK','FA'].map(k=>({key:k,status:'pending'}));
+    let ov=document.getElementById('mapr-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='mapr-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;';
+      ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; });
+      document.body.appendChild(ov); }
+    ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);width:92%;max-width:460px;">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--ink-hairline);display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">Route model for approval</div><div style="font-family:var(--font-display);font-size:20px;margin-top:3px;">${String(name).replace(/</g,'&lt;')}</div></div>
+        <button onclick="document.getElementById('mapr-overlay').style.display='none'" style="background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;">Close</button>
+      </div>
+      <div style="padding:18px 22px;">
+        <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:10px;">Approvers · investment-model sign-off</div>
+        <div id="mapr-list"></div>
+        <div id="mapr-status" style="margin-top:14px;font-size:11px;color:var(--ink-soft);min-height:16px;"></div>
+        <div style="margin-top:16px;"><button class="dm-btn" id="mapr-send" onclick="modelApprovalSend()">Send for approval</button></div>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+    paintModelApprovers();
+  }
+  function paintModelApprovers(){
+    const el=document.getElementById('mapr-list'); if(!el) return;
+    el.innerHTML=MODEL_APPR.map(a=>{
+      const info=DOC_APPROVERS[a.key]||{init:'?',name:'?',role:''}; const done=a.status==='approved';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--ink-hairline);">
+        <span style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;background:${done?'#15803d':'rgba(0,9,25,0.1)'};color:${done?'#fff':'var(--ink-soft)'};transition:all .3s ease;">${info.init}</span>
+        <div style="flex:1;"><div style="font-size:12px;color:var(--ink);">${info.name}</div><div style="font-size:9px;color:var(--ink-soft);">${info.role}</div></div>
+        <span style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:${done?'#15803d':'var(--ink-soft)'};">${done?'✓ Approved':'Pending'}</span>
+      </div>`;
+    }).join('');
+  }
+  function modelApprovalSend(){
+    const btn=document.getElementById('mapr-send'); if(btn){ btn.disabled=true; btn.textContent='Routing…'; }
+    const status=document.getElementById('mapr-status'); if(status) status.textContent='Routed to approvers — awaiting sign-off…';
+    MODEL_APPR.forEach((a,i)=>setTimeout(()=>{
+      a.status='approved'; paintModelApprovers();
+      if(MODEL_APPR.every(x=>x.status==='approved')){
+        const st=document.getElementById('mapr-status'); if(st) st.innerHTML='<span style="color:#15803d;font-weight:700;">✓ Model approved by all approvers.</span>';
+        if(btn) btn.textContent='Approved ✓';
+      }
+    }, 800+i*950));
   }
 
   // MODEL STUDIO
@@ -15572,6 +15750,27 @@ Answer as Karaya:`;
               <button class="settings-action">Review</button>
             </div>
           </div>
+
+          <div class="settings-title" style="margin-top:26px;">Connectors</div>
+          <div class="settings-section">
+            <div class="settings-row-sub" style="margin:-4px 0 12px;">Sync deals, budgets and rent rolls straight from your systems of record.</div>
+            ${[
+              {k:'netsuite', name:'Oracle NetSuite', cat:'ERP · General Ledger', mark:'N', connected:true, meta:'Synced 2h ago · GL, AP/AR, budgets'},
+              {k:'yardi', name:'Yardi Voyager', cat:'Property Management', mark:'Y', connected:true, meta:'Synced 40m ago · rent roll, leases, opex'},
+              {k:'sap', name:'SAP S/4HANA', cat:'ERP · Finance', mark:'S', connected:false, meta:'Cost ledger, commitments, actuals'},
+              {k:'mri', name:'MRI Software', cat:'Property Management', mark:'M', connected:false, meta:'Lease admin, CAM reconciliations'},
+            ].map(c => `
+              <div class="settings-row" id="conn-${c.k}">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <div style="width:34px;height:34px;border:1px solid var(--ink-hairline);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:16px;color:var(--ink);background:var(--paper);">${c.mark}</div>
+                  <div>
+                    <div class="settings-row-label">${c.name}</div>
+                    <div class="settings-row-sub">${c.cat} · <span class="conn-meta">${c.meta}</span></div>
+                  </div>
+                </div>
+                <button class="settings-action conn-btn ${c.connected?'is-connected':''}" onclick="toggleConnector('${c.k}','${c.name}')">${c.connected?'✓ Connected':'Connect'}</button>
+              </div>`).join('')}
+          </div>
         </div>`;
       m.addEventListener('click', closeSettingsModal);
       document.body.appendChild(m);
@@ -15584,6 +15783,23 @@ Answer as Karaya:`;
   function closeSettingsModal() {
     const m = document.getElementById('settings-modal');
     if (m) m.classList.remove('open');
+  }
+  function toggleConnector(k, name){
+    const btn = document.querySelector('#conn-' + k + ' .conn-btn');
+    if (!btn) return;
+    const connected = btn.classList.toggle('is-connected');
+    if (connected) {
+      btn.textContent = 'Connecting…';
+      setTimeout(() => {
+        btn.textContent = '✓ Connected';
+        const meta = document.querySelector('#conn-' + k + ' .conn-meta');
+        if (meta) meta.textContent = 'Synced just now';
+      }, 900);
+    } else {
+      btn.textContent = 'Connect';
+      const meta = document.querySelector('#conn-' + k + ' .conn-meta');
+      if (meta) meta.textContent = 'Not connected';
+    }
   }
   function toggleTheme() {
     const isDark = document.documentElement.classList.toggle('dark-mode');
@@ -17052,19 +17268,9 @@ Answer as Karaya:`;
     if (!data) { wrap.style.display = 'none'; return; }
     wrap.style.display = '';
     document.getElementById('proj-brief-date').textContent = data.date;
-    // Image strip
+    // Image strip removed — no AI-generated imagery at the top of a project.
     const imgEl = document.getElementById('proj-brief-images');
-    const items = PROJECT_BRIEF_IMAGES[projectId] || ['Site', 'Massing', 'Programme', 'Comp'];
-    imgEl.innerHTML = items.map((entry, i) => {
-      const label = typeof entry === 'string' ? entry : entry.label;
-      const src   = typeof entry === 'string' ? '' : (entry.src || '');
-      return `
-      <div class="kr-brief-img">
-        <image-slot id="brief-img-p${projectId}-${i}" shape="rounded" radius="10"
-          placeholder="Drop image"${src?` src="${src}"`:''} fit="cover"></image-slot>
-        <div class="kr-brief-img-label">${label}</div>
-      </div>`;
-    }).join('');
+    if (imgEl) { imgEl.innerHTML = ''; imgEl.style.display = 'none'; }
     document.getElementById('proj-brief-lede').innerHTML = data.lede;
     const itemsEl = document.getElementById('proj-brief-items');
     if (!data.items || data.items.length === 0) {
