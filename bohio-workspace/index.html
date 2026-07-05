@@ -7042,6 +7042,8 @@
                 border-color 0.2s ease;
   }
   .app-shell.karaya-hidden ~ .karaya-open-fab { display: inline-flex; }
+  /* Home page: only the central Karaya — no side-panel opener */
+  body.on-landing .karaya-open-fab { display: none !important; }
   .karaya-open-fab:hover {
     transform: translateY(-2px);
     border-color: rgba(230,226,226,0.32);
@@ -10095,10 +10097,6 @@
       </div>
       <div id="landing-karaya-msgs" style="width:100%;max-width:640px;display:flex;flex-direction:column;gap:10px;margin-top:18px;text-align:left;"></div>
 
-      <div style="width:100%;max-width:640px;display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;">
-        <button class="landing-quick" onclick="goTo('screening')" style="flex:1;min-width:200px;background:transparent;border:1px solid var(--ink-hairline);padding:14px 16px;font-family:inherit;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink);cursor:pointer;text-align:left;transition:all 0.18s ease;" onmouseenter="this.style.borderColor='var(--ink)';this.style.transform='translateY(-2px)'" onmouseleave="this.style.borderColor='var(--ink-hairline)';this.style.transform='none'">Screen a deal against our mandate →</button>
-        <button class="landing-quick" onclick="goTo('funds')" style="flex:1;min-width:200px;background:transparent;border:1px solid var(--ink-hairline);padding:14px 16px;font-family:inherit;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink);cursor:pointer;text-align:left;transition:all 0.18s ease;" onmouseenter="this.style.borderColor='var(--ink)';this.style.transform='translateY(-2px)'" onmouseleave="this.style.borderColor='var(--ink-hairline)';this.style.transform='none'">Review funds &amp; stakeholders →</button>
-      </div>
       </div>
 
       <div class="landing-stats" style="margin-top:64px;visibility:hidden;height:0;overflow:hidden;">
@@ -10448,7 +10446,6 @@
               </div>
             </div>
             <div class="editor-actions">
-              <button class="action-btn" onclick="openStudio()">Model Studio</button>
               <button class="action-btn" onclick="openCompare()">Compare Versions</button>
               <button class="action-btn" onclick="openModelApproval()">Submit for Approval</button>
               <button class="action-btn" onclick="openPresentation()">▸ Presentation</button>
@@ -11493,6 +11490,7 @@
       const badge = d.isNew ? '<div class="doc-new-badge">New · from consultant</div>' : '';
       sq.innerHTML=`${badge}<div class="doc-preview">${buildPreview(d.type)}</div><div class="doc-foot"><div class="doc-name">${d.name}</div><div class="doc-meta"><span>${d.type}</span><span>${d.version}</span></div></div>`;
       sq.addEventListener('click',()=>{
+        if (d.isReadable) { openReadableDoc(d); return; }
         if (d.isFeasibility) { openFeasibilityDoc(d); return; }
         if (d.isGenerated) { openEditor(d); return; }
         openProjectFileDrawer(d);
@@ -12263,9 +12261,9 @@
       </div>
       ${rows}
     </div>
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap;">
-      <button class="dm-btn" onclick="buildLeaseCashflow('${prefix}')">Build cashflow model →</button>
-      <span style="font-size:11px;color:var(--ink-soft);">Karaya reads the selected leases and projects contracted income.</span>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--ink-soft);">✦ Ask Karaya (right) to build it — e.g.</span>
+      <button class="k-chip" style="border:1px solid var(--ink-hairline);border-radius:999px;background:transparent;color:var(--ink);font-family:inherit;font-size:11px;padding:8px 14px;cursor:pointer;" onclick="karayaAsk('Build a cashflow model from the selected lease agreements')">“Build a cashflow model from the selected lease agreements”</button>
     </div>
     <div id="${prefix}-cashflow"></div>`;
   }
@@ -13195,6 +13193,10 @@ Reply as the agent:`;
     // the multi-source ingestion → Bohio financial model + cashflow.
     if (typeof _maybeBuildProjectModel === 'function' && _maybeBuildProjectModel(q, bot, msgs)) return;
 
+    // In any project, asking for a cashflow model from the leases/contracts
+    // builds it in the Contracts section (the demo runs by prompt, not button).
+    if (typeof _maybeBuildLeaseFromChat === 'function' && _maybeBuildLeaseFromChat(q, bot, msgs)) return;
+
     // If the question is addressed to a department, Karaya consults that
     // department's agent — honouring what it's allowed to disclose (Settings).
     if (typeof _routeToDeptAgent === 'function' && _routeToDeptAgent(q, bot, msgs)) return;
@@ -13235,8 +13237,22 @@ Answer as Karaya:`;
         name:'Corniche Gateway', loc:'Jeddah · Corniche', lead:uname, phase:'Phase 01/06', members:'01', isNewProject:true,
         desc:"Newly created project. The seller's property valuation and the anchor landlord agreement are already in the data room — ask Karaya (right) to build the financial projections and cashflow from them.",
         docs:[
-          {type:'PDF',  name:'Property Valuation Report', version:'42 pp · Knight Frank', updated:'Just now · Data room', isValuation:true},
-          {type:'DOCX', name:'Anchor Landlord Agreement',  version:'18 pp · Executed',    updated:'Just now · Data room', isLandlord:true},
+          {type:'PDF',  name:'Property Valuation Report', version:'42 pp · Knight Frank', updated:'Just now · Data room', isValuation:true, isReadable:true,
+            docBody:`<p><strong>Valuation summary.</strong> We assess the Market Value of Corniche Gateway — a mixed-use waterfront asset on the North Corniche, Jeddah — at <strong>SAR 182,000,000</strong> as at the valuation date, on the basis of Market Value per RICS Red Book and TAQEEM standards.</p>
+<p><strong>Methodology.</strong> Income capitalisation cross-checked against comparable transactions. Stabilised net operating income is capitalised at <strong>6.75%</strong>, reflecting recent Corniche-corridor trades (6.4%–7.1%) adjusted for the asset's anchor covenant strength.</p>
+<p><strong>Income assumptions.</strong> Contracted anchor rent of <strong>SAR 6.4M p.a.</strong> (10-year term, 3% escalations — see the Anchor Landlord Agreement). Specialty retail, F&B and parking assessed at market: <strong>SAR 4.9M</strong> stabilised, with current occupancy at <strong>93%</strong> per the managing agent's rent roll.</p>
+<p><strong>Comparables.</strong> (i) Corniche Plaza North — SAR 168M, 6.9% cap; (ii) Al Shati Mixed-Use — SAR 214M, 6.4% cap; (iii) Red Sea Gateway Retail — SAR 96M, 7.1% cap.</p>
+<p><strong>Key risks.</strong> Single-anchor concentration (41% of income); F&B lease-up over months 1–24; potential service-charge leakage pending recovery audit.</p>
+<p><em>Knight Frank — Valuation & Advisory, Jeddah. 42 pages. This summary is an extract of the executed report held in the data room.</em></p>`},
+          {type:'DOCX', name:'Anchor Landlord Agreement',  version:'18 pp · Executed',    updated:'Just now · Data room', isLandlord:true, isReadable:true,
+            docBody:`<p><strong>Parties.</strong> Corniche Gateway HoldCo (the "Landlord") and Al Manar Retail Group (the "Tenant").</p>
+<p><strong>Premises & term.</strong> Anchor unit of 8,400 sqm GLA, ground and first floors. Term of <strong>10 years</strong> from handover, with one 5-year renewal option at the Tenant's election on 12 months' notice.</p>
+<p><strong>Rent.</strong> Base rent of <strong>SAR 6,400,000 per annum</strong>, payable quarterly in advance, escalating at <strong>3% per annum</strong> compounded on each anniversary of the commencement date.</p>
+<p><strong>Break option.</strong> Tenant break at the end of <strong>Year 5</strong>, on 9 months' written notice and payment of a break premium equal to 6 months' then-passing rent.</p>
+<p><strong>Permitted use.</strong> Department store, supermarket and ancillary F&B. Exclusivity within the scheme for grocery anchor use.</p>
+<p><strong>Repairs & service charge.</strong> Tenant responsible for internal repair; Landlord for structure and common parts, recoverable via service charge capped at SAR 240/sqm p.a., indexed to CPI.</p>
+<p><strong>Security.</strong> Bank guarantee equal to 6 months' rent, maintained throughout the term.</p>
+<p><em>Executed counterpart, 18 pages. Governing law: Kingdom of Saudi Arabia.</em></p>`},
         ],
       };
       STAKEHOLDERS[NEW_PROJECT_ID] = [
@@ -13316,6 +13332,49 @@ Answer as Karaya:`;
     const irr=irrRow?(irrRow.cells[6]||irrRow.cells[2]||'—'):'—';
     bot.innerHTML=fmtKaraya(`Done — I've built **Financial Projections — Karaya** for Corniche Gateway from the valuation, the anchor landlord agreement, ERP occupancy, Paseetah market comps and the model library. Year-1 NOI comes in at **SAR ${noi1}M**, with a project **IRR of ${irr}**. The full 5-year cashflow is open in the **Financial Models** section — you can chat to me there to rework it or export it to Excel.`)+'<span class="k-meta">Karaya · just now</span>';
     msgs.scrollTop=msgs.scrollHeight;
+  }
+
+  // Readable-document viewer: agreements & reports open as typeset documents
+  // you can consult directly (and hand to Karaya for a summary).
+  function openReadableDoc(d){
+    let ov=document.getElementById('rdoc-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='rdoc-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+      ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; });
+      document.body.appendChild(ov); }
+    ov.innerHTML=`<div style="background:#fdfcfa;border:1px solid var(--ink-hairline);max-width:780px;width:100%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:18px 26px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="min-width:0;">
+          <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">${d.type||'Document'} · ${d.version||''}</div>
+          <div style="font-family:var(--font-display);font-size:22px;margin-top:3px;line-height:1.2;">${String(d.name).replace(/</g,'&lt;')}</div>
+        </div>
+        <button class="action-btn" onclick="document.getElementById('rdoc-overlay').style.display='none'">Close</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:26px 30px;font-size:13px;line-height:1.75;color:#1a1f2b;">${d.docBody||'<p>No preview available.</p>'}</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 26px;border-top:1px solid var(--ink-hairline);">
+        <button class="dm-btn" onclick="document.getElementById('rdoc-overlay').style.display='none';karayaAsk('Summarise the key terms and risks of \\'${String(d.name).replace(/'/g,'')}\\' for me')">✦ Ask Karaya about this document</button>
+        <span style="font-size:10px;color:var(--ink-soft);">Karaya reads the full document, not just this extract.</span>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+  }
+
+  // Chat-triggered lease cashflow: "build a cashflow model from the leases"
+  // in the right-hand Karaya builds it in the open project's Contracts section.
+  function _maybeBuildLeaseFromChat(q, bot, msgs){
+    if(!/(build|create|generate|make)/i.test(q)) return false;
+    if(!/(cash ?flow|cashflow)/i.test(q)) return false;
+    if(!/(lease|contract|tenanc)/i.test(q)) return false;
+    if(!currentProject || !document.getElementById('page-project') || !document.getElementById('page-project').classList.contains('active')) return false;
+    // make sure the Contracts section is open and rendered
+    if (typeof selectProjectSection==='function') selectProjectSection('contracts');
+    setTimeout(()=>{ if(typeof buildLeaseCashflow==='function') buildLeaseCashflow('pcm'); }, 250);
+    const n=document.querySelectorAll('#proj-contract-mgmt .pcm-check:checked').length;
+    const txt=`On it — reading the ${n||'selected'} lease agreements and the master financial model, and building the updated cashflow in the **Contracts** section now. I'll flag the key movement when it lands.`;
+    bot.innerHTML=fmtKaraya(txt)+'<span class="k-meta">Karaya · just now</span>';
+    KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:txt});
+    msgs.scrollTop=msgs.scrollHeight;
+    return true;
   }
 
   // Build the projection workbook from the "read" sources — a full 10-year,
@@ -19293,6 +19352,54 @@ Return a strict JSON array of objects: [{"author":"<participant_id>","text":"<me
     if (typeof updateProjectSectionCounts === 'function') updateProjectSectionCounts(pid);
     selectProjectSection('topics');
     openTopic(id);
+    _topicLiveKickoff(topic);
+  }
+  // Live room fill: after a topic is created, the invitees actually arrive —
+  // AI agents introduce themselves (via the model when live), and a real human
+  // joins too (off-platform humans respond over the email bridge).
+  function _topicPaint(topic){
+    topic.lastUpdate='Just now';
+    if (typeof currentTopic!=='undefined' && currentTopic && currentTopic.id===topic.id) renderTopicMessages();
+    if (currentProject) renderTopics(currentProject);
+  }
+  async function _topicLiveKickoff(topic){
+    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+    const ids=topic.participants.filter(pid=>pid!=='karaya'&&pid!=='sponsor');
+    // guarantee an actual human in the room alongside the AI agents
+    const hasHuman=ids.some(pid=>{const p=TOPIC_PARTICIPANT_LIB[pid];return p&&(p.kind==='external'||p.kind==='user');});
+    if(!hasHuman && !ids.includes('opsmgr')){ topic.participants.push('opsmgr'); ids.push('opsmgr'); }
+    for(const pid of ids.slice(0,5)){
+      const p=TOPIC_PARTICIPANT_LIB[pid]; if(!p) continue;
+      const canned={
+        bohio:`Joining for ${p.org}. On “${topic.subject}” — I hold our side's current position and numbers; sending a first read next.`,
+        internal:`${p.name} connected — pulling our team's context on this now, first read to follow.`,
+        extai:`Connected. Querying ${p.org} for data relevant to “${topic.subject}” — first cut incoming.`,
+        external:`Thanks for looping me in — I've read the thread. I'll revert with our numbers today; call me if it's urgent. — ${p.name.split(' ')[0]}`,
+        user:`${p.name.split(' ')[0]} here (human) — following live. I'll bring the operating numbers wherever they're needed.`,
+      }[p.kind]||'Joining the room.';
+      await sleep(1000);
+      if(p.kind==='external'){
+        topic.messages.push({author:'karaya',ts:'Just now',isAction:true,text:`Invited <b>${p.name}</b> (${p.org}) via the Bohio email bridge — off-platform, replies arrive as email.`});
+        _topicPaint(topic);
+        await sleep(2600);
+        topic.messages.push({author:pid,ts:'Just now',text:`<em>via email bridge</em> — ${canned}`});
+        _topicPaint(topic);
+      } else if(p.kind==='user'){
+        topic.messages.push({author:'karaya',ts:'Just now',isAction:true,text:`<b>${p.name}</b> (${p.org}) joined the room.`});
+        _topicPaint(topic);
+        await sleep(1600);
+        topic.messages.push({author:pid,ts:'Just now',text:canned});
+        _topicPaint(topic);
+      } else {
+        let txt='';
+        try{ txt=await window.claude.complete(`You are "${p.name}" (${p.org}), an AI agent joining a new topic room "${topic.title}" in a real-estate investment workspace. The subject: ${topic.subject}. Write your 1-2 sentence in-character opening message — introduce what you can contribute and one concrete first input. Plain text, no quotes, no name prefix.`,{task:'agent_chat',max_tokens:120}); }catch(e){}
+        if(!txt||!txt.trim()) txt=canned;
+        topic.messages.push({author:pid,ts:'Just now',text:txt});
+        _topicPaint(topic);
+      }
+    }
+    topic.status='Live · all participants joined';
+    _topicPaint(topic);
   }
   // Each stakeholder in Marina Tower has their own AI agent that represents
   // their principal's interests. Agents present, discuss, and negotiate.
