@@ -10275,7 +10275,7 @@
 
       <!-- ============ BOHIO AUTOMATES — 5 workflows ============ -->
       <div class="section-header"><h2 class="section-title">Bohio Workflows</h2>
-        <span class="section-meta">Six AI workflows · click any to run it live</span></div>
+        <span class="section-meta">Seven AI workflows · click any to run it live</span></div>
       <div class="wf-grid" id="wf-grid">
         <button class="wf-card" onclick="runWorkflow('ingest')">
           <div class="wf-n">01</div><div class="wf-h">Valuation</div>
@@ -10300,6 +10300,10 @@
         <button class="wf-card" onclick="runWorkflow('screening')">
           <div class="wf-n">06</div><div class="wf-h">Deal screening</div>
           <div class="wf-d">Screens an incoming deal against the firm's investment mandate — ticket size, geography, IRR hurdle, asset class — and returns a committee-ready PROCEED / REVIEW / PASS verdict.</div>
+          <div class="wf-cta">Run workflow →</div></button>
+        <button class="wf-card" onclick="runWorkflow('fundmgmt')">
+          <div class="wf-n">07</div><div class="wf-h">Fund management</div>
+          <div class="wf-d">Rolls every fund up live — committed vs. drawn capital, portfolio NAV, LP capital accounts and net IRR — into one command view.</div>
           <div class="wf-cta">Run workflow →</div></button>
       </div>
 
@@ -15532,6 +15536,30 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
       return '### TAB: '+name+' ('+lines.length+' populated rows)\n'+body.trimEnd();
     }).join('\n\n');
   }
+  // Compact full-model map: EVERY tab and row label with first→last values, a
+  // few chars per line. Cheap enough to prepend to every AI call, so the model
+  // always has the full scope — any question can be answered from any tab.
+  function dumpWorkbookIndex(limit){
+    const cap=limit||6000; let used=0; const out=[];
+    for(const name of Object.keys(SHEET_DATA)){
+      const s=SHEET_DATA[name]; const lines=['## '+name];
+      for(const r of (s.rows||[])){
+        if(r.style==='empty') continue;
+        const lbl=_rowLabel(r); if(!lbl) continue;
+        const nums=_rowNums(r);
+        const ln='- '+lbl+(nums.length? ': '+(nums.length>2? nums[0]+' … '+nums[nums.length-1]+' ('+nums.length+' periods)' : nums.join(', ')) : '');
+        lines.push(ln);
+      }
+      const block=lines.join('\n');
+      if(used+block.length>cap){ out.push('## '+name+' (…more rows not shown)'); continue; }
+      out.push(block); used+=block.length;
+    }
+    return out.join('\n');
+  }
+  // Shared RE-lingo glossary for the AI prompts, so asked-for terms map onto
+  // the model's actual labels even when they're named differently.
+  const RE_LINGO_NOTE='Real-estate synonyms — treat these as the SAME metric when mapping the question to the model\'s row labels: project IRR = unlevered IRR = ungeared/asset/property IRR; equity IRR = levered/geared IRR; equity multiple = MOIC; NOI = net operating income = net rental income; EBITDA ≈ GOP (gross operating profit); exit value = terminal value = reversion value = (net) sale proceeds; cap rate = capitalisation rate = exit yield; yield-on-cost = development yield = return on cost; DSCR = debt service coverage = interest cover; ADR = average daily rate = room rate; revenue = gross income = EGI = turnover; opex = operating costs = outgoings; LTV = loan-to-value = gearing; capex = construction/development cost. Answer with the model\'s own label and note the equivalence.';
+
   // Offline description of the open model, read straight from its cells, so the
   // demo still describes the actual model without a live API key.
   function _describeModelFallback(){
@@ -15591,29 +15619,42 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
   // Known financial metrics → the regex that finds their row. Ordered so more
   // specific names win. Lets "what is the project IRR" locate the IRR line even
   // when other rows mention "project".
+  // Real-estate lingo: `re` matches the QUESTION, `lbl` matches the model's ROW
+  // LABELS (all the synonyms), `prefer` ranks the right variant first. So
+  // "project IRR" finds a row labelled "Unlevered IRR" and vice versa.
   const _METRICS=[
-    {k:'IRR', re:/\b(irr|roi|internal rate of return|return on investment)\b/i},
-    {k:'equity multiple', re:/\b(equity multiple|moic)\b/i},
-    {k:'DSCR', re:/\b(dscr|debt[- ]service coverage)\b/i},
-    {k:'yield-on-cost', re:/\b(yield[- ]?on[- ]?cost|yoc)\b/i},
-    {k:'debt yield', re:/\bdebt yield\b/i},
-    {k:'cap rate', re:/\b(exit cap|cap(italisation)? rate)\b/i},
-    {k:'NOI', re:/\b(noi|net operating income)\b/i},
-    {k:'EBITDA', re:/\bebitda\b/i},
-    {k:'NPV', re:/\bnpv\b/i},
-    {k:'payback', re:/\bpayback\b/i},
-    {k:'cash flow to equity', re:/\b(cash ?flow to equity|levered cash ?flow|free cash ?flow|cfe)\b/i},
-    {k:'gross margin', re:/\bgross margin\b/i},
-    {k:'revenue', re:/\b(total revenue|gross income|effective gross|revenue)\b/i},
-    {k:'operating expenses', re:/\b(total opex|operating expenses|opex)\b/i},
-    {k:'exit value', re:/\bexit (value|proceeds)\b/i},
+    {k:'project (unlevered) IRR', re:/\b(project|unlevered|ungeared|asset|property|deal)[\s-]*irr\b/i, lbl:/\birr\b|internal rate of return/i, prefer:/\b(project|unlevered|ungeared|asset|property|deal)\b/i},
+    {k:'equity (levered) IRR', re:/\b(equity|levered|geared|investor|lp)[\s-]*irr\b/i, lbl:/\birr\b|internal rate of return/i, prefer:/\b(equity|levered|geared|investor|lp)\b/i},
+    {k:'IRR', re:/\b(irr|internal rate of return|roi|return on investment)\b/i, lbl:/\birr\b|internal rate of return|\broi\b/i},
+    {k:'equity multiple', re:/\b(equity multiple|moic|multiple on invested capital)\b/i, lbl:/equity multiple|moic|\bmultiple\b/i},
+    {k:'DSCR', re:/\b(dscr|debt[- ]service coverage|interest cover(age)?|icr)\b/i, lbl:/dscr|debt[- ]service|interest cover|\bicr\b/i},
+    {k:'yield-on-cost', re:/\b(yield[- ]?on[- ]?cost|yoc|development yield|return on cost|stabili[sz]ed yield)\b/i, lbl:/yield[- ]?on[- ]?cost|\byoc\b|development yield|return on cost|stabili[sz]ed yield/i},
+    {k:'debt yield', re:/\bdebt yield\b/i, lbl:/debt yield/i},
+    {k:'cash-on-cash', re:/\b(cash[- ]on[- ]cash|cash yield)\b/i, lbl:/cash[- ]on[- ]cash|cash yield|\bcoc\b/i},
+    {k:'cap rate', re:/\b(exit cap|cap(italis|italiz)?ation rate|cap rate|exit yield)\b/i, lbl:/cap(italis|italiz)?ation rate|cap rate|exit cap|exit yield/i, prefer:/exit|terminal|disposal/i},
+    {k:'NOI', re:/\b(noi|net operating income|net rental income)\b/i, lbl:/\bnoi\b|net operating income|net rental income/i},
+    {k:'EBITDA', re:/\b(ebitda|gross operating profit|gop)\b/i, lbl:/ebitda|gross operating profit|\bgop\b/i},
+    {k:'NPV', re:/\b(npv|net present value)\b/i, lbl:/\bnpv\b|net present value/i},
+    {k:'payback', re:/\bpayback\b/i, lbl:/payback/i},
+    {k:'cash flow to equity', re:/\b(cash ?flow to equity|levered cash ?flow|free cash ?flow|equity cash ?flow|cfe|distributions)\b/i, lbl:/cash ?flow to equity|levered cash ?flow|free cash ?flow|equity cash ?flow|\bcfe\b|distribution/i},
+    {k:'gross margin', re:/\bgross margin\b/i, lbl:/gross margin/i},
+    {k:'revenue', re:/\b(total revenue|gross income|effective gross|egi|topline|turnover|revenue)\b/i, lbl:/revenue|gross income|effective gross|\begi\b|turnover/i},
+    {k:'operating expenses', re:/\b(total opex|operating (expenses|costs)|opex|outgoings)\b/i, lbl:/opex|operating (expenses|costs)|outgoings/i},
+    {k:'exit value', re:/\b(exit (value|proceeds)|terminal value|reversion(ary)? value|sale price|disposal proceeds)\b/i, lbl:/exit (value|proceeds)|terminal value|reversion|sale price|disposal|net sale/i},
+    {k:'ADR', re:/\b(adr|average daily rate|room rate)\b/i, lbl:/\badr\b|average daily rate|room rate/i},
+    {k:'RevPAR', re:/\brevpar\b/i, lbl:/revpar/i},
+    {k:'occupancy', re:/\boccupancy\b/i, lbl:/occupanc/i},
+    {k:'LTV', re:/\b(ltv|loan[- ]to[- ]value|gearing)\b/i, lbl:/\bltv\b|loan[- ]to[- ]value|gearing|leverage/i},
+    {k:'WAULT', re:/\bwault\b|weighted average unexpired/i, lbl:/wault|unexpired lease/i},
+    {k:'capex', re:/\b(capex|capital expenditure|construction cost|development cost|hard cost)\b/i, lbl:/capex|capital expenditure|construction|development cost|hard cost/i},
+    {k:'GAV', re:/\b(gav|gross asset value|market value|asset value)\b/i, lbl:/\bgav\b|gross asset value|market value|asset value|valuation/i},
   ];
   // Metric resolution for solving: the dictionary first, then ANY row label in
   // the model that the question names (so "GOP margin", "stabilised yield" or
   // any custom metric can be goal-sought / flexed too).
   function _metricFromQuestion(q){
     const hit=_METRICS.find(mm=>mm.re.test(q));
-    if(hit) return hit;
+    if(hit) return {k:hit.k, re:hit.lbl||hit.re, prefer:hit.prefer};
     const words=[...new Set((q.match(/[A-Za-z][A-Za-z\-]{3,}/g)||[]))]
       .filter(w=>!/^(what|the|that|does|not|fall|below|above|least|most|keep|charge|lowest|highest|minimum|maximum|target|goal|seek|solve|much|many|never|stay|stays|remain|before|falls|drops|under|over|down|from|with|this|model|value|rate|price)$/i.test(w))
       .sort((a,b)=>b.length-a.length);
@@ -15628,13 +15669,18 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     const words=(q.match(/[A-Za-z][A-Za-z\-]{2,}/g)||[]);
     for(const m of _METRICS){
       if(!m.re.test(q)) continue;
-      const rows=_findRowsByLabel(m.re, words);
+      let rows=_findRowsByLabel(m.lbl||m.re, words);
+      // rank the right variant first (asked "project IRR" → prefer a row
+      // labelled Unlevered/Project/Asset IRR over Equity IRR)
+      if(m.prefer&&rows.length){ const pr=rows.filter(r=>m.prefer.test(r.label)); if(pr.length) rows=pr.concat(rows.filter(r=>!m.prefer.test(r.label))); }
       if(rows.length){
         const best=rows[0];
         const vals=best.nums;
         const series=vals.length>1 ? vals.join(' → ') : vals[0];
         const f=(best.r.formulas||[]).filter(x=>x)[0];
-        return `**${best.label}** (${best.tab}) ${vals.length>1?'runs':'is'} **${series}**`+(f?`, calculated as \`${f}\``:'')+`.`+(rows.length>1?` (There ${rows.length-1===1?'is 1 other line':'are '+(rows.length-1)+' other lines'} referencing ${m.k} too — ask for one specifically if you meant a different tab.)`:'');
+        // if the model labels it differently than the user asked, say so
+        const synNote=!m.re.test(best.label)?` — that's the model's **${m.k}** line (same thing, different label)`:'';
+        return `**${best.label}** (${best.tab}) ${vals.length>1?'runs':'is'} **${series}**${synNote}`+(f?`, calculated as \`${f}\``:'')+`.`+(rows.length>1?` (There ${rows.length-1===1?'is 1 other line':'are '+(rows.length-1)+' other lines'} referencing ${m.k} too — ask for one specifically if you meant a different tab.)`:'');
       }
     }
     return null;
@@ -15912,7 +15958,8 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
                   : /rent/i.test(driver.label) ? /rent(al)? (income|revenue)|contracted (income|rent)|lease income/i
                   : /revenue|income/i;
       let rev=null;
-      for(const t of Object.keys(SHEET_DATA)){ for(const r of (SHEET_DATA[t].rows||[])){ const l=_rowLabel(r); if(revRe.test(l)&&!/cumulative/i.test(l)){ const n=_rowNums(r).map(_cellNum).filter(x=>!isNaN(x)); if(n.length>=3){ rev=n; break; } } } if(rev) break; }
+      const _revScan=(re)=>{ for(const t of Object.keys(SHEET_DATA)){ for(const r of (SHEET_DATA[t].rows||[])){ const l=_rowLabel(r); if(re.test(l)&&!/cumulative/i.test(l)){ const n=_rowNums(r).map(_cellNum).filter(x=>!isNaN(x)); if(n.length>=3) return n; } } } return null; };
+      rev=_revScan(revRe) || _revScan(/revenue|income/i);   // driver-specific line, else any revenue line
       const opcf=_operatingCF();
       const base0=_metricValue(metric.k, metric.re);
       if(rev && opcf && base0!=null){
@@ -15922,11 +15969,28 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
         const eq=t0!=null?t0:(_equityAmt()??(window._irrCalib&&window._irrCalib.equity));
         if(eq!=null){
           const k=Math.min(cf.length, rev.length);
-          const irrOf=(x)=>{ const scaled=cf.map((c,i)=> i<k ? c+rev[i]*((x/driver.num)-1)*FT : c);
-            const vec=[-eq].concat(scaled); vec[vec.length-1]+=exit; const r=_irr(vec); return r==null?null:r*100; };
+          // exit value is a cap-rate multiple of final-year NOI, which moves
+          // with the driver — scale it with the same revenue flow-through so
+          // low rents genuinely collapse the exit (constant exit overstates IRR).
+          const irrOf=(x)=>{ const ratio=1+((x/driver.num)-1)*FT;
+            const scaled=cf.map((c,i)=> i<k ? c+rev[i]*((x/driver.num)-1)*FT : c);
+            const vec=[-eq].concat(scaled); vec[vec.length-1]+=exit*Math.max(ratio,0); const r=_irr(vec); return r==null?null:r*100; };
           const f=(x)=>{ const v=irrOf(x); return v==null?NaN:(v-target); };
-          let lo=Math.max(1e-6,driver.num*0.05), hi=driver.num*20, flo=f(lo), fhi=f(hi), sol=null;
-          if(isFinite(flo)&&isFinite(fhi)&&flo*fhi<0){ for(let i=0;i<80;i++){ const mid=(lo+hi)/2,fm=f(mid); if(Math.abs(fm)<1e-4){sol=mid;break;} if(flo*fm<0){hi=mid;fhi=fm;}else{lo=mid;flo=fm;} } if(sol==null) sol=(lo+hi)/2; }
+          // IRR can be undefined at extreme inputs — grid-scan for a valid
+          // sign-change bracket instead of trusting the endpoints.
+          const lo0=Math.max(1e-6,driver.num*0.05), hi0=driver.num*20; let sol=null;
+          const xs=[],fs=[];
+          for(let i=0;i<=48;i++){ const x=lo0+(hi0-lo0)*i/48; const v=f(x); if(isFinite(v)){ xs.push(x); fs.push(v); } }
+          for(let i=1;i<xs.length;i++){ if(fs[i-1]*fs[i]<=0){
+            let a=xs[i-1], b=xs[i], fa=fs[i-1];
+            for(let k2=0;k2<70;k2++){ const m=(a+b)/2, fm=f(m); if(!isFinite(fm)) break; if(Math.abs(fm)<1e-4){ a=b=m; break; } if(fa*fm<0){ b=m; } else { a=m; fa=fm; } }
+            sol=(a+b)/2; break;
+          } }
+          // no crossing anywhere in range → say so honestly (not "can't find")
+          if(sol==null && xs.length){
+            const side=fs[0]>0?'above':'below';
+            return `Across the whole plausible range of **${driver.label}** (${Math.round(lo0).toLocaleString()}–${Math.round(hi0).toLocaleString()}), **${metric.k}** stays **${side} ${target}${unit}** — at the current ${original} it's **${base0.toFixed(1)}${unit}**, and even at the extreme it doesn't cross your floor. The binding constraint is elsewhere (exit value / debt), so any ${driver.label} in that range satisfies it.`;
+          }
           if(sol!=null){
             const solFmt=_fmtLike(original, /%$/.test(String(original))? sol/100 : sol);
             return `The **${op==='gte'?'lowest':op==='lte'?'highest':'exact'} ${driver.label}** that keeps **${metric.k} ${op==='gte'?'≥':op==='lte'?'≤':'='} ${target}${unit}** is **≈ ${solFmt}** (currently ${original} → ${metric.k} ${base0.toFixed(2)}${unit}). *First-order estimate: this model's formula chain doesn't recompute in the browser, so I scaled its revenue line with ${driver.label} at ${(FT*100).toFixed(0)}% flow-through and re-solved the equity cash flows. Upload a fully-linked model for an exact solve.*`;
@@ -16165,6 +16229,9 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     msgs.appendChild(bot);
     msgs.scrollTop = msgs.scrollHeight;
 
+    // Assumption checklist: "build a model from scratch" / "generate the
+    // assumptions" → an in-chat form to fill instead of typing long prompts.
+    if (typeof _maybeAssumptionForm === 'function' && _maybeAssumptionForm(q, msgs)) { bot.remove(); return; }
     // Market-data pull (Paseetah) and deterministic solvers run first (math,
     // not narration) so they work with or without a live API key.
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
@@ -16177,11 +16244,13 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     if(applied && typeof _pushVersion==='function'){ _pushVersion(_preWb, applied.charAt(0).toUpperCase()+applied.slice(1)); saveOpenModel(true); }
     const sheetName = (typeof activeSheet !== 'undefined' && activeSheet) ? activeSheet : Object.keys(SHEET_DATA)[0];
     const modelName = (document.getElementById('ed-title') || {}).textContent || 'the model';
-    // Whole-workbook grounding so "describe the model" sees every tab; single-tab
-    // for focused questions to keep the prompt tight.
+    // Grounding: EVERY call gets the full-model index (all tabs & labels, so
+    // any question about any tab is answerable), plus full detail — the whole
+    // workbook for describe-ish questions, the active sheet otherwise.
     const wantsWhole = !applied && /\b(describe|summar|overview|what (is|does)|explain the model|walk me|tell me about|assumption|risk|driver)\b/i.test(q);
-    const grounding = wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('SHEET (' + sheetName + '):\n' + dumpSheet(sheetName));
-    const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}" (${Object.keys(SHEET_DATA).length} tabs: ${Object.keys(SHEET_DATA).join(', ')}). ${applied ? ('You just applied this change to the model: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'When asked to DESCRIBE or SUMMARISE the model, explain in plain language what it represents (asset/deal type, the horizon), the main revenue and cost drivers, the key assumptions, and the headline returns — citing the actual figures. You can also explain a formula, run a what-if, change a cell ("set B8 to -2.10"), add/remove a metric, or add a sheet.'} Ground every answer strictly in the data below — cite real labels and figures. The data below IS the complete imported workbook (tabs marked "+N more rows" have additional rows not shown; tabs with no populated cells are marked as such): never claim the model failed to load — if a figure isn't visible, name the tab whose lines are closest and answer from what is present. Be specific and concise (3-6 sentences or short bullets), plain text, **bold** key figures. Don't invent line items that aren't present.
+    const grounding = 'MODEL MAP (every tab & line — full scope):\n' + dumpWorkbookIndex() + '\n\n' +
+      (wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('ACTIVE SHEET (' + sheetName + ') in detail:\n' + dumpSheet(sheetName)));
+    const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}" (${Object.keys(SHEET_DATA).length} tabs: ${Object.keys(SHEET_DATA).join(', ')}). ${applied ? ('You just applied this change to the model: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'When asked to DESCRIBE or SUMMARISE the model, explain in plain language what it represents (asset/deal type, the horizon), the main revenue and cost drivers, the key assumptions, and the headline returns — citing the actual figures. You can also explain a formula, run a what-if, change a cell ("set B8 to -2.10"), add/remove a metric, or add a sheet.'} Ground every answer strictly in the data below — cite real labels and figures. The MODEL MAP gives you the full scope of every tab and line; use it to locate any metric wherever it lives. ${RE_LINGO_NOTE} The data below IS the complete imported workbook (tabs marked "+N more rows" have additional rows not shown; tabs with no populated cells are marked as such): never claim the model failed to load — if a figure isn't visible, name the tab whose lines are closest and answer from what is present. Be specific and concise (3-6 sentences or short bullets), plain text, **bold** key figures. Don't invent line items that aren't present.
 
 ${grounding}
 
@@ -16737,14 +16806,16 @@ Answer as Karaya:`;
     bot.className = 'k-msg bot';
     msgs.appendChild(bot);
     msgs.scrollTop = msgs.scrollHeight;
+    if (typeof _maybeAssumptionForm === 'function' && _maybeAssumptionForm(q, msgs)) { bot.remove(); return; }
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
     { const solved = _goalSeek(q) || _sensitivity(q);
       if (solved) { bot.innerHTML = fmtKaraya(solved) + '<span class="k-meta">Karaya · just now</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     const sheetName = (typeof fsActiveSheet !== 'undefined' && fsActiveSheet) ? fsActiveSheet : Object.keys(SHEET_DATA)[0];
     const modelName = (document.getElementById('fs-title') || document.getElementById('ed-title') || {}).textContent || 'the model';
     const wantsWhole = /\b(describe|summar|overview|what (is|does)|explain the model|walk me|tell me about|assumption|risk|driver)\b/i.test(q);
-    const grounding = wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('SHEET (' + sheetName + '):\n' + (typeof dumpSheet === 'function' ? dumpSheet(sheetName) : ''));
-    const prompt = `You are Karaya in the Bohio financial-model editor. The open model is "${modelName}" (${Object.keys(SHEET_DATA).length} tabs: ${Object.keys(SHEET_DATA).join(', ')}), current tab "${sheetName}". When asked to DESCRIBE or SUMMARISE the model, explain what it represents (asset/deal type, horizon), the revenue and cost drivers, the key assumptions and the headline returns — citing the actual figures. Otherwise explain the formula/driver or run the what-if. Ground every answer strictly in the data below. Concise (3-6 sentences or short bullets), plain text, **bold** key figures.\n\n${grounding}\n\nUser: "${q}"\n\nAnswer as Karaya:`;
+    const grounding = 'MODEL MAP (every tab & line — full scope):\n' + (typeof dumpWorkbookIndex==='function' ? dumpWorkbookIndex() : '') + '\n\n' +
+      (wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('ACTIVE SHEET (' + sheetName + ') in detail:\n' + (typeof dumpSheet === 'function' ? dumpSheet(sheetName) : '')));
+    const prompt = `You are Karaya in the Bohio financial-model editor. The open model is "${modelName}" (${Object.keys(SHEET_DATA).length} tabs: ${Object.keys(SHEET_DATA).join(', ')}), current tab "${sheetName}". When asked to DESCRIBE or SUMMARISE the model, explain what it represents (asset/deal type, horizon), the revenue and cost drivers, the key assumptions and the headline returns — citing the actual figures. Otherwise explain the formula/driver or run the what-if. Ground every answer strictly in the data below — the MODEL MAP gives the full scope of every tab and line; use it to locate any metric wherever it lives. ${RE_LINGO_NOTE} Concise (3-6 sentences or short bullets), plain text, **bold** key figures.\n\n${grounding}\n\nUser: "${q}"\n\nAnswer as Karaya:`;
     (async () => {
       const a = await karayaStreamInto(bot, prompt, 'file_qa', _editorLocalAnswer(q));
       bot.innerHTML = fmtKaraya(a) + '<span class="k-meta">Karaya · just now</span>';
@@ -16946,6 +17017,122 @@ Answer as Karaya:`;
 
   // Vibecode a model from scratch: open a blank, fully-editable Bohio workbook
   // and let the user build it entirely by chatting to Karaya.
+  // ===== ASSUMPTION FORM — no more typing long prompts =====
+  // Whenever a model needs assumptions, Karaya renders them as a checklist with
+  // an input next to each item. Type your answers in place, hit Apply, and the
+  // model is generated/updated from them in one go.
+  const ASM_FIELDS = [
+    {k:'name',   label:'Model / asset name',    unit:'',                 def:'New Asset',  text:true},
+    {k:'gfa',    label:'Leasable area (GFA)',   unit:'sqm',              def:'20,000'},
+    {k:'rent',   label:'In-place rent',         unit:'SAR / sqm / yr',   def:'1,800'},
+    {k:'occ',    label:'Stabilised occupancy',  unit:'%',                def:'92'},
+    {k:'growth', label:'Rent growth',           unit:'% p.a.',           def:'3.0'},
+    {k:'opex',   label:'Opex ratio',            unit:'% of revenue',     def:'28'},
+    {k:'cost',   label:'Total project cost',    unit:'SAR M',            def:'250'},
+    {k:'ltv',    label:'Leverage (LTV)',        unit:'%',                def:'60'},
+    {k:'rate',   label:'Interest rate',         unit:'% p.a.',           def:'6.0'},
+    {k:'exitcap',label:'Exit cap rate',         unit:'%',                def:'6.25'},
+    {k:'hold',   label:'Hold period',           unit:'years',            def:'5'},
+  ];
+  function assumptionFormHTML(){
+    const rows = ASM_FIELDS.map(f=>`
+      <div style="display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
+        <div style="flex:1;min-width:0;"><div style="font-size:11px;font-weight:600;">${f.label}</div>${f.unit?`<div style="font-size:8.5px;color:var(--ink-soft);letter-spacing:0.04em;">${f.unit}</div>`:''}</div>
+        <input data-asm="${f.k}" value="${f.def}" style="width:110px;flex-shrink:0;box-sizing:border-box;padding:7px 9px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;text-align:${f.text?'left':'right'};border-radius:6px;" onkeydown="if(event.key==='Enter')applyAssumptionForm(this)">
+      </div>`).join('');
+    return `<div class="asm-form">
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">✦ Assumptions — type your answers, then Apply</div>
+      ${rows}
+      <button onclick="applyAssumptionForm(this)" style="margin-top:11px;width:100%;font-family:inherit;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:999px;padding:10px;cursor:pointer;">Apply — build the model</button>
+    </div>`;
+  }
+  function _asmNum(form,k,dflt){ const el=form.querySelector(`[data-asm="${k}"]`); const n=parseFloat(String((el&&el.value)||'').replace(/[, ]/g,'')); return isNaN(n)?dflt:n; }
+  // Build a full underwriting workbook from the typed assumption set.
+  function _buildWbFromAssumptions(form){
+    const nameEl=form.querySelector('[data-asm="name"]');
+    const v={ name:((nameEl&&nameEl.value)||'New Asset').trim()||'New Asset',
+      gfa:_asmNum(form,'gfa',20000), rent:_asmNum(form,'rent',1800), occ:_asmNum(form,'occ',92)/100,
+      growth:_asmNum(form,'growth',3)/100, opex:_asmNum(form,'opex',28)/100, cost:_asmNum(form,'cost',250),
+      ltv:_asmNum(form,'ltv',60)/100, rate:_asmNum(form,'rate',6)/100, exitcap:_asmNum(form,'exitcap',6.25)/100,
+      hold:Math.min(Math.max(Math.round(_asmNum(form,'hold',5)),3),10) };
+    const N=v.hold, f2=n=>n.toFixed(2);
+    const L=i=>String.fromCharCode(66+i);                       // year i (0-based) → col B..K
+    const cols=['','A',...Array.from({length:N},(_,i)=>L(i))];
+    const headers=['','',...Array.from({length:N},(_,i)=>'Y'+(i+1))];
+    const rev=Array.from({length:N},(_,i)=>v.gfa*v.rent*v.occ/1e6*Math.pow(1+v.growth,i));
+    const op=rev.map(r=>-r*v.opex);
+    const noi=rev.map((r,i)=>r+op[i]);
+    const debt=v.cost*v.ltv, equity=v.cost-debt, ds=-debt*v.rate;
+    const cfe=noi.map(n=>n+ds);
+    const exitVal=noi[N-1]*(1+v.growth)/v.exitcap, netSale=exitVal-debt;
+    const vec=[-equity, ...cfe.slice(0,N-1), cfe[N-1]+netSale];
+    let irr=null; try{ if(typeof _irr==='function') irr=_irr(vec); }catch(e){}
+    const mult=(cfe.reduce((a,b)=>a+b,0)+netSale)/equity;
+    const pad=arr=>['',...arr.map(f2)];
+    const wb={
+      'Assumptions':{ cols:['','A','B','C'], headers:['','Parameter','Value','Source'], rows:[
+        {cells:['1','ASSUMPTIONS','',''],style:'section'},
+        ...[['Asset',v.name],['GFA (sqm)',v.gfa.toLocaleString()],['Rent (SAR/sqm/yr)',v.rent.toLocaleString()],['Occupancy',(v.occ*100).toFixed(0)+'%'],['Rent growth',(v.growth*100).toFixed(1)+'%'],['Opex ratio',(v.opex*100).toFixed(0)+'%'],['Project cost (SAR M)',f2(v.cost)],['LTV',(v.ltv*100).toFixed(0)+'%'],['Interest rate',(v.rate*100).toFixed(2)+'%'],['Exit cap',(v.exitcap*100).toFixed(2)+'%'],['Hold (yrs)',String(N)]].map((r,i)=>({cells:[String(i+2),r[0],String(r[1]),'Your input'],style:'data'})),
+      ]},
+      'Cashflow':{ cols, headers, rows:[
+        {cells:['1','CASHFLOW (SAR M)',...Array(N).fill('')],style:'section'},
+        {cells:['2','Gross Revenue',...rev.map(f2)],style:'data'},
+        {cells:['3','Operating Costs',...op.map(f2)],style:'neg'},
+        {cells:['4','Net Operating Income',...noi.map(f2)],formulas:['','',...Array.from({length:N},(_,i)=>`=${L(i)}2+${L(i)}3`)],style:'total'},
+        {cells:['5','',...Array(N).fill('')],style:'empty'},
+        {cells:['6','Debt Service',...Array(N).fill(f2(ds))],style:'neg'},
+        {cells:['7','Cash Flow to Equity',...cfe.map(f2)],formulas:['','',...Array.from({length:N},(_,i)=>`=${L(i)}4+${L(i)}6`)],style:'total'},
+        {cells:['8','',...Array(N).fill('')],style:'empty'},
+        {cells:['9','Exit Value',...Array(N-1).fill(''),f2(exitVal)],style:'data'},
+        {cells:['10','Net Sale Proceeds',...Array(N-1).fill(''),f2(netSale)],style:'data'},
+        {cells:['11','Net Equity Cash Flow',...cfe.slice(0,N-1).map(f2),f2(cfe[N-1]+netSale)],style:'total'},
+      ]},
+      'Returns':{ cols:['','A','B'], headers:['','Metric','Value'], rows:[
+        {cells:['1','RETURNS',''],style:'section'},
+        {cells:['2','Equity Invested (SAR M)',f2(equity)],style:'data'},
+        {cells:['3','Senior Debt (SAR M)',f2(debt)],style:'data'},
+        {cells:['4','Exit Value (SAR M)',f2(exitVal)],style:'data'},
+        {cells:['5','Equity Multiple',mult.toFixed(2)+'x'],style:'total'},
+        {cells:['6','Project IRR',irr!=null?(irr*100).toFixed(1)+'%':'—'],style:'total'},
+        {cells:['7','Yield on Cost',((noi[0]/v.cost)*100).toFixed(2)+'%'],style:'data'},
+      ]},
+    };
+    return {wb, v, irr, mult, noi1:noi[0]};
+  }
+  function applyAssumptionForm(el){
+    const form=el.closest('.asm-form'); if(!form) return;
+    const {wb,v,irr,mult,noi1}=_buildWbFromAssumptions(form);
+    const prev=(typeof _cloneWb==='function')?_cloneWb(SHEET_DATA):null;
+    _setSheetData(wb);
+    if(typeof recomputeAll==='function') recomputeAll();
+    renderSpreadsheet('Cashflow');
+    if(typeof _pushVersion==='function'&&prev){ _pushVersion(prev,'Applied assumption set — '+v.name); saveOpenModel(true); }
+    const edt=document.getElementById('ed-title'); if(edt&&/untitled/i.test(edt.textContent)) edt.textContent=v.name+' — Model';
+    // lock the form and confirm in chat
+    form.querySelectorAll('input,button').forEach(x=>{ x.disabled=true; x.style.opacity='0.55'; });
+    const msgs=form.closest('.fs-col-body')||document.getElementById('ek-msgs');
+    if(msgs){
+      const bot=document.createElement('div'); bot.className='k-msg bot';
+      bot.innerHTML=fmtKaraya(`Built **${v.name}** from your assumptions — Year-1 NOI **SAR ${noi1.toFixed(1)}M**, equity multiple **${mult.toFixed(2)}x**${irr!=null?`, project IRR **${(irr*100).toFixed(1)}%**`:''} over a ${v.hold}-year hold. The Cashflow tab is live — change any assumption by chatting ("set occupancy to 95%"-style edits work on the cells), goal-seek it, or export to Excel.`)+'<span class="k-meta">Karaya · just now</span>';
+      msgs.appendChild(bot); msgs.scrollTop=msgs.scrollHeight;
+    }
+  }
+  // Chat trigger: "build/vibecode a model (from scratch)" or "generate the
+  // assumptions" in the editor chat → render the form instead of prose.
+  function _maybeAssumptionForm(q, msgs){
+    if(!/\b(assumption|model)\b/i.test(q)) return false;
+    // build a fresh model: "build/vibecode a model from scratch / a new model"
+    const wantsBuild=/\b(build|vibecode|create|start|make)\b[\s\S]*\bmodel\b/i.test(q)&&/\b(scratch|blank|zero|new\b)/i.test(q);
+    // explicitly ask for the fill-in form ("generate the assumptions as a list
+    // I can type into") — NOT questions about the existing model's assumptions.
+    const wantsList=/\bassumptions?\b/i.test(q)&&/\b(form|checklist|as a list|fill (?:in|out)|type in|i can (?:type|fill))\b/i.test(q);
+    if(!wantsBuild&&!wantsList) return false;
+    const bot=document.createElement('div'); bot.className='k-msg bot';
+    bot.innerHTML='Here are the assumptions I need — type your answer next to each and hit Apply. I\'ll build the full model (Assumptions · Cashflow · Returns) from them in one pass.'+assumptionFormHTML()+'<span class="k-meta">Karaya · just now</span>';
+    msgs.appendChild(bot); msgs.scrollTop=msgs.scrollHeight;
+    return true;
+  }
+
   function buildFromScratch() {
     const wb = {
       'Assumptions': { cols:['','A','B','C'], headers:['','Parameter','Value','Source'],
@@ -16957,7 +17144,7 @@ Answer as Karaya:`;
     if (typeof MY_MODELS !== 'undefined' && !MY_MODELS.find(m=>m.name===doc.name)) MY_MODELS.unshift(doc);
     openEditor(doc);
     const msgs = document.getElementById('ek-msgs');
-    if (msgs) { msgs.innerHTML = `<div class="k-msg bot">Blank Bohio model ready — let's build it together. Tell me things like:<br><br>• <em>"add a sheet called Debt Schedule"</em><br>• <em>"add a section called REVENUE"</em><br>• <em>"add a metric called Base Rent with values 6.4, 6.6, 6.8, 7.0, 7.2"</em><br>• <em>"add a metric called Gross Income = B2+B3"</em><br>• <em>"set B2 to 8.0"</em><br>• <em>"rename this sheet to Cashflow"</em><br><br>I'll wire the formulas and recompute as we go — then you can goal-seek or export to Excel.<span class="k-meta">Karaya · just now</span></div>`; }
+    if (msgs) { msgs.innerHTML = `<div class="k-msg bot">Blank Bohio model ready. Rather than typing everything out, fill in the assumptions below — type your answer next to each item and hit Apply, and I'll build the full model (Assumptions · Cashflow · Returns) in one pass.${assumptionFormHTML()}<span style="display:block;margin-top:9px;font-size:10px;color:var(--ink-soft);">Prefer to build it line by line? You can still say <em>"add a sheet called Debt Schedule"</em>, <em>"add a metric called Base Rent with values 6.4, 6.6…"</em> or <em>"set B2 to 8.0"</em>.</span><span class="k-meta">Karaya · just now</span></div>`; }
   }
 
   function closeKarayaModal() {
@@ -18987,6 +19174,33 @@ Answer as Karaya:`;
           prompt:`You are Karaya screening "Aurora Logistics Park" (Riyadh SPARK, SAR 265M ticket, core-plus logistics) against the firm's mandate (SAR 150-400M, Jeddah/Riyadh, IRR hurdle 16%). It clears 7 of 9 criteria — projected IRR 17.8%, 1.9x equity multiple, 58% LTV — with two watch items: pre-let at 54% (LOI stage) and a pending ESG certification. Fit score ${score}/100, verdict PROCEED. In 2 sentences (max 45 words) give the committee read and the one condition to attach. Plain text, **bold** the key figures.`,
           fallback:`Aurora clears **7 of 9** mandate criteria — a **17.8%** projected IRR, **1.9x** equity multiple and **58%** LTV all inside guardrails — for a **${score}/100** fit and a **PROCEED**. Attach one condition: firm up pre-letting from **54%** LOI to ≥ 60% signed before IC, and close out the ESG certification.`,
           foot:[{label:'Open the full deal screening',ghost:false,go(){ closeWorkflow(); goTo('screening'); }}]
+        };
+      }
+    },
+    fundmgmt: {
+      eyebrow:'Workflow 07', title:'Fund management',
+      sub:'Committed vs. drawn capital · portfolio NAV · LP accounts · net IRR — every fund, live',
+      steps:[
+        {label:'Aggregating committed & drawn capital', src:'ERP'},
+        {label:'Marking portfolio NAV across the funds', src:'Model'},
+        {label:'Reconciling LP capital accounts', src:'Karaya'},
+        {label:'Compiling the fund command view', src:'Karaya'},
+      ],
+      art(){
+        // [fund, committed SAR M, drawn SAR M, NAV SAR M, net IRR, pill]
+        const rows=[
+          ['Bohio RE Opportunity Fund II','750','540','615','13.8%','g'],
+          ['Corniche Co-Invest Vehicle','120','96','108','15.2%','g'],
+          ['Bohio RE Fund I (harvest)','400','400','155','17.4%','g'],
+        ];
+        const body=rows.map(r=>`<tr><td>${r[0]}</td><td>SAR ${r[1]}M</td><td>SAR ${r[2]}M</td><td style="font-weight:700;">SAR ${r[3]}M</td><td><span class="wf-pill ${r[5]}">${r[4]}</span></td></tr>`).join('');
+        const tot=`<tr style="border-top:2px solid var(--ink);"><td style="font-weight:700;">All funds</td><td style="font-weight:700;">SAR 1,270M</td><td style="font-weight:700;">SAR 1,036M</td><td style="font-weight:700;">SAR 878M</td><td style="font-weight:700;">14.9%</td></tr>`;
+        return {
+          artLbl:'Fund command view — capital & performance',
+          html:`<table><thead><tr><th>Fund</th><th>Committed</th><th>Drawn</th><th>NAV</th><th>Net IRR</th></tr></thead><tbody>${body}${tot}</tbody></table>`,
+          prompt:`You are Karaya running the fund-management workflow. Across three vehicles: SAR 1,270M committed, SAR 1,036M drawn (82%), SAR 878M current NAV; Fund II at 13.8% net IRR, the co-invest at 15.2%, Fund I harvesting at 17.4%. In 2 sentences (max 45 words) give the fund-level read and one action. Plain text, **bold** the figures.`,
+          fallback:`**82%** of the **SAR 1,270M** committed is now deployed, with NAV at **SAR 878M** and every vehicle above its hurdle — Fund I's harvest at **17.4%** net leads. With ~SAR 234M of dry powder left, prioritise calling capital for the Aurora pipeline before the Fund II window closes.`,
+          foot:[{label:'Open funds & stakeholders',ghost:false,go(){ closeWorkflow(); goTo('funds'); }}]
         };
       }
     },
