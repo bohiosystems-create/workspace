@@ -67,7 +67,8 @@
 /* fund management runs full screen */
 .wf-overlay.wf-ov-full { padding:0; }
 .wf-modal.wf-full { max-width:none; width:100%; height:100vh; max-height:100vh; border-radius:0; border:none; }
-.wf-modal.wf-full .wf-body { max-width:1060px; width:100%; margin:0 auto; }
+.wf-modal.wf-full .wf-body { max-width:1060px; width:100%; margin:0 auto; flex:1; }
+.wf-modal.wf-full #wfrep-msgs, .wf-modal.wf-full #wfvsa-msgs, .wf-modal.wf-full #wffin-msgs { flex:1; }
 /* fund dashboard context menu */
 #wfdash-menu { position:fixed; z-index:10002; background:var(--paper); border:1px solid var(--ink-hairline); border-radius:10px; box-shadow:0 14px 40px rgba(0,9,25,0.22); overflow:hidden; }
 #wfdash-menu button { display:block; width:100%; text-align:left; font-family:inherit; font-size:11px; letter-spacing:0.04em; background:transparent; border:none; color:var(--ink); padding:10px 16px; cursor:pointer; }
@@ -19323,6 +19324,7 @@ Answer as Karaya:`;
     reporting: {
       eyebrow:'Workflow 04', title:'Partner & co-investor reporting',
       sub:'Ask for any pack in plain language — Karaya assembles the dashboard from live data',
+      fullscreen:true,
       custom(modal, cfg){ _wfReportingChat(modal, cfg); }
     },
     appreciation: {
@@ -19687,7 +19689,10 @@ Answer as Karaya:`;
         <div style="font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.03em;">${a.chain}</div>
       </div>`).join('');
     } else if(sec==='stakeholders'){
-      panel=f.stakeholders.map(s=>`<div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
+      panel=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <button class="wf-btn" onclick="_wfFundChart('${k}')">✦ Generate stakeholders chart from the fund documents</button>
+      </div><div id="wff-chart-slot"></div>`
+      + f.stakeholders.map(s=>`<div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
         <div style="width:32px;height:32px;flex-shrink:0;border-radius:10px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;letter-spacing:0.05em;">${s[0]}</div>
         <div><div style="font-size:11.5px;font-weight:600;">${s[1]}</div><div style="font-size:9.5px;color:var(--ink-soft);">${s[2]}</div></div>
       </div>`).join('');
@@ -19699,7 +19704,13 @@ Answer as Karaya:`;
       + `<div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">Open a topic room with the humans + AI agents involved from the Topics section of any project.</div>`;
     } else if(sec==='documents'){
       const srcBadge=s=>/outlook/i.test(s)?`<span style="font-size:7px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;background:rgba(0,120,212,0.12);color:#0a66c2;border-radius:999px;padding:2px 8px;">✉ Outlook</span>`:`<span style="font-size:7px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;background:rgba(0,9,25,0.07);color:var(--ink-soft);border-radius:999px;padding:2px 8px;">Data room</span>`;
-      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Every fund document in one place — versions pulled from the data room <b style="color:var(--ink);">and from Outlook email threads</b> (attachments and negotiated changes are captured automatically). Ask Karaya below to compare versions or explain any change.</div>`
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Every fund document in one place — versions pulled from the data room <b style="color:var(--ink);">and from Outlook email threads</b> (attachments and negotiated changes are captured automatically). Upload more below; ask Karaya to compare versions or explain any change.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="wf-btn" onclick="document.getElementById('wff-docup').click()">Upload fund document</button>
+        <button class="wf-btn ghost" onclick="_wfFundChart('${k}')">✦ Generate stakeholders chart from the documents</button>
+        <input type="file" id="wff-docup" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx" onchange="_wfFundDocUpload('${k}', this.files[0])">
+      </div>
+      <div id="wff-chart-slot"></div>`
       + (f.docs||[]).map(d=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
         <div style="display:flex;align-items:center;gap:9px;">
           <div style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">${d.type}</div>
@@ -19745,6 +19756,117 @@ Answer as Karaya:`;
   function _wfFundListBack(){
     const modal=document.querySelector('#wf-overlay .wf-modal');
     if(modal) _wfFundList(modal, WORKFLOWS.fundmgmt);
+  }
+  // ---- fund documents: upload (persisted) + stakeholders chart generator ----
+  function _persistFundDocs(){
+    try{
+      const out={};
+      WF_FUNDS.forEach(f=>{ const up=(f.docs||[]).filter(d=>d._uploaded); if(up.length) out[f.k]=up.map(d=>({name:d.name,type:d.type,_uploaded:true,text:(d.text||'').slice(0,4000),versions:d.versions})); });
+      localStorage.setItem('bohio_fund_docs', JSON.stringify(out));
+    }catch(e){}
+  }
+  (function _restoreFundDocs(){
+    try{
+      const saved=JSON.parse(localStorage.getItem('bohio_fund_docs')||'{}');
+      Object.keys(saved).forEach(k=>{ const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+        saved[k].forEach(d=>{ if(!(f.docs||[]).find(x=>x.name===d.name)) f.docs.push(d); }); });
+    }catch(e){}
+  })();
+  async function _wfFundDocUpload(k, file){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f||!file) return;
+    const base=String(file.name||'Document').replace(/\.[^.]+$/,'');
+    const ext=((String(file.name||'').match(/\.([^.]+)$/)||[,''])[1]||'doc').toLowerCase();
+    let text='';
+    try{
+      if(ext==='docx') text=await _docxText(file);
+      else if(ext==='txt'||ext==='csv'||ext==='md') text=await file.text();
+      else { text=await file.text(); text=String(text).replace(/[^\x20-\x7E\n]/g,' '); if((text.match(/[A-Za-z]{3,}/g)||[]).length<25) text=''; }
+    }catch(e){}
+    const doc={name:base, type:ext.toUpperCase().slice(0,4), _uploaded:true, text:text.slice(0,4000),
+      versions:[{v:'v.1', date:'Just now', src:'Uploaded · you', note:(text?text.replace(/\s+/g,' ').slice(0,140)+'…':'uploaded fund document')}]};
+    f.docs=f.docs||[];
+    const ex=f.docs.findIndex(d=>d.name===base);
+    if(ex>=0) f.docs[ex]=doc; else f.docs.push(doc);
+    _persistFundDocs();
+    _wfFundDetail(k,'documents');
+  }
+  // Karaya reads the fund docs (LPA, subscription agreements, uploads) and
+  // draws the stakeholder chart — GP → vehicle → LPs, service providers beside.
+  function _fundStakeholdersSVG(f, extraLps, cite){
+    const lps=f.structure.lps.map(l=>({name:l[0], amt:l[1], tag:l[2]})).concat((extraLps||[]).map(e=>({name:e[0], amt:e[1], tag:e[2], isNew:true})));
+    const tot=lps.reduce((a,l)=>a+l.amt,0);
+    const svc=f.stakeholders.filter(s=>!/^(GP|LP)$/.test(s[0]));
+    const W=860, lpW=150, lpGap=14;
+    const perRow=Math.min(lps.length,4);
+    const rows=Math.ceil(lps.length/perRow);
+    const H=300+rows*96;
+    const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const box=(x,y,w,h,fill,line1,line2,line3,dash)=>`
+      <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="${fill}" ${dash?'stroke="#000919" stroke-width="1.6" stroke-dasharray="5 4"':''}/>
+      <text x="${x+w/2}" y="${y+22}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">${esc(line1)}</text>
+      ${line2?`<text x="${x+w/2}" y="${y+38}" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.85)">${esc(line2)}</text>`:''}
+      ${line3?`<text x="${x+w/2}" y="${y+53}" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">${esc(line3)}</text>`:''}`;
+    const cx=330;
+    let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:inherit;">`;
+    s+=`<text x="16" y="24" font-size="10" font-weight="700" letter-spacing="2" fill="#6b7280">FUND STAKEHOLDER CHART — ${esc(f.name.toUpperCase())}</text>`;
+    // GP → vehicle
+    s+=box(cx-100,44,200,58,'#61BB46','Bohio Capital Partners','General Partner',f.structure.gp.match(/(\d+(?:\.\d+)?%)/)?.[1]+' commit');
+    s+=`<line x1="${cx}" y1="102" x2="${cx}" y2="140" stroke="#000919" stroke-width="1.6"/>`;
+    s+=box(cx-120,140,240,62,'#000919',f.name,f.structure.vehicle.split('·')[0].trim(),'SAR '+tot.toFixed(0)+'M committed');
+    // service providers right column
+    let sy=54;
+    svc.slice(0,5).forEach(sv=>{
+      s+=box(640,sy,190,50,{ADM:'#963D97',AUD:'#E03A3C',LGL:'#F58220',OPR:'#FDB827'}[sv[0]]||'#963D97',sv[1],sv[2].slice(0,30),'');
+      s+=`<line x1="${cx+120}" y1="171" x2="640" y2="${sy+25}" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3 3"/>`;
+      sy+=60;
+    });
+    // LP grid below
+    lps.forEach((l,i)=>{
+      const row=Math.floor(i/perRow), col=i%perRow;
+      const rowCount=Math.min(lps.length-row*perRow, perRow);
+      const rowW=rowCount*lpW+(rowCount-1)*lpGap;
+      const x=cx-rowW/2+col*(lpW+lpGap), y=248+row*96;
+      s+=box(x,y,lpW,64,'#009DDC',l.name.slice(0,22),l.tag.slice(0,24),'SAR '+l.amt+'M · '+(l.amt/tot*100).toFixed(0)+'%',l.isNew);
+      s+=`<line x1="${cx}" y1="202" x2="${x+lpW/2}" y2="${y}" stroke="#000919" stroke-width="1.2"/>`;
+      if(l.isNew) s+=`<text x="${x+lpW/2}" y="${y-5}" text-anchor="middle" font-size="8" font-weight="700" fill="#b45309">FROM UPLOADED DOC</text>`;
+    });
+    s+=`</svg>`;
+    return `<div id="wff-chart" style="border:1px solid var(--ink-hairline);border-radius:14px;padding:14px;background:#fdfcfa;margin-bottom:14px;">
+      ${s}
+      <div style="font-size:9px;color:var(--ink-soft);letter-spacing:0.04em;margin-top:8px;">✦ Generated by Karaya from: ${cite}</div>
+    </div>`;
+  }
+  function _wfFundChart(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const panelHost=document.getElementById('wff-chart-slot'); if(!panelHost) return;
+    const lpa=(f.docs||[]).find(d=>/lpa|agreement/i.test(d.name));
+    const uploads=(f.docs||[]).filter(d=>d._uploaded);
+    panelHost.innerHTML=`<div style="border:1px dashed var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-bottom:14px;font-size:10.5px;line-height:1.9;color:var(--ink);">
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:5px;">Karaya · reading the fund documents</div>
+      <span id="wffc-steps">Reading ${lpa?lpa.name+' ('+lpa.versions[lpa.versions.length-1].v+')':'the fund agreements'}…</span></div>`;
+    const steps=['Extracting GP, commitments and terms…','Reading subscription agreements…'+(uploads.length?' and '+uploads.length+' uploaded document'+(uploads.length>1?'s':'')+'…':''),'Drawing the stakeholder chart…'];
+    let i=0;
+    const t=setInterval(()=>{
+      const el=document.getElementById('wffc-steps');
+      if(!el){ clearInterval(t); return; }
+      if(i<steps.length){ el.textContent=steps[i]; i++; return; }
+      clearInterval(t);
+      // parse extra LPs out of uploaded document text ("X … SAR 40M")
+      const extra=[];
+      uploads.forEach(d=>{ if(!d.text) return;
+        const re=/([A-Z][A-Za-z&'. ]{2,40}?)\s+(?:at\s+|—\s*|-\s*|with\s+|commits?\s+)?SAR\s*([\d,.]+)\s*M/g; let m;
+        while((m=re.exec(d.text))){ const nm=m[1].trim().replace(/^(and|the|by|from|of|to)\s+/i,'');
+          if(nm.length<3) continue;
+          if(f.structure.lps.find(l=>l[0].toLowerCase()===nm.toLowerCase())) continue;
+          if(extra.find(e=>e[0].toLowerCase()===nm.toLowerCase())) continue;
+          extra.push([nm, parseFloat(m[2].replace(/,/g,'')), 'From '+d.name]); }
+      });
+      const cite=[lpa?(lpa.name+' '+lpa.versions[lpa.versions.length-1].v):null,
+        (f.docs||[]).filter(d=>/subscription/i.test(d.name)).length?'subscription agreements':null,
+        uploads.length?(uploads.length+' uploaded document'+(uploads.length>1?'s':'')+(extra.length?' (+'+extra.length+' stakeholder'+(extra.length>1?'s':'')+' found)':'')):null
+      ].filter(Boolean).join(' · ');
+      panelHost.innerHTML=_fundStakeholdersSVG(f, extra, cite||'the fund documents');
+    }, 620);
   }
   // ---- fund chatbot: grounded in the fund's docs (all versions), emails,
   // structure, approvals & topics. Version-compare questions are answered
@@ -19801,7 +19923,7 @@ Answer as Karaya:`;
       try{ pulled=await _outlookFetch(f.name+' '+q); }catch(e){}
       const liveMail=(pulled.messages||[]).map(e=>e.from+' — "'+e.subject+'" ('+e.when+'): '+e.snippet).join('\n');
       const liveTag=(pulled.messages||[]).length?('✉ Outlook · '+pulled.messages.length+' thread'+(pulled.messages.length>1?'s':'')+' read'+(pulled.live?' · live mailbox':' · demo inbox')):'';
-      const docsCtx=(f.docs||[]).map(d=>d.name+': '+d.versions.map(v=>v.v+' ('+v.date+', '+v.src+') — '+v.note).join(' | ')).join('\n');
+      const docsCtx=(f.docs||[]).map(d=>d.name+': '+d.versions.map(v=>v.v+' ('+v.date+', '+v.src+') — '+v.note).join(' | ')+(d._uploaded&&d.text?('\n  CONTENT of "'+d.name+'": '+d.text.slice(0,700)):'')).join('\n');
       const prompt=`You are Karaya, the fund-management assistant for "${f.name}" (${f.vintage}, ${f.status}; SAR ${f.drawn}M drawn of ${f.committed}M, NAV SAR ${f.nav}M, net IRR ${f.irr}). Answer strictly from this fund's context. Be concise (2-5 sentences or short bullets), **bold** key figures.
 STRUCTURE: ${f.structure.vehicle}; ${f.structure.gp}; ${f.structure.terms}. LPs: ${f.structure.lps.map(l=>l[0]+' SAR '+l[1]+'M').join(', ')}.
 APPROVALS: ${f.approvals.map(a=>a.t+' — '+a.status+' ('+a.chain+')').join('; ')}
