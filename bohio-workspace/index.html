@@ -14857,8 +14857,12 @@ Answer as the ${a.name} agent:`;
   // AI-generated explanation of a clicked cell — streamed, grounded in its
   // value/formula/precedents, with a computed offline fallback.
   let _cellExplainToken = 0;
+  const _cellExplainCache = {};
   function _explainCell(ref, value, formula, label, sheetName){
     const box = document.getElementById('cell-ai-explain'); if(!box) return;
+    // Cache by exact cell content so re-clicking a cell never re-hits the API.
+    const cacheKey = sheetName+'!'+ref+'|'+value+'|'+formula;
+    if(_cellExplainCache[cacheKey]){ box.innerHTML = fmtKaraya(_cellExplainCache[cacheKey]); return; }
     // uploaded models often leave column A empty — recover the row's real label
     if(!label){ const s=SHEET_DATA[sheetName]; const mm=ref.match(/^([A-Z]+)(\d+)$/);
       const row=s&&mm&&s.rows.find(r=>r.cells[0]===mm[2]); if(row) label=_rowLabel(row); }
@@ -14890,6 +14894,7 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
       catch(e){}
       if(myTok!==_cellExplainToken) return;               // a newer cell was clicked
       if(!full||!full.trim()){ full=fallback; textEl.textContent=full; }
+      _cellExplainCache[cacheKey]=full;                   // remember so we never re-ask for this cell
       textEl.innerHTML = fmtKaraya(full); if(caret) caret.remove();
     })();
   }

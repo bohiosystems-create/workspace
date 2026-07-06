@@ -110,23 +110,34 @@ async function handleComplete(req, res) {
   const model = resolveModel(payload.task, payload.model);
   const wantStream = payload.stream === true;
 
-  try {
-    const upstream = await fetch(API_URL, {
+  // The tiered model ids may not all be enabled on every Anthropic key. If the
+  // routed model is rejected (404 not_found / 400 invalid model), retry once
+  // with a safe fallback so one bad tier can't break every AI feature.
+  const FALLBACK_MODEL = process.env.ANTHROPIC_FALLBACK_MODEL || 'claude-3-5-sonnet-latest';
+  async function callAnthropic(useModel) {
+    return fetch(API_URL, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({ model, max_tokens, messages, stream: wantStream }),
+      headers: { 'content-type': 'application/json', 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: useModel, max_tokens, messages, stream: wantStream }),
     });
+  }
+
+  try {
+    let usedModel = model;
+    let upstream = await callAnthropic(model);
+    if (!upstream.ok && (upstream.status === 404 || upstream.status === 400) && model !== FALLBACK_MODEL) {
+      const detail = (await upstream.text()).slice(0, 300);
+      console.error('Anthropic ' + upstream.status + ' for model "' + model + '" — retrying with "' + FALLBACK_MODEL + '". ' + detail);
+      usedModel = FALLBACK_MODEL;
+      upstream = await callAnthropic(FALLBACK_MODEL);
+    }
     if (!upstream.ok) {
       const errText = await upstream.text();
       console.error('Anthropic error', upstream.status, errText.slice(0, 500));
-      return send(res, 502, JSON.stringify({ error: 'upstream ' + upstream.status }),
+      return send(res, 502, JSON.stringify({ error: 'upstream ' + upstream.status, model: usedModel, detail: errText.slice(0, 200) }),
         { 'Content-Type': 'application/json' });
     }
-    if (payload.task) console.log('[complete] task=' + payload.task + ' → ' + model + (wantStream ? ' (stream)' : ''));
+    if (payload.task) console.log('[complete] task=' + payload.task + ' → ' + usedModel + (wantStream ? ' (stream)' : ''));
 
     // ---- streaming: forward Anthropic SSE text deltas as a plain chunked stream
     if (wantStream) {
@@ -161,7 +172,7 @@ async function handleComplete(req, res) {
       .filter((b) => b.type === 'text')
       .map((b) => b.text)
       .join('');
-    return send(res, 200, JSON.stringify({ text, model }), { 'Content-Type': 'application/json' });
+    return send(res, 200, JSON.stringify({ text, model: usedModel }), { 'Content-Type': 'application/json' });
   } catch (err) {
     console.error('proxy failure', err);
     if (res.headersSent) return res.end();

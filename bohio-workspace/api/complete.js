@@ -25,21 +25,26 @@ export default async function handler(req, res) {
   const max_tokens = Math.min(Number(body.max_tokens) || 1500, 4096);
   const model = resolveModel(body.task, body.model); // route to the right model for this task
   const wantStream = body.stream === true;
+  const FALLBACK_MODEL = process.env.ANTHROPIC_FALLBACK_MODEL || 'claude-3-5-sonnet-latest';
+  const callAnthropic = (useModel) => fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: useModel, max_tokens, messages, stream: wantStream }),
+  });
 
   try {
-    const upstream = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({ model, max_tokens, messages, stream: wantStream }),
-    });
+    let usedModel = model;
+    let upstream = await callAnthropic(model);
+    // one bad tier for this key shouldn't break every AI feature — retry safely
+    if (!upstream.ok && (upstream.status === 404 || upstream.status === 400) && model !== FALLBACK_MODEL) {
+      console.error('Anthropic ' + upstream.status + ' for "' + model + '" — retrying with "' + FALLBACK_MODEL + '"');
+      usedModel = FALLBACK_MODEL;
+      upstream = await callAnthropic(FALLBACK_MODEL);
+    }
     if (!upstream.ok) {
       const errText = await upstream.text();
       console.error('Anthropic error', upstream.status, errText.slice(0, 500));
-      return res.status(502).json({ error: 'upstream ' + upstream.status });
+      return res.status(502).json({ error: 'upstream ' + upstream.status, model: usedModel, detail: errText.slice(0, 200) });
     }
 
     // ---- streaming: forward Anthropic SSE text deltas as a plain chunked stream
@@ -77,7 +82,7 @@ export default async function handler(req, res) {
       .filter((b) => b.type === 'text')
       .map((b) => b.text)
       .join('');
-    return res.status(200).json({ text, model });
+    return res.status(200).json({ text, model: usedModel });
   } catch (err) {
     console.error('proxy failure', err);
     if (res.headersSent) return res.end();
