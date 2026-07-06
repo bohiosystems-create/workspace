@@ -64,6 +64,14 @@
 .wf-overlay { position:fixed; inset:0; z-index:9998; background:rgba(0,9,25,0.55); display:none; align-items:center; justify-content:center; padding:26px; }
 .wf-overlay.open { display:flex; }
 .wf-modal { background:var(--paper); border:1px solid var(--ink-hairline); border-radius:22px; overflow:hidden; width:100%; max-width:760px; max-height:calc(100vh - 52px); display:flex; flex-direction:column; box-shadow:0 30px 80px rgba(0,9,25,0.35); }
+/* fund management runs full screen */
+.wf-overlay.wf-ov-full { padding:0; }
+.wf-modal.wf-full { max-width:none; width:100%; height:100vh; max-height:100vh; border-radius:0; border:none; }
+.wf-modal.wf-full .wf-body { max-width:1060px; width:100%; margin:0 auto; }
+/* fund dashboard context menu */
+#wfdash-menu { position:fixed; z-index:10002; background:var(--paper); border:1px solid var(--ink-hairline); border-radius:10px; box-shadow:0 14px 40px rgba(0,9,25,0.22); overflow:hidden; }
+#wfdash-menu button { display:block; width:100%; text-align:left; font-family:inherit; font-size:11px; letter-spacing:0.04em; background:transparent; border:none; color:var(--ink); padding:10px 16px; cursor:pointer; }
+#wfdash-menu button:hover { background:rgba(0,9,25,0.05); }
 .wf-th tbody tr:nth-child(even){ background:rgba(0,9,25,0.02); }
 .wf-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:20px 24px 16px; border-bottom:1px solid var(--ink-hairline); }
 .wf-head .wf-eyebrow { font-family:'Courier New',monospace; font-size:9px; letter-spacing:0.26em; text-transform:uppercase; color:var(--ink-soft); }
@@ -19280,6 +19288,7 @@ Answer as Karaya:`;
     fundmgmt: {
       eyebrow:'Workflow 07', title:'Fund management',
       sub:'Every active fund — open one for its structure, approvals, stakeholders & topics',
+      fullscreen:true,
       custom(modal, cfg){ _wfFundList(modal, cfg); }
     },
   };
@@ -19402,7 +19411,7 @@ Answer as Karaya:`;
   // Opens on a squircle list of every active fund; pressing one drills into
   // the fund's structure, live approval processes, stakeholders and topics.
   const WF_FUNDS=[
-    {k:'fund2', name:'Bohio RE Opportunity Fund II', tag:'Core-plus · KSA', vintage:'Vintage 2024', committed:750, drawn:540, nav:615, irr:'13.8%', status:'Investing', col:'#61BB46',
+    {k:'fund2', name:'Bohio RE Opportunity Fund II', tag:'Core-plus · KSA', vintage:'Vintage 2024', committed:750, drawn:540, nav:615, irr:'13.8%', dpi:0.12, tvpi:1.14, status:'Investing', col:'#61BB46',
       structure:{ vehicle:'Closed-end fund (CMA-regulated) · SPV per asset', gp:'Bohio Capital Partners — GP · 5% commit',
         terms:'1.5% management fee · 20% promote over an 8% preferred return · 50/50 catch-up · 8-year term + 2×1-year extensions',
         lps:[['Gulf Pension Fund',250,'Anchor LP'],['Saudi Family Office Consortium',180,'LP'],['Riyadh Capital Partners',150,'LP · AC seat'],['GCC Sovereign Co-Invest',132.5,'LP'],['GP commit — Bohio Capital',37.5,'GP']] },
@@ -19431,7 +19440,7 @@ Answer as Karaya:`;
         {from:'Latham & Watkins', subject:'Fund II LPA — execution version circulated', when:'Jul 2024', snippet:'Attached the executed LPA (v.5). Key commercial changes vs the first draft are the fee step-down and the catch-up mechanics…'},
         {from:'Gulf Pension Fund · Investments', subject:'RE: Capital Call #7 timing', when:'2d ago', snippet:'Confirming funding on the Aurora call within the notice period. Please route the updated drawdown schedule…'},
         {from:'Apex Fund Services', subject:'Q2 capital account statements', when:'5d ago', snippet:'Draft LP capital accounts attached for review ahead of the quarterly pack…'}] },
-    {k:'coinvest', name:'Corniche Co-Invest Vehicle', tag:'Single-asset co-invest', vintage:'Vintage 2025', committed:120, drawn:96, nav:108, irr:'15.2%', status:'Deployed', col:'#F58220',
+    {k:'coinvest', name:'Corniche Co-Invest Vehicle', tag:'Single-asset co-invest', vintage:'Vintage 2025', committed:120, drawn:96, nav:108, irr:'15.2%', dpi:0.00, tvpi:1.13, status:'Deployed', col:'#F58220',
       structure:{ vehicle:'Single-asset SPV · co-investment alongside Fund II', gp:'Bohio Capital Partners — manager · 2.5% commit',
         terms:'1.0% management fee · 15% promote over a 9% preferred return · hold matches the Corniche Gateway business plan',
         lps:[['Gulf Pension Fund',48,'Co-invest LP'],['Emaar Family Office',36,'Co-invest LP'],['Riyadh Capital Partners',33,'Co-invest LP'],['GP commit',3,'GP']] },
@@ -19452,7 +19461,7 @@ Answer as Karaya:`;
       emails:[
         {from:'SNB · Corporate Banking', subject:'Refinancing consent — documentation', when:'1d ago', snippet:'Following the credit committee, the consent package needs the LP majority resolution attached…'},
         {from:'Rotana Hotels · Development', subject:'Pre-opening budget alignment', when:'1w ago', snippet:'Sharing the revised pre-opening budget for the anchor hotel component…'}] },
-    {k:'fund1', name:'Bohio RE Fund I', tag:'Value-add · Harvesting', vintage:'Vintage 2019', committed:400, drawn:400, nav:155, irr:'17.4%', status:'Harvesting', col:'#963D97',
+    {k:'fund1', name:'Bohio RE Fund I', tag:'Value-add · Harvesting', vintage:'Vintage 2019', committed:400, drawn:400, nav:155, irr:'17.4%', dpi:1.42, tvpi:1.81, status:'Harvesting', col:'#963D97',
       structure:{ vehicle:'Closed-end fund · in orderly realisation', gp:'Bohio Capital Partners — GP · 4% commit',
         terms:'1.25% management fee (on invested cost in harvest) · 20% promote over 8% pref · clawback provision active',
         lps:[['Saudi PIF Programme',160,'Anchor LP'],['Gulf Pension Fund',120,'LP'],['Regional family offices',104,'LPs (pooled)'],['GP commit',16,'GP']] },
@@ -19473,6 +19482,75 @@ Answer as Karaya:`;
         {from:'PwC · Assurance', subject:'Clawback reserve — audit query', when:'3d ago', snippet:'Two queries on the reserve computation ahead of tranche-4 distribution sign-off…'},
         {from:'JLL Capital Markets', subject:'Rawdah Plaza — offers summary', when:'1w ago', snippet:'Best and final offers attached; the SAR 101M offer carries the cleanest conditions…'}] },
   ];
+  // ---- customisable funds dashboard (right-click → Customise dashboard) ----
+  const WF_DASH_METRICS={
+    nav:      {h:'NAV',        agg:fs=>'SAR '+fs.reduce((a,f)=>a+f.nav,0)+'M',                    per:f=>'SAR '+f.nav+'M'},
+    irr:      {h:'Net IRR',    agg:fs=>{const w=fs.reduce((a,f)=>a+parseFloat(f.irr)*f.drawn,0)/fs.reduce((a,f)=>a+f.drawn,0);return w.toFixed(1)+'%';}, per:f=>f.irr},
+    committed:{h:'Committed',  agg:fs=>'SAR '+fs.reduce((a,f)=>a+f.committed,0)+'M',              per:f=>'SAR '+f.committed+'M'},
+    drawn:    {h:'Drawn',      agg:fs=>'SAR '+fs.reduce((a,f)=>a+f.drawn,0)+'M',                  per:f=>'SAR '+f.drawn+'M'},
+    dry:      {h:'Dry powder', agg:fs=>'SAR '+fs.reduce((a,f)=>a+(f.committed-f.drawn),0)+'M',    per:f=>'SAR '+(f.committed-f.drawn)+'M'},
+    deployed: {h:'% deployed', agg:fs=>Math.round(fs.reduce((a,f)=>a+f.drawn,0)/fs.reduce((a,f)=>a+f.committed,0)*100)+'%', per:f=>Math.round(f.drawn/f.committed*100)+'%'},
+    dpi:      {h:'DPI',        agg:fs=>{const w=fs.reduce((a,f)=>a+f.dpi*f.drawn,0)/fs.reduce((a,f)=>a+f.drawn,0);return w.toFixed(2)+'x';}, per:f=>f.dpi.toFixed(2)+'x'},
+    tvpi:     {h:'TVPI',       agg:fs=>{const w=fs.reduce((a,f)=>a+f.tvpi*f.drawn,0)/fs.reduce((a,f)=>a+f.drawn,0);return w.toFixed(2)+'x';}, per:f=>f.tvpi.toFixed(2)+'x'},
+  };
+  const WF_DASH_LEX=[['nav',/\bnav\b|net asset/i],['irr',/\birr\b|return/i],['committed',/committ/i],['drawn',/\bdrawn\b|called capital|paid[- ]in/i],['dry',/dry powder|uncalled|remaining capital/i],['deployed',/deploy/i],['dpi',/\bdpi\b|distribut/i],['tvpi',/tvpi|moic|multiple/i]];
+  let _wfDashPicks=(function(){ try{ const p=JSON.parse(localStorage.getItem('bohio_fund_dash')||'null'); if(Array.isArray(p)&&p.length&&p.every(k=>WF_DASH_METRICS[k])) return p; }catch(e){} return ['nav','irr','deployed','dry']; })();
+  function _wfFundDashHTML(){
+    return `<div id="wfdash" oncontextmenu="event.preventDefault();_wfDashMenu(event);return false;" title="Right-click to customise this dashboard" style="margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;">
+        <div style="font-size:8px;letter-spacing:0.26em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Funds dashboard</div>
+        <div style="font-size:8px;letter-spacing:0.1em;color:var(--ink-soft);">right-click to customise</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:11px;">
+        ${_wfDashPicks.map(k=>{ const m=WF_DASH_METRICS[k];
+          return `<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:13px 15px;">
+            <div style="font-size:7.5px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">${m.h}</div>
+            <div style="font-size:21px;font-weight:700;margin:3px 0 8px;font-variant-numeric:tabular-nums;">${m.agg(WF_FUNDS)}</div>
+            ${WF_FUNDS.map(f=>`<div style="display:flex;align-items:center;gap:6px;font-size:9.5px;color:var(--ink-soft);margin-top:2px;"><span style="width:7px;height:7px;border-radius:50%;background:${f.col};flex-shrink:0;"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name.replace('Bohio RE ','')}</span><span style="font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;">${m.per(f)}</span></div>`).join('')}
+          </div>`; }).join('')}
+      </div>
+    </div>`;
+  }
+  function _wfDashMenu(ev){
+    let m=document.getElementById('wfdash-menu');
+    if(m) m.remove();
+    m=document.createElement('div'); m.id='wfdash-menu';
+    m.innerHTML='<button onclick="_wfDashCustomize()">\u270e Customise dashboard</button><button onclick="document.getElementById(\'wfdash-menu\').remove()">Cancel</button>';
+    m.style.left=Math.min(ev.clientX, window.innerWidth-200)+'px';
+    m.style.top=Math.min(ev.clientY, window.innerHeight-90)+'px';
+    document.body.appendChild(m);
+    setTimeout(()=>{ document.addEventListener('click', function h(){ const el=document.getElementById('wfdash-menu'); if(el) el.remove(); document.removeEventListener('click',h); }); }, 60);
+  }
+  function _wfDashCustomize(){
+    const m=document.getElementById('wfdash-menu'); if(m) m.remove();
+    const dash=document.getElementById('wfdash'); if(!dash) return;
+    if(document.getElementById('wfdash-custom')) return;
+    const panel=document.createElement('div');
+    panel.id='wfdash-custom';
+    panel.style.cssText='border:1px solid var(--ink);border-radius:12px;padding:13px 15px;margin-bottom:12px;background:rgba(0,9,25,0.02);';
+    panel.innerHTML=`
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">\u270e Customise — tell Karaya which metrics you want</div>
+      <div style="display:flex;gap:8px;">
+        <input id="wfdash-prompt" placeholder="e.g. show dry powder, DPI and NAV per fund" style="flex:1;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDashApply()">
+        <button class="wf-btn" onclick="_wfDashApply()">Apply</button>
+      </div>
+      <div style="font-size:9px;color:var(--ink-soft);margin-top:7px;letter-spacing:0.03em;">Available: NAV · net IRR · committed · drawn · dry powder · % deployed · DPI · TVPI/MOIC</div>`;
+    dash.parentNode.insertBefore(panel, dash);
+    setTimeout(()=>{ const i=document.getElementById('wfdash-prompt'); if(i) i.focus(); },60);
+  }
+  function _wfDashApply(){
+    const inp=document.getElementById('wfdash-prompt'); if(!inp) return;
+    const q=(inp.value||'').trim();
+    const picks=WF_DASH_LEX.filter(([k,re])=>re.test(q)).map(([k])=>k).slice(0,6);
+    if(picks.length){
+      _wfDashPicks=picks;
+      try{ localStorage.setItem('bohio_fund_dash', JSON.stringify(picks)); }catch(e){}
+    }
+    const panel=document.getElementById('wfdash-custom'); if(panel) panel.remove();
+    const dash=document.getElementById('wfdash');
+    if(dash) dash.outerHTML=_wfFundDashHTML();
+  }
+
   function _wfFundList(modal, cfg){
     modal.innerHTML=`
       <div class="wf-head">
@@ -19484,6 +19562,7 @@ Answer as Karaya:`;
         <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
       </div>
       <div class="wf-body">
+        ${_wfFundDashHTML()}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:13px;">
           ${WF_FUNDS.map(f=>`
           <button onclick="_wfFundDetail('${f.k}')" style="text-align:left;font-family:inherit;border:none;cursor:pointer;background:${f.col};color:#fff;border-radius:26px;padding:18px 18px 15px;display:flex;flex-direction:column;gap:8px;min-height:150px;transition:transform .16s ease, box-shadow .16s ease;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 14px 30px rgba(0,9,25,0.22)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
@@ -19886,6 +19965,8 @@ Answer as Karaya:`;
     const ov=_wfEnsureOverlay();
     const modal=ov.querySelector('.wf-modal');
     const myTok=++_wfRunToken;
+    modal.classList.toggle('wf-full', !!cfg.fullscreen);
+    ov.classList.toggle('wf-ov-full', !!cfg.fullscreen);
     if(cfg.custom){ cfg.custom(modal, cfg); ov.classList.add('open'); return; }
     const stepsHtml=cfg.steps.map((s,i)=>`<div class="wf-step" data-i="${i}"><span class="wf-dot">${i+1}</span><span class="wf-step-lbl">${s.label}</span><span class="wf-src">${s.src}</span></div>`).join('');
     modal.innerHTML=`
