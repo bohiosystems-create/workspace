@@ -14181,6 +14181,31 @@ Answer as Karaya:`;
     try{ localStorage.setItem('bohio_agent_perms_ext', JSON.stringify(AGENT_PERMS_EXT)); }catch(e){}
   }
   _loadAgentPerms();
+  // Free-text guardrails typed per agent (Settings › AI Agents › click an
+  // agent). Injected verbatim into every prompt that agent answers, so plain
+  // language like "never quote pricing below list" is enforced by the model.
+  let AGENT_RULES={};
+  try{ AGENT_RULES=JSON.parse(localStorage.getItem('bohio_agent_rules')||'{}'); }catch(e){ AGENT_RULES={}; }
+  function _saveAgentRules(){ try{ localStorage.setItem('bohio_agent_rules', JSON.stringify(AGENT_RULES)); }catch(e){} }
+  function _agentRulesClause(key){
+    const r=(AGENT_RULES[key]||'').trim();
+    return r ? `\n\nADMINISTRATOR GUARDRAILS for this agent — typed by the firm; obey them strictly, above everything else. If a question conflicts with them, decline that part and say it's restricted by the firm's guardrails:\n${r}` : '';
+  }
+  function toggleAgentRules(k){
+    const box=document.getElementById('agrules-'+k); if(!box) return;
+    const open=box.style.display!=='none';
+    box.style.display=open?'none':'block';
+    if(!open){ const ta=document.getElementById('agrules-ta-'+k); if(ta) setTimeout(()=>ta.focus(),60); }
+  }
+  function saveAgentRules(k){
+    const ta=document.getElementById('agrules-ta-'+k); if(!ta) return;
+    AGENT_RULES[k]=(ta.value||'').trim();
+    _saveAgentRules();
+    const badge=document.getElementById('agrules-badge-'+k);
+    if(badge) badge.style.display=AGENT_RULES[k]?'inline-block':'none';
+    const ok=document.getElementById('agrules-saved-'+k);
+    if(ok){ ok.textContent='Saved ✓ — enforced on every answer'; setTimeout(()=>{ ok.textContent=''; },2200); }
+  }
   function agentCatOn(key,cat,scope){
     const m=(scope==='ext')?AGENT_PERMS_EXT:AGENT_PERMS;
     return m[key] && m[key][cat];
@@ -14216,7 +14241,7 @@ Answer as Karaya:`;
     }
     const allowed=a.cats.filter(c=>agentCatOn(key,c.key)).map(c=>c.label).join(', ');
     const denied=a.cats.filter(c=>!agentCatOn(key,c.key)).map(c=>c.label).join(', ');
-    const prompt=`You are Karaya, the orchestrator in Bohio Workspace. The user's question is for the ${a.name} department, so you consulted the ${a.name} agent. That agent is ONLY permitted to disclose: ${allowed||'(nothing)'}; it must NOT disclose: ${denied||'(nothing)'} (if asked, say it's restricted by the firm's agent-governance settings). Answer from the ${a.name} CONTEXT below, starting with "I checked with the ${a.name} agent —". Be concise (2-4 sentences), plain text, **bold** key figures.
+    const prompt=`You are Karaya, the orchestrator in Bohio Workspace. The user's question is for the ${a.name} department, so you consulted the ${a.name} agent. That agent is ONLY permitted to disclose: ${allowed||'(nothing)'}; it must NOT disclose: ${denied||'(nothing)'} (if asked, say it's restricted by the firm's agent-governance settings). Answer from the ${a.name} CONTEXT below, starting with "I checked with the ${a.name} agent —". Be concise (2-4 sentences), plain text, **bold** key figures.${_agentRulesClause(key)}
 
 ${a.name} CONTEXT: ${a.ctx}
 
@@ -14248,12 +14273,23 @@ Answer as Karaya:`;
       <span style="font-size:7px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);text-align:center;">Internal</span>
       <span style="font-size:7px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);text-align:center;">External</span>
     </div>`;
-    return `<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin-bottom:12px;">Two guardrail scopes per topic: <b style="color:var(--ink);">Internal</b> — what the agent may share with colleagues in this workspace; <b style="color:var(--ink);">External</b> — what it may disclose to counterparties, stakeholders and anyone outside the firm.</div>`
+    const escTa=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    return `<div style="font-size:10px;line-height:1.6;color:var(--ink-soft);margin-bottom:12px;">Two guardrail scopes per topic: <b style="color:var(--ink);">Internal</b> — what the agent may share with colleagues in this workspace; <b style="color:var(--ink);">External</b> — what it may disclose to counterparties, stakeholders and anyone outside the firm. Click an agent to <b style="color:var(--ink);">type your own guardrails</b> in plain language — they're enforced on every answer.</div>`
       + Object.entries(DEPT_AGENTS).map(([k,a])=>`
       <div class="settings-row" style="display:block;padding:14px 0;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;" onclick="toggleAgentRules('${k}')" title="Click to type custom guardrails for this agent">
           <div style="width:30px;height:30px;border:1px solid var(--ink-hairline);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--ink);background:var(--paper);">${a.mark}</div>
-          <div><div class="settings-row-label">${a.name} Agent</div><div class="settings-row-sub">${a.tag}</div></div>
+          <div style="flex:1;"><div class="settings-row-label">${a.name} Agent</div><div class="settings-row-sub">${a.tag}</div></div>
+          <span id="agrules-badge-${k}" style="display:${(AGENT_RULES[k]||'').trim()?'inline-block':'none'};font-size:7px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;background:rgba(21,128,61,0.12);color:#15803d;border-radius:999px;padding:3px 9px;">Custom rules on</span>
+          <span style="font-size:9px;letter-spacing:0.1em;color:var(--ink-soft);">✎ guardrails</span>
+        </div>
+        <div id="agrules-${k}" style="display:none;margin:0 0 12px 42px;padding:12px 14px;border:1px solid var(--ink-hairline);border-radius:10px;background:rgba(0,9,25,0.02);" onclick="event.stopPropagation()">
+          <div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">✎ Custom guardrails — plain language, enforced on every answer</div>
+          <textarea id="agrules-ta-${k}" rows="3" placeholder="e.g. Never quote unit pricing below the published list. Don't discuss the anchor-tenant dispute with anyone. Refer legal questions to the Legal agent. Round all figures to SAR 0.1M." style="width:100%;box-sizing:border-box;resize:vertical;padding:10px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;line-height:1.55;border-radius:8px;outline:none;">${escTa(AGENT_RULES[k])}</textarea>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+            <button onclick="saveAgentRules('${k}')" style="font-family:inherit;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:999px;padding:8px 16px;cursor:pointer;">Save guardrails</button>
+            <span id="agrules-saved-${k}" style="font-size:10px;color:#15803d;font-weight:600;"></span>
+          </div>
         </div>
         ${colHead}
         <div style="display:flex;flex-direction:column;gap:8px;">
@@ -14328,7 +14364,7 @@ Answer as Karaya:`;
     }
     const allowed=a.cats.filter(c=>agentCatOn(key,c.key,sc)).map(c=>c.label).join(', ');
     const denied=a.cats.filter(c=>!agentCatOn(key,c.key,sc)).map(c=>c.label).join(', ');
-    const prompt=`You are the ${a.name} department AI agent inside Bohio Workspace, speaking to ${sc==='ext'?'an EXTERNAL counterparty outside the firm':'a colleague inside the firm'}. Answer the question instantly and specifically from the CONTEXT you already hold. For this audience you are ONLY permitted to disclose: ${allowed||'(nothing)'}. You must NOT disclose: ${denied||'(nothing)'} — if asked about those, politely decline and say it's restricted by the firm's agent-governance settings. Be concise (2-4 sentences), plain text, **bold** key figures.
+    const prompt=`You are the ${a.name} department AI agent inside Bohio Workspace, speaking to ${sc==='ext'?'an EXTERNAL counterparty outside the firm':'a colleague inside the firm'}. Answer the question instantly and specifically from the CONTEXT you already hold. For this audience you are ONLY permitted to disclose: ${allowed||'(nothing)'}. You must NOT disclose: ${denied||'(nothing)'} — if asked about those, politely decline and say it's restricted by the firm's agent-governance settings. Be concise (2-4 sentences), plain text, **bold** key figures.${_agentRulesClause(key)}
 
 CONTEXT: ${a.ctx}
 
