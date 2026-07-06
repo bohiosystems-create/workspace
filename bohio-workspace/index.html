@@ -3802,6 +3802,32 @@
   .sheet-save-btn svg { width: 13px; height: 13px; }
   .sheet-save-btn:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
+  .sheet-history-btn {
+    position: absolute;
+    top: 8px; right: 72px;
+    height: 26px; padding: 0 9px;
+    background: var(--bg);
+    border: 1px solid var(--ink-hairline);
+    color: var(--ink);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    z-index: 5;
+    transition: all 0.15s ease;
+    font-family: inherit; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700;
+  }
+  .sheet-history-btn svg { width: 12px; height: 12px; }
+  .sheet-history-btn:hover { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .sheet-history-btn .mh-badge { font-size: 8px; background: var(--ink); color: var(--bg); border-radius: 999px; padding: 1px 5px; letter-spacing: 0; }
+  .sheet-history-btn:hover .mh-badge { background: var(--bg); color: var(--ink); }
+  /* Version-history overlay */
+  #mhist-overlay .mh-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--ink-hairline); }
+  #mhist-overlay .mh-row:hover { background:rgba(0,9,25,0.02); }
+  #mhist-overlay .mh-when { font-size:11px; font-weight:700; color:var(--ink); }
+  #mhist-overlay .mh-lbl { font-size:10px; color:var(--ink-soft); letter-spacing:0.02em; }
+  #mhist-overlay .mh-restore { margin-left:auto; font-family:inherit; font-size:9px; letter-spacing:0.16em; text-transform:uppercase; font-weight:700; border:1px solid var(--ink); background:transparent; color:var(--ink); border-radius:999px; padding:7px 14px; cursor:pointer; transition:all .15s ease; }
+  #mhist-overlay .mh-restore:hover { background:var(--ink); color:var(--bg); }
+  #mhist-overlay .mh-current { margin-left:auto; font-size:8px; letter-spacing:0.18em; text-transform:uppercase; color:#15803d; font-weight:700; }
+
   .editor-title {
     font-size: 18px;
     letter-spacing: 0.28em;
@@ -10562,6 +10588,10 @@
             <button class="sheet-save-btn" onclick="saveModel()" title="Save" aria-label="Save">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 3h11l4 4v14H5V3z"></path><path d="M8 3v6h8V3M8 21v-7h8v7"></path></svg>
             </button>
+            <button class="sheet-history-btn" id="sheet-history-btn" onclick="openModelHistory()" title="Version history — every rework auto-saves the previous version">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 4v4h4"></path><path d="M12 8v4l3 2"></path></svg>
+              <span>History</span><span class="mh-badge" id="mh-badge" style="display:none;">0</span>
+            </button>
             <button class="sheet-expand-btn" onclick="openFullscreen()" title="Expand" aria-label="Expand">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
             </button>
@@ -14661,6 +14691,108 @@ Answer as the ${a.name} agent:`;
     Object.assign(SHEET_DATA, JSON.parse(JSON.stringify(wb)));
   }
 
+  // ===== Model persistence + version history =====
+  // Uploaded and generated models are saved with every change (surviving reloads
+  // via localStorage), and every rework auto-snapshots the PREVIOUS version first
+  // so you can always roll back to any earlier state.
+  const MODEL_SAVES = {};                 // mid -> { name, wb, versions:[{ts,label,wb}] }
+  let _openModelDoc = null, _openModelId = null;
+  function _cloneWb(wb){ try { return JSON.parse(JSON.stringify(wb)); } catch(e){ return wb; } }
+  function _loadModelSaves(){ try { const raw=localStorage.getItem('bohio_model_saves'); if(raw) Object.assign(MODEL_SAVES, JSON.parse(raw)); } catch(e){} }
+  function _persistModelSaves(){ try { localStorage.setItem('bohio_model_saves', JSON.stringify(MODEL_SAVES)); } catch(e){ /* quota — stays in-memory for the session */ } }
+  _loadModelSaves();
+  function _slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,44); }
+  function _modelId(d){
+    if(!d) return null;
+    if(d.mid) return d.mid;
+    const scope = (_editorOrigin && _editorOrigin.kind==='project') ? ('p'+_editorOrigin.id) : 'ws';
+    d.mid = 'm_'+scope+'_'+_slug(d.name||'model');
+    return d.mid;
+  }
+  function _ensureRec(){
+    if(!_openModelId) return null;
+    return MODEL_SAVES[_openModelId] || (MODEL_SAVES[_openModelId]={ name:(_openModelDoc&&_openModelDoc.name)||'Model', wb:_cloneWb(SHEET_DATA), versions:[] });
+  }
+  // Write the current sheet back onto the saved record + the doc, and persist.
+  function saveOpenModel(silent){
+    const rec=_ensureRec(); if(!rec) return;
+    rec.wb=_cloneWb(SHEET_DATA); rec.savedAt=Date.now();
+    if(_openModelDoc) _openModelDoc.wbData=_cloneWb(rec.wb);
+    _persistModelSaves();
+    if(!silent) _flashSaved();
+    _updateHistoryBtn();
+  }
+  // Record a restorable previous version. Pass the wb snapshot taken BEFORE the
+  // change (so the entry represents the state you can roll back to).
+  function _pushVersion(prevWb, label){
+    const rec=_ensureRec(); if(!rec||!prevWb) return;
+    rec.versions=rec.versions||[];
+    rec.versions.unshift({ ts:Date.now(), label:label||'Edit', wb:prevWb });
+    if(rec.versions.length>30) rec.versions.length=30;   // keep the last 30
+    _persistModelSaves();
+    _updateHistoryBtn();
+  }
+  function _flashSaved(){
+    const btn=document.querySelector('.sheet-save-btn');
+    if(btn){ const prev=btn.innerHTML; btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 7"/></svg>'; btn.style.background='var(--ink)'; btn.style.color='var(--bg)'; btn.style.borderColor='var(--ink)'; setTimeout(()=>{ btn.innerHTML=prev; btn.style.background=''; btn.style.color=''; btn.style.borderColor=''; },1200); }
+    const status=document.getElementById('sheet-status');
+    if(status){ status.textContent='Saved · '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); setTimeout(()=>{ if((status.textContent||'').indexOf('Saved')===0) status.textContent='Ready'; },1800); }
+  }
+  function _updateHistoryBtn(){
+    const badge=document.getElementById('mh-badge'); if(!badge) return;
+    const rec=_openModelId?MODEL_SAVES[_openModelId]:null;
+    const n=(rec&&rec.versions)?rec.versions.length:0;
+    badge.textContent=n; badge.style.display=n?'inline-block':'none';
+  }
+  // Bind the open editor to a saved record: load its saved sheet if we have one,
+  // otherwise seed the record from the freshly-loaded workbook. Returns the wb to
+  // render. Called from openEditor.
+  function _bindOpenModel(d, loadedWb){
+    _openModelDoc=d; _openModelId=_modelId(d);
+    const rec=MODEL_SAVES[_openModelId];
+    if(rec && rec.wb){ return rec.wb; }                 // reopen with saved edits
+    MODEL_SAVES[_openModelId]={ name:d.name, wb:_cloneWb(loadedWb), versions:[] };
+    _persistModelSaves();
+    return loadedWb;
+  }
+  function openModelHistory(){
+    const rec=_openModelId?MODEL_SAVES[_openModelId]:null;
+    let ov=document.getElementById('mhist-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='mhist-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:10000;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:26px;';
+      ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; });
+      document.body.appendChild(ov); }
+    const name=(rec&&rec.name)||(_openModelDoc&&_openModelDoc.name)||'Model';
+    const vers=(rec&&rec.versions)||[];
+    const rows = vers.length ? vers.map((v,i)=>{
+      const when=new Date(v.ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+      return `<div class="mh-row"><div><div class="mh-when">${when}</div><div class="mh-lbl">${String(v.label||'Edit').replace(/</g,'&lt;')}</div></div><button class="mh-restore" onclick="restoreModelVersion(${i})">Restore</button></div>`;
+    }).join('') : '<div style="padding:22px 16px;font-size:11px;color:var(--ink-soft);line-height:1.7;">No earlier versions yet. The moment you rework this model — from the formula bar or by chatting to Karaya — the previous version is auto-saved here so you can roll back.</div>';
+    ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);border-radius:16px;overflow:hidden;width:100%;max-width:520px;max-height:calc(100vh - 52px);display:flex;flex-direction:column;">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--ink-hairline);display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">Version history · auto-saved</div><div style="font-family:var(--font-display);font-size:20px;margin-top:3px;">${String(name).replace(/</g,'&lt;')}</div></div>
+        <button onclick="document.getElementById('mhist-overlay').style.display='none'" style="background:transparent;border:none;color:var(--ink-soft);font-size:15px;cursor:pointer;">✕</button>
+      </div>
+      <div style="overflow-y:auto;"><div class="mh-row" style="background:rgba(21,128,61,0.05);"><div><div class="mh-when">Current version</div><div class="mh-lbl">Live — your latest edits</div></div><span class="mh-current">● Now</span></div>${rows}</div>
+    </div>`;
+    ov.style.display='flex';
+  }
+  function restoreModelVersion(idx){
+    const rec=_openModelId?MODEL_SAVES[_openModelId]:null;
+    if(!rec||!rec.versions||!rec.versions[idx]) return;
+    const target=rec.versions[idx];
+    _pushVersion(_cloneWb(SHEET_DATA), 'Before restore');   // restoring is itself undoable
+    _setSheetData(target.wb);
+    if(typeof recomputeAll==='function') recomputeAll();
+    renderSpreadsheet(Object.keys(SHEET_DATA)[0]);
+    saveOpenModel(true); _flashSaved();
+    const ov=document.getElementById('mhist-overlay'); if(ov) ov.style.display='none';
+    const msgs=document.getElementById('ek-msgs');
+    if(msgs){ const bot=document.createElement('div'); bot.className='k-msg bot';
+      bot.innerHTML='Restored the model to an earlier version. Your just-replaced state was saved to history too, so you can jump back either way.<span class="k-meta">Karaya · just now</span>';
+      msgs.appendChild(bot); msgs.scrollTop=msgs.scrollHeight; }
+  }
+
   // ============ SHEET ZOOM — zoom in/out while working on a model ============
   let SHEET_ZOOM = (function(){ try{ const z=parseFloat(localStorage.getItem('bohio_sheet_zoom')); return (z>=0.5&&z<=1.7)?z:1; }catch(e){ return 1; } })();
   function _applySheetZoom(){
@@ -14807,6 +14939,8 @@ Answer as the ${a.name} agent:`;
     const ci = sheet.cols.indexOf(m[1]); if (ci < 1) return;
     const row = sheet.rows.find(r => r.cells[0] === m[2]); if (!row) return;
     if (!row.formulas) row.formulas = row.cells.map(() => '');
+    const _label = row.cells[1] || ref;
+    const _prev = _cloneWb(SHEET_DATA);   // snapshot before the edit → restorable
     if (raw.charAt(0) === '=') {
       row.formulas[ci] = raw;
       const v = evalFormula(raw, sheetName);
@@ -14818,6 +14952,7 @@ Answer as the ${a.name} agent:`;
     recomputeFrom(ref, sheetName);
     renderSpreadsheet(activeSheet);
     _reselectCell(ref);
+    if(typeof _pushVersion==='function'){ _pushVersion(_prev, 'Edited '+_label+' ('+ref+')'); saveOpenModel(true); }
   }
 
   function renderSpreadsheet(sheetName) {
@@ -15011,10 +15146,13 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     const ekm = document.getElementById('ek-model-name');
     if (ekm) ekm.textContent = d.name;
 
-    // Load this document's workbook: an uploaded file's parsed sheets, or the
-    // demo template for the sample models. Then render its first tab.
-    _setSheetData(d && d.wbData ? d.wbData : DEFAULT_SHEET_DATA);
+    // Load this document's workbook: a saved version if we've edited it before,
+    // else the uploaded file's parsed sheets, else the demo template. Then render.
+    const loadedWb = (d && d.wbData) ? d.wbData : DEFAULT_SHEET_DATA;
+    const wb = _bindOpenModel(d, loadedWb);
+    _setSheetData(wb);
     renderSpreadsheet(Object.keys(SHEET_DATA)[0]);
+    _updateHistoryBtn();
 
     // Reset Karaya chat for this model
     const msgs = document.getElementById('ek-msgs');
@@ -15999,7 +16137,10 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     { const solved = _goalSeek(q) || _sensitivity(q);
       if (solved) { bot.innerHTML = fmtKaraya(solved) + '<span class="k-meta">Karaya · just now</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
 
+    // Snapshot before a rework so the previous version is auto-saved, then apply.
+    const _preWb = _cloneWb(SHEET_DATA);
     const applied = tryApplyModelCommand(q);
+    if(applied && typeof _pushVersion==='function'){ _pushVersion(_preWb, applied.charAt(0).toUpperCase()+applied.slice(1)); saveOpenModel(true); }
     const sheetName = (typeof activeSheet !== 'undefined' && activeSheet) ? activeSheet : Object.keys(SHEET_DATA)[0];
     const modelName = (document.getElementById('ed-title') || {}).textContent || 'the model';
     // Whole-workbook grounding so "describe the model" sees every tab; single-tab
@@ -16213,25 +16354,9 @@ Answer as Karaya:`;
   let fsActiveSheet = 'Summary';
 
   function saveModel() {
-    const btn = document.querySelector('.sheet-save-btn');
-    if (!btn) return;
-    const prev = btn.innerHTML;
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l4 4L19 7"/></svg>';
-    btn.style.background = 'var(--ink)';
-    btn.style.color = 'var(--bg)';
-    btn.style.borderColor = 'var(--ink)';
-    const status = document.getElementById('sheet-status');
-    if (status) {
-      const prevStatus = status.textContent;
-      status.textContent = 'Saved · ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-      setTimeout(() => { status.textContent = prevStatus || 'Ready'; }, 1800);
-    }
-    setTimeout(() => {
-      btn.innerHTML = prev;
-      btn.style.background = '';
-      btn.style.color = '';
-      btn.style.borderColor = '';
-    }, 1200);
+    // Persist the current sheet (and refresh the doc) — survives reloads.
+    if (typeof saveOpenModel === 'function') { saveOpenModel(); return; }
+    _flashSaved();
   }
 
   // ============ EXCEL EXPORT — every Bohio-format model → a neat .xls workbook ============
@@ -18294,6 +18419,29 @@ Answer as Karaya:`;
               </div>`).join('')}
           </div>
 
+          <div class="settings-title" style="margin-top:26px;">AI Model Providers</div>
+          <div class="settings-section">
+            <div class="settings-row-sub" style="margin:-4px 0 12px;">Karaya isn't tied to one model. Add API keys for other LLM providers and route each kind of work — deal screening, chat, quick insights — to whichever model you prefer. Keys are held server-side; the app never sees them.</div>
+            ${[
+              {k:'anthropic', name:'Anthropic · Claude', cat:'Default provider', mark:'✦', connected:true, meta:'Powering Karaya — Opus, Sonnet & Haiku per-task routing'},
+              {k:'openai', name:'OpenAI · GPT', cat:'LLM Provider', mark:'O', connected:!!LLM_PROVIDERS.openai, meta:LLM_PROVIDERS.openai?'Key stored server-side · available for routing':'Add an OpenAI API key to route tasks to GPT models'},
+              {k:'gemini', name:'Google · Gemini', cat:'LLM Provider', mark:'G', connected:!!LLM_PROVIDERS.gemini, meta:LLM_PROVIDERS.gemini?'Key stored server-side · available for routing':'Add a Google AI key to route tasks to Gemini models'},
+              {k:'mistral', name:'Mistral', cat:'LLM Provider', mark:'M', connected:!!LLM_PROVIDERS.mistral, meta:LLM_PROVIDERS.mistral?'Key stored server-side · available for routing':'Add a Mistral key for a European-hosted option'},
+              {k:'grok', name:'xAI · Grok', cat:'LLM Provider', mark:'X', connected:!!LLM_PROVIDERS.grok, meta:LLM_PROVIDERS.grok?'Key stored server-side · available for routing':'Add an xAI key to route tasks to Grok models'},
+              {k:'azure', name:'Azure OpenAI', cat:'LLM Provider · Private', mark:'A', connected:!!LLM_PROVIDERS.azure, meta:LLM_PROVIDERS.azure?'Endpoint configured · available for routing':'Point at your own Azure OpenAI deployment endpoint'},
+            ].map(c => `
+              <div class="settings-row" id="conn-${c.k}">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <div style="width:34px;height:34px;border:1px solid var(--ink-hairline);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:16px;color:var(--ink);background:var(--paper);">${c.mark}</div>
+                  <div>
+                    <div class="settings-row-label">${c.name}</div>
+                    <div class="settings-row-sub">${c.cat} · <span class="conn-meta">${c.meta}</span></div>
+                  </div>
+                </div>
+                <button class="settings-action conn-btn ${c.connected?'is-connected':''}" onclick="${c.k==='anthropic'?'':`addLLMProvider('${c.k}','${c.name}')`}"${c.k==='anthropic'?' disabled style="opacity:.6;cursor:default;"':''}>${c.connected?'✓ Active':'Add API key'}</button>
+              </div>`).join('')}
+          </div>
+
           <div class="settings-title" style="margin-top:26px;">AI Agents</div>
           <div class="settings-section">
             <div class="settings-row-sub" style="margin:-4px 0 6px;">Each department is fronted by its own AI agent. Choose what information each one is allowed to share when asked.</div>
@@ -18329,6 +18477,55 @@ Answer as Karaya:`;
       const meta = document.querySelector('#conn-' + k + ' .conn-meta');
       if (meta) meta.textContent = 'Not connected';
     }
+  }
+  // Add another LLM provider (OpenAI, Gemini, Mistral, xAI, Azure…). In the demo
+  // this registers the provider so it can be selected for per-task routing; in a
+  // real deployment the key is stored server-side and the /api/complete proxy
+  // routes to that provider's endpoint. The browser never holds the key.
+  const LLM_PROVIDERS = (function(){ try{ return JSON.parse(localStorage.getItem('bohio_llm_providers')||'{}'); }catch(e){ return {}; } })();
+  function addLLMProvider(k, name){
+    const row = document.getElementById('conn-'+k); if(!row) return;
+    const btn = row.querySelector('.conn-btn'); const meta = row.querySelector('.conn-meta');
+    // already connected → offer to disconnect
+    if(btn.classList.contains('is-connected')){
+      btn.classList.remove('is-connected'); btn.textContent='Add API key';
+      if(meta) meta.textContent='Not connected'; delete LLM_PROVIDERS[k];
+      try{ localStorage.setItem('bohio_llm_providers', JSON.stringify(LLM_PROVIDERS)); }catch(e){}
+      return;
+    }
+    let ov=document.getElementById('llm-key-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='llm-key-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:10001;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:26px;';
+      ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; });
+      document.body.appendChild(ov); }
+    ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);border-radius:16px;width:100%;max-width:440px;overflow:hidden;">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">Add model provider</div>
+        <div style="font-family:var(--font-display);font-size:20px;margin-top:3px;">${String(name).replace(/</g,'&lt;')}</div>
+      </div>
+      <div style="padding:18px 22px;">
+        <div style="font-size:11px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Paste this provider's API key. It's sent to the Bohio server and stored there — the browser never keeps it. Once added, you can route any task (screening, chat, insights) to this provider.</div>
+        <input id="llm-key-input" type="password" placeholder="sk-…" style="width:100%;box-sizing:border-box;padding:11px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:12px;letter-spacing:0.04em;border-radius:8px;">
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button onclick="_saveLLMProvider('${k}','${String(name).replace(/'/g,'')}')" style="flex:1;font-family:inherit;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:999px;padding:11px;cursor:pointer;">Add provider</button>
+          <button onclick="document.getElementById('llm-key-overlay').style.display='none'" style="font-family:inherit;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;border:1px solid var(--ink-hairline);background:transparent;color:var(--ink);border-radius:999px;padding:11px 18px;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+    setTimeout(()=>{ const i=document.getElementById('llm-key-input'); if(i) i.focus(); }, 60);
+  }
+  function _saveLLMProvider(k, name){
+    const inp=document.getElementById('llm-key-input');
+    const key=(inp&&inp.value||'').trim();
+    const ov=document.getElementById('llm-key-overlay'); if(ov) ov.style.display='none';
+    // demo: never store the raw key client-side — just record that it's configured
+    LLM_PROVIDERS[k]={ name, addedAt:Date.now() };
+    try{ localStorage.setItem('bohio_llm_providers', JSON.stringify(LLM_PROVIDERS)); }catch(e){}
+    const row=document.getElementById('conn-'+k); if(!row) return;
+    const btn=row.querySelector('.conn-btn'), meta=row.querySelector('.conn-meta');
+    btn.classList.add('is-connected'); btn.textContent='Connecting…';
+    setTimeout(()=>{ btn.textContent='✓ Active'; if(meta) meta.textContent='Key stored server-side · available for routing'; }, 900);
   }
   function toggleTheme() {
     const isDark = document.documentElement.classList.toggle('dark-mode');

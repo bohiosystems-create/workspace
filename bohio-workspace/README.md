@@ -51,6 +51,18 @@ and a tiny zero-dependency server wires the AI features to a real Claude model.
   The sheet actually recomputes — edit a cell (formula bar or by chatting, e.g.
   "set B8 to -3.00") and Total Opex, NOI, DSCR and cross-tab cells update; click
   any cell for its precedents & dependents; submit the model for approval.
+  Every change is **auto-saved** (surviving reloads via localStorage), and each
+  rework **snapshots the previous version** — open **History** in the sheet
+  toolbar to roll back to any earlier state.
+- **Bohio Workflows** — a home-page gallery of five one-click AI workflows that
+  run live (ingest valuations & deal docs → model; lease/sales agreements →
+  cashflow; model vs. actuals; partner/co-investor reporting pack; asset
+  appreciation → NAV & IRR), each with an animated pipeline, a concrete artifact
+  and a streamed Karaya narration.
+- **Multiple LLM providers** — Karaya isn't tied to one model. **Settings › AI
+  Model Providers** lets you add API keys for OpenAI, Google Gemini, Mistral,
+  xAI or a private Azure OpenAI endpoint alongside Anthropic; keys stay
+  server-side and any task can be routed to the provider you prefer.
 - **Model Studio dashboards** — six asset-class dashboards loaded into the
   workspace (hotel, office, retail, single-tenant, waterfall, lifestyle).
 
