@@ -11080,8 +11080,16 @@
       <div style="border:2px dashed var(--ink-hairline);padding:48px 28px;text-align:center;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;transition:border-color 0.2s ease;" id="dg-dropzone" onclick="document.getElementById('dg-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--ink)'" ondragleave="this.style.borderColor='var(--ink-hairline)'" ondrop="event.preventDefault();this.style.borderColor='var(--ink-hairline)';dgHandleFile(event.dataTransfer.files[0])">
         <div style="font-size:28px;color:var(--ink-faint);">↑</div>
         <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;">Drop Investment Brief Here</div>
-        <div style="font-size:9px;color:var(--ink-soft);letter-spacing:0.08em;">PDF, DOCX, or TXT — Karaya will extract the deal terms</div>
+        <div style="font-size:9px;color:var(--ink-soft);letter-spacing:0.08em;">DOCX or TXT read in full · Karaya extracts the deal terms</div>
         <input type="file" id="dg-file-input" accept=".pdf,.docx,.txt,.doc" style="display:none;" onchange="dgHandleFile(this.files[0])">
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding:13px 16px;border:1px solid var(--ink-hairline);background:var(--paper);">
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:11px;letter-spacing:0.06em;font-weight:700;">No brief to hand? Use the sample</div>
+          <div style="font-size:9px;color:var(--ink-soft);letter-spacing:0.06em;margin-top:2px;">Investment Brief — Corniche Gateway JV · 4 pp term sheet</div>
+        </div>
+        <button onclick="dgViewSampleBrief()" style="background:transparent;border:1px solid var(--ink-hairline);color:var(--ink);padding:8px 14px;font-family:inherit;font-size:8px;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;">Read it</button>
+        <button onclick="dgUseSampleBrief()" style="background:var(--ink);color:var(--bg);border:none;padding:8px 14px;font-family:inherit;font-size:8px;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;">Generate from it</button>
       </div>
       <div id="dg-upload-status" style="margin-top:16px;display:none;">
         <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--ink);background:var(--paper);">
@@ -22073,59 +22081,96 @@ Respond with 2-3 short messages from the most relevant agents (NOT Matteo and NO
     }
   }
 
+  // AI-first extraction of a deal structure from brief text. Asks Karaya for
+  // strict JSON (task 'deal_structure' routes to the heavy-reasoning tier);
+  // falls back to the deterministic regex parser when offline.
+  async function dgParseWithAI(text){
+    const prompt = `You are Karaya, a real-estate deal structurer. Read the investment brief below and extract the capital structure. Respond with ONLY a JSON object, no prose, in exactly this shape:
+{"total":"$120M","tranches":[{"layer":"GP Equity","party":"Name","pct":10,"role":"Sponsor"},{"layer":"LP Equity","party":"Name","pct":30,"role":"LP"},{"layer":"Mezzanine","party":"Name","pct":15,"role":"Mezz Lender"},{"layer":"Senior Debt","party":"Name","pct":45,"role":"Senior Lender"}],"operator":"Name or null"}
+Rules: keep the brief's currency in "total" (e.g. "SAR 265M"); percentages must sum to 100 (adjust the largest tranche if needed); only include tranches actually present; layer must be one of GP Equity / LP Equity / Mezzanine / Senior Debt.
+
+BRIEF:
+${String(text).slice(0, 4000)}`;
+    try {
+      const raw = await window.claude.complete({ messages:[{role:'user', content: prompt}], task:'deal_structure', max_tokens:600 });
+      const m = String(raw||'').match(/\{[\s\S]*\}/);
+      if (m) {
+        const j = JSON.parse(m[0]);
+        if (j && Array.isArray(j.tranches) && j.tranches.length) {
+          // normalise: compute amounts from the total + pct
+          const tm = String(j.total||'').match(/([\d,.]+)\s*([MBmb])/);
+          const cur = (String(j.total||'').match(/^[^\d]*/)||[''])[0].trim() || '$';
+          const totalNum = tm ? parseFloat(tm[1].replace(/,/g,'')) * (/b/i.test(tm[2])?1000:1) : 100;
+          j.tranches = j.tranches.map(t=>({ layer:t.layer||'LP Equity', party:t.party||'—', pct:Math.round(Number(t.pct)||0), role:t.role||t.layer||'',
+            amt:`${cur==='$'?'$':cur+' '}${(totalNum*(Number(t.pct)||0)/100).toFixed(1)}M` }));
+          if (j.operator === 'null' || j.operator === '') j.operator = null;
+          j._ai = true;
+          return j;
+        }
+      }
+    } catch(e) {}
+    return dgParseDescription(text);
+  }
+
   function dgSendChat() {
     const input = document.getElementById('dg-chat-input');
     const msg = input.value.trim();
     if (!msg) return;
     input.value = '';
+    dgGenerateFrom(msg, 'Parsed from natural language input');
+  }
 
+  // Shared path: brief text → (AI or regex) parse → chat summary + SVG preview.
+  function dgGenerateFrom(briefText, sourceNote){
     const msgs = document.getElementById('dg-chat-msgs');
     msgs.innerHTML += `<div style="background:rgba(0,9,25,0.08);border:1px solid rgba(0,9,25,0.15);padding:12px 14px;font-size:11px;line-height:1.6;letter-spacing:0.02em;text-transform:none;max-width:88%;align-self:flex-end;">
       <div style="font-size:7px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px;font-weight:700;">You</div>
-      ${msg}
+      ${String(briefText).slice(0,260).replace(/</g,'&lt;')}${briefText.length>260?'…':''}
     </div>`;
-
-    // Typing indicator
     msgs.innerHTML += `<div id="dg-typing" style="padding:10px 14px;align-self:flex-start;display:flex;gap:4px;">
       <span style="width:5px;height:5px;background:var(--ink-faint);border-radius:50%;animation:typing-bounce 1.2s ease-in-out infinite;"></span>
       <span style="width:5px;height:5px;background:var(--ink-faint);border-radius:50%;animation:typing-bounce 1.2s ease-in-out infinite 0.15s;"></span>
       <span style="width:5px;height:5px;background:var(--ink-faint);border-radius:50%;animation:typing-bounce 1.2s ease-in-out infinite 0.3s;"></span>
     </div>`;
     msgs.scrollTop = msgs.scrollHeight;
-
-    // Parse the description and generate a deal structure
-    setTimeout(() => {
+    (async () => {
+      const parsed = await dgParseWithAI(briefText);
       document.getElementById('dg-typing')?.remove();
-      const parsed = dgParseDescription(msg);
       dgGeneratedStack = parsed;
-
       msgs.innerHTML += `<div style="background:rgba(0,9,25,0.04);border:1px solid var(--ink-hairline);padding:14px 16px;font-size:11px;line-height:1.6;letter-spacing:0.02em;text-transform:none;max-width:92%;align-self:flex-start;">
         <div style="font-size:7px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;font-weight:700;">Karaya</div>
-        <strong>I've parsed the following deal structure:</strong><br><br>
+        <strong>I've ${parsed._ai ? 'read the brief and extracted' : 'parsed'} the following deal structure:</strong><br><br>
         <strong>Total:</strong> ${parsed.total}<br>
         <strong>Tranches:</strong><br>
         ${parsed.tranches.map(t => `· ${t.party} — ${t.layer} — ${t.pct}% (${t.amt})`).join('<br>')}
         ${parsed.operator ? `<br><br><strong>Operator:</strong> ${parsed.operator}` : ''}
         <br><br><em>Preview rendered below. Click "Apply to Project" to update the current project.</em>
-        <div style="font-size:7px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.1em;">⬡ Parsed from natural language input</div>
+        <div style="font-size:7px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.1em;">⬡ ${sourceNote}${parsed._ai ? ' · extracted by Karaya' : ''}</div>
       </div>`;
       msgs.scrollTop = msgs.scrollHeight;
-
-      // Show the preview
       dgRenderPreview(parsed);
-    }, 1200 + Math.random() * 600);
+    })();
   }
 
+  // The loose fallback regexes can swallow connector words into the party name
+  // ("sponsor Bevilacqua Holdings", "debt from SNB") — strip them.
+  function _dgCleanParty(name){
+    let n=String(name||'').trim(), prev='';
+    while(n!==prev){ prev=n; n=n.replace(/^(?:sponsor|general partner|is|from|the|anchor|co-?invest|debt|senior|mezz(?:anine)?|lender|bank|credit|loan)\s+/i,''); }
+    return n||'—';
+  }
   function dgParseDescription(text) {
     const t = text.toLowerCase();
-    // Extract total deal size
+    // Extract total deal size — keep the brief's currency (SAR 265M, AED 120M, $250M)
     let total = '$100M';
-    const totalMatch = text.match(/\$?([\d,.]+)\s*[mMbB]/);
+    const totalMatch = text.match(/(SAR|AED|USD|EUR|GBP|\$)?\s*([\d,.]+)\s*([mMbB])\b/);
     if (totalMatch) {
-      const num = parseFloat(totalMatch[1].replace(/,/g, ''));
-      total = totalMatch[0].includes('b') || totalMatch[0].includes('B') ? `$${num}B` : `$${num}M`;
+      const num = parseFloat(totalMatch[2].replace(/,/g, ''));
+      const cur = totalMatch[1] ? (totalMatch[1] === '$' ? '$' : totalMatch[1] + ' ') : '$';
+      total = `${cur}${num}${/b/i.test(totalMatch[3]) ? 'B' : 'M'}`;
     }
-    const totalNum = parseFloat(total.replace(/[$MBmb,]/g, '')) * (total.includes('B') ? 1000 : 1);
+    const totalNum = parseFloat(total.replace(/[^0-9.]/g, '')) * (/B$/.test(total) ? 1000 : 1);
+    const curPfx = total.replace(/[\d,.].*$/, '') || '$';   // '$' or 'SAR ' etc.
 
     // Extract tranches from percentage mentions
     const tranches = [];
@@ -22137,17 +22182,17 @@ Respond with 2-3 short messages from the most relevant agents (NOT Matteo and NO
     const gpMatch = text.match(/(?:GP|sponsor|general partner)[:\s]+([A-Z][A-Za-z\s&'-]+?)(?:\s+at\s+|\s+)(\d+)%/i);
     if (gpMatch) {
       const pct = parseInt(gpMatch[2]);
-      tranches.push({ layer:'GP Equity', party:gpMatch[1].trim(), pct, amt:`$${(totalNum*pct/100).toFixed(1)}M`, role:'Sponsor' });
+      tranches.push({ layer:'GP Equity', party:_dgCleanParty(gpMatch[1]), pct, amt:`${curPfx}${(totalNum*pct/100).toFixed(1)}M`, role:'Sponsor' });
       usedPct[gpMatch[1].trim().toLowerCase()] = true;
     }
 
     // LP
-    const lpMatches = [...text.matchAll(/(?:LP|limited partner|anchor|co-invest)[:\s]+(?:is\s+)?([A-Z][A-Za-z\s&'-]+?)(?:\s+at\s+|\s+)(\d+)%/gi)];
+    const lpMatches = [...text.matchAll(/(?:LP|limited partner|anchor|co-invest)[:\s]+(?:is\s+|from\s+)?([A-Z][A-Za-z\s&'-]+?)(?:\s+at\s+|\s+)(\d+)%/gi)];
     lpMatches.forEach(m => {
-      const name = m[1].trim();
+      const name = _dgCleanParty(m[1]);
       if (!usedPct[name.toLowerCase()]) {
         const pct = parseInt(m[2]);
-        tranches.push({ layer:'LP Equity', party:name, pct, amt:`$${(totalNum*pct/100).toFixed(1)}M`, role:'LP' });
+        tranches.push({ layer:'LP Equity', party:name, pct, amt:`${curPfx}${(totalNum*pct/100).toFixed(1)}M`, role:'LP' });
         usedPct[name.toLowerCase()] = true;
       }
     });
@@ -22156,7 +22201,7 @@ Respond with 2-3 short messages from the most relevant agents (NOT Matteo and NO
     const mezzMatch = text.match(/(?:mezz|mezzanine)[:\s]+(?:from\s+)?([A-Z][A-Za-z\s&'-]+?)(?:\s+at\s+|\s+)(\d+)%/i);
     if (mezzMatch) {
       const pct = parseInt(mezzMatch[2]);
-      tranches.push({ layer:'Mezzanine', party:mezzMatch[1].trim(), pct, amt:`$${(totalNum*pct/100).toFixed(1)}M`, role:'Mezz Lender' });
+      tranches.push({ layer:'Mezzanine', party:_dgCleanParty(mezzMatch[1]), pct, amt:`${curPfx}${(totalNum*pct/100).toFixed(1)}M`, role:'Mezz Lender' });
       usedPct[mezzMatch[1].trim().toLowerCase()] = true;
     }
 
@@ -22164,16 +22209,16 @@ Respond with 2-3 short messages from the most relevant agents (NOT Matteo and NO
     const debtMatch = text.match(/(?:senior|debt|credit|bank|loan|lender)[:\s]+(?:from\s+)?([A-Z][A-Za-z\s&'-]+?)(?:\s+at\s+|\s+)(\d+)%/i);
     if (debtMatch) {
       const pct = parseInt(debtMatch[2]);
-      tranches.push({ layer:'Senior Debt', party:debtMatch[1].trim(), pct, amt:`$${(totalNum*pct/100).toFixed(1)}M`, role:'Senior Lender' });
+      tranches.push({ layer:'Senior Debt', party:_dgCleanParty(debtMatch[1]), pct, amt:`${curPfx}${(totalNum*pct/100).toFixed(1)}M`, role:'Senior Lender' });
       usedPct[debtMatch[1].trim().toLowerCase()] = true;
     }
 
     // If we couldn't parse structured tranches, create a default split
     if (tranches.length === 0) {
       tranches.push(
-        { layer:'GP Equity', party:'Sponsor', pct:10, amt:`$${(totalNum*0.1).toFixed(1)}M`, role:'Sponsor' },
-        { layer:'LP Equity', party:'LP Investor', pct:30, amt:`$${(totalNum*0.3).toFixed(1)}M`, role:'LP' },
-        { layer:'Senior Debt', party:'Senior Lender', pct:60, amt:`$${(totalNum*0.6).toFixed(1)}M`, role:'Senior Lender' }
+        { layer:'GP Equity', party:'Sponsor', pct:10, amt:`${curPfx}${(totalNum*0.1).toFixed(1)}M`, role:'Sponsor' },
+        { layer:'LP Equity', party:'LP Investor', pct:30, amt:`${curPfx}${(totalNum*0.3).toFixed(1)}M`, role:'LP' },
+        { layer:'Senior Debt', party:'Senior Lender', pct:60, amt:`${curPfx}${(totalNum*0.6).toFixed(1)}M`, role:'Senior Lender' }
       );
     }
 
@@ -22224,48 +22269,75 @@ Respond with 2-3 short messages from the most relevant agents (NOT Matteo and NO
     document.getElementById('dg-chat-input').focus();
   }
 
+  // Pull the plain text out of a .docx (a ZIP containing word/document.xml) —
+  // reuses the same zero-dependency _unzip used for .xlsx parsing.
+  async function _docxText(file){
+    const buf = await file.arrayBuffer();
+    const files = await _unzip(buf, /^word\/document\.xml$/);
+    const xml = files['word/document.xml'] || '';
+    return xml.replace(/<w:p[ >]/g, '\n<w:p ').replace(/<[^>]+>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/[ \t]+/g,' ').trim();
+  }
+  // The bundled sample brief — readable in full, and generable with one click.
+  const DG_SAMPLE_BRIEF = {
+    type:'PDF', name:'Investment Brief — Corniche Gateway JV', version:'4 pp · Draft term sheet', updated:'Data room', isReadable:true,
+    briefText:'SAR 265M mixed-use JV in Jeddah (Corniche Gateway). GP sponsor Bevilacqua Holdings at 10%, LP anchor is Gulf Pension Fund at 25%, LP co-invest from Riyadh Capital Partners at 12%, mezzanine from Wadi Capital at 13%, and senior debt from SNB at 40%. Operator is Rotana Hotels. Five-year hold, target project IRR 17.5%, exit at a 6.25% cap on stabilised NOI.',
+    docBody:`
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:16px;margin-bottom:20px;">
+  <div style="font-size:22px;font-weight:700;">INVESTMENT BRIEF</div>
+  <div style="font-size:12px;color:#4b5563;margin-top:6px;">Corniche Gateway JV — Mixed-Use Waterfront · Jeddah</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">Draft term sheet · Strictly private &amp; confidential · 4 pages</div>
+</div>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:16px 0 8px;">1 · Transaction</h4>
+<p>A <strong>SAR 265,000,000</strong> mixed-use joint venture on the Jeddah Corniche, acquiring and stabilising the Corniche Gateway waterfront scheme over a <strong>five-year hold</strong>, targeting a project IRR of <strong>17.5%</strong> with exit at a <strong>6.25% cap</strong> on stabilised NOI.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:16px 0 8px;">2 · Capital Structure</h4>
+<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0;">
+  <tr style="background:#f3f0ea;"><th style="text-align:left;padding:7px 10px;border:1px solid #d7d2c7;">Tranche</th><th style="text-align:left;padding:7px 10px;border:1px solid #d7d2c7;">Party</th><th style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">Share</th><th style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">SAR M</th></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">GP Equity — Sponsor</td><td style="padding:7px 10px;border:1px solid #d7d2c7;">Bevilacqua Holdings</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">10%</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">26.5</td></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">LP Equity — Anchor</td><td style="padding:7px 10px;border:1px solid #d7d2c7;">Gulf Pension Fund</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">25%</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">66.3</td></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">LP Equity — Co-invest</td><td style="padding:7px 10px;border:1px solid #d7d2c7;">Riyadh Capital Partners</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">12%</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">31.8</td></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">Mezzanine</td><td style="padding:7px 10px;border:1px solid #d7d2c7;">Wadi Capital</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">13%</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">34.5</td></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">Senior Debt</td><td style="padding:7px 10px;border:1px solid #d7d2c7;">SNB</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">40%</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">106.0</td></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td style="padding:7px 10px;border:1px solid #d7d2c7;">Total</td><td style="padding:7px 10px;border:1px solid #d7d2c7;"></td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">100%</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">265.0</td></tr>
+</table>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:16px 0 8px;">3 · Operations</h4>
+<p>The hospitality component will be operated by <strong>Rotana Hotels</strong> under a 15-year HMA (base 2.5% of gross revenue + 8% incentive on AGOP). Retail is asset-managed in-house by the sponsor.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:16px 0 8px;">4 · Governance</h4>
+<p>Major decisions (sale, refinancing, annual budget, HMA amendments) require LP consent above 75% of equity interests. The GP earns a 1.25% asset-management fee and a 20% promote over an 8% preferred return, with a 50/50 catch-up.</p>`
+  };
+  function dgViewSampleBrief(){ if(typeof openReadableDoc==='function') openReadableDoc(DG_SAMPLE_BRIEF); }
+  function dgUseSampleBrief(){
+    switchDealGenTab('chat');
+    dgGenerateFrom(DG_SAMPLE_BRIEF.briefText, 'Extracted from the sample investment brief');
+  }
+
   function dgHandleFile(file) {
     if (!file) return;
     document.getElementById('dg-upload-status').style.display = 'block';
     document.getElementById('dg-file-name').textContent = file.name;
-    document.getElementById('dg-file-status').textContent = 'Uploading...';
-
-    // Simulate processing
-    setTimeout(() => {
-      document.getElementById('dg-file-status').textContent = 'Karaya is extracting deal terms...';
+    document.getElementById('dg-file-status').textContent = 'Reading the brief…';
+    const ext = ((String(file.name||'').match(/\.([^.]+)$/)||[,''])[1]||'').toLowerCase();
+    (async () => {
+      let text = '';
+      try {
+        if (ext === 'docx') text = await _docxText(file);
+        else text = await file.text();
+        // strip binary noise (e.g. raw PDF bytes) and sanity-check we got prose
+        text = String(text).replace(/[^\x20-\x7E -ɏ\n]/g, ' ').replace(/[ \t]{2,}/g, ' ');
+        if ((text.match(/[A-Za-z]{3,}/g) || []).length < 25) text = '';
+      } catch(e) { text = ''; }
+      if (!text) {
+        // couldn't extract text (scanned/binary PDF) — fall back to the sample
+        document.getElementById('dg-file-status').textContent = 'No extractable text — using the sample brief instead';
+        setTimeout(() => dgUseSampleBrief(), 700);
+        return;
+      }
+      document.getElementById('dg-file-status').textContent = 'Karaya is extracting the deal terms…';
       setTimeout(() => {
         document.getElementById('dg-file-status').textContent = 'Extraction complete — switching to chat';
-        // Switch to chat and show a simulated extraction
-        setTimeout(() => {
-          switchDealGenTab('chat');
-          const msgs = document.getElementById('dg-chat-msgs');
-          const mockParsed = {
-            total: '$165M',
-            tranches: [
-              { layer:'GP Equity', party:'Sponsor Entity', pct:10, amt:'$16.5M', role:'Sponsor' },
-              { layer:'LP Equity', party:'Institutional LP', pct:30, amt:'$49.5M', role:'Lead LP' },
-              { layer:'Mezzanine', party:'Mezz Provider', pct:15, amt:'$24.8M', role:'Mezz Lender' },
-              { layer:'Senior Debt', party:'Commercial Bank', pct:45, amt:'$74.3M', role:'Senior Lender' },
-            ],
-            operator: null
-          };
-          dgGeneratedStack = mockParsed;
-          msgs.innerHTML += `<div style="background:rgba(0,9,25,0.04);border:1px solid var(--ink-hairline);padding:14px 16px;font-size:11px;line-height:1.6;letter-spacing:0.02em;text-transform:none;max-width:92%;align-self:flex-start;">
-            <div style="font-size:7px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;font-weight:700;">Karaya</div>
-            <strong>I've extracted the following from "${file.name}":</strong><br><br>
-            <strong>Total Deal Size:</strong> $165M<br>
-            <strong>GP Equity:</strong> Sponsor Entity — 10% ($16.5M)<br>
-            <strong>LP Equity:</strong> Institutional LP — 30% ($49.5M)<br>
-            <strong>Mezzanine:</strong> Mezz Provider — 15% ($24.8M)<br>
-            <strong>Senior Debt:</strong> Commercial Bank — 45% ($74.3M)<br><br>
-            <em>You can refine these terms by chatting, or click "Apply to Project" to use as-is.</em>
-            <div style="font-size:7px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.1em;">⬡ Extracted from uploaded brief · ${file.name}</div>
-          </div>`;
-          msgs.scrollTop = msgs.scrollHeight;
-          dgRenderPreview(mockParsed);
-        }, 500);
-      }, 1500);
-    }, 800);
+        switchDealGenTab('chat');
+        dgGenerateFrom(text, 'Extracted from uploaded brief · ' + file.name);
+      }, 700);
+    })();
   }
 
   // ============ CONTRACT HUB DATA & FUNCTIONS ============
