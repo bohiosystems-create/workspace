@@ -10298,7 +10298,7 @@
 
       <!-- ============ BOHIO AUTOMATES — 5 workflows ============ -->
       <div class="section-header"><h2 class="section-title">Bohio Workflows</h2>
-        <span class="section-meta">Five AI workflows · click any to run it live</span></div>
+        <span class="section-meta">Six AI workflows · click any to run it live</span></div>
       <div class="wf-grid" id="wf-grid">
         <button class="wf-card" onclick="runWorkflow('ingest')">
           <div class="wf-n">01</div><div class="wf-h">Valuation</div>
@@ -10319,6 +10319,10 @@
         <button class="wf-card" onclick="runWorkflow('appreciation')">
           <div class="wf-n">05</div><div class="wf-h">Models the asset appreciation</div>
           <div class="wf-d">Projects value growth per unit and across every project and fund — re-forecasting as prices, cap rates, costs and market data move, into NAV &amp; IRR.</div>
+          <div class="wf-cta">Run workflow →</div></button>
+        <button class="wf-card" onclick="runWorkflow('screening')">
+          <div class="wf-n">06</div><div class="wf-h">Deal screening</div>
+          <div class="wf-d">Screens an incoming deal against the firm's investment mandate — ticket size, geography, IRR hurdle, asset class — and returns a committee-ready PROCEED / REVIEW / PASS verdict.</div>
           <div class="wf-cta">Run workflow →</div></button>
       </div>
 
@@ -18829,6 +18833,41 @@ Answer as Karaya:`;
           prompt:`You are Karaya. You re-forecast asset appreciation using Paseetah price/cap-rate trends: the flagship asset grows from SAR 412M today to SAR 528M at a 2030 exit (~6.2% p.a.), lifting fund NAV from SAR 615M to SAR 788M and equity IRR to 18.3%. In 2 sentences (max 45 words) explain the driver and one sensitivity to watch. Plain text, **bold** the figures.`,
           fallback:`Steady **~6.2%** annual appreciation carries the asset to **SAR 528M** by the 2030 exit, lifting fund NAV to **SAR 788M** and equity IRR to **18.3%**. The forecast is most sensitive to the exit cap rate — a 25 bps expansion would trim roughly SAR 20M of value.`,
           foot:[{label:'Re-run with live market data',ghost:false,go(){ closeWorkflow(); goTo('settings'); }}]
+        };
+      }
+    },
+    screening: {
+      eyebrow:'Workflow 06', title:'Deal screening',
+      sub:'An incoming deal is scored against the firm’s mandate → a committee-ready PROCEED / REVIEW / PASS verdict',
+      steps:[
+        {label:'Reading the inbound teaser — Aurora Logistics Park', src:'Deal'},
+        {label:'Loading the firm’s investment mandate', src:'Mandate'},
+        {label:'Scoring ticket, geography, asset class & return hurdle', src:'Karaya'},
+        {label:'Computing the fit score and verdict', src:'Karaya'},
+      ],
+      art(){
+        // [criterion, mandate, this deal, pass('g'|'a'|'r')]
+        const rows=[
+          ['Ticket size','SAR 150–400M','SAR 265M','g'],
+          ['Geography','Jeddah / Riyadh','Riyadh · SPARK','g'],
+          ['Asset class','Core-plus RE','Logistics (core-plus)','g'],
+          ['Target IRR','≥ 16%','17.8%','g'],
+          ['Equity multiple','≥ 1.8x','1.9x','g'],
+          ['Hold period','5–7 yrs','6 yrs','g'],
+          ['Leverage (LTV)','≤ 60%','58%','g'],
+          ['Pre-let / occupancy','≥ 60% at close','54% (LOI stage)','a'],
+          ['ESG screen','Required','Pending certification','a'],
+        ];
+        const pass=rows.filter(r=>r[3]==='g').length, part=rows.filter(r=>r[3]==='a').length;
+        const score=Math.round((pass+part*0.5)/rows.length*100);
+        const body=rows.map(r=>`<tr><td>${r[0]}</td><td style="color:var(--ink-soft);text-align:left;">${r[1]}</td><td style="font-weight:700;">${r[2]}</td><td><span class="wf-pill ${r[3]}">${r[3]==='g'?'Meets':(r[3]==='a'?'Watch':'Fails')}</span></td></tr>`).join('');
+        const verdict=`<tr style="border-top:2px solid var(--ink);"><td style="font-weight:700;">Fit score</td><td style="text-align:left;"></td><td style="font-weight:700;">${score} / 100</td><td><span class="wf-pill g">PROCEED</span></td></tr>`;
+        return {
+          artLbl:'Aurora Logistics Park — screened against the mandate',
+          html:`<table><thead><tr><th>Criterion</th><th style="text-align:left;">Mandate</th><th>This deal</th><th>Fit</th></tr></thead><tbody>${body}${verdict}</tbody></table>`,
+          prompt:`You are Karaya screening "Aurora Logistics Park" (Riyadh SPARK, SAR 265M ticket, core-plus logistics) against the firm's mandate (SAR 150-400M, Jeddah/Riyadh, IRR hurdle 16%). It clears 7 of 9 criteria — projected IRR 17.8%, 1.9x equity multiple, 58% LTV — with two watch items: pre-let at 54% (LOI stage) and a pending ESG certification. Fit score ${score}/100, verdict PROCEED. In 2 sentences (max 45 words) give the committee read and the one condition to attach. Plain text, **bold** the key figures.`,
+          fallback:`Aurora clears **7 of 9** mandate criteria — a **17.8%** projected IRR, **1.9x** equity multiple and **58%** LTV all inside guardrails — for a **${score}/100** fit and a **PROCEED**. Attach one condition: firm up pre-letting from **54%** LOI to ≥ 60% signed before IC, and close out the ESG certification.`,
+          foot:[{label:'Open the full deal screening',ghost:false,go(){ closeWorkflow(); goTo('screening'); }}]
         };
       }
     },
