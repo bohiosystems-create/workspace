@@ -20,6 +20,7 @@
    app uses its built-in fallback responses, so the demo stays fully usable.
    ========================================================================== */
 import { createServer } from 'node:http';
+import { createHmac } from 'node:crypto';
 import { readFile, writeFile, stat, mkdir } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
@@ -53,6 +54,34 @@ const PORT = Number(process.env.PORT) || 5173;
 
 const API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const API_URL = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com') + '/v1/messages';
+
+// ---- real sign-in (optional) ----------------------------------------------
+// Set DEMO_USERNAME and DEMO_PASSWORD (env or .env) to protect the demo with a
+// real credential check: the login form verifies against POST /api/login, and
+// /api/complete requires the issued token — so nobody can spend your Anthropic
+// credits without signing in. Leave DEMO_PASSWORD unset for the open demo gate.
+const DEMO_USERNAME = process.env.DEMO_USERNAME || '';
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || '';
+const AUTH_ON = Boolean(DEMO_PASSWORD);
+function demoToken() {
+  return createHmac('sha256', DEMO_PASSWORD).update('bohio-demo:' + DEMO_USERNAME.toLowerCase()).digest('hex');
+}
+function authOk(req) {
+  if (!AUTH_ON) return true;
+  return String(req.headers['x-demo-token'] || '') === demoToken();
+}
+async function handleLogin(req, res) {
+  const JSONH = { 'Content-Type': 'application/json' };
+  if (!AUTH_ON) return send(res, 200, JSON.stringify({ ok: true, open: true }), JSONH);
+  let p;
+  try { p = JSON.parse(await readBody(req)); } catch { return send(res, 400, JSON.stringify({ error: 'invalid JSON' }), JSONH); }
+  const u = String(p.username || '').trim().toLowerCase();
+  const pw = String(p.password || '');
+  if (u === DEMO_USERNAME.toLowerCase() && pw === DEMO_PASSWORD) {
+    return send(res, 200, JSON.stringify({ ok: true, token: demoToken(), name: DEMO_USERNAME }), JSONH);
+  }
+  return send(res, 401, JSON.stringify({ error: 'invalid credentials' }), JSONH);
+}
 
 // Where vendored CDN libraries (React/ReactDOM/Babel) get cached on first load.
 const VENDOR_DIR = join(ROOT, 'studio-vendor');
@@ -92,6 +121,10 @@ function readBody(req, limit = 1_000_000) {
 }
 
 async function handleComplete(req, res) {
+  if (!authOk(req)) {
+    return send(res, 401, JSON.stringify({ error: 'unauthorised — sign in required' }),
+      { 'Content-Type': 'application/json' });
+  }
   if (!API_KEY) {
     return send(res, 503, JSON.stringify({ error: 'ANTHROPIC_API_KEY not set' }),
       { 'Content-Type': 'application/json' });
@@ -236,8 +269,12 @@ const server = createServer(async (req, res) => {
       if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
       return handleComplete(req, res);
     }
+    if (url.pathname === '/api/login') {
+      if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+      return handleLogin(req, res);
+    }
     if (url.pathname === '/api/health') {
-      return send(res, 200, JSON.stringify({ ok: true, ai: Boolean(API_KEY), routing: routingTable() }),
+      return send(res, 200, JSON.stringify({ ok: true, ai: Boolean(API_KEY), auth: AUTH_ON, routing: routingTable() }),
         { 'Content-Type': 'application/json' });
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');

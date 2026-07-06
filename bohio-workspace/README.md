@@ -154,10 +154,13 @@ functions in `api/` (no `server.mjs` needed in the cloud):
 Local `node server.mjs` still works unchanged — the `api/` functions are only
 used by Vercel.
 
-> ⚠️ **Protect your key on a public URL.** The AI route uses your Anthropic key
-> with no authentication, so anyone with the link can spend your credits. Set a
-> monthly spend limit on the key in the Anthropic console, and/or add a simple
-> password gate before sharing the URL widely.
+> ⚠️ **Protect your key on a public URL.** Set `DEMO_USERNAME` and
+> `DEMO_PASSWORD` (env vars, both locally in `.env` and on Vercel) to require a
+> real sign-in: the login form verifies credentials against `POST /api/login`,
+> and `POST /api/complete` refuses AI calls without the issued token — so only
+> people who sign in can spend your Anthropic credits. Without `DEMO_PASSWORD`
+> the demo keeps its open sign-in gate. Also consider a monthly spend limit on
+> the key in the Anthropic console.
 
 Check `GET /api/health` to confirm whether live AI is on:
 

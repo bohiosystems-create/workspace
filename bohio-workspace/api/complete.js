@@ -3,12 +3,24 @@
    Anthropic Messages API, keeping ANTHROPIC_API_KEY server-side. Returns
    { text } so the window.claude.complete bridge (assets/js/claude.js) works
    unchanged. */
+import { createHmac } from 'node:crypto';
 import { resolveModel } from '../lib/models.mjs';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // When DEMO_PASSWORD is configured, require the token issued by /api/login
+  // so only signed-in users can spend the Anthropic key.
+  const DEMO_PASSWORD = process.env.DEMO_PASSWORD || '';
+  if (DEMO_PASSWORD) {
+    const expected = createHmac('sha256', DEMO_PASSWORD)
+      .update('bohio-demo:' + String(process.env.DEMO_USERNAME || '').toLowerCase()).digest('hex');
+    if (String(req.headers['x-demo-token'] || '') !== expected) {
+      return res.status(401).json({ error: 'unauthorised — sign in required' });
+    }
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY || '';

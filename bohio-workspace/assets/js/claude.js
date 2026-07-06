@@ -32,6 +32,15 @@
     return [{ role: 'user', content: String(arg == null ? '' : arg) }];
   }
 
+  // When the demo is protected (DEMO_PASSWORD set server-side), /api/login
+  // issues a token at sign-in; every AI call carries it so only signed-in
+  // users can spend the Anthropic key.
+  function authHeaders() {
+    const h = { 'Content-Type': 'application/json' };
+    try { const t = localStorage.getItem('bohio_demo_token'); if (t) h['x-demo-token'] = t; } catch (e) {}
+    return h;
+  }
+
   async function complete(arg, opts) {
     opts = opts || {};
     const messages = toMessages(arg);
@@ -42,7 +51,7 @@
 
     const res = await fetch('/api/complete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ messages: messages, max_tokens: max_tokens, task: task, model: model })
     });
 
@@ -72,7 +81,7 @@
     };
     const res = await fetch('/api/complete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify(body),
     });
     if (!res.ok) {

@@ -6,5 +6,6 @@ import { routingTable } from '../lib/models.mjs';
 
 export default function handler(req, res) {
   const ai = Boolean(process.env.ANTHROPIC_API_KEY);
-  res.status(200).json({ ok: true, ai, runtime: 'vercel', routing: routingTable() });
+  const auth = Boolean(process.env.DEMO_PASSWORD);
+  res.status(200).json({ ok: true, ai, auth, runtime: 'vercel', routing: routingTable() });
 }

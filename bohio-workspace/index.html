@@ -10048,9 +10048,10 @@
   <div class="login-form" id="login-form">
     <input class="login-field" type="text" id="login-name" placeholder="Your name" onkeypress="if(event.key==='Enter')signIn()">
     <input class="login-field" type="email" id="login-email" placeholder="Email" onkeypress="if(event.key==='Enter')signIn()">
-    <input class="login-field" type="password" placeholder="Password" onkeypress="if(event.key==='Enter')signIn()">
+    <input class="login-field" type="password" id="login-pass" placeholder="Password" onkeypress="if(event.key==='Enter')signIn()">
+    <div id="login-err" style="display:none;text-align:center;margin:2px 0 6px;font-size:10px;letter-spacing:0.08em;color:#b51e3b;font-weight:600;"></div>
     <button class="login-btn" onclick="signIn()">Sign In</button>
-    <div style="text-align:center;margin-top:12px;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">Demo — sign in as anyone. Your name personalises the workspace.</div>
+    <div id="login-hint" style="text-align:center;margin-top:12px;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">Demo — sign in as anyone. Your name personalises the workspace.</div>
     <div style="text-align:center;margin-top:10px;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-soft);">No account? <a href="#" onclick="event.preventDefault();showPricing()" style="color:var(--ink);text-decoration:underline;">View plans</a></div>
   </div>
 
@@ -10132,15 +10133,10 @@
       </div>
     </div>
 
-    <!-- Fund Management menu (shown within workspace) -->
-    <div class="nav-section" id="fund-subnav" style="display:none;">
-      <div class="nav-item" id="nav-screening" onclick="goTo('screening')">
-        <span>Deal Screening</span>
-      </div>
-      <div class="nav-item" id="nav-funds" onclick="goTo('funds')">
-        <span>Funds Management</span>
-      </div>
-    </div>
+    <!-- (Deal Screening & Funds Management left the sidebar — they run as
+         Bohio Workflows 06/07 on the workspace home. Hidden stub kept so the
+         goTo() toggles stay harmless.) -->
+    <div class="nav-section" id="fund-subnav" style="display:none !important;"></div>
 
     <!-- Workspace sub-nav (shown when in workspace) -->
     <div class="nav-section" id="ws-subnav" style="display:none;">
@@ -15162,11 +15158,17 @@ Answer as the ${a.name} agent:`;
       });
     }
     const deps=(typeof findDependents==='function')?findDependents(ref, sheetName):[];
-    const prompt = `You are Karaya inside the Bohio financial-model editor. Explain the selected cell to an analyst in 2-3 sentences: what it represents, how it's derived, and its role in the model. Be specific and cite figures. Plain text, **bold** the key number.
+    // the full row series gives the model context even when the formula uses
+    // functions our parser can't resolve into precedents
+    let rowSeries='';
+    try{ const s=SHEET_DATA[sheetName]; const mm=ref.match(/^([A-Z]+)(\d+)$/);
+      const row=s&&mm&&s.rows.find(r=>r.cells[0]===mm[2]);
+      if(row){ const nums=_rowNums(row); if(nums.length>1) rowSeries='\nFull row series: '+nums.join(' → '); } }catch(e){}
+    const prompt = `You are Karaya inside the Bohio financial-model editor, and the cell data below IS the live model — it is complete and authoritative. NEVER say you lack access, NEVER ask for more context or the "full formula", NEVER ask the user to share anything: explain from exactly what is given. If the formula references cells not listed under Precedents, describe the cell's meaning from its label, value and row series instead. Explain to an analyst in 2-3 sentences: what this cell represents, how it's derived, and its role in the model. Be specific, cite the actual figures, plain text, **bold** the key number.
 Cell: ${sheetName}!${ref}
 Row label: ${label||'—'}
 Value: ${value||'—'}
-Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):''}${deps.length?('\nFeeds: '+deps.slice(0,5).map(d=>d.ref+' ('+d.label+')').join(', ')):''}`;
+Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula)'}${rowSeries}${precLines?('\nPrecedents:'+precLines):''}${deps.length?('\nFeeds: '+deps.slice(0,5).map(d=>d.ref+' ('+d.label+')').join(', ')):''}`;
     const fallback = _cellExplainFallback(ref, value, formula, label, sheetName, deps);
     (async()=>{
       let full='';
@@ -15592,9 +15594,30 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     }
     return out.join('\n');
   }
+  // Compact index of the OTHER models saved in this workspace, so questions
+  // that span models ("compare with the master", "which model has the higher
+  // IRR") can be answered from the same chat.
+  function dumpOtherModels(limit){
+    const cap=limit||1600; const out=[]; let used=0;
+    try{
+      for(const [mid,rec] of Object.entries(MODEL_SAVES||{})){
+        if(mid===_openModelId||!rec||!rec.wb) continue;
+        const tabs=Object.keys(rec.wb);
+        const heads=[];
+        for(const t of tabs){ for(const r of (rec.wb[t].rows||[])){
+          const lbl=(r.cells&&(r.cells[1]||''))||'';
+          if(/irr|noi|revenue|equity multiple|moic/i.test(lbl)){ const v=(r.cells||[]).slice(2).filter(x=>x!=='').pop(); if(v!=null){ heads.push(lbl+': '+v); if(heads.length>=3) break; } }
+        } if(heads.length>=3) break; }
+        const line='- "'+(rec.name||mid)+'" ('+tabs.join(', ')+')'+(heads.length?' — '+heads.join('; '):'');
+        if(used+line.length>cap) break;
+        out.push(line); used+=line.length;
+      }
+    }catch(e){}
+    return out.length? ('OTHER MODELS in this workspace (ask me about any of them):\n'+out.join('\n')) : '';
+  }
   // Shared RE-lingo glossary for the AI prompts, so asked-for terms map onto
   // the model's actual labels even when they're named differently.
-  const RE_LINGO_NOTE='Real-estate synonyms — treat these as the SAME metric when mapping the question to the model\'s row labels: project IRR = unlevered IRR = ungeared/asset/property IRR; equity IRR = levered/geared IRR; equity multiple = MOIC; NOI = net operating income = net rental income; EBITDA ≈ GOP (gross operating profit); exit value = terminal value = reversion value = (net) sale proceeds; cap rate = capitalisation rate = exit yield; yield-on-cost = development yield = return on cost; DSCR = debt service coverage = interest cover; ADR = average daily rate = room rate; revenue = gross income = EGI = turnover; opex = operating costs = outgoings; LTV = loan-to-value = gearing; capex = construction/development cost. Answer with the model\'s own label and note the equivalence.';
+  const RE_LINGO_NOTE='Real-estate synonyms — treat these as the SAME metric when mapping the question to the model\'s row labels: project IRR = unlevered IRR = ungeared/asset/property IRR; equity IRR = levered/geared IRR; equity multiple = MOIC; NOI = net operating income = net rental income; EBITDA ≈ GOP (gross operating profit); exit value = terminal value = reversion value = (net) sale proceeds; cap rate = capitalisation rate = exit yield; yield-on-cost = development yield = return on cost; DSCR = debt service coverage = interest cover; ADR = average daily rate = room rate; revenue = gross income = EGI = turnover; opex = operating costs = outgoings; LTV = loan-to-value = gearing; capex = construction/development cost. Answer with the model\'s own label and note the equivalence. When the user asks a goal-seek, what-if or back-solve (e.g. "lowest ADR before NOI drops below 10%"), DO the arithmetic yourself NOW from the figures in the data — linearise the relationship if you must, lead with the resulting number, then one short line on method and the key assumption. Never say you can\'t back-solve, never offer to run it later, never ask permission, never tell the user the model would need restructuring.';
 
   // Offline description of the open model, read straight from its cells, so the
   // demo still describes the actual model without a live API key.
@@ -16284,8 +16307,10 @@ Formula: ${formula||'(hardcoded input)'}${precLines?('\nPrecedents:'+precLines):
     // any question about any tab is answerable), plus full detail — the whole
     // workbook for describe-ish questions, the active sheet otherwise.
     const wantsWhole = !applied && /\b(describe|summar|overview|what (is|does)|explain the model|walk me|tell me about|assumption|risk|driver)\b/i.test(q);
+    const _others = dumpOtherModels();
     const grounding = 'MODEL MAP (every tab & line — full scope):\n' + dumpWorkbookIndex() + '\n\n' +
-      (wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('ACTIVE SHEET (' + sheetName + ') in detail:\n' + dumpSheet(sheetName)));
+      (wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('ACTIVE SHEET (' + sheetName + ') in detail:\n' + dumpSheet(sheetName))) +
+      (_others ? ('\n\n' + _others) : '');
     const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}" (${Object.keys(SHEET_DATA).length} tabs: ${Object.keys(SHEET_DATA).join(', ')}). ${applied ? ('You just applied this change to the model: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'When asked to DESCRIBE or SUMMARISE the model, explain in plain language what it represents (asset/deal type, the horizon), the main revenue and cost drivers, the key assumptions, and the headline returns — citing the actual figures. You can also explain a formula, run a what-if, change a cell ("set B8 to -2.10"), add/remove a metric, or add a sheet.'} Ground every answer strictly in the data below — cite real labels and figures. The MODEL MAP gives you the full scope of every tab and line; use it to locate any metric wherever it lives. ${RE_LINGO_NOTE} The data below IS the complete imported workbook (tabs marked "+N more rows" have additional rows not shown; tabs with no populated cells are marked as such): never claim the model failed to load — if a figure isn't visible, name the tab whose lines are closest and answer from what is present. Be specific and concise (3-6 sentences or short bullets), plain text, **bold** key figures. Don't invent line items that aren't present.
 
 ${grounding}
@@ -16577,6 +16602,11 @@ Answer as Karaya:`;
   function openFullscreen() {
     document.getElementById('fs-title').textContent = currentModelDoc ? currentModelDoc.name : 'Model';
     renderFsSheet(SHEET_DATA[activeSheet] ? activeSheet : Object.keys(SHEET_DATA)[0]);
+    // One conversation, two views: carry the editor chat into fullscreen so
+    // prompts and answers reflect each other across both.
+    const ek=document.getElementById('ek-msgs'), fs=document.getElementById('fs-karaya-msgs');
+    if(ek&&fs&&ek.innerHTML.trim()) fs.innerHTML=ek.innerHTML;
+    if(fs) fs.scrollTop=fs.scrollHeight;
     document.getElementById('fs-overlay').classList.add('active');
   }
 
@@ -16590,6 +16620,9 @@ Answer as Karaya:`;
   }
 
   function closeFullscreen() {
+    // carry the fullscreen conversation back into the editor panel
+    const ek=document.getElementById('ek-msgs'), fs=document.getElementById('fs-karaya-msgs');
+    if(ek&&fs&&fs.innerHTML.trim()) { ek.innerHTML=fs.innerHTML; ek.scrollTop=ek.scrollHeight; }
     document.getElementById('fs-overlay').classList.remove('active');
   }
 
@@ -16849,8 +16882,10 @@ Answer as Karaya:`;
     const sheetName = (typeof fsActiveSheet !== 'undefined' && fsActiveSheet) ? fsActiveSheet : Object.keys(SHEET_DATA)[0];
     const modelName = (document.getElementById('fs-title') || document.getElementById('ed-title') || {}).textContent || 'the model';
     const wantsWhole = /\b(describe|summar|overview|what (is|does)|explain the model|walk me|tell me about|assumption|risk|driver)\b/i.test(q);
+    const _others = (typeof dumpOtherModels==='function') ? dumpOtherModels() : '';
     const grounding = 'MODEL MAP (every tab & line — full scope):\n' + (typeof dumpWorkbookIndex==='function' ? dumpWorkbookIndex() : '') + '\n\n' +
-      (wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('ACTIVE SHEET (' + sheetName + ') in detail:\n' + (typeof dumpSheet === 'function' ? dumpSheet(sheetName) : '')));
+      (wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('ACTIVE SHEET (' + sheetName + ') in detail:\n' + (typeof dumpSheet === 'function' ? dumpSheet(sheetName) : ''))) +
+      (_others ? ('\n\n' + _others) : '');
     const prompt = `You are Karaya in the Bohio financial-model editor. The open model is "${modelName}" (${Object.keys(SHEET_DATA).length} tabs: ${Object.keys(SHEET_DATA).join(', ')}), current tab "${sheetName}". When asked to DESCRIBE or SUMMARISE the model, explain what it represents (asset/deal type, horizon), the revenue and cost drivers, the key assumptions and the headline returns — citing the actual figures. Otherwise explain the formula/driver or run the what-if. Ground every answer strictly in the data below — the MODEL MAP gives the full scope of every tab and line; use it to locate any metric wherever it lives. ${RE_LINGO_NOTE} Concise (3-6 sentences or short bullets), plain text, **bold** key figures.\n\n${grounding}\n\nUser: "${q}"\n\nAnswer as Karaya:`;
     (async () => {
       const a = await karayaStreamInto(bot, prompt, 'file_qa', _editorLocalAnswer(q));
@@ -18576,12 +18611,40 @@ Answer as Karaya:`;
     return u;
   }
 
-  function signIn() {
+  // Sign in. When the server has DEMO_USERNAME/DEMO_PASSWORD configured this is
+  // a REAL credential check against POST /api/login (wrong password = no entry,
+  // and the AI proxy refuses calls without the issued token). Without a
+  // configured password — or with no server at all — it stays the open demo gate.
+  async function signIn() {
     const nameEl = document.getElementById('login-name');
     const emailEl = document.getElementById('login-email');
+    const passEl = document.getElementById('login-pass');
+    const errEl = document.getElementById('login-err');
+    if (errEl) errEl.style.display = 'none';
+    try {
+      const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ username:(nameEl&&nameEl.value||'').trim(), password: passEl?passEl.value:'' }) });
+      if (r.status === 401) {
+        if (errEl) { errEl.textContent = 'Wrong username or password.'; errEl.style.display = 'block'; }
+        return;
+      }
+      const data = await r.json().catch(()=>null);
+      if (data && data.token) { try { localStorage.setItem('bohio_demo_token', data.token); } catch(e){} }
+    } catch (e) { /* no server (file:// or offline) — open demo gate */ }
     setDemoUser(nameEl ? nameEl.value : '', emailEl ? emailEl.value : '');
+    if (passEl) passEl.value = '';
     document.getElementById('login-page').classList.add('hidden');
   }
+  // If the deployment is protected, say so on the login screen.
+  (async function(){
+    try {
+      const h = await (await fetch('/api/health')).json();
+      if (h && h.auth) {
+        const hint = document.getElementById('login-hint');
+        if (hint) hint.textContent = 'Protected demo — sign in with your username & password.';
+      }
+    } catch(e) {}
+  })();
 
   // Save from the Settings modal
   function saveDemoUserName() {
