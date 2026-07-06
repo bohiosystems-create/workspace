@@ -18784,6 +18784,7 @@ Answer as Karaya:`;
               {k:'yardi', name:'Yardi Voyager', cat:'Property Management', mark:'Y', connected:true, meta:'Synced 40m ago · rent roll, leases, opex'},
               {k:'sap', name:'SAP S/4HANA', cat:'ERP · Finance', mark:'S', connected:false, meta:'Cost ledger, commitments, actuals'},
               {k:'mri', name:'MRI Software', cat:'Property Management', mark:'M', connected:false, meta:'Lease admin, CAM reconciliations'},
+              {k:'outlook', name:'Microsoft Outlook', cat:'Email · Context', mark:'✉', connected:true, meta:'Reads fund & deal threads + attachments — feeds document versions and Karaya context'},
               {k:'paseetah', name:'Paseetah', cat:'Market Data API', mark:'P', connected:(window._paseetahOn!==false), meta:'Market rents, ADR, occupancy, cap-rate comps — feeds model assumptions'},
               {k:'costar', name:'CoStar', cat:'Market Data API', mark:'C', connected:false, meta:'Comparable transactions & leasing analytics'},
             ].map(c => `
@@ -19415,7 +19416,26 @@ Answer as Karaya:`;
         {t:'Investment Approval — Aurora Logistics Park', chain:'Screening PROCEED ✓ → IC session 14 Jul', status:'IC scheduled', cls:'a'},
         {t:'Q2 Distribution — SAR 18M to LPs', chain:'CFO ✓ → IC ✓ → Managing Partner ✓', status:'Approved', cls:'g'}],
       stakeholders:[['GP','Bohio Capital Partners','Sponsor & fund manager'],['LP','Gulf Pension Fund','Anchor LP · advisory committee'],['LP','Riyadh Capital Partners','LP · advisory committee'],['LP','Saudi Family Office Consortium','LP'],['ADM','Apex Fund Services','Fund administrator'],['AUD','KPMG','Auditor'],['LGL','Latham & Watkins','Fund counsel']],
-      topics:[['Deploying the remaining SAR 210M dry powder','GP · advisory committee','3 open threads'],['Q2 LP reporting pack sign-off','IR · all LPs','5 open threads'],['ESG certification — logistics assets','GP · sustainability consultants','2 open threads']] },
+      topics:[['Deploying the remaining SAR 210M dry powder','GP · advisory committee','3 open threads'],['Q2 LP reporting pack sign-off','IR · all LPs','5 open threads'],['ESG certification — logistics assets','GP · sustainability consultants','2 open threads']],
+      docs:[
+        {name:'Fund II Limited Partnership Agreement', type:'LPA', versions:[
+          {v:'v.1', date:'Mar 2024', src:'Data room', note:'first draft — 2.0% management fee; 20% promote over a 7% preferred return with NO catch-up; 7-year term; no key-man clause'},
+          {v:'v.2', date:'Apr 2024', src:'Outlook · Latham & Watkins thread', note:'management fee stepped down to 1.75%; key-man clause added (2 of 3 named principals)'},
+          {v:'v.3', date:'May 2024', src:'Outlook · Gulf Pension Fund comments', note:'preferred return raised 7% → 8%; LP advisory committee powers expanded (GP removal for cause at 66% of commitments)'},
+          {v:'v.4', date:'Jun 2024', src:'Data room', note:'50/50 GP catch-up added above the pref; term extended to 8 years + 2×1-year extensions; ESG side letter referenced'},
+          {v:'v.5', date:'Jul 2024 · Executed', src:'Outlook · execution confirmation', note:'executed copy — management fee FINAL at 1.5%; 20% promote over 8% pref WITH 50/50 catch-up; 8+1+1 term; key-man and ESG obligations folded into the body'}]},
+        {name:'Subscription Agreement — Gulf Pension Fund', type:'SUB', versions:[
+          {v:'v.1', date:'May 2024', src:'Data room', note:'SAR 250M commitment, standard reps'},
+          {v:'v.2', date:'Jun 2024 · Executed', src:'Outlook · counsel sign-off', note:'MFN side-letter reference added; executed'}]},
+        {name:'Capital Call Notice #7 — SAR 45M', type:'PDF', versions:[
+          {v:'v.1', date:'Jul 2026', src:'Outlook · sent to all LPs', note:'10-business-day notice for the Aurora acquisition equity'}]},
+        {name:'LP Advisory Committee minutes — Q2', type:'PDF', versions:[
+          {v:'v.1', date:'Jun 2026', src:'Outlook · AC thread', note:'quorum met; disposal sequencing and ESG certification discussed'}]},
+      ],
+      emails:[
+        {from:'Latham & Watkins', subject:'Fund II LPA — execution version circulated', when:'Jul 2024', snippet:'Attached the executed LPA (v.5). Key commercial changes vs the first draft are the fee step-down and the catch-up mechanics…'},
+        {from:'Gulf Pension Fund · Investments', subject:'RE: Capital Call #7 timing', when:'2d ago', snippet:'Confirming funding on the Aurora call within the notice period. Please route the updated drawdown schedule…'},
+        {from:'Apex Fund Services', subject:'Q2 capital account statements', when:'5d ago', snippet:'Draft LP capital accounts attached for review ahead of the quarterly pack…'}] },
     {k:'coinvest', name:'Corniche Co-Invest Vehicle', tag:'Single-asset co-invest', vintage:'Vintage 2025', committed:120, drawn:96, nav:108, irr:'15.2%', status:'Deployed', col:'#F58220',
       structure:{ vehicle:'Single-asset SPV · co-investment alongside Fund II', gp:'Bohio Capital Partners — manager · 2.5% commit',
         terms:'1.0% management fee · 15% promote over a 9% preferred return · hold matches the Corniche Gateway business plan',
@@ -19424,7 +19444,19 @@ Answer as Karaya:`;
         {t:'Refinancing consent — SAR 106M senior facility', chain:'GP ✓ → LP majority consent (66% received)', status:'Consent pending', cls:'a'},
         {t:'Annual budget 2026 — Corniche Gateway', chain:'Asset manager ✓ → GP ✓ → LPs ✓', status:'Approved', cls:'g'}],
       stakeholders:[['GP','Bohio Capital Partners','Manager'],['LP','Gulf Pension Fund','Co-invest LP'],['LP','Emaar Family Office','Co-invest LP'],['LP','Riyadh Capital Partners','Co-invest LP'],['OPR','Rotana Hotels','Hotel operator (HMA)'],['LGL','Clifford Chance','Vehicle counsel']],
-      topics:[['Anchor Year-5 break — mitigation plan','GP · asset management','4 open threads'],['Corniche public-realm works 2027 impact','GP · LPs','2 open threads']] },
+      topics:[['Anchor Year-5 break — mitigation plan','GP · asset management','4 open threads'],['Corniche public-realm works 2027 impact','GP · LPs','2 open threads']],
+      docs:[
+        {name:'Co-Investment Agreement', type:'AGR', versions:[
+          {v:'v.1', date:'Feb 2025', src:'Data room', note:'draft — 1.25% fee, 15% promote over 8%'},
+          {v:'v.2', date:'Mar 2025 · Executed', src:'Outlook · counsel thread', note:'executed — fee 1.0%, promote 15% over a 9% pref; drag/tag aligned to Fund II'}]},
+        {name:'Senior Facility Agreement — SNB', type:'FAC', versions:[
+          {v:'v.1', date:'Apr 2025', src:'Data room', note:'SAR 106M, EIBOR+200, interest-only'}]},
+        {name:'HMA — Rotana Hotels', type:'HMA', versions:[
+          {v:'v.1', date:'May 2025 · Executed', src:'Data room', note:'15-year HMA, base 2.5% gross revenue + 8% incentive on AGOP'}]},
+      ],
+      emails:[
+        {from:'SNB · Corporate Banking', subject:'Refinancing consent — documentation', when:'1d ago', snippet:'Following the credit committee, the consent package needs the LP majority resolution attached…'},
+        {from:'Rotana Hotels · Development', subject:'Pre-opening budget alignment', when:'1w ago', snippet:'Sharing the revised pre-opening budget for the anchor hotel component…'}] },
     {k:'fund1', name:'Bohio RE Fund I', tag:'Value-add · Harvesting', vintage:'Vintage 2019', committed:400, drawn:400, nav:155, irr:'17.4%', status:'Harvesting', col:'#963D97',
       structure:{ vehicle:'Closed-end fund · in orderly realisation', gp:'Bohio Capital Partners — GP · 4% commit',
         terms:'1.25% management fee (on invested cost in harvest) · 20% promote over 8% pref · clawback provision active',
@@ -19434,7 +19466,17 @@ Answer as Karaya:`;
         {t:'Final distribution waterfall — tranche 4', chain:'CFO ✓ → auditor sign-off ✓ → MP ✓', status:'Approved', cls:'g'},
         {t:'Fund term extension — year 8→9', chain:'LP vote passed 87% ✓', status:'Approved', cls:'g'}],
       stakeholders:[['GP','Bohio Capital Partners','Sponsor & fund manager'],['LP','Saudi PIF Programme','Anchor LP'],['LP','Gulf Pension Fund','LP'],['ADM','Apex Fund Services','Fund administrator'],['AUD','PwC','Auditor']],
-      topics:[['Remaining asset disposals — sequencing','GP · advisory committee','6 open threads'],['Clawback reserve review','CFO · auditor','1 open thread']] },
+      topics:[['Remaining asset disposals — sequencing','GP · advisory committee','6 open threads'],['Clawback reserve review','CFO · auditor','1 open thread']],
+      docs:[
+        {name:'Fund I LPA (as amended)', type:'LPA', versions:[
+          {v:'v.1', date:'2019 · Executed', src:'Data room', note:'original — 1.25% fee, 20% promote over 8% pref, 8-year term'},
+          {v:'v.2', date:'2026 · Amendment', src:'Outlook · LP vote thread', note:'term extension year 8→9 passed at 87%; clawback reserve mechanics clarified'}]},
+        {name:'Disposal Mandate — Rawdah Plaza', type:'PDF', versions:[
+          {v:'v.1', date:'Jun 2026', src:'Outlook · broker engagement', note:'sell-side mandate at a SAR 101M guide price'}]},
+      ],
+      emails:[
+        {from:'PwC · Assurance', subject:'Clawback reserve — audit query', when:'3d ago', snippet:'Two queries on the reserve computation ahead of tranche-4 distribution sign-off…'},
+        {from:'JLL Capital Markets', subject:'Rawdah Plaza — offers summary', when:'1w ago', snippet:'Best and final offers attached; the SAR 101M offer carries the cleanest conditions…'}] },
   ];
   function _wfFundList(modal, cfg){
     modal.innerHTML=`
@@ -19467,7 +19509,7 @@ Answer as Karaya:`;
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     sec=sec||'structure';
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
-    const SECTIONS=[['structure','Structure','#61BB46'],['approvals','Approvals','#963D97'],['stakeholders','Stakeholders','#009DDC'],['topics','Topics','#F58220']];
+    const SECTIONS=[['structure','Structure','#61BB46'],['approvals','Approvals','#963D97'],['stakeholders','Stakeholders','#009DDC'],['topics','Topics','#F58220'],['documents','Documents','#E03A3C']];
     const secBtns=SECTIONS.map(([key,label,col])=>`
       <button onclick="_wfFundDetail('${k}','${key}')" style="flex:1;min-width:105px;font-family:inherit;border:none;cursor:pointer;background:${col};color:#fff;border-radius:18px;padding:12px 8px;font-size:10px;letter-spacing:0.08em;font-weight:700;opacity:${sec===key?'1':'0.55'};box-shadow:${sec===key?'inset 0 0 0 2.5px rgba(0,9,25,0.6)':'none'};transition:opacity .15s ease;">${label}</button>`).join('');
     let panel='';
@@ -19501,7 +19543,31 @@ Answer as Karaya:`;
         <div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--ink-soft);margin-top:5px;"><span>${t[1]}</span><span>${t[2]}</span></div>
       </div>`).join('')
       + `<div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">Open a topic room with the humans + AI agents involved from the Topics section of any project.</div>`;
+    } else if(sec==='documents'){
+      const srcBadge=s=>/outlook/i.test(s)?`<span style="font-size:7px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;background:rgba(0,120,212,0.12);color:#0a66c2;border-radius:999px;padding:2px 8px;">✉ Outlook</span>`:`<span style="font-size:7px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;background:rgba(0,9,25,0.07);color:var(--ink-soft);border-radius:999px;padding:2px 8px;">Data room</span>`;
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Every fund document in one place — versions pulled from the data room <b style="color:var(--ink);">and from Outlook email threads</b> (attachments and negotiated changes are captured automatically). Ask Karaya below to compare versions or explain any change.</div>`
+      + (f.docs||[]).map(d=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
+        <div style="display:flex;align-items:center;gap:9px;">
+          <div style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">${d.type}</div>
+          <div style="font-size:11.5px;font-weight:700;line-height:1.35;">${d.name}</div>
+        </div>
+        <div style="margin-top:9px;display:flex;flex-direction:column;gap:6px;">
+          ${d.versions.map(v=>`<div style="display:flex;align-items:flex-start;gap:8px;font-size:10px;line-height:1.55;">
+            <span style="flex-shrink:0;font-weight:700;font-variant-numeric:tabular-nums;min-width:26px;">${v.v}</span>
+            <span style="flex-shrink:0;color:var(--ink-soft);min-width:88px;">${v.date}</span>
+            ${srcBadge(v.src)}
+            <span style="color:var(--ink);">${v.note}</span>
+          </div>`).join('')}
+        </div>
+      </div>`).join('')
+      + `<div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:14px 0 8px;">✉ Email context Karaya reads (Outlook)</div>`
+      + (f.emails||[]).map(e=>`<div style="border:1px dashed var(--ink-hairline);border-radius:10px;padding:10px 13px;margin-bottom:7px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;font-size:10.5px;"><b>${e.from}</b><span style="color:var(--ink-soft);flex-shrink:0;">${e.when}</span></div>
+        <div style="font-size:10.5px;font-weight:600;margin-top:2px;">${e.subject}</div>
+        <div style="font-size:10px;color:var(--ink-soft);margin-top:3px;line-height:1.5;">${e.snippet}</div>
+      </div>`).join('');
     }
+    const chatLog=(_wfFundChat[k]||[]).map(m=>`<div style="align-self:${m.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${m.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${m.cls==='user'?'var(--bg)':'var(--ink)'};border:${m.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${m.html}</div>`).join('');
     modal.innerHTML=`
       <div class="wf-head">
         <div style="min-width:0;">
@@ -19514,11 +19580,86 @@ Answer as Karaya:`;
       <div class="wf-body">
         <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px;">${secBtns}</div>
         ${panel}
+        <div id="wff-chat" style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">${chatLog}</div>
+      </div>
+      <div style="display:flex;gap:8px;padding:13px 24px;border-top:1px solid var(--ink-hairline);">
+        <input id="wff-input" placeholder="Ask about this fund — e.g. main difference between version 1 and version 5 of the Fund II agreement" style="flex:1;box-sizing:border-box;padding:11px 14px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfFundAsk('${k}')">
+        <button class="wf-btn" onclick="_wfFundAsk('${k}')">Ask</button>
       </div>`;
+    const body=modal.querySelector('.wf-body'); if(body&&(_wfFundChat[k]||[]).length) body.scrollTop=body.scrollHeight;
   }
   function _wfFundListBack(){
     const modal=document.querySelector('#wf-overlay .wf-modal');
     if(modal) _wfFundList(modal, WORKFLOWS.fundmgmt);
+  }
+  // ---- fund chatbot: grounded in the fund's docs (all versions), emails,
+  // structure, approvals & topics. Version-compare questions are answered
+  // deterministically from the version notes, so they work offline too.
+  const _wfFundChat={};
+  function _fundVersionDiff(f, q){
+    if(!/\b(difference|diff|compare|changed|change[sd]?|vs\.?|versus)\b/i.test(q)) return null;
+    const vm=[...q.matchAll(/\b(?:v(?:ersion)?\.?\s*)(\d+)\b/gi)].map(m=>parseInt(m[1]));
+    if(vm.length<2) return null;
+    // find the doc named in the question (fall back to the doc with most versions)
+    let doc=(f.docs||[]).find(d=>{
+      const words=d.name.toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>3);
+      return words.some(w=>q.toLowerCase().indexOf(w)>=0);
+    });
+    if(!doc && /agreement|lpa/i.test(q)) doc=(f.docs||[]).find(d=>/agreement|lpa/i.test(d.name));
+    if(!doc) doc=(f.docs||[]).slice().sort((a,b)=>b.versions.length-a.versions.length)[0];
+    if(!doc) return null;
+    const va=doc.versions.find(v=>v.v==='v.'+Math.min(...vm)), vb=doc.versions.find(v=>v.v==='v.'+Math.max(...vm));
+    if(!va||!vb) return `**${doc.name}** has ${doc.versions.length} version${doc.versions.length>1?'s':''} on file (${doc.versions.map(v=>v.v).join(', ')}) — I couldn't find both versions you named. Ask about any of those.`;
+    const between=doc.versions.filter(v=>{ const n=parseInt(v.v.slice(2)); return n>Math.min(...vm)&&n<Math.max(...vm); });
+    return `Comparing **${doc.name}** ${va.v} → ${vb.v}:\n`+
+      `- **${va.v}** (${va.date} · ${va.src}): ${va.note}\n`+
+      `- **${vb.v}** (${vb.date} · ${vb.src}): ${vb.note}\n`+
+      (between.length? ('The steps in between: '+between.map(v=>`**${v.v}** — ${v.note}`).join('; ')+'.\n') : '')+
+      `**Net difference:** the terms moved from the ${va.v} position to the ${vb.v} position above — the intermediate versions show exactly where each change entered, several of them negotiated over Outlook threads that I've already read.`;
+  }
+  function _fundLocalAnswer(f, q){
+    if(/\b(document|doc|version|agreement|lpa|notice|minute)/i.test(q)){
+      return (f.docs||[]).map(d=>`**${d.name}** — ${d.versions.length} version${d.versions.length>1?'s':''} (latest ${d.versions[d.versions.length-1].v}, ${d.versions[d.versions.length-1].date})`).join('\n')||'No documents on file.';
+    }
+    if(/\b(approval|call|distribution|consent|disposal)/i.test(q)) return f.approvals.map(a=>`**${a.t}** — ${a.status} (${a.chain})`).join('\n');
+    if(/\b(lp|stakeholder|investor|auditor|admin)/i.test(q)) return f.stakeholders.map(s=>`**${s[1]}** — ${s[2]}`).join('\n');
+    return `**${f.name}** (${f.vintage}, ${f.status.toLowerCase()}): SAR ${f.drawn}M drawn of ${f.committed}M committed, NAV **SAR ${f.nav}M**, net IRR **${f.irr}**. Ask about its documents (and version differences), approvals, stakeholders or topics.`;
+  }
+  function _wfFundAsk(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const input=document.getElementById('wff-input'); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    _wfFundChat[k]=_wfFundChat[k]||[];
+    _wfFundChat[k].push({cls:'user', html:q.replace(/</g,'&lt;')});
+    const chat=document.getElementById('wff-chat');
+    const rerender=()=>{ const modalBody=document.querySelector('#wf-overlay .wf-body'); if(chat){ chat.innerHTML=(_wfFundChat[k]||[]).map(m=>`<div style="align-self:${m.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${m.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${m.cls==='user'?'var(--bg)':'var(--ink)'};border:${m.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${m.html}</div>`).join(''); } if(modalBody) modalBody.scrollTop=modalBody.scrollHeight; };
+    // deterministic version diff first (works offline)
+    const diff=_fundVersionDiff(f,q);
+    if(diff){ _wfFundChat[k].push({cls:'bot', html:fmtKaraya(diff)}); rerender(); return; }
+    _wfFundChat[k].push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    rerender();
+    const docsCtx=(f.docs||[]).map(d=>d.name+': '+d.versions.map(v=>v.v+' ('+v.date+', '+v.src+') — '+v.note).join(' | ')).join('\n');
+    const mailCtx=(f.emails||[]).map(e=>e.from+' — "'+e.subject+'" ('+e.when+'): '+e.snippet).join('\n');
+    const prompt=`You are Karaya, the fund-management assistant for "${f.name}" (${f.vintage}, ${f.status}; SAR ${f.drawn}M drawn of ${f.committed}M, NAV SAR ${f.nav}M, net IRR ${f.irr}). Answer strictly from this fund's context. Be concise (2-5 sentences or short bullets), **bold** key figures.
+STRUCTURE: ${f.structure.vehicle}; ${f.structure.gp}; ${f.structure.terms}. LPs: ${f.structure.lps.map(l=>l[0]+' SAR '+l[1]+'M').join(', ')}.
+APPROVALS: ${f.approvals.map(a=>a.t+' — '+a.status+' ('+a.chain+')').join('; ')}
+STAKEHOLDERS: ${f.stakeholders.map(s=>s[1]+' ('+s[2]+')').join(', ')}
+TOPICS: ${f.topics.map(t=>t[0]).join('; ')}
+DOCUMENTS (all versions, incl. those captured from Outlook threads):\n${docsCtx}
+RECENT OUTLOOK CONTEXT:\n${mailCtx}
+
+Question: "${q}"
+
+Answer as Karaya:`;
+    const fallback=_fundLocalAnswer(f,q);
+    (async()=>{
+      let full='';
+      try{ await window.claude.stream({messages:[{role:'user',content:prompt}],task:'file_qa'},{},t=>{ full+=t; const el=chat&&chat.lastElementChild&&chat.lastElementChild.querySelector('.kr-stream-text'); if(el){ el.textContent=full; } }); }catch(e){}
+      if(!full||!full.trim()) full=fallback;
+      _wfFundChat[k][_wfFundChat[k].length-1]={cls:'bot', html:fmtKaraya(full)};
+      rerender();
+    })();
   }
 
   // ===== WORKFLOW 03 — UNDERWRITING VS ACTUAL AS A CHATBOT =====
