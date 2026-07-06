@@ -10299,7 +10299,7 @@
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('fundmgmt')">
           <div class="wf-n">07</div><div class="wf-h">Fund management</div>
-          <div class="wf-d">Rolls every fund up live — committed vs. drawn capital, portfolio NAV, LP capital accounts and net IRR — into one command view.</div>
+          <div class="wf-d">Every active fund as a tile — press one to open its structure (GP/LP commitments &amp; terms), live approval processes, stakeholders and open topics.</div>
           <div class="wf-cta">Run workflow →</div></button>
       </div>
 
@@ -19283,30 +19283,8 @@ Answer as Karaya:`;
     },
     fundmgmt: {
       eyebrow:'Workflow 07', title:'Fund management',
-      sub:'Committed vs. drawn capital · portfolio NAV · LP accounts · net IRR — every fund, live',
-      steps:[
-        {label:'Aggregating committed & drawn capital', src:'ERP'},
-        {label:'Marking portfolio NAV across the funds', src:'Model'},
-        {label:'Reconciling LP capital accounts', src:'Karaya'},
-        {label:'Compiling the fund command view', src:'Karaya'},
-      ],
-      art(){
-        // [fund, committed SAR M, drawn SAR M, NAV SAR M, net IRR, pill]
-        const rows=[
-          ['Bohio RE Opportunity Fund II','750','540','615','13.8%','g'],
-          ['Corniche Co-Invest Vehicle','120','96','108','15.2%','g'],
-          ['Bohio RE Fund I (harvest)','400','400','155','17.4%','g'],
-        ];
-        const body=rows.map(r=>`<tr><td>${r[0]}</td><td>SAR ${r[1]}M</td><td>SAR ${r[2]}M</td><td style="font-weight:700;">SAR ${r[3]}M</td><td><span class="wf-pill ${r[5]}">${r[4]}</span></td></tr>`).join('');
-        const tot=`<tr style="border-top:2px solid var(--ink);"><td style="font-weight:700;">All funds</td><td style="font-weight:700;">SAR 1,270M</td><td style="font-weight:700;">SAR 1,036M</td><td style="font-weight:700;">SAR 878M</td><td style="font-weight:700;">14.9%</td></tr>`;
-        return {
-          artLbl:'Fund command view — capital & performance',
-          html:`<table><thead><tr><th>Fund</th><th>Committed</th><th>Drawn</th><th>NAV</th><th>Net IRR</th></tr></thead><tbody>${body}${tot}</tbody></table>`,
-          prompt:`You are Karaya running the fund-management workflow. Across three vehicles: SAR 1,270M committed, SAR 1,036M drawn (82%), SAR 878M current NAV; Fund II at 13.8% net IRR, the co-invest at 15.2%, Fund I harvesting at 17.4%. In 2 sentences (max 45 words) give the fund-level read and one action. Plain text, **bold** the figures.`,
-          fallback:`**82%** of the **SAR 1,270M** committed is now deployed, with NAV at **SAR 878M** and every vehicle above its hurdle — Fund I's harvest at **17.4%** net leads. With ~SAR 234M of dry powder left, prioritise calling capital for the Aurora pipeline before the Fund II window closes.`,
-          foot:[{label:'Open funds & stakeholders',ghost:false,go(){ closeWorkflow(); goTo('funds'); }}]
-        };
-      }
+      sub:'Every active fund — open one for its structure, approvals, stakeholders & topics',
+      custom(modal, cfg){ _wfFundList(modal, cfg); }
     },
   };
 
@@ -19422,6 +19400,125 @@ Answer as Karaya:`;
     const url=URL.createObjectURL(blob); const a=document.createElement('a');
     a.href=url; a.download='Bohio_Investor_Dashboard.xls'; document.body.appendChild(a); a.click();
     setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
+  }
+
+  // ===== WORKFLOW 07 — FUND MANAGEMENT: fund squircles → full fund room =====
+  // Opens on a squircle list of every active fund; pressing one drills into
+  // the fund's structure, live approval processes, stakeholders and topics.
+  const WF_FUNDS=[
+    {k:'fund2', name:'Bohio RE Opportunity Fund II', tag:'Core-plus · KSA', vintage:'Vintage 2024', committed:750, drawn:540, nav:615, irr:'13.8%', status:'Investing', col:'#61BB46',
+      structure:{ vehicle:'Closed-end fund (CMA-regulated) · SPV per asset', gp:'Bohio Capital Partners — GP · 5% commit',
+        terms:'1.5% management fee · 20% promote over an 8% preferred return · 50/50 catch-up · 8-year term + 2×1-year extensions',
+        lps:[['Gulf Pension Fund',250,'Anchor LP'],['Saudi Family Office Consortium',180,'LP'],['Riyadh Capital Partners',150,'LP · AC seat'],['GCC Sovereign Co-Invest',132.5,'LP'],['GP commit — Bohio Capital',37.5,'GP']] },
+      approvals:[
+        {t:'Capital Call #7 — SAR 45M · Aurora Logistics Park', chain:'CFO ✓ → Investment Committee (pending) → Managing Partner', status:'In approval', cls:'a'},
+        {t:'Investment Approval — Aurora Logistics Park', chain:'Screening PROCEED ✓ → IC session 14 Jul', status:'IC scheduled', cls:'a'},
+        {t:'Q2 Distribution — SAR 18M to LPs', chain:'CFO ✓ → IC ✓ → Managing Partner ✓', status:'Approved', cls:'g'}],
+      stakeholders:[['GP','Bohio Capital Partners','Sponsor & fund manager'],['LP','Gulf Pension Fund','Anchor LP · advisory committee'],['LP','Riyadh Capital Partners','LP · advisory committee'],['LP','Saudi Family Office Consortium','LP'],['ADM','Apex Fund Services','Fund administrator'],['AUD','KPMG','Auditor'],['LGL','Latham & Watkins','Fund counsel']],
+      topics:[['Deploying the remaining SAR 210M dry powder','GP · advisory committee','3 open threads'],['Q2 LP reporting pack sign-off','IR · all LPs','5 open threads'],['ESG certification — logistics assets','GP · sustainability consultants','2 open threads']] },
+    {k:'coinvest', name:'Corniche Co-Invest Vehicle', tag:'Single-asset co-invest', vintage:'Vintage 2025', committed:120, drawn:96, nav:108, irr:'15.2%', status:'Deployed', col:'#F58220',
+      structure:{ vehicle:'Single-asset SPV · co-investment alongside Fund II', gp:'Bohio Capital Partners — manager · 2.5% commit',
+        terms:'1.0% management fee · 15% promote over a 9% preferred return · hold matches the Corniche Gateway business plan',
+        lps:[['Gulf Pension Fund',48,'Co-invest LP'],['Emaar Family Office',36,'Co-invest LP'],['Riyadh Capital Partners',33,'Co-invest LP'],['GP commit',3,'GP']] },
+      approvals:[
+        {t:'Refinancing consent — SAR 106M senior facility', chain:'GP ✓ → LP majority consent (66% received)', status:'Consent pending', cls:'a'},
+        {t:'Annual budget 2026 — Corniche Gateway', chain:'Asset manager ✓ → GP ✓ → LPs ✓', status:'Approved', cls:'g'}],
+      stakeholders:[['GP','Bohio Capital Partners','Manager'],['LP','Gulf Pension Fund','Co-invest LP'],['LP','Emaar Family Office','Co-invest LP'],['LP','Riyadh Capital Partners','Co-invest LP'],['OPR','Rotana Hotels','Hotel operator (HMA)'],['LGL','Clifford Chance','Vehicle counsel']],
+      topics:[['Anchor Year-5 break — mitigation plan','GP · asset management','4 open threads'],['Corniche public-realm works 2027 impact','GP · LPs','2 open threads']] },
+    {k:'fund1', name:'Bohio RE Fund I', tag:'Value-add · Harvesting', vintage:'Vintage 2019', committed:400, drawn:400, nav:155, irr:'17.4%', status:'Harvesting', col:'#963D97',
+      structure:{ vehicle:'Closed-end fund · in orderly realisation', gp:'Bohio Capital Partners — GP · 4% commit',
+        terms:'1.25% management fee (on invested cost in harvest) · 20% promote over 8% pref · clawback provision active',
+        lps:[['Saudi PIF Programme',160,'Anchor LP'],['Gulf Pension Fund',120,'LP'],['Regional family offices',104,'LPs (pooled)'],['GP commit',16,'GP']] },
+      approvals:[
+        {t:'Disposal — Rawdah Plaza (SAR 101M offer)', chain:'GP ✓ → IC (pending) → LP advisory committee', status:'In approval', cls:'a'},
+        {t:'Final distribution waterfall — tranche 4', chain:'CFO ✓ → auditor sign-off ✓ → MP ✓', status:'Approved', cls:'g'},
+        {t:'Fund term extension — year 8→9', chain:'LP vote passed 87% ✓', status:'Approved', cls:'g'}],
+      stakeholders:[['GP','Bohio Capital Partners','Sponsor & fund manager'],['LP','Saudi PIF Programme','Anchor LP'],['LP','Gulf Pension Fund','LP'],['ADM','Apex Fund Services','Fund administrator'],['AUD','PwC','Auditor']],
+      topics:[['Remaining asset disposals — sequencing','GP · advisory committee','6 open threads'],['Clawback reserve review','CFO · auditor','1 open thread']] },
+  ];
+  function _wfFundList(modal, cfg){
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <div class="wf-eyebrow">${cfg.eyebrow} · live</div>
+          <div class="wf-title">${cfg.title}</div>
+          <div class="wf-sub">${cfg.sub}</div>
+        </div>
+        <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+      </div>
+      <div class="wf-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:13px;">
+          ${WF_FUNDS.map(f=>`
+          <button onclick="_wfFundDetail('${f.k}')" style="text-align:left;font-family:inherit;border:none;cursor:pointer;background:${f.col};color:#fff;border-radius:26px;padding:18px 18px 15px;display:flex;flex-direction:column;gap:8px;min-height:150px;transition:transform .16s ease, box-shadow .16s ease;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 14px 30px rgba(0,9,25,0.22)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;opacity:0.85;">${f.vintage} · ${f.status}</div>
+            <div style="font-size:15px;font-weight:700;line-height:1.25;">${f.name}</div>
+            <div style="font-size:10px;opacity:0.85;">${f.tag}</div>
+            <div style="margin-top:auto;display:flex;gap:12px;font-variant-numeric:tabular-nums;">
+              <span style="font-size:10px;"><b>SAR ${f.nav}M</b><span style="opacity:0.8;"> NAV</span></span>
+              <span style="font-size:10px;"><b>${f.irr}</b><span style="opacity:0.8;"> net IRR</span></span>
+            </div>
+            <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;opacity:0.9;">Open fund →</div>
+          </button>`).join('')}
+        </div>
+        <div style="margin-top:14px;font-size:10px;color:var(--ink-soft);letter-spacing:0.04em;">SAR 1,270M committed · SAR 1,036M drawn (82%) · SAR 878M NAV across the three vehicles · <span style="text-decoration:underline;cursor:pointer;" onclick="closeWorkflow();goTo('funds')">open the full funds & stakeholders page</span></div>
+      </div>`;
+  }
+  function _wfFundDetail(k, sec){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    sec=sec||'structure';
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const SECTIONS=[['structure','Structure','#61BB46'],['approvals','Approvals','#963D97'],['stakeholders','Stakeholders','#009DDC'],['topics','Topics','#F58220']];
+    const secBtns=SECTIONS.map(([key,label,col])=>`
+      <button onclick="_wfFundDetail('${k}','${key}')" style="flex:1;min-width:105px;font-family:inherit;border:none;cursor:pointer;background:${col};color:#fff;border-radius:18px;padding:12px 8px;font-size:10px;letter-spacing:0.08em;font-weight:700;opacity:${sec===key?'1':'0.55'};box-shadow:${sec===key?'inset 0 0 0 2.5px rgba(0,9,25,0.6)':'none'};transition:opacity .15s ease;">${label}</button>`).join('');
+    let panel='';
+    if(sec==='structure'){
+      const tot=f.structure.lps.reduce((a,l)=>a+l[1],0);
+      panel=`<div style="font-size:11px;line-height:1.7;color:var(--ink);">
+        <div style="margin-bottom:8px;"><b>Vehicle.</b> ${f.structure.vehicle}</div>
+        <div style="margin-bottom:8px;"><b>GP.</b> ${f.structure.gp}</div>
+        <div style="margin-bottom:12px;"><b>Terms.</b> ${f.structure.terms}</div>
+        <div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Commitments — SAR ${tot.toFixed(1)}M</div>
+        ${f.structure.lps.map(l=>{ const pct=(l[1]/tot*100);
+          return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
+            <div style="flex:1;min-width:0;"><div style="font-size:11px;font-weight:600;">${l[0]} <span style="color:var(--ink-soft);font-weight:400;">· ${l[2]}</span></div>
+            <div style="height:5px;border-radius:99px;background:rgba(0,9,25,0.07);margin-top:4px;"><div style="height:100%;width:${pct.toFixed(1)}%;border-radius:99px;background:${f.col};"></div></div></div>
+            <div style="font-size:10.5px;font-variant-numeric:tabular-nums;white-space:nowrap;">SAR ${l[1]}M · ${pct.toFixed(0)}%</div>
+          </div>`; }).join('')}
+      </div>`;
+    } else if(sec==='approvals'){
+      panel=f.approvals.map(a=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:11.5px;font-weight:700;line-height:1.4;">${a.t}</div><span class="wf-pill ${a.cls}" style="flex-shrink:0;">${a.status}</span></div>
+        <div style="font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.03em;">${a.chain}</div>
+      </div>`).join('');
+    } else if(sec==='stakeholders'){
+      panel=f.stakeholders.map(s=>`<div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
+        <div style="width:32px;height:32px;flex-shrink:0;border-radius:10px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;letter-spacing:0.05em;">${s[0]}</div>
+        <div><div style="font-size:11.5px;font-weight:600;">${s[1]}</div><div style="font-size:9.5px;color:var(--ink-soft);">${s[2]}</div></div>
+      </div>`).join('');
+    } else if(sec==='topics'){
+      panel=f.topics.map(t=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
+        <div style="font-size:11.5px;font-weight:700;line-height:1.4;">${t[0]}</div>
+        <div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--ink-soft);margin-top:5px;"><span>${t[1]}</span><span>${t[2]}</span></div>
+      </div>`).join('')
+      + `<div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">Open a topic room with the humans + AI agents involved from the Topics section of any project.</div>`;
+    }
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div style="min-width:0;">
+          <button onclick="_wfFundListBack()" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ All funds</button>
+          <div class="wf-title">${f.name}</div>
+          <div class="wf-sub">${f.vintage} · ${f.tag} · <b>SAR ${f.nav}M</b> NAV · <b>${f.irr}</b> net IRR · SAR ${f.drawn}M drawn of ${f.committed}M</div>
+        </div>
+        <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+      </div>
+      <div class="wf-body">
+        <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px;">${secBtns}</div>
+        ${panel}
+      </div>`;
+  }
+  function _wfFundListBack(){
+    const modal=document.querySelector('#wf-overlay .wf-modal');
+    if(modal) _wfFundList(modal, WORKFLOWS.fundmgmt);
   }
 
   // ===== WORKFLOW 03 — UNDERWRITING VS ACTUAL AS A CHATBOT =====
