@@ -10291,7 +10291,7 @@
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('reporting')">
           <div class="wf-n">04</div><div class="wf-h">Drafts partner &amp; co-investor reporting</div>
-          <div class="wf-d">Generates quarterly performance packs per project and fund — returns, cost-to-complete, appreciation, KPIs — from the live data.</div>
+          <div class="wf-d">A chat interface for reporting — ask "give me opex, capex &amp; revenue for each of our assets in a dashboard" and Karaya assembles it from the live data, exportable to Excel.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('appreciation')">
           <div class="wf-n">05</div><div class="wf-h">Models the asset appreciation</div>
@@ -19084,35 +19084,9 @@ Answer as Karaya:`;
       }
     },
     reporting: {
-      eyebrow:'Workflow 04', title:'Drafts partner & co-investor reporting',
-      sub:'Quarterly performance pack — per project & fund — from the live data, in seconds',
-      steps:[
-        {label:'Aggregating invested capital & distributions', src:'ERP'},
-        {label:'Pulling current NAV and cost-to-complete', src:'Model'},
-        {label:'Computing MOIC, IRR and KPIs per asset', src:'Karaya'},
-        {label:'Composing the Q2 co-investor pack', src:'Karaya'},
-      ],
-      art(){
-        // [project, invested SAR M, current NAV SAR M, MOIC, gross IRR, status]
-        const data=[
-          ['Marina Tower',180,214,'1.19x','18.1%','g'],
-          ['Ash Shati Residences',132,150,'1.14x','15.6%','g'],
-          ['Rawdah Plaza',96,101,'1.05x','9.4%','a'],
-          ['Olaya Block',74,79,'1.07x','11.2%','a'],
-          ['Nahdah Logistics',58,71,'1.22x','19.8%','g'],
-        ];
-        let ti=0,tn=0;
-        const body=data.map(r=>{ ti+=r[1]; tn+=r[2]; return `<tr><td>${r[0]}</td><td>SAR ${r[1]}M</td><td style="font-weight:700;">SAR ${r[2]}M</td><td>${r[3]}</td><td><span class="wf-pill ${r[5]}">${r[4]}</span></td></tr>`; }).join('');
-        const totMoic=(tn/ti).toFixed(2);
-        const tot=`<tr style="border-top:2px solid var(--ink);"><td style="font-weight:700;">Fund total</td><td style="font-weight:700;">SAR ${ti}M</td><td style="font-weight:700;">SAR ${tn}M</td><td style="font-weight:700;">${totMoic}x</td><td style="font-weight:700;">15.9%</td></tr>`;
-        return {
-          artLbl:'Q2 2026 co-investor pack — portfolio returns',
-          html:`<table><thead><tr><th>Project</th><th>Invested</th><th>Current NAV</th><th>MOIC</th><th>Gross IRR</th></tr></thead><tbody>${body}${tot}</tbody></table>`,
-          prompt:`You are Karaya drafting a Q2 2026 co-investor letter. The fund invested SAR 540M, now at SAR 615M NAV (${totMoic}x MOIC, 15.9% gross IRR). Marina Tower (1.19x, 18.1%) and Nahdah Logistics (1.22x, 19.8%) lead; Rawdah Plaza lags at 1.05x / 9.4%. Write a 2-sentence (max 50 words) opening paragraph for the letter. Plain text, **bold** the headline figures.`,
-          fallback:`Across the quarter the fund marked **SAR 615M** of NAV against **SAR 540M** invested — a **${totMoic}x** MOIC and **15.9%** gross IRR — led by Nahdah Logistics (1.22x) and Marina Tower (1.19x). Rawdah Plaza remains the one watch item at 1.05x, where the opex review is underway.`,
-          foot:[{label:'Download the pack (.xls)',ghost:false,go(){ try{ _wfDownloadReporting(); }catch(e){} }}]
-        };
-      }
+      eyebrow:'Workflow 04', title:'Partner & co-investor reporting',
+      sub:'Ask for any pack in plain language — Karaya assembles the dashboard from live data',
+      custom(modal, cfg){ _wfReportingChat(modal, cfg); }
     },
     appreciation: {
       eyebrow:'Workflow 05', title:'Models the asset appreciation',
@@ -19206,6 +19180,120 @@ Answer as Karaya:`;
     },
   };
 
+  // ===== WORKFLOW 04 — INVESTOR REPORTING AS A CHATBOT =====
+  // Ask in plain language ("give me opex/capex and revenue for each of our
+  // assets in a dashboard") and Karaya assembles the dashboard from the live
+  // per-asset data — stat tiles, a per-asset table, a streamed read, and a
+  // one-click .xls of exactly what you asked for.
+  const WF_REP_ASSETS=[
+    // name, revenue, opex, capex, noi, invested, nav, irr%, moic, occ%
+    {name:'Marina Tower',       revenue:17.3, opex:5.0, capex:8.2, noi:12.3, invested:180, nav:214, irr:18.1, moic:1.19, occ:93},
+    {name:'Ash Shati Residences',revenue:14.8, opex:4.3, capex:6.1, noi:10.5, invested:132, nav:150, irr:15.6, moic:1.14, occ:91},
+    {name:'Rawdah Plaza',       revenue:9.6,  opex:3.1, capex:2.4, noi:6.5,  invested:96,  nav:101, irr:9.4,  moic:1.05, occ:88},
+    {name:'Olaya Block',        revenue:8.2,  opex:2.6, capex:1.8, noi:5.6,  invested:74,  nav:79,  irr:11.2, moic:1.07, occ:90},
+    {name:'Andalus Quarter',    revenue:3.1,  opex:1.2, capex:9.5, noi:1.9,  invested:40,  nav:43,  irr:8.1,  moic:1.06, occ:76},
+    {name:'Nahdah Logistics',   revenue:6.4,  opex:1.7, capex:0.9, noi:4.7,  invested:58,  nav:71,  irr:19.8, moic:1.22, occ:97},
+  ];
+  const WF_REP_METRICS=[
+    {k:'revenue',  h:'Revenue',   unit:'SAR M', re:/revenue|income|topline|turnover/i, sum:true},
+    {k:'opex',     h:'Opex',      unit:'SAR M', re:/opex|operating (costs?|expenses?)|outgoings/i, sum:true},
+    {k:'capex',    h:'Capex',     unit:'SAR M', re:/capex|capital expenditure|cost[- ]to[- ]complete/i, sum:true},
+    {k:'noi',      h:'NOI',       unit:'SAR M', re:/\bnoi\b|net operating/i, sum:true},
+    {k:'invested', h:'Invested',  unit:'SAR M', re:/invested|drawn|deployed|committed/i, sum:true},
+    {k:'nav',      h:'NAV',       unit:'SAR M', re:/\bnav\b|net asset value|valuation|\bvalue\b/i, sum:true},
+    {k:'irr',      h:'Gross IRR', unit:'%',     re:/\birr\b|return/i, sum:false},
+    {k:'moic',     h:'MOIC',      unit:'x',     re:/moic|multiple/i, sum:false},
+    {k:'occ',      h:'Occupancy', unit:'%',     re:/occupanc/i, sum:false},
+  ];
+  let _wfRepLast=null;
+  function _wfReportingChat(modal, cfg){
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <div class="wf-eyebrow">${cfg.eyebrow} · chat-driven</div>
+          <div class="wf-title">${cfg.title}</div>
+          <div class="wf-sub">${cfg.sub}</div>
+        </div>
+        <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+      </div>
+      <div class="wf-body" id="wfrep-msgs" style="display:flex;flex-direction:column;gap:12px;min-height:320px;"></div>
+      <div style="display:flex;gap:8px;padding:14px 24px;border-top:1px solid var(--ink-hairline);">
+        <input id="wfrep-input" placeholder="e.g. give me opex, capex and revenue for each of our assets in a dashboard" style="flex:1;box-sizing:border-box;padding:11px 14px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfRepSend()">
+        <button class="wf-btn" onclick="_wfRepSend()">Ask</button>
+      </div>`;
+    const msgs=modal.querySelector('#wfrep-msgs');
+    const chips=[
+      'Give me opex, capex and revenue for each of our assets in a dashboard',
+      'Invested capital, NAV, MOIC and IRR per asset — the Q2 pack',
+      'NOI and occupancy across the portfolio',
+    ].map(c=>`<button onclick="document.getElementById('wfrep-input').value='${c.replace(/'/g,"\\'")}';_wfRepSend()" style="display:block;width:100%;text-align:left;font-family:inherit;font-size:10.5px;letter-spacing:0.03em;background:rgba(0,9,25,0.04);border:1px solid var(--ink-hairline);border-radius:10px;padding:9px 12px;margin-top:6px;cursor:pointer;color:var(--ink);">${c}</button>`).join('');
+    msgs.innerHTML=`<div style="background:rgba(0,9,25,0.03);border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;font-size:11.5px;line-height:1.65;">
+      <div style="font-size:7px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:6px;">Karaya · investor reporting</div>
+      Ask for any reporting pack in plain language — name the metrics (revenue, opex, capex, NOI, invested, NAV, IRR, MOIC, occupancy) and I'll assemble a live dashboard per asset with the fund roll-up, ready to send or export.${chips}</div>`;
+    setTimeout(()=>{ const i=document.getElementById('wfrep-input'); if(i) i.focus(); },80);
+  }
+  function _wfRepSend(){
+    const input=document.getElementById('wfrep-input'); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    const msgs=document.getElementById('wfrep-msgs');
+    msgs.insertAdjacentHTML('beforeend',`<div style="align-self:flex-end;max-width:86%;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;font-size:11.5px;line-height:1.55;">${q.replace(/</g,'&lt;')}</div>`);
+    // pick the metrics named in the prompt (default: the returns pack)
+    let picks=WF_REP_METRICS.filter(m=>m.re.test(q));
+    // "the Q2 pack / quarterly report" → the full returns set, not just IRR
+    if(picks.length<2 && /\b(pack|quarterly|report(ing)?)\b/i.test(q)) picks=[];
+    if(!picks.length) picks=WF_REP_METRICS.filter(m=>['invested','nav','moic','irr'].includes(m.k));
+    if(picks.length>5) picks=picks.slice(0,5);
+    _wfRepLast={picks, q};
+    const fmt=(m,v)=> m.unit==='%' ? v.toFixed(1)+'%' : m.unit==='x' ? v.toFixed(2)+'x' : v.toFixed(1);
+    // stat tiles: portfolio totals for summable metrics (up to 3)
+    const tiles=picks.filter(m=>m.sum).slice(0,3).map(m=>{
+      const tot=WF_REP_ASSETS.reduce((a,x)=>a+x[m.k],0);
+      return `<div style="flex:1;min-width:110px;border:1px solid var(--ink-hairline);border-radius:12px;padding:11px 13px;">
+        <div style="font-size:7.5px;letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${m.h} · portfolio</div>
+        <div style="font-size:19px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums;">SAR ${tot.toFixed(1)}M</div>
+      </div>`;
+    }).join('');
+    const head=picks.map(m=>`<th>${m.h}${m.unit==='SAR M'?' (SAR M)':''}</th>`).join('');
+    const body=WF_REP_ASSETS.map(a=>`<tr><td>${a.name}</td>${picks.map(m=>`<td style="font-variant-numeric:tabular-nums;">${fmt(m,a[m.k])}</td>`).join('')}</tr>`).join('');
+    const tot=`<tr style="border-top:2px solid var(--ink);"><td style="font-weight:700;">Portfolio</td>${picks.map(m=>{
+      if(m.sum){ const t=WF_REP_ASSETS.reduce((s,x)=>s+x[m.k],0); return `<td style="font-weight:700;font-variant-numeric:tabular-nums;">${fmt(m,t)}</td>`; }
+      const w=WF_REP_ASSETS.reduce((s,x)=>s+x[m.k]*x.invested,0)/WF_REP_ASSETS.reduce((s,x)=>s+x.invested,0);
+      return `<td style="font-weight:700;font-variant-numeric:tabular-nums;">${fmt(m,w)}</td>`;
+    }).join('')}</tr>`;
+    msgs.insertAdjacentHTML('beforeend',`<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Dashboard — ${picks.map(m=>m.h).join(' · ')} per asset</div>
+        <button class="wf-btn ghost" style="padding:6px 13px;" onclick="_wfRepDownload()">Export .xls</button>
+      </div>
+      ${tiles?`<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:11px;">${tiles}</div>`:''}
+      <div class="wf-art" style="margin-top:0;"><table><thead><tr><th>Asset</th>${head}</tr></thead><tbody>${body}${tot}</tbody></table></div>
+      <div class="wf-narr" style="margin-top:12px;"><div class="wf-narr-lbl">Karaya · the read</div><div class="wfrep-narr"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div></div>
+    </div>`);
+    msgs.scrollTop=msgs.scrollHeight;
+    // grounded read, streamed — offline fallback computed from the same data
+    const sums=picks.filter(m=>m.sum).map(m=>m.h+' SAR '+WF_REP_ASSETS.reduce((a,x)=>a+x[m.k],0).toFixed(1)+'M').join(', ');
+    const hi=WF_REP_ASSETS.reduce((a,b)=>a.irr>b.irr?a:b), lo=WF_REP_ASSETS.reduce((a,b)=>a.irr<b.irr?a:b);
+    const prompt=`You are Karaya assembling an investor-reporting dashboard. The user asked: "${q}". Portfolio (6 assets): ${sums||'returns pack'}; best performer ${hi.name} (${hi.irr}% IRR, ${hi.moic}x), weakest ${lo.name} (${lo.irr}%, ${lo.moic}x). In 2 sentences (max 45 words) give the read on what the dashboard shows. Plain text, **bold** key figures.`;
+    const fallback=`${sums?('Across the portfolio: **'+sums+'**. '):''}**${hi.name}** leads at **${hi.irr}%** IRR (${hi.moic}x) while **${lo.name}** trails at ${lo.irr}% — the capex-heavy development phase explains most of the gap.`;
+    const narr=msgs.querySelector('.wfrep-narr:last-of-type')||[...msgs.querySelectorAll('.wfrep-narr')].pop();
+    (async()=>{ try{ await karayaStreamInto(narr, prompt, 'quick_insight', fallback); }catch(e){ narr.innerHTML=fmtKaraya(fallback); } })();
+  }
+  function _wfRepDownload(){
+    if(!_wfRepLast) return;
+    const {picks}=_wfRepLast;
+    const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const cell=v=> (typeof v==='number') ? `<Cell><Data ss:Type="Number">${v}</Data></Cell>` : `<Cell><Data ss:Type="String">${esc(v)}</Data></Cell>`;
+    const rows=[['Asset',...picks.map(m=>m.h+(m.unit==='SAR M'?' (SAR M)':m.unit==='%'?' (%)':' (x)'))]]
+      .concat(WF_REP_ASSETS.map(a=>[a.name,...picks.map(m=>a[m.k])]));
+    const rowsXml=rows.map(r=>`<Row>${r.map(cell).join('')}</Row>`).join('');
+    const xml=`<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n<Worksheet ss:Name="Investor Dashboard"><Table>${rowsXml}</Table></Worksheet>\n</Workbook>`;
+    const blob=new Blob([xml],{type:'application/vnd.ms-excel'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a');
+    a.href=url; a.download='Bohio_Investor_Dashboard.xls'; document.body.appendChild(a); a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
+  }
+
   function _wfEnsureOverlay(){
     let ov=document.getElementById('wf-overlay');
     if(ov) return ov;
@@ -19224,6 +19312,7 @@ Answer as Karaya:`;
     const ov=_wfEnsureOverlay();
     const modal=ov.querySelector('.wf-modal');
     const myTok=++_wfRunToken;
+    if(cfg.custom){ cfg.custom(modal, cfg); ov.classList.add('open'); return; }
     const stepsHtml=cfg.steps.map((s,i)=>`<div class="wf-step" data-i="${i}"><span class="wf-dot">${i+1}</span><span class="wf-step-lbl">${s.label}</span><span class="wf-src">${s.src}</span></div>`).join('');
     modal.innerHTML=`
       <div class="wf-head">
