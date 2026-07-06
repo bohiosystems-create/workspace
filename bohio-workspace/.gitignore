@@ -4,3 +4,4 @@ node_modules/
 *.log
 .DS_Store
 studio-vendor/
+.outlook-tokens.json

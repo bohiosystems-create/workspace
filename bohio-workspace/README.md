@@ -154,11 +154,26 @@ functions in `api/` (no `server.mjs` needed in the cloud):
 Local `node server.mjs` still works unchanged — the `api/` functions are only
 used by Vercel.
 
-**Real Outlook connector.** Set `MS_GRAPH_TOKEN` (a Microsoft Graph access
-token with `Mail.Read`) and `GET /api/outlook` pulls real messages from the
-signed-in mailbox — the fund-management chatbot then grounds its answers in
-your actual email threads and tags them "live mailbox". Without the token the
-built-in demo inbox is used, so the flow demos either way.
+**Real Outlook connector — sign in with your own mailbox.** One-time setup
+(~2 minutes, free):
+
+1. [portal.azure.com](https://portal.azure.com) → Microsoft Entra ID → App
+   registrations → **New registration**. Name it "Bohio Demo"; under supported
+   account types pick **"Accounts in any organizational directory and personal
+   Microsoft accounts"**; no redirect URI.
+2. Copy the **Application (client) ID** and set it as `MS_CLIENT_ID` (in
+   `.env` locally, and in Vercel's env vars).
+3. In the app: Authentication → **Allow public client flows → Yes**; API
+   permissions → Add → Microsoft Graph → Delegated → **Mail.Read**.
+
+Then open **Settings › Connectors › Microsoft Outlook → Connect**: you get a
+code, sign in at `microsoft.com/devicelogin`, and the connector is live — the
+fund-management chatbot pulls and grounds in **your real email threads**,
+tagging answers "✉ Outlook · live mailbox". Tokens stay server-side locally
+(`.outlook-tokens.json`, gitignored); on Vercel the refresh token is held by
+your signed-in browser and sent with each request. `MS_REFRESH_TOKEN` or a raw
+`MS_GRAPH_TOKEN` env var work as manual alternatives. Without any of this the
+built-in demo inbox answers, so the flow demos either way.
 
 > ⚠️ **Protect your key on a public URL.** Set `DEMO_USERNAME` and
 > `DEMO_PASSWORD` (env vars, both locally in `.env` and on Vercel) to require a

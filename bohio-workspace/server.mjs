@@ -22,7 +22,7 @@
 import { createServer } from 'node:http';
 import { createHmac } from 'node:crypto';
 import { readFile, writeFile, stat, mkdir } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
@@ -213,15 +213,84 @@ async function handleComplete(req, res) {
   }
 }
 
-// ---- /api/outlook: real email-context connector ---------------------------
-// With MS_GRAPH_TOKEN set (a Microsoft Graph access token with Mail.Read),
-// this pulls REAL messages from the signed-in mailbox — the fund-management
-// chatbot then grounds its answers in your actual email threads. Without a
-// token it returns { live:false } and the app uses its built-in demo inbox,
-// so the demo works either way.
+// ---- Outlook connector: REAL sign-in via the Microsoft device-code flow ----
+// One-time setup: register a (free) app in Entra ID and set MS_CLIENT_ID —
+// see README. Then "Connect" in Settings shows a code, you sign in at
+// microsoft.com/devicelogin, and the demo pulls YOUR real mailbox. Tokens are
+// kept server-side (.outlook-tokens.json, gitignored) and refreshed
+// automatically; on stateless hosts the refresh token also travels via the
+// x-ms-rt header from the signed-in browser. MS_GRAPH_TOKEN / MS_REFRESH_TOKEN
+// env vars still work as manual alternatives. No token → demo inbox.
+const MS_CLIENT_ID = process.env.MS_CLIENT_ID || '';
+const MS_TENANT = process.env.MS_TENANT || 'common';
+const MS_SCOPE = 'User.Read Mail.Read offline_access';
+const MS_TOK_FILE = join(ROOT, '.outlook-tokens.json');
+let _msTok = null;
+try { _msTok = JSON.parse(readFileSync(MS_TOK_FILE, 'utf8')); } catch { }
+function _msLogin(path) { return 'https://login.microsoftonline.com/' + MS_TENANT + '/oauth2/v2.0/' + path; }
+async function _msForm(url, params) {
+  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(params) });
+  return r.json();
+}
+async function _msStoreToken(j) {
+  let account = (_msTok && _msTok.account) || '';
+  try {
+    const me = await fetch('https://graph.microsoft.com/v1.0/me', { headers: { authorization: 'Bearer ' + j.access_token } });
+    if (me.ok) { const mj = await me.json(); account = mj.mail || mj.userPrincipalName || account; }
+  } catch { }
+  _msTok = { access_token: j.access_token, refresh_token: j.refresh_token || (_msTok && _msTok.refresh_token) || '', expires_at: Date.now() + ((j.expires_in || 3600) - 120) * 1000, account };
+  try { writeFileSync(MS_TOK_FILE, JSON.stringify(_msTok)); } catch { }
+  return _msTok;
+}
+async function _msAccessToken(req) {
+  if (_msTok && _msTok.access_token && Date.now() < _msTok.expires_at) return _msTok.access_token;
+  const rt = (_msTok && _msTok.refresh_token) || String((req && req.headers['x-ms-rt']) || '') || process.env.MS_REFRESH_TOKEN || '';
+  if (rt && MS_CLIENT_ID) {
+    try {
+      const j = await _msForm(_msLogin('token'), { grant_type: 'refresh_token', client_id: MS_CLIENT_ID, refresh_token: rt, scope: MS_SCOPE });
+      if (j.access_token) { await _msStoreToken(j); return j.access_token; }
+    } catch { }
+  }
+  return process.env.MS_GRAPH_TOKEN || '';
+}
+function msConnected() { return Boolean((_msTok && _msTok.refresh_token) || process.env.MS_REFRESH_TOKEN || process.env.MS_GRAPH_TOKEN); }
+async function handleOutlookConnect(req, res) {
+  const JSONH = { 'Content-Type': 'application/json' };
+  if (!MS_CLIENT_ID) return send(res, 200, JSON.stringify({ ok: true, setup: false, reason: 'MS_CLIENT_ID not set' }), JSONH);
+  try {
+    const j = await _msForm(_msLogin('devicecode'), { client_id: MS_CLIENT_ID, scope: MS_SCOPE });
+    if (j.device_code) {
+      return send(res, 200, JSON.stringify({ ok: true, setup: true, device_code: j.device_code, user_code: j.user_code, verification_uri: j.verification_uri || 'https://microsoft.com/devicelogin', interval: j.interval || 5, expires_in: j.expires_in || 900 }), JSONH);
+    }
+    return send(res, 502, JSON.stringify({ error: j.error_description || j.error || 'device code failed' }), JSONH);
+  } catch (e) { return send(res, 502, JSON.stringify({ error: 'cannot reach login.microsoftonline.com: ' + e.message }), JSONH); }
+}
+async function handleOutlookStatus(req, res, url) {
+  const JSONH = { 'Content-Type': 'application/json' };
+  const dc = url.searchParams.get('device_code') || '';
+  if (!dc) { // plain status probe
+    return send(res, 200, JSON.stringify({ ok: true, connected: msConnected(), account: (_msTok && _msTok.account) || '' }), JSONH);
+  }
+  try {
+    const j = await _msForm(_msLogin('token'), { grant_type: 'urn:ietf:params:oauth:grant-type:device_code', client_id: MS_CLIENT_ID, device_code: dc });
+    if (j.access_token) {
+      const t = await _msStoreToken(j);
+      // hand the refresh token to the browser too, so stateless hosts
+      // (Vercel) can keep pulling mail on later invocations
+      return send(res, 200, JSON.stringify({ ok: true, connected: true, account: t.account, refresh_token: t.refresh_token }), JSONH);
+    }
+    if (j.error === 'authorization_pending' || j.error === 'slow_down') return send(res, 200, JSON.stringify({ ok: true, pending: true }), JSONH);
+    return send(res, 200, JSON.stringify({ ok: true, pending: false, error: j.error_description || j.error }), JSONH);
+  } catch (e) { return send(res, 502, JSON.stringify({ error: e.message }), JSONH); }
+}
+function handleOutlookDisconnect(req, res) {
+  _msTok = null;
+  try { unlinkSync(MS_TOK_FILE); } catch { }
+  return send(res, 200, JSON.stringify({ ok: true, connected: false }), { 'Content-Type': 'application/json' });
+}
 async function handleOutlook(req, res, url) {
   const JSONH = { 'Content-Type': 'application/json' };
-  const token = process.env.MS_GRAPH_TOKEN || '';
+  const token = await _msAccessToken(req);
   const q = url.searchParams.get('q') || '';
   if (token) {
     try {
@@ -236,7 +305,7 @@ async function handleOutlook(req, res, url) {
           when: String(m.receivedDateTime || '').slice(0, 10),
           snippet: String(m.bodyPreview || '').slice(0, 200),
         }));
-        return send(res, 200, JSON.stringify({ ok: true, live: true, messages }), JSONH);
+        return send(res, 200, JSON.stringify({ ok: true, live: true, account: (_msTok && _msTok.account) || '', messages }), JSONH);
       }
       console.error('Graph error', g.status, (await g.text()).slice(0, 200));
     } catch (e) { console.error('Graph fetch failed:', e.message); }
@@ -307,8 +376,19 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/outlook') {
       return handleOutlook(req, res, url);
     }
+    if (url.pathname === '/api/outlook-connect') {
+      if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+      return handleOutlookConnect(req, res);
+    }
+    if (url.pathname === '/api/outlook-status') {
+      return handleOutlookStatus(req, res, url);
+    }
+    if (url.pathname === '/api/outlook-disconnect') {
+      if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
+      return handleOutlookDisconnect(req, res);
+    }
     if (url.pathname === '/api/health') {
-      return send(res, 200, JSON.stringify({ ok: true, ai: Boolean(API_KEY), auth: AUTH_ON, outlook: Boolean(process.env.MS_GRAPH_TOKEN), routing: routingTable() }),
+      return send(res, 200, JSON.stringify({ ok: true, ai: Boolean(API_KEY), auth: AUTH_ON, outlook: msConnected(), outlookSetup: Boolean(MS_CLIENT_ID), routing: routingTable() }),
         { 'Content-Type': 'application/json' });
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
