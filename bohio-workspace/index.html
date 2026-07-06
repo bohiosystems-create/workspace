@@ -10301,15 +10301,15 @@
         <span class="section-meta">Five AI workflows · click any to run it live</span></div>
       <div class="wf-grid" id="wf-grid">
         <button class="wf-card" onclick="runWorkflow('ingest')">
-          <div class="wf-n">01</div><div class="wf-h">Ingests valuations &amp; deal docs</div>
+          <div class="wf-n">01</div><div class="wf-h">Valuation</div>
           <div class="wf-d">Reads TAQEEM valuations, contractor claims and offering memos, and pulls actuals from project accounting — straight into the model.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('lease2cf')">
-          <div class="wf-n">02</div><div class="wf-h">Turns lease/sales agreements into cashflow models</div>
+          <div class="wf-n">02</div><div class="wf-h">Lease agreements</div>
           <div class="wf-d">The moment a sale or lease is logged, AI updates the revenue schedule, NOI and the investment underwriting instantly.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('vsactuals')">
-          <div class="wf-n">03</div><div class="wf-h">Compares model vs. actuals</div>
+          <div class="wf-n">03</div><div class="wf-h">Underwriting vs actual</div>
           <div class="wf-d">Continuously compares the underwriting to live results, flagging variance in NOI, cost-to-complete and IRR.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('reporting')">
@@ -18692,7 +18692,7 @@ Answer as Karaya:`;
   // (a project's Contracts cashflow builder, the PM-vs-underwriting analytics).
   const WORKFLOWS = {
     ingest: {
-      eyebrow:'Workflow 01', title:'Ingests valuations & deal docs',
+      eyebrow:'Workflow 01', title:'Valuation',
       sub:'TAQEEM valuation · contractor claim · offering memo · project accounting → the model',
       steps:[
         {label:'Reading TAQEEM valuation report (18 pp)', src:'PDF'},
@@ -18721,7 +18721,7 @@ Answer as Karaya:`;
       }
     },
     lease2cf: {
-      eyebrow:'Workflow 02', title:'Turns lease & sales agreements into cashflow',
+      eyebrow:'Workflow 02', title:'Lease agreements',
       sub:'A signed lease is logged → revenue schedule, NOI and the underwriting update instantly',
       steps:[
         {label:'New lease logged — Tenant: Najd Retail Group', src:'Contract'},
@@ -18747,7 +18747,7 @@ Answer as Karaya:`;
       }
     },
     vsactuals: {
-      eyebrow:'Workflow 03', title:'Compares the model vs. actuals',
+      eyebrow:'Workflow 03', title:'Underwriting vs actual',
       sub:'Underwriting ↔ live PM results ↔ Paseetah market data — variance flagged continuously',
       steps:[
         {label:'Loading the project underwriting (v.12)', src:'Model'},
