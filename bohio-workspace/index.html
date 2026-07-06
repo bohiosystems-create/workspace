@@ -10283,7 +10283,7 @@
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('vsactuals')">
           <div class="wf-n">03</div><div class="wf-h">Underwriting vs actual</div>
-          <div class="wf-d">Continuously compares the underwriting to live results, flagging variance in NOI, cost-to-complete and IRR.</div>
+          <div class="wf-d">A chat interface for variance — ask about any asset or metric and Karaya compares the underwriting to live PM actuals, flagging NOI, opex and IRR gaps.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('reporting')">
           <div class="wf-n">04</div><div class="wf-h">Drafts partner &amp; co-investor reporting</div>
@@ -15391,7 +15391,44 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     return {[String(name||'Sheet1').slice(0,28)]:_gridFromCells(cellsByRow, maxC)};
   }
 
-  async function handleModelUpload(file){
+  // ===== Uploaded docs stay part of the project =====
+  // Docs a user adds to a project are persisted (metadata here, the workbook
+  // itself in MODEL_SAVES) and restored on load, so an uploaded model remains
+  // in the project's Financial Models grid across sessions.
+  function _persistProjDocs(){
+    try{
+      const out={};
+      Object.keys(P).forEach(pid=>{
+        const ds=(P[pid].docs||[]).filter(d=>d&&d._userAdded);
+        if(ds.length) out[pid]=ds.map(d=>{ const m={}; for(const k in d){ if(k!=='wbData') m[k]=d[k]; } return m; });
+      });
+      localStorage.setItem('bohio_proj_docs', JSON.stringify(out));
+    }catch(e){}
+  }
+  function _restoreProjDocs(){
+    try{
+      const saved=JSON.parse(localStorage.getItem('bohio_proj_docs')||'{}');
+      Object.keys(saved).forEach(pid=>{
+        if(!P[pid]) return;
+        P[pid].docs=P[pid].docs||[];
+        saved[pid].forEach(meta=>{ if(!P[pid].docs.find(d=>d.name===meta.name)) P[pid].docs.unshift(meta); });
+      });
+    }catch(e){}
+  }
+  _restoreProjDocs();
+  // The project this upload belongs to (when uploading from inside a project).
+  function _uploadProjectCtx(){
+    try{
+      const onProject=document.getElementById('page-project')&&document.getElementById('page-project').classList.contains('active');
+      const inProjectEditor=document.getElementById('page-editor')&&document.getElementById('page-editor').classList.contains('active')
+        &&_editorOrigin&&_editorOrigin.kind==='project';
+      const pid=inProjectEditor?_editorOrigin.id:currentProject;
+      if((onProject||inProjectEditor)&&pid&&P[pid]) return pid;
+    }catch(e){}
+    return null;
+  }
+
+  async function handleModelUpload(file, targetDoc){
     if(!file) return;
     const base = String(file.name || 'Uploaded Model').replace(/\.[^.]+$/, '');
     const ext = (String(file.name||'').match(/\.([^.]+)$/) || [,''])[1].toLowerCase();
@@ -15427,9 +15464,22 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
       }
     }
 
-    const doc = { type:'XLSX', name: base, version: versionLabel, updated:'Just now · You', isGenerated:true, notes: noteLabel };
+    // ONE doc object end to end: if this upload belongs to a project (explicit
+    // target, or uploaded from inside a project), register/update it on the
+    // project's docs — the same object the editor opens — and persist it.
+    const pid = _uploadProjectCtx();
+    let doc = targetDoc || null;
+    if (!doc && pid) {
+      const p = P[pid];
+      doc = p.docs.find(d => d.name === base);
+      if (!doc) { doc = { type:'XLSX', name: base }; p.docs.unshift(doc); }
+    }
+    if (!doc) doc = { type:'XLSX', name: base };
+    doc.type='XLSX'; doc.version=versionLabel; doc.updated='Just now · You';
+    doc.isGenerated=true; doc.notes=noteLabel; doc._userAdded = doc._userAdded || Boolean(pid || targetDoc);
     if (wbData) { doc.wbData = wbData; doc.version = 'v.01 · ' + Object.keys(wbData).length + ' tabs imported'; }
-    if (typeof MY_MODELS !== 'undefined' && !MY_MODELS.find(m => m.name === base)) MY_MODELS.unshift(doc);
+    if (doc._userAdded) _persistProjDocs();
+    if (!pid && !targetDoc && typeof MY_MODELS !== 'undefined' && !MY_MODELS.find(m => m.name === base)) MY_MODELS.unshift(doc);
     uploadBuildingOverlay(base, title, stepsByKind[kind], () => { if (typeof openEditor === 'function') openEditor(doc); });
   }
   // Upload into the open project: Excel/CSV files become live Bohio models
@@ -15443,14 +15493,17 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     const inp=document.getElementById('proj-doc-upload'); if(inp) inp.value='';
     const isSheet=['xlsx','xls','csv'].indexOf(ext)>=0;
     if(isSheet){
-      // register on the project so it lives in this project's Financial Models grid
-      if(!p.docs.find(d=>d.name===base)) p.docs.unshift({type:'XLSX', name:base, version:'v.01 · From workbook', updated:'Just now · You', isGenerated:true,
-        notes:'Imported workbook mapped into the Bohio underwriting template by Karaya. Rework it by chatting — change cells, add/remove metrics, add sheets.'});
-      handleModelUpload(file); // build overlay → opens the reworkable Bohio editor
+      // register ONE doc on the project (persisted) — the same object the
+      // editor opens, so the parsed workbook and edits stay with the project
+      let doc=p.docs.find(d=>d.name===base);
+      if(!doc){ doc={type:'XLSX', name:base, version:'v.01 · From workbook', updated:'Just now · You', isGenerated:true, _userAdded:true,
+        notes:'Imported workbook mapped into the Bohio underwriting template by Karaya. Rework it by chatting — change cells, add/remove metrics, add sheets.'}; p.docs.unshift(doc); }
+      doc._userAdded=true; _persistProjDocs();
+      handleModelUpload(file, doc); // build overlay → opens the reworkable Bohio editor
       return;
     }
     const t=(ext||'doc').toUpperCase();
-    if(!p.docs.find(d=>d.name===base)) p.docs.push({type:t, name:base, version:'Just now', updated:'Just now · You'});
+    if(!p.docs.find(d=>d.name===base)){ p.docs.push({type:t, name:base, version:'Just now', updated:'Just now · You', _userAdded:true}); _persistProjDocs(); }
     uploadBuildingOverlay(base, 'Filing into the data room', ['Reading the file…','Classifying the document…','Filing into the project data room…'], ()=>{
       showProject(pid); // re-render grids; lands on the Documents section
     });
@@ -19157,30 +19210,8 @@ Answer as Karaya:`;
     },
     vsactuals: {
       eyebrow:'Workflow 03', title:'Underwriting vs actual',
-      sub:'Underwriting ↔ live PM results ↔ Paseetah market data — variance flagged continuously',
-      steps:[
-        {label:'Loading the project underwriting (v.12)', src:'Model'},
-        {label:'Pulling live property-management actuals', src:'Yardi'},
-        {label:'Overlaying Paseetah market benchmarks', src:'API'},
-        {label:'Scoring variance across NOI, opex & IRR', src:'Karaya'},
-      ],
-      art(){
-        const rows=[
-          ['Occupancy','93%','90%','−3.0%','a'],
-          ['In-place rent (SAR/sqm)','1,800','1,735','−3.6%','a'],
-          ['Opex ratio','28%','31%','+3.0pp','r'],
-          ['NOI (SAR M)','12.4','11.6','−6.5%','r'],
-          ['Equity IRR','16.8%','15.2%','−160 bps','a'],
-        ];
-        const body=rows.map(r=>`<tr><td>${r[0]}</td><td style="color:var(--ink-soft);">${r[1]}</td><td style="font-weight:700;">${r[2]}</td><td><span class="wf-pill ${r[4]}">${r[3]}</span></td></tr>`).join('');
-        return {
-          artLbl:'Underwriting → actual — variance',
-          html:`<table><thead><tr><th>Metric</th><th>Underwritten</th><th>PM Actual</th><th>Variance</th></tr></thead><tbody>${body}</tbody></table>`,
-          prompt:`You are Karaya. You compared the underwriting to live Yardi actuals with Paseetah context: occupancy 90% vs 93%, opex ratio 31% vs 28%, NOI SAR 11.6M vs SAR 12.4M, equity IRR 15.2% vs 16.8%. In 2 sentences (max 45 words) give the variance read and one action. Plain text, **bold** the figures.`,
-          fallback:`Actual NOI of **SAR 11.6M** trails the **SAR 12.4M** underwriting, driven mostly by opex running at **31%** (vs 28%). Paseetah rents support a recovery — prioritise an opex review and a targeted leasing push to close the **−160 bps** IRR gap.`,
-          foot:[{label:'Open the full analytics',ghost:false,go(){ closeWorkflow(); showProject(6); }}]
-        };
-      }
+      sub:'Ask anything — Karaya compares the underwriting to live PM actuals & Paseetah benchmarks',
+      custom(modal, cfg){ _wfVsaChat(modal, cfg); }
     },
     reporting: {
       eyebrow:'Workflow 04', title:'Partner & co-investor reporting',
@@ -19391,6 +19422,94 @@ Answer as Karaya:`;
     const url=URL.createObjectURL(blob); const a=document.createElement('a');
     a.href=url; a.download='Bohio_Investor_Dashboard.xls'; document.body.appendChild(a); a.click();
     setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
+  }
+
+  // ===== WORKFLOW 03 — UNDERWRITING VS ACTUAL AS A CHATBOT =====
+  // Ask "how is Marina Tower tracking vs underwriting?" or "NOI variance across
+  // the portfolio" — Karaya builds the variance dashboard from live PM actuals.
+  const WF_VSA_ASSETS=[
+    // per metric: [underwritten, actual]
+    {name:'Marina Tower',        occ:[93,90], rent:[1800,1735], opexr:[28,31], noi:[12.4,11.6], irr:[16.8,15.2]},
+    {name:'Ash Shati Residences',occ:[92,91], rent:[1650,1642], opexr:[27,28], noi:[10.9,10.5], irr:[15.9,15.6]},
+    {name:'Rawdah Plaza',        occ:[90,88], rent:[1400,1335], opexr:[29,33], noi:[7.2,6.5],   irr:[11.0,9.4]},
+    {name:'Olaya Block',         occ:[91,90], rent:[1520,1498], opexr:[28,30], noi:[6.0,5.6],   irr:[12.0,11.2]},
+    {name:'Nahdah Logistics',    occ:[95,97], rent:[980,1004],  opexr:[18,17], noi:[4.4,4.7],   irr:[18.5,19.8]},
+  ];
+  const WF_VSA_METRICS=[
+    {k:'noi',   h:'NOI (SAR M)',            re:/\bnoi\b|net operating/i,      hi:true,  fmt:v=>v.toFixed(1)},
+    {k:'occ',   h:'Occupancy',              re:/occupanc/i,                   hi:true,  fmt:v=>v.toFixed(0)+'%'},
+    {k:'rent',  h:'In-place rent (SAR/sqm)',re:/rent/i,                       hi:true,  fmt:v=>v.toLocaleString()},
+    {k:'opexr', h:'Opex ratio',             re:/opex|operating (costs?|expenses?)|outgoings/i, hi:false, fmt:v=>v.toFixed(0)+'%'},
+    {k:'irr',   h:'Equity IRR',             re:/\birr\b|return/i,             hi:true,  fmt:v=>v.toFixed(1)+'%'},
+  ];
+  function _vsaPill(m, uw, act){
+    const varPct=((act-uw)/Math.abs(uw))*100;
+    const adverse=m.hi ? varPct<0 : varPct>0;
+    const cls=!adverse?'g':(Math.abs(varPct)<4?'a':'r');
+    return `<span class="wf-pill ${cls}">${(varPct>0?'+':'')+varPct.toFixed(1)}%</span>`;
+  }
+  function _wfVsaChat(modal, cfg){
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <div class="wf-eyebrow">${cfg.eyebrow} · chat-driven</div>
+          <div class="wf-title">${cfg.title}</div>
+          <div class="wf-sub">${cfg.sub}</div>
+        </div>
+        <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+      </div>
+      <div class="wf-body" id="wfvsa-msgs" style="display:flex;flex-direction:column;gap:12px;min-height:320px;"></div>
+      <div style="display:flex;gap:8px;padding:14px 24px;border-top:1px solid var(--ink-hairline);">
+        <input id="wfvsa-input" placeholder="e.g. how is Marina Tower tracking vs the underwriting?" style="flex:1;box-sizing:border-box;padding:11px 14px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfVsaSend()">
+        <button class="wf-btn" onclick="_wfVsaSend()">Ask</button>
+      </div>`;
+    const msgs=modal.querySelector('#wfvsa-msgs');
+    const chips=[
+      'How is Marina Tower tracking vs the underwriting?',
+      'NOI variance across the portfolio',
+      'Where is opex running hot vs plan?',
+    ].map(c=>`<button onclick="document.getElementById('wfvsa-input').value='${c.replace(/'/g,"\\'")}';_wfVsaSend()" style="display:block;width:100%;text-align:left;font-family:inherit;font-size:10.5px;letter-spacing:0.03em;background:rgba(0,9,25,0.04);border:1px solid var(--ink-hairline);border-radius:10px;padding:9px 12px;margin-top:6px;cursor:pointer;color:var(--ink);">${c}</button>`).join('');
+    msgs.innerHTML=`<div style="background:rgba(0,9,25,0.03);border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;font-size:11.5px;line-height:1.65;">
+      <div style="font-size:7px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:6px;">Karaya · underwriting vs actual</div>
+      I hold every project's underwriting alongside live Yardi actuals and Paseetah benchmarks. Ask about an asset (full variance card) or a metric across the portfolio (NOI, occupancy, rent, opex ratio, IRR).${chips}
+      <button onclick="closeWorkflow();showProject(6)" style="display:block;width:100%;text-align:left;font-family:inherit;font-size:10.5px;background:transparent;border:1px dashed var(--ink-hairline);border-radius:10px;padding:9px 12px;margin-top:6px;cursor:pointer;color:var(--ink-soft);">Open the full per-project analytics →</button>
+    </div>`;
+    setTimeout(()=>{ const i=document.getElementById('wfvsa-input'); if(i) i.focus(); },80);
+  }
+  function _wfVsaSend(){
+    const input=document.getElementById('wfvsa-input'); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    const msgs=document.getElementById('wfvsa-msgs');
+    msgs.insertAdjacentHTML('beforeend',`<div style="align-self:flex-end;max-width:86%;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;font-size:11.5px;line-height:1.55;">${q.replace(/</g,'&lt;')}</div>`);
+    const asset=WF_VSA_ASSETS.find(a=>new RegExp(a.name.split(' ')[0],'i').test(q));
+    let title, head, body, narrCtx;
+    if(asset){
+      // one asset → every metric, underwritten vs actual
+      title=asset.name+' — underwriting vs actual';
+      head='<th>Metric</th><th>Underwritten</th><th>PM Actual</th><th>Variance</th>';
+      body=WF_VSA_METRICS.map(m=>`<tr><td>${m.h}</td><td style="color:var(--ink-soft);">${m.fmt(asset[m.k][0])}</td><td style="font-weight:700;">${m.fmt(asset[m.k][1])}</td><td>${_vsaPill(m,asset[m.k][0],asset[m.k][1])}</td></tr>`).join('');
+      narrCtx=`${asset.name}: `+WF_VSA_METRICS.map(m=>`${m.h} ${m.fmt(asset[m.k][1])} vs ${m.fmt(asset[m.k][0])} underwritten`).join('; ');
+    } else {
+      // one metric → every asset (default NOI)
+      const m=WF_VSA_METRICS.find(x=>x.re.test(q))||WF_VSA_METRICS[0];
+      title=m.h+' — underwriting vs actual, portfolio';
+      head='<th>Asset</th><th>Underwritten</th><th>PM Actual</th><th>Variance</th>';
+      body=WF_VSA_ASSETS.map(a=>`<tr><td>${a.name}</td><td style="color:var(--ink-soft);">${m.fmt(a[m.k][0])}</td><td style="font-weight:700;">${m.fmt(a[m.k][1])}</td><td>${_vsaPill(m,a[m.k][0],a[m.k][1])}</td></tr>`).join('');
+      narrCtx=m.h+' actual vs underwritten per asset: '+WF_VSA_ASSETS.map(a=>`${a.name} ${m.fmt(a[m.k][1])} vs ${m.fmt(a[m.k][0])}`).join('; ');
+    }
+    msgs.insertAdjacentHTML('beforeend',`<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 16px;">
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:10px;">${title}</div>
+      <div class="wf-art" style="margin-top:0;"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
+      <div class="wf-narr" style="margin-top:12px;"><div class="wf-narr-lbl">Karaya · the read</div><div class="wfvsa-narr"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div></div>
+    </div>`);
+    msgs.scrollTop=msgs.scrollHeight;
+    const prompt=`You are Karaya comparing underwriting to live PM actuals (Yardi) with Paseetah context. The user asked: "${q}". Data: ${narrCtx}. In 2 sentences (max 45 words), give the variance read — the main driver and one recommended action. Plain text, **bold** the key figures.`;
+    const fallback=asset
+      ? `**${asset.name}** is running **${asset.noi[1].toFixed(1)}M** NOI vs **${asset.noi[0].toFixed(1)}M** underwritten, with opex at **${asset.opexr[1]}%** (plan ${asset.opexr[0]}%). Prioritise the opex review${asset.occ[1]<asset.occ[0]?' and a leasing push to close the occupancy gap':''}.`
+      : `**Rawdah Plaza** shows the widest adverse gap while **Nahdah Logistics** is beating plan. Portfolio-wide, opex discipline is the main lever — start with the two assets running hottest against their underwritten ratios.`;
+    const narr=[...msgs.querySelectorAll('.wfvsa-narr')].pop();
+    (async()=>{ try{ await karayaStreamInto(narr, prompt, 'quick_insight', fallback); }catch(e){ narr.innerHTML=fmtKaraya(fallback); } })();
   }
 
   function _wfEnsureOverlay(){
