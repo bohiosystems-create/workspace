@@ -154,6 +154,12 @@ functions in `api/` (no `server.mjs` needed in the cloud):
 Local `node server.mjs` still works unchanged — the `api/` functions are only
 used by Vercel.
 
+**Real Outlook connector.** Set `MS_GRAPH_TOKEN` (a Microsoft Graph access
+token with `Mail.Read`) and `GET /api/outlook` pulls real messages from the
+signed-in mailbox — the fund-management chatbot then grounds its answers in
+your actual email threads and tags them "live mailbox". Without the token the
+built-in demo inbox is used, so the flow demos either way.
+
 > ⚠️ **Protect your key on a public URL.** Set `DEMO_USERNAME` and
 > `DEMO_PASSWORD` (env vars, both locally in `.env` and on Vercel) to require a
 > real sign-in: the login form verifies credentials against `POST /api/login`,

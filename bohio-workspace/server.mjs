@@ -213,6 +213,37 @@ async function handleComplete(req, res) {
   }
 }
 
+// ---- /api/outlook: real email-context connector ---------------------------
+// With MS_GRAPH_TOKEN set (a Microsoft Graph access token with Mail.Read),
+// this pulls REAL messages from the signed-in mailbox — the fund-management
+// chatbot then grounds its answers in your actual email threads. Without a
+// token it returns { live:false } and the app uses its built-in demo inbox,
+// so the demo works either way.
+async function handleOutlook(req, res, url) {
+  const JSONH = { 'Content-Type': 'application/json' };
+  const token = process.env.MS_GRAPH_TOKEN || '';
+  const q = url.searchParams.get('q') || '';
+  if (token) {
+    try {
+      const gu = 'https://graph.microsoft.com/v1.0/me/messages?$top=10&$select=from,subject,receivedDateTime,bodyPreview'
+        + (q ? '&$search=' + encodeURIComponent('"' + q + '"') : '');
+      const g = await fetch(gu, { headers: { authorization: 'Bearer ' + token } });
+      if (g.ok) {
+        const j = await g.json();
+        const messages = (j.value || []).map(m => ({
+          from: (m.from && m.from.emailAddress && (m.from.emailAddress.name || m.from.emailAddress.address)) || '—',
+          subject: m.subject || '',
+          when: String(m.receivedDateTime || '').slice(0, 10),
+          snippet: String(m.bodyPreview || '').slice(0, 200),
+        }));
+        return send(res, 200, JSON.stringify({ ok: true, live: true, messages }), JSONH);
+      }
+      console.error('Graph error', g.status, (await g.text()).slice(0, 200));
+    } catch (e) { console.error('Graph fetch failed:', e.message); }
+  }
+  return send(res, 200, JSON.stringify({ ok: true, live: false, messages: [] }), JSONH);
+}
+
 // ---- /vendor: cache React/ReactDOM/Babel for the studio dashboards --------
 // The dashboards request e.g. /vendor/react@18.3.1/umd/react.production.min.js.
 // We serve it from disk if cached, otherwise fetch the exact bytes from the
@@ -273,8 +304,11 @@ const server = createServer(async (req, res) => {
       if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
       return handleLogin(req, res);
     }
+    if (url.pathname === '/api/outlook') {
+      return handleOutlook(req, res, url);
+    }
     if (url.pathname === '/api/health') {
-      return send(res, 200, JSON.stringify({ ok: true, ai: Boolean(API_KEY), auth: AUTH_ON, routing: routingTable() }),
+      return send(res, 200, JSON.stringify({ ok: true, ai: Boolean(API_KEY), auth: AUTH_ON, outlook: Boolean(process.env.MS_GRAPH_TOKEN), routing: routingTable() }),
         { 'Content-Type': 'application/json' });
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');

@@ -10290,8 +10290,8 @@
           <div class="wf-d">A chat interface for reporting — ask "give me opex, capex &amp; revenue for each of our assets in a dashboard" and Karaya assembles it from the live data, exportable to Excel.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('appreciation')">
-          <div class="wf-n">05</div><div class="wf-h">Models the asset appreciation</div>
-          <div class="wf-d">Projects value growth per unit and across every project and fund — re-forecasting as prices, cap rates, costs and market data move, into NAV &amp; IRR.</div>
+          <div class="wf-n">05</div><div class="wf-h">Financial modelling</div>
+          <div class="wf-d">A chat interface for modelling — ask Karaya to pull data from the property management system and build an asset appreciation model, or a cashflow prediction for a new project. It builds a live Bohio workbook.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('screening')">
           <div class="wf-n">06</div><div class="wf-h">Deal screening</div>
@@ -15957,6 +15957,23 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   // rows, fetches the market benchmark for each recognised assumption, applies
   // them and reports the before/after impact on the returns.
   window._paseetahOn = (function(){ try{ return localStorage.getItem('bohio_paseetah')!=='0'; }catch(e){ return true; } })();
+  // ===== Outlook connector (real): /api/outlook pulls from a live Microsoft
+  // Graph mailbox when MS_GRAPH_TOKEN is configured server-side; otherwise the
+  // built-in demo inbox answers, so the flow works in the demo too.
+  window._outlookOn = (function(){ try{ return localStorage.getItem('bohio_outlook')!=='0'; }catch(e){ return true; } })();
+  async function _outlookFetch(q){
+    if(window._outlookOn===false) return {live:false, messages:[]};
+    try{
+      const r=await fetch('/api/outlook?q='+encodeURIComponent(q||''));
+      const j=await r.json();
+      if(j&&j.live&&Array.isArray(j.messages)&&j.messages.length) return {live:true, messages:j.messages};
+    }catch(e){}
+    // demo inbox: the fund threads bundled with the app, filtered by the query
+    const all=[]; try{ (WF_FUNDS||[]).forEach(f=>(f.emails||[]).forEach(e=>all.push(e))); }catch(e){}
+    const ql=String(q||'').toLowerCase().split(/\s+/).filter(w=>w.length>3);
+    const hit=ql.length?all.filter(e=>{ const hay=(e.from+' '+e.subject+' '+e.snippet).toLowerCase(); return ql.some(w=>hay.indexOf(w)>=0); }):all;
+    return {live:false, messages:(hit.length?hit:all).slice(0,6)};
+  }
   const PASEETAH_BENCH=[
     {re:/\badr\b|room ?rate|daily rate/i,           name:'ADR (comp set, upper-upscale)', kind:'mult', v:1.056},
     {re:/anchor.*rent|contracted rent/i,            name:'Anchor rents (prime corniche)', kind:'mult', v:1.041},
@@ -18784,7 +18801,7 @@ Answer as Karaya:`;
               {k:'yardi', name:'Yardi Voyager', cat:'Property Management', mark:'Y', connected:true, meta:'Synced 40m ago · rent roll, leases, opex'},
               {k:'sap', name:'SAP S/4HANA', cat:'ERP · Finance', mark:'S', connected:false, meta:'Cost ledger, commitments, actuals'},
               {k:'mri', name:'MRI Software', cat:'Property Management', mark:'M', connected:false, meta:'Lease admin, CAM reconciliations'},
-              {k:'outlook', name:'Microsoft Outlook', cat:'Email · Context', mark:'✉', connected:true, meta:'Reads fund & deal threads + attachments — feeds document versions and Karaya context'},
+              {k:'outlook', name:'Microsoft Outlook', cat:'Email · Context', mark:'✉', connected:(window._outlookOn!==false), meta:'Live via /api/outlook (set MS_GRAPH_TOKEN for your real mailbox) — feeds fund document versions and Karaya context'},
               {k:'paseetah', name:'Paseetah', cat:'Market Data API', mark:'P', connected:(window._paseetahOn!==false), meta:'Market rents, ADR, occupancy, cap-rate comps — feeds model assumptions'},
               {k:'costar', name:'CoStar', cat:'Market Data API', mark:'C', connected:false, meta:'Comparable transactions & leasing analytics'},
             ].map(c => `
@@ -18846,6 +18863,7 @@ Answer as Karaya:`;
     if (!btn) return;
     const connected = btn.classList.toggle('is-connected');
     if (k === 'paseetah') { window._paseetahOn = connected; try{ localStorage.setItem('bohio_paseetah', connected?'1':'0'); }catch(e){} }
+    if (k === 'outlook') { window._outlookOn = connected; try{ localStorage.setItem('bohio_outlook', connected?'1':'0'); }catch(e){} }
     if (connected) {
       btn.textContent = 'Connecting…';
       setTimeout(() => {
@@ -19220,32 +19238,9 @@ Answer as Karaya:`;
       custom(modal, cfg){ _wfReportingChat(modal, cfg); }
     },
     appreciation: {
-      eyebrow:'Workflow 05', title:'Models the asset appreciation',
-      sub:'Value growth per unit & per fund — re-forecast as prices, cap rates & costs move → NAV & IRR',
-      steps:[
-        {label:'Reading unit sale prices & absorption', src:'ERP'},
-        {label:'Overlaying Paseetah price & cap-rate trend', src:'API'},
-        {label:'Re-forecasting exit value & appreciation curve', src:'Model'},
-        {label:'Rolling up to fund NAV and equity IRR', src:'Karaya'},
-      ],
-      art(){
-        // [year, market value SAR M, appreciation %, fund NAV SAR M, IRR to date]
-        const rows=[
-          ['2026 (today)','412','—','615','15.9%'],
-          ['2027','441','+7.0%','658','16.4%'],
-          ['2028','469','+6.3%','699','17.0%'],
-          ['2029','497','+6.0%','741','17.6%'],
-          ['Exit 2030','528','+6.2%','788','18.3%'],
-        ];
-        const body=rows.map(r=>`<tr><td>${r[0]}</td><td>SAR ${r[1]}M</td><td style="color:${r[2]==='—'?'var(--ink-soft)':'#15803d'};font-weight:600;">${r[2]}</td><td style="font-weight:700;">SAR ${r[3]}M</td><td><span class="wf-pill g">${r[4]}</span></td></tr>`).join('');
-        return {
-          artLbl:'Appreciation re-forecast → NAV & IRR',
-          html:`<table><thead><tr><th>Period</th><th>Asset value</th><th>Appreciation</th><th>Fund NAV</th><th>IRR to date</th></tr></thead><tbody>${body}</tbody></table>`,
-          prompt:`You are Karaya. You re-forecast asset appreciation using Paseetah price/cap-rate trends: the flagship asset grows from SAR 412M today to SAR 528M at a 2030 exit (~6.2% p.a.), lifting fund NAV from SAR 615M to SAR 788M and equity IRR to 18.3%. In 2 sentences (max 45 words) explain the driver and one sensitivity to watch. Plain text, **bold** the figures.`,
-          fallback:`Steady **~6.2%** annual appreciation carries the asset to **SAR 528M** by the 2030 exit, lifting fund NAV to **SAR 788M** and equity IRR to **18.3%**. The forecast is most sensitive to the exit cap rate — a 25 bps expansion would trim roughly SAR 20M of value.`,
-          foot:[{label:'Re-run with live market data',ghost:false,go(){ closeWorkflow(); goTo('settings'); }}]
-        };
-      }
+      eyebrow:'Workflow 05', title:'Financial modelling',
+      sub:'Ask Karaya to build a model — pull PM data into an appreciation model, or predict a new project\'s cashflow',
+      custom(modal, cfg){ _wfFinModelChat(modal, cfg); }
     },
     screening: {
       eyebrow:'Workflow 06', title:'Deal screening',
@@ -19639,27 +19634,150 @@ Answer as Karaya:`;
     if(diff){ _wfFundChat[k].push({cls:'bot', html:fmtKaraya(diff)}); rerender(); return; }
     _wfFundChat[k].push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
     rerender();
-    const docsCtx=(f.docs||[]).map(d=>d.name+': '+d.versions.map(v=>v.v+' ('+v.date+', '+v.src+') — '+v.note).join(' | ')).join('\n');
-    const mailCtx=(f.emails||[]).map(e=>e.from+' — "'+e.subject+'" ('+e.when+'): '+e.snippet).join('\n');
-    const prompt=`You are Karaya, the fund-management assistant for "${f.name}" (${f.vintage}, ${f.status}; SAR ${f.drawn}M drawn of ${f.committed}M, NAV SAR ${f.nav}M, net IRR ${f.irr}). Answer strictly from this fund's context. Be concise (2-5 sentences or short bullets), **bold** key figures.
+    const fallback=_fundLocalAnswer(f,q);
+    (async()=>{
+      // live Outlook pull first — real mailbox when MS_GRAPH_TOKEN is set,
+      // the bundled demo inbox otherwise — so email context grounds the answer
+      let pulled={live:false, messages:[]};
+      try{ pulled=await _outlookFetch(f.name+' '+q); }catch(e){}
+      const liveMail=(pulled.messages||[]).map(e=>e.from+' — "'+e.subject+'" ('+e.when+'): '+e.snippet).join('\n');
+      const liveTag=(pulled.messages||[]).length?('✉ Outlook · '+pulled.messages.length+' thread'+(pulled.messages.length>1?'s':'')+' read'+(pulled.live?' · live mailbox':' · demo inbox')):'';
+      const docsCtx=(f.docs||[]).map(d=>d.name+': '+d.versions.map(v=>v.v+' ('+v.date+', '+v.src+') — '+v.note).join(' | ')).join('\n');
+      const prompt=`You are Karaya, the fund-management assistant for "${f.name}" (${f.vintage}, ${f.status}; SAR ${f.drawn}M drawn of ${f.committed}M, NAV SAR ${f.nav}M, net IRR ${f.irr}). Answer strictly from this fund's context. Be concise (2-5 sentences or short bullets), **bold** key figures.
 STRUCTURE: ${f.structure.vehicle}; ${f.structure.gp}; ${f.structure.terms}. LPs: ${f.structure.lps.map(l=>l[0]+' SAR '+l[1]+'M').join(', ')}.
 APPROVALS: ${f.approvals.map(a=>a.t+' — '+a.status+' ('+a.chain+')').join('; ')}
 STAKEHOLDERS: ${f.stakeholders.map(s=>s[1]+' ('+s[2]+')').join(', ')}
 TOPICS: ${f.topics.map(t=>t[0]).join('; ')}
 DOCUMENTS (all versions, incl. those captured from Outlook threads):\n${docsCtx}
-RECENT OUTLOOK CONTEXT:\n${mailCtx}
+OUTLOOK EMAIL CONTEXT (${pulled.live?'pulled live from the connected mailbox':'demo inbox'}):\n${liveMail||'(none)'}
 
 Question: "${q}"
 
 Answer as Karaya:`;
-    const fallback=_fundLocalAnswer(f,q);
-    (async()=>{
       let full='';
       try{ await window.claude.stream({messages:[{role:'user',content:prompt}],task:'file_qa'},{},t=>{ full+=t; const el=chat&&chat.lastElementChild&&chat.lastElementChild.querySelector('.kr-stream-text'); if(el){ el.textContent=full; } }); }catch(e){}
       if(!full||!full.trim()) full=fallback;
-      _wfFundChat[k][_wfFundChat[k].length-1]={cls:'bot', html:fmtKaraya(full)};
+      _wfFundChat[k][_wfFundChat[k].length-1]={cls:'bot', html:fmtKaraya(full)+(liveTag?`<div style="font-size:8px;color:#0a66c2;margin-top:6px;letter-spacing:0.08em;font-weight:700;">${liveTag}</div>`:'')};
       rerender();
     })();
+  }
+
+  // ===== WORKFLOW 05 — FINANCIAL MODELLING AS A CHATBOT =====
+  // Ask Karaya to BUILD models: "pull data from the property management system
+  // and build an asset appreciation model for Marina Tower", or "build a
+  // cashflow prediction for a new project". It assembles a real Bohio workbook
+  // (openable in the editor, saved on the project) — not just a table.
+  const _wfFinDocs={};
+  function _wfFinModelChat(modal, cfg){
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <div class="wf-eyebrow">${cfg.eyebrow} · chat-driven</div>
+          <div class="wf-title">${cfg.title}</div>
+          <div class="wf-sub">${cfg.sub}</div>
+        </div>
+        <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+      </div>
+      <div class="wf-body" id="wffin-msgs" style="display:flex;flex-direction:column;gap:12px;min-height:320px;"></div>
+      <div style="display:flex;gap:8px;padding:14px 24px;border-top:1px solid var(--ink-hairline);">
+        <input id="wffin-input" placeholder="e.g. pull PM data and build an asset appreciation model for Marina Tower" style="flex:1;box-sizing:border-box;padding:11px 14px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfFinSend()">
+        <button class="wf-btn" onclick="_wfFinSend()">Ask</button>
+      </div>`;
+    const msgs=modal.querySelector('#wffin-msgs');
+    const chips=[
+      'Pull data from the property management system and build an asset appreciation model for Marina Tower',
+      'Build a cashflow prediction for a new project',
+      'Build an appreciation model for Nahdah Logistics from Yardi actuals',
+    ].map(c=>`<button onclick="document.getElementById('wffin-input').value='${c.replace(/'/g,"\\'")}';_wfFinSend()" style="display:block;width:100%;text-align:left;font-family:inherit;font-size:10.5px;letter-spacing:0.03em;background:rgba(0,9,25,0.04);border:1px solid var(--ink-hairline);border-radius:10px;padding:9px 12px;margin-top:6px;cursor:pointer;color:var(--ink);">${c}</button>`).join('');
+    msgs.innerHTML=`<div style="background:rgba(0,9,25,0.03);border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;font-size:11.5px;line-height:1.65;">
+      <div style="font-size:7px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:6px;">Karaya · financial modelling</div>
+      Tell me what to build and I'll assemble a live Bohio workbook — pulling occupancy, rent roll and NOI from the property-management system (Yardi), cap-rate trend from Paseetah, and cost data from the ERP. Appreciation models open with a NAV & IRR roll-up; new-project predictions come as a full cashflow.${chips}</div>`;
+    setTimeout(()=>{ const i=document.getElementById('wffin-input'); if(i) i.focus(); },80);
+  }
+  function _wfFinBubble(html, user){
+    const msgs=document.getElementById('wffin-msgs'); if(!msgs) return null;
+    msgs.insertAdjacentHTML('beforeend', user
+      ? `<div style="align-self:flex-end;max-width:86%;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;font-size:11.5px;line-height:1.55;">${html}</div>`
+      : `<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:14px 16px;font-size:11.5px;line-height:1.65;">${html}</div>`);
+    msgs.scrollTop=msgs.scrollHeight;
+    return msgs.lastElementChild;
+  }
+  function _wfFinSend(){
+    const input=document.getElementById('wffin-input'); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    _wfFinBubble(q.replace(/</g,'&lt;'), true);
+    if(/apprec|value growth|revaluation|nav/i.test(q)){ _wfFinAppreciation(q); return; }
+    if(/cash ?flow|prediction|forecast|new project|underwrit/i.test(q)){ _wfFinCashflow(q); return; }
+    // anything else → grounded capability answer (streamed when live)
+    const el=_wfFinBubble('<span class="kr-stream-text"></span><span class="kr-caret">▍</span>');
+    const prompt=`You are Karaya, the financial-modelling workflow in Bohio Workspace. You can BUILD models on request: (a) pull PM actuals (occupancy, in-place rent, NOI) from Yardi plus Paseetah cap-rate trend and build an asset APPRECIATION model with NAV & IRR; (b) build a CASHFLOW PREDICTION for a new project from an assumption set. The user said: "${q}". Reply in 2-3 sentences telling them exactly what you can build and suggesting the closest concrete ask. Plain text, **bold** key phrases.`;
+    const fallback=`I build models on request: say **"pull PM data and build an asset appreciation model for [asset]"** and I'll assemble it from Yardi actuals + Paseetah cap rates, or **"build a cashflow prediction for a new project"** for a full 5-year underwriting you can rework in the editor.`;
+    (async()=>{ try{ await karayaStreamInto(el, prompt, 'quick_insight', fallback); }catch(e){ el.innerHTML=fmtKaraya(fallback); } })();
+  }
+  // name → project id, so built models are saved onto the right project
+  const _WF_FIN_PIDS={'Marina Tower':1,'Ash Shati Residences':2,'Rawdah Plaza':3,'Olaya Block':4,'Nahdah Logistics':6};
+  function _wfFinAppreciation(q){
+    const asset=WF_VSA_ASSETS.find(a=>new RegExp(a.name.split(' ')[0],'i').test(q))||WF_VSA_ASSETS[0];
+    _wfFinBubble(`<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">Building — ${asset.name} appreciation model</div>
+      <div style="font-size:10.5px;line-height:1.9;color:var(--ink);">✓ Pulled PM actuals from Yardi — occupancy ${asset.occ[1]}%, in-place rent SAR ${asset.rent[1].toLocaleString()}/sqm, NOI SAR ${asset.noi[1]}M<br>✓ Overlaid Paseetah cap-rate trend — 6.75% today, compressing ~5 bps p.a.<br>✓ Applied rent growth 3.0% p.a. with opex held at ${asset.opexr[1]}% of revenue<br>✓ Rolled value, NAV contribution and IRR forward 5 years</div>`);
+    // build the workbook from the SAME actuals
+    const N=5, cap0=0.0675, capStep=0.0005, g=0.03;
+    const L=i=>String.fromCharCode(66+i);
+    const cols=['','A',...Array.from({length:N},(_,i)=>L(i))];
+    const headers=['','',...Array.from({length:N},(_,i)=>'Y'+(i+1))];
+    const noi=Array.from({length:N},(_,i)=>asset.noi[1]*Math.pow(1+g,i+1));
+    const caps=Array.from({length:N},(_,i)=>cap0-capStep*(i+1));
+    const val=noi.map((n,i)=>n/caps[i]);
+    const f2=n=>n.toFixed(2);
+    const wb={
+      'PM Data':{ cols:['','A','B','C'], headers:['','Metric','Actual (Yardi)','Underwritten'], rows:[
+        {cells:['1','PM ACTUALS — '+asset.name.toUpperCase(),'',''],style:'section'},
+        {cells:['2','Occupancy',asset.occ[1]+'%',asset.occ[0]+'%'],style:'data'},
+        {cells:['3','In-place rent (SAR/sqm)',String(asset.rent[1]),String(asset.rent[0])],style:'data'},
+        {cells:['4','Opex ratio',asset.opexr[1]+'%',asset.opexr[0]+'%'],style:'data'},
+        {cells:['5','NOI (SAR M)',f2(asset.noi[1]),f2(asset.noi[0])],style:'total'} ]},
+      'Appreciation':{ cols, headers, rows:[
+        {cells:['1','APPRECIATION (SAR M)',...Array(N).fill('')],style:'section'},
+        {cells:['2','NOI (grown 3.0% p.a.)',...noi.map(f2)],style:'data'},
+        {cells:['3','Cap rate',...caps.map(c=>(c*100).toFixed(2)+'%')],style:'data'},
+        {cells:['4','Asset value',...val.map(f2)],formulas:['','',...Array.from({length:N},(_,i)=>`=${L(i)}2/${L(i)}3`)],style:'total'},
+        {cells:['5','Appreciation vs today',...val.map(v=>((v/(asset.noi[1]/cap0)-1)*100).toFixed(1)+'%')],style:'data'} ]},
+      'NAV & Returns':{ cols:['','A','B'], headers:['','Metric','Value'], rows:[
+        {cells:['1','ROLL-UP',''],style:'section'},
+        {cells:['2','Value today (SAR M)',f2(asset.noi[1]/cap0)],style:'data'},
+        {cells:['3','Value Y5 (SAR M)',f2(val[N-1])],style:'total'},
+        {cells:['4','Total appreciation',((val[N-1]/(asset.noi[1]/cap0)-1)*100).toFixed(1)+'%'],style:'data'},
+        {cells:['5','Implied appreciation p.a.',((Math.pow(val[N-1]/(asset.noi[1]/cap0),1/N)-1)*100).toFixed(1)+'%'],style:'total'} ]},
+    };
+    const name=asset.name+' — Appreciation Model';
+    const doc={type:'XLSX', name, version:'v.01 · From PM data', updated:'Just now · Karaya', isGenerated:true, _userAdded:true, wbData:wb,
+      notes:'Asset appreciation model built by Karaya from Yardi PM actuals + Paseetah cap-rate trend.'};
+    // save onto the matching project so it persists in Financial Models
+    const pid=_WF_FIN_PIDS[asset.name];
+    if(pid&&P[pid]){ if(!P[pid].docs.find(d=>d.name===name)) P[pid].docs.unshift(doc); if(typeof _persistProjDocs==='function') _persistProjDocs(); }
+    const did='fin_'+Date.now(); _wfFinDocs[did]=doc;
+    _wfFinBubble(`<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">${name}</div>
+      <div class="wf-art" style="margin-top:0;"><table><thead><tr><th>Period</th><th>NOI</th><th>Cap rate</th><th>Asset value</th></tr></thead><tbody>
+        ${val.map((v,i)=>`<tr><td>Y${i+1}</td><td>SAR ${f2(noi[i])}M</td><td>${(caps[i]*100).toFixed(2)}%</td><td style="font-weight:700;">SAR ${f2(v)}M</td></tr>`).join('')}
+      </tbody></table></div>
+      <div style="font-size:11px;line-height:1.6;margin-top:10px;">Value grows **SAR ${f2(asset.noi[1]/cap0)}M → SAR ${f2(val[N-1])}M** (${((Math.pow(val[N-1]/(asset.noi[1]/cap0),1/N)-1)*100).toFixed(1)}% p.a.). Saved to **${asset.name} › Financial Models**.</div>
+      <button class="wf-btn" style="margin-top:11px;" onclick="closeWorkflow();${pid?`currentProject=${pid};`:''}openEditor(_wfFinDocs['${did}'])">Open as a Bohio model →</button>`.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>'));
+  }
+  function _wfFinCashflow(q){
+    // build a full 5-year underwriting from the standard assumption set
+    const tmp=document.createElement('div'); tmp.innerHTML=assumptionFormHTML();
+    const form=tmp.querySelector('.asm-form');
+    const nm=form.querySelector('[data-asm="name"]'); if(nm) nm.value='New Project';
+    const {wb,v,irr,mult,noi1}=_buildWbFromAssumptions(form);
+    const name='New Project — Cashflow Prediction';
+    const doc={type:'XLSX', name, version:'v.01 · Predicted', updated:'Just now · Karaya', isGenerated:true, wbData:wb,
+      notes:'Cashflow prediction built by Karaya from the standard assumption set — rework any driver in the editor.'};
+    const did='fin_'+Date.now(); _wfFinDocs[did]=doc;
+    _wfFinBubble(`<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">Building — new project cashflow prediction</div>
+      <div style="font-size:10.5px;line-height:1.9;">✓ Assumption set: ${v.gfa.toLocaleString()} sqm · SAR ${v.rent.toLocaleString()}/sqm · ${(v.occ*100).toFixed(0)}% occupancy · ${(v.opex*100).toFixed(0)}% opex · ${(v.ltv*100).toFixed(0)}% LTV · exit ${(v.exitcap*100).toFixed(2)}%<br>✓ Wired Assumptions · Cashflow · Returns with live formulas</div>
+      <div style="font-size:11px;line-height:1.6;margin-top:9px;">Year-1 NOI <b>SAR ${noi1.toFixed(1)}M</b> · equity multiple <b>${mult.toFixed(2)}x</b>${irr!=null?` · project IRR <b>${(irr*100).toFixed(1)}%</b>`:''} over ${v.hold} years. Open it and tell me to change any assumption — or say <i>"build a model from scratch"</i> there to type your own inputs.</div>
+      <button class="wf-btn" style="margin-top:11px;" onclick="closeWorkflow();openEditor(_wfFinDocs['${did}'])">Open as a Bohio model →</button>`);
   }
 
   // ===== WORKFLOW 03 — UNDERWRITING VS ACTUAL AS A CHATBOT =====
