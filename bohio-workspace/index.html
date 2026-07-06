@@ -10212,33 +10212,10 @@
 
     </div>
 
-    <!-- MY MODELS -->
-    <div class="page workspace-page" id="page-models">
-      <div class="section-header">
-        <div style="display:flex;align-items:center;gap:13px;">
-          <svg class="section-folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;flex-shrink:0;color:var(--ink);--folder-fill:var(--bg);" aria-hidden="true">
-            <rect x="7.4" y="3.4" width="9.2" height="8.4" rx="0.9" stroke-width="1.05" opacity="0.85"></rect>
-            <line x1="9.5" y1="6" x2="14.5" y2="6" stroke-width="0.95" opacity="0.7"></line>
-            <line x1="9.5" y1="8" x2="14.5" y2="8" stroke-width="0.95" opacity="0.7"></line>
-            <line x1="9.5" y1="10" x2="12.6" y2="10" stroke-width="0.95" opacity="0.7"></line>
-            <path d="M2.75 8.4V6.6a1.25 1.25 0 0 1 1.25-1.25h3.9a1.25 1.25 0 0 1 .9.4l1 1.05" fill="var(--folder-fill)"></path>
-            <path d="M2.75 9.1a1.4 1.4 0 0 1 1.4-1.4h15.7a1.4 1.4 0 0 1 1.38 1.66l-1.45 7.8a1.4 1.4 0 0 1-1.38 1.14H5.5a1.4 1.4 0 0 1-1.38-1.14L2.78 9.4z" fill="var(--folder-fill)"></path>
-          </svg>
-          <h2 class="section-title">My Models</h2>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <button class="new-project-btn" onclick="document.getElementById('file-input-models').click()" title="Upload an Excel model, or a PowerPoint / PDF / Word brief — Karaya builds it into a Bohio model">Upload Model</button>
-          <button class="new-project-btn" onclick="buildFromSampleDoc()" title="See Karaya turn a sample offering memorandum into a Bohio-format model — no file needed">Build from a Document</button>
-          <button class="new-project-btn" onclick="buildFromScratch()">Build from Scratch</button>
-          <button class="new-project-btn" onclick="goTo('templates')">Load Template</button>
-          <input type="file" id="file-input-models" style="display:none;" accept=".xlsx,.xls,.csv,.pptx,.ppt,.pdf,.docx,.doc" onchange="handleModelUpload(this.files[0])">
-        </div>
-      </div>
-      <div class="template-filter-bar" id="models-filters"></div>
-      <div class="docs-grid" id="models-grid"></div>
-
-
-    </div>
+    <!-- (The "My Models" page has been removed — models live inside their
+         projects and open directly in the editor.) A hidden file input is kept
+         so any legacy upload trigger still resolves harmlessly. -->
+    <input type="file" id="file-input-models" style="display:none;" accept=".xlsx,.xls,.csv,.pptx,.ppt,.pdf,.docx,.doc" onchange="handleModelUpload(this.files[0])">
 
     <!-- TEMPLATE LIBRARY -->
     <div class="page workspace-page" id="page-templates">
@@ -11293,10 +11270,9 @@
     }
 
     if(page==='models'){
-      document.getElementById('page-models').classList.add('active');
-      setActiveNav('nav-models');
-      setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'My Models'}]);
-      renderMyModels();
+      // "My Models" has been removed — models live inside their projects and open
+      // straight in the editor. Any lingering link falls back to the workspace.
+      return goTo('workspace');
     } else if(page==='templates'){
       document.getElementById('page-templates').classList.add('active');
       setActiveNav('nav-templates');
@@ -13424,13 +13400,49 @@ Answer as Karaya:`;
   const NEW_PROJECT_ID = 7;
   const PROJ_MODEL_WB = {};   // generated projection workbook, per project id
 
-  // "+ New Project": seed a project pre-loaded with the valuation + landlord
-  // documents (for the demo), then open it. Karaya builds the model on request.
+  // "+ New Project": first ask for the project name, then seed the project
+  // (pre-loaded with the valuation + landlord documents) and open it.
   function createDemoProject(){
+    if (P[NEW_PROJECT_ID]) { showProject(NEW_PROJECT_ID); return; }   // already created → just open
+    let ov=document.getElementById('np-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='np-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:10001;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:26px;';
+      ov.addEventListener('click',e=>{ if(e.target===ov) ov.style.display='none'; });
+      document.body.appendChild(ov); }
+    const inStyle='width:100%;box-sizing:border-box;margin-top:6px;padding:11px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:13px;border-radius:8px;';
+    const lbStyle='font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);';
+    ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);border-radius:16px;width:100%;max-width:460px;overflow:hidden;">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">New project</div>
+        <div style="font-family:var(--font-display);font-size:20px;margin-top:3px;">Name your project</div>
+      </div>
+      <div style="padding:18px 22px;">
+        <label style="${lbStyle}">Project name</label>
+        <input id="np-name" type="text" value="Corniche Gateway" style="${inStyle}" onkeydown="if(event.key==='Enter')_npCreate()">
+        <label style="${lbStyle};display:block;margin-top:14px;">Location <span style="text-transform:none;letter-spacing:0;color:var(--ink-soft);">(optional)</span></label>
+        <input id="np-loc" type="text" value="Jeddah · Corniche" style="${inStyle}" onkeydown="if(event.key==='Enter')_npCreate()">
+        <div style="display:flex;gap:10px;margin-top:18px;">
+          <button onclick="_npCreate()" style="flex:1;font-family:inherit;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:999px;padding:11px;cursor:pointer;">Create project</button>
+          <button onclick="document.getElementById('np-overlay').style.display='none'" style="font-family:inherit;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;border:1px solid var(--ink-hairline);background:transparent;color:var(--ink);border-radius:999px;padding:11px 18px;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+    setTimeout(()=>{ const i=document.getElementById('np-name'); if(i){ i.focus(); i.select(); } }, 60);
+  }
+  function _npCreate(){
+    const nm=((document.getElementById('np-name')||{}).value||'').trim()||'Corniche Gateway';
+    const loc=((document.getElementById('np-loc')||{}).value||'').trim()||'Jeddah · Corniche';
+    const ov=document.getElementById('np-overlay'); if(ov) ov.style.display='none';
+    _buildDemoProject(nm, loc);
+  }
+  function _buildDemoProject(projName, projLoc){
+    const nm = projName || 'Corniche Gateway';
+    const loc = projLoc || 'Jeddah · Corniche';
     if (!P[NEW_PROJECT_ID]) {
       const uname=(window.DEMO_USER&&window.DEMO_USER.name)||'You';
       P[NEW_PROJECT_ID] = {
-        name:'Corniche Gateway', loc:'Jeddah · Corniche', lead:uname, phase:'Phase 01/06', members:'01', isNewProject:true,
+        name:nm, loc:loc, lead:uname, phase:'Phase 01/06', members:'01', isNewProject:true,
         desc:"Newly created project. The seller's property valuation and the anchor landlord agreement are already in the data room — ask Karaya (right) to build the financial projections and cashflow from them.",
         docs:[
           {type:'PDF',  name:'Property Valuation Report', version:'42 pp · Knight Frank', updated:'Just now · Data room', isValuation:true, isReadable:true,
@@ -13514,10 +13526,19 @@ Answer as Karaya:`;
         {name:'Knight Frank',        role:'Independent Appraiser', type:'external'},
         {name:'Anchor Tenant Co.',   role:'Anchor Lessee', type:'external'},
       ];
+      // Reflect the typed project name through the seeded documents so the data
+      // room reads as this project (default keeps the sample content unchanged).
+      if (nm && nm !== 'Corniche Gateway') {
+        P[NEW_PROJECT_ID].docs.forEach(d=>{
+          if (d.name) d.name = d.name.replace(/Corniche Gateway/g, nm);
+          if (d.docBody) d.docBody = d.docBody.replace(/Corniche Gateway/g, nm);
+          if (d._pdfUrl) { try{ URL.revokeObjectURL(d._pdfUrl); }catch(e){} d._pdfUrl=null; }
+        });
+      }
     }
     const steps=['Creating the project workspace…','Provisioning the data room…','Placing the valuation report & landlord agreement…','Opening the project…'];
     if (typeof uploadBuildingOverlay==='function')
-      uploadBuildingOverlay('Corniche Gateway', 'Creating a new project', steps, ()=>{ showProject(NEW_PROJECT_ID); setTimeout(()=>_nudgeKarayaBuild(), 500); });
+      uploadBuildingOverlay(nm, 'Creating a new project', steps, ()=>{ showProject(NEW_PROJECT_ID); setTimeout(()=>_nudgeKarayaBuild(), 500); });
     else { showProject(NEW_PROJECT_ID); }
   }
   // Drop a hint in the right-hand Karaya panel so the demo path is obvious.
@@ -13584,7 +13605,8 @@ Answer as Karaya:`;
     const retRows=wb['Returns'].rows;
     const irrRow=retRows.find(r=>/IRR/i.test(r.cells[1]||''));
     const irr=irrRow?(irrRow.cells[6]||irrRow.cells[2]||'—'):'—';
-    bot.innerHTML=fmtKaraya(`Done — I've built **Financial Projections — Karaya** for Corniche Gateway from the valuation, the anchor landlord agreement, ERP occupancy, Paseetah market comps and the model library. Year-1 NOI comes in at **SAR ${noi1}M**, with a project **IRR of ${irr}**. The full 5-year cashflow is open in the **Financial Models** section — you can chat to me there to rework it or export it to Excel.`)+'<span class="k-meta">Karaya · just now</span>';
+    const _pnm=(P[NEW_PROJECT_ID]&&P[NEW_PROJECT_ID].name)||'this project';
+    bot.innerHTML=fmtKaraya(`Done — I've built **Financial Projections — Karaya** for ${_pnm} from the valuation, the anchor landlord agreement, ERP occupancy, Paseetah market comps and the model library. Year-1 NOI comes in at **SAR ${noi1}M**, with a project **IRR of ${irr}**. The full 5-year cashflow is open in the **Financial Models** section — you can chat to me there to rework it or export it to Excel.`)+'<span class="k-meta">Karaya · just now</span>';
     msgs.scrollTop=msgs.scrollHeight;
   }
 
@@ -16516,6 +16538,7 @@ Answer as Karaya:`;
           const formula = (row.formulas && row.formulas[ci]) ? row.formulas[ci] : '';
           const label = row.cells[1] || '';
           td.style.cursor = 'cell';
+          td.dataset.ref = colLetter + rowNum;
           td.onclick = () => fsSelectCell(td, colLetter + rowNum, val, formula, label, sheetName);
         }
         tr.appendChild(td);
@@ -16539,7 +16562,13 @@ Answer as Karaya:`;
     document.getElementById('fs-sum').textContent = isNaN(parseFloat(value)) ? '' : 'Value: ' + value;
 
     const insp = document.getElementById('inspector-body');
-    insp.innerHTML = buildInspectorHTML(ref, value, formula, label, sheetName);
+    // Same AI cell explanation as the main editor's dependencies panel.
+    const explain = `<div style="margin-bottom:16px;">
+        <div style="font-size:7px;letter-spacing:0.35em;text-transform:uppercase;color:rgba(230,226,226,0.4);margin-bottom:6px;">✦ Karaya · what this cell is</div>
+        <div id="cell-ai-explain" style="font-size:12px;line-height:1.6;color:#e6e2e2;padding:11px 12px;background:rgba(230,226,226,0.06);border:1px solid rgba(230,226,226,0.12);"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>
+      </div>`;
+    insp.innerHTML = explain + buildInspectorHTML(ref, value, formula, label, sheetName);
+    if (typeof _explainCell === 'function') _explainCell(ref, value, formula, label, sheetName);
   }
 
   function buildInspectorHTML(ref, value, formula, label, sheetName) {
@@ -16812,16 +16841,16 @@ Answer as Karaya:`;
 
   function useTemplate() {
     if (!selectedTemplate) return;
+    const tplName = selectedTemplate.name;
     closeTplModal();
-    // Navigate to My Models
-    goTo('models');
-    // Brief confirmation via Karaya
-    const msgs = document.getElementById('karaya-msgs');
-    const bot = document.createElement('div');
-    bot.className = 'k-msg bot';
-    bot.innerHTML = 'Template <em>' + selectedTemplate.name + '</em> has been added to your models. You can now start customising it with your project assumptions.<span class="k-meta">Karaya · just now</span>';
-    msgs.appendChild(bot);
-    msgs.scrollTop = msgs.scrollHeight;
+    // Build the template into a live Bohio model and open it straight in the
+    // editor (there is no "My Models" page any more).
+    const base = tplName + ' — Model';
+    const doc = { type:'XLSX', name: base, version:'v.01 · From template', updated:'Just now · You', isGenerated:true,
+      notes:'Model started from the "' + tplName + '" Bohio template. Rework it by chatting to Karaya — change cells, add/remove metrics, add sheets.' };
+    uploadBuildingOverlay(base, 'Building from the ' + tplName + ' template',
+      ['Loading the template structure…','Wiring the standard tabs & formulas…','Rendering the sheet…'],
+      () => { if (typeof openEditor === 'function') openEditor(doc); });
   }
 
   // COMMUNITY DATA
@@ -18694,6 +18723,76 @@ Answer as Karaya:`;
   // a concrete artifact table built from the workspace's own data, and (3) streams
   // a grounded Karaya narration. Some workflows hand off to the deeper demo
   // (a project's Contracts cashflow builder, the PM-vs-underwriting analytics).
+  // The source documents workflow 01 ingests — fully readable (the valuation
+  // opens as a signed original PDF; the others as typeset documents). Browsable
+  // straight from the workflow so you can see exactly what Karaya read.
+  const WF_SOURCE_DOCS = {
+    valuation: { type:'PDF', name:'TAQEEM Valuation Report — Corniche Gateway', version:'18 pp · TAQEEM-accredited', updated:'Data room', isValuation:true, isReadable:true,
+      docBody:`
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:18px;margin-bottom:22px;">
+  <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:#6b7280;">TAQEEM · Saudi Authority for Accredited Valuers</div>
+  <div style="font-size:22px;font-weight:700;margin-top:8px;">VALUATION REPORT</div>
+  <div style="font-size:12px;color:#4b5563;margin-top:6px;">Corniche Gateway — Mixed-Use Waterfront Asset · Jeddah</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">Ref. TQ-JED-2026-0417 · 18 pages</div>
+</div>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">1 · Basis of Value</h4>
+<p>Market Value of the freehold interest, assessed under the RICS Red Book and TAQEEM standards for acquisition and secured-lending purposes, as at the valuation date.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">2 · Executive Summary</h4>
+<p>Market Value: <strong>SAR 412,000,000</strong>. Stabilised NOI <strong>SAR 25.4M</strong> · Equivalent yield <strong>6.25%</strong> · GFA <strong>48,200 sqm</strong> · Occupancy 93%.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">3 · Income &amp; Yield</h4>
+<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0;">
+  <tr style="background:#f3f0ea;"><th style="text-align:left;padding:7px 10px;border:1px solid #d7d2c7;">Line</th><th style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">Passing (SAR M)</th><th style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">Cap</th></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">Anchor lease</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">14.6</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">6.00%</td></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">Specialty &amp; F&amp;B</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">9.1</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">6.75%</td></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td style="padding:7px 10px;border:1px solid #d7d2c7;">Stabilised NOI</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">25.4</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">6.25%</td></tr>
+</table>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">4 · Comparable Evidence</h4>
+<p>Three waterfront trades closed within nine months at caps of 6.1%–6.9%; adjusted for covenant and frontage the evidence supports the reported figure within ±2.5%.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;">5 · Principal Risks</h4>
+<p>Single-anchor concentration with a Year-5 break; F&amp;B lease-up over months 1–24; exit-cap sensitivity. Valid for 90 days from the valuation date.</p>` },
+    claim: { type:'PDF', name:'Contractor Progress Claim #14', version:'6 pp · Certified', updated:'Data room', isReadable:true,
+      docBody:`
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:16px;margin-bottom:20px;">
+  <div style="font-size:22px;font-weight:700;">INTERIM PAYMENT CERTIFICATE</div>
+  <div style="font-size:12px;color:#4b5563;margin-top:6px;">Corniche Gateway — Main Works · Progress Claim No. 14</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">Al Bina Contracting · Ref. CG-IPC-014 · Period ending 30 Jun 2026</div>
+</div>
+<p><strong>Contract sum:</strong> SAR 214,000,000. <strong>Works completed to date:</strong> 71.3% (SAR 152.6M). <strong>Retention held (5%):</strong> SAR 7.6M.</p>
+<h4 style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:16px 0 8px;">Valuation this period</h4>
+<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0;">
+  <tr style="background:#f3f0ea;"><th style="text-align:left;padding:7px 10px;border:1px solid #d7d2c7;">Element</th><th style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">This claim (SAR M)</th></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">Structure &amp; envelope</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">4.2</td></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">MEP first fix</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">3.1</td></tr>
+  <tr><td style="padding:7px 10px;border:1px solid #d7d2c7;">Fit-out &amp; finishes</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">2.0</td></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td style="padding:7px 10px;border:1px solid #d7d2c7;">Net certified this period</td><td style="text-align:right;padding:7px 10px;border:1px solid #d7d2c7;">9.3</td></tr>
+</table>
+<p><strong>Cost-to-complete (remaining):</strong> SAR 61.4M over the next 11 months, in line with the programme. Certified by the Engineer without qualification.</p>` },
+    om: { type:'PDF', name:'Offering Memorandum — Corniche Gateway', version:'34 pp · Confidential', updated:'Data room', isReadable:true,
+      docBody:`
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:16px;margin-bottom:20px;">
+  <div style="font-size:22px;font-weight:700;">OFFERING MEMORANDUM</div>
+  <div style="font-size:12px;color:#4b5563;margin-top:6px;">Corniche Gateway — Waterfront Mixed-Use · Jeddah</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">Strictly private &amp; confidential · 34 pages</div>
+</div>
+<p><strong>Asset.</strong> A completed waterfront mixed-use scheme of <strong>48,200 sqm GFA</strong> — an institutional-covenant anchor, specialty retail, an F&amp;B terrace and structured parking, with 165 m of direct Corniche frontage.</p>
+<p><strong>Revenue.</strong> Contracted income guided at <strong>SAR 1,800 / sqm</strong> blended, anchored by a 10-year lease with fixed 3% escalations; specialty passing ~8% below market at reversion.</p>
+<p><strong>Costs.</strong> Operating costs run at ~29% of revenue; a capex reserve is held against the F&amp;B rotation. Remaining cost-to-complete SAR 61.4M per the latest certificate.</p>
+<p><strong>Financing.</strong> Indicative capital stack 60% senior / 40% equity; all-in debt ~6.0%, interest-only with a bullet at exit. Exit modelled at a 6.0% cap on stabilised NOI.</p>
+<p><strong>Targeted returns.</strong> The seller guides a project IRR of ~17–18% and an equity multiple of ~1.9x over a five-year hold.</p>` },
+  };
+  function _wfOpenSourceDoc(k){ const d=WF_SOURCE_DOCS[k]; if(d && typeof openReadableDoc==='function') openReadableDoc(d); }
+  // Build a Bohio model from the ingested valuation and open it in the editor
+  // (no "My Models" page). The source docs above are browsable first.
+  function _wfBuildModelFromDocs(){
+    closeWorkflow();
+    const base='Corniche Gateway — Underwriting';
+    const doc={ type:'XLSX', name:base, version:'v.01 · From valuation & OM', updated:'Just now · You', isGenerated:true,
+      notes:'Model built by Karaya from the TAQEEM valuation, contractor claim #14 and the offering memorandum, mapped into the Bohio underwriting template.' };
+    const steps=['Reading the TAQEEM valuation…','Reconciling contractor claim #14…','Mapping the OM’s assumptions…','Wiring cashflow, returns & sensitivity…','Rendering the sheet…'];
+    if(typeof uploadBuildingOverlay==='function') uploadBuildingOverlay(base,'Building a model from the documents',steps,()=>{ if(typeof openEditor==='function') openEditor(doc); });
+    else if(typeof openEditor==='function') openEditor(doc);
+  }
+
   const WORKFLOWS = {
     ingest: {
       eyebrow:'Workflow 01', title:'Valuation',
@@ -18715,12 +18814,24 @@ Answer as Karaya:`;
           ['Actual opex run-rate','SAR 3.9 M / yr','Opex → Total Opex','95%'],
         ];
         const body=rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td style="color:var(--ink-soft);text-align:left;">${r[2]}</td><td><span class="wf-pill g">${r[3]}</span></td></tr>`).join('');
+        // Browsable source documents — click to open and read each one.
+        const srcDocs=[
+          {k:'valuation', name:'TAQEEM Valuation Report', meta:'PDF · 18 pp · signed original'},
+          {k:'claim', name:'Contractor Progress Claim #14', meta:'PDF · 6 pp · certified'},
+          {k:'om', name:'Offering Memorandum', meta:'PDF · 34 pp · confidential'},
+        ];
+        const docList=srcDocs.map(d=>`<button type="button" onclick="_wfOpenSourceDoc('${d.k}')" style="display:flex;align-items:center;gap:11px;width:100%;text-align:left;font-family:inherit;background:var(--paper);border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 13px;margin-bottom:7px;cursor:pointer;transition:border-color .15s ease;" onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor='var(--ink-hairline)'">
+          <span style="width:26px;height:26px;flex-shrink:0;border:1px solid var(--ink-hairline);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;letter-spacing:0.05em;color:var(--ink-soft);">PDF</span>
+          <span style="min-width:0;"><span style="display:block;font-size:12px;font-weight:700;color:var(--ink);">${d.name}</span><span style="display:block;font-size:9.5px;color:var(--ink-soft);letter-spacing:0.03em;">${d.meta}</span></span>
+          <span style="margin-left:auto;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Open →</span></button>`).join('');
         return {
-          artLbl:'Extracted → mapped to the model',
-          html:`<table><thead><tr><th>Field</th><th>Value</th><th style="text-align:left;">Model line</th><th>Confidence</th></tr></thead><tbody>${body}</tbody></table>`,
+          artLbl:'Source documents ingested — click any to read it',
+          html:`<div style="margin-bottom:16px;">${docList}</div>
+            <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:9px;">Extracted → mapped to the model</div>
+            <table><thead><tr><th>Field</th><th>Value</th><th style="text-align:left;">Model line</th><th>Confidence</th></tr></thead><tbody>${body}</tbody></table>`,
           prompt:`You are Karaya. You just ingested a TAQEEM valuation (market value SAR 412.0M at a 6.25% cap), contractor claim #14 (SAR 61.4M cost-to-complete), the offering memo (SAR 1,800/sqm) and Yardi actuals (SAR 3.9M/yr opex) and mapped each field into the underwriting model with 94-99% confidence. In 2 sentences (max 45 words) tell the analyst what changed in the model and what to check. Plain text, **bold** the key figures.`,
           fallback:`Six fields mapped straight into the model — the **SAR 412.0M** TAQEEM value now drives Exit Value at a **6.25%** cap, and claim #14's **SAR 61.4M** cost-to-complete updated Capex. Review the two fields below 96% confidence before you lock the version.`,
-          foot:[{label:'Build a full model from a document',ghost:false,go(){ closeWorkflow(); goTo('models'); }}]
+          foot:[{label:'Build a full model from a document',ghost:false,go(){ _wfBuildModelFromDocs(); }}]
         };
       }
     },
@@ -20180,7 +20291,7 @@ Answer as Karaya:`;
           fill.style.width = ((i / steps.length) * 100) + '%';
         } else {
           fill.style.width = '100%';
-          step.textContent = 'Model created · opening in My Models';
+          step.textContent = 'Model created · opening in the project';
           clearInterval(t);
           // 3) Inject new model row into Marina Tower docs and refresh grid
           setTimeout(() => {
