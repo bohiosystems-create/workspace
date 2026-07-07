@@ -1,0 +1,8 @@
+# Generated at runtime by server.mjs (React/ReactDOM/Babel cache for studio dashboards)
+studio-vendor/
+# Secrets & local
+.env
+.outlook-tokens.json
+*.log
+node_modules/
+.DS_Store
