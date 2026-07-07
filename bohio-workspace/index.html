@@ -23954,9 +23954,9 @@ ${String(text).slice(0, 4000)}`;
   function _looksReadable(t){
     if(!t) return false;
     const words=(t.match(/[A-Za-z]{3,}/g)||[]);
-    if(words.length<20) return false;
-    const junk=(t.match(/\b(obj|endobj|stream|endstream|xref|FlateDecode|ReportLab|MediaBox|\/Type|\/Font|\/Page)\b/g)||[]).length;
-    return junk < words.length*0.25; // mostly words, not PDF keywords
+    if(words.length<6) return false;                         // even a short clause qualifies
+    const junk=(t.match(/\b(obj|endobj|xref|FlateDecode|ReportLab|MediaBox|BaseFont|\/Type|\/Font|\/Page|\/Contents)\b/g)||[]).length;
+    return junk < Math.max(4, words.length*0.35);            // mostly words, not PDF keywords
   }
   // The bundled sample brief — readable in full, and generable with one click.
   const DG_SAMPLE_BRIEF = {
