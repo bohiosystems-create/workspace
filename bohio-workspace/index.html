@@ -15679,7 +15679,7 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   }
   // Shared RE-lingo glossary for the AI prompts, so asked-for terms map onto
   // the model's actual labels even when they're named differently.
-  const RE_LINGO_NOTE='Real-estate synonyms — treat these as the SAME metric when mapping the question to the model\'s row labels: project IRR = unlevered IRR = ungeared/asset/property IRR; equity IRR = levered/geared IRR; equity multiple = MOIC; NOI = net operating income = net rental income; EBITDA ≈ GOP (gross operating profit); exit value = terminal value = reversion value = (net) sale proceeds; cap rate = capitalisation rate = exit yield; yield-on-cost = development yield = return on cost; DSCR = debt service coverage = interest cover; ADR = average daily rate = room rate; revenue = gross income = EGI = turnover; opex = operating costs = outgoings; LTV = loan-to-value = gearing; capex = construction/development cost. Answer with the model\'s own label and note the equivalence. When the user asks a goal-seek, what-if or back-solve (e.g. "lowest ADR before NOI drops below 10%"), DO the arithmetic yourself NOW from the figures in the data — linearise the relationship if you must, lead with the resulting number, then one short line on method and the key assumption. Never say you can\'t back-solve, never offer to run it later, never ask permission, never tell the user the model would need restructuring.';
+  const RE_LINGO_NOTE='Real-estate synonyms — treat these as the SAME metric when mapping the question to the model\'s row labels: project IRR = unlevered IRR = ungeared/asset/property IRR; equity IRR = levered/geared IRR; equity multiple = MOIC; NOI = net operating income = net rental income; EBITDA ≈ GOP (gross operating profit); exit value = terminal value = reversion value = (net) sale proceeds; cap rate = capitalisation rate = exit yield; yield-on-cost = development yield = return on cost; DSCR = debt service coverage = interest cover; ADR = average daily rate = room rate; revenue = gross income = EGI = turnover; opex = operating costs = outgoings; LTV = loan-to-value = gearing; capex = construction/development cost. Fund/REIT metrics: NAV = net asset value (= GAV − net debt; also quoted per unit/share); FFO = funds from operations (= net income + real-estate depreciation/amortisation − gains on sales); AFFO = adjusted FFO (= FFO − recurring/maintenance capex − straight-line rent adjustments); FFO/AFFO ratio = AFFO ÷ FFO (AFFO conversion; the inverse of the capex drag); FFO payout ratio = distribution ÷ FFO; cap rate = NOI ÷ asset value; dividend/distribution yield = distribution ÷ NAV; net debt/EBITDA = leverage; ICR = interest coverage. If a metric is not a line in the model, DERIVE it from the components that are (e.g. compute NAV as GAV − net debt, or AFFO/FFO from the FFO and maintenance-capex lines) and show the one-line calculation. Answer with the model\'s own label and note the equivalence. When the user asks a goal-seek, what-if or back-solve (e.g. "lowest ADR before NOI drops below 10%"), DO the arithmetic yourself NOW from the figures in the data — linearise the relationship if you must, lead with the resulting number, then one short line on method and the key assumption. Never say you can\'t back-solve, never offer to run it later, never ask permission, never tell the user the model would need restructuring.';
 
   // Offline description of the open model, read straight from its cells, so the
   // demo still describes the actual model without a live API key.
@@ -15769,6 +15769,17 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     {k:'WAULT', re:/\bwault\b|weighted average unexpired/i, lbl:/wault|unexpired lease/i},
     {k:'capex', re:/\b(capex|capital expenditure|construction cost|development cost|hard cost)\b/i, lbl:/capex|capital expenditure|construction|development cost|hard cost/i},
     {k:'GAV', re:/\b(gav|gross asset value|market value|asset value)\b/i, lbl:/\bgav\b|gross asset value|market value|asset value|valuation/i},
+    // ---- fund / REIT operating metrics ----
+    {k:'NAV', re:/\b(nav|net asset value)\b/i, lbl:/\bnav\b|net asset value/i, prefer:/per (share|unit)/i},
+    {k:'NAV per unit', re:/\bnav per (unit|share)\b/i, lbl:/nav per (unit|share)/i},
+    {k:'FFO', re:/\b(ffo|funds from operations)\b/i, lbl:/\bffo\b|funds from operations/i, prefer:/\bffo\b/i},
+    {k:'AFFO', re:/\b(affo|adjusted funds from operations)\b/i, lbl:/\baffo\b|adjusted funds from operations/i},
+    {k:'FFO/AFFO ratio', re:/\b(ffo\s*[\/\-]\s*affo|affo\s*[\/\-]\s*ffo)\s*(ratio|payout)?\b/i, lbl:/ffo\s*[\/\-]\s*affo|affo\s*(payout|conversion)/i},
+    {k:'FFO payout ratio', re:/\bffo payout\b|payout ratio/i, lbl:/ffo payout|payout ratio|dividend payout/i},
+    {k:'FFO per unit', re:/\bffo per (unit|share)\b/i, lbl:/ffo per (unit|share)/i},
+    {k:'dividend yield', re:/\b(dividend yield|distribution yield)\b/i, lbl:/dividend yield|distribution yield/i},
+    {k:'net debt / EBITDA', re:/\b(net debt\s*[\/\-]\s*ebitda|leverage ratio)\b/i, lbl:/net debt\s*[\/\-]\s*ebitda|leverage ratio/i},
+    {k:'ICR', re:/\b(icr|interest coverage)\b/i, lbl:/\bicr\b|interest coverage/i},
   ];
   // Metric resolution for solving: the dictionary first, then ANY row label in
   // the model that the question names (so "GOP margin", "stabilised yield" or
@@ -16185,6 +16196,44 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     return `Sensitivity of **${metric.k}** to **${driver.label}** (holding everything else):\n\n| Move | ${driver.label} | ${metric.k} |\n|---|---|---|\n${body}\n\nAsk me to goal-seek a target, or "set ${driver.col}${driver.rn} to <value>" to lock a case.`;
   }
 
+  // Fund/REIT metrics computed from the model's own lines when the metric
+  // itself isn't a row: NAV, FFO, AFFO, FFO/AFFO ratio, FFO payout, cap rate.
+  function _reitMetricAnswer(q){
+    const last=arr=>{ const n=(arr||[]).map(_cellNum).filter(x=>!isNaN(x)); return n.length?n[n.length-1]:null; };
+    const grab=re=>{ for(const t of Object.keys(SHEET_DATA)) for(const r of (SHEET_DATA[t].rows||[])){ if(r.style==='empty')continue; if(re.test(_rowLabel(r))){ const v=last(_rowNums(r)); if(v!=null) return {v,label:_rowLabel(r),tab:t}; } } return null; };
+    const fmtM=n=>'SAR '+n.toFixed(1)+'M';
+    if(/\bnav\b|net asset value/i.test(q)){
+      const nav=grab(/\bnav\b|net asset value/i); if(nav) return `**${nav.label}** (${nav.tab}) is **${fmtM(nav.v)}**.`;
+      const gav=grab(/\bgav\b|gross asset value|market value|asset value|portfolio value/i);
+      const debt=grab(/net debt|total debt|senior debt|loan balance|borrowings/i);
+      if(gav&&debt) return `The model has no explicit NAV line, so I derived it: **NAV = GAV − net debt = ${fmtM(gav.v)} − ${fmtM(debt.v)} = ${fmtM(gav.v-debt.v)}** (using "${gav.label}" and "${debt.label}").`;
+    }
+    if(/\baffo\b|adjusted funds from operations/i.test(q) && !/ffo\s*[\/\-]\s*affo|affo\s*[\/\-]\s*ffo/i.test(q)){
+      const affo=grab(/\baffo\b|adjusted funds from operations/i); if(affo) return `**${affo.label}** (${affo.tab}) is **${fmtM(affo.v)}**.`;
+      const ffo=grab(/\bffo\b|funds from operations/i); const mcap=grab(/maintenance capex|recurring capex|reserve/i); const sl=grab(/straight.?line rent/i);
+      if(ffo){ const a=ffo.v-(mcap?mcap.v:0)-(sl?sl.v:0); return `Derived: **AFFO = FFO − maintenance capex${sl?' − straight-line rent':''} = ${fmtM(ffo.v)}${mcap?' − '+fmtM(mcap.v):''}${sl?' − '+fmtM(sl.v):''} = ${fmtM(a)}**.`; }
+    }
+    if(/ffo\s*[\/\-]\s*affo|affo\s*[\/\-]\s*ffo|affo (conversion|payout)/i.test(q)){
+      const ffo=grab(/\bffo\b|funds from operations/i); const affo=grab(/\baffo\b|adjusted funds from operations/i);
+      if(ffo&&affo) return `**FFO/AFFO ratio = AFFO ÷ FFO = ${fmtM(affo.v)} ÷ ${fmtM(ffo.v)} = ${(affo.v/ffo.v*100).toFixed(1)}%** — i.e. **${(100-affo.v/ffo.v*100).toFixed(1)}%** of FFO is absorbed by recurring capex and adjustments.`;
+      if(ffo){ const mcap=grab(/maintenance capex|recurring capex|reserve/i); if(mcap){ const a=ffo.v-mcap.v; return `Derived AFFO **${fmtM(a)}** from FFO ${fmtM(ffo.v)} − maintenance capex ${fmtM(mcap.v)}, so **FFO/AFFO = ${(a/ffo.v*100).toFixed(1)}%**.`; } }
+    }
+    if(/ffo payout|payout ratio|dividend payout/i.test(q)){
+      const dist=grab(/distribution|dividend/i); const ffo=grab(/\bffo\b|funds from operations/i);
+      if(dist&&ffo) return `**FFO payout = distribution ÷ FFO = ${fmtM(dist.v)} ÷ ${fmtM(ffo.v)} = ${(dist.v/ffo.v*100).toFixed(0)}%**.`;
+    }
+    if(/\bffo\b|funds from operations/i.test(q)){
+      const ffo=grab(/\bffo\b|funds from operations/i); if(ffo) return `**${ffo.label}** (${ffo.tab}) is **${fmtM(ffo.v)}**.`;
+      const ni=grab(/net income|net profit|earnings/i); const dep=grab(/depreciation|amort/i);
+      if(ni&&dep) return `Derived: **FFO = net income + real-estate depreciation = ${fmtM(ni.v)} + ${fmtM(dep.v)} = ${fmtM(ni.v+dep.v)}**.`;
+    }
+    if(/cap rate|capitalis|cap.?rate/i.test(q) && !grab(/cap(italis|italiz)?ation rate|cap rate|exit cap/i)){
+      const noi=grab(/\bnoi\b|net operating income/i); const val=grab(/asset value|market value|\bgav\b|portfolio value/i);
+      if(noi&&val) return `Derived: **cap rate = NOI ÷ asset value = ${fmtM(noi.v)} ÷ ${fmtM(val.v)} = ${(noi.v/val.v*100).toFixed(2)}%**.`;
+    }
+    return null;
+  }
+
   // Content-grounded answer computed locally from the open workbook — so the
   // editor chat gives a REAL, question-specific answer even with no live API
   // key (and a strong fallback when the key is present but the call fails).
@@ -16204,6 +16253,10 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
         return `**${col}${rn}** on *${sheetName}* is **${row.cells[1]||'a cell'}** = **${val}**`+(f?`, driven by \`${f}\``:` (a direct input)`)+`.`+(deps.length?` It feeds ${deps.slice(0,4).map(d=>d.ref).join(', ')}${deps.length>4?'…':''}.`:'')+` Say "set ${col}${rn} to <value>" and I'll re-run everything downstream.`;
       }
     }
+    // 1b) fund / REIT operating metric — return the line if present, else
+    // DERIVE it from its components (NAV = GAV − net debt, AFFO/FFO ratio, …)
+    const reit=_reitMetricAnswer(q);
+    if(reit) return reit;
     // 2) a known financial metric named in the query (IRR, NOI, DSCR, yield…)
     const met=_matchMetric(q);
     if(met) return met;
@@ -19737,15 +19790,28 @@ Answer as Karaya:`;
       </div>`).join('');
     }
     else if(sec==='modelling'){
-      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Build a <b style="color:var(--ink);">financial model</b> or a <b style="color:var(--ink);">dashboard</b> from any fund document — including ones you've uploaded. Karaya reads the document, seeds the assumptions from its figures, and hands you a live Bohio workbook or a KPI board.</div>
+      const fmodels=(f.models||[]);
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Upload the fund's <b style="color:var(--ink);">master model</b> (or any Excel model) — Karaya recreates it live and can <b style="color:var(--ink);">suggest modifications</b> grounded in the fund documents, the ERP integration and your Outlook threads. Understands REIT metrics: NAV · FFO · AFFO · FFO/AFFO ratio · cap rate.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="wf-btn" onclick="document.getElementById('wff-modelup').click()">Upload fund master model (Excel)</button>
+        <input type="file" id="wff-modelup" style="display:none;" accept=".xlsx,.xls,.csv" onchange="_wfFundModelUpload('${k}', this.files[0])">
+      </div>
       <div id="wff-model-slot"></div>
+      ${fmodels.length?`<div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:6px 0 8px;">Fund models</div>`+fmodels.map((m,mi)=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
+        <div style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">XLSX</div>
+        <div style="flex:1;min-width:0;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.name} <span style="font-size:7.5px;color:#b45309;font-weight:700;">MASTER</span></div>
+        <button class="wf-btn ghost" style="padding:6px 12px;flex-shrink:0;" onclick="closeWorkflow();currentProject=null;openEditor(WF_FUNDS.find(x=>x.k==='${k}').models[${mi}])">Open model →</button>
+        <button class="wf-btn" style="padding:6px 12px;flex-shrink:0;" onclick="_wfFundSuggest('${k}',${mi})">Suggest modifications</button>
+      </div>`).join(''):''}
+      <div id="wff-suggest-slot"></div>
+      <div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:14px 0 8px;">Build from a document</div>
       ${(f.docs||[]).map(d=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
         <div style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">${d.type}</div>
         <div style="flex:1;min-width:0;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.name}${d._uploaded?' <span style="font-size:7.5px;color:#b45309;font-weight:700;">UPLOADED</span>':''}</div>
         <button class="wf-btn ghost" style="padding:6px 12px;flex-shrink:0;" onclick="_wfFundBuildModel('${k}','${encodeURIComponent(d.name)}')">Build model</button>
         <button class="wf-btn ghost" style="padding:6px 12px;flex-shrink:0;" onclick="_wfFundBuildDash('${k}','${encodeURIComponent(d.name)}')">Dashboard</button>
       </div>`).join('')}
-      <div style="margin-top:12px;"><button class="wf-btn" onclick="document.getElementById('wff-docup2').click()">Upload a document to model from</button>
+      <div style="margin-top:12px;"><button class="wf-btn ghost" onclick="document.getElementById('wff-docup2').click()">Upload a document to model from</button>
       <input type="file" id="wff-docup2" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx" onchange="_wfFundDocUpload('${k}', this.files[0])"></div>`;
     }
     else if(sec==='projects'){
@@ -20033,6 +20099,70 @@ Answer as Karaya:`;
         : _fundStakeholdersSVG(f, extra, cite||'the fund documents');
     }, 620);
   }
+  // ---- fund master model: upload → recreate → context-aware suggestions ----
+  async function _wfFundModelUpload(k, file){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f||!file) return;
+    const base=String(file.name||'Fund Master Model').replace(/\.[^.]+$/,'');
+    const ext=((String(file.name||'').match(/\.([^.]+)$/)||[,''])[1]||'').toLowerCase();
+    let wbData=null;
+    try{
+      if(ext==='csv') wbData=_csvToWb(await file.text(), base);
+      else if(ext==='xlsx'||ext==='xlsm') wbData=await _xlsxToWb(file);
+      else if(ext==='xls'){ alert('Legacy .xls — please save as .xlsx and re-upload.'); return; }
+    }catch(e){ alert('Couldn’t read this workbook: '+(e&&e.message||'unreadable')); return; }
+    if(!wbData) return;
+    const doc={type:'XLSX', name:base, version:'v.01 · '+Object.keys(wbData).length+' tabs · Fund master', updated:'Just now · You', isGenerated:true, _fundMaster:true, wbData};
+    f.models=f.models||[]; const ex=f.models.findIndex(m=>m.name===base);
+    if(ex>=0) f.models[ex]=doc; else f.models.unshift(doc);
+    _wfFundDetail(k,'modelling');
+    setTimeout(()=>{ const s=document.getElementById('wff-model-slot'); if(s) s.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:11px;line-height:1.6;">Recreated <b>${base}</b> (${Object.keys(wbData).length} tabs) as a live Bohio model. Open it, or ask me to <b>suggest modifications</b> from the fund documents, ERP and Outlook.</div>`; }, 60);
+  }
+  // Gather the fund's real context: documents, ERP figures, Outlook threads.
+  async function _wfFundContext(f){
+    const docs=(f.docs||[]).map(d=>d.name+' — '+d.versions.map(v=>v.v+': '+v.note).join('; ')+(d._uploaded&&d.text?(' | content: '+d.text.slice(0,500)):'')).join('\n');
+    const erp=`ERP (fund accounting): committed SAR ${f.committed}M, drawn SAR ${f.drawn}M (${Math.round(f.drawn/f.committed*100)}%), NAV SAR ${f.nav}M, net IRR ${f.irr}, DPI ${(f.dpi||0).toFixed(2)}x, TVPI ${(f.tvpi||0).toFixed(2)}x; management fee & promote per the LPA; capital-account statements current to last quarter.`;
+    let mail={live:false, messages:(f.emails||[])};
+    try{ if(typeof _outlookFetch==='function'){ const p=await _outlookFetch(f.name); if(p&&p.messages&&p.messages.length) mail=p; } }catch(e){}
+    const mailCtx=(mail.messages||[]).map(e=>e.from+' — "'+e.subject+'": '+e.snippet).join('\n');
+    return {docs, erp, mailCtx, live:mail.live};
+  }
+  async function _wfFundSuggest(k, mi){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const model=(f.models||[])[mi]; if(!model) return;
+    const slot=document.getElementById('wff-suggest-slot'); if(!slot) return;
+    slot.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin:12px 0;">
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">Karaya · reviewing "${model.name}" against the fund's context</div>
+      <div class="wff-sugg-body" style="font-size:11px;line-height:1.7;color:var(--ink);"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div></div>`;
+    const body=slot.querySelector('.wff-sugg-body');
+    const ctx=await _wfFundContext(f);
+    // snapshot of the model's lines so suggestions cite real rows
+    const wbTxt=Object.keys(model.wbData||{}).map(t=>{ const rows=(model.wbData[t].rows||[]).filter(r=>r.style!=='empty').slice(0,14).map(r=>(r.cells[1]||'')+': '+r.cells.slice(2).filter(v=>v!=='').join(', ')).filter(x=>x.length>2); return '### '+t+'\n'+rows.join('\n'); }).join('\n\n').slice(0,3000);
+    const prompt=`You are Karaya, reviewing the fund master model "${model.name}" for ${f.name} and proposing concrete modifications. Cross-reference THREE context sources and cite which one drives each change. Understand REIT metrics (NAV, FFO, AFFO, FFO/AFFO ratio, cap rate) and reference them where relevant. Give 4-6 specific, actionable suggestions as bullets — each: what to change in the model (name the tab/line), the new value or approach, and the source (document / ERP / Outlook). Plain text, **bold** the key figures and the source tag.
+
+MODEL (tabs & lines):
+${wbTxt}
+
+FUND DOCUMENTS:
+${ctx.docs}
+
+ERP INTEGRATION:
+${ctx.erp}
+
+OUTLOOK THREADS (${ctx.live?'live mailbox':'recent'}):
+${ctx.mailCtx}`;
+    const fallback=`Based on the fund documents, ERP and Outlook, I'd modify **${model.name}**:\n`+
+      `• **Management fee** — set it to the executed **1.5%** per the LPA v.5 (Documents), replacing any earlier 2.0% assumption.\n`+
+      `• **Preferred return / catch-up** — align the waterfall to **8% pref with a 50/50 catch-up** (LPA v.5).\n`+
+      `• **Drawn capital** — update the paid-in line to **SAR ${f.drawn}M of ${f.committed}M** committed (ERP).\n`+
+      `• **NAV bridge** — reconcile to **SAR ${f.nav}M** and add a NAV-per-unit line; derive **AFFO = FFO − maintenance capex** so the FFO/AFFO ratio is explicit.\n`+
+      `• **Refinancing / capital call** — reflect the item in the current Outlook thread (${(f.emails&&f.emails[0]&&f.emails[0].subject)||'pending consent'}) in the debt schedule.`;
+    let full='';
+    try{ await window.claude.stream({messages:[{role:'user',content:prompt}],task:'file_qa'},{},t=>{ full+=t; body.querySelector('.kr-stream-text').textContent=full; }); }catch(e){}
+    if(!full||!full.trim()) full=fallback;
+    body.innerHTML=fmtKaraya(full)+`<div style="margin-top:11px;"><button class="wf-btn" onclick="closeWorkflow();currentProject=null;openEditor(WF_FUNDS.find(x=>x.k==='${k}').models[${mi}])">Open the model to apply changes →</button></div>`
+      +`<div style="font-size:8px;color:#0a66c2;margin-top:7px;letter-spacing:0.06em;font-weight:700;">✦ Grounded in ${(f.docs||[]).length} documents · ERP · ${ctx.live?'live Outlook mailbox':'Outlook threads'}</div>`;
+  }
+
   // ---- projects developed within each fund ----
   const FUND_PROJECT_IDS={fund2:[1,2,6], coinvest:[7], fund1:[3,4]};
   (function _restoreFundProjects(){
