@@ -19647,7 +19647,8 @@ Answer as Karaya:`;
         ${_wfFundDashHTML()}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:13px;">
           ${WF_FUNDS.map(f=>`
-          <button onclick="_wfFundDetail('${f.k}')" style="text-align:left;font-family:inherit;border:none;cursor:pointer;background:${f.col};color:#fff;border-radius:26px;padding:18px 18px 15px;display:flex;flex-direction:column;gap:8px;min-height:150px;transition:transform .16s ease, box-shadow .16s ease;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 14px 30px rgba(0,9,25,0.22)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <button onclick="_wfFundDetail('${f.k}')" style="text-align:left;font-family:inherit;border:none;cursor:pointer;background:#e6e2e2;color:#000919;border-radius:26px;padding:18px 18px 15px;display:flex;flex-direction:column;gap:8px;min-height:150px;transition:transform .16s ease, box-shadow .16s ease;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 14px 30px rgba(0,9,25,0.22)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <span style="width:9px;height:9px;border-radius:50%;background:${f.col};display:inline-block;"></span>
             <div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;opacity:0.85;">${f.vintage} · ${f.status}</div>
             <div style="font-size:15px;font-weight:700;line-height:1.25;">${f.name}</div>
             <div style="font-size:10px;opacity:0.85;">${f.tag}</div>
@@ -19666,7 +19667,7 @@ Answer as Karaya:`;
     sec=sec||'documents';
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
     // ordered left → right: Fund agreements · Financial modelling · the rest
-    const SECTIONS=[['documents','Fund agreements','#61BB46'],['modelling','Financial modelling','#F58220'],['structure','Structure','#009DDC'],['approvals','Approvals','#963D97'],['stakeholders','Stakeholders','#E03A3C'],['topics','Topics','#FDB827']];
+    const SECTIONS=[['documents','Fund agreements','#61BB46'],['modelling','Financial modelling','#F58220'],['projects','Projects','#FDB827'],['structure','Structure','#009DDC'],['approvals','Approvals','#963D97'],['stakeholders','Stakeholders','#E03A3C'],['topics','Topics','#000919']];
     const secBtns=SECTIONS.map(([key,label,col])=>{ const tx=col==='#FDB827'?'#000919':'#fff';
       return `
       <button onclick="_wfFundDetail('${k}','${key}')" style="flex:1;min-width:105px;font-family:inherit;border:none;cursor:pointer;background:${col};color:${tx};border-radius:18px;padding:12px 8px;font-size:10px;letter-spacing:0.08em;font-weight:700;opacity:${sec===key?'1':'0.55'};box-shadow:${sec===key?'inset 0 0 0 2.5px rgba(0,9,25,0.6)':'none'};transition:opacity .15s ease;">${label}</button>`; }).join('');
@@ -19692,7 +19693,7 @@ Answer as Karaya:`;
       </div>`).join('');
     } else if(sec==='stakeholders'){
       panel=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        <button class="wf-btn" onclick="_wfFundChart('${k}')">✦ Generate stakeholders chart from the fund documents</button>
+        <button class="wf-btn" onclick="_wfFundChart('${k}')">✦ Generate fund structure chart from the fund documents</button>
       </div><div id="wff-chart-slot"></div>`
       + f.stakeholders.map(s=>`<div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
         <div style="width:32px;height:32px;flex-shrink:0;border-radius:10px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;letter-spacing:0.05em;">${s[0]}</div>
@@ -19709,7 +19710,7 @@ Answer as Karaya:`;
       panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Every fund document in one place — versions pulled from the data room <b style="color:var(--ink);">and from Outlook email threads</b> (attachments and negotiated changes are captured automatically). Upload more below; ask Karaya to compare versions or explain any change.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
         <button class="wf-btn" onclick="document.getElementById('wff-docup').click()">Upload fund document</button>
-        <button class="wf-btn ghost" onclick="_wfFundChart('${k}')">✦ Generate stakeholders chart from the documents</button>
+        <button class="wf-btn ghost" onclick="_wfFundChart('${k}')">✦ Generate fund structure chart from the documents</button>
         <input type="file" id="wff-docup" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx" onchange="_wfFundDocUpload('${k}', this.files[0])">
       </div>
       <div id="wff-chart-slot"></div>`
@@ -19746,6 +19747,19 @@ Answer as Karaya:`;
       </div>`).join('')}
       <div style="margin-top:12px;"><button class="wf-btn" onclick="document.getElementById('wff-docup2').click()">Upload a document to model from</button>
       <input type="file" id="wff-docup2" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx" onchange="_wfFundDocUpload('${k}', this.files[0])"></div>`;
+    }
+    else if(sec==='projects'){
+      const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Development projects run <b style="color:var(--ink);">inside ${f.name}</b> — open one, or create a new project within the fund.</div>
+      ${ids.length? ids.map(id=>`<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
+        <div style="width:32px;height:32px;flex-shrink:0;border-radius:10px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;">${P[id].name.slice(0,1)}</div>
+        <div style="flex:1;min-width:0;"><div style="font-size:11.5px;font-weight:700;">${P[id].name}</div><div style="font-size:9px;color:var(--ink-soft);">${P[id].loc} · ${P[id].phase} · lead ${P[id].lead}</div></div>
+        <button class="wf-btn ghost" style="padding:7px 14px;flex-shrink:0;" onclick="closeWorkflow();showProject(${id})">Open project →</button>
+      </div>`).join('') : `<div style="font-size:11px;color:var(--ink-soft);padding:8px 0;">No projects yet in this fund.</div>`}
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <input id="wff-newproj" placeholder="New project name — e.g. Corniche North Parcel" style="flex:1;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfFundNewProject('${k}')">
+        <button class="wf-btn" onclick="_wfFundNewProject('${k}')">+ Create in this fund</button>
+      </div>`;
     }
     const chatLog=(_wfFundChat[k]||[]).map(m=>`<div style="align-self:${m.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${m.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${m.cls==='user'?'var(--bg)':'var(--ink)'};border:${m.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${m.html}</div>`).join('');
     modal.innerHTML=`
@@ -19993,10 +20007,58 @@ Answer as Karaya:`;
       });
       const cite=[lpa?(lpa.name+' '+lpa.versions[lpa.versions.length-1].v):null,
         (f.docs||[]).filter(d=>/subscription/i.test(d.name)).length?'subscription agreements':null,
-        uploads.length?(uploads.length+' uploaded document'+(uploads.length>1?'s':'')+(extra.length?' (+'+extra.length+' stakeholder'+(extra.length>1?'s':'')+' found)':'')):null
+        uploads.length?(uploads.length+' uploaded document'+(uploads.length>1?'s':'')+(extra.length?' (+'+extra.length+' stakeholder'+(extra.length>1?'s':'')+' shown in the equity tier)':'')):null
       ].filter(Boolean).join(' · ');
-      panelHost.innerHTML=_fundStakeholdersSVG(f, extra, cite||'the fund documents');
+      // Build the same colorful structure chart used inside every project
+      const allLps=f.structure.lps.map(l=>({name:l[0],amt:l[1],tag:l[2]})).concat(extra.map(e=>({name:e[0],amt:e[1],tag:e[2]})));
+      const tot=allLps.reduce((a,l)=>a+l.amt,0);
+      const gpPctM=f.structure.gp.match(/(\d+(?:\.\d+)?)%/);
+      const tranches=allLps.map(l=>{ const isGP=/GP/i.test(l.tag)||/^GP commit/i.test(l.name);
+        return {layer:isGP?'GP Equity':'LP Equity', party:isGP?'Bohio Capital Partners':l.name, pct:Math.round(l.amt/tot*100), amt:'SAR '+l.amt+'M', role:isGP?'Sponsor / GP':l.tag}; });
+      if(!tranches.find(t=>t.layer==='GP Equity')) tranches.unshift({layer:'GP Equity', party:'Bohio Capital Partners', pct:gpPctM?Math.round(parseFloat(gpPctM[1])):5, amt:'GP commit', role:'Sponsor / GP'});
+      const stack={total:'SAR '+Math.round(tot)+'M', tranches};
+      const sks=[];
+      f.stakeholders.forEach(sv=>{
+        if(sv[0]==='ADM') sks.push({name:sv[1], role:'Consultant'});
+        else if(sv[0]==='AUD') sks.push({name:sv[1], role:'Independent Appraiser'});
+        else if(sv[0]==='OPR') sks.push({name:sv[1], role:'Operator'});
+      });
+      P[0]={name:f.name.replace(/^Bohio RE /,''), loc:f.tag};
+      let chartSvg='';
+      try{ chartSvg=buildDealStructureSVG(0, stack, sks, null); }catch(e){ chartSvg=''; }
+      delete P[0];
+      panelHost.innerHTML=chartSvg
+        ? `<div id="wff-chart" style="border:1px solid var(--ink-hairline);border-radius:14px;overflow:hidden;margin-bottom:14px;">${chartSvg}
+            <div style="font-size:9px;color:var(--ink-soft);letter-spacing:0.04em;padding:8px 12px;background:#fdfcfa;">✦ Generated by Karaya from: ${cite||'the fund documents'}</div></div>`
+        : _fundStakeholdersSVG(f, extra, cite||'the fund documents');
     }, 620);
+  }
+  // ---- projects developed within each fund ----
+  const FUND_PROJECT_IDS={fund2:[1,2,6], coinvest:[7], fund1:[3,4]};
+  (function _restoreFundProjects(){
+    try{
+      const saved=JSON.parse(localStorage.getItem('bohio_fund_projs')||'[]');
+      saved.forEach(rec=>{
+        if(!P[rec.id]) P[rec.id]={name:rec.name, loc:'—', lead:(window.DEMO_USER&&window.DEMO_USER.name)||'You', phase:'Phase 01/06', members:'01', desc:'Development project created inside '+rec.fundName+'.', docs:[]};
+        FUND_PROJECT_IDS[rec.fund]=FUND_PROJECT_IDS[rec.fund]||[];
+        if(FUND_PROJECT_IDS[rec.fund].indexOf(rec.id)<0) FUND_PROJECT_IDS[rec.fund].push(rec.id);
+      });
+    }catch(e){}
+  })();
+  function _wfFundNewProject(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const inp=document.getElementById('wff-newproj'); if(!inp) return;
+    const name=(inp.value||'').trim(); if(!name) return;
+    let id=100; while(P[id]) id++;
+    P[id]={name, loc:'—', lead:(window.DEMO_USER&&window.DEMO_USER.name)||'You', phase:'Phase 01/06', members:'01',
+      desc:'Development project created inside '+f.name+'. Upload documents or ask Karaya (right) to build the financial projections.', docs:[]};
+    FUND_PROJECT_IDS[k]=FUND_PROJECT_IDS[k]||[]; FUND_PROJECT_IDS[k].push(id);
+    try{
+      const saved=JSON.parse(localStorage.getItem('bohio_fund_projs')||'[]');
+      saved.push({id, name, fund:k, fundName:f.name});
+      localStorage.setItem('bohio_fund_projs', JSON.stringify(saved));
+    }catch(e){}
+    _wfFundDetail(k,'projects');
   }
   // ---- fund chatbot: grounded in the fund's docs (all versions), emails,
   // structure, approvals & topics. Version-compare questions are answered
