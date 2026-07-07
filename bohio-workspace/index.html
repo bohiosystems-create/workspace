@@ -18871,7 +18871,7 @@ Answer as Karaya:`;
             ].map(c => `
               <div class="settings-row" id="conn-${c.k}">
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <div style="width:34px;height:34px;border:1px solid var(--ink-hairline);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:16px;color:var(--ink);background:var(--paper);">${c.mark}</div>
+                  ${_connLogo(c.k)}
                   <div>
                     <div class="settings-row-label">${c.name}</div>
                     <div class="settings-row-sub">${c.cat} · <span class="conn-meta">${c.meta}</span></div>
@@ -18894,7 +18894,7 @@ Answer as Karaya:`;
             ].map(c => `
               <div class="settings-row" id="conn-${c.k}">
                 <div style="display:flex;align-items:center;gap:12px;">
-                  <div style="width:34px;height:34px;border:1px solid var(--ink-hairline);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:16px;color:var(--ink);background:var(--paper);">${c.mark}</div>
+                  ${_connLogo(c.k)}
                   <div>
                     <div class="settings-row-label">${c.name}</div>
                     <div class="settings-row-sub">${c.cat} · <span class="conn-meta">${c.meta}</span></div>
@@ -18998,6 +18998,36 @@ Answer as Karaya:`;
     try{ localStorage.removeItem('bohio_ms_rt'); localStorage.removeItem('bohio_ms_account'); }catch(e){}
     const ov=document.getElementById('msol-overlay'); if(ov) ov.style.display='none';
     const meta=document.querySelector('#conn-outlook .conn-meta'); if(meta) meta.textContent='Not connected — demo inbox active';
+  }
+  // Recognisable provider logos as inline SVG (self-contained — no external
+  // requests, so they survive the deploy CSP and work offline).
+  function _connLogo(k){
+    const wrap=(inner,bg)=>`<div style="width:34px;height:34px;border-radius:8px;overflow:hidden;background:${bg||'#fff'};border:1px solid var(--ink-hairline);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${inner}</div>`;
+    const mono=(txt,bg,col,sz)=>wrap(`<span style="font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:${sz||11}px;letter-spacing:-0.5px;color:${col||'#fff'};">${txt}</span>`,bg);
+    switch(k){
+      case 'netsuite': // Oracle
+        return wrap(`<svg width="30" height="16" viewBox="0 0 100 46"><path d="M31 3h20a20 20 0 010 40H31a20 20 0 010-40zm1.4 12a8 8 0 000 16h17.2a8 8 0 000-16z" fill="#C74634"/></svg>`,'#fff');
+      case 'yardi': return mono('Yardi','#0B7A3B',null,10);
+      case 'sap':
+        return wrap(`<svg width="30" height="16" viewBox="0 0 60 30"><defs><linearGradient id="sapg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00AEEF"/><stop offset="1" stop-color="#0057B8"/></linearGradient></defs><path d="M0 3h34l-17 24H0z" fill="url(#sapg)"/><text x="4" y="20" font-family="Arial" font-weight="800" font-size="13" fill="#fff">SAP</text></svg>`,'#fff');
+      case 'mri': return mono('MRI','#00838F',null,11);
+      case 'outlook': // Microsoft four-square + Outlook blue O
+        return wrap(`<svg width="26" height="26" viewBox="0 0 24 24"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>`,'#fff');
+      case 'paseetah': return mono('Ps','#12B5A5',null,12);
+      case 'costar': return mono('CoStar','#123B63',null,8);
+      case 'anthropic': // Claude sunburst (clay)
+        return wrap(`<svg width="22" height="22" viewBox="0 0 24 24">${Array.from({length:12},(_,i)=>{const a=i*30*Math.PI/180;return `<line x1="12" y1="12" x2="${12+9*Math.cos(a)}" y2="${12+9*Math.sin(a)}" stroke="#D97757" stroke-width="2" stroke-linecap="round"/>`}).join('')}</svg>`,'#fff');
+      case 'openai':
+        return wrap(`<svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="#10A37F" stroke-width="2"/><path d="M8 12a4 4 0 118 0 4 4 0 01-8 0z" fill="none" stroke="#10A37F" stroke-width="1.6"/></svg>`,'#fff');
+      case 'gemini': // Google spark, blue→purple
+        return wrap(`<svg width="22" height="22" viewBox="0 0 24 24"><defs><linearGradient id="gemg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4285F4"/><stop offset="1" stop-color="#9B72CB"/></linearGradient></defs><path d="M12 2c.6 5 3 7.4 8 8-5 .6-7.4 3-8 8-.6-5-3-7.4-8-8 5-.6 7.4-3 8-8z" fill="url(#gemg)"/></svg>`,'#fff');
+      case 'mistral': // striped mandala
+        return wrap(`<svg width="26" height="18" viewBox="0 0 30 20"><rect y="0" width="30" height="4" fill="#FFD800"/><rect y="4" width="30" height="4" fill="#FFAF00"/><rect y="8" width="30" height="4" fill="#FF8205"/><rect y="12" width="30" height="4" fill="#FA500F"/><rect y="16" width="30" height="4" fill="#E10500"/></svg>`,'#fff');
+      case 'grok': return mono('𝕏','#000919','#fff',14);
+      case 'azure':
+        return wrap(`<svg width="24" height="20" viewBox="0 0 24 20"><defs><linearGradient id="azg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3CCBF4"/><stop offset="1" stop-color="#2892DF"/></linearGradient></defs><path d="M9 2l-7 15h4l6-13zm2 4l4 8-8 1 3 3h10z" fill="url(#azg)"/></svg>`,'#fff');
+      default: return mono(k.slice(0,1).toUpperCase(),'#000919');
+    }
   }
   function toggleConnector(k, name){
     if (k === 'outlook') { openOutlookConnect(); return; }
