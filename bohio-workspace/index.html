@@ -69,6 +69,13 @@
 .wf-modal.wf-full { max-width:none; width:100%; height:100vh; max-height:100vh; border-radius:0; border:none; }
 .wf-modal.wf-full .wf-body { max-width:1060px; width:100%; margin:0 auto; flex:1; }
 .wf-modal.wf-full #wfrep-msgs, .wf-modal.wf-full #wfvsa-msgs, .wf-modal.wf-full #wffin-msgs { flex:1; }
+/* fund squircles — same design as My Projects, in #e6e2e2 / #000919 */
+.fund-squircles { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:18px; margin-bottom:8px; }
+.fund-sq { background:#e6e2e2; color:#000919; border-color:#e6e2e2; }
+.fund-sq .psq-role, .fund-sq .psq-loc, .fund-sq .psq-status { color:rgba(0,9,25,0.55); }
+.fund-sq:hover { background:#000919; color:#e6e2e2; border-color:#000919; }
+.fund-sq:hover .psq-role, .fund-sq:hover .psq-loc, .fund-sq:hover .psq-status { color:rgba(230,226,226,0.62); }
+.fund-sq .psq-dotc { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
 /* fund dashboard context menu */
 #wfdash-menu { position:fixed; z-index:10002; background:var(--paper); border:1px solid var(--ink-hairline); border-radius:10px; box-shadow:0 14px 40px rgba(0,9,25,0.22); overflow:hidden; }
 #wfdash-menu button { display:block; width:100%; text-align:left; font-family:inherit; font-size:11px; letter-spacing:0.04em; background:transparent; border:none; color:var(--ink); padding:10px 16px; cursor:pointer; }
@@ -19728,21 +19735,21 @@ Answer as Karaya:`;
       </div>
       <div class="wf-body">
         ${_wfFundDashHTML()}
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:13px;">
+        <div class="fund-squircles">
           ${WF_FUNDS.map(f=>`
-          <button onclick="_wfFundDetail('${f.k}')" style="text-align:left;font-family:inherit;border:none;cursor:pointer;background:#e6e2e2;color:#000919;border-radius:26px;padding:18px 18px 15px;display:flex;flex-direction:column;gap:8px;min-height:150px;transition:transform .16s ease, box-shadow .16s ease;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 14px 30px rgba(0,9,25,0.22)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-            <span style="width:9px;height:9px;border-radius:50%;background:${f.col};display:inline-block;"></span>
-            <div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;opacity:0.85;">${f.vintage} · ${f.status}</div>
-            <div style="font-size:15px;font-weight:700;line-height:1.25;">${f.name}</div>
-            <div style="font-size:10px;opacity:0.85;">${f.tag}</div>
-            <div style="margin-top:auto;display:flex;gap:12px;font-variant-numeric:tabular-nums;">
-              <span style="font-size:10px;"><b>SAR ${f.nav}M</b><span style="opacity:0.8;"> NAV</span></span>
-              <span style="font-size:10px;"><b>${f.irr}</b><span style="opacity:0.8;"> net IRR</span></span>
+          <div class="proj-squircle fund-sq" onclick="_wfFundDetail('${f.k}')">
+            <div class="psq-top"><span class="psq-dotc" style="background:${f.col};"></span></div>
+            <div class="psq-body">
+              <h3 class="psq-name">${f.name.replace(/^Bohio RE /,'')}</h3>
+              <div class="psq-role">${f.vintage} · ${f.status} · ${f.tag}</div>
             </div>
-            <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;opacity:0.9;">Open fund →</div>
-          </button>`).join('')}
+            <div class="psq-foot">
+              <span class="psq-loc">SAR ${f.nav}M NAV · ${f.irr} net IRR</span>
+              <span class="psq-status">Open fund →</span>
+            </div>
+          </div>`).join('')}
         </div>
-        <div style="margin-top:14px;font-size:10px;color:var(--ink-soft);letter-spacing:0.04em;">SAR 1,270M committed · SAR 1,036M drawn (82%) · SAR 878M NAV across the three vehicles · <span style="text-decoration:underline;cursor:pointer;" onclick="closeWorkflow();goTo('funds')">open the full funds & stakeholders page</span></div>
+        <div style="margin-top:16px;font-size:10px;color:var(--ink-soft);letter-spacing:0.04em;">SAR 1,270M committed · SAR 1,036M drawn (82%) · SAR 878M NAV across the three vehicles · <span style="text-decoration:underline;cursor:pointer;" onclick="closeWorkflow();goTo('funds')">open the full funds & stakeholders page</span></div>
       </div>`;
   }
   function _wfFundDetail(k, sec){
