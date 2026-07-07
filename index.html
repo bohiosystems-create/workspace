@@ -1502,6 +1502,13 @@
   .proj-section-panel { animation: psp-fade 0.22s ease; }
   @keyframes psp-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
+  /* fund-room section squircles — same design as the in-project section squircles */
+  .fund-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 2px 0 18px; }
+  .fund-sections .section-squircle { min-height: 112px; padding: 16px 18px 18px; border-radius: 24px; border-color: transparent; }
+  .fund-sections .section-squircle .ssq-name { font-size: 12.5px; letter-spacing: 0.16em; margin-top: 12px; }
+  .fund-sections .section-squircle .ssq-sub { font-size: 7.5px; letter-spacing: 0.16em; margin-top: 6px; }
+  .fund-sections .section-squircle:hover { transform: translateY(-3px); filter: brightness(1.06); box-shadow: 0 12px 28px rgba(0,9,25,0.14); }
+
   /* Assets Under Management list */
   .section-meta { font-size: 8px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--ink-soft); }
   .aum-summary {
@@ -19750,9 +19757,26 @@ Answer as Karaya:`;
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
     // ordered left → right: Fund agreements · Financial modelling · the rest
     const SECTIONS=[['documents','Fund agreements','#61BB46'],['modelling','Financial modelling','#F58220'],['projects','Projects','#FDB827'],['structure','Structure','#009DDC'],['approvals','Approvals','#963D97'],['stakeholders','Stakeholders','#E03A3C'],['topics','Topics','#000919']];
-    const secBtns=SECTIONS.map(([key,label,col])=>{ const tx=col==='#FDB827'?'#000919':'#fff';
+    // sub-labels + live counts so each section reads like an in-project squircle
+    const SEC_SUB={documents:'LPA, side letters & versions',modelling:'Fund models & NAV builds',projects:'Assets in this fund',structure:'GP / LP commitments & terms',approvals:'Governance & sign-off',stakeholders:'GP, LPs & advisors',topics:'Live agent conversations'};
+    const SEC_COUNT={
+      documents:(f.docs||[]).length,
+      modelling:(f.models||[]).length,
+      projects:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]).length,
+      structure:(f.structure&&f.structure.lps?f.structure.lps.length:0),
+      approvals:(f.approvals||[]).length,
+      stakeholders:(f.stakeholders||[]).length,
+      topics:(f.topics||[]).length
+    };
+    const secBtns=SECTIONS.map(([key,label,col])=>{
+      const dark=col==='#FDB827'; const tx=dark?'#000919':'#fff'; const soft=dark?'var(--ink-soft)':'rgba(255,255,255,0.8)';
+      const active=sec===key; const c=SEC_COUNT[key]; const cStr=(typeof c==='number')?String(c).padStart(2,'0'):'—';
       return `
-      <button onclick="_wfFundDetail('${k}','${key}')" style="flex:1;min-width:105px;font-family:inherit;border:none;cursor:pointer;background:${col};color:${tx};border-radius:18px;padding:12px 8px;font-size:10px;letter-spacing:0.08em;font-weight:700;opacity:${sec===key?'1':'0.55'};box-shadow:${sec===key?'inset 0 0 0 2.5px rgba(0,9,25,0.6)':'none'};transition:opacity .15s ease;">${label}</button>`; }).join('');
+      <div class="section-squircle" data-fsec="${key}" onclick="_wfFundDetail('${k}','${key}')" style="background:${col};color:${tx};border-color:transparent;${active?'box-shadow:inset 0 0 0 2.5px var(--ink),0 10px 24px rgba(0,9,25,0.18);':'opacity:0.9;'}">
+        <div class="ssq-head"><span class="ssq-count" style="color:${soft};">${cStr}</span></div>
+        <div class="ssq-name">${label}</div>
+        <div class="ssq-sub" style="color:${soft};">${SEC_SUB[key]}</div>
+      </div>`; }).join('');
     let panel='';
     if(sec==='structure'){
       const tot=f.structure.lps.reduce((a,l)=>a+l[1],0);
@@ -19870,7 +19894,7 @@ Answer as Karaya:`;
         <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
       </div>
       <div class="wf-body">
-        <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px;">${secBtns}</div>
+        <div class="fund-sections">${secBtns}</div>
         ${panel}
         <div id="wff-chat" style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">${chatLog}</div>
       </div>
