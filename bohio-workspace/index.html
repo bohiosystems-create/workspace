@@ -19663,11 +19663,13 @@ Answer as Karaya:`;
   }
   function _wfFundDetail(k, sec){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
-    sec=sec||'structure';
+    sec=sec||'documents';
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
-    const SECTIONS=[['structure','Structure','#61BB46'],['approvals','Approvals','#963D97'],['stakeholders','Stakeholders','#009DDC'],['topics','Topics','#F58220'],['documents','Documents','#E03A3C']];
-    const secBtns=SECTIONS.map(([key,label,col])=>`
-      <button onclick="_wfFundDetail('${k}','${key}')" style="flex:1;min-width:105px;font-family:inherit;border:none;cursor:pointer;background:${col};color:#fff;border-radius:18px;padding:12px 8px;font-size:10px;letter-spacing:0.08em;font-weight:700;opacity:${sec===key?'1':'0.55'};box-shadow:${sec===key?'inset 0 0 0 2.5px rgba(0,9,25,0.6)':'none'};transition:opacity .15s ease;">${label}</button>`).join('');
+    // ordered left → right: Fund agreements · Financial modelling · the rest
+    const SECTIONS=[['documents','Fund agreements','#61BB46'],['modelling','Financial modelling','#F58220'],['structure','Structure','#009DDC'],['approvals','Approvals','#963D97'],['stakeholders','Stakeholders','#E03A3C'],['topics','Topics','#FDB827']];
+    const secBtns=SECTIONS.map(([key,label,col])=>{ const tx=col==='#FDB827'?'#000919':'#fff';
+      return `
+      <button onclick="_wfFundDetail('${k}','${key}')" style="flex:1;min-width:105px;font-family:inherit;border:none;cursor:pointer;background:${col};color:${tx};border-radius:18px;padding:12px 8px;font-size:10px;letter-spacing:0.08em;font-weight:700;opacity:${sec===key?'1':'0.55'};box-shadow:${sec===key?'inset 0 0 0 2.5px rgba(0,9,25,0.6)':'none'};transition:opacity .15s ease;">${label}</button>`; }).join('');
     let panel='';
     if(sec==='structure'){
       const tot=f.structure.lps.reduce((a,l)=>a+l[1],0);
@@ -19711,10 +19713,11 @@ Answer as Karaya:`;
         <input type="file" id="wff-docup" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx" onchange="_wfFundDocUpload('${k}', this.files[0])">
       </div>
       <div id="wff-chart-slot"></div>`
-      + (f.docs||[]).map(d=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
-        <div style="display:flex;align-items:center;gap:9px;">
+      + (f.docs||[]).map(d=>`<div style="position:relative;border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
+        <button onclick="_wfDocMenu(event,'${k}','${encodeURIComponent(d.name)}')" title="Access — who can open this document" style="position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;border:1px solid var(--ink-hairline);background:transparent;color:var(--ink);font-family:inherit;font-size:13px;line-height:1;cursor:pointer;">⋯</button>
+        <div style="display:flex;align-items:center;gap:9px;padding-right:30px;">
           <div style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">${d.type}</div>
-          <div style="font-size:11.5px;font-weight:700;line-height:1.35;">${d.name}</div>
+          <div style="font-size:11.5px;font-weight:700;line-height:1.35;">${d.name}<span style="display:block;font-size:8.5px;font-weight:400;color:var(--ink-soft);margin-top:1px;">${(function(){ const a=getDocAccess(k,d.name); const n=FUND_USERS.filter(us=>a[us.u]).length; return n+' of '+FUND_USERS.length+' people have access'; })()}</span></div>
         </div>
         <div style="margin-top:9px;display:flex;flex-direction:column;gap:6px;">
           ${d.versions.map(v=>`<div style="display:flex;align-items:flex-start;gap:8px;font-size:10px;line-height:1.55;">
@@ -19731,6 +19734,18 @@ Answer as Karaya:`;
         <div style="font-size:10.5px;font-weight:600;margin-top:2px;">${e.subject}</div>
         <div style="font-size:10px;color:var(--ink-soft);margin-top:3px;line-height:1.5;">${e.snippet}</div>
       </div>`).join('');
+    }
+    else if(sec==='modelling'){
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Build a <b style="color:var(--ink);">financial model</b> or a <b style="color:var(--ink);">dashboard</b> from any fund document — including ones you've uploaded. Karaya reads the document, seeds the assumptions from its figures, and hands you a live Bohio workbook or a KPI board.</div>
+      <div id="wff-model-slot"></div>
+      ${(f.docs||[]).map(d=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
+        <div style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">${d.type}</div>
+        <div style="flex:1;min-width:0;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.name}${d._uploaded?' <span style="font-size:7.5px;color:#b45309;font-weight:700;">UPLOADED</span>':''}</div>
+        <button class="wf-btn ghost" style="padding:6px 12px;flex-shrink:0;" onclick="_wfFundBuildModel('${k}','${encodeURIComponent(d.name)}')">Build model</button>
+        <button class="wf-btn ghost" style="padding:6px 12px;flex-shrink:0;" onclick="_wfFundBuildDash('${k}','${encodeURIComponent(d.name)}')">Dashboard</button>
+      </div>`).join('')}
+      <div style="margin-top:12px;"><button class="wf-btn" onclick="document.getElementById('wff-docup2').click()">Upload a document to model from</button>
+      <input type="file" id="wff-docup2" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx" onchange="_wfFundDocUpload('${k}', this.files[0])"></div>`;
     }
     const chatLog=(_wfFundChat[k]||[]).map(m=>`<div style="align-self:${m.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${m.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${m.cls==='user'?'var(--bg)':'var(--ink)'};border:${m.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${m.html}</div>`).join('');
     modal.innerHTML=`
@@ -19757,6 +19772,118 @@ Answer as Karaya:`;
     const modal=document.querySelector('#wf-overlay .wf-modal');
     if(modal) _wfFundList(modal, WORKFLOWS.fundmgmt);
   }
+  // ---- per-document access control (you're the VP / Senior Manager) --------
+  const FUND_USERS=[
+    {u:'sh', init:'SH', name:'S. Al-Harbi',  role:'Managing Partner',   def:true},
+    {u:'rm', init:'RM', name:'R. Marini',    role:'Director',           def:true},
+    {u:'you',init:'YOU',name:'You',          role:'VP / Senior Manager',def:true, locked:true},
+    {u:'ml', init:'ML', name:'M. Lopez',     role:'Senior Analyst',     def:false},
+    {u:'ks', init:'KS', name:'K. Saleh',     role:'Associate',          def:false},
+    {u:'nk', init:'NK', name:'N. Kim',       role:'LP Relations',       def:false},
+    {u:'fin',init:'FN', name:'Finance team', role:'Fund accounting',    def:true},
+  ];
+  let _fundDocAcc={};
+  try{ _fundDocAcc=JSON.parse(localStorage.getItem('bohio_fund_docacc')||'{}'); }catch(e){ _fundDocAcc={}; }
+  function _accKey(k,docName){ return k+'::'+docName; }
+  function getDocAccess(k,docName){
+    const key=_accKey(k,docName);
+    if(!_fundDocAcc[key]){ _fundDocAcc[key]={}; FUND_USERS.forEach(us=>{ _fundDocAcc[key][us.u]=us.def; }); }
+    return _fundDocAcc[key];
+  }
+  function setDocAccess(k,docName,u,on){
+    const acc=getDocAccess(k,docName); acc[u]=on;
+    try{ localStorage.setItem('bohio_fund_docacc', JSON.stringify(_fundDocAcc)); }catch(e){}
+  }
+  function _accessRowsHTML(k,docName,idPrefix){
+    const acc=getDocAccess(k,docName);
+    return FUND_USERS.map(us=>`
+      <label style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(0,9,25,0.06);cursor:${us.locked?'default':'pointer'};">
+        <input type="checkbox" ${acc[us.u]?'checked':''} ${us.locked?'disabled':''} onchange="setDocAccess('${k}','${docName.replace(/'/g,"\\'")}','${us.u}',this.checked)" style="accent-color:#000919;">
+        <span style="width:28px;height:28px;flex-shrink:0;border-radius:9px;background:rgba(0,9,25,0.85);color:#fff;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;">${us.init}</span>
+        <span style="flex:1;min-width:0;"><b style="font-size:11px;">${us.name}</b><span style="display:block;font-size:9px;color:var(--ink-soft);">${us.role}${us.locked?' · owner':''}</span></span>
+      </label>`).join('');
+  }
+  // 3-dots menu on a document card → access popover
+  function _wfDocMenu(ev, k, encName){
+    ev.stopPropagation();
+    const docName=decodeURIComponent(encName);
+    const old=document.getElementById('wfacc-pop'); if(old) old.remove();
+    const pop=document.createElement('div'); pop.id='wfacc-pop';
+    pop.style.cssText='position:fixed;z-index:10004;background:var(--paper);border:1px solid var(--ink-hairline);border-radius:12px;box-shadow:0 16px 44px rgba(0,9,25,0.25);width:290px;max-height:340px;overflow-y:auto;padding:13px 15px;';
+    pop.innerHTML=`<div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:2px;">Access — who can open this</div>
+      <div style="font-size:11px;font-weight:700;margin-bottom:8px;">${docName.replace(/</g,'&lt;')}</div>
+      ${_accessRowsHTML(k,docName)}
+      <div style="font-size:8.5px;color:var(--ink-soft);margin-top:8px;letter-spacing:0.04em;">You're granting as <b>VP / Senior Manager</b> — changes apply immediately.</div>`;
+    pop.addEventListener('click',e=>e.stopPropagation());
+    document.body.appendChild(pop);
+    const r=pop.getBoundingClientRect();
+    pop.style.left=Math.max(10, Math.min(ev.clientX-r.width+20, window.innerWidth-r.width-10))+'px';
+    pop.style.top=Math.min(ev.clientY+8, window.innerHeight-r.height-10)+'px';
+    setTimeout(()=>{ document.addEventListener('click', function h(){ const el=document.getElementById('wfacc-pop'); if(el) el.remove(); document.removeEventListener('click',h); }); },60);
+  }
+  // Upload-time access question: "who gets access to this document?"
+  function _wfAskAccess(k, docName, onDone){
+    getDocAccess(k,docName); // seed defaults
+    let ov=document.getElementById('wfacc-modal');
+    if(!ov){ ov=document.createElement('div'); ov.id='wfacc-modal';
+      ov.style.cssText='position:fixed;inset:0;z-index:10005;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:26px;';
+      document.body.appendChild(ov); }
+    ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);border-radius:16px;width:100%;max-width:420px;overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">Before filing</div>
+        <div style="font-family:var(--font-display);font-size:19px;margin-top:3px;">Who gets access to this document?</div>
+        <div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">${docName.replace(/</g,'&lt;')} · you're granting as VP / Senior Manager</div>
+      </div>
+      <div style="padding:12px 20px;max-height:300px;overflow-y:auto;">${_accessRowsHTML(k,docName)}</div>
+      <div style="padding:14px 20px;border-top:1px solid var(--ink-hairline);">
+        <button id="wfacc-confirm" class="wf-btn" style="width:100%;">Confirm access & file the document</button>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+    document.getElementById('wfacc-confirm').onclick=()=>{ ov.style.display='none'; if(onDone) onDone(); };
+  }
+  // Build a financial model or a dashboard from ANY fund document
+  function _wfFundBuildModel(k, encName){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const docName=decodeURIComponent(encName);
+    const d=(f.docs||[]).find(x=>x.name===docName);
+    const tmp=document.createElement('div'); tmp.innerHTML=assumptionFormHTML();
+    const form=tmp.querySelector('.asm-form');
+    const nm=form.querySelector('[data-asm="name"]'); if(nm) nm.value=docName;
+    // pull a headline size out of the document text when present (SAR xxxM)
+    if(d&&d.text){ const m=d.text.match(/SAR\s*([\d,.]+)\s*M/i); if(m){ const c=form.querySelector('[data-asm="cost"]'); if(c) c.value=m[1]; } }
+    const {wb,v,irr,mult,noi1}=_buildWbFromAssumptions(form);
+    const doc={type:'XLSX', name:docName+' — Model', version:'v.01 · From fund document', updated:'Just now · Karaya', isGenerated:true, wbData:wb,
+      notes:'Built by Karaya from the fund document "'+docName+'"'+(d&&d.text?' (its figures seeded the assumptions)':'')+'.'};
+    const did='fin_'+Date.now(); _wfFinDocs[did]=doc;
+    const slot=document.getElementById('wff-model-slot');
+    if(slot) slot.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-bottom:12px;font-size:11px;line-height:1.65;">
+      Built <b>${doc.name}</b> from the document — Year-1 NOI <b>SAR ${noi1.toFixed(1)}M</b>, equity multiple <b>${mult.toFixed(2)}x</b>${irr!=null?`, IRR <b>${(irr*100).toFixed(1)}%</b>`:''}.
+      <button class="wf-btn" style="margin-top:9px;" onclick="closeWorkflow();openEditor(_wfFinDocs['${did}'])">Open as a Bohio model →</button></div>`;
+  }
+  function _wfFundBuildDash(k, encName){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const docName=decodeURIComponent(encName);
+    const d=(f.docs||[]).find(x=>x.name===docName);
+    // extract labelled figures from the document text; fall back to fund KPIs
+    const tiles=[];
+    if(d&&d.text){
+      const re=/([A-Za-z][A-Za-z /&%-]{2,28}?)\s*(?:of|at|:|—|-)?\s*SAR\s*([\d,.]+)\s*M/g; let m;
+      while((m=re.exec(d.text))&&tiles.length<6){ tiles.push([m[1].trim(), 'SAR '+m[2]+'M']); }
+      const pr=/([A-Za-z][A-Za-z /&%-]{2,28}?)\s*(?:of|at|:|—|-)?\s*([\d.]+)\s*%/g;
+      while((m=pr.exec(d.text))&&tiles.length<8){ tiles.push([m[1].trim(), m[2]+'%']); }
+    }
+    if(!tiles.length) tiles.push(['Committed','SAR '+f.committed+'M'],['Drawn','SAR '+f.drawn+'M'],['NAV','SAR '+f.nav+'M'],['Net IRR',f.irr]);
+    const slot=document.getElementById('wff-model-slot');
+    if(slot) slot.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-bottom:12px;">
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Dashboard — from "${docName.replace(/</g,'&lt;')}"</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px;">
+        ${tiles.map(t=>`<div style="border:1px solid var(--ink-hairline);border-radius:11px;padding:10px 12px;"><div style="font-size:7.5px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t[0].replace(/</g,'&lt;')}</div><div style="font-size:17px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;">${t[1]}</div></div>`).join('')}
+      </div>
+      <div style="font-size:9px;color:var(--ink-soft);margin-top:8px;">✦ ${d&&d.text?'Figures extracted by Karaya from the document text':'No extractable figures in this document — showing the fund’s own KPIs'}.</div>
+    </div>`;
+  }
+
   // ---- fund documents: upload (persisted) + stakeholders chart generator ----
   function _persistFundDocs(){
     try{
@@ -19784,11 +19911,14 @@ Answer as Karaya:`;
     }catch(e){}
     const doc={name:base, type:ext.toUpperCase().slice(0,4), _uploaded:true, text:text.slice(0,4000),
       versions:[{v:'v.1', date:'Just now', src:'Uploaded · you', note:(text?text.replace(/\s+/g,' ').slice(0,140)+'…':'uploaded fund document')}]};
-    f.docs=f.docs||[];
-    const ex=f.docs.findIndex(d=>d.name===base);
-    if(ex>=0) f.docs[ex]=doc; else f.docs.push(doc);
-    _persistFundDocs();
-    _wfFundDetail(k,'documents');
+    // access first: who gets to open this document?
+    _wfAskAccess(k, base, ()=>{
+      f.docs=f.docs||[];
+      const ex=f.docs.findIndex(d=>d.name===base);
+      if(ex>=0) f.docs[ex]=doc; else f.docs.push(doc);
+      _persistFundDocs();
+      _wfFundDetail(k,'documents');
+    });
   }
   // Karaya reads the fund docs (LPA, subscription agreements, uploads) and
   // draws the stakeholder chart — GP → vehicle → LPs, service providers beside.
