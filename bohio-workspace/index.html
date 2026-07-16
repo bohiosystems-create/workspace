@@ -150,6 +150,14 @@
 .vis-optcard:hover { transform:translateY(-3px); box-shadow:0 14px 30px rgba(0,9,25,0.10); border-color:var(--ink); }
 .vis-stat { display:flex; justify-content:space-between; gap:10px; font-size:10.5px; padding:5px 0; border-bottom:1px solid rgba(0,9,25,0.06); }
 .vis-stat b { font-variant-numeric:tabular-nums; text-align:right; }
+/* ===== Feasibility — sensitivity heat-map grid ===== */
+.vis-sens-wrap { overflow-x:auto; border:1px solid var(--ink-hairline); border-radius:10px; }
+.vis-sens-table { width:100%; border-collapse:collapse; }
+.vis-sens-table th, .vis-sens-table td { border:1px solid var(--ink-hairline); padding:8px 11px; text-align:center; font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.vis-sens-table thead th { background:rgba(0,9,25,0.045); font-size:8.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); font-weight:700; }
+.vis-sens-table .vis-sens-corner { text-align:left; font-size:7.5px; letter-spacing:0.04em; line-height:1.4; }
+.vis-sens-table .vis-sens-rowhead { text-align:left; background:rgba(0,9,25,0.045); font-size:9.5px; font-weight:700; color:var(--ink); }
+.vis-sens-table td.vis-sens-base { font-weight:700; box-shadow:inset 0 0 0 2px var(--ink); }
 /* ===== Financial reporting — input → prompt → generate → output pipeline ===== */
 .rep-flow { display:flex; align-items:stretch; gap:9px; margin-bottom:10px; overflow-x:auto; }
 .rep-flow-box { flex:1; min-width:150px; border:1px solid var(--ink-hairline); border-radius:14px; padding:12px 13px; background:rgba(0,9,25,0.02); }
@@ -21045,6 +21053,18 @@ Answer as Karaya:`;
     }));
     return {capDeltas, costDeltas, grid};
   }
+  // Heat-map colour for a sensitivity cell — red (weak) through amber to
+  // green (strong), scaled to this grid's own min/max so it always reads
+  // clearly regardless of the option's absolute return level.
+  function _visHeatColor(v, min, max){
+    if(max<=min) return 'rgba(0,9,25,0.04)';
+    const t=Math.max(0,Math.min(1,(v-min)/(max-min)));
+    const stops=[[181,30,59],[218,165,32],[21,128,61]];
+    const idx=t*2, i=Math.min(1,Math.floor(idx)), f=idx-i;
+    const c0=stops[i], c1=stops[i+1];
+    const r=Math.round(c0[0]+(c1[0]-c0[0])*f), g=Math.round(c0[1]+(c1[1]-c0[1])*f), b=Math.round(c0[2]+(c1[2]-c0[2])*f);
+    return `rgba(${r},${g},${b},0.22)`;
+  }
   // Real Doha geography — a fixed bounding box (padded, and shaped to roughly
   // match the map container's aspect ratio) plus a Web Mercator projection so
   // site pins land on their true lat/long position over the OpenStreetMap tile.
@@ -21176,8 +21196,16 @@ Answer as Karaya:`;
     const cfLbl=['Y0','Y1','Y2','Y3 (lease-up)','Y4 (stabilised + exit)'];
     const cfRows=o.cf.map((v,i)=>`<tr><td>${cfLbl[i]}</td><td style="font-weight:${v<0?400:700};color:${v<0?'var(--ink-soft)':'var(--ink)'};">${v<0?'-':''}QAR ${Math.abs(v).toFixed(1)}M</td></tr>`).join('');
     const budgetRows=budget.map(b=>`<div class="vis-stat"><span>${b.label}</span><b>QAR ${b.amt.toFixed(1)}M <span style="color:var(--ink-soft);font-weight:400;">(${b.pct.toFixed(0)}%)</span></b></div>`).join('');
-    const sensHead=sens.capDeltas.map(k=>{ const bp=Math.round(k*100); return `<th>${bp>0?'+':''}${bp}bp</th>`; }).join('');
-    const sensRows=sens.grid.map((row,ri)=>`<tr><td>${sens.costDeltas[ri]>0?'+':''}${sens.costDeltas[ri]}% cost</td>${row.map((v,ci)=>`<td style="font-weight:${sens.costDeltas[ri]===0&&sens.capDeltas[ci]===0?700:400};background:${sens.costDeltas[ri]===0&&sens.capDeltas[ci]===0?'rgba(0,9,25,0.05)':'transparent'};">${v.toFixed(1)}%</td>`).join('')}</tr>`).join('');
+    const sensFlat=sens.grid.flat(); const sensMin=Math.min(...sensFlat), sensMax=Math.max(...sensFlat);
+    const sensHead=sens.capDeltas.map(k=>{ const bp=Math.round(k*100); return `<th>${bp===0?'Base cap':(bp>0?'+':'')+bp+'bp'}</th>`; }).join('');
+    const sensRows=sens.grid.map((row,ri)=>{
+      const rowLbl=sens.costDeltas[ri]===0?'Base cost':(sens.costDeltas[ri]>0?'+':'')+sens.costDeltas[ri]+'% cost';
+      const cells=row.map((v,ci)=>{
+        const isBase=sens.costDeltas[ri]===0&&sens.capDeltas[ci]===0;
+        return `<td class="${isBase?'vis-sens-base':''}" style="background:${_visHeatColor(v,sensMin,sensMax)};">${v.toFixed(1)}%</td>`;
+      }).join('');
+      return `<tr><th class="vis-sens-rowhead">${rowLbl}</th>${cells}</tr>`;
+    }).join('');
     modal.innerHTML=`
       <div class="wf-head">
         <div>
@@ -21225,8 +21253,11 @@ Answer as Karaya:`;
           </div>
         </div>
         <div style="margin-bottom:16px;">
-          <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Sensitivity — unlevered IRR vs. exit cap rate &amp; construction cost</div>
-          <table><thead><tr><th style="text-align:left;"></th>${sensHead}</tr></thead><tbody>${sensRows}</tbody></table>
+          <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:5px;">Sensitivity — unlevered IRR vs. exit cap rate &amp; construction cost</div>
+          <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:9px;">Columns move the exit cap rate away from the ${a.cap.toFixed(1)}% base case; rows move the all-in construction cost away from the base estimate. The boxed cell is the base case shown in the stat tiles above; darker green reads stronger, darker red reads weaker.</div>
+          <div class="vis-sens-wrap">
+            <table class="vis-sens-table"><thead><tr><th class="vis-sens-corner">Constr. cost ↓<br>Exit cap →</th>${sensHead}</tr></thead><tbody>${sensRows}</tbody></table>
+          </div>
         </div>
         <div class="wf-narr" style="margin-bottom:16px;"><div class="wf-narr-lbl">Karaya · what to check next</div><div class="wfvis-opt-narr"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div></div>
         <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Deliverables</div>
@@ -21256,7 +21287,7 @@ Answer as Karaya:`;
     const allOpts=s.archetypes.map(k=>Object.assign({key:k}, WF_VIS_ARCH[k], _visCompute(s,k)));
     const compRows=allOpts.map(oo=>{ const ll=_visLevered(oo); const isRec=oo.key===archKey;
       return `<tr${isRec?' style="background:rgba(21,128,61,0.06);font-weight:700;"':''}><td>${oo.label}${isRec?' (recommended)':''}</td><td>${oo.gfa.toLocaleString()}</td><td>QAR ${oo.totalCost.toFixed(0)}M</td><td>QAR ${oo.noi.toFixed(1)}M</td><td>${oo.yoc.toFixed(1)}%</td><td>${oo.irr.toFixed(1)}%</td><td>${ll.irr.toFixed(1)}%</td><td>${oo.margin.toFixed(0)}%</td></tr>`; }).join('');
-    const sensTable=`<table style="width:100%;border-collapse:collapse;margin-top:6px;"><thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Construction cost</th>${sens.capDeltas.map(k=>{ const bp=Math.round(k*100); return `<th style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">${bp>0?'+':''}${bp}bp cap</th>`; }).join('')}</tr></thead><tbody>${sens.grid.map((row,ri)=>`<tr><td style="padding:6px 8px;">${sens.costDeltas[ri]>0?'+':''}${sens.costDeltas[ri]}%</td>${row.map(v=>`<td style="padding:6px 8px;">${v.toFixed(1)}%</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const sensTable=`<table style="width:100%;border-collapse:collapse;margin-top:6px;"><thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Construction cost \\ Exit cap</th>${sens.capDeltas.map(k=>{ const bp=Math.round(k*100); return `<th style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">${bp===0?'Base cap':(bp>0?'+':'')+bp+'bp'}</th>`; }).join('')}</tr></thead><tbody>${sens.grid.map((row,ri)=>`<tr><td style="padding:6px 8px;">${sens.costDeltas[ri]===0?'Base cost':(sens.costDeltas[ri]>0?'+':'')+sens.costDeltas[ri]+'%'}</td>${row.map(v=>`<td style="padding:6px 8px;">${v.toFixed(1)}%</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     const budgetTable=`<table style="width:100%;border-collapse:collapse;margin-top:6px;"><thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Cost category</th><th style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">% of budget</th><th style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">QAR M</th></tr></thead><tbody>${budget.map(b=>`<tr><td style="padding:6px 8px;">${b.label}</td><td style="padding:6px 8px;">${b.pct.toFixed(0)}%</td><td style="padding:6px 8px;">${b.amt.toFixed(1)}</td></tr>`).join('')}</tbody></table>`;
     const body=`
       <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:0 0 8px;">Executive summary</h4>
