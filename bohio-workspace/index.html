@@ -21152,11 +21152,11 @@ Answer as Karaya:`;
   function _wfVisRevealOptions(id){
     const s=WF_VIS_SITES.find(x=>x.id===id); if(!s) return;
     const slot=document.getElementById('wfvis-hbu-slot'); if(!slot) return;
-    const opts=s.archetypes.map(k=>Object.assign({key:k}, WF_VIS_ARCH[k], _visCompute(s,k)));
+    const opts=s.archetypes.map(k=>{ const o=Object.assign({key:k}, WF_VIS_ARCH[k], _visCompute(s,k)); o.lev=_visLevered(o); return o; });
     const best=opts.reduce((a,b)=>b.irr>a.irr?b:a);
     slot.innerHTML=`
       <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:4px 0 11px;">Highest &amp; best use — three options at this site's as-of-right envelope (${(s.landArea*s.far).toLocaleString()} sqm GFA)</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:16px;">
         ${opts.map(o=>`
         <div class="vis-optcard" onclick="_wfVisOption('${id}','${o.key}')">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
@@ -21165,16 +21165,20 @@ Answer as Karaya:`;
           </div>
           <div style="font-size:12.5px;font-weight:700;line-height:1.35;">${o.label}</div>
           <div style="font-size:9.5px;color:var(--ink-soft);">${o.use}</div>
+          <div class="vis-stat"><span>Gross floor area</span><b>${o.gfa.toLocaleString()} sqm</b></div>
           <div class="vis-stat"><span>Total dev. cost</span><b>QAR ${o.totalCost.toFixed(0)}M</b></div>
           <div class="vis-stat"><span>Stabilised NOI</span><b>QAR ${o.noi.toFixed(1)}M</b></div>
+          <div class="vis-stat"><span>Stabilised value</span><b>QAR ${o.stabValue.toFixed(0)}M</b></div>
           <div class="vis-stat"><span>Yield on cost</span><b>${o.yoc.toFixed(1)}%</b></div>
-          <div class="vis-stat" style="border-bottom:none;"><span>Indicative IRR</span><b style="color:${o.key===best.key?'#15803d':'var(--ink)'};">${o.irr.toFixed(1)}%</b></div>
+          <div class="vis-stat"><span>Development margin</span><b>${o.margin.toFixed(0)}%</b></div>
+          <div class="vis-stat"><span>Unlevered IRR / multiple</span><b style="color:${o.key===best.key?'#15803d':'var(--ink)'};">${o.irr.toFixed(1)}% / ${o.multiple.toFixed(2)}x</b></div>
+          <div class="vis-stat" style="border-bottom:none;"><span>Levered IRR / multiple (65% LTC)</span><b style="color:${o.key===best.key?'#15803d':'var(--ink)'};">${o.lev.irr.toFixed(1)}% / ${o.lev.multiple.toFixed(2)}x</b></div>
           <div class="wf-cta" style="margin-top:2px;">Explore this option →</div>
         </div>`).join('')}
       </div>
       <div class="wf-narr"><div class="wf-narr-lbl">Karaya · highest and best use read</div><div class="wfvis-narr"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div></div>`;
-    const prompt=`You are Karaya. You just ran a highest-and-best-use screen on ${s.name} (${s.district}, ${s.landArea.toLocaleString()} sqm plot, ${s.far}x FAR, ${s.maxFloors} floor max) against zoning and live rental/transaction comps. Options tested: ${opts.map(o=>`${o.label} — ${o.irr.toFixed(1)}% IRR, ${o.yoc.toFixed(1)}% yield on cost`).join('; ')}. The best is ${best.label} at ${best.irr.toFixed(1)}% IRR. In 2 sentences (max 45 words) give the committee read and the reason ${best.label} wins here. Plain text, **bold** the key figures.`;
-    const fallback=`**${best.label}** clears the other two options at a **${best.irr.toFixed(1)}%** indicative unlevered IRR against **${best.yoc.toFixed(1)}%** yield-on-cost — the strongest read against this district's comps and the ${s.zoning} envelope. Open it to build the full financial model.`;
+    const prompt=`You are Karaya. You just ran a highest-and-best-use screen on ${s.name} (${s.district}, ${s.landArea.toLocaleString()} sqm plot, ${s.far}x FAR, ${s.maxFloors} floor max) against zoning and live rental/transaction comps. Options tested: ${opts.map(o=>`${o.label} — QAR ${o.totalCost.toFixed(0)}M cost, ${o.margin.toFixed(0)}% margin, ${o.irr.toFixed(1)}% unlevered IRR (${o.lev.irr.toFixed(1)}% levered at 65% LTC)`).join('; ')}. The best is ${best.label} at ${best.irr.toFixed(1)}% unlevered / ${best.lev.irr.toFixed(1)}% levered IRR. In 2 sentences (max 45 words) give the committee read and the reason ${best.label} wins here. Plain text, **bold** the key figures.`;
+    const fallback=`**${best.label}** clears the other two options at a **${best.irr.toFixed(1)}%** unlevered IRR (**${best.lev.irr.toFixed(1)}%** levered at 65% LTC) against **${best.yoc.toFixed(1)}%** yield-on-cost and a **${best.margin.toFixed(0)}%** margin on cost — the strongest read against this district's comps and the ${s.zoning} envelope. Open it to build the full financial model.`;
     const narr=slot.querySelector('.wfvis-narr');
     (async()=>{ try{ await karayaStreamInto(narr, prompt, 'quick_insight', fallback); }catch(e){ narr.innerHTML=fmtKaraya(fallback); } })();
   }
@@ -21254,7 +21258,6 @@ Answer as Karaya:`;
             <span><span style="display:block;font-size:11.5px;font-weight:700;">Financial Model</span><span style="display:block;font-size:9.5px;color:var(--ink-soft);">Build the full development appraisal as a live Bohio workbook</span></span>
           </button>
         </div>
-        <div id="wfvis-model-slot"></div>
       </div>`;
     const prompt=`You are Karaya. The user is drilling into "${a.label}" at ${s.name} (${s.district}) — ${o.gfa.toLocaleString()} sqm GFA, QAR ${o.totalCost.toFixed(0)}M total development cost (QAR ${lev.loanAmt.toFixed(0)}M debt at 65% LTC, QAR ${lev.equityAmt.toFixed(0)}M equity), QAR ${o.noi.toFixed(1)}M stabilised NOI, ${o.yoc.toFixed(1)}% yield on cost against a ${a.cap.toFixed(1)}% exit cap, ${o.irr.toFixed(1)}% unlevered IRR and ${lev.irr.toFixed(1)}% levered IRR (${lev.multiple.toFixed(2)}x equity multiple). A 100bps adverse cap move takes the unlevered IRR to ${sens.grid[1][4].toFixed(1)}%. In 2 sentences (max 45 words), name the single biggest swing factor in this appraisal and what to verify before committing capital. Plain text, **bold** the key figures.`;
     const fallback=`The **${a.cap.toFixed(1)}%** exit cap versus **${o.yoc.toFixed(1)}%** yield-on-cost is the swing factor — leverage lifts the equity return to **${lev.irr.toFixed(1)}%** (**${lev.multiple.toFixed(2)}x**), but a 100bps adverse cap move cuts the unlevered IRR to **${sens.grid[1][4].toFixed(1)}%**. Before committing, verify the achievable rent against a signed pre-let or letter of intent, not just the district comp.`;
@@ -21433,9 +21436,11 @@ Answer as Karaya:`;
     const doc={type:'XLSX', name, version:'v.02 · Karaya-generated', updated:'Just now · Karaya', isGenerated:true, _userAdded:true, wbData:wb,
       notes:'Highest & best use development appraisal built by Karaya from the zoning envelope and district rental/transaction comps, with a full development budget, 65% LTC capital structure and IRR sensitivity.'};
     const did='vis_'+Date.now(); _wfVisDocs[did]=doc;
-    const slot=document.getElementById('wfvis-model-slot'); if(!slot) return;
-    slot.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-top:12px;font-size:11px;line-height:1.6;">✓ Built <b>${name}</b> — 7 tabs (Site &amp; Zoning · Assumptions · Development Budget · Capital Structure · Development Appraisal · Sensitivity · Returns) with live formulas, a 65% LTC debt structure and IRR sensitivity.
-      <button class="wf-btn" style="margin-top:10px;display:block;" onclick="closeWorkflow();currentProject=null;openEditor(_wfVisDocs['${did}'])">Open as a Bohio model →</button></div>`;
+    // one click, like the other two deliverables — build then open immediately,
+    // rather than leaving a second "Open" button that's easy to miss/mistake for "nothing happened"
+    closeWorkflow();
+    currentProject=null;
+    openEditor(doc);
   }
 
   function _wfEnsureOverlay(){
