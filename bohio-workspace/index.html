@@ -134,6 +134,28 @@
 .wf-pill.g { background:rgba(21,128,61,0.12); color:#15803d; }
 .wf-pill.a { background:rgba(180,83,9,0.12); color:#b45309; }
 .wf-pill.r { background:rgba(181,30,59,0.12); color:#b51e3b; }
+/* ===== Feasibility — Doha map + HBU option cards ===== */
+.vis-map-wrap { position:relative; width:100%; aspect-ratio:16/9.5; border-radius:18px; overflow:hidden; border:1px solid var(--ink-hairline); margin-bottom:16px; background:#ece5d3; }
+.vis-map-wrap svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.vis-pin { position:absolute; transform:translate(-50%,-50%); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:5px; font-family:inherit; background:none; border:none; padding:0; z-index:2; }
+.vis-pin .vis-dot { width:16px; height:16px; border-radius:50%; border:3px solid #fff; box-shadow:0 3px 10px rgba(0,9,25,0.35); transition:transform .15s ease; }
+.vis-pin:hover .vis-dot { transform:scale(1.22); }
+.vis-pin .vis-lbl { font-size:8.5px; font-weight:700; letter-spacing:0.03em; color:#000919; background:rgba(255,255,255,0.92); padding:2px 8px; border-radius:999px; white-space:nowrap; }
+.vis-sitecard { display:flex; align-items:center; gap:11px; border:1px solid var(--ink-hairline); border-radius:12px; padding:11px 13px; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease; font-family:inherit; text-align:left; background:var(--paper); width:100%; }
+.vis-sitecard:hover { border-color:var(--ink); box-shadow:0 6px 18px rgba(0,9,25,0.08); }
+.vis-optcard { border:1px solid var(--ink-hairline); border-radius:16px; padding:16px 17px; cursor:pointer; transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease; display:flex; flex-direction:column; gap:8px; text-align:left; font-family:inherit; background:var(--paper); }
+.vis-optcard:hover { transform:translateY(-3px); box-shadow:0 14px 30px rgba(0,9,25,0.10); border-color:var(--ink); }
+.vis-stat { display:flex; justify-content:space-between; gap:10px; font-size:10.5px; padding:5px 0; border-bottom:1px solid rgba(0,9,25,0.06); }
+.vis-stat b { font-variant-numeric:tabular-nums; text-align:right; }
+/* ===== Financial reporting — input → prompt → generate → output pipeline ===== */
+.rep-flow { display:flex; align-items:stretch; gap:9px; margin-bottom:10px; overflow-x:auto; }
+.rep-flow-box { flex:1; min-width:150px; border:1px solid var(--ink-hairline); border-radius:14px; padding:12px 13px; background:rgba(0,9,25,0.02); }
+.rep-flow-box.active { background:var(--ink); border-color:var(--ink); }
+.rep-flow-box.active .rep-flow-lbl, .rep-flow-box.active .rep-flow-txt { color:var(--bg); }
+.rep-flow-lbl { font-size:8px; letter-spacing:0.2em; text-transform:uppercase; font-weight:700; color:var(--ink-soft); margin-bottom:5px; }
+.rep-flow-txt { font-size:9.5px; line-height:1.5; color:var(--ink); }
+.rep-flow-arrow { display:flex; align-items:center; font-size:14px; color:var(--ink-soft); flex-shrink:0; }
+.rep-flow-loop { font-size:9px; letter-spacing:0.05em; color:var(--ink-soft); border:1px dashed var(--ink-hairline); border-radius:999px; padding:5px 14px; }
 /* ===== Sheet zoom controls ===== */
 .zoom-ctl { display:inline-flex; align-items:center; gap:5px; margin-left:10px; flex-shrink:0; }
 .zoom-btn { width:22px; height:22px; border-radius:50%; border:1px solid var(--ink-hairline); background:transparent; color:var(--ink); font-family:inherit; font-size:13px; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; transition:all .15s ease; }
@@ -10317,7 +10339,7 @@
 
       <!-- ============ BOHIO AUTOMATES — 5 workflows ============ -->
       <div class="section-header"><h2 class="section-title">Bohio Workflows</h2>
-        <span class="section-meta">Seven AI workflows · click any to run it live</span></div>
+        <span class="section-meta">Eight AI workflows · click any to run it live</span></div>
       <div class="wf-grid" id="wf-grid">
         <button class="wf-card" onclick="runWorkflow('ingest')">
           <div class="wf-n">01</div><div class="wf-h">Valuation</div>
@@ -10333,7 +10355,7 @@
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('reporting')">
           <div class="wf-n">04</div><div class="wf-h">Drafts partner &amp; co-investor reporting</div>
-          <div class="wf-d">A chat interface for reporting — ask "give me opex, capex &amp; revenue for each of our assets in a dashboard" and Karaya assembles it from the live data, exportable to Excel.</div>
+          <div class="wf-d">Pick a report type, the data to include and a cadence — or ask in plain language — and Karaya assembles it live from Finance, Property Management &amp; Market Data, across the Saudi or Qatar portfolio, exportable to Excel.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('appreciation')">
           <div class="wf-n">05</div><div class="wf-h">Financial modelling</div>
@@ -10346,6 +10368,10 @@
         <button class="wf-card" onclick="runWorkflow('fundmgmt')">
           <div class="wf-n">07</div><div class="wf-h">Fund management</div>
           <div class="wf-d">Every active fund as a tile — press one to open its structure (GP/LP commitments &amp; terms), live approval processes, stakeholders and open topics.</div>
+          <div class="wf-cta">Run workflow →</div></button>
+        <button class="wf-card" onclick="runWorkflow('visibility')">
+          <div class="wf-n">08</div><div class="wf-h">Feasibility</div>
+          <div class="wf-d">Pick a site on the map of Doha — Karaya screens the zoning envelope and live rental &amp; transaction comps for three highest-and-best-use options, then builds the full financial model for the one you choose.</div>
           <div class="wf-cta">Run workflow →</div></button>
       </div>
 
@@ -19491,13 +19517,20 @@ Answer as Karaya:`;
       fullscreen:true,
       custom(modal, cfg){ _wfFundList(modal, cfg); }
     },
+    visibility: {
+      eyebrow:'Workflow 08', title:'Feasibility',
+      sub:'Pick a site in Doha — Karaya screens zoning & comps for the highest and best use, then builds the model',
+      fullscreen:true,
+      custom(modal, cfg){ _wfVisMap(modal, cfg); }
+    },
   };
 
-  // ===== WORKFLOW 04 — INVESTOR REPORTING AS A CHATBOT =====
-  // Ask in plain language ("give me opex/capex and revenue for each of our
-  // assets in a dashboard") and Karaya assembles the dashboard from the live
-  // per-asset data — stat tiles, a per-asset table, a streamed read, and a
-  // one-click .xls of exactly what you asked for.
+  // ===== WORKFLOW 04 — PARTNER & CO-INVESTOR REPORTING =====
+  // Mirrors the reporting pipeline: input data (live Finance/PM/Market Data
+  // integrations) → a prompt, or a structured report-type/data/cadence picker
+  // → Karaya generates the report → the final output, exportable — with a
+  // feedback/rework loop that regenerates instantly. Two portfolios: Saudi
+  // Arabia (SAR) and Qatar (QAR).
   const WF_REP_ASSETS=[
     // name, revenue, opex, capex, noi, invested, nav, irr%, moic, occ%
     {name:'Marina Tower',       revenue:17.3, opex:5.0, capex:8.2, noi:12.3, invested:180, nav:214, irr:18.1, moic:1.19, occ:93},
@@ -19506,6 +19539,13 @@ Answer as Karaya:`;
     {name:'Olaya Block',        revenue:8.2,  opex:2.6, capex:1.8, noi:5.6,  invested:74,  nav:79,  irr:11.2, moic:1.07, occ:90},
     {name:'Andalus Quarter',    revenue:3.1,  opex:1.2, capex:9.5, noi:1.9,  invested:40,  nav:43,  irr:8.1,  moic:1.06, occ:76},
     {name:'Nahdah Logistics',   revenue:6.4,  opex:1.7, capex:0.9, noi:4.7,  invested:58,  nav:71,  irr:19.8, moic:1.22, occ:97},
+  ];
+  const WF_REP_ASSETS_QA=[
+    {name:'West Bay Tower',      revenue:15.6, opex:4.6, capex:6.0,  noi:11.0, invested:150, nav:181, irr:16.4, moic:1.21, occ:94},
+    {name:'Pearl Residences',    revenue:12.9, opex:3.5, capex:4.2,  noi:9.4,  invested:120, nav:139, irr:14.2, moic:1.16, occ:92},
+    {name:'Lusail Waterfront',   revenue:9.8,  opex:2.7, capex:11.4, noi:7.1,  invested:145, nav:158, irr:12.6, moic:1.09, occ:88},
+    {name:'Msheireb Quarter',    revenue:7.4,  opex:2.0, capex:1.4,  noi:5.4,  invested:62,  nav:74,  irr:17.9, moic:1.19, occ:96},
+    {name:'Al Sadd Retail Park', revenue:5.2,  opex:1.6, capex:0.8,  noi:3.6,  invested:38,  nav:44,  irr:15.1, moic:1.16, occ:90},
   ];
   const WF_REP_METRICS=[
     {k:'revenue',  h:'Revenue',   unit:'SAR M', re:/revenue|income|topline|turnover/i, sum:true},
@@ -19519,6 +19559,12 @@ Answer as Karaya:`;
     {k:'occ',      h:'Occupancy', unit:'%',     re:/occupanc/i, sum:false},
   ];
   let _wfRepLast=null;
+  let _wfRepPortfolio='sa';
+  function _wfRepAssets(){ return _wfRepPortfolio==='qa' ? WF_REP_ASSETS_QA : WF_REP_ASSETS; }
+  function _wfRepCcy(){ return _wfRepPortfolio==='qa' ? 'QAR' : 'SAR'; }
+  function _wfRepPortfolioName(){ return _wfRepPortfolio==='qa' ? 'Qatar portfolio' : 'Saudi Arabia portfolio'; }
+  function _wfRepCadenceLabel(c){ return {once:'One-time', weekly:'Weekly', monthly:'Monthly', quarterly:'Quarterly'}[c] || 'One-time'; }
+  function _wfRepSetPortfolio(v){ _wfRepPortfolio=(v==='qa')?'qa':'sa'; }
   function _wfReportingChat(modal, cfg){
     modal.innerHTML=`
       <div class="wf-head">
@@ -19529,11 +19575,61 @@ Answer as Karaya:`;
         </div>
         <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
       </div>
-      <div class="wf-body" id="wfrep-msgs" style="display:flex;flex-direction:column;gap:12px;min-height:320px;"></div>
-      <div style="display:flex;gap:8px;padding:14px 24px;border-top:1px solid var(--ink-hairline);">
-        <input id="wfrep-input" placeholder="e.g. give me opex, capex and revenue for each of our assets in a dashboard" style="flex:1;box-sizing:border-box;padding:11px 14px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfRepSend()">
-        <button class="wf-btn" onclick="_wfRepSend()">Ask</button>
+      <div class="wf-body" style="display:flex;flex-direction:column;">
+        <div class="rep-flow">
+          <div class="rep-flow-box"><div class="rep-flow-lbl">Input data</div><div class="rep-flow-txt">Live integration — Finance (ERP), Property Management (Yardi), Market Data (Paseetah)</div></div>
+          <div class="rep-flow-arrow">→</div>
+          <div class="rep-flow-box"><div class="rep-flow-lbl">Prompt</div><div class="rep-flow-txt">Select the report type &amp; data to include. Choose a cadence to make it recurring.</div></div>
+          <div class="rep-flow-arrow">→</div>
+          <div class="rep-flow-box active"><div class="rep-flow-lbl">Karaya generates</div><div class="rep-flow-txt">Assembles the report live from the connected systems.</div></div>
+          <div class="rep-flow-arrow">→</div>
+          <div class="rep-flow-box"><div class="rep-flow-lbl">Final output</div><div class="rep-flow-txt">Dashboard, ready to send or export.</div></div>
+        </div>
+        <div style="display:flex;justify-content:center;margin:1px 0 16px;">
+          <span class="rep-flow-loop">⟲ User feedback &amp; rework loops straight back into generation</span>
+        </div>
+        <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:14px 16px;margin-bottom:14px;">
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:170px;">
+              <div class="rep-flow-lbl" style="margin-bottom:6px;">Portfolio</div>
+              <select id="wfrep-portfolio" onchange="_wfRepSetPortfolio(this.value)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;">
+                <option value="sa">Saudi Arabia portfolio (SAR)</option>
+                <option value="qa">Qatar portfolio (QAR)</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:170px;">
+              <div class="rep-flow-lbl" style="margin-bottom:6px;">Report type</div>
+              <select id="wfrep-type" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;">
+                <option>Co-investor quarterly pack</option>
+                <option>Asset performance dashboard</option>
+                <option>NAV &amp; returns summary</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:140px;">
+              <div class="rep-flow-lbl" style="margin-bottom:6px;">Cadence</div>
+              <select id="wfrep-cadence" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;">
+                <option value="once">One-time</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="rep-flow-lbl" style="margin-bottom:6px;">Data to include</div>
+            <div id="wfrep-metrics" style="display:flex;gap:12px;flex-wrap:wrap;">
+              ${WF_REP_METRICS.map(m=>`<label style="display:flex;align-items:center;gap:5px;font-size:10.5px;cursor:pointer;"><input type="checkbox" value="${m.k}" ${['invested','nav','moic','irr'].includes(m.k)?'checked':''}>${m.h}</label>`).join('')}
+            </div>
+          </div>
+          <button class="wf-btn" style="margin-top:13px;" onclick="_wfRepGenerate()">✦ Generate report</button>
+        </div>
+        <div id="wfrep-msgs" style="display:flex;flex-direction:column;gap:12px;flex:1;"></div>
+        <div style="display:flex;gap:8px;padding:14px 0 4px;border-top:1px solid var(--ink-hairline);margin-top:14px;">
+          <input id="wfrep-input" placeholder="or ask in plain language — e.g. give me opex, capex and revenue for each of our assets" style="flex:1;box-sizing:border-box;padding:11px 14px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfRepSend()">
+          <button class="wf-btn ghost" onclick="_wfRepSend()">Ask</button>
+        </div>
       </div>`;
+    const psel=modal.querySelector('#wfrep-portfolio'); if(psel) psel.value=_wfRepPortfolio;
     const msgs=modal.querySelector('#wfrep-msgs');
     const chips=[
       'Give me opex, capex and revenue for each of our assets in a dashboard',
@@ -19542,8 +19638,17 @@ Answer as Karaya:`;
     ].map(c=>`<button onclick="document.getElementById('wfrep-input').value='${c.replace(/'/g,"\\'")}';_wfRepSend()" style="display:block;width:100%;text-align:left;font-family:inherit;font-size:10.5px;letter-spacing:0.03em;background:rgba(0,9,25,0.04);border:1px solid var(--ink-hairline);border-radius:10px;padding:9px 12px;margin-top:6px;cursor:pointer;color:var(--ink);">${c}</button>`).join('');
     msgs.innerHTML=`<div style="background:rgba(0,9,25,0.03);border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;font-size:11.5px;line-height:1.65;">
       <div style="font-size:7px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:6px;">Karaya · investor reporting</div>
-      Ask for any reporting pack in plain language — name the metrics (revenue, opex, capex, NOI, invested, NAV, IRR, MOIC, occupancy) and I'll assemble a live dashboard per asset with the fund roll-up, ready to send or export.${chips}</div>`;
-    setTimeout(()=>{ const i=document.getElementById('wfrep-input'); if(i) i.focus(); },80);
+      Pick a portfolio, report type, the data to include and a cadence above, or ask for any pack in plain language below.${chips}</div>`;
+  }
+  function _wfRepGenerate(){
+    const typeSel=document.getElementById('wfrep-type'), cadSel=document.getElementById('wfrep-cadence');
+    const reportType=typeSel?typeSel.value:'Co-investor quarterly pack';
+    const cadence=cadSel?cadSel.value:'once';
+    const checked=[...document.querySelectorAll('#wfrep-metrics input:checked')].map(c=>c.value);
+    let picks=WF_REP_METRICS.filter(m=>checked.includes(m.k));
+    if(!picks.length) picks=WF_REP_METRICS.filter(m=>['invested','nav','moic','irr'].includes(m.k));
+    if(picks.length>6) picks=picks.slice(0,6);
+    _wfRepRunPipeline(picks, {reportType, cadence});
   }
   function _wfRepSend(){
     const input=document.getElementById('wfrep-input'); if(!input) return;
@@ -19557,53 +19662,96 @@ Answer as Karaya:`;
     if(picks.length<2 && /\b(pack|quarterly|report(ing)?)\b/i.test(q)) picks=[];
     if(!picks.length) picks=WF_REP_METRICS.filter(m=>['invested','nav','moic','irr'].includes(m.k));
     if(picks.length>5) picks=picks.slice(0,5);
-    _wfRepLast={picks, q};
+    const cadence=/\bweekly\b/i.test(q)?'weekly':/\bmonthly\b/i.test(q)?'monthly':/\bquarterly\b/i.test(q)?'quarterly':'once';
+    _wfRepRunPipeline(picks, {q, cadence}, true);
+  }
+  // Shared pipeline: (1) show what's being generated, (2) a brief "Karaya
+  // generates" beat, (3) reveal the final output with export + rework chips
+  // that loop straight back into step (1) — mirrors the reporting diagram.
+  function _wfRepRunPipeline(picks, meta, skipRequestBubble){
+    _wfRepLast={picks, meta};
+    const msgs=document.getElementById('wfrep-msgs'); if(!msgs) return;
+    if(!skipRequestBubble){
+      msgs.insertAdjacentHTML('beforeend',`<div style="align-self:flex-end;max-width:86%;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;font-size:11.5px;line-height:1.55;">Generate: <b>${meta.reportType||'Reporting pack'}</b> · ${picks.map(m=>m.h).join(', ')} · ${_wfRepCadenceLabel(meta.cadence)} · ${_wfRepPortfolioName()}</div>`);
+    }
+    const genId='wfrep-gen-'+Math.random().toString(36).slice(2);
+    msgs.insertAdjacentHTML('beforeend',`<div id="${genId}" style="border:1px solid var(--ink-hairline);border-radius:14px;padding:13px 15px;font-size:10.5px;color:var(--ink-soft);display:flex;align-items:center;gap:9px;"><span class="wf-spin"></span> Karaya is generating the report from Finance, Property Management and Market Data…</div>`);
+    msgs.scrollTop=msgs.scrollHeight;
+    setTimeout(()=>_wfRepReveal(genId, picks, meta), 900);
+  }
+  function _wfRepReveal(genId, picks, meta){
+    const gen=document.getElementById(genId); if(gen) gen.remove();
+    const msgs=document.getElementById('wfrep-msgs'); if(!msgs) return;
+    const assets=_wfRepAssets(), ccy=_wfRepCcy();
     const fmt=(m,v)=> m.unit==='%' ? v.toFixed(1)+'%' : m.unit==='x' ? v.toFixed(2)+'x' : v.toFixed(1);
-    // stat tiles: portfolio totals for summable metrics (up to 3)
     const tiles=picks.filter(m=>m.sum).slice(0,3).map(m=>{
-      const tot=WF_REP_ASSETS.reduce((a,x)=>a+x[m.k],0);
+      const tot=assets.reduce((a,x)=>a+x[m.k],0);
       return `<div style="flex:1;min-width:110px;border:1px solid var(--ink-hairline);border-radius:12px;padding:11px 13px;">
         <div style="font-size:7.5px;letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${m.h} · portfolio</div>
-        <div style="font-size:19px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums;">SAR ${tot.toFixed(1)}M</div>
+        <div style="font-size:19px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums;">${ccy} ${tot.toFixed(1)}M</div>
       </div>`;
     }).join('');
-    const head=picks.map(m=>`<th>${m.h}${m.unit==='SAR M'?' (SAR M)':''}</th>`).join('');
-    const body=WF_REP_ASSETS.map(a=>`<tr><td>${a.name}</td>${picks.map(m=>`<td style="font-variant-numeric:tabular-nums;">${fmt(m,a[m.k])}</td>`).join('')}</tr>`).join('');
-    const tot=`<tr style="border-top:2px solid var(--ink);"><td style="font-weight:700;">Portfolio</td>${picks.map(m=>{
-      if(m.sum){ const t=WF_REP_ASSETS.reduce((s,x)=>s+x[m.k],0); return `<td style="font-weight:700;font-variant-numeric:tabular-nums;">${fmt(m,t)}</td>`; }
-      const w=WF_REP_ASSETS.reduce((s,x)=>s+x[m.k]*x.invested,0)/WF_REP_ASSETS.reduce((s,x)=>s+x.invested,0);
+    const head=picks.map(m=>`<th>${m.h}${m.sum?' ('+ccy+' M)':''}</th>`).join('');
+    const body=assets.map(a=>`<tr><td>${a.name}</td>${picks.map(m=>`<td style="font-variant-numeric:tabular-nums;">${fmt(m,a[m.k])}</td>`).join('')}</tr>`).join('');
+    const totRow=`<tr style="border-top:2px solid var(--ink);"><td style="font-weight:700;">Portfolio</td>${picks.map(m=>{
+      if(m.sum){ const t=assets.reduce((s,x)=>s+x[m.k],0); return `<td style="font-weight:700;font-variant-numeric:tabular-nums;">${fmt(m,t)}</td>`; }
+      const w=assets.reduce((s,x)=>s+x[m.k]*x.invested,0)/assets.reduce((s,x)=>s+x.invested,0);
       return `<td style="font-weight:700;font-variant-numeric:tabular-nums;">${fmt(m,w)}</td>`;
     }).join('')}</tr>`;
+    const cadence=meta.cadence||'once';
+    const cadenceNote = cadence==='once' ? '' : `<div style="font-size:9.5px;color:var(--ink-soft);margin-top:9px;">↻ Recurring — scheduled ${_wfRepCadenceLabel(cadence).toLowerCase()}, next report generated automatically and sent to the same distribution list.</div>`;
     msgs.insertAdjacentHTML('beforeend',`<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
-        <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Dashboard — ${picks.map(m=>m.h).join(' · ')} per asset</div>
+        <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${_wfRepPortfolioName()} — ${picks.map(m=>m.h).join(' · ')} per asset</div>
         <button class="wf-btn ghost" style="padding:6px 13px;" onclick="_wfRepDownload()">Export .xls</button>
       </div>
       ${tiles?`<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:11px;">${tiles}</div>`:''}
-      <div class="wf-art" style="margin-top:0;"><table><thead><tr><th>Asset</th>${head}</tr></thead><tbody>${body}${tot}</tbody></table></div>
+      <div class="wf-art" style="margin-top:0;"><table><thead><tr><th>Asset</th>${head}</tr></thead><tbody>${body}${totRow}</tbody></table></div>
+      ${cadenceNote}
       <div class="wf-narr" style="margin-top:12px;"><div class="wf-narr-lbl">Karaya · the read</div><div class="wfrep-narr"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:11px;">
+        <button class="wf-btn ghost" style="padding:6px 12px;" onclick="_wfRepRework('addmetric','occ')">+ Add occupancy</button>
+        <button class="wf-btn ghost" style="padding:6px 12px;" onclick="_wfRepRework('cadence','quarterly')">↻ Make it quarterly</button>
+        <button class="wf-btn ghost" style="padding:6px 12px;" onclick="_wfRepRework('portfolio','${_wfRepPortfolio==='qa'?'sa':'qa'}')">⇄ Switch to the ${_wfRepPortfolio==='qa'?'Saudi':'Qatar'} portfolio</button>
+      </div>
     </div>`);
     msgs.scrollTop=msgs.scrollHeight;
-    // grounded read, streamed — offline fallback computed from the same data
-    const sums=picks.filter(m=>m.sum).map(m=>m.h+' SAR '+WF_REP_ASSETS.reduce((a,x)=>a+x[m.k],0).toFixed(1)+'M').join(', ');
-    const hi=WF_REP_ASSETS.reduce((a,b)=>a.irr>b.irr?a:b), lo=WF_REP_ASSETS.reduce((a,b)=>a.irr<b.irr?a:b);
-    const prompt=`You are Karaya assembling an investor-reporting dashboard. The user asked: "${q}". Portfolio (6 assets): ${sums||'returns pack'}; best performer ${hi.name} (${hi.irr}% IRR, ${hi.moic}x), weakest ${lo.name} (${lo.irr}%, ${lo.moic}x). In 2 sentences (max 45 words) give the read on what the dashboard shows. Plain text, **bold** key figures.`;
+    const title=meta.reportType || meta.q || 'Reporting pack';
+    const sums=picks.filter(m=>m.sum).map(m=>m.h+' '+ccy+' '+assets.reduce((a,x)=>a+x[m.k],0).toFixed(1)+'M').join(', ');
+    const hi=assets.reduce((a,b)=>a.irr>b.irr?a:b), lo=assets.reduce((a,b)=>a.irr<b.irr?a:b);
+    const prompt=`You are Karaya assembling an investor-reporting dashboard for the ${_wfRepPortfolioName()}. The request: "${title}". Portfolio (${assets.length} assets): ${sums||'returns pack'}; best performer ${hi.name} (${hi.irr}% IRR, ${hi.moic}x), weakest ${lo.name} (${lo.irr}%, ${lo.moic}x). In 2 sentences (max 45 words) give the read on what the dashboard shows. Plain text, **bold** key figures.`;
     const fallback=`${sums?('Across the portfolio: **'+sums+'**. '):''}**${hi.name}** leads at **${hi.irr}%** IRR (${hi.moic}x) while **${lo.name}** trails at ${lo.irr}% — the capex-heavy development phase explains most of the gap.`;
-    const narr=msgs.querySelector('.wfrep-narr:last-of-type')||[...msgs.querySelectorAll('.wfrep-narr')].pop();
+    const narr=[...msgs.querySelectorAll('.wfrep-narr')].pop();
     (async()=>{ try{ await karayaStreamInto(narr, prompt, 'quick_insight', fallback); }catch(e){ narr.innerHTML=fmtKaraya(fallback); } })();
+  }
+  // "User feedback & rework" — loops straight back into generation with the
+  // adjustment applied, exactly as drawn in the reporting-pipeline diagram.
+  function _wfRepRework(kind, val){
+    if(!_wfRepLast) return;
+    let picks=_wfRepLast.picks.slice(); let meta=Object.assign({}, _wfRepLast.meta);
+    if(kind==='addmetric'){
+      if(!picks.some(m=>m.k===val)){ const m=WF_REP_METRICS.find(x=>x.k===val); if(m) picks.push(m); }
+    } else if(kind==='cadence'){
+      meta.cadence=val;
+      const csel=document.getElementById('wfrep-cadence'); if(csel) csel.value=val;
+    } else if(kind==='portfolio'){
+      _wfRepPortfolio=val;
+      const psel=document.getElementById('wfrep-portfolio'); if(psel) psel.value=val;
+    }
+    _wfRepRunPipeline(picks, meta, true);
   }
   function _wfRepDownload(){
     if(!_wfRepLast) return;
-    const {picks}=_wfRepLast;
+    const {picks}=_wfRepLast; const assets=_wfRepAssets(), ccy=_wfRepCcy();
     const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const cell=v=> (typeof v==='number') ? `<Cell><Data ss:Type="Number">${v}</Data></Cell>` : `<Cell><Data ss:Type="String">${esc(v)}</Data></Cell>`;
-    const rows=[['Asset',...picks.map(m=>m.h+(m.unit==='SAR M'?' (SAR M)':m.unit==='%'?' (%)':' (x)'))]]
-      .concat(WF_REP_ASSETS.map(a=>[a.name,...picks.map(m=>a[m.k])]));
+    const rows=[['Asset',...picks.map(m=>m.h+(m.sum?' ('+ccy+' M)':m.unit==='%'?' (%)':' (x)'))]]
+      .concat(assets.map(a=>[a.name,...picks.map(m=>a[m.k])]));
     const rowsXml=rows.map(r=>`<Row>${r.map(cell).join('')}</Row>`).join('');
     const xml=`<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n<Worksheet ss:Name="Investor Dashboard"><Table>${rowsXml}</Table></Worksheet>\n</Workbook>`;
     const blob=new Blob([xml],{type:'application/vnd.ms-excel'});
     const url=URL.createObjectURL(blob); const a=document.createElement('a');
-    a.href=url; a.download='Bohio_Investor_Dashboard.xls'; document.body.appendChild(a); a.click();
+    a.href=url; a.download='Bohio_Investor_Dashboard_'+(_wfRepPortfolio==='qa'?'Qatar':'Saudi')+'.xls'; document.body.appendChild(a); a.click();
     setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
   }
 
@@ -20621,6 +20769,343 @@ Answer as Karaya:`;
       : `**Rawdah Plaza** shows the widest adverse gap while **Nahdah Logistics** is beating plan. Portfolio-wide, opex discipline is the main lever — start with the two assets running hottest against their underwritten ratios.`;
     const narr=[...msgs.querySelectorAll('.wfvsa-narr')].pop();
     (async()=>{ try{ await karayaStreamInto(narr, prompt, 'quick_insight', fallback); }catch(e){ narr.innerHTML=fmtKaraya(fallback); } })();
+  }
+
+  // ===== WORKFLOW 08 — SITE VISIBILITY: map of Doha → highest & best use =====
+  // Pick a site on the map → Karaya reads the zoning envelope and district
+  // rental/transaction comps, screens three development archetypes for their
+  // highest and best use, then builds a live financial model for the option
+  // the user chooses. All figures are in Qatari Riyal (QAR).
+  const WF_VIS_SITES=[
+    { id:'westbay', name:'West Bay Plot 4A', district:'West Bay — Central Business District', col:'#009DDC', x:47, y:38,
+      landArea:8500, zoning:'CBD-1 · Central Business District', far:9.0, maxFloors:45,
+      permitted:'Office · Hotel · Serviced Residences · Ground-floor retail',
+      comps:[ {use:'Grade-A office rent', v:'QAR 1,700 / sqm / yr'}, {use:'5★ hotel ADR', v:'QAR 640 / night'}, {use:'Recent office tower sale', v:'QAR 9,200 / sqm'} ],
+      blurb:'Doha’s financial district on the Corniche — the deepest office and 5★ hospitality comps in the market, with the tightest Grade-A vacancy.',
+      archetypes:['office','hospitality','mixeduse'],
+      revPsm:{office:1550, hospitality:3050, mixeduse:1400} },
+    { id:'pearl', name:'Porto Arabia Plot 12', district:'The Pearl-Qatar', col:'#61BB46', x:63, y:19,
+      landArea:12000, zoning:'PQ-2 · Pearl Residential / Mixed-Use', far:4.5, maxFloors:20,
+      permitted:'Residential · Retail · Branded Residences · Hospitality',
+      comps:[ {use:'Waterfront apartment rent', v:'QAR 1,150 / sqm / yr'}, {use:'Apartment sale price', v:'QAR 13,500 / sqm'}, {use:'High-street retail rent', v:'QAR 1,900 / sqm / yr'} ],
+      blurb:'Man-made freehold island — the strongest residential sale comps in Doha and an established retail promenade.',
+      archetypes:['residential','mixeduse','hospitality'],
+      revPsm:{residential:1050, mixeduse:1300, hospitality:3100} },
+    { id:'lusail', name:'Marina District Parcel 7', district:'Lusail — Marina District', col:'#FDB827', x:55, y:7,
+      landArea:15000, zoning:'LMD-3 · Waterfront Mixed-Use', far:5.5, maxFloors:25,
+      permitted:'Residential (build-to-rent) · Retail · Hospitality · Mixed-use',
+      comps:[ {use:'Build-to-rent apartment rent', v:'QAR 980 / sqm / yr'}, {use:'F&B / retail rent', v:'QAR 1,600 / sqm / yr'}, {use:'Buildable land transactions', v:'QAR 4,800 / sqm'} ],
+      blurb:'Qatar’s newest master-planned city — light-rail served, the fastest-growing rental base, land still repricing upward.',
+      archetypes:['residential','mixeduse','hospitality'],
+      revPsm:{residential:900, mixeduse:1150, hospitality:2950} },
+    { id:'msheireb', name:'Msheireb Heritage Block C', district:'Msheireb Downtown Doha', col:'#963D97', x:40, y:55,
+      landArea:6000, zoning:'MDD-H · Heritage-Sensitive Downtown', far:3.8, maxFloors:12,
+      permitted:'Office · Boutique Hotel · Cultural Retail (heritage design code)',
+      comps:[ {use:'Premium office rent', v:'QAR 1,550 / sqm / yr'}, {use:'Boutique hotel ADR', v:'QAR 690 / night'}, {use:'Heritage-district retail rent', v:'QAR 2,100 / sqm / yr'} ],
+      blurb:'The restored heart of old Doha — a height-capped, design-coded district with the highest footfall retail rents in the city.',
+      archetypes:['hospitality','mixeduse','office'],
+      revPsm:{hospitality:3200, mixeduse:1450, office:1400} },
+    { id:'alsadd', name:'Al Sadd High Street Parcel', district:'Al Sadd', col:'#E03A3C', x:34, y:69,
+      landArea:9500, zoning:'AS-2 · Community Retail & Residential', far:4.0, maxFloors:18,
+      permitted:'Retail · Residential · Community / F&B',
+      comps:[ {use:'High-street retail rent', v:'QAR 1,350 / sqm / yr'}, {use:'Mid-market apartment rent', v:'QAR 850 / sqm / yr'}, {use:'Community mall anchor rent', v:'QAR 900 / sqm / yr'} ],
+      blurb:'A dense, established residential catchment inland from the Corniche — reliable mid-market retail and rental demand.',
+      archetypes:['retail','mixeduse','residential'],
+      revPsm:{retail:1000, mixeduse:950, residential:780} },
+  ];
+  const WF_VIS_ARCH={
+    office:      { label:'Grade-A Office Tower',                             glyph:'▦', use:'Office (single-use)',                              costPsm:7800, occ:92, cap:7.5, opexPct:28, eff:80 },
+    residential: { label:'Build-to-Rent Residential',                        glyph:'◫', use:'Residential (single-use)',                          costPsm:6200, occ:94, cap:6.5, opexPct:22, eff:83 },
+    mixeduse:    { label:'Mixed-Use Tower (retail podium + residential/office)', glyph:'⧉', use:'~70% residential/office + 30% retail podium',   costPsm:6900, occ:91, cap:7.0, opexPct:25, eff:81 },
+    hospitality: { label:'Serviced Residences / Boutique Hotel',              glyph:'◉', use:'Hospitality & serviced residences',                 costPsm:8600, occ:70, cap:8.0, opexPct:45, eff:75 },
+    retail:      { label:'High-Street &amp; Community Retail',               glyph:'❋', use:'Retail (single-use)',                                costPsm:5400, occ:93, cap:7.2, opexPct:18, eff:78 },
+  };
+  // Highest & best use math for one site × archetype: as-of-right GFA, priced
+  // against the district's own comps, run as an unlevered build-then-stabilise
+  // development cashflow (Y0-Y2 capex draws, Y3 lease-up, Y4 stabilised + exit).
+  function _visCompute(site, archKey){
+    const a=WF_VIS_ARCH[archKey];
+    const gfa=site.landArea*site.far;
+    const nla=gfa*a.eff/100;
+    const revPsm=site.revPsm[archKey];
+    const grossRev=nla*revPsm/1e6;
+    const revenue=grossRev*a.occ/100;
+    const noi=revenue*(1-a.opexPct/100);
+    const totalCost=gfa*a.costPsm/1e6;
+    const stabValue=noi/(a.cap/100);
+    const yoc=totalCost?noi/totalCost*100:0;
+    const margin=totalCost?(stabValue-totalCost)/totalCost*100:0;
+    const cf=[-totalCost*0.20, -totalCost*0.50, -totalCost*0.30, noi*0.60, noi*1.00+stabValue];
+    let irr=null; try{ irr=_irr(cf); }catch(e){}
+    irr=(irr==null?0:irr*100);
+    const multiple=totalCost?(cf[3]+cf[4])/totalCost:0;
+    return {gfa,nla,revenue,noi,totalCost,stabValue,yoc,margin,irr,multiple,cf};
+  }
+  function _wfVisMap(modal, cfg){
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <div class="wf-eyebrow">${cfg.eyebrow} · live</div>
+          <div class="wf-title">${cfg.title}</div>
+          <div class="wf-sub">${cfg.sub}</div>
+        </div>
+        <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+      </div>
+      <div class="wf-body">
+        <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Pick a site on the map of Doha — Karaya pulls the zoning envelope and live rental &amp; transaction comps for the district, then screens three development options for their highest and best use.</div>
+        <div class="vis-map-wrap">
+          <svg viewBox="0 0 100 62" preserveAspectRatio="none">
+            <rect width="100" height="62" fill="#ece5d3"/>
+            <path d="M100 0 L100 62 L58 62 C54 46 54 30 62 18 C70 6 84 2 100 0 Z" fill="#a8cfe0"/>
+            <path d="M100 0 L100 20 C88 22 78 28 72 20 C68 14 72 6 82 2 C88 0 94 0 100 0 Z" fill="#8fc0d6"/>
+            <g stroke="#00091914" stroke-width="0.4">
+              <line x1="0" y1="12" x2="60" y2="12"/><line x1="0" y1="24" x2="55" y2="24"/>
+              <line x1="0" y1="36" x2="50" y2="36"/><line x1="0" y1="48" x2="45" y2="48"/>
+              <line x1="14" y1="0" x2="10" y2="62"/><line x1="28" y1="0" x2="24" y2="62"/><line x1="42" y1="0" x2="38" y2="62"/>
+            </g>
+            <text x="66" y="9" font-size="3" fill="#00091955" font-family="'Courier New',monospace" letter-spacing="0.6">ARABIAN GULF</text>
+            <text x="4" y="59" font-size="2.6" fill="#00091944" font-family="'Courier New',monospace" letter-spacing="0.4">DOHA · QATAR</text>
+          </svg>
+          ${WF_VIS_SITES.map(s=>`<button class="vis-pin" style="left:${s.x}%;top:${s.y}%;" onclick="_wfVisSite('${s.id}')" title="${s.name} — ${s.district}">
+            <span class="vis-dot" style="background:${s.col};"></span>
+            <span class="vis-lbl">${s.district.replace(/^.*— /,'')}</span>
+          </button>`).join('')}
+        </div>
+        <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Or pick from the list</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">
+          ${WF_VIS_SITES.map(s=>`<div class="vis-sitecard" onclick="_wfVisSite('${s.id}')">
+            <span style="width:32px;height:32px;flex-shrink:0;border-radius:9px;background:${s.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">${(s.landArea/1000).toFixed(1)}k</span>
+            <span style="min-width:0;"><span style="display:block;font-size:11.5px;font-weight:700;">${s.name}</span><span style="display:block;font-size:9.5px;color:var(--ink-soft);">${s.district} · ${s.landArea.toLocaleString()} sqm plot</span></span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+  }
+  function _wfVisMapBack(){ const modal=document.querySelector('#wf-overlay .wf-modal'); if(modal) _wfVisMap(modal, WORKFLOWS.visibility); }
+  function _wfVisSite(id){
+    const s=WF_VIS_SITES.find(x=>x.id===id); if(!s) return;
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <div class="wf-eyebrow">Feasibility · live</div>
+          <div class="wf-title">${s.name}</div>
+          <div class="wf-sub">${s.district} · ${s.landArea.toLocaleString()} sqm plot</div>
+        </div>
+        <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+      </div>
+      <div class="wf-body">
+        <button class="wf-btn ghost" style="margin-bottom:14px;padding:7px 14px;" onclick="_wfVisMapBack()">← All sites</button>
+        <div style="font-size:11px;line-height:1.7;color:var(--ink);margin-bottom:14px;">${s.blurb}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Building regulations</div>
+            <div class="vis-stat"><span>Zoning</span><b>${s.zoning}</b></div>
+            <div class="vis-stat"><span>Plot area</span><b>${s.landArea.toLocaleString()} sqm</b></div>
+            <div class="vis-stat"><span>Max FAR</span><b>${s.far.toFixed(1)}×</b></div>
+            <div class="vis-stat"><span>Max height</span><b>${s.maxFloors} floors</b></div>
+            <div class="vis-stat" style="border-bottom:none;"><span>Permitted uses</span><b style="text-align:right;">${s.permitted}</b></div>
+          </div>
+          <div>
+            <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Rental &amp; transaction comps</div>
+            ${s.comps.map(c=>`<div class="vis-stat"><span>${c.use}</span><b>${c.v}</b></div>`).join('')}
+          </div>
+        </div>
+        <div id="wfvis-hbu-slot">
+          <button class="wf-btn" onclick="_wfVisRunHBU('${id}')">✦ Run highest &amp; best use analysis</button>
+        </div>
+      </div>`;
+  }
+  function _wfVisRunHBU(id){
+    const slot=document.getElementById('wfvis-hbu-slot'); if(!slot) return;
+    const steps=['Reading the zoning envelope &amp; permitted uses','Pulling rental &amp; transaction comps for the district','Testing office / residential / mixed-use / hospitality yields','Ranking by unlevered development IRR'];
+    slot.innerHTML=`<div class="wf-steps">${steps.map((t,i)=>`<div class="wf-step" data-i="${i}"><span class="wf-dot">${i+1}</span><span class="wf-step-lbl">${t}</span><span class="wf-src">${i<2?'Regs &amp; comps':'Karaya'}</span></div>`).join('')}</div>`;
+    const stepEls=Array.from(slot.querySelectorAll('.wf-step'));
+    let idx=0;
+    const advance=()=>{
+      if(idx>0){ const prev=stepEls[idx-1]; prev.classList.remove('active'); prev.classList.add('done'); prev.querySelector('.wf-dot').innerHTML='✓'; }
+      if(idx<stepEls.length){ const el=stepEls[idx]; el.classList.add('active'); el.querySelector('.wf-dot').innerHTML='<span class="wf-spin"></span>'; idx++; setTimeout(advance, 520+idx*70); }
+      else { _wfVisRevealOptions(id); }
+    };
+    setTimeout(advance, 200);
+  }
+  function _wfVisRevealOptions(id){
+    const s=WF_VIS_SITES.find(x=>x.id===id); if(!s) return;
+    const slot=document.getElementById('wfvis-hbu-slot'); if(!slot) return;
+    const opts=s.archetypes.map(k=>Object.assign({key:k}, WF_VIS_ARCH[k], _visCompute(s,k)));
+    const best=opts.reduce((a,b)=>b.irr>a.irr?b:a);
+    slot.innerHTML=`
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:4px 0 11px;">Highest &amp; best use — three options at this site's as-of-right envelope (${(s.landArea*s.far).toLocaleString()} sqm GFA)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px;">
+        ${opts.map(o=>`
+        <div class="vis-optcard" onclick="_wfVisOption('${id}','${o.key}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <span style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${s.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;">${o.glyph}</span>
+            ${o.key===best.key?'<span class="wf-pill g">Karaya pick</span>':''}
+          </div>
+          <div style="font-size:12.5px;font-weight:700;line-height:1.35;">${o.label}</div>
+          <div style="font-size:9.5px;color:var(--ink-soft);">${o.use}</div>
+          <div class="vis-stat"><span>Total dev. cost</span><b>QAR ${o.totalCost.toFixed(0)}M</b></div>
+          <div class="vis-stat"><span>Stabilised NOI</span><b>QAR ${o.noi.toFixed(1)}M</b></div>
+          <div class="vis-stat"><span>Yield on cost</span><b>${o.yoc.toFixed(1)}%</b></div>
+          <div class="vis-stat" style="border-bottom:none;"><span>Indicative IRR</span><b style="color:${o.key===best.key?'#15803d':'var(--ink)'};">${o.irr.toFixed(1)}%</b></div>
+          <div class="wf-cta" style="margin-top:2px;">Explore this option →</div>
+        </div>`).join('')}
+      </div>
+      <div class="wf-narr"><div class="wf-narr-lbl">Karaya · highest and best use read</div><div class="wfvis-narr"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div></div>`;
+    const prompt=`You are Karaya. You just ran a highest-and-best-use screen on ${s.name} (${s.district}, ${s.landArea.toLocaleString()} sqm plot, ${s.far}x FAR, ${s.maxFloors} floor max) against zoning and live rental/transaction comps. Options tested: ${opts.map(o=>`${o.label} — ${o.irr.toFixed(1)}% IRR, ${o.yoc.toFixed(1)}% yield on cost`).join('; ')}. The best is ${best.label} at ${best.irr.toFixed(1)}% IRR. In 2 sentences (max 45 words) give the committee read and the reason ${best.label} wins here. Plain text, **bold** the key figures.`;
+    const fallback=`**${best.label}** clears the other two options at a **${best.irr.toFixed(1)}%** indicative unlevered IRR against **${best.yoc.toFixed(1)}%** yield-on-cost — the strongest read against this district's comps and the ${s.zoning} envelope. Open it to build the full financial model.`;
+    const narr=slot.querySelector('.wfvis-narr');
+    (async()=>{ try{ await karayaStreamInto(narr, prompt, 'quick_insight', fallback); }catch(e){ narr.innerHTML=fmtKaraya(fallback); } })();
+  }
+  function _wfVisOption(id, archKey){
+    const s=WF_VIS_SITES.find(x=>x.id===id); if(!s) return;
+    const a=WF_VIS_ARCH[archKey]; const o=_visCompute(s,archKey);
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const cfLbl=['Y0','Y1','Y2','Y3 (lease-up)','Y4 (stabilised + exit)'];
+    const cfRows=o.cf.map((v,i)=>`<tr><td>${cfLbl[i]}</td><td style="font-weight:${v<0?400:700};color:${v<0?'var(--ink-soft)':'var(--ink)'};">${v<0?'-':''}QAR ${Math.abs(v).toFixed(1)}M</td></tr>`).join('');
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <div class="wf-eyebrow">Feasibility · ${s.name}</div>
+          <div class="wf-title">${a.label}</div>
+          <div class="wf-sub">${a.use} · ${o.gfa.toLocaleString()} sqm GFA at ${s.far}× FAR</div>
+        </div>
+        <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+      </div>
+      <div class="wf-body">
+        <button class="wf-btn ghost" style="margin-bottom:14px;padding:7px 14px;" onclick="_wfVisSite('${id}')">← Back to the three options</button>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px;">
+          ${[['Total dev. cost','QAR '+o.totalCost.toFixed(0)+'M'],['Stabilised NOI','QAR '+o.noi.toFixed(1)+'M'],['Yield on cost',o.yoc.toFixed(1)+'%'],['Indicative IRR',o.irr.toFixed(1)+'%'],['Equity multiple',o.multiple.toFixed(2)+'x']]
+            .map(([l,v])=>`<div style="flex:1;min-width:120px;border:1px solid var(--ink-hairline);border-radius:12px;padding:11px 13px;"><div style="font-size:7.5px;letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${l}</div><div style="font-size:18px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums;">${v}</div></div>`).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Development assumptions</div>
+            <div class="vis-stat"><span>Gross floor area</span><b>${o.gfa.toLocaleString()} sqm</b></div>
+            <div class="vis-stat"><span>Net leasable / sellable</span><b>${o.nla.toLocaleString(undefined,{maximumFractionDigits:0})} sqm (${a.eff}%)</b></div>
+            <div class="vis-stat"><span>Achievable rent (comps)</span><b>QAR ${s.revPsm[archKey].toLocaleString()} / sqm / yr</b></div>
+            <div class="vis-stat"><span>Stabilised occupancy</span><b>${a.occ}%</b></div>
+            <div class="vis-stat"><span>Opex ratio</span><b>${a.opexPct}% of revenue</b></div>
+            <div class="vis-stat"><span>All-in cost / sqm GFA</span><b>QAR ${a.costPsm.toLocaleString()}</b></div>
+            <div class="vis-stat" style="border-bottom:none;"><span>Exit cap rate</span><b>${a.cap.toFixed(1)}%</b></div>
+          </div>
+          <div>
+            <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Unlevered development cashflow</div>
+            <table><thead><tr><th style="text-align:left;">Period</th><th>Cashflow</th></tr></thead><tbody>${cfRows}</tbody></table>
+          </div>
+        </div>
+        <div class="wf-narr" style="margin-bottom:16px;"><div class="wf-narr-lbl">Karaya · what to check next</div><div class="wfvis-opt-narr"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div></div>
+        <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Deliverables</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="vis-sitecard" onclick="_wfVisFeasibility('${id}','${archKey}')">
+            <span style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${s.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">PDF</span>
+            <span><span style="display:block;font-size:11.5px;font-weight:700;">Highest &amp; Best Use Feasibility Study</span><span style="display:block;font-size:9.5px;color:var(--ink-soft);">Zoning, comps, three options tested, recommendation</span></span>
+          </button>
+          <button class="vis-sitecard" onclick="_wfVisBrief('${id}','${archKey}')">
+            <span style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${s.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">DOC</span>
+            <span><span style="display:block;font-size:11.5px;font-weight:700;">Development Brief — ${a.label}</span><span style="display:block;font-size:9.5px;color:var(--ink-soft);">Design brief, area mix, delivery timeline</span></span>
+          </button>
+          <button class="vis-sitecard" onclick="_wfVisBuildModel('${id}','${archKey}')">
+            <span style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${s.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">XLS</span>
+            <span><span style="display:block;font-size:11.5px;font-weight:700;">Financial Model</span><span style="display:block;font-size:9.5px;color:var(--ink-soft);">Build the full development appraisal as a live Bohio workbook</span></span>
+          </button>
+        </div>
+        <div id="wfvis-model-slot"></div>
+      </div>`;
+    const prompt=`You are Karaya. The user is drilling into "${a.label}" at ${s.name} (${s.district}) — ${o.gfa.toLocaleString()} sqm GFA, QAR ${o.totalCost.toFixed(0)}M total development cost, QAR ${o.noi.toFixed(1)}M stabilised NOI, ${o.yoc.toFixed(1)}% yield on cost against a ${a.cap.toFixed(1)}% exit cap, ${o.irr.toFixed(1)}% indicative unlevered IRR. In 2 sentences (max 45 words), name the single biggest swing factor in this appraisal and what to verify before committing capital. Plain text, **bold** the key figures.`;
+    const fallback=`The **${a.cap.toFixed(1)}%** exit cap versus **${o.yoc.toFixed(1)}%** yield-on-cost is the swing factor — a 50bps cap-rate move resets the exit value materially. Before committing, verify the achievable rent against a signed pre-let or letter of intent, not just the district comp.`;
+    const narrEl=modal.querySelector('.wfvis-opt-narr');
+    (async()=>{ try{ await karayaStreamInto(narrEl, prompt, 'quick_insight', fallback); }catch(e){ narrEl.innerHTML=fmtKaraya(fallback); } })();
+  }
+  function _wfVisFeasibility(id, archKey){
+    const s=WF_VIS_SITES.find(x=>x.id===id); const a=WF_VIS_ARCH[archKey]; const o=_visCompute(s,archKey);
+    const others=s.archetypes.filter(k=>k!==archKey).map(k=>{ const oa=WF_VIS_ARCH[k], oo=_visCompute(s,k); return `<li>${oa.label} — ${oo.irr.toFixed(1)}% indicative IRR, ${oo.yoc.toFixed(1)}% yield on cost</li>`; }).join('');
+    const body=`
+      <p><b>Site.</b> ${s.name}, ${s.district} — ${s.landArea.toLocaleString()} sqm plot, zoned ${s.zoning} at ${s.far}× FAR / ${s.maxFloors} floors max. Permitted uses: ${s.permitted}.</p>
+      <p><b>Method.</b> As-of-right GFA (${o.gfa.toLocaleString()} sqm) tested across three development archetypes, each priced against this district's live rental and transaction comps and a standard construction-cost and exit-cap assumption set.</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Options tested</h4>
+      <ul style="padding-left:18px;line-height:1.8;">
+        <li><b>${a.label}</b> (recommended) — ${o.irr.toFixed(1)}% indicative IRR, ${o.yoc.toFixed(1)}% yield on cost, QAR ${o.totalCost.toFixed(0)}M total development cost</li>
+        ${others}
+      </ul>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Recommendation</h4>
+      <p>Proceed with <b>${a.label}</b>. Stabilised NOI of QAR ${o.noi.toFixed(1)}M against a QAR ${o.totalCost.toFixed(0)}M cost basis and a ${a.cap.toFixed(1)}% exit cap yields a QAR ${o.stabValue.toFixed(0)}M stabilised value — a ${o.margin.toFixed(0)}% margin on cost. Firm up achievable rent with a pre-let or letter of intent before committing capital.</p>`;
+    openReadableDoc({type:'PDF', name:s.name+' — Highest & Best Use Feasibility Study', version:'v.01 · Karaya-generated', docBody:body});
+  }
+  function _wfVisBrief(id, archKey){
+    const s=WF_VIS_SITES.find(x=>x.id===id); const a=WF_VIS_ARCH[archKey]; const o=_visCompute(s,archKey);
+    const body=`
+      <p><b>Concept.</b> ${a.label} at ${s.name} — ${a.use}, ${o.gfa.toLocaleString()} sqm GFA (${o.nla.toLocaleString(undefined,{maximumFractionDigits:0})} sqm net), within the ${s.zoning} envelope (${s.far}× FAR, ${s.maxFloors} floors max).</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Area &amp; delivery</h4>
+      <ul style="padding-left:18px;line-height:1.8;">
+        <li>Gross floor area: ${o.gfa.toLocaleString()} sqm across up to ${s.maxFloors} floors</li>
+        <li>Net efficiency: ${a.eff}% (${o.nla.toLocaleString(undefined,{maximumFractionDigits:0})} sqm leasable/sellable)</li>
+        <li>Indicative delivery: 3-year construction programme, lease-up through Year 4</li>
+        <li>Target stabilised occupancy: ${a.occ}%</li>
+      </ul>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Design brief</h4>
+      <p>${s.blurb} Position the scheme against the district's achievable rent of QAR ${s.revPsm[archKey].toLocaleString()}/sqm/yr — the design should support that rent tier (finishes, amenity, F&amp;B and ground-floor activation) rather than compete on area alone.</p>`;
+    openReadableDoc({type:'DOCX', name:'Development Brief — '+a.label+' ('+s.name+')', version:'v.01 · Karaya-generated', docBody:body});
+  }
+  let _wfVisDocs={};
+  function _wfVisBuildModel(id, archKey){
+    const s=WF_VIS_SITES.find(x=>x.id===id); if(!s) return;
+    const a=WF_VIS_ARCH[archKey]; const o=_visCompute(s,archKey);
+    const f2=n=>n.toFixed(2);
+    const N=5, L=i=>String.fromCharCode(66+i);
+    const cols=['','A',...Array.from({length:N},(_,i)=>L(i))];
+    const headers=['','',...Array.from({length:N},(_,i)=>'Y'+i)];
+    const capex=[-o.totalCost*0.20,-o.totalCost*0.50,-o.totalCost*0.30,0,0];
+    const noiRamp=[0,0,0,o.noi*0.60,o.noi*1.00];
+    const exitVal=[0,0,0,0,o.stabValue];
+    const net=capex.map((c,i)=>c+noiRamp[i]+exitVal[i]);
+    const cum=[]; net.reduce((acc,v,i)=>{ cum[i]=acc+v; return cum[i]; },0);
+    const wb={
+      'Site & Zoning':{ cols:['','A','B'], headers:['','Item','Value'], rows:[
+        {cells:['1','SITE & REGULATION',''],style:'section'},
+        {cells:['2','Site',s.name],style:'data'},
+        {cells:['3','District',s.district],style:'data'},
+        {cells:['4','Plot area (sqm)',String(s.landArea)],style:'data'},
+        {cells:['5','Zoning',s.zoning],style:'data'},
+        {cells:['6','Max FAR',s.far.toFixed(1)+'x'],style:'data'},
+        {cells:['7','Max height','Up to '+s.maxFloors+' floors'],style:'data'},
+        {cells:['8','Permitted uses',s.permitted],style:'total'} ]},
+      'Assumptions':{ cols:['','A','B'], headers:['','Assumption','Value'], rows:[
+        {cells:['1','HIGHEST & BEST USE — '+a.label.replace(/&amp;/g,'&').toUpperCase(),''],style:'section'},
+        {cells:['2','Use mix',a.use],style:'data'},
+        {cells:['3','Gross floor area (sqm)',o.gfa.toFixed(0)],style:'data'},
+        {cells:['4','Net efficiency',a.eff+'%'],style:'data'},
+        {cells:['5','Net leasable/sellable (sqm)',o.nla.toFixed(0)],style:'data'},
+        {cells:['6','Achievable rent (QAR/sqm/yr)',String(s.revPsm[archKey])],style:'data'},
+        {cells:['7','Stabilised occupancy',a.occ+'%'],style:'data'},
+        {cells:['8','Opex ratio',a.opexPct+'% of revenue'],style:'data'},
+        {cells:['9','All-in cost (QAR/sqm GFA)',String(a.costPsm)],style:'data'},
+        {cells:['10','Exit cap rate',a.cap.toFixed(1)+'%'],style:'total'} ]},
+      'Development Appraisal':{ cols, headers, rows:[
+        {cells:['1','DEVELOPMENT APPRAISAL (QAR M)',...Array(N).fill('')],style:'section'},
+        {cells:['2','Capex draw',...capex.map(f2)],style:'data'},
+        {cells:['3','NOI (occupancy-ramped)',...noiRamp.map(f2)],style:'data'},
+        {cells:['4','Exit value at stabilisation',...exitVal.map(f2)],style:'data'},
+        {cells:['5','Net cashflow',...net.map(f2)],formulas:['','',...Array.from({length:N},(_,i)=>`=${L(i)}2+${L(i)}3+${L(i)}4`)],style:'total'},
+        {cells:['6','Cumulative cashflow',...cum.map(f2)],style:'data'} ]},
+      'Returns':{ cols:['','A','B'], headers:['','Metric','Value'], rows:[
+        {cells:['1','RETURNS',''],style:'section'},
+        {cells:['2','Total development cost (QAR M)',f2(o.totalCost)],style:'data'},
+        {cells:['3','Stabilised NOI (QAR M)',f2(o.noi)],style:'data'},
+        {cells:['4','Yield on cost',o.yoc.toFixed(1)+'%'],style:'data'},
+        {cells:['5','Exit cap rate',a.cap.toFixed(1)+'%'],style:'data'},
+        {cells:['6','Stabilised value (QAR M)',f2(o.stabValue)],style:'data'},
+        {cells:['7','Development margin (profit on cost)',o.margin.toFixed(0)+'%'],style:'data'},
+        {cells:['8','Indicative unlevered IRR',o.irr.toFixed(1)+'%'],style:'total'},
+        {cells:['9','Equity multiple',o.multiple.toFixed(2)+'x'],style:'total'} ]},
+    };
+    const name=s.name+' — '+a.label.replace(/&amp;/g,'&')+' (Development Appraisal)';
+    const doc={type:'XLSX', name, version:'v.01 · Karaya-generated', updated:'Just now · Karaya', isGenerated:true, _userAdded:true, wbData:wb,
+      notes:'Highest & best use development appraisal built by Karaya from the zoning envelope and district rental/transaction comps.'};
+    const did='vis_'+Date.now(); _wfVisDocs[did]=doc;
+    const slot=document.getElementById('wfvis-model-slot'); if(!slot) return;
+    slot.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-top:12px;font-size:11px;line-height:1.6;">✓ Built <b>${name}</b> — 4 tabs (Site &amp; Zoning · Assumptions · Development Appraisal · Returns) with live formulas.
+      <button class="wf-btn" style="margin-top:10px;display:block;" onclick="closeWorkflow();currentProject=null;openEditor(_wfVisDocs['${did}'])">Open as a Bohio model →</button></div>`;
   }
 
   function _wfEnsureOverlay(){
