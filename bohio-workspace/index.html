@@ -135,8 +135,11 @@
 .wf-pill.a { background:rgba(180,83,9,0.12); color:#b45309; }
 .wf-pill.r { background:rgba(181,30,59,0.12); color:#b51e3b; }
 /* ===== Feasibility — Doha map + HBU option cards ===== */
-.vis-map-wrap { position:relative; width:100%; aspect-ratio:16/9.5; border-radius:18px; overflow:hidden; border:1px solid var(--ink-hairline); margin-bottom:16px; background:#ece5d3; }
+.vis-map-wrap { position:relative; width:100%; aspect-ratio:4/3; border-radius:18px; overflow:hidden; border:1px solid var(--ink-hairline); margin-bottom:16px; background:#ece5d3; }
 .vis-map-wrap svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.vis-map-osm { position:absolute; inset:0; width:100%; height:100%; border:none; display:block; }
+.vis-map-attrib { position:absolute; right:6px; bottom:4px; z-index:3; font-size:9px; background:rgba(255,255,255,0.85); padding:2px 6px; border-radius:6px; color:#333; }
+.vis-map-attrib a { color:#333; }
 .vis-pin { position:absolute; transform:translate(-50%,-50%); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:5px; font-family:inherit; background:none; border:none; padding:0; z-index:2; }
 .vis-pin .vis-dot { width:16px; height:16px; border-radius:50%; border:3px solid #fff; box-shadow:0 3px 10px rgba(0,9,25,0.35); transition:transform .15s ease; }
 .vis-pin:hover .vis-dot { transform:scale(1.22); }
@@ -20931,35 +20934,35 @@ Answer as Karaya:`;
   // highest and best use, then builds a live financial model for the option
   // the user chooses. All figures are in Qatari Riyal (QAR).
   const WF_VIS_SITES=[
-    { id:'westbay', name:'West Bay Plot 4A', district:'West Bay — Central Business District', col:'#009DDC', x:55, y:30,
+    { id:'westbay', name:'West Bay Plot 4A', district:'West Bay — Central Business District', col:'#009DDC', lat:25.3215, lon:51.5310,
       landArea:8500, zoning:'CBD-1 · Central Business District', far:9.0, maxFloors:45,
       permitted:'Office · Hotel · Serviced Residences · Ground-floor retail',
       comps:[ {use:'Grade-A office rent', v:'QAR 1,700 / sqm / yr'}, {use:'5-star hotel ADR', v:'QAR 640 / night'}, {use:'Recent office tower sale', v:'QAR 9,200 / sqm'} ],
       blurb:'Doha’s financial district on the Corniche — the deepest office and 5-star hospitality comps in the market, with the tightest Grade-A vacancy.',
       archetypes:['office','hospitality','mixeduse'],
       revPsm:{office:1550, hospitality:3050, mixeduse:1400} },
-    { id:'pearl', name:'Porto Arabia Plot 12', district:'The Pearl-Qatar', col:'#61BB46', x:72, y:17,
+    { id:'pearl', name:'Porto Arabia Plot 12', district:'The Pearl-Qatar', col:'#61BB46', lat:25.3680, lon:51.5520,
       landArea:12000, zoning:'PQ-2 · Pearl Residential / Mixed-Use', far:4.5, maxFloors:20,
       permitted:'Residential · Retail · Branded Residences · Hospitality',
       comps:[ {use:'Waterfront apartment rent', v:'QAR 1,150 / sqm / yr'}, {use:'Apartment sale price', v:'QAR 13,500 / sqm'}, {use:'High-street retail rent', v:'QAR 1,900 / sqm / yr'} ],
       blurb:'Man-made freehold island — the strongest residential sale comps in Doha and an established retail promenade.',
       archetypes:['residential','mixeduse','hospitality'],
       revPsm:{residential:1050, mixeduse:1300, hospitality:3100} },
-    { id:'lusail', name:'Marina District Parcel 7', district:'Lusail — Marina District', col:'#FDB827', x:48, y:6,
+    { id:'lusail', name:'Marina District Parcel 7', district:'Lusail — Marina District', col:'#FDB827', lat:25.4100, lon:51.4950,
       landArea:15000, zoning:'LMD-3 · Waterfront Mixed-Use', far:5.5, maxFloors:25,
       permitted:'Residential (build-to-rent) · Retail · Hospitality · Mixed-use',
       comps:[ {use:'Build-to-rent apartment rent', v:'QAR 980 / sqm / yr'}, {use:'F&B / retail rent', v:'QAR 1,600 / sqm / yr'}, {use:'Buildable land transactions', v:'QAR 4,800 / sqm'} ],
       blurb:'Qatar’s newest master-planned city — light-rail served, the fastest-growing rental base, land still repricing upward.',
       archetypes:['residential','mixeduse','hospitality'],
       revPsm:{residential:900, mixeduse:1150, hospitality:2950} },
-    { id:'msheireb', name:'Msheireb Heritage Block C', district:'Msheireb Downtown Doha', col:'#963D97', x:47, y:47,
+    { id:'msheireb', name:'Msheireb Heritage Block C', district:'Msheireb Downtown Doha', col:'#963D97', lat:25.2865, lon:51.5295,
       landArea:6000, zoning:'MDD-H · Heritage-Sensitive Downtown', far:3.8, maxFloors:12,
       permitted:'Office · Boutique Hotel · Cultural Retail (heritage design code)',
       comps:[ {use:'Premium office rent', v:'QAR 1,550 / sqm / yr'}, {use:'Boutique hotel ADR', v:'QAR 690 / night'}, {use:'Heritage-district retail rent', v:'QAR 2,100 / sqm / yr'} ],
       blurb:'The restored heart of old Doha — a height-capped, design-coded district with the highest footfall retail rents in the city.',
       archetypes:['hospitality','mixeduse','office'],
       revPsm:{hospitality:3200, mixeduse:1450, office:1400} },
-    { id:'alsadd', name:'Al Sadd High Street Parcel', district:'Al Sadd', col:'#E03A3C', x:33, y:60,
+    { id:'alsadd', name:'Al Sadd High Street Parcel', district:'Al Sadd', col:'#E03A3C', lat:25.2801, lon:51.5090,
       landArea:9500, zoning:'AS-2 · Community Retail & Residential', far:4.0, maxFloors:18,
       permitted:'Retail · Residential · Community / F&B',
       comps:[ {use:'High-street retail rent', v:'QAR 1,350 / sqm / yr'}, {use:'Mid-market apartment rent', v:'QAR 850 / sqm / yr'}, {use:'Community mall anchor rent', v:'QAR 900 / sqm / yr'} ],
@@ -21042,7 +21045,20 @@ Answer as Karaya:`;
     }));
     return {capDeltas, costDeltas, grid};
   }
+  // Real Doha geography — a fixed bounding box (padded, and shaped to roughly
+  // match the map container's aspect ratio) plus a Web Mercator projection so
+  // site pins land on their true lat/long position over the OpenStreetMap tile.
+  const DOHA_BBOX={ minLon:51.380, minLat:25.2476, maxLon:51.667, maxLat:25.4425 };
+  function _visMercY(latDeg){ const r=latDeg*Math.PI/180; return Math.log(Math.tan(Math.PI/4+r/2)); }
+  function _visLatLonPct(lat, lon){
+    const xPct=(lon-DOHA_BBOX.minLon)/(DOHA_BBOX.maxLon-DOHA_BBOX.minLon)*100;
+    const my=_visMercY(lat), myMax=_visMercY(DOHA_BBOX.maxLat), myMin=_visMercY(DOHA_BBOX.minLat);
+    const yPct=(myMax-my)/(myMax-myMin)*100;
+    return {xPct, yPct};
+  }
   function _wfVisMap(modal, cfg){
+    const bb=DOHA_BBOX;
+    const osmSrc=`https://www.openstreetmap.org/export/embed.html?bbox=${bb.minLon}%2C${bb.minLat}%2C${bb.maxLon}%2C${bb.maxLat}&layer=mapnik`;
     modal.innerHTML=`
       <div class="wf-head">
         <div>
@@ -21055,42 +21071,12 @@ Answer as Karaya:`;
       <div class="wf-body">
         <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Pick a site on the map of Doha — Karaya pulls the zoning envelope and live rental &amp; transaction comps for the district, then screens three development options for their highest and best use.</div>
         <div class="vis-map-wrap">
-          <svg viewBox="0 0 100 62" preserveAspectRatio="none">
-            <rect width="100" height="62" fill="#ece5d3"/>
-            <!-- Doha Bay — enters north near Lusail, bulges east for The Pearl, narrows at the West Bay waist, then widens south toward Hamad International Airport (per the Ministry of Municipality zoning map) -->
-            <path d="M48,0 C60,2 68,5 72,11 C76,17 66,15 60,18 C56,20 54,24 55,29 C56,34 62,36 70,38 C78,40 85,39 92,42 C96,44 99,46 100,48 L100,0 Z" fill="#a8cfe0"/>
-            <path d="M48,0 C56,2 60,5 62,8 C63,10 60,12 57,13 L54,4 Z" fill="#8fc0d6" opacity="0.6"/>
-            <!-- Hamad International Airport -->
-            <path d="M80,32 L100,39 L100,54 L86,51 C82,46 80,39 80,32 Z" fill="#d9c8e0" opacity="0.65"/>
-            <!-- Doha Industrial Area -->
-            <path d="M4,50 L18,47 L22,55 L8,59 Z" fill="#e3b98a" opacity="0.55"/>
-            <!-- The Pearl-Qatar: petal-shaped peninsula reclaimed within the bay -->
-            <g fill="#ece5d3" stroke="#c7bfa8" stroke-width="0.3">
-              <circle cx="71" cy="10" r="4.4"/><circle cx="76" cy="7.6" r="3.1"/>
-              <circle cx="75.5" cy="13" r="2.8"/><circle cx="67.5" cy="6" r="2.4"/>
-            </g>
-            <!-- faint street grid over the urban core -->
-            <g stroke="#00091914" stroke-width="0.35">
-              <line x1="0" y1="20" x2="48" y2="19"/><line x1="0" y1="30" x2="50" y2="31"/>
-              <line x1="0" y1="40" x2="46" y2="42"/><line x1="0" y1="50" x2="36" y2="53"/>
-              <line x1="12" y1="0" x2="8" y2="60"/><line x1="26" y1="0" x2="20" y2="60"/><line x1="38" y1="2" x2="32" y2="62"/>
-            </g>
-            <!-- municipality boundaries (dashed, as on the zoning map) -->
-            <g stroke="#2f6b8c" stroke-width="0.35" stroke-dasharray="1.2,1" fill="none" opacity="0.5">
-              <path d="M0,16 C12,13 20,9 28,4 C34,1 40,0 46,0"/>
-              <path d="M4,50 C15,43 22,38 27,31 C33,24 37,16 39,7"/>
-            </g>
-            <text x="3" y="9" font-size="2.3" fill="#00091966" font-family="'Courier New',monospace" letter-spacing="0.12">UMM SLAL</text>
-            <text x="37" y="2.6" font-size="2.1" fill="#00091966" font-family="'Courier New',monospace" letter-spacing="0.08">AL DAAYEN</text>
-            <text x="4" y="35" font-size="2.3" fill="#00091966" font-family="'Courier New',monospace" letter-spacing="0.12">AL RAYYAN</text>
-            <text x="82" y="45" font-size="1.7" fill="#00091966" font-family="'Courier New',monospace" letter-spacing="0.02">HAMAD AIRPORT</text>
-            <text x="78" y="27" font-size="2.4" fill="#00091955" font-family="'Courier New',monospace" letter-spacing="0.4">ARABIAN GULF</text>
-            <text x="4" y="59" font-size="2.4" fill="#00091944" font-family="'Courier New',monospace" letter-spacing="0.35">DOHA · QATAR</text>
-          </svg>
-          ${WF_VIS_SITES.map(s=>`<button class="vis-pin" style="left:${s.x}%;top:${s.y}%;" onclick="_wfVisSite('${s.id}')" title="${s.name} — ${s.district}">
+          <iframe class="vis-map-osm" src="${osmSrc}" loading="lazy" title="Map of Doha, Qatar" referrerpolicy="no-referrer-when-downgrade"></iframe>
+          ${WF_VIS_SITES.map(s=>{ const {xPct,yPct}=_visLatLonPct(s.lat,s.lon); return `<button class="vis-pin" style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;" onclick="_wfVisSite('${s.id}')" title="${s.name} — ${s.district}">
             <span class="vis-dot" style="background:${s.col};"></span>
             <span class="vis-lbl">${s.district.replace(/^.*— /,'')}</span>
-          </button>`).join('')}
+          </button>`; }).join('')}
+          <div class="vis-map-attrib">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
         </div>
         <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Or pick from the list</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">
