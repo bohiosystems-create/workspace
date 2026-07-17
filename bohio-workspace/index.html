@@ -13711,6 +13711,7 @@ Answer as Karaya:`;
     div.childNodes.forEach(n=>{
       if(n.nodeType!==1){ const t=(n.textContent||'').trim(); if(t) blocks.push({t:'p',x:t}); return; }
       const tag=n.tagName.toLowerCase();
+      if(n.dataset&&n.dataset.chart){ try{ blocks.push({t:'chart', chart: JSON.parse(decodeURIComponent(escape(atob(n.dataset.chart))))}); }catch(e){} return; }
       if(tag==='h4') blocks.push({t:'h',x:n.textContent.trim()});
       else if(tag==='table'){ n.querySelectorAll('tr').forEach(tr=>{ const cells=[...tr.querySelectorAll('th,td')].map(c=>c.textContent.trim()); blocks.push({t:'row',x:cells.join('   |   ')}); }); blocks.push({t:'gap'}); }
       else if(tag==='ul'||tag==='ol'){ n.querySelectorAll(':scope > li').forEach(li=>{ const t=li.textContent.replace(/\s+/g,' ').trim(); if(t) blocks.push({t:'row',x:'-  '+t}); }); blocks.push({t:'gap'}); }
@@ -13798,6 +13799,62 @@ Answer as Karaya:`;
     const newPage=()=>{ if(s) pages.push(s); s=''; y=H-M; };
     const need=(n)=>{ if(y-n<M+30) newPage(); };
     const text=(x,yy,size,font,str,color)=>{ s+=`BT ${color||'0 0 0'} rg /${font} ${size} Tf 1 0 0 1 ${x.toFixed(1)} ${yy.toFixed(1)} Tm (${_pdfEsc(str)}) Tj ET\n`; };
+    const _hex=h=>{ h=h.replace('#',''); return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255].map(n=>n.toFixed(3)).join(' '); };
+    const rect=(x,yy,w,h,col)=>{ s+=`${_hex(col)} rg ${x.toFixed(1)} ${yy.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)} re f\n`; };
+    const line=(x1,y1,x2,y2,col,wd)=>{ s+=`${wd||0.5} w ${_hex(col)} RG ${x1.toFixed(1)} ${y1.toFixed(1)} m ${x2.toFixed(1)} ${y2.toFixed(1)} l S\n`; };
+    // AI-generated chart, drawn with native PDF vector primitives (no raster).
+    const CW=W-2*M;
+    const drawChart=(c)=>{
+      if(c.title){ need(20); text(M, y, 9, 'F2', c.title.toUpperCase()); y-=14; }
+      if(c.kind==='bar'){
+        const rowH=17, chH=c.items.length*rowH;
+        need(chH+10);
+        const labelW=118, barX=M+labelW, barW=CW-labelW-52;
+        const max=Math.max(...c.items.map(i=>Math.abs(i.value)))||1;
+        c.items.forEach(it=>{
+          const bw=Math.max(1.5, Math.abs(it.value)/max*barW);
+          text(M, y-11, 8.5, 'F1', it.label, '0.2 0.2 0.2');
+          rect(barX, y-13, bw, 9, it.color||'#009DDC');
+          text(barX+bw+5, y-11, 8.5, 'F2', it.disp!=null?it.disp:it.value.toFixed(1), '0.15 0.15 0.15');
+          y-=rowH;
+        });
+        y-=6;
+      } else if(c.kind==='bridge'){
+        const chH=96; need(chH+22);
+        const cols=c.cols; // [{label,base,val,color}] base=bottom in value units
+        const max=Math.max(...cols.map(o=>o.base+o.val))||1;
+        const plotY=y-chH, colW=(CW)/cols.length, bw=colW*0.5;
+        cols.forEach((o,i)=>{
+          const cx=M+i*colW+(colW-bw)/2;
+          const h0=o.base/max*chH, h1=o.val/max*chH;
+          rect(cx, plotY+h0, bw, h1, o.color);
+          text(M+i*colW, plotY-11, 7.5, 'F1', o.label, '0.3 0.3 0.3');
+          text(M+i*colW, plotY+h0+h1+3, 8, 'F2', o.disp, '0.15 0.15 0.15');
+          if(i<cols.length-1) line(cx+bw, plotY+h0+h1, M+(i+1)*colW+(colW-bw)/2, plotY+(cols[i+1].base/max*chH), '#b9b9b9', 0.4);
+        });
+        y=plotY-22;
+      } else if(c.kind==='line'){
+        const chH=88; need(chH+24);
+        const plotY=y-chH, plotX=M+30, plotW=CW-30;
+        const vals=c.values, min=Math.min(...vals)*0.97, max=Math.max(...vals)*1.03, rng=(max-min)||1;
+        line(plotX, plotY, plotX, y, '#cfcfcf', 0.4); line(plotX, plotY, plotX+plotW, plotY, '#cfcfcf', 0.4);
+        const px=i=>plotX+ (vals.length<2?0:i/(vals.length-1)*plotW);
+        const py=v=>plotY+(v-min)/rng*chH;
+        for(let i=0;i<vals.length-1;i++) line(px(i), py(vals[i]), px(i+1), py(vals[i+1]), c.color||'#009DDC', 1.4);
+        vals.forEach((v,i)=>{ rect(px(i)-1.6, py(v)-1.6, 3.2, 3.2, c.color||'#009DDC'); text(px(i)-8, py(v)+5, 7, 'F2', c.disp?c.disp[i]:v.toFixed(0), '0.2 0.2 0.2'); });
+        c.labels.forEach((lb,i)=>text(px(i)-6, plotY-9, 7, 'F1', lb, '0.35 0.35 0.35'));
+        y=plotY-24;
+      } else if(c.kind==='stack'){
+        need(46);
+        const total=c.items.reduce((s2,i)=>s2+i.value,0)||1; let sx=M;
+        c.items.forEach(it=>{ const w=it.value/total*CW; rect(sx, y-15, w, 11, it.color); sx+=w; });
+        y-=22;
+        let lx=M;
+        c.items.forEach(it=>{ const lab=`${it.label} ${(it.value/total*100).toFixed(0)}%`; const w=lab.length*4.2+14; if(lx+w>W-M){ lx=M; y-=12; } rect(lx, y-7, 7, 7, it.color); text(lx+10, y-6, 7.5, 'F1', lab, '0.25 0.25 0.25'); lx+=w; });
+        y-=16;
+      }
+      y-=6;
+    };
     // Letterhead — UDC mark (maroon block + wordmark) + the Bohio/Karaya byline
     const logoW=50, logoH=22, logoX=M, logoY=y-logoH+2;
     s+=`0.545 0.082 0.220 rg ${logoX} ${logoY} ${logoW} ${logoH} re f\n`;
@@ -13813,6 +13870,7 @@ Answer as Karaya:`;
       if(b.t==='title'){ for(const ln of _wrapText(b.x, 70)){ need(LEAD+4); text(M, y, 11, 'F2', ln); y-=LEAD+2; } y-=4; }
       else if(b.t==='h'){ need(30); y-=8; text(M, y, 11.5, 'F2', b.x.toUpperCase()); y-=6; s+=`0.5 w 0.6 0.6 0.6 RG ${M} ${y} m ${W-M} ${y} l S\n`; y-=LEAD; }
       else if(b.t==='row'){ for(const ln of _wrapText(b.x, 96)){ need(LEAD); text(M+6, y, 8.5, 'F1', ln, '0.15 0.15 0.15'); y-=12.5; } }
+      else if(b.t==='chart'){ try{ drawChart(b.chart); }catch(e){} }
       else if(b.t==='gap'){ y-=8; }
       else { for(const ln of _wrapText(b.x, MAXC)){ need(LEAD); text(M, y, 10.5, 'F1', ln); y-=LEAD; } y-=6; }
     }
@@ -19632,8 +19690,92 @@ Answer as Karaya:`;
     {k:'moic',     h:'MOIC',      unit:'x',     re:/moic|multiple/i, sum:false},
     {k:'occ',      h:'Occupancy', unit:'%',     re:/occupanc/i, sum:false},
   ];
+  const _REP_PALETTE=['#009DDC','#61BB46','#FDB827','#963D97','#E03A3C','#00919B','#8a6d3b'];
   let _wfRepLast=null;
   let _wfRepPortfolio='sa';
+  // A consistent 6-quarter NAV & IRR path ending at the current figures — so
+  // the trend charts always tie out to the executive-summary numbers.
+  function _wfRepQuarterly(){
+    const sum=_wfRepSummary();
+    const qs=['5Q ago','4Q ago','3Q ago','2Q ago','Last Q','Current'];
+    const g=Math.pow(sum.nav/sum.invested, 1/5);
+    const nav=[]; for(let i=0;i<6;i++) nav.push(+ (sum.invested*Math.pow(g,i)).toFixed(0)); nav[5]=+sum.nav.toFixed(0);
+    const base=sum.irr-2.6, irr=[]; for(let i=0;i<6;i++) irr.push(+(base+(sum.irr-base)*i/5).toFixed(1));
+    return {qs, nav, irr, ccy:sum.ccy};
+  }
+  // ---- AI-generated report diagrams (inline SVG, library-free) ----
+  function _repDonutSVG(items, ccy, total){
+    const cx=72,cy=72,r=58,ri=35; let ang=-Math.PI/2;
+    const arcs=items.map(it=>{
+      const frac=total?it.value/total:0, a0=ang, a1=ang+frac*2*Math.PI; ang=a1;
+      const pt=(rr,a)=>[(cx+rr*Math.cos(a)).toFixed(2),(cy+rr*Math.sin(a)).toFixed(2)];
+      const [x0,y0]=pt(r,a0),[x1,y1]=pt(r,a1),[xi1,yi1]=pt(ri,a1),[xi0,yi0]=pt(ri,a0), lg=frac>0.5?1:0;
+      return `<path d="M${x0},${y0} A${r},${r} 0 ${lg} 1 ${x1},${y1} L${xi1},${yi1} A${ri},${ri} 0 ${lg} 0 ${xi0},${yi0} Z" fill="${it.color}"/>`;
+    }).join('');
+    const legend=items.map(it=>`<div style="display:flex;align-items:center;gap:6px;font-size:9.5px;margin-bottom:4px;"><span style="width:9px;height:9px;border-radius:2px;background:${it.color};flex-shrink:0;"></span><span style="flex:1;min-width:0;">${it.label}</span><b style="font-variant-numeric:tabular-nums;">${(total?it.value/total*100:0).toFixed(0)}%</b></div>`).join('');
+    return `<div style="display:flex;gap:18px;align-items:center;"><svg viewBox="0 0 144 144" width="132" height="132" style="flex-shrink:0;">${arcs}<text x="72" y="68" text-anchor="middle" font-size="8" fill="#8a8f99" font-family="inherit" letter-spacing="1">NAV</text><text x="72" y="83" text-anchor="middle" font-size="13" font-weight="700" fill="#000919" font-family="inherit">${ccy} ${total.toFixed(0)}M</text></svg><div style="flex:1;min-width:0;">${legend}</div></div>`;
+  }
+  function _repBridgeSVG(invested, value, nav, ccy){
+    const W=460,H=150, pad=26, base=H-24, max=nav*1.12||1, sc=(base-14)/max;
+    const bw=78, gap=(W-2*pad-3*bw)/2;
+    const x=[pad, pad+bw+gap, pad+2*(bw+gap)];
+    const hInv=invested*sc, hNav=nav*sc, hVal=value*sc;
+    const bar=(bx,by,h,col)=>`<rect x="${bx}" y="${(by-h).toFixed(1)}" width="${bw}" height="${Math.max(1,h).toFixed(1)}" rx="3" fill="${col}"/>`;
+    const lbl=(bx,txt,sub)=>`<text x="${bx+bw/2}" y="${base+11}" text-anchor="middle" font-size="8.5" fill="#5a5f6a" font-family="inherit">${txt}</text><text x="${bx+bw/2}" y="${base+21}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#000919" font-family="inherit">${sub}</text>`;
+    const floatY=base-hInv;
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;">
+      ${bar(x[0],base,hInv,'#8a94a6')}${lbl(x[0],'Invested',ccy+' '+invested.toFixed(0)+'M')}
+      <rect x="${x[1]}" y="${(floatY-hVal).toFixed(1)}" width="${bw}" height="${Math.max(1,hVal).toFixed(1)}" rx="3" fill="#61BB46"/>${lbl(x[1],'Value created','+'+ccy+' '+value.toFixed(0)+'M')}
+      ${bar(x[2],base,hNav,'#009DDC')}${lbl(x[2],'Current NAV',ccy+' '+nav.toFixed(0)+'M')}
+      <line x1="${x[0]+bw}" y1="${base-hInv}" x2="${x[1]}" y2="${base-hInv}" stroke="#c3c8d0" stroke-width="1" stroke-dasharray="3,2"/>
+      <line x1="${x[1]+bw}" y1="${floatY-hVal}" x2="${x[2]}" y2="${base-hNav}" stroke="#c3c8d0" stroke-width="1" stroke-dasharray="3,2"/>
+    </svg>`;
+  }
+  function _repTrendSVG(labels, values, ccy, unit){
+    const W=460,H=150, padL=40, padR=14, padT=16, padB=26;
+    const min=Math.min(...values)*0.96, max=Math.max(...values)*1.04, rng=(max-min)||1;
+    const px=i=>padL+(values.length<2?0:i/(values.length-1)*(W-padL-padR));
+    const py=v=>padT+(1-(v-min)/rng)*(H-padT-padB);
+    const pts=values.map((v,i)=>`${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
+    const area=`${padL},${(H-padB)} ${pts} ${(W-padR)},${(H-padB)}`;
+    const dots=values.map((v,i)=>`<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="2.6" fill="#009DDC"/><text x="${px(i).toFixed(1)}" y="${(py(v)-7).toFixed(1)}" text-anchor="middle" font-size="8" font-weight="700" fill="#000919" font-family="inherit">${unit==='%'?v.toFixed(1)+'%':v.toFixed(0)}</text>`).join('');
+    const xlabels=labels.map((l,i)=>`<text x="${px(i).toFixed(1)}" y="${H-9}" text-anchor="middle" font-size="7.5" fill="#8a8f99" font-family="inherit">${l}</text>`).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;">
+      <polyline points="${area}" fill="rgba(0,157,220,0.10)" stroke="none"/>
+      <polyline points="${pts}" fill="none" stroke="#009DDC" stroke-width="2"/>
+      ${dots}${xlabels}
+      <text x="4" y="${padT+6}" font-size="7.5" fill="#8a8f99" font-family="inherit">${unit==='%'?max.toFixed(0)+'%':ccy+' '+max.toFixed(0)}</text>
+    </svg>`;
+  }
+  function _repRankBarSVG(items, unit, target){
+    const max=Math.max(...items.map(i=>i.value))||1;
+    return items.map(it=>{
+      const pct=it.value/max*100, col=target!=null?(it.value>=target?'#15803d':'#b8860b'):'#009DDC';
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+        <span style="width:118px;flex-shrink:0;font-size:9.5px;">${it.label}</span>
+        <div style="flex:1;height:9px;border-radius:99px;background:rgba(0,9,25,0.06);position:relative;">
+          <div style="height:100%;width:${pct.toFixed(1)}%;border-radius:99px;background:${col};"></div>
+          ${target!=null?`<span style="position:absolute;left:${(target/max*100).toFixed(1)}%;top:-2px;bottom:-2px;width:2px;background:#000919;opacity:0.5;"></span>`:''}
+        </div>
+        <span style="width:52px;flex-shrink:0;text-align:right;font-size:9.5px;font-variant-numeric:tabular-nums;font-weight:700;">${unit==='%'?it.value.toFixed(1)+'%':unit==='x'?it.value.toFixed(2)+'x':it.value.toFixed(0)}</span>
+      </div>`;
+    }).join('');
+  }
+  // Chart specs consumed by the PDF board pack (base64-embedded in docBody).
+  function _repChartSpecs(sum){
+    const a=sum.assets, ccy=sum.ccy, q=_wfRepQuarterly();
+    const comp=a.map((x,i)=>({label:x.name, value:x.nav, color:_REP_PALETTE[i%_REP_PALETTE.length]}));
+    return {
+      donut:{kind:'stack', title:'Portfolio NAV composition', ccy, items:comp},
+      bridge:{kind:'bridge', title:'NAV bridge — invested to current value', cols:[
+        {label:'Invested', base:0, val:sum.invested, color:'#8a94a6', disp:ccy+' '+sum.invested.toFixed(0)+'M'},
+        {label:'Value created', base:sum.invested, val:sum.nav-sum.invested, color:'#61BB46', disp:'+'+ccy+' '+(sum.nav-sum.invested).toFixed(0)+'M'},
+        {label:'Current NAV', base:0, val:sum.nav, color:'#009DDC', disp:ccy+' '+sum.nav.toFixed(0)+'M'},
+      ]},
+      navTrend:{kind:'line', title:'NAV trend — last 6 quarters ('+ccy+' M)', labels:q.qs, values:q.nav, color:'#009DDC'},
+      irrRank:{kind:'bar', title:'Gross IRR by asset (%)', items:a.slice().sort((x,y)=>y.irr-x.irr).map((x,i)=>({label:x.name, value:x.irr, disp:x.irr.toFixed(1)+'%', color:x.irr>=sum.irr?'#15803d':'#b8860b'}))},
+    };
+  }
   function _wfRepAssets(){ return _wfRepPortfolio==='qa' ? WF_REP_ASSETS_QA : WF_REP_ASSETS; }
   function _wfRepCcy(){ return _wfRepPortfolio==='qa' ? 'QAR' : 'SAR'; }
   function _wfRepPortfolioName(){ return _wfRepPortfolio==='qa' ? 'Qatar portfolio' : 'Saudi Arabia portfolio'; }
@@ -19766,9 +19908,9 @@ Answer as Karaya:`;
       msgs.insertAdjacentHTML('beforeend',`<div style="align-self:flex-end;max-width:86%;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;font-size:11.5px;line-height:1.55;">Generate: <b>${meta.reportType||'Reporting pack'}</b> · ${picks.map(m=>m.h).join(', ')} · ${_wfRepCadenceLabel(meta.cadence)} · ${_wfRepPortfolioName()}</div>`);
     }
     const genId='wfrep-gen-'+Math.random().toString(36).slice(2);
-    msgs.insertAdjacentHTML('beforeend',`<div id="${genId}" style="border:1px solid var(--ink-hairline);border-radius:14px;padding:13px 15px;font-size:10.5px;color:var(--ink-soft);display:flex;align-items:center;gap:9px;"><span class="wf-spin"></span> Karaya is generating the report from Finance, Property Management and Market Data…</div>`);
+    msgs.insertAdjacentHTML('beforeend',`<div id="${genId}" style="border:1px solid var(--ink-hairline);border-radius:14px;padding:13px 15px;font-size:10.5px;color:var(--ink-soft);display:flex;align-items:center;gap:9px;"><span class="wf-spin"></span> Karaya is pulling Finance, Property Management &amp; Market Data, running the numbers and rendering the charts…</div>`);
     msgs.scrollTop=msgs.scrollHeight;
-    setTimeout(()=>_wfRepReveal(genId, picks, meta), 900);
+    setTimeout(()=>_wfRepReveal(genId, picks, meta), 1100);
   }
   function _wfRepReveal(genId, picks, meta){
     const gen=document.getElementById(genId); if(gen) gen.remove();
@@ -19791,6 +19933,24 @@ Answer as Karaya:`;
     const capActivity=`<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:11px;">
       ${[['Called capital',ccy+' '+sum.invested.toFixed(0)+'M'],['Distributed',ccy+' '+sum.distributed.toFixed(0)+'M'],['DPI',sum.dpi.toFixed(2)+'x'],['RVPI',sum.rvpi.toFixed(2)+'x'],['TVPI',sum.tvpi.toFixed(2)+'x']]
         .map(([l,v])=>`<div style="flex:1;min-width:90px;border:1px dashed var(--ink-hairline);border-radius:10px;padding:8px 10px;"><div style="font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${l}</div><div style="font-size:13.5px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;">${v}</div></div>`).join('')}
+    </div>`;
+    // ---- Karaya-generated diagrams ----
+    const donutItems=assets.map((a,i)=>({label:a.name, value:a.nav, color:_REP_PALETTE[i%_REP_PALETTE.length]}));
+    const donutSVG=_repDonutSVG(donutItems, ccy, sum.nav);
+    const bridgeSVG=_repBridgeSVG(sum.invested, sum.nav-sum.invested, sum.nav, ccy);
+    const q=_wfRepQuarterly();
+    const trendSVG=_repTrendSVG(q.qs, q.nav, ccy, ccy);
+    const irrItems=assets.slice().sort((x,y)=>y.irr-x.irr).map(a=>({label:a.name, value:a.irr}));
+    const irrRankSVG=_repRankBarSVG(irrItems, '%', sum.irr);
+    const chartCard=(title,inner,note)=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;flex:1;min-width:260px;">
+      <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:9px;">${title}</div>${inner}${note?`<div style="font-size:8.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5;">${note}</div>`:''}</div>`;
+    const diagrams=`<div style="display:flex;gap:11px;flex-wrap:wrap;margin-bottom:6px;">
+      ${chartCard('NAV composition by asset', donutSVG)}
+      ${chartCard('NAV bridge — invested → current value', bridgeSVG)}
+    </div>
+    <div style="display:flex;gap:11px;flex-wrap:wrap;margin-bottom:6px;">
+      ${chartCard('NAV trend — last 6 quarters', trendSVG)}
+      ${chartCard('Gross IRR by asset', irrRankSVG, 'Vertical marker = blended portfolio IRR ('+sum.irr.toFixed(1)+'%). Green bars beat the blend.')}
     </div>`;
     // per-asset trend bars for the primary picked metric (or NAV by default)
     const barMetric=picks.find(m=>m.sum)||WF_REP_METRICS.find(m=>m.k==='nav');
@@ -19830,6 +19990,8 @@ Answer as Karaya:`;
       <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px;">${execTiles}</div>
       <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:8px;">Capital activity — since inception</div>
       ${capActivity}
+      <div style="display:flex;align-items:center;gap:7px;margin:14px 0 10px;"><span style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">✦ Karaya-generated diagrams</span><span style="flex:1;height:1px;background:var(--ink-hairline);"></span></div>
+      ${diagrams}
       <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:12px 0 9px;">${barMetric.h} by asset</div>
       ${bars}
       <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:14px 0 10px;">${picks.map(m=>m.h).join(' · ')} per asset</div>
@@ -19901,11 +20063,26 @@ Answer as Karaya:`;
     if(!_wfRepLast){ return; }
     const {picks}=_wfRepLast; const sum=_wfRepSummary(); const assets=sum.assets, ccy=sum.ccy;
     const fmt=(m,v)=> m.unit==='%' ? v.toFixed(1)+'%' : m.unit==='x' ? v.toFixed(2)+'x' : v.toFixed(1);
-    const hi=assets.reduce((a,b)=>a.irr>b.irr?a:b), lo=assets.reduce((a,b)=>a.irr<b.irr?a:b);
+    const ranked=assets.slice().sort((a,b)=>b.irr-a.irr);
+    const hi=ranked[0], lo=ranked[ranked.length-1];
     const navDelta=(sum.nav/sum.priorNav-1)*100;
+    const specs=_repChartSpecs(sum);
+    const chart=spec=>`<div data-chart="${btoa(unescape(encodeURIComponent(JSON.stringify(spec))))}"></div>`;
+    // capex-heavy (development) vs income-producing split, for the commentary
+    const capexHeavy=assets.filter(a=>a.capex>a.noi).map(a=>a.name);
+    const occAvg=assets.reduce((s,a)=>s+a.occ*a.invested,0)/sum.invested;
     const body=`
       <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:0 0 8px;">Executive summary</h4>
-      <p>The ${_wfRepPortfolioName()} carries <b>${ccy} ${sum.invested.toFixed(0)}M</b> invested against a <b>${ccy} ${sum.nav.toFixed(0)}M</b> NAV (up <b>${navDelta.toFixed(1)}%</b> on the prior quarter), a blended gross IRR of <b>${sum.irr.toFixed(1)}%</b> and a blended MOIC of <b>${sum.moic.toFixed(2)}x</b> across ${assets.length} assets.</p>
+      <p>The ${_wfRepPortfolioName()} carries <b>${ccy} ${sum.invested.toFixed(0)}M</b> invested against a <b>${ccy} ${sum.nav.toFixed(0)}M</b> NAV (up <b>${navDelta.toFixed(1)}%</b> on the prior quarter), a blended gross IRR of <b>${sum.irr.toFixed(1)}%</b> and a blended MOIC of <b>${sum.moic.toFixed(2)}x</b> across ${assets.length} assets. Weighted occupancy stands at <b>${occAvg.toFixed(0)}%</b>. Since inception the portfolio has returned <b>${ccy} ${sum.distributed.toFixed(0)}M</b> to investors (DPI ${sum.dpi.toFixed(2)}x) with a total value of <b>${sum.tvpi.toFixed(2)}x</b> paid-in.</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">NAV bridge</h4>
+      ${chart(specs.bridge)}
+      <p>Value creation of <b>${ccy} ${(sum.nav-sum.invested).toFixed(0)}M</b> over invested cost is driven by NOI growth and cap-rate-supported revaluation across the stabilised assets.</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">NAV trend</h4>
+      ${chart(specs.navTrend)}
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">NAV composition by asset</h4>
+      ${chart(specs.donut)}
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Gross IRR by asset</h4>
+      ${chart(specs.irrRank)}
       <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Capital activity — since inception</h4>
       <ul style="padding-left:18px;line-height:1.8;">
         <li>Called capital: <b>${ccy} ${sum.invested.toFixed(0)}M</b></li>
@@ -19916,9 +20093,22 @@ Answer as Karaya:`;
       <table style="width:100%;border-collapse:collapse;font-size:11.5px;"><thead><tr>
         <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Asset</th>${picks.map(m=>`<th style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">${m.h}</th>`).join('')}
       </tr></thead><tbody>${assets.map(a=>`<tr><td style="padding:6px 8px;">${a.name}</td>${picks.map(m=>`<td style="padding:6px 8px;">${fmt(m,a[m.k])}</td>`).join('')}</tr>`).join('')}</tbody></table>
-      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Outlook</h4>
-      <p><b>${hi.name}</b> is the standout performer at <b>${hi.irr}%</b> IRR (${hi.moic}x), while <b>${lo.name}</b> trails at <b>${lo.irr}%</b> — worth a closer look at the leasing/occupancy assumptions behind that asset next quarter. The portfolio remains on track against its blended return target.</p>`;
-    openReadableDoc({type:'PDF', name:_wfRepPortfolioName()+' — Board Pack', version:'v.01 · Karaya-generated', docBody:body, karayaPdf:true});
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Top movers</h4>
+      <ul style="padding-left:18px;line-height:1.8;">
+        <li><b>${hi.name}</b> leads at <b>${hi.irr}% IRR</b> (${hi.moic}x, ${hi.occ}% occupancy) — the strongest contributor to blended returns this quarter.</li>
+        <li><b>${lo.name}</b> trails at <b>${lo.irr}% IRR</b> (${lo.moic}x, ${lo.occ}% occupancy) — the priority watch item for the coming quarter.</li>
+        <li>Second-best: <b>${ranked[1].name}</b> at ${ranked[1].irr}% IRR.</li>
+      </ul>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Risk flags &amp; watch items</h4>
+      <ul style="padding-left:18px;line-height:1.8;">
+        <li>${capexHeavy.length? 'Development / capex-heavy exposure: <b>'+capexHeavy.join(', ')+'</b> — NAV growth here depends on delivery and lease-up, not yet on stabilised income.' : 'No assets are in a capex-heavy development phase this quarter.'}</li>
+        <li>Occupancy below portfolio average at: <b>${assets.filter(a=>a.occ<occAvg).map(a=>a.name+' ('+a.occ+'%)').join(', ')||'none'}</b>.</li>
+        <li>Cap-rate sensitivity: a 50bps outward shift across the book would reduce NAV by an estimated <b>${ccy} ${(sum.nav*0.06).toFixed(0)}M</b> (~6%).</li>
+      </ul>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Outlook &amp; recommended actions</h4>
+      <p>The portfolio remains on track against its blended return target. Recommended focus for the coming quarter: (1) firm up leasing at <b>${lo.name}</b> to close the occupancy gap; (2) progress the capex programme at ${capexHeavy[0]||'the development assets'} toward stabilisation; (3) review exit timing on <b>${hi.name}</b> while cap rates remain supportive.</p>`;
+    openReadableDoc({type:'PDF', name:_wfRepPortfolioName()+' — Board Pack', version:'v.02 · Karaya-generated', docBody:body, karayaPdf:true,
+      pdfFoot:'Generated by Karaya from live Finance (ERP), Property Management (Yardi) and Market Data (Paseetah) integrations. Figures are indicative and unaudited — verify against source systems before external distribution.'});
   }
 
   // ===== WORKFLOW 07 — FUND MANAGEMENT: fund squircles → full fund room =====
