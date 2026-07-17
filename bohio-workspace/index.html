@@ -168,6 +168,14 @@
 .rep-flow-txt { font-size:9.5px; line-height:1.5; color:var(--ink); }
 .rep-flow-arrow { display:flex; align-items:center; font-size:14px; color:var(--ink-soft); flex-shrink:0; }
 .rep-flow-loop { font-size:9px; letter-spacing:0.05em; color:var(--ink-soft); border:1px dashed var(--ink-hairline); border-radius:999px; padding:5px 14px; }
+/* ===== Reporting — hover-to-explain (AI) ===== */
+[data-explain]{ cursor:help; transition:background .12s ease, box-shadow .12s ease; }
+[data-explain]:hover{ box-shadow:0 0 0 2px rgba(0,157,220,0.45); border-radius:8px; }
+#wfrep-tip{ position:fixed; z-index:10060; max-width:320px; background:#0b1220; color:#eef2f7; border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:11px 13px; box-shadow:0 16px 40px rgba(0,9,25,0.45); font-size:11.5px; line-height:1.6; pointer-events:none; opacity:0; transform:translateY(4px); transition:opacity .12s ease, transform .12s ease; }
+#wfrep-tip.on{ opacity:1; transform:translateY(0); }
+#wfrep-tip .tip-lbl{ font-size:7.5px; letter-spacing:0.24em; text-transform:uppercase; color:#5fc6ef; font-weight:700; margin-bottom:5px; display:flex; align-items:center; gap:5px; }
+#wfrep-tip b{ color:#fff; }
+#wfrep-tip .kr-caret{ color:#5fc6ef; }
 /* ===== Sheet zoom controls ===== */
 .zoom-ctl { display:inline-flex; align-items:center; gap:5px; margin-left:10px; flex-shrink:0; }
 .zoom-btn { width:22px; height:22px; border-radius:50%; border:1px solid var(--ink-hairline); background:transparent; color:var(--ink); font-family:inherit; font-size:13px; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; transition:all .15s ease; }
@@ -19913,11 +19921,53 @@ Answer as Karaya:`;
     msgs.scrollTop=msgs.scrollHeight;
     setTimeout(()=>_wfRepReveal(genId, picks, meta), 1100);
   }
+  // ---- Hover-to-explain: an AI tooltip streamed on demand, cached per element ----
+  const _wfRepTipCache={};
+  let _wfRepTipTimer=null, _wfRepTipToken=0;
+  function _wfRepTipEl(){ let t=document.getElementById('wfrep-tip'); if(!t){ t=document.createElement('div'); t.id='wfrep-tip'; document.body.appendChild(t); } return t; }
+  function _wfRepTipHide(){ const t=document.getElementById('wfrep-tip'); if(t) t.classList.remove('on'); clearTimeout(_wfRepTipTimer); _wfRepTipToken++; }
+  function _wfRepTipPos(t, anchor){ const r=anchor.getBoundingClientRect(), tr=t.getBoundingClientRect();
+    let left=r.left+r.width/2-tr.width/2; left=Math.max(10, Math.min(left, window.innerWidth-tr.width-10));
+    let top=r.top-tr.height-10; if(top<10) top=r.bottom+10;
+    t.style.left=left+'px'; t.style.top=top+'px'; }
+  function _wfRepTipShow(el){
+    const label=el.getAttribute('data-explain'); if(!label) return;
+    const ctx=el.getAttribute('data-ctx')||'', fb=el.getAttribute('data-fb')||`**${label}** — a figure in this reporting pack.`;
+    const t=_wfRepTipEl(); const myTok=++_wfRepTipToken;
+    t.innerHTML=`<div class="tip-lbl">✦ Karaya explains</div><div class="tip-body"></div>`;
+    t.classList.add('on'); _wfRepTipPos(t, el);
+    const body=t.querySelector('.tip-body'); const key=label+'|'+ctx;
+    if(_wfRepTipCache[key]){ body.innerHTML=fmtKaraya(_wfRepTipCache[key]); _wfRepTipPos(t, el); return; }
+    body.innerHTML='<span class="kr-stream-text"></span><span class="kr-caret">▍</span>';
+    const prompt=`You are Karaya, explaining one figure on a live investor report to a reader who just hovered over it. Element: "${label}". Context: ${ctx||'—'}. In 1-2 short sentences (max 34 words) explain what it means and why it matters to an investor. Plain text, **bold** the single key number. No preamble.`;
+    (async()=>{ try{ const out=await karayaStreamInto(body, prompt, 'quick_insight', fb); if(myTok===_wfRepTipToken&&out){ _wfRepTipCache[key]=out; _wfRepTipPos(t, el); } }catch(e){ body.innerHTML=fmtKaraya(fb); } })();
+  }
+  function _wfRepTipBind(container){
+    if(!container || container._tipBound) return; container._tipBound=true;
+    container.addEventListener('mouseover', e=>{ const el=e.target.closest('[data-explain]'); if(!el||!container.contains(el)) return; clearTimeout(_wfRepTipTimer); _wfRepTipTimer=setTimeout(()=>_wfRepTipShow(el), 220); });
+    container.addEventListener('mouseout', e=>{ const el=e.target.closest('[data-explain]'); if(!el) return; const to=e.relatedTarget; if(to&&el.contains(to)) return; _wfRepTipHide(); });
+    container.addEventListener('mousemove', e=>{ const t=document.getElementById('wfrep-tip'); if(t&&t.classList.contains('on')){ const el=e.target.closest('[data-explain]'); if(el) _wfRepTipPos(t, el); } }, {passive:true});
+  }
   function _wfRepReveal(genId, picks, meta){
     const gen=document.getElementById(genId); if(gen) gen.remove();
     const msgs=document.getElementById('wfrep-msgs'); if(!msgs) return;
     const sum=_wfRepSummary(); const assets=sum.assets, ccy=sum.ccy;
     const fmt=(m,v)=> m.unit==='%' ? v.toFixed(1)+'%' : m.unit==='x' ? v.toFixed(2)+'x' : v.toFixed(1);
+    // hover-to-explain attribute builder (HTML-attribute-safe)
+    const escA=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const ex=(label,ctx,fb)=>` data-explain="${escA(label)}" data-ctx="${escA(ctx||'')}"${fb?` data-fb="${escA(fb)}"`:''}`;
+    const pf=_wfRepPortfolioName();
+    const GLOSS={
+      'Invested capital':'total equity deployed into the portfolio to date',
+      'NAV':'the current fair value of the portfolio\'s equity (net asset value)',
+      'Blended gross IRR':'the invested-weighted annualised return, before fees',
+      'Blended MOIC':'the multiple of invested capital — current value divided by cost',
+      'Called capital':'the capital drawn down from investors to date',
+      'Distributed':'cash already returned to investors',
+      'DPI':'distributions to paid-in — the realised cash multiple returned so far',
+      'RVPI':'residual value to paid-in — unrealised value still held in the portfolio',
+      'TVPI':'total value to paid-in — DPI plus RVPI, the total multiple on capital',
+    };
     // Executive summary — always shown, regardless of which metrics were picked
     const navDelta=(sum.nav/sum.priorNav-1)*100, irrDelta=sum.irr-sum.priorIrr;
     const execTiles=[
@@ -19925,7 +19975,7 @@ Answer as Karaya:`;
       ['NAV', ccy+' '+sum.nav.toFixed(0)+'M', navDelta],
       ['Blended gross IRR', sum.irr.toFixed(1)+'%', irrDelta],
       ['Blended MOIC', sum.moic.toFixed(2)+'x', null],
-    ].map(([l,v,d])=>`<div style="flex:1;min-width:120px;border:1px solid var(--ink-hairline);border-radius:12px;padding:11px 13px;">
+    ].map(([l,v,d])=>`<div ${ex(l+' — '+v, pf+(d!=null?'; moved '+(d>=0?'+':'')+d.toFixed(1)+' vs prior quarter':''), '**'+v+'** — '+(GLOSS[l]||l)+'.')} style="flex:1;min-width:120px;border:1px solid var(--ink-hairline);border-radius:12px;padding:11px 13px;">
       <div style="font-size:7.5px;letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${l}</div>
       <div style="font-size:19px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums;">${v}${d!=null?` <span style="font-size:10px;font-weight:700;color:${d>=0?'#15803d':'#b51e3b'};">${d>=0?'▲':'▼'} ${Math.abs(d).toFixed(1)}${typeof d==='number'&&Math.abs(d)<10?'pp':'%'}</span>`:''}</div>
       ${d!=null?'<div style="font-size:8px;color:var(--ink-soft);margin-top:2px;">vs prior quarter</div>':''}
@@ -19933,7 +19983,7 @@ Answer as Karaya:`;
     // capital-activity strip
     const capActivity=`<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:11px;">
       ${[['Called capital',ccy+' '+sum.invested.toFixed(0)+'M'],['Distributed',ccy+' '+sum.distributed.toFixed(0)+'M'],['DPI',sum.dpi.toFixed(2)+'x'],['RVPI',sum.rvpi.toFixed(2)+'x'],['TVPI',sum.tvpi.toFixed(2)+'x']]
-        .map(([l,v])=>`<div style="flex:1;min-width:90px;border:1px dashed var(--ink-hairline);border-radius:10px;padding:8px 10px;"><div style="font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${l}</div><div style="font-size:13.5px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;">${v}</div></div>`).join('')}
+        .map(([l,v])=>`<div ${ex(l+' — '+v, pf, '**'+v+'** — '+(GLOSS[l]||l)+'.')} style="flex:1;min-width:90px;border:1px dashed var(--ink-hairline);border-radius:10px;padding:8px 10px;"><div style="font-size:7px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${l}</div><div style="font-size:13.5px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;">${v}</div></div>`).join('')}
     </div>`;
     // ---- Karaya-generated diagrams ----
     const donutItems=assets.map((a,i)=>({label:a.name, value:a.nav, color:_REP_PALETTE[i%_REP_PALETTE.length]}));
@@ -19943,22 +19993,31 @@ Answer as Karaya:`;
     const trendSVG=_repTrendSVG(q.qs, q.nav, ccy, ccy);
     const irrItems=assets.slice().sort((x,y)=>y.irr-x.irr).map(a=>({label:a.name, value:a.irr}));
     const irrRankSVG=_repRankBarSVG(irrItems, '%', sum.irr);
-    const chartCard=(title,inner,note)=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;flex:1;min-width:260px;">
+    const chartCard=(title,inner,note,exCtx,exFb)=>`<div ${ex(title, exCtx||pf, exFb)} style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;flex:1;min-width:260px;">
       <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:9px;">${title}</div>${inner}${note?`<div style="font-size:8.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5;">${note}</div>`:''}</div>`;
+    const topShare=assets.slice().sort((a,b)=>b.nav-a.nav)[0];
     const diagrams=`<div style="display:flex;gap:11px;flex-wrap:wrap;margin-bottom:6px;">
-      ${chartCard('NAV composition by asset', donutSVG)}
-      ${chartCard('NAV bridge — invested → current value', bridgeSVG)}
+      ${chartCard('NAV composition by asset', donutSVG, null,
+        pf+'; largest asset '+topShare.name+' at '+(topShare.nav/sum.nav*100).toFixed(0)+'% of the '+ccy+' '+sum.nav.toFixed(0)+'M NAV',
+        'This donut shows how much each asset contributes to the **'+ccy+' '+sum.nav.toFixed(0)+'M** portfolio NAV — a quick read on concentration.')}
+      ${chartCard('NAV bridge — invested → current value', bridgeSVG, null,
+        'invested '+ccy+' '+sum.invested.toFixed(0)+'M, value created '+ccy+' '+(sum.nav-sum.invested).toFixed(0)+'M, current NAV '+ccy+' '+sum.nav.toFixed(0)+'M',
+        'The bridge walks from invested cost to today\'s NAV — the green bar is the **'+ccy+' '+(sum.nav-sum.invested).toFixed(0)+'M** of value created.')}
     </div>
     <div style="display:flex;gap:11px;flex-wrap:wrap;margin-bottom:6px;">
-      ${chartCard('NAV trend — last 6 quarters', trendSVG)}
-      ${chartCard('Gross IRR by asset', irrRankSVG, 'Vertical marker = blended portfolio IRR ('+sum.irr.toFixed(1)+'%). Green bars beat the blend.')}
+      ${chartCard('NAV trend — last 6 quarters', trendSVG, null,
+        'NAV rose from '+ccy+' '+q.nav[0]+'M to '+ccy+' '+q.nav[5]+'M over six quarters',
+        'NAV over the last six quarters — the upward slope shows the pace of value growth, ending at **'+ccy+' '+q.nav[5]+'M**.')}
+      ${chartCard('Gross IRR by asset', irrRankSVG, 'Vertical marker = blended portfolio IRR ('+sum.irr.toFixed(1)+'%). Green bars beat the blend.', null,
+        'Each asset\'s gross IRR ranked against the **'+sum.irr.toFixed(1)+'%** blended portfolio marker — green beats the blend, amber trails it.')}
     </div>`;
     // per-asset trend bars for the primary picked metric (or NAV by default)
     const barMetric=picks.find(m=>m.sum)||WF_REP_METRICS.find(m=>m.k==='nav');
     const barMax=Math.max(...assets.map(a=>a[barMetric.k]));
+    const assetCtx=a=>`${a.name} in the ${pf}: NAV ${ccy} ${a.nav}M, invested ${ccy} ${a.invested}M, gross IRR ${a.irr}%, MOIC ${a.moic}x, occupancy ${a.occ}%`;
     const bars=assets.map(a=>{
       const pct=barMax?(a[barMetric.k]/barMax*100):0;
-      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+      return `<div ${ex(a.name+' — '+barMetric.h+' '+fmt(barMetric,a[barMetric.k]), assetCtx(a), '**'+a.name+'** — '+barMetric.h+' of '+(barMetric.sum?ccy+' ':'')+fmt(barMetric,a[barMetric.k])+', at '+a.occ+'% occupancy and '+a.irr+'% IRR.')} style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
         <span style="width:120px;flex-shrink:0;font-size:9.5px;">${a.name}</span>
         <div style="flex:1;height:7px;border-radius:99px;background:rgba(0,9,25,0.06);"><div style="height:100%;width:${pct.toFixed(1)}%;border-radius:99px;background:#009DDC;"></div></div>
         <span style="width:64px;flex-shrink:0;text-align:right;font-size:9.5px;font-variant-numeric:tabular-nums;">${fmt(barMetric,a[barMetric.k])}</span>
@@ -19966,13 +20025,14 @@ Answer as Karaya:`;
     }).join('');
     const tiles=picks.filter(m=>m.sum).slice(0,3).map(m=>{
       const tot=assets.reduce((a,x)=>a+x[m.k],0);
-      return `<div style="flex:1;min-width:110px;border:1px solid var(--ink-hairline);border-radius:12px;padding:11px 13px;">
+      return `<div ${ex(m.h+' · portfolio — '+ccy+' '+tot.toFixed(1)+'M', pf+'; sum of '+m.h+' across '+assets.length+' assets', '**'+ccy+' '+tot.toFixed(1)+'M** total '+m.h+' across the portfolio\'s '+assets.length+' assets.')} style="flex:1;min-width:110px;border:1px solid var(--ink-hairline);border-radius:12px;padding:11px 13px;">
         <div style="font-size:7.5px;letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${m.h} · portfolio</div>
         <div style="font-size:19px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums;">${ccy} ${tot.toFixed(1)}M</div>
       </div>`;
     }).join('');
-    const head=picks.map(m=>`<th>${m.h}${m.sum?' ('+ccy+' M)':''}</th>`).join('');
-    const body=assets.map(a=>`<tr><td>${a.name}</td>${picks.map(m=>`<td style="font-variant-numeric:tabular-nums;">${fmt(m,a[m.k])}</td>`).join('')}</tr>`).join('');
+    const metricGloss=m=>({revenue:'gross rental & other income the asset generates',opex:'the operating costs run against the asset',capex:'capital spend on development or improvements',noi:'net operating income — revenue less operating costs',invested:'equity deployed into the asset',nav:'the asset\'s current fair equity value',irr:'the annualised return on the asset',moic:'the multiple of invested capital returned',occ:'the share of leasable space that is occupied'}[m.k]||m.h);
+    const head=picks.map(m=>`<th${ex(m.h+(m.sum?' ('+ccy+' M)':''), 'a reporting column across all assets', 'The **'+m.h+'** column shows '+metricGloss(m)+' for each asset.')}>${m.h}${m.sum?' ('+ccy+' M)':''}</th>`).join('');
+    const body=assets.map(a=>`<tr><td${ex(a.name, assetCtx(a), '**'+a.name+'** — '+ccy+' '+a.nav+'M NAV, '+a.irr+'% IRR, '+a.occ+'% occupancy.')}>${a.name}</td>${picks.map(m=>`<td style="font-variant-numeric:tabular-nums;">${fmt(m,a[m.k])}</td>`).join('')}</tr>`).join('');
     const totRow=`<tr style="border-top:2px solid var(--ink);"><td style="font-weight:700;">Portfolio</td>${picks.map(m=>{
       if(m.sum){ const t=assets.reduce((s,x)=>s+x[m.k],0); return `<td style="font-weight:700;font-variant-numeric:tabular-nums;">${fmt(m,t)}</td>`; }
       const w=assets.reduce((s,x)=>s+x[m.k]*x.invested,0)/assets.reduce((s,x)=>s+x.invested,0);
@@ -19981,13 +20041,14 @@ Answer as Karaya:`;
     const cadence=meta.cadence||'once';
     const cadenceNote = cadence==='once' ? '' : `<div style="font-size:9.5px;color:var(--ink-soft);margin-top:9px;">↻ Recurring — scheduled ${_wfRepCadenceLabel(cadence).toLowerCase()}, next report generated automatically and sent to the same distribution list.</div>`;
     msgs.insertAdjacentHTML('beforeend',`<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 16px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px;">
         <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${_wfRepPortfolioName()} — executive summary</div>
         <div style="display:flex;gap:8px;">
           <button class="wf-btn ghost" style="padding:6px 13px;" onclick="_wfRepDownload()">Export .xls</button>
           <button class="wf-btn" style="padding:6px 13px;" onclick="_wfRepBoardPack()">✦ Board pack (PDF)</button>
         </div>
       </div>
+      <div style="font-size:9px;color:#009DDC;margin-bottom:11px;display:flex;align-items:center;gap:5px;">✦ Interactive — hover any figure, chart or bar and Karaya explains it live.</div>
       <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px;">${execTiles}</div>
       <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:8px;">Capital activity — since inception</div>
       ${capActivity}
@@ -20007,6 +20068,7 @@ Answer as Karaya:`;
       </div>
     </div>`);
     msgs.scrollTop=msgs.scrollHeight;
+    _wfRepTipBind(msgs);
     const title=meta.reportType || meta.q || 'Reporting pack';
     const sums=picks.filter(m=>m.sum).map(m=>m.h+' '+ccy+' '+assets.reduce((a,x)=>a+x[m.k],0).toFixed(1)+'M').join(', ');
     const hi=assets.reduce((a,b)=>a.irr>b.irr?a:b), lo=assets.reduce((a,b)=>a.irr<b.irr?a:b);
