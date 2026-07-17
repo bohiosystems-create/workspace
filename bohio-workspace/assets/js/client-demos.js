@@ -270,45 +270,45 @@
     items: [
       ['Strategy', 'Value-add & opportunistic development'],
       ['Target sectors', 'Residential · Mixed-use · Hospitality · Logistics'],
-      ['Geographies', 'GCC — primarily KSA & UAE'],
-      ['Equity ticket', 'SAR 150M – 800M'],
+      ['Geographies', 'GCC — primarily Qatar & UAE'],
+      ['Equity ticket', 'QAR 150M – 800M'],
       ['Target net IRR', '≥ 18%'],
       ['Equity multiple', '≥ 1.8×'],
       ['Max LTV', '60%'],
       ['Hold period', '4 – 6 years'],
       ['Constraints', 'Sharia-compliant · ESG screened · no speculative single-tenant office'],
     ],
-    text: 'Strategy: value-add & opportunistic development. Target sectors: residential, mixed-use, hospitality, logistics. Geographies: GCC, primarily Saudi Arabia and UAE. Equity ticket SAR 150M-800M. Target net IRR >=18%. Target equity multiple >=1.8x. Max LTV 60%. Hold 4-6 years. Must be Sharia-compliant and ESG screened. Avoid speculative single-tenant office.'
+    text: 'Strategy: value-add & opportunistic development. Target sectors: residential, mixed-use, hospitality, logistics. Geographies: GCC, primarily Qatar and UAE. Equity ticket QAR 150M-800M. Target net IRR >=18%. Target equity multiple >=1.8x. Max LTV 60%. Hold 4-6 years. Must be Sharia-compliant and ESG screened. Avoid speculative single-tenant office.'
   };
 
   const DEALS = {
     marina: {
-      name: 'Marina Tower', loc: 'Jeddah · Corniche', sector: 'Mixed-use waterfront',
-      facts: [['GDV', 'SAR 1.78bn'], ['Equity', 'SAR 520M'], ['Base IRR', '18.4%'], ['Equity multiple', '1.9×'],
-              ['LTV', '58%'], ['Hold', '5 years'], ['Geography', 'KSA'], ['Hospitality split', '18% of GFA']],
-      text: 'Marina Tower, Jeddah Corniche. 47-storey mixed-use waterfront (residential, branded hospitality, retail podium). GDV SAR 1.78bn, equity SAR 520M, base-case net IRR 18.4%, equity multiple 1.9x, LTV 58%, hold 5 years, hospitality 18% of GFA, Sharia-compliant structure. Saudi Arabia.',
+      name: 'Marina Tower', loc: 'Doha · Corniche', sector: 'Mixed-use waterfront',
+      facts: [['GDV', 'QAR 1.78bn'], ['Equity', 'QAR 520M'], ['Base IRR', '18.4%'], ['Equity multiple', '1.9×'],
+              ['LTV', '58%'], ['Hold', '5 years'], ['Geography', 'Qatar'], ['Hospitality split', '18% of GFA']],
+      text: 'Marina Tower, Doha Corniche. 47-storey mixed-use waterfront (residential, branded hospitality, retail podium). GDV QAR 1.78bn, equity QAR 520M, base-case net IRR 18.4%, equity multiple 1.9x, LTV 58%, hold 5 years, hospitality 18% of GFA, Sharia-compliant structure. Qatar.',
       fallback: { verdict:'PROCEED', fitScore:86, headline:'Squarely in mandate — returns clear the hurdle with a Sharia-compliant structure; underwrite the hospitality split.',
-        criteria:[['Strategy','aligned','Opportunistic mixed-use development.'],['Sector','aligned','Residential + hospitality + retail — all in scope.'],['Geography','aligned','Jeddah, KSA — core market.'],['Equity ticket','aligned','SAR 520M within the 150–800M band.'],['Net IRR','aligned','18.4% clears the 18% hurdle.'],['Equity multiple','aligned','1.9× above the 1.8× floor.'],['LTV','aligned','58% inside the 60% cap.'],['Hold','aligned','5-year hold within the 4–6yr window.']],
-        strengths:['Waterfront mixed-use in a core KSA market with scarce comparable supply.','Returns clear both the IRR and multiple hurdles with headroom.','Sharia-compliant capital structure already in place.'],
+        criteria:[['Strategy','aligned','Opportunistic mixed-use development.'],['Sector','aligned','Residential + hospitality + retail — all in scope.'],['Geography','aligned','Doha, Qatar — core market.'],['Equity ticket','aligned','QAR 520M within the 150–800M band.'],['Net IRR','aligned','18.4% clears the 18% hurdle.'],['Equity multiple','aligned','1.9× above the 1.8× floor.'],['LTV','aligned','58% inside the 60% cap.'],['Hold','aligned','5-year hold within the 4–6yr window.']],
+        strengths:['Waterfront mixed-use in a core Qatar market with scarce comparable supply.','Returns clear both the IRR and multiple hurdles with headroom.','Sharia-compliant capital structure already in place.'],
         flags:['Hospitality demand is the dominant swing factor at 18% of GFA.','Construction escalation running ahead of the underwritten base.'],
         recommendation:'Advance to IC. Underwrite a hospitality-occupancy downside and confirm the construction contingency before committing.' } },
     aurora: {
-      name: 'Aurora Logistics Park', loc: 'Riyadh · SPARK corridor', sector: 'Last-mile logistics',
-      facts: [['GDV', 'SAR 640M'], ['Equity', 'SAR 210M'], ['Base IRR', '21.0%'], ['Equity multiple', '2.1×'],
-              ['LTV', '55%'], ['Hold', '4 years'], ['Geography', 'KSA'], ['Pre-let', '65%']],
-      text: 'Aurora Logistics Park, Riyadh logistics corridor. Last-mile logistics + light industrial, GDV SAR 640M, equity SAR 210M, base-case net IRR 21%, equity multiple 2.1x, LTV 55%, hold 4 years, 65% pre-let to two investment-grade tenants, Sharia-compliant. Saudi Arabia.',
+      name: 'Aurora Logistics Park', loc: 'Lusail · SPARK corridor', sector: 'Last-mile logistics',
+      facts: [['GDV', 'QAR 640M'], ['Equity', 'QAR 210M'], ['Base IRR', '21.0%'], ['Equity multiple', '2.1×'],
+              ['LTV', '55%'], ['Hold', '4 years'], ['Geography', 'Qatar'], ['Pre-let', '65%']],
+      text: 'Aurora Logistics Park, Lusail logistics corridor. Last-mile logistics + light industrial, GDV QAR 640M, equity QAR 210M, base-case net IRR 21%, equity multiple 2.1x, LTV 55%, hold 4 years, 65% pre-let to two investment-grade tenants, Sharia-compliant. Qatar.',
       fallback: { verdict:'PROCEED', fitScore:82, headline:'Strong-return logistics play in mandate — the open 35% of space is the underwriting question.',
-        criteria:[['Strategy','aligned','Development with a value-add lease-up.'],['Sector','aligned','Logistics is a target sector.'],['Geography','aligned','Riyadh, KSA — core market.'],['Equity ticket','aligned','SAR 210M within band.'],['Net IRR','aligned','21% well above the hurdle.'],['Equity multiple','aligned','2.1× above the floor.'],['LTV','aligned','55% inside the cap.'],['Pre-let','partial','65% pre-let; 35% speculative on delivery.']],
-        strengths:['Returns are the highest in the current pipeline.','65% pre-let to investment-grade covenants de-risks day-one income.','Structural tailwind from e-commerce and 3PL demand in Riyadh.'],
+        criteria:[['Strategy','aligned','Development with a value-add lease-up.'],['Sector','aligned','Logistics is a target sector.'],['Geography','aligned','Lusail, Qatar — core market.'],['Equity ticket','aligned','QAR 210M within band.'],['Net IRR','aligned','21% well above the hurdle.'],['Equity multiple','aligned','2.1× above the floor.'],['LTV','aligned','55% inside the cap.'],['Pre-let','partial','65% pre-let; 35% speculative on delivery.']],
+        strengths:['Returns are the highest in the current pipeline.','65% pre-let to investment-grade covenants de-risks day-one income.','Structural tailwind from e-commerce and 3PL demand in Lusail.'],
         flags:['35% of GLA delivered speculative — lease-up timing risk.','Single-corridor concentration with new competing supply.'],
         recommendation:'Advance to IC. Size the speculative lease-up downside and confirm tenant covenant strength before committing.' } },
     helios: {
       name: 'Helios Office Tower', loc: 'Dubai · Business Bay', sector: 'Core single-tenant office',
       facts: [['GDV', 'AED 1.20bn'], ['Equity', 'AED 600M'], ['Base IRR', '11.8%'], ['Equity multiple', '1.5×'],
               ['LTV', '65%'], ['Hold', '7 years'], ['Geography', 'UAE'], ['Pre-let', 'Spec — 0%']],
-      text: 'Helios Office Tower, Business Bay Dubai. Core, speculative single-tenant Grade-A office. GDV AED 1.20bn, equity AED 600M (~SAR 612M), base-case net IRR 11.8%, equity multiple 1.5x, LTV 65%, hold 7 years, delivered fully speculative with no pre-leasing. UAE.',
+      text: 'Helios Office Tower, Business Bay Dubai. Core, speculative single-tenant Grade-A office. GDV AED 1.20bn, equity AED 600M (~QAR 612M), base-case net IRR 11.8%, equity multiple 1.5x, LTV 65%, hold 7 years, delivered fully speculative with no pre-leasing. UAE.',
       fallback: { verdict:'PASS', fitScore:34, headline:'Multiple mandate breaches — sub-hurdle returns, excluded sector, LTV and hold both outside policy.',
-        criteria:[['Strategy','partial','Core profile, not value-add/opportunistic.'],['Sector','breach','Speculative single-tenant office is explicitly excluded.'],['Geography','aligned','Dubai, UAE — in scope.'],['Equity ticket','aligned','~SAR 612M within band.'],['Net IRR','breach','11.8% falls short of the 18% hurdle.'],['Equity multiple','breach','1.5× below the 1.8× floor.'],['LTV','breach','65% exceeds the 60% cap.'],['Hold','breach','7-year hold beyond the 4–6yr window.']],
+        criteria:[['Strategy','partial','Core profile, not value-add/opportunistic.'],['Sector','breach','Speculative single-tenant office is explicitly excluded.'],['Geography','aligned','Dubai, UAE — in scope.'],['Equity ticket','aligned','~QAR 612M within band.'],['Net IRR','breach','11.8% falls short of the 18% hurdle.'],['Equity multiple','breach','1.5× below the 1.8× floor.'],['LTV','breach','65% exceeds the 60% cap.'],['Hold','breach','7-year hold beyond the 4–6yr window.']],
         strengths:['Prime Business Bay location with Grade-A specification.','Large, institutional-scale lot size.'],
         flags:['Excluded sector: speculative single-tenant office.','Returns clear neither the IRR nor the multiple hurdle.','LTV and hold period both breach policy limits.'],
         recommendation:'Decline. The deal breaches sector, return, leverage and hold criteria simultaneously — outside mandate without a fundamental re-trade.' } },
@@ -320,35 +320,35 @@
   const FUNDS = [
     { id:'f1', name:'Bohio Development Fund I', vintage:'Vintage 2021', strat:'Opportunistic development',
       committed:1.20, called:0.95, deployed:0.88, irr:'19.2%', tvpi:'1.6×', dpi:'0.4×', assets:6,
-      pipeline:[ ['Marina Tower','Construction','SAR 520M'], ['Corniche Residences','Lease-up','SAR 180M'],
-                 ['Jeddah Logistics Hub','Stabilized','SAR 96M'], ['Al Khobar Mixed-Use','Entitlement','SAR 140M'],
-                 ['Riyadh Branded Residences','Construction','SAR 220M'], ['Red Sea Resort JV','Land','SAR 150M'] ],
-      stake:{ lp:['Meridian Pension','Gulf Sovereign Co-Mingle','Cedar Family Office'], co:['Aldar Co-Invest','Saudi REIT Sleeve'],
+      pipeline:[ ['Marina Tower','Construction','QAR 520M'], ['Corniche Residences','Lease-up','QAR 180M'],
+                 ['Doha Logistics Hub','Stabilized','QAR 96M'], ['Al Khobar Mixed-Use','Entitlement','QAR 140M'],
+                 ['Lusail Branded Residences','Construction','QAR 220M'], ['Red Sea Resort JV','Land','QAR 150M'] ],
+      stake:{ lp:['Meridian Pension','Gulf Sovereign Co-Mingle','Cedar Family Office'], co:['Aldar Co-Invest','Qatar REIT Sleeve'],
               lender:['SNB Project Finance','Riyad Bank Syndicate'], jv:['Emaar Hospitality','Dar Al Arkan'],
-              consult:['Cordoba Capital Markets','JLL Valuation','WSP Engineering'], authority:['Jeddah Municipality','SAGIA'],
-              contractor:['Saudi Binladin','Nesma & Partners'] } },
+              consult:['Cordoba Capital Markets','JLL Valuation','WSP Engineering'], authority:['Doha Municipality','SAGIA'],
+              contractor:['Qatar Binladin','Nesma & Partners'] } },
     { id:'f2', name:'Bohio Development Fund II', vintage:'Vintage 2024', strat:'Value-add & development',
       committed:2.10, called:0.84, deployed:0.72, irr:'14.5%', tvpi:'1.2×', dpi:'0.0×', assets:5,
-      pipeline:[ ['Aurora Logistics Park','Construction','SAR 210M'], ['NEOM Adjacent Land','Land','SAR 300M'],
-                 ['Dammam Waterfront','Entitlement','SAR 240M'], ['Riyadh Office Repositioning','Lease-up','SAR 160M'],
-                 ['Madinah Hospitality','Construction','SAR 190M'] ],
+      pipeline:[ ['Aurora Logistics Park','Construction','QAR 210M'], ['NEOM Adjacent Land','Land','QAR 300M'],
+                 ['Dammam Waterfront','Entitlement','QAR 240M'], ['Lusail Office Repositioning','Lease-up','QAR 160M'],
+                 ['Madinah Hospitality','Construction','QAR 190M'] ],
       stake:{ lp:['Meridian Pension','Nordic Pension Alliance','GCC Insurance Pool','Khalij Endowment'], co:['PIF Co-Invest Sleeve'],
               lender:['HSBC Middle East','Standard Chartered','SNB Project Finance'], jv:['Majid Al Futtaim','ROSHN'],
               consult:['Cordoba Capital Markets','Knight Frank','AECOM'], authority:['ROSHN Regulatory','MOMRA'],
               contractor:['El Seif Engineering','Almabani'] } },
     { id:'f3', name:'Levant Opportunistic Co-Invest', vintage:'Vintage 2023', strat:'Opportunistic',
       committed:0.65, called:0.52, deployed:0.50, irr:'22.8%', tvpi:'1.7×', dpi:'0.6×', assets:3,
-      pipeline:[ ['Amman Mixed-Use','Stabilized','SAR 120M'], ['Beirut Marina Retail','Lease-up','SAR 90M'],
-                 ['Cairo New Capital Plot','Construction','SAR 140M'] ],
+      pipeline:[ ['Amman Mixed-Use','Stabilized','QAR 120M'], ['Beirut Marina Retail','Lease-up','QAR 90M'],
+                 ['Cairo New Capital Plot','Construction','QAR 140M'] ],
       stake:{ lp:['Cedar Family Office','Levant Diaspora SPV'], co:['Regional HNW Club'],
               lender:['Arab Bank Syndicate','Audi Project Finance'], jv:['SODIC','Talaat Moustafa'],
               consult:['Cordoba Capital Markets','Savills MENA'], authority:['New Capital Authority'],
               contractor:['Orascom Construction'] } },
     { id:'f4', name:'Bevilacqua Family Office SMA', vintage:'Vintage 2022', strat:'Core-plus & strategic',
       committed:0.90, called:0.74, deployed:0.70, irr:'16.1%', tvpi:'1.4×', dpi:'0.5×', assets:7,
-      pipeline:[ ['Milan Brera Residences','Stabilized','SAR 110M'], ['London Build-to-Rent','Lease-up','SAR 130M'],
-                 ['Lisbon Mixed-Use','Construction','SAR 95M'], ['Dubai Hills Villas','Stabilized','SAR 85M'],
-                 ['Riyadh Logistics Box','Entitlement','SAR 70M'] ],
+      pipeline:[ ['Milan Brera Residences','Stabilized','QAR 110M'], ['London Build-to-Rent','Lease-up','QAR 130M'],
+                 ['Lisbon Mixed-Use','Construction','QAR 95M'], ['Dubai Hills Villas','Stabilized','QAR 85M'],
+                 ['Lusail Logistics Box','Entitlement','QAR 70M'] ],
       stake:{ lp:['Bevilacqua Holdings'], co:['Single-Family Partner Club'],
               lender:['UBS Real Estate','Intesa Sanpaolo'], jv:['Hines Europe','Related Midwest'],
               consult:['Cordoba Capital Markets','CBRE Advisory','Arup'], authority:['Comune di Milano'],
@@ -887,9 +887,9 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
       </div>
 
       <div class="fd-kpis">
-        <div class="fd-kpi"><div class="n">SAR ${totCommit.toFixed(2)}bn</div><div class="l">Committed capital</div></div>
-        <div class="fd-kpi"><div class="n">SAR ${totDeploy.toFixed(2)}bn</div><div class="l">Deployed</div></div>
-        <div class="fd-kpi"><div class="n">SAR ${(totCommit - totCalled).toFixed(2)}bn</div><div class="l">Dry powder</div></div>
+        <div class="fd-kpi"><div class="n">QAR ${totCommit.toFixed(2)}bn</div><div class="l">Committed capital</div></div>
+        <div class="fd-kpi"><div class="n">QAR ${totDeploy.toFixed(2)}bn</div><div class="l">Deployed</div></div>
+        <div class="fd-kpi"><div class="n">QAR ${(totCommit - totCalled).toFixed(2)}bn</div><div class="l">Dry powder</div></div>
         <div class="fd-kpi"><div class="n">${wIrr}%</div><div class="l">Wtd net IRR</div></div>
         <div class="fd-kpi"><div class="n">${totAssets}</div><div class="l">Active developments</div></div>
         <div class="fd-kpi"><div class="n">${totStake}</div><div class="l">Stakeholders</div></div>
@@ -963,7 +963,7 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
       </div>
 
       <div class="fd-block" style="margin-bottom:22px;">
-        <div class="fd-block-h"><span>Capital deployment</span><span class="tag">SAR bn</span></div>
+        <div class="fd-block-h"><span>Capital deployment</span><span class="tag">QAR bn</span></div>
         <div class="fd-cap-cols">
           <div>
             ${capRow('Committed', f.committed, f.committed, '#000919')}
@@ -972,7 +972,7 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
             ${capRow('Dry powder', f.committed - f.called, f.committed, '#B7791F')}
           </div>
           <div style="font-size:11px;line-height:1.7;color:var(--ink-soft);align-self:center;">
-            <strong style="color:var(--ink);font-weight:600;">${Math.round(f.deployed / f.committed * 100)}%</strong> of committed capital is at work across <strong style="color:var(--ink);font-weight:600;">${f.assets}</strong> developments, with <strong style="color:var(--ink);font-weight:600;">SAR ${(f.committed - f.called).toFixed(2)}bn</strong> of dry powder still to call.
+            <strong style="color:var(--ink);font-weight:600;">${Math.round(f.deployed / f.committed * 100)}%</strong> of committed capital is at work across <strong style="color:var(--ink);font-weight:600;">${f.assets}</strong> developments, with <strong style="color:var(--ink);font-weight:600;">QAR ${(f.committed - f.called).toFixed(2)}bn</strong> of dry powder still to call.
           </div>
         </div>
       </div>
@@ -1093,8 +1093,8 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
       svg += box(x, eqY, eqW, eqH, isLead ? 'Lead investor' : t.role, t.name, '', fill, lc, ec);
     });
     // spine: fund, portfolio, delivery
-    svg += box(spvX, spvY, spvW, spvH, 'Fund vehicle', f.name, `SAR ${f.committed.toFixed(2)}bn · ${f.strat}`, RB_RED, WHITE, SOFT_WHITE, INK, 1.4);
-    svg += box(portX, portY, portW, portH, 'Portfolio', `${f.assets} developments`, `SAR ${f.deployed.toFixed(2)}bn deployed · ${f.irr} IRR`, RB_VIOLET, WHITE, SOFT_WHITE, INK, 1.4);
+    svg += box(spvX, spvY, spvW, spvH, 'Fund vehicle', f.name, `QAR ${f.committed.toFixed(2)}bn · ${f.strat}`, RB_RED, WHITE, SOFT_WHITE, INK, 1.4);
+    svg += box(portX, portY, portW, portH, 'Portfolio', `${f.assets} developments`, `QAR ${f.deployed.toFixed(2)}bn deployed · ${f.irr} IRR`, RB_VIOLET, WHITE, SOFT_WHITE, INK, 1.4);
     delivery.forEach((t, i) => {
       const x = delStartX + i * (delW + delGap);
       const isJV = t.role === 'JV Partner';
@@ -1190,7 +1190,7 @@ Advance subject to confirmatory due diligence on the flagged items, final legal 
   function capRow(label, val, max, color) {
     const pct = Math.round(val / max * 100);
     return `<div class="fd-flow-row">
-      <div class="fd-flow-top"><span class="k">${label}</span><span class="v">SAR ${val.toFixed(2)}bn · ${pct}%</span></div>
+      <div class="fd-flow-top"><span class="k">${label}</span><span class="v">QAR ${val.toFixed(2)}bn · ${pct}%</span></div>
       <div class="fd-flow-track"><div class="fd-flow-fill" data-w="${pct}" style="background:${color};"></div></div>
     </div>`;
   }
