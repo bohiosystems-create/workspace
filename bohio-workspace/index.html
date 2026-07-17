@@ -137,7 +137,8 @@
 /* ===== Feasibility — Doha map + HBU option cards ===== */
 .vis-map-wrap { position:relative; width:100%; aspect-ratio:4/3; border-radius:18px; overflow:hidden; border:1px solid var(--ink-hairline); margin-bottom:16px; background:#ece5d3; }
 .vis-map-wrap svg { position:absolute; inset:0; width:100%; height:100%; display:block; }
-.vis-map-osm { position:absolute; inset:0; width:100%; height:100%; border:none; display:block; pointer-events:none; }
+.vis-map-sat { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+.vis-map-wrap.vis-map-fallback { background:linear-gradient(160deg,#cfe0e8,#ece5d3 55%); }
 .vis-map-attrib { position:absolute; right:6px; bottom:4px; z-index:3; font-size:9px; background:rgba(255,255,255,0.85); padding:2px 6px; border-radius:6px; color:#333; }
 .vis-map-attrib a { color:#333; }
 .vis-pin { position:absolute; transform:translate(-50%,-50%); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:5px; font-family:inherit; background:none; border:none; padding:0; z-index:2; }
@@ -21078,7 +21079,10 @@ Answer as Karaya:`;
   }
   function _wfVisMap(modal, cfg){
     const bb=DOHA_BBOX;
-    const osmSrc=`https://www.openstreetmap.org/export/embed.html?bbox=${bb.minLon}%2C${bb.minLat}%2C${bb.maxLon}%2C${bb.maxLat}&layer=mapnik`;
+    // Esri World Imagery — a free, no-API-key satellite export rendered as a
+    // plain static image (not an interactive map), so there is nothing to
+    // pan or zoom and the pins can never drift out of alignment with it.
+    const satSrc=`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bb.minLon},${bb.minLat},${bb.maxLon},${bb.maxLat}&bboxSR=4326&imageSR=4326&size=1200,900&format=png32&transparent=false&f=image`;
     modal.innerHTML=`
       <div class="wf-head">
         <div>
@@ -21089,14 +21093,14 @@ Answer as Karaya:`;
         <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
       </div>
       <div class="wf-body">
-        <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Pick a site on the map of Doha — Karaya pulls the zoning envelope and live rental &amp; transaction comps for the district, then screens three development options for their highest and best use.</div>
+        <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Pick a site on the satellite map of Doha — Karaya pulls the zoning envelope and live rental &amp; transaction comps for the district, then screens three development options for their highest and best use.</div>
         <div class="vis-map-wrap">
-          <iframe class="vis-map-osm" src="${osmSrc}" loading="lazy" title="Map of Doha, Qatar" referrerpolicy="no-referrer-when-downgrade"></iframe>
+          <img class="vis-map-sat" src="${satSrc}" loading="lazy" alt="Satellite map of Doha, Qatar" onerror="this.style.display='none';this.closest('.vis-map-wrap').classList.add('vis-map-fallback');">
           ${WF_VIS_SITES.map(s=>{ const {xPct,yPct}=_visLatLonPct(s.lat,s.lon); return `<button class="vis-pin" style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;" onclick="_wfVisSite('${s.id}')" title="${s.name} — ${s.district}">
             <span class="vis-dot" style="background:${s.col};"></span>
             <span class="vis-lbl">${s.district.replace(/^.*— /,'')}</span>
           </button>`; }).join('')}
-          <div class="vis-map-attrib">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div>
+          <div class="vis-map-attrib">Imagery © Esri, Maxar, Earthstar Geographics</div>
         </div>
         <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Or pick from the list</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">
