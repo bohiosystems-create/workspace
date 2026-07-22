@@ -21117,11 +21117,58 @@ Answer as Karaya:`;
     const newBlendedPsf=(ctx.avgAchievedPsf*ctx.sold + a.listPricePerSqft*(1-a.discountPct/100)*1)/(ctx.sold+1);
     return {ctx, listPrice, discPrice, savings, savingsM, isolatedBps, precedentReductionM, precedentBps, newBlendedPsf};
   }
+  // Deterministic solver: since the precedent-case IRR impact is linear in the
+  // discount %, the max sustainable discount before a chosen IRR floor is
+  // breached can be solved directly rather than guessed at by the model.
+  function _wfDiscountSolveMaxPct(f, a, m, targetFloorPct){
+    const currentIrr=parseFloat(f.irr)||0;
+    const floor=(targetFloorPct!=null && !isNaN(targetFloorPct)) ? targetFloorPct : (currentIrr-1);
+    const targetDropPts=Math.max(0, currentIrr-floor);
+    const targetBps=targetDropPts*100;
+    const unitRevM=a.sqft*a.listPricePerSqft/1e6;
+    const maxPct=(m.ctx.remaining>0 && unitRevM>0) ? (targetBps*f.drawn)/(m.ctx.remaining*unitRevM*100) : 0;
+    return {floor, targetDropPts, maxPct:Math.max(0,maxPct)};
+  }
+  // Stat-tile dashboard — the key figures at a glance, computed instantly
+  // (no need to wait on the streamed narrative below it).
+  function _wfDiscountDashboardHTML(f, m){
+    const tile=(label,val,color)=>`<div style="border:1px solid var(--ink-hairline);border-radius:10px;padding:9px 11px;"><div style="font-size:7px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">${label}</div><div style="font-size:14px;font-weight:700;margin-top:2px;${color?'color:'+color+';':''}">${val}</div></div>`;
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-bottom:13px;">
+      ${tile('Fund net IRR (current)', f.irr)}
+      ${tile('Isolated IRR impact', '-'+m.isolatedBps.toFixed(1)+' bps', '#15803d')}
+      ${tile('Precedent IRR impact', '-'+(m.precedentBps/100).toFixed(1)+' pts', '#b51e3b')}
+      ${tile('Foregone revenue', 'QAR '+Math.round(m.savings).toLocaleString())}
+      ${tile('Precedent exposure', 'QAR '+m.precedentReductionM.toFixed(1)+'M', '#b45309')}
+      ${tile('New blended price', 'QAR '+m.newBlendedPsf.toFixed(0)+'/sqft')}
+    </div>`;
+  }
+  // Formats the narrative with real section headers (### Title) + bullet
+  // lists — fmtKaraya() alone has no header support, so this insight panel
+  // gets its own light formatter instead.
+  function _fmtDiscountSections(text){
+    const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const inline=t=>esc(t).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    const lines=String(text||'').replace(/\r/g,'').split('\n');
+    let html='', list=null;
+    for(const raw of lines){
+      const ln=raw.trim();
+      if(!ln){ if(list){ html+=list+'</ul>'; list=null; } continue; }
+      const h=ln.match(/^#{1,4}\s*(.+)$/);
+      if(h){ if(list){ html+=list+'</ul>'; list=null; } html+=`<div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#b45309;margin:13px 0 6px;">${inline(h[1])}</div>`; continue; }
+      const m2=ln.match(/^[-•*]\s+(.*)$/) || ln.match(/^\d+[.)]\s+(.*)$/);
+      if(m2){ if(!list) list='<ul style="margin:2px 0 4px 16px;padding:0;">'; list+='<li style="margin:4px 0;">'+inline(m2[1])+'</li>'; }
+      else { if(list){ html+=list+'</ul>'; list=null; } html+='<div style="margin:5px 0;">'+inline(ln)+'</div>'; }
+    }
+    if(list) html+=list+'</ul>';
+    return html;
+  }
   function _wfDiscountCard(k, ai, a){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return '';
     const m=_wfDiscountMath(f,a);
     const decided=a.cls!=='a';
-    const insightHtml=a._insight ? fmtKaraya(a._insight) : '';
+    const insightHtml=a._insight ? (_wfDiscountDashboardHTML(f,m)+_fmtDiscountSections(a._insight)) : '';
+    const chat=a._chat||[];
+    const chatLogHtml=chat.map((c,i)=>`<div ${c.cls==='bot'?`id="wfdisc-chat-b-${k}-${ai}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
     return `<div style="border:2px solid ${decided?'var(--ink-hairline)':'#b45309'};border-radius:14px;padding:15px 17px;margin-bottom:12px;background:${decided?'transparent':'rgba(180,83,9,0.04)'};">
       <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
         <div>
@@ -21144,6 +21191,15 @@ Answer as Karaya:`;
         ${!decided?`<button class="wf-btn ghost" style="border-color:#15803d;color:#15803d;" onclick="_wfDiscountDecide('${k}',${ai},'approve')">Approve discount</button>
         <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfDiscountDecide('${k}',${ai},'reject')">Reject</button>`:''}
       </div>
+      <div style="margin-top:13px;padding-top:12px;border-top:1px solid var(--ink-hairline);">
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Ask Karaya about this request</div>
+        <div id="wfdisc-chat-${k}-${ai}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:240px;overflow-y:auto;">${chatLogHtml}</div>
+        <div id="wfdisc-preset-${k}-${ai}" style="margin-bottom:8px;${chat.length?'display:none;':''}"><button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfDiscountAskPreset('${k}',${ai})">✦ Try: "Max discount before fund IRR falls below 12%?"</button></div>
+        <div style="display:flex;gap:8px;">
+          <input id="wfdisc-input-${k}-${ai}" placeholder="Ask about this approval — e.g. max discount before IRR falls below 12%" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDiscountAsk('${k}',${ai})">
+          <button class="wf-btn ghost" onclick="_wfDiscountAsk('${k}',${ai})">Ask</button>
+        </div>
+      </div>
     </div>`;
   }
   async function _wfDiscountInsight(k, ai){
@@ -21152,11 +21208,64 @@ Answer as Karaya:`;
     const m=_wfDiscountMath(f,a);
     const slot=document.getElementById(`wfdisc-insight-${k}-${ai}`); if(!slot) return;
     slot.style.display='block';
-    const fallback=`**Isolated impact (this one unit): negligible.** Foregone revenue of QAR ${Math.round(m.savings).toLocaleString()} vs QAR ${f.drawn}M drawn capital moves fund IRR by roughly **${m.isolatedBps.toFixed(1)} bps** — not decision-relevant on its own.\n\n**The real exposure is precedent, not price.** ${m.ctx.name} is ${Math.round((m.ctx.sold/m.ctx.totalUnits)*100)}% sold (${m.ctx.sold} of ${m.ctx.totalUnits} units) at an average achieved price of QAR ${m.ctx.avgAchievedPsf}/sqft — **${((m.ctx.avgAchievedPsf/a.listPricePerSqft-1)*100).toFixed(1)}% above** current list. The only comparable incentive on the books is a 5% payment-plan sweetener; a 20% cash discount is a **4x outlier** and, once known, buyers already in contract or in the remaining ${m.ctx.remaining}-unit pipeline will reasonably ask for parity.\n\n**If it reads through to the remaining ${m.ctx.remaining} units:** projected sell-out proceeds fall by roughly **QAR ${m.precedentReductionM.toFixed(1)}M**, a swing of about **${(m.precedentBps/100).toFixed(1)} IRR points** at the fund level (indicative — a full re-run of the model would sequence this by absorption month rather than assume it all at once). The blended achieved price would drift toward QAR ${m.newBlendedPsf.toFixed(0)}/sqft, eroding the premium-to-list track record LPs have been shown in every quarterly pack.\n\n**Debt.** ${m.ctx.facility} amortizes from a sales-proceeds sweep; at ${m.ctx.absorptionPerMonth} units/month this single unit is immaterial to the paydown curve, but a fund-wide precedent would stretch the facility's expected repayment date and compress headroom against its DSCR covenant.\n\n**Recommendation.** Approve as a one-off exception tied to the bundled two-unit close, but decline to set a standing 20% band — document it as buyer-specific so Sales can't cite it as a comparable for the remaining ${m.ctx.remaining} units.`;
-    const _insightOut = await karayaStreamInto(slot, `You are Karaya, an AI investment analyst briefing a Chief Investment Officer who must approve or reject a sales discount request. Fund: ${f.name} (net IRR ${f.irr}, QAR ${f.drawn}M drawn of ${f.committed}M committed). Request: ${a.discountPct}% discount on ${a.unit}, list price QAR ${Math.round(m.listPrice).toLocaleString()}, foregone revenue QAR ${Math.round(m.savings).toLocaleString()}. Project context: ${m.ctx.name} is ${m.ctx.sold} of ${m.ctx.totalUnits} units sold at an average achieved price of QAR ${m.ctx.avgAchievedPsf}/sqft (list QAR ${a.listPricePerSqft}/sqft), absorbing ${m.ctx.absorptionPerMonth} units/month, financed by ${m.ctx.facility}. Sales' stated reason: "${a.reason}". Model and explain in 4 short paragraphs with **bold** on the key numbers: (1) the isolated impact of approving just this one unit on IRR — should read as immaterial, roughly ${m.isolatedBps.toFixed(1)} bps; (2) the real risk — pricing precedent and read-through to the remaining ${m.ctx.remaining} unsold units, since this discount is a large outlier vs the only other incentive on the books (a 5% payment-plan sweetener); (3) the modelled impact IF the discount became a fund-wide precedent across the remaining units — quantify the QAR revenue reduction (~QAR ${m.precedentReductionM.toFixed(1)}M) and the resulting IRR impact (~${(m.precedentBps/100).toFixed(1)} points) and the effect on debt repayment (the facility's sales-proceeds sweep); (4) a clear recommendation on how the CIO should decide (approve/reject/approve-with-conditions) and why. Plain text with markdown bold only, no headers, no bullet lists.`, 'discount_approval_insight', fallback);
+    slot.innerHTML = _wfDiscountDashboardHTML(f,m) + `<div id="wfdisc-narr-${k}-${ai}"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>`;
+    const narr=document.getElementById(`wfdisc-narr-${k}-${ai}`);
+    const soldPct=Math.round((m.ctx.sold/m.ctx.totalUnits)*100);
+    const premiumPct=((m.ctx.avgAchievedPsf/a.listPricePerSqft-1)*100).toFixed(1);
+    const outlierX=(a.discountPct/5).toFixed(0);
+    const fallback=`### Isolated impact\n- Foregone revenue on this one unit: **QAR ${Math.round(m.savings).toLocaleString()}**\n- Fund IRR impact: **${m.isolatedBps.toFixed(1)} bps** against QAR ${f.drawn}M drawn capital\n- Verdict: **not decision-relevant** in isolation\n\n### Precedent risk\n- ${m.ctx.name} is **${soldPct}% sold** (${m.ctx.sold} of ${m.ctx.totalUnits} units)\n- Average achieved price **QAR ${m.ctx.avgAchievedPsf}/sqft**, **${premiumPct}% above** current list\n- Only comparable incentive on the books is a 5% payment-plan sweetener — this is roughly a **${outlierX}x outlier**\n- Once known, buyers already in contract or in the remaining ${m.ctx.remaining}-unit pipeline will reasonably ask for parity\n\n### Project impact\n- If read through to all ${m.ctx.remaining} remaining units: sell-out proceeds fall by roughly **QAR ${m.precedentReductionM.toFixed(1)}M**\n- Fund-level IRR swing of about **${(m.precedentBps/100).toFixed(1)} points** (indicative — a full model run would sequence this by absorption month, not assume it all at once)\n- Blended achieved price drifts toward **QAR ${m.newBlendedPsf.toFixed(0)}/sqft**, eroding the premium-to-list track record shown to LPs every quarter\n\n### Debt impact\n- ${m.ctx.facility} amortizes from a sales-proceeds sweep\n- At ${m.ctx.absorptionPerMonth} units/month, this single unit is immaterial to the paydown curve\n- A fund-wide precedent would stretch the facility's expected repayment date and compress DSCR covenant headroom\n\n### Recommendation\n- **Approve** as a one-off exception tied to the bundled two-unit close\n- Do **not** set a standing ${a.discountPct}% discount band\n- Document the approval as buyer-specific so Sales cannot cite it as a comparable for the remaining ${m.ctx.remaining} units\n- Flag to Investor Relations ahead of the next LP report, given the pricing-track-record sensitivity`;
+    const prompt=`You are Karaya, an AI investment analyst briefing a Chief Investment Officer who must approve or reject a sales discount request. Fund: ${f.name} (net IRR ${f.irr}, QAR ${f.drawn}M drawn of ${f.committed}M committed). Request: ${a.discountPct}% discount on ${a.unit}, list price QAR ${Math.round(m.listPrice).toLocaleString()}, foregone revenue QAR ${Math.round(m.savings).toLocaleString()}. Project context: ${m.ctx.name} is ${m.ctx.sold} of ${m.ctx.totalUnits} units sold at an average achieved price of QAR ${m.ctx.avgAchievedPsf}/sqft (list QAR ${a.listPricePerSqft}/sqft), absorbing ${m.ctx.absorptionPerMonth} units/month, financed by ${m.ctx.facility}. Isolated IRR impact ${m.isolatedBps.toFixed(1)} bps; precedent-case IRR impact if read through to all ${m.ctx.remaining} remaining units ${(m.precedentBps/100).toFixed(1)} points (QAR ${m.precedentReductionM.toFixed(1)}M). Sales' stated reason: "${a.reason}". Structure your answer as EXACTLY five sections, each starting with a markdown header on its own line in the form "### Section Title", using these five titles in this order: Isolated impact, Precedent risk, Project impact, Debt impact, Recommendation. Under each header give 2-4 short bullet points starting with "- ", **bold** the key figures in each. No introduction or conclusion text outside the five sections.`;
+    const _insightOut = await karayaStreamInto(narr, prompt, 'discount_approval_insight', fallback);
     a._insight=_insightOut||fallback;
-    slot.innerHTML=fmtKaraya(a._insight);
+    narr.innerHTML=_fmtDiscountSections(a._insight);
     const btnRow=slot.parentElement.querySelector('.wf-btn'); if(btnRow) btnRow.textContent='↻ Regenerate AI insight';
+  }
+  // ---- Follow-up chat on a discount approval — plus a deterministic
+  // "max discount before IRR falls below X%" solver demo ----
+  function _wfDiscountChatRender(k, ai){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const a=f.approvals[ai]; if(!a) return;
+    const log=document.getElementById(`wfdisc-chat-${k}-${ai}`); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=(a._chat||[]).map((c,i)=>`<div ${c.cls==='bot'?`id="wfdisc-chat-b-${k}-${ai}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    log.scrollTop=log.scrollHeight;
+  }
+  function _wfDiscountAskPreset(k, ai){
+    const input=document.getElementById(`wfdisc-input-${k}-${ai}`);
+    if(input) input.value="What's the maximum discount we could offer before fund IRR falls below 12%?";
+    const preset=document.getElementById(`wfdisc-preset-${k}-${ai}`); if(preset) preset.style.display='none';
+    _wfDiscountAsk(k, ai);
+  }
+  function _wfDiscountAsk(k, ai){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const a=f.approvals[ai]; if(!a) return;
+    const input=document.getElementById(`wfdisc-input-${k}-${ai}`); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    const preset=document.getElementById(`wfdisc-preset-${k}-${ai}`); if(preset) preset.style.display='none';
+    a._chat=a._chat||[];
+    a._chat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    const m=_wfDiscountMath(f,a);
+    const isSolve=/max(?:imum)?\s+discount|discount.*before.*irr|irr.*falls?\s*below|irr.*below/i.test(q);
+    if(isSolve){
+      const floorMatch=q.match(/(\d+(?:\.\d+)?)\s*%/);
+      const floor=floorMatch?parseFloat(floorMatch[1]):null;
+      const sol=_wfDiscountSolveMaxPct(f,a,m,floor);
+      const within=a.discountPct<=sol.maxPct;
+      const html=fmtKaraya(`Solving against the **precedent-case** model (this % discount read through to all ${m.ctx.remaining} remaining units in ${m.ctx.name}):\n\n- Current fund net IRR: **${f.irr}**\n- Target floor used: **${sol.floor.toFixed(1)}%**${floor!=null?' (as you specified)':' (default: 1.0-point cushion below current IRR)'}\n- Allowable IRR give-up: **${sol.targetDropPts.toFixed(1)} points**\n- **Maximum sustainable discount: ~${sol.maxPct.toFixed(1)}%** before a fund-wide precedent breaches that floor\n\nThe requested **${a.discountPct}%** is **${within?'within':'ABOVE'}** this ceiling on a fund-wide-precedent basis — though as a one-off exception on a single unit it stays immaterial regardless (see the Isolated impact figures above).`);
+      a._chat.push({cls:'bot', html});
+      _wfDiscountChatRender(k,ai);
+      return;
+    }
+    const botIdx=a._chat.length;
+    a._chat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    _wfDiscountChatRender(k,ai);
+    const fallback=`I can model this request's impact on IRR, debt repayment and pricing precedent — ask things like "what's the maximum discount before IRR falls below 12%?" or "how does this compare to a fund-wide precedent?".`;
+    const prompt=`You are Karaya, answering a follow-up question from a Chief Investment Officer about a pending sales discount approval. Fund: ${f.name} (net IRR ${f.irr}). Request: ${a.discountPct}% discount on ${a.unit}. Isolated IRR impact: ${m.isolatedBps.toFixed(1)} bps. Precedent-case IRR impact if read through to all ${m.ctx.remaining} remaining units: ${(m.precedentBps/100).toFixed(1)} points (QAR ${m.precedentReductionM.toFixed(1)}M). Question: "${q}". Answer in 2-4 sentences, **bold** key figures, grounded only in the numbers given. Plain text, no headers.`;
+    setTimeout(()=>{
+      const el=document.getElementById(`wfdisc-chat-b-${k}-${ai}-${botIdx}`); if(!el) return;
+      karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ a._chat[botIdx].html=fmtKaraya(out||fallback); el.innerHTML=fmtKaraya(out||fallback); }).catch(()=>{ a._chat[botIdx].html=fmtKaraya(fallback); el.innerHTML=fmtKaraya(fallback); });
+    }, 30);
   }
   function _wfDiscountDecide(k, ai, action){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
