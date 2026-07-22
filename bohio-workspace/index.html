@@ -21102,6 +21102,130 @@ Answer as Karaya:`;
   const _wfDiscountProjectCtx={
     1:{ name:'Marina Tower', totalUnits:320, sold:186, reserved:24, remaining:110, avgAchievedPsf:2150, absorptionPerMonth:12, facility:'QAR 210M construction facility (sales-proceeds sweep, EIBOR+225)' },
   };
+  // ---- Real (mock) financial model behind the approval — reuses the same
+  // structured figures the Financial Reporting workflow and Finance
+  // department agent already hold for this asset (WF_REP_ASSETS), so a real
+  // question about NOI/revenue/debt/IRR reconciles with the rest of the app
+  // instead of being invented fresh for this one card.
+  function _wfDiscountFinModel(projectId){
+    const ctx=_wfDiscountProjectCtx[projectId];
+    const asset=(typeof WF_REP_ASSETS!=='undefined'?WF_REP_ASSETS:[]).find(x=>ctx&&x.name===ctx.name)
+      || {name:ctx?ctx.name:'the project', revenue:10, opex:3, capex:2, noi:7, invested:100, nav:110, irr:12, moic:1.1, occ:90};
+    const years=5, growth=0.03, opexRatio=asset.opex/asset.revenue;
+    const ltc=0.65, rate=0.065;
+    const debtBalance=asset.invested*ltc;
+    const debtService=debtBalance*rate;
+    const yearLabels=[], revenue=[], opex=[], noi=[], dscr=[];
+    const y0=2026;
+    for(let i=0;i<years;i++){
+      const rev=asset.revenue*Math.pow(1+growth,i);
+      const op=rev*opexRatio;
+      yearLabels.push(y0+i); revenue.push(rev); opex.push(op); noi.push(rev-op); dscr.push((rev-op)/debtService);
+    }
+    return {asset, ctx, yearLabels, revenue, opex, noi, dscr, debtBalance, debtService, ltc, rate};
+  }
+  // Deterministic lookups against the real model above — returns null (so the
+  // caller falls through to AI narration) if the question doesn't match a
+  // known metric.
+  function _wfFinChatAnswer(fm, q){
+    const ql=q.toLowerCase();
+    const yearMatch=ql.match(/year\s*(\d+)|\by(\d+)\b/);
+    let yi=yearMatch ? (parseInt(yearMatch[1]||yearMatch[2],10)-1) : null;
+    if(yi!=null) yi=Math.max(0, Math.min(fm.yearLabels.length-1, yi));
+    const yearTag=i=>`Year ${i+1} (${fm.yearLabels[i]})`;
+    if(/\bnoi\b|net operating income/.test(ql)){
+      if(yi!=null) return `Projected NOI in ${yearTag(yi)} for **${fm.asset.name}** is **QAR ${fm.noi[yi].toFixed(1)}M** (revenue QAR ${fm.revenue[yi].toFixed(1)}M less opex QAR ${fm.opex[yi].toFixed(1)}M).`;
+      return `Current-year NOI for **${fm.asset.name}** is **QAR ${fm.noi[0].toFixed(1)}M**, projected to reach **QAR ${fm.noi[fm.noi.length-1].toFixed(1)}M** by ${yearTag(fm.noi.length-1)} at a 3% annual growth assumption.`;
+    }
+    if(/revenue|income|sales\s*(figure|number|total)/.test(ql) && !/\bunit/.test(ql)){
+      if(yi!=null) return `Projected revenue in ${yearTag(yi)} is **QAR ${fm.revenue[yi].toFixed(1)}M**.`;
+      return `Current-year revenue is **QAR ${fm.revenue[0].toFixed(1)}M**; invested capital to date is **QAR ${fm.asset.invested}M**.`;
+    }
+    if(/opex|operating cost/.test(ql)){
+      if(yi!=null) return `Projected opex in ${yearTag(yi)} is **QAR ${fm.opex[yi].toFixed(1)}M** (**${(fm.opex[yi]/fm.revenue[yi]*100).toFixed(0)}%** of revenue).`;
+      return `Current opex ratio is **${(fm.opex[0]/fm.revenue[0]*100).toFixed(0)}%** of revenue (QAR ${fm.opex[0].toFixed(1)}M).`;
+    }
+    if(/dscr|debt service coverage/.test(ql)){
+      if(yi!=null) return `Projected DSCR in ${yearTag(yi)} is **${fm.dscr[yi].toFixed(2)}x**.`;
+      return `Current DSCR is **${fm.dscr[0].toFixed(2)}x** against debt service of **QAR ${fm.debtService.toFixed(1)}M/yr**.`;
+    }
+    if((/debt|facility|loan/.test(ql)) && (/balance|outstanding|how much/.test(ql))){
+      return `Outstanding debt balance is **QAR ${fm.debtBalance.toFixed(0)}M** on ${fm.ctx?fm.ctx.facility:'the project facility'} — **${(fm.ltc*100).toFixed(0)}%** LTC at **${(fm.rate*100).toFixed(2)}%**.`;
+    }
+    if(/\birr\b/.test(ql)){
+      return `Project-level gross IRR is **${fm.asset.irr}%**, equity multiple **${fm.asset.moic}x**.`;
+    }
+    if(/multiple|moic/.test(ql)){
+      return `Equity multiple (MOIC) is **${fm.asset.moic}x**.`;
+    }
+    if(/occupan/.test(ql)){
+      return `Occupancy is **${fm.asset.occ}%**.`;
+    }
+    if(/\bnav\b|valuation|current value/.test(ql)){
+      return `Current NAV is **QAR ${fm.asset.nav}M** against **QAR ${fm.asset.invested}M** invested.`;
+    }
+    if((/unit|sold|remaining|absorption/.test(ql)) && fm.ctx){
+      return `**${fm.ctx.sold}** of **${fm.ctx.totalUnits}** units sold (**${fm.ctx.remaining}** remaining), absorbing **${fm.ctx.absorptionPerMonth} units/month** at an average achieved price of **QAR ${fm.ctx.avgAchievedPsf}/sqft**.`;
+    }
+    return null;
+  }
+  function _wfFinChatHTML(k, ai, a){
+    const chat=a._finChat||[];
+    const chatLogHtml=chat.map((c,i)=>`<div ${c.cls==='bot'?`id="wffin2-chat-b-${k}-${ai}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    return `<div style="margin-top:13px;padding-top:12px;border-top:1px solid var(--ink-hairline);">
+      <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Ask about the financial model</div>
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:8px;">Backed by the project's own model (revenue, opex, NOI, debt &amp; DSCR schedule, unit sales) — ask a real question, not a summary.</div>
+      <div id="wffin2-chat-${k}-${ai}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:240px;overflow-y:auto;">${chatLogHtml}</div>
+      <div id="wffin2-preset-${k}-${ai}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFinChatPreset('${k}',${ai},'What is the NOI in year 3?')">NOI in year 3?</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFinChatPreset('${k}',${ai},'What is the current DSCR and debt balance?')">DSCR &amp; debt balance?</button>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <input id="wffin2-input-${k}-${ai}" placeholder="Ask about the model — e.g. what's the NOI in year 3?" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfFinChatAsk('${k}',${ai})">
+        <button class="wf-btn ghost" onclick="_wfFinChatAsk('${k}',${ai})">Ask</button>
+      </div>
+    </div>`;
+  }
+  function _wfFinChatRender(k, ai){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const a=f.approvals[ai]; if(!a) return;
+    const log=document.getElementById(`wffin2-chat-${k}-${ai}`); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=(a._finChat||[]).map((c,i)=>`<div ${c.cls==='bot'?`id="wffin2-chat-b-${k}-${ai}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    log.scrollTop=log.scrollHeight;
+    const preset=document.getElementById(`wffin2-preset-${k}-${ai}`); if(preset&&(a._finChat||[]).length) preset.style.display='none';
+  }
+  function _wfFinChatPreset(k, ai, text){
+    const input=document.getElementById(`wffin2-input-${k}-${ai}`);
+    if(input) input.value=text;
+    _wfFinChatAsk(k, ai);
+  }
+  function _wfFinChatAsk(k, ai){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const a=f.approvals[ai]; if(!a) return;
+    const input=document.getElementById(`wffin2-input-${k}-${ai}`); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    a._finChat=a._finChat||[];
+    a._finChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    const fm=_wfDiscountFinModel(a.projectId);
+    const det=_wfFinChatAnswer(fm, q);
+    if(det!=null){
+      a._finChat.push({cls:'bot', html:fmtKaraya(det)});
+      _wfFinChatRender(k,ai);
+      return;
+    }
+    const botIdx=a._finChat.length;
+    a._finChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    _wfFinChatRender(k,ai);
+    const table=fm.yearLabels.map((y,i)=>`${y}: revenue QAR ${fm.revenue[i].toFixed(1)}M, opex QAR ${fm.opex[i].toFixed(1)}M, NOI QAR ${fm.noi[i].toFixed(1)}M, DSCR ${fm.dscr[i].toFixed(2)}x`).join('; ');
+    const fallback=`I can answer questions grounded in ${fm.asset.name}'s own model — try "what's the NOI in year 3" or "what's the current DSCR and debt balance".`;
+    const prompt=`You are Karaya, answering a question about ${fm.asset.name}'s financial model, grounded ONLY in this data: current gross IRR ${fm.asset.irr}%, equity multiple ${fm.asset.moic}x, occupancy ${fm.asset.occ}%, NAV QAR ${fm.asset.nav}M, invested QAR ${fm.asset.invested}M, debt balance QAR ${fm.debtBalance.toFixed(0)}M at ${(fm.rate*100).toFixed(2)}%. 5-year schedule: ${table}. Question: "${q}". Answer in 1-3 sentences, **bold** the key figures, and say if the question can't be answered from this data rather than guessing. Plain text, no headers.`;
+    setTimeout(()=>{
+      const el=document.getElementById(`wffin2-chat-b-${k}-${ai}-${botIdx}`); if(!el) return;
+      karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ a._finChat[botIdx].html=fmtKaraya(out||fallback); el.innerHTML=fmtKaraya(out||fallback); }).catch(()=>{ a._finChat[botIdx].html=fmtKaraya(fallback); el.innerHTML=fmtKaraya(fallback); });
+    }, 30);
+  }
   function _wfDiscountMath(f, a){
     const ctx=_wfDiscountProjectCtx[a.projectId]||{name:'the project', totalUnits:200, sold:100, reserved:10, remaining:90, avgAchievedPsf:a.listPricePerSqft*1.03, absorptionPerMonth:10, facility:'the project facility'};
     const listPrice=a.listPricePerSqft*a.sqft;
@@ -21199,6 +21323,7 @@ Answer as Karaya:`;
           <button class="wf-btn ghost" onclick="_wfDiscountAsk('${k}',${ai})">Ask</button>
         </div>
       </div>
+      ${_wfFinChatHTML(k, ai, a)}
     </div>`;
   }
   async function _wfDiscountInsight(k, ai){
