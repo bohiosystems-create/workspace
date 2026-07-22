@@ -10250,6 +10250,9 @@
       <div class="nav-item" id="nav-projects" onclick="goTo('workspace')">
         <span>My Funds</span>
       </div>
+      <div class="nav-item" id="nav-approvals" onclick="openApprovalsHub()">
+        <span>Approvals</span>
+      </div>
       <div class="nav-item" id="nav-tasks" onclick="toggleTasks()">
         <span>My Tasks</span>
         <span class="nav-count">05</span>
@@ -20985,16 +20988,7 @@ Answer as Karaya:`;
       </div>`
       + f.approvals.map((a,ai)=> a.kind==='discount'
         ? _wfDiscountCard(k, ai, a)
-        : `<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:11.5px;font-weight:700;line-height:1.4;">${a.t}</div><span class="wf-pill ${a.cls}" style="flex-shrink:0;">${a.status}</span></div>
-        <div style="font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.03em;">${a.chain}</div>
-        ${(a.attachments&&a.attachments.length)?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px;">${a.attachments.map(n=>'📎 '+n.replace(/</g,'&lt;')).join(' · ')}</div>`:''}
-        ${a.cls==='a'?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;">
-          <button class="wf-btn ghost" style="border-color:#15803d;color:#15803d;" onclick="_wfApprovalDecide('${k}',${ai},'approve')">✓ Approve</button>
-          <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfApprovalDecide('${k}',${ai},'reject')">✗ Reject</button>
-        </div>`:''}
-        ${_wfApprovalAiHTML(k, ai, a)}
-      </div>`).join('');
+        : _wfPlainApprovalCardHTML(k, ai, a)).join('');
     } else if(sec==='stakeholders'){
       panel=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         <button class="wf-btn" onclick="_wfFundChart('${k}')">✦ Generate fund structure chart from the fund documents</button>
@@ -21466,6 +21460,21 @@ Answer as Karaya:`;
     if(list) html+=list+'</ul>';
     return html;
   }
+  // Shared card for a plain (non-discount) fund approval — used both by a
+  // fund's own Approvals section and by the aggregated Approvals hub, so the
+  // two views never drift out of sync.
+  function _wfPlainApprovalCardHTML(k, ai, a){
+    return `<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:11.5px;font-weight:700;line-height:1.4;">${a.t}</div><span class="wf-pill ${a.cls}" style="flex-shrink:0;">${a.status}</span></div>
+      <div style="font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.03em;">${a.chain}</div>
+      ${(a.attachments&&a.attachments.length)?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px;">${a.attachments.map(n=>'📎 '+n.replace(/</g,'&lt;')).join(' · ')}</div>`:''}
+      ${a.cls==='a'?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;">
+        <button class="wf-btn ghost" style="border-color:#15803d;color:#15803d;" onclick="_wfApprovalDecide('${k}',${ai},'approve')">✓ Approve</button>
+        <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfApprovalDecide('${k}',${ai},'reject')">✗ Reject</button>
+      </div>`:''}
+      ${_wfApprovalAiHTML(k, ai, a)}
+    </div>`;
+  }
   // ---- Generic "ask Karaya to generate AI analytics" dropdown, attached to
   // every plain (non-discount) approval so nothing sits without an AI entry
   // point — collapsed by default so the approvals list doesn't get noisy.
@@ -21656,12 +21665,88 @@ Answer as Karaya:`;
       karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ a._chat[botIdx].html=fmtKaraya(out||fallback); el.innerHTML=fmtKaraya(out||fallback); }).catch(()=>{ a._chat[botIdx].html=fmtKaraya(fallback); el.innerHTML=fmtKaraya(fallback); });
     }, 30);
   }
+  // When the aggregated Approvals hub is open, a decision should re-render
+  // the hub (so the user stays put) instead of jumping into that one fund's
+  // Approvals section.
+  let _wfApprovalsHubOpen=false;
+  function _wfApprovalsRefresh(k){
+    if(_wfApprovalsHubOpen && typeof _wfRenderApprovalsHub==='function') _wfRenderApprovalsHub();
+    else _wfFundDetail(k,'approvals');
+  }
+  // ---- Approvals hub — every pending approval, across every fund and
+  // project, in one place. Reuses the exact same card renderers as a fund's
+  // own Approvals section (so Approve/Reject/AI-chat all keep working
+  // unmodified) plus a read-only view of requests you've sent from projects.
+  function openApprovalsHub(){
+    _wfApprovalsHubOpen=true;
+    _wfOpenFundShell();
+    _wfRenderApprovalsHub();
+  }
+  function _wfApprovalsHubBack(){
+    _wfApprovalsHubOpen=false;
+    closeWorkflow();
+    goTo('workspace');
+  }
+  function _wfRenderApprovalsHub(){
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const funds=(typeof WF_FUNDS!=='undefined')?WF_FUNDS:[];
+    let fundTotal=0;
+    const fundSections=funds.map(f=>{
+      const pending=f.approvals.map((a,ai)=>({a,ai})).filter(x=>x.a.cls==='a');
+      if(!pending.length) return '';
+      fundTotal+=pending.length;
+      const cards=pending.map(({a,ai})=> a.kind==='discount' ? _wfDiscountCard(f.k,ai,a) : _wfPlainApprovalCardHTML(f.k,ai,a)).join('');
+      return `<div style="margin-top:18px;">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;">
+          <span style="width:9px;height:9px;border-radius:50%;background:${f.col};flex-shrink:0;"></span>
+          <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);cursor:pointer;" onclick="_wfApprovalsHubOpen=false;_wfFundDetail('${f.k}','approvals')">${f.name.replace(/^Bohio RE /,'')} · ${pending.length} pending</div>
+        </div>
+        ${cards}
+      </div>`;
+    }).join('');
+    let projTotal=0;
+    const projSections=Object.keys(P).map(pid=>{
+      const reqs=(P[pid].approvalRequests||[]).filter(r=>r.cls==='a');
+      if(!reqs.length) return '';
+      projTotal+=reqs.length;
+      const cards=reqs.map(r=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:11.5px;font-weight:700;line-height:1.4;">${r.t}</div><span class="wf-pill a" style="flex-shrink:0;">${r.status}</span></div>
+        <div style="font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.03em;">${r.chain}</div>
+        ${(r.attachments&&r.attachments.length)?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px;">${r.attachments.map(n=>'📎 '+n.replace(/</g,'&lt;')).join(' · ')}</div>`:''}
+      </div>`).join('');
+      return `<div style="margin-top:18px;">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;">
+          <span style="width:9px;height:9px;border-radius:50%;background:var(--ink-soft);flex-shrink:0;"></span>
+          <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);cursor:pointer;" onclick="showProject(${pid});setTimeout(()=>selectProjectSection('approvals'),250);">${P[pid].name} · ${reqs.length} awaiting response</div>
+        </div>
+        ${cards}
+      </div>`;
+    }).join('');
+    const empty = (fundTotal+projTotal===0) ? `<div style="text-align:center;padding:60px 20px;color:var(--ink-soft);font-size:12px;">Nothing pending — every approval across your funds and projects is resolved.</div>` : '';
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <button onclick="_wfApprovalsHubBack()" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ Workspace</button>
+          <div class="wf-title">Approvals</div>
+          <div class="wf-sub">Everything pending your decision — ${fundTotal} fund approval${fundTotal===1?'':'s'}${projTotal?`, ${projTotal} project request${projTotal===1?'':'s'} awaiting a response`:''}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="wf-back" onclick="_wfApprovalsHubBack()" aria-label="Back" title="Back">←</button>
+          <button class="wf-close" onclick="_wfApprovalsHubOpen=false;closeWorkflow()" aria-label="Close">✕</button>
+        </div>
+      </div>
+      <div class="wf-body">
+        ${empty}
+        ${fundTotal?`<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Fund approvals</div>${fundSections}`:''}
+        ${projTotal?`<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-top:${fundTotal?'26px':'0'};">Requests you've sent from projects</div>${projSections}`:''}
+      </div>`;
+  }
   function _wfDiscountDecide(k, ai, action){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const a=f.approvals[ai]; if(!a) return;
     if(action==='approve'){ a.status='Approved by CIO'; a.cls='g'; a.chain='Sales ✓ submitted → Chief Investment Officer ✓ approved'; }
     else { a.status='Rejected by CIO'; a.cls='r'; a.chain='Sales ✓ submitted → Chief Investment Officer ✗ rejected'; }
-    _wfFundDetail(k,'approvals');
+    _wfApprovalsRefresh(k);
     if(typeof _renderDailyBriefApprovals==='function') _renderDailyBriefApprovals();
   }
   // Approve / reject any plain (non-discount) fund approval. Marks the item
@@ -21673,7 +21758,7 @@ Answer as Karaya:`;
     const who=(window.DEMO_USER&&window.DEMO_USER.name)||'You';
     if(action==='approve'){ a.status='Approved'; a.cls='g'; a.chain=(a.chain?a.chain+' → ':'')+who+' ✓ approved'; }
     else { a.status='Rejected'; a.cls='r'; a.chain=(a.chain?a.chain+' → ':'')+who+' ✗ rejected'; }
-    _wfFundDetail(k,'approvals');
+    _wfApprovalsRefresh(k);
     if(typeof _renderDailyBriefApprovals==='function') _renderDailyBriefApprovals();
   }
   // ---- per-document access control (you're the VP / Senior Manager) --------
