@@ -21095,13 +21095,14 @@ Answer as Karaya:`;
       ['documents','Fund agreements','LPA · subs · notices','◫'],
       ['modelling','Financial modelling','Master model & dashboards','▦'],
       ['projects','Projects','Developments in this fund','◇'],
+      ['development','Development','Costs · timeline · technical','⚒'],
       ['structure','Structure','GP · LPs · vehicle','⧉'],
       ['approvals','Approvals','Calls · distributions','✓'],
       ['topics','Topics','Open discussions','❋'],
       ['reporting','Reporting','Board & LP reports','▤'],
       ['timeline','Timeline','Fund history at a glance','◷'],
     ];
-    const _cnt={brief:null, documents:(f.docs||[]).length, modelling:(f.models||[]).length, projects:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]).length, structure:f.structure.lps.length, approvals:f.approvals.length, topics:f.topics.length, reporting:null, timeline:null};
+    const _cnt={brief:null, documents:(f.docs||[]).length, modelling:(f.models||[]).length, projects:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]).length, development:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]&&WF_DEV_DATA[id]).length, structure:f.structure.lps.length, approvals:f.approvals.length, topics:f.topics.length, reporting:null, timeline:null};
     const secBtns=SECTIONS.map(([key,label,sub,glyph])=>`
       <div class="section-squircle${sec===key?' active':''}" data-sec="${key}" onclick="_wfFundDetail('${k}','${key}')">
         <div class="ssq-head"><span class="ssq-glyph">${glyph}</span><span class="ssq-count">${_cnt[key]!=null?String(_cnt[key]).padStart(2,'0'):''}</span></div>
@@ -21205,6 +21206,10 @@ Answer as Karaya:`;
         : `Development projects run <b style="color:var(--ink);">inside ${f.name}</b> — open one, or start a new project within the fund.`}</div>
       ${ids.length? `<div style="font-size:26px;font-weight:800;letter-spacing:-0.01em;line-height:1.2;margin:6px 0 16px;">Projects within ${f.name}</div><div class="fund-projects-grid">${ids.map(id=>_projectSquircleHTML(id)).join('')}</div>` : `<div style="font-size:11px;color:var(--ink-soft);padding:8px 0;">No projects yet in this fund.</div>`}
       ${addBtnHtml? `<div style="margin-top:14px;">${addBtnHtml}</div>` : ''}`;
+    }
+    else if(sec==='development'){
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Costs, timeline and technical data for every development in <b style="color:var(--ink);">${f.name}</b> — design & construction programme, contractor, delivery method, cost breakdown, milestones and key documentation.</div>`
+      + _wfDevSectionHTML(f, k);
     }
     else if(sec==='reporting'){
       const pending=f.approvals.filter(a=>a.cls==='a');
@@ -22726,6 +22731,312 @@ ${ctx.mailCtx}`;
       });
     }catch(e){}
   })();
+  // ---- Development — costs, timeline & technical data per project, plus a
+  // chatbot that answers "what happens to the business if the design/
+  // construction timeline or cost changes" from a deterministic, transparent
+  // model rather than an AI guess. Keyed by project id, same ids referenced
+  // by FUND_PROJECT_IDS, so every project a fund actually holds gets a real
+  // development profile.
+  const WF_DEV_DATA = {
+    1:{ // Marina Tower — active construction
+      designMonths:8, designStatus:'Complete', constructionMonths:30, constructionStatus:'In progress',
+      constructionStart:'Sep 2025', targetCompletion:'Mar 2028', pctComplete:42,
+      contractor:'Al-Bawani Construction', deliveryMethod:'GMP (Guaranteed Maximum Price)',
+      hardCost:145, softCost:28, contingency:12, totalDevCost:185,
+      gfa:148000, structuralSystem:'RC frame + post-tensioned slabs, 2-level basement',
+      permits:'Building permit issued; MEP permit in review',
+      milestones:[
+        {name:'Design development', status:'Complete', date:'Apr 2025'},
+        {name:'Building permit', status:'Complete', date:'Aug 2025'},
+        {name:'Piling & substructure', status:'Complete', date:'Feb 2026'},
+        {name:'Superstructure — Level 12 of 28', status:'In progress', date:'Target Jun 2027'},
+        {name:'MEP fit-out', status:'Not started', date:'Target Dec 2027'},
+        {name:'Handover', status:'Not started', date:'Target Mar 2028'},
+      ],
+      docs:[
+        {name:'Geotechnical Investigation Report', type:'PDF', date:'Dec 2024', note:'Bearing capacity confirmed at -14m; no adverse ground conditions'},
+        {name:'GMP Construction Contract — Al-Bawani', type:'AGR', date:'Aug 2025 · Executed', note:'SAR 145M hard cost GMP, 30-month programme, LDs at SAR 85k/day'},
+        {name:'Design Development Package', type:'PDF', date:'Apr 2025', note:'Structural, MEP and architectural DD issued for permit'},
+        {name:'Monthly Progress Report — latest', type:'PDF', date:'Jun 2026', note:'42% physical complete vs 44% programmed — 2% behind, recovery plan in place'},
+      ],
+    },
+    2:{ // Ash Shati Residences — active construction, earlier stage
+      designMonths:7, designStatus:'Complete', constructionMonths:26, constructionStatus:'In progress',
+      constructionStart:'Nov 2025', targetCompletion:'Jan 2028', pctComplete:18,
+      contractor:'UrbaCon Trading & Contracting', deliveryMethod:'GMP (Guaranteed Maximum Price)',
+      hardCost:106, softCost:19, contingency:7, totalDevCost:132,
+      gfa:104000, structuralSystem:'RC frame, precast façade panels',
+      permits:'Building permit issued',
+      milestones:[
+        {name:'Design development', status:'Complete', date:'May 2025'},
+        {name:'Building permit', status:'Complete', date:'Oct 2025'},
+        {name:'Piling & substructure', status:'In progress', date:'Target Sep 2026'},
+        {name:'Superstructure', status:'Not started', date:'Target Jun 2027'},
+        {name:'MEP fit-out', status:'Not started', date:'Target Nov 2027'},
+        {name:'Handover', status:'Not started', date:'Jan 2028'},
+      ],
+      docs:[
+        {name:'Design Development Package', type:'PDF', date:'May 2025', note:'Hospitality-split massing confirmed; unit mix finalised'},
+        {name:'GMP Construction Contract — UrbaCon', type:'AGR', date:'Oct 2025 · Executed', note:'SAR 106M hard cost GMP, 26-month programme'},
+        {name:'Piling Works Method Statement', type:'PDF', date:'Nov 2025', note:'Bored piling to -22m, contiguous with adjacent plot'},
+      ],
+    },
+    3:{ // Rawdah Plaza — completed, in operation
+      designMonths:6, designStatus:'Complete', constructionMonths:22, constructionStatus:'Complete',
+      constructionStart:'Jul 2023', targetCompletion:'May 2025', pctComplete:100,
+      contractor:'Qatar Building Company', deliveryMethod:'Lump sum',
+      hardCost:78, softCost:14, contingency:4, totalDevCost:96,
+      gfa:62000, structuralSystem:'RC frame, steel roof trusses over anchor unit',
+      permits:'Completion certificate issued',
+      milestones:[
+        {name:'Design development', status:'Complete', date:'Jun 2023'},
+        {name:'Building permit', status:'Complete', date:'Jun 2023'},
+        {name:'Substructure', status:'Complete', date:'Dec 2023'},
+        {name:'Superstructure', status:'Complete', date:'Aug 2024'},
+        {name:'MEP fit-out', status:'Complete', date:'Mar 2025'},
+        {name:'Handover', status:'Complete', date:'May 2025'},
+      ],
+      docs:[
+        {name:'Practical Completion Certificate', type:'PDF', date:'May 2025', note:'Issued 14 May 2025; punch-list items closed within the DLP'},
+        {name:'Final Account — Qatar Building Company', type:'PDF', date:'Jun 2025', note:'Settled at SAR 78.4M hard cost, 0.5% over the lump sum baseline'},
+        {name:'As-Built Drawings Package', type:'PDF', date:'May 2025', note:'Structural, MEP and architectural as-built set'},
+      ],
+    },
+    4:{ // Rayyan Block — completed, in operation
+      designMonths:6, designStatus:'Complete', constructionMonths:20, constructionStatus:'Complete',
+      constructionStart:'Sep 2023', targetCompletion:'May 2025', pctComplete:100,
+      contractor:'Al Jaber Engineering', deliveryMethod:'GMP (Guaranteed Maximum Price)',
+      hardCost:59, softCost:11, contingency:4, totalDevCost:74,
+      gfa:48000, structuralSystem:'RC frame, raised floor for office fit-out flexibility',
+      permits:'Completion certificate issued',
+      milestones:[
+        {name:'Design development', status:'Complete', date:'Aug 2023'},
+        {name:'Building permit', status:'Complete', date:'Sep 2023'},
+        {name:'Substructure', status:'Complete', date:'Feb 2024'},
+        {name:'Superstructure', status:'Complete', date:'Nov 2024'},
+        {name:'MEP fit-out', status:'Complete', date:'Apr 2025'},
+        {name:'Handover', status:'Complete', date:'May 2025'},
+      ],
+      docs:[
+        {name:'Practical Completion Certificate', type:'PDF', date:'May 2025', note:'Issued 20 May 2025'},
+        {name:'Final Account — Al Jaber Engineering', type:'PDF', date:'Jun 2025', note:'Settled at SAR 58.7M hard cost, on budget'},
+        {name:'REIT Acquisition Technical Due Diligence', type:'PDF', date:'Apr 2026', note:'Building condition survey for prospective REIT acquirer — no material defects'},
+      ],
+    },
+    6:{ // Nahdah Logistics — completed, in operation
+      designMonths:5, designStatus:'Complete', constructionMonths:14, constructionStatus:'Complete',
+      constructionStart:'Jul 2024', targetCompletion:'Sep 2025', pctComplete:100,
+      contractor:'Midmac Contracting', deliveryMethod:'Lump sum',
+      hardCost:46, softCost:8, contingency:4, totalDevCost:58,
+      gfa:82000, structuralSystem:'Pre-engineered steel portal frame, tilt-up concrete panels',
+      permits:'Completion certificate issued',
+      milestones:[
+        {name:'Design development', status:'Complete', date:'Jun 2024'},
+        {name:'Building permit', status:'Complete', date:'Jul 2024'},
+        {name:'Slab & foundations', status:'Complete', date:'Sep 2024'},
+        {name:'Steel erection & envelope', status:'Complete', date:'Mar 2025'},
+        {name:'MEP & racking fit-out', status:'Complete', date:'Aug 2025'},
+        {name:'Handover', status:'Complete', date:'Sep 2025'},
+      ],
+      docs:[
+        {name:'Practical Completion Certificate', type:'PDF', date:'Sep 2025', note:'Issued 10 Sep 2025'},
+        {name:'Final Account — Midmac Contracting', type:'PDF', date:'Oct 2025', note:'Settled at SAR 45.6M hard cost, 1% under budget'},
+        {name:'Pre-let Tenant Fit-out Specification', type:'PDF', date:'Jul 2025', note:'Racking and dock-leveler specification agreed with anchor tenant'},
+      ],
+    },
+  };
+  function _wfDevAsset(name){
+    return (typeof WF_REP_ASSETS!=='undefined'?WF_REP_ASSETS:[]).find(x=>x.name===name) || {invested:100, irr:12, moic:1.1};
+  }
+  // Deterministic, transparent "what if the timeline/cost changes" solver —
+  // same linear, clearly-indicative approach used elsewhere in the app (e.g.
+  // the discount-approval solver) rather than an AI guess dressed up as math.
+  function _wfDevScenario(dev, asset, kind, delta){
+    const ltc=0.65, rate=0.065, holdYears=5;
+    const debtBalance=dev.totalDevCost*ltc;
+    const monthlyCarry=debtBalance*rate/12; // SAR M/month financing cost during construction
+    const irrPerMonthSlip=(asset.irr/(holdYears*12))*0.7; // pts of IRR eroded per month of schedule slip (indicative)
+    let costImpactM=0, irrImpactPts=0, label='', newValue=null, unit='months';
+    if(kind==='construction'){
+      label='Construction timeline'; newValue=dev.constructionMonths+delta;
+      if(delta>0){ costImpactM=monthlyCarry*delta; irrImpactPts=-irrPerMonthSlip*delta; }
+      else{ const accel=Math.abs(delta); costImpactM=monthlyCarry*1.6*accel; irrImpactPts=irrPerMonthSlip*0.5*accel; }
+    } else if(kind==='design'){
+      label='Design timeline'; newValue=dev.designMonths+delta;
+      const designFactor=0.35; // design-phase burn rate is lower than full construction
+      if(delta>0){ costImpactM=monthlyCarry*designFactor*delta; irrImpactPts=-irrPerMonthSlip*0.8*delta; }
+      else{ const accel=Math.abs(delta); costImpactM=monthlyCarry*designFactor*0.5*accel; irrImpactPts=irrPerMonthSlip*0.5*accel; }
+    } else if(kind==='cost'){
+      label='Construction cost'; unit='%'; newValue=null;
+      const deltaCostM=dev.totalDevCost*(delta/100);
+      costImpactM=deltaCostM;
+      const extraEquityM=deltaCostM*(1-ltc); // extra cost funded pro-rata to the same debt/equity split
+      irrImpactPts=-(extraEquityM/asset.invested)*100*0.9;
+    }
+    return {kind, label, delta, unit, newValue, costImpactM, irrImpactPts, monthlyCarry, debtBalance};
+  }
+  function _wfDevScenarioAnswer(dev, asset, projName, kind, delta){
+    const s=_wfDevScenario(dev, asset, kind, delta);
+    const isCost=s.unit==='%';
+    const amountLabel = isCost ? `${Math.abs(delta)}%` : `${Math.abs(delta)} month${Math.abs(delta)===1?'':'s'}`;
+    const dirWord = delta>0 ? (isCost?'rises':'lengthens') : (isCost?'falls':'shortens');
+    const costLine = s.costImpactM>=0
+      ? `an additional **SAR ${s.costImpactM.toFixed(1)}M**`
+      : `a saving of **SAR ${Math.abs(s.costImpactM).toFixed(1)}M**`;
+    const newDevCost=dev.totalDevCost+(isCost?s.costImpactM:0);
+    return `**${projName}** — ${s.label} ${dirWord} by **${amountLabel}**:\n\n`
+      + `- Cost impact: ${costLine} against a **SAR ${dev.totalDevCost}M** total development cost (65% LTC at 6.5%)\n`
+      + `- Estimated project IRR impact: **${s.irrImpactPts>=0?'+':''}${s.irrImpactPts.toFixed(2)} pts** (indicative — a full model run would re-sequence the cashflow month by month rather than assume a uniform shift)\n`
+      + (isCost
+          ? `- Revised total development cost: **SAR ${newDevCost.toFixed(1)}M**`
+          : `- Revised ${s.label.toLowerCase()}: **${s.newValue} months** (was ${s.kind==='construction'?dev.constructionMonths:dev.designMonths})`)
+      + `\n- Baseline: gross project IRR **${asset.irr}%**, equity multiple **${asset.moic}x**, contractor **${dev.contractor}** on a **${dev.deliveryMethod}** basis.`;
+  }
+  // Parses a free-text question into {kind, delta} — kind is which lever
+  // (design timeline / construction timeline / construction cost), delta is
+  // signed (negative = shorten/accelerate/decrease, positive = lengthen/
+  // delay/increase), defaulting the magnitude if the user didn't give one.
+  function _wfDevParseScenario(q){
+    const ql=String(q||'').toLowerCase();
+    let kind=null;
+    if(/design/.test(ql)) kind='design';
+    else if(/construction cost|build cost|hard cost|total (?:dev(?:elopment)?\s+)?cost/.test(ql)) kind='cost';
+    else if(/construction (?:timeline|schedule|programme|duration)|build(?:ing)? time/.test(ql)) kind='construction';
+    else if(/\bcost\b/.test(ql)) kind='cost';
+    else if(/construction/.test(ql)) kind='construction';
+    if(!kind) return null;
+    const direction=/short|acceler|reduc|cut|faster|less|lower|drop|decrease|fall/.test(ql) ? -1 : 1;
+    const monthMatch=ql.match(/(\d+(?:\.\d+)?)\s*month/);
+    const pctMatch=ql.match(/(\d+(?:\.\d+)?)\s*%/);
+    let amount;
+    if(kind==='cost') amount = pctMatch ? parseFloat(pctMatch[1]) : 10;
+    else amount = monthMatch ? parseFloat(monthMatch[1]) : 2;
+    return {kind, delta:direction*amount};
+  }
+  function _wfDevProjectsFor(k){
+    return (FUND_PROJECT_IDS[k]||[]).filter(id=>P[id] && WF_DEV_DATA[id]);
+  }
+  function _wfDevDocTileHTML(d){
+    const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="doc-preview-tile" style="cursor:default;">
+      <div class="doc-preview-head">
+        <span class="doc-preview-badge">${esc(d.type)}</span>
+        <span class="doc-preview-count">${esc(d.date)}</span>
+      </div>
+      <div class="doc-preview-body">${esc(d.note)}</div>
+      <div class="doc-preview-foot"><div class="doc-preview-name">${esc(d.name)}</div></div>
+    </div>`;
+  }
+  function _wfDevProfileCardHTML(id){
+    const p=P[id]; const dev=WF_DEV_DATA[id]; if(!p||!dev) return '';
+    const done=dev.constructionStatus==='Complete';
+    const tile=(label,val,color)=>`<div style="border:1px solid var(--ink-hairline);border-radius:10px;padding:9px 12px;"><div style="font-size:7px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">${label}</div><div style="font-size:13px;font-weight:700;margin-top:3px;${color?'color:'+color+';':''}">${val}</div></div>`;
+    return `<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 17px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:11px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;">${p.name}</div>
+          <div style="font-size:9.5px;color:var(--ink-soft);margin-top:2px;">${p.loc} · ${dev.contractor} · ${dev.deliveryMethod}</div>
+        </div>
+        <span class="wf-pill ${done?'g':'a'}">${done?'Complete':'In progress'}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;">
+        ${tile('Total dev. cost', 'SAR '+dev.totalDevCost+'M')}
+        ${tile('Design timeline', dev.designMonths+' mo · '+dev.designStatus)}
+        ${tile('Construction timeline', dev.constructionMonths+' mo · '+dev.constructionStatus)}
+        ${tile('% complete', dev.pctComplete+'%', dev.pctComplete<100?'#b45309':'#15803d')}
+        ${tile('GFA', dev.gfa.toLocaleString()+' sqm')}
+        ${tile('Target completion', dev.targetCompletion)}
+      </div>
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:9px;">${dev.structuralSystem} · ${dev.permits}</div>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
+        ${dev.milestones.map(m=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:10px;"><span>${m.status==='Complete'?'✓':(m.status==='In progress'?'◐':'○')} ${m.name}</span><span style="color:var(--ink-soft);flex-shrink:0;">${m.date}</span></div>`).join('')}
+      </div>
+      <div class="doc-preview-wrap">${dev.docs.map(d=>_wfDevDocTileHTML(d)).join('')}</div>
+    </div>`;
+  }
+  function _wfDevChatBubbleHTML(c,k,i){
+    return `<div ${c.cls==='bot'?`id="wfdev-chat-b-${k}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`;
+  }
+  function _wfDevChatHTML(f, k, hasData){
+    const chat=f._devChat||[];
+    const chatLogHtml=chat.map((c,i)=>_wfDevChatBubbleHTML(c,k,i)).join('');
+    return `<div style="margin-top:6px;padding-top:16px;border-top:1px solid var(--ink-hairline);">
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Ask about development impact</div>
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:10px;">Ask what a shorter/longer design or construction timeline, or a change in construction cost, would do to the business case — grounded in each project's own development profile and financials.</div>
+      <div id="wfdev-chat-${k}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:280px;overflow-y:auto;">${chatLogHtml}</div>
+      ${hasData?`<div id="wfdev-preset-${k}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfDevPreset('${k}','What if we shorten the construction timeline by 2 months?')">Shorten construction by 2 months</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfDevPreset('${k}','What if the design timeline takes 1 month longer?')">Design takes 1 month longer</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfDevPreset('${k}','What if construction costs rise by 10%?')">Construction cost rises 10%</button>
+      </div>`:''}
+      <div style="display:flex;gap:8px;">
+        <input id="wfdev-input-${k}" placeholder="e.g. what if construction takes 3 months longer on Marina Tower?" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDevAsk('${k}')">
+        <button class="wf-btn ghost" onclick="_wfDevAsk('${k}')">Ask</button>
+      </div>
+    </div>`;
+  }
+  function _wfDevSectionHTML(f, k){
+    const ids=_wfDevProjectsFor(k);
+    const cards = ids.length ? ids.map(id=>_wfDevProfileCardHTML(id)).join('') : `<div style="font-size:11px;color:var(--ink-soft);padding:16px 0;text-align:center;">No development data yet for this fund's projects.</div>`;
+    return cards + _wfDevChatHTML(f, k, !!ids.length);
+  }
+  function _wfDevRender(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const log=document.getElementById(`wfdev-chat-${k}`); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=(f._devChat||[]).map((c,i)=>_wfDevChatBubbleHTML(c,k,i)).join('');
+    log.scrollTop=log.scrollHeight;
+    const preset=document.getElementById(`wfdev-preset-${k}`); if(preset&&(f._devChat||[]).length) preset.style.display='none';
+  }
+  function _wfDevPreset(k, text){
+    const input=document.getElementById(`wfdev-input-${k}`);
+    if(input) input.value=text;
+    _wfDevAsk(k);
+  }
+  function _wfDevAsk(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const input=document.getElementById(`wfdev-input-${k}`); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    f._devChat=f._devChat||[];
+    f._devChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    _wfDevRender(k);
+    // "export this as a PDF/Excel" → a real downloadable file.
+    if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
+      const bi=f._devChat.length;
+      f._devChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+      _wfDevRender(k);
+      const el=document.getElementById(`wfdev-chat-b-${k}-${bi}`);
+      _krGenerateFileInto(q, el, '').then(()=>{ if(el) f._devChat[bi].html=el.innerHTML; });
+      return;
+    }
+    const ids=_wfDevProjectsFor(k);
+    const named=ids.find(id=>new RegExp('\\b'+P[id].name.split(' ')[0].toLowerCase()+'\\b','i').test(q));
+    const projId = named || ids[0];
+    const dev = projId ? WF_DEV_DATA[projId] : null;
+    const parsed=_wfDevParseScenario(q);
+    if(dev && parsed){
+      const asset=_wfDevAsset(P[projId].name);
+      const answer=_wfDevScenarioAnswer(dev, asset, P[projId].name, parsed.kind, parsed.delta);
+      f._devChat.push({cls:'bot', html:fmtKaraya(answer)});
+      _wfDevRender(k);
+      return;
+    }
+    const botIdx=f._devChat.length;
+    f._devChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    _wfDevRender(k);
+    const fallback = dev
+      ? `I can model the effect of a longer/shorter design or construction timeline, or a change in construction cost, on ${P[projId].name}'s business case — try "what if construction takes 2 months longer" or "what if construction cost rises 10%".`
+      : `No development profile is available yet for this fund's projects.`;
+    const asset = dev ? _wfDevAsset(P[projId].name) : null;
+    const prompt = dev
+      ? `You are Karaya, a development/construction analyst. Project: ${P[projId].name}. Development profile: total development cost SAR ${dev.totalDevCost}M (hard cost SAR ${dev.hardCost}M, soft cost SAR ${dev.softCost}M, contingency SAR ${dev.contingency}M), design timeline ${dev.designMonths} months (${dev.designStatus}), construction timeline ${dev.constructionMonths} months (${dev.constructionStatus}, ${dev.pctComplete}% physically complete), contractor ${dev.contractor} on a ${dev.deliveryMethod} basis, target completion ${dev.targetCompletion}, GFA ${dev.gfa} sqm. Financial baseline: gross project IRR ${asset.irr}%, equity multiple ${asset.moic}x, invested capital SAR ${asset.invested}M. Question: "${q}". Answer in 2-4 sentences grounded only in this data, **bold** key figures, and say so if the question needs data not given here rather than inventing numbers.`
+      : `You are Karaya. No development profile exists yet for this fund's projects. Say so briefly and suggest the user check back once a project's development data has been added.`;
+    setTimeout(()=>{
+      const el=document.getElementById(`wfdev-chat-b-${k}-${botIdx}`); if(!el) return;
+      karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ const html=fmtKaraya(out||fallback); f._devChat[botIdx].html=html; el.innerHTML=html; }).catch(()=>{ const html=fmtKaraya(fallback); f._devChat[botIdx].html=html; el.innerHTML=html; });
+    }, 30);
+  }
   // ===== Start a new project inside a fund — guided wizard =====
   // Mirrors the Establish-a-fund wizard's shape: name it -> upload
   // documentation & agreements -> get a financial model going -> it joins
