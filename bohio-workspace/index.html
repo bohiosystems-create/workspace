@@ -21082,7 +21082,7 @@ Answer as Karaya:`;
       panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">${isCoinvestEmpty
         ? `As a <b style="color:var(--ink);">single-asset co-invest vehicle</b>, ${f.name} is structured around one development.`
         : `Development projects run <b style="color:var(--ink);">inside ${f.name}</b> — open one, or start a new project within the fund.`}</div>
-      ${ids.length? `<div style="font-size:12px;font-weight:700;letter-spacing:0.01em;margin:4px 0 11px;">Projects within ${f.name}</div><div class="fund-projects-grid">${ids.map(id=>_projectSquircleHTML(id)).join('')}</div>` : `<div style="font-size:11px;color:var(--ink-soft);padding:8px 0;">No projects yet in this fund.</div>`}
+      ${ids.length? `<div style="font-size:26px;font-weight:800;letter-spacing:-0.01em;line-height:1.2;margin:6px 0 16px;">Projects within ${f.name}</div><div class="fund-projects-grid">${ids.map(id=>_projectSquircleHTML(id)).join('')}</div>` : `<div style="font-size:11px;color:var(--ink-soft);padding:8px 0;">No projects yet in this fund.</div>`}
       ${addBtnHtml? `<div style="margin-top:14px;">${addBtnHtml}</div>` : ''}`;
     }
     else if(sec==='reporting'){
