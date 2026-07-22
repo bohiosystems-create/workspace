@@ -20980,11 +20980,10 @@ Answer as Karaya:`;
     }
     else if(sec==='projects'){
       const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
-      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Development projects run <b style="color:var(--ink);">inside ${f.name}</b> — open one, or create a new project within the fund.</div>
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Development projects run <b style="color:var(--ink);">inside ${f.name}</b> — open one, or start a new project within the fund.</div>
       ${ids.length? `<div class="fund-projects-grid">${ids.map(id=>_projectSquircleHTML(id)).join('')}</div>` : `<div style="font-size:11px;color:var(--ink-soft);padding:8px 0;">No projects yet in this fund.</div>`}
-      <div style="display:flex;gap:8px;margin-top:14px;">
-        <input id="wff-newproj" placeholder="New project name — e.g. Corniche North Parcel" style="flex:1;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfFundNewProject('${k}')">
-        <button class="wf-btn" onclick="_wfFundNewProject('${k}')">+ Create in this fund</button>
+      <div style="margin-top:14px;">
+        <button class="wf-btn" onclick="_wfProjNewStart('${k}')">+ Start a new project in this fund</button>
       </div>`;
     }
     else if(sec==='timeline'){
@@ -21809,19 +21808,182 @@ ${ctx.mailCtx}`;
       });
     }catch(e){}
   })();
-  function _wfFundNewProject(k){
+  // ===== Start a new project inside a fund — guided wizard =====
+  // Mirrors the Establish-a-fund wizard's shape: name it -> upload
+  // documentation & agreements -> get a financial model going -> it joins
+  // the fund's Projects grid as a normal squircle, opened by showProject().
+  let _wfNewProj=null;
+  function _wfProjNewStart(k){
+    _wfNewProj={ fundK:k, name:'', loc:'', docs:[], text:'', model:null };
+    _wfProjNewRenderStep1();
+  }
+  function _wfProjNewRenderStep1(){
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const f=WF_FUNDS.find(x=>x.k===_wfNewProj.fundK);
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <div class="wf-eyebrow">Start a new project · step 1 of 3</div>
+          <div class="wf-title">Name the project</div>
+          <div class="wf-sub">Inside ${f?f.name:'this fund'} — a new development project, financed and reported under this vehicle.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="wf-back" onclick="_wfFundDetail('${_wfNewProj.fundK}','projects')" aria-label="Back" title="Back to the fund">←</button>
+          <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+        </div>
+      </div>
+      <div class="wf-body">
+        <div style="display:flex;flex-direction:column;gap:10px;max-width:420px;">
+          <div><div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Project name</div>
+          <input id="wfpn-name" placeholder="e.g. Corniche North Parcel" value="${_wfNewProj.name||''}" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:12px;border-radius:8px;outline:none;" onkeydown="if(event.key==='Enter')_wfProjNewStep1Continue()"></div>
+          <div><div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Location</div>
+          <input id="wfpn-loc" placeholder="e.g. Doha · West Bay" value="${_wfNewProj.loc||''}" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:12px;border-radius:8px;outline:none;"></div>
+          <button class="wf-btn" style="margin-top:6px;" onclick="_wfProjNewStep1Continue()">Continue to documents →</button>
+        </div>
+      </div>`;
+    setTimeout(()=>{ const n=document.getElementById('wfpn-name'); if(n) n.focus(); }, 60);
+  }
+  function _wfProjNewStep1Continue(){
+    const name=((document.getElementById('wfpn-name')||{}).value||'').trim();
+    if(!name){ alert('Give the project a name to continue.'); return; }
+    _wfNewProj.name=name;
+    _wfNewProj.loc=((document.getElementById('wfpn-loc')||{}).value||'').trim();
+    _wfProjNewRenderStep2();
+  }
+  function _wfProjNewRenderStep2(){
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const nf=_wfNewProj;
+    const docsHtml=nf.docs.map(d=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid rgba(0,9,25,0.06);"><div style="width:26px;height:26px;flex-shrink:0;border-radius:8px;background:#61BB46;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">${d.type}</div><div style="font-size:11px;font-weight:600;">${d.name}</div></div>`).join('');
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <div class="wf-eyebrow">Start a new project · step 2 of 3</div>
+          <div class="wf-title">Upload documentation &amp; agreements</div>
+          <div class="wf-sub">Offering memoranda, landlord/JV agreements, permits — whatever the deal team already has for ${nf.name}.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="wf-back" onclick="_wfProjNewRenderStep1()" aria-label="Back" title="Back">←</button>
+          <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+        </div>
+      </div>
+      <div class="wf-body">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <button class="wf-btn ghost" onclick="document.getElementById('wfpn-upload').click()">Upload a document</button>
+          <input type="file" id="wfpn-upload" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md" onchange="_wfProjNewUpload(this.files[0])">
+          <button class="wf-btn ghost" onclick="_wfProjNewUseSample()">Use a sample offering memorandum</button>
+        </div>
+        ${docsHtml}
+        <button class="wf-btn" style="margin-top:14px;" onclick="_wfProjNewRenderStep3()">Continue to the financial model →</button>
+        <div style="font-size:9.5px;color:var(--ink-soft);margin-top:8px;">${nf.docs.length?nf.docs.length+' document'+(nf.docs.length>1?'s':'')+' attached.':'No documents yet — you can still continue and add them later from the project.'}</div>
+      </div>`;
+  }
+  const _WF_PROJNEW_SAMPLE_OM=`OFFERING MEMORANDUM (DRAFT)\nMixed-use waterfront development — target GFA 42,000 sqm, residential + retail podium.\nEstimated total development cost: QAR 340M.\nTargeted stabilised yield-on-cost: 7.2%. Target exit cap rate: 6.25%.\nIndicative construction period: 34 months from notice to proceed.\n`;
+  function _wfProjNewUseSample(){
+    _wfNewProj.docs=[{name:'Offering Memorandum — '+_wfNewProj.name, type:'PDF', text:_WF_PROJNEW_SAMPLE_OM}];
+    _wfNewProj.text=_WF_PROJNEW_SAMPLE_OM;
+    _wfProjNewRenderStep2();
+  }
+  async function _wfProjNewUpload(file){
+    if(!file||!_wfNewProj) return;
+    const ext=((String(file.name||'').match(/\.([^.]+)$/)||[,''])[1]||'').toLowerCase();
+    let text='';
+    try{
+      if(ext==='docx') text=await _docxText(file);
+      else if(ext==='pdf') text=await _pdfText(file);
+      else text=await file.text();
+    }catch(e){}
+    if(!_looksReadable(text)) text='';
+    _wfNewProj.docs.push({name:String(file.name||'Uploaded document').replace(/\.[^.]+$/,''), type:ext.toUpperCase().slice(0,4), text:text.slice(0,6000)});
+    _wfNewProj.text += (_wfNewProj.text?'\n':'') + text;
+    _wfProjNewRenderStep2();
+  }
+  function _wfProjNewRenderStep3(){
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const nf=_wfNewProj;
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <div class="wf-eyebrow">Start a new project · step 3 of 3</div>
+          <div class="wf-title">Get a financial model going</div>
+          <div class="wf-sub">Upload the project's own workbook, start from a Bohio template, or have Karaya vibe-code one from the documents just uploaded.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="wf-back" onclick="_wfProjNewRenderStep2()" aria-label="Back" title="Back">←</button>
+          <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
+        </div>
+      </div>
+      <div class="wf-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px;">
+          <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:16px;">
+            <div style="font-size:11.5px;font-weight:700;margin-bottom:6px;">Upload a workbook</div>
+            <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:11px;">Bring an existing model — Karaya recreates it live and editable.</div>
+            <button class="wf-btn ghost" onclick="document.getElementById('wfpn-model-upload').click()">Choose file</button>
+            <input type="file" id="wfpn-model-upload" style="display:none;" accept=".xlsx,.xlsm,.csv" onchange="_wfProjNewModelUpload(this.files[0])">
+          </div>
+          <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:16px;">
+            <div style="font-size:11.5px;font-weight:700;margin-bottom:6px;">Start from a template</div>
+            <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:11px;">"Residential Development Pro Forma" — land, phasing, unit mix, absorption, returns.</div>
+            <button class="wf-btn ghost" onclick="_wfProjNewModelTemplate()">Use this template</button>
+          </div>
+          <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:16px;">
+            <div style="font-size:11.5px;font-weight:700;margin-bottom:6px;">✦ Vibe code it from scratch</div>
+            <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:11px;">Karaya builds a first model straight from the uploaded documents.</div>
+            <button class="wf-btn" onclick="_wfProjNewModelVibe()">Build it</button>
+          </div>
+        </div>
+        <div id="wfpn-model-slot">${nf.model&&nf.model._summary?`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:11px;line-height:1.65;">${nf.model._summary}</div>`:''}</div>
+        ${nf.model?`<button class="wf-btn" onclick="_wfProjNewFinish()">Create the project →</button>`:`<div style="font-size:9.5px;color:var(--ink-soft);">Pick one of the three options above to continue — or <span style="text-decoration:underline;cursor:pointer;" onclick="_wfProjNewFinish()">skip for now</span> and add a model later.</div>`}
+      </div>`;
+  }
+  async function _wfProjNewModelUpload(file){
+    if(!file) return;
+    const ext=((String(file.name||'').match(/\.([^.]+)$/)||[,''])[1]||'').toLowerCase();
+    let wbData=null;
+    try{
+      if(ext==='csv') wbData=_csvToWb(await file.text(), 'Project Model');
+      else if(ext==='xlsx'||ext==='xlsm') wbData=await _xlsxToWb(file);
+    }catch(e){}
+    if(!wbData) return;
+    _wfNewProj.model={type:'XLSX', name:_wfNewProj.name+' — Model', version:'v.01 · '+Object.keys(wbData).length+' tabs · Uploaded', updated:'Just now · You', isGenerated:true, master:true, wbData,
+      _summary:`Recreated <b>${file.name}</b> (${Object.keys(wbData).length} tabs) as a live model.`};
+    _wfProjNewRenderStep3();
+  }
+  function _wfProjNewModelTemplate(){
+    _wfNewProj.model={type:'XLSX', name:_wfNewProj.name+' — Model', version:'v.01 · From template', updated:'Just now · You', isGenerated:true, master:true,
+      notes:'Model started from the "Residential Development Pro Forma" Bohio template. Rework it by chatting to Karaya — change cells, add/remove metrics, add sheets.',
+      _summary:`Started from the <b>Residential Development Pro Forma</b> template (land, phasing, unit mix, absorption, returns).`};
+    _wfProjNewRenderStep3();
+  }
+  function _wfProjNewModelVibe(){
+    const nf=_wfNewProj;
+    const tmp=document.createElement('div'); tmp.innerHTML=assumptionFormHTML();
+    const form=tmp.querySelector('.asm-form');
+    const set=(k,v)=>{ const el=form.querySelector(`[data-asm="${k}"]`); if(el&&v!=null) el.value=v; };
+    set('name', nf.name);
+    const costMatch=nf.text.match(/QAR\s*([\d,.]+)\s*M/i);
+    if(costMatch){ const n=parseFloat(costMatch[1].replace(/,/g,'')); if(!isNaN(n)) set('cost', n); }
+    const {wb,v,irr,mult,noi1}=_buildWbFromAssumptions(form);
+    _wfNewProj.model={type:'XLSX', name:v.name+' — Model', version:'v.01 · Vibe-coded by Karaya', updated:'Just now · Karaya', isGenerated:true, master:true, wbData:wb,
+      notes:'Built by Karaya from the documents uploaded in step 2'+(costMatch?' (project cost seeded from the OM)':'')+'.',
+      _summary:`Vibe-coded <b>${v.name}</b> from the uploaded documents — Year-1 NOI <b>QAR ${noi1.toFixed(1)}M</b>, equity multiple <b>${mult.toFixed(2)}x</b>${irr!=null?`, IRR <b>${(irr*100).toFixed(1)}%</b>`:''} over a ${v.hold}-year hold.`};
+    _wfProjNewRenderStep3();
+  }
+  function _wfProjNewFinish(){
+    const nf=_wfNewProj; const k=nf.fundK;
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
-    const inp=document.getElementById('wff-newproj'); if(!inp) return;
-    const name=(inp.value||'').trim(); if(!name) return;
     let id=100; while(P[id]) id++;
-    P[id]={name, loc:'—', lead:(window.DEMO_USER&&window.DEMO_USER.name)||'You', phase:'Phase 01/06', members:'01',
-      desc:'Development project created inside '+f.name+'. Upload documents or ask Karaya (right) to build the financial projections.', docs:[]};
+    const docs=(nf.docs||[]).map(d=>({type:d.type, name:d.name, version:'v.01 · Uploaded', updated:'Just now · You', text:d.text}));
+    if(nf.model) docs.unshift(nf.model);
+    P[id]={name:nf.name, loc:nf.loc||'—', lead:(window.DEMO_USER&&window.DEMO_USER.name)||'You', phase:'Phase 01/06', members:'01',
+      desc:'Development project created inside '+f.name+'. '+(nf.docs.length?nf.docs.length+' document'+(nf.docs.length>1?'s':'')+' uploaded at setup. ':'')+(nf.model?'Financial model is live — open it to rework.':'Ask Karaya (right) to build the financial projections.'),
+      docs};
     FUND_PROJECT_IDS[k]=FUND_PROJECT_IDS[k]||[]; FUND_PROJECT_IDS[k].push(id);
     try{
       const saved=JSON.parse(localStorage.getItem('bohio_fund_projs')||'[]');
-      saved.push({id, name, fund:k, fundName:f.name});
+      saved.push({id, name:nf.name, fund:k, fundName:f.name});
       localStorage.setItem('bohio_fund_projs', JSON.stringify(saved));
     }catch(e){}
+    _wfNewProj=null;
     _wfFundDetail(k,'projects');
   }
   // ---- fund chatbot: grounded in the fund's docs (all versions), emails,
