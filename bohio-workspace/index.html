@@ -21155,7 +21155,7 @@ Answer as Karaya:`;
         <button class="wf-btn" style="width:34px;height:34px;padding:0;border-radius:50%;font-size:18px;line-height:1;flex-shrink:0;" title="Add a model" onclick="_wfModelPlusMenu(event,'${k}')">+</button>
       </div>
       <input type="file" id="wff-modelup" style="display:none;" accept=".xlsx,.xls,.csv" onchange="_wfFundModelUpload('${k}', this.files[0])">
-      <div id="wff-model-slot"></div>
+      <div id="wff-model-slot">${f._scratchActive?_wfFundScratchChatHTML(f,k):''}</div>
       ${fmodels.length?`<div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:6px 0 8px;">Fund models</div>
       <div class="model-preview-wrap">${fmodels.map((m,mi)=>_modelPreviewTileHTML(m,
         `closeWorkflow();currentProject=null;openEditor(WF_FUNDS.find(x=>x.k==='${k}').models[${mi}],{kind:'fund',k:'${k}'})`,
@@ -22144,7 +22144,7 @@ Answer as Karaya:`;
     const item=(label,onclick)=>`<button style="display:block;width:100%;text-align:left;padding:12px 15px;border:none;background:transparent;font-family:inherit;font-size:11px;cursor:pointer;color:var(--ink);" onmouseover="this.style.background='rgba(0,9,25,0.05)'" onmouseout="this.style.background='transparent'" onclick="${onclick}">${label}</button>`;
     pop.innerHTML=item('📤&nbsp; Upload model', `document.getElementById('wfmodel-plus-pop').remove();document.getElementById('wff-modelup').click()`)
       + `<div style="border-top:1px solid var(--ink-hairline);"></div>`
-      + item('✦&nbsp; Build from scratch', `document.getElementById('wfmodel-plus-pop').remove();_wfFundModelScratch('${k}')`);
+      + item('✦&nbsp; Build from scratch', `document.getElementById('wfmodel-plus-pop').remove();_wfFundModelScratchPrompt('${k}')`);
     pop.addEventListener('click', e=>e.stopPropagation());
     document.body.appendChild(pop);
     const r=pop.getBoundingClientRect();
@@ -22152,33 +22152,113 @@ Answer as Karaya:`;
     pop.style.top=Math.min(ev.clientY+10, window.innerHeight-r.height-10)+'px';
     setTimeout(()=>{ document.addEventListener('click', function h(){ const el=document.getElementById('wfmodel-plus-pop'); if(el) el.remove(); document.removeEventListener('click',h); }); }, 60);
   }
-  // "Build from scratch" — the vibe-coding path: synthesizes a full
-  // Assumptions/Cashflow/Returns model with no upload needed, grounded in
-  // this fund's own documents (a headline QAR figure seeds project cost),
-  // its ERP position, and Outlook — same three sources _wfFundSuggest cites.
-  async function _wfFundModelScratch(k){
+  // "Build from scratch" — the vibe-coding path. Rather than auto-building the
+  // instant a menu item is clicked, this opens a chat prompt first: the user
+  // describes the model they want in their own words, and only once that
+  // first prompt is sent does Karaya assemble the workbook — grounded in
+  // whatever the prompt specifies PLUS this fund's own documents (a headline
+  // QAR figure seeds project cost), its ERP position, and Outlook — the same
+  // three sources _wfFundSuggest cites — then shows it as a preview tile.
+  function _wfFundModelScratchPrompt(k){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
-    const slot=document.getElementById('wff-model-slot'); if(!slot) return;
-    slot.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-bottom:12px;font-size:11px;line-height:1.6;">Building a model from scratch, grounded in ${f.name}'s documents, ERP and Outlook…</div>`;
+    f._scratchActive=true;
+    _wfFundDetail(k,'modelling');
+    setTimeout(()=>{ const inp=document.getElementById(`wfscr-input-${k}`); if(inp) inp.focus(); }, 30);
+  }
+  function _wfFundScratchCancel(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    f._scratchActive=false;
+    _wfFundDetail(k,'modelling');
+  }
+  function _wfFundScratchChatHTML(f, k){
+    const chat=f._scratchChat||[];
+    const chatLogHtml=chat.map((c,i)=>`<div ${c.cls==='bot'?`id="wfscr-chat-b-${k}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:92%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    return `<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">✦ Build a model from scratch</div>
+        <button onclick="_wfFundScratchCancel('${k}')" title="Cancel" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:14px;cursor:pointer;line-height:1;">✕</button>
+      </div>
+      <div id="wfscr-chat-${k}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:10px;max-height:320px;overflow-y:auto;">${chatLogHtml}</div>
+      ${!chat.length?`<div style="font-size:10px;color:var(--ink-soft);margin-bottom:9px;line-height:1.6;">Describe the model you want — e.g. "a 300-unit residential tower, 5-year hold, 60% LTV" — and I'll build the Assumptions, Cashflow and Returns tabs, grounded in ${f.name}'s own documents, ERP position and Outlook threads.</div>`:''}
+      <div style="display:flex;gap:8px;">
+        <input id="wfscr-input-${k}" placeholder="Describe the model to build…" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfFundScratchSend('${k}')">
+        <button class="wf-btn ghost" onclick="_wfFundScratchSend('${k}')">Send</button>
+      </div>
+    </div>`;
+  }
+  function _wfFundScratchRender(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const log=document.getElementById(`wfscr-chat-${k}`); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=(f._scratchChat||[]).map((c,i)=>`<div ${c.cls==='bot'?`id="wfscr-chat-b-${k}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:92%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    log.scrollTop=log.scrollHeight;
+  }
+  function _wfFundScratchSend(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const input=document.getElementById(`wfscr-input-${k}`); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    f._scratchChat=f._scratchChat||[];
+    f._scratchChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    _wfFundScratchRender(k);
+    _wfFundModelScratchBuild(k, q);
+  }
+  // Lightweight, deterministic keyword/number extraction from the user's own
+  // prompt — no AI call needed for this part, so the build never blocks on
+  // network. Anything not mentioned falls back to fund-context grounding.
+  function _wfScratchParsePrompt(text){
+    const t=String(text||''); const out={}; let m;
+    if(m=t.match(/(\d+)\s*[-\s]?unit/i)) out.gfa=parseInt(m[1],10)*90;
+    if(m=t.match(/(\d+(?:,\d{3})*)\s*(?:sq\s?m|sqm|square\s*met(?:er|re)s?)/i)) out.gfa=parseInt(m[1].replace(/,/g,''),10);
+    if(m=t.match(/(\d+)\s*[-\s]?year/i)) out.hold=parseInt(m[1],10);
+    if(m=t.match(/(\d+(?:\.\d+)?)\s*%\s*ltv/i)) out.ltv=parseFloat(m[1]);
+    if(m=t.match(/(\d+(?:\.\d+)?)\s*%\s*(?:rent\s*)?growth/i)) out.growth=parseFloat(m[1]);
+    if(m=t.match(/(\d+(?:\.\d+)?)\s*%\s*occ/i)) out.occ=parseFloat(m[1]);
+    if(m=t.match(/(\d+(?:\.\d+)?)\s*%\s*(?:interest|rate)/i)) out.rate=parseFloat(m[1]);
+    if(m=t.match(/(\d+(?:\.\d+)?)\s*%\s*exit\s*cap/i)) out.exitcap=parseFloat(m[1]);
+    if(m=t.match(/QAR\s*([\d,.]+)\s*M/i)) out.cost=parseFloat(m[1].replace(/,/g,''));
+    if(m=t.match(/(residential|office|retail|logistics|hotel|hospitality|mixed[-\s]use|industrial)/i)) out.kind=m[1];
+    return out;
+  }
+  async function _wfFundModelScratchBuild(k, promptText){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const chat=f._scratchChat=f._scratchChat||[];
+    const bi=chat.length;
+    chat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    _wfFundScratchRender(k);
     const ctx=await _wfFundContext(f);
     const tmp=document.createElement('div'); tmp.innerHTML=assumptionFormHTML();
     const form=tmp.querySelector('.asm-form');
     const set=(kk,v)=>{ const el=form.querySelector(`[data-asm="${kk}"]`); if(el&&v!=null) el.value=v; };
-    const fname=f.name.replace(/^Bohio RE /,'')+' — Master Model';
+    const parsed=_wfScratchParsePrompt(promptText);
+    const fname=parsed.kind
+      ? (parsed.kind.charAt(0).toUpperCase()+parsed.kind.slice(1).replace(/[-\s]+/g,' ')+' — '+f.name.replace(/^Bohio RE /,''))
+      : f.name.replace(/^Bohio RE /,'')+' — Master Model';
     set('name', fname);
-    let costSeed=f.committed;
-    const m=(ctx.docs||'').match(/QAR\s*([\d,.]+)\s*M/i);
-    if(m){ const n=parseFloat(m[1].replace(/,/g,'')); if(!isNaN(n)) costSeed=n; }
+    let costSeed=parsed.cost!=null?parsed.cost:f.committed;
+    if(parsed.cost==null){ const m=(ctx.docs||'').match(/QAR\s*([\d,.]+)\s*M/i); if(m){ const n=parseFloat(m[1].replace(/,/g,'')); if(!isNaN(n)) costSeed=n; } }
     set('cost', costSeed);
-    set('ltv', 60);
+    set('ltv', parsed.ltv!=null?parsed.ltv:60);
+    if(parsed.gfa!=null) set('gfa', parsed.gfa);
+    if(parsed.hold!=null) set('hold', parsed.hold);
+    if(parsed.growth!=null) set('growth', parsed.growth);
+    if(parsed.occ!=null) set('occ', parsed.occ);
+    if(parsed.rate!=null) set('rate', parsed.rate);
+    if(parsed.exitcap!=null) set('exitcap', parsed.exitcap);
     const {wb,v,irr,mult,noi1}=_buildWbFromAssumptions(form);
     const docCount=(f.docs||[]).length;
     const doc={type:'XLSX', name:fname, version:'v.01 · Vibe-coded by Karaya', updated:'Just now · Karaya', isGenerated:true, _fundMaster:true, wbData:wb,
-      notes:'Built by Karaya from scratch — grounded in '+docCount+' fund document'+(docCount===1?'':'s')+', the ERP integration'+(ctx.live?' and the live Outlook mailbox':' and Outlook threads')+'.'};
+      notes:'Built by Karaya from your prompt ("'+String(promptText).replace(/"/g,'').slice(0,140)+'") — grounded in '+docCount+' fund document'+(docCount===1?'':'s')+', the ERP integration'+(ctx.live?' and the live Outlook mailbox':' and Outlook threads')+'.'};
     f.models=f.models||[]; const ex=f.models.findIndex(mm=>mm.name===doc.name);
     if(ex>=0) f.models[ex]=doc; else f.models.unshift(doc);
+    const mi=ex>=0?ex:0;
+    const usedCount=Object.keys(parsed).filter(x=>x!=='kind').length;
+    const summary=`Built **${fname}** — Year-1 NOI **QAR ${noi1.toFixed(1)}M**, equity multiple **${mult.toFixed(2)}x**${irr!=null?`, IRR **${(irr*100).toFixed(1)}%**`:''} over a ${v.hold}-year hold.${usedCount?` Picked up **${usedCount}** assumption${usedCount===1?'':'s'} directly from your prompt`:''}, the rest grounded in **${docCount}** fund document${docCount===1?'':'s'}, the ERP integration and ${ctx.live?'the live Outlook mailbox':'Outlook threads'}.`;
+    const tileHtml=_modelPreviewTileHTML(doc,
+      `closeWorkflow();currentProject=null;openEditor(WF_FUNDS.find(x=>x.k==='${k}').models[${mi}],{kind:'fund',k:'${k}'})`,
+      `_wfFundSuggest('${k}',${mi})`);
+    chat[bi]={cls:'bot', html: fmtKaraya(summary)+`<div style="margin-top:10px;max-width:210px;">${tileHtml}</div>`};
     _wfFundDetail(k,'modelling');
-    setTimeout(()=>{ const s=document.getElementById('wff-model-slot'); if(s) s.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:11px;line-height:1.6;">Vibe-coded <b>${fname}</b> from scratch — Year-1 NOI <b>QAR ${noi1.toFixed(1)}M</b>, equity multiple <b>${mult.toFixed(2)}x</b>${irr!=null?`, IRR <b>${(irr*100).toFixed(1)}%</b>`:''} over a ${v.hold}-year hold. Grounded in <b>${docCount}</b> fund document${docCount===1?'':'s'}, the ERP integration and ${ctx.live?'the live Outlook mailbox':'Outlook threads'}. Open it, or ask me to <b>suggest modifications</b>.</div>`; }, 60);
   }
 
   // ---- fund documents: upload (persisted) + stakeholders chart generator ----
@@ -22376,6 +22456,7 @@ Answer as Karaya:`;
     const doc={type:'XLSX', name:base, version:'v.01 · '+Object.keys(wbData).length+' tabs · Fund master', updated:'Just now · You', isGenerated:true, _fundMaster:true, wbData};
     f.models=f.models||[]; const ex=f.models.findIndex(m=>m.name===base);
     if(ex>=0) f.models[ex]=doc; else f.models.unshift(doc);
+    f._scratchActive=false;
     _wfFundDetail(k,'modelling');
     setTimeout(()=>{ const s=document.getElementById('wff-model-slot'); if(s) s.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:11px;line-height:1.6;">Recreated <b>${base}</b> (${Object.keys(wbData).length} tabs) as a live Bohio model. Open it, or ask me to <b>suggest modifications</b> from the fund documents, ERP and Outlook.</div>`; }, 60);
   }
