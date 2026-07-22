@@ -21004,12 +21004,15 @@ Answer as Karaya:`;
           </div>`; }).join('')}
       </div>`;
     } else if(sec==='approvals'){
+      const pend=f.approvals.map((a,ai)=>({a,ai})).filter(x=>x.a.cls==='a');
+      const hist=f.approvals.filter(a=>a.cls==='g'||a.cls==='r').map(a=>({a}));
       panel=`<div style="display:flex;justify-content:flex-end;margin-bottom:11px;">
         <button class="wf-btn" onclick="openRequestApproval('fund','${k}')">+ Request approval</button>
       </div>`
-      + f.approvals.map((a,ai)=> a.kind==='discount'
-        ? _wfDiscountCard(k, ai, a)
-        : _wfPlainApprovalCardHTML(k, ai, a)).join('');
+      + (pend.length
+          ? pend.map(({a,ai})=> a.kind==='discount' ? _wfDiscountCard(k, ai, a) : _wfPlainApprovalCardHTML(k, ai, a)).join('')
+          : `<div style="font-size:10.5px;color:var(--ink-soft);padding:10px 0 4px;">No approvals pending your decision.</div>`)
+      + _wfApprovalHistorySectionHTML(hist);
     } else if(sec==='stakeholders'){
       panel=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         <button class="wf-btn" onclick="_wfFundChart('${k}')">✦ Generate fund structure chart from the fund documents</button>
@@ -21079,7 +21082,7 @@ Answer as Karaya:`;
       panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">${isCoinvestEmpty
         ? `As a <b style="color:var(--ink);">single-asset co-invest vehicle</b>, ${f.name} is structured around one development.`
         : `Development projects run <b style="color:var(--ink);">inside ${f.name}</b> — open one, or start a new project within the fund.`}</div>
-      ${ids.length? `<div class="fund-projects-grid">${ids.map(id=>_projectSquircleHTML(id)).join('')}</div>` : `<div style="font-size:11px;color:var(--ink-soft);padding:8px 0;">No projects yet in this fund.</div>`}
+      ${ids.length? `<div style="font-size:12px;font-weight:700;letter-spacing:0.01em;margin:4px 0 11px;">Projects within ${f.name}</div><div class="fund-projects-grid">${ids.map(id=>_projectSquircleHTML(id)).join('')}</div>` : `<div style="font-size:11px;color:var(--ink-soft);padding:8px 0;">No projects yet in this fund.</div>`}
       ${addBtnHtml? `<div style="margin-top:14px;">${addBtnHtml}</div>` : ''}`;
     }
     else if(sec==='reporting'){
@@ -21680,6 +21683,36 @@ Answer as Karaya:`;
       karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ a._chat[botIdx].html=fmtKaraya(out||fallback); el.innerHTML=fmtKaraya(out||fallback); }).catch(()=>{ a._chat[botIdx].html=fmtKaraya(fallback); el.innerHTML=fmtKaraya(fallback); });
     }, 30);
   }
+  // ---- Decision history — a compact record of what was approved and
+  // rejected, shown under the pending items in a fund's Approvals section and
+  // in the aggregated hub. A single decided item renders as one line.
+  function _wfApprovalHistoryRowHTML(a, fundName){
+    const approved=a.cls==='g';
+    const col=approved?'#15803d':'#b51e3b';
+    const icon=approved?'✓':'✗';
+    return `<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:10px 13px;border:1px solid var(--ink-hairline);border-radius:10px;margin-bottom:8px;">
+      <div style="min-width:0;">
+        <div style="font-size:11px;font-weight:600;line-height:1.4;">${a.t}</div>
+        <div style="font-size:9.5px;color:var(--ink-soft);margin-top:4px;letter-spacing:0.02em;">${a.chain}</div>
+        ${(fundName||a.decidedWhen)?`<div style="font-size:9px;color:var(--ink-soft);margin-top:3px;">${[fundName,a.decidedWhen].filter(Boolean).join(' · ')}</div>`:''}
+      </div>
+      <span style="flex-shrink:0;font-size:8.5px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:${col};border:1px solid ${col};border-radius:999px;padding:3px 9px;white-space:nowrap;">${icon} ${approved?'Approved':'Rejected'}</span>
+    </div>`;
+  }
+  // Builds the "Decision history" block from a list of {a, fundName?} entries.
+  // Returns '' when there's nothing decided yet.
+  function _wfApprovalHistorySectionHTML(items){
+    if(!items.length) return '';
+    const nApproved=items.filter(x=>x.a.cls==='g').length;
+    const nRejected=items.filter(x=>x.a.cls==='r').length;
+    return `<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--ink-hairline);">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:11px;">
+        <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Decision history</div>
+        <div style="font-size:9.5px;color:var(--ink-soft);">${nApproved} approved · ${nRejected} rejected</div>
+      </div>
+      ${items.map(x=>_wfApprovalHistoryRowHTML(x.a, x.fundName)).join('')}
+    </div>`;
+  }
   // When the aggregated Approvals hub is open, a decision should re-render
   // the hub (so the user stays put) instead of jumping into that one fund's
   // Approvals section.
@@ -21737,7 +21770,12 @@ Answer as Karaya:`;
         ${cards}
       </div>`;
     }).join('');
-    const empty = (fundTotal+projTotal===0) ? `<div style="text-align:center;padding:60px 20px;color:var(--ink-soft);font-size:12px;">Nothing pending — every approval across your funds and projects is resolved.</div>` : '';
+    // Aggregate everything already decided, across every fund and project.
+    const histItems=[];
+    funds.forEach(f=> f.approvals.filter(a=>a.cls==='g'||a.cls==='r').forEach(a=> histItems.push({a, fundName:f.name.replace(/^Bohio RE /,'')})));
+    Object.keys(P).forEach(pid=> (P[pid].approvalRequests||[]).filter(r=>r.cls==='g'||r.cls==='r').forEach(r=> histItems.push({a:r, fundName:P[pid].name})));
+    const histSection = histItems.length ? `<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-top:${(fundTotal+projTotal)?'26px':'0'};">History across all funds &amp; projects</div>${_wfApprovalHistorySectionHTML(histItems)}` : '';
+    const empty = (fundTotal+projTotal===0) ? `<div style="text-align:center;padding:${histItems.length?'34px':'60px'} 20px;color:var(--ink-soft);font-size:12px;">Nothing pending — every approval across your funds and projects is resolved.</div>` : '';
     modal.innerHTML=`
       <div class="wf-head">
         <div>
@@ -21754,6 +21792,7 @@ Answer as Karaya:`;
         ${empty}
         ${fundTotal?`<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Fund approvals</div>${fundSections}`:''}
         ${projTotal?`<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-top:${fundTotal?'26px':'0'};">Requests you've sent from projects</div>${projSections}`:''}
+        ${histSection}
       </div>`;
   }
   function _wfDiscountDecide(k, ai, action){
@@ -21761,6 +21800,7 @@ Answer as Karaya:`;
     const a=f.approvals[ai]; if(!a) return;
     if(action==='approve'){ a.status='Approved by CIO'; a.cls='g'; a.chain='Sales ✓ submitted → Chief Investment Officer ✓ approved'; }
     else { a.status='Rejected by CIO'; a.cls='r'; a.chain='Sales ✓ submitted → Chief Investment Officer ✗ rejected'; }
+    a.decidedWhen='Decided today';
     _wfApprovalsRefresh(k);
     if(typeof _renderDailyBriefApprovals==='function') _renderDailyBriefApprovals();
   }
@@ -21773,6 +21813,7 @@ Answer as Karaya:`;
     const who=(window.DEMO_USER&&window.DEMO_USER.name)||'You';
     if(action==='approve'){ a.status='Approved'; a.cls='g'; a.chain=(a.chain?a.chain+' → ':'')+who+' ✓ approved'; }
     else { a.status='Rejected'; a.cls='r'; a.chain=(a.chain?a.chain+' → ':'')+who+' ✗ rejected'; }
+    a.decidedWhen='Decided today';
     _wfApprovalsRefresh(k);
     if(typeof _renderDailyBriefApprovals==='function') _renderDailyBriefApprovals();
   }
