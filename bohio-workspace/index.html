@@ -21676,7 +21676,7 @@ Answer as Karaya:`;
       ${(a.attachments&&a.attachments.length)?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px;">${a.attachments.map(n=>'📎 '+n.replace(/</g,'&lt;')).join(' · ')}</div>`:''}
       ${a.cls==='a'?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;">
         <button class="wf-btn ghost" style="border-color:#15803d;color:#15803d;" onclick="_wfApprovalDecide('${k}',${ai},'approve')">✓ Approve</button>
-        <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfApprovalDecide('${k}',${ai},'reject')">✗ Reject</button>
+        <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfRejectPrompt('${k}',${ai},'plain')">✗ Reject</button>
       </div>`:''}
       ${_wfApprovalAiHTML(k, ai, a)}
     </div>`;
@@ -21798,7 +21798,7 @@ Answer as Karaya:`;
         <button class="wf-btn" onclick="_wfDiscountInsight('${k}',${ai})">${a._insight?'↻ Regenerate AI insight':'✦ Generate AI insight'}</button>
         ${a._insight?`<button class="wf-btn ghost" onclick="_wfDiscountViewModel('${k}',${ai})">📊 View financial model</button>`:''}
         ${!decided?`<button class="wf-btn ghost" style="border-color:#15803d;color:#15803d;" onclick="_wfDiscountDecide('${k}',${ai},'approve')">Approve discount</button>
-        <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfDiscountDecide('${k}',${ai},'reject')">Reject</button>`:''}
+        <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfRejectPrompt('${k}',${ai},'discount')">Reject</button>`:''}
       </div>
       <div style="margin-top:13px;padding-top:12px;border-top:1px solid var(--ink-hairline);">
         <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Ask Karaya about this request</div>
@@ -21904,6 +21904,7 @@ Answer as Karaya:`;
       <div style="min-width:0;">
         <div style="font-size:11px;font-weight:600;line-height:1.4;">${a.t}</div>
         <div style="font-size:9.5px;color:var(--ink-soft);margin-top:4px;letter-spacing:0.02em;">${a.chain}</div>
+        ${(!approved&&a.rejectReason)?`<div style="font-size:10px;color:var(--ink);margin-top:6px;line-height:1.55;background:rgba(181,30,59,0.06);border-radius:8px;padding:7px 10px;">“${String(a.rejectReason).replace(/</g,'&lt;')}”</div>`:''}
         ${(fundName||a.decidedWhen)?`<div style="font-size:9px;color:var(--ink-soft);margin-top:3px;">${[fundName,a.decidedWhen].filter(Boolean).join(' · ')}</div>`:''}
       </div>
       <span style="flex-shrink:0;font-size:8.5px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:${col};border:1px solid ${col};border-radius:999px;padding:3px 9px;white-space:nowrap;">${icon} ${approved?'Approved':'Rejected'}</span>
@@ -22005,11 +22006,11 @@ Answer as Karaya:`;
         ${histSection}
       </div>`;
   }
-  function _wfDiscountDecide(k, ai, action){
+  function _wfDiscountDecide(k, ai, action, reason){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const a=f.approvals[ai]; if(!a) return;
     if(action==='approve'){ a.status='Approved by CIO'; a.cls='g'; a.chain='Sales ✓ submitted → Chief Investment Officer ✓ approved'; }
-    else { a.status='Rejected by CIO'; a.cls='r'; a.chain='Sales ✓ submitted → Chief Investment Officer ✗ rejected'; }
+    else { a.status='Rejected by CIO'; a.cls='r'; a.chain='Sales ✓ submitted → Chief Investment Officer ✗ rejected'; a.rejectReason=reason||''; }
     a.decidedWhen='Decided today';
     _wfApprovalsRefresh(k);
     if(typeof _renderDailyBriefApprovals==='function') _renderDailyBriefApprovals();
@@ -22017,15 +22018,59 @@ Answer as Karaya:`;
   // Approve / reject any plain (non-discount) fund approval. Marks the item
   // decided, appends your sign-off to the chain, re-renders and refreshes the
   // Daily Brief so a resolved item drops off the pending list.
-  function _wfApprovalDecide(k, ai, action){
+  function _wfApprovalDecide(k, ai, action, reason){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const a=f.approvals[ai]; if(!a) return;
     const who=(window.DEMO_USER&&window.DEMO_USER.name)||'You';
     if(action==='approve'){ a.status='Approved'; a.cls='g'; a.chain=(a.chain?a.chain+' → ':'')+who+' ✓ approved'; }
-    else { a.status='Rejected'; a.cls='r'; a.chain=(a.chain?a.chain+' → ':'')+who+' ✗ rejected'; }
+    else { a.status='Rejected'; a.cls='r'; a.chain=(a.chain?a.chain+' → ':'')+who+' ✗ rejected'; a.rejectReason=reason||''; }
     a.decidedWhen='Decided today';
     _wfApprovalsRefresh(k);
     if(typeof _renderDailyBriefApprovals==='function') _renderDailyBriefApprovals();
+  }
+  // ---- Reject-reason popup — a rejection must always be explained; the
+  // decision only finalises once a reason is typed, and the reason is
+  // recorded onto the decided item so it shows up in the history below.
+  let _wfRejectCtx=null;
+  function _wfRejectPrompt(k, ai, kind){
+    _wfRejectCtx={k, ai, kind};
+    let ov=document.getElementById('wfreject-overlay');
+    if(!ov){
+      ov=document.createElement('div'); ov.id='wfreject-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:10040;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+      ov.addEventListener('click', e=>{ if(e.target===ov) _wfRejectCancel(); });
+      document.body.appendChild(ov);
+    }
+    ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);border-radius:16px;width:100%;max-width:440px;overflow:hidden;">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">Reject request</div>
+        <div style="font-family:var(--font-display);font-size:18px;margin-top:3px;">Why are you rejecting this?</div>
+      </div>
+      <div style="padding:18px 22px;">
+        <textarea id="wfreject-reason" placeholder="e.g. Discount exceeds the approved band for this project without further IC review." style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:10px;min-height:90px;outline:none;" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')_wfRejectConfirm()"></textarea>
+        <div id="wfreject-err" style="display:none;color:#b51e3b;font-size:9.5px;margin-top:6px;">Please give a reason before rejecting.</div>
+      </div>
+      <div style="display:flex;gap:10px;padding:16px 22px;border-top:1px solid var(--ink-hairline);">
+        <button class="wf-btn ghost" style="flex:1;" onclick="_wfRejectCancel()">Cancel</button>
+        <button class="wf-btn" style="flex:1;background:#b51e3b;border-color:#b51e3b;" onclick="_wfRejectConfirm()">Reject</button>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+    setTimeout(()=>{ const t=document.getElementById('wfreject-reason'); if(t) t.focus(); }, 30);
+  }
+  function _wfRejectCancel(){
+    const ov=document.getElementById('wfreject-overlay'); if(ov) ov.style.display='none';
+    _wfRejectCtx=null;
+  }
+  function _wfRejectConfirm(){
+    if(!_wfRejectCtx) return;
+    const reason=(document.getElementById('wfreject-reason')?.value||'').trim();
+    if(!reason){ const err=document.getElementById('wfreject-err'); if(err) err.style.display='block'; return; }
+    const {k, ai, kind}=_wfRejectCtx;
+    const ov=document.getElementById('wfreject-overlay'); if(ov) ov.style.display='none';
+    _wfRejectCtx=null;
+    if(kind==='discount') _wfDiscountDecide(k, ai, 'reject', reason);
+    else _wfApprovalDecide(k, ai, 'reject', reason);
   }
   // ---- per-document access control (you're the VP / Senior Manager) --------
   const FUND_USERS=[
