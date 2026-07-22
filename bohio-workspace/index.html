@@ -9964,10 +9964,6 @@
     margin: 0;
   }
   .karaya-open-fab .kfab-k {
-    font-family: inherit;
-    font-size: 18px;
-    font-weight: 400;
-    letter-spacing: 0.04em;
     color: #e6e2e2;
     position: relative;
     z-index: 1;
@@ -10246,9 +10242,6 @@
       <div class="nav-item" id="nav-projects" onclick="goTo('workspace')">
         <span>My Funds</span>
       </div>
-      <div class="nav-item" id="nav-fundmgmt" onclick="setActiveNav('nav-fundmgmt');runWorkflow('fundmgmt')">
-        <span>Fund Management</span>
-      </div>
       <div class="nav-item" id="nav-tasks" onclick="toggleTasks()">
         <span>My Tasks</span>
         <span class="nav-count">05</span>
@@ -10393,7 +10386,7 @@
           <div class="wf-d">A chat interface for variance — ask about any asset or metric and Karaya compares the underwriting to live PM actuals, flagging NOI, opex and IRR gaps.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('reporting')">
-          <div class="wf-n">04</div><div class="wf-h">Drafts partner &amp; co-investor reporting</div>
+          <div class="wf-n">04</div><div class="wf-h">Reporting</div>
           <div class="wf-d">Pick a report type, the data to include and a cadence — or ask in plain language — and Karaya assembles it live from Finance, Property Management &amp; Market Data across the Qatar portfolios, exportable to Excel.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('appreciation')">
@@ -19710,7 +19703,7 @@ Answer as Karaya:`;
       custom(modal, cfg){ _wfVsaChat(modal, cfg); }
     },
     reporting: {
-      eyebrow:'Workflow 04', title:'Partner & co-investor reporting',
+      eyebrow:'Workflow 04', title:'Reporting',
       sub:'Ask for any pack in plain language — Karaya assembles the dashboard from live data',
       fullscreen:true,
       custom(modal, cfg){ _wfReportingChat(modal, cfg); }
@@ -24418,7 +24411,7 @@ Answer as Karaya:`;
     (typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).forEach(f=>{
       f.approvals.filter(a=>a.cls==='a').forEach(a=>items.push(
         { title:`${f.name.replace(/^Bohio RE /,'')} · ${a.t}`, meta:[a.status, a.chain],
-          go:`closeWorkflow();goTo('workspace');document.getElementById('nav-fundmgmt').click();setTimeout(()=>_wfFundDetail('${f.k}','approvals'),250);` }));
+          go:`closeWorkflow();goTo('workspace');runWorkflow('fundmgmt');setTimeout(()=>_wfFundDetail('${f.k}','approvals'),250);` }));
     });
     Object.keys(P).forEach(pid=>{
       (P[pid].approvalRequests||[]).filter(r=>r.cls==='a').forEach(r=>items.push(
@@ -27885,7 +27878,9 @@ function chInitAll() {
   <span class="kfab-circle">
     <span class="kfab-ring"></span>
     <span class="kfab-dot"></span>
-    <span class="kfab-k">K</span>
+    <svg class="kfab-k" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 3C6.48 3 2 6.69 2 11.25c0 2.6 1.46 4.92 3.75 6.44-.13 1.24-.53 2.57-1.36 3.8-.14.2.03.46.27.42 2.02-.36 3.6-1.2 4.78-2.09 0.8 0.15 1.65 0.22 2.56 0.22 5.52 0 10-3.69 10-8.25S17.52 3 12 3z" fill="currentColor"/>
+    </svg>
   </span>
   <span class="kfab-label">Karaya</span>
 </button>
