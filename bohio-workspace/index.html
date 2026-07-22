@@ -20944,8 +20944,8 @@ Answer as Karaya:`;
     const pct=f.committed?Math.round(f.drawn/f.committed*100):0;
     const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
     const pendingCount=f.approvals.filter(a=>a.cls==='a').length;
-    const tile=(label,val,color)=>`<div style="border:1px solid var(--ink-hairline);border-radius:10px;padding:10px 13px;"><div style="font-size:7px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">${label}</div><div style="font-size:15px;font-weight:700;margin-top:3px;${color?'color:'+color+';':''}">${val}</div></div>`;
-    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;margin-bottom:16px;">
+    const tile=(label,val,color)=>`<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:18px 20px;"><div style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);">${label}</div><div style="font-size:24px;font-weight:700;margin-top:7px;line-height:1.15;${color?'color:'+color+';':''}">${val}</div></div>`;
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px;">
       ${tile('NAV', 'QAR '+f.nav+'M')}
       ${tile('Net IRR', f.irr, '#61BB46')}
       ${tile('TVPI', (f.tvpi||0).toFixed(2)+'x')}
