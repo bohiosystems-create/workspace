@@ -21304,6 +21304,65 @@ Answer as Karaya:`;
     }
     return {asset, ctx, yearLabels, revenue, opex, noi, dscr, debtBalance, debtService, ltc, rate};
   }
+  // Turns the deterministic model above into a real, openable workbook — the
+  // exact figures the discount approval's AI insight and financial-model chat
+  // are already grounded in, so "View financial model" shows the same numbers
+  // rather than a re-derived summary.
+  function _wfDiscountModelWb(fm){
+    const N=fm.yearLabels.length, f2=n=>n.toFixed(2);
+    const L=i=>String.fromCharCode(66+i);
+    const cols=['','A',...Array.from({length:N},(_,i)=>L(i))];
+    const headers=['','',...fm.yearLabels.map(y=>'FY'+y)];
+    return {
+      'Assumptions':{ cols:['','A','B'], headers:['','Parameter','Value'], rows:[
+        {cells:['1','ASSUMPTIONS',''],style:'section'},
+        {cells:['2','Asset',fm.asset.name],style:'data'},
+        {cells:['3','Invested capital (QAR M)',f2(fm.asset.invested)],style:'data'},
+        {cells:['4','Revenue growth','3.0%'],style:'data'},
+        {cells:['5','Loan-to-cost (LTC)',(fm.ltc*100).toFixed(0)+'%'],style:'data'},
+        {cells:['6','Interest rate',(fm.rate*100).toFixed(2)+'%'],style:'data'},
+        {cells:['7','Debt balance (QAR M)',f2(fm.debtBalance)],style:'data'},
+        {cells:['8','Annual debt service (QAR M)',f2(fm.debtService)],style:'data'},
+      ]},
+      'Cashflow':{ cols, headers, rows:[
+        {cells:['1','CASHFLOW (QAR M)',...Array(N).fill('')],style:'section'},
+        {cells:['2','Revenue',...fm.revenue.map(f2)],style:'data'},
+        {cells:['3','Opex',...fm.opex.map(v=>'-'+f2(v))],style:'neg'},
+        {cells:['4','Net Operating Income',...fm.noi.map(f2)],formulas:['','',...Array.from({length:N},(_,i)=>`=${L(i)}2+${L(i)}3`)],style:'total'},
+        {cells:['5','',...Array(N).fill('')],style:'empty'},
+        {cells:['6','Debt Service',...Array(N).fill('-'+f2(fm.debtService))],style:'neg'},
+        {cells:['7','DSCR',...fm.dscr.map(v=>v.toFixed(2)+'x')],style:'total'},
+      ]},
+      'Returns':{ cols:['','A','B'], headers:['','Metric','Value'], rows:[
+        {cells:['1','RETURNS',''],style:'section'},
+        {cells:['2','Gross IRR',fm.asset.irr+'%'],style:'total'},
+        {cells:['3','Equity Multiple (MOIC)',fm.asset.moic+'x'],style:'total'},
+        {cells:['4','NAV (QAR M)',f2(fm.asset.nav)],style:'data'},
+        {cells:['5','Occupancy',fm.asset.occ+'%'],style:'data'},
+      ]},
+    };
+  }
+  // Opens the exact financial model an approval's AI explanation is grounded
+  // in — the project's model for a discount approval, or the fund's own
+  // master model (falling back to the Financial Modelling section if none
+  // has been built yet) for every other approval.
+  function _wfDiscountViewModel(k, ai){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const a=f.approvals[ai]; if(!a) return;
+    const fm=_wfDiscountFinModel(a.projectId);
+    const doc={type:'XLSX', name:fm.asset.name+' — Financial Model', version:'Referenced in this approval', updated:'Karaya · grounded in the AI insight above', isGenerated:true, wbData:_wfDiscountModelWb(fm)};
+    _wfApprovalsHubOpen=false; closeWorkflow(); currentProject=null;
+    openEditor(doc, {kind:'fund', k});
+  }
+  function _wfApprovalViewModel(k, ai){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    if((f.models||[]).length){
+      _wfApprovalsHubOpen=false; closeWorkflow(); currentProject=null;
+      openEditor(f.models[0], {kind:'fund', k});
+    } else {
+      _wfApprovalsHubOpen=false; _wfFundDetail(k,'modelling');
+    }
+  }
   // Deterministic lookups against the real model above — returns null (so the
   // caller falls through to AI narration) if the question doesn't match a
   // known metric.
@@ -21505,7 +21564,10 @@ Answer as Karaya:`;
       <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfApprovalAiToggle('${k}',${ai})">${open?'▾':'▸'} Ask Karaya to generate AI analytics</button>
       <div id="wfapr-ai-${k}-${ai}" style="${open?'':'display:none;'}margin-top:9px;padding-top:9px;border-top:1px solid var(--ink-hairline);">
         <div id="wfapr-insight-${k}-${ai}" style="font-size:10.5px;line-height:1.7;${a._aiInsight?'margin-bottom:9px;':'display:none;'}">${a._aiInsight?_fmtDiscountSections(a._aiInsight):''}</div>
-        <button class="wf-btn" style="font-size:9.5px;padding:6px 10px;margin-bottom:9px;" onclick="_wfApprovalGenInsight('${k}',${ai})">${a._aiInsight?'↻ Regenerate AI analytics':'✦ Generate AI analytics'}</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px;">
+          <button class="wf-btn" style="font-size:9.5px;padding:6px 10px;" onclick="_wfApprovalGenInsight('${k}',${ai})">${a._aiInsight?'↻ Regenerate AI analytics':'✦ Generate AI analytics'}</button>
+          ${a._aiInsight?`<button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfApprovalViewModel('${k}',${ai})">📊 View financial model</button>`:''}
+        </div>
         <div id="wfapr-chatlog-${k}-${ai}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:200px;overflow-y:auto;">${chatLogHtml}</div>
         <div style="display:flex;gap:8px;">
           <input id="wfapr-input-${k}-${ai}" placeholder="Ask Karaya about this approval…" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfApprovalAsk('${k}',${ai})">
@@ -21534,7 +21596,18 @@ Answer as Karaya:`;
     const out=await karayaStreamInto(slot, prompt, 'quick_insight', fallback);
     a._aiInsight=out||fallback;
     slot.innerHTML=_fmtDiscountSections(a._aiInsight);
-    const genBtn=slot.nextElementSibling; if(genBtn&&genBtn.tagName==='BUTTON') genBtn.textContent='↻ Regenerate AI analytics';
+    const btnRow=slot.nextElementSibling;
+    if(btnRow){
+      const genBtn=btnRow.querySelector('.wf-btn'); if(genBtn) genBtn.textContent='↻ Regenerate AI analytics';
+      if(!btnRow.querySelector('[data-view-model]')){
+        const vb=document.createElement('button');
+        vb.className='wf-btn ghost'; vb.style.cssText='font-size:9.5px;padding:6px 10px;';
+        vb.setAttribute('data-view-model','1');
+        vb.textContent='📊 View financial model';
+        vb.onclick=()=>_wfApprovalViewModel(k,ai);
+        btnRow.appendChild(vb);
+      }
+    }
   }
   function _wfApprovalChatRender(k, ai){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
@@ -21595,6 +21668,7 @@ Answer as Karaya:`;
       <div id="wfdisc-insight-${k}-${ai}" style="margin-top:11px;${a._insight?'':'display:none;'}font-size:11px;line-height:1.7;">${insightHtml}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
         <button class="wf-btn" onclick="_wfDiscountInsight('${k}',${ai})">${a._insight?'↻ Regenerate AI insight':'✦ Generate AI insight'}</button>
+        ${a._insight?`<button class="wf-btn ghost" onclick="_wfDiscountViewModel('${k}',${ai})">📊 View financial model</button>`:''}
         ${!decided?`<button class="wf-btn ghost" style="border-color:#15803d;color:#15803d;" onclick="_wfDiscountDecide('${k}',${ai},'approve')">Approve discount</button>
         <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfDiscountDecide('${k}',${ai},'reject')">Reject</button>`:''}
       </div>
@@ -21626,6 +21700,14 @@ Answer as Karaya:`;
     a._insight=_insightOut||fallback;
     narr.innerHTML=_fmtDiscountSections(a._insight);
     const btnRow=slot.parentElement.querySelector('.wf-btn'); if(btnRow) btnRow.textContent='↻ Regenerate AI insight';
+    const btnRowWrap=btnRow&&btnRow.parentElement;
+    if(btnRowWrap && !btnRowWrap.querySelector('[data-view-model]')){
+      const vb=document.createElement('button');
+      vb.className='wf-btn ghost'; vb.setAttribute('data-view-model','1');
+      vb.textContent='📊 View financial model';
+      vb.onclick=()=>_wfDiscountViewModel(k,ai);
+      btnRow.insertAdjacentElement('afterend', vb);
+    }
   }
   // ---- Follow-up chat on a discount approval — plus a deterministic
   // "max discount before IRR falls below X%" solver demo ----
