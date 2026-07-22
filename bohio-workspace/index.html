@@ -10363,6 +10363,7 @@
             </div>
             <span class="kbi-cta">Open ›</span>
           </div>
+          <div id="ws-brief-approvals"></div>
         </div>
       </div>
 
@@ -11410,6 +11411,7 @@
       document.getElementById('nav-projects')?.classList.add('active');
       setBreadcrumb([{label:'Home',fn:"goTo('landing')"},{label:'Workspace'}]);
       if (typeof renderDeptAgents === 'function') renderDeptAgents();
+      if (typeof _renderDailyBriefApprovals === 'function') _renderDailyBriefApprovals();
       // Keep the left sidebar OPEN on workspace; only auto-hide the right Karaya panel
       const _sh = document.querySelector('.app-shell');
       if (_sh) {
@@ -11883,6 +11885,22 @@
     const gov = (typeof GOVERNANCE !== 'undefined' && GOVERNANCE[id]) ? GOVERNANCE[id] : null;
     const live = Object.entries(APPROVALS).filter(([k]) => k.startsWith(id + '::')).map(([,v]) => v);
     let html = '';
+
+    // ---- Request approval (send a description + attachments to someone) ----
+    html += `<div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+      <button class="wf-btn" onclick="openRequestApproval('project',${id})">+ Request approval</button>
+    </div>`;
+    const reqs = P[id].approvalRequests || [];
+    if (reqs.length) {
+      html += `<div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:12px;">Approval Requests You've Sent</div>
+      <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:28px;">
+        ${reqs.map(r=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:11.5px;font-weight:700;line-height:1.4;">${r.t}</div><span class="wf-pill ${r.cls}" style="flex-shrink:0;">${r.status}</span></div>
+          <div style="font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.03em;">${r.chain}</div>
+          ${(r.attachments&&r.attachments.length)?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px;">${r.attachments.map(n=>'📎 '+n.replace(/</g,'&lt;')).join(' · ')}</div>`:''}
+        </div>`).join('')}
+      </div>`;
+    }
 
     // ---- Documents sent to YOU ----
     html += _inboxCardHtml(id);
@@ -20803,11 +20821,15 @@ Answer as Karaya:`;
           </div>`; }).join('')}
       </div>`;
     } else if(sec==='approvals'){
-      panel=f.approvals.map((a,ai)=> a.kind==='discount'
+      panel=`<div style="display:flex;justify-content:flex-end;margin-bottom:11px;">
+        <button class="wf-btn" onclick="openRequestApproval('fund','${k}')">+ Request approval</button>
+      </div>`
+      + f.approvals.map((a,ai)=> a.kind==='discount'
         ? _wfDiscountCard(k, ai, a)
         : `<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:11.5px;font-weight:700;line-height:1.4;">${a.t}</div><span class="wf-pill ${a.cls}" style="flex-shrink:0;">${a.status}</span></div>
         <div style="font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.03em;">${a.chain}</div>
+        ${(a.attachments&&a.attachments.length)?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px;">${a.attachments.map(n=>'📎 '+n.replace(/</g,'&lt;')).join(' · ')}</div>`:''}
       </div>`).join('');
     } else if(sec==='stakeholders'){
       panel=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -20928,6 +20950,77 @@ Answer as Karaya:`;
   function _wfFundListBack(){
     const modal=document.querySelector('#wf-overlay .wf-modal');
     if(modal) _wfFundList(modal, WORKFLOWS.fundmgmt);
+  }
+
+  // ---- Request Approval — generic (fund or project): describe it, attach
+  // supporting docs, pick who in the org it goes to ------------------------
+  let _reqApr=null; // {ctxType:'fund'|'project', ctxId, files:[]}
+  function openRequestApproval(ctxType, ctxId){
+    _reqApr={ctxType, ctxId, files:[]};
+    let ov=document.getElementById('reqapr-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='reqapr-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:10040;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+      ov.addEventListener('click', e=>{ if(e.target===ov) closeRequestApproval(); });
+      document.body.appendChild(ov);
+    }
+    const people=Object.entries(AGENTS).filter(([k,a])=>a.tier==='employee' && k!=='a_mb');
+    ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);border-radius:16px;width:100%;max-width:460px;overflow:hidden;">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">Request approval</div>
+        <div style="font-family:var(--font-display);font-size:19px;margin-top:3px;">What do you need approved?</div>
+      </div>
+      <div style="padding:18px 22px;display:flex;flex-direction:column;gap:13px;max-height:56vh;overflow-y:auto;">
+        <div>
+          <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Description</div>
+          <textarea id="reqapr-desc" placeholder="e.g. Approve the QAR 45M capital call for Aurora Logistics Park" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:10px;min-height:74px;outline:none;"></textarea>
+        </div>
+        <div>
+          <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Attach supporting documents</div>
+          <button class="wf-btn ghost" style="width:100%;" onclick="document.getElementById('reqapr-files').click()">Attach files (PDF, JPG, PPTX)</button>
+          <input type="file" id="reqapr-files" multiple style="display:none;" accept=".pdf,.jpg,.jpeg,.pptx" onchange="_reqAprFilesChanged(this.files)">
+          <div id="reqapr-filelist" style="margin-top:8px;font-size:10px;color:var(--ink-soft);line-height:1.7;"></div>
+        </div>
+        <div>
+          <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Send to</div>
+          <select id="reqapr-to" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:10px;">
+            ${people.map(([k,a])=>`<option value="${k}">${a.name} — ${a.represents}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;padding:14px 22px;border-top:1px solid var(--ink-hairline);">
+        <button class="wf-btn ghost" style="flex:1;" onclick="closeRequestApproval()">Cancel</button>
+        <button class="wf-btn" style="flex:1;" onclick="_reqAprSubmit()">Send approval request</button>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+    setTimeout(()=>{ const d=document.getElementById('reqapr-desc'); if(d) d.focus(); }, 60);
+  }
+  function closeRequestApproval(){ const ov=document.getElementById('reqapr-overlay'); if(ov) ov.style.display='none'; _reqApr=null; }
+  function _reqAprFilesChanged(files){
+    if(!_reqApr) return;
+    _reqApr.files=[...files].map(f=>f.name);
+    const el=document.getElementById('reqapr-filelist'); if(el) el.innerHTML=_reqApr.files.map(n=>`<div>📎 ${n.replace(/</g,'&lt;')}</div>`).join('');
+  }
+  function _reqAprSubmit(){
+    if(!_reqApr) return;
+    const desc=((document.getElementById('reqapr-desc')||{}).value||'').trim();
+    if(!desc){ alert('Add a short description of what needs approval.'); return; }
+    const toKey=(document.getElementById('reqapr-to')||{}).value;
+    const person=AGENTS[toKey]||{name:'a colleague'};
+    const rec={kind:'requested', t:desc, requestedBy:'You', submitted:'Just now', recipient:person.name,
+      chain:'You → '+person.name+' (pending)', status:'Awaiting '+person.name.split(' ')[0], cls:'a',
+      attachments:(_reqApr.files||[]).slice()};
+    const {ctxType, ctxId}=_reqApr;
+    closeRequestApproval();
+    if(ctxType==='fund'){
+      const f=WF_FUNDS.find(x=>x.k===ctxId);
+      if(f){ f.approvals.unshift(rec); _wfFundDetail(ctxId,'approvals'); }
+    } else if(ctxType==='project'){
+      P[ctxId].approvalRequests=P[ctxId].approvalRequests||[];
+      P[ctxId].approvalRequests.unshift(rec);
+      if(typeof renderProjectApprovals==='function') renderProjectApprovals(ctxId);
+    }
+    if(typeof _renderDailyBriefApprovals==='function') _renderDailyBriefApprovals();
   }
 
   // ---- Sales discount approval (CIO persona): model the impact before you decide ----
@@ -23807,10 +23900,15 @@ Answer as Karaya:`;
     if (imgEl) { imgEl.innerHTML = ''; imgEl.style.display = 'none'; }
     document.getElementById('proj-brief-lede').innerHTML = data.lede;
     const itemsEl = document.getElementById('proj-brief-items');
-    if (!data.items || data.items.length === 0) {
+    // pending approval requests sent from this project surface here too, so
+    // nothing needing a decision is buried in a section you have to click into
+    const pendingAprs = (P[projectId].approvalRequests||[]).filter(r=>r.cls==='a').map(r=>(
+      { rank:'AP', priority:'priority', title:r.t, meta:[r.status, r.chain], cta:'Open Approvals', onClick:"selectProjectSection('approvals')" }));
+    const items = pendingAprs.concat(data.items||[]);
+    if (!items.length) {
       itemsEl.innerHTML = '<div class="kr-brief-empty">No live items today. Karaya is monitoring.</div>';
     } else {
-      itemsEl.innerHTML = data.items.map(it => `
+      itemsEl.innerHTML = items.map(it => `
         <div class="kr-brief-item ${it.priority==='priority'?'priority':''}" ${it.onClick?`onclick="${it.onClick}"`:''} style="${it.onClick?'':'cursor:default;'}">
           <div class="kbi-rank">${it.rank}</div>
           <div class="kbi-body">
@@ -23821,6 +23919,33 @@ Answer as Karaya:`;
         </div>
       `).join('');
     }
+  }
+
+  // Pending approvals — from any fund or any project — surfaced on the
+  // workspace Daily Brief so nothing needing a decision gets buried in a
+  // section you'd have to go looking for.
+  function _renderDailyBriefApprovals(){
+    const host=document.getElementById('ws-brief-approvals'); if(!host) return;
+    const items=[];
+    (typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).forEach(f=>{
+      f.approvals.filter(a=>a.cls==='a').forEach(a=>items.push(
+        { title:`${f.name.replace(/^Bohio RE /,'')} · ${a.t}`, meta:[a.status, a.chain],
+          go:`closeWorkflow();goTo('workspace');document.getElementById('nav-fundmgmt').click();setTimeout(()=>_wfFundDetail('${f.k}','approvals'),250);` }));
+    });
+    Object.keys(P).forEach(pid=>{
+      (P[pid].approvalRequests||[]).filter(r=>r.cls==='a').forEach(r=>items.push(
+        { title:`${P[pid].name} · ${r.t}`, meta:[r.status, r.chain],
+          go:`showProject(${pid});setTimeout(()=>selectProjectSection('approvals'),250);` }));
+    });
+    host.innerHTML = items.map((it,i)=>`
+      <div class="kr-brief-item priority" onclick="${it.go.replace(/"/g,'&quot;')}">
+        <div class="kbi-rank">${String(i+4).padStart(2,'0')}</div>
+        <div class="kbi-body">
+          <div class="kbi-title">${it.title}</div>
+          <div class="kbi-meta"><span class="kbi-pill high">Approval pending</span>${it.meta.filter(Boolean).map(m=>`<span>${m}</span>`).join('')}</div>
+        </div>
+        <span class="kbi-cta">Open ›</span>
+      </div>`).join('');
   }
 
   // ============ CONSULTANT BRIEF DOC VIEWER ============
