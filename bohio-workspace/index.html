@@ -20949,6 +20949,109 @@ Answer as Karaya:`;
       ${sentHtml}
     </div>`;
   }
+  // ---- Live KPI dashboard — top of every fund page, above the section
+  // squircles. Static fund-level figures (NAV, IRR, TVPI, DPI) plus two
+  // genuinely live counts (active projects, pending approvals) so it stays
+  // current as decisions get made and projects get added, without a reload.
+  function _wfFundKpiDashboardHTML(f, k){
+    const pct=f.committed?Math.round(f.drawn/f.committed*100):0;
+    const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
+    const pendingCount=f.approvals.filter(a=>a.cls==='a').length;
+    const tile=(label,val,color)=>`<div style="border:1px solid var(--ink-hairline);border-radius:10px;padding:10px 13px;"><div style="font-size:7px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);">${label}</div><div style="font-size:15px;font-weight:700;margin-top:3px;${color?'color:'+color+';':''}">${val}</div></div>`;
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;margin-bottom:16px;">
+      ${tile('NAV', 'QAR '+f.nav+'M')}
+      ${tile('Net IRR', f.irr, '#61BB46')}
+      ${tile('TVPI', (f.tvpi||0).toFixed(2)+'x')}
+      ${tile('DPI', (f.dpi||0).toFixed(2)+'x')}
+      ${tile('Drawn / committed', pct+'% · '+f.drawn+'/'+f.committed+'M')}
+      ${tile('Active projects', ids.length)}
+      ${tile('Pending approvals', pendingCount, pendingCount?'#b45309':undefined)}
+    </div>`;
+  }
+  // ---- Reporting workflow — a chatbot that builds ANY custom report on
+  // demand, grounded in this fund's own mock dataset (quarterly NAV/IRR
+  // trend, portfolio asset financials, cap table, approvals history) rather
+  // than the two fixed board/LP report templates in the Reporting section.
+  function _wfFundReportData(f, k){
+    const q=_fundQuarterlySeries(f);
+    const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
+    const assets=ids.map(id=>{
+      const p=P[id];
+      const fin=(typeof WF_REP_ASSETS!=='undefined'?WF_REP_ASSETS:[]).find(x=>x.name===p.name);
+      return {id, name:p.name, loc:p.loc, lead:p.lead, phase:p.phase, status:(PROJECT_SQUIRCLE_META[id]||{}).status||p.phase, fin};
+    });
+    const pending=f.approvals.filter(a=>a.cls==='a');
+    const decided=f.approvals.filter(a=>a.cls==='g'||a.cls==='r');
+    return {f, q, assets, pending, decided, lps:f.structure.lps};
+  }
+  function _wfFundReportContextText(rd){
+    const {f,q,assets,pending,decided,lps}=rd;
+    const assetLines=assets.map(a=>`${a.name} (${a.loc}, ${a.status})${a.fin?`: revenue QAR ${a.fin.revenue}M, opex QAR ${a.fin.opex}M, NOI QAR ${a.fin.noi}M, IRR ${a.fin.irr}%, MOIC ${a.fin.moic}x, occupancy ${a.fin.occ}%`:': financial model not yet built'}`).join('; ');
+    const lpLines=lps.map(l=>`${l[0]}: QAR ${l[1]}M (${l[2]})`).join('; ');
+    const decidedLines=decided.map(a=>`${a.t} — ${a.cls==='g'?'Approved':'Rejected'} (${a.chain})`).join('; ');
+    const pendingLines=pending.map(a=>`${a.t} — ${a.status}`).join('; ');
+    return `Fund: ${f.name} (${f.vintage}, ${f.tag}), status ${f.status}. Committed QAR ${f.committed}M, drawn QAR ${f.drawn}M, NAV QAR ${f.nav}M, net IRR ${f.irr}, DPI ${(f.dpi||0).toFixed(2)}x, TVPI ${(f.tvpi||0).toFixed(2)}x. Quarterly NAV over the last 6 quarters (${q.qs.join(', ')}): ${q.nav.join(', ')} (QAR M). Quarterly net IRR over the same period: ${q.irr.join(', ')} (%). Capital structure — GP/LPs: ${lpLines}. Portfolio assets: ${assetLines||'none yet'}. Approvals decided this period: ${decidedLines||'none'}. Approvals currently pending: ${pendingLines||'none'}.`;
+  }
+  function _wfFundReportingHTML(f, k){
+    const chat=f._reportChat||[];
+    const chatLogHtml=chat.map((c,i)=>`<div ${c.cls==='bot'?`id="wffrep-chat-b-${k}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    return `<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--ink-hairline);">
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Reporting — ${f.name.replace(/^Bohio RE /,'')}</div>
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:10px;">Ask for any report — Karaya builds it live from this fund's own NAV/IRR trend, portfolio assets, capital structure and approvals history.</div>
+      <div id="wffrep-chat-${k}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:280px;overflow-y:auto;">${chatLogHtml}</div>
+      <div id="wffrep-preset-${k}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFundReportPreset('${k}','Quarterly performance — NAV and IRR trend versus last quarter')">Quarterly performance summary</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFundReportPreset('${k}','Build an LP capital account statement')">LP capital account statement</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFundReportPreset('${k}','Summarize portfolio occupancy and NOI trends, flag any risk')">Portfolio occupancy &amp; NOI</button>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <input id="wffrep-input-${k}" placeholder="e.g. compare this quarter's IRR to last quarter and flag any risk" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfFundReportAsk('${k}')">
+        <button class="wf-btn ghost" onclick="_wfFundReportAsk('${k}')">Ask</button>
+      </div>
+    </div>`;
+  }
+  function _wfFundReportRender(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const log=document.getElementById(`wffrep-chat-${k}`); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=(f._reportChat||[]).map((c,i)=>`<div ${c.cls==='bot'?`id="wffrep-chat-b-${k}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    log.scrollTop=log.scrollHeight;
+    const preset=document.getElementById(`wffrep-preset-${k}`); if(preset&&(f._reportChat||[]).length) preset.style.display='none';
+  }
+  function _wfFundReportPreset(k, text){
+    const input=document.getElementById(`wffrep-input-${k}`);
+    if(input) input.value=text;
+    _wfFundReportAsk(k);
+  }
+  function _wfFundReportAsk(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const input=document.getElementById(`wffrep-input-${k}`); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    f._reportChat=f._reportChat||[];
+    f._reportChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    _wfFundReportRender(k);
+    // "export this as excel/pdf/word" → a real downloadable file.
+    if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
+      const bi=f._reportChat.length;
+      f._reportChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+      _wfFundReportRender(k);
+      const el=document.getElementById(`wffrep-chat-b-${k}-${bi}`);
+      _krGenerateFileInto(q, el, '').then(()=>{ if(el) f._reportChat[bi].html=el.innerHTML; });
+      return;
+    }
+    const rd=_wfFundReportData(f,k);
+    const ctx=_wfFundReportContextText(rd);
+    const botIdx=f._reportChat.length;
+    f._reportChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    _wfFundReportRender(k);
+    const fallback=`Here's what I can ground a report in for **${f.name}**: NAV **QAR ${f.nav}M**, net IRR **${f.irr}**, **${rd.assets.length}** portfolio asset${rd.assets.length===1?'':'s'}, and **${rd.pending.length}** approval${rd.pending.length===1?'':'s'} pending. Ask for a specific report — e.g. "quarterly performance summary" or "LP capital account statement" — and I'll build it from this data.`;
+    const prompt=`You are Karaya, an AI reporting analyst. Build the custom report the user asks for, grounded ONLY in this data: ${ctx} Request: "${q}". Structure your answer with clear markdown section headers on their own line ("### Title") and bullet points ("- point" under each), **bold** the key figures. If the request needs data not given here, say so briefly rather than inventing numbers. No preamble or conclusion outside the sections.`;
+    setTimeout(()=>{
+      const el=document.getElementById(`wffrep-chat-b-${k}-${botIdx}`); if(!el) return;
+      karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ const html=_fmtDiscountSections(out||fallback); f._reportChat[botIdx].html=html; el.innerHTML=html; }).catch(()=>{ const html=_fmtDiscountSections(fallback); f._reportChat[botIdx].html=html; el.innerHTML=html; });
+    }, 30);
+  }
   let _wfFundLastSec='brief';
   function _wfFundDetail(k, sec){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
@@ -21123,9 +21226,11 @@ Answer as Karaya:`;
         </div>
       </div>
       <div class="wf-body">
+        ${_wfFundKpiDashboardHTML(f, k)}
         <div class="fund-sections">${secBtns}</div>
         ${panel}
         <div id="wff-chat" style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">${chatLog}</div>
+        ${_wfFundReportingHTML(f, k)}
         ${_fundOwnershipHTML(f)}
       </div>
       <div style="display:flex;gap:8px;padding:13px 24px;border-top:1px solid var(--ink-hairline);">
