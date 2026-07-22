@@ -1516,6 +1516,19 @@
   .model-preview-foot { border-top:1px solid var(--ink-hairline); padding:8px 10px; flex-shrink:0; }
   .model-preview-name { font-size:10.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:6px; }
   .model-preview-master { font-size:7px; color:#b45309; font-weight:700; }
+  /* fund agreements / any non-spreadsheet document — same square-tile design
+     as a financial model, but with a text-snippet preview instead of a grid */
+  .doc-preview-wrap { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; margin-bottom:14px; }
+  .doc-preview-tile { position:relative; aspect-ratio:1/1; border:1px solid var(--ink-hairline); border-radius:16px; overflow:hidden; cursor:pointer; background:var(--paper); display:flex; flex-direction:column; transition:transform .15s ease, box-shadow .15s ease; }
+  .doc-preview-tile:hover { transform:translateY(-3px); box-shadow:0 12px 28px rgba(0,9,25,0.14); }
+  .doc-preview-head { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; flex-shrink:0; }
+  .doc-preview-badge { font-size:8px; font-weight:700; letter-spacing:0.1em; background:#000919; color:#fff; padding:3px 7px; border-radius:5px; }
+  .doc-preview-count { font-size:8px; color:var(--ink-soft); letter-spacing:0.04em; text-transform:uppercase; }
+  .doc-preview-body { flex:1; min-height:0; padding:0 10px; overflow:hidden; font-size:9px; line-height:1.5; color:var(--ink-soft); }
+  .doc-preview-foot { border-top:1px solid var(--ink-hairline); padding:8px 10px; flex-shrink:0; }
+  .doc-preview-name { font-size:10.5px; font-weight:600; line-height:1.3; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .doc-preview-access { font-size:7.5px; color:var(--ink-soft); }
+  .doc-preview-acc-btn { position:absolute; top:8px; right:8px; width:24px; height:24px; border-radius:50%; border:1px solid var(--ink-hairline); background:var(--paper); color:var(--ink); font-family:inherit; font-size:12px; line-height:1; cursor:pointer; z-index:2; }
 
   /* ============ PROJECT PAGE · THREE SECTION SQUIRCLES ============ */
   .proj-sections {
@@ -21125,14 +21138,11 @@ Answer as Karaya:`;
         <input type="file" id="wff-docup" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx" onchange="_wfFundDocUpload('${k}', this.files[0])">
       </div>
       <div style="font-size:9px;color:var(--ink-soft);margin-bottom:10px;letter-spacing:0.02em;">Click any document to open and read it. Use ⋯ to set who can access it. The fund structure chart is generated in the <b>Structure</b> section.</div>`
-      + (f.docs||[]).map(d=>`<div onclick="_wfFundDocView('${k}','${encodeURIComponent(d.name)}')" title="Open this document" style="position:relative;border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;cursor:pointer;transition:border-color .15s ease, box-shadow .15s ease;" onmouseover="this.style.borderColor='var(--ink)';this.style.boxShadow='0 6px 18px rgba(0,9,25,0.08)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
-        <button onclick="event.stopPropagation();_wfDocMenu(event,'${k}','${encodeURIComponent(d.name)}')" title="Access — who can open this document" style="position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);font-family:inherit;font-size:13px;line-height:1;cursor:pointer;">⋯</button>
-        <div style="display:flex;align-items:center;gap:9px;padding-right:30px;">
-          <div style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">${d.type}</div>
-          <div style="flex:1;min-width:0;font-size:11.5px;font-weight:700;line-height:1.35;">${d.name}<span style="display:block;font-size:8.5px;font-weight:400;color:var(--ink-soft);margin-top:1px;">${(function(){ const a=getDocAccess(k,d.name); const n=FUND_USERS.filter(us=>a[us.u]).length; return n+' of '+FUND_USERS.length+' people have access'; })()}</span></div>
-          <button onclick="event.stopPropagation();_wfFundDocView('${k}','${encodeURIComponent(d.name)}')" title="Open and read this document" style="flex-shrink:0;align-self:center;padding:7px 14px;border-radius:9px;border:none;background:var(--ink);color:#fff;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;letter-spacing:0.01em;">↗ Open</button>
-        </div>
-        <div style="margin-top:9px;display:flex;flex-direction:column;gap:6px;">
+      + `<div class="doc-preview-wrap">${(f.docs||[]).map(d=>_wfDocPreviewTileHTML(k,d)).join('')}</div>`
+      + `<div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:6px 0 10px;">Version history</div>`
+      + (f.docs||[]).map(d=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:11px 14px;margin-bottom:9px;">
+        <div style="font-size:10.5px;font-weight:700;margin-bottom:7px;">${d.name}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
           ${d.versions.map(v=>`<div style="display:flex;align-items:flex-start;gap:8px;font-size:10px;line-height:1.55;">
             <span style="flex-shrink:0;font-weight:700;font-variant-numeric:tabular-nums;min-width:26px;">${v.v}</span>
             <span style="flex-shrink:0;color:var(--ink-soft);min-width:88px;">${v.date}</span>
@@ -22438,6 +22448,30 @@ Answer as Karaya:`;
       <div class="model-preview-foot">
         <div class="model-preview-name">${m.name}${m._fundMaster?' <span class="model-preview-master">MASTER</span>':''}</div>
         ${suggestOnclick?`<button class="wf-btn ghost" style="padding:5px 10px;font-size:8.5px;width:100%;" onclick="event.stopPropagation();${suggestOnclick}">Suggest modifications</button>`:''}
+      </div>
+    </div>`;
+  }
+  // Square preview tile for any fund agreement/document (LPA, subscription
+  // agreements, notices, uploads…) — same design language as a financial
+  // model's preview tile, but shows a text snippet of the document's actual
+  // content (its extracted text, or the latest version's note) instead of a
+  // spreadsheet grid, since these documents aren't workbooks.
+  function _wfDocPreviewTileHTML(k, d){
+    const acc=getDocAccess(k,d.name); const nAcc=FUND_USERS.filter(us=>acc[us.u]).length;
+    const versions=d.versions||[];
+    const lastV=versions[versions.length-1];
+    const snippet=((d.text&&d.text.trim())?d.text.trim():(lastV?lastV.note:''))||'No preview available for this document — open it to read the full content.';
+    const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="doc-preview-tile" onclick="_wfFundDocView('${k}','${encodeURIComponent(d.name)}')" title="Open this document">
+      <button class="doc-preview-acc-btn" onclick="event.stopPropagation();_wfDocMenu(event,'${k}','${encodeURIComponent(d.name)}')" title="Access — who can open this document">⋯</button>
+      <div class="doc-preview-head">
+        <span class="doc-preview-badge">${esc(d.type)}</span>
+        <span class="doc-preview-count">${versions.length} version${versions.length===1?'':'s'}</span>
+      </div>
+      <div class="doc-preview-body">${esc(snippet).slice(0,260)}</div>
+      <div class="doc-preview-foot">
+        <div class="doc-preview-name">${esc(d.name)}</div>
+        <div class="doc-preview-access">${nAcc} of ${FUND_USERS.length} people have access</div>
       </div>
     </div>`;
   }
