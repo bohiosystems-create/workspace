@@ -20668,11 +20668,12 @@ Answer as Karaya:`;
   }
   function _wfFundDetail(k, sec){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
-    sec=sec||'documents';
+    sec=sec||'brief';
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
-    // ordered left → right: Fund agreements · Financial modelling · the rest
+    // ordered left → right: Brief (landing) · Fund agreements · Financial modelling · the rest
     // section squircles — same design as the in-project sections
     const SECTIONS=[
+      ['brief','Brief','Everything happening now','☼'],
       ['documents','Fund agreements','LPA · subs · notices','◫'],
       ['modelling','Financial modelling','Master model & dashboards','▦'],
       ['projects','Projects','Developments in this fund','◇'],
@@ -20680,8 +20681,9 @@ Answer as Karaya:`;
       ['approvals','Approvals','Calls · distributions','✓'],
       ['stakeholders','Stakeholders','GP · LPs · advisors','◉'],
       ['topics','Topics','Open discussions','❋'],
+      ['timeline','Timeline','Fund history at a glance','◷'],
     ];
-    const _cnt={documents:(f.docs||[]).length, modelling:(f.models||[]).length, projects:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]).length, structure:f.structure.lps.length, approvals:f.approvals.length, stakeholders:f.stakeholders.length, topics:f.topics.length};
+    const _cnt={brief:null, documents:(f.docs||[]).length, modelling:(f.models||[]).length, projects:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]).length, structure:f.structure.lps.length, approvals:f.approvals.length, stakeholders:f.stakeholders.length, topics:f.topics.length, timeline:null};
     const secBtns=SECTIONS.map(([key,label,sub,glyph])=>`
       <div class="section-squircle${sec===key?' active':''}" data-sec="${key}" onclick="_wfFundDetail('${k}','${key}')">
         <div class="ssq-head"><span class="ssq-glyph">${glyph}</span><span class="ssq-count">${_cnt[key]!=null?String(_cnt[key]).padStart(2,'0'):''}</span></div>
@@ -20689,7 +20691,12 @@ Answer as Karaya:`;
         <div class="ssq-sub">${sub}</div>
       </div>`).join('');
     let panel='';
-    if(sec==='structure'){
+    if(sec==='brief'){
+      panel=`<div class="kr-brief" style="margin:0 0 4px;">
+        <div class="kr-brief-lede" id="wffb-lede"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>
+        <div class="kr-brief-items" id="wffb-items"></div>
+      </div>`;
+    } else if(sec==='structure'){
       const tot=f.structure.lps.reduce((a,l)=>a+l[1],0);
       panel=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         <button class="wf-btn" onclick="_wfFundChart('${k}')">✦ Generate fund structure chart from the documents</button>
@@ -20797,6 +20804,10 @@ Answer as Karaya:`;
         <button class="wf-btn" onclick="_wfFundNewProject('${k}')">+ Create in this fund</button>
       </div>`;
     }
+    else if(sec==='timeline'){
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Every negotiated document version and Outlook email touching <b style="color:var(--ink);">${f.name}</b>, newest first.</div>
+      <div id="wff-timeline-slot"><div style="font-size:10.5px;color:var(--ink-soft);">Reading document history and the mailbox…</div></div>`;
+    }
     const chatLog=(_wfFundChat[k]||[]).map(m=>`<div style="align-self:${m.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${m.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${m.cls==='user'?'var(--bg)':'var(--ink)'};border:${m.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${m.html}</div>`).join('');
     modal.innerHTML=`
       <div class="wf-head">
@@ -20823,6 +20834,8 @@ Answer as Karaya:`;
     const body=modal.querySelector('.wf-body'); if(body&&(_wfFundChat[k]||[]).length) body.scrollTop=body.scrollHeight;
     // auto-generate the fund structure chart when the Structure tab opens
     if(sec==='structure'){ setTimeout(()=>{ if(document.getElementById('wff-chart-slot')) _wfFundChart(k); }, 40); }
+    if(sec==='brief'){ setTimeout(()=>{ if(document.getElementById('wffb-items')) _wfFundBriefLoad(k); }, 40); }
+    if(sec==='timeline'){ setTimeout(()=>{ if(document.getElementById('wff-timeline-slot')) _wfFundTimelineLoad(k); }, 40); }
   }
   function _wfFundListBack(){
     const modal=document.querySelector('#wf-overlay .wf-modal');
@@ -21232,6 +21245,64 @@ Answer as Karaya:`;
     setTimeout(()=>{ const s=document.getElementById('wff-model-slot'); if(s) s.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:11px;line-height:1.6;">Recreated <b>${base}</b> (${Object.keys(wbData).length} tabs) as a live Bohio model. Open it, or ask me to <b>suggest modifications</b> from the fund documents, ERP and Outlook.</div>`; }, 60);
   }
   // Gather the fund's real context: documents, ERP figures, Outlook threads.
+  // ---- Fund Brief — "everything happening now", incl. live/demo Outlook mail ----
+  async function _wfFundBriefLoad(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const pending=f.approvals.filter(a=>a.cls==='a');
+    const hotTopics=[...f.topics].sort((a,b)=>(parseInt(b[2])||0)-(parseInt(a[2])||0));
+    let mail={live:false, messages:(f.emails||[])};
+    try{ if(typeof _outlookFetch==='function'){ const p=await _outlookFetch(f.name); if(p&&p.messages&&p.messages.length) mail=p; } }catch(e){}
+    const items=[];
+    pending.forEach(a=>items.push({rank:'IN APPROVAL', title:a.t, meta:[a.status, a.chain], cls:'priority', go:'approvals'}));
+    hotTopics.slice(0,2).forEach(t=>items.push({rank:'TOPIC', title:t[0], meta:[t[1], t[2]], go:'topics'}));
+    (mail.messages||[]).slice(0,2).forEach(e=>items.push({rank:'MAIL', title:e.subject, meta:[e.from, e.when], go:'documents'}));
+    const itemsEl=document.getElementById('wffb-items');
+    if(itemsEl){
+      itemsEl.innerHTML=items.length ? items.map((it,i)=>`
+        <div class="kr-brief-item${it.cls?' '+it.cls:''}" onclick="_wfFundDetail('${k}','${it.go}')">
+          <div class="kbi-rank">${String(i+1).padStart(2,'0')}</div>
+          <div class="kbi-body"><div class="kbi-title">${it.title}</div><div class="kbi-meta">${it.meta.filter(Boolean).map((m,mi)=>`<span${mi===0?' class="kbi-pill '+(it.cls?'high':'med')+'"':''}>${m}</span>`).join('')}</div></div>
+          <span class="kbi-cta">Open ›</span>
+        </div>`).join('')
+        : `<div class="kr-brief-empty">Nothing needs attention right now — ${pending.length===0?'no approvals pending, ':''}the fund is quiet.</div>`;
+    }
+    const lede=document.getElementById('wffb-lede'); if(!lede) return;
+    const mailTag=mail.messages.length ? `${mail.messages.length} Outlook thread${mail.messages.length>1?'s':''}${mail.live?' (live mailbox)':' (demo inbox)'}` : 'no recent Outlook activity';
+    const fallback=`**${f.name}** — ${pending.length?`**${pending.length} approval${pending.length>1?'s':''}** in flight, top of the list is **${pending[0].t}** (${pending[0].status}).`:'no approvals currently in flight.'} ${hotTopics.length?`**${hotTopics[0][2]}** on "${hotTopics[0][0]}" is the busiest open topic.`:''} ${mailTag} touching this fund. Documents: **${(f.docs||[]).length}** on file, model **${(f.models||[]).length?'live':'not yet built'}**.`;
+    const prompt=`You are Karaya, writing a one-paragraph "everything happening now" brief for the Chief Investment Officer about the fund "${f.name}" (${f.vintage}, ${f.status}; QAR ${f.drawn}M drawn of ${f.committed}M, NAV QAR ${f.nav}M, net IRR ${f.irr}). Pending approvals: ${pending.map(a=>a.t+' — '+a.status).join('; ')||'none'}. Busiest open topics: ${hotTopics.slice(0,2).map(t=>t[0]+' ('+t[2]+')').join('; ')||'none'}. Recent Outlook activity (${mail.live?'live mailbox':'demo inbox'}): ${(mail.messages||[]).slice(0,3).map(e=>e.from+' — "'+e.subject+'"').join('; ')||'none'}. Write 2-3 sentences a busy CIO can read in five seconds — what needs a decision today, what's just informational. **Bold** the single most urgent item. Plain text.`;
+    karayaStreamInto(lede, prompt, 'quick_insight', fallback).then(out=>{ lede.innerHTML=fmtKaraya(out||fallback); }).catch(()=>{ lede.innerHTML=fmtKaraya(fallback); });
+  }
+  // ---- Fund Timeline — document versions + Outlook mail, newest first ----
+  function _wfTimelineKey(s){
+    s=String(s||''); const now=Date.now(); let m;
+    if(/just now|^today$/i.test(s)) return now;
+    if((m=s.match(/(\d+)\s*d(?:ay)?s?\s*ago/i))) return now-(+m[1])*86400000;
+    if((m=s.match(/(\d+)\s*w(?:eek)?s?\s*ago/i))) return now-(+m[1])*7*86400000;
+    if((m=s.match(/(\d+)\s*mo(?:nth)?s?\s*ago/i))) return now-(+m[1])*30*86400000;
+    const cleaned=s.replace(/·.*/,'').replace(/\bexecuted\b/i,'').trim();
+    const parsed=Date.parse(cleaned);
+    if(!isNaN(parsed)) return parsed;
+    return -1; // unknown date — sorts to the very end
+  }
+  async function _wfFundTimelineLoad(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    let mail={live:false, messages:(f.emails||[])};
+    try{ if(typeof _outlookFetch==='function'){ const p=await _outlookFetch(f.name); if(p&&p.messages&&p.messages.length) mail=p; } }catch(e){}
+    const ev=[];
+    (f.docs||[]).forEach(d=>(d.versions||[]).forEach(v=>ev.push({date:v.date, kind:'doc', col:'#009DDC', title:d.name+' — '+v.v, sub:v.note+(v.src?' · '+v.src:'')})));
+    (mail.messages||[]).forEach(e=>ev.push({date:e.when, kind:'mail', col:'#61BB46', title:e.subject, sub:e.from+' — '+e.snippet}));
+    ev.sort((a,b)=>_wfTimelineKey(b.date)-_wfTimelineKey(a.date));
+    const slot=document.getElementById('wff-timeline-slot'); if(!slot) return;
+    slot.innerHTML = ev.length ? ev.map(e=>`
+      <div style="border-left:3px solid ${e.col};padding:3px 0 3px 14px;margin-bottom:13px;position:relative;">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">
+          <b style="font-size:11.5px;">${e.title}</b>
+          <span style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap;flex-shrink:0;">${e.kind==='mail'?'✉ ':''}${e.date}</span>
+        </div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:3px;line-height:1.55;">${e.sub}</div>
+      </div>`).join('')
+      : `<div style="font-size:10.5px;color:var(--ink-soft);">No document history or mail activity recorded yet.</div>`;
+  }
   async function _wfFundContext(f){
     const docs=(f.docs||[]).map(d=>d.name+' — '+d.versions.map(v=>v.v+': '+v.note).join('; ')+(d._uploaded&&d.text?(' | content: '+d.text.slice(0,500)):(d._noText?' | [scanned/image PDF — no extractable text; needs OCR, do not guess contents]':''))).join('\n');
     const erp=`ERP (fund accounting): committed QAR ${f.committed}M, drawn QAR ${f.drawn}M (${Math.round(f.drawn/f.committed*100)}%), NAV QAR ${f.nav}M, net IRR ${f.irr}, DPI ${(f.dpi||0).toFixed(2)}x, TVPI ${(f.tvpi||0).toFixed(2)}x; management fee & promote per the LPA; capital-account statements current to last quarter.`;
