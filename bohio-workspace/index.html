@@ -13582,6 +13582,19 @@ Reply as the agent:`;
     // department's agent — honouring what it's allowed to disclose (Settings).
     if (typeof _routeToDeptAgent === 'function' && _routeToDeptAgent(q, bot, msgs)) return;
 
+    // Deterministic "difference between version X and Y" — the same Fund
+    // Management demo, now answerable from the right-side panel directly
+    // (no need to be inside that fund's own modal).
+    if (typeof _wfGlobalVersionDiff === 'function') {
+      const diff = _wfGlobalVersionDiff(q);
+      if (diff) {
+        KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:diff});
+        bot.innerHTML = fmtKaraya(diff) + '<span class="k-meta">Karaya · just now</span>';
+        msgs.scrollTop = msgs.scrollHeight;
+        return;
+      }
+    }
+
     const history=KARAYA_HISTORY.slice(-6).map(m=>(m.role==='user'?'User: ':'Karaya: ')+m.text).join('\n');
     const ctx=(typeof buildWorkspaceContext==='function')?buildWorkspaceContext():'';
     const uname=(window.DEMO_USER&&window.DEMO_USER.name)||'Matteo Bevilacqua';
@@ -19656,6 +19669,25 @@ Answer as Karaya:`;
     } catch (e) { return null; }
   }
 
+  // A curated (not raw) summary of Fund Management's WF_FUNDS — raw fund
+  // objects carry big things (workbook data, uploaded PDF bytes, cached chat
+  // logs) that would blow the context budget for no benefit. This keeps only
+  // what a question could actually be about: performance, structure,
+  // documents + their version history, approvals, stakeholders, topics.
+  function _wfFundsContextSummary(){
+    if(typeof WF_FUNDS==='undefined') return null;
+    try{
+      return WF_FUNDS.map(f=>({
+        name:f.name, vintage:f.vintage, tag:f.tag, status:f.status,
+        committedM:f.committed, drawnM:f.drawn, navM:f.nav, netIrr:f.irr, dpi:f.dpi, tvpi:f.tvpi,
+        structure:f.structure,
+        documents:(f.docs||[]).map(d=>({name:d.name, type:d.type,
+          versions:(d.versions||[]).map(v=>({v:v.v, date:v.date, source:v.src, note:v.note}))})),
+        approvals:(f.approvals||[]).map(a=>({title:a.t, status:a.status, chain:a.chain})),
+        stakeholders:f.stakeholders, topics:f.topics,
+      }));
+    }catch(e){ return null; }
+  }
   // Build (once) a grounding snapshot from the in-app data structures. Each
   // section is size-capped and wrapped in a guard so a missing/renamed dataset
   // never breaks the chat.
@@ -19667,6 +19699,7 @@ Answer as Karaya:`;
       ['MY MODELS (financial models: type, name, version, last updated, notes)', V('MY_MODELS'), 2600],
       ['TEMPLATE LIBRARY (prebuilt models: category, name, description, tabs)', V('TEMPLATES'), 2600],
       ['FUNDS & LPs / INVESTORS (committed & drawn capital, stats, documents)', V('INVESTOR_DATA'), 3000],
+      ['FUND MANAGEMENT (WF_FUNDS: NAV/IRR/DPI/TVPI, structure & terms, LPs, documents + full version history, approvals, stakeholders, topics)', _wfFundsContextSummary(), 6500],
       ['INVESTMENT MANDATE', V('MANDATE'), 1200],
       ['INCOMING DEALS being screened', V('DEALS'), 2600],
       ['STAKEHOLDER ORGANISATIONS (name, role, location, GAV, IRR)', V('ORGS'), 1800],
@@ -22875,6 +22908,19 @@ ${ctx.mailCtx}`;
   // structure, approvals & topics. Version-compare questions are answered
   // deterministically from the version notes, so they work offline too.
   const _wfFundChat={};
+  // Fund-agnostic wrapper so the RIGHT-SIDE Karaya panel (not scoped to any
+  // one open fund) can answer the same "difference between version X and Y"
+  // demo that the fund-modal's own chat already handles — try the fund named
+  // in the question first, then fall back to checking every fund.
+  function _wfGlobalVersionDiff(q){
+    if(typeof WF_FUNDS==='undefined' || !WF_FUNDS.length) return null;
+    const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const mentions=(name)=>new RegExp('\\b'+esc(name.toLowerCase())+'\\b','i').test(q);
+    const named=WF_FUNDS.find(f=>mentions(f.name)||mentions(f.name.replace(/^Bohio RE /i,'')));
+    if(named){ const d=_fundVersionDiff(named,q); if(d) return d; }
+    for(const f of WF_FUNDS){ const d=_fundVersionDiff(f,q); if(d) return d; }
+    return null;
+  }
   function _fundVersionDiff(f, q){
     if(!/\b(difference|diff|compare|changed|change[sd]?|vs\.?|versus)\b/i.test(q)) return null;
     const vm=[...q.matchAll(/\b(?:v(?:ersion)?\.?\s*)(\d+)\b/gi)].map(m=>parseInt(m[1]));
