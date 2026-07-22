@@ -10371,7 +10371,7 @@
 
       <!-- ============ BOHIO AUTOMATES — 5 workflows ============ -->
       <div class="section-header"><h2 class="section-title">Bohio Workflows</h2>
-        <span class="section-meta">Eight AI workflows · click any to run it live</span></div>
+        <span class="section-meta">Seven AI workflows · click any to run it live</span></div>
       <div class="wf-grid" id="wf-grid">
         <button class="wf-card" onclick="runWorkflow('ingest')">
           <div class="wf-n">01</div><div class="wf-h">Valuation</div>
@@ -10397,12 +10397,8 @@
           <div class="wf-n">06</div><div class="wf-h">Deal screening</div>
           <div class="wf-d">Screens an incoming deal against the firm's investment mandate — ticket size, geography, IRR hurdle, asset class — and returns a committee-ready PROCEED / REVIEW / PASS verdict.</div>
           <div class="wf-cta">Run workflow →</div></button>
-        <button class="wf-card" onclick="runWorkflow('fundmgmt')">
-          <div class="wf-n">07</div><div class="wf-h">Fund management</div>
-          <div class="wf-d">Every active fund as a tile — press one to open its structure (GP/LP commitments &amp; terms), live approval processes, stakeholders and open topics.</div>
-          <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('visibility')">
-          <div class="wf-n">08</div><div class="wf-h">Feasibility</div>
+          <div class="wf-n">07</div><div class="wf-h">Feasibility</div>
           <div class="wf-d">Pick a site on the map of Doha — Karaya screens the zoning envelope and live rental &amp; transaction comps for three highest-and-best-use options, then builds the full financial model for the one you choose.</div>
           <div class="wf-cta">Run workflow →</div></button>
       </div>
@@ -10411,7 +10407,7 @@
         <h2 class="section-title" id="ws-projects-title">In Progress</h2>
         <div style="display:flex;align-items:center;gap:18px;">
           <span class="section-meta" id="ws-projects-meta">Development pipeline · 6 active</span>
-          <button class="new-project-btn" onclick="createDemoProject()">+ New Project</button>
+          <button class="new-project-btn" onclick="_wfFundNewOpenFromHome()">+ Establish a new fund</button>
         </div>
       </div>
       <div class="project-squircles" id="projects-list"></div>
@@ -11343,9 +11339,24 @@
   // section shows exactly these same project tiles. Any project not yet
   // assigned to a fund (see FUND_PROJECT_IDS) still shows here directly so
   // nothing becomes unreachable.
+  // Opens the fullscreen fund-modal shell (same chrome the old Fund
+  // Management overview used) without rendering that overview — every
+  // caller drills straight into a specific fund's detail instead.
+  function _wfOpenFundShell(){
+    const ov=_wfEnsureOverlay();
+    const modal=ov.querySelector('.wf-modal');
+    ++_wfRunToken;
+    modal.classList.add('wf-full');
+    modal.classList.add('fund-modal');
+    ov.classList.add('wf-ov-full');
+    document.body.classList.add('wf-open');
+    const sh=document.querySelector('.app-shell');
+    if(sh){ _wfPrevKarayaHidden = sh.classList.contains('karaya-hidden'); sh.classList.add('karaya-hidden'); if(typeof syncHandles==='function') syncHandles(); }
+    ov.classList.add('open');
+  }
   function _wsOpenFund(k){
-    runWorkflow('fundmgmt');
-    setTimeout(()=>{ if(typeof _wfFundDetail==='function') _wfFundDetail(k,'projects'); }, 260);
+    _wfOpenFundShell();
+    _wfFundDetail(k,'projects');
   }
   function renderWorkspaceFundGrid(){
     const host=document.getElementById('projects-list'); if(!host) return;
@@ -19748,14 +19759,8 @@ Answer as Karaya:`;
         };
       }
     },
-    fundmgmt: {
-      eyebrow:'Workflow 07', title:'Fund management',
-      sub:'Every active fund — open one for its structure, approvals, stakeholders & topics',
-      fullscreen:true,
-      custom(modal, cfg){ _wfFundList(modal, cfg); }
-    },
     visibility: {
-      eyebrow:'Workflow 08', title:'Feasibility',
+      eyebrow:'Workflow 07', title:'Feasibility',
       sub:'Pick a site in Doha — Karaya screens zoning & comps for the highest and best use, then builds the model',
       fullscreen:true,
       custom(modal, cfg){ _wfVisMap(modal, cfg); }
@@ -20438,108 +20443,6 @@ Answer as Karaya:`;
         {from:'PwC · Assurance', subject:'Clawback reserve — audit query', when:'3d ago', snippet:'Two queries on the reserve computation ahead of tranche-4 distribution sign-off…'},
         {from:'JLL Capital Markets', subject:'Rawdah Plaza — offers summary', when:'1w ago', snippet:'Best and final offers attached; the QAR 101M offer carries the cleanest conditions…'}] },
   ];
-  // ---- customisable funds dashboard (right-click → Customise dashboard) ----
-  const WF_DASH_METRICS={
-    nav:      {h:'NAV',        agg:fs=>'QAR '+fs.reduce((a,f)=>a+f.nav,0)+'M',                    per:f=>'QAR '+f.nav+'M'},
-    irr:      {h:'Net IRR',    agg:fs=>{const w=fs.reduce((a,f)=>a+parseFloat(f.irr)*f.drawn,0)/fs.reduce((a,f)=>a+f.drawn,0);return w.toFixed(1)+'%';}, per:f=>f.irr},
-    committed:{h:'Committed',  agg:fs=>'QAR '+fs.reduce((a,f)=>a+f.committed,0)+'M',              per:f=>'QAR '+f.committed+'M'},
-    drawn:    {h:'Drawn',      agg:fs=>'QAR '+fs.reduce((a,f)=>a+f.drawn,0)+'M',                  per:f=>'QAR '+f.drawn+'M'},
-    dry:      {h:'Dry powder', agg:fs=>'QAR '+fs.reduce((a,f)=>a+(f.committed-f.drawn),0)+'M',    per:f=>'QAR '+(f.committed-f.drawn)+'M'},
-    deployed: {h:'% deployed', agg:fs=>Math.round(fs.reduce((a,f)=>a+f.drawn,0)/fs.reduce((a,f)=>a+f.committed,0)*100)+'%', per:f=>Math.round(f.drawn/f.committed*100)+'%'},
-    dpi:      {h:'DPI',        agg:fs=>{const w=fs.reduce((a,f)=>a+f.dpi*f.drawn,0)/fs.reduce((a,f)=>a+f.drawn,0);return w.toFixed(2)+'x';}, per:f=>f.dpi.toFixed(2)+'x'},
-    tvpi:     {h:'TVPI',       agg:fs=>{const w=fs.reduce((a,f)=>a+f.tvpi*f.drawn,0)/fs.reduce((a,f)=>a+f.drawn,0);return w.toFixed(2)+'x';}, per:f=>f.tvpi.toFixed(2)+'x'},
-  };
-  const WF_DASH_LEX=[['nav',/\bnav\b|net asset/i],['irr',/\birr\b|return/i],['committed',/committ/i],['drawn',/\bdrawn\b|called capital|paid[- ]in/i],['dry',/dry powder|uncalled|remaining capital/i],['deployed',/deploy/i],['dpi',/\bdpi\b|distribut/i],['tvpi',/tvpi|moic|multiple/i]];
-  let _wfDashPicks=(function(){ try{ const p=JSON.parse(localStorage.getItem('bohio_fund_dash')||'null'); if(Array.isArray(p)&&p.length&&p.every(k=>WF_DASH_METRICS[k])) return p; }catch(e){} return ['nav','irr','deployed','dry']; })();
-  function _wfFundDashHTML(){
-    return `<div id="wfdash" oncontextmenu="event.preventDefault();_wfDashMenu(event);return false;" title="Right-click to customise this dashboard" style="margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;">
-        <div style="font-size:8px;letter-spacing:0.26em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Funds dashboard</div>
-        <div style="font-size:8px;letter-spacing:0.1em;color:var(--ink-soft);">right-click to customise</div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:11px;">
-        ${_wfDashPicks.map(k=>{ const m=WF_DASH_METRICS[k];
-          return `<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:13px 15px;">
-            <div style="font-size:7.5px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">${m.h}</div>
-            <div style="font-size:21px;font-weight:700;margin:3px 0 8px;font-variant-numeric:tabular-nums;">${m.agg(WF_FUNDS)}</div>
-            ${WF_FUNDS.map(f=>`<div style="display:flex;align-items:center;gap:6px;font-size:9.5px;color:var(--ink-soft);margin-top:2px;"><span style="width:7px;height:7px;border-radius:50%;background:${f.col};flex-shrink:0;"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name.replace('Bohio RE ','')}</span><span style="font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;">${m.per(f)}</span></div>`).join('')}
-          </div>`; }).join('')}
-      </div>
-    </div>`;
-  }
-  function _wfDashMenu(ev){
-    let m=document.getElementById('wfdash-menu');
-    if(m) m.remove();
-    m=document.createElement('div'); m.id='wfdash-menu';
-    m.innerHTML='<button onclick="_wfDashCustomize()">\u270e Customise dashboard</button><button onclick="document.getElementById(\'wfdash-menu\').remove()">Cancel</button>';
-    m.style.left=Math.min(ev.clientX, window.innerWidth-200)+'px';
-    m.style.top=Math.min(ev.clientY, window.innerHeight-90)+'px';
-    document.body.appendChild(m);
-    setTimeout(()=>{ document.addEventListener('click', function h(){ const el=document.getElementById('wfdash-menu'); if(el) el.remove(); document.removeEventListener('click',h); }); }, 60);
-  }
-  function _wfDashCustomize(){
-    const m=document.getElementById('wfdash-menu'); if(m) m.remove();
-    const dash=document.getElementById('wfdash'); if(!dash) return;
-    if(document.getElementById('wfdash-custom')) return;
-    const panel=document.createElement('div');
-    panel.id='wfdash-custom';
-    panel.style.cssText='border:1px solid var(--ink);border-radius:12px;padding:13px 15px;margin-bottom:12px;background:rgba(0,9,25,0.02);';
-    panel.innerHTML=`
-      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">\u270e Customise — tell Karaya which metrics you want</div>
-      <div style="display:flex;gap:8px;">
-        <input id="wfdash-prompt" placeholder="e.g. show dry powder, DPI and NAV per fund" style="flex:1;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDashApply()">
-        <button class="wf-btn" onclick="_wfDashApply()">Apply</button>
-      </div>
-      <div style="font-size:9px;color:var(--ink-soft);margin-top:7px;letter-spacing:0.03em;">Available: NAV · net IRR · committed · drawn · dry powder · % deployed · DPI · TVPI/MOIC</div>`;
-    dash.parentNode.insertBefore(panel, dash);
-    setTimeout(()=>{ const i=document.getElementById('wfdash-prompt'); if(i) i.focus(); },60);
-  }
-  function _wfDashApply(){
-    const inp=document.getElementById('wfdash-prompt'); if(!inp) return;
-    const q=(inp.value||'').trim();
-    const picks=WF_DASH_LEX.filter(([k,re])=>re.test(q)).map(([k])=>k).slice(0,6);
-    if(picks.length){
-      _wfDashPicks=picks;
-      try{ localStorage.setItem('bohio_fund_dash', JSON.stringify(picks)); }catch(e){}
-    }
-    const panel=document.getElementById('wfdash-custom'); if(panel) panel.remove();
-    const dash=document.getElementById('wfdash');
-    if(dash) dash.outerHTML=_wfFundDashHTML();
-  }
-
-  function _wfFundList(modal, cfg){
-    modal.innerHTML=`
-      <div class="wf-head">
-        <div>
-          <div class="wf-eyebrow">${cfg.eyebrow} · live</div>
-          <div class="wf-title">${cfg.title}</div>
-          <div class="wf-sub">${cfg.sub}</div>
-        </div>
-        <div style="display:flex;gap:8px;flex-shrink:0;align-items:flex-start;">
-          <button class="wf-btn" style="white-space:nowrap;" onclick="_wfFundNewStart()">+ Establish a new fund</button>
-          <button class="wf-back" onclick="closeWorkflow()" aria-label="Back" title="Back">←</button>
-          <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
-        </div>
-      </div>
-      <div class="wf-body">
-        ${_wfFundDashHTML()}
-        <div class="fund-squircles">
-          ${WF_FUNDS.map(f=>`
-          <div class="proj-squircle fund-sq" onclick="_wfFundDetail('${f.k}')">
-            <div class="psq-top"><span class="psq-dotc" style="background:${f.col};"></span></div>
-            <div class="psq-body">
-              <h3 class="psq-name">${f.name.replace(/^Bohio RE /,'')}</h3>
-              <div class="psq-role">${f.vintage} · ${f.status} · ${f.tag}</div>
-            </div>
-            <div class="psq-foot">
-              <span class="psq-loc">QAR ${f.nav}M NAV · ${f.irr} net IRR</span>
-              <span class="psq-status">Open fund →</span>
-            </div>
-          </div>`).join('')}
-        </div>
-        <div style="margin-top:16px;font-size:10px;color:var(--ink-soft);letter-spacing:0.04em;">QAR 1,270M committed · QAR 1,036M drawn (82%) · QAR 878M NAV across the three vehicles · <span style="text-decoration:underline;cursor:pointer;" onclick="closeWorkflow();goTo('funds')">open the full funds & stakeholders page</span></div>
-      </div>`;
-  }
   // ===== Establish a new fund — wizard =====
   // Step 1: read + redline the fund/developer agreements. Step 2: get a
   // financial model going (upload / template / AI "vibe coded" from the
@@ -20548,6 +20451,12 @@ Answer as Karaya:`;
   function _wfFundNewStart(){
     _wfNewFund={ step:1, docs:[], text:'', terms:{}, issues:null, model:null, chat:[] };
     _wfFundNewRenderStep1();
+  }
+  // entry point from the workspace home's "My Funds" section — opens the
+  // fund-modal shell fresh, then starts the wizard inside it
+  function _wfFundNewOpenFromHome(){
+    _wfOpenFundShell();
+    _wfFundNewStart();
   }
   // a short, deterministic acknowledgement of whatever's been captured so far —
   // used offline and while the live AI reply streams in.
@@ -20810,7 +20719,7 @@ Answer as Karaya:`;
     WF_FUNDS.unshift(fund);
     _wfNewFund=null;
     closeWorkflow();
-    setTimeout(()=>{ runWorkflow('fundmgmt'); setTimeout(()=>_wfFundDetail(k), 250); }, 60);
+    setTimeout(()=>{ _wfOpenFundShell(); _wfFundDetail(k); }, 60);
   }
   // Which internal department owns what, for this fund — sits at the foot of
   // every fund page so it's clear who to route a question or approval to.
@@ -20973,11 +20882,15 @@ Answer as Karaya:`;
     }
     else if(sec==='projects'){
       const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
-      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Development projects run <b style="color:var(--ink);">inside ${f.name}</b> — open one, or start a new project within the fund.</div>
+      const isCoinvestEmpty = k==='coinvest' && !ids.length;
+      const addBtnHtml = isCoinvestEmpty
+        ? `<button class="wf-btn" onclick="closeWorkflow();createDemoProject();">+ Create the fund's single asset — Corniche Gateway</button>`
+        : (k==='coinvest' ? '' : `<button class="wf-btn" onclick="_wfProjNewStart('${k}')">+ Start a new project in this fund</button>`);
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">${isCoinvestEmpty
+        ? `As a <b style="color:var(--ink);">single-asset co-invest vehicle</b>, ${f.name} is structured around one development.`
+        : `Development projects run <b style="color:var(--ink);">inside ${f.name}</b> — open one, or start a new project within the fund.`}</div>
       ${ids.length? `<div class="fund-projects-grid">${ids.map(id=>_projectSquircleHTML(id)).join('')}</div>` : `<div style="font-size:11px;color:var(--ink-soft);padding:8px 0;">No projects yet in this fund.</div>`}
-      <div style="margin-top:14px;">
-        <button class="wf-btn" onclick="_wfProjNewStart('${k}')">+ Start a new project in this fund</button>
-      </div>`;
+      ${addBtnHtml? `<div style="margin-top:14px;">${addBtnHtml}</div>` : ''}`;
     }
     else if(sec==='timeline'){
       panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Every negotiated document version and Outlook email touching <b style="color:var(--ink);">${f.name}</b>, newest first.</div>
@@ -21012,9 +20925,12 @@ Answer as Karaya:`;
     if(sec==='brief'){ setTimeout(()=>{ if(document.getElementById('wffb-items')) _wfFundBriefLoad(k); }, 40); }
     if(sec==='timeline'){ setTimeout(()=>{ if(document.getElementById('wff-timeline-slot')) _wfFundTimelineLoad(k); }, 40); }
   }
+  // there's no more standalone "all funds" list to go back to — funds are
+  // opened straight from their tile on the workspace home, so "back" from
+  // inside a fund just returns there.
   function _wfFundListBack(){
-    const modal=document.querySelector('#wf-overlay .wf-modal');
-    if(modal) _wfFundList(modal, WORKFLOWS.fundmgmt);
+    closeWorkflow();
+    goTo('workspace');
   }
 
   // ---- Request Approval — generic (fund or project): describe it, attach
@@ -24411,7 +24327,7 @@ Answer as Karaya:`;
     (typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).forEach(f=>{
       f.approvals.filter(a=>a.cls==='a').forEach(a=>items.push(
         { title:`${f.name.replace(/^Bohio RE /,'')} · ${a.t}`, meta:[a.status, a.chain],
-          go:`closeWorkflow();goTo('workspace');runWorkflow('fundmgmt');setTimeout(()=>_wfFundDetail('${f.k}','approvals'),250);` }));
+          go:`closeWorkflow();goTo('workspace');_wfOpenFundShell();_wfFundDetail('${f.k}','approvals');` }));
     });
     Object.keys(P).forEach(pid=>{
       (P[pid].approvalRequests||[]).filter(r=>r.cls==='a').forEach(r=>items.push(
