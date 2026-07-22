@@ -20870,17 +20870,29 @@ Answer as Karaya:`;
           <div style="font-size:11px;font-weight:700;">${a.name}</div>
           <div style="font-size:10px;color:var(--ink-soft);line-height:1.5;margin-top:1px;">${r.owns}</div>
         </div>
+        <button class="wf-btn ghost" style="flex-shrink:0;font-size:9px;padding:6px 11px;" onclick="openDeptRequest('${r.dept}','${f.k}')">Send request</button>
       </div>`;
     }).join('');
+    const sent=(f._deptRequests||[]);
+    const sentHtml = sent.length ? `<div style="margin-top:12px;">
+      <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">Requests you've sent</div>
+      ${sent.map(rq=>`<div style="border:1px solid var(--ink-hairline);border-radius:10px;padding:9px 12px;margin-bottom:7px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:10.5px;font-weight:700;line-height:1.4;">${rq.deptName} · ${rq.desc.replace(/</g,'&lt;')}</div><span class="wf-pill a" style="flex-shrink:0;">${rq.status}</span></div>
+        <div style="font-size:9px;color:var(--ink-soft);margin-top:5px;">Sent ${rq.sent}${(rq.attachments&&rq.attachments.length)?' · '+rq.attachments.map(n=>'📎 '+n.replace(/</g,'&lt;')).join(' · '):''}</div>
+      </div>`).join('')}
+    </div>` : '';
     return `<div style="margin-top:22px;padding-top:14px;border-top:1px solid var(--ink-hairline);">
       <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Who owns what — ${f.name.replace(/^Bohio RE /,'')}</div>
-      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:8px;">Internal department ownership for this fund. Ask any agent directly, or ask Karaya and it routes to the right one.</div>
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:8px;">Internal department ownership for this fund. Ask any agent directly, ask Karaya to route it, or send a request straight to a department — attach documents and it lands in their queue.</div>
       ${rows}
+      ${sentHtml}
     </div>`;
   }
+  let _wfFundLastSec='brief';
   function _wfFundDetail(k, sec){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     sec=sec||'brief';
+    _wfFundLastSec=sec;
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
     // ordered left → right: Brief (landing) · Fund agreements · Financial modelling · the rest
     // section squircles — same design as the in-project sections
@@ -21158,6 +21170,64 @@ Answer as Karaya:`;
       if(typeof renderProjectApprovals==='function') renderProjectApprovals(ctxId);
     }
     if(typeof _renderDailyBriefApprovals==='function') _renderDailyBriefApprovals();
+  }
+
+  // ---- Send a request to a department (from the "Who owns what" footer),
+  // with document attachments — lands in that department's queue -------------
+  let _deptReq=null; // {dept, fundK, files:[]}
+  function openDeptRequest(deptKey, fundK){
+    _deptReq={dept:deptKey, fundK, files:[]};
+    const a=DEPT_AGENTS[deptKey]||{name:'the department'};
+    let ov=document.getElementById('deptreq-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='deptreq-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:10040;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+      ov.addEventListener('click', e=>{ if(e.target===ov) closeDeptRequest(); });
+      document.body.appendChild(ov);
+    }
+    ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);border-radius:16px;width:100%;max-width:460px;overflow:hidden;">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">Send request to ${a.name}</div>
+        <div style="font-family:var(--font-display);font-size:19px;margin-top:3px;">What do you need from ${a.name}?</div>
+      </div>
+      <div style="padding:18px 22px;display:flex;flex-direction:column;gap:13px;max-height:56vh;overflow-y:auto;">
+        <div>
+          <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Request</div>
+          <textarea id="deptreq-desc" placeholder="e.g. Please prepare the Q3 capital-account statements for the LP pack" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:10px;min-height:74px;outline:none;"></textarea>
+        </div>
+        <div>
+          <div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Attach supporting documents</div>
+          <button class="wf-btn ghost" style="width:100%;" onclick="document.getElementById('deptreq-files').click()">Attach files (PDF, JPG, XLSX, PPTX, DOCX)</button>
+          <input type="file" id="deptreq-files" multiple style="display:none;" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.csv,.pptx,.docx,.doc" onchange="_deptReqFilesChanged(this.files)">
+          <div id="deptreq-filelist" style="margin-top:8px;font-size:10px;color:var(--ink-soft);line-height:1.7;"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;padding:14px 22px;border-top:1px solid var(--ink-hairline);">
+        <button class="wf-btn ghost" style="flex:1;" onclick="closeDeptRequest()">Cancel</button>
+        <button class="wf-btn" style="flex:1;" onclick="_deptReqSubmit()">Send to ${a.name}</button>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+    setTimeout(()=>{ const d=document.getElementById('deptreq-desc'); if(d) d.focus(); }, 60);
+  }
+  function closeDeptRequest(){ const ov=document.getElementById('deptreq-overlay'); if(ov) ov.style.display='none'; _deptReq=null; }
+  function _deptReqFilesChanged(files){
+    if(!_deptReq) return;
+    _deptReq.files=[...files].map(f=>f.name);
+    const el=document.getElementById('deptreq-filelist'); if(el) el.innerHTML=_deptReq.files.map(n=>`<div>📎 ${n.replace(/</g,'&lt;')}</div>`).join('');
+  }
+  function _deptReqSubmit(){
+    if(!_deptReq) return;
+    const desc=((document.getElementById('deptreq-desc')||{}).value||'').trim();
+    if(!desc){ alert('Add a short description of what you need from the department.'); return; }
+    const {dept, fundK, files}=_deptReq;
+    const a=DEPT_AGENTS[dept]||{name:'the department'};
+    const f=WF_FUNDS.find(x=>x.k===fundK);
+    closeDeptRequest();
+    if(f){
+      f._deptRequests=f._deptRequests||[];
+      f._deptRequests.unshift({dept, deptName:a.name, desc, attachments:(files||[]).slice(), sent:'Just now', status:'Awaiting '+a.name.split(' ')[0]});
+      _wfFundDetail(fundK, _wfFundLastSec);
+    }
   }
 
   // ---- Sales discount approval (CIO persona): model the impact before you decide ----
