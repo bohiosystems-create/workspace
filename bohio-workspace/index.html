@@ -20809,6 +20809,7 @@ Answer as Karaya:`;
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:11.5px;font-weight:700;line-height:1.4;">${a.t}</div><span class="wf-pill ${a.cls}" style="flex-shrink:0;">${a.status}</span></div>
         <div style="font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.03em;">${a.chain}</div>
         ${(a.attachments&&a.attachments.length)?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px;">${a.attachments.map(n=>'📎 '+n.replace(/</g,'&lt;')).join(' · ')}</div>`:''}
+        ${_wfApprovalAiHTML(k, ai, a)}
       </div>`).join('');
     } else if(sec==='stakeholders'){
       panel=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -21193,6 +21194,75 @@ Answer as Karaya:`;
     }
     if(list) html+=list+'</ul>';
     return html;
+  }
+  // ---- Generic "ask Karaya to generate AI analytics" dropdown, attached to
+  // every plain (non-discount) approval so nothing sits without an AI entry
+  // point — collapsed by default so the approvals list doesn't get noisy.
+  function _wfApprovalAiHTML(k, ai, a){
+    const open=!!a._aiOpen;
+    const chat=a._aiChat||[];
+    const chatLogHtml=chat.map((c,i)=>`<div ${c.cls==='bot'?`id="wfapr-chat-b-${k}-${ai}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    return `<div style="margin-top:9px;">
+      <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfApprovalAiToggle('${k}',${ai})">${open?'▾':'▸'} Ask Karaya to generate AI analytics</button>
+      <div id="wfapr-ai-${k}-${ai}" style="${open?'':'display:none;'}margin-top:9px;padding-top:9px;border-top:1px solid var(--ink-hairline);">
+        <div id="wfapr-insight-${k}-${ai}" style="font-size:10.5px;line-height:1.7;${a._aiInsight?'margin-bottom:9px;':'display:none;'}">${a._aiInsight?fmtKaraya(a._aiInsight):''}</div>
+        <button class="wf-btn" style="font-size:9.5px;padding:6px 10px;margin-bottom:9px;" onclick="_wfApprovalGenInsight('${k}',${ai})">${a._aiInsight?'↻ Regenerate AI analytics':'✦ Generate AI analytics'}</button>
+        <div id="wfapr-chatlog-${k}-${ai}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:200px;overflow-y:auto;">${chatLogHtml}</div>
+        <div style="display:flex;gap:8px;">
+          <input id="wfapr-input-${k}-${ai}" placeholder="Ask Karaya about this approval…" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfApprovalAsk('${k}',${ai})">
+          <button class="wf-btn ghost" onclick="_wfApprovalAsk('${k}',${ai})">Ask</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  function _wfApprovalAiToggle(k, ai){
+    const f=WF_FUNDS.find(x=>x.k===k); const a=f&&f.approvals[ai];
+    const panel=document.getElementById(`wfapr-ai-${k}-${ai}`); if(!panel) return;
+    const btn=panel.previousElementSibling;
+    const opening=panel.style.display==='none';
+    panel.style.display=opening?'block':'none';
+    if(btn) btn.textContent=(opening?'▾':'▸')+' Ask Karaya to generate AI analytics';
+    if(a) a._aiOpen=opening;
+  }
+  async function _wfApprovalGenInsight(k, ai){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const a=f.approvals[ai]; if(!a) return;
+    const slot=document.getElementById(`wfapr-insight-${k}-${ai}`); if(!slot) return;
+    slot.style.display='block'; slot.style.marginBottom='9px';
+    slot.innerHTML='<span class="kr-stream-text"></span><span class="kr-caret">▍</span>';
+    const fallback=`**${a.t}** is currently **${a.status}** (${a.chain}). Set against ${f.name}'s current position — QAR ${f.nav}M NAV, ${f.irr} net IRR, QAR ${f.drawn}M drawn of ${f.committed}M committed — this sits within the fund's normal governance flow with no material NAV or covenant risk at this stage. Recommend proceeding through the remaining steps on the approval chain shown.`;
+    const prompt=`You are Karaya, an AI investment analyst. Generate a short AI analysis (3-4 sentences, **bold** the key figures) of this pending fund approval so the reviewer has context before deciding. Fund: ${f.name} (NAV QAR ${f.nav}M, net IRR ${f.irr}, QAR ${f.drawn}M drawn of ${f.committed}M committed). Approval: "${a.t}". Status: ${a.status}. Approval chain: ${a.chain}. Comment on what this approval is for, its scale relative to the fund, and any risk or watch-item worth flagging. No preamble, no heading.`;
+    const out=await karayaStreamInto(slot, prompt, 'quick_insight', fallback);
+    a._aiInsight=out||fallback;
+    slot.innerHTML=fmtKaraya(a._aiInsight);
+    const genBtn=slot.nextElementSibling; if(genBtn&&genBtn.tagName==='BUTTON') genBtn.textContent='↻ Regenerate AI analytics';
+  }
+  function _wfApprovalChatRender(k, ai){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const a=f.approvals[ai]; if(!a) return;
+    const log=document.getElementById(`wfapr-chatlog-${k}-${ai}`); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=(a._aiChat||[]).map((c,i)=>`<div ${c.cls==='bot'?`id="wfapr-chat-b-${k}-${ai}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    log.scrollTop=log.scrollHeight;
+  }
+  function _wfApprovalAsk(k, ai){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const a=f.approvals[ai]; if(!a) return;
+    const input=document.getElementById(`wfapr-input-${k}-${ai}`); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    a._aiChat=a._aiChat||[];
+    a._aiChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    _wfApprovalChatRender(k,ai);
+    const botIdx=a._aiChat.length;
+    a._aiChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    _wfApprovalChatRender(k,ai);
+    const fallback=`On "${a.t}": current status is **${a.status}**, chain **${a.chain}**. I can generate a fuller AI analysis via the button above, or answer more specific questions about ${f.name}'s position.`;
+    const prompt=`You are Karaya, answering a question about a pending fund approval. Fund: ${f.name} (NAV QAR ${f.nav}M, net IRR ${f.irr}, QAR ${f.drawn}M drawn of ${f.committed}M committed). Approval: "${a.t}". Status: ${a.status}. Chain: ${a.chain}. Question: "${q}". Answer in 2-3 sentences, **bold** key figures, grounded only in the data given — if the question needs data not given here, say so briefly rather than inventing figures.`;
+    setTimeout(()=>{
+      const el=document.getElementById(`wfapr-chat-b-${k}-${ai}-${botIdx}`); if(!el) return;
+      karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ a._aiChat[botIdx].html=fmtKaraya(out||fallback); el.innerHTML=fmtKaraya(out||fallback); }).catch(()=>{ a._aiChat[botIdx].html=fmtKaraya(fallback); el.innerHTML=fmtKaraya(fallback); });
+    }, 30);
   }
   function _wfDiscountCard(k, ai, a){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return '';
