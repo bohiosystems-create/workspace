@@ -20925,13 +20925,10 @@ Answer as Karaya:`;
   function _fundOwnershipHTML(f){
     const rows=FUND_DEPT_OWNERSHIP.map(r=>{
       const a=DEPT_AGENTS[r.dept]; if(!a) return '';
-      return `<div style="display:flex;align-items:flex-start;gap:11px;padding:8px 0;border-bottom:1px solid rgba(0,9,25,0.05);">
-        <div style="width:28px;height:28px;flex-shrink:0;border-radius:8px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">${a.mark}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:11px;font-weight:700;">${a.name}</div>
-          <div style="font-size:10px;color:var(--ink-soft);line-height:1.5;margin-top:1px;">${r.owns}</div>
-        </div>
-        <button class="wf-btn ghost" style="flex-shrink:0;font-size:9px;padding:6px 11px;" onclick="openDeptRequest('${r.dept}','${f.k}')">Send request</button>
+      return `<div class="dept-agent-card" onclick="openDeptRequest('${r.dept}','${f.k}')">
+        <div class="dac-top"><div class="dac-mark">${a.mark}</div><div class="dac-name">${a.name}</div></div>
+        <div class="dac-tag">${r.owns}</div>
+        <div class="dac-ask">Send request ›</div>
       </div>`;
     }).join('');
     const sent=(f._deptRequests||[]);
@@ -20944,8 +20941,8 @@ Answer as Karaya:`;
     </div>` : '';
     return `<div style="margin-top:22px;padding-top:14px;border-top:1px solid var(--ink-hairline);">
       <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Who owns what — ${f.name.replace(/^Bohio RE /,'')}</div>
-      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:8px;">Internal department ownership for this fund. Ask any agent directly, ask Karaya to route it, or send a request straight to a department — attach documents and it lands in their queue.</div>
-      ${rows}
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:14px;">Internal department ownership for this fund. Ask any agent directly, ask Karaya to route it, or send a request straight to a department — attach documents and it lands in their queue.</div>
+      <div class="dept-agents-grid">${rows}</div>
       ${sentHtml}
     </div>`;
   }
@@ -21067,12 +21064,11 @@ Answer as Karaya:`;
       ['projects','Projects','Developments in this fund','◇'],
       ['structure','Structure','GP · LPs · vehicle','⧉'],
       ['approvals','Approvals','Calls · distributions','✓'],
-      ['stakeholders','Stakeholders','GP · LPs · advisors','◉'],
       ['topics','Topics','Open discussions','❋'],
       ['reporting','Reporting','Board & LP reports','▤'],
       ['timeline','Timeline','Fund history at a glance','◷'],
     ];
-    const _cnt={brief:null, documents:(f.docs||[]).length, modelling:(f.models||[]).length, projects:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]).length, structure:f.structure.lps.length, approvals:f.approvals.length, stakeholders:f.stakeholders.length, topics:f.topics.length, reporting:null, timeline:null};
+    const _cnt={brief:null, documents:(f.docs||[]).length, modelling:(f.models||[]).length, projects:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]).length, structure:f.structure.lps.length, approvals:f.approvals.length, topics:f.topics.length, reporting:null, timeline:null};
     const secBtns=SECTIONS.map(([key,label,sub,glyph])=>`
       <div class="section-squircle${sec===key?' active':''}" data-sec="${key}" onclick="_wfFundDetail('${k}','${key}')">
         <div class="ssq-head"><span class="ssq-glyph">${glyph}</span><span class="ssq-count">${_cnt[key]!=null?String(_cnt[key]).padStart(2,'0'):''}</span></div>
@@ -21116,14 +21112,6 @@ Answer as Karaya:`;
           ? pend.map(({a,ai})=> a.kind==='discount' ? _wfDiscountCard(k, ai, a) : _wfPlainApprovalCardHTML(k, ai, a)).join('')
           : `<div style="font-size:10.5px;color:var(--ink-soft);padding:10px 0 4px;">No approvals pending your decision.</div>`)
       + _wfApprovalHistorySectionHTML(hist);
-    } else if(sec==='stakeholders'){
-      panel=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        <button class="wf-btn" onclick="_wfFundChart('${k}')">✦ Generate fund structure chart from the fund documents</button>
-      </div><div id="wff-chart-slot"></div>`
-      + f.stakeholders.map(s=>`<div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
-        <div style="width:32px;height:32px;flex-shrink:0;border-radius:10px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;letter-spacing:0.05em;">${s[0]}</div>
-        <div><div style="font-size:11.5px;font-weight:600;">${s[1]}</div><div style="font-size:9.5px;color:var(--ink-soft);">${s[2]}</div></div>
-      </div>`).join('');
     } else if(sec==='topics'){
       panel=f.topics.map(t=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
         <div style="font-size:11.5px;font-weight:700;line-height:1.4;">${t[0]}</div>
