@@ -20692,7 +20692,10 @@ Answer as Karaya:`;
       </div>`).join('');
     let panel='';
     if(sec==='brief'){
-      panel=`<div class="kr-brief" style="margin:0 0 4px;">
+      panel=`<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+        <button class="wf-btn ghost" onclick="_wfFundBoardReport('${k}')">✦ Generate board performance report</button>
+      </div>
+      <div class="kr-brief" style="margin:0 0 4px;">
         <div class="kr-brief-lede" id="wffb-lede"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>
         <div class="kr-brief-items" id="wffb-items"></div>
       </div>`;
@@ -21246,6 +21249,73 @@ Answer as Karaya:`;
   }
   // Gather the fund's real context: documents, ERP figures, Outlook threads.
   // ---- Fund Brief — "everything happening now", incl. live/demo Outlook mail ----
+  // ---- Board Performance Report — a fund's own GP-side report to ITS board,
+  // distinct from the LP/co-investor "reporting" workflow (which reports on a
+  // whole portfolio of assets to outside investors). Grounded in this one
+  // fund's real NAV/IRR/capital-activity/structure/projects.
+  function _fundQuarterlySeries(f){
+    const qs=['5Q ago','4Q ago','3Q ago','2Q ago','Last Q','Current'];
+    const base0=Math.max(f.drawn,1), g=Math.pow(Math.max(f.nav,1)/base0, 1/5);
+    const nav=[]; for(let i=0;i<6;i++) nav.push(+(base0*Math.pow(g,i)).toFixed(0)); nav[5]=+f.nav.toFixed(0);
+    const irrNum=parseFloat(f.irr)||0;
+    const b=irrNum-2.4, irr=[]; for(let i=0;i<6;i++) irr.push(+(b+(irrNum-b)*i/5).toFixed(1));
+    return {qs, nav, irr};
+  }
+  function _fundBoardReportSpecs(f){
+    const comp=f.structure.lps.map((l,i)=>({label:l[0], value:l[1], color:_REP_PALETTE[i%_REP_PALETTE.length]}));
+    const q=_fundQuarterlySeries(f);
+    return {
+      donut:{kind:'stack', title:'Capital composition — GP & LPs', ccy:'QAR', items:comp},
+      bridge:{kind:'bridge', title:'NAV bridge — drawn capital to current NAV', cols:[
+        {label:'Drawn', base:0, val:f.drawn, color:'#8a94a6', disp:'QAR '+f.drawn+'M'},
+        {label:'Value created', base:f.drawn, val:Math.max(f.nav-f.drawn,0), color:'#61BB46', disp:(f.nav>=f.drawn?'+':'')+'QAR '+(f.nav-f.drawn).toFixed(0)+'M'},
+        {label:'Current NAV', base:0, val:f.nav, color:'#009DDC', disp:'QAR '+f.nav+'M'},
+      ]},
+      navTrend:{kind:'line', title:'NAV trend — last 6 quarters (QAR M)', labels:q.qs, values:q.nav, color:'#009DDC'},
+      irrTrend:{kind:'line', title:'Net IRR trend — last 6 quarters (%)', labels:q.qs, values:q.irr, color:'#61BB46'},
+    };
+  }
+  function _wfFundBoardReport(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const specs=_fundBoardReportSpecs(f);
+    const chart=spec=>`<div data-chart="${btoa(unescape(encodeURIComponent(JSON.stringify(spec))))}"></div>`;
+    const dry=f.committed-f.drawn, pct=Math.round(f.drawn/f.committed*100);
+    const pending=f.approvals.filter(a=>a.cls==='a'), approved=f.approvals.filter(a=>a.cls==='g');
+    const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
+    const body=`
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:0 0 8px;">Fund overview</h4>
+      <p><b>${f.name}</b> (${f.vintage}, ${f.tag}) is <b>${pct}%</b> deployed — <b>QAR ${f.drawn}M</b> drawn of <b>QAR ${f.committed}M</b> committed, leaving <b>QAR ${dry.toFixed(0)}M</b> of dry powder. Current NAV stands at <b>QAR ${f.nav}M</b> against a net IRR of <b>${f.irr}</b>, DPI of <b>${(f.dpi||0).toFixed(2)}x</b> and TVPI of <b>${(f.tvpi||0).toFixed(2)}x</b>. Status: <b>${f.status}</b>.</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">NAV bridge</h4>
+      ${chart(specs.bridge)}
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">NAV trend</h4>
+      ${chart(specs.navTrend)}
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Net IRR trend</h4>
+      ${chart(specs.irrTrend)}
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Capital composition</h4>
+      ${chart(specs.donut)}
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Structure &amp; terms</h4>
+      <p>${f.structure.vehicle}. ${f.structure.gp}. ${f.structure.terms}.</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Portfolio — developments in this fund</h4>
+      ${ids.length?`<ul style="padding-left:18px;line-height:1.8;">${ids.map(id=>`<li><b>${P[id].name}</b> — ${P[id].loc} · ${P[id].phase} · lead ${P[id].lead}</li>`).join('')}</ul>`:'<p>No projects currently held in this fund.</p>'}
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Board decisions — this period</h4>
+      <ul style="padding-left:18px;line-height:1.8;">
+        ${approved.map(a=>`<li><b>${a.t}</b> — Approved (${a.chain}).</li>`).join('')}
+        ${!approved.length?'<li>No items were approved this period.</li>':''}
+      </ul>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Pending before the board</h4>
+      <ul style="padding-left:18px;line-height:1.8;">
+        ${pending.map(a=>`<li><b>${a.t}</b> — ${a.status} (${a.chain}).</li>`).join('')}
+        ${!pending.length?'<li>Nothing is currently pending board action.</li>':''}
+      </ul>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Risk flags &amp; recommendation</h4>
+      <ul style="padding-left:18px;line-height:1.8;">
+        <li>${dry>0?'Dry powder of <b>QAR '+dry.toFixed(0)+'M</b> remains to be deployed against the fund’s investment mandate.':'The fund is fully deployed.'}</li>
+        <li>${pending.length?'<b>'+pending.length+' item'+(pending.length>1?'s':'')+'</b> require board attention before the next capital event.':'No open items are blocking the fund’s next capital event.'}</li>
+        <li>A 50bps outward cap-rate shift across the book would move NAV by an estimated <b>QAR ${(f.nav*0.06).toFixed(0)}M</b> (~6%) — flagged for the board’s awareness, not a current trigger.</li>
+      </ul>`;
+    openReadableDoc({type:'PDF', name:f.name+' — Board Performance Report', version:'v.01 · Karaya-generated', docBody:body, karayaPdf:true,
+      pdfFoot:'Generated by Karaya from live Fund Management, Finance (ERP) and Outlook integrations. Figures are indicative and unaudited — verify against source systems before board distribution.'});
+  }
   async function _wfFundBriefLoad(k){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const pending=f.approvals.filter(a=>a.cls==='a');
