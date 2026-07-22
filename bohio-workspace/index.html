@@ -13545,6 +13545,12 @@ Reply as the agent:`;
     msgs.appendChild(bot);
     msgs.scrollTop=msgs.scrollHeight;
 
+    // "make me a pdf/excel/word/csv of X" → generate a real downloadable file.
+    if (typeof _krDetectFileRequest === 'function' && _krDetectFileRequest(q)) {
+      _krGenerateFileInto(q, bot, 'Karaya · just now').then(()=>{ KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:'[generated a file for: '+q+']'}); msgs.scrollTop=msgs.scrollHeight; });
+      return;
+    }
+
     // In the freshly-created project, asking Karaya to build the projections runs
     // the multi-source ingestion → Bohio financial model + cashflow.
     if (typeof _maybeBuildProjectModel === 'function' && _maybeBuildProjectModel(q, bot, msgs)) return;
@@ -16717,6 +16723,12 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     { const solved = _goalSeek(q) || _sensitivity(q);
       if (solved) { bot.innerHTML = fmtKaraya(solved) + '<span class="k-meta">Karaya · just now</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
 
+    // "make me a pdf/word/csv of this" → generate a real downloadable file.
+    if (typeof _krDetectFileRequest === 'function' && _krDetectFileRequest(q)) {
+      _krGenerateFileInto(q, bot, 'Karaya · just now').then(()=>{ msgs.scrollTop = msgs.scrollHeight; });
+      return;
+    }
+
     // Snapshot before a rework so the previous version is auto-saved, then apply.
     const _preWb = _cloneWb(SHEET_DATA);
     const applied = tryApplyModelCommand(q);
@@ -17008,6 +17020,114 @@ Answer as Karaya:`;
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     return { fname, tabs: Object.keys(workbook).length };
   }
+
+  // ============ CHATBOT FILE GENERATION ============
+  // Any Karaya chat, at any time, can turn a "make me a <file>" request into a
+  // real downloadable file — PDF, Excel, CSV, Word, text or a slide deck —
+  // built from grounded content and offered as a download button in-chat.
+  function _krDetectFileRequest(q){
+    const ql=String(q||'').toLowerCase();
+    if(!/\b(generate|create|make|produce|export|build|draft|write|download|prepare|put\s+together|give\s+me|send\s+me|turn\s+.*\binto)\b/.test(ql)) return null;
+    let type=null;
+    if(/\b(xlsx|excel|spreadsheet|workbook|\.xls)\b/.test(ql)) type='xlsx';
+    else if(/\bcsv\b/.test(ql)) type='csv';
+    else if(/\b(word|docx|word\s+doc|word\s+document|\.doc)\b/.test(ql)) type='docx';
+    else if(/\b(powerpoint|pptx|slide\s*deck|slides|presentation|deck)\b/.test(ql)) type='pptx';
+    else if(/\b(txt|text\s+file|plain\s+text|\.txt)\b/.test(ql)) type='txt';
+    else if(/\b(pdf|report|memo|letter|brief|one[-\s]?pager|write[-\s]?up|summary|document|agreement|term\s+sheet|note|paper|minutes)\b/.test(ql)) type='pdf';
+    else if(/\b(file|export|download)\b/.test(ql)) type='pdf';
+    if(!type) return null;
+    let title=String(q||'')
+      .replace(/^.*?\b(generate|create|make|produce|export|build|draft|write|download|prepare|put\s+together|give\s+me|send\s+me)\b/i,'')
+      .replace(/\b(as|in|into|of|a|an|the|me|please|for\s+me|for\s+us|with)\b/gi,' ')
+      .replace(/\b(xlsx|excel|spreadsheet|workbook|csv|word\s+document|word\s+doc|word|docx|powerpoint|pptx|slide\s*deck|slides|presentation|deck|text\s+file|plain\s+text|txt|pdf|file|document)\b/gi,' ')
+      .replace(/[?.!]+\s*$/,'').replace(/\s+/g,' ').trim();
+    if(!title||title.length<3) title='Bohio '+({xlsx:'workbook',csv:'data export',docx:'document',pptx:'slide deck',txt:'notes',pdf:'document'})[type];
+    title=title.charAt(0).toUpperCase()+title.slice(1);
+    return {type, title:title.slice(0,90)};
+  }
+  function _krTextToBlocks(text){
+    const blocks=[]; let m;
+    String(text||'').split(/\r?\n/).forEach(raw=>{
+      const ln=raw.trim();
+      if(!ln){ blocks.push({t:'gap'}); return; }
+      if((m=ln.match(/^#{1,6}\s+(.*)$/))){ blocks.push({t:'h', x:m[1].replace(/\*\*/g,'')}); return; }
+      if((m=ln.match(/^[-*•]\s+(.*)$/))){ blocks.push({t:'row', x:'•  '+m[1].replace(/\*\*/g,'')}); return; }
+      if((m=ln.match(/^\d+[.)]\s+(.*)$/))){ blocks.push({t:'row', x:'•  '+m[1].replace(/\*\*/g,'')}); return; }
+      blocks.push({t:'p', x:ln.replace(/\*\*/g,'')});
+    });
+    return blocks;
+  }
+  // split one content line into table cells (tab / "Label: value" / " | ")
+  function _krLineToCells(ln){
+    ln=ln.replace(/^#{1,6}\s+/,'').replace(/^[-*•]\s+/,'').replace(/\*\*/g,'').trim();
+    if(!ln) return null;
+    if(ln.indexOf('\t')>=0) return ln.split('\t').map(c=>c.trim());
+    if(ln.indexOf(' | ')>=0) return ln.split(' | ').map(c=>c.trim());
+    const ci=ln.indexOf(': ');
+    if(ci>0 && ln.indexOf(': ', ci+1)<0) return [ln.slice(0,ci).trim(), ln.slice(ci+2).trim()];
+    return [ln];
+  }
+  function _krXlsxBlobFromText(title, text){
+    const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const rows=[];
+    String(text||'').split(/\r?\n/).forEach(ln=>{ const c=_krLineToCells(ln); if(c) rows.push(c); });
+    const cell=v=>{ const t=String(v).trim(); const num=/^-?[\d,]+(\.\d+)?$/.test(t); return num?`<Cell><Data ss:Type="Number">${esc(t.replace(/,/g,''))}</Data></Cell>`:`<Cell><Data ss:Type="String">${esc(v)}</Data></Cell>`; };
+    const rowsXml=rows.map(r=>'<Row>'+r.map(cell).join('')+'</Row>').join('');
+    const wsName=esc((String(title||'Sheet1').slice(0,28))||'Sheet1');
+    const xml=`<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="${wsName}"><Table>${rowsXml}</Table></Worksheet></Workbook>`;
+    return new Blob([xml],{type:'application/vnd.ms-excel'});
+  }
+  function _krMakeFile(type, title, content){
+    const base=String(title||'Bohio_document').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'Bohio_document';
+    let blob, ext, label;
+    if(type==='xlsx'){ blob=_krXlsxBlobFromText(title, content); ext='xls'; label='an Excel workbook'; }
+    else if(type==='csv'){
+      const csv=String(content||'').split(/\r?\n/).map(ln=>{ const cells=_krLineToCells(ln); if(!cells) return ''; return cells.map(c=>/[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c).join(','); }).filter(x=>x!=='').join('\n');
+      blob=new Blob([csv],{type:'text/csv'}); ext='csv'; label='a CSV file';
+    }
+    else if(type==='docx'){
+      const bodyHtml=_krTextToBlocks(content).map(b=>{ if(b.t==='h') return '<h3>'+b.x+'</h3>'; if(b.t==='row') return '<p style="margin:2px 0 2px 18px;">•&nbsp;'+b.x.replace(/^•\s*/,'')+'</p>'; if(b.t==='gap') return '<br>'; return '<p>'+b.x+'</p>'; }).join('\n');
+      const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${title}</title></head><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1a1f2b;"><h1 style="font-size:18pt;">${title}</h1>${bodyHtml}<p style="color:#888;font-size:8pt;margin-top:28px;">Generated by Karaya · Bohio Workspace · draft for review</p></body></html>`;
+      blob=new Blob([html],{type:'application/msword'}); ext='doc'; label='a Word document';
+    }
+    else if(type==='txt'){
+      const txt=String(content||'').replace(/\*\*/g,'').replace(/^#{1,6}\s+/gm,'').replace(/^[-*•]\s+/gm,'• ');
+      blob=new Blob([txt],{type:'text/plain'}); ext='txt'; label='a text file';
+    }
+    else { // pdf (also used for pptx "slide deck" requests, delivered as a PDF deck)
+      const blocks=_krTextToBlocks(content);
+      blob=_makeKarayaPdf(title, 'Generated by Karaya · Bohio Workspace', blocks, 'Generated by Karaya from live Bohio Workspace data. Draft for review — verify before external distribution.');
+      ext='pdf'; label = (type==='pptx') ? 'a slide deck (PDF)' : 'a PDF';
+    }
+    return {url:URL.createObjectURL(blob), filename:base+'.'+ext, label};
+  }
+  function _krFileCard(url, filename){
+    return `<a href="${url}" download="${filename}" class="kr-filecard" style="display:inline-flex;align-items:center;gap:10px;margin-top:9px;padding:10px 15px;border:1px solid var(--ink-hairline);border-radius:12px;text-decoration:none;color:var(--ink);background:var(--paper);">
+      <span style="font-size:16px;line-height:1;">⬇</span>
+      <span style="display:flex;flex-direction:column;line-height:1.3;"><b style="font-size:11px;">${filename}</b><span style="font-size:9px;color:var(--ink-soft);letter-spacing:0.05em;text-transform:uppercase;">Click to download</span></span>
+    </a>`;
+  }
+  // Shared handler: if q asks for a file, build it into botEl and return true.
+  // metaLabel (optional) is appended as a "· just now" byline.
+  async function _krGenerateFileInto(q, botEl, metaLabel){
+    const req=_krDetectFileRequest(q); if(!req || !botEl) return false;
+    const kindLbl = req.type==='xlsx'?'Excel workbook':(req.type==='pptx'?'slide deck':req.type.toUpperCase());
+    botEl.innerHTML=`<span class="kr-stream-text">Generating your ${kindLbl}…</span><span class="kr-caret">▍</span>`;
+    const ctx=(typeof buildWorkspaceContext==='function')?buildWorkspaceContext():'';
+    const fallback=`## ${req.title}\n\nPrepared by Karaya from Bohio Workspace.\n\nThis ${kindLbl} was generated on request from the workspace's live data. It captures the requested subject — ${req.title} — for review and onward sharing.\n\n## Key points\n- Subject: ${req.title}\n- Source: Bohio Workspace — projects, funds, models & documents\n- Prepared: just now\n- Status: Draft for review\n\n## Notes\nReplace or extend any section before external distribution. Ask Karaya to revise the content and regenerate at any time.`;
+    const tableHint = (req.type==='xlsx'||req.type==='csv') ? 'Prefer rows of "Label: value" or tab-separated columns so the data lays out as a table.' : 'Write it as a professional document with short section headings.';
+    const prompt=`You are Karaya inside Bohio Workspace. The user asked you to produce ${kindLbl} titled "${req.title}". Write ONLY the content that should go inside that file — no preamble, no sign-off, no mention of being an AI or of "the file". Use "## Heading" for section titles and "- " for bullets. ${tableHint} Ground every figure in the workspace data below; do not invent facts.\n\n===== WORKSPACE DATA =====\n${ctx}\n===== END WORKSPACE DATA =====`;
+    let content=null;
+    try{ if(window.claude&&window.claude.complete){ const r=await window.claude.complete({messages:[{role:'user',content:prompt}], task:'file_gen'}); content=(typeof r==='string')?r:(r&&r.content)||''; } }catch(e){}
+    if(!content||!String(content).trim()) content=fallback;
+    let file;
+    try{ file=_krMakeFile(req.type, req.title, content); }
+    catch(e){ botEl.innerHTML=fmtKaraya('I hit an error building that file — try again, or ask for a different format.')+(metaLabel?`<span class="k-meta">${metaLabel}</span>`:''); return true; }
+    botEl.innerHTML=fmtKaraya(`Done — I've generated **${req.title}** as ${file.label}.`)+_krFileCard(file.url, file.filename)+(metaLabel?`<span class="k-meta">${metaLabel}</span>`:'');
+    return true;
+  }
+
   // Generic "Download" for any file drawer document — picks the richest
   // representation available so the button is never a dead end.
   function downloadCurrentFileDoc(){
@@ -21149,6 +21269,15 @@ Answer as Karaya:`;
     input.value='';
     a._finChat=a._finChat||[];
     a._finChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    // "export this model as excel / make a pdf of it" → real downloadable file.
+    if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
+      const bi=a._finChat.length;
+      a._finChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+      _wfFinChatRender(k,ai);
+      const el=document.getElementById(`wffin2-chat-b-${k}-${ai}-${bi}`);
+      _krGenerateFileInto(q, el, '').then(()=>{ if(el) a._finChat[bi].html=el.innerHTML; });
+      return;
+    }
     const fm=_wfDiscountFinModel(a.projectId);
     const det=_wfFinChatAnswer(fm, q);
     if(det!=null){
@@ -21288,6 +21417,12 @@ Answer as Karaya:`;
     const botIdx=a._aiChat.length;
     a._aiChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
     _wfApprovalChatRender(k,ai);
+    // "make me a pdf/excel/word of this approval" → real downloadable file.
+    if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
+      const el=document.getElementById(`wfapr-chat-b-${k}-${ai}-${botIdx}`);
+      _krGenerateFileInto(q, el, '').then(()=>{ if(el) a._aiChat[botIdx].html=el.innerHTML; });
+      return;
+    }
     const fallback=`On "${a.t}": current status is **${a.status}**, chain **${a.chain}**. I can generate a fuller AI analysis via the button above, or answer more specific questions about ${f.name}'s position.`;
     const prompt=`You are Karaya, answering a question about a pending fund approval. Fund: ${f.name} (NAV QAR ${f.nav}M, net IRR ${f.irr}, QAR ${f.drawn}M drawn of ${f.committed}M committed). Approval: "${a.t}". Status: ${a.status}. Chain: ${a.chain}. Question: "${q}". Answer in 2-3 sentences, **bold** key figures, grounded only in the data given — if the question needs data not given here, say so briefly rather than inventing figures.`;
     setTimeout(()=>{
@@ -21379,6 +21514,15 @@ Answer as Karaya:`;
     const preset=document.getElementById(`wfdisc-preset-${k}-${ai}`); if(preset) preset.style.display='none';
     a._chat=a._chat||[];
     a._chat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    // "make me a pdf/excel of this request" → real downloadable file.
+    if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
+      const bi=a._chat.length;
+      a._chat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+      _wfDiscountChatRender(k,ai);
+      const el=document.getElementById(`wfdisc-chat-b-${k}-${ai}-${bi}`);
+      _krGenerateFileInto(q, el, '').then(()=>{ if(el) a._chat[bi].html=el.innerHTML; });
+      return;
+    }
     const m=_wfDiscountMath(f,a);
     const isSolve=/max(?:imum)?\s+discount|discount.*before.*irr|irr.*falls?\s*below|irr.*below/i.test(q);
     if(isSolve){
@@ -22191,6 +22335,14 @@ ${ctx.mailCtx}`;
     _wfFundChat[k].push({cls:'user', html:q.replace(/</g,'&lt;')});
     const chat=document.getElementById('wff-chat');
     const rerender=()=>{ const modalBody=document.querySelector('#wf-overlay .wf-body'); if(chat){ chat.innerHTML=(_wfFundChat[k]||[]).map(m=>`<div style="align-self:${m.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${m.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${m.cls==='user'?'var(--bg)':'var(--ink)'};border:${m.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${m.html}</div>`).join(''); } if(modalBody) modalBody.scrollTop=modalBody.scrollHeight; };
+    // "make me a pdf/excel/word/csv of X" → generate a real downloadable file.
+    if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
+      _wfFundChat[k].push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+      rerender();
+      const botEl=chat&&chat.lastElementChild;
+      _krGenerateFileInto(q, botEl, '').then(()=>{ if(botEl) _wfFundChat[k][_wfFundChat[k].length-1]={cls:'bot', html:botEl.innerHTML}; });
+      return;
+    }
     // deterministic version diff first (works offline)
     const diff=_fundVersionDiff(f,q);
     if(diff){ _wfFundChat[k].push({cls:'bot', html:fmtKaraya(diff)}); rerender(); return; }
