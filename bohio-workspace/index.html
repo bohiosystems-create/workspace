@@ -19853,10 +19853,11 @@ Answer as Karaya:`;
             </div>
             <div style="flex:1;min-width:170px;">
               <div class="rep-flow-lbl" style="margin-bottom:6px;">Report type</div>
-              <select id="wfrep-type" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;">
+              <select id="wfrep-type" onchange="_wfRepTypeChanged()" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;">
                 <option>Co-investor quarterly pack</option>
                 <option>Asset performance dashboard</option>
                 <option>NAV &amp; returns summary</option>
+                <option value="reit">REIT public disclosure report (QFMA-regulated)</option>
               </select>
             </div>
             <div style="flex:1;min-width:140px;">
@@ -19869,13 +19870,31 @@ Answer as Karaya:`;
               </select>
             </div>
           </div>
-          <div style="margin-top:12px;">
+          <div id="wfrep-metrics-wrap" style="margin-top:12px;">
             <div class="rep-flow-lbl" style="margin-bottom:6px;">Data to include</div>
             <div id="wfrep-metrics" style="display:flex;gap:12px;flex-wrap:wrap;">
               ${WF_REP_METRICS.map(m=>`<label style="display:flex;align-items:center;gap:5px;font-size:10.5px;cursor:pointer;"><input type="checkbox" value="${m.k}" ${['invested','nav','moic','irr'].includes(m.k)?'checked':''}>${m.h}</label>`).join('')}
             </div>
           </div>
-          <button class="wf-btn" style="margin-top:13px;" onclick="_wfRepGenerate()">✦ Generate report</button>
+          <div id="wfrep-reit-params" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--ink-hairline);">
+            <div class="rep-flow-lbl" style="margin-bottom:9px;">REIT public disclosure — set the report parameters</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
+              <div><label style="font-size:9px;color:var(--ink-soft);">REIT legal name</label><input id="wfreit-name" value="Bohio Qatar REIT" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;margin-top:3px;"></div>
+              <div><label style="font-size:9px;color:var(--ink-soft);">Reporting period</label><input id="wfreit-period" value="Q2 2026" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;margin-top:3px;"></div>
+              <div><label style="font-size:9px;color:var(--ink-soft);">NAV per unit (QAR)</label><input id="wfreit-navunit" type="number" step="0.01" value="10.85" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;margin-top:3px;"></div>
+              <div><label style="font-size:9px;color:var(--ink-soft);">Distribution per unit (QAR)</label><input id="wfreit-distunit" type="number" step="0.01" value="0.42" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;margin-top:3px;"></div>
+              <div><label style="font-size:9px;color:var(--ink-soft);">Gearing ratio (%) — QFMA cap 50%</label><input id="wfreit-gearing" type="number" step="0.1" value="28" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;margin-top:3px;"></div>
+              <div><label style="font-size:9px;color:var(--ink-soft);">Units outstanding (M)</label><input id="wfreit-units" type="number" step="1" value="500" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;margin-top:3px;"></div>
+              <div><label style="font-size:9px;color:var(--ink-soft);">Independent valuer</label><input id="wfreit-valuer" value="CBRE Qatar" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;margin-top:3px;"></div>
+              <div><label style="font-size:9px;color:var(--ink-soft);">Auditor</label><input id="wfreit-auditor" value="KPMG Qatar" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;margin-top:3px;"></div>
+              <div><label style="font-size:9px;color:var(--ink-soft);">Fund manager certifying officer</label><input id="wfreit-cert" value="S. Al-Harbi, Fund Manager" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;margin-top:3px;"></div>
+            </div>
+            <div style="margin-top:11px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:10.5px;cursor:pointer;"><input type="checkbox" id="wfreit-rpt-yes" onchange="document.getElementById('wfreit-rpt-details').style.display=this.checked?'block':'none'">Related party transactions occurred this period</label>
+              <textarea id="wfreit-rpt-details" style="display:none;width:100%;box-sizing:border-box;margin-top:7px;padding:9px 11px;border:1px solid var(--ink-hairline);border-radius:8px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:10.5px;min-height:52px;">Property management services provided by Bohio Capital Partners (the REIT manager) to the underlying portfolio at QAR 2.1M for the period, on arm's-length terms per the independent valuer's benchmarking.</textarea>
+            </div>
+          </div>
+          <button class="wf-btn" id="wfrep-gen-btn" style="margin-top:13px;" onclick="_wfRepGenerate()">✦ Generate report</button>
         </div>
         <div id="wfrep-msgs" style="display:flex;flex-direction:column;gap:12px;flex:1;"></div>
         <div style="display:flex;gap:8px;padding:14px 0 4px;border-top:1px solid var(--ink-hairline);margin-top:14px;">
@@ -19894,15 +19913,81 @@ Answer as Karaya:`;
       <div style="font-size:7px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:6px;">Karaya · investor reporting</div>
       Pick a portfolio, report type, the data to include and a cadence above, or ask for any pack in plain language below.${chips}</div>`;
   }
+  function _wfRepTypeChanged(){
+    const isReit=(document.getElementById('wfrep-type')||{}).value==='reit';
+    const metricsWrap=document.getElementById('wfrep-metrics-wrap'), reitWrap=document.getElementById('wfrep-reit-params'), btn=document.getElementById('wfrep-gen-btn');
+    if(metricsWrap) metricsWrap.style.display=isReit?'none':'block';
+    if(reitWrap) reitWrap.style.display=isReit?'block':'none';
+    if(btn) btn.textContent=isReit?'✦ Generate public disclosure report':'✦ Generate report';
+  }
   function _wfRepGenerate(){
     const typeSel=document.getElementById('wfrep-type'), cadSel=document.getElementById('wfrep-cadence');
     const reportType=typeSel?typeSel.value:'Co-investor quarterly pack';
+    if(reportType==='reit'){ _wfReitGenerate(); return; }
     const cadence=cadSel?cadSel.value:'once';
     const checked=[...document.querySelectorAll('#wfrep-metrics input:checked')].map(c=>c.value);
     let picks=WF_REP_METRICS.filter(m=>checked.includes(m.k));
     if(!picks.length) picks=WF_REP_METRICS.filter(m=>['invested','nav','moic','irr'].includes(m.k));
     if(picks.length>6) picks=picks.slice(0,6);
     _wfRepRunPipeline(picks, {reportType, cadence});
+  }
+  // ---- REIT public disclosure report — QFMA-style regulated periodic report ----
+  function _wfReitGenerate(){
+    const v=id=>{ const el=document.getElementById(id); return el?el.value:''; };
+    const name=v('wfreit-name')||'Bohio Qatar REIT';
+    const period=v('wfreit-period')||'Q2 2026';
+    const navUnit=parseFloat(v('wfreit-navunit'))||0;
+    const distUnit=parseFloat(v('wfreit-distunit'))||0;
+    const gearing=parseFloat(v('wfreit-gearing'))||0;
+    const units=parseFloat(v('wfreit-units'))||0;
+    const valuer=v('wfreit-valuer')||'Independent Valuer';
+    const auditor=v('wfreit-auditor')||'Auditor';
+    const cert=v('wfreit-cert')||'Fund Manager';
+    const rptYes=(document.getElementById('wfreit-rpt-yes')||{}).checked;
+    const rptText=rptYes?(v('wfreit-rpt-details')||''):'';
+    const totalNav=navUnit*units, totalDist=distUnit*units;
+    const gearingCompliant=gearing<=50;
+    const sum=_wfRepSummary(), assets=sum.assets, ccy='QAR';
+    const specs=_repChartSpecs(sum);
+    const chart=spec=>`<div data-chart="${btoa(unescape(encodeURIComponent(JSON.stringify(spec))))}"></div>`;
+    const body=`
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:0 0 8px;">REIT identification</h4>
+      <p><b>${name}</b> — a Qatar Financial Markets Authority (QFMA) licensed Real Estate Investment Trust, listed on the Qatar Exchange. This periodic disclosure report covers <b>${period}</b> and is issued in accordance with the QFMA REIT Regulations governing periodic unit-holder disclosure.</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Financial highlights</h4>
+      <ul style="padding-left:18px;line-height:1.85;">
+        <li>Net Asset Value per unit: <b>QAR ${navUnit.toFixed(2)}</b></li>
+        <li>Total Net Asset Value: <b>QAR ${(totalNav/1000).toFixed(1)}M</b> (${units.toFixed(0)}M units in issue)</li>
+        <li>Distribution per unit for the period: <b>QAR ${distUnit.toFixed(2)}</b> (total distribution <b>QAR ${(totalDist/1000).toFixed(1)}M</b>)</li>
+        <li>Distribution yield on NAV: <b>${navUnit?((distUnit/navUnit)*100).toFixed(2):'0.00'}%</b></li>
+        <li>Gearing ratio: <b>${gearing.toFixed(1)}%</b> — ${gearingCompliant?'within':'in EXCESS of'} the QFMA-prescribed REIT gearing cap of 50%</li>
+      </ul>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">NAV bridge</h4>
+      ${chart(specs.bridge)}
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Portfolio composition</h4>
+      ${chart(specs.donut)}
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Portfolio performance summary</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:11.5px;"><thead><tr>
+        <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Asset</th><th style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">NAV (${ccy}M)</th><th style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">Occupancy</th><th style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">Gross IRR</th>
+      </tr></thead><tbody>${assets.map(a=>`<tr><td style="padding:6px 8px;">${a.name}</td><td style="padding:6px 8px;">${a.nav.toFixed(1)}</td><td style="padding:6px 8px;">${a.occ}%</td><td style="padding:6px 8px;">${a.irr.toFixed(1)}%</td></tr>`).join('')}</tbody></table>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Distribution statement</h4>
+      <p>The Board has declared a distribution of <b>QAR ${distUnit.toFixed(2)} per unit</b> in respect of ${period}, payable to unit-holders of record, consistent with the REIT's stated distribution policy of not less than 90% of distributable income.</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Related party transactions</h4>
+      <p>${rptYes?rptText:'No related party transactions were entered into during the reporting period, as defined under the QFMA REIT Regulations on related party dealings.'}</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Compliance &amp; regulatory statement</h4>
+      <ul style="padding-left:18px;line-height:1.85;">
+        <li>Gearing ratio of ${gearing.toFixed(1)}% is ${gearingCompliant?'compliant with':'a BREACH of'} the QFMA REIT gearing limit of 50% of gross asset value.</li>
+        <li>The REIT continues to meet the QFMA's minimum income-distribution requirement (≥90% of distributable income) and property-income concentration rules (≥75% of revenue from real estate).</li>
+        <li>This report has been prepared for public disclosure to unit-holders and the Qatar Exchange in satisfaction of the REIT's periodic reporting obligations.</li>
+      </ul>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Independent valuer's note</h4>
+      <p>Portfolio valuations underpinning this report's NAV were prepared or reviewed by <b>${valuer}</b> in accordance with RICS Red Book standards, consistent with the QFMA's requirement for an independent valuation at least once every 12 months.</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Auditor's review note</h4>
+      <p><b>${auditor}</b> has performed a limited review of the financial information underlying this disclosure in accordance with the applicable auditing standards; nothing has come to its attention to suggest the figures presented are not fairly stated in all material respects.</p>
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Fund manager certification</h4>
+      <p>I certify that, to the best of my knowledge, this disclosure presents a true and fair view of ${name}'s financial position and performance for ${period} and complies with the applicable QFMA REIT Regulations.</p>
+      <p style="margin-top:18px;">_____________________________<br><b>${cert}</b></p>`;
+    openReadableDoc({type:'PDF', name:name+' — Public Disclosure Report ('+period+')', version:'v.01 · Karaya-generated', docBody:body, karayaPdf:true,
+      pdfFoot:'Prepared for illustrative purposes as a Bohio Workspace demo. Not an actual QFMA filing — verify all figures and regulatory citations against the REIT’s audited financials and current QFMA rules before public distribution.'});
   }
   function _wfRepSend(){
     const input=document.getElementById('wfrep-input'); if(!input) return;
