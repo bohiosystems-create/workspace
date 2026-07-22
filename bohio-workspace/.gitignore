@@ -5,3 +5,4 @@ node_modules/
 .DS_Store
 studio-vendor/
 .outlook-tokens.json
+*.zip
