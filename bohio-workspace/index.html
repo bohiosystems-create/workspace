@@ -15514,11 +15514,11 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
 
   let _editorOrigin = { kind:'workspace' };
   function editorGoBack(){
-    const label = document.getElementById('ed-back');
     if (_editorOrigin && _editorOrigin.kind==='project' && P[_editorOrigin.id]) { showProject(_editorOrigin.id); }
+    else if (_editorOrigin && _editorOrigin.kind==='fund' && typeof WF_FUNDS!=='undefined' && WF_FUNDS.find(x=>x.k===_editorOrigin.k)) { _wfOpenFundShell(); _wfFundDetail(_editorOrigin.k, 'modelling'); }
     else { goTo('workspace'); }
   }
-  function openEditor(d) {
+  function openEditor(d, forceOrigin) {
     document.querySelectorAll('.landing-page,.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-editor').classList.add('active');
     const sh = document.querySelector('.app-shell');
@@ -15527,14 +15527,19 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     const med = document.querySelector('.model-editor');
     if (med) { med.style.gridTemplateColumns = ''; med.classList.remove('karaya-hidden'); }
     document.getElementById('karaya-handle').style.display = 'none';
-    // Editors opened from a project belong to that project — never "My Models"
-    // (which no longer exists). Remember the origin so the back link is correct.
+    // Editors opened from a project belong to that project, and editors opened
+    // from inside a fund's Financial Modelling section belong to that fund
+    // (callers pass forceOrigin:{kind:'fund',k}) — never "My Models" (which no
+    // longer exists). Remember the origin so the back link returns to the
+    // right place instead of always the workspace home.
     const fromProject = (typeof currentProject !== 'undefined' && currentProject && P[currentProject]);
-    _editorOrigin = fromProject ? { kind:'project', id:currentProject } : { kind:'workspace' };
+    _editorOrigin = forceOrigin || (fromProject ? { kind:'project', id:currentProject } : { kind:'workspace' });
     setActiveNav('nav-workspace');
     setBreadcrumb(fromProject
       ? [ {label:'Home',fn:"goTo('landing')"}, {label:'Workspace',fn:"goTo('workspace')"}, {label:P[currentProject].name,fn:"showProject("+currentProject+")"}, {label: d.name} ]
-      : [ {label:'Home',fn:"goTo('landing')"}, {label:'Workspace',fn:"goTo('workspace')"}, {label: d.name} ]);
+      : (_editorOrigin.kind==='fund'
+        ? [ {label:'Home',fn:"goTo('landing')"}, {label:'Workspace',fn:"goTo('workspace')"}, {label:(WF_FUNDS.find(x=>x.k===_editorOrigin.k)||{}).name||_editorOrigin.k, fn:"_wfOpenFundShell();_wfFundDetail('"+_editorOrigin.k+"','modelling')"}, {label: d.name} ]
+        : [ {label:'Home',fn:"goTo('landing')"}, {label:'Workspace',fn:"goTo('workspace')"}, {label: d.name} ]));
 
     document.getElementById('ed-title').textContent = d.name;
     document.getElementById('ed-type').textContent = d.type;
@@ -21060,7 +21065,7 @@ Answer as Karaya:`;
       <div id="wff-model-slot"></div>
       ${fmodels.length?`<div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:6px 0 8px;">Fund models</div>
       <div class="model-preview-wrap">${fmodels.map((m,mi)=>_modelPreviewTileHTML(m,
-        `closeWorkflow();currentProject=null;openEditor(WF_FUNDS.find(x=>x.k==='${k}').models[${mi}])`,
+        `closeWorkflow();currentProject=null;openEditor(WF_FUNDS.find(x=>x.k==='${k}').models[${mi}],{kind:'fund',k:'${k}'})`,
         `_wfFundSuggest('${k}',${mi})`)).join('')}</div>`:''}
       <div id="wff-suggest-slot"></div>
       <div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:14px 0 8px;">Build from a document</div>
@@ -21935,7 +21940,7 @@ Answer as Karaya:`;
     const slot=document.getElementById('wff-model-slot');
     if(slot) slot.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-bottom:12px;font-size:11px;line-height:1.65;">
       Built <b>${doc.name}</b> from the document — Year-1 NOI <b>QAR ${noi1.toFixed(1)}M</b>, equity multiple <b>${mult.toFixed(2)}x</b>${irr!=null?`, IRR <b>${(irr*100).toFixed(1)}%</b>`:''}.
-      <button class="wf-btn" style="margin-top:9px;" onclick="closeWorkflow();openEditor(_wfFinDocs['${did}'])">Open as a Bohio model →</button></div>`;
+      <button class="wf-btn" style="margin-top:9px;" onclick="closeWorkflow();openEditor(_wfFinDocs['${did}'],{kind:'fund',k:'${k}'})">Open as a Bohio model →</button></div>`;
   }
   function _wfFundBuildDash(k, encName){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
@@ -22353,7 +22358,7 @@ ${ctx.mailCtx}`;
     let full='';
     try{ await window.claude.stream({messages:[{role:'user',content:prompt}],task:'file_qa'},{},t=>{ full+=t; body.querySelector('.kr-stream-text').textContent=full; }); }catch(e){}
     if(!full||!full.trim()) full=fallback;
-    body.innerHTML=fmtKaraya(full)+`<div style="margin-top:11px;"><button class="wf-btn" onclick="closeWorkflow();currentProject=null;openEditor(WF_FUNDS.find(x=>x.k==='${k}').models[${mi}])">Open the model to apply changes →</button></div>`
+    body.innerHTML=fmtKaraya(full)+`<div style="margin-top:11px;"><button class="wf-btn" onclick="closeWorkflow();currentProject=null;openEditor(WF_FUNDS.find(x=>x.k==='${k}').models[${mi}],{kind:'fund',k:'${k}'})">Open the model to apply changes →</button></div>`
       +`<div style="font-size:8px;color:#0a66c2;margin-top:7px;letter-spacing:0.06em;font-weight:700;">✦ Grounded in ${(f.docs||[]).length} documents · ERP · ${ctx.live?'live Outlook mailbox':'Outlook threads'}</div>`;
   }
 
