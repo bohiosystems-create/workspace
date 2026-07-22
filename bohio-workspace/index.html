@@ -20940,6 +20940,10 @@ Answer as Karaya:`;
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:11.5px;font-weight:700;line-height:1.4;">${a.t}</div><span class="wf-pill ${a.cls}" style="flex-shrink:0;">${a.status}</span></div>
         <div style="font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.03em;">${a.chain}</div>
         ${(a.attachments&&a.attachments.length)?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px;">${a.attachments.map(n=>'📎 '+n.replace(/</g,'&lt;')).join(' · ')}</div>`:''}
+        ${a.cls==='a'?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;">
+          <button class="wf-btn ghost" style="border-color:#15803d;color:#15803d;" onclick="_wfApprovalDecide('${k}',${ai},'approve')">✓ Approve</button>
+          <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfApprovalDecide('${k}',${ai},'reject')">✗ Reject</button>
+        </div>`:''}
         ${_wfApprovalAiHTML(k, ai, a)}
       </div>`).join('');
     } else if(sec==='stakeholders'){
@@ -21551,6 +21555,19 @@ Answer as Karaya:`;
     if(action==='approve'){ a.status='Approved by CIO'; a.cls='g'; a.chain='Sales ✓ submitted → Chief Investment Officer ✓ approved'; }
     else { a.status='Rejected by CIO'; a.cls='r'; a.chain='Sales ✓ submitted → Chief Investment Officer ✗ rejected'; }
     _wfFundDetail(k,'approvals');
+    if(typeof _renderDailyBriefApprovals==='function') _renderDailyBriefApprovals();
+  }
+  // Approve / reject any plain (non-discount) fund approval. Marks the item
+  // decided, appends your sign-off to the chain, re-renders and refreshes the
+  // Daily Brief so a resolved item drops off the pending list.
+  function _wfApprovalDecide(k, ai, action){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const a=f.approvals[ai]; if(!a) return;
+    const who=(window.DEMO_USER&&window.DEMO_USER.name)||'You';
+    if(action==='approve'){ a.status='Approved'; a.cls='g'; a.chain=(a.chain?a.chain+' → ':'')+who+' ✓ approved'; }
+    else { a.status='Rejected'; a.cls='r'; a.chain=(a.chain?a.chain+' → ':'')+who+' ✗ rejected'; }
+    _wfFundDetail(k,'approvals');
+    if(typeof _renderDailyBriefApprovals==='function') _renderDailyBriefApprovals();
   }
   // ---- per-document access control (you're the VP / Senior Manager) --------
   const FUND_USERS=[
