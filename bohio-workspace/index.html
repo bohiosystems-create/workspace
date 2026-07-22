@@ -19158,6 +19158,7 @@ Answer as Karaya:`;
             <div class="settings-row-sub" style="margin:-4px 0 12px;">Sync deals, budgets and rent rolls straight from your systems of record.</div>
             ${[
               {k:'netsuite', name:'Oracle NetSuite', cat:'ERP · General Ledger', mark:'N', connected:true, meta:'Synced 2h ago · GL, AP/AR, budgets'},
+              {k:'oracle_fusion', name:'Oracle Fusion Cloud ERP', cat:'ERP · Financials & Projects', mark:'O', connected:false, meta:'Project accounting, procurement, consolidated financials'},
               {k:'yardi', name:'Yardi Voyager', cat:'Property Management', mark:'Y', connected:true, meta:'Synced 40m ago · rent roll, leases, opex'},
               {k:'sap', name:'SAP S/4HANA', cat:'ERP · Finance', mark:'S', connected:false, meta:'Cost ledger, commitments, actuals'},
               {k:'mri', name:'MRI Software', cat:'Property Management', mark:'M', connected:false, meta:'Lease admin, CAM reconciliations'},
@@ -19304,6 +19305,8 @@ Answer as Karaya:`;
     switch(k){
       case 'netsuite': // Oracle
         return wrap(`<svg width="30" height="16" viewBox="0 0 100 46"><path d="M31 3h20a20 20 0 010 40H31a20 20 0 010-40zm1.4 12a8 8 0 000 16h17.2a8 8 0 000-16z" fill="#C74634"/></svg>`,'#fff');
+      case 'oracle_fusion': // same Oracle red, Fusion's own product mark
+        return wrap(`<svg width="30" height="16" viewBox="0 0 100 46"><circle cx="23" cy="23" r="20" fill="none" stroke="#C74634" stroke-width="6"/><path d="M50 8h20a15 15 0 010 30H50z" fill="#C74634"/></svg>`,'#fff');
       case 'yardi': return mono('Yardi','#0B7A3B',null,10);
       case 'sap':
         return wrap(`<svg width="30" height="16" viewBox="0 0 60 30"><defs><linearGradient id="sapg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00AEEF"/><stop offset="1" stop-color="#0057B8"/></linearGradient></defs><path d="M0 3h34l-17 24H0z" fill="url(#sapg)"/><text x="4" y="20" font-family="Arial" font-weight="800" font-size="13" fill="#fff">SAP</text></svg>`,'#fff');
