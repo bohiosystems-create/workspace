@@ -21353,10 +21353,6 @@ Answer as Karaya:`;
       <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Ask about the financial model</div>
       <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:8px;">Backed by the project's own model (revenue, opex, NOI, debt &amp; DSCR schedule, unit sales) — ask a real question, not a summary.</div>
       <div id="wffin2-chat-${k}-${ai}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:240px;overflow-y:auto;">${chatLogHtml}</div>
-      <div id="wffin2-preset-${k}-${ai}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
-        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFinChatPreset('${k}',${ai},'What is the NOI in year 3?')">NOI in year 3?</button>
-        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFinChatPreset('${k}',${ai},'What is the current DSCR and debt balance?')">DSCR &amp; debt balance?</button>
-      </div>
       <div style="display:flex;gap:8px;">
         <input id="wffin2-input-${k}-${ai}" placeholder="Ask about the model — e.g. what's the NOI in year 3?" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfFinChatAsk('${k}',${ai})">
         <button class="wf-btn ghost" onclick="_wfFinChatAsk('${k}',${ai})">Ask</button>
@@ -21370,12 +21366,6 @@ Answer as Karaya:`;
     log.style.display='flex';
     log.innerHTML=(a._finChat||[]).map((c,i)=>`<div ${c.cls==='bot'?`id="wffin2-chat-b-${k}-${ai}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
     log.scrollTop=log.scrollHeight;
-    const preset=document.getElementById(`wffin2-preset-${k}-${ai}`); if(preset&&(a._finChat||[]).length) preset.style.display='none';
-  }
-  function _wfFinChatPreset(k, ai, text){
-    const input=document.getElementById(`wffin2-input-${k}-${ai}`);
-    if(input) input.value=text;
-    _wfFinChatAsk(k, ai);
   }
   function _wfFinChatAsk(k, ai){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
@@ -21426,17 +21416,32 @@ Answer as Karaya:`;
     const newBlendedPsf=(ctx.avgAchievedPsf*ctx.sold + a.listPricePerSqft*(1-a.discountPct/100)*1)/(ctx.sold+1);
     return {ctx, listPrice, discPrice, savings, savingsM, isolatedBps, precedentReductionM, precedentBps, newBlendedPsf};
   }
-  // Deterministic solver: since the precedent-case IRR impact is linear in the
-  // discount %, the max sustainable discount before a chosen IRR floor is
-  // breached can be solved directly rather than guessed at by the model.
-  function _wfDiscountSolveMaxPct(f, a, m, targetFloorPct){
-    const currentIrr=parseFloat(f.irr)||0;
-    const floor=(targetFloorPct!=null && !isNaN(targetFloorPct)) ? targetFloorPct : (currentIrr-1);
-    const targetDropPts=Math.max(0, currentIrr-floor);
-    const targetBps=targetDropPts*100;
+  // Deterministic solver: the precedent-case impact is linear in the discount
+  // %, so the max sustainable discount before a chosen floor is breached can be
+  // solved directly rather than guessed at. The reference metric is a demo knob
+  // — solve against fund net IRR (floor in %), or against a completely
+  // different metric, fund equity multiple / TVPI (floor in x).
+  function _wfDiscountSolveMaxPct(f, a, m, opts){
+    opts = opts||{};
+    const metric = opts.metric==='multiple' ? 'multiple' : 'irr';
     const unitRevM=a.sqft*a.listPricePerSqft/1e6;
-    const maxPct=(m.ctx.remaining>0 && unitRevM>0) ? (targetBps*f.drawn)/(m.ctx.remaining*unitRevM*100) : 0;
-    return {floor, targetDropPts, maxPct:Math.max(0,maxPct)};
+    const remaining=m.ctx.remaining;
+    const solvable=remaining>0 && unitRevM>0;
+    if(metric==='multiple'){
+      // A fund-wide-precedent reduction in sell-out proceeds of QAR X flows
+      // straight through to total value, so the TVPI give-up is X / drawn.
+      const current=parseFloat(f.tvpi)||0;
+      const floor=(opts.floor!=null && !isNaN(opts.floor)) ? opts.floor : +(current-0.02).toFixed(2);
+      const allowable=Math.max(0, current-floor);
+      const maxPct=solvable ? (100*allowable*f.drawn)/(remaining*unitRevM) : 0;
+      return {metric, metricName:'fund equity multiple (TVPI)', current, currentLabel:current.toFixed(2)+'x', floor, floorLabel:floor.toFixed(2)+'x', allowableLabel:allowable.toFixed(2)+'x', maxPct:Math.max(0,maxPct)};
+    }
+    const current=parseFloat(f.irr)||0;
+    const floor=(opts.floor!=null && !isNaN(opts.floor)) ? opts.floor : (current-1);
+    const targetDropPts=Math.max(0, current-floor);
+    const targetBps=targetDropPts*100;
+    const maxPct=solvable ? (targetBps*f.drawn)/(remaining*unitRevM*100) : 0;
+    return {metric, metricName:'fund net IRR', current, currentLabel:current.toFixed(1)+'%', floor, floorLabel:floor.toFixed(1)+'%', allowableLabel:targetDropPts.toFixed(1)+' points', maxPct:Math.max(0,maxPct)};
   }
   // Stat-tile dashboard — the key figures at a glance, computed instantly
   // (no need to wait on the streamed narrative below it).
@@ -21496,7 +21501,7 @@ Answer as Karaya:`;
     return `<div style="margin-top:9px;">
       <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfApprovalAiToggle('${k}',${ai})">${open?'▾':'▸'} Ask Karaya to generate AI analytics</button>
       <div id="wfapr-ai-${k}-${ai}" style="${open?'':'display:none;'}margin-top:9px;padding-top:9px;border-top:1px solid var(--ink-hairline);">
-        <div id="wfapr-insight-${k}-${ai}" style="font-size:10.5px;line-height:1.7;${a._aiInsight?'margin-bottom:9px;':'display:none;'}">${a._aiInsight?fmtKaraya(a._aiInsight):''}</div>
+        <div id="wfapr-insight-${k}-${ai}" style="font-size:10.5px;line-height:1.7;${a._aiInsight?'margin-bottom:9px;':'display:none;'}">${a._aiInsight?_fmtDiscountSections(a._aiInsight):''}</div>
         <button class="wf-btn" style="font-size:9.5px;padding:6px 10px;margin-bottom:9px;" onclick="_wfApprovalGenInsight('${k}',${ai})">${a._aiInsight?'↻ Regenerate AI analytics':'✦ Generate AI analytics'}</button>
         <div id="wfapr-chatlog-${k}-${ai}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:200px;overflow-y:auto;">${chatLogHtml}</div>
         <div style="display:flex;gap:8px;">
@@ -21521,11 +21526,11 @@ Answer as Karaya:`;
     const slot=document.getElementById(`wfapr-insight-${k}-${ai}`); if(!slot) return;
     slot.style.display='block'; slot.style.marginBottom='9px';
     slot.innerHTML='<span class="kr-stream-text"></span><span class="kr-caret">▍</span>';
-    const fallback=`**${a.t}** is currently **${a.status}** (${a.chain}). Set against ${f.name}'s current position — QAR ${f.nav}M NAV, ${f.irr} net IRR, QAR ${f.drawn}M drawn of ${f.committed}M committed — this sits within the fund's normal governance flow with no material NAV or covenant risk at this stage. Recommend proceeding through the remaining steps on the approval chain shown.`;
-    const prompt=`You are Karaya, an AI investment analyst. Generate a short AI analysis (3-4 sentences, **bold** the key figures) of this pending fund approval so the reviewer has context before deciding. Fund: ${f.name} (NAV QAR ${f.nav}M, net IRR ${f.irr}, QAR ${f.drawn}M drawn of ${f.committed}M committed). Approval: "${a.t}". Status: ${a.status}. Approval chain: ${a.chain}. Comment on what this approval is for, its scale relative to the fund, and any risk or watch-item worth flagging. No preamble, no heading.`;
+    const fallback=`### Business impact\n- **${a.t}** — currently **${a.status}** (${a.chain})\n- Set against ${f.name}: **QAR ${f.nav}M** NAV, **${f.irr}** net IRR, **QAR ${f.drawn}M** drawn of **QAR ${f.committed}M** committed\n- Sits within the fund's normal governance flow; approving it keeps the current step on the chain moving without altering the fund's return or funding profile\n\n### Risk\n- None material at this stage — no NAV write-down, covenant breach or liquidity call is triggered by this decision on its own`;
+    const prompt=`You are Karaya, an AI investment analyst. For this pending fund approval, write a brief in EXACTLY two sections, each starting with a markdown header on its own line: "### Business impact" then "### Risk". Under each header give 2-4 short bullet points starting with "- ", and **bold** the key figures. Under "Risk", flag any genuine risk or watch-item this approval creates; if there is no material risk, write a single bullet that says exactly "- None". Fund: ${f.name} (NAV QAR ${f.nav}M, net IRR ${f.irr}, QAR ${f.drawn}M drawn of ${f.committed}M committed). Approval: "${a.t}". Status: ${a.status}. Approval chain: ${a.chain}. No preamble or conclusion outside the two sections.`;
     const out=await karayaStreamInto(slot, prompt, 'quick_insight', fallback);
     a._aiInsight=out||fallback;
-    slot.innerHTML=fmtKaraya(a._aiInsight);
+    slot.innerHTML=_fmtDiscountSections(a._aiInsight);
     const genBtn=slot.nextElementSibling; if(genBtn&&genBtn.tagName==='BUTTON') genBtn.textContent='↻ Regenerate AI analytics';
   }
   function _wfApprovalChatRender(k, ai){
@@ -21593,9 +21598,8 @@ Answer as Karaya:`;
       <div style="margin-top:13px;padding-top:12px;border-top:1px solid var(--ink-hairline);">
         <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Ask Karaya about this request</div>
         <div id="wfdisc-chat-${k}-${ai}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:240px;overflow-y:auto;">${chatLogHtml}</div>
-        <div id="wfdisc-preset-${k}-${ai}" style="margin-bottom:8px;${chat.length?'display:none;':''}"><button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfDiscountAskPreset('${k}',${ai})">✦ Try: "Max discount before fund IRR falls below 12%?"</button></div>
         <div style="display:flex;gap:8px;">
-          <input id="wfdisc-input-${k}-${ai}" placeholder="Ask about this approval — e.g. max discount before IRR falls below 12%" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDiscountAsk('${k}',${ai})">
+          <input id="wfdisc-input-${k}-${ai}" placeholder="Ask about this approval — e.g. max discount before IRR falls below 11%, or before equity multiple drops under 1.10x" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDiscountAsk('${k}',${ai})">
           <button class="wf-btn ghost" onclick="_wfDiscountAsk('${k}',${ai})">Ask</button>
         </div>
       </div>
@@ -21630,19 +21634,12 @@ Answer as Karaya:`;
     log.innerHTML=(a._chat||[]).map((c,i)=>`<div ${c.cls==='bot'?`id="wfdisc-chat-b-${k}-${ai}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
     log.scrollTop=log.scrollHeight;
   }
-  function _wfDiscountAskPreset(k, ai){
-    const input=document.getElementById(`wfdisc-input-${k}-${ai}`);
-    if(input) input.value="What's the maximum discount we could offer before fund IRR falls below 12%?";
-    const preset=document.getElementById(`wfdisc-preset-${k}-${ai}`); if(preset) preset.style.display='none';
-    _wfDiscountAsk(k, ai);
-  }
   function _wfDiscountAsk(k, ai){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const a=f.approvals[ai]; if(!a) return;
     const input=document.getElementById(`wfdisc-input-${k}-${ai}`); if(!input) return;
     const q=(input.value||'').trim(); if(!q) return;
     input.value='';
-    const preset=document.getElementById(`wfdisc-preset-${k}-${ai}`); if(preset) preset.style.display='none';
     a._chat=a._chat||[];
     a._chat.push({cls:'user', html:q.replace(/</g,'&lt;')});
     // "make me a pdf/excel of this request" → real downloadable file.
@@ -21655,13 +21652,20 @@ Answer as Karaya:`;
       return;
     }
     const m=_wfDiscountMath(f,a);
-    const isSolve=/max(?:imum)?\s+discount|discount.*before.*irr|irr.*falls?\s*below|irr.*below/i.test(q);
+    const wantsMultiple=/multiple|moic|tvpi/i.test(q);
+    const isSolve=/max(?:imum)?\s+discount|discount.*(?:before|until).*(?:irr|multiple|moic|tvpi|return)|(?:irr|multiple|moic|tvpi|return).*(?:falls?|drops?|dips?|goes?)?\s*(?:below|under|beneath)/i.test(q);
     if(isSolve){
-      const floorMatch=q.match(/(\d+(?:\.\d+)?)\s*%/);
-      const floor=floorMatch?parseFloat(floorMatch[1]):null;
-      const sol=_wfDiscountSolveMaxPct(f,a,m,floor);
+      let floor=null;
+      if(wantsMultiple){
+        const mm=q.match(/(\d+(?:\.\d+)?)\s*x/i) || q.match(/(?:below|under|beneath)\s*(\d+(?:\.\d+)?)/i) || q.match(/(\d+\.\d+)/);
+        floor=mm?parseFloat(mm[1]):null;
+      } else {
+        const fm2=q.match(/(\d+(?:\.\d+)?)\s*%/) || q.match(/(?:below|under|beneath)\s*(\d+(?:\.\d+)?)/i);
+        floor=fm2?parseFloat(fm2[1]):null;
+      }
+      const sol=_wfDiscountSolveMaxPct(f,a,m,{metric:wantsMultiple?'multiple':'irr', floor});
       const within=a.discountPct<=sol.maxPct;
-      const html=fmtKaraya(`Solving against the **precedent-case** model (this % discount read through to all ${m.ctx.remaining} remaining units in ${m.ctx.name}):\n\n- Current fund net IRR: **${f.irr}**\n- Target floor used: **${sol.floor.toFixed(1)}%**${floor!=null?' (as you specified)':' (default: 1.0-point cushion below current IRR)'}\n- Allowable IRR give-up: **${sol.targetDropPts.toFixed(1)} points**\n- **Maximum sustainable discount: ~${sol.maxPct.toFixed(1)}%** before a fund-wide precedent breaches that floor\n\nThe requested **${a.discountPct}%** is **${within?'within':'ABOVE'}** this ceiling on a fund-wide-precedent basis — though as a one-off exception on a single unit it stays immaterial regardless (see the Isolated impact figures above).`);
+      const html=fmtKaraya(`Solving against the **precedent-case** model (this % discount read through to all ${m.ctx.remaining} remaining units in ${m.ctx.name}):\n\n- Reference metric: **${sol.metricName}**\n- Current level: **${sol.currentLabel}**\n- Floor used: **${sol.floorLabel}**${floor!=null?' (as you specified)':' (default cushion below current)'}\n- Allowable give-up: **${sol.allowableLabel}**\n- **Maximum sustainable discount: ~${sol.maxPct.toFixed(1)}%** before a fund-wide precedent breaches that floor\n\nThe requested **${a.discountPct}%** is **${within?'within':'ABOVE'}** this ceiling on a fund-wide-precedent basis — though as a one-off exception on a single unit it stays immaterial regardless (see the Isolated impact figures above).`);
       a._chat.push({cls:'bot', html});
       _wfDiscountChatRender(k,ai);
       return;
