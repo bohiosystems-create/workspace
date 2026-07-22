@@ -20535,7 +20535,9 @@ Answer as Karaya:`;
     if(!_looksReadable(text)) text='';
     _wfNewFund.docs.push({name:String(file.name||'Uploaded document').replace(/\.[^.]+$/,''), type:ext.toUpperCase().slice(0,4), text:text.slice(0,6000)});
     _wfNewFund.text+= (_wfNewFund.text?'\n':'') + text;
-    _wfFundNewRenderStep1();
+    // run the term-extraction + redline over the merged text so an uploaded
+    // agreement surfaces its headline terms exactly like the sample path does
+    _wfFundNewRunRedline();
   }
   function _wfFundNewRunRedline(){
     const {terms, issues}=_wfNewFundAnalyze(_wfNewFund.text);
