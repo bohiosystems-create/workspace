@@ -20373,8 +20373,38 @@ Answer as Karaya:`;
   // terms just extracted). Step 3: name it and it joins the fund list.
   let _wfNewFund=null;
   function _wfFundNewStart(){
-    _wfNewFund={ step:1, docs:[], text:'', terms:{}, issues:null, model:null };
+    _wfNewFund={ step:1, docs:[], text:'', terms:{}, issues:null, model:null, chat:[] };
     _wfFundNewRenderStep1();
+  }
+  // a short, deterministic acknowledgement of whatever's been captured so far —
+  // used offline and while the live AI reply streams in.
+  function _wfNewFundChatFallback(terms){
+    const bits=[];
+    if(terms.size) bits.push('a target size of **'+terms.size+'**');
+    if(terms.fee) bits.push('a **'+terms.fee+'** management fee');
+    if(terms.promote) bits.push('a **'+terms.promote+'** promote');
+    if(terms.pref) bits.push('an **'+terms.pref+'** preferred return');
+    if(terms.term) bits.push('a **'+terms.term+'** term');
+    return bits.length ? ('Noted — captured '+bits.join(', ')+' so far. Keep going, or move on to the financial model when you\'re ready.') : 'Noted — added that to the fund\'s context. Mention a fee, promote, preferred return, term or target size and I\'ll pull it into the headline terms above.';
+  }
+  function _wfFundNewChatSend(){
+    const input=document.getElementById('wfnf-chat-input'); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    const nf=_wfNewFund; if(!nf) return;
+    nf.chat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    nf.text += (nf.text?'\n':'') + q;
+    const botIdx=nf.chat.length;
+    nf.chat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    // re-runs extraction over the merged text, re-renders step 1, and refreshes
+    // the redline narrative too — so a chat message counts exactly like a document
+    _wfFundNewRunRedline();
+    setTimeout(()=>{
+      const el=document.getElementById('wfnf-chat-b'+botIdx); if(!el) return;
+      const fallback=_wfNewFundChatFallback(nf.terms);
+      const prompt=`You are Karaya, helping a Chief Investment Officer establish a new fund by describing it in natural language instead of filling a form. They just said: "${q}". Everything captured so far across the conversation and any uploaded documents: ${Object.keys(nf.terms).length?JSON.stringify(nf.terms):'nothing extractable yet'}. Reply in 1 short sentence acknowledging what you captured from THIS message specifically (fund size, fee, promote, preferred return, term, strategy or geography — whichever it mentioned); if nothing was extractable, just confirm you've noted it as context. Plain text, **bold** any figure. No preamble, no questions back.`;
+      karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ nf.chat[botIdx].html=fmtKaraya(out||fallback); }).catch(()=>{ nf.chat[botIdx].html=fmtKaraya(fallback); el.innerHTML=fmtKaraya(fallback); });
+    }, 30);
   }
   // very small rule-based reader: pulls headline terms out of whatever text
   // it's given, and flags standard clauses that are missing — works the same
@@ -20424,10 +20454,12 @@ Answer as Karaya:`;
     setTimeout(()=>{
       const narr=document.getElementById('wfnf-redline-narr'); if(!narr) return;
       const sevWord=n=>n.sev==='high'?'must-fix':n.sev==='med'?'should-fix':'worth flagging';
+      const nDocs=_wfNewFund.docs.length;
+      const src=nDocs ? `Read ${nDocs} document${nDocs>1?'s':''} (${_wfNewFund.docs.map(d=>d.name).join(', ')})` : `From what you've described so far`;
       const fallback=issues.length
-        ? `Read ${_wfNewFund.docs.length} document${_wfNewFund.docs.length>1?'s':''} (${_wfNewFund.docs.map(d=>d.name).join(', ')})${Object.keys(terms).length?`. Extracted terms: ${Object.entries(terms).map(([k,v])=>k+' '+v).join(', ')}.`:'.'} Found **${issues.length} issue${issues.length>1?'s':''}** worth raising before this goes to counsel — the highest priority is **${issues[0].issue}** (${sevWord(issues[0])}): ${issues[0].rec} The rest are listed below with a specific recommendation for each.`
-        : `Read ${_wfNewFund.docs.length} document${_wfNewFund.docs.length>1?'s':''}. All the standard protective clauses (key-man, clawback, catch-up, indemnification cap, LPAC) are present — nothing to redline structurally; worth a legal pass on the numbers only.`;
-      const prompt=`You are Karaya, redlining a draft fund/developer agreement for a Chief Investment Officer who is about to establish a new fund. Extracted terms: ${JSON.stringify(terms)}. Flagged issues: ${issues.map(i=>i.issue+' — '+i.rec).join(' | ')||'none — all standard protective clauses present'}. In 2-3 sentences, summarise what you read and the single most important issue to fix before this goes to counsel. Plain text, **bold** the key term/number and the top issue name. No preamble, no bullet list (the issues already render as a list below your summary).`;
+        ? `${src}${Object.keys(terms).length?`. Extracted terms: ${Object.entries(terms).map(([k,v])=>k+' '+v).join(', ')}.`:'.'} Found **${issues.length} issue${issues.length>1?'s':''}** worth raising before this goes to counsel — the highest priority is **${issues[0].issue}** (${sevWord(issues[0])}): ${issues[0].rec} The rest are listed below with a specific recommendation for each.`
+        : `${src}. All the standard protective clauses (key-man, clawback, catch-up, indemnification cap, LPAC) are present — nothing to redline structurally; worth a legal pass on the numbers only.`;
+      const prompt=`You are Karaya, redlining a draft fund/developer agreement for a Chief Investment Officer who is about to establish a new fund${nDocs?'':' (no documents uploaded yet — working from what they\'ve described in chat)'}. Extracted terms: ${JSON.stringify(terms)}. Flagged issues: ${issues.map(i=>i.issue+' — '+i.rec).join(' | ')||'none — all standard protective clauses present'}. In 2-3 sentences, summarise what you have and the single most important issue to fix before this goes to counsel. Plain text, **bold** the key term/number and the top issue name. No preamble, no bullet list (the issues already render as a list below your summary).`;
       karayaStreamInto(narr, prompt, 'quick_insight', fallback).catch(()=>{ narr.innerHTML=fmtKaraya(fallback); });
     }, 30);
   }
@@ -20449,6 +20481,15 @@ Answer as Karaya:`;
       ${!nf.issues.length?'<div style="font-size:10.5px;color:var(--ink-soft);">No missing standard clauses detected.</div>':''}
       <button class="wf-btn" style="margin-top:8px;" onclick="_wfFundNewStep2()">Continue to the financial model →</button>
     ` : '';
+    const chatLogHtml=(nf.chat||[]).map((m,i)=>`<div id="${m.cls==='bot'?'wfnf-chat-b'+i:''}" style="align-self:${m.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${m.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${m.cls==='user'?'var(--bg)':'var(--ink)'};border:${m.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${m.html}</div>`).join('');
+    const chatHtml=`<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:14px 16px;margin:14px 0;">
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">✦ Or just tell Karaya about the fund</div>
+      ${chatLogHtml?`<div id="wfnf-chat-log" style="display:flex;flex-direction:column;gap:8px;margin-bottom:11px;max-height:240px;overflow-y:auto;">${chatLogHtml}</div>`:''}
+      <div style="display:flex;gap:8px;">
+        <input id="wfnf-chat-input" placeholder="e.g. core-plus logistics fund, QAR 300M target, 2% fee, 20% promote over an 8% pref, 7-year term, Doha South" style="flex:1;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfFundNewChatSend()">
+        <button class="wf-btn" onclick="_wfFundNewChatSend()">Send</button>
+      </div>
+    </div>`;
     modal.innerHTML=`
       <div class="wf-head">
         <div>
@@ -20469,9 +20510,11 @@ Answer as Karaya:`;
         </div>
         ${docsHtml}
         ${nf.docs.length&&!nf.issues?`<div style="margin-top:10px;"><button class="wf-btn" onclick="_wfFundNewRunRedline()">✦ Read &amp; redline these documents</button></div>`:''}
+        ${chatHtml}
         ${termsHtml}
         ${redlineHtml}
       </div>`;
+    const log=document.getElementById('wfnf-chat-log'); if(log) log.scrollTop=log.scrollHeight;
   }
   function _wfFundNewStep2(){
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
@@ -20585,7 +20628,10 @@ Answer as Karaya:`;
         terms:[nf.terms.fee?nf.terms.fee+' management fee':null, nf.terms.promote?nf.terms.promote+' promote':null, nf.terms.pref?'over a '+nf.terms.pref+' preferred return':null, nf.terms.term?nf.terms.term+' term':null].filter(Boolean).join(' · ')||'Terms to be finalised with counsel',
         lps:[['GP commit — Bohio Capital', +(size*0.03).toFixed(1), 'GP']] },
       approvals:[], stakeholders:[['GP','Bohio Capital Partners','Sponsor & fund manager']], topics:[],
-      docs:(nf.docs||[]).map(d=>({name:d.name, type:d.type, _uploaded:true, text:d.text, versions:[{v:'v.1', date:'Just now', src:'Establish-a-fund wizard', note:(d.text||'').replace(/\s+/g,' ').slice(0,140)+'…'}]})),
+      docs:(nf.docs||[]).map(d=>({name:d.name, type:d.type, _uploaded:true, text:d.text, versions:[{v:'v.1', date:'Just now', src:'Establish-a-fund wizard', note:(d.text||'').replace(/\s+/g,' ').slice(0,140)+'…'}]}))
+        .concat((nf.chat||[]).some(m=>m.cls==='user') ? [{name:'Setup conversation notes', type:'NOTE', _uploaded:true,
+          text:(nf.chat||[]).filter(m=>m.cls==='user').map(m=>m.html.replace(/&lt;/g,'<')).join('\n'),
+          versions:[{v:'v.1', date:'Just now', src:'Establish-a-fund wizard · chat', note:'Free-form details captured while chatting with Karaya during setup.'}]}] : []),
       models:nf.model?[nf.model]:[],
       emails:[] };
     WF_FUNDS.unshift(fund);
