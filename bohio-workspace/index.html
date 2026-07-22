@@ -21057,26 +21057,18 @@ Answer as Karaya:`;
     }
     else if(sec==='modelling'){
       const fmodels=(f.models||[]);
-      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px;">Upload the fund's <b style="color:var(--ink);">master model</b> (or any Excel model) — Karaya recreates it live and can <b style="color:var(--ink);">suggest modifications</b> grounded in the fund documents, the ERP integration and your Outlook threads. Understands REIT metrics: NAV · FFO · AFFO · FFO/AFFO ratio · cap rate.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-        <button class="wf-btn" onclick="document.getElementById('wff-modelup').click()">Upload fund master model (Excel)</button>
-        <input type="file" id="wff-modelup" style="display:none;" accept=".xlsx,.xls,.csv" onchange="_wfFundModelUpload('${k}', this.files[0])">
+      panel=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px;">
+        <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;">The fund's <b style="color:var(--ink);">master model</b> (or any Excel model) — Karaya recreates it live and can <b style="color:var(--ink);">suggest modifications</b> grounded in the fund documents, the ERP integration and your Outlook threads. Understands REIT metrics: NAV · FFO · AFFO · FFO/AFFO ratio · cap rate.</div>
+        <button class="wf-btn" style="width:34px;height:34px;padding:0;border-radius:50%;font-size:18px;line-height:1;flex-shrink:0;" title="Add a model" onclick="_wfModelPlusMenu(event,'${k}')">+</button>
       </div>
+      <input type="file" id="wff-modelup" style="display:none;" accept=".xlsx,.xls,.csv" onchange="_wfFundModelUpload('${k}', this.files[0])">
       <div id="wff-model-slot"></div>
       ${fmodels.length?`<div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:6px 0 8px;">Fund models</div>
       <div class="model-preview-wrap">${fmodels.map((m,mi)=>_modelPreviewTileHTML(m,
         `closeWorkflow();currentProject=null;openEditor(WF_FUNDS.find(x=>x.k==='${k}').models[${mi}],{kind:'fund',k:'${k}'})`,
-        `_wfFundSuggest('${k}',${mi})`)).join('')}</div>`:''}
-      <div id="wff-suggest-slot"></div>
-      <div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:14px 0 8px;">Build from a document</div>
-      ${(f.docs||[]).map(d=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,9,25,0.06);">
-        <div style="width:30px;height:30px;flex-shrink:0;border-radius:9px;background:${f.col};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">${d.type}</div>
-        <div style="flex:1;min-width:0;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.name}${d._uploaded?' <span style="font-size:7.5px;color:#b45309;font-weight:700;">UPLOADED</span>':''}</div>
-        <button class="wf-btn ghost" style="padding:6px 12px;flex-shrink:0;" onclick="_wfFundBuildModel('${k}','${encodeURIComponent(d.name)}')">Build model</button>
-        <button class="wf-btn ghost" style="padding:6px 12px;flex-shrink:0;" onclick="_wfFundBuildDash('${k}','${encodeURIComponent(d.name)}')">Dashboard</button>
-      </div>`).join('')}
-      <div style="margin-top:12px;"><button class="wf-btn ghost" onclick="document.getElementById('wff-docup2').click()">Upload a document to model from</button>
-      <input type="file" id="wff-docup2" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md,.csv,.xlsx" onchange="_wfFundDocUpload('${k}', this.files[0])"></div>`;
+        `_wfFundSuggest('${k}',${mi})`)).join('')}</div>`
+      : `<div style="font-size:11px;color:var(--ink-soft);padding:26px 0;text-align:center;">No models yet — press <b>+</b> to upload one or build from scratch.</div>`}
+      <div id="wff-suggest-slot"></div>`;
     }
     else if(sec==='projects'){
       const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
@@ -21923,46 +21915,51 @@ Answer as Karaya:`;
     ov.style.display='flex';
     document.getElementById('wfacc-confirm').onclick=()=>{ ov.style.display='none'; if(onDone) onDone(); };
   }
-  // Build a financial model or a dashboard from ANY fund document
-  function _wfFundBuildModel(k, encName){
+  // "+" menu on the fund's Financial Modelling section: upload, or build a
+  // model from scratch — grounded in the fund's own documents.
+  function _wfModelPlusMenu(ev, k){
+    ev.stopPropagation();
+    const old=document.getElementById('wfmodel-plus-pop'); if(old) old.remove();
+    const pop=document.createElement('div'); pop.id='wfmodel-plus-pop';
+    pop.style.cssText='position:fixed;z-index:10004;background:var(--paper);border:1px solid var(--ink-hairline);border-radius:12px;box-shadow:0 16px 44px rgba(0,9,25,0.25);min-width:200px;overflow:hidden;';
+    const item=(label,onclick)=>`<button style="display:block;width:100%;text-align:left;padding:12px 15px;border:none;background:transparent;font-family:inherit;font-size:11px;cursor:pointer;color:var(--ink);" onmouseover="this.style.background='rgba(0,9,25,0.05)'" onmouseout="this.style.background='transparent'" onclick="${onclick}">${label}</button>`;
+    pop.innerHTML=item('📤&nbsp; Upload model', `document.getElementById('wfmodel-plus-pop').remove();document.getElementById('wff-modelup').click()`)
+      + `<div style="border-top:1px solid var(--ink-hairline);"></div>`
+      + item('✦&nbsp; Build from scratch', `document.getElementById('wfmodel-plus-pop').remove();_wfFundModelScratch('${k}')`);
+    pop.addEventListener('click', e=>e.stopPropagation());
+    document.body.appendChild(pop);
+    const r=pop.getBoundingClientRect();
+    pop.style.left=Math.max(10, Math.min(ev.clientX-r.width+18, window.innerWidth-r.width-10))+'px';
+    pop.style.top=Math.min(ev.clientY+10, window.innerHeight-r.height-10)+'px';
+    setTimeout(()=>{ document.addEventListener('click', function h(){ const el=document.getElementById('wfmodel-plus-pop'); if(el) el.remove(); document.removeEventListener('click',h); }); }, 60);
+  }
+  // "Build from scratch" — the vibe-coding path: synthesizes a full
+  // Assumptions/Cashflow/Returns model with no upload needed, grounded in
+  // this fund's own documents (a headline QAR figure seeds project cost),
+  // its ERP position, and Outlook — same three sources _wfFundSuggest cites.
+  async function _wfFundModelScratch(k){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
-    const docName=decodeURIComponent(encName);
-    const d=(f.docs||[]).find(x=>x.name===docName);
+    const slot=document.getElementById('wff-model-slot'); if(!slot) return;
+    slot.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-bottom:12px;font-size:11px;line-height:1.6;">Building a model from scratch, grounded in ${f.name}'s documents, ERP and Outlook…</div>`;
+    const ctx=await _wfFundContext(f);
     const tmp=document.createElement('div'); tmp.innerHTML=assumptionFormHTML();
     const form=tmp.querySelector('.asm-form');
-    const nm=form.querySelector('[data-asm="name"]'); if(nm) nm.value=docName;
-    // pull a headline size out of the document text when present (QAR xxxM)
-    if(d&&d.text){ const m=d.text.match(/QAR\s*([\d,.]+)\s*M/i); if(m){ const c=form.querySelector('[data-asm="cost"]'); if(c) c.value=m[1]; } }
+    const set=(kk,v)=>{ const el=form.querySelector(`[data-asm="${kk}"]`); if(el&&v!=null) el.value=v; };
+    const fname=f.name.replace(/^Bohio RE /,'')+' — Master Model';
+    set('name', fname);
+    let costSeed=f.committed;
+    const m=(ctx.docs||'').match(/QAR\s*([\d,.]+)\s*M/i);
+    if(m){ const n=parseFloat(m[1].replace(/,/g,'')); if(!isNaN(n)) costSeed=n; }
+    set('cost', costSeed);
+    set('ltv', 60);
     const {wb,v,irr,mult,noi1}=_buildWbFromAssumptions(form);
-    const doc={type:'XLSX', name:docName+' — Model', version:'v.01 · From fund document', updated:'Just now · Karaya', isGenerated:true, wbData:wb,
-      notes:'Built by Karaya from the fund document "'+docName+'"'+(d&&d.text?' (its figures seeded the assumptions)':'')+'.'};
-    const did='fin_'+Date.now(); _wfFinDocs[did]=doc;
-    const slot=document.getElementById('wff-model-slot');
-    if(slot) slot.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-bottom:12px;font-size:11px;line-height:1.65;">
-      Built <b>${doc.name}</b> from the document — Year-1 NOI <b>QAR ${noi1.toFixed(1)}M</b>, equity multiple <b>${mult.toFixed(2)}x</b>${irr!=null?`, IRR <b>${(irr*100).toFixed(1)}%</b>`:''}.
-      <button class="wf-btn" style="margin-top:9px;" onclick="closeWorkflow();openEditor(_wfFinDocs['${did}'],{kind:'fund',k:'${k}'})">Open as a Bohio model →</button></div>`;
-  }
-  function _wfFundBuildDash(k, encName){
-    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
-    const docName=decodeURIComponent(encName);
-    const d=(f.docs||[]).find(x=>x.name===docName);
-    // extract labelled figures from the document text; fall back to fund KPIs
-    const tiles=[];
-    if(d&&d.text){
-      const re=/([A-Za-z][A-Za-z /&%-]{2,28}?)\s*(?:of|at|:|—|-)?\s*QAR\s*([\d,.]+)\s*M/g; let m;
-      while((m=re.exec(d.text))&&tiles.length<6){ tiles.push([m[1].trim(), 'QAR '+m[2]+'M']); }
-      const pr=/([A-Za-z][A-Za-z /&%-]{2,28}?)\s*(?:of|at|:|—|-)?\s*([\d.]+)\s*%/g;
-      while((m=pr.exec(d.text))&&tiles.length<8){ tiles.push([m[1].trim(), m[2]+'%']); }
-    }
-    if(!tiles.length) tiles.push(['Committed','QAR '+f.committed+'M'],['Drawn','QAR '+f.drawn+'M'],['NAV','QAR '+f.nav+'M'],['Net IRR',f.irr]);
-    const slot=document.getElementById('wff-model-slot');
-    if(slot) slot.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-bottom:12px;">
-      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Dashboard — from "${docName.replace(/</g,'&lt;')}"</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px;">
-        ${tiles.map(t=>`<div style="border:1px solid var(--ink-hairline);border-radius:11px;padding:10px 12px;"><div style="font-size:7.5px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t[0].replace(/</g,'&lt;')}</div><div style="font-size:17px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;">${t[1]}</div></div>`).join('')}
-      </div>
-      <div style="font-size:9px;color:var(--ink-soft);margin-top:8px;">✦ ${d&&d.text?'Figures extracted by Karaya from the document text':'No extractable figures in this document — showing the fund’s own KPIs'}.</div>
-    </div>`;
+    const docCount=(f.docs||[]).length;
+    const doc={type:'XLSX', name:fname, version:'v.01 · Vibe-coded by Karaya', updated:'Just now · Karaya', isGenerated:true, _fundMaster:true, wbData:wb,
+      notes:'Built by Karaya from scratch — grounded in '+docCount+' fund document'+(docCount===1?'':'s')+', the ERP integration'+(ctx.live?' and the live Outlook mailbox':' and Outlook threads')+'.'};
+    f.models=f.models||[]; const ex=f.models.findIndex(mm=>mm.name===doc.name);
+    if(ex>=0) f.models[ex]=doc; else f.models.unshift(doc);
+    _wfFundDetail(k,'modelling');
+    setTimeout(()=>{ const s=document.getElementById('wff-model-slot'); if(s) s.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:11px;line-height:1.6;">Vibe-coded <b>${fname}</b> from scratch — Year-1 NOI <b>QAR ${noi1.toFixed(1)}M</b>, equity multiple <b>${mult.toFixed(2)}x</b>${irr!=null?`, IRR <b>${(irr*100).toFixed(1)}%</b>`:''} over a ${v.hold}-year hold. Grounded in <b>${docCount}</b> fund document${docCount===1?'':'s'}, the ERP integration and ${ctx.live?'the live Outlook mailbox':'Outlook threads'}. Open it, or ask me to <b>suggest modifications</b>.</div>`; }, 60);
   }
 
   // ---- fund documents: upload (persisted) + stakeholders chart generator ----
