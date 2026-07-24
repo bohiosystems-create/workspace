@@ -20610,10 +20610,10 @@ Answer as Karaya:`;
         terms:'1.5% management fee · 20% promote over an 8% preferred return · 50/50 catch-up · 8-year term + 2×1-year extensions',
         lps:[['Gulf Pension Fund',250,'Anchor LP'],['Qatari Family Office Consortium',180,'LP'],['Rayyan Capital Partners',150,'LP · AC seat'],['GCC Sovereign Co-Invest',132.5,'LP'],['GP commit — Bohio Capital',37.5,'GP']] },
       approvals:[
-        {kind:'discount', t:'Sales discount approval — Unit 2114, Marina Tower (20% below list)', chain:'Sales ✓ submitted → Chief Investment Officer (pending)', status:'Awaiting CIO', cls:'a',
-         unit:'Unit 2114 · Marina Tower · 2-bed, 1,450 sqft', projectId:1, listPricePerSqft:2080, sqft:1450, discountPct:20,
+        {kind:'discount', t:'Sales discount approval — 6-unit bundle, Marina Tower (20% below list)', chain:'Sales ✓ submitted → Chief Investment Officer (pending)', status:'Awaiting CIO', cls:'a',
+         unit:'6-unit bundle · Marina Tower · mixed 1–2 bed, 1,450 sqft avg (8,700 sqft total)', projectId:1, listPricePerSqft:2080, sqft:1450, units:6, discountPct:20,
          requestedBy:'Sales — S. Okonkwo', submitted:'Today',
-         reason:'Buyer is a repeat client bundling two units and wants parity with an incentive they saw at a nearby competing launch. Sales wants to close before month-end to protect the current absorption pace.'},
+         reason:'Repeat institutional buyer is acquiring a 6-unit bundle in a single transaction and wants parity with an incentive they saw at a nearby competing launch. Sales wants to close before month-end to protect the current absorption pace.'},
         {t:'Capital Call #7 — SAR 45M · Aurora Logistics Park', chain:'CFO ✓ → Investment Committee (pending) → Managing Partner', status:'In approval', cls:'a'},
         {t:'Investment Approval — Aurora Logistics Park', chain:'Screening PROCEED ✓ → IC session 14 Jul', status:'IC scheduled', cls:'a'},
         {t:'Q2 Distribution — SAR 18M to LPs', chain:'CFO ✓ → IC ✓ → Managing Partner ✓', status:'Approved', cls:'g'}],
@@ -21830,17 +21830,44 @@ Answer as Karaya:`;
   }
   function _wfDiscountMath(f, a){
     const ctx=_wfDiscountProjectCtx[a.projectId]||{name:'the project', totalUnits:200, sold:100, reserved:10, remaining:90, avgAchievedPsf:a.listPricePerSqft*1.03, absorptionPerMonth:10, facility:'the project facility'};
-    const listPrice=a.listPricePerSqft*a.sqft;
+    const units=a.units||1;
+    const unitListPrice=a.listPricePerSqft*a.sqft;      // per unit
+    const listPrice=unitListPrice*units;                 // whole bundle
     const discPrice=listPrice*(1-a.discountPct/100);
-    const savings=listPrice-discPrice;
+    const savings=listPrice-discPrice;                   // foregone revenue on the bundle
     const savingsM=savings/1e6;
-    // isolated (this one unit only) — negligible against fund-level drawn capital
+    // isolated (this bundle only) — still modest against fund-level drawn capital
     const isolatedBps=(savingsM/f.drawn)*10000;
     // precedent scenario — same % discount read through to every remaining unit
     const precedentReductionM=ctx.remaining*(a.sqft*a.listPricePerSqft/1e6)*(a.discountPct/100);
     const precedentBps=(precedentReductionM/f.drawn)*10000;
-    const newBlendedPsf=(ctx.avgAchievedPsf*ctx.sold + a.listPricePerSqft*(1-a.discountPct/100)*1)/(ctx.sold+1);
-    return {ctx, listPrice, discPrice, savings, savingsM, isolatedBps, precedentReductionM, precedentBps, newBlendedPsf};
+    const discPsf=a.listPricePerSqft*(1-a.discountPct/100);
+    const newBlendedPsf=(ctx.avgAchievedPsf*ctx.sold + discPsf*units)/(ctx.sold+units);
+    return {ctx, units, unitListPrice, listPrice, discPrice, savings, savingsM, isolatedBps, precedentReductionM, precedentBps, newBlendedPsf};
+  }
+  // An extensive, structured upside/downside brief for the discount decision —
+  // deterministic, grounded in _wfDiscountMath, so the demo always gives a full
+  // answer even offline.
+  function _wfDiscountUpDownText(f, a, m){
+    const soldPct=Math.round((m.ctx.sold/m.ctx.totalUnits)*100);
+    const premiumPct=((m.ctx.avgAchievedPsf/a.listPricePerSqft-1)*100).toFixed(1);
+    const absorbMonths=(m.units/m.ctx.absorptionPerMonth).toFixed(1);
+    return `### Upside of approving\n`
+      + `- **Immediate sell-down**: clears a **${m.units}-unit bundle** in one transaction — roughly **${absorbMonths} months** of absorption pulled forward at the current ${m.ctx.absorptionPerMonth} units/month pace\n`
+      + `- **Cash & debt**: brings forward **SAR ${(m.discPrice/1e6).toFixed(1)}M** of proceeds that sweep against ${m.ctx.facility}, accelerating the paydown curve and DSCR headroom\n`
+      + `- **Momentum**: protects the launch's absorption story into month-end and removes ${m.units} units of standing inventory risk\n`
+      + `- **Relationship**: a repeat institutional buyer — supports future bulk take-up and referral demand\n`
+      + `- **Fund-level impact is modest**: isolated IRR give-up of only **${m.isolatedBps.toFixed(1)} bps** against SAR ${f.drawn}M drawn\n\n`
+      + `### Downside / risks\n`
+      + `- **Foregone revenue** on the bundle: **SAR ${Math.round(m.savings).toLocaleString()}** (${a.discountPct}% off a SAR ${Math.round(m.listPrice).toLocaleString()} list)\n`
+      + `- **Pricing precedent** is the real risk: ${m.ctx.name} is **${soldPct}% sold** at **${premiumPct}% above** list — a visible ${a.discountPct}% bulk discount can reset buyer expectations across the remaining **${m.ctx.remaining}** units\n`
+      + `- **Precedent-case exposure**: if read through to all remaining units, sell-out proceeds fall by ~**SAR ${m.precedentReductionM.toFixed(1)}M** (~**${(m.precedentBps/100).toFixed(1)} pts** of fund IRR)\n`
+      + `- **Blended price drift**: achieved price moves toward **SAR ${m.newBlendedPsf.toFixed(0)}/sqft**, eroding the premium-to-list track record shown to LPs\n`
+      + `- **Optics**: a ${a.discountPct}% bulk deal is well outside the only comparable incentive on the books (a 5% payment-plan sweetener)\n\n`
+      + `### Net view\n`
+      + `- On the numbers the **bundle itself is not decision-relevant** to fund returns — the exposure is entirely about **precedent and optics**\n`
+      + `- **Approve as a documented one-off** tied to this bulk transaction; do **not** publish it as a standing discount band; flag to Investor Relations ahead of the next LP report\n`
+      + `- Ask me to *"solve the max discount before fund IRR falls below 12%"* to size the safe ceiling, or *"generate a mitigation plan"* to export the guardrails as a PDF`;
   }
   // Deterministic solver: the precedent-case impact is linear in the discount
   // %, so the max sustainable discount before a chosen floor is breached can be
@@ -22039,8 +22066,12 @@ Answer as Karaya:`;
       <div style="margin-top:13px;padding-top:12px;border-top:1px solid var(--ink-hairline);">
         <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Ask Karaya about this request</div>
         <div id="wfdisc-chat-${k}-${ai}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:240px;overflow-y:auto;">${chatLogHtml}</div>
+        ${!chat.length?`<div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="wf-btn ghost" style="font-size:9px;padding:5px 9px;" onclick="(function(){const i=document.getElementById('wfdisc-input-${k}-${ai}');i.value='What is the upside and downside of approving this discount?';_wfDiscountAsk('${k}',${ai});})()">Upside &amp; downside</button>
+          <button class="wf-btn ghost" style="font-size:9px;padding:5px 9px;" onclick="(function(){const i=document.getElementById('wfdisc-input-${k}-${ai}');i.value='What is the maximum discount before fund IRR falls below 12%?';_wfDiscountAsk('${k}',${ai});})()">Max discount vs IRR floor</button>
+        </div>`:''}
         <div style="display:flex;gap:8px;">
-          <input id="wfdisc-input-${k}-${ai}" placeholder="Ask about this approval — e.g. max discount before IRR falls below 11%, or before equity multiple drops under 1.10x" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDiscountAsk('${k}',${ai})">
+          <input id="wfdisc-input-${k}-${ai}" placeholder="Ask about this approval — e.g. upside &amp; downside, or max discount before IRR falls below 12%" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDiscountAsk('${k}',${ai})">
           <button class="wf-btn ghost" onclick="_wfDiscountAsk('${k}',${ai})">Ask</button>
         </div>
       </div>
@@ -22101,6 +22132,14 @@ Answer as Karaya:`;
       return;
     }
     const m=_wfDiscountMath(f,a);
+    // "what's the upside and downside of approving this?" → an extensive,
+    // structured brief rather than a one-liner.
+    const wantsUpDown=/upside|downside|pros?\s+and\s+cons?|benefits?\s+and\s+risks?|for\s+and\s+against|advantages?\s+and\s+disadvantages?|case\s+for|case\s+against|should\s+(?:we|i)\s+approve/i.test(q);
+    if(wantsUpDown){
+      a._chat.push({cls:'bot', html:_fmtDiscountSections(_wfDiscountUpDownText(f,a,m))});
+      _wfDiscountChatRender(k,ai);
+      return;
+    }
     const wantsMultiple=/multiple|moic|tvpi/i.test(q);
     const isSolve=/max(?:imum)?\s+discount|discount.*(?:before|until).*(?:irr|multiple|moic|tvpi|return)|(?:irr|multiple|moic|tvpi|return).*(?:falls?|drops?|dips?|goes?)?\s*(?:below|under|beneath)/i.test(q);
     if(isSolve){
@@ -22114,7 +22153,7 @@ Answer as Karaya:`;
       }
       const sol=_wfDiscountSolveMaxPct(f,a,m,{metric:wantsMultiple?'multiple':'irr', floor});
       const within=a.discountPct<=sol.maxPct;
-      const html=fmtKaraya(`Solving against the **precedent-case** model (this % discount read through to all ${m.ctx.remaining} remaining units in ${m.ctx.name}):\n\n- Reference metric: **${sol.metricName}**\n- Current level: **${sol.currentLabel}**\n- Floor used: **${sol.floorLabel}**${floor!=null?' (as you specified)':' (default cushion below current)'}\n- Allowable give-up: **${sol.allowableLabel}**\n- **Maximum sustainable discount: ~${sol.maxPct.toFixed(1)}%** before a fund-wide precedent breaches that floor\n\nThe requested **${a.discountPct}%** is **${within?'within':'ABOVE'}** this ceiling on a fund-wide-precedent basis — though as a one-off exception on a single unit it stays immaterial regardless (see the Isolated impact figures above).`);
+      const html=fmtKaraya(`Solving against the **precedent-case** model (this % discount read through to all ${m.ctx.remaining} remaining units in ${m.ctx.name}):\n\n- Reference metric: **${sol.metricName}**\n- Current level: **${sol.currentLabel}**\n- Floor used: **${sol.floorLabel}**${floor!=null?' (as you specified)':' (default cushion below current)'}\n- Allowable give-up: **${sol.allowableLabel}**\n- **Maximum sustainable discount: ~${sol.maxPct.toFixed(1)}%** before a fund-wide precedent breaches that floor\n\nThe requested **${a.discountPct}%** is **${within?'within':'ABOVE'}** this ceiling on a fund-wide-precedent basis — though as a one-off exception on this **${m.units}-unit bundle** it stays modest regardless (see the Isolated impact figures above).`);
       a._chat.push({cls:'bot', html});
       _wfDiscountChatRender(k,ai);
       return;
