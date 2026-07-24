@@ -11350,17 +11350,20 @@
   // a fund's own Projects grid. Clicking a project always still just calls
   // showProject(id) — only where the tile is drawn from has moved.
   const PROJECT_SQUIRCLE_META = {
-    1:{notif:'3', notifNew:true,  org:'bv', role:'Sponsor / GP', status:'In Modeling',  dot:''},
-    2:{notif:'5', notifNew:true,  org:'mc', role:'JV · LP',      status:'Review',       dot:'review'},
-    3:{notif:'2', notifNew:false, org:'bv', role:'Sponsor / GP', status:'In Operation', dot:''},
-    4:{notif:'1', notifNew:false, org:'ah', role:'Local JV',     status:'In Operation', dot:''},
-    5:{notif:'—', notifNew:false, org:'bv', role:'Sponsor / GP', status:'Draft',        dot:'draft'},
-    6:{notif:'4', notifNew:true,  org:'mc', role:'JV · LP',      status:'In Operation', dot:''},
+    1:{notif:'3', notifNew:true,  org:'bv', role:'Sponsor / GP', status:'In Modeling',  dot:'', ownership:'Wholly owned'},
+    2:{notif:'5', notifNew:true,  org:'mc', role:'JV · LP',      status:'Review',       dot:'review', ownership:'Partnership (JV)'},
+    3:{notif:'2', notifNew:false, org:'bv', role:'Sponsor / GP', status:'In Operation', dot:'', ownership:'Wholly owned'},
+    4:{notif:'1', notifNew:false, org:'ah', role:'Local JV',     status:'In Operation', dot:'', ownership:'Partnership (JV)'},
+    5:{notif:'—', notifNew:false, org:'bv', role:'Sponsor / GP', status:'Draft',        dot:'draft', ownership:'Wholly owned'},
+    6:{notif:'4', notifNew:true,  org:'mc', role:'JV · LP',      status:'In Operation', dot:'', ownership:'Partnership (JV)'},
+    7:{notif:'—', notifNew:false, org:'cc', role:'Co-invest',    status:'Deployed',     dot:'', ownership:'Partnership (JV)'},
   };
   function _projectSquircleHTML(id){
     const p=P[id]; if(!p) return '';
-    const m=PROJECT_SQUIRCLE_META[id]||{notif:'—',notifNew:false,org:'',role:p.lead||'',status:'',dot:''};
-    return `<div class="proj-squircle" data-org="${m.org}" onclick="closeWorkflow();showProject(${id})"><div class="psq-top"><span class="psq-notif${m.notifNew?' has-new':''}">${m.notif}</span></div><div class="psq-body"><h3 class="psq-name">${p.name}</h3><div class="psq-role">${m.role}</div></div><div class="psq-foot"><span class="psq-loc">${p.loc}</span><span class="psq-status"><span class="psq-dot ${m.dot}"></span>${m.status}</span></div></div>`;
+    const m=PROJECT_SQUIRCLE_META[id]||{notif:'—',notifNew:false,org:'',role:p.lead||'',status:'',dot:'',ownership:''};
+    const own=m.ownership||'', jv=/partner|jv|co-invest/i.test(own);
+    const ownPill=own?`<span class="psq-own" style="font-size:7px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;padding:2px 7px;border-radius:999px;background:${jv?'rgba(180,83,9,0.14)':'rgba(21,128,61,0.14)'};color:${jv?'#b45309':'#15803d'};">${own}</span>`:'';
+    return `<div class="proj-squircle" data-org="${m.org}" onclick="closeWorkflow();showProject(${id})"><div class="psq-top" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">${ownPill}<span class="psq-notif${m.notifNew?' has-new':''}">${m.notif}</span></div><div class="psq-body"><h3 class="psq-name">${p.name}</h3><div class="psq-role">${m.role}</div></div><div class="psq-foot"><span class="psq-loc">${p.loc}</span><span class="psq-status"><span class="psq-dot ${m.dot}"></span>${m.status}</span></div></div>`;
   }
   // The workspace home now shows funds first (task: "My Funds") — a fund
   // squircle opens straight into that fund's own page, where its Projects
@@ -11395,7 +11398,9 @@
     const auroraTile=`<div class="proj-squircle psq-opportunity" data-org="cc" onclick="openOpportunity('aurora')"><div class="psq-top"><span class="psq-new-pill">New Opportunity</span></div><div class="psq-body"><h3 class="psq-name">Aurora Logistics Park</h3><div class="psq-role">Inbound · Cordoba Capital</div></div><div class="psq-foot"><span class="psq-loc">Al Rayyan · Logistics Corridor</span><span class="psq-status"><span class="psq-dot opp"></span>Awaiting screening</span></div></div>`;
     const fundTiles=funds.map(f=>{
       const pending=(f.approvals||[]).filter(a=>a.cls==='a').length;
-      return `<div class="proj-squircle" onclick="_wsOpenFund('${f.k}')"><div class="psq-top"><span class="psq-notif${pending?' has-new':''}">${pending||'—'}</span></div><div class="psq-body"><h3 class="psq-name">${f.name.replace(/^Bohio RE /,'')}</h3><div class="psq-role">${f.vintage} · ${f.status}</div></div><div class="psq-foot"><span class="psq-loc">${f.tag}</span><span class="psq-status"><span class="psq-dot"></span>SAR ${f.nav}M NAV · ${f.irr}</span></div></div>`;
+      const ft=f.fundType||'', open=/open/i.test(ft);
+      const ftPill=ft?`<span class="psq-own" style="font-size:7px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;padding:2px 7px;border-radius:999px;background:${open?'rgba(37,99,235,0.14)':'rgba(100,116,139,0.16)'};color:${open?'#2563eb':'#475569'};">${ft}</span>`:'';
+      return `<div class="proj-squircle" onclick="_wsOpenFund('${f.k}')"><div class="psq-top" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">${ftPill}<span class="psq-notif${pending?' has-new':''}">${pending||'—'}</span></div><div class="psq-body"><h3 class="psq-name">${f.name.replace(/^Bohio RE /,'')}</h3><div class="psq-role">${f.vintage} · ${f.status}</div></div><div class="psq-foot"><span class="psq-loc">${f.tag}</span><span class="psq-status"><span class="psq-dot"></span>SAR ${f.nav}M NAV · ${f.irr}</span></div></div>`;
     }).join('');
     const orphanTiles=orphanIds.map(id=>_projectSquircleHTML(id)).join('');
     host.innerHTML = auroraTile + fundTiles + orphanTiles;
@@ -20617,7 +20622,7 @@ Answer as Karaya:`;
   // Opens on a squircle list of every active fund; pressing one drills into
   // the fund's structure, live approval processes, stakeholders and topics.
   const WF_FUNDS=[
-    {k:'fund2', name:'Bohio RE Opportunity Fund II', tag:'Core-plus · Qatar', vintage:'Vintage 2024', committed:750, drawn:540, nav:615, irr:'13.8%', dpi:0.12, tvpi:1.14, status:'Investing', col:'#61BB46',
+    {k:'fund2', name:'Bohio RE Opportunity Fund II', tag:'Core-plus · Qatar', vintage:'Vintage 2024', committed:750, drawn:540, nav:615, irr:'13.8%', dpi:0.12, tvpi:1.14, status:'Investing', col:'#61BB46', fundType:'Closed-ended',
       structure:{ vehicle:'Closed-end fund (QFMA-regulated) · SPV per asset', gp:'Bohio Capital Partners — GP · 5% commit',
         terms:'1.5% management fee · 20% promote over an 8% preferred return · 50/50 catch-up · 8-year term + 2×1-year extensions',
         lps:[['Gulf Pension Fund',250,'Anchor LP'],['Qatari Family Office Consortium',180,'LP'],['Rayyan Capital Partners',150,'LP · AC seat'],['GCC Sovereign Co-Invest',132.5,'LP'],['GP commit — Bohio Capital',37.5,'GP']] },
@@ -20650,7 +20655,7 @@ Answer as Karaya:`;
         {from:'Latham & Watkins', subject:'Fund II LPA — execution version circulated', when:'Jul 2024', snippet:'Attached the executed LPA (v.5). Key commercial changes vs the first draft are the fee step-down and the catch-up mechanics…'},
         {from:'Gulf Pension Fund · Investments', subject:'RE: Capital Call #7 timing', when:'2d ago', snippet:'Confirming funding on the Aurora call within the notice period. Please route the updated drawdown schedule…'},
         {from:'Apex Fund Services', subject:'Q2 capital account statements', when:'5d ago', snippet:'Draft LP capital accounts attached for review ahead of the quarterly pack…'}] },
-    {k:'coinvest', name:'Corniche Co-Invest Vehicle', tag:'Single-asset co-invest', vintage:'Vintage 2025', committed:120, drawn:96, nav:108, irr:'15.2%', dpi:0.00, tvpi:1.13, status:'Deployed', col:'#F58220',
+    {k:'coinvest', name:'Corniche Co-Invest Vehicle', tag:'Single-asset co-invest', vintage:'Vintage 2025', committed:120, drawn:96, nav:108, irr:'15.2%', dpi:0.00, tvpi:1.13, status:'Deployed', col:'#F58220', fundType:'Closed-ended',
       structure:{ vehicle:'Single-asset SPV · co-investment alongside Fund II', gp:'Bohio Capital Partners — manager · 2.5% commit',
         terms:'1.0% management fee · 15% promote over a 9% preferred return · hold matches the Corniche Gateway business plan',
         lps:[['Gulf Pension Fund',48,'Co-invest LP'],['Emaar Family Office',36,'Co-invest LP'],['Rayyan Capital Partners',33,'Co-invest LP'],['GP commit',3,'GP']] },
@@ -20671,7 +20676,7 @@ Answer as Karaya:`;
       emails:[
         {from:'SNB · Corporate Banking', subject:'Refinancing consent — documentation', when:'1d ago', snippet:'Following the credit committee, the consent package needs the LP majority resolution attached…'},
         {from:'Rotana Hotels · Development', subject:'Pre-opening budget alignment', when:'1w ago', snippet:'Sharing the revised pre-opening budget for the anchor hotel component…'}] },
-    {k:'fund1', name:'Bohio RE Fund I', tag:'Value-add · Harvesting', vintage:'Vintage 2019', committed:400, drawn:400, nav:155, irr:'17.4%', dpi:1.42, tvpi:1.81, status:'Harvesting', col:'#963D97',
+    {k:'fund1', name:'Bohio RE Fund I', tag:'Value-add · Harvesting', vintage:'Vintage 2019', committed:400, drawn:400, nav:155, irr:'17.4%', dpi:1.42, tvpi:1.81, status:'Harvesting', col:'#963D97', fundType:'Closed-ended',
       structure:{ vehicle:'Closed-end fund · in orderly realisation', gp:'Bohio Capital Partners — GP · 4% commit',
         terms:'1.25% management fee (on invested cost in harvest) · 20% promote over 8% pref · clawback provision active',
         lps:[['Qatar PIF Programme',160,'Anchor LP'],['Gulf Pension Fund',120,'LP'],['Regional family offices',104,'LPs (pooled)'],['GP commit',16,'GP']] },
@@ -21493,7 +21498,7 @@ Answer as Karaya:`;
         <div style="min-width:0;">
           <button onclick="_wfFundListBack()" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ All funds</button>
           <div class="wf-title">${f.name}</div>
-          <div class="wf-sub">${f.vintage} · ${f.tag} · <b>SAR ${f.nav}M</b> NAV · <b>${f.irr}</b> net IRR · SAR ${f.drawn}M drawn of ${f.committed}M</div>
+          <div class="wf-sub">${f.vintage} · ${f.tag}${f.fundType?' · '+f.fundType:''} · <b>SAR ${f.nav}M</b> NAV · <b>${f.irr}</b> net IRR · SAR ${f.drawn}M drawn of ${f.committed}M</div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;">
           <button class="wf-back" onclick="_wfFundListBack()" aria-label="Back" title="Back to all funds">←</button>
