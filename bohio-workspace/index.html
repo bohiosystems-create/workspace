@@ -10701,6 +10701,7 @@
               <button class="action-btn" onclick="openModelApproval()">Submit for Approval</button>
               <button class="action-btn" onclick="openPresentation()">▸ Presentation</button>
               <button class="action-btn" onclick="exportModelExcel()">Export to Excel</button>
+              <button class="action-btn" onclick="openModelDebug()">🐞 Find errors</button>
               <button class="action-btn">Add to Workspace</button>
             </div>
           </div>
@@ -15417,6 +15418,162 @@ Answer as the ${a.name} agent:`;
     renderSpreadsheet(activeSheet);
     _reselectCell(ref);
     if(typeof _pushVersion==='function'){ _pushVersion(_prev, 'Edited '+_label+' ('+ref+')'); saveOpenModel(true); }
+  }
+
+  // ============ MODEL DEBUGGING ============
+  // Scan the open model for likely errors — label typos, sign errors on cost
+  // lines, totals that don't match their components, and stale cached values —
+  // propose a fix for each, let the user PREVIEW the full per-cell effect on
+  // the whole model, then APPLY it (recompute + versioned).
+  const _TYPO_DICT = {
+    'depreciaton':'Depreciation','recievable':'Receivable','occuppancy':'Occupancy','maintenence':'Maintenance',
+    'managment':'Management','expence':'Expense','expences':'Expenses','liabilites':'Liabilities','commited':'Committed',
+    'yeild':'Yield','intrest':'Interest','pincipal':'Principal','refrence':'Reference','rentel':'Rental',
+    'discont':'Discount','contigency':'Contingency','contingecy':'Contingency','reveune':'Revenue','revenu ':'Revenue'
+  };
+  let _dbgFindings=[];
+  function _debugModelScan(){
+    const findings=[]; let fid=0;
+    Object.keys(SHEET_DATA).forEach(sheet=>{
+      const s=SHEET_DATA[sheet]; if(!s||!s.rows||!s.cols) return;
+      s.rows.forEach((row, ri)=>{
+        const rnum=row.cells[0]; const label=(row.cells[1]||'').trim(); const lc=label.toLowerCase();
+        // A) label typo
+        Object.keys(_TYPO_DICT).forEach(bad=>{ if(lc.indexOf(bad)>=0){ findings.push({id:++fid, sheet, rnum, col:1, kind:'typo', label,
+          issue:`Possible spelling error in label “${label}”.`, current:label, suggested:label.replace(new RegExp(bad,'i'), _TYPO_DICT[bad]) }); } });
+        // B) sign error — hardcoded positive value on a cost/expense line
+        if(/\b(opex|cost|expense|expenses|debt service|capex|depreciat|utilities|insurance|marketing|interest|reserve)\b/i.test(label) && !/revenue|income|noi|margin|yield/i.test(label)){
+          for(let ci=2;ci<row.cells.length;ci++){ const raw=row.cells[ci]; const n=_cellNum(raw);
+            if(!isNaN(n)&&n>0&&!(row.formulas&&row.formulas[ci])){ findings.push({id:++fid, sheet, rnum, col:ci, kind:'sign', label,
+              issue:`${label} in ${s.cols[ci]}${rnum} is positive (${raw}) — cost lines should be negative.`, current:raw, suggested:'-'+String(raw).replace(/^-/,'') }); break; }
+          }
+        }
+        // C) stale cached value — formula present but stored value ≠ recompute
+        if(row.formulas){
+          for(let ci=2;ci<row.formulas.length;ci++){ const f=row.formulas[ci]; if(!f) continue;
+            const v=evalFormula(f, sheet); if(v==null) continue; const want=_fmtLike(row.cells[ci], v);
+            if(String(row.cells[ci])!==String(want)){ findings.push({id:++fid, sheet, rnum, col:ci, kind:'stale', label,
+              issue:`${label} ${s.cols[ci]}${rnum} shows ${row.cells[ci]} but its formula (${f}) evaluates to ${want}.`, current:row.cells[ci], suggested:want, refresh:true }); break; }
+          }
+        }
+        // D) total that doesn't match its components (hardcoded total ≠ SUM above)
+        if(/^(total|net operating income|noi|subtotal|gross)\b/i.test(lc)){
+          for(let ci=2;ci<row.cells.length;ci++){ if(row.formulas&&row.formulas[ci]) continue;
+            const stored=_cellNum(row.cells[ci]); if(isNaN(stored)) continue;
+            // sum contiguous numeric data rows immediately above, within this section
+            let sum=0, cnt=0, firstR=null, lastR=null;
+            for(let rj=ri-1; rj>=0; rj--){ const pr=s.rows[rj]; const plc=(pr.cells[1]||'').toLowerCase();
+              if(pr.style==='section'||/^(total|subtotal|net operating|noi)\b/.test(plc)) break;
+              const pv=_cellNum(pr.cells[ci]); if(isNaN(pv)) { if(cnt>0) break; else continue; }
+              sum+=pv; cnt++; if(lastR===null) lastR=pr.cells[0]; firstR=pr.cells[0];
+            }
+            if(cnt>=2 && Math.abs(sum-stored)>Math.max(0.02, Math.abs(stored)*0.005)){
+              const col=s.cols[ci];
+              findings.push({id:++fid, sheet, rnum, col:ci, kind:'total', label,
+                issue:`${label} ${col}${rnum} is ${row.cells[ci]}, but its ${cnt} components sum to ${_fmtLike(row.cells[ci], sum)}.`,
+                current:row.cells[ci], suggested:`=SUM(${col}${firstR}:${col}${lastR})`, isFormula:true });
+              break;
+            }
+          }
+        }
+      });
+    });
+    const seen=new Set(); _dbgFindings=findings.filter(f=>{ const k=f.sheet+f.rnum+f.col+f.kind; if(seen.has(k))return false; seen.add(k); return true; });
+    return _dbgFindings;
+  }
+  function _dbgApplyInPlace(f){
+    const s=SHEET_DATA[f.sheet]; if(!s) return; const row=s.rows.find(r=>r.cells[0]===f.rnum); if(!row) return;
+    if(!row.formulas) row.formulas=row.cells.map(()=>'');
+    if(f.kind==='typo'){ row.cells[1]=f.suggested; }
+    else if(f.isFormula){ row.formulas[f.col]=f.suggested; const v=evalFormula(f.suggested, f.sheet); if(v!=null) row.cells[f.col]=_fmtLike(row.cells[f.col], v); }
+    else { row.cells[f.col]=f.suggested; row.formulas[f.col]=''; }
+  }
+  function _wbDiff(before, after){
+    const changes=[];
+    Object.keys(after).forEach(sh=>{ const a=after[sh], b=before[sh]; if(!b||!a.rows) return;
+      a.rows.forEach((row, ri)=>{ const brow=b.rows[ri]; if(!brow) return;
+        if(String(row.cells[1])!==String(brow.cells[1])) changes.push({cell:sh+'!B'+row.cells[0], label:'label', before:brow.cells[1], after:row.cells[1]});
+        for(let ci=2;ci<row.cells.length;ci++){ if(String(row.cells[ci])!==String((brow.cells||[])[ci])) changes.push({cell:sh+'!'+a.cols[ci]+row.cells[0], label:row.cells[1]||'', before:(brow.cells[ci]||'—'), after:row.cells[ci]}); }
+      });
+    });
+    return changes;
+  }
+  // Compute the FULL per-cell effect of a fix without persisting it: apply to
+  // SHEET_DATA, recompute, snapshot, then restore — the visible sheet is only
+  // re-rendered from the restored state, so nothing changes until Apply.
+  function _dbgEffect(f){
+    const before=_cloneWb(SHEET_DATA);
+    _dbgApplyInPlace(f); recomputeAll();
+    const after=_cloneWb(SHEET_DATA);
+    Object.keys(SHEET_DATA).forEach(k=>delete SHEET_DATA[k]); Object.assign(SHEET_DATA, before); // restore
+    return _wbDiff(before, after);
+  }
+  function openModelDebug(){
+    if(typeof SHEET_DATA==='undefined' || !Object.keys(SHEET_DATA||{}).length){ return; }
+    _debugModelScan();
+    let ov=document.getElementById('dbg-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='dbg-overlay';
+      ov.style.cssText='position:fixed;top:0;right:0;bottom:0;width:min(460px,94vw);z-index:10060;background:#0f1216;border-left:1px solid rgba(230,226,226,0.14);box-shadow:-20px 0 60px rgba(0,0,0,0.5);display:flex;flex-direction:column;color:#e6e2e2;font-family:inherit;';
+      document.body.appendChild(ov);
+    }
+    _renderModelDebug();
+    ov.style.display='flex';
+  }
+  function closeModelDebug(){ const ov=document.getElementById('dbg-overlay'); if(ov) ov.style.display='none'; }
+  function _renderModelDebug(){
+    const ov=document.getElementById('dbg-overlay'); if(!ov) return;
+    const items=_dbgFindings.map(f=>{
+      const kindLbl={typo:'Label typo',sign:'Sign error',stale:'Stale value',total:'Total mismatch'}[f.kind]||'Issue';
+      const kindCol={typo:'#f5a623',sign:'#e03a3c',stale:'#009ddc',total:'#e03a3c'}[f.kind]||'#888';
+      return `<div id="dbgf-${f.id}" style="border:1px solid rgba(230,226,226,0.12);border-radius:10px;padding:12px 13px;margin-bottom:10px;background:rgba(230,226,226,0.03);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="font-size:8px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;color:${kindCol};">${kindLbl} · ${f.sheet}!${f.kind==='typo'?'B'+f.rnum:(SHEET_DATA[f.sheet].cols[f.col]+f.rnum)}</span>
+        </div>
+        <div style="font-size:11.5px;line-height:1.55;margin-bottom:8px;">${f.issue}</div>
+        <div style="display:flex;gap:8px;font-size:10.5px;font-family:'Courier New',monospace;margin-bottom:9px;flex-wrap:wrap;">
+          <span style="color:#e6b8a8;">current: ${String(f.current).replace(/</g,'&lt;')}</span>
+          <span style="color:#8fd3a8;">→ suggest: ${String(f.suggested).replace(/</g,'&lt;')}</span>
+        </div>
+        <div style="display:flex;gap:7px;">
+          <button onclick="_dbgPreview(${f.id})" style="font-family:inherit;font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;background:rgba(0,157,220,0.16);color:#7fd0f0;border:1px solid rgba(0,157,220,0.4);border-radius:7px;padding:6px 11px;cursor:pointer;">Preview effect</button>
+          <button onclick="_dbgApply(${f.id})" style="font-family:inherit;font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;background:#61BB46;color:#04210a;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;">Approve &amp; apply</button>
+        </div>
+        <div id="dbgprev-${f.id}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(230,226,226,0.1);"></div>
+      </div>`;
+    }).join('');
+    ov.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:16px 18px;border-bottom:1px solid rgba(230,226,226,0.12);">
+        <div><div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:rgba(230,226,226,0.5);font-weight:700;">Karaya · Model debugger</div>
+          <div style="font-size:15px;font-weight:700;margin-top:3px;">${_dbgFindings.length} issue${_dbgFindings.length===1?'':'s'} found</div></div>
+        <button onclick="closeModelDebug()" style="background:transparent;border:1px solid rgba(230,226,226,0.2);color:#e6e2e2;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:14px;">×</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:14px 16px;">
+        ${_dbgFindings.length?`<div style="font-size:10px;color:rgba(230,226,226,0.55);line-height:1.6;margin-bottom:13px;">I scanned every cell of <b style="color:#e6e2e2;">${(typeof currentModelDoc!=='undefined'&&currentModelDoc)?currentModelDoc.name:'this model'}</b>. Preview the full per-cell effect of each fix, then approve to apply and recompute.</div>${items}`
+          : `<div style="text-align:center;padding:50px 20px;color:rgba(230,226,226,0.55);font-size:12px;">No errors found — labels, signs, totals and cached values all check out. ✓</div>`}
+      </div>`;
+  }
+  function _dbgPreview(id){
+    const f=_dbgFindings.find(x=>x.id===id); if(!f) return;
+    const slot=document.getElementById('dbgprev-'+id); if(!slot) return;
+    const changes=_dbgEffect(f);
+    const rows=changes.slice(0,40).map(c=>`<tr>
+      <td style="padding:4px 7px;font-family:'Courier New',monospace;color:rgba(230,226,226,0.7);white-space:nowrap;">${c.cell}</td>
+      <td style="padding:4px 7px;color:#e6b8a8;text-align:right;font-family:'Courier New',monospace;">${String(c.before).replace(/</g,'&lt;')}</td>
+      <td style="padding:4px 7px;color:rgba(230,226,226,0.4);">→</td>
+      <td style="padding:4px 7px;color:#8fd3a8;text-align:right;font-family:'Courier New',monospace;">${String(c.after).replace(/</g,'&lt;')}</td></tr>`).join('');
+    slot.style.display='block';
+    slot.innerHTML=`<div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(230,226,226,0.5);font-weight:700;margin-bottom:7px;">Full effect · ${changes.length} cell${changes.length===1?'':'s'} change</div>`+
+      (changes.length?`<table style="width:100%;border-collapse:collapse;font-size:10.5px;"><tbody>${rows}</tbody></table>${changes.length>40?`<div style="font-size:9px;color:rgba(230,226,226,0.4);margin-top:5px;">…and ${changes.length-40} more.</div>`:''}`
+        :`<div style="font-size:10.5px;color:rgba(230,226,226,0.55);">This fix corrects the cell without cascading to any dependent cells.</div>`);
+  }
+  function _dbgApply(id){
+    const f=_dbgFindings.find(x=>x.id===id); if(!f) return;
+    const _prev=_cloneWb(SHEET_DATA);
+    _dbgApplyInPlace(f); recomputeAll();
+    if(typeof renderSpreadsheet==='function' && typeof activeSheet!=='undefined') renderSpreadsheet(activeSheet);
+    if(typeof _pushVersion==='function'){ _pushVersion(_prev, 'Debug fix — '+f.label+' ('+f.kind+')'); if(typeof saveOpenModel==='function') saveOpenModel(true); }
+    _dbgFindings=_dbgFindings.filter(x=>x.id!==id);
+    _renderModelDebug();
   }
 
   function renderSpreadsheet(sheetName) {
