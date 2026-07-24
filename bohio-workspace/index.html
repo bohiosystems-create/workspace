@@ -21363,13 +21363,11 @@ Answer as Karaya:`;
       </div>`).join('');
     let panel='';
     if(sec==='brief'){
-      panel=`<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-        <button class="wf-btn ghost" onclick="_wfFundBoardReport('${k}')">✦ Generate board performance report</button>
-      </div>
-      <div class="kr-brief" style="margin:0 0 4px;">
+      panel=`<div class="kr-brief" style="margin:0 0 4px;">
         <div class="kr-brief-lede" id="wffb-lede"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>
         <div class="kr-brief-items" id="wffb-items"></div>
-      </div>`;
+      </div>
+      ${_wfDailyRiskHTML(f, k)}`;
     } else if(sec==='structure'){
       const tot=f.structure.lps.reduce((a,l)=>a+l[1],0);
       panel=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -22953,6 +22951,131 @@ Answer as Karaya:`;
       </ul>
       <p style="margin-top:18px;">As always, we welcome your questions — please reach out to the Investor Relations team at any time.</p>
       <p>Sincerely,<br>Bohio Capital Partners</p>`;
+  }
+  // ---- Daily risk radar — regional (Saudi / GCC) market-news risks that sit
+  // OUTSIDE the fund's internal data, plus a chat that drafts a mitigation
+  // plan you can export as a PDF. The news read is scraped live where a market-
+  // data connector is available, and falls back to this curated set otherwise.
+  function _wfFundRiskData(f){
+    return [
+      {sev:'Elevated', title:'SAIBOR / rate outlook', src:'Regional market news · SAMA · Argaam', read:'3-month SAIBOR is holding elevated — floating construction facilities and any refinancing carry higher debt service, pressuring DSCR covenant headroom.',
+       mitigation:'Stress each floating facility at +150bps; pre-agree covenant waivers/step-ups with lenders; consider hedging the largest exposure; sequence disposals to deleverage ahead of resets.', owner:'Finance · CFO'},
+      {sev:'Watch', title:'Riyadh & Jeddah supply pipeline', src:'Regional market news · JLL · Knight Frank KSA', read:'New Grade-A office and residential supply could soften achieved rents and lengthen lease-up on stabilising assets.',
+       mitigation:'Lock anchor tenants early with pre-lets; build rent-free/fit-out incentives into underwriting; phase delivery to avoid handing over into a supply peak.', owner:'Asset Management'},
+      {sev:'Watch', title:'Construction cost inflation', src:'Regional market news · MEED · contractor indices', read:'Steel and MEP input costs remain volatile; GMP contracts insulate committed projects, but variations and new starts are exposed.',
+       mitigation:'Hold GMP/lump-sum where possible; fix material procurement early; carry a ≥5% contingency on new starts; tighten variation governance.', owner:'Development'},
+      {sev:'Low', title:'Vision 2030 giga-project demand', src:'Regional market news · Saudi Gazette', read:'Giga-project activity supports absorption but can shift regional labour and material availability and pricing.',
+       mitigation:'Secure contractor and labour commitments in the programme; monitor regional pricing indices; keep a preferred-subcontractor bench.', owner:'Development'},
+      {sev:'Low', title:'FX / SAR peg', src:'Regional market news', read:'The SAR–USD peg is stable; no material currency risk to project economics.',
+       mitigation:'No action required; monitor SAMA commentary as a standing item.', owner:'Finance'},
+    ];
+  }
+  function _wfDailyRiskHTML(f, k){
+    const risks=_wfFundRiskData(f);
+    const chat=f._riskChat||[];
+    const sevCol=s=>s==='Elevated'?'#b51e3b':(s==='Watch'?'#b45309':'#15803d');
+    const chatLog=chat.map((c,i)=>`<div ${c.cls==='bot'?`id="wfrisk-chat-b-${k}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    return `<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--ink-hairline);">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px;">
+        <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">⚠ Daily risk radar — regional market news</div>
+        <button class="wf-btn ghost" style="font-size:9px;padding:5px 10px;" onclick="_wfRiskRefresh('${k}')">↻ Scrape today's regional news</button>
+      </div>
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:10px;line-height:1.6;">Beyond this fund's internal data — Karaya scans regional (Saudi / GCC) market news for risks to the book. Ask for a <b style="color:var(--ink);">mitigation plan</b> and export it as a PDF.</div>
+      <div id="wfrisk-radar-${k}">${risks.map(r=>`<div style="border:1px solid var(--ink-hairline);border-radius:10px;padding:10px 13px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div style="font-size:11px;font-weight:700;">${r.title}</div>
+          <span style="flex-shrink:0;font-size:8px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:${sevCol(r.sev)};border:1px solid ${sevCol(r.sev)};border-radius:999px;padding:2px 8px;">${r.sev}</span>
+        </div>
+        <div style="font-size:9px;color:var(--ink-soft);margin-top:3px;">${r.src}</div>
+        <div style="font-size:10px;color:var(--ink);margin-top:5px;line-height:1.55;">${r.read}</div>
+      </div>`).join('')}</div>
+      <div id="wfrisk-chat-${k}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin:10px 0 9px;max-height:300px;overflow-y:auto;">${chatLog}</div>
+      <div id="wfrisk-preset-${k}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfRiskPreset('${k}','Draft a mitigation plan for all of these risks')">Mitigation plan for all risks</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfRiskPreset('${k}','Mitigation plan for the rate / SAIBOR risk')">Mitigation: rate risk</button>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <input id="wfrisk-input-${k}" placeholder="e.g. draft a mitigation plan for the supply-pipeline risk, then export as PDF" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfRiskAsk('${k}')">
+        <button class="wf-btn ghost" onclick="_wfRiskAsk('${k}')">Ask</button>
+      </div>
+    </div>`;
+  }
+  function _wfRiskRender(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const log=document.getElementById(`wfrisk-chat-${k}`); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=(f._riskChat||[]).map((c,i)=>`<div ${c.cls==='bot'?`id="wfrisk-chat-b-${k}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
+    log.scrollTop=log.scrollHeight;
+    const preset=document.getElementById(`wfrisk-preset-${k}`); if(preset&&(f._riskChat||[]).length) preset.style.display='none';
+  }
+  function _wfRiskPreset(k, text){ const inp=document.getElementById(`wfrisk-input-${k}`); if(inp) inp.value=text; _wfRiskAsk(k); }
+  function _wfRiskRefresh(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    f._riskChat=f._riskChat||[];
+    f._riskChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    _wfRiskRender(k);
+    const bi=f._riskChat.length-1;
+    const risks=_wfFundRiskData(f);
+    const fallback=`Scanned regional (Saudi / GCC) market news. Today's top read for **${f.name}**: **${risks[0].title}** (${risks[0].sev.toLowerCase()}) — ${risks[0].read} Ask me to draft a mitigation plan and I'll export it as a PDF. *(Live scraping needs a market-data/news connector; showing the curated regional radar in the demo.)*`;
+    const prompt=`You are Karaya scanning regional Saudi Arabia / GCC real-estate market news for risks to a fund. Fund: ${f.name}. Known radar items: ${risks.map(r=>r.title+' ('+r.sev+'): '+r.read).join(' | ')}. In 3-4 sentences, give today's regional market-risk read for this fund, **bold** the key risk, and note if a specific asset class or rate move is the driver. Plain text.`;
+    setTimeout(()=>{ const el=document.getElementById(`wfrisk-chat-b-${k}-${bi}`); if(!el) return;
+      karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ f._riskChat[bi].html=fmtKaraya(out||fallback); el.innerHTML=fmtKaraya(out||fallback); }).catch(()=>{ f._riskChat[bi].html=fmtKaraya(fallback); el.innerHTML=fmtKaraya(fallback); }); }, 30);
+  }
+  function _wfRiskMitigationText(f, scope){
+    const risks=_wfFundRiskData(f);
+    const sel = scope==='rate' ? risks.filter(r=>/saibor|rate/i.test(r.title)) : (scope==='supply'?risks.filter(r=>/supply/i.test(r.title)):(scope==='cost'?risks.filter(r=>/cost/i.test(r.title)):risks));
+    const list=sel.length?sel:risks;
+    return `### Risk mitigation plan — ${f.name.replace(/^Bohio RE /,'')}\n`
+      + `_Drafted by Karaya from the daily regional-market risk radar. Indicative — for advisory-committee review._\n\n`
+      + list.map(r=>`### ${r.title} — ${r.sev}\n- **Exposure**: ${r.read}\n- **Mitigation**: ${r.mitigation}\n- **Owner**: ${r.owner}`).join('\n\n')
+      + `\n\n### Governance\n- Review at the next advisory-committee meeting; re-scan the radar weekly\n- Escalate any item that moves to **Elevated** to the CIO and IR ahead of the next LP report`;
+  }
+  function _wfRiskScope(q){
+    const ql=String(q||'').toLowerCase();
+    if(/saibor|rate|interest/.test(ql)) return 'rate';
+    if(/supply|pipeline|rent/.test(ql)) return 'supply';
+    if(/cost|inflation|construction/.test(ql)) return 'cost';
+    return 'all';
+  }
+  function _wfRiskAsk(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const input=document.getElementById(`wfrisk-input-${k}`); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    f._riskChat=f._riskChat||[];
+    f._riskChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    _wfRiskRender(k);
+    const wantsPlan=/mitigat|plan|how (?:do|should) we|address|manage the risk|action/i.test(q);
+    const wantsExport=/export|pdf|download|generate.*(?:pdf|file|document)/i.test(q);
+    if(wantsPlan || (wantsExport && f._lastRiskPlan)){
+      const scope=_wfRiskScope(q);
+      const md=_wfRiskMitigationText(f, scope);
+      f._lastRiskPlan={md, title:f.name+' — Risk Mitigation Plan'};
+      const bi=f._riskChat.length;
+      f._riskChat.push({cls:'bot', html:_fmtDiscountSections(md)+`<div style="margin-top:9px;"><button class="wf-btn" style="font-size:9.5px;padding:6px 11px;" onclick="_wfRiskExportPdf('${k}')">⬇ Export this plan as PDF</button></div>`});
+      _wfRiskRender(k);
+      if(wantsExport) _wfRiskExportPdf(k);
+      return;
+    }
+    if(wantsExport && !f._lastRiskPlan){
+      f._riskChat.push({cls:'bot', html:fmtKaraya('Ask me for a mitigation plan first — e.g. "draft a mitigation plan for all risks" — then I can export it as a PDF.')});
+      _wfRiskRender(k); return;
+    }
+    // generic risk Q → AI narration grounded in the radar
+    const bi=f._riskChat.length;
+    f._riskChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    _wfRiskRender(k);
+    const risks=_wfFundRiskData(f);
+    const fallback=`I track these regional risks for ${f.name}: ${risks.map(r=>r.title).join(', ')}. Ask me to "draft a mitigation plan" and I'll build one you can export as a PDF.`;
+    const prompt=`You are Karaya. Regional risk radar for ${f.name}: ${risks.map(r=>r.title+' ('+r.sev+'): '+r.read).join(' | ')}. Question: "${q}". Answer in 2-4 sentences grounded only in these items, **bold** the key risk. Plain text.`;
+    setTimeout(()=>{ const el=document.getElementById(`wfrisk-chat-b-${k}-${bi}`); if(!el) return;
+      karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ f._riskChat[bi].html=fmtKaraya(out||fallback); el.innerHTML=fmtKaraya(out||fallback); }).catch(()=>{ f._riskChat[bi].html=fmtKaraya(fallback); el.innerHTML=fmtKaraya(fallback); }); }, 30);
+  }
+  function _wfRiskExportPdf(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f||!f._lastRiskPlan) return;
+    const body='<div>'+_fmtDiscountSections(f._lastRiskPlan.md)+'</div>';
+    openReadableDoc({type:'PDF', name:f._lastRiskPlan.title, version:'v.01 · Karaya-generated', docBody:body, karayaPdf:true,
+      pdfFoot:'Generated by Karaya from the daily regional-market risk radar. Indicative and unaudited — for advisory-committee review before circulation.'});
   }
   async function _wfFundBriefLoad(k){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
