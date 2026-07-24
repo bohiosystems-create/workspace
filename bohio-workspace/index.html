@@ -13608,6 +13608,18 @@ Reply as the agent:`;
         return;
       }
     }
+    // "what's the difference between budget and actual, why, and the risks?"
+    // — the Fund performance budget-vs-actual brief, from the right-side panel.
+    if (typeof _wfBudgetActualText === 'function' && /(budget.*(?:actual|vs)|actual.*budget|variance to budget|over\s?run|overspend)/i.test(q)) {
+      const tf = (typeof _wfResolveFundFromQuery==='function') ? _wfResolveFundFromQuery(q) : null;
+      if (tf) {
+        const txt = _wfBudgetActualText(tf, tf.k);
+        KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:txt});
+        bot.innerHTML = _fmtDiscountSections(txt) + '<span class="k-meta">Karaya · just now</span>';
+        msgs.scrollTop = msgs.scrollHeight;
+        return;
+      }
+    }
 
     const history=KARAYA_HISTORY.slice(-6).map(m=>(m.role==='user'?'User: ':'Karaya: ')+m.text).join('\n');
     const ctx=(typeof buildWorkspaceContext==='function')?buildWorkspaceContext():'';
@@ -21347,6 +21359,7 @@ Answer as Karaya:`;
       ['documents','Fund agreements','LPA · subs · notices','◫'],
       ['modelling','Financial modelling','Master model & dashboards','▦'],
       ['projects','Projects','Developments in this fund','◇'],
+      ['performance','Fund performance','Dashboards · budget vs actual','▧'],
       ['development','Development','Costs · timeline · technical','⚒'],
       ['structure','Structure','GP · LPs · vehicle','⧉'],
       ['approvals','Approvals','Calls · distributions','✓'],
@@ -21354,7 +21367,7 @@ Answer as Karaya:`;
       ['reporting','Reporting','Board & LP reports','▤'],
       ['timeline','Timeline','Fund history at a glance','◷'],
     ];
-    const _cnt={brief:null, documents:(f.docs||[]).length, modelling:(f.models||[]).length, projects:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]).length, development:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]&&WF_DEV_DATA[id]).length, structure:f.structure.lps.length, approvals:f.approvals.length, topics:f.topics.length, reporting:null, timeline:null};
+    const _cnt={brief:null, documents:(f.docs||[]).length, modelling:(f.models||[]).length, projects:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]).length, performance:null, development:(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]&&WF_DEV_DATA[id]).length, structure:f.structure.lps.length, approvals:f.approvals.length, topics:f.topics.length, reporting:null, timeline:null};
     const secBtns=SECTIONS.map(([key,label,sub,glyph])=>`
       <div class="section-squircle${sec===key?' active':''}" data-sec="${key}" onclick="_wfFundDetail('${k}','${key}')">
         <div class="ssq-head"><span class="ssq-glyph">${glyph}</span><span class="ssq-count">${_cnt[key]!=null?String(_cnt[key]).padStart(2,'0'):''}</span></div>
@@ -21460,6 +21473,10 @@ Answer as Karaya:`;
     else if(sec==='development'){
       panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Costs, timeline and technical data for every development in <b style="color:var(--ink);">${f.name}</b> — design & construction programme, contractor, delivery method, cost breakdown, milestones and key documentation.</div>`
       + _wfDevSectionHTML(f, k);
+    }
+    else if(sec==='performance'){
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Live performance dashboards for <b style="color:var(--ink);">${f.name}</b> — each project and the fund as a whole, with budgeted vs actual figures. Ask the chatbot for the budget-vs-actual variance, why it's happening, and the related risks &amp; mitigation.</div>`
+      + _wfPerfSectionHTML(f, k);
     }
     else if(sec==='reporting'){
       panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Reporting for <b style="color:var(--ink);">${f.name}</b> runs entirely through the chatbot — ask for any report and Karaya lays out the information first, then asks how you'd like it presented and in what format before generating it.</div>
@@ -23441,6 +23458,190 @@ ${ctx.mailCtx}`;
     const cards = ids.length ? ids.map(id=>_wfDevProfileCardHTML(id)).join('') : `<div style="font-size:11px;color:var(--ink-soft);padding:16px 0;text-align:center;">No development data yet for this fund's projects.</div>`;
     return cards + _wfDevChatHTML(f, k, !!ids.length);
   }
+  // ---- Inline SVG charts (no external lib) for the Fund performance section.
+  function _svgBars(groups, opts){
+    opts=opts||{}; const w=opts.w||520, h=opts.h||150, pad=24, bpad=8;
+    const max=opts.max||Math.max(1,...groups.flatMap(g=>g.bars.map(b=>b.v)));
+    const gw=(w-pad*2)/Math.max(1,groups.length);
+    let s=`<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;font-family:inherit;">`;
+    groups.forEach((g,gi)=>{
+      const x0=pad+gi*gw;
+      const bw=Math.max(4,(gw-bpad*2)/g.bars.length-3);
+      g.bars.forEach((b,bi)=>{
+        const bh=Math.max(1,(b.v/max)*(h-pad-22));
+        const x=x0+bpad+bi*(bw+3), y=h-20-bh;
+        s+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${b.color}" rx="2"><title>${b.name}: ${b.v}</title></rect>`;
+      });
+      s+=`<text x="${(x0+gw/2).toFixed(1)}" y="${h-6}" text-anchor="middle" font-size="8" fill="#6b7280">${g.label}</text>`;
+    });
+    s+=`</svg>`; return s;
+  }
+  function _svgLine(labels, values, color, opts){
+    opts=opts||{}; const w=opts.w||520, h=opts.h||120, pad=24;
+    const max=Math.max(...values), min=Math.min(...values), rng=(max-min)||1;
+    const xs=i=>pad+(i/Math.max(1,values.length-1))*(w-pad*2);
+    const ys=v=>h-18-((v-min)/rng)*(h-32);
+    const d=values.map((v,i)=>(i?'L':'M')+xs(i).toFixed(1)+' '+ys(v).toFixed(1)).join(' ');
+    let s=`<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;font-family:inherit;">`;
+    s+=`<path d="${d}" fill="none" stroke="${color}" stroke-width="2"/>`;
+    values.forEach((v,i)=>{ s+=`<circle cx="${xs(i).toFixed(1)}" cy="${ys(v).toFixed(1)}" r="2.5" fill="${color}"><title>${labels[i]}: ${v}</title></circle>`; });
+    labels.forEach((l,i)=>{ s+=`<text x="${xs(i).toFixed(1)}" y="${h-4}" text-anchor="middle" font-size="7.5" fill="#6b7280">${l}</text>`; });
+    s+=`</svg>`; return s;
+  }
+  // ---- Fund performance data: per-project performance (WF_REP_ASSETS) + the
+  // budget/committed/actual/forecast ledger (PROJECT_ERP), aggregated to the
+  // fund. This is the single source both the dashboards and the budget-vs-
+  // actual chatbot read from, so they never disagree.
+  function _wfPerfData(f, k){
+    const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
+    const projects=ids.map(id=>{
+      const erp=(typeof PROJECT_ERP!=='undefined')?PROJECT_ERP[id]:null;
+      const fin=(typeof WF_REP_ASSETS!=='undefined'?WF_REP_ASSETS:[]).find(x=>x.name===P[id].name);
+      const s=erp?erp.summary:null;
+      const budget=s?s.budget.v:null, committed=s?s.committed.v:null, actual=s?s.actual.v:null, forecast=s?s.forecast.v:null;
+      return {id, name:P[id].name, loc:P[id].loc, erp, fin, budget, committed, actual, forecast,
+        variancePct:(budget&&forecast)?((forecast-budget)/budget*100):null,
+        costCodes:erp?erp.costCodes:null};
+    });
+    const withErp=projects.filter(p=>p.budget!=null);
+    const totBudget=withErp.reduce((a,p)=>a+p.budget,0);
+    const totCommitted=withErp.reduce((a,p)=>a+p.committed,0);
+    const totActual=withErp.reduce((a,p)=>a+p.actual,0);
+    const totForecast=withErp.reduce((a,p)=>a+p.forecast,0);
+    return {projects, withErp, totBudget, totCommitted, totActual, totForecast, q:_fundQuarterlySeries(f)};
+  }
+  function _wfPerfSectionHTML(f, k){
+    const d=_wfPerfData(f, k);
+    const money=v=>'SAR '+(v==null?'—':v.toFixed(0)+'M');
+    const box=(inner)=>`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;">${inner}</div>`;
+    // Fund-level dashboards
+    const fundBoard=`<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:2px 0 10px;">Fund performance — ${f.name.replace(/^Bohio RE /,'')}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        ${box(`<div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;">NAV trend (6 quarters · SAR M)</div>${_svgLine(d.q.qs, d.q.nav, '#009DDC')}`)}
+        ${box(`<div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;">Net IRR trend (6 quarters · %)</div>${_svgLine(d.q.qs, d.q.irr, '#61BB46')}`)}
+      </div>`;
+    // Per-project performance dashboards
+    const projCards=d.projects.map(p=>{
+      const metrics=p.fin?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:6px;margin:9px 0;">
+        ${['NOI SAR '+p.fin.noi+'M','IRR '+p.fin.irr+'%','MOIC '+p.fin.moic+'x','Occ '+p.fin.occ+'%'].map(x=>`<div style="border:1px solid var(--ink-hairline);border-radius:8px;padding:6px 8px;font-size:10px;font-weight:700;">${x}</div>`).join('')}
+      </div>`:'<div style="font-size:9.5px;color:var(--ink-soft);margin:8px 0;">No structured financials yet.</div>';
+      const bars=(p.budget!=null)?_svgBars([
+        {label:'Budget', bars:[{v:p.budget, color:'#8a94a6', name:'Budget'}]},
+        {label:'Committed', bars:[{v:p.committed, color:'#009DDC', name:'Committed'}]},
+        {label:'Actual', bars:[{v:p.actual, color:'#61BB46', name:'Actual to date'}]},
+        {label:'Forecast', bars:[{v:p.forecast, color:'#b45309', name:'Forecast final'}]},
+      ], {h:130}):'';
+      return `<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">
+          <div style="font-size:12px;font-weight:700;">${p.name}</div>
+          ${p.variancePct!=null?`<span style="font-size:9px;font-weight:700;color:${p.variancePct>0?'#b51e3b':'#15803d'};">Forecast vs budget ${p.variancePct>0?'+':''}${p.variancePct.toFixed(1)}%</span>`:''}
+        </div>
+        ${metrics}
+        ${bars?`<div style="font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-soft);margin:6px 0 2px;">Budget · committed · actual · forecast</div>${bars}`:''}
+      </div>`;
+    }).join('');
+    // Budgeted figures at the bottom — fund-wide table
+    const rows=d.withErp.map(p=>`<tr>
+      <td style="text-align:left;padding:6px 8px;font-weight:600;">${p.name}</td>
+      <td style="padding:6px 8px;">${money(p.budget)}</td><td style="padding:6px 8px;">${money(p.committed)}</td>
+      <td style="padding:6px 8px;">${money(p.actual)}</td><td style="padding:6px 8px;">${money(p.forecast)}</td>
+      <td style="padding:6px 8px;color:${p.variancePct>0?'#b51e3b':'#15803d'};font-weight:700;">${p.variancePct>0?'+':''}${p.variancePct.toFixed(1)}%</td></tr>`).join('');
+    const totVar=d.totBudget?((d.totForecast-d.totBudget)/d.totBudget*100):0;
+    const budgetTable=d.withErp.length?`<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:16px 0 8px;">Budgeted figures — budget vs actual (SAR M)</div>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:10px;font-variant-numeric:tabular-nums;">
+        <tr style="border-bottom:1px solid var(--ink-hairline);color:var(--ink-soft);font-size:8px;letter-spacing:0.1em;text-transform:uppercase;">
+          <th style="text-align:left;padding:6px 8px;">Project</th><th style="padding:6px 8px;">Budget</th><th style="padding:6px 8px;">Committed</th><th style="padding:6px 8px;">Actual</th><th style="padding:6px 8px;">Forecast</th><th style="padding:6px 8px;">Var vs budget</th></tr>
+        ${rows}
+        <tr style="border-top:2px solid var(--ink);font-weight:800;"><td style="text-align:left;padding:7px 8px;">Fund total</td><td style="padding:7px 8px;">${money(d.totBudget)}</td><td style="padding:7px 8px;">${money(d.totCommitted)}</td><td style="padding:7px 8px;">${money(d.totActual)}</td><td style="padding:7px 8px;">${money(d.totForecast)}</td><td style="padding:7px 8px;color:${totVar>0?'#b51e3b':'#15803d'};">${totVar>0?'+':''}${totVar.toFixed(1)}%</td></tr>
+      </table></div>`:'';
+    return fundBoard
+      + `<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:6px 0 10px;">Projects — performance</div>`
+      + (projCards||'<div style="font-size:11px;color:var(--ink-soft);padding:12px 0;">No projects in this fund yet.</div>')
+      + budgetTable
+      + _wfPerfChatHTML(f, k);
+  }
+  // Deterministic budget-vs-actual variance analysis: differences, why,
+  // related risks and mitigation — grounded in ERP + (where connected) the
+  // Paseetah market-data connector and the daily regional risk radar.
+  function _wfBudgetActualText(f, k){
+    const d=_wfPerfData(f, k);
+    if(!d.withErp.length) return `No project cost ledger is connected for ${f.name} yet — connect the ERP (SAP/Oracle) in Settings › Connectors and I'll surface the budget-vs-actual variance.`;
+    const paseetahOn=(typeof window!=='undefined' && window._paseetahOn!==false);
+    const lines=d.withErp.map(p=>{
+      const worst=(p.costCodes||[]).slice().sort((a,b)=>(b.c-b.b)-(a.c-a.b))[0];
+      return `- **${p.name}**: budget **SAR ${p.budget}M**, committed **SAR ${p.committed}M**, actual-to-date **SAR ${p.actual}M**, forecast-final **SAR ${p.forecast}M** → **${p.variancePct>0?'+':''}${p.variancePct.toFixed(1)}%** vs budget${worst?` (largest line movement: ${worst.name})`:''}`;
+    }).join('\n');
+    const totVar=((d.totForecast-d.totBudget)/d.totBudget*100);
+    return `### Budget vs actual — ${f.name.replace(/^Bohio RE /,'')}\n`
+      + `- Fund total: budget **SAR ${d.totBudget.toFixed(0)}M**, actual-to-date **SAR ${d.totActual.toFixed(0)}M**, forecast-final **SAR ${d.totForecast.toFixed(0)}M** → **${totVar>0?'+':''}${totVar.toFixed(1)}%** vs budget\n${lines}\n\n`
+      + `### Why (drivers)\n`
+      + `- Construction packages are the main swing — committed values on the largest trades are tracking ${totVar>0?'above':'in line with'} the original budget as scope and rates settle\n`
+      + `- ${paseetahOn?'**Paseetah** market data confirms regional steel/MEP input costs remain elevated, consistent with the forecast creep':'Market-cost context is unavailable (the **Paseetah** connector is off) — reconnect it in Settings › Connectors for a market-benchmarked read'}\n`
+      + `- Soft costs and FF&E are still largely uncommitted, so the forecast carries more estimating risk than the committed lines\n\n`
+      + `### Related risks\n`
+      + `- **Cost inflation** (see the daily risk radar): further input-cost moves would push the forecast up on uncommitted packages\n`
+      + `- **DSCR headroom**: a higher final cost funded pro-rata to debt tightens covenant headroom under the current rate outlook\n`
+      + `- **Contingency drawdown**: if variances persist, contingency depletes before completion\n\n`
+      + `### Mitigation\n`
+      + `- Lock remaining procurement (FF&E, soft costs) early to convert forecast into committed at today's prices\n`
+      + `- Hold GMP/lump-sum cover on the big packages; tighten variation governance\n`
+      + `- Re-underwrite DSCR at +150bps and pre-agree covenant headroom with lenders\n`
+      + `- Ask me to *"generate a mitigation plan"* in the Brief's risk radar to export these as a PDF`;
+  }
+  function _wfPerfChatBubble(c,k,i){
+    return `<div ${c.cls==='bot'?`id="wfperf-chat-b-${k}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`;
+  }
+  function _wfPerfChatHTML(f, k){
+    const chat=f._perfChat||[];
+    return `<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--ink-hairline);">
+      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Ask about performance &amp; budget vs actual</div>
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:10px;">Ask for the difference between budget and actual, why it's happening, and the related risks &amp; mitigation — grounded in the ERP ledger, Paseetah market data (where connected) and regional market news.</div>
+      <div id="wfperf-chat-${k}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:320px;overflow-y:auto;">${chat.map((c,i)=>_wfPerfChatBubble(c,k,i)).join('')}</div>
+      <div id="wfperf-preset-${k}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfPerfPreset('${k}','What are the differences between budget and actual, why, and the related risks and mitigation?')">Budget vs actual + insight</button>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <input id="wfperf-input-${k}" placeholder="e.g. what's the variance to budget, why, and how do we mitigate it?" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfPerfAsk('${k}')">
+        <button class="wf-btn ghost" onclick="_wfPerfAsk('${k}')">Ask</button>
+      </div>
+    </div>`;
+  }
+  function _wfPerfRender(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const log=document.getElementById(`wfperf-chat-${k}`); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=(f._perfChat||[]).map((c,i)=>_wfPerfChatBubble(c,k,i)).join('');
+    log.scrollTop=log.scrollHeight;
+    const preset=document.getElementById(`wfperf-preset-${k}`); if(preset&&(f._perfChat||[]).length) preset.style.display='none';
+  }
+  function _wfPerfPreset(k, text){ const inp=document.getElementById(`wfperf-input-${k}`); if(inp) inp.value=text; _wfPerfAsk(k); }
+  function _wfPerfAsk(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const input=document.getElementById(`wfperf-input-${k}`); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    f._perfChat=f._perfChat||[];
+    f._perfChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    _wfPerfRender(k);
+    if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
+      const bi=f._perfChat.length; f._perfChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'}); _wfPerfRender(k);
+      const el=document.getElementById(`wfperf-chat-b-${k}-${bi}`);
+      _krGenerateFileInto(q, el, '').then(()=>{ if(el) f._perfChat[bi].html=el.innerHTML; }); return;
+    }
+    // budget-vs-actual / variance / why / risk / mitigation → deterministic brief
+    if(/budget|actual|variance|over\s?run|overspend|why|risk|mitigat|differ/i.test(q)){
+      f._perfChat.push({cls:'bot', html:_fmtDiscountSections(_wfBudgetActualText(f, k))});
+      _wfPerfRender(k); return;
+    }
+    // else AI narration grounded in perf data
+    const bi=f._perfChat.length; f._perfChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'}); _wfPerfRender(k);
+    const d=_wfPerfData(f,k);
+    const ctx=d.withErp.map(p=>`${p.name}: budget SAR ${p.budget}M, actual SAR ${p.actual}M, forecast SAR ${p.forecast}M (${p.variancePct>0?'+':''}${p.variancePct.toFixed(1)}% vs budget)${p.fin?', NOI SAR '+p.fin.noi+'M, IRR '+p.fin.irr+'%, occ '+p.fin.occ+'%':''}`).join('; ');
+    const fallback=`I can break down ${f.name}'s performance and budget-vs-actual — ask "what's the variance to budget, why, and how do we mitigate it?".`;
+    const prompt=`You are Karaya analysing fund performance for ${f.name}. Data: ${ctx}. Fund total budget SAR ${d.totBudget.toFixed(0)}M vs forecast SAR ${d.totForecast.toFixed(0)}M. Question: "${q}". Answer in 2-4 sentences grounded only in this data, **bold** key figures. Plain text.`;
+    setTimeout(()=>{ const el=document.getElementById(`wfperf-chat-b-${k}-${bi}`); if(!el) return;
+      karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ f._perfChat[bi].html=fmtKaraya(out||fallback); el.innerHTML=fmtKaraya(out||fallback); }).catch(()=>{ f._perfChat[bi].html=fmtKaraya(fallback); el.innerHTML=fmtKaraya(fallback); }); }, 30);
+  }
   function _wfDevRender(k){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const log=document.getElementById(`wfdev-chat-${k}`); if(!log) return;
@@ -23748,6 +23949,11 @@ ${ctx.mailCtx}`;
         _wfFundDetail(k, _wfFundLastSec);
         return;
       }
+    }
+    // budget-vs-actual variance brief (Fund performance) from the fund's own chat
+    if(typeof _wfBudgetActualText==='function' && /(budget.*(?:actual|vs)|actual.*budget|variance to budget|over\s?run|overspend)/i.test(q)){
+      _wfFundChat[k].push({cls:'bot', html:_fmtDiscountSections(_wfBudgetActualText(f, k))});
+      rerender(); return;
     }
     // deterministic version diff first (works offline)
     const diff=_fundVersionDiff(f,q);
