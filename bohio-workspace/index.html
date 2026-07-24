@@ -10264,6 +10264,9 @@
       <div class="nav-item" id="nav-approvals" onclick="openApprovalsHub()">
         <span>Approvals</span>
       </div>
+      <div class="nav-item" id="nav-reports" onclick="openReportsHub()">
+        <span>Reports</span>
+      </div>
       <div class="nav-item" id="nav-bohioperf" onclick="openBohioPerf()">
         <span>Bohio Performance</span>
       </div>
@@ -22607,6 +22610,92 @@ Answer as Karaya:`;
       }catch(e){}
       finish(out&&String(out).trim()?out:fallback);
     })();
+  }
+  // ============ REPORTS HUB ============
+  // Every report the platform has produced, aggregated across all funds and
+  // projects, plus the recurring reports scheduled to run in the future — with
+  // a search box over both. Past reports reopen; recurring show their schedule.
+  const RECURRING_REPORTS = [
+    {title:'Quarterly Board Performance Pack', source:'Opportunity Fund II', kind:'Board pack', cadence:'Quarterly', next:'30 Sep 2026', owner:'Finance'},
+    {title:'Monthly LP Update',                source:'Opportunity Fund II', kind:'LP report',  cadence:'Monthly',   next:'05 Aug 2026', owner:'IR'},
+    {title:'Monthly LP Update',                source:'Fund I',              kind:'LP report',  cadence:'Monthly',   next:'05 Aug 2026', owner:'IR'},
+    {title:'Weekly Development Status',         source:'Marina Tower',        kind:'Development', cadence:'Weekly',    next:'28 Jul 2026', owner:'Development'},
+    {title:'Monthly Sales & Collections',      source:'Ash Shati Residences',kind:'Sales',      cadence:'Monthly',   next:'01 Aug 2026', owner:'Commercial'},
+    {title:'Quarterly REIT Regulatory Filing', source:'Corniche Co-Invest',  kind:'Regulatory', cadence:'Quarterly', next:'15 Oct 2026', owner:'Compliance'},
+  ];
+  const PAST_REPORTS_SEED = [
+    {title:'Q2 2026 Board Performance Pack',   source:'Opportunity Fund II', kind:'Board pack', when:'12 Jul 2026'},
+    {title:'June LP Update',                   source:'Opportunity Fund II', kind:'LP report',  when:'05 Jul 2026'},
+    {title:'Marina Tower — Development Status', source:'Marina Tower',        kind:'Development', when:'08 Jul 2026'},
+    {title:'H1 2026 Fund I Realisation Report', source:'Fund I',             kind:'Board pack', when:'03 Jul 2026'},
+    {title:'Ash Shati — Sales & Collections',  source:'Ash Shati Residences',kind:'Sales',      when:'01 Jul 2026'},
+    {title:'REIT Regulatory Filing — Q1 2026', source:'Corniche Co-Invest',  kind:'Regulatory', when:'15 Apr 2026'},
+  ];
+  function _aggregatePastReports(){
+    const out=[];
+    (typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).forEach(f=>(f._reportHistory||[]).forEach(r=>out.push({title:r.title, source:f.name.replace(/^Bohio RE /,''), kind:r.kindLabel||'Report', when:r.when||'Recently', _doc:{name:r.title, version:r.version, docBody:r.docBody, pdfFoot:r.pdfFoot}})));
+    Object.keys(P).forEach(pid=>(P[pid]._reportHistory||[]).forEach(r=>out.push({title:r.title, source:P[pid].name, kind:r.kindLabel||'Report', when:r.when||'Recently', _doc:{name:r.title, version:r.version, docBody:r.docBody, pdfFoot:r.pdfFoot}})));
+    // seeded historical reports so the hub is populated in a fresh demo
+    PAST_REPORTS_SEED.forEach(r=>out.push(r));
+    return out;
+  }
+  let _reportsHubOpen=false;
+  function openReportsHub(){ _reportsHubOpen=true; _wfOpenFundShell(); _renderReportsHub(); }
+  function _reportsHubBack(){ _reportsHubOpen=false; closeWorkflow(); goTo('workspace'); }
+  function _reportsHubReopen(i){
+    const past=_aggregatePastReports(); const r=past[i]; if(!r) return;
+    if(r._doc&&r._doc.docBody){ openReadableDoc({type:'PDF', name:r._doc.name, version:r._doc.version, docBody:r._doc.docBody, karayaPdf:true, pdfFoot:r._doc.pdfFoot}); }
+    else { openReadableDoc({type:'PDF', name:r.title, text:`${r.title}\n\n${r.source} · ${r.kind} · generated ${r.when}\n\nThis report was generated in Bohio from live fund, ERP, CRM and Yardi data. Reopen the source section (Reporting) to regenerate it in a different format.`}); }
+  }
+  function _kindColor(k){ return {'Board pack':'#2563eb','LP report':'#61BB46','Development':'#b45309','Sales':'#963D97','Regulatory':'#0a66c2'}[k]||'#475569'; }
+  function _reportRowHTML(r, i, kind){
+    const c=_kindColor(r.kind);
+    const meta = kind==='recur' ? `${r.cadence} · next ${r.next} · ${r.owner}` : `${r.kind} · ${r.when}`;
+    const action = kind==='recur' ? `<span style="flex-shrink:0;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Scheduled</span>` : `<span style="flex-shrink:0;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;">View ›</span>`;
+    const onclick = kind==='recur' ? '' : ` onclick="_reportsHubReopen(${i})" style="cursor:pointer;"`;
+    return `<div class="rhub-row" data-search="${(r.title+' '+r.source+' '+r.kind).toLowerCase().replace(/"/g,'')}"${onclick?onclick:' style="cursor:default;"'} onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor=''" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 14px;margin-bottom:7px;${kind==='recur'?'cursor:default;':'cursor:pointer;'}">
+      <div style="min-width:0;display:flex;align-items:center;gap:10px;">
+        <span style="width:8px;height:8px;border-radius:2px;background:${c};flex-shrink:0;"></span>
+        <div style="min-width:0;"><div style="font-size:11.5px;font-weight:700;line-height:1.35;">${r.title}</div>
+        <div style="font-size:9px;color:var(--ink-soft);margin-top:2px;">${r.source} · ${meta}</div></div>
+      </div>${action}</div>`;
+  }
+  function _renderReportsHub(){
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const past=_aggregatePastReports();
+    const recurRows=RECURRING_REPORTS.map((r,i)=>_reportRowHTML(r,i,'recur')).join('');
+    const pastRows=past.map((r,i)=>_reportRowHTML(r,i,'past')).join('');
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div style="min-width:0;">
+          <button onclick="_reportsHubBack()" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ Workspace</button>
+          <div class="wf-title">Reports</div>
+          <div class="wf-sub">Every report across your funds and projects — ${past.length} generated · ${RECURRING_REPORTS.length} recurring scheduled</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;"><button class="wf-back" onclick="_reportsHubBack()" aria-label="Back" title="Back">←</button></div>
+      </div>
+      <div class="wf-body" style="padding:18px 24px 40px;overflow-y:auto;">
+        <div style="position:relative;max-width:520px;margin-bottom:20px;">
+          <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-soft);">⌕</span>
+          <input id="rhub-search" placeholder="Search all reports — by title, fund, project or type…" oninput="_reportsHubFilter(this.value)" style="width:100%;box-sizing:border-box;padding:10px 14px 10px 34px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;">
+        </div>
+        <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:10px;">Recurring / scheduled — future</div>
+        <div id="rhub-recur">${recurRows}</div>
+        <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:22px 0 10px;">Past reports — generated</div>
+        <div id="rhub-past">${pastRows}</div>
+        <div id="rhub-empty" style="display:none;text-align:center;padding:40px 20px;color:var(--ink-soft);font-size:12px;">No reports match your search.</div>
+      </div>`;
+  }
+  function _reportsHubFilter(q){
+    const query=(q||'').trim().toLowerCase();
+    let visible=0;
+    document.querySelectorAll('#wf-overlay .rhub-row').forEach(row=>{
+      const hay=row.dataset.search||'';
+      const match=!query||hay.includes(query);
+      row.style.display=match?'flex':'none';
+      if(match) visible++;
+    });
+    const empty=document.getElementById('rhub-empty'); if(empty) empty.style.display=(query&&visible===0)?'block':'none';
   }
   function openApprovalsHub(){
     _wfApprovalsHubOpen=true;
