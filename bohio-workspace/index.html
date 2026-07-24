@@ -1555,20 +1555,15 @@
     background: var(--ink);
     color: var(--bg);
   }
-  /* ---- Apple-90s rainbow on the in-project section squircles ---- */
-  .proj-sections .section-squircle { border-color: transparent; color: #fff; }
-  .proj-sections .section-squircle[data-sec="documents"] { background: #61BB46; }  /* green  */
-  .proj-sections .section-squircle[data-sec="models"]    { background: #FDB827; color: var(--ink); } /* yellow */
-  .proj-sections .section-squircle[data-sec="topics"]    { background: #F58220; }  /* orange */
-  .proj-sections .section-squircle[data-sec="tasks"]     { background: #E03A3C; }  /* red    */
-  .proj-sections .section-squircle[data-sec="approvals"] { background: #963D97; }  /* violet */
-  .proj-sections .section-squircle[data-sec="contracts"] { background: #009DDC; }  /* blue   */
-  .proj-sections .section-squircle .ssq-sub,
-  .proj-sections .section-squircle .ssq-count { color: rgba(255,255,255,0.78); }
-  .proj-sections .section-squircle[data-sec="models"] .ssq-sub,
-  .proj-sections .section-squircle[data-sec="models"] .ssq-count { color: var(--ink-soft); }
+  /* ---- In-project section squircles: same off-white/black-contour design
+         as the fund section squircles ---- */
+  .proj-sections .section-squircle { border: 1.5px solid #000919; color: #000919; background: #f7f5f1; }
+  .proj-sections .section-squircle .ssq-sub { color: rgba(0,9,25,0.6); }
+  .proj-sections .section-squircle .ssq-count { color: var(--ink-soft); }
   .proj-sections .section-squircle.active { box-shadow: inset 0 0 0 2.5px var(--ink), 0 10px 24px rgba(0,9,25,0.18); filter: none; }
-  .proj-sections .section-squircle:hover { filter: brightness(1.06); }
+  .proj-sections .section-squircle:hover { filter: brightness(0.97); }
+  .proj-sections .ssq-head { justify-content: space-between; }
+  .proj-sections .ssq-glyph { width: 30px; height: 30px; border-radius: 9px; font-size: 14px; }
   .ssq-head {
     display: flex; justify-content: flex-end; align-items: center;
     margin-bottom: auto;
@@ -10412,20 +10407,16 @@
           <div class="wf-n">03</div><div class="wf-h">Underwriting vs actual</div>
           <div class="wf-d">A chat interface for variance — ask about any asset or metric and Karaya compares the underwriting to live PM actuals, flagging NOI, opex and IRR gaps.</div>
           <div class="wf-cta">Run workflow →</div></button>
-        <button class="wf-card" onclick="runWorkflow('reporting')">
-          <div class="wf-n">04</div><div class="wf-h">Reporting</div>
-          <div class="wf-d">Pick a report type, the data to include and a cadence — or ask in plain language — and Karaya assembles it live from Finance, Property Management &amp; Market Data across the Qatar portfolios, exportable to Excel.</div>
-          <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('appreciation')">
-          <div class="wf-n">05</div><div class="wf-h">Financial modelling</div>
+          <div class="wf-n">04</div><div class="wf-h">Financial modelling</div>
           <div class="wf-d">A chat interface for modelling — ask Karaya to pull data from the property management system and build an asset appreciation model, or a cashflow prediction for a new project. It builds a live Bohio workbook.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('screening')">
-          <div class="wf-n">06</div><div class="wf-h">Deal screening</div>
+          <div class="wf-n">05</div><div class="wf-h">Deal screening</div>
           <div class="wf-d">Screens an incoming deal against the firm's investment mandate — ticket size, geography, IRR hurdle, asset class — and returns a committee-ready PROCEED / REVIEW / PASS verdict.</div>
           <div class="wf-cta">Run workflow →</div></button>
         <button class="wf-card" onclick="runWorkflow('visibility')">
-          <div class="wf-n">07</div><div class="wf-h">Feasibility</div>
+          <div class="wf-n">06</div><div class="wf-h">Feasibility</div>
           <div class="wf-d">Pick a site on the map of Doha — Karaya screens the zoning envelope and live rental &amp; transaction comps for three highest-and-best-use options, then builds the full financial model for the one you choose.</div>
           <div class="wf-cta">Run workflow →</div></button>
       </div>
@@ -10512,37 +10503,42 @@
       </aside>
       <p class="project-description" id="ph-desc"></p>
 
-      <!-- THREE SECTION SQUIRCLES -->
+      <!-- SECTION SQUIRCLES -->
       <div class="proj-sections" id="proj-sections">
         <div class="section-squircle active" data-sec="documents" onclick="selectProjectSection('documents')">
-          <div class="ssq-head"><span class="ssq-count" id="ssq-count-documents">—</span></div>
+          <div class="ssq-head"><span class="ssq-glyph">◫</span><span class="ssq-count" id="ssq-count-documents">—</span></div>
           <div class="ssq-name">Documents</div>
           <div class="ssq-sub">Briefs &amp; consultant studies</div>
         </div>
         <div class="section-squircle" data-sec="models" onclick="selectProjectSection('models')">
-          <div class="ssq-head"><span class="ssq-count" id="ssq-count-models">—</span></div>
+          <div class="ssq-head"><span class="ssq-glyph">▦</span><span class="ssq-count" id="ssq-count-models">—</span></div>
           <div class="ssq-name">Financial Models</div>
           <div class="ssq-sub">Workbooks &amp; live ERP models</div>
         </div>
         <div class="section-squircle" data-sec="topics" onclick="selectProjectSection('topics')">
-          <div class="ssq-head"><span class="ssq-count" id="ssq-count-topics">—</span></div>
+          <div class="ssq-head"><span class="ssq-glyph">❋</span><span class="ssq-count" id="ssq-count-topics">—</span></div>
           <div class="ssq-name">Topics</div>
           <div class="ssq-sub">Live multi-agent conversations</div>
         </div>
         <div class="section-squircle" data-sec="tasks" onclick="selectProjectSection('tasks')">
-          <div class="ssq-head"><span class="ssq-count" id="ssq-count-tasks">—</span></div>
+          <div class="ssq-head"><span class="ssq-glyph">◰</span><span class="ssq-count" id="ssq-count-tasks">—</span></div>
           <div class="ssq-name">Tasks</div>
           <div class="ssq-sub">Team workstream &amp; deadlines</div>
         </div>
         <div class="section-squircle" data-sec="approvals" onclick="selectProjectSection('approvals')">
-          <div class="ssq-head"><span class="ssq-count" id="ssq-count-approvals">—</span></div>
+          <div class="ssq-head"><span class="ssq-glyph">✓</span><span class="ssq-count" id="ssq-count-approvals">—</span></div>
           <div class="ssq-name">Approvals</div>
           <div class="ssq-sub">Governance &amp; sign-off status</div>
         </div>
         <div class="section-squircle" data-sec="contracts" onclick="selectProjectSection('contracts')">
-          <div class="ssq-head"><span class="ssq-count" id="ssq-count-contracts">—</span></div>
+          <div class="ssq-head"><span class="ssq-glyph">⧉</span><span class="ssq-count" id="ssq-count-contracts">—</span></div>
           <div class="ssq-name">Contracts</div>
           <div class="ssq-sub">Leases &amp; cashflow model</div>
+        </div>
+        <div class="section-squircle" data-sec="reporting" onclick="selectProjectSection('reporting')">
+          <div class="ssq-head"><span class="ssq-glyph">▤</span><span class="ssq-count" id="ssq-count-reporting"></span></div>
+          <div class="ssq-name">Reporting</div>
+          <div class="ssq-sub">Reports via chatbot</div>
         </div>
       </div>
 
@@ -10598,6 +10594,11 @@
       <!-- CONTRACTS PANEL -->
       <div class="proj-section-panel" id="proj-sec-contracts" style="display:none;">
         <div id="proj-contract-mgmt"></div>
+      </div>
+
+      <!-- REPORTING PANEL -->
+      <div class="proj-section-panel" id="proj-sec-reporting" style="display:none;">
+        <div id="proj-reporting-slot"></div>
       </div>
 
       <!-- TOPICS PANEL -->
@@ -11851,7 +11852,7 @@
   }
 
   // ============ SECTION SQUIRCLES (Documents / Financial Models / Topics / Tasks / Approvals) ============
-  const PROJ_SECTIONS = ['documents','models','topics','tasks','approvals','contracts'];
+  const PROJ_SECTIONS = ['documents','models','topics','tasks','approvals','contracts','reporting'];
   // ============ DOCUMENT SEARCH ============
   function filterDocs(q){
     const grid = document.getElementById('docs-grid');
@@ -11894,6 +11895,9 @@
         renderContractMgmt('proj-contract-mgmt', 'pcm');
         host.dataset.rendered = '1';
       }
+    }
+    if (name === 'reporting' && typeof renderProjReporting === 'function') {
+      renderProjReporting(currentProject);
     }
   }
   function updateProjectSectionCounts(id){
@@ -21031,9 +21035,9 @@ Answer as Karaya:`;
       <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:10px;">Ask for any report — Karaya builds it live from this fund's own NAV/IRR trend, portfolio assets, capital structure and approvals history.</div>
       <div id="wffrep-chat-${k}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:280px;overflow-y:auto;">${chatLogHtml}</div>
       <div id="wffrep-preset-${k}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
-        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFundReportPreset('${k}','Quarterly performance — NAV and IRR trend versus last quarter')">Quarterly performance summary</button>
-        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFundReportPreset('${k}','Build an LP capital account statement')">LP capital account statement</button>
-        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFundReportPreset('${k}','Summarize portfolio occupancy and NOI trends, flag any risk')">Portfolio occupancy &amp; NOI</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFundReportPreset('${k}','Board performance report')">Board performance report</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFundReportPreset('${k}','LP quarterly update')">LP quarterly update</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFundReportPreset('${k}','Portfolio occupancy and NOI summary')">Portfolio occupancy &amp; NOI</button>
       </div>
       <div style="display:flex;gap:8px;">
         <input id="wffrep-input-${k}" placeholder="e.g. compare this quarter's IRR to last quarter and flag any risk" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfFundReportAsk('${k}')">
@@ -21054,6 +21058,46 @@ Answer as Karaya:`;
     if(input) input.value=text;
     _wfFundReportAsk(k);
   }
+  // Which report the user's phrasing refers to → {kind, kindLabel, title}.
+  function _wfReportKindFromQuery(f, q){
+    const ql=String(q||'').toLowerCase();
+    if(/board|performance report/.test(ql)) return {kind:'board', kindLabel:'Board performance report', title:f.name+' — Board Performance Report'};
+    if(/\blp\b|limited partner|quarterly update|capital account/.test(ql)) return {kind:'lp', kindLabel:'LP quarterly update', title:f.name+' — LP Quarterly Update'};
+    return {kind:'custom', kindLabel:'Custom report', title:f.name+' — '+q.replace(/^(a|an|the)\s+/i,'').replace(/\breport\b/ig,'').trim().replace(/\b\w/g,c=>c.toUpperCase()).slice(0,60).trim()+' Report'};
+  }
+  // A plain-text "layout" of a report's information — shown in the chat first,
+  // BEFORE any file is generated, so the user reviews the content and then
+  // chooses how to present it.
+  function _wfReportLayoutText(f, k, kind, q){
+    const rd=_wfFundReportData(f,k);
+    const {qtr, assets, pending, decided, lps}={qtr:rd.q, assets:rd.assets, pending:rd.pending, decided:rd.decided, lps:rd.lps};
+    const dry=f.committed-f.drawn, pct=Math.round(f.drawn/f.committed*100);
+    const perf=`### Performance\n- Deployed: **${pct}%** — SAR ${f.drawn}M of SAR ${f.committed}M (SAR ${dry}M dry powder)\n- NAV **SAR ${f.nav}M** · net IRR **${f.irr}** · DPI **${(f.dpi||0).toFixed(2)}x** · TVPI **${(f.tvpi||0).toFixed(2)}x**\n- NAV trend (6q): ${qtr.nav.join(' → ')} · IRR trend: ${qtr.irr.join(' → ')}`;
+    const portfolio=`### Portfolio\n${assets.length?assets.map(a=>`- **${a.name}** (${a.status})${a.fin?` — NOI SAR ${a.fin.noi}M · IRR ${a.fin.irr}% · occupancy ${a.fin.occ}%`:''}`).join('\n'):'- No projects held yet'}`;
+    const cap=`### Capital structure\n${lps.map(l=>`- ${l[0]} — SAR ${l[1]}M (${l[2]})`).join('\n')}`;
+    const gov=`### Approvals\n- Decided: ${decided.length?decided.map(a=>a.t+' ('+(a.cls==='g'?'approved':'rejected')+')').join('; '):'none this period'}\n- Pending: ${pending.length?pending.map(a=>a.t+' — '+a.status).join('; '):'none'}`;
+    if(kind==='board') return `Here's the **board performance report** laid out for ${f.name} — review it, then tell me how to present it:\n\n${perf}\n\n${portfolio}\n\n${gov}\n\n### Risk & recommendation\n- A 50bps outward cap-rate shift would move NAV ~**SAR ${(f.nav*0.06).toFixed(0)}M** (~6%)\n- ${pending.length?`**${pending.length}** item(s) need board attention before the next capital event`:'No items blocking the next capital event'}`;
+    if(kind==='lp') return `Here's the **LP quarterly update** laid out for ${f.name} — review it, then tell me how to present it:\n\n${perf}\n\n${cap}\n\n${portfolio}\n\n### Looking ahead\n- ${pending.length?pending.map(a=>a.t+' ('+a.status.toLowerCase()+')').join('; '):'Nothing pending affecting next quarter'}`;
+    return `Here's the information for your report on ${f.name} — review it, then tell me how to present it:\n\n${perf}\n\n${portfolio}\n\n${cap}\n\n${gov}`;
+  }
+  // Plain-text content used when the chosen format is a file (Excel, deck,
+  // Word, txt) rather than the charted PDF.
+  function _wfReportContentText(f, k, kind, q){
+    return _wfReportLayoutText(f, k, kind, q).replace(/^Here's[^\n]*\n\n/, '').replace(/^###\s*/gm, '## ').replace(/\*\*/g,'');
+  }
+  function _wfReportAskFormatText(){
+    return `How would you like this presented — and in what format?\n\ne.g. a formal **PDF** board letter · a **slide deck** · an **Excel** workbook · a **Word** document · or a one-page **summary**. Tell me the format and any style notes (tone, length, who it's for).`;
+  }
+  function _wfReportDetectFormat(q){
+    const ql=String(q||'').toLowerCase();
+    if(/excel|xlsx|spreadsheet|workbook|\.xls/.test(ql)) return 'xlsx';
+    if(/csv/.test(ql)) return 'csv';
+    if(/word|docx|\.doc\b/.test(ql)) return 'docx';
+    if(/slide|deck|powerpoint|pptx|presentation/.test(ql)) return 'pptx';
+    if(/pdf|letter|formal|board|document|report/.test(ql)) return 'pdf';
+    if(/summary|one[-\s]?pager|text|plain|short/.test(ql)) return 'summary';
+    return 'pdf';
+  }
   function _wfFundReportAsk(k){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const input=document.getElementById(`wffrep-input-${k}`); if(!input) return;
@@ -21062,7 +21106,40 @@ Answer as Karaya:`;
     f._reportChat=f._reportChat||[];
     f._reportChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
     _wfFundReportRender(k);
-    // "export this as excel/pdf/word" → a real downloadable file.
+    // STAGE 2 — a report is already laid out and we're waiting for the format.
+    if(f._reportPending){
+      const pend=f._reportPending; f._reportPending=null;
+      const fmt=_wfReportDetectFormat(q);
+      const bi=f._reportChat.length;
+      f._reportChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+      _wfFundReportRender(k);
+      const el=document.getElementById(`wffrep-chat-b-${k}-${bi}`);
+      if(fmt==='pdf'){
+        const body = pend.kind==='board' ? _wfBoardReportBody(f,k) : (pend.kind==='lp' ? _wfLpReportBody(f,k) : '<div>'+_fmtDiscountSections(_wfReportLayoutText(f,k,pend.kind,pend.q))+'</div>');
+        const foot='Generated by Karaya from live Fund Management, Finance (ERP) and Outlook integrations. Figures are indicative and unaudited — verify before distribution.';
+        const n=(f._reportHistory||[]).filter(r=>r.kindLabel===pend.kindLabel).length+1;
+        const version='v.'+String(n).padStart(2,'0')+' · Karaya-generated';
+        _wfLogReport(f, pend.kindLabel, pend.title, version, body, foot);
+        if(el) el.innerHTML=fmtKaraya(`Done — I've prepared **${pend.title}** as a formatted PDF. Opening it now; it's also saved under **Past reports** below.`);
+        f._reportChat[bi]={cls:'bot', html:el?el.innerHTML:''};
+        openReadableDoc({type:'PDF', name:pend.title, version, docBody:body, karayaPdf:true, pdfFoot:foot});
+        setTimeout(()=>_wfFundDetail(k,'reporting'), 400);
+      } else if(fmt==='summary'){
+        if(el){ el.innerHTML=_fmtDiscountSections(_wfReportLayoutText(f,k,pend.kind,pend.q).replace(/^Here's[^\n]*\n\n/,'')); f._reportChat[bi]={cls:'bot', html:el.innerHTML}; }
+      } else {
+        // Excel / Word / deck / csv → real downloadable file with the report content.
+        const type=fmt;
+        const content=_wfReportContentText(f,k,pend.kind,pend.q);
+        if(typeof _krMakeFile==='function'){
+          try{
+            const file=_krMakeFile(type, pend.title, content);
+            if(el){ el.innerHTML=fmtKaraya(`Done — **${pend.title}** as ${file.label}.`)+_krFileCard(file.url, file.filename); f._reportChat[bi]={cls:'bot', html:el.innerHTML}; }
+          }catch(e){ if(el){ el.innerHTML=fmtKaraya('I hit an error building that format — try "PDF" or "Excel".'); f._reportChat[bi]={cls:'bot', html:el.innerHTML}; } }
+        }
+      }
+      return;
+    }
+    // Explicit one-shot file request ("export this as excel") still works directly.
     if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
       const bi=f._reportChat.length;
       f._reportChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
@@ -21071,17 +21148,117 @@ Answer as Karaya:`;
       _krGenerateFileInto(q, el, '').then(()=>{ if(el) f._reportChat[bi].html=el.innerHTML; });
       return;
     }
-    const rd=_wfFundReportData(f,k);
-    const ctx=_wfFundReportContextText(rd);
-    const botIdx=f._reportChat.length;
-    f._reportChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+    // STAGE 1 — lay out the report information, then ask how to present it.
+    const kd=_wfReportKindFromQuery(f, q);
+    const layout=_wfReportLayoutText(f, k, kd.kind, q);
+    f._reportChat.push({cls:'bot', html:_fmtDiscountSections(layout)});
+    f._reportChat.push({cls:'bot', html:fmtKaraya(_wfReportAskFormatText())});
+    f._reportPending={kind:kd.kind, kindLabel:kd.kindLabel, title:kd.title, q};
     _wfFundReportRender(k);
-    const fallback=`Here's what I can ground a report in for **${f.name}**: NAV **SAR ${f.nav}M**, net IRR **${f.irr}**, **${rd.assets.length}** portfolio asset${rd.assets.length===1?'':'s'}, and **${rd.pending.length}** approval${rd.pending.length===1?'':'s'} pending. Ask for a specific report — e.g. "quarterly performance summary" or "LP capital account statement" — and I'll build it from this data.`;
-    const prompt=`You are Karaya, an AI reporting analyst. Build the custom report the user asks for, grounded ONLY in this data: ${ctx} Request: "${q}". Structure your answer with clear markdown section headers on their own line ("### Title") and bullet points ("- point" under each), **bold** the key figures. If the request needs data not given here, say so briefly rather than inventing numbers. No preamble or conclusion outside the sections.`;
-    setTimeout(()=>{
-      const el=document.getElementById(`wffrep-chat-b-${k}-${botIdx}`); if(!el) return;
-      karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ const html=_fmtDiscountSections(out||fallback); f._reportChat[botIdx].html=html; el.innerHTML=html; }).catch(()=>{ const html=_fmtDiscountSections(fallback); f._reportChat[botIdx].html=html; el.innerHTML=html; });
-    }, 30);
+  }
+  // ---- Project reporting — same layout-first chatbot as the fund reporting
+  // section, grounded in a single project's own performance, development and
+  // cost data. Keyed by project id.
+  function _projReportLayoutText(pid, kind, q){
+    const p=P[pid]; if(!p) return 'No data for this project.';
+    const fin=(typeof WF_REP_ASSETS!=='undefined'?WF_REP_ASSETS:[]).find(x=>x.name===p.name);
+    const dev=(typeof WF_DEV_DATA!=='undefined')?WF_DEV_DATA[pid]:null;
+    const perf=fin?`### Performance\n- Revenue **SAR ${fin.revenue}M** · Opex **SAR ${fin.opex}M** · NOI **SAR ${fin.noi}M**\n- Gross IRR **${fin.irr}%** · equity multiple **${fin.moic}x** · occupancy **${fin.occ}%**\n- Invested **SAR ${fin.invested}M** · NAV **SAR ${fin.nav}M**`:`### Performance\n- No structured financials on file for ${p.name} yet`;
+    const devTxt=dev?`### Development\n- Total dev cost **SAR ${dev.totalDevCost}M** (hard ${dev.hardCost}M · soft ${dev.softCost}M · contingency ${dev.contingency}M)\n- Design ${dev.designMonths}mo (${dev.designStatus}) · construction ${dev.constructionMonths}mo (${dev.constructionStatus}, ${dev.pctComplete}% complete)\n- Contractor **${dev.contractor}** · ${dev.deliveryMethod} · target completion ${dev.targetCompletion}`:'';
+    const overview=`### Overview\n- **${p.name}** — ${p.loc} · ${p.phase} · lead ${p.lead}`;
+    if(kind==='development' && dev) return `Here's the **development / construction status report** for ${p.name} — review it, then tell me how to present it:\n\n${overview}\n\n${devTxt}\n\n${perf}`;
+    if(kind==='performance') return `Here's the **asset performance report** for ${p.name} — review it, then tell me how to present it:\n\n${overview}\n\n${perf}${dev?'\n\n'+devTxt:''}`;
+    return `Here's the information for your report on ${p.name} — review it, then tell me how to present it:\n\n${overview}\n\n${perf}${dev?'\n\n'+devTxt:''}`;
+  }
+  function _projReportKind(q){
+    const ql=String(q||'').toLowerCase();
+    if(/development|construction|timeline|cost/.test(ql)) return {kind:'development', kindLabel:'Development status report'};
+    if(/performance|noi|irr|occupancy|asset/.test(ql)) return {kind:'performance', kindLabel:'Asset performance report'};
+    return {kind:'custom', kindLabel:'Custom report'};
+  }
+  function _projReportChatBubbleHTML(c,pid,i){
+    return `<div ${c.cls==='bot'?`id="prjrep-chat-b-${pid}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`;
+  }
+  function renderProjReporting(pid){
+    const host=document.getElementById('proj-reporting-slot'); if(!host) return;
+    const p=P[pid]; if(!p) return;
+    const chat=p._reportChat||[];
+    const hist=p._reportHistory||[];
+    host.innerHTML=`<div class="docs-header" style="margin-top:0;"><div class="docs-title">Reporting</div></div>
+      <div style="font-size:11px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;max-width:760px;">Reporting for <b style="color:var(--ink);">${p.name}</b> runs through the chatbot — ask for any report and Karaya lays out the information first, then asks how you'd like it presented and in what format before generating it.</div>
+      <div id="prjrep-chat-${pid}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-width:760px;">${chat.map((c,i)=>_projReportChatBubbleHTML(c,pid,i)).join('')}</div>
+      <div id="prjrep-preset-${pid}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_projReportPreset(${pid},'Asset performance report')">Asset performance report</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_projReportPreset(${pid},'Development / construction status report')">Development status report</button>
+      </div>
+      <div style="display:flex;gap:8px;max-width:760px;">
+        <input id="prjrep-input-${pid}" placeholder="e.g. an asset performance report, or a construction status update" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_projReportAsk(${pid})">
+        <button class="wf-btn ghost" onclick="_projReportAsk(${pid})">Ask</button>
+      </div>
+      ${hist.length?`<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--ink-hairline);max-width:760px;">
+        <div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Past reports — ${hist.length} generated</div>
+        ${hist.slice().reverse().map((r,ri)=>{const idx=hist.length-1-ri; return `<div onclick="_projReopenReport(${pid},${idx})" title="Reopen this report" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink-hairline);border-radius:10px;padding:10px 13px;margin-bottom:7px;cursor:pointer;" onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor=''"><div style="min-width:0;"><div style="font-size:11px;font-weight:700;">${r.title}</div><div style="font-size:9px;color:var(--ink-soft);margin-top:2px;">${r.kindLabel} · ${r.version} · ${r.when}</div></div><span style="flex-shrink:0;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;">View ›</span></div>`;}).join('')}
+      </div>`:''}`;
+  }
+  function _projReportRender(pid){
+    const log=document.getElementById(`prjrep-chat-${pid}`); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=(P[pid]._reportChat||[]).map((c,i)=>_projReportChatBubbleHTML(c,pid,i)).join('');
+    log.scrollTop=log.scrollHeight;
+    const preset=document.getElementById(`prjrep-preset-${pid}`); if(preset&&(P[pid]._reportChat||[]).length) preset.style.display='none';
+  }
+  function _projReportPreset(pid, text){ const inp=document.getElementById(`prjrep-input-${pid}`); if(inp) inp.value=text; _projReportAsk(pid); }
+  function _projReopenReport(pid, idx){
+    const r=(P[pid]._reportHistory||[])[idx]; if(!r) return;
+    openReadableDoc({type:'PDF', name:r.title, version:r.version, docBody:r.docBody, karayaPdf:true, pdfFoot:r.pdfFoot});
+  }
+  function _projReportAsk(pid){
+    const p=P[pid]; if(!p) return;
+    const input=document.getElementById(`prjrep-input-${pid}`); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    p._reportChat=p._reportChat||[];
+    p._reportChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    _projReportRender(pid);
+    if(p._reportPending){
+      const pend=p._reportPending; p._reportPending=null;
+      const fmt=_wfReportDetectFormat(q);
+      const bi=p._reportChat.length;
+      p._reportChat.push({cls:'bot', html:'…'});
+      const contentText=_projReportLayoutText(pid, pend.kind, pend.q).replace(/^Here's[^\n]*\n\n/,'').replace(/^###\s*/gm,'## ').replace(/\*\*/g,'');
+      if(fmt==='pdf'){
+        const body='<div>'+_fmtDiscountSections(_projReportLayoutText(pid,pend.kind,pend.q).replace(/^Here's[^\n]*\n\n/,''))+'</div>';
+        const foot='Generated by Karaya from live project performance, development and cost data. Figures are indicative and unaudited — verify before distribution.';
+        const n=(p._reportHistory||[]).filter(r=>r.kindLabel===pend.kindLabel).length+1;
+        const version='v.'+String(n).padStart(2,'0')+' · Karaya-generated';
+        p._reportHistory=p._reportHistory||[]; p._reportHistory.push({kindLabel:pend.kindLabel, title:pend.title, version, docBody:body, pdfFoot:foot, when:'Just now'});
+        p._reportChat[bi]={cls:'bot', html:fmtKaraya(`Done — **${pend.title}** as a formatted PDF. Opening it now; it's also saved under **Past reports** below.`)};
+        renderProjReporting(pid);
+        openReadableDoc({type:'PDF', name:pend.title, version, docBody:body, karayaPdf:true, pdfFoot:foot});
+        return;
+      } else if(fmt==='summary'){
+        p._reportChat[bi]={cls:'bot', html:_fmtDiscountSections(_projReportLayoutText(pid,pend.kind,pend.q).replace(/^Here's[^\n]*\n\n/,''))};
+      } else {
+        try{ const file=_krMakeFile(fmt, pend.title, contentText); p._reportChat[bi]={cls:'bot', html:fmtKaraya(`Done — **${pend.title}** as ${file.label}.`)+_krFileCard(file.url, file.filename)}; }
+        catch(e){ p._reportChat[bi]={cls:'bot', html:fmtKaraya('I hit an error building that format — try "PDF" or "Excel".')}; }
+      }
+      _projReportRender(pid);
+      return;
+    }
+    if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
+      const bi=p._reportChat.length;
+      p._reportChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+      _projReportRender(pid);
+      const el=document.getElementById(`prjrep-chat-b-${pid}-${bi}`);
+      _krGenerateFileInto(q, el, '').then(()=>{ if(el) p._reportChat[bi].html=el.innerHTML; });
+      return;
+    }
+    const kd=_projReportKind(q);
+    const title=p.name+' — '+(kd.kind==='development'?'Development Status Report':(kd.kind==='performance'?'Asset Performance Report':q.replace(/\b\w/g,c=>c.toUpperCase()).slice(0,50)+' Report'));
+    p._reportChat.push({cls:'bot', html:_fmtDiscountSections(_projReportLayoutText(pid, kd.kind, q))});
+    p._reportChat.push({cls:'bot', html:fmtKaraya(_wfReportAskFormatText())});
+    p._reportPending={kind:kd.kind, kindLabel:kd.kindLabel, title, q};
+    _projReportRender(pid);
   }
   let _wfFundLastSec='brief';
   function _wfFundDetail(k, sec){
@@ -21213,24 +21390,8 @@ Answer as Karaya:`;
       + _wfDevSectionHTML(f, k);
     }
     else if(sec==='reporting'){
-      const pending=f.approvals.filter(a=>a.cls==='a');
-      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Generate a report for <b style="color:var(--ink);">${f.name}</b> — assembled live from Finance (ERP), the fund's own documents and Outlook.</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px;">
-        <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 17px;">
-          <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">For the board</div>
-          <div style="font-size:12px;font-weight:700;margin-bottom:6px;">Board performance report</div>
-          <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:11px;">NAV bridge, IRR trend, capital composition, portfolio, and decisions pending or taken this period — with charts.</div>
-          <button class="wf-btn" onclick="_wfFundBoardReport('${k}')">Generate report</button>
-        </div>
-        <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 17px;">
-          <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">For LPs</div>
-          <div style="font-size:12px;font-weight:700;margin-bottom:6px;">LP quarterly update</div>
-          <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:11px;">Performance summary, capital account activity, portfolio update and what's coming next quarter — letter format.</div>
-          <button class="wf-btn" onclick="_wfFundLpReport('${k}')">Generate report</button>
-        </div>
-      </div>
-      <div style="font-size:9.5px;color:var(--ink-soft);line-height:1.6;">Need something else — a capital call or distribution notice, a co-investor pack, a REIT disclosure? <span style="text-decoration:underline;cursor:pointer;color:var(--ink);" onclick="closeWorkflow();runWorkflow('reporting')">Open the full Reporting workflow →</span></div>
-      ${pending.length?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:6px;">${pending.length} approval${pending.length>1?'s':''} still pending will show as open items in either report until resolved.</div>`:''}
+      panel=`<div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;">Reporting for <b style="color:var(--ink);">${f.name}</b> runs entirely through the chatbot — ask for any report and Karaya lays out the information first, then asks how you'd like it presented and in what format before generating it.</div>
+      ${_wfFundReportingHTML(f, k)}
       ${_wfReportHistoryHTML(f)}`;
     }
     else if(sec==='timeline'){
@@ -21255,7 +21416,6 @@ Answer as Karaya:`;
         <div class="fund-sections">${secBtns}</div>
         ${panel}
         <div id="wff-chat" style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">${chatLog}</div>
-        ${_wfFundReportingHTML(f, k)}
         ${_fundOwnershipHTML(f)}
       </div>
       <div style="display:flex;gap:8px;padding:13px 24px;border-top:1px solid var(--ink-hairline);">
@@ -22618,14 +22778,16 @@ Answer as Karaya:`;
     f._reportHistory=f._reportHistory||[];
     f._reportHistory.push({kindLabel, title, version, docBody, pdfFoot, when:'Just now'});
   }
-  function _wfFundBoardReport(k){
-    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+  // ---- Report body builders — return the rich HTML body (with charts) used
+  // when a report is finally rendered as a PDF. Kept separate from the chat
+  // "layout" preview so the two never drift.
+  function _wfBoardReportBody(f, k){
     const specs=_fundBoardReportSpecs(f);
     const chart=spec=>`<div data-chart="${btoa(unescape(encodeURIComponent(JSON.stringify(spec))))}"></div>`;
     const dry=f.committed-f.drawn, pct=Math.round(f.drawn/f.committed*100);
     const pending=f.approvals.filter(a=>a.cls==='a'), approved=f.approvals.filter(a=>a.cls==='g');
     const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
-    const body=`
+    return `
       <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:0 0 8px;">Fund overview</h4>
       <p><b>${f.name}</b> (${f.vintage}, ${f.tag}) is <b>${pct}%</b> deployed — <b>SAR ${f.drawn}M</b> drawn of <b>SAR ${f.committed}M</b> committed, leaving <b>SAR ${dry.toFixed(0)}M</b> of dry powder. Current NAV stands at <b>SAR ${f.nav}M</b> against a net IRR of <b>${f.irr}</b>, DPI of <b>${(f.dpi||0).toFixed(2)}x</b> and TVPI of <b>${(f.tvpi||0).toFixed(2)}x</b>. Status: <b>${f.status}</b>.</p>
       <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">NAV bridge</h4>
@@ -22656,23 +22818,13 @@ Answer as Karaya:`;
         <li>${pending.length?'<b>'+pending.length+' item'+(pending.length>1?'s':'')+'</b> require board attention before the next capital event.':'No open items are blocking the fund’s next capital event.'}</li>
         <li>A 50bps outward cap-rate shift across the book would move NAV by an estimated <b>SAR ${(f.nav*0.06).toFixed(0)}M</b> (~6%) — flagged for the board’s awareness, not a current trigger.</li>
       </ul>`;
-    const title=f.name+' — Board Performance Report';
-    const foot='Generated by Karaya from live Fund Management, Finance (ERP) and Outlook integrations. Figures are indicative and unaudited — verify against source systems before board distribution.';
-    const n=(f._reportHistory||[]).filter(r=>r.kindLabel==='Board performance report').length+1;
-    const version='v.'+String(n).padStart(2,'0')+' · Karaya-generated';
-    _wfLogReport(f, 'Board performance report', title, version, body, foot);
-    _wfFundDetail(k,'reporting');
-    openReadableDoc({type:'PDF', name:title, version, docBody:body, karayaPdf:true, pdfFoot:foot});
   }
-  // ---- LP quarterly update — a letter-format report for co-investors/LPs,
-  // reusing the same fund data as the board report but as prose, not charts ----
-  function _wfFundLpReport(k){
-    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+  function _wfLpReportBody(f, k){
     const dry=f.committed-f.drawn, pct=Math.round(f.drawn/f.committed*100);
     const pending=f.approvals.filter(a=>a.cls==='a'), approved=f.approvals.filter(a=>a.cls==='g');
     const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
     const totLp=f.structure.lps.reduce((a,l)=>a+l[1],0);
-    const body=`
+    return `
       <p>Dear Limited Partner,</p>
       <p>We are pleased to share this quarter's update on <b>${f.name}</b> (${f.vintage}, ${f.tag}).</p>
       <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">Performance summary</h4>
@@ -22688,13 +22840,6 @@ Answer as Karaya:`;
       </ul>
       <p style="margin-top:18px;">As always, we welcome your questions — please reach out to the Investor Relations team at any time.</p>
       <p>Sincerely,<br>Bohio Capital Partners</p>`;
-    const title=f.name+' — LP Quarterly Update';
-    const foot='Generated by Karaya from live Fund Management and Finance (ERP) integrations. Figures are indicative and unaudited — this letter is a draft for Investor Relations review before it is sent to LPs.';
-    const n=(f._reportHistory||[]).filter(r=>r.kindLabel==='LP quarterly update').length+1;
-    const version='v.'+String(n).padStart(2,'0')+' · Karaya-generated';
-    _wfLogReport(f, 'LP quarterly update', title, version, body, foot);
-    _wfFundDetail(k,'reporting');
-    openReadableDoc({type:'PDF', name:title, version, docBody:body, karayaPdf:true, pdfFoot:foot});
   }
   async function _wfFundBriefLoad(k){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
