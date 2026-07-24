@@ -13598,6 +13598,16 @@ Reply as the agent:`;
         return;
       }
     }
+    // "set NAV to 720", "change the IRR to 15%" — edit a fund's KPI dashboard.
+    if (typeof _wfTryDashboardEdit === 'function') {
+      const dash = _wfTryDashboardEdit(q);
+      if (dash) {
+        KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:dash});
+        bot.innerHTML = fmtKaraya(dash) + '<span class="k-meta">Karaya · just now</span>';
+        msgs.scrollTop = msgs.scrollHeight;
+        return;
+      }
+    }
 
     const history=KARAYA_HISTORY.slice(-6).map(m=>(m.role==='user'?'User: ':'Karaya: ')+m.text).join('\n');
     const ctx=(typeof buildWorkspaceContext==='function')?buildWorkspaceContext():'';
@@ -21003,6 +21013,68 @@ Answer as Karaya:`;
       ${tile('Pending approvals', pendingCount, pendingCount?'#b45309':undefined)}
     </div>`;
   }
+  // ---- Modify a fund's top KPI dashboard by chat command, e.g. "set NAV to
+  // 720", "change the IRR to 15%", "drawn 600 committed 800". Returns a result
+  // object if it was a dashboard edit (so the chat handlers can confirm it and
+  // skip the AI call), or null otherwise.
+  const _WF_KPI_FIELDS=[
+    {keys:['committed','commitment'], field:'committed', kind:'num', label:'Committed'},
+    {keys:['drawn'], field:'drawn', kind:'num', label:'Drawn'},
+    {keys:['net asset value','nav'], field:'nav', kind:'num', label:'NAV'},
+    {keys:['net irr','irr','return'], field:'irr', kind:'pct', label:'Net IRR'},
+    {keys:['tvpi'], field:'tvpi', kind:'mult', label:'TVPI'},
+    {keys:['dpi'], field:'dpi', kind:'mult', label:'DPI'},
+  ];
+  function _wfResolveFundFromQuery(q){
+    if(typeof WF_FUNDS==='undefined') return null;
+    const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const named=WF_FUNDS.find(f=>new RegExp('\\b'+esc(f.name.toLowerCase())+'\\b','i').test(q)||new RegExp('\\b'+esc(f.name.replace(/^Bohio RE /i,'').toLowerCase())+'\\b','i').test(q));
+    if(named) return named;
+    if(_wfCurrentFundK) return WF_FUNDS.find(f=>f.k===_wfCurrentFundK)||null;
+    return null;
+  }
+  function _wfParseDashboardEdit(q){
+    const ql=String(q||'').toLowerCase();
+    if(!/\b(set|change|update|make|adjust|modif|move|bump|raise|lower|drop|increase|decrease|=)\b/.test(ql)) return null;
+    if(!/\b(nav|net asset value|irr|return|tvpi|dpi|drawn|committ)/.test(ql)) return null;
+    const edits=[];
+    _WF_KPI_FIELDS.forEach(m=>{
+      for(const key of m.keys){
+        // metric keyword, then the first number within ~40 chars — tolerant of
+        // a fund name or connector words in between ("NAV of Fund I to 200").
+        const re=new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'[^0-9]{0,40}?(-?\\d+(?:\\.\\d+)?)','i');
+        const mm=ql.match(re);
+        if(mm){ edits.push({field:m.field, kind:m.kind, label:m.label, value:parseFloat(mm[1])}); break; }
+      }
+    });
+    return edits.length?edits:null;
+  }
+  function _wfApplyDashboardEdit(f, edits){
+    const applied=[];
+    edits.forEach(e=>{
+      let disp;
+      if(e.kind==='num'){ f[e.field]=Math.round(e.value); disp='SAR '+f[e.field]+'M'; }
+      else if(e.kind==='pct'){ f[e.field]=e.value+'%'; disp=f[e.field]; }
+      else { f[e.field]=e.value; disp=e.value.toFixed(2)+'x'; }
+      applied.push(`**${e.label}** → **${disp}**`);
+    });
+    _KARAYA_CTX_CACHE=null; // fund figures changed → rebuild grounding on next question
+    // Re-render whichever fund view is showing this fund, live.
+    if(_wfCurrentFundK===f.k && document.getElementById('wf-overlay')?.classList.contains('open')){
+      _wfFundDetail(f.k, _wfFundLastSec);
+    }
+    return applied;
+  }
+  // Shared entry point used by both the right-side Karaya panel and a fund's
+  // own bottom chat: if q is a dashboard edit, apply it and return a confirm
+  // string; else return null.
+  function _wfTryDashboardEdit(q){
+    const edits=_wfParseDashboardEdit(q); if(!edits) return null;
+    const f=_wfResolveFundFromQuery(q);
+    if(!f) return `Tell me which fund's dashboard to update — e.g. "set NAV to 720 for Opportunity Fund II" — or open the fund first.`;
+    const applied=_wfApplyDashboardEdit(f, edits);
+    return `Updated **${f.name.replace(/^Bohio RE /,'')}**'s dashboard: ${applied.join(', ')}. The KPI tiles at the top of the fund page now reflect this.`;
+  }
   // ---- Reporting workflow — a chatbot that builds ANY custom report on
   // demand, grounded in this fund's own mock dataset (quarterly NAV/IRR
   // trend, portfolio asset financials, cap table, approvals history) rather
@@ -21261,10 +21333,12 @@ Answer as Karaya:`;
     _projReportRender(pid);
   }
   let _wfFundLastSec='brief';
+  let _wfCurrentFundK=null;
   function _wfFundDetail(k, sec){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     sec=sec||'brief';
     _wfFundLastSec=sec;
+    _wfCurrentFundK=k;
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
     // ordered left → right: Brief (landing) · Fund agreements · Financial modelling · the rest
     // section squircles — same design as the in-project sections
@@ -23502,6 +23576,16 @@ ${ctx.mailCtx}`;
       const botEl=chat&&chat.lastElementChild;
       _krGenerateFileInto(q, botEl, '').then(()=>{ if(botEl) _wfFundChat[k][_wfFundChat[k].length-1]={cls:'bot', html:botEl.innerHTML}; });
       return;
+    }
+    // "set NAV to 720", "change the IRR to 15%" — edit this fund's KPI dashboard.
+    if(typeof _wfParseDashboardEdit==='function'){
+      const edits=_wfParseDashboardEdit(q);
+      if(edits){
+        const applied=_wfApplyDashboardEdit(f, edits);
+        _wfFundChat[k].push({cls:'bot', html:fmtKaraya('Updated the dashboard: '+applied.join(', ')+'. The KPI tiles at the top now reflect this.')});
+        _wfFundDetail(k, _wfFundLastSec);
+        return;
+      }
     }
     // deterministic version diff first (works offline)
     const diff=_fundVersionDiff(f,q);
