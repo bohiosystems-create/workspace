@@ -10535,6 +10535,11 @@
           <div class="ssq-name">Contracts</div>
           <div class="ssq-sub">Leases &amp; cashflow model</div>
         </div>
+        <div class="section-squircle" data-sec="sales" onclick="selectProjectSection('sales')">
+          <div class="ssq-head"><span class="ssq-glyph">▧</span><span class="ssq-count" id="ssq-count-sales"></span></div>
+          <div class="ssq-name">Sales</div>
+          <div class="ssq-sub">Revenue &amp; off-plan sales</div>
+        </div>
         <div class="section-squircle" data-sec="reporting" onclick="selectProjectSection('reporting')">
           <div class="ssq-head"><span class="ssq-glyph">▤</span><span class="ssq-count" id="ssq-count-reporting"></span></div>
           <div class="ssq-name">Reporting</div>
@@ -10594,6 +10599,11 @@
       <!-- CONTRACTS PANEL -->
       <div class="proj-section-panel" id="proj-sec-contracts" style="display:none;">
         <div id="proj-contract-mgmt"></div>
+      </div>
+
+      <!-- SALES PANEL -->
+      <div class="proj-section-panel" id="proj-sec-sales" style="display:none;">
+        <div id="proj-sales-slot"></div>
       </div>
 
       <!-- REPORTING PANEL -->
@@ -11857,7 +11867,7 @@
   }
 
   // ============ SECTION SQUIRCLES (Documents / Financial Models / Topics / Tasks / Approvals) ============
-  const PROJ_SECTIONS = ['documents','models','topics','tasks','approvals','contracts','reporting'];
+  const PROJ_SECTIONS = ['documents','models','topics','tasks','approvals','contracts','sales','reporting'];
   // ============ DOCUMENT SEARCH ============
   function filterDocs(q){
     const grid = document.getElementById('docs-grid');
@@ -11904,6 +11914,9 @@
     if (name === 'reporting' && typeof renderProjReporting === 'function') {
       renderProjReporting(currentProject);
     }
+    if (name === 'sales' && typeof renderProjSales === 'function') {
+      renderProjSales(currentProject);
+    }
   }
   function updateProjectSectionCounts(id){
     const p = P[id];
@@ -11925,6 +11938,8 @@
     const gov = (typeof GOVERNANCE !== 'undefined' && GOVERNANCE[id]) ? GOVERNANCE[id] : null;
     const tiers = gov ? gov.approvals.length : 0;
     setC('approvals', live > 0 ? (live + ' active') : (tiers + ' tiers'));
+    const sd = (typeof _projSalesData === 'function') ? _projSalesData(id) : null;
+    setC('sales', sd ? (Math.round(sd.soldPct*100) + '% sold') : '—');
   }
 
   // Documents routed TO the demo user for sign-off — approvable right here.
@@ -21248,6 +21263,175 @@ Answer as Karaya:`;
   // ---- Project reporting — same layout-first chatbot as the fund reporting
   // section, grounded in a single project's own performance, development and
   // cost data. Keyed by project id.
+  // ============ PROJECT SALES ============
+  // Per-project sales & revenue tracking (units, off-plan sales, collections,
+  // absorption velocity). Compact per-project seed → derived figures + a
+  // deterministic 6-month trend, so dashboards and the sales chatbot read the
+  // same numbers. Residential assets sell off-plan; commercial/logistics are
+  // tracked as strata / pre-let sales in the same shape.
+  const _PROJ_SALES_SEED = {
+    1:{gdv:2380, units:220, soldPct:0.68, offPlan:0.74, psf:1450, collected:0.42, mode:'Off-plan', label:'Residential — off-plan'},
+    2:{gdv:1760, units:120, soldPct:0.55, offPlan:0.81, psf:1610, collected:0.34, mode:'Off-plan', label:'Branded residences — off-plan'},
+    3:{gdv:640,  units:48,  soldPct:0.83, offPlan:0.22, psf:1180, collected:0.71, mode:'Strata',   label:'Commercial strata + pre-let'},
+    4:{gdv:900,  units:64,  soldPct:0.77, offPlan:0.31, psf:1240, collected:0.63, mode:'Strata',   label:'Office strata + pre-let'},
+    5:{gdv:1120, units:96,  soldPct:0.19, offPlan:0.92, psf:1310, collected:0.08, mode:'Off-plan', label:'Residential — launch phase'},
+    6:{gdv:520,  units:12,  soldPct:0.67, offPlan:0.40, psf:0,    collected:0.55, mode:'Pre-let',  label:'Logistics — pre-let / sale'},
+    7:{gdv:430,  units:1,   soldPct:0.00, offPlan:0.00, psf:0,    collected:0.00, mode:'Hold',     label:'Single-asset co-invest — hold'},
+  };
+  function _projSalesData(id){
+    const s=_PROJ_SALES_SEED[id]; if(!s) return null;
+    const soldUnits=Math.round(s.units*s.soldPct);
+    const reserved=Math.max(0, Math.round(s.units*Math.min(0.12, (1-s.soldPct)*0.35)));
+    const available=Math.max(0, s.units-soldUnits-reserved);
+    const salesValue=+(s.gdv*s.soldPct).toFixed(1);        // SAR M contracted
+    const collected=+(salesValue*s.collected).toFixed(1);  // SAR M cash in
+    const offPlanUnits=Math.round(soldUnits*s.offPlan);
+    const completedUnits=soldUnits-offPlanUnits;
+    // deterministic 6-month absorption trend (units + SAR M), seeded by id
+    const months=['Feb','Mar','Apr','May','Jun','Jul'];
+    const base=Math.max(1, Math.round(soldUnits/6));
+    const wobble=[0.7,1.05,0.85,1.25,1.0,1.3];
+    let acc=0; const trend=months.map((m,i)=>{ let u=Math.max(0, Math.round(base*wobble[(i+id)%6])); acc+=u; return {m, units:u, sar:+(u*(s.gdv/Math.max(1,s.units))).toFixed(1)}; });
+    // reconcile last bucket so trend units ≈ soldUnits
+    if(trend.length){ const diff=soldUnits-acc; trend[trend.length-1].units=Math.max(0,trend[trend.length-1].units+diff); }
+    const velocity=+(soldUnits/6).toFixed(1);
+    // unit-type mix (share of stock), scaled to totals
+    const mixDef = s.units<=1
+      ? [['Whole asset',1.0,1.0]]
+      : (s.mode==='Pre-let'
+          ? [['Warehouse A',0.5,1.06],['Warehouse B',0.5,0.94]]
+          : [['1-bed',0.32,1.05],['2-bed',0.40,1.0],['3-bed',0.20,0.95],['Penthouse',0.08,1.2]]);
+    const types=mixDef.map(([t,share,pm])=>{ const tot=Math.max(1,Math.round(s.units*share)); const sold=Math.min(tot, Math.round(tot*s.soldPct*(t==='Penthouse'?0.6:1))); const psf=s.psf?Math.round(s.psf*pm):0; const price=+((s.gdv/Math.max(1,s.units))*pm).toFixed(2); return {t,tot,sold,psf,price}; });
+    return {seed:s, units:s.units, soldUnits, reserved, available, salesValue, collected, collectedPct:s.collected, gdv:s.gdv,
+      offPlanUnits, completedUnits, offPlanShare:s.offPlan, avgPsf:s.psf, velocity, trend, types, mode:s.mode, label:s.label,
+      soldPct:s.soldPct};
+  }
+  function _projSalesKpi(label, val, sub){
+    return `<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:11px 13px;min-width:0;">
+      <div style="font-size:7.5px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${label}</div>
+      <div style="font-size:17px;font-weight:700;margin-top:4px;line-height:1.1;">${val}</div>
+      ${sub?`<div style="font-size:8.5px;color:var(--ink-soft);margin-top:3px;">${sub}</div>`:''}</div>`;
+  }
+  function renderProjSales(pid){
+    const host=document.getElementById('proj-sales-slot'); if(!host) return;
+    const p=P[pid]; if(!p) return;
+    const d=_projSalesData(pid);
+    if(!d){ host.innerHTML=`<div class="docs-header" style="margin-top:0;"><div class="docs-title">Sales</div></div><div style="font-size:11px;color:var(--ink-soft);">No sales programme is tracked for ${p.name}.</div>`; return; }
+    const chat=p._salesChat||[];
+    const soldW=(d.soldUnits/d.units*100), resW=(d.reserved/d.units*100), availW=(d.available/d.units*100);
+    const bar=`<div style="display:flex;height:16px;border-radius:8px;overflow:hidden;border:1px solid var(--ink-hairline);">
+      <div title="Sold ${d.soldUnits}" style="width:${soldW}%;background:#15803d;"></div>
+      <div title="Reserved ${d.reserved}" style="width:${resW}%;background:#b45309;"></div>
+      <div title="Available ${d.available}" style="width:${availW}%;background:rgba(0,9,25,0.12);"></div></div>
+      <div style="display:flex;gap:14px;font-size:8.5px;color:var(--ink-soft);margin-top:6px;flex-wrap:wrap;">
+        <span><b style="color:#15803d;">■</b> Sold ${d.soldUnits}</span><span><b style="color:#b45309;">■</b> Reserved ${d.reserved}</span><span><b>■</b> Available ${d.available}</span></div>`;
+    const unitsLine=_svgLine(d.trend.map(t=>t.m), d.trend.map(t=>t.units), '#2563eb', {h:110});
+    const valBars=_svgBars(d.trend.map(t=>({label:t.m, bars:[{name:t.m, v:t.sar, color:'#61BB46'}]})), {h:110});
+    const typeRows=d.types.map(t=>`<tr>
+      <td style="padding:6px 8px;border-top:1px solid var(--ink-hairline);font-weight:600;">${t.t}</td>
+      <td style="padding:6px 8px;border-top:1px solid var(--ink-hairline);text-align:right;">${t.sold}/${t.tot}</td>
+      <td style="padding:6px 8px;border-top:1px solid var(--ink-hairline);text-align:right;">${Math.round(t.sold/Math.max(1,t.tot)*100)}%</td>
+      <td style="padding:6px 8px;border-top:1px solid var(--ink-hairline);text-align:right;">${t.psf?('SAR '+t.psf.toLocaleString()):'—'}</td>
+      <td style="padding:6px 8px;border-top:1px solid var(--ink-hairline);text-align:right;">SAR ${t.price}M</td></tr>`).join('');
+    host.innerHTML=`<div class="docs-header" style="margin-top:0;"><div class="docs-title">Sales</div>
+      <div class="docs-actions"><span style="font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-soft);">${d.label}</span></div></div>
+      <div style="font-size:11px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;max-width:820px;">Sales & revenue for <b style="color:var(--ink);">${p.name}</b> — contracted sales, off-plan absorption, collections and velocity, pulled from the CRM/sales ledger. Ask Karaya anything about the sales programme below.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px;margin-bottom:16px;max-width:820px;">
+        ${_projSalesKpi('Contracted sales', 'SAR '+d.salesValue+'M', 'of SAR '+d.gdv+'M GDV')}
+        ${_projSalesKpi('Units sold', d.soldUnits+' / '+d.units, Math.round(d.soldPct*100)+'% of stock')}
+        ${_projSalesKpi('Off-plan sold', Math.round(d.offPlanShare*100)+'%', d.offPlanUnits+' off-plan · '+d.completedUnits+' completed')}
+        ${_projSalesKpi('Avg price', d.avgPsf?('SAR '+d.avgPsf.toLocaleString()+'/sqft'):'—', 'blended')}
+        ${_projSalesKpi('Collections', Math.round(d.collectedPct*100)+'%', 'SAR '+d.collected+'M received')}
+        ${_projSalesKpi('Velocity', d.velocity+' /mo', 'trailing 6-month')}
+      </div>
+      <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:14px 16px;margin-bottom:14px;max-width:820px;">
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:9px;">Sales progress</div>${bar}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;max-width:820px;">
+        <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:14px 16px;">
+          <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">Units sold / month</div>${unitsLine}</div>
+        <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:14px 16px;">
+          <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">Sales value / month (SAR M)</div>${valBars}</div>
+      </div>
+      <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:4px 4px 6px;margin-bottom:16px;max-width:820px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:10px;">
+          <thead><tr style="color:var(--ink-soft);font-size:8px;letter-spacing:0.12em;text-transform:uppercase;">
+            <th style="padding:8px;text-align:left;">Unit type</th><th style="padding:8px;text-align:right;">Sold / total</th><th style="padding:8px;text-align:right;">% sold</th><th style="padding:8px;text-align:right;">SAR/sqft</th><th style="padding:8px;text-align:right;">Avg price</th></tr></thead>
+          <tbody>${typeRows}</tbody></table></div>
+      <div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Ask Karaya about sales</div>
+      <div id="prjsales-chat-${pid}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-width:820px;">${chat.map(c=>`<div class="k-msg ${c.cls}" style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;font-size:11px;line-height:1.6;padding:9px 13px;border-radius:13px;border:1px solid var(--ink-hairline);background:${c.cls==='user'?'var(--ink)':'var(--paper)'};color:${c.cls==='user'?'var(--paper)':'var(--ink)'};">${c.html}</div>`).join('')}</div>
+      <div id="prjsales-preset-${pid}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_projSalesPreset(${pid},'How are off-plan sales tracking and what is the projected sell-out?')">Off-plan + sell-out</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_projSalesPreset(${pid},'Break down revenue and collections to date')">Revenue & collections</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_projSalesPreset(${pid},'How is sales velocity and which unit type is slowest?')">Velocity & mix</button>
+      </div>
+      <div style="display:flex;gap:8px;max-width:820px;">
+        <input id="prjsales-input-${pid}" placeholder="e.g. how are off-plan sales tracking, or revenue collected to date" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_projSalesAsk(${pid})">
+        <button class="wf-btn ghost" onclick="_projSalesAsk(${pid})">Ask</button>
+      </div>`;
+  }
+  function _projSalesRender(pid){
+    const log=document.getElementById(`prjsales-chat-${pid}`); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=(P[pid]._salesChat||[]).map(c=>`<div class="k-msg ${c.cls}" style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;font-size:11px;line-height:1.6;padding:9px 13px;border-radius:13px;border:1px solid var(--ink-hairline);background:${c.cls==='user'?'var(--ink)':'var(--paper)'};color:${c.cls==='user'?'var(--paper)':'var(--ink)'};">${c.html}</div>`).join('');
+    log.scrollTop=log.scrollHeight;
+    const preset=document.getElementById(`prjsales-preset-${pid}`); if(preset&&(P[pid]._salesChat||[]).length) preset.style.display='none';
+  }
+  function _projSalesPreset(pid, text){ const inp=document.getElementById(`prjsales-input-${pid}`); if(inp) inp.value=text; _projSalesAsk(pid); }
+  function _projSalesAnswer(pid, q){
+    const p=P[pid], d=_projSalesData(pid); if(!d) return 'No sales data for this project.';
+    const ql=(q||'').toLowerCase();
+    const selloutMo=d.velocity>0?Math.ceil(d.available/d.velocity):null;
+    if(/off.?plan|sell.?out|absor/.test(ql)){
+      return `### Off-plan & absorption — ${p.name}\n- **${Math.round(d.offPlanShare*100)}%** of contracted sales are **off-plan** (${d.offPlanUnits} units) vs ${d.completedUnits} on completed stock.\n- **${d.soldUnits}/${d.units}** units sold (${Math.round(d.soldPct*100)}%), ${d.reserved} reserved, **${d.available} still available**.\n- At the trailing velocity of **${d.velocity} units/mo**, projected sell-out is ${selloutMo?('~**'+selloutMo+' months**'):'—'}.\n- **Contracted sales SAR ${d.salesValue}M** of SAR ${d.gdv}M GDV; blended **${d.avgPsf?('SAR '+d.avgPsf.toLocaleString()+'/sqft'):'lease-led'}**.`;
+    }
+    if(/revenue|collect|cash|receiv/.test(ql)){
+      const out=+(d.salesValue-d.collected).toFixed(1);
+      return `### Revenue & collections — ${p.name}\n- **Contracted sales:** SAR ${d.salesValue}M (${Math.round(d.soldPct*100)}% of GDV).\n- **Collected to date:** SAR ${d.collected}M (**${Math.round(d.collectedPct*100)}%** of contracted).\n- **Outstanding receivable:** SAR ${out}M against sold units, staged to construction milestones.\n- **Remaining sales headroom:** SAR ${+(d.gdv-d.salesValue).toFixed(1)}M of unsold GDV.`;
+    }
+    if(/velocit|slow|mix|type|fast/.test(ql)){
+      const slow=d.types.slice().sort((a,b)=>(a.sold/a.tot)-(b.sold/b.tot))[0];
+      const fast=d.types.slice().sort((a,b)=>(b.sold/b.tot)-(a.sold/a.tot))[0];
+      return `### Velocity & unit mix — ${p.name}\n- **Velocity:** ${d.velocity} units/mo (trailing 6 months).\n- **Fastest-moving:** ${fast.t} — ${Math.round(fast.sold/fast.tot*100)}% sold.\n- **Slowest-moving:** ${slow.t} — ${Math.round(slow.sold/slow.tot*100)}% sold; a candidate for a targeted incentive or bundle.\n- ${d.available} units remain; at current pace that is ${selloutMo?('~'+selloutMo+' months'):'—'} to sell-out.`;
+    }
+    // generic sales snapshot
+    return `### Sales snapshot — ${p.name}\n- **Contracted:** SAR ${d.salesValue}M of SAR ${d.gdv}M GDV · **${d.soldUnits}/${d.units}** units (${Math.round(d.soldPct*100)}%).\n- **Off-plan:** ${Math.round(d.offPlanShare*100)}% (${d.offPlanUnits} units) · **Collections:** ${Math.round(d.collectedPct*100)}% (SAR ${d.collected}M).\n- **Velocity:** ${d.velocity} units/mo · **${d.available} available** · projected sell-out ${selloutMo?('~'+selloutMo+' months'):'—'}.\n- **Pricing:** ${d.avgPsf?('SAR '+d.avgPsf.toLocaleString()+'/sqft blended'):'lease-led (pre-let)'}.`;
+  }
+  function _projSalesAsk(pid){
+    const p=P[pid]; if(!p) return;
+    const input=document.getElementById(`prjsales-input-${pid}`); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    p._salesChat=p._salesChat||[];
+    p._salesChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    // file export request → generate a file
+    if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
+      const bi=p._salesChat.length;
+      p._salesChat.push({cls:'bot', html:'<span class="kr-stream-text"></span><span class="kr-caret">▍</span>'});
+      _projSalesRender(pid);
+      const target=document.querySelector(`#prjsales-chat-${pid} .k-msg.bot:last-child`);
+      _krGenerateFileInto(q, target, '').then(()=>{ if(target) p._salesChat[bi].html=target.innerHTML; });
+      return;
+    }
+    const bi=p._salesChat.length;
+    p._salesChat.push({cls:'bot', html:'<span style="color:var(--ink-soft);">Reading the sales ledger…</span>'});
+    _projSalesRender(pid);
+    const deterministic=_projSalesAnswer(pid, q);
+    const finish=(txt)=>{ p._salesChat[bi]={cls:'bot', html:_fmtDiscountSections(txt)}; _projSalesRender(pid); };
+    // enrich via Karaya if available, else deterministic
+    (async()=>{
+      let out=null;
+      try{
+        if(window.claude&&window.claude.complete){
+          const d=_projSalesData(pid);
+          const ctx=`Project: ${p.name} (${p.loc}). Sales mode: ${d.label}. GDV SAR ${d.gdv}M. Contracted SAR ${d.salesValue}M (${Math.round(d.soldPct*100)}% of stock, ${d.soldUnits}/${d.units} units). Off-plan share ${Math.round(d.offPlanShare*100)}% (${d.offPlanUnits} units). Reserved ${d.reserved}, available ${d.available}. Collections ${Math.round(d.collectedPct*100)}% (SAR ${d.collected}M). Blended ${d.avgPsf?('SAR '+d.avgPsf+'/sqft'):'lease-led'}. Velocity ${d.velocity} units/mo. Unit types: ${d.types.map(t=>t.t+' '+t.sold+'/'+t.tot).join(', ')}.`;
+          const prompt=`You are Karaya, a real-estate sales analyst inside Bohio. Answer the user's question about this project's SALES programme using ONLY the data below. Be concise and specific, use "### " for one heading and "- " bullets, all money in SAR. Do not invent numbers.\n\nDATA: ${ctx}\n\nQUESTION: ${q}`;
+          const r=await window.claude.complete({messages:[{role:'user',content:prompt}], task:'proj_sales'});
+          out=(typeof r==='string')?r:(r&&r.content)||'';
+        }
+      }catch(e){}
+      finish(out&&String(out).trim()?out:deterministic);
+    })();
+  }
   function _projReportLayoutText(pid, kind, q){
     const p=P[pid]; if(!p) return 'No data for this project.';
     const fin=(typeof WF_REP_ASSETS!=='undefined'?WF_REP_ASSETS:[]).find(x=>x.name===p.name);
