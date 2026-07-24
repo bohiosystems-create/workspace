@@ -13647,7 +13647,7 @@ Reply as the agent:`;
     const history=KARAYA_HISTORY.slice(-6).map(m=>(m.role==='user'?'User: ':'Karaya: ')+m.text).join('\n');
     const ctx=(typeof buildWorkspaceContext==='function')?buildWorkspaceContext():'';
     const uname=(window.DEMO_USER&&window.DEMO_USER.name)||'Matteo Bevilacqua';
-    const prompt=`You are Karaya, the AI analyst inside Bohio Workspace — an institutional real-estate investment platform used by ${uname}'s firm. Answer any question about any project, document, financial model, template, fund/LP, deal, stakeholder, capital stack, budget, brief, contract or negotiation, using the WORKSPACE DATA below as your source of truth. Be specific — cite the actual names, figures, dates and parties. Keep it concise and conversational (2-6 sentences, or a short bulleted list when comparing). Plain text; you may use **bold** for key figures. Don't invent facts not in the data.
+    const prompt=`You are Karaya, the AI analyst inside Bohio Workspace — an institutional real-estate investment platform used by ${uname}'s firm. You pull live data by API from the firm's connected systems — the ERP (SAP S/4HANA · Oracle Fusion) for cost/budget/GL, the CRM (Salesforce) for sales pipeline & collections, and FM (Yardi) for occupancy & facilities — plus everything else in the workspace. Answer any question using the WORKSPACE DATA below as your source of truth. Be specific — cite the actual names, figures, dates and parties, and when the answer draws on a connected system name it (e.g. "per the ERP", "from the CRM sales pipeline", "Yardi shows"). Keep it concise and conversational (2-6 sentences, or a short bulleted list when comparing). Plain text; you may use **bold** for key figures. Don't invent facts not in the data.
 
 ===== WORKSPACE DATA =====
 ${ctx}
@@ -13657,12 +13657,16 @@ User's question: "${q}"
 
 Answer as Karaya:`;
 
+    // show which connected systems Karaya is querying by API before it answers
+    const _apiSys=(typeof _apiSystemsFor==='function')?_apiSystemsFor(q):[];
+    if(_apiSys.length){ bot.innerHTML=`<span style="font-size:10px;color:var(--ink-soft);">Querying connected systems via API — ${_apiSys.map(s=>s.sys).join(' · ')}…</span>`; msgs.scrollTop=msgs.scrollHeight; }
     (async()=>{
       const fallback="I couldn't reach the analysis engine just now — live answers need the demo server running with an ANTHROPIC_API_KEY set. Once that's on, I can pull from any project, model, fund or document in the workspace.";
       const answer=await karayaStreamInto(bot, prompt, 'home_chat', fallback);
       KARAYA_HISTORY.push({role:'user',text:q});
       KARAYA_HISTORY.push({role:'karaya',text:answer});
-      bot.innerHTML=fmtKaraya(answer)+'<span class="k-meta">Karaya · just now</span>';
+      const prov=(typeof _apiProvenanceTag==='function')?_apiProvenanceTag(q):'';
+      bot.innerHTML=fmtKaraya(answer)+prov+'<span class="k-meta">Karaya · just now</span>';
       msgs.scrollTop=msgs.scrollHeight;
     })();
   }
@@ -19741,11 +19745,49 @@ Answer as Karaya:`;
   // Build (once) a grounding snapshot from the in-app data structures. Each
   // section is size-capped and wrapped in a guard so a missing/renamed dataset
   // never breaks the chat.
+  // Connected operational systems Karaya queries live by API when answering:
+  // ERP (cost/GL), CRM (sales pipeline) and FM (facilities/occupancy). Each
+  // answer surfaces which systems were pulled so the provenance is explicit.
+  const CONNECTED_SYSTEMS = [
+    {sys:'ERP', vendor:'SAP S/4HANA · Oracle Fusion', scope:'budget vs committed vs actual, GL, capex, payables', kw:/budget|actual|cost|capex|opex|committed|forecast|variance|ledger|\bgl\b|invoice|payable|\berp\b|spend|overrun/i},
+    {sys:'CRM', vendor:'Salesforce', scope:'sales pipeline, off-plan reservations, buyers, collections', kw:/sale|sold|off.?plan|buyer|\blead\b|pipeline|reserv|collect|revenue|absorption|\bunit(s)?\b|\bcrm\b|velocity/i},
+    {sys:'FM', vendor:'Yardi', scope:'occupancy, rent roll, work orders, PPM compliance, energy', kw:/occupanc|rent roll|work order|maintenance|facilit|\bppm\b|tenant|\blease(s)?\b|energy|\bfm\b|yardi|service charge/i},
+  ];
+  // Facilities-management (Yardi) snapshot per operating asset — the FM system.
+  const PROJECT_FM = {
+    3:{occupancy:'93%', workOrdersOpen:7,  ppmCompliance:'98%', energyIntensity:'142 kWh/m²/yr', rentRoll:'SAR 58M', system:'Yardi Voyager', lastSync:'22m ago'},
+    4:{occupancy:'88%', workOrdersOpen:11, ppmCompliance:'95%', energyIntensity:'155 kWh/m²/yr', rentRoll:'SAR 71M', system:'Yardi Voyager', lastSync:'41m ago'},
+    6:{occupancy:'100%',workOrdersOpen:2,  ppmCompliance:'99%', energyIntensity:'96 kWh/m²/yr',  rentRoll:'SAR 34M', system:'Yardi Voyager', lastSync:'1h ago'},
+  };
+  // Compact CRM (Salesforce) sales snapshot per project, from the sales ledger.
+  function _crmContext(){
+    if(typeof _projSalesData!=='function') return null;
+    const o={};
+    Object.keys(P).map(Number).forEach(id=>{ const d=_projSalesData(id); if(!d) return;
+      o[P[id].name]={mode:d.mode, contractedSAR_M:d.salesValue, gdvSAR_M:d.gdv, unitsSold:d.soldUnits+'/'+d.units, offPlanPct:Math.round(d.offPlanShare*100)+'%', collectionsPct:Math.round(d.collectedPct*100)+'%', velocityPerMo:d.velocity, system:'Salesforce'};
+    });
+    return o;
+  }
+  // Which connected systems are relevant to a query (defaults to all three for
+  // broad questions) — drives the "pulled via API" provenance shown on answers.
+  function _apiSystemsFor(q){
+    const hit=CONNECTED_SYSTEMS.filter(s=>s.kw.test(q||''));
+    return hit.length?hit:CONNECTED_SYSTEMS;
+  }
+  function _apiProvenanceTag(q){
+    const sys=_apiSystemsFor(q);
+    const chips=sys.map(s=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:8px;letter-spacing:0.06em;font-weight:700;background:rgba(0,157,220,0.1);color:#0a66c2;border-radius:999px;padding:2px 8px;"><span style="width:5px;height:5px;border-radius:50%;background:#15803d;"></span>${s.sys} · ${s.vendor.split(' · ')[0]}</span>`).join(' ');
+    return `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;">${chips}</div><div style="font-size:8px;color:var(--ink-soft);margin-top:3px;letter-spacing:0.04em;">Pulled live via API from ${sys.length} connected system${sys.length>1?'s':''}</div>`;
+  }
   function buildWorkspaceContext() {
     if (_KARAYA_CTX_CACHE) return _KARAYA_CTX_CACHE;
     var V = function (name) { try { return eval('typeof ' + name + " !== 'undefined' ? " + name + ' : null'); } catch (e) { return null; } };
     var sections = [
       ['PROJECTS (id → name, location, lead, phase, team, description, documents)', V('P'), 6000],
+      ['CONNECTED SYSTEMS (live API integrations Karaya can query)', (typeof CONNECTED_SYSTEMS!=='undefined'?CONNECTED_SYSTEMS.map(s=>({system:s.sys,vendor:s.vendor,scope:s.scope,status:'Connected'})):null), 700],
+      ['ERP — PROJECT COST LEDGER (SAP S/4HANA · Oracle Fusion: budget vs committed vs actual)', V('PROJECT_ERP'), 1600],
+      ['CRM — SALES PIPELINE (Salesforce: contracted sales, off-plan, collections, velocity per project)', _crmContext(), 1800],
+      ['FM — FACILITIES (Yardi: occupancy, rent roll, work orders, PPM compliance, energy per asset)', V('PROJECT_FM'), 1200],
       ['MY MODELS (financial models: type, name, version, last updated, notes)', V('MY_MODELS'), 2600],
       ['TEMPLATE LIBRARY (prebuilt models: category, name, description, tabs)', V('TEMPLATES'), 2600],
       ['FUNDS & LPs / INVESTORS (committed & drawn capital, stats, documents)', V('INVESTOR_DATA'), 3000],
@@ -19757,7 +19799,6 @@ Answer as Karaya:`;
       ['STAKEHOLDERS BY PROJECT', V('STAKEHOLDERS'), 1600],
       ['CAPITAL STACK BY PROJECT (sources & uses, tranches)', V('CAP_STACK'), 1800],
       ['GOVERNANCE BY PROJECT (IC, approval matrix, fees)', V('GOVERNANCE'), 1800],
-      ['PROJECT ERP / COST LEDGER (budget vs committed vs actual)', V('PROJECT_ERP'), 1600],
       ['OPEN NEGOTIATION TOPICS (positions across parties)', V('NEGOTIATION_TOPICS'), 2400],
       ['DAILY PROJECT BRIEFS (priorities & action items)', V('PROJECT_BRIEFS'), 2000],
       ['DOCUMENTS — leases, service contracts & amendments', V('documents'), 2600],
