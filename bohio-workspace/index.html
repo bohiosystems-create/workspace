@@ -10267,6 +10267,9 @@
       <div class="nav-item" id="nav-reports" onclick="openReportsHub()">
         <span>Reports</span>
       </div>
+      <div class="nav-item" id="nav-topics-hub" onclick="openTopicsHub()">
+        <span>Topics</span>
+      </div>
       <div class="nav-item" id="nav-bohioperf" onclick="openBohioPerf()">
         <span>Bohio Performance</span>
       </div>
@@ -22696,6 +22699,76 @@ Answer as Karaya:`;
       if(match) visible++;
     });
     const empty=document.getElementById('rhub-empty'); if(empty) empty.style.display=(query&&visible===0)?'block':'none';
+  }
+  // ============ TOPICS HUB ============
+  // Every topic conversation across the platform — project topic rooms (rich
+  // multi-agent threads) and fund-level topics — aggregated in one place with
+  // search. Clicking a topic opens it in its own context.
+  function _aggregateTopics(){
+    const out=[];
+    if(typeof PROJECT_TOPICS!=='undefined'){
+      Object.keys(PROJECT_TOPICS).forEach(pid=>(PROJECT_TOPICS[pid]||[]).forEach(t=>out.push({
+        title:t.title, source:(P[pid]?P[pid].name:('Project '+pid)), kind:'Project', eyebrow:t.eyebrow||'',
+        status:t.status||'', last:t.lastUpdate||'', unread:t.unread||0, msgs:(t.messages||[]).length,
+        parts:(t.participants||[]).length, _open:'proj', pid:Number(pid), topicId:t.id
+      })));
+    }
+    (typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).forEach(f=>(f.topics||[]).forEach(t=>out.push({
+      title:t[0], source:f.name.replace(/^Bohio RE /,''), kind:'Fund', eyebrow:t[1]||'',
+      status:t[2]||'', last:'', unread:0, msgs:0, parts:0, _open:'fund', k:f.k
+    })));
+    return out;
+  }
+  let _topicsHubOpen=false;
+  function openTopicsHub(){ _topicsHubOpen=true; _wfOpenFundShell(); _renderTopicsHub(); }
+  function _topicsHubBack(){ _topicsHubOpen=false; closeWorkflow(); goTo('workspace'); }
+  function _topicsHubOpenItem(i){
+    const t=_aggregateTopics()[i]; if(!t) return;
+    if(t._open==='proj'){ _topicsHubOpen=false; closeWorkflow(); showProject(t.pid); setTimeout(()=>{ selectProjectSection('topics'); if(typeof openTopic==='function') openTopic(t.topicId); }, 300); }
+    else { _topicsHubOpen=false; _wfOpenFundShell(); _wfFundDetail(t.k,'topics'); }
+  }
+  function _topicRowHTML(t, i){
+    const c=t.kind==='Project'?'#2563eb':'#963D97';
+    const unread=t.unread?`<span style="flex-shrink:0;background:#e03a3c;color:#fff;font-size:8px;font-weight:700;border-radius:999px;padding:2px 7px;">${t.unread} new</span>`:'';
+    const meta=[t.eyebrow, t.status, t.last, t.msgs?(t.msgs+' msgs'):'', t.parts?(t.parts+' participants'):''].filter(Boolean).join(' · ');
+    return `<div class="thub-row" data-search="${(t.title+' '+t.source+' '+t.eyebrow+' '+t.status+' '+t.kind).toLowerCase().replace(/"/g,'')}" onclick="_topicsHubOpenItem(${i})" onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor=''" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 14px;margin-bottom:7px;cursor:pointer;">
+      <div style="min-width:0;display:flex;align-items:center;gap:10px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;"></span>
+        <div style="min-width:0;"><div style="font-size:11.5px;font-weight:700;line-height:1.35;">${t.title}</div>
+        <div style="font-size:9px;color:var(--ink-soft);margin-top:2px;"><b style="color:var(--ink);">${t.source}</b> · ${t.kind}${meta?' · '+meta:''}</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px;flex-shrink:0;">${unread}<span style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;">Open ›</span></div></div>`;
+  }
+  function _renderTopicsHub(){
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const all=_aggregateTopics();
+    const projCount=all.filter(t=>t.kind==='Project').length, fundCount=all.filter(t=>t.kind==='Fund').length;
+    const rows=all.map((t,i)=>_topicRowHTML(t,i)).join('');
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div style="min-width:0;">
+          <button onclick="_topicsHubBack()" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ Workspace</button>
+          <div class="wf-title">Topics</div>
+          <div class="wf-sub">Every topic conversation across your funds and projects — ${projCount} project thread${projCount===1?'':'s'} · ${fundCount} fund topic${fundCount===1?'':'s'}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;"><button class="wf-back" onclick="_topicsHubBack()" aria-label="Back" title="Back">←</button></div>
+      </div>
+      <div class="wf-body" style="padding:18px 24px 40px;overflow-y:auto;">
+        <div style="position:relative;max-width:520px;margin-bottom:20px;">
+          <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-soft);">⌕</span>
+          <input id="thub-search" placeholder="Search all topics — by title, fund, project, party or status…" oninput="_topicsHubFilter(this.value)" style="width:100%;box-sizing:border-box;padding:10px 14px 10px 34px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;">
+        </div>
+        <div id="thub-list">${rows}</div>
+        <div id="thub-empty" style="display:none;text-align:center;padding:40px 20px;color:var(--ink-soft);font-size:12px;">No topics match your search.</div>
+      </div>`;
+  }
+  function _topicsHubFilter(q){
+    const query=(q||'').trim().toLowerCase(); let visible=0;
+    document.querySelectorAll('#wf-overlay .thub-row').forEach(row=>{
+      const match=!query||(row.dataset.search||'').includes(query);
+      row.style.display=match?'flex':'none'; if(match) visible++;
+    });
+    const empty=document.getElementById('thub-empty'); if(empty) empty.style.display=(query&&visible===0)?'block':'none';
   }
   function openApprovalsHub(){
     _wfApprovalsHubOpen=true;
