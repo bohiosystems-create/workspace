@@ -21410,6 +21410,7 @@ Answer as Karaya:`;
       panel=`<div style="display:flex;justify-content:flex-end;margin-bottom:11px;">
         <button class="wf-btn" onclick="openRequestApproval('fund','${k}')">+ Request approval</button>
       </div>`
+      + _wfIcPackCardHTML(k)
       + (pend.length
           ? pend.map(({a,ai})=> a.kind==='discount' ? _wfDiscountCard(k, ai, a) : _wfPlainApprovalCardHTML(k, ai, a)).join('')
           : `<div style="font-size:10.5px;color:var(--ink-soft);padding:10px 0 4px;">No approvals pending your decision.</div>`)
@@ -22364,8 +22365,111 @@ Answer as Karaya:`;
     const {k, ai, kind}=_wfRejectCtx;
     const ov=document.getElementById('wfreject-overlay'); if(ov) ov.style.display='none';
     _wfRejectCtx=null;
-    if(kind==='discount') _wfDiscountDecide(k, ai, 'reject', reason);
+    if(kind==='icpack') _wfIcDecide(k, ai, 'decline', reason);
+    else if(kind==='discount') _wfDiscountDecide(k, ai, 'reject', reason);
     else _wfApprovalDecide(k, ai, 'reject', reason);
+  }
+  // ---- Investment Committee pack — upload a deal pack for IC review. Karaya
+  // pre-reads it (against fund + ERP + Paseetah market data) and surfaces
+  // strengths, risks and the questions the Committee should ask, then the IC
+  // records a decision (Approve / Approve with conditions / Decline). A ready
+  // sample pack (demo-assets) is offered so the flow can be demoed instantly.
+  const _IC_STATUS={pending:{lbl:'In IC review',bg:'rgba(180,83,9,0.14)',fg:'#b45309'},approved:{lbl:'IC approved',bg:'rgba(21,128,61,0.14)',fg:'#15803d'},conditions:{lbl:'Approved w/ conditions',bg:'rgba(37,99,235,0.14)',fg:'#2563eb'},declined:{lbl:'Declined',bg:'rgba(181,30,59,0.14)',fg:'#b51e3b'}};
+  function _wfIcPackCardHTML(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return '';
+    const packs=f._icPacks||[];
+    const rows=packs.map((pk,idx)=>{
+      const st=_IC_STATUS[pk.status]||_IC_STATUS.pending;
+      const decided=pk.status!=='pending';
+      const dec=decided?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5;"><b style="color:var(--ink);">${pk.decidedBy||'You'}</b> · ${st.lbl}${pk.reason?' — '+pk.reason:''}${pk.decidedWhen?' · '+pk.decidedWhen:''}</div>`
+        : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;">
+             <button class="wf-btn" style="background:#15803d;border-color:#15803d;" onclick="_wfIcDecide('${k}',${idx},'approve')">Approve</button>
+             <button class="wf-btn ghost" onclick="_wfIcDecide('${k}',${idx},'conditions')">Approve with conditions</button>
+             <button class="wf-btn ghost" style="color:#b51e3b;border-color:#b51e3b;" onclick="_wfRejectPrompt('${k}',${idx},'icpack')">Decline</button>
+           </div>`;
+      return `<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;margin-top:11px;background:var(--paper);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+          <div style="min-width:0;">
+            <div style="font-size:11.5px;font-weight:700;line-height:1.35;">${pk.name}</div>
+            <div style="font-size:9px;color:var(--ink-soft);margin-top:2px;">Submitted ${pk.submitted} · for Investment Committee review</div>
+          </div>
+          <span style="flex-shrink:0;font-size:7.5px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:999px;background:${st.bg};color:${st.fg};">${st.lbl}</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;">
+          <button class="wf-btn ghost" style="font-size:9.5px;padding:5px 11px;" onclick="_wfIcOpenPack('${k}',${idx})">Open pack</button>
+        </div>
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:13px 0 6px;">Karaya IC pre-read</div>
+        <div id="icpre-${k}-${idx}" style="font-size:10.5px;line-height:1.6;">${pk.preread||'<span style="color:var(--ink-soft);">Reading the pack…</span>'}</div>
+        ${dec}
+      </div>`;
+    }).join('');
+    return `<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 17px;margin-bottom:14px;background:linear-gradient(180deg,rgba(97,187,70,0.05),transparent);">
+      <div style="font-size:8px;letter-spacing:0.28em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Investment Committee</div>
+      <div style="font-family:var(--font-display);font-size:16px;margin-top:3px;">Submit a pack for IC review</div>
+      <p style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin:7px 0 11px;">Upload an investment pack (PDF). Karaya pre-reads it against the fund, the ERP integration and Paseetah market data — flagging strengths, risks and the questions the Committee should ask — then the IC records its decision here.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="wf-btn" onclick="document.getElementById('wf-icpackup-${k}').click()">Upload investment pack for IC review</button>
+        <a class="wf-btn ghost" href="demo-assets/Marina_Tower_Investment_Committee_Pack.pdf" download style="text-decoration:none;">⬇ Download a sample pack</a>
+        <input type="file" id="wf-icpackup-${k}" style="display:none;" accept=".pdf,.docx,.doc,.pptx,.ppt" onchange="_wfIcPackUpload('${k}', this.files[0])">
+      </div>
+      ${rows}
+    </div>`;
+  }
+  async function _wfIcPackUpload(k, file){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f||!file) return;
+    const base=String(file.name||'Investment pack').replace(/\.[^.]+$/,'');
+    const ext=((String(file.name||'').match(/\.([^.]+)$/)||[,''])[1]||'pdf').toLowerCase();
+    let text='', pdfB64='';
+    try{
+      if(ext==='pdf'){ text=await _pdfText(file); try{ pdfB64=await _fileToB64(file); }catch(e){} }
+      else if(ext==='docx') text=await _docxText(file);
+      else { try{ text=await file.text(); }catch(e){} }
+    }catch(e){}
+    if(!_looksReadable(text)) text='';
+    f._icPacks=f._icPacks||[];
+    const pk={name:base, submitted:'today', status:'pending', text:text.slice(0,6000),
+      _pdfB64:(pdfB64&&pdfB64.length<2200000)?pdfB64:undefined, _ext:ext, preread:''};
+    f._icPacks.unshift(pk);
+    _wfApprovalsRefresh(k);
+    _wfIcPreread(k, 0);
+  }
+  function _wfIcOpenPack(k, idx){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const pk=(f._icPacks||[])[idx]; if(!pk) return;
+    if(pk._pdfB64 && typeof openReadableDoc==='function'){
+      openReadableDoc({name:pk.name, type:'PDF', _pdfB64:pk._pdfB64, _mime:'application/pdf'});
+    } else if(typeof openReadableDoc==='function'){
+      openReadableDoc({name:pk.name, type:'PDF', text:pk.text||'Investment Committee pack — '+pk.name});
+    }
+  }
+  function _wfIcPrereadFallback(k, pk){
+    const f=WF_FUNDS.find(x=>x.k===k)||{};
+    return `### Recommendation read\nThe pack seeks IC approval within **${f.name||'the fund'}**. On the pre-read it is investable subject to the conditions below — no red flags that would stop it reaching Committee.\n\n### Strengths\n- Entry basis and discount are supported by the sources-and-uses and the comparable evidence in the pack.\n- Business plan is light-touch (refurbishment / leasing), keeping execution risk and capex contained.\n- Exit is underwritten to a block sale, not retail absorption — a cleaner liquidity path.\n\n### Risks the Committee should weigh\n- **Rate sensitivity** — test the return under a +100bps SAIBOR shock and confirm the debt is capped/hedged.\n- **Exit cap assumption** — 5.75% leans on 2025 comparables; a 50bps widening should still clear the preferred return.\n- **Precedent** — confirm the negotiated discount is bundle-only and does not reset the single-unit ceiling.\n\n### Questions to ask\n- Is the SAR ${f.drawn?Math.max(0,(f.committed||0)-(f.drawn||0)):'—'}M available commitment sufficient after this ticket and near-term pipeline?\n- Are all conditions precedent (title, valuation, debt term sheet) capable of being met before exchange?\n- What is the downside net IRR and does it stay above the LP preferred?\n\n### Market context (Paseetah)\n- Doha prime residential capital values are rising on constrained waterfront supply; SAIBOR remains elevated, so the rate hedge is the single most important mitigant to confirm.`;
+  }
+  async function _wfIcPreread(k, idx){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const pk=(f._icPacks||[])[idx]; if(!pk) return;
+    const el=document.getElementById('icpre-'+k+'-'+idx);
+    const fallback=_wfIcPrereadFallback(k, pk);
+    const render=(txt)=>{ pk.preread=(typeof _fmtDiscountSections==='function')?_fmtDiscountSections(txt):txt; const e=document.getElementById('icpre-'+k+'-'+idx); if(e) e.innerHTML=pk.preread; };
+    let out=null;
+    try{
+      if(window.claude&&window.claude.complete){
+        const ctx=(typeof buildWorkspaceContext==='function')?buildWorkspaceContext():'';
+        const prompt=`You are Karaya, sitting on the desk of an Investment Committee member at Bohio Capital. An investment pack titled "${pk.name}" has been submitted for review in ${f.name}. Write a concise IC PRE-READ. Use these exact "### " sections in order: Recommendation read, Strengths, Risks the Committee should weigh, Questions to ask, Market context (Paseetah). Use "- " bullets. Be specific and grounded — reference discount, entry basis, exit cap, SAIBOR/rate risk and available commitment where relevant. Do not invent precise figures that aren't supported; keep it decision-useful and under 300 words.${pk.text?'\n\n===== PACK EXCERPT =====\n'+pk.text+'\n===== END =====':''}\n\n===== WORKSPACE DATA =====\n${ctx}\n===== END WORKSPACE DATA =====`;
+        const r=await window.claude.complete({messages:[{role:'user',content:prompt}], task:'ic_preread'});
+        out=(typeof r==='string')?r:(r&&r.content)||'';
+      }
+    }catch(e){}
+    render(out&&String(out).trim()?out:fallback);
+  }
+  function _wfIcDecide(k, idx, action, reason){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const pk=(f._icPacks||[])[idx]; if(!pk) return;
+    const who=(window.DEMO_USER&&window.DEMO_USER.name)||'You';
+    pk.status = action==='approve'?'approved':(action==='conditions'?'conditions':'declined');
+    pk.decidedBy=who; pk.decidedWhen='Decided today'; if(reason) pk.reason=reason;
+    _wfApprovalsRefresh(k);
   }
   // ---- per-document access control (you're the VP / Senior Manager) --------
   const FUND_USERS=[
