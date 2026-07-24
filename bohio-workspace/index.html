@@ -17418,6 +17418,52 @@ Answer as Karaya:`;
     if (typeof _explainCell === 'function') _explainCell(ref, value, formula, label, sheetName);
   }
 
+  // ---- Per-cell comments — collaborators can annotate any cell of a model.
+  // Stored per model (by name) and per cell (sheet!ref); shown in the inspector.
+  const _CELL_COMMENTS = {};
+  function _cellCommentModelKey(){ return (typeof currentModelDoc!=='undefined'&&currentModelDoc&&currentModelDoc.name)?currentModelDoc.name:'model'; }
+  function _cellCommentsFor(sheetName, ref){
+    const mk=_cellCommentModelKey(); const ck=(sheetName||'')+'!'+(ref||'');
+    return ((_CELL_COMMENTS[mk]||{})[ck])||[];
+  }
+  function _cellCommentsListHTML(sheetName, ref){
+    const list=_cellCommentsFor(sheetName, ref);
+    if(!list.length) return `<div id="cell-comments-list" style="font-size:10px;color:rgba(230,226,226,0.4);padding:4px 0;">No comments yet — start the thread on this cell.</div>`;
+    return `<div id="cell-comments-list" style="display:flex;flex-direction:column;gap:7px;">`+list.map(c=>`<div style="background:rgba(230,226,226,0.06);border:1px solid rgba(230,226,226,0.1);border-radius:8px;padding:8px 10px;">
+      <div style="display:flex;justify-content:space-between;gap:8px;font-size:9px;color:rgba(230,226,226,0.55);margin-bottom:3px;"><b style="color:#e6e2e2;">${c.who}</b><span>${c.when}</span></div>
+      <div style="font-size:11px;line-height:1.5;color:#e6e2e2;">${String(c.text).replace(/</g,'&lt;')}</div>
+    </div>`).join('')+`</div>`;
+  }
+  function _renderCellComments(){
+    if(!selectedCell) return;
+    const wrap=document.getElementById('cell-comments-list-wrap'); if(!wrap) return;
+    wrap.innerHTML=_cellCommentsListHTML(selectedCell.sheetName, selectedCell.ref);
+    const cnt=document.getElementById('cell-comment-count'); if(cnt){ const n=_cellCommentsFor(selectedCell.sheetName, selectedCell.ref).length; cnt.textContent=n?('('+n+')'):''; }
+  }
+  function _cellCommentAdd(){
+    if(!selectedCell) return;
+    const inp=document.getElementById('cell-comment-input'); if(!inp) return;
+    const text=(inp.value||'').trim(); if(!text) return;
+    inp.value='';
+    const mk=_cellCommentModelKey(), ck=(selectedCell.sheetName||'')+'!'+(selectedCell.ref||'');
+    _CELL_COMMENTS[mk]=_CELL_COMMENTS[mk]||{}; _CELL_COMMENTS[mk][ck]=_CELL_COMMENTS[mk][ck]||[];
+    const who=(window.DEMO_USER&&window.DEMO_USER.name)||'You';
+    _CELL_COMMENTS[mk][ck].push({who, text, when:'just now'});
+    _renderCellComments();
+    // mark the cell visually as having a comment thread
+    if(selectedCell.td){ selectedCell.td.style.boxShadow='inset 0 0 0 2px rgba(97,187,70,0.6)'; selectedCell.td.setAttribute('data-has-comment','1'); selectedCell.td.title=(_cellCommentsFor(selectedCell.sheetName, selectedCell.ref).length)+' comment(s)'; }
+  }
+  function _cellCommentsBlockHTML(sheetName, ref){
+    const n=_cellCommentsFor(sheetName, ref).length;
+    return `<div style="margin-top:8px;padding-top:14px;border-top:1px solid rgba(230,226,226,0.1);">
+      <div style="font-size:7px;letter-spacing:0.35em;text-transform:uppercase;color:rgba(230,226,226,0.4);margin-bottom:8px;">💬 Comments <span id="cell-comment-count" style="color:#61BB46;">${n?('('+n+')'):''}</span></div>
+      <div id="cell-comments-list-wrap">${_cellCommentsListHTML(sheetName, ref)}</div>
+      <div style="display:flex;gap:6px;margin-top:9px;">
+        <input id="cell-comment-input" placeholder="Comment on ${sheetName}!${ref}…" style="flex:1;box-sizing:border-box;padding:8px 10px;border:1px solid rgba(230,226,226,0.18);background:rgba(230,226,226,0.06);color:#e6e2e2;font-family:inherit;font-size:11px;border-radius:8px;outline:none;" onkeydown="if(event.key==='Enter')_cellCommentAdd()">
+        <button onclick="_cellCommentAdd()" style="font-family:inherit;font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;background:#61BB46;color:#04210a;border:none;border-radius:8px;padding:0 13px;cursor:pointer;">Post</button>
+      </div>
+    </div>`;
+  }
   function buildInspectorHTML(ref, value, formula, label, sheetName) {
     const hasFormula = formula && formula.length > 0;
     let html = '';
@@ -17515,6 +17561,7 @@ Answer as Karaya:`;
       </div>`;
     }
 
+    html += _cellCommentsBlockHTML(sheetName, ref);
     return html;
   }
 
