@@ -10264,6 +10264,9 @@
       <div class="nav-item" id="nav-approvals" onclick="openApprovalsHub()">
         <span>Approvals</span>
       </div>
+      <div class="nav-item" id="nav-bohioperf" onclick="openBohioPerf()">
+        <span>Bohio Performance</span>
+      </div>
       <div class="nav-item" id="nav-tasks" onclick="toggleTasks()">
         <span>My Tasks</span>
         <span class="nav-count">05</span>
@@ -22416,6 +22419,138 @@ Answer as Karaya:`;
   // project, in one place. Reuses the exact same card renderers as a fund's
   // own Approvals section (so Approve/Reject/AI-chat all keep working
   // unmodified) plus a read-only view of requests you've sent from projects.
+  // ============ BOHIO PERFORMANCE ============
+  // Tracks the economic upside of running on Bohio: reporting-time collapse,
+  // approval-cycle compression and a company ops-productivity index over time,
+  // aggregated across the platform. Karaya attributes how much of each result
+  // Bohio drove and recommends how to leverage it further.
+  const _BOHIO_PERF = {
+    periods:['Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'],
+    adoptedIndex:2,                                  // Bohio live from Feb
+    reportingHrs:[42,40,38,26,20,15,12,9],           // hours per reporting cycle
+    approvalDays:[11.2,10.8,10.5,7.9,6.2,4.8,3.9,3.1],// days request→decision
+    perfIndex:[100,101,103,108,114,121,128,136],     // ops productivity index (Dec=100)
+    hoursSavedByFn:[{fn:'Reporting',h:280},{fn:'Modelling',h:240},{fn:'Approvals',h:190},{fn:'Reconciliation',h:150},{fn:'IC prep',h:120}],
+    blendedRate:340,                                 // SAR / analyst-hour (blended)
+    attribution:{reporting:0.9, approvals:0.72, perf:0.5} // share of the gain Bohio drove
+  };
+  function _bohioPerfData(){
+    const d=_BOHIO_PERF;
+    const rep0=d.reportingHrs[0], repN=d.reportingHrs[d.reportingHrs.length-1];
+    const app0=d.approvalDays[0], appN=d.approvalDays[d.approvalDays.length-1];
+    const perf0=d.perfIndex[0], perfN=d.perfIndex[d.perfIndex.length-1];
+    const repCut=Math.round((1-repN/rep0)*100);
+    const appCut=Math.round((1-appN/app0)*100);
+    const perfGain=Math.round(perfN-perf0);
+    const hoursSaved=d.hoursSavedByFn.reduce((s,x)=>s+x.h,0);
+    const sarSaved=Math.round(hoursSaved*d.blendedRate);       // SAR labour value released
+    return {...d, rep0, repN, app0, appN, perf0, perfN, repCut, appCut, perfGain, hoursSaved, sarSaved};
+  }
+  function _bohioPerfKpi(label, val, sub, accent){
+    return `<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:13px 15px;">
+      <div style="font-size:7.5px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${label}</div>
+      <div style="font-size:20px;font-weight:700;margin-top:5px;line-height:1.05;color:${accent||'var(--ink)'};">${val}</div>
+      ${sub?`<div style="font-size:8.5px;color:var(--ink-soft);margin-top:4px;line-height:1.4;">${sub}</div>`:''}</div>`;
+  }
+  function _bohioPerfInsightFallback(){
+    const d=_bohioPerfData();
+    return `### How Bohio drove these results\n- **Reporting time fell ${d.repCut}%** (${d.rep0}h → ${d.repN}h per cycle). Karaya's layout-first report generation and the live ERP/CRM pull removed the manual data-gathering step — **~${Math.round(d.attribution.reporting*100)}% of this gain is directly attributable to Bohio**.\n- **Approval cycles compressed ${d.appCut}%** (${d.app0}d → ${d.appN}d). Routing every request through the in-platform governance matrix, with the AI pre-read attached, cut the back-and-forth — **~${Math.round(d.attribution.approvals*100)}% Bohio-driven**, the remainder from your own delegation-authority changes.\n- **Ops productivity index +${d.perfGain} points** since adoption. Bohio is one of several drivers here (hiring, market) — we attribute **~${Math.round(d.attribution.perf*100)}%** to workflow automation, so partial rather than sole credit.\n- **${d.hoursSaved.toLocaleString()} analyst-hours released** across reporting, modelling, approvals, reconciliation and IC prep — roughly **SAR ${(d.sarSaved/1000).toFixed(0)}k of labour value** redeployed to deal work.\n\n### Recommendations to leverage Bohio more\n- **Move LP reporting fully onto the reporting chatbot** — two funds still export manually; that is the single biggest remaining ${d.repN}h→ lower opportunity.\n- **Turn on recurring scheduled reports** so board/LP packs assemble themselves — converts saved hours into zero-touch.\n- **Push all discount & capex approvals through the matrix** (a few still go by email) to extend the ${d.appCut}% cycle-time gain fund-wide.\n- **Adopt the model-debugging + cell-comments workflow** on the master models — the modelling function still holds the most manual hours (${d.hoursSavedByFn.find(x=>x.fn==='Modelling').h}h saved, more available).`;
+  }
+  let _bohioPerfChat=[];
+  function openBohioPerf(){
+    _bohioPerfHubOpen=true;
+    _wfOpenFundShell();
+    _renderBohioPerf();
+  }
+  let _bohioPerfHubOpen=false;
+  function _bohioPerfBack(){ _bohioPerfHubOpen=false; closeWorkflow(); goTo('workspace'); }
+  function _renderBohioPerf(){
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const d=_bohioPerfData();
+    const repLine=_svgLine(d.periods, d.reportingHrs, '#b45309', {h:130});
+    const appLine=_svgLine(d.periods, d.approvalDays, '#2563eb', {h:130});
+    const perfLine=_svgLine(d.periods, d.perfIndex, '#61BB46', {h:130});
+    const savedBars=_svgBars(d.hoursSavedByFn.map(x=>({label:x.fn, bars:[{name:x.fn, v:x.h, color:'#000919'}]})), {h:150});
+    const adoptedNote=`Bohio went live in <b>${d.periods[d.adoptedIndex]}</b> — the inflection in every series lines up with adoption.`;
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div>
+          <button onclick="_bohioPerfBack()" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ Workspace</button>
+          <div class="wf-title">Bohio Performance</div>
+          <div class="wf-sub">The economic upside of running on Bohio — reporting time, approval speed and company performance over time, with Karaya's attribution</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="wf-back" onclick="_bohioPerfBack()" aria-label="Back" title="Back">←</button>
+        </div>
+      </div>
+      <div class="wf-body" style="padding:20px 24px 40px;overflow-y:auto;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px;">
+          ${_bohioPerfKpi('Reporting time', '−'+d.repCut+'%', d.rep0+'h → '+d.repN+'h per cycle', '#15803d')}
+          ${_bohioPerfKpi('Approval cycle', '−'+d.appCut+'%', d.app0+'d → '+d.appN+'d to decision', '#15803d')}
+          ${_bohioPerfKpi('Ops productivity', '+'+d.perfGain+' pts', 'index since adoption', '#2563eb')}
+          ${_bohioPerfKpi('Analyst-hours released', d.hoursSaved.toLocaleString()+'h', 'across all functions')}
+          ${_bohioPerfKpi('Labour value redeployed', 'SAR '+(d.sarSaved/1000).toFixed(0)+'k', 'at SAR '+d.blendedRate+'/hr blended', '#61BB46')}
+        </div>
+        <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:16px;">${adoptedNote}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+          <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 17px;">
+            <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Reporting time per cycle (hrs)</div>${repLine}</div>
+          <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 17px;">
+            <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Approval cycle time (days)</div>${appLine}</div>
+          <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 17px;">
+            <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Company ops-productivity index</div>${perfLine}</div>
+          <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 17px;">
+            <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Analyst-hours saved by function</div>${savedBars}</div>
+        </div>
+        <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:16px 18px;margin-top:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+            <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Karaya · attribution & recommendations</div>
+            <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 11px;" onclick="_bohioPerfPreset('How did Bohio drive these results and what should we do to leverage it more?')">Explain the upside</button>
+          </div>
+          <div id="bperf-chat" style="${_bohioPerfChat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:10px;">${_bohioPerfChat.map(c=>`<div class="k-msg ${c.cls}" style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:90%;font-size:11px;line-height:1.6;padding:9px 13px;border-radius:13px;border:1px solid var(--ink-hairline);background:${c.cls==='user'?'var(--ink)':'var(--paper)'};color:${c.cls==='user'?'var(--paper)':'var(--ink)'};">${c.html}</div>`).join('')}</div>
+          <div style="display:flex;gap:8px;">
+            <input id="bperf-input" placeholder="e.g. how much of the reporting-time gain was Bohio, and where do we go next?" style="flex:1;box-sizing:border-box;padding:9px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_bohioPerfAsk()">
+            <button class="wf-btn ghost" onclick="_bohioPerfAsk()">Ask</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  function _bohioPerfRender(){
+    const log=document.getElementById('bperf-chat'); if(!log) return;
+    log.style.display='flex';
+    log.innerHTML=_bohioPerfChat.map(c=>`<div class="k-msg ${c.cls}" style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:90%;font-size:11px;line-height:1.6;padding:9px 13px;border-radius:13px;border:1px solid var(--ink-hairline);background:${c.cls==='user'?'var(--ink)':'var(--paper)'};color:${c.cls==='user'?'var(--paper)':'var(--ink)'};">${c.html}</div>`).join('');
+    log.scrollTop=log.scrollHeight;
+  }
+  function _bohioPerfPreset(text){ const i=document.getElementById('bperf-input'); if(i) i.value=text; _bohioPerfAsk(); }
+  function _bohioPerfAsk(){
+    const input=document.getElementById('bperf-input'); if(!input) return;
+    const q=(input.value||'').trim(); if(!q) return;
+    input.value='';
+    _bohioPerfChat.push({cls:'user', html:q.replace(/</g,'&lt;')});
+    const bi=_bohioPerfChat.length;
+    _bohioPerfChat.push({cls:'bot', html:'<span style="color:var(--ink-soft);">Aggregating the performance data…</span>'});
+    _bohioPerfRender();
+    if(typeof _krDetectFileRequest==='function' && _krDetectFileRequest(q)){
+      const target=document.querySelector('#bperf-chat .k-msg.bot:last-child');
+      _krGenerateFileInto(q, target, '').then(()=>{ if(target) _bohioPerfChat[bi]={cls:'bot', html:target.innerHTML}; });
+      return;
+    }
+    const fallback=_bohioPerfInsightFallback();
+    const finish=(txt)=>{ _bohioPerfChat[bi]={cls:'bot', html:_fmtDiscountSections(txt)}; _bohioPerfRender(); };
+    (async()=>{
+      let out=null;
+      try{
+        if(window.claude&&window.claude.complete){
+          const d=_bohioPerfData();
+          const data=`Reporting time ${d.rep0}h→${d.repN}h/cycle (−${d.repCut}%). Approval cycle ${d.app0}d→${d.appN}d (−${d.appCut}%). Ops productivity index ${d.perf0}→${d.perfN} (+${d.perfGain}pts). Analyst-hours released ${d.hoursSaved} (worth ~SAR ${d.sarSaved} at SAR ${d.blendedRate}/hr). Hours saved by function: ${d.hoursSavedByFn.map(x=>x.fn+' '+x.h+'h').join(', ')}. Bohio adopted in ${d.periods[d.adoptedIndex]}. Attribution estimates: reporting ${Math.round(d.attribution.reporting*100)}% Bohio, approvals ${Math.round(d.attribution.approvals*100)}% Bohio, productivity ${Math.round(d.attribution.perf*100)}% Bohio.`;
+          const prompt=`You are Karaya, analysing the ROI of the Bohio platform for the firm. Using ONLY the data below, answer the user's question. Attribute honestly how much of each result Bohio drove (partial vs sole), and give concrete recommendations to leverage Bohio more. Use "### " headings and "- " bullets, money in SAR. Do not invent figures.\n\nDATA: ${data}\n\nQUESTION: ${q}`;
+          const r=await window.claude.complete({messages:[{role:'user',content:prompt}], task:'bohio_perf'});
+          out=(typeof r==='string')?r:(r&&r.content)||'';
+        }
+      }catch(e){}
+      finish(out&&String(out).trim()?out:fallback);
+    })();
+  }
   function openApprovalsHub(){
     _wfApprovalsHubOpen=true;
     _wfOpenFundShell();
