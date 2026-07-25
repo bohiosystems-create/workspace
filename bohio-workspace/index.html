@@ -10701,7 +10701,6 @@
               <button class="action-btn" onclick="openModelApproval()">Submit for Approval</button>
               <button class="action-btn" onclick="openPresentation()">▸ Presentation</button>
               <button class="action-btn" onclick="exportModelExcel()">Export to Excel</button>
-              <button class="action-btn" onclick="openModelDebug()">🐞 Find errors</button>
               <button class="action-btn">Add to Workspace</button>
             </div>
           </div>
@@ -15498,7 +15497,7 @@ Answer as the ${a.name} agent:`;
     const changes=[];
     Object.keys(after).forEach(sh=>{ const a=after[sh], b=before[sh]; if(!b||!a.rows) return;
       a.rows.forEach((row, ri)=>{ const brow=b.rows[ri]; if(!brow) return;
-        if(String(row.cells[1])!==String(brow.cells[1])) changes.push({cell:sh+'!B'+row.cells[0], label:'label', before:brow.cells[1], after:row.cells[1]});
+        if(String(row.cells[1])!==String(brow.cells[1])) changes.push({cell:sh+'!'+(a.cols[1]||'A')+row.cells[0], label:'label', before:brow.cells[1], after:row.cells[1]});
         for(let ci=2;ci<row.cells.length;ci++){ if(String(row.cells[ci])!==String((brow.cells||[])[ci])) changes.push({cell:sh+'!'+a.cols[ci]+row.cells[0], label:row.cells[1]||'', before:(brow.cells[ci]||'—'), after:row.cells[ci]}); }
       });
     });
@@ -15580,6 +15579,88 @@ Answer as the ${a.name} agent:`;
     if(typeof _pushVersion==='function'){ _pushVersion(_prev, 'Debug fix — '+f.label+' ('+f.kind+')'); if(typeof saveOpenModel==='function') saveOpenModel(true); }
     _dbgFindings=_dbgFindings.filter(x=>x.id!==id);
     _renderModelDebug();
+  }
+
+  // ============ UNIFIED MODIFY → PREVIEW-ON-SHEET → APPROVE ============
+  // Every change to the model (a chat command, a debug fix — anything) is
+  // staged first: applied to a scratch copy, recomputed, and the changed cells
+  // are highlighted DIRECTLY ON THE SHEET with an Approve / Discard bar. Nothing
+  // is versioned or saved until Approve. Requires the model to be fully open.
+  let _modPending=null;
+  function _isModelFullyOpen(){
+    const pg=document.getElementById('page-editor');
+    return !!(pg && pg.classList.contains('active') && typeof SHEET_DATA!=='undefined' && Object.keys(SHEET_DATA||{}).length && document.getElementById('spreadsheet'));
+  }
+  function _clearPreviewHighlights(){
+    document.querySelectorAll('#spreadsheet td._prevchg').forEach(td=>{ td.classList.remove('_prevchg'); td.style.boxShadow=''; td.style.background=''; });
+  }
+  function _highlightPreview(changes){
+    _clearPreviewHighlights();
+    const active=(typeof activeSheet!=='undefined'&&activeSheet)?activeSheet:Object.keys(SHEET_DATA)[0];
+    let onActive=0;
+    changes.forEach(c=>{ const mm=c.cell.match(/^(.+)!([A-Za-z]+\d+)$/); if(!mm||mm[1]!==active) return;
+      const td=document.querySelector('#spreadsheet td[data-ref="'+mm[2]+'"]');
+      if(td){ td.classList.add('_prevchg'); td.style.boxShadow='inset 0 0 0 2px #61BB46'; td.style.background='rgba(97,187,70,0.16)'; onActive++; }
+    });
+    return onActive;
+  }
+  function _stagePreview(origWb, label){
+    // SHEET_DATA already holds the applied+recomputed change; diff vs original.
+    const base = _modPending ? _modPending.orig : origWb;   // keep true original if re-staging
+    const changes=_wbDiff(base, SHEET_DATA);
+    _modPending={orig:base, label, changes};
+    const active=(typeof activeSheet!=='undefined'&&activeSheet)?activeSheet:Object.keys(SHEET_DATA)[0];
+    renderSpreadsheet(active);
+    const onActive=_highlightPreview(changes);
+    _showPreviewBar(changes.length, onActive, label);
+    return changes;
+  }
+  function _showPreviewBar(total, onActive, label){
+    let bar=document.getElementById('mod-preview-bar');
+    if(!bar){ bar=document.createElement('div'); bar.id='mod-preview-bar'; document.body.appendChild(bar); }
+    bar.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:10070;background:#0f1216;color:#e6e2e2;border:1px solid rgba(230,226,226,0.2);border-radius:12px;padding:11px 15px;display:flex;align-items:center;gap:13px;box-shadow:0 14px 44px rgba(0,0,0,0.45);font-family:inherit;max-width:92vw;';
+    bar.innerHTML=`<div style="min-width:0;"><div style="font-size:11px;font-weight:700;">Preview — ${String(label).replace(/</g,'&lt;')}</div>
+      <div style="font-size:9.5px;color:rgba(230,226,226,0.6);margin-top:2px;">${total} cell${total===1?'':'s'} change${total?' · '+onActive+' on this tab highlighted':''} — nothing saved until you approve</div></div>
+      <button onclick="_discardMod()" style="flex-shrink:0;font-family:inherit;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;background:transparent;color:#e6e2e2;border:1px solid rgba(230,226,226,0.3);border-radius:7px;padding:7px 13px;cursor:pointer;">Discard</button>
+      <button onclick="_approveMod()" style="flex-shrink:0;font-family:inherit;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;background:#61BB46;color:#04210a;border:none;border-radius:7px;padding:7px 13px;cursor:pointer;">Approve &amp; apply</button>`;
+    bar.style.display='flex';
+  }
+  function _hidePreviewBar(){ const bar=document.getElementById('mod-preview-bar'); if(bar) bar.style.display='none'; }
+  function _approveMod(){
+    if(!_modPending) return;
+    if(typeof _pushVersion==='function'){ _pushVersion(_modPending.orig, _modPending.label); if(typeof saveOpenModel==='function') saveOpenModel(true); }
+    _clearPreviewHighlights(); _hidePreviewBar(); _modPending=null;
+  }
+  function _discardMod(){
+    if(!_modPending) return;
+    Object.keys(SHEET_DATA).forEach(k=>delete SHEET_DATA[k]); Object.assign(SHEET_DATA, _cloneWb(_modPending.orig));
+    _modPending=null;
+    const active=(typeof activeSheet!=='undefined'&&activeSheet)?activeSheet:Object.keys(SHEET_DATA)[0];
+    renderSpreadsheet(active); _clearPreviewHighlights(); _hidePreviewBar();
+  }
+  // Debug findings, rendered INTO the model chat (prompt-driven), each stageable
+  // with an on-sheet preview instead of a side list.
+  function _dbgChatHTML(){
+    if(!_dbgFindings.length) return fmtKaraya('I scanned every cell — no label typos, sign errors, mismatched totals or stale values. The model checks out. ✓');
+    const items=_dbgFindings.map(f=>{
+      const kindLbl={typo:'Label typo',sign:'Sign error',stale:'Stale value',total:'Total mismatch'}[f.kind]||'Issue';
+      const ref=(f.kind==='typo'?(SHEET_DATA[f.sheet].cols[1]||'A'):SHEET_DATA[f.sheet].cols[f.col])+f.rnum;
+      return `<div style="border:1px solid var(--ink-hairline);border-radius:9px;padding:9px 11px;margin-top:7px;">
+        <div style="font-size:8px;letter-spacing:0.12em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">${kindLbl} · ${f.sheet}!${ref}</div>
+        <div style="font-size:10.5px;line-height:1.5;margin:4px 0 6px;">${String(f.issue).replace(/</g,'&lt;')}</div>
+        <div style="font-size:9.5px;font-family:'Courier New',monospace;color:var(--ink-soft);margin-bottom:7px;">→ ${String(f.suggested).replace(/</g,'&lt;')}</div>
+        <button class="wf-btn ghost" style="font-size:9px;padding:5px 10px;" onclick="_dbgStage(${f.id})">Preview on sheet</button>
+      </div>`;
+    }).join('');
+    return fmtKaraya(`I found **${_dbgFindings.length} issue${_dbgFindings.length===1?'':'s'}** in the model. Preview any fix on the sheet, then approve to apply:`)+items;
+  }
+  function _dbgStage(id){
+    const f=_dbgFindings.find(x=>x.id===id); if(!f) return;
+    if(!_isModelFullyOpen()) return;
+    if(_modPending) _discardMod();
+    const orig=_cloneWb(SHEET_DATA);
+    _dbgApplyInPlace(f); recomputeAll();
+    _stagePreview(orig, 'Debug fix — '+f.label);
   }
 
   function renderSpreadsheet(sheetName) {
@@ -16993,10 +17074,23 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
       return;
     }
 
-    // Snapshot before a rework so the previous version is auto-saved, then apply.
+    // "debug and suggest modifications" — scan the model and present each fix in
+    // the chat, previewable on the sheet (prompt-driven, no separate button).
+    if (/\b(debug|find (the )?(errors|bugs|mistakes)|suggest (modification|change|fix)|check (the )?model for (error|mistake|bug))/i.test(q)) {
+      if (typeof _debugModelScan === 'function') { _debugModelScan(); bot.innerHTML = _dbgChatHTML() + '<span class="k-meta">Karaya · model debugger</span>'; msgs.scrollTop = msgs.scrollHeight; return; }
+    }
+
+    // Snapshot before a rework, apply, then STAGE it for on-sheet preview +
+    // approval instead of committing immediately.
     const _preWb = _cloneWb(SHEET_DATA);
     const applied = tryApplyModelCommand(q);
-    if(applied && typeof _pushVersion==='function'){ _pushVersion(_preWb, applied.charAt(0).toUpperCase()+applied.slice(1)); saveOpenModel(true); }
+    if (applied && typeof _stagePreview === 'function' && _isModelFullyOpen()) {
+      const changes = _stagePreview(_preWb, applied.charAt(0).toUpperCase()+applied.slice(1));
+      bot.innerHTML = fmtKaraya(`I've **staged** this change — I ${applied}. **${changes.length} cell${changes.length===1?'':'s'}** change; the affected ones are **highlighted on the sheet**. Review, then **Approve & apply** to commit it (or **Discard**) — nothing is saved until you do.`) + '<span class="k-meta">Karaya · staged for approval</span>';
+      msgs.scrollTop = msgs.scrollHeight;
+      return;
+    }
+    else if (applied && typeof _pushVersion === 'function') { _pushVersion(_preWb, applied.charAt(0).toUpperCase()+applied.slice(1)); saveOpenModel(true); }
     const sheetName = (typeof activeSheet !== 'undefined' && activeSheet) ? activeSheet : Object.keys(SHEET_DATA)[0];
     const modelName = (document.getElementById('ed-title') || {}).textContent || 'the model';
     // Grounding: EVERY call gets the full-model index (all tabs & labels, so
