@@ -21979,8 +21979,11 @@ Answer as Karaya:`;
     const chat=f._reportChat||[];
     const chatLogHtml=chat.map((c,i)=>`<div ${c.cls==='bot'?`id="wffrep-chat-b-${k}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
     return `<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--ink-hairline);">
-      <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Reporting — ${f.name.replace(/^Bohio RE /,'')}</div>
-      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:10px;">Ask for any report — Karaya builds it live from this fund's own NAV/IRR trend, portfolio assets, capital structure and approvals history.</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px;">
+        <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Reporting — ${f.name.replace(/^Bohio RE /,'')}</div>
+        <button class="wf-btn" style="font-size:9px;padding:5px 11px;" onclick="openCreateReport({source:'${f.name.replace(/^Bohio RE /,'').replace(/'/g,"\\'")}'})">+ Create report</button>
+      </div>
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:10px;">Ask for any report — Karaya builds it live from this fund's own NAV/IRR trend, portfolio assets, capital structure and approvals history. Use <b style="color:var(--ink);">+ Create report</b> to generate one now or schedule it to recur.</div>
       <div id="wffrep-chat-${k}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:280px;overflow-y:auto;">${chatLogHtml}</div>
       <div id="wffrep-preset-${k}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
         <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfFundReportPreset('${k}','Board performance report')">Board performance report</button>
@@ -22301,8 +22304,9 @@ Answer as Karaya:`;
     const p=P[pid]; if(!p) return;
     const chat=p._reportChat||[];
     const hist=p._reportHistory||[];
-    host.innerHTML=`<div class="docs-header" style="margin-top:0;"><div class="docs-title">Reporting</div></div>
-      <div style="font-size:11px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;max-width:760px;">Reporting for <b style="color:var(--ink);">${p.name}</b> runs through the chatbot — ask for any report and Karaya lays out the information first, then asks how you'd like it presented and in what format before generating it.</div>
+    host.innerHTML=`<div class="docs-header" style="margin-top:0;"><div class="docs-title">Reporting</div>
+        <div class="docs-actions"><button class="action-btn" onclick="openCreateReport({source:'${String(p.name).replace(/'/g,"\\'")}'})">+ Create report</button></div></div>
+      <div style="font-size:11px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px;max-width:760px;">Reporting for <b style="color:var(--ink);">${p.name}</b> runs through the chatbot — ask for any report and Karaya lays out the information first, then asks how you'd like it presented and in what format before generating it. Use <b style="color:var(--ink);">+ Create report</b> to generate one now or schedule it to recur.</div>
       <div id="prjrep-chat-${pid}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-width:760px;">${chat.map((c,i)=>_projReportChatBubbleHTML(c,pid,i)).join('')}</div>
       <div id="prjrep-preset-${pid}" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;${chat.length?'display:none;':''}">
         <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_projReportPreset(${pid},'Asset performance report')">Asset performance report</button>
@@ -23443,7 +23447,11 @@ Answer as Karaya:`;
   function _kindColor(k){ return {'Board pack':'#2563eb','LP report':'#61BB46','Development':'#b45309','Sales':'#963D97','Regulatory':'#0a66c2'}[k]||'#475569'; }
   function _reportRowHTML(r, i, kind){
     const c=_kindColor(r.kind);
-    const meta = kind==='recur' ? `${r.cadence} · next ${r.next} · ${r.owner}` : `${r.kind} · ${r.when}`;
+    const meta = kind==='recur'
+      ? `${r.cadence} · next ${r.next} · ${r.owner}`
+        + (r.structureFrom?` · structure from ${r.structureFrom}`:'')
+        + ((r.improvements&&r.improvements.length)?` · ${r.improvements.length} AI improvement${r.improvements.length===1?'':'s'} applied`:'')
+      : `${r.kind} · ${r.when}`;
     const action = kind==='recur' ? `<span style="flex-shrink:0;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Scheduled</span>` : `<span style="flex-shrink:0;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;">View ›</span>`;
     const onclick = kind==='recur' ? '' : ` onclick="_reportsHubReopen(${i})" style="cursor:pointer;"`;
     return `<div class="rhub-row" data-search="${(r.title+' '+r.source+' '+r.kind).toLowerCase().replace(/"/g,'')}"${onclick?onclick:' style="cursor:default;"'} onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor=''" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 14px;margin-bottom:7px;${kind==='recur'?'cursor:default;':'cursor:pointer;'}">
@@ -23483,6 +23491,171 @@ Answer as Karaya:`;
       </div>
     </div>`;
   }
+  // ============ CREATE REPORT — the one flow used platform-wide ============
+  // Every report-generation entry point opens this: pick the report, then
+  // either generate it now or schedule it as a recurring report. An example
+  // of a previous report can be attached so the AI matches its structure —
+  // and it critiques that structure, suggesting improvements you can accept.
+  const REPORT_TYPES = [
+    {id:'lp',    label:'LP Update',                  kind:'LP report',  blurb:'Quarterly/monthly performance letter for limited partners'},
+    {id:'board', label:'Board Performance Pack',     kind:'Board pack', blurb:'Fund performance, portfolio and pipeline for the board'},
+    {id:'dev',   label:'Development Status Report',  kind:'Development',blurb:'Programme, cost-to-complete and delivery risk'},
+    {id:'sales', label:'Sales & Collections Report', kind:'Sales',      blurb:'Contracted sales, off-plan absorption and collections'},
+    {id:'reg',   label:'REIT Regulatory Filing',     kind:'Regulatory', blurb:'Statutory disclosure pack for the regulator'},
+  ];
+  const REPORT_CADENCES = ['Weekly','Monthly','Quarterly','Semi-annual','Annual'];
+  let _crState = null;
+  function openCreateReport(ctx){
+    _crState = Object.assign({ typeId:'lp', mode:null, cadence:'Quarterly', next:'30 Sep 2026',
+      source:(ctx&&ctx.source)||'Opportunity Fund II', owner:(ctx&&ctx.owner)||'IR', example:null, critique:null, accepted:[] }, ctx||{});
+    let ov=document.getElementById('cr-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='cr-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:10085;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+      ov.addEventListener('click',e=>{ if(e.target===ov) closeCreateReport(); });
+      document.body.appendChild(ov); }
+    _renderCreateReport(); ov.style.display='flex';
+  }
+  function closeCreateReport(){ const ov=document.getElementById('cr-overlay'); if(ov) ov.style.display='none'; }
+  function _crSet(k,v){ if(_crState){ _crState[k]=v; _renderCreateReport(); } }
+  function _renderCreateReport(){
+    const ov=document.getElementById('cr-overlay'); if(!ov||!_crState) return;
+    const st=_crState;
+    const t=REPORT_TYPES.find(x=>x.id===st.typeId)||REPORT_TYPES[0];
+    const modeCard=(id,title,sub,icon)=>`<button onclick="_crSet('mode','${id}')" style="flex:1;min-width:170px;text-align:left;font-family:inherit;cursor:pointer;border:1.5px solid ${st.mode===id?'var(--ink)':'var(--ink-hairline)'};background:${st.mode===id?'rgba(0,9,25,0.04)':'var(--paper)'};border-radius:12px;padding:13px 15px;">
+      <div style="font-size:17px;line-height:1;margin-bottom:6px;">${icon}</div>
+      <div style="font-size:12px;font-weight:700;">${title}</div>
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-top:3px;line-height:1.5;">${sub}</div></button>`;
+    const critique = st.critique ? `<div style="border:1px solid var(--ink-hairline);border-radius:11px;padding:12px 14px;margin-top:10px;background:rgba(37,99,235,0.04);">
+      <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">Karaya · structure review of your example</div>
+      <div style="font-size:10.5px;line-height:1.6;margin-bottom:9px;">${st.critique.summary}</div>
+      ${st.critique.suggestions.map((s,i)=>`<div style="display:flex;gap:9px;align-items:flex-start;border-top:1px solid var(--ink-hairline);padding:9px 0 0;margin-top:8px;">
+        <div style="flex:1;min-width:0;"><div style="font-size:10.5px;font-weight:700;">${s.title}</div>
+        <div style="font-size:9.5px;color:var(--ink-soft);margin-top:2px;line-height:1.55;">${s.detail}</div></div>
+        <button onclick="_crToggleSuggestion(${i})" style="flex-shrink:0;font-family:inherit;font-size:8.5px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;border-radius:999px;padding:5px 11px;cursor:pointer;border:1px solid ${st.accepted.includes(i)?'#15803d':'var(--ink-hairline)'};background:${st.accepted.includes(i)?'rgba(21,128,61,0.14)':'transparent'};color:${st.accepted.includes(i)?'#15803d':'var(--ink-soft)'};">${st.accepted.includes(i)?'✓ Accepted':'Accept'}</button>
+      </div>`).join('')}
+      <div style="font-size:9px;color:var(--ink-soft);margin-top:10px;">${st.accepted.length} of ${st.critique.suggestions.length} accepted — accepted changes are applied to the report structure.</div>
+    </div>` : '';
+    ov.innerHTML=`<div style="background:var(--bg);border:1px solid var(--ink-hairline);border-radius:16px;width:100%;max-width:600px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div><div style="font-size:8px;letter-spacing:0.28em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">New report</div>
+          <div style="font-family:var(--font-display);font-size:19px;margin-top:3px;">Create a report</div></div>
+        <button onclick="closeCreateReport()" style="flex-shrink:0;background:transparent;border:1px solid var(--ink-hairline);color:var(--ink);width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:14px;">×</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 22px 20px;">
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">Report</div>
+        <select id="cr-type" onchange="_crSet('typeId',this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:9px;margin-bottom:5px;">
+          ${REPORT_TYPES.map(x=>`<option value="${x.id}"${x.id===st.typeId?' selected':''}>${x.label}</option>`).join('')}
+        </select>
+        <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:14px;">${t.blurb}</div>
+
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">Subject</div>
+        <input id="cr-source" value="${String(st.source).replace(/"/g,'&quot;')}" oninput="_crState.source=this.value" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:9px;margin-bottom:16px;">
+
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">How do you want it?</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:${st.mode?'16px':'4px'};">
+          ${modeCard('now','Generate now','Karaya lays out the information, then asks what format you want it in.','⚡')}
+          ${modeCard('schedule','Schedule report','Runs on a cadence and lands in Reports automatically.','🗓')}
+        </div>
+
+        ${st.mode==='schedule'?`<div style="border-top:1px solid var(--ink-hairline);padding-top:14px;margin-bottom:6px;">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:150px;"><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">Cadence</div>
+              <select onchange="_crState.cadence=this.value" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:9px;">
+                ${REPORT_CADENCES.map(c=>`<option${c===st.cadence?' selected':''}>${c}</option>`).join('')}</select></div>
+            <div style="flex:1;min-width:150px;"><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">First run</div>
+              <input value="${st.next}" oninput="_crState.next=this.value" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:9px;"></div>
+            <div style="flex:1;min-width:120px;"><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">Owner</div>
+              <input value="${st.owner}" oninput="_crState.owner=this.value" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:9px;"></div>
+          </div></div>`:''}
+
+        ${st.mode?`<div style="border-top:1px solid var(--ink-hairline);padding-top:14px;margin-top:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div><div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Structure example (optional)</div>
+              <div style="font-size:9.5px;color:var(--ink-soft);margin-top:3px;line-height:1.5;">Upload a previous ${t.label.toLowerCase()} and Karaya will follow its structure — and suggest improvements.</div></div>
+            <button class="wf-btn ghost" style="flex-shrink:0;font-size:9.5px;padding:6px 11px;" onclick="document.getElementById('cr-example').click()">${st.example?'Replace':'+ Upload'}</button>
+            <input type="file" id="cr-example" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md,.pptx" onchange="_crUploadExample(this.files[0])">
+          </div>
+          ${st.example?`<div style="font-size:10px;margin-top:9px;display:flex;align-items:center;gap:8px;"><b>${String(st.example.name).replace(/</g,'&lt;')}</b><span style="color:var(--ink-soft);">${st.example.words?(st.example.words.toLocaleString()+' words read'):'attached'}</span></div>`:''}
+          ${critique}
+        </div>`:''}
+      </div>
+      <div style="display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--ink-hairline);">
+        <button class="wf-btn ghost" onclick="closeCreateReport()">Cancel</button>
+        <button class="wf-btn" ${st.mode?'':'disabled style="opacity:0.4;cursor:not-allowed;"'} onclick="_crConfirm()">${st.mode==='schedule'?'Schedule report':'Generate now'}</button>
+      </div></div>`;
+  }
+  function _crToggleSuggestion(i){
+    if(!_crState) return;
+    const at=_crState.accepted, k=at.indexOf(i);
+    if(k>=0) at.splice(k,1); else at.push(i);
+    _renderCreateReport();
+  }
+  async function _crUploadExample(file){
+    if(!file||!_crState) return;
+    const ext=(file.name.match(/\.([^.]+)$/)||[,''])[1].toLowerCase();
+    let text='';
+    try{
+      if(ext==='pdf') text=await _pdfText(file);
+      else if(ext==='docx') text=await _docxText(file);
+      else text=await file.text();
+    }catch(e){}
+    if(text && typeof _looksReadable==='function' && !_looksReadable(text)) text='';
+    _crState.example={name:file.name, text:String(text||'').slice(0,6000), words:text?String(text).split(/\s+/).length:0};
+    _crState.critique=_crCritique(_crState);
+    _crState.accepted=[];
+    _renderCreateReport();
+    // richer critique from the model when available
+    try{
+      if(window.claude&&window.claude.complete){
+        const t=REPORT_TYPES.find(x=>x.id===_crState.typeId);
+        const r=await window.claude.complete({messages:[{role:'user',content:`You are Karaya reviewing the STRUCTURE of a previous ${t.label} so future ones can be improved. Reply as JSON only: {"summary":"one sentence on the structure you found","suggestions":[{"title":"short change","detail":"one sentence why"}]} with 3 suggestions. Example report text:\n${_crState.example.text.slice(0,3000)}`}], task:'report_structure'});
+        const raw=(typeof r==='string')?r:(r&&r.content)||'';
+        const m=raw.match(/\{[\s\S]*\}/);
+        if(m){ const j=JSON.parse(m[0]); if(j.suggestions&&j.suggestions.length){ _crState.critique={summary:j.summary||_crState.critique.summary, suggestions:j.suggestions.slice(0,4)}; _crState.accepted=[]; _renderCreateReport(); } }
+      }
+    }catch(e){}
+  }
+  // Deterministic structure critique so the flow works without a live API key.
+  function _crCritique(st){
+    const txt=(st.example&&st.example.text||'').toLowerCase();
+    const has=(re)=>re.test(txt);
+    const sug=[];
+    if(!has(/executive summary|at a glance|headline/)) sug.push({title:'Open with an executive summary', detail:'The example goes straight into detail — leading with a one-page summary of performance, key events and asks gets read first.'});
+    if(!has(/risk/)) sug.push({title:'Add a standing risk section', detail:'No risk section found. LPs and boards expect risks and mitigations stated explicitly, not implied.'});
+    if(!has(/outlook|next quarter|forward|pipeline/)) sug.push({title:'Close with a forward look', detail:'The example reports backwards only — add an outlook covering pipeline, deployment plan and the next milestones.'});
+    if(!has(/chart|figure|table|exhibit/)) sug.push({title:'Put the numbers in exhibits', detail:'Figures appear inline in prose; moving them into a small set of consistent tables/charts makes period-on-period comparison much easier.'});
+    if(sug.length<3) sug.push({title:'Standardise section order across periods', detail:'Keeping the same section order every period lets readers diff one report against the last without re-reading it.'});
+    return { summary:`I read the example and mapped its section structure — it is a reasonable base for the ${(REPORT_TYPES.find(x=>x.id===st.typeId)||{}).label}. Here is what I would change:`, suggestions:sug.slice(0,4) };
+  }
+  function _crConfirm(){
+    if(!_crState||!_crState.mode) return;
+    const st=_crState;
+    const t=REPORT_TYPES.find(x=>x.id===st.typeId)||REPORT_TYPES[0];
+    const accepted=(st.critique?st.critique.suggestions.filter((_,i)=>st.accepted.includes(i)):[]);
+    if(st.mode==='schedule'){
+      RECURRING_REPORTS.unshift({ title:t.label, source:st.source, kind:t.kind, cadence:st.cadence, next:st.next, owner:st.owner,
+        structureFrom:st.example?st.example.name:null, improvements:accepted.map(s=>s.title) });
+      closeCreateReport();
+      if(_reportsHubOpen) _renderReportsHub();
+      return;
+    }
+    // generate now → hand to the reporting chat flow with the structure brief
+    closeCreateReport();
+    _crGenerateNow(st, t, accepted);
+  }
+  function _crGenerateNow(st, t, accepted){
+    const fund=(typeof WF_FUNDS!=='undefined')?WF_FUNDS.find(f=>st.source.indexOf(f.name.replace(/^Bohio RE /,''))>=0)||WF_FUNDS[0]:null;
+    if(!fund) return;
+    const q=`${t.label} for ${st.source}`
+      + (st.example?` — follow the structure of "${st.example.name}"`:'')
+      + (accepted.length?`, with these improvements applied: ${accepted.map(s=>s.title).join('; ')}`:'');
+    _wfOpenFundShell();
+    _wfFundDetail(fund.k,'reporting');
+    setTimeout(()=>{
+      const inp=document.getElementById('wffrep-input-'+fund.k);
+      if(inp){ inp.value=q; if(typeof _wfFundReportAsk==='function') _wfFundReportAsk(fund.k); }
+    }, 260);
+  }
   function _renderReportsHub(){
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
     const past=_aggregatePastReports();
@@ -23495,7 +23668,10 @@ Answer as Karaya:`;
           <div class="wf-title">Reports</div>
           <div class="wf-sub">Every report across your funds and projects — ${past.length} generated · ${RECURRING_REPORTS.length} recurring scheduled</div>
         </div>
-        <div style="display:flex;gap:8px;flex-shrink:0;"><button class="wf-back" onclick="_reportsHubBack()" aria-label="Back" title="Back">←</button></div>
+        <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+          <button class="wf-btn" onclick="openCreateReport()" title="Create a new report">+ Create report</button>
+          <button class="wf-back" onclick="_reportsHubBack()" aria-label="Back" title="Back">←</button>
+        </div>
       </div>
       <div class="wf-body" style="padding:18px 24px 40px;overflow-y:auto;">
         <div style="position:relative;max-width:520px;margin-bottom:20px;">
@@ -23544,7 +23720,7 @@ Answer as Karaya:`;
   function _topicsHubBack(){ _topicsHubOpen=false; closeWorkflow(); goTo('workspace'); }
   function _topicsHubOpenItem(i){
     const t=_aggregateTopics()[i]; if(!t) return;
-    if(t._open==='proj'){ _topicsHubOpen=false; closeWorkflow(); showProject(t.pid); setTimeout(()=>{ selectProjectSection('topics'); if(typeof openTopic==='function') openTopic(t.topicId); }, 300); }
+    if(t._open==='proj'){ _topicsHubOpen=false; closeWorkflow(); showProject(t.pid); setTimeout(()=>{ selectProjectSection('topics'); _topicCameFromHub=true; if(typeof openTopic==='function') openTopic(t.topicId); }, 300); }
     else { _topicsHubOpen=false; _wfOpenFundShell(); _wfFundDetail(t.k,'topics'); }
   }
   function _topicRowHTML(t, i){
@@ -28608,6 +28784,8 @@ Respond in 2-4 sentences. Plain text only, no markdown headers. You may use <str
     currentTopic = topic;
     topic.unread = 0;
     document.getElementById('tc-overlay').classList.add('active');
+    const _bk = document.getElementById('tc-back-hub');
+    if (_bk) _bk.style.display = _topicCameFromHub ? 'block' : 'none';
     document.getElementById('tc-eyebrow').textContent = topic.eyebrow;
     document.getElementById('tc-title').textContent = topic.title;
     document.getElementById('tc-subject').textContent = topic.subject;
@@ -28646,6 +28824,18 @@ Respond in 2-4 sentences. Plain text only, no markdown headers. You may use <str
   function closeTopic() {
     document.getElementById('tc-overlay').classList.remove('active');
     currentTopic = null;
+    _topicCameFromHub = false;
+    const bk = document.getElementById('tc-back-hub'); if (bk) bk.style.display = 'none';
+  }
+  // When a topic is opened from the aggregated Topics hub, offer a way back to
+  // it rather than leaving the user inside the project it happens to belong to.
+  let _topicCameFromHub = false;
+  function _topicBackToHub(){
+    document.getElementById('tc-overlay').classList.remove('active');
+    currentTopic = null;
+    _topicCameFromHub = false;
+    const bk = document.getElementById('tc-back-hub'); if (bk) bk.style.display = 'none';
+    if (typeof openTopicsHub === 'function') openTopicsHub();
   }
   function renderTopicMessages() {
     if (!currentTopic) return;
@@ -31595,6 +31785,8 @@ function chInitAll() {
     <div class="tc-topbar">
       <div class="tc-topbar-row">
         <div style="min-width:0;flex:1;">
+          <button id="tc-back-hub" onclick="_topicBackToHub()" title="Back to all topics"
+            style="display:none;font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ All topics</button>
           <div class="tc-eyebrow" id="tc-eyebrow">Topic</div>
           <h2 class="tc-title" id="tc-title"></h2>
           <div class="tc-subject" id="tc-subject"></div>
