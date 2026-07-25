@@ -22877,11 +22877,41 @@ Answer as Karaya:`;
         <div style="font-size:9px;color:var(--ink-soft);margin-top:2px;">${r.source} · ${meta}</div></div>
       </div>${action}</div>`;
   }
+  // Past reports render as document-preview squircles (a mini PDF page), while
+  // recurring/scheduled reports stay as compact rows.
+  function _reportPreviewTileHTML(r, i){
+    const c=_kindColor(r.kind);
+    const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="doc-preview-tile rhub-row" data-search="${(r.title+' '+r.source+' '+r.kind).toLowerCase().replace(/"/g,'')}" onclick="_reportsHubReopen(${i})" title="Open this report">
+      <div class="doc-preview-head">
+        <span class="doc-preview-badge" style="background:${c};">${esc(r.kind)}</span>
+        <span class="doc-preview-count">PDF</span>
+      </div>
+      <div class="doc-preview-body" style="display:flex;align-items:center;justify-content:center;padding:6px 12px;">
+        <div style="width:100%;">
+          <div style="height:5px;background:rgba(0,9,25,0.10);border-radius:2px;margin-bottom:5px;width:80%;"></div>
+          <div style="height:5px;background:rgba(0,9,25,0.07);border-radius:2px;margin-bottom:5px;"></div>
+          <div style="height:5px;background:rgba(0,9,25,0.07);border-radius:2px;margin-bottom:5px;width:92%;"></div>
+          <div style="height:5px;background:rgba(0,9,25,0.07);border-radius:2px;margin-bottom:5px;width:70%;"></div>
+          <div style="display:flex;gap:3px;margin-top:8px;align-items:flex-end;height:24px;">
+            <div style="flex:1;background:${c};opacity:0.7;height:45%;border-radius:1px;"></div>
+            <div style="flex:1;background:${c};opacity:0.7;height:80%;border-radius:1px;"></div>
+            <div style="flex:1;background:${c};opacity:0.7;height:60%;border-radius:1px;"></div>
+            <div style="flex:1;background:${c};opacity:0.7;height:100%;border-radius:1px;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="doc-preview-foot">
+        <div class="doc-preview-name">${esc(r.title)}</div>
+        <div class="doc-preview-access">${esc(r.source)} · ${esc(r.when)}</div>
+      </div>
+    </div>`;
+  }
   function _renderReportsHub(){
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
     const past=_aggregatePastReports();
     const recurRows=RECURRING_REPORTS.map((r,i)=>_reportRowHTML(r,i,'recur')).join('');
-    const pastRows=past.map((r,i)=>_reportRowHTML(r,i,'past')).join('');
+    const pastRows=past.map((r,i)=>_reportPreviewTileHTML(r,i)).join('');
     modal.innerHTML=`
       <div class="wf-head">
         <div style="min-width:0;">
@@ -22899,7 +22929,7 @@ Answer as Karaya:`;
         <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:10px;">Recurring / scheduled — future</div>
         <div id="rhub-recur">${recurRows}</div>
         <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:22px 0 10px;">Past reports — generated</div>
-        <div id="rhub-past">${pastRows}</div>
+        <div id="rhub-past" class="doc-preview-wrap">${pastRows}</div>
         <div id="rhub-empty" style="display:none;text-align:center;padding:40px 20px;color:var(--ink-soft);font-size:12px;">No reports match your search.</div>
       </div>`;
   }
