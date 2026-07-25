@@ -14177,7 +14177,8 @@ Answer as Karaya:`;
     const asPdf = (d.isValuation || d.isLandlord) && d.docBody;
     const asKaraya = !asPdf && d.karayaPdf && d.docBody;
     let pdfUrl='';
-    if(asPdf){ try{ pdfUrl=_docToSignedPdfUrl(d); }catch(e){ pdfUrl=''; } }
+    if(d._pdfUrl){ pdfUrl=d._pdfUrl; }             // a real PDF already on disk/blob
+    else if(asPdf){ try{ pdfUrl=_docToSignedPdfUrl(d); }catch(e){ pdfUrl=''; } }
     else if(asKaraya){ try{ pdfUrl=_docToKarayaPdfUrl(d); }catch(e){ pdfUrl=''; } }
     ov.innerHTML=`<div style="background:#fdfcfa;border:1px solid var(--ink-hairline);max-width:${pdfUrl?'900px':'780px'};width:100%;height:calc(100vh - 48px);display:flex;flex-direction:column;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:16px 24px;border-bottom:1px solid var(--ink-hairline);">
@@ -23513,13 +23514,16 @@ Answer as Karaya:`;
     {title:'Monthly Sales & Collections',      source:'Ash Shati Residences',kind:'Sales',      cadence:'Monthly',   next:'01 Aug 2026', owner:'Commercial'},
     {title:'Quarterly REIT Regulatory Filing', source:'Corniche Co-Invest',  kind:'Regulatory', cadence:'Quarterly', next:'15 Oct 2026', owner:'Compliance'},
   ];
+  // Seeded history. Entries with a `file` open the real sample PDF shipped in
+  // demo-assets, so the hub is populated with genuine documents on a fresh load.
   const PAST_REPORTS_SEED = [
-    {title:'Q2 2026 Board Performance Pack',   source:'Opportunity Fund II', kind:'Board pack', when:'12 Jul 2026'},
-    {title:'June LP Update',                   source:'Opportunity Fund II', kind:'LP report',  when:'05 Jul 2026'},
-    {title:'Marina Tower — Development Status', source:'Marina Tower',        kind:'Development', when:'08 Jul 2026'},
+    {title:'Q2 2026 Board Performance Pack',   source:'Opportunity Fund II', kind:'Board pack', when:'12 Jul 2026', file:'demo-assets/Board_Performance_Pack_Fund_II_Q2_2026.pdf'},
+    {title:'Q2 2026 LP Quarterly Update',      source:'Opportunity Fund II', kind:'LP report',  when:'12 Jul 2026', file:'demo-assets/LP_Quarterly_Update_Fund_II_Q2_2026.pdf'},
+    {title:'Marina Tower — Development Status', source:'Marina Tower',       kind:'Development',when:'08 Jul 2026', file:'demo-assets/Development_Status_Report_Marina_Tower_Jul_2026.pdf'},
+    {title:'Marina Tower — Sales & Collections',source:'Marina Tower',       kind:'Sales',      when:'05 Jul 2026', file:'demo-assets/Sales_Collections_Report_Marina_Tower_Jul_2026.pdf'},
+    {title:'REIT Regulatory Filing — Q2 2026', source:'Corniche Co-Invest',  kind:'Regulatory', when:'15 Jul 2026', file:'demo-assets/REIT_Regulatory_Filing_Corniche_Q2_2026.pdf'},
     {title:'H1 2026 Fund I Realisation Report', source:'Fund I',             kind:'Board pack', when:'03 Jul 2026'},
     {title:'Ash Shati — Sales & Collections',  source:'Ash Shati Residences',kind:'Sales',      when:'01 Jul 2026'},
-    {title:'REIT Regulatory Filing — Q1 2026', source:'Corniche Co-Invest',  kind:'Regulatory', when:'15 Apr 2026'},
   ];
   function _aggregatePastReports(){
     const out=[];
@@ -23535,6 +23539,7 @@ Answer as Karaya:`;
   function _reportsHubReopen(i){
     const past=_aggregatePastReports(); const r=past[i]; if(!r) return;
     if(r._doc&&r._doc.docBody){ openReadableDoc({type:'PDF', name:r._doc.name, version:r._doc.version, docBody:r._doc.docBody, karayaPdf:true, pdfFoot:r._doc.pdfFoot}); }
+    else if(r.file){ openReadableDoc({type:'PDF', name:r.title, version:r.kind+' · '+r.when, _pdfUrl:r.file, _mime:'application/pdf'}); }
     else { openReadableDoc({type:'PDF', name:r.title, text:`${r.title}\n\n${r.source} · ${r.kind} · generated ${r.when}\n\nThis report was generated in Bohio from live fund, ERP, CRM and Yardi data. Reopen the source section (Reporting) to regenerate it in a different format.`}); }
   }
   function _kindColor(k){ return {'Board pack':'#2563eb','LP report':'#61BB46','Development':'#b45309','Sales':'#963D97','Regulatory':'#0a66c2'}[k]||'#475569'; }
@@ -23589,12 +23594,19 @@ Answer as Karaya:`;
   // either generate it now or schedule it as a recurring report. An example
   // of a previous report can be attached so the AI matches its structure —
   // and it critiques that structure, suggesting improvements you can accept.
+  // Each type ships a real sample PDF in demo-assets so the "upload a previous
+  // report as the structure example" step can be run without hunting for a file.
   const REPORT_TYPES = [
-    {id:'lp',    label:'LP Update',                  kind:'LP report',  blurb:'Quarterly/monthly performance letter for limited partners'},
-    {id:'board', label:'Board Performance Pack',     kind:'Board pack', blurb:'Fund performance, portfolio and pipeline for the board'},
-    {id:'dev',   label:'Development Status Report',  kind:'Development',blurb:'Programme, cost-to-complete and delivery risk'},
-    {id:'sales', label:'Sales & Collections Report', kind:'Sales',      blurb:'Contracted sales, off-plan absorption and collections'},
-    {id:'reg',   label:'REIT Regulatory Filing',     kind:'Regulatory', blurb:'Statutory disclosure pack for the regulator'},
+    {id:'lp',    label:'LP Update',                  kind:'LP report',  blurb:'Quarterly/monthly performance letter for limited partners',
+     sample:'demo-assets/LP_Quarterly_Update_Fund_II_Q2_2026.pdf'},
+    {id:'board', label:'Board Performance Pack',     kind:'Board pack', blurb:'Fund performance, portfolio and pipeline for the board',
+     sample:'demo-assets/Board_Performance_Pack_Fund_II_Q2_2026.pdf'},
+    {id:'dev',   label:'Development Status Report',  kind:'Development',blurb:'Programme, cost-to-complete and delivery risk',
+     sample:'demo-assets/Development_Status_Report_Marina_Tower_Jul_2026.pdf'},
+    {id:'sales', label:'Sales & Collections Report', kind:'Sales',      blurb:'Contracted sales, off-plan absorption and collections',
+     sample:'demo-assets/Sales_Collections_Report_Marina_Tower_Jul_2026.pdf'},
+    {id:'reg',   label:'REIT Regulatory Filing',     kind:'Regulatory', blurb:'Statutory disclosure pack for the regulator',
+     sample:'demo-assets/REIT_Regulatory_Filing_Corniche_Q2_2026.pdf'},
   ];
   const REPORT_CADENCES = ['Weekly','Monthly','Quarterly','Semi-annual','Annual'];
   let _crState = null;
@@ -23668,6 +23680,7 @@ Answer as Karaya:`;
             <button class="wf-btn ghost" style="flex-shrink:0;font-size:9.5px;padding:6px 11px;" onclick="document.getElementById('cr-example').click()">${st.example?'Replace':'+ Upload'}</button>
             <input type="file" id="cr-example" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md,.pptx" onchange="_crUploadExample(this.files[0])">
           </div>
+          ${t.sample?`<div style="font-size:9px;color:var(--ink-soft);margin-top:7px;">No file to hand? <a href="${t.sample}" download style="color:var(--ink);font-weight:700;">Download a sample ${t.label.toLowerCase()}</a> and upload it back to see the structure review.</div>`:''}
           ${st.example?`<div style="font-size:10px;margin-top:9px;display:flex;align-items:center;gap:8px;"><b>${String(st.example.name).replace(/</g,'&lt;')}</b><span style="color:var(--ink-soft);">${st.example.words?(st.example.words.toLocaleString()+' words read'):'attached'}</span></div>`:''}
           ${critique}
         </div>`:''}
