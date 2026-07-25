@@ -22418,48 +22418,45 @@ Answer as Karaya:`;
   // fund's own Approvals section and by the aggregated Approvals hub, so the
   // two views never drift out of sync.
   function _wfPlainApprovalCardHTML(k, ai, a){
+    const decided=a.cls!=='a';
     return `<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:9px;">
-      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;"><div style="font-size:11.5px;font-weight:700;line-height:1.4;">${a.t}</div><span class="wf-pill ${a.cls}" style="flex-shrink:0;">${a.status}</span></div>
-      <div style="font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:0.03em;">${a.chain}</div>
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+        <div>
+          <div style="font-size:7.5px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Approval request — governance review</div>
+          <div style="font-size:12.5px;font-weight:700;line-height:1.4;margin-top:3px;">${a.t}</div>
+        </div>
+        <span class="wf-pill ${a.cls}" style="flex-shrink:0;">${a.status}</span>
+      </div>
+      <div style="font-size:10px;color:var(--ink-soft);margin-top:7px;letter-spacing:0.02em;">${a.chain}</div>
       ${(a.attachments&&a.attachments.length)?`<div style="font-size:9.5px;color:var(--ink-soft);margin-top:7px;">${a.attachments.map(n=>'📎 '+n.replace(/</g,'&lt;')).join(' · ')}</div>`:''}
-      ${a.cls==='a'?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;">
-        <button class="wf-btn ghost" style="border-color:#15803d;color:#15803d;" onclick="_wfApprovalDecide('${k}',${ai},'approve')">✓ Approve</button>
-        <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfRejectPrompt('${k}',${ai},'plain')">✗ Reject</button>
-      </div>`:''}
+      <div id="wfapr-insight-${k}-${ai}" style="margin-top:11px;${a._aiInsight?'':'display:none;'}font-size:11px;line-height:1.7;">${a._aiInsight?_fmtDiscountSections(a._aiInsight):''}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <button class="wf-btn" onclick="_wfApprovalGenInsight('${k}',${ai})">${a._aiInsight?'↻ Regenerate AI insight':'✦ Generate AI insight'}</button>
+        ${a._aiInsight?`<button class="wf-btn ghost" onclick="_wfApprovalViewModel('${k}',${ai})">📊 View financial model</button>`:''}
+        ${!decided?`<button class="wf-btn ghost" style="border-color:#15803d;color:#15803d;" onclick="_wfApprovalDecide('${k}',${ai},'approve')">Approve</button>
+        <button class="wf-btn ghost" style="border-color:#b51e3b;color:#b51e3b;" onclick="_wfRejectPrompt('${k}',${ai},'plain')">Reject</button>`:''}
+      </div>
       ${_wfApprovalAiHTML(k, ai, a)}
     </div>`;
   }
-  // ---- Generic "ask Karaya to generate AI analytics" dropdown, attached to
-  // every plain (non-discount) approval so nothing sits without an AI entry
-  // point — collapsed by default so the approvals list doesn't get noisy.
+  // ---- Single always-visible Karaya chatbot on every plain approval — same
+  // design as the Marina Tower (discount) card, wired to the Anthropic API via
+  // _wfApprovalAsk so it can field any question about the request.
   function _wfApprovalAiHTML(k, ai, a){
-    const open=!!a._aiOpen;
     const chat=a._aiChat||[];
     const chatLogHtml=chat.map((c,i)=>`<div ${c.cls==='bot'?`id="wfapr-chat-b-${k}-${ai}-${i}"`:''} style="align-self:${c.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${c.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${c.cls==='user'?'var(--bg)':'var(--ink)'};border:${c.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${c.html}</div>`).join('');
-    return `<div style="margin-top:9px;">
-      <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfApprovalAiToggle('${k}',${ai})">${open?'▾':'▸'} Ask Karaya to generate AI analytics</button>
-      <div id="wfapr-ai-${k}-${ai}" style="${open?'':'display:none;'}margin-top:9px;padding-top:9px;border-top:1px solid var(--ink-hairline);">
-        <div id="wfapr-insight-${k}-${ai}" style="font-size:10.5px;line-height:1.7;${a._aiInsight?'margin-bottom:9px;':'display:none;'}">${a._aiInsight?_fmtDiscountSections(a._aiInsight):''}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px;">
-          <button class="wf-btn" style="font-size:9.5px;padding:6px 10px;" onclick="_wfApprovalGenInsight('${k}',${ai})">${a._aiInsight?'↻ Regenerate AI analytics':'✦ Generate AI analytics'}</button>
-          ${a._aiInsight?`<button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfApprovalViewModel('${k}',${ai})">📊 View financial model</button>`:''}
-        </div>
-        <div id="wfapr-chatlog-${k}-${ai}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:200px;overflow-y:auto;">${chatLogHtml}</div>
-        <div style="display:flex;gap:8px;">
-          <input id="wfapr-input-${k}-${ai}" placeholder="Ask Karaya about this approval…" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfApprovalAsk('${k}',${ai})">
-          <button class="wf-btn ghost" onclick="_wfApprovalAsk('${k}',${ai})">Ask</button>
-        </div>
+    return `<div style="margin-top:13px;padding-top:12px;border-top:1px solid var(--ink-hairline);">
+      <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">Ask Karaya about this request</div>
+      <div id="wfapr-chatlog-${k}-${ai}" style="${chat.length?'display:flex;':'display:none;'}flex-direction:column;gap:8px;margin-bottom:9px;max-height:220px;overflow-y:auto;">${chatLogHtml}</div>
+      ${!chat.length?`<div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="wf-btn ghost" style="font-size:9px;padding:5px 9px;" onclick="(function(){const i=document.getElementById('wfapr-input-${k}-${ai}');i.value='What is the business impact and risk of approving this?';_wfApprovalAsk('${k}',${ai});})()">Business impact &amp; risk</button>
+        <button class="wf-btn ghost" style="font-size:9px;padding:5px 9px;" onclick="(function(){const i=document.getElementById('wfapr-input-${k}-${ai}');i.value='What happens to the fund if we reject this?';_wfApprovalAsk('${k}',${ai});})()">Impact of rejecting</button>
+      </div>`:''}
+      <div style="display:flex;gap:8px;">
+        <input id="wfapr-input-${k}-${ai}" placeholder="Ask about this approval — business impact, risk, or anything else" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfApprovalAsk('${k}',${ai})">
+        <button class="wf-btn ghost" onclick="_wfApprovalAsk('${k}',${ai})">Ask</button>
       </div>
     </div>`;
-  }
-  function _wfApprovalAiToggle(k, ai){
-    const f=WF_FUNDS.find(x=>x.k===k); const a=f&&f.approvals[ai];
-    const panel=document.getElementById(`wfapr-ai-${k}-${ai}`); if(!panel) return;
-    const btn=panel.previousElementSibling;
-    const opening=panel.style.display==='none';
-    panel.style.display=opening?'block':'none';
-    if(btn) btn.textContent=(opening?'▾':'▸')+' Ask Karaya to generate AI analytics';
-    if(a) a._aiOpen=opening;
   }
   async function _wfApprovalGenInsight(k, ai){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
@@ -22556,11 +22553,10 @@ Answer as Karaya:`;
           <button class="wf-btn ghost" style="font-size:9px;padding:5px 9px;" onclick="(function(){const i=document.getElementById('wfdisc-input-${k}-${ai}');i.value='What is the maximum discount before fund IRR falls below 12%?';_wfDiscountAsk('${k}',${ai});})()">Max discount vs IRR floor</button>
         </div>`:''}
         <div style="display:flex;gap:8px;">
-          <input id="wfdisc-input-${k}-${ai}" placeholder="Ask about this approval — e.g. upside &amp; downside, or max discount before IRR falls below 12%" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDiscountAsk('${k}',${ai})">
+          <input id="wfdisc-input-${k}-${ai}" placeholder="Ask about this approval — e.g. upside &amp; downside, max discount before IRR falls below 12%, or the model" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDiscountAsk('${k}',${ai})">
           <button class="wf-btn ghost" onclick="_wfDiscountAsk('${k}',${ai})">Ask</button>
         </div>
       </div>
-      ${_wfFinChatHTML(k, ai, a)}
     </div>`;
   }
   async function _wfDiscountInsight(k, ai){
