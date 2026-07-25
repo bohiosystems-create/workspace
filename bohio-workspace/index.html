@@ -11382,7 +11382,7 @@
     const p=P[id]; if(!p) return '';
     const m=PROJECT_SQUIRCLE_META[id]||{notif:'—',notifNew:false,org:'',role:p.lead||'',status:'',dot:'',ownership:''};
     const own=m.ownership||'', jv=/partner|jv|co-invest/i.test(own);
-    const ownPill=own?`<span class="psq-own" style="font-size:7px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;padding:2px 7px;border-radius:999px;background:${jv?'rgba(180,83,9,0.14)':'rgba(21,128,61,0.14)'};color:${jv?'#b45309':'#15803d'};">${own}</span>`:'';
+    const ownPill=own?`<span class="psq-own" style="display:inline-flex;align-items:center;gap:5px;font-size:8.5px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:999px;background:${jv?'rgba(180,83,9,0.16)':'rgba(21,128,61,0.16)'};color:${jv?'#a24708':'#116b34'};border:1px solid ${jv?'rgba(180,83,9,0.35)':'rgba(21,128,61,0.35)'};"><span style="width:5px;height:5px;border-radius:50%;background:${jv?'#b45309':'#15803d'};flex-shrink:0;"></span>${own}</span>`:'';
     return `<div class="proj-squircle" data-org="${m.org}" onclick="closeWorkflow();showProject(${id})"><div class="psq-top" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">${ownPill}<span class="psq-notif${m.notifNew?' has-new':''}">${m.notif}</span></div><div class="psq-body"><h3 class="psq-name">${p.name}</h3><div class="psq-role">${m.role}</div></div><div class="psq-foot"><span class="psq-loc">${p.loc}</span><span class="psq-status"><span class="psq-dot ${m.dot}"></span>${m.status}</span></div></div>`;
   }
   // The workspace home now shows funds first (task: "My Funds") — a fund
@@ -11453,7 +11453,12 @@
     bc.innerHTML=`<a class="bc-back" onclick="${parent.fn}" title="Back to ${String(parent.label).replace(/"/g,'')}" aria-label="Back">←</a>`;
   }
 
+  let _sidebarAutoHidden = false;
+  function _restoreSidebarFromEditor(){
+    if (_sidebarAutoHidden) { const sh=document.querySelector('.app-shell'); if(sh) sh.classList.remove('sidebar-hidden'); _sidebarAutoHidden=false; if(typeof syncHandles==='function') syncHandles(); }
+  }
   function goTo(page){
+    _restoreSidebarFromEditor();
     document.querySelectorAll('.landing-page,.page').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.ch-page').forEach(p=>p.classList.remove('active'));
     document.getElementById('ws-subnav').style.display='none';
@@ -11799,6 +11804,7 @@
   function showProject(id){
     const p=P[id];
     if(!p)return;
+    if(typeof _restoreSidebarFromEditor==='function') _restoreSidebarFromEditor();
     currentProject=id;
     stakeholdersVisible = false;
     document.getElementById('stakeholders-panel').style.display = 'none';
@@ -15754,6 +15760,10 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     const sh = document.querySelector('.app-shell');
     sh.style.gridTemplateColumns = '';
     sh.classList.add('karaya-hidden');
+    // Opening a model gives the sheet the full width — auto-minimise the left
+    // menu (remembering to restore it only if WE hid it, not the user).
+    if (!sh.classList.contains('sidebar-hidden')) { sh.classList.add('sidebar-hidden'); _sidebarAutoHidden = true; }
+    if (typeof syncHandles === 'function') syncHandles();
     const med = document.querySelector('.model-editor');
     if (med) { med.style.gridTemplateColumns = ''; med.classList.remove('karaya-hidden'); }
     document.getElementById('karaya-handle').style.display = 'none';
@@ -25707,6 +25717,11 @@ Answer as Karaya:`;
     const q = (input.value || '').trim();
     if (!q) return;
     const msgs = document.getElementById('landing-karaya-msgs');
+
+    // once the conversation has begun, the "Welcome, <name>" heading gives way
+    // to the chat so the answers get the space.
+    const _wlc = document.querySelector('#page-landing .landing-logo[data-user="welcome"]');
+    if (_wlc) _wlc.style.display = 'none';
 
     const userMsg = document.createElement('div');
     userMsg.style.cssText = 'padding:10px 14px;font-size:11px;letter-spacing:0.03em;line-height:1.65;background:var(--ink);color:var(--bg);align-self:flex-end;max-width:80%;';
