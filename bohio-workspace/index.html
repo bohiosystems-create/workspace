@@ -10270,6 +10270,9 @@
       <div class="nav-item" id="nav-topics-hub" onclick="openTopicsHub()">
         <span>Topics</span>
       </div>
+      <div class="nav-item" id="nav-chathistory" onclick="openChatHistory()">
+        <span>Chat History</span>
+      </div>
       <div class="nav-item" id="nav-bohioperf" onclick="openBohioPerf()">
         <span>Bohio Performance</span>
       </div>
@@ -23181,6 +23184,74 @@ Answer as Karaya:`;
       row.style.display=match?'flex':'none'; if(match) visible++;
     });
     const empty=document.getElementById('thub-empty'); if(empty) empty.style.display=(query&&visible===0)?'block':'none';
+  }
+  // ============ CHAT HISTORY HUB ============
+  // Every chatbot conversation across the platform — the home & assistant-panel
+  // Karaya, each fund's section chats, approval chats, project sales/reporting
+  // chats and the Bohio Performance chat — aggregated in one searchable place.
+  function _chatStrip(h){ const d=document.createElement('div'); d.innerHTML=String(h||''); return (d.textContent||'').replace(/\s+/g,' ').trim(); }
+  function _chatNorm(arr){ if(!Array.isArray(arr)) return []; return arr.map(m=>(m&&typeof m==='object')?{ role:(m.role==='user'||m.cls==='user')?'user':'bot', text:(m.text!=null?String(m.text):_chatStrip(m.html)) }:{role:'bot',text:String(m)}).filter(m=>m.text); }
+  function _aggregateChats(){
+    const convos=[];
+    const add=(source, msgs)=>{ const n=_chatNorm(msgs); if(n.length) convos.push({source, msgs:n}); };
+    if(typeof LANDING_KARAYA_HISTORY!=='undefined') add('Home · Karaya', LANDING_KARAYA_HISTORY);
+    if(typeof KARAYA_HISTORY!=='undefined') add('Assistant panel · Karaya', KARAYA_HISTORY);
+    if(typeof AGENT_HISTORY!=='undefined') add('Department agent', AGENT_HISTORY);
+    if(typeof CB_QA_HISTORY!=='undefined') add('Model Q&A', CB_QA_HISTORY);
+    if(typeof _bohioPerfChat!=='undefined') add('Bohio Performance', _bohioPerfChat);
+    if(typeof _wfFundChat!=='undefined') Object.keys(_wfFundChat).forEach(key=>{ const parts=key.split('::'); const f=(typeof WF_FUNDS!=='undefined')?WF_FUNDS.find(x=>x.k===parts[0]):null; add((f?f.name.replace(/^Bohio RE /,''):parts[0])+' · '+(parts[1]||'chat'), _wfFundChat[key]); });
+    (typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).forEach(f=>{ const nm=f.name.replace(/^Bohio RE /,'');
+      add(nm+' · Reporting', f._reportChat); add(nm+' · Development', f._devChat);
+      add(nm+' · Daily risks', f._riskChat); add(nm+' · Fund performance', f._perfChat);
+      add(nm+' · Model (scratch)', f._scratchChat);
+      (f.approvals||[]).forEach(a=>{ add(nm+' · Approval: '+a.t, a._chat); add(nm+' · Approval: '+a.t, a._aiChat); add(nm+' · Approval model: '+a.t, a._finChat); });
+    });
+    if(typeof P!=='undefined') Object.keys(P).forEach(pid=>{ const p=P[pid]; add(p.name+' · Reporting', p._reportChat); add(p.name+' · Sales', p._salesChat); });
+    return convos;
+  }
+  let _chatHistOpen=false;
+  function openChatHistory(){ _chatHistOpen=true; _wfOpenFundShell(); _renderChatHistory(); }
+  function _chatHistBack(){ _chatHistOpen=false; closeWorkflow(); goTo('workspace'); }
+  function _chatHistToggle(i){ const el=document.getElementById('chist-body-'+i); if(el) el.style.display=el.style.display==='none'?'block':'none'; }
+  function _renderChatHistory(){
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const convos=_aggregateChats();
+    const totalMsgs=convos.reduce((s,c)=>s+c.msgs.length,0);
+    const rows=convos.map((c,i)=>{
+      const last=c.msgs[c.msgs.length-1];
+      const body=c.msgs.map(m=>`<div style="align-self:${m.role==='user'?'flex-end':'flex-start'};max-width:85%;font-size:10.5px;line-height:1.55;padding:7px 11px;border-radius:11px;border:1px solid var(--ink-hairline);background:${m.role==='user'?'var(--ink)':'var(--paper)'};color:${m.role==='user'?'var(--paper)':'var(--ink)'};">${m.text.replace(/</g,'&lt;').slice(0,600)}</div>`).join('');
+      const hay=(c.source+' '+c.msgs.map(m=>m.text).join(' ')).toLowerCase().replace(/"/g,'');
+      return `<div class="chist-row" data-search="${hay.slice(0,600)}" style="border:1px solid var(--ink-hairline);border-radius:11px;margin-bottom:8px;overflow:hidden;">
+        <div onclick="_chatHistToggle(${i})" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;">
+          <div style="min-width:0;"><div style="font-size:11.5px;font-weight:700;line-height:1.35;">${c.source.replace(/</g,'&lt;')}</div>
+          <div style="font-size:9px;color:var(--ink-soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw;">${c.msgs.length} message${c.msgs.length===1?'':'s'} · ${(last.role==='user'?'You: ':'Karaya: ')+last.text.replace(/</g,'&lt;').slice(0,80)}</div></div>
+          <span style="flex-shrink:0;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Open ›</span>
+        </div>
+        <div id="chist-body-${i}" style="display:none;padding:0 14px 12px;border-top:1px solid var(--ink-hairline);"><div style="display:flex;flex-direction:column;gap:6px;padding-top:11px;">${body}</div></div>
+      </div>`;
+    }).join('');
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div style="min-width:0;">
+          <button onclick="_chatHistBack()" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ Workspace</button>
+          <div class="wf-title">Chat History</div>
+          <div class="wf-sub">Every chatbot conversation across the platform — ${convos.length} thread${convos.length===1?'':'s'} · ${totalMsgs} message${totalMsgs===1?'':'s'}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;"><button class="wf-back" onclick="_chatHistBack()" aria-label="Back" title="Back">←</button></div>
+      </div>
+      <div class="wf-body" style="padding:18px 24px 40px;overflow-y:auto;">
+        <div style="position:relative;max-width:520px;margin-bottom:20px;">
+          <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink-soft);">⌕</span>
+          <input id="chist-search" placeholder="Search every conversation — by source or message text…" oninput="_chatHistFilter(this.value)" style="width:100%;box-sizing:border-box;padding:10px 14px 10px 34px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:999px;outline:none;">
+        </div>
+        <div id="chist-list">${rows||'<div style="text-align:center;padding:50px 20px;color:var(--ink-soft);font-size:12px;">No conversations yet — chat with Karaya anywhere and it will show up here.</div>'}</div>
+        <div id="chist-empty" style="display:none;text-align:center;padding:40px 20px;color:var(--ink-soft);font-size:12px;">No conversations match your search.</div>
+      </div>`;
+  }
+  function _chatHistFilter(q){
+    const query=(q||'').trim().toLowerCase(); let visible=0;
+    document.querySelectorAll('#wf-overlay .chist-row').forEach(row=>{ const match=!query||(row.dataset.search||'').includes(query); row.style.display=match?'block':'none'; if(match) visible++; });
+    const empty=document.getElementById('chist-empty'); if(empty) empty.style.display=(query&&visible===0)?'block':'none';
   }
   function openApprovalsHub(){
     _wfApprovalsHubOpen=true;
