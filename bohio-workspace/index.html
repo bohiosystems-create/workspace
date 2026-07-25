@@ -22049,6 +22049,96 @@ Answer as Karaya:`;
     if(/summary|one[-\s]?pager|text|plain|short/.test(ql)) return 'summary';
     return 'pdf';
   }
+  // ============ SECOND AGENT — REPORT REVIEW & BENCHMARK ============
+  // Every report Karaya produces is passed to a second agent that shares the
+  // same business context but a different job: it does not write, it reviews.
+  // The benchmark it measures against is the firm's own accumulated feedback —
+  // what the Investment Committee, the board and LPs have previously asked for,
+  // captured from Outlook threads and past business-plan reviews.
+  const REPORT_BENCHMARK = [
+    {src:'IC feedback · Mar 2026 · Marina Tower business plan', ask:'Show a scenario range, not a single base case', test:/scenario|base case|bull|bear|downside|sensitivit/i,
+     why:'The IC rejected a single-point projection and asked for base / upside / downside with what has to be true for each.'},
+    {src:'IC feedback · Jan 2026 · Fund II deployment review', ask:'State deployment pace against the investment period', test:/deploy|drawn|dry powder|investment period|pace/i,
+     why:'The IC wants committed-vs-deployed and the remaining investment period stated explicitly, every time.'},
+    {src:'Board minutes · Feb 2026', ask:'Every risk names an owner and a date', test:/owner|accountab|by (?:q[1-4]|\w+ 20)/i,
+     why:'The board would not accept an unowned risk register — each item needs a named owner and a review date.'},
+    {src:'LP correspondence · Q4 2025 (Outlook)', ask:'Fee transparency — management fee and carry each period', test:/fee|carry|promote|preferred return|hurdle/i,
+     why:'Two LPs asked for the management fee and carried interest to be restated in every report, not just the LPA.'},
+    {src:'IC feedback · Nov 2025', ask:'Lead with the decision required', test:/recommend|decision|approve|ask\b|action required/i,
+     why:'The IC asked that the decision being sought appears up front rather than at the end of the pack.'},
+  ];
+  function _reportReviewData(f, k, kind, text){
+    const t=String(text||'');
+    const hits=REPORT_BENCHMARK.map(b=>({...b, met:b.test.test(t)}));
+    const met=hits.filter(h=>h.met).length;
+    const score=Math.round(met/hits.length*100);
+    return {hits, met, total:hits.length, score};
+  }
+  function _reportReviewText(f, k, kind, title, text){
+    const d=_reportReviewData(f, k, kind, text);
+    const gaps=d.hits.filter(h=>!h.met);
+    const lines=[];
+    lines.push(`### Reviewer agent — second read of "${title}"`);
+    lines.push(`_I share the same fund, ERP and market context as the agent that wrote this. My job is to check it before it leaves the building._`);
+    lines.push('');
+    lines.push('### Checks I ran');
+    lines.push(`- **Figures tie to source:** NAV **SAR ${f.nav}M**, net IRR **${f.irr}**, **SAR ${f.drawn}M** drawn of **SAR ${f.committed}M** — consistent with the fund record and the ERP ledger.`);
+    lines.push(`- **Audience fit:** ${kind==='lp'?'written for LPs — reporting, not selling; no forward-looking return promises.':(kind==='board'?'written for the board — decision-oriented, governance items surfaced.':'general internal reporting register.')}`);
+    lines.push(`- **Disclosure:** figures are marked indicative and unaudited; no client-identifying LP data is exposed.`);
+    lines.push(`- **Benchmark coverage:** **${d.met} of ${d.total}** standing expectations met (**${d.score}%**).`);
+    lines.push('');
+    if(gaps.length){
+      lines.push('### What I would change before this goes out');
+      gaps.forEach(g=>lines.push(`- **${g.ask}** — ${g.why}  \n   *Benchmark source: ${g.src}*`));
+    } else {
+      lines.push('### Verdict');
+      lines.push('- Every standing expectation from prior IC, board and LP feedback is met. No changes required from me.');
+    }
+    lines.push('');
+    lines.push('### Verdict');
+    lines.push(gaps.length>=3 ? '- **Send back for revision** — more than half the standing expectations are unmet.'
+      : (gaps.length ? '- **Approve with the changes above** — the substance is right; these are gaps against what the IC has previously asked for.'
+      : '- **Approved for circulation.**'));
+    return lines.join('\n');
+  }
+  function _reportBenchmarkText(f, k, kind, title, text){
+    const d=_reportReviewData(f, k, kind, text);
+    const lines=[];
+    lines.push(`### Benchmark evaluation — "${title}"`);
+    lines.push(`_Benchmark: what the Investment Committee, the board and LPs have previously asked for — drawn from past business-plan reviews and Outlook feedback threads the system has been trained on._`);
+    lines.push('');
+    lines.push(`### Score: ${d.score}% (${d.met} of ${d.total})`);
+    d.hits.forEach(h=>{
+      lines.push(`- ${h.met?'**✓**':'**✗**'} **${h.ask}** — ${h.met?'covered in this report.':'not covered. '+h.why}  \n   *Source: ${h.src}*`);
+    });
+    lines.push('');
+    lines.push('### How to close the gap');
+    const gaps=d.hits.filter(h=>!h.met);
+    if(!gaps.length) lines.push('- Nothing outstanding — this report meets every expectation on the benchmark.');
+    else gaps.forEach(g=>lines.push(`- Add a section covering **${g.ask.toLowerCase()}**.`));
+    return lines.join('\n');
+  }
+  // Renders the reviewer bubble + the benchmark button into a fund's report chat.
+  function _wfPushReportReview(k, kind, title){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const text=_wfReportLayoutText(f, k, kind, title);
+    f._lastReviewed={kind, title, text};
+    const md=_reportReviewText(f, k, kind, title, text);
+    f._reportChat.push({cls:'bot', html:_fmtDiscountSections(md)
+      +`<div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap;">
+          <button class="wf-btn" style="font-size:9.5px;padding:6px 11px;" onclick="_wfBenchmarkReport('${k}')">⚖ Evaluate report against benchmark</button>
+        </div>`
+      +`<span class="k-meta">Reviewer agent · second read</span>`});
+    _wfFundReportRender(k);
+  }
+  function _wfBenchmarkReport(k){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const lr=f._lastReviewed;
+    if(!lr){ f._reportChat.push({cls:'bot', html:fmtKaraya('Generate a report first and I\'ll evaluate it against the benchmark.')}); _wfFundReportRender(k); return; }
+    const md=_reportBenchmarkText(f, k, lr.kind, lr.title, lr.text);
+    f._reportChat.push({cls:'bot', html:_fmtDiscountSections(md)+`<span class="k-meta">Reviewer agent · benchmark from prior IC, board & LP feedback</span>`});
+    _wfFundReportRender(k);
+  }
   function _wfFundReportAsk(k){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const input=document.getElementById(`wffrep-input-${k}`); if(!input) return;
@@ -22074,9 +22164,11 @@ Answer as Karaya:`;
         if(el) el.innerHTML=fmtKaraya(`Done — I've prepared **${pend.title}** as a formatted PDF. Opening it now; it's also saved under **Past reports** below.`);
         f._reportChat[bi]={cls:'bot', html:el?el.innerHTML:''};
         openReadableDoc({type:'PDF', name:pend.title, version, docBody:body, karayaPdf:true, pdfFoot:foot});
+        _wfPushReportReview(k, pend.kind, pend.title);
         setTimeout(()=>_wfFundDetail(k,'reporting'), 400);
       } else if(fmt==='summary'){
         if(el){ el.innerHTML=_fmtDiscountSections(_wfReportLayoutText(f,k,pend.kind,pend.q).replace(/^Here's[^\n]*\n\n/,'')); f._reportChat[bi]={cls:'bot', html:el.innerHTML}; }
+        _wfPushReportReview(k, pend.kind, pend.title);
       } else {
         // Excel / Word / deck / csv → real downloadable file with the report content.
         const type=fmt;
@@ -22085,6 +22177,7 @@ Answer as Karaya:`;
           try{
             const file=_krMakeFile(type, pend.title, content);
             if(el){ el.innerHTML=fmtKaraya(`Done — **${pend.title}** as ${file.label}.`)+_krFileCard(file.url, file.filename); f._reportChat[bi]={cls:'bot', html:el.innerHTML}; }
+            _wfPushReportReview(k, pend.kind, pend.title);
           }catch(e){ if(el){ el.innerHTML=fmtKaraya('I hit an error building that format — try "PDF" or "Excel".'); f._reportChat[bi]={cls:'bot', html:el.innerHTML}; } }
         }
       }
@@ -23713,7 +23806,35 @@ Answer as Karaya:`;
       title:t[0], source:f.name.replace(/^Bohio RE /,''), kind:'Fund', eyebrow:t[1]||'',
       status:t[2]||'', last:'', unread:0, msgs:0, parts:0, _open:'fund', k:f.k
     })));
+    // Outlook threads count as topics too — the same conversations, just held
+    // over email. They carry the prior feedback the benchmark is built from.
+    (typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).forEach(f=>(f.emails||[]).forEach((e,i)=>out.push({
+      title:e.subject, source:f.name.replace(/^Bohio RE /,''), kind:'Email', eyebrow:'✉ Outlook · '+e.from,
+      status:'', last:e.when||'', unread:0, msgs:1, parts:0, _open:'email', k:f.k, emailIdx:i, snippet:e.snippet||''
+    })));
     return out;
+  }
+  function _topicEmailOpen(k, idx){
+    const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
+    const e=(f.emails||[])[idx]; if(!e) return;
+    let ov=document.getElementById('temail-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='temail-overlay';
+      ov.style.cssText='position:fixed;inset:0;z-index:10086;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+      ov.addEventListener('click',ev=>{ if(ev.target===ov) ov.style.display='none'; });
+      document.body.appendChild(ov); }
+    ov.innerHTML=`<div style="background:var(--bg);border:1px solid var(--ink-hairline);border-radius:16px;width:100%;max-width:560px;overflow:hidden;">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--ink-hairline);display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+        <div><button onclick="document.getElementById('temail-overlay').style.display='none';openTopicsHub();" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ All topics</button>
+          <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:#0a66c2;font-weight:700;">✉ Outlook · ${f.name.replace(/^Bohio RE /,'')}</div>
+          <div style="font-family:var(--font-display);font-size:17px;margin-top:3px;">${String(e.subject).replace(/</g,'&lt;')}</div>
+          <div style="font-size:10px;color:var(--ink-soft);margin-top:4px;"><b style="color:var(--ink);">${String(e.from).replace(/</g,'&lt;')}</b> · ${e.when||''}</div></div>
+        <button onclick="document.getElementById('temail-overlay').style.display='none'" style="flex-shrink:0;background:transparent;border:1px solid var(--ink-hairline);color:var(--ink);width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:14px;">×</button>
+      </div>
+      <div style="padding:16px 22px 20px;font-size:11.5px;line-height:1.7;">${String(e.snippet||'').replace(/</g,'&lt;')}</div>
+      <div style="padding:0 22px 18px;">
+        <button class="wf-btn" onclick="document.getElementById('temail-overlay').style.display='none';_wfOpenFundShell();_wfFundDetail('${k}','reporting');setTimeout(()=>_wfBenchmarkReport('${k}'),300);">⚖ Evaluate a report against this feedback</button>
+      </div></div>`;
+    ov.style.display='flex';
   }
   let _topicsHubOpen=false;
   function openTopicsHub(){ _topicsHubOpen=true; _wfOpenFundShell(); _renderTopicsHub(); }
@@ -23721,10 +23842,11 @@ Answer as Karaya:`;
   function _topicsHubOpenItem(i){
     const t=_aggregateTopics()[i]; if(!t) return;
     if(t._open==='proj'){ _topicsHubOpen=false; closeWorkflow(); showProject(t.pid); setTimeout(()=>{ selectProjectSection('topics'); _topicCameFromHub=true; if(typeof openTopic==='function') openTopic(t.topicId); }, 300); }
+    else if(t._open==='email'){ _topicEmailOpen(t.k, t.emailIdx); }
     else { _topicsHubOpen=false; _wfOpenFundShell(); _wfFundDetail(t.k,'topics'); }
   }
   function _topicRowHTML(t, i){
-    const c=t.kind==='Project'?'#2563eb':'#963D97';
+    const c=t.kind==='Project'?'#2563eb':(t.kind==='Email'?'#0a66c2':'#963D97');
     const unread=t.unread?`<span style="flex-shrink:0;background:#e03a3c;color:#fff;font-size:8px;font-weight:700;border-radius:999px;padding:2px 7px;">${t.unread} new</span>`:'';
     const meta=[t.eyebrow, t.status, t.last, t.msgs?(t.msgs+' msgs'):'', t.parts?(t.parts+' participants'):''].filter(Boolean).join(' · ');
     return `<div class="thub-row" data-search="${(t.title+' '+t.source+' '+t.eyebrow+' '+t.status+' '+t.kind).toLowerCase().replace(/"/g,'')}" onclick="_topicsHubOpenItem(${i})" onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor=''" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 14px;margin-bottom:7px;cursor:pointer;">
@@ -23738,14 +23860,14 @@ Answer as Karaya:`;
   function _renderTopicsHub(){
     const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
     const all=_aggregateTopics();
-    const projCount=all.filter(t=>t.kind==='Project').length, fundCount=all.filter(t=>t.kind==='Fund').length;
+    const projCount=all.filter(t=>t.kind==='Project').length, fundCount=all.filter(t=>t.kind==='Fund').length, mailCount=all.filter(t=>t.kind==='Email').length;
     const rows=all.map((t,i)=>_topicRowHTML(t,i)).join('');
     modal.innerHTML=`
       <div class="wf-head">
         <div style="min-width:0;">
           <button onclick="_topicsHubBack()" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ Workspace</button>
           <div class="wf-title">Topics</div>
-          <div class="wf-sub">Every topic conversation across your funds and projects — ${projCount} project thread${projCount===1?'':'s'} · ${fundCount} fund topic${fundCount===1?'':'s'}</div>
+          <div class="wf-sub">Every conversation across your funds and projects — ${projCount} project thread${projCount===1?'':'s'} · ${fundCount} fund topic${fundCount===1?'':'s'} · ${mailCount} Outlook thread${mailCount===1?'':'s'}</div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;"><button class="wf-back" onclick="_topicsHubBack()" aria-label="Back" title="Back">←</button></div>
       </div>
