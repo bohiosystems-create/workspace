@@ -14614,6 +14614,16 @@ Answer as Karaya:`;
         {key:'buyers', label:'Buyer pipeline & CRM', on:false, hint:/buyer|\blead|\bcrm\b|prospect|pipeline/i},
       ],
       ctx:'Marina Tower residences: 320 units total — 186 sold (58%), 24 reserved under deposit, 110 remaining. Average achieved price SAR 2,150/sqft vs SAR 2,080 list (+3.4%); absorption running 12 units/month (last month: 14 — Tower B launch). Sales revenue contracted to date SAR 512M, collections SAR 388M. Sell-out forecast Q3 2027. Ash Shati Residences: 184 units — 121 sold (66%), achieved SAR 1,890/sqft, absorption 9 units/month. Live campaign: 5% payment-plan incentive on Marina Tower Tower-B stock. Buyer pipeline 140 active leads (not for external release).' },
+    development: { name:'Development', mark:'DV', tag:'Delivery · cost management · design · documents',
+      cats:[
+        {key:'cost', label:'Cost, AFC & cost-to-complete', on:true, hint:/\bcost\b|\bafc\b|anticipated final|cost.?to.?complete|budget|overrun|contingency|drawdown/i},
+        {key:'programme', label:'Programme, milestones & handover', on:true, hint:/programme|milestone|schedule|handover|completion|delay|slip|critical path/i},
+        {key:'docs', label:'Issue documents to other teams', on:true, hint:/\breport\b|\bdocument\b|\bpack\b|drawing|submittal/i},
+        {key:'design', label:'Design, consultants & specification', on:true, hint:/design|architect|consultant|specification|\bspec\b|\bmep\b|structural/i},
+        {key:'variations', label:'Variations & change orders', on:false, hint:/variation|change order|\bvo\b|instructed|omission/i},
+        {key:'claims', label:'Contractor claims, LDs & HSE incidents', on:false, hint:/claim|liquidated damage|\blds?\b|penalt|extension of time|\beot\b|\bhse\b|safety|incident|\bncr\b/i},
+      ],
+      ctx:'Marina Tower (lead development asset): 42% physically complete vs 44% programmed — 2% behind, recovery plan in place. Phase 2 of 6, superstructure at Level 12 of 28. Contractor Al-Bawani on a GMP of SAR 145M hard cost, 30-month programme, LDs at SAR 85k/day. Construction started Sep 2025, handover targeted Mar 2028. Cost ledger (SAP S/4HANA, PRJ-MAR-2026, synced 14m ago): sanctioned budget SAR 980.0M, committed SAR 740.0M, actual to date SAR 583.4M, anticipated final cost SAR 992.0M — a +1.2% overrun (+SAR 12.0M). Two variations are still pending and sit outside the AFC. Design development complete Apr 2025; building permit issued Aug 2025, MEP permit in review. Turner International (PM) is the cost manager and prepares the monthly Cost-to-Complete report (3 business-day SLA) and the Monthly Programme & Milestone report (2 business-day SLA). Al Bidda Waterfront is pre-construction with the tender out to market.' },
     projectmgmt: { name:'Project Management', mark:'PM', tag:'Programme · milestones · contractors',
       cats:[
         {key:'programme', label:'Programme & milestones', on:true, hint:/programme|milestone|schedule|timeline|completion|delay|slip|critical path/i},
@@ -14627,6 +14637,7 @@ Answer as Karaya:`;
     finance: /\bfinance\b|\bfinancial\b(?!\s+model)/i,
     investments: /\binvestment(s)?\b|\bacquisition/i,
     sales: /\bsales\b|\bselling\b|\bunits? sold\b/i,
+    development: /\bdevelopment (team|department|agent|desk)\b|\bdev team\b|\bdevelopment manager\b/i,
     projectmgmt: /\bproject management\b|\bproject manager\b|\bpm team\b|\bconstruction\b|\bdelivery team\b/i,
     legal: /\blegal\b|\bcounsel\b/i,
     assetmgmt: /\basset management\b|\basset manager\b|\bam team\b/i,
@@ -14778,6 +14789,88 @@ Answer as Karaya:`;
       </div>`).join('');
   }
 
+  // ---- Channel: how the department agents actually correspond.
+  // An exchange in the Ask-department overlay is a real piece of correspondence,
+  // so it has to land somewhere the rest of the firm can see. Two channels:
+  //   topic — posts into a Bohio topic room, threaded under the asset
+  //   email — goes out over the Outlook bridge and lands in the fund's inbox
+  // Either way it surfaces in the aggregated Topics hub, so nothing said to a
+  // department agent is stranded inside one overlay.
+  let _deptChannel='topic';
+  function setDeptChannel(key, ch){ _deptChannel=ch; openDeptAgent(key); }
+  const _deptPlain = h => String(h||'').replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
+  function _deptTargetProject(q){
+    const named = Object.keys(P).map(Number).find(id => P[id] && new RegExp('\\b'+String(P[id].name).split(' ')[0]+'\\b','i').test(q||''));
+    return named || 1;
+  }
+  function _deptTopicFor(key, q){
+    const a=DEPT_AGENTS[key]; const pid=_deptTargetProject(q);
+    if(typeof PROJECT_TOPICS==='undefined') return null;
+    if(!PROJECT_TOPICS[pid]) PROJECT_TOPICS[pid]=[];
+    const id='dept_'+key;
+    let t=PROJECT_TOPICS[pid].find(x=>x.id===id);
+    if(!t){
+      t={ id, title:a.name+' — desk correspondence', eyebrow:'Ask department',
+          subject:'Questions put to the '+a.name+' agent and the answers it issued, threaded against this asset.',
+          participants:['sponsor','karaya',DEPT_PARTICIPANT[key]].filter(Boolean),
+          status:'Open', lastUpdate:'Just now', unread:0, messages:[] };
+      PROJECT_TOPICS[pid].unshift(t);
+    }
+    return {pid, topic:t};
+  }
+  function _deptLogToTopic(key, q, answer){
+    const r=_deptTopicFor(key, q); if(!r) return null;
+    r.topic.messages.push({author:'sponsor', ts:'Just now', text:_deptPlain(q)});
+    r.topic.messages.push({author:DEPT_PARTICIPANT[key]||'karaya', ts:'Just now', text:_deptPlain(answer)});
+    r.topic.lastUpdate='Just now';
+    if(typeof updateProjectSectionCounts==='function'){ try{ updateProjectSectionCounts(r.pid); }catch(e){} }
+    return {pid:r.pid, topicId:r.topic.id, title:r.topic.title};
+  }
+  function _deptLogToEmail(key, q, answer){
+    const a=DEPT_AGENTS[key];
+    const k=(typeof _wfCurrentFundK!=='undefined' && _wfCurrentFundK) ? _wfCurrentFundK : 'fund2';
+    const f=(typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).find(x=>x.k===k); if(!f) return null;
+    if(!f.emails) f.emails=[];
+    const subject='RE: '+(_deptPlain(q).slice(0,58) || 'Query to the '+a.name+' desk');
+    f.emails.unshift({ from:'Bevilacqua · '+a.name, subject, when:'Just now',
+      snippet:_deptPlain(answer).slice(0,600) });
+    return {k, idx:0, subject};
+  }
+  function _deptChannelLog(key, q, answer){
+    return _deptChannel==='email' ? _deptLogToEmail(key,q,answer) : _deptLogToTopic(key,q,answer);
+  }
+  function _deptChannelFooter(logged){
+    if(!logged) return '';
+    if(_deptChannel==='email'){
+      return `<div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--ink-hairline);display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+        <span style="font-size:9px;color:var(--ink-soft);">✉ Sent over the Outlook bridge · <b style="color:var(--ink);">${String(logged.subject).replace(/</g,'&lt;')}</b></span>
+        <button class="wf-btn ghost" style="font-size:9px;padding:4px 10px;" onclick="_deptOpenLogged('email','${logged.k}',${logged.idx})">Open thread</button></div>`;
+    }
+    return `<div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--ink-hairline);display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+      <span style="font-size:9px;color:var(--ink-soft);">💬 Posted to the Bohio topic · <b style="color:var(--ink);">${String(logged.title).replace(/</g,'&lt;')}</b></span>
+      <button class="wf-btn ghost" style="font-size:9px;padding:4px 10px;" onclick="_deptOpenLogged('topic',${logged.pid},'${logged.topicId}')">Open topic</button></div>`;
+  }
+  function _deptOpenLogged(kind, a, b){
+    const ov=document.getElementById('dept-overlay'); if(ov) ov.style.display='none';
+    if(kind==='email'){ if(typeof _topicEmailOpen==='function') _topicEmailOpen(a, b); return; }
+    if(typeof closeWorkflow==='function') closeWorkflow();
+    if(typeof showProject==='function') showProject(Number(a));
+    setTimeout(()=>{ if(typeof selectProjectSection==='function') selectProjectSection('topics');
+      if(typeof openTopic==='function') openTopic(b); }, 300);
+  }
+  // ---- Requesting a document from a department agent (agent-to-agent).
+  // Inside the department's own room the user is already addressing it, so the
+  // request doesn't have to name the team the way the global detector requires.
+  function _deptDocRequestFor(key, q){
+    if(key!=='development' || typeof DEV_DOC_CATALOG==='undefined') return null;
+    const s=String(q||'');
+    if(!/\b(request|ask|send|issue|share|obtain|get|chase|prepare|provide|need|want)\b/i.test(s)) return null;
+    if(/cost.?to.?complete|anticipated final cost|\bafc\b|cost report/i.test(s)) return DEV_DOC_CATALOG.ctc;
+    if(/programme report|program report|schedule report|milestone report/i.test(s)) return DEV_DOC_CATALOG.prog;
+    if(/\b(document|report|pack)\b/i.test(s)) return DEV_DOC_CATALOG.ctc;
+    return null;
+  }
+
   // Ask overlay — with an audience switch: the same agent answers differently
   // depending on whether it's talking to a colleague (internal guardrails) or
   // an external counterparty (external guardrails).
@@ -14795,6 +14888,11 @@ Answer as Karaya:`;
     const restricted=a.cats.filter(c=>!agentCatOn(key,c.key,sc));
     const chip=(t,on)=>`<span style="display:inline-block;border:1px solid ${on?'var(--ink-hairline)':'#e6b8b8'};color:${on?'var(--ink-soft)':'#b51e3b'};padding:2px 9px;margin:0 5px 5px 0;border-radius:999px;font-size:10px;">${on?'':'🔒 '}${t}</span>`;
     const scopeBtn=(s,label)=>`<button onclick="setDeptScope('${key}','${s}')" style="font-family:inherit;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer;border:1px solid ${sc===s?'#000919':'var(--ink-hairline)'};background:${sc===s?'#000919':'transparent'};color:${sc===s?'#efebeb':'var(--ink-soft)'};">${label}</button>`;
+    const presets = key==='development'
+      ? ['Send me the cost-to-complete report for Marina Tower','Issue the monthly programme report']
+      : [];
+    const ch=_deptChannel;
+    const chanBtn=(c,label)=>`<button class="dept-chan-btn" data-ch="${c}" onclick="setDeptChannel('${key}','${c}')" style="font-family:inherit;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer;border:1px solid ${ch===c?'#000919':'var(--ink-hairline)'};background:${ch===c?'#000919':'transparent'};color:${ch===c?'#efebeb':'var(--ink-soft)'};">${label}</button>`;
     ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);max-width:560px;width:100%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--ink-hairline);">
         <div style="display:flex;align-items:center;gap:12px;">
@@ -14808,9 +14906,17 @@ Answer as Karaya:`;
           <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);">Asking as</div>
           <div style="display:flex;gap:6px;">${scopeBtn('int','Internal · colleague')}${scopeBtn('ext','External · counterparty')}</div>
         </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+          <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);">Correspond via</div>
+          <div style="display:flex;gap:6px;">${chanBtn('topic','💬 Topic on Bohio')}${chanBtn('email','✉ Email')}</div>
+        </div>
         <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;">May share ${sc==='ext'?'externally':'internally'} · <span style="cursor:pointer;text-decoration:underline;" onclick="document.getElementById('dept-overlay').style.display='none';openSettingsModal();">manage in Settings</span></div>
         <div>${allowed.map(c=>chip(c.label,true)).join('')}${restricted.map(c=>chip(c.label,false)).join('')}</div>
       </div>
+      ${presets.length?`<div style="padding:12px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;">Request a document · agent-to-agent</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">${presets.map(p=>`<button class="wf-btn ghost dept-preset" style="font-size:9.5px;padding:5px 11px;" onclick="_deptPreset('${key}',${JSON.stringify(p).replace(/"/g,'&quot;')})">${p}</button>`).join('')}</div>
+      </div>`:''}
       <div id="dept-msgs" style="flex:1;overflow-y:auto;padding:18px 22px;min-height:120px;"></div>
       <div style="display:flex;gap:10px;padding:14px 22px;border-top:1px solid var(--ink-hairline);">
         <input type="text" id="dept-input" placeholder="Ask the ${a.name} agent…" style="flex:1;background:var(--paper);border:1px solid var(--ink-hairline);color:var(--ink);border-radius:999px;padding:11px 16px;font-family:inherit;font-size:12px;outline:none;" onkeypress="if(event.key==='Enter')deptAgentSend('${key}')">
@@ -14819,6 +14925,10 @@ Answer as Karaya:`;
     </div>`;
     ov.style.display='flex';
     setTimeout(()=>{ const i=document.getElementById('dept-input'); if(i) i.focus(); }, 50);
+  }
+  function _deptPreset(key, text){
+    const i=document.getElementById('dept-input'); if(!i) return;
+    i.value=text; deptAgentSend(key);
   }
   function deptAgentSend(key){
     const a=DEPT_AGENTS[key]; if(!a) return;
@@ -14837,6 +14947,24 @@ Answer as Karaya:`;
       bot.innerHTML=`🔒 I'm not authorised to share <strong>${hit.label.toLowerCase()}</strong> ${scLabel}. You can change the ${sc==='ext'?'External':'Internal'} guardrail for the ${a.name} agent in <span style="text-decoration:underline;cursor:pointer;" onclick="document.getElementById('dept-overlay').style.display='none';openSettingsModal();">Settings › AI Agents</span>.<span class="k-meta">${a.name} Agent · governance${sc==='ext'?' · external audience':''}</span>`;
       msgs.scrollTop=msgs.scrollHeight; return;
     }
+    // "send me the cost-to-complete report" — the agent doesn't answer in prose,
+    // it runs the formal document request end to end and issues the document.
+    const _doc = (typeof _deptDocRequestFor==='function') ? _deptDocRequestFor(key, q) : null;
+    if(_doc && typeof _runDevDocRequest==='function'){
+      bot.remove();
+      let _last='';
+      const emit=(html, meta)=>{
+        const d=document.createElement('div'); d.className='k-msg bot'; d.style.cssText='margin-bottom:12px;';
+        d.innerHTML=html+(meta?`<span class="k-meta">${meta}</span>`:'');
+        msgs.appendChild(d); _last=html; msgs.scrollTop=msgs.scrollHeight;
+      };
+      _runDevDocRequest(_doc, q, emit, ()=>{
+        const logged=_deptChannelLog(key, q, _doc.title+' issued to the Investment team. '+_deptPlain(_last));
+        const f=_deptChannelFooter(logged);
+        if(f){ const d=document.createElement('div'); d.className='k-msg bot'; d.style.cssText='margin-bottom:12px;'; d.innerHTML=f; msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; }
+      });
+      return;
+    }
     const allowed=a.cats.filter(c=>agentCatOn(key,c.key,sc)).map(c=>c.label).join(', ');
     const denied=a.cats.filter(c=>!agentCatOn(key,c.key,sc)).map(c=>c.label).join(', ');
     const prompt=`You are the ${a.name} department AI agent inside Bohio Workspace, speaking to ${sc==='ext'?'an EXTERNAL counterparty outside the firm':'a colleague inside the firm'}. Answer the question instantly and specifically from the CONTEXT you already hold. For this audience you are ONLY permitted to disclose: ${allowed||'(nothing)'}. You must NOT disclose: ${denied||'(nothing)'} — if asked about those, politely decline and say it's restricted by the firm's agent-governance settings. Be concise (2-4 sentences), plain text, **bold** key figures.${_agentRulesClause(key)}
@@ -14850,7 +14978,10 @@ Answer as the ${a.name} agent:`;
       const fallback=`From what I hold: ${a.ctx.split('. ').slice(0,2).join('. ')}. (Live answers need the demo server with an ANTHROPIC_API_KEY.)`;
       let full=''; if(typeof karayaStreamInto==='function'){ full=await karayaStreamInto(bot, prompt, 'file_qa', fallback); }
       else { try{ full=await window.claude.stream({messages:[{role:'user',content:prompt}],task:'file_qa'},{},t=>{bot.textContent=(full+=t);}); }catch(e){ full=fallback; bot.textContent=full; } }
-      bot.innerHTML=(typeof fmtKaraya==='function'?fmtKaraya(full):full)+`<span class="k-meta">${a.name} Agent · just now</span>`;
+      const logged=_deptChannelLog(key, q, full);
+      bot.innerHTML=(typeof fmtKaraya==='function'?fmtKaraya(full):full)
+        +`<span class="k-meta">${a.name} Agent · ${_deptChannel==='email'?'via Outlook':'via Bohio topic'} · just now</span>`
+        +_deptChannelFooter(logged);
       msgs.scrollTop=msgs.scrollHeight;
     })();
   }
@@ -28986,7 +29117,13 @@ Respond in 2-4 sentences. Plain text only, no markdown headers. You may use <str
     dept_am:      { name: 'Asset Management',    org: 'Bevilacqua · Asset Mgmt',      kind: 'internal', accent: '#2a6a3a', sub: 'Internal department · operations & NOI' },
     dept_esg:     { name: 'ESG & Sustainability',org: 'Bevilacqua · ESG',            kind: 'internal', accent: '#4a6a1a', sub: 'Internal department · sustainability & reporting' },
     dept_ir:      { name: 'Investor Relations',  org: 'Bevilacqua · IR',             kind: 'internal', accent: '#6a3a5a', sub: 'Internal department · LP reporting & comms' },
+    dept_sales:   { name: 'Sales & Commercial',  org: 'Bevilacqua · Sales',          kind: 'internal', accent: '#8a5a1a', sub: 'Internal department · unit sales & pricing' },
+    dept_pm:      { name: 'Project Management',  org: 'Bevilacqua · PMO',            kind: 'internal', accent: '#4a4a7a', sub: 'Internal department · programme & contractors' },
   };
+  // Which topic-room participant fronts each department agent, so an Ask-
+  // department exchange can be posted into a Bohio topic under the right name.
+  const DEPT_PARTICIPANT = { finance:'dept_finance', investments:'dept_invest', legal:'dept_legal',
+    assetmgmt:'dept_am', ir:'dept_ir', sales:'dept_sales', projectmgmt:'dept_pm', development:'dept_dev' };
   function tpInitials(name) {
     return name.split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
   }
