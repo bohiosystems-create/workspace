@@ -17638,7 +17638,7 @@ Answer as Karaya:`;
     return Object.entries(bins).sort((a,b)=>b[1]-a[1]).slice(0,4).map(e=>hex(e[0]));
   }
   function _bkAccent(){ return BRAND_KIT.accent || (BRAND_KIT.palette||[])[0] || ''; }
-  function _bkHas(){ return !!(BRAND_KIT.name || _bkAccent() || (BRAND_KIT.assets||[]).length); }
+  function _bkHas(){ return !!(BRAND_KIT.name || _bkAccent() || (BRAND_KIT.assets||[]).length || (typeof CHAT_ATTACHMENTS!=='undefined' && CHAT_ATTACHMENTS.some(a=>a.purpose==='style'))); }
   // What every generated file / AI prompt is told about the house style.
   function _brandStyleNote(){
     if(!_bkHas()) return '';
@@ -17650,6 +17650,12 @@ Answer as Karaya:`;
     if(by('logo').length) bits.push('A logo has been supplied ('+by('logo').map(x=>x.name).join(', ')+'); treat its palette as the brand palette.');
     if(by('deck').length) bits.push('An example presentation has been supplied ('+by('deck').map(x=>x.name).join(', ')+'); mirror its structure and tone — lead with a headline finding, keep sections short and use the same register.');
     if(by('font').length) bits.push('A typeface sample has been supplied ('+by('font').map(x=>x.name).join(', ')+'); match its typographic feel — if it reads as a serif use formal, measured prose; if it reads as a geometric sans keep the copy tight and modern.');
+    if(typeof CHAT_ATTACHMENTS!=='undefined'){
+      CHAT_ATTACHMENTS.filter(a=>a.purpose==='style').forEach(a=>{
+        bits.push('The user attached "'+a.name+'" as a style / template reference'+(a.text?' — follow its section order, headings and register. Excerpt: '+a.text.slice(0,700):' — match its visual style.'));
+      });
+    }
+    if(!bits.length) return '';
     return '\n\nHOUSE STYLE (replicate this):\n- '+bits.join('\n- ');
   }
   function openBrandKit(){
@@ -17736,9 +17742,106 @@ Answer as Karaya:`;
   // ability to prepare and download any file on request.
   // Chats that own their file/format handling are left to it, so flows like
   // "reply PDF to choose the report format" keep working.
-  const _CHAT_OWNS_FILES = /^(karaya-input|ek-input|wff-input|bperf-input|wfdev-input-|wfperf-input-|wffrep-input-|wfrisk-input-|prjrep-input-|prjsales-input-|wfdisc-input-|wfapr-input-)/;
-  function _chatInputEls(){ return document.querySelectorAll('input[onkeydown*="Enter"],input[onkeypress*="Enter"]'); }
-  function _syncBrandChips(){ document.querySelectorAll('.bk-clip').forEach(b=>{ b.style.borderColor=_bkHas()?(_bkAccent()||'var(--ink)'):'var(--ink-hairline)'; b.title=_bkHas()?('Brand kit active'+(BRAND_KIT.name?' — '+BRAND_KIT.name:'')+' · click to edit'):'Add your logo, an example deck or a font screenshot for Karaya to match'; }); }
+  const _CHAT_OWNS_FILES = /^(karaya-input|ek-input|wff-input|bperf-input|wfdev-input-|wfperf-input-|wffrep-input-|prjrep-input-|prjsales-input-|wfdisc-input-|wfapr-input-)/;
+  // Every AI chat input — but never the sign-in field or any non-chat box.
+  function _chatInputEls(){
+    return [...document.querySelectorAll('input[onkeydown*="Enter"],input[onkeypress*="Enter"]')]
+      .filter(i=>{
+        if(i.classList.contains('login-field')) return false;
+        const h=(i.getAttribute('onkeydown')||'')+(i.getAttribute('onkeypress')||'');
+        return !/signIn/.test(h);
+      });
+  }
+
+  // ---- Universal attachment: one icon on every AI chat, upload ANY file for
+  // ANY purpose. Karaya reads it, says what it got and how it will use it, and
+  // the file joins the platform context. Files marked as a style/template
+  // reference additionally drive the house style of everything generated.
+  const CHAT_ATTACHMENTS = [];   // {id,name,purpose:'context'|'style',text,dataUrl,mime,when}
+  let _caSeq=0;
+  function _syncBrandChips(){
+    document.querySelectorAll('.ucap-attach').forEach(b=>{
+      const n=CHAT_ATTACHMENTS.length;
+      b.style.borderColor = n?(_bkAccent()||'var(--ink)'):'var(--ink-hairline)';
+      b.title = n?(n+' file'+(n===1?'':'s')+' attached — click to add another or manage them'):'Attach any file — a document, a model, or a deck/logo to set the style';
+    });
+  }
+  function _caPurposeGuess(name, mime){
+    return /logo|brand|template|style|font|typeface|deck|presentation|\.pptx?$/i.test(name||'') || /^image\//.test(mime||'') ? 'style' : 'context';
+  }
+  async function _caIngest(file){
+    const name=file.name||'file';
+    const mime=file.type||'';
+    const ext=(name.match(/\.([^.]+)$/)||[,''])[1].toLowerCase();
+    let text='', dataUrl='';
+    try{
+      if(/^image\//.test(mime)){ dataUrl=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.onerror=()=>r(''); fr.readAsDataURL(file); }); }
+      else if(ext==='pdf'){ text=await _pdfText(file); }
+      else if(ext==='docx'){ text=await _docxText(file); }
+      else if(/^(txt|md|csv|json)$/.test(ext)){ text=await file.text(); }
+    }catch(e){}
+    if(text && typeof _looksReadable==='function' && !_looksReadable(text)) text='';
+    return { id:'ca'+(++_caSeq), name, mime, ext, purpose:_caPurposeGuess(name,mime), text:String(text||'').slice(0,4000), dataUrl, when:'just now' };
+  }
+  function _caSetPurpose(id, purpose){
+    const a=CHAT_ATTACHMENTS.find(x=>x.id===id); if(!a) return;
+    a.purpose=purpose;
+    if(purpose==='style' && a.dataUrl && typeof BRAND_KIT!=='undefined'){
+      if(!BRAND_KIT.assets.some(x=>x.name===a.name)) BRAND_KIT.assets.push({id:'bk-'+a.id, kind:'logo', name:a.name, dataUrl:a.dataUrl, palette:[]});
+      _bkSave();
+    }
+    _KARAYA_CTX_CACHE=null;
+    _syncBrandChips();
+    document.querySelectorAll('.ucap-chips').forEach(el=>{ el.innerHTML=_caChipsHTML(); });
+  }
+  function _caRemove(id){
+    const i=CHAT_ATTACHMENTS.findIndex(x=>x.id===id); if(i<0) return;
+    const a=CHAT_ATTACHMENTS[i];
+    if(typeof BRAND_KIT!=='undefined') BRAND_KIT.assets=(BRAND_KIT.assets||[]).filter(x=>x.id!=='bk-'+a.id);
+    CHAT_ATTACHMENTS.splice(i,1);
+    _KARAYA_CTX_CACHE=null; _bkSave(); _syncBrandChips();
+    document.querySelectorAll('.ucap-chips').forEach(el=>{ el.innerHTML=_caChipsHTML(); });
+  }
+  function _caChipsHTML(){
+    if(!CHAT_ATTACHMENTS.length) return '';
+    return CHAT_ATTACHMENTS.map(a=>{
+      const isStyle=a.purpose==='style';
+      return `<span style="display:inline-flex;align-items:center;gap:6px;font-size:9px;border:1px solid var(--ink-hairline);border-radius:999px;padding:3px 8px;background:var(--paper);">
+        <span style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">${String(a.name).replace(/</g,'&lt;')}</span>
+        <button onclick="_caSetPurpose('${a.id}','${isStyle?'context':'style'}')" title="${isStyle?'Used as a style/template reference — click to use as context instead':'Used as context — click to use as a style/template reference'}" style="border:none;background:${isStyle?'rgba(37,99,235,0.14)':'rgba(0,9,25,0.06)'};color:${isStyle?'#2563eb':'var(--ink-soft)'};border-radius:999px;padding:2px 7px;font-size:7.5px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;cursor:pointer;font-family:inherit;">${isStyle?'Style':'Context'}</button>
+        <button onclick="_caRemove('${a.id}')" title="Remove" style="border:none;background:transparent;color:var(--ink-soft);cursor:pointer;font-size:11px;line-height:1;">×</button>
+      </span>`;
+    }).join('');
+  }
+  // Attachments are visible to every chat via the shared workspace context.
+  function _chatAttachContext(){
+    if(!CHAT_ATTACHMENTS.length) return null;
+    return CHAT_ATTACHMENTS.map(a=>({ file:a.name, purpose:a.purpose==='style'?'style/template reference':'content the user attached for context',
+      type:a.mime||a.ext||'file', excerpt:a.text?a.text.slice(0,1200):(a.dataUrl?'(image — used for visual style)':'(no extractable text)') }));
+  }
+  async function _ucapAttachFiles(input, files){
+    const list=[...(files||[])]; if(!list.length) return;
+    const log=_chatLogFor(input);
+    for(const f of list){
+      const a=await _caIngest(f);
+      CHAT_ATTACHMENTS.push(a);
+      if(a.purpose==='style' && a.dataUrl && typeof BRAND_KIT!=='undefined'){
+        if(!BRAND_KIT.assets.some(x=>x.name===a.name)) BRAND_KIT.assets.push({id:'bk-'+a.id, kind:'logo', name:a.name, dataUrl:a.dataUrl, palette:[]});
+        _bkSave();
+      }
+      if(log){
+        const styleLine = a.purpose==='style'
+          ? `I'll treat it as a **style / template reference** — the structure, tone and look of anything I generate will follow it. Switch it to *Context* on the chip below if you'd rather I just read it for facts.`
+          : `I'll use it as **context** — I can answer questions from it and cite it in anything I generate. Switch it to *Style* on the chip below to have my output copy its structure and look instead.`;
+        const read = a.text ? `Read **${a.text.split(/\s+/).length.toLocaleString()} words** from it.` : (a.dataUrl?`Read it as an image.`:`No text layer I could read — I'll still keep it on file.`);
+        log.appendChild(_ucapBubble('bot', fmtKaraya(`Attached **${a.name}**. ${read} ${styleLine}`)));
+        log.scrollTop=log.scrollHeight;
+      }
+    }
+    _KARAYA_CTX_CACHE=null;
+    _syncBrandChips();
+    document.querySelectorAll('.ucap-chips').forEach(el=>{ el.innerHTML=_caChipsHTML(); });
+  }
   // Find (or make) the log this input's answers should be appended to.
   function _chatLogFor(input){
     const row=input.closest('div'); const host=row&&row.parentElement; if(!host) return null;
@@ -17771,13 +17874,24 @@ Answer as Karaya:`;
     _chatInputEls().forEach(input=>{
       if(input.dataset.ucap) return;
       input.dataset.ucap='1';
-      // 📎 brand-kit attach, on every chat
+      // 📎 universal attach — upload ANY file for ANY purpose, on every AI chat
       const clip=document.createElement('button');
-      clip.type='button'; clip.className='bk-clip';
+      clip.type='button'; clip.className='ucap-attach';
       clip.style.cssText='flex-shrink:0;width:34px;height:34px;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);border-radius:999px;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;';
       clip.textContent='📎';
-      clip.onclick=(e)=>{ e.preventDefault(); e.stopPropagation(); openBrandKit(); };
-      if(input.parentElement) input.parentElement.insertBefore(clip, input);
+      const picker=document.createElement('input');
+      picker.type='file'; picker.multiple=true; picker.style.display='none';
+      picker.onchange=()=>{ _ucapAttachFiles(input, picker.files); picker.value=''; };
+      clip.onclick=(e)=>{ e.preventDefault(); e.stopPropagation(); picker.click(); };
+      if(input.parentElement){ input.parentElement.insertBefore(clip, input); input.parentElement.appendChild(picker); }
+      // chips strip above the input row, showing what's attached
+      const row=input.closest('div');
+      if(row && row.parentElement && !row.parentElement.querySelector('.ucap-chips')){
+        const chips=document.createElement('div'); chips.className='ucap-chips';
+        chips.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;';
+        chips.innerHTML=_caChipsHTML();
+        row.parentElement.insertBefore(chips, row);
+      }
       // file prep/download for chats that don't already own it
       const id=input.id||'';
       if(!_CHAT_OWNS_FILES.test(id)){
@@ -20400,6 +20514,7 @@ Answer as Karaya:`;
     var V = function (name) { try { return eval('typeof ' + name + " !== 'undefined' ? " + name + ' : null'); } catch (e) { return null; } };
     var sections = [
       ['PROJECTS (id → name, location, lead, phase, team, description, documents)', V('P'), 6000],
+      ['FILES THE USER ATTACHED IN CHAT (read these — answer from them and cite them)', (typeof _chatAttachContext==='function'?_chatAttachContext():null), 5000],
       ['CONNECTED SYSTEMS (live API integrations Karaya can query)', (typeof CONNECTED_SYSTEMS!=='undefined'?CONNECTED_SYSTEMS.map(s=>({system:s.sys,vendor:s.vendor,scope:s.scope,status:'Connected'})):null), 700],
       ['ERP — PROJECT COST LEDGER (SAP S/4HANA · Oracle Fusion: budget vs committed vs actual)', V('PROJECT_ERP'), 1600],
       ['CRM — SALES PIPELINE (Salesforce: contracted sales, off-plan, collections, velocity per project)', _crmContext(), 1800],
