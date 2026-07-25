@@ -1009,6 +1009,16 @@
   @keyframes rev2Pulse { 0%,100%{opacity:0.35;} 50%{opacity:1;} }
   .rev2-score { height:5px; border-radius:3px; background:rgba(0,9,25,0.09); overflow:hidden; margin-top:8px; }
   .rev2-score > i { display:block; height:100%; background:#963D97; }
+  /* Pinch / ctrl-wheel zoom on a model sheet. Scaling the font rather than
+     transforming keeps the sheet in normal flow, so scrollbars and the sticky
+     header stay correct at every zoom level. */
+  .preview-doc-real { padding:9px 10px; display:flex; flex-direction:column; gap:3px; overflow:hidden; }
+  .preview-doc-real .rline { font-size:4.6px; line-height:1.5; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .preview-doc-real .rline-head { font-weight:700; color:var(--ink); font-size:5.4px; margin-bottom:2px; }
+  /* Precedent/dependent chips in the inspector are navigation, so they read
+     as clickable rather than as static labels. */
+  .insp-ref { transition: border-color .15s ease; }
+  .insp-ref:focus-visible { outline:2px solid #8fd3a8; outline-offset:1px; }
   /* Icon-only Karaya toggle in the fullscreen model topbar. */
   .fs-karaya-icon { display:inline-flex; align-items:center; justify-content:center;
     width:30px; height:30px; padding:0; line-height:0; }
@@ -11396,7 +11406,48 @@
   function previewXlsx(){const c=[`<div class="h"></div>`,`<div class="c head">A</div>`,`<div class="c head">B</div>`,`<div class="c head">C</div>`,`<div class="c head">D</div>`,`<div class="r">1</div>`,`<div class="c label">Rev</div>`,`<div class="c">12.4</div>`,`<div class="c">14.1</div>`,`<div class="c">15.8</div>`,`<div class="r">2</div>`,`<div class="c label">Opex</div>`,`<div class="c neg">-4.2</div>`,`<div class="c neg">-4.5</div>`,`<div class="c neg">-4.7</div>`,`<div class="r">3</div>`,`<div class="c label">NOI</div>`,`<div class="c pos">8.2</div>`,`<div class="c pos">9.6</div>`,`<div class="c pos">11.1</div>`,`<div class="r">4</div>`,`<div class="c label">YoC</div>`,`<div class="c">6.8%</div>`,`<div class="c">7.2%</div>`,`<div class="c">7.4%</div>`,`<div class="r">5</div>`,`<div class="c label">IRR</div>`,`<div class="c">17.9</div>`,`<div class="c">18.2</div>`,`<div class="c">18.4</div>`];return`<div class="preview-xlsx">${c.join('')}</div>`}
   function previewPdf(){return`<div class="preview-doc"><div class="heading"></div><div class="line"></div><div class="line"></div><div class="line short"></div><div class="gap"></div><div class="line mid"></div><div class="line"></div><div class="line short"></div><div class="gap"></div><div class="line"></div></div>`}
   function previewPptx(){return`<div class="preview-pptx"><div class="slide"><div class="bar"></div><div class="bar thin"></div></div><div class="slide chart"><div class="col" style="height:40%"></div><div class="col" style="height:65%"></div><div class="col" style="height:80%"></div></div><div class="slide chart"><div class="col" style="height:55%"></div><div class="col" style="height:70%"></div><div class="col" style="height:90%"></div></div><div class="slide"><div class="bar"></div><div class="bar thin"></div></div></div>`}
-  function buildPreview(t){return t==='XLSX'?previewXlsx():t==='PPTX'?previewPptx():previewPdf()}
+  // A thumbnail is only worth having if it shows the actual document. When we
+  // hold the parsed workbook or the document body, the tile renders the real
+  // first rows / real opening lines; the generic skeletons below are the
+  // fallback for files we have not parsed.
+  function _previewFromWb(wb){
+    const names=Object.keys(wb||{}); if(!names.length) return null;
+    const s=wb[names[0]]; if(!s||!s.rows||!s.cols) return null;
+    const esc=x=>String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const cols=s.cols.slice(1,5);
+    const cells=[`<div class="h"></div>`].concat(cols.map(c=>`<div class="c head">${esc(c)}</div>`));
+    const rows=(s.rows||[]).filter(r=>r.style!=='empty').slice(0,5);
+    rows.forEach(r=>{
+      cells.push(`<div class="r">${esc(r.cells[0])}</div>`);
+      cells.push(`<div class="c label">${esc(String(r.cells[1]||'').slice(0,14))}</div>`);
+      for(let ci=2;ci<=4;ci++){
+        const v=r.cells[ci]; const n=(typeof _cellNum==='function')?_cellNum(v):NaN;
+        const cls=(!isNaN(n)&&n<0)?'c neg':((!isNaN(n)&&n>0&&/noi|profit|income/i.test(r.cells[1]||''))?'c pos':'c');
+        cells.push(`<div class="${cls}">${esc(String(v==null?'':v).slice(0,8))}</div>`);
+      }
+    });
+    if(rows.length<2) return null;
+    return `<div class="preview-xlsx">${cells.join('')}</div>`;
+  }
+  function _previewFromBody(html){
+    const txt=String(html||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+    if(txt.length<40) return null;
+    const esc=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const words=txt.split(' ');
+    const lines=[]; let cur=[];
+    for(const w of words){ cur.push(w); if(cur.join(' ').length>34){ lines.push(cur.join(' ')); cur=[]; } if(lines.length>=7) break; }
+    if(cur.length&&lines.length<7) lines.push(cur.join(' '));
+    return `<div class="preview-doc preview-doc-real">`
+      + lines.map((l,i)=>`<div class="rline${i===0?' rline-head':''}">${esc(l)}</div>`).join('')
+      + `</div>`;
+  }
+  function buildPreview(t, d){
+    if(d){
+      if(d.wbData){ const p=_previewFromWb(d.wbData); if(p) return p; }
+      if(d.docBody){ const p=_previewFromBody(d.docBody); if(p) return p; }
+    }
+    return t==='XLSX'?previewXlsx():t==='PPTX'?previewPptx():previewPdf();
+  }
 
   function modalPreviewXlsx(){return`<table><thead><tr><th>Line Item</th><th>Y1</th><th>Y2</th><th>Y3</th><th>Y4</th><th>Y5</th></tr></thead><tbody><tr class="section"><td colspan="6">Revenue</td></tr><tr><td>Residential Sales</td><td>8.40</td><td>9.20</td><td>10.10</td><td>10.60</td><td>11.10</td></tr><tr><td>Hospitality NOI</td><td>2.80</td><td>3.40</td><td>4.10</td><td>4.55</td><td>4.95</td></tr><tr><td>Retail Rent</td><td>1.20</td><td>1.50</td><td>1.60</td><td>1.65</td><td>1.75</td></tr><tr class="section"><td colspan="6">Costs</td></tr><tr><td>Operating Expense</td><td class="neg">-4.20</td><td class="neg">-4.50</td><td class="neg">-4.70</td><td class="neg">-4.90</td><td class="neg">-5.10</td></tr><tr><td>Capex Reserve</td><td class="neg">-0.60</td><td class="neg">-0.65</td><td class="neg">-0.70</td><td class="neg">-0.72</td><td class="neg">-0.75</td></tr><tr class="section"><td colspan="6">Returns</td></tr><tr><td>NOI</td><td class="pos">7.60</td><td class="pos">8.95</td><td class="pos">10.40</td><td class="pos">11.18</td><td class="pos">11.95</td></tr><tr><td>Yield-on-Cost</td><td>6.4%</td><td>7.0%</td><td>7.4%</td><td>7.1%</td><td>7.3%</td></tr><tr><td>IRR (project)</td><td>—</td><td>—</td><td>17.9%</td><td>18.2%</td><td>18.4%</td></tr></tbody></table><p style="margin-top:14px;font-size:10px;color:var(--ink-soft);line-height:1.7;">SAR millions. Base case, opex revised v.12. Hospitality split 35/65. Exit cap 6.5%.</p>`}
 
@@ -11882,7 +11933,7 @@
       sq.className='doc-square'+(d.master?' is-master':'')+(d.isNew?' is-new':'')+(d.isFeasibility?' is-feasibility':'');
       sq.dataset.search = `${d.name||''} ${d.type||''} ${d.version||''}`.toLowerCase();
       const badge = d.isNew ? '<div class="doc-new-badge">New · from consultant</div>' : '';
-      sq.innerHTML=`${badge}<div class="doc-preview">${buildPreview(d.type)}</div><div class="doc-foot"><div class="doc-name">${d.name}</div><div class="doc-meta"><span>${d.type}</span><span>${d.version}</span></div></div>`;
+      sq.innerHTML=`${badge}<div class="doc-preview">${buildPreview(d.type, d)}</div><div class="doc-foot"><div class="doc-name">${d.name}</div><div class="doc-meta"><span>${d.type}</span><span>${d.version}</span></div></div>`;
       sq.addEventListener('click',()=>{
         if (d.isReadable) { openReadableDoc(d); return; }
         if (d.isFeasibility) { openFeasibilityDoc(d); return; }
@@ -15522,6 +15573,9 @@ Answer as the ${a.name} agent:`;
     document.querySelectorAll('table.spreadsheet').forEach(t=>{ t.style.zoom=SHEET_ZOOM; });
     document.querySelectorAll('.zoom-pct').forEach(el=>{ el.textContent=Math.round(SHEET_ZOOM*100)+'%'; });
   }
+  // Re-bind after any render, since renderSpreadsheet replaces the table.
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>_bindAllSheetZoom());
+  else setTimeout(()=>_bindAllSheetZoom(), 0);
   function sheetZoom(dir){
     if(dir==='in') SHEET_ZOOM=Math.min(1.7, SHEET_ZOOM+0.1);
     else if(dir==='out') SHEET_ZOOM=Math.max(0.5, SHEET_ZOOM-0.1);
@@ -15727,6 +15781,38 @@ Answer as the ${a.name} agent:`;
     const m=ref.match(/^([A-Z]+)(\d+)$/); if(!m) return false;
     if(s.cols.indexOf(m[1])<1) return false;
     return s.rows.some(r=>r.cells[0]===m[2]);
+  }
+  // ---- Pinch / ctrl-wheel zoom, on top of the existing stepped zoom.
+  // Trackpad pinch arrives as a wheel event with ctrlKey set; touch sends a
+  // two-finger gesture. Both drive SHEET_ZOOM continuously, so pinching and
+  // the +/- buttons stay in sync and the level persists like the buttons do.
+  function _setSheetZoomRaw(z){
+    SHEET_ZOOM = Math.min(1.7, Math.max(0.5, Math.round(z*100)/100));
+    try{ localStorage.setItem('bohio_sheet_zoom', String(SHEET_ZOOM)); }catch(e){}
+    _applySheetZoom();
+  }
+  function _bindSheetPinch(host){
+    if(!host || host._pinchBound) return; host._pinchBound=true;
+    host.addEventListener('wheel', e=>{
+      if(!e.ctrlKey && !e.metaKey) return;      // plain scroll must still scroll
+      e.preventDefault();
+      _setSheetZoomRaw(SHEET_ZOOM * (e.deltaY<0 ? 1.08 : 1/1.08));
+    }, {passive:false});
+    let d0=null, z0=1;
+    const dist=t=>Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+    host.addEventListener('touchstart', e=>{
+      if(e.touches.length!==2) return;
+      d0=dist(e.touches); z0=SHEET_ZOOM;
+    }, {passive:true});
+    host.addEventListener('touchmove', e=>{
+      if(e.touches.length!==2 || d0==null) return;
+      e.preventDefault();
+      _setSheetZoomRaw(z0 * (dist(e.touches)/d0));
+    }, {passive:false});
+    host.addEventListener('touchend', ()=>{ d0=null; }, {passive:true});
+  }
+  function _bindAllSheetZoom(){
+    document.querySelectorAll('.spreadsheet-wrap').forEach(_bindSheetPinch);
   }
   // Link refs in both model chats as they stream in. The observer rewrites the
   // DOM it is watching, so it guards against re-entering on its own edits.
@@ -16695,19 +16781,62 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   }
 
   // Cells whose formula references the given cell (downstream / dependents).
+  // ---- Reference parsing that understands the whole workbook.
+  // Handles quoted sheet names ('Annual Cash Flow'!H196), unquoted ones,
+  // multi-letter columns (AA12) and ranges (B4:B15), and resolves each one to
+  // the sheet it actually lives on so a precedent can be navigated to.
+  const _REF_RE = /(?:'([^']+)'|([A-Za-z][A-Za-z0-9_ ]*))?!?\s*(\$?[A-Z]{1,3}\$?\d{1,5})(?:\s*:\s*(\$?[A-Z]{1,3}\$?\d{1,5}))?/g;
+  function _parseRefs(formula, curSheet){
+    const out=[], seen=new Set();
+    if(!formula) return out;
+    const src=String(formula);
+    // Only treat "Name!" as a sheet when a "!" is really there.
+    const re=/(?:'([^']+)'!|([A-Za-z][A-Za-z0-9_ ]*)!)?(\$?[A-Z]{1,3}\$?\d{1,5})(?:\s*:\s*(\$?[A-Z]{1,3}\$?\d{1,5}))?/g;
+    let m;
+    while((m=re.exec(src))){
+      const named=m[1]||m[2]||null;
+      // A bare word before a ref with no "!" is a function name, not a sheet.
+      const sheet = named && SHEET_DATA[named] ? named : (named ? named : curSheet);
+      const a=(m[3]||'').replace(/\$/g,''), b=(m[4]||'').replace(/\$/g,'');
+      if(!a) continue;
+      const raw=(named?named+'!':'')+a+(b?':'+b:'');
+      const key=sheet+'!'+a+(b?':'+b:'');
+      if(seen.has(key)) continue; seen.add(key);
+      out.push({sheet, ref:a, end:b||null, range:!!b, raw,
+                resolved: !!SHEET_DATA[sheet], cross: sheet!==curSheet});
+    }
+    return out;
+  }
+  // A clickable chip for a ref that exists; plain text for one that doesn't.
+  function _refChipHTML(sheet, ref, text, colour, arrow, title){
+    const exists = (typeof _cellExists==='function') && SHEET_DATA[sheet] && _cellExists(sheet, ref);
+    const base=`font-family:'Courier New',monospace;font-size:10px;padding:6px 10px;border:1px solid rgba(230,226,226,0.1);font-weight:700;`;
+    if(!exists) return `<div style="${base}color:rgba(230,226,226,0.45);background:rgba(230,226,226,0.03);"${title?` title="${title}"`:''}>${arrow} ${text}</div>`;
+    return `<div class="insp-ref" role="button" tabindex="0" onclick="_cellJump('${String(sheet).replace(/'/g,"\\'")}','${ref}')"
+      style="${base}color:${colour};background:${colour==='#8fd3a8'?'rgba(143,211,168,0.06)':'rgba(230,184,168,0.06)'};cursor:pointer;"
+      onmouseover="this.style.borderColor='rgba(230,226,226,0.4)'" onmouseout="this.style.borderColor='rgba(230,226,226,0.1)'"
+      ${title?` title="${title}"`:''}>${arrow} ${text}</div>`;
+  }
   function findDependents(ref, sheetName){
     const out = [];
+    // Match the ref on its own sheet, or qualified by this sheet's name in
+    // either quoted or unquoted form — a cross-sheet dependent is still a
+    // dependent, and missing it makes the trace lie about what breaks.
+    const esc=s=>String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const bare = new RegExp('(^|[^A-Za-z0-9!])\\$?'+esc(ref).replace(/([A-Z]+)(\d+)/,'$1\\$?$2')+'(?![0-9A-Za-z])');
+    const qual = new RegExp("(?:'"+esc(sheetName)+"'!|"+esc(sheetName)+'!)\\$?'+esc(ref)+'(?![0-9A-Za-z])');
     for (const [sName, sheet] of Object.entries(SHEET_DATA)) {
       if (!sheet.rows) continue;
-      const patt = (sName === sheetName) ? ref : (sheetName + '!' + ref);
-      const re = new RegExp('(^|[^A-Za-z0-9])' + patt.replace('!', '\\!') + '(?![0-9A-Za-z])');
       for (const row of sheet.rows) {
         if (!row.formulas) continue;
         for (let ci = 2; ci < row.formulas.length; ci++) {
           const f = row.formulas[ci];
-          if (f && re.test(f)) {
+          if (!f) continue;
+          const hit = qual.test(f) || (sName === sheetName && bare.test(f));
+          if (hit) {
             const col = sheet.cols[ci] || '';
-            out.push({ ref: (sName !== sheetName ? sName + '!' : '') + col + row.cells[0], label: row.cells[1] || '' });
+            out.push({ ref: (sName !== sheetName ? sName + '!' : '') + col + row.cells[0],
+                       sheet: sName, cell: col + row.cells[0], label: row.cells[1] || '' });
           }
         }
       }
@@ -17204,6 +17333,114 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     if(target==null || !isFinite(target)) return null;
     return {metric, target, unit};
   }
+  // ---- Comparing the open model against another model in the workspace.
+  // "How does this IRR compare to the Fund II master model?" is a question the
+  // platform can answer properly, because it holds both workbooks — so it
+  // reads the other one rather than talking about it in the abstract.
+  function _allWorkspaceModels(){
+    const out=[], seen=new Set();
+    const add=(d, where)=>{
+      if(!d || !d.wbData || !d.name) return;
+      const key=d.name+'|'+where; if(seen.has(key)) return; seen.add(key);
+      out.push({name:d.name, where, wb:d.wbData, doc:d});
+    };
+    try{ (typeof MY_MODELS!=='undefined'?MY_MODELS:[]).forEach(d=>add(d,'My models')); }catch(e){}
+    try{ (typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).forEach(f=>(f.models||[]).forEach(d=>add(d, f.name.replace(/^Bohio RE /,'')))); }catch(e){}
+    try{ Object.keys(P).forEach(pid=>(P[pid].docs||[]).forEach(d=>add(d, P[pid].name))); }catch(e){}
+    return out;
+  }
+  // Pull the headline metrics out of an arbitrary workbook by label.
+  const _CMP_METRICS=[
+    {k:'IRR',              re:/levered irr|equity irr|project irr|\birr\b/i, unit:'%'},
+    {k:'Equity multiple',  re:/equity multiple|\bmoic\b|\btvpi\b/i,          unit:'x'},
+    {k:'Yield on cost',    re:/yield on cost|\byoc\b/i,                      unit:'%'},
+    {k:'Exit cap',         re:/exit cap|cap rate/i,                          unit:'%'},
+    {k:'NOI',              re:/net operating income|\bnoi\b/i,               unit:''},
+    {k:'Total cost',       re:/total (development |project )?cost|total uses/i, unit:''},
+    {k:'DSCR',             re:/\bdscr\b|debt service cover/i,                unit:'x'},
+    {k:'LTV / LTC',        re:/\bltv\b|\bltc\b|loan.?to.?(value|cost)/i,     unit:'%'},
+  ];
+  function _wbScalarByLabel(wb, re){
+    for(const t of Object.keys(wb||{})){
+      const s=wb[t]; if(!s||!s.rows) continue;
+      for(const r of s.rows){
+        const lbl=(r.cells&&r.cells[1]||'').trim(); if(!lbl||!re.test(lbl)) continue;
+        for(let ci=2;ci<r.cells.length;ci++){
+          const v=r.cells[ci]; if(v===''||v==null) continue;
+          const n=_cellNum(v); if(isNaN(n)) continue;
+          return {v:n, raw:String(v), label:lbl, sheet:t, ref:(s.cols[ci]||'')+r.cells[0]};
+        }
+      }
+    }
+    return null;
+  }
+  function _wbMetrics(wb){
+    const out={};
+    _CMP_METRICS.forEach(m=>{ const hit=_wbScalarByLabel(wb, m.re); if(hit) out[m.k]={...hit, unit:m.unit}; });
+    return out;
+  }
+  function _detectModelCompare(q){
+    const s=String(q||'');
+    if(!/\bcompare|\bvs\b|versus|against (the |another|our )?(other )?model|difference between|how does (this|it) (compare|stack)|benchmark (this|it) against/i.test(s)) return null;
+    if(!/model|irr|return|assumption|risk|metric|multiple|yield|cost/i.test(s)) return null;
+    const models=_allWorkspaceModels();
+    if(!models.length) return null;
+    const openName=((document.getElementById('ed-title')||{}).textContent||'').trim();
+    const others=models.filter(m=>m.name!==openName);
+    if(!others.length) return null;
+    // Prefer a model the question names.
+    let target=others.find(m=>{
+      const first=String(m.name).split(/\s+/).filter(w=>w.length>2).slice(0,2);
+      return first.length && first.every(w=>new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i').test(s));
+    }) || others.find(m=>new RegExp('\\b'+String(m.name).split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i').test(s));
+    const wantsRisk=/risk|exposure|vulnerab|fragile|downside/i.test(s);
+    return {target: target||others[0], others, openName, wantsRisk, named: !!target};
+  }
+  function _modelCompareText(q){
+    const req=_detectModelCompare(q); if(!req) return null;
+    const mine=_wbMetrics(SHEET_DATA);
+    const theirs=_wbMetrics(req.target.wb);
+    const keys=_CMP_METRICS.map(m=>m.k).filter(k=>mine[k]||theirs[k]);
+    if(!keys.length) return null;
+    const fmt=(hit)=>hit? hit.raw : '—';
+    const L=[];
+    L.push(`### This model vs **${req.target.name}**`);
+    if(!req.named) L.push(`_You didn't name one, so I compared against **${req.target.name}** (${req.target.where}). Name another and I'll re-run it._`);
+    L.push('');
+    L.push(`| Metric | This model | ${req.target.name} | Gap |`);
+    L.push('|---|---|---|---|');
+    const gaps=[];
+    keys.forEach(k=>{
+      const a=mine[k], b=theirs[k];
+      let gap='—';
+      if(a&&b&&isFinite(a.v)&&isFinite(b.v)){
+        const d=a.v-b.v;
+        const rel=b.v!==0?(d/Math.abs(b.v)*100):null;
+        gap=(d>0?'+':'')+ (Math.abs(d)>=100?d.toFixed(0):d.toFixed(2)) + (rel!=null&&Math.abs(rel)<1000?` (${d>0?'+':''}${rel.toFixed(0)}%)`:'');
+        gaps.push({k, d, rel, a, b});
+      }
+      L.push(`| ${k} | ${fmt(a)} | ${fmt(b)} | ${gap} |`);
+    });
+    L.push('');
+    const big=gaps.filter(g=>g.rel!=null).sort((x,y)=>Math.abs(y.rel)-Math.abs(x.rel))[0];
+    L.push('### What the gap actually says');
+    if(big) L.push(`- The widest divergence is **${big.k}** — this model is **${big.d>0?'above':'below'}** ${req.target.name} by **${Math.abs(big.rel).toFixed(0)}%**. That is the assumption to defend first, because it is doing the most work in the difference.`);
+    gaps.filter(g=>g!==big && g.rel!=null && Math.abs(g.rel)>=10).slice(0,3)
+        .forEach(g=>L.push(`- **${g.k}** differs by **${g.d>0?'+':''}${Math.abs(g.rel).toFixed(0)}%** (${g.a.sheet}!${g.a.ref} here vs ${g.b.sheet}!${g.b.ref} there).`));
+    if(!gaps.length) L.push('- The two models report the same headline figures — the difference, if any, is in the build rather than the outputs.');
+    if(req.wantsRisk){
+      L.push('');
+      L.push('### Where this model is more exposed');
+      const irr=gaps.find(g=>/IRR/i.test(g.k)), cap=gaps.find(g=>/cap/i.test(g.k)), ltv=gaps.find(g=>/LTV/i.test(g.k));
+      if(irr && irr.d>0) L.push(`- A higher IRR here (**${irr.a.raw}** vs **${irr.b.raw}**) is only good news if the assumptions behind it are as conservative. On these numbers they are not — check the exit and the pricing before relying on it.`);
+      if(cap && cap.d<0) L.push(`- This model exits at a **tighter cap** (**${cap.a.raw}** vs **${cap.b.raw}**). Cap compression is the least controllable assumption in the model and the first thing an IC will push back on.`);
+      if(ltv && ltv.d>0) L.push(`- Leverage is **higher** here (**${ltv.a.raw}** vs **${ltv.b.raw}**), so the same operating miss costs more equity.`);
+      L.push('- Ask me "what needs to happen for the IRR to hit X" on either model and I'+"'"+'ll solve which drivers carry the gap.');
+    }
+    L.push('');
+    L.push(`_Compared against ${req.others.length} other model${req.others.length===1?'':'s'} available in the workspace: ${req.others.slice(0,4).map(m=>m.name).join(', ')}${req.others.length>4?'…':''}._`);
+    return L.join('\n');
+  }
   // Read a metric the way the model itself reports it. _metricValue rebuilds an
   // IRR from a cash-flow vector, which is the right answer when the model has
   // one — but plenty of models only carry the metric as a computed cell. In
@@ -17677,6 +17914,10 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // Market-data pull (Paseetah) and deterministic solvers run first (math,
     // not narration) so they work with or without a live API key.
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
+    // "how does this compare to the Fund II model" — read the other workbook
+    // rather than describing it, since the platform holds both.
+    { const _c = (typeof _modelCompareText==='function') ? _modelCompareText(q) : null;
+      if (_c) { bot.innerHTML = _fmtDiscountSections(_c) + '<span class="k-meta">Karaya · cross-model comparison</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // Target-first questions ("what needs to happen for the IRR to hit 27%")
     // are solved across every lever before the single-driver seek, which needs
     // the user to have named one.
@@ -18748,21 +18989,27 @@ Answer as Karaya:`;
       }
     }
 
-    // Precedents / dependents tracing
+    // Precedents / dependents tracing — every entry is clickable and jumps to
+    // the cell, switching sheet first when the reference is cross-sheet.
     if (hasFormula) {
-      const pcs = [...new Set((formula.match(/([A-Za-z ]+!)?[A-Z]\d+(:[A-Z]\d+)?/g) || []).filter(x => /[A-Z]\d/.test(x)))];
+      const pcs = _parseRefs(formula, sheetName);
       if (pcs.length) {
-        html += `<div style="margin-bottom:14px;"><div style="font-size:7px;letter-spacing:0.35em;text-transform:uppercase;color:rgba(230,226,226,0.4);margin-bottom:6px;">Precedents · feeds from</div><div style="display:flex;flex-direction:column;gap:4px;">`;
-        pcs.forEach(r => { html += `<div style="font-family:'Courier New',monospace;font-size:10px;padding:6px 10px;border:1px solid rgba(230,226,226,0.1);color:#8fd3a8;font-weight:700;background:rgba(143,211,168,0.06);">↑ ${r}</div>`; });
+        html += `<div style="margin-bottom:14px;"><div style="font-size:7px;letter-spacing:0.35em;text-transform:uppercase;color:rgba(230,226,226,0.4);margin-bottom:6px;">Precedents · feeds from <span style="letter-spacing:0.06em;text-transform:none;">(click to go there)</span></div><div style="display:flex;flex-direction:column;gap:4px;">`;
+        pcs.forEach(r => {
+          const lbl = r.range ? `${r.raw} (range)` : r.raw;
+          const t = r.cross ? `On sheet ${r.sheet}` : '';
+          // A range jumps to its first cell — that is where the reader starts.
+          html += _refChipHTML(r.sheet, r.ref, lbl, '#8fd3a8', '↑', t);
+        });
         html += `</div></div>`;
       }
     }
     if (typeof findDependents === 'function') {
       const deps = findDependents(ref, sheetName);
-      html += `<div style="margin-bottom:14px;"><div style="font-size:7px;letter-spacing:0.35em;text-transform:uppercase;color:rgba(230,226,226,0.4);margin-bottom:6px;">Dependents · feeds into</div>`;
+      html += `<div style="margin-bottom:14px;"><div style="font-size:7px;letter-spacing:0.35em;text-transform:uppercase;color:rgba(230,226,226,0.4);margin-bottom:6px;">Dependents · feeds into <span style="letter-spacing:0.06em;text-transform:none;">(click to go there)</span></div>`;
       if (deps.length) {
         html += `<div style="display:flex;flex-direction:column;gap:4px;">`;
-        deps.forEach(d => { html += `<div style="font-family:'Courier New',monospace;font-size:10px;padding:6px 10px;border:1px solid rgba(230,226,226,0.1);color:#e6b8a8;font-weight:700;background:rgba(230,184,168,0.06);" title="${(d.label||'').replace(/"/g,'')}">↓ ${d.ref}${d.label ? ' · ' + d.label : ''}</div>`; });
+        deps.forEach(d => { html += _refChipHTML(d.sheet||sheetName, d.cell||d.ref, d.ref + (d.label ? ' · ' + d.label : ''), '#e6b8a8', '↓', (d.label||'').replace(/"/g,'')); });
         html += `</div>`;
       } else {
         html += `<div style="font-size:10px;color:rgba(230,226,226,0.4);padding:6px 0;">No downstream cells — this is an output or unused input.</div>`;
@@ -18856,6 +19103,10 @@ Answer as Karaya:`;
     msgs.scrollTop = msgs.scrollHeight;
     if (typeof _maybeAssumptionForm === 'function' && _maybeAssumptionForm(q, msgs)) { bot.remove(); return; }
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
+    // "how does this compare to the Fund II model" — read the other workbook
+    // rather than describing it, since the platform holds both.
+    { const _c = (typeof _modelCompareText==='function') ? _modelCompareText(q) : null;
+      if (_c) { bot.innerHTML = _fmtDiscountSections(_c) + '<span class="k-meta">Karaya · cross-model comparison</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // Target-first questions ("what needs to happen for the IRR to hit 27%")
     // are solved across every lever before the single-driver seek, which needs
     // the user to have named one.
