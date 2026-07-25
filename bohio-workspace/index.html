@@ -20154,7 +20154,7 @@ Answer as Karaya:`;
       ['INVESTOR-RELATIONS CHATS (LP Q&A history)', V('IR_CHATS'), 1600],
       ['COMMUNITY POSTS (shared models & tips)', V('COMMUNITY_POSTS'), 1400],
     ];
-    var out = [], total = 0, CAP = 26000;
+    var out = [], total = 0, CAP = 40000;
     for (var i = 0; i < sections.length; i++) {
       var label = sections[i][0], data = sections[i][1], max = sections[i][2];
       var s = _kjson(data, max);
