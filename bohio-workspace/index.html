@@ -13620,6 +13620,23 @@ Reply as the agent:`;
     // builds it in the Contracts section (the demo runs by prompt, not button).
     if (typeof _maybeBuildLeaseFromChat === 'function' && _maybeBuildLeaseFromChat(q, bot, msgs)) return;
 
+    // "shorten the timeline by 3 months — where can we cut the most?" — a costed
+    // critical-path compression plan for the named (or lead) development asset.
+    if (typeof _detectCompressRequest === 'function') {
+      const _cr = _detectCompressRequest(q);
+      if (_cr) {
+        const _pid = Object.keys(PROJECT_PROGRAMME).map(Number)
+          .find(id => P[id] && new RegExp('\\b'+String(P[id].name).split(' ')[0]+'\\b','i').test(q))
+          || Object.keys(PROJECT_PROGRAMME).map(Number)[0];
+        const _txt = _progCompressText(_pid, _cr.months);
+        if (_txt) {
+          KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:_txt});
+          bot.innerHTML = _fmtDiscountSections(_txt) + '<span class="k-meta">Karaya · programme compression</span>';
+          msgs.scrollTop = msgs.scrollHeight;
+          return;
+        }
+      }
+    }
     // "request the cost-to-complete report from the development team" — Karaya
     // raises a formal document request with the Development agent, which
     // acknowledges it, issues the document and gets it reviewed back.
@@ -20382,6 +20399,7 @@ Answer as Karaya:`;
       ['CRM — SALES PIPELINE (Salesforce: contracted sales, off-plan, collections, velocity per project)', _crmContext(), 1800],
       ['FM — FACILITIES (Yardi: occupancy, rent roll, work orders, PPM compliance, energy per asset)', V('PROJECT_FM'), 1200],
       ['PROJECT FACT SHEET (per asset: valuation/GAV, ESG rating, tenants & leasing, permits, milestones, insurance, team, top risks)', V('PROJECT_FACTS'), 2600],
+      ['PROGRAMME / CRITICAL PATH (per asset: activities, durations, float, which are critical, max compression, cost per month to accelerate and the trade-off)', V('PROJECT_PROGRAMME'), 3000],
       ['MY MODELS (financial models: type, name, version, last updated, notes)', V('MY_MODELS'), 2600],
       ['TEMPLATE LIBRARY (prebuilt models: category, name, description, tabs)', V('TEMPLATES'), 2600],
       ['FUNDS & LPs / INVESTORS (committed & drawn capital, stats, documents)', V('INVESTOR_DATA'), 3000],
@@ -24611,6 +24629,112 @@ ${ctx.mailCtx}`;
   // model rather than an AI guess. Keyed by project id, same ids referenced
   // by FUND_PROJECT_IDS, so every project a fund actually holds gets a real
   // development profile.
+  // ---- Programme / critical path per asset, with the acceleration levers the
+  // team could actually pull. This is what lets Karaya answer "shorten the
+  // programme by 3 months — where do we cut the most?" with a costed plan
+  // rather than a guess: only critical-path activities move the completion
+  // date, each lever has a maximum compression, a cost per month and a
+  // trade-off, and float is tracked so non-critical savings aren't over-claimed.
+  const PROJECT_PROGRAMME = {
+    1:{ // Marina Tower
+      baselineMonths:30, completion:'Mar 2028', valuePerMonth:4.2,   // SAR M of value per month pulled forward
+      activities:[
+        {id:'A10', name:'Enabling works & piling',        phase:'Substructure',  months:4,  float:0,   critical:true,  done:true,  crashMax:0,   costPerMonth:0,   lever:'Complete — no time left to recover', risk:'—'},
+        {id:'A20', name:'Substructure & 2-level basement', phase:'Substructure',  months:6,  float:0,   critical:true,  done:true,  crashMax:0,   costPerMonth:0,   lever:'Complete', risk:'—'},
+        {id:'A30', name:'Superstructure — RC frame',       phase:'Structure',     months:10, float:0,   critical:true,  done:false, crashMax:2.0, costPerMonth:4.10, lever:'Second tower crane + night-shift pours', risk:'Highest cost per month; night works need a noise permit and add QA load'},
+        {id:'A35', name:'Façade package procurement',      phase:'Procurement',   months:5,  float:0,   critical:true,  done:false, crashMax:1.5, costPerMonth:1.10, lever:'Early release of the façade order against a 30% deposit, pre-approved mock-up', risk:'Commits spend before the final IC sign-off on the spec'},
+        {id:'A40', name:'Façade installation',             phase:'Envelope',      months:7,  float:0,   critical:true,  done:false, crashMax:2.0, costPerMonth:2.20, lever:'Second installation front (two elevations in parallel)', risk:'Needs an extra hoist and doubles the site supervision'},
+        {id:'A50', name:'MEP first fix',                   phase:'Services',      months:6,  float:1.0, critical:false, done:false, crashMax:1.5, costPerMonth:1.90, lever:'Additional MEP crews', risk:'Sits off the critical path — buys float, not completion'},
+        {id:'A60', name:'Fit-out',                         phase:'Fit-out',       months:8,  float:0,   critical:true,  done:false, crashMax:2.5, costPerMonth:1.60, lever:'Parallel floor-by-floor crews instead of sequential stacking', risk:'Congestion on site; needs early material staging'},
+        {id:'A70', name:'Testing & commissioning',         phase:'Completion',    months:3,  float:0,   critical:true,  done:false, crashMax:0.5, costPerMonth:2.40, lever:'Phased commissioning by zone', risk:'Compressing T&C is where defects usually surface'},
+        {id:'A80', name:'Snagging & handover',             phase:'Completion',    months:2,  float:1.0, critical:false, done:false, crashMax:0.5, costPerMonth:0.90, lever:'Rolling snagging during fit-out', risk:'Off the critical path'},
+      ]},
+    2:{ // Ash Shati Residences
+      baselineMonths:26, completion:'Sep 2028', valuePerMonth:3.1,
+      activities:[
+        {id:'B10', name:'Enabling works',                  phase:'Substructure', months:3,  float:0,   critical:true,  done:true,  crashMax:0,   costPerMonth:0,    lever:'Complete', risk:'—'},
+        {id:'B20', name:'Substructure',                    phase:'Substructure', months:5,  float:0,   critical:true,  done:false, crashMax:1.0, costPerMonth:3.40, lever:'Additional piling rig', risk:'Rig availability is 6 weeks out'},
+        {id:'B30', name:'Superstructure',                  phase:'Structure',    months:9,  float:0,   critical:true,  done:false, crashMax:2.0, costPerMonth:3.60, lever:'Jump-form system + extra crane', risk:'Capex-heavy; only pays back if fit-out follows immediately'},
+        {id:'B35', name:'Operator fit-out spec sign-off',  phase:'Procurement',  months:4,  float:0,   critical:true,  done:false, crashMax:1.5, costPerMonth:0.60, lever:'Freeze the branded-residence spec early with the operator', risk:'Cheapest lever, but locks the spec before the HMA is signed'},
+        {id:'B40', name:'Façade & envelope',               phase:'Envelope',     months:6,  float:0.5, critical:true,  done:false, crashMax:1.5, costPerMonth:2.10, lever:'Split the envelope package across two subcontractors', risk:'Interface risk between the two packages'},
+        {id:'B50', name:'Fit-out',                         phase:'Fit-out',      months:7,  float:0,   critical:true,  done:false, crashMax:2.0, costPerMonth:1.80, lever:'Parallel crews per wing', risk:'Needs early FF&E delivery'},
+        {id:'B60', name:'Commissioning & handover',        phase:'Completion',   months:3,  float:0,   critical:true,  done:false, crashMax:0.5, costPerMonth:2.20, lever:'Zoned commissioning', risk:'Operator acceptance testing cannot be shortened'},
+      ]},
+    6:{ // Nahdah Logistics
+      baselineMonths:16, completion:'Jun 2026', valuePerMonth:2.0,
+      activities:[
+        {id:'C10', name:'Groundworks & slab',              phase:'Substructure', months:4, float:0,   critical:true, done:true,  crashMax:0,   costPerMonth:0,    lever:'Complete', risk:'—'},
+        {id:'C20', name:'Portal frame erection',           phase:'Structure',    months:4, float:0,   critical:true, done:false, crashMax:1.0, costPerMonth:1.40, lever:'Second erection crew', risk:'Weather-dependent'},
+        {id:'C30', name:'Cladding & roof',                 phase:'Envelope',     months:3, float:0,   critical:true, done:false, crashMax:1.0, costPerMonth:1.10, lever:'Pre-assembled cladding cassettes', risk:'Longer lead on the cassettes'},
+        {id:'C40', name:'Racking & tenant fit-out',        phase:'Fit-out',      months:3, float:0.5, critical:true, done:false, crashMax:1.0, costPerMonth:0.80, lever:'Tenant early access for racking', risk:'Needs a licence-to-occupy variation'},
+        {id:'C50', name:'Commissioning & handover',        phase:'Completion',   months:2, float:0,   critical:true, done:false, crashMax:0.5, costPerMonth:1.60, lever:'Phased handover by bay', risk:'Civil-defence sign-off is fixed'},
+      ]},
+  };
+  const _MONTHS_ABBR=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function _shiftMonthLabel(label, deltaMonths){
+    const m=String(label||'').match(/([A-Za-z]{3})\s*(\d{4})/); if(!m) return label;
+    let idx=_MONTHS_ABBR.indexOf(m[1].slice(0,3)); if(idx<0) return label;
+    let total=parseInt(m[2],10)*12+idx+Math.round(deltaMonths);
+    return _MONTHS_ABBR[((total%12)+12)%12]+' '+Math.floor(total/12);
+  }
+  // Greedy critical-path compression: cheapest cost-per-month first, capped by
+  // each activity's crashMax, only counting activities that are on the critical
+  // path (float 0) and not already complete.
+  function _progCompress(pid, targetMonths){
+    const pg=PROJECT_PROGRAMME[pid]; if(!pg) return null;
+    const pool=pg.activities.filter(a=>!a.done && a.critical && a.crashMax>0 && a.float===0)
+      .slice().sort((a,b)=>a.costPerMonth-b.costPerMonth);
+    const picks=[]; let got=0, cost=0;
+    for(const a of pool){
+      if(got>=targetMonths-1e-9) break;
+      const take=Math.min(a.crashMax, targetMonths-got);
+      if(take<=0) continue;
+      picks.push({...a, take:+take.toFixed(2), spend:+(take*a.costPerMonth).toFixed(2)});
+      got=+(got+take).toFixed(2); cost=+(cost+take*a.costPerMonth).toFixed(2);
+    }
+    const maxAvail=+pool.reduce((s,a)=>s+a.crashMax,0).toFixed(2);
+    const nonCritical=pg.activities.filter(a=>!a.done && (!a.critical || a.float>0) && a.crashMax>0);
+    return { pg, picks, achieved:got, shortfall:+Math.max(0,targetMonths-got).toFixed(2), cost, maxAvail,
+      newCompletion:_shiftMonthLabel(pg.completion, -got), valueGained:+(got*pg.valuePerMonth).toFixed(1), nonCritical };
+  }
+  function _progCompressText(pid, months){
+    const r=_progCompress(pid, months); if(!r) return null;
+    const name=P[pid]?P[pid].name:'this asset';
+    const money=n=>'SAR '+Number(n).toFixed(2)+'M';
+    const lines=[];
+    lines.push(`### Cutting ${months} months from ${name}`);
+    lines.push(`- Baseline programme **${r.pg.baselineMonths} months**, completing **${r.pg.completion}**. Only critical-path activities move that date — there is **${r.maxAvail} months** of compression available on the critical path in total.`);
+    if(r.shortfall>0) lines.push(`- **${months} months is not fully achievable** on the current path: the most that can be recovered is **${r.achieved} months**, leaving a **${r.shortfall}-month** gap that would need a scope or phasing change.`);
+    else lines.push(`- **${months} months is achievable.** New completion **${r.newCompletion}**.`);
+    lines.push('');
+    lines.push('### Where to cut — cheapest first');
+    r.picks.forEach((p,i)=>{
+      lines.push(`- **${i+1}. ${p.name}** (${p.id}, ${p.phase}) — cut **${p.take} months** at **${money(p.costPerMonth)}/month** = **${money(p.spend)}**.  \n   *How:* ${p.lever}  \n   *Trade-off:* ${p.risk}`);
+    });
+    lines.push('');
+    lines.push('### The bottom line');
+    lines.push(`- **Time recovered: ${r.achieved} months** → completion moves from **${r.pg.completion}** to **${r.newCompletion}**.`);
+    lines.push(`- **Cost to accelerate: ${money(r.cost)}** (blended **${money(r.cost/Math.max(r.achieved,0.01))}** per month saved).`);
+    lines.push(`- **Value of the time: ~${money(r.valueGained)}** at **${money(r.pg.valuePerMonth)}/month** of earlier income and reduced finance carry — so the acceleration ${r.valueGained>r.cost?'**pays for itself** (net '+money(r.valueGained-r.cost)+')':'**does not pay for itself** on time-value alone (net '+money(r.valueGained-r.cost)+') and needs a separate reason, such as a lease or sales commitment'}.`);
+    if(r.nonCritical.length){
+      lines.push('');
+      lines.push('### What NOT to accelerate');
+      r.nonCritical.forEach(a=>lines.push(`- **${a.name}** carries **${a.float} months of float** — spending here buys resilience, not an earlier completion.`));
+    }
+    return lines.join('\n');
+  }
+  // "shorten the programme by 3 months" / "where can we cut the most?"
+  function _detectCompressRequest(q){
+    const s=String(q||'');
+    if(!/(shorten|compress|accelerat|speed up|pull forward|bring forward|cut|reduce|save)/i.test(s)) return null;
+    if(!/(timeline|programme|program|schedule|completion|delivery|months?|weeks?)/i.test(s)) return null;
+    if(/\b(cost|budget|opex|capex|spend)\b/i.test(s) && !/(timeline|programme|program|schedule|month)/i.test(s)) return null;
+    let months=3;
+    const m=s.match(/(\d+(?:\.\d+)?)\s*(month|mo\b)/i); if(m) months=parseFloat(m[1]);
+    else { const w=s.match(/\b(one|two|three|four|five|six)\b\s*months?/i); if(w) months={one:1,two:2,three:3,four:4,five:5,six:6}[w[1].toLowerCase()]; }
+    const wm=s.match(/(\d+(?:\.\d+)?)\s*weeks?/i); if(wm) months=+(parseFloat(wm[1])/4.33).toFixed(2);
+    return { months };
+  }
   const WF_DEV_DATA = {
     1:{ // Marina Tower — active construction
       designMonths:8, designStatus:'Complete', constructionMonths:30, constructionStatus:'In progress',
@@ -24842,6 +24966,7 @@ ${ctx.mailCtx}`;
         <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfDevPreset('${k}','What if we shorten the construction timeline by 2 months?')">Shorten construction by 2 months</button>
         <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfDevPreset('${k}','What if the design timeline takes 1 month longer?')">Design takes 1 month longer</button>
         <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfDevPreset('${k}','What if construction costs rise by 10%?')">Construction cost rises 10%</button>
+        <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 10px;" onclick="_wfDevPreset('${k}','Shorten the timeline by 3 months — where can we cut the most?')">Cut 3 months — where?</button>
       </div>`:''}
       <div style="display:flex;gap:8px;max-width:560px;margin-left:auto;margin-right:auto;">
         <input id="wfdev-input-${k}" placeholder="e.g. what if construction takes 3 months longer on Marina Tower?" style="flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:11px;border-radius:999px;outline:none;" onkeydown="if(event.key==='Enter')_wfDevAsk('${k}')">
@@ -25320,6 +25445,17 @@ ${ctx.mailCtx}`;
           _wfDevRender(k);
         }, ()=>{ if(_wfCurrentFundK===k && _wfFundLastSec==='development') _wfFundDetail(k,'development'); });
         return;
+      }
+    }
+    // "shorten the timeline by 3 months — where can we cut the most?"
+    if(typeof _detectCompressRequest==='function'){
+      const cr=_detectCompressRequest(q);
+      if(cr){
+        const idsC=_wfDevProjectsFor(k);
+        const namedC=idsC.find(id=>new RegExp('\\b'+P[id].name.split(' ')[0].toLowerCase()+'\\b','i').test(q));
+        const pidC=(namedC && PROJECT_PROGRAMME[namedC]) ? namedC : idsC.find(id=>PROJECT_PROGRAMME[id]);
+        const txt=pidC?_progCompressText(pidC, cr.months):null;
+        if(txt){ f._devChat.push({cls:'bot', html:_fmtDiscountSections(txt)}); _wfDevRender(k); return; }
       }
     }
     const ids=_wfDevProjectsFor(k);
