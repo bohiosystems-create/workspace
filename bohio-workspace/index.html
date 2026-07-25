@@ -985,6 +985,48 @@
   .app-shell:not(.sidebar-hidden) ~ #sidebar-handle { display: none !important; }
 
   /* placeholder old fab */
+  /* ---- Second agent (report reviewer) --------------------------------
+     The review is worth more if you can see a different agent did it, so it
+     gets its own identity, colour and frame rather than reading as more
+     output from the agent that wrote the report. */
+  .rev2-card { border:1px solid rgba(150,61,151,0.38); border-left:3px solid #963D97; border-radius:13px;
+    padding:0; overflow:hidden; background:linear-gradient(180deg,rgba(150,61,151,0.055),transparent 70%); }
+  .rev2-head { display:flex; align-items:center; gap:10px; padding:10px 13px;
+    border-bottom:1px solid rgba(150,61,151,0.22); background:rgba(150,61,151,0.07); }
+  .rev2-mark { flex-shrink:0; width:30px; height:30px; border-radius:9px; background:#963D97; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; letter-spacing:0.04em; }
+  .rev2-name { font-size:11.5px; font-weight:800; letter-spacing:0.05em; line-height:1.25; }
+  .rev2-role { font-size:8px; letter-spacing:0.2em; text-transform:uppercase; color:#963D97; font-weight:700; margin-top:2px; }
+  .rev2-body { padding:12px 14px 13px; }
+  .rev2-verdict { flex-shrink:0; font-size:8px; letter-spacing:0.12em; text-transform:uppercase; font-weight:800;
+    border-radius:999px; padding:4px 10px; }
+  .rev2-v-ok   { background:rgba(21,128,61,0.15);  color:#15803d; }
+  .rev2-v-warn { background:rgba(180,83,9,0.15);   color:#b45309; }
+  .rev2-v-bad  { background:rgba(181,30,59,0.15);  color:#b51e3b; }
+  .rev2-hand { display:flex; align-items:center; gap:9px; font-size:9.5px; color:var(--ink-soft);
+    border:1px dashed var(--ink-hairline); border-radius:11px; padding:8px 12px; }
+  .rev2-dot { width:7px; height:7px; border-radius:50%; background:#963D97; animation:rev2Pulse 1.1s ease-in-out infinite; }
+  @keyframes rev2Pulse { 0%,100%{opacity:0.35;} 50%{opacity:1;} }
+  .rev2-score { height:5px; border-radius:3px; background:rgba(0,9,25,0.09); overflow:hidden; margin-top:8px; }
+  .rev2-score > i { display:block; height:100%; background:#963D97; }
+  /* Icon-only Karaya toggle in the fullscreen model topbar. */
+  .fs-karaya-icon { display:inline-flex; align-items:center; justify-content:center;
+    width:30px; height:30px; padding:0; line-height:0; }
+  .fs-karaya-icon svg { display:block; }
+  .fs-karaya-icon.is-off { opacity:0.42; }
+  /* Inside an open model the embedded chat is the one to use, so the floating
+     bubble is suppressed — two entry points to the same assistant on one
+     screen is just noise. */
+  body.model-open .karaya-open-fab,
+  body.model-open .karaya-fab,
+  body.model-open #karaya-handle { display: none !important; }
+  /* A cell reference Karaya cites, rendered as a chip that jumps to the cell. */
+  .kcell { display:inline-block; font-family:var(--font-mono,ui-monospace,monospace); font-size:0.92em;
+    border:1px solid var(--ink-hairline); border-radius:5px; padding:0 5px; margin:0 1px;
+    background:rgba(0,9,25,0.045); cursor:pointer; }
+  .kcell:hover { border-color:var(--ink); background:rgba(0,9,25,0.09); }
+  @keyframes kcellFlash { 0%,100%{ box-shadow:none; } 25%,75%{ box-shadow:inset 0 0 0 2px #b8860b; } }
+  .cell-jump-flash { animation: kcellFlash 1.5s ease-in-out; background:rgba(184,134,11,0.16) !important; }
   .karaya-fab {
     position: fixed;
     right: 0; top: 50%;
@@ -11028,7 +11070,7 @@
   <div class="fs-topbar">
     <span class="fs-title" id="fs-title"></span>
     <div style="display:flex;align-items:center;gap:10px;">
-      <button class="fs-close" id="fs-focus-toggle" onclick="toggleFsKaraya()">Hide Karaya</button>
+      <button class="fs-close fs-karaya-icon" id="fs-focus-toggle" onclick="toggleFsKaraya()" title="Hide Karaya" aria-label="Hide Karaya"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3C6.48 3 2 6.69 2 11.25c0 2.6 1.46 4.92 3.75 6.44-.13 1.24-.53 2.57-1.36 3.8-.14.2.03.46.27.42 2.02-.36 3.6-1.2 4.78-2.09.8.15 1.65.22 2.56.22 5.52 0 10-3.69 10-8.25S17.52 3 12 3z" fill="currentColor"/></svg></button>
       <button class="fs-close fs-close-x" onclick="closeFullscreen()" title="Exit full screen" aria-label="Exit full screen">✕</button>
     </div>
   </div>
@@ -11457,6 +11499,7 @@
 
   let _sidebarAutoHidden = false;
   function _restoreSidebarFromEditor(){
+    document.body.classList.remove('model-open');
     if (_sidebarAutoHidden) { const sh=document.querySelector('.app-shell'); if(sh) sh.classList.remove('sidebar-hidden'); _sidebarAutoHidden=false; if(typeof syncHandles==='function') syncHandles(); }
   }
   function goTo(page){
@@ -15609,6 +15652,99 @@ Answer as the ${a.name} agent:`;
     const td = document.querySelector('#spreadsheet td[data-ref="' + ref + '"]');
     if (td) td.click();
   }
+  // ---- Cell references Karaya cites are navigable, not just prose.
+  // A model answer that names H196 is useless if the reader then has to hunt
+  // for H196, so every reference in the chat becomes a chip that switches to
+  // the right sheet, scrolls the cell into view, selects it and flashes it.
+  function _cellJump(sheetName, ref){
+    const fsOpen = !!document.querySelector('#fs-overlay.active');
+    const sheets = (typeof SHEET_DATA!=='undefined') ? SHEET_DATA : null;
+    if(!sheets) return;
+    // An unqualified ref belongs to whichever sheet is currently on screen.
+    let sh = sheetName && sheets[sheetName] ? sheetName
+           : (fsOpen ? fsActiveSheet : (typeof activeSheet!=='undefined'?activeSheet:Object.keys(sheets)[0]));
+    if(!sheets[sh]) sh = Object.keys(sheets)[0];
+    const cur = fsOpen ? fsActiveSheet : activeSheet;
+    if(sh !== cur){
+      if(fsOpen) renderFsSheet(sh); else renderSpreadsheet(sh);
+    }
+    setTimeout(()=>{
+      const host = fsOpen ? '#fs-spreadsheet' : '#spreadsheet';
+      const td = document.querySelector(host+' td[data-ref="'+ref+'"]');
+      if(!td){ return; }
+      try{ td.scrollIntoView({block:'center', inline:'center', behavior:'smooth'}); }catch(e){ td.scrollIntoView(); }
+      td.classList.remove('cell-jump-flash');
+      void td.offsetWidth;              // restart the animation on a repeat jump
+      td.classList.add('cell-jump-flash');
+      setTimeout(()=>td.classList.remove('cell-jump-flash'), 1700);
+      td.click();
+    }, sh!==cur ? 120 : 0);
+  }
+  // Wrap A1-style refs (optionally sheet-qualified) found in a chat answer.
+  // Runs on text nodes only, so it never rewrites markup we just built, and
+  // skips anything already inside a chip, link or code span.
+  function _linkCellRefs(root){
+    if(!root || typeof SHEET_DATA==='undefined') return;
+    const names = Object.keys(SHEET_DATA);
+    const nameAlt = names.map(n=>n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
+    const re = new RegExp('(?:(' + (nameAlt||'\\u0000') + ")!)?\\b([A-Z]{1,2}[1-9]\\d{0,4})\\b", 'g');
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(n){
+        if(!n.nodeValue || !/[A-Z]\d/.test(n.nodeValue)) return NodeFilter.FILTER_REJECT;
+        if(n.parentElement && n.parentElement.closest('.kcell,a,code,pre,button,input,textarea')) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    const targets=[]; let n;
+    while((n=walker.nextNode())) targets.push(n);
+    targets.forEach(node=>{
+      const txt=node.nodeValue; re.lastIndex=0;
+      if(!re.test(txt)) return;
+      re.lastIndex=0;
+      const frag=document.createDocumentFragment(); let last=0, m;
+      while((m=re.exec(txt))){
+        const sheet=m[1]||'', ref=m[2];
+        // Only link refs that exist in the workbook — otherwise "Q4" and "H1"
+        // in ordinary prose would turn into dead chips.
+        const target = sheet && SHEET_DATA[sheet] ? sheet
+                     : (typeof activeSheet!=='undefined' && SHEET_DATA[activeSheet] ? activeSheet : names[0]);
+        if(!_cellExists(target, ref)) continue;
+        if(m.index>last) frag.appendChild(document.createTextNode(txt.slice(last,m.index)));
+        const span=document.createElement('span');
+        span.className='kcell'; span.textContent=m[0];
+        span.title='Go to '+(sheet||target)+'!'+ref;
+        span.addEventListener('click', ()=>_cellJump(sheet||target, ref));
+        frag.appendChild(span);
+        last=m.index+m[0].length;
+      }
+      if(!frag.childNodes.length) return;
+      if(last<txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+  function _cellExists(sheetName, ref){
+    const s=SHEET_DATA[sheetName]; if(!s) return false;
+    const m=ref.match(/^([A-Z]+)(\d+)$/); if(!m) return false;
+    if(s.cols.indexOf(m[1])<1) return false;
+    return s.rows.some(r=>r.cells[0]===m[2]);
+  }
+  // Link refs in both model chats as they stream in. The observer rewrites the
+  // DOM it is watching, so it guards against re-entering on its own edits.
+  let _cellLinkBusy=false;
+  function _watchModelChatsForCellRefs(){
+    const attach=(id)=>{
+      const el=document.getElementById(id); if(!el || el._cellLinkWatched) return;
+      el._cellLinkWatched=true;
+      const run=()=>{ if(_cellLinkBusy) return; _cellLinkBusy=true;
+        try{ _linkCellRefs(el); }catch(e){} finally{ setTimeout(()=>{_cellLinkBusy=false;},0); } };
+      new MutationObserver(()=>{ clearTimeout(el._cellLinkT); el._cellLinkT=setTimeout(run,140); })
+        .observe(el, {childList:true, subtree:true, characterData:true});
+      run();
+    };
+    attach('ek-msgs'); attach('fs-karaya-msgs');
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', _watchModelChatsForCellRefs);
+  else _watchModelChatsForCellRefs();
   // Apply an edit typed into the formula bar (value or =formula), then recompute.
   function applyFormulaBar(){
     if (typeof selectedCell === 'undefined' || !selectedCell) return;
@@ -15693,6 +15829,10 @@ Answer as the ${a.name} agent:`;
         }
       });
     });
+    // Sanity layer runs alongside the cell-level checks: error values,
+    // impossible headline outputs and hardcodes typed over formula rows.
+    const maxId=findings.reduce((m,f)=>Math.max(m,f.id),0);
+    if(typeof _dbgSanityScan==='function'){ try{ findings.push(..._dbgSanityScan(maxId)); }catch(e){} }
     const seen=new Set(); _dbgFindings=findings.filter(f=>{ const k=f.sheet+f.rnum+f.col+f.kind; if(seen.has(k))return false; seen.add(k); return true; });
     return _dbgFindings;
   }
@@ -15850,19 +15990,141 @@ Answer as the ${a.name} agent:`;
   }
   // Debug findings, rendered INTO the model chat (prompt-driven), each stageable
   // with an on-sheet preview instead of a side list.
+  // ---- Sanity layer: things that are not a typo or a broken SUM, but that no
+  // reviewer would let past — a 286% IRR, occupancy over 100%, a formula row
+  // with one cell hardcoded over it, an error value left in the sheet.
+  const _PLAUSIBLE = [
+    {re:/\birr\b/i,                 lo:-60,  hi:80,   unit:'%',  what:'an IRR'},
+    {re:/cap rate|exit cap|going.?in yield/i, lo:1, hi:25, unit:'%', what:'a cap rate'},
+    {re:/occupanc/i,                lo:0,    hi:100,  unit:'%',  what:'an occupancy'},
+    {re:/\bdscr\b|debt service cover/i, lo:0, hi:10,  unit:'x',  what:'a DSCR'},
+    {re:/equity multiple|\bmoic\b|\btvpi\b/i, lo:0, hi:8, unit:'x', what:'an equity multiple'},
+    {re:/\bltv\b|loan.?to.?(value|cost)|\bltc\b/i, lo:0, hi:100, unit:'%', what:'a leverage ratio'},
+    {re:/margin|yield on cost/i,    lo:-100, hi:100,  unit:'%',  what:'a margin'},
+  ];
+  function _dbgSanityScan(startId){
+    const out=[]; let fid=startId||0;
+    Object.keys(SHEET_DATA).forEach(sheet=>{
+      const s=SHEET_DATA[sheet]; if(!s||!s.rows||!s.cols) return;
+      s.rows.forEach(row=>{
+        const rnum=row.cells[0], label=(row.cells[1]||'').trim(); if(!label) return;
+        // 1) error values left in the sheet
+        for(let ci=2;ci<row.cells.length;ci++){
+          const v=String(row.cells[ci]||'');
+          if(/^#(REF|DIV\/0|VALUE|NAME|N\/A|NUM|NULL)/i.test(v)){
+            out.push({id:++fid, sheet, rnum, col:ci, kind:'error', label, advisory:true,
+              issue:`${label} in ${s.cols[ci]}${rnum} is ${v} — a broken reference or divide-by-zero is being carried into everything downstream.`,
+              suggested:'Repair the reference this cell points at.'});
+            break;
+          }
+        }
+        // 2) headline metric outside any plausible range
+        const p=_PLAUSIBLE.find(x=>x.re.test(label));
+        if(p){
+          for(let ci=2;ci<row.cells.length;ci++){
+            const raw=row.cells[ci]; if(raw===''||raw==null) continue;
+            let n=_cellNum(raw); if(isNaN(n)) continue;
+            // a ratio stored as 0.2533 for 25.33% is fine; flag the magnitude only
+            if(p.unit==='%' && Math.abs(n)<=1 && /\./.test(String(raw))) continue;
+            if(n<p.lo||n>p.hi){
+              out.push({id:++fid, sheet, rnum, col:ci, kind:'implausible', label, advisory:true,
+                issue:`${label} in ${s.cols[ci]}${rnum} reads ${raw}, which is not ${p.what} — expected roughly ${p.lo} to ${p.hi}${p.unit}. Usually a unit error (a ratio being shown as a percent, or a percent multiplied by 100 twice) or a broken cash-flow sign.`,
+                suggested:`Check the units and the sign convention feeding ${s.cols[ci]}${rnum}.`});
+              break;
+            }
+          }
+        }
+        // 3) a row of formulas with one value typed over the top
+        if(row.formulas){
+          const cols=[]; for(let ci=2;ci<row.cells.length;ci++){ const v=row.cells[ci]; if(v===''||v==null) continue; if(isNaN(_cellNum(v))) continue; cols.push(ci); }
+          if(cols.length>=4){
+            const withF=cols.filter(ci=>row.formulas[ci]);
+            const without=cols.filter(ci=>!row.formulas[ci]);
+            if(withF.length>=3 && without.length>0 && without.length<=Math.max(1,Math.floor(cols.length*0.34))){
+              const ci=without[0];
+              out.push({id:++fid, sheet, rnum, col:ci, kind:'hardcode', label, advisory:true,
+                issue:`${label} is a formula row, but ${without.map(c=>s.cols[c]+rnum).join(', ')} ${without.length===1?'is':'are'} hardcoded. A typed-over value in a calculated row silently stops responding to the drivers.`,
+                suggested:`Restore the row formula in ${s.cols[ci]}${rnum}.`});
+            }
+          }
+        }
+      });
+    });
+    return out;
+  }
+  // Compact full-workbook dump — labels, values and formulas — so the model
+  // review reasons over the actual sheet rather than a summary of it.
+  function _modelAuditDump(cap){
+    cap=cap||30000; const L=[];
+    Object.keys(SHEET_DATA).forEach(sheet=>{
+      const s=SHEET_DATA[sheet]; if(!s||!s.rows) return;
+      L.push(`## SHEET: ${sheet}  (cols ${s.cols.slice(1).join(',')})`);
+      s.rows.forEach(r=>{
+        const label=(r.cells[1]||'').trim();
+        const parts=[];
+        for(let ci=2;ci<r.cells.length;ci++){
+          const v=r.cells[ci]; if(v===''||v==null) continue;
+          const f=r.formulas&&r.formulas[ci];
+          parts.push(s.cols[ci]+r.cells[0]+'='+v+(f?` {${f}}`:''));
+        }
+        if(!label && !parts.length) return;
+        L.push(`r${r.cells[0]} | ${label}${r.style?' ['+r.style+']':''} | ${parts.join('  ')}`);
+      });
+    });
+    let out=L.join('\n');
+    if(out.length>cap) out=out.slice(0,cap)+'\n…[truncated]';
+    return out;
+  }
+  // The deep pass: strongest reasoning over the whole workbook, on top of the
+  // deterministic findings so it doesn't waste effort re-finding them.
+  function _dbgAiReview(target){
+    const dump=_modelAuditDump();
+    const known=_dbgFindings.map(f=>`- ${f.sheet}!${SHEET_DATA[f.sheet].cols[f.col]||'A'}${f.rnum} · ${f.kind}: ${f.issue}`).join('\n') || '(none)';
+    const prompt=`You are a senior real-estate investment analyst reviewing a colleague's financial model line by line before it goes to an Investment Committee. Be rigorous and specific. Reason carefully about the actual formulas and figures below — do not summarise the model, do not describe what it contains, and never say "ask me to explain a driver". The user has asked you to FIND WHAT IS WRONG WITH IT.
+
+Look for, at minimum:
+- formula errors: wrong ranges, off-by-one SUMs, a total that omits or double-counts a line, absolute/relative reference mistakes, circularity
+- hardcodes typed over calculated rows, and constants buried inside formulas
+- sign-convention breaks (costs entered positive, revenue negative, cash flows inconsistent)
+- unit and scale errors (a ratio shown as a percent, percent applied twice, thousands vs millions mixed in one column, annual vs monthly mismatch)
+- implausible outputs — an IRR, cap rate, occupancy, DSCR or multiple that could not be right, and WHY the formula produces it
+- timing errors: cash flows in the wrong period, exit value in the wrong year, no lag between spend and revenue
+- structural gaps: missing contingency, no financing cost, no selling cost, no tax, terminal value with no exit cap
+- label typos and rows whose label does not describe what the formula does
+
+A DETERMINISTIC SCAN ALREADY FOUND THESE — do not repeat them, but do say if any is worse than it looks:
+${known}
+
+Write your answer as markdown with these sections, and nothing else:
+### Critical — fix before this model is used
+### Worth correcting
+### Recommendations
+Under the first two, each bullet MUST start with the exact cell reference in Sheet!Ref form (e.g. Underwriting!H196) followed by the defect and its consequence in one sentence. If you genuinely find nothing in a category, write "- None found." Be concrete: quote the offending formula. Do not invent cell references that are not in the model below.
+
+MODEL:
+${dump}`;
+    const fallback='I can run the full reasoning pass over every formula once the demo server has an ANTHROPIC_API_KEY — the deterministic scan above still applies.';
+    if(typeof karayaStreamInto==='function') return karayaStreamInto(target, prompt, 'analysis', fallback);
+    return Promise.resolve(fallback);
+  }
   function _dbgChatHTML(){
-    if(!_dbgFindings.length) return fmtKaraya('I scanned every cell — no label typos, sign errors, mismatched totals or stale values. The model checks out. ✓');
+    if(!_dbgFindings.length) return fmtKaraya('The deterministic scan found no label typos, sign errors, mismatched totals, stale values, error cells or implausible outputs. Running the full reasoning pass over every formula now…');
     const items=_dbgFindings.map(f=>{
-      const kindLbl={typo:'Label typo',sign:'Sign error',stale:'Stale value',total:'Total mismatch'}[f.kind]||'Issue';
+      const kindLbl={typo:'Label typo',sign:'Sign error',stale:'Stale value',total:'Total mismatch',
+                     error:'Error value',implausible:'Implausible output',hardcode:'Hardcode in a formula row'}[f.kind]||'Issue';
       const ref=(f.kind==='typo'?(SHEET_DATA[f.sheet].cols[1]||'A'):SHEET_DATA[f.sheet].cols[f.col])+f.rnum;
-      return `<div style="border:1px solid var(--ink-hairline);border-radius:9px;padding:9px 11px;margin-top:7px;">
+      // Advisory findings have no single safe auto-fix — they need a decision,
+      // so they get no one-click preview button.
+      const btn = f.advisory ? '' :
+        `<button class="wf-btn ghost" style="font-size:9px;padding:5px 10px;" onclick="_dbgStage(${f.id})">Preview on sheet</button>`;
+      return `<div style="border:1px solid var(--ink-hairline);border-radius:9px;padding:9px 11px;margin-top:7px;${f.advisory?'border-left:3px solid #b45309;':''}">
         <div style="font-size:8px;letter-spacing:0.12em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">${kindLbl} · ${f.sheet}!${ref}</div>
         <div style="font-size:10.5px;line-height:1.5;margin:4px 0 6px;">${String(f.issue).replace(/</g,'&lt;')}</div>
-        <div style="font-size:9.5px;font-family:'Courier New',monospace;color:var(--ink-soft);margin-bottom:7px;">→ ${String(f.suggested).replace(/</g,'&lt;')}</div>
-        <button class="wf-btn ghost" style="font-size:9px;padding:5px 10px;" onclick="_dbgStage(${f.id})">Preview on sheet</button>
+        <div style="font-size:9.5px;font-family:'Courier New',monospace;color:var(--ink-soft);margin-bottom:${btn?'7px':'0'};">→ ${String(f.suggested).replace(/</g,'&lt;')}</div>
+        ${btn}
       </div>`;
     }).join('');
-    return fmtKaraya(`I found **${_dbgFindings.length} issue${_dbgFindings.length===1?'':'s'}** in the model. Preview any fix on the sheet, then approve to apply:`)+items;
+    return fmtKaraya(`Deterministic scan: **${_dbgFindings.length} issue${_dbgFindings.length===1?'':'s'}**. Preview any one-click fix on the sheet, then approve to apply. Full reasoning pass running underneath…`)+items;
   }
   function _dbgStage(id){
     const f=_dbgFindings.find(x=>x.id===id); if(!f) return;
@@ -16054,6 +16316,8 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // Opening a model gives the sheet the full width — auto-minimise the left
     // menu (remembering to restore it only if WE hid it, not the user).
     if (!sh.classList.contains('sidebar-hidden')) { sh.classList.add('sidebar-hidden'); _sidebarAutoHidden = true; }
+    // The model carries its own embedded chat, so suppress the floating bubble.
+    document.body.classList.add('model-open');
     if (typeof syncHandles === 'function') syncHandles();
     const med = document.querySelector('.model-editor');
     if (med) { med.style.gridTemplateColumns = ''; med.classList.remove('karaya-hidden'); }
@@ -16920,6 +17184,144 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     for(const w of words){ const re=new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'); if(_findInputCells(re).length) return re; }
     return null;
   }
+  // ---- "What needs to happen for the IRR to hit 27%?"
+  // The single-driver goal seek above needs the user to name the lever. This
+  // one doesn't: it takes a target for any metric, sweeps every input the
+  // model actually responds to, solves each one independently, and ranks the
+  // routes to the target by how far the driver has to move. Answering "which
+  // cell is the IRR in" is useless here — the question is what has to change.
+  function _detectTargetSolve(q){
+    const s=String(q||'');
+    const wants=/what (needs to|would (it|we) (have to|need to)|has to) (happen|change|move)|what would it take|how (do|can) (we|i) (get|hit|reach|push|lift|raise|drive)|what gets (us|it) to|to (hit|reach|achieve|get to)\b|in order to (hit|reach|achieve)/i.test(s);
+    if(!wants) return null;
+    const metric=_metricFromQuestion(s); if(!metric) return null;
+    const pctM=s.match(/(-?[\d.]+)\s*%/), xM=s.match(/(-?[\d.]+)\s*x\b/);
+    let target=null, unit='';
+    if(/multiple/i.test(metric.k) && xM){ target=parseFloat(xM[1]); unit='x'; }
+    else if(pctM){ target=parseFloat(pctM[1]); unit='%'; }
+    else if(xM){ target=parseFloat(xM[1]); unit='x'; }
+    else { const n=s.match(/(-?[\d.]+)/); if(n){ target=parseFloat(n[1]); unit=''; } }
+    if(target==null || !isFinite(target)) return null;
+    return {metric, target, unit};
+  }
+  // Read a metric the way the model itself reports it. _metricValue rebuilds an
+  // IRR from a cash-flow vector, which is the right answer when the model has
+  // one — but plenty of models only carry the metric as a computed cell. In
+  // that case the cell IS the model's answer, and it moves when we move a
+  // driver, so it is what we solve against.
+  function _metricReadLive(metric){
+    const v=_metricValue(metric.k, metric.re);
+    if(v!=null && isFinite(v)) return v;
+    let s=null;
+    try{ s=_scalar(metric.re); }catch(e){}
+    if(s==null || !isFinite(s)) return null;
+    // A ratio stored as 0.2533 means 25.33% — put it on the same scale as the
+    // target the user typed, otherwise "hit 27%" solves against 0.27.
+    const pctLike=/irr|roi|yield|cap rate|margin|occupanc|ltv|ltc|return/i.test(metric.k);
+    if(pctLike && Math.abs(s)<=1.5) return s*100;
+    return s;
+  }
+  // Candidate levers: every distinct input row in the workbook, best-scored
+  // first, capped so a 200-row model doesn't take a minute to sweep.
+  function _solveCandidates(){
+    const seen=new Set(), out=[];
+    for(const d of DRIVER_SYNONYMS){
+      for(const c of _findInputCells(d.label)){
+        const key=c.sheet+'!'+c.col+c.rn; if(seen.has(key)) continue;
+        seen.add(key); out.push(c);
+      }
+    }
+    // anything else that looks like a hard-typed assumption
+    for(const t of Object.keys(SHEET_DATA)){ const s=SHEET_DATA[t];
+      for(const r of (s.rows||[])){
+        if(r.style==='empty'||r.style==='section'||r.style==='total') continue;
+        for(let ci=2;ci<r.cells.length;ci++){
+          const v=r.cells[ci]; if(v===''||v==null) continue;
+          const num=_cellNum(v); if(isNaN(num)||num===0) continue;
+          if(r.formulas&&r.formulas[ci]) continue;      // inputs only, never outputs
+          const key=t+'!'+s.cols[ci]+r.cells[0]; if(seen.has(key)) break;
+          seen.add(key);
+          out.push({sheet:t,col:s.cols[ci],rn:r.cells[0],ci,row:r,label:_rowLabel(r),raw:v,num,input:true,score:1});
+          break;
+        }
+      }
+    }
+    return out.filter(c=>c.label && c.label.length>1).slice(0,40);
+  }
+  // Solve one driver for the target by secant search over a bounded range.
+  function _solveDriverTo(d, metric, target){
+    const orig=d.row.cells[d.ci], isPct=/%$/.test(String(orig));
+    const set=(x)=>{ d.row.cells[d.ci]=_fmtLike(orig, isPct?x/100:x); recomputeAll(); };
+    const f=(x)=>{ set(x); const v=_metricReadLive(metric); return v==null?NaN:v; };
+    const restore=()=>{ d.row.cells[d.ci]=orig; recomputeAll(); };
+    const x0=d.num;
+    const base=f(x0);
+    if(!isFinite(base)){ restore(); return null; }
+    // is it even wired to the metric?
+    const probe=f(x0*1.1 || x0+0.1);
+    if(!isFinite(probe) || Math.abs(probe-base)<1e-9){ restore(); return null; }
+    const dir=(probe-base)/((x0*1.1||x0+0.1)-x0);   // slope
+    let lo=x0, hi=x0 + (target-base)/dir;            // first-order guess
+    if(!isFinite(hi)){ restore(); return null; }
+    // bound the search to something a human would consider: ±80% of the input
+    const cap=Math.abs(x0)*0.8 || Math.abs(hi-x0);
+    if(Math.abs(hi-x0)>cap*1.25){ restore(); return {driver:d, unreachable:true, base}; }
+    let a=lo, b=hi, fa=base, fb=f(b);
+    for(let i=0;i<40 && isFinite(fb);i++){
+      if(Math.abs(fb-target)<1e-4) break;
+      const den=(fb-fa); if(Math.abs(den)<1e-12) break;
+      const c=b-(fb-target)*(b-a)/den;
+      if(!isFinite(c)) break;
+      a=b; fa=fb; b=c; fb=f(b);
+    }
+    const solved=b, reached=fb;
+    restore();
+    if(!isFinite(solved)||!isFinite(reached)||Math.abs(reached-target)>Math.max(0.05,Math.abs(target)*0.01)) return {driver:d, unreachable:true, base};
+    return {driver:d, base, from:x0, to:solved, deltaPct:(x0!==0?((solved-x0)/Math.abs(x0)*100):null), isPct};
+  }
+  function _targetSolve(q){
+    const req=_detectTargetSolve(q); if(!req) return null;
+    const {metric, target, unit}=req;
+    const current=_metricReadLive(metric);
+    if(current==null || !isFinite(current)) return null;
+    const fmtM=v=>(unit==='x'?v.toFixed(2)+'x':v.toFixed(1)+(unit||''));
+    if(Math.abs(current-target)<1e-6) return `**${metric.k}** is already at **${fmtM(current)}** — nothing has to change.`;
+    const dirWord = target>current ? 'up' : 'down';
+    const results=[];
+    _solveCandidates().forEach(d=>{ try{ const r=_solveDriverTo(d, metric, target); if(r) results.push(r); }catch(e){} });
+    recomputeAll();
+    const hits=results.filter(r=>!r.unreachable && r.deltaPct!=null)
+                      .sort((a,b)=>Math.abs(a.deltaPct)-Math.abs(b.deltaPct));
+    if(!hits.length){
+      const tried=results.length;
+      return `### Getting **${metric.k}** from ${fmtM(current)} to ${fmtM(target)}\n`
+        + `- No single input gets there on its own. I swept **${tried}** driver${tried===1?'':'s'} and each one runs out of realistic range (I cap a lever at ±80% of its current value) before the metric reaches **${fmtM(target)}**.\n`
+        + `- That means this target needs a **combination** — try asking me to hold one lever and solve another, or lower the target.`;
+    }
+    const num=v=>{ const a=Math.abs(v); return a>=1000?v.toLocaleString(undefined,{maximumFractionDigits:0}):(a>=10?v.toFixed(1):v.toFixed(2)); };
+    const L=[];
+    L.push(`### To move **${metric.k}** from ${fmtM(current)} to ${fmtM(target)}`);
+    L.push(`Any **one** of these gets you there on its own — ranked by how far the driver has to move. Every figure is solved on the live model, not estimated.`);
+    L.push('');
+    hits.slice(0,6).forEach((r,i)=>{
+      const d=r.driver;
+      const from=r.isPct?num(r.from)+'%':num(r.from);
+      const to=r.isPct?num(r.to)+'%':num(r.to);
+      const mv=r.deltaPct>0?'+':'';
+      L.push(`- **${d.label}** — ${from} → **${to}** (${mv}${r.deltaPct.toFixed(1)}%) · \`${d.sheet}!${d.col}${d.rn}\``);
+    });
+    L.push('');
+    const easiest=hits[0];
+    L.push(`### What I'd look at first`);
+    L.push(`- **${easiest.driver.label}** is the least violent route — a **${Math.abs(easiest.deltaPct).toFixed(1)}%** move ${easiest.deltaPct>0?'up':'down'} carries the whole gap.`);
+    if(hits.length>1){
+      const hardest=hits[hits.length-1];
+      L.push(`- **${hardest.driver.label}** is the weakest lever here — it needs **${Math.abs(hardest.deltaPct).toFixed(1)}%** to do the same job, so it is not where the sensitivity sits.`);
+    }
+    L.push(`- These are single-lever solves. In practice you would split the gap across two or three of them, which is a far smaller ask of each.`);
+    L.push(`- Ask me to **apply** any of these and I'll stage it on the sheet for approval.`);
+    return L.join('\n');
+  }
   function _goalSeek(q){
     if(!/\b(lowest|highest|minimum|maximum|max|min|what.*(rent|price|adr|rate|cost|occupanc|fee)|solve|goal.?seek|break.?even|how (low|high|much))\b/i.test(q)) return null;
     if(!/\b(so that|for|to (keep|be|stay|hit|reach|remain|not)|not (be )?(less|lower|below|more|higher|above)|does ?n.?t? fall|fall below|drop below|at least|at most|>=|<=|=|equal|target)\b/i.test(q)) return null;
@@ -17275,6 +17677,11 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // Market-data pull (Paseetah) and deterministic solvers run first (math,
     // not narration) so they work with or without a live API key.
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
+    // Target-first questions ("what needs to happen for the IRR to hit 27%")
+    // are solved across every lever before the single-driver seek, which needs
+    // the user to have named one.
+    { const _t = (typeof _targetSolve==='function') ? _targetSolve(q) : null;
+      if (_t) { bot.innerHTML = _fmtDiscountSections(_t) + '<span class="k-meta">Karaya · solved on the live model</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     { const solved = _goalSeek(q) || _sensitivity(q);
       if (solved) { bot.innerHTML = fmtKaraya(solved) + '<span class="k-meta">Karaya · just now</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
 
@@ -17286,8 +17693,25 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
 
     // "debug and suggest modifications" — scan the model and present each fix in
     // the chat, previewable on the sheet (prompt-driven, no separate button).
-    if (/\b(debug|find (the )?(errors|bugs|mistakes)|suggest (modification|change|fix)|check (the )?model for (error|mistake|bug))/i.test(q)) {
-      if (typeof _debugModelScan === 'function') { _debugModelScan(); bot.innerHTML = _dbgChatHTML() + '<span class="k-meta">Karaya · model debugger</span>'; msgs.scrollTop = msgs.scrollHeight; return; }
+    if (/\b(debug|find (me )?(the |any )?(errors|bugs|mistakes|issues|problems)|mistakes and bugs|suggest (modification|change|fix)|check (the |this )?(model|sheet|workbook) for|review (the |this )?(whole )?(model|sheet|workbook)|go through (the |this )?(whole )?(model|sheet|workbook)|audit (the |this )?model|what(?:'s| is| was|s)? wrong with (the |this )?(model|sheet))/i.test(q)) {
+      if (typeof _debugModelScan === 'function') {
+        _debugModelScan();
+        bot.innerHTML = _dbgChatHTML() + '<span class="k-meta">Karaya · deterministic scan</span>';
+        msgs.scrollTop = msgs.scrollHeight;
+        // Then the deep pass: full reasoning over every formula in the workbook.
+        const deep = document.createElement('div');
+        deep.className = 'k-msg bot';
+        deep.innerHTML = '<div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">\u2699 Deep review \u00b7 reasoning over every formula</div><span class="kr-stream-text"></span><span class="kr-caret">\u258d</span>';
+        msgs.appendChild(deep);
+        msgs.scrollTop = msgs.scrollHeight;
+        const tgt = deep.querySelector('.kr-stream-text') || deep;
+        if (typeof _dbgAiReview === 'function') {
+          _dbgAiReview(tgt).then(()=>{ const c=deep.querySelector('.kr-caret'); if(c) c.remove();
+            const m=document.createElement('span'); m.className='k-meta'; m.textContent='Karaya \u00b7 full-model review'; deep.appendChild(m);
+            msgs.scrollTop = msgs.scrollHeight; });
+        }
+        return;
+      }
     }
 
     // Snapshot before a rework, apply, then STAGE it for on-sheet preview +
@@ -18118,7 +18542,13 @@ Answer as Karaya:`;
     const btn = document.getElementById('fs-focus-toggle');
     if (!body) return;
     const collapsed = body.classList.toggle('karaya-collapsed');
-    if (btn) btn.textContent = collapsed ? 'Show Karaya' : 'Hide Karaya';
+    // Icon-only toggle: the state reads from the button's dimming, and the
+    // label lives in the tooltip so the topbar stays clean at any width.
+    if (btn) {
+      btn.classList.toggle('is-off', collapsed);
+      const t = collapsed ? 'Show Karaya' : 'Hide Karaya';
+      btn.title = t; btn.setAttribute('aria-label', t);
+    }
   }
 
   function closeFullscreen() {
@@ -18426,6 +18856,11 @@ Answer as Karaya:`;
     msgs.scrollTop = msgs.scrollHeight;
     if (typeof _maybeAssumptionForm === 'function' && _maybeAssumptionForm(q, msgs)) { bot.remove(); return; }
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
+    // Target-first questions ("what needs to happen for the IRR to hit 27%")
+    // are solved across every lever before the single-driver seek, which needs
+    // the user to have named one.
+    { const _t = (typeof _targetSolve==='function') ? _targetSolve(q) : null;
+      if (_t) { bot.innerHTML = _fmtDiscountSections(_t) + '<span class="k-meta">Karaya · solved on the live model</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     { const solved = _goalSeek(q) || _sensitivity(q);
       if (solved) { bot.innerHTML = fmtKaraya(solved) + '<span class="k-meta">Karaya · just now</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     const sheetName = (typeof fsActiveSheet !== 'undefined' && fsActiveSheet) ? fsActiveSheet : Object.keys(SHEET_DATA)[0];
@@ -22271,25 +22706,62 @@ Answer as Karaya:`;
     else gaps.forEach(g=>lines.push(`- Add a section covering **${g.ask.toLowerCase()}**.`));
     return lines.join('\n');
   }
+  // ---- The reviewer's own identity in the UI.
+  // A second opinion is only worth something if the reader can see it came
+  // from somewhere else, so the review is framed as a distinct agent — its own
+  // name, mark, colour and verdict chip — never as more prose from the writer.
+  const REVIEW_AGENT = { name:'Amira', mark:'AR', role:'Review agent · second opinion' };
+  function _rev2Verdict(d){
+    const gaps=d.total-d.met;
+    if(gaps>=3) return {cls:'rev2-v-bad',  label:'Send back for revision'};
+    if(gaps>0)  return {cls:'rev2-v-warn', label:'Approve with changes'};
+    return {cls:'rev2-v-ok', label:'Approved for circulation'};
+  }
+  function _rev2CardHTML(bodyHTML, d, sub){
+    const v = d ? _rev2Verdict(d) : null;
+    return `<div class="rev2-card">
+      <div class="rev2-head">
+        <div class="rev2-mark">${REVIEW_AGENT.mark}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="rev2-name">${REVIEW_AGENT.name}</div>
+          <div class="rev2-role">${sub||REVIEW_AGENT.role}</div>
+        </div>
+        ${v?`<span class="rev2-verdict ${v.cls}">${v.label}</span>`:''}
+      </div>
+      <div class="rev2-body">
+        ${d?`<div style="font-size:9px;color:var(--ink-soft);display:flex;justify-content:space-between;">
+              <span>Benchmark coverage</span><span><b style="color:var(--ink);">${d.met}/${d.total}</b> · ${d.score}%</span></div>
+            <div class="rev2-score"><i style="width:${d.score}%;"></i></div>
+            <div style="height:11px;"></div>`:''}
+        ${bodyHTML}
+      </div></div>`;
+  }
   // Renders the reviewer bubble + the benchmark button into a fund's report chat.
   function _wfPushReportReview(k, kind, title){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const text=_wfReportLayoutText(f, k, kind, title);
     f._lastReviewed={kind, title, text};
+    const d=_reportReviewData(f, k, kind, text);
     const md=_reportReviewText(f, k, kind, title, text);
-    f._reportChat.push({cls:'bot', html:_fmtDiscountSections(md)
+    // Show the handoff first, so the second agent is visibly picking the work
+    // up from the first rather than appearing out of nowhere.
+    f._reportChat.push({cls:'bot', html:`<div class="rev2-hand"><span class="rev2-dot"></span>
+      <span>Handing the draft to <b style="color:#963D97;">${REVIEW_AGENT.name}</b>, the review agent — same fund, ERP and market context, different job.</span></div>`});
+    f._reportChat.push({cls:'bot', html:_rev2CardHTML(_fmtDiscountSections(md), d)
       +`<div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap;">
           <button class="wf-btn" style="font-size:9.5px;padding:6px 11px;" onclick="_wfBenchmarkReport('${k}')">⚖ Evaluate report against benchmark</button>
         </div>`
-      +`<span class="k-meta">Reviewer agent · second read</span>`});
+      +`<span class="k-meta">${REVIEW_AGENT.name} · review agent · second read</span>`});
     _wfFundReportRender(k);
   }
   function _wfBenchmarkReport(k){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const lr=f._lastReviewed;
     if(!lr){ f._reportChat.push({cls:'bot', html:fmtKaraya('Generate a report first and I\'ll evaluate it against the benchmark.')}); _wfFundReportRender(k); return; }
+    const d=_reportReviewData(f, k, lr.kind, lr.text);
     const md=_reportBenchmarkText(f, k, lr.kind, lr.title, lr.text);
-    f._reportChat.push({cls:'bot', html:_fmtDiscountSections(md)+`<span class="k-meta">Reviewer agent · benchmark from prior IC, board & LP feedback</span>`});
+    f._reportChat.push({cls:'bot', html:_rev2CardHTML(_fmtDiscountSections(md), d, 'Review agent · benchmark from prior IC, board & LP feedback')
+      +`<span class="k-meta">${REVIEW_AGENT.name} · review agent · benchmark evaluation</span>`});
     _wfFundReportRender(k);
   }
   function _wfFundReportAsk(k){
@@ -23774,10 +24246,20 @@ Answer as Karaya:`;
   }
   function closeCreateReport(){ const ov=document.getElementById('cr-overlay'); if(ov) ov.style.display='none'; }
   function _crSet(k,v){ if(_crState){ _crState[k]=v; _renderCreateReport(); } }
+  // A user-named report is a first-class type: it schedules, generates and
+  // reads back exactly like a preset, it just has no packaged sample to learn
+  // its structure from.
+  function _crType(st){
+    if(st && st.typeId==='custom'){
+      const label=(st.customLabel||'').trim() || 'Custom Report';
+      return { id:'custom', label, kind:'Custom', blurb:(st.customBrief||'').trim(), sample:null, brief:(st.customBrief||'').trim() };
+    }
+    return REPORT_TYPES.find(x=>x.id===(st&&st.typeId))||REPORT_TYPES[0];
+  }
   function _renderCreateReport(){
     const ov=document.getElementById('cr-overlay'); if(!ov||!_crState) return;
     const st=_crState;
-    const t=REPORT_TYPES.find(x=>x.id===st.typeId)||REPORT_TYPES[0];
+    const t=_crType(st);
     const modeCard=(id,title,sub,icon)=>`<button onclick="_crSet('mode','${id}')" style="flex:1;min-width:170px;text-align:left;font-family:inherit;cursor:pointer;border:1.5px solid ${st.mode===id?'var(--ink)':'var(--ink-hairline)'};background:${st.mode===id?'rgba(0,9,25,0.04)':'var(--paper)'};border-radius:12px;padding:13px 15px;">
       <div style="font-size:17px;line-height:1;margin-bottom:6px;">${icon}</div>
       <div style="font-size:12px;font-weight:700;">${title}</div>
@@ -23802,8 +24284,13 @@ Answer as Karaya:`;
         <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">Report</div>
         <select id="cr-type" onchange="_crSet('typeId',this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:9px;margin-bottom:5px;">
           ${REPORT_TYPES.map(x=>`<option value="${x.id}"${x.id===st.typeId?' selected':''}>${x.label}</option>`).join('')}
+          <option value="custom"${st.typeId==='custom'?' selected':''}>✎ Something else — describe it…</option>
         </select>
-        <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:14px;">${t.blurb}</div>
+        ${st.typeId==='custom'
+          ? `<input id="cr-custom-label" placeholder="Name the report — e.g. Lender Covenant Compliance Pack" value="${String(st.customLabel||'').replace(/"/g,'&quot;')}" oninput="_crState.customLabel=this.value" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:9px;margin-bottom:6px;">
+             <textarea id="cr-custom-brief" rows="2" placeholder="What should it cover? Karaya builds the structure from this." oninput="_crState.customBrief=this.value" style="width:100%;box-sizing:border-box;resize:vertical;padding:10px 12px;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);font-family:inherit;font-size:11.5px;line-height:1.55;border-radius:9px;margin-bottom:5px;">${String(st.customBrief||'').replace(/</g,'&lt;')}</textarea>
+             <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:14px;">Any report type you name — it schedules and generates exactly like the presets.</div>`
+          : `<div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:14px;">${t.blurb}</div>`}
 
         <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:7px;">Subject</div>
         <input id="cr-source" value="${String(st.source).replace(/"/g,'&quot;')}" oninput="_crState.source=this.value" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--ink-hairline);background:var(--paper);color:var(--ink);font-family:inherit;font-size:11.5px;border-radius:9px;margin-bottom:16px;">
@@ -23888,7 +24375,7 @@ Answer as Karaya:`;
   function _crConfirm(){
     if(!_crState||!_crState.mode) return;
     const st=_crState;
-    const t=REPORT_TYPES.find(x=>x.id===st.typeId)||REPORT_TYPES[0];
+    const t=_crType(st);
     const accepted=(st.critique?st.critique.suggestions.filter((_,i)=>st.accepted.includes(i)):[]);
     if(st.mode==='schedule'){
       RECURRING_REPORTS.unshift({ title:t.label, source:st.source, kind:t.kind, cadence:st.cadence, next:st.next, owner:st.owner,
@@ -23905,6 +24392,7 @@ Answer as Karaya:`;
     const fund=(typeof WF_FUNDS!=='undefined')?WF_FUNDS.find(f=>st.source.indexOf(f.name.replace(/^Bohio RE /,''))>=0)||WF_FUNDS[0]:null;
     if(!fund) return;
     const q=`${t.label} for ${st.source}`
+      + (t.brief?` — cover: ${t.brief}`:'')
       + (st.example?` — follow the structure of "${st.example.name}"`:'')
       + (accepted.length?`, with these improvements applied: ${accepted.map(s=>s.title).join('; ')}`:'');
     _wfOpenFundShell();
@@ -24851,7 +25339,10 @@ Answer as Karaya:`;
     if(ex>=0) f.models[ex]=doc; else f.models.unshift(doc);
     f._scratchActive=false;
     _wfFundDetail(k,'modelling');
-    setTimeout(()=>{ const s=document.getElementById('wff-model-slot'); if(s) s.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:11px;line-height:1.6;">Recreated <b>${base}</b> (${Object.keys(wbData).length} tabs) as a live Bohio model. Open it, or ask me to <b>suggest modifications</b> from the fund documents, ERP and Outlook.</div>`; }, 60);
+    setTimeout(()=>{ const s=document.getElementById('wff-model-slot'); if(s) s.innerHTML=`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:11px;line-height:1.6;">Recreated <b>${base}</b> (${Object.keys(wbData).length} tabs) as a live Bohio model. Ask me to <b>suggest modifications</b> from the fund documents, ERP and Outlook.</div>`; }, 60);
+    // Uploading a model means you want to look at it — go straight to the sheet
+    // rather than leaving it parked behind another click.
+    setTimeout(()=>{ if(typeof openEditor==='function') openEditor(doc, {kind:'fund', k}); }, 240);
   }
   // Gather the fund's real context: documents, ERP figures, Outlook threads.
   // ---- Fund Brief — "everything happening now", incl. live/demo Outlook mail ----
