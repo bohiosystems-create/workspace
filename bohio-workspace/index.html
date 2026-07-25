@@ -17446,6 +17446,90 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     L.push(`_Compared against ${req.others.length} other model${req.others.length===1?'':'s'} available in the workspace: ${req.others.slice(0,4).map(m=>m.name).join(', ')}${req.others.length>4?'…':''}._`);
     return L.join('\n');
   }
+  // ---- Money lines are meaningless on their own.
+  // "Profit is SAR 235M" and "the margin is 26.7%" each answer half the
+  // question, and a reader has to hunt for the other half. Every profit, cost
+  // or revenue figure is therefore reported both ways, against a base taken
+  // FROM THE MODEL — computed here rather than left to the model to infer, so
+  // the denominator is a real line in the workbook and never invented.
+  const _MONEY_RE = /profit|surplus|margin|\bcost\b|expense|opex|capex|overrun|contingency|revenue|income|\bnoi\b|proceeds|spend|\bfee\b|saving|equity|debt|value|proceeds/i;
+  function _isMoneyMetric(label){ return _MONEY_RE.test(String(label||'')); }
+  // Candidate denominators, most specific first.
+  const _DUAL_BASES = [
+    {re:/total development cost|total project cost|\btdc\b|total uses|total cost/i,  name:'total development cost'},
+    {re:/total revenue|gross revenue|total income|sell.?out|gross development value|\bgdv\b/i, name:'total revenue'},
+    {re:/total equity|equity (invested|contribution|requirement)/i,                    name:'equity'},
+  ];
+  function _dualBases(){
+    const out=[];
+    _DUAL_BASES.forEach(b=>{
+      for(const t of Object.keys(SHEET_DATA||{})){
+        const s=SHEET_DATA[t]; if(!s||!s.rows) continue;
+        for(const r of s.rows){
+          const lbl=(r.cells&&r.cells[1]||'').trim();
+          if(!lbl || !b.re.test(lbl)) continue;
+          for(let ci=2;ci<r.cells.length;ci++){
+            const n=_cellNum(r.cells[ci]);
+            if(!isNaN(n) && n!==0){ out.push({name:b.name, label:lbl, v:Math.abs(n), sheet:t, ref:(s.cols[ci]||'')+r.cells[0]}); break; }
+          }
+          if(out.some(x=>x.name===b.name)) break;
+        }
+        if(out.some(x=>x.name===b.name)) break;
+      }
+    });
+    return out;
+  }
+  // Which base belongs to which kind of line.
+  function _dualBaseFor(label, bases){
+    const l=String(label||'');
+    const pick=n=>bases.find(b=>b.name===n);
+    if(/margin|profit on revenue/i.test(l))              return pick('total revenue') || pick('total development cost');
+    if(/revenue|income|proceeds|sell.?out|\bgdv\b/i.test(l)) return pick('total revenue');
+    if(/equity|promote|carry/i.test(l))                  return pick('equity') || pick('total development cost');
+    return pick('total development cost') || pick('total revenue');
+  }
+  // Render one money line both ways. Returns null when there is no base to
+  // divide by — better to say nothing than to show a percentage of nothing.
+  function _dualExpress(label, raw, bases){
+    bases = bases || _dualBases();
+    const n=_cellNum(raw); if(isNaN(n)) return null;
+    const base=_dualBaseFor(label, bases); if(!base || !base.v) return null;
+    const isPct=/%$/.test(String(raw));
+    const money=v=>{ const a=Math.abs(v); return (a>=1000? v.toFixed(0) : a>=10 ? v.toFixed(1) : v.toFixed(2)); };
+    if(isPct){
+      const abs=n/100*base.v;
+      return {pct:n, abs, text:`${n}% (${money(abs)} on ${base.name} of ${money(base.v)})`, base};
+    }
+    const pct=n/base.v*100;
+    // A line that IS the base would read "100% of itself" — not worth saying.
+    if(Math.abs(Math.abs(n)-base.v)<1e-9) return null;
+    return {pct, abs:n, text:`${money(n)} (${pct.toFixed(1)}% of ${base.name})`, base};
+  }
+  // The block handed to the model chat: every money line in the workbook,
+  // already expressed both ways, so the agent quotes rather than calculates.
+  function _dualExpressionBlock(){
+    const bases=_dualBases();
+    if(!bases.length) return '';
+    const lines=[];
+    Object.keys(SHEET_DATA||{}).forEach(t=>{
+      const s=SHEET_DATA[t]; if(!s||!s.rows) return;
+      s.rows.forEach(r=>{
+        const lbl=(r.cells&&r.cells[1]||'').trim();
+        if(!lbl || !_isMoneyMetric(lbl)) return;
+        for(let ci=2;ci<r.cells.length;ci++){
+          const raw=r.cells[ci]; if(raw===''||raw==null) continue;
+          if(isNaN(_cellNum(raw))) continue;
+          const d=_dualExpress(lbl, raw, bases);
+          if(d) lines.push(`${t}!${(s.cols[ci]||'')+r.cells[0]} · ${lbl}: ${d.text}`);
+          break;
+        }
+      });
+    });
+    if(!lines.length) return '';
+    return 'BOTH-WAYS FIGURES (already computed — quote these, do not re-derive):\n'
+      + `Bases in this model: ${bases.map(b=>b.name+' = '+b.v.toFixed(1)+' ('+b.sheet+'!'+b.ref+')').join('; ')}\n`
+      + lines.slice(0,60).join('\n');
+  }
   // Read a metric the way the model itself reports it. _metricValue rebuilds an
   // IRR from a cash-flow vector, which is the right answer when the model has
   // one — but plenty of models only carry the metric as a computed cell. In
@@ -17767,6 +17851,144 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   // Content-grounded answer computed locally from the open workbook — so the
   // editor chat gives a REAL, question-specific answer even with no live API
   // key (and a strong fallback when the key is present but the call fails).
+  // ---- Metrics the model does not state, worked out from the lines it does.
+  // A model that carries NOI and revenue implicitly carries the NOI margin;
+  // refusing to answer because there is no row called "NOI margin" pushes
+  // arithmetic back onto the user. Each entry names the two lines to divide,
+  // so the answer can show its working and cite the cells it used.
+  const DERIVED_METRICS = [
+    {k:'NOI margin',        q:/noi (margin|as a (%|percentage))|margin on (the )?noi|noi.*(ratio|to revenue)/i, names:/\bnoi\b|net operating income/i,
+     num:/\bnoi\b|net operating income/i, den:/total revenue|gross revenue|effective gross (revenue|income)|\begi\b|total income|revenue/i, unit:'%', of:'revenue'},
+    {k:'profit margin',     q:/profit margin|margin on revenue|profit as a (%|percentage)/i, names:/\bprofit\b|surplus/i,
+     num:/\bprofit\b|developer surplus|net profit/i, den:/total revenue|gross revenue|\bgdv\b|sell.?out|revenue/i, unit:'%', of:'revenue'},
+    {k:'yield on cost',     q:/yield on cost|\byoc\b|return on cost|development yield/i,
+     num:/\bnoi\b|net operating income/i, den:/total development cost|total project cost|\btdc\b|total cost|total uses/i, unit:'%', of:'total cost'},
+    {k:'opex ratio',        q:/opex (ratio|margin|as a (%|percentage))|operating (cost )?ratio|cost.?to.?income/i, names:/\bopex\b|operating (expense|cost)/i,
+     num:/\bopex\b|operating expense|operating cost/i, den:/total revenue|gross revenue|\begi\b|revenue/i, unit:'%', of:'revenue'},
+    {k:'profit on cost',    q:/profit on cost|margin on cost|\broi\b on cost|return on total cost/i,
+     num:/\bprofit\b|developer surplus/i, den:/total development cost|total cost|total uses/i, unit:'%', of:'total cost'},
+    {k:'debt yield',        q:/debt yield/i,
+     num:/\bnoi\b|net operating income/i, den:/\bdebt\b|loan|senior facility|debt drawn/i, unit:'%', of:'debt'},
+    {k:'implied cap rate',  q:/implied cap|cap rate on (value|exit)|exit yield/i,
+     num:/\bnoi\b|net operating income/i, den:/exit value|sale price|terminal value|gross (asset )?value|\bgav\b/i, unit:'%', of:'exit value'},
+    {k:'loan to cost',      q:/\bltc\b|loan.?to.?cost/i,
+     num:/\bdebt\b|loan|debt drawn/i, den:/total development cost|total cost|total uses/i, unit:'%', of:'total cost'},
+    {k:'loan to value',     q:/\bltv\b|loan.?to.?value/i,
+     num:/\bdebt\b|loan|debt drawn/i, den:/exit value|gross (asset )?value|\bgav\b|market value/i, unit:'%', of:'value'},
+    {k:'contingency cover', q:/contingency (cover|as a (%|percentage)|ratio)/i, names:/contingency/i,
+     num:/contingency/i, den:/hard cost|construction cost|total development cost|total cost/i, unit:'%', of:'cost'},
+    {k:'equity multiple',   q:/equity multiple|\bmoic\b/i,
+     num:/\bprofit\b|developer surplus/i, den:/total equity|equity (invested|contribution|requirement)|\bequity\b/i, unit:'x', of:'equity', plusOne:true},
+  ];
+  function _findMoneyRow(re){
+    for(const t of Object.keys(SHEET_DATA||{})){
+      const s=SHEET_DATA[t]; if(!s||!s.rows) continue;
+      for(const r of s.rows){
+        if(r.style==='empty'||r.style==='section') continue;
+        const lbl=(r.cells&&r.cells[1]||'').trim();
+        if(!lbl || !re.test(lbl)) continue;
+        if(/margin|ratio|yield|per |%/i.test(lbl) && !/noi|revenue|cost|profit|debt|equity/i.test(lbl)) continue;
+        for(let ci=2;ci<r.cells.length;ci++){
+          const raw=r.cells[ci]; if(raw===''||raw==null) continue;
+          const n=_cellNum(raw); if(isNaN(n)||n===0) continue;
+          return {label:lbl, v:n, raw:String(raw), sheet:t, ref:(s.cols[ci]||'')+r.cells[0]};
+        }
+      }
+    }
+    return null;
+  }
+  function _computeDerived(d){
+    const num=_findMoneyRow(d.num), den=_findMoneyRow(d.den);
+    if(!num||!den||!den.v) return null;
+    if(num.label===den.label) return null;         // dividing a line by itself says nothing
+    let v=num.v/Math.abs(den.v);
+    if(d.plusOne) v=v+1;
+    const val = d.unit==='%' ? v*100 : v;
+    return {...d, num, den, value:val};
+  }
+  // "express the NOI as a %" — derive it, show the working, cite the cells.
+  function _deriveMetric(q){
+    const s=String(q||'');
+    // "express the NOI in %" names the line, not the ratio. So: match an
+    // explicitly-named ratio first, then fall back to <money line> + a request
+    // for it in percentage terms, which is how people actually ask.
+    const wantsPct=/\bin\s*%|as a\s*%|as a percent|percentage terms|in percent|what\s*(%|percent)|express[^.]*\b(in|as)\b[^.]*(%|percent)|\bratio\b/i.test(s);
+    const ordered=DERIVED_METRICS.filter(d=>d.q.test(s))
+      .concat(wantsPct ? DERIVED_METRICS.filter(d=>!d.q.test(s) && d.unit==='%' && d.names && d.names.test(s)) : []);
+    // Only fire when the metric is not already a line in the model.
+    for(const d of ordered){
+      if(_findMoneyRow(new RegExp('^\\s*'+d.k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*$','i'))) return null;
+      const r=_computeDerived(d); if(!r) continue;
+      const money=v=>{ const a=Math.abs(v); return a>=1000?v.toFixed(0):a>=10?v.toFixed(1):v.toFixed(2); };
+      const shown = d.unit==='%' ? r.value.toFixed(1)+'%' : r.value.toFixed(2)+'x';
+      const L=[];
+      L.push(`### ${d.k[0].toUpperCase()+d.k.slice(1)} — **${shown}**`);
+      L.push(`The model doesn't carry a **${d.k}** line, so I worked it out from the two it does:`);
+      L.push(`- **${r.num.label}** = **${money(r.num.v)}** · \`${r.num.sheet}!${r.num.ref}\``);
+      L.push(`- **${r.den.label}** = **${money(r.den.v)}** · \`${r.den.sheet}!${r.den.ref}\``);
+      L.push(`- **${d.k}** = ${r.num.label} ÷ ${r.den.label}${d.plusOne?' + 1':''} = **${shown}**`);
+      L.push('');
+      L.push(`In both terms: **${money(r.num.v)}** in absolute, **${shown}** of ${d.of}.`);
+      L.push('');
+      L.push(`Say **"add ${d.k} to the model"** and I'll insert it as a live row so it recalculates with everything else.`);
+      return L.join('\n');
+    }
+    // Generic: "express X as a % of Y" / "X as a percentage of Y".
+    const gen=s.match(/\b([\w\s\-&]{2,40}?)\s+as a (?:%|percentage|percent)(?:\s+of\s+([\w\s\-&]{2,40}))?/i);
+    if(gen){
+      const numRe=new RegExp('\\b'+gen[1].trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
+      const num=_findMoneyRow(numRe); if(!num) return null;
+      let den=null;
+      if(gen[2]) den=_findMoneyRow(new RegExp('\\b'+gen[2].trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
+      if(!den){ const b=_dualBases(); const pick=_dualBaseFor(num.label, b); if(pick) den={label:pick.label, v:pick.v, sheet:pick.sheet, ref:pick.ref}; }
+      if(!den||!den.v||den.label===num.label) return null;
+      const pct=num.v/Math.abs(den.v)*100;
+      const money=v=>{ const a=Math.abs(v); return a>=1000?v.toFixed(0):a>=10?v.toFixed(1):v.toFixed(2); };
+      return [`### ${num.label} as a percentage — **${pct.toFixed(1)}%**`,
+        `Not stated in the model, so I derived it:`,
+        `- **${num.label}** = **${money(num.v)}** · \`${num.sheet}!${num.ref}\``,
+        `- ÷ **${den.label}** = **${money(den.v)}** · \`${den.sheet}!${den.ref}\``,
+        '',
+        `In both terms: **${money(num.v)}** in absolute, **${pct.toFixed(1)}%** of ${den.label.toLowerCase()}.`].join('\n');
+    }
+    return null;
+  }
+  // Every derived metric this workbook can support — handed to the agent so it
+  // can answer without re-deriving, and without claiming the model lacks them.
+  function _derivedBlock(){
+    const rows=[];
+    DERIVED_METRICS.forEach(d=>{
+      const r=_computeDerived(d); if(!r) return;
+      const shown = d.unit==='%' ? r.value.toFixed(1)+'%' : r.value.toFixed(2)+'x';
+      rows.push(`${d.k} = ${shown}  [${r.num.label} (${r.num.sheet}!${r.num.ref}) ÷ ${r.den.label} (${r.den.sheet}!${r.den.ref})${d.plusOne?' + 1':''}]`);
+    });
+    if(!rows.length) return '';
+    return 'DERIVED METRICS (not stated as rows, computed from the lines above — quote these):\n'+rows.join('\n');
+  }
+  // Given a question naming a money line, return the both-ways sentence for it.
+  function _dualForAnswer(q){
+    if(typeof _dualExpress!=='function') return '';
+    const bases=_dualBases(); if(!bases.length) return '';
+    const words=(String(q).match(/[A-Za-z][A-Za-z\-]{2,}/g)||[])
+      .filter(w=>!/^(what|the|is|are|of|and|for|model|this|that|tell|about|explain|show|give|does|how|why|please|can|you)$/i.test(w))
+      .sort((a,b)=>b.length-a.length);
+    for(const w of words){
+      const re=new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
+      for(const t of Object.keys(SHEET_DATA||{})){
+        const s=SHEET_DATA[t]; if(!s||!s.rows) continue;
+        for(const r of s.rows){
+          const lbl=(r.cells&&r.cells[1]||'').trim();
+          if(!lbl || !re.test(lbl) || !_isMoneyMetric(lbl)) continue;
+          for(let ci=2;ci<r.cells.length;ci++){
+            const raw=r.cells[ci]; if(raw===''||raw==null||isNaN(_cellNum(raw))) continue;
+            const d=_dualExpress(lbl, raw, bases);
+            return d ? `In both terms: **${lbl}** is **${d.text}**.` : '';
+          }
+        }
+      }
+    }
+    return '';
+  }
   function _editorLocalAnswer(q){
     const tabs=Object.keys(SHEET_DATA);
     const findRow=(re)=>{ for(const t of tabs){ for(const r of SHEET_DATA[t].rows){ if(r.style!=='empty'&&r.style!=='section'&&re.test(_rowLabel(r))) return {r,tab:t}; } } return null; };
@@ -17789,7 +18011,13 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     if(reit) return reit;
     // 2) a known financial metric named in the query (IRR, NOI, DSCR, yield…)
     const met=_matchMetric(q);
-    if(met) return met;
+    if(met){
+      if(typeof _isMoneyMetric==='function' && _isMoneyMetric(q)){
+        const add=_dualForAnswer(q);
+        if(add) return met+' '+add;
+      }
+      return met;
+    }
     // 3) model-level: describe / summarise / overview / what is this model
     if(/\b(describe|summar|overview|walk me through|what (is|does)|explain the model)\b/i.test(q) && !/\b(dscr|noi|irr|yield|opex|revenue|debt|capex|multiple|escalat|rent|cap rate|occupanc)\b/i.test(q))
       return _describeModelFallback();
@@ -17798,7 +18026,14 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     for(const w of words.sort((a,b)=>b.length-a.length)){
       const hit=findRow(new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
       if(hit){ const vals=hit.r.cells.slice(2).filter(v=>v!==''); const f=(hit.r.formulas||[]).filter(x=>x)[0];
-        return `**${hit.r.cells[1]}** (${hit.tab}) runs ${vals.join(' → ')}`+(f?`, calculated as \`${f}\``:'')+`. Want me to change it or trace what drives it?`; }
+        const lbl=hit.r.cells[1];
+        // A money line is never reported one way only.
+        let both='';
+        if(typeof _isMoneyMetric==='function' && _isMoneyMetric(lbl)){
+          const d=_dualExpress(lbl, vals[vals.length-1]);
+          if(d) both=` That latest figure is **${d.text}**.`;
+        }
+        return `**${lbl}** (${hit.tab}) runs ${vals.join(' → ')}`+(f?`, calculated as \`${f}\``:'')+`.`+both+` Want me to change it or trace what drives it?`; }
     }
     // 4) assumptions / drivers / risks
     if(/\b(assumption|driver|input|risk|lever)/i.test(q)){
@@ -17957,6 +18192,10 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // Market-data pull (Paseetah) and deterministic solvers run first (math,
     // not narration) so they work with or without a live API key.
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
+    // "express the NOI as a %" — a ratio the model doesn't carry is still
+    // answerable from the lines it does, with the working shown.
+    { const _d = (typeof _deriveMetric==='function') ? _deriveMetric(q) : null;
+      if (_d) { bot.innerHTML = _fmtDiscountSections(_d) + '<span class="k-meta">Karaya · derived from the model</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // "how does this compare to the Fund II model" — read the other workbook
     // rather than describing it, since the platform holds both.
     { const _c = (typeof _modelCompareText==='function') ? _modelCompareText(q) : null;
@@ -18016,10 +18255,18 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // workbook for describe-ish questions, the active sheet otherwise.
     const wantsWhole = !applied && /\b(describe|summar|overview|what (is|does)|explain the model|walk me|tell me about|assumption|risk|driver)\b/i.test(q);
     const _others = dumpOtherModels();
+    const _dual = (typeof _dualExpressionBlock==='function') ? _dualExpressionBlock() : '';
+    const _derv = (typeof _derivedBlock==='function') ? _derivedBlock() : '';
     const grounding = 'MODEL MAP (every tab & line — full scope):\n' + dumpWorkbookIndex() + '\n\n' +
       (wantsWhole ? ('WORKBOOK (all tabs):\n' + dumpWorkbook()) : ('ACTIVE SHEET (' + sheetName + ') in detail:\n' + dumpSheet(sheetName))) +
+      (_dual ? ('\n\n' + _dual) : '') +
+      (_derv ? ('\n\n' + _derv) : '') +
       (_others ? ('\n\n' + _others) : '');
     const prompt = `You are Karaya, embedded in the Bohio financial-model editor. The open model is "${modelName}" (${Object.keys(SHEET_DATA).length} tabs: ${Object.keys(SHEET_DATA).join(', ')}). ${applied ? ('You just applied this change to the model: ' + applied + '. Confirm it briefly and note the key downstream impact.') : 'When asked to DESCRIBE or SUMMARISE the model, explain in plain language what it represents (asset/deal type, the horizon), the main revenue and cost drivers, the key assumptions, and the headline returns — citing the actual figures. You can also explain a formula, run a what-if, change a cell ("set B8 to -2.10"), add/remove a metric, or add a sheet.'} Ground every answer strictly in the data below — cite real labels and figures. The MODEL MAP gives you the full scope of every tab and line; use it to locate any metric wherever it lives. ${RE_LINGO_NOTE} The data below IS the complete imported workbook (tabs marked "+N more rows" have additional rows not shown; tabs with no populated cells are marked as such): never claim the model failed to load — if a figure isn't visible, name the tab whose lines are closest and answer from what is present. Be specific and concise (3-6 sentences or short bullets), plain text, **bold** key figures. Don't invent line items that aren't present.
+
+ALWAYS BOTH WAYS: whenever you quote a profit, cost, revenue or margin figure, give the absolute amount AND the percentage, and name what the percentage is of — e.g. "profit of **235.6** (**26.7%** of total development cost)" or "the margin is **18.4%** (**214.0** on total revenue)". The BOTH-WAYS FIGURES block below has these already computed against real lines in this workbook: quote them. If a figure you need is not in that block, state the absolute and say which line you would divide by rather than inventing a denominator. This applies to every profit and cost metric, every time, including inside tables and bullet lists.
+
+DERIVE WHAT ISN'T THERE: if the user asks for a metric the model does not carry as a row — an NOI margin, a yield on cost, an opex ratio, a cost per sqm — work it out from the lines that ARE present instead of saying it is not in the model. Show the two lines you divided, with their cell references, then give the result. The DERIVED METRICS block below lists the ones already computed for this workbook; if the one asked for is not there, derive it the same way from the MODEL MAP. Only say a metric cannot be produced if the components genuinely do not exist, and then name what is missing.
 
 ${grounding}
 
@@ -19146,6 +19393,10 @@ Answer as Karaya:`;
     msgs.scrollTop = msgs.scrollHeight;
     if (typeof _maybeAssumptionForm === 'function' && _maybeAssumptionForm(q, msgs)) { bot.remove(); return; }
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
+    // "express the NOI as a %" — a ratio the model doesn't carry is still
+    // answerable from the lines it does, with the working shown.
+    { const _d = (typeof _deriveMetric==='function') ? _deriveMetric(q) : null;
+      if (_d) { bot.innerHTML = _fmtDiscountSections(_d) + '<span class="k-meta">Karaya · derived from the model</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // "how does this compare to the Fund II model" — read the other workbook
     // rather than describing it, since the platform holds both.
     { const _c = (typeof _modelCompareText==='function') ? _modelCompareText(q) : null;
