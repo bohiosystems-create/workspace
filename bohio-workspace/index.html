@@ -21276,6 +21276,19 @@ Answer as Karaya:`;
   // prompts. Persisted in localStorage so it survives reloads.
   window.DEMO_USER = { name: 'Matteo Bevilacqua', first: 'Matteo', initials: 'MB', email: 'matteo@bohio.io' };
 
+  // The welcome heading shows the full name typed at sign-in, not just the
+  // first word — an org-style name like "Adel Real Estate Team" should read
+  // in full, not "Welcome, Adel". Its base size/tracking are tuned for a short
+  // first name, so a long name backs off the font size and letter-spacing in
+  // steps so it still fits the fixed-width landing column on one line.
+  function _fitWelcomeText(el){
+    if(!el) return;
+    const base=38, baseTrack=0.42, minScale=0.5;
+    const len=(el.textContent||'').length;
+    const scale = len<=16 ? 1 : Math.max(minScale, 1 - (len-16)*0.022);
+    el.style.fontSize = (base*scale).toFixed(1)+'px';
+    el.style.letterSpacing = (baseTrack*Math.max(scale,0.72)).toFixed(3)+'em';
+  }
   function deriveUser(name, email) {
     name = (name || '').trim().replace(/\s+/g, ' ') || 'Matteo Bevilacqua';
     const parts = name.split(' ');
@@ -21294,7 +21307,7 @@ Answer as Karaya:`;
       if (k === 'name') el.textContent = u.name;
       else if (k === 'initials') el.textContent = u.initials;
       else if (k === 'first') el.textContent = u.first;
-      else if (k === 'welcome') el.textContent = 'Welcome, ' + u.first;
+      else if (k === 'welcome') { el.textContent = 'Welcome, ' + u.name; _fitWelcomeText(el); }
       else if (k === 'account') el.textContent = u.name + ' · ' + u.email;
     });
     const si = document.getElementById('set-username-input'); if (si) si.value = u.name;
