@@ -13620,6 +13620,23 @@ Reply as the agent:`;
     // builds it in the Contracts section (the demo runs by prompt, not button).
     if (typeof _maybeBuildLeaseFromChat === 'function' && _maybeBuildLeaseFromChat(q, bot, msgs)) return;
 
+    // "request the cost-to-complete report from the development team" — Karaya
+    // raises a formal document request with the Development agent, which
+    // acknowledges it, issues the document and gets it reviewed back.
+    if (typeof _detectDevDocRequest === 'function') {
+      const _ddoc = _detectDevDocRequest(q);
+      if (_ddoc) {
+        bot.remove();
+        _runDevDocRequest(_ddoc, q, (html, meta)=>{
+          const b=document.createElement('div'); b.className='k-msg bot';
+          b.innerHTML = html + (meta?`<span class="k-meta">${meta}</span>`:'');
+          msgs.appendChild(b); msgs.scrollTop = msgs.scrollHeight;
+        });
+        KARAYA_HISTORY.push({role:'user',text:q});
+        KARAYA_HISTORY.push({role:'karaya',text:'[raised a document request with the Development team: '+_ddoc.title+']'});
+        return;
+      }
+    }
     // If the question is addressed to a department, Karaya consults that
     // department's agent — honouring what it's allowed to disclose (Settings).
     if (typeof _routeToDeptAgent === 'function' && _routeToDeptAgent(q, bot, msgs)) return;
@@ -24606,7 +24623,249 @@ ${ctx.mailCtx}`;
   function _wfDevSectionHTML(f, k){
     const ids=_wfDevProjectsFor(k);
     const cards = ids.length ? ids.map(id=>_wfDevProfileCardHTML(id)).join('') : `<div style="font-size:11px;color:var(--ink-soft);padding:16px 0;text-align:center;">No development data yet for this fund's projects.</div>`;
-    return cards + _wfDevChatHTML(f, k, !!ids.length);
+    return _devDocRequestPanelHTML(k) + cards + _wfDevChatHTML(f, k, !!ids.length);
+  }
+
+  // ============ AGENT-TO-AGENT DOCUMENT REQUEST ============
+  // The investment team asks Karaya for a document the DEVELOPMENT team owns.
+  // Karaya raises a formal request with the Development agent (respecting the
+  // agent-governance guardrails), the Development agent acknowledges it and
+  // delivers the document, and Karaya then reviews it against the underwriting.
+  // The canonical investments → development deliverable is the monthly
+  // Cost-to-Complete / Anticipated Final Cost report: it is what the investment
+  // team needs to re-forecast drawdowns, check budget variance and report to IC.
+  const DEV_DOC_CATALOG = {
+    ctc: { id:'ctc', title:'Cost-to-Complete & Anticipated Final Cost Report',
+      short:'Cost-to-Complete Report', owner:'Development · Cost Management', preparer:'Turner International (PM)',
+      sla:'3 business days', freq:'Monthly',
+      why:'Re-forecast equity drawdowns, verify budget variance and support the IC / LP reporting pack.',
+      contents:['Anticipated Final Cost (AFC) vs sanctioned budget, by cost code','Cost incurred to date, committed and cost-to-complete','Variation / change-order register with status and value','Contingency drawdown and remaining balance','Cashflow forecast (S-curve) for the next 6 periods','Programme status and any cost-impacting delay events'],
+      cat:'cost' },
+    prog: { id:'prog', title:'Monthly Programme & Milestone Report', short:'Programme Report',
+      owner:'Development · Planning', preparer:'Turner International (PM)', sla:'2 business days', freq:'Monthly',
+      why:'Confirm the delivery date underpinning the lease-up and exit assumptions.',
+      contents:['Critical-path status and float','Milestone tracker vs baseline','Delay events and recovery plan','Look-ahead programme'],
+      cat:'programme' },
+  };
+  let DOC_REQUESTS = [];
+  let _docReqSeq = 0;
+  // Which project is this request about? (default to the fund's lead dev asset)
+  function _devDocProject(q, k){
+    const ids = _wfDevProjectsFor(k||_wfCurrentFundK||'fund2');
+    const named = Object.keys(P).map(Number).find(id => new RegExp('\\b'+String(P[id].name).split(' ')[0]+'\\b','i').test(q||''));
+    if (named && WF_DEV_DATA[named]) return named;
+    return ids[0] || 1;
+  }
+  function _detectDevDocRequest(q){
+    const s = String(q||'');
+    const wantsRequest = /\b(request|ask|obtain|get|chase|order|require)\b/i.test(s);
+    const toDev = /\bdevelopment (team|department|agent)\b|\bdev team\b|\bproject management team\b|\bpm team\b/i.test(s);
+    const ctcHit = /cost.?to.?complete|anticipated final cost|\bafc\b|cost report|development report|cost.?to.?completion/i.test(s);
+    const progHit = /programme report|schedule report|milestone report/i.test(s);
+    if (!(ctcHit || progHit)) { if (!(wantsRequest && toDev && /\bdocument|\breport\b|\bpack\b/i.test(s))) return null; }
+    if (!wantsRequest && !toDev) return null;
+    return DEV_DOC_CATALOG[progHit && !ctcHit ? 'prog' : 'ctc'];
+  }
+  // ---- the numbers behind the report: ERP cost ledger + development profile
+  function _ctcData(pid){
+    const erp = (typeof PROJECT_ERP!=='undefined') ? PROJECT_ERP[pid] : null;
+    const dev = (typeof WF_DEV_DATA!=='undefined') ? WF_DEV_DATA[pid] : null;
+    if (!erp || !dev) return null;
+    const s = erp.summary;
+    const budget=s.budget.v, committed=s.committed.v, actual=s.actual.v, afc=s.forecast.v;
+    const ctc = +(afc - actual).toFixed(1);
+    const variance = +(afc - budget).toFixed(1);
+    const variancePct = +(variance/budget*100).toFixed(1);
+    // Per-code AFC. Everything except contingency forecasts at budget (plus the
+    // instructed construction variations); contingency then absorbs the balance
+    // so the code table always reconciles exactly to the headline AFC.
+    const raw = (erp.costCodes||[]).map(c=>({ c, isCont:/CONT/.test(c.code),
+      afc: +(Math.max(c.b, c.c) + (c.code==='03-CONS' ? 8.0 : 0)).toFixed(1) }));
+    const nonContTotal = +raw.filter(x=>!x.isCont).reduce((a,b)=>a+b.afc,0).toFixed(1);
+    const codes = raw.map(x=>{
+      const codeAfc = x.isCont ? +(afc - nonContTotal).toFixed(1) : x.afc;
+      const c = x.c;
+      return { code:c.code, name:c.name, budget:c.b, committed:c.c, actual:c.a, afc:codeAfc, ctc:+(Math.max(0,codeAfc-c.a)).toFixed(1), varc:+(codeAfc-c.b).toFixed(1) };
+    });
+    const variations = [
+      { ref:'VO-014', desc:'Façade setback redesign — heritage overlay', value:6.4, status:'Approved' },
+      { ref:'VO-017', desc:'Basement dewatering — additional depth', value:3.1, status:'Approved' },
+      { ref:'VO-019', desc:'MEP riser reroute (client-driven)', value:1.8, status:'Under review' },
+      { ref:'VO-021', desc:'Lobby stone upgrade — sales-led spec change', value:2.2, status:'Under review' },
+    ];
+    const voApproved = +variations.filter(v=>v.status==='Approved').reduce((a,b)=>a+b.value,0).toFixed(1);
+    const voPending = +variations.filter(v=>v.status!=='Approved').reduce((a,b)=>a+b.value,0).toFixed(1);
+    const contCode = (erp.costCodes||[]).find(c=>/CONT/.test(c.code));
+    const contBudget = contCode?contCode.b:0, contUsed = contCode?contCode.a:0;
+    const sCurve = [
+      {p:'Aug 26', v:+(actual*0.20).toFixed(1)}, {p:'Sep 26', v:+(actual*0.34).toFixed(1)},
+      {p:'Oct 26', v:+(actual*0.50).toFixed(1)}, {p:'Nov 26', v:+(actual*0.68).toFixed(1)},
+      {p:'Dec 26', v:+(actual*0.85).toFixed(1)}, {p:'Jan 27', v:+(actual*1.00).toFixed(1)},
+    ];
+    return { erp, dev, budget, committed, actual, afc, ctc, variance, variancePct, codes, variations, voApproved, voPending, contBudget, contUsed, contLeft:+(contBudget-contUsed).toFixed(1), sCurve, name:P[pid].name };
+  }
+  function _ctcDocBody(pid){
+    const d=_ctcData(pid); if(!d) return '<p>No cost data available for this asset.</p>';
+    const money=n=>'SAR '+Number(n).toFixed(1)+'M';
+    const over=d.variance>0;
+    const row=(c)=>`<tr><td style="padding:5px 7px;font-family:monospace;font-size:10px;">${c.code}</td><td style="padding:5px 7px;">${c.name}</td>
+      <td style="padding:5px 7px;text-align:right;">${c.budget.toFixed(1)}</td><td style="padding:5px 7px;text-align:right;">${c.committed.toFixed(1)}</td>
+      <td style="padding:5px 7px;text-align:right;">${c.actual.toFixed(1)}</td><td style="padding:5px 7px;text-align:right;">${c.ctc.toFixed(1)}</td>
+      <td style="padding:5px 7px;text-align:right;font-weight:700;">${c.afc.toFixed(1)}</td>
+      <td style="padding:5px 7px;text-align:right;color:${c.varc>0?'#b51e3b':'#15803d'};">${c.varc>0?'+':''}${c.varc.toFixed(1)}</td></tr>`;
+    return `
+      <p style="margin:0 0 4px;"><b>Asset:</b> ${d.name} &nbsp;·&nbsp; <b>Reporting period:</b> July 2026 &nbsp;·&nbsp; <b>Prepared by:</b> ${DEV_DOC_CATALOG.ctc.preparer}</p>
+      <p style="margin:0 0 14px;"><b>Issued to:</b> Investment Team, Bohio Capital Partners &nbsp;·&nbsp; <b>Source:</b> ${d.erp.system} (${d.erp.code}), synced ${d.erp.lastSync}</p>
+
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:16px 0 8px;">1. Headline position</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+        <tbody>
+          <tr><td style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">Sanctioned budget</td><td style="padding:6px 8px;text-align:right;border-bottom:1px solid #d7d2c7;"><b>${money(d.budget)}</b></td></tr>
+          <tr><td style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">Committed to date</td><td style="padding:6px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">${money(d.committed)}</td></tr>
+          <tr><td style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">Cost incurred to date</td><td style="padding:6px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">${money(d.actual)}</td></tr>
+          <tr><td style="padding:6px 8px;border-bottom:1px solid #d7d2c7;">Cost to complete</td><td style="padding:6px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">${money(d.ctc)}</td></tr>
+          <tr><td style="padding:6px 8px;"><b>Anticipated Final Cost (AFC)</b></td><td style="padding:6px 8px;text-align:right;"><b>${money(d.afc)}</b></td></tr>
+          <tr><td style="padding:6px 8px;">Variance to sanctioned budget</td><td style="padding:6px 8px;text-align:right;color:${over?'#b51e3b':'#15803d'};"><b>${over?'+':''}${money(d.variance)} (${over?'+':''}${d.variancePct}%)</b></td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:8px;">Physical completion <b>${d.dev.pctComplete}%</b>; contractor <b>${d.dev.contractor}</b> on a <b>${d.dev.deliveryMethod}</b> basis; target completion <b>${d.dev.targetCompletion}</b>.</p>
+
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:18px 0 8px;">2. Cost breakdown by code (SAR M)</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 7px;border-bottom:1px solid #d7d2c7;">Code</th>
+          <th style="text-align:left;padding:6px 7px;border-bottom:1px solid #d7d2c7;">Package</th>
+          <th style="text-align:right;padding:6px 7px;border-bottom:1px solid #d7d2c7;">Budget</th>
+          <th style="text-align:right;padding:6px 7px;border-bottom:1px solid #d7d2c7;">Committed</th>
+          <th style="text-align:right;padding:6px 7px;border-bottom:1px solid #d7d2c7;">Actual</th>
+          <th style="text-align:right;padding:6px 7px;border-bottom:1px solid #d7d2c7;">CTC</th>
+          <th style="text-align:right;padding:6px 7px;border-bottom:1px solid #d7d2c7;">AFC</th>
+          <th style="text-align:right;padding:6px 7px;border-bottom:1px solid #d7d2c7;">Var.</th>
+        </tr></thead>
+        <tbody>${d.codes.map(row).join('')}
+          <tr style="font-weight:700;border-top:2px solid #000919;">
+            <td style="padding:6px 7px;"></td><td style="padding:6px 7px;">Total</td>
+            <td style="padding:6px 7px;text-align:right;">${d.budget.toFixed(1)}</td>
+            <td style="padding:6px 7px;text-align:right;">${d.committed.toFixed(1)}</td>
+            <td style="padding:6px 7px;text-align:right;">${d.actual.toFixed(1)}</td>
+            <td style="padding:6px 7px;text-align:right;">${d.ctc.toFixed(1)}</td>
+            <td style="padding:6px 7px;text-align:right;">${d.afc.toFixed(1)}</td>
+            <td style="padding:6px 7px;text-align:right;color:${d.variance>0?'#b51e3b':'#15803d'};">${d.variance>0?'+':''}${d.variance.toFixed(1)}</td>
+          </tr></tbody>
+      </table>
+
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:18px 0 8px;">3. Variation / change-order register</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+        <thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Ref</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Description</th><th style="text-align:right;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Value (SAR M)</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Status</th></tr></thead>
+        <tbody>${d.variations.map(v=>`<tr><td style="padding:5px 8px;font-family:monospace;font-size:10px;">${v.ref}</td><td style="padding:5px 8px;">${v.desc}</td><td style="padding:5px 8px;text-align:right;">${v.value.toFixed(1)}</td><td style="padding:5px 8px;">${v.status}</td></tr>`).join('')}</tbody>
+      </table>
+      <p style="margin-top:8px;">Approved variations <b>${money(d.voApproved)}</b>; pending <b>${money(d.voPending)}</b>. Pending items are <b>not</b> yet included in the AFC above.</p>
+
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:18px 0 8px;">4. Contingency</h4>
+      <p>Contingency budget <b>${money(d.contBudget)}</b>, drawn <b>${money(d.contUsed)}</b>, remaining <b>${money(d.contLeft)}</b> — equal to <b>${(d.contLeft/Math.max(d.ctc,1)*100).toFixed(1)}%</b> of the remaining cost to complete.</p>
+
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:18px 0 8px;">5. Cashflow forecast (cumulative drawdown, SAR M)</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
+        <thead><tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Period</th><th style="text-align:right;padding:6px 8px;border-bottom:1px solid #d7d2c7;">Cumulative spend</th></tr></thead>
+        <tbody>${d.sCurve.map(x=>`<tr><td style="padding:5px 8px;">${x.p}</td><td style="padding:5px 8px;text-align:right;">${x.v.toFixed(1)}</td></tr>`).join('')}</tbody>
+      </table>
+
+      <h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:18px 0 8px;">6. Development team declaration</h4>
+      <p>The Anticipated Final Cost stated above reflects all instructed variations and the cost consultant's assessment as at the reporting date. Pending variations and any unresolved contractor claims are disclosed in Section 3 and excluded from the AFC until instructed.</p>
+      <p style="margin-top:16px;border-top:1px solid #d7d2c7;padding-top:12px;"><em>Prepared by ${DEV_DOC_CATALOG.ctc.preparer} for the Development team · Issued to the Investment team via Bohio Workspace · Figures drawn live from ${d.erp.system}.</em></p>`;
+  }
+  function _openCtcReport(reqId){
+    const r = DOC_REQUESTS.find(x=>x.id===reqId); if(!r) return;
+    openReadableDoc({ type:'PDF', name:r.doc.title+' — '+P[r.pid].name, version:'v.01 · '+DEV_DOC_CATALOG.ctc.freq+' · Development team',
+      docBody: r.doc.id==='ctc' ? _ctcDocBody(r.pid) : _ctcDocBody(r.pid), karayaPdf:true,
+      pdfFoot:'Issued by the Development team in response to request '+r.ref+' from the Investment team. Figures drawn live from the ERP cost ledger.' });
+  }
+  // ---- the tracker shown in a fund's Development section
+  function _devDocRequestPanelHTML(k){
+    const mine = DOC_REQUESTS.filter(r=>r.k===k);
+    const statusChip=(s)=>{ const c={Requested:['rgba(180,83,9,0.14)','#b45309'],Acknowledged:['rgba(37,99,235,0.14)','#2563eb'],Delivered:['rgba(21,128,61,0.14)','#15803d']}[s]||['rgba(0,9,25,0.07)','#475569'];
+      return `<span style="flex-shrink:0;font-size:7.5px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:999px;background:${c[0]};color:${c[1]};">${s}</span>`; };
+    const rows = mine.map(r=>`<div style="border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 14px;margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div style="min-width:0;"><div style="font-size:11.5px;font-weight:700;line-height:1.35;">${r.doc.title}</div>
+          <div style="font-size:9px;color:var(--ink-soft);margin-top:2px;">${r.ref} · ${P[r.pid].name} · requested by the Investment team · due ${r.due}</div></div>
+        ${statusChip(r.status)}
+      </div>
+      ${r.status==='Delivered'?`<div style="display:flex;gap:7px;margin-top:9px;"><button class="wf-btn ghost" style="font-size:9.5px;padding:5px 11px;" onclick="_openCtcReport('${r.id}')">Open document</button></div>`:''}
+    </div>`).join('');
+    return `<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 17px;margin-bottom:16px;background:linear-gradient(180deg,rgba(37,99,235,0.05),transparent);">
+      <div style="font-size:8px;letter-spacing:0.28em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Agent-to-agent</div>
+      <div style="font-family:var(--font-display);font-size:16px;margin-top:3px;">Request a document from the Development team</div>
+      <p style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin:7px 0 11px;">Ask Karaya and it raises a formal request with the <b style="color:var(--ink);">Development agent</b>, which acknowledges it, prepares the document from the live ERP cost ledger and issues it back to the Investment team.</p>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+        <button class="wf-btn" onclick="_devDocPreset('${k}','Request the cost-to-complete report from the development team')">Request the Cost-to-Complete Report</button>
+        <button class="wf-btn ghost" onclick="_devDocPreset('${k}','Request the monthly programme report from the development team')">Request the Programme Report</button>
+      </div>
+      ${mine.length?`<div style="font-size:8px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin:15px 0 2px;">Open requests</div>${rows}`:''}
+    </div>`;
+  }
+  function _devDocPreset(k, text){
+    const inp=document.getElementById('wfdev-input-'+k);
+    if(inp){ inp.value=text; _wfDevAsk(k); }
+  }
+  // ---- the agent exchange itself. `emit(html, meta)` appends one chat bubble;
+  // the caller supplies it so this works from any chatbot in the platform.
+  function _runDevDocRequest(doc, q, emit, onDone){
+    const k = _wfCurrentFundK || 'fund2';
+    const pid = _devDocProject(q, k);
+    const d = _ctcData(pid);
+    const ref = 'DR-2026-'+String(1041 + (++_docReqSeq)).slice(0,4);
+    const req = { id:'req'+_docReqSeq, ref, k, pid, doc, status:'Requested', due:'29 Jul 2026' };
+    DOC_REQUESTS.push(req);
+    const money=n=>'SAR '+Number(n).toFixed(1)+'M';
+    // 1 — Karaya raises the formal request on behalf of the Investment team
+    emit(_fmtDiscountSections(
+      `### Request raised with the Development team\n`+
+      `- **Reference:** ${ref} · **Asset:** ${P[pid].name}\n`+
+      `- **Document:** ${doc.title} (${doc.freq})\n`+
+      `- **Requested by:** Investment team · **Owner:** ${doc.owner}\n`+
+      `- **Why we need it:** ${doc.why}\n`+
+      `- **Required contents:**\n`+doc.contents.map(c=>'   - '+c).join('\n')+`\n`+
+      `- **Format:** PDF + the underlying cost ledger · **Due:** ${req.due} (SLA ${doc.sla})`
+    ), 'Karaya · Investment team → Development team');
+    // 2 — the Development agent acknowledges
+    setTimeout(()=>{
+      req.status='Acknowledged';
+      emit(fmtKaraya(
+        `**Development agent — acknowledged.** Request **${ref}** is logged against **${P[pid].name}**. `+
+        `${doc.preparer} is preparing it from the **${d?d.erp.system:'ERP'}** cost ledger (${d?d.erp.code:''}, last synced ${d?d.erp.lastSync:'today'}). `+
+        `I'll issue it to the Investment team within the ${doc.sla} SLA.`
+      ), 'Development agent · '+doc.owner);
+      if(typeof _wfFundDetail==='function' && _wfCurrentFundK===k && document.getElementById('wf-overlay')?.classList.contains('open') && _wfFundLastSec==='development'){ /* refreshed on delivery */ }
+      // 3 — the Development agent delivers the document
+      setTimeout(()=>{
+        req.status='Delivered';
+        const card = `<div style="border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 13px;margin-top:9px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div style="min-width:0;"><div style="font-size:11px;font-weight:700;">${doc.title}</div>
+          <div style="font-size:9px;color:var(--ink-soft);margin-top:2px;">${ref} · ${P[pid].name} · PDF · issued by ${doc.preparer}</div></div>
+          <button class="wf-btn" style="flex-shrink:0;font-size:9.5px;padding:6px 12px;" onclick="_openCtcReport('${req.id}')">Open document</button></div>`;
+        emit(fmtKaraya(`**Development agent — delivered.** The ${doc.short} for **${P[pid].name}** is attached and filed against request **${ref}**.`)+card, 'Development agent · delivered');
+        // 4 — Karaya reviews it back for the Investment team
+        setTimeout(()=>{
+          if(d){
+            const over=d.variance>0;
+            emit(_fmtDiscountSections(
+              `### My read for the Investment team\n`+
+              `- **AFC ${money(d.afc)}** against a sanctioned budget of **${money(d.budget)}** — a **${over?'+':''}${d.variancePct}%** ${over?'overrun':'saving'} (${over?'+':''}${money(d.variance)}).\n`+
+              `- **Cost to complete ${money(d.ctc)}**; contingency remaining **${money(d.contLeft)}**, or **${(d.contLeft/Math.max(d.ctc,1)*100).toFixed(1)}%** of the remaining spend — ${d.contLeft/Math.max(d.ctc,1)<0.06?'thin cover for a project at this stage':'adequate cover at this stage'}.\n`+
+              `- **${money(d.voPending)} of variations are still pending** and sit outside the AFC. If both are instructed the overrun moves to **${money(+(d.variance+d.voPending).toFixed(1))}**.\n`+
+              `- Physical completion **${d.dev.pctComplete}%** vs **${(d.actual/d.afc*100).toFixed(0)}%** of the AFC already spent — spend is running ${((d.actual/d.afc*100)-d.dev.pctComplete)>3?'**ahead of** physical progress':'broadly in line with physical progress'}.\n\n`+
+              `### What I'd do next\n`+
+              `- Re-run the fund model on the **${money(d.afc)}** AFC and re-forecast the equity drawdown schedule.\n`+
+              `- Put the two pending variations (**${money(d.voPending)}**) to the Investment Committee before they are instructed.\n`+
+              `- Ask the Development team to confirm the contingency drawdown policy for the remaining ${money(d.ctc)}.`
+            ), 'Karaya · review for the Investment team');
+          }
+          if(typeof onDone==='function') onDone(req);
+        }, 900);
+      }, 1100);
+    }, 900);
+    return req;
   }
   // ---- Inline SVG charts (no external lib) for the Fund performance section.
   function _svgBars(groups, opts){
@@ -24821,6 +25080,18 @@ ${ctx.mailCtx}`;
       const el=document.getElementById(`wfdev-chat-b-${k}-${bi}`);
       _krGenerateFileInto(q, el, '').then(()=>{ if(el) f._devChat[bi].html=el.innerHTML; });
       return;
+    }
+    // "request the cost-to-complete report from the development team" → the
+    // agent-to-agent document request runs right here in this chat.
+    if(typeof _detectDevDocRequest==='function'){
+      const doc=_detectDevDocRequest(q);
+      if(doc){
+        _runDevDocRequest(doc, q, (html, meta)=>{
+          f._devChat.push({cls:'bot', html: html + (meta?`<span class="k-meta">${meta}</span>`:'')});
+          _wfDevRender(k);
+        }, ()=>{ if(_wfCurrentFundK===k && _wfFundLastSec==='development') _wfFundDetail(k,'development'); });
+        return;
+      }
     }
     const ids=_wfDevProjectsFor(k);
     const named=ids.find(id=>new RegExp('\\b'+P[id].name.split(' ')[0].toLowerCase()+'\\b','i').test(q));
