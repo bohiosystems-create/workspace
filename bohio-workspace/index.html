@@ -17330,34 +17330,85 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   // model actually responds to, solves each one independently, and ranks the
   // routes to the target by how far the driver has to move. Answering "which
   // cell is the IRR in" is useless here — the question is what has to change.
+  // ---- How people ask "what do I change to move this number?"
+  // Kept as named pieces rather than one growing regex, because the phrasing
+  // varies far more than the intent does. Anything that names a lever, or a
+  // verb of moving a metric, or a route to a value, is the same question.
+  const _LEVER_NOUN = /\b(levers?|drivers?|inputs?|assumptions?|variables?|knobs?|dials?|factors?|sensitivit(?:y|ies)|moving parts?)\b/i;
+  const _UP_VERB    = /\b(improve|increase|raise|lift|boost|push|drive|grow|enhance|uplift|maximi[sz]e|optimi[sz]e|strengthen|better|higher|up)\b/i;
+  const _DOWN_VERB  = /\b(reduce|lower|cut|decrease|shrink|trim|minimi[sz]e|bring down|pull down|down)\b/i;
+  const _LEVER_SHAPES = [
+    // naming the levers themselves
+    /\b(what|which|any|the)\b[^.?]*\b(levers?|drivers?|inputs?|variables?|knobs?|dials?|factors?|assumptions?)\b/i,
+    /\b(levers?|drivers?) to (pull|move|change|push|turn)\b/i,
+    /\bwhat (drives|moves|affects|impacts|influences|determines)\b/i,
+    /\b(biggest|largest|main|key|most important|strongest) (driver|lever|factor|input|influence|impact)\b/i,
+    /\bmost (sensitive|sensitivity|impact)\b/i,
+    /\bhow sensitive is\b/i,
+    /\bwhere('?s| is) the (most )?(sensitivity|leverage|upside)\b/i,
+    // asking for a way to move it
+    /\b(what|how) (do|can|should|would|might) (i|we|you)\b[^.?]*\b(change|do|pull|move|adjust|tweak|push|improve|increase|raise|lift|get|make)\b/i,
+    /\b(ways?|options?|routes?|paths?|levers?) to\b[^.?]*\b(improve|increase|raise|lift|boost|get|reach|hit|reduce|lower|cut)\b/i,
+    /\bmove the needle\b/i,
+    /\bclos(?:e|es|ing) the gap\b/i,
+    /\b(path|route|bridge|road) to\b/i,
+    /\bwhat gets (us|it|me)\b/i,
+    /\bhow (do|can) (we|i) (get|make|push|bring)\b/i,
+    // the original target phrasings
+    /\bwhat (needs to|would (it|we) (have to|need to)|has to) (happen|change|move|give)\b/i,
+    /\bwhat would it take\b/i,
+    /\bin order to (hit|reach|achieve|get)\b/i,
+    /\bto (hit|reach|achieve|get to)\b/i,
+  ];
+  // Questions that merely mention a metric and must NOT be hijacked. Some of
+  // these are unambiguous whatever else is in the sentence; others only look
+  // like a lookup until a lever word appears — "where is the most sensitivity"
+  // is a solve, "where is the IRR" is not.
+  const _NEVER_A_SOLVE = [
+    /\b(what|which) cell\b|\blocate\b/i,
+    /\bexplain\b|\bdescribe\b|\bsummar/i,
+    /\bcompare\b|\bversus\b|\bvs\b/i,
+    /\badd (a|an|the)?\s*[\w\s]*\b(row|line|tab|sheet|metric|column)\b/i,
+    /\bdebug\b|\bfind (the )?(errors|bugs|mistakes)\b|\bwhat.s wrong\b/i,
+  ];
+  const _NOT_UNLESS_LEVER = [
+    /\bwhere is\b|\bwhere.s the\b/i,                                              // a lookup…
+    /\b(what|what.s) (is )?the [\w\s]*\b(irr|noi|yield|margin|cost|profit)\b\s*\??$/i, // …or a plain read
+  ];
   function _detectTargetSolve(q){
     const s=String(q||'');
-    // How people actually ask for this: a target ("get the IRR to 27%"), a
-    // move ("increase the IRR by 500bps"), or just the levers ("what do we
-    // pull to improve the IRR"). All three are the same question.
-    const wants=/what (needs to|would (it|we) (have to|need to)|has to) (happen|change|move)|what would it take|how (do|can) (we|i) (get|hit|reach|push|lift|raise|drive|improve|increase|move)|what gets (us|it) to|to (hit|reach|achieve|get to)\b|in order to (hit|reach|achieve)|what (levers?|drivers?|inputs?)|which (levers?|drivers?|inputs?)|levers? to pull|what (do|can) (we|i) (pull|change|move|push)|(increase|improve|raise|lift|boost|reduce|lower|cut|decrease|get|move|take|push)\b[^.]*\b(by|to)\s+-?[\d.]/i.test(s);
-    if(!wants) return null;
+    if(_NEVER_A_SOLVE.some(re=>re.test(s))) return null;
     const metric=_metricFromQuestion(s); if(!metric) return null;
+    const leverish = _LEVER_SHAPES.some(re=>re.test(s));
+    const leverWord = _LEVER_NOUN.test(s);
+    if(!leverWord && _NOT_UNLESS_LEVER.some(re=>re.test(s))) return null;
+    const verbish  = _UP_VERB.test(s) || _DOWN_VERB.test(s);
+    // A bare imperative ("improve the IRR") counts; a bare noun does not.
+    if(!leverish && !verbish) return null;
     // Basis points are the native unit for a rate move — 500bps is 5.00
     // points, not a target of 500.
     const bpsM=s.match(/(-?[\d.]+)\s*(?:bps|bp\b|basis\s*points?)/i);
+    // "from 22% to 27%" — the destination is the second figure.
+    const fromTo=s.match(/from\s+(-?[\d.]+)\s*%?\s*(?:to|→|->)\s+(-?[\d.]+)\s*%?/i);
     const pctM=s.match(/(-?[\d.]+)\s*%/), xM=s.match(/(-?[\d.]+)\s*x\b/);
-    // "increase BY" is a move from where we are; "get TO" is a destination.
     const relUp=/\b(increase|improve|raise|lift|grow|add|boost|push (it )?up|go up|uplift)\b[^.]*\bby\b|\bby\b[^.]*\b(more|higher)\b/i.test(s);
-    const relDown=/\b(decrease|reduce|lower|cut|drop|shave|bring down|come down|fall)\b[^.]*\bby\b/i.test(s);
-    const relative = (relUp||relDown) && !/\bto\s+(-?[\d.]+)/i.test(s);
+    const relDown=/\b(decrease|reduce|lower|cut|drop|shave|bring down|come down|fall|trim)\b[^.]*\bby\b/i.test(s);
+    const hasDestination=/\b(to|at|of)\s+-?[\d.]+\s*(%|x|bps)?/i.test(s) && !relUp && !relDown;
+    const relative = (relUp||relDown) && !hasDestination;
     let mag=null, unit='';
-    if(bpsM){ mag=parseFloat(bpsM[1])/100; unit='%'; }
+    if(fromTo){ mag=parseFloat(fromTo[2]); unit='%'; }
+    else if(bpsM){ mag=parseFloat(bpsM[1])/100; unit='%'; }
     else if(/multiple/i.test(metric.k) && xM){ mag=parseFloat(xM[1]); unit='x'; }
     else if(pctM){ mag=parseFloat(pctM[1]); unit='%'; }
     else if(xM){ mag=parseFloat(xM[1]); unit='x'; }
     else { const n=s.match(/(-?[\d.]+)/); if(n){ mag=parseFloat(n[1]); unit=''; } }
-    // "what levers move the IRR" with no number at all is still answerable —
-    // solve for a sensible improvement rather than refusing.
+    // No number at all is still a real question — solve for a sensible move.
     if(mag==null || !isFinite(mag)){
-      if(!/what (levers?|drivers?|inputs?)|which (levers?|drivers?|inputs?)|levers? to pull|what (do|can) (we|i) (pull|change|move|push)|how (do|can) (we|i) (improve|increase|raise|lift)/i.test(s)) return null;
-      return {metric, target:null, delta:null, unit:'', relative:true, openEnded:true};
+      if(!leverish && !verbish) return null;
+      return {metric, target:null, delta:null, unit:'', relative:true, openEnded:true,
+              direction: _DOWN_VERB.test(s) && !_UP_VERB.test(s) ? -1 : 1};
     }
+    if(fromTo) return {metric, target:mag, delta:null, unit, relative:false, bps:false};
     if(relative) return {metric, target:null, delta:(relDown?-Math.abs(mag):Math.abs(mag)), unit, relative:true, bps:!!bpsM};
     return {metric, target:mag, delta:null, unit, relative:false, bps:!!bpsM};
   }
@@ -17662,9 +17713,10 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // A move, or no number at all, is resolved against where the model is now.
     let moveNote='';
     if(req.openEnded){
-      const step = Math.abs(current)>=1 ? Math.max(1, Math.abs(current)*0.10) : 0.25;
+      const dir = req.direction===-1 ? -1 : 1;
+      const step = (Math.abs(current)>=1 ? Math.max(1, Math.abs(current)*0.10) : 0.25) * dir;
       target = current + step; unit = unit || (Math.abs(current)<=100?'%':'');
-      moveNote = `You didn't name a number, so I solved for a **${(step).toFixed(1)}${unit}** improvement — roughly 10% better than today. Give me a target and I'll re-solve.`;
+      moveNote = `You didn't name a number, so I solved for a **${Math.abs(step).toFixed(1)}${unit}** ${dir>0?'improvement':'reduction'} — about 10% ${dir>0?'better':'lower'} than today. Give me a target and I'll re-solve.`;
     } else if(req.relative){
       target = current + req.delta;
       moveNote = `Reading "${req.delta>0?'+':''}${req.bps?Math.round(req.delta*100)+'bps':req.delta+(unit||'')}" as a move from today's **${current.toFixed(1)}${unit||''}**, so the target is **${target.toFixed(1)}${unit||''}**.`;
