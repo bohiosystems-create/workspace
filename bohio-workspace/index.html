@@ -16987,7 +16987,12 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   const _METRICS=[
     {k:'project (unlevered) IRR', re:/\b(project|unlevered|ungeared|asset|property|deal)[\s-]*irr\b/i, lbl:/\birr\b|internal rate of return/i, prefer:/\b(project|unlevered|ungeared|asset|property|deal)\b/i},
     {k:'equity (levered) IRR', re:/\b(equity|levered|geared|investor|lp)[\s-]*irr\b/i, lbl:/\birr\b|internal rate of return/i, prefer:/\b(equity|levered|geared|investor|lp)\b/i},
-    {k:'IRR', re:/\b(irr|internal rate of return|roi|return on investment)\b/i, lbl:/\birr\b|internal rate of return|\broi\b/i},
+    // ROI is a money-multiple on cost; IRR is time-weighted. Folding them
+    // together answered an ROI question with the IRR row whenever a model
+    // carried both, so it gets its own entry — and ahead of IRR, since
+    // "ROI on cost" would otherwise be caught by the IRR pattern first.
+    {k:'return on cost', re:/\b(roi|return on investment|return on cost)\b/i, lbl:/\broi\b|return on (investment|cost)/i},
+    {k:'IRR', re:/\b(irr|internal rate of return)\b/i, lbl:/\birr\b|internal rate of return/i},
     {k:'equity multiple', re:/\b(equity multiple|moic|multiple on invested capital)\b/i, lbl:/equity multiple|moic|\bmultiple\b/i},
     {k:'DSCR', re:/\b(dscr|debt[- ]service coverage|interest cover(age)?|icr)\b/i, lbl:/dscr|debt[- ]service|interest cover|\bicr\b/i},
     {k:'yield-on-cost', re:/\b(yield[- ]?on[- ]?cost|yoc|development yield|return on cost|stabili[sz]ed yield)\b/i, lbl:/yield[- ]?on[- ]?cost|\byoc\b|development yield|return on cost|stabili[sz]ed yield/i},
@@ -17485,6 +17490,28 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     }
     return out.filter(c=>c.label && c.label.length>1).slice(0,40);
   }
+  // What values a driver is even allowed to take. Without this the solver will
+  // happily report "set occupancy to 165%" — arithmetically the right answer to
+  // the equation, and useless as advice. A solution outside the domain is kept
+  // but flagged, so the user sees the lever was tried and why it cannot work.
+  const _DRIVER_DOMAIN=[
+    {re:/occupanc|\blet\b|utilisation|utilization|collection rate|absorption rate/i, min:0,   max:100, what:'occupancy cannot exceed 100%'},
+    {re:/\bltv\b|\bltc\b|loan.?to.?(value|cost)|gearing|leverage/i,                  min:0,   max:95,  what:'lenders do not go beyond ~95% leverage'},
+    {re:/exit cap|cap rate|exit yield/i,                                             min:2,   max:15,  what:'a cap rate outside 2–15% is not a market'},
+    {re:/interest|debt rate|cost of debt|saibor|libor|margin.*rate|all.?in rate/i,   min:0.5, max:15,  what:'a cost of debt outside 0.5–15% is not financeable'},
+    {re:/\bvacanc/i,                                                                  min:0,   max:60,  what:'vacancy beyond 60% is not an operating case'},
+    {re:/share of|% of|percentage|escalation|growth/i,                                min:-50, max:100, what:'a share or growth rate outside −50–100% is not credible'},
+  ];
+  function _driverDomain(d){
+    const hit=_DRIVER_DOMAIN.find(x=>x.re.test(d.label||''));
+    if(hit) return hit;
+    // Anything stored as a percentage and currently at/under 100 is treated as
+    // a proportion, so we do not push it past 100.
+    if(/%$/.test(String(d.raw)) && Math.abs(d.num)<=100) return {min:-100, max:100, what:'a percentage cannot exceed 100%'};
+    // Costs, rents and prices cannot go negative.
+    if(/cost|rent|price|revenue|value|psf|per sqm|per sqft/i.test(d.label||'')) return {min:0, max:Infinity, what:'this cannot go negative'};
+    return null;
+  }
   // Solve one driver for the target by secant search over a bounded range.
   function _solveDriverTo(d, metric, target){
     const orig=d.row.cells[d.ci], isPct=/%$/.test(String(orig));
@@ -17514,7 +17541,10 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     const solved=b, reached=fb;
     restore();
     if(!isFinite(solved)||!isFinite(reached)||Math.abs(reached-target)>Math.max(0.05,Math.abs(target)*0.01)) return {driver:d, unreachable:true, base};
-    return {driver:d, base, from:x0, to:solved, deltaPct:(x0!==0?((solved-x0)/Math.abs(x0)*100):null), isPct};
+    const dom=_driverDomain(d);
+    const outOfDomain = dom && (solved<dom.min || solved>dom.max);
+    return {driver:d, base, from:x0, to:solved, deltaPct:(x0!==0?((solved-x0)/Math.abs(x0)*100):null), isPct,
+            outOfDomain: !!outOfDomain, domainWhy: outOfDomain?dom.what:null};
   }
   function _targetSolve(q){
     const req=_detectTargetSolve(q); if(!req) return null;
@@ -17527,13 +17557,24 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     const results=[];
     _solveCandidates().forEach(d=>{ try{ const r=_solveDriverTo(d, metric, target); if(r) results.push(r); }catch(e){} });
     recomputeAll();
-    const hits=results.filter(r=>!r.unreachable && r.deltaPct!=null)
-                      .sort((a,b)=>Math.abs(a.deltaPct)-Math.abs(b.deltaPct));
+    const solvedAll=results.filter(r=>!r.unreachable && r.deltaPct!=null);
+    const hits=solvedAll.filter(r=>!r.outOfDomain).sort((a,b)=>Math.abs(a.deltaPct)-Math.abs(b.deltaPct));
+    const blocked=solvedAll.filter(r=>r.outOfDomain).sort((a,b)=>Math.abs(a.deltaPct)-Math.abs(b.deltaPct));
+    const num0=v=>{ const a=Math.abs(v); return a>=1000?v.toLocaleString(undefined,{maximumFractionDigits:0}):(a>=10?v.toFixed(1):v.toFixed(2)); };
+    const blockedBlock=()=>{
+      if(!blocked.length) return [];
+      const B=['', '### Levers that reach it only on impossible values'];
+      blocked.slice(0,4).forEach(r=>{
+        B.push(`- **${r.driver.label}** would need **${r.isPct?num0(r.to)+'%':num0(r.to)}** — ${r.domainWhy}. Ruled out.`);
+      });
+      return B;
+    };
     if(!hits.length){
       const tried=results.length;
-      return `### Getting **${metric.k}** from ${fmtM(current)} to ${fmtM(target)}\n`
-        + `- No single input gets there on its own. I swept **${tried}** driver${tried===1?'':'s'} and each one runs out of realistic range (I cap a lever at ±80% of its current value) before the metric reaches **${fmtM(target)}**.\n`
-        + `- That means this target needs a **combination** — try asking me to hold one lever and solve another, or lower the target.`;
+      return [`### Getting **${metric.k}** from ${fmtM(current)} to ${fmtM(target)}`,
+        `- No single input gets there on a value it is allowed to take. I swept **${tried}** driver${tried===1?'':'s'}${blocked.length?`, and **${blocked.length}** of them only reach the target on a figure that is not possible`:''}.`,
+        `- This target needs a **combination** — ask me to hold one lever and solve another, or move the target.`]
+        .concat(blockedBlock()).join('\n');
     }
     const num=v=>{ const a=Math.abs(v); return a>=1000?v.toLocaleString(undefined,{maximumFractionDigits:0}):(a>=10?v.toFixed(1):v.toFixed(2)); };
     const L=[];
@@ -17556,7 +17597,9 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
       L.push(`- **${hardest.driver.label}** is the weakest lever here — it needs **${Math.abs(hardest.deltaPct).toFixed(1)}%** to do the same job, so it is not where the sensitivity sits.`);
     }
     L.push(`- These are single-lever solves. In practice you would split the gap across two or three of them, which is a far smaller ask of each.`);
+    if(Math.abs(easiest.deltaPct)>40) L.push(`- Every route here is a **large** move. Treat this target as a stretch rather than a re-forecast, and expect to split it across several drivers.`);
     L.push(`- Ask me to **apply** any of these and I'll stage it on the sheet for approval.`);
+    blockedBlock().forEach(x=>L.push(x));
     return L.join('\n');
   }
   function _goalSeek(q){
