@@ -13606,6 +13606,23 @@ Reply as the agent:`;
     msgs.appendChild(bot);
     msgs.scrollTop=msgs.scrollHeight;
 
+    // "run the base, bull and bear cases and give me a slide deck" — the
+    // scenario model, with the export format read straight out of the prompt.
+    // Checked before the generic file generator, which would otherwise swallow
+    // the "give me a pptx" half of the prompt and lose the scenario run.
+    if (typeof _detectScenarioRequest === 'function') {
+      const _sc = _detectScenarioRequest(q);
+      if (_sc) {
+        bot.remove();
+        const b=document.createElement('div'); b.className='k-msg bot';
+        msgs.appendChild(b);
+        _scenRun(_sc, (html)=>{ b.innerHTML = html + '<span class="k-meta">Karaya · scenario model</span>'; msgs.scrollTop = msgs.scrollHeight; });
+        KARAYA_HISTORY.push({role:'user',text:q});
+        KARAYA_HISTORY.push({role:'karaya',text:'[ran the Al Bidda scenario model'+(_sc.fmt?' and exported '+_sc.fmt:'')+']'});
+        return;
+      }
+    }
+
     // "make me a pdf/excel/word/csv of X" → generate a real downloadable file.
     if (typeof _krDetectFileRequest === 'function' && _krDetectFileRequest(q)) {
       _krGenerateFileInto(q, bot, 'Karaya · just now').then(()=>{ KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:'[generated a file for: '+q+']'}); msgs.scrollTop=msgs.scrollHeight; });
@@ -20522,6 +20539,10 @@ Answer as Karaya:`;
       ['FM — FACILITIES (Yardi: occupancy, rent roll, work orders, PPM compliance, energy per asset)', V('PROJECT_FM'), 1200],
       ['PROJECT FACT SHEET (per asset: valuation/GAV, ESG rating, tenants & leasing, permits, milestones, insurance, team, top risks)', V('PROJECT_FACTS'), 2600],
       ['PROGRAMME / CRITICAL PATH (per asset: activities, durations, float, which are critical, max compression, cost per month to accelerate and the trade-off)', V('PROJECT_PROGRAMME'), 3000],
+      ['SCENARIO MODEL — Al Bidda Waterfront (project being contributed into a new fund): drivers per case and the computed IRR / yield-on-cost / ROI / equity multiple, plus what has to be true for each case',
+       (typeof _scenAll==='function'?_scenAll().map(s=>({case:s.c.label, constructionSARsqm:s.c.cost, months:s.c.months, resiPSF:s.c.psf, exitCapPct:s.c.cap,
+         totalDevCostSARM:s.tdc, revenueSARM:s.revenue, equitySARM:s.equity, profitSARM:s.profit, irrPct:s.irr, yieldOnCostPct:s.yoc, roiPct:s.roi, equityMultiple:s.moic,
+         hasToBeTrue:(typeof SCEN_TRUTH!=='undefined'?(SCEN_TRUTH[s.key]||[]).map(t=>t.replace(/\*\*/g,'')):[])})):null), 3400],
       ['MY MODELS (financial models: type, name, version, last updated, notes)', V('MY_MODELS'), 2600],
       ['TEMPLATE LIBRARY (prebuilt models: category, name, description, tabs)', V('TEMPLATES'), 2600],
       ['FUNDS & LPs / INVESTORS (committed & drawn capital, stats, documents)', V('INVESTOR_DATA'), 3000],
@@ -25687,6 +25708,206 @@ ${ctx.mailCtx}`;
   // budget/committed/actual/forecast ledger (PROJECT_ERP), aggregated to the
   // fund. This is the single source both the dashboards and the budget-vs-
   // actual chatbot read from, so they never disagree.
+  // ============ SCENARIO MODEL ============
+  // Al Bidda Waterfront — the project being contributed into a new fund. The
+  // same driver set the Excel model uses, computed live so the platform can
+  // run any case (base / bull / bear and the stress and stretch variants in
+  // between) and show what each does to IRR, yield-on-cost, ROI and multiple —
+  // with a plain statement of what has to be true for that case to land.
+  const SCEN_FIXED = { gfa:96000, nsa:72000, resiShare:78, retailShare:22, land:210,
+                       softPct:14, contPct:7, sellPct:3.5, opexPct:28, hurdle:15 };
+  const SCEN_CASES = {
+    bear:    {label:'Bear',    cost:6100, months:34, psf:1360, absorb:14, rent:1600, occ:90, cap:6.40, debt:7.40, ltc:50},
+    base:    {label:'Base',    cost:5800, months:30, psf:1450, absorb:22, rent:1800, occ:94, cap:6.00, debt:6.60, ltc:55},
+    bull:    {label:'Bull',    cost:5600, months:28, psf:1520, absorb:27, rent:1900, occ:97, cap:5.75, debt:6.10, ltc:60},
+    stress:  {label:'Stress',  cost:6500, months:39, psf:1270, absorb:11, rent:1480, occ:85, cap:6.90, debt:8.00, ltc:45},
+    stretch: {label:'Stretch', cost:5450, months:26, psf:1570, absorb:29, rent:1960, occ:98, cap:5.50, debt:5.90, ltc:60},
+  };
+  const SCEN_TRUTH = {
+    bear:['Tender clears at **SAR 6,100/sqm** — 5% above the QS estimate — and absorption slows to **14 units/month**.',
+          'Exit cap widens to **6.40%** on a softer rate outlook.',
+          'Resi pricing gives back to **SAR 1,360/sqft** against Corniche comparables.'],
+    base:['Tender lands at the QS estimate of **SAR 5,800/sqm**.',
+          'Resi pricing holds at **SAR 1,450/sqft** with **22 units/month** absorption.',
+          'The **30-month** programme is held with no critical-path slip.'],
+    bull:['Value engineering takes construction to **SAR 5,600/sqm**.',
+          'The waterfront premium supports **SAR 1,520/sqft** at **27 units/month**.',
+          'Exit cap compresses to **5.75%** on a REIT block bid for the retail podium.'],
+    stress:['Bear cost **+6.5%**, programme **+5 months** and exit cap **+50bps** all land together.',
+            'Absorption falls to **11 units/month** and the senior lender cuts LTC to **45%**, so equity carries more of the cost.'],
+    stretch:['Bull cost **−3%** with delivery pulled **2 months** earlier.',
+             'Exit cap compresses to **5.50%** with pricing at **SAR 1,570/sqft** and the podium **98%** let.'],
+  };
+  function _scenCompute(c){
+    const f=SCEN_FIXED;
+    const hard=+(f.gfa*c.cost/1e6).toFixed(1);
+    const soft=+(hard*f.softPct/100).toFixed(1);
+    const cont=+(hard*f.contPct/100).toFixed(1);
+    const tdc=+(hard+soft+cont+f.land).toFixed(1);
+    const resiSqft=f.nsa*f.resiShare/100*10.7639;
+    const resiRev=+(resiSqft*c.psf/1e6).toFixed(1);
+    const retailNoi=+(f.nsa*f.retailShare/100*c.rent*(c.occ/100)*(1-f.opexPct/100)/1e6).toFixed(1);
+    const retailExit=+(retailNoi/(c.cap/100)).toFixed(1);
+    const selling=+(-resiRev*f.sellPct/100).toFixed(1);
+    const revenue=+(resiRev+retailExit+selling).toFixed(1);
+    const debt=+(tdc*c.ltc/100).toFixed(1);
+    const equity=+(tdc-debt).toFixed(1);
+    const finCost=+(debt*(c.debt/100)*(c.months/12)*0.6).toFixed(1);
+    const profit=+(revenue-tdc-finCost).toFixed(1);
+    const roi=+(profit/tdc*100).toFixed(1);
+    const moic=+((equity+profit)/equity).toFixed(2);
+    // Yield on cost is the retail podium's stabilised NOI over the cost of the
+    // retail podium only — cost is allocated pro-rata on NSA. Measuring it
+    // against total development cost would fold the for-sale resi into the
+    // denominator and understate the yield to a meaningless number.
+    const retailCost=+(tdc*f.retailShare/100).toFixed(1);
+    const yoc=+(retailNoi/retailCost*100).toFixed(2);
+    const irr=+((Math.pow((equity+profit)/equity, 12/c.months)-1)*100).toFixed(1);
+    const marginRev=+(profit/revenue*100).toFixed(1);
+    return {c, hard, soft, cont, tdc, resiRev, retailNoi, retailExit, retailCost, selling, revenue, debt, equity, finCost, profit, roi, moic, yoc, irr, marginRev};
+  }
+  function _scenAll(){ return Object.keys(SCEN_CASES).map(k=>({key:k, ..._scenCompute(SCEN_CASES[k])})); }
+  const _SCEN_COL={bear:'#b51e3b', base:'#000919', bull:'#15803d', stress:'#7f1d1d', stretch:'#2563eb'};
+  function _scenDashboardHTML(){
+    const all=_scenAll();
+    const money=n=>'SAR '+Number(n).toFixed(0)+'M';
+    const metric=(title, pick, fmt)=>`<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:14px 16px;">
+      <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">${title}</div>
+      ${_svgBars(all.map(s=>({label:s.c.label, bars:[{name:s.c.label, v:Math.max(0,pick(s)), color:_SCEN_COL[s.key]}]})), {h:120})}
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--ink-soft);margin-top:5px;flex-wrap:wrap;gap:6px;">
+        ${all.map(s=>`<span><b style="color:${_SCEN_COL[s.key]};">${s.c.label}</b> ${fmt(pick(s))}</span>`).join('')}
+      </div></div>`;
+    const rows=(label, pick, fmt)=>`<tr>
+      <td style="padding:6px 8px;border-top:1px solid var(--ink-hairline);font-weight:600;">${label}</td>
+      ${all.map(s=>`<td style="padding:6px 8px;border-top:1px solid var(--ink-hairline);text-align:right;${s.key==='base'?'font-weight:700;':''}">${fmt(pick(s))}</td>`).join('')}</tr>`;
+    return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        ${metric('Project IRR (%)', s=>s.irr, v=>v.toFixed(1)+'%')}
+        ${metric('Yield on cost (%)', s=>s.yoc, v=>v.toFixed(2)+'%')}
+        ${metric('ROI on cost (%)', s=>s.roi, v=>v.toFixed(1)+'%')}
+        ${metric('Equity multiple (x)', s=>s.moic, v=>v.toFixed(2)+'x')}
+      </div>
+      <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:4px 4px 6px;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:10px;">
+          <thead><tr style="color:var(--ink-soft);font-size:8px;letter-spacing:0.12em;text-transform:uppercase;">
+            <th style="padding:8px;text-align:left;">Line</th>${all.map(s=>`<th style="padding:8px;text-align:right;color:${_SCEN_COL[s.key]};">${s.c.label}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${rows('Construction (SAR/sqm)', s=>s.c.cost, v=>v.toLocaleString())}
+            ${rows('Programme (months)', s=>s.c.months, v=>v)}
+            ${rows('Resi price (SAR/sqft)', s=>s.c.psf, v=>v.toLocaleString())}
+            ${rows('Exit cap (%)', s=>s.c.cap, v=>v.toFixed(2)+'%')}
+            ${rows('Total development cost', s=>s.tdc, money)}
+            ${rows('Resi sales revenue', s=>s.resiRev, money)}
+            ${rows('Retail NOI (stabilised)', s=>s.retailNoi, v=>'SAR '+v.toFixed(1)+'M')}
+            ${rows('Retail exit value', s=>s.retailExit, money)}
+            ${rows('Total revenue', s=>s.revenue, money)}
+            ${rows('Equity', s=>s.equity, money)}
+            ${rows('Profit', s=>s.profit, money)}
+            ${rows('Project IRR', s=>s.irr, v=>v.toFixed(1)+'%')}
+            ${rows('Yield on cost', s=>s.yoc, v=>v.toFixed(2)+'%')}
+            ${rows('ROI on cost', s=>s.roi, v=>v.toFixed(1)+'%')}
+            ${rows('Equity multiple', s=>s.moic, v=>v.toFixed(2)+'x')}
+          </tbody></table></div>`;
+  }
+  function _scenNarrative(){
+    const all=_scenAll();
+    const by=k=>all.find(s=>s.key===k);
+    const money=n=>'SAR '+Number(n).toFixed(0)+'M';
+    const L=[];
+    const hurdle=SCEN_FIXED.hurdle;
+    const clears=all.filter(s=>s.irr>=hurdle).map(s=>s.c.label);
+    const loses=all.filter(s=>s.profit<0).map(s=>s.c.label);
+    L.push('### Al Bidda Waterfront — scenario range');
+    L.push(`- **Base** returns **${by('base').irr.toFixed(1)}% IRR**, **${by('base').yoc.toFixed(2)}% yield on cost**, **${by('base').moic.toFixed(2)}x** equity multiple on **${money(by('base').equity)}** of equity.`);
+    L.push(`- The range runs from **${by('stress').irr.toFixed(1)}%** (stress) to **${by('stretch').irr.toFixed(1)}%** (stretch) — a **${(by('stretch').irr-by('stress').irr).toFixed(1)} point** spread.`);
+    L.push(`- Against the **${hurdle}%** hurdle, ${clears.length?'**'+clears.join('**, **')+'** clear it':'no case clears it'} — ${by('bear').c.label.toLowerCase()} returns **${by('bear').irr.toFixed(1)}%**, which preserves capital (**${money(by('bear').profit)}** of profit) but does not earn the promote.`);
+    L.push(loses.length
+      ? `- **Capital is only at risk in the ${loses.join(' and ')} case**, where ${loses.length>1?'several':'three'} adverse drivers land together: ${money(by('stress').profit)} of profit on ${money(by('stress').equity)} of equity, a **${by('stress').moic.toFixed(2)}x** return of capital.`
+      : `- No modelled case returns less than the equity invested.`);
+    const thin=all.filter(s=>s.yoc<=s.c.cap).map(s=>s.c.label);
+    L.push(`- Yield on cost on the retail podium runs **${by('stress').yoc.toFixed(2)}%–${by('stretch').yoc.toFixed(2)}%** against exit caps of **${by('stretch').c.cap.toFixed(2)}%–${by('stress').c.cap.toFixed(2)}%**. Base builds at a **${((by('base').yoc-by('base').c.cap)*100).toFixed(0)}bps** spread to exit${thin.length?` — the ${thin.join(' and ')} case is the exception, building at a negative spread, which is why the podium stops carrying the deal there`:''}.`);
+    L.push('');
+    L.push('### What each case needs');
+    ['bear','base','bull','stress','stretch'].forEach(k=>{
+      const s=by(k);
+      L.push(`- **${s.c.label} — ${s.irr.toFixed(1)}% IRR · ${s.yoc.toFixed(2)}% YoC · ${s.moic.toFixed(2)}x**`);
+      (SCEN_TRUTH[k]||[]).forEach(t=>L.push(`   - ${t}`));
+    });
+    L.push('');
+    const b=by('base');
+    const capSwing=+(b.retailNoi/((b.c.cap-0.25)/100)-b.retailExit).toFixed(1);
+    const costSwing=+(SCEN_FIXED.gfa*100/1e6*(1+SCEN_FIXED.softPct/100+SCEN_FIXED.contPct/100)).toFixed(1);
+    const psfSwing=+(SCEN_FIXED.nsa*SCEN_FIXED.resiShare/100*10.7639*50/1e6*(1-SCEN_FIXED.sellPct/100)).toFixed(1);
+    L.push('### Where the sensitivity actually sits');
+    L.push(`- **Resi pricing is the largest single swing** — every SAR 50/sqft on the ${Math.round(SCEN_FIXED.nsa*SCEN_FIXED.resiShare/100*10.7639/1000)}k saleable sqft moves profit by about **${money(psfSwing)}**, net of selling costs.`);
+    L.push(`- **Construction cost is next** — every SAR 100/sqm moves profit by roughly **${money(costSwing)}** once soft costs and contingency scale with it.`);
+    L.push(`- **Exit cap only bites the podium** — 25bps of compression is worth about **${money(capSwing)}** of exit value, meaningful but a third of the pricing swing.`);
+    L.push('- **Programme affects finance cost only** — a 3-month slip on its own costs single-digit millions and is survivable; it is dangerous when it lands with a cost overrun and a wider cap, which is exactly the stress case.');
+    return L.join('\n');
+  }
+  function _scenExportBody(){
+    return '<div>'+_fmtDiscountSections(_scenNarrative())+'</div>'
+      +'<h4 style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;margin:18px 0 8px;">Case comparison</h4>'
+      +_scenDashboardHTML();
+  }
+  // Chat entry point: "run the scenarios and give me a pptx" — one router that
+  // reads the requested format out of the prompt and produces that artefact.
+  function _detectScenarioRequest(q){
+    const s=String(q||'');
+    if(!/scenario|base case|bull|bear|sensitivit|what.?if|cases?\b|upside and downside case/i.test(s)) return null;
+    if(!/\b(run|model|show|build|generate|produce|give|compare|export|create)\b/i.test(s)) return null;
+    let fmt=null;
+    if(/pptx|slide|deck|presentation/i.test(s)) fmt='pptx';
+    else if(/docx|word document|word report/i.test(s)) fmt='docx';
+    else if(/pdf|report/i.test(s)) fmt='pdf';
+    else if(/excel|xlsx|workbook|spreadsheet/i.test(s)) fmt='xlsx';
+    return {fmt};
+  }
+  function _scenRun(req, pushBot){
+    const title='Al Bidda Waterfront — Scenario Analysis';
+    pushBot(_fmtDiscountSections(_scenNarrative())+'<div style="margin-top:12px;">'+_scenDashboardHTML()+'</div>'
+      +`<div style="margin-top:11px;display:flex;gap:7px;flex-wrap:wrap;">
+          <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 11px;" onclick="_scenExport('pdf')">⬇ PDF report</button>
+          <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 11px;" onclick="_scenExport('pptx')">⬇ Slide deck</button>
+          <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 11px;" onclick="_scenExport('docx')">⬇ Word report</button>
+          <button class="wf-btn ghost" style="font-size:9.5px;padding:6px 11px;" onclick="_scenExport('xlsx')">⬇ Excel model</button>
+          <a class="wf-btn ghost" style="font-size:9.5px;padding:6px 11px;text-decoration:none;" href="demo-assets/Al_Bidda_Scenario_Model.xlsx" download>⬇ Source workbook (live formulas)</a>
+        </div>`);
+    if(req && req.fmt) setTimeout(()=>_scenExport(req.fmt), 300);
+    return title;
+  }
+  function _scenExport(fmt){
+    const title='Al Bidda Waterfront — Scenario Analysis';
+    if(fmt==='pdf'){
+      openReadableDoc({type:'PDF', name:title, version:'v.01 · Karaya-generated', docBody:_scenExportBody(), karayaPdf:true,
+        pdfFoot:'Scenario model generated by Karaya. Cases are indicative and driver-led — see "what has to be true" for each.'});
+      return;
+    }
+    const all=_scenAll();
+    const lines=[];
+    lines.push('## '+title);
+    lines.push('');
+    lines.push(_scenNarrative().replace(/^###\s*/gm,'## ').replace(/\*\*/g,''));
+    lines.push('');
+    lines.push('## Case comparison');
+    lines.push(['Line', ...all.map(s=>s.c.label)].join('\t'));
+    const push=(label, pick, fmtv)=>lines.push([label, ...all.map(s=>fmtv(pick(s)))].join('\t'));
+    push('Construction (SAR/sqm)', s=>s.c.cost, v=>v);
+    push('Programme (months)', s=>s.c.months, v=>v);
+    push('Resi price (SAR/sqft)', s=>s.c.psf, v=>v);
+    push('Exit cap (%)', s=>s.c.cap, v=>v);
+    push('Total development cost (SAR M)', s=>s.tdc, v=>v);
+    push('Total revenue (SAR M)', s=>s.revenue, v=>v);
+    push('Equity (SAR M)', s=>s.equity, v=>v);
+    push('Profit (SAR M)', s=>s.profit, v=>v);
+    push('Project IRR (%)', s=>s.irr, v=>v);
+    push('Yield on cost (%)', s=>s.yoc, v=>v);
+    push('ROI on cost (%)', s=>s.roi, v=>v);
+    push('Equity multiple (x)', s=>s.moic, v=>v);
+    try{
+      const file=_krMakeFile(fmt, title, lines.join('\n'));
+      const a=document.createElement('a'); a.href=file.url; a.download=file.filename; document.body.appendChild(a); a.click(); a.remove();
+    }catch(e){}
+  }
   function _wfPerfData(f, k){
     const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
     const projects=ids.map(id=>{
