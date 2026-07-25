@@ -20087,6 +20087,25 @@ Answer as Karaya:`;
     4:{occupancy:'88%', workOrdersOpen:11, ppmCompliance:'95%', energyIntensity:'155 kWh/m²/yr', rentRoll:'SAR 71M', system:'Yardi Voyager', lastSync:'41m ago'},
     6:{occupancy:'100%',workOrdersOpen:2,  ppmCompliance:'99%', energyIntensity:'96 kWh/m²/yr',  rentRoll:'SAR 34M', system:'Yardi Voyager', lastSync:'1h ago'},
   };
+  // Broad per-project fact sheet so Karaya can answer a wide range of queries
+  // (valuation, ESG, tenants/leasing, permits, milestones, insurance, HR/team,
+  // top risks) beyond the ERP/CRM/FM structured feeds. All money in SAR.
+  const PROJECT_FACTS = {
+    1:{gav:'SAR 1,240M', valuation:'SAR 1,180M (Knight Frank, Apr 2026)', esg:'GSAS 4-star (targeted) · LEED Gold shell', tenants:'Aman-branded residences + curated F&B podium', leasing:'Retail podium 62% pre-let (anchor F&B signed)', permits:'Heritage overlay cleared; Phase-2 building permit approved', milestones:'Topping-out Q3 2026 · handover Q4 2027', insurance:'CAR + delay-in-startup, AXA GIG, SAR 1.05B sum insured', contractor:'Al-Bawani (JV lead) · Turner PM', team:'S. Al-Harbi (lead), R. Marini, 8 FTE', topRisks:'Heritage façade setback; SAIBOR on 55% LTV; FF&E lead times'},
+    2:{gav:'SAR 910M', valuation:'SAR 875M (CBRE, Mar 2026)', esg:'GSAS 3-star', tenants:'Branded serviced residences (operator LOI stage)', leasing:'Off-plan 55% sold; operator HMA in negotiation', permits:'Concept approved; detailed permit pending MEP sign-off', milestones:'Enabling works complete · structure Q4 2026', insurance:'CAR, Qatar Insurance, SAR 780M sum insured', contractor:'UrbaCon · Marini PM', team:'R. Marini (lead), M. Lopez, 12 FTE', topRisks:'Operator HMA terms (base fee); hospitality split sensitivity; exit cap'},
+    3:{gav:'SAR 620M', valuation:'SAR 640M (JLL, Feb 2026)', esg:'GSAS 3-star · in operation', tenants:'12 commercial tenants; anchor grocery + clinics', leasing:'93% occupied; WALT 4.6 yrs', permits:'Fully permitted; operating certificate current', insurance:'Property all-risks + BI, GIG, SAR 610M', milestones:'Stabilised; lease renewals 2027', contractor:'n/a (operating)', team:'K. Saleh (asset lead), 4 FTE', topRisks:'Anchor Year-5 break option; service-charge recovery; re-leasing spread'},
+    4:{gav:'SAR 880M', valuation:'SAR 900M (Knight Frank, Feb 2026)', esg:'GSAS 3-star', tenants:'Office-led; 3 floors pre-let to a bank + co-working', leasing:'88% leased; REIT acquirer in DD', permits:'Fully permitted', insurance:'Property all-risks + BI, AXA GIG, SAR 860M', milestones:'Stabilised; REIT sale targeted H2 2026', contractor:'n/a (operating)', team:'M. Lopez (asset lead), 5 FTE', topRisks:'REIT pricing vs book; floor-plate voids; incentive burn-off'},
+    5:{gav:'SAR 340M (land + concept)', valuation:'SAR 355M land basis (Savills, Jan 2026)', esg:'GSAS 3-star (design intent)', tenants:'Residential masterplan — pre-launch', leasing:'Not launched; launch phase, 19% reservations pipeline', permits:'Masterplan submitted; zoning confirmation pending', insurance:'Land/liability only at concept stage', milestones:'IC decision Q3 2026 · launch Q1 2027', contractor:'Tender not issued', team:'M. Lopez (lead), 3 FTE', topRisks:'Zoning/FAR confirmation; absorption at launch; construction cost inflation'},
+    6:{gav:'SAR 500M', valuation:'SAR 520M (JLL, Mar 2026)', esg:'GSAS 4-star · high-efficiency logistics', tenants:'Single-tenant pre-let (3PL operator, 15-yr lease)', leasing:'100% pre-let; rent commences on handover', permits:'Fully permitted; civil defence cleared', insurance:'Property all-risks + BI, QIC, SAR 490M', milestones:'Handover Q2 2026; rent start Q3 2026', contractor:'Trojan (design-build)', team:'K. Saleh (asset lead), 4 FTE', topRisks:'Tenant covenant strength; last-mile access works; rate on take-out debt'},
+    7:{gav:'SAR 430M', valuation:'SAR 430M (acquisition basis)', esg:'GSAS 3-star target', tenants:'Corniche Gateway — anchor lease under acquisition DD', leasing:'Anchor lease assumed at acquisition; single-asset SPV', permits:'Existing asset; permits transfer with title', insurance:'To be placed at close', milestones:'Acquisition close targeted Q3 2026', contractor:'n/a (standing asset)', team:'F. Aziz (sponsor), 2 FTE', topRisks:'Anchor lease re-gearing; valuation vs Knight Frank; SPV financing'},
+  };
+  // Add project 7 to the ERP feed (single-asset co-invest, acquisition stage).
+  if (typeof PROJECT_ERP !== 'undefined' && !PROJECT_ERP[7]) {
+    PROJECT_ERP[7] = { system:'Oracle Fusion Cloud ERP', code:'PRJ-COR-2026', lastSync:'2h ago', currency:'SAR M',
+      summary:{ budget:{v:430.0,label:'Acquisition Budget'}, committed:{v:12.0,label:'Committed (DD/fees)'}, actual:{v:6.4,label:'Actual to Date'}, forecast:{v:432.0,label:'Forecast Final'}, variance:{v:'+0.5%',dir:'over',label:'Forecast vs Budget'}, cash:{v:120.0,label:'Equity Available'} },
+      costCodes:[ {code:'02-ACQ',name:'Asset Acquisition',b:410.0,c:0.0,a:0.0}, {code:'07-DD',name:'Due Diligence · Advisors',b:8.0,c:8.0,a:4.4}, {code:'07-LEG',name:'Legal · SPA/SPV',b:6.0,c:4.0,a:2.0}, {code:'99-CONT',name:'Contingency',b:6.0,c:0.0,a:0.0} ],
+      ap:[ {vendor:'Knight Frank (valuation)', inv:'INV-2026-0510', amount:'0.6 SAR M', age:9, status:'approved'}, {vendor:'A&O Shearman (legal)', inv:'INV-2026-0505', amount:'1.4 SAR M', age:4, status:'review'} ] };
+  }
   // Compact CRM (Salesforce) sales snapshot per project, from the sales ledger.
   function _crmContext(){
     if(typeof _projSalesData!=='function') return null;
@@ -20116,6 +20135,7 @@ Answer as Karaya:`;
       ['ERP — PROJECT COST LEDGER (SAP S/4HANA · Oracle Fusion: budget vs committed vs actual)', V('PROJECT_ERP'), 1600],
       ['CRM — SALES PIPELINE (Salesforce: contracted sales, off-plan, collections, velocity per project)', _crmContext(), 1800],
       ['FM — FACILITIES (Yardi: occupancy, rent roll, work orders, PPM compliance, energy per asset)', V('PROJECT_FM'), 1200],
+      ['PROJECT FACT SHEET (per asset: valuation/GAV, ESG rating, tenants & leasing, permits, milestones, insurance, team, top risks)', V('PROJECT_FACTS'), 2600],
       ['MY MODELS (financial models: type, name, version, last updated, notes)', V('MY_MODELS'), 2600],
       ['TEMPLATE LIBRARY (prebuilt models: category, name, description, tabs)', V('TEMPLATES'), 2600],
       ['FUNDS & LPs / INVESTORS (committed & drawn capital, stats, documents)', V('INVESTOR_DATA'), 3000],
