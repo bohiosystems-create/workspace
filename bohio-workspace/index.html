@@ -13633,6 +13633,17 @@ Reply as the agent:`;
         return;
       }
     }
+    // "show levered and unlevered IRR, remove the NAV box" — edit the dashboard
+    // LAYOUT (which KPI tiles show), distinct from editing their figures.
+    if (typeof _wfTryLayoutEdit === 'function') {
+      const lay = _wfTryLayoutEdit(q);
+      if (lay) {
+        KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:lay});
+        bot.innerHTML = fmtKaraya(lay) + '<span class="k-meta">Karaya · just now</span>';
+        msgs.scrollTop = msgs.scrollHeight;
+        return;
+      }
+    }
     // "set NAV to 720", "change the IRR to 15%" — edit a fund's KPI dashboard.
     if (typeof _wfTryDashboardEdit === 'function') {
       const dash = _wfTryDashboardEdit(q);
@@ -21388,20 +21399,87 @@ Answer as Karaya:`;
   // squircles. Static fund-level figures (NAV, IRR, TVPI, DPI) plus two
   // genuinely live counts (active projects, pending approvals) so it stays
   // current as decisions get made and projects get added, without a reload.
+  // Catalog of every KPI tile the dashboard can show. A fund's _kpiLayout is an
+  // ordered list of these keys; the right-side chatbot can add/remove them, so
+  // the dashboard LAYOUT (not just the figures) is editable by prompt.
+  function _wfUnlevIrr(f){ const n=parseFloat(f.irr)||0; return Math.max(0,(n-4.6)).toFixed(1)+'%'; }
+  const _WF_KPI_TILES={
+    nav:       {label:'NAV',               val:(f)=>'SAR '+f.nav+'M'},
+    irr:       {label:'Net IRR',           val:(f)=>f.irr, color:'#61BB46'},
+    irr_lev:   {label:'Levered IRR',       val:(f)=>f.irr, color:'#61BB46'},
+    irr_unlev: {label:'Unlevered IRR',     val:(f)=>_wfUnlevIrr(f), color:'#2563eb'},
+    tvpi:      {label:'TVPI',              val:(f)=>(f.tvpi||0).toFixed(2)+'x'},
+    dpi:       {label:'DPI',               val:(f)=>(f.dpi||0).toFixed(2)+'x'},
+    moic:      {label:'MOIC',              val:(f)=>(f.tvpi||0).toFixed(2)+'x'},
+    drawn:     {label:'Drawn / committed', val:(f)=>{const pct=f.committed?Math.round(f.drawn/f.committed*100):0; return pct+'% · '+f.drawn+'/'+f.committed+'M';}},
+    projects:  {label:'Active projects',   val:(f,k)=>((FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]).length)},
+    approvals: {label:'Pending approvals', val:(f)=>{const n=f.approvals.filter(a=>a.cls==='a').length; return n;}, colorFn:(f)=>f.approvals.filter(a=>a.cls==='a').length?'#b45309':undefined},
+  };
+  const _WF_KPI_DEFAULT_LAYOUT=['nav','irr','tvpi','dpi','drawn','projects','approvals'];
   function _wfFundKpiDashboardHTML(f, k){
-    const pct=f.committed?Math.round(f.drawn/f.committed*100):0;
-    const ids=(FUND_PROJECT_IDS[k]||[]).filter(id=>P[id]);
-    const pendingCount=f.approvals.filter(a=>a.cls==='a').length;
+    const layout=(f._kpiLayout&&f._kpiLayout.length)?f._kpiLayout:_WF_KPI_DEFAULT_LAYOUT;
     const tile=(label,val,color)=>`<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:18px 20px;"><div style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);">${label}</div><div style="font-size:24px;font-weight:700;margin-top:7px;line-height:1.15;${color?'color:'+color+';':''}">${val}</div></div>`;
-    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px;">
-      ${tile('NAV', 'SAR '+f.nav+'M')}
-      ${tile('Net IRR', f.irr, '#61BB46')}
-      ${tile('TVPI', (f.tvpi||0).toFixed(2)+'x')}
-      ${tile('DPI', (f.dpi||0).toFixed(2)+'x')}
-      ${tile('Drawn / committed', pct+'% · '+f.drawn+'/'+f.committed+'M')}
-      ${tile('Active projects', ids.length)}
-      ${tile('Pending approvals', pendingCount, pendingCount?'#b45309':undefined)}
-    </div>`;
+    const tiles=layout.map(key=>{ const t=_WF_KPI_TILES[key]; if(!t) return ''; const color=t.colorFn?t.colorFn(f):t.color; return tile(t.label, t.val(f,k), color); }).join('');
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px;">${tiles}</div>`;
+  }
+  // Parse a dashboard LAYOUT command (add/remove/show/hide a box), distinct from
+  // a value edit. Position-based: find each metric mention and the nearest
+  // preceding add/remove verb, so compound phrasing like "show both the
+  // unlevered and levered IRR and remove the NAV box" resolves correctly.
+  function _wfParseLayoutEdit(q){
+    const ql=String(q||'').toLowerCase();
+    if(!/(add|show|include|display|remove|hide|drop|delete|take out|get rid|put back)/.test(ql)) return null;
+    const specs=[
+      {re:/unlever(?:ed|age)?/g, key:'irr_unlev'},
+      {re:/(?:^|[^n])lever(?:ed|age)?/g, key:'irr_lev'},
+      {re:/net\s*irr/g, key:'irr'},
+      {re:/nav|net asset value/g, key:'nav'},
+      {re:/tvpi/g, key:'tvpi'},
+      {re:/\bdpi\b/g, key:'dpi'},
+      {re:/moic|equity multiple/g, key:'moic'},
+      {re:/drawn|committ|capital call/g, key:'drawn'},
+      {re:/active projects|projects box|projects tile/g, key:'projects'},
+      {re:/pending approvals|approvals box|approvals tile/g, key:'approvals'},
+      {re:/\birr\b/g, key:'irr'},
+    ];
+    const mentions=[];
+    specs.forEach(s=>{ const re=new RegExp(s.re.source,'g'); let mm; while((mm=re.exec(ql))){ mentions.push({key:s.key, idx:mm.index}); } });
+    if(!mentions.length) return null;
+    const verbs=[]; const vre=/\b(add|show|include|display|remove|hide|drop|delete|take out|get rid of|put back)\b/g; let vm;
+    while((vm=vre.exec(ql))){ verbs.push({idx:vm.index, remove:/remove|hide|drop|delete|take out|get rid/.test(vm[1])}); }
+    if(!verbs.length) return null;
+    const add=[], remove=[];
+    mentions.forEach(mn=>{
+      let v=null; verbs.forEach(vb=>{ if(vb.idx<=mn.idx && (!v||vb.idx>v.idx)) v=vb; });
+      if(!v) v=verbs[0];
+      const arr=v.remove?remove:add;
+      if(arr.indexOf(mn.key)<0) arr.push(mn.key);
+    });
+    // specific IRR tiles supersede the generic net-IRR tile in the same clause
+    const dropGenericIrr=arr=>{ if(arr.indexOf('irr_lev')>=0||arr.indexOf('irr_unlev')>=0){ const i=arr.indexOf('irr'); if(i>=0) arr.splice(i,1); } };
+    dropGenericIrr(add); dropGenericIrr(remove);
+    if(!add.length && !remove.length) return null;
+    return {add, remove};
+  }
+  function _wfApplyLayoutEdit(f, k, edit){
+    let layout=(f._kpiLayout&&f._kpiLayout.length)?f._kpiLayout.slice():_WF_KPI_DEFAULT_LAYOUT.slice();
+    const notes=[];
+    // adding levered/unlevered IRR replaces the generic net-IRR tile for clarity
+    if(edit.add.indexOf('irr_lev')>=0 || edit.add.indexOf('irr_unlev')>=0){ layout=layout.filter(x=>x!=='irr'); }
+    edit.remove.forEach(key=>{ const i=layout.indexOf(key); if(i>=0){ layout.splice(i,1); notes.push('removed the '+_WF_KPI_TILES[key].label+' box'); } });
+    edit.add.forEach(key=>{ if(_WF_KPI_TILES[key] && layout.indexOf(key)<0){ layout.push(key); notes.push('added the '+_WF_KPI_TILES[key].label+' box'); } });
+    f._kpiLayout=layout;
+    _KARAYA_CTX_CACHE=null;
+    if(_wfCurrentFundK===f.k && document.getElementById('wf-overlay')?.classList.contains('open')){ _wfFundDetail(f.k, _wfFundLastSec); }
+    return notes;
+  }
+  function _wfTryLayoutEdit(q){
+    const edit=_wfParseLayoutEdit(q); if(!edit || (!edit.add.length && !edit.remove.length)) return null;
+    const f=_wfResolveFundFromQuery(q);
+    if(!f) return `Tell me which fund's dashboard to change — e.g. "show levered and unlevered IRR for Opportunity Fund II" — or open the fund first.`;
+    const notes=_wfApplyLayoutEdit(f, f.k, edit);
+    if(!notes.length) return `I couldn't find a matching KPI box to change — try naming it, e.g. "remove the NAV box" or "add unlevered IRR".`;
+    return `Updated **${f.name.replace(/^Bohio RE /,'')}**'s dashboard layout: ${notes.join(', ')}. The KPI tiles at the top now reflect this.`;
   }
   // ---- Modify a fund's top KPI dashboard by chat command, e.g. "set NAV to
   // 720", "change the IRR to 15%", "drawn 600 committed 800". Returns a result
@@ -24923,6 +25001,16 @@ ${ctx.mailCtx}`;
       const botEl=chat&&chat.lastElementChild;
       _krGenerateFileInto(q, botEl, '').then(()=>{ if(botEl) _wfFundChat[ck][_wfFundChat[ck].length-1]={cls:'bot', html:botEl.innerHTML}; });
       return;
+    }
+    // "show levered and unlevered IRR, remove the NAV box" — edit dashboard LAYOUT.
+    if(typeof _wfParseLayoutEdit==='function'){
+      const ledit=_wfParseLayoutEdit(q);
+      if(ledit && (ledit.add.length||ledit.remove.length)){
+        const notes=_wfApplyLayoutEdit(f, k, ledit);
+        _wfFundChat[ck].push({cls:'bot', html:fmtKaraya(notes.length?('Updated the dashboard layout: '+notes.join(', ')+'.'):'I couldn\'t find a matching KPI box — try "remove the NAV box" or "add unlevered IRR".')});
+        _wfFundDetail(k, _wfFundLastSec);
+        return;
+      }
     }
     // "set NAV to 720", "change the IRR to 15%" — edit this fund's KPI dashboard.
     if(typeof _wfParseDashboardEdit==='function'){
