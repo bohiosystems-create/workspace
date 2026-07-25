@@ -16881,14 +16881,20 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   // few chars per line. Cheap enough to prepend to every AI call, so the model
   // always has the full scope — any question can be answered from any tab.
   function dumpWorkbookIndex(limit){
-    const cap=limit||6000; let used=0; const out=[];
+    // Every row carries the cell reference of its first populated column. Without
+    // it the agent can describe where a metric lives but cannot cite the cell,
+    // which is exactly what "which cell is the IRR" asks for.
+    const cap=limit||9000; let used=0; const out=[];
     for(const name of Object.keys(SHEET_DATA)){
       const s=SHEET_DATA[name]; const lines=['## '+name];
       for(const r of (s.rows||[])){
         if(r.style==='empty') continue;
         const lbl=_rowLabel(r); if(!lbl) continue;
         const nums=_rowNums(r);
-        const ln='- '+lbl+(nums.length? ': '+(nums.length>2? nums[0]+' … '+nums[nums.length-1]+' ('+nums.length+' periods)' : nums.join(', ')) : '');
+        let ref='';
+        for(let ci=2;ci<r.cells.length;ci++){ const v=r.cells[ci];
+          if(v!==''&&v!=null){ ref=' ['+name+'!'+((s.cols[ci]||'')+r.cells[0])+']'; break; } }
+        const ln='- '+lbl+ref+(nums.length? ': '+(nums.length>2? nums[0]+' … '+nums[nums.length-1]+' ('+nums.length+' periods)' : nums.join(', ')) : '');
         lines.push(ln);
       }
       const block=lines.join('\n');
@@ -17326,17 +17332,34 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   // cell is the IRR in" is useless here — the question is what has to change.
   function _detectTargetSolve(q){
     const s=String(q||'');
-    const wants=/what (needs to|would (it|we) (have to|need to)|has to) (happen|change|move)|what would it take|how (do|can) (we|i) (get|hit|reach|push|lift|raise|drive)|what gets (us|it) to|to (hit|reach|achieve|get to)\b|in order to (hit|reach|achieve)/i.test(s);
+    // How people actually ask for this: a target ("get the IRR to 27%"), a
+    // move ("increase the IRR by 500bps"), or just the levers ("what do we
+    // pull to improve the IRR"). All three are the same question.
+    const wants=/what (needs to|would (it|we) (have to|need to)|has to) (happen|change|move)|what would it take|how (do|can) (we|i) (get|hit|reach|push|lift|raise|drive|improve|increase|move)|what gets (us|it) to|to (hit|reach|achieve|get to)\b|in order to (hit|reach|achieve)|what (levers?|drivers?|inputs?)|which (levers?|drivers?|inputs?)|levers? to pull|what (do|can) (we|i) (pull|change|move|push)|(increase|improve|raise|lift|boost|reduce|lower|cut|decrease|get|move|take|push)\b[^.]*\b(by|to)\s+-?[\d.]/i.test(s);
     if(!wants) return null;
     const metric=_metricFromQuestion(s); if(!metric) return null;
+    // Basis points are the native unit for a rate move — 500bps is 5.00
+    // points, not a target of 500.
+    const bpsM=s.match(/(-?[\d.]+)\s*(?:bps|bp\b|basis\s*points?)/i);
     const pctM=s.match(/(-?[\d.]+)\s*%/), xM=s.match(/(-?[\d.]+)\s*x\b/);
-    let target=null, unit='';
-    if(/multiple/i.test(metric.k) && xM){ target=parseFloat(xM[1]); unit='x'; }
-    else if(pctM){ target=parseFloat(pctM[1]); unit='%'; }
-    else if(xM){ target=parseFloat(xM[1]); unit='x'; }
-    else { const n=s.match(/(-?[\d.]+)/); if(n){ target=parseFloat(n[1]); unit=''; } }
-    if(target==null || !isFinite(target)) return null;
-    return {metric, target, unit};
+    // "increase BY" is a move from where we are; "get TO" is a destination.
+    const relUp=/\b(increase|improve|raise|lift|grow|add|boost|push (it )?up|go up|uplift)\b[^.]*\bby\b|\bby\b[^.]*\b(more|higher)\b/i.test(s);
+    const relDown=/\b(decrease|reduce|lower|cut|drop|shave|bring down|come down|fall)\b[^.]*\bby\b/i.test(s);
+    const relative = (relUp||relDown) && !/\bto\s+(-?[\d.]+)/i.test(s);
+    let mag=null, unit='';
+    if(bpsM){ mag=parseFloat(bpsM[1])/100; unit='%'; }
+    else if(/multiple/i.test(metric.k) && xM){ mag=parseFloat(xM[1]); unit='x'; }
+    else if(pctM){ mag=parseFloat(pctM[1]); unit='%'; }
+    else if(xM){ mag=parseFloat(xM[1]); unit='x'; }
+    else { const n=s.match(/(-?[\d.]+)/); if(n){ mag=parseFloat(n[1]); unit=''; } }
+    // "what levers move the IRR" with no number at all is still answerable —
+    // solve for a sensible improvement rather than refusing.
+    if(mag==null || !isFinite(mag)){
+      if(!/what (levers?|drivers?|inputs?)|which (levers?|drivers?|inputs?)|levers? to pull|what (do|can) (we|i) (pull|change|move|push)|how (do|can) (we|i) (improve|increase|raise|lift)/i.test(s)) return null;
+      return {metric, target:null, delta:null, unit:'', relative:true, openEnded:true};
+    }
+    if(relative) return {metric, target:null, delta:(relDown?-Math.abs(mag):Math.abs(mag)), unit, relative:true, bps:!!bpsM};
+    return {metric, target:mag, delta:null, unit, relative:false, bps:!!bpsM};
   }
   // ---- Comparing the open model against another model in the workspace.
   // "How does this IRR compare to the Fund II master model?" is a question the
@@ -17632,9 +17655,21 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   }
   function _targetSolve(q){
     const req=_detectTargetSolve(q); if(!req) return null;
-    const {metric, target, unit}=req;
+    const {metric}=req;
+    let {target, unit}=req;
     const current=_metricReadLive(metric);
     if(current==null || !isFinite(current)) return null;
+    // A move, or no number at all, is resolved against where the model is now.
+    let moveNote='';
+    if(req.openEnded){
+      const step = Math.abs(current)>=1 ? Math.max(1, Math.abs(current)*0.10) : 0.25;
+      target = current + step; unit = unit || (Math.abs(current)<=100?'%':'');
+      moveNote = `You didn't name a number, so I solved for a **${(step).toFixed(1)}${unit}** improvement — roughly 10% better than today. Give me a target and I'll re-solve.`;
+    } else if(req.relative){
+      target = current + req.delta;
+      moveNote = `Reading "${req.delta>0?'+':''}${req.bps?Math.round(req.delta*100)+'bps':req.delta+(unit||'')}" as a move from today's **${current.toFixed(1)}${unit||''}**, so the target is **${target.toFixed(1)}${unit||''}**.`;
+    }
+    if(target==null || !isFinite(target)) return null;
     const fmtM=v=>(unit==='x'?v.toFixed(2)+'x':v.toFixed(1)+(unit||''));
     if(Math.abs(current-target)<1e-6) return `**${metric.k}** is already at **${fmtM(current)}** — nothing has to change.`;
     const dirWord = target>current ? 'up' : 'down';
@@ -17655,14 +17690,16 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     };
     if(!hits.length){
       const tried=results.length;
-      return [`### Getting **${metric.k}** from ${fmtM(current)} to ${fmtM(target)}`,
+      return [`### Getting **${metric.k}** from ${fmtM(current)} to ${fmtM(target)}`]
+        .concat(moveNote?[moveNote]:[]).concat([
         `- No single input gets there on a value it is allowed to take. I swept **${tried}** driver${tried===1?'':'s'}${blocked.length?`, and **${blocked.length}** of them only reach the target on a figure that is not possible`:''}.`,
-        `- This target needs a **combination** — ask me to hold one lever and solve another, or move the target.`]
+        `- This target needs a **combination** — ask me to hold one lever and solve another, or move the target.`])
         .concat(blockedBlock()).join('\n');
     }
     const num=v=>{ const a=Math.abs(v); return a>=1000?v.toLocaleString(undefined,{maximumFractionDigits:0}):(a>=10?v.toFixed(1):v.toFixed(2)); };
     const L=[];
     L.push(`### To move **${metric.k}** from ${fmtM(current)} to ${fmtM(target)}`);
+    if(moveNote) L.push(moveNote);
     L.push(`Any **one** of these gets you there on its own — ranked by how far the driver has to move. Every figure is solved on the live model, not estimated.`);
     L.push('');
     hits.slice(0,6).forEach((r,i)=>{
@@ -17851,6 +17888,65 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   // Content-grounded answer computed locally from the open workbook — so the
   // editor chat gives a REAL, question-specific answer even with no live API
   // key (and a strong fallback when the key is present but the call fails).
+  // ---- "Which cell is the IRR?"
+  // A lookup, not a reasoning task. Searching the workbook here means the
+  // answer always cites a real cell — the agent used to hedge whenever the
+  // metric lived on a tab whose rows were outside its detail window.
+  function _detectLocate(q){
+    const s=String(q||'');
+    if(!/\b(which|what) cell|where is|where.s the|which (row|tab|sheet)|locate|find (the )?(cell|row)|which cell (is|holds|has|contains)/i.test(s)) return null;
+    return true;
+  }
+  function _locateMetric(q){
+    if(!_detectLocate(q)) return null;
+    const s=String(q||'');
+    // Prefer a known metric; otherwise use the longest words that name a row.
+    const hits=[];
+    const seen=new Set();
+    const push=(sheet,row,cols,label)=>{
+      for(let ci=2;ci<row.cells.length;ci++){
+        const v=row.cells[ci]; if(v===''||v==null) continue;
+        const ref=(cols[ci]||'')+row.cells[0];
+        const key=sheet+'!'+ref; if(seen.has(key)) return; seen.add(key);
+        hits.push({sheet, ref, label, value:String(v), formula:(row.formulas&&row.formulas[ci])||''});
+        return;
+      }
+    };
+    const scan=(re)=>{
+      for(const t of Object.keys(SHEET_DATA||{})){
+        const sh=SHEET_DATA[t]; if(!sh||!sh.rows) continue;
+        for(const r of sh.rows){
+          if(r.style==='empty'||r.style==='section') continue;
+          const lbl=(r.cells&&r.cells[1]||'').trim();
+          if(lbl && re.test(lbl)) push(t, r, sh.cols, lbl);
+        }
+      }
+    };
+    const m=(typeof _METRICS!=='undefined')?_METRICS.find(x=>x.re.test(s)):null;
+    if(m) scan(m.lbl||m.re);
+    if(!hits.length){
+      const words=(s.match(/[A-Za-z][A-Za-z\-]{2,}/g)||[])
+        .filter(w=>!/^(which|what|where|cell|row|tab|sheet|the|is|are|in|on|of|for|does|live|lives|held|hold|holds|find|locate|show|me|my|this|model)$/i.test(w))
+        .sort((a,b)=>b.length-a.length);
+      for(const w of words){
+        scan(new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
+        if(hits.length) break;
+      }
+    }
+    if(!hits.length) return null;
+    const L=[];
+    const what=m?m.k:'that';
+    L.push(hits.length===1 ? `### ${hits[0].label} — \`${hits[0].sheet}!${hits[0].ref}\``
+                           : `### ${hits.length} cells hold ${what}`);
+    hits.slice(0,8).forEach(h=>{
+      L.push(`- **${h.label}** · \`${h.sheet}!${h.ref}\` = **${h.value}**`
+        + (h.formula?`, calculated as \`${h.formula}\``:` (a direct input)`));
+    });
+    if(hits.length>8) L.push(`- …and ${hits.length-8} more.`);
+    L.push('');
+    L.push('Click any reference above to jump straight to it on the sheet.');
+    return L.join('\n');
+  }
   // ---- Metrics the model does not state, worked out from the lines it does.
   // A model that carries NOI and revenue implicitly carries the NOI margin;
   // refusing to answer because there is no row called "NOI margin" pushes
@@ -18038,7 +18134,12 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // 4) assumptions / drivers / risks
     if(/\b(assumption|driver|input|risk|lever)/i.test(q)){
       const asmTab=tabs.find(t=>/assumption|input/i.test(t))||tabs[0];
-      const rows=SHEET_DATA[asmTab].rows.filter(r=>r.style==='data'&&r.cells[1]).slice(0,8).map(r=>`• ${r.cells[1]}: ${r.cells.slice(2).filter(v=>v!=='')[0]||'—'}`);
+      let rows=SHEET_DATA[asmTab].rows.filter(r=>r.style==='data'&&r.cells[1]).slice(0,8).map(r=>`• ${r.cells[1]}: ${r.cells.slice(2).filter(v=>v!=='')[0]||'—'}`);
+      // Some workbooks carry no rows styled as data — falling through to a
+      // bare heading reads as a crash, so widen the filter before giving up.
+      if(!rows.length) rows=SHEET_DATA[asmTab].rows.filter(r=>r.style!=='section'&&r.style!=='empty'&&r.cells[1]&&r.cells.slice(2).some(v=>v!==''&&v!=null))
+        .slice(0,8).map(r=>`• ${r.cells[1]}: ${r.cells.slice(2).filter(v=>v!=='')[0]||'—'}`);
+      if(!rows.length) return _describeModelFallback();
       return `Key assumptions on **${asmTab}**:\n${rows.join('\n')}`;
     }
     // 5) otherwise, a grounded snapshot of the model
@@ -18192,6 +18293,10 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // Market-data pull (Paseetah) and deterministic solvers run first (math,
     // not narration) so they work with or without a live API key.
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
+    // "which cell is the IRR" — a lookup, answered from the workbook so it
+    // always cites a real cell rather than hedging about the map.
+    { const _l = (typeof _locateMetric==='function') ? _locateMetric(q) : null;
+      if (_l) { bot.innerHTML = _fmtDiscountSections(_l) + '<span class="k-meta">Karaya · located in the workbook</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // "express the NOI as a %" — a ratio the model doesn't carry is still
     // answerable from the lines it does, with the working shown.
     { const _d = (typeof _deriveMetric==='function') ? _deriveMetric(q) : null;
@@ -19393,6 +19498,10 @@ Answer as Karaya:`;
     msgs.scrollTop = msgs.scrollHeight;
     if (typeof _maybeAssumptionForm === 'function' && _maybeAssumptionForm(q, msgs)) { bot.remove(); return; }
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
+    // "which cell is the IRR" — a lookup, answered from the workbook so it
+    // always cites a real cell rather than hedging about the map.
+    { const _l = (typeof _locateMetric==='function') ? _locateMetric(q) : null;
+      if (_l) { bot.innerHTML = _fmtDiscountSections(_l) + '<span class="k-meta">Karaya · located in the workbook</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // "express the NOI as a %" — a ratio the model doesn't carry is still
     // answerable from the lines it does, with the working shown.
     { const _d = (typeof _deriveMetric==='function') ? _deriveMetric(q) : null;
