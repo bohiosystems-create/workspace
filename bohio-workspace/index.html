@@ -3997,6 +3997,31 @@
   #mhist-overlay .mh-restore { margin-left:auto; font-family:inherit; font-size:9px; letter-spacing:0.16em; text-transform:uppercase; font-weight:700; border:1px solid var(--ink); background:transparent; color:var(--ink); border-radius:999px; padding:7px 14px; cursor:pointer; transition:all .15s ease; }
   #mhist-overlay .mh-restore:hover { background:var(--ink); color:var(--bg); }
   #mhist-overlay .mh-current { margin-left:auto; font-size:8px; letter-spacing:0.18em; text-transform:uppercase; color:#15803d; font-weight:700; }
+  #mhist-overlay .mh-acts { margin-left:auto; display:flex; gap:7px; align-items:center; flex-shrink:0; }
+  #mhist-overlay .mh-acts .mh-restore { margin-left:0; }
+  #mhist-overlay .mh-compare { font-family:inherit; font-size:9px; letter-spacing:0.16em; text-transform:uppercase; font-weight:700; border:1px solid var(--ink-hairline); background:transparent; color:var(--ink-soft); border-radius:999px; padding:7px 12px; cursor:pointer; transition:all .15s ease; }
+  #mhist-overlay .mh-compare:hover { border-color:var(--ink); color:var(--ink); }
+  /* ===== Compare mode — the live sheet beside any auto-saved earlier version ===== */
+  #mcmp-overlay { position:fixed; inset:0; z-index:10065; background:var(--bg); display:none; flex-direction:column; }
+  #mcmp-overlay .cmp-head { display:flex; align-items:center; gap:16px; padding:12px 18px; border-bottom:1px solid var(--ink-hairline); flex-wrap:wrap; }
+  #mcmp-overlay .cmp-kicker { font-size:8px; letter-spacing:0.3em; text-transform:uppercase; color:var(--ink-soft); }
+  #mcmp-overlay .cmp-title { font-family:var(--font-display); font-size:18px; margin-top:2px; }
+  #mcmp-overlay .cmp-pick { font-family:inherit; font-size:11px; border:1px solid var(--ink-hairline); background:var(--bg); color:var(--ink); border-radius:999px; padding:8px 13px; cursor:pointer; max-width:340px; }
+  #mcmp-overlay .cmp-count { font-size:10px; letter-spacing:0.04em; color:var(--ink-soft); }
+  #mcmp-overlay .cmp-count b { color:#b45309; }
+  #mcmp-overlay .cmp-x { margin-left:auto; background:transparent; border:1px solid var(--ink-hairline); color:var(--ink); width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:14px; flex-shrink:0; }
+  #mcmp-overlay .cmp-tabs { display:flex; gap:6px; padding:9px 18px; border-bottom:1px solid var(--ink-hairline); overflow-x:auto; }
+  #mcmp-overlay .cmp-tab { font-family:inherit; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; border:1px solid var(--ink-hairline); background:transparent; color:var(--ink-soft); border-radius:999px; padding:6px 13px; cursor:pointer; white-space:nowrap; }
+  #mcmp-overlay .cmp-tab.active { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  #mcmp-overlay .cmp-body { flex:1; display:grid; grid-template-columns:1fr 1fr; min-height:0; }
+  #mcmp-overlay .cmp-pane { display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--ink-hairline); }
+  #mcmp-overlay .cmp-pane:last-child { border-right:none; }
+  #mcmp-overlay .cmp-pane-head { padding:9px 16px; border-bottom:1px solid var(--ink-hairline); background:rgba(0,9,25,0.02); }
+  #mcmp-overlay .cmp-pane-lbl { font-size:8px; letter-spacing:0.22em; text-transform:uppercase; font-weight:700; color:var(--ink-soft); }
+  #mcmp-overlay .cmp-pane-when { font-size:11.5px; font-weight:700; margin-top:2px; }
+  #mcmp-overlay .cmp-scroll { flex:1; overflow:auto; min-height:0; }
+  #mcmp-overlay .cmp-missing { padding:30px 20px; font-size:11px; color:var(--ink-soft); line-height:1.7; }
+  #mcmp-overlay td.cmp-chg { background:rgba(180,83,9,0.16) !important; box-shadow:inset 0 0 0 2px rgba(180,83,9,0.5); }
 
   .editor-title {
     font-size: 18px;
@@ -10766,6 +10791,10 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 4v4h4"></path><path d="M12 8v4l3 2"></path></svg>
               <span>History</span><span class="mh-badge" id="mh-badge" style="display:none;">0</span>
             </button>
+            <button class="sheet-history-btn" id="sheet-compare-btn" onclick="openModelCompare()" title="Compare the current sheet side by side with an earlier auto-saved version">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4h7v16H4zM13 4h7v16h-7z"></path><path d="M11 12h2"></path></svg>
+              <span>Compare</span>
+            </button>
             <button class="sheet-expand-btn" onclick="openFullscreen()" title="Expand" aria-label="Expand">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
             </button>
@@ -15532,7 +15561,7 @@ Answer as the ${a.name} agent:`;
     const vers=(rec&&rec.versions)||[];
     const rows = vers.length ? vers.map((v,i)=>{
       const when=new Date(v.ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-      return `<div class="mh-row"><div><div class="mh-when">${when}</div><div class="mh-lbl">${String(v.label||'Edit').replace(/</g,'&lt;')}</div></div><button class="mh-restore" onclick="restoreModelVersion(${i})">Restore</button></div>`;
+      return `<div class="mh-row"><div><div class="mh-when">${when}</div><div class="mh-lbl">${String(v.label||'Edit').replace(/</g,'&lt;')}</div></div><div class="mh-acts"><button class="mh-compare" onclick="openModelCompare(${i})">Compare</button><button class="mh-restore" onclick="restoreModelVersion(${i})">Restore</button></div></div>`;
     }).join('') : '<div style="padding:22px 16px;font-size:11px;color:var(--ink-soft);line-height:1.7;">No earlier versions yet. The moment you rework this model — from the formula bar or by chatting to Karaya — the previous version is auto-saved here so you can roll back.</div>';
     ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);border-radius:16px;overflow:hidden;width:100%;max-width:520px;max-height:calc(100vh - 52px);display:flex;flex-direction:column;">
       <div style="padding:18px 22px;border-bottom:1px solid var(--ink-hairline);display:flex;justify-content:space-between;align-items:flex-start;">
@@ -15558,6 +15587,127 @@ Answer as the ${a.name} agent:`;
       bot.innerHTML='Restored the model to an earlier version. Your just-replaced state was saved to history too, so you can jump back either way.<span class="k-meta">Karaya · just now</span>';
       msgs.appendChild(bot); msgs.scrollTop=msgs.scrollHeight; }
   }
+
+  // ============ COMPARE MODE — live sheet vs any auto-saved earlier version ============
+  // Every rework snapshots the PRE-change workbook (_pushVersion), so history
+  // always holds the trail. Compare mode lays any one of those snapshots beside
+  // the live sheet, tab for tab, and rings every cell that moved between them.
+  let _cmpState = null;                       // { idx, sheet }
+  function _cmpVersions(){
+    const rec=_openModelId?MODEL_SAVES[_openModelId]:null;
+    return (rec&&rec.versions)||[];
+  }
+  // _wbDiff only walks the keys of `after`, so a cell that exists solely in the
+  // older workbook would go unmarked — diff both ways and union the refs.
+  function _cmpChangedSet(prevWb, curWb){
+    const set=new Set();
+    try{ (_wbDiff(prevWb, curWb)||[]).forEach(c=>set.add(c.cell)); }catch(e){}
+    try{ (_wbDiff(curWb, prevWb)||[]).forEach(c=>set.add(c.cell)); }catch(e){}
+    return set;
+  }
+  function _cmpEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  // Read-only re-render of an arbitrary workbook, reusing the live sheet's own
+  // classes so the two panes are visually identical apart from the diff rings.
+  function _cmpPaneHTML(wb, sheetName, changed){
+    const sheet=(wb||{})[sheetName];
+    if(!sheet||!sheet.rows) return '<div class="cmp-missing">This tab doesn\'t exist in this version of the model.</div>';
+    let h='<table class="spreadsheet cmp-sheet"><thead><tr>'+
+      (sheet.headers||[]).map(x=>'<th>'+_cmpEsc(x)+'</th>').join('')+'</tr></thead><tbody>';
+    sheet.rows.forEach(row=>{
+      h+='<tr>';
+      (row.cells||[]).forEach((val, ci)=>{
+        let cls='';
+        if(ci===1){ cls = row.style==='section'?'section-cell':(row.style==='empty'?'empty-cell':'label-cell'); }
+        else if(ci>1){
+          cls='num';
+          if((row.style==='neg'||row.style==='total-neg') && String(val).indexOf('-')===0) cls+=' neg';
+          if(row.style==='total'||row.style==='total-pos'||row.style==='total-neg') cls+=' total-cell';
+          if(row.style==='total-pos') cls+=' pos';
+          if(row.style==='section') cls='section-cell';
+          if(row.style==='empty') cls='empty-cell';
+        }
+        const col=(sheet.cols||[])[ci];
+        if(ci!==0 && col && changed.has(sheetName+'!'+col+row.cells[0])) cls+=' cmp-chg';
+        h+='<td class="'+cls+'">'+_cmpEsc(val)+'</td>';
+      });
+      h+='</tr>';
+    });
+    return h+'</tbody></table>';
+  }
+  function openModelCompare(idx){
+    const vers=_cmpVersions();
+    if(typeof SHEET_DATA==='undefined' || !Object.keys(SHEET_DATA||{}).length) return;
+    const hv=document.getElementById('mhist-overlay'); if(hv) hv.style.display='none';
+    if(!vers.length){ _cmpNoVersions(); return; }
+    if(idx==null || !vers[idx]) idx=0;
+    const keep=(_cmpState&&_cmpState.sheet)||null;
+    const sheet=(keep&&SHEET_DATA[keep])?keep
+      :((typeof activeSheet!=='undefined'&&SHEET_DATA[activeSheet])?activeSheet:Object.keys(SHEET_DATA)[0]);
+    _cmpState={idx, sheet};
+    _renderCompare();
+  }
+  // Nothing to compare against yet — say so plainly rather than opening an
+  // empty split view the user has to work out for themselves.
+  function _cmpNoVersions(){
+    const ov=_cmpEnsureOverlay();
+    ov.innerHTML=`<div class="cmp-head"><div><div class="cmp-kicker">Compare versions</div><div class="cmp-title">Nothing to compare yet</div></div>
+      <button class="cmp-x" onclick="closeModelCompare()">✕</button></div>
+      <div class="cmp-missing">This model has no earlier versions saved yet. Every time you rework it — editing a cell in the formula bar, applying a Karaya change, or approving a debug fix — the version from just before that change is saved automatically. Make one change and the comparison becomes available here.</div>`;
+    ov.style.display='flex';
+  }
+  function _cmpEnsureOverlay(){
+    let ov=document.getElementById('mcmp-overlay');
+    if(!ov){ ov=document.createElement('div'); ov.id='mcmp-overlay'; document.body.appendChild(ov); }
+    return ov;
+  }
+  function _renderCompare(){
+    if(!_cmpState) return;
+    const vers=_cmpVersions(); const v=vers[_cmpState.idx]; if(!v) return;
+    const prevWb=v.wb||{};
+    const ov=_cmpEnsureOverlay();
+    const changed=_cmpChangedSet(prevWb, SHEET_DATA);
+    // Tabs are the union of both workbooks, so a tab added or dropped between
+    // the two versions is still reachable rather than silently missing.
+    const names=Object.keys(SHEET_DATA);
+    Object.keys(prevWb).forEach(n=>{ if(names.indexOf(n)<0) names.push(n); });
+    if(names.indexOf(_cmpState.sheet)<0) _cmpState.sheet=names[0];
+    const cur=_cmpState.sheet;
+    const onTab=[...changed].filter(c=>c.indexOf(cur+'!')===0).length;
+    const when=new Date(v.ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    const name=(_openModelDoc&&_openModelDoc.name)||'Model';
+    const opts=vers.map((x,i)=>`<option value="${i}"${i===_cmpState.idx?' selected':''}>${_cmpEsc(new Date(x.ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}))} — ${_cmpEsc(x.label||'Edit')}</option>`).join('');
+    ov.innerHTML=`
+      <div class="cmp-head">
+        <div style="min-width:0;"><div class="cmp-kicker">Compare versions · ${_cmpEsc(name)}</div><div class="cmp-title">Side by side</div></div>
+        <select class="cmp-pick" onchange="_cmpPick(this.value)" title="Choose which earlier version to compare against">${opts}</select>
+        <div class="cmp-count">${changed.size?`<b>${changed.size}</b> cell${changed.size===1?'':'s'} changed in total · <b>${onTab}</b> on this tab`:'No differences — these two versions are identical'}</div>
+        <button class="cmp-x" onclick="closeModelCompare()" title="Close compare mode">✕</button>
+      </div>
+      <div class="cmp-tabs">${names.map(n=>`<button class="cmp-tab${n===cur?' active':''}" onclick="_cmpTab('${n.replace(/'/g,"\\'")}')">${_cmpEsc(n)}</button>`).join('')}</div>
+      <div class="cmp-body">
+        <div class="cmp-pane">
+          <div class="cmp-pane-head"><div class="cmp-pane-lbl">Earlier version · auto-saved</div><div class="cmp-pane-when">${when} — ${_cmpEsc(v.label||'Edit')}</div></div>
+          <div class="cmp-scroll" id="mcmp-left">${_cmpPaneHTML(prevWb, cur, changed)}</div>
+        </div>
+        <div class="cmp-pane">
+          <div class="cmp-pane-head"><div class="cmp-pane-lbl">Current version · live</div><div class="cmp-pane-when">Now — your latest edits</div></div>
+          <div class="cmp-scroll" id="mcmp-right">${_cmpPaneHTML(SHEET_DATA, cur, changed)}</div>
+        </div>
+      </div>`;
+    ov.style.display='flex';
+    _cmpSyncScroll();
+  }
+  // Lock the two panes together so the same rows stay opposite each other.
+  function _cmpSyncScroll(){
+    const l=document.getElementById('mcmp-left'), r=document.getElementById('mcmp-right');
+    if(!l||!r) return;
+    let lock=false;
+    const mirror=(from,to)=>()=>{ if(lock) return; lock=true; to.scrollTop=from.scrollTop; to.scrollLeft=from.scrollLeft; lock=false; };
+    l.addEventListener('scroll', mirror(l,r)); r.addEventListener('scroll', mirror(r,l));
+  }
+  function _cmpTab(n){ if(_cmpState){ _cmpState.sheet=n; _renderCompare(); } }
+  function _cmpPick(i){ if(_cmpState){ _cmpState.idx=parseInt(i,10)||0; _renderCompare(); } }
+  function closeModelCompare(){ const ov=document.getElementById('mcmp-overlay'); if(ov) ov.style.display='none'; }
 
   // ============ SHEET ZOOM — zoom in/out while working on a model ============
   let SHEET_ZOOM = (function(){ try{ const z=parseFloat(localStorage.getItem('bohio_sheet_zoom')); return (z>=0.5&&z<=1.7)?z:1; }catch(e){ return 1; } })();
