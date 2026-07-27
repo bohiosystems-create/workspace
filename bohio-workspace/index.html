@@ -11383,7 +11383,7 @@
 </div>
 
 <!-- ============ DOCUMENT VIEWER OVERLAY ============ -->
-<div class="ch-doc-viewer-overlay" id="ch-doc-viewer-overlay" onclick="if(event.target===this)closeDocViewer()">
+<div class="ch-doc-viewer-overlay" id="ch-doc-viewer-overlay" onclick="if(event.target===this)chCloseDocViewer()">
   <div class="ch-doc-viewer">
     <div class="ch-doc-viewer-toolbar">
       <div class="ch-doc-viewer-toolbar-title" id="ch-doc-viewer-title">Document</div>
@@ -19424,6 +19424,20 @@ Answer as Karaya:`;
   }
 
   function ct(l){return `<div class="chart-title-wrap"><div class="chart-label" style="margin-bottom:0;">${l}</div><button class="insight-btn" onclick="event.stopPropagation();generateInsight('${l.replace(/'/g,"\\'")}')" title="Generate AI insight">AI Insight</button></div>`;}
+  // dp() and ds() emit these four hover hooks, and none of them existed. Nothing
+  // calls dp()/ds() today so it never surfaced, but the first chart to use them
+  // would have thrown a ReferenceError on hover. Pointed at the same tooltip
+  // element the reporting packs already use rather than left dangling.
+  function showTipEl(el, text){
+    const t=_wfRepTipEl();
+    const esc=String(text==null?'':text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    t.innerHTML=`<div class="tip-body">${esc}</div>`;
+    t.classList.add('on');
+    _wfRepTipPos(t, el);
+  }
+  function hideTipEl(){ _wfRepTipHide(); }
+  function showTip(el, text){ showTipEl(el, text); }
+  function hideTip(){ _wfRepTipHide(); }
   function dp(t){return `onmouseenter="showTipEl(this,'${t.replace(/'/g,"\\'")}')" onmouseleave="hideTipEl(this)" onclick="event.stopPropagation();studioDataClick('${t.replace(/'/g,"\\'")}')" style="cursor:pointer;"`;}
   function ds(t){return `class="chart-dot" onmouseenter="showTip(this,'${t.replace(/'/g,"\\'")}')" onmouseleave="hideTip(this)" onclick="studioDataClick('${t.replace(/'/g,"\\'")}')" style="cursor:pointer;"`;}
 
@@ -28051,7 +28065,9 @@ ${ctx.mailCtx}`;
   // rather than described.
   const FUND_EXIT = {
     fund2:{ name:'Bohio RE Opportunity Fund II', status:'Investing',
-      drawn:540, nav:615, gav:1180, debt:620, stabilisedNOI:79.7, debtRate:0.0625, dpi:0.12,
+      // debt was 620, which left GAV less debt at 560 against a reported NAV of
+      // 615 — a 10% hole that every route inherited through the repayment line.
+      drawn:540, nav:615, gav:1180, debt:565, stabilisedNOI:79.7, debtRate:0.0625, dpi:0.12,
       incomeShare:0.42,                 // share of GAV producing income today
       termRemainingYrs:6.2, pref:0.08, promote:0.20, mgmtFee:0.015,
       note:'Still in its investment period with SAR 210M of dry powder undeployed — a full realisation now would crystallise the development assets before they stabilise.' },
