@@ -19931,36 +19931,12 @@ Answer as Karaya:`;
     if(text && typeof _looksReadable==='function' && !_looksReadable(text)) text='';
     return { id:'ca'+(++_caSeq), name, mime, ext, purpose:_caPurposeGuess(name,mime), text:String(text||'').slice(0,4000), dataUrl, when:'just now' };
   }
-  function _caSetPurpose(id, purpose){
-    const a=CHAT_ATTACHMENTS.find(x=>x.id===id); if(!a) return;
-    a.purpose=purpose;
-    if(purpose==='style' && a.dataUrl && typeof BRAND_KIT!=='undefined'){
-      if(!BRAND_KIT.assets.some(x=>x.name===a.name)) BRAND_KIT.assets.push({id:'bk-'+a.id, kind:'logo', name:a.name, dataUrl:a.dataUrl, palette:[]});
-      _bkSave();
-    }
-    _KARAYA_CTX_CACHE=null;
-    _syncBrandChips();
-    document.querySelectorAll('.ucap-chips').forEach(el=>{ el.innerHTML=_caChipsHTML(); });
-  }
-  function _caRemove(id){
-    const i=CHAT_ATTACHMENTS.findIndex(x=>x.id===id); if(i<0) return;
-    const a=CHAT_ATTACHMENTS[i];
-    if(typeof BRAND_KIT!=='undefined') BRAND_KIT.assets=(BRAND_KIT.assets||[]).filter(x=>x.id!=='bk-'+a.id);
-    CHAT_ATTACHMENTS.splice(i,1);
-    _KARAYA_CTX_CACHE=null; _bkSave(); _syncBrandChips();
-    document.querySelectorAll('.ucap-chips').forEach(el=>{ el.innerHTML=_caChipsHTML(); });
-  }
-  function _caChipsHTML(){
-    if(!CHAT_ATTACHMENTS.length) return '';
-    return CHAT_ATTACHMENTS.map(a=>{
-      const isStyle=a.purpose==='style';
-      return `<span style="display:inline-flex;align-items:center;gap:6px;font-size:9px;border:1px solid var(--ink-hairline);border-radius:999px;padding:3px 8px;background:var(--paper);">
-        <span style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">${String(a.name).replace(/</g,'&lt;')}</span>
-        <button onclick="_caSetPurpose('${a.id}','${isStyle?'context':'style'}')" title="${isStyle?'Used as a style/template reference — click to use as context instead':'Used as context — click to use as a style/template reference'}" style="border:none;background:${isStyle?'rgba(37,99,235,0.14)':'rgba(0,9,25,0.06)'};color:${isStyle?'#2563eb':'var(--ink-soft)'};border-radius:999px;padding:2px 7px;font-size:7.5px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;cursor:pointer;font-family:inherit;">${isStyle?'Style':'Context'}</button>
-        <button onclick="_caRemove('${a.id}')" title="Remove" style="border:none;background:transparent;color:var(--ink-soft);cursor:pointer;font-size:11px;line-height:1;">×</button>
-      </span>`;
-    }).join('');
-  }
+  // Uploads used to pin themselves to the composer as "CONTEXT" chips, which
+  // read as if those files were the context Karaya works from. They are one
+  // section of a workspace context that already carries the projects, the ERP
+  // and CRM feeds, the funds, the programme, the market data and the rest, so
+  // the chips are gone — the files still flow into that context via
+  // _chatAttachContext below, they are simply not billed as being it.
   // Attachments are visible to every chat via the shared workspace context.
   function _chatAttachContext(){
     if(!CHAT_ATTACHMENTS.length) return null;
@@ -19979,8 +19955,8 @@ Answer as Karaya:`;
       }
       if(log){
         const styleLine = a.purpose==='style'
-          ? `I'll treat it as a **style / template reference** — the structure, tone and look of anything I generate will follow it. Switch it to *Context* on the chip below if you'd rather I just read it for facts.`
-          : `I'll use it as **context** — I can answer questions from it and cite it in anything I generate. Switch it to *Style* on the chip below to have my output copy its structure and look instead.`;
+          ? `I'll follow it as a **style / template reference** — the structure, tone and look of anything I generate will match it. It joins everything else I can already see across the platform.`
+          : `It joins everything else I can already see — the projects, the ERP and CRM feeds, the funds, the programme and the market data — so ask me anything that spans them.`;
         const read = a.text ? `Read **${a.text.split(/\s+/).length.toLocaleString()} words** from it.` : (a.dataUrl?`Read it as an image.`:`No text layer I could read — I'll still keep it on file.`);
         log.appendChild(_ucapBubble('bot', fmtKaraya(`Attached **${a.name}**. ${read} ${styleLine}`)));
         log.scrollTop=log.scrollHeight;
@@ -19988,7 +19964,6 @@ Answer as Karaya:`;
     }
     _KARAYA_CTX_CACHE=null;
     _syncBrandChips();
-    document.querySelectorAll('.ucap-chips').forEach(el=>{ el.innerHTML=_caChipsHTML(); });
   }
   // Find (or make) the log this input's answers should be appended to.
   function _chatLogFor(input){
@@ -20032,14 +20007,6 @@ Answer as Karaya:`;
       picker.onchange=()=>{ _ucapAttachFiles(input, picker.files); picker.value=''; };
       clip.onclick=(e)=>{ e.preventDefault(); e.stopPropagation(); picker.click(); };
       if(input.parentElement){ input.parentElement.insertBefore(clip, input); input.parentElement.appendChild(picker); }
-      // chips strip above the input row, showing what's attached
-      const row=input.closest('div');
-      if(row && row.parentElement && !row.parentElement.querySelector('.ucap-chips')){
-        const chips=document.createElement('div'); chips.className='ucap-chips';
-        chips.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;';
-        chips.innerHTML=_caChipsHTML();
-        row.parentElement.insertBefore(chips, row);
-      }
       // file prep/download for chats that don't already own it
       const id=input.id||'';
       if(!_CHAT_OWNS_FILES.test(id)){
@@ -20760,7 +20727,7 @@ Answer as Karaya:`;
         {cells:['7','Yield on Cost',((noi[0]/v.cost)*100).toFixed(2)+'%'],style:'data'},
       ]},
     };
-    return {wb, v, irr, mult, noi1:noi[0]};
+    return {wb, v, irr, mult, noi1:noi[0], core:{noi, cfe, rev, netSale, exitVal, mult, irr, equity, debt}};
   }
   function applyAssumptionForm(el){
     const form=el.closest('.asm-form'); if(!form) return;
@@ -23826,13 +23793,6 @@ Answer as Karaya:`;
     if(!terms.term) issues.push({sev:'low', issue:'Fund term / extensions unclear', rec:'State the term explicitly (e.g. 8 years + 2×1-year extensions) so LPs can underwrite liquidity.'});
     return {terms, issues};
   }
-  const _WF_NEWFUND_SAMPLE_LPA=`DRAFT LIMITED PARTNERSHIP AGREEMENT\nBohio RE Opportunity Fund III — a QFMA-regulated closed-end vehicle targeting SAR 500M of commitments.\nManagement fee: 1.75% per annum on committed capital during the investment period.\nPromote: 20% promote over an 8% preferred return.\nTerm: 8-year term from final close.\nGP commitment: 3% of total commitments, funded pari passu with LPs.\nInvestment period: 4 years from first close, extendable by 1 year with LPAC consent.\n`;
-  const _WF_NEWFUND_SAMPLE_DEV=`DEVELOPER AGREEMENT (DRAFT) — Al Bidda Waterfront Parcel\nDeveloper: Bohio Capital Partners, acting as asset manager and development manager.\nDevelopment management fee: 3% of total construction cost.\nCompletion guarantee: developer to fund cost overruns up to 10% of GMP before recourse to the fund.\nHandover: practical completion targeted 36 months from notice to proceed.\n`;
-  function _wfFundNewUseSample(){
-    _wfNewFund.docs=[{name:'Draft LPA — Fund III', type:'LPA', text:_WF_NEWFUND_SAMPLE_LPA},{name:'Developer Agreement — Al Bidda Waterfront', type:'AGR', text:_WF_NEWFUND_SAMPLE_DEV}];
-    _wfNewFund.text=_WF_NEWFUND_SAMPLE_LPA+'\n'+_WF_NEWFUND_SAMPLE_DEV;
-    _wfFundNewRunRedline();
-  }
   async function _wfFundNewUpload(file){
     if(!file||!_wfNewFund) return;
     const ext=((String(file.name||'').match(/\.([^.]+)$/)||[,''])[1]||'').toLowerCase();
@@ -23881,7 +23841,6 @@ Answer as Karaya:`;
         <div style="font-size:10.5px;color:var(--ink-soft);margin-top:5px;line-height:1.6;">${i.rec}</div>
       </div>`).join('')}
       ${!nf.issues.length?'<div style="font-size:10.5px;color:var(--ink-soft);">No missing standard clauses detected.</div>':''}
-      <button class="wf-btn" style="margin-top:8px;" onclick="_wfFundNewStep2()">Continue to the financial model →</button>
     ` : '';
     const chatLogHtml=(nf.chat||[]).map((m,i)=>`<div id="${m.cls==='bot'?'wfnf-chat-b'+i:''}" style="align-self:${m.cls==='user'?'flex-end':'flex-start'};max-width:88%;background:${m.cls==='user'?'var(--ink)':'rgba(0,9,25,0.04)'};color:${m.cls==='user'?'var(--bg)':'var(--ink)'};border:${m.cls==='user'?'none':'1px solid var(--ink-hairline)'};border-radius:12px;padding:9px 13px;font-size:11px;line-height:1.6;">${m.html}</div>`).join('');
     const chatHtml=`<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:14px 16px;margin:14px 0;">
@@ -23895,9 +23854,9 @@ Answer as Karaya:`;
     modal.innerHTML=`
       <div class="wf-head">
         <div>
-          <div class="wf-eyebrow">Establish a new fund · step 1 of 3</div>
-          <div class="wf-title">Read the fund &amp; developer agreements</div>
-          <div class="wf-sub">Upload the draft documents — Karaya extracts the headline terms and redlines anything missing before it goes to counsel.</div>
+          <div class="wf-eyebrow">Establish a new fund</div>
+          <div class="wf-title">Name it and it's live</div>
+          <div class="wf-sub">Only the name and size are needed. Attach the draft agreements if you have them and Karaya will read the terms out of them — otherwise establish the fund now and add documents and a model from the fund room whenever you're ready.</div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;">
           <button class="wf-back" onclick="_wfFundListBack()" aria-label="Back" title="Back to all funds">←</button>
@@ -23908,116 +23867,28 @@ Answer as Karaya:`;
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
           <button class="wf-btn ghost" onclick="document.getElementById('wfnf-upload').click()">Upload a document</button>
           <input type="file" id="wfnf-upload" style="display:none;" accept=".pdf,.docx,.doc,.txt,.md" onchange="_wfFundNewUpload(this.files[0])">
-          ${!nf.docs.length?`<button class="wf-btn ghost" onclick="_wfFundNewUseSample()">Use sample fund documents</button>`:''}
         </div>
         ${docsHtml}
         ${nf.docs.length&&!nf.issues?`<div style="margin-top:10px;"><button class="wf-btn" onclick="_wfFundNewRunRedline()">✦ Read &amp; redline these documents</button></div>`:''}
         ${chatHtml}
         ${termsHtml}
         ${redlineHtml}
+        <div style="border-top:1px solid var(--ink-hairline);margin-top:16px;padding-top:16px;">
+          <div style="display:flex;flex-direction:column;gap:10px;max-width:420px;">
+            <div><div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Fund name</div>
+            <input id="wfnf-name" value="${(nf.terms.name||'Bohio RE Opportunity Fund III').replace(/"/g,'&quot;')}" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:12px;"></div>
+            <div><div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Strategy / tag</div>
+            <input id="wfnf-tag" value="Core-plus · Qatar" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:12px;"></div>
+            <div><div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Target size (SAR M)</div>
+            <input id="wfnf-size" value="${(nf.terms.size||'').replace(/[^\d.]/g,'')||'500'}" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:12px;"></div>
+            <button class="wf-btn" style="margin-top:6px;" onclick="_wfFundNewFinish()">Establish fund →</button>
+            <div style="font-size:9.5px;color:var(--ink-soft);line-height:1.6;">The fund room opens straight away. A financial model isn't required now — add one from its Modelling tab whenever you want.</div>
+          </div>
+        </div>
       </div>`;
     const log=document.getElementById('wfnf-chat-log'); if(log) log.scrollTop=log.scrollHeight;
   }
-  function _wfFundNewStep2(){
-    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
-    const nf=_wfNewFund;
-    modal.innerHTML=`
-      <div class="wf-head">
-        <div>
-          <div class="wf-eyebrow">Establish a new fund · step 2 of 3</div>
-          <div class="wf-title">Get a financial model going</div>
-          <div class="wf-sub">Upload the fund's own workbook, start from a Bohio template, or have Karaya vibe-code one from scratch using the terms it just read.</div>
-        </div>
-        <div style="display:flex;gap:8px;flex-shrink:0;">
-          <button class="wf-back" onclick="_wfFundNewRenderStep1()" aria-label="Back" title="Back">←</button>
-          <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
-        </div>
-      </div>
-      <div class="wf-body">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px;">
-          <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:16px;">
-            <div style="font-size:11.5px;font-weight:700;margin-bottom:6px;">Upload a workbook</div>
-            <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:11px;">Bring the fund's own model — Karaya recreates it live and editable.</div>
-            <button class="wf-btn ghost" onclick="document.getElementById('wfnf-model-upload').click()">Choose file</button>
-            <input type="file" id="wfnf-model-upload" style="display:none;" accept=".xlsx,.xlsm,.csv" onchange="_wfFundNewModelUpload(this.files[0])">
-          </div>
-          <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:16px;">
-            <div style="font-size:11.5px;font-weight:700;margin-bottom:6px;">Start from a template</div>
-            <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:11px;">"Equity Waterfall — GP/LP" — 5 tabs: contributions, distributions, waterfall tiers, returns summary.</div>
-            <button class="wf-btn ghost" onclick="_wfFundNewModelTemplate()">Use this template</button>
-          </div>
-          <div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:16px;">
-            <div style="font-size:11.5px;font-weight:700;margin-bottom:6px;">✦ Vibe code it from scratch</div>
-            <div style="font-size:10px;color:var(--ink-soft);line-height:1.6;margin-bottom:11px;">Karaya builds a first model straight from the terms it just read${Object.keys(nf.terms||{}).length?' ('+Object.entries(nf.terms).map(([k,v])=>v).join(' · ')+')':''}.</div>
-            <button class="wf-btn" onclick="_wfFundNewModelVibe()">Build it</button>
-          </div>
-        </div>
-        <div id="wfnf-model-slot">${nf.model&&nf.model._summary?`<div style="border:1px solid var(--ink-hairline);border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:11px;line-height:1.65;">${nf.model._summary}</div>`:''}</div>
-        ${nf.model?`<button class="wf-btn" onclick="_wfFundNewStep3()">Continue to finalise →</button>`:`<div style="font-size:9.5px;color:var(--ink-soft);">Pick one of the three options above to continue — or <span style="text-decoration:underline;cursor:pointer;" onclick="_wfFundNewStep3()">skip for now</span> and add a model later.</div>`}
-      </div>`;
-  }
-  async function _wfFundNewModelUpload(file){
-    if(!file) return;
-    const ext=((String(file.name||'').match(/\.([^.]+)$/)||[,''])[1]||'').toLowerCase();
-    let wbData=null;
-    try{
-      if(ext==='csv') wbData=_csvToWb(await file.text(), 'Fund Master Model');
-      else if(ext==='xlsx'||ext==='xlsm') wbData=await _xlsxToWb(file);
-    }catch(e){}
-    if(!wbData) return;
-    _wfNewFund.model={type:'XLSX', name:'Fund Master Model', version:'v.01 · '+Object.keys(wbData).length+' tabs · Uploaded', updated:'Just now · You', isGenerated:true, _fundMaster:true, wbData,
-      _summary:`Recreated <b>${file.name}</b> (${Object.keys(wbData).length} tabs) as a live model.`};
-    _wfFundNewStep2();
-  }
-  function _wfFundNewModelTemplate(){
-    _wfNewFund.model={type:'XLSX', name:'Equity Waterfall — GP/LP — Model', version:'v.01 · From template', updated:'Just now · You', isGenerated:true,
-      notes:'Model started from the "Equity Waterfall — GP/LP" Bohio template. Rework it by chatting to Karaya — change cells, add/remove metrics, add sheets.',
-      _summary:`Started from the <b>Equity Waterfall — GP/LP</b> template (5 tabs: contributions, distributions, waterfall tiers, returns summary).`};
-    _wfFundNewStep2();
-  }
-  function _wfFundNewModelVibe(){
-    const nf=_wfNewFund;
-    const tmp=document.createElement('div'); tmp.innerHTML=assumptionFormHTML();
-    const form=tmp.querySelector('.asm-form');
-    const set=(k,v)=>{ const el=form.querySelector(`[data-asm="${k}"]`); if(el&&v!=null) el.value=v; };
-    set('name', 'New Fund — Seed Model');
-    if(nf.terms.size){ const n=parseFloat(String(nf.terms.size).replace(/[^\d.]/g,'')); if(!isNaN(n)) set('cost', n); }
-    if(nf.terms.term){ const y=parseInt(nf.terms.term,10); if(!isNaN(y)) set('hold', Math.min(Math.max(y,3),10)); }
-    set('ltv', 65);
-    const {wb,v,irr,mult,noi1}=_buildWbFromAssumptions(form);
-    _wfNewFund.model={type:'XLSX', name:v.name, version:'v.01 · Vibe-coded by Karaya', updated:'Just now · Karaya', isGenerated:true, wbData:wb,
-      notes:'Built by Karaya from the terms extracted in step 1'+(nf.terms.size?' (fund size '+nf.terms.size+')':'')+(nf.terms.term?' ('+nf.terms.term+' term)':'')+'.',
-      _summary:`Vibe-coded <b>${v.name}</b> from the fund's own terms — Year-1 NOI <b>SAR ${noi1.toFixed(1)}M</b>, equity multiple <b>${mult.toFixed(2)}x</b>${irr!=null?`, IRR <b>${(irr*100).toFixed(1)}%</b>`:''} over a ${v.hold}-year hold. Open and rework it after the fund is established.`};
-    _wfFundNewStep2();
-  }
   const _WF_NEWFUND_COLORS=['#009DDC','#E03A3C','#00919B','#8a6d3b','#FDB827'];
-  function _wfFundNewStep3(){
-    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
-    const nf=_wfNewFund;
-    modal.innerHTML=`
-      <div class="wf-head">
-        <div>
-          <div class="wf-eyebrow">Establish a new fund · step 3 of 3</div>
-          <div class="wf-title">Name it and it's live</div>
-          <div class="wf-sub">This creates the fund room — documents, model, structure and approvals all carry over.</div>
-        </div>
-        <div style="display:flex;gap:8px;flex-shrink:0;">
-          <button class="wf-back" onclick="_wfFundNewStep2()" aria-label="Back" title="Back">←</button>
-          <button class="wf-close" onclick="closeWorkflow()" aria-label="Close">✕</button>
-        </div>
-      </div>
-      <div class="wf-body">
-        <div style="display:flex;flex-direction:column;gap:10px;max-width:420px;">
-          <div><div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Fund name</div>
-          <input id="wfnf-name" value="Bohio RE Opportunity Fund III" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:12px;border-radius:8px;outline:none;"></div>
-          <div><div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Strategy / tag</div>
-          <input id="wfnf-tag" value="Core-plus · Qatar" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:12px;border-radius:8px;outline:none;"></div>
-          <div><div style="font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;">Target size (SAR M)</div>
-          <input id="wfnf-size" value="${(nf.terms.size||'').replace(/[^\d.]/g,'')||'500'}" style="width:100%;box-sizing:border-box;padding:10px 13px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:12px;border-radius:8px;outline:none;"></div>
-          <button class="wf-btn" style="margin-top:6px;" onclick="_wfFundNewFinish()">Establish fund →</button>
-        </div>
-      </div>`;
-  }
   function _wfFundNewFinish(){
     const nf=_wfNewFund;
     const name=(document.getElementById('wfnf-name')||{}).value||'New Fund';
@@ -26860,7 +26731,145 @@ Answer as Karaya:`;
     if(m=t.match(/(\d+(?:\.\d+)?)\s*%\s*exit\s*cap/i)) out.exitcap=parseFloat(m[1]);
     if(m=t.match(/SAR\s*([\d,.]+)\s*M/i)) out.cost=parseFloat(m[1].replace(/,/g,''));
     if(m=t.match(/(residential|office|retail|logistics|hotel|hospitality|mixed[-\s]use|industrial)/i)) out.kind=m[1];
+    // Fund-level terms. A prompt that opens "a fund with LPs and GPs, 2% fee,
+    // 20% promote over an 8% pref" was previously parsed for none of them.
+    if(m=t.match(/(\d+(?:\.\d+)?)\s*%\s*(?:management\s*)?fee/i)) out.fee=parseFloat(m[1]);
+    if(m=t.match(/(\d+(?:\.\d+)?)\s*%\s*(?:carried interest|carry|promote)/i)) out.promote=parseFloat(m[1]);
+    if(m=t.match(/(\d+(?:\.\d+)?)\s*%\s*(?:preferred|pref\b|hurdle)/i)) out.pref=parseFloat(m[1]);
+    if(m=t.match(/(?:over|above)\s*(?:an?\s*)?(\d+(?:\.\d+)?)\s*%/i) && out.pref==null) out.pref=parseFloat(m[1]);
+    // The patterns above all read value-then-label ("6.5% exit cap"). An edit is
+    // almost always phrased the other way round — "change the exit cap to 7.5%"
+    // — which matched none of them, so follow-up tweaks silently did nothing.
+    const rev=(re)=>{ const mm=t.match(re); return mm?parseFloat(mm[1]):null; };
+    const R='\\s*(?:to|of|at|=|:)\\s*';
+    if(out.exitcap==null) out.exitcap=rev(new RegExp('exit\\s*cap(?:\\s*rate)?'+R+'(\\d+(?:\\.\\d+)?)\\s*%','i'));
+    if(out.ltv==null)     out.ltv=rev(new RegExp('\\bltv\\b(?:\\s*ratio)?'+R+'(\\d+(?:\\.\\d+)?)\\s*%','i'));
+    if(out.rate==null)    out.rate=rev(new RegExp('(?:interest|debt|coupon)\\s*rate'+R+'(\\d+(?:\\.\\d+)?)\\s*%','i'));
+    if(out.occ==null)     out.occ=rev(new RegExp('occupancy'+R+'(\\d+(?:\\.\\d+)?)\\s*%','i'));
+    if(out.growth==null)  out.growth=rev(new RegExp('(?:rent\\s*)?growth'+R+'(\\d+(?:\\.\\d+)?)\\s*%','i'));
+    if(out.fee==null)     out.fee=rev(new RegExp('(?:management\\s*)?fee'+R+'(\\d+(?:\\.\\d+)?)\\s*%','i'));
+    if(out.promote==null) out.promote=rev(new RegExp('(?:promote|carry|carried interest)'+R+'(\\d+(?:\\.\\d+)?)\\s*%','i'));
+    if(out.pref==null)    out.pref=rev(new RegExp('(?:preferred(?:\\s*return)?|pref|hurdle)'+R+'(\\d+(?:\\.\\d+)?)\\s*%','i'));
+    if(out.opex==null){
+      out.opex=rev(new RegExp('opex(?:\\s*ratio)?'+R+'(\\d+(?:\\.\\d+)?)\\s*%','i'));
+      if(out.opex==null && (m=t.match(/(\d+(?:\.\d+)?)\s*%\s*opex/i))) out.opex=parseFloat(m[1]);
+    }
+    if(out.rent==null){
+      out.rent=rev(new RegExp('rent(?:\\s*per\\s*sqm)?'+R+'(?:SAR\\s*)?(\\d[\\d,]*)','i'));
+      if(out.rent!=null) out.rent=parseFloat(String(out.rent).replace(/,/g,''));
+    }
+    if(out.hold==null && (m=t.match(new RegExp('(?:hold|term)'+R+'(\\d+)\\s*(?:year|yr)','i')))) out.hold=parseInt(m[1],10);
+    Object.keys(out).forEach(kk=>{ if(out[kk]==null || (typeof out[kk]==='number' && isNaN(out[kk]))) delete out[kk]; });
     return out;
+  }
+  // Which extra pages a prompt is asking for. Returns [] for a plain build.
+  const _SCRATCH_PAGES=[
+    {k:'waterfall', re:/\b(waterfall|distribution tiers?|lp\s*\/?\s*gp split|promote (?:tier|calc)|carried interest)\b/i, label:'Distribution Waterfall'},
+    {k:'debt',      re:/\b(debt schedule|facility|amorti[sz]ation|loan schedule|dscr|interest schedule)\b/i, label:'Debt Schedule'},
+    {k:'sensitivity',re:/\b(sensitivit(?:y|ies)|scenario table|tornado|stress page|grid)\b/i, label:'Sensitivity'},
+    {k:'summary',   re:/\b(summary page|summary tab|executive summary|one[- ]pager)\b/i, label:'Summary'},
+  ];
+  function _scratchPageRequests(text){
+    const t=String(text||'');
+    if(!/\b(add|include|build|create|insert|append|put in|also)\b/i.test(t)) return [];
+    return _SCRATCH_PAGES.filter(p=>p.re.test(t)).map(p=>p.k);
+  }
+  // A follow-up that only asks to add a page or tweak a number is an EDIT of the
+  // model already on the table, not a reason to build a second one alongside it.
+  function _scratchIsFollowUp(text, hasModel){
+    if(!hasModel) return false;
+    const t=String(text||'');
+    if(/\b(start (over|again)|from scratch|rebuild|new model|replace the model)\b/i.test(t)) return false;
+    return _scratchPageRequests(t).length>0
+      || /\b(add|change|set|update|make|increase|decrease|raise|lower|adjust|revise|amend|remove|drop|rename)\b/i.test(t);
+  }
+  // Extra pages, computed off the same assumption vector the core workbook uses
+  // so every figure ties back to Assumptions rather than being decorative.
+  function _scratchExtraSheet(kind, v, core){
+    const N=v.hold, f2=n=>n.toFixed(2);
+    const L=i=>String.fromCharCode(66+i);
+    const cols=['','A',...Array.from({length:N},(_,i)=>L(i))];
+    const headers=['','',...Array.from({length:N},(_,i)=>'Y'+(i+1))];
+    const debt=v.cost*v.ltv, equity=v.cost-debt;
+
+    if(kind==='debt'){
+      const interest=debt*v.rate;
+      const dscr=core.noi.map(n=>interest? n/interest : 0);
+      return {'Debt Schedule':{ cols, headers, rows:[
+        {cells:['1','DEBT SCHEDULE (SAR M)',...Array(N).fill('')],style:'section'},
+        {cells:['2','Opening Balance',...Array(N).fill(f2(debt))],style:'data'},
+        {cells:['3','Interest',...Array(N).fill(f2(-interest))],style:'neg'},
+        {cells:['4','Principal Repaid',...Array(N-1).fill('0.00'),f2(-debt)],style:'neg'},
+        {cells:['5','Closing Balance',...Array(N-1).fill(f2(debt)),'0.00'],style:'total'},
+        {cells:['6','',...Array(N).fill('')],style:'empty'},
+        {cells:['7','Net Operating Income',...core.noi.map(f2)],formulas:['','',...Array.from({length:N},(_,i)=>`=Cashflow!${L(i)}4`)],style:'data'},
+        {cells:['8','DSCR',...dscr.map(d=>d.toFixed(2)+'x')],formulas:['','',...Array.from({length:N},(_,i)=>`=${L(i)}7/ABS(${L(i)}3)`)],style:'total'},
+        {cells:['9','LTV at entry',(v.ltv*100).toFixed(1)+'%',...Array(N-1).fill('')],style:'data'},
+      ]}};
+    }
+
+    if(kind==='waterfall'){
+      const pref=(v.pref!=null?v.pref:8)/100, promote=(v.promote!=null?v.promote:20)/100;
+      const feePct=(v.fee!=null?v.fee:1.5)/100;
+      const fees=equity*feePct*N;
+      const gross=core.cfe.reduce((a,b)=>a+b,0)+core.netSale;
+      const dist=gross-fees;
+      const capital=Math.min(Math.max(dist,0), equity);
+      const prefAmt=equity*(Math.pow(1+pref,N)-1);
+      const prefPaid=Math.min(Math.max(dist-capital,0), prefAmt);
+      const residual=Math.max(dist-capital-prefPaid,0);
+      const gpPromote=residual*promote;
+      const lpTotal=capital+prefPaid+residual*(1-promote);
+      const lpMult=equity?lpTotal/equity:0;
+      return {'Waterfall':{ cols:['','A','B','C'], headers:['','Tier','SAR M','To'], rows:[
+        {cells:['1','DISTRIBUTION WATERFALL','',''],style:'section'},
+        {cells:['2','Equity contributed',f2(equity),'LP + GP'],style:'data'},
+        {cells:['3','Management fee ('+(feePct*100).toFixed(2)+'% p.a. x '+N+'y)',f2(-fees),'GP'],style:'neg'},
+        {cells:['4','Distributable proceeds',f2(dist),''],style:'total'},
+        {cells:['5','','',''],style:'empty'},
+        {cells:['6','TIER 1 — Return of capital',f2(capital),'LP'],style:'data'},
+        {cells:['7','TIER 2 — Preferred return ('+(pref*100).toFixed(1)+'%)',f2(prefPaid),'LP'],style:'data'},
+        {cells:['8','TIER 3 — Residual profit',f2(residual),''],style:'data'},
+        {cells:['9','TIER 4 — GP promote ('+(promote*100).toFixed(0)+'%)',f2(gpPromote),'GP'],formulas:['','','=B8*'+promote,''],style:'data'},
+        {cells:['10','','',''],style:'empty'},
+        {cells:['11','Total to LPs',f2(lpTotal),'LP'],formulas:['','','=B6+B7+(B8-B9)',''],style:'total'},
+        {cells:['12','Total to GP',f2(gpPromote+fees),'GP'],formulas:['','','=B9-B3',''],style:'total'},
+        {cells:['13','LP equity multiple',lpMult.toFixed(2)+'x',''],formulas:['','','=B11/B2',''],style:'total'},
+      ]}};
+    }
+
+    if(kind==='sensitivity'){
+      const caps=[v.exitcap-0.01, v.exitcap-0.005, v.exitcap, v.exitcap+0.005, v.exitcap+0.01].filter(c=>c>0.001);
+      const irrAt=(cap)=>{
+        const ev=core.noi[N-1]*(1+v.growth)/cap, ns=ev-debt;
+        const vec=[-equity, ...core.cfe.slice(0,N-1), core.cfe[N-1]+ns];
+        let r=null; try{ if(typeof _irr==='function') r=_irr(vec); }catch(e){}
+        return r;
+      };
+      const rows=caps.map(c=>({cap:c, irr:irrAt(c), ev:core.noi[N-1]*(1+v.growth)/c}));
+      return {'Sensitivity':{ cols:['','A','B','C'], headers:['','Exit cap','Exit value (SAR M)','Project IRR'], rows:[
+        {cells:['1','EXIT CAP SENSITIVITY','',''],style:'section'},
+        ...rows.map((r,i)=>({cells:[String(i+2),(r.cap*100).toFixed(2)+'%', r.ev.toFixed(1), r.irr==null?'—':(r.irr*100).toFixed(1)+'%'],
+                             style: Math.abs(r.cap-v.exitcap)<1e-9?'total':'data'})),
+      ]}};
+    }
+
+    if(kind==='summary'){
+      const totalCfe=core.cfe.reduce((a,b)=>a+b,0);
+      return {'Summary':{ cols:['','A','B'], headers:['','Metric','Value'], rows:[
+        {cells:['1','SUMMARY',''],style:'section'},
+        {cells:['2','Total development cost',v.cost.toFixed(1)],style:'data'},
+        {cells:['3','Debt ('+(v.ltv*100).toFixed(0)+'% LTV)',debt.toFixed(1)],style:'data'},
+        {cells:['4','Equity',equity.toFixed(1)],style:'data'},
+        {cells:['5','Year-1 NOI',core.noi[0].toFixed(2)],style:'data'},
+        {cells:['6','Stabilised NOI (Y'+N+')',core.noi[N-1].toFixed(2)],style:'data'},
+        {cells:['7','Cumulative cash flow to equity',totalCfe.toFixed(2)],style:'data'},
+        {cells:['8','Net sale proceeds',core.netSale.toFixed(2)],style:'data'},
+        {cells:['9','Equity multiple',core.mult.toFixed(2)+'x'],style:'total'},
+        {cells:['10','Project IRR',core.irr==null?'—':(core.irr*100).toFixed(1)+'%'],style:'total'},
+      ]}};
+    }
+    return null;
   }
   async function _wfFundModelScratchBuild(k, promptText){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
@@ -26873,29 +26882,80 @@ Answer as Karaya:`;
     const form=tmp.querySelector('.asm-form');
     const set=(kk,v)=>{ const el=form.querySelector(`[data-asm="${kk}"]`); if(el&&v!=null) el.value=v; };
     const parsed=_wfScratchParsePrompt(promptText);
-    const fname=parsed.kind
+    // A follow-up edits the model already built rather than starting a second
+    // one beside it. Assumptions accumulate across turns, so "change the exit
+    // cap to 7.5%" keeps everything captured on the way here.
+    const prior=(f.models||[]).find(mm=>mm._scratch);
+    const followUp=_scratchIsFollowUp(promptText, !!prior);
+    const carried=(followUp && prior && prior._scratchV) ? prior._scratchV : null;
+    const pages=new Set((followUp&&prior&&prior._scratchPages)||[]);
+    _scratchPageRequests(promptText).forEach(x=>pages.add(x));
+    const fname=(followUp&&prior) ? prior.name : parsed.kind
       ? (parsed.kind.charAt(0).toUpperCase()+parsed.kind.slice(1).replace(/[-\s]+/g,' ')+' — '+f.name.replace(/^Bohio RE /,''))
       : f.name.replace(/^Bohio RE /,'')+' — Master Model';
     set('name', fname);
     let costSeed=parsed.cost!=null?parsed.cost:f.committed;
     if(parsed.cost==null){ const m=(ctx.docs||'').match(/SAR\s*([\d,.]+)\s*M/i); if(m){ const n=parseFloat(m[1].replace(/,/g,'')); if(!isNaN(n)) costSeed=n; } }
-    set('cost', costSeed);
-    set('ltv', parsed.ltv!=null?parsed.ltv:60);
+    if(carried){
+      set('gfa',carried.gfa); set('rent',carried.rent); set('occ',(carried.occ*100).toFixed(2));
+      set('growth',(carried.growth*100).toFixed(2)); set('opex',(carried.opex*100).toFixed(2));
+      set('cost',carried.cost); set('ltv',(carried.ltv*100).toFixed(2));
+      set('rate',(carried.rate*100).toFixed(2)); set('exitcap',(carried.exitcap*100).toFixed(2));
+      set('hold',carried.hold);
+      if(parsed.cost!=null) set('cost', parsed.cost);
+      if(parsed.ltv!=null) set('ltv', parsed.ltv);
+    } else {
+      set('cost', costSeed);
+      set('ltv', parsed.ltv!=null?parsed.ltv:60);
+    }
     if(parsed.gfa!=null) set('gfa', parsed.gfa);
     if(parsed.hold!=null) set('hold', parsed.hold);
     if(parsed.growth!=null) set('growth', parsed.growth);
     if(parsed.occ!=null) set('occ', parsed.occ);
     if(parsed.rate!=null) set('rate', parsed.rate);
     if(parsed.exitcap!=null) set('exitcap', parsed.exitcap);
-    const {wb,v,irr,mult,noi1}=_buildWbFromAssumptions(form);
+    if(parsed.opex!=null) set('opex', parsed.opex);
+    if(parsed.rent!=null) set('rent', parsed.rent);
+    // Size the asset to the money. Left alone, "a fund with SAR 600M" was built
+    // on the default 20,000 sqm — a 4% yield on cost against 65% debt at 6%,
+    // which printed a -34% IRR. Self-consistent, and economically nonsense.
+    // When the prompt sets a cost but no area, back the area out of the cost at
+    // a defensible yield on cost instead.
+    if(parsed.gfa==null && !(carried&&carried.gfa)){
+      const rentV=_asmNum(form,'rent',1800), occV=_asmNum(form,'occ',92)/100,
+            opexV=_asmNum(form,'opex',28)/100, costV=_asmNum(form,'cost',250);
+      const denom=rentV*occV*(1-opexV);
+      if(denom>0){
+        const gfa=Math.round(costV*0.065*1e6/denom/100)*100;
+        if(isFinite(gfa) && gfa>0) set('gfa', gfa);
+      }
+    }
+    const {wb,v,irr,mult,noi1,core}=_buildWbFromAssumptions(form);
+    // Fund-level terms sit alongside the asset assumptions so the waterfall can
+    // use them and they survive the next rebuild.
+    ['fee','promote','pref'].forEach(t=>{ if(parsed[t]!=null) v[t]=parsed[t]; else if(carried&&carried[t]!=null) v[t]=carried[t]; });
+    const justAsked=_scratchPageRequests(promptText);
+    const addedNow=[];
+    pages.forEach(pk=>{
+      const sheet=_scratchExtraSheet(pk, v, core);
+      if(sheet){ Object.assign(wb, sheet); if(justAsked.includes(pk)) addedNow.push((_SCRATCH_PAGES.find(x=>x.k===pk)||{}).label||pk); }
+    });
     const docCount=(f.docs||[]).length;
     const doc={type:'XLSX', name:fname, version:'v.01 · Vibe-coded by Karaya', updated:'Just now · Karaya', isGenerated:true, _fundMaster:true, wbData:wb,
       notes:'Built by Karaya from your prompt ("'+String(promptText).replace(/"/g,'').slice(0,140)+'") — grounded in '+docCount+' fund document'+(docCount===1?'':'s')+', the ERP integration'+(ctx.live?' and the live Outlook mailbox':' and Outlook threads')+'.'};
-    f.models=f.models||[]; const ex=f.models.findIndex(mm=>mm.name===doc.name);
+    doc._scratch=true; doc._scratchV=v; doc._scratchPages=[...pages];
+    if(followUp && prior){ doc.version='v.'+String(((parseInt(String(prior.version).replace(/\D+/g,''),10)||1)+1)).padStart(2,'0')+' · Vibe-coded by Karaya'; }
+    f.models=f.models||[];
+    const ex=(followUp&&prior) ? f.models.indexOf(prior) : f.models.findIndex(mm=>mm.name===doc.name);
     if(ex>=0) f.models[ex]=doc; else f.models.unshift(doc);
     const mi=ex>=0?ex:0;
     const usedCount=Object.keys(parsed).filter(x=>x!=='kind').length;
-    const summary=`Built **${fname}** — Year-1 NOI **SAR ${noi1.toFixed(1)}M**, equity multiple **${mult.toFixed(2)}x**${irr!=null?`, IRR **${(irr*100).toFixed(1)}%**`:''} over a ${v.hold}-year hold.${usedCount?` Picked up **${usedCount}** assumption${usedCount===1?'':'s'} directly from your prompt`:''}, the rest grounded in **${docCount}** fund document${docCount===1?'':'s'}, the ERP integration and ${ctx.live?'the live Outlook mailbox':'Outlook threads'}.`;
+    const changed=[];
+    Object.entries({gfa:'GFA',rent:'rent',occ:'occupancy',growth:'rent growth',cost:'cost',ltv:'LTV',rate:'interest rate',exitcap:'exit cap',hold:'hold period',fee:'fee',promote:'promote',pref:'pref'})
+      .forEach(([key,label])=>{ if(parsed[key]!=null && carried) changed.push(label); });
+    const summary=(followUp&&prior)
+      ? `Updated **${fname}**${addedNow.length?` — added the **${addedNow.join('** and **')}** page${addedNow.length===1?'':'s'}`:''}${changed.length?`${addedNow.length?', and':' —'} reset **${changed.join('**, **')}**`:''}. It now runs to **${Object.keys(wb).length} tabs**; Year-1 NOI **SAR ${noi1.toFixed(1)}M**, equity multiple **${mult.toFixed(2)}x**${irr!=null?`, IRR **${(irr*100).toFixed(1)}%**`:''}. Everything you set earlier is still in place.`
+      : `Built **${fname}** — Year-1 NOI **SAR ${noi1.toFixed(1)}M**, equity multiple **${mult.toFixed(2)}x**${irr!=null?`, IRR **${(irr*100).toFixed(1)}%**`:''} over a ${v.hold}-year hold.${usedCount?` Picked up **${usedCount}** assumption${usedCount===1?'':'s'} directly from your prompt`:''}, the rest grounded in **${docCount}** fund document${docCount===1?'':'s'}, the ERP integration and ${ctx.live?'the live Outlook mailbox':'Outlook threads'}.`;
     const tileHtml=_modelPreviewTileHTML(doc,
       `closeWorkflow();currentProject=null;openEditor(WF_FUNDS.find(x=>x.k==='${k}').models[${mi}],{kind:'fund',k:'${k}'})`,
       `_wfFundSuggest('${k}',${mi})`);
