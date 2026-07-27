@@ -22745,19 +22745,25 @@ Answer as Karaya:`;
       ['INVESTOR-RELATIONS CHATS (LP Q&A history)', V('IR_CHATS'), 1600],
       ['COMMUNITY POSTS (shared models & tips)', V('COMMUNITY_POSTS'), 1400],
     ];
-    // Raised from 40000: the programme-delay, consents and exit-route sections
-    // took the total to the old cap exactly, which silently evicted the market
-    // data and the live news feed sitting below them. The loop skips oversized
-    // sections rather than stopping, so the loss was invisible.
-    var out = [], total = 0, CAP = 54000;
+    // Raised from 40000, where the total sat exactly at the cap: the
+    // programme-delay, consents and exit-route sections silently evicted the
+    // market data and everything below them. The loop skips oversized sections
+    // rather than stopping, so nothing showed the loss. Sized with headroom now
+    // — every section fits with room for the live news feed on top.
+    var out = [], dropped = [], total = 0, CAP = 80000;
     for (var i = 0; i < sections.length; i++) {
       var label = sections[i][0], data = sections[i][1], max = sections[i][2];
       var s = _kjson(data, max);
       if (!s || s === 'null' || s === '{}' || s === '[]') continue;
       var block = '### ' + label + '\n' + s;
-      if (total + block.length > CAP) continue;
+      if (total + block.length > CAP) { dropped.push(String(label).split(' (')[0]); continue; }
       out.push(block); total += block.length;
     }
+    // Say what was left out. Sections used to fall off the end in silence: when
+    // the total reached the cap the market data and news feed simply stopped
+    // being included, and nothing anywhere showed it.
+    if (dropped.length) out.push('### CONTEXT TRUNCATED\nThese sections did not fit and were omitted: ' +
+      dropped.join('; ') + '. Say so if the answer needed them.');
     _KARAYA_CTX_CACHE = out.join('\n\n');
     return _KARAYA_CTX_CACHE;
   }
