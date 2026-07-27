@@ -1577,7 +1577,7 @@
   .doc-preview-count { font-size:8px; color:var(--ink-soft); letter-spacing:0.04em; text-transform:uppercase; }
   .doc-preview-body { flex:1; min-height:0; padding:0 10px; overflow:hidden; font-size:9px; line-height:1.5; color:var(--ink-soft); }
   .doc-preview-foot { border-top:1px solid var(--ink-hairline); padding:8px 10px; flex-shrink:0; }
-  .doc-preview-name { font-size:10.5px; font-weight:600; line-height:1.3; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .doc-preview-name { font-family:var(--font-display); font-size:12px; font-weight:400; letter-spacing:0.01em; line-height:1.3; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .doc-preview-access { font-size:7.5px; color:var(--ink-soft); }
   .doc-preview-acc-btn { position:absolute; top:8px; right:8px; width:24px; height:24px; border-radius:50%; border:1px solid var(--ink-hairline); background:var(--paper); color:var(--ink); font-family:inherit; font-size:12px; line-height:1; cursor:pointer; z-index:2; }
 
@@ -17613,8 +17613,113 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     const hit=ql.length?all.filter(e=>{ const hay=(e.from+' '+e.subject+' '+e.snippet).toLowerCase(); return ql.some(w=>hay.indexOf(w)>=0); }):all;
     return {live:false, messages:(hit.length?hit:all).slice(0,6)};
   }
+  // ============ CURATED MARKET DATA (the "Paseetah" connector) ============
+  // Everything below is a curated data set, not a live feed — the app makes no
+  // outbound request for it. It is anchored to the figures already quoted
+  // elsewhere (Corniche prime rents +4.1% y/y, submarket vacancy 5.8%, comp
+  // trades between 6.35% and 6.75%, Marina Tower at a 6.50% exit) so a market
+  // question reconciles with the valuation, the model and the risk radar.
+  const MARKET_DATA = {
+    asOf:'28 Apr 2026', vendor:'Paseetah', coverage:'Qatar · GCC', currency:'SAR',
+    // Prime submarket table — rent is SAR/sqm/yr headline, yield is net initial.
+    submarkets:[
+      {name:'Doha · Corniche (prime waterfront)', sector:'Residential', rent:1850, rentYoY:4.1, yield:6.40, vacancy:5.8,  absorptionMo:12, grade:'A'},
+      {name:'Doha · Corniche (prime waterfront)', sector:'Retail',      rent:2650, rentYoY:3.6, yield:6.75, vacancy:4.9,  absorptionMo:9,  grade:'A'},
+      {name:'Doha · West Bay',                    sector:'Office',      rent:1180, rentYoY:1.8, yield:7.25, vacancy:12.4, absorptionMo:7,  grade:'A'},
+      {name:'Doha · West Bay',                    sector:'Residential', rent:1620, rentYoY:2.4, yield:6.60, vacancy:8.1,  absorptionMo:8,  grade:'A'},
+      {name:'Doha · Lusail',                      sector:'Residential', rent:1490, rentYoY:5.2, yield:6.85, vacancy:9.6,  absorptionMo:10, grade:'A'},
+      {name:'Doha · Lusail',                      sector:'Office',      rent:1050, rentYoY:2.1, yield:7.60, vacancy:16.2, absorptionMo:5,  grade:'A'},
+      {name:'Doha · Al Rayyan',                   sector:'Residential', rent:1080, rentYoY:2.9, yield:7.40, vacancy:7.3,  absorptionMo:9,  grade:'B'},
+      {name:'Doha · Msheireb',                    sector:'Mixed-use',   rent:1980, rentYoY:4.6, yield:6.55, vacancy:6.2,  absorptionMo:11, grade:'A'},
+      {name:'Doha · Industrial Area',             sector:'Logistics',   rent:  420, rentYoY:6.8, yield:8.10, vacancy:3.1, absorptionMo:14, grade:'B'},
+      {name:'Doha · Airport corridor',            sector:'Logistics',   rent:  465, rentYoY:7.4, yield:7.90, vacancy:2.6, absorptionMo:15, grade:'A'},
+      {name:'Doha · Corniche',                    sector:'Hospitality', rent:null, rentYoY:5.9, yield:7.05, vacancy:null, absorptionMo:null, grade:'A', adr:1240, revpar:892, occ:71.9},
+    ],
+    // Investment transactions the comp set is drawn from.
+    transactions:[
+      {date:'Feb 2026', asset:'Corniche Plaza',            sector:'Mixed-use',   price:204.0, niy:6.35, psm:18400, buyer:'Qatar Insurance (QIC RE)',        vendor:'Private family office'},
+      {date:'Jan 2026', asset:'Msheireb Block 12',         sector:'Mixed-use',   price:161.8, niy:6.55, psm:17250, buyer:'Sovereign co-invest vehicle',     vendor:'Developer'},
+      {date:'Dec 2025', asset:'Lusail Marina Residences',  sector:'Residential', price:128.4, niy:6.80, psm:15900, buyer:'Regional asset manager',          vendor:'Developer'},
+      {date:'Nov 2025', asset:'West Bay Residences',       sector:'Residential', price:167.5, niy:6.60, psm:16100, buyer:'Gulf pension fund',               vendor:'Bank-led SPV'},
+      {date:'Oct 2025', asset:'Airport Logistics Park A',  sector:'Logistics',   price: 92.6, niy:7.85, psm: 4350, buyer:'Core-plus logistics platform',    vendor:'Corporate sale-leaseback'},
+      {date:'Sep 2025', asset:'Al Bidda Quarter (part)',   sector:'Mixed-use',   price:143.2, niy:6.75, psm:16800, buyer:'Local developer JV',              vendor:'Government land release'},
+      {date:'Aug 2025', asset:'West Bay Tower 9 (office)', sector:'Office',      price:118.9, niy:7.30, psm:12400, buyer:'Family office',                   vendor:'Institutional'},
+    ],
+    // Delivery pipeline — completions by year, in units or '000 sqm.
+    supply:[
+      {sector:'Residential', unit:'units',    y2026: 8400, y2027:11200, y2028: 9600, note:'Lusail and Corniche account for ~58% of 2027 delivery'},
+      {sector:'Office',      unit:"'000 sqm", y2026:  164, y2027:  238, y2028:  142, note:'West Bay and Lusail — Grade-A weighting rising'},
+      {sector:'Retail',      unit:"'000 sqm", y2026:   72, y2027:   58, y2028:   96, note:'Mostly podium and community-scale, not super-regional'},
+      {sector:'Logistics',   unit:"'000 sqm", y2026:  118, y2027:  145, y2028:  132, note:'Pre-let rates running above 70% at practical completion'},
+      {sector:'Hospitality', unit:'keys',     y2026: 1850, y2027: 2400, y2028: 1100, note:'Upper-upscale skew; event-driven demand keeps ADR firm'},
+    ],
+    // Macro and cost indicators.
+    macro:[
+      {k:'QCB overnight deposit rate',  v:'5.00%',  chg:'unchanged 3 mtgs', src:'Qatar Central Bank'},
+      {k:'3-month QIBOR',               v:'5.42%',  chg:'-14 bps q/q',      src:'QCB fixings'},
+      {k:'3-month SAIBOR',              v:'5.61%',  chg:'-9 bps q/q',       src:'SAMA'},
+      {k:'CPI — Qatar, headline',       v:'1.8% y/y', chg:'+0.2 pts',       src:'Planning & Statistics Authority'},
+      {k:'Construction cost index',     v:'+6.2% y/y', chg:'steel +9.4%, MEP +7.1%', src:'MEED / contractor indices'},
+      {k:'Real GDP growth (2026F)',     v:'2.4%',   chg:'IMF Apr revision', src:'IMF WEO'},
+      {k:'Brent (12-mo avg)',           v:'USD 78/bbl', chg:'-4% y/y',      src:'Market data'},
+      {k:'Population growth',           v:'+1.9% y/y', chg:'expat-led',     src:'PSA'},
+      {k:'QAR / USD peg',               v:'3.64',   chg:'stable',           src:'QCB'},
+    ],
+    // Debt market — what a sponsor is actually being quoted.
+    debt:[
+      {k:'Senior development margin', v:'QIBOR + 210–260 bps', note:'Sales-proceeds sweep typical on residential'},
+      {k:'Senior investment margin',  v:'QIBOR + 165–195 bps', note:'Stabilised, income-producing'},
+      {k:'Max LTV — development',     v:'55–60%',              note:'On cost, with sponsor completion support'},
+      {k:'Max LTC — investment',      v:'60–65%',              note:'On value, DSCR-tested'},
+      {k:'Minimum DSCR covenant',     v:'1.25x',               note:'1.35x where income is single-tenant'},
+      {k:'Arrangement fee',           v:'85–125 bps',          note:'Club deals at the tighter end'},
+      {k:'Swap — 5yr QAR',            v:'4.38%',               note:'Down 22 bps since January'},
+    ],
+    // Dated headline feed the risk radar and briefs read from.
+    news:[
+      {date:'28 Apr 2026', src:'Argaam',            sector:'Rates',        sentiment:'neutral',  title:'QCB holds deposit rate at 5.00% for a third meeting', body:'The central bank held policy again, tracking the Fed. Floating-rate construction facilities stay expensive; refinancing windows remain narrow into H2.'},
+      {date:'27 Apr 2026', src:'MEED',              sector:'Construction', sentiment:'negative', title:'Gulf contractors flag steel and MEP cost pressure into 2027', body:'Input costs are up 6.2% y/y with steel at +9.4%. GMP-contracted schemes are insulated; variations and new starts are not.'},
+      {date:'26 Apr 2026', src:'Knight Frank',      sector:'Residential',  sentiment:'positive', title:'Doha prime waterfront rents up 4.1% y/y as vacancy compresses to 5.8%', body:'Corniche-corridor prime residential continues to re-rate on limited Grade-A delivery. Institutional and family-office bidding is concentrated on income-producing waterfront stock.'},
+      {date:'24 Apr 2026', src:'JLL MENA',          sector:'Office',       sentiment:'negative', title:'West Bay office vacancy edges to 12.4% ahead of 2027 completions', body:'238,000 sqm of Grade-A office is scheduled for 2027. Landlords are extending rent-free periods rather than cutting headline rents.'},
+      {date:'22 Apr 2026', src:'Reuters',           sector:'Capital',      sentiment:'positive', title:'Gulf pension allocations to regional real estate rise for a fourth quarter', body:'Regional institutions continue rotating into GCC income assets, supporting pricing for stabilised waterfront and logistics.'},
+      {date:'19 Apr 2026', src:'Qatar Tribune',     sector:'Logistics',    sentiment:'positive', title:'Airport-corridor logistics rents up 7.4% y/y on sub-3% vacancy', body:'Last-mile and cold-chain demand is outrunning delivery; pre-let rates exceed 70% at practical completion.'},
+      {date:'17 Apr 2026', src:'Saudi Gazette',     sector:'Regional',     sentiment:'neutral',  title:'Giga-project activity keeps regional labour and materials tight', body:'Sustained Vision 2030 activity supports absorption but competes for contractor capacity and skilled labour across the GCC.'},
+      {date:'15 Apr 2026', src:'Bloomberg',         sector:'Hospitality',  sentiment:'positive', title:'Doha RevPAR up 5.9% y/y on event calendar', body:'Upper-upscale ADR is holding at SAR 1,240 with occupancy at 71.9%; the 2027 pipeline is the watch-item.'},
+      {date:'12 Apr 2026', src:'Zawya',             sector:'Regulation',   sentiment:'neutral',  title:'Heritage overlay guidance tightened for Corniche-corridor schemes', body:'Setback and façade treatment guidance has been clarified; schemes with issued permits are unaffected unless a variation is sought.'},
+      {date:'09 Apr 2026', src:'Knight Frank',      sector:'Investment',   sentiment:'neutral',  title:'Prime yields stable at 6.35%–6.75% across recent Doha trades', body:'Seven comparable transactions in the last nine months priced within a 40 bps band, suggesting the repricing cycle has stabilised.'},
+    ],
+  };
+  // Handy roll-ups the assistant and the benchmark pull both read.
+  function _mktYieldBand(){
+    const n=MARKET_DATA.transactions.map(t=>t.niy);
+    return {lo:Math.min(...n), hi:Math.max(...n), avg:+(n.reduce((a,b)=>a+b,0)/n.length).toFixed(2), n:n.length};
+  }
+  function _mktSubmarket(name, sector){
+    return MARKET_DATA.submarkets.find(s=>new RegExp(name,'i').test(s.name) && (!sector||new RegExp(sector,'i').test(s.sector)))||null;
+  }
+  // Compact form for the AI context — the assistant answers market questions
+  // from this rather than inventing comps.
+  function _marketBlock(){
+    const y=_mktYieldBand();
+    const L=[];
+    L.push(`MARKET DATA (curated ${MARKET_DATA.vendor} data set, as at ${MARKET_DATA.asOf}, ${MARKET_DATA.coverage}) — this is the firm's market source of truth; quote it rather than inventing comps:`);
+    L.push('Submarkets [name · sector · rent SAR/sqm/yr · rent y/y · net initial yield · vacancy]:');
+    MARKET_DATA.submarkets.forEach(s=>L.push(`  ${s.name} · ${s.sector} · ${s.rent==null?'n/a':s.rent} · ${s.rentYoY}% · ${s.yield}% · ${s.vacancy==null?'n/a':s.vacancy+'%'}${s.adr?` · ADR ${s.adr}, RevPAR ${s.revpar}, occ ${s.occ}%`:''}`));
+    L.push(`Transaction comps (${y.n} trades, NIY ${y.lo}%–${y.hi}%, average ${y.avg}%):`);
+    MARKET_DATA.transactions.forEach(t=>L.push(`  ${t.date} · ${t.asset} · ${t.sector} · SAR ${t.price}M · NIY ${t.niy}% · SAR ${t.psm}/sqm · buyer ${t.buyer}`));
+    L.push('Delivery pipeline:');
+    MARKET_DATA.supply.forEach(s=>L.push(`  ${s.sector}: 2026 ${s.y2026} ${s.unit}, 2027 ${s.y2027}, 2028 ${s.y2028} — ${s.note}`));
+    L.push('Macro & cost:');
+    MARKET_DATA.macro.forEach(m=>L.push(`  ${m.k}: ${m.v} (${m.chg}) — ${m.src}`));
+    L.push('Debt market terms currently quoted:');
+    MARKET_DATA.debt.forEach(d=>L.push(`  ${d.k}: ${d.v} — ${d.note}`));
+    L.push('Recent market headlines:');
+    MARKET_DATA.news.forEach(n=>L.push(`  ${n.date} · ${n.src} · ${n.sector} · ${n.sentiment} · ${n.title} — ${n.body}`));
+    return L.join('\n');
+  }
   const PASEETAH_BENCH=[
     {re:/\badr\b|room ?rate|daily rate/i,           name:'ADR (comp set, upper-upscale)', kind:'mult', v:1.056},
+    {re:/revpar/i,                                  name:'RevPAR (comp set)',             kind:'mult', v:1.059},
     {re:/anchor.*rent|contracted rent/i,            name:'Anchor rents (prime corniche)', kind:'mult', v:1.041},
     {re:/retail rent|market rent|\brent\b(?!.*roll)/i, name:'Market rents (submarket)',   kind:'mult', v:1.041},
     {re:/occupanc/i,                                name:'Stabilised occupancy',          kind:'abs-pct', v:74},
@@ -17622,6 +17727,15 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     {re:/exit cap|cap rate/i,                       name:'Exit cap (comp trades)',        kind:'abs-pct', v:6.40},
     {re:/rent growth|market rent growth|escalation/i, name:'Market rent growth',          kind:'abs-pct', v:4.1},
     {re:/opex.*(ratio|%)|operating.*ratio/i,        name:'Opex ratio benchmark',          kind:'abs-pct', v:28},
+    {re:/service charge/i,                          name:'Service charge (prime)',        kind:'abs-pct', v:4.2},
+    {re:/construction cost|build cost|hard cost/i,  name:'Construction cost index',       kind:'mult', v:1.062},
+    {re:/land (value|cost)/i,                       name:'Prime land values',             kind:'mult', v:1.033},
+    {re:/absorption|sales velocity/i,               name:'Absorption (units/month)',      kind:'abs-pct', v:12},
+    {re:/(debt |senior )?margin|spread over/i,      name:'Senior debt margin (bps)',      kind:'abs-pct', v:235},
+    {re:/\bltv\b|loan to value/i,                   name:'Max LTV — development',         kind:'abs-pct', v:58},
+    {re:/\bdscr\b|debt service cover/i,             name:'Minimum DSCR covenant',         kind:'abs-pct', v:1.25},
+    {re:/inflation|\bcpi\b/i,                       name:'CPI — Qatar headline',          kind:'abs-pct', v:1.8},
+    {re:/discount rate|wacc/i,                      name:'Discount rate (prime comps)',   kind:'abs-pct', v:9.25},
   ];
   function _maybePullMarketData(q, bot, msgs){
     if(!/\b(paseetah|market data|market assumptions|market rents?|market bench|refresh (the )?assumptions|pull .*market|market comps)\b/i.test(q)) return false;
@@ -22248,6 +22362,8 @@ Answer as Karaya:`;
       ['INVESTMENT MANDATE', V('MANDATE'), 1200],
       ['INCOMING DEALS being screened', V('DEALS'), 2600],
       ['STAKEHOLDER ORGANISATIONS (name, role, location, GAV, IRR)', V('ORGS'), 1800],
+      ['MARKET DATA (curated Paseetah data set — submarket rents & yields, transaction comps, delivery pipeline, macro, debt terms and headlines)',
+        (typeof _marketBlock==='function'?_marketBlock():null), 4200],
       ['AI AGENTS in the workspace (who each represents and its scope)', V('AGENTS'), 2400],
       ['STAKEHOLDERS BY PROJECT', V('STAKEHOLDERS'), 1600],
       ['CAPITAL STACK BY PROJECT (sources & uses, tranches)', V('CAP_STACK'), 1800],
@@ -25327,11 +25443,107 @@ Answer as Karaya:`;
   ];
   function _aggregatePastReports(){
     const out=[];
-    (typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).forEach(f=>(f._reportHistory||[]).forEach(r=>out.push({title:r.title, source:f.name.replace(/^Bohio RE /,''), kind:r.kindLabel||'Report', when:r.when||'Recently', _doc:{name:r.title, version:r.version, docBody:r.docBody, pdfFoot:r.pdfFoot}})));
-    Object.keys(P).forEach(pid=>(P[pid]._reportHistory||[]).forEach(r=>out.push({title:r.title, source:P[pid].name, kind:r.kindLabel||'Report', when:r.when||'Recently', _doc:{name:r.title, version:r.version, docBody:r.docBody, pdfFoot:r.pdfFoot}})));
+    // Each entry carries where it came from, so deleting or renaming one from
+    // the hub edits the record it actually belongs to rather than a copy.
+    (typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]).forEach(f=>(f._reportHistory||[]).forEach((r,ri)=>out.push({title:r.title, source:f.name.replace(/^Bohio RE /,''), kind:r.kindLabel||'Report', when:r.when||'Recently', _src:{store:'fund', key:f.k, i:ri}, _doc:{name:r.title, version:r.version, docBody:r.docBody, pdfFoot:r.pdfFoot}})));
+    Object.keys(P).forEach(pid=>(P[pid]._reportHistory||[]).forEach((r,ri)=>out.push({title:r.title, source:P[pid].name, kind:r.kindLabel||'Report', when:r.when||'Recently', _src:{store:'project', key:pid, i:ri}, _doc:{name:r.title, version:r.version, docBody:r.docBody, pdfFoot:r.pdfFoot}})));
     // seeded historical reports so the hub is populated in a fresh demo
-    PAST_REPORTS_SEED.forEach(r=>out.push(r));
+    PAST_REPORTS_SEED.forEach((r,ri)=>out.push(Object.assign({}, r, {_src:{store:'seed', i:ri}})));
     return out;
+  }
+  // ---- Right-click a report (generated or scheduled) → Modify / Delete ------
+  function _repCloseMenu(){ const m=document.getElementById('rep-ctx'); if(m) m.remove(); }
+  document.addEventListener('click', _repCloseMenu);
+  document.addEventListener('scroll', _repCloseMenu, true);
+  function _repCtxMenu(ev, kind, i){
+    ev.preventDefault(); ev.stopPropagation();
+    _repCloseMenu();
+    const m=document.createElement('div');
+    m.id='rep-ctx';
+    m.style.cssText='position:fixed;z-index:10090;min-width:168px;background:var(--paper);border:1px solid var(--ink-hairline);border-radius:10px;box-shadow:0 14px 40px rgba(0,9,25,0.18);padding:5px;font-family:inherit;';
+    const item=(label, icon, fn, danger)=>{
+      const b=document.createElement('button');
+      b.type='button';
+      b.style.cssText=`display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:transparent;border:none;font-family:inherit;font-size:11.5px;color:${danger?'#b51e3b':'var(--ink)'};padding:8px 11px;border-radius:7px;cursor:pointer;`;
+      b.onmouseover=()=>b.style.background=danger?'rgba(181,30,59,0.08)':'rgba(0,9,25,0.05)';
+      b.onmouseout=()=>b.style.background='transparent';
+      b.innerHTML=`<span style="width:13px;text-align:center;">${icon}</span><span>${label}</span>`;
+      b.onclick=e=>{ e.stopPropagation(); _repCloseMenu(); fn(); };
+      return b;
+    };
+    m.appendChild(item('Modify', '✎', ()=>_reportModifyOpen(kind,i)));
+    m.appendChild(item('Delete', '🗑', ()=>_reportDelete(kind,i), true));
+    document.body.appendChild(m);
+    // keep it on screen when the click lands near an edge
+    const w=m.offsetWidth, h=m.offsetHeight;
+    m.style.left=Math.min(ev.clientX, window.innerWidth-w-8)+'px';
+    m.style.top =Math.min(ev.clientY, window.innerHeight-h-8)+'px';
+  }
+  function _reportDelete(kind, i){
+    if(kind==='recur'){
+      const r=RECURRING_REPORTS[i]; if(!r) return;
+      if(!confirm(`Delete the scheduled report “${r.title}”?\n\nIt will stop being generated on its ${String(r.cadence||'').toLowerCase()} schedule.`)) return;
+      RECURRING_REPORTS.splice(i,1);
+    } else {
+      const past=_aggregatePastReports(); const r=past[i]; if(!r||!r._src) return;
+      if(!confirm(`Delete the report “${r.title}”?\n\nThis removes it from the Reports hub and from ${r.source}.`)) return;
+      const s=r._src;
+      if(s.store==='fund'){ const f=WF_FUNDS.find(x=>x.k===s.key); if(f&&f._reportHistory) f._reportHistory.splice(s.i,1); }
+      else if(s.store==='project'){ const p=P[s.key]; if(p&&p._reportHistory) p._reportHistory.splice(s.i,1); }
+      else PAST_REPORTS_SEED.splice(s.i,1);
+    }
+    _renderReportsHub();
+  }
+  function _reportModifyOpen(kind, i){
+    const rec = kind==='recur' ? RECURRING_REPORTS[i] : _aggregatePastReports()[i];
+    if(!rec) return;
+    let ov=document.getElementById('rep-edit-ov');
+    if(!ov){ ov=document.createElement('div'); ov.id='rep-edit-ov';
+      ov.style.cssText='position:fixed;inset:0;z-index:10085;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+      ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+      document.body.appendChild(ov); }
+    const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const inS='width:100%;box-sizing:border-box;margin-top:5px;padding:10px 12px;border:1px solid var(--ink-hairline);background:var(--bg);color:var(--ink);font-family:inherit;font-size:12.5px;border-radius:8px;';
+    const lbS='font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);';
+    const fields = kind==='recur'
+      ? `<label style="${lbS}">Title</label><input id="rep-ed-title" style="${inS}" value="${esc(rec.title)}">
+         <label style="${lbS};display:block;margin-top:13px;">Cadence</label><input id="rep-ed-a" style="${inS}" value="${esc(rec.cadence)}">
+         <label style="${lbS};display:block;margin-top:13px;">Next run</label><input id="rep-ed-b" style="${inS}" value="${esc(rec.next)}">
+         <label style="${lbS};display:block;margin-top:13px;">Owner</label><input id="rep-ed-c" style="${inS}" value="${esc(rec.owner)}">`
+      : `<label style="${lbS}">Title</label><input id="rep-ed-title" style="${inS}" value="${esc(rec.title)}">
+         <label style="${lbS};display:block;margin-top:13px;">Type</label><input id="rep-ed-a" style="${inS}" value="${esc(rec.kind)}">
+         <label style="${lbS};display:block;margin-top:13px;">Generated</label><input id="rep-ed-b" style="${inS}" value="${esc(rec.when)}">`;
+    ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);border-radius:16px;width:100%;max-width:430px;overflow:hidden;">
+      <div style="padding:17px 22px;border-bottom:1px solid var(--ink-hairline);">
+        <div style="font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:var(--ink-soft);">${kind==='recur'?'Scheduled report':'Generated report'}</div>
+        <div style="font-family:var(--font-display);font-size:19px;margin-top:3px;">Modify report</div>
+      </div>
+      <div style="padding:18px 22px;">${fields}
+        <div style="display:flex;gap:10px;margin-top:20px;">
+          <button onclick="_reportModifySave('${kind}',${i})" style="flex:1;font-family:inherit;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:999px;padding:11px;cursor:pointer;">Save changes</button>
+          <button onclick="document.getElementById('rep-edit-ov').remove()" style="font-family:inherit;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;border:1px solid var(--ink-hairline);background:transparent;color:var(--ink);border-radius:999px;padding:11px 18px;cursor:pointer;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+    ov.style.display='flex';
+    setTimeout(()=>{ const t=document.getElementById('rep-ed-title'); if(t){ t.focus(); t.select(); } },50);
+  }
+  function _reportModifySave(kind, i){
+    const val=id=>{ const el=document.getElementById(id); return el?el.value.trim():''; };
+    const title=val('rep-ed-title'), a=val('rep-ed-a'), b=val('rep-ed-b'), c=val('rep-ed-c');
+    if(kind==='recur'){
+      const r=RECURRING_REPORTS[i]; if(!r) return;
+      if(title) r.title=title; if(a) r.cadence=a; if(b) r.next=b; if(c) r.owner=c;
+    } else {
+      const past=_aggregatePastReports(); const r=past[i]; if(!r||!r._src) return;
+      const s=r._src;
+      const apply=rec=>{ if(!rec) return; if(title){ rec.title=title; if(rec.name) rec.name=title; } if(a) { if('kindLabel' in rec) rec.kindLabel=a; else rec.kind=a; } if(b) rec.when=b; };
+      if(s.store==='fund'){ const f=WF_FUNDS.find(x=>x.k===s.key); apply(f&&f._reportHistory&&f._reportHistory[s.i]); }
+      else if(s.store==='project'){ const p=P[s.key]; apply(p&&p._reportHistory&&p._reportHistory[s.i]); }
+      else apply(PAST_REPORTS_SEED[s.i]);
+    }
+    const ov=document.getElementById('rep-edit-ov'); if(ov) ov.remove();
+    _renderReportsHub();
   }
   let _reportsHubOpen=false;
   function openReportsHub(){ _reportsHubOpen=true; _wfOpenFundShell(); _renderReportsHub(); }
@@ -25352,11 +25564,11 @@ Answer as Karaya:`;
       : `${r.kind} · ${r.when}`;
     const action = kind==='recur' ? `<span style="flex-shrink:0;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">Scheduled</span>` : `<span style="flex-shrink:0;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;">View ›</span>`;
     const onclick = kind==='recur' ? '' : ` onclick="_reportsHubReopen(${i})" style="cursor:pointer;"`;
-    return `<div class="rhub-row" data-search="${(r.title+' '+r.source+' '+r.kind).toLowerCase().replace(/"/g,'')}"${onclick?onclick:' style="cursor:default;"'} onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor=''" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 14px;margin-bottom:7px;${kind==='recur'?'cursor:default;':'cursor:pointer;'}">
+    return `<div class="rhub-row" data-search="${(r.title+' '+r.source+' '+r.kind).toLowerCase().replace(/"/g,'')}"${onclick?onclick:' style="cursor:default;"'} oncontextmenu="_repCtxMenu(event,'${kind}',${i})" title="Right-click for options" onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor=''" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 14px;margin-bottom:7px;${kind==='recur'?'cursor:default;':'cursor:pointer;'}">
       <div style="min-width:0;display:flex;align-items:center;gap:10px;">
         <span style="width:8px;height:8px;border-radius:2px;background:${c};flex-shrink:0;"></span>
-        <div style="min-width:0;"><div style="font-size:11.5px;font-weight:700;line-height:1.35;">${r.title}</div>
-        <div style="font-size:9px;color:var(--ink-soft);margin-top:2px;">${r.source} · ${meta}</div></div>
+        <div style="min-width:0;"><div style="font-family:var(--font-display);font-size:14px;font-weight:400;line-height:1.3;letter-spacing:0.01em;">${r.title}</div>
+        <div style="font-size:9px;color:var(--ink-soft);margin-top:3px;">${r.source} · ${meta}</div></div>
       </div>${action}</div>`;
   }
   // Past reports render as document-preview squircles (a mini PDF page), while
@@ -25364,7 +25576,7 @@ Answer as Karaya:`;
   function _reportPreviewTileHTML(r, i){
     const c=_kindColor(r.kind);
     const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return `<div class="doc-preview-tile rhub-row" data-search="${(r.title+' '+r.source+' '+r.kind).toLowerCase().replace(/"/g,'')}" onclick="_reportsHubReopen(${i})" title="Open this report">
+    return `<div class="doc-preview-tile rhub-row" data-search="${(r.title+' '+r.source+' '+r.kind).toLowerCase().replace(/"/g,'')}" onclick="_reportsHubReopen(${i})" oncontextmenu="_repCtxMenu(event,'past',${i})" title="Open this report — right-click for options">
       <div class="doc-preview-head">
         <span class="doc-preview-badge" style="background:${c};">${esc(r.kind)}</span>
         <span class="doc-preview-count">PDF</span>
@@ -26650,6 +26862,14 @@ Answer as Karaya:`;
        mitigation:'Secure contractor and labour commitments in the programme; monitor regional pricing indices; keep a preferred-subcontractor bench.', owner:'Development'},
       {sev:'Low', title:'FX / SAR peg', src:'Regional market news', read:'The SAR–USD peg is stable; no material currency risk to project economics.',
        mitigation:'No action required; monitor SAMA commentary as a standing item.', owner:'Finance'},
+      {sev:'Elevated', title:'2027 office completions', src:'Regional market news · JLL MENA', read:'238,000 sqm of Grade-A office is scheduled for 2027 and West Bay vacancy has already edged to 12.4%. Landlords are extending rent-free periods rather than cutting headline rents, which hits effective rent before it shows in the headline.',
+       mitigation:'Underwrite effective rather than headline rent on any office exposure; pull lease-up forward with pre-lets; avoid handing over into the 2027 peak where phasing allows.', owner:'Asset Management'},
+      {sev:'Watch', title:'Residential delivery peak — Lusail & Corniche', src:'Regional market news · Knight Frank', read:'11,200 residential units complete in 2027, with Lusail and the Corniche corridor about 58% of that. Absorption is running at 12 units/month on comparable prime stock, so a delivery cluster lengthens the sell-out tail.',
+       mitigation:'Hold pricing on prime waterfront rather than discounting into the peak; keep payment-plan incentives targeted at slower stock; re-test sell-out dates each quarter against actual velocity.', owner:'Sales · Asset Management'},
+      {sev:'Low', title:'Prime yields have stabilised', src:'Regional market news · Knight Frank', read:'Seven comparable Doha trades over nine months priced in a 6.35%–6.75% band, suggesting the repricing cycle has found a floor. Supportive for exit assumptions held at 6.50%.',
+       mitigation:'No action; treat as confirmation of the exit-cap assumption rather than a reason to tighten it. Re-check if any trade prints outside the band.', owner:'Investments'},
+      {sev:'Watch', title:'Heritage overlay guidance', src:'Regional market news · Zawya', read:'Setback and façade guidance for Corniche-corridor schemes has been tightened. Schemes with issued permits are unaffected unless a variation is sought — which matters for any massing or height change.',
+       mitigation:'Do not open a permit variation without a planning read first; where extra area is wanted, test it against the consented envelope before it reaches the model.', owner:'Development · Legal'},
     ];
   }
   // Daily risk radar — no chat of its own; the fund's one chatbot at the
