@@ -21,7 +21,6 @@
 #karaya-panel.kr-emu .kr-empty { text-align:center; padding:44px 26px 26px; display:flex; flex-direction:column; align-items:center; gap:14px; }
 #karaya-panel.kr-emu .kr-empty-logo { font-family:var(--font-display); font-size:32px; letter-spacing:0.14em; color:var(--ink); }
 #karaya-panel.kr-emu .kr-empty-sub { font-size:12px; line-height:1.7; color:var(--ink-soft); max-width:300px; }
-#karaya-panel.kr-emu:not(.kr-chatting) .karaya-suggestions { display:flex !important; flex-wrap:wrap; gap:8px; padding:4px 16px 12px; justify-content:center; overflow:visible; }
 #karaya-panel.kr-emu.kr-chatting .kr-empty { display:none; }
 #karaya-panel.kr-emu .k-chip { border-radius:999px; border:1px solid var(--ink-hairline); background:transparent; color:var(--ink); text-transform:none; letter-spacing:0.01em; font-size:11px; font-weight:400; padding:9px 15px; text-align:center; white-space:normal; }
 #karaya-panel.kr-emu .k-chip:hover { background:var(--ink); color:var(--bg); border-color:var(--ink); }
@@ -10826,13 +10825,6 @@
       </div>
     </div>
 
-    <div class="karaya-suggestions" id="karaya-suggestions">
-      <button class="k-chip" onclick="openFeasibilityFromKaraya()">Read the Marina Tower OM</button>
-      <button class="k-chip" onclick="karayaAsk(this.textContent)">Compare IRR across all active projects</button>
-      <button class="k-chip" onclick="karayaAsk(this.textContent)">Which leases expire in the next 90 days?</button>
-      <button class="k-chip" onclick="karayaAsk(this.textContent)">Show my overdue tasks</button>
-    </div>
-
     <div class="karaya-input">
       <input type="text" id="karaya-input" placeholder="Ask Karaya…" onkeypress="if(event.key==='Enter')karayaAsk(this.value)">
       <button class="k-send kr-send" onclick="karayaAsk(document.getElementById('karaya-input').value)" aria-label="Send" title="Send">
@@ -13818,7 +13810,7 @@ Reply as the agent:`;
     const history=KARAYA_HISTORY.slice(-6).map(m=>(m.role==='user'?'User: ':'Karaya: ')+m.text).join('\n');
     const ctx=(typeof buildWorkspaceContext==='function')?buildWorkspaceContext():'';
     const uname=(window.DEMO_USER&&window.DEMO_USER.name)||'Matteo Bevilacqua';
-    const prompt=`You are Karaya, the AI analyst inside Bohio Workspace — an institutional real-estate investment platform used by ${uname}'s firm. You pull live data by API from the firm's connected systems — the ERP (SAP S/4HANA · Oracle Fusion) for cost/budget/GL, the CRM (Salesforce) for sales pipeline & collections, and FM (Yardi) for occupancy & facilities — plus everything else in the workspace. Answer any question using the WORKSPACE DATA below as your source of truth. Be specific — cite the actual names, figures, dates and parties, and when the answer draws on a connected system name it (e.g. "per the ERP", "from the CRM sales pipeline", "Yardi shows"). Keep it concise and conversational (2-6 sentences, or a short bulleted list when comparing). Plain text; you may use **bold** for key figures. Don't invent facts not in the data.
+    const prompt=`You are Karaya, the AI analyst inside Bohio Workspace — an institutional real-estate investment platform used by ${uname}'s firm. You pull live data by API from the firm's connected systems — the ERP (SAP S/4HANA · Oracle Fusion) for cost/budget/GL, the CRM (Salesforce) for sales pipeline & collections, and FM (Yardi) for occupancy & facilities — plus everything else in the workspace. Answer any question using the WORKSPACE DATA below as your source of truth. Be specific — cite the actual names, figures, dates and parties, and when the answer draws on a connected system name it (e.g. "per the ERP", "from the CRM sales pipeline", "Yardi shows"). Keep it concise and conversational (2-6 sentences, or a short bulleted list when comparing). If asked for a side-by-side or tabular comparison, format it as a markdown table (a header row, then a "|---|---|" divider row, then one data row per line — real pipe characters, no ASCII art). Plain text otherwise; you may use **bold** for key figures. Don't invent facts not in the data.
 
 ===== WORKSPACE DATA =====
 ${ctx}
@@ -21859,7 +21851,47 @@ Answer as Karaya:`;
     return _KARAYA_CTX_CACHE;
   }
 
-  // Lightweight formatter: escape, then allow **bold**, bullets and paragraphs.
+  // Shared markdown pipe-table support — used by every chat formatter so a
+  // side-by-side comparison ("| Fund I | Fund II |" + a "|---|---|" divider)
+  // renders as a real <table> instead of literal pipe characters.
+  function _mdTableCells(ln) {
+    var s = ln.trim();
+    if (s.charAt(0) === '|') s = s.slice(1);
+    if (s.charAt(s.length - 1) === '|') s = s.slice(0, -1);
+    return s.split('|').map(function (c) { return c.trim(); });
+  }
+  function _mdTableBlock(lines, i, inline) {
+    if (i + 1 >= lines.length) return null;
+    var headerLn = lines[i].trim();
+    if (headerLn.indexOf('|') === -1) return null;
+    var sepCells = _mdTableCells(lines[i + 1].trim());
+    var isSep = sepCells.length > 0 && sepCells.every(function (c) { return /^:?-{1,}:?$/.test(c); });
+    if (!isSep) return null;
+    var headerCells = _mdTableCells(headerLn);
+    if (headerCells.length < 2) return null;
+    var aligns = sepCells.map(function (c) {
+      var l = c.charAt(0) === ':', r = c.charAt(c.length - 1) === ':';
+      return l && r ? 'center' : r ? 'right' : l ? 'left' : '';
+    });
+    var rows = [], j = i + 2;
+    while (j < lines.length) {
+      var ln = lines[j].trim();
+      if (!ln || ln.indexOf('|') === -1) break;
+      rows.push(_mdTableCells(ln)); j++;
+    }
+    var cell = function (tag, c, ci) {
+      var a = aligns[ci] ? ' style="text-align:' + aligns[ci] + ';padding:6px 10px;' + (tag === 'th' ? 'font-weight:700;border-bottom:2px solid var(--ink-hairline);' : 'border-bottom:1px solid var(--ink-hairline);') + '"'
+                          : ' style="padding:6px 10px;' + (tag === 'th' ? 'font-weight:700;text-align:left;border-bottom:2px solid var(--ink-hairline);' : 'border-bottom:1px solid var(--ink-hairline);') + '"';
+      return '<' + tag + a + '>' + inline(c || '') + '</' + tag + '>';
+    };
+    var thead = '<tr>' + headerCells.map(function (c, ci) { return cell('th', c, ci); }).join('') + '</tr>';
+    var tbody = rows.map(function (r) { return '<tr>' + headerCells.map(function (_, ci) { return cell('td', r[ci], ci); }).join('') + '</tr>'; }).join('');
+    var html = '<div style="overflow-x:auto;margin:8px 0;"><table style="border-collapse:collapse;width:100%;font-size:0.96em;">' +
+      '<thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+    return { html: html, next: j - 1 };
+  }
+
+  // Lightweight formatter: escape, then allow **bold**, bullets, tables and paragraphs.
   function fmtKaraya(text) {
     var esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
     var lines = String(text || '').replace(/\r/g, '').split('\n');
@@ -21868,6 +21900,8 @@ Answer as Karaya:`;
     for (var i = 0; i < lines.length; i++) {
       var ln = lines[i].trim();
       if (!ln) { if (list) { html += list + '</ul>'; list = null; } continue; }
+      var tbl = _mdTableBlock(lines, i, inline);
+      if (tbl) { if (list) { html += list + '</ul>'; list = null; } html += tbl.html; i = tbl.next; continue; }
       var m = ln.match(/^[-•*]\s+(.*)$/) || ln.match(/^\d+[.)]\s+(.*)$/);
       if (m) { if (list === null) list = '<ul style="margin:4px 0 4px 16px;padding:0;">'; list += '<li style="margin:3px 0;">' + inline(m[1]) + '</li>'; }
       else { if (list) { html += list + '</ul>'; list = null; } html += '<div style="margin:5px 0;">' + inline(ln) + '</div>'; }
@@ -24423,9 +24457,11 @@ Answer as Karaya:`;
     const inline=t=>esc(t).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
     const lines=String(text||'').replace(/\r/g,'').split('\n');
     let html='', list=null;
-    for(const raw of lines){
-      const ln=raw.trim();
+    for(let li=0; li<lines.length; li++){
+      const ln=lines[li].trim();
       if(!ln){ if(list){ html+=list+'</ul>'; list=null; } continue; }
+      const tbl=_mdTableBlock(lines, li, inline);
+      if(tbl){ if(list){ html+=list+'</ul>'; list=null; } html+=tbl.html; li=tbl.next; continue; }
       const h=ln.match(/^#{1,4}\s*(.+)$/);
       if(h){ if(list){ html+=list+'</ul>'; list=null; } html+=`<div style="font-size:9px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;color:#b45309;margin:13px 0 6px;">${inline(h[1])}</div>`; continue; }
       const m2=ln.match(/^[-•*]\s+(.*)$/) || ln.match(/^\d+[.)]\s+(.*)$/);
@@ -28688,7 +28724,7 @@ Answer as Karaya:`;
     const prompt =
 `You are Karaya, the AI analyst embedded in Bohio Workspace — an institutional real-estate investment platform used by ${(window.DEMO_USER&&window.DEMO_USER.name)||'Matteo Bevilacqua'}'s firm. You can see the firm's entire workspace and answer any question about any project, document, financial model, template, fund/LP, incoming deal, stakeholder, capital stack, governance item, budget, negotiation, brief or contract.
 
-Answer using the WORKSPACE DATA below as your source of truth. Be specific: cite the actual names, figures, dates, statuses and parties from the data. Keep it concise and conversational (2-6 sentences, or a short bulleted list when comparing items). Use plain text; you may use **bold** for key figures. If the answer genuinely isn't in the data, say what you do have and where in the workspace they'd find the rest — don't invent facts.
+Answer using the WORKSPACE DATA below as your source of truth. Be specific: cite the actual names, figures, dates, statuses and parties from the data. Keep it concise and conversational (2-6 sentences, or a short bulleted list when comparing items). If asked for a side-by-side or tabular comparison, format it as a markdown table (a header row, then a "|---|---|" divider row, then one data row per line — real pipe characters, no ASCII art). Use plain text otherwise; you may use **bold** for key figures. If the answer genuinely isn't in the data, say what you do have and where in the workspace they'd find the rest — don't invent facts.
 
 ===== WORKSPACE DATA =====
 ${buildWorkspaceContext()}
