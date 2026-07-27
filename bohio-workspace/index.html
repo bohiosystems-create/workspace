@@ -17714,6 +17714,10 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     /\bwhat would it take\b/i,
     /\bin order to (hit|reach|achieve|get)\b/i,
     /\bto (hit|reach|achieve|get to)\b/i,
+    // A bare imperative target — "get the IRR to 30%", "bring the yield to 8%".
+    // Without this only the "what would it take to…" preamble reached the
+    // solver, so the most natural way to ask for a goal-seek returned nothing.
+    /\b(get|take|bring|move|put|push|drive|lift|raise|hit|reach)\b[^.?]*\bto\s+-?[\d.]+/i,
   ];
   // Questions that merely mention a metric and must NOT be hijacked. Some of
   // these are unambiguous whatever else is in the sentence; others only look
@@ -18410,8 +18414,39 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     return {...d, num, den, value:val};
   }
   // "express the NOI as a %" — derive it, show the working, cite the cells.
+  // The phrase around a metric ("express the NOI") never matches a row label,
+  // so walk in from the left until a real line resolves.
+  function _rowFromPhrase(phrase){
+    const words=String(phrase||'').trim().split(/\s+/).filter(Boolean);
+    for(let i=0;i<words.length;i++){
+      const cand=words.slice(i).join(' ');
+      if(cand.length<2) continue;
+      const hit=_findMoneyRow(new RegExp('\\b'+cand.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
+      if(hit) return hit;
+    }
+    return null;
+  }
   function _deriveMetric(q){
     const s=String(q||'');
+    // A denominator the user names explicitly wins over any named-ratio
+    // shortcut. "NOI as a percentage of total cost" must divide by total cost;
+    // matching DERIVED_METRICS first answered it as NOI ÷ revenue and titled it
+    // "NOI margin", which is a different — and materially wrong — figure.
+    const explicit=s.match(/\b([\w\s\-&]{2,40}?)\s+as a (?:%|percentage|percent)\s+of\s+([\w\s\-&]{2,40})/i);
+    if(explicit){
+      const num=_rowFromPhrase(explicit[1]), den=_rowFromPhrase(explicit[2]);
+      if(num && den && den.v && den.label!==num.label){
+        const pct=num.v/Math.abs(den.v)*100;
+        const money=v=>{ const a=Math.abs(v); return a>=1000?v.toFixed(0):a>=10?v.toFixed(1):v.toFixed(2); };
+        return [`### ${num.label} as a percentage of ${den.label.toLowerCase()} — **${pct.toFixed(1)}%**`,
+          `Not carried as a line in the model, so I derived it from the two that are:`,
+          `- **${num.label}** = **${money(num.v)}** · \`${num.sheet}!${num.ref}\``,
+          `- ÷ **${den.label}** = **${money(den.v)}** · \`${den.sheet}!${den.ref}\``,
+          '',
+          `In both terms: **${money(num.v)}** in absolute, **${pct.toFixed(1)}%** of ${den.label.toLowerCase()}.`].join('\n');
+      }
+      if(num && !den) return null;   // the named base isn't in the model — better to say nothing than divide by another line
+    }
     // "express the NOI in %" names the line, not the ratio. So: match an
     // explicitly-named ratio first, then fall back to <money line> + a request
     // for it in percentage terms, which is how people actually ask.
@@ -18439,11 +18474,15 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // Generic: "express X as a % of Y" / "X as a percentage of Y".
     const gen=s.match(/\b([\w\s\-&]{2,40}?)\s+as a (?:%|percentage|percent)(?:\s+of\s+([\w\s\-&]{2,40}))?/i);
     if(gen){
-      const numRe=new RegExp('\\b'+gen[1].trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
-      const num=_findMoneyRow(numRe); if(!num) return null;
+      const num=_rowFromPhrase(gen[1]); if(!num) return null;
       let den=null;
-      if(gen[2]) den=_findMoneyRow(new RegExp('\\b'+gen[2].trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'));
-      if(!den){ const b=_dualBases(); const pick=_dualBaseFor(num.label, b); if(pick) den={label:pick.label, v:pick.v, sheet:pick.sheet, ref:pick.ref}; }
+      if(gen[2]){
+        den=_rowFromPhrase(gen[2]);
+        if(!den) return null;
+      } else {
+        const b=_dualBases(); const pick=_dualBaseFor(num.label, b);
+        if(pick) den={label:pick.label, v:pick.v, sheet:pick.sheet, ref:pick.ref};
+      }
       if(!den||!den.v||den.label===num.label) return null;
       const pct=num.v/Math.abs(den.v)*100;
       const money=v=>{ const a=Math.abs(v); return a>=1000?v.toFixed(0):a>=10?v.toFixed(1):v.toFixed(2); };
