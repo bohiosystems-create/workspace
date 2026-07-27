@@ -13920,6 +13920,17 @@ Reply as the agent:`;
     // builds it in the Contracts section (the demo runs by prompt, not button).
     if (typeof _maybeBuildLeaseFromChat === 'function' && _maybeBuildLeaseFromChat(q, bot, msgs)) return;
 
+    // "what if we added three floors?" — cost off the ERP ledger and the
+    // contractor's rate, revenue off the units the floors create.
+    if (typeof _massingAnswer === 'function') {
+      const _mz = _massingAnswer(q);
+      if (_mz) {
+        KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:_mz});
+        bot.innerHTML = _fmtDiscountSections(_mz) + '<span class="k-meta">Karaya · massing what-if · ERP + purchasing</span>';
+        msgs.scrollTop = msgs.scrollHeight;
+        return;
+      }
+    }
     // "shorten the timeline by 3 months — where can we cut the most?" — a costed
     // critical-path compression plan for the named (or lead) development asset.
     if (typeof _detectCompressRequest === 'function') {
@@ -18739,6 +18750,10 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // Market-data pull (Paseetah) and deterministic solvers run first (math,
     // not narration) so they work with or without a live API key.
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
+    // "what if we added three floors?" — a massing what-if costed off the ERP
+    // ledger and the contractor's rate, revenued off the units it creates.
+    { const _mz = (typeof _massingAnswer==='function') ? _massingAnswer(q) : null;
+      if (_mz) { bot.innerHTML = _fmtDiscountSections(_mz) + '<span class="k-meta">Karaya · massing what-if · ERP + purchasing</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // "which cell is the IRR" — a lookup, answered from the workbook so it
     // always cites a real cell rather than hedging about the map.
     { const _l = (typeof _locateMetric==='function') ? _locateMetric(q) : null;
@@ -19944,6 +19959,10 @@ Answer as Karaya:`;
     msgs.scrollTop = msgs.scrollHeight;
     if (typeof _maybeAssumptionForm === 'function' && _maybeAssumptionForm(q, msgs)) { bot.remove(); return; }
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
+    // "what if we added three floors?" — a massing what-if costed off the ERP
+    // ledger and the contractor's rate, revenued off the units it creates.
+    { const _mz = (typeof _massingAnswer==='function') ? _massingAnswer(q) : null;
+      if (_mz) { bot.innerHTML = _fmtDiscountSections(_mz) + '<span class="k-meta">Karaya · massing what-if · ERP + purchasing</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // "which cell is the IRR" — a lookup, answered from the workbook so it
     // always cites a real cell rather than hedging about the map.
     { const _l = (typeof _locateMetric==='function') ? _locateMetric(q) : null;
@@ -26967,6 +26986,137 @@ ${ctx.mailCtx}`;
     const wm=s.match(/(\d+(?:\.\d+)?)\s*weeks?/i); if(wm) months=+(parseFloat(wm[1])/4.33).toFixed(2);
     return { months };
   }
+  // ============ MASSING WHAT-IF — "what if we added N floors?" ============
+  // Costs the extra floors off the ERP cost ledger and the contractor's rate
+  // from the purchasing documentation, and revenues them off the units the
+  // extra floors create at the price sales is actually achieving. Land and the
+  // statutory heritage reserve are already sunk and do NOT scale, which is
+  // exactly why a marginal floor is far more accretive than the average one —
+  // the point the answer is there to make.
+  const MASSING_BASIS = {
+    1:{ project:'Marina Tower', storeys:28, totalUnits:320, avgUnitSqft:1450,
+        efficiency:0.82,            // sellable ÷ gross floor area
+        hardRatePerSqm:5600,        // Al-Bawani GMP, per the signed contract
+        aspPerSqft:2150,            // achieved, per the CRM
+        rcFrameMonths:10,           // superstructure duration for the whole tower
+        valuePerMonth:4.2,          // SAR M of value per month of programme
+        erp:1, consentedStoreys:28 },
+    2:{ project:'Ash Shati Residences', storeys:22, totalUnits:184, avgUnitSqft:1320,
+        efficiency:0.80, hardRatePerSqm:5200, aspPerSqft:1890,
+        rcFrameMonths:9, valuePerMonth:3.1, erp:2, consentedStoreys:22 },
+  };
+  const _MASS_WORDS = {a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,
+                       eleven:11,twelve:12,fifteen:15,twenty:20};
+  // Every non-scaling code is excluded: land is bought and the heritage reserve
+  // is a fixed statutory sum, so neither grows with height.
+  const _MASS_FIXED_CODES = /^(02-LAND|09-HRTG)/;
+  function _massOnCostRatio(erpId){
+    const erp=(typeof PROJECT_ERP!=='undefined')?PROJECT_ERP[erpId]:null;
+    if(!erp||!erp.costCodes) return {ratio:0.6, cons:0, on:0, codes:[]};
+    let cons=0, on=0; const codes=[];
+    erp.costCodes.forEach(c=>{
+      if(_MASS_FIXED_CODES.test(c.code)) return;
+      if(/^03-/.test(c.code)) cons+=c.b; else { on+=c.b; codes.push(c); }
+    });
+    return {ratio: cons?on/cons:0.6, cons, on, codes};
+  }
+  function _massingCompute(pid, floors, extraSqm){
+    const b=MASSING_BASIS[pid]; if(!b) return null;
+    const unitsPerFloor = b.totalUnits/b.storeys;
+    const sellableSqftPerFloor = unitsPerFloor*b.avgUnitSqft;
+    const gfaSqmPerFloor = (sellableSqftPerFloor/10.7639)/b.efficiency;
+    // Asking in area rather than floors is the same question in other units.
+    const n = (extraSqm!=null) ? extraSqm/gfaSqmPerFloor : floors;
+    const gfa = gfaSqmPerFloor*n;
+    const units = unitsPerFloor*n;
+    const sellSqft = sellableSqftPerFloor*n;
+    const oc = _massOnCostRatio(b.erp);
+    const hard = gfa*b.hardRatePerSqm/1e6;          // SAR M
+    const onCost = hard*oc.ratio;
+    const cost = hard+onCost;
+    const revenue = sellSqft*b.aspPerSqft/1e6;      // SAR M
+    const months = (b.rcFrameMonths/b.storeys)*n;   // extra critical-path time
+    const delayCost = months*b.valuePerMonth;
+    const net = revenue-cost-delayCost;
+    const erp=(typeof PROJECT_ERP!=='undefined')?PROJECT_ERP[b.erp]:null;
+    const budget = erp&&erp.summary?erp.summary.forecast.v:null;
+    return {b, n, floors:n, gfa, units, sellSqft, hard, onCost, cost, revenue, months, delayCost, net,
+            oc, erp, budget, gfaSqmPerFloor, unitsPerFloor,
+            marginPct: revenue?net/revenue*100:0,
+            perFloorNet: n?net/n:0};
+  }
+  // Recognises the question however it is put — floors, storeys, levels, GFA,
+  // adding or removing, digits or words, with or without a project name.
+  function _detectMassingWhatIf(q){
+    const s=String(q||'');
+    if(!/\b(floor|floors|storey|storeys|story|stories|level|levels|gfa|floor\s*area|floorplate|massing|height|taller|higher)\b/i.test(s)) return null;
+    // "which cell is the floor area" is a lookup, not a what-if.
+    if(/\b(what|which) cell\b|\blocate\b|\bwhere is\b/i.test(s)) return null;
+    const addish  = /\b(add|adds|adding|added|extra|more|additional|another|increase[sd]?|increasing|extend(?:s|ed|ing)?|build|built|building|g(?:o|oes|oing|one|rew|row)\s+up|went\s+up|gain(?:s|ed|ing)?|plus|rais(?:e|ed|ing)|taller|higher|uplift|top\s+up|stack(?:ed|ing)?\s+on|what if we (?:had|have|built|build|get))\b/i.test(s);
+    const dropish = /\b(remov(?:e|ed|ing)|drop(?:s|ped|ping)?|los(?:e|t|ing)|cut|cuts|fewer|less|reduc(?:e|ed|ing)|shrink|shrunk|take\s+(?:off|away)|took\s+(?:off|away)|shorten by|minus|delete[sd]?)\b/i.test(s);
+    if(!addish && !dropish) return null;
+    let sqm=null, floors=null;
+    const areaM = s.match(/([\d,]+(?:\.\d+)?)\s*(?:sq\s?m|sqm|m2|m²|square\s*met(?:re|er)s?)/i);
+    if(areaM) sqm=parseFloat(areaM[1].replace(/,/g,''));
+    if(sqm==null){
+      const numM = s.match(/([\d,]+(?:\.\d+)?)\s*(?:more\s+|extra\s+|additional\s+)?(?:floor|storey|story|stor(?:ies|eys)|level)/i)
+                || s.match(/(?:add|adding|added|extend(?:ed)?\s+by|increase\s+by|another|plus|by)\s+([\d,]+(?:\.\d+)?)\b/i);
+      if(numM) floors=parseFloat(numM[1].replace(/,/g,''));
+      if(floors==null){
+        const wordM = s.match(new RegExp('\\b('+Object.keys(_MASS_WORDS).join('|')+')\\b\\s*(?:more\\s+|extra\\s+|additional\\s+)?(?:floor|storey|story|stor(?:ies|eys)|level)','i'));
+        if(wordM) floors=_MASS_WORDS[wordM[1].toLowerCase()];
+      }
+      if(floors==null && /\b(a|an|another|one)\b\s*(?:more\s+|extra\s+|additional\s+)?(?:floor|storey|story|level)/i.test(s)) floors=1;
+      if(floors==null) floors=1;   // "what if we went taller" — answer per floor
+    }
+    if(dropish && !addish){ if(floors!=null) floors=-Math.abs(floors); if(sqm!=null) sqm=-Math.abs(sqm); }
+    // Which asset? Name wins; otherwise the open project, else the lead asset.
+    let pid=null;
+    Object.keys(MASSING_BASIS).forEach(k=>{
+      const nm=MASSING_BASIS[k].project;
+      if(new RegExp('\\b'+nm.split(' ')[0].replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(s)) pid=+k;
+    });
+    if(pid==null && typeof currentProject!=='undefined' && MASSING_BASIS[currentProject]) pid=currentProject;
+    if(pid==null) pid=1;
+    return {pid, floors, sqm, dropping:!!(dropish&&!addish)};
+  }
+  function _massingAnswer(q){
+    const det=_detectMassingWhatIf(q); if(!det) return null;
+    const r=_massingCompute(det.pid, det.floors, det.sqm); if(!r) return null;
+    const m=v=>{ const a=Math.abs(v); return a>=100?v.toFixed(0):a>=10?v.toFixed(1):v.toFixed(2); };
+    const n0=Math.abs(r.n), plural=Math.abs(r.n-1)<0.01?'':'s';
+    const dir=r.n<0?'removing':'adding';
+    const erpName=r.erp?`${r.erp.system} · ${r.erp.code}`:'the ERP';
+    const sync=r.erp?r.erp.lastSync:'';
+    const L=[];
+    L.push(`### ${dir[0].toUpperCase()+dir.slice(1)} ${n0%1?n0.toFixed(1):n0} floor${plural} to ${r.b.project} — net **${r.net>=0?'+':''}SAR ${m(r.net)}M**`);
+    L.push(`${r.n<0?'Losing':'Each extra floor carries'} **${m(r.gfaSqmPerFloor)} sqm** of gross area and **${r.unitsPerFloor.toFixed(1)} units** at this tower's ratio (${r.b.totalUnits} units over ${r.b.storeys} storeys, ${Math.round(r.b.efficiency*100)}% efficient).`);
+    L.push('');
+    L.push('| Line | Basis | SAR M |');
+    L.push('|---|---|---|');
+    const area=v=>Math.round(Math.abs(v)).toLocaleString();
+    L.push(`| Revenue — ${area(r.sellSqft)} sqft sellable | ${r.b.aspPerSqft.toLocaleString()}/sqft achieved (CRM) | ${m(r.revenue)} |`);
+    L.push(`| Hard cost — ${area(r.gfa)} sqm | ${r.b.hardRatePerSqm.toLocaleString()}/sqm GMP (contract) | ${m(-r.hard)} |`);
+    L.push(`| On-costs — design, MEP, PM, FF&E, soft, marketing, contingency | ${(r.oc.ratio*100).toFixed(0)}% of hard cost (${erpName}) | ${m(-r.onCost)} |`);
+    L.push(`| Programme — ${r.months.toFixed(1)} extra month${Math.abs(r.months-1)<0.05?'':'s'} on the frame | ${r.b.valuePerMonth}/month of value | ${m(-r.delayCost)} |`);
+    L.push(`| **Net effect** |  | **${r.net>=0?'+':''}${m(r.net)}** |`);
+    L.push('');
+    L.push('### Why it moves the needle');
+    L.push(`- Marginal floors run at a **${r.marginPct.toFixed(0)}% net margin** — well above the project average, because **land and the heritage reserve are already sunk** and don't scale with height. Only the codes that genuinely grow with area are loaded in.`);
+    L.push(`- The on-cost load of **${(r.oc.ratio*100).toFixed(0)}%** is taken from the live ledger, not a rule of thumb: **SAR ${m(r.oc.on)}M** of scaling on-costs against **SAR ${m(r.oc.cons)}M** of construction budget${sync?` (synced ${sync})`:''}.`);
+    L.push(`- Per floor that is **${r.perFloorNet>=0?'+':''}SAR ${m(r.perFloorNet)}M** of net value.`);
+    if(r.budget) L.push(`- Anticipated final cost moves from **SAR ${m(r.budget)}M** to **SAR ${m(r.budget+r.cost)}M**.`);
+    L.push('');
+    L.push('### Before you bank it');
+    const over = det.floors>0 && (r.b.storeys+r.n)>r.b.consentedStoreys;
+    L.push(`- ${over?`Consent is for **${r.b.consentedStoreys} storeys**. Going to **${(r.b.storeys+r.n).toFixed(0)}** needs a permit variation — the building permit is already issued, so this reopens it.`:'Check the height envelope against the consented scheme before committing.'}`);
+    L.push(`- The frame is at **Level 12 of ${r.b.storeys}**; adding at the top is buildable, but the contractor will price a variation rather than the GMP rate, so treat **${r.b.hardRatePerSqm.toLocaleString()}/sqm** as the floor on cost, not the ceiling.`);
+    L.push(`- Structural and MEP capacity need checking — the MEP permit is still in review.`);
+    L.push(`- Absorption: **${r.units.toFixed(0)} more units** at the current run-rate pushes sell-out later; the net above does not discount that tail.`);
+    L.push('');
+    L.push(`Ask me to **run this at a different height**, or to **stage it on the model** and I'll add the rows for approval.`);
+    return L.join('\n');
+  }
   const WF_DEV_DATA = {
     1:{ // Marina Tower — active construction
       designMonths:8, designStatus:'Complete', constructionMonths:30, constructionStatus:'In progress',
@@ -27878,6 +28028,12 @@ ${ctx.mailCtx}`;
         }, ()=>{ if(_wfCurrentFundK===k && _wfFundLastSec==='development') _wfFundDetail(k,'development'); });
         return;
       }
+    }
+    // "what if we added three floors?" — same massing what-if, from the fund's
+    // Development chat.
+    if(typeof _massingAnswer==='function'){
+      const mz=_massingAnswer(q);
+      if(mz){ f._devChat.push({cls:'bot', html:_fmtDiscountSections(mz)}); _wfDevRender(k); return; }
     }
     // "shorten the timeline by 3 months — where can we cut the most?"
     if(typeof _detectCompressRequest==='function'){
