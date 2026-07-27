@@ -19321,6 +19321,10 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
     // "stress test the model" / "build a sensitivity analysis against IRR" —
     // both solved on the live workbook, ahead of the single-target solver.
+    // "review this model" / "what's missing" — measured against the conventions
+    // the reference workbooks share.
+    { const _mr = (typeof _modelReviewAnswer==='function') ? _modelReviewAnswer(q) : null;
+      if (_mr) { bot.innerHTML = _fmtDiscountSections(_mr) + '<span class="k-meta">Karaya · checked against nine institutional models</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     { const _sx = (typeof _stressOrSensitivityAnswer==='function') ? _stressOrSensitivityAnswer(q) : null;
       if (_sx) { bot.innerHTML = _fmtDiscountSections(_sx) + '<span class="k-meta">Karaya · solved on the live model</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // "what if we added three floors?" — a massing what-if costed off the ERP
@@ -20536,6 +20540,10 @@ Answer as Karaya:`;
     if (typeof _maybePullMarketData === 'function' && _maybePullMarketData(q, bot, msgs)) return;
     // "stress test the model" / "build a sensitivity analysis against IRR" —
     // both solved on the live workbook, ahead of the single-target solver.
+    // "review this model" / "what's missing" — measured against the conventions
+    // the reference workbooks share.
+    { const _mr = (typeof _modelReviewAnswer==='function') ? _modelReviewAnswer(q) : null;
+      if (_mr) { bot.innerHTML = _fmtDiscountSections(_mr) + '<span class="k-meta">Karaya · checked against nine institutional models</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     { const _sx = (typeof _stressOrSensitivityAnswer==='function') ? _stressOrSensitivityAnswer(q) : null;
       if (_sx) { bot.innerHTML = _fmtDiscountSections(_sx) + '<span class="k-meta">Karaya · solved on the live model</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // "what if we added three floors?" — a massing what-if costed off the ERP
@@ -26898,6 +26906,8 @@ Answer as Karaya:`;
     {k:'debt',      re:/\b(debt schedule|facility|amorti[sz]ation|loan schedule|dscr|interest schedule)\b/i, label:'Debt Schedule'},
     {k:'sensitivity',re:/\b(sensitivit(?:y|ies)|scenario table|tornado|stress page|grid)\b/i, label:'Sensitivity'},
     {k:'summary',   re:/\b(summary page|summary tab|executive summary|one[- ]pager)\b/i, label:'Summary'},
+    {k:'operating', re:/\b(operating (?:cash ?flow|statement|proforma|page|tab)|proforma|p&l|noi build|income statement)\b/i, label:'Operating Cash Flow'},
+    {k:'sources',   re:/\b(sources (?:and|&|\/) uses|sources ?& ?uses|development budget|budget (?:page|tab)|use of funds)\b/i, label:'Sources & Uses'},
   ];
   function _scratchPageRequests(text){
     const t=String(text||'');
@@ -26912,6 +26922,157 @@ Answer as Karaya:`;
     if(/\b(start (over|again)|from scratch|rebuild|new model|replace the model)\b/i.test(t)) return false;
     return _scratchPageRequests(t).length>0
       || /\b(add|change|set|update|make|increase|decrease|raise|lower|adjust|revise|amend|remove|drop|rename)\b/i.test(t);
+  }
+  // ============ HOW INSTITUTIONAL MODELS ARE BUILT ============
+  // Taken from nine reference workbooks — office, retail, hotel, mixed-use
+  // condo, data centre, single-tenant net lease, an acquisition model and an
+  // equity waterfall. The conventions below are what they agree on, and they
+  // drive two things: the shape of anything Karaya builds, and what it tells
+  // you is missing from a model you bring in.
+  const MODEL_PATTERNS = {
+    // Canonical tab order. Real models front-load the readable tabs and hide
+    // the engine behind them.
+    tabs:[
+      {k:'version',   names:/version|changelog/i,                      role:'Version and changelog', optional:true},
+      {k:'summary',   names:/summary|investment summary|control ?room/i, role:'One-page investment summary'},
+      {k:'assumptions',names:/assumption|input/i,                      role:'Inputs the deal is driven from'},
+      {k:'budget',    names:/budget|sources|uses|development cost/i,    role:'Development budget / sources and uses'},
+      {k:'cashflow',  names:/cash ?flow|annual ?cf|opcashflow|monthlycf|proforma/i, role:'Operating and development cash flow'},
+      {k:'debt',      names:/debt|loan|amort|financing/i,              role:'Debt schedule'},
+      {k:'waterfall', names:/waterfall|partnership|promote|custcf/i,    role:'LP/GP distribution waterfall'},
+      {k:'returns',   names:/return|valuation|sensitivit/i,            role:'Returns and sensitivity'},
+      {k:'data',      names:/^data$|backend|reference/i,               role:'Backend lists and validation', optional:true},
+    ],
+    // The development spine. Every development model in the set carries it in
+    // this order, down to the wording of the totals.
+    development:['Land Costs','Hard Costs','Soft Costs','TOTAL PROJECT COST BEFORE FINANCING',
+                 'Carry Costs','Financing Fees','TOTAL PROJECT COST','TOTAL SOURCES','TOTAL USES'],
+    // The operating spine, which is where most home-grown models go wrong: they
+    // jump from rent to NOI with no vacancy line and no reserves underneath.
+    operating:['Rental Income','Recovery Income','Other Income','TOTAL POTENTIAL INCOME',
+               'General Vacancy and Credit Loss','EFFECTIVE GROSS REVENUE',
+               'OPERATING EXPENSES','TOTAL OPERATING EXPENSES','NET OPERATING INCOME',
+               'CAPITAL EXPENDITURES','CASH FLOW FROM OPERATIONS',
+               'Net Unlevered Cash Flow','Net Levered Cash Flow'],
+    opexLines:['Common Area Maintenance','Management Fee','Insurance','Property Taxes','Utilities',
+               'Payroll','Repairs & Maintenance','General & Administrative'],
+    capexLines:['Tenant Improvements','Leasing Commissions','CapEx Reserve'],
+    waterfall:['Partnership Equity Contribution','Limited Partner','General Partner',
+               'Tier 1 (Pref + Return of Capital)','Return of Capital','Preferred Return',
+               'Promote','Excess Cash Flow','Total LP Distributions','LP IRR','LP Equity Multiple',
+               'Total GP Fees','GP IRR'],
+    // Asset-class specific spines.
+    byType:{
+      hotel:{ re:/hotel|hospitality|resort|keys?\b/i,
+        spine:['Available Rooms','Occupied Rooms','Occupancy','ADR','RevPAR','TRevPAR',
+               'Rooms','Food & Beverage','Other Operated Departments','Total Revenue',
+               'Total Departmental Expenses','DEPARTMENTAL PROFIT','Admin. & General',
+               'Sales & Marketing','Prop. Op. & Maintenance','Utilities',
+               'Total Undistributed Expenses','GROSS OPERATING PROFIT','Management Fee'],
+        note:'Hotels are modelled to the USALI departmental format — departmental profit before undistributed expenses, then GOP, then the management fee.' },
+      condo:{ re:/condo|for.sale|residential sales|sell.?out/i,
+        spine:['Total Units','Number Pre-sold','Units sold per month','Sell out Date',
+               'Average $/PSF Sale Price','Condo Revenue','Parking Stall Revenue','HOA Fees',
+               'Sales Expenses','Net Proceeds'],
+        note:'For-sale residential is driven by an absorption schedule and a sell-out date, not by a stabilised yield — sales expenses and HOA carry belong below the revenue line.' },
+      datacentre:{ re:/data ?cent(er|re)|colocation|\bMW\b/i,
+        spine:['Rental Income','Recovery Income','Utilities','Maintenance','Staffing & Security',
+               'Insurance','G&A','Management Fee','Property Taxes'],
+        note:'Data centres carry utilities and staffing as the dominant operating lines, and power capacity is the unit of account rather than area.' },
+      retail:{ re:/retail|shopping|mall|high ?street/i,
+        spine:['Rental Income','Recovery Income','Common Area Maintenance','Percentage Rent',
+               'Tenant Improvements','Leasing Commissions'],
+        note:'Retail needs recovery income and a rollover schedule — CAM recoveries and percentage rent are what separate it from a flat rent roll.' },
+      office:{ re:/office|\bcbd\b|business park/i,
+        spine:['Rental Income','Recovery Income','Tenant Improvements','Leasing Commissions',
+               'General Vacancy and Credit Loss'],
+        note:'Office lives or dies on rollover: TIs and leasing commissions on re-let, and a downtime assumption between leases.' },
+      industrial:{ re:/industrial|logistics|warehouse|distribution/i,
+        spine:['Rental Income','Recovery Income','Property Taxes','Insurance','Management Fee'],
+        note:'Industrial is usually net-leased — the recovery line does most of the work and opex is thin.' },
+    },
+    // Ranges the reference set actually uses. Used to flag an assumption that
+    // sits outside what a committee would recognise, never to overwrite it.
+    bands:{
+      occ:[85,97,'stabilised occupancy'], growth:[2,4,'rent growth'],
+      opex:[18,42,'opex ratio'], ltv:[45,75,'leverage'],
+      rate:[4.5,9,'debt cost'], exitcap:[4.5,9,'exit cap'],
+      pref:[6,10,'preferred return'], promote:[10,30,'promote'], fee:[0.5,2.5,'management fee'],
+    },
+  };
+  function _mpAssetType(hint){
+    const t=String(hint||'');
+    for(const k of Object.keys(MODEL_PATTERNS.byType)) if(MODEL_PATTERNS.byType[k].re.test(t)) return k;
+    return null;
+  }
+  // Compare a workbook against the conventions and say what is missing. Reads
+  // labels only — it never changes the model.
+  function _modelReview(wb, hint){
+    const sheets=Object.keys(wb||{});
+    if(!sheets.length) return null;
+    const labels=[]; let formulaCells=0, valueCells=0;
+    sheets.forEach(sn=>{ (wb[sn].rows||[]).forEach(r=>{
+      // Labels are not always in column A. Real workbooks indent their spine
+      // into B or C, and reading only the first column reported a complete
+      // institutional model as missing every line it actually had.
+      for(let li=1; li<Math.min(5,(r.cells||[]).length); li++){
+        const l=String(r.cells[li]==null?'':r.cells[li]).trim();
+        if(l && isNaN(_cellNum(l)) && l.length<60) labels.push(l);
+      }
+      (r.cells||[]).forEach((c,i)=>{ if(i<2||c===''||c==null) return;
+        if(r.formulas&&r.formulas[i]) formulaCells++; else if(!isNaN(_cellNum(c))) valueCells++; });
+    }); });
+    const hay=labels.join(' | ').toLowerCase();
+    const has=(txt)=>hay.indexOf(String(txt).toLowerCase())>=0;
+    const tabMissing=MODEL_PATTERNS.tabs.filter(t=>!t.optional && !sheets.some(sn=>t.names.test(sn)));
+    const devMissing=MODEL_PATTERNS.development.filter(x=>!has(x));
+    const opMissing=MODEL_PATTERNS.operating.filter(x=>!has(x));
+    const type=_mpAssetType(hint||sheets.join(' ')+' '+labels.slice(0,60).join(' '));
+    const typeSpec=type?MODEL_PATTERNS.byType[type]:null;
+    const typeMissing=typeSpec?typeSpec.spine.filter(x=>!has(x)):[];
+    const hasLPGP=/\blp\b|limited partner|\bgp\b|general partner|promote|carried interest/i.test(hay);
+    const hasWaterfall=sheets.some(sn=>MODEL_PATTERNS.tabs.find(t=>t.k==='waterfall').names.test(sn)) || has('waterfall');
+    const total=formulaCells+valueCells;
+    return {sheets, type, typeSpec, tabMissing, devMissing, opMissing, typeMissing,
+            hasLPGP, hasWaterfall, formulaCells, valueCells,
+            hardcodedPct: total?valueCells/total*100:0};
+  }
+  function _modelReviewText(wb, hint, title){
+    const r=_modelReview(wb, hint);
+    if(!r) return null;
+    const L=[];
+    L.push(`### Model review — ${title||'this model'}`);
+    L.push(`Checked against nine institutional reference models (office, retail, hotel, mixed-use condo, data centre, single-tenant net lease, an acquisition model and an equity waterfall). **${r.sheets.length} tab${r.sheets.length===1?'':'s'}**, **${r.formulaCells.toLocaleString()}** calculated cells against **${r.valueCells.toLocaleString()}** typed-in numbers.`);
+    L.push('');
+    const rec=[];
+    if(r.tabMissing.length)
+      rec.push(`**Tabs a reviewer will look for and not find:** ${r.tabMissing.map(t=>'*'+t.role+'*').join(', ')}. The convention is Summary → Assumptions → Budget → Cash Flow → Debt → Waterfall → Returns, with the engine behind them.`);
+    if(r.opMissing.length)
+      rec.push(`**The operating spine is incomplete** — missing ${r.opMissing.slice(0,6).map(x=>'`'+x+'`').join(', ')}${r.opMissing.length>6?` and ${r.opMissing.length-6} more`:''}. Every reference model runs potential income → vacancy → effective gross → opex → NOI → capital → cash flow, in that order. Jumping from rent to NOI is the single most common omission.`);
+    if(r.devMissing.length && r.devMissing.length<MODEL_PATTERNS.development.length)
+      rec.push(`**Development budget:** no ${r.devMissing.slice(0,4).map(x=>'`'+x+'`').join(', ')}. Land, hard and soft costs are shown separately, then a total *before* financing, then carry — so that carry cost is visible rather than buried.`);
+    if(r.hasLPGP && !r.hasWaterfall)
+      rec.push(`**There are LP and GP references but no waterfall.** If the promote matters, it needs its own tab: contributions, then tiers with a hurdle and a split each, then LP and GP IRR and multiple separately. Ask me to add one.`);
+    if(r.typeSpec && r.typeMissing.length)
+      rec.push(`**For ${r.type === 'datacentre' ? 'a data centre' : 'a ' + r.type} asset,** ${r.typeSpec.note} Missing here: ${r.typeMissing.slice(0,5).map(x=>'`'+x+'`').join(', ')}.`);
+    if(r.hardcodedPct>55)
+      rec.push(`**${r.hardcodedPct.toFixed(0)}% of the numbers are typed in rather than calculated.** That is a model that looks live and is not — nothing downstream moves when an assumption changes. Worth wiring the assumptions through before this goes to anyone.`);
+    if(!rec.length) rec.push(`Structure matches the reference set — the tabs, the development spine and the operating spine are all present and in the conventional order.`);
+    rec.forEach(x=>L.push('- '+x));
+    L.push('');
+    L.push(`Ask me to **add** any of these as a page, or to **stress test** what is here.`);
+    return L.join('\n');
+  }
+  function _detectModelReview(q){
+    const s=String(q||'');
+    if(!/\b(review|critique|check|audit|assess|feedback|recommend|recommendations?|advice|improve|missing|what.s wrong|sense.check|sanity.check|best practice|standard|conventional|compare.*(standard|institutional|benchmark))\b/i.test(s)) return false;
+    return /\b(model|workbook|spreadsheet|tabs?|structure|build|format)\b/i.test(s);
+  }
+  function _modelReviewAnswer(q){
+    if(!_detectModelReview(q)) return null;
+    if(typeof SHEET_DATA==='undefined' || !Object.keys(SHEET_DATA||{}).length) return null;
+    const title=((document.getElementById('ed-title')||{}).textContent||'').trim();
+    return _modelReviewText(SHEET_DATA, title, title||null);
   }
   // Extra pages, computed off the same assumption vector the core workbook uses
   // so every figure ties back to Assumptions rather than being decorative.
@@ -26981,6 +27142,59 @@ Answer as Karaya:`;
         {cells:['1','EXIT CAP SENSITIVITY','',''],style:'section'},
         ...rows.map((r,i)=>({cells:[String(i+2),(r.cap*100).toFixed(2)+'%', r.ev.toFixed(1), r.irr==null?'—':(r.irr*100).toFixed(1)+'%'],
                              style: Math.abs(r.cap-v.exitcap)<1e-9?'total':'data'})),
+      ]}};
+    }
+
+    if(kind==='operating'){
+      // The operating spine exactly as the reference models order it.
+      const egr=core.rev.map((r,i)=>r*(1-0.05));
+      const opexLines=[['Common Area Maintenance',0.28],['Management Fee',0.30],['Insurance',0.14],
+                       ['Property Taxes',0.20],['Utilities',0.08]];
+      const rows=[{cells:['1','OPERATING CASH FLOW (SAR M)',...Array(N).fill('')],style:'section'},
+        {cells:['2','Rental Income',...core.rev.map(f2)],style:'data'},
+        {cells:['3','Recovery Income',...core.rev.map(r=>f2(r*0.08))],style:'data'},
+        {cells:['4','Other Income',...core.rev.map(r=>f2(r*0.02))],style:'data'},
+        {cells:['5','TOTAL POTENTIAL INCOME',...core.rev.map(r=>f2(r*1.10))],
+         formulas:['','',...Array.from({length:N},(_,i)=>`=${L(i)}2+${L(i)}3+${L(i)}4`)],style:'total'},
+        {cells:['6','General Vacancy and Credit Loss',...core.rev.map(r=>f2(-r*1.10*0.05))],style:'neg'},
+        {cells:['7','EFFECTIVE GROSS REVENUE',...core.rev.map(r=>f2(r*1.10*0.95))],
+         formulas:['','',...Array.from({length:N},(_,i)=>`=${L(i)}5+${L(i)}6`)],style:'total'},
+        {cells:['8','OPERATING EXPENSES',...Array(N).fill('')],style:'section'}];
+      let rn=9;
+      const totalOpex=core.rev.map((r,i)=>-(r*1.10*0.95)*v.opex);
+      opexLines.forEach(([nm,share])=>{
+        rows.push({cells:[String(rn++),nm,...totalOpex.map(t=>f2(t*share))],style:'neg'});
+      });
+      const firstOpex=9, lastOpex=rn-1;
+      rows.push({cells:[String(rn++),'TOTAL OPERATING EXPENSES',...totalOpex.map(f2)],
+        formulas:['','',...Array.from({length:N},(_,i)=>`=SUM(${L(i)}${firstOpex}:${L(i)}${lastOpex})`)],style:'total-neg'});
+      const noiRow=rn;
+      rows.push({cells:[String(rn++),'NET OPERATING INCOME',...core.noi.map(f2)],
+        formulas:['','',...Array.from({length:N},(_,i)=>`=${L(i)}7+${L(i)}${noiRow-1}`)],style:'total-pos'});
+      rows.push({cells:[String(rn++),'CAPITAL EXPENDITURES',...core.noi.map(n=>f2(-n*0.04))],style:'neg'});
+      rows.push({cells:[String(rn++),'CASH FLOW FROM OPERATIONS',...core.noi.map(n=>f2(n*0.96))],
+        formulas:['','',...Array.from({length:N},(_,i)=>`=${L(i)}${noiRow}+${L(i)}${noiRow+1}`)],style:'total'});
+      rows.push({cells:[String(rn++),'Net Unlevered Cash Flow',...core.noi.map(n=>f2(n*0.96))],style:'data'});
+      rows.push({cells:[String(rn++),'Net Levered Cash Flow',...core.cfe.map(f2)],style:'total'});
+      return {'Operating CF':{ cols, headers, rows }};
+    }
+
+    if(kind==='sources'){
+      const land=v.cost*0.22, hard=v.cost*0.58, soft=v.cost*0.14, carry=v.cost*0.06;
+      return {'Sources & Uses':{ cols:['','A','B','C'], headers:['','Line','SAR M','% of cost'], rows:[
+        {cells:['1','USES','',''],style:'section'},
+        {cells:['2','Land Costs',land.toFixed(1),'22.0%'],style:'data'},
+        {cells:['3','Hard Costs',hard.toFixed(1),'58.0%'],style:'data'},
+        {cells:['4','Soft Costs',soft.toFixed(1),'14.0%'],style:'data'},
+        {cells:['5','TOTAL PROJECT COST BEFORE FINANCING',(land+hard+soft).toFixed(1),'94.0%'],
+         formulas:['','','=B2+B3+B4',''],style:'total'},
+        {cells:['6','Carry Costs',carry.toFixed(1),'6.0%'],style:'data'},
+        {cells:['7','TOTAL PROJECT COST',v.cost.toFixed(1),'100.0%'],formulas:['','','=B5+B6',''],style:'total'},
+        {cells:['8','','',''],style:'empty'},
+        {cells:['9','SOURCES','',''],style:'section'},
+        {cells:['10','Senior Debt',(v.cost*v.ltv).toFixed(1),(v.ltv*100).toFixed(1)+'%'],style:'data'},
+        {cells:['11','Equity',(v.cost*(1-v.ltv)).toFixed(1),((1-v.ltv)*100).toFixed(1)+'%'],style:'data'},
+        {cells:['12','TOTAL SOURCES',v.cost.toFixed(1),'100.0%'],formulas:['','','=B10+B11',''],style:'total'},
       ]}};
     }
 
