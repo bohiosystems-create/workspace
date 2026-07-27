@@ -19237,11 +19237,19 @@ Answer as Karaya:`;
     else if(/\b(word|docx|word\s+doc|word\s+document|\.doc)\b/.test(ql)) type='docx';
     else if(/\b(powerpoint|pptx|slide\s*deck|slides|presentation|deck)\b/.test(ql)) type='pptx';
     else if(/\b(txt|text\s+file|plain\s+text|\.txt)\b/.test(ql)) type='txt';
-    else if(/\b(pdf|report|memo|letter|brief|one[-\s]?pager|write[-\s]?up|summary|document|agreement|term\s+sheet|note|paper|minutes)\b/.test(ql)) type='pdf';
+    // "pack" is the app's own word for a board / IC / LP deliverable, so a
+    // request for one has to resolve to a document rather than falling through.
+    else if(/\b(pdf|report|memo|letter|brief|one[-\s]?pager|write[-\s]?up|summary|document|agreement|term\s+sheet|note|paper|minutes|pack|update|filing|statement|appraisal|valuation)\b/.test(ql)) type='pdf';
     else if(/\b(file|export|download)\b/.test(ql)) type='pdf';
     if(!type) return null;
     let title=String(q||'')
       .replace(/^.*?\b(generate|create|make|produce|export|build|draft|write|download|prepare|put\s+together|give\s+me|send\s+me)\b/i,'')
+      // A styling instruction is direction, not part of the name. Without this
+      // "…, use the same style and format as the report I uploaded" ended up in
+      // the report's title and its filename.
+      .replace(/[,;:–—-]?\s*\b(?:us(?:e|ing)|follow(?:ing)?|match(?:ing)?|cop(?:y|ying)|mirror(?:ing)?|replicat(?:e|ing)|keep(?:ing)?|based?\s+on|in|to)\b[^,;]{0,40}?\b(?:style|format|formatting|structure|layout|template|look|tone|design|branding)\b.*$/i,'')
+      .replace(/[,;:–—-]?\s*\b(?:same|similar|identical)\s+(?:style|format|formatting|structure|layout|template|design)\b.*$/i,'')
+      .replace(/[,;:–—-]?\s*\b(?:like|as)\s+(?:the\s+|this\s+|that\s+)?(?:one|report|document|deck|file|example|attachment)?\s*(?:i|we|you)?\s*(?:just\s+)?(?:uploaded|attached|shared|sent|gave\s+you).*$/i,'')
       .replace(/\b(as|in|into|of|a|an|the|me|please|for\s+me|for\s+us|with)\b/gi,' ')
       .replace(/\b(xlsx|excel|spreadsheet|workbook|csv|word\s+document|word\s+doc|word|docx|powerpoint|pptx|slide\s*deck|slides|presentation|deck|text\s+file|plain\s+text|txt|pdf|file|document)\b/gi,' ')
       .replace(/[?.!]+\s*$/,'').replace(/\s+/g,' ').trim();
@@ -19365,7 +19373,13 @@ Answer as Karaya:`;
     let file;
     try{ file=_krMakeFile(req.type, req.title, content); }
     catch(e){ botEl.innerHTML=fmtKaraya('I hit an error building that file — try again, or ask for a different format.')+(metaLabel?`<span class="k-meta">${metaLabel}</span>`:''); return true; }
-    botEl.innerHTML=fmtKaraya(`Done — I've generated **${req.title}** as ${file.label}.`)+_krFileCard(file.url, file.filename)+(metaLabel?`<span class="k-meta">${metaLabel}</span>`:'');
+    // When a style reference is attached, say which one was followed — the user
+    // asked for it explicitly and needs to see that it was picked up.
+    const _styleRefs=(typeof CHAT_ATTACHMENTS!=='undefined')?CHAT_ATTACHMENTS.filter(a=>a.purpose==='style'):[];
+    const _styleLine=_styleRefs.length
+      ? ` Structure and look follow **${_styleRefs.map(a=>String(a.name).replace(/</g,'&lt;')).join('**, **')}** — switch it to *Context* on the chip if you'd rather I only read it for facts.`
+      : '';
+    botEl.innerHTML=fmtKaraya(`Done — I've generated **${req.title}** as ${file.label}.${_styleLine}`)+_krFileCard(file.url, file.filename)+(metaLabel?`<span class="k-meta">${metaLabel}</span>`:'');
     return true;
   }
 
