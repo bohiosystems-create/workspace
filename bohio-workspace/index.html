@@ -15582,7 +15582,7 @@ Answer as the ${a.name} agent:`;
       rows: [
         { cells: ["1", "SOURCES", "", "", "", "", ""], style: "section" },
         { cells: ["2", "Net Operating Income", "7.60", "8.95", "10.40", "11.18", "11.95"], formulas: ["", "", "=Summary!B16", "=Summary!C16", "=Summary!D16", "=Summary!E16", "=Summary!F16"], style: "data" },
-        { cells: ["3", "Exit Proceeds", "—", "—", "—", "—", "183.85"], formulas: ["", "", "", "", "", "", "=F16/Assumptions!B24"], style: "data" },
+        { cells: ["3", "Exit Proceeds", "—", "—", "—", "—", "183.85"], formulas: ["", "", "", "", "", "", "=F2/Assumptions!B24"], style: "data" },
         { cells: ["4", "Total Sources", "7.60", "8.95", "10.40", "11.18", "195.80"], formulas: ["", "", "=B2", "=C2", "=D2", "=E2", "=F2+F3"], style: "total" },
         { cells: ["5", "", "", "", "", "", ""], style: "empty" },
         { cells: ["6", "USES", "", "", "", "", ""], style: "section" },
@@ -15893,34 +15893,82 @@ Answer as the ${a.name} agent:`;
     const n = parseFloat(s);
     return isNaN(n) ? NaN : (neg ? -n : n);
   }
+  function _colNum(c){ let n = 0; for (let i = 0; i < c.length; i++) n = n * 26 + (c.charCodeAt(i) - 64); return n; }
+  function _numCol(n){ let s = ''; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = (n - r - 1) / 26; } return s; }
+  // A percent cell is authored as a FRACTION by its formula (=0.065 → "6.50%")
+  // but _cellNum reads it back at face value (6.5) for the solver and metric
+  // layers, which think in percentage points. Inside a formula that asymmetry
+  // compounds — every hop through a percent cell inflated the result 100x — so
+  // the formula path normalises percents back to the scale they were written on.
+  // _cellNum itself is left alone; its 19 other callers still get points.
+  function _cellNumFormula(v){
+    const raw = String(v == null ? '' : v).trim();
+    const n = _cellNum(raw);
+    if (isNaN(n)) return NaN;
+    return /%\s*$/.test(raw) ? n / 100 : n;
+  }
   function _getCellVal(sheetName, col, rowNum){
     const s = SHEET_DATA[sheetName]; if (!s) return NaN;
     const ci = s.cols.indexOf(col); if (ci < 1) return NaN;
     const row = s.rows.find(r => r.cells[0] === String(rowNum)); if (!row) return NaN;
-    return _cellNum(row.cells[ci]);
+    return _cellNumFormula(row.cells[ci]);
+  }
+  // Separates "that cell doesn't exist" (null — bail, keep the static value)
+  // from "it exists but is empty" (0). Excel reads a blank precedent as zero;
+  // bailing instead froze the dependent on a stale figure. Text like "—" still
+  // bails, so placeholder rows keep behaving as they did.
+  function _cellSlot(sheetName, col, rowNum){
+    const s = SHEET_DATA[sheetName]; if (!s) return null;
+    const ci = s.cols.indexOf(col); if (ci < 1) return null;
+    const row = s.rows.find(r => r.cells[0] === String(rowNum)); if (!row) return null;
+    const raw = row.cells[ci];
+    if (raw == null || String(raw).trim() === '') return 0;
+    const n = _cellNumFormula(raw);
+    return isNaN(n) ? null : n;
   }
   function _refVal(token, curSheet){
     let sheet = curSheet, cell = token;
     const bang = token.indexOf('!');
     if (bang >= 0) { sheet = token.slice(0, bang).replace(/'/g, '').trim(); cell = token.slice(bang + 1); }
-    const m = cell.match(/^([A-Z]+)(\d+)$/); if (!m) return NaN;
+    const m = cell.match(/^\$?([A-Z]+)\$?(\d+)$/); if (!m) return NaN;
     return _getCellVal(sheet, m[1], m[2]);
+  }
+  // Substituted values must not carry exponent letters — the "no unresolved
+  // identifiers" guard below would otherwise reject an entirely valid result.
+  function _numLit(n){
+    const s = String(n);
+    if (!/e/i.test(s)) return s;
+    if (Math.abs(n) < 1) return n.toFixed(20);
+    try { return BigInt(Math.round(n)).toString(); } catch (e) { return s; }
   }
   // Evaluate a formula string in the context of a sheet; returns a number or null.
   function evalFormula(formula, curSheet){
     if (!formula) return null;
     let e = String(formula).replace(/^=/, '').trim();
-    // SUM(single-column range)
-    e = e.replace(/SUM\(\s*([A-Za-z ]+!)?([A-Z]+)(\d+):([A-Z]+)(\d+)\s*\)/g, (mm, sh, c1, r1, c2, r2) => {
-      const sheet = sh ? sh.replace('!', '').trim() : curSheet;
+    // Build the sheet-name pattern from the workbook itself rather than a
+    // character class, so a tab named "P&L" or "Cash-Flow" resolves as readily
+    // as a plain one — imported workbooks name tabs however they like.
+    const names = Object.keys(SHEET_DATA || {});
+    const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const alt = names.map(esc).sort((a, b) => b.length - a.length).join('|');
+    const shPat = alt ? "(?:'(?:" + alt + ")'|(?:" + alt + "))!" : "(?!x)x";
+    // SUM over a range — a column, a row, or a rectangular block. Summing only
+    // the first column silently under-reported every across-the-years total.
+    const sumRe = new RegExp('SUM\\(\\s*(' + shPat + ')?\\$?([A-Z]+)\\$?(\\d+)\\s*:\\s*(?:' + shPat + ')?\\$?([A-Z]+)\\$?(\\d+)\\s*\\)', 'g');
+    e = e.replace(sumRe, (mm, sh, c1, r1, c2, r2) => {
+      const sheet = sh ? sh.replace(/!$/, '').replace(/'/g, '').trim() : curSheet;
+      const cA = Math.min(_colNum(c1), _colNum(c2)), cB = Math.max(_colNum(c1), _colNum(c2));
       let sum = 0;
-      for (let r = Math.min(+r1, +r2); r <= Math.max(+r1, +r2); r++) { const v = _getCellVal(sheet, c1, r); if (!isNaN(v)) sum += v; }
-      return '(' + sum + ')';
+      for (let r = Math.min(+r1, +r2); r <= Math.max(+r1, +r2); r++)
+        for (let c = cA; c <= cB; c++) { const v = _getCellVal(sheet, _numCol(c), r); if (!isNaN(v)) sum += v; }
+      return '(' + _numLit(sum) + ')';
     });
-    // cell references (Sheet!A1 or A1) → numeric values
-    e = e.replace(/([A-Za-z][A-Za-z0-9 ]*!)?([A-Z]+)(\d+)/g, (mm) => {
-      const v = _refVal(mm, curSheet);
-      return isNaN(v) ? mm : '(' + v + ')';
+    // cell references (Sheet!A1, 'P&L'!$A$1 or A1) → numeric values
+    const refRe = new RegExp('(' + shPat + ')?\\$?([A-Z]+)\\$?(\\d+)', 'g');
+    e = e.replace(refRe, (mm, sh, col, rw) => {
+      const sheet = sh ? sh.replace(/!$/, '').replace(/'/g, '').trim() : curSheet;
+      const v = _cellSlot(sheet, col, rw);
+      return v == null ? mm : '(' + _numLit(v) + ')';
     });
     e = e.replace(/<>/g, '!=');
     e = e.replace(/ABS\(/gi, 'Math.abs(').replace(/\bMAX\(/gi, 'Math.max(').replace(/\bMIN\(/gi, 'Math.min(')
