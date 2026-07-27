@@ -10525,10 +10525,7 @@
           <span class="section-meta">Each team's AI agent answers instantly · governed in Settings</span>
         </div>
       </div>
-      <p style="font-size:12px;line-height:1.65;color:var(--ink-soft);max-width:760px;margin:2px 0 20px;">
-        Need a number from Finance, a figure from Sales, a read from Investments or a milestone from Project Management? Ask the department's AI agent directly, or just ask the Karaya chatbot (right) — e.g. <em>"ask Finance for the fund IRR"</em> — and it routes to the right agent. Each answers instantly from the context it already holds, and what each may share is governed in <span style="text-decoration:underline;cursor:pointer;" onclick="openSettingsModal()">Settings › AI Agents</span>.
-      </p>
-      <div class="dept-agents-grid" id="dept-agents-grid"></div>
+      <div class="dept-agents-grid" id="dept-agents-grid" style="margin-top:20px;"></div>
 
     </div>
 
@@ -11479,6 +11476,199 @@
   // DATA
   // Pre-Feasibility Brief — added at runtime so it appears as a NEW doc on Marina Tower
   const P={1:{name:"Marina Tower",loc:"Doha · Corniche",lead:"S. Al-Harbi",phase:"Phase 02/06",members:"08",desc:"Financial modeling workspace for the Marina Tower mixed-use waterfront asset. Active workstream covers the Q2 model refresh — opex normalisation, hospitality split sensitivity, and re-baselining yield-on-cost against the latest contractor pricing.",docs:[{type:"PDF",name:"Offering Memorandum — Marina Tower",version:"50 pp",updated:"Today · Cordoba Capital Markets",isFeasibility:true,isNew:true,consultant:"Cordoba Capital Markets",pages:50},{type:"XLSX",name:"Financial Model — Master",version:"v.12 · Locked",updated:"28 Apr · S. Al-Harbi",master:true},{type:"XLSX",name:"Sensitivity Workbook",version:"v.07",updated:"28 Apr · R. Marini"},{type:"XLSX",name:"Opex Build-Up",version:"v.04",updated:"27 Apr · S. Al-Harbi"},{type:"XLSX",name:"Cashflow — Base",version:"v.09",updated:"27 Apr · M. Lopez"},{type:"XLSX",name:"Capex Schedule",version:"v.05",updated:"26 Apr · K. Saleh"},{type:"PDF",name:"Model Audit Notes",version:"31 pp",updated:"25 Apr · External"},{type:"PPTX",name:"IC Memo Pack",version:"22 sl",updated:"22 Apr · M. Lopez"}]},2:{name:"Ash Shati Residences",loc:"Doha · North",lead:"R. Marini",phase:"Phase 03/06",members:"12",desc:"Branded-residence cluster financial workstream. Re-running the model with updated hospitality split assumptions and revised exit cap. Capital partner data room staged from this folder.",docs:[{type:"XLSX",name:"Financial Model — Master",version:"v.08 · Locked",updated:"29 Apr · R. Marini",master:true},{type:"XLSX",name:"Hospitality Split",version:"v.03",updated:"29 Apr · R. Marini"},{type:"XLSX",name:"Exit Cap Sensitivity",version:"v.02",updated:"28 Apr · M. Lopez"},{type:"XLSX",name:"Equity Waterfall",version:"v.04",updated:"26 Apr · R. Marini"},{type:"PDF",name:"Partner Term Sheet",version:"12 pp",updated:"24 Apr · External"},{type:"PPTX",name:"Capital Partner Pack",version:"28 sl",updated:"23 Apr · M. Lopez"}]},3:{name:"Rawdah Plaza",loc:"Doha · Central",lead:"K. Saleh",phase:"Phase 04/06",members:"06",inOperation:true,desc:"Mid-rise commercial plaza modeling workspace. Yield-on-cost stress test against latest pre-leasing comparables. Capex re-baselined this week.",docs:[{type:"XLSX",name:"Financial Model — Master",version:"v.06 · Locked",updated:"28 Apr · K. Saleh",master:true},{type:"XLSX",name:"Yield-on-Cost Stress",version:"v.02",updated:"28 Apr · K. Saleh"},{type:"XLSX",name:"Capex Re-baseline",version:"v.03",updated:"27 Apr · K. Saleh"},{type:"PDF",name:"Façade Vendor Quotes",version:"8 pp",updated:"26 Apr · External"}]},4:{name:"Rayyan Block",loc:"Doha · Al Rayyan",lead:"M. Lopez",phase:"Phase 02/06",members:"05",inOperation:true,desc:"Office-led mixed-use financial model. Reconciling leasing schedule into base and staging data room for prospective REIT acquirer.",docs:[{type:"XLSX",name:"Financial Model — Master",version:"v.05 · Locked",updated:"28 Apr · M. Lopez",master:true},{type:"XLSX",name:"Leasing Schedule",version:"v.04",updated:"28 Apr · M. Lopez"},{type:"XLSX",name:"REIT Acquisition Model",version:"v.02",updated:"27 Apr · M. Lopez"},{type:"DOCX",name:"Valuation Memo",version:"18 pp",updated:"22 Apr · External"}]},5:{name:"Andalus Quarter",loc:"Doha · South",lead:"M. Lopez",phase:"Phase 01/06",members:"03",desc:"Concept-stage residential masterplan model. IRR scenario tab being drafted; assumption set preliminary.",docs:[{type:"XLSX",name:"Financial Model — Concept",version:"v.02 · Draft",updated:"25 Apr · M. Lopez",master:true},{type:"XLSX",name:"IRR Scenarios",version:"v.01",updated:"25 Apr · M. Lopez"},{type:"PDF",name:"Test-fit Studies",version:"14 pp",updated:"21 Apr · External"}]},6:{name:"Nahdah Logistics",loc:"Doha · East",lead:"K. Saleh",phase:"Phase 03/06",members:"04",inOperation:true,desc:"Last-mile logistics asset. Single-tenant pre-let in negotiation — model runs both pre-let and speculative cases.",docs:[{type:"XLSX",name:"Financial Model — Master",version:"v.04 · Locked",updated:"28 Apr · K. Saleh",master:true},{type:"XLSX",name:"Pre-let Case",version:"v.02",updated:"28 Apr · K. Saleh"},{type:"XLSX",name:"Speculative Case",version:"v.02",updated:"28 Apr · K. Saleh"},{type:"PDF",name:"Tenant Term Sheet",version:"9 pp",updated:"26 Apr · External"}]}};
+
+  // ---- Marina Tower data room — readable seeded documents -------------------
+  // The lead asset's data room previously held only file metadata, so its PDF
+  // and DOCX tiles fell back to the generic skeleton and opened nothing. These
+  // four carry a real docBody, so they open in the reader, render a true
+  // content thumbnail and export to PDF like any other document. Every figure
+  // below is tied to the numbers Marina Tower already reports elsewhere in the
+  // workspace (SAR 182M independent valuation, 6.50% exit cap, Y1 NOI SAR 7.6M,
+  // 90% occupancy, the SAP cost ledger on PRJ-MAR-2026), so an agent asked to
+  // reconcile the data room against the model finds them consistent.
+  const _MT_DOC_STYLE = 'font-size:12px;letter-spacing:0.18em;text-transform:uppercase;margin:18px 0 8px;';
+  (function seedMarinaTowerDataRoom(){
+    const P1 = (typeof P!=='undefined' && P[1]) ? P[1] : null;
+    if(!P1 || !P1.docs) return;
+    const H = t => `<h4 style="${_MT_DOC_STYLE}">${t}</h4>`;
+    const docs = [
+      {type:'PDF', name:'RICS Valuation Report — Marina Tower', version:'38 pp · Knight Frank', updated:'26 Apr · Knight Frank', isValuation:true, isReadable:true,
+        docBody:`
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:18px;margin-bottom:22px;">
+  <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:#6b7280;">Knight Frank · Valuation &amp; Advisory · Doha</div>
+  <div style="font-size:22px;font-weight:700;margin-top:8px;">VALUATION REPORT</div>
+  <div style="font-size:12px;color:#4b5563;margin-top:6px;">Marina Tower — Mixed-Use Waterfront Asset · Corniche, Doha</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">Prepared for Bohio RE Fund II · Report ref. KF-DOH-2026-0912 · 38 pages</div>
+</div>
+${H('1 · Instruction &amp; Basis of Value')}
+<p>We are instructed by <strong>Bohio RE Fund II</strong> to report the Market Value of the freehold interest in Marina Tower for financial reporting and secured-lending purposes. The valuation is prepared on the basis of Market Value as defined in the RICS Valuation — Global Standards ("Red Book"), and we confirm our valuer is RICS-accredited, suitably experienced in this asset class and market, and acts as an External Valuer with no conflict of interest.</p>
+${H('2 · The Property')}
+<p>A 28-storey mixed-use waterfront tower on the Doha Corniche, comprising <strong>320 residential units</strong> over a retail podium with structured parking. The asset is presently in Phase 2 of 6 of its development programme, with the superstructure at <strong>Level 12 of 28</strong> and practical completion targeted for <strong>Q1 2028</strong>. Our inspection was carried out from ground level and the accessible completed floors.</p>
+${H('3 · Tenure &amp; Town Planning')}
+<p>Freehold, held clear of any registered mortgage other than the facility disclosed to us. The building permit was issued in August 2025; the MEP permit remains in review with the competent authority. We have assumed, without independent enquiry, that all consents necessary for the scheme as designed are in place or will be granted in the ordinary course.</p>
+${H('4 · Market Commentary')}
+<p>Prime waterfront stock on the Corniche continues to attract institutional demand, with net initial yields for stabilised assets of comparable quality transacting in a <strong>6.25% – 6.75%</strong> range over the last twelve months. Occupier demand is stable; the principal risk to values remains the delivery pipeline scheduled for 2027–28 rather than any deterioration in current rental tone.</p>
+${H('5 · Valuation Approach')}
+<p>We have adopted the <strong>investment method</strong> as our primary approach, capitalising stabilised net operating income at a market-derived equivalent yield, cross-checked against a residual appraisal reflecting the cost to complete. The comparable evidence relied upon is set out below.</p>
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:10px 0 4px;">
+  <thead><tr>
+    <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #1a1f2b;">Comparable</th>
+    <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #1a1f2b;">Date</th>
+    <th style="text-align:right;padding:6px 8px;border-bottom:2px solid #1a1f2b;">Price (SAR M)</th>
+    <th style="text-align:right;padding:6px 8px;border-bottom:2px solid #1a1f2b;">NIY</th>
+  </tr></thead>
+  <tbody>
+    <tr><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Corniche Plaza, Doha</td><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Feb 2026</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">204.0</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">6.35%</td></tr>
+    <tr><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">West Bay Residences</td><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Nov 2025</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">167.5</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">6.60%</td></tr>
+    <tr><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Al Bidda Quarter (part)</td><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Sep 2025</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">143.2</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">6.75%</td></tr>
+  </tbody>
+</table>
+${H('6 · Valuation')}
+<p>Capitalising a stabilised net operating income of <strong>SAR 11.8M</strong> at an equivalent yield of <strong>6.50%</strong>, and having regard to the comparable evidence above, we are of the opinion that the Market Value of the freehold interest, subject to the assumptions and conditions in this report, is:</p>
+<div style="text-align:center;border:2px solid #1a1f2b;padding:16px;margin:14px 0;">
+  <div style="font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:#6b7280;">Market Value</div>
+  <div style="font-size:26px;font-weight:700;margin-top:5px;">SAR 182,000,000</div>
+  <div style="font-size:11px;color:#4b5563;margin-top:5px;">One hundred and eighty-two million Saudi Riyals</div>
+</div>
+${H('7 · Current Trading vs Underwriting')}
+<p>We note that the asset is presently trading below the sponsor's underwriting: occupancy stands at <strong>90%</strong> against <strong>93%</strong> underwritten, and operating costs are running at <strong>31% of EGI</strong> against <strong>28%</strong> underwritten. On that basis current-year net operating income of <strong>SAR 7.6M</strong> reflects a part-let, pre-stabilisation position. Our valuation adopts the stabilised position, and the gap between the two is a matter for the sponsor's business plan rather than a defect in value.</p>
+${H('8 · Sensitivity')}
+<p>Value is most sensitive to the capitalisation rate adopted. A movement of <strong>+25 bps</strong> to 6.75% would reduce the Market Value to approximately <strong>SAR 175.0M</strong>; a movement of <strong>−25 bps</strong> to 6.25% would increase it to approximately <strong>SAR 189.0M</strong>.</p>
+${H('9 · Assumptions &amp; Limitations')}
+<p>We have not carried out a structural survey, tested services, or undertaken environmental investigation. We have assumed the property is free from contamination and from any defect not apparent on inspection, that the cost to complete is as certified by the project cost manager, and that vacant possession of the unlet parts can be given on completion. This report is provided for the stated purposes and addressee only.</p>`},
+
+      {type:'DOCX', name:'Anchor Lease — Marina Tower Retail Podium', version:'22 pp · Executed', updated:'24 Apr · Legal', isLandlord:true, isReadable:true,
+        docBody:`
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:18px;margin-bottom:22px;">
+  <div style="font-size:22px;font-weight:700;">LEASE AGREEMENT</div>
+  <div style="font-size:12px;color:#4b5563;margin-top:6px;">Anchor Retail Unit · Marina Tower Podium, Corniche, Doha</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">Executed counterpart · 22 pages · Ref. MT-L-004/2026</div>
+</div>
+<p><strong>THIS LEASE</strong> is made between <strong>Marina Tower HoldCo</strong>, a limited company incorporated in the State of Qatar (the "Landlord"), and <strong>Doha Marine Retail W.L.L.</strong>, a limited liability company (the "Tenant").</p>
+${H('1 · Definitions &amp; Interpretation')}
+<p>"Premises" means the anchor retail unit of approximately <strong>4,600 sqm GLA</strong> across the ground and mezzanine levels of the podium, shown edged red on Plan A; "Commencement Date" means the date of handover certified under Clause 3; "Scheme" means the Marina Tower development including common parts, podium parking and the waterfront promenade frontage.</p>
+${H('2 · Demise &amp; Term')}
+<p>The Landlord demises the Premises to the Tenant for a term of <strong>twelve (12) years</strong> from the Commencement Date, with one option to renew for a further <strong>five (5) years</strong> exercisable on not less than twelve (12) months' written notice, at open market rent determined under Clause 5.</p>
+${H('3 · Handover &amp; Fit-Out')}
+<p>Handover in shell-and-core condition with capped services to the unit boundary. The Tenant shall complete fit-out within <strong>150 days</strong> to plans approved by the Landlord, such approval not to be unreasonably withheld or delayed. A rent-free period of <strong>120 days</strong> applies from the Commencement Date to accommodate fit-out.</p>
+${H('4 · Rent')}
+<p>Base Rent of <strong>SAR 4,140,000 per annum</strong> (SAR 900/sqm), payable quarterly in advance, escalating at <strong>3.0% per annum</strong> compounded on each anniversary. In addition the Tenant shall pay turnover rent equal to <strong>7%</strong> of gross annual turnover above a natural breakpoint of SAR 59,142,857, reconciled annually against Base Rent paid.</p>
+${H('5 · Rent Review')}
+<p>On renewal the rent shall be the higher of (a) the then-passing Base Rent and (b) open market rent determined, failing agreement within sixty (60) days, by an independent RICS-accredited valuer appointed as expert, whose fees shall be borne equally by the parties.</p>
+${H('6 · Break Option')}
+<p>The Tenant may determine this Lease at the end of <strong>Year 6</strong> on not less than <strong>twelve (12) months'</strong> prior written notice, conditional upon (a) a break premium of <strong>nine (9) months'</strong> then-passing Base Rent, and (b) vacant possession with all sums paid to the break date. Time is of the essence in respect of each condition.</p>
+${H('7 · Permitted Use &amp; Exclusivity')}
+<p>Supermarket, department store and ancillary food and beverage only. The Landlord covenants not to grant any other lease within the Scheme exceeding <strong>1,200 sqm</strong> for primary grocery use during the term, and not to permit any use that materially derogates from the Tenant's grant.</p>
+${H('8 · Service Charge &amp; Insurance')}
+<p>The Tenant keeps the interior in good and substantial repair; the Landlord maintains structure, envelope, common parts and the promenade frontage, recoverable through a service charge <strong>capped at SAR 260/sqm per annum</strong>, indexed to CPI and reconciled annually against audited expenditure. The Landlord insures the Scheme; the Tenant insures its contents, plate glass and public liability, and reimburses a fair proportion of the Landlord's premium.</p>
+${H('9 · Alienation')}
+<p>Assignment of the whole is permitted with the Landlord's consent, not to be unreasonably withheld where the proposed assignee is of demonstrably equivalent or better covenant strength. Underletting of up to <strong>25% of GLA</strong> is permitted to concessionaires operating within the Permitted Use without consent, subject to notification.</p>
+${H('10 · Security')}
+<p>On or before the Commencement Date the Tenant shall deliver, and thereafter maintain, an unconditional and irrevocable bank guarantee issued by a Qatar-licensed bank equal to <strong>six (6) months'</strong> Base Rent, to be adjusted upon each escalation and to remain valid for ninety (90) days beyond expiry.</p>
+${H('11 · Default &amp; Termination')}
+<p>Base Rent unpaid for thirty (30) days after written notice, any material breach unremedied for sixty (60) days after notice, or the occurrence of an insolvency event entitles the Landlord to terminate and to draw upon the security, without prejudice to accrued rights. Holding over converts the tenancy to a monthly periodic tenancy at 120% of the then-passing rent.</p>
+${H('12 · Governing Law &amp; Disputes')}
+<p>This Lease is governed by the laws of the State of Qatar. The parties submit to the exclusive jurisdiction of the competent courts of Doha.</p>
+<div style="display:flex;gap:40px;margin-top:26px;border-top:1px solid #d7d2c7;padding-top:16px;">
+  <div style="flex:1;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#6b7280;">Signed for the Landlord</div><div style="margin-top:26px;border-top:1px solid #1a1f2b;padding-top:6px;font-size:11px;">Marina Tower HoldCo</div></div>
+  <div style="flex:1;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#6b7280;">Signed for the Tenant</div><div style="margin-top:26px;border-top:1px solid #1a1f2b;padding-top:6px;font-size:11px;">Doha Marine Retail W.L.L.</div></div>
+</div>`},
+
+      {type:'DOCX', name:'Shareholders & Joint Venture Agreement', version:'34 pp · Executed', updated:'19 Apr · Legal', isLandlord:true, isReadable:true,
+        docBody:`
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:18px;margin-bottom:22px;">
+  <div style="font-size:22px;font-weight:700;">SHAREHOLDERS' AGREEMENT</div>
+  <div style="font-size:12px;color:#4b5563;margin-top:6px;">Marina Tower HoldCo · Joint Venture between Bohio RE Fund II and Doha Ventures</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">Executed counterpart · 34 pages · Ref. MT-SHA-001/2026</div>
+</div>
+<p><strong>THIS AGREEMENT</strong> is made between <strong>Bohio RE Fund II</strong> (the "Sponsor"), <strong>Doha Ventures Holding</strong> (the "Partner"), and <strong>Marina Tower HoldCo</strong> (the "Company").</p>
+${H('1 · Shareholding &amp; Capital')}
+<p>The issued share capital of the Company is held as to <strong>65%</strong> by the Sponsor and <strong>35%</strong> by the Partner. Total committed equity is <strong>SAR 294.0M</strong>, subscribed in the same proportions (Sponsor SAR 191.1M; Partner SAR 102.9M). Capital is drawn by notice against an agreed funding schedule, with not less than fifteen (15) business days' notice.</p>
+${H('2 · Failure to Fund')}
+<p>A shareholder failing to meet a drawdown within ten (10) business days of the due date is a Defaulting Shareholder. The non-defaulting shareholder may (a) advance the shortfall as a loan bearing interest at <strong>SAIBOR + 6%</strong>, or (b) subscribe for additional shares at a <strong>20% discount</strong> to the most recent Market Value, diluting the Defaulting Shareholder accordingly.</p>
+${H('3 · Governance &amp; the Board')}
+<p>The Board comprises five directors — three appointed by the Sponsor and two by the Partner. The chair is appointed by the Sponsor and holds no casting vote. A quorum requires at least one director appointed by each shareholder present; if a duly convened meeting is inquorate twice consecutively for want of a Partner appointee, the third meeting shall be quorate with Sponsor appointees alone.</p>
+${H('4 · Reserved Matters')}
+<p>The following require the prior written consent of <strong>both</strong> shareholders, irrespective of shareholding: (a) any change to the Company's constitutional documents; (b) any disposal of the Property or of any interest exceeding <strong>SAR 25.0M</strong>; (c) incurring indebtedness taking total leverage above <strong>60% LTV</strong>; (d) approval of the annual business plan and budget, and any variance exceeding <strong>7.5%</strong> of sanctioned cost; (e) any related-party transaction; (f) the appointment or removal of the auditor; and (g) any winding up or voluntary liquidation.</p>
+${H('5 · Distributions &amp; Waterfall')}
+<p>Distributable cash shall be applied: <strong>first</strong>, to repay shareholder loans with accrued interest; <strong>second</strong>, to return subscribed capital pro rata; <strong>third</strong>, to deliver a preferred return of <strong>8% per annum</strong> compounded to each shareholder pro rata; and <strong>thereafter</strong>, as to <strong>80%</strong> to the shareholders pro rata and <strong>20%</strong> to the Sponsor as carried interest.</p>
+${H('6 · Transfer Restrictions')}
+<p>No shareholder may transfer any share for a lock-up period of <strong>thirty-six (36) months</strong> from the date of this Agreement, save to a wholly-owned affiliate that adheres to this Agreement by deed. Thereafter transfers are subject to the pre-emption procedure in Clause 7.</p>
+${H('7 · Pre-emption, Tag &amp; Drag')}
+<p>A shareholder wishing to transfer shall first offer them to the other at the proposed price, which offer remains open for thirty (30) days. On a bona fide third-party sale of <strong>75% or more</strong> of the issued shares, the selling shareholders may <strong>drag</strong> the remainder on identical terms; equally, a minority shareholder may <strong>tag</strong> along on the same terms and price.</p>
+${H('8 · Deadlock')}
+<p>Where a Reserved Matter is not resolved within thirty (30) days, the matter is escalated to the chief executives of each shareholder for a further thirty (30) days. Failing resolution, either party may invoke the <strong>shoot-out</strong> procedure: the initiating party names a price per share at which it will either buy the other's shares or sell its own, and the recipient elects which within twenty (20) business days.</p>
+${H('9 · Undertakings &amp; Non-Compete')}
+<p>Each shareholder undertakes to act in good faith towards the Company, and — for so long as it holds shares and for twelve (12) months thereafter — not to acquire or develop a competing mixed-use waterfront asset within a <strong>3 km</strong> radius of the Property without the other's consent.</p>
+${H('10 · Governing Law &amp; Arbitration')}
+<p>This Agreement is governed by the laws of the State of Qatar. Any dispute not resolved under Clause 8 shall be finally settled by arbitration under the QICCA Rules, seated in Doha, before three arbitrators, conducted in English.</p>
+<div style="display:flex;gap:40px;margin-top:26px;border-top:1px solid #d7d2c7;padding-top:16px;">
+  <div style="flex:1;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#6b7280;">Signed for the Sponsor</div><div style="margin-top:26px;border-top:1px solid #1a1f2b;padding-top:6px;font-size:11px;">Bohio RE Fund II</div></div>
+  <div style="flex:1;"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#6b7280;">Signed for the Partner</div><div style="margin-top:26px;border-top:1px solid #1a1f2b;padding-top:6px;font-size:11px;">Doha Ventures Holding</div></div>
+</div>`},
+
+      {type:'PDF', name:'Cost-to-Complete Report — Apr 2026', version:'16 pp · Turner International', updated:'28 Apr · Turner International', isReadable:true, karayaPdf:true,
+        docBody:`
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:18px;margin-bottom:22px;">
+  <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:#6b7280;">Turner International · Project &amp; Cost Management</div>
+  <div style="font-size:22px;font-weight:700;margin-top:8px;">COST-TO-COMPLETE REPORT</div>
+  <div style="font-size:12px;color:#4b5563;margin-top:6px;">Marina Tower · Corniche, Doha · Reporting period April 2026</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">Cost centre PRJ-MAR-2026 · Issued to Bohio RE Fund II · 16 pages</div>
+</div>
+${H('1 · Executive Summary')}
+<p>The project is <strong>42% physically complete</strong> against <strong>44% programmed</strong> — two points behind, with a recovery plan agreed with the contractor and tracked weekly. The anticipated final cost is <strong>SAR 992.0M</strong> against a sanctioned budget of <strong>SAR 980.0M</strong>, an overrun of <strong>SAR 12.0M (+1.2%)</strong>. Two variations remain pending and sit outside the anticipated final cost; if both are certified as submitted the overrun would rise to approximately 2.0%.</p>
+${H('2 · Cost Position')}
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:10px 0 4px;">
+  <thead><tr>
+    <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #1a1f2b;">Line</th>
+    <th style="text-align:right;padding:6px 8px;border-bottom:2px solid #1a1f2b;">SAR M</th>
+    <th style="text-align:right;padding:6px 8px;border-bottom:2px solid #1a1f2b;">% of budget</th>
+  </tr></thead>
+  <tbody>
+    <tr><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Sanctioned budget</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">980.0</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">100.0%</td></tr>
+    <tr><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Committed to date</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">740.0</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">75.5%</td></tr>
+    <tr><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Actual expenditure to date</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">583.4</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">59.5%</td></tr>
+    <tr><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Forecast cost to complete</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">408.6</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">41.7%</td></tr>
+    <tr style="font-weight:700;"><td style="padding:6px 8px;border-top:2px solid #1a1f2b;">Anticipated final cost</td><td style="padding:6px 8px;text-align:right;border-top:2px solid #1a1f2b;">992.0</td><td style="padding:6px 8px;text-align:right;border-top:2px solid #1a1f2b;">101.2%</td></tr>
+    <tr style="font-weight:700;color:#9a3412;"><td style="padding:5px 8px;">Variance to sanctioned budget</td><td style="padding:5px 8px;text-align:right;">+12.0</td><td style="padding:5px 8px;text-align:right;">+1.2%</td></tr>
+  </tbody>
+</table>
+${H('3 · Principal Contract')}
+<p>Main contractor <strong>Al-Bawani</strong> is engaged on a guaranteed maximum price of <strong>SAR 145.0M</strong> hard cost over a <strong>30-month</strong> programme, with liquidated damages of <strong>SAR 85,000 per day</strong>. Construction commenced September 2025; handover is targeted for <strong>March 2028</strong>. The superstructure has reached <strong>Level 12 of 28</strong>.</p>
+${H('4 · Drivers of the Overrun')}
+<ul style="margin:4px 0 4px 18px;padding:0;">
+  <li style="margin:4px 0;"><strong>Façade package — SAR 7.4M.</strong> Unitised curtain-wall pricing returned above budget on the re-tender; two of four bidders withdrew, reducing competitive tension.</li>
+  <li style="margin:4px 0;"><strong>MEP re-coordination — SAR 3.1M.</strong> Clash resolution between the podium plant and the residential risers required rework of the Level 3 distribution.</li>
+  <li style="margin:4px 0;"><strong>Marine works provisional sum — SAR 1.5M.</strong> Additional piling to the promenade edge following the ground investigation.</li>
+</ul>
+${H('5 · Pending Variations (outside AFC)')}
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:10px 0 4px;">
+  <thead><tr>
+    <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #1a1f2b;">Ref</th>
+    <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #1a1f2b;">Description</th>
+    <th style="text-align:right;padding:6px 8px;border-bottom:2px solid #1a1f2b;">Submitted (SAR M)</th>
+    <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #1a1f2b;">Status</th>
+  </tr></thead>
+  <tbody>
+    <tr><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">VO-018</td><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Lobby specification uplift</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">4.8</td><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Under assessment</td></tr>
+    <tr><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">VO-021</td><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Podium retail landlord works</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #d7d2c7;">3.2</td><td style="padding:5px 8px;border-bottom:1px solid #d7d2c7;">Disputed — quantum</td></tr>
+  </tbody>
+</table>
+${H('6 · Contingency')}
+<p>Of the <strong>SAR 29.4M</strong> contingency sanctioned at financial close, <strong>SAR 21.1M</strong> has been drawn, leaving <strong>SAR 8.3M</strong> against a remaining 58% of the programme by value. We regard the residual contingency as <strong>thin</strong> and recommend the Board consider a supplementary allocation of SAR 10.0M at the next sanction review.</p>
+${H('7 · Recommendations')}
+<ul style="margin:4px 0 4px 18px;padding:0;">
+  <li style="margin:4px 0;">Settle VO-021 by negotiation before it escalates to formal dispute; our assessment supports SAR 1.9M against the SAR 3.2M submitted.</li>
+  <li style="margin:4px 0;">Re-baseline the programme to reflect the two-point slippage rather than continuing to report against a schedule the works no longer follow.</li>
+  <li style="margin:4px 0;">Approve the supplementary contingency at the next sanction review; the current residual does not adequately cover the remaining façade and fit-out exposure.</li>
+</ul>
+<div style="margin-top:22px;border-top:1px solid #d7d2c7;padding-top:14px;font-size:10.5px;color:#4b5563;">
+  Prepared by <strong>Turner International</strong> as independent cost manager. Figures are drawn from the SAP S/4HANA cost ledger on cost centre PRJ-MAR-2026 and reconciled to certified valuations to the reporting date.
+</div>`},
+    ];
+    // Idempotent — re-running the seed must not duplicate the data room.
+    docs.forEach(d=>{ if(!P1.docs.some(x=>x.name===d.name)) P1.docs.push(d); });
+  })();
 
   // Exact per-project squircle presentation (notif badge, role label, status
   // dot/label) — kept as data so the SAME tile renders identically whether
@@ -14998,16 +15188,10 @@ Answer as Karaya:`;
       ov.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,9,25,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
       ov.addEventListener('click',e=>{ if(e.target===ov){ ov.style.display='none'; _deptScope='int'; } });
       document.body.appendChild(ov); }
-    const sc=_deptScope;
-    const allowed=a.cats.filter(c=>agentCatOn(key,c.key,sc));
-    const restricted=a.cats.filter(c=>!agentCatOn(key,c.key,sc));
-    const chip=(t,on)=>`<span style="display:inline-block;border:1px solid ${on?'var(--ink-hairline)':'#e6b8b8'};color:${on?'var(--ink-soft)':'#b51e3b'};padding:2px 9px;margin:0 5px 5px 0;border-radius:999px;font-size:10px;">${on?'':'🔒 '}${t}</span>`;
-    const scopeBtn=(s,label)=>`<button onclick="setDeptScope('${key}','${s}')" style="font-family:inherit;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer;border:1px solid ${sc===s?'#000919':'var(--ink-hairline)'};background:${sc===s?'#000919':'transparent'};color:${sc===s?'#efebeb':'var(--ink-soft)'};">${label}</button>`;
-    const presets = key==='development'
-      ? ['Send me the cost-to-complete report for Marina Tower','Issue the monthly programme report']
-      : [];
-    const ch=_deptChannel;
-    const chanBtn=(c,label)=>`<button class="dept-chan-btn" data-ch="${c}" onclick="setDeptChannel('${key}','${c}')" style="font-family:inherit;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer;border:1px solid ${ch===c?'#000919':'var(--ink-hairline)'};background:${ch===c?'#000919':'transparent'};color:${ch===c?'#efebeb':'var(--ink-soft)'};">${label}</button>`;
+    // Deliberately minimal: the department and a place to type the request.
+    // Scope and channel keep their defaults (_deptScope / _deptChannel) and the
+    // guardrails still bite — deptAgentSend checks agentCatOn before answering,
+    // so removing the chips changed the chrome, not what the agent may disclose.
     ov.innerHTML=`<div style="background:var(--paper);border:1px solid var(--ink-hairline);max-width:560px;width:100%;max-height:calc(100vh - 48px);display:flex;flex-direction:column;">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid var(--ink-hairline);">
         <div style="display:flex;align-items:center;gap:12px;">
@@ -15016,23 +15200,7 @@ Answer as Karaya:`;
         </div>
         <button class="action-btn" onclick="document.getElementById('dept-overlay').style.display='none'">Close</button>
       </div>
-      <div style="padding:14px 22px;border-bottom:1px solid var(--ink-hairline);">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-          <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);">Asking as</div>
-          <div style="display:flex;gap:6px;">${scopeBtn('int','Internal · colleague')}${scopeBtn('ext','External · counterparty')}</div>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-          <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);">Correspond via</div>
-          <div style="display:flex;gap:6px;">${chanBtn('topic','💬 Topic on Bohio')}${chanBtn('email','✉ Email')}</div>
-        </div>
-        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;">May share ${sc==='ext'?'externally':'internally'} · <span style="cursor:pointer;text-decoration:underline;" onclick="document.getElementById('dept-overlay').style.display='none';openSettingsModal();">manage in Settings</span></div>
-        <div>${allowed.map(c=>chip(c.label,true)).join('')}${restricted.map(c=>chip(c.label,false)).join('')}</div>
-      </div>
-      ${presets.length?`<div style="padding:12px 22px;border-bottom:1px solid var(--ink-hairline);">
-        <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;">Request a document · agent-to-agent</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">${presets.map(p=>`<button class="wf-btn ghost dept-preset" style="font-size:9.5px;padding:5px 11px;" onclick="_deptPreset('${key}',${JSON.stringify(p).replace(/"/g,'&quot;')})">${p}</button>`).join('')}</div>
-      </div>`:''}
-      <div id="dept-msgs" style="flex:1;overflow-y:auto;padding:18px 22px;min-height:120px;"></div>
+      <div id="dept-msgs" style="flex:1;overflow-y:auto;padding:18px 22px;min-height:200px;"></div>
       <div style="display:flex;gap:10px;padding:14px 22px;border-top:1px solid var(--ink-hairline);">
         <input type="text" id="dept-input" placeholder="Ask the ${a.name} agent…" style="flex:1;background:var(--paper);border:1px solid var(--ink-hairline);color:var(--ink);border-radius:999px;padding:11px 16px;font-family:inherit;font-size:12px;outline:none;" onkeypress="if(event.key==='Enter')deptAgentSend('${key}')">
         <button class="dm-btn" onclick="deptAgentSend('${key}')">Ask</button>
@@ -25410,8 +25578,8 @@ Answer as Karaya:`;
     return `<div class="thub-row" data-search="${(t.title+' '+t.source+' '+t.eyebrow+' '+t.status+' '+t.kind).toLowerCase().replace(/"/g,'')}" onclick="_topicsHubOpenItem(${i})" onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor=''" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 14px;margin-bottom:7px;cursor:pointer;">
       <div style="min-width:0;display:flex;align-items:center;gap:10px;">
         <span style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;"></span>
-        <div style="min-width:0;"><div style="font-size:11.5px;font-weight:700;line-height:1.35;">${t.title}</div>
-        <div style="font-size:9px;color:var(--ink-soft);margin-top:2px;"><b style="color:var(--ink);">${t.source}</b> · ${t.kind}${meta?' · '+meta:''}</div></div>
+        <div style="min-width:0;"><div style="font-family:var(--font-display);font-size:14px;font-weight:400;line-height:1.3;letter-spacing:0.01em;">${t.title}</div>
+        <div style="font-size:9px;color:var(--ink-soft);margin-top:3px;"><b style="color:var(--ink);">${t.source}</b> · ${t.kind}${meta?' · '+meta:''}</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:9px;flex-shrink:0;">${unread}<span style="font-size:9px;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;">Open ›</span></div></div>`;
   }
