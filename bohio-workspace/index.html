@@ -13893,6 +13893,17 @@ Reply as the agent:`;
     // scenario model, with the export format read straight out of the prompt.
     // Checked before the generic file generator, which would otherwise swallow
     // the "give me a pptx" half of the prompt and lose the scenario run.
+    // "model the exit options for each fund" — sale vs contributing into an
+    // income fund vs listing, priced rather than described.
+    if (typeof _exitAnswer === 'function') {
+      const _xo = _exitAnswer(q);
+      if (_xo) {
+        KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:_xo});
+        bot.innerHTML = _fmtDiscountSections(_xo) + '<span class="k-meta">Karaya · exit routes modelled across the funds</span>';
+        msgs.scrollTop = msgs.scrollHeight;
+        return;
+      }
+    }
     if (typeof _detectScenarioRequest === 'function') {
       const _sc = _detectScenarioRequest(q);
       if (_sc) {
@@ -13914,6 +13925,17 @@ Reply as the agent:`;
 
     // In the freshly-created project, asking Karaya to build the projections runs
     // the multi-source ingestion → Bohio financial model + cashflow.
+    // "what if this approval slips a month?" — priced off the programme, the
+    // facility and the GMP, not off a rule of thumb.
+    if (typeof _scheduleAnswer === 'function') {
+      const _sd = _scheduleAnswer(q);
+      if (_sd) {
+        KARAYA_HISTORY.push({role:'user',text:q}); KARAYA_HISTORY.push({role:'karaya',text:_sd});
+        bot.innerHTML = _fmtDiscountSections(_sd) + '<span class="k-meta">Karaya · programme what-if · schedule + facility</span>';
+        msgs.scrollTop = msgs.scrollHeight;
+        return;
+      }
+    }
     if (typeof _maybeBuildProjectModel === 'function' && _maybeBuildProjectModel(q, bot, msgs)) return;
 
     // In any project, asking for a cashflow model from the leases/contracts
@@ -19175,6 +19197,13 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // ledger and the contractor's rate, revenued off the units it creates.
     { const _mz = (typeof _massingAnswer==='function') ? _massingAnswer(q) : null;
       if (_mz) { bot.innerHTML = _fmtDiscountSections(_mz) + '<span class="k-meta">Karaya · massing what-if · ERP + purchasing</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
+    // "what happens if construction takes 3 months longer" — programme slip
+    // priced through carry, prelims, escalation, LDs and the shifted cash flow.
+    { const _sd = (typeof _scheduleAnswer==='function') ? _scheduleAnswer(q) : null;
+      if (_sd) { bot.innerHTML = _fmtDiscountSections(_sd) + '<span class="k-meta">Karaya · programme what-if · schedule + facility</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
+    // "model scenarios for the exit options in the fund's strategy"
+    { const _xo = (typeof _exitAnswer==='function') ? _exitAnswer(q) : null;
+      if (_xo) { bot.innerHTML = _fmtDiscountSections(_xo) + '<span class="k-meta">Karaya · exit routes modelled across the funds</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // "which cell is the IRR" — a lookup, answered from the workbook so it
     // always cites a real cell rather than hedging about the map.
     { const _l = (typeof _locateMetric==='function') ? _locateMetric(q) : null;
@@ -20402,6 +20431,13 @@ Answer as Karaya:`;
     // ledger and the contractor's rate, revenued off the units it creates.
     { const _mz = (typeof _massingAnswer==='function') ? _massingAnswer(q) : null;
       if (_mz) { bot.innerHTML = _fmtDiscountSections(_mz) + '<span class="k-meta">Karaya · massing what-if · ERP + purchasing</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
+    // "what happens if construction takes 3 months longer" — programme slip
+    // priced through carry, prelims, escalation, LDs and the shifted cash flow.
+    { const _sd = (typeof _scheduleAnswer==='function') ? _scheduleAnswer(q) : null;
+      if (_sd) { bot.innerHTML = _fmtDiscountSections(_sd) + '<span class="k-meta">Karaya · programme what-if · schedule + facility</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
+    // "model scenarios for the exit options in the fund's strategy"
+    { const _xo = (typeof _exitAnswer==='function') ? _exitAnswer(q) : null;
+      if (_xo) { bot.innerHTML = _fmtDiscountSections(_xo) + '<span class="k-meta">Karaya · exit routes modelled across the funds</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
     // "which cell is the IRR" — a lookup, answered from the workbook so it
     // always cites a real cell rather than hedging about the map.
     { const _l = (typeof _locateMetric==='function') ? _locateMetric(q) : null;
@@ -22679,6 +22715,10 @@ Answer as Karaya:`;
       ['FM — FACILITIES (Yardi: occupancy, rent roll, work orders, PPM compliance, energy per asset)', V('PROJECT_FM'), 1200],
       ['PROJECT FACT SHEET (per asset: valuation/GAV, ESG rating, tenants & leasing, permits, milestones, insurance, team, top risks)', V('PROJECT_FACTS'), 2600],
       ['PROGRAMME / CRITICAL PATH (per asset: activities, durations, float, which are critical, max compression, cost per month to accelerate and the trade-off)', V('PROJECT_PROGRAMME'), 3000],
+      ['PROGRAMME DELAY ECONOMICS (per asset: facility drawn and rate, prelims per month, cost to complete, escalation, LD rate and cap, long-stop and pre-sales at risk — what a month of slip actually costs)', V('PROGRAMME_DELAY'), 1600],
+      ['CONSENTS & APPROVALS ON THE PROGRAMME (per asset: owner, status, due date, float, whether critical)', V('PROGRAMME_CONSENTS'), 1400],
+      ['FUND EXIT / REALISATION (per fund: NAV, GAV, debt, stabilised NOI, share of GAV producing income, term remaining, pref and promote)', V('FUND_EXIT'), 1600],
+      ['EXIT ROUTES AVAILABLE (strategic asset sale, contribution into a specialised income fund, offering and listing on the capital market, hold and refinance — yield, cost load, timing, retained stake, minimum scale)', V('EXIT_ROUTES'), 1800],
       ['SCENARIO MODEL — Al Bidda Waterfront (project being contributed into a new fund): drivers per case and the computed IRR / yield-on-cost / ROI / equity multiple, plus what has to be true for each case',
        (typeof _scenAll==='function'?_scenAll().map(s=>({case:s.c.label, constructionSARsqm:s.c.cost, months:s.c.months, resiPSF:s.c.psf, exitCapPct:s.c.cap,
          totalDevCostSARM:s.tdc, revenueSARM:s.revenue, equitySARM:s.equity, profitSARM:s.profit, irrPct:s.irr, yieldOnCostPct:s.yoc, roiPct:s.roi, equityMultiple:s.moic,
@@ -22705,7 +22745,11 @@ Answer as Karaya:`;
       ['INVESTOR-RELATIONS CHATS (LP Q&A history)', V('IR_CHATS'), 1600],
       ['COMMUNITY POSTS (shared models & tips)', V('COMMUNITY_POSTS'), 1400],
     ];
-    var out = [], total = 0, CAP = 40000;
+    // Raised from 40000: the programme-delay, consents and exit-route sections
+    // took the total to the old cap exactly, which silently evicted the market
+    // data and the live news feed sitting below them. The loop skips oversized
+    // sections rather than stopping, so the loss was invisible.
+    var out = [], total = 0, CAP = 54000;
     for (var i = 0; i < sections.length; i++) {
       var label = sections[i][0], data = sections[i][1], max = sections[i][2];
       var s = _kjson(data, max);
@@ -27758,6 +27802,434 @@ ${ctx.mailCtx}`;
     L.push(`Ask me to **run this at a different height**, or to **stage it on the model** and I'll add the rows for approval.`);
     return L.join('\n');
   }
+  // ============ PROGRAMME / SCHEDULE WHAT-IFS ============
+  // "What happens if this approval is delayed a month" is a different question
+  // from a cost what-if: the answer turns on whether the item is on the critical
+  // path, how much float it has, and what a month of slip actually costs in
+  // carry, escalation, prelims and deferred receipts. PROJECT_PROGRAMME already
+  // carries the activities and float; this adds the money side.
+  const PROGRAMME_DELAY = {
+    1:{ project:'Marina Tower', dataDate:'Jun 2026',
+        contractor:'Al-Bawani Construction', contractSum:412.0, ldPerDay:0.085, ldCapPct:0.10,
+        debtDrawn:350.0, allInRate:0.0625,      // facility drawn, per the ERP
+        prelimsPerMonth:2.40,                    // site overhead, PM, consultants, insurances
+        remainingSpend:408.6,                    // AFC 992.0 less actual-to-date 583.4
+        escalationPa:0.042, discountRate:0.12,
+        presalesAtRisk:96.0, longStopMonths:6 },
+    2:{ project:'Ash Shati Residences', dataDate:'Jun 2026',
+        contractor:'UrbaCon Trading & Contracting', contractSum:318.0, ldPerDay:0.062, ldCapPct:0.10,
+        debtDrawn:180.0, allInRate:0.0645,
+        prelimsPerMonth:1.75, remainingSpend:289.0,
+        escalationPa:0.042, discountRate:0.12,
+        presalesAtRisk:54.0, longStopMonths:6 },
+    6:{ project:'Nahdah Logistics', dataDate:'Jun 2026',
+        contractor:'Gulf Steel Works', contractSum:96.0, ldPerDay:0.021, ldCapPct:0.075,
+        debtDrawn:58.0, allInRate:0.0610,
+        prelimsPerMonth:0.62, remainingSpend:41.5,
+        escalationPa:0.038, discountRate:0.115,
+        presalesAtRisk:0, longStopMonths:9, preLet:true },
+  };
+  // Approvals and consents sit on the same programme but are owned by third
+  // parties, so no contractor damages are recoverable when they slip.
+  const PROGRAMME_CONSENTS = {
+    1:[ {id:'P10', name:'MEP permit',                    phase:'Consent', owner:'Doha Municipality', status:'In review',  due:'Aug 2026', float:2,   critical:false},
+        {id:'P20', name:'Building permit variation',     phase:'Consent', owner:'Doha Municipality', status:'Not lodged', due:'—',        float:0,   critical:true},
+        {id:'P30', name:'Civil defence sign-off',        phase:'Consent', owner:'Civil Defence',     status:'Not started',due:'Jan 2028', float:0.5, critical:true},
+        {id:'P40', name:'Anchor tenant fit-out access',  phase:'Leasing', owner:'Asset management',  status:'Not started',due:'Jan 2028', float:3,   critical:false} ],
+    2:[ {id:'Q10', name:'Operator technical services sign-off', phase:'Consent', owner:'Hotel operator',    status:'In review',   due:'Oct 2026', float:4, critical:false},
+        {id:'Q20', name:'Building permit',                      phase:'Consent', owner:'Doha Municipality', status:'Complete',    due:'Oct 2025', float:0, critical:false},
+        {id:'Q30', name:'Civil defence sign-off',               phase:'Consent', owner:'Civil Defence',     status:'Not started', due:'Nov 2027', float:0.5, critical:true} ],
+    6:[ {id:'R10', name:'Civil defence sign-off',        phase:'Consent', owner:'Civil Defence',     status:'In review',   due:'Apr 2026', float:0,   critical:true},
+        {id:'R20', name:'Tenant licence to occupy',      phase:'Leasing', owner:'Legal',             status:'Not started', due:'May 2026', float:1.5, critical:false} ],
+  };
+  // Consents are merged in on read so the base programme stays the single
+  // source of truth for durations and float.
+  function _progActivities(pid){
+    const pg=PROJECT_PROGRAMME[pid]; if(!pg) return [];
+    const kindOf=a=>a.phase==='Consent'?'approval':a.phase==='Leasing'?'leasing':
+                    a.phase==='Procurement'?'procurement':'construction';
+    return pg.activities.concat(PROGRAMME_CONSENTS[pid]||[]).map(a=>({...a, kind:kindOf(a)}));
+  }
+  // Match an activity by the words in its own name plus a few trade synonyms,
+  // rather than a hand-written pattern per row that would drift from the data.
+  const _ACT_SYNONYMS=[
+    [/superstructure|rc frame/i, /\b(superstructure|structure|frame|slab|concrete|core|pour)\b/i],
+    [/fa[cç]ade|envelope/i,      /\b(fa[cç]ade|cladding|curtain wall|envelope|glazing|panel)\b/i],
+    [/fit-?out/i,                /\b(fit.?out|fitout|interiors)\b/i],
+    [/mep/i,                     /\b(mep|m&e|mechanical|electrical|services)\b/i],
+    [/commissioning/i,           /\b(commission(?:ing)?|t&c|testing)\b/i],
+    [/handover|snagging/i,       /\b(handover|hand over|practical completion|snag)\b/i],
+    [/substructure|piling|enabling|groundworks/i, /\b(piling|substructure|basement|foundation|enabling|groundwork|excavat)\b/i],
+    [/permit|consent|sign-?off/i,/\b(permit|consent|approval|sign.?off|licen[cs]e|authorisation|authorization)\b/i],
+  ];
+  // Scored, not first-past-the-post: "the MEP permit" matched "MEP first fix"
+  // purely because it came earlier in the list.
+  function _actScore(a, s){
+    let score=0;
+    const plain=String(a.name).toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+    if(plain && s.toLowerCase().indexOf(plain)>=0) score+=100;
+    for(const [nameRe, qRe] of _ACT_SYNONYMS) if(nameRe.test(a.name) && qRe.test(s)) score+=10;
+    for(const w of (plain.match(/[a-z]{5,}/g)||[])) if(new RegExp('\\b'+w,'i').test(s)) score+=w.length;
+    return score;
+  }
+  function _bestActivity(acts, s){
+    let best=null, bs=0;
+    for(const a of acts){ const sc=_actScore(a,s); if(sc>bs){ bs=sc; best=a; } }
+    return bs>0?best:null;
+  }
+  // IRR with every post-t0 flow pushed back by d years. The t0 equity is already
+  // spent, so it does not move — which is exactly why delay hurts a return more
+  // than the cash cost of the delay suggests.
+  function _irrShifted(vec, d){
+    const f=r=>vec.reduce((a,v,i)=> a + v/Math.pow(1+r, i===0?0:i+d), 0);
+    let lo=-0.95, hi=5, flo=f(lo), fhi=f(hi);
+    if(!isFinite(flo)||!isFinite(fhi)||flo*fhi>0) return null;
+    for(let k=0;k<300;k++){
+      const mid=(lo+hi)/2, fm=f(mid);
+      if(!isFinite(fm)) return null;
+      if(Math.abs(fm)<1e-10) return mid;
+      if(flo*fm<0){ hi=mid; fhi=fm; } else { lo=mid; flo=fm; }
+    }
+    return (lo+hi)/2;
+  }
+  function _scheduleCompute(pid, months, act, opts){
+    const p=PROGRAMME_DELAY[pid], pg=PROJECT_PROGRAMME[pid]; if(!p||!pg) return null;
+    const o=opts||{};
+    const slip=months;                              // signed: + delay, − acceleration
+    const flt=act?(act.float||0):0;
+    // Float only absorbs delay, and only up to what exists.
+    const absorbed = slip>0 ? Math.min(slip, flt) : 0;
+    const net = slip>0 ? slip-absorbed : slip;      // months hitting the end date
+    const yrs = net/12;
+    const carry      = p.debtDrawn*p.allInRate/12*net;
+    const prelims    = p.prelimsPerMonth*net;
+    const escalation = p.remainingSpend*(Math.pow(1+p.escalationPa, yrs)-1);
+    const grossCost  = carry+prelims+escalation;
+    // LDs are only recoverable when the contractor carries the delay, and they
+    // are capped. An authority sitting on an approval is not a contractor risk.
+    const culpable = !!(act && (act.kind==='construction'||act.kind==='procurement') && o.contractorFault!==false);
+    const ldRaw = culpable ? p.ldPerDay*30.44*net : 0;
+    const ldCap = p.contractSum*p.ldCapPct;
+    const ld = Math.max(0, Math.min(ldRaw, ldCap));
+    const netCost = grossCost-ld;
+    const breachesLongStop = net > p.longStopMonths;
+    let vec=null, irr0=null, irr1=null;
+    try{ vec=_equityCFVector(); }catch(e){}
+    if(vec && vec.length>2){
+      irr0=_irr(vec);
+      const v2=vec.slice();
+      v2[v2.length-1]-=netCost;                     // the cash cost lands at exit
+      irr1=_irrShifted(v2, yrs);
+    }
+    return {p, act, slip, float:flt, absorbed, net, yrs, carry, prelims, escalation, grossCost,
+            ld, ldCap, ldRaw, culpable, netCost, breachesLongStop,
+            irr0: irr0==null?null:irr0*100, irr1: irr1==null?null:irr1*100,
+            pg, completion:pg.completion,
+            newCompletion:_shiftMonthLabel(pg.completion, net),
+            newDue: act&&act.due&&act.due!=='—' ? _shiftMonthLabel(act.due, slip) : null,
+            perMonth: net?netCost/net:0};
+  }
+  const _SCHED_WORDS={a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,
+                      ten:10,eleven:11,twelve:12,couple:2,few:3};
+  function _detectScheduleWhatIf(q){
+    const s=String(q||'');
+    // A massing question already reports its own programme effect.
+    if(/\b(floor|floors|storey|storeys|stor(?:y|ies)|level|levels|gfa|massing)\b/i.test(s)) return null;
+    if(/\b(what|which) cell\b|\blocate\b|\bwhere is\b/i.test(s)) return null;
+    const lateish  = /\b(delay(?:s|ed|ing)?|late|later|slip(?:s|ped|ping|page)?|push(?:ed)?\s+back|behind|held up|hold ?up|postpon(?:e|ed|ing)|defer(?:red|ral|s)?|overrun(?:s|ning)?|drag(?:s|ged|ging)?\s+on|takes?\b[^.?!]{0,30}\blonger|took\b[^.?!]{0,30}\blonger|\blonger\b|extend(?:s|ed|ing)?\s+(?:the\s+)?(?:programme|program|schedule|timeline)|stretch(?:es|ed)?)\b/i.test(s);
+    const earlyish = /\b(accelerat(?:e|ed|ing|ion)|pull(?:ed)?\s+forward|bring(?:s|ing)?\s+forward|ahead of (?:schedule|programme|program)|earlier|sooner|faster|crash(?:ed|ing)?\s+the\s+(?:programme|program|schedule)|shorten(?:s|ed|ing)?)\b/i.test(s);
+    if(!lateish && !earlyish) return null;
+    // How long?
+    let months=null;
+    const num=s.match(/([\d.]+)\s*(month|week|day|quarter|year)s?/i);
+    if(num){
+      const n=parseFloat(num[1]), u=num[2].toLowerCase();
+      months = u==='month'?n : u==='week'?n/4.345 : u==='day'?n/30.44 : u==='quarter'?n*3 : n*12;
+    }
+    if(months==null){
+      const w=s.match(new RegExp('\\b('+Object.keys(_SCHED_WORDS).join('|')+')\\b\\s+(month|week|day|quarter|year)s?','i'));
+      if(w){ const n=_SCHED_WORDS[w[1].toLowerCase()], u=w[2].toLowerCase();
+             months = u==='month'?n : u==='week'?n/4.345 : u==='day'?n/30.44 : u==='quarter'?n*3 : n*12; }
+    }
+    if(months==null) months=1;                      // "what if it slips" — price a month
+    if(earlyish && !lateish) months=-Math.abs(months);
+    // Which asset?
+    let pid=null;
+    Object.keys(PROGRAMME_DELAY).forEach(k=>{
+      const nm=PROGRAMME_DELAY[k].project.split(' ')[0].replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      if(new RegExp('\\b'+nm+'\\b','i').test(s)) pid=+k;
+    });
+    if(pid==null && typeof currentProject!=='undefined' && PROGRAMME_DELAY[currentProject]) pid=currentProject;
+    if(pid==null) pid=1;
+    // Which activity? A named one wins; "this approval" takes the one actually
+    // sitting in review; otherwise the delay lands on the critical path.
+    const acts=_progActivities(pid).filter(a=>!a.done);
+    let act=_bestActivity(acts, s);
+    const named=!!act;
+    if(!act && /\b(this|that|the)\s+(approval|consent|permit|sign.?off|authorisation|authorization)\b/i.test(s))
+      act=acts.find(a=>a.kind==='approval'&&/review|pending|not lodged/i.test(a.status))||acts.find(a=>a.kind==='approval');
+    if(!act && /\b(approval|consent|permit|sign.?off)\b/i.test(s)) act=acts.find(a=>a.kind==='approval');
+    if(!act && /\b(construction|build(?:ing)?\s+work|the\s+works?|on ?site)\b/i.test(s))
+      act=acts.find(a=>a.critical&&a.kind==='construction');
+    if(!act) act=acts.find(a=>a.critical)||acts[0];
+    if(!act) return null;
+    return {pid, months, act, named};
+  }
+  function _scheduleAnswer(q){
+    const det=_detectScheduleWhatIf(q); if(!det) return null;
+    const r=_scheduleCompute(det.pid, det.months, det.act); if(!r) return null;
+    const m=v=>{ const a=Math.abs(v); return a>=100?v.toFixed(0):a>=10?v.toFixed(1):v.toFixed(2); };
+    const p=r.p, a=r.act, L=[];
+    const mag=Math.abs(r.slip), unit=Math.abs(mag-1)<0.05?'month':'months';
+    const dir=r.slip<0?'pulled forward':'delayed';
+    const magTxt=(mag%1?mag.toFixed(1):mag.toFixed(0))+' '+unit;
+
+    if(r.slip>0 && r.net<=0){
+      L.push(`### ${a.name} ${dir} ${magTxt} — absorbed, **no cost**`);
+      L.push(`**${a.name}** carries **${r.float} month${r.float===1?'':'s'}** of float and is **not on the critical path**. A ${magTxt} slip is taken up entirely by that float, so completion holds at **${r.completion}** and nothing flows through to cost or return.`);
+      L.push('');
+      L.push(`- Its own target moves from **${a.due}** to **${r.newDue||'—'}**, owned by **${a.owner}**.`);
+      L.push(`- Float left after this: **${(r.float-r.slip).toFixed(1)} months**. Beyond that it starts costing **SAR ${m(p.debtDrawn*p.allInRate/12 + p.prelimsPerMonth)}M a month** in carry and prelims alone.`);
+      L.push('');
+      L.push(`Ask me what a longer slip costs, or what happens if it lands on the critical path instead.`);
+      return L.join('\n');
+    }
+
+    const sign=r.netCost>=0?'':'+';
+    L.push(`### ${a.name} ${dir} ${magTxt} — **${r.slip<0?'saves':'costs'} SAR ${m(Math.abs(r.netCost))}M**`);
+    if(r.slip>0){
+      L.push(a.critical
+        ? `**${a.name}** is **on the critical path** with **no float**, so the whole ${magTxt} lands on the end date. Completion moves **${r.completion} → ${r.newCompletion}**.`
+        : `**${a.name}** carries **${r.float} month${r.float===1?'':'s'}** of float. That absorbs **${r.absorbed.toFixed(1)}**, leaving **${r.net.toFixed(1)} month${Math.abs(r.net-1)<0.05?'':'s'}** on the end date. Completion moves **${r.completion} → ${r.newCompletion}**.`);
+    } else {
+      L.push(`Pulling **${a.name}** forward ${magTxt} takes the same time off the end date. Completion moves **${r.completion} → ${r.newCompletion}**.`);
+    }
+    L.push('');
+    L.push('| Line | Basis | SAR M |');
+    L.push('|---|---|---|');
+    L.push(`| Financing carry | SAR ${m(p.debtDrawn)}M drawn at ${(p.allInRate*100).toFixed(2)}% | ${m(-r.carry)} |`);
+    L.push(`| Prelims & site overhead | SAR ${m(p.prelimsPerMonth)}M/month running cost | ${m(-r.prelims)} |`);
+    L.push(`| Escalation on cost to complete | SAR ${m(p.remainingSpend)}M remaining at ${(p.escalationPa*100).toFixed(1)}% p.a. | ${m(-r.escalation)} |`);
+    if(r.culpable && r.slip>0)
+      L.push(`| Liquidated damages recoverable | ${p.ldPerDay*1000}k/day under the ${p.contractor} GMP${r.ldRaw>r.ldCap?`, capped at ${(p.ldCapPct*100).toFixed(0)}% of contract`:''} | +${m(r.ld)} |`);
+    L.push(`| **Net ${r.slip<0?'saving':'cost'}** | **${m(Math.abs(r.perMonth))}/month** | **${sign}${m(-Math.abs(r.netCost)*(r.slip<0?-1:1))}** |`);
+    L.push('');
+    if(r.irr0!=null && r.irr1!=null){
+      L.push('### What it does to the return');
+      const d=(r.irr1-r.irr0)*100;   // bps
+      L.push(`- Project IRR moves **${r.irr0.toFixed(1)}% → ${r.irr1.toFixed(1)}%**, **${d>=0?'+':''}${d.toFixed(0)} bps**. That is solved on the live cash flow with every receipt after today pushed back ${Math.abs(r.net).toFixed(1)} month${Math.abs(r.net-1)<0.05?'':'s'} and the cash cost above landing at exit.`);
+      L.push(`- Equity is already committed and does not move, which is why time costs more than the cash line suggests.`);
+      L.push('');
+    }
+    L.push('### What to watch');
+    if(r.slip>0){
+      if(r.breachesLongStop)
+        L.push(`- **This breaks the long-stop.** Purchaser agreements allow **${p.longStopMonths} months**; at **${r.net.toFixed(1)}** the **SAR ${m(p.presalesAtRisk)}M** of pre-sales becomes rescindable. That is the exposure that matters here, not the carry.`);
+      else
+        L.push(`- Long-stop is **${p.longStopMonths} months**; this uses **${r.net.toFixed(1)}**, leaving **${(p.longStopMonths-r.net).toFixed(1)}** before the **SAR ${m(p.presalesAtRisk)}M** of pre-sales turns rescindable.`);
+      if(!r.culpable) L.push(`- ${a.kind==='approval'?`This sits with **${a.owner}**, not the contractor, so **no LDs are recoverable** — the cost is entirely the fund's.`:`No LD recovery assumed on this item.`}`);
+      else if(r.ldRaw>r.ldCap) L.push(`- LDs cap at **SAR ${m(r.ldCap)}M** (${(p.ldCapPct*100).toFixed(0)}% of the SAR ${m(p.contractSum)}M contract). Past that the fund carries the delay whatever the contract says.`);
+      L.push(`- Acceleration is the alternative: recovering ${r.net.toFixed(1)} month${Math.abs(r.net-1)<0.05?'':'s'} is worth **SAR ${m(Math.abs(r.netCost))}M**, so any recovery proposal priced under that is worth taking.`);
+    } else {
+      L.push(`- Acceleration cost is not in the figure above — it is worth paying up to **SAR ${m(Math.abs(r.netCost))}M** to buy this back, and no more.`);
+    }
+    L.push('');
+    L.push(`Ask me to run a different duration, price it on another activity, or **stress test the model** with this folded in.`);
+    return L.join('\n');
+  }
+  // ============ EXIT / REALISATION OPTIONS ============
+  // Every fund's strategy allows more than one way out: a strategic sale of the
+  // assets, contributing the income-producing ones into a specialised income
+  // fund and keeping units, or offering the platform on the capital market when
+  // the window is open. They price very differently, so the answer is modelled
+  // rather than described.
+  const FUND_EXIT = {
+    fund2:{ name:'Bohio RE Opportunity Fund II', status:'Investing',
+      drawn:540, nav:615, gav:1180, debt:620, stabilisedNOI:79.7, debtRate:0.0625, dpi:0.12,
+      incomeShare:0.42,                 // share of GAV producing income today
+      termRemainingYrs:6.2, pref:0.08, promote:0.20, mgmtFee:0.015,
+      note:'Still in its investment period with SAR 210M of dry powder undeployed — a full realisation now would crystallise the development assets before they stabilise.' },
+    fund1:{ name:'Bohio RE Fund I', status:'Harvesting',
+      drawn:400, nav:155, gav:305, debt:148, stabilisedNOI:20.6, debtRate:0.0640, dpi:1.42,
+      incomeShare:0.85,
+      termRemainingYrs:1.4, pref:0.08, promote:0.20, mgmtFee:0.0125,
+      note:'In orderly realisation with 1.4 years of term left before the first extension. This is the fund where the route choice is live.' },
+    coinvest:{ name:'Corniche Co-Invest Vehicle', status:'Deployed',
+      drawn:96, nav:108, gav:214, debt:106, stabilisedNOI:14.4, debtRate:0.0610, dpi:0.00,
+      incomeShare:0.90,
+      termRemainingYrs:4.0, pref:0.09, promote:0.15, mgmtFee:0.010,
+      note:'Single-asset SPV. Its exit is governed by the co-investment agreement, which aligns drag and tag with Fund II.' },
+  };
+  // Yields are what each buyer type actually pays for stabilised income; the
+  // cost load is the round-trip friction of getting there.
+  const EXIT_ROUTES = [
+    {k:'sale', name:'Strategic sale of the assets',
+     yield0:0.0675, costPct:0.0260, months:9, retain:0, lockupYrs:0,
+     minGav:0, needsIncome:false,
+     costNote:'agency 1.00%, legal 0.35%, transfer & registration 0.25%, tax and other 1.00%',
+     what:'A direct trade of the assets to an institutional buyer, asset by asset or as a portfolio.'},
+    {k:'reit', name:'Transfer into a specialised income fund',
+     yield0:0.0610, costPct:0.0180, months:14, retain:0.25, lockupYrs:2,
+     minGav:200, needsIncome:true,
+     costNote:'structuring 0.60%, regulator and listing 0.35%, independent valuation 0.25%, custodian and admin set-up 0.60%',
+     what:'Contribute the income-producing assets into a QFMA-regulated income vehicle at an agreed valuation, take units back for part of the consideration and keep the management mandate.'},
+    {k:'ipo', name:'Offer and list on the capital market',
+     yield0:0.0585, costPct:0.0420, months:18, retain:0.35, lockupYrs:1,
+     minGav:450, needsIncome:true, discountToNav:0.08,
+     costNote:'underwriting 2.50%, legal and reporting accountant 1.00%, listing and regulator 0.30%, marketing 0.40%',
+     what:'Offer the stabilised portfolio to the public market. Prices tightest of the three when the window is open, and shut when it is not.'},
+    {k:'hold', name:'Hold and refinance',
+     yield0:null, costPct:0.0075, months:3, retain:1, lockupYrs:0,
+     minGav:0, needsIncome:false,
+     costNote:'arrangement 0.50%, valuation and legal 0.25%',
+     what:'Do nothing structural: refinance against the stabilised income, release equity and keep the assets. The benchmark the other three have to beat.'},
+  ];
+  const EXIT_MARKET = {
+    favourable:{ k:'favourable', bps:-0.0050, navPrem: 0.12, label:'favourable',
+                 note:'yields in 50 bps and the listing window open' },
+    base:      { k:'base',       bps: 0,      navPrem: 0,    label:'base',
+                 note:'today’s pricing' },
+    soft:      { k:'soft',       bps: 0.0075, navPrem:-0.15, label:'soft',
+                 note:'yields out 75 bps and the equity window effectively shut' },
+  };
+  function _exitCompute(fk, routeKey, mkt){
+    const f=FUND_EXIT[fk]; if(!f) return null;
+    const r=EXIT_ROUTES.find(x=>x.k===routeKey); if(!r) return null;
+    const m=EXIT_MARKET[mkt]||EXIT_MARKET.base;
+    const incomeGav=f.gav*f.incomeShare;
+    const yrs=r.months/12;
+    // Income keeps arriving while the route is executed, net of debt service.
+    // Leaving it out made every route look worse than the NAV it starts from.
+    const netIncomePa = f.stabilisedNOI - f.debt*f.debtRate;
+    // Only stabilised income can be contributed or listed; a route that needs it
+    // is capped by how much of the portfolio actually produces it.
+    const eligible = !(r.needsIncome && r.minGav && incomeGav < r.minGav);
+
+    if(r.k==='hold'){
+      // No close, so no proceeds — the benchmark is a year of geared income on
+      // today's equity, which is what the other three have to beat.
+      const horizon=1;
+      const total=f.nav + netIncomePa*horizon - f.gav*r.costPct;
+      return {f, r, m, gross:f.gav, costs:f.gav*r.costPct, debtRepaid:0,
+              retainedValue:f.nav, cashAtClose:0, incomeToClose:netIncomePa*horizon,
+              totalValue:total, yrs:horizon, eligible:true, incomeGav,
+              fwd:(total/f.nav)-1, gpPromote:0, toLPs:total,
+              multiple:f.drawn?(f.dpi*f.drawn+total)/f.drawn:null, isHold:true};
+    }
+
+    const y=r.yield0+m.bps;
+    let gross=0;
+    if(r.needsIncome){
+      // The income-producing assets price off this route's yield; whatever is
+      // still under development is sold alongside, at a discount to book.
+      gross = y>0 ? (f.stabilisedNOI*f.incomeShare)/y : 0;
+      gross += f.gav*(1-f.incomeShare)*0.92;
+    } else {
+      gross = y>0 ? f.stabilisedNOI/y : 0;
+    }
+    if(r.k==='ipo') gross *= (1-(r.discountToNav||0)) * (1+m.navPrem);
+
+    const costs=gross*r.costPct;
+    const debtRepaid=f.debt;
+    const netAtClose=gross-costs-debtRepaid;
+    const retainedValue=Math.max(0, netAtClose)*r.retain;
+    const cashAtClose=netAtClose-retainedValue;
+    const incomeToClose=netIncomePa*yrs;
+    const totalValue=netAtClose+incomeToClose;
+    const fwd=(totalValue>0 && f.nav>0 && yrs>0) ? (Math.pow(totalValue/f.nav, 1/yrs)-1) : null;
+    // Pref first, then promote on the excess over drawn capital plus that pref.
+    const prefAmt=f.drawn*(Math.pow(1+f.pref, f.termRemainingYrs)-1);
+    const alreadyOut=f.drawn*f.dpi;
+    const excess=Math.max(0, totalValue+alreadyOut-f.drawn-prefAmt);
+    const gpPromote=excess*f.promote;
+    const toLPs=totalValue-gpPromote;
+    return {f, r, m, gross, costs, debtRepaid, netAtClose, retainedValue, cashAtClose,
+            incomeToClose, totalValue, fwd, yrs, eligible, incomeGav, gpPromote, toLPs,
+            multiple: f.drawn?(f.dpi*f.drawn+toLPs)/f.drawn:null, isHold:false};
+  }
+  function _exitScenarios(fk, mkt){
+    return EXIT_ROUTES.map(r=>_exitCompute(fk, r.k, mkt)).filter(Boolean);
+  }
+  function _detectExitOptions(q){
+    const s=String(q||'');
+    // "what is the exit cap rate" / "sensitivity against exit cap" are not this.
+    if(/\bexit (cap|yield)\b/i.test(s) && !/\b(option|route|strateg|scenario|sale|reit|list|ipo)\b/i.test(s)) return null;
+    if(/\b(what|which) cell\b|\blocate\b/i.test(s)) return null;
+    const routeWords=/\b(strategic sale|trade sale|asset sale|sell the assets|dispos(?:e|al|als)|reit|income fund|specialis(?:ed|t) fund|specialized fund|list(?:ing|ed)?|ipo|capital market|public market|float the|monetis(?:e|ation)|monetiz(?:e|ation)|realisation|realization|liquidity event|harvest)\b/i;
+    const exitish=/\bexit(s|ing)?\b|\bexit (option|route|strateg|scenario|path|plan)/i;
+    const modelish=/\b(model|scenario|scenarios|compare|comparison|options?|routes?|strateg(?:y|ies)|analys|evaluate|assess|run|build|show|what are)\b/i;
+    const hit = (exitish.test(s) && modelish.test(s))
+             || (routeWords.test(s) && modelish.test(s))
+             || /\bhow (should|do|would|might) (we|i|the fund)\b[^.?]*\b(exit|realis|realiz|sell|dispos|monetis|monetiz)/i.test(s)
+             || (routeWords.test(s) && /\b(reit|ipo|listing|capital market)\b/i.test(s) && /\b(sale|sell)\b/i.test(s));
+    if(!hit) return null;
+    // Market conditions, if the question names them.
+    let mkt='base';
+    if(/\b(favourable|favorable|strong|open window|hot|buoyant|when conditions are (good|right|favourable|favorable))\b/i.test(s)) mkt='favourable';
+    if(/\b(soft|weak|shut|closed window|downturn|dislocat|risk.off|bad market)\b/i.test(s)) mkt='soft';
+    // Which fund? Named wins, else the open one, else all of them.
+    let fk=null;
+    const alias={fund2:/fund\s*(?:ii|2)\b|opportunity fund/i, fund1:/fund\s*(?:i|1)\b(?!i)|fund one/i,
+                 coinvest:/co-?invest|corniche/i};
+    Object.keys(alias).forEach(k=>{ if(alias[k].test(s)) fk=k; });
+    if(!fk && typeof _wfFundKey!=='undefined' && FUND_EXIT[_wfFundKey]) fk=_wfFundKey;
+    const all=/\b(each|every|all|across) (fund|funds|vehicle|vehicles)\b|\bevery fund\b|\ball three\b/i.test(s);
+    return {fk: all?null:fk, mkt, all};
+  }
+  function _exitAnswer(q){
+    const det=_detectExitOptions(q); if(!det) return null;
+    const money=v=>{ const a=Math.abs(v); return a>=100?v.toFixed(0):a>=10?v.toFixed(1):v.toFixed(2); };
+    const pct=v=>v==null?'—':(v*100).toFixed(1)+'%';
+    const keys = det.fk ? [det.fk] : Object.keys(FUND_EXIT);
+    const mkt=EXIT_MARKET[det.mkt];
+    const L=[];
+    L.push(`### Exit routes — ${keys.length===1?FUND_EXIT[keys[0]].name:'every fund in the platform'}`);
+    L.push(`Priced on **${mkt.label}** conditions (${mkt.note}). Each route is valued off the income it can actually sell, net of that route's own execution costs, with debt repaid and any retained interest carried at exit value. **Forward return** is annualised on today's NAV — the comparison that matters when the equity is already in the ground.`);
+    keys.forEach(fk=>{
+      const rows=_exitScenarios(fk, det.mkt);
+      const f=FUND_EXIT[fk];
+      L.push('');
+      L.push(`#### ${f.name} — ${f.status} · NAV SAR ${money(f.nav)}M · GAV SAR ${money(f.gav)}M`);
+      L.push('');
+      L.push('| Route | Gross value | Costs | Total to fund | Retained | Forward return | Timing |');
+      L.push('|---|---|---|---|---|---|---|');
+      rows.forEach(x=>{
+        if(!x.eligible){
+          L.push(`| ${x.r.name} | — | — | **not available** | — | — | — |`);
+          return;
+        }
+        L.push(`| ${x.r.name} | ${x.isHold?'—':money(x.gross)} | ${money(-x.costs)} | **${money(x.totalValue)}** | ${(!x.isHold&&x.r.retain)?money(x.retainedValue)+` (${(x.r.retain*100).toFixed(0)}%)`:'—'} | ${pct(x.fwd)} p.a. | ${x.isHold?'—':x.r.months+' mo'} |`);
+      });
+      const live=rows.filter(x=>x.eligible && x.fwd!=null);
+      const best=live.slice().sort((a,b)=>b.fwd-a.fwd)[0];
+      const hold=rows.find(x=>x.r.k==='hold');
+      const blocked=rows.filter(x=>!x.eligible);
+      L.push('');
+      if(best){
+        L.push(`- On these assumptions **${best.r.name.toLowerCase()}** ranks first at **${pct(best.fwd)} p.a.**, worth **SAR ${money(best.totalValue)}M** against a NAV of **SAR ${money(f.nav)}M**${hold&&best.r.k!=='hold'?` — **SAR ${money(best.totalValue-hold.totalValue)}M** ahead of simply holding and refinancing`:''}.`);
+        if(best.r.retain) L.push(`- It is not all cash: **SAR ${money(best.retainedValue)}M** stays as a **${(best.r.retain*100).toFixed(0)}%** retained interest${best.r.lockupYrs?`, locked for ${best.r.lockupYrs} year${best.r.lockupYrs===1?'':'s'}`:''}. Cash at close is **SAR ${money(best.cashAtClose)}M**.`);
+        L.push(`- After ${/^[8]/.test(String((f.pref*100).toFixed(0)))?'an':'a'} **${(f.pref*100).toFixed(0)}%** preferred return over ${f.termRemainingYrs} year${f.termRemainingYrs===1?'':'s'}, GP promote is **SAR ${money(best.gpPromote)}M** and LPs receive **SAR ${money(best.toLPs)}M**. With the **${f.dpi.toFixed(2)}x** already distributed that takes the fund to **${best.multiple.toFixed(2)}x** on SAR ${money(f.drawn)}M drawn.`);
+        const biggest=live.slice().sort((a,b)=>b.totalValue-a.totalValue)[0];
+        if(biggest && biggest.r.k!==best.r.k)
+          L.push(`- **${biggest.r.name}** is the larger number in absolute terms — **SAR ${money(biggest.totalValue)}M** against **SAR ${money(best.totalValue)}M** — but it takes ${biggest.r.months} months rather than ${best.r.months}, so it annualises lower. Which one is right depends on whether the fund is optimising proceeds or time.`);
+        if(best.incomeToClose>0.05) L.push(`- **SAR ${money(best.incomeToClose)}M** of that is net income earned while the route is executed — ${best.r.months} months of NOI less debt service, which a straight comparison of headline prices misses.`);
+      }
+      blocked.forEach(b=>{
+        const shortfall=b.r.minGav-b.incomeGav;
+        L.push(`- **${b.r.name}** is not on the table for this fund alone: it needs **SAR ${money(b.r.minGav)}M** of stabilised income assets and this fund has **SAR ${money(b.incomeGav)}M**${b.r.k==='ipo'?` — **SAR ${money(shortfall)}M** short of a credible free float`:''}. Aggregating the platform's income assets across all three vehicles reaches **SAR ${money(Object.keys(FUND_EXIT).reduce((t,x)=>t+FUND_EXIT[x].gav*FUND_EXIT[x].incomeShare,0))}M**, which clears it — that is the only version of this route that works.`);
+      });
+      if(f.note) L.push(`- ${f.note}`);
+    });
+    L.push('');
+    L.push('### What actually decides it');
+    L.push(`- **Pricing** — the income fund and the listing both clear tighter than a direct sale (**6.10%** and **5.85%** against **6.75%**), which is why they win on gross value. The direct sale wins on certainty and speed.`);
+    L.push(`- **Friction** — a listing costs **4.2%** round-trip against **2.6%** for a sale and **1.8%** for a contribution. On a large portfolio that gap is most of the pricing advantage.`);
+    L.push(`- **What you keep** — a sale is a clean break. A contribution keeps **25%** in units and, materially, keeps the management mandate and its fee. A listing keeps **35%** but locks it up.`);
+    L.push(`- **The window** — the listing route is the only one that can be unavailable. On soft conditions it prices **15%** below NAV and the case collapses; on favourable conditions it is usually the highest number on the page.`);
+    L.push('');
+    L.push(`Ask me to run this on **favourable** or **soft** conditions, on a single fund, or to price a specific route asset by asset.`);
+    return L.join('\n');
+  }
   const WF_DEV_DATA = {
     1:{ // Marina Tower — active construction
       designMonths:8, designStatus:'Complete', constructionMonths:30, constructionStatus:'In progress',
@@ -28675,6 +29147,16 @@ ${ctx.mailCtx}`;
     if(typeof _massingAnswer==='function'){
       const mz=_massingAnswer(q);
       if(mz){ f._devChat.push({cls:'bot', html:_fmtDiscountSections(mz)}); _wfDevRender(k); return; }
+    }
+    // "what happens if the approval is delayed a month?" — same programme
+    // what-if, from the fund's Development chat.
+    if(typeof _scheduleAnswer==='function'){
+      const sd=_scheduleAnswer(q);
+      if(sd){ f._devChat.push({cls:'bot', html:_fmtDiscountSections(sd)}); _wfDevRender(k); return; }
+    }
+    if(typeof _exitAnswer==='function'){
+      const xo=_exitAnswer(q);
+      if(xo){ f._devChat.push({cls:'bot', html:_fmtDiscountSections(xo)}); _wfDevRender(k); return; }
     }
     // "shorten the timeline by 3 months — where can we cut the most?"
     if(typeof _detectCompressRequest==='function'){
