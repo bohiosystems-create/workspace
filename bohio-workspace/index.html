@@ -28161,13 +28161,14 @@ ${ctx.mailCtx}`;
     // "what is the exit cap rate" / "sensitivity against exit cap" are not this.
     if(/\bexit (cap|yield)\b/i.test(s) && !/\b(option|route|strateg|scenario|sale|reit|list|ipo)\b/i.test(s)) return null;
     if(/\b(what|which) cell\b|\blocate\b/i.test(s)) return null;
-    const routeWords=/\b(strategic sale|trade sale|asset sale|sell the assets|dispos(?:e|al|als)|reit|income fund|specialis(?:ed|t) fund|specialized fund|list(?:ing|ed)?|ipo|capital market|public market|float the|monetis(?:e|ation)|monetiz(?:e|ation)|realisation|realization|liquidity event|harvest)\b/i;
+    const routeWords=/\b(strategic sale|trade sale|asset sale|sell the assets|dispos(?:e|al|als)|reit|income fund|specialis(?:ed|t) fund|specialized fund|list(?:ing|ed)?|ipo|capital market|public market|float the|monetis(?:e|ation)|monetiz(?:e|ation)|realisation|realization|liquidity events?|harvest|(?:get|take|cash|pull)[^.?]{0,15}money out|cash out|money off the table)\b/i;
     const exitish=/\bexit(s|ing)?\b|\bexit (option|route|strateg|scenario|path|plan)/i;
-    const modelish=/\b(model|scenario|scenarios|compare|comparison|options?|routes?|strateg(?:y|ies)|analys|evaluate|assess|run|build|show|what are)\b/i;
+    const modelish=/\b(model|scenario|scenarios|compare|comparison|options?|routes?|strateg(?:y|ies)|analys|evaluate|assess|run|build|show|what are|open to|available|possible|best way|ways)\b/i;
     const hit = (exitish.test(s) && modelish.test(s))
              || (routeWords.test(s) && modelish.test(s))
              || /\bhow (should|do|would|might) (we|i|the fund)\b[^.?]*\b(exit|realis|realiz|sell|dispos|monetis|monetiz)/i.test(s)
-             || (routeWords.test(s) && /\b(reit|ipo|listing|capital market)\b/i.test(s) && /\b(sale|sell)\b/i.test(s));
+             || (routeWords.test(s) && /\b(reit|ipo|listing|capital market)\b/i.test(s) && /\b(sale|sell)\b/i.test(s))
+             || /\b(best|which|what)\b[^.?]{0,15}\bway(s)?\b[^.?]{0,15}\bexit/i.test(s);
     if(!hit) return null;
     // Market conditions, if the question names them.
     let mkt='base';
