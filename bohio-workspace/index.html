@@ -15982,9 +15982,93 @@ Answer as the ${a.name} agent:`;
     try { return BigInt(Math.round(n)).toString(); } catch (e) { return s; }
   }
   // Evaluate a formula string in the context of a sheet; returns a number or null.
+  // Runtime library for evalFormula. Kept as a string so the sandboxed Function
+  // gets exactly these helpers and nothing else from the page. Semantics follow
+  // Excel: ranges flatten, blanks are skipped by aggregates, and dates are
+  // 1900-system serials.
+  const _XLLIB = [
+    'const __RG=i=>__ranges[i];',
+    'const __S=i=>__strs[i];',
+    'const __F=(...a)=>{const o=[];const w=x=>{if(x==null)return;if(Array.isArray(x))x.forEach(w);else if(x&&x.n)x.n.forEach(w);else o.push(x);};a.forEach(w);return o;};',
+    'const __N=a=>__F(a).filter(x=>typeof x==="number"&&isFinite(x));',
+    'const __SUM=(...a)=>__N(a).reduce((x,y)=>x+y,0);',
+    'const __AVG=(...a)=>{const v=__N(a);return v.length?v.reduce((x,y)=>x+y,0)/v.length:0;};',
+    'const __MAX=(...a)=>{const v=__N(a);return v.length?Math.max(...v):0;};',
+    'const __MIN=(...a)=>{const v=__N(a);return v.length?Math.min(...v):0;};',
+    'const __COUNT=(...a)=>__N(a).length;',
+    'const __RAW=(...a)=>{const o=[];const w=x=>{if(x==null)return;if(Array.isArray(x))x.forEach(w);else if(x&&x.raw)x.raw.forEach(y=>o.push(y));else o.push(x);};a.forEach(w);return o;};',
+    'const __COUNTA=(...a)=>__RAW(a).filter(x=>x!==""&&x!=null&&x===x).length;',
+    'const __R=(x,n)=>{n=n||0;const p=Math.pow(10,n);return Math.round(x*p)/p;};',
+    'const __RUP=(x,n)=>{n=n||0;const p=Math.pow(10,n);return (x<0?-1:1)*Math.ceil(Math.abs(x)*p)/p;};',
+    'const __RDN=(x,n)=>{n=n||0;const p=Math.pow(10,n);return (x<0?-1:1)*Math.floor(Math.abs(x)*p)/p;};',
+    'const __TRUNC=(x,n)=>__RDN(x,n);',
+    'const __IF=(c,a,b)=>c?a:(b===undefined?0:b);',
+    'const __IFERR=(a,b)=>{const v=(typeof a==="number"&&!isFinite(a))?null:a;return (v==null||v!==v)?b:v;};',
+    'const __AND=(...a)=>__F(a).every(x=>!!x)?1:0;',
+    'const __OR=(...a)=>__F(a).some(x=>!!x)?1:0;',
+    'const __NOT=x=>x?0:1;',
+    'const __SUMPROD=(...a)=>{const ar=a.map(x=>__F(x).map(y=>typeof y==="number"&&isFinite(y)?y:0));const n=Math.min(...ar.map(x=>x.length));let t=0;for(let i=0;i<n;i++){let p=1;ar.forEach(x=>p*=x[i]);t+=p;}return t;};',
+    // Criteria are Excel-style: a bare value, or text carrying an operator
+    // ("<0", ">=5", "<>"). Treating the text as merely truthy summed everything.
+    'const __CRIT=(v,c)=>{if(typeof c==="number")return v===c;const t=String(c==null?"":c).trim();'
+      +'const m=t.match(/^(<=|>=|<>|<|>|=)\\s*(.*)$/);'
+      +'if(!m)return String(v==null?"":v).trim().toLowerCase()===t.toLowerCase();'
+      +'const op=m[1],rhs=m[2];const rn=parseFloat(rhs);const vn=typeof v==="number"?v:parseFloat(v);'
+      +'if(isFinite(rn)&&isFinite(vn)){switch(op){case"<":return vn<rn;case">":return vn>rn;case"<=":return vn<=rn;case">=":return vn>=rn;case"<>":return vn!==rn;default:return vn===rn;}}'
+      +'const vs=String(v==null?"":v).trim().toLowerCase(),rs=rhs.trim().toLowerCase();'
+      +'return op==="<>"?vs!==rs:vs===rs;};',
+    'const __SUMIF=(rg,c,sum)=>{const r=__F(rg),s=__F(sum===undefined?rg:sum);let t=0;for(let i=0;i<r.length;i++)if(__CRIT(r[i],c)&&typeof s[i]==="number"&&isFinite(s[i]))t+=s[i];return t;};',
+    'const __COUNTIF=(rg,c)=>{const r=__F(rg);let t=0;for(let i=0;i<r.length;i++)if(__CRIT(r[i],c))t++;return t;};',
+    'const __INDEX=(rg,r,c)=>{if(!rg||!rg.n)return 0;const R=rg.rows,C=rg.cols;if(c===undefined){const i=(r|0)-1;return rg.n[i]!==undefined?rg.n[i]:0;}const i=((r|0)-1)*C+((c|0)-1);return rg.n[i]!==undefined?rg.n[i]:0;};',
+    'const __MATCH=(x,rg,ty)=>{const v=(typeof x==="string")?__RAW(rg).map(y=>String(y==null?"":y).trim().toLowerCase()):__F(rg);ty=(ty===undefined?1:ty);if(ty===0){for(let i=0;i<v.length;i++)if(v[i]===x)return i+1;return NaN;}if(ty===1){let b=NaN;for(let i=0;i<v.length;i++)if(typeof v[i]==="number"&&v[i]<=x)b=i+1;return b;}let b=NaN;for(let i=v.length-1;i>=0;i--)if(typeof v[i]==="number"&&v[i]>=x)b=i+1;return b;};',
+    'const __PMT=(r,n,pv,fv,ty)=>{fv=fv||0;ty=ty||0;if(!r)return -(pv+fv)/n;const p=Math.pow(1+r,n);return -(pv*p+fv)*r/((p-1)*(1+r*ty));};',
+    'const __PV=(r,n,pmt,fv,ty)=>{fv=fv||0;pmt=pmt||0;ty=ty||0;if(!r)return -(fv+pmt*n);const p=Math.pow(1+r,n);return -(fv+pmt*(1+r*ty)*(p-1)/r)/p;};',
+    'const __FV=(r,n,pmt,pv,ty)=>{pv=pv||0;pmt=pmt||0;ty=ty||0;if(!r)return -(pv+pmt*n);const p=Math.pow(1+r,n);return -(pv*p+pmt*(1+r*ty)*(p-1)/r);};',
+    'const __NPVF=(r,...a)=>{const v=__N(a);let t=0;for(let i=0;i<v.length;i++)t+=v[i]/Math.pow(1+r,i+1);return t;};',
+    'const __IRRF=(a,g)=>{const v=__N([a]);if(v.length<2)return NaN;const f=r=>v.reduce((s,x,i)=>s+x/Math.pow(1+r,i),0);let lo=-0.9999,hi=10,flo=f(lo),fhi=f(hi);if(!isFinite(flo)||!isFinite(fhi)||flo*fhi>0)return NaN;for(let k=0;k<200;k++){const m=(lo+hi)/2,fm=f(m);if(Math.abs(fm)<1e-9)return m;if(flo*fm<0){hi=m;fhi=fm;}else{lo=m;flo=fm;}}return (lo+hi)/2;};',
+    'const __XNPV=(r,vals,dates)=>{const v=__N([vals]),d=__N([dates]);if(!v.length||v.length!==d.length)return NaN;const d0=d[0];return v.reduce((s,x,i)=>s+x/Math.pow(1+r,(d[i]-d0)/365),0);};',
+    'const __XIRR=(vals,dates,g)=>{const v=__N([vals]),d=__N([dates]);if(v.length<2||v.length!==d.length)return NaN;const f=r=>__XNPV(r,{n:v},{n:d});let lo=-0.9999,hi=10,flo=f(lo),fhi=f(hi);if(!isFinite(flo)||!isFinite(fhi)||flo*fhi>0)return NaN;for(let k=0;k<200;k++){const m=(lo+hi)/2,fm=f(m);if(Math.abs(fm)<1e-9)return m;if(flo*fm<0){hi=m;fhi=fm;}else{lo=m;flo=fm;}}return (lo+hi)/2;};',
+    // 1900-system serials; 25569 is the offset to the Unix epoch
+    'const __D2J=s=>new Date(Math.round((s-25569)*86400000));',
+    'const __J2D=d=>Math.round(d.getTime()/86400000)+25569;',
+    'const __DATE=(y,m,d)=>__J2D(new Date(Date.UTC(y,(m|0)-1,d|0)));',
+    'const __EOM=(s,n)=>{const d=__D2J(s);return __J2D(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+(n|0)+1,0)));};',
+    'const __EDATE=(s,n)=>{const d=__D2J(s);const t=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+(n|0),d.getUTCDate()));if(t.getUTCDate()!==d.getUTCDate())t.setUTCDate(0);return __J2D(t);};',
+    'const __YEAR=s=>__D2J(s).getUTCFullYear();',
+    'const __MONTH=s=>__D2J(s).getUTCMonth()+1;',
+    'const __DAY=s=>__D2J(s).getUTCDate();',
+    'const __DAYS=(a,b)=>Math.round(a-b);',
+    'const __DATEDIF=(a,b,u)=>{const x=__D2J(a),y=__D2J(b);u=String(u||"d").toLowerCase();if(u==="d")return Math.round(b-a);let m=(y.getUTCFullYear()-x.getUTCFullYear())*12+(y.getUTCMonth()-x.getUTCMonth());if(y.getUTCDate()<x.getUTCDate())m--;if(u==="m")return m;if(u==="y")return Math.floor(m/12);if(u==="ym")return m%12;return Math.round(b-a);};',
+    'const __ERF=x=>{const s=x<0?-1:1;x=Math.abs(x);const t=1/(1+0.3275911*x);const y=1-((((1.061405429*t-1.453152027)*t+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return s*y;};',
+    'const __NORMSDIST=(z,c)=>(c===0?Math.exp(-z*z/2)/Math.sqrt(2*Math.PI):0.5*(1+__ERF(z/Math.SQRT2)));',
+    'const __NORMDIST=(x,m,sd,c)=>{const z=(x-m)/sd;return c?0.5*(1+__ERF(z/Math.SQRT2)):Math.exp(-z*z/2)/(sd*Math.sqrt(2*Math.PI));};',
+    ''
+  ].join('');
+  // Defined names from an imported workbook: NAME -> "Sheet!$A$1" (or a range).
+  // Populated on import; empty for the built-in models, which use none.
+  let _WB_NAMES = {};
+  function setWorkbookNames(map){ _WB_NAMES = map && typeof map === 'object' ? map : {}; }
   function evalFormula(formula, curSheet){
     if (!formula) return null;
     let e = String(formula).replace(/^=/, '').trim();
+    // Text is interned into a side table and referenced as __S(i), so quotes
+    // never reach the sandbox and the whitelist below stays a whitelist. Excel
+    // compares text case-insensitively, so the interned form is folded.
+    const __strs = [];
+    const __intern = (t) => { const v = String(t).trim().toLowerCase();
+      let i = __strs.indexOf(v); if (i < 0) { __strs.push(v); i = __strs.length - 1; } return '__S(' + i + ')'; };
+    e = e.replace(/"([^"]*)"/g, (mm, t) => __intern(t));
+    // Excel writes functions added after 2007 with an _xlfn. prefix in the file
+    // even though the UI shows them bare — _xlfn.DAYS(...) is just DAYS(...).
+    e = e.replace(/_xlfn\./g, '');
+    // Defined names ("Rent_Inc_Type") are how real workbooks address their
+    // inputs. Resolve them to the cell they point at before anything else runs.
+    if (_WB_NAMES && Object.keys(_WB_NAMES).length) {
+      e = e.replace(/\b([A-Za-z_][A-Za-z0-9_.]*)\b(?!\s*\()/g, (mm) => {
+        const hit = _WB_NAMES[mm] || _WB_NAMES[mm.toUpperCase()];
+        return hit ? hit : mm;
+      });
+    }
     // Build the sheet-name pattern from the workbook itself rather than a
     // character class, so a tab named "P&L" or "Cash-Flow" resolves as readily
     // as a plain one — imported workbooks name tabs however they like.
@@ -15992,34 +16076,80 @@ Answer as the ${a.name} agent:`;
     const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const alt = names.map(esc).sort((a, b) => b.length - a.length).join('|');
     const shPat = alt ? "(?:'(?:" + alt + ")'|(?:" + alt + "))!" : "(?!x)x";
-    // SUM over a range — a column, a row, or a rectangular block. Summing only
-    // the first column silently under-reported every across-the-years total.
-    const sumRe = new RegExp('SUM\\(\\s*(' + shPat + ')?\\$?([A-Z]+)\\$?(\\d+)\\s*:\\s*(?:' + shPat + ')?\\$?([A-Z]+)\\$?(\\d+)\\s*\\)', 'g');
-    e = e.replace(sumRe, (mm, sh, c1, r1, c2, r2) => {
+    // Ranges are lifted out FIRST and replaced with __RG(i), an index into a
+    // side table. Nothing bracketed or quoted ever reaches the sandbox, so the
+    // whitelist below stays as tight as it was when only SUM was supported.
+    const __ranges = [];
+    const rangeRe = new RegExp('(' + shPat + ')?\\$?([A-Z]+)\\$?(\\d+)\\s*:\\s*(?:' + shPat + ')?\\$?([A-Z]+)\\$?(\\d+)', 'g');
+    e = e.replace(rangeRe, (mm, sh, c1, r1, c2, r2) => {
       const sheet = sh ? sh.replace(/!$/, '').replace(/'/g, '').trim() : curSheet;
       const cA = Math.min(_colNum(c1), _colNum(c2)), cB = Math.max(_colNum(c1), _colNum(c2));
-      let sum = 0;
-      for (let r = Math.min(+r1, +r2); r <= Math.max(+r1, +r2); r++)
-        for (let c = cA; c <= cB; c++) { const v = _getCellVal(sheet, _numCol(c), r); if (!isNaN(v)) sum += v; }
-      return '(' + _numLit(sum) + ')';
+      const rA = Math.min(+r1, +r2), rB = Math.max(+r1, +r2);
+      const nums = [], raw = [];
+      for (let r = rA; r <= rB; r++) for (let c = cA; c <= cB; c++) {
+        nums.push(_getCellVal(sheet, _numCol(c), r));
+        const st = SHEET_DATA[sheet];
+        let cell = '';
+        if (st) { const ci = st.cols.indexOf(_numCol(c)); const row = ci > 0 ? st.rows.find(x => x.cells[0] === String(r)) : null; if (row) cell = row.cells[ci]; }
+        raw.push(cell);
+      }
+      __ranges.push({ n: nums, raw, rows: rB - rA + 1, cols: cB - cA + 1 });
+      return '__RG(' + (__ranges.length - 1) + ')';
     });
     // cell references (Sheet!A1, 'P&L'!$A$1 or A1) → numeric values
     const refRe = new RegExp('(' + shPat + ')?\\$?([A-Z]+)\\$?(\\d+)', 'g');
     e = e.replace(refRe, (mm, sh, col, rw) => {
       const sheet = sh ? sh.replace(/!$/, '').replace(/'/g, '').trim() : curSheet;
       const v = _cellSlot(sheet, col, rw);
-      return v == null ? mm : '(' + _numLit(v) + ')';
+      if (v != null) return '(' + _numLit(v) + ')';
+      // Not numeric — if the cell holds text, intern it so comparisons against
+      // it still resolve. Previously any text reference killed the whole cell.
+      const st = SHEET_DATA[sheet];
+      if (st) {
+        const ci = st.cols.indexOf(col);
+        const row = ci > 0 ? st.rows.find(r => r.cells[0] === String(rw)) : null;
+        if (row) { const raw = row.cells[ci];
+          if (raw != null && String(raw).trim() !== '') return __intern(raw); }
+      }
+      return mm;
     });
     e = e.replace(/<>/g, '!=');
-    e = e.replace(/ABS\(/gi, 'Math.abs(').replace(/\bMAX\(/gi, 'Math.max(').replace(/\bMIN\(/gi, 'Math.min(')
-         .replace(/\bROUND\(/gi, '__R(').replace(/\bIF\(/gi, '__IF(').replace(/\^/g, '**');
+    // A lone "=" is Excel's equality operator. Left as-is it is a JS assignment
+    // and every IF(x="text",…) was a syntax error rather than a comparison.
+    e = e.replace(/(^|[^<>!=])=(?![=])/g, '$1==');
+    // The function set is taken from what institutional models actually contain:
+    // across nine reference workbooks these cover the overwhelming majority of
+    // formula cells. Anything still unrecognised falls out at the whitelist and
+    // the cell keeps its stored value, exactly as before.
+    e = e.replace(/\bNORM\.S\.DIST\(/gi, '__NORMSDIST(').replace(/\bNORM\.DIST\(/gi, '__NORMDIST(')
+         .replace(/\bABS\(/gi, 'Math.abs(').replace(/\bSQRT\(/gi, 'Math.sqrt(')
+         .replace(/\bEXP\(/gi, 'Math.exp(').replace(/\bLN\(/gi, 'Math.log(')
+         .replace(/\bMAX\(/gi, '__MAX(').replace(/\bMIN\(/gi, '__MIN(')
+         .replace(/\bROUNDUP\(/gi, '__RUP(').replace(/\bROUNDDOWN\(/gi, '__RDN(')
+         .replace(/\bROUND\(/gi, '__R(').replace(/\bINT\(/gi, 'Math.floor(').replace(/\bTRUNC\(/gi, '__TRUNC(')
+         .replace(/\bIFERROR\(/gi, '__IFERR(').replace(/\bIFNA\(/gi, '__IFERR(')
+         .replace(/\bIF\(/gi, '__IF(').replace(/\bAND\(/gi, '__AND(').replace(/\bOR\(/gi, '__OR(').replace(/\bNOT\(/gi, '__NOT(')
+         .replace(/\bSUMPRODUCT\(/gi, '__SUMPROD(').replace(/\bSUMIFS?\(/gi, '__SUMIF(')
+         .replace(/\bCOUNTIFS?\(/gi, '__COUNTIF(').replace(/\bCOUNTA\(/gi, '__COUNTA(').replace(/\bCOUNT\(/gi, '__COUNT(')
+         .replace(/\bSUM\(/gi, '__SUM(').replace(/\bAVERAGE\(/gi, '__AVG(')
+         .replace(/\bXIRR\(/gi, '__XIRR(').replace(/\bXNPV\(/gi, '__XNPV(')
+         .replace(/\bIRR\(/gi, '__IRRF(').replace(/\bNPV\(/gi, '__NPVF(')
+         .replace(/\bPMT\(/gi, '__PMT(').replace(/\bPV\(/gi, '__PV(').replace(/\bFV\(/gi, '__FV(')
+         .replace(/\bEOMONTH\(/gi, '__EOM(').replace(/\bEDATE\(/gi, '__EDATE(').replace(/\bDATEDIF\(/gi, '__DATEDIF(')
+         .replace(/\bDATE\(/gi, '__DATE(').replace(/\bDAYS\(/gi, '__DAYS(')
+         .replace(/\bYEAR\(/gi, '__YEAR(').replace(/\bMONTH\(/gi, '__MONTH(').replace(/\bDAY\(/gi, '__DAY(')
+         .replace(/\bINDEX\(/gi, '__INDEX(').replace(/\bMATCH\(/gi, '__MATCH(')
+         .replace(/\bTRUE\(\)/gi, '1').replace(/\bFALSE\(\)/gi, '0')
+         .replace(/\bTRUE\b/gi, '1').replace(/\bFALSE\b/gi, '0')
+         .replace(/\^/g, '**');
     // What survives here is handed to Function(), so validate it as a WHITELIST
     // of arithmetic rather than a blacklist of letters. A letter blacklist let
     // anything letter-free straight through — "=(()=>1)()" evaluated, and the
     // same hole admits bracket-only payloads — which matters because formulas
     // arrive inside uploaded workbooks. Named identifiers (IRR, a named range)
     // still fall out here and keep their static value, as before.
-    const probe = e.replace(/Math\.(?:abs|max|min)/g, '#').replace(/__R|__IF/g, '#');
+    const probe = e.replace(/Math\.(?:abs|max|min|sqrt|exp|log|floor)/g, '#')
+                   .replace(/__(?:S|RG|SUM|AVG|MAX|MIN|R|RUP|RDN|TRUNC|IF|IFERR|AND|OR|NOT|SUMPROD|SUMIF|COUNTIF|COUNTA|COUNT|XIRR|XNPV|IRRF|NPVF|PMT|PV|FV|EOM|EDATE|DATEDIF|DATE|DAYS|YEAR|MONTH|DAY|INDEX|MATCH|NORMSDIST|NORMDIST)\b/g, '#');
     if (/=>|;|\[|\]|\{|\}|`|'|"|\?|:/.test(probe)) return null;
     if (!/^[#0-9+\-*/(),.\s%<>=!&|^]*$/.test(probe)) return null;
     // A comma is only meaningful as a function argument separator. Without one
@@ -16027,7 +16157,7 @@ Answer as the ${a.name} agent:`;
     // silently yields its last operand instead of failing like a spreadsheet would.
     if (probe.indexOf(',') >= 0 && probe.indexOf('#') < 0) return null;
     try {
-      const val = Function('"use strict";const __R=(x,n)=>{n=n||0;const p=Math.pow(10,n);return Math.round(x*p)/p;};const __IF=(c,a,b)=>c?a:(b===undefined?0:b);return(' + e + ')')();
+      const val = Function('__ranges', '__strs', '"use strict";' + _XLLIB + 'return(' + e + ')')(__ranges, __strs);
       return (typeof val === 'number' && isFinite(val)) ? val : null;
     }
     catch (err) { return null; }
