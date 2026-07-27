@@ -15973,20 +15973,39 @@ Answer as the ${a.name} agent:`;
     e = e.replace(/<>/g, '!=');
     e = e.replace(/ABS\(/gi, 'Math.abs(').replace(/\bMAX\(/gi, 'Math.max(').replace(/\bMIN\(/gi, 'Math.min(')
          .replace(/\bROUND\(/gi, '__R(').replace(/\bIF\(/gi, '__IF(').replace(/\^/g, '**');
-    // any unresolved identifiers (named vars, IRR, etc.) → bail, keep static value
-    if (/[A-Za-z]/.test(e.replace(/Math\.(abs|max|min)|__R|__IF/g, ''))) return null;
+    // What survives here is handed to Function(), so validate it as a WHITELIST
+    // of arithmetic rather than a blacklist of letters. A letter blacklist let
+    // anything letter-free straight through — "=(()=>1)()" evaluated, and the
+    // same hole admits bracket-only payloads — which matters because formulas
+    // arrive inside uploaded workbooks. Named identifiers (IRR, a named range)
+    // still fall out here and keep their static value, as before.
+    const probe = e.replace(/Math\.(?:abs|max|min)/g, '#').replace(/__R|__IF/g, '#');
+    if (/=>|;|\[|\]|\{|\}|`|'|"|\?|:/.test(probe)) return null;
+    if (!/^[#0-9+\-*/(),.\s%<>=!&|^]*$/.test(probe)) return null;
+    // A comma is only meaningful as a function argument separator. Without one
+    // of the recognised functions present it is the sequence operator, which
+    // silently yields its last operand instead of failing like a spreadsheet would.
+    if (probe.indexOf(',') >= 0 && probe.indexOf('#') < 0) return null;
     try {
       const val = Function('"use strict";const __R=(x,n)=>{n=n||0;const p=Math.pow(10,n);return Math.round(x*p)/p;};const __IF=(c,a,b)=>c?a:(b===undefined?0:b);return(' + e + ')')();
       return (typeof val === 'number' && isFinite(val)) ? val : null;
     }
     catch (err) { return null; }
   }
+  // toFixed rounds the binary double, not the decimal the user typed: 0.0755*100
+  // is held as 7.54999999999999982, so a percent that should read 7.6% displayed
+  // as 7.5%. Rounding the decimal value first puts it back on the half-up
+  // behaviour a spreadsheet shows, and leaves every non-boundary value alone.
+  function _fixed(num, dec){
+    const p = Math.pow(10, dec);
+    return (Math.round(Number((num * p).toPrecision(15))) / p).toFixed(dec);
+  }
   function _fmtLike(existing, num){
     const s = String(existing || '');
-    if (/%$/.test(s)) return (num * 100).toFixed(1) + '%';
-    if (/x$/.test(s)) return num.toFixed(2) + 'x';
+    if (/%$/.test(s)) return _fixed(num * 100, 1) + '%';
+    if (/x$/.test(s)) return _fixed(num, 2) + 'x';
     const dec = /\.\d/.test(s) ? (s.split('.')[1].replace(/[^0-9]/g, '').length || 2) : 2;
-    return num.toFixed(Math.min(dec, 2));
+    return _fixed(num, Math.min(dec, 2));
   }
   function _recomputeOnce(sheetName){
     const s = SHEET_DATA[sheetName]; if (!s) return;
