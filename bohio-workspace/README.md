@@ -258,3 +258,26 @@ bohio-workspace/
 ├── studio/                # six Model-Studio dashboards (iframed)
 └── studio-vendor/         # React/ReactDOM/Babel cache (generated, gitignored)
 ```
+
+## Live market news (optional)
+
+`GET /api/news?topic=realestate|geopolitical` returns Saudi / GCC headlines for
+the daily brief, the risk radar and the assistant's context.
+
+It reads **syndication feeds and GDELT's public API** — sources published for
+machine consumption — rather than scraping article HTML, which would break on
+every redesign and sit outside most outlets' terms.
+
+| Source | Key needed | Notes |
+|---|---|---|
+| GDELT DOC 2.0 | no | Free, strong geopolitical coverage |
+| Google News RSS | no | Topic queries per sector |
+| Arab News / Saudi Gazette / Zawya RSS | no | Regional outlets |
+| NewsAPI | `NEWSAPI_KEY` | Optional; best metadata, used first when set |
+
+Results are cached for 5 minutes server-side and 10 minutes in the page. If no
+source is reachable the route returns `{ live:false, items:[] }` and the app
+falls back to its curated `MARKET_DATA` set — the UI says which it is showing.
+
+Note: outbound network is required. It works on Vercel; a sandbox or CI box with
+an egress policy will return `live:false`.

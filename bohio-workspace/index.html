@@ -21860,6 +21860,9 @@ Answer as Karaya:`;
   // and the AI proxy refuses calls without the issued token). Without a
   // configured password — or with no server at all — it stays the open demo gate.
   async function signIn() {
+    // Warm today's news in the background so the first brief and risk read
+    // already have it — there is no button, it is just context.
+    try{ setTimeout(()=>{ if(typeof _ensureLiveNews==='function') _ensureLiveNews(); }, 600); }catch(e){}
     const nameEl = document.getElementById('login-name');
     const emailEl = document.getElementById('login-email');
     const passEl = document.getElementById('login-pass');
@@ -22378,6 +22381,8 @@ Answer as Karaya:`;
       ['STAKEHOLDER ORGANISATIONS (name, role, location, GAV, IRR)', V('ORGS'), 1800],
       ['MARKET DATA (curated Paseetah data set — submarket rents & yields, transaction comps, delivery pipeline, macro, debt terms and headlines)',
         (typeof _marketBlock==='function'?_marketBlock():null), 4200],
+      ["TODAY'S MARKET NEWS (live feed — use it for recommendations, risk reads and briefs)",
+        (typeof _liveNewsBlock==='function'?_liveNewsBlock():null), 2600],
       ['AI AGENTS in the workspace (who each represents and its scope)', V('AGENTS'), 2400],
       ['STAKEHOLDERS BY PROJECT', V('STAKEHOLDERS'), 1600],
       ['CAPITAL STACK BY PROJECT (sources & uses, tranches)', V('CAP_STACK'), 1800],
@@ -24440,6 +24445,9 @@ Answer as Karaya:`;
         <div class="kr-brief-items" id="wffb-items"></div>
       </div>
       ${_wfDailyRiskHTML(f, k)}`;
+      // No button: the radar reads today's news as context the moment the
+      // section opens, and falls back to the curated radar if it can't.
+      setTimeout(()=>{ try{ _wfRiskRefresh(k); }catch(e){} }, 40);
     } else if(sec==='structure'){
       const tot=f.structure.lps.reduce((a,l)=>a+l[1],0);
       panel=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
@@ -26897,7 +26905,7 @@ Answer as Karaya:`;
     return `<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--ink-hairline);">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px;">
         <div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);">⚠ Daily risk radar — regional market news</div>
-        <button class="wf-btn ghost" style="font-size:9px;padding:5px 10px;" onclick="_wfRiskRefresh('${k}')">↻ Scrape today's regional news</button>
+
       </div>
       <div style="font-size:9.5px;color:var(--ink-soft);margin-bottom:10px;line-height:1.6;">Beyond this fund's internal data — Karaya scans regional (Saudi / GCC) market news for risks to the book. Ask the chat below for a <b style="color:var(--ink);">mitigation plan</b> and export it as a PDF.</div>
       ${todays}
@@ -26924,15 +26932,103 @@ Answer as Karaya:`;
   }
   // Refresh writes straight into the inline "today's read" banner on the
   // radar — no chat bubble, since the radar no longer has its own chat.
-  function _wfRiskRefresh(k){
+  // Pulls real Saudi / GCC headlines from /api/news (syndication feeds + GDELT,
+  // server-side). Returns {live:false, items:[]} when the connector is not
+  // reachable — no key, no network, or running from a static host — so every
+  // caller can fall back to the curated set rather than showing nothing.
+  // Today's headlines, fetched once and shared. There is no button for this —
+  // the news is context, not a feature: it feeds the daily brief, the risk
+  // radar, recommendations and every chat that reads the workspace context.
+  const LIVE_NEWS = { realestate:[], geopolitical:[], live:false, sources:[], at:0 };
+  const _LIVE_NEWS_TTL = 10*60*1000;
+  let _liveNewsInflight = null;
+  function _ensureLiveNews(force){
+    if(!force && LIVE_NEWS.at && Date.now()-LIVE_NEWS.at < _LIVE_NEWS_TTL) return Promise.resolve(LIVE_NEWS);
+    if(_liveNewsInflight) return _liveNewsInflight;
+    _liveNewsInflight = Promise.all([_fetchLiveNews('realestate',8), _fetchLiveNews('geopolitical',5)])
+      .then(([re,geo])=>{
+        LIVE_NEWS.realestate = re.items||[];
+        LIVE_NEWS.geopolitical = geo.items||[];
+        LIVE_NEWS.sources = [...new Set([...(re.sources||[]), ...(geo.sources||[])])];
+        LIVE_NEWS.live = (LIVE_NEWS.realestate.length + LIVE_NEWS.geopolitical.length) > 0;
+        LIVE_NEWS.at = Date.now();
+        _KARAYA_CTX_CACHE = null;          // the context must pick the news up
+        return LIVE_NEWS;
+      })
+      .catch(()=>LIVE_NEWS)
+      .finally(()=>{ _liveNewsInflight=null; });
+    return _liveNewsInflight;
+  }
+  // The two topic queries overlap — a Gulf property story routinely comes back
+  // from both GDELT and the geopolitical sweep — so collapse by headline.
+  function _liveNewsAll(){
+    const seen=new Set(); const out=[];
+    for(const n of [...LIVE_NEWS.realestate, ...LIVE_NEWS.geopolitical]){
+      const k=String(n.title||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().slice(0,80);
+      if(!k || seen.has(k)) continue;
+      seen.add(k); out.push(n);
+    }
+    return out;
+  }
+  // Handed to the assistant so recommendations, risk reads and briefs are
+  // grounded in today's headlines when the connector is up, and silently fall
+  // back to the curated set when it isn't.
+  function _liveNewsBlock(){
+    const all=_liveNewsAll();
+    if(!all.length) return null;
+    return `TODAY'S MARKET NEWS (live, pulled server-side from ${LIVE_NEWS.sources.join(' · ')||'syndication feeds'} — Saudi/GCC real estate and the geopolitical backdrop). Prefer these over the curated set when they conflict, and cite the outlet:\n`
+      + all.map(n=>`  ${n.date} · ${n.src} · ${n.sector} · ${n.sentiment} · ${n.title}${n.body?' — '+n.body.slice(0,180):''}`).join('\n');
+  }
+  function _liveNewsPromptLine(max){
+    const all=_liveNewsAll(); if(!all.length) return '';
+    return ` Today's live market headlines: ${all.slice(0,max||6).map(n=>`${n.src}: ${n.title} (${n.sector}/${n.sentiment})`).join(' | ')}.`;
+  }
+  async function _fetchLiveNews(topic, limit){
+    try{
+      const r=await fetch(`/api/news?topic=${encodeURIComponent(topic||'realestate')}&limit=${limit||8}`);
+      if(!r.ok) return {live:false, items:[]};
+      const j=await r.json();
+      return {live:!!j.live, items:Array.isArray(j.items)?j.items:[], sources:j.sources||[]};
+    }catch(e){ return {live:false, items:[]}; }
+  }
+  function _newsItemHTML(n){
+    const col={positive:'#15803d', negative:'#b51e3b', neutral:'var(--ink-soft)'}[n.sentiment]||'var(--ink-soft)';
+    const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const title=n.url
+      ? `<a href="${esc(n.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--ink);text-decoration:none;">${esc(n.title)} ↗</a>`
+      : esc(n.title);
+    return `<div style="border-top:1px solid var(--ink-hairline);padding:8px 0;">
+      <div style="font-size:11px;line-height:1.45;font-weight:600;">${title}</div>
+      <div style="font-size:9px;color:var(--ink-soft);margin-top:3px;">
+        ${esc(n.date||'')} · ${esc(n.src||'')} · ${esc(n.sector||'')} · <span style="color:${col};font-weight:700;">${esc(n.sentiment||'')}</span>
+      </div></div>`;
+  }
+  async function _wfRiskRefresh(k){
     const f=WF_FUNDS.find(x=>x.k===k); if(!f) return;
     const slot=document.getElementById(`wfrisk-today-${k}`); if(!slot) return;
-    slot.innerHTML='<div style="font-size:10.5px;color:var(--ink-soft);"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>';
+    slot.innerHTML='<div style="font-size:10.5px;color:var(--ink-soft);">Scanning regional market news…</div>';
     const risks=_wfFundRiskData(f);
-    const fallback=`Scanned regional (Saudi / GCC) market news. Today's top read for **${f.name}**: **${risks[0].title}** (${risks[0].sev.toLowerCase()}) — ${risks[0].read} Ask the chat below to draft a mitigation plan and I'll export it as a PDF. *(Live scraping needs a market-data/news connector; showing the curated regional radar in the demo.)*`;
-    const prompt=`You are Karaya scanning regional Saudi Arabia / GCC real-estate market news for risks to a fund. Fund: ${f.name}. Known radar items: ${risks.map(r=>r.title+' ('+r.sev+'): '+r.read).join(' | ')}. In 3-4 sentences, give today's regional market-risk read for this fund, **bold** the key risk, and note if a specific asset class or rate move is the driver. Plain text.`;
+    // Real headlines first — both the property market and the geopolitical
+    // backdrop, since the radar is about what moves the book either way.
+    await _ensureLiveNews();
+    const live=_liveNewsAll();
+    const isLive=live.length>0;
+    const headlines = isLive
+      ? `<div style="margin-bottom:10px;">
+           <div style="font-size:8px;letter-spacing:0.2em;text-transform:uppercase;font-weight:700;color:#15803d;margin-bottom:2px;">● Live — ${LIVE_NEWS.sources.join(' · ')}</div>
+           ${live.slice(0,8).map(_newsItemHTML).join('')}
+         </div>`
+      : '';
+    const liveCtx = isLive ? `Today's real headlines: ${live.slice(0,8).map(n=>`${n.src}: ${n.title} (${n.sector}/${n.sentiment})`).join(' | ')}.` : '';
+    const fallback = isLive
+      ? `Scanned **${live.length}** live headlines across the Saudi / GCC property market and the geopolitical backdrop. Set against this fund's standing radar, the item to watch is **${risks[0].title}** (${risks[0].sev.toLowerCase()}) — ${risks[0].read} Ask the chat below for a mitigation plan and I'll export it as a PDF.`
+      : `Scanned the regional radar for **${f.name}**. Today's top read: **${risks[0].title}** (${risks[0].sev.toLowerCase()}) — ${risks[0].read} Ask the chat below to draft a mitigation plan and I'll export it as a PDF. *(The live news connector isn't reachable right now — showing the curated regional radar.)*`;
+    const prompt=`You are Karaya scanning Saudi Arabia / GCC real-estate and geopolitical news for risks to a fund. Fund: ${f.name}. ${liveCtx} The fund's standing radar items: ${risks.map(r=>r.title+' ('+r.sev+'): '+r.read).join(' | ')}. In 3-4 sentences give today's read for this fund, **bold** the key risk, tie it to a named headline where one applies, and say whether a specific asset class or rate move is the driver. Plain text.`;
+    slot.innerHTML=headlines+'<div style="font-size:10.5px;color:var(--ink-soft);"><span class="kr-stream-text"></span><span class="kr-caret">▍</span></div>';
     const el=slot.querySelector('.kr-stream-text')?.parentElement || slot;
-    karayaStreamInto(el, prompt, 'quick_insight', fallback).then(out=>{ f._riskTodayRead=out||fallback; slot.innerHTML=fmtKaraya(f._riskTodayRead); }).catch(()=>{ f._riskTodayRead=fallback; slot.innerHTML=fmtKaraya(fallback); });
+    karayaStreamInto(el, prompt, 'quick_insight', fallback)
+      .then(out=>{ f._riskTodayRead=out||fallback; slot.innerHTML=headlines+fmtKaraya(f._riskTodayRead); })
+      .catch(()=>{ f._riskTodayRead=fallback; slot.innerHTML=headlines+fmtKaraya(fallback); });
   }
   function _wfRiskMitigationText(f, scope){
     const risks=_wfFundRiskData(f);
@@ -27016,7 +27112,7 @@ Answer as Karaya:`;
     const lede=document.getElementById('wffb-lede'); if(!lede) return;
     const mailTag=mail.messages.length ? `${mail.messages.length} Outlook thread${mail.messages.length>1?'s':''}${mail.live?' (live mailbox)':' (demo inbox)'}` : 'no recent Outlook activity';
     const fallback=`**${f.name}** — ${pending.length?`**${pending.length} approval${pending.length>1?'s':''}** in flight, top of the list is **${pending[0].t}** (${pending[0].status}).`:'no approvals currently in flight.'} ${hotTopics.length?`**${hotTopics[0][2]}** on "${hotTopics[0][0]}" is the busiest open topic.`:''} ${mailTag} touching this fund. Documents: **${(f.docs||[]).length}** on file, model **${(f.models||[]).length?'live':'not yet built'}**.`;
-    const prompt=`You are Karaya, writing a one-paragraph "everything happening now" brief for the Chief Investment Officer about the fund "${f.name}" (${f.vintage}, ${f.status}; SAR ${f.drawn}M drawn of ${f.committed}M, NAV SAR ${f.nav}M, net IRR ${f.irr}). Pending approvals: ${pending.map(a=>a.t+' — '+a.status).join('; ')||'none'}. Busiest open topics: ${hotTopics.slice(0,2).map(t=>t[0]+' ('+t[2]+')').join('; ')||'none'}. Recent Outlook activity (${mail.live?'live mailbox':'demo inbox'}): ${(mail.messages||[]).slice(0,3).map(e=>e.from+' — "'+e.subject+'"').join('; ')||'none'}. Write 2-3 sentences a busy CIO can read in five seconds — what needs a decision today, what's just informational. **Bold** the single most urgent item. Plain text.`;
+    const prompt=`You are Karaya, writing a one-paragraph "everything happening now" brief for the Chief Investment Officer about the fund "${f.name}" (${f.vintage}, ${f.status}; SAR ${f.drawn}M drawn of ${f.committed}M, NAV SAR ${f.nav}M, net IRR ${f.irr}). Pending approvals: ${pending.map(a=>a.t+' — '+a.status).join('; ')||'none'}. Busiest open topics: ${hotTopics.slice(0,2).map(t=>t[0]+' ('+t[2]+')').join('; ')||'none'}. Recent Outlook activity (${mail.live?'live mailbox':'demo inbox'}): ${(mail.messages||[]).slice(0,3).map(e=>e.from+' — "'+e.subject+'"').join('; ')||'none'}. Write 2-3 sentences a busy CIO can read in five seconds — what needs a decision today, what's just informational. **Bold** the single most urgent item. Where a live market headline below bears on this fund, work it in and name the outlet. Plain text.${(typeof _liveNewsPromptLine==='function')?_liveNewsPromptLine(5):''}`;
     karayaStreamInto(lede, prompt, 'quick_insight', fallback).then(out=>{ lede.innerHTML=fmtKaraya(out||fallback); }).catch(()=>{ lede.innerHTML=fmtKaraya(fallback); });
   }
   // ---- Fund Timeline — document versions + Outlook mail, newest first ----

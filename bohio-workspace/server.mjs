@@ -362,6 +362,19 @@ async function serveStatic(req, res, urlPath) {
   }
 }
 
+import { fetchNewsCached } from './lib/news.mjs';
+
+async function handleNews(req, res, url) {
+  const topic = url.searchParams.get('topic') || 'realestate';
+  const limit = Math.min(30, Math.max(1, parseInt(url.searchParams.get('limit') || '12', 10) || 12));
+  try {
+    const out = await fetchNewsCached({ topic, limit, key: process.env.NEWSAPI_KEY || null });
+    return send(res, 200, JSON.stringify({ ok: true, ...out }), { 'Content-Type': 'application/json' });
+  } catch (e) {
+    return send(res, 200, JSON.stringify({ ok: true, live: false, items: [], sources: [], errors: [String(e.message)] }), { 'Content-Type': 'application/json' });
+  }
+}
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
@@ -386,6 +399,9 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/outlook-disconnect') {
       if (req.method !== 'POST') return send(res, 405, 'Method not allowed');
       return handleOutlookDisconnect(req, res);
+    }
+    if (url.pathname === '/api/news') {
+      return handleNews(req, res, url);
     }
     if (url.pathname === '/api/health') {
       return send(res, 200, JSON.stringify({ ok: true, ai: Boolean(API_KEY), auth: AUTH_ON, outlook: msConnected(), outlookSetup: Boolean(MS_CLIENT_ID), routing: routingTable() }),
