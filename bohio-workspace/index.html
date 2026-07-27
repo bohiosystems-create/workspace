@@ -10327,9 +10327,8 @@
       </div>
     </div>
 
-    <!-- (Deal Screening & Funds Management left the sidebar — they run as
-         Bohio Workflows 06/07 on the workspace home. Hidden stub kept so the
-         goTo() toggles stay harmless.) -->
+    <!-- (Funds Management left the sidebar; hidden stub kept so the goTo()
+         toggles stay harmless. Deal Screening is back below, in ws-subnav.) -->
     <div class="nav-section" id="fund-subnav" style="display:none !important;"></div>
 
     <!-- Workspace sub-nav (shown when in workspace) -->
@@ -10351,6 +10350,14 @@
       </div>
       <div class="nav-item" id="nav-bohioperf" onclick="openBohioPerf()">
         <span>Bohio Performance</span>
+      </div>
+      <!-- The two workflows worth reaching from anywhere now live in the nav
+           rather than as cards on the workspace home. -->
+      <div class="nav-item" id="nav-feasibility" onclick="runWorkflow('visibility')">
+        <span>Feasibility</span>
+      </div>
+      <div class="nav-item" id="nav-screening" onclick="runWorkflow('screening')">
+        <span>Deal Screening</span>
       </div>
       <div class="nav-item" id="nav-tasks" onclick="toggleTasks()">
         <span>My Tasks</span>
@@ -10480,36 +10487,7 @@
       </div>
 
       <!-- ============ BOHIO AUTOMATES — 5 workflows ============ -->
-      <div class="section-header"><h2 class="section-title">Bohio Workflows</h2>
-        <span class="section-meta">Seven AI workflows · click any to run it live</span></div>
-      <div class="wf-grid" id="wf-grid">
-        <button class="wf-card" onclick="runWorkflow('ingest')">
-          <div class="wf-n">01</div><div class="wf-h">Valuation</div>
-          <div class="wf-d">Reads RICS valuations, contractor claims and offering memos, and pulls actuals from project accounting — straight into the model.</div>
-          <div class="wf-cta">Run workflow →</div></button>
-        <button class="wf-card" onclick="runWorkflow('lease2cf')">
-          <div class="wf-n">02</div><div class="wf-h">Lease agreements</div>
-          <div class="wf-d">The moment a sale or lease is logged, AI updates the revenue schedule, NOI and the investment underwriting instantly.</div>
-          <div class="wf-cta">Run workflow →</div></button>
-        <button class="wf-card" onclick="runWorkflow('vsactuals')">
-          <div class="wf-n">03</div><div class="wf-h">Underwriting vs actual</div>
-          <div class="wf-d">A chat interface for variance — ask about any asset or metric and Karaya compares the underwriting to live PM actuals, flagging NOI, opex and IRR gaps.</div>
-          <div class="wf-cta">Run workflow →</div></button>
-        <button class="wf-card" onclick="runWorkflow('appreciation')">
-          <div class="wf-n">04</div><div class="wf-h">Financial modelling</div>
-          <div class="wf-d">A chat interface for modelling — ask Karaya to pull data from the property management system and build an asset appreciation model, or a cashflow prediction for a new project. It builds a live Bohio workbook.</div>
-          <div class="wf-cta">Run workflow →</div></button>
-        <button class="wf-card" onclick="runWorkflow('screening')">
-          <div class="wf-n">05</div><div class="wf-h">Deal screening</div>
-          <div class="wf-d">Screens an incoming deal against the firm's investment mandate — ticket size, geography, IRR hurdle, asset class — and returns a committee-ready PROCEED / REVIEW / PASS verdict.</div>
-          <div class="wf-cta">Run workflow →</div></button>
-        <button class="wf-card" onclick="runWorkflow('visibility')">
-          <div class="wf-n">06</div><div class="wf-h">Feasibility</div>
-          <div class="wf-d">Pick a site on the map of Doha — Karaya screens the zoning envelope and live rental &amp; transaction comps for three highest-and-best-use options, then builds the full financial model for the one you choose.</div>
-          <div class="wf-cta">Run workflow →</div></button>
-      </div>
-
-      <div class="section-header" style="margin-top:44px;">
+      <div class="section-header" style="margin-top:8px;">
         <h2 class="section-title" id="ws-projects-title">In Progress</h2>
         <div style="display:flex;align-items:center;gap:18px;">
           <span class="section-meta" id="ws-projects-meta">Development pipeline · 6 active</span>
@@ -25575,7 +25553,7 @@ Answer as Karaya:`;
     const c=t.kind==='Project'?'#2563eb':(t.kind==='Email'?'#0a66c2':'#963D97');
     const unread=t.unread?`<span style="flex-shrink:0;background:#e03a3c;color:#fff;font-size:8px;font-weight:700;border-radius:999px;padding:2px 7px;">${t.unread} new</span>`:'';
     const meta=[t.eyebrow, t.status, t.last, t.msgs?(t.msgs+' msgs'):'', t.parts?(t.parts+' participants'):''].filter(Boolean).join(' · ');
-    return `<div class="thub-row" data-search="${(t.title+' '+t.source+' '+t.eyebrow+' '+t.status+' '+t.kind).toLowerCase().replace(/"/g,'')}" onclick="_topicsHubOpenItem(${i})" onmouseover="this.style.borderColor='var(--ink)'" onmouseout="this.style.borderColor=''" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 14px;margin-bottom:7px;cursor:pointer;">
+    return `<div class="thub-row" data-search="${(t.title+' '+t.source+' '+t.eyebrow+' '+t.status+' '+t.kind).toLowerCase().replace(/"/g,'')}" onclick="_topicsHubOpenItem(${i})" onmouseover="this.style.borderColor='var(--ink)';this.style.background='rgba(0,9,25,0.12)'" onmouseout="this.style.borderColor='';this.style.background='rgba(0,9,25,0.07)'" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--ink-hairline);border-radius:11px;padding:11px 14px;margin-bottom:7px;cursor:pointer;background:rgba(0,9,25,0.07);transition:background .15s ease,border-color .15s ease;">
       <div style="min-width:0;display:flex;align-items:center;gap:10px;">
         <span style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;"></span>
         <div style="min-width:0;"><div style="font-family:var(--font-display);font-size:14px;font-weight:400;line-height:1.3;letter-spacing:0.01em;">${t.title}</div>
