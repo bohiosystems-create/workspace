@@ -49,12 +49,19 @@
     const task = opts.task || o.task || null;     // e.g. 'screening', 'home_chat'
     const model = opts.model || o.model || null;  // e.g. 'opus' | 'sonnet' | 'haiku' (explicit override)
 
-    const res = await fetch('/api/complete', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ messages: messages, max_tokens: max_tokens, task: task, model: model })
-    });
-
+    // Time-boxed so a stuck serverless call can't hang the caller indefinitely.
+    const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    const t = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 30000) : null;
+    let res;
+    try {
+      res = await fetch('/api/complete', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ messages: messages, max_tokens: max_tokens, task: task, model: model }),
+        signal: ctl ? ctl.signal : undefined,
+      });
+    } catch (e) { if (t) clearTimeout(t); throw new Error('claude.complete failed (network/timeout) ' + (e && e.message || '')); }
+    if (t) clearTimeout(t);
     if (!res.ok) {
       let detail = '';
       try { detail = (await res.json()).error || ''; } catch (e) {}
@@ -79,12 +86,26 @@
       model: opts.model || o.model || null,
       stream: true,
     };
-    const res = await fetch('/api/complete', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify(body),
-    });
+    // Abort the fetch if the serverless function is killed mid-stream (Vercel's
+    // ~30s cap) and leaves the connection hanging — otherwise reader.read()
+    // below never resolves and the caller spins forever.
+    const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    let lastData = Date.now();
+    const STALL_MS = 12000;
+    const watchdog = ctl ? setInterval(function () {
+      if (Date.now() - lastData > STALL_MS) { try { ctl.abort(); } catch (e) {} clearInterval(watchdog); }
+    }, 2000) : null;
+    let res;
+    try {
+      res = await fetch('/api/complete', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+        signal: ctl ? ctl.signal : undefined,
+      });
+    } catch (e) { if (watchdog) clearInterval(watchdog); throw new Error('claude.stream failed (network) ' + (e && e.message || '')); }
     if (!res.ok) {
+      if (watchdog) clearInterval(watchdog);
       let detail = '';
       try { detail = (await res.json()).error || ''; } catch (e) {}
       throw new Error('claude.stream failed (' + res.status + ') ' + detail);
@@ -104,12 +125,22 @@
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let full = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = dec.decode(value, { stream: true });
-      if (chunk) { full += chunk; if (onToken) onToken(chunk); }
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        lastData = Date.now();
+        const chunk = dec.decode(value, { stream: true });
+        if (chunk) { full += chunk; if (onToken) onToken(chunk); }
+      }
+    } catch (e) {
+      // Aborted mid-stream (stall) — return whatever arrived so the caller keeps
+      // the partial answer instead of hanging. Empty → let the caller fall back.
+      if (watchdog) clearInterval(watchdog);
+      if (full) return full;
+      throw new Error('claude.stream failed (stalled) ' + (e && e.message || ''));
     }
+    if (watchdog) clearInterval(watchdog);
     return full;
   }
 
