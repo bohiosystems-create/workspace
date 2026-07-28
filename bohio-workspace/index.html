@@ -18203,67 +18203,84 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   //  by 15%" → two cases, each with its own shock.
   function _parseCustomCases(q){
     const s=String(q||'');
-    const cases=[];
-    // Split on "one for / another for / and a case for / then / ; / , then"
-    const segs=s.split(/\b(?:,?\s*(?:and\s+)?(?:one|another|a(?:nother)?\s+case|a\s+scenario)\s+for|;|\bthen\b(?!\s+generate)|\bplus\b)\b/i)
-                 .map(x=>x.trim()).filter(Boolean);
-    const seen=new Set();
+    // Number words → digits, so "a year", "one year", "twelve months" parse.
+    const W={a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,eighteen:18,twenty:20,'a couple of':2,'a few':3};
+    const wnum=(t)=>{ const m=String(t).match(/(\d+(?:\.\d+)?)/); if(m) return parseFloat(m[1]);
+      const w=String(t).toLowerCase().trim(); return W[w]!=null?W[w]:null; };
+    // Split into case-bearing clauses. Boundaries: "one/another (for/where)",
+    // "a case/scenario (for/where)", ";", "then" (not "then generate"), "plus",
+    // and a bare ", and" / " and " that sits between two shock clauses.
+    const segs=s.split(/\b(?:,?\s*(?:and\s+)?(?:one|another)\s+(?:for|where|is|case|scenario)\b|,?\s*(?:and\s+)?a(?:nother)?\s+(?:case|scenario)(?:\s+(?:for|where))?|;|\bthen\b(?!\s+(?:generate|build|make|create|produce|export|give|show|prepare)\b)|\bplus\b|,\s+and\b|\band\b(?=[^,]*(?:\d+\s*(?:%|percent|per\s?cent|years?|yrs?|months?|quarters?|bps)|costs?|construction|capex|rents?|revenues?|prices?|rates?|timelines?|schedul\w*|delay\w*|slip\w*|overrun|longer|late)))/i)
+                 .map(x=>x.trim()).filter(x=>x&&x.length>2);
+    const seen=new Set(), cases=[];
     for(let seg of segs){
-      // strip the report clause so it isn't read as a shock
-      // Drop a segment ONLY if it's purely a report/export instruction with no
-      // shock in it. The guard has to recognise "costs" (plural) and a bare
-      // percentage, or the case gets thrown away with the report clause.
-      if(/\b(generate|build|make|export)\b[^.]*\b(report|pdf|deck|memo|word|excel|presentation)\b/i.test(seg)
-         && !/\d\s*%|\bcosts?\b|\btimelines?\b|\brents?\b|\brevenues?\b|\brates?\b|\boccup\w*|\bprices?\b|\bdelay\w*|\byears?\b|\bmonths?\b|\bbear\b|\bbull\b|\bdownside\b|\bupside\b/i.test(seg)) continue;
-      const shocks=[];
-      let m;
-      // timeline / schedule extension
-      if((m=seg.match(/\b(timeline|schedule|programme|program|completion|duration|delay(?:ed)?|slip)\b[^.]*?\b(?:by |increase[sd]? by |longer by |plus )?(\d+(?:\.\d+)?)\s*(year|yr|month|quarter)/i))
-         || (m=seg.match(/\b(\d+(?:\.\d+)?)\s*(year|yr|month|quarter)s?\b[^.]*\b(delay|longer|slip|later|extension)/i))){
-        const num=parseFloat(m[2]||m[1]); const unit=(m[3]||m[2]||'').toLowerCase();
-        const months=/year|yr/.test(unit)?num*12:/quarter/.test(unit)?num*3:num;
-        shocks.push({kind:'timeline', months, label:num+' '+(/year|yr/.test(unit)?'year':/quarter/.test(unit)?'quarter':'month')+(num===1?'':'s')+' longer'});
+      // Drop a segment only if it's a pure report/export instruction — one that
+      // names no shock at all.
+      if(/\b(generate|build|make|export|produce|give|prepare|put together|draft)\b[^.]*\b(report|pdf|deck|memo|word|excel|presentation|slides?|document|file)\b/i.test(seg)
+         && !/\d\s*(?:%|percent|per\s?cent|year|yr|month|quarter|bps)|\bcosts?\b|\bconstruction\b|\bcapex\b|\btimelines?\b|\bschedul\w*|\brents?\b|\brevenues?\b|\bsales?\b|\brates?\b|\boccup\w*|\bprices?\b|\bdelay\w*|\bslip\w*|\boverrun\b|\blate\b|\blonger\b|\byears?\b|\bmonths?\b|\bbear\b|\bbull\b|\bdownside\b|\bupside\b|\bstress\b/i.test(seg)) continue;
+      const shocks=[]; let m;
+      const pctPat='(\\d+(?:\\.\\d+)?)\\s*(?:%|percent|per\\s?cent)';
+      // ---- timeline / schedule ----
+      // "<n> <unit> longer/late/delay/slip/extension" OR
+      // "timeline/schedule/build/delivery ... <n> <unit>" OR
+      // "slips/late by <n> <unit>", in either order, digits or words.
+      let tl=null;
+      if((m=seg.match(/\b(a|an|one|two|three|four|twelve|\d+(?:\.\d+)?)\s*(year|yr|month|quarter)s?\b[^.,;]*\b(delay|delayed|longer|slip|slips|late|later|extension|overrun|behind|push\w*)/i))
+       ||(m=seg.match(/\b(?:timeline|schedule|programme|program|completion|build|delivery|construction|project|duration|handover)\b[^.,;]*?\b(?:by|increase[sd]?\s*by|extend\w*\s*by|longer\s*by|late\s*by|slips?\s*by|delayed\s*by|takes?\s+\w*\s*longer|plus|of)?\s*(a|an|one|two|three|four|twelve|\d+(?:\.\d+)?)\s*(year|yr|month|quarter)s?\b/i))
+       ||(m=seg.match(/\b(delay|slip|extend\w*|push\w*)\b[^.,;]*?\b(a|an|one|two|three|four|twelve|\d+(?:\.\d+)?)\s*(year|yr|month|quarter)/i))){
+        const rawN=m[1], unit=(m[2]||'').toLowerCase();
+        const n=wnum(rawN);
+        if(n!=null && unit){ const months=/year|yr/.test(unit)?n*12:/quarter/.test(unit)?n*3:n;
+          tl={kind:'timeline', months, label:n+' '+(/year|yr/.test(unit)?'year':/quarter/.test(unit)?'quarter':'month')+(n===1?'':'s')+' longer'}; }
       }
-      // cost move
-      if((m=seg.match(/\bcosts?\b[^.]*?\b(rise|increase|grow|up|higher|inflat)\w*\s*(?:by\s*)?(\d+(?:\.\d+)?)\s*%/i))
-         || (m=seg.match(/\bcosts?\b[^.]*?(\d+(?:\.\d+)?)\s*%\s*(?:rise|increase|higher|over)/i))
-         || (m=seg.match(/(\d+(?:\.\d+)?)\s*%\s*(?:cost|construction|capex|hard.cost)/i))){
-        const pct=parseFloat(m[2]||m[1]); shocks.push({kind:'cost', pct, label:'costs +'+pct+'%'});
-      } else if((m=seg.match(/\bcosts?\b[^.]*?\b(fall|drop|decrease|down|lower|save)\w*\s*(?:by\s*)?(\d+(?:\.\d+)?)\s*%/i))){
-        const pct=parseFloat(m[2]); shocks.push({kind:'cost', pct:-pct, label:'costs -'+pct+'%'});
+      if(tl) shocks.push(tl);
+      // ---- cost move ----
+      let cost=null;
+      const upWord='(?:rise|rises|rising|increase[sd]?|increasing|grow\\w*|go(?:es)?\\s*up|went\\s*up|up|higher|inflat\\w*|more expensive|overrun|over[- ]budget|balloon\\w*|jump\\w*|climb\\w*)';
+      const dnWord='(?:fall\\w*|drop\\w*|decrease[sd]?|decreasing|go(?:es)?\\s*down|down|lower|save\\w*|reduc\\w*|cheaper|come\\w*\\s*in\\s*under)';
+      if((m=seg.match(new RegExp('\\bcosts?\\b[^.,;]*?\\b'+upWord+'\\b[^.,;]*?'+pctPat,'i')))
+       ||(m=seg.match(new RegExp('\\b(?:construction|capex|hard[- ]?costs?|build\\s*cost)\\b[^.,;]*?\\b'+upWord+'\\b[^.,;]*?'+pctPat,'i')))
+       ||(m=seg.match(new RegExp('\\bcost\\s*(?:overrun|increase|rise|inflation)\\b[^.,;]*?(?:of|by)?\\s*'+pctPat,'i')))
+       ||(m=seg.match(new RegExp(pctPat+'\\s*(?:cost|construction|capex|hard[- ]?cost|more expensive|overrun|cost (?:increase|rise|overrun))','i')))
+       ||(m=seg.match(new RegExp('\\bcosts?\\b[^.,;]*?'+pctPat+'\\s*(?:'+upWord+'|over|more)','i')))){
+        cost={kind:'cost', pct:parseFloat(m[1]), label:'costs +'+parseFloat(m[1])+'%'};
+      } else if((m=seg.match(new RegExp('\\bcosts?\\b[^.,;]*?\\b'+dnWord+'\\b[^.,;]*?'+pctPat,'i')))){
+        cost={kind:'cost', pct:-parseFloat(m[1]), label:'costs -'+parseFloat(m[1])+'%'};
       }
-      // revenue / rent / sales price move
-      if((m=seg.match(/\b(revenue|rent|sales?|price|income|asp)\b[^.]*?\b(fall|drop|decrease|down|lower|soften)\w*\s*(?:by\s*)?(\d+(?:\.\d+)?)\s*%/i))){
-        const pct=parseFloat(m[3]); shocks.push({kind:'revenue', pct:-pct, label:'revenue -'+pct+'%'});
-      } else if((m=seg.match(/\b(revenue|rent|sales?|price|income|asp)\b[^.]*?\b(rise|increase|grow|up|higher)\w*\s*(?:by\s*)?(\d+(?:\.\d+)?)\s*%/i))){
-        const pct=parseFloat(m[3]); shocks.push({kind:'revenue', pct, label:'revenue +'+pct+'%'});
+      if(cost) shocks.push(cost);
+      // ---- revenue / rent / sales price ----
+      if((m=seg.match(new RegExp('\\b(revenue|rent|sales?|price|income|asp|absorption)\\b[^.,;]*?\\b(?:fall\\w*|drop\\w*|decrease[sd]?|down|lower|soften\\w*|weaken\\w*|slow\\w*)\\b[^.,;]*?'+pctPat,'i')))){
+        shocks.push({kind:'revenue', pct:-parseFloat(m[2]), label:(m[1].toLowerCase())+' -'+parseFloat(m[2])+'%'});
+      } else if((m=seg.match(new RegExp('\\b(revenue|rent|sales?|price|income|asp)\\b[^.,;]*?\\b(?:rise|rises|increase[sd]?|grow\\w*|up|higher|strengthen\\w*)\\b[^.,;]*?'+pctPat,'i')))){
+        shocks.push({kind:'revenue', pct:parseFloat(m[2]), label:(m[1].toLowerCase())+' +'+parseFloat(m[2])+'%'});
       }
-      // interest / exit-cap move in bps or %
-      if((m=seg.match(/\b(rate|interest|debt cost|exit cap|cap rate)\b[^.]*?(\d+(?:\.\d+)?)\s*(bps|%)/i))){
-        const raw=parseFloat(m[2]); const bps=/bps/i.test(m[3])?raw:raw*100;
-        const dir=/lower|fall|down|tighten|compress/i.test(seg)?-1:1;
+      // ---- interest / exit-cap ----
+      if((m=seg.match(/\b(rate|interest|debt cost|financing|exit cap|cap rate)\b[^.,;]*?(\d+(?:\.\d+)?)\s*(bps|bp|%|percent)/i))){
+        const raw=parseFloat(m[2]); const bps=/bp/i.test(m[3])?raw:raw*100;
+        const dir=/lower|fall\w*|down|tighten\w*|compress\w*|cut/i.test(seg)?-1:1;
         shocks.push({kind:/exit cap|cap rate/i.test(m[1])?'exitcap':'rate', bps:bps*dir, label:m[1]+' '+(dir>0?'+':'-')+Math.abs(bps)+'bps'});
       }
-      // a named preset
+      // ---- named preset, only if nothing specific was found ----
       if(!shocks.length){
-        if(/\bbear|downside|stress|pessimistic|severe\b/i.test(seg)) shocks.push({kind:'preset', preset:'bear', label:'downside preset'});
-        else if(/\bbull|upside|optimistic\b/i.test(seg)) shocks.push({kind:'preset', preset:'bull', label:'upside preset'});
-        else if(/\bbase\b/i.test(seg)) shocks.push({kind:'base', label:'base case'});
+        if(/\bbear|downside|stress|pessimistic|severe|worst[- ]case|adverse\b/i.test(seg)) shocks.push({kind:'preset', preset:'bear', label:'downside preset'});
+        else if(/\bbull|upside|optimistic|best[- ]case\b/i.test(seg)) shocks.push({kind:'preset', preset:'bull', label:'upside preset'});
+        else if(/\bbase\s*case\b/i.test(seg)) shocks.push({kind:'base', label:'base case'});
       }
       if(!shocks.length) continue;
-      // name the case: an explicit "bear/bull/base case" wins, else the shock label
+      // Name the case.
       let name=null;
-      if((m=seg.match(/\b(bear|bull|base|downside|upside|stress|severe|optimistic|pessimistic)\s+case\b/i))) name=m[1][0].toUpperCase()+m[1].slice(1).toLowerCase()+' case';
-      else if((m=seg.match(/\bcase\s+(?:where|for|of)\s+([^,;]{3,40})/i))) name=m[1].trim();
+      if((m=seg.match(/\b(bear|bull|base|downside|upside|stress|severe|optimistic|pessimistic|adverse|worst[- ]case|best[- ]case)\s*(?:case|scenario)?\b/i))){
+        const w=m[1].replace(/[- ]/g,' '); name=w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()+(/case|scenario/i.test(m[0])?'':' case'); name=name.replace(/case case$/i,'case');
+      } else if((m=seg.match(/\bcase\s+(?:where|for|of|with)\s+([^,;]{3,42})/i))) name=m[1].trim();
       if(!name) name=shocks.map(x=>x.label).join(', ');
       name=name.charAt(0).toUpperCase()+name.slice(1);
-      const key=name.toLowerCase()+'|'+shocks.map(x=>x.kind+x.pct+x.months+x.bps).join('|');
+      const key=shocks.map(x=>x.kind+(x.pct||'')+(x.months||'')+(x.bps||'')).join('|');
       if(seen.has(key)) continue; seen.add(key);
       cases.push({name, shocks});
     }
     return cases;
   }
-  // Apply one case's shocks to the live model (already inside a snapshot), then
+    // Apply one case's shocks to the live model (already inside a snapshot), then
   // recompute. Returns any note worth surfacing (e.g. a timeline handled via a
   // return-shift because the model has no explicit duration driver).
   function _applyCase(cs){
@@ -18339,7 +18356,8 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   function _icFmt(cr, v){ if(v==null||!isFinite(v)) return '—'; return cr.unit==='%'?v.toFixed(1)+'%':cr.unit==='x'?v.toFixed(2)+'x':v.toFixed(1); }
   // A detailed IC report across the base case and every requested scenario. The
   // markdown is deliberately thorough — every report should stand on its own.
-  function _multiScenarioReportMd(res){
+  function _multiScenarioReportMd(res, depth){
+    depth=depth||1;
     const rows=[res.base, ...res.results];
     const L=[];
     const title=((document.getElementById('ed-title')||{}).textContent||'').trim() || 'the model';
@@ -18380,6 +18398,38 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
       L.push(`- Net IRR lands at **${_icFmt(IC_CRITERIA[0],r.metrics.IRR)}**${vsBase('IRR')}. ${r.ic.pass?'The case still clears the committee bar.':`It **misses IC** on ${r.ic.rows.filter(x=>!x.pass&&!x.na).map(x=>x.cr.label).join(', ')}.`}`);
       L.push('');
     });
+    // At higher depth: how each IC criterion fared across all cases, and the
+    // headroom or shortfall to the hurdle — the granularity a committee asks for.
+    if(depth>=2){
+      L.push(`### Criterion-by-criterion across the cases`);
+      L.push('');
+      L.push('| IC criterion | Threshold | '+res.results.map(r=>r.name).join(' | ')+' |');
+      L.push('|---|---|'+res.results.map(()=>'---').join('|')+'|');
+      IC_CRITERIA.forEach(cr=>{
+        const cells=res.results.map(r=>{ const v=r.metrics[cr.k]; if(v==null) return '—';
+          const head=v-cr.target; return `${_icFmt(cr,v)} (${head>=0?'+':'−'}${_icFmt(cr,Math.abs(head)).replace(/[%x]/,'')}${cr.unit==='%'?'pp':cr.unit})`; });
+        L.push(`| ${cr.label} | ${cr.op==='>='?'≥':'≤'} ${_icFmt(cr,cr.target)} | ${cells.join(' | ')} |`);
+      });
+      L.push('');
+      L.push(`- The figure in brackets is headroom to the hurdle — negative means the case is through the floor on that measure.`);
+      const binding={};
+      res.results.forEach(r=>{ r.ic.rows.filter(x=>!x.pass&&!x.na).forEach(x=>{ binding[x.cr.label]=(binding[x.cr.label]||0)+1; }); });
+      const bk=Object.keys(binding).sort((a,b)=>binding[b]-binding[a]);
+      if(bk.length) L.push(`- **${bk[0]}** is the binding constraint — it is the criterion breached most often across the stresses (${binding[bk[0]]} of ${res.results.length} cases).`);
+      L.push('');
+      L.push(`### Methodology`);
+      L.push(`- Each case is applied to the live model and the full workbook recalculated; no figure is estimated. A cost case shocks every cost input; a revenue case the income inputs; a timeline case defers every receipt after today while the committed equity stays at time zero.`);
+      L.push(`- IC criteria: Net IRR ≥ 16.0%, equity multiple ≥ 1.35x, yield-on-cost ≥ 7.0%, DSCR ≥ 1.25x — the fund's standing screening hurdles. A case passes only if it clears every testable criterion.`);
+      L.push(`- The model is snapshotted before the run and restored after, so nothing here changes the working file.`);
+      L.push('');
+      L.push(`### Sensitivity read`);
+      const worst=res.results.slice().sort((a,b)=>(a.metrics.IRR??1e9)-(b.metrics.IRR??1e9))[0];
+      const best=res.results.slice().sort((a,b)=>(b.metrics.IRR??-1e9)-(a.metrics.IRR??-1e9))[0];
+      L.push(`- The return is most exposed to **${worst.name.toLowerCase()}** — it takes IRR to **${_icFmt(IC_CRITERIA[0],worst.metrics.IRR)}**, ${worst.ic.pass?'still inside the hurdle':'through the hurdle'}.`);
+      L.push(`- It is most resilient to **${best.name.toLowerCase()}**, holding IRR at **${_icFmt(IC_CRITERIA[0],best.metrics.IRR)}**.`);
+      L.push(`- Read together, the deal ${res.results.every(r=>r.ic.pass)?'holds under every stress requested':res.results.some(r=>r.ic.pass)?'holds under some but not all of the stresses — the position should be sized to the cases that break':'does not survive the requested stresses on current terms'}.`);
+      L.push('');
+    }
     // Recommendation
     L.push(`### Recommendation`);
     if(clears.length===res.results.length){
@@ -18395,19 +18445,37 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
   }
   function _detectMultiScenarioIC(q){
     const s=String(q||'');
-    // Needs at least two case-ish clauses OR an explicit multi-case + report ask.
-    if(!/\b(scenario|case|bear|bull|downside|upside|stress)\b/i.test(s)) return false;
-    if(!/\b(generate|run|build|model|produce|create|give|show|make|prepare)\b/i.test(s)) return false;
+    // Lead with the parse — the keyword gate kept missing "cases" (plural word
+    // boundary) and phrasings like "IC memo comparing …". Two or more named
+    // cases is itself a multi-scenario request; a single case routes here only
+    // when the ask also mentions a report or the committee, so a plain
+    // "what if costs rise 15%" still falls to the single-shock handlers.
     const cases=_parseCustomCases(s);
-    return cases.length>=1 && (cases.length>=2 || /\breport\b|\bpdf\b|\bic\b|investment committee|\bcriteria\b|\bmemo\b/i.test(s));
+    if(!cases.length) return false;
+    const actionish=/\b(generate|run|build|model|produce|create|give|show|make|prepare|compare|stress|export|draft|put together|assess|evaluate)\b/i.test(s);
+    const reportish=/\breport\b|\bpdf\b|\bic\b|investment committee|committee|\bcriteria\b|\bhurdles?\b|\bmemo\b|which\s+(?:ones?\s+)?(?:pass|clear|meet|survive)/i.test(s);
+    return (cases.length>=2 && (actionish||reportish)) || (cases.length>=1 && reportish);
   }
-  async function _multiScenarioAnswer(q, pushBot, wantFileType){
-    if(!_detectMultiScenarioIC(q)) return false;
-    const res=_multiScenarioIC(q);
+  // Remembers the last report so "make it more detailed" can re-run it deeper.
+  let _lastModelReport=null;
+  function _detectMoreDetail(q){
+    const s=String(q||'');
+    return /\b(more|even more|greater|extra|additional|higher|deeper|further)\s+(detail|depth|granular\w*|thorough\w*|comprehensive\w*|colou?r)\b/i.test(s)
+        || /\b(make|go|dig|drill|flesh|expand|elaborate|lengthen)\b[^.]*\b(more detail\w*|deeper|in ?depth|longer|thorough\w*|comprehensive|it out|on (?:that|it|this))\b/i.test(s)
+        || /\b(more detailed|in more detail|the long version|the full version|a fuller|expand (?:that|it|this|on)|add detail|say more|go deeper|dig deeper|drill down|much more)\b/i.test(s)
+        || /^\s*(more|deeper|longer|expand|elaborate)\s*[.!]?\s*$/i.test(s);
+  }
+  async function _multiScenarioAnswer(q, pushBot, wantFileType, depthOverride){
+    if(depthOverride==null && !_detectMultiScenarioIC(q)) return false;
+    const useQ=(depthOverride!=null && _lastModelReport && _lastModelReport.kind==='scenario') ? _lastModelReport.q : q;
+    const res=_multiScenarioIC(useQ);
     if(!res) return false;
-    const md=_multiScenarioReportMd(res);
+    const depth=depthOverride!=null?depthOverride:1;
+    const md=_multiScenarioReportMd(res, depth);
+    _lastModelReport={kind:'scenario', q:useQ, depth};
     // format request?
     const fmt = wantFileType || (typeof _krDetectFileRequest==='function' ? (_krDetectFileRequest(q)||{}).type : null);
+    if(_lastModelReport) _lastModelReport.lastFmt=fmt;
     let html=_fmtDiscountSections(md.replace(/^##\s+/gm,'### '));
     if(fmt && fmt!=='html' && typeof _krMakeFile==='function'){
       try{
@@ -19560,6 +19628,14 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     // the reference workbooks share.
     { const _mr = (typeof _modelReviewAnswer==='function') ? _modelReviewAnswer(q) : null;
       if (_mr) { bot.innerHTML = _fmtDiscountSections(_mr) + '<span class="k-meta">Karaya · checked against nine institutional models</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
+    // "make the report more detailed" — re-run the last report a level deeper.
+    { if (typeof _detectMoreDetail==='function' && _detectMoreDetail(q) && typeof _lastModelReport!=='undefined' && _lastModelReport) {
+        if (_lastModelReport.kind==='scenario') {
+          const nd=(_lastModelReport.depth||1)+1;
+          _multiScenarioAnswer(q, (h)=>{ bot.innerHTML=h; msgs.scrollTop=msgs.scrollHeight; }, _lastModelReport.lastFmt, nd);
+          return;
+        }
+      } }
     // "generate a bear case for the timeline +1yr, one for costs +15%, then a
     // PDF with all the cases that match IC criteria" — custom named scenarios,
     // computed live, judged against the committee bar, composed into a report.
@@ -20874,6 +20950,14 @@ ${body}<hr><footer>Generated by Karaya from live Bohio Workspace data. Draft for
     // the reference workbooks share.
     { const _mr = (typeof _modelReviewAnswer==='function') ? _modelReviewAnswer(q) : null;
       if (_mr) { bot.innerHTML = _fmtDiscountSections(_mr) + '<span class="k-meta">Karaya · checked against nine institutional models</span>'; msgs.scrollTop = msgs.scrollHeight; return; } }
+    // "make the report more detailed" — re-run the last report a level deeper.
+    { if (typeof _detectMoreDetail==='function' && _detectMoreDetail(q) && typeof _lastModelReport!=='undefined' && _lastModelReport) {
+        if (_lastModelReport.kind==='scenario') {
+          const nd=(_lastModelReport.depth||1)+1;
+          _multiScenarioAnswer(q, (h)=>{ bot.innerHTML=h; msgs.scrollTop=msgs.scrollHeight; }, _lastModelReport.lastFmt, nd);
+          return;
+        }
+      } }
     // "generate a bear case for the timeline +1yr, one for costs +15%, then a
     // PDF with all the cases that match IC criteria" — custom named scenarios,
     // computed live, judged against the committee bar, composed into a report.
@@ -23676,7 +23760,8 @@ ${body}<hr><footer>Generated by Karaya from live Bohio Workspace data. Draft for
   // with quarter-on-quarter movement, plus capital activity, risks and outlook —
   // so "the performance of all our funds over the last quarter" is a full
   // document offline, not a stub.
-  function _wfRepDetailedFallback(title){
+  function _wfRepDetailedFallback(title, depth){
+    depth=depth||1;
     const sum=_wfRepSummary(); const a=sum.assets, ccy=sum.ccy;
     const pc=(v)=>(v>=0?'+':'')+v.toFixed(1)+'%';
     const L=[];
@@ -23709,6 +23794,20 @@ ${body}<hr><footer>Generated by Karaya from live Bohio Workspace data. Draft for
     L.push(`- Residual value of **${ccy} ${sum.nav.toFixed(0)}M** held (RVPI ${sum.rvpi.toFixed(2)}x), the bulk in the development and value-add positions.`);
     L.push(`- No capital calls settled outside the notice period this quarter.`);
     L.push('');
+    if(depth>=2){
+      L.push('### Asset deep dives');
+      L.push('');
+      a.forEach(x=>{
+        L.push(`**${x.name}** — NAV ${ccy} ${x.nav.toFixed(0)}M on ${ccy} ${x.invested.toFixed(0)}M invested (${x.moic.toFixed(2)}x), gross IRR ${x.irr.toFixed(1)}%, occupancy ${x.occ.toFixed(0)}%.`);
+        L.push(`- ${x.irr>=16?'Clears the fund\'s 16% return hurdle':'Runs below the 16% hurdle — a hold-and-improve position, not a realisation candidate this quarter'}. ${x.occ>=93?'Fully stabilised on occupancy.':x.occ>=88?'Approaching stabilisation.':'Still in lease-up — the occupancy gap is the main value lever.'}`);
+        L.push(`- At ${((x.nav/sum.nav)*100).toFixed(0)}% of portfolio NAV, it is ${x.nav/sum.nav>0.3?'a concentration the committee should note':'within a comfortable single-asset weight'}.`);
+        L.push('');
+      });
+      L.push('### Methodology & basis');
+      L.push(`- Figures are drawn live from the platform: NAV and IRR from the fund performance feed, occupancy from asset management, capital movements from the ledger. Blended returns are invested-weighted.`);
+      L.push(`- Quarter-on-quarter movements compare against the prior reporting date. Prior NAV is derived from the current position and the quarter's valuation movement, so the bridge always reconciles.`);
+      L.push('');
+    }
     L.push('### Risks and watch items');
     L.push(`- **Concentration** — the top asset is ${((top.nav/sum.nav)*100).toFixed(0)}% of NAV; a single-asset event moves the fund.`);
     L.push(`- **Development exposure** — assets not yet stabilised carry programme and cost risk; a slip or a cost overrun compresses the return (a one-year slip or a 15% cost rise takes the weakest asset below the IC hurdle on the model).`);
@@ -24103,11 +24202,21 @@ ${body}<hr><footer>Generated by Karaya from live Bohio Workspace data. Draft for
     if(notes.length) md=md+'\n\n'+notes.join('\n');
     return md;
   }
+  let _wfRepLastReport=null;
   function _wfRepSend(){
     const input=document.getElementById('wfrep-input'); if(!input) return;
     const q=(input.value||'').trim(); if(!q) return;
     input.value='';
     const msgs=document.getElementById('wfrep-msgs');
+    // "make it more detailed" — re-issue the last report a level deeper.
+    if(typeof _detectMoreDetail==='function' && _detectMoreDetail(q) && _wfRepLastReport){
+      msgs.insertAdjacentHTML('beforeend',`<div style="align-self:flex-end;max-width:86%;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;font-size:11.5px;">${q.replace(/</g,'&lt;')}</div>`);
+      const bot=document.createElement('div'); bot.style.cssText='align-self:flex-start;max-width:92%;font-size:11.5px;line-height:1.7;';
+      msgs.appendChild(bot); msgs.scrollTop=msgs.scrollHeight;
+      const nd=(_wfRepLastReport.depth||1)+1;
+      _wfRepTakeFormat(_wfRepLastReport.fmt||'pdf', nd, bot);
+      return;
+    }
     msgs.insertAdjacentHTML('beforeend',`<div style="align-self:flex-end;max-width:86%;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;font-size:11.5px;line-height:1.55;">${q.replace(/</g,'&lt;')}</div>`);
     // The workflow is: prompt → the report is shown HERE, in HTML, honouring
     // any layout directives → THEN you're asked what format to take it away in.
@@ -24143,16 +24252,18 @@ ${body}<hr><footer>Generated by Karaya from live Bohio Workspace data. Draft for
     </div>`;
   }
   // Build the chosen format from the report on screen, directives and all.
-  async function _wfRepTakeFormat(type){
+  async function _wfRepTakeFormat(type, depth, botOverride){
     const meta=_wfRepPending||{};
+    depth=depth||1;
     const outs=document.querySelectorAll('.wfrep-fmt-out');
-    const out=outs.length?outs[outs.length-1]:null;
+    const out=botOverride || (outs.length?outs[outs.length-1]:null);
     const title=(meta.title)|| (meta.reportType && meta.reportType!=='reit' ? meta.reportType : null) || (_wfRepPortfolioName()+' — reporting pack');
     if(out) out.innerHTML='<span class="kr-stream-text">Preparing your '+(type==='pptx'?'PowerPoint':type.toUpperCase())+'…</span><span class="kr-caret">▍</span>';
     const sum=(typeof _wfRepSummary==='function')?_wfRepSummary():null;
     const ctx=(typeof buildWorkspaceContext==='function')?buildWorkspaceContext():'';
-    const base=_wfRepDetailedFallback(title);
+    const base=_wfRepDetailedFallback(title, depth);
     const content=_wfRepDirectiveContent(base, meta.directives);
+    _wfRepLastReport={fmt:type, depth, title};
     let file;
     try{
       if(type==='html'){
