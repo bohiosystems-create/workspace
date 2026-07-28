@@ -16410,12 +16410,22 @@ Answer as the ${a.name} agent:`;
               issue:`${label} in ${s.cols[ci]}${rnum} is positive (${raw}) — cost lines should be negative.`, current:raw, suggested:'-'+String(raw).replace(/^-/,'') }); break; }
           }
         }
-        // C) stale cached value — formula present but stored value ≠ recompute
+        // C) stale cached value — formula present but stored value MATERIALLY ≠ recompute.
+        // Only flag a real discrepancy: both sides must resolve to finite numbers and
+        // differ by more than a rounding tolerance. This suppresses the noise from
+        // display-rounding (1143807.8108941419 vs 1,143,808) and from functions our
+        // lightweight engine doesn't evaluate (which return null / a non-number).
         if(row.formulas){
           for(let ci=2;ci<row.formulas.length;ci++){ const f=row.formulas[ci]; if(!f) continue;
-            const v=evalFormula(f, sheet); if(v==null) continue; const want=_fmtLike(row.cells[ci], v);
-            if(String(row.cells[ci])!==String(want)){ findings.push({id:++fid, sheet, rnum, col:ci, kind:'stale', label,
-              issue:`${label} ${s.cols[ci]}${rnum} shows ${row.cells[ci]} but its formula (${f}) evaluates to ${want}.`, current:row.cells[ci], suggested:want, refresh:true }); break; }
+            const v=evalFormula(f, sheet); if(v==null) continue;
+            const stored=_cellNum(row.cells[ci]); const rv=(typeof v==='number')?v:_cellNum(v);
+            if(isNaN(stored)||isNaN(rv)) continue;                 // non-numeric / unsupported fn — not a defect
+            const diff=Math.abs(stored-rv), denom=Math.max(1, Math.abs(stored));
+            if(diff/denom>0.01 && diff>0.5){                       // material: >1% AND >0.5 absolute
+              const want=_fmtLike(row.cells[ci], v);
+              findings.push({id:++fid, sheet, rnum, col:ci, kind:'stale', label,
+                issue:`${label} ${s.cols[ci]}${rnum} shows ${row.cells[ci]} but its formula (${f}) evaluates to ${want}.`, current:row.cells[ci], suggested:want, refresh:true }); break;
+            }
           }
         }
         // D) total that doesn't match its components (hardcoded total ≠ SUM above)
@@ -16442,8 +16452,20 @@ Answer as the ${a.name} agent:`;
     });
     // Sanity layer runs alongside the cell-level checks: error values,
     // impossible headline outputs and hardcodes typed over formula rows.
-    const maxId=findings.reduce((m,f)=>Math.max(m,f.id),0);
+    let maxId=findings.reduce((m,f)=>Math.max(m,f.id),0);
     if(typeof _dbgSanityScan==='function'){ try{ findings.push(..._dbgSanityScan(maxId)); }catch(e){} }
+    // Top up to a floor with grounded review points so "find bugs" always returns a
+    // substantive, model-specific set — never an empty or one-line answer on a real model.
+    if(typeof _dbgCuratedFindings==='function'){
+      try{
+        maxId=findings.reduce((m,f)=>Math.max(m,f.id),0);
+        const curated=_dbgCuratedFindings(maxId);
+        const FLOOR=5;
+        // When the deterministic + sanity passes are thin, fold in the grounded
+        // review points so the answer is always a substantive, detailed set.
+        if(findings.length<FLOOR) findings.push(...curated);
+      }catch(e){}
+    }
     const seen=new Set(); _dbgFindings=findings.filter(f=>{ const k=f.sheet+f.rnum+f.col+f.kind; if(seen.has(k))return false; seen.add(k); return true; });
     return _dbgFindings;
   }
@@ -16489,8 +16511,8 @@ Answer as the ${a.name} agent:`;
   function _renderModelDebug(){
     const ov=document.getElementById('dbg-overlay'); if(!ov) return;
     const items=_dbgFindings.map(f=>{
-      const kindLbl={typo:'Label typo',sign:'Sign error',stale:'Stale value',total:'Total mismatch'}[f.kind]||'Issue';
-      const kindCol={typo:'#f5a623',sign:'#e03a3c',stale:'#009ddc',total:'#e03a3c'}[f.kind]||'#888';
+      const kindLbl={typo:'Label typo',sign:'Sign error',stale:'Stale value',total:'Total mismatch',review:'Review point',error:'Error value',implausible:'Implausible output',hardcode:'Hardcode'}[f.kind]||'Issue';
+      const kindCol={typo:'#f5a623',sign:'#e03a3c',stale:'#009ddc',total:'#e03a3c',review:'#e0a63a',error:'#e03a3c',implausible:'#e03a3c',hardcode:'#f5a623'}[f.kind]||'#888';
       return `<div id="dbgf-${f.id}" style="border:1px solid rgba(230,226,226,0.12);border-radius:10px;padding:12px 13px;margin-bottom:10px;background:rgba(230,226,226,0.03);">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
           <span style="font-size:8px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;color:${kindCol};">${kindLbl} · ${f.sheet}!${f.kind==='typo'?'B'+f.rnum:(SHEET_DATA[f.sheet].cols[f.col]+f.rnum)}</span>
@@ -16613,6 +16635,128 @@ Answer as the ${a.name} agent:`;
     {re:/\bltv\b|loan.?to.?(value|cost)|\bltc\b/i, lo:0, hi:100, unit:'%', what:'a leverage ratio'},
     {re:/margin|yield on cost/i,    lo:-100, hi:100,  unit:'%',  what:'a margin'},
   ];
+  // Curated review layer — grounded, model-specific review points that a senior
+  // analyst would raise even when the deterministic checks pass: aggressive-looking
+  // assumptions, un-stressed exit/terminal drivers, hardcoded rates, and structural
+  // gaps (no contingency, no financing cost, no exit cap). Every item references a
+  // REAL cell/label found in the workbook, so the output is always concrete. These
+  // are advisory (judgement calls) — no one-click auto-fix. Used to top the findings
+  // up to a floor so "find bugs" never comes back empty-handed on a real model.
+  function _dbgCuratedFindings(startId){
+    const out=[]; let fid=startId||0;
+    const seenKind={};
+    const push=(theme, sheet, rnum, col, label, issue, suggested)=>{
+      if(seenKind[theme]) return; seenKind[theme]=1;
+      out.push({id:++fid, sheet, rnum, col, kind:'review', label, advisory:true, issue, suggested});
+    };
+    const money=(x)=>{ if(x==null||isNaN(x)) return null; const a=Math.abs(x);
+      return a>=1000 ? Math.round(x).toLocaleString() : (a>=10?x.toFixed(1):x.toFixed(2)); };
+    // Uploaded models often put the row label in a different column than cells[1]
+    // (e.g. column A), so read it with _rowLabel — the same helper the summary uses.
+    const rlabel=(row)=>(typeof _rowLabel==='function'?_rowLabel(row):(row.cells[1]||'')).trim();
+    // Locate a metric row by label and return its first numeric cell with a real ref.
+    const find=(re)=>{
+      for(const sheet of Object.keys(SHEET_DATA)){ const s=SHEET_DATA[sheet]; if(!s||!s.rows||!s.cols) continue;
+        for(const row of s.rows){ const label=rlabel(row); if(!label||!re.test(label.toLowerCase())) continue;
+          for(let ci=2;ci<row.cells.length;ci++){ const n=_cellNum(row.cells[ci]);
+            if(!isNaN(n)&&n!==0){ return {sheet, rnum:row.cells[0], ci, raw:row.cells[ci], n, label, ref:s.cols[ci]+row.cells[0], formula:row.formulas&&row.formulas[ci]}; } } } }
+      return null; };
+    // Last meaningful numeric on a row (for "reaches X" style build lines).
+    const findLast=(re)=>{
+      for(const sheet of Object.keys(SHEET_DATA)){ const s=SHEET_DATA[sheet]; if(!s||!s.rows||!s.cols) continue;
+        for(const row of s.rows){ const label=rlabel(row); if(!label||!re.test(label.toLowerCase())) continue;
+          let last=null; for(let ci=2;ci<row.cells.length;ci++){ const n=_cellNum(row.cells[ci]); if(!isNaN(n)&&n!==0) last={sheet, rnum:row.cells[0], ci, raw:row.cells[ci], n, label, ref:s.cols[ci]+row.cells[0]}; }
+          if(last) return last; } }
+      return null; };
+    const has=(re)=>{ for(const sheet of Object.keys(SHEET_DATA)){ const s=SHEET_DATA[sheet]; if(!s||!s.rows) continue;
+      for(const row of s.rows){ if(re.test(rlabel(row).toLowerCase())) return true; } } return false; };
+
+    // --- Anchored review points: keyed to the model's own headline rows. Matching
+    //     is deliberately tight (start-anchored where possible) and every computed
+    //     claim is sanity-gated, so a loose label match can never print nonsense.
+    const money6=(x)=>Math.abs(x)>=1000;   // is this a real money figure, not a ratio?
+    const rev=findLast(/^(effective gross|total revenue|gross income|total potential income|gross revenue)/i);
+    // Use the stabilised (last meaningful) NOI, not an early negative lease-up year.
+    const noi=findLast(/^(net operating income|noi\b|net rental income)/i);
+    const irr=find(/\b(irr|internal rate of return)\b/i);
+    const exit=find(/^(reversion|terminal value|exit value|net sale|gross sale|sale proceeds|equity proceeds from sale)/i);
+    const cost=find(/^total (project|development|capital)?\s*cost/i) || find(/^total (project|development) cost/i);
+    // an interest RATE, not a loan balance/payoff — small magnitude, rate-like label
+    const rate=find(/^(interest rate|debt rate|loan rate|coupon rate|cost of debt|all.?in rate)/i);
+    const growth=find(/^(growth rate|rent growth|escalation|escalator|indexation|income growth)/i);
+    const vac=find(/^(general vacancy|vacancy|credit loss|stabili[sz]ed occupanc)/i);
+
+    // 1) NOI — completeness of the opex block. Only if it's a genuine money figure.
+    //    A margin is only shown when NOI and revenue sit in the SAME period column
+    //    (same ci) and both are positive — otherwise it's an apples-to-oranges ratio.
+    if(noi && money6(noi.n)){
+      const marginBit=(rev && money6(rev.n) && rev.ci===noi.ci && noi.n>0 && noi.n<rev.n)
+        ? ` Against ${money(rev.n)} of revenue that is a ${((noi.n/rev.n)*100).toFixed(0)}% margin — reasonable only if every operating cost is captured.`
+        : '';
+      push('noi', noi.sheet, noi.rnum, noi.ci, noi.label,
+        `${noi.label} reaches ${money(noi.n)} at stabilisation (${noi.ref}) and is the base for every yield and valuation metric downstream.${marginBit} Verify the opex block feeding it is complete — management fee, reserves, insurance, property tax — and that none of it is also being captured in capex.`,
+        `Trace ${noi.ref} back to its opex components and confirm none are missing or double-counted.`);
+    }
+    // 2) Revenue build — the growth driving it compounds into every downstream year
+    if(rev && money6(rev.n)){
+      push('rev', rev.sheet, rev.rnum, rev.ci, rev.label,
+        `${rev.label} builds to ${money(rev.n)} by the stabilised year (${rev.ref}). The rent-growth and lease-up assumptions driving that ramp compound directly into NOI and exit value — a ±100bps move in growth typically shifts the levered IRR by a point or more. Confirm they are single driver cells and defensible against market comps.`,
+        `Pressure-test the growth/lease-up feeding ${rev.ref} at ±100bps and trace it flows from one driver.`);
+    }
+    // 3) IRR sensitivity — the headline number, and what it hangs on
+    if(irr){
+      const pct=(Math.abs(irr.n)<=2)?(irr.n*100).toFixed(1)+'%':irr.n.toFixed(1)+'%';
+      push('irr', irr.sheet, irr.rnum, irr.ci, irr.label,
+        `${irr.label} in ${irr.ref} resolves to ${pct}, but a single-point IRR hides its drivers. A levered return moves most on exit cap, hold length and rent growth — an IC will expect a sensitivity grid, not one cell. Confirm the cash-flow timing behind ${irr.ref} (spend-vs-income lag, exit in the right period) before it is quoted.`,
+        `Add an IRR sensitivity table over exit cap × rent growth, and verify the period alignment feeding ${irr.ref}.`);
+    }
+    // 4) Exit / reversion dependence — usually the biggest single cash flow
+    if(exit && money6(exit.n)){
+      push('exit', exit.sheet, exit.rnum, exit.ci, exit.label,
+        `${exit.label} of ${money(exit.n)} in ${exit.ref} is typically the largest single cash flow in the model, so the whole return leans on it. ${has(/exit cap|terminal cap|reversion cap|going.?out cap/i)?'Confirm the exit cap driving it is not flat to the going-in cap — a multi-year hold with no cap-rate expansion is an optimistic stance for an IC.':'It does not appear to be derived from an explicit exit cap rate — make that assumption a visible driver cell so the reversion can be stress-tested.'}`,
+        `Sensitise ${exit.ref} at going-in cap and +50/+100bps and show the IC the range.`);
+    }
+    // 5) Interest rate — leverage cuts both ways (only a real RATE row, not a balance)
+    if(rate){
+      const pct=(Math.abs(rate.n)<=1)?(rate.n*100).toFixed(2)+'%':rate.n+'%';
+      push('rate', rate.sheet, rate.rnum, rate.ci, rate.label,
+        `${rate.label} in ${rate.ref} is set to ${pct}. Levered returns are highly geared to the cost of debt — confirm this matches current market pricing for the LTV assumed, that it is a single driver cell (not typed per period), and that a DSCR covenant is tested against it.`,
+        `Check ${rate.ref} against market debt pricing at the model's LTV and add a DSCR covenant test.`);
+    }
+    // 6) Total cost integrity — the denominator of every return
+    if(cost && money6(cost.n)){
+      const missing=[!has(/conting/i)&&'contingency', !has(/financ|interest|debt|carry/i)&&'financing cost'].filter(Boolean);
+      push('cost', cost.sheet, cost.rnum, cost.ci, cost.label,
+        `${cost.label} of ${money(cost.n)} in ${cost.ref} is the denominator of yield-on-cost and the equity multiple, so an omission here flatters every return. Confirm it captures ${(missing.length?missing.join(', ')+', ':'')}land, hard cost, soft cost and fees — a missing bucket silently inflates the IRR.`,
+        `Reconcile ${cost.ref} against a full cost stack (land, hard, soft, fees, financing, contingency).`);
+    }
+    // 7) Growth rate assumption — if the model exposes it as its own line
+    if(growth){
+      const pct=(Math.abs(growth.n)<=1)?(growth.n*100).toFixed(1)+'%':growth.n+'%';
+      push('growth', growth.sheet, growth.rnum, growth.ci, growth.label,
+        `${growth.label} in ${growth.ref} is ${pct}. Compounded over the hold, the growth rate is one of the two or three assumptions the return is most sensitive to — a full point here can move the exit value materially. Confirm it is benchmarked to market rent growth, not a round-number placeholder.`,
+        `Benchmark ${growth.ref} to market rent growth and run a downside case at growth −100bps.`);
+    }
+    // 8) Vacancy / occupancy assumption
+    if(vac){
+      const vShown=(Math.abs(vac.n)<=1)?(vac.n*100).toFixed(1)+'%':vac.raw;
+      push('vac', vac.sheet, vac.rnum, vac.ci, vac.label,
+        `${vac.label} in ${vac.ref} reads ${vShown}. Stabilised vacancy is a headline sensitivity — a thin assumption flatters effective revenue and every yield off it. Verify it reflects submarket data and stress a downside case.`,
+        `Benchmark ${vac.ref} to submarket vacancy and run a downside occupancy case.`);
+    }
+    // 6) Structural gaps — only when genuinely absent across the whole workbook
+    const anySheet=Object.keys(SHEET_DATA)[0]; const anyRow=SHEET_DATA[anySheet]&&SHEET_DATA[anySheet].rows[0];
+    if(anyRow){
+      const rn=anyRow.cells[0];
+      if(!has(/conting/i)) push('gap-conting', anySheet, rn, 1, 'Contingency',
+        'No contingency line appears anywhere in the workbook. Development and value-add budgets carry cost-overrun risk; an IC model without an explicit contingency (typically 5–10% of hard costs) understates downside and overstates the equity return.',
+        'Add a contingency line at 5–10% of hard costs and route it into total cost.');
+      if(!has(/selling cost|disposition|sales? cost|broker|commission|closing cost/i)) push('gap-selling', anySheet, rn, 1, 'Selling costs',
+        'No disposition / selling-cost line was found. Exit proceeds should be net of broker and closing costs (commonly 1–3% of gross sale); omitting them overstates the reversion cash flow and the exit-year IRR.',
+        'Net the reversion by 1–3% disposition costs.');
+    }
+    return out;
+  }
   function _dbgSanityScan(startId){
     const out=[]; let fid=startId||0;
     Object.keys(SHEET_DATA).forEach(sheet=>{
@@ -16761,7 +16905,7 @@ ${dump}`;
     if(!_dbgFindings.length) return fmtKaraya('The deterministic scan found no label typos, sign errors, mismatched totals, stale values, error cells or implausible outputs. Running the full reasoning pass over every formula now…');
     const items=_dbgFindings.map(f=>{
       const kindLbl={typo:'Label typo',sign:'Sign error',stale:'Stale value',total:'Total mismatch',
-                     error:'Error value',implausible:'Implausible output',hardcode:'Hardcode in a formula row'}[f.kind]||'Issue';
+                     error:'Error value',implausible:'Implausible output',hardcode:'Hardcode in a formula row',review:'Review point'}[f.kind]||'Issue';
       const ref=(f.kind==='typo'?(SHEET_DATA[f.sheet].cols[1]||'A'):SHEET_DATA[f.sheet].cols[f.col])+f.rnum;
       // Advisory findings have no single safe auto-fix — they need a decision,
       // so they get no one-click preview button.
@@ -17505,10 +17649,27 @@ Formula: ${formula?String(formula).slice(0,400):'(hardcoded input — no formula
     const yrs=(SHEET_DATA[tabs[0]].headers||[]).filter(h=>/^Y\d+$/.test(h)).length;
     const noi=get(/net operating income/i)||get(/\bnoi\b/i), rev=get(/total revenue|gross income|effective gross/i);
     const irr=get(/\birr\b/i), dscr=get(/dscr/i), em=get(/equity multiple/i);
+    // The last MEANINGFUL value on a metric row — skip the empty Y0/header
+    // column that reads as 0 and would show "0→…".
+    const lastVal=(o)=>{ if(!o||!o.vals) return null;
+      const v=o.vals.map(x=>parseFloat(String(x).replace(/[^0-9.\-]/g,''))).filter(x=>isFinite(x)&&x!==0);
+      return v.length?v[v.length-1]:null; };
+    // Money formatted with thousands separators, never a raw 609176.5159.
+    const money=(x)=>{ if(x==null||!isFinite(x)) return null; const a=Math.abs(x);
+      return a>=1000 ? x.toLocaleString(undefined,{maximumFractionDigits:0}) : (a>=10?x.toFixed(1):x.toFixed(2)); };
+    // A return read sensibly: a fraction (|v|<2) is shown as a percent; a value
+    // already in percent points (2..120) is shown as-is; anything wilder is a
+    // mis-read cell and is dropped rather than printed as garbage (no "IRR 286%").
+    const asPct=(x)=>{ if(x==null||!isFinite(x)) return null; const a=Math.abs(x);
+      if(a<2) return (x*100).toFixed(1)+'%'; if(a<=120) return x.toFixed(1)+'%'; return null; };
+    const asX=(x)=>{ if(x==null||!isFinite(x)) return null; const a=Math.abs(x); return (a>0.2&&a<20)?x.toFixed(2)+'x':null; };
     const bits=[];
     bits.push(`**${name}** is a ${yrs? yrs+'-year ':''}Bohio-format financial model across ${tabs.length} tab${tabs.length===1?'':'s'} — ${tabs.join(', ')}.`);
-    if(rev) bits.push(`It builds revenue (${rev.label} ${rev.vals[0]}→${rev.vals[rev.vals.length-1]})`+(noi?`, nets down to **${noi.label}** (${noi.vals[0]}→${noi.vals[noi.vals.length-1]})`:'')+`.`);
-    const rets=[irr&&`IRR ${irr.vals[irr.vals.length-1]}`, em&&`equity multiple ${em.vals[em.vals.length-1]}`, dscr&&`DSCR ${dscr.vals[0]}`].filter(Boolean);
+    { const rv=lastVal(rev), nv=lastVal(noi);
+      if(rv!=null) bits.push(`It builds revenue (${rev.label} to **${money(rv)}**)`+(nv!=null?`, netting down to ${noi.label} of **${money(nv)}**`:'')+`.`); }
+    const dscrV=dscr?dscr.vals.map(x=>parseFloat(String(x).replace(/[^0-9.\-]/g,''))).filter(x=>isFinite(x)&&x!==0):[];
+    const irrP=asPct(lastVal(irr)), emX=asX(lastVal(em)), dscrX=asX(dscrV.length?dscrV[0]:null);
+    const rets=[irrP&&`IRR ${irrP}`, emX&&`equity multiple ${emX}`, dscrX&&`DSCR ${dscrX}`].filter(Boolean);
     if(rets.length) bits.push(`Headline returns: **${rets.join(', ')}**.`);
     // assumptions from an Assumptions/Inputs tab
     const asmTab=tabs.find(t=>/assumption|input/i.test(t));
