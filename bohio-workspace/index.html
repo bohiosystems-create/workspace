@@ -11707,7 +11707,13 @@ ${H('7 · Recommendations')}
       return `<div class="proj-squircle" onclick="_wsOpenFund('${f.k}')"><div class="psq-top" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">${ftPill}<span class="psq-notif${pending?' has-new':''}">${pending||'—'}</span></div><div class="psq-body"><h3 class="psq-name">${f.name.replace(/^Bohio RE /,'')}</h3><div class="psq-role">${f.vintage} · ${f.status}</div></div><div class="psq-foot"><span class="psq-loc">${f.tag}</span><span class="psq-status"><span class="psq-dot"></span>SAR ${f.nav}M NAV · ${f.irr}</span></div></div>`;
     }).join('');
     const orphanTiles=orphanIds.map(id=>_projectSquircleHTML(id)).join('');
-    host.innerHTML = auroraTile + fundTiles + orphanTiles;
+    // Aggregated all-funds roll-up — total NAV/committed across the book.
+    let dashTile='';
+    if(funds.length){
+      const tNav=funds.reduce((s,f)=>s+(f.nav||0),0), tCom=funds.reduce((s,f)=>s+(f.committed||0),0);
+      dashTile=`<div class="proj-squircle" onclick="openFundsDashboard()" style="background:linear-gradient(135deg,#12331c,#0c1f13);color:#eafaef;cursor:pointer;"><div class="psq-top" style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span class="psq-own" style="font-size:7px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(97,187,70,0.24);color:#bff0c8;">Portfolio</span><span style="font-size:15px;">▤</span></div><div class="psq-body"><h3 class="psq-name" style="color:#fff;">Portfolio Dashboard</h3><div class="psq-role" style="color:#a7d8b4;">All funds · aggregated roll-up</div></div><div class="psq-foot"><span class="psq-loc" style="color:#a7d8b4;">${funds.length} funds</span><span class="psq-status" style="color:#eafaef;"><span class="psq-dot" style="background:#61BB46;"></span>SAR ${Math.round(tNav).toLocaleString()}M NAV · SAR ${Math.round(tCom).toLocaleString()}M</span></div></div>`;
+    }
+    host.innerHTML = dashTile + auroraTile + fundTiles + orphanTiles;
     const titleEl=document.getElementById('ws-projects-title'); if(titleEl) titleEl.textContent='My Funds';
     const metaEl=document.getElementById('ws-projects-meta');
     if(metaEl) metaEl.textContent = funds.length+' fund'+(funds.length===1?'':'s')+(orphanIds.length?' · '+orphanIds.length+' project'+(orphanIds.length===1?'':'s')+' unassigned':'');
@@ -14498,6 +14504,29 @@ Answer as Karaya:`;
     return d._pdfUrl;
   }
 
+  // High-fidelity "Download PDF" for any HTML-bodied readable doc (reports,
+  // dashboards): opens the fully-styled body — charts, tables, KPI tiles and
+  // all — in a print window and invokes the browser's Save-as-PDF, so the PDF
+  // matches the on-screen document exactly rather than a text reduction.
+  function _printReadableDoc(d){
+    const win=window.open('','_blank','width=920,height=1040');
+    if(!win){ if(typeof toast==='function') toast('Allow pop-ups to download the PDF','warn'); else alert('Please allow pop-ups to download the PDF.'); return; }
+    const name=String(d&&d.name||'Report');
+    const css=`
+      @page{ size:A4; margin:15mm 14mm; }
+      *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; box-sizing:border-box; }
+      html,body{ margin:0; }
+      body{ font-family:Georgia,'Times New Roman',serif; color:#1a1f2b; font-size:12px; line-height:1.62; }
+      .rptx table, table{ border-collapse:collapse; width:100%; page-break-inside:auto; }
+      tr{ page-break-inside:avoid; } h4{ page-break-after:avoid; } svg,img{ max-width:100%; }
+      .rpt-kpi, [style*="border-radius"]{ break-inside:avoid; }
+    `;
+    win.document.open();
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${name.replace(/[<>]/g,'')}</title><style>${css}</style></head><body>${(d&&d.docBody)||'<p>No content.</p>'}</body></html>`);
+    win.document.close();
+    const go=()=>{ try{ win.focus(); win.print(); }catch(e){} };
+    if(win.document.readyState==='complete') setTimeout(go,400); else { win.onload=()=>setTimeout(go,400); setTimeout(go,900); }
+  }
   // Readable-document viewer: agreements & reports open as typeset documents
   // you can consult directly (and hand to Karaya for a summary).
   function openReadableDoc(d){
@@ -14520,7 +14549,7 @@ Answer as Karaya:`;
           <div style="font-family:var(--font-display);font-size:21px;margin-top:3px;line-height:1.2;">${String(d.name).replace(/</g,'&lt;')}</div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;">
-          ${pdfUrl?`<a class="action-btn" href="${pdfUrl}" download="${String(d.name).replace(/[^A-Za-z0-9]+/g,'_')}.pdf" style="text-decoration:none;">Download PDF</a>`:''}
+          ${pdfUrl?`<a class="action-btn" href="${pdfUrl}" download="${String(d.name).replace(/[^A-Za-z0-9]+/g,'_')}.pdf" style="text-decoration:none;">Download PDF</a>`:(d.docBody?`<button class="action-btn" id="rdoc-print">Download PDF</button>`:'')}
           <button class="action-btn" onclick="document.getElementById('rdoc-overlay').style.display='none'">Close</button>
         </div>
       </div>
@@ -14533,6 +14562,9 @@ Answer as Karaya:`;
       </div>
     </div>`;
     ov.style.display='flex';
+    // Bind the print/Download-PDF button via closure (functions are lexically
+    // scoped, so an inline onclick can't reach _printReadableDoc).
+    const _pb=ov.querySelector('#rdoc-print'); if(_pb) _pb.onclick=()=>_printReadableDoc(d);
   }
 
   // Chat-triggered lease cashflow: "build a cashflow model from the leases"
@@ -27954,6 +27986,7 @@ ${_RPT_H('5.3','Statement of cash flows (extract)')}
           <div class="wf-sub">Every report across your funds and projects — ${past.length} generated · ${RECURRING_REPORTS.length} recurring scheduled</div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+          <button class="wf-btn" onclick="openFundsDashboard()" title="Aggregated dashboard across all funds">▤ Portfolio dashboard</button>
           <button class="wf-btn" onclick="openCreateReport()" title="Create a new report">+ Create report</button>
           <button class="wf-back" onclick="_reportsHubBack()" aria-label="Back" title="Back">←</button>
         </div>
@@ -27981,6 +28014,140 @@ ${_RPT_H('5.3','Statement of cash flows (extract)')}
     });
     const empty=document.getElementById('rhub-empty'); if(empty) empty.style.display=(query&&visible===0)?'block':'none';
   }
+
+  // ============ AGGREGATED ALL-FUNDS DASHBOARD ============
+  // One roll-up across every fund the firm manages — total AUM/NAV, blended
+  // returns, capital deployment and dry powder, with per-fund breakdown and
+  // charts. Theme-aware (renders inside the fund shell), computed from WF_FUNDS
+  // so it always ties to the individual funds.
+  function _fundsAgg(){
+    const F=(typeof WF_FUNDS!=='undefined'?WF_FUNDS:[]);
+    const committed=F.reduce((s,f)=>s+(f.committed||0),0);
+    const drawn=F.reduce((s,f)=>s+(f.drawn||0),0);
+    const nav=F.reduce((s,f)=>s+(f.nav||0),0);
+    const dist=F.reduce((s,f)=>s+(f.dpi||0)*(f.drawn||0),0);
+    const tv=nav+dist;
+    const irrW=drawn?F.reduce((s,f)=>s+(parseFloat(f.irr)||0)*(f.drawn||0),0)/drawn:0;
+    const tvpi=drawn?tv/drawn:0, dpi=drawn?dist/drawn:0, rvpi=drawn?nav/drawn:0;
+    const dry=committed-drawn, drawnPct=committed?drawn/committed*100:0;
+    return {F, committed, drawn, nav, dist, tv, irrW, tvpi, dpi, rvpi, dry, drawnPct};
+  }
+  function _fundsDashboardHTML(){
+    const a=_fundsAgg(), F=a.F;
+    const n=(x)=>Math.round(x).toLocaleString();
+    const tile=(label,val,color,sub)=>`<div style="border:1px solid var(--ink-hairline);border-radius:14px;padding:15px 17px;background:var(--bg);">
+      <div style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">${label}</div>
+      <div style="font-size:23px;font-weight:700;margin-top:6px;line-height:1.1;${color?'color:'+color+';':''}">${val}</div>
+      ${sub?`<div style="font-size:10px;color:var(--ink-soft);margin-top:5px;">${sub}</div>`:''}</div>`;
+    const kpis=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:6px;">
+      ${tile('Total NAV','SAR '+n(a.nav)+'M','#61BB46','across '+F.length+' funds')}
+      ${tile('Committed capital','SAR '+n(a.committed)+'M',null,a.drawnPct.toFixed(0)+'% drawn')}
+      ${tile('Capital-weighted IRR',a.irrW.toFixed(1)+'%','#61BB46','blended, gross')}
+      ${tile('Blended TVPI',a.tvpi.toFixed(2)+'x',null,'DPI '+a.dpi.toFixed(2)+'x · RVPI '+a.rvpi.toFixed(2)+'x')}
+      ${tile('Dry powder','SAR '+n(a.dry)+'M',null,'undrawn commitments')}</div>`;
+
+    // Horizontal bar helper (theme-aware track, fund-coloured fill)
+    const bars=(rows,max,unit)=>{ const m=max||Math.max(...rows.map(r=>r.v))||1;
+      return `<div style="margin:8px 0 4px;">`+rows.map(r=>`<div style="display:flex;align-items:center;gap:10px;margin:6px 0;font-size:11px;">
+        <div style="width:150px;flex-shrink:0;color:var(--ink);">${r.label}</div>
+        <div style="flex:1;background:var(--ink-hairline);border-radius:4px;height:15px;overflow:hidden;"><div style="width:${Math.max(2,r.v/m*100).toFixed(1)}%;height:100%;background:${r.color||'#61BB46'};border-radius:4px;"></div></div>
+        <div style="width:96px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;color:var(--ink);">${r.disp}</div></div>`).join('')+`</div>`; };
+
+    // Donut — NAV by fund (theme-aware legend)
+    const donut=(()=>{ const size=170, th=30, r=(size-th)/2, cx=size/2, cy=size/2, C=2*Math.PI*r, total=a.nav||1; let off=0;
+      const arcs=F.map(f=>{ const len=(f.nav/total)*C; const s=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${f.col}" stroke-width="${th}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"></circle>`; off+=len; return s; }).join('');
+      const leg=F.map(f=>`<div style="display:flex;align-items:center;gap:7px;font-size:10.5px;margin:4px 0;color:var(--ink);"><span style="width:10px;height:10px;border-radius:2px;background:${f.col};flex-shrink:0;"></span><span>${f.name.replace(/^Bohio RE /,'')}</span><b style="margin-left:auto;padding-left:10px;font-variant-numeric:tabular-nums;">${(f.nav/total*100).toFixed(0)}%</b></div>`).join('');
+      return `<div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap;">
+        <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="flex-shrink:0;">${arcs}
+          <text x="${cx}" y="${cy-1}" text-anchor="middle" font-size="17" font-weight="700" fill="var(--ink)" font-family="system-ui,sans-serif">SAR ${n(a.nav)}M</text>
+          <text x="${cx}" y="${cy+15}" text-anchor="middle" font-size="8" fill="var(--ink-soft)" font-family="system-ui,sans-serif" letter-spacing="0.08em">TOTAL NAV</text></svg>
+        <div style="flex:1;min-width:210px;">${leg}</div></div>`; })();
+
+    // Capital deployment — committed vs drawn per fund (overlaid bars)
+    const maxCom=Math.max(...F.map(f=>f.committed));
+    const deploy=F.map(f=>`<div style="margin:9px 0;font-size:11px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:var(--ink);">${f.name.replace(/^Bohio RE /,'')}</span><span style="color:var(--ink-soft);font-variant-numeric:tabular-nums;">SAR ${n(f.drawn)}M / ${n(f.committed)}M · ${Math.round(f.drawn/f.committed*100)}%</span></div>
+      <div style="position:relative;height:14px;background:var(--ink-hairline);border-radius:4px;overflow:hidden;">
+        <div style="position:absolute;left:0;top:0;height:100%;width:${(f.committed/maxCom*100).toFixed(1)}%;background:var(--ink-hairline);opacity:0.5;"></div>
+        <div style="position:absolute;left:0;top:0;height:100%;width:${(f.drawn/maxCom*100).toFixed(1)}%;background:${f.col};border-radius:4px;"></div></div></div>`).join('');
+
+    // Per-fund table
+    const rc='style="padding:8px 10px;border-bottom:1px solid var(--ink-hairline);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;"';
+    const lc='style="padding:8px 10px;border-bottom:1px solid var(--ink-hairline);"';
+    const hc='style="padding:8px 10px;border-bottom:2px solid var(--ink);text-align:right;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap;"';
+    const hl='style="padding:8px 10px;border-bottom:2px solid var(--ink);text-align:left;font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-soft);"';
+    const rows=F.map(f=>`<tr onclick="_wsOpenFund('${f.k}')" style="cursor:pointer;" onmouseover="this.style.background='var(--ink-hairline)'" onmouseout="this.style.background=''">
+      <td ${lc}><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${f.col};margin-right:8px;"></span><b>${f.name.replace(/^Bohio RE /,'')}</b><div style="font-size:9px;color:var(--ink-soft);margin-left:17px;">${f.tag} · ${f.vintage}</div></td>
+      <td ${rc}>${f.status}</td>
+      <td ${rc}>${n(f.committed)}</td>
+      <td ${rc}>${n(f.drawn)}</td>
+      <td ${rc}>${n(f.nav)}</td>
+      <td ${rc} style="padding:8px 10px;border-bottom:1px solid var(--ink-hairline);text-align:right;color:#61BB46;font-weight:700;">${f.irr}</td>
+      <td ${rc}>${(f.tvpi||0).toFixed(2)}x</td>
+      <td ${rc}>${(f.dpi||0).toFixed(2)}x</td></tr>`).join('');
+    const totalRow=`<tr style="font-weight:700;background:var(--ink-hairline);">
+      <td ${lc}>Portfolio total</td><td ${rc}>${F.length} funds</td>
+      <td ${rc}>${n(a.committed)}</td><td ${rc}>${n(a.drawn)}</td><td ${rc}>${n(a.nav)}</td>
+      <td ${rc} style="padding:8px 10px;text-align:right;color:#61BB46;">${a.irrW.toFixed(1)}%</td>
+      <td ${rc}>${a.tvpi.toFixed(2)}x</td><td ${rc}>${a.dpi.toFixed(2)}x</td></tr>`;
+    const table=`<table style="width:100%;border-collapse:collapse;font-size:11px;">
+      <tr><th ${hl}>Fund</th><th ${hc}>Status</th><th ${hc}>Committed</th><th ${hc}>Drawn</th><th ${hc}>NAV</th><th ${hc}>IRR</th><th ${hc}>TVPI</th><th ${hc}>DPI</th></tr>
+      ${rows}${totalRow}</table><div style="font-size:9.5px;color:var(--ink-soft);margin-top:6px;">Capital figures in SAR M. Click any fund to open it. IRR is capital-weighted (gross); TVPI/DPI blended across the portfolio.</div>`;
+
+    const sub=(t)=>`<div style="font-size:8px;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:22px 0 8px;">${t}</div>`;
+    return `${kpis}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start;margin-top:10px;">
+        <div>${sub('NAV by fund')}${donut}</div>
+        <div>${sub('Capital deployment · drawn vs committed')}${deploy}</div>
+      </div>
+      ${sub('Net multiple (TVPI) by fund')}
+      ${bars(F.map(f=>({label:f.name.replace(/^Bohio RE /,''), v:(f.tvpi||0), disp:(f.tvpi||0).toFixed(2)+'x', color:f.col})), 2)}
+      ${sub('Fund register')}
+      ${table}`;
+  }
+  function openFundsDashboard(){ _wfOpenFundShell(); _renderFundsDashboard(); }
+  function _renderFundsDashboard(){
+    const modal=document.querySelector('#wf-overlay .wf-modal'); if(!modal) return;
+    const a=_fundsAgg();
+    modal.innerHTML=`
+      <div class="wf-head">
+        <div style="min-width:0;">
+          <button onclick="closeWorkflow();goTo('workspace')" style="font-family:inherit;background:transparent;border:none;color:var(--ink-soft);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;padding:0 0 6px;">‹ Workspace</button>
+          <div class="wf-title">Portfolio Dashboard</div>
+          <div class="wf-sub">All funds — SAR ${Math.round(a.nav).toLocaleString()}M NAV · SAR ${Math.round(a.committed).toLocaleString()}M committed · ${a.F.length} funds</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+          <button class="wf-btn" onclick="_downloadFundsDashboardPdf()" title="Download this dashboard as a PDF">Download PDF</button>
+          <button class="wf-back" onclick="closeWorkflow();goTo('workspace')" aria-label="Back" title="Back">←</button>
+        </div>
+      </div>
+      <div class="wf-body" style="padding:18px 24px 40px;overflow-y:auto;">
+        ${_fundsDashboardHTML()}
+      </div>`;
+  }
+  // A print-ready, light-themed version of the dashboard for the PDF export.
+  function _downloadFundsDashboardPdf(){
+    const a=_fundsAgg();
+    // reuse the report design toolkit for a client-grade print rendering
+    const body=`${_rptCover({tag:'Confidential · Portfolio management report', title:'Portfolio Dashboard — All Funds', subtitle:'Bohio Capital Partners — '+a.F.length+' funds under management', accent:'#61BB46', meta:'Aggregated across every managed fund · figures in SAR M · generated by Bohio'})}
+      ${_rptKpis([
+        {label:'Total NAV', value:'SAR '+Math.round(a.nav).toLocaleString()+'M', sub:'across '+a.F.length+' funds', tone:'neutral'},
+        {label:'Committed', value:'SAR '+Math.round(a.committed).toLocaleString()+'M', sub:a.drawnPct.toFixed(0)+'% drawn', tone:'neutral'},
+        {label:'Capital-wtd IRR', value:a.irrW.toFixed(1)+'%', sub:'blended, gross', tone:'pos'},
+        {label:'Blended TVPI', value:a.tvpi.toFixed(2)+'x', sub:'DPI '+a.dpi.toFixed(2)+'x', tone:'neutral'},
+      ])}
+      ${_RPT_H('','NAV by fund')}
+      ${_rptDonut(a.F.map(f=>({label:f.name.replace(/^Bohio RE /,''), value:f.nav, display:Math.round(f.nav/a.nav*100)+'%', color:f.col})), {center:'SAR '+Math.round(a.nav)+'M', centerSub:'TOTAL NAV'})}
+      ${_RPT_H('','Net multiple (TVPI) by fund')}
+      ${_rptBars(a.F.map(f=>({label:f.name.replace(/^Bohio RE /,''), value:(f.tvpi||0), display:(f.tvpi||0).toFixed(2)+'x', color:f.col})), {max:2, lblW:170})}
+      ${_RPT_H('','Fund register')}
+      <table><tr><th ${_RPT_TH}>Fund</th><th ${_RPT_TH} style="text-align:right;">Committed</th><th ${_RPT_TH} style="text-align:right;">Drawn</th><th ${_RPT_TH} style="text-align:right;">NAV</th><th ${_RPT_TH} style="text-align:right;">IRR</th><th ${_RPT_TH} style="text-align:right;">TVPI</th><th ${_RPT_TH} style="text-align:right;">DPI</th></tr>
+      ${a.F.map(f=>`<tr><td ${_RPT_TD}><b>${f.name.replace(/^Bohio RE /,'')}</b> · ${f.status}</td><td ${_RPT_TDR}>${Math.round(f.committed).toLocaleString()}</td><td ${_RPT_TDR}>${Math.round(f.drawn).toLocaleString()}</td><td ${_RPT_TDR}>${Math.round(f.nav).toLocaleString()}</td><td ${_RPT_TDR}>${f.irr}</td><td ${_RPT_TDR}>${(f.tvpi||0).toFixed(2)}x</td><td ${_RPT_TDR}>${(f.dpi||0).toFixed(2)}x</td></tr>`).join('')}
+      <tr style="font-weight:700;background:#faf8f4;"><td ${_RPT_TD}>Portfolio total (${a.F.length} funds)</td><td ${_RPT_TDR}>${Math.round(a.committed).toLocaleString()}</td><td ${_RPT_TDR}>${Math.round(a.drawn).toLocaleString()}</td><td ${_RPT_TDR}>${Math.round(a.nav).toLocaleString()}</td><td ${_RPT_TDR}>${a.irrW.toFixed(1)}%</td><td ${_RPT_TDR}>${a.tvpi.toFixed(2)}x</td><td ${_RPT_TDR}>${a.dpi.toFixed(2)}x</td></tr></table>
+      <div style="border-top:1px solid #e4ddcf;margin-top:20px;padding-top:12px;font-size:10px;color:#6b7280;line-height:1.7;"><strong>Basis of preparation.</strong> Aggregated from Bohio's live fund records. NAV and interim valuations are unaudited. IRR is capital-weighted and gross of fund-level fees; TVPI and DPI are blended across the portfolio. Capital figures in SAR millions. Illustrative demonstration data.</div>`;
+    _printReadableDoc({name:'Portfolio Dashboard — All Funds', docBody:_rptWrap(body)});
+  }
+
   // ============ TOPICS HUB ============
   // Every topic conversation across the platform — project topic rooms (rich
   // multi-agent threads) and fund-level topics — aggregated in one place with
