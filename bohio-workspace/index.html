@@ -27091,7 +27091,299 @@ ${_RPT_H('8','Key dates & outlook')}
 </div>`;
   }
 
+  // Showcase example — a full REIT annual report, structured after a listed
+  // Saudi REIT's statutory annual report (At-a-Glance → Portfolio → Risk →
+  // Governance → Financials). Fictional fund, names and figures throughout.
+  function _reportReitAnnualBody(){
+    const td=_RPT_TD, tdr=_RPT_TDR, th=_RPT_TH;
+    const sec=(n,t)=>`<div style="background:#1a1f2b;color:#f3f0ea;padding:16px 18px;margin:26px 0 10px;border-radius:6px;"><div style="font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:#9ca3af;">Section ${n}</div><div style="font-size:18px;font-weight:700;letter-spacing:0.06em;margin-top:3px;">${t}</div></div>`;
+    // Compact property card (mirrors the per-asset page in a REIT annual report)
+    const prop=(name,tag,d)=>`
+<div style="border:1px solid #d7d2c7;border-radius:8px;padding:14px 16px;margin:10px 0;">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;border-bottom:1px solid #e4ddcf;padding-bottom:7px;margin-bottom:9px;">
+    <div style="font-size:14px;font-weight:700;">${name}</div>
+    <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:#6b7280;">${tag}</div>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:11px;">
+    <tr><td ${td}>Location</td><td ${tdr}>${d.loc}</td><td ${td}>Occupancy rate</td><td ${tdr}>${d.occ}</td></tr>
+    <tr><td ${td}>Acquisition price (SAR)</td><td ${tdr}>${d.acq}</td><td ${td}>Remaining lease term</td><td ${tdr}>${d.lease}</td></tr>
+    <tr><td ${td}>Net acquisition yield</td><td ${tdr}>${d.yield}</td><td ${td}>Number of tenants</td><td ${tdr}>${d.ten}</td></tr>
+    <tr><td ${td}>Fair value estimation* (SAR)</td><td ${tdr}>${d.fv}</td><td ${td}>% of total fund portfolio</td><td ${tdr}>${d.pct}</td></tr>
+  </table>
+  <p style="font-size:11px;color:#374151;margin:9px 0 0;line-height:1.6;">${d.desc}</p>
+</div>`;
+    const risk=(t,desc,mit)=>`<tr><td ${td} style="font-weight:700;white-space:nowrap;vertical-align:top;">${t}</td><td ${td} style="vertical-align:top;">${desc}</td><td ${td} style="vertical-align:top;">${mit}</td></tr>`;
+    return `
+<div style="text-align:center;border-bottom:2px solid #1a1f2b;padding-bottom:18px;margin-bottom:8px;">
+  <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:#6b7280;">Statutory Annual Report · Closed-ended Shariah-compliant REIT</div>
+  <div style="font-size:24px;font-weight:700;margin-top:10px;">MERIDIAN REIT INCOME FUND</div>
+  <div style="font-size:14px;color:#4b5563;margin-top:6px;">Annual Report 2024</div>
+  <div style="font-size:10px;color:#6b7280;margin-top:5px;">Managed by Cordoba Capital · Listed on Tadawul (Saudi Exchange) · For the year ended 31 December 2024</div>
+</div>
+
+${_RPT_H('','Contents')}
+<table style="width:100%;border-collapse:collapse;font-size:12px;margin:8px 0;">
+  <tr><td ${td}><strong>Section 1</strong> · REIT At A Glance</td><td ${tdr}>01</td></tr>
+  <tr><td ${td}><strong>Section 2</strong> · Portfolio Description</td><td ${tdr}>07</td></tr>
+  <tr><td ${td}><strong>Section 3</strong> · Risk Report</td><td ${tdr}>29</td></tr>
+  <tr><td ${td}><strong>Section 4</strong> · Fund Governance</td><td ${tdr}>37</td></tr>
+  <tr><td ${td}><strong>Section 5</strong> · REIT Fund Financials</td><td ${tdr}>53</td></tr>
+</table>
+
+${sec('1','REIT AT A GLANCE')}
+
+${_RPT_H('1.1','Milestones')}
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;">
+  <tr><th ${th}>Date</th><th ${th}>Milestone</th></tr>
+  <tr><td ${td}>June 2019</td><td ${td}>Meridian REIT Income Fund listed on Tadawul.</td></tr>
+  <tr><td ${td}>December 2019</td><td ${td}>Obtained a Shariah-compliant credit facility of SAR 1.2 billion.</td></tr>
+  <tr><td ${td}>March 2020</td><td ${td}>Acquisition of an educational property (Andalus Academy Campus).</td></tr>
+  <tr><td ${td}>November 2020</td><td ${td}>Acquisition of a logistics facility and a boutique hospitality asset.</td></tr>
+  <tr><td ${td}>September 2021</td><td ${td}>SAR 480 million invested in the Cordoba Income Real Estate Fund, managed by Cordoba Capital.</td></tr>
+  <tr><td ${td}>October 2022</td><td ${td}>Acquisition of a retail boulevard and a civic office building.</td></tr>
+  <tr><td ${td}>November 2024</td><td ${td}>Sale of Sadeem Living (partial) and disposal of the Olaya Civic Building commercial component.</td></tr>
+</table>
+
+${_RPT_H('1.2','Annual fund expenses (2024)')}
+<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0;">
+  <tr><th ${th}>Expense</th><th ${th} style="text-align:right;">SAR</th></tr>
+  <tr><td ${td}>Management fee</td><td ${tdr}>17,640,000</td></tr>
+  <tr><td ${td}>Registrar fee</td><td ${tdr}>420,000</td></tr>
+  <tr><td ${td}>Listing fee</td><td ${tdr}>300,000</td></tr>
+  <tr><td ${td}>Custodian fee</td><td ${tdr}>352,000</td></tr>
+  <tr><td ${td}>Administrator fee</td><td ${tdr}>398,400</td></tr>
+  <tr><td ${td}>Auditor fee</td><td ${tdr}>75,000</td></tr>
+  <tr><td ${td}>Board oversight fee</td><td ${tdr}>24,000</td></tr>
+  <tr><td ${td}>Other fund fees</td><td ${tdr}>11,842,600</td></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td ${td}>Grand total</td><td ${tdr}>31,052,000</td></tr>
+</table>
+<p style="font-size:11px;color:#4b5563;">Percentage of fund expenses to the fund's total assets value: <strong>1.42%</strong>.</p>
+
+${_RPT_H('1.3',"Percentage of each property's rent to total fund rent")}
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;">
+  <tr><th ${th}>Property</th><th ${th} style="text-align:right;">2022</th><th ${th} style="text-align:right;">2023</th><th ${th} style="text-align:right;">2024</th></tr>
+  <tr><td ${td}>Andalus Academy Campus</td><td ${tdr}>12.4%</td><td ${tdr}>11.6%</td><td ${tdr}>11%</td></tr>
+  <tr><td ${td}>Azure Residences</td><td ${tdr}>34.8%</td><td ${tdr}>29.7%</td><td ${tdr}>27%</td></tr>
+  <tr><td ${td}>Rawdah Logistics Park</td><td ${tdr}>15.1%</td><td ${tdr}>13.8%</td><td ${tdr}>13%</td></tr>
+  <tr><td ${td}>Meridian Office Tower</td><td ${tdr}>10.7%</td><td ${tdr}>9.6%</td><td ${tdr}>9%</td></tr>
+  <tr><td ${td}>Sadeem Living</td><td ${tdr}>5.9%</td><td ${tdr}>5.1%</td><td ${tdr}>4%</td></tr>
+  <tr><td ${td}>Olaya Civic Building</td><td ${tdr}>4.8%</td><td ${tdr}>4.2%</td><td ${tdr}>4%</td></tr>
+  <tr><td ${td}>Yasmeen Boutique Hotel</td><td ${tdr}>1.9%</td><td ${tdr}>2.2%</td><td ${tdr}>2%</td></tr>
+  <tr><td ${td}>Qasr Retail Boulevard</td><td ${tdr}>7.9%</td><td ${tdr}>15.6%</td><td ${tdr}>15%</td></tr>
+  <tr><td ${td}>Nassim Office Complex</td><td ${tdr}>6.5%</td><td ${tdr}>8.2%</td><td ${tdr}>7%</td></tr>
+  <tr><td ${td}>Cordoba Income REF units</td><td ${tdr}>—</td><td ${tdr}>—</td><td ${tdr}>8%</td></tr>
+</table>
+
+${_RPT_H('1.4','Financial performance')}
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;">
+  <tr><th ${th}>Portfolio characteristics</th><th ${th} style="text-align:right;">2022</th><th ${th} style="text-align:right;">2023</th><th ${th} style="text-align:right;">2024</th></tr>
+  <tr><td ${td}>Number of properties</td><td ${tdr}>8</td><td ${tdr}>9</td><td ${tdr}>9</td></tr>
+  <tr><td ${td}>Total land area (sq. m)</td><td ${tdr}>361,420</td><td ${tdr}>372,110</td><td ${tdr}>378,540</td></tr>
+  <tr><td ${td}>Total BUA (sq. m)</td><td ${tdr}>461,980</td><td ${tdr}>470,220</td><td ${tdr}>479,300</td></tr>
+  <tr><td ${td}>Portfolio occupancy</td><td ${tdr}>98.2%</td><td ${tdr}>99.1%</td><td ${tdr}>99.3%</td></tr>
+  <tr><td ${td}>Number of tenants</td><td ${tdr}>44</td><td ${tdr}>58</td><td ${tdr}>67</td></tr>
+  <tr><td ${td}>WAULT (years)</td><td ${tdr}>4.36</td><td ${tdr}>5.12</td><td ${tdr}>5.94</td></tr>
+  <tr><td ${td}>Fair market value (SAR)</td><td ${tdr}>1,942,600,000</td><td ${tdr}>2,088,400,000</td><td ${tdr}>2,231,700,000</td></tr>
+</table>
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;">
+  <tr><th ${th}>Fund metrics</th><th ${th} style="text-align:right;">2022</th><th ${th} style="text-align:right;">2023</th><th ${th} style="text-align:right;">2024</th></tr>
+  <tr><td ${td}>Net asset value — cost (SAR)</td><td ${tdr}>1,868,300,000</td><td ${tdr}>1,905,600,000</td><td ${tdr}>1,972,400,000</td></tr>
+  <tr><td ${td}>Net asset value — fair value (SAR)</td><td ${tdr}>2,096,900,000</td><td ${tdr}>2,182,300,000</td><td ${tdr}>2,240,000,000</td></tr>
+  <tr><td ${td}>Fair value NAV per unit</td><td ${tdr}>10.48</td><td ${tdr}>10.91</td><td ${tdr}>11.20</td></tr>
+  <tr><td ${td}>Number of issued units</td><td ${tdr}>200,000,000</td><td ${tdr}>200,000,000</td><td ${tdr}>200,000,000</td></tr>
+  <tr><td ${td}>Distributed dividends per unit</td><td ${tdr}>0.78</td><td ${tdr}>0.80</td><td ${tdr}>0.82</td></tr>
+  <tr><td ${td}>Fund expenses to total assets</td><td ${tdr}>1.08%</td><td ${tdr}>1.31%</td><td ${tdr}>1.42%</td></tr>
+  <tr><td ${td}>LTV</td><td ${tdr}>18.4%</td><td ${tdr}>11.6%</td><td ${tdr}>9.2%</td></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td ${td}>Annual return</td><td ${tdr}>3.94%</td><td ${tdr}>8.71%</td><td ${tdr}>13.10%</td></tr>
+</table>
+<p style="font-size:11px;color:#4b5563;"><strong>Loan maturity date:</strong> 15/09/2029. <strong>Special commission:</strong> no special commission was received by the Fund Manager during 2024.</p>
+
+${_RPT_H('1.5','Annual fund performance comparison')}
+<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0;">
+  <tr><th ${th}>Index (2024)</th><th ${th} style="text-align:right;">Return</th></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td ${td}>Meridian REIT Income Fund</td><td ${tdr}>13.10%</td></tr>
+  <tr><td ${td}>Tadawul All Share Index (TASI)</td><td ${tdr}>9.60%</td></tr>
+  <tr><td ${td}>Tadawul REITs Index</td><td ${tdr}>−2.40%</td></tr>
+</table>
+<p style="font-size:10.5px;color:#6b7280;">* The Fund's annual return is calculated from the capital gain in the unit trading price plus dividend yield. Source: Bloomberg. TASI tracks all companies listed on the Saudi Exchange; the Tadawul REITs Index tracks all listed REITs.</p>
+
+${_RPT_H('1.6','Fund returns profile')}
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;">
+  <tr><th ${th}>2019</th><th ${th}>2020</th><th ${th}>2021</th><th ${th}>2022</th><th ${th}>2023</th><th ${th}>2024</th></tr>
+  <tr><td ${tdr}>9.42%</td><td ${tdr}>6.88%</td><td ${tdr}>10.15%</td><td ${tdr}>3.94%</td><td ${tdr}>8.71%</td><td ${tdr}>13.10%</td></tr>
+</table>
+<p style="font-size:11px;color:#4b5563;"><strong>1-year return</strong> 13.10% · <strong>3-year return</strong> 27.66% · <strong>Since-inception return</strong> 62.30%.</p>
+
+${sec('2','PORTFOLIO DESCRIPTION')}
+
+${_RPT_H('2.1','Portfolio allocation')}
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;">
+  <tr><th ${th}>By sector</th><th ${th} style="text-align:right;">Weight</th><th ${th}>By asset</th><th ${th} style="text-align:right;">Weight</th></tr>
+  <tr><td ${td}>Residential</td><td ${tdr}>31%</td><td ${td}>Azure Residences</td><td ${tdr}>27%</td></tr>
+  <tr><td ${td}>Retail</td><td ${tdr}>15%</td><td ${td}>Qasr Retail Boulevard</td><td ${tdr}>15%</td></tr>
+  <tr><td ${td}>Logistics</td><td ${tdr}>13%</td><td ${td}>Rawdah Logistics Park</td><td ${tdr}>13%</td></tr>
+  <tr><td ${td}>Educational</td><td ${tdr}>11%</td><td ${td}>Andalus Academy Campus</td><td ${tdr}>11%</td></tr>
+  <tr><td ${td}>Office</td><td ${tdr}>16%</td><td ${td}>Meridian Office Tower</td><td ${tdr}>9%</td></tr>
+  <tr><td ${td}>Hospitality</td><td ${tdr}>2%</td><td ${td}>Nassim Office Complex</td><td ${tdr}>7%</td></tr>
+  <tr><td ${td}>Fund units</td><td ${tdr}>8%</td><td ${td}>Sadeem Living</td><td ${tdr}>4%</td></tr>
+  <tr><td ${td}>Commercial</td><td ${tdr}>4%</td><td ${td}>Olaya Civic Building</td><td ${tdr}>4%</td></tr>
+  <tr><td ${td}></td><td ${tdr}></td><td ${td}>Yasmeen Boutique Hotel</td><td ${tdr}>2%</td></tr>
+  <tr><td ${td}></td><td ${tdr}></td><td ${td}>Cordoba Income REF units</td><td ${tdr}>8%</td></tr>
+</table>
+<p style="font-size:11px;color:#4b5563;"><strong>Portfolio occupancy:</strong> 99% of income-generating assets leased; 1% unleased, as of 31 December 2024. <strong>Targeted assets:</strong> no active transactions at year-end; the Fund Manager continues to screen for accretive acquisitions.</p>
+
+${_RPT_H('2.2','Assets')}
+${prop('Andalus Academy Campus','Educational · Riyadh',{loc:'Al Nakheel District, Riyadh',acq:'210,000,000',yield:'8.1%',ten:'1',fv:'238,500,000',occ:'100%',lease:'13 years',pct:'11%',desc:'A four-storey academic campus with a two-level basement, mezzanine and roof plant, on a built-up area of approximately 42,900 sq. m. Single-tenant, let on a long-dated triple-net lease to an established education operator.'})}
+${prop('Azure Residences','Residential · Riyadh',{loc:'Al Yasmin District, Riyadh',acq:'628,000,000',yield:'8.4%',ten:'1',fv:'648,000,000',occ:'100%',lease:'5 years',pct:'27%',desc:'A mixed-use residential compound of 612 apartments across three building types (A, B and C) plus 24 retail units, a commercial building and a mosque, with basement parking and a total built-up area of 158,640 sq. m. Let in full under a single master-lease.'})}
+${prop('Rawdah Logistics Park','Logistics · Riyadh',{loc:'Al Faisaliah Industrial District, Riyadh',acq:'232,400,000',yield:'9.1%',ten:'11',fv:'276,900,000',occ:'100%',lease:'6 years',pct:'13%',desc:'An industrial complex of warehouse, office and accommodation buildings, guardhouses, a concrete perimeter wall and an asphalted yard, total built-up area 147,800 sq. m. The office-and-accommodation block is two storeys and the estate is fully served by a firefighting system.'})}
+${prop('Meridian Office Tower','Office · Dammam',{loc:'Al Dammam',acq:'268,000,000',yield:'8.6%',ten:'1',fv:'214,600,000',occ:'100%',lease:'3 years',pct:'9%',desc:'A newly constructed office tower with a three-level basement, built mainly of concrete, with net leasable area of 20,340 sq. m. Single-tenant on a corporate lease.'})}
+${prop('Sadeem Living','Residential · Khobar',{loc:'Al Khobar',acq:'118,200,000',yield:'8.2%',ten:'1',fv:'94,300,000',occ:'100%',lease:'1 year',pct:'4%',desc:'A residential apartment complex of six identical six-storey buildings. A partial disposal was agreed during 2024 (see Material Changes).'})}
+${prop('Olaya Civic Building','Commercial · Riyadh',{loc:'Riyadh',acq:'62,000,000',yield:'10.1%',ten:'1',fv:'80,400,000',occ:'100%',lease:'4 months',pct:'4%',desc:'An eight-storey commercial building with two-level basement parking, of reinforced-concrete structure with glass-and-aluminium cladding, on a 3,300 sq. m plot with a built-up area of 8,540 sq. m.'})}
+${prop('Yasmeen Boutique Hotel','Hospitality · Riyadh',{loc:'Riyadh',acq:'36,500,000',yield:'9.0%',ten:'1',fv:'49,700,000',occ:'100%',lease:'7 years',pct:'2%',desc:'A two-storey boutique hotel with mezzanine and basement parking, of reinforced-concrete structure, on a 3,640 sq. m plot with a built-up area (including basement) of 6,610 sq. m. The hotel occupies 4,290 sq. m of GLA.'})}
+${prop('Qasr Retail Boulevard','Retail · Riyadh',{loc:'Riyadh',acq:'318,000,000',yield:'8.8%',ten:'38',fv:'352,700,000',occ:'98%',lease:'4 years',pct:'15%',desc:'An open-air retail boulevard of anchor and line-shop units with structured and surface parking, total leasable area 41,200 sq. m. Multi-tenant, with a diversified F&B and lifestyle mix.'})}
+${prop('Nassim Office Complex','Office · Riyadh',{loc:'Riyadh',acq:'124,000,000',yield:'9.4%',ten:'7',fv:'156,800,000',occ:'100%',lease:'4 years',pct:'7%',desc:'An office complex of five buildings with a total built-up area of 9,300 sq. m, multi-tenant, in a prime Riyadh sub-market.'})}
+${prop('Cordoba Income REF units','Fund units · Diversified',{loc:'Kingdom of Saudi Arabia',acq:'480,000,000',yield:'10.0% (expected 5-yr avg.)',ten:'—',fv:'201,300,000',occ:'—',lease:'—',pct:'8%',desc:'Units in the Cordoba Income Real Estate Fund, a closed-ended Shariah-compliant fund seeded with income-generating assets across the Kingdom. During 2024 the Fund redeemed part of its holding (see Risk Report and Material Changes); the residual holding provides diversification of income sources.'})}
+
+${sec('3','RISK REPORT')}
+
+${_RPT_H('3.1','Fund details')}
+<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0;">
+  <tr><td ${td} style="font-weight:700;">Fund name</td><td ${td}>Meridian REIT Income Fund</td></tr>
+  <tr><td ${td} style="font-weight:700;">Fund manager</td><td ${td}>Cordoba Capital</td></tr>
+  <tr><td ${td} style="font-weight:700;">Listing exchange</td><td ${td}>Tadawul (Saudi Exchange), listed June 2019</td></tr>
+  <tr><td ${td} style="font-weight:700;">Type of fund</td><td ${td}>Closed-ended, Shariah-compliant</td></tr>
+  <tr><td ${td} style="font-weight:700;">Authorised capital</td><td ${td}>SAR 2,000,000,000 (200,000,000 units)</td></tr>
+  <tr><td ${td} style="font-weight:700;">Fair value NAV per unit</td><td ${td}>11.20 (as of 31 Dec 2024)</td></tr>
+  <tr><td ${td} style="font-weight:700;">Number of properties</td><td ${td}>9</td></tr>
+  <tr><td ${td} style="font-weight:700;">Fund term</td><td ${td}>99 years, extendable for additional periods</td></tr>
+  <tr><td ${td} style="font-weight:700;">Risk level</td><td ${td}>Below average / Low</td></tr>
+</table>
+
+${_RPT_H('3.2','Key risks')}
+<table style="width:100%;border-collapse:collapse;font-size:10.5px;margin:8px 0;">
+  <tr><th ${th}>Risk type</th><th ${th}>Risk description</th><th ${th}>Risk mitigation</th></tr>
+  ${risk('Economic risk','Changes in economic conditions, including growth, inflation, new regulation, political events and trends, can affect the Fund’s prospects.','The Fund Manager monitors macroeconomic and regulatory trends and takes proactive steps to minimise the impact where possible.')}
+  ${risk('Legal & regulatory','Failure to adhere to the rules stipulated by the CMA can result in suspension of trading or cancellation of the listing.','Qualified personnel manage compliance and monitor all regulatory requirements, taking the steps necessary to avoid non-compliant practices.')}
+  ${risk('Occupancy risk','Risk that expected occupancy rates are not achieved, affecting the profitability of the Fund.','All assets have strong fundamentals and cash-generation characteristics. Leases run 3–20 years with 12-month notice, providing margins of safety on occupancy.')}
+  ${risk('Development risk','Risks associated with assets under development, including construction delay and cost overruns.','All properties owned by the Fund are fully developed; there is no development-risk exposure at year-end.')}
+  ${risk('Credit risk','Risk relating to the inability of tenants to meet payment obligations to the Fund.','Credit assessment is conducted before onboarding tenants; outstanding dues are monitored and followed up regularly.')}
+  ${risk('Financing risk','Risk that the Fund is unable to raise financing from the market to continue or expand operations.','The Fund holds a committed SAR 1.2 billion credit facility, of which SAR 184 million is utilised — keeping financing risk at a minimum.')}
+  ${risk('Interest / profit-rate','Risk that the value of the Fund’s assets and instruments fluctuates with adverse changes in profit/interest rates.','The Fund is leveraged on a floating rate (SAIBOR + 140 bps). Exposure is monitored regularly; the Manager mitigates by selling weaker assets and repaying debt.')}
+  ${risk('Counterparty concentration','Risk from a single counterparty holding the largest concentration of leased assets.','Six assets are single-tenant with different lessees and three are multi-tenant. The Cordoba REF distribution represented 17.4% of revenue, diversifying income sources.')}
+  ${risk('Sector concentration','Risk that all assets belong to the same sector.','The Fund is diversified across residential, retail, logistics, office, educational, hospitality and commercial assets, plus fund units.')}
+  ${risk('Liquidity risk','Risk of the Fund being unable to meet short-term financial demands (debt service, distributions, opex).','Operating cash flow is the primary source of liquidity; an unutilised credit line of SAR 1.02 billion partly mitigates the risk.')}
+  ${risk('Leverage risk','Risk that the Fund cannot generate income to service its debt, triggering an event of default.','Detailed cash-flow statements are monitored per asset and fund-wide; all debt covenants were met as of 31/12/2024.')}
+  ${risk('Asset valuation','Incorrect valuation of properties resulting in notional and reputational losses.','Valuations are carried out by two independent TAQEEM-accredited valuers; the Manager uses the average of the two for reporting.')}
+  ${risk('ESG risk','Environmental, social and governance factors affecting the sustainability and societal impact of the investment.','ESG risks are accounted for in the independent valuation process and in due diligence, with increasing Manager oversight.')}
+</table>
+
+${_RPT_H('3.3','Conclusion')}
+<p>The Meridian REIT Income Fund is exposed to the risks identified above, which the Fund Manager has mitigated through active management. Over the year the Fund diversified its tenant base to reduce single-tenant income concentration, and it spans commercial, industrial and residential assets to lower sector concentration. During 2024 the Fund redeemed <strong>28,400,000</strong> units of the Cordoba Income REF for <strong>SAR 361,200,000</strong>; the carrying value at redemption was <strong>SAR 322,700,000</strong>, realising a gain of <strong>SAR 38,500,000</strong>. An unutilised credit facility of <strong>SAR 1.02 billion</strong> supports a flexible balance sheet for swift acquisitions. Overall fund risk remained <strong>"Below Average / Low"</strong>, broadly consistent with 2023.</p>
+
+${sec('4','FUND GOVERNANCE')}
+
+${_RPT_H('4.1','About the REIT & the Fund Manager')}
+<p>The Meridian REIT Income Fund is a closed-ended, Shariah-compliant, exchange-traded real estate investment fund managed by <strong>Cordoba Capital</strong> and operating under the Real Estate Investment Fund Regulations and the REIT Instructions. Cordoba Capital is an investment-management and advisory firm headquartered in Riyadh with over <strong>SAR 48.6 billion</strong> in client assets under management and advisement, serving government entities, institutional investors, family offices and high-net-worth individuals. It is licensed by the Capital Market Authority (CMA) as an authorised person (licence no. 08127-41). Cordoba Capital is also the Fund administrator and has delegated certain administrative functions to Apex Fund Services (Dubai) Ltd.</p>
+
+${_RPT_H('4.2','Delegation to third parties')}
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;">
+  <tr><th ${th}>Role</th><th ${th}>Provider</th><th ${th}>Location</th></tr>
+  <tr><td ${td}>Custodian</td><td ${td}>Northgate Investment Company</td><td ${td}>Riyadh, KSA</td></tr>
+  <tr><td ${td}>Auditor</td><td ${td}>Rowad &amp; Sadiq Chartered Accountants</td><td ${td}>Riyadh, KSA</td></tr>
+  <tr><td ${td}>Administrator</td><td ${td}>Cordoba Capital (delegated to Apex Fund Services)</td><td ${td}>Riyadh / Dubai</td></tr>
+  <tr><td ${td}>Legal advisor</td><td ${td}>Meridian Chambers Law Firm</td><td ${td}>Riyadh, KSA</td></tr>
+  <tr><td ${td}>Third-party valuers</td><td ${td}>ValuCore Company · Cardinal Valuation Partners</td><td ${td}>Riyadh, KSA</td></tr>
+  <tr><td ${td}>VAT consultant</td><td ${td}>Beacon Advisory (audit &amp; tax)</td><td ${td}>Riyadh, KSA</td></tr>
+</table>
+
+${_RPT_H('4.3','Conflicts of interest')}
+<p>As of 31 December 2024 there are no transactions involving material conflicts of interest between the Meridian REIT Income Fund, Cordoba Capital, its board or any third party. Where Cordoba Capital has a material conflict with the Fund, it will make full disclosure to the Fund Board as soon as practicable and will seek to resolve any conflict in good faith, having regard to the interests of all affected investors and parties as a whole.</p>
+
+${_RPT_H('4.4','Material changes')}
+<ul style="margin:6px 0 6px 18px;line-height:1.7;font-size:11.5px;">
+  <li><strong>21/02/2024</strong> — Cordoba Capital signed a new master-lease for <strong>Azure Residences</strong> with a national operator to lease the compound in full at a total annual rent of <strong>SAR 54,000,000</strong> (excluding VAT) for five years, ensuring continuity of 100% occupancy with a robust tenant.</li>
+  <li><strong>06/05/2024</strong> — Addendum to a sale-and-purchase agreement for a leased land parcel in Jeddah (161,276 sq. m), reducing the acquisition price from <strong>SAR 500m to SAR 420m</strong> (excluding RETT and fees), a 16% decrease that lifted the average acquisition yield to <strong>9.05%</strong>.</li>
+  <li><strong>18/07/2024</strong> — The Cordoba Income REF successfully exited an underlying asset representing more than 70% of its real estate portfolio at a price of <strong>SAR 2.6 billion</strong>.</li>
+  <li><strong>15/09/2024</strong> — Signing of a Shariah-compliant facility with a limit of <strong>SAR 1,200,000,000</strong>, used to refinance the existing facility and fund the Fund's investment objectives, reducing the profit margin to <strong>SAIBOR + 1.4%</strong>.</li>
+  <li><strong>27/09/2024</strong> — The Fund received a total cash distribution of <strong>SAR 361,200,000</strong> (SAR 9.05 per unit of the underlying fund) following the Cordoba REF exit.</li>
+  <li><strong>08/11/2024</strong> — The Fund signed a Sale &amp; Purchase Agreement for a newly developed office complex (land 6,000 sq. m; BUA 18,600 sq. m) at a purchase price of <strong>SAR 124 million</strong> (excluding RETT), 62% leased with revenue of SAR 7.4 million; funded from the available facility and subject to due diligence.</li>
+</ul>
+
+${_RPT_H('4.5',"Fund's Board")}
+<p>The Fund Board oversees the resolution of conflicts of interest and owes fiduciary duties to investors under the Real Estate Investment Fund Regulations. As at 31 December 2024 the Board comprised five members appointed by the Fund Manager, of whom two are independent.</p>
+<p style="font-size:11.5px;color:#374151;"><strong>Board meetings (2024).</strong> The first meeting (June 2024) reviewed the general performance of the Saudi REIT market and the Fund's financial performance for H1 2024. The second (December 2024) reviewed full-year market and Fund performance. <strong>Resolutions</strong> during 2024 included: approval of the annual financial statements; approval of the Azure Residences leasing; appointment of ValuCore and Cardinal Valuation Partners as valuers; increasing the Board from four to five members; approval of a Shariah-compliant facility of up to SAR 1.2 billion; and approval of the partial sale of Sadeem Living.</p>
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;">
+  <tr><th ${th}>Member</th><th ${th}>Role</th><th ${th}>Background</th></tr>
+  <tr><td ${td}>Faisal Al Turki</td><td ${td}>Chairman</td><td ${td}>Director of Private &amp; Institutional Client Investments at Cordoba Capital; 15+ years in business development and wealth management; certified financial planner.</td></tr>
+  <tr><td ${td}>Reem Al Dossary</td><td ${td}>Board member</td><td ${td}>Founding partner of a real-estate development company; MSc in Economics; advisor to public and private entities on real-estate finance and investment.</td></tr>
+  <tr><td ${td}>Dr. Sami Al Harbi</td><td ${td}>Independent director</td><td ${td}>Legal advisor to commercial and industrial companies; former judicial lieutenant and board secretary at a listed securities company.</td></tr>
+  <tr><td ${td}>Tariq Al Nasser</td><td ${td}>Independent director</td><td ${td}>Vice Chairman &amp; CEO of an investment company; 20+ years in investment and business development; industrial-engineering degree and certified project manager.</td></tr>
+  <tr><td ${td}>Dr. Lina Al Rashid</td><td ${td}>Board member</td><td ${td}>Senior economist on the Cordoba research team; former university lecturer in economics; PhD in Economics.</td></tr>
+</table>
+<p style="font-size:11px;color:#4b5563;"><strong>Subsequent events.</strong> On 22/02/2025 the completion and title transfer of the Jeddah land parcel was recorded; on 05/03/2025 the completion of the Sadeem Living partial sale and receipt of proceeds was recorded.</p>
+
+${_RPT_H('4.6','Shariah Board')}
+<p>The Fund Manager has appointed a Shariah Board of four scholars expert in Islamic Shariah, which monitors the business, operations, investments and financings of the Fund to ensure compliance with Islamic principles. Monitoring includes periodic reviews, review of agreements and contracts, follow-up on operations, and escalation of any potential Shariah violations, together with the purification of any non-compliant proceeds.</p>
+<table style="width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;">
+  <tr><th ${th}>Scholar</th><th ${th}>Background</th></tr>
+  <tr><td ${td}>Sheikh Dr. Abdulrahman Al Fadl</td><td ${td}>Senior scholar and advisor; member of the Shariah boards of several financial institutions in the Kingdom.</td></tr>
+  <tr><td ${td}>Sheikh Dr. Yousef Al Qassim</td><td ${td}>Professor of Islamic economics; expert with a regional Fiqh academy.</td></tr>
+  <tr><td ${td}>Sheikh Majed Al Otaibi</td><td ${td}>18 years in Islamic banking; heads the Shariah group at Cordoba Capital.</td></tr>
+  <tr><td ${td}>Sheikh Khalid Al Ghamdi</td><td ${td}>Head of Shariah research; 14 years in investment banking; author of several Shariah research papers.</td></tr>
+</table>
+<p style="font-size:11px;color:#4b5563;">The Fund Manager bears the expenses of the Shariah Board. Investments in real-estate assets are permissible subject to the Shariah Board's guidelines: purchase-and-sale agreements in approved form; assets accurately known through due diligence; a known price; no lease executed before completion of purchase; and all Murabaha transactions denominated in SAR.</p>
+
+${sec('5','REIT FUND FINANCIALS')}
+
+${_RPT_H('5.1','Statement of financial position (extract)')}
+<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0;">
+  <tr><th ${th}>SAR '000</th><th ${th} style="text-align:right;">31 Dec 2024</th><th ${th} style="text-align:right;">31 Dec 2023</th></tr>
+  <tr><td ${td}>Investment properties, at fair value</td><td ${tdr}>2,231,700</td><td ${tdr}>2,088,400</td></tr>
+  <tr><td ${td}>Investment in Cordoba Income REF</td><td ${tdr}>201,300</td><td ${tdr}>498,000</td></tr>
+  <tr><td ${td}>Cash and cash equivalents</td><td ${tdr}>96,400</td><td ${tdr}>71,900</td></tr>
+  <tr><td ${td}>Receivables and prepayments</td><td ${tdr}>34,800</td><td ${tdr}>29,600</td></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td ${td}>Total assets</td><td ${tdr}>2,564,200</td><td ${tdr}>2,687,900</td></tr>
+  <tr><td ${td}>Islamic financing (Murabaha)</td><td ${tdr}>236,000</td><td ${tdr}>420,000</td></tr>
+  <tr><td ${td}>Payables and accruals</td><td ${tdr}>88,200</td><td ${tdr}>85,600</td></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td ${td}>Total liabilities</td><td ${tdr}>324,200</td><td ${tdr}>505,600</td></tr>
+  <tr style="font-weight:700;"><td ${td}>Net assets attributable to unitholders</td><td ${tdr}>2,240,000</td><td ${tdr}>2,182,300</td></tr>
+  <tr><td ${td}>Units in issue ('000)</td><td ${tdr}>200,000</td><td ${tdr}>200,000</td></tr>
+  <tr style="font-weight:700;"><td ${td}>NAV per unit (SAR)</td><td ${tdr}>11.20</td><td ${tdr}>10.91</td></tr>
+</table>
+
+${_RPT_H('5.2','Statement of comprehensive income (extract)')}
+<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0;">
+  <tr><th ${th}>SAR '000</th><th ${th} style="text-align:right;">2024</th><th ${th} style="text-align:right;">2023</th></tr>
+  <tr><td ${td}>Rental income</td><td ${tdr}>168,400</td><td ${tdr}>159,700</td></tr>
+  <tr><td ${td}>Income from investment in Cordoba REF</td><td ${tdr}>35,300</td><td ${tdr}>32,100</td></tr>
+  <tr><td ${td}>Realised gain on REF redemption</td><td ${tdr}>38,500</td><td ${tdr}>—</td></tr>
+  <tr><td ${td}>Unrealised change in fair value of investment properties</td><td ${tdr}>52,700</td><td ${tdr}>41,900</td></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td ${td}>Total income</td><td ${tdr}>294,900</td><td ${tdr}>233,700</td></tr>
+  <tr><td ${td}>Management, custody &amp; administration fees</td><td ${tdr}>(18,760)</td><td ${tdr}>(17,410)</td></tr>
+  <tr><td ${td}>Finance costs (Murabaha)</td><td ${tdr}>(14,900)</td><td ${tdr}>(21,300)</td></tr>
+  <tr><td ${td}>Other operating expenses</td><td ${tdr}>(12,290)</td><td ${tdr}>(11,590)</td></tr>
+  <tr style="font-weight:700;"><td ${td}>Net income for the year</td><td ${tdr}>248,950</td><td ${tdr}>183,400</td></tr>
+</table>
+
+${_RPT_H('5.3','Statement of cash flows (extract)')}
+<table style="width:100%;border-collapse:collapse;font-size:11.5px;margin:8px 0;">
+  <tr><th ${th}>SAR '000</th><th ${th} style="text-align:right;">2024</th></tr>
+  <tr><td ${td}>Net cash from operating activities</td><td ${tdr}>176,300</td></tr>
+  <tr><td ${td}>Net cash from investing activities (incl. REF redemption)</td><td ${tdr}>197,400</td></tr>
+  <tr><td ${td}>Net cash used in financing activities (debt repayment &amp; distributions)</td><td ${tdr}>(349,200)</td></tr>
+  <tr style="font-weight:700;background:#faf8f4;"><td ${td}>Net increase in cash</td><td ${tdr}>24,500</td></tr>
+  <tr><td ${td}>Cash at beginning of year</td><td ${tdr}>71,900</td></tr>
+  <tr style="font-weight:700;"><td ${td}>Cash at end of year</td><td ${tdr}>96,400</td></tr>
+</table>
+<p style="font-size:11px;color:#4b5563;">During 2024 the Fund distributed <strong>SAR 164 million</strong> to unitholders (SAR 0.82 per unit) across four quarterly distributions. Since inception the Fund has paid <strong>24 quarterly cash dividends</strong> totalling <strong>SAR 4.71 per unit</strong>.</p>
+
+<div style="border-top:1px solid #e4ddcf;margin-top:22px;padding-top:12px;font-size:10px;color:#6b7280;line-height:1.7;">
+  <strong>Basis of preparation.</strong> This is an illustrative annual report generated in Bohio to demonstrate a full statutory REIT reporting pack — At-a-Glance, Portfolio, Risk, Governance and Financials. The Meridian REIT Income Fund, Cordoba Capital, all named parties, properties and figures are fictional and for demonstration only, and do not represent any real fund, security or entity. Financials shown are unaudited extracts. This document is not an offer, solicitation or investment advice.
+</div>`;
+  }
+
   const PAST_REPORTS_SEED = [
+    {title:'Meridian REIT Income Fund — Annual Report 2024', source:'Meridian REIT Income Fund', kind:'Annual report', when:'31 Mar 2025', _bodyFn:'_reportReitAnnualBody', version:'Annual report · FY2024 · 5 sections'},
     {title:'Q2 2026 Board Performance Pack',   source:'Opportunity Fund II', kind:'Board pack', when:'12 Jul 2026', _bodyFn:'_reportBoardPackBody', version:'Board pack · Q2 2026 · 11 pp'},
     {title:'Q2 2026 LP Quarterly Update',      source:'Opportunity Fund II', kind:'LP report',  when:'12 Jul 2026', _bodyFn:'_reportLpUpdateBody', version:'LP update · Q2 2026 · 8 pp'},
     {title:'Marina Tower — Development Status', source:'Marina Tower',       kind:'Development',when:'08 Jul 2026', file:'demo-assets/Development_Status_Report_Marina_Tower_Jul_2026.pdf'},
@@ -27256,7 +27548,7 @@ ${_RPT_H('8','Key dates & outlook')}
   function _reportsHubBack(){ _reportsHubOpen=false; closeWorkflow(); goTo('workspace'); }
   function _reportsHubReopen(i){
     const past=_aggregatePastReports(); const r=past[i]; if(!r) return;
-    const _bodyFns={_reportBoardPackBody:_reportBoardPackBody, _reportLpUpdateBody:_reportLpUpdateBody};
+    const _bodyFns={_reportBoardPackBody:_reportBoardPackBody, _reportLpUpdateBody:_reportLpUpdateBody, _reportReitAnnualBody:_reportReitAnnualBody};
     if(r._bodyFn && typeof _bodyFns[r._bodyFn]==='function'){
       // Rendered as inline HTML so the full detail — tables, sections, figures —
       // shows immediately; this is the demo showcase piece.
