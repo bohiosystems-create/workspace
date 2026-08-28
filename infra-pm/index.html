@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bohio · Infrastructure PM</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #e6e2e2;
+    --ink: #000919;
+    --ink-soft: rgba(0, 9, 25, 0.55);
+    --ink-faint: rgba(0, 9, 25, 0.30);
+    --ink-hairline: rgba(0, 9, 25, 0.12);
+    --paper: #efebeb;
+    --accent: #000919;
+    --alert: #FF4D6A;
+    --good: #15803d;
+    --warn: #b45309;
+    --plan: rgba(0, 9, 25, 0.16);
+    --plan-line: rgba(0, 9, 25, 0.34);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Space Grotesk', -apple-system, sans-serif;
+    letter-spacing: 0.01em;
+    min-height: 100vh;
+  }
+  ::selection { background: var(--ink); color: var(--bg); }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 0 28px 120px; }
+
+  /* Top bar */
+  .topbar {
+    position: sticky; top: 0; z-index: 40;
+    background: var(--bg);
+    border-bottom: 1px solid var(--ink-hairline);
+    display: flex; align-items: center; gap: 28px;
+    padding: 18px 28px;
+    max-width: 1360px; margin: 0 auto;
+  }
+  .logo { font-size: 19px; letter-spacing: 0.5em; text-transform: uppercase; font-weight: 500; }
+  .logo small { font-size: 9px; letter-spacing: 0.4em; color: var(--ink-soft); display: block; margin-top: 3px; letter-spacing: 0.34em; }
+  .topbar .project-name { margin-left: auto; text-align: right; }
+  .topbar .project-name b { font-size: 14px; font-weight: 600; letter-spacing: 0.04em; }
+  .topbar .project-name span { display: block; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink-soft); margin-top: 3px; }
+
+  /* Tab nav */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--ink-hairline); margin: 0 -28px 30px; padding: 0 28px; position: sticky; top: 71px; background: var(--bg); z-index: 30; }
+  .tab { padding: 16px 18px; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-soft); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-family: inherit; margin-bottom: -1px; transition: color .15s; }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--ink); border-bottom-color: var(--ink); font-weight: 500; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  h2.section { font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; margin: 40px 0 16px; display: flex; align-items: center; gap: 14px; }
+  h2.section::after { content: ""; flex: 1; height: 1px; background: var(--ink-hairline); }
+  h2.section:first-child { margin-top: 8px; }
+
+  /* KPI strip */
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--ink-hairline); border: 1px solid var(--ink-hairline); }
+  .kpi { background: var(--paper); padding: 22px 20px; }
+  .kpi .label { font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft); }
+  .kpi .val { font-size: 34px; font-weight: 300; margin-top: 12px; line-height: 1; letter-spacing: -0.01em; }
+  .kpi .val small { font-size: 15px; color: var(--ink-soft); font-weight: 400; }
+  .kpi .sub { font-size: 11px; color: var(--ink-soft); margin-top: 8px; }
+  .kpi .val.good { color: var(--good); } .kpi .val.warn { color: var(--warn); } .kpi .val.bad { color: var(--alert); }
+  .sub .good { color: var(--good); } .sub .warn { color: var(--warn); } .sub .bad { color: var(--alert); }
+
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2,1fr); } }
+
+  /* Cards / panels */
+  .panel { background: var(--paper); border: 1px solid var(--ink-hairline); padding: 22px 24px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* Gantt */
+  .gantt-head { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; margin-bottom: 6px; }
+  .legend { display: flex; gap: 18px; font-size: 10.5px; letter-spacing: 0.06em; color: var(--ink-soft); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 22px; height: 9px; vertical-align: middle; margin-right: 7px; border-radius: 1px; }
+  .legend i.pl { background: var(--plan); border: 1px solid var(--plan-line); height: 8px; }
+  .legend i.ac { background: var(--ink); }
+  .legend i.fc { background: repeating-linear-gradient(45deg, var(--ink), var(--ink) 3px, transparent 3px, transparent 6px); border: 1px solid var(--ink); }
+  .legend i.dn { background: var(--good); }
+  .legend i.dl { background: var(--alert); }
+
+  .gantt { border: 1px solid var(--ink-hairline); background: var(--paper); overflow-x: auto; }
+  .gantt-inner { min-width: 760px; }
+  .grow { display: grid; grid-template-columns: 250px 1fr; border-top: 1px solid var(--ink-hairline); }
+  .grow:first-child { border-top: none; }
+  .grow.months { position: sticky; top: 0; background: var(--paper); z-index: 5; }
+  .glabel { padding: 11px 14px; border-right: 1px solid var(--ink-hairline); }
+  .glabel .t { font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; }
+  .glabel .c { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin-top: 3px; }
+  .gtrack { position: relative; height: 46px; }
+  .months .gtrack { height: 30px; display: flex; }
+  .mcol { flex: none; border-right: 1px solid var(--ink-hairline); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); padding: 9px 0 0 6px; overflow: hidden; white-space: nowrap; }
+  .gtrack .mgrid { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--ink-hairline); }
+  .bar { position: absolute; border-radius: 2px; }
+  .bar.plan { background: var(--plan); border: 1px solid var(--plan-line); height: 9px; top: 9px; }
+  .bar.act { height: 13px; top: 21px; background: var(--ink); }
+  .bar.act.done { background: var(--good); }
+  .bar.act.delayed { background: var(--alert); }
+  .bar.act.forecast { background: repeating-linear-gradient(45deg, currentColor, currentColor 3px, transparent 3px, transparent 6px); border: 1px solid; }
+  .bar.act .pctfill { position: absolute; inset: 0; background: rgba(255,255,255,0.0); }
+  .bar .lab { position: absolute; left: calc(100% + 6px); top: 50%; transform: translateY(-50%); font-size: 9.5px; white-space: nowrap; color: var(--ink-soft); }
+  .today { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--alert); z-index: 6; }
+  .today .tlab { position: absolute; top: 2px; left: 4px; font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--alert); white-space: nowrap; }
+  .mdiamond { position: absolute; top: 15px; width: 12px; height: 12px; background: var(--ink); transform: translateX(-50%) rotate(45deg); z-index: 4; }
+  .mdiamond.done { background: var(--good); } .mdiamond.delayed { background: var(--alert); } .mdiamond.plan-ghost { background: transparent; border: 1.5px solid var(--plan-line); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); font-weight: 500; padding: 10px 12px; border-bottom: 1px solid var(--ink-hairline); white-space: nowrap; }
+  td { padding: 12px 12px; border-bottom: 1px solid var(--ink-hairline); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  th.num { text-align: right; }
+  .tbl-wrap { border: 1px solid var(--ink-hairline); background: var(--paper); overflow-x: auto; }
+
+  .pill { display: inline-block; font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; border: 1px solid; font-weight: 500; white-space: nowrap; }
+  .pill.done { color: var(--good); border-color: var(--good); }
+  .pill.ontrack { color: var(--ink); border-color: var(--ink-faint); }
+  .pill.atrisk { color: var(--warn); border-color: var(--warn); }
+  .pill.delayed { color: var(--alert); border-color: var(--alert); }
+  .pill.notstarted { color: var(--ink-soft); border-color: var(--ink-hairline); }
+
+  .var { font-variant-numeric: tabular-nums; font-weight: 500; }
+  .var.late { color: var(--alert); } .var.early { color: var(--good); } .var.flat { color: var(--ink-soft); }
+
+  /* progress mini bar */
+  .mbar { height: 6px; background: var(--ink-hairline); border-radius: 3px; overflow: hidden; min-width: 70px; }
+  .mbar > i { display: block; height: 100%; background: var(--ink); }
+  .mbar > i.done { background: var(--good); } .mbar > i.delayed { background: var(--alert); }
+
+  /* SVG chart */
+  .scurve { width: 100%; height: auto; }
+  .scurve text { font-family: 'Space Grotesk', sans-serif; }
+
+  /* Forms */
+  label.fl { display: block; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 6px; }
+  input, select, textarea { font-family: inherit; font-size: 13px; color: var(--ink); background: var(--bg); border: 1px solid var(--ink-hairline); padding: 10px 12px; width: 100%; border-radius: 2px; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--ink); }
+  textarea { resize: vertical; min-height: 120px; line-height: 1.55; }
+  .btn { font-family: inherit; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; padding: 12px 22px; background: var(--ink); color: var(--bg); border: 1px solid var(--ink); border-radius: 2px; cursor: pointer; font-weight: 500; transition: opacity .15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn.ghost { background: transparent; color: var(--ink); }
+  .btn.ghost:hover { background: var(--ink); color: var(--bg); opacity: 1; }
+  .btn.sm { padding: 8px 14px; font-size: 10px; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
+  .field { margin-bottom: 16px; }
+
+  .report-line { display: grid; grid-template-columns: 1fr 88px 120px 120px; gap: 10px; align-items: end; padding: 10px 0; border-bottom: 1px solid var(--ink-hairline); }
+  .report-line .nm { font-size: 12.5px; font-weight: 500; }
+  .report-line .nm small { display: block; font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); margin-top: 2px; }
+  @media (max-width: 720px) { .report-line { grid-template-columns: 1fr 1fr; } .report-line .nm { grid-column: 1 / -1; } }
+
+  .muted { color: var(--ink-soft); font-size: 12px; line-height: 1.6; }
+  .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--bg); padding: 13px 26px; border-radius: 3px; font-size: 12px; letter-spacing: 0.06em; opacity: 0; pointer-events: none; transition: all .25s; z-index: 100; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .hint { background: rgba(0,9,25,0.03); border: 1px solid var(--ink-hairline); border-left: 2px solid var(--ink); padding: 14px 16px; font-size: 12px; line-height: 1.6; color: var(--ink-soft); border-radius: 2px; }
+  .hint code { background: rgba(0,9,25,0.06); padding: 1px 5px; border-radius: 3px; font-size: 11.5px; color: var(--ink); }
+
+  .contractor-card { border: 1px solid var(--ink-hairline); background: var(--paper); padding: 18px 20px; }
+  .contractor-card h3 { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
+  .contractor-card .meta { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; }
+  .cstat { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; border-bottom: 1px solid var(--ink-hairline); }
+  .cstat:last-child { border-bottom: none; }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar .datebox { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); }
+  .toolbar .datebox input { width: 150px; padding: 8px 10px; font-size: 12px; }
+
+  .empty { text-align: center; padding: 60px 20px; color: var(--ink-soft); font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">Bohio<small>Infrastructure PM</small></div>
+    <div class="project-name">
+      <b id="pjName">—</b>
+      <span id="pjMeta">—</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab active" data-view="overview">Overview</button>
+      <button class="tab" data-view="timeline">Timeline</button>
+      <button class="tab" data-view="milestones">Milestones</button>
+      <button class="tab" data-view="contractors">Contractors</button>
+      <button class="tab" data-view="ingest">Contractor Reports</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section class="view active" id="view-overview">
+      <div class="toolbar">
+        <div class="datebox">Data date
+          <input type="date" id="dataDate">
+        </div>
+        <div class="spacer"></div>
+        <button class="btn ghost sm" id="btnExport">Export JSON</button>
+        <button class="btn ghost sm" id="btnReset">Reset demo data</button>
+      </div>
+      <div class="kpis" id="kpis"></div>
+
+      <h2 class="section">Planned vs Actual progress (S-curve)</h2>
+      <div class="panel"><div id="scurve"></div></div>
+
+      <h2 class="section">Schedule exceptions — needs attention</h2>
+      <div class="tbl-wrap"><table id="exceptions"></table></div>
+    </section>
+
+    <!-- TIMELINE -->
+    <section class="view" id="view-timeline">
+      <div class="gantt-head">
+        <h2 class="section" style="margin:8px 0 0;">Consolidated timeline · planned baseline vs actual</h2>
+      </div>
+      <div class="legend" style="margin:14px 0 12px;">
+        <span><i class="pl"></i>Planned baseline</span>
+        <span><i class="ac"></i>Actual progress</span>
+        <span><i class="fc" style="color:var(--ink)"></i>Forecast to complete</span>
+        <span><i class="dn"></i>Complete</span>
+        <span><i class="dl"></i>Delayed / at risk</span>
+        <span>◆ Milestone</span>
+      </div>
+      <div class="gantt"><div class="gantt-inner" id="gantt"></div></div>
+      <p class="muted" style="margin-top:12px;">Actual bars are driven entirely by consolidated contractor reports. Solid = reported progress; hatched = forecast to completion, extrapolated from the reported rate. The dashed red line is the data date.</p>
+    </section>
+
+    <!-- MILESTONES -->
+    <section class="view" id="view-milestones">
+      <h2 class="section">Key milestones · planned vs forecast</h2>
+      <div class="tbl-wrap"><table id="milestones"></table></div>
+      <p class="muted" style="margin-top:12px;">Milestone forecast dates are derived from the completion forecast of their governing work package. Slippage cascades through dependent milestones.</p>
+    </section>
+
+    <!-- CONTRACTORS -->
+    <section class="view" id="view-contractors">
+      <h2 class="section">Contractor performance</h2>
+      <div class="row" id="contractors" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));"></div>
+    </section>
+
+    <!-- INGEST -->
+    <section class="view" id="view-ingest">
+      <h2 class="section">Submit a contractor report</h2>
+      <div class="grid2">
+        <div class="panel">
+          <div class="row" style="margin-bottom:18px;">
+            <div><label class="fl">Contractor</label><select id="rpContractor"></select></div>
+            <div><label class="fl">Report date</label><input type="date" id="rpDate"></div>
+          </div>
+          <label class="fl">Progress by work package</label>
+          <div id="rpLines"></div>
+          <div style="margin-top:20px; display:flex; gap:10px;">
+            <button class="btn" id="rpSubmit">Submit report</button>
+            <span class="muted" id="rpMsg" style="align-self:center;"></span>
+          </div>
+        </div>
+        <div>
+          <div class="panel" style="margin-bottom:20px;">
+            <label class="fl">Paste a raw report — the parser extracts progress</label>
+            <textarea id="rpText" placeholder="Excavation 100% complete, finished 2026-04-22&#10;Drainage network at 88%, started 2026-03-20&#10;Electrical ductbank 68% — behind, crew shortfall&#10;CSV also works:  ductbank, 68, 2026-05-18,"></textarea>
+            <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+              <button class="btn ghost" id="rpParse">Parse into form</button>
+              <span class="muted" id="rpParseMsg"></span>
+            </div>
+          </div>
+          <div class="hint">
+            <strong style="color:var(--ink); letter-spacing:0.04em;">How consolidation works.</strong><br>
+            Every report is a dated snapshot from one contractor. The engine keeps the <em>latest</em> reported state per work package, reconstructs actual start / finish dates, extrapolates a completion forecast from the reported rate, and rolls it all up into the project timeline, S-curve and milestone forecasts. Nothing here is hand-entered on the plan side — the actuals are 100% report-driven.
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section">Report log</h2>
+      <div class="tbl-wrap"><table id="reportLog"></table></div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Bohio · Infrastructure Project Management
+   Self-contained. Persists to localStorage. Actuals are 100%
+   derived from consolidated contractor reports.
+   ============================================================ */
+
+const STORE_KEY = 'bohio_infra_pm_v1';
+const MS_DAY = 86400000;
+
+/* ---------- date helpers ---------- */
+function parseD(s){ if(s instanceof Date) return s; const [y,m,d]=s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); }
+function iso(d){ return d.toISOString().slice(0,10); }
+function days(a,b){ return Math.round((parseD(b)-parseD(a))/MS_DAY); }
+function addDays(d,n){ return new Date(parseD(d).getTime()+n*MS_DAY); }
+function fmtD(s){ if(!s) return '—'; const d=parseD(s); return d.getUTCDate().toString().padStart(2,'0')+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]+' '+d.getUTCFullYear(); }
+function clamp(x,a,b){ return Math.max(a,Math.min(b,x)); }
+
+/* ---------- seed data ---------- */
+function seed(){
+  const project = {
+    name: 'Marina District — Access & Utilities Infrastructure',
+    client: 'Bohio Development Partners',
+    dataDate: '2026-08-28'
+  };
+  // Work packages (the planned baseline). weight = share of project.
+  const tasks = [
+    { id:'mob',   name:'Mobilization & Site Setup',        contractor:'Delta Civil',        ps:'2026-01-06', pe:'2026-01-30', w:4,  dep:null },
+    { id:'earth', name:'Earthworks & Bulk Excavation',     contractor:'Delta Civil',        ps:'2026-02-02', pe:'2026-04-10', w:12, dep:'mob' },
+    { id:'drain', name:'Stormwater & Drainage Network',    contractor:'AquaFlow Infrastructure', ps:'2026-03-16', pe:'2026-05-29', w:12, dep:'earth' },
+    { id:'water', name:'Sewerage & Water Mains',           contractor:'AquaFlow Infrastructure', ps:'2026-04-13', pe:'2026-06-26', w:12, dep:'earth' },
+    { id:'duct',  name:'Electrical Ductbank & Substation', contractor:'Voltaic Power Systems',   ps:'2026-05-04', pe:'2026-07-31', w:14, dep:'earth' },
+    { id:'tele',  name:'Telecoms & Fibre Ducting',         contractor:'Voltaic Power Systems',   ps:'2026-06-01', pe:'2026-07-24', w:6,  dep:'duct' },
+    { id:'sub',   name:'Road Sub-base & Kerbing',          contractor:'Meridian Roads',     ps:'2026-06-15', pe:'2026-08-21', w:10, dep:'drain' },
+    { id:'asph',  name:'Asphalt & Surfacing',              contractor:'Meridian Roads',     ps:'2026-08-24', pe:'2026-10-16', w:12, dep:'sub' },
+    { id:'light', name:'Street Lighting & ITS',            contractor:'Voltaic Power Systems',   ps:'2026-09-07', pe:'2026-10-30', w:6,  dep:'sub' },
+    { id:'land',  name:'Landscaping & Handover',           contractor:'Verdant Landscapes', ps:'2026-10-19', pe:'2026-12-11', w:12, dep:'asph' }
+  ];
+  const milestones = [
+    { id:'m1', name:'Site Possession',              plan:'2026-01-06', gov:'mob',   govEnd:false },
+    { id:'m2', name:'Drainage Network Complete',    plan:'2026-05-29', gov:'drain', govEnd:true },
+    { id:'m3', name:'Utilities Energized',          plan:'2026-07-31', gov:'duct',  govEnd:true },
+    { id:'m4', name:'Road Open to Traffic',         plan:'2026-10-16', gov:'asph',  govEnd:true },
+    { id:'m5', name:'Practical Completion & Handover', plan:'2026-12-11', gov:'land', govEnd:true }
+  ];
+
+  // Reported progress schedule per snapshot date. Actual start/finish baked in.
+  const snaps = ['2026-02-28','2026-03-31','2026-04-30','2026-05-31','2026-06-30','2026-07-31','2026-08-28'];
+  const sched = {
+    //           Feb Mar Apr May Jun Jul Aug   start        finish
+    mob:   { p:[100,100,100,100,100,100,100], s:'2026-01-08', f:'2026-02-02' },
+    earth: { p:[ 20, 55, 95,100,100,100,100], s:'2026-02-05', f:'2026-04-22' },
+    drain: { p:[  0, 10, 45, 88,100,100,100], s:'2026-03-20', f:'2026-06-12' },
+    water: { p:[  0,  0, 15, 50, 82,100,100], s:'2026-04-20', f:'2026-07-20' },
+    duct:  { p:[  0,  0,  0, 18, 38, 55, 68], s:'2026-05-18', f:null },
+    tele:  { p:[  0,  0,  0,  0, 25, 55, 80], s:'2026-06-10', f:null },
+    sub:   { p:[  0,  0,  0,  0, 10, 45, 72], s:'2026-06-22', f:null },
+    asph:  { p:[  0,  0,  0,  0,  0,  0,  0], s:null,          f:null },
+    light: { p:[  0,  0,  0,  0,  0,  0,  0], s:null,          f:null },
+    land:  { p:[  0,  0,  0,  0,  0,  0,  0], s:null,          f:null }
+  };
+  const notes = {
+    '2026-08-28|Voltaic Power Systems':'Ductbank behind: substation transformer delivery slipped 5wk; running 2 crews to recover. Fibre pull ongoing.',
+    '2026-08-28|Meridian Roads':'Sub-base progressing but held at south loop pending drainage tie-ins; asphalt cannot mobilize until sub-base at 100%.'
+  };
+
+  // Build one report per contractor per snapshot, containing only that
+  // contractor's packages that have activity or are in their scope this snap.
+  const reports = [];
+  let rid = 1;
+  const byContractor = {};
+  tasks.forEach(t=>{ (byContractor[t.contractor]=byContractor[t.contractor]||[]).push(t.id); });
+
+  snaps.forEach((date,i)=>{
+    Object.keys(byContractor).forEach(contractor=>{
+      const ids = byContractor[contractor].filter(id=>{
+        const sc = sched[id];
+        // report a line once the package has ever started by this snap
+        return sc.p[i] > 0 || (i>0 && sc.p[i-1] > 0);
+      });
+      if(!ids.length) return;
+      const lines = ids.map(id=>{
+        const sc = sched[id];
+        const pct = sc.p[i];
+        return {
+          taskId: id,
+          percent: pct,
+          actualStart: (sc.s && pct>0) ? sc.s : null,
+          actualFinish: (sc.f && pct>=100) ? sc.f : null
+        };
+      });
+      reports.push({ id:'r'+(rid++), contractor, date, note: notes[date+'|'+contractor]||'', lines });
+    });
+  });
+
+  return { project, tasks, milestones, reports };
+}
+
+/* ---------- state ---------- */
+let state = load() || seed();
+function load(){ try { const s = localStorage.getItem(STORE_KEY); return s? JSON.parse(s): null; } catch(e){ return null; } }
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){} }
+
+/* ---------- consolidation engine ---------- */
+function consolidate(){
+  const dd = parseD(state.project.dataDate);
+  // latest report line per task (by report date)
+  const latest = {};
+  const sorted = [...state.reports].sort((a,b)=> parseD(a.date)-parseD(b.date));
+  sorted.forEach(r=>{
+    r.lines.forEach(l=>{
+      const prev = latest[l.taskId];
+      if(!prev || parseD(r.date) >= parseD(prev.reportDate)){
+        latest[l.taskId] = { ...l, reportDate:r.date, contractor:r.contractor };
+      }
+    });
+  });
+
+  // ---- pass 1: base state per task from reports ----
+  const base = {};
+  state.tasks.forEach(t=>{
+    const info = latest[t.id];
+    const ps = parseD(t.ps), pe = parseD(t.pe);
+    const plannedDur = Math.max(1, days(ps,pe));
+    const pct = info ? info.percent : 0;
+    let aStart = info && info.actualStart ? parseD(info.actualStart) : (pct>0 ? ps : null);
+    let aFinish = null; const done = pct>=100;
+    if(done){
+      aFinish = info && info.actualFinish ? parseD(info.actualFinish)
+              : (info ? parseD(info.reportDate) : pe);
+    }
+    base[t.id] = { t, ps, pe, plannedDur, pct, aStart, aFinish, done, info };
+  });
+
+  // ---- pass 2: dependency cascade → forecast start / finish ----
+  // tasks are declared in dependency order, so a single forward pass resolves.
+  state.tasks.forEach(t=>{
+    const b = base[t.id];
+    const depFin = t.dep && base[t.dep] ? base[t.dep]._finish : null;
+    // forecast start: actual if known, else max(planned start, predecessor finish)
+    let fStart;
+    if(b.aStart) fStart = b.aStart;
+    else {
+      fStart = b.ps;
+      if(depFin && depFin > fStart) fStart = depFin;
+      if(!b.done && fStart < dd) fStart = dd; // overdue & unstarted ⇒ can't start before now
+    }
+    b._start = fStart;
+    // forecast finish
+    let fFin;
+    if(b.done){
+      fFin = b.aFinish;
+    } else if(b.pct>0 && b.aStart){
+      // extrapolate remaining from reported rate
+      const elapsed = Math.max(1, days(b.aStart, dd));
+      const estTotal = Math.max(elapsed / (b.pct/100), b.plannedDur);
+      fFin = addDays(b.aStart, Math.round(estTotal));
+      if(fFin < dd) fFin = dd;
+    } else {
+      // not started: full planned duration from forecast start
+      fFin = addDays(fStart, b.plannedDur);
+    }
+    b._finish = fFin;
+  });
+
+  const rows = state.tasks.map(t=>{
+    const b = base[t.id];
+    const finishRef = b._finish;
+    const varDays = days(b.pe, finishRef); // + = late
+    let plannedPct;
+    if(dd >= b.pe) plannedPct = 100;
+    else if(dd <= b.ps) plannedPct = 0;
+    else plannedPct = days(b.ps, dd)/b.plannedDur*100;
+
+    let status;
+    if(b.done) status = 'done';
+    else if(b.pct===0 && dd < b.ps) status = 'notstarted';
+    else if(varDays > 5) status = 'delayed';
+    else if(b.pct < plannedPct - 8) status = 'atrisk';
+    else status = 'ontrack';
+
+    return {
+      ...t, pct:b.pct, plannedPct, aStart: b.aStart?iso(b.aStart):null,
+      aFinish: b.aFinish?iso(b.aFinish):null, forecast: iso(finishRef),
+      forecastStart: iso(b._start),
+      varDays, status, plannedDur:b.plannedDur,
+      reportDate: b.info?b.info.reportDate:null, lastContractor: b.info?b.info.contractor:null
+    };
+  });
+
+  const byId = {}; rows.forEach(r=> byId[r.id]=r);
+
+  // milestone forecasts
+  const ms = state.milestones.map(m=>{
+    const gov = byId[m.gov];
+    let forecast;
+    if(m.govEnd) forecast = gov ? gov.forecast : m.plan;
+    else forecast = gov ? (gov.aStart || m.plan) : m.plan; // start-governed
+    const varDays = days(m.plan, forecast);
+    const done = gov ? (m.govEnd ? gov.status==='done' : gov.pct>0) : false;
+    let status;
+    if(done && varDays<=2) status='done';
+    else if(done && varDays>2) status='done';
+    else if(varDays>5) status='delayed';
+    else if(varDays>0) status='atrisk';
+    else status='ontrack';
+    return { ...m, forecast, varDays, status, done };
+  });
+
+  return { rows, byId, ms, dd };
+}
+
+/* ---------- project rollup ---------- */
+function rollup(c){
+  const totW = state.tasks.reduce((s,t)=>s+t.w,0);
+  let actual=0, planned=0;
+  c.rows.forEach(r=>{
+    actual  += r.w * r.pct/100;
+    planned += r.w * r.plannedPct/100;
+  });
+  actual = actual/totW*100; planned = planned/totW*100;
+
+  // overall finish variance = worst milestone on the completion path (handover)
+  const handover = c.ms[c.ms.length-1];
+  const finishVar = handover ? handover.varDays : 0;
+
+  const delayed = c.rows.filter(r=>r.status==='delayed').length;
+  const atrisk  = c.rows.filter(r=>r.status==='atrisk').length;
+  const msOn = c.ms.filter(m=>m.status==='ontrack'||m.status==='done').length;
+
+  return { actual, planned, spi: planned>0? actual/planned : 1, finishVar, delayed, atrisk, msOn, msTot:c.ms.length, reports: state.reports.length };
+}
+
+/* ---------- window for gantt / scurve ---------- */
+function projectWindow(c){
+  let min = Math.min(...state.tasks.map(t=>parseD(t.ps).getTime()));
+  let max = Math.max(...state.tasks.map(t=>parseD(t.pe).getTime()));
+  c.rows.forEach(r=>{ max = Math.max(max, parseD(r.forecast).getTime()); });
+  max = Math.max(max, c.dd.getTime());
+  // pad to month boundaries
+  const a = new Date(min); const start = new Date(Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), 1));
+  const b = new Date(max); const end = new Date(Date.UTC(b.getUTCFullYear(), b.getUTCMonth()+1, 1));
+  return { start, end, span: days(start,end) };
+}
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+function pctStr(x){ return (x>=99.5?100:Math.round(x)); }
+
+function renderHeader(){
+  document.getElementById('pjName').textContent = state.project.name;
+  document.getElementById('pjMeta').textContent = state.project.client + ' · Data date ' + fmtD(state.project.dataDate);
+  document.getElementById('dataDate').value = state.project.dataDate;
+}
+
+function renderKPIs(c, r){
+  const fv = r.finishVar;
+  const fvCls = fv>0?'bad':(fv<0?'good':'flat');
+  const fvTxt = fv===0?'On plan':(fv>0? fv+'d late':(-fv)+'d ahead');
+  const spi = r.spi;
+  const spiCls = spi>=0.98?'good':(spi>=0.9?'warn':'bad');
+  const el = document.getElementById('kpis');
+  el.innerHTML = `
+    <div class="kpi">
+      <div class="label">Actual complete</div>
+      <div class="val">${pctStr(r.actual)}<small>%</small></div>
+      <div class="sub">Plan to date ${pctStr(r.planned)}% · <span class="${r.actual>=r.planned?'good':'bad'}">${r.actual>=r.planned?'+':''}${(r.actual-r.planned).toFixed(1)} pt</span></div>
+    </div>
+    <div class="kpi">
+      <div class="label">Schedule perf. index</div>
+      <div class="val ${spiCls}">${spi.toFixed(2)}</div>
+      <div class="sub">${spi>=1?'Ahead of / on plan':'Behind planned earned progress'}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Forecast completion</div>
+      <div class="val ${fvCls==='bad'?'bad':(fvCls==='good'?'good':'')}" style="font-size:26px;">${fmtD(c.ms[c.ms.length-1].forecast)}</div>
+      <div class="sub"><span class="${fvCls==='bad'?'bad':(fvCls==='good'?'good':'')}">${fvTxt}</span> vs ${fmtD(c.ms[c.ms.length-1].plan)}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Packages delayed</div>
+      <div class="val ${r.delayed?'bad':'good'}">${r.delayed}<small> / ${c.rows.length}</small></div>
+      <div class="sub">${r.atrisk} at risk</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Milestones on track</div>
+      <div class="val ${r.msOn===r.msTot?'good':'warn'}">${r.msOn}<small> / ${r.msTot}</small></div>
+      <div class="sub">${r.reports} reports consolidated</div>
+    </div>`;
+}
+
+function renderExceptions(c){
+  const rows = c.rows.filter(r=> r.status==='delayed' || r.status==='atrisk')
+    .sort((a,b)=> b.varDays-a.varDays);
+  const t = document.getElementById('exceptions');
+  if(!rows.length){ t.innerHTML = `<tbody><tr><td class="muted" style="padding:26px;">No packages currently flagged — everything tracking to plan.</td></tr></tbody>`; return; }
+  t.innerHTML = `<thead><tr>
+      <th>Work package</th><th>Contractor</th><th class="num">Complete</th>
+      <th class="num">Planned finish</th><th class="num">Forecast</th><th class="num">Slip</th><th>Status</th>
+    </tr></thead><tbody>${rows.map(r=>`
+      <tr>
+        <td><b>${r.name}</b></td>
+        <td class="muted">${r.contractor}</td>
+        <td class="num">${r.pct}%</td>
+        <td class="num">${fmtD(r.pe)}</td>
+        <td class="num">${fmtD(r.forecast)}</td>
+        <td class="num var ${r.varDays>0?'late':(r.varDays<0?'early':'flat')}">${r.varDays>0?'+':''}${r.varDays}d</td>
+        <td>${pill(r.status)}</td>
+      </tr>`).join('')}</tbody>`;
+}
+
+function pill(s){
+  const map = { done:['done','Complete'], ontrack:['ontrack','On track'], atrisk:['atrisk','At risk'], delayed:['delayed','Delayed'], notstarted:['notstarted','Not started'] };
+  const [cls,txt] = map[s]||['ontrack',s];
+  return `<span class="pill ${cls}">${txt}</span>`;
+}
+
+/* ---------- S-curve ---------- */
+function renderSCurve(c){
+  const win = projectWindow(c);
+  const totW = state.tasks.reduce((s,t)=>s+t.w,0);
+  // monthly samples
+  const pts = [];
+  let d = new Date(win.start);
+  while(d <= win.end){ pts.push(new Date(d)); d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+1, 1)); }
+  if(pts[pts.length-1] < win.end) pts.push(new Date(win.end));
+
+  // planned cumulative at date
+  function plannedAt(date){
+    let s=0; state.tasks.forEach(t=>{
+      const ps=parseD(t.ps), pe=parseD(t.pe), dur=Math.max(1,days(ps,pe));
+      let p = date<=ps?0 : date>=pe?1 : days(ps,date)/dur;
+      s += t.w*p;
+    });
+    return s/totW*100;
+  }
+  // actual cumulative from reports (latest reported % with reportDate<=date)
+  const sortedR = [...state.reports].sort((a,b)=>parseD(a.date)-parseD(b.date));
+  function actualAt(date){
+    const lp = {};
+    sortedR.forEach(r=>{ if(parseD(r.date)<=date){ r.lines.forEach(l=>{ lp[l.taskId]=l.percent; }); } });
+    let s=0; state.tasks.forEach(t=>{ s += t.w*((lp[t.id]||0)/100); });
+    return s/totW*100;
+  }
+
+  const W=880, H=300, padL=42, padR=20, padT=18, padB=42;
+  const x = d0 => padL + (days(win.start,d0)/win.span)*(W-padL-padR);
+  const y = v => padT + (1-v/100)*(H-padT-padB);
+
+  const planPath = pts.map((p,i)=> (i?'L':'M')+x(p).toFixed(1)+' '+y(plannedAt(p)).toFixed(1)).join(' ');
+  const actPts = pts.filter(p=> p<=c.dd);
+  if(!actPts.length || actPts[actPts.length-1] < c.dd) actPts.push(new Date(c.dd));
+  const actPath = actPts.map((p,i)=> (i?'L':'M')+x(p).toFixed(1)+' '+y(actualAt(p)).toFixed(1)).join(' ');
+
+  // gridlines y
+  let grid='';
+  for(let v=0; v<=100; v+=25){ grid += `<line x1="${padL}" y1="${y(v)}" x2="${W-padR}" y2="${y(v)}" stroke="rgba(0,9,25,0.10)"/><text x="${padL-8}" y="${y(v)+3}" text-anchor="end" font-size="10" fill="rgba(0,9,25,0.55)">${v}%</text>`; }
+  // month ticks
+  let xticks='';
+  pts.forEach((p,i)=>{ if(i%1===0){ const mo=['J','F','M','A','M','J','J','A','S','O','N','D'][p.getUTCMonth()]; xticks += `<text x="${x(p)}" y="${H-padB+18}" text-anchor="middle" font-size="9" fill="rgba(0,9,25,0.55)">${mo}${p.getUTCMonth()===0?"'"+String(p.getUTCFullYear()).slice(2):''}</text>`; } });
+  // data date line
+  const ddx = x(c.dd);
+  const aNow = actualAt(c.dd), pNow = plannedAt(c.dd);
+
+  document.getElementById('scurve').innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" class="scurve" preserveAspectRatio="xMidYMid meet">
+      ${grid}${xticks}
+      <line x1="${ddx}" y1="${padT}" x2="${ddx}" y2="${H-padB}" stroke="var(--alert)" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <text x="${ddx+5}" y="${padT+10}" font-size="9" fill="var(--alert)" letter-spacing="1">DATA DATE</text>
+      <path d="${planPath}" fill="none" stroke="var(--plan-line)" stroke-width="2" stroke-dasharray="5 4"/>
+      <path d="${actPath}" fill="none" stroke="var(--ink)" stroke-width="2.4"/>
+      <circle cx="${ddx}" cy="${y(pNow)}" r="3.5" fill="var(--plan-line)"/>
+      <circle cx="${ddx}" cy="${y(aNow)}" r="4" fill="var(--ink)"/>
+      <g font-size="11">
+        <rect x="${W-190}" y="${padT}" width="170" height="46" fill="var(--bg)" stroke="rgba(0,9,25,0.12)"/>
+        <line x1="${W-180}" y1="${padT+16}" x2="${W-160}" y2="${padT+16}" stroke="var(--ink)" stroke-width="2.4"/>
+        <text x="${W-154}" y="${padT+19}" fill="var(--ink)">Actual  ${pctStr(aNow)}%</text>
+        <line x1="${W-180}" y1="${padT+34}" x2="${W-160}" y2="${padT+34}" stroke="var(--plan-line)" stroke-width="2" stroke-dasharray="5 4"/>
+        <text x="${W-154}" y="${padT+37}" fill="var(--ink-soft)">Planned  ${pctStr(pNow)}%</text>
+      </g>
+    </svg>`;
+}
+
+/* ---------- Gantt ---------- */
+function renderGantt(c){
+  const win = projectWindow(c);
+  const g = document.getElementById('gantt');
+  const xp = d => (days(win.start, parseD(d))/win.span)*100;
+  const wp = (a,b) => Math.max((days(a,b)/win.span)*100, 0.6);
+
+  // month header
+  let months=[]; let d=new Date(win.start);
+  while(d < win.end){ const next=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1)); months.push({d:new Date(d), w:(days(d, next>win.end?win.end:next)/win.span)*100}); d=next; }
+  const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let monthHead = `<div class="grow months"><div class="glabel"><div class="c" style="letter-spacing:0.18em;">Work package</div></div><div class="gtrack">${
+    months.map(m=>`<div class="mcol" style="width:${m.w}%;">${monthNames[m.d.getUTCMonth()]} ${m.d.getUTCMonth()===0?m.d.getUTCFullYear():''}</div>`).join('')
+  }</div></div>`;
+
+  // gridlines overlay per row
+  const gridlines = months.map((m,i)=>`<div class="mgrid" style="left:${months.slice(0,i+1).reduce((s,x)=>s+x.w,0)}%;"></div>`).join('');
+  const todayX = xp(state.project.dataDate);
+
+  const rowsHtml = c.rows.map(r=>{
+    const planL=xp(r.ps), planW=wp(r.ps,r.pe);
+    let actHtml='';
+    if(r.aStart){
+      const aEnd = r.aFinish || state.project.dataDate; // solid up to reported
+      const solidL=xp(r.aStart), solidW=wp(r.aStart, aEnd);
+      const cls = r.status==='done'?'done':(r.status==='delayed'?'delayed':'');
+      actHtml += `<div class="bar act ${cls}" style="left:${solidL}%; width:${solidW}%;"></div>`;
+      // forecast tail (from data date to forecast) if not done
+      if(!r.aFinish && days(aEnd, r.forecast)>0){
+        const fL=xp(aEnd), fW=wp(aEnd, r.forecast);
+        const col = r.status==='delayed'?'var(--alert)':'var(--ink)';
+        actHtml += `<div class="bar act forecast" style="left:${fL}%; width:${fW}%; color:${col};"><span class="lab">${r.pct}% · fcst ${fmtD(r.forecast)}</span></div>`;
+      } else {
+        actHtml += `<div class="bar" style="left:${xp(aEnd)}%;"><span class="lab" style="position:static;">&nbsp;${r.pct}%</span></div>`;
+      }
+    } else {
+      // not started: ghost forecast band from cascaded forecast start
+      const fL=xp(r.forecastStart);
+      const fW=wp(r.forecastStart, r.forecast);
+      actHtml += `<div class="bar act forecast" style="left:${fL}%; width:${fW}%; color:${r.status==='delayed'?'var(--alert)':'var(--ink-faint)'};"><span class="lab">not started · fcst ${fmtD(r.forecastStart)}</span></div>`;
+    }
+    return `<div class="grow">
+      <div class="glabel"><div class="t">${r.name}</div><div class="c">${r.contractor} · ${pillTiny(r.status)}</div></div>
+      <div class="gtrack">${gridlines}
+        <div class="bar plan" style="left:${planL}%; width:${planW}%;"></div>
+        ${actHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  // milestone row
+  const msRow = `<div class="grow"><div class="glabel"><div class="t">Milestones</div><div class="c">Planned ◇ · Forecast ◆</div></div><div class="gtrack">${gridlines}${
+    c.ms.map(m=>{
+      const cls = m.status==='done'?'done':(m.status==='delayed'||m.status==='atrisk'?'delayed':'');
+      const ghost = `<div class="mdiamond plan-ghost" style="left:${xp(m.plan)}%;" title="${m.name} planned ${fmtD(m.plan)}"></div>`;
+      const real  = `<div class="mdiamond ${cls}" style="left:${xp(m.forecast)}%;" title="${m.name} forecast ${fmtD(m.forecast)}"></div>`;
+      return ghost+real;
+    }).join('')
+  }</div></div>`;
+
+  g.innerHTML = monthHead + rowsHtml + msRow +
+    `<div class="grow" style="grid-template-columns:250px 1fr;"><div></div><div class="gtrack" style="height:0;position:relative;"></div></div>`;
+
+  // today line — inject across the timeline column via absolute overlay
+  g.querySelectorAll('.gtrack').forEach((tr,idx)=>{
+    if(idx===0) return; // skip month header handled separately
+    const line=document.createElement('div'); line.className='today'; line.style.left=todayX+'%';
+    tr.appendChild(line);
+  });
+}
+function pillTiny(s){
+  const map={done:'Complete',ontrack:'On track',atrisk:'At risk',delayed:'Delayed',notstarted:'Not started'};
+  const col={done:'var(--good)',ontrack:'var(--ink-soft)',atrisk:'var(--warn)',delayed:'var(--alert)',notstarted:'var(--ink-faint)'};
+  return `<span style="color:${col[s]};font-weight:600;">${map[s]}</span>`;
+}
+
+/* ---------- Milestones table ---------- */
+function renderMilestones(c){
+  const t=document.getElementById('milestones');
+  t.innerHTML=`<thead><tr>
+    <th>Milestone</th><th>Governing package</th><th class="num">Planned</th><th class="num">Forecast / actual</th><th class="num">Variance</th><th>Status</th>
+  </tr></thead><tbody>${c.ms.map(m=>{
+    const gov=c.byId[m.gov];
+    return `<tr>
+      <td><b>${m.name}</b></td>
+      <td class="muted">${gov?gov.name:'—'}</td>
+      <td class="num">${fmtD(m.plan)}</td>
+      <td class="num">${fmtD(m.forecast)}</td>
+      <td class="num var ${m.varDays>0?'late':(m.varDays<0?'early':'flat')}">${m.varDays>0?'+':''}${m.varDays}d</td>
+      <td>${pill(m.status)}</td>
+    </tr>`;
+  }).join('')}</tbody>`;
+}
+
+/* ---------- Contractors ---------- */
+function renderContractors(c){
+  const cont={};
+  c.rows.forEach(r=>{ (cont[r.contractor]=cont[r.contractor]||[]).push(r); });
+  const lastReport={};
+  state.reports.forEach(r=>{ if(!lastReport[r.contractor] || parseD(r.date)>parseD(lastReport[r.contractor])) lastReport[r.contractor]=r.date; });
+
+  const el=document.getElementById('contractors');
+  el.innerHTML=Object.keys(cont).map(name=>{
+    const rows=cont[name];
+    const totW=rows.reduce((s,r)=>s+r.w,0);
+    const actual=rows.reduce((s,r)=>s+r.w*r.pct/100,0)/totW*100;
+    const planned=rows.reduce((s,r)=>s+r.w*r.plannedPct/100,0)/totW*100;
+    const delayed=rows.filter(r=>r.status==='delayed').length;
+    const worst=Math.max(0,...rows.map(r=>r.varDays));
+    const cls = delayed? 'delayed' : (actual>=planned-2?'done':'');
+    return `<div class="contractor-card">
+      <h3>${name}</h3>
+      <div class="meta">${rows.length} packages · last report ${fmtD(lastReport[name])}</div>
+      <div style="margin:16px 0 4px; display:flex; justify-content:space-between; font-size:12px;">
+        <span>Progress</span><span><b>${pctStr(actual)}%</b> <span class="muted">vs plan ${pctStr(planned)}%</span></span>
+      </div>
+      <div class="mbar"><i class="${cls}" style="width:${clamp(actual,0,100)}%"></i></div>
+      <div style="margin-top:16px;">
+        <div class="cstat"><span class="muted">Schedule variance</span><span class="var ${worst>5?'late':(actual>=planned?'early':'flat')}">${worst>0?'+'+worst+'d':'on plan'}</span></div>
+        <div class="cstat"><span class="muted">Delayed packages</span><span class="${delayed?'':''}" style="color:${delayed?'var(--alert)':'var(--good)'};font-weight:600;">${delayed}</span></div>
+        <div class="cstat"><span class="muted">Earned vs planned</span><span class="${actual>=planned?'':''}" style="color:${actual>=planned?'var(--good)':'var(--alert)'};font-weight:600;">${actual>=planned?'+':''}${(actual-planned).toFixed(1)} pt</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- Ingest form ---------- */
+function renderIngestForm(){
+  const contractors=[...new Set(state.tasks.map(t=>t.contractor))];
+  const sel=document.getElementById('rpContractor');
+  sel.innerHTML=contractors.map(c=>`<option>${c}</option>`).join('');
+  document.getElementById('rpDate').value=state.project.dataDate;
+  buildReportLines();
+  sel.onchange=buildReportLines;
+}
+function buildReportLines(){
+  const contractor=document.getElementById('rpContractor').value;
+  const tasks=state.tasks.filter(t=>t.contractor===contractor);
+  const c=consolidate();
+  const box=document.getElementById('rpLines');
+  box.innerHTML=`<div class="report-line" style="border-bottom:1px solid var(--ink-hairline);opacity:0.6;">
+      <div class="nm" style="font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;">Package</div>
+      <div style="font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-soft);">% complete</div>
+      <div style="font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-soft);">Actual start</div>
+      <div style="font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-soft);">Actual finish</div>
+    </div>`+
+    tasks.map(t=>{
+      const cur=c.byId[t.id];
+      return `<div class="report-line" data-task="${t.id}">
+        <div class="nm">${t.name}<small>Planned ${fmtD(t.ps)} – ${fmtD(t.pe)}</small></div>
+        <input type="number" min="0" max="100" class="rp-pct" value="${cur?cur.pct:0}">
+        <input type="date" class="rp-start" value="${cur&&cur.aStart?cur.aStart:''}">
+        <input type="date" class="rp-fin" value="${cur&&cur.aFinish?cur.aFinish:''}">
+      </div>`;
+    }).join('');
+}
+function submitReport(){
+  const contractor=document.getElementById('rpContractor').value;
+  const date=document.getElementById('rpDate').value;
+  if(!date){ toast('Set a report date'); return; }
+  const lines=[...document.querySelectorAll('#rpLines .report-line[data-task]')].map(row=>{
+    const pct=clamp(parseInt(row.querySelector('.rp-pct').value)||0,0,100);
+    const s=row.querySelector('.rp-start').value||null;
+    const f=row.querySelector('.rp-fin').value||null;
+    return { taskId:row.dataset.task, percent:pct, actualStart:s, actualFinish: pct>=100?f:null };
+  }).filter(l=> l.percent>0 || l.actualStart);
+  if(!lines.length){ toast('Nothing to report — enter some progress'); return; }
+  state.reports.push({ id:'r'+Date.now(), contractor, date, note:'', lines });
+  // advance data date if this report is newer
+  if(parseD(date) > parseD(state.project.dataDate)) state.project.dataDate=date;
+  save(); renderAll();
+  document.getElementById('rpMsg').textContent='✓ Report consolidated into the timeline.';
+  toast('Report from '+contractor+' consolidated');
+  setTimeout(()=>document.getElementById('rpMsg').textContent='',3500);
+}
+
+/* ---------- raw report parser ---------- */
+function parseReportText(){
+  const text=document.getElementById('rpText').value;
+  const contractor=document.getElementById('rpContractor').value;
+  const tasks=state.tasks.filter(t=>t.contractor===contractor);
+  const lines=text.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  let matched=0;
+  const rows=[...document.querySelectorAll('#rpLines .report-line[data-task]')];
+  lines.forEach(line=>{
+    const low=line.toLowerCase();
+    // find task: CSV id first, else fuzzy name/keyword
+    let task=null;
+    const csv=line.split(',').map(s=>s.trim());
+    if(csv.length>=2 && tasks.find(t=>t.id===csv[0].toLowerCase())){ task=tasks.find(t=>t.id===csv[0].toLowerCase()); }
+    if(!task){
+      task=tasks.find(t=>{
+        const kws=t.name.toLowerCase().split(/[ &]+/).filter(w=>w.length>3);
+        return kws.some(k=>low.includes(k)) || low.includes(t.id);
+      });
+    }
+    if(!task) return;
+    const row=rows.find(r=>r.dataset.task===task.id);
+    if(!row) return;
+    // percent
+    let pct=null;
+    const pm=low.match(/(\d{1,3})\s*%/) || (csv.length>=2 && /^\d{1,3}$/.test(csv[1]) ? [null,csv[1]] : null);
+    if(pm) pct=clamp(parseInt(pm[1]),0,100);
+    if(/\b(complete|completed|finished|done|handed over)\b/.test(low) && !/incomplete/.test(low)) pct=100;
+    if(pct!=null) row.querySelector('.rp-pct').value=pct;
+    // dates
+    const ds=line.match(/\d{4}-\d{2}-\d{2}/g)||[];
+    if(csv.length>=3){ // csv id,pct,start,finish
+      if(/^\d{4}-\d{2}-\d{2}$/.test(csv[2]||'')) row.querySelector('.rp-start').value=csv[2];
+      if(/^\d{4}-\d{2}-\d{2}$/.test(csv[3]||'')) row.querySelector('.rp-fin').value=csv[3];
+    } else if(ds.length){
+      if(/\b(start|started|commenced|began|mobilized|mobilised)\b/.test(low)) row.querySelector('.rp-start').value=ds[0];
+      if(/\b(finish|finished|complete|completed|done)\b/.test(low)) row.querySelector('.rp-fin').value=ds[ds.length-1];
+      if(!/start|finish|complete|began|commenced/.test(low)) row.querySelector('.rp-start').value=ds[0];
+    }
+    row.style.background='rgba(21,128,61,0.06)';
+    setTimeout(()=>row.style.background='',1400);
+    matched++;
+  });
+  document.getElementById('rpParseMsg').textContent = matched? `Matched ${matched} package${matched>1?'s':''} — review and submit.` : 'No packages matched for this contractor.';
+}
+
+/* ---------- report log ---------- */
+function renderReportLog(){
+  const t=document.getElementById('reportLog');
+  const rs=[...state.reports].sort((a,b)=>parseD(b.date)-parseD(a.date));
+  const nameOf={}; state.tasks.forEach(t=>nameOf[t.id]=t.name);
+  t.innerHTML=`<thead><tr><th>Date</th><th>Contractor</th><th>Packages reported</th><th>Note</th></tr></thead>
+    <tbody>${rs.map(r=>`<tr>
+      <td class="num" style="text-align:left;">${fmtD(r.date)}</td>
+      <td><b>${r.contractor}</b></td>
+      <td class="muted">${r.lines.map(l=>`${nameOf[l.taskId]||l.taskId} <b style="color:var(--ink)">${l.percent}%</b>`).join(' · ')}</td>
+      <td class="muted" style="max-width:280px;">${r.note||'—'}</td>
+    </tr>`).join('')}</tbody>`;
+}
+
+/* ============================================================
+   ORCHESTRATION
+   ============================================================ */
+function renderAll(){
+  const c=consolidate();
+  const r=rollup(c);
+  renderHeader();
+  renderKPIs(c,r);
+  renderExceptions(c);
+  renderSCurve(c);
+  renderGantt(c);
+  renderMilestones(c);
+  renderContractors(c);
+  renderIngestForm();
+  renderReportLog();
+}
+
+/* tabs */
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('view-'+tab.dataset.view).classList.add('active');
+  };
+});
+
+/* controls */
+document.getElementById('dataDate').onchange=e=>{ state.project.dataDate=e.target.value; save(); renderAll(); };
+document.getElementById('btnReset').onclick=()=>{ if(confirm('Reset to demo data? This clears all submitted reports.')){ state=seed(); save(); renderAll(); toast('Demo data restored'); } };
+document.getElementById('btnExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='bohio-infra-pm-'+state.project.dataDate+'.json'; a.click();
+};
+document.getElementById('rpSubmit').onclick=submitReport;
+document.getElementById('rpParse').onclick=parseReportText;
+
+let toastT;
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2600); }
+
+renderAll();
+</script>
+</body>
+</html>
