@@ -930,6 +930,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
     document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('view-'+tab.dataset.view).classList.add('active');
+    window.scrollTo(0, 0);
   };
 });
 
