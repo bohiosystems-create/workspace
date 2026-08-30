@@ -210,7 +210,22 @@ function clean(v: string | null | undefined): string | null {
 // Idempotent: if any Contact exists, does nothing. Called lazily by the CRM
 // routes, mirroring lib/seed.ts. Contacts mirror the demo's KSA portfolio.
 
-export async function ensureContactsSeeded() {
+// Concurrency guard: several reads (listContacts + crmStats) can fire in the
+// same request, each wanting a seeded table. Share one seeding promise so they
+// don't race into a double-seed. Reset on failure so a later call can retry.
+let seedPromise: Promise<void> | null = null;
+
+export function ensureContactsSeeded(): Promise<void> {
+  if (!seedPromise) {
+    seedPromise = doSeed().catch((err) => {
+      seedPromise = null;
+      throw err;
+    });
+  }
+  return seedPromise;
+}
+
+async function doSeed() {
   const count = await prisma.contact.count();
   if (count > 0) return;
 
