@@ -20,6 +20,12 @@ const WORKFLOWS = [
     title: "Deal Screening",
     desc: "Upload a teaser or OM; Claude extracts the figures, a deterministic underwrite runs against the fund hurdles, and Claude drafts the IC memo.",
   },
+  {
+    href: "/crm",
+    n: "04",
+    title: "Relationships CRM",
+    desc: "Internal register of LPs, brokers, lenders and counterparties. Jot a note in plain English and Claude files it; draft a follow-up email from a contact's history.",
+  },
 ];
 
 export default function Home() {
@@ -28,10 +34,11 @@ export default function Home() {
       <Nav />
       <div className="section-title">Fund Operations OS</div>
       <p className="intro">
-        Three workflows wired into one fund dataset. Reporting and Debt read a
+        Four workflows wired into one fund dataset. Reporting and Debt read a
         seeded register of funds, assets, facilities and distributions; Deal
-        Screening reads uploaded teasers. Claude does the language work;
-        deterministic code does the maths.
+        Screening reads uploaded teasers; the CRM tracks the relationships
+        behind the deals. Claude does the language work; deterministic code
+        does the maths.
       </p>
 
       <div className="cards">

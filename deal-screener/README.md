@@ -10,6 +10,7 @@ workflow.)
 | 01 | **LP & Board Reporting** | Chatbot: Claude parses the request → snapshot & returns are **computed from the seeded fund/asset data and live debt** (NAV = valuation − debt, weighted occupancy/WALE, etc.) → Claude drafts the manager commentary in the requested style. |
 | 02 | **Debt & Covenants** | ICR / LTV / DSCR, weighted cost, maturity ladder and covenant headroom **computed from the facilities register**, with **rule-based forward-looking alerts** (covenant headroom < 15%, refi windows < 18mo, maturity concentration) + an on-demand Claude risk narrative. |
 | 03 | **Deal Screening** | Upload a teaser/OM PDF → Claude **extracts** figures (structured output) → **deterministic underwrite** (real IRR solver) vs. fund hurdles → Claude **drafts** the IC memo → saved to SQLite. |
+| 04 | **Relationships CRM** | Internal register of contacts (LPs, brokers, lenders, sellers, advisors, tenants) with a logged interaction history. Jot a **freeform note** → Claude parses it into a structured, filed entry (channel, clean summary, sentiment, next step, follow-up date). **Draft a follow-up email** from a contact's history in one click. Stats, filters and follow-ups-due are computed deterministically from SQLite. |
 
 ## Architecture
 
@@ -18,13 +19,14 @@ SQLite (Prisma)  ── Fund / Asset / Facility / Distribution / Deal
    ▲                         │
    │ seeded lazily           │ read
    │ (lib/seed.ts)           ▼
-LP Reporting   /api/report  → lib/reporting.ts (compute) + lib/claude.ts (parse + commentary)
-Debt&Covenants /api/debt    → lib/debt.ts (compute + alerts) + lib/claude.ts (narrative)
-Deal Screening /api/screen  → lib/claude.ts (extract) + lib/underwrite.ts (IRR) + lib/claude.ts (memo)
+LP Reporting   /api/report    → lib/reporting.ts (compute) + lib/claude.ts (parse + commentary)
+Debt&Covenants /api/debt      → lib/debt.ts (compute + alerts) + lib/claude.ts (narrative)
+Deal Screening /api/screen    → lib/claude.ts (extract) + lib/underwrite.ts (IRR) + lib/claude.ts (memo)
+Relationships  /api/contacts  → lib/crm.ts (data + stats + seed) + lib/claude.ts (note parse + follow-up)
 ```
 
-Pages: `/` landing, `/reporting`, `/debt`, `/screening`. Shared Bohio
-monochrome design in `app/globals.css`.
+Pages: `/` landing, `/reporting`, `/debt`, `/screening`, `/crm` (+ `/crm/[id]`
+contact detail). Shared Bohio monochrome design in `app/globals.css`.
 
 ## Run it locally
 
@@ -45,6 +47,7 @@ Try it:
 - **/reporting** — click a suggestion chip or type *"Q1 2026 LP report for Bevilacqua, formal style"*.
 - **/debt** — loads instantly; click **AI risk narrative** for the Claude summary.
 - **/screening** — a sample teaser is pre-filled; pick a fund and **Screen this deal**, or upload a PDF.
+- **/crm** — seeds a sample contact book on first load. Open a contact, log a **Quick note (AI)** like *"called Faisal, happy with Q1 returns, wants the Andalus schedule next week"*, then **Draft email** for an AI follow-up.
 
 > **Cost:** Reporting ≈ 2 Opus calls, Screening ≈ 2, Debt ≈ 0 (1 only if you
 > request the narrative). `claude-opus-4-8` is \$5/\$25 per 1M tokens — a few

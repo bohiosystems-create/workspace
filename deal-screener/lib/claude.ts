@@ -202,3 +202,80 @@ export async function draftDebtNarrative(args: { dashboard: unknown }): Promise<
   });
   return textOf(response);
 }
+
+// ----- CRM: parse a freeform interaction note ----------------------------
+// Turns a quick jotted note ("called Faisal, happy with returns, wants the
+// Andalus schedule by next week") into a structured, filed interaction.
+export const ParsedInteractionSchema = z.object({
+  channel: z.enum(["Call", "Email", "Meeting", "Note"]),
+  summary: z.string(), // cleaned, third-person, one or two sentences
+  sentiment: z.enum(["Positive", "Neutral", "Negative"]),
+  nextStep: z.string().nullable(),
+  followUpInDays: z.number().nullable(), // days from today, if a follow-up is implied
+});
+export type ParsedInteraction = z.infer<typeof ParsedInteractionSchema>;
+
+export async function parseInteractionNote(args: {
+  note: string;
+  contactName: string;
+  company?: string | null;
+}): Promise<ParsedInteraction> {
+  const prompt = `You are the CRM assistant for a real-estate private-equity manager. A team member jotted a quick note about an interaction with a contact. Turn it into a clean, filed CRM entry.
+
+CONTACT: ${args.contactName}${args.company ? ` (${args.company})` : ""}
+NOTE: ${args.note}
+
+Rules:
+- "channel": infer Call / Email / Meeting from the note; use Note if unclear.
+- "summary": rewrite as a clean, third-person, past-tense summary (1-2 sentences). Do not invent facts.
+- "sentiment": the contact's disposition in this interaction.
+- "nextStep": the concrete action the team member should take next, if implied; otherwise null.
+- "followUpInDays": if the note implies a follow-up timeframe (e.g. "next week" ≈ 7, "in a month" ≈ 30), the number of days from today; otherwise null.`;
+
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 600,
+    messages: [{ role: "user", content: prompt }],
+    output_config: { format: zodOutputFormat(ParsedInteractionSchema) },
+  });
+  if (!response.parsed_output) throw new Error("Could not parse the interaction note.");
+  return response.parsed_output;
+}
+
+// ----- CRM: draft a follow-up email --------------------------------------
+export async function draftFollowUpEmail(args: {
+  contact: {
+    name: string;
+    title?: string | null;
+    company?: string | null;
+    category: string;
+    stage: string;
+  };
+  interactions: Array<{ date: string; channel: string; summary: string; nextStep?: string | null }>;
+  instruction?: string | null;
+  senderName?: string | null;
+}): Promise<string> {
+  const { contact, interactions, instruction, senderName } = args;
+
+  const system = `You are a relationship manager at Bohio, a real-estate private-equity manager in Saudi Arabia. You write warm but concise, professional follow-up emails. Never invent facts, figures, meeting outcomes or commitments — rely only on the interaction history provided. If a specific document or figure was promised, reference it generically without fabricating numbers. Output the email as plain text: a "Subject:" line, then the body. No markdown, no commentary before or after.`;
+
+  const user = `Draft a follow-up email to the contact below${
+    instruction ? `, following this instruction: "${instruction}"` : "."
+  }
+
+CONTACT:
+${JSON.stringify(contact, null, 2)}
+
+INTERACTION HISTORY (most recent first):
+${JSON.stringify(interactions, null, 2)}
+
+Sign the email from ${senderName || "the Bohio team"}. Keep it to a short, natural email — no more than ~150 words. Pick up on the most recent open item or next step.`;
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 900,
+    system,
+    messages: [{ role: "user", content: user }],
+  });
+  return textOf(response);
+}

@@ -77,3 +77,40 @@ model Facility {
   maturity       DateTime
 }
 
+// ---- Internal CRM ---------------------------------------------------------
+// A lightweight relationship register for the Bohio team: LPs, brokers,
+// lenders, sellers, advisors and tenants, with a logged interaction history.
+
+model Contact {
+  id             String        @id @default(cuid())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  name           String
+  title          String?
+  company        String?
+  email          String?
+  phone          String?
+  category       String        // LP | Broker | Lender | Seller | Advisor | Tenant | Other
+  stage          String        @default("Prospect") // Prospect | Active | Committed | Dormant
+  owner          String?       // relationship owner at Bohio
+  location       String?
+  notes          String?
+  lastContactAt  DateTime?     // denormalised: most recent interaction date
+  interactions   Interaction[]
+}
+
+model Interaction {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId  String
+  date       DateTime @default(now())
+  channel    String   // Call | Email | Meeting | Note
+  summary    String
+  sentiment  String?  // Positive | Neutral | Negative
+  nextStep   String?
+  followUpOn DateTime?
+
+  @@index([contactId])
+}
+
