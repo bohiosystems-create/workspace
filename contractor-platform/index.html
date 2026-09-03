@@ -172,8 +172,6 @@
           <div class="panel feed" id="cmdFeed"></div>
         </div>
       </div>
-      <h2 class="section">Workforce mix</h2>
-      <div class="grid3" id="mixCards"></div>
     </section>
 
     <!-- CONTRACTORS -->
@@ -482,16 +480,6 @@ function renderCmdFeed(){
   ];
   document.getElementById('cmdFeed').innerHTML=acts.map(a=>`<div class="ln"><span class="dot ${a.d}" style="margin-top:5px"></span><span>${a.t}</span></div>`).join('');
 }
-function renderMix(){
-  const groups={Human:state.contractors.filter(c=>c.kind==='Human'),Robot:state.contractors.filter(c=>c.kind==='Robot')};
-  const el=document.getElementById('mixCards');
-  el.innerHTML=Object.entries(groups).map(([k,list])=>`
-   <div class="card"><h3>${k==='Robot'?'Robotic contractors':'Human contractors'} <span class="tag ${k.toLowerCase()}"><i></i>${list.length}</span></h3>
-     <div class="meta">${k==='Robot'?'Autonomous fleets · dispatchable':'Crews · directive via Procore'}</div>
-     <div style="margin-top:14px">${list.map(c=>`<div class="cstat"><span>${c.name}</span><span class="muted">${c.discipline}</span></div>`).join('')}</div></div>`).join('')+
-   `<div class="card"><h3>Interchangeability</h3><div class="meta">Same scoring axes for both</div>
-     <p class="muted" style="margin-top:14px">Human and robotic contractors bid into the same tenders and are monitored on the same timeline. When a human package slips, the platform can recommend swapping in an interchangeable robotic fleet — and dispatch it automatically.</p></div>`;
-}
 function renderRoster(){
   document.getElementById('roster').innerHTML=state.contractors.map(c=>{
     const assigned=state.tasks.filter(t=>t.contractor===c.id);
@@ -704,7 +692,7 @@ function renderIntegrations(){
 let cur='command';
 function renderAll(){
   const c=consolidate(),r=rollup(c);
-  renderHeader();renderKPIs(c,r);renderPredicted(c);renderCmdFeed();renderMix();
+  renderHeader();renderKPIs(c,r);renderPredicted(c);renderCmdFeed();
   renderRoster();renderTenders();renderGantt(c);renderSCurve(c);
   renderDirectives();renderDirFeed();renderIntegrations();
 }
