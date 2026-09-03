@@ -22,19 +22,20 @@ Open `index.html` in any browser. It seeds a live infrastructure programme
 
 | Tab | What it demonstrates |
 |-----|----------------------|
-| **Command Center** | Programme KPIs, **predicted delays flagged before they land** (with lead time and root cause), a live human/robot activity feed, and the workforce mix. |
-| **Contractors** | A roster of human crews and robotic fleets, scored on the same axes — interchangeable by design. |
-| **Procurement** | Open tenders with competing **human vs robot proposals**, each scored on cost / duration / risk / availability / rating. The platform recommends one; you **award with a click** and the timeline re-plans around the winner. |
-| **Timeline** | The consolidated planned-vs-actual Gantt (robot bars distinct from human), forecast-to-complete tails, milestone markers, and the S-curve. |
+| **Contractors** *(landing)* | A roster of human crews and robotic fleets, scored on the same axes — interchangeable by design. **Rate & review** any contractor (stars, tags, note); that feedback blends into their rating and feeds the procurement fit score on future tenders. |
+| **Procurement** | Open tenders with competing **human vs robot proposals**, each scored on cost / duration / risk / availability / rating. The platform recommends one; you **award with a click** and the plan re-plans around the winner. |
 | **Agent Console** | The **agentic control loop**: the platform detects a breach, drafts a corrective directive, and — on approval — issues it. Human crews are instructed via Procore; **robotic fleets are dispatched a machine command via the Trimble fleet MCP** and auto-acknowledge → execute. |
-| **Integrations · MCP** | Connected systems — **Oracle Primavera P6** (schedule of record), Bentley SYNCHRO 4D, Autodesk Construction Cloud, SAP S/4HANA EPC, Procore, Trimble WorksManager — with live sync activity and the Primavera MCP tool catalog. |
+| **⚙ Settings** *(top-right gear)* | Connected systems over MCP — **Oracle Primavera P6** (schedule of record), Bentley SYNCHRO 4D, Autodesk Construction Cloud, SAP S/4HANA EPC, Procore, Trimble WorksManager — with live sync activity and the Primavera MCP tool catalog. |
+
+The consolidated schedule itself (planned vs actual, critical path, milestones)
+lives in Primavera P6, reached through the MCP connection in Settings.
 
 ## Suggested demo flow
 
-1. **Command Center** — point out the predicted ductbank breach flagged ~5 weeks early.
-2. **Procurement** — award **Asphalt & Surfacing** to the *RoboPave Autonomous Fleet* (robot) over the human incumbent; note the fit score and that the timeline re-plans.
+1. **Contractors** — leave a review on a contractor and watch its rating shift; note that it will change the procurement score.
+2. **Procurement** — award **Asphalt & Surfacing** to the *RoboPave Autonomous Fleet* (robot) over the human incumbent; note the fit score.
 3. **Agent Console** — click **Generate recommendations**, then **issue** a directive; watch a robot directive move Draft → Issued → Acknowledged → Executing.
-4. **Integrations** — show Primavera P6 and the other MCP connectors, and the config that wires the bundled server in.
+4. **⚙ Settings** — show Primavera P6 and the other MCP connectors, and the config that wires the bundled server in.
 
 ## MCP servers (`mcp/`)
 
