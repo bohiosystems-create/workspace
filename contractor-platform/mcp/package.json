@@ -1,0 +1,19 @@
+{
+  "name": "bohio-contractor-platform-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP servers for the Bohio contractor platform — Primavera P6 schedule + Trimble robotic-fleet dispatch.",
+  "bin": {
+    "primavera-mcp": "primavera-mcp-server.mjs",
+    "trimble-mcp": "trimble-mcp-server.mjs"
+  },
+  "scripts": {
+    "primavera": "node primavera-mcp-server.mjs",
+    "trimble": "node trimble-mcp-server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  }
+}

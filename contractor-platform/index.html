@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bohio · Contractor Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#e6e2e2; --ink:#000919; --ink-soft:rgba(0,9,25,0.55); --ink-faint:rgba(0,9,25,0.30);
+    --ink-hairline:rgba(0,9,25,0.12); --paper:#efebeb; --alert:#FF4D6A; --good:#15803d; --warn:#b45309;
+    --plan:rgba(0,9,25,0.16); --plan-line:rgba(0,9,25,0.34);
+    --robot:#0f5c8c; --robot-bg:rgba(15,92,140,0.10); --human:#000919;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:'Space Grotesk',-apple-system,sans-serif;letter-spacing:.01em;min-height:100vh}
+  ::selection{background:var(--ink);color:var(--bg)}
+  .wrap{max-width:1380px;margin:0 auto;padding:0 26px 120px}
+  .topbar{position:sticky;top:0;z-index:40;background:var(--bg);border-bottom:1px solid var(--ink-hairline);display:flex;align-items:center;gap:26px;padding:16px 26px;max-width:1380px;margin:0 auto}
+  .logo{font-size:18px;letter-spacing:.48em;text-transform:uppercase;font-weight:500}
+  .logo small{font-size:8.5px;letter-spacing:.3em;color:var(--ink-soft);display:block;margin-top:3px}
+  .topbar .pj{margin-left:auto;text-align:right}
+  .topbar .pj b{font-size:13px;font-weight:600}
+  .topbar .pj span{display:block;font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft);margin-top:3px}
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--ink-hairline);margin:0 -26px 26px;padding:0 26px;position:sticky;top:65px;background:var(--bg);z-index:30;overflow-x:auto}
+  .tab{padding:15px 15px;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px;white-space:nowrap;transition:color .15s}
+  .tab:hover{color:var(--ink)} .tab.active{color:var(--ink);border-bottom-color:var(--ink);font-weight:500}
+  .view{display:none} .view.active{display:block}
+  h2.section{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--ink-soft);font-weight:500;margin:34px 0 15px;display:flex;align-items:center;gap:14px}
+  h2.section::after{content:"";flex:1;height:1px;background:var(--ink-hairline)}
+  h2.section:first-child{margin-top:6px}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--ink-hairline);border:1px solid var(--ink-hairline)}
+  .kpi{background:var(--paper);padding:20px 18px}
+  .kpi .label{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft)}
+  .kpi .val{font-size:31px;font-weight:300;margin-top:11px;line-height:1}
+  .kpi .val small{font-size:14px;color:var(--ink-soft)}
+  .kpi .sub{font-size:10.5px;color:var(--ink-soft);margin-top:7px}
+  .kpi .val.good{color:var(--good)} .kpi .val.warn{color:var(--warn)} .kpi .val.bad{color:var(--alert)}
+  .sub .good{color:var(--good)} .sub .warn{color:var(--warn)} .sub .bad{color:var(--alert)}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .panel{background:var(--paper);border:1px solid var(--ink-hairline);padding:20px 22px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:500;padding:10px 12px;border-bottom:1px solid var(--ink-hairline);white-space:nowrap}
+  td{padding:12px;border-bottom:1px solid var(--ink-hairline);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .tbl-wrap{border:1px solid var(--ink-hairline);background:var(--paper);overflow-x:auto}
+  .pill{display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:20px;border:1px solid;font-weight:500;white-space:nowrap}
+  .pill.done{color:var(--good);border-color:var(--good)} .pill.ontrack{color:var(--ink);border-color:var(--ink-faint)}
+  .pill.atrisk{color:var(--warn);border-color:var(--warn)} .pill.delayed{color:var(--alert);border-color:var(--alert)}
+  .pill.notstarted{color:var(--ink-soft);border-color:var(--ink-hairline)} .pill.tender{color:var(--robot);border-color:var(--robot)}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:3px;font-weight:600}
+  .tag.robot{color:var(--robot);background:var(--robot-bg)} .tag.human{color:var(--ink);background:rgba(0,9,25,0.06)} .tag.hybrid{color:var(--warn);background:rgba(180,83,9,.1)}
+  .tag i{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block}
+  .var{font-variant-numeric:tabular-nums;font-weight:500} .var.late{color:var(--alert)} .var.early{color:var(--good)} .var.flat{color:var(--ink-soft)}
+  .mbar{height:6px;background:var(--ink-hairline);border-radius:3px;overflow:hidden;min-width:70px}
+  .mbar>i{display:block;height:100%;background:var(--ink)} .mbar>i.done{background:var(--good)} .mbar>i.delayed{background:var(--alert)} .mbar>i.robot{background:var(--robot)}
+  .btn{font-family:inherit;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;padding:11px 20px;background:var(--ink);color:var(--bg);border:1px solid var(--ink);border-radius:2px;cursor:pointer;font-weight:500;transition:opacity .15s}
+  .btn:hover{opacity:.85} .btn.ghost{background:transparent;color:var(--ink)} .btn.ghost:hover{background:var(--ink);color:var(--bg);opacity:1}
+  .btn.sm{padding:7px 13px;font-size:9.5px} .btn.robot{background:var(--robot);border-color:var(--robot)} .btn:disabled{opacity:.35;cursor:not-allowed}
+  .muted{color:var(--ink-soft);font-size:12px;line-height:1.6}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .toolbar .spacer{flex:1}
+  .datebox{display:flex;align-items:center;gap:8px;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+  input,select{font-family:inherit;font-size:12px;color:var(--ink);background:var(--bg);border:1px solid var(--ink-hairline);padding:8px 10px;border-radius:2px}
+  input:focus,select:focus{outline:none;border-color:var(--ink)}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 24px;border-radius:3px;font-size:12px;opacity:0;pointer-events:none;transition:all .25s;z-index:100;max-width:520px}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .card{border:1px solid var(--ink-hairline);background:var(--paper);padding:18px 20px}
+  .card h3{font-size:14.5px;font-weight:600}
+  .card .meta{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-top:4px}
+  .cstat{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--ink-hairline)} .cstat:last-child{border-bottom:none}
+  .stars{color:var(--warn);letter-spacing:1px;font-size:12px}
+  /* Gantt */
+  .legend{display:flex;gap:16px;font-size:10px;letter-spacing:.04em;color:var(--ink-soft);flex-wrap:wrap;margin:12px 0}
+  .legend i{display:inline-block;width:20px;height:9px;vertical-align:middle;margin-right:6px;border-radius:1px}
+  .legend i.pl{background:var(--plan);border:1px solid var(--plan-line);height:8px} .legend i.ac{background:var(--ink)} .legend i.rb{background:var(--robot)}
+  .legend i.fc{background:repeating-linear-gradient(45deg,var(--ink),var(--ink) 3px,transparent 3px,transparent 6px);border:1px solid var(--ink)}
+  .legend i.dn{background:var(--good)} .legend i.dl{background:var(--alert)}
+  .gantt{border:1px solid var(--ink-hairline);background:var(--paper);overflow-x:auto}
+  .gantt-inner{min-width:820px}
+  .grow{display:grid;grid-template-columns:260px 1fr;border-top:1px solid var(--ink-hairline)} .grow:first-child{border-top:none}
+  .grow.months{position:sticky;top:0;background:var(--paper);z-index:5}
+  .glabel{padding:10px 13px;border-right:1px solid var(--ink-hairline)}
+  .glabel .t{font-size:12px;font-weight:500} .glabel .c{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-top:3px;display:flex;align-items:center;gap:6px}
+  .gtrack{position:relative;height:44px} .months .gtrack{height:28px;display:flex}
+  .mcol{flex:none;border-right:1px solid var(--ink-hairline);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);padding:8px 0 0 6px;overflow:hidden;white-space:nowrap}
+  .mgrid{position:absolute;top:0;bottom:0;border-right:1px solid var(--ink-hairline)}
+  .bar{position:absolute;border-radius:2px}
+  .bar.plan{background:var(--plan);border:1px solid var(--plan-line);height:9px;top:8px}
+  .bar.act{height:13px;top:20px;background:var(--ink)} .bar.act.robot{background:var(--robot)} .bar.act.done{background:var(--good)} .bar.act.delayed{background:var(--alert)}
+  .bar.act.forecast{background:repeating-linear-gradient(45deg,currentColor,currentColor 3px,transparent 3px,transparent 6px);border:1px solid}
+  .bar .lab{position:absolute;left:calc(100% + 6px);top:50%;transform:translateY(-50%);font-size:9px;white-space:nowrap;color:var(--ink-soft)}
+  .today{position:absolute;top:0;bottom:0;border-left:1.5px dashed var(--alert);z-index:6}
+  .today .tlab{position:absolute;top:2px;left:4px;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--alert);white-space:nowrap}
+  .mdiamond{position:absolute;top:14px;width:11px;height:11px;background:var(--ink);transform:translateX(-50%) rotate(45deg);z-index:4}
+  .mdiamond.done{background:var(--good)} .mdiamond.delayed{background:var(--alert)} .mdiamond.plan-ghost{background:transparent;border:1.5px solid var(--plan-line)}
+  .scurve{width:100%;height:auto}
+  .hint{background:rgba(0,9,25,.03);border:1px solid var(--ink-hairline);border-left:2px solid var(--ink);padding:14px 16px;font-size:12px;line-height:1.6;color:var(--ink-soft);border-radius:2px}
+  .hint code,code.k{background:rgba(0,9,25,.06);padding:1px 5px;border-radius:3px;font-size:11.5px;color:var(--ink);font-family:'Courier New',monospace}
+  /* proposal */
+  .prop{border:1px solid var(--ink-hairline);border-radius:3px;padding:16px 18px;background:var(--bg)}
+  .prop.rec{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+  .prop.awarded{border-color:var(--good);box-shadow:0 0 0 1px var(--good)}
+  .prop .score{font-size:26px;font-weight:300} .prop .score small{font-size:12px;color:var(--ink-soft)}
+  .scbar{height:5px;background:var(--ink-hairline);border-radius:3px;overflow:hidden;margin:3px 0 0}
+  .scbar>i{display:block;height:100%;background:var(--ink)} .scbar>i.robot{background:var(--robot)}
+  .propgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px} @media(max-width:900px){.propgrid{grid-template-columns:1fr}}
+  .kv{display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0;border-bottom:1px solid var(--ink-hairline)} .kv:last-child{border-bottom:none} .kv b{font-variant-numeric:tabular-nums}
+  .ribbon{display:inline-block;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--ink);color:var(--bg)}
+  .ribbon.rec{background:var(--ink)} .ribbon.awarded{background:var(--good)}
+  /* directive feed */
+  .dir{border:1px solid var(--ink-hairline);border-radius:3px;padding:15px 17px;background:var(--paper);margin-bottom:12px}
+  .dir .dh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .dir .dh .title{font-size:13.5px;font-weight:600}
+  .dir .trigger{font-size:10.5px;color:var(--alert);margin-top:8px;letter-spacing:.02em}
+  .dir .detail{font-size:12px;color:var(--ink-soft);margin-top:8px;line-height:1.55}
+  .dir .route{font-size:10px;letter-spacing:.06em;color:var(--ink-soft);margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .dir .actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .dstatus{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid}
+  .dstatus.Draft{color:var(--ink-soft);border-color:var(--ink-hairline)}
+  .dstatus.Issued{color:var(--ink);border-color:var(--ink-faint)}
+  .dstatus.Acknowledged{color:var(--warn);border-color:var(--warn)}
+  .dstatus.Executing{color:var(--robot);border-color:var(--robot)}
+  .dstatus.Completed{color:var(--good);border-color:var(--good)}
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .dot.g{background:var(--good)} .dot.a{background:var(--warn)} .dot.r{background:var(--alert)} .dot.b{background:var(--robot)}
+  .feed{font-size:11.5px}
+  .feed .ln{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--ink-hairline)} .feed .ln:last-child{border:none}
+  .feed .ts{color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap;font-size:10.5px}
+  .intcard{border:1px solid var(--ink-hairline);background:var(--paper);padding:16px 18px;border-radius:3px}
+  .intcard h3{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .intcard .v{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-top:3px}
+  pre.code{background:#000919;color:#e6e2e2;padding:16px 18px;border-radius:4px;overflow-x:auto;font-family:'Courier New',monospace;font-size:11.5px;line-height:1.6}
+  pre.code .c1{color:#8fb8d6} pre.code .c2{color:#c9a5f2} pre.code .c3{color:#89d4a0}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">Bohio<small>Contractor Platform</small></div>
+    <div class="pj"><b id="pjName">—</b><span id="pjMeta">—</span></div>
+  </div>
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab active" data-view="command">Command Center</button>
+      <button class="tab" data-view="contractors">Contractors</button>
+      <button class="tab" data-view="procurement">Procurement</button>
+      <button class="tab" data-view="timeline">Timeline</button>
+      <button class="tab" data-view="agent">Agent Console</button>
+      <button class="tab" data-view="integrations">Integrations · MCP</button>
+    </div>
+
+    <!-- COMMAND CENTER -->
+    <section class="view active" id="view-command">
+      <div class="toolbar">
+        <div class="datebox">Data date <input type="date" id="dataDate"></div>
+        <div class="spacer"></div>
+        <button class="btn ghost sm" id="btnReset">Reset demo</button>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div class="grid2" style="margin-top:22px;align-items:start;">
+        <div>
+          <h2 class="section" style="margin-top:6px;">Predicted delays — flagged before they land</h2>
+          <div class="tbl-wrap"><table id="predicted"></table></div>
+          <p class="muted" style="margin-top:10px;">The platform forecasts each work package from live progress and dependency slip, flagging schedule breaches ahead of time so directives can be issued while there is still recovery runway.</p>
+        </div>
+        <div>
+          <h2 class="section" style="margin-top:6px;">Live activity — humans &amp; robots</h2>
+          <div class="panel feed" id="cmdFeed"></div>
+        </div>
+      </div>
+      <h2 class="section">Workforce mix</h2>
+      <div class="grid3" id="mixCards"></div>
+    </section>
+
+    <!-- CONTRACTORS -->
+    <section class="view" id="view-contractors">
+      <h2 class="section" style="margin-top:6px;">Contractor roster — human &amp; robotic, interchangeable</h2>
+      <p class="muted" style="margin:-6px 0 16px;">Every work package can be delivered by a human crew or an autonomous fleet. Contractors are scored on the same axes, so the platform — and you — can swap one for the other on capability, price, and schedule fit.</p>
+      <div class="grid3" id="roster"></div>
+    </section>
+
+    <!-- PROCUREMENT -->
+    <section class="view" id="view-procurement">
+      <h2 class="section" style="margin-top:6px;">Open tenders — pick the best proposal</h2>
+      <p class="muted" style="margin:-6px 0 16px;">Each open package draws competing bids from human and robotic contractors. The platform scores them on cost, duration, delivery risk, availability and rating, and recommends one — you award with a click, and the timeline re-plans around the winner.</p>
+      <div id="tenders"></div>
+    </section>
+
+    <!-- TIMELINE -->
+    <section class="view" id="view-timeline">
+      <h2 class="section" style="margin-top:6px;">Consolidated timeline — planned vs actual</h2>
+      <div class="legend">
+        <span><i class="pl"></i>Planned baseline</span><span><i class="ac"></i>Human actual</span><span><i class="rb"></i>Robot actual</span>
+        <span><i class="fc" style="color:var(--ink)"></i>Forecast</span><span><i class="dn"></i>Complete</span><span><i class="dl"></i>Delayed</span><span>◆ Milestone</span>
+      </div>
+      <div class="gantt"><div class="gantt-inner" id="gantt"></div></div>
+      <h2 class="section">Planned vs actual progress (S-curve)</h2>
+      <div class="panel"><div id="scurve"></div></div>
+    </section>
+
+    <!-- AGENT CONSOLE -->
+    <section class="view" id="view-agent">
+      <div class="toolbar" style="margin-top:6px;">
+        <h2 class="section" style="margin:0;flex:1;">Agent console — draft &amp; issue directives to contractors</h2>
+      </div>
+      <div class="grid2" style="align-items:start;">
+        <div>
+          <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+            <button class="btn" id="btnGenerate">⌁ Generate recommendations</button>
+            <button class="btn ghost" id="btnIssueAll">Issue all drafts</button>
+          </div>
+          <div id="directives"></div>
+        </div>
+        <div>
+          <h2 class="section" style="margin-top:2px;">Directive log</h2>
+          <div class="panel feed" id="dirFeed"></div>
+          <div class="hint" style="margin-top:16px;">
+            <strong style="color:var(--ink);letter-spacing:.03em;">Agentic control loop.</strong><br>
+            The platform detects a schedule breach, drafts a corrective directive, and — on your approval — issues it to the contractor over the right channel: a human crew receives an instruction via Procore/RFI; an autonomous fleet is dispatched a machine command via the Trimble / fleet MCP connector, which acknowledges and begins executing automatically.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INTEGRATIONS -->
+    <section class="view" id="view-integrations">
+      <h2 class="section" style="margin-top:6px;">Connected systems — MCP</h2>
+      <p class="muted" style="margin:-6px 0 16px;">The platform speaks to the tools heavy-industry programmes already run on, through Model Context Protocol servers. Primavera P6 is the schedule of record; progress flows in, and directives and re-baselines flow back out.</p>
+      <div class="grid3" id="integrations"></div>
+      <h2 class="section">MCP sync activity</h2>
+      <div class="panel feed" id="intFeed"></div>
+      <h2 class="section">Primavera P6 MCP server — connection</h2>
+      <div class="grid2" style="align-items:start;">
+        <div>
+          <p class="muted" style="margin-bottom:10px;">Register the bundled Primavera P6 MCP server (see <code class="k">mcp/</code> in this package). It exposes the schedule as tools the agent calls to read activities, push progress, and issue directives.</p>
+          <pre class="code" id="mcpConfig"></pre>
+        </div>
+        <div>
+          <p class="muted" style="margin-bottom:10px;">Tools exposed by <code class="k">primavera-p6</code>:</p>
+          <div class="tbl-wrap"><table id="mcpTools"></table></div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Bohio · Contractor Platform (self-contained demo)
+   Human & robot contractors interchangeable · proposal selection
+   · predictive delay detection · agentic directives · MCP.
+   ============================================================ */
+const STORE='bohio_contractor_platform_v1', MS=86400000;
+const D=s=>{if(s instanceof Date)return s;const[y,m,d]=s.split('-').map(Number);return new Date(Date.UTC(y,m-1,d));};
+const iso=d=>d.toISOString().slice(0,10);
+const days=(a,b)=>Math.round((D(b)-D(a))/MS);
+const addD=(d,n)=>new Date(D(d).getTime()+n*MS);
+const fmt=s=>{if(!s)return'—';const d=D(s);return String(d.getUTCDate()).padStart(2,'0')+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]+' '+d.getUTCFullYear();};
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const money=n=>'$'+(n>=1?n.toFixed(2)+'M':(n*1000).toFixed(0)+'k');
+const stars=r=>{const f=Math.round(r);return '★'.repeat(f)+'☆'.repeat(5-f);};
+
+/* ---------------- seed ---------------- */
+function seed(){
+  const project={name:'Marina District — Access & Utilities Infrastructure',client:'Bohio Development Partners',dataDate:'2026-08-28'};
+  const contractors=[
+    {id:'delta',   name:'Delta Civil',                kind:'Human', discipline:'Earthworks & enabling', rating:4.4, autonomy:'—',            rate:'crew / day', status:'On site'},
+    {id:'aqua',    name:'AquaFlow Infrastructure',    kind:'Human', discipline:'Wet utilities',         rating:4.6, autonomy:'—',            rate:'crew / day', status:'Complete'},
+    {id:'voltaic', name:'Voltaic Power Systems',      kind:'Human', discipline:'Electrical & telecom',  rating:4.1, autonomy:'—',            rate:'crew / day', status:'On site'},
+    {id:'meridian',name:'Meridian Roads',             kind:'Human', discipline:'Roads & paving',        rating:4.3, autonomy:'—',            rate:'crew / day', status:'On site'},
+    {id:'verdant', name:'Verdant Landscapes',         kind:'Human', discipline:'Landscaping',           rating:4.2, autonomy:'—',            rate:'crew / day', status:'Standby'},
+    {id:'robopave',name:'RoboPave Autonomous Fleet',  kind:'Robot', discipline:'Autonomous paving',     rating:4.8, autonomy:'L4 · supervised', rate:'3 units · 20h/day', status:'Available'},
+    {id:'gridbot', name:'Gridline Robotics',          kind:'Robot', discipline:'Robotic electrical install', rating:4.5, autonomy:'L3',       rate:'2 units', status:'Available'},
+    {id:'terra',   name:'Terra Survey Drones',        kind:'Robot', discipline:'Survey & QA',           rating:4.7, autonomy:'L4',           rate:'drone swarm', status:'On site'},
+  ];
+  // work packages. contractor=null => open tender
+  const tasks=[
+    {id:'mob',  name:'Mobilization & Site Setup',        contractor:'delta',   ps:'2026-01-06',pe:'2026-01-30',w:4, dep:null},
+    {id:'earth',name:'Earthworks & Bulk Excavation',     contractor:'delta',   ps:'2026-02-02',pe:'2026-04-10',w:12,dep:'mob'},
+    {id:'drain',name:'Stormwater & Drainage Network',    contractor:'aqua',    ps:'2026-03-16',pe:'2026-05-29',w:12,dep:'earth'},
+    {id:'water',name:'Sewerage & Water Mains',           contractor:'aqua',    ps:'2026-04-13',pe:'2026-06-26',w:12,dep:'earth'},
+    {id:'duct', name:'Electrical Ductbank & Substation', contractor:'voltaic', ps:'2026-05-04',pe:'2026-07-31',w:14,dep:'earth'},
+    {id:'tele', name:'Telecoms & Fibre Ducting',         contractor:'voltaic', ps:'2026-06-01',pe:'2026-07-24',w:6, dep:'duct'},
+    {id:'sub',  name:'Road Sub-base & Kerbing',          contractor:'meridian',ps:'2026-06-15',pe:'2026-08-21',w:10,dep:'drain'},
+    {id:'asph', name:'Asphalt & Surfacing',              contractor:null,      ps:'2026-08-24',pe:'2026-10-16',w:12,dep:'sub'},
+    {id:'light',name:'Street Lighting & ITS',            contractor:null,      ps:'2026-09-07',pe:'2026-10-30',w:6, dep:'sub'},
+    {id:'land', name:'Landscaping & Handover',           contractor:'verdant', ps:'2026-10-19',pe:'2026-12-11',w:12,dep:'asph'},
+  ];
+  const milestones=[
+    {id:'m1',name:'Site Possession',plan:'2026-01-06',gov:'mob',govEnd:false},
+    {id:'m2',name:'Drainage Network Complete',plan:'2026-05-29',gov:'drain',govEnd:true},
+    {id:'m3',name:'Utilities Energized',plan:'2026-07-31',gov:'duct',govEnd:true},
+    {id:'m4',name:'Road Open to Traffic',plan:'2026-10-16',gov:'asph',govEnd:true},
+    {id:'m5',name:'Practical Completion & Handover',plan:'2026-12-11',gov:'land',govEnd:true},
+  ];
+  // progress reports (per contractor snapshots) — reconstruct actuals
+  const snaps=['2026-02-28','2026-03-31','2026-04-30','2026-05-31','2026-06-30','2026-07-31','2026-08-28'];
+  const sched={
+    mob:  {p:[100,100,100,100,100,100,100],s:'2026-01-08',f:'2026-02-02'},
+    earth:{p:[ 20, 55, 95,100,100,100,100],s:'2026-02-05',f:'2026-04-22'},
+    drain:{p:[  0, 10, 45, 88,100,100,100],s:'2026-03-20',f:'2026-06-12'},
+    water:{p:[  0,  0, 15, 50, 82,100,100],s:'2026-04-20',f:'2026-07-20'},
+    duct: {p:[  0,  0,  0, 18, 38, 55, 68],s:'2026-05-18',f:null},
+    tele: {p:[  0,  0,  0,  0, 25, 55, 80],s:'2026-06-10',f:null},
+    sub:  {p:[  0,  0,  0,  0, 10, 45, 72],s:'2026-06-22',f:null},
+  };
+  const cOf={mob:'delta',earth:'delta',drain:'aqua',water:'aqua',duct:'voltaic',tele:'voltaic',sub:'meridian'};
+  const reports=[]; let rid=1;
+  snaps.forEach((date,i)=>{
+    const byC={};
+    Object.keys(sched).forEach(id=>{const c=cOf[id];const sc=sched[id];if(sc.p[i]>0||(i>0&&sc.p[i-1]>0)){(byC[c]=byC[c]||[]).push({taskId:id,percent:sc.p[i],actualStart:(sc.s&&sc.p[i]>0)?sc.s:null,actualFinish:(sc.f&&sc.p[i]>=100)?sc.f:null});}});
+    Object.keys(byC).forEach(c=>reports.push({id:'r'+(rid++),contractor:c,date,lines:byC[c]}));
+  });
+  // tenders
+  const tenders=[
+    {taskId:'asph', proposals:[
+      {contractor:'meridian',price:2.40,durationDays:53,availableFrom:'2026-09-21',riskPct:22,note:'Incumbent crew, familiar with site logistics.'},
+      {contractor:'robopave',price:2.05,durationDays:34,availableFrom:'2026-08-30',riskPct:9, note:'3 autonomous pavers, 20h/day, cm-level GNSS screed control.'},
+      {contractor:'meridian',price:2.62,durationDays:60,availableFrom:'2026-10-05',riskPct:31,note:'Alternate: second regional crew if primary unavailable.',alt:'Continental Surfacing (JV)'},
+    ], awardedTo:null},
+    {taskId:'light', proposals:[
+      {contractor:'gridbot', price:0.90,durationDays:28,availableFrom:'2026-09-05',riskPct:12,note:'Robotic pole-setting + auto-alignment, night operation.'},
+      {contractor:'voltaic', price:1.00,durationDays:40,availableFrom:'2026-09-10',riskPct:20,note:'Manual install by incumbent electrical crew.'},
+    ], awardedTo:null},
+  ];
+  const now=project.dataDate+'T09:12';
+  const directives=[
+    {id:'d1',ts:'2026-08-26T16:40',taskId:'duct',contractor:'voltaic',title:'Authorize second night-shift crew on ductbank',
+      detail:'Ductbank forecast breaches the Utilities Energized milestone by 11 weeks. Add a night crew and pull the substation termination forward to recover ~3 weeks.',
+      trigger:'Predicted: Electrical Ductbank & Substation +76d vs plan',status:'Acknowledged'},
+    {id:'d2',ts:'2026-08-27T07:05',taskId:'sub',contractor:'terra',title:'Dispatch daily autonomous progress survey — south loop',
+      detail:'Deploy Terra drone swarm for daily volumetric + level survey of the sub-base south loop to verify recovery against the re-sequenced plan.',
+      trigger:'At-risk: Road Sub-base & Kerbing behind planned earned progress',status:'Executing'},
+  ];
+  const integrations=[
+    {id:'p6', name:'Oracle Primavera P6 EPPM', role:'Schedule of record', kind:'MCP', status:'Connected', last:'2026-08-28T09:10', records:'1,284 activities', server:'primavera-p6'},
+    {id:'synchro',name:'Bentley SYNCHRO 4D',   role:'4D BIM sequencing',  kind:'MCP', status:'Connected', last:'2026-08-28T08:40', records:'312 tasks linked', server:'synchro-4d'},
+    {id:'acc', name:'Autodesk Construction Cloud', role:'Field & QA / RFIs', kind:'MCP', status:'Connected', last:'2026-08-28T09:02', records:'96 open issues', server:'autodesk-acc'},
+    {id:'sap', name:'SAP S/4HANA EPC',         role:'Cost & procurement', kind:'MCP', status:'Connected', last:'2026-08-28T06:15', records:'PO ledger synced', server:'sap-s4-epc'},
+    {id:'procore',name:'Procore',              role:'Daily logs & RFIs',  kind:'MCP', status:'Connected', last:'2026-08-28T08:58', records:'Human directive channel', server:'procore'},
+    {id:'trimble',name:'Trimble WorksManager', role:'Robot fleet dispatch & telemetry', kind:'MCP', status:'Connected', last:'2026-08-28T09:11', records:'7 machines online', server:'trimble-works'},
+  ];
+  const intFeed=[
+    {ts:'09:11',t:'Trimble ▸ RoboPave fleet telemetry: 3 pavers idle, staged at south compound.'},
+    {ts:'09:10',t:'Primavera P6 ▸ pulled 1,284 activities; progress written back to 41 activities.'},
+    {ts:'09:02',t:'Autodesk ACC ▸ 2 new field observations tagged to Ductbank package.'},
+    {ts:'08:58',t:'Procore ▸ directive D-1 acknowledged by Voltaic site agent.'},
+    {ts:'08:40',t:'SYNCHRO 4D ▸ re-sequenced sub-base south loop; critical path recomputed.'},
+    {ts:'06:15',t:'SAP S/4HANA ▸ asphalt tender PO drafts synced to procurement.'},
+  ];
+  return {project,contractors,tasks,milestones,reports,tenders,directives,integrations,intFeed};
+}
+
+let state=load()||seed();
+function load(){try{const s=localStorage.getItem(STORE);return s?JSON.parse(s):null;}catch(e){return null;}}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(state));}catch(e){}}
+const C=id=>state.contractors.find(c=>c.id===id)||{name:'—',kind:'Human'};
+
+/* ---------------- consolidation engine ---------------- */
+function consolidate(){
+  const dd=D(state.project.dataDate);
+  const latest={};
+  [...state.reports].sort((a,b)=>D(a.date)-D(b.date)).forEach(r=>r.lines.forEach(l=>{
+    const p=latest[l.taskId]; if(!p||D(r.date)>=D(p.reportDate)) latest[l.taskId]={...l,reportDate:r.date,contractor:r.contractor};
+  }));
+  const base={};
+  state.tasks.forEach(t=>{
+    const info=latest[t.id],ps=D(t.ps),pe=D(t.pe),dur=Math.max(1,days(ps,pe)),pct=info?info.percent:0;
+    let aStart=info&&info.actualStart?D(info.actualStart):(pct>0?ps:null);
+    let aFinish=null;const done=pct>=100;
+    if(done)aFinish=info&&info.actualFinish?D(info.actualFinish):(info?D(info.reportDate):pe);
+    base[t.id]={t,ps,pe,dur,pct,aStart,aFinish,done,info};
+  });
+  state.tasks.forEach(t=>{
+    const b=base[t.id],depFin=t.dep&&base[t.dep]?base[t.dep]._finish:null;
+    let fStart;
+    if(b.aStart)fStart=b.aStart;else{fStart=b.ps;if(depFin&&depFin>fStart)fStart=depFin;if(!b.done&&fStart<dd)fStart=dd;}
+    b._start=fStart;
+    let fFin;
+    if(b.done)fFin=b.aFinish;
+    else if(b.pct>0&&b.aStart){const el=Math.max(1,days(b.aStart,dd));fFin=addD(b.aStart,Math.round(Math.max(el/(b.pct/100),b.dur)));if(fFin<dd)fFin=dd;}
+    else fFin=addD(fStart,b.dur);
+    b._finish=fFin;
+  });
+  const rows=state.tasks.map(t=>{
+    const b=base[t.id],fin=b._finish,varDays=days(b.pe,fin);
+    let pl;if(dd>=b.pe)pl=100;else if(dd<=b.ps)pl=0;else pl=days(b.ps,dd)/b.dur*100;
+    let status;
+    if(b.done)status='done';
+    else if(!t.contractor)status='tender';
+    else if(b.pct===0&&dd<b.ps)status='notstarted';
+    else if(varDays>5)status='delayed';
+    else if(b.pct<pl-8)status='atrisk';
+    else status='ontrack';
+    return{...t,pct:b.pct,plannedPct:pl,aStart:b.aStart?iso(b.aStart):null,aFinish:b.aFinish?iso(b.aFinish):null,
+      forecast:iso(fin),forecastStart:iso(b._start),varDays,status,dur:b.dur,depName:t.dep?base[t.dep].t.name:null,
+      depSlip:t.dep?days(base[t.dep].t.pe,base[t.dep]._finish):0};
+  });
+  const byId={};rows.forEach(r=>byId[r.id]=r);
+  const ms=state.milestones.map(m=>{
+    const g=byId[m.gov];let fc=m.govEnd?(g?g.forecast:m.plan):(g?(g.aStart||m.plan):m.plan);
+    const v=days(m.plan,fc);const done=g?(m.govEnd?g.status==='done':g.pct>0):false;
+    let status=done?'done':(v>5?'delayed':(v>0?'atrisk':'ontrack'));
+    return{...m,forecast:fc,varDays:v,status,done};
+  });
+  return{rows,byId,ms,dd};
+}
+function rollup(c){
+  const tot=state.tasks.reduce((s,t)=>s+t.w,0);let a=0,p=0;
+  c.rows.forEach(r=>{a+=r.w*r.pct/100;p+=r.w*r.plannedPct/100;});
+  a=a/tot*100;p=p/tot*100;
+  const hand=c.ms[c.ms.length-1];
+  return{actual:a,planned:p,spi:p>0?a/p:1,finishVar:hand?hand.varDays:0,
+    delayed:c.rows.filter(r=>r.status==='delayed').length,atrisk:c.rows.filter(r=>r.status==='atrisk').length,
+    robots:state.contractors.filter(x=>x.kind==='Robot').length,openTenders:state.tenders.filter(t=>!t.awardedTo).length};
+}
+function projWindow(c){
+  let mn=Math.min(...state.tasks.map(t=>D(t.ps)));let mx=Math.max(...state.tasks.map(t=>D(t.pe)));
+  c.rows.forEach(r=>mx=Math.max(mx,D(r.forecast)));mx=Math.max(mx,c.dd.getTime());
+  const a=new Date(mn),s=new Date(Date.UTC(a.getUTCFullYear(),a.getUTCMonth(),1));
+  const b=new Date(mx),e=new Date(Date.UTC(b.getUTCFullYear(),b.getUTCMonth()+1,1));
+  return{start:s,end:e,span:days(s,e)};
+}
+const pctS=x=>x>=99.5?100:Math.round(x);
+
+/* ---------------- proposal scoring ---------------- */
+function scoreTender(t){
+  const ps=t.proposals.map(p=>({...p}));
+  const min=k=>Math.min(...ps.map(p=>p[k])),max=k=>Math.max(...ps.map(p=>p[k]));
+  const avMin=Math.min(...ps.map(p=>D(p.availableFrom))),avMax=Math.max(...ps.map(p=>D(p.availableFrom)));
+  const norm=(v,lo,hi,inv)=>{if(hi===lo)return 1;const x=(v-lo)/(hi-lo);return inv?1-x:x;};
+  ps.forEach(p=>{
+    const cost=norm(p.price,min('price'),max('price'),true);
+    const dur =norm(p.durationDays,min('durationDays'),max('durationDays'),true);
+    const risk=norm(p.riskPct,min('riskPct'),max('riskPct'),true);
+    const rate=norm(C(p.contractor).rating,3.5,5,false);
+    const avail=norm(D(p.availableFrom).getTime(),avMin,avMax,true);
+    p.score=Math.round((cost*0.30+dur*0.28+risk*0.20+rate*0.10+avail*0.12)*100);
+  });
+  ps.sort((a,b)=>b.score-a.score);
+  return ps;
+}
+
+/* ============================================================ RENDER ============================================================ */
+function renderHeader(){
+  document.getElementById('pjName').textContent=state.project.name;
+  document.getElementById('pjMeta').textContent=state.project.client+' · Data date '+fmt(state.project.dataDate);
+  document.getElementById('dataDate').value=state.project.dataDate;
+}
+function renderKPIs(c,r){
+  const fv=r.finishVar,fc=fv>0?'bad':(fv<0?'good':'flat');
+  const spi=r.spi,sc=spi>=.98?'good':(spi>=.9?'warn':'bad');
+  document.getElementById('kpis').innerHTML=`
+   <div class="kpi"><div class="label">Actual complete</div><div class="val">${pctS(r.actual)}<small>%</small></div><div class="sub">Plan ${pctS(r.planned)}% · <span class="${r.actual>=r.planned?'good':'bad'}">${(r.actual-r.planned).toFixed(1)} pt</span></div></div>
+   <div class="kpi"><div class="label">Schedule perf. index</div><div class="val ${sc}">${spi.toFixed(2)}</div><div class="sub">${spi>=1?'On / ahead of plan':'Behind earned plan'}</div></div>
+   <div class="kpi"><div class="label">Forecast completion</div><div class="val ${fc==='bad'?'bad':(fc==='good'?'good':'')}" style="font-size:23px">${fmt(c.ms[c.ms.length-1].forecast)}</div><div class="sub"><span class="${fc==='bad'?'bad':(fc==='good'?'good':'')}">${fv===0?'On plan':(fv>0?fv+'d late':(-fv)+'d ahead')}</span></div></div>
+   <div class="kpi"><div class="label">Open tenders</div><div class="val ${r.openTenders?'warn':'good'}">${r.openTenders}</div><div class="sub">${r.robots} robotic contractors available</div></div>
+   <div class="kpi"><div class="label">Packages delayed</div><div class="val ${r.delayed?'bad':'good'}">${r.delayed}<small> / ${c.rows.length}</small></div><div class="sub">${r.atrisk} at risk</div></div>`;
+}
+function renderPredicted(c){
+  const rows=c.rows.filter(r=>(r.status==='delayed'||r.status==='atrisk')).sort((a,b)=>b.varDays-a.varDays);
+  const t=document.getElementById('predicted');
+  if(!rows.length){t.innerHTML='<tbody><tr><td class="muted" style="padding:22px">No predicted breaches — all packages tracking to plan.</td></tr></tbody>';return;}
+  t.innerHTML=`<thead><tr><th>Work package</th><th>Contractor</th><th class="num">Slip</th><th class="num">Lead time</th><th>Root cause</th></tr></thead><tbody>${rows.map(r=>{
+    const lead=days(c.dd,r.pe);const leadTxt=lead>0?lead+'d early':'now';
+    const c0=C(r.contractor);const kindTag=r.contractor?`<span class="tag ${c0.kind.toLowerCase()}"><i></i>${c0.kind}</span>`:'<span class="pill tender">Tender</span>';
+    const cause=r.depSlip>5&&r.pct===0?`Driven by <b>${r.depName}</b> (+${r.depSlip}d)`:(r.pct>0?'Behind reported earned rate':'Predecessor slip');
+    return `<tr><td><b>${r.name}</b></td><td>${r.contractor?c0.name:'—'} ${kindTag}</td>
+      <td class="num var late">+${r.varDays}d</td><td class="num muted">${leadTxt}</td><td class="muted">${cause}</td></tr>`;}).join('')}</tbody>`;
+}
+function renderCmdFeed(){
+  const acts=[
+    {d:'b',t:'RoboPave fleet staged — 3 autonomous pavers idle at south compound, awaiting award.'},
+    {d:'r',t:'Predicted breach: Ductbank +76d → Utilities Energized milestone at risk.'},
+    {d:'a',t:'Sub-base behind earned rate; Terra survey drones dispatched for daily verification.'},
+    {d:'g',t:'Drainage & water mains handed over — AquaFlow packages closed.'},
+    {d:'b',t:'Gridline Robotics bid received for street lighting — 28d, 40% faster than manual.'},
+  ];
+  document.getElementById('cmdFeed').innerHTML=acts.map(a=>`<div class="ln"><span class="dot ${a.d}" style="margin-top:5px"></span><span>${a.t}</span></div>`).join('');
+}
+function renderMix(){
+  const groups={Human:state.contractors.filter(c=>c.kind==='Human'),Robot:state.contractors.filter(c=>c.kind==='Robot')};
+  const el=document.getElementById('mixCards');
+  el.innerHTML=Object.entries(groups).map(([k,list])=>`
+   <div class="card"><h3>${k==='Robot'?'Robotic contractors':'Human contractors'} <span class="tag ${k.toLowerCase()}"><i></i>${list.length}</span></h3>
+     <div class="meta">${k==='Robot'?'Autonomous fleets · dispatchable':'Crews · directive via Procore'}</div>
+     <div style="margin-top:14px">${list.map(c=>`<div class="cstat"><span>${c.name}</span><span class="muted">${c.discipline}</span></div>`).join('')}</div></div>`).join('')+
+   `<div class="card"><h3>Interchangeability</h3><div class="meta">Same scoring axes for both</div>
+     <p class="muted" style="margin-top:14px">Human and robotic contractors bid into the same tenders and are monitored on the same timeline. When a human package slips, the platform can recommend swapping in an interchangeable robotic fleet — and dispatch it automatically.</p></div>`;
+}
+function renderRoster(){
+  document.getElementById('roster').innerHTML=state.contractors.map(c=>{
+    const assigned=state.tasks.filter(t=>t.contractor===c.id);
+    return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><h3>${c.name}</h3><div class="meta">${c.discipline}</div></div>
+        <span class="tag ${c.kind.toLowerCase()}"><i></i>${c.kind}</span></div>
+      <div style="margin-top:14px">
+        <div class="cstat"><span class="muted">Rating</span><span><span class="stars">${stars(c.rating)}</span> ${c.rating.toFixed(1)}</span></div>
+        <div class="cstat"><span class="muted">Autonomy</span><span>${c.autonomy}</span></div>
+        <div class="cstat"><span class="muted">Capacity</span><span>${c.rate}</span></div>
+        <div class="cstat"><span class="muted">Packages</span><span>${assigned.length?assigned.map(t=>t.name.split(' ')[0]).join(', '):'—'}</span></div>
+        <div class="cstat"><span class="muted">Status</span><span style="color:${c.status==='Available'?'var(--robot)':(c.status==='Complete'?'var(--good)':'var(--ink)')};font-weight:600">${c.status}</span></div>
+      </div></div>`;}).join('');
+}
+function renderTenders(){
+  const c=consolidate();
+  const el=document.getElementById('tenders');
+  if(!state.tenders.length){el.innerHTML='<div class="muted">No open tenders.</div>';return;}
+  el.innerHTML=state.tenders.map(t=>{
+    const task=state.tasks.find(x=>x.id===t.taskId);
+    const ps=scoreTender(t);const rec=ps[0];
+    return `<div class="panel" style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+        <div><div style="font-size:16px;font-weight:600">${task.name}</div>
+          <div class="meta" style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px">Planned ${fmt(task.ps)} – ${fmt(task.pe)} · ${t.proposals.length} proposals</div></div>
+        <div>${t.awardedTo?`<span class="pill done">Awarded · ${C(t.awardedTo).name}</span>`:'<span class="pill tender">Open — awaiting award</span>'}</div>
+      </div>
+      <div class="propgrid" style="margin-top:18px">${ps.map((p,i)=>{
+        const c0=C(p.contractor);const isRec=!t.awardedTo&&i===0;const isAw=t.awardedTo===p.contractor;
+        const name=p.alt||c0.name;
+        return `<div class="prop ${isAw?'awarded':(isRec?'rec':'')}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div><div style="font-weight:600;font-size:13.5px">${name}</div><div style="margin-top:5px"><span class="tag ${c0.kind.toLowerCase()}"><i></i>${c0.kind}</span></div></div>
+            ${isAw?'<span class="ribbon awarded">Awarded</span>':(isRec?'<span class="ribbon rec">Recommended</span>':'')}
+          </div>
+          <div style="margin:14px 0 4px;display:flex;align-items:baseline;gap:6px"><span class="score">${p.score}</span><span class="score"><small>/100 fit</small></span></div>
+          <div class="scbar"><i class="${c0.kind==='Robot'?'robot':''}" style="width:${p.score}%"></i></div>
+          <div style="margin-top:14px">
+            <div class="kv"><span class="muted">Price</span><b>${money(p.price)}</b></div>
+            <div class="kv"><span class="muted">Duration</span><b>${p.durationDays} d</b></div>
+            <div class="kv"><span class="muted">Available</span><b>${fmt(p.availableFrom)}</b></div>
+            <div class="kv"><span class="muted">Delivery risk</span><b class="${p.riskPct>25?'':''}" style="color:${p.riskPct>25?'var(--alert)':(p.riskPct<12?'var(--good)':'var(--ink)')}">${p.riskPct}%</b></div>
+            <div class="kv"><span class="muted">Rating</span><b>${c0.rating.toFixed(1)} ★</b></div>
+          </div>
+          <p class="muted" style="margin-top:12px;font-size:11px">${p.note}</p>
+          <div style="margin-top:14px">${isAw?'<button class="btn ghost sm" disabled>Awarded</button>':
+             `<button class="btn ${c0.kind==='Robot'?'robot':''} sm" onclick="award('${t.taskId}','${p.contractor}')">Award to ${c0.kind==='Robot'?'fleet':name.split(' ')[0]}</button>`}</div>
+        </div>`;}).join('')}</div>
+      ${!t.awardedTo?`<p class="muted" style="margin-top:14px">Recommendation: <b>${C(rec.contractor).name}</b> — highest schedule-fit score (${rec.score}/100). ${C(rec.contractor).kind==='Robot'?'Faster and available sooner; awarding it recovers programme slip on the road path.':''}</p>`:''}
+    </div>`;}).join('');
+}
+window.award=function(taskId,contractorId){
+  const t=state.tenders.find(x=>x.id?x.id===taskId:x.taskId===taskId)||state.tenders.find(x=>x.taskId===taskId);
+  t.awardedTo=contractorId;
+  const task=state.tasks.find(x=>x.id===taskId);task.contractor=contractorId;
+  const c0=C(contractorId);
+  // shift task start to proposal availability if later; keep duration from proposal
+  const p=t.proposals.find(pp=>pp.contractor===contractorId);
+  if(p){task.ps=p.availableFrom;task.pe=iso(addD(D(p.availableFrom),p.durationDays));}
+  // log
+  state.intFeed.unshift({ts:'now',t:`${c0.kind==='Robot'?'Trimble ▸ dispatched award to '+c0.name+' fleet controller':'SAP S/4HANA ▸ PO issued to '+c0.name}; Primavera P6 activity re-baselined.`});
+  save();renderAll();
+  toast(`Awarded ${task.name} → ${c0.name}${c0.kind==='Robot'?' (autonomous fleet dispatched)':''}`);
+};
+function renderGantt(c){
+  const w=projWindow(c),g=document.getElementById('gantt');
+  const xp=d=>(days(w.start,D(d))/w.span)*100, wp=(a,b)=>Math.max((days(a,b)/w.span)*100,0.6);
+  let months=[],d=new Date(w.start);
+  while(d<w.end){const n=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1));months.push({d:new Date(d),w:(days(d,n>w.end?w.end:n)/w.span)*100});d=n;}
+  const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const head=`<div class="grow months"><div class="glabel"><div class="c">Work package</div></div><div class="gtrack">${months.map(m=>`<div class="mcol" style="width:${m.w}%">${MN[m.d.getUTCMonth()]} ${m.d.getUTCMonth()===0?m.d.getUTCFullYear():''}</div>`).join('')}</div></div>`;
+  const grid=months.map((m,i)=>`<div class="mgrid" style="left:${months.slice(0,i+1).reduce((s,x)=>s+x.w,0)}%"></div>`).join('');
+  const todayX=xp(state.project.dataDate);
+  const rows=c.rows.map(r=>{
+    const c0=r.contractor?C(r.contractor):null;const robot=c0&&c0.kind==='Robot';
+    const planL=xp(r.ps),planW=wp(r.ps,r.pe);let act='';
+    if(r.aStart){
+      const aEnd=r.aFinish||state.project.dataDate;
+      const cls=(r.status==='done'?'done':(r.status==='delayed'?'delayed':(robot?'robot':'')));
+      act+=`<div class="bar act ${cls}" style="left:${xp(r.aStart)}%;width:${wp(r.aStart,aEnd)}%"></div>`;
+      if(!r.aFinish&&days(aEnd,r.forecast)>0){const col=r.status==='delayed'?'var(--alert)':(robot?'var(--robot)':'var(--ink)');
+        act+=`<div class="bar act forecast" style="left:${xp(aEnd)}%;width:${wp(aEnd,r.forecast)}%;color:${col}"><span class="lab">${r.pct}% · ${fmt(r.forecast)}</span></div>`;}
+      else act+=`<div class="bar" style="left:${xp(aEnd)}%"><span class="lab" style="position:static">&nbsp;${r.pct}%</span></div>`;
+    } else {
+      const col=r.status==='delayed'?'var(--alert)':(r.status==='tender'?'var(--robot)':(robot?'var(--robot)':'var(--ink-faint)'));
+      act+=`<div class="bar act forecast" style="left:${xp(r.forecastStart)}%;width:${wp(r.forecastStart,r.forecast)}%;color:${col}"><span class="lab">${r.status==='tender'?'tender':'not started'} · ${fmt(r.forecastStart)}</span></div>`;
+    }
+    const label=r.contractor?`${c0.name} ${robot?'<span class="tag robot" style="padding:1px 6px"><i></i>Robot</span>':''}`:'Out to tender';
+    return `<div class="grow"><div class="glabel"><div class="t">${r.name}</div><div class="c">${label}</div></div><div class="gtrack">${grid}<div class="bar plan" style="left:${planL}%;width:${planW}%"></div>${act}</div></div>`;
+  }).join('');
+  const msRow=`<div class="grow"><div class="glabel"><div class="t">Milestones</div><div class="c">Planned ◇ · Forecast ◆</div></div><div class="gtrack">${grid}${c.ms.map(m=>{
+    const cls=m.status==='done'?'done':((m.status==='delayed'||m.status==='atrisk')?'delayed':'');
+    return `<div class="mdiamond plan-ghost" style="left:${xp(m.plan)}%" title="${m.name} planned ${fmt(m.plan)}"></div><div class="mdiamond ${cls}" style="left:${xp(m.forecast)}%" title="${m.name} forecast ${fmt(m.forecast)}"></div>`;
+  }).join('')}</div></div>`;
+  g.innerHTML=head+rows+msRow;
+  g.querySelectorAll('.gtrack').forEach((tr,i)=>{if(i===0)return;const l=document.createElement('div');l.className='today';l.style.left=todayX+'%';tr.appendChild(l);});
+}
+function renderSCurve(c){
+  const w=projWindow(c),tot=state.tasks.reduce((s,t)=>s+t.w,0);
+  const pts=[];let d=new Date(w.start);while(d<=w.end){pts.push(new Date(d));d=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1));}if(pts[pts.length-1]<w.end)pts.push(new Date(w.end));
+  const plannedAt=date=>{let s=0;state.tasks.forEach(t=>{const ps=D(t.ps),pe=D(t.pe),du=Math.max(1,days(ps,pe));s+=t.w*(date<=ps?0:date>=pe?1:days(ps,date)/du);});return s/tot*100;};
+  const sr=[...state.reports].sort((a,b)=>D(a.date)-D(b.date));
+  const actualAt=date=>{const lp={};sr.forEach(r=>{if(D(r.date)<=date)r.lines.forEach(l=>lp[l.taskId]=l.percent);});let s=0;state.tasks.forEach(t=>s+=t.w*((lp[t.id]||0)/100));return s/tot*100;};
+  const W=880,H=280,pl=40,pr=18,pt=16,pb=38;
+  const x=d0=>pl+(days(w.start,d0)/w.span)*(W-pl-pr),y=v=>pt+(1-v/100)*(H-pt-pb);
+  const planP=pts.map((p,i)=>(i?'L':'M')+x(p).toFixed(1)+' '+y(plannedAt(p)).toFixed(1)).join(' ');
+  const ap=pts.filter(p=>p<=c.dd);if(!ap.length||ap[ap.length-1]<c.dd)ap.push(new Date(c.dd));
+  const actP=ap.map((p,i)=>(i?'L':'M')+x(p).toFixed(1)+' '+y(actualAt(p)).toFixed(1)).join(' ');
+  let grid='';for(let v=0;v<=100;v+=25)grid+=`<line x1="${pl}" y1="${y(v)}" x2="${W-pr}" y2="${y(v)}" stroke="rgba(0,9,25,.1)"/><text x="${pl-7}" y="${y(v)+3}" text-anchor="end" font-size="9.5" fill="rgba(0,9,25,.55)">${v}%</text>`;
+  let xt='';pts.forEach(p=>{xt+=`<text x="${x(p)}" y="${H-pb+16}" text-anchor="middle" font-size="8.5" fill="rgba(0,9,25,.55)">${['J','F','M','A','M','J','J','A','S','O','N','D'][p.getUTCMonth()]}${p.getUTCMonth()===0?"'"+String(p.getUTCFullYear()).slice(2):''}</text>`;});
+  const ddx=x(c.dd);
+  document.getElementById('scurve').innerHTML=`<svg viewBox="0 0 ${W} ${H}" class="scurve" preserveAspectRatio="xMidYMid meet">${grid}${xt}
+    <line x1="${ddx}" y1="${pt}" x2="${ddx}" y2="${H-pb}" stroke="var(--alert)" stroke-width="1.2" stroke-dasharray="4 3"/><text x="${ddx+5}" y="${pt+10}" font-size="8.5" fill="var(--alert)" letter-spacing="1">DATA DATE</text>
+    <path d="${planP}" fill="none" stroke="var(--plan-line)" stroke-width="2" stroke-dasharray="5 4"/><path d="${actP}" fill="none" stroke="var(--ink)" stroke-width="2.4"/>
+    <circle cx="${ddx}" cy="${y(actualAt(c.dd))}" r="4" fill="var(--ink)"/><circle cx="${ddx}" cy="${y(plannedAt(c.dd))}" r="3.5" fill="var(--plan-line)"/>
+    <g font-size="10.5"><rect x="${W-186}" y="${pt}" width="168" height="44" fill="var(--bg)" stroke="rgba(0,9,25,.12)"/>
+      <line x1="${W-176}" y1="${pt+15}" x2="${W-158}" y2="${pt+15}" stroke="var(--ink)" stroke-width="2.4"/><text x="${W-152}" y="${pt+18}" fill="var(--ink)">Actual ${pctS(actualAt(c.dd))}%</text>
+      <line x1="${W-176}" y1="${pt+32}" x2="${W-158}" y2="${pt+32}" stroke="var(--plan-line)" stroke-width="2" stroke-dasharray="5 4"/><text x="${W-152}" y="${pt+35}" fill="var(--ink-soft)">Planned ${pctS(plannedAt(c.dd))}%</text></g></svg>`;
+}
+/* -------- agent console -------- */
+function routeFor(kind){return kind==='Robot'?'Trimble WorksManager (fleet MCP)':'Procore RFI (human MCP)';}
+function renderDirectives(){
+  const el=document.getElementById('directives');
+  const ds=[...state.directives].sort((a,b)=>(a.status==='Draft'?-1:1)-(b.status==='Draft'?-1:1));
+  el.innerHTML=ds.map(d=>{
+    const c0=C(d.contractor);const task=state.tasks.find(t=>t.id===d.taskId);
+    const canIssue=d.status==='Draft';
+    return `<div class="dir">
+      <div class="dh"><span class="title">${d.title}</span><span class="tag ${c0.kind.toLowerCase()}"><i></i>${c0.kind}</span><span class="dstatus ${d.status}">${d.status}</span></div>
+      <div class="trigger">⚠ ${d.trigger}</div>
+      <div class="detail">${d.detail}</div>
+      <div class="route">▸ ${c0.name} · ${task?task.name:''} · via <b>${routeFor(c0.kind)}</b></div>
+      <div class="actions">${canIssue?`<button class="btn ${c0.kind==='Robot'?'robot':''} sm" onclick="issueDir('${d.id}')">${c0.kind==='Robot'?'Dispatch to fleet':'Issue to crew'}</button><button class="btn ghost sm" onclick="dropDir('${d.id}')">Dismiss</button>`:`<span class="muted" style="font-size:11px">Issued ${d.ts?fmt(d.ts.slice(0,10)):''} · ${routeFor(c0.kind)}</span>`}</div>
+    </div>`;}).join('')||'<div class="muted">No directives. Click “Generate recommendations”.</div>';
+}
+function renderDirFeed(){
+  const logs=[...state.directives].filter(d=>d.status!=='Draft').sort((a,b)=>D(b.ts.slice(0,10))-D(a.ts.slice(0,10)));
+  document.getElementById('dirFeed').innerHTML=logs.map(d=>{const c0=C(d.contractor);
+    return `<div class="ln"><span class="ts">${d.ts.slice(5,10).replace('-','/')} ${d.ts.slice(11)}</span><span><b>${c0.name}</b> — ${d.title} <span class="dstatus ${d.status}" style="margin-left:4px">${d.status}</span></span></div>`;}).join('')||'<div class="muted">No issued directives yet.</div>';
+}
+window.issueDir=function(id){
+  const d=state.directives.find(x=>x.id===id);const c0=C(d.contractor);
+  d.status='Issued';d.ts=state.project.dataDate+'T'+new Date().toTimeString().slice(0,5);save();renderAll();
+  toast(`${c0.kind==='Robot'?'Dispatched to '+c0.name+' fleet':'Issued to '+c0.name}`);
+  setTimeout(()=>{d.status='Acknowledged';save();if(cur==='agent')renderAll();},1200);
+  if(c0.kind==='Robot')setTimeout(()=>{d.status='Executing';save();if(cur==='agent')renderAll();},2600);
+};
+window.dropDir=function(id){state.directives=state.directives.filter(x=>x.id!==id);save();renderAll();};
+window.generateRecs=function(){
+  const c=consolidate();const existing=new Set(state.directives.map(d=>d.taskId+'|'+d.title.slice(0,12)));
+  const flagged=c.rows.filter(r=>r.status==='delayed'||r.status==='atrisk');let added=0;
+  flagged.forEach(r=>{
+    const c0=r.contractor?C(r.contractor):null;
+    let title,detail;
+    if(!r.contractor){ // tender package predicted late — recommend awarding recommended (often robot)
+      const tn=state.tenders.find(t=>t.taskId===r.id);if(!tn||tn.awardedTo)return;const rec=scoreTender(tn)[0];const rc=C(rec.contractor);
+      title=`Award ${r.name} to ${rc.name}${rc.kind==='Robot'?' (interchangeable robot fleet)':''}`;
+      detail=`Package is unassigned and its predecessor slip pushes it ${r.varDays}d late. ${rc.name} (${rc.kind}) is the highest-fit bid — awarding now protects the downstream milestone.`;
+    } else if(r.pct>0){
+      title=c0.kind==='Robot'?`Scale ${c0.name} — add autonomous unit / extend shift`:`Authorize accelerated schedule on ${r.name}`;
+      detail=`${r.name} is ${r.varDays}d behind. ${c0.kind==='Robot'?'Add a unit and extend the autonomous operating window to recover.':'Add a shift/crew to close the gap before it hits the milestone.'}`;
+    } else {
+      title=`Re-sequence ${r.name} — pre-position at ready sub-section`;
+      detail=`${r.name} cannot start until ${r.depName} finishes (${r.depSlip>0?'+'+r.depSlip+'d':'on plan'}). Pre-position ${c0.name} at a ready sub-section to start partial works.`;
+    }
+    const key=r.id+'|'+title.slice(0,12);if(existing.has(key))return;
+    const cid=r.contractor||scoreTender(state.tenders.find(t=>t.taskId===r.id)).length&&scoreTender(state.tenders.find(t=>t.taskId===r.id))[0].contractor;
+    state.directives.push({id:'d'+Date.now()+Math.floor(Math.random()*99),ts:state.project.dataDate+'T09:00',taskId:r.id,contractor:cid,title,detail,trigger:`Predicted: ${r.name} +${r.varDays}d vs plan`,status:'Draft'});
+    added++;
+  });
+  save();renderAll();toast(added?`Drafted ${added} directive${added>1?'s':''} from predicted breaches`:'No new breaches to act on');
+};
+window.issueAll=function(){state.directives.filter(d=>d.status==='Draft').forEach(d=>issueDir(d.id));};
+/* -------- integrations -------- */
+function renderIntegrations(){
+  document.getElementById('integrations').innerHTML=state.integrations.map(i=>`
+    <div class="intcard"><h3><span class="dot g"></span>${i.name}</h3><div class="v">${i.role}</div>
+      <div style="margin-top:12px">
+        <div class="cstat"><span class="muted">Protocol</span><span><span class="pill tender" style="border-color:var(--robot);color:var(--robot)">MCP</span></span></div>
+        <div class="cstat"><span class="muted">Server</span><span><code class="k">${i.server}</code></span></div>
+        <div class="cstat"><span class="muted">Status</span><span style="color:var(--good);font-weight:600">${i.status}</span></div>
+        <div class="cstat"><span class="muted">Last sync</span><span>${i.last.slice(11)} · ${i.last.slice(5,10).replace('-','/')}</span></div>
+        <div class="cstat"><span class="muted">Payload</span><span>${i.records}</span></div>
+      </div></div>`).join('');
+  document.getElementById('intFeed').innerHTML=state.intFeed.map(f=>`<div class="ln"><span class="ts">${f.ts}</span><span>${f.t}</span></div>`).join('');
+  document.getElementById('mcpConfig').innerHTML=`{
+  <span class="c1">"mcpServers"</span>: {
+    <span class="c1">"primavera-p6"</span>: {
+      <span class="c1">"command"</span>: <span class="c3">"node"</span>,
+      <span class="c1">"args"</span>: [<span class="c3">"mcp/primavera-mcp-server.mjs"</span>],
+      <span class="c1">"env"</span>: {
+        <span class="c1">"P6_BASE_URL"</span>: <span class="c3">"https://p6.example.com/p6ws"</span>,
+        <span class="c1">"P6_API_KEY"</span>: <span class="c3">"\${P6_API_KEY}"</span>
+      }
+    },
+    <span class="c1">"trimble-works"</span>: { <span class="c1">"command"</span>: <span class="c3">"node"</span>, <span class="c1">"args"</span>: [<span class="c3">"mcp/trimble-mcp-server.mjs"</span>] }
+  }
+}`;
+  const tools=[
+    ['list_activities','Read the P6 activity list with dates, % complete, float'],
+    ['get_activity','Fetch one activity + relationships'],
+    ['update_progress','Write actual start/finish & % back to P6'],
+    ['get_critical_path','Return the current critical path & total float'],
+    ['rebaseline','Re-baseline after an award / re-sequence'],
+    ['push_directive','Attach an agent directive to an activity as a note/RFI'],
+  ];
+  document.getElementById('mcpTools').innerHTML=`<thead><tr><th>Tool</th><th>Purpose</th></tr></thead><tbody>${tools.map(t=>`<tr><td><code class="k">${t[0]}</code></td><td class="muted">${t[1]}</td></tr>`).join('')}</tbody>`;
+}
+/* -------- orchestration -------- */
+let cur='command';
+function renderAll(){
+  const c=consolidate(),r=rollup(c);
+  renderHeader();renderKPIs(c,r);renderPredicted(c);renderCmdFeed();renderMix();
+  renderRoster();renderTenders();renderGantt(c);renderSCurve(c);
+  renderDirectives();renderDirFeed();renderIntegrations();
+}
+document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  tab.classList.add('active');document.getElementById('view-'+tab.dataset.view).classList.add('active');
+  cur=tab.dataset.view;window.scrollTo(0,0);
+});
+document.getElementById('dataDate').onchange=e=>{state.project.dataDate=e.target.value;save();renderAll();};
+document.getElementById('btnReset').onclick=()=>{if(confirm('Reset the demo to its starting state?')){state=seed();save();renderAll();toast('Demo reset');}};
+document.getElementById('btnGenerate').onclick=generateRecs;
+document.getElementById('btnIssueAll').onclick=issueAll;
+let tT;function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>e.classList.remove('show'),2800);}
+renderAll();
+</script>
+</body>
+</html>

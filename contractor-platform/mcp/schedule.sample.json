@@ -1,0 +1,27 @@
+{
+  "project": {
+    "id": "MARINA-DISTRICT",
+    "name": "Marina District — Access & Utilities Infrastructure",
+    "dataDate": "2026-08-28",
+    "calendar": "7-day"
+  },
+  "activities": [
+    { "id": "A1000", "wbs": "1.1", "name": "Mobilization & Site Setup",        "contractor": "Delta Civil",             "resourceType": "Labor", "plannedStart": "2026-01-06", "plannedFinish": "2026-01-30", "actualStart": "2026-01-08", "actualFinish": "2026-02-02", "percentComplete": 100, "totalFloat": 0,  "critical": true,  "predecessors": [] },
+    { "id": "A1100", "wbs": "1.2", "name": "Earthworks & Bulk Excavation",     "contractor": "Delta Civil",             "resourceType": "Labor", "plannedStart": "2026-02-02", "plannedFinish": "2026-04-10", "actualStart": "2026-02-05", "actualFinish": "2026-04-22", "percentComplete": 100, "totalFloat": 0,  "critical": true,  "predecessors": ["A1000"] },
+    { "id": "A1200", "wbs": "2.1", "name": "Stormwater & Drainage Network",    "contractor": "AquaFlow Infrastructure", "resourceType": "Labor", "plannedStart": "2026-03-16", "plannedFinish": "2026-05-29", "actualStart": "2026-03-20", "actualFinish": "2026-06-12", "percentComplete": 100, "totalFloat": 0,  "critical": true,  "predecessors": ["A1100"] },
+    { "id": "A1300", "wbs": "2.2", "name": "Sewerage & Water Mains",           "contractor": "AquaFlow Infrastructure", "resourceType": "Labor", "plannedStart": "2026-04-13", "plannedFinish": "2026-06-26", "actualStart": "2026-04-20", "actualFinish": "2026-07-20", "percentComplete": 100, "totalFloat": 12, "critical": false, "predecessors": ["A1100"] },
+    { "id": "A1400", "wbs": "3.1", "name": "Electrical Ductbank & Substation", "contractor": "Voltaic Power Systems",   "resourceType": "Labor", "plannedStart": "2026-05-04", "plannedFinish": "2026-07-31", "actualStart": "2026-05-18", "actualFinish": null,         "percentComplete": 68,  "totalFloat": 0,  "critical": true,  "predecessors": ["A1100"] },
+    { "id": "A1450", "wbs": "3.2", "name": "Telecoms & Fibre Ducting",         "contractor": "Voltaic Power Systems",   "resourceType": "Labor", "plannedStart": "2026-06-01", "plannedFinish": "2026-07-24", "actualStart": "2026-06-10", "actualFinish": null,         "percentComplete": 80,  "totalFloat": 5,  "critical": false, "predecessors": ["A1400"] },
+    { "id": "A1500", "wbs": "4.1", "name": "Road Sub-base & Kerbing",          "contractor": "Meridian Roads",          "resourceType": "Labor", "plannedStart": "2026-06-15", "plannedFinish": "2026-08-21", "actualStart": "2026-06-22", "actualFinish": null,         "percentComplete": 72,  "totalFloat": 0,  "critical": true,  "predecessors": ["A1200"] },
+    { "id": "A1600", "wbs": "4.2", "name": "Asphalt & Surfacing",              "contractor": null,                      "resourceType": "Tender", "plannedStart": "2026-08-24", "plannedFinish": "2026-10-16", "actualStart": null,         "actualFinish": null,         "percentComplete": 0,   "totalFloat": 0,  "critical": true,  "predecessors": ["A1500"] },
+    { "id": "A1650", "wbs": "3.3", "name": "Street Lighting & ITS",            "contractor": null,                      "resourceType": "Tender", "plannedStart": "2026-09-07", "plannedFinish": "2026-10-30", "actualStart": null,         "actualFinish": null,         "percentComplete": 0,   "totalFloat": 8,  "critical": false, "predecessors": ["A1500"] },
+    { "id": "A1700", "wbs": "5.1", "name": "Landscaping & Handover",           "contractor": "Verdant Landscapes",      "resourceType": "Labor", "plannedStart": "2026-10-19", "plannedFinish": "2026-12-11", "actualStart": null,         "actualFinish": null,         "percentComplete": 0,   "totalFloat": 0,  "critical": true,  "predecessors": ["A1600"] }
+  ],
+  "milestones": [
+    { "id": "MS010", "name": "Site Possession",                "plannedDate": "2026-01-06", "governedBy": "A1000", "type": "start" },
+    { "id": "MS020", "name": "Drainage Network Complete",      "plannedDate": "2026-05-29", "governedBy": "A1200", "type": "finish" },
+    { "id": "MS030", "name": "Utilities Energized",            "plannedDate": "2026-07-31", "governedBy": "A1400", "type": "finish" },
+    { "id": "MS040", "name": "Road Open to Traffic",          "plannedDate": "2026-10-16", "governedBy": "A1600", "type": "finish" },
+    { "id": "MS050", "name": "Practical Completion & Handover","plannedDate": "2026-12-11", "governedBy": "A1700", "type": "finish" }
+  ]
+}

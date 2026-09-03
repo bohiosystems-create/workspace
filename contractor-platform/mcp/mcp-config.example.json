@@ -1,0 +1,17 @@
+{
+  "//": "Register these MCP servers with your MCP client (Claude Desktop's claude_desktop_config.json, Claude Code's .mcp.json, or any MCP host). Use absolute paths to the .mjs files, or run from this mcp/ directory.",
+  "mcpServers": {
+    "primavera-p6": {
+      "command": "node",
+      "args": ["primavera-mcp-server.mjs"],
+      "env": {
+        "P6_BASE_URL": "https://p6.example.com/p6ws",
+        "P6_API_KEY": "${P6_API_KEY}"
+      }
+    },
+    "trimble-works": {
+      "command": "node",
+      "args": ["trimble-mcp-server.mjs"]
+    }
+  }
+}
