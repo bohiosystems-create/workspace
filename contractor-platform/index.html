@@ -88,6 +88,30 @@
   .fbitem .st{color:var(--warn);font-size:10px;letter-spacing:1px} .fbitem .nt{color:var(--ink-soft);margin-top:2px;line-height:1.45}
   .fblink{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;margin-top:12px}
   .fblink:hover{color:var(--ink)}
+  .mgmt-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:20px;align-items:start}
+  @media(max-width:900px){.mgmt-grid{grid-template-columns:1fr}}
+  .sitemap{border:1px solid var(--ink-hairline);border-radius:3px;background:var(--paper);overflow:hidden}
+  .sitemap svg{display:block;width:100%;height:auto}
+  .mkr{cursor:pointer}
+  .mkr text{font-family:'Space Grotesk',sans-serif;font-weight:600;fill:#fff;pointer-events:none}
+  .mkr .ring{fill:none;stroke:var(--ink);stroke-width:2;opacity:0}
+  .mkr.sel .ring{opacity:1}
+  .maplegend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:10.5px;color:var(--ink-soft);margin-top:10px}
+  .maplegend i{display:inline-block;width:11px;height:11px;vertical-align:middle;margin-right:6px}
+  .maplegend i.dot{border-radius:50%} .maplegend i.sq{border-radius:2px}
+  .mgmt-detail-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;border-bottom:1px solid var(--ink-hairline);padding-bottom:14px;margin-bottom:14px}
+  .mgmt-detail-h h3{font-size:16px;font-weight:600}
+  .mgmt-detail-h .z{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-top:4px}
+  .srep{border:1px solid var(--ink-hairline);border-radius:3px;padding:11px 13px;margin-bottom:8px;background:var(--bg)}
+  .srep .st{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+  .srep .rt{font-size:12.5px;font-weight:600;margin:3px 0 4px} .srep .rs{font-size:11.5px;color:var(--ink-soft);line-height:1.5}
+  .clar{border:1px solid var(--ink-hairline);border-radius:3px;background:rgba(0,9,25,0.03);padding:14px 16px;margin-top:6px}
+  .clar textarea{width:100%;min-height:70px;font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--bg);border:1px solid var(--ink-hairline);padding:10px;border-radius:2px;resize:vertical;line-height:1.5}
+  .clar textarea:focus{outline:none;border-color:var(--ink)}
+  .clar .row{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .clar label{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+  .claritem{font-size:11.5px;padding:9px 0;border-bottom:1px solid var(--ink-hairline)} .claritem:last-child{border:none}
+  .claritem .due{color:var(--warn);font-weight:600}
   /* Gantt */
   .legend{display:flex;gap:16px;font-size:10px;letter-spacing:.04em;color:var(--ink-soft);flex-wrap:wrap;margin:12px 0}
   .legend i{display:inline-block;width:20px;height:9px;vertical-align:middle;margin-right:6px;border-radius:1px}
@@ -163,7 +187,8 @@
   <div class="wrap">
     <div class="tabs">
       <button class="tab active" data-view="contractors">Contractors</button>
-      <button class="tab" data-view="procurement">Procurement</button>
+      <button class="tab" data-view="management">Contractor Management</button>
+      <button class="tab" data-view="awards">Contract Awards</button>
       <button class="tab" data-view="agent">Agent Console</button>
     </div>
 
@@ -178,11 +203,29 @@
       <div class="grid3" id="roster"></div>
     </section>
 
-    <!-- PROCUREMENT -->
-    <section class="view" id="view-procurement">
-      <h2 class="section" style="margin-top:6px;">Open tenders — pick the best proposal</h2>
-      <p class="muted" style="margin:-6px 0 16px;">Each open package draws competing bids from human and robotic contractors. The platform scores them on cost, duration, delivery risk, availability and rating, and recommends one — you award with a click, and the timeline re-plans around the winner.</p>
-      <div id="tenders"></div>
+    <!-- CONTRACTOR MANAGEMENT -->
+    <section class="view" id="view-management">
+      <h2 class="section" style="margin-top:6px;">Worksite — live contractor locations</h2>
+      <div class="mgmt-grid">
+        <div>
+          <div class="sitemap" id="siteMap"></div>
+          <div class="maplegend">
+            <span><i class="dot" style="background:var(--ink)"></i>Human</span>
+            <span><i class="sq" style="background:var(--robot)"></i>Robot</span>
+            <span><i class="dot" style="background:var(--alert)"></i>Delayed</span>
+            <span class="muted">Click a contractor to see detail</span>
+          </div>
+        </div>
+        <div id="mgmtDetail"></div>
+      </div>
+    </section>
+
+    <!-- CONTRACT AWARDS -->
+    <section class="view" id="view-awards">
+      <h2 class="section" style="margin-top:6px;">Contract awards register</h2>
+      <div class="tbl-wrap"><table id="awardsTable"></table></div>
+      <h2 class="section">Open tenders — evaluate &amp; award</h2>
+      <div id="openTenders"></div>
     </section>
 
     <!-- AGENT CONSOLE -->
@@ -214,6 +257,33 @@
       <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px;">
         <div style="font-size:20px;font-weight:600;letter-spacing:.02em;">Settings</div>
         <div class="muted" style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;">Integrations &amp; connected systems</div>
+      </div>
+      <h2 class="section">AI agent — Anthropic API</h2>
+      <div class="grid2" style="align-items:start;">
+        <div class="panel">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <span class="dot" id="anthDot" style="background:var(--ink-hairline)"></span>
+            <b id="anthStatus" style="font-size:12.5px;">Not configured</b>
+          </div>
+          <label class="fl" style="display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;">Anthropic API key</label>
+          <input type="password" id="anthKey" placeholder="sk-ant-..." autocomplete="off" style="width:100%;margin-bottom:14px;">
+          <label class="fl" style="display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;">Model</label>
+          <select id="anthModel" style="width:100%;margin-bottom:16px;">
+            <option value="claude-opus-5">Claude Opus 5 — most capable</option>
+            <option value="claude-sonnet-5">Claude Sonnet 5 — balanced</option>
+            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — fast</option>
+            <option value="claude-fable-5-1">Claude Fable 5.1</option>
+          </select>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn sm" id="anthSave">Save</button>
+            <button class="btn ghost sm" id="anthClear">Remove</button>
+          </div>
+        </div>
+        <div class="hint">
+          <strong style="color:var(--ink);letter-spacing:.03em;">Powering the agent with Claude.</strong><br>
+          The key configures which Claude model the <b>Agent Console</b> uses to draft corrective directives from the schedule and telemetry pulled over MCP. It is stored only in this browser (localStorage) and is never sent anywhere from this demo.<br><br>
+          <span style="color:var(--warn);">In production the key must live server-side</span> — the browser calls your backend, which holds the Anthropic key and proxies the request. Never ship an API key in client-side code.
+        </div>
       </div>
       <h2 class="section">Connected systems — MCP</h2>
       <p class="muted" style="margin:-6px 0 16px;">The platform speaks to the tools heavy-industry programmes already run on, through Model Context Protocol servers. Primavera P6 is the schedule of record; progress flows in, and directives and re-baselines flow back out.</p>
@@ -346,8 +416,39 @@ function seed(){
     {id:'f4',contractor:'voltaic', rating:3,tags:['Delay','Communication'],note:'Ductbank slipped on transformer logistics; slow to escalate.',ts:'2026-08-20T16:00'},
     {id:'f5',contractor:'gridbot', rating:5,tags:['Quality','On time'],note:'Pole-setting trial — precise auto-alignment, night shift.',ts:'2026-08-05T22:00'},
   ];
-  return {project,contractors,tasks,milestones,reports,tenders,directives,integrations,intFeed,feedback};
+  return {project,contractors,tasks,milestones,reports,tenders,directives,integrations,intFeed,feedback,clarifications:[]};
 }
+// Worksite positions (viewBox 0..100 x 0..66) and zone labels.
+const LOC={
+  delta:   {x:28,y:34,zone:'Central earthworks plot'},
+  aqua:    {x:53,y:25,zone:'Drainage & water corridor'},
+  voltaic: {x:79,y:17,zone:'Substation & ductbank'},
+  meridian:{x:46,y:50,zone:'Road spine — south loop'},
+  verdant: {x:17,y:55,zone:'Landscaping perimeter'},
+  robopave:{x:70,y:56,zone:'Paving staging compound'},
+  gridbot: {x:82,y:43,zone:'Lighting corridor'},
+  terra:   {x:44,y:16,zone:'Aerial survey (roaming)'},
+};
+const SITE_REPORTS={
+  voltaic:[
+    {date:'2026-08-28',title:'Daily site report — Ductbank grid E',summary:'Night crew mobilized. 2 of 4 substation terminations complete; transformer staged for energization.'},
+    {date:'2026-08-21',title:'Weekly progress — Electrical',summary:'Ductbank 62% → 68%; fibre pulls at 80%. Awaiting relay panel delivery.'},
+    {date:'2026-08-14',title:'HSE inspection',summary:'Trench shoring re-checked after ACC observation ISS-104; closed out.'},
+  ],
+  meridian:[
+    {date:'2026-08-27',title:'Daily site report — Sub-base south loop',summary:'Trimming south loop; final level survey booked 20 Sep. 72% complete.'},
+    {date:'2026-08-20',title:'Weekly progress — Roads',summary:'Sub-base 45% → 72%; kerbing north spine started; asphalt plant secured.'},
+  ],
+  delta:[{date:'2026-04-22',title:'Earthworks close-out report',summary:'Cut/fill balanced and signed off; as-builts issued.'}],
+  aqua:[
+    {date:'2026-07-20',title:'Water mains pressure-test certificate',summary:'All sections passed; package closed.'},
+    {date:'2026-06-12',title:'Drainage CCTV survey',summary:'Network proven; as-builts submitted.'},
+  ],
+  verdant:[{date:'2026-08-25',title:'Mobilization readiness note',summary:'Crew and stock confirmed; awaiting road completion to mobilize.'}],
+  robopave:[{date:'2026-08-28',title:'Fleet telemetry — staging',summary:'3 autonomous pavers idle at south compound, calibrated, awaiting award.'}],
+  gridbot:[{date:'2026-08-26',title:'Trial pole-setting report',summary:'Auto-alignment within 3 mm; ready for lighting package.'}],
+  terra:[{date:'2026-08-28',title:'Drone survey — south loop',summary:'Daily volumetric survey uploaded; sub-base verified against plan.'}],
+};
 const FB_TAGS=['On time','Quality','Safety','Communication','Cost overrun','Delay','Rework'];
 // Effective rating blends recorded feedback with the contractor's baseline
 // (baseline acts as a prior worth FB_PRIOR reviews). This drives procurement scoring.
@@ -475,28 +576,45 @@ window.submitFB=function(cid){
   (state.feedback=state.feedback||[]).push({id:'f'+Date.now(),contractor:cid,rating:val,tags,note,ts:state.project.dataDate+'T'+new Date().toTimeString().slice(0,5)});
   const before=ratingOf(cid);save();
   const after=ratingOf(cid);renderAll();
-  toast(`Feedback saved · ${C(cid).name} rating now ${after.toFixed(1)} — updated in procurement scoring`);
+  toast(`Feedback saved · ${C(cid).name} rating now ${after.toFixed(1)} — feeds future contractor picks`);
 };
-function renderTenders(){
-  const c=consolidate();
-  const el=document.getElementById('tenders');
-  if(!state.tenders.length){el.innerHTML='<div class="muted">No open tenders.</div>';return;}
-  el.innerHTML=state.tenders.map(t=>{
+/* -------- contract awards -------- */
+function renderAwards(){
+  // register — every work package and its contract status
+  const rows=state.tasks.map(t=>{
+    const c0=t.contractor?C(t.contractor):null;
+    const tender=state.tenders.find(x=>x.taskId===t.id);
+    let value='—';
+    if(t.contractor&&tender){const p=tender.proposals.find(pp=>pp.contractor===t.contractor);if(p)value=money(p.price);}
+    return {t,c0,value};
+  });
+  document.getElementById('awardsTable').innerHTML=`<thead><tr><th>Work package</th><th>Awarded to</th><th>Type</th><th class="num">Contract value</th><th>Status</th></tr></thead><tbody>${rows.map(r=>`
+    <tr>
+      <td><b>${r.t.name}</b><div class="muted" style="font-size:10px;letter-spacing:.02em">Planned ${fmt(r.t.ps)} – ${fmt(r.t.pe)}</div></td>
+      <td>${r.c0?r.c0.name:'—'}</td>
+      <td>${r.c0?`<span class="tag ${r.c0.kind.toLowerCase()}"><i></i>${r.c0.kind}</span>`:'—'}</td>
+      <td class="num">${r.value}</td>
+      <td>${r.t.contractor?'<span class="pill done">Awarded</span>':'<span class="pill tender">Open tender</span>'}</td>
+    </tr>`).join('')}</tbody>`;
+  // open tenders — evaluate & award
+  const open=state.tenders.filter(t=>!t.awardedTo);
+  const el=document.getElementById('openTenders');
+  if(!open.length){el.innerHTML='<div class="muted">No open tenders — every package has an awarded contract.</div>';return;}
+  el.innerHTML=open.map(t=>{
     const task=state.tasks.find(x=>x.id===t.taskId);
     const ps=scoreTender(t);const rec=ps[0];
     return `<div class="panel" style="margin-bottom:20px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
         <div><div style="font-size:16px;font-weight:600">${task.name}</div>
-          <div class="meta" style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px">Planned ${fmt(task.ps)} – ${fmt(task.pe)} · ${t.proposals.length} proposals</div></div>
-        <div>${t.awardedTo?`<span class="pill done">Awarded · ${C(t.awardedTo).name}</span>`:'<span class="pill tender">Open — awaiting award</span>'}</div>
+          <div class="meta" style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px">Planned ${fmt(task.ps)} – ${fmt(task.pe)} · ${t.proposals.length} bids</div></div>
+        <div><span class="pill tender">Open — awaiting award</span></div>
       </div>
       <div class="propgrid" style="margin-top:18px">${ps.map((p,i)=>{
-        const c0=C(p.contractor);const isRec=!t.awardedTo&&i===0;const isAw=t.awardedTo===p.contractor;
-        const name=p.alt||c0.name;
-        return `<div class="prop ${isAw?'awarded':(isRec?'rec':'')}">
+        const c0=C(p.contractor);const isRec=i===0;const name=p.alt||c0.name;
+        return `<div class="prop ${isRec?'rec':''}">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
             <div><div style="font-weight:600;font-size:13.5px">${name}</div><div style="margin-top:5px"><span class="tag ${c0.kind.toLowerCase()}"><i></i>${c0.kind}</span></div></div>
-            ${isAw?'<span class="ribbon awarded">Awarded</span>':(isRec?'<span class="ribbon rec">Recommended</span>':'')}
+            ${isRec?'<span class="ribbon rec">Recommended</span>':''}
           </div>
           <div style="margin:14px 0 4px;display:flex;align-items:baseline;gap:6px"><span class="score">${p.score}</span><span class="score"><small>/100 fit</small></span></div>
           <div class="scbar"><i class="${c0.kind==='Robot'?'robot':''}" style="width:${p.score}%"></i></div>
@@ -504,28 +622,110 @@ function renderTenders(){
             <div class="kv"><span class="muted">Price</span><b>${money(p.price)}</b></div>
             <div class="kv"><span class="muted">Duration</span><b>${p.durationDays} d</b></div>
             <div class="kv"><span class="muted">Available</span><b>${fmt(p.availableFrom)}</b></div>
-            <div class="kv"><span class="muted">Delivery risk</span><b class="${p.riskPct>25?'':''}" style="color:${p.riskPct>25?'var(--alert)':(p.riskPct<12?'var(--good)':'var(--ink)')}">${p.riskPct}%</b></div>
+            <div class="kv"><span class="muted">Delivery risk</span><b style="color:${p.riskPct>25?'var(--alert)':(p.riskPct<12?'var(--good)':'var(--ink)')}">${p.riskPct}%</b></div>
             <div class="kv"><span class="muted">Rating</span><b>${ratingOf(p.contractor).toFixed(1)} ★ <span class="muted" style="font-weight:400">· ${(state.feedback||[]).filter(f=>f.contractor===p.contractor).length} reviews</span></b></div>
           </div>
           <p class="muted" style="margin-top:12px;font-size:11px">${p.note}</p>
-          <div style="margin-top:14px">${isAw?'<button class="btn ghost sm" disabled>Awarded</button>':
-             `<button class="btn ${c0.kind==='Robot'?'robot':''} sm" onclick="award('${t.taskId}','${p.contractor}')">Award to ${c0.kind==='Robot'?'fleet':name.split(' ')[0]}</button>`}</div>
+          <div style="margin-top:14px"><button class="btn ${c0.kind==='Robot'?'robot':''} sm" onclick="award('${t.taskId}','${p.contractor}')">Award contract</button></div>
         </div>`;}).join('')}</div>
-      ${!t.awardedTo?`<p class="muted" style="margin-top:14px">Recommendation: <b>${C(rec.contractor).name}</b> — highest schedule-fit score (${rec.score}/100). ${C(rec.contractor).kind==='Robot'?'Faster and available sooner; awarding it recovers programme slip on the road path.':''}</p>`:''}
+      <p class="muted" style="margin-top:14px">Recommendation: <b>${C(rec.contractor).name}</b> — highest fit score (${rec.score}/100), rating reflects contractor feedback.</p>
     </div>`;}).join('');
 }
 window.award=function(taskId,contractorId){
-  const t=state.tenders.find(x=>x.id?x.id===taskId:x.taskId===taskId)||state.tenders.find(x=>x.taskId===taskId);
+  const t=state.tenders.find(x=>x.taskId===taskId);
   t.awardedTo=contractorId;
   const task=state.tasks.find(x=>x.id===taskId);task.contractor=contractorId;
-  const c0=C(contractorId);
-  // shift task start to proposal availability if later; keep duration from proposal
-  const p=t.proposals.find(pp=>pp.contractor===contractorId);
+  const c0=C(contractorId);const p=t.proposals.find(pp=>pp.contractor===contractorId);
   if(p){task.ps=p.availableFrom;task.pe=iso(addD(D(p.availableFrom),p.durationDays));}
-  // log
-  state.intFeed.unshift({ts:'now',t:`${c0.kind==='Robot'?'Trimble ▸ dispatched award to '+c0.name+' fleet controller':'SAP S/4HANA ▸ PO issued to '+c0.name}; Primavera P6 activity re-baselined.`});
+  state.intFeed.unshift({ts:'now',t:`${c0.kind==='Robot'?'Trimble ▸ award dispatched to '+c0.name+' fleet controller':'SAP S/4HANA ▸ PO issued to '+c0.name}; Primavera P6 activity re-baselined.`});
   save();renderAll();
-  toast(`Awarded ${task.name} → ${c0.name}${c0.kind==='Robot'?' (autonomous fleet dispatched)':''}`);
+  toast(`Contract awarded · ${task.name} → ${c0.name}${c0.kind==='Robot'?' (autonomous fleet)':''}`);
+};
+/* -------- contractor management (worksite) -------- */
+let selMgmt=null;
+function latestReport(cid){return state.reports.filter(r=>r.contractor===cid).sort((a,b)=>b.date.localeCompare(a.date))[0]||null;}
+function renderManagement(){
+  state.clarifications=state.clarifications||[];
+  const c=consolidate();const statusOf={};
+  const rank=s=>({delayed:4,atrisk:3,ontrack:2,notstarted:1,done:1,tender:0}[s]||0);
+  c.rows.forEach(r=>{if(r.contractor){if(!statusOf[r.contractor]||rank(r.status)>rank(statusOf[r.contractor]))statusOf[r.contractor]=r.status;}});
+  if(!selMgmt||!LOC[selMgmt])selMgmt='voltaic';
+  renderSiteMap(statusOf);
+  renderMgmtDetail(statusOf);
+}
+function markerColor(id,statusOf){
+  if(statusOf[id]==='delayed')return 'var(--alert)';
+  return C(id).kind==='Robot'?'var(--robot)':'var(--ink)';
+}
+function renderSiteMap(statusOf){
+  const zones=[
+    {x:8,y:8,w:40,h:26,label:'PLOTS · EARTHWORKS'},
+    {x:52,y:8,w:40,h:20,label:'UTILITIES · SUBSTATION'},
+    {x:8,y:56,w:40,h:4,label:''},
+    {x:60,y:52,w:32,h:12,label:'STAGING COMPOUND'},
+  ];
+  // road spine
+  const road=`<rect x="6" y="40" width="88" height="7" rx="1" fill="rgba(0,9,25,0.08)"/><text x="8" y="38.5" font-size="2.4" fill="rgba(0,9,25,0.45)" letter-spacing="0.3">ROAD SPINE</text>`;
+  const zoneSvg=zones.map(z=>`<rect x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}" rx="1.5" fill="rgba(0,9,25,0.035)" stroke="rgba(0,9,25,0.10)"/>${z.label?`<text x="${z.x+2}" y="${z.y+4}" font-size="2.2" fill="rgba(0,9,25,0.4)" letter-spacing="0.3">${z.label}</text>`:''}`).join('');
+  const markers=state.contractors.filter(c=>LOC[c.id]).map(c=>{
+    const L=LOC[c.id],col=markerColor(c.id,statusOf),robot=c.kind==='Robot',sel=c.id===selMgmt;
+    const shape=robot?`<rect x="${L.x-3}" y="${L.y-3}" width="6" height="6" rx="1.4" fill="${col}"/>`:`<circle cx="${L.x}" cy="${L.y}" r="3.3" fill="${col}"/>`;
+    const ring=`<circle class="ring" cx="${L.x}" cy="${L.y}" r="5.4"/>`;
+    return `<g class="mkr ${sel?'sel':''}" onclick="selectMgmt('${c.id}')">${ring}${shape}
+      <text x="${L.x}" y="${L.y+0.9}" font-size="2.5" text-anchor="middle">${initM(c.name)}</text>
+      <text x="${L.x}" y="${L.y+8}" font-size="2.3" text-anchor="middle" fill="rgba(0,9,25,0.6)" style="font-weight:500">${c.name.split(' ')[0]}</text></g>`;
+  }).join('');
+  document.getElementById('siteMap').innerHTML=`<svg viewBox="0 0 100 66" preserveAspectRatio="xMidYMid meet">
+    <rect x="1" y="1" width="98" height="64" rx="2" fill="none" stroke="rgba(0,9,25,0.14)"/>
+    ${zoneSvg}${road}<text x="6" y="5" font-size="2.2" fill="rgba(0,9,25,0.3)" letter-spacing="0.3">MARINA DISTRICT · SITE PLAN</text>${markers}</svg>`;
+}
+function initM(n){return n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();}
+window.selectMgmt=function(id){selMgmt=id;renderManagement();};
+function renderMgmtDetail(statusOf){
+  const id=selMgmt,c0=C(id),L=LOC[id];
+  const rep=latestReport(id);const TN={};state.tasks.forEach(t=>TN[t.id]=t.name);
+  const st=statusOf[id]||'—';
+  const stMap={delayed:['delayed','Delayed'],atrisk:['atrisk','At risk'],ontrack:['ontrack','On track'],done:['done','Complete'],notstarted:['notstarted','Not started']};
+  const stp=stMap[st]?`<span class="pill ${stMap[st][0]}">${stMap[st][1]}</span>`:'';
+  const lastUpdate=rep?`<div class="muted" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">Reported ${fmt(rep.date)}</div>
+     ${rep.lines.map(l=>`<div class="cstat"><span>${TN[l.taskId]||l.taskId}</span><b>${l.percent}%</b></div>`).join('')}`
+    :`<div class="muted">No formal progress report submitted yet.</div>`;
+  const reps=(SITE_REPORTS[id]||[]);
+  const repsHtml=reps.length?reps.map(r=>`<div class="srep"><div class="st">${fmt(r.date)}</div><div class="rt">${r.title}</div><div class="rs">${r.summary}</div></div>`).join(''):'<div class="muted">No site reports on file.</div>';
+  const clars=state.clarifications.filter(x=>x.contractor===id).sort((a,b)=>b.ts.localeCompare(a.ts));
+  const clarsHtml=clars.length?clars.map(x=>`<div class="claritem"><b>RFC</b> — ${x.message} <span class="muted">· sent ${fmt(x.ts.slice(0,10))} · </span><span class="due">due ${fmt(x.deadline)}</span> <span class="muted">· ${x.status}</span></div>`).join(''):'';
+  document.getElementById('mgmtDetail').innerHTML=`<div class="panel">
+    <div class="mgmt-detail-h">
+      <div><h3>${c0.name}</h3><div class="z">${L.zone}</div></div>
+      <div style="text-align:right"><span class="tag ${c0.kind.toLowerCase()}"><i></i>${c0.kind}</span><div style="margin-top:8px">${stp}</div></div>
+    </div>
+    <h2 class="section" style="margin:6px 0 12px">Last update on the work</h2>
+    ${lastUpdate}
+    <h2 class="section" style="margin:20px 0 12px">Latest site reports</h2>
+    ${repsHtml}
+    <h2 class="section" style="margin:20px 0 12px">Request clarification</h2>
+    ${clarsHtml?`<div style="margin-bottom:12px">${clarsHtml}</div>`:''}
+    <div class="clar">
+      <textarea id="clarMsg" placeholder="e.g. Confirm revised energization date and night-crew resourcing for the ductbank recovery."></textarea>
+      <div class="row">
+        <label for="clarDue">Response due</label>
+        <input type="date" id="clarDue" value="${clarDefault()}">
+        <div style="flex:1"></div>
+        <button class="btn sm" onclick="sendClarification('${id}')">Send request</button>
+      </div>
+    </div>
+  </div>`;
+}
+function clarDefault(){const d=addD(D(state.project.dataDate),3);return iso(d);}
+window.sendClarification=function(id){
+  const msg=document.getElementById('clarMsg').value.trim();const due=document.getElementById('clarDue').value;
+  if(!msg){toast('Type your clarification request');return;}
+  if(!due){toast('Set a response deadline');return;}
+  state.clarifications=state.clarifications||[];
+  state.clarifications.push({id:'q'+Date.now(),contractor:id,message:msg,deadline:due,ts:state.project.dataDate+'T09:00',status:'Awaiting response'});
+  state.intFeed.unshift({ts:'now',t:`Procore ▸ clarification request (RFC) sent to ${C(id).name}, due ${fmt(due)}.`});
+  save();renderAll();
+  toast(`Clarification request sent to ${C(id).name} · due ${fmt(due)}`);
 };
 /* -------- agent console -------- */
 function routeFor(kind){return kind==='Robot'?'Trimble WorksManager (fleet MCP)':'Procore RFI (human MCP)';}
@@ -578,7 +778,9 @@ window.generateRecs=function(){
     state.directives.push({id:'d'+Date.now()+Math.floor(Math.random()*99),ts:state.project.dataDate+'T09:00',taskId:r.id,contractor:cid,title,detail,trigger:`Predicted: ${r.name} +${r.varDays}d vs plan`,status:'Draft'});
     added++;
   });
-  save();renderAll();toast(added?`Drafted ${added} directive${added>1?'s':''} from predicted breaches`:'No new breaches to act on');
+  save();renderAll();
+  const anth=anthGet();const via=anth.key?` · via ${anthModelLabel(anth.model)}`:'';
+  toast(added?`Drafted ${added} directive${added>1?'s':''} from predicted breaches${via}`:'No new breaches to act on');
 };
 window.issueAll=function(){state.directives.filter(d=>d.status==='Draft').forEach(d=>issueDir(d.id));};
 /* -------- integrations -------- */
@@ -616,12 +818,23 @@ function renderIntegrations(){
   ];
   document.getElementById('mcpTools').innerHTML=`<thead><tr><th>Tool</th><th>Purpose</th></tr></thead><tbody>${tools.map(t=>`<tr><td><code class="k">${t[0]}</code></td><td class="muted">${t[1]}</td></tr>`).join('')}</tbody>`;
 }
+/* -------- Anthropic API config (stored locally, never transmitted by this demo) -------- */
+const ANTH_KEY='bohio_anthropic_key', ANTH_MODEL='bohio_anthropic_model';
+function anthGet(){try{return{key:localStorage.getItem(ANTH_KEY)||'',model:localStorage.getItem(ANTH_MODEL)||'claude-opus-5'};}catch(e){return{key:'',model:'claude-opus-5'};}}
+function anthModelLabel(id){return{'claude-opus-5':'Claude Opus 5','claude-sonnet-5':'Claude Sonnet 5','claude-haiku-4-5-20251001':'Claude Haiku 4.5','claude-fable-5-1':'Claude Fable 5.1'}[id]||id;}
+function renderAnth(){
+  const {key,model}=anthGet();
+  const dot=document.getElementById('anthDot'),st=document.getElementById('anthStatus');
+  document.getElementById('anthModel').value=model;
+  if(key){dot.style.background='var(--good)';st.textContent='Connected · '+anthModelLabel(model);}
+  else{dot.style.background='var(--ink-hairline)';st.textContent='Not configured';}
+}
 /* -------- orchestration -------- */
 let cur='contractors';
 function renderAll(){
   renderHeader();
-  renderRoster();renderTenders();
-  renderDirectives();renderDirFeed();renderIntegrations();
+  renderRoster();renderAwards();renderManagement();
+  renderDirectives();renderDirFeed();renderIntegrations();renderAnth();
 }
 function showView(id){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
@@ -642,6 +855,13 @@ document.getElementById('dataDate').onchange=e=>{state.project.dataDate=e.target
 document.getElementById('btnReset').onclick=()=>{if(confirm('Reset the demo to its starting state?')){state=seed();save();renderAll();toast('Demo reset');}};
 document.getElementById('btnGenerate').onclick=generateRecs;
 document.getElementById('btnIssueAll').onclick=issueAll;
+document.getElementById('anthSave').onclick=()=>{
+  const key=document.getElementById('anthKey').value.trim(),model=document.getElementById('anthModel').value;
+  try{if(key)localStorage.setItem(ANTH_KEY,key);localStorage.setItem(ANTH_MODEL,model);}catch(e){}
+  document.getElementById('anthKey').value='';renderAnth();
+  toast(key?('Anthropic API connected · '+anthModelLabel(model)):'Model saved');
+};
+document.getElementById('anthClear').onclick=()=>{try{localStorage.removeItem(ANTH_KEY);}catch(e){}document.getElementById('anthKey').value='';renderAnth();toast('API key removed');};
 let tT;function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>e.classList.remove('show'),2800);}
 renderAll();
 </script>

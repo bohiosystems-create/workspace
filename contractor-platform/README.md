@@ -9,33 +9,48 @@ contractors themselves — human or robot. It connects to the PM systems these
 industries already run on (Primavera P6 and others) over **MCP**.
 
 This demo is self-contained and separate from the rest of the Bohio workspace.
-`index.html` needs no build, no server and no API key. The `mcp/` folder holds
-runnable MCP servers.
+It ships **two interfaces**: the owner/PMC/GC platform (`index.html`) and the
+contractor-facing portal (`contractor-portal.html`). Both need no build, no
+server and no API key. The `mcp/` folder holds runnable MCP servers.
 
 ## Run it
 
-Open `index.html` in any browser. It seeds a live infrastructure programme
-(Marina District — Access & Utilities) and persists your changes to
-`localStorage`. Use **Reset demo** to return to the starting state.
+Open `index.html` (the owner/PMC/GC side) or `contractor-portal.html` (the
+contractor side) in any browser. Each seeds the same live programme
+(Marina District — Access & Utilities) and persists to `localStorage`. On the
+platform, use **Reset demo** to return to the starting state.
 
-## What it shows
+## Owner / PMC / GC platform (`index.html`)
 
 | Tab | What it demonstrates |
 |-----|----------------------|
-| **Contractors** *(landing)* | A roster of human crews and robotic fleets, scored on the same axes — interchangeable by design. **Rate & review** any contractor (stars, tags, note); that feedback blends into their rating and feeds the procurement fit score on future tenders. |
-| **Procurement** | Open tenders with competing **human vs robot proposals**, each scored on cost / duration / risk / availability / rating. The platform recommends one; you **award with a click** and the plan re-plans around the winner. |
-| **Agent Console** | The **agentic control loop**: the platform detects a breach, drafts a corrective directive, and — on approval — issues it. Human crews are instructed via Procore; **robotic fleets are dispatched a machine command via the Trimble fleet MCP** and auto-acknowledge → execute. |
-| **⚙ Settings** *(top-right gear)* | Connected systems over MCP — **Oracle Primavera P6** (schedule of record), Bentley SYNCHRO 4D, Autodesk Construction Cloud, SAP S/4HANA EPC, Procore, Trimble WorksManager — with live sync activity and the Primavera MCP tool catalog. |
+| **Contractors** *(landing)* | A roster of human crews and robotic fleets, scored on the same axes — interchangeable by design. **Rate & review** any contractor (stars, tags, note); that feedback blends into their rating and feeds the contract-award fit score. |
+| **Contractor Management** | A **worksite site plan** with each contractor's live location (human circles, robot squares, delayed in red). Click a contractor for their **last update**, their **latest site reports**, and to **send a request for clarification with a response deadline** (routed via Procore). |
+| **Contract Awards** | The **contract awards register** (every package, who it's awarded to, value, status) plus **open tenders** — competing human vs robot bids scored on cost / duration / risk / availability / rating; **award a contract with a click** and the plan re-plans around the winner. |
+| **Agent Console** | The **agentic control loop**: the platform detects a breach, drafts a corrective directive, and — on approval — issues it. Human crews are instructed via Procore; **robotic fleets are dispatched via the Trimble fleet MCP** and auto-acknowledge → execute. |
+| **⚙ Settings** *(top-right gear)* | **Anthropic API** — set the Claude model the agent uses to draft directives (key stored locally only). Plus connected systems over MCP — **Oracle Primavera P6** (schedule of record), SYNCHRO 4D, Autodesk Construction Cloud, SAP S/4HANA EPC, Procore, Trimble — with live sync activity and the MCP tool catalog. |
 
 The consolidated schedule itself (planned vs actual, critical path, milestones)
 lives in Primavera P6, reached through the MCP connection in Settings.
 
+## Contractor portal (`contractor-portal.html`)
+
+The other side of the loop — what a **human contractor** sees. Sign in as any
+contractor (top-right) to:
+
+- **Instructions** — receive and act on instructions issued by the owner, PMC,
+  GC and the platform agent: acknowledge, start, mark complete, and reply.
+  Responses flow back to the owner's programme (via Procore / Primavera P6).
+- **My Work** — see assigned packages and **submit a progress update** that
+  feeds straight into the owner's consolidated timeline.
+
 ## Suggested demo flow
 
-1. **Contractors** — leave a review on a contractor and watch its rating shift; note that it will change the procurement score.
-2. **Procurement** — award **Asphalt & Surfacing** to the *RoboPave Autonomous Fleet* (robot) over the human incumbent; note the fit score.
-3. **Agent Console** — click **Generate recommendations**, then **issue** a directive; watch a robot directive move Draft → Issued → Acknowledged → Executing.
-4. **⚙ Settings** — show Primavera P6 and the other MCP connectors, and the config that wires the bundled server in.
+1. **Contractors** — leave a review on a contractor and watch its rating shift.
+2. **Contractor Management** — open the worksite map, click the delayed contractor, read its last update and site reports, and send a clarification request with a deadline.
+3. **Contract Awards** — award **Asphalt & Surfacing** to the *RoboPave Autonomous Fleet* (robot) over the human incumbent; note the fit score and the updated register.
+4. **Agent Console** — click **Generate recommendations**, then **issue** a directive; watch a robot directive move Draft → Issued → Acknowledged → Executing.
+5. **Contractor portal** — open `contractor-portal.html`, sign in as the same contractor, and see the instruction arrive; acknowledge and reply.
 
 ## MCP servers (`mcp/`)
 

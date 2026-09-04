@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bohio · Contractor Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff; --ink:#000919; --ink-soft:rgba(0,9,25,0.55); --ink-faint:rgba(0,9,25,0.30);
+    --ink-hairline:rgba(0,9,25,0.12); --paper:#efebeb; --alert:#FF4D6A; --good:#15803d; --warn:#b45309;
+    --robot:#0f5c8c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:'Space Grotesk',-apple-system,sans-serif;letter-spacing:.01em;min-height:100vh}
+  ::selection{background:var(--ink);color:var(--bg)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 26px 120px}
+  .topbar{position:sticky;top:0;z-index:40;background:var(--bg);border-bottom:1px solid var(--ink-hairline);display:flex;align-items:center;gap:22px;padding:16px 26px;max-width:1080px;margin:0 auto}
+  .logo{font-size:18px;letter-spacing:.48em;text-transform:uppercase;font-weight:500}
+  .logo small{font-size:8.5px;letter-spacing:.3em;color:var(--ink-soft);display:block;margin-top:3px}
+  .who{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .who .lbl{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft)}
+  .who select{font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:var(--bg);border:1px solid var(--ink-hairline);padding:8px 10px;border-radius:2px}
+  .who .av{width:36px;height:36px;border-radius:50%;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--ink-hairline);margin:0 -26px 26px;padding:0 26px;position:sticky;top:65px;background:var(--bg);z-index:30}
+  .tab{padding:15px 15px;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit;margin-bottom:-1px;white-space:nowrap;transition:color .15s}
+  .tab:hover{color:var(--ink)} .tab.active{color:var(--ink);border-bottom-color:var(--ink);font-weight:500}
+  .tab .badge{display:inline-block;min-width:17px;height:17px;line-height:17px;text-align:center;font-size:9px;background:var(--alert);color:#fff;border-radius:20px;margin-left:7px;padding:0 4px;vertical-align:middle}
+  .view{display:none} .view.active{display:block}
+  .banner{background:var(--paper);border:1px solid var(--ink-hairline);border-radius:3px;padding:14px 18px;margin-bottom:20px;font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+  .banner b{color:var(--ink)}
+  h2.section{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--ink-soft);font-weight:500;margin:26px 0 14px;display:flex;align-items:center;gap:14px}
+  h2.section::after{content:"";flex:1;height:1px;background:var(--ink-hairline)}
+  h2.section:first-child{margin-top:4px}
+  .muted{color:var(--ink-soft);font-size:12px;line-height:1.6}
+  /* instruction card */
+  .inst{border:1px solid var(--ink-hairline);border-radius:3px;padding:16px 18px;margin-bottom:14px;background:var(--paper)}
+  .inst.New{border-left:3px solid var(--alert)}
+  .inst.high .prio{color:var(--alert)}
+  .ih{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .from{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
+  .from .role{color:var(--ink)}
+  .prio{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--ink-soft)}
+  .its2{margin-left:auto;font-size:10.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .title{font-size:14.5px;font-weight:600;margin-bottom:4px}
+  .pkg{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
+  .detail{font-size:12.5px;color:var(--ink-soft);line-height:1.55}
+  .st{font-size:9px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid}
+  .st.New{color:var(--alert);border-color:var(--alert)}
+  .st.Acknowledged{color:var(--warn);border-color:var(--warn)}
+  .st.Inprogress{color:var(--robot);border-color:var(--robot)}
+  .st.Completed{color:var(--good);border-color:var(--good)}
+  .actions{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .btn{font-family:inherit;font-size:10px;letter-spacing:.12em;text-transform:uppercase;padding:9px 15px;background:var(--ink);color:var(--bg);border:1px solid var(--ink);border-radius:2px;cursor:pointer;font-weight:500}
+  .btn:hover{opacity:.85} .btn.ghost{background:transparent;color:var(--ink)} .btn.ghost:hover{background:var(--ink);color:var(--bg)}
+  .btn.sm{padding:7px 12px} .btn:disabled{opacity:.35;cursor:not-allowed}
+  .reply{margin-top:12px;border-top:1px solid var(--ink-hairline);padding-top:12px}
+  .reply input{width:100%;font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--bg);border:1px solid var(--ink-hairline);padding:9px 11px;border-radius:2px;margin-bottom:8px}
+  .reply input:focus{outline:none;border-color:var(--ink)}
+  .mine{background:rgba(0,9,25,0.04);border-radius:3px;padding:9px 12px;font-size:12px;margin-top:10px}
+  .mine .who2{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px}
+  /* work packages */
+  .pk{border:1px solid var(--ink-hairline);border-radius:3px;padding:16px 18px;margin-bottom:14px;background:var(--paper)}
+  .pk .pt{font-size:14px;font-weight:600}
+  .pk .pm{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-top:3px}
+  .mbar{height:7px;background:var(--ink-hairline);border-radius:4px;overflow:hidden;margin:12px 0 4px}
+  .mbar>i{display:block;height:100%;background:var(--ink)} .mbar>i.done{background:var(--good)}
+  .prow{display:flex;justify-content:space-between;font-size:12px;margin-top:4px}
+  .upd{margin-top:14px;border-top:1px solid var(--ink-hairline);padding-top:14px;display:grid;grid-template-columns:110px 1fr auto;gap:10px;align-items:end}
+  @media(max-width:640px){.upd{grid-template-columns:1fr}}
+  .upd label{display:block;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px}
+  .upd input{font-family:inherit;font-size:12.5px;color:var(--ink);background:var(--bg);border:1px solid var(--ink-hairline);padding:9px 11px;border-radius:2px;width:100%}
+  .upd input:focus{outline:none;border-color:var(--ink)}
+  .log{font-size:11.5px} .log .ln{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--ink-hairline)} .log .ln:last-child{border:none}
+  .log .ts{color:var(--ink-soft);white-space:nowrap;font-variant-numeric:tabular-nums;font-size:10.5px}
+  .empty{text-align:center;padding:50px 20px;color:var(--ink-soft);font-size:13px}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 24px;border-radius:3px;font-size:12px;opacity:0;pointer-events:none;transition:all .25s;z-index:100;max-width:520px;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">Bohio<small>Contractor Portal</small></div>
+    <div class="who">
+      <span class="lbl">Signed in as</span>
+      <select id="identity"></select>
+      <div class="av" id="avatar">—</div>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab active" data-view="inbox">Instructions <span class="badge" id="newBadge" hidden>0</span></button>
+      <button class="tab" data-view="work">My Work</button>
+    </div>
+
+    <section class="view active" id="view-inbox">
+      <div class="banner">Instructions issued to you by the <b>project owner, PMC, GC</b> and the Bohio platform agent. Acknowledge, update status, and reply — your responses are sent back to the owner's programme (via Procore / Primavera P6).</div>
+      <div id="inbox"></div>
+    </section>
+
+    <section class="view" id="view-work">
+      <div class="banner">Your assigned work packages. Submit a progress update and it flows straight into the owner's consolidated timeline.</div>
+      <div id="packages"></div>
+      <h2 class="section">Update log</h2>
+      <div class="log" id="updLog"></div>
+    </section>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+const STORE='bohio_contractor_portal_v1';
+const now='2026-08-28';
+function seed(){
+  const contractors=[
+    {id:'voltaic', name:'Voltaic Power Systems'},
+    {id:'meridian',name:'Meridian Roads'},
+    {id:'delta',   name:'Delta Civil'},
+    {id:'aqua',    name:'AquaFlow Infrastructure'},
+    {id:'verdant', name:'Verdant Landscapes'},
+  ];
+  const packages={
+    voltaic:[{pkg:'Electrical Ductbank & Substation',pct:68},{pkg:'Telecoms & Fibre Ducting',pct:80}],
+    meridian:[{pkg:'Road Sub-base & Kerbing',pct:72}],
+    delta:[{pkg:'Mobilization & Site Setup',pct:100},{pkg:'Earthworks & Bulk Excavation',pct:100}],
+    aqua:[{pkg:'Stormwater & Drainage Network',pct:100},{pkg:'Sewerage & Water Mains',pct:100}],
+    verdant:[{pkg:'Landscaping & Handover',pct:0}],
+  };
+  const instructions=[
+    {id:'i1',to:'voltaic',from:'Agent',org:'Bohio Platform',ts:'2026-08-28T09:00',priority:'high',pkg:'Electrical Ductbank & Substation',
+      title:'Authorize second night-shift crew on ductbank',
+      detail:'Ductbank forecast breaches the Utilities Energized milestone by ~11 weeks. Add a night crew and pull the substation termination forward to recover ~3 weeks. Confirm crew availability and revised finish date.',status:'New',reply:''},
+    {id:'i2',to:'voltaic',from:'PMC',org:'Programme Management',ts:'2026-08-27T14:20',priority:'normal',pkg:'Telecoms & Fibre Ducting',
+      title:'Submit updated 3-week look-ahead',
+      detail:'Provide a 3-week look-ahead for the remaining fibre pulls and terminations by COB Thursday.',status:'New',reply:''},
+    {id:'i3',to:'voltaic',from:'Owner',org:'Bohio Development Partners',ts:'2026-08-28T08:10',priority:'high',pkg:'Electrical Ductbank & Substation',
+      title:'Recovery plan required — Utilities Energized at risk',
+      detail:'The Utilities Energized milestone is at risk. Submit a written recovery plan with a revised energization date and resourcing by Friday 16:00.',status:'New',reply:''},
+    {id:'i4',to:'meridian',from:'Agent',org:'Bohio Platform',ts:'2026-08-28T09:05',priority:'high',pkg:'Road Sub-base & Kerbing',
+      title:'Pre-position paving crew at ready sub-section',
+      detail:'Sub-base south loop is nearing completion. Pre-position the asphalt crew to begin the binder course on the north spine without delay.',status:'New',reply:''},
+    {id:'i5',to:'meridian',from:'GC',org:'Principal Contractor',ts:'2026-08-26T11:00',priority:'normal',pkg:'Road Sub-base & Kerbing',
+      title:'Coordinate drainage tie-ins with AquaFlow',
+      detail:'Confirm drainage tie-in interfaces at the south loop with AquaFlow before final trimming.',status:'Acknowledged',reply:''},
+    {id:'i6',to:'delta',from:'PMC',org:'Programme Management',ts:'2026-08-20T10:00',priority:'normal',pkg:'Earthworks & Bulk Excavation',
+      title:'Submit earthworks close-out pack',
+      detail:'Provide as-builts and compaction test certificates for the earthworks close-out.',status:'New',reply:''},
+    {id:'i7',to:'aqua',from:'Owner',org:'Bohio Development Partners',ts:'2026-07-20T09:00',priority:'normal',pkg:'Stormwater & Drainage Network',
+      title:'Handover documentation received',
+      detail:'Drainage as-builts received with thanks. No further action required.',status:'Completed',reply:''},
+    {id:'i8',to:'verdant',from:'PMC',org:'Programme Management',ts:'2026-08-25T15:30',priority:'normal',pkg:'Landscaping & Handover',
+      title:'Confirm mobilization readiness',
+      detail:'Confirm crew and materials readiness for landscaping mobilization, pending road completion.',status:'New',reply:''},
+  ];
+  return {identity:'voltaic',contractors,packages,instructions,updates:[]};
+}
+let state=load()||seed();
+function load(){try{const s=localStorage.getItem(STORE);return s?JSON.parse(s):null;}catch(e){return null;}}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(state));}catch(e){}}
+const nameOf=id=>(state.contractors.find(c=>c.id===id)||{}).name||'—';
+const initials=n=>n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+function fmt(ts){const dt=ts.slice(0,10),tm=ts.length>10?ts.slice(11):'';const[y,m,d]=dt.split('-');const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return d+' '+M[+m-1]+(tm?' · '+tm:'');}
+
+function myInstructions(){return state.instructions.filter(i=>i.to===state.identity).sort((a,b)=>{
+  const rank=s=>({New:0,Acknowledged:1,'In progress':2,Completed:3}[s]??0);
+  if(rank(a.status)!==rank(b.status))return rank(a.status)-rank(b.status);
+  return b.ts.localeCompare(a.ts);
+});}
+
+function renderIdentity(){
+  const sel=document.getElementById('identity');
+  sel.innerHTML=state.contractors.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  sel.value=state.identity;
+  document.getElementById('avatar').textContent=initials(nameOf(state.identity));
+}
+function stClass(s){return s.replace(/\s+/g,'');}
+function renderInbox(){
+  const list=myInstructions();
+  const el=document.getElementById('inbox');
+  const newCount=list.filter(i=>i.status==='New').length;
+  const badge=document.getElementById('newBadge');
+  badge.textContent=newCount;badge.hidden=newCount===0;
+  if(!list.length){el.innerHTML='<div class="empty">No instructions for you right now.</div>';return;}
+  el.innerHTML=list.map(i=>`
+    <div class="inst ${i.status==='New'?'New':''} ${i.priority}">
+      <div class="ih">
+        <span class="from">From <span class="role">${roleLabel(i.from)}</span> · ${i.org}</span>
+        ${i.priority==='high'?'<span class="prio">● High priority</span>':''}
+        <span class="its2">${fmt(i.ts)}</span>
+      </div>
+      <div class="title">${i.title}</div>
+      <div class="pkg">${i.pkg}</div>
+      <div class="detail">${i.detail}</div>
+      ${i.reply?`<div class="mine"><div class="who2">Your reply</div>${i.reply}</div>`:''}
+      <div class="actions">
+        <span class="st ${stClass(i.status)}">${i.status}</span>
+        ${i.status==='New'?`<button class="btn sm" onclick="setStatus('${i.id}','Acknowledged')">Acknowledge</button>`:''}
+        ${(i.status==='New'||i.status==='Acknowledged')?`<button class="btn sm ghost" onclick="setStatus('${i.id}','In progress')">Start work</button>`:''}
+        ${i.status==='In progress'?`<button class="btn sm" onclick="setStatus('${i.id}','Completed')">Mark complete</button>`:''}
+      </div>
+      ${i.status!=='Completed'?`<div class="reply">
+        <input id="rp-${i.id}" placeholder="Reply to ${roleLabel(i.from)}…">
+        <button class="btn sm ghost" onclick="sendReply('${i.id}')">Send reply</button>
+      </div>`:''}
+    </div>`).join('');
+}
+function roleLabel(f){return {Owner:'Owner',PMC:'PMC',GC:'GC (Principal Contractor)',Agent:'Bohio Agent'}[f]||f;}
+
+window.setStatus=function(id,st){const i=state.instructions.find(x=>x.id===id);i.status=st;save();renderAll();toast(`${i.title} → ${st} · sent to owner`);};
+window.sendReply=function(id){const i=state.instructions.find(x=>x.id===id);const v=document.getElementById('rp-'+id).value.trim();if(!v){toast('Type a reply first');return;}i.reply=v;if(i.status==='New')i.status='Acknowledged';save();renderAll();toast('Reply sent to '+roleLabel(i.from));};
+
+function renderPackages(){
+  const pkgs=state.packages[state.identity]||[];
+  const el=document.getElementById('packages');
+  el.innerHTML=pkgs.map((p,idx)=>`
+    <div class="pk">
+      <div class="pt">${p.pkg}</div>
+      <div class="pm">${p.pct>=100?'Complete':'In progress'}</div>
+      <div class="mbar"><i class="${p.pct>=100?'done':''}" style="width:${p.pct}%"></i></div>
+      <div class="prow"><span class="muted">Reported progress</span><b>${p.pct}%</b></div>
+      ${p.pct<100?`<div class="upd">
+        <div><label>% complete</label><input type="number" min="0" max="100" id="up-pct-${idx}" value="${p.pct}"></div>
+        <div><label>Note to owner (optional)</label><input id="up-note-${idx}" placeholder="e.g. night crew mobilized, transformer energization Fri"></div>
+        <button class="btn sm" onclick="submitUpdate(${idx})">Submit update</button>
+      </div>`:''}
+    </div>`).join('')||'<div class="empty">No packages assigned to you.</div>';
+}
+window.submitUpdate=function(idx){
+  const pkgs=state.packages[state.identity];const p=pkgs[idx];
+  const pct=Math.max(0,Math.min(100,parseInt(document.getElementById('up-pct-'+idx).value)||0));
+  const note=document.getElementById('up-note-'+idx).value.trim();
+  p.pct=pct;
+  state.updates.unshift({ts:now+'T'+new Date().toTimeString().slice(0,5),contractor:state.identity,pkg:p.pkg,pct,note});
+  save();renderAll();
+  toast(`Progress sent to project owner · ${p.pkg} ${pct}% (via Procore → Primavera P6)`);
+};
+function renderLog(){
+  const ups=state.updates.filter(u=>u.contractor===state.identity);
+  document.getElementById('updLog').innerHTML=ups.length?ups.map(u=>`<div class="ln"><span class="ts">${fmt(u.ts)}</span><span><b>${u.pkg}</b> → ${u.pct}%${u.note?` · <span class="muted">${u.note}</span>`:''}</span></div>`).join(''):'<div class="muted">No updates submitted yet.</div>';
+}
+
+function renderAll(){renderIdentity();renderInbox();renderPackages();renderLog();}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');document.getElementById('view-'+t.dataset.view).classList.add('active');window.scrollTo(0,0);
+});
+document.getElementById('identity').onchange=e=>{state.identity=e.target.value;save();renderAll();};
+let tT;function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>e.classList.remove('show'),3000);}
+renderAll();
+</script>
+</body>
+</html>
