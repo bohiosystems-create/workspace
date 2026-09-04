@@ -188,7 +188,7 @@ function renderInbox(){
         <span class="its2">${fmt(i.ts)}</span>
       </div>
       <div class="title">${i.title}</div>
-      <div class="pkg">${i.pkg}</div>
+      <div class="pkg">${i.pkg}${i.deadline?` · <span style="color:var(--warn);font-weight:600">Response due ${fmt(i.deadline)}</span>`:''}</div>
       <div class="detail">${i.detail}</div>
       ${i.reply?`<div class="mine"><div class="who2">Your reply</div>${i.reply}</div>`:''}
       <div class="actions">
@@ -238,6 +238,20 @@ function renderLog(){
   document.getElementById('updLog').innerHTML=ups.length?ups.map(u=>`<div class="ln"><span class="ts">${fmt(u.ts)}</span><span><b>${u.pkg}</b> → ${u.pct}%${u.note?` · <span class="muted">${u.note}</span>`:''}</span></div>`).join(''):'<div class="muted">No updates submitted yet.</div>';
 }
 
+// Cross-interface bridge: pick up instructions issued from the owner/PMC platform
+// (shared localStorage; live when both are served from the same origin).
+const BRIDGE_MSGS='bohio_bridge_msgs';
+function mergeBridge(){
+  let added=0;
+  try{const arr=JSON.parse(localStorage.getItem(BRIDGE_MSGS)||'[]');
+    arr.forEach(m=>{const iid='B'+m.id;
+      if(!state.instructions.find(x=>x.id===iid)){
+        state.instructions.push({id:iid,to:m.to,from:m.from||'Owner',org:m.org||'',ts:m.ts,priority:m.priority||'normal',pkg:m.pkg||'',title:m.title,detail:m.detail,deadline:m.deadline||'',status:'New',reply:''});added++;
+      }});
+    if(added)save();
+  }catch(e){}
+  return added;
+}
 function renderAll(){renderIdentity();renderInbox();renderPackages();renderLog();}
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
@@ -245,8 +259,9 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   t.classList.add('active');document.getElementById('view-'+t.dataset.view).classList.add('active');window.scrollTo(0,0);
 });
 document.getElementById('identity').onchange=e=>{state.identity=e.target.value;save();renderAll();};
+window.addEventListener('storage',e=>{if(e.key===BRIDGE_MSGS){const n=mergeBridge();if(n){renderAll();toast(n+' new instruction'+(n>1?'s':'')+' received');}}});
 let tT;function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(tT);tT=setTimeout(()=>e.classList.remove('show'),3000);}
-renderAll();
+mergeBridge();renderAll();
 </script>
 </body>
 </html>

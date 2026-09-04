@@ -717,13 +717,19 @@ function renderMgmtDetail(statusOf){
   </div>`;
 }
 function clarDefault(){const d=addD(D(state.project.dataDate),3);return iso(d);}
+// Cross-interface bridge: deliver instructions to the contractor portal
+// (shared localStorage; live when both are served from the same origin).
+const BRIDGE_MSGS='bohio_bridge_msgs';
+function bridgePush(msg){try{const a=JSON.parse(localStorage.getItem(BRIDGE_MSGS)||'[]');if(!a.find(m=>m.id===msg.id)){a.push(msg);localStorage.setItem(BRIDGE_MSGS,JSON.stringify(a));}}catch(e){}}
 window.sendClarification=function(id){
   const msg=document.getElementById('clarMsg').value.trim();const due=document.getElementById('clarDue').value;
   if(!msg){toast('Type your clarification request');return;}
   if(!due){toast('Set a response deadline');return;}
   state.clarifications=state.clarifications||[];
-  state.clarifications.push({id:'q'+Date.now(),contractor:id,message:msg,deadline:due,ts:state.project.dataDate+'T09:00',status:'Awaiting response'});
+  const qid='q'+Date.now();
+  state.clarifications.push({id:qid,contractor:id,message:msg,deadline:due,ts:state.project.dataDate+'T09:00',status:'Awaiting response'});
   state.intFeed.unshift({ts:'now',t:`Procore ▸ clarification request (RFC) sent to ${C(id).name}, due ${fmt(due)}.`});
+  if(C(id).kind==='Human')bridgePush({id:'q:'+qid,to:id,from:'PMC',org:'Programme Management',ts:state.project.dataDate+'T09:00',priority:'normal',pkg:'',title:'Request for clarification',detail:msg,deadline:due});
   save();renderAll();
   toast(`Clarification request sent to ${C(id).name} · due ${fmt(due)}`);
 };
@@ -750,7 +756,9 @@ function renderDirFeed(){
 }
 window.issueDir=function(id){
   const d=state.directives.find(x=>x.id===id);const c0=C(d.contractor);
-  d.status='Issued';d.ts=state.project.dataDate+'T'+new Date().toTimeString().slice(0,5);save();renderAll();
+  d.status='Issued';d.ts=state.project.dataDate+'T'+new Date().toTimeString().slice(0,5);
+  if(c0.kind==='Human'){const task=state.tasks.find(t=>t.id===d.taskId);bridgePush({id:'d:'+d.id,to:d.contractor,from:'Agent',org:'Bohio Platform',ts:d.ts,priority:'high',pkg:task?task.name:'',title:d.title,detail:d.detail});}
+  save();renderAll();
   toast(`${c0.kind==='Robot'?'Dispatched to '+c0.name+' fleet':'Issued to '+c0.name}`);
   setTimeout(()=>{d.status='Acknowledged';save();if(cur==='agent')renderAll();},1200);
   if(c0.kind==='Robot')setTimeout(()=>{d.status='Executing';save();if(cur==='agent')renderAll();},2600);

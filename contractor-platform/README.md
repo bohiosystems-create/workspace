@@ -44,6 +44,26 @@ contractor (top-right) to:
 - **My Work** — see assigned packages and **submit a progress update** that
   feeds straight into the owner's consolidated timeline.
 
+### The two interfaces are connected
+
+When both pages are served from the **same origin** (any static host, or the
+same folder behind a local server), they share a live channel: issuing a
+directive in the platform's **Agent Console**, or sending a **clarification
+request** from **Contractor Management**, delivers it into the contractor's
+portal inbox in real time (with its deadline) — no reload, no backend. It uses
+shared `localStorage` plus `storage` events, so it works on a host but not from
+`file://` (where browsers isolate each file); there each page falls back to its
+seeded data. A shared backend (the Procore/MCP layer in production) would make
+this durable and multi-device.
+
+Quick local run:
+
+```bash
+cd bohio-contractor-platform
+python3 -m http.server 8099
+# open http://localhost:8099/index.html and http://localhost:8099/contractor-portal.html
+```
+
 ## Suggested demo flow
 
 1. **Contractors** — leave a review on a contractor and watch its rating shift.
