@@ -20,6 +20,38 @@ contractor side) in any browser. Each seeds the same live programme
 (Marina District — Access & Utilities) and persists to `localStorage`. On the
 platform, use **Reset demo** to return to the starting state.
 
+## Deploy on Vercel
+
+This is a **static site** — no build, no framework. The only reason a Vercel
+deploy 404s is misconfigured project settings (usually because this folder lives
+inside a larger repo that also contains a Next.js app). Deploy **this folder** as
+its own static project:
+
+**Option A — Vercel dashboard (from the GitHub repo):**
+1. New Project → import the repo.
+2. Set **Root Directory** to `contractor-platform` (this is the key step).
+3. **Framework Preset:** *Other*. Leave **Build Command** and **Output
+   Directory** empty (the included `vercel.json` already forces a static, no-build
+   deploy).
+4. Deploy. `/` serves the platform; `/contractor-portal` (or `/portal`) serves
+   the contractor portal.
+
+**Option B — Vercel CLI (simplest):**
+```bash
+cd contractor-platform
+vercel        # preview
+vercel --prod # production
+```
+Run it from inside `contractor-platform/` so that folder is the project root.
+
+**Notes**
+- Both interfaces are served from the same origin, so the live platform ↔ portal
+  connection works on the deployed site.
+- The `mcp/` folder holds **Node stdio MCP servers** — they are *not* web
+  endpoints and do not run on Vercel. They're for a local/desktop MCP host; the
+  website itself is fully static and needs nothing from them.
+- No API key is needed to deploy or run the site.
+
 ## Owner / PMC / GC platform (`index.html`)
 
 | Tab | What it demonstrates |
