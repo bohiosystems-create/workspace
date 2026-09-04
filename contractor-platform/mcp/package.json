@@ -3,14 +3,22 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "MCP servers for the Bohio contractor platform — Primavera P6 schedule + Trimble robotic-fleet dispatch.",
+  "description": "MCP servers for the Bohio contractor platform — Primavera P6 schedule, Trimble robotic-fleet dispatch, SYNCHRO 4D, Autodesk Construction Cloud, SAP S/4HANA EPC, Procore.",
   "bin": {
     "primavera-mcp": "primavera-mcp-server.mjs",
-    "trimble-mcp": "trimble-mcp-server.mjs"
+    "trimble-mcp": "trimble-mcp-server.mjs",
+    "synchro-mcp": "synchro-mcp-server.mjs",
+    "autodesk-mcp": "autodesk-mcp-server.mjs",
+    "sap-mcp": "sap-mcp-server.mjs",
+    "procore-mcp": "procore-mcp-server.mjs"
   },
   "scripts": {
     "primavera": "node primavera-mcp-server.mjs",
-    "trimble": "node trimble-mcp-server.mjs"
+    "trimble": "node trimble-mcp-server.mjs",
+    "synchro": "node synchro-mcp-server.mjs",
+    "autodesk": "node autodesk-mcp-server.mjs",
+    "sap": "node sap-mcp-server.mjs",
+    "procore": "node procore-mcp-server.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

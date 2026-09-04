@@ -39,32 +39,35 @@ lives in Primavera P6, reached through the MCP connection in Settings.
 
 ## MCP servers (`mcp/`)
 
-Runnable reference MCP servers that back the Integrations tab:
+Every connector in the Settings tab ships as a runnable reference MCP server —
+all six are verified over a stdio JSON-RPC handshake:
 
-- **`primavera-mcp-server.mjs`** — fronts an Oracle Primavera P6 schedule. Tools:
-  `list_activities`, `get_activity`, `update_progress`, `get_critical_path`,
-  `rebaseline`, `push_directive`. Backed by `schedule.sample.json` so it runs
-  with no P6 instance; swap the tool bodies for the P6 REST/Integration API and
-  set `P6_BASE_URL` / `P6_API_KEY` to go live.
-- **`trimble-mcp-server.mjs`** — dispatches robotic fleets. Tools:
-  `get_fleet_status`, `dispatch_unit`, `send_command`.
+| Server file | Connector | Key tools |
+|-------------|-----------|-----------|
+| `primavera-mcp-server.mjs` | Oracle Primavera P6 (schedule of record) | `list_activities`, `get_activity`, `update_progress`, `get_critical_path`, `rebaseline`, `push_directive` |
+| `synchro-mcp-server.mjs` | Bentley SYNCHRO 4D | `get_sequence`, `link_task`, `resequence`, `get_clashes` |
+| `autodesk-mcp-server.mjs` | Autodesk Construction Cloud | `list_issues`, `create_issue`, `close_issue` |
+| `sap-mcp-server.mjs` | SAP S/4HANA EPC | `get_po_ledger`, `create_po`, `get_cost_summary` |
+| `procore-mcp-server.mjs` | Procore (human directive channel) | `list_daily_logs`, `create_rfi`, `get_directive_status` |
+| `trimble-mcp-server.mjs` | Trimble WorksManager (robot fleet dispatch) | `get_fleet_status`, `dispatch_unit`, `send_command` |
+
+Primavera P6 is backed by `schedule.sample.json`; the rest use small in-memory
+stores. Each is a reference build — swap the tool bodies for the real vendor API
+(and set `P6_BASE_URL` / `P6_API_KEY` for P6) to go live.
 
 Install and register:
 
 ```bash
 cd mcp
 npm install
-node primavera-mcp-server.mjs      # runs on stdio
+node primavera-mcp-server.mjs      # runs on stdio (likewise synchro/autodesk/sap/procore/trimble)
 ```
 
 Then add `mcp/mcp-config.example.json` to your MCP client (Claude Desktop, Claude
-Code, or any MCP host) — it registers `primavera-p6` and `trimble-works`. The
-agent can then call the schedule tools directly (read activities, write progress
-back to P6, dispatch fleets, attach directives).
-
-Other systems named in the demo (SYNCHRO 4D, Autodesk Construction Cloud, SAP
-S/4HANA, Procore) follow the same pattern — add an MCP server per system exposing
-its read/write tools.
+Code, or any MCP host) — it registers all six servers. The agent can then call
+the tools directly: read/write the P6 schedule, re-sequence in SYNCHRO, log field
+issues in ACC, draft POs in SAP, issue RFIs to human crews via Procore, and
+dispatch robotic fleets via Trimble.
 
 ## Notes
 
