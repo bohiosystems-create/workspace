@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Bohio · Primavera Schedule</title>
+<style>
+  :root{
+    --mon-blue:#0073ea; --mon-blue-dark:#0060b9;
+    --text:#323338; --text-soft:#676879; --text-faint:#9699a6;
+    --line:#e6e9ef; --line-soft:#eceff3; --bg:#ffffff; --bg-board:#ffffff;
+    --hover:#f5f6f8; --rail:#ffffff;
+    --group-todo:#579bfc;
+    --done:#00c875; --working:#fdab3d; --stuck:#e2445c;
+    --verify:#ffcb00; --review:#a25ddc; --grey:#c4c4c4;
+    --radius:8px;
+    --font:"Figtree",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0;font-family:var(--font);color:var(--text);background:#f6f7fb;font-size:14px;-webkit-font-smoothing:antialiased;}
+  button{font-family:inherit;cursor:pointer;}
+  .app{display:flex;height:100vh;overflow:hidden;}
+
+  /* ---------------- ICON RAIL ---------------- */
+  .rail{width:56px;background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:2px;flex-shrink:0;}
+  .rail .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#ff3d57 0%,#ff7a59 30%,#ffcb00 60%,#00d2a8 100%);margin-bottom:8px;}
+  .rail-item{width:40px;height:44px;border:0;background:transparent;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--text-soft);font-size:8.5px;font-weight:600;}
+  .rail-item:hover{background:var(--hover);}
+  .rail-item.active{background:#e6f0ff;color:var(--mon-blue);}
+  .rail-item svg{width:19px;height:19px;}
+  .rail-spacer{flex:1;}
+
+  /* ---------------- WORKSPACE PANEL ---------------- */
+  .panel{width:236px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;}
+  .panel-head{display:flex;align-items:center;gap:8px;padding:14px 14px 8px;}
+  .panel-head h2{font-size:15px;font-weight:700;margin:0;flex:1;}
+  .icon-btn{width:28px;height:28px;border:0;background:transparent;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);}
+  .icon-btn:hover{background:var(--hover);}
+  .icon-btn svg{width:17px;height:17px;}
+  .ws-select{margin:2px 14px 10px;display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-weight:600;font-size:13.5px;}
+  .ws-select .ws-badge{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#5b3df5,#8b5cf6);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:800;}
+  .ws-select .chev{margin-left:auto;color:var(--text-faint);}
+  .panel-link{display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:13.5px;color:var(--text-soft);font-weight:600;}
+  .panel-link:hover{background:var(--hover);cursor:pointer;}
+  .panel-link .chev{margin-left:auto;font-size:11px;color:var(--text-faint);}
+  .panel-section{margin-top:8px;}
+  .panel-section .sec-head{display:flex;align-items:center;gap:6px;padding:6px 16px;font-size:12px;font-weight:800;color:var(--text);text-transform:none;}
+  .panel-section .sec-head .plus{margin-left:auto;color:var(--text-faint);}
+  .nav-row{display:flex;align-items:center;gap:9px;padding:7px 16px 7px 18px;font-size:13.5px;color:var(--text);border-radius:0;font-weight:500;}
+  .nav-row:hover{background:var(--hover);cursor:pointer;}
+  .nav-row.active{background:#e6f0ff;color:var(--mon-blue);font-weight:700;}
+  .nav-row .ic{width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);}
+  .nav-row.active .ic{color:var(--mon-blue);}
+  .nav-row .ic svg{width:17px;height:17px;}
+
+  /* ---------------- MAIN ---------------- */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;background:#fff;}
+  .topbar{height:48px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 16px;flex-shrink:0;}
+  .search{flex:0 1 520px;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:8px;background:#f5f6f8;border-radius:8px;padding:7px 12px;color:var(--text-faint);font-size:13px;}
+  .search svg{width:15px;height:15px;}
+  .topbar-icons{display:flex;align-items:center;gap:4px;margin-left:auto;}
+  .avatar{width:28px;height:28px;border-radius:50%;background:#c4c4c4;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+
+  .board-wrap{flex:1;display:flex;min-height:0;}
+  .board{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;}
+  .board-head{padding:16px 24px 4px;}
+  .board-title{display:flex;align-items:center;gap:10px;}
+  .board-title h1{font-size:23px;font-weight:700;margin:0;}
+  .board-title .chev{color:var(--text-soft);}
+  .board-title .spacer{flex:1;}
+  .board-tabs{display:flex;align-items:center;gap:2px;padding:10px 24px 0;border-bottom:1px solid var(--line);}
+  .tab{padding:8px 12px;font-size:14px;font-weight:600;color:var(--text-soft);border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .tab.active{color:var(--text);border-bottom-color:var(--mon-blue);}
+  .tab.add{color:var(--text-faint);}
+
+  .toolbar{display:flex;align-items:center;gap:6px;padding:12px 24px;}
+  .btn-primary{display:flex;align-items:center;gap:6px;background:var(--mon-blue);color:#fff;border:0;border-radius:6px;padding:8px 14px;font-size:14px;font-weight:600;}
+  .btn-primary .split{border-left:1px solid rgba(255,255,255,.35);padding-left:7px;margin-left:2px;}
+  .btn-primary:hover{background:var(--mon-blue-dark);}
+  .tool{display:flex;align-items:center;gap:6px;background:transparent;border:0;border-radius:6px;padding:8px 10px;font-size:14px;color:var(--text-soft);font-weight:500;}
+  .tool:hover{background:var(--hover);}
+  .tool svg{width:16px;height:16px;}
+
+  .board-body{flex:1;overflow:auto;padding:0 24px 40px;}
+  .group{margin-top:6px;}
+  .group-head{display:flex;align-items:center;gap:8px;padding:8px 0 6px;font-weight:700;font-size:15px;color:var(--group-todo);}
+  .group-head .gchev{cursor:pointer;display:flex;}
+  .group-head .gcount{font-size:12.5px;font-weight:500;color:var(--text-faint);}
+
+  table.grid{border-collapse:separate;border-spacing:0;width:100%;max-width:760px;}
+  table.grid th,table.grid td{text-align:left;}
+  .grid thead th{font-size:13px;font-weight:500;color:var(--text-soft);padding:4px 8px;border-bottom:1px solid var(--line);}
+  .col-check{width:34px;}
+  .col-task{}
+  .col-owner{width:96px;text-align:center!important;}
+  .col-status{width:150px;}
+  .grid tbody tr{background:#fff;}
+  .grid tbody td{border-bottom:1px solid var(--line-soft);padding:0;height:38px;vertical-align:middle;}
+  .grid tbody tr:hover td{background:var(--hover);}
+  .cell-pad{padding:0 8px;display:flex;align-items:center;gap:8px;height:38px;}
+  .grip{width:6px;align-self:stretch;border-top-left-radius:6px;border-bottom-left-radius:6px;background:var(--group-todo);flex-shrink:0;}
+  td.first-cell{padding-left:0;}
+  .cb{width:16px;height:16px;border:1.5px solid #c3c6d4;border-radius:4px;background:#fff;flex-shrink:0;cursor:pointer;}
+  .task-name{font-size:14px;color:var(--text);font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+  .task-name .code{color:var(--text-faint);font-weight:600;}
+  .row-open{display:flex;align-items:center;gap:5px;color:var(--text-faint);font-size:12px;font-weight:600;padding:2px 6px;border-radius:5px;}
+  .row-open:hover{background:#e6f0ff;color:var(--mon-blue);}
+  .row-open svg{width:15px;height:15px;}
+  .conv-badge{display:inline-flex;align-items:center;gap:3px;color:var(--mon-blue);font-weight:700;font-size:12px;background:#e6f0ff;padding:2px 7px;border-radius:11px;}
+  .conv-badge svg{width:13px;height:13px;}
+  .owner-cell{display:flex;align-items:center;justify-content:center;height:38px;}
+  .owner-empty{width:26px;height:26px;border-radius:50%;border:1.5px dashed #c3c6d4;display:flex;align-items:center;justify-content:center;color:#c3c6d4;}
+  .status-cell{height:38px;padding:0;}
+  .status-pill{height:38px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:500;cursor:pointer;position:relative;}
+  .status-pill.empty{background:var(--grey);}
+  .add-row{display:flex;align-items:center;gap:8px;padding:8px;color:var(--text-faint);font-size:14px;border-bottom:1px solid var(--line-soft);}
+
+  /* ---------------- ITEM PANEL ---------------- */
+  .item-panel{width:0;flex-shrink:0;border-left:1px solid var(--line);background:#fff;display:flex;flex-direction:column;overflow:hidden;transition:width .18s ease;}
+  .item-panel.open{width:560px;}
+  @media(max-width:1200px){.item-panel.open{width:460px;}}
+  .ip-head{display:flex;align-items:center;gap:8px;padding:16px 18px 6px;}
+  .ip-head h3{font-size:20px;font-weight:700;margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .ip-close{font-size:20px;color:var(--text-soft);background:transparent;border:0;line-height:1;padding:4px;}
+  .ip-tabs{display:flex;align-items:center;gap:4px;padding:4px 18px 0;border-bottom:1px solid var(--line);}
+  .ip-tab{display:flex;align-items:center;gap:6px;padding:9px 10px;font-size:14px;font-weight:600;color:var(--text-soft);border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .ip-tab.active{color:var(--text);border-bottom-color:var(--mon-blue);}
+  .ip-tab .cnt{background:#eceff3;color:var(--text-soft);border-radius:9px;font-size:11px;padding:0 6px;font-weight:700;}
+  .ip-body{flex:1;overflow:auto;padding:14px 18px 30px;background:#fff;}
+
+  .composer{border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.05);overflow:hidden;margin-bottom:6px;}
+  .composer .cbar{display:flex;align-items:center;gap:2px;padding:8px 10px;border-bottom:1px solid var(--line-soft);color:var(--text-soft);flex-wrap:wrap;}
+  .composer .cbar button{width:26px;height:26px;border:0;background:transparent;border-radius:5px;color:var(--text-soft);font-size:13px;display:flex;align-items:center;justify-content:center;}
+  .composer .cbar button:hover{background:var(--hover);}
+  .composer textarea{width:100%;border:0;outline:0;resize:none;padding:12px;font-family:inherit;font-size:14px;min-height:70px;color:var(--text);}
+  .composer .cfoot{display:flex;align-items:center;gap:8px;padding:8px 10px;}
+  .composer .cfoot .lead{color:var(--text-faint);display:flex;gap:6px;}
+  .composer .cfoot .spacer{flex:1;}
+  .btn-update{background:var(--mon-blue);color:#fff;border:0;border-radius:6px;padding:8px 16px;font-weight:600;font-size:14px;}
+  .btn-update:hover{background:var(--mon-blue-dark);}
+  .btn-ghost{background:#fff;border:1px solid var(--line);color:var(--text);border-radius:6px;padding:8px 12px;font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;}
+  .btn-ghost:hover{background:var(--hover);}
+
+  .simulate{display:flex;align-items:center;gap:8px;margin:10px 0 18px;padding:10px 12px;background:#f0f9f0;border:1px solid #cdeccd;border-radius:8px;font-size:12.5px;color:#2b7a2b;}
+  .simulate .wa{width:22px;height:22px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .simulate .wa svg{width:14px;height:14px;fill:#fff;}
+  .simulate .spacer{flex:1;}
+
+  .update{padding:14px 0;border-bottom:1px solid var(--line-soft);}
+  .u-head{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
+  .u-head .name{font-weight:700;font-size:14px;}
+  .u-head .when{color:var(--text-faint);font-size:12.5px;}
+  .u-head .menu{margin-left:auto;color:var(--text-faint);display:flex;gap:8px;}
+  .u-card{border:1px solid var(--line);border-left:3px solid #25d366;border-radius:8px;padding:12px 14px;background:#fff;}
+  .u-card.plain{border-left-color:var(--mon-blue);}
+  .u-src{display:flex;align-items:center;gap:7px;font-weight:700;font-size:13.5px;margin-bottom:7px;color:var(--text);}
+  .u-src .dot{width:18px;height:18px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .u-src .dot svg{width:11px;height:11px;fill:#fff;}
+  .u-body{font-size:14px;line-height:1.55;color:var(--text);}
+  .u-meta{margin-top:9px;font-size:13px;color:var(--text-soft);line-height:1.6;}
+  .u-meta b{color:var(--text);font-weight:700;}
+  .u-effect{margin-top:9px;display:flex;align-items:center;gap:8px;font-size:12.5px;}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:12px;font-weight:700;font-size:12px;color:#fff;}
+  .u-actions{display:flex;gap:16px;margin-top:9px;color:var(--text-soft);font-size:13px;}
+  .u-actions span{display:flex;align-items:center;gap:5px;cursor:pointer;}
+  .u-actions svg{width:15px;height:15px;}
+
+  /* status dropdown */
+  .sd{position:absolute;top:40px;left:50%;transform:translateX(-50%);z-index:40;background:#fff;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:8px;width:180px;display:none;}
+  .sd.open{display:block;}
+  .sd .opt{height:32px;border-radius:5px;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;margin-bottom:4px;cursor:pointer;}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#323338;color:#fff;padding:11px 18px;border-radius:8px;font-size:13.5px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:100;display:flex;align-items:center;gap:9px;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+  .toast .dot{width:9px;height:9px;border-radius:50%;background:var(--done);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ICON RAIL -->
+  <nav class="rail">
+    <div class="logo"></div>
+    <button class="rail-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Work</button>
+    <button class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.2 5.5L20 10l-5 3.8L16.5 20 12 16.5 7.5 20 9 13.8 4 10l5.8-1.5z"/></svg>Sidekick</button>
+    <button class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h4l2-6 4 12 2-6h4"/></svg>Vibe</button>
+    <button class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6"/></svg>Agents</button>
+    <button class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M6 8.5v3a3 3 0 003 3h6a3 3 0 003-3v-3"/><path d="M12 14.5v1"/></svg>Flows</button>
+    <button class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l3 3v15H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Notes</button>
+    <div class="rail-spacer"></div>
+    <button class="rail-item"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>More</button>
+  </nav>
+
+  <!-- WORKSPACE PANEL -->
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Workspace</h2>
+      <button class="icon-btn" title="Options"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+      <button class="icon-btn" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg></button>
+      <button class="icon-btn" title="Collapse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg></button>
+    </div>
+    <div class="ws-select">
+      <span class="ws-badge">M</span><span>Main workspace</span><span class="chev">▾</span>
+    </div>
+    <div class="panel-link">My agents <span class="chev">›</span></div>
+
+    <div class="panel-section">
+      <div class="sec-head">Content <span class="plus">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+      </span></div>
+      <div class="nav-row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></span>Manage workspace</div>
+      <div class="nav-row active"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></span>Bohio · Primavera Schedule</div>
+      <div class="nav-row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>Dashboard and reporting</div>
+      <div class="nav-row"><span class="ic" style="color:#c05cff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h4l2-6 4 12 2-6h4"/></svg></span>Build Vibe app</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>Search for anything...</div>
+      <div class="topbar-icons">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 20a2 2 0 01-3.4 0"/></svg></button>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></button>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3 2.7-5.2 6-5.2S15 17 15 20"/><path d="M16 5a3 3 0 010 6M18 20c0-2.4-1-4-2.6-5"/></svg></button>
+        <div class="avatar" style="background:#7a52d6">MB</div>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <!-- BOARD -->
+      <div class="board">
+        <div class="board-head">
+          <div class="board-title">
+            <h1>Bohio · Primavera Schedule</h1><span class="chev">▾</span>
+            <div class="spacer"></div>
+            <div class="avatar">MB</div>
+            <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></button>
+            <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+          </div>
+        </div>
+        <div class="board-tabs">
+          <div class="tab active">Main table</div>
+          <div class="tab add">⋯</div>
+          <div class="tab add">＋</div>
+        </div>
+        <div class="toolbar">
+          <button class="btn-primary" onclick="addTask()">New task <span class="split">▾</span></button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>Search</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3 2.7-5.2 6-5.2S15 17 15 20"/></svg>Person</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg>Filter</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4v16M7 20l-3-3M7 4l3 3M17 20V4M17 4l-3 3M17 20l3-3"/></svg></button>
+        </div>
+
+        <div class="board-body">
+          <div class="group">
+            <div class="group-head">
+              <span class="gchev">▾</span>
+              <span>To-Do</span>
+              <span class="gcount" id="group-count"></span>
+            </div>
+            <table class="grid">
+              <thead>
+                <tr>
+                  <th class="col-check"></th>
+                  <th class="col-task">Task</th>
+                  <th class="col-owner">Owner</th>
+                  <th class="col-status">Status</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+              <tfoot>
+                <tr><td colspan="4"><div class="add-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Add task</div></td></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ITEM PANEL -->
+      <aside class="item-panel" id="itemPanel">
+        <div class="ip-head">
+          <h3 id="ip-title">Item</h3>
+          <div class="avatar" style="width:24px;height:24px;font-size:10px;">MB</div>
+          <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+          <button class="ip-close" onclick="closePanel()">✕</button>
+        </div>
+        <div class="ip-tabs">
+          <div class="ip-tab active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg> Updates <span class="cnt" id="ip-count">0</span></div>
+          <div class="ip-tab"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l3 3v15H6z"/></svg> Files</div>
+          <div class="ip-tab"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg> Activity Log</div>
+          <div class="ip-tab add" style="color:var(--text-faint)">＋</div>
+        </div>
+        <div class="ip-body">
+          <div class="composer">
+            <div class="cbar">
+              <button style="font-weight:800">¶</button><button style="font-weight:800">B</button>
+              <button style="font-style:italic">I</button><button style="text-decoration:underline">U</button>
+              <button style="text-decoration:line-through">S</button><button>A</button><button>A͏̅</button>
+              <button>≔</button><button>≣</button><button>▦</button><button>🔗</button><button>≋</button><button>—</button>
+            </div>
+            <textarea id="composer" placeholder="Write an update..."></textarea>
+            <div class="cfoot">
+              <span class="lead">
+                <button class="icon-btn">@</button><button class="icon-btn">📎</button><button class="icon-btn">🙂</button>
+              </span>
+              <span class="spacer"></span>
+              <button class="btn-update" onclick="postUpdate()">Update</button>
+            </div>
+          </div>
+
+          <div class="simulate">
+            <span class="wa"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.2.5-.3.6-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.1.1.3 0 .5l-.4.5c-.1.2-.3.3-.1.6.1.3.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.1.1.6-.1 1.1z"/></svg></span>
+            <span>WhatsApp intake is live. Field messages log as updates and now move the Status column.</span>
+            <span class="spacer"></span>
+            <button class="btn-ghost" onclick="simulateWhatsApp()">Simulate intake</button>
+          </div>
+
+          <div id="updates"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toast-text"></span></div>
+
+<script>
+/* ---------- status catalogue ---------- */
+const STATUS = {
+  notstarted:{label:"Not Started", color:"var(--grey)"},
+  working:   {label:"Working on it", color:"var(--working)"},
+  verify:    {label:"Needs verification", color:"var(--verify)"},
+  stuck:     {label:"Stuck", color:"var(--stuck)"},
+  done:      {label:"Done", color:"var(--done)"},
+};
+const STATUS_ORDER = ["notstarted","working","verify","stuck","done"];
+
+/* WhatsApp icon markup reused */
+const WA = '<span class="dot"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.2.5-.3.6-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.1.1.3 0 .5l-.4.5c-.1.2-.3.3-.1.6.1.3.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.1.1.6-.1 1.1z"/></svg></span>';
+
+/*
+ * Each task has a base status and a list of logged updates. Status is DERIVED
+ * from the updates (deriveStatus) — this is the fix: previously WhatsApp
+ * messages were logged as updates but the Status column never moved.
+ */
+const tasks = [
+  { id:"earth", code:"[earth]", name:"Earthworks & Bulk Excavation", owner:"", base:"notstarted", updates:[] },
+  { id:"drain", code:"[drain]", name:"Stormwater & Drainage", owner:"", base:"notstarted", updates:[] },
+  { id:"water", code:"[water]", name:"Sewerage & Water Networks", owner:"", base:"notstarted", updates:[] },
+  { id:"duct", code:"[duct]", name:"Electrical Ductbank & Substation", owner:"", base:"notstarted",
+    updates:[
+      note("Ductbank trench excavated along the primary route.","Site Engineer","Work in progress."),
+      note("Concrete surround poured for the first ductbank section.","Site Engineer","Work in progress."),
+      wa("Blinding and rebar inspected by consultant; ready for pour.","Site Engineer","Work in progress; on programme."),
+      wa("Sub-base compacted and accepted: measured quantity missing.","Planner / Project Manager","Evidence logged; verification required before progress changes.")
+    ] },
+  { id:"tele", code:"[tele]", name:"Telecoms & Fibre Ducts", owner:"", base:"notstarted", updates:[] },
+  { id:"sub",  code:"[sub]",  name:"Road Sub-base & Kerbs", owner:"", base:"notstarted", updates:[] },
+  { id:"asph", code:"[asph]", name:"Asphalt & Surfacing", owner:"", base:"notstarted", updates:[] },
+  { id:"light",code:"[light]",name:"Street Lighting", owner:"", base:"notstarted", updates:[] },
+  { id:"land", code:"[land]", name:"Landscaping & Public Realm", owner:"", base:"notstarted", updates:[] },
+];
+
+function wa(text, by, effect){ return {src:"wa", text, by, effect, when:"Just now"}; }
+function note(text, by, effect){ return {src:"note", text, by, effect, when:"Earlier"}; }
+
+/* ---------- THE FIX: derive status from a logged update ----------
+ * Parses the message + its schedule-effect line and returns the status the
+ * item should carry. Called for every logged update so the Status column
+ * reflects field reality instead of staying "Not Started". */
+function statusFromUpdate(u){
+  const t = (u.text + " " + (u.effect||"")).toLowerCase();
+  if(/verification required|verify|missing|unconfirmed|to be confirmed|tbc|evidence logged/.test(t)) return "verify";
+  if(/stuck|blocked|on hold|delay|delayed|dispute|ncr|non-?conformance|rejected/.test(t)) return "stuck";
+  if(/complete|completed|handed over|handover|finished|accepted and closed|signed off|sign-?off/.test(t)) return "done";
+  if(/in progress|ongoing|started|installing|laying|mobilis|underway|60%|on programme|work in progress/.test(t)) return "working";
+  return null;
+}
+function deriveStatus(task){
+  let s = task.base;
+  // latest update with a determinable effect wins
+  for(const u of task.updates){ const d = statusFromUpdate(u); if(d) s = d; }
+  return s;
+}
+
+/* ---------- render board ---------- */
+let openId = null;
+function renderRows(){
+  const tb = document.getElementById("rows");
+  tb.innerHTML = "";
+  tasks.forEach(t=>{
+    const st = deriveStatus(t);
+    const s = STATUS[st];
+    const tr = document.createElement("tr");
+    const conv = t.updates.length
+      ? `<span class="conv-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v10H8l-4 4z"/></svg>${t.updates.length}</span>`
+      : `<span class="row-open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v10H8l-4 4z"/></svg></span>`;
+    const owner = t.owner
+      ? `<div class="avatar" style="width:26px;height:26px;font-size:10px;background:${avatarColor(t.owner)}">${t.owner}</div>`
+      : `<span class="owner-empty"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.4 3.1-5.6 7-5.6s7 2.2 7 5.6"/></svg></span>`;
+    tr.innerHTML = `
+      <td class="first-cell"><div class="cell-pad" style="gap:8px;padding-left:0;"><span class="grip"></span><span class="cb"></span></div></td>
+      <td><div class="cell-pad">
+            <span class="task-name" onclick="openItem('${t.id}')"><span class="code">${t.code}</span> ${t.name.replace(t.code,'')}</span>
+            <span onclick="openItem('${t.id}')" style="cursor:pointer">${conv}</span>
+          </div></td>
+      <td><div class="owner-cell">${owner}</div></td>
+      <td class="status-cell">
+        <div class="status-pill" style="background:${s.color}" onclick="toggleStatusMenu(event,'${t.id}')">
+          ${s.label}
+          <div class="sd" id="sd-${t.id}">${STATUS_ORDER.map(k=>`<div class="opt" style="background:${STATUS[k].color}" onclick="setStatus(event,'${t.id}','${k}')">${STATUS[k].label}</div>`).join("")}</div>
+        </div>
+      </td>`;
+    if(t.id===openId) tr.querySelectorAll("td").forEach(td=>td.style.background="#eef4ff");
+    tb.appendChild(tr);
+  });
+  document.getElementById("group-count").textContent = tasks.length + " tasks";
+}
+function avatarColor(x){ const c=["#7a52d6","#00854d","#c9520a","#0086c0","#a3286c","#4b5563"]; let s=0; for(const ch of x) s+=ch.charCodeAt(0); return c[s%c.length]; }
+
+/* ---------- status manual override ---------- */
+function toggleStatusMenu(e,id){ e.stopPropagation(); closeMenus(); const m=document.getElementById("sd-"+id); if(m) m.classList.add("open"); }
+function closeMenus(){ document.querySelectorAll(".sd.open").forEach(m=>m.classList.remove("open")); }
+document.addEventListener("click",closeMenus);
+function setStatus(e,id,k){
+  e.stopPropagation();
+  const t=tasks.find(x=>x.id===id);
+  t.base=k; t.updates=t.updates.filter(u=>!statusFromUpdate(u)); // manual set overrides derivation
+  closeMenus(); renderRows(); if(openId===id) renderPanel();
+  toast("Status set to “"+STATUS[k].label+"”");
+}
+
+/* ---------- item panel ---------- */
+function openItem(id){
+  openId=id; const t=tasks.find(x=>x.id===id);
+  document.getElementById("ip-title").textContent = t.code+" "+t.name.replace(t.code,'').trim();
+  document.getElementById("itemPanel").classList.add("open");
+  renderPanel(); renderRows();
+}
+function closePanel(){ openId=null; document.getElementById("itemPanel").classList.remove("open"); renderRows(); }
+function renderPanel(){
+  const t=tasks.find(x=>x.id===openId); if(!t) return;
+  document.getElementById("ip-count").textContent=t.updates.length;
+  const box=document.getElementById("updates"); box.innerHTML="";
+  [...t.updates].reverse().forEach(u=>{
+    const eff = statusFromUpdate(u);
+    const effChip = eff ? `<div class="u-effect">Status → <span class="chip" style="background:${STATUS[eff].color}">${STATUS[eff].label}</span></div>` : "";
+    const div=document.createElement("div"); div.className="update";
+    div.innerHTML=`
+      <div class="u-head">
+        <div class="avatar" style="width:32px;height:32px;background:#7a52d6">MB</div>
+        <span class="name">Matteo Bevilacqua</span><span class="when">${u.when}</span>
+        <span class="menu">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+        </span>
+      </div>
+      <div class="u-card ${u.src==='wa'?'':'plain'}">
+        <div class="u-src">${u.src==='wa'?WA:'<span class="dot" style="background:var(--mon-blue)"></span>'} Bohio · ${u.src==='wa'?'WhatsApp Text message received':'Field note'}</div>
+        <div class="u-body">${u.text}</div>
+        <div class="u-meta"><b>Reported by:</b> ${u.by}<br><b>Schedule effect:</b> ${u.effect}</div>
+        ${effChip}
+      </div>
+      <div class="u-actions">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10v11M18 10a2 2 0 002-2l-1-4h-6l1-4a2 2 0 00-4 0L7 10"/></svg> Like</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z"/></svg> Reply</span>
+      </div>`;
+    box.appendChild(div);
+  });
+}
+
+/* ---------- compose / intake ---------- */
+function postUpdate(){
+  if(!openId){ toast("Open a task to post an update"); return; }
+  const ta=document.getElementById("composer"); const v=ta.value.trim();
+  if(!v) return;
+  const t=tasks.find(x=>x.id===openId);
+  t.updates.push(note(v,"Matteo Bevilacqua","Logged from workspace."));
+  ta.value="";
+  const eff=statusFromUpdate(t.updates[t.updates.length-1]);
+  renderPanel(); renderRows();
+  toast(eff?("Update posted — status → “"+STATUS[eff].label+"”"):"Update posted");
+}
+const INTAKE=[
+  {task:"tele",text:"Fibre duct pull started along the northern verge.",by:"Foreman",effect:"Work in progress."},
+  {task:"asph",text:"Binder course laid on the main carriageway; awaiting cores.",by:"Site Engineer",effect:"Evidence logged; verification required before progress changes."},
+  {task:"drain",text:"Drainage network completed and CCTV survey handed over.",by:"Site Engineer",effect:"Completed and handed over."},
+  {task:"sub",text:"Sub-base dispute raised — level survey rejected by consultant.",by:"Planner / Project Manager",effect:"Stuck: NCR raised, on hold pending re-survey."},
+];
+let intakeI=0;
+function simulateWhatsApp(){
+  const m=INTAKE[intakeI % INTAKE.length]; intakeI++;
+  const t=tasks.find(x=>x.id===m.task);
+  t.updates.push(wa(m.text,m.by,m.effect));
+  const eff=statusFromUpdate(t.updates[t.updates.length-1]);
+  if(openId!==m.task){ openItem(m.task); } else { renderPanel(); }
+  renderRows();
+  toast(t.code+" logged — status → “"+STATUS[eff||deriveStatus(t)].label+"”");
+}
+
+function addTask(){
+  const n=prompt("New task name:"); if(!n) return;
+  tasks.push({id:"t"+Date.now(),code:"[new]",name:n,owner:"",base:"notstarted",updates:[]});
+  renderRows();
+}
+
+/* ---------- toast ---------- */
+let tt;
+function toast(msg){ const el=document.getElementById("toast"); document.getElementById("toast-text").textContent=msg; el.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove("show"),2600); }
+
+/* ---------- init: open the [duct] item like the design ---------- */
+renderRows();
+openItem("duct");
+</script>
+</body>
+</html>
