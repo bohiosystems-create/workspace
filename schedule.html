@@ -88,13 +88,14 @@
   .group-head .gchev{cursor:pointer;display:flex;}
   .group-head .gcount{font-size:12.5px;font-weight:500;color:var(--text-faint);}
 
-  table.grid{border-collapse:separate;border-spacing:0;width:100%;max-width:760px;}
+  table.grid{border-collapse:separate;border-spacing:0;width:100%;max-width:900px;}
   table.grid th,table.grid td{text-align:left;}
   .grid thead th{font-size:13px;font-weight:500;color:var(--text-soft);padding:4px 8px;border-bottom:1px solid var(--line);}
   .col-check{width:34px;}
   .col-task{}
   .col-owner{width:96px;text-align:center!important;}
-  .col-status{width:150px;}
+  .col-status{width:164px;}
+  .status-pill{white-space:nowrap;}
   .grid tbody tr{background:#fff;}
   .grid tbody td{border-bottom:1px solid var(--line-soft);padding:0;height:38px;vertical-align:middle;}
   .grid tbody tr:hover td{background:var(--hover);}
@@ -173,6 +174,84 @@
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#323338;color:#fff;padding:11px 18px;border-radius:8px;font-size:13.5px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:100;display:flex;align-items:center;gap:9px;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
   .toast .dot{width:9px;height:9px;border-radius:50%;background:var(--done);}
+
+  /* ---------------- PROCUREMENT INTEGRATION ---------------- */
+  .integration{display:flex;align-items:center;gap:10px;margin:4px 0 10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;font-size:12.5px;}
+  .integration .plug{width:24px;height:24px;border-radius:6px;background:#0b5cd5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex-shrink:0;}
+  .integration .live{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:#00854d;}
+  .integration .live i{width:7px;height:7px;border-radius:50%;background:var(--done);display:block;}
+  .integration select{font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:6px;padding:4px 6px;color:var(--text);background:#fff;font-weight:600;}
+  .integration .muted{color:var(--text-faint);}
+  .integration .spacer{flex:1;}
+
+  .col-risk{width:132px;}
+  .risk-cell{height:38px;display:flex;align-items:center;padding:0 8px;}
+  .risk-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700;color:#fff;cursor:default;white-space:nowrap;}
+  .risk-chip .r-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.85);}
+  .risk-chip.clear{background:var(--done);}
+  .risk-chip.watch{background:#ffcb00;color:#5a4a00;}
+  .risk-chip.atrisk{background:#ff642e;}
+  .risk-chip.critical{background:var(--stuck);}
+
+  .pane{display:none;}
+  .pane.active{display:block;}
+  .ip-tab{border:0;background:transparent;font-family:inherit;cursor:pointer;}
+
+  .po{border:1px solid var(--line);border-radius:8px;padding:13px 14px;margin-bottom:12px;background:#fff;}
+  .po.critical{border-left:3px solid var(--stuck);}
+  .po.atrisk{border-left:3px solid #ff642e;}
+  .po.watch{border-left:3px solid #ffcb00;}
+  .po.clear{border-left:3px solid var(--done);}
+  .po-top{display:flex;align-items:center;gap:9px;margin-bottom:4px;}
+  .po-num{font-weight:800;font-size:14px;}
+  .po-state{font-size:11px;font-weight:700;padding:2px 8px;border-radius:11px;background:#eceff3;color:var(--text-soft);text-transform:uppercase;letter-spacing:.03em;}
+  .po-state.pending_approval{background:#fff3d6;color:#8a6100;}
+  .po-state.draft{background:#eceff3;color:#676879;}
+  .po-state.approved{background:#e0f5ea;color:#00623b;}
+  .po-state.issued{background:#e6f0ff;color:#0060b9;}
+  .po-state.delivered{background:#e0f5ea;color:#00623b;}
+  .po-state.none{background:#ffe6e9;color:#a01829;}
+  .po-vendor{font-size:13px;color:var(--text-soft);margin-bottom:9px;}
+  .po-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:10px;}
+  .po-f{background:#f7f8fb;border-radius:6px;padding:7px 9px;}
+  .po-f .k{font-size:10.5px;color:var(--text-faint);font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+  .po-f .v{font-size:13px;font-weight:700;margin-top:2px;}
+  .po-f .v.bad{color:var(--stuck);}
+  .po-why{border-top:1px solid var(--line-soft);padding-top:9px;}
+  .po-why li{font-size:12.5px;color:var(--text-soft);line-height:1.6;margin-left:-8px;}
+  .po-forecast{margin-top:9px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px;}
+  .empty-note{color:var(--text-faint);font-size:13px;padding:18px 2px;}
+
+  /* ---------------- WHATSAPP AGENT CONSOLE ---------------- */
+  .agent-fab{position:fixed;right:22px;bottom:22px;z-index:80;width:56px;height:56px;border-radius:50%;background:#25d366;border:0;box-shadow:0 6px 22px rgba(0,0,0,.24);display:flex;align-items:center;justify-content:center;}
+  .agent-fab svg{width:30px;height:30px;fill:#fff;}
+  .agent-fab .badge{position:absolute;top:-2px;right:-2px;background:var(--stuck);color:#fff;font-size:10px;font-weight:800;width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;}
+  .agent{position:fixed;right:22px;bottom:22px;z-index:90;width:430px;max-width:calc(100vw - 24px);height:640px;max-height:calc(100vh - 44px);background:#efe7de;border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden;}
+  .agent.open{display:flex;}
+  .ag-head{background:#075e54;color:#fff;padding:11px 14px;display:flex;align-items:center;gap:11px;flex-shrink:0;}
+  .ag-head .ava{width:36px;height:36px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ag-head .ava svg{width:20px;height:20px;fill:#fff;}
+  .ag-head h4{margin:0;font-size:14.5px;font-weight:700;}
+  .ag-head p{margin:1px 0 0;font-size:11.5px;opacity:.8;}
+  .ag-head .x{margin-left:auto;background:transparent;border:0;color:#fff;font-size:17px;opacity:.85;}
+  .ag-log{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px;background:#efe7de;}
+  .msg{max-width:86%;padding:8px 11px;border-radius:9px;font-size:13.2px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.08);white-space:pre-wrap;word-break:break-word;}
+  .msg.me{align-self:flex-end;background:#dcf8c6;}
+  .msg.bot{align-self:flex-start;background:#fff;}
+  .msg b{font-weight:700;}
+  .msg .mt{display:block;margin-top:5px;font-size:10.5px;color:#8a9098;text-align:right;}
+  .msg table{border-collapse:collapse;margin-top:5px;font-size:12.3px;width:100%;}
+  .msg td{padding:2px 6px 2px 0;vertical-align:top;border-bottom:1px solid #f0f0f0;}
+  .msg td:first-child{color:#667;white-space:nowrap;}
+  .ag-chips{flex-shrink:0;background:#f6f6f6;border-top:1px solid #e2e2e2;max-height:132px;overflow-y:auto;padding:8px 10px;}
+  .ag-cat{font-size:10px;font-weight:800;color:#8a9098;text-transform:uppercase;letter-spacing:.05em;margin:6px 0 4px;}
+  .ag-cat:first-child{margin-top:0;}
+  .chipbtn{display:inline-block;background:#fff;border:1px solid #d9dce1;border-radius:14px;padding:4px 10px;font-size:11.8px;margin:0 4px 4px 0;color:#25507a;cursor:pointer;font-family:inherit;}
+  .chipbtn:hover{background:#e6f0ff;border-color:var(--mon-blue);}
+  .ag-in{flex-shrink:0;display:flex;gap:7px;padding:9px;background:#f0f0f0;}
+  .ag-in input{flex:1;border:0;border-radius:20px;padding:10px 14px;font-family:inherit;font-size:13.5px;outline:0;}
+  .ag-in button{width:40px;height:40px;border-radius:50%;background:#25d366;border:0;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ag-in button svg{width:18px;height:18px;fill:#fff;}
 </style>
 </head>
 <body>
@@ -254,6 +333,16 @@
         </div>
 
         <div class="board-body">
+          <div class="integration">
+            <span class="plug" id="int-badge">CP</span>
+            <span><b id="int-name">Coupa</b> · purchasing</span>
+            <span class="live"><i></i>Connected</span>
+            <select id="int-provider" onchange="setProvider(this.value)"></select>
+            <span class="muted" id="int-sync">Last sync —</span>
+            <span class="spacer"></span>
+            <span class="muted" id="int-summary"></span>
+            <button class="btn-ghost" onclick="syncProcurement()">Sync now</button>
+          </div>
           <div class="group">
             <div class="group-head">
               <span class="gchev">▾</span>
@@ -267,11 +356,12 @@
                   <th class="col-task">Task</th>
                   <th class="col-owner">Owner</th>
                   <th class="col-status">Status</th>
+                  <th class="col-risk">Delay risk</th>
                 </tr>
               </thead>
               <tbody id="rows"></tbody>
               <tfoot>
-                <tr><td colspan="4"><div class="add-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Add task</div></td></tr>
+                <tr><td colspan="5"><div class="add-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Add task</div></td></tr>
               </tfoot>
             </table>
           </div>
@@ -287,12 +377,13 @@
           <button class="ip-close" onclick="closePanel()">✕</button>
         </div>
         <div class="ip-tabs">
-          <div class="ip-tab active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg> Updates <span class="cnt" id="ip-count">0</span></div>
-          <div class="ip-tab"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l3 3v15H6z"/></svg> Files</div>
-          <div class="ip-tab"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg> Activity Log</div>
-          <div class="ip-tab add" style="color:var(--text-faint)">＋</div>
+          <button class="ip-tab active" id="tab-updates" onclick="showPane('updates')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg> Updates <span class="cnt" id="ip-count">0</span></button>
+          <button class="ip-tab" id="tab-proc" onclick="showPane('proc')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h2l2 11h11l2-8H7"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg> Procurement <span class="cnt" id="ip-po-count">0</span></button>
+          <button class="ip-tab"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l3 3v15H6z"/></svg> Files</button>
+          <button class="ip-tab"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg> Activity Log</button>
         </div>
         <div class="ip-body">
+         <div class="pane active" id="pane-updates">
           <div class="composer">
             <div class="cbar">
               <button style="font-weight:800">¶</button><button style="font-weight:800">B</button>
@@ -318,9 +409,30 @@
           </div>
 
           <div id="updates"></div>
+         </div>
+         <div class="pane" id="pane-proc"></div>
         </div>
       </aside>
     </div>
+  </div>
+</div>
+
+<button class="agent-fab" id="agentFab" onclick="toggleAgent()" title="Bohio Site Agent (WhatsApp)">
+  <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.2.5-.3.6-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.1.1.3 0 .5l-.4.5c-.1.2-.3.3-.1.6.1.3.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.1.1.6-.1 1.1z"/></svg>
+  <span class="badge" id="agentBadge">!</span>
+</button>
+
+<div class="agent" id="agent">
+  <div class="ag-head">
+    <span class="ava"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.2.5-.3.6-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.1.1.3 0 .5l-.4.5c-.1.2-.3.3-.1.6.1.3.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.1.1.6-.1 1.1z"/></svg></span>
+    <div><h4>Bohio Site Agent</h4><p id="ag-sub">online · Al Khumrah BOH-INF-014</p></div>
+    <button class="x" onclick="toggleAgent()">✕</button>
+  </div>
+  <div class="ag-log" id="ag-log"></div>
+  <div class="ag-chips" id="ag-chips"></div>
+  <div class="ag-in">
+    <input id="ag-input" placeholder="Ask about the site, or report progress…" onkeydown="if(event.key==='Enter')agentSend()"/>
+    <button onclick="agentSend()"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
   </div>
 </div>
 
@@ -371,18 +483,105 @@ function note(text, by, effect){ return {src:"note", text, by, effect, when:"Ear
  * item should carry. Called for every logged update so the Status column
  * reflects field reality instead of staying "Not Started". */
 function statusFromUpdate(u){
+  // Procurement alerts are a *forecast*, not observed progress — they drive the
+  // Delay-risk column, never the Status column.
+  if(u.noStatus) return null;
   const t = (u.text + " " + (u.effect||"")).toLowerCase();
   if(/verification required|verify|missing|unconfirmed|to be confirmed|tbc|evidence logged/.test(t)) return "verify";
   if(/stuck|blocked|on hold|delay|delayed|dispute|ncr|non-?conformance|rejected/.test(t)) return "stuck";
   if(/complete|completed|handed over|handover|finished|accepted and closed|signed off|sign-?off/.test(t)) return "done";
-  if(/in progress|ongoing|started|installing|laying|mobilis|underway|60%|on programme|work in progress/.test(t)) return "working";
+  if(/in progress|ongoing|started|installing|laying|mobilis|underway|on programme|work in progress|compacted|poured|installed|excavated|backfilled|erected|set out|trenching|inspected|\d+%/.test(t)) return "working";
   return null;
 }
 function deriveStatus(task){
+  if(task.manual) return task.manual;          // explicit human override wins
   let s = task.base;
   // latest update with a determinable effect wins
   for(const u of task.updates){ const d = statusFromUpdate(u); if(d) s = d; }
   return s;
+}
+
+/* escape everything that reaches innerHTML — field messages and PO text are
+ * third-party input arriving over WhatsApp / the purchasing API. */
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ================= PURCHASING / PROCUREMENT INTEGRATION =================
+ * Connects the schedule to the purchasing system and forecasts material
+ * availability against each task's need-by date, so a delay is flagged
+ * BEFORE it hits the programme (PO stuck in approval, vendor slipping,
+ * short delivery, or no PO raised at all).
+ * Dates are day-offsets from today so the demo stays valid over time. */
+const PROVIDERS={Coupa:"CP","SAP Ariba":"SA","Oracle Fusion":"OF",Procore:"PC",Unleashed:"UL"};
+const procurement={provider:"Coupa", lastSync:null};
+
+const DAY=86400000;
+const midnight=()=>{const d=new Date();d.setHours(0,0,0,0);return d;};
+const offDate=n=>new Date(midnight().getTime()+n*DAY);
+const fmtD=n=>offDate(n).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+
+const PO_STATE={draft:"Draft",pending_approval:"Pending approval",approved:"Approved",issued:"Issued",delivered:"Delivered",none:"Not raised"};
+
+/* needBy / promised are offsets in days from today */
+const pos=[
+  {po:"PO-4460",task:"earth",vendor:"Nesma Plant Hire",material:"Plant hire — 30t excavators",value:"SAR 180,000",
+   status:"delivered",leadTime:7,approvalSla:3,waited:0,needBy:-14,promised:-16,qtyOrdered:1,qtyDelivered:1,uom:"lot"},
+  {po:"PO-4465",task:"drain",vendor:"Saudi Pipe Co.",material:"uPVC stormwater pipe DN400",value:"SAR 264,500",
+   status:"issued",leadTime:14,approvalSla:3,waited:0,needBy:8,promised:3,qtyOrdered:900,qtyDelivered:0,uom:"m"},
+  {po:"PO-4470",task:"water",vendor:"Amiantit",material:"HDPE potable water main DN250",value:"SAR 310,000",
+   status:"approved",leadTime:18,approvalSla:3,waited:0,needBy:15,promised:14,qtyOrdered:1400,qtyDelivered:0,uom:"m"},
+  {po:"PO-4471",task:"duct",vendor:"Al-Rajhi Electrical Supply",material:"11kV XLPE cable + ductbank bedding",value:"SAR 412,000",
+   status:"pending_approval",leadTime:21,approvalSla:3,waited:6,needBy:12,promised:null,qtyOrdered:1200,qtyDelivered:0,uom:"m"},
+  {po:"PO-4475",task:"tele",vendor:"Fibretech Gulf",material:"HDPE fibre subduct 4-way",value:"SAR 96,400",
+   status:"issued",leadTime:12,approvalSla:3,waited:0,needBy:20,promised:5,qtyOrdered:2200,qtyDelivered:0,uom:"m"},
+  {po:"PO-4468",task:"sub",vendor:"Riyadh Aggregates",material:"Crushed sub-base aggregate Type 1",value:"SAR 148,900",
+   status:"approved",leadTime:10,approvalSla:3,waited:0,needBy:4,promised:9,qtyOrdered:3800,qtyDelivered:0,uom:"t"},
+  {po:"PO-4482",task:"asph",vendor:"Arabian Bitumen",material:"Asphalt binder & wearing course",value:"SAR 520,000",
+   status:"draft",leadTime:28,approvalSla:3,waited:1,needBy:30,promised:null,qtyOrdered:2600,qtyDelivered:0,uom:"t"},
+  {po:null,task:"light",vendor:"—",material:"LED street lighting columns 10m",value:"est. SAR 275,000",
+   status:"none",leadTime:35,approvalSla:3,waited:0,needBy:18,promised:null,qtyOrdered:64,qtyDelivered:0,uom:"no."},
+];
+
+const RISK={clear:{label:"Clear",rank:0},watch:{label:"Watch",rank:1},atrisk:{label:"At risk",rank:2},critical:{label:"Critical",rank:3}};
+
+/* Forecast the delivery date and compare it to the need-by date. */
+function poRisk(po){
+  const reasons=[]; let slip=null, forecast=null;
+  if(po.status==="delivered"){
+    return {level:"clear",slip:0,forecast:po.promised,
+            reasons:["Delivered in full on "+fmtD(po.promised)+" — no exposure."]};
+  }
+  if(po.status==="none"){
+    forecast = po.approvalSla + po.leadTime;
+    slip = forecast - po.needBy;
+    reasons.push("No purchase order has been raised for this material.");
+    reasons.push("A "+po.leadTime+"-day lead time plus approval puts the earliest delivery at "+fmtD(forecast)+", against a need-by of "+fmtD(po.needBy)+".");
+  } else if(po.status==="draft" || po.status==="pending_approval"){
+    const remaining = Math.max(1, po.approvalSla - po.waited);
+    forecast = remaining + po.leadTime;
+    slip = forecast - po.needBy;
+    if(po.status==="draft") reasons.push("Still in draft — not yet submitted for approval.");
+    else if(po.waited > po.approvalSla) reasons.push("Approval overdue — "+po.waited+" days in the queue against a "+po.approvalSla+"-day SLA.");
+    else reasons.push("Awaiting approval — day "+po.waited+" of a "+po.approvalSla+"-day SLA.");
+    reasons.push("Even if approved today, the "+po.leadTime+"-day lead time delivers on "+fmtD(forecast)+" against a need-by of "+fmtD(po.needBy)+".");
+  } else { /* approved | issued */
+    forecast = po.promised;
+    slip = forecast - po.needBy;
+    reasons.push("Vendor promised "+fmtD(po.promised)+" against a need-by of "+fmtD(po.needBy)+".");
+    if(po.qtyDelivered>0 && po.qtyDelivered<po.qtyOrdered){
+      reasons.push("Short delivery — "+po.qtyDelivered+" of "+po.qtyOrdered+" "+po.uom+" received; balance unscheduled.");
+      slip=Math.max(slip,1);
+    }
+  }
+  let level="clear";
+  if(slip>=7) level="critical"; else if(slip>=1) level="atrisk"; else if(slip>=-3) level="watch";
+  if(level==="clear") reasons.push("Float of "+Math.abs(slip)+" days against the need-by date.");
+  return {level,slip,forecast,reasons};
+}
+function posFor(id){ return pos.filter(p=>p.task===id); }
+function taskRisk(id){
+  const rs=posFor(id).map(poRisk);
+  if(!rs.length) return {level:"clear",slip:0,reasons:["No materials linked to this task."],none:true};
+  return rs.reduce((a,b)=>RISK[b.level].rank>RISK[a.level].rank?b:a);
 }
 
 /* ---------- render board ---------- */
@@ -398,12 +597,16 @@ function renderRows(){
       ? `<span class="conv-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v10H8l-4 4z"/></svg>${t.updates.length}</span>`
       : `<span class="row-open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v10H8l-4 4z"/></svg></span>`;
     const owner = t.owner
-      ? `<div class="avatar" style="width:26px;height:26px;font-size:10px;background:${avatarColor(t.owner)}">${t.owner}</div>`
+      ? `<div class="avatar" style="width:26px;height:26px;font-size:10px;background:${avatarColor(t.owner)}">${esc(t.owner)}</div>`
       : `<span class="owner-empty"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.4 3.1-5.6 7-5.6s7 2.2 7 5.6"/></svg></span>`;
+    const rk = taskRisk(t.id);
+    const riskCell = rk.none
+      ? `<span class="risk-chip clear" title="No materials linked"><span class="r-dot"></span>Clear</span>`
+      : `<span class="risk-chip ${rk.level}" title="${esc(rk.reasons.join(' '))}"><span class="r-dot"></span>${RISK[rk.level].label}${rk.slip>0?` +${rk.slip}d`:''}</span>`;
     tr.innerHTML = `
       <td class="first-cell"><div class="cell-pad" style="gap:8px;padding-left:0;"><span class="grip"></span><span class="cb"></span></div></td>
       <td><div class="cell-pad">
-            <span class="task-name" onclick="openItem('${t.id}')"><span class="code">${t.code}</span> ${t.name.replace(t.code,'')}</span>
+            <span class="task-name" onclick="openItem('${t.id}')"><span class="code">${esc(t.code)}</span> ${esc(t.name)}</span>
             <span onclick="openItem('${t.id}')" style="cursor:pointer">${conv}</span>
           </div></td>
       <td><div class="owner-cell">${owner}</div></td>
@@ -412,7 +615,8 @@ function renderRows(){
           ${s.label}
           <div class="sd" id="sd-${t.id}">${STATUS_ORDER.map(k=>`<div class="opt" style="background:${STATUS[k].color}" onclick="setStatus(event,'${t.id}','${k}')">${STATUS[k].label}</div>`).join("")}</div>
         </div>
-      </td>`;
+      </td>
+      <td><div class="risk-cell" onclick="openItem('${t.id}');showPane('proc')" style="cursor:pointer">${riskCell}</div></td>`;
     if(t.id===openId) tr.querySelectorAll("td").forEach(td=>td.style.background="#eef4ff");
     tb.appendChild(tr);
   });
@@ -427,9 +631,11 @@ document.addEventListener("click",closeMenus);
 function setStatus(e,id,k){
   e.stopPropagation();
   const t=tasks.find(x=>x.id===id);
-  t.base=k; t.updates=t.updates.filter(u=>!statusFromUpdate(u)); // manual set overrides derivation
+  // A manual pick overrides the derived status but must NEVER discard the
+  // logged updates — they are the audit trail behind the item.
+  t.manual=k;
   closeMenus(); renderRows(); if(openId===id) renderPanel();
-  toast("Status set to “"+STATUS[k].label+"”");
+  toast("Status set to “"+STATUS[k].label+"” (manual override)");
 }
 
 /* ---------- item panel ---------- */
@@ -443,6 +649,7 @@ function closePanel(){ openId=null; document.getElementById("itemPanel").classLi
 function renderPanel(){
   const t=tasks.find(x=>x.id===openId); if(!t) return;
   document.getElementById("ip-count").textContent=t.updates.length;
+  document.getElementById("ip-po-count").textContent=posFor(t.id).length;
   const box=document.getElementById("updates"); box.innerHTML="";
   [...t.updates].reverse().forEach(u=>{
     const eff = statusFromUpdate(u);
@@ -459,9 +666,9 @@ function renderPanel(){
         </span>
       </div>
       <div class="u-card ${u.src==='wa'?'':'plain'}">
-        <div class="u-src">${u.src==='wa'?WA:'<span class="dot" style="background:var(--mon-blue)"></span>'} Bohio · ${u.src==='wa'?'WhatsApp Text message received':'Field note'}</div>
-        <div class="u-body">${u.text}</div>
-        <div class="u-meta"><b>Reported by:</b> ${u.by}<br><b>Schedule effect:</b> ${u.effect}</div>
+        <div class="u-src">${u.src==='wa'?WA:'<span class="dot" style="background:var(--mon-blue)"></span>'} Bohio · ${u.src==='wa'?'WhatsApp Text message received':(u.src==='po'?'Procurement alert':'Field note')}</div>
+        <div class="u-body">${esc(u.text)}</div>
+        <div class="u-meta"><b>Reported by:</b> ${esc(u.by)}<br><b>Schedule effect:</b> ${esc(u.effect)}</div>
         ${effChip}
       </div>
       <div class="u-actions">
@@ -470,6 +677,88 @@ function renderPanel(){
       </div>`;
     box.appendChild(div);
   });
+}
+
+/* ---------- procurement pane ---------- */
+function showPane(which){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('pane-'+which).classList.add('active');
+  document.getElementById('tab-updates').classList.toggle('active',which==='updates');
+  document.getElementById('tab-proc').classList.toggle('active',which==='proc');
+  if(which==='proc') renderProcPane();
+}
+function renderProcPane(){
+  const t=tasks.find(x=>x.id===openId); const box=document.getElementById('pane-proc');
+  if(!t){ box.innerHTML=''; return; }
+  const list=posFor(t.id);
+  document.getElementById('ip-po-count').textContent=list.length;
+  if(!list.length){ box.innerHTML='<div class="empty-note">No materials or purchase orders are linked to this task.</div>'; return; }
+  box.innerHTML=list.map(po=>{
+    const r=poRisk(po);
+    const slipTxt = r.slip>0 ? `Forecast <b style="color:var(--stuck)">${r.slip} day${r.slip===1?'':'s'} late</b> against need-by`
+                             : `Forecast <b style="color:#00854d">${Math.abs(r.slip)} day${Math.abs(r.slip)===1?'':'s'} of float</b>`;
+    return `<div class="po ${r.level}">
+      <div class="po-top">
+        <span class="po-num">${esc(po.po||'No PO raised')}</span>
+        <span class="po-state ${po.status}">${PO_STATE[po.status]}</span>
+        <span style="flex:1"></span>
+        <span class="risk-chip ${r.level}"><span class="r-dot"></span>${RISK[r.level].label}</span>
+      </div>
+      <div class="po-vendor">${esc(po.material)} · ${esc(po.vendor)} · ${esc(po.value)}</div>
+      <div class="po-grid">
+        <div class="po-f"><div class="k">Need by</div><div class="v">${fmtD(po.needBy)}</div></div>
+        <div class="po-f"><div class="k">Forecast</div><div class="v ${r.slip>0?'bad':''}">${r.forecast==null?'—':fmtD(r.forecast)}</div></div>
+        <div class="po-f"><div class="k">Lead time</div><div class="v">${po.leadTime} d</div></div>
+        <div class="po-f"><div class="k">Quantity</div><div class="v">${po.qtyDelivered}/${po.qtyOrdered} ${esc(po.uom)}</div></div>
+      </div>
+      <div class="po-why"><ul style="margin:0;padding-left:16px">${r.reasons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
+      <div class="po-forecast">${slipTxt}</div>
+    </div>`;
+  }).join('');
+}
+function setProvider(v){
+  procurement.provider=v;
+  document.getElementById('int-name').textContent=v;
+  document.getElementById('int-badge').textContent=PROVIDERS[v];
+  toast('Purchasing integration switched to '+v);
+}
+/* Events pushed by the purchasing system on each sync. */
+const PO_EVENTS=[
+  {po:"PO-4465",kind:"vendor_delay",apply:p=>{p.promised+=9;},
+   text:"Vendor advised a 9-day slip on uPVC stormwater pipe DN400."},
+  {po:"PO-4471",kind:"approved",apply:p=>{p.status="approved";p.promised=p.leadTime;},
+   text:"Purchase order approved and released to Al-Rajhi Electrical Supply."},
+  {po:"PO-4468",kind:"part_delivery",apply:p=>{p.qtyDelivered=1500;},
+   text:"Goods receipt posted: 1,500 t of 3,800 t sub-base aggregate received."},
+  {po:"PO-4482",kind:"submitted",apply:p=>{p.status="pending_approval";p.waited=0;},
+   text:"Draft asphalt order submitted into the approval workflow."},
+];
+let syncI=0;
+function syncProcurement(){
+  const ev=PO_EVENTS[syncI % PO_EVENTS.length]; syncI++;
+  const po=pos.find(p=>p.po===ev.po);
+  const before=poRisk(po).level;
+  ev.apply(po);
+  const after=poRisk(po);
+  const t=tasks.find(x=>x.id===po.task);
+  // every procurement alert is logged on the item, same audit trail as WhatsApp
+  t.updates.push({src:"po",text:ev.text,by:procurement.provider+" (purchasing)",
+    effect:after.slip>0?`Forecast ${after.slip} day${after.slip===1?'':'s'} late against need-by ${fmtD(po.needBy)}.`
+                       :`Material forecast inside need-by with ${Math.abs(after.slip)} days float.`,
+    when:"Just now", noStatus:true});
+  procurement.lastSync=new Date();
+  renderRows(); refreshIntegrationBar();
+  if(openId===po.task){ renderPanel(); if(document.getElementById('pane-proc').classList.contains('active')) renderProcPane(); }
+  toast(`${po.po} · ${po.task} → delay risk ${RISK[after.level].label}${before!==after.level?' (changed)':''}`);
+}
+function refreshIntegrationBar(){
+  const counts={critical:0,atrisk:0,watch:0};
+  tasks.forEach(t=>{const r=taskRisk(t.id); if(!r.none && counts[r.level]!==undefined) counts[r.level]++;});
+  document.getElementById('int-summary').textContent =
+    `${counts.critical} critical · ${counts.atrisk} at risk · ${counts.watch} watch`;
+  document.getElementById('int-sync').textContent = procurement.lastSync
+    ? 'Last sync '+procurement.lastSync.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})
+    : 'Last sync — just connected';
 }
 
 /* ---------- compose / intake ---------- */
@@ -507,12 +796,372 @@ function addTask(){
   renderRows();
 }
 
+/* =====================================================================
+ * MOCK PROJECT DATA SET — the site knowledge base the WhatsApp agent
+ * answers from. Scoped to what you actually need to recall while walking
+ * the site: levels, revisions, permits, test results, contacts, quantities.
+ * ===================================================================== */
+const PROJECT={
+  meta:{name:"Al Khumrah Infrastructure Package", code:"BOH-INF-014",
+    client:"Bohio Systems LTD", consultant:"Khatib & Alami", contractor:"Nesma & Partners",
+    location:"Al Khumrah, South Jeddah", contract:"SAR 48.6m", form:"FIDIC Red Book 1999",
+    start:"12 Jan 2026", finish:"04 Mar 2027", dataDate:"10 Sept 2026",
+    progress:"38.4% complete · 4.2% behind baseline"},
+  contacts:[
+    {name:"Yousef Al-Harbi", role:"Project Manager", company:"Nesma & Partners", phone:"+966 55 214 8890"},
+    {name:"Sara Al-Otaibi", role:"Site Engineer (Civils)", company:"Nesma & Partners", phone:"+966 55 331 7742"},
+    {name:"Rami Haddad", role:"Site Engineer (Electrical)", company:"Nesma & Partners", phone:"+966 56 908 1123"},
+    {name:"Mohammed Zahrani", role:"QA/QC Manager", company:"Nesma & Partners", phone:"+966 50 774 2210"},
+    {name:"Elena Marquez", role:"Resident Engineer", company:"Khatib & Alami", phone:"+966 54 662 0091"},
+    {name:"Khalid Saleh", role:"HSE Officer", company:"Nesma & Partners", phone:"+966 55 019 4477"},
+    {name:"Matteo Bevilacqua", role:"Planner / Project Manager", company:"Bohio Systems", phone:"+966 57 440 3312"},
+  ],
+  hse:{emergency:"999 · site control +966 55 019 4477", clinic:"Site clinic — Gate 2, Portakabin C3",
+    assembly:"Assembly Point A — north of the batching plant", nearestHospital:"Al Khumrah General, 8 km / 14 min",
+    ppe:"Hard hat, hi-vis, steel toe, eye protection. Gloves for rebar and kerb laying.",
+    permits:"Hot works, confined space, excavation >1.2 m, live LV/HV, lifting ops",
+    lastIncident:"27 days ago — minor hand laceration, kerb handling",
+    toolbox:"06:15 daily at the muster hut"},
+  logistics:{gate:"Gate 2 (Al Khumrah Road) — deliveries 06:00–16:00",
+    hours:"Sat–Thu 06:00–18:00. Fri closed. Night works need a 48 h notice.",
+    laydown:"Laydown B, east of the substation plot", haul:"Internal haul road via chainage 0+450",
+    parking:"Visitor parking at Gate 1, sign in at the security cabin",
+    batching:"On-site batching plant — 40 m³/h, 90 min max haul to pour"},
+  drawings:[
+    {no:"C-101", title:"Site Layout & Setting Out", rev:"Rev D", date:"28 Aug 2026", status:"Approved", disc:"Civil"},
+    {no:"C-210", title:"Earthworks & Formation Levels", rev:"Rev C", date:"14 Aug 2026", status:"Approved", disc:"Civil"},
+    {no:"C-320", title:"Stormwater Drainage Layout", rev:"Rev F", date:"02 Sept 2026", status:"Approved", disc:"Drainage"},
+    {no:"C-321", title:"Drainage Longitudinal Sections", rev:"Rev E", date:"02 Sept 2026", status:"Approved", disc:"Drainage"},
+    {no:"C-410", title:"Sewerage & Water Network Layout", rev:"Rev C", date:"19 Aug 2026", status:"Approved", disc:"Wet utilities"},
+    {no:"E-510", title:"Electrical Ductbank Layout", rev:"Rev G", date:"06 Sept 2026", status:"Approved", disc:"Electrical"},
+    {no:"E-511", title:"Ductbank Typical Sections", rev:"Rev D", date:"06 Sept 2026", status:"Approved", disc:"Electrical"},
+    {no:"E-540", title:"Substation Plinth & Earthing", rev:"Rev B", date:"24 Aug 2026", status:"For construction", disc:"Electrical"},
+    {no:"T-610", title:"Telecoms & Fibre Duct Routes", rev:"Rev B", date:"11 Aug 2026", status:"Approved", disc:"Telecoms"},
+    {no:"R-710", title:"Road Sub-base, Kerbs & Surfacing", rev:"Rev E", date:"01 Sept 2026", status:"Approved", disc:"Roads"},
+    {no:"L-810", title:"Street Lighting Layout", rev:"Rev A", date:"30 Jul 2026", status:"Under review", disc:"Electrical"},
+    {no:"L-910", title:"Landscaping & Public Realm", rev:"Rev A", date:"22 Jul 2026", status:"Under review", disc:"Landscape"},
+  ],
+  specs:[
+    {sec:"02300", title:"Earthworks", req:"Fill in 250 mm layers, min 95% MDD (AASHTO T-180)."},
+    {sec:"02320", title:"Trench Backfill", req:"Bedding 150 mm sand; surround 300 mm above crown; 95% MDD."},
+    {sec:"02510", title:"Water Networks", req:"HDPE PE100 PN16. Pressure test 1.5× working, hold 2 h."},
+    {sec:"02630", title:"Stormwater Drainage", req:"uPVC SN8. Max deflection 5%. CCTV survey before handover."},
+    {sec:"02740", title:"Asphalt Surfacing", req:"Binder 60 mm, wearing 40 mm. Compaction 96–100% Marshall."},
+    {sec:"02750", title:"Road Sub-base", req:"Type 1 crushed, 300 mm compacted, CBR ≥ 80%, 95% MDD."},
+    {sec:"16050", title:"Electrical Ductbank", req:"Concrete surround C25/30, 75 mm cover, red oxide dye."},
+    {sec:"16400", title:"Street Lighting", req:"10 m columns @ 32 m spacing, 8 m³ base, 30 lux average."},
+  ],
+  rfis:[
+    {no:"RFI-011", subj:"Formation level clash at grid C4", disc:"Civil", status:"Closed", raised:"18 Aug", due:"25 Aug", ans:"Lower formation 150 mm; see C-210 Rev C."},
+    {no:"RFI-014", subj:"Ductbank crossing over storm line at ch 0+320", disc:"Electrical", status:"Open", raised:"01 Sept", due:"12 Sept", ans:"Awaiting consultant — holding pour at ch 0+300 to 0+340."},
+    {no:"RFI-016", subj:"Kerb radius at the roundabout approach", disc:"Roads", status:"Open", raised:"04 Sept", due:"15 Sept", ans:"Awaiting consultant."},
+    {no:"RFI-017", subj:"Substation earthing grid conductor size", disc:"Electrical", status:"Answered", raised:"06 Sept", due:"16 Sept", ans:"Use 95 mm² bare copper; E-540 Rev B applies."},
+    {no:"RFI-018", subj:"Unrecorded 160 mm service at ch 0+610", disc:"Wet utilities", status:"Open", raised:"09 Sept", due:"18 Sept", ans:"Awaiting utility owner trace. Hand-dig only."},
+  ],
+  submittals:[
+    {ref:"MS-042", item:"Sub-base aggregate Type 1 — Riyadh Aggregates", status:"Approved", date:"12 Aug"},
+    {ref:"MS-051", item:"uPVC DN400 stormwater pipe — Saudi Pipe Co.", status:"Approved", date:"20 Aug"},
+    {ref:"MS-058", item:"11kV XLPE cable — Al-Rajhi Electrical", status:"Approved with comment", date:"29 Aug"},
+    {ref:"MS-061", item:"LED lighting columns 10 m", status:"Under review", date:"05 Sept"},
+    {ref:"MS-063", item:"Asphalt mix design — Arabian Bitumen", status:"Rejected — resubmit", date:"07 Sept"},
+  ],
+  permits:[
+    {type:"Excavation permit", ref:"PTW-2209", area:"Ductbank ch 0+200–0+500", validTo:"16 Sept 2026", status:"Valid"},
+    {type:"Road closure", ref:"MUN-4471", area:"Al Khumrah Rd southbound lane", validTo:"21 Sept 2026", status:"Valid"},
+    {type:"Hot works", ref:"PTW-2213", area:"Substation plinth", validTo:"11 Sept 2026", status:"Expires tomorrow"},
+    {type:"Confined space", ref:"PTW-2215", area:"MH-12 drainage chamber", validTo:"14 Sept 2026", status:"Valid"},
+    {type:"HV isolation", ref:"—", area:"Substation tie-in", validTo:"—", status:"Not yet applied"},
+  ],
+  levels:[
+    {loc:"Grid C4", type:"Formation level", val:"+12.350 m", note:"Lowered 150 mm per RFI-011"},
+    {loc:"Grid D2", type:"Formation level", val:"+12.500 m", note:"As drawing C-210 Rev C"},
+    {loc:"MH-12", type:"Invert level", val:"+9.820 m", note:"Storm, DN400 outfall"},
+    {loc:"MH-13", type:"Invert level", val:"+9.640 m", note:"Storm, 1:200 fall to outfall"},
+    {loc:"Ch 0+320", type:"Ductbank soffit", val:"+11.100 m", note:"Clash zone — see RFI-014"},
+    {loc:"Substation", type:"Plinth FFL", val:"+13.000 m", note:"E-540 Rev B"},
+    {loc:"Road ch 0+000", type:"Finished road level", val:"+13.250 m", note:"Tie-in to existing"},
+  ],
+  boq:[
+    {item:"Bulk excavation", qty:"48,500", uom:"m³", rate:"SAR 22", done:"92%"},
+    {item:"Sub-base Type 1", qty:"3,800", uom:"t", rate:"SAR 39", done:"18%"},
+    {item:"uPVC DN400 storm pipe", qty:"900", uom:"m", rate:"SAR 294", done:"41%"},
+    {item:"HDPE DN250 water main", qty:"1,400", uom:"m", rate:"SAR 221", done:"12%"},
+    {item:"11kV XLPE cable", qty:"1,200", uom:"m", rate:"SAR 343", done:"0%"},
+    {item:"Fibre subduct 4-way", qty:"2,200", uom:"m", rate:"SAR 44", done:"0%"},
+    {item:"Asphalt binder + wearing", qty:"2,600", uom:"t", rate:"SAR 200", done:"0%"},
+    {item:"LED lighting columns 10 m", qty:"64", uom:"no.", rate:"SAR 4,300", done:"0%"},
+  ],
+  tests:[
+    {ref:"FDT-118", type:"Field density (compaction)", loc:"Ch 0+200–0+260 sub-base", date:"08 Sept", res:"Pass", val:"96.4% MDD", spec:"≥95%"},
+    {ref:"FDT-119", type:"Field density (compaction)", loc:"Ch 0+260–0+320 sub-base", date:"09 Sept", res:"Pass", val:"95.8% MDD", spec:"≥95%"},
+    {ref:"FDT-120", type:"Field density (compaction)", loc:"Ch 0+320–0+380 sub-base", date:"09 Sept", res:"FAIL", val:"93.1% MDD", spec:"≥95%"},
+    {ref:"CUB-064", type:"Concrete cube 28-day", loc:"Ductbank surround ch 0+200", date:"05 Sept", res:"Pass", val:"32.4 MPa", spec:"C25/30"},
+    {ref:"CUB-067", type:"Concrete cube 7-day", loc:"Substation plinth", date:"08 Sept", res:"Pass", val:"24.1 MPa", spec:"≥20 MPa at 7d"},
+    {ref:"PRS-022", type:"Pressure test", loc:"Water main ch 0+000–0+300", date:"07 Sept", res:"Pass", val:"24 bar / 2 h", spec:"1.5× working"},
+  ],
+  milestones:[
+    {name:"Earthworks complete", date:"28 Aug 2026", status:"Achieved"},
+    {name:"Drainage network complete", date:"30 Sept 2026", status:"On track"},
+    {name:"Ductbank & substation energised", date:"18 Nov 2026", status:"At risk"},
+    {name:"Road surfacing complete", date:"22 Dec 2026", status:"On track"},
+    {name:"Practical completion", date:"04 Mar 2027", status:"On track"},
+  ],
+  utilities:[
+    {svc:"Existing 11kV STC cable", loc:"Ch 0+180, west verge", depth:"1.1 m", owner:"Saudi Electricity", note:"Hand-dig within 500 mm. Cable-avoidance tool mandatory."},
+    {svc:"Existing 300 mm water main", loc:"Ch 0+450 crossing", depth:"1.6 m", owner:"NWC", note:"Do not expose without NWC attendance."},
+    {svc:"Unrecorded 160 mm duct", loc:"Ch 0+610", depth:"0.8 m", owner:"Unknown", note:"RFI-018 open. Hand-dig only."},
+    {svc:"Fibre backbone", loc:"Ch 0+050 east verge", depth:"0.9 m", owner:"STC", note:"Marked with tape, keep 1 m clear."},
+  ],
+};
+
+/* =====================================================================
+ * WHATSAPP SITE AGENT — intent library.
+ * Each intent lists trigger keywords and builds its answer from PROJECT,
+ * the live schedule, and the purchasing integration.
+ * ===================================================================== */
+const P=PROJECT;
+const tbl=rows=>`<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>`;
+const lines=a=>a.join('\n');
+
+const INTENTS=[
+/* --- A. schedule & progress --- */
+{cat:"Schedule",ex:"What's the overall progress?",k:["progress","overall","percent","complete","how far"],
+ f:()=>`<b>${P.meta.name}</b>\n${P.meta.progress}\nData date ${P.meta.dataDate}.`},
+{cat:"Schedule",ex:"What's late right now?",k:["late","behind","slipping","delayed","slip"],
+ f:()=>{const r=tasks.map(t=>({t,k:taskRisk(t.id)})).filter(x=>!x.k.none&&x.k.slip>0).sort((a,b)=>b.k.slip-a.k.slip);
+   return r.length?`<b>${r.length} items forecast late:</b>\n`+lines(r.map(x=>`• ${x.t.code} ${x.t.name} — ${x.k.slip}d (${RISK[x.k.level].label})`)):"Nothing is forecast late.";}},
+{cat:"Schedule",ex:"What's critical this week?",k:["critical","urgent","worst","biggest risk","priority"],
+ f:()=>{const r=tasks.map(t=>({t,k:taskRisk(t.id)})).filter(x=>x.k.level==="critical");
+   return r.length?`<b>Critical:</b>\n`+lines(r.map(x=>`• ${x.t.code} ${x.t.name} — ${x.k.slip}d late\n  ${x.k.reasons[0]}`)):"Nothing critical.";}},
+{cat:"Schedule",ex:"Status of the ductbank",k:["status of","status","state of"],
+ f:q=>{const t=findTask(q); if(!t) return "Which item? Try “status of the ductbank”.";
+   const r=taskRisk(t.id); return `<b>${t.code} ${t.name}</b>\n`+tbl([["Status",STATUS[deriveStatus(t)].label],["Delay risk",RISK[r.level].label+(r.slip>0?` (${r.slip}d)`:"")],["Updates",t.updates.length],["Reason",r.reasons[0]]]);}},
+{cat:"Schedule",ex:"What are the key milestones?",k:["milestone","key dates","deadlines","completion date"],
+ f:()=>`<b>Milestones</b>\n`+lines(P.milestones.map(m=>`• ${m.name} — ${m.date} (${m.status})`))},
+{cat:"Schedule",ex:"What's not started yet?",k:["not started","yet to start","upcoming","next up"],
+ f:()=>{const r=tasks.filter(t=>deriveStatus(t)==="notstarted"); return `<b>${r.length} not started:</b>\n`+lines(r.map(t=>`• ${t.code} ${t.name}`));}},
+
+/* --- B. procurement --- */
+{cat:"Procurement",ex:"Which POs are stuck in approval?",k:["stuck in approval","approval","approved","awaiting approval","pending approval"],
+ f:()=>{const r=pos.filter(p=>p.status==="pending_approval"||p.status==="draft");
+   return r.length?`<b>${r.length} order(s) not yet released:</b>\n`+lines(r.map(p=>`• ${p.po||"(no PO)"} ${p.material} — ${PO_STATE[p.status]}, ${p.waited}d waited, need-by ${fmtD(p.needBy)}`)):"All orders are released.";}},
+{cat:"Procurement",ex:"Where is PO-4471?",k:["po","purchase order","order status"],
+ f:q=>{const m=q.match(/po-?\s?(\d{3,4})/i); const p=m?pos.find(x=>x.po&&x.po.includes(m[1])):null;
+   if(!p) return "Give me a PO number, e.g. “where is PO-4471”.";
+   const r=poRisk(p); return `<b>${p.po}</b> — ${p.vendor}\n`+tbl([["Material",p.material],["Value",p.value],["State",PO_STATE[p.status]],["Need by",fmtD(p.needBy)],["Forecast",r.forecast==null?"—":fmtD(r.forecast)],["Risk",RISK[r.level].label],["Why",r.reasons.join(" ")]]);}},
+{cat:"Procurement",ex:"What materials are delayed?",k:["material","materials delayed","deliver","delivery","arriving","arrive"],
+ f:()=>{const r=pos.map(p=>({p,r:poRisk(p)})).filter(x=>x.r.slip>0).sort((a,b)=>b.r.slip-a.r.slip);
+   return r.length?`<b>Materials forecast late:</b>\n`+lines(r.map(x=>`• ${x.p.material} (${x.p.po||"no PO"}) — ${x.r.slip}d late, need-by ${fmtD(x.p.needBy)}`)):"No material delays forecast.";}},
+{cat:"Procurement",ex:"When does the 11kV cable arrive?",k:["cable","11kv","when does","when will","eta"],
+ f:q=>{const p=findPO(q); if(!p) return "Which material? e.g. “when does the cable arrive”.";
+   const r=poRisk(p); return `<b>${p.material}</b>\nForecast ${r.forecast==null?"—":fmtD(r.forecast)} against need-by ${fmtD(p.needBy)} — ${r.slip>0?`${r.slip} days late`:`${Math.abs(r.slip)} days float`}.\n${r.reasons.join(" ")}`;}},
+{cat:"Procurement",ex:"Which items have no PO raised?",k:["no po","not ordered","nothing ordered","not raised","missing po"],
+ f:()=>{const r=pos.filter(p=>p.status==="none");
+   return r.length?`<b>No order raised:</b>\n`+lines(r.map(p=>`• ${p.material} — need-by ${fmtD(p.needBy)}, ${p.leadTime}d lead time. Raise now or it slips.`)):"Every material has an order.";}},
+{cat:"Procurement",ex:"Total committed spend?",k:["spend","value","cost","committed","budget"],
+ f:()=>`<b>Committed purchase orders</b>\n`+lines(pos.filter(p=>p.po).map(p=>`• ${p.po} ${p.value} — ${PO_STATE[p.status]}`))},
+{cat:"Procurement",ex:"Any part deliveries?",k:["part delivery","partial","short delivery","shortfall","received"],
+ f:()=>{const r=pos.filter(p=>p.qtyDelivered>0&&p.qtyDelivered<p.qtyOrdered);
+   return r.length?`<b>Short deliveries:</b>\n`+lines(r.map(p=>`• ${p.po} — ${p.qtyDelivered}/${p.qtyOrdered} ${p.uom} of ${p.material}`)):"No outstanding part deliveries.";}},
+
+/* --- C. drawings --- */
+{cat:"Drawings",ex:"Latest drawing for the ductbank",k:["drawing","dwg","layout drawing","latest drawing"],
+ f:q=>{const d=P.drawings.filter(x=>fuzzy(q,x.title+" "+x.no+" "+x.disc));
+   const s=d.length?d:P.drawings;
+   return `<b>Drawing register${d.length?" — match":""}</b>\n`+lines(s.slice(0,6).map(x=>`• ${x.no} ${x.title} — ${x.rev}, ${x.date} (${x.status})`));}},
+{cat:"Drawings",ex:"What revision is C-320?",k:["revision","rev","what rev","current rev"],
+ f:q=>{const m=q.match(/([a-z])-?\s?(\d{3})/i); const d=m?P.drawings.find(x=>x.no.toLowerCase().replace('-','')===(m[1]+m[2]).toLowerCase()):null;
+   return d?`<b>${d.no} — ${d.title}</b>\n${d.rev}, issued ${d.date}, ${d.status}.`:"Give me a drawing number, e.g. “what revision is C-320”.";}},
+{cat:"Drawings",ex:"Which drawings are still under review?",k:["under review","not approved","pending drawing","unapproved"],
+ f:()=>`<b>Not yet approved:</b>\n`+lines(P.drawings.filter(d=>d.status!=="Approved").map(d=>`• ${d.no} ${d.title} — ${d.rev} (${d.status})`))},
+{cat:"Drawings",ex:"Am I working to the latest drawing?",k:["latest","superseded","current drawing","up to date"],
+ f:()=>`Check the revision on your print against this list — anything older is superseded:\n`+lines(P.drawings.map(d=>`• ${d.no} — ${d.rev} (${d.date})`))},
+
+/* --- D. specs --- */
+{cat:"Spec",ex:"What's the compaction spec?",k:["compaction spec","mdd","compaction requirement","density spec"],
+ f:()=>`<b>Compaction</b>\n${P.specs.find(s=>s.sec==="02300").req}\nSub-base: ${P.specs.find(s=>s.sec==="02750").req}`},
+{cat:"Spec",ex:"Spec for sub-base",k:["spec","specification","requirement","standard"],
+ f:q=>{const s=P.specs.filter(x=>fuzzy(q,x.title+" "+x.sec));
+   const l=s.length?s:P.specs; return `<b>Specification${s.length?" — match":""}</b>\n`+lines(l.slice(0,5).map(x=>`• ${x.sec} ${x.title} — ${x.req}`));}},
+{cat:"Spec",ex:"Concrete grade for the ductbank?",k:["concrete","grade","c25","cover","surround"],
+ f:()=>`<b>16050 Electrical Ductbank</b>\n${P.specs.find(s=>s.sec==="16050").req}`},
+
+/* --- E. RFIs --- */
+{cat:"RFI",ex:"Any open RFIs?",k:["rfi","open rfi","queries","question raised"],
+ f:q=>{const m=q.match(/rfi-?\s?(\d+)/i);
+   if(m){const r=P.rfis.find(x=>x.no.includes(m[1])); return r?`<b>${r.no} — ${r.subj}</b>\n`+tbl([["Status",r.status],["Discipline",r.disc],["Raised",r.raised],["Due",r.due],["Response",r.ans]]):"No such RFI.";}
+   const o=P.rfis.filter(r=>r.status==="Open");
+   return `<b>${o.length} open RFI(s):</b>\n`+lines(o.map(r=>`• ${r.no} ${r.subj} — due ${r.due}\n  ${r.ans}`));}},
+{cat:"RFI",ex:"Is anything on hold pending an RFI?",k:["on hold","holding","blocked by","waiting for answer"],
+ f:()=>`<b>Holds:</b>\n`+lines(P.rfis.filter(r=>r.status==="Open").map(r=>`• ${r.no} — ${r.subj}. ${r.ans}`))},
+{cat:"RFI",ex:"RFIs overdue for response?",k:["overdue rfi","late rfi","chase","outstanding rfi"],
+ f:()=>`Open RFIs and their due dates:\n`+lines(P.rfis.filter(r=>r.status!=="Closed").map(r=>`• ${r.no} due ${r.due} — ${r.status}`))},
+
+/* --- F. levels & setting out --- */
+{cat:"Levels",ex:"Formation level at grid C4?",k:["formation level","level at","grid","setting out","ffl"],
+ f:q=>{const l=P.levels.filter(x=>fuzzy(q,x.loc+" "+x.type));
+   const s=l.length?l:P.levels; return `<b>Levels${l.length?" — match":""}</b>\n`+lines(s.map(x=>`• ${x.loc} ${x.type}: <b>${x.val}</b>${x.note?` — ${x.note}`:""}`));}},
+{cat:"Levels",ex:"Invert level of MH-12?",k:["invert","manhole","mh","chamber level"],
+ f:q=>{const l=P.levels.filter(x=>/invert/i.test(x.type)&&(fuzzy(q,x.loc)||true));
+   const m=q.match(/mh-?\s?(\d+)/i); const hit=m?l.find(x=>x.loc.includes(m[1])):null;
+   return hit?`<b>${hit.loc} invert: ${hit.val}</b>\n${hit.note}`:`<b>Invert levels</b>\n`+lines(l.map(x=>`• ${x.loc}: ${x.val} — ${x.note}`));}},
+{cat:"Levels",ex:"What datum are we working to?",k:["datum","benchmark","tbm","survey control"],
+ f:()=>`All levels are to project datum, tied to the site TBM at Gate 2 (+13.412 m).\nFinished road level at ch 0+000 is ${P.levels.find(l=>/road/i.test(l.type)).val}.`},
+
+/* --- G. quantities --- */
+{cat:"Quantities",ex:"How much sub-base do we need?",k:["how much","how many","quantity","qty","boq","tonnes","metres"],
+ f:q=>{const b=P.boq.filter(x=>fuzzy(q,x.item));
+   const s=b.length?b:P.boq; return `<b>Quantities${b.length?" — match":""}</b>\n`+lines(s.map(x=>`• ${x.item}: ${x.qty} ${x.uom} @ ${x.rate} — ${x.done} done`));}},
+{cat:"Quantities",ex:"What's left to install?",k:["left to","remaining","outstanding qty","still to do"],
+ f:()=>`<b>Remaining by item</b>\n`+lines(P.boq.filter(b=>b.done!=="100%").map(b=>`• ${b.item} — ${b.done} done of ${b.qty} ${b.uom}`))},
+{cat:"Quantities",ex:"Rate for asphalt?",k:["rate","price per","unit rate","cost per"],
+ f:q=>{const b=P.boq.filter(x=>fuzzy(q,x.item)); const s=b.length?b:P.boq;
+   return `<b>Rates</b>\n`+lines(s.map(x=>`• ${x.item} — ${x.rate}/${x.uom}`));}},
+
+/* --- H. testing / QA --- */
+{cat:"Testing",ex:"Any failed tests?",k:["failed test","fail","ncr","non-conformance","reject"],
+ f:()=>{const f=P.tests.filter(t=>t.res==="FAIL");
+   return f.length?`<b>⚠ ${f.length} failed test:</b>\n`+lines(f.map(t=>`• ${t.ref} ${t.type}\n  ${t.loc} — ${t.val} against ${t.spec} (${t.date})\n  Re-work and re-test before covering up.`)):"No failed tests.";}},
+{cat:"Testing",ex:"Compaction result at ch 0+320?",k:["compaction result","density result","fdt","test result","result at"],
+ f:q=>{const t=P.tests.filter(x=>fuzzy(q,x.loc+" "+x.type+" "+x.ref));
+   const s=t.length?t:P.tests; return `<b>Test results${t.length?" — match":""}</b>\n`+lines(s.map(x=>`• ${x.ref} ${x.loc} — <b>${x.res}</b> ${x.val} (spec ${x.spec}, ${x.date})`));}},
+{cat:"Testing",ex:"Concrete cube results?",k:["cube","concrete result","mpa","strength"],
+ f:()=>`<b>Concrete cubes</b>\n`+lines(P.tests.filter(t=>/cube/i.test(t.type)).map(t=>`• ${t.ref} ${t.loc} — ${t.val} (${t.res}, ${t.date})`))},
+{cat:"Testing",ex:"Has the water main been pressure tested?",k:["pressure test","hydro","leak test","tested"],
+ f:()=>{const t=P.tests.find(x=>/pressure/i.test(x.type));
+   return `<b>${t.ref} ${t.type}</b>\n${t.loc} — ${t.res}, ${t.val} (spec ${t.spec}) on ${t.date}.`;}},
+
+/* --- I. permits --- */
+{cat:"Permits",ex:"Do we have a permit to dig?",k:["permit","ptw","permit to dig","excavation permit","road closure"],
+ f:q=>{const p=P.permits.filter(x=>fuzzy(q,x.type+" "+x.area));
+   const s=p.length?p:P.permits; return `<b>Permits${p.length?" — match":""}</b>\n`+lines(s.map(x=>`• ${x.type} ${x.ref} — ${x.area}\n  Valid to ${x.validTo} · <b>${x.status}</b>`));}},
+{cat:"Permits",ex:"Which permits expire soon?",k:["expire","expiring","valid until","runs out"],
+ f:()=>`<b>Watch these:</b>\n`+lines(P.permits.filter(p=>p.status!=="Valid").map(p=>`• ${p.type} ${p.ref} — ${p.status} (${p.validTo})`))},
+{cat:"Permits",ex:"Can I start the HV tie-in?",k:["hv","isolation","tie-in","energise","live work"],
+ f:()=>{const p=P.permits.find(x=>/hv/i.test(x.type));
+   return `<b>${p.type}</b> — <b>${p.status}</b>.\nDo not start any HV tie-in without it. Contact ${P.contacts.find(c=>/Electrical/.test(c.role)).name} on ${P.contacts.find(c=>/Electrical/.test(c.role)).phone}.`;}},
+
+/* --- J. HSE --- */
+{cat:"HSE",ex:"What's the emergency number?",k:["emergency","ambulance","accident","injury","999"],
+ f:()=>`<b>🚨 Emergency</b>\n`+tbl([["Call",P.hse.emergency],["Clinic",P.hse.clinic],["Assembly",P.hse.assembly],["Hospital",P.hse.nearestHospital]])},
+{cat:"HSE",ex:"What PPE do I need?",k:["ppe","protective","hard hat","gloves","boots"],
+ f:()=>`<b>PPE</b>\n${P.hse.ppe}`},
+{cat:"HSE",ex:"Where is the assembly point?",k:["assembly","muster","evacuation","fire point"],
+ f:()=>`<b>${P.hse.assembly}</b>\nToolbox talk ${P.hse.toolbox}.`},
+{cat:"HSE",ex:"Which permits does HSE require?",k:["hse permit","safety permit","which permits required","permit required"],
+ f:()=>`<b>Permit-to-work required for:</b>\n${P.hse.permits}\nLast incident: ${P.hse.lastIncident}.`},
+{cat:"HSE",ex:"Any buried services near me?",k:["buried","services","utility","cable strike","dig safe","existing"],
+ f:()=>`<b>⚠ Known services</b>\n`+lines(P.utilities.map(u=>`• ${u.svc} — ${u.loc}, depth ${u.depth} (${u.owner})\n  ${u.note}`))},
+
+/* --- K. contacts --- */
+{cat:"Contacts",ex:"Who's the site engineer?",k:["who is","who's","contact","phone","number for","call"],
+ f:q=>{const c=P.contacts.filter(x=>fuzzy(q,x.role+" "+x.name+" "+x.company));
+   const s=c.length?c:P.contacts; return `<b>Contacts${c.length?" — match":""}</b>\n`+lines(s.map(x=>`• ${x.name} — ${x.role}\n  ${x.phone} (${x.company})`));}},
+{cat:"Contacts",ex:"Who do I call for electrical?",k:["electrical contact","electrician","hv contact","power"],
+ f:()=>{const c=P.contacts.find(x=>/Electrical/.test(x.role)); return `<b>${c.name}</b> — ${c.role}\n${c.phone}`;}},
+{cat:"Contacts",ex:"Who is the consultant?",k:["consultant","resident engineer","client rep","supervision"],
+ f:()=>{const c=P.contacts.find(x=>/Resident/.test(x.role)); return `<b>${c.company}</b>\n${c.name} — ${c.role}\n${c.phone}`;}},
+
+/* --- L. logistics --- */
+{cat:"Site",ex:"What are the working hours?",k:["working hours","hours","shift","night work","friday"],
+ f:()=>`<b>Working hours</b>\n${P.logistics.hours}`},
+{cat:"Site",ex:"Where do deliveries go?",k:["delivery gate","gate","deliveries","where do i deliver","laydown"],
+ f:()=>`<b>Access & logistics</b>\n`+tbl([["Gate",P.logistics.gate],["Laydown",P.logistics.laydown],["Haul route",P.logistics.haul],["Parking",P.logistics.parking]])},
+{cat:"Site",ex:"Is there a batching plant?",k:["batching","concrete plant","pour","ready mix"],
+ f:()=>`<b>Concrete</b>\n${P.logistics.batching}`},
+{cat:"Site",ex:"Project details?",k:["project details","contract","who is the client","which project","overview"],
+ f:()=>`<b>${P.meta.name}</b>\n`+tbl([["Code",P.meta.code],["Client",P.meta.client],["Consultant",P.meta.consultant],["Contractor",P.meta.contractor],["Location",P.meta.location],["Value",P.meta.contract],["Form",P.meta.form],["Period",P.meta.start+" → "+P.meta.finish]])},
+
+/* --- M. submittals --- */
+{cat:"Submittals",ex:"Is the asphalt mix approved?",k:["submittal","material approval","approved material","mix design"],
+ f:q=>{const s=P.submittals.filter(x=>fuzzy(q,x.item+" "+x.ref));
+   const l=s.length?s:P.submittals; return `<b>Material submittals${s.length?" — match":""}</b>\n`+lines(l.map(x=>`• ${x.ref} ${x.item}\n  <b>${x.status}</b> (${x.date})`));}},
+{cat:"Submittals",ex:"Anything rejected?",k:["rejected","resubmit","not approved material"],
+ f:()=>`<b>Needs action:</b>\n`+lines(P.submittals.filter(s=>s.status!=="Approved").map(s=>`• ${s.ref} ${s.item} — ${s.status}`))},
+
+/* --- N. help --- */
+{cat:"Help",ex:"What can you do?",k:["help","what can you","commands","options","how do i"],
+ f:()=>`I answer from the live schedule, the purchasing system and the project data set. Ask me about:\n`+
+   lines([...new Set(INTENTS.map(i=>i.cat))].map(c=>`• ${c}`))+`\n\nOr report progress in plain words — I'll log it on the item and move the status.`},
+];
+
+/* helpers */
+function fuzzy(q,hay){const h=hay.toLowerCase();return q.toLowerCase().split(/\s+/).filter(w=>w.length>3).some(w=>h.includes(w));}
+function findTask(q){const s=q.toLowerCase();return tasks.find(t=>s.includes(t.id))||tasks.find(t=>fuzzy(q,t.name));}
+function findPO(q){return pos.find(p=>fuzzy(q,p.material))||null;}
+
+/* Keywords must match on word boundaries — a raw substring test made
+ * "compacted" hit "mpa" and "stopped" hit "ppe". */
+function kwHit(s,k){
+  const t=k.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  // allow a plural suffix so "milestones" / "RFIs" / "tests" still match
+  return new RegExp('(^|[^a-z0-9])'+t+'(s|es)?([^a-z0-9]|$)','i').test(s);
+}
+const QWORD=/^(what|whats|when|where|who|whos|which|why|how|is|are|was|do|does|did|can|could|should|any|show|list|give|tell|find|status)\b/i;
+function isQuestion(q){ return /\?/.test(q) || QWORD.test(q.trim()); }
+
+function matchIntent(q){
+  const s=q.toLowerCase();
+  let best=null,score=0;
+  for(const i of INTENTS){
+    let sc=0; for(const k of i.k){ if(kwHit(s,k)) sc+=k.trim().length; }
+    if(sc>score){score=sc;best=i;}
+  }
+  return score?best:null;
+}
+
+/* Free-text that isn't a question is treated as a field report and logged. */
+function agentSend(){
+  const el=document.getElementById('ag-input'); const q=el.value.trim(); if(!q) return;
+  el.value=''; agentPush('me',esc(q));
+  setTimeout(()=>{
+    // A statement that reads like site progress is a report to log; only
+    // something phrased as a question gets routed to the Q&A intents.
+    const report = statusFromUpdate({text:q,effect:""});
+    if(report && !isQuestion(q)){ agentPush('bot',logFromAgent(q)); return; }
+    const i=matchIntent(q);
+    if(i){ agentPush('bot',i.f(q)); }
+    else if(report){ agentPush('bot',logFromAgent(q)); }
+    else { agentPush('bot',"I didn't catch that. Try a suggestion below, or tell me what happened on site and I'll log it (e.g. “sub-base at ch 0+400 compacted and accepted”)."); }
+  },260);
+}
+function logFromAgent(text){
+  const t=findTask(text)||tasks.find(x=>x.id===openId)||tasks[0];
+  t.updates.push(wa(text,"Field (WhatsApp)","Logged from WhatsApp; status derived from the message."));
+  const eff=statusFromUpdate(t.updates[t.updates.length-1]);
+  renderRows(); if(openId===t.id) renderPanel();
+  return `Logged on <b>${esc(t.code)} ${esc(t.name)}</b>.\nStatus → <b>${STATUS[eff||deriveStatus(t)].label}</b>.`;
+}
+function agentPush(who,html){
+  const log=document.getElementById('ag-log');
+  const d=document.createElement('div'); d.className='msg '+who;
+  d.innerHTML=html+`<span class="mt">${new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>`;
+  log.appendChild(d); log.scrollTop=log.scrollHeight;
+}
+function agentAsk(q){ document.getElementById('ag-input').value=q; agentSend(); }
+function toggleAgent(){
+  const a=document.getElementById('agent'); const open=a.classList.toggle('open');
+  document.getElementById('agentFab').style.display=open?'none':'flex';
+  if(open&&!a.dataset.init){ a.dataset.init="1"; buildChips();
+    agentPush('bot',`Hello — I'm the Bohio site agent for <b>${P.meta.name}</b>.\nAsk me anything about the site, or send me a progress report and I'll log it against the schedule.`); }
+}
+function buildChips(){
+  const box=document.getElementById('ag-chips'); const cats={};
+  INTENTS.forEach(i=>{(cats[i.cat]=cats[i.cat]||[]).push(i.ex);});
+  box.innerHTML=Object.entries(cats).map(([c,ex])=>
+    `<div class="ag-cat">${c}</div>`+ex.map(e=>`<button class="chipbtn" onclick="agentAsk(this.textContent)">${esc(e)}</button>`).join('')
+  ).join('');
+}
+
 /* ---------- toast ---------- */
 let tt;
 function toast(msg){ const el=document.getElementById("toast"); document.getElementById("toast-text").textContent=msg; el.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove("show"),2600); }
 
-/* ---------- init: open the [duct] item like the design ---------- */
+/* ---------- init ---------- */
+document.getElementById('int-provider').innerHTML =
+  Object.keys(PROVIDERS).map(p=>`<option${p===procurement.provider?' selected':''}>${p}</option>`).join('');
 renderRows();
+refreshIntegrationBar();
 openItem("duct");
 </script>
 </body>
