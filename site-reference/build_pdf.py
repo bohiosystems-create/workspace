@@ -158,6 +158,79 @@ LOGISTICS = [
     ("Visitors",      "Park at Gate 1, sign in at the security cabin"),
 ]
 
+
+HOLD_POINTS = [
+    ("Before a concrete pour",
+     "Rebar & blinding inspected · formwork checked · no open RFI on the section · "
+     "excavation permit valid · mix to spec 16050 (C25/30, 75 mm cover, red oxide dye)"),
+    ("Before backfilling a trench",
+     "Passing density test on the section · pipe deflection <5% · bedding 150 mm sand · "
+     "surround 300 mm above crown · consultant signed the inspection request"),
+    ("Before laying sub-base",
+     "Formation level checked against C-210 Rev C · formation proof-rolled · "
+     "no soft spots · CBR \u2265 80% on the imported material"),
+    ("Before surfacing",
+     "Sub-base at \u226595% MDD · levels & falls checked · kerbs set and cured · "
+     "mix design approved (MS-063 currently REJECTED \u2014 resubmit first)"),
+    ("Before energising / HV tie-in",
+     "HV isolation permit issued (NOT YET APPLIED) · earthing grid to E-540 Rev B, 95 mm\u00b2 "
+     "bare copper · cable tests witnessed · SEC attendance booked"),
+    ("Before any excavation",
+     "Permit to dig valid · services traced & marked · cable-avoidance tool on site · "
+     "hand-dig within 500 mm of a known service"),
+]
+
+TOLERANCES = [
+    ("Compaction \u2014 fill",      "\u226595% MDD (AASHTO T-180)", "250 mm max layers"),
+    ("Compaction \u2014 sub-base",  "\u226595% MDD, CBR \u226580%",     "300 mm compacted"),
+    ("Asphalt compaction",      "96\u2013100% Marshall",         "binder 60 mm / wearing 40 mm"),
+    ("Pipe deflection (uPVC)",  "5% maximum",                "SN8, CCTV before handover"),
+    ("Concrete cover to duct",  "75 mm",                     "C25/30, red oxide dye"),
+    ("Water main pressure",     "1.5\u00d7 working, hold 2 h",    "HDPE PE100 PN16"),
+    ("Lighting spacing",        "32 m centres, 30 lux avg",  "10 m columns, 8 m\u00b3 base"),
+]
+
+BOARD = [
+    ("[earth] Earthworks & Bulk Excavation",  "Sara Al-Otaibi", "12 Jan \u2192 28 Aug",  "92%", "Ch 0+000\u20130+800", "C-210 Rev C"),
+    ("[drain] Stormwater & Drainage",         "Sara Al-Otaibi", "03 Aug \u2192 30 Sept", "41%", "Ch 0+000\u20130+620", "C-320 Rev F"),
+    ("[water] Sewerage & Water Networks",     "Sara Al-Otaibi", "18 Aug \u2192 21 Oct",  "12%", "Ch 0+000\u20130+900", "C-410 Rev C"),
+    ("[duct]  Electrical Ductbank & S/S",     "Rami Haddad",    "25 Aug \u2192 18 Nov",  "22%", "Ch 0+200\u20130+500", "E-510 Rev G"),
+    ("[tele]  Telecoms & Fibre Ducts",        "Rami Haddad",    "14 Sept \u2192 12 Nov", "0%",  "Ch 0+050\u20130+700", "T-610 Rev B"),
+    ("[sub]   Road Sub-base & Kerbs",         "Sara Al-Otaibi", "01 Sept \u2192 30 Oct", "18%", "Ch 0+200\u20130+800", "R-710 Rev E"),
+    ("[asph]  Asphalt & Surfacing",           "Unassigned",     "20 Oct \u2192 22 Dec",  "0%",  "Ch 0+000\u20130+900", "R-710 Rev E"),
+    ("[light] Street Lighting",               "Unassigned",     "05 Nov \u2192 20 Jan",  "0%",  "Ch 0+000\u20130+900", "L-810 Rev A"),
+    ("[land]  Landscaping & Public Realm",    "Unassigned",     "01 Dec \u2192 20 Feb",  "0%",  "Public realm",    "L-910 Rev A"),
+]
+
+INSPECTION = [
+    ("Raise the inspection request", "Mohammed Zahrani (QA/QC) \u2014 +966 50 774 2210"),
+    ("Witness & approve",            "Elena Marquez (Resident Engineer) \u2014 +966 54 662 0091"),
+    ("Notice for a witnessed test",  "24 hours"),
+    ("Failed test",                  "Re-work, re-test, then re-submit. Do not cover up."),
+    ("Raise an RFI",                 "Through the PM \u2014 typical response window 7\u201310 days"),
+    ("Material submittal",           "Approved before delivery. MS-063 asphalt mix is REJECTED."),
+]
+
+AGENT_CMDS = [
+    ("Ask anything",     "\u201cwhat\u2019s late\u201d · \u201cinvert level of MH-12\u201d · \u201cany failed tests\u201d · \u201cwhere is PO-4471\u201d"),
+    ("Site walk",        "\u201cwhat am I looking at here\u201d · \u201ccan I pour here\u201d · \u201ccan I cover this up\u201d"),
+    ("Read the board",   "\u201cshow me everything on the ductbank\u201d · \u201cwho owns the drainage\u201d · \u201cwhat files are on it\u201d"),
+    ("Write the board",  "\u201cset the ductbank status to done\u201d · \u201cassign the ductbank to Rami\u201d · \u201cset progress to 45%\u201d"),
+    ("Report progress",  "Just say what happened \u2014 \u201csub-base at ch 0+400 compacted and accepted\u201d. It logs and moves the status."),
+    ("Send evidence",    "Send a photo or PDF. It attaches to the item\u2019s Files tab on Monday."),
+    ("Voice notes",      "Record in English or Arabic. It transcribes, then acts on the transcript."),
+]
+
+ABBREV = [
+    ("MDD",  "Maximum dry density"),      ("CBR",  "California bearing ratio"),
+    ("FDT",  "Field density test"),       ("NCR",  "Non-conformance report"),
+    ("RFI",  "Request for information"),  ("PTW",  "Permit to work"),
+    ("IL",   "Invert level"),             ("FFL",  "Finished floor level"),
+    ("TBM",  "Temporary benchmark"),      ("Ch",   "Chainage (metres along the route)"),
+    ("SEC",  "Saudi Electricity Company"),("NWC",  "National Water Company"),
+    ("PO",   "Purchase order"),           ("MS",   "Material submittal"),
+]
+
 # --------------------------------------------------------------- styles
 ss = getSampleStyleSheet()
 def S(name, **kw):
@@ -391,7 +464,34 @@ def build():
                         header=["Item", "Contract qty", "Unit", "Installed"])))
     F.append(gap())
 
-    # ---------- 14. logistics + HSE ----------
+    # ---------- 14. hold points — the "can I proceed?" checks ----------
+    F.append(block("Hold points — check these before you proceed",
+                   grid([[P(k, st_cell_b), v] for k, v in HOLD_POINTS],
+                        [42*mm, 136*mm]), AMBER))
+    F.append(gap())
+
+    # ---------- 15. tolerances ----------
+    F.append(block("Tolerances & thresholds",
+                   grid([[P(a, st_cell_b), P(f"<b>{b}</b>", st_cell), c] for a, b, c in TOLERANCES],
+                        [50*mm, 56*mm, 72*mm],
+                        header=["Item", "Tolerance", "Note"])))
+    F.append(gap())
+
+    # ---------- 16. inspection routine ----------
+    F.append(block("Inspection & sign-off",
+                   grid([[P(k, st_cell_b), v] for k, v in INSPECTION],
+                        [58*mm, 120*mm], zebra=False)))
+    F.append(gap())
+
+    # ---------- 17. board snapshot ----------
+    F.append(block("Schedule board — items, owners & locations",
+                   grid([[P(i, st_cell_b), o, tl, P(f"<b>{pr}</b>", st_cell), ch, dw]
+                         for i, o, tl, pr, ch, dw in BOARD],
+                        [48*mm, 26*mm, 27*mm, 13*mm, 30*mm, 34*mm],
+                        header=["Item", "Owner", "Timeline", "Prog.", "Location", "Drawing"])))
+    F.append(gap())
+
+    # ---------- 18. logistics + HSE ----------
     site_rows = [[P(k, st_cell_b), v] for k, v in LOGISTICS] + [
         [P("PPE", st_cell_b), HSE["ppe"]],
         [P("Permit needed for", st_cell_b), HSE["permits"]],
@@ -400,6 +500,19 @@ def build():
     ]
     F.append(block("Access, hours & logistics",
                    grid(site_rows, [32*mm, 146*mm], zebra=False)))
+    F.append(gap())
+
+    # ---------- 19. asking the agent from site ----------
+    F.append(block("Ask the site agent on WhatsApp",
+                   grid([[P(k, st_cell_b), v] for k, v in AGENT_CMDS],
+                        [32*mm, 146*mm], zebra=False), GREEN))
+    F.append(gap())
+
+    # ---------- 20. abbreviations ----------
+    ab = [[P(a, st_cell_b), b, P(c, st_cell_b), d]
+          for (a, b), (c, d) in zip(ABBREV[0::2], ABBREV[1::2])]
+    F.append(block("Abbreviations",
+                   grid(ab, [16*mm, 73*mm, 16*mm, 73*mm], zebra=False)))
 
     doc.build(F)
     print("wrote", OUT)
