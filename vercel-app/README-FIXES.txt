@@ -71,3 +71,19 @@ Every fix here is verified against the real handler locally, including the
 messages that failed on your phone. The Monday mutations themselves have not
 been run against your board from this machine, because that needs your API
 token. Deploy, send one message, and check the Vercel function log.
+
+DELAY ANALYSIS, REGULATIONS AND TYPO TOLERANCE
+
+api/_delays.js    where a delay is likely to appear, which deliverables are
+                  falling behind the dates, which purchasing cycles no longer
+                  fit, and which contractor carries the most slippage
+api/_match.js     typo-tolerant matching (Damerau-Levenshtein, stems,
+                  synonyms, gap-tolerant phrases) used by every query
+api/_knowledge.js project details, contacts, logistics and site regulations
+
+The pack held no purchasing data, so PROCUREMENT in _delays.js adds the
+position per activity (awarded / out to tender / nothing raised) with a
+typical cycle length. A delay is forecast three ways: a cycle that no longer
+fits before the activity starts, deliverables not keeping pace with the
+dates, and any finish already moved. The largest of the three is reported.
+

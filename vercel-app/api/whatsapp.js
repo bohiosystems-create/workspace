@@ -2,6 +2,9 @@ const crypto=require('node:crypto');
 const {appendUpdate,storeMedia}=require('./_store');
 const {syncToMonday,configured:mondayConfigured}=require('./_monday');
 const {getState,applyChange,listChanges}=require('./_state');
+const match=require('./_match');
+const {likelyDelays,fallingBehind,purchasingRisk,contractorLoad,PROCUREMENT}=require('./_delays');
+const {regulation,detail}=require('./_knowledge');
 
 function formBody(req){
   if(req.body&&typeof req.body==='object')return req.body;
@@ -86,6 +89,72 @@ function inspectionReplies(contractor){
   const specific=`BOHIO SITE INSPECTION CHECKLIST — 2/2\n\nMEASUREMENT & EVIDENCE\n⬜ Measure the complete deliverable against its stated target\n⬜ Capture geotagged overview and close-up photos\n⬜ Record test, survey and certificate references\n⬜ List defects, owner and close-out date\n⬜ Obtain inspector name, time and acceptance\n⬜ Upload the evidence before claiming completion\n\n${CONTRACTOR_NAMES[contractor]} CHECKS\n${packageChecks||'⬜ Confirm the assigned work package and acceptance evidence'}\n\nReply with: INSPECTION · item number · PASS/FAIL · observation. Attach photos or a voice note. Failed or partial items earn zero progress.`;
   return [general,specific];
 }
+function fmtDelay(a){
+  return `• ${a.name}  +${a.slip}d (${a.level})\n  ${a.reasons[0]||'no single driver'}`;
+}
+async function agentAnalysisReplies(text,state){
+  const q=String(text||'');
+  const ask=(...keys)=>match.score(q,keys)>=6;
+
+  /* evidence on an activity, from either platform */
+  if(ask('what evidence','what photos','any photos','show me the photos','what is attached',
+         'evidence on','photos on','attachments','pictures on')){
+    const st=state||{};
+    const rows=PROJECT_SCHEDULE.map(([id,name])=>({id,name,st:st[id]||{}}))
+      .filter(r=>(r.st.photos||[]).length||r.st.photoCount);
+    if(!rows.length) return ['BOHIO EVIDENCE\n\nNo photos are recorded on either platform yet. Send one here, or attach it on the Monday item — both show up.'];
+    return ['BOHIO EVIDENCE\n\n'+rows.map(r=>{
+      const ph=r.st.photos||[];
+      return `• ${r.name} — ${ph.length||r.st.photoCount} item(s)\n`+
+        (ph.length?ph.slice(0,4).map(p=>`  ${p.name||'photo'} (added on ${p.origin==='monday'?'Monday':'WhatsApp'})`).join('\n')
+                  :'  counted from the Monday item');
+    }).join('\n\n')];
+  }
+
+  /* where are delays likely to appear */
+  if(ask('where are delays likely','where will we be late','what is likely to slip',
+         'likely delays','what could delay','where are the delays','risk of delay','what will be late',
+         'delay outlook','what is at risk','where is the risk')){
+    const rows=likelyDelays(PROJECT_SCHEDULE,state).slice(0,6);
+    if(!rows.length) return ['BOHIO DELAY OUTLOOK\n\nNothing is currently forecast to slip.'];
+    return ['BOHIO DELAY OUTLOOK\n\n'+rows.map(fmtDelay).join('\n\n')+
+      '\n\nDriven by purchasing cycles, deliverables not keeping pace, and any finish date already moved.'];
+  }
+
+  /* purchasing cycles specifically */
+  if(ask('purchasing','procurement risk','purchase order','lead time','what is not ordered','buying cycle','po risk','not been ordered','hasnt been ordered','nothing ordered','no order raised','what needs ordering','still to order')){
+    const rows=purchasingRisk(PROJECT_SCHEDULE,state);
+    if(!rows.length) return ['BOHIO PURCHASING\n\nEvery package has enough cycle left before it is needed.'];
+    return ['BOHIO PURCHASING RISK\n\n'+rows.map(a=>
+      `• ${a.name}  +${a.procSlip}d\n  ${a.procurement.ref||'no order raised'} · ${a.procurement.state.replace('_',' ')}\n  ${a.reasons[0]}`
+    ).join('\n\n')];
+  }
+
+  /* micro-tasks quietly falling behind */
+  if(ask('falling behind','behind schedule','micro tasks','deliverables behind',
+         'what is slipping','not keeping pace','which tasks are behind')){
+    const rows=fallingBehind(PROJECT_SCHEDULE,state);
+    if(!rows.length) return ['BOHIO PROGRESS\n\nEvery started activity is keeping pace with its dates.'];
+    return ['BOHIO FALLING BEHIND\n\n'+rows.map(a=>
+      `• ${a.name}\n  ${a.verified}/5 verified, about ${Math.round(a.expected*5)}/5 expected by now\n  roughly ${a.impliedSlip}d of drift if it continues`
+    ).join('\n\n')+'\n\nThese have not had a date moved yet; the deliverables are simply not keeping pace.'];
+  }
+
+  /* contractor carrying the most delay */
+  if(ask('which contractor','contractor carrying','worst contractor','who is causing delays',
+         'contractor delays','which subcontractor','who is behind','contractor performance')){
+    const rows=contractorLoad(PROJECT_SCHEDULE,state,CONTRACTOR_NAMES).filter(c=>c.activities);
+    const worst=rows[0];
+    if(!worst||!worst.slipDays) return ['BOHIO CONTRACTOR LOAD\n\nNo contractor is carrying measurable slippage.'];
+    return ['BOHIO CONTRACTOR LOAD\n\n'+rows.slice(0,6).map(c=>
+      `${c.slipDays?'•':'◦'} ${c.name}\n  ${c.slipDays}d across ${c.activities} activit${c.activities===1?'y':'ies'}`+
+      `${c.late?`, ${c.late} at 7d or worse`:''}${c.behind?`, ${c.behind} behind pace`:''}`+
+      `${c.items.length?`\n  ${c.items.slice(0,3).join('; ')}`:''}`
+    ).join('\n\n')+`\n\n${worst.name} is carrying the most, ${worst.slipDays} days in total.`];
+  }
+  return [];
+}
+
 async function agentStateReplies(text){
   const value=normalize(text);
   const wantsChanges=/\b(what|any)\b.*\b(chang|updat|happen)/.test(value)||/\brecent (chang|updat)/.test(value);
@@ -175,12 +244,30 @@ module.exports=async function handler(req,res){
     const transcription=isAudio?await transcribe(media,mediaType):{text:'',status:'Not applicable'},contractor=contractorFor(params.From,params.Body),tasks=TASKS[contractor]||TASKS.voltaic;
     const messageText=[params.Body,transcription.text].filter(Boolean).join('\n'),date=new Date().toISOString().slice(0,10);
     const liveNow=await liveState();
-    const commandReplies=[...(await agentStateReplies(messageText)),...agentCommandRepliesSync(messageText,contractor,liveNow)].slice(0,10);
+    const knowledge=[];
+    const reg=regulation(messageText,match); if(reg) knowledge.push(reg);
+    const det=detail(messageText,match);     if(det) knowledge.push(det);
+    const commandReplies=[
+      ...(await agentAnalysisReplies(messageText,liveNow)),
+      ...(await agentStateReplies(messageText)),
+      ...knowledge,
+      ...agentCommandRepliesSync(messageText,contractor,liveNow)
+    ].slice(0,10);
     const mediaId=media?crypto.randomUUID():'',mediaFileName=isAudio?'whatsapp-voice-note.ogg':isImage?`whatsapp-site-photo.${mediaType.includes('png')?'png':mediaType.includes('webp')?'webp':'jpg'}`:'';
     if(mediaId)await storeMedia(mediaId,media,mediaType,mediaFileName);
     const mediaUrl=mediaId?`/api/media?id=${mediaId}`:'';
     if(commandReplies.length){
-      const commandTitle=commandReplies[0].includes('FULL PROJECT SCHEDULE')?'Full project schedule':commandReplies[0].includes('SITE INSPECTION CHECKLIST')?'Site inspection checklist':'Project information';
+      const head=commandReplies[0]||'';
+      const commandTitle=head.includes('FULL PROJECT SCHEDULE')?'Full project schedule'
+        :head.includes('SITE INSPECTION CHECKLIST')?'Site inspection checklist'
+        :head.includes('DELAY OUTLOOK')?'Delay outlook'
+        :head.includes('PURCHASING')?'Purchasing risk'
+        :head.includes('FALLING BEHIND')?'Progress against pace'
+        :head.includes('CONTRACTOR LOAD')?'Contractor delay load'
+        :head.includes('LIVE STATUS')?'Live status'
+        :head.includes('RECENT CHANGES')?'Recent changes'
+        :head.includes('BOHIO EVIDENCE')?'Evidence'
+        :'Project information';
       let delivery,deliveryError='';
       try{delivery=await deliverReplies(params,commandReplies);}catch(error){deliveryError=error.message;delivery={mode:'twiml',body:twimlMessages(commandReplies)};}
       const deliveryStatus=delivery.mode==='rest'?`${commandReplies.length} reply messages sent through Twilio`:`${commandReplies.length} reply messages returned to Twilio${deliveryError?` after API delivery failed: ${deliveryError}`:''}`;

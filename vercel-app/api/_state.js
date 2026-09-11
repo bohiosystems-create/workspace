@@ -46,7 +46,7 @@ async function listChanges(limit=40){
   return (rows||[]).map(r=>{try{return JSON.parse(r);}catch{return null;}}).filter(Boolean);
 }
 
-const FIELDS=['status','pct','plannedStart','plannedFinish','owner','mondayItemId'];
+const FIELDS=['status','pct','plannedStart','plannedFinish','owner','mondayItemId','photoCount'];
 
 /* Apply a change and record where it came from. Returns the fields that
  * actually moved, so a caller can decide whether anything needs pushing. */
@@ -80,8 +80,17 @@ async function mergeFromMonday(items){
     if(!it.taskId) continue;
     const r=await applyChange(it.taskId,{
       status:it.status,plannedStart:it.plannedStart,plannedFinish:it.plannedFinish,
-      owner:it.owner,mondayItemId:it.mondayItemId
+      owner:it.owner,mondayItemId:it.mondayItemId,
+      photoCount:Array.isArray(it.photos)?it.photos.length:undefined
     },'monday',it.actor||'Monday board');
+    /* keep the actual photo list so Bohio and WhatsApp can show what is on
+     * the board, not merely how many */
+    if(Array.isArray(it.photos)&&it.photos.length){
+      const st=await getState(); const cur=st[it.taskId]||{taskId:it.taskId,rev:0};
+      const seen=new Set((cur.photos||[]).map(p=>p.id));
+      const merged=(cur.photos||[]).concat(it.photos.filter(p=>!seen.has(p.id)));
+      if(merged.length!==(cur.photos||[]).length){ cur.photos=merged; st[it.taskId]=cur; await putState(st); }
+    }
     if(r.changed.length) applied.push({taskId:it.taskId,changed:r.changed});
   }
   return applied;
