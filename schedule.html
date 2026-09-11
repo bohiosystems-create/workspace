@@ -483,6 +483,90 @@ byId('C10').updates.push(
   wa('Facade shop drawings returned with comments; resubmission adds two weeks.','Facade sub',
      'Delay absorbed into the live programme.',{}));
 
+/* ===================== PROJECT REGISTERS =====================
+ * The reference data a site team asks for by name. Re-instated for the
+ * hospital project after the redesign dropped the earlier infrastructure
+ * set — the page and the site-walk PDF now describe the same job. */
+const PROJ={
+ meta:{name:'XYZ Hospital Construction',code:'BOH-INF-014',client:'XYZ NHS Foundation Trust',
+   pm:'Nesma & Partners',consultant:'Khatib & Alami',form:'NEC4 Option C',
+   value:'GBP 148.6m',start:'12 Jan 2026',finish:'23 Mar 2028'},
+ contacts:[
+  {n:'Yousef Al-Harbi',r:'Project Director',c:'Main contractor',t:'+44 7700 900112'},
+  {n:'Sara Al-Otaibi',r:'Senior Site Engineer',c:'Main contractor',t:'+44 7700 900233'},
+  {n:'Rami Haddad',r:'MEP Lead',c:'MEP contractor',t:'+44 7700 900344'},
+  {n:'Mohammed Zahrani',r:'QA/QC Manager',c:'Main contractor',t:'+44 7700 900455'},
+  {n:'Elena Marquez',r:'Resident Engineer',c:'Khatib & Alami',t:'+44 7700 900566'},
+  {n:'Khalid Saleh',r:'HSE Manager',c:'Main contractor',t:'+44 7700 900677'},
+  {n:'Priya Nair',r:'Trust Infection Control',c:'XYZ NHS Trust',t:'+44 7700 900788'},
+  {n:'Matteo Bevilacqua',r:'Planner',c:'Bohio Systems',t:'+44 7700 900899'},
+ ],
+ drawings:[
+  {no:'A-1001',t:'Ward block general arrangement',rev:'Rev F',d:'02 Sept 26',st:'Approved',di:'Architectural'},
+  {no:'A-1400',t:'Theatre suite layout',rev:'Rev D',d:'28 Aug 26',st:'Approved',di:'Architectural'},
+  {no:'A-1600',t:'Imaging suite & MRI room',rev:'Rev C',d:'21 Aug 26',st:'For construction',di:'Architectural'},
+  {no:'S-2100',t:'Basement raft & pile cap layout',rev:'Rev E',d:'05 Sept 26',st:'Approved',di:'Structural'},
+  {no:'S-2300',t:'Frame setting out L1-L7',rev:'Rev D',d:'01 Sept 26',st:'Approved',di:'Structural'},
+  {no:'M-3100',t:'Medical gas schematic',rev:'Rev C',d:'30 Aug 26',st:'Approved',di:'Mechanical'},
+  {no:'M-3300',t:'Theatre ventilation & UCV canopies',rev:'Rev B',d:'26 Aug 26',st:'Under review',di:'Mechanical'},
+  {no:'E-4100',t:'LV distribution & switchgear',rev:'Rev D',d:'03 Sept 26',st:'Approved',di:'Electrical'},
+  {no:'E-4400',t:'Essential supplies & generator changeover',rev:'Rev B',d:'19 Aug 26',st:'Under review',di:'Electrical'},
+  {no:'FS-9000',t:'Fire strategy & compartmentation',rev:'Rev C',d:'08 Sept 26',st:'Approved',di:'Fire'},
+ ],
+ rfis:[
+  {no:'RFI-041',s:'Raft slab construction joint position',st:'Open',due:'15 Sept',di:'Structural',a:'Holding pour to grid D pending the engineer.'},
+  {no:'RFI-044',s:'MRI room RF shielding lap detail',st:'Open',due:'18 Sept',di:'Architectural',a:'Awaiting specialist detail from the imaging supplier.'},
+  {no:'RFI-046',s:'Medical gas riser fire-stopping detail',st:'Answered',di:'Mechanical',due:'12 Sept',a:'Use the tested collar detail on M-3100 Rev C.'},
+  {no:'RFI-047',s:'Theatre corridor clear width at column line 7',st:'Open',due:'22 Sept',di:'Architectural',a:'Clear width may fall below 2.15m — awaiting the trust.'},
+ ],
+ submittals:[
+  {r:'MS-118',i:'Ready-mix concrete C40/50 mix design',st:'Approved',d:'22 Aug'},
+  {r:'MS-124',i:'Curtain wall unitised panel system',st:'Approved with comment',d:'01 Sept'},
+  {r:'MS-131',i:'Medical gas pipeline (copper, BS EN 13348)',st:'Under review',d:'06 Sept'},
+  {r:'MS-133',i:'Laminar airflow canopy (theatre)',st:'Rejected — resubmit',d:'08 Sept'},
+  {r:'MS-136',i:'Clinical vinyl flooring',st:'Under review',d:'09 Sept'},
+ ],
+ permits:[
+  {t:'Excavation permit',r:'PTW-3310',a:'Basement, grid C-E',v:'16 Sept 26',st:'Valid'},
+  {t:'Hot works',r:'PTW-3314',a:'Roof plant deck',v:'11 Sept 26',st:'Expires tomorrow'},
+  {t:'Confined space',r:'PTW-3318',a:'Attenuation tank',v:'17 Sept 26',st:'Valid'},
+  {t:'Crane lift plan',r:'LP-2205',a:'Plantroom equipment',v:'24 Sept 26',st:'Valid'},
+  {t:'HV isolation',r:'—',a:'Substation tie-in',v:'—',st:'Not yet applied'},
+ ],
+ levels:[
+  {l:'Basement slab',t:'Structural FFL',v:'-4.250 m',n:'S-2100 Rev E'},
+  {l:'Ground floor',t:'Finished floor level',v:'+0.000 m',n:'Site datum 38.40 m AOD'},
+  {l:'Level 1-7',t:'Floor to floor',v:'4.200 m',n:'Clinical zones'},
+  {l:'Theatre suite',t:'Clear ceiling height',v:'3.000 m',n:'Takes UCV canopy and services'},
+  {l:'Ward rooms',t:'Clear ceiling height',v:'2.700 m',n:'A-1001 Rev F'},
+  {l:'Roof plant deck',t:'Structural level',v:'+29.400 m',n:'Plinth levels vary'},
+ ],
+ tests:[
+  {r:'CUB-212',t:'Concrete cube 28-day',l:'Pile caps grid C',d:'05 Sept',res:'Pass',v:'46.2 MPa',sp:'C40/50'},
+  {r:'CUB-217',t:'Concrete cube 7-day',l:'Raft slab bay 1',d:'08 Sept',res:'Pass',v:'31.8 MPa',sp:'>=25 MPa at 7d'},
+  {r:'CUB-219',t:'Concrete cube 28-day',l:'Ground beam grid E',d:'09 Sept',res:'FAIL',v:'38.1 MPa',sp:'C40/50'},
+  {r:'PIL-064',t:'Pile integrity test',l:'Secant wall panel 22',d:'01 Sept',res:'Pass',v:'No anomaly',sp:'Low strain'},
+  {r:'MGT-008',t:'Medical gas pressure test',l:'Ward block riser',d:'—',res:'Not started',v:'—',sp:'HTM 02-01'},
+ ],
+ utilities:[
+  {s:'Live 11kV supply to existing hospital',l:'North boundary',d:'1.2 m',o:'DNO',n:'No excavation within 3 m without the DNO present.'},
+  {s:'Existing medical gas manifold',l:'Adjacent wing, level 0',d:'—',o:'XYZ NHS Trust',n:'Live. Isolation only via the Authorised Person.'},
+  {s:'Foul drainage to existing hospital',l:'East service road',d:'2.1 m',o:'Water authority',n:'Must stay live throughout the works.'},
+  {s:'Trust IT backbone',l:'Link corridor',d:'0.6 m',o:'XYZ NHS Trust',n:'Any break needs 4 weeks notice.'},
+ ],
+ hse:{emergency:'999 · site control +44 7700 900677',clinic:'Site medical room — Gate 1 compound',
+  assembly:'Assembly Point A — north car park',hospital:'On site — A&E in the existing east wing',
+  ppe:'Hard hat, hi-vis, safety boots, eye protection, gloves for rebar and steel.',
+  permits:'Hot works · confined space · excavation · live LV/HV · lifting · medical gas',
+  incident:'41 days ago — slip on a wet stair, no lost time',toolbox:'07:00 daily at the welfare unit',
+  icra:'ICRA Class III/IV next to live clinical areas — sealed hoarding, negative pressure, HEPA.'},
+ logistics:{gate:'Gate 1 (Hospital Way) — deliveries 07:00-17:00, booked slots only',
+  hours:'Mon-Fri 07:00-18:00, Sat 08:00-13:00. No noisy work before 08:00 next to wards.',
+  laydown:'Laydown C, north car park',haul:'One-way site road, banksman at the ward crossing',
+  crane:'Tower crane TC1 — no oversailing of live wards',
+  parking:'No site parking. Park and ride from the north car park.'},
+};
+
 /* ===================== VIEW STATE ===================== */
 const S={view:'timeline',showBaseline:false,showDelays:true,critOnly:false,
          phase:'',crew:'',text:'',sel:'A40',apane:'detail'};
@@ -913,6 +997,62 @@ const INTENTS=[
  {cat:'Regulations',ex:'What first aid is required?',k:['first aid','medic'],f:q=>regAnswer(q)},
  {cat:'Regulations',ex:'What safety signage is required?',k:['signage','safety sign'],f:q=>regAnswer(q)},
 
+ {cat:'Drawings',ex:'What revision is A-1001?',k:['revision','rev of','what rev','current drawing'],
+  f:q=>{const m=q.match(/([a-z]{1,2})-?\s?(\d{4})/i);
+   const d=m?PROJ.drawings.find(x=>x.no.toLowerCase().replace('-','')===(m[1]+m[2]).toLowerCase()):null;
+   return d?`<b>${d.no} — ${esc(d.t)}</b>\n${d.rev}, issued ${d.d} (${d.st}).`
+     :`<b>Drawing register</b>\n`+lines(PROJ.drawings.map(x=>`• ${x.no} ${x.t} — ${x.rev} (${x.st})`));}},
+ {cat:'Drawings',ex:'Which drawings are still under review?',k:['under review','not approved','unapproved drawing'],
+  f:()=>`<b>Not yet approved</b>\n`+lines(PROJ.drawings.filter(d=>d.st!=='Approved').map(d=>`• ${d.no} ${d.t} — ${d.rev} (${d.st})`))},
+ {cat:'Drawings',ex:'Which drawing covers the theatres?',k:['drawing for','which drawing','drawing covers'],
+  f:q=>{const d=PROJ.drawings.filter(x=>fz(q,x.t+' '+x.di));
+   return (d.length?d:PROJ.drawings).slice(0,6).map(x=>`• ${x.no} ${x.t} — ${x.rev}`).join('\n');}},
+
+ {cat:'RFI',ex:'Any open RFIs?',k:['rfi','open rfi','queries'],
+  f:q=>{const m=q.match(/rfi-?\s?(\d+)/i);
+   if(m){const r=PROJ.rfis.find(x=>x.no.includes(m[1]));
+     return r?`<b>${r.no} — ${esc(r.s)}</b>\n`+tbl([['Status',r.st],['Discipline',r.di],['Due',r.due],['Effect',r.a]]):'No such RFI.';}
+   const o=PROJ.rfis.filter(r=>r.st==='Open');
+   return `<b>${o.length} open RFI(s)</b>\n`+lines(o.map(r=>`• ${r.no} ${r.s} — due ${r.due}\n  ${r.a}`));}},
+ {cat:'RFI',ex:'Is anything on hold pending an RFI?',k:['on hold','holding','pending an rfi','blocked pending'],
+  f:()=>`<b>Holds</b>\n`+lines(PROJ.rfis.filter(r=>r.st==='Open').map(r=>`• ${r.no} — ${r.a}`))},
+
+ {cat:'Quality',ex:'Any failed tests?',k:['failed test','fail','ncr','non-conformance'],
+  f:()=>{const f=PROJ.tests.filter(t=>t.res==='FAIL');
+   return f.length?`<b>⚠ ${f.length} failed test</b>\n`+lines(f.map(t=>`• ${t.r} ${t.t}\n  ${t.l} — ${t.v} against ${t.sp} (${t.d})\n  Do not build over it until it is resolved.`)):'No failed tests.';}},
+ {cat:'Quality',ex:'What are the concrete results?',k:['concrete result','cube','mpa','strength','test result'],
+  f:q=>{const t=PROJ.tests.filter(x=>fz(q,x.t+' '+x.l+' '+x.r));
+   return `<b>Test results</b>\n`+lines((t.length?t:PROJ.tests).map(x=>`• ${x.r} ${x.l} — ${x.res} ${x.v} (spec ${x.sp}, ${x.d})`));}},
+ {cat:'Quality',ex:'What material submittals are outstanding?',k:['submittal','material approval','mix design','resubmit'],
+  f:()=>`<b>Material submittals</b>\n`+lines(PROJ.submittals.map(x=>`• ${x.r} ${x.i} — ${x.st} (${x.d})`))},
+
+ {cat:'Permits',ex:'Do we have a permit to dig?',k:['permit','ptw','permit to dig','lift plan'],
+  f:q=>{const p=PROJ.permits.filter(x=>fz(q,x.t+' '+x.a));
+   return `<b>Permits to work</b>\n`+lines((p.length?p:PROJ.permits).map(x=>`• ${x.t} ${x.r} — ${x.a}\n  Valid to ${x.v} · ${x.st}`));}},
+ {cat:'Permits',ex:'Which permits expire soon?',k:['expire','expiring','runs out','valid until'],
+  f:()=>`<b>Watch these</b>\n`+lines(PROJ.permits.filter(p=>p.st!=='Valid').map(p=>`• ${p.t} ${p.r} — ${p.st}`))},
+
+ {cat:'Levels',ex:'What is the ward ceiling height?',k:['level','ffl','ceiling height','floor to floor','datum','setting out'],
+  f:q=>{const l=PROJ.levels.filter(x=>fz(q,x.l+' '+x.t));
+   return `<b>Levels & setting out</b>\n`+lines((l.length?l:PROJ.levels).map(x=>`• ${x.l} ${x.t}: <b>${x.v}</b> — ${x.n}`));}},
+
+ {cat:'Site',ex:'Who do I call?',k:['who is','whos','contact','phone','number for','who do i call'],
+  f:q=>{const c=PROJ.contacts.filter(x=>fz(q,x.r+' '+x.n+' '+x.c));
+   return `<b>Contacts</b>\n`+lines((c.length?c:PROJ.contacts).map(x=>`• ${x.n} — ${x.r}\n  ${x.t} (${x.c})`));}},
+ {cat:'Site',ex:'What are the working hours?',k:['working hours','hours','delivery gate','gate','laydown','parking','crane'],
+  f:()=>`<b>Access & logistics</b>\n`+tbl([['Gate',PROJ.logistics.gate],['Hours',PROJ.logistics.hours],
+   ['Laydown',PROJ.logistics.laydown],['Haul route',PROJ.logistics.haul],['Crane',PROJ.logistics.crane],['Parking',PROJ.logistics.parking]])},
+ {cat:'Site',ex:'What is the emergency procedure?',k:['emergency','ambulance','accident','assembly','first aid','injury'],
+  f:()=>`<b>🚨 Emergency</b>\n`+tbl([['Call',PROJ.hse.emergency],['Medical room',PROJ.hse.clinic],
+   ['Assembly',PROJ.hse.assembly],['A&E',PROJ.hse.hospital],['Toolbox',PROJ.hse.toolbox]])},
+ {cat:'Site',ex:'Are there live services near the works?',k:['live service','buried','existing service','dig safe','utility'],
+  f:()=>`<b>⚠ Live services</b>\n`+lines(PROJ.utilities.map(u=>`• ${u.s} — ${u.l}${u.d!=='—'?', depth '+u.d:''} (${u.o})\n  ${u.n}`))},
+ {cat:'Site',ex:'What infection control applies here?',k:['infection control','icra','live ward','dust'],
+  f:()=>`<b>Infection control</b>\n${PROJ.hse.icra}\n\nAgree every hoarding and pressure regime with ${PROJ.contacts.find(c=>/Infection/.test(c.r)).n} (${PROJ.contacts.find(c=>/Infection/.test(c.r)).t}).`},
+ {cat:'Site',ex:'What are the project details?',k:['project details','contract','who is the client','overview','which project'],
+  f:()=>`<b>${PROJ.meta.name}</b>\n`+tbl([['Code',PROJ.meta.code],['Client',PROJ.meta.client],['Contractor',PROJ.meta.pm],
+   ['Consultant',PROJ.meta.consultant],['Form',PROJ.meta.form],['Value',PROJ.meta.value],
+   ['Period',PROJ.meta.start+' → '+PROJ.meta.finish]])},
  {cat:'Help',ex:'What can you do?',k:['help','what can you','commands','options'],
   f:()=>`I read the live programme, the procurement position and the verification queue.\n\n`+
    lines([...new Set(INTENTS.map(i=>i.cat))].map(c=>`• ${c}`))+
