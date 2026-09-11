@@ -15,8 +15,14 @@ const SYN={ drawing:['dwg','dwgs'], specification:['spec','specs'], permit:['ptw
 const SYN_OF={};
 Object.entries(SYN).forEach(([b,l])=>{SYN_OF[b]=b;l.forEach(v=>{SYN_OF[v]=b;});});
 
-function norm(s){return String(s||'').toLowerCase().replace(/[’']/g,'')
-  .replace(/[^a-z0-9%+\/\-\s]/g,' ').replace(/\s+/g,' ').trim();}
+const SHORTHAND={r:'are',u:'you',ur:'your',n:'and',y:'why',k:'ok',pls:'please',plz:'please',
+  thx:'thanks',msg:'message',info:'information',qty:'quantity',asap:'urgent',b4:'before',
+  '2':'to','4':'for',w:'with',abt:'about',rn:'now',tmrw:'tomorrow',wk:'week'};
+function norm(s){
+  return String(s||'').toLowerCase().replace(/[’']/g,'')
+    .replace(/[^a-z0-9%+\/\-\s]/g,' ').replace(/\s+/g,' ').trim()
+    .split(' ').map(w=>SHORTHAND[w]||w).join(' ');
+}
 function stem(w){
   if(w.length>4&&w.endsWith('ies')) return w.slice(0,-3)+'y';
   if(w.length>4&&/(ses|xes|zes|ches|shes)$/.test(w)) return w.slice(0,-2);
@@ -26,7 +32,7 @@ function stem(w){
   return w;
 }
 const canon=w=>{const b=stem(w);return SYN_OF[b]||SYN_OF[w]||b;};
-const tol=n=>{const L=typeof n==='number'?n:String(n).length;return L<=3?0:L<=5?1:L<=8?2:3;};
+const tol=n=>{const L=typeof n==='number'?n:String(n).length;return L<=2?0:L<=5?1:L<=8?2:3;};
 
 function lev(a,b,max){
   if(a===b) return 0;
