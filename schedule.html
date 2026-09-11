@@ -203,6 +203,20 @@ h4.sec:first-child{margin-top:0}
 .typing{font-style:italic;color:var(--muted2)}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 17px;border-radius:7px;font-size:12.5px;font-weight:500;box-shadow:0 10px 34px rgba(0,9,25,.3);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:100}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(-4px)}
+.modal{position:fixed;inset:0;background:rgba(0,9,25,.45);z-index:120;display:none;align-items:center;justify-content:center;padding:24px}
+.modal.on{display:flex}
+.mbox{background:#fff;border-radius:10px;max-width:760px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 30px 80px rgba(0,9,25,.35)}
+.mhd{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;background:var(--bg2)}
+.mhd h3{font-size:17px;font-weight:600;letter-spacing:-.02em}
+.mhd .x{margin-left:auto;font-size:18px;color:var(--muted)}
+.mbd{padding:18px 20px}
+.syncgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.syncbox{border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.syncbox h5{font:600 10px var(--font);letter-spacing:.14em;text-transform:uppercase;color:var(--muted2);margin-bottom:8px}
+.syncbox .n{font-size:22px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.okbar{display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:14px}
+.okbar.good{background:#e7f3ee;color:var(--green)}
+.okbar.bad{background:var(--redbg);color:var(--red)}
 .note{font-size:11.3px;color:var(--muted2);line-height:1.5;margin-top:10px}
 </style>
 </head>
@@ -229,6 +243,8 @@ h4.sec:first-child{margin-top:0}
     <input class="inp" id="f-text" placeholder="Filter activities…" oninput="setF('text',this.value)"/>
     <button class="btn" onclick="clearF()">Clear filters</button>
     <span class="sp"></span>
+    <button class="btn" onclick="showSync()" title="Bohio / Monday mirror">Sync status</button>
+    <button class="btn" onclick="resetDemo()" title="Clear saved state">Reset demo</button>
     <span class="muted" id="data-date"></span>
   </div>
 
@@ -280,6 +296,12 @@ h4.sec:first-child{margin-top:0}
   </div>
 </div>
 
+<div class="modal" id="syncModal" onclick="if(event.target===this)this.classList.remove('on')">
+  <div class="mbox">
+    <div class="mhd"><h3>Bohio ⇄ Monday mirror</h3><button class="x" onclick="document.getElementById('syncModal').classList.remove('on')">✕</button></div>
+    <div class="mbd" id="syncBody"></div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -436,38 +458,153 @@ function derive(t){
 function pending(t){ return t.updates.filter(u=>u.claim&&!u.verified); }
 function allPending(){ return tasks.flatMap(t=>pending(t).map(u=>({t,u}))); }
 
-/* ===================== MONDAY ===================== */
+/* ===================== MONDAY.COM MIRROR & TWO-WAY SYNC =====================
+ * Bohio and Monday are modelled as two stores that must agree. Every change
+ * on either side is written through applyChange(), which stamps a revision,
+ * pushes it to the other side, and records it. reconcile() walks both stores
+ * field by field and reports any drift, so "they match" is something the demo
+ * proves rather than asserts. State persists to localStorage so a refresh
+ * does not quietly reset the board. */
+const SYNC_FIELDS=['status','pct','crew','loc','dur'];
 const monday={connected:true,workspace:'Main workspace',board:'Bohio · Primavera Schedule',
-  boardId:5103871751,api:'2024-10',writes:0,lastSync:new Date(),held:0};
-function mLog(t,what,src){t.log.unshift({when:'Just now',what,src});}
-function mWrite(id,col,val,src){
-  const t=byId(id); if(!t) return null;
-  let label=val;
-  if(col==='status'){t.manual=val;label=STATUS[val].l;}
-  else if(col==='progress'){t.pct=val;label=val+'%';}
-  else if(col==='crew'){t.crew=val;}
-  else t[col]=val;
-  monday.writes++;monday.lastSync=new Date();
-  mLog(t,`<b>${esc(col)}</b> set to <b>${esc(String(label))}</b>`,src||'board');
-  render(); return t;
+  boardId:5103871751,api:'2024-10',writes:0,pushes:0,pulls:0,rev:0,
+  lastSync:new Date(),items:{},assets:[]};
+
+/* the Monday side of the mirror, seeded from the programme */
+function syncItem(t){
+  const mi=monday.items[t.id]; if(!mi) return;
+  SYNC_FIELDS.forEach(f=>{mi[f]=fieldOf(t,f);});
+  mi.assets=t.files.slice();
 }
+function seedMirrorMissing(){
+  tasks.forEach(t=>{if(!monday.items[t.id]) monday.items[t.id]={name:t.name,status:derive(t),
+    pct:t.pct||0,crew:t.crew,loc:t.loc,dur:t.dur,updates:[],assets:t.files.slice(),rev:0};});
+}
+function seedMirror(){
+  tasks.forEach(t=>{monday.items[t.id]={name:t.name,status:derive(t),pct:t.pct||0,
+    crew:t.crew,loc:t.loc,dur:t.dur,updates:[],assets:[],rev:0};});
+}
+const fieldOf=(t,f)=>f==='status'?derive(t):f==='pct'?(t.pct||0):t[f];
+
+function mLog(t,what,src){t.log.unshift({when:'Just now',what,src});}
+
+/* The single write path. origin is 'bohio' or 'monday'; whichever side the
+ * change starts on, it is mirrored to the other and stamped with a revision. */
+function applyChange(id,field,value,src,origin){
+  const t=byId(id); if(!t) return null;
+  origin=origin||'bohio';
+  const mi=monday.items[id]; if(!mi) return null;
+  let label=value;
+  if(field==='status'){t.manual=value;label=STATUS[value].l;}
+  else if(field==='pct'){t.pct=value;label=value+'%';}
+  else {t[field]=value;}
+  // status is derived from pct, updates and any manual override, so a change
+  // to one field can move another — mirror the whole item, not just the field
+  syncItem(t);
+  monday.rev++; mi.rev=monday.rev; t.rev=monday.rev;
+  monday.writes++;
+  if(origin==='bohio') monday.pushes++; else monday.pulls++;
+  monday.lastSync=new Date();
+  const col=({status:'Status',pct:'Progress',crew:'Contractor',loc:'Location',dur:'Duration'})[field]||field;
+  mLog(t,`<b>${col}</b> set to <b>${esc(String(label))}</b> <i>(${origin==='bohio'?'Bohio → Monday':'Monday → Bohio'})</i>`,src||'board');
+  persist(); render();
+  return {id,field,value:label,rev:mi.rev};
+}
+/* back-compat wrapper used by the assistant */
+const mWrite=(id,col,val,src)=>applyChange(id,col==='progress'?'pct':col,val,src,'bohio');
+/* a change arriving FROM Monday (someone edited the board directly) */
+const mondayEdit=(id,field,value)=>applyChange(id,field,value,'board','monday');
+
+/* walk both stores and report any field that disagrees */
+function reconcile(){
+  const drift=[];
+  tasks.forEach(t=>{
+    const mi=monday.items[t.id];
+    if(!mi){drift.push({id:t.id,field:'item',bohio:'present',monday:'missing'});return;}
+    SYNC_FIELDS.forEach(f=>{
+      const a=fieldOf(t,f), b=mi[f];
+      if(String(a)!==String(b)) drift.push({id:t.id,field:f,bohio:a,monday:b});
+    });
+    const ba=t.files.length, ma=mi.assets.length;
+    if(ba!==ma) drift.push({id:t.id,field:'assets',bohio:ba,monday:ma});
+  });
+  return drift;
+}
+function repair(){
+  const d=reconcile();
+  d.forEach(x=>{const t=byId(x.id),mi=monday.items[x.id];
+    if(!mi) return;
+    if(x.field==='assets'){mi.assets=t.files.slice();return;}
+    mi[x.field]=fieldOf(t,x.field);});
+  monday.lastSync=new Date(); persist(); render();
+  return d.length;
+}
+
+/* ---------- persistence ---------- */
+const LSK='bohio.programme.v1';
+function persist(){
+  try{
+    localStorage.setItem(LSK,JSON.stringify({
+      v:1,saved:Date.now(),
+      tasks:tasks.map(t=>({id:t.id,pct:t.pct,manual:t.manual||null,dur:t.dur,crew:t.crew,loc:t.loc,
+        updates:t.updates,files:t.files,log:t.log.slice(0,40),rev:t.rev||0})),
+      monday:{items:monday.items,assets:monday.assets,writes:monday.writes,
+        pushes:monday.pushes,pulls:monday.pulls,rev:monday.rev}
+    }));
+  }catch(e){/* private mode or quota — the demo still runs in memory */}
+}
+function restore(){
+  try{
+    const raw=localStorage.getItem(LSK); if(!raw) return false;
+    const d=JSON.parse(raw); if(!d||d.v!==1) return false;
+    d.tasks.forEach(saved=>{const t=byId(saved.id); if(!t) return;
+      t.pct=saved.pct; t.manual=saved.manual||null; t.dur=saved.dur;
+      t.crew=saved.crew; t.loc=saved.loc; t.rev=saved.rev||0;
+      t.updates=saved.updates||[]; t.files=saved.files||[]; t.log=saved.log||t.log;});
+    if(d.monday){Object.assign(monday,{items:d.monday.items||{},assets:d.monday.assets||[],
+      writes:d.monday.writes||0,pushes:d.monday.pushes||0,pulls:d.monday.pulls||0,rev:d.monday.rev||0});}
+    return true;
+  }catch(e){return false;}
+}
+function resetDemo(){try{localStorage.removeItem(LSK);}catch(e){} location.reload();}
+
+/* ---------- evidence: photo from WhatsApp -> Monday asset ---------- */
+function addEvidence(id,file,src){
+  const t=byId(id); if(!t) return null;
+  const asset={id:'asset_'+Math.random().toString(16).slice(2,10),
+    name:file.name,kind:file.kind,size:file.size,
+    contentType:file.kind==='img'?'image/jpeg':'application/pdf',
+    when:'Just now',by:'Field (WhatsApp)',activity:t.id};
+  t.files.unshift(asset);
+  monday.items[t.id].assets.unshift(asset);
+  monday.assets.unshift(asset);
+  monday.writes++; monday.pushes++; monday.lastSync=new Date();
+  syncItem(t);
+  t.updates.push({src:src||'wa',text:'Evidence attached: '+file.name,by:'Field (WhatsApp)',
+    effect:'Filed on the Monday item as an asset. Evidence alone does not move progress.',
+    when:'Just now',noStatus:true,asset:asset.id});
+  mLog(t,`Evidence <b>${esc(file.name)}</b> uploaded to the Monday item <i>(Bohio → Monday)</i>`,'wa');
+  persist(); render();
+  return asset;
+}
+
 /* verification gate — an unverified claim is held back from Monday */
 function verifyClaim(taskId,idx,ok){
   const t=byId(taskId),u=t.updates[idx]; if(!u) return;
   if(ok){
     u.verified=true; u.effect='Verified by the planner. Progress released to Monday.';
-    const s=statusFromUpdate({text:u.text,effect:''})||'working';
-    t.manual=s==='verify'?'working':s;
-    if(u.pct!=null) t.pct=u.pct;
-    monday.writes++;monday.lastSync=new Date();
-    mLog(t,`Claim verified — <b>status</b> to <b>${STATUS[derive(t)].l}</b>, synced to Monday`,'board');
+    const st=statusFromUpdate({text:u.text,effect:''})||'working';
+    applyChange(t.id,'status',st==='verify'?'working':st,'board','bohio');
+    if(u.pct!=null) applyChange(t.id,'pct',u.pct,'board','bohio');
+    monday.items[t.id].updates.unshift({text:u.text,by:u.by,action:'deliverable_verified'});
+    mLog(t,'Claim verified — released to Monday as <b>deliverable_verified</b>','board');
     toast(`${t.id} verified — status now ${STATUS[derive(t)].l}`);
   }else{
     u.verified=false;u.rejected=true;u.effect='Rejected by the planner. Re-measure and resubmit.';
     mLog(t,'Claim rejected — not sent to Monday','board');
     toast(`${t.id} claim rejected`);
   }
-  render();
+  persist(); render();
 }
 
 /* ===================== SEED FIELD EVIDENCE ===================== */
@@ -853,118 +990,123 @@ const REGS=[
 ];
 function regAnswer(q){
   let best=null,sc=0;
-  for(const r of REGS){let s=0;for(const k of r.k){if(q.toLowerCase().includes(k))s+=k.length;}if(s>sc){sc=s;best=r;}}
-  if(!best) return null;
+  for(const r of REGS){const s=matchScore(q,r.k); if(s>sc){sc=s;best=r;}}
+  if(!best||sc<6) return null;
   return `<b>${best.t}</b>\n${best.b}\n\n<i>Indicative guidance only — confirm against the current edition of the standard and this project's own drawings, fire strategy and method statements before you rely on it.</i>`;
 }
 
 const INTENTS=[
- {cat:'Programme',ex:"What's the completion date?",k:['completion','finish date','when do we finish','end date'],
+ {cat:'Programme',ex:"What's the completion date?",k:['completion','finish date','when do we finish','end date'],alt:['when do we hand over','finish','completion','end of the job','when is it done','handover date'],
   f:()=>{const C=C_(),B=B_();return `<b>Forecast completion ${fmtS(wdDate(C.end))}</b>\nBaseline ${fmtS(wdDate(B.end))} — ${C.end-B.end>0?`${C.end-B.end} working days late`:'on or ahead of baseline'}.`;}},
- {cat:'Programme',ex:"What's on the critical path?",k:['critical path','critical','driving the programme'],
+ {cat:'Programme',ex:"What's on the critical path?",k:['critical path','critical','driving the programme'],alt:['critical path','what drives the programme','what cant slip','driving activities'],
   f:()=>{const C=C_();return `<b>Critical path</b>\n`+lines(tasks.filter(t=>C.map[t.id].critical).map(t=>`• ${t.id} ${t.name} (${t.dur}d)`));}},
- {cat:'Programme',ex:"What's slipped against baseline?",k:['slipped','slippage','late','behind','delay'],
+ {cat:'Programme',ex:"What's slipped against baseline?",k:['slipped','slippage','late','behind','delay'],alt:['what is late','whats behind','how late are we','slippage','running late','delays'],
   f:()=>{const C=C_(),B=B_();const l=tasks.map(t=>({t,d:C.map[t.id].ef-B.map[t.id].ef})).filter(x=>x.d>0).sort((a,b)=>b.d-a.d);
    return l.length?`<b>Slipped activities</b>\n`+lines(l.map(x=>`• ${x.t.id} ${x.t.name} — +${x.d}d`)):'Nothing has slipped.';}},
- {cat:'Programme',ex:'How much float does A50 have?',k:['float','slack','spare time'],
+ {cat:'Programme',ex:'How much float does A50 have?',k:['float','slack','spare time'],alt:['float','slack','spare days','how much time','buffer'],
   f:q=>{const t=findT(q);if(!t)return 'Which activity?';const n=C_().map[t.id];
    return `<b>${t.id} ${t.name}</b>\n`+tbl([['Early start',fmtS(wdDate(n.es))],['Early finish',fmtS(wdDate(n.ef))],['Late finish',fmtS(wdDate(n.lf))],['Total float',n.float+'d'],['Critical',n.critical?'Yes':'No']]);}},
- {cat:'Programme',ex:"What's running this week?",k:['this week','running now','in progress now','current work'],
+ {cat:'Programme',ex:"What's running this week?",k:['this week','running now','in progress now','current work'],alt:['whats on now','current activities','live now','working on now','this week'],
   f:()=>{const C=C_(),i=wdIndex(DATA_DATE);
    const r=tasks.filter(t=>t.type!=='milestone'&&C.map[t.id].es<=i&&C.map[t.id].ef>i);
    return `<b>In progress at the data date</b>\n`+lines(r.map(t=>`• ${t.id} ${t.name} — ${t.crew}, ${t.pct||0}%`));}},
- {cat:'Programme',ex:'When is the building watertight?',k:['milestone','watertight','topped out','handover date'],
+ {cat:'Programme',ex:'When is the building watertight?',k:['milestone','watertight','topped out','handover date'],alt:['milestones','key dates','watertight','topped out','when handover'],
   f:()=>{const C=C_();return `<b>Milestones</b>\n`+lines(tasks.filter(t=>t.type==='milestone').map(t=>`• ${t.id} ${t.name} — ${fmtS(wdDate(C.map[t.id].es))}`));}},
- {cat:'Programme',ex:'What comes after A60?',k:['comes after','successor','what follows','downstream'],
+ {cat:'Programme',ex:'What comes after A60?',k:['comes after','successor','what follows','downstream'],alt:['successors','what follows','next after','downstream of'],
   f:q=>{const t=findT(q);if(!t)return 'Which activity?';const C=C_();const s=(C.succ[t.id]||[]).map(byId);
    return s.length?`<b>After ${t.id}</b>\n`+lines(s.map(x=>`• ${x.id} ${x.name}`)):`Nothing follows ${t.id}.`;}},
- {cat:'Programme',ex:'What is A50 waiting on?',k:['waiting on','predecessor','depends on','blocked by'],
+ {cat:'Programme',ex:'What is A50 waiting on?',k:['waiting on','predecessor','depends on','blocked by'],alt:['predecessors','waiting on','depends on','blocked by','what before'],
   f:q=>{const t=findT(q);if(!t)return 'Which activity?';
    return t.preds.length?`<b>${t.id} waits on</b>\n`+lines(t.preds.map(p=>{const x=byId(p);return `• ${x.id} ${x.name} — ${STATUS[derive(x)].l}`;})):`${t.id} has no predecessors.`;}},
 
- {cat:'Procurement',ex:'What procurement is at risk?',k:['procurement risk','at risk','material risk','supply risk'],
+ {cat:'Procurement',ex:'What procurement is at risk?',k:['procurement risk','at risk','material risk','supply risk'],alt:['procurement risk','supply risk','material risk','what could delay us','buying risk'],
   f:()=>{const C=C_();const r=tasks.map(t=>({t,r:procRisk(t,C)})).filter(x=>!x.r.none&&RISK[x.r.level].r>=2).sort((a,b)=>b.r.slip-a.r.slip);
    return r.length?`<b>Procurement exposure</b>\n`+lines(r.map(x=>`• ${x.t.id} ${x.t.name} — ${RISK[x.r.level].l}${x.r.slip>0?` +${x.r.slip}d`:''}\n  ${x.r.why[0]}`)):'No procurement at risk.';}},
- {cat:'Procurement',ex:'What has no order raised?',k:['no order','not ordered','nothing raised','not started procurement','no po'],
+ {cat:'Procurement',ex:'What has no order raised?',k:['no order','not ordered','nothing raised','not started procurement','no po'],alt:['nothing ordered','no order','not ordered yet','missing orders','no po raised'],
   f:()=>{const C=C_();const r=tasks.filter(t=>t.proc==='not_started');
    return `<b>${r.length} activities with nothing raised</b>\n`+lines(r.map(t=>{const x=procRisk(t,C);
     return `• ${t.id} ${t.name} — needs ${x.need}d, has ${x.have}d`;}));}},
  {cat:'Procurement',ex: "What's still out to tender?",k:['tender','out to tender','not awarded','tendering'],
   f:()=>lines([`<b>Out to tender</b>`].concat(tasks.filter(t=>t.proc==='tender').map(t=>`• ${t.id} ${t.name} — ${t.procRef}`)))},
- {cat:'Procurement',ex:'What is on PO-1004?',k:['po-','tnd-','order ref','what is on'],
+ {cat:'Procurement',ex:'What is on PO-1004?',k:['po-','tnd-','order ref','what is on'],alt:['what is on the order','order contents','whats on po','tender ref contents'],
   f:q=>{const m=q.match(/(po|tnd)-?\s?(\d{3,4})/i);
    if(!m)return 'Give me an order or tender reference.';
    const r=tasks.filter(t=>(t.procRef||'').toLowerCase().includes(m[2]));
    return r.length?`<b>${r[0].procRef}</b>\n`+lines(r.map(t=>`• ${t.id} ${t.name}\n  ${t.procItems.join(', ')}`)):'No activity carries that reference.';}},
- {cat:'Procurement',ex:'What materials does A60 need?',k:['materials','what does it need','procurement items','what to order'],
+ {cat:'Procurement',ex:'What materials does A60 need?',k:['materials','what does it need','procurement items','what to order'],alt:['materials needed','what to order','procurement items','what does it need'],
   f:q=>{const t=findT(q);if(!t)return 'Which activity?';
    return t.procItems.length?`<b>${t.id} ${t.name}</b>\n${PROC_LABEL[t.proc]}${t.procRef?' · '+t.procRef:''}\n`+lines(t.procItems.map(i=>`• ${i}`)):'No procurement items listed.';}},
 
- {cat:'Verification',ex:'What is held for verification?',k:['held','verification','awaiting verification','pending','unverified'],
+ {cat:'Verification',ex:'What is held for verification?',k:['held','verification','awaiting verification','pending','unverified'],alt:['held','pending verification','waiting approval','unverified claims','whats stuck waiting'],
   f:()=>{const p=allPending();
    return p.length?`<b>${p.length} claim(s) held — not sent to Monday</b>\n`+lines(p.map(x=>`• ${x.t.id} ${x.t.name}\n  "${x.u.text}"\n  claims ${x.u.pct!=null?x.u.pct+'%':'progress'} · ${x.u.by}`))+
    `\n\nOpen the activity and use Verify & sync to release it.`:'Nothing is held. Every claim has been verified.';}},
- {cat:'Verification',ex:'Why has the status not updated?',k:['not updated','why status','status stuck','did not change','hasnt updated'],
+ {cat:'Verification',ex:'Why has the status not updated?',k:['not updated','why status','status stuck','did not change','hasnt updated'],alt:['why hasnt it updated','status not moving','why no change','status stuck','didnt update'],
   f:()=>{const p=allPending();
    return p.length?`Because ${p.length} claim(s) arrived without a measurement, and an unverified claim is never written to Monday.\n\n`+
     lines(p.map(x=>`• ${x.t.id} — "${x.u.text}"`))+`\n\nVerify it and the status and percentage move together, and the write is logged.`
     :'Everything logged has been verified — no status is being held back.';}},
- {cat:'Verification',ex:'Verify the outstanding claims',k:['verify the','verify all','verify outstanding','release','approve claims','sync them'],
+ {cat:'Verification',ex:'Verify the outstanding claims',k:['verify the','verify all','verify outstanding','release','approve claims','sync them'],alt:['verify','approve the claims','release them','sign them off','verify everything'],
   f:()=>{const p=allPending(); if(!p.length) return 'Nothing to verify.';
    p.forEach(x=>verifyClaim(x.t.id,x.t.updates.indexOf(x.u),true));
    return `✅ Verified ${p.length} claim(s) and synced to Monday.`;}},
 
- {cat:'Board',ex:'Show me everything on A40',k:['show me everything','everything on','full detail','all columns'],
+ {cat:'Board',ex:'Show me everything on A40',k:['show me everything','everything on','full detail','all columns'],alt:['everything on','full details','all info on','tell me about','details for','all data on'],
   f:q=>{const t=findT(q);if(!t)return 'Which activity?';const C=C_(),n=C.map[t.id],r=procRisk(t,C);
    return `<b>${t.id} ${t.name}</b>\n`+tbl([['Phase',PHASES.find(p=>p.id===t.p).name],['Contractor',t.crew],['Location',t.loc],
     ['Status',STATUS[derive(t)].l],['Progress',(t.pct||0)+'%'],['Duration',t.dur+'d'],
     ['Early start',fmtS(wdDate(n.es))],['Early finish',fmtS(wdDate(n.ef))],['Total float',n.float+'d'],
     ['Critical',n.critical?'Yes':'No'],['Procurement',PROC_LABEL[t.proc]],['Delay risk',RISK[r.level].l],
     ['Updates',t.updates.length],['Evidence',t.files.length]]);}},
- {cat:'Board',ex:'Set A50 status to in progress',k:['set status','status to','mark as','change status'],
+ {cat:'Board',ex:'Set A50 status to in progress',k:['set status','status to','mark as','change status'],alt:['set status','change status','mark as','update status','move to'],
   f:q=>{const t=findT(q);if(!t)return 'Which activity?';const s=q.toLowerCase();
-   const k=/complete|done|finish/.test(s)?'done':/stuck|blocked|hold/.test(s)?'stuck':
-           /verif/.test(s)?'verify':/progress|working|start/.test(s)?'working':/not start/.test(s)?'notstarted':null;
+   const qt=norm(q).split(' ').filter(Boolean);
+   const has=(...words)=>words.some(w=>qt.some(x=>tokEq(x,w)));
+   const k=has('not','notstarted')&&has('started','start')?'notstarted'
+     :has('complete','completed','done','finished','finish')?'done'
+     :has('stuck','blocked','hold','halted')?'stuck'
+     :has('verification','verify','unverified')?'verify'
+     :has('progress','working','started','underway','ongoing')?'working':null;
    if(!k)return 'Which status? Not started, In progress, Awaiting verification, Stuck or Complete.';
    mWrite(t.id,'status',k,'wa');
    return `✅ <b>${t.id}</b> status → <b>${STATUS[k].l}</b>, written to ${monday.board}.`;}},
- {cat:'Board',ex:'Set A50 progress to 40%',k:['progress to','percent','set progress'],
+ {cat:'Board',ex:'Set A50 progress to 40%',k:['progress to','percent','set progress'],alt:['set progress','update progress','percent complete','change percentage'],
   f:q=>{const t=findT(q);if(!t)return 'Which activity?';
    // must not read the digits out of the activity id (A50), so require a % or an explicit "progress to N"
    const m=q.match(/(\d{1,3})\s*%/)||q.match(/(?:progress|percent|pct)\D{0,8}(\d{1,3})\b/i);
    if(!m)return 'What percentage? Say it with a % — for example "set A50 progress to 40%".';
    const v=Math.min(100,+m[1]);mWrite(t.id,'progress',v,'wa');
    return `✅ <b>${t.id}</b> progress → <b>${v}%</b> on Monday.`;}},
- {cat:'Board',ex:'Is the Monday connection healthy?',k:['monday','connection','integration','sync healthy'],
+ {cat:'Board',ex:'Is the Monday connection healthy?',k:['monday','connection','integration','sync healthy'],alt:['monday','connection','integration','is monday working','board connection','sync status'],
   f:()=>`<b>Monday.com — connected</b>\n`+tbl([['Workspace',monday.workspace],['Board',monday.board],['Board ID',monday.boardId],
    ['API',monday.api],['Activities',tasks.length],['Writes this session',monday.writes],
    ['Held for verification',allPending().length],['Last sync',monday.lastSync.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})]])},
 
- {cat:'On site',ex:'What am I looking at here?',k:['what am i looking','brief me','where am i','whats here'],
+ {cat:'On site',ex:'What am I looking at here?',k:['what am i looking','brief me','where am i','whats here'],alt:['brief me','whats here','where am i','situation','whats going on','summary'],
   f:()=>{const C=C_(),i=wdIndex(DATA_DATE);
    const run=tasks.filter(t=>t.type!=='milestone'&&C.map[t.id].es<=i&&C.map[t.id].ef>i);
    const p=allPending();
    return `<b>XYZ Hospital Construction</b>\nData date ${fmtS(DATA_DATE)}\n\n<b>Live on site</b>\n`+
     lines(run.map(t=>`• ${t.id} ${t.name} — ${t.crew}, ${t.pct||0}%`))+
     (p.length?`\n\n⚠ ${p.length} claim(s) held for verification.`:'');}},
- {cat:'On site',ex:'Who is working here today?',k:['who is working','which contractor','crew on site','whose area'],
+ {cat:'On site',ex:'Who is working here today?',k:['who is working','which contractor','crew on site','whose area'],alt:['who is on site','which crew','whose area','who works here','contractors today'],
   f:()=>{const C=C_(),i=wdIndex(DATA_DATE);
    const r=tasks.filter(t=>t.type!=='milestone'&&C.map[t.id].es<=i&&C.map[t.id].ef>i);
    return `<b>On site today</b>\n`+lines([...new Set(r.map(t=>t.crew))].map(c=>`• ${c} — ${r.filter(t=>t.crew===c).map(t=>t.id).join(', ')}`));}},
- {cat:'On site',ex:'Can I start this activity?',k:['can i start','ready to start','clear to begin','start work'],
+ {cat:'On site',ex:'Can I start this activity?',k:['can i start','ready to start','clear to begin','start work'],alt:['can i start','ready to start','clear to begin','am i clear','can we begin'],
   f:q=>{const t=findT(q)||byId(S.sel);const C=C_(),r=procRisk(t,C);
    const open=t.preds.map(byId).filter(x=>derive(x)!=='done');
    return `<b>${t.id} ${t.name}</b>\n`+
     (open.length?`⛔ Waiting on: ${open.map(x=>x.id+' ('+STATUS[derive(x)].l+')').join(', ')}\n`:'✅ All predecessors complete.\n')+
     (t.proc!=='na'?`Procurement: ${PROC_LABEL[t.proc]} — ${RISK[r.level].l}\n`:'')+
     `Early start ${fmtS(wdDate(C.map[t.id].es))}, float ${C.map[t.id].float}d.`;}},
- {cat:'On site',ex:'What should I check before sign-off?',k:['before sign-off','checklist','what to inspect','hold points','inspection'],
+ {cat:'On site',ex:'What should I check before sign-off?',k:['before sign-off','checklist','what to inspect','hold points','inspection'],alt:['checklist','what to check','before inspection','hold points','before signoff'],
   f:q=>{const t=findT(q)||byId(S.sel);
    return `<b>${t.id} ${t.name}</b>\nBefore you call for inspection:\n`+
     `• Work complete to the drawing and the specification\n• Measurement sheet recorded — a claim without one is held, not applied\n`+
     `• Evidence photographed and sent through WhatsApp\n• Predecessors signed off: ${t.preds.join(', ')||'none'}\n`+
     `• Permit still valid for the activity\n• Any open RFI on this location closed out`;}},
- {cat:'On site',ex:'What is the progress on my area?',k:['progress on','how far along','percent complete area'],
+ {cat:'On site',ex:'What is the progress on my area?',k:['progress on','how far along','percent complete area'],alt:['progress','how far along','percent done','how much complete'],
   f:q=>{const t=findT(q)||byId(S.sel);
    return `<b>${t.id} ${t.name}</b>\n${t.pct||0}% complete · ${STATUS[derive(t)].l}\n${t.crew} · ${t.loc}`;}},
  {cat:'On site',ex:'Report progress from site',k:['report progress','log this','record this'],
@@ -997,59 +1139,59 @@ const INTENTS=[
  {cat:'Regulations',ex:'What first aid is required?',k:['first aid','medic'],f:q=>regAnswer(q)},
  {cat:'Regulations',ex:'What safety signage is required?',k:['signage','safety sign'],f:q=>regAnswer(q)},
 
- {cat:'Drawings',ex:'What revision is A-1001?',k:['revision','rev of','what rev','current drawing'],
+ {cat:'Drawings',ex:'What revision is A-1001?',k:['revision','rev of','what rev','current drawing'],alt:['revision','what rev','latest drawing','current revision','drawing rev'],
   f:q=>{const m=q.match(/([a-z]{1,2})-?\s?(\d{4})/i);
    const d=m?PROJ.drawings.find(x=>x.no.toLowerCase().replace('-','')===(m[1]+m[2]).toLowerCase()):null;
    return d?`<b>${d.no} — ${esc(d.t)}</b>\n${d.rev}, issued ${d.d} (${d.st}).`
      :`<b>Drawing register</b>\n`+lines(PROJ.drawings.map(x=>`• ${x.no} ${x.t} — ${x.rev} (${x.st})`));}},
- {cat:'Drawings',ex:'Which drawings are still under review?',k:['under review','not approved','unapproved drawing'],
+ {cat:'Drawings',ex:'Which drawings are still under review?',k:['under review','not approved','unapproved drawing'],alt:['drawings under review','unapproved drawings','not approved drawings'],
   f:()=>`<b>Not yet approved</b>\n`+lines(PROJ.drawings.filter(d=>d.st!=='Approved').map(d=>`• ${d.no} ${d.t} — ${d.rev} (${d.st})`))},
- {cat:'Drawings',ex:'Which drawing covers the theatres?',k:['drawing for','which drawing','drawing covers'],
+ {cat:'Drawings',ex:'Which drawing covers the theatres?',k:['drawing for','which drawing','drawing covers'],alt:['which drawing','drawing for','what drawing do i need','drawing covers'],
   f:q=>{const d=PROJ.drawings.filter(x=>fz(q,x.t+' '+x.di));
    return (d.length?d:PROJ.drawings).slice(0,6).map(x=>`• ${x.no} ${x.t} — ${x.rev}`).join('\n');}},
 
- {cat:'RFI',ex:'Any open RFIs?',k:['rfi','open rfi','queries'],
+ {cat:'RFI',ex:'Any open RFIs?',k:['rfi','open rfi','queries'],alt:['rfi','open rfis','queries','outstanding questions','any rfis'],
   f:q=>{const m=q.match(/rfi-?\s?(\d+)/i);
    if(m){const r=PROJ.rfis.find(x=>x.no.includes(m[1]));
      return r?`<b>${r.no} — ${esc(r.s)}</b>\n`+tbl([['Status',r.st],['Discipline',r.di],['Due',r.due],['Effect',r.a]]):'No such RFI.';}
    const o=PROJ.rfis.filter(r=>r.st==='Open');
    return `<b>${o.length} open RFI(s)</b>\n`+lines(o.map(r=>`• ${r.no} ${r.s} — due ${r.due}\n  ${r.a}`));}},
- {cat:'RFI',ex:'Is anything on hold pending an RFI?',k:['on hold','holding','pending an rfi','blocked pending'],
+ {cat:'RFI',ex:'Is anything on hold pending an RFI?',k:['on hold','holding','pending an rfi','blocked pending'],alt:['on hold','holding','waiting for an answer','blocked pending'],
   f:()=>`<b>Holds</b>\n`+lines(PROJ.rfis.filter(r=>r.st==='Open').map(r=>`• ${r.no} — ${r.a}`))},
 
- {cat:'Quality',ex:'Any failed tests?',k:['failed test','fail','ncr','non-conformance'],
+ {cat:'Quality',ex:'Any failed tests?',k:['failed test','fail','ncr','non-conformance'],alt:['failed test','fails','ncr','non conformance','test failures','anything failed'],
   f:()=>{const f=PROJ.tests.filter(t=>t.res==='FAIL');
    return f.length?`<b>⚠ ${f.length} failed test</b>\n`+lines(f.map(t=>`• ${t.r} ${t.t}\n  ${t.l} — ${t.v} against ${t.sp} (${t.d})\n  Do not build over it until it is resolved.`)):'No failed tests.';}},
- {cat:'Quality',ex:'What are the concrete results?',k:['concrete result','cube','mpa','strength','test result'],
+ {cat:'Quality',ex:'What are the concrete results?',k:['concrete result','cube','mpa','strength','test result'],alt:['concrete results','cube results','test results','strength results'],
   f:q=>{const t=PROJ.tests.filter(x=>fz(q,x.t+' '+x.l+' '+x.r));
    return `<b>Test results</b>\n`+lines((t.length?t:PROJ.tests).map(x=>`• ${x.r} ${x.l} — ${x.res} ${x.v} (spec ${x.sp}, ${x.d})`));}},
- {cat:'Quality',ex:'What material submittals are outstanding?',k:['submittal','material approval','mix design','resubmit'],
+ {cat:'Quality',ex:'What material submittals are outstanding?',k:['submittal','material approval','mix design','resubmit'],alt:['submittals','material approvals','mix design','what is rejected'],
   f:()=>`<b>Material submittals</b>\n`+lines(PROJ.submittals.map(x=>`• ${x.r} ${x.i} — ${x.st} (${x.d})`))},
 
- {cat:'Permits',ex:'Do we have a permit to dig?',k:['permit','ptw','permit to dig','lift plan'],
+ {cat:'Permits',ex:'Do we have a permit to dig?',k:['permit','ptw','permit to dig','lift plan'],alt:['permit','permits','ptw','permit to dig','do we have permission'],
   f:q=>{const p=PROJ.permits.filter(x=>fz(q,x.t+' '+x.a));
    return `<b>Permits to work</b>\n`+lines((p.length?p:PROJ.permits).map(x=>`• ${x.t} ${x.r} — ${x.a}\n  Valid to ${x.v} · ${x.st}`));}},
- {cat:'Permits',ex:'Which permits expire soon?',k:['expire','expiring','runs out','valid until'],
+ {cat:'Permits',ex:'Which permits expire soon?',k:['expire','expiring','runs out','valid until'],alt:['permits expiring','expiring','runs out','permit valid'],
   f:()=>`<b>Watch these</b>\n`+lines(PROJ.permits.filter(p=>p.st!=='Valid').map(p=>`• ${p.t} ${p.r} — ${p.st}`))},
 
- {cat:'Levels',ex:'What is the ward ceiling height?',k:['level','ffl','ceiling height','floor to floor','datum','setting out'],
+ {cat:'Levels',ex:'What is the ward ceiling height?',k:['level','ffl','ceiling height','floor to floor','datum','setting out'],alt:['levels','ceiling height','floor level','ffl','setting out','datum','how high'],
   f:q=>{const l=PROJ.levels.filter(x=>fz(q,x.l+' '+x.t));
    return `<b>Levels & setting out</b>\n`+lines((l.length?l:PROJ.levels).map(x=>`• ${x.l} ${x.t}: <b>${x.v}</b> — ${x.n}`));}},
 
- {cat:'Site',ex:'Who do I call?',k:['who is','whos','contact','phone','number for','who do i call'],
+ {cat:'Site',ex:'Who do I call?',k:['who is','whos','contact','phone','number for','who do i call'],alt:['contacts','who do i call','phone number','who is the','contact details'],
   f:q=>{const c=PROJ.contacts.filter(x=>fz(q,x.r+' '+x.n+' '+x.c));
    return `<b>Contacts</b>\n`+lines((c.length?c:PROJ.contacts).map(x=>`• ${x.n} — ${x.r}\n  ${x.t} (${x.c})`));}},
- {cat:'Site',ex:'What are the working hours?',k:['working hours','hours','delivery gate','gate','laydown','parking','crane'],
+ {cat:'Site',ex:'What are the working hours?',k:['working hours','hours','delivery gate','gate','laydown','parking','crane'],alt:['working hours','site hours','deliveries','gate','laydown','parking','logistics'],
   f:()=>`<b>Access & logistics</b>\n`+tbl([['Gate',PROJ.logistics.gate],['Hours',PROJ.logistics.hours],
    ['Laydown',PROJ.logistics.laydown],['Haul route',PROJ.logistics.haul],['Crane',PROJ.logistics.crane],['Parking',PROJ.logistics.parking]])},
- {cat:'Site',ex:'What is the emergency procedure?',k:['emergency','ambulance','accident','assembly','first aid','injury'],
+ {cat:'Site',ex:'What is the emergency procedure?',k:['emergency','ambulance','accident','assembly','first aid','injury'],alt:['emergency','first aid','accident','assembly point','ambulance'],
   f:()=>`<b>🚨 Emergency</b>\n`+tbl([['Call',PROJ.hse.emergency],['Medical room',PROJ.hse.clinic],
    ['Assembly',PROJ.hse.assembly],['A&E',PROJ.hse.hospital],['Toolbox',PROJ.hse.toolbox]])},
- {cat:'Site',ex:'Are there live services near the works?',k:['live service','buried','existing service','dig safe','utility'],
+ {cat:'Site',ex:'Are there live services near the works?',k:['live service','buried','existing service','dig safe','utility'],alt:['live services','buried services','existing services','dig safe','utilities'],
   f:()=>`<b>⚠ Live services</b>\n`+lines(PROJ.utilities.map(u=>`• ${u.s} — ${u.l}${u.d!=='—'?', depth '+u.d:''} (${u.o})\n  ${u.n}`))},
- {cat:'Site',ex:'What infection control applies here?',k:['infection control','icra','live ward','dust'],
+ {cat:'Site',ex:'What infection control applies here?',k:['infection control','icra','live ward','dust'],alt:['infection control','icra','live ward','dust control','hoarding'],
   f:()=>`<b>Infection control</b>\n${PROJ.hse.icra}\n\nAgree every hoarding and pressure regime with ${PROJ.contacts.find(c=>/Infection/.test(c.r)).n} (${PROJ.contacts.find(c=>/Infection/.test(c.r)).t}).`},
- {cat:'Site',ex:'What are the project details?',k:['project details','contract','who is the client','overview','which project'],
+ {cat:'Site',ex:'What are the project details?',k:['project details','contract','who is the client','overview','which project'],alt:['project details','contract','client','who is the client','about the project'],
   f:()=>`<b>${PROJ.meta.name}</b>\n`+tbl([['Code',PROJ.meta.code],['Client',PROJ.meta.client],['Contractor',PROJ.meta.pm],
    ['Consultant',PROJ.meta.consultant],['Form',PROJ.meta.form],['Value',PROJ.meta.value],
    ['Period',PROJ.meta.start+' → '+PROJ.meta.finish]])},
@@ -1059,15 +1201,154 @@ const INTENTS=[
    `\n\nTell me what happened on site and I'll log it. Send a photo for evidence, or a voice note in English or Arabic.`},
 ];
 
-function kwHit(s,k){const t=k.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-  return new RegExp('(^|[^a-z0-9])'+t+'(s|es)?([^a-z0-9]|$)','i').test(s);}
-const QW=/^(what|whats|when|where|who|whos|which|why|how|is|are|do|does|did|can|could|should|any|show|list|give|tell|find)\b/i;
-const CW=/^(set|change|mark|assign|move|verify|approve|reject|release|attach|upload)\b/i;
-const isQ=q=>/\?/.test(q)||QW.test(q.trim());
-const isC=q=>CW.test(q.trim());
-function match(q){let b=null,sc=0;
-  for(const i of INTENTS){let s=0;for(const k of i.k){if(kwHit(q,k))s+=k.trim().length;}if(s>sc){sc=s;b=i;}}
-  return sc?b:null;}
+/* ===================== FUZZY INTENT MATCHING =====================
+ * Field messages are typed one-handed in gloves and voice notes come back
+ * from ASR with words mangled, so matching has to survive typos, dropped
+ * spaces, plurals and synonyms — not just exact keywords. */
+const SYN={
+  /* Surface variants only — abbreviations and obvious equivalents. Anything
+   * that merges two distinct ideas (complete/progress, escape/exit) makes
+   * separate intents collide, so it is deliberately left out. */
+  drawing:['dwg','dwgs'],
+  specification:['spec','specs'],
+  permit:['ptw','permits'],
+  regulation:['reg','regs','regulations'],
+  evidence:['photo','photos','picture','pictures','pic','pics','image','images'],
+  percent:['pct','percentage'],
+  contractor:['subbie','subcontractor'],
+  programme:['program'],
+  procurement:['purchasing'],
+  float:['slack'],
+  telephone:['phone','tel'],
+  activity:['task'],
+};
+/* reverse index: any variant -> its canonical word */
+const SYN_OF={};
+Object.entries(SYN).forEach(([base,list])=>{SYN_OF[base]=base;list.forEach(v=>{SYN_OF[v]=base;});});
+
+function norm(s){
+  return String(s).toLowerCase()
+    .replace(/[’']/g,'')
+    .replace(/[^a-z0-9%+\/\-\s]/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+function stem(w){
+  if(w.length>4&&w.endsWith('ies')) return w.slice(0,-3)+'y';
+  if(w.length>4&&/(ses|xes|zes|ches|shes)$/.test(w)) return w.slice(0,-2);
+  if(w.length>3&&w.endsWith('s')&&!w.endsWith('ss')) return w.slice(0,-1);
+  if(w.length>5&&w.endsWith('ing')) return w.slice(0,-3);
+  if(w.length>5&&w.endsWith('ed')) return w.slice(0,-2);
+  return w;
+}
+function canon(w){const b=stem(w);return SYN_OF[b]||SYN_OF[w]||b;}
+
+/* bounded Damerau-Levenshtein: "strat" for "start" is one transposition,
+ * not two edits, so it has to cost 1 or real typos never match */
+function lev(a,b,max){
+  if(a===b) return 0;
+  if(Math.abs(a.length-b.length)>max) return max+1;
+  const m=a.length,n=b.length;
+  let prev2=null,prev=Array.from({length:n+1},(_,i)=>i);
+  for(let i=1;i<=m;i++){
+    const cur=new Array(n+1); cur[0]=i; let best=i;
+    for(let j=1;j<=n;j++){
+      const c=a[i-1]===b[j-1]?0:1;
+      let v=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+c);
+      if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1]) v=Math.min(v,prev2[j-2]+1);
+      cur[j]=v; if(v<best) best=v;
+    }
+    if(best>max) return max+1;
+    prev2=prev; prev=cur;
+  }
+  return prev[n];
+}
+/* how far a word of this length is allowed to be wrong */
+function tol(n){ const L=typeof n==='number'?n:String(n).length;
+  return L<=3?0 : L<=5?1 : L<=8?2 : 3; }
+
+/* does query token q stand in for keyword token k? */
+function tokEq(q,k){
+  if(q===k) return true;
+  const sq=stem(q), sk=stem(k), cq=canon(q), ck=canon(k);
+  if(sq===sk||cq===ck) return true;
+  // a shorter form that prefixes the longer one: work / workin / working
+  const [shrt,lng]=q.length<=k.length?[q,k]:[k,q];
+  if(shrt.length>=4&&lng.length-shrt.length<=3&&lng.startsWith(shrt)) return true;
+  const [ss,sl]=sq.length<=sk.length?[sq,sk]:[sk,sq];
+  if(ss.length>=4&&sl.length-ss.length<=3&&sl.startsWith(ss)) return true;
+  // edit distance, budgeted on the SHORTER word and only for words of
+  // comparable length — otherwise "how" starts matching "holding"
+  const near=(a,b)=>{
+    if(Math.abs(a.length-b.length)>3) return false;
+    const t=tol(Math.min(a.length,b.length));
+    return t>0 && lev(a,b,t)<=t;
+  };
+  return near(q,k)||near(sq,sk)||near(cq,ck);
+}
+/* score a keyword phrase against the query tokens, allowing typos and
+ * a dropped space ("fireexit", "increas ethe") */
+function phraseScore(qt,kw){
+  const kt=norm(kw).split(' ').filter(Boolean);
+  if(!kt.length) return 0;
+  const joined=qt.join('');
+  const base=kw.replace(/\s/g,'').length*2;
+  let best=0;
+  // keyword tokens must appear in order, but people put words in between
+  // ("why hasnt THE STAUS updated"), so allow a small gap budget
+  const GAP=2;
+  for(let i=0;i<qt.length;i++){
+    let qi=i,ki=0,pen=0,gaps=0;
+    while(qi<qt.length&&ki<kt.length){
+      if(tokEq(qt[qi],kt[ki])){
+        if(qt[qi]!==kt[ki]&&canon(qt[qi])!==canon(kt[ki])) pen++;
+        qi++;ki++;
+      }else if(ki>0&&gaps<GAP){ gaps++;qi++; }
+      else break;
+    }
+    if(ki===kt.length){
+      const sc=base-pen*2-gaps*2;
+      if(sc>best) best=sc;
+    }
+  }
+  if(best) return best;
+  // dropped-space fallback: "fireexit", "increas ethe". Kept deliberately
+  // tight — a loose join here matches almost anything.
+  const sq=kw.replace(/\s/g,'');
+  if(sq.length>=6&&joined.includes(sq)) return sq.length*2-1;
+  if(sq.length>=7){
+    for(let i=0;i<qt.length;i++){
+      const two=(qt[i]||'')+(qt[i+1]||'');
+      if(Math.abs(two.length-sq.length)>1) continue;
+      if(lev(two,sq,1)<=1) return sq.length*2-3;
+    }
+  }
+  return 0;
+}
+function matchScore(q,keys){
+  const qt=norm(q).split(' ').filter(Boolean);
+  let best=0;
+  for(const k of keys){const sc=phraseScore(qt,k); if(sc>best) best=sc;}
+  return best;
+}
+/* kept for the report/question routing below */
+function kwHit(s,k){ return phraseScore(norm(s).split(' ').filter(Boolean),k)>0; }
+
+const QW=/^(what|whats|wat|wot|when|where|who|whos|which|why|how|hw|is|are|do|does|did|can|cud|could|should|shud|any|show|list|give|tell|find|need|got)\b/i;
+const CW=/^(set|chang|change|mark|assign|move|updat|update|verify|verifi|approve|reject|release|attach|upload|add|log|record)\b/i;
+const isQ=q=>/\?/.test(q)||QW.test(norm(q));
+const isC=q=>CW.test(norm(q));
+
+function match(q){
+  let best=null,sc=0;
+  for(const i of INTENTS){
+    let s=matchScore(q,i.k.concat(i.alt||[]));
+    // this project's own registers answer better than generic guidance, so a
+    // regulation has to win outright rather than on a tie
+    if(i.cat==='Regulations') s*=0.9;
+    if(s>sc){sc=s;best=i;}
+  }
+  return sc>=6?best:null;   // below this it is noise, not a match
+}
 
 function ask(){
   const el=document.getElementById('ai'),q=el.value.trim(); if(!q) return;
@@ -1075,7 +1356,16 @@ function ask(){
   setTimeout(()=>{
     const rep=statusFromUpdate({text:q,effect:''});
     if(rep&&!isQ(q)&&!isC(q)){push('bot',logIt(q));return;}
-    const i=match(q);
+    // an instruction has to land on a write intent — "set C30 status to
+    // complete" must not be answered by the completion-date question
+    let i=null;
+    if(isC(q)){
+      let bs=0;
+      INTENTS.filter(x=>x.cat==='Board'||x.cat==='Verification').forEach(x=>{
+        const sc=matchScore(q,x.k.concat(x.alt||[])); if(sc>bs){bs=sc;i=x;}});
+      if(bs<6) i=null;
+    }
+    if(!i) i=match(q);
     if(i){const a=i.f(q); push('bot',a||regAnswer(q)||"I don't have that one.");}
     else{const r=regAnswer(q); push('bot',r||(rep?logIt(q):"I didn't catch that. Try a suggestion below, or tell me what happened on site."));}
   },240);
@@ -1089,10 +1379,15 @@ function logIt(text,src){
     measured?'Measured claim — applied and synced to Monday.':'Evidence logged; verification required before progress changes.',
     measured?{verified:true}:{claim:true});
   t.updates.push(u);
-  if(measured){ if(st&&st!=='verify') t.manual=st; monday.writes++; monday.lastSync=new Date();
-    mLog(t,`Update posted and <b>status</b> set to <b>${STATUS[derive(t)].l}</b>`,src==='voice'?'voice':'wa'); }
-  else { monday.held++; mLog(t,'Claim received without a measurement — <b>held</b> for verification','wa'); }
-  render();
+  if(measured){
+    if(st&&st!=='verify') applyChange(t.id,'status',st,src==='voice'?'voice':'wa','bohio');
+    const q=/\b(\d+)\s*(?:of|\/)\s*(\d+)\b/.exec(text);
+    if(q) applyChange(t.id,'pct',Math.min(100,Math.round(+q[1]/+q[2]*100)),src==='voice'?'voice':'wa','bohio');
+    monday.items[t.id].updates.unshift({text,by:u.by,action:'deliverable_verified'});
+  } else {
+    mLog(t,'Claim received without a measurement — <b>held</b>, not sent to Monday','wa');
+  }
+  syncItem(t); persist(); render();
   return measured
     ? `✅ Logged on <b>${t.id} ${esc(t.name)}</b> and synced.\nStatus → <b>${STATUS[derive(t)].l}</b>.`
     : `📋 Logged on <b>${t.id} ${esc(t.name)}</b> — <b>held for verification</b>.\nNo measurement in the message, so nothing was written to Monday. The planner can release it from the activity panel.`;
@@ -1152,22 +1447,52 @@ const EV=[{name:'IMG_2210_pilecap_gridC.jpg',kind:'img',size:'2.4 MB'},
 let ei=0;
 function sendEvidence(){
   const f=EV[ei++%EV.length],t=byId(lastT)||byId(S.sel);
-  push('me',`<b>📎 ${esc(f.name)}</b>\n<span style="font-size:11px;opacity:.7">${f.size}</span>`);
+  push('me',`<b>📎 ${esc(f.name)}</b>\n<span style="font-size:11px;opacity:.7">${f.size} · sending over WhatsApp</span>`);
   setTimeout(()=>{
-    t.files.unshift({...f,when:'Just now',by:'Matteo Bevilacqua'});
-    t.updates.push(wa('Evidence attached: '+f.name,'Field (WhatsApp)','Filed against the activity. No status change on its own.',{noStatus:true}));
-    monday.writes++;monday.lastSync=new Date();
-    mLog(t,`Evidence <b>${esc(f.name)}</b> uploaded`,'wa');
-    render();
-    push('bot',`✅ Attached to <b>${t.id} ${esc(t.name)}</b> on Monday.\nFiled under evidence (${t.files.length}).`);
+    const a=addEvidence(t.id,f,'wa');
+    const d=reconcile().length;
+    push('bot',`✅ Uploaded to Monday as an asset on <b>${t.id} ${esc(t.name)}</b>.\n`+
+      `<table><tr><td>Asset id</td><td>${a.id}</td></tr><tr><td>File</td><td>${esc(a.name)} (${esc(a.size)})</td></tr>`+
+      `<tr><td>Type</td><td>${a.contentType}</td></tr><tr><td>Board item</td><td>${t.id}</td></tr>`+
+      `<tr><td>Evidence on item</td><td>${t.files.length}</td></tr><tr><td>Mirror drift</td><td>${d===0?'none — both sides match':d+' field(s)'}</td></tr></table>`+
+      `\nEvidence is filed but does not move progress on its own — send a measurement to advance the activity.`);
   },420);
+}
+function showSync(){
+  const d=reconcile();
+  const rows=tasks.map(t=>{const mi=monday.items[t.id]||{};
+    const bad=SYNC_FIELDS.some(f=>String(fieldOf(t,f))!==String(mi[f]))||t.files.length!==(mi.assets||[]).length;
+    return `<div class="ptr" style="grid-template-columns:80px 1fr 1fr 86px 84px">
+      <div class="mono">${t.id}</div>
+      <div>${STATUS[derive(t)].l} · ${t.pct||0}%</div>
+      <div>${mi.status?STATUS[mi.status].l:'—'} · ${mi.pct||0}%</div>
+      <div class="mono">${t.files.length} / ${(mi.assets||[]).length}</div>
+      <div><span class="pill ${bad?'bad':'ok'}">${bad?'drift':'match'}</span></div></div>`;}).join('');
+  document.getElementById('syncBody').innerHTML=`
+    <div class="okbar ${d.length?'bad':'good'}">${d.length?`⚠ ${d.length} field(s) out of step`:'✓ Every field on every activity matches on both sides'}</div>
+    <div class="syncgrid">
+      <div class="syncbox"><h5>Bohio → Monday</h5><div class="n">${monday.pushes}</div><div class="note">changes pushed this session</div></div>
+      <div class="syncbox"><h5>Monday → Bohio</h5><div class="n">${monday.pulls}</div><div class="note">changes pulled this session</div></div>
+      <div class="syncbox"><h5>Activities mirrored</h5><div class="n">${Object.keys(monday.items).length} / ${tasks.length}</div><div class="note">board id ${monday.boardId}</div></div>
+      <div class="syncbox"><h5>Evidence assets</h5><div class="n">${monday.assets.length}</div><div class="note">files on Monday items</div></div>
+    </div>
+    ${d.length?`<button class="btn primary" onclick="repair();showSync();">Repair drift</button>`:''}
+    <h4 class="sec">Field-by-field</h4>
+    <div class="ptab"><div class="ptr h" style="grid-template-columns:80px 1fr 1fr 86px 84px">
+      <div>Activity</div><div>Bohio</div><div>Monday</div><div>Assets B/M</div><div>State</div></div>${rows}</div>
+    <p class="note">Every change goes through one write path that stamps a revision and mirrors it to the other side, so the two stores cannot drift apart on their own. This panel walks both stores field by field and reports what it finds. State is saved to this browser, so a refresh keeps the board.</p>`;
+  document.getElementById('syncModal').classList.add('on');
 }
 let tt;
 function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('on');
   clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),2600);}
 
+seedMirror();
+if(restore()) seedMirrorMissing();
 render();
 document.getElementById('fabBadge').textContent=allPending().length||'';
+(function(){const d=reconcile();
+  if(d.length){console.warn('drift at boot',d);repair();}})();
 </script>
 </body>
 </html>
