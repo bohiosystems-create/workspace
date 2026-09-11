@@ -174,9 +174,26 @@ const QUERIES=[
    return 'BOHIO ON SITE\n\n'+live.map(r=>`• ${r[1]}\n  ${(C.contractorNames||{})[r[2]]||'Unassigned'} · ${r[5]}/5 verified`).join('\n\n');}},
 ];
 
+/* A statement is not a question. "Ductbank trench flooded overnight" must be
+ * filed as a comment, not answered with the excavation regulation because it
+ * contains the word trench. Retrieval runs only when the message reads as a
+ * question or a short lookup with no site-report signal in it. */
+const QWORDS=['what','whats','where','who','whose','which','when','why','how','hows','is','are',
+  'do','does','did','can','could','should','any','anything','show','list','give','tell','find',
+  'send','has','have','status','need'];
+const REPORT=/\b(complete|completed|done|finished|installed|poured|accepted|approved|flooded|stopped|delayed|started|damaged|broken|cracked|leaking|failed|arrived|delivered|removed|erected|compacted|tested)\b|\d+\s*(m|m2|m²|m3|m³|mm|units?|t|no|tonnes?|%)\b/i;
+function isRetrieval(text){
+  if(/\?/.test(text)) return true;
+  const n=M.norm(text), words=n.split(' ').filter(Boolean);
+  if(!words.length) return false;
+  if(QWORDS.some(w=>M.tokEq(words[0],w))) return true;
+  return words.length<=4 && !REPORT.test(n);
+}
+
 /* Regulations and project details come from the knowledge module, matched the
  * same fuzzy way. */
 async function answer(text,C){
+  if(!isRetrieval(text)) return null;
   let best=null,bs=0;
   for(const q of QUERIES){ const s=M.score(text,q.keys); if(s>bs){bs=s;best=q;} }
   if(best&&bs>=6){
@@ -187,4 +204,4 @@ async function answer(text,C){
   const det=K.detail(text,M);     if(det) return {title:'Project information',body:det};
   return null;
 }
-module.exports={QUERIES,answer,findTask};
+module.exports={QUERIES,answer,findTask,isRetrieval};

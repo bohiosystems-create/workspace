@@ -195,9 +195,28 @@ module.exports=async function handler(req,res){
      * could only ever log duct and tele: an asphalt or drainage claim matched
      * the deliverable but was then discarded here, and the event was filed
      * against the wrong task. */
-    const task=taskById(interpretation.taskId)||tasks[0],
-      deliverable=everyDeliverable().find(x=>x.id===interpretation.deliverableId),
+    const deliverable=everyDeliverable().find(x=>x.id===interpretation.deliverableId),
+      named=queries.findTask(messageText,{schedule:PROJECT_SCHEDULE}),
+      /* the activity must come from the message, not from a fallback: filing
+       * against tasks[0] is how an unrelated item used to get written to */
+      task=(deliverable&&taskById(deliverable.taskId))||(named&&taskById(named.id))||null,
       verificationEvidence=mediaUrl||interpretation.verificationEvidence||'';
+
+    /* Nothing in the message says which activity this belongs to. Ask, rather
+     * than attach it to something arbitrary. */
+    if(!task){
+      const list=PROJECT_SCHEDULE.map(([id,n])=>`• ${n}`).join('\n');
+      const ask=`Bohio received your ${isAudio?'voice note':isImage?'photo':'message'} but it does not say which activity it belongs to, so nothing has been recorded.\n\nReply with the activity and Bohio will post it to the board:\n\n${list}`;
+      await appendUpdate({id:`WA-${params.MessageSid||crypto.randomUUID()}`,contractor,taskId:'',
+        title:'Unassigned message',mediaType:isAudio?'voice':isImage?'photo':'message',mediaUrl,
+        mediaContentType:mediaType,mediaFileName,mediaStatus:mediaId?'Stored in Bohio evidence vault':'No media',
+        text:params.Body||transcription.text,transcript:transcription.text,transcriptionStatus:transcription.status,
+        summary:'Awaiting the sender to name the activity. Not sent to Monday.',
+        source:'Twilio WhatsApp · Planner/PM',reporterRole:'Planner / Project Manager',
+        date,ts:new Date().toISOString(),needsActivity:true});
+      let d; try{ d=await deliverReplies(params,[ask]); }catch{ d={body:twimlMessages([ask])}; }
+      res.setHeader('Content-Type','text/xml');return res.status(200).send(d.body);
+    }
     const event={id:`WA-${params.MessageSid||crypto.randomUUID()}`,contractor,taskId:task.id,title:task.name,mediaType:isAudio?'voice':isImage?'photo':'message',mediaUrl,mediaContentType:mediaType,mediaFileName,mediaStatus:mediaId?'Stored in Bohio evidence vault':params.MediaUrl0?'Media unavailable':'Text evidence',text:params.Body||transcription.text,transcript:transcription.text,transcriptionStatus:transcription.status,imageAnalysis:isImage?String(interpretation.mediaAnalysis||interpretation.summary||'Image retained; no separate visual findings returned.'):'',imageAnalysisStatus:isImage?interpretation.analysisStatus:'Not applicable',evidence:verificationEvidence||'WhatsApp text',pct:null,legacyPercent:interpretation.legacyPercent,previousPct:null,confidence:Number(interpretation.confidence)||.5,date,ts:new Date().toISOString(),proposedFinish:interpretation.proposedFinish||'',deliverableId:deliverable?.id||'',deliverableName:deliverable?.name||'',actualValue:interpretation.actualValue,actualQuantity:interpretation.actualQuantity||'',targetMet:interpretation.targetMet===true,verificationEvidence,summary:interpretation.summary||'WhatsApp evidence received',source:'Twilio WhatsApp · Planner/PM',reporterRole:'Planner / Project Manager'};
     await appendUpdate(event);
 
@@ -205,17 +224,13 @@ module.exports=async function handler(req,res){
      * api/monday.js, so anything sent over WhatsApp while nobody had Bohio
      * open never reached the board at all. The photo goes up with it, and the
      * status only moves for a verified deliverable. */
-    /* Only a verified deliverable or an approved date change may reach the
-     * board — api/monday.js has always said so. Previously this ran for every
-     * inbound message, so a stray line of chatter posted an update and moved
-     * a status on whichever item happened to be first for that contractor. */
+    /* Every comment that names its activity is posted to the board. The
+     * status is a separate matter: it moves only for a verified deliverable,
+     * which is the rule api/monday.js has always enforced. */
     const verifiedClaim=event.targetMet===true&&!!verificationEvidence;
     const dateChange=!!event.proposedFinish;
-    const shouldSync=verifiedClaim||dateChange;
-    let mondaySync=shouldSync
-      ? {ok:false,skipped:'Monday is not configured'}
-      : {ok:false,skipped:deliverable?'Held in Bohio until the claim is verified':'No deliverable claimed'};
-    if(shouldSync&&mondayConfigured()){
+    let mondaySync={ok:false,skipped:'Monday is not configured'};
+    if(mondayConfigured()){
       try{
         const base=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,'');
         mondaySync=await syncToMonday({
@@ -235,7 +250,7 @@ module.exports=async function handler(req,res){
     /* Record in the shared state only what the message actually established.
      * A status is written when the claim is verified; a message that named no
      * deliverable must not move anything. */
-    if(deliverable||dateChange){
+    {
       try{
         await applyChange(task.id,{
           status:verifiedClaim?'Done':undefined,
