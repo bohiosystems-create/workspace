@@ -203,6 +203,18 @@ h4.sec:first-child{margin-top:0}
 .typing{font-style:italic;color:var(--muted2)}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 17px;border-radius:7px;font-size:12.5px;font-weight:500;box-shadow:0 10px 34px rgba(0,9,25,.3);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:100}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(-4px)}
+.mir{margin-top:6px;font:600 9.5px var(--font);letter-spacing:.05em;text-transform:uppercase;
+  display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border-radius:9px}
+.mir:before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.mir.yes{background:#eef3f3;color:var(--teal)}
+.mir.no{background:#fdf3e4;color:var(--amber)}
+.evrow{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--line2)}
+.evic{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font:700 8.5px var(--font);color:#fff;flex:none}
+.evic.img{background:var(--teal)} .evic.pdf{background:var(--red)}
+.evmeta{flex:1;min-width:0;display:flex;flex-direction:column}
+.evmeta b{font-size:12.2px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.evmeta span{font-size:10.8px;color:var(--muted2)}
 .modal{position:fixed;inset:0;background:rgba(0,9,25,.45);z-index:120;display:none;align-items:center;justify-content:center;padding:24px}
 .modal.on{display:flex}
 .mbox{background:#fff;border-radius:10px;max-width:760px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 30px 80px rgba(0,9,25,.35)}
@@ -243,6 +255,8 @@ h4.sec:first-child{margin-top:0}
     <input class="inp" id="f-text" placeholder="Filter activities…" oninput="setF('text',this.value)"/>
     <button class="btn" onclick="clearF()">Clear filters</button>
     <span class="sp"></span>
+    <button class="btn" onclick="simMondayUpload()" title="Simulate a photo attached on the Monday item">Upload on Monday</button>
+    <button class="btn" onclick="simMondayComment()" title="Simulate a comment written on the Monday item">Comment on Monday</button>
     <button class="btn" onclick="showSync()" title="Bohio / Monday mirror">Sync status</button>
     <button class="btn" onclick="resetDemo()" title="Clear saved state">Reset demo</button>
     <span class="muted" id="data-date"></span>
@@ -471,18 +485,43 @@ const monday={connected:true,workspace:'Main workspace',board:'Bohio · Primaver
   lastSync:new Date(),items:{},assets:[]};
 
 /* the Monday side of the mirror, seeded from the programme */
+function syncComments(t){
+  const mi=monday.items[t.id]; if(!mi) return;
+  mi.updates=mi.updates||[];
+  t.updates.forEach(u=>{if(!u.id) u.id=newUid();});
+  // Bohio -> Monday: everything except a held claim
+  t.updates.filter(mirrorable).forEach(u=>{
+    if(!mi.updates.some(x=>x.id===u.id)){
+      mi.updates.push({id:u.id,text:u.text,by:u.by,when:u.when,origin:u.origin||'bohio',
+        action:u.verified?'deliverable_verified':(u.asset?'evidence':'comment')});
+    }});
+  // Monday -> Bohio: anything written on the board
+  mi.updates.forEach(m=>{
+    if(!t.updates.some(x=>x.id===m.id)){
+      t.updates.push({id:m.id,src:'board',text:m.text,by:m.by||'Monday board',
+        effect:'Comment written on the Monday item and pulled into Bohio.',
+        when:m.when||'Just now',noStatus:true,origin:'monday'});
+    }});
+}
 function syncItem(t){
   const mi=monday.items[t.id]; if(!mi) return;
+  syncComments(t);
   SYNC_FIELDS.forEach(f=>{mi[f]=fieldOf(t,f);});
-  mi.assets=t.files.slice();
+  // union the evidence rather than copying one side over the other
+  const seen=new Set(), merged=[];
+  t.files.concat(mi.assets||[]).forEach(f=>{if(f&&!seen.has(f.id)){seen.add(f.id);merged.push(f);}});
+  merged.sort((a,b)=>(b.ts||0)-(a.ts||0));
+  t.files=merged; mi.assets=merged.slice();
 }
 function seedMirrorMissing(){
   tasks.forEach(t=>{if(!monday.items[t.id]) monday.items[t.id]={name:t.name,status:derive(t),
     pct:t.pct||0,crew:t.crew,loc:t.loc,dur:t.dur,updates:[],assets:t.files.slice(),rev:0};});
+  tasks.forEach(t=>syncComments(t));
 }
 function seedMirror(){
   tasks.forEach(t=>{monday.items[t.id]={name:t.name,status:derive(t),pct:t.pct||0,
     crew:t.crew,loc:t.loc,dur:t.dur,updates:[],assets:[],rev:0};});
+  tasks.forEach(t=>syncComments(t));
 }
 const fieldOf=(t,f)=>f==='status'?derive(t):f==='pct'?(t.pct||0):t[f];
 
@@ -525,8 +564,20 @@ function reconcile(){
       const a=fieldOf(t,f), b=mi[f];
       if(String(a)!==String(b)) drift.push({id:t.id,field:f,bohio:a,monday:b});
     });
-    const ba=t.files.length, ma=mi.assets.length;
-    if(ba!==ma) drift.push({id:t.id,field:'assets',bohio:ba,monday:ma});
+    // compare the asset sets themselves — equal counts with different files
+    // is still drift, and a count check would call that a match
+    const bIds=new Set(t.files.map(f=>f.id)), mIds=new Set((mi.assets||[]).map(f=>f.id));
+    const onlyB=[...bIds].filter(x=>!mIds.has(x)), onlyM=[...mIds].filter(x=>!bIds.has(x));
+    if(onlyB.length||onlyM.length)
+      drift.push({id:t.id,field:'assets',bohio:t.files.length,monday:(mi.assets||[]).length,
+                  onlyBohio:onlyB.length,onlyMonday:onlyM.length});
+    // comments: a held claim is expected to be Bohio-only, so it is excluded
+    const bU=new Set(t.updates.filter(mirrorable).map(u=>u.id));
+    const mU=new Set((mi.updates||[]).map(u=>u.id));
+    const cB=[...bU].filter(x=>!mU.has(x)), cM=[...mU].filter(x=>!bU.has(x));
+    if(cB.length||cM.length)
+      drift.push({id:t.id,field:'comments',bohio:bU.size,monday:mU.size,
+                  onlyBohio:cB.length,onlyMonday:cM.length});
   });
   return drift;
 }
@@ -534,7 +585,17 @@ function repair(){
   const d=reconcile();
   d.forEach(x=>{const t=byId(x.id),mi=monday.items[x.id];
     if(!mi) return;
-    if(x.field==='assets'){mi.assets=t.files.slice();return;}
+    if(x.field==='comments'){ syncComments(t); return; }
+    if(x.field==='assets'){
+      // evidence merges both ways. Overwriting one side with the other
+      // would silently destroy whichever upload the other side had.
+      const seen=new Set(), merged=[];
+      t.files.concat(mi.assets||[]).forEach(f=>{if(f&&!seen.has(f.id)){seen.add(f.id);merged.push(f);}});
+      merged.sort((a,b)=>(b.ts||0)-(a.ts||0));
+      t.files=merged.slice(); mi.assets=merged.slice();
+      monday.assets=monday.assets.filter(a=>a.activity!==t.id).concat(merged);
+      return;
+    }
     mi[x.field]=fieldOf(t,x.field);});
   monday.lastSync=new Date(); persist(); render();
   return d.length;
@@ -568,24 +629,56 @@ function restore(){
 }
 function resetDemo(){try{localStorage.removeItem(LSK);}catch(e){} location.reload();}
 
-/* ---------- evidence: photo from WhatsApp -> Monday asset ---------- */
-function addEvidence(id,file,src){
-  const t=byId(id); if(!t) return null;
-  const asset={id:'asset_'+Math.random().toString(16).slice(2,10),
+/* ---------- evidence, in both directions ----------
+ * A photo can arrive from the field over WhatsApp, or be dropped straight
+ * onto the Monday item by someone at a desk. Either way it lands on both
+ * sides, carries where it came from, and is never overwritten by a repair. */
+function makeAsset(file,t,origin){
+  return {id:'asset_'+Math.random().toString(16).slice(2,10),
     name:file.name,kind:file.kind,size:file.size,
     contentType:file.kind==='img'?'image/jpeg':'application/pdf',
-    when:'Just now',by:'Field (WhatsApp)',activity:t.id};
-  t.files.unshift(asset);
-  monday.items[t.id].assets.unshift(asset);
-  monday.assets.unshift(asset);
-  monday.writes++; monday.pushes++; monday.lastSync=new Date();
-  syncItem(t);
-  t.updates.push({src:src||'wa',text:'Evidence attached: '+file.name,by:'Field (WhatsApp)',
-    effect:'Filed on the Monday item as an asset. Evidence alone does not move progress.',
-    when:'Just now',noStatus:true,asset:asset.id});
-  mLog(t,`Evidence <b>${esc(file.name)}</b> uploaded to the Monday item <i>(Bohio → Monday)</i>`,'wa');
-  persist(); render();
-  return asset;
+    when:'Just now',ts:Date.now(),origin,
+    by:origin==='monday'?'Monday board':'Field (WhatsApp)',activity:t.id};
+}
+function fileEvidence(id,file,origin,src){
+  const t=byId(id); if(!t) return null;
+  const mi=monday.items[t.id]; if(!mi) return null;
+  const a=makeAsset(file,t,origin);
+  t.files.unshift(a);
+  mi.assets=(mi.assets||[]); mi.assets.unshift(a);
+  monday.assets.unshift(a);
+  monday.writes++;
+  if(origin==='monday') monday.pulls++; else monday.pushes++;
+  monday.lastSync=new Date();
+  t.updates.push({src:origin==='monday'?'board':(src||'wa'),
+    text:'Evidence attached: '+file.name,
+    by:origin==='monday'?'Monday board':'Field (WhatsApp)',
+    effect:origin==='monday'
+      ? 'Uploaded on the Monday item and pulled into Bohio. Evidence alone does not move progress.'
+      : 'Filed on the Monday item as an asset. Evidence alone does not move progress.',
+    when:'Just now',noStatus:true,asset:a.id,origin});
+  mLog(t,`Evidence <b>${esc(file.name)}</b> ${origin==='monday'?'added on Monday':'uploaded from WhatsApp'} <i>(${origin==='monday'?'Monday → Bohio':'Bohio → Monday'})</i>`,
+    origin==='monday'?'board':'wa');
+  syncItem(t); persist(); render();
+  return a;
+}
+/* field -> board */
+const addEvidence=(id,file,src)=>fileEvidence(id,file,'bohio',src);
+/* board -> field: someone attaches a photo on the Monday item itself */
+const mondayAddEvidence=(id,file)=>fileEvidence(id,file,'monday');
+
+/* a comment written on the Monday item, pulled into Bohio */
+function mondayAddComment(id,text,by){
+  const t=byId(id); if(!t) return null;
+  const mi=monday.items[t.id]; if(!mi) return null;
+  mi.updates=mi.updates||[];
+  const c={id:newUid(),text,by:by||'Elena Marquez (Resident Engineer)',when:'Just now',
+    origin:'monday',action:'comment'};
+  mi.updates.push(c);
+  monday.writes++; monday.pulls++; monday.lastSync=new Date();
+  mLog(t,`Comment added on the Monday item <i>(Monday → Bohio)</i>`,'board');
+  syncItem(t); persist(); render();
+  return c;
 }
 
 /* verification gate — an unverified claim is held back from Monday */
@@ -596,7 +689,6 @@ function verifyClaim(taskId,idx,ok){
     const st=statusFromUpdate({text:u.text,effect:''})||'working';
     applyChange(t.id,'status',st==='verify'?'working':st,'board','bohio');
     if(u.pct!=null) applyChange(t.id,'pct',u.pct,'board','bohio');
-    monday.items[t.id].updates.unshift({text:u.text,by:u.by,action:'deliverable_verified'});
     mLog(t,'Claim verified — released to Monday as <b>deliverable_verified</b>','board');
     toast(`${t.id} verified — status now ${STATUS[derive(t)].l}`);
   }else{
@@ -608,7 +700,15 @@ function verifyClaim(taskId,idx,ok){
 }
 
 /* ===================== SEED FIELD EVIDENCE ===================== */
-function wa(text,by,effect,extra){return Object.assign({src:'wa',text,by,effect,when:'Just now'},extra||{});}
+let _uid=0;
+const newUid=()=>'u'+(Date.now().toString(36))+(_uid++).toString(36);
+function wa(text,by,effect,extra){
+  return Object.assign({id:newUid(),src:'wa',text,by,effect,when:'Just now'},extra||{});}
+/* A held claim is deliberately NOT mirrored: api/monday.js only accepts a
+ * verified deliverable, so an unverified claim must not reach the board.
+ * Everything else — comments, evidence, procurement notes — mirrors. */
+const isHeld=u=>!!(u.claim&&!u.verified&&!u.rejected);
+const mirrorable=u=>!isHeld(u);
 byId('A40').updates.push(
   wa('Basement excavation to formation reached at the north bay; propping installed to level 2.','Site Engineer','Progress logged and verified.',{verified:true,pct:80}),
   wa('Sub-base compacted and accepted: measured quantity missing.','Planner / Project Manager',
@@ -903,12 +1003,19 @@ function renderAside(C,B){
       :'')+
     `<h4 class="sec">Updates</h4>`+
     (t.updates.length?[...t.updates].reverse().map(u=>`<div class="upd">
-      <div class="uh"><span class="src ${u.src}">${u.src==='wa'?'WhatsApp':u.src==='voice'?'Voice':u.src==='po'?'Procurement':'Board'}</span>
+      <div class="uh"><span class="src ${u.src}">${u.src==='wa'?'WhatsApp':u.src==='voice'?'Voice':u.src==='po'?'Procurement':'Monday'}</span>
         <span>${esc(u.by)}</span><span style="margin-left:auto">${esc(u.when)}</span></div>
-      <div class="ub">${esc(u.text)}</div><div class="ue">${esc(u.effect)}</div></div>`).join('')
+      <div class="ub">${esc(u.text)}</div><div class="ue">${esc(u.effect)}</div>
+      <div class="mir ${isHeld(u)?'no':'yes'}">${isHeld(u)
+        ?'Held — not on Monday until it is verified'
+        :(u.origin==='monday'?'From Monday · visible on both':'Mirrored to Monday · visible on both')}</div></div>`).join('')
       :'<div class="li" style="padding-left:0">No updates yet.</div>')+
     (t.files.length?`<h4 class="sec">Evidence (${t.files.length})</h4>`+t.files.map(f=>
-      `<div class="li">${esc(f.name)} — ${esc(f.size)}, ${esc(f.when)}</div>`).join(''):'');
+      `<div class="evrow">
+         <span class="evic ${f.kind||'img'}">${(f.kind||'img').toUpperCase()}</span>
+         <span class="evmeta"><b>${esc(f.name)}</b><span>${esc(f.size||'')} · ${esc(f.when||'')}</span></span>
+         <span class="src ${f.origin==='monday'?'board':'wa'}">${f.origin==='monday'?'Monday':'WhatsApp'}</span>
+       </div>`).join(''):'');
 
   document.getElementById('ap-log').innerHTML=t.log.map(l=>
     `<div class="lrow"><span class="lk">${esc(l.when)}</span><span class="lv">${l.what} <span class="src ${l.src}">${l.src==='wa'?'WhatsApp':l.src==='voice'?'Voice':l.src==='po'?'Procurement':'Board'}</span></span></div>`).join('');
@@ -1195,6 +1302,21 @@ const INTENTS=[
   f:()=>`<b>${PROJ.meta.name}</b>\n`+tbl([['Code',PROJ.meta.code],['Client',PROJ.meta.client],['Contractor',PROJ.meta.pm],
    ['Consultant',PROJ.meta.consultant],['Form',PROJ.meta.form],['Value',PROJ.meta.value],
    ['Period',PROJ.meta.start+' → '+PROJ.meta.finish]])},
+ {cat:'Board',ex:'What evidence is on A40?',k:['evidence','photos on','files on','attachments','pictures on'],
+  alt:['what evidence','any photos','show me the photos','what files','what is attached'],
+  f:q=>{const t=findT(q)||byId(S.sel);
+   if(!t.files.length) return `No evidence on <b>${t.id}</b> yet. Send a photo here, or attach one on the Monday item — either way it shows on both.`;
+   return `<b>${t.id} — ${t.files.length} item(s) of evidence</b>\n`+
+     lines(t.files.map(f=>`• ${f.name} (${f.size})\n  added on ${f.origin==='monday'?'Monday':'WhatsApp'}, visible on both`));}},
+ {cat:'Board',ex:'What comments are on A40?',k:['comments','comment on','what was said','notes on','remarks'],
+  alt:['any comments','what comments','who commented','what did they say'],
+  f:q=>{const t=findT(q)||byId(S.sel);
+   const mir=t.updates.filter(mirrorable), held=t.updates.filter(isHeld);
+   if(!t.updates.length) return `No comments on <b>${t.id}</b> yet.`;
+   return `<b>${t.id} — ${t.updates.length} entr(ies)</b>\n`+
+     lines(mir.map(u=>`• ${u.text}\n  ${u.by} · ${u.origin==='monday'?'from Monday':'mirrored to Monday'}`))+
+     (held.length?`\n\n⚠ ${held.length} held, not on Monday until verified:\n`+
+       lines(held.map(u=>`• ${u.text}`)):'');}},
  {cat:'Help',ex:'What can you do?',k:['help','what can you','commands','options'],
   f:()=>`I read the live programme, the procurement position and the verification queue.\n\n`+
    lines([...new Set(INTENTS.map(i=>i.cat))].map(c=>`• ${c}`))+
@@ -1383,7 +1505,6 @@ function logIt(text,src){
     if(st&&st!=='verify') applyChange(t.id,'status',st,src==='voice'?'voice':'wa','bohio');
     const q=/\b(\d+)\s*(?:of|\/)\s*(\d+)\b/.exec(text);
     if(q) applyChange(t.id,'pct',Math.min(100,Math.round(+q[1]/+q[2]*100)),src==='voice'?'voice':'wa','bohio');
-    monday.items[t.id].updates.unshift({text,by:u.by,action:'deliverable_verified'});
   } else {
     mLog(t,'Claim received without a measurement — <b>held</b>, not sent to Monday','wa');
   }
@@ -1458,15 +1579,40 @@ function sendEvidence(){
       `\nEvidence is filed but does not move progress on its own — send a measurement to advance the activity.`);
   },420);
 }
+const MONDAY_EV=[{name:'trust_witness_photo_theatre.jpg',kind:'img',size:'3.1 MB'},
+ {name:'consultant_markup_S-2100.pdf',kind:'pdf',size:'420 KB'},
+ {name:'DNO_cable_location_survey.pdf',kind:'pdf',size:'260 KB'}];
+let mev=0;
+function simMondayUpload(){
+  const f=MONDAY_EV[mev++%MONDAY_EV.length];
+  const a=mondayAddEvidence(S.sel,f);
+  if(!a){toast('Select an activity first');return;}
+  aPane('upd');
+  toast(`${f.name} added on Monday → pulled into Bohio`);
+}
+const MONDAY_COMMENTS=[
+ ['Witnessed the pour this morning — please issue the pour record with the cube references.','Elena Marquez (Resident Engineer)'],
+ ['Trust has asked for the theatre corridor width to be confirmed against RFI-047 before ceilings close.','Priya Nair (Trust Infection Control)'],
+ ['Cube result on the ground beam is below spec — raise an NCR and hold the follow-on.','Mohammed Zahrani (QA/QC Manager)'],
+];
+let mcm=0;
+function simMondayComment(){
+  const [txt,by]=MONDAY_COMMENTS[mcm++%MONDAY_COMMENTS.length];
+  const c=mondayAddComment(S.sel,txt,by);
+  if(!c){toast('Select an activity first');return;}
+  aPane('upd');
+  toast('Comment added on Monday → pulled into Bohio');
+}
 function showSync(){
   const d=reconcile();
   const rows=tasks.map(t=>{const mi=monday.items[t.id]||{};
-    const bad=SYNC_FIELDS.some(f=>String(fieldOf(t,f))!==String(mi[f]))||t.files.length!==(mi.assets||[]).length;
-    return `<div class="ptr" style="grid-template-columns:80px 1fr 1fr 86px 84px">
+    const bad=reconcile().some(x=>x.id===t.id);
+    return `<div class="ptr" style="grid-template-columns:74px 1fr 1fr 78px 96px 78px">
       <div class="mono">${t.id}</div>
       <div>${STATUS[derive(t)].l} · ${t.pct||0}%</div>
       <div>${mi.status?STATUS[mi.status].l:'—'} · ${mi.pct||0}%</div>
       <div class="mono">${t.files.length} / ${(mi.assets||[]).length}</div>
+      <div class="mono">${t.updates.filter(mirrorable).length} / ${(mi.updates||[]).length}</div>
       <div><span class="pill ${bad?'bad':'ok'}">${bad?'drift':'match'}</span></div></div>`;}).join('');
   document.getElementById('syncBody').innerHTML=`
     <div class="okbar ${d.length?'bad':'good'}">${d.length?`⚠ ${d.length} field(s) out of step`:'✓ Every field on every activity matches on both sides'}</div>
@@ -1474,19 +1620,20 @@ function showSync(){
       <div class="syncbox"><h5>Bohio → Monday</h5><div class="n">${monday.pushes}</div><div class="note">changes pushed this session</div></div>
       <div class="syncbox"><h5>Monday → Bohio</h5><div class="n">${monday.pulls}</div><div class="note">changes pulled this session</div></div>
       <div class="syncbox"><h5>Activities mirrored</h5><div class="n">${Object.keys(monday.items).length} / ${tasks.length}</div><div class="note">board id ${monday.boardId}</div></div>
-      <div class="syncbox"><h5>Evidence assets</h5><div class="n">${monday.assets.length}</div><div class="note">files on Monday items</div></div>
+      <div class="syncbox"><h5>Evidence assets</h5><div class="n">${monday.assets.length}</div><div class="note">files mirrored on both sides</div></div>
     </div>
     ${d.length?`<button class="btn primary" onclick="repair();showSync();">Repair drift</button>`:''}
     <h4 class="sec">Field-by-field</h4>
-    <div class="ptab"><div class="ptr h" style="grid-template-columns:80px 1fr 1fr 86px 84px">
-      <div>Activity</div><div>Bohio</div><div>Monday</div><div>Assets B/M</div><div>State</div></div>${rows}</div>
-    <p class="note">Every change goes through one write path that stamps a revision and mirrors it to the other side, so the two stores cannot drift apart on their own. This panel walks both stores field by field and reports what it finds. State is saved to this browser, so a refresh keeps the board.</p>`;
+    <div class="ptab"><div class="ptr h" style="grid-template-columns:74px 1fr 1fr 78px 96px 78px">
+      <div>Activity</div><div>Bohio</div><div>Monday</div><div>Files B/M</div><div>Comments B/M</div><div>State</div></div>${rows}</div>
+    <p class="note">Held claims are counted as Bohio-only on purpose: api/monday.js accepts a verified deliverable, so an unverified claim must not reach the board. Everything else — comments, evidence, procurement notes — mirrors both ways. Every change goes through one write path that stamps a revision and mirrors it to the other side, so the two stores cannot drift apart on their own. This panel walks both stores field by field and reports what it finds. State is saved to this browser, so a refresh keeps the board.</p>`;
   document.getElementById('syncModal').classList.add('on');
 }
 let tt;
 function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('on');
   clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),2600);}
 
+tasks.forEach(t=>t.updates.forEach(u=>{if(!u.id)u.id=newUid();}));
 seedMirror();
 if(restore()) seedMirrorMissing();
 render();
