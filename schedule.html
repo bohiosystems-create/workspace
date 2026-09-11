@@ -3,1515 +3,1031 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Bohio · Primavera Schedule</title>
+<title>XYZ Hospital Construction · Programme</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --mon-blue:#0073ea; --mon-blue-dark:#0060b9;
-    --text:#323338; --text-soft:#676879; --text-faint:#9699a6;
-    --line:#e6e9ef; --line-soft:#eceff3; --bg:#ffffff; --bg-board:#ffffff;
-    --hover:#f5f6f8; --rail:#ffffff;
-    --group-todo:#579bfc;
-    --done:#00c875; --working:#fdab3d; --stuck:#e2445c;
-    --verify:#ffcb00; --review:#a25ddc; --grey:#c4c4c4;
-    --radius:8px;
-    --font:"Figtree",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  }
-  *{box-sizing:border-box;}
-  html,body{height:100%;}
-  body{margin:0;font-family:var(--font);color:var(--text);background:#f6f7fb;font-size:14px;-webkit-font-smoothing:antialiased;}
-  button{font-family:inherit;cursor:pointer;}
-  .app{display:flex;height:100vh;overflow:hidden;}
+:root{
+  --ink:#000919; --deep:#123640; --teal:#0b5962;
+  --muted:#61777b; --muted2:#8a9b9f; --muted3:#6b8085;
+  --line:#cdd5db; --line2:#e2e6ea;
+  --bg2:#f6f8f9; --bg3:#eef1f2; --bg4:#f8fafa;
+  --red:#c63b52; --redbg:#fdf4f5; --green:#16845f; --amber:#a9701c;
+  --font:'Source Sans 3',-apple-system,BlinkMacSystemFont,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#fff;color:var(--ink);font-family:var(--font);letter-spacing:.01em}
+body{font-size:13px}
+a{color:var(--teal);text-decoration:none}
+input,select,button,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+::selection{background:var(--ink);color:#fff}
+.wrap{max-width:1680px;margin:0 auto;padding:26px 26px 90px}
 
-  /* ---------------- ICON RAIL ---------------- */
-  .rail{width:56px;background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:2px;flex-shrink:0;}
-  .rail .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#ff3d57 0%,#ff7a59 30%,#ffcb00 60%,#00d2a8 100%);margin-bottom:8px;}
-  .rail-item{width:40px;height:44px;border:0;background:transparent;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--text-soft);font-size:8.5px;font-weight:600;}
-  .rail-item:hover{background:var(--hover);}
-  .rail-item.active{background:#e6f0ff;color:var(--mon-blue);}
-  .rail-item svg{width:19px;height:19px;}
-  .rail-spacer{flex:1;}
+/* ---------- header ---------- */
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;padding-bottom:22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.kicker{font:600 10.5px var(--font);letter-spacing:.16em;text-transform:uppercase;color:var(--muted2)}
+h1{margin:9px 0 8px;font-size:36px;font-weight:600;letter-spacing:-.035em;line-height:1.05}
+.sub{color:var(--muted);font-size:13.5px;max-width:680px}
+.kpis{display:flex;gap:26px;flex-wrap:wrap}
+.kpi .k{font:600 10px var(--font);letter-spacing:.14em;text-transform:uppercase;color:var(--muted2)}
+.kpi .v{font-size:23px;font-weight:600;letter-spacing:-.02em;margin-top:3px;font-variant-numeric:tabular-nums}
+.kpi .v.bad{color:var(--red)} .kpi .v.ok{color:var(--green)}
 
-  /* ---------------- WORKSPACE PANEL ---------------- */
-  .panel{width:236px;background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0;}
-  .panel-head{display:flex;align-items:center;gap:8px;padding:14px 14px 8px;}
-  .panel-head h2{font-size:15px;font-weight:700;margin:0;flex:1;}
-  .icon-btn{width:28px;height:28px;border:0;background:transparent;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);}
-  .icon-btn:hover{background:var(--hover);}
-  .icon-btn svg{width:17px;height:17px;}
-  .ws-select{margin:2px 14px 10px;display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-weight:600;font-size:13.5px;}
-  .ws-select .ws-badge{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#5b3df5,#8b5cf6);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:800;}
-  .ws-select .chev{margin-left:auto;color:var(--text-faint);}
-  .panel-link{display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:13.5px;color:var(--text-soft);font-weight:600;}
-  .panel-link:hover{background:var(--hover);cursor:pointer;}
-  .panel-link .chev{margin-left:auto;font-size:11px;color:var(--text-faint);}
-  .panel-section{margin-top:8px;}
-  .panel-section .sec-head{display:flex;align-items:center;gap:6px;padding:6px 16px;font-size:12px;font-weight:800;color:var(--text);text-transform:none;}
-  .panel-section .sec-head .plus{margin-left:auto;color:var(--text-faint);}
-  .nav-row{display:flex;align-items:center;gap:9px;padding:7px 16px 7px 18px;font-size:13.5px;color:var(--text);border-radius:0;font-weight:500;}
-  .nav-row:hover{background:var(--hover);cursor:pointer;}
-  .nav-row.active{background:#e6f0ff;color:var(--mon-blue);font-weight:700;}
-  .nav-row .ic{width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);}
-  .nav-row.active .ic{color:var(--mon-blue);}
-  .nav-row .ic svg{width:17px;height:17px;}
+/* ---------- tabs + toolbar ---------- */
+nav.tabs{display:flex;gap:2px;margin:18px 0 0;border-bottom:1px solid var(--line)}
+.tab{padding:10px 14px;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--ink);font-weight:600;border-bottom-color:var(--deep)}
+.bar{display:flex;align-items:center;gap:8px;padding:14px 0;flex-wrap:wrap}
+.btn{padding:7px 11px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:12.5px;color:var(--ink)}
+.btn:hover{background:var(--bg2)}
+.btn.on{background:var(--deep);border-color:var(--deep);color:#fff}
+.btn.primary{background:var(--deep);border-color:var(--deep);color:#fff}
+select.sel,input.inp{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:12.5px}
+input.inp{min-width:190px}
+.bar .sp{flex:1}
+.muted{color:var(--muted)}
 
-  /* ---------------- MAIN ---------------- */
-  .main{flex:1;display:flex;flex-direction:column;min-width:0;background:#fff;}
-  .topbar{height:48px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 16px;flex-shrink:0;}
-  .search{flex:0 1 520px;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:8px;background:#f5f6f8;border-radius:8px;padding:7px 12px;color:var(--text-faint);font-size:13px;}
-  .search svg{width:15px;height:15px;}
-  .topbar-icons{display:flex;align-items:center;gap:4px;margin-left:auto;}
-  .avatar{width:28px;height:28px;border-radius:50%;background:#c4c4c4;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:minmax(0,1fr) 336px;gap:22px;align-items:start}
+@media(max-width:1200px){.shell{grid-template-columns:1fr}.aside{position:static!important}}
+.inner{min-width:0}
 
-  .board-wrap{flex:1;display:flex;min-height:0;}
-  .board{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;}
-  .board-head{padding:16px 24px 4px;}
-  .board-title{display:flex;align-items:center;gap:10px;}
-  .board-title h1{font-size:23px;font-weight:700;margin:0;}
-  .board-title .chev{color:var(--text-soft);}
-  .board-title .spacer{flex:1;}
-  .board-tabs{display:flex;align-items:center;gap:2px;padding:10px 24px 0;border-bottom:1px solid var(--line);}
-  .tab{padding:8px 12px;font-size:14px;font-weight:600;color:var(--text-soft);border-bottom:2px solid transparent;margin-bottom:-1px;}
-  .tab.active{color:var(--text);border-bottom-color:var(--mon-blue);}
-  .tab.add{color:var(--text-faint);}
+/* ---------- gantt ---------- */
+.gantt{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.grow{display:grid;grid-template-columns:300px minmax(0,1fr)}
+.ghead{background:var(--bg2);border-bottom:1px solid var(--line)}
+.ghead .gl{padding:9px 12px;font:600 10.5px var(--font);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);border-right:1px solid var(--line)}
+.months{position:relative;height:34px}
+.mo{position:absolute;top:0;height:100%;border-left:1px solid var(--line2);padding:9px 0 0 6px;font:500 10.5px var(--font);color:var(--muted3);white-space:nowrap;overflow:hidden}
+.mo:first-child{border-left:0}
 
-  .toolbar{display:flex;align-items:center;gap:6px;padding:12px 24px;}
-  .btn-primary{display:flex;align-items:center;gap:6px;background:var(--mon-blue);color:#fff;border:0;border-radius:6px;padding:8px 14px;font-size:14px;font-weight:600;}
-  .btn-primary .split{border-left:1px solid rgba(255,255,255,.35);padding-left:7px;margin-left:2px;}
-  .btn-primary:hover{background:var(--mon-blue-dark);}
-  .tool{display:flex;align-items:center;gap:6px;background:transparent;border:0;border-radius:6px;padding:8px 10px;font-size:14px;color:var(--text-soft);font-weight:500;}
-  .tool:hover{background:var(--hover);}
-  .tool svg{width:16px;height:16px;}
+.phase{grid-column:1/-1;display:grid;grid-template-columns:300px minmax(0,1fr);background:var(--bg3);border-bottom:1px solid var(--line)}
+.phase .pl{padding:8px 12px;display:flex;align-items:center;gap:7px;border-right:1px solid var(--line)}
+.phase .chev{color:var(--muted2);font-size:10px;width:9px}
+.phase .pn{font-weight:600;font-size:12.5px}
+.phase .pm{margin-left:auto;font-size:11px;color:var(--muted2);font-variant-numeric:tabular-nums}
+.phase .pr{position:relative}
 
-  .board-body{flex:1;overflow:auto;padding:0 24px 40px;}
-  .group{margin-top:6px;}
-  .group-head{display:flex;align-items:center;gap:8px;padding:8px 0 6px;font-weight:700;font-size:15px;color:var(--group-todo);}
-  .group-head .gchev{cursor:pointer;display:flex;}
-  .group-head .gcount{font-size:12.5px;font-weight:500;color:var(--text-faint);}
+.row{display:contents}
+.cell-l{padding:6px 12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line2);display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer}
+.cell-l:hover{background:var(--bg4)}
+.cell-l.sel{background:#eef3f3;box-shadow:inset 2px 0 0 var(--teal)}
+.tid{font:600 10px var(--font);color:var(--muted2);letter-spacing:.05em;width:30px;flex:none}
+.tnm{font-size:12.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.tdur{font-size:10.5px;color:var(--muted2);font-variant-numeric:tabular-nums;flex:none}
+.cell-r{position:relative;height:30px;border-bottom:1px solid var(--line2);cursor:pointer}
+.cell-r:hover{background:var(--bg4)}
+.cell-r.sel{background:#eef3f3}
+.grid-v{position:absolute;inset:0;pointer-events:none}
+.grid-v i{position:absolute;top:0;bottom:0;width:1px;background:var(--line2)}
+.today{position:absolute;top:0;bottom:0;width:1px;background:var(--red);opacity:.55;pointer-events:none;z-index:3}
 
-  table.grid{border-collapse:separate;border-spacing:0;width:100%;max-width:900px;}
-  table.grid th,table.grid td{text-align:left;}
-  .grid thead th{font-size:13px;font-weight:500;color:var(--text-soft);padding:4px 8px;border-bottom:1px solid var(--line);}
-  .col-check{width:34px;}
-  .col-task{}
-  .col-owner{width:96px;text-align:center!important;}
-  .col-status{width:164px;}
-  .status-pill{white-space:nowrap;}
-  .grid tbody tr{background:#fff;}
-  .grid tbody td{border-bottom:1px solid var(--line-soft);padding:0;height:38px;vertical-align:middle;}
-  .grid tbody tr:hover td{background:var(--hover);}
-  .cell-pad{padding:0 8px;display:flex;align-items:center;gap:8px;height:38px;}
-  .grip{width:6px;align-self:stretch;border-top-left-radius:6px;border-bottom-left-radius:6px;background:var(--group-todo);flex-shrink:0;}
-  td.first-cell{padding-left:0;}
-  .cb{width:16px;height:16px;border:1.5px solid #c3c6d4;border-radius:4px;background:#fff;flex-shrink:0;cursor:pointer;}
-  .task-name{font-size:14px;color:var(--text);font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
-  .task-name .code{color:var(--text-faint);font-weight:600;}
-  .row-open{display:flex;align-items:center;gap:5px;color:var(--text-faint);font-size:12px;font-weight:600;padding:2px 6px;border-radius:5px;}
-  .row-open:hover{background:#e6f0ff;color:var(--mon-blue);}
-  .row-open svg{width:15px;height:15px;}
-  .conv-badge{display:inline-flex;align-items:center;gap:3px;color:var(--mon-blue);font-weight:700;font-size:12px;background:#e6f0ff;padding:2px 7px;border-radius:11px;}
-  .conv-badge svg{width:13px;height:13px;}
-  .owner-cell{display:flex;align-items:center;justify-content:center;height:38px;}
-  .owner-empty{width:26px;height:26px;border-radius:50%;border:1.5px dashed #c3c6d4;display:flex;align-items:center;justify-content:center;color:#c3c6d4;}
-  .status-cell{height:38px;padding:0;}
-  .status-pill{height:38px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:500;cursor:pointer;position:relative;}
-  .status-pill.empty{background:var(--grey);}
-  .add-row{display:flex;align-items:center;gap:8px;padding:8px;color:var(--text-faint);font-size:14px;border-bottom:1px solid var(--line-soft);}
+.bar-t{position:absolute;top:8px;height:14px;border-radius:3px;background:var(--teal);display:flex;align-items:center;z-index:2}
+.bar-t.crit{background:var(--red)}
+.bar-t .fill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.42);border-radius:3px 0 0 3px}
+.bar-t .lbl{position:absolute;left:calc(100% + 6px);font:500 10.5px var(--font);color:var(--muted3);white-space:nowrap}
+.base{position:absolute;top:24px;height:3px;background:var(--teal);opacity:.22;border-radius:2px;z-index:1}
+.chip-late{position:absolute;left:calc(100% + 6px);top:-1px;background:var(--red);color:#fff;font:600 8.5px var(--font);letter-spacing:.04em;padding:2px 5px;border-radius:3px;white-space:nowrap}
+.ms{position:absolute;top:9px;width:12px;height:12px;background:var(--deep);transform:rotate(45deg);z-index:2}
+.ms.crit{background:var(--red)}
+.ms-lbl{position:absolute;top:7px;font:600 10.5px var(--font);white-space:nowrap;color:var(--ink)}
 
-  /* ---------------- ITEM PANEL ---------------- */
-  .item-panel{width:0;flex-shrink:0;border-left:1px solid var(--line);background:#fff;display:flex;flex-direction:column;overflow:hidden;transition:width .18s ease;}
-  .item-panel.open{width:560px;}
-  @media(max-width:1200px){.item-panel.open{width:460px;}}
-  .ip-head{display:flex;align-items:center;gap:8px;padding:16px 18px 6px;}
-  .ip-head h3{font-size:20px;font-weight:700;margin:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .ip-close{font-size:20px;color:var(--text-soft);background:transparent;border:0;line-height:1;padding:4px;}
-  .ip-tabs{display:flex;align-items:center;gap:4px;padding:4px 18px 0;border-bottom:1px solid var(--line);}
-  .ip-tab{display:flex;align-items:center;gap:6px;padding:9px 10px;font-size:14px;font-weight:600;color:var(--text-soft);border-bottom:2px solid transparent;margin-bottom:-1px;}
-  .ip-tab.active{color:var(--text);border-bottom-color:var(--mon-blue);}
-  .ip-tab .cnt{background:#eceff3;color:var(--text-soft);border-radius:9px;font-size:11px;padding:0 6px;font-weight:700;}
-  .ip-body{flex:1;overflow:auto;padding:14px 18px 30px;background:#fff;}
+/* ---------- aside ---------- */
+.aside{position:sticky;top:18px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.aside .ah{padding:14px 15px;border-bottom:1px solid var(--line);background:var(--bg2)}
+.aside .ak{font:600 10px var(--font);letter-spacing:.14em;text-transform:uppercase;color:var(--muted2)}
+.aside .an{font-size:17px;font-weight:600;letter-spacing:-.02em;margin-top:5px;line-height:1.2}
+.aside .ap{font-size:11.5px;color:var(--muted);margin-top:4px}
+.atabs{display:flex;border-bottom:1px solid var(--line);background:#fff}
+.atab{flex:1;padding:9px 4px;font-size:11.5px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.atab.on{color:var(--ink);font-weight:600;border-bottom-color:var(--deep)}
+.apane{display:none;padding:14px 15px;max-height:calc(100vh - 260px);overflow-y:auto}
+.apane.on{display:block}
+.f4{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}
+.fbox{background:var(--bg2);border:1px solid var(--line2);border-radius:6px;padding:7px 9px}
+.fbox .k{font:600 9px var(--font);letter-spacing:.1em;text-transform:uppercase;color:var(--muted2)}
+.fbox .v{font-size:13.5px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
+.fbox .v.bad{color:var(--red)} .fbox .v.ok{color:var(--green)}
+.lrow{display:flex;gap:9px;padding:6px 0;border-bottom:1px solid var(--line2);font-size:12.2px}
+.lrow .lk{color:var(--muted);width:96px;flex:none}
+.lrow .lv{flex:1;min-width:0}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:11px;font:600 10.5px var(--font);letter-spacing:.03em}
+.pill.ok{background:#e7f3ee;color:var(--green)}
+.pill.warn{background:#fdf3e4;color:var(--amber)}
+.pill.bad{background:var(--redbg);color:var(--red)}
+.pill.neutral{background:var(--bg3);color:var(--muted)}
+.pill.info{background:#eef3f3;color:var(--teal)}
+h4.sec{font:600 10px var(--font);letter-spacing:.14em;text-transform:uppercase;color:var(--muted2);margin:15px 0 8px}
+h4.sec:first-child{margin-top:0}
+.li{font-size:12.2px;padding:4px 0 4px 13px;position:relative;color:var(--muted3)}
+.li:before{content:'';position:absolute;left:2px;top:11px;width:4px;height:4px;border-radius:50%;background:var(--muted2)}
 
-  .composer{border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.05);overflow:hidden;margin-bottom:6px;}
-  .composer .cbar{display:flex;align-items:center;gap:2px;padding:8px 10px;border-bottom:1px solid var(--line-soft);color:var(--text-soft);flex-wrap:wrap;}
-  .composer .cbar button{width:26px;height:26px;border:0;background:transparent;border-radius:5px;color:var(--text-soft);font-size:13px;display:flex;align-items:center;justify-content:center;}
-  .composer .cbar button:hover{background:var(--hover);}
-  .composer textarea{width:100%;border:0;outline:0;resize:none;padding:12px;font-family:inherit;font-size:14px;min-height:70px;color:var(--text);}
-  .composer .cfoot{display:flex;align-items:center;gap:8px;padding:8px 10px;}
-  .composer .cfoot .lead{color:var(--text-faint);display:flex;gap:6px;}
-  .composer .cfoot .spacer{flex:1;}
-  .btn-update{background:var(--mon-blue);color:#fff;border:0;border-radius:6px;padding:8px 16px;font-weight:600;font-size:14px;}
-  .btn-update:hover{background:var(--mon-blue-dark);}
-  .btn-ghost{background:#fff;border:1px solid var(--line);color:var(--text);border-radius:6px;padding:8px 12px;font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;}
-  .btn-ghost:hover{background:var(--hover);}
+/* verification queue */
+.verify{border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:6px;padding:10px 11px;margin-bottom:10px;background:#fffdf8}
+.verify .vt{font-size:12.3px;line-height:1.5}
+.verify .vm{font-size:11.3px;color:var(--muted);margin-top:5px}
+.verify .va{display:flex;gap:6px;margin-top:9px}
+.btn-xs{padding:5px 9px;border:1px solid var(--line);border-radius:5px;background:#fff;font-size:11.5px}
+.btn-xs.go{background:var(--deep);border-color:var(--deep);color:#fff}
+.upd{border-bottom:1px solid var(--line2);padding:10px 0}
+.upd .uh{display:flex;align-items:center;gap:7px;font-size:11.3px;color:var(--muted2);margin-bottom:5px}
+.upd .src{font:600 9px var(--font);letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:8px}
+.src.wa{background:#e7f3ee;color:var(--green)} .src.voice{background:#f0e9fb;color:#6b30bd}
+.src.po{background:#fdf3e4;color:var(--amber)} .src.board{background:#eef3f3;color:var(--teal)}
+.upd .ub{font-size:12.4px;line-height:1.5}
+.upd .ue{font-size:11.3px;color:var(--muted);margin-top:4px}
 
-  .simulate{display:flex;align-items:center;gap:8px;margin:10px 0 18px;padding:10px 12px;background:#f0f9f0;border:1px solid #cdeccd;border-radius:8px;font-size:12.5px;color:#2b7a2b;}
-  .simulate .wa{width:22px;height:22px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .simulate .wa svg{width:14px;height:14px;fill:#fff;}
-  .simulate .spacer{flex:1;}
+/* ---------- procurement table ---------- */
+.ptab{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.ptr{display:grid;grid-template-columns:minmax(0,1.6fr) 90px minmax(0,1.6fr) 110px 130px;border-bottom:1px solid var(--line2)}
+.ptr.h{background:var(--bg2);border-bottom:1px solid var(--line)}
+.ptr.h > div{font:600 10.5px var(--font);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);padding:9px 12px}
+.ptr > div{padding:8px 12px;font-size:12.3px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ptr:not(.h):hover{background:var(--bg4);cursor:pointer}
+.ptr .mono{font-variant-numeric:tabular-nums;color:var(--muted3)}
 
-  .update{padding:14px 0;border-bottom:1px solid var(--line-soft);}
-  .u-head{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
-  .u-head .name{font-weight:700;font-size:14px;}
-  .u-head .when{color:var(--text-faint);font-size:12.5px;}
-  .u-head .menu{margin-left:auto;color:var(--text-faint);display:flex;gap:8px;}
-  .u-card{border:1px solid var(--line);border-left:3px solid #25d366;border-radius:8px;padding:12px 14px;background:#fff;}
-  .u-card.plain{border-left-color:var(--mon-blue);}
-  .u-src{display:flex;align-items:center;gap:7px;font-weight:700;font-size:13.5px;margin-bottom:7px;color:var(--text);}
-  .u-src .dot{width:18px;height:18px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .u-src .dot svg{width:11px;height:11px;fill:#fff;}
-  .u-body{font-size:14px;line-height:1.55;color:var(--text);}
-  .u-meta{margin-top:9px;font-size:13px;color:var(--text-soft);line-height:1.6;}
-  .u-meta b{color:var(--text);font-weight:700;}
-  .u-effect{margin-top:9px;display:flex;align-items:center;gap:8px;font-size:12.5px;}
-  .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:12px;font-weight:700;font-size:12px;color:#fff;}
-  .u-actions{display:flex;gap:16px;margin-top:9px;color:var(--text-soft);font-size:13px;}
-  .u-actions span{display:flex;align-items:center;gap:5px;cursor:pointer;}
-  .u-actions svg{width:15px;height:15px;}
+/* ---------- week / day ---------- */
+.wk{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.wd{border:1px solid var(--line);border-radius:7px;overflow:hidden;min-height:190px}
+.wd .wh{background:var(--bg2);border-bottom:1px solid var(--line);padding:8px 10px}
+.wd .dow{font:600 10px var(--font);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2)}
+.wd .dt{font-size:14px;font-weight:600;margin-top:2px}
+.wd .wb{padding:8px 10px}
+.wi{padding:6px 0;border-bottom:1px solid var(--line2);cursor:pointer}
+.wi:last-child{border-bottom:0}
+.wi .wid{font:600 9.5px var(--font);color:var(--muted2);letter-spacing:.05em}
+.wi .win{font-size:12px;line-height:1.35;margin-top:1px}
 
-  /* status dropdown */
-  .sd{position:absolute;top:40px;left:50%;transform:translateX(-50%);z-index:40;background:#fff;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:8px;width:180px;display:none;}
-  .sd.open{display:block;}
-  .sd .opt{height:32px;border-radius:5px;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;margin-bottom:4px;cursor:pointer;}
-  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#323338;color:#fff;padding:11px 18px;border-radius:8px;font-size:13.5px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:100;display:flex;align-items:center;gap:9px;}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
-  .toast .dot{width:9px;height:9px;border-radius:50%;background:var(--done);}
-
-  /* ---------------- PROCUREMENT INTEGRATION ---------------- */
-  .integration{display:flex;align-items:center;gap:10px;margin:4px 0 10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;font-size:12.5px;}
-  .integration .plug{width:24px;height:24px;border-radius:6px;background:#0b5cd5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex-shrink:0;}
-  .integration .live{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:#00854d;}
-  .integration .live i{width:7px;height:7px;border-radius:50%;background:var(--done);display:block;}
-  .integration select{font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:6px;padding:4px 6px;color:var(--text);background:#fff;font-weight:600;}
-  .integration .muted{color:var(--text-faint);}
-  .integration .spacer{flex:1;}
-
-  .col-risk{width:132px;}
-  .risk-cell{height:38px;display:flex;align-items:center;padding:0 8px;}
-  .risk-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700;color:#fff;cursor:default;white-space:nowrap;}
-  .risk-chip .r-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.85);}
-  .risk-chip.clear{background:var(--done);}
-  .risk-chip.watch{background:#ffcb00;color:#5a4a00;}
-  .risk-chip.atrisk{background:#ff642e;}
-  .risk-chip.critical{background:var(--stuck);}
-
-  .pane{display:none;}
-  .pane.active{display:block;}
-  .ip-tab{border:0;background:transparent;font-family:inherit;cursor:pointer;}
-
-  .po{border:1px solid var(--line);border-radius:8px;padding:13px 14px;margin-bottom:12px;background:#fff;}
-  .po.critical{border-left:3px solid var(--stuck);}
-  .po.atrisk{border-left:3px solid #ff642e;}
-  .po.watch{border-left:3px solid #ffcb00;}
-  .po.clear{border-left:3px solid var(--done);}
-  .po-top{display:flex;align-items:center;gap:9px;margin-bottom:4px;}
-  .po-num{font-weight:800;font-size:14px;}
-  .po-state{font-size:11px;font-weight:700;padding:2px 8px;border-radius:11px;background:#eceff3;color:var(--text-soft);text-transform:uppercase;letter-spacing:.03em;}
-  .po-state.pending_approval{background:#fff3d6;color:#8a6100;}
-  .po-state.draft{background:#eceff3;color:#676879;}
-  .po-state.approved{background:#e0f5ea;color:#00623b;}
-  .po-state.issued{background:#e6f0ff;color:#0060b9;}
-  .po-state.delivered{background:#e0f5ea;color:#00623b;}
-  .po-state.none{background:#ffe6e9;color:#a01829;}
-  .po-vendor{font-size:13px;color:var(--text-soft);margin-bottom:9px;}
-  .po-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:10px;}
-  .po-f{background:#f7f8fb;border-radius:6px;padding:7px 9px;}
-  .po-f .k{font-size:10.5px;color:var(--text-faint);font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
-  .po-f .v{font-size:13px;font-weight:700;margin-top:2px;}
-  .po-f .v.bad{color:var(--stuck);}
-  .po-why{border-top:1px solid var(--line-soft);padding-top:9px;}
-  .po-why li{font-size:12.5px;color:var(--text-soft);line-height:1.6;margin-left:-8px;}
-  .po-forecast{margin-top:9px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px;}
-  .empty-note{color:var(--text-faint);font-size:13px;padding:18px 2px;}
-
-  /* ---------------- WHATSAPP AGENT CONSOLE ---------------- */
-  .agent-fab{position:fixed;right:22px;bottom:22px;z-index:80;width:56px;height:56px;border-radius:50%;background:#25d366;border:0;box-shadow:0 6px 22px rgba(0,0,0,.24);display:flex;align-items:center;justify-content:center;}
-  .agent-fab svg{width:30px;height:30px;fill:#fff;}
-  .agent-fab .badge{position:absolute;top:-2px;right:-2px;background:var(--stuck);color:#fff;font-size:10px;font-weight:800;width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;}
-  .agent{position:fixed;right:22px;bottom:22px;z-index:90;width:430px;max-width:calc(100vw - 24px);height:640px;max-height:calc(100vh - 44px);background:#efe7de;border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden;}
-  .agent.open{display:flex;}
-  .ag-head{background:#075e54;color:#fff;padding:11px 14px;display:flex;align-items:center;gap:11px;flex-shrink:0;}
-  .ag-head .ava{width:36px;height:36px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .ag-head .ava svg{width:20px;height:20px;fill:#fff;}
-  .ag-head h4{margin:0;font-size:14.5px;font-weight:700;}
-  .ag-head p{margin:1px 0 0;font-size:11.5px;opacity:.8;}
-  .ag-head .x{margin-left:auto;background:transparent;border:0;color:#fff;font-size:17px;opacity:.85;}
-  .ag-log{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px;background:#efe7de;}
-  .msg{max-width:86%;padding:8px 11px;border-radius:9px;font-size:13.2px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.08);white-space:pre-wrap;word-break:break-word;}
-  .msg.me{align-self:flex-end;background:#dcf8c6;}
-  .msg.bot{align-self:flex-start;background:#fff;}
-  .msg b{font-weight:700;}
-  .msg .mt{display:block;margin-top:5px;font-size:10.5px;color:#8a9098;text-align:right;}
-  .msg table{border-collapse:collapse;margin-top:5px;font-size:12.3px;width:100%;}
-  .msg td{padding:2px 6px 2px 0;vertical-align:top;border-bottom:1px solid #f0f0f0;}
-  .msg td:first-child{color:#667;white-space:nowrap;}
-  .ag-chips{flex-shrink:0;background:#f6f6f6;border-top:1px solid #e2e2e2;max-height:132px;overflow-y:auto;padding:8px 10px;}
-  .ag-cat{font-size:10px;font-weight:800;color:#8a9098;text-transform:uppercase;letter-spacing:.05em;margin:6px 0 4px;}
-  .ag-cat:first-child{margin-top:0;}
-  .chipbtn{display:inline-block;background:#fff;border:1px solid #d9dce1;border-radius:14px;padding:4px 10px;font-size:11.8px;margin:0 4px 4px 0;color:#25507a;cursor:pointer;font-family:inherit;}
-  .chipbtn:hover{background:#e6f0ff;border-color:var(--mon-blue);}
-  .ag-in{flex-shrink:0;display:flex;gap:7px;padding:9px;background:#f0f0f0;}
-  .ag-in input{flex:1;border:0;border-radius:20px;padding:10px 14px;font-family:inherit;font-size:13.5px;outline:0;}
-  .ag-in button{width:40px;height:40px;border-radius:50%;background:#25d366;border:0;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .ag-in button svg{width:18px;height:18px;fill:#fff;}
-  .ag-in .aux{width:34px;height:40px;background:transparent;color:#6b7280;border:0;display:flex;align-items:center;justify-content:center;border-radius:8px;}
-  .ag-in .aux:hover{background:#e4e4e4;}
-  .ag-in .aux svg{width:19px;height:19px;fill:#54656f;}
-  .ag-in .aux.rec{background:#ffe6e9;}
-  .ag-in .aux.rec svg{fill:#e2445c;}
-
-  /* voice note bubble */
-  .voice{display:flex;align-items:center;gap:9px;min-width:210px;}
-  .voice .play{width:28px;height:28px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .voice .play svg{width:13px;height:13px;fill:#fff;}
-  .voice .wave{flex:1;display:flex;align-items:center;gap:2px;height:22px;}
-  .voice .wave i{display:block;width:2.5px;border-radius:2px;background:#9aa6ad;}
-  .voice .dur{font-size:11px;color:#667;flex-shrink:0;}
-  .transcript{border-left:3px solid #25d366;background:#f7fbf7;border-radius:6px;padding:7px 9px;margin-top:7px;font-size:12.8px;line-height:1.5;}
-  .transcript .lbl{font-size:9.6px;font-weight:800;letter-spacing:.05em;color:#00854d;text-transform:uppercase;display:block;margin-bottom:3px;}
-  .transcript .orig{color:#6b7280;font-size:11.8px;margin-top:4px;display:block;}
-  .typing{font-style:italic;color:#8a9098;}
-
-  /* files + activity panes */
-  .file-row{display:flex;align-items:center;gap:11px;padding:10px 2px;border-bottom:1px solid var(--line-soft);}
-  .file-ic{width:38px;height:38px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:9.6px;font-weight:800;color:#fff;flex-shrink:0;}
-  .file-ic.img{background:#0086c0;} .file-ic.pdf{background:#e2445c;} .file-ic.doc{background:#0073ea;}
-  .file-meta{flex:1;min-width:0;}
-  .file-meta .fn{font-size:13.4px;font-weight:600;}
-  .file-meta .fs{font-size:11.6px;color:var(--text-faint);margin-top:1px;}
-  .ev-tag{font-size:10px;font-weight:800;color:#00854d;background:#e0f5ea;border-radius:9px;padding:2px 7px;}
-  .log-row{display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line-soft);font-size:12.8px;}
-  .log-when{color:var(--text-faint);width:62px;flex-shrink:0;font-size:11.6px;}
-  .log-what b{font-weight:700;}
-  .log-src{font-size:9.6px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:8px;margin-left:6px;}
-  .log-src.wa{background:#e0f5ea;color:#00713f;} .log-src.board{background:#e6f0ff;color:#0060b9;}
-  .log-src.po{background:#fff3d6;color:#8a6100;} .log-src.voice{background:#f0e6ff;color:#6b30bd;}
-
-  /* monday connection bar */
-  .mbar{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:12.5px;}
-  .mbar .mlogo{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#ff3d57,#ffcb00 55%,#00d2a8);flex-shrink:0;}
-  .mbar .spacer{flex:1;}
-  .mbar .muted{color:var(--text-faint);}
-  .mbar .ok{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:#00854d;}
-  .mbar .ok i{width:7px;height:7px;border-radius:50%;background:var(--done);display:block;}
+/* ---------- assistant ---------- */
+.fab{position:fixed;right:24px;bottom:24px;z-index:80;width:54px;height:54px;border-radius:50%;background:var(--deep);box-shadow:0 10px 30px rgba(18,54,64,.34);display:flex;align-items:center;justify-content:center}
+.fab svg{width:24px;height:24px;fill:#fff}
+.fab .bdg{position:absolute;top:-2px;right:-2px;width:19px;height:19px;border-radius:50%;background:var(--red);color:#fff;font:700 10px var(--font);display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+.asst{position:fixed;right:24px;bottom:24px;z-index:90;width:430px;max-width:calc(100vw - 28px);height:660px;max-height:calc(100vh - 48px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 24px 70px rgba(0,9,25,.26);display:none;flex-direction:column;overflow:hidden}
+.asst.on{display:flex}
+.ah2{background:var(--deep);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.ah2 .t{font-size:14px;font-weight:600}
+.ah2 .s{font-size:11px;opacity:.72;margin-top:1px}
+.ah2 .x{margin-left:auto;color:#fff;font-size:17px;opacity:.8}
+.alog{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px;background:var(--bg4)}
+.m{max-width:88%;padding:9px 11px;border-radius:8px;font-size:12.6px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.m.me{align-self:flex-end;background:var(--deep);color:#fff}
+.m.bot{align-self:flex-start;background:#fff;border:1px solid var(--line)}
+.m table{border-collapse:collapse;margin-top:5px;font-size:11.8px;width:100%}
+.m td{padding:2px 6px 2px 0;vertical-align:top;border-bottom:1px solid var(--line2)}
+.m td:first-child{color:var(--muted);white-space:nowrap}
+.m .ts{display:block;margin-top:5px;font-size:10px;opacity:.55;text-align:right}
+.chips{flex:none;background:#fff;border-top:1px solid var(--line);max-height:136px;overflow-y:auto;padding:9px 10px}
+.ccat{font:600 9px var(--font);letter-spacing:.12em;text-transform:uppercase;color:var(--muted2);margin:7px 0 4px}
+.ccat:first-child{margin-top:0}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:13px;padding:4px 9px;font-size:11.3px;margin:0 4px 4px 0;color:var(--teal);background:#fff}
+.chip:hover{background:var(--bg3)}
+.ain{flex:none;display:flex;gap:6px;padding:9px;border-top:1px solid var(--line);background:#fff}
+.ain input{flex:1;border:1px solid var(--line);border-radius:18px;padding:9px 13px;font-size:12.6px;outline:0}
+.ain .go{width:37px;height:37px;border-radius:50%;background:var(--deep);display:flex;align-items:center;justify-content:center;flex:none}
+.ain .go svg{width:16px;height:16px;fill:#fff}
+.ain .aux{width:32px;height:37px;display:flex;align-items:center;justify-content:center;border-radius:6px;flex:none}
+.ain .aux:hover{background:var(--bg3)}
+.ain .aux svg{width:17px;height:17px;fill:var(--muted3)}
+.ain .aux.rec svg{fill:var(--red)}
+.voice{display:flex;align-items:center;gap:8px;min-width:190px}
+.voice .pl{width:25px;height:25px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;flex:none}
+.voice .pl svg{width:11px;height:11px;fill:#fff}
+.voice .wv{flex:1;display:flex;align-items:center;gap:2px;height:20px}
+.voice .wv i{display:block;width:2.5px;border-radius:2px;background:rgba(255,255,255,.6)}
+.voice .du{font-size:10.5px;opacity:.75;flex:none}
+.tr{border-left:3px solid var(--green);background:#f2f9f6;border-radius:5px;padding:7px 9px;margin-top:6px;font-size:12.2px;line-height:1.45}
+.tr .l{display:block;font:700 9px var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--green);margin-bottom:3px}
+.tr .o{display:block;color:var(--muted);font-size:11.2px;margin-top:4px}
+.typing{font-style:italic;color:var(--muted2)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 17px;border-radius:7px;font-size:12.5px;font-weight:500;box-shadow:0 10px 34px rgba(0,9,25,.3);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:100}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(-4px)}
+.note{font-size:11.3px;color:var(--muted2);line-height:1.5;margin-top:10px}
 </style>
 </head>
 <body>
-<div class="app">
+<div class="wrap">
 
-  <!-- ICON RAIL -->
-  <nav class="rail">
-    <div class="logo"></div>
-    <button class="rail-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Work</button>
-    <button class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.2 5.5L20 10l-5 3.8L16.5 20 12 16.5 7.5 20 9 13.8 4 10l5.8-1.5z"/></svg>Sidekick</button>
-    <button class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h4l2-6 4 12 2-6h4"/></svg>Vibe</button>
-    <button class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6"/></svg>Agents</button>
-    <button class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M6 8.5v3a3 3 0 003 3h6a3 3 0 003-3v-3"/><path d="M12 14.5v1"/></svg>Flows</button>
-    <button class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l3 3v15H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Notes</button>
-    <div class="rail-spacer"></div>
-    <button class="rail-item"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>More</button>
-  </nav>
-
-  <!-- WORKSPACE PANEL -->
-  <aside class="panel">
-    <div class="panel-head">
-      <h2>Workspace</h2>
-      <button class="icon-btn" title="Options"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
-      <button class="icon-btn" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg></button>
-      <button class="icon-btn" title="Collapse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg></button>
+  <header class="top">
+    <div style="max-width:760px;min-width:0">
+      <div class="kicker">Programme · BOH-INF-014</div>
+      <h1>XYZ Hospital Construction</h1>
+      <p class="sub">Critical-path programme with live procurement exposure. Field evidence arrives from WhatsApp and is held for verification before it moves the schedule.</p>
     </div>
-    <div class="ws-select">
-      <span class="ws-badge">M</span><span>Main workspace</span><span class="chev">▾</span>
-    </div>
-    <div class="panel-link">My agents <span class="chev">›</span></div>
+    <div class="kpis" id="kpis"></div>
+  </header>
 
-    <div class="panel-section">
-      <div class="sec-head">Content <span class="plus">
-        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
-        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
-      </span></div>
-      <div class="nav-row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></span>Manage workspace</div>
-      <div class="nav-row active"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></span>Bohio · Primavera Schedule</div>
-      <div class="nav-row"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>Dashboard and reporting</div>
-      <div class="nav-row"><span class="ic" style="color:#c05cff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h4l2-6 4 12 2-6h4"/></svg></span>Build Vibe app</div>
-    </div>
-  </aside>
+  <nav class="tabs" id="tabs"></nav>
 
-  <!-- MAIN -->
-  <div class="main">
-    <div class="topbar">
-      <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>Search for anything...</div>
-      <div class="topbar-icons">
-        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 20a2 2 0 01-3.4 0"/></svg></button>
-        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></button>
-        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3 2.7-5.2 6-5.2S15 17 15 20"/><path d="M16 5a3 3 0 010 6M18 20c0-2.4-1-4-2.6-5"/></svg></button>
-        <div class="avatar" style="background:#7a52d6">MB</div>
+  <div class="bar">
+    <button class="btn" id="b-base" onclick="tog('showBaseline')">Show baseline</button>
+    <button class="btn" id="b-del" onclick="tog('showDelays')">Show delays</button>
+    <button class="btn" id="b-crit" onclick="tog('critOnly')">Critical only</button>
+    <select class="sel" id="f-phase" onchange="setF('phase',this.value)"></select>
+    <select class="sel" id="f-crew" onchange="setF('crew',this.value)"></select>
+    <input class="inp" id="f-text" placeholder="Filter activities…" oninput="setF('text',this.value)"/>
+    <button class="btn" onclick="clearF()">Clear filters</button>
+    <span class="sp"></span>
+    <span class="muted" id="data-date"></span>
+  </div>
+
+  <div class="shell">
+    <div class="inner">
+      <div id="view-timeline"></div>
+      <div id="view-week" style="display:none"></div>
+      <div id="view-proc" style="display:none"></div>
+      <p class="note" id="viewnote"></p>
+    </div>
+
+    <aside class="aside">
+      <div class="ah">
+        <div class="ak" id="a-kick">Select an activity</div>
+        <div class="an" id="a-name">—</div>
+        <div class="ap" id="a-phase"></div>
       </div>
-    </div>
-
-    <div class="board-wrap">
-      <!-- BOARD -->
-      <div class="board">
-        <div class="board-head">
-          <div class="board-title">
-            <h1>Bohio · Primavera Schedule</h1><span class="chev">▾</span>
-            <div class="spacer"></div>
-            <div class="avatar">MB</div>
-            <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></button>
-            <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
-          </div>
-        </div>
-        <div class="board-tabs">
-          <div class="tab active">Main table</div>
-          <div class="tab add">⋯</div>
-          <div class="tab add">＋</div>
-        </div>
-        <div class="toolbar">
-          <button class="btn-primary" onclick="addTask()">New task <span class="split">▾</span></button>
-          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>Search</button>
-          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3 2.7-5.2 6-5.2S15 17 15 20"/></svg>Person</button>
-          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg>Filter</button>
-          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4v16M7 20l-3-3M7 4l3 3M17 20V4M17 4l-3 3M17 20l3-3"/></svg></button>
-        </div>
-
-        <div class="board-body">
-          <div class="mbar">
-            <span class="mlogo"></span>
-            <span><b>monday.com</b> · <span class="muted" id="mb-board"></span></span>
-            <span class="ok"><i></i>Connected</span>
-            <span class="muted" id="mb-state"></span>
-            <span class="spacer"></span>
-            <span class="muted" id="mb-sync"></span>
-          </div>
-          <div class="integration">
-            <span class="plug" id="int-badge">CP</span>
-            <span><b id="int-name">Coupa</b> · purchasing</span>
-            <span class="live"><i></i>Connected</span>
-            <select id="int-provider" onchange="setProvider(this.value)"></select>
-            <span class="muted" id="int-sync">Last sync —</span>
-            <span class="spacer"></span>
-            <span class="muted" id="int-summary"></span>
-            <button class="btn-ghost" onclick="syncProcurement()">Sync now</button>
-          </div>
-          <div class="group">
-            <div class="group-head">
-              <span class="gchev">▾</span>
-              <span>To-Do</span>
-              <span class="gcount" id="group-count"></span>
-            </div>
-            <table class="grid">
-              <thead>
-                <tr>
-                  <th class="col-check"></th>
-                  <th class="col-task">Task</th>
-                  <th class="col-owner">Owner</th>
-                  <th class="col-status">Status</th>
-                  <th class="col-risk">Delay risk</th>
-                </tr>
-              </thead>
-              <tbody id="rows"></tbody>
-              <tfoot>
-                <tr><td colspan="5"><div class="add-row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Add task</div></td></tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+      <div class="atabs">
+        <button class="atab on" id="at-detail" onclick="aPane('detail')">Detail</button>
+        <button class="atab" id="at-proc" onclick="aPane('proc')">Procurement</button>
+        <button class="atab" id="at-upd" onclick="aPane('upd')">Updates</button>
+        <button class="atab" id="at-log" onclick="aPane('log')">Log</button>
       </div>
-
-      <!-- ITEM PANEL -->
-      <aside class="item-panel" id="itemPanel">
-        <div class="ip-head">
-          <h3 id="ip-title">Item</h3>
-          <div class="avatar" style="width:24px;height:24px;font-size:10px;">MB</div>
-          <button class="icon-btn"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
-          <button class="ip-close" onclick="closePanel()">✕</button>
-        </div>
-        <div class="ip-tabs">
-          <button class="ip-tab active" id="tab-updates" onclick="showPane('updates')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg> Updates <span class="cnt" id="ip-count">0</span></button>
-          <button class="ip-tab" id="tab-proc" onclick="showPane('proc')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h2l2 11h11l2-8H7"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg> Procurement <span class="cnt" id="ip-po-count">0</span></button>
-          <button class="ip-tab" id="tab-files" onclick="showPane('files')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h9l3 3v15H6z"/></svg> Files <span class="cnt" id="ip-file-count">0</span></button>
-          <button class="ip-tab" id="tab-log" onclick="showPane('log')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg> Activity Log</button>
-        </div>
-        <div class="ip-body">
-         <div class="pane active" id="pane-updates">
-          <div class="composer">
-            <div class="cbar">
-              <button style="font-weight:800">¶</button><button style="font-weight:800">B</button>
-              <button style="font-style:italic">I</button><button style="text-decoration:underline">U</button>
-              <button style="text-decoration:line-through">S</button><button>A</button><button>A͏̅</button>
-              <button>≔</button><button>≣</button><button>▦</button><button>🔗</button><button>≋</button><button>—</button>
-            </div>
-            <textarea id="composer" placeholder="Write an update..."></textarea>
-            <div class="cfoot">
-              <span class="lead">
-                <button class="icon-btn">@</button><button class="icon-btn">📎</button><button class="icon-btn">🙂</button>
-              </span>
-              <span class="spacer"></span>
-              <button class="btn-update" onclick="postUpdate()">Update</button>
-            </div>
-          </div>
-
-          <div class="simulate">
-            <span class="wa"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.2.5-.3.6-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.1.1.3 0 .5l-.4.5c-.1.2-.3.3-.1.6.1.3.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.1.1.6-.1 1.1z"/></svg></span>
-            <span>WhatsApp intake is live. Field messages log as updates and now move the Status column.</span>
-            <span class="spacer"></span>
-            <button class="btn-ghost" onclick="simulateWhatsApp()">Simulate intake</button>
-          </div>
-
-          <div id="updates"></div>
-         </div>
-         <div class="pane" id="pane-proc"></div>
-         <div class="pane" id="pane-files"></div>
-         <div class="pane" id="pane-log"></div>
-        </div>
-      </aside>
-    </div>
+      <div class="apane on" id="ap-detail"></div>
+      <div class="apane" id="ap-proc"></div>
+      <div class="apane" id="ap-upd"></div>
+      <div class="apane" id="ap-log"></div>
+    </aside>
   </div>
 </div>
 
-<button class="agent-fab" id="agentFab" onclick="toggleAgent()" title="Bohio Site Agent (WhatsApp)">
-  <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.2.5-.3.6-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.1.1.3 0 .5l-.4.5c-.1.2-.3.3-.1.6.1.3.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.1.1.6-.1 1.1z"/></svg>
-  <span class="badge" id="agentBadge">!</span>
+<button class="fab" id="fab" onclick="togAsst()" title="Programme assistant">
+  <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2z"/></svg>
+  <span class="bdg" id="fabBadge">!</span>
 </button>
 
-<div class="agent" id="agent">
-  <div class="ag-head">
-    <span class="ava"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.2.5-.3.6-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.1.1.3 0 .5l-.4.5c-.1.2-.3.3-.1.6.1.3.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.1.1.6-.1 1.1z"/></svg></span>
-    <div><h4>Bohio Site Agent</h4><p id="ag-sub">online · Al Khumrah BOH-INF-014</p></div>
-    <button class="x" onclick="toggleAgent()">✕</button>
+<div class="asst" id="asst">
+  <div class="ah2">
+    <div><div class="t">Programme assistant</div><div class="s" id="asst-sub">Ask about the programme</div></div>
+    <button class="x" onclick="togAsst()">✕</button>
   </div>
-  <div class="ag-log" id="ag-log"></div>
-  <div class="ag-chips" id="ag-chips"></div>
-  <div class="ag-in">
+  <div class="alog" id="alog"></div>
+  <div class="chips" id="chips"></div>
+  <div class="ain">
     <button class="aux" onclick="sendEvidence()" title="Send a photo or document"><svg viewBox="0 0 24 24"><path d="M16.5 6.5l-8 8a2.5 2.5 0 003.5 3.5l8.5-8.5a4.5 4.5 0 10-6.4-6.4L5 12.2a6.5 6.5 0 009.2 9.2l7-7-1.4-1.4-7 7a4.5 4.5 0 01-6.4-6.4L15.6 4.5a2.5 2.5 0 013.5 3.5l-8.5 8.5a.5.5 0 01-.7-.7l8-8-1.4-1.3z"/></svg></button>
-    <button class="aux" id="micBtn" onclick="sendVoiceNote()" title="Send a voice note"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.9V21h2v-3.1A7 7 0 0019 11h-2z"/></svg></button>
-    <input id="ag-input" placeholder="Ask about the site, or report progress…" onkeydown="if(event.key==='Enter')agentSend()"/>
-    <button onclick="agentSend()"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+    <button class="aux" id="mic" onclick="sendVoice()" title="Send a voice note"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.9V21h2v-3.1A7 7 0 0019 11h-2z"/></svg></button>
+    <input id="ai" placeholder="Ask about the programme…" onkeydown="if(event.key==='Enter')ask()"/>
+    <button class="go" onclick="ask()"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
   </div>
 </div>
 
-<div class="toast" id="toast"><span class="dot"></span><span id="toast-text"></span></div>
+<div class="toast" id="toast"></div>
 
 <script>
-/* ---------- status catalogue ---------- */
-const STATUS = {
-  notstarted:{label:"Not Started", color:"var(--grey)"},
-  working:   {label:"Working on it", color:"var(--working)"},
-  verify:    {label:"Needs verification", color:"var(--verify)"},
-  stuck:     {label:"Stuck", color:"var(--stuck)"},
-  done:      {label:"Done", color:"var(--done)"},
-};
-const STATUS_ORDER = ["notstarted","working","verify","stuck","done"];
+"use strict";
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* WhatsApp icon markup reused */
-const WA = '<span class="dot"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.8-1.2-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.2.5-.3.6-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.1.1.3 0 .5l-.4.5c-.1.2-.3.3-.1.6.1.3.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.1.1.6-.1 1.1z"/></svg></span>';
-
-/*
- * Each task has a base status and a list of logged updates. Status is DERIVED
- * from the updates (deriveStatus) — this is the fix: previously WhatsApp
- * messages were logged as updates but the Status column never moved.
- */
-const tasks = [
-  { id:"earth", code:"[earth]", name:"Earthworks & Bulk Excavation", owner:"", base:"notstarted", updates:[] },
-  { id:"drain", code:"[drain]", name:"Stormwater & Drainage", owner:"", base:"notstarted", updates:[] },
-  { id:"water", code:"[water]", name:"Sewerage & Water Networks", owner:"", base:"notstarted", updates:[] },
-  { id:"duct", code:"[duct]", name:"Electrical Ductbank & Substation", owner:"", base:"notstarted",
-    updates:[
-      note("Ductbank trench excavated along the primary route.","Site Engineer","Work in progress."),
-      note("Concrete surround poured for the first ductbank section.","Site Engineer","Work in progress."),
-      wa("Blinding and rebar inspected by consultant; ready for pour.","Site Engineer","Work in progress; on programme."),
-      wa("Sub-base compacted and accepted: measured quantity missing.","Planner / Project Manager","Evidence logged; verification required before progress changes.")
-    ] },
-  { id:"tele", code:"[tele]", name:"Telecoms & Fibre Ducts", owner:"", base:"notstarted", updates:[] },
-  { id:"sub",  code:"[sub]",  name:"Road Sub-base & Kerbs", owner:"", base:"notstarted", updates:[] },
-  { id:"asph", code:"[asph]", name:"Asphalt & Surfacing", owner:"", base:"notstarted", updates:[] },
-  { id:"light",code:"[light]",name:"Street Lighting", owner:"", base:"notstarted", updates:[] },
-  { id:"land", code:"[land]", name:"Landscaping & Public Realm", owner:"", base:"notstarted", updates:[] },
+/* ===================== PROGRAMME DATA ===================== */
+const PHASES=[
+  {id:'P1',name:'Enabling works & substructure'},
+  {id:'P2',name:'Superstructure'},
+  {id:'P3',name:'Envelope'},
+  {id:'P4',name:'MEP & medical services'},
+  {id:'P5',name:'Clinical fit-out & handover'},
 ];
+const TASKS=[
+ {id:'A10',p:'P1',name:'Site mobilisation & hoarding',dur:15,preds:[],pct:100,crew:'Main contractor',loc:'Site-wide',proc:'awarded',procRef:'PO-1001',procItems:['Site hoarding panels','Welfare cabins','Site security cameras']},
+ {id:'A20',p:'P1',name:'Demolition & site clearance',dur:25,preds:['A10'],pct:100,crew:'Demolition sub',loc:'Site-wide',proc:'awarded',procRef:'PO-1002',procItems:['Demolition plant hire','Waste skips & haulage']},
+ {id:'A30',p:'P1',name:'Secant piling to basement perimeter',dur:40,preds:['A20'],pct:100,crew:'Piling sub',loc:'Basement perimeter',proc:'awarded',procRef:'PO-1003',procItems:['Piling rig mobilisation','Reinforcement cages','Ready-mix concrete C32/40']},
+ {id:'A40',p:'P1',name:'Basement excavation & propping',dur:30,preds:['A30'],pct:80,crew:'Groundworks',loc:'Basement',proc:'awarded',procRef:'PO-1004',procItems:['Excavation plant hire','Temporary propping system','Dewatering pumps']},
+ {id:'A50',p:'P1',name:'Pile caps & ground beams',dur:25,preds:['A40'],pct:25,crew:'Groundworks',loc:'Basement',proc:'awarded',procRef:'PO-1004',procItems:['Reinforcement steel','Formwork','Ready-mix concrete C32/40']},
+ {id:'A60',p:'P1',name:'Basement raft slab',dur:20,preds:['A50'],pct:0,crew:'Concrete frame',loc:'Basement',proc:'tender',procRef:'TND-2011',procItems:['Ready-mix concrete C40/50','Reinforcement steel','Waterproof admixture']},
+ {id:'A70',p:'P1',name:'Tanking & backfill',dur:15,preds:['A60'],pct:0,crew:'Groundworks',loc:'Basement',proc:'awarded',procRef:'PO-1004',procItems:['Tanking membrane','Granular backfill material']},
+ {id:'M1',p:'P1',name:'Substructure complete',dur:0,preds:['A70'],type:'milestone',pct:0,crew:'Project manager',loc:'Site-wide',proc:'na',procRef:'',procItems:[]},
+ {id:'B10',p:'P2',name:'Core walls to level 3',dur:30,preds:['A60'],pct:0,crew:'Concrete frame',loc:'Core, L1-L3',proc:'tender',procRef:'TND-2011',procItems:['Climbing formwork system','Reinforcement steel','Ready-mix concrete C40/50']},
+ {id:'B20',p:'P2',name:'Frame levels 1 to 4',dur:45,preds:['B10','M1'],pct:0,crew:'Concrete frame',loc:'Superstructure, L1-L4',proc:'tender',procRef:'TND-2011',procItems:['Table formwork','Post-tensioning cables','Ready-mix concrete C40/50']},
+ {id:'B30',p:'P2',name:'Frame levels 5 to 7',dur:40,preds:['B20'],pct:0,crew:'Concrete frame',loc:'Superstructure, L5-L7',proc:'tender',procRef:'TND-2011',procItems:['Table formwork','Post-tensioning cables','Ready-mix concrete C40/50']},
+ {id:'B40',p:'P2',name:'Roof slab & plant deck',dur:20,preds:['B30'],pct:0,crew:'Concrete frame',loc:'Roof / plant deck',proc:'tender',procRef:'TND-2011',procItems:['Reinforcement steel','Ready-mix concrete C40/50','Roof upstands & plinths']},
+ {id:'M2',p:'P2',name:'Structure topped out',dur:0,preds:['B40'],type:'milestone',pct:0,crew:'Project manager',loc:'Site-wide',proc:'na',procRef:'',procItems:[]},
+ {id:'C10',p:'P3',name:'Curtain wall procurement & shop drawings',dur:55,preds:['B10'],pct:0,crew:'Facade sub',loc:'Envelope, all elevations',proc:'tender',procRef:'TND-3021',procItems:['Curtain wall unitised panels','Structural silicone sealant','Anchor brackets']},
+ {id:'C20',p:'P3',name:'Curtain wall installation',dur:50,preds:['C10','B30'],pct:0,crew:'Facade sub',loc:'Envelope, all elevations',proc:'not_started',procRef:'',procItems:['Mast climbers & access hoists','Installation fixings']},
+ {id:'C30',p:'P3',name:'Roofing & waterproofing',dur:25,preds:['B40'],pct:0,crew:'Roofing sub',loc:'Roof',proc:'tender',procRef:'TND-3022',procItems:['Single-ply roof membrane','Insulation boards','Roof drainage outlets']},
+ {id:'C40',p:'P3',name:'Windows, louvres & external doors',dur:20,preds:['C20'],pct:0,crew:'Facade sub',loc:'Envelope, all elevations',proc:'not_started',procRef:'',procItems:['Window units','Louvre screens','External door sets']},
+ {id:'M3',p:'P3',name:'Building watertight',dur:0,preds:['C30','C40'],type:'milestone',pct:0,crew:'Project manager',loc:'Site-wide',proc:'na',procRef:'',procItems:[]},
+ {id:'D10',p:'P4',name:'MEP risers & containment',dur:35,preds:['B30'],pct:0,crew:'MEP contractor',loc:'Risers, all floors',proc:'tender',procRef:'TND-4031',procItems:['Cable tray & containment','Fire-rated riser sleeves']},
+ {id:'D20',p:'P4',name:'Plantroom equipment installation',dur:40,preds:['B40','D10'],pct:0,crew:'MEP contractor',loc:'Roof plantroom',proc:'not_started',procRef:'',procItems:['Chillers & AHUs','Generators & UPS units','Water storage tanks']},
+ {id:'D30',p:'P4',name:'Ductwork & pipework distribution',dur:55,preds:['D10'],pct:0,crew:'MEP contractor',loc:'All floors',proc:'not_started',procRef:'',procItems:['Ductwork sections','Pipework & fittings','Insulation lagging']},
+ {id:'D40',p:'P4',name:'Medical gas pipeline installation',dur:35,preds:['D30'],pct:0,crew:'Medical gas specialist',loc:'Ward block & theatres',proc:'tender',procRef:'TND-4032',procItems:['Medical gas pipeline (copper)','Gas outlet terminal units','Manifold cabinets']},
+ {id:'D50',p:'P4',name:'Medical gas testing & certification',dur:10,preds:['D40','M3'],pct:0,crew:'Authorised engineer',loc:'Ward block & theatres',proc:'not_started',procRef:'',procItems:['Test gas cylinders','Certification & inspection fees']},
+ {id:'D60',p:'P4',name:'Electrical fit-out & switchgear',dur:45,preds:['D20','D30'],pct:0,crew:'Electrical sub',loc:'All floors',proc:'tender',procRef:'TND-4033',procItems:['LV switchgear panels','Cabling & containment','Lighting fixtures']},
+ {id:'D70',p:'P4',name:'BMS & controls integration',dur:30,preds:['D60','D20'],pct:0,crew:'Controls specialist',loc:'Site-wide',proc:'not_started',procRef:'',procItems:['BMS controllers','Sensors & actuators','Controls software licence']},
+ {id:'E10',p:'P5',name:'Ward partitions & ceilings',dur:45,preds:['M3','D30'],pct:0,crew:'Fit-out sub',loc:'Ward block',proc:'not_started',procRef:'',procItems:['Partition wall systems','Suspended ceiling tiles','Door sets']},
+ {id:'E20',p:'P5',name:'Modular theatre units installation',dur:35,preds:['E10','D40'],pct:0,crew:'Theatre specialist',loc:'Theatre suite',proc:'tender',procRef:'TND-5041',procItems:['Modular theatre pods','Laminar airflow units','Theatre lighting']},
+ {id:'E30',p:'P5',name:'Imaging suite shielding & MRI install',dur:40,preds:['E10','D60'],pct:0,crew:'Imaging specialist',loc:'Imaging suite',proc:'tender',procRef:'TND-5042',procItems:['MRI unit','RF/lead shielding','Faraday cage components']},
+ {id:'E40',p:'P5',name:'Finishes & flooring',dur:40,preds:['E20','E30'],pct:0,crew:'Fit-out sub',loc:'Ward block & theatres',proc:'not_started',procRef:'',procItems:['Vinyl / clinical flooring','Wall protection panels','Paint & coatings']},
+ {id:'E50',p:'P5',name:'Clinical FF&E installation',dur:25,preds:['E40'],pct:0,crew:'Trust supply chain',loc:'Ward block & theatres',proc:'not_started',procRef:'',procItems:['Hospital beds','Clinical furniture','Medical equipment trolleys']},
+ {id:'E60',p:'P5',name:'Commissioning & clinical validation',dur:35,preds:['E50','D50','D70'],pct:0,crew:'Commissioning manager',loc:'Site-wide',proc:'na',procRef:'',procItems:[]},
+ {id:'E70',p:'P5',name:'Training & O&M handover pack',dur:15,preds:['E60'],pct:0,crew:'Main contractor',loc:'Site-wide',proc:'na',procRef:'',procItems:[]},
+ {id:'M4',p:'P5',name:'Handover to the trust',dur:0,preds:['E70'],type:'milestone',pct:0,crew:'Project director',loc:'Site-wide',proc:'na',procRef:'',procItems:[]},
+];
+/* live programme = baseline + accrued slippage from site */
+const SLIP={A40:8,A50:5,C10:12};
+const tasks=TASKS.map(t=>({type:t.type||'task',...t,preds:t.preds.slice(),
+  dur:(t.dur||0)+(SLIP[t.id]||0), baseDur:t.dur||0,
+  updates:[],files:[],log:[{when:'Baseline',what:'Activity created from the Primavera baseline',src:'board'}]}));
+const byId=id=>tasks.find(t=>t.id===id);
 
-function wa(text, by, effect){ return {src:"wa", text, by, effect, when:"Just now"}; }
-function note(text, by, effect){ return {src:"note", text, by, effect, when:"Earlier"}; }
+const DATA_DATE=new Date(2026,8,9);          // 09 Sept 2026
+const START=new Date(2026,0,12);             // programme start
+const PROC_LABEL={awarded:'Awarded',tender:'Out to tender',not_started:'Not started',na:'Not applicable'};
+const PROC_SHORT={awarded:'Awarded',tender:'Tender',not_started:'Not started',na:'n/a'};
+/* award + delivery lead time in working days, by procurement state */
+const PROC_LEAD={awarded:10,tender:35,not_started:60,na:0};
 
-/* ---------- THE FIX: derive status from a logged update ----------
- * Parses the message + its schedule-effect line and returns the status the
- * item should carry. Called for every logged update so the Status column
- * reflects field reality instead of staying "Not Started". */
+/* ===================== CPM ===================== */
+function cpm(list){
+  const ids={},map={};
+  list.forEach(t=>{ids[t.id]=1;});
+  list.forEach(t=>{map[t.id]={...t,dur:t.type==='milestone'?0:Math.max(0,+t.dur||0),
+    preds:(t.preds||[]).filter(p=>ids[p]&&p!==t.id)};});
+  const order=[],seen={},done={};
+  const visit=id=>{ if(done[id]||seen[id])return; seen[id]=1; map[id].preds.forEach(visit); done[id]=1; order.push(id); };
+  list.forEach(t=>visit(t.id));
+  order.forEach(id=>{const n=map[id];
+    n.es=n.preds.length?Math.max(...n.preds.map(p=>map[p].ef)):0; n.ef=n.es+n.dur;});
+  const end=order.length?Math.max(...order.map(id=>map[id].ef)):1;
+  const succ={};
+  order.forEach(id=>map[id].preds.forEach(p=>{(succ[p]=succ[p]||[]).push(id);}));
+  order.slice().reverse().forEach(id=>{const n=map[id],s=succ[id]||[];
+    n.lf=s.length?Math.min(...s.map(x=>map[x].ls)):end; n.ls=n.lf-n.dur;
+    n.float=n.ls-n.es; n.critical=n.float<=0;});
+  return {map,end:Math.max(end,1),succ,order};
+}
+/* working-day index -> calendar date (Mon–Fri) */
+function wdDate(i){
+  const d=new Date(START); let n=0;
+  while(n<i){ d.setDate(d.getDate()+1); const w=d.getDay(); if(w!==0&&w!==6) n++; }
+  while([0,6].includes(d.getDay())) d.setDate(d.getDate()+1);
+  return d;
+}
+function wdIndex(target){
+  const d=new Date(START); let n=0;
+  while(d<target){ d.setDate(d.getDate()+1); const w=d.getDay(); if(w!==0&&w!==6) n++; }
+  return n;
+}
+const fmt=d=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'});
+const fmtS=d=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+
+/* ===================== PROCUREMENT DELAY FORECAST =====================
+ * The pre-emptive flag: compare how long the material still needs
+ * (award + lead time) against how long we have (working days until the
+ * activity's early start, plus its total float). */
+const RISK={clear:{l:'Clear',r:0,c:'ok'},watch:{l:'Watch',r:1,c:'warn'},
+            atrisk:{l:'At risk',r:2,c:'warn'},critical:{l:'Critical',r:3,c:'bad'}};
+function procRisk(t,C){
+  const n=C.map[t.id]; if(!n) return {level:'clear',slip:0,why:[]};
+  if(t.proc==='na') return {level:'clear',slip:0,why:['No procurement attached to this activity.'],none:true};
+  // Procurement is only a forecast for work that has not started — once the
+  // activity is underway the material is demonstrably on site.
+  if((t.pct||0)>=100) return {level:'clear',slip:0,why:['Activity complete — procurement closed out.'],none:true};
+  if((t.pct||0)>0) return {level:'clear',slip:0,why:['Works underway; material is on site.'],none:true};
+  const today=wdIndex(DATA_DATE);
+  const need=PROC_LEAD[t.proc];                         // working days still required
+  const have=Math.max(0,n.es-today)+Math.max(0,n.float); // working days available
+  const slip=need-have;
+  const why=[];
+  if(t.proc==='not_started') why.push('No order or tender raised yet.');
+  else if(t.proc==='tender') why.push('Out to tender under '+(t.procRef||'no reference')+' — not yet awarded.');
+  else why.push('Awarded under '+(t.procRef||'no reference')+'.');
+  why.push(`Needs ${need} working days; ${have} available before early start ${fmtS(wdDate(n.es))}` +
+           (n.float>0?` (incl. ${n.float}d float).`:' with no float.'));
+  let level='clear';
+  if(slip>=15) level='critical'; else if(slip>=1) level='atrisk'; else if(slip>=-10) level='watch';
+  if(level==='clear') why.push(`${Math.abs(slip)} working days of cover.`);
+  return {level,slip,why,need,have};
+}
+
+/* ===================== STATUS ===================== */
+const STATUS={
+  notstarted:{l:'Not started',c:'neutral'},
+  working:{l:'In progress',c:'info'},
+  verify:{l:'Awaiting verification',c:'warn'},
+  stuck:{l:'Stuck',c:'bad'},
+  done:{l:'Complete',c:'ok'},
+};
 function statusFromUpdate(u){
-  // Procurement alerts are a *forecast*, not observed progress — they drive the
-  // Delay-risk column, never the Status column.
   if(u.noStatus) return null;
-  const t = (u.text + " " + (u.effect||"")).toLowerCase();
-  if(/verification required|verify|missing|unconfirmed|to be confirmed|tbc|evidence logged/.test(t)) return "verify";
-  if(/stuck|blocked|on hold|delay|delayed|dispute|ncr|non-?conformance|rejected/.test(t)) return "stuck";
-  if(/complete|completed|handed over|handover|finished|accepted and closed|signed off|sign-?off/.test(t)) return "done";
-  if(/in progress|ongoing|started|installing|laying|mobilis|underway|on programme|work in progress|compacted|poured|installed|excavated|backfilled|erected|set out|trenching|inspected|\d+%/.test(t)) return "working";
+  const t=(u.text+' '+(u.effect||'')).toLowerCase();
+  if(/verification required|unverified|quantity missing|not recorded|unmeasured|evidence logged/.test(t)) return 'verify';
+  if(/stuck|blocked|on hold|delay|suspend|ncr|non-?conformance|stopped/.test(t)) return 'stuck';
+  // a part quantity ("30 of 64 complete") is progress, not completion
+  const part=/\b(\d+)\s*(?:of|\/)\s*(\d+)\b/.exec(t);
+  if(part && +part[1] < +part[2]) return 'working';
+  if(/complete|completed|handed over|signed off|certified|accepted and closed/.test(t)) return 'done';
+  if(/in progress|ongoing|started|installing|poured|erected|compacted|underway|fixing|\d+%/.test(t)) return 'working';
   return null;
 }
-function deriveStatus(task){
-  if(task.manual) return task.manual;          // explicit human override wins
-  let s = task.base;
-  // latest update with a determinable effect wins
-  for(const u of task.updates){ const d = statusFromUpdate(u); if(d) s = d; }
+function derive(t){
+  if(t.manual) return t.manual;
+  let s=t.pct>=100?'done':t.pct>0?'working':'notstarted';
+  for(const u of t.updates){const d=statusFromUpdate(u); if(d) s=d;}
   return s;
 }
+/* claims that carry no measurement are held, never silently dropped */
+function pending(t){ return t.updates.filter(u=>u.claim&&!u.verified); }
+function allPending(){ return tasks.flatMap(t=>pending(t).map(u=>({t,u}))); }
 
-/* escape everything that reaches innerHTML — field messages and PO text are
- * third-party input arriving over WhatsApp / the purchasing API. */
-function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-/* ================= PURCHASING / PROCUREMENT INTEGRATION =================
- * Connects the schedule to the purchasing system and forecasts material
- * availability against each task's need-by date, so a delay is flagged
- * BEFORE it hits the programme (PO stuck in approval, vendor slipping,
- * short delivery, or no PO raised at all).
- * Dates are day-offsets from today so the demo stays valid over time. */
-const PROVIDERS={Coupa:"CP","SAP Ariba":"SA","Oracle Fusion":"OF",Procore:"PC",Unleashed:"UL"};
-const procurement={provider:"Coupa", lastSync:null};
-
-const DAY=86400000;
-const midnight=()=>{const d=new Date();d.setHours(0,0,0,0);return d;};
-const offDate=n=>new Date(midnight().getTime()+n*DAY);
-const fmtD=n=>offDate(n).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-
-const PO_STATE={draft:"Draft",pending_approval:"Pending approval",approved:"Approved",issued:"Issued",delivered:"Delivered",none:"Not raised"};
-
-/* needBy / promised are offsets in days from today */
-const pos=[
-  {po:"PO-4460",task:"earth",vendor:"Nesma Plant Hire",material:"Plant hire — 30t excavators",value:"SAR 180,000",
-   status:"delivered",leadTime:7,approvalSla:3,waited:0,needBy:-14,promised:-16,qtyOrdered:1,qtyDelivered:1,uom:"lot"},
-  {po:"PO-4465",task:"drain",vendor:"Saudi Pipe Co.",material:"uPVC stormwater pipe DN400",value:"SAR 264,500",
-   status:"issued",leadTime:14,approvalSla:3,waited:0,needBy:8,promised:3,qtyOrdered:900,qtyDelivered:0,uom:"m"},
-  {po:"PO-4470",task:"water",vendor:"Amiantit",material:"HDPE potable water main DN250",value:"SAR 310,000",
-   status:"approved",leadTime:18,approvalSla:3,waited:0,needBy:15,promised:14,qtyOrdered:1400,qtyDelivered:0,uom:"m"},
-  {po:"PO-4471",task:"duct",vendor:"Al-Rajhi Electrical Supply",material:"11kV XLPE cable + ductbank bedding",value:"SAR 412,000",
-   status:"pending_approval",leadTime:21,approvalSla:3,waited:6,needBy:12,promised:null,qtyOrdered:1200,qtyDelivered:0,uom:"m"},
-  {po:"PO-4475",task:"tele",vendor:"Fibretech Gulf",material:"HDPE fibre subduct 4-way",value:"SAR 96,400",
-   status:"issued",leadTime:12,approvalSla:3,waited:0,needBy:20,promised:5,qtyOrdered:2200,qtyDelivered:0,uom:"m"},
-  {po:"PO-4468",task:"sub",vendor:"Riyadh Aggregates",material:"Crushed sub-base aggregate Type 1",value:"SAR 148,900",
-   status:"approved",leadTime:10,approvalSla:3,waited:0,needBy:4,promised:9,qtyOrdered:3800,qtyDelivered:0,uom:"t"},
-  {po:"PO-4482",task:"asph",vendor:"Arabian Bitumen",material:"Asphalt binder & wearing course",value:"SAR 520,000",
-   status:"draft",leadTime:28,approvalSla:3,waited:1,needBy:30,promised:null,qtyOrdered:2600,qtyDelivered:0,uom:"t"},
-  {po:null,task:"light",vendor:"—",material:"LED street lighting columns 10m",value:"est. SAR 275,000",
-   status:"none",leadTime:35,approvalSla:3,waited:0,needBy:18,promised:null,qtyOrdered:64,qtyDelivered:0,uom:"no."},
-];
-
-const RISK={clear:{label:"Clear",rank:0},watch:{label:"Watch",rank:1},atrisk:{label:"At risk",rank:2},critical:{label:"Critical",rank:3}};
-
-/* Forecast the delivery date and compare it to the need-by date. */
-function poRisk(po){
-  const reasons=[]; let slip=null, forecast=null;
-  if(po.status==="delivered"){
-    return {level:"clear",slip:0,forecast:po.promised,
-            reasons:["Delivered in full on "+fmtD(po.promised)+" — no exposure."]};
-  }
-  if(po.status==="none"){
-    forecast = po.approvalSla + po.leadTime;
-    slip = forecast - po.needBy;
-    reasons.push("No purchase order has been raised for this material.");
-    reasons.push("A "+po.leadTime+"-day lead time plus approval puts the earliest delivery at "+fmtD(forecast)+", against a need-by of "+fmtD(po.needBy)+".");
-  } else if(po.status==="draft" || po.status==="pending_approval"){
-    const remaining = Math.max(1, po.approvalSla - po.waited);
-    forecast = remaining + po.leadTime;
-    slip = forecast - po.needBy;
-    if(po.status==="draft") reasons.push("Still in draft — not yet submitted for approval.");
-    else if(po.waited > po.approvalSla) reasons.push("Approval overdue — "+po.waited+" days in the queue against a "+po.approvalSla+"-day SLA.");
-    else reasons.push("Awaiting approval — day "+po.waited+" of a "+po.approvalSla+"-day SLA.");
-    reasons.push("Even if approved today, the "+po.leadTime+"-day lead time delivers on "+fmtD(forecast)+" against a need-by of "+fmtD(po.needBy)+".");
-  } else { /* approved | issued */
-    forecast = po.promised;
-    slip = forecast - po.needBy;
-    reasons.push("Vendor promised "+fmtD(po.promised)+" against a need-by of "+fmtD(po.needBy)+".");
-    if(po.qtyDelivered>0 && po.qtyDelivered<po.qtyOrdered){
-      reasons.push("Short delivery — "+po.qtyDelivered+" of "+po.qtyOrdered+" "+po.uom+" received; balance unscheduled.");
-      slip=Math.max(slip,1);
-    }
-  }
-  let level="clear";
-  if(slip>=7) level="critical"; else if(slip>=1) level="atrisk"; else if(slip>=-3) level="watch";
-  if(level==="clear") reasons.push("Float of "+Math.abs(slip)+" days against the need-by date.");
-  return {level,slip,forecast,reasons};
+/* ===================== MONDAY ===================== */
+const monday={connected:true,workspace:'Main workspace',board:'Bohio · Primavera Schedule',
+  boardId:5103871751,api:'2024-10',writes:0,lastSync:new Date(),held:0};
+function mLog(t,what,src){t.log.unshift({when:'Just now',what,src});}
+function mWrite(id,col,val,src){
+  const t=byId(id); if(!t) return null;
+  let label=val;
+  if(col==='status'){t.manual=val;label=STATUS[val].l;}
+  else if(col==='progress'){t.pct=val;label=val+'%';}
+  else if(col==='crew'){t.crew=val;}
+  else t[col]=val;
+  monday.writes++;monday.lastSync=new Date();
+  mLog(t,`<b>${esc(col)}</b> set to <b>${esc(String(label))}</b>`,src||'board');
+  render(); return t;
 }
-function posFor(id){ return pos.filter(p=>p.task===id); }
-function taskRisk(id){
-  const rs=posFor(id).map(poRisk);
-  if(!rs.length) return {level:"clear",slip:0,reasons:["No materials linked to this task."],none:true};
-  return rs.reduce((a,b)=>RISK[b.level].rank>RISK[a.level].rank?b:a);
+/* verification gate — an unverified claim is held back from Monday */
+function verifyClaim(taskId,idx,ok){
+  const t=byId(taskId),u=t.updates[idx]; if(!u) return;
+  if(ok){
+    u.verified=true; u.effect='Verified by the planner. Progress released to Monday.';
+    const s=statusFromUpdate({text:u.text,effect:''})||'working';
+    t.manual=s==='verify'?'working':s;
+    if(u.pct!=null) t.pct=u.pct;
+    monday.writes++;monday.lastSync=new Date();
+    mLog(t,`Claim verified — <b>status</b> to <b>${STATUS[derive(t)].l}</b>, synced to Monday`,'board');
+    toast(`${t.id} verified — status now ${STATUS[derive(t)].l}`);
+  }else{
+    u.verified=false;u.rejected=true;u.effect='Rejected by the planner. Re-measure and resubmit.';
+    mLog(t,'Claim rejected — not sent to Monday','board');
+    toast(`${t.id} claim rejected`);
+  }
+  render();
 }
 
-/* ---------- render board ---------- */
-let openId = null;
-function renderRows(){
-  const tb = document.getElementById("rows");
-  tb.innerHTML = "";
-  tasks.forEach(t=>{
-    const st = deriveStatus(t);
-    const s = STATUS[st];
-    const tr = document.createElement("tr");
-    const conv = t.updates.length
-      ? `<span class="conv-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v10H8l-4 4z"/></svg>${t.updates.length}</span>`
-      : `<span class="row-open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v10H8l-4 4z"/></svg></span>`;
-    const owner = t.owner
-      ? `<div class="avatar" style="width:26px;height:26px;font-size:10px;background:${avatarColor(t.owner)}">${esc(t.owner)}</div>`
-      : `<span class="owner-empty"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="9" r="3.4"/><path d="M5 20c0-3.4 3.1-5.6 7-5.6s7 2.2 7 5.6"/></svg></span>`;
-    const rk = taskRisk(t.id);
-    const riskCell = rk.none
-      ? `<span class="risk-chip clear" title="No materials linked"><span class="r-dot"></span>Clear</span>`
-      : `<span class="risk-chip ${rk.level}" title="${esc(rk.reasons.join(' '))}"><span class="r-dot"></span>${RISK[rk.level].label}${rk.slip>0?` +${rk.slip}d`:''}</span>`;
-    tr.innerHTML = `
-      <td class="first-cell"><div class="cell-pad" style="gap:8px;padding-left:0;"><span class="grip"></span><span class="cb"></span></div></td>
-      <td><div class="cell-pad">
-            <span class="task-name" onclick="openItem('${t.id}')"><span class="code">${esc(t.code)}</span> ${esc(t.name)}</span>
-            <span onclick="openItem('${t.id}')" style="cursor:pointer">${conv}</span>
-          </div></td>
-      <td><div class="owner-cell">${owner}</div></td>
-      <td class="status-cell">
-        <div class="status-pill" style="background:${s.color}" onclick="toggleStatusMenu(event,'${t.id}')">
-          ${s.label}
-          <div class="sd" id="sd-${t.id}">${STATUS_ORDER.map(k=>`<div class="opt" style="background:${STATUS[k].color}" onclick="setStatus(event,'${t.id}','${k}')">${STATUS[k].label}</div>`).join("")}</div>
-        </div>
-      </td>
-      <td><div class="risk-cell" onclick="openItem('${t.id}');showPane('proc')" style="cursor:pointer">${riskCell}</div></td>`;
-    if(t.id===openId) tr.querySelectorAll("td").forEach(td=>td.style.background="#eef4ff");
-    tb.appendChild(tr);
+/* ===================== SEED FIELD EVIDENCE ===================== */
+function wa(text,by,effect,extra){return Object.assign({src:'wa',text,by,effect,when:'Just now'},extra||{});}
+byId('A40').updates.push(
+  wa('Basement excavation to formation reached at the north bay; propping installed to level 2.','Site Engineer','Progress logged and verified.',{verified:true,pct:80}),
+  wa('Sub-base compacted and accepted: measured quantity missing.','Planner / Project Manager',
+     'Evidence logged; verification required before progress changes.',{claim:true,pct:88}));
+byId('A50').updates.push(
+  wa('Pile caps to grid C poured — 18 of 64 complete, no measurement sheet attached.','Foreman',
+     'Evidence logged; verification required before progress changes.',{claim:true,pct:40}));
+byId('C10').updates.push(
+  wa('Facade shop drawings returned with comments; resubmission adds two weeks.','Facade sub',
+     'Delay absorbed into the live programme.',{}));
+
+/* ===================== VIEW STATE ===================== */
+const S={view:'timeline',showBaseline:false,showDelays:true,critOnly:false,
+         phase:'',crew:'',text:'',sel:'A40',apane:'detail'};
+const VIEWS=[['timeline','Timeline'],['week','Week view'],['proc','Procurement'],];
+function tog(k){S[k]=!S[k];render();}
+function setF(k,v){S[k]=v;render();}
+function clearF(){S.phase='';S.crew='';S.text='';S.critOnly=false;
+  document.getElementById('f-text').value='';render();}
+function setView(v){S.view=v;render();}
+function sel(id){S.sel=id;render();}
+function aPane(p){S.apane=p;render();}
+
+/* ===================== RENDER ===================== */
+function visible(C){
+  return tasks.filter(t=>{
+    if(S.phase&&t.p!==S.phase) return false;
+    if(S.crew&&t.crew!==S.crew) return false;
+    if(S.critOnly&&!C.map[t.id].critical) return false;
+    if(S.text&&!(t.name+' '+t.id+' '+t.crew+' '+t.loc).toLowerCase().includes(S.text.toLowerCase())) return false;
+    return true;
   });
-  document.getElementById("group-count").textContent = tasks.length + " tasks";
 }
-function avatarColor(x){ const c=["#7a52d6","#00854d","#c9520a","#0086c0","#a3286c","#4b5563"]; let s=0; for(const ch of x) s+=ch.charCodeAt(0); return c[s%c.length]; }
-
-/* ---------- status manual override ---------- */
-function toggleStatusMenu(e,id){ e.stopPropagation(); closeMenus(); const m=document.getElementById("sd-"+id); if(m) m.classList.add("open"); }
-function closeMenus(){ document.querySelectorAll(".sd.open").forEach(m=>m.classList.remove("open")); }
-document.addEventListener("click",closeMenus);
-function setStatus(e,id,k){
-  e.stopPropagation();
-  const t=tasks.find(x=>x.id===id);
-  // A manual pick overrides the derived status but must NEVER discard the
-  // logged updates — they are the audit trail behind the item.
-  t.manual=k;
-  closeMenus(); renderRows(); if(openId===id) renderPanel();
-  toast("Status set to “"+STATUS[k].label+"” (manual override)");
+function render(){
+  const C=cpm(tasks), B=cpm(TASKS.map(t=>({type:t.type||'task',...t,preds:t.preds.slice()})));
+  const span=Math.max(C.end,B.end);
+  renderKpis(C,B);
+  renderTabs();
+  document.getElementById('data-date').textContent='Data date '+fmt(DATA_DATE)+'  ·  '+monday.writes+' Monday writes';
+  ['timeline','week','proc'].forEach(v=>document.getElementById('view-'+v).style.display=S.view===v?'':'none');
+  if(S.view==='timeline') renderGantt(C,B,span);
+  if(S.view==='week') renderWeek(C);
+  if(S.view==='proc') renderProc(C);
+  renderAside(C,B);
+  fillFilters();
 }
-
-/* ---------- item panel ---------- */
-function openItem(id){
-  openId=id; const t=tasks.find(x=>x.id===id);
-  document.getElementById("ip-title").textContent = t.code+" "+t.name.replace(t.code,'').trim();
-  document.getElementById("itemPanel").classList.add("open");
-  renderPanel(); renderRows();
+function renderKpis(C,B){
+  const late=tasks.filter(t=>C.map[t.id].ef>B.map[t.id].ef).length;
+  const crit=tasks.filter(t=>C.map[t.id].critical).length;
+  const risky=tasks.filter(t=>{const r=procRisk(t,C);return !r.none&&RISK[r.level].r>=2;}).length;
+  const held=allPending().length;
+  const slip=C.end-B.end;
+  document.getElementById('kpis').innerHTML=[
+    ['Completion',fmtS(wdDate(C.end)),slip>0?'bad':'ok'],
+    ['Slippage',(slip>0?'+':'')+slip+'d',slip>0?'bad':'ok'],
+    ['Critical',crit,''],
+    ['Procurement risk',risky,risky?'bad':'ok'],
+    ['Held for verification',held,held?'bad':'ok'],
+  ].map(([k,v,c])=>`<div class="kpi"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join('');
 }
-function closePanel(){ openId=null; document.getElementById("itemPanel").classList.remove("open"); renderRows(); }
-function renderPanel(){
-  const t=tasks.find(x=>x.id===openId); if(!t) return;
-  document.getElementById("ip-count").textContent=t.updates.length;
-  document.getElementById("ip-po-count").textContent=posFor(t.id).length;
-  const box=document.getElementById("updates"); box.innerHTML="";
-  [...t.updates].reverse().forEach(u=>{
-    const eff = statusFromUpdate(u);
-    const effChip = eff ? `<div class="u-effect">Status → <span class="chip" style="background:${STATUS[eff].color}">${STATUS[eff].label}</span></div>` : "";
-    const div=document.createElement("div"); div.className="update";
-    div.innerHTML=`
-      <div class="u-head">
-        <div class="avatar" style="width:32px;height:32px;background:#7a52d6">MB</div>
-        <span class="name">Matteo Bevilacqua</span><span class="when">${u.when}</span>
-        <span class="menu">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/></svg>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
-        </span>
-      </div>
-      <div class="u-card ${u.src==='wa'?'':'plain'}">
-        <div class="u-src">${u.src==='wa'?WA:'<span class="dot" style="background:var(--mon-blue)"></span>'} Bohio · ${u.src==='wa'?'WhatsApp Text message received':(u.src==='po'?'Procurement alert':'Field note')}</div>
-        <div class="u-body">${esc(u.text)}</div>
-        <div class="u-meta"><b>Reported by:</b> ${esc(u.by)}<br><b>Schedule effect:</b> ${esc(u.effect)}</div>
-        ${effChip}
-      </div>
-      <div class="u-actions">
-        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10v11M18 10a2 2 0 002-2l-1-4h-6l1-4a2 2 0 00-4 0L7 10"/></svg> Like</span>
-        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 01-11.6 7.1L3 21l1.9-6.4A8 8 0 1121 12z"/></svg> Reply</span>
-      </div>`;
-    box.appendChild(div);
+function renderTabs(){
+  document.getElementById('tabs').innerHTML=VIEWS.map(([v,l])=>
+    `<button class="tab ${S.view===v?'on':''}" onclick="setView('${v}')">${l}</button>`).join('');
+}
+function fillFilters(){
+  const ps=document.getElementById('f-phase');
+  if(!ps.dataset.f){ps.dataset.f=1;
+    ps.innerHTML='<option value="">All phases</option>'+PHASES.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+    const cs=document.getElementById('f-crew');
+    cs.innerHTML='<option value="">All contractors</option>'+[...new Set(tasks.map(t=>t.crew))].sort()
+      .map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  }
+  ps.value=S.phase; document.getElementById('f-crew').value=S.crew;
+  ['showBaseline','showDelays','critOnly'].forEach((k,i)=>{
+    const b=document.getElementById(['b-base','b-del','b-crit'][i]);
+    b.classList.toggle('on',!!S[k]);
   });
 }
 
-/* ---------- procurement pane ---------- */
-function showPane(which){
-  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
-  document.getElementById('pane-'+which).classList.add('active');
-  ({updates:'tab-updates',proc:'tab-proc',files:'tab-files',log:'tab-log'});
-  [['updates','tab-updates'],['proc','tab-proc'],['files','tab-files'],['log','tab-log']]
-    .forEach(([k,id])=>document.getElementById(id).classList.toggle('active',which===k));
-  if(which==='proc') renderProcPane();
-  if(which==='files') renderFilesPane();
-  if(which==='log') renderLogPane();
-}
-function renderProcPane(){
-  const t=tasks.find(x=>x.id===openId); const box=document.getElementById('pane-proc');
-  if(!t){ box.innerHTML=''; return; }
-  const list=posFor(t.id);
-  document.getElementById('ip-po-count').textContent=list.length;
-  if(!list.length){ box.innerHTML='<div class="empty-note">No materials or purchase orders are linked to this task.</div>'; return; }
-  box.innerHTML=list.map(po=>{
-    const r=poRisk(po);
-    const slipTxt = r.slip>0 ? `Forecast <b style="color:var(--stuck)">${r.slip} day${r.slip===1?'':'s'} late</b> against need-by`
-                             : `Forecast <b style="color:#00854d">${Math.abs(r.slip)} day${Math.abs(r.slip)===1?'':'s'} of float</b>`;
-    return `<div class="po ${r.level}">
-      <div class="po-top">
-        <span class="po-num">${esc(po.po||'No PO raised')}</span>
-        <span class="po-state ${po.status}">${PO_STATE[po.status]}</span>
-        <span style="flex:1"></span>
-        <span class="risk-chip ${r.level}"><span class="r-dot"></span>${RISK[r.level].label}</span>
-      </div>
-      <div class="po-vendor">${esc(po.material)} · ${esc(po.vendor)} · ${esc(po.value)}</div>
-      <div class="po-grid">
-        <div class="po-f"><div class="k">Need by</div><div class="v">${fmtD(po.needBy)}</div></div>
-        <div class="po-f"><div class="k">Forecast</div><div class="v ${r.slip>0?'bad':''}">${r.forecast==null?'—':fmtD(r.forecast)}</div></div>
-        <div class="po-f"><div class="k">Lead time</div><div class="v">${po.leadTime} d</div></div>
-        <div class="po-f"><div class="k">Quantity</div><div class="v">${po.qtyDelivered}/${po.qtyOrdered} ${esc(po.uom)}</div></div>
-      </div>
-      <div class="po-why"><ul style="margin:0;padding-left:16px">${r.reasons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
-      <div class="po-forecast">${slipTxt}</div>
-    </div>`;
-  }).join('');
-}
-function setProvider(v){
-  procurement.provider=v;
-  document.getElementById('int-name').textContent=v;
-  document.getElementById('int-badge').textContent=PROVIDERS[v];
-  toast('Purchasing integration switched to '+v);
-}
-/* Events pushed by the purchasing system on each sync. */
-const PO_EVENTS=[
-  {po:"PO-4465",kind:"vendor_delay",apply:p=>{p.promised+=9;},
-   text:"Vendor advised a 9-day slip on uPVC stormwater pipe DN400."},
-  {po:"PO-4471",kind:"approved",apply:p=>{p.status="approved";p.promised=p.leadTime;},
-   text:"Purchase order approved and released to Al-Rajhi Electrical Supply."},
-  {po:"PO-4468",kind:"part_delivery",apply:p=>{p.qtyDelivered=1500;},
-   text:"Goods receipt posted: 1,500 t of 3,800 t sub-base aggregate received."},
-  {po:"PO-4482",kind:"submitted",apply:p=>{p.status="pending_approval";p.waited=0;},
-   text:"Draft asphalt order submitted into the approval workflow."},
-];
-let syncI=0;
-function syncProcurement(){
-  const ev=PO_EVENTS[syncI % PO_EVENTS.length]; syncI++;
-  const po=pos.find(p=>p.po===ev.po);
-  const before=poRisk(po).level;
-  ev.apply(po);
-  const after=poRisk(po);
-  const t=tasks.find(x=>x.id===po.task);
-  // every procurement alert is logged on the item, same audit trail as WhatsApp
-  t.updates.push({src:"po",text:ev.text,by:procurement.provider+" (purchasing)",
-    effect:after.slip>0?`Forecast ${after.slip} day${after.slip===1?'':'s'} late against need-by ${fmtD(po.needBy)}.`
-                       :`Material forecast inside need-by with ${Math.abs(after.slip)} days float.`,
-    when:"Just now", noStatus:true});
-  procurement.lastSync=new Date();
-  renderRows(); refreshIntegrationBar();
-  if(openId===po.task){ renderPanel(); if(document.getElementById('pane-proc').classList.contains('active')) renderProcPane(); }
-  toast(`${po.po} · ${po.task} → delay risk ${RISK[after.level].label}${before!==after.level?' (changed)':''}`);
-}
-function refreshIntegrationBar(){
-  const counts={critical:0,atrisk:0,watch:0};
-  tasks.forEach(t=>{const r=taskRisk(t.id); if(!r.none && counts[r.level]!==undefined) counts[r.level]++;});
-  document.getElementById('int-summary').textContent =
-    `${counts.critical} critical · ${counts.atrisk} at risk · ${counts.watch} watch`;
-  document.getElementById('int-sync').textContent = procurement.lastSync
-    ? 'Last sync '+procurement.lastSync.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})
-    : 'Last sync — just connected';
+function renderGantt(C,B,span){
+  const vis=visible(C), pct=i=>(i/span)*100;
+  /* month scale */
+  const months=[];
+  for(let i=0;i<span;i++){const d=wdDate(i);const key=d.getFullYear()+'-'+d.getMonth();
+    if(!months.length||months[months.length-1].key!==key)
+      // month columns are narrow over a two-year programme, so only January carries the year
+      months.push({key,i,label:d.getMonth()===0?d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}):d.toLocaleDateString('en-GB',{month:'short'})});}
+  const mo=months.map((m,i)=>{const w=((i+1<months.length?months[i+1].i:span)-m.i)/span*100;
+    return `<div class="mo" style="left:${pct(m.i)}%;width:${w}%">${m.label}</div>`;}).join('');
+  const gridv=months.map(m=>`<i style="left:${pct(m.i)}%"></i>`).join('');
+  const todayPct=pct(wdIndex(DATA_DATE));
+
+  let html=`<div class="gantt"><div class="grow">
+    <div class="ghead gl">Activity · duration</div>
+    <div class="ghead"><div class="months">${mo}<div class="today" style="left:${todayPct}%"></div></div></div>`;
+
+  PHASES.forEach(ph=>{
+    const rows=vis.filter(t=>t.p===ph.id); if(!rows.length) return;
+    const ids=rows.map(t=>t.id);
+    const es=Math.min(...ids.map(i=>C.map[i].es)), ef=Math.max(...ids.map(i=>C.map[i].ef));
+    const done=Math.round(rows.reduce((a,t)=>a+(t.pct||0),0)/rows.length);
+    html+=`<div class="phase"><div class="pl"><span class="chev">▼</span><span class="pn">${esc(ph.name)}</span>
+        <span class="pm">${rows.length} · ${done}%</span></div>
+      <div class="pr"><div class="grid-v">${gridv}</div>
+        <div style="position:absolute;left:${pct(es)}%;width:${pct(ef-es)}%;top:11px;height:5px;background:var(--deep);opacity:.28;border-radius:3px"></div>
+        <div class="today" style="left:${todayPct}%"></div></div></div>`;
+
+    rows.forEach(t=>{
+      const n=C.map[t.id], b=B.map[t.id];
+      const late=Math.max(0,n.ef-b.ef);
+      const on=S.sel===t.id;
+      html+=`<div class="cell-l ${on?'sel':''}" onclick="sel('${t.id}')">
+          <span class="tid">${t.id}</span><span class="tnm">${esc(t.name)}</span>
+          <span class="tdur">${t.type==='milestone'?'—':t.dur+'d'}</span></div>
+        <div class="cell-r ${on?'sel':''}" onclick="sel('${t.id}')">
+          <div class="grid-v">${gridv}</div>
+          <div class="today" style="left:${todayPct}%"></div>`;
+      if(t.type==='milestone'){
+        html+=`<div class="ms ${n.critical?'crit':''}" style="left:calc(${pct(n.es)}% - 6px)"></div>
+               <div class="ms-lbl" style="left:calc(${pct(n.es)}% + 11px)">${esc(t.name)}</div>`;
+      }else{
+        if(S.showBaseline) html+=`<div class="base" style="left:${pct(b.es)}%;width:${pct(b.dur)}%"></div>`;
+        html+=`<div class="bar-t ${n.critical?'crit':''}" style="left:${pct(n.es)}%;width:${pct(n.dur)}%">
+            <div class="fill" style="width:${t.pct||0}%"></div>
+            ${(S.showDelays&&late>0)?`<span class="chip-late">+${late}d late</span>`
+              :`<span class="lbl">${t.pct?t.pct+'%':''}</span>`}</div>`;
+      }
+      html+=`</div>`;
+    });
+  });
+  html+=`</div></div>`;
+  document.getElementById('view-timeline').innerHTML=html;
+  document.getElementById('viewnote').textContent=
+    'Bar position is early start, width is duration. Red marks the critical path. The vertical red line is the data date.';
 }
 
-/* ---------- compose / intake ---------- */
-function postUpdate(){
-  if(!openId){ toast("Open a task to post an update"); return; }
-  const ta=document.getElementById("composer"); const v=ta.value.trim();
-  if(!v) return;
-  const t=tasks.find(x=>x.id===openId);
-  t.updates.push(note(v,"Matteo Bevilacqua","Logged from workspace."));
-  ta.value="";
-  const eff=statusFromUpdate(t.updates[t.updates.length-1]);
-  renderPanel(); renderRows();
-  toast(eff?("Update posted — status → “"+STATUS[eff].label+"”"):"Update posted");
-}
-const INTAKE=[
-  {task:"tele",text:"Fibre duct pull started along the northern verge.",by:"Foreman",effect:"Work in progress."},
-  {task:"asph",text:"Binder course laid on the main carriageway; awaiting cores.",by:"Site Engineer",effect:"Evidence logged; verification required before progress changes."},
-  {task:"drain",text:"Drainage network completed and CCTV survey handed over.",by:"Site Engineer",effect:"Completed and handed over."},
-  {task:"sub",text:"Sub-base dispute raised — level survey rejected by consultant.",by:"Planner / Project Manager",effect:"Stuck: NCR raised, on hold pending re-survey."},
-];
-let intakeI=0;
-function simulateWhatsApp(){
-  const m=INTAKE[intakeI % INTAKE.length]; intakeI++;
-  const t=tasks.find(x=>x.id===m.task);
-  t.updates.push(wa(m.text,m.by,m.effect));
-  const eff=statusFromUpdate(t.updates[t.updates.length-1]);
-  if(openId!==m.task){ openItem(m.task); } else { renderPanel(); }
-  renderRows();
-  toast(t.code+" logged — status → “"+STATUS[eff||deriveStatus(t)].label+"”");
+function renderWeek(C){
+  const today=wdIndex(DATA_DATE), start=today-(today%5);
+  const days=[0,1,2,3,4].map(k=>{const i=start+k;
+    return {i,d:wdDate(i),items:visible(C).filter(t=>t.type!=='milestone'&&C.map[t.id].es<=i&&C.map[t.id].ef>i)};});
+  document.getElementById('view-week').innerHTML='<div class="wk">'+days.map(d=>`
+    <div class="wd"><div class="wh"><div class="dow">${d.d.toLocaleDateString('en-GB',{weekday:'short'})}</div>
+      <div class="dt">${fmtS(d.d)}</div></div>
+      <div class="wb">${d.items.length?d.items.map(t=>`<div class="wi" onclick="sel('${t.id}')">
+        <div class="wid">${t.id} · ${esc(t.crew)}</div><div class="win">${esc(t.name)}</div></div>`).join('')
+        :'<div class="li" style="padding-left:0">No activity in progress.</div>'}</div></div>`).join('')+'</div>';
+  document.getElementById('viewnote').textContent='Working week around the data date.';
 }
 
-function addTask(){
-  const n=prompt("New task name:"); if(!n) return;
-  tasks.push({id:"t"+Date.now(),code:"[new]",name:n,owner:"",base:"notstarted",updates:[]});
-  renderRows();
+function renderProc(C){
+  const rows=visible(C).filter(t=>t.proc!=='na');
+  document.getElementById('view-proc').innerHTML=`<div class="ptab">
+    <div class="ptr h"><div>Item</div><div>Activity</div><div>Description</div><div>PO / tender ref</div><div>Status</div></div>`+
+    (rows.length?rows.map(t=>{const r=procRisk(t,C);
+      return `<div class="ptr" onclick="sel('${t.id}')">
+        <div>${esc(t.procItems[0]||'—')}${t.procItems.length>1?` <span class="muted">+${t.procItems.length-1}</span>`:''}</div>
+        <div class="mono">${t.id}</div><div>${esc(t.name)}</div>
+        <div class="mono">${esc(t.procRef||'—')}</div>
+        <div><span class="pill ${RISK[r.level].c}">${PROC_SHORT[t.proc]}${r.slip>0?` +${r.slip}d`:''}</span></div></div>`;}).join('')
+      :'<div class="ptr"><div style="grid-column:1/-1;color:var(--muted)">No procurement items listed.</div></div>')+
+    `</div>`;
+  document.getElementById('viewnote').textContent=
+    'Status combines the procurement state with the time left before the activity needs the material.';
 }
 
-/* =====================================================================
- * MOCK PROJECT DATA SET — the site knowledge base the WhatsApp agent
- * answers from. Scoped to what you actually need to recall while walking
- * the site: levels, revisions, permits, test results, contacts, quantities.
- * ===================================================================== */
-const PROJECT={
-  meta:{name:"Al Khumrah Infrastructure Package", code:"BOH-INF-014",
-    client:"Bohio Systems LTD", consultant:"Khatib & Alami", contractor:"Nesma & Partners",
-    location:"Al Khumrah, South Jeddah", contract:"SAR 48.6m", form:"FIDIC Red Book 1999",
-    start:"12 Jan 2026", finish:"04 Mar 2027", dataDate:"10 Sept 2026",
-    progress:"38.4% complete · 4.2% behind baseline"},
-  contacts:[
-    {name:"Yousef Al-Harbi", role:"Project Manager", company:"Nesma & Partners", phone:"+966 55 214 8890"},
-    {name:"Sara Al-Otaibi", role:"Site Engineer (Civils)", company:"Nesma & Partners", phone:"+966 55 331 7742"},
-    {name:"Rami Haddad", role:"Site Engineer (Electrical)", company:"Nesma & Partners", phone:"+966 56 908 1123"},
-    {name:"Mohammed Zahrani", role:"QA/QC Manager", company:"Nesma & Partners", phone:"+966 50 774 2210"},
-    {name:"Elena Marquez", role:"Resident Engineer", company:"Khatib & Alami", phone:"+966 54 662 0091"},
-    {name:"Khalid Saleh", role:"HSE Officer", company:"Nesma & Partners", phone:"+966 55 019 4477"},
-    {name:"Matteo Bevilacqua", role:"Planner / Project Manager", company:"Bohio Systems", phone:"+966 57 440 3312"},
-  ],
-  hse:{emergency:"999 · site control +966 55 019 4477", clinic:"Site clinic — Gate 2, Portakabin C3",
-    assembly:"Assembly Point A — north of the batching plant", nearestHospital:"Al Khumrah General, 8 km / 14 min",
-    ppe:"Hard hat, hi-vis, steel toe, eye protection. Gloves for rebar and kerb laying.",
-    permits:"Hot works, confined space, excavation >1.2 m, live LV/HV, lifting ops",
-    lastIncident:"27 days ago — minor hand laceration, kerb handling",
-    toolbox:"06:15 daily at the muster hut"},
-  logistics:{gate:"Gate 2 (Al Khumrah Road) — deliveries 06:00–16:00",
-    hours:"Sat–Thu 06:00–18:00. Fri closed. Night works need a 48 h notice.",
-    laydown:"Laydown B, east of the substation plot", haul:"Internal haul road via chainage 0+450",
-    parking:"Visitor parking at Gate 1, sign in at the security cabin",
-    batching:"On-site batching plant — 40 m³/h, 90 min max haul to pour"},
-  drawings:[
-    {no:"C-101", title:"Site Layout & Setting Out", rev:"Rev D", date:"28 Aug 2026", status:"Approved", disc:"Civil"},
-    {no:"C-210", title:"Earthworks & Formation Levels", rev:"Rev C", date:"14 Aug 2026", status:"Approved", disc:"Civil"},
-    {no:"C-320", title:"Stormwater Drainage Layout", rev:"Rev F", date:"02 Sept 2026", status:"Approved", disc:"Drainage"},
-    {no:"C-321", title:"Drainage Longitudinal Sections", rev:"Rev E", date:"02 Sept 2026", status:"Approved", disc:"Drainage"},
-    {no:"C-410", title:"Sewerage & Water Network Layout", rev:"Rev C", date:"19 Aug 2026", status:"Approved", disc:"Wet utilities"},
-    {no:"E-510", title:"Electrical Ductbank Layout", rev:"Rev G", date:"06 Sept 2026", status:"Approved", disc:"Electrical"},
-    {no:"E-511", title:"Ductbank Typical Sections", rev:"Rev D", date:"06 Sept 2026", status:"Approved", disc:"Electrical"},
-    {no:"E-540", title:"Substation Plinth & Earthing", rev:"Rev B", date:"24 Aug 2026", status:"For construction", disc:"Electrical"},
-    {no:"T-610", title:"Telecoms & Fibre Duct Routes", rev:"Rev B", date:"11 Aug 2026", status:"Approved", disc:"Telecoms"},
-    {no:"R-710", title:"Road Sub-base, Kerbs & Surfacing", rev:"Rev E", date:"01 Sept 2026", status:"Approved", disc:"Roads"},
-    {no:"L-810", title:"Street Lighting Layout", rev:"Rev A", date:"30 Jul 2026", status:"Under review", disc:"Electrical"},
-    {no:"L-910", title:"Landscaping & Public Realm", rev:"Rev A", date:"22 Jul 2026", status:"Under review", disc:"Landscape"},
-  ],
-  specs:[
-    {sec:"02300", title:"Earthworks", req:"Fill in 250 mm layers, min 95% MDD (AASHTO T-180)."},
-    {sec:"02320", title:"Trench Backfill", req:"Bedding 150 mm sand; surround 300 mm above crown; 95% MDD."},
-    {sec:"02510", title:"Water Networks", req:"HDPE PE100 PN16. Pressure test 1.5× working, hold 2 h."},
-    {sec:"02630", title:"Stormwater Drainage", req:"uPVC SN8. Max deflection 5%. CCTV survey before handover."},
-    {sec:"02740", title:"Asphalt Surfacing", req:"Binder 60 mm, wearing 40 mm. Compaction 96–100% Marshall."},
-    {sec:"02750", title:"Road Sub-base", req:"Type 1 crushed, 300 mm compacted, CBR ≥ 80%, 95% MDD."},
-    {sec:"16050", title:"Electrical Ductbank", req:"Concrete surround C25/30, 75 mm cover, red oxide dye."},
-    {sec:"16400", title:"Street Lighting", req:"10 m columns @ 32 m spacing, 8 m³ base, 30 lux average."},
-  ],
-  rfis:[
-    {no:"RFI-011", subj:"Formation level clash at grid C4", disc:"Civil", status:"Closed", raised:"18 Aug", due:"25 Aug", ans:"Lower formation 150 mm; see C-210 Rev C."},
-    {no:"RFI-014", subj:"Ductbank crossing over storm line at ch 0+320", disc:"Electrical", status:"Open", raised:"01 Sept", due:"12 Sept", ans:"Awaiting consultant — holding pour at ch 0+300 to 0+340."},
-    {no:"RFI-016", subj:"Kerb radius at the roundabout approach", disc:"Roads", status:"Open", raised:"04 Sept", due:"15 Sept", ans:"Awaiting consultant."},
-    {no:"RFI-017", subj:"Substation earthing grid conductor size", disc:"Electrical", status:"Answered", raised:"06 Sept", due:"16 Sept", ans:"Use 95 mm² bare copper; E-540 Rev B applies."},
-    {no:"RFI-018", subj:"Unrecorded 160 mm service at ch 0+610", disc:"Wet utilities", status:"Open", raised:"09 Sept", due:"18 Sept", ans:"Awaiting utility owner trace. Hand-dig only."},
-  ],
-  submittals:[
-    {ref:"MS-042", item:"Sub-base aggregate Type 1 — Riyadh Aggregates", status:"Approved", date:"12 Aug"},
-    {ref:"MS-051", item:"uPVC DN400 stormwater pipe — Saudi Pipe Co.", status:"Approved", date:"20 Aug"},
-    {ref:"MS-058", item:"11kV XLPE cable — Al-Rajhi Electrical", status:"Approved with comment", date:"29 Aug"},
-    {ref:"MS-061", item:"LED lighting columns 10 m", status:"Under review", date:"05 Sept"},
-    {ref:"MS-063", item:"Asphalt mix design — Arabian Bitumen", status:"Rejected — resubmit", date:"07 Sept"},
-  ],
-  permits:[
-    {type:"Excavation permit", ref:"PTW-2209", area:"Ductbank ch 0+200–0+500", validTo:"16 Sept 2026", status:"Valid"},
-    {type:"Road closure", ref:"MUN-4471", area:"Al Khumrah Rd southbound lane", validTo:"21 Sept 2026", status:"Valid"},
-    {type:"Hot works", ref:"PTW-2213", area:"Substation plinth", validTo:"11 Sept 2026", status:"Expires tomorrow"},
-    {type:"Confined space", ref:"PTW-2215", area:"MH-12 drainage chamber", validTo:"14 Sept 2026", status:"Valid"},
-    {type:"HV isolation", ref:"—", area:"Substation tie-in", validTo:"—", status:"Not yet applied"},
-  ],
-  levels:[
-    {loc:"Grid C4", type:"Formation level", val:"+12.350 m", note:"Lowered 150 mm per RFI-011"},
-    {loc:"Grid D2", type:"Formation level", val:"+12.500 m", note:"As drawing C-210 Rev C"},
-    {loc:"MH-12", type:"Invert level", val:"+9.820 m", note:"Storm, DN400 outfall"},
-    {loc:"MH-13", type:"Invert level", val:"+9.640 m", note:"Storm, 1:200 fall to outfall"},
-    {loc:"Ch 0+320", type:"Ductbank soffit", val:"+11.100 m", note:"Clash zone — see RFI-014"},
-    {loc:"Substation", type:"Plinth FFL", val:"+13.000 m", note:"E-540 Rev B"},
-    {loc:"Road ch 0+000", type:"Finished road level", val:"+13.250 m", note:"Tie-in to existing"},
-  ],
-  boq:[
-    {item:"Bulk excavation", qty:"48,500", uom:"m³", rate:"SAR 22", done:"92%"},
-    {item:"Sub-base Type 1", qty:"3,800", uom:"t", rate:"SAR 39", done:"18%"},
-    {item:"uPVC DN400 storm pipe", qty:"900", uom:"m", rate:"SAR 294", done:"41%"},
-    {item:"HDPE DN250 water main", qty:"1,400", uom:"m", rate:"SAR 221", done:"12%"},
-    {item:"11kV XLPE cable", qty:"1,200", uom:"m", rate:"SAR 343", done:"0%"},
-    {item:"Fibre subduct 4-way", qty:"2,200", uom:"m", rate:"SAR 44", done:"0%"},
-    {item:"Asphalt binder + wearing", qty:"2,600", uom:"t", rate:"SAR 200", done:"0%"},
-    {item:"LED lighting columns 10 m", qty:"64", uom:"no.", rate:"SAR 4,300", done:"0%"},
-  ],
-  tests:[
-    {ref:"FDT-118", type:"Field density (compaction)", loc:"Ch 0+200–0+260 sub-base", date:"08 Sept", res:"Pass", val:"96.4% MDD", spec:"≥95%"},
-    {ref:"FDT-119", type:"Field density (compaction)", loc:"Ch 0+260–0+320 sub-base", date:"09 Sept", res:"Pass", val:"95.8% MDD", spec:"≥95%"},
-    {ref:"FDT-120", type:"Field density (compaction)", loc:"Ch 0+320–0+380 sub-base", date:"09 Sept", res:"FAIL", val:"93.1% MDD", spec:"≥95%"},
-    {ref:"CUB-064", type:"Concrete cube 28-day", loc:"Ductbank surround ch 0+200", date:"05 Sept", res:"Pass", val:"32.4 MPa", spec:"C25/30"},
-    {ref:"CUB-067", type:"Concrete cube 7-day", loc:"Substation plinth", date:"08 Sept", res:"Pass", val:"24.1 MPa", spec:"≥20 MPa at 7d"},
-    {ref:"PRS-022", type:"Pressure test", loc:"Water main ch 0+000–0+300", date:"07 Sept", res:"Pass", val:"24 bar / 2 h", spec:"1.5× working"},
-  ],
-  milestones:[
-    {name:"Earthworks complete", date:"28 Aug 2026", status:"Achieved"},
-    {name:"Drainage network complete", date:"30 Sept 2026", status:"On track"},
-    {name:"Ductbank & substation energised", date:"18 Nov 2026", status:"At risk"},
-    {name:"Road surfacing complete", date:"22 Dec 2026", status:"On track"},
-    {name:"Practical completion", date:"04 Mar 2027", status:"On track"},
-  ],
-  utilities:[
-    {svc:"Existing 11kV STC cable", loc:"Ch 0+180, west verge", depth:"1.1 m", owner:"Saudi Electricity", note:"Hand-dig within 500 mm. Cable-avoidance tool mandatory."},
-    {svc:"Existing 300 mm water main", loc:"Ch 0+450 crossing", depth:"1.6 m", owner:"NWC", note:"Do not expose without NWC attendance."},
-    {svc:"Unrecorded 160 mm duct", loc:"Ch 0+610", depth:"0.8 m", owner:"Unknown", note:"RFI-018 open. Hand-dig only."},
-    {svc:"Fibre backbone", loc:"Ch 0+050 east verge", depth:"0.9 m", owner:"STC", note:"Marked with tape, keep 1 m clear."},
-  ],
-};
+function renderAside(C,B){
+  const t=byId(S.sel); if(!t) return;
+  const n=C.map[t.id], b=B.map[t.id], r=procRisk(t,C), st=derive(t);
+  const ph=PHASES.find(p=>p.id===t.p);
+  document.getElementById('a-kick').textContent=t.id+(t.type==='milestone'?' · milestone':' · '+t.dur+' days');
+  document.getElementById('a-name').textContent=t.name;
+  document.getElementById('a-phase').textContent=ph.name+' · '+t.crew+' · '+t.loc;
+  ['detail','proc','upd','log'].forEach(p=>{
+    document.getElementById('ap-'+p).classList.toggle('on',S.apane===p);
+    document.getElementById('at-'+p).classList.toggle('on',S.apane===p);});
 
-/* =====================================================================
- * MONDAY.COM CONNECTOR
- * One write path for the board. Everything — the grid, the item panel and
- * anything arriving over WhatsApp — goes through mondayWrite(), so the
- * board, the updates feed and the activity log can never drift apart.
- * ===================================================================== */
-const monday={connected:true, workspace:"Main workspace",
-  board:"Bohio · Primavera Schedule", boardId:5103871751, group:"To-Do",
-  api:"2024-10", writes:0, lastSync:new Date()};
+  const late=Math.max(0,n.ef-b.ef);
+  document.getElementById('ap-detail').innerHTML=`
+    <div class="f4">
+      <div class="fbox"><div class="k">Early start</div><div class="v">${fmtS(wdDate(n.es))}</div></div>
+      <div class="fbox"><div class="k">Early finish</div><div class="v">${fmtS(wdDate(n.ef))}</div></div>
+      <div class="fbox"><div class="k">Late finish</div><div class="v">${fmtS(wdDate(n.lf))}</div></div>
+      <div class="fbox"><div class="k">Total float</div><div class="v ${n.float<=0?'bad':'ok'}">${n.float}d</div></div>
+    </div>
+    <div class="lrow"><span class="lk">Status</span><span class="lv"><span class="pill ${STATUS[st].c}">${STATUS[st].l}</span></span></div>
+    <div class="lrow"><span class="lk">Progress</span><span class="lv">${t.pct||0}%</span></div>
+    <div class="lrow"><span class="lk">Critical</span><span class="lv">${n.critical?'<span class="pill bad">On the critical path</span>':'<span class="pill neutral">No</span>'}</span></div>
+    ${late?`<div class="lrow"><span class="lk">Slippage</span><span class="lv"><span class="pill bad">+${late}d vs baseline</span></span></div>`:''}
+    <div class="lrow"><span class="lk">Delay risk</span><span class="lv"><span class="pill ${RISK[r.level].c}">${RISK[r.level].l}${r.slip>0?` · +${r.slip}d`:''}</span></span></div>
+    <h4 class="sec">Why</h4>${r.why.map(w=>`<div class="li">${esc(w)}</div>`).join('')}`;
 
-/* Board columns, mirroring a real Monday board schema. */
-const COLUMNS=[
-  {id:"name",     title:"Task",        type:"name"},
-  {id:"person",   title:"Owner",       type:"people"},
-  {id:"status",   title:"Status",      type:"status"},
-  {id:"risk",     title:"Delay risk",  type:"status"},
-  {id:"timeline", title:"Timeline",    type:"timeline"},
-  {id:"progress", title:"Progress",    type:"numbers"},
-  {id:"chainage", title:"Location",    type:"text"},
-  {id:"disc",     title:"Discipline",  type:"dropdown"},
-  {id:"drawing",  title:"Drawing ref", type:"text"},
-];
+  document.getElementById('ap-proc').innerHTML=
+    t.proc==='na'?'<div class="li" style="padding-left:0">No procurement attached to this activity.</div>':`
+    <div class="lrow"><span class="lk">State</span><span class="lv"><span class="pill ${RISK[r.level].c}">${PROC_LABEL[t.proc]}</span></span></div>
+    <div class="lrow"><span class="lk">Reference</span><span class="lv">${esc(t.procRef||'—')}</span></div>
+    <div class="lrow"><span class="lk">Lead time</span><span class="lv">${r.need}d needed · ${r.have}d available</span></div>
+    <h4 class="sec">Procurement items</h4>${t.procItems.map(i=>`<div class="li">${esc(i)}</div>`).join('')||'<div class="li">None listed.</div>'}
+    <h4 class="sec">Forecast</h4>${r.why.map(w=>`<div class="li">${esc(w)}</div>`).join('')}`;
 
-/* Per-item column values. */
-const COLVALS={
-  earth:{timeline:"12 Jan → 28 Aug", progress:92, chainage:"Ch 0+000–0+800", disc:"Civil",       drawing:"C-210 Rev C", person:"SA"},
-  drain:{timeline:"03 Aug → 30 Sept",progress:41, chainage:"Ch 0+000–0+620", disc:"Drainage",    drawing:"C-320 Rev F", person:"SA"},
-  water:{timeline:"18 Aug → 21 Oct", progress:12, chainage:"Ch 0+000–0+900", disc:"Wet utilities",drawing:"C-410 Rev C",person:"SA"},
-  duct: {timeline:"25 Aug → 18 Nov", progress:22, chainage:"Ch 0+200–0+500", disc:"Electrical",  drawing:"E-510 Rev G", person:"RH"},
-  tele: {timeline:"14 Sept → 12 Nov",progress:0,  chainage:"Ch 0+050–0+700", disc:"Telecoms",    drawing:"T-610 Rev B", person:"RH"},
-  sub:  {timeline:"01 Sept → 30 Oct",progress:18, chainage:"Ch 0+200–0+800", disc:"Roads",       drawing:"R-710 Rev E", person:"SA"},
-  asph: {timeline:"20 Oct → 22 Dec", progress:0,  chainage:"Ch 0+000–0+900", disc:"Roads",       drawing:"R-710 Rev E", person:""},
-  light:{timeline:"05 Nov → 20 Jan", progress:0,  chainage:"Ch 0+000–0+900", disc:"Electrical",  drawing:"L-810 Rev A", person:""},
-  land: {timeline:"01 Dec → 20 Feb", progress:0,  chainage:"Public realm",   disc:"Landscape",   drawing:"L-910 Rev A", person:""},
-};
-const PEOPLE={YA:"Yousef Al-Harbi",SA:"Sara Al-Otaibi",RH:"Rami Haddad",MZ:"Mohammed Zahrani",
-              EM:"Elena Marquez",KS:"Khalid Saleh",MB:"Matteo Bevilacqua"};
+  const pend=pending(t);
+  document.getElementById('ap-upd').innerHTML=
+    (pend.length?`<h4 class="sec">Held for verification</h4>`+t.updates.map((u,i)=>
+      (u.claim&&!u.verified&&!u.rejected)?`<div class="verify">
+        <div class="vt">${esc(u.text)}</div>
+        <div class="vm">${esc(u.by)} · claims ${u.pct!=null?u.pct+'%':'progress'} · not yet sent to Monday</div>
+        <div class="va"><button class="btn-xs go" onclick="verifyClaim('${t.id}',${i},true)">Verify &amp; sync</button>
+          <button class="btn-xs" onclick="verifyClaim('${t.id}',${i},false)">Reject</button></div></div>`:'').join('')
+      :'')+
+    `<h4 class="sec">Updates</h4>`+
+    (t.updates.length?[...t.updates].reverse().map(u=>`<div class="upd">
+      <div class="uh"><span class="src ${u.src}">${u.src==='wa'?'WhatsApp':u.src==='voice'?'Voice':u.src==='po'?'Procurement':'Board'}</span>
+        <span>${esc(u.by)}</span><span style="margin-left:auto">${esc(u.when)}</span></div>
+      <div class="ub">${esc(u.text)}</div><div class="ue">${esc(u.effect)}</div></div>`).join('')
+      :'<div class="li" style="padding-left:0">No updates yet.</div>')+
+    (t.files.length?`<h4 class="sec">Evidence (${t.files.length})</h4>`+t.files.map(f=>
+      `<div class="li">${esc(f.name)} — ${esc(f.size)}, ${esc(f.when)}</div>`).join(''):'');
 
-/* attach the Monday-side fields to every item */
-tasks.forEach(t=>{
-  const c=COLVALS[t.id]||{};
-  t.cols=Object.assign({timeline:"—",progress:0,chainage:"—",disc:"—",drawing:"—",person:""},c);
-  t.owner=t.owner||c.person||"";
-  t.files=t.files||[];
-  t.log=t.log||[{when:"Earlier",what:`Item created on board <b>${monday.board}</b>`,src:"board"}];
-});
-
-function mondayLog(t,what,src){ t.log.unshift({when:"Just now",what,src}); }
-
-/* The single write path. source is where the change came from. */
-function mondayWrite(taskId, column, value, source){
-  const t=tasks.find(x=>x.id===taskId); if(!t) return null;
-  let label=value;
-  if(column==="status"){ t.manual=value; label=STATUS[value].label; }
-  else if(column==="person"){ t.owner=value; t.cols.person=value; label=PEOPLE[value]||value; }
-  else if(column==="progress"){ t.cols.progress=value; label=value+"%"; }
-  else { t.cols[column]=value; }
-  monday.writes++; monday.lastSync=new Date();
-  const col=COLUMNS.find(c=>c.id===column);
-  mondayLog(t,`<b>${col?col.title:column}</b> set to <b>${label}</b>`,source||"board");
-  renderRows(); refreshMondayBar();
-  if(openId===t.id) renderPanel();
-  return {item:t.name, column, value:label};
+  document.getElementById('ap-log').innerHTML=t.log.map(l=>
+    `<div class="lrow"><span class="lk">${esc(l.when)}</span><span class="lv">${l.what} <span class="src ${l.src}">${l.src==='wa'?'WhatsApp':l.src==='voice'?'Voice':l.src==='po'?'Procurement':'Board'}</span></span></div>`).join('');
 }
 
-/* Evidence upload — a photo or document arriving from WhatsApp lands on the
- * item's Files tab and is referenced from the updates feed. */
-function mondayAddFile(taskId,file,source){
-  const t=tasks.find(x=>x.id===taskId); if(!t) return null;
-  t.files.unshift(Object.assign({when:"Just now",by:"Matteo Bevilacqua"},file));
-  monday.writes++; monday.lastSync=new Date();
-  mondayLog(t,`Evidence <b>${esc(file.name)}</b> uploaded`,source||"wa");
-  t.updates.push({src:"wa",text:`Evidence attached: ${file.name}`,by:"Field (WhatsApp)",
-    effect:"Filed against the item in Monday. No status change on its own.",
-    when:"Just now",noStatus:true,file:file.name});
-  renderRows(); refreshMondayBar();
-  if(openId===t.id){ renderPanel(); if(cur('files')) renderFilesPane(); }
-  return t;
-}
-function cur(p){ return document.getElementById('pane-'+p).classList.contains('active'); }
-function refreshMondayBar(){
-  const el=document.getElementById('mb-state'); if(!el) return;
-  el.textContent=`${tasks.length} items · ${COLUMNS.length} columns · ${monday.writes} writes this session`;
-  document.getElementById('mb-sync').textContent='synced '+monday.lastSync.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-}
-
-/* ---------- files & activity panes ---------- */
-function renderFilesPane(){
-  const t=tasks.find(x=>x.id===openId); const box=document.getElementById('pane-files');
-  if(!t) return; document.getElementById('ip-file-count').textContent=t.files.length;
-  box.innerHTML = t.files.length ? t.files.map(f=>`
-    <div class="file-row">
-      <span class="file-ic ${f.kind}">${f.kind.toUpperCase()}</span>
-      <div class="file-meta"><div class="fn">${esc(f.name)}</div>
-        <div class="fs">${esc(f.size)} · ${esc(f.when)} · ${esc(f.by)}${f.note?' · '+esc(f.note):''}</div></div>
-      ${f.evidence?'<span class="ev-tag">EVIDENCE</span>':''}
-    </div>`).join('')
-    : '<div class="empty-note">No files yet. Send a photo or document over WhatsApp and it lands here.</div>';
-}
-function renderLogPane(){
-  const t=tasks.find(x=>x.id===openId); const box=document.getElementById('pane-log');
-  if(!t) return;
-  box.innerHTML=t.log.map(l=>`<div class="log-row"><span class="log-when">${esc(l.when)}</span>
-    <span class="log-what">${l.what}<span class="log-src ${l.src}">${l.src==='wa'?'WhatsApp':l.src==='po'?'Purchasing':l.src==='voice'?'Voice note':'Board'}</span></span></div>`).join('');
-}
-
-/* =====================================================================
- * WHATSAPP SITE AGENT — intent library.
- * Each intent lists trigger keywords and builds its answer from PROJECT,
- * the live schedule, and the purchasing integration.
- * ===================================================================== */
-const P=PROJECT;
-const tbl=rows=>`<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>`;
+/* ===================== ASSISTANT ===================== */
+const tbl=r=>`<table>${r.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td></tr>`).join('')}</table>`;
 const lines=a=>a.join('\n');
+const C_=()=>cpm(tasks), B_=()=>cpm(TASKS.map(t=>({type:t.type||'task',...t,preds:t.preds.slice()})));
+function findT(q){
+  const s=q.toLowerCase();
+  const byCode=tasks.find(t=>new RegExp('(^|[^a-z0-9])'+t.id.toLowerCase()+'([^a-z0-9]|$)').test(s));
+  if(byCode) return byCode;
+  // score every activity by how much of its name the message actually contains,
+  // so "basement raft slab" picks A60 and not A30's "basement perimeter"
+  let best=null,sc=0;
+  tasks.forEach(t=>{
+    let n=0;
+    t.name.toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>3).forEach(w=>{if(s.includes(w))n+=w.length;});
+    if(n>sc){sc=n;best=t;}
+  });
+  return sc?best:null;}
+function fz(q,h){const s=h.toLowerCase();return q.toLowerCase().split(/\s+/).filter(w=>w.length>3).some(w=>s.includes(w));}
+
+/* ---- regulatory reference (indicative — verify against the current edition) ---- */
+const REGS=[
+ {k:['fire exit','exit width','escape door','door width escape'],t:'Fire exit & escape door width',
+  b:'Approved Document B, escape route widths by occupancy:\n• up to 60 people — 750 mm\n• up to 110 — 850 mm\n• up to 220 — 1050 mm\n• over 220 — 5 mm per person\nHospital escape routes carrying beds are normally sized for bed movement, not the minimum.'},
+ {k:['travel distance','how far to exit','escape distance'],t:'Escape travel distance',
+  b:'Approved Document B, institutional/health use:\n• 18 m where escape is in one direction only\n• 35 m where there is more than one direction\nHospital in-patient areas use progressive horizontal evacuation to an adjoining compartment (HTM 05-02) rather than straight-to-outside travel.'},
+ {k:['corridor width','corridor','bed corridor'],t:'Hospital corridor width',
+  b:'HBN guidance for bed-carrying routes:\n• 2.15 m clear width for two-way bed movement\n• 1.8 m minimum on secondary bed routes\n• Handrails, doors and fixed equipment must not reduce the clear width.'},
+ {k:['door width bed','clinical door','ward door'],t:'Clinical door widths',
+  b:'• Bed-access door leaf: 1200 mm clear opening\n• Single clinical door: 1100 mm where trolleys pass\n• Doors on escape routes must not reduce the required escape width.'},
+ {k:['stair width','staircase','escape stair'],t:'Escape stair width',
+  b:'• 1000 mm minimum for a general escape stair\n• 1200 mm typical in healthcare where evacuation aids are used\n• Firefighting stairs sized with the fire strategy; 1100 mm common.'},
+ {k:['emergency lighting','escape lighting'],t:'Emergency lighting',
+  b:'BS 5266:\n• 3 hours duration in healthcare premises\n• 1 lux minimum on the centre line of the escape route\n• Illuminate exits, changes of direction, stairs, fire points and call points.'},
+ {k:['extinguisher','fire point'],t:'Fire extinguisher provision',
+  b:'BS 5306:\n• 30 m maximum travel distance to an extinguisher\n• Minimum 2 × 13A rated per floor\n• Site fire points at each stair core and hot-works area.'},
+ {k:['compartment','compartmentation','fire rating'],t:'Fire compartmentation',
+  b:'• 60 minutes typical between hospital compartments\n• Ward sub-compartments generally limited to 750 m²\n• Every service penetration needs a tested fire-stopping detail, recorded for handover.'},
+ {k:['ramp','gradient','slope'],t:'Ramps & gradients',
+  b:'Approved Document M:\n• 1:20 preferred, 1:12 maximum on a short run\n• 1500 mm level landing at top and bottom\n• 1000 mm minimum clear ramp width.'},
+ {k:['handrail','balustrade','guarding height'],t:'Handrails & guarding',
+  b:'• Handrail 900–1000 mm above pitch line\n• Barrier/balustrade 1100 mm at landings and edges\n• 100 mm sphere must not pass through any guarding.'},
+ {k:['headroom','ceiling height','clear height'],t:'Headroom & ceiling heights',
+  b:'• 2.4 m minimum clear headroom to circulation\n• 2.7 m typical in clinical rooms\n• 3.0 m+ in theatres and imaging to take services and equipment.'},
+ {k:['excavation','trench','shoring','dig depth'],t:'Excavation safety',
+  b:'CDM 2015 / HSE:\n• Support, batter or bench any excavation where collapse could injure — in practice from about 1.2 m\n• Inspect at the start of every shift and after any collapse or fall of material\n• Edge protection and a safe means of access every 25 m\n• Keep spoil and plant back from the edge.'},
+ {k:['scaffold','scaffolding','tower'],t:'Scaffold requirements',
+  b:'• Inspect before first use, then every 7 days, and after alteration or adverse weather\n• Guardrail 950 mm minimum, toe board 150 mm, gap under 470 mm\n• Handover certificate and scaftags before use.'},
+ {k:['work at height','fall protection','edge protection'],t:'Work at height',
+  b:'Work at Height Regulations 2005:\n• Avoid, prevent, then mitigate — in that order\n• Guardrail 950 mm minimum with an intermediate rail\n• Fragile-surface controls and a rescue plan wherever fall arrest is used.'},
+ {k:['lifting','crane','loler','lift plan'],t:'Lifting operations',
+  b:'LOLER 1998:\n• Thorough examination every 12 months, or 6 months for equipment lifting people\n• Every lift planned by an appointed person and supervised\n• Check exclusion zones and wind limits before each lift.'},
+ {k:['noise','decibel','hearing'],t:'Noise at work',
+  b:'Control of Noise at Work 2005:\n• 80 dB(A) lower action value — provide hearing protection\n• 85 dB(A) upper action value — protection mandatory, zones marked\n• 87 dB(A) exposure limit, measured with protection taken into account.'},
+ {k:['asbestos','acm'],t:'Asbestos',
+  b:'Control of Asbestos Regulations 2012:\n• Refurbishment & demolition survey before any intrusive work\n• Licensed contractor for most insulation and board removal\n• Stop immediately and report anything unexpected.'},
+ {k:['confined space','tank entry','manhole entry'],t:'Confined space',
+  b:'Confined Spaces Regulations 1997:\n• Avoid entry where the work can be done another way\n• Safe system of work, gas testing, top man and a rescue plan\n• Permit to work for every entry.'},
+ {k:['cdm','f10','notifiable'],t:'CDM 2015',
+  b:'• Notify the HSE (F10) if work exceeds 30 working days with more than 20 workers at once, or 500 person-days\n• Principal designer and principal contractor appointed in writing\n• Construction phase plan in place before work starts.'},
+ {k:['welfare','toilet','canteen','rest'],t:'Site welfare',
+  b:'CDM 2015 Schedule 2:\n• Toilets and washing facilities with hot and cold water\n• Drinking water, changing and rest facilities\n• Available from day one and kept clean.'},
+ {k:['infection control','icra','dust control','hoarding'],t:'Infection control during works',
+  b:'HTM 03-01 / HBN 00-09:\n• Infection control risk assessment before works start in a live hospital\n• Sealed hoardings, negative pressure and HEPA filtration next to clinical areas\n• Monitor and log pressures daily; agree the plan with the trust IPC team.'},
+ {k:['medical gas','htm 02','piped gas'],t:'Medical gas installation',
+  b:'HTM 02-01:\n• Install, test and certify only through a competent installer\n• Authorised Person signs off; Quality Controller verifies gas identity and purity\n• Permit to work for every connection to a live system.'},
+ {k:['ventilation','air change','theatre air','htm 03'],t:'Ventilation',
+  b:'HTM 03-01:\n• Conventional theatre — around 25 air changes per hour\n• Ultra-clean ventilation canopy for orthopaedic implant work\n• Isolation rooms pressure-controlled and validated before clinical use.'},
+ {k:['electrical','bs 7671','htm 06','power'],t:'Electrical installation',
+  b:'HTM 06-01 / BS 7671:\n• Clinical areas need the resilience category set by the trust brief\n• Medical IT systems in group 2 locations with insulation monitoring\n• Generator and UPS changeover tested before handover.'},
+ {k:['first aid','medic'],t:'First aid provision',
+  b:'• Trained first aiders in proportion to headcount and risk\n• Equipped first aid room on larger projects\n• Emergency arrangements displayed at every entrance.'},
+ {k:['signage','safety sign'],t:'Safety signage',
+  b:'Health & Safety (Safety Signs and Signals) Regulations 1996:\n• Mandatory PPE signs at every entrance\n• Escape routes and fire points signed and lit\n• Hazard signs at excavations, lifting zones and live services.'},
+];
+function regAnswer(q){
+  let best=null,sc=0;
+  for(const r of REGS){let s=0;for(const k of r.k){if(q.toLowerCase().includes(k))s+=k.length;}if(s>sc){sc=s;best=r;}}
+  if(!best) return null;
+  return `<b>${best.t}</b>\n${best.b}\n\n<i>Indicative guidance only — confirm against the current edition of the standard and this project's own drawings, fire strategy and method statements before you rely on it.</i>`;
+}
 
 const INTENTS=[
-/* --- A. schedule & progress --- */
-{cat:"Schedule",ex:"What's the overall progress?",k:["progress","overall","percent","complete","how far"],
- f:()=>`<b>${P.meta.name}</b>\n${P.meta.progress}\nData date ${P.meta.dataDate}.`},
-{cat:"Schedule",ex:"What's late right now?",k:["late","behind","slipping","delayed","slip"],
- f:()=>{const r=tasks.map(t=>({t,k:taskRisk(t.id)})).filter(x=>!x.k.none&&x.k.slip>0).sort((a,b)=>b.k.slip-a.k.slip);
-   return r.length?`<b>${r.length} items forecast late:</b>\n`+lines(r.map(x=>`• ${x.t.code} ${x.t.name} — ${x.k.slip}d (${RISK[x.k.level].label})`)):"Nothing is forecast late.";}},
-{cat:"Schedule",ex:"What's critical this week?",k:["critical","urgent","worst","biggest risk","priority"],
- f:()=>{const r=tasks.map(t=>({t,k:taskRisk(t.id)})).filter(x=>x.k.level==="critical");
-   return r.length?`<b>Critical:</b>\n`+lines(r.map(x=>`• ${x.t.code} ${x.t.name} — ${x.k.slip}d late\n  ${x.k.reasons[0]}`)):"Nothing critical.";}},
-{cat:"Schedule",ex:"Status of the ductbank",k:["status of","status","state of"],
- f:q=>{const t=findTask(q); if(!t) return "Which item? Try “status of the ductbank”.";
-   const r=taskRisk(t.id); return `<b>${t.code} ${t.name}</b>\n`+tbl([["Status",STATUS[deriveStatus(t)].label],["Delay risk",RISK[r.level].label+(r.slip>0?` (${r.slip}d)`:"")],["Updates",t.updates.length],["Reason",r.reasons[0]]]);}},
-{cat:"Schedule",ex:"What are the key milestones?",k:["milestone","key dates","deadlines","completion date"],
- f:()=>`<b>Milestones</b>\n`+lines(P.milestones.map(m=>`• ${m.name} — ${m.date} (${m.status})`))},
-{cat:"Schedule",ex:"What's not started yet?",k:["not started","yet to start","upcoming","next up"],
- f:()=>{const r=tasks.filter(t=>deriveStatus(t)==="notstarted"); return `<b>${r.length} not started:</b>\n`+lines(r.map(t=>`• ${t.code} ${t.name}`));}},
+ {cat:'Programme',ex:"What's the completion date?",k:['completion','finish date','when do we finish','end date'],
+  f:()=>{const C=C_(),B=B_();return `<b>Forecast completion ${fmtS(wdDate(C.end))}</b>\nBaseline ${fmtS(wdDate(B.end))} — ${C.end-B.end>0?`${C.end-B.end} working days late`:'on or ahead of baseline'}.`;}},
+ {cat:'Programme',ex:"What's on the critical path?",k:['critical path','critical','driving the programme'],
+  f:()=>{const C=C_();return `<b>Critical path</b>\n`+lines(tasks.filter(t=>C.map[t.id].critical).map(t=>`• ${t.id} ${t.name} (${t.dur}d)`));}},
+ {cat:'Programme',ex:"What's slipped against baseline?",k:['slipped','slippage','late','behind','delay'],
+  f:()=>{const C=C_(),B=B_();const l=tasks.map(t=>({t,d:C.map[t.id].ef-B.map[t.id].ef})).filter(x=>x.d>0).sort((a,b)=>b.d-a.d);
+   return l.length?`<b>Slipped activities</b>\n`+lines(l.map(x=>`• ${x.t.id} ${x.t.name} — +${x.d}d`)):'Nothing has slipped.';}},
+ {cat:'Programme',ex:'How much float does A50 have?',k:['float','slack','spare time'],
+  f:q=>{const t=findT(q);if(!t)return 'Which activity?';const n=C_().map[t.id];
+   return `<b>${t.id} ${t.name}</b>\n`+tbl([['Early start',fmtS(wdDate(n.es))],['Early finish',fmtS(wdDate(n.ef))],['Late finish',fmtS(wdDate(n.lf))],['Total float',n.float+'d'],['Critical',n.critical?'Yes':'No']]);}},
+ {cat:'Programme',ex:"What's running this week?",k:['this week','running now','in progress now','current work'],
+  f:()=>{const C=C_(),i=wdIndex(DATA_DATE);
+   const r=tasks.filter(t=>t.type!=='milestone'&&C.map[t.id].es<=i&&C.map[t.id].ef>i);
+   return `<b>In progress at the data date</b>\n`+lines(r.map(t=>`• ${t.id} ${t.name} — ${t.crew}, ${t.pct||0}%`));}},
+ {cat:'Programme',ex:'When is the building watertight?',k:['milestone','watertight','topped out','handover date'],
+  f:()=>{const C=C_();return `<b>Milestones</b>\n`+lines(tasks.filter(t=>t.type==='milestone').map(t=>`• ${t.id} ${t.name} — ${fmtS(wdDate(C.map[t.id].es))}`));}},
+ {cat:'Programme',ex:'What comes after A60?',k:['comes after','successor','what follows','downstream'],
+  f:q=>{const t=findT(q);if(!t)return 'Which activity?';const C=C_();const s=(C.succ[t.id]||[]).map(byId);
+   return s.length?`<b>After ${t.id}</b>\n`+lines(s.map(x=>`• ${x.id} ${x.name}`)):`Nothing follows ${t.id}.`;}},
+ {cat:'Programme',ex:'What is A50 waiting on?',k:['waiting on','predecessor','depends on','blocked by'],
+  f:q=>{const t=findT(q);if(!t)return 'Which activity?';
+   return t.preds.length?`<b>${t.id} waits on</b>\n`+lines(t.preds.map(p=>{const x=byId(p);return `• ${x.id} ${x.name} — ${STATUS[derive(x)].l}`;})):`${t.id} has no predecessors.`;}},
 
-/* --- B. procurement --- */
-{cat:"Procurement",ex:"Which POs are stuck in approval?",k:["stuck in approval","approval","approved","awaiting approval","pending approval"],
- f:()=>{const r=pos.filter(p=>p.status==="pending_approval"||p.status==="draft");
-   return r.length?`<b>${r.length} order(s) not yet released:</b>\n`+lines(r.map(p=>`• ${p.po||"(no PO)"} ${p.material} — ${PO_STATE[p.status]}, ${p.waited}d waited, need-by ${fmtD(p.needBy)}`)):"All orders are released.";}},
-{cat:"Procurement",ex:"Where is PO-4471?",k:["po","purchase order","order status"],
- f:q=>{const m=q.match(/po-?\s?(\d{3,4})/i); const p=m?pos.find(x=>x.po&&x.po.includes(m[1])):null;
-   if(!p) return "Give me a PO number, e.g. “where is PO-4471”.";
-   const r=poRisk(p); return `<b>${p.po}</b> — ${p.vendor}\n`+tbl([["Material",p.material],["Value",p.value],["State",PO_STATE[p.status]],["Need by",fmtD(p.needBy)],["Forecast",r.forecast==null?"—":fmtD(r.forecast)],["Risk",RISK[r.level].label],["Why",r.reasons.join(" ")]]);}},
-{cat:"Procurement",ex:"What materials are delayed?",k:["material","materials delayed","deliver","delivery","arriving","arrive"],
- f:()=>{const r=pos.map(p=>({p,r:poRisk(p)})).filter(x=>x.r.slip>0).sort((a,b)=>b.r.slip-a.r.slip);
-   return r.length?`<b>Materials forecast late:</b>\n`+lines(r.map(x=>`• ${x.p.material} (${x.p.po||"no PO"}) — ${x.r.slip}d late, need-by ${fmtD(x.p.needBy)}`)):"No material delays forecast.";}},
-{cat:"Procurement",ex:"When does the 11kV cable arrive?",k:["cable","11kv","when does","when will","eta"],
- f:q=>{const p=findPO(q); if(!p) return "Which material? e.g. “when does the cable arrive”.";
-   const r=poRisk(p); return `<b>${p.material}</b>\nForecast ${r.forecast==null?"—":fmtD(r.forecast)} against need-by ${fmtD(p.needBy)} — ${r.slip>0?`${r.slip} days late`:`${Math.abs(r.slip)} days float`}.\n${r.reasons.join(" ")}`;}},
-{cat:"Procurement",ex:"Which items have no PO raised?",k:["no po","not ordered","nothing ordered","not raised","missing po"],
- f:()=>{const r=pos.filter(p=>p.status==="none");
-   return r.length?`<b>No order raised:</b>\n`+lines(r.map(p=>`• ${p.material} — need-by ${fmtD(p.needBy)}, ${p.leadTime}d lead time. Raise now or it slips.`)):"Every material has an order.";}},
-{cat:"Procurement",ex:"Total committed spend?",k:["spend","value","cost","committed","budget"],
- f:()=>`<b>Committed purchase orders</b>\n`+lines(pos.filter(p=>p.po).map(p=>`• ${p.po} ${p.value} — ${PO_STATE[p.status]}`))},
-{cat:"Procurement",ex:"Any part deliveries?",k:["part delivery","partial","short delivery","shortfall","received"],
- f:()=>{const r=pos.filter(p=>p.qtyDelivered>0&&p.qtyDelivered<p.qtyOrdered);
-   return r.length?`<b>Short deliveries:</b>\n`+lines(r.map(p=>`• ${p.po} — ${p.qtyDelivered}/${p.qtyOrdered} ${p.uom} of ${p.material}`)):"No outstanding part deliveries.";}},
+ {cat:'Procurement',ex:'What procurement is at risk?',k:['procurement risk','at risk','material risk','supply risk'],
+  f:()=>{const C=C_();const r=tasks.map(t=>({t,r:procRisk(t,C)})).filter(x=>!x.r.none&&RISK[x.r.level].r>=2).sort((a,b)=>b.r.slip-a.r.slip);
+   return r.length?`<b>Procurement exposure</b>\n`+lines(r.map(x=>`• ${x.t.id} ${x.t.name} — ${RISK[x.r.level].l}${x.r.slip>0?` +${x.r.slip}d`:''}\n  ${x.r.why[0]}`)):'No procurement at risk.';}},
+ {cat:'Procurement',ex:'What has no order raised?',k:['no order','not ordered','nothing raised','not started procurement','no po'],
+  f:()=>{const C=C_();const r=tasks.filter(t=>t.proc==='not_started');
+   return `<b>${r.length} activities with nothing raised</b>\n`+lines(r.map(t=>{const x=procRisk(t,C);
+    return `• ${t.id} ${t.name} — needs ${x.need}d, has ${x.have}d`;}));}},
+ {cat:'Procurement',ex: "What's still out to tender?",k:['tender','out to tender','not awarded','tendering'],
+  f:()=>lines([`<b>Out to tender</b>`].concat(tasks.filter(t=>t.proc==='tender').map(t=>`• ${t.id} ${t.name} — ${t.procRef}`)))},
+ {cat:'Procurement',ex:'What is on PO-1004?',k:['po-','tnd-','order ref','what is on'],
+  f:q=>{const m=q.match(/(po|tnd)-?\s?(\d{3,4})/i);
+   if(!m)return 'Give me an order or tender reference.';
+   const r=tasks.filter(t=>(t.procRef||'').toLowerCase().includes(m[2]));
+   return r.length?`<b>${r[0].procRef}</b>\n`+lines(r.map(t=>`• ${t.id} ${t.name}\n  ${t.procItems.join(', ')}`)):'No activity carries that reference.';}},
+ {cat:'Procurement',ex:'What materials does A60 need?',k:['materials','what does it need','procurement items','what to order'],
+  f:q=>{const t=findT(q);if(!t)return 'Which activity?';
+   return t.procItems.length?`<b>${t.id} ${t.name}</b>\n${PROC_LABEL[t.proc]}${t.procRef?' · '+t.procRef:''}\n`+lines(t.procItems.map(i=>`• ${i}`)):'No procurement items listed.';}},
 
-/* --- C. drawings --- */
-{cat:"Drawings",ex:"Latest drawing for the ductbank",k:["drawing","dwg","layout drawing","latest drawing"],
- f:q=>{const d=P.drawings.filter(x=>fuzzy(q,x.title+" "+x.no+" "+x.disc));
-   const s=d.length?d:P.drawings;
-   return `<b>Drawing register${d.length?" — match":""}</b>\n`+lines(s.slice(0,6).map(x=>`• ${x.no} ${x.title} — ${x.rev}, ${x.date} (${x.status})`));}},
-{cat:"Drawings",ex:"What revision is C-320?",k:["revision","rev","what rev","current rev"],
- f:q=>{const m=q.match(/([a-z])-?\s?(\d{3})/i); const d=m?P.drawings.find(x=>x.no.toLowerCase().replace('-','')===(m[1]+m[2]).toLowerCase()):null;
-   return d?`<b>${d.no} — ${d.title}</b>\n${d.rev}, issued ${d.date}, ${d.status}.`:"Give me a drawing number, e.g. “what revision is C-320”.";}},
-{cat:"Drawings",ex:"Which drawings are still under review?",k:["under review","not approved","pending drawing","unapproved"],
- f:()=>`<b>Not yet approved:</b>\n`+lines(P.drawings.filter(d=>d.status!=="Approved").map(d=>`• ${d.no} ${d.title} — ${d.rev} (${d.status})`))},
-{cat:"Drawings",ex:"Am I working to the latest drawing?",k:["latest","superseded","current drawing","up to date"],
- f:()=>`Check the revision on your print against this list — anything older is superseded:\n`+lines(P.drawings.map(d=>`• ${d.no} — ${d.rev} (${d.date})`))},
+ {cat:'Verification',ex:'What is held for verification?',k:['held','verification','awaiting verification','pending','unverified'],
+  f:()=>{const p=allPending();
+   return p.length?`<b>${p.length} claim(s) held — not sent to Monday</b>\n`+lines(p.map(x=>`• ${x.t.id} ${x.t.name}\n  "${x.u.text}"\n  claims ${x.u.pct!=null?x.u.pct+'%':'progress'} · ${x.u.by}`))+
+   `\n\nOpen the activity and use Verify & sync to release it.`:'Nothing is held. Every claim has been verified.';}},
+ {cat:'Verification',ex:'Why has the status not updated?',k:['not updated','why status','status stuck','did not change','hasnt updated'],
+  f:()=>{const p=allPending();
+   return p.length?`Because ${p.length} claim(s) arrived without a measurement, and an unverified claim is never written to Monday.\n\n`+
+    lines(p.map(x=>`• ${x.t.id} — "${x.u.text}"`))+`\n\nVerify it and the status and percentage move together, and the write is logged.`
+    :'Everything logged has been verified — no status is being held back.';}},
+ {cat:'Verification',ex:'Verify the outstanding claims',k:['verify the','verify all','verify outstanding','release','approve claims','sync them'],
+  f:()=>{const p=allPending(); if(!p.length) return 'Nothing to verify.';
+   p.forEach(x=>verifyClaim(x.t.id,x.t.updates.indexOf(x.u),true));
+   return `✅ Verified ${p.length} claim(s) and synced to Monday.`;}},
 
-/* --- D. specs --- */
-{cat:"Spec",ex:"What's the compaction spec?",k:["compaction spec","mdd","compaction requirement","density spec"],
- f:()=>`<b>Compaction</b>\n${P.specs.find(s=>s.sec==="02300").req}\nSub-base: ${P.specs.find(s=>s.sec==="02750").req}`},
-{cat:"Spec",ex:"Spec for sub-base",k:["spec","specification","requirement","standard"],
- f:q=>{const s=P.specs.filter(x=>fuzzy(q,x.title+" "+x.sec));
-   const l=s.length?s:P.specs; return `<b>Specification${s.length?" — match":""}</b>\n`+lines(l.slice(0,5).map(x=>`• ${x.sec} ${x.title} — ${x.req}`));}},
-{cat:"Spec",ex:"Concrete grade for the ductbank?",k:["concrete","grade","c25","cover","surround"],
- f:()=>`<b>16050 Electrical Ductbank</b>\n${P.specs.find(s=>s.sec==="16050").req}`},
+ {cat:'Board',ex:'Show me everything on A40',k:['show me everything','everything on','full detail','all columns'],
+  f:q=>{const t=findT(q);if(!t)return 'Which activity?';const C=C_(),n=C.map[t.id],r=procRisk(t,C);
+   return `<b>${t.id} ${t.name}</b>\n`+tbl([['Phase',PHASES.find(p=>p.id===t.p).name],['Contractor',t.crew],['Location',t.loc],
+    ['Status',STATUS[derive(t)].l],['Progress',(t.pct||0)+'%'],['Duration',t.dur+'d'],
+    ['Early start',fmtS(wdDate(n.es))],['Early finish',fmtS(wdDate(n.ef))],['Total float',n.float+'d'],
+    ['Critical',n.critical?'Yes':'No'],['Procurement',PROC_LABEL[t.proc]],['Delay risk',RISK[r.level].l],
+    ['Updates',t.updates.length],['Evidence',t.files.length]]);}},
+ {cat:'Board',ex:'Set A50 status to in progress',k:['set status','status to','mark as','change status'],
+  f:q=>{const t=findT(q);if(!t)return 'Which activity?';const s=q.toLowerCase();
+   const k=/complete|done|finish/.test(s)?'done':/stuck|blocked|hold/.test(s)?'stuck':
+           /verif/.test(s)?'verify':/progress|working|start/.test(s)?'working':/not start/.test(s)?'notstarted':null;
+   if(!k)return 'Which status? Not started, In progress, Awaiting verification, Stuck or Complete.';
+   mWrite(t.id,'status',k,'wa');
+   return `✅ <b>${t.id}</b> status → <b>${STATUS[k].l}</b>, written to ${monday.board}.`;}},
+ {cat:'Board',ex:'Set A50 progress to 40%',k:['progress to','percent','set progress'],
+  f:q=>{const t=findT(q);if(!t)return 'Which activity?';
+   // must not read the digits out of the activity id (A50), so require a % or an explicit "progress to N"
+   const m=q.match(/(\d{1,3})\s*%/)||q.match(/(?:progress|percent|pct)\D{0,8}(\d{1,3})\b/i);
+   if(!m)return 'What percentage? Say it with a % — for example "set A50 progress to 40%".';
+   const v=Math.min(100,+m[1]);mWrite(t.id,'progress',v,'wa');
+   return `✅ <b>${t.id}</b> progress → <b>${v}%</b> on Monday.`;}},
+ {cat:'Board',ex:'Is the Monday connection healthy?',k:['monday','connection','integration','sync healthy'],
+  f:()=>`<b>Monday.com — connected</b>\n`+tbl([['Workspace',monday.workspace],['Board',monday.board],['Board ID',monday.boardId],
+   ['API',monday.api],['Activities',tasks.length],['Writes this session',monday.writes],
+   ['Held for verification',allPending().length],['Last sync',monday.lastSync.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})]])},
 
-/* --- E. RFIs --- */
-{cat:"RFI",ex:"Any open RFIs?",k:["rfi","open rfi","queries","question raised"],
- f:q=>{const m=q.match(/rfi-?\s?(\d+)/i);
-   if(m){const r=P.rfis.find(x=>x.no.includes(m[1])); return r?`<b>${r.no} — ${r.subj}</b>\n`+tbl([["Status",r.status],["Discipline",r.disc],["Raised",r.raised],["Due",r.due],["Response",r.ans]]):"No such RFI.";}
-   const o=P.rfis.filter(r=>r.status==="Open");
-   return `<b>${o.length} open RFI(s):</b>\n`+lines(o.map(r=>`• ${r.no} ${r.subj} — due ${r.due}\n  ${r.ans}`));}},
-{cat:"RFI",ex:"Is anything on hold pending an RFI?",k:["on hold","holding","blocked by","waiting for answer"],
- f:()=>`<b>Holds:</b>\n`+lines(P.rfis.filter(r=>r.status==="Open").map(r=>`• ${r.no} — ${r.subj}. ${r.ans}`))},
-{cat:"RFI",ex:"RFIs overdue for response?",k:["overdue rfi","late rfi","chase","outstanding rfi"],
- f:()=>`Open RFIs and their due dates:\n`+lines(P.rfis.filter(r=>r.status!=="Closed").map(r=>`• ${r.no} due ${r.due} — ${r.status}`))},
+ {cat:'On site',ex:'What am I looking at here?',k:['what am i looking','brief me','where am i','whats here'],
+  f:()=>{const C=C_(),i=wdIndex(DATA_DATE);
+   const run=tasks.filter(t=>t.type!=='milestone'&&C.map[t.id].es<=i&&C.map[t.id].ef>i);
+   const p=allPending();
+   return `<b>XYZ Hospital Construction</b>\nData date ${fmtS(DATA_DATE)}\n\n<b>Live on site</b>\n`+
+    lines(run.map(t=>`• ${t.id} ${t.name} — ${t.crew}, ${t.pct||0}%`))+
+    (p.length?`\n\n⚠ ${p.length} claim(s) held for verification.`:'');}},
+ {cat:'On site',ex:'Who is working here today?',k:['who is working','which contractor','crew on site','whose area'],
+  f:()=>{const C=C_(),i=wdIndex(DATA_DATE);
+   const r=tasks.filter(t=>t.type!=='milestone'&&C.map[t.id].es<=i&&C.map[t.id].ef>i);
+   return `<b>On site today</b>\n`+lines([...new Set(r.map(t=>t.crew))].map(c=>`• ${c} — ${r.filter(t=>t.crew===c).map(t=>t.id).join(', ')}`));}},
+ {cat:'On site',ex:'Can I start this activity?',k:['can i start','ready to start','clear to begin','start work'],
+  f:q=>{const t=findT(q)||byId(S.sel);const C=C_(),r=procRisk(t,C);
+   const open=t.preds.map(byId).filter(x=>derive(x)!=='done');
+   return `<b>${t.id} ${t.name}</b>\n`+
+    (open.length?`⛔ Waiting on: ${open.map(x=>x.id+' ('+STATUS[derive(x)].l+')').join(', ')}\n`:'✅ All predecessors complete.\n')+
+    (t.proc!=='na'?`Procurement: ${PROC_LABEL[t.proc]} — ${RISK[r.level].l}\n`:'')+
+    `Early start ${fmtS(wdDate(C.map[t.id].es))}, float ${C.map[t.id].float}d.`;}},
+ {cat:'On site',ex:'What should I check before sign-off?',k:['before sign-off','checklist','what to inspect','hold points','inspection'],
+  f:q=>{const t=findT(q)||byId(S.sel);
+   return `<b>${t.id} ${t.name}</b>\nBefore you call for inspection:\n`+
+    `• Work complete to the drawing and the specification\n• Measurement sheet recorded — a claim without one is held, not applied\n`+
+    `• Evidence photographed and sent through WhatsApp\n• Predecessors signed off: ${t.preds.join(', ')||'none'}\n`+
+    `• Permit still valid for the activity\n• Any open RFI on this location closed out`;}},
+ {cat:'On site',ex:'What is the progress on my area?',k:['progress on','how far along','percent complete area'],
+  f:q=>{const t=findT(q)||byId(S.sel);
+   return `<b>${t.id} ${t.name}</b>\n${t.pct||0}% complete · ${STATUS[derive(t)].l}\n${t.crew} · ${t.loc}`;}},
+ {cat:'On site',ex:'Report progress from site',k:['report progress','log this','record this'],
+  f:()=>`Just tell me what happened and I'll log it against the activity — for example "pile caps to grid C poured, 24 of 64 complete, measurement sheet attached".\n\nA claim with a measurement is applied and synced. A claim without one is held for the planner.`},
 
-/* --- F. levels & setting out --- */
-{cat:"Levels",ex:"Formation level at grid C4?",k:["formation level","level at","grid","setting out","ffl"],
- f:q=>{const l=P.levels.filter(x=>fuzzy(q,x.loc+" "+x.type));
-   const s=l.length?l:P.levels; return `<b>Levels${l.length?" — match":""}</b>\n`+lines(s.map(x=>`• ${x.loc} ${x.type}: <b>${x.val}</b>${x.note?` — ${x.note}`:""}`));}},
-{cat:"Levels",ex:"Invert level of MH-12?",k:["invert","manhole","mh","chamber level"],
- f:q=>{const l=P.levels.filter(x=>/invert/i.test(x.type)&&(fuzzy(q,x.loc)||true));
-   const m=q.match(/mh-?\s?(\d+)/i); const hit=m?l.find(x=>x.loc.includes(m[1])):null;
-   return hit?`<b>${hit.loc} invert: ${hit.val}</b>\n${hit.note}`:`<b>Invert levels</b>\n`+lines(l.map(x=>`• ${x.loc}: ${x.val} — ${x.note}`));}},
-{cat:"Levels",ex:"What datum are we working to?",k:["datum","benchmark","tbm","survey control"],
- f:()=>`All levels are to project datum, tied to the site TBM at Gate 2 (+13.412 m).\nFinished road level at ch 0+000 is ${P.levels.find(l=>/road/i.test(l.type)).val}.`},
+ {cat:'Regulations',ex:'How wide does a fire exit have to be?',k:['fire exit','exit width','escape door'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What is the maximum travel distance to an exit?',k:['travel distance','escape distance','how far to exit'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'How wide must a hospital corridor be?',k:['corridor width','corridor','bed corridor'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What clear width do clinical doors need?',k:['door width bed','clinical door','ward door'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What width must an escape stair be?',k:['stair width','staircase','escape stair'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'How long must emergency lighting last?',k:['emergency lighting','escape lighting'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'How far to the nearest extinguisher?',k:['extinguisher','fire point'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What fire compartmentation applies?',k:['compartment','compartmentation','fire rating'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What ramp gradient is allowed?',k:['ramp','gradient','slope'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What height should handrails be?',k:['handrail','balustrade','guarding height'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What headroom is required?',k:['headroom','ceiling height','clear height'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'When does an excavation need support?',k:['excavation','trench','shoring','dig depth'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'How often must scaffold be inspected?',k:['scaffold','scaffolding','tower'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What are the work at height rules?',k:['work at height','fall protection','edge protection'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What are the lifting requirements?',k:['lifting','crane','loler','lift plan'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What are the noise limits?',k:['noise','decibel','hearing'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What are the asbestos rules?',k:['asbestos','acm'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What applies to confined spaces?',k:['confined space','tank entry','manhole entry'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'Is this project notifiable under CDM?',k:['cdm','f10','notifiable'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What welfare must be provided?',k:['welfare','toilet','canteen','rest'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What infection control applies to the works?',k:['infection control','icra','dust control','hoarding'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What are the medical gas requirements?',k:['medical gas','htm 02','piped gas'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What ventilation do theatres need?',k:['ventilation','air change','theatre air','htm 03'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What electrical standards apply?',k:['electrical','bs 7671','htm 06','power'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What first aid is required?',k:['first aid','medic'],f:q=>regAnswer(q)},
+ {cat:'Regulations',ex:'What safety signage is required?',k:['signage','safety sign'],f:q=>regAnswer(q)},
 
-/* --- G. quantities --- */
-{cat:"Quantities",ex:"How much sub-base do we need?",k:["how much","how many","quantity","qty","boq","tonnes","metres"],
- f:q=>{const b=P.boq.filter(x=>fuzzy(q,x.item));
-   const s=b.length?b:P.boq; return `<b>Quantities${b.length?" — match":""}</b>\n`+lines(s.map(x=>`• ${x.item}: ${x.qty} ${x.uom} @ ${x.rate} — ${x.done} done`));}},
-{cat:"Quantities",ex:"What's left to install?",k:["left to","remaining","outstanding qty","still to do"],
- f:()=>`<b>Remaining by item</b>\n`+lines(P.boq.filter(b=>b.done!=="100%").map(b=>`• ${b.item} — ${b.done} done of ${b.qty} ${b.uom}`))},
-{cat:"Quantities",ex:"Rate for asphalt?",k:["rate","price per","unit rate","cost per"],
- f:q=>{const b=P.boq.filter(x=>fuzzy(q,x.item)); const s=b.length?b:P.boq;
-   return `<b>Rates</b>\n`+lines(s.map(x=>`• ${x.item} — ${x.rate}/${x.uom}`));}},
-
-/* --- H. testing / QA --- */
-{cat:"Testing",ex:"Any failed tests?",k:["failed test","fail","ncr","non-conformance","reject"],
- f:()=>{const f=P.tests.filter(t=>t.res==="FAIL");
-   return f.length?`<b>⚠ ${f.length} failed test:</b>\n`+lines(f.map(t=>`• ${t.ref} ${t.type}\n  ${t.loc} — ${t.val} against ${t.spec} (${t.date})\n  Re-work and re-test before covering up.`)):"No failed tests.";}},
-{cat:"Testing",ex:"Compaction result at ch 0+320?",k:["compaction result","density result","fdt","test result","result at"],
- f:q=>{const t=P.tests.filter(x=>fuzzy(q,x.loc+" "+x.type+" "+x.ref));
-   const s=t.length?t:P.tests; return `<b>Test results${t.length?" — match":""}</b>\n`+lines(s.map(x=>`• ${x.ref} ${x.loc} — <b>${x.res}</b> ${x.val} (spec ${x.spec}, ${x.date})`));}},
-{cat:"Testing",ex:"Concrete cube results?",k:["cube","concrete result","mpa","strength"],
- f:()=>`<b>Concrete cubes</b>\n`+lines(P.tests.filter(t=>/cube/i.test(t.type)).map(t=>`• ${t.ref} ${t.loc} — ${t.val} (${t.res}, ${t.date})`))},
-{cat:"Testing",ex:"Has the water main been pressure tested?",k:["pressure test","hydro","leak test","tested"],
- f:()=>{const t=P.tests.find(x=>/pressure/i.test(x.type));
-   return `<b>${t.ref} ${t.type}</b>\n${t.loc} — ${t.res}, ${t.val} (spec ${t.spec}) on ${t.date}.`;}},
-
-/* --- I. permits --- */
-{cat:"Permits",ex:"Do we have a permit to dig?",k:["permit","ptw","permit to dig","excavation permit","road closure"],
- f:q=>{const p=P.permits.filter(x=>fuzzy(q,x.type+" "+x.area));
-   const s=p.length?p:P.permits; return `<b>Permits${p.length?" — match":""}</b>\n`+lines(s.map(x=>`• ${x.type} ${x.ref} — ${x.area}\n  Valid to ${x.validTo} · <b>${x.status}</b>`));}},
-{cat:"Permits",ex:"Which permits expire soon?",k:["expire","expiring","valid until","runs out"],
- f:()=>`<b>Watch these:</b>\n`+lines(P.permits.filter(p=>p.status!=="Valid").map(p=>`• ${p.type} ${p.ref} — ${p.status} (${p.validTo})`))},
-{cat:"Permits",ex:"Can I start the HV tie-in?",k:["hv","isolation","tie-in","energise","live work"],
- f:()=>{const p=P.permits.find(x=>/hv/i.test(x.type));
-   return `<b>${p.type}</b> — <b>${p.status}</b>.\nDo not start any HV tie-in without it. Contact ${P.contacts.find(c=>/Electrical/.test(c.role)).name} on ${P.contacts.find(c=>/Electrical/.test(c.role)).phone}.`;}},
-
-/* --- J. HSE --- */
-{cat:"HSE",ex:"What's the emergency number?",k:["emergency","ambulance","accident","injury","999"],
- f:()=>`<b>🚨 Emergency</b>\n`+tbl([["Call",P.hse.emergency],["Clinic",P.hse.clinic],["Assembly",P.hse.assembly],["Hospital",P.hse.nearestHospital]])},
-{cat:"HSE",ex:"What PPE do I need?",k:["ppe","protective","hard hat","gloves","boots"],
- f:()=>`<b>PPE</b>\n${P.hse.ppe}`},
-{cat:"HSE",ex:"Where is the assembly point?",k:["assembly","muster","evacuation","fire point"],
- f:()=>`<b>${P.hse.assembly}</b>\nToolbox talk ${P.hse.toolbox}.`},
-{cat:"HSE",ex:"Which permits does HSE require?",k:["hse permit","safety permit","which permits required","permit required"],
- f:()=>`<b>Permit-to-work required for:</b>\n${P.hse.permits}\nLast incident: ${P.hse.lastIncident}.`},
-{cat:"HSE",ex:"Any buried services near me?",k:["buried","services","utility","cable strike","dig safe","existing"],
- f:()=>`<b>⚠ Known services</b>\n`+lines(P.utilities.map(u=>`• ${u.svc} — ${u.loc}, depth ${u.depth} (${u.owner})\n  ${u.note}`))},
-
-/* --- K. contacts --- */
-{cat:"Contacts",ex:"Who's the site engineer?",k:["who is","who's","contact","phone","number for","call"],
- f:q=>{const c=P.contacts.filter(x=>fuzzy(q,x.role+" "+x.name+" "+x.company));
-   const s=c.length?c:P.contacts; return `<b>Contacts${c.length?" — match":""}</b>\n`+lines(s.map(x=>`• ${x.name} — ${x.role}\n  ${x.phone} (${x.company})`));}},
-{cat:"Contacts",ex:"Who do I call for electrical?",k:["electrical contact","electrician","hv contact","power"],
- f:()=>{const c=P.contacts.find(x=>/Electrical/.test(x.role)); return `<b>${c.name}</b> — ${c.role}\n${c.phone}`;}},
-{cat:"Contacts",ex:"Who is the consultant?",k:["consultant","resident engineer","client rep","supervision"],
- f:()=>{const c=P.contacts.find(x=>/Resident/.test(x.role)); return `<b>${c.company}</b>\n${c.name} — ${c.role}\n${c.phone}`;}},
-
-/* --- L. logistics --- */
-{cat:"Site",ex:"What are the working hours?",k:["working hours","hours","shift","night work","friday"],
- f:()=>`<b>Working hours</b>\n${P.logistics.hours}`},
-{cat:"Site",ex:"Where do deliveries go?",k:["delivery gate","gate","deliveries","where do i deliver","laydown"],
- f:()=>`<b>Access & logistics</b>\n`+tbl([["Gate",P.logistics.gate],["Laydown",P.logistics.laydown],["Haul route",P.logistics.haul],["Parking",P.logistics.parking]])},
-{cat:"Site",ex:"Is there a batching plant?",k:["batching","concrete plant","pour","ready mix"],
- f:()=>`<b>Concrete</b>\n${P.logistics.batching}`},
-{cat:"Site",ex:"Project details?",k:["project details","contract","who is the client","which project","overview"],
- f:()=>`<b>${P.meta.name}</b>\n`+tbl([["Code",P.meta.code],["Client",P.meta.client],["Consultant",P.meta.consultant],["Contractor",P.meta.contractor],["Location",P.meta.location],["Value",P.meta.contract],["Form",P.meta.form],["Period",P.meta.start+" → "+P.meta.finish]])},
-
-/* --- M. submittals --- */
-{cat:"Submittals",ex:"Is the asphalt mix approved?",k:["submittal","material approval","approved material","mix design"],
- f:q=>{const s=P.submittals.filter(x=>fuzzy(q,x.item+" "+x.ref));
-   const l=s.length?s:P.submittals; return `<b>Material submittals${s.length?" — match":""}</b>\n`+lines(l.map(x=>`• ${x.ref} ${x.item}\n  <b>${x.status}</b> (${x.date})`));}},
-{cat:"Submittals",ex:"Anything rejected?",k:["rejected","resubmit","not approved material"],
- f:()=>`<b>Needs action:</b>\n`+lines(P.submittals.filter(s=>s.status!=="Approved").map(s=>`• ${s.ref} ${s.item} — ${s.status}`))},
-
-/* --- N. Monday board: read everything --- */
-{cat:"Monday",ex:"Show me everything on the ductbank",k:["show me everything","everything on","full item","all columns for","item detail","all details"],
- f:q=>{const t=findTask(q); if(!t) return "Which item? e.g. “show me everything on the ductbank”.";
-   const c=t.cols,r=taskRisk(t.id);
-   return `<b>${esc(t.code)} ${esc(t.name)}</b>\n<i>${monday.board} · ${monday.group}</i>\n`+tbl([
-     ["Status",STATUS[deriveStatus(t)].label],["Owner",PEOPLE[c.person]||"Unassigned"],
-     ["Delay risk",RISK[r.level].label+(r.slip>0?` (+${r.slip}d)`:"")],["Timeline",c.timeline],
-     ["Progress",c.progress+"%"],["Location",c.chainage],["Discipline",c.disc],["Drawing",c.drawing],
-     ["Updates",t.updates.length],["Files",t.files.length]]);}},
-{cat:"Monday",ex:"List every item on the board",k:["list every","list all","all items","whole board","every task","board items"],
- f:()=>`<b>${monday.board}</b> · group ${monday.group}\n`+lines(tasks.map(t=>
-   `• ${t.code} ${t.name} — ${STATUS[deriveStatus(t)].label}, ${t.cols.progress}%`))},
-{cat:"Monday",ex:"What columns are on the board?",k:["what columns","board columns","column","schema","fields"],
- f:()=>`<b>${monday.board}</b> (id ${monday.boardId})\n`+lines(COLUMNS.map(c=>`• ${c.title} — ${c.type}`))},
-{cat:"Monday",ex:"Who owns the drainage?",k:["who owns","assigned to","owner of","responsible for"],
- f:q=>{const t=findTask(q); if(!t) return "Which item?";
-   return `<b>${esc(t.code)} ${esc(t.name)}</b>\nOwner: <b>${PEOPLE[t.cols.person]||"Unassigned"}</b>`;}},
-{cat:"Monday",ex:"What's the timeline for the ductbank?",k:["timeline","start date","finish date","when does it run","dates for"],
- f:q=>{const t=findTask(q); if(!t) return "Which item?";
-   return `<b>${esc(t.code)} ${esc(t.name)}</b>\nTimeline ${t.cols.timeline} · ${t.cols.progress}% complete.`;}},
-{cat:"Monday",ex:"What files are on the ductbank?",k:["what files","files on","attachments","evidence on","photos on"],
- f:q=>{const t=findTask(q); if(!t) return "Which item?";
-   return t.files.length?`<b>${esc(t.code)} — ${t.files.length} file(s)</b>\n`+lines(t.files.map(f=>`• ${f.name} (${f.size}, ${f.when})`))
-     :`No files on ${esc(t.code)} yet. Send me a photo and I'll attach it.`;}},
-{cat:"Monday",ex:"Show the activity log for the ductbank",k:["activity log","history","audit","what changed","who changed"],
- f:q=>{const t=findTask(q); if(!t) return "Which item?";
-   return `<b>Activity — ${esc(t.code)}</b>\n`+lines(t.log.slice(0,6).map(l=>`• ${l.when}: ${l.what.replace(/<[^>]+>/g,'')}`));}},
-
-/* --- O. Monday board: write --- */
-{cat:"Update board",ex:"Set the ductbank status to done",k:["set status","status to","mark as","change status","move to done","set the"],
- f:q=>{const t=findTask(q); if(!t) return "Which item should I update?";
-   const s=q.toLowerCase();
-   const key=/done|complete|finish/.test(s)?"done":/stuck|blocked|hold/.test(s)?"stuck":
-             /verif|check|review/.test(s)?"verify":/working|progress|start/.test(s)?"working":
-             /not start/.test(s)?"notstarted":null;
-   if(!key) return "Which status? Done, Working on it, Needs verification, Stuck or Not Started.";
-   mondayWrite(t.id,"status",key,"wa");
-   return `✅ Updated on Monday.\n<b>${esc(t.code)} ${esc(t.name)}</b>\nStatus → <b>${STATUS[key].label}</b>\nWritten to ${monday.board} and recorded in the activity log.`;}},
-{cat:"Update board",ex:"Assign the ductbank to Rami",k:["assign","give it to","owner to","allocate to","hand to"],
- f:q=>{const t=findTask(q); if(!t) return "Which item?";
-   const ini=Object.keys(PEOPLE).find(k=>fuzzy(q,PEOPLE[k]));
-   if(!ini) return "Who should own it? "+Object.values(PEOPLE).join(", ");
-   mondayWrite(t.id,"person",ini,"wa");
-   return `✅ <b>${esc(t.code)}</b> assigned to <b>${PEOPLE[ini]}</b> on Monday.`;}},
-{cat:"Update board",ex:"Set ductbank progress to 45%",k:["progress to","percent complete","set progress","update progress"],
- f:q=>{const t=findTask(q); if(!t) return "Which item?";
-   const m=q.match(/(\d{1,3})\s*%?/); if(!m) return "What percentage?";
-   const v=Math.min(100,parseInt(m[1],10)); mondayWrite(t.id,"progress",v,"wa");
-   return `✅ <b>${esc(t.code)}</b> progress → <b>${v}%</b> on Monday.`;}},
-{cat:"Update board",ex:"Attach a site photo to the ductbank",k:["attach","upload","send photo","add evidence","upload evidence","attach photo"],
- f:q=>{const t=findTask(q)||tasks.find(x=>x.id===openId);
-   return `Tap the 📎 to send the photo or document and I'll file it against <b>${esc(t.code)} ${esc(t.name)}</b> on Monday, or send it straight through — I'll attach it to the item you last mentioned.`;}},
-{cat:"Update board",ex:"Is the Monday connection healthy?",k:["monday","connection","integration","sync","connected","board healthy"],
- f:()=>`<b>Monday.com — connected</b>\n`+tbl([["Workspace",monday.workspace],["Board",monday.board],
-   ["Board ID",monday.boardId],["Group",monday.group],["API",monday.api],["Items",tasks.length],
-   ["Columns",COLUMNS.length],["Writes this session",monday.writes],
-   ["Last sync",monday.lastSync.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})]])},
-
-/* --- Q. site walk: what you ask standing next to the work --- */
-{cat:"Site walk",ex:"What am I looking at here?",k:["what am i looking","what is this","where am i","what's here","brief me"],
- f:()=>{const worst=tasks.map(t=>({t,r:taskRisk(t.id)})).sort((a,b)=>RISK[b.r.level].rank-RISK[a.r.level].rank)[0];
-   return `<b>${P.meta.name}</b> · ${P.meta.location}\n${P.meta.progress}\n\n<b>Watch on this walk:</b>\n`+
-   `• ${worst.t.code} ${worst.t.name} — ${RISK[worst.r.level].label}\n`+
-   `• FDT-120 failed at ch 0+320–0+380 (93.1% vs ≥95%)\n`+
-   `• Hot works permit PTW-2213 expires tomorrow\n`+
-   `• Unrecorded service at ch 0+610 — hand-dig only`;}},
-{cat:"Site walk",ex:"Can I pour here?",k:["can i pour","ready to pour","pour approved","start pouring","concrete today"],
- f:()=>`<b>Before any pour, check all four:</b>\n`+
-  `1. Rebar and blinding inspected — CUB-064 passed at 32.4 MPa on the last section.\n`+
-  `2. RFI-014 is <b>OPEN</b> — pour is held between ch 0+300 and 0+340.\n`+
-  `3. Excavation permit PTW-2209 valid to 16 Sept.\n`+
-  `4. Spec 16050: C25/30, 75 mm cover, red oxide dye.\n`+
-  `Batching: ${P.logistics.batching}`},
-{cat:"Site walk",ex:"Can I cover this up?",k:["cover up","backfill now","close the trench","bury it","can i backfill"],
- f:()=>{const f=P.tests.filter(t=>t.res==="FAIL");
-  return `<b>Do not cover until:</b>\n• The section has a passing density test.\n• The consultant has signed the inspection request.\n`+
-  (f.length?`\n⚠ <b>${f[0].ref} FAILED</b> at ${f[0].loc} (${f[0].val} vs ${f[0].spec}). That section must be re-worked and re-tested first.`:"")+
-  `\n\nSpec 02320: bedding 150 mm sand, surround 300 mm above crown, 95% MDD.`;}},
-{cat:"Site walk",ex:"Is this section signed off?",k:["signed off","approved section","accepted yet","handed over","sign off"],
- f:()=>`<b>Sections with a passing test:</b>\n`+lines(P.tests.filter(t=>t.res==="Pass").map(t=>`• ${t.loc} — ${t.ref} ${t.val} (${t.date})`))+
-  `\n\n⚠ Ch 0+320–0+380 is <b>NOT</b> signed off — FDT-120 failed.`},
-{cat:"Site walk",ex:"What should I check on this item?",k:["what should i check","inspection checklist","checklist","what to inspect","hold points"],
- f:q=>{const t=findTask(q)||tasks.find(x=>x.id===openId);
-  const spec=P.specs.find(s=>fuzzy(t.name,s.title))||P.specs[0];
-  return `<b>${esc(t.code)} ${esc(t.name)}</b>\n`+tbl([["Drawing",t.cols.drawing],["Location",t.cols.chainage],
-   ["Spec",spec.sec+" — "+spec.req],["Owner",PEOPLE[t.cols.person]||"Unassigned"],
-   ["Delay risk",RISK[taskRisk(t.id).level].label]])+`\nCheck level, line, cover and compaction against the drawing before you call for inspection.`;}},
-{cat:"Site walk",ex:"Anything unsafe around here?",k:["unsafe","hazard","danger","risk to me","safety issue","safe to work"],
- f:()=>`<b>⚠ Live hazards</b>\n`+lines(P.utilities.map(u=>`• ${u.svc} at ${u.loc} (${u.depth}) — ${u.note}`))+
-  `\n\nPermit required for: ${P.hse.permits}\nPPE: ${P.hse.ppe}`},
-{cat:"Site walk",ex:"What's holding up this area?",k:["holding up","blocking","why stopped","what's the hold","why is it late"],
- f:q=>{const t=findTask(q); const r=t?taskRisk(t.id):null;
-  const open=P.rfis.filter(x=>x.status==="Open");
-  return (t?`<b>${esc(t.code)} ${esc(t.name)}</b>\n${r.reasons.join(" ")}\n\n`:"")+
-   `<b>Open RFIs affecting the works:</b>\n`+lines(open.map(x=>`• ${x.no} — ${x.subj}. ${x.ans}`));}},
-{cat:"Site walk",ex:"Which drawing covers this location?",k:["which drawing","drawing for this","drawing covers","what drawing do i need"],
- f:q=>{const t=findTask(q)||tasks.find(x=>x.id===openId);
-  const d=P.drawings.find(x=>x.no===(t.cols.drawing||"").split(" ")[0]);
-  return `<b>${esc(t.code)} ${esc(t.name)}</b>\nDrawing <b>${esc(t.cols.drawing)}</b>${d?` — ${d.title}, issued ${d.date} (${d.status})`:""}\nLocation ${esc(t.cols.chainage)}`;}},
-{cat:"Site walk",ex:"What's the tolerance on this?",k:["tolerance","how accurate","deviation","allowed variance","deflection"],
- f:()=>`<b>Common tolerances</b>\n`+tbl([["Compaction","≥95% MDD (sub-base ≥95%, CBR ≥80%)"],
-  ["Pipe deflection","max 5% (uPVC SN8)"],["Asphalt compaction","96–100% Marshall"],
-  ["Concrete cover","75 mm to ductbank"],["Layer thickness","250 mm max per fill layer"]])},
-{cat:"Site walk",ex:"Who signs this off?",k:["who signs","who approves","who inspects","who witnesses","call for inspection"],
- f:()=>`<b>Inspection & sign-off</b>\n`+tbl([["Raise the request",P.contacts.find(c=>/QA/.test(c.role)).name+" — "+P.contacts.find(c=>/QA/.test(c.role)).phone],
-  ["Witness/approve",P.contacts.find(c=>/Resident/.test(c.role)).name+" — "+P.contacts.find(c=>/Resident/.test(c.role)).phone],
-  ["Notice","24 h for a witnessed test"]])},
-{cat:"Site walk",ex:"What was agreed here last time?",k:["last time","previously","what was agreed","history here","last update"],
- f:q=>{const t=findTask(q)||tasks.find(x=>x.id===openId);
-  return t.updates.length?`<b>${esc(t.code)} — last updates</b>\n`+lines(t.updates.slice(-3).reverse().map(u=>`• ${u.text}\n  (${u.by})`))
-   :`No updates logged on ${esc(t.code)} yet.`;}},
-{cat:"Site walk",ex:"Give me the chainage for each item",k:["chainage","location of each","where is each","stationing"],
- f:()=>`<b>Locations</b>\n`+lines(tasks.map(t=>`• ${t.code} ${t.name} — ${t.cols.chainage}`))},
-
-/* --- P. help --- */
-{cat:"Help",ex:"What can you do?",k:["help","what can you","commands","options","how do i"],
- f:()=>`I answer from the live schedule, the purchasing system and the project data set. Ask me about:\n`+
-   lines([...new Set(INTENTS.map(i=>i.cat))].map(c=>`• ${c}`))+`\n\nOr report progress in plain words — I'll log it on the item and move the status.`},
+ {cat:'Help',ex:'What can you do?',k:['help','what can you','commands','options'],
+  f:()=>`I read the live programme, the procurement position and the verification queue.\n\n`+
+   lines([...new Set(INTENTS.map(i=>i.cat))].map(c=>`• ${c}`))+
+   `\n\nTell me what happened on site and I'll log it. Send a photo for evidence, or a voice note in English or Arabic.`},
 ];
 
-/* helpers */
-function fuzzy(q,hay){const h=hay.toLowerCase();return q.toLowerCase().split(/\s+/).filter(w=>w.length>3).some(w=>h.includes(w));}
-function findTask(q){const s=q.toLowerCase();return tasks.find(t=>s.includes(t.id))||tasks.find(t=>fuzzy(q,t.name));}
-function findPO(q){return pos.find(p=>fuzzy(q,p.material))||null;}
+function kwHit(s,k){const t=k.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return new RegExp('(^|[^a-z0-9])'+t+'(s|es)?([^a-z0-9]|$)','i').test(s);}
+const QW=/^(what|whats|when|where|who|whos|which|why|how|is|are|do|does|did|can|could|should|any|show|list|give|tell|find)\b/i;
+const CW=/^(set|change|mark|assign|move|verify|approve|reject|release|attach|upload)\b/i;
+const isQ=q=>/\?/.test(q)||QW.test(q.trim());
+const isC=q=>CW.test(q.trim());
+function match(q){let b=null,sc=0;
+  for(const i of INTENTS){let s=0;for(const k of i.k){if(kwHit(q,k))s+=k.trim().length;}if(s>sc){sc=s;b=i;}}
+  return sc?b:null;}
 
-/* Keywords must match on word boundaries — a raw substring test made
- * "compacted" hit "mpa" and "stopped" hit "ppe". */
-function kwHit(s,k){
-  const t=k.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-  // allow a plural suffix so "milestones" / "RFIs" / "tests" still match
-  return new RegExp('(^|[^a-z0-9])'+t+'(s|es)?([^a-z0-9]|$)','i').test(s);
-}
-const QWORD=/^(what|whats|when|where|who|whos|which|why|how|is|are|was|do|does|did|can|could|should|any|show|list|give|tell|find|status)\b/i;
-function isQuestion(q){ return /\?/.test(q) || QWORD.test(q.trim()); }
-/* An imperative is an instruction to write to the board, not a field
- * observation to log — "set the lighting to stuck" must go through
- * mondayWrite, not get filed as an update. */
-const CMDWORD=/^(set|change|mark|assign|allocate|move|reassign|rename|attach|upload|please\s+set|please\s+change)\b/i;
-function isCommand(q){ return CMDWORD.test(q.trim()); }
-
-function matchIntent(q){
-  const s=q.toLowerCase();
-  let best=null,score=0;
-  for(const i of INTENTS){
-    let sc=0; for(const k of i.k){ if(kwHit(s,k)) sc+=k.trim().length; }
-    if(sc>score){score=sc;best=i;}
-  }
-  return score?best:null;
-}
-
-/* Free-text that isn't a question is treated as a field report and logged. */
-function agentSend(){
-  const el=document.getElementById('ag-input'); const q=el.value.trim(); if(!q) return;
-  el.value=''; agentPush('me',esc(q));
+function ask(){
+  const el=document.getElementById('ai'),q=el.value.trim(); if(!q) return;
+  el.value=''; push('me',esc(q));
   setTimeout(()=>{
-    // A statement that reads like site progress is a report to log; only
-    // something phrased as a question gets routed to the Q&A intents.
-    const report = statusFromUpdate({text:q,effect:""});
-    if(report && !isQuestion(q) && !isCommand(q)){ agentPush('bot',logFromAgent(q)); return; }
-    const i=matchIntent(q);
-    if(i){ agentPush('bot',i.f(q)); }
-    else if(report){ agentPush('bot',logFromAgent(q)); }
-    else { agentPush('bot',"I didn't catch that. Try a suggestion below, or tell me what happened on site and I'll log it (e.g. “sub-base at ch 0+400 compacted and accepted”)."); }
-  },260);
+    const rep=statusFromUpdate({text:q,effect:''});
+    if(rep&&!isQ(q)&&!isC(q)){push('bot',logIt(q));return;}
+    const i=match(q);
+    if(i){const a=i.f(q); push('bot',a||regAnswer(q)||"I don't have that one.");}
+    else{const r=regAnswer(q); push('bot',r||(rep?logIt(q):"I didn't catch that. Try a suggestion below, or tell me what happened on site."));}
+  },240);
 }
-let lastTask=null;   // the item the conversation is currently about
-function logFromAgent(text,src){
-  const t=findTask(text)||tasks.find(x=>x.id===openId)||tasks[0];
-  lastTask=t.id;
-  const via = src==="voice" ? "Voice note (WhatsApp)" : "Field (WhatsApp)";
-  t.updates.push(wa(text,via,"Logged from WhatsApp; status derived from the message."));
-  const eff=statusFromUpdate(t.updates[t.updates.length-1]);
-  if(eff) t.manual=null;                       // a fresh field report supersedes an old override
-  mondayLog(t,`Update posted${eff?` and <b>Status</b> set to <b>${STATUS[eff].label}</b>`:''}`,src==="voice"?"voice":"wa");
-  monday.writes++; monday.lastSync=new Date();
-  renderRows(); refreshMondayBar(); if(openId===t.id) renderPanel();
-  return `✅ Logged on <b>${esc(t.code)} ${esc(t.name)}</b> in Monday.\nStatus → <b>${STATUS[eff||deriveStatus(t)].label}</b>.`;
+let lastT=null;
+function logIt(text,src){
+  const t=findT(text)||byId(lastT)||byId(S.sel); lastT=t.id;
+  const measured=/\b\d+\s*(of|\/)\s*\d+\b|\bmeasurement sheet\b|\b\d+\s?(m2|m²|m3|m³|m|no\.|units|lm)\b/i.test(text);
+  const st=statusFromUpdate({text,effect:''});
+  const u=wa(text,src==='voice'?'Voice note (WhatsApp)':'Field (WhatsApp)',
+    measured?'Measured claim — applied and synced to Monday.':'Evidence logged; verification required before progress changes.',
+    measured?{verified:true}:{claim:true});
+  t.updates.push(u);
+  if(measured){ if(st&&st!=='verify') t.manual=st; monday.writes++; monday.lastSync=new Date();
+    mLog(t,`Update posted and <b>status</b> set to <b>${STATUS[derive(t)].l}</b>`,src==='voice'?'voice':'wa'); }
+  else { monday.held++; mLog(t,'Claim received without a measurement — <b>held</b> for verification','wa'); }
+  render();
+  return measured
+    ? `✅ Logged on <b>${t.id} ${esc(t.name)}</b> and synced.\nStatus → <b>${STATUS[derive(t)].l}</b>.`
+    : `📋 Logged on <b>${t.id} ${esc(t.name)}</b> — <b>held for verification</b>.\nNo measurement in the message, so nothing was written to Monday. The planner can release it from the activity panel.`;
 }
-function agentPush(who,html){
-  const log=document.getElementById('ag-log');
-  const d=document.createElement('div'); d.className='msg '+who;
-  d.innerHTML=html+`<span class="mt">${new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>`;
-  log.appendChild(d); log.scrollTop=log.scrollHeight;
+function push(who,html){
+  const l=document.getElementById('alog'),d=document.createElement('div');
+  d.className='m '+who;
+  d.innerHTML=html+`<span class="ts">${new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>`;
+  l.appendChild(d); l.scrollTop=l.scrollHeight;
 }
-function agentAsk(q){ document.getElementById('ag-input').value=q; agentSend(); }
-
-/* ---------------- voice notes ----------------
- * A voice note is transcribed, the transcript is shown against the audio,
- * and the transcript then runs through exactly the same pipeline as a typed
- * message — so it can query the board, log progress, or write a status. */
-const VOICE_NOTES=[
-  {sec:14, lang:"en-GB", conf:0.96,
-   text:"Ductbank pour finished at chainage 0 plus 300, concrete surround complete, ready for inspection."},
-  {sec:9,  lang:"ar-SA", conf:0.91,
-   orig:"طبقة الأساس مضغوطة ومقبولة، لكن الكمية المقاسة غير مسجلة.",
-   text:"Sub-base is compacted and accepted, but the measured quantity is not recorded."},
-  {sec:11, lang:"en-GB", conf:0.94,
-   text:"Set the street lighting status to stuck, we still have no purchase order for the columns."},
-  {sec:7,  lang:"en-GB", conf:0.97,
-   text:"What is the invert level of MH-12?"},
-  {sec:16, lang:"ar-SA", conf:0.89,
-   orig:"تم إيقاف العمل عند 0+610 بسبب خدمة غير مسجلة، نحتاج الحفر اليدوي.",
-   text:"Work stopped at 0 plus 610 because of an unrecorded service, we need hand digging."},
-];
-let voiceI=0;
-function wave(n){ let h='';for(let i=0;i<n;i++){h+=`<i style="height:${4+Math.round(14*Math.abs(Math.sin(i*1.7)))}px"></i>`;}return h; }
-
-function sendVoiceNote(){
-  const v=VOICE_NOTES[voiceI % VOICE_NOTES.length]; voiceI++;
-  const mic=document.getElementById('micBtn'); mic.classList.add('rec');
-  agentPush('me',`<div class="voice"><span class="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
-    <span class="wave">${wave(26)}</span><span class="dur">0:${String(v.sec).padStart(2,'0')}</span></div>`);
-  const t=document.createElement('div'); t.className='msg bot typing'; t.textContent='transcribing voice note…';
-  const log=document.getElementById('ag-log'); log.appendChild(t); log.scrollTop=log.scrollHeight;
-
-  setTimeout(()=>{
-    mic.classList.remove('rec'); t.remove();
-    agentPush('bot',`<div class="transcript"><span class="lbl">Transcript · ${v.lang} · ${(v.conf*100).toFixed(0)}% confidence</span>
-      ${esc(v.text)}${v.orig?`<span class="orig">Original: ${esc(v.orig)}</span>`:''}</div>`);
-    // route the transcript exactly like a typed message
-    setTimeout(()=>{
-      const report=statusFromUpdate({text:v.text,effect:""});
-      if(report && !isQuestion(v.text) && !isCommand(v.text)){ agentPush('bot',logFromAgent(v.text,"voice")); return; }
-      const i=matchIntent(v.text);
-      agentPush('bot', i ? i.f(v.text) : (report?logFromAgent(v.text,"voice"):"Transcribed, but I couldn't tell what to do with it."));
-    },300);
-  },1100);
-}
-
-/* ---------------- evidence upload ---------------- */
-const EVIDENCE=[
-  {name:"IMG_4471_ductbank_pour.jpg", kind:"img", size:"2.4 MB", note:"ch 0+300", evidence:true},
-  {name:"compaction_test_FDT-120.pdf", kind:"pdf", size:"310 KB", note:"failed result", evidence:true},
-  {name:"IMG_4482_subbase_level.jpg", kind:"img", size:"1.9 MB", note:"ch 0+400", evidence:true},
-  {name:"delivery_note_PO-4468.pdf", kind:"pdf", size:"142 KB", note:"1,500 t received", evidence:true},
-];
-let evI=0;
-function sendEvidence(){
-  const f=EVIDENCE[evI % EVIDENCE.length]; evI++;
-  const t=tasks.find(x=>x.id===lastTask)||tasks.find(x=>x.id===openId)||tasks[0];
-  agentPush('me',`<b>📎 ${esc(f.name)}</b>\n<span style="font-size:11.5px;color:#667">${esc(f.size)}</span>`);
-  setTimeout(()=>{
-    mondayAddFile(t.id,f,"wa");
-    agentPush('bot',`✅ Attached to <b>${esc(t.code)} ${esc(t.name)}</b> on Monday.\nFiled under Files (${t.files.length}) and referenced in the updates feed.`);
-  },500);
-}
-function toggleAgent(){
-  const a=document.getElementById('agent'); const open=a.classList.toggle('open');
-  document.getElementById('agentFab').style.display=open?'none':'flex';
-  if(open&&!a.dataset.init){ a.dataset.init="1"; buildChips();
-    agentPush('bot',`Hello — I'm the Bohio site agent for <b>${P.meta.name}</b>.\nAsk me anything about the site, or send me a progress report and I'll log it against the schedule.`); }
-}
+function askChip(q){document.getElementById('ai').value=q;ask();}
+function togAsst(){const a=document.getElementById('asst'),o=a.classList.toggle('on');
+  document.getElementById('fab').style.display=o?'none':'flex';
+  if(o&&!a.dataset.i){a.dataset.i=1;buildChips();
+    push('bot',`Programme assistant for <b>XYZ Hospital Construction</b>.\nI can answer on the programme, procurement, verification and site regulations — or log what you tell me.`);}}
 function buildChips(){
-  const box=document.getElementById('ag-chips'); const cats={};
-  INTENTS.forEach(i=>{(cats[i.cat]=cats[i.cat]||[]).push(i.ex);});
-  box.innerHTML=Object.entries(cats).map(([c,ex])=>
-    `<div class="ag-cat">${c}</div>`+ex.map(e=>`<button class="chipbtn" onclick="agentAsk(this.textContent)">${esc(e)}</button>`).join('')
-  ).join('');
+  const cats={}; INTENTS.forEach(i=>{(cats[i.cat]=cats[i.cat]||[]).push(i.ex);});
+  document.getElementById('chips').innerHTML=Object.entries(cats).map(([c,ex])=>
+    `<div class="ccat">${c}</div>`+ex.map(e=>`<button class="chip" onclick="askChip(this.textContent)">${esc(e)}</button>`).join('')).join('');
 }
 
-/* ---------- toast ---------- */
+/* voice */
+const VOICE=[
+ {sec:13,lang:'en-GB',conf:.96,text:'Pile caps to grid C poured, 24 of 64 complete, measurement sheet attached.'},
+ {sec:9,lang:'ar-SA',conf:.91,orig:'طبقة الأساس مضغوطة ومقبولة، لكن الكمية المقاسة غير مسجلة.',
+  text:'Sub-base is compacted and accepted, but the measured quantity is not recorded.'},
+ {sec:8,lang:'en-GB',conf:.97,text:'What is the maximum travel distance to an exit?'},
+ {sec:12,lang:'en-GB',conf:.94,text:'Set A50 status to in progress.'},
+ {sec:15,lang:'ar-SA',conf:.89,orig:'توقف العمل في الطابق السفلي بسبب تسرب المياه، نحتاج مضخات إضافية.',
+  text:'Work stopped in the basement because of water ingress, we need extra pumps.'},
+];
+let vi=0;
+const wv=n=>{let h='';for(let i=0;i<n;i++)h+=`<i style="height:${4+Math.round(12*Math.abs(Math.sin(i*1.7)))}px"></i>`;return h;};
+function sendVoice(){
+  const v=VOICE[vi++%VOICE.length],mic=document.getElementById('mic');
+  mic.classList.add('rec');
+  push('me',`<div class="voice"><span class="pl"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+    <span class="wv">${wv(24)}</span><span class="du">0:${String(v.sec).padStart(2,'0')}</span></div>`);
+  const l=document.getElementById('alog'),t=document.createElement('div');
+  t.className='m bot typing';t.textContent='transcribing voice note…';l.appendChild(t);l.scrollTop=l.scrollHeight;
+  setTimeout(()=>{
+    mic.classList.remove('rec');t.remove();
+    push('bot',`<div class="tr"><span class="l">Transcript · ${v.lang} · ${(v.conf*100).toFixed(0)}% confidence</span>${esc(v.text)}${v.orig?`<span class="o">Original: ${esc(v.orig)}</span>`:''}</div>`);
+    setTimeout(()=>{
+      const rep=statusFromUpdate({text:v.text,effect:''});
+      if(rep&&!isQ(v.text)&&!isC(v.text)){push('bot',logIt(v.text,'voice'));return;}
+      const i=match(v.text);
+      push('bot', i?(i.f(v.text)||regAnswer(v.text)||'—') : (regAnswer(v.text)||(rep?logIt(v.text,'voice'):'Transcribed, but I could not tell what to do with it.')));
+    },280);
+  },1050);
+}
+/* evidence */
+const EV=[{name:'IMG_2210_pilecap_gridC.jpg',kind:'img',size:'2.4 MB'},
+ {name:'measurement_sheet_A50.pdf',kind:'pdf',size:'188 KB'},
+ {name:'IMG_2214_basement_propping.jpg',kind:'img',size:'1.8 MB'},
+ {name:'concrete_ticket_C4050.pdf',kind:'pdf',size:'96 KB'}];
+let ei=0;
+function sendEvidence(){
+  const f=EV[ei++%EV.length],t=byId(lastT)||byId(S.sel);
+  push('me',`<b>📎 ${esc(f.name)}</b>\n<span style="font-size:11px;opacity:.7">${f.size}</span>`);
+  setTimeout(()=>{
+    t.files.unshift({...f,when:'Just now',by:'Matteo Bevilacqua'});
+    t.updates.push(wa('Evidence attached: '+f.name,'Field (WhatsApp)','Filed against the activity. No status change on its own.',{noStatus:true}));
+    monday.writes++;monday.lastSync=new Date();
+    mLog(t,`Evidence <b>${esc(f.name)}</b> uploaded`,'wa');
+    render();
+    push('bot',`✅ Attached to <b>${t.id} ${esc(t.name)}</b> on Monday.\nFiled under evidence (${t.files.length}).`);
+  },420);
+}
 let tt;
-function toast(msg){ const el=document.getElementById("toast"); document.getElementById("toast-text").textContent=msg; el.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove("show"),2600); }
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('on');
+  clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),2600);}
 
-/* ---------- init ---------- */
-document.getElementById('int-provider').innerHTML =
-  Object.keys(PROVIDERS).map(p=>`<option${p===procurement.provider?' selected':''}>${p}</option>`).join('');
-document.getElementById('mb-board').textContent=`${monday.workspace} / ${monday.board}`;
-renderRows();
-refreshIntegrationBar();
-refreshMondayBar();
-openItem("duct");
+render();
+document.getElementById('fabBadge').textContent=allPending().length||'';
 </script>
 </body>
 </html>
