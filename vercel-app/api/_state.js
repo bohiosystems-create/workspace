@@ -25,15 +25,30 @@ async function redis(parts){
   return p.result;
 }
 
+/* Stored as a hash keyed by task rather than one JSON blob. Two serverless
+ * invocations writing different tasks at the same moment would otherwise
+ * read the same blob and the second would overwrite the first; per-task
+ * fields make those writes independent. */
 async function getState(){
   if(local()) return global.__bohioState;
-  const raw=await redis(['GET',KEY]);
-  if(!raw) return {};
-  try{ return JSON.parse(raw)||{}; }catch{ return {}; }
+  const rows=await redis(['HGETALL',KEY]);
+  const out={};
+  if(Array.isArray(rows)){                       // [field, value, field, value...]
+    for(let i=0;i<rows.length;i+=2){
+      try{ out[rows[i]]=JSON.parse(rows[i+1]); }catch{}
+    }
+  }else if(rows&&typeof rows==='object'){        // some clients return an object
+    Object.keys(rows).forEach(k=>{ try{ out[k]=JSON.parse(rows[k]); }catch{} });
+  }
+  return out;
+}
+async function putTask(taskId,record){
+  if(local()){ global.__bohioState[taskId]=record; return; }
+  await redis(['HSET',KEY,taskId,JSON.stringify(record)]);
 }
 async function putState(state){
   if(local()){ global.__bohioState=state; return; }
-  await redis(['SET',KEY,JSON.stringify(state)]);
+  for(const k of Object.keys(state)) await putTask(k,state[k]);
 }
 async function pushChange(entry){
   if(local()){ global.__bohioLog.unshift(entry); global.__bohioLog=global.__bohioLog.slice(0,200); return; }
@@ -67,7 +82,7 @@ async function applyChange(taskId,patch,origin,actor){
   cur.origin=origin||'bohio';
   cur.actor=actor||'';
   state[taskId]=cur;
-  await putState(state);
+  await putTask(taskId,cur);
   await pushChange({taskId,changed,origin:cur.origin,actor:cur.actor,at:cur.updatedAt,rev:cur.rev});
   return {changed,state:cur};
 }
@@ -89,11 +104,11 @@ async function mergeFromMonday(items){
       const st=await getState(); const cur=st[it.taskId]||{taskId:it.taskId,rev:0};
       const seen=new Set((cur.photos||[]).map(p=>p.id));
       const merged=(cur.photos||[]).concat(it.photos.filter(p=>!seen.has(p.id)));
-      if(merged.length!==(cur.photos||[]).length){ cur.photos=merged; st[it.taskId]=cur; await putState(st); }
+      if(merged.length!==(cur.photos||[]).length){ cur.photos=merged; await putTask(it.taskId,cur); }
     }
     if(r.changed.length) applied.push({taskId:it.taskId,changed:r.changed});
   }
   return applied;
 }
 
-module.exports={getState,applyChange,mergeFromMonday,listChanges,FIELDS};
+module.exports={getState,applyChange,mergeFromMonday,listChanges,putTask,FIELDS};

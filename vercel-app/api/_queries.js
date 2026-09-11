@@ -86,7 +86,8 @@ const QUERIES=[
  keys:['what starts next','what is next','coming up','what starts soon','upcoming work','next activities',
    'what is due to start','whats coming','next up','forward look'],
  f:C=>{const today=D.DATA_DATE();
-   const r=C.schedule.map(row=>({row,days:Math.round((new Date(row[3])-new Date(today))/86400000)}))
+   const r=C.schedule.map(row=>{const t=Date.parse(row[3]),n=Date.parse(today);
+     return {row,days:(Number.isFinite(t)&&Number.isFinite(n))?Math.round((t-n)/86400000):null};}).filter(x=>x.days!==null)
      .filter(x=>x.days>=-14&&x.days<=60).sort((a,b)=>a.days-b.days);
    if(!r.length) return 'BOHIO LOOK AHEAD\n\nNothing starts in the next 60 days.';
    return 'BOHIO LOOK AHEAD\n\n'+r.map(x=>{const [id,name,c]=x.row;

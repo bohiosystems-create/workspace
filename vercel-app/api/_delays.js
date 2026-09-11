@@ -32,14 +32,22 @@ const PROCUREMENT={
   land :{state:'tender',      ref:'TND-3021',items:'Topsoil, planting, irrigation'},
 };
 
-const days=(a,b)=>Math.round((new Date(b)-new Date(a))/DAY);
+/* A missing or unreadable date must never become NaN: it would travel all the
+ * way into a WhatsApp reply as "+NaNd". Every date comparison returns null
+ * when it cannot be computed, and callers treat null as "unknown". */
+const parseDate=d=>{const t=Date.parse(String(d||''));return Number.isFinite(t)?t:null;};
+const days=(a,b)=>{const A=parseDate(a),B=parseDate(b);return (A===null||B===null)?null:Math.round((B-A)/DAY);};
 const clamp=(n,lo,hi)=>Math.max(lo,Math.min(hi,n));
+const num=(n,fallback=0)=>Number.isFinite(n)?n:fallback;
 
 /* How far through an activity we should be, by date. */
 function expectedFraction(start,finish,today){
   const total=days(start,finish);
+  if(total===null) return null;
   if(total<=0) return 1;
-  return clamp(days(start,today)/total,0,1);
+  const elapsed=days(start,today);
+  if(elapsed===null) return null;
+  return clamp(elapsed/total,0,1);
 }
 
 /* One activity, fully assessed. */
@@ -48,24 +56,27 @@ function assess(row,state){
   const today=DATA_DATE();
   const st=state[id]||{};
   const liveFinish=st.plannedFinish||plannedFinish;
-  const started=days(plannedStart,today)>=0;
-  const expected=expectedFraction(plannedStart,plannedFinish,today);
-  const actual=(Number(verified)||0)/5;
-  const deficit=Math.max(0,expected-actual);          // fraction behind
-  const duration=Math.max(1,days(plannedStart,plannedFinish));
+  const datesUsable=parseDate(plannedStart)!==null&&parseDate(plannedFinish)!==null;
+  const sinceStart=days(plannedStart,today);
+  const started=sinceStart!==null&&sinceStart>=0;
+  const expectedRaw=expectedFraction(plannedStart,plannedFinish,today);
+  const expected=num(expectedRaw,0);
+  const actual=clamp((Number(verified)||0)/5,0,1);     // a bad verified count cannot exceed 1
+  const deficit=expectedRaw===null?0:Math.max(0,expected-actual);
+  const duration=Math.max(1,num(days(plannedStart,plannedFinish),1));
 
   /* Slippage already declared by a moved finish date. */
-  const declaredSlip=Math.max(0,days(plannedFinish,liveFinish));
+  const declaredSlip=Math.max(0,num(days(plannedFinish,liveFinish),0));
 
   /* Slippage implied by the deliverables not keeping pace. A micro-task
    * falling behind shows up here long before anyone moves a date. */
-  const impliedSlip=started?Math.round(deficit*duration):0;
+  const impliedSlip=(started&&datesUsable)?Math.round(deficit*duration):0;
 
   /* Procurement: does the lead time still fit before the activity starts? */
   const p=PROCUREMENT[id]||{state:'na',ref:'',items:''};
   const lead=LEAD[p.state]??0;
-  const untilStart=days(today,plannedStart);
-  const procSlip=(p.state==='na'||actual>=1)?0:Math.max(0,lead-Math.max(0,untilStart));
+  const untilStart=num(days(today,plannedStart),0);
+  const procSlip=(p.state==='na'||actual>=1||!datesUsable)?0:Math.max(0,lead-Math.max(0,untilStart));
 
   const reasons=[];
   if(procSlip>0){
@@ -77,11 +88,12 @@ function assess(row,state){
   if(declaredSlip>0) reasons.push(`Finish already moved from ${plannedFinish} to ${liveFinish}.`);
   if(st.status&&/stuck|hold|block/i.test(st.status)) reasons.push(`Marked ${st.status} on ${st.origin==='monday'?'Monday':'Bohio'}.`);
 
-  const slip=Math.max(declaredSlip,impliedSlip,procSlip);
+  if(!datesUsable) reasons.push('Planned dates are missing or unreadable, so no forecast was made.');
+  const slip=num(Math.max(declaredSlip,impliedSlip,procSlip),0);
   const level=slip>=21?'critical':slip>=7?'at risk':slip>0?'watch':'clear';
   return {id,name,contractor,plannedStart,plannedFinish,liveFinish,verified:Number(verified)||0,
     status:st.status||'',expected,actual,deficit,declaredSlip,impliedSlip,procSlip,slip,level,
-    procurement:{...p,lead,untilStart},reasons,started};
+    datesUsable,procurement:{...p,lead,untilStart},reasons,started};
 }
 
 function assessAll(schedule,state){ return schedule.map(r=>assess(r,state||{})); }
@@ -91,7 +103,7 @@ function assessAll(schedule,state){ return schedule.map(r=>assess(r,state||{}));
 function likelyDelays(schedule,state){
   return assessAll(schedule,state)
     .filter(a=>a.slip>0)
-    .sort((a,b)=>b.slip-a.slip||days(DATA_DATE(),a.plannedStart)-days(DATA_DATE(),b.plannedStart));
+    .sort((a,b)=>b.slip-a.slip||num(days(DATA_DATE(),a.plannedStart),0)-num(days(DATA_DATE(),b.plannedStart),0));
 }
 
 /* Micro-tasks quietly falling behind: deliverables not keeping pace with the
