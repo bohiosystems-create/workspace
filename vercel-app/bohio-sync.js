@@ -7,7 +7,9 @@
  * behaves exactly as before.
  */
 (function(){
-  var EVERY=20000, last='';
+  var EVERY=20000,        /* read the shared record often — it is cheap */
+      PULL_EVERY=300000,   /* reconcile against the board rarely — it is not */
+      last='', lastPull=0;
   /* Monday's own status labels mapped onto the vocabulary this UI filters by */
   function mapStatus(label){
     var s=String(label||'').toLowerCase();
@@ -38,7 +40,9 @@
   }
   async function tick(){
     try{
-      var r=await fetch('/api/sync',{cache:'no-store',headers:{Accept:'application/json'}});
+      var now=Date.now(), pull=(now-lastPull)>PULL_EVERY;
+      if(pull) lastPull=now;
+      var r=await fetch('/api/sync'+(pull?'?pull=1':''),{cache:'no-store',headers:{Accept:'application/json'}});
       if(r.ok){
         var p=await r.json();
         if(p&&p.ok&&p.state){

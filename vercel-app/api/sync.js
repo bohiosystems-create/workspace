@@ -13,10 +13,20 @@ const json=(res,code,body)=>{res.status(code);res.setHeader('Content-Type','appl
 module.exports=async function handler(req,res){
   try{
     if(req.method==='GET'){
+      /* Reading the shared record is cheap; reading the board is not. A page
+       * polling this every few seconds must not pull the whole board each
+       * time, so a pull happens only when asked for. The webhook is the
+       * real-time path; the pull is the reconcile. */
+      const url=new URL(req.url||'/api/sync','http://localhost');
+      const wantPull=url.searchParams.get('pull')==='1';
+      if(!wantPull){
+        return json(res,200,{ok:true,direction:'record',pulled:false,
+          state:await getState(),changes:await listChanges(20)});
+      }
       if(!configured()) return json(res,503,{ok:false,error:'Monday is not configured'});
       const items=await readBoard();
       const applied=await mergeFromMonday(items);
-      return json(res,200,{ok:true,direction:'monday->bohio',itemsRead:items.length,
+      return json(res,200,{ok:true,direction:'monday->bohio',pulled:true,itemsRead:items.length,
         changed:applied,state:await getState(),changes:await listChanges(20)});
     }
     if(req.method==='POST'){
