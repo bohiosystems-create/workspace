@@ -1,6 +1,7 @@
 const crypto=require('node:crypto');
 const {appendUpdate,storeMedia}=require('./_store');
 const {syncToMonday,configured:mondayConfigured}=require('./_monday');
+const {getState,applyChange,listChanges}=require('./_state');
 
 function formBody(req){
   if(req.body&&typeof req.body==='object')return req.body;
@@ -57,12 +58,23 @@ function everyDeliverable(){return Object.values(TASKS).flat().flatMap(task=>(ta
 function allDeliverables(tasks){return (tasks||[]).flatMap(task=>(task.deliverables||[]).map(([id,name,target,unit,acceptance])=>({id,name,target,unit,acceptance,taskId:task.id,taskName:task.name})));}
 function normalize(value){return String(value||'').toLowerCase().replace(/[^a-z0-9²³]+/g,' ');}
 function taskById(id){return Object.values(TASKS).flat().find(task=>task.id===id);}
-function scheduleReplies(){
+async function liveState(){ try{ return await getState(); }catch{ return {}; } }
+function stateLine(st){
+  if(!st) return '';
+  const bits=[];
+  if(st.status) bits.push(st.status);
+  if(st.plannedFinish) bits.push('finish '+st.plannedFinish);
+  if(!bits.length) return '';
+  return `\n   Live: ${bits.join(' · ')}${st.origin?` (last changed on ${st.origin==='monday'?'Monday':'Bohio'})`:''}`;
+}
+function scheduleReplies(state){
+  state=state||{};
   const replies=[];
   for(let start=0;start<PROJECT_SCHEDULE.length;start+=2){
     const rows=PROJECT_SCHEDULE.slice(start,start+2).map(([id,name,contractor,plannedStart,plannedFinish,verified],offset)=>{
       const task=taskById(id),deliverables=(task?.deliverables||[]).map((d,index)=>`${index<verified?'✅':'⬜'} ${d[1]} — ${Number(d[2]).toLocaleString()} ${d[3]}`).join('\n');
-      return `${start+offset+1}. ${name}\n${plannedStart} → ${plannedFinish}\n${CONTRACTOR_NAMES[contractor]||'Unassigned'} · ${verified}/5 deliverables verified\n${deliverables}`;
+      const live=stateLine(state[id]);
+      return `${start+offset+1}. ${name}\n${plannedStart} → ${plannedFinish}\n${CONTRACTOR_NAMES[contractor]||'Unassigned'} · ${verified}/5 deliverables verified${live}\n${deliverables}`;
     }).join('\n\n');
     replies.push(`${start===0?'BOHIO FULL PROJECT SCHEDULE\nData date: 28 Aug 2026\n\n':''}${rows}${start+2>=PROJECT_SCHEDULE.length?'\n\nOnly complete, measured and verified deliverables earn progress. Date changes require planner approval before Primavera is updated.':''}`);
   }
@@ -74,9 +86,29 @@ function inspectionReplies(contractor){
   const specific=`BOHIO SITE INSPECTION CHECKLIST — 2/2\n\nMEASUREMENT & EVIDENCE\n⬜ Measure the complete deliverable against its stated target\n⬜ Capture geotagged overview and close-up photos\n⬜ Record test, survey and certificate references\n⬜ List defects, owner and close-out date\n⬜ Obtain inspector name, time and acceptance\n⬜ Upload the evidence before claiming completion\n\n${CONTRACTOR_NAMES[contractor]} CHECKS\n${packageChecks||'⬜ Confirm the assigned work package and acceptance evidence'}\n\nReply with: INSPECTION · item number · PASS/FAIL · observation. Attach photos or a voice note. Failed or partial items earn zero progress.`;
   return [general,specific];
 }
-function agentCommandReplies(text,contractor){
+async function agentStateReplies(text){
+  const value=normalize(text);
+  const wantsChanges=/\b(what|any)\b.*\b(chang|updat|happen)/.test(value)||/\brecent (chang|updat)/.test(value);
+  const wantsStatus=/\b(status|state|progress|where are we|how is)\b/.test(value);
+  if(!wantsChanges&&!wantsStatus) return [];
+  const state=await liveState();
+  if(wantsChanges){
+    let log=[];try{ log=await listChanges(12); }catch{}
+    if(!log.length) return ['BOHIO RECENT CHANGES\n\nNothing has changed yet on either platform.'];
+    return ['BOHIO RECENT CHANGES\n\n'+log.map(c=>{
+      const t=taskById(c.taskId);
+      return `• ${t?t.name:c.taskId}\n  ${c.changed.map(x=>`${x.field}: ${x.from??'—'} → ${x.to}`).join(', ')}\n  by ${c.actor||'unknown'} on ${c.origin==='monday'?'Monday':'Bohio'} · ${String(c.at||'').slice(0,16).replace('T',' ')}`;
+    }).join('\n\n')];
+  }
+  const rows=PROJECT_SCHEDULE.map(([id,name])=>{
+    const st=state[id];
+    return `${st&&st.status?'•':'◦'} ${name}\n   ${st&&st.status?st.status:'no status recorded'}${st&&st.plannedFinish?` · finish ${st.plannedFinish}`:''}${st&&st.origin?` · last changed on ${st.origin==='monday'?'Monday':'Bohio'}`:''}`;
+  }).join('\n');
+  return ['BOHIO LIVE STATUS\n\n'+rows+'\n\nThis is the shared record. A change made on Monday or in Bohio shows here.'];
+}
+function agentCommandRepliesSync(text,contractor,state){
   const value=normalize(text),wantsSchedule=/\b(full|project|send|show|give|get)\b.*\b(schedule|programme)\b|\b(schedule|programme)\b.*\b(full|project|send|show|give|get)\b/.test(value),wantsChecklist=/\b(site inspection|inspection)\b.*\bchecklist\b|\bchecklist\b.*\b(site|inspection)\b/.test(value),replies=[];
-  if(wantsSchedule)replies.push(...scheduleReplies());
+  if(wantsSchedule)replies.push(...scheduleReplies(state||{}));
   if(wantsChecklist)replies.push(...inspectionReplies(contractor));
   return replies.slice(0,10);
 }
@@ -141,7 +173,9 @@ module.exports=async function handler(req,res){
   try{
     const mediaType=params.MediaContentType0||'',media=await downloadMedia(params.MediaUrl0),isAudio=mediaType.startsWith('audio/'),isImage=mediaType.startsWith('image/');
     const transcription=isAudio?await transcribe(media,mediaType):{text:'',status:'Not applicable'},contractor=contractorFor(params.From,params.Body),tasks=TASKS[contractor]||TASKS.voltaic;
-    const messageText=[params.Body,transcription.text].filter(Boolean).join('\n'),commandReplies=agentCommandReplies(messageText,contractor),date=new Date().toISOString().slice(0,10);
+    const messageText=[params.Body,transcription.text].filter(Boolean).join('\n'),date=new Date().toISOString().slice(0,10);
+    const liveNow=await liveState();
+    const commandReplies=[...(await agentStateReplies(messageText)),...agentCommandRepliesSync(messageText,contractor,liveNow)].slice(0,10);
     const mediaId=media?crypto.randomUUID():'',mediaFileName=isAudio?'whatsapp-voice-note.ogg':isImage?`whatsapp-site-photo.${mediaType.includes('png')?'png':mediaType.includes('webp')?'webp':'jpg'}`:'';
     if(mediaId)await storeMedia(mediaId,media,mediaType,mediaFileName);
     const mediaUrl=mediaId?`/api/media?id=${mediaId}`:'';
@@ -186,6 +220,16 @@ module.exports=async function handler(req,res){
       }catch(error){ mondaySync={ok:false,error:error.message}; }
     }
     event.mondaySync=mondaySync;
+
+    /* Record it in the shared state so Bohio, Monday and WhatsApp all read
+     * the same thing afterwards. */
+    try{
+      await applyChange(task.id,{
+        status:event.targetMet?'Done':'Working on it',
+        plannedFinish:event.proposedFinish||'',
+        mondayItemId:mondaySync.itemId||''
+      },'whatsapp',event.reporterRole||'WhatsApp');
+    }catch(e){ /* state is best-effort; the update itself is already stored */ }
 
     const uploadConfirmation=(mediaId?` Evidence uploaded to Bohio at ${new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Riyadh'})}. View it in Schedule > ${task.name}.`:'')
       +(mondaySync.ok
