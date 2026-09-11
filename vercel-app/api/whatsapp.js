@@ -205,8 +205,17 @@ module.exports=async function handler(req,res){
      * api/monday.js, so anything sent over WhatsApp while nobody had Bohio
      * open never reached the board at all. The photo goes up with it, and the
      * status only moves for a verified deliverable. */
-    let mondaySync={ok:false,skipped:'Monday is not configured'};
-    if(mondayConfigured()){
+    /* Only a verified deliverable or an approved date change may reach the
+     * board — api/monday.js has always said so. Previously this ran for every
+     * inbound message, so a stray line of chatter posted an update and moved
+     * a status on whichever item happened to be first for that contractor. */
+    const verifiedClaim=event.targetMet===true&&!!verificationEvidence;
+    const dateChange=!!event.proposedFinish;
+    const shouldSync=verifiedClaim||dateChange;
+    let mondaySync=shouldSync
+      ? {ok:false,skipped:'Monday is not configured'}
+      : {ok:false,skipped:deliverable?'Held in Bohio until the claim is verified':'No deliverable claimed'};
+    if(shouldSync&&mondayConfigured()){
       try{
         const base=(process.env.PUBLIC_BASE_URL||'').replace(/\/$/,'');
         mondaySync=await syncToMonday({
@@ -214,24 +223,27 @@ module.exports=async function handler(req,res){
           detail:event.summary||event.text||'WhatsApp evidence received',
           reporter:event.reporterRole,
           evidenceUrl:mediaUrl?`${base}${mediaUrl}`:'',
-          statusLabel:event.targetMet?'Done':'Working on it',
+          statusLabel:verifiedClaim?'Done':'',
           proposedFinish:event.proposedFinish||'',
-          verified:event.targetMet===true,
+          verified:verifiedClaim,
           file:media?{buffer:media,fileName:mediaFileName||'whatsapp-evidence',contentType:mediaType}:null
         });
       }catch(error){ mondaySync={ok:false,error:error.message}; }
     }
     event.mondaySync=mondaySync;
 
-    /* Record it in the shared state so Bohio, Monday and WhatsApp all read
-     * the same thing afterwards. */
-    try{
-      await applyChange(task.id,{
-        status:event.targetMet?'Done':'Working on it',
-        plannedFinish:event.proposedFinish||'',
-        mondayItemId:mondaySync.itemId||''
-      },'whatsapp',event.reporterRole||'WhatsApp');
-    }catch(e){ /* state is best-effort; the update itself is already stored */ }
+    /* Record in the shared state only what the message actually established.
+     * A status is written when the claim is verified; a message that named no
+     * deliverable must not move anything. */
+    if(deliverable||dateChange){
+      try{
+        await applyChange(task.id,{
+          status:verifiedClaim?'Done':undefined,
+          plannedFinish:event.proposedFinish||undefined,
+          mondayItemId:mondaySync.itemId||undefined
+        },'whatsapp',event.reporterRole||'WhatsApp');
+      }catch(e){ /* state is best-effort; the update itself is already stored */ }
+    }
 
     const uploadConfirmation=(mediaId?` Evidence uploaded to Bohio at ${new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Riyadh'})}. View it in Schedule > ${task.name}.`:'')
       +(mondaySync.ok
