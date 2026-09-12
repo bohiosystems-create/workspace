@@ -1,33 +1,79 @@
 DEPLOYING THIS PACK
 
-The files in this zip are at the ROOT of the archive on purpose: index.html,
-vercel.json and the api/ folder must sit at the deployment root. If they end
-up one folder down, Vercel finds no index.html and every request returns
-404: NOT_FOUND.
 
-VERCEL CLI
+WHAT CHANGED, AND WHY
+
+Everything Vercel needs is now pinned inside vercel.json, because settings in
+vercel.json override the ones in the project dashboard:
+
+  "framework": null        stops a framework being auto-detected and built
+  "buildCommand": ""       no build step runs
+  "installCommand": ""     no install step runs
+  "outputDirectory": "."   the deployment root is served as-is
+
+That last line is the one that matters most. If the project's Output Directory
+was set to something like "public" or "dist" - either by hand or by a preset
+Vercel guessed - Vercel builds nothing, looks in a folder that does not exist,
+and serves 404 for every path including "/". The file is now pinned to ".", so
+a wrong dashboard value can no longer cause it.
+
+Added: package.json (no dependencies, Node pinned to 22.x) and api/health.js,
+a probe that needs no environment variables.
+
+Removed: the "/portal" rewrite. portal/index.html already exists and redirects
+to the contractor portal, so the rewrite and the real file were competing for
+the same path.
+
+
+DEPLOYING
+
   unzip bohio-vercel.zip -d bohio
-  cd bohio                 <- index.html must be visible here, run: ls
+  cd bohio                 <- "ls" must show index.html here, not a folder
   vercel                   (then: vercel --prod)
 
-GITHUB
-  unzip bohio-vercel.zip -d bohio
-  cd bohio
-  git init && git add . && git commit -m "Bohio"
-  push to a new repository, then import that repository in Vercel
-  Framework Preset: Other.  Root Directory: leave as "./"
-  Build Command: leave empty.  Output Directory: leave empty.
+Or via git: unzip, "git init && git add . && git commit", push to a new repo,
+then import it in Vercel. Root Directory must be empty or "./".
 
-IF YOU STILL GET 404
-  In Vercel: Project > Settings > General > Root Directory.
-  It must be empty or "./", not the name of a subfolder.
-  Then Deployments > the latest one > Redeploy.
 
-  Check the deployment's Source tab: you should see index.html, vercel.json
-  and api/ listed at the top level. If instead you see a single folder, the
-  root directory is set one level too high.
+IF YOU STILL GET A 404, RUN THESE TWO
+
+  curl -i https://YOUR-APP.vercel.app/api/health
+  curl -i https://YOUR-APP.vercel.app/
+
+They split one symptom into three different problems:
+
+  /api/health 404, / 404
+      Nothing deployed where Vercel is looking. Project > Settings > General:
+      Root Directory must be empty or "./", not a folder name. Then redeploy -
+      changing a setting does not rebuild on its own.
+
+  /api/health 200, / 404
+      The functions deployed and the static files did not. Almost always
+      Output Directory. The pinned vercel.json should now prevent this; if it
+      still happens, the deployment is running an older vercel.json - check
+      the Source tab of that specific deployment.
+
+  both 200, but one page 404s
+      The deployment is fine and a single path is wrong. Check that path
+      against the rewrites in vercel.json.
+
+  401 or 403 rather than 404
+      Not a routing problem. That is Deployment Protection on a preview URL.
+      Use the production URL, or disable protection under Settings > Security.
+
+
+CHECKING WHAT ACTUALLY SHIPPED
+
+In Vercel, open the failing deployment and look at its Source tab. You should
+see index.html, vercel.json, package.json and api/ listed at the top level. If
+you instead see one folder containing them, Root Directory is set one level
+too high. api/health.js also reports which integrations are configured (as
+true/false only - it never prints a value), so it is safe to paste anywhere.
+
 
 ENVIRONMENT VARIABLES
-  See VERCEL-README.txt and SCHEDULE-README.txt. None are required for the
-  pages to render; they are needed for WhatsApp, Monday and the evidence
-  vault to function.
+
+None are needed for the pages to render or for /api/health to answer. They are
+needed for WhatsApp, Monday and the evidence vault. See VERCEL-README.txt.
+Variables added after a deployment do not apply to it - redeploy once they are
+set.

@@ -1,0 +1,7 @@
+{
+  "name": "bohio-vercel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bohio construction programme: static pages plus Vercel serverless functions. No build step and no dependencies on purpose.",
+  "engines": { "node": "22.x" }
+}
