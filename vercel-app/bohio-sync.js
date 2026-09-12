@@ -19,10 +19,20 @@
     if(/working|progress|started/.test(s))return 'ontrack';
     return '';
   }
+  /* index.html declares its store as `let state = ...` at the top level of a
+   * classic script. A top-level let is a script-scope binding, not a property
+   * of window, so window.state is undefined and reading it merged nothing.
+   * The bare identifier does resolve here because this file runs later in the
+   * same realm. */
+  function appState(){
+    try{ if(typeof state!=='undefined'&&state&&Array.isArray(state.tasks)) return state; }catch(e){}
+    return (window.state&&Array.isArray(window.state.tasks))?window.state:null;
+  }
   function merge(remote){
-    if(!window.state||!Array.isArray(window.state.tasks)) return false;
+    var S=appState();
+    if(!S) return false;
     var touched=false;
-    window.state.tasks.forEach(function(t){
+    S.tasks.forEach(function(t){
       var r=remote[t.id]; if(!r) return;
       if(r.status){
         var m=mapStatus(r.status);
@@ -52,7 +62,10 @@
             var changed=merge(p.state);
             var n=Object.keys(p.state).filter(function(k){return p.state[k].origin==='monday';}).length;
             badge(n);
-            if(changed&&typeof window.renderAll==='function'){ try{ window.save&&window.save(); }catch(e){} window.renderAll(); }
+            if(changed){
+              try{ if(typeof save==='function') save(); else if(window.save) window.save(); }catch(e){}
+              try{ if(typeof renderAll==='function') renderAll(); else if(window.renderAll) window.renderAll(); }catch(e){}
+            }
           }
         }
       }
