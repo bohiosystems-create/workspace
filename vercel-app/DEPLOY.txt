@@ -1,0 +1,33 @@
+DEPLOYING THIS PACK
+
+The files in this zip are at the ROOT of the archive on purpose: index.html,
+vercel.json and the api/ folder must sit at the deployment root. If they end
+up one folder down, Vercel finds no index.html and every request returns
+404: NOT_FOUND.
+
+VERCEL CLI
+  unzip bohio-vercel.zip -d bohio
+  cd bohio                 <- index.html must be visible here, run: ls
+  vercel                   (then: vercel --prod)
+
+GITHUB
+  unzip bohio-vercel.zip -d bohio
+  cd bohio
+  git init && git add . && git commit -m "Bohio"
+  push to a new repository, then import that repository in Vercel
+  Framework Preset: Other.  Root Directory: leave as "./"
+  Build Command: leave empty.  Output Directory: leave empty.
+
+IF YOU STILL GET 404
+  In Vercel: Project > Settings > General > Root Directory.
+  It must be empty or "./", not the name of a subfolder.
+  Then Deployments > the latest one > Redeploy.
+
+  Check the deployment's Source tab: you should see index.html, vercel.json
+  and api/ listed at the top level. If instead you see a single folder, the
+  root directory is set one level too high.
+
+ENVIRONMENT VARIABLES
+  See VERCEL-README.txt and SCHEDULE-README.txt. None are required for the
+  pages to render; they are needed for WhatsApp, Monday and the evidence
+  vault to function.
