@@ -10,6 +10,7 @@ workflow.)
 | 01 | **LP & Board Reporting** | Chatbot: Claude parses the request → snapshot & returns are **computed from the seeded fund/asset data and live debt** (NAV = valuation − debt, weighted occupancy/WALE, etc.) → Claude drafts the manager commentary in the requested style. |
 | 02 | **Debt & Covenants** | ICR / LTV / DSCR, weighted cost, maturity ladder and covenant headroom **computed from the facilities register**, with **rule-based forward-looking alerts** (covenant headroom < 15%, refi windows < 18mo, maturity concentration) + an on-demand Claude risk narrative. |
 | 03 | **Deal Screening** | Upload a teaser/OM PDF → Claude **extracts** figures (structured output) → **deterministic underwrite** (real IRR solver) vs. fund hurdles → Claude **drafts** the IC memo → saved to SQLite. |
+| 04 | **Marketing & Sales** | Vendors → campaigns → funnel → contracted sales, all **computed** from the campaign register (cost-to-sales, CAC, pacing, 0–100 vendor scorecard). Rule-based SLA / contract / efficiency alerts; **orchestration** actions (pause, resume, shift budget) applied to the DB with an audit trail; Claude drafts the vendor briefing and notes to vendors. |
 
 ## Architecture
 
@@ -23,7 +24,9 @@ Debt&Covenants /api/debt    → lib/debt.ts (compute + alerts) + lib/claude.ts (
 Deal Screening /api/screen  → lib/claude.ts (extract) + lib/underwrite.ts (IRR) + lib/claude.ts (memo)
 ```
 
-Pages: `/` landing, `/reporting`, `/debt`, `/screening`. Shared Bohio
+Marketing & Sales: `/api/marketing` → `lib/marketing.ts` (compute, alerts, recommendations, `applyAction`) + `lib/seed-marketing.ts` (vendors, campaigns, Jan–May 2026 funnel data, seeded lazily) + `lib/claude.ts` (briefing, vendor note).
+
+Pages: `/` landing, `/reporting`, `/debt`, `/screening`, `/marketing`. Shared Bohio
 monochrome design in `app/globals.css`.
 
 ## Run it locally
