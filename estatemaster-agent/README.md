@@ -74,3 +74,30 @@ In production every return is calculated by EstateMaster itself: a Bohio runner 
 EstateMaster and Excel) writes the scenario into the model's live-linked inputs, lets EstateMaster
 recalculate, and reads the outputs back. In this demo that runner is simulated in the browser by a
 calibrated replica of the project's cash flows.
+
+## Approvals, email scans and change memory
+
+- **Nothing reaches EstateMaster without a person.** Changes the agent finds in Outlook, changes the AI
+  proposes, new models and promotion to the live model all become change requests (CR-xxx) in the
+  Approvals tab, approvable there, in chat or on WhatsApp ("APPROVE CR-103"). Promotion needs an
+  Investment Director. Changes a person makes directly are their own decision and are logged.
+- **Outlook is scanned four times a day** (06:00, 10:00, 14:00, 18:00 Riyadh) and on request; each
+  assumption change found in an email becomes a proposal with the quote it came from.
+- **Change memory:** every change, proposal, approval, rejection, scan and project switch is logged
+  with who, when, channel and the IRR after. Exportable to Excel. In the demo it is kept in the
+  browser; in production it lives in SQL Server.
+
+## New models from previous projects
+
+"New model from template" (Model data tab, or ask the agent) copies a previous project's EstateMaster
+structure, sizes it from the chosen plot's zoning (plot area × FAR), fills prices and rents from
+comparables or keeps the template's values, and drops components the zoning does not permit.
+Creating the EstateMaster file is a change request; once approved the workspace switches to the new
+project. Previous projects and plots are dummy data.
+
+## Report builder
+
+Users can create new report types from the agent settings or the Reports tab: pick blocks from the
+library (returns, model, project controls, cash flow and funding, investors, risk, market and
+compliance, governance), order them, set audience, schedule and delivery, or describe the report and
+let the AI design it. Eight new report types are included as starting points.
