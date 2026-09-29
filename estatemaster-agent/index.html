@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bohio Agent on EstateMaster</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e6e2e2; --ink:#000919; --ink2:#3a4150; --soft:rgba(0,9,25,.55); --faint:rgba(0,9,25,.18); --hair:rgba(0,9,25,.12);
+  --alert:#FF4D6A; --card1:#f4f2f2; --card2:#ece9e9;
+  --serif:'Dallas Light','Dallas','Copperplate Gothic Light','Copperplate','Optima','Palatino Linotype',Georgia,serif;
+  --sans:'Space Grotesk',Arial,ui-sans-serif,system-ui,sans-serif;
+  --shadow:0 2px 4px rgba(0,9,25,.06),0 12px 24px rgba(0,9,25,.10),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -3px 0 rgba(0,9,25,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.4}
+body{min-height:100vh;
+  background:
+   radial-gradient(circle at 88% 8%,rgba(58,65,80,.16),transparent 38%),
+   linear-gradient(rgba(0,9,25,.045) 1px,transparent 1px) 0 0/56px 56px,
+   linear-gradient(90deg,rgba(0,9,25,.045) 1px,transparent 1px) 0 0/56px 56px,var(--bg);
+  background-attachment:fixed}
+h1,h2,h3,.serif{font-family:var(--serif);font-weight:700;letter-spacing:.04em}
+button,select,input{font-family:inherit;color:inherit}
+.wrap{max-width:1480px;margin:0 auto;padding:22px 28px 60px}
+
+/* header */
+header{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:14px}
+.orb{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 34% 30%,#fff 0 7%,#5b6478 12%,#1c2438 55%,#000919 100%);box-shadow:0 8px 18px rgba(0,9,25,.35)}
+.brand h1{font-size:26px;line-height:1}
+.brand small{display:block;color:var(--soft);font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin-top:5px}
+.demo-chip{margin-left:auto;font-size:12px;padding:7px 12px;border:1px solid var(--faint);border-radius:999px;color:var(--ink2);background:rgba(255,255,255,.45)}
+.demo-chip b{color:var(--alert);font-weight:600}
+
+/* cards */
+.card{background:linear-gradient(var(--card1),var(--card2));border:1px solid rgba(255,255,255,.7);border-radius:20px;box-shadow:var(--shadow);padding:22px 24px}
+.card>.bar,.bar{width:48px;height:5px;background:var(--ink);border-radius:3px;margin-bottom:14px}
+.card h2{font-size:22px;margin-bottom:4px}
+.card .sub{color:var(--soft);font-size:13px;margin-bottom:14px}
+.grid{display:grid;gap:20px}
+.g2{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1100px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+/* route bar */
+.routes{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:900px){.routes{grid-template-columns:1fr 1fr}}
+.route{cursor:pointer;text-align:left;border:1px solid rgba(255,255,255,.7);border-radius:16px;padding:12px 14px;background:linear-gradient(var(--card1),var(--card2));box-shadow:var(--shadow);transition:.2s}
+.route .n{font-family:var(--serif);font-size:12px;letter-spacing:.14em;color:var(--soft)}
+.route .t{font-weight:600;margin:2px 0}
+.route .d{font-size:12px;color:var(--soft)}
+.route.on{background:var(--ink);color:#fff;transform:translateY(-2px)}
+.route.on .n,.route.on .d{color:rgba(255,255,255,.65)}
+.tag{display:inline-block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid currentColor;margin-left:6px;vertical-align:middle}
+
+/* tabs */
+.tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+.tab{border:1px solid var(--faint);background:rgba(255,255,255,.4);padding:9px 18px;border-radius:999px;cursor:pointer;font-size:14px;transition:.15s}
+.tab:hover{background:rgba(255,255,255,.8)}
+.tab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pane{display:none}.pane.on{display:block}
+
+/* buttons */
+.btn{border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:999px;padding:8px 16px;cursor:pointer;font-size:13.5px;transition:.15s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(0,9,25,.25)}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.sm{padding:5px 12px;font-size:12.5px}
+.chip{border:1px solid var(--faint);background:rgba(255,255,255,.55);border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer;transition:.15s;text-align:left}
+.chip:hover{background:var(--ink);color:#fff}
+select{border:1px solid var(--faint);background:rgba(255,255,255,.7);border-radius:10px;padding:6px 10px;font-size:13px}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{border-radius:14px;padding:12px 14px;background:rgba(255,255,255,.55);border:1px solid var(--hair)}
+.kpi .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft)}
+.kpi .v{font-family:var(--serif);font-size:26px;font-weight:700;margin:2px 0}
+.kpi .dl{font-size:12px;color:var(--soft)}
+.kpi.bad .v{color:var(--alert)}
+.kpi.flash{animation:fl .9s}
+@keyframes fl{0%{background:#fff;box-shadow:0 0 0 3px var(--ink)}100%{}}
+.dn{color:var(--alert)}.up{color:var(--ink);font-weight:600}
+
+/* chat */
+.chat{display:flex;flex-direction:column;height:640px}
+.msgs{flex:1;overflow:auto;padding:4px 4px 10px;display:flex;flex-direction:column;gap:12px}
+.msg{max-width:92%;padding:12px 14px;border-radius:16px;font-size:14px}
+.msg.user{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:4px}
+.msg.agent{align-self:flex-start;background:rgba(255,255,255,.75);border:1px solid var(--hair);border-bottom-left-radius:4px}
+.steps{font-size:12px;color:var(--ink2);margin-bottom:6px;display:flex;flex-direction:column;gap:3px}
+.st{display:flex;gap:8px;align-items:flex-start;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
+.st i{flex:none;width:12px;height:12px;margin-top:2px;border-radius:50%;border:2px solid var(--faint);border-top-color:var(--ink);animation:sp .7s linear infinite}
+.st.done i{animation:none;border:none;background:var(--ink);position:relative}
+.st.done i:after{content:'';position:absolute;left:3.5px;top:1.5px;width:3px;height:6px;border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.body table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12.5px}
+.body th,.body td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--hair)}
+.body th{font-weight:500;color:var(--soft);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.body a.go{display:inline-block;margin-top:6px;font-size:12.5px;color:var(--ink);border-bottom:1px solid var(--ink);cursor:pointer}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.inputrow{display:flex;gap:8px;margin-top:8px}
+.inputrow input{flex:1;border:1px solid var(--faint);border-radius:999px;padding:10px 16px;background:rgba(255,255,255,.8);font-size:14px;outline:none}
+.inputrow input:focus{border-color:var(--ink)}
+
+/* assumptions */
+.asm{display:grid;grid-template-columns:120px 1fr 92px;gap:8px 12px;align-items:center;font-size:13px}
+.asm .k{color:var(--ink2)}
+.asm .val{text-align:right;font-variant-numeric:tabular-nums}
+.asm .val small{display:block;color:var(--soft);font-size:11px}
+.asm.chg .k{font-weight:600}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:var(--faint);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--ink);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,9,25,.4);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--ink);border:3px solid #fff}
+.sandbox{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--ink2);margin-bottom:12px;padding:8px 12px;border-radius:12px;background:rgba(0,9,25,.05)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink);flex:none}
+.dot.live{background:var(--alert);animation:pl 1.2s infinite}
+@keyframes pl{50%{opacity:.25}}
+
+/* heatmap */
+.hm{display:grid;gap:3px;font-size:11px;font-variant-numeric:tabular-nums}
+.hm .c{aspect-ratio:1.5;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:background .3s}
+.hm .c.base{outline:2px solid var(--ink);outline-offset:1px}
+.hm .h{display:flex;align-items:center;justify-content:center;color:var(--soft);font-size:10.5px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--soft);align-items:center;margin-top:10px;flex-wrap:wrap}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+.ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:13px}
+.bigcount{font-family:var(--serif);font-size:44px;font-weight:700;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.bars .r{display:grid;grid-template-columns:120px 1fr 54px;gap:8px;align-items:center;font-size:12.5px;margin:5px 0}
+.bars .b{height:10px;background:var(--faint);border-radius:5px;overflow:hidden}
+.bars .b i{display:block;height:100%;background:var(--ink)}
+.list{font-size:13px;display:flex;flex-direction:column;gap:6px}
+.list div{padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.55);border:1px solid var(--hair)}
+table.t{border-collapse:collapse;width:100%;font-size:13px}
+table.t th{font-weight:500;color:var(--soft);font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:8px}
+table.t td{padding:9px 8px;border-top:1px solid var(--hair);font-variant-numeric:tabular-nums}
+table.t td.n,table.t th.n{text-align:right}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;border:1px solid var(--ink)}
+.pill.f{background:var(--alert);border-color:var(--alert);color:#fff}
+.pill.p{background:var(--ink);color:#fff}
+
+/* report */
+.report{background:#fbfaf9;border-radius:6px;padding:48px 56px;box-shadow:0 20px 50px rgba(0,9,25,.18);max-width:900px;margin:0 auto}
+.report h1{font-size:34px;margin-bottom:4px}
+.report h3{font-size:18px;margin:22px 0 8px;border-bottom:1px solid var(--hair);padding-bottom:4px}
+.report p{margin:6px 0;font-size:14px}
+.report .meta{color:var(--soft);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.report .rk{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.report .rk div{border:1px solid var(--hair);border-radius:10px;padding:10px}
+.report .rk b{display:block;font-family:var(--serif);font-size:22px}
+.report .rk span{font-size:11px;color:var(--soft);text-transform:uppercase;letter-spacing:.08em}
+.report .verdict{border-left:4px solid var(--ink);padding:8px 14px;background:rgba(0,9,25,.04);margin:10px 0}
+.report .verdict.bad{border-color:var(--alert)}
+.lineage{font-size:11.5px;color:var(--soft);margin-top:24px;border-top:1px solid var(--hair);padding-top:10px}
+@media print{body *{visibility:hidden}.report,.report *{visibility:visible}.report{position:absolute;left:0;top:0;box-shadow:none;max-width:none;padding:20px}}
+
+/* phone */
+.phone{width:340px;margin:0 auto;border-radius:44px;padding:12px;background:#0b1224;box-shadow:0 30px 60px rgba(0,9,25,.35),inset 0 0 0 2px #2a3350}
+.screen{border-radius:34px;overflow:hidden;background:#efeae6;display:flex;flex-direction:column;height:640px;position:relative}
+.wh{background:var(--ink);color:#fff;padding:36px 14px 10px;display:flex;align-items:center;gap:10px}
+.wh .orb{width:32px;height:32px}
+.wh b{display:block;font-size:14px;white-space:nowrap}.wh small{font-size:11px;opacity:.7}
+.wh select{margin-left:auto;background:rgba(255,255,255,.12);color:#fff;border:none;font-size:11px;padding:4px 6px}
+.wh select option{color:#000}
+.wmsgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:7px;background:
+  linear-gradient(rgba(0,9,25,.03) 1px,transparent 1px) 0 0/28px 28px,#e9e4e0}
+.wb{max-width:84%;padding:7px 10px 5px;border-radius:12px;font-size:13px;line-height:1.35;box-shadow:0 1px 1px rgba(0,9,25,.12);white-space:pre-wrap}
+.wb.me{align-self:flex-end;background:#dfe6f3;border-top-right-radius:3px}
+.wb.bot{align-self:flex-start;background:#fff;border-top-left-radius:3px}
+.wb .tm{display:block;text-align:right;font-size:9.5px;color:var(--soft);margin-top:2px}
+.wb.tp{color:var(--soft);font-style:italic}
+.att{display:flex;gap:8px;align-items:center;background:rgba(0,9,25,.06);border-radius:8px;padding:8px;margin-top:6px;font-size:12px}
+.att i{width:30px;height:36px;border-radius:4px;background:var(--ink);color:#fff;font-style:normal;font-size:9px;display:flex;align-items:center;justify-content:center}
+.wq{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px;background:#efeae6}
+.wq .chip{font-size:11.5px;padding:5px 10px;background:#fff}
+.wi{display:flex;gap:6px;padding:8px 10px 12px;background:#efeae6}
+.wi input{flex:1;border:none;border-radius:999px;padding:9px 14px;font-size:13px;outline:none;background:#fff}
+.wi button{border:none;width:38px;border-radius:50%;background:var(--ink);color:#fff;cursor:pointer}
+.rec{display:grid;gap:12px}
+.rec .it{display:grid;grid-template-columns:34px 1fr;gap:12px;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.55);border:1px solid var(--hair)}
+.rec .num{font-family:var(--serif);font-size:24px;font-weight:700}
+.rec b{display:block;margin-bottom:2px}
+.rec span{color:var(--ink2);font-size:13px}
+.flow{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;margin:6px 0 4px}
+.flow .n{flex:1;min-width:110px;padding:10px;border-radius:12px;background:var(--ink);color:#fff;font-size:12px;text-align:center}
+.flow .n small{display:block;opacity:.65;font-size:10.5px;margin-top:2px}
+.flow .n.l{background:rgba(255,255,255,.7);color:var(--ink);border:1px solid var(--faint)}
+.flow .ar{align-self:center;color:var(--soft)}
+.toast{position:fixed;right:24px;bottom:24px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:14px;font-size:13px;box-shadow:0 12px 30px rgba(0,9,25,.4);transform:translateY(90px);opacity:0;transition:.35s;z-index:99;max-width:340px}
+.toast.on{transform:none;opacity:1}
+.modal{position:fixed;inset:0;background:rgba(0,9,25,.45);display:none;align-items:center;justify-content:center;z-index:100}
+.modal.on{display:flex}
+.modal .card{max-width:460px}
+.modal .row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand"><div class="orb"></div><div><h1>Bohio workspace</h1><small>Agent on EstateMaster · Feasibility &amp; Investment</small></div></div>
+  <div class="demo-chip"><b>Demo</b> · simulated model, illustrative Al Narjis Mixed-Use data · SAR</div>
+</header>
+
+<div class="routes" id="routes"></div>
+<div class="tabs" id="tabs"></div>
+
+<!-- AGENT -->
+<section class="pane on" id="p-agent">
+  <div class="grid g2">
+    <div class="card">
+      <div class="bar"></div><h2>Ask the agent</h2>
+      <div class="sub">Type or tap a prompt. The agent edits a sandbox copy, recalculates, and reports back.</div>
+      <div class="chat">
+        <div class="msgs" id="msgs"></div>
+        <div class="chips" id="chips"></div>
+        <div class="inputrow"><input id="ask" placeholder="e.g. What if sale price drops 10% and construction cost rises 15%?"><button class="btn" id="send">Send</button></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <div class="bar"></div><h2>Live returns</h2>
+        <div class="sub" id="kpiSub">Sandbox scenario vs base case</div>
+        <div class="kpis" id="kpis" style="grid-template-columns:repeat(3,1fr)"></div>
+      </div>
+      <div class="card">
+        <div class="bar"></div><h2>Assumptions sandbox</h2>
+        <div class="sandbox"><span class="dot"></span><span id="sbx">Working on a sandbox copy. Base case in EstateMaster is untouched.</span></div>
+        <div class="asm" id="asm"></div>
+        <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+          <button class="btn ghost sm" id="reset">Reset to base</button>
+          <button class="btn sm" id="promote">Promote to EstateMaster…</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EXPLORER -->
+<section class="pane" id="p-explore">
+  <div class="grid g2">
+    <div class="card">
+      <div class="bar"></div><h2>Sensitivity surface</h2>
+      <div class="sub">Any two assumptions, any metric. Outlined cell is the base case; coral is below hurdle.</div>
+      <div class="ctl">
+        <label>X <select id="hx"></select></label><label>Y <select id="hy"></select></label>
+        <label>Metric <select id="hm"><option value="irr">Levered IRR</option><option value="poc">Profit on cost</option><option value="profit">Net profit</option></select></label>
+        <label>Grid <select id="hn"><option>7</option><option selected>9</option><option>13</option><option>17</option><option>25</option></select></label>
+        <label><input type="checkbox" id="hcycle"> auto-cycle pairs</label>
+      </div>
+      <div id="heat"></div>
+      <div class="legend"><span><i class="sw" style="background:rgba(255,77,106,.7)"></i>below hurdle</span><span><i class="sw" style="background:rgba(0,9,25,.65)"></i>above hurdle</span><span id="hcap"></span></div>
+    </div>
+    <div class="card">
+      <div class="bar"></div><h2>Autonomous explorer</h2>
+      <div class="sub">Runs scenarios non-stop across all 8 assumptions until you pause it. Nothing is written to the model.</div>
+      <div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:8px">
+        <div><div class="kpi" style="background:none;border:none;padding:0"><span class="l">Scenarios evaluated</span></div><div class="bigcount" id="ecount">0</div></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="etoggle">Start</button><button class="btn ghost" id="eclear">Clear</button></div>
+        <div style="margin-bottom:10px;font-size:13px" id="estat"></div>
+      </div>
+      <div id="ehist"></div>
+      <h3 class="serif" style="font-size:16px;margin:14px 0 6px">What moves returns most</h3>
+      <div class="bars" id="edrv"></div>
+      <h3 class="serif" style="font-size:16px;margin:14px 0 6px">Smallest combined moves that break the hurdle</h3>
+      <div class="list" id="ebreach"><div style="color:var(--soft)">Start the explorer to search.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- STRESS -->
+<section class="pane" id="p-stress">
+  <div class="grid g2">
+    <div class="card">
+      <div class="bar"></div><h2>Stress scenarios</h2>
+      <div class="sub">Hurdles: levered IRR ≥ <span id="hIRR"></span> and profit on cost ≥ <span id="hPOC"></span>. Recalculated on the current sandbox base.</div>
+      <div style="margin-bottom:12px"><button class="btn" id="runStress">Run all stress tests</button></div>
+      <table class="t" id="stressT"></table>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card"><div class="bar"></div><h2>Tornado</h2><div class="sub">Change in levered IRR for one-at-a-time moves</div><div id="tornado"></div></div>
+      <div class="card"><div class="bar"></div><h2>Reverse stress: headroom</h2><div class="sub">How far each assumption can move alone before a hurdle breaks</div><table class="t" id="headT"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- REPORT -->
+<section class="pane" id="p-report">
+  <div class="card" style="margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <div><h2 style="margin:0">Investment Committee pack</h2><div class="sub" style="margin:0">Generated from the model outputs and the agent's test runs. Regenerate any time.</div></div>
+    <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="rgen">Regenerate</button><button class="btn ghost" id="rprint">Print / PDF</button><button class="btn ghost" id="rhtml">Download HTML</button><button class="btn ghost" id="rcsv">Sensitivity CSV</button>
+    </div>
+  </div>
+  <div class="report" id="report"></div>
+</section>
+
+<!-- WHATSAPP -->
+<section class="pane" id="p-wa">
+  <div class="grid" style="grid-template-columns:380px minmax(0,1fr);gap:28px" id="wagrid">
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="wh"><div class="orb"></div><div><b>Bohio Agent</b><small id="wastat">online</small></div>
+          <select id="warole"><option>Analyst</option><option>Investment Director</option></select></div>
+        <div class="wmsgs" id="wmsgs"></div>
+        <div class="wq" id="wq"></div>
+        <div class="wi"><input id="wain" placeholder="Message"><button id="wasend">➤</button></div>
+      </div></div>
+      <div style="text-align:center;margin-top:14px"><button class="btn ghost sm" id="waalert">Simulate proactive alert</button></div>
+    </div>
+    <div class="card">
+      <div class="bar"></div><h2>Recommended WhatsApp setup</h2>
+      <div class="sub">Same agent, same sandbox: what you do on the phone shows up in the workspace, and vice versa.</div>
+      <div class="flow">
+        <div class="n l">WhatsApp<small>KINAN staff</small></div><div class="ar">→</div>
+        <div class="n l">Cloud API<small>via BSP, webhook</small></div><div class="ar">→</div>
+        <div class="n">Bohio gateway<small>identity · roles · policy · audit</small></div><div class="ar">→</div>
+        <div class="n">Agent<small>fast engine + connectors</small></div><div class="ar">→</div>
+        <div class="n l">EstateMaster<small>Excel / SQL route</small></div>
+      </div>
+      <div class="rec" style="margin-top:14px">
+        <div class="it"><div class="num">1</div><div><b>Use the official WhatsApp Business Platform (Cloud API), through a BSP</b><span>Not the WhatsApp Business app and not unofficial libraries: those risk account bans and fail a compliance review. A BSP gives templates, delivery receipts and an SLA.</span></div></div>
+        <div class="it"><div class="num">2</div><div><b>WhatsApp is the front door, not the engine</b><span>Ask, get alerts, approve. Heavy runs happen in the workspace; WhatsApp gets the headline numbers, a chart image and a link to the PDF.</span></div></div>
+        <div class="it"><div class="num">3</div><div><b>Known numbers, mapped roles</b><span>Allow-list of KINAN phone numbers tied to a role. Analyst: read and sandbox scenarios. Director: can approve promotion. Try switching the role on the phone and asking to promote.</span></div></div>
+        <div class="it"><div class="num">4</div><div><b>Three permission tiers</b><span>Tier 0 read KPIs · Tier 1 sandbox scenarios and reports · Tier 2 write to the live model needs a Director's approval with a step-up check (one-time code or secure link). The base case is never edited straight from chat.</span></div></div>
+        <div class="it"><div class="num">5</div><div><b>Interactive buttons and pre-approved templates</b><span>Reply buttons for approvals and choices. Proactive alerts (e.g. "explorer found a hurdle breach") outside the 24-hour window must use approved message templates.</span></div></div>
+        <div class="it"><div class="num">6</div><div><b>Keep raw model data off the chat</b><span>Send summaries plus an expiring signed link, not full workbooks. Confirm hosting and retention with KINAN compliance (Saudi PDPL). Every message → action → model change is written to an audit log.</span></div></div>
+        <div class="it"><div class="num">7</div><div><b>1:1 with the agent, sharing through the workspace</b><span>Avoid group chats for anything that changes numbers; it blurs who asked. Support voice notes for site walks, Arabic and English.</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCH -->
+<section class="pane" id="p-arch">
+  <div class="grid g2">
+    <div class="card">
+      <div class="bar"></div><h2>How the agent reaches EstateMaster</h2>
+      <div class="sub">Ranked from most to least robust. The connection bar at the top switches the route used in this demo's run log.</div>
+      <div class="rec">
+        <div class="it"><div class="num">1</div><div><b>SQL Server <span class="tag">read / write</span></b><span>EstateMaster syncs accounting and sales CRM data with SQL Server. Cleanest route for actuals and sales data in and out. Confirm per client which data sets are synced.</span></div></div>
+        <div class="it"><div class="num">2</div><div><b>Excel live-link <span class="tag">read / write</span></b><span>Live data between models and linked workbooks: assumptions in, KPIs out. The agent edits the workbook; a person or macro refreshes the model. This is the route the stress engine relies on for assumptions.</span></div></div>
+        <div class="it"><div class="num">3</div><div><b>Exported files <span class="tag">read only</span></b><span>Parse the Excel/PDF feasibility reports teams already produce. Build summaries, comparisons and IC packs. Nothing is written back.</span></div></div>
+        <div class="it"><div class="num">4</div><div><b>Screen automation <span class="tag">brittle</span></b><span>Drives the desktop UI. Fine for demos, breaks on UI changes and may raise licence questions with Altus. Not recommended for production.</span></div></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <div class="bar"></div><h2>Two-speed engine</h2>
+        <div class="sub">Why the agent can run "infinite" scenarios</div>
+        <div class="rec">
+          <div class="it"><div class="num">A</div><div><b>Fast engine: calibrated replica</b><span>Bohio rebuilds the project's cash-flow logic and calibrates it against EstateMaster outputs. Thousands of scenarios per second, used for exploration, Monte Carlo and heatmaps. <i>This demo runs on such a replica.</i></span></div></div>
+          <div class="it"><div class="num">B</div><div><b>Truth engine: EstateMaster</b><span>Anything that goes into a report or an IC decision is re-run in EstateMaster through route 1 or 2 and reconciled to the replica. Findings are flagged "verified" only after that.</span></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="bar"></div><h2>Guardrails</h2>
+        <div class="list">
+          <div>Agent only edits a sandbox copy; promotion to the live model is a separate approved step.</div>
+          <div>Every read, write, recalculation and report is logged with route, user, channel and timestamp.</div>
+          <div>Assumption changes are diffed against base and stamped on every report.</div>
+          <div>Replica drift check: if replica and EstateMaster disagree beyond tolerance, the agent stops and says so.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="card"><div class="bar"></div><h2>Promote scenario to EstateMaster?</h2><div class="sub" id="mbody"></div><div class="row"><button class="btn ghost" id="mno">Cancel</button><button class="btn" id="myes">Approve &amp; write</button></div></div></div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+/* ================= MODEL (replica engine) ================= */
+const BASE={price:13500,rent:2400,cost:5200,land:160,cap:7.5,rate:8.5,delay:0,ltc:55};
+const FIX={resNSA:30000,retGLA:12000,gfa:62000,occ:.92,opex:.15,soft:.12,cont:.05,sellCost:.03,exitCost:.02};
+const HURDLE={irr:.18,poc:.15};
+const VARS={
+  price:{label:'Sale price',kind:'pct',lo:-30,hi:10,step:1,syn:/price|sales|asp|selling/,adv:-1,fmt:v=>'SAR '+Math.round(v).toLocaleString()+'/sqm'},
+  rent:{label:'Retail rent',kind:'pct',lo:-30,hi:10,step:1,syn:/rent/,adv:-1,fmt:v=>'SAR '+Math.round(v).toLocaleString()+'/sqm'},
+  cost:{label:'Construction cost',kind:'pct',lo:-10,hi:30,step:1,syn:/cost|capex|construction|build/,adv:1,fmt:v=>'SAR '+Math.round(v).toLocaleString()+'/sqm'},
+  land:{label:'Land cost',kind:'pct',lo:-20,hi:20,step:1,syn:/land/,adv:1,fmt:v=>'SAR '+v.toFixed(0)+'M'},
+  cap:{label:'Exit cap rate',kind:'abs',lo:-1,hi:3,step:.25,syn:/cap|yield/,adv:1,fmt:v=>v.toFixed(2)+'%'},
+  rate:{label:'Interest rate',kind:'abs',lo:-2,hi:6,step:.25,syn:/interest|rate|saibor/,adv:1,fmt:v=>v.toFixed(2)+'%'},
+  delay:{label:'Delay',kind:'abs',lo:0,hi:24,step:3,syn:/delay|late|slip|overrun/,adv:1,fmt:v=>v.toFixed(0)+' months'},
+  ltc:{label:'Leverage (LTC)',kind:'abs',lo:-20,hi:20,step:5,syn:/ltc|leverage|gearing|debt/,adv:0,fmt:v=>v.toFixed(0)+'%'}
+};
+const KEYS=Object.keys(VARS);
+const SYNORDER=['land','cap','ltc','rent','delay','price','cost','rate'];
+const apply=d=>{const p={...BASE};for(const k in d){const v=VARS[k];p[k]=v.kind==='pct'?BASE[k]*(1+d[k]/100):BASE[k]+d[k]}return p};
+function irrOf(cf){
+  const f=r=>cf.reduce((s,c,t)=>s+c/Math.pow(1+r,t),0);
+  let lo=-.6,hi=1.5,fl=f(lo),fh=f(hi);
+  if(fl*fh>0)return NaN;
+  for(let i=0;i<60;i++){const m=(lo+hi)/2,fm=f(m);if(fl*fm<=0){hi=m;fh=fm}else{lo=m;fl=fm}}
+  return Math.pow(1+(lo+hi)/2,4)-1;
+}
+function model(p){
+  const T=22,d=Math.round(p.delay/3),cost=Array(T).fill(0),inf=Array(T).fill(0);
+  cost[0]=p.land*1e6;
+  const hard=FIX.gfa*p.cost*(1+FIX.soft+FIX.cont);
+  [.03,.06,.10,.14,.17,.17,.14,.11,.08].forEach((w,i)=>cost[1+i]+=hard*w);
+  for(let j=0;j<d;j++)cost[10+j]+=hard*.015;
+  const resRev=FIX.resNSA*p.price;
+  for(let q=3;q<=10;q++)inf[q]+=resRev*.7/8*(1-FIX.sellCost);
+  inf[10+d]+=resRev*.3*(1-FIX.sellCost);
+  const noi=FIX.retGLA*p.rent*FIX.occ*(1-FIX.opex);
+  const exitV=noi/(p.cap/100)*(1-FIX.exitCost);
+  inf[11+d]+=exitV;
+  const ltc=Math.max(0,Math.min(.9,p.ltc/100)),r=p.rate/100/4;
+  let bal=0,peak=0,interest=0,eqIn=0,dist=0;const eq=[],un=[];
+  for(let t=0;t<T;t++){
+    const i=bal*r;bal+=i;interest+=i;
+    const draw=cost[t]*ltc;bal+=draw;peak=Math.max(peak,bal);
+    const rep=Math.min(bal,inf[t]);bal-=rep;
+    const ds=inf[t]-rep,ein=cost[t]-draw;eqIn+=ein;dist+=ds;
+    eq.push(-ein+ds);un.push(inf[t]-cost[t]);
+  }
+  if(bal>1){eq[T-1]-=bal;dist-=bal}
+  const tc=cost.reduce((a,b)=>a+b,0)+interest,rev=inf.reduce((a,b)=>a+b,0),profit=rev-tc;
+  return{irr:irrOf(eq),uirr:irrOf(un),profit,poc:profit/tc,em:dist/eqIn,peak,rev,tc,noi,exitV,resRev,hard,interest};
+}
+const run=d=>model(apply(d));
+const bad=v=>Number.isNaN(v)?-1:v;
+
+/* ================= STATE ================= */
+let S={};                 // sandbox deltas
+let route='excel';
+let baseRes=run({});
+let stressRes=null,tornRes=null,headRes=null;
+let hx='price',hy='cost',hmetric='irr',hn=9;
+let changelog=[];
+const ROUTES={
+  sql:{n:'01',t:'SQL Server',d:'Accounting + sales CRM sync. Read/write.',tag:'most robust'},
+  excel:{n:'02',t:'Excel live-link',d:'Assumptions in, KPIs out. Read/write.',tag:'demo default'},
+  files:{n:'03',t:'Exported files',d:'Parse Excel/PDF reports. Read-only.',tag:'read only'},
+  screen:{n:'04',t:'Screen automation',d:'Drives the UI. Brittle, licence risk.',tag:'demo only'}
+};
+
+/* ================= FORMAT ================= */
+const fP=v=>Number.isNaN(v)?'n/m':(v*100).toFixed(1)+'%';
+const fM=v=>(v/1e6>=0?'':'−')+'SAR '+Math.abs(v/1e6).toFixed(0)+'M';
+const fX=v=>v.toFixed(2)+'x';
+const sgn=(v,dp=0)=>(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(dp);
+function fD(k,d){const v=VARS[k];if(k==='delay')return '+'+Math.round(d)+' mo';return v.kind==='pct'?sgn(d,0)+'%':sgn(d,2).replace(/\.?0+$/,'')+(k==='ltc'?'pp':'pp')}
+function scenName(d){const ks=Object.keys(d).filter(k=>d[k]);return ks.length?ks.map(k=>VARS[k].label.toLowerCase()+' '+fD(k,d[k])).join(', '):'base case'}
+
+/* ================= ROUTE-AWARE LOG LINES ================= */
+const rd=w=>({sql:`SQL · SELECT ${w} FROM EM_Sync.dbo.Outputs`,excel:`Excel live-link · read ${w} ← Outputs sheet`,files:`Exports · parse latest feasibility report for ${w}`,screen:`Screen · read ${w} from results pane (OCR)`}[route]);
+const wr=w=>({sql:`SQL · UPDATE scenario BHO_SBX SET ${w}`,excel:`Excel live-link · write ${w} → Inputs sheet (sandbox copy)`,files:`Read-only route · ${w} evaluated on Bohio replica, nothing written back`,screen:`Screen · Assumptions tab › set ${w} (brittle, licence check advised)`}[route]);
+const rf=()=>({sql:'EstateMaster sync picks up scenario BHO_SBX',excel:'Refresh model (macro / user trigger)',files:null,screen:'Recalculate via UI'}[route]);
+function writeSteps(d){const s=[];for(const k in d){if(d[k])s.push(wr(`${VARS[k].label} ${fD(k,d[k])}`))}const r=rf();if(r)s.push(r);return s}
+const calib='Replica check vs EstateMaster outputs: within tolerance (demo)';
+
+/* ================= INTENT PARSING ================= */
+function parseMods(t){
+  const mods={},NEG=/drop|cut|fall|fell|reduc|lower|down|decreas|less|shrink|declin|slash/,POS=/rais|increas|\bup\b|higher|rise|more|overrun|grow|jump|climb/;
+  for(const k of SYNORDER){
+    const v=VARS[k];
+    const re=new RegExp('('+v.syn.source+')([^\\d+\\-−]{0,24}?)([+\\-−]?\\d+(?:\\.\\d+)?)\\s*(%|pp|bps|bp|months?|mo\\b|m\\b)?','i');
+    const m=t.match(re);if(!m)continue;
+    const gap=m[2],before=t.slice(Math.max(0,m.index-14),m.index),ctx=before+' '+gap;
+    const to=/\b(to|at|=)\b/.test(gap),explicit=/^[+\-−]/.test(m[3]);
+    let num=parseFloat(m[3].replace('−','-')),unit=(m[4]||'').toLowerCase(),d;
+    if(unit.startsWith('bp'))num/=100;
+    if(to&&!explicit){d=v.kind==='pct'?(num>=200?(num/BASE[k]-1)*100:num):num-BASE[k]}
+    else if(explicit)d=num;
+    else if(NEG.test(ctx)&&!POS.test(ctx))d=-Math.abs(num);
+    else if(POS.test(ctx))d=Math.abs(num);
+    else d=num;
+    if(k==='delay')d=Math.max(0,Math.round(d));
+    mods[k]=Math.max(v.lo*3,Math.min(v.hi*3,d));
+    t=t.replace(m[0],' ');
+  }
+  return mods;
+}
+function varsIn(t){return SYNORDER.filter(k=>VARS[k].syn.test(t))}
+function intent(text){
+  const t=text.toLowerCase();
+  if(/^(yes|approve|confirm|ok approve)/.test(t))return{k:'approve'};
+  if(/^(no|cancel|reject)\b/.test(t))return{k:'cancel'};
+  if(/reset|revert|back to base/.test(t))return{k:'reset'};
+  if(/promote|write back|push to (em|estate)|apply to (the )?(live|model)/.test(t))return{k:'promote'};
+  if(/report|memo|ic pack|pack|pdf|deck/.test(t))return{k:'report'};
+  if(/how far|headroom|break ?even|what breaks|reverse/.test(t))return{k:'reverse'};
+  if(/explor|monte|simulat|infinite|autonom|keep (going|testing|running)|thousand/.test(t))return{k:'explore'};
+  if(/stress|downside|worst|severe/.test(t))return{k:'stress'};
+  if(/sensitiv|heat|grid|tornado|versus| vs /.test(t)){const v=varsIn(t);return{k:'sens',v}}
+  const mods=parseMods(t);
+  if(Object.keys(mods).length&&/what if|set|change|assume|suppose|make|raise|cut|increase|decrease|drop|reduce|lower|test|by|to|\d/.test(t))return{k:'mod',mods};
+  if(/kpi|status|irr|return|where are we|summary|profit|how (is|are)/.test(t))return{k:'status'};
+  return{k:'help'};
+}
+
+/* ================= AGENT CORE (shared by web + WhatsApp) ================= */
+let pending=null;
+function statusText(){
+  const r=run(S);
+  return{r,line:`Levered IRR ${fP(r.irr)} · profit on cost ${fP(r.poc)} · net profit ${fM(r.profit)} · equity multiple ${fX(r.em)}`}
+}
+function verdict(r){
+  const okI=bad(r.irr)>=HURDLE.irr,okP=r.poc>=HURDLE.poc;
+  return okI&&okP?'clears both hurdles':(!okI&&!okP?'misses both hurdles':(!okI?'misses the IRR hurdle':'misses the profit-on-cost hurdle'))
+}
+async function handle(text,ch,role){
+  const it=intent(text),web=ch==='web';
+  const out={steps:[],plain:'',html:'',attach:null,link:null,fx:()=>{}};
+  const done=(plain,html)=>{out.plain=plain;out.html=html||esc(plain).replace(/\*(.+?)\*/g,'<b>$1</b>').replace(/\n/g,'<br>')};
+  switch(it.k){
+  case 'status':{
+    const {r,line}=statusText();
+    out.steps=[rd('IRR, profit, equity multiple')];
+    done(`*Current ${Object.keys(S).length?'sandbox scenario':'base case'}*\n${line}\nThis ${verdict(r)} (IRR ≥ ${fP(HURDLE.irr)}, profit on cost ≥ ${fP(HURDLE.poc)}).`);
+    break}
+  case 'mod':{
+    const before=run(S);const nd={...S,...it.mods};const after=run(nd);
+    out.steps=['Create sandbox copy of Al Narjis feasibility',...writeSteps(it.mods),'Recalculate and read outputs',calib];
+    out.fx=()=>{Object.assign(S,it.mods);Object.keys(S).forEach(k=>{if(!S[k])delete S[k]});changelog.push(`${ch==='web'?'Workspace':'WhatsApp'}: ${scenName(it.mods)}`);renderAll(true)};
+    done(`*Scenario: ${scenName(it.mods)}*\nLevered IRR ${fP(before.irr)} → *${fP(after.irr)}*\nProfit on cost ${fP(before.poc)} → *${fP(after.poc)}*\nNet profit ${fM(before.profit)} → *${fM(after.profit)}*\nThis ${verdict(after)}.`);
+    break}
+  case 'stress':{
+    out.steps=['Load stress library (8 scenarios)',...writeSteps({price:-15}).slice(0,1),'Run each scenario on replica engine','Score against IRR and profit-on-cost hurdles',calib];
+    const res=computeStress();const fails=res.filter(x=>!x.pass);const worst=res.slice().sort((a,b)=>a.r.poc-b.r.poc)[0];
+    out.fx=()=>{stressRes=res;computeTornado();computeHeadroom();renderStress()};
+    out.link=['stress','Open stress tests'];
+    done(`*Stress test complete: ${res.length} scenarios*\n${res.length-fails.length} pass, ${fails.length} fail.\nWorst: ${worst.name}, IRR ${fP(worst.r.irr)}, profit ${fM(worst.r.profit)}.\n${fails.length?'Breaches: '+fails.map(f=>f.name).join('; ')+'.':'No hurdle breaches.'}`,
+     `<b>Stress test complete: ${res.length} scenarios</b><br>${res.length-fails.length} pass, ${fails.length} fail. Worst case <b>${esc(worst.name)}</b>: IRR ${fP(worst.r.irr)}, net profit ${fM(worst.r.profit)}.`+miniTable(res));
+    break}
+  case 'sens':{
+    let [a,b]=it.v||[];a=a||'price';b=(b&&b!==a)?b:(a==='cost'?'price':'cost');
+    out.steps=[`Sweep ${VARS[a].label} × ${VARS[b].label} (${hn}×${hn} = ${hn*hn} runs)`,'Recalculate each cell on replica engine',calib];
+    out.fx=()=>{hx=a;hy=b;syncHeatSel();renderHeat()};out.link=['explore','Open sensitivity surface'];
+    const rows=gridStats(a,b);
+    done(`*Sensitivity: ${VARS[a].label} × ${VARS[b].label}*\n${rows.below} of ${rows.total} cells fall below the IRR hurdle (${fP(HURDLE.irr)}).\nIRR range ${fP(rows.min)} to ${fP(rows.max)}.\n${rows.edge}`);
+    break}
+  case 'explore':{
+    out.steps=['Spin up autonomous explorer (all 8 assumptions)','Sample 300 scenarios per cycle, accumulate stats','Queue any hurdle breach for verification in EstateMaster'];
+    out.fx=()=>{startExplorer();showTab('explore')};out.link=['explore','Watch it run'];
+    done('*Explorer started.*\nIt is sampling scenarios across all 8 assumptions until paused, tracking P(IRR below hurdle), key drivers and the smallest combined moves that break the deal. I will alert you on any breach.');
+    break}
+  case 'reverse':{
+    out.steps=['Solve for break-even on each assumption (bisection)','Solve for capital-loss point',calib];
+    const h=computeHeadroomData();
+    out.fx=()=>{headRes=h;renderStress()};out.link=['stress','Open headroom table'];
+    const top=h.filter(x=>x.irrD!=null&&!Number.isNaN(x.irrD)).sort((a,b)=>Math.abs(a.irrD)/(VARS[a.k].kind==='pct'?1:5)-Math.abs(b.irrD)/(VARS[b.k].kind==='pct'?1:5))[0];
+    done(`*Headroom vs IRR hurdle ${fP(HURDLE.irr)}*\n`+h.filter(x=>x.k!=='ltc').map(x=>`${VARS[x.k].label}: ${hd(x.k,x.irrD)}`).join('\n')+`\nTightest: ${top?VARS[top.k].label:'n/a'}.`);
+    break}
+  case 'report':{
+    out.steps=[rd('base case outputs'),'Collect stress and sensitivity results','Draft narrative and recommendation','Assemble IC pack and stamp data lineage'];
+    out.fx=()=>{if(!stressRes){stressRes=computeStress();computeTornado();computeHeadroom()}renderReport();renderStress()};
+    out.link=['report','Open IC pack'];out.attach={label:'AlNarjis_IC_Pack.pdf',kind:'PDF'};
+    const {r}=statusText();
+    done(`*IC pack ready*\n${Object.keys(S).length?'Scenario: '+scenName(S)+'.':'Base case.'} Levered IRR ${fP(r.irr)}, profit on cost ${fP(r.poc)}. This ${verdict(r)}.\nIncludes stress table, tornado, headroom and assumption changelog.`);
+    break}
+  case 'reset':{
+    out.steps=[wr('all inputs = base'),'Recalculate'];
+    out.fx=()=>{S={};changelog.push('Reset to base');renderAll(true)};
+    done(`Sandbox reset to base case.\nLevered IRR ${fP(baseRes.irr)}, profit on cost ${fP(baseRes.poc)}.`);break}
+  case 'promote':{
+    if(!Object.keys(S).length){done('Nothing to promote: sandbox equals base case.');break}
+    if(!web&&role!=='Investment Director'){
+      out.steps=['Check role permissions for this number'];
+      done('*Not permitted.* Writing to the live EstateMaster model needs an Investment Director. I can send an approval request to them, or keep this as a sandbox scenario.');break}
+    out.steps=['Check role permissions',route==='files'?'Read-only route: cannot write back':'Prepare change set (diff vs base)'];
+    pending={ch};
+    done(`*Approval needed*\nPromote to EstateMaster: ${scenName(S)}.\nReply *APPROVE* to write, or *CANCEL*.`);
+    if(web)out.fx=()=>openModal();
+    break}
+  case 'approve':{
+    if(!pending){done('Nothing waiting for approval.');break}
+    if(!web&&role!=='Investment Director'){done('*Not permitted.* Approval must come from an Investment Director.');break}
+    out.steps=['Step-up check passed (one-time code, demo)',wr('approved change set'),rf()||'Read-only: change set saved as proposal','Write audit record'].filter(Boolean);
+    pending=null;
+    out.fx=()=>{changelog.push(`Promoted to EstateMaster (${ch}): ${scenName(S)}`);toast('Change set written to EstateMaster · audit logged')};
+    done(route==='files'?'*Saved as proposal.* This route is read-only, so nothing was written to EstateMaster.':'*Approved and written.* EstateMaster updated via '+ROUTES[route].t+'. Audit entry created.');break}
+  case 'cancel':{pending=null;done('Cancelled. Nothing was written.');break}
+  default:{
+    done('*I can:*\n• "What if sale price drops 10% and cost +15%"\n• "Stress test the model"\n• "Sensitivity of exit cap vs construction cost"\n• "Keep exploring autonomously"\n• "How far can prices fall?"\n• "Build the IC report"\n• "Promote scenario"');
+    out.html='<b>I can:</b><div class="chips" style="margin:6px 0">'+CHIPS.map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>';
+  }}
+  return out;
+}
+function miniTable(res){return '<table><tr><th>Scenario</th><th>IRR</th><th>Profit</th><th></th></tr>'+res.map(x=>`<tr><td>${esc(x.name)}</td><td>${fP(x.r.irr)}</td><td>${fM(x.r.profit)}</td><td><span class="pill ${x.pass?'p':'f'}">${x.pass?'pass':'fail'}</span></td></tr>`).join('')+'</table><a class="go" data-tab="stress">Open stress tests →</a>'}
+const CHIPS=['Stress test the model','What if sale price drops 10% and cost rises 15%?','Sensitivity of exit cap vs construction cost','Keep exploring autonomously','How far can prices fall?','Build the IC report'];
+
+/* ================= STRESS / TORNADO / HEADROOM ================= */
+const STRESS=[
+ {name:'Sale price −15%',d:{price:-15}},
+ {name:'Construction cost +20%',d:{cost:20}},
+ {name:'12-month delay',d:{delay:12}},
+ {name:'Interest rate +300 bps',d:{rate:3}},
+ {name:'Exit cap rate +150 bps',d:{cap:1.5}},
+ {name:'Retail rent −20%',d:{rent:-20}},
+ {name:'Combined downside',d:{price:-10,cost:10,delay:6,cap:.75,rate:1}},
+ {name:'Severe combined',d:{price:-20,cost:20,delay:12,cap:1.5,rate:2}}
+];
+const passes=r=>bad(r.irr)>=HURDLE.irr&&r.poc>=HURDLE.poc;
+function merge(a,b){const o={...a};for(const k in b)o[k]=(o[k]||0)+b[k];return o}
+function computeStress(){return STRESS.map(s=>{const r=run(merge(S,s.d));return{name:s.name,d:s.d,r,pass:passes(r)}})}
+const TORN={price:[-10,10],rent:[-10,10],cost:[-10,10],land:[-10,10],cap:[-1,1],rate:[-1.5,1.5],delay:[0,6],ltc:[-10,10]};
+function computeTornado(){
+  const b=run(S);
+  tornRes=KEYS.map(k=>{const [lo,hi]=TORN[k];const rl=run({...S,[k]:(S[k]||0)+lo}),rh=run({...S,[k]:(S[k]||0)+hi});
+    return{k,lo:bad(rl.irr)-bad(b.irr),hi:bad(rh.irr)-bad(b.irr),tl:lo,th:hi}}).sort((a,b)=>Math.max(Math.abs(b.lo),Math.abs(b.hi))-Math.max(Math.abs(a.lo),Math.abs(a.hi)));
+}
+function computeHeadroomData(){
+  const out=[];
+  for(const k of KEYS){
+    const v=VARS[k];if(k==='ltc'){out.push({k,irrD:null,lossD:null});continue}
+    const dir=v.adv,lim=v.kind==='pct'?90:(k==='delay'?48:(k==='cap'?12:15)),base=S[k]||0;
+    const solve=f=>{let a=0,b=lim;if(f(base)<0)return NaN;if(f(base+dir*b)>0)return null;
+      for(let i=0;i<50;i++){const m=(a+b)/2;if(f(base+dir*m)>0)a=m;else b=m}return dir*(a+b)/2};
+    out.push({k,irrD:solve(x=>bad(run({...S,[k]:x}).irr)-HURDLE.irr),lossD:solve(x=>run({...S,[k]:x}).profit)});
+  }
+  return out;
+}
+const hd=(k,d)=>d==null?'not reached':Number.isNaN(d)?'already breached':fD(k,d);
+function computeHeadroom(){headRes=computeHeadroomData()}
+function renderStress(){
+  $('#hIRR').textContent=fP(HURDLE.irr);$('#hPOC').textContent=fP(HURDLE.poc);
+  const b=run(S);
+  const rows=stressRes||computeStress();
+  $('#stressT').innerHTML='<tr><th>Scenario</th><th class="n">IRR</th><th class="n">Δ IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th><th></th></tr>'+
+    `<tr><td><b>${Object.keys(S).length?'Sandbox scenario':'Base case'}</b></td><td class="n">${fP(b.irr)}</td><td class="n">–</td><td class="n">${fP(b.poc)}</td><td class="n">${fM(b.profit)}</td><td><span class="pill ${passes(b)?'p':'f'}">${passes(b)?'pass':'fail'}</span></td></tr>`+
+    rows.map(x=>`<tr><td>${esc(x.name)}</td><td class="n">${fP(x.r.irr)}</td><td class="n ${bad(x.r.irr)<bad(b.irr)?'dn':'up'}">${Number.isNaN(x.r.irr)?'n/m':sgn((bad(x.r.irr)-bad(b.irr))*100,1)+' pts'}</td><td class="n">${fP(x.r.poc)}</td><td class="n">${fM(x.r.profit)}</td><td><span class="pill ${x.pass?'p':'f'}">${x.pass?'pass':'fail'}</span></td></tr>`).join('');
+  if(!tornRes)computeTornado();
+  const mx=Math.max(...tornRes.map(t=>Math.max(Math.abs(t.lo),Math.abs(t.hi))),.01);
+  $('#tornado').innerHTML=tornRes.map(t=>{
+    const w=v=>Math.abs(v)/mx*46;
+    const seg=(v)=>v<0?`<i style="position:absolute;right:50%;width:${w(v)}%;height:100%;background:var(--alert);border-radius:4px 0 0 4px"></i>`:`<i style="position:absolute;left:50%;width:${w(v)}%;height:100%;background:var(--ink);border-radius:0 4px 4px 0"></i>`;
+    return `<div style="display:grid;grid-template-columns:120px 1fr 96px;gap:8px;align-items:center;font-size:12.5px;margin:6px 0"><span>${VARS[t.k].label}</span><span style="position:relative;height:16px;background:rgba(0,9,25,.05);border-radius:4px"><b style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint)"></b>${seg(t.lo)}${seg(t.hi)}</span><span style="color:var(--soft);font-size:11.5px">${fD(t.k,t.tl)} / ${fD(t.k,t.th)}</span></div>`}).join('')+
+    `<div class="legend"><span><i class="sw" style="background:var(--alert)"></i>lowers IRR</span><span><i class="sw" style="background:var(--ink)"></i>raises IRR</span><span>Base IRR ${fP(b.irr)}</span></div>`;
+  if(!headRes)computeHeadroom();
+  $('#headT').innerHTML='<tr><th>Assumption</th><th class="n">Until IRR &lt; '+fP(HURDLE.irr)+'</th><th class="n">Until loss</th></tr>'+headRes.filter(x=>x.k!=='ltc').map(x=>`<tr><td>${VARS[x.k].label}</td><td class="n">${hd(x.k,x.irrD)}</td><td class="n">${hd(x.k,x.lossD)}</td></tr>`).join('');
+}
+
+/* ================= HEATMAP ================= */
+function axis(k,n){const v=VARS[k];return Array.from({length:n},(_,i)=>{let x=v.lo+(v.hi-v.lo)*i/(n-1);return k==='delay'?Math.round(x):+x.toFixed(3)})}
+function metricOf(r,m){return m==='irr'?bad(r.irr):m==='poc'?r.poc:r.profit}
+function fMetric(v,m){return m==='profit'?fM(v):(v*100).toFixed(m==='irr'?0:0)+'%'}
+function gridStats(a,b){
+  const xs=axis(a,hn),ys=axis(b,hn);let below=0,min=9,max=-9;
+  for(const y of ys)for(const x of xs){const r=run({...S,[a]:x,[b]:y}),v=bad(r.irr);if(v<HURDLE.irr)below++;min=Math.min(min,v);max=Math.max(max,v)}
+  const total=hn*hn;
+  return{below,total,min,max,edge:below?`Breach zone is where ${VARS[a].label.toLowerCase()} and ${VARS[b].label.toLowerCase()} move against you together.`:'No cell breaches the hurdle in this range.'};
+}
+function cellStyle(v,m){
+  const h=m==='irr'?HURDLE.irr:m==='poc'?HURDLE.poc:0,spread=m==='profit'?1.5e8:.2;
+  const t=Math.max(-1,Math.min(1,(v-h)/spread));
+  if(t<0){const a=.18+(-t)*.7;return`background:rgba(255,77,106,${a});color:${a>.55?'#fff':'#000919'}`}
+  const a=.06+t*.72;return`background:rgba(0,9,25,${a});color:${a>.42?'#fff':'#000919'}`;
+}
+function renderHeat(){
+  const xs=axis(hx,hn),ys=axis(hy,hn),el=$('#heat');
+  el.innerHTML='';const g=document.createElement('div');g.className='hm';g.style.gridTemplateColumns=`44px repeat(${hn},1fr)`;
+  let h=`<div class="h"></div>`+xs.map(x=>`<div class="h">${hn<=13?fD(hx,x):''}</div>`).join('');
+  const bx=nearest(xs,S[hx]||0),by=nearest(ys,S[hy]||0);
+  ys.forEach((y,j)=>{h+=`<div class="h">${fD(hy,y)}</div>`;xs.forEach((x,i)=>{
+    const r=run({...S,[hx]:x,[hy]:y}),v=metricOf(r,hmetric);
+    h+=`<div class="c ${i===bx&&j===by?'base':''}" style="${cellStyle(v,hmetric)}" title="${VARS[hx].label} ${fD(hx,x)}, ${VARS[hy].label} ${fD(hy,y)}: IRR ${fP(r.irr)}, profit ${fM(r.profit)}">${hn<=13?fMetric(v,hmetric):''}</div>`})});
+  g.innerHTML=h;el.appendChild(g);
+  $('#hcap').textContent=`X: ${VARS[hx].label} · Y: ${VARS[hy].label} · ${hn*hn} recalculations`;
+}
+const nearest=(arr,v)=>arr.reduce((b,x,i)=>Math.abs(x-v)<Math.abs(arr[b]-v)?i:b,0);
+function syncHeatSel(){$('#hx').value=hx;$('#hy').value=hy}
+
+/* ================= EXPLORER ================= */
+const E={run:false,t:null,n:0,bins:Array(28).fill(0),below:0,vals:[],sx:{},worst:null,br:[],ticks:0,pairIdx:0};
+function tri(lo,hi){const u=Math.random(),c=(0-lo)/(hi-lo);return u<c?lo+Math.sqrt(u*(hi-lo)*(0-lo)):hi-Math.sqrt((1-u)*(hi-lo)*hi)}
+function resetE(){E.n=0;E.bins=Array(28).fill(0);E.below=0;E.vals=[];E.sx={};E.br=[];E.worst=null;E.ticks=0;E.y={n:0,s:0,s2:0};KEYS.forEach(k=>E.sx[k]={s:0,s2:0,sy:0});renderExplorer()}
+function eTick(){
+  E.ticks++;
+  for(let i=0;i<300;i++){
+    const d={};let dist=0;
+    for(const k of KEYS){const v=VARS[k];const sc=k==='delay'?.4:.2;let x=tri(v.lo*sc,v.hi*sc);if(k==='delay')x=Math.round(x/3)*3;d[k]=x;const ext=Math.max(Math.abs(v.lo),Math.abs(v.hi))*sc;dist+=(x/ext)**2}
+    const r=run(d),irr=bad(r.irr);
+    E.n++;E.y.n++;E.y.s+=irr;E.y.s2+=irr*irr;
+    for(const k of KEYS){const s=E.sx[k];s.s+=d[k];s.s2+=d[k]*d[k];s.sy+=d[k]*irr}
+    const bi=Math.max(0,Math.min(27,Math.floor((irr+.2)/.7*28)));E.bins[bi]++;
+    if(E.vals.length<40000)E.vals.push(irr);else E.vals[Math.floor(Math.random()*40000)]=irr;
+    if(irr<HURDLE.irr){E.below++;dist=Math.sqrt(dist);if(E.br.length<5||dist<E.br[E.br.length-1].dist){E.br.push({d,irr,dist,poc:r.poc});E.br.sort((a,b)=>a.dist-b.dist);E.br=E.br.slice(0,5)}}
+    if(!E.worst||irr<E.worst.irr)E.worst={d,irr};
+  }
+  if($('#hcycle').checked&&E.ticks%6===0){const pairs=[];for(let i=0;i<KEYS.length;i++)for(let j=i+1;j<KEYS.length;j++)pairs.push([KEYS[i],KEYS[j]]);const p=pairs[E.pairIdx++%pairs.length];hx=p[0];hy=p[1];syncHeatSel();renderHeat()}
+  renderExplorer();
+}
+function startExplorer(){if(E.run)return;E.run=true;$('#etoggle').textContent='Pause';E.t=setInterval(eTick,300);renderExplorer()}
+function stopExplorer(){E.run=false;clearInterval(E.t);$('#etoggle').textContent='Start';renderExplorer()}
+function pct(arr,p){const s=arr.slice().sort((a,b)=>a-b);return s[Math.floor(p*(s.length-1))]}
+function renderExplorer(){
+  $('#ecount').textContent=E.n.toLocaleString();
+  const dl=$('#etoggle');dl.textContent=E.run?'Pause':(E.n?'Resume':'Start');
+  if(!E.n){$('#estat').textContent='';$('#ehist').innerHTML='<div style="color:var(--soft);font-size:13px;padding:24px 0">No runs yet.</div>';$('#edrv').innerHTML='';return}
+  $('#estat').innerHTML=`P(IRR &lt; ${fP(HURDLE.irr)}) <b>${(E.below/E.n*100).toFixed(1)}%</b> · P10 ${fP(pct(E.vals,.1))} · P50 ${fP(pct(E.vals,.5))} · P90 ${fP(pct(E.vals,.9))}`;
+  const mx=Math.max(...E.bins),W=560,H=110,bw=W/28;
+  const hx0=((HURDLE.irr+.2)/.7)*W;
+  $('#ehist').innerHTML=`<svg viewBox="0 0 ${W} ${H+18}" style="width:100%"><rect width="${W}" height="${H}" fill="rgba(0,9,25,.04)" rx="6"/>`+E.bins.map((c,i)=>{const h=c/mx*(H-8),x=i*bw,mid=(i+.5)/28*.7-.2;return `<rect x="${x+1}" y="${H-h}" width="${bw-2}" height="${h}" rx="2" fill="${mid<HURDLE.irr?'#FF4D6A':'#000919'}" opacity=".85"/>`}).join('')+`<line x1="${hx0}" x2="${hx0}" y1="0" y2="${H}" stroke="#000919" stroke-dasharray="4 3"/><text x="${hx0+4}" y="${H+13}" font-size="10" fill="#000919">hurdle 18%</text><text x="0" y="${H+13}" font-size="10" fill="#666">−20%</text><text x="${W-30}" y="${H+13}" font-size="10" fill="#666">50% IRR</text></svg>`;
+  const N=E.y.n,my=E.y.s/N,vy=E.y.s2/N-my*my;
+  const drv=KEYS.map(k=>{const s=E.sx[k],mx_=s.s/N,vx=s.s2/N-mx_*mx_,c=(s.sy/N-mx_*my)/Math.sqrt(vx*vy||1);return{k,c}}).sort((a,b)=>Math.abs(b.c)-Math.abs(a.c));
+  $('#edrv').innerHTML=drv.map(x=>`<div class="r"><span>${VARS[x.k].label}</span><span class="b"><i style="width:${Math.abs(x.c)*100}%;background:${x.c<0?'var(--alert)':'var(--ink)'}"></i></span><span style="color:var(--soft)">${x.c<0?'−':'+'}${Math.abs(x.c).toFixed(2)}</span></div>`).join('');
+  $('#ebreach').innerHTML=E.br.length?E.br.map(b=>`<div>${scenName(Object.fromEntries(Object.entries(b.d).map(([k,v])=>[k,+v.toFixed(k==='delay'?0:(VARS[k].kind==='pct'?1:2))]).filter(([k,v])=>Math.abs(v)>(VARS[k].kind==='pct'?2.5:.2)&&!(k==='delay'&&v<3))))} → <b>IRR ${fP(b.irr)}</b></div>`).join('')+'<div style="color:var(--soft);font-size:12px">Queued for verification in EstateMaster before any report cites them.</div>':'<div style="color:var(--soft)">No breach found yet.</div>';
+  if(E.n>=3000&&!E.alerted){E.alerted=true;waAlert(true)}
+}
+
+/* ================= REPORT ================= */
+function reportHTML(){
+  const b=run(S),base=baseRes,st=stressRes||computeStress();
+  const fails=st.filter(x=>!x.pass),v=verdict(b),ok=passes(b);
+  const id='BH-EM-'+new Date().toISOString().slice(5,10).replace('-','')+'-'+String(E.n+b.rev%997|0).slice(-3).padStart(3,'0');
+  const rec=ok?(fails.length>=4?'Proceed with conditions: the base case clears the hurdles but resilience is limited. Lock construction cost and price the debt before commitment.':'Proceed: the case clears the hurdles and holds up under most stress scenarios.'):'Do not approve on current assumptions: the case '+v+'. Revisit price, cost or leverage before returning to committee.';
+  const h=(headRes||computeHeadroomData()).filter(x=>x.k!=='ltc');
+  const tight=h.filter(x=>x.irrD!=null&&!Number.isNaN(x.irrD)).sort((a,c)=>Math.abs(a.irrD)/(VARS[a.k].kind==='pct'?1:5)-Math.abs(c.irrD)/(VARS[c.k].kind==='pct'?1:5))[0];
+  return `<div class="meta">Investment Committee pack · ${new Date().toDateString()}</div>
+  <h1>Al Narjis Mixed-Use, Riyadh</h1>
+  <div class="meta">Residential for sale + retail for hold · SAR · ${Object.keys(S).length?'Sandbox scenario: '+esc(scenName(S)):'Base case'}</div>
+  <div class="verdict ${ok?'':'bad'}"><b>Recommendation.</b> ${esc(rec)}</div>
+  <div class="rk"><div><span>Levered IRR</span><b>${fP(b.irr)}</b></div><div><span>Profit on cost</span><b>${fP(b.poc)}</b></div><div><span>Net profit</span><b>${fM(b.profit)}</b></div><div><span>Equity multiple</span><b>${fX(b.em)}</b></div></div>
+  <h3>Summary</h3>
+  <p>Gross revenue is ${fM(b.rev)} against all-in cost of ${fM(b.tc)} including ${fM(b.interest)} of finance cost. Peak debt is ${fM(b.peak)}. Retail stabilises at NOI of ${fM(b.noi)} a year, valued at ${fM(b.exitV)} on exit at a ${(BASE.cap+(S.cap||0)).toFixed(2)}% cap rate.</p>
+  <p>Versus the base case the levered IRR moves from ${fP(base.irr)} to ${fP(b.irr)}. ${!ok&&Object.keys(S).length?'The sandbox scenario is already below a hurdle, so headroom shows as breached.':''} ${tight?`The tightest single assumption is <b>${VARS[tight.k].label.toLowerCase()}</b>: the IRR hurdle breaks at ${fD(tight.k,tight.irrD)}.`:''}</p>
+  <h3>Stress tests</h3>
+  <table class="t"><tr><th>Scenario</th><th class="n">IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th><th></th></tr>${st.map(x=>`<tr><td>${esc(x.name)}</td><td class="n">${fP(x.r.irr)}</td><td class="n">${fP(x.r.poc)}</td><td class="n">${fM(x.r.profit)}</td><td>${x.pass?'pass':'<b style="color:#FF4D6A">fail</b>'}</td></tr>`).join('')}</table>
+  <h3>Headroom before the IRR hurdle breaks</h3>
+  <table class="t"><tr><th>Assumption</th><th class="n">Headroom</th><th class="n">Until loss</th></tr>${h.map(x=>`<tr><td>${VARS[x.k].label}</td><td class="n">${hd(x.k,x.irrD)}</td><td class="n">${hd(x.k,x.lossD)}</td></tr>`).join('')}</table>
+  ${E.n?`<h3>Autonomous exploration</h3><p>${E.n.toLocaleString()} scenarios sampled across all eight assumptions. Probability of IRR below hurdle: ${(E.below/E.n*100).toFixed(1)}%. Median IRR ${fP(pct(E.vals,.5))}, P10 ${fP(pct(E.vals,.1))}, P90 ${fP(pct(E.vals,.9))}.</p>`:''}
+  <h3>Assumption changelog</h3>
+  <p>${changelog.length?changelog.map(esc).join('<br>'):'No changes: base case as held in EstateMaster.'}</p>
+  <div class="lineage">Data lineage · run ${id} · connection: ${ROUTES[route].t} · engine: calibrated replica${route==='files'?' (read-only route)':', reconciled to EstateMaster'} · illustrative demo data · generated by Bohio Agent</div>`;
+}
+function renderReport(){$('#report').innerHTML=reportHTML()}
+function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+function csv(){const xs=axis(hx,hn),ys=axis(hy,hn);let c=`${VARS[hy].label} \\ ${VARS[hx].label},`+xs.join(',')+'\n';ys.forEach(y=>{c+=y+','+xs.map(x=>{const r=run({...S,[hx]:x,[hy]:y});return Number.isNaN(r.irr)?'':(r.irr*100).toFixed(2)}).join(',')+'\n'});return c}
+
+/* ================= WEB UI ================= */
+function renderKPIs(flash){
+  const r=run(S),b=baseRes,ch=Object.keys(S).length;
+  const items=[['Levered IRR',fP(r.irr),bad(r.irr)-bad(b.irr),1,bad(r.irr)<HURDLE.irr,'pts',100],['Profit on cost',fP(r.poc),r.poc-b.poc,1,r.poc<HURDLE.poc,'pts',100],['Net profit',fM(r.profit),r.profit-b.profit,1,r.profit<0,'M',1e-6],['Equity multiple',fX(r.em),r.em-b.em,1,r.em<1.5,'x',1],['Peak debt',fM(r.peak),r.peak-b.peak,-1,false,'M',1e-6]];
+  $('#kpis').innerHTML=items.map(([l,v,d,s,badF,u,m])=>{const dd=d*m;return`<div class="kpi ${badF?'bad':''} ${flash?'flash':''}"><div class="l">${l}</div><div class="v">${v}</div><div class="dl">${!ch||Math.abs(dd)<.005?'base':`<span class="${dd*s<0?'dn':'up'}">${sgn(dd,u==='x'?2:(u==='M'?0:1))}${u==='pts'?' pts':u==='M'?'M':'x'}</span> vs base`}</div></div>`}).join('');
+  $('#kpiSub').textContent=ch?'Sandbox: '+scenName(S):'Base case, no changes';
+}
+function renderAsm(){
+  $('#asm').innerHTML=KEYS.map(k=>{const v=VARS[k],d=S[k]||0,p=apply({[k]:d})[k];
+    return`<div class="k ${d?'chg':''}" style="${d?'font-weight:600':''}">${v.label}</div><input type="range" min="${v.lo}" max="${v.hi}" step="${v.step}" value="${d}" data-k="${k}"><div class="val">${v.fmt(p)}<small>${d?fD(k,d)+' vs base':'base'}</small></div>`}).join('');
+  $$('#asm input').forEach(i=>i.oninput=()=>{const k=i.dataset.k;S[k]=+i.value;if(!S[k])delete S[k];renderAll(false)});
+  $('#sbx').textContent=Object.keys(S).length?`Sandbox differs from base in ${Object.keys(S).length} assumption${Object.keys(S).length>1?'s':''}. Base case in EstateMaster is untouched.`:'Working on a sandbox copy. Base case in EstateMaster is untouched.';
+}
+function renderAll(flash){renderKPIs(flash);renderAsm();stressRes=null;tornRes=null;headRes=null;renderStress();renderHeat();if($('#p-report').classList.contains('on'))renderReport()}
+
+function addMsg(who,html){const m=document.createElement('div');m.className='msg '+who;m.innerHTML=who==='agent'?`<div class="steps"></div><div class="body">${html||''}</div>`:esc(html);$('#msgs').appendChild(m);$('#msgs').scrollTop=1e9;return m}
+let busy=false;
+async function webAsk(text){
+  if(!text.trim()||busy)return;busy=true;
+  addMsg('user',text);$('#ask').value='';
+  const out=await handle(text,'web','Investment Director');
+  const m=addMsg('agent','');const box=m.querySelector('.steps');
+  for(const s of out.steps){const e=document.createElement('div');e.className='st';e.innerHTML=`<i></i><span>${esc(s)}</span>`;box.appendChild(e);$('#msgs').scrollTop=1e9;await sleep(380);e.classList.add('done')}
+  out.fx();
+  m.querySelector('.body').innerHTML=out.html+(out.link&&!/data-tab/.test(out.html)?`<br><a class="go" data-tab="${out.link[0]}">${out.link[1]} →</a>`:'');
+  $('#msgs').scrollTop=1e9;busy=false;
+}
+$('#send').onclick=()=>webAsk($('#ask').value);
+$('#ask').onkeydown=e=>{if(e.key==='Enter')webAsk(e.target.value)};
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-tab]');if(t){showTab(t.dataset.tab)}
+  const q=e.target.closest('[data-q]');if(q)webAsk(q.dataset.q);
+});
+$('#chips').innerHTML=CHIPS.map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('');
+$('#reset').onclick=()=>{S={};changelog.push('Reset to base');renderAll(true)};
+$('#promote').onclick=()=>webAsk('promote scenario');
+function openModal(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S))}</b><br>Route: ${ROUTES[route].t}${route==='files'?' (read-only: will be saved as a proposal)':''}<br>The base case is overwritten only after this approval. An audit record is written.`;$('#modal').classList.add('on')}
+$('#mno').onclick=()=>{pending=null;$('#modal').classList.remove('on')};
+$('#myes').onclick=()=>{$('#modal').classList.remove('on');webAsk('approve')};
+
+/* routes + tabs */
+function renderRoutes(){$('#routes').innerHTML=Object.entries(ROUTES).map(([k,r])=>`<div class="route ${k===route?'on':''}" data-r="${k}"><div class="n">ROUTE ${r.n}<span class="tag">${r.tag}</span></div><div class="t">${r.t}</div><div class="d">${r.d}</div></div>`).join('');
+  $$('.route').forEach(e=>e.onclick=()=>{route=e.dataset.r;renderRoutes();toast('Connection route: '+ROUTES[route].t)})}
+const TABS=[['agent','Agent'],['explore','Sensitivity & Explorer'],['stress','Stress tests'],['report','IC report'],['wa','WhatsApp'],['arch','Architecture']];
+function showTab(id){$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report')renderReport();if(id==='explore')renderHeat();window.scrollTo({top:0,behavior:'smooth'})}
+$('#tabs').innerHTML=TABS.map(([id,l])=>`<div class="tab ${id==='agent'?'on':''}" data-t="${id}">${l}</div>`).join('');
+$$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
+
+/* explorer + heat + stress controls */
+KEYS.forEach(k=>{$('#hx').add(new Option(VARS[k].label,k));$('#hy').add(new Option(VARS[k].label,k))});
+$('#hx').onchange=e=>{hx=e.target.value;if(hx===hy){hy=KEYS.find(k=>k!==hx);syncHeatSel()}renderHeat()};
+$('#hy').onchange=e=>{hy=e.target.value;if(hx===hy){hx=KEYS.find(k=>k!==hy);syncHeatSel()}renderHeat()};
+$('#hm').onchange=e=>{hmetric=e.target.value;renderHeat()};
+$('#hn').onchange=e=>{hn=+e.target.value;renderHeat()};
+$('#etoggle').onclick=()=>E.run?stopExplorer():startExplorer();
+$('#eclear').onclick=()=>{stopExplorer();E.alerted=false;resetE()};
+$('#runStress').onclick=()=>{stressRes=computeStress();computeTornado();computeHeadroom();renderStress();toast('Stress tests recalculated')};
+$('#rgen').onclick=renderReport;$('#rprint').onclick=()=>{renderReport();window.print()};
+$('#rhtml').onclick=()=>download('AlNarjis_IC_Pack.html','<!doctype html><meta charset="utf-8"><title>IC Pack</title><body style="font-family:sans-serif;max-width:860px;margin:40px auto">'+reportHTML()+'</body>','text/html');
+$('#rcsv').onclick=()=>download('sensitivity.csv',csv(),'text/csv');
+
+/* ================= WHATSAPP UI ================= */
+const WQ=['Status','Stress test','What if price -10%','Build IC report','Promote scenario'];
+const tm=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+function wBubble(cls,html){const b=document.createElement('div');b.className='wb '+cls;b.innerHTML=html+(cls.includes('tp')?'':`<span class="tm">${tm()}${cls==='me'?' ✓✓':''}</span>`);$('#wmsgs').appendChild(b);$('#wmsgs').scrollTop=1e9;return b}
+let wbusy=false;
+async function waAsk(text){
+  if(!text.trim()||wbusy)return;wbusy=true;
+  const role=$('#warole').value;
+  wBubble('me',esc(text));$('#wain').value='';
+  const out=await handle(text,'wa',role);
+  const tp=wBubble('bot tp','typing…');$('#wastat').textContent='typing…';
+  await sleep(500+Math.min(out.steps.length,5)*260);
+  out.fx();tp.remove();$('#wastat').textContent='online';
+  wBubble('bot',out.plain.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])).replace(/\*(.+?)\*/g,'<b>$1</b>')+(out.attach?`<div class="att"><i>${out.attach.kind}</i><span>${out.attach.label}<br><small style="color:var(--soft)">expiring secure link · 24h</small></span></div>`:''));
+  if(text&&out.fx){toast(`WhatsApp · ${role}: ${text.length>38?text.slice(0,36)+'…':text}`)}
+  wbusy=false;
+}
+function waAlert(auto){
+  if(!$('#wmsgs').children.length)return;
+  wBubble('bot',`⚠️ <b>Explorer alert</b>\n${E.n.toLocaleString()} scenarios run. P(IRR &lt; ${fP(HURDLE.irr)}) = ${(E.below/Math.max(1,E.n)*100).toFixed(1)}%. Smallest breach found: ${E.br[0]?fP(E.br[0].irr)+' IRR':'none yet'}. Queued for verification in EstateMaster.\n<i>Template message · reply <b>Stress test</b> for details</i>`);
+  if(!auto)toast('Proactive alert sent to WhatsApp')
+}
+$('#wq').innerHTML=WQ.map(q=>`<span class="chip" data-w="${q}">${q}</span>`).join('');
+$('#wq').onclick=e=>{const c=e.target.closest('[data-w]');if(c)waAsk(c.dataset.w)};
+$('#wasend').onclick=()=>waAsk($('#wain').value);$('#wain').onkeydown=e=>{if(e.key==='Enter')waAsk(e.target.value)};
+$('#waalert').onclick=()=>{if(!E.n){E.run||startExplorer();setTimeout(()=>waAlert(false),1200)}else waAlert(false)};
+$('#warole').onchange=e=>wBubble('bot',`<i>Number verified: Fatima A. · role <b>${e.target.value}</b></i>`);
+
+/* ================= INIT ================= */
+addMsg('agent','<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
+wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
+wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
+renderRoutes();syncHeatSel();resetE();renderAll(false);
+</script>
+</body>
+</html>
