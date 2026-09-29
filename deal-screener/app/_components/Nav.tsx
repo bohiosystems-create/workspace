@@ -7,7 +7,6 @@ const LINKS = [
   { href: "/reporting", label: "LP Reporting" },
   { href: "/debt", label: "Debt & Covenants" },
   { href: "/screening", label: "Deal Screening" },
-  { href: "/marketing", label: "Marketing & Sales" },
 ];
 
 export default function Nav() {

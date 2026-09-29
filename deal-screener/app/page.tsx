@@ -20,12 +20,6 @@ const WORKFLOWS = [
     title: "Deal Screening",
     desc: "Upload a teaser or OM; Claude extracts the figures, a deterministic underwrite runs against the fund hurdles, and Claude drafts the IC memo.",
   },
-  {
-    href: "/marketing",
-    n: "04",
-    title: "Marketing & Sales",
-    desc: "Monitor and orchestrate marketing vendors: campaign spend, funnel and contracted sales per vendor, SLA and contract alerts, and one-click pause / budget-shift decisions with an audit trail.",
-  },
 ];
 
 export default function Home() {
@@ -34,8 +28,8 @@ export default function Home() {
       <Nav />
       <div className="section-title">Fund Operations OS</div>
       <p className="intro">
-        Four workflows wired into one fund dataset. Reporting, Debt and Marketing read a
-        seeded register of funds, assets, facilities, distributions and marketing vendors; Deal
+        Three workflows wired into one fund dataset. Reporting and Debt read a
+        seeded register of funds, assets, facilities and distributions; Deal
         Screening reads uploaded teasers. Claude does the language work;
         deterministic code does the maths.
       </p>

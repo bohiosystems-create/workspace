@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Nav from "../_components/Nav";
+import Header from "./_components/Header";
 
 const fmtMonth = (m: string) =>
   new Date(`${m}-01`).toLocaleDateString("en-GB", { month: "short" });
@@ -79,7 +79,7 @@ export default function MarketingPage() {
 
   return (
     <div className="shell">
-      <Nav />
+      <Header />
       <div className="section-title">Marketing &amp; Sales</div>
       <p className="intro">
         Every external marketing vendor, the campaigns they run per asset, and how

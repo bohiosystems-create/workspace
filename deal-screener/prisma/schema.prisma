@@ -49,7 +49,6 @@ model Asset {
   waleYears    Float?
   conceptStage Boolean   @default(false)
   facility     Facility?
-  campaigns    Campaign[]
 }
 
 model Distribution {
@@ -78,62 +77,3 @@ model Facility {
   maturity       DateTime
 }
 
-
-// ---- Marketing vendor orchestration ---------------------------------------
-
-model Vendor {
-  id              String     @id @default(cuid())
-  name            String     @unique
-  category        String // Performance media | Property portal | Broker network | PR & brand | Outdoor | Influencer
-  model           String // Retainer | Commission | Media buy
-  retainerK       Float // monthly fixed fee, SAR K
-  slaResponseHrs  Float // contractual max avg. lead response time
-  slaQualifiedPct Float // contractual min qualified-lead rate
-  contractEnd     DateTime
-  contact         String
-  campaigns       Campaign[]
-}
-
-model Campaign {
-  id       String          @id @default(cuid())
-  vendor   Vendor          @relation(fields: [vendorId], references: [id])
-  vendorId String
-  asset    Asset           @relation(fields: [assetId], references: [id])
-  assetId  String
-  name     String
-  channel  String
-  status   String // LIVE | PAUSED | ENDED
-  budgetK  Float // total approved budget, SAR K
-  startDate DateTime
-  endDate   DateTime
-  months   CampaignMonth[]
-}
-
-// One row per campaign per month: spend -> funnel -> contracted sales.
-model CampaignMonth {
-  id           String   @id @default(cuid())
-  campaign     Campaign @relation(fields: [campaignId], references: [id])
-  campaignId   String
-  month        String // YYYY-MM
-  spendK       Float
-  impressionsK Float
-  clicks       Int
-  leads        Int
-  qualified    Int
-  viewings     Int
-  reservations Int
-  contracts    Int
-  revenueM     Float // contracted sales value, SAR M
-  respHrs      Float // avg. first-response time on leads
-
-  @@unique([campaignId, month])
-}
-
-// Audit trail of orchestration decisions (pause / resume / budget shifts).
-model MarketingAction {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  type      String // PAUSE | RESUME | SHIFT_BUDGET
-  campaign  String
-  detail    String
-}

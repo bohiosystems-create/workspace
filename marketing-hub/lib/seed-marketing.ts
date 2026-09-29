@@ -1,7 +1,6 @@
 import { prisma } from "./prisma";
-import { ensureSeeded } from "./seed";
 
-// Seeds marketing vendors, campaigns and 5 months of funnel data (Jan–May 2026).
+// Seeds the demo properties, marketing vendors, campaigns and 5 months of funnel data (Jan–May 2026).
 // Idempotent. The funnel per month is generated from per-campaign rates so the
 // numbers are internally consistent (spend -> leads -> qualified -> viewings ->
 // reservations -> contracts -> revenue).
@@ -28,6 +27,12 @@ type CampaignSpec = {
   unitM: number; // avg contract value, SAR M
   resp: number[]; // avg first-response hours
 };
+
+const ASSETS = [
+  { name: "Ash Shati Residences", type: "Residential", location: "Jeddah · North" },
+  { name: "Andalus Quarter", type: "Residential", location: "Jeddah · South" },
+  { name: "Marina Tower", type: "Mixed-use", location: "Jeddah · Corniche" },
+];
 
 const VENDORS = [
   { name: "Tasweeq Digital", category: "Performance media", model: "Media buy", retainerK: 18, slaResponseHrs: 4, slaQualifiedPct: 20, contractEnd: "2026-12-31", contact: "Layla Nasser" },
@@ -68,7 +73,6 @@ function wiggle(seed: number) {
 }
 
 export async function ensureMarketingSeeded() {
-  await ensureSeeded();
   if ((await prisma.vendor.count()) > 0) return;
 
   const vendorIds: Record<string, string> = {};
@@ -77,12 +81,9 @@ export async function ensureMarketingSeeded() {
     vendorIds[v.name] = row.id;
   }
 
-  const assets = await prisma.asset.findMany();
-  const assetId = (name: string) => {
-    const a = assets.find((x) => x.name === name);
-    if (!a) throw new Error(`Seed asset missing: ${name}`);
-    return a.id;
-  };
+  const assetIds: Record<string, string> = {};
+  for (const a of ASSETS) assetIds[a.name] = (await prisma.asset.create({ data: a })).id;
+  const assetId = (name: string) => assetIds[name];
 
   let seed = 1;
   for (const c of CAMPAIGNS) {
