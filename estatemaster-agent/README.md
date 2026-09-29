@@ -37,19 +37,21 @@ Test locally with `vercel dev` (it reads a local `.env`).
 
 Every request is routed automatically; the badge on each answer shows the route.
 
-| Request | Route | AI model |
+| Request | Route | AI model (primary → failover) |
 |---|---|---|
 | Assumption changes, stress tests, sensitivities, headroom, explorer, capital structure | EstateMaster calculation | none |
 | Zoning checks, Outlook, "why did X change" | Data query | none |
-| Market benchmarking | Data query + commentary | fast (Claude Haiku 4.5 / gpt-5-mini) |
-| IC report | EstateMaster numbers + narrative | deep (Claude Opus 5.5 / gpt-5) |
-| Open questions, advice, Excel questions, multi-step requests | AI agent with tools | smart (Claude Sonnet 5.5 / gpt-5) |
+| Market benchmarking | Data query + commentary | OpenAI gpt-5-mini → Claude Sonnet 5.5 |
+| IC report narrative, memos | EstateMaster numbers + narrative | Claude Opus 5.5 → OpenAI gpt-5 |
+| Open questions, advice, multi-step requests | AI agent with tools | Claude Sonnet 5.5 → OpenAI gpt-5 |
+| Questions about attached Excel files | AI agent with tools | OpenAI gpt-5 → Claude Sonnet 5.5 |
 | Approvals | Fixed rules, never AI | none |
 
 AI never does the financial maths: the agent calls tools, and the tools return calculated numbers.
 Connect Claude, OpenAI or both (server keys on Vercel, or paste keys under the Router button). With both,
 a failure on one provider fails over to the other. With neither, the rules engine still answers.
-Model names per tier can be overridden under Router → Routing rules and models, e.g. `openai.smart=gpt-5`.
+Models per route can be overridden under Router → Routing rules and models, one line per route
+(`fast`, `smart`, `deep`, `excel`), e.g. `fast=openai:gpt-5-mini, anthropic:claude-sonnet-5-5`.
 Check the OpenAI model names match ones your account can use.
 
 The proxy caps output at 2,000 tokens per call and never returns the key to the browser.

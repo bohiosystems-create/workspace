@@ -586,7 +586,7 @@ table.t td.n,table.t th.n{text-align:right}
     <div class="card">
       <div class="bar"></div><h2>AI providers</h2>
       <div class="list">
-        <div>No engine choice: the router picks EstateMaster, a data query or an AI model per request, and the model tier by task (fast for commentary, smart for agent work, deep for IC narratives).</div>
+        <div>No engine choice: the router picks EstateMaster, a data query or an AI model per request, and the model by task across Claude and OpenAI (e.g. GPT-5 mini for commentary, Claude Sonnet for agent work, Claude Opus for IC narratives, GPT-5 for Excel questions), each with a failover on the other provider.</div>
         <div>Claude (Anthropic Messages API) and OpenAI (Chat Completions API) can both be connected; if one fails, the other takes over. With neither, the rules engine still answers.</div>
         <div>All engines share the same tool set: status, assumptions, stress, sensitivity, headroom, explorer, market, zoning, Outlook, capital structure, Excel, report, promotion request.</div>
         <div>Production: keys live on Bohio's gateway, not in the browser; the model never gets write access to the base case.</div>
@@ -605,7 +605,7 @@ table.t td.n,table.t th.n{text-align:right}
   <div class="f" id="aiPassF" style="display:none">Access code<input type="password" id="aiPass" autocomplete="off" spellcheck="false" placeholder="Set by whoever deployed this demo"></div>
   <label style="font-size:12.5px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="aiRemember"> Remember keys in this browser</label>
   <details><summary>Routing rules and models</summary><table class="t rtab" id="rtRules" style="margin-top:6px"></table>
-    <div class="f">Model overrides (optional, provider.tier=model, one per line)<textarea id="aiModels" rows="3" style="border:1px solid var(--faint);border-radius:10px;padding:8px;font:12px ui-monospace,Menlo,monospace" placeholder="openai.smart=gpt-5&#10;anthropic.fast=claude-haiku-4-5-20251001"></textarea></div></details>
+    <div class="f">Model overrides (optional, one route per line: route=provider:model, provider:model; routes: fast, smart, deep, excel)<textarea id="aiModels" rows="3" style="border:1px solid var(--faint);border-radius:10px;padding:8px;font:12px ui-monospace,Menlo,monospace" placeholder="fast=openai:gpt-5-mini, anthropic:claude-sonnet-5-5&#10;excel=openai:gpt-5, anthropic:claude-sonnet-5-5"></textarea></div></details>
   <div class="note">Keys pasted here go straight from this browser to the provider; fine for a private demo. On Vercel, keys live on the server instead.</div>
   <div class="row" style="justify-content:space-between;align-items:center"><span id="aiTest"></span><span style="display:flex;gap:8px"><button class="btn ghost" id="aiTestBtn">Test</button><button class="btn" id="aiSave">Save</button></span></div>
 </div></div>
@@ -1230,13 +1230,19 @@ function addMsg(who,html){const m=document.createElement('div');m.className='msg
 /* ================= AI ENGINE (built-in · Claude · OpenAI) ================= */
 /* AI providers: chosen by the router, not by the user */
 const PROV={
-  anthropic:{name:'Claude',base:'https://api.anthropic.com/v1/messages',tiers:{fast:'claude-haiku-4-5-20251001',smart:'claude-sonnet-5-5',deep:'claude-opus-5-5'},
-    short:{'claude-haiku-4-5-20251001':'Haiku 4.5','claude-sonnet-5-5':'Sonnet 5.5','claude-opus-5-5':'Opus 5.5','claude-fable-5-1':'Fable 5.1'}},
-  openai:{name:'OpenAI',base:'https://api.openai.com/v1/chat/completions',tiers:{fast:'gpt-5-mini',smart:'gpt-5',deep:'gpt-5'},short:{}}
+  anthropic:{name:'Claude',base:'https://api.anthropic.com/v1/messages',short:{'claude-sonnet-5-5':'Sonnet 5.5','claude-opus-5-5':'Opus 5.5','claude-fable-5-1':'Fable 5.1'}},
+  openai:{name:'OpenAI',base:'https://api.openai.com/v1/chat/completions',short:{}}
+};
+/* Model per task, across both providers: first available entry is primary, the rest are failover */
+const CHAINS={
+  fast:{label:'Commentary',m:[['openai','gpt-5-mini'],['anthropic','claude-sonnet-5-5']]},
+  smart:{label:'Agent with tools',m:[['anthropic','claude-sonnet-5-5'],['openai','gpt-5']]},
+  deep:{label:'IC narrative, memos',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
+  excel:{label:'Excel questions',m:[['openai','gpt-5'],['anthropic','claude-sonnet-5-5']]}
 };
 const AI={keys:{anthropic:'',openai:''},pass:'',remember:false,models:{}};
 const PROXY={anthropic:false,openai:false,pass:false,checked:false};
-try{const sv=JSON.parse(localStorage.getItem('bohioAI2')||'null');if(sv)Object.assign(AI,sv,{keys:{...AI.keys,...(sv.keys||{})}})}catch(e){}
+try{const sv=JSON.parse(localStorage.getItem('bohioAI2')||'null');if(sv)Object.assign(AI,sv,{keys:{...AI.keys,...(sv.keys||{})}});for(const k in AI.models)if(!Array.isArray(AI.models[k]))delete AI.models[k]}catch(e){}
 try{const k=JSON.parse(sessionStorage.getItem('bohioAIkeys')||'null');if(k)for(const p in k)if(!AI.keys[p])AI.keys[p]=k[p]}catch(e){}
 function saveAI(){
   try{localStorage.setItem('bohioAI2',JSON.stringify({...AI,keys:AI.remember?AI.keys:{anthropic:'',openai:''}}))}catch(e){}
@@ -1247,7 +1253,7 @@ const avail=p=>!!AI.keys[p]||!!PROXY[p];
 const provs=()=>['anthropic','openai'].filter(avail);
 const apiOn=()=>provs().length>0;
 const llmOn=apiOn;
-const modelFor=(p,tier)=>AI.models[p+'.'+tier]||PROV[p].tiers[tier]||PROV[p].tiers.smart;
+const chain=tier=>{const o=AI.models[tier];const m=o&&o.length?o:(CHAINS[tier]||CHAINS.smart).m;return m.filter(([p])=>avail(p)).map(([p,model])=>({p,model}))};
 const mName=(p,m)=>PROV[p].name+' '+((PROV[p].short||{})[m]||m);
 function renderEng(){
   const ps=provs();$('#engBtn').classList.toggle('live',ps.length>0);
@@ -1345,8 +1351,8 @@ async function send(p,payload){
   if(p==='anthropic')return post(PROV[p].base,{'x-api-key':AI.keys[p],'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},payload);
   return post(PROV[p].base,{authorization:'Bearer '+AI.keys[p]},payload);
 }
-async function callOne(p,system,msgs,tier,withTools){
-  const model=modelFor(p,tier);ROUTESTATS.calls++;
+async function callOne(p,model,system,msgs,withTools){
+  ROUTESTATS.calls++;
   if(p==='anthropic'){
     const body={model,max_tokens:1500,system,messages:msgs};
     if(withTools)body.tools=TOOLS.map(t=>({name:t.name,description:t.description,input_schema:{type:'object',properties:t.p,required:t.req||[]}}));
@@ -1362,7 +1368,7 @@ async function callOne(p,system,msgs,tier,withTools){
 }
 /* one-shot completion with provider failover (commentary, narratives, tests) */
 async function complete(system,user,tier){
-  let err;for(const p of provs()){try{return await callOne(p,system,[{role:'user',content:user}],tier,false)}catch(e){err=e}}
+  let err;for(const {p,model} of chain(tier)){try{return await callOne(p,model,system,[{role:'user',content:user}],false)}catch(e){err=e}}
   throw err||new Error('No AI provider connected');
 }
 async function checkProxy(){
@@ -1375,12 +1381,12 @@ const toolResults=(p,calls,outs)=>p==='anthropic'
 const HIST={web:[],wa:[]};
 async function llmTurn(text,ch,role,onStep,tier='smart'){
   const hist=HIST[ch];let lastErr;
-  for(const p of provs()){
+  for(const {p,model} of chain(tier)){
     const msgs=[...hist.slice(-12),{role:'user',content:text}];let last=null,final='',started=false,n=0;
     try{
       for(let i=0;i<6;i++){
-        await onStep(`AI · ${mName(p,modelFor(p,tier))} · ${i?'continuing':'planning'}`);
-        const r=await callOne(p,sysPrompt(ch,role),msgs,tier,true);started=true;
+        await onStep(`AI · ${mName(p,model)} · ${i?'continuing':'planning'}`);
+        const r=await callOne(p,model,sysPrompt(ch,role),msgs,true);started=true;
         if(!r.calls.length){final=r.text;break}
         msgs.push(r.raw);const outs=[];
         for(const c of r.calls){
@@ -1393,8 +1399,8 @@ async function llmTurn(text,ch,role,onStep,tier='smart'){
       }
       if(!final)final=last?last.plain:'Done.';
       hist.push({role:'user',content:text},{role:'assistant',content:final});
-      return{final,last,prov:p,model:modelFor(p,tier),tools:n};
-    }catch(e){lastErr=e;if(started)throw e;await onStep(`${PROV[p].name} unavailable (${String(e.message).slice(0,70)}) · failing over`)}
+      return{final,last,prov:p,model,tools:n};
+    }catch(e){lastErr=e;if(started)throw e;await onStep(`${mName(p,model)} unavailable (${String(e.message).slice(0,70)}) · failing over`)}
   }
   throw lastErr||new Error('No AI provider connected');
 }
@@ -1407,15 +1413,15 @@ function route(text){
   const it=intent(text),t=text.toLowerCase();
   if(it.k==='approve'||it.k==='cancel')return{lane:'calc',it,why:'Approvals are handled by fixed rules, never by AI.'};
   if(it.k==='why')return{lane:'data',it,why:'A lookup in the changelog and email sources; no AI needed.'};
-  if(REASON.test(t)&&it.k!=='promote')return{lane:'api',it,tier:/memo|draft|write|narrative/.test(t)?'deep':'smart',why:'Needs judgement or language: an AI agent plans and calls EstateMaster and data tools.'};
+  if(REASON.test(t)&&it.k!=='promote')return{lane:'api',it,tier:/memo|draft|write|narrative/.test(t)?'deep':FILES.length&&/excel|spreadsheet|workbook|sheet|file/.test(t)?'excel':'smart',why:'Needs judgement or language: an AI agent plans and calls EstateMaster and data tools.'};
   switch(it.k){
     case 'mod':case 'status':case 'reset':case 'stress':case 'sens':case 'reverse':case 'explore':case 'capital':case 'align':case 'promote':case 'emailapply':
       return{lane:'calc',it,why:'Straightforward maths: EstateMaster calculates, no AI involved.'};
     case 'zoning':return{lane:'data',it,why:'A rules check against the plot\'s zoning; no AI needed.'};
-    case 'market':return{lane:'data',it,post:'commentary',tier:'fast',why:'Benchmark query on market data; a fast AI model adds commentary.'};
+    case 'market':return{lane:'data',it,post:'commentary',tier:'fast',why:'Benchmark query on market data; an AI model adds commentary.'};
     case 'email':return{lane:'data',it,why:'Reads the Outlook folder; extraction is cached in this demo.'};
     case 'report':return{lane:'data',it,post:'narrative',tier:'deep',why:'Numbers come from EstateMaster; the strongest model drafts the narrative.'};
-    case 'files':return apiOn()?{lane:'api',it,tier:'smart',why:'A question over Excel content needs an AI model to read it.'}:{lane:'data',it,why:'Lists attached files (no AI connected).'};
+    case 'files':return apiOn()?{lane:'api',it,tier:'excel',why:'A question over Excel content needs an AI model to read it.'}:{lane:'data',it,why:'Lists attached files (no AI connected).'};
     default:return{lane:'api',it,tier:'smart',why:'Open question: an AI agent decides which tools to use.'};
   }
 }
@@ -1457,7 +1463,7 @@ async function execute(text,ch,role,onStep){
   out.fx();
   let post=null;
   if(r.post&&apiOn()){
-    await onStep(`AI · ${mName(provs()[0],modelFor(provs()[0],r.tier))} · ${r.post==='narrative'?'drafting narrative':'writing commentary'}`);
+    {const c=chain(r.tier)[0];if(c)await onStep(`AI · ${mName(c.p,c.model)} · ${r.post==='narrative'?'drafting narrative':'writing commentary'}`);}
     try{post=await postProcess(r.post,out,r.tier,ch)}catch(e){post={err:e.message}}
   }
   renderRouter();
@@ -1468,11 +1474,11 @@ function renderRouter(){
   const ps=provs();
   el.innerHTML=`<div class="cs" style="grid-template-columns:repeat(4,1fr)">${[['EstateMaster calcs',ROUTESTATS.calc],['Data queries',ROUTESTATS.data],['AI requests',ROUTESTATS.api],['AI API calls',ROUTESTATS.calls]].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v" style="font-size:22px">${v}</div></div>`).join('')}</div>
    <div class="sub" style="margin:10px 0 0">AI connected: ${ps.length?ps.map(p=>PROV[p].name+(AI.keys[p]?' (browser key)':' (server key)')).join(', ')+(ps.length>1?' · failover on':''):'none: rules only. Connect a provider from the Router button.'}${ROUTESTATS.fallback?` · ${ROUTESTATS.fallback} fallback${ROUTESTATS.fallback>1?'s':''} to rules`:''}</div>`;
+  const mt=t=>{if(t==='none')return'–';const all=(AI.models[t]&&AI.models[t].length?AI.models[t]:CHAINS[t].m);return all.map(([p,m],i)=>`${i?'<span style="color:var(--soft)">then </span>':''}${esc(mName(p,m))}${avail(p)?'':' <span style="color:var(--soft)">(not connected)</span>'}`).join('<br>')};
   const rows=[['Assumption changes, stress tests, sensitivities, headroom, explorer, capital structure','⚙ EstateMaster calculation','none'],
    ['Market benchmarking','▦ Data query + commentary','fast'],['Zoning checks, Outlook, "why did X change"','▦ Data query','none'],
-   ['IC report','▦ EstateMaster numbers + narrative','deep'],['Open questions, advice, Excel questions, multi-step requests','✦ AI agent with tools','smart'],['Approvals','⚙ Fixed rules (never AI)','none']];
-  const mt=t=>t==='none'?'–':ps.length?mName(ps[0],modelFor(ps[0],t)):t;
-  const tbl='<tr><th>Request</th><th>Route</th><th>Model</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${esc(mt(r[2]))}</td></tr>`).join('');
+   ['IC report narrative, memos','▦ EstateMaster numbers + narrative','deep'],['Open questions, advice, multi-step requests','✦ AI agent with tools','smart'],['Questions about attached Excel files','✦ AI agent with tools','excel'],['Approvals','⚙ Fixed rules (never AI)','none']];
+  const tbl='<tr><th>Request</th><th>Route</th><th>Model (primary, then failover)</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${mt(r[2])}</td></tr>`).join('');
   if($('#rtTable'))$('#rtTable').innerHTML=tbl;if($('#rtRules'))$('#rtRules').innerHTML=tbl;
 }
 const mdLite=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g,'$1<b>$2</b>').replace(/^#{1,4}\s*(.+)$/gm,'<b>$1</b>').replace(/^[-•]\s+/gm,'• ').replace(/\n/g,'<br>');
@@ -1624,7 +1630,7 @@ const chat=$('.chat');['dragover','drop'].forEach(ev=>chat.addEventListener(ev,a
 /* AI connections (admin) */
 function openAI(){
   $('#aiKeyA').value=AI.keys.anthropic;$('#aiKeyO').value=AI.keys.openai;$('#aiPass').value=AI.pass||'';$('#aiRemember').checked=AI.remember;
-  $('#aiModels').value=Object.entries(AI.models).map(([k,v])=>k+'='+v).join('\n');$('#aiTest').textContent='';
+  $('#aiModels').value=Object.entries(AI.models).map(([k,v])=>k+'='+v.map(([p,m])=>p+':'+m).join(', ')).join('\n');$('#aiTest').textContent='';
   const sv=['anthropic','openai'].filter(p=>PROXY[p]);
   $('#aiProxy').innerHTML=sv.length?`<b>Server keys configured:</b> ${sv.map(p=>PROV[p].name).join(', ')}. Leave those fields empty to use them.`:'';
   $('#aiPassF').style.display=sv.length&&PROXY.pass?'':'none';
@@ -1632,7 +1638,7 @@ function openAI(){
 }
 function readAI(){
   AI.keys={anthropic:$('#aiKeyA').value.trim(),openai:$('#aiKeyO').value.trim()};AI.pass=$('#aiPass').value.trim();AI.remember=$('#aiRemember').checked;
-  AI.models={};$('#aiModels').value.split('\n').forEach(l=>{const m=l.match(/^\s*(anthropic|openai)\.(fast|smart|deep)\s*=\s*(\S+)\s*$/);if(m)AI.models[m[1]+'.'+m[2]]=m[3]});
+  AI.models={};$('#aiModels').value.split('\n').forEach(l=>{const m=l.match(/^\s*(fast|smart|deep|excel)\s*=\s*(.+)$/);if(!m)return;const list=m[2].split(',').map(x=>x.trim().match(/^(anthropic|openai):(\S+)$/)).filter(Boolean).map(x=>[x[1],x[2]]);if(list.length)AI.models[m[1]]=list});
 }
 $('#engBtn').onclick=openAI;
 $('#aiModal').onclick=e=>{if(e.target.id==='aiModal')$('#aiModal').classList.remove('on')};
@@ -1640,7 +1646,7 @@ $('#aiSave').onclick=()=>{readAI();HIST.web=[];HIST.wa=[];saveAI();$('#aiModal')
 $('#aiTestBtn').onclick=async()=>{
   readAI();const ps=provs();if(!ps.length){$('#aiTest').innerHTML='<span class="warn">Add at least one key.</span>';return}
   $('#aiTest').textContent='Testing…';const out=[];
-  for(const p of ps){try{await callOne(p,'Reply with the single word OK.',[{role:'user',content:'Connection test'}],'fast',false);out.push(`<b>${PROV[p].name} ✓</b>`)}catch(e){out.push(`<span class="warn">${PROV[p].name}: ${esc(String(e.message).slice(0,90))}</span>`)}}
+  for(const p of ps){const mdl=(Object.values(CHAINS).flatMap(c=>c.m).find(([q])=>q===p)||[])[1];try{await callOne(p,mdl,'Reply with the single word OK.',[{role:'user',content:'Connection test'}],false);out.push(`<b>${PROV[p].name} ✓</b>`)}catch(e){out.push(`<span class="warn">${PROV[p].name}: ${esc(String(e.message).slice(0,90))}</span>`)}}
   $('#aiTest').innerHTML=out.join(' · ');
 };
 
