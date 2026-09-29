@@ -59,6 +59,13 @@ header{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:18p
 .fchip{font-size:12px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.8);border:1px solid var(--faint);display:flex;gap:6px;align-items:center}
 .fchip b{font-weight:500}.fchip span{cursor:pointer;color:var(--soft)}
 .inputrow .btn.ghost{padding:8px 12px}
+.rt{display:inline-flex;gap:6px;align-items:center;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;padding:3px 10px;border-radius:999px;margin-bottom:8px;cursor:help}
+.rt-calc{background:var(--ink);color:#fff}.rt-data{background:rgba(0,9,25,.09);color:var(--ink)}.rt-api{background:var(--alert);color:#fff}
+.post{margin-top:10px;padding:9px 12px;border-left:3px solid var(--alert);background:rgba(255,77,106,.06);border-radius:0 10px 10px 0;font-size:13.5px}
+.post .llm{margin-bottom:2px}
+.wrt{display:block;font-size:10px;color:var(--soft);margin-bottom:3px;letter-spacing:.04em}
+.rtab td,.rtab th{font-size:12px!important}
+.rec3{grid-template-columns:repeat(3,1fr)}@media(max-width:900px){.rec3{grid-template-columns:1fr}}
 .llm{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);margin-bottom:4px}
 
 /* cards */
@@ -292,11 +299,11 @@ table.t td.n,table.t th.n{text-align:right}
 <header>
   <div class="brand"><div class="orb"></div><div><h1>Bohio workspace</h1><small>Agent on EstateMaster · Market-checked feasibility</small></div></div>
   <div class="demo-chip"><b>Demo</b> · simulated model, illustrative Al Narjis Mixed-Use data · SAR</div>
-  <button class="eng" id="engBtn" title="Choose the AI engine"><i></i><span id="engTxt">Engine: built-in</span></button>
+  <button class="eng" id="engBtn" title="AI connections (admin)"><i></i><span id="engTxt">Router</span></button>
 </header>
 
 <div class="conn">
-  <div class="cn dk"><span class="dot ok"></span><div><b>EstateMaster · SQL Server</b><small>Connected · reads outputs, writes sandbox scenario BHO_SBX · base case read-only</small></div><div class="n">INTEGRATION</div></div>
+  <div class="cn dk"><span class="dot ok"></span><div><b>EstateMaster · runner</b><small>All returns calculated by EstateMaster · live-linked model copy BHO_SBX · SQL Server for actuals (demo: simulated)</small></div><div class="n">INTEGRATION</div></div>
   <div class="cn"><span class="dot"></span><div><b>Market data</b><small>Transactions · rentals · zoning rules · dummy dataset</small></div><div class="n">3 FEEDS</div></div>
   <div class="cn"><span class="dot"></span><div><b>Outlook · Microsoft Graph</b><small>Read-only · folder "Al Narjis" · context for assumption changes</small></div><div class="n">EMAIL</div></div>
 </div>
@@ -307,7 +314,7 @@ table.t td.n,table.t th.n{text-align:right}
   <div class="grid g2">
     <div class="card">
       <div class="bar"></div><h2>Ask the agent</h2>
-      <div class="sub">Type or tap a prompt. The agent edits a sandbox copy, recalculates, and reports back. Switch the engine (built-in, Claude or OpenAI) from the button at the top.</div>
+      <div class="sub">Type or tap a prompt. Each request is routed automatically: maths goes to EstateMaster, lookups to the data, judgement and writing to AI. The badge on each answer shows the route.</div>
       <div class="chat">
         <div class="msgs" id="msgs"></div>
         <div class="chips" id="chips"></div>
@@ -447,7 +454,7 @@ table.t td.n,table.t th.n{text-align:right}
   <div class="card" style="margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <div><h2 style="margin:0">Investment Committee pack</h2><div class="sub" style="margin:0">Generated from the model outputs and the agent's test runs. Regenerate any time.</div></div>
     <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" id="rgen">Regenerate</button><button class="btn ghost" id="rprint">Print / PDF</button><button class="btn ghost" id="rhtml">Download HTML</button><button class="btn ghost" id="rcsv">Sensitivity CSV</button>
+      <button class="btn" id="rgen">Regenerate</button><button class="btn ghost" id="rnarr">Draft narrative (AI)</button><button class="btn ghost" id="rprint">Print / PDF</button><button class="btn ghost" id="rhtml">Download HTML</button><button class="btn ghost" id="rcsv">Sensitivity CSV</button>
     </div>
   </div>
   <div class="report" id="report"></div>
@@ -494,19 +501,28 @@ table.t td.n,table.t th.n{text-align:right}
 <section class="pane" id="p-arch">
   <div class="grid g2">
     <div class="card">
-      <div class="bar"></div><h2>One integration: SQL Server</h2>
-      <div class="sub">The agent connects to EstateMaster through the SQL Server database EstateMaster syncs with. No screen scraping, no file shuffling.</div>
+      <div class="bar"></div><h2>How the agent operates EstateMaster</h2>
+      <div class="sub">Every return is calculated by EstateMaster itself. Bohio runs it on a server and drives it the way an analyst would, through its data links rather than the screen.</div>
       <div class="rec">
-        <div class="it"><div class="num">1</div><div><b>Read</b><span>Outputs, cash flows and actuals from the synced tables. The base case is read-only for the agent.</span></div></div>
-        <div class="it"><div class="num">2</div><div><b>Write to a sandbox scenario</b><span>Changes go to a dedicated scenario (BHO_SBX), never the approved base case. EstateMaster picks it up on sync and recalculates.</span></div></div>
-        <div class="it"><div class="num">3</div><div><b>Promote with approval</b><span>Only an Investment Director can promote a sandbox scenario, and every write is audited.</span></div></div>
-        <div class="it"><div class="num">!</div><div><b>Confirm scope in the POC</b><span>Altus documents the SQL sync for accounting and sales CRM data. Which feasibility inputs are exposed depends on each client's setup, so the first week of the POC maps the tables.</span></div></div>
+        <div class="it"><div class="num">1</div><div><b>Runner</b><span>A Windows VM (Azure, Saudi region) with licensed EstateMaster and Excel, plus a Bohio runner service that takes jobs from the agent.</span></div></div>
+        <div class="it"><div class="num">2</div><div><b>Write inputs</b><span>The runner opens a copy of the project model (BHO_SBX) and writes the scenario's assumptions into its live-linked Excel inputs.</span></div></div>
+        <div class="it"><div class="num">3</div><div><b>Recalculate and read back</b><span>EstateMaster refreshes the link and recalculates; KPIs, cash flows and report tables come back the same way, stamped with a job ID and stored in SQL Server.</span></div></div>
+        <div class="it"><div class="num">4</div><div><b>Scale</b><span>One run takes seconds. Stress libraries and sensitivity grids queue across several runners. The fast replica only screens; anything that is reported is re-run here.</span></div></div>
+        <div class="it"><div class="num">!</div><div><b>Confirm with Altus</b><span>Unattended use on a server licence, and whether EstateMaster exposes a native automation interface that could replace the Excel link. SQL Server stays for actuals and sales data.</span></div></div>
       </div>
     </div>
     <div class="card">
+      <div class="bar"></div><h2>Task router</h2>
+      <div class="sub">Each request goes to the cheapest route that can answer it correctly. AI never does the maths.</div>
+      <div id="rtStats"></div>
+      <table class="t rtab" id="rtTable" style="margin-top:10px"></table>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card" style="grid-column:1/-1">
       <div class="bar"></div><h2>Market data layer</h2>
       <div class="sub">Feeds the agent checks assumptions against, through Bohio's data partnerships</div>
-      <div class="rec">
+      <div class="rec rec3">
         <div class="it"><div class="num">T</div><div><b>Transactions</b><span>Registered sale prices by district and unit type (e.g. Ministry of Justice sales registrations via a licensed data partner). Benchmarks sale price.</span></div></div>
         <div class="it"><div class="num">R</div><div><b>Rentals</b><span>Lease evidence (e.g. Ejar contracts, REGA indicators). Benchmarks retail and residential rents.</span></div></div>
         <div class="it"><div class="num">Z</div><div><b>Regulations</b><span>Plot-level zoning: FAR, site coverage, setbacks and height (e.g. Riyadh building regulations via Balady). Checks the massing behind GFA.</span></div></div>
@@ -521,7 +537,7 @@ table.t td.n,table.t th.n{text-align:right}
         <div class="sub">Why the agent can run "infinite" scenarios</div>
         <div class="rec">
           <div class="it"><div class="num">A</div><div><b>Fast engine: calibrated replica</b><span>Bohio rebuilds the project's cash-flow logic and calibrates it against EstateMaster outputs. Thousands of scenarios per second, used for exploration, Monte Carlo and heatmaps. <i>This demo runs on such a replica.</i></span></div></div>
-          <div class="it"><div class="num">B</div><div><b>Truth engine: EstateMaster</b><span>Anything that goes into a report or an IC decision is re-run in EstateMaster through the SQL Server integration and reconciled to the replica. Findings are flagged "verified" only after that.</span></div></div>
+          <div class="it"><div class="num">B</div><div><b>Truth engine: EstateMaster</b><span>Anything that goes into a report or an IC decision is re-run in EstateMaster by the runner and reconciled to the replica. Findings are flagged "verified" only after that.</span></div></div>
         </div>
       </div>
       <div class="card">
@@ -568,10 +584,10 @@ table.t td.n,table.t th.n{text-align:right}
       <div class="sub" style="margin:12px 0 0">In this demo: attach a workbook with ＋ Excel in the agent chat (or drag it in) and ask Claude or OpenAI about it.</div>
     </div>
     <div class="card">
-      <div class="bar"></div><h2>AI engines</h2>
+      <div class="bar"></div><h2>AI providers</h2>
       <div class="list">
-        <div>Built-in: offline, rule-based. Good for scripted demos.</div>
-        <div>Claude (Anthropic Messages API) or OpenAI (Chat Completions API): natural language, multi-step tool use, Arabic and English. Switch from the engine button at the top.</div>
+        <div>No engine choice: the router picks EstateMaster, a data query or an AI model per request, and the model tier by task (fast for commentary, smart for agent work, deep for IC narratives).</div>
+        <div>Claude (Anthropic Messages API) and OpenAI (Chat Completions API) can both be connected; if one fails, the other takes over. With neither, the rules engine still answers.</div>
         <div>All engines share the same tool set: status, assumptions, stress, sensitivity, headroom, explorer, market, zoning, Outlook, capital structure, Excel, report, promotion request.</div>
         <div>Production: keys live on Bohio's gateway, not in the browser; the model never gets write access to the base case.</div>
       </div>
@@ -581,22 +597,16 @@ table.t td.n,table.t th.n{text-align:right}
 </div>
 
 <div class="toast" id="toast"></div>
-<div class="modal" id="aiModal"><div class="card set"><div class="bar"></div><h2>AI engine</h2>
-  <div class="sub" style="margin:0">Choose what powers the agent in the workspace chat and on WhatsApp. Every engine uses the same tools, sandbox and permissions.</div>
-  <div class="opt">
-    <label><input type="radio" name="prov" value="builtin">Built-in<small>Offline, rule-based</small></label>
-    <label><input type="radio" name="prov" value="anthropic">Claude<small>Anthropic API</small></label>
-    <label><input type="radio" name="prov" value="openai">OpenAI<small>Chat Completions API</small></label>
-  </div>
-  <div id="aiFields">
-    <div class="f">Model<input type="text" id="aiModel" list="aiModels" autocomplete="off" spellcheck="false"><datalist id="aiModels"></datalist></div>
-    <div class="note" id="aiProxy" style="margin:0 0 4px"></div>
-    <div class="f">API key<input type="password" id="aiKey" autocomplete="off" spellcheck="false" placeholder="Paste your key"></div>
-    <div class="f" id="aiPassF" style="display:none">Access code<input type="password" id="aiPass" autocomplete="off" spellcheck="false" placeholder="Set by whoever deployed this demo"></div>
-    <label style="font-size:12.5px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="aiRemember"> Remember key in this browser</label>
-    <details><summary>Advanced</summary><div class="f">Endpoint (optional: your proxy or a compatible gateway)<input type="text" id="aiBase" spellcheck="false"></div></details>
-    <div class="note">The key goes straight from this browser to the provider. Fine for a demo; in production the key lives on Bohio's server behind the gateway, never in the page.</div>
-  </div>
+<div class="modal" id="aiModal"><div class="card set"><div class="bar"></div><h2>AI connections</h2>
+  <div class="sub" style="margin:0">Nobody picks an engine. The router sends each request to EstateMaster, a data query or an AI model, and picks the model by task. Connect one or both providers; if one fails, the other takes over.</div>
+  <div class="note" id="aiProxy" style="margin:10px 0 0"></div>
+  <div class="f">Anthropic API key (Claude)<input type="password" id="aiKeyA" autocomplete="off" spellcheck="false"></div>
+  <div class="f">OpenAI API key<input type="password" id="aiKeyO" autocomplete="off" spellcheck="false"></div>
+  <div class="f" id="aiPassF" style="display:none">Access code<input type="password" id="aiPass" autocomplete="off" spellcheck="false" placeholder="Set by whoever deployed this demo"></div>
+  <label style="font-size:12.5px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="aiRemember"> Remember keys in this browser</label>
+  <details><summary>Routing rules and models</summary><table class="t rtab" id="rtRules" style="margin-top:6px"></table>
+    <div class="f">Model overrides (optional, provider.tier=model, one per line)<textarea id="aiModels" rows="3" style="border:1px solid var(--faint);border-radius:10px;padding:8px;font:12px ui-monospace,Menlo,monospace" placeholder="openai.smart=gpt-5&#10;anthropic.fast=claude-haiku-4-5-20251001"></textarea></div></details>
+  <div class="note">Keys pasted here go straight from this browser to the provider; fine for a private demo. On Vercel, keys live on the server instead.</div>
   <div class="row" style="justify-content:space-between;align-items:center"><span id="aiTest"></span><span style="display:flex;gap:8px"><button class="btn ghost" id="aiTestBtn">Test</button><button class="btn" id="aiSave">Save</button></span></div>
 </div></div>
 <div class="modal" id="modal"><div class="card"><div class="bar"></div><h2>Promote scenario to EstateMaster?</h2><div class="sub" id="mbody"></div><div class="row"><button class="btn ghost" id="mno">Cancel</button><button class="btn" id="myes">Approve &amp; write</button></div></div></div>
@@ -695,9 +705,9 @@ function fD(k,d){const v=VARS[k];if(k==='delay')return '+'+Math.round(d)+' mo';r
 function scenName(d){const ks=Object.keys(d).filter(k=>d[k]);return ks.length?ks.map(k=>VARS[k].label.toLowerCase()+' '+fD(k,d[k])).join(', '):'base case'}
 
 /* ================= SQL SERVER LOG LINES ================= */
-const rd=w=>`SQL · SELECT ${w} FROM em_sync.outputs`;
-const wr=w=>`SQL · UPDATE bho_sbx.assumptions SET ${w}`;
-const rf=()=>'EstateMaster sync recalculates scenario BHO_SBX';
+const rd=w=>`EM runner · read ${w} ← EstateMaster outputs`;
+const wr=w=>`EM runner · write ${w} → live-linked inputs (model copy BHO_SBX)`;
+const rf=()=>'EM runner · EstateMaster recalculates';
 function writeSteps(d){const s=[];for(const k in d){if(d[k])s.push(wr(`${VARS[k].label} ${fD(k,d[k])}`))}const r=rf();if(r)s.push(r);return s}
 const calib='Replica check vs EstateMaster outputs: within tolerance (demo)';
 
@@ -907,7 +917,7 @@ async function handle(text,ch,role,forced){
     out.steps=['Step-up check passed (one-time code, demo)',wr('approved change set'),rf(),'Write audit record'].filter(Boolean);
     pending=null;
     out.fx=()=>{changelog.push(`Promoted to EstateMaster (${ch}): ${scenName(S)}`);toast('Change set written to EstateMaster · audit logged')};
-    done('*Approved and written.* Change set written through SQL Server; EstateMaster updated on sync. Audit entry created.');break}
+    done('*Approved and written.* Change set applied to the live EstateMaster model by the runner. Audit entry created.');break}
   case 'cancel':{pending=null;done('Cancelled. Nothing was written.');break}
   default:{
     done('*I can:*\n• "What if sale price drops 10% and cost +15%"\n• "Stress test the model"\n• "Sensitivity of exit cap vs construction cost"\n• "Keep exploring autonomously"\n• "How far can prices fall?"\n• "Check Outlook for assumption changes"\n• "Why did construction cost change?"\n• "Check assumptions against market data"\n• "Is the scheme compliant with zoning?"\n• "Build the IC report"\n• "Promote scenario"');
@@ -1124,12 +1134,20 @@ function eTick(){
     for(const k of KEYS){const s=E.sx[k];s.s+=d[k];s.s2+=d[k]*d[k];s.sy+=d[k]*irr}
     const bi=Math.max(0,Math.min(27,Math.floor((irr+.2)/.7*28)));E.bins[bi]++;
     if(E.vals.length<40000)E.vals.push(irr);else E.vals[Math.floor(Math.random()*40000)]=irr;
-    if(irr<HURDLE.irr){E.below++;dist=Math.sqrt(dist);if(E.br.length<5||dist<E.br[E.br.length-1].dist){E.br.push({d,irr,dist,poc:r.poc});E.br.sort((a,b)=>a.dist-b.dist);E.br=E.br.slice(0,5)}}
+    if(irr<HURDLE.irr){E.below++;E.ver='';dist=Math.sqrt(dist);if(E.br.length<5||dist<E.br[E.br.length-1].dist){E.br.push({d,irr,dist,poc:r.poc});E.br.sort((a,b)=>a.dist-b.dist);E.br=E.br.slice(0,5)}}
     if(!E.worst||irr<E.worst.irr)E.worst={d,irr};
   }
   if($('#hcycle').checked&&E.ticks%6===0){const pairs=[];for(let i=0;i<KEYS.length;i++)for(let j=i+1;j<KEYS.length;j++)pairs.push([KEYS[i],KEYS[j]]);const p=pairs[E.pairIdx++%pairs.length];hx=p[0];hy=p[1];syncHeatSel();renderHeat()}
   renderExplorer();
 }
+async function verifyBreaches(){
+  if(!E.br.length)return;stopExplorer();
+  for(const b of E.br){b.v='queued';}E.ver='Runner queue: '+E.br.length+' jobs';renderExplorer();
+  for(let i=0;i<E.br.length;i++){const b=E.br[i];b.v='running in EstateMaster…';renderExplorer();await sleep(650);
+    const r=run(b.d);b.v=`✓ EstateMaster IRR ${fP(r.irr)}`;E.ver=`Verified ${i+1}/${E.br.length} (demo: runner simulated)`;renderExplorer()}
+  toast('Explorer findings verified in EstateMaster (simulated runner)');
+}
+document.addEventListener('click',e=>{if(e.target.id==='eVerify')verifyBreaches()});
 function startExplorer(){if(E.run)return;E.run=true;$('#etoggle').textContent='Pause';E.t=setInterval(eTick,300);renderExplorer()}
 function stopExplorer(){E.run=false;clearInterval(E.t);$('#etoggle').textContent='Start';renderExplorer()}
 function pct(arr,p){const s=arr.slice().sort((a,b)=>a-b);return s[Math.floor(p*(s.length-1))]}
@@ -1144,11 +1162,13 @@ function renderExplorer(){
   const N=E.y.n,my=E.y.s/N,vy=E.y.s2/N-my*my;
   const drv=KEYS.map(k=>{const s=E.sx[k],mx_=s.s/N,vx=s.s2/N-mx_*mx_,c=(s.sy/N-mx_*my)/Math.sqrt(vx*vy||1);return{k,c}}).sort((a,b)=>Math.abs(b.c)-Math.abs(a.c));
   $('#edrv').innerHTML=drv.map(x=>`<div class="r"><span>${VARS[x.k].label}</span><span class="b"><i style="width:${Math.abs(x.c)*100}%;background:${x.c<0?'var(--alert)':'var(--ink)'}"></i></span><span style="color:var(--soft)">${x.c<0?'−':'+'}${Math.abs(x.c).toFixed(2)}</span></div>`).join('');
-  $('#ebreach').innerHTML=E.br.length?E.br.map(b=>`<div>${scenName(Object.fromEntries(Object.entries(b.d).map(([k,v])=>[k,+v.toFixed(k==='delay'?0:(VARS[k].kind==='pct'?1:2))]).filter(([k,v])=>Math.abs(v)>(VARS[k].kind==='pct'?2.5:.2)&&!(k==='delay'&&v<3))))} → <b>IRR ${fP(b.irr)}</b></div>`).join('')+'<div style="color:var(--soft);font-size:12px">Queued for verification in EstateMaster before any report cites them.</div>':'<div style="color:var(--soft)">No breach found yet.</div>';
+  $('#ebreach').innerHTML=E.br.length?E.br.map(b=>`<div>${b.v?`<b>${b.v}</b> · `:''}${scenName(Object.fromEntries(Object.entries(b.d).map(([k,v])=>[k,+v.toFixed(k==='delay'?0:(VARS[k].kind==='pct'?1:2))]).filter(([k,v])=>Math.abs(v)>(VARS[k].kind==='pct'?2.5:.2)&&!(k==='delay'&&v<3))))} → <b>IRR ${fP(b.irr)}</b></div>`).join('')+`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn ghost sm" id="eVerify">Verify in EstateMaster</button><span style="color:var(--soft);font-size:12px">${E.ver||'The explorer screens on the replica. Findings are re-run in EstateMaster before anything cites them.'}</span></div>`:'<div style="color:var(--soft)">No breach found yet.</div>';
   if(E.n>=3000&&!E.alerted){E.alerted=true;waAlert(true)}
 }
 
 /* ================= REPORT ================= */
+let NARR=null;
+const narrKey=()=>scenName(S)+'|'+JSON.stringify(FT)+'|'+MK.scope+MK.per+MK.type+'|'+Object.keys(EM.applied).join();
 function reportHTML(){
   const b=run(S),base=baseRes,st=stressRes||computeStress();
   const fails=st.filter(x=>!x.pass),v=verdict(b),ok=passes(b);
@@ -1161,6 +1181,7 @@ function reportHTML(){
   <div class="meta">Residential for sale + retail for hold · SAR · ${Object.keys(S).length?'Sandbox scenario: '+esc(scenName(S)):'Base case'}</div>
   <div class="verdict ${ok?'':'bad'}"><b>Recommendation.</b> ${esc(rec)}</div>
   <div class="rk"><div><span>Levered IRR</span><b>${fP(b.irr)}</b></div><div><span>Profit on cost</span><b>${fP(b.poc)}</b></div><div><span>Net profit</span><b>${fM(b.profit)}</b></div><div><span>Equity multiple</span><b>${fX(b.em)}</b></div></div>
+  ${NARR&&NARR.key===narrKey()?`<h3>Narrative (AI draft)</h3>${NARR.text.split(/\n+/).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join('')}<p class="meta" style="margin-top:4px">Drafted by ${esc(mName(NARR.prov,NARR.model))} from EstateMaster outputs. Every figure in this pack is calculated, not generated.</p>`:''}
   <h3>Summary</h3>
   <p>Gross revenue is ${fM(b.rev)} against all-in cost of ${fM(b.tc)} including ${fM(b.interest)} of finance cost. Peak debt is ${fM(b.peak)}. Retail stabilises at NOI of ${fM(b.noi)} a year, valued at ${fM(b.exitV)} on exit at a ${(BASE.cap+(S.cap||0)).toFixed(2)}% cap rate.</p>
   <p>Versus the base case the levered IRR moves from ${fP(base.irr)} to ${fP(b.irr)}. ${!ok&&Object.keys(S).length?'The sandbox scenario is already below a hurdle, so headroom shows as breached.':''} ${tight?`The tightest single assumption is <b>${VARS[tight.k].label.toLowerCase()}</b>: the IRR hurdle breaks at ${fD(tight.k,tight.irrD)}.`:''}</p>
@@ -1207,25 +1228,31 @@ function renderAll(flash){renderKPIs(flash);renderCS();renderAsm();stressRes=nul
 
 function addMsg(who,html){const m=document.createElement('div');m.className='msg '+who;m.innerHTML=who==='agent'?`<div class="steps"></div><div class="body">${html||''}</div>`:esc(html);$('#msgs').appendChild(m);$('#msgs').scrollTop=1e9;return m}
 /* ================= AI ENGINE (built-in · Claude · OpenAI) ================= */
+/* AI providers: chosen by the router, not by the user */
 const PROV={
-  builtin:{name:'Built-in'},
-  anthropic:{name:'Claude',base:'https://api.anthropic.com/v1/messages',model:'claude-sonnet-5-5',models:['claude-sonnet-5-5','claude-opus-5-5','claude-fable-5-1','claude-haiku-4-5-20251001']},
-  openai:{name:'OpenAI',base:'https://api.openai.com/v1/chat/completions',model:'gpt-5',models:['gpt-5','gpt-5-mini','gpt-4.1','gpt-4o']}
+  anthropic:{name:'Claude',base:'https://api.anthropic.com/v1/messages',tiers:{fast:'claude-haiku-4-5-20251001',smart:'claude-sonnet-5-5',deep:'claude-opus-5-5'},
+    short:{'claude-haiku-4-5-20251001':'Haiku 4.5','claude-sonnet-5-5':'Sonnet 5.5','claude-opus-5-5':'Opus 5.5','claude-fable-5-1':'Fable 5.1'}},
+  openai:{name:'OpenAI',base:'https://api.openai.com/v1/chat/completions',tiers:{fast:'gpt-5-mini',smart:'gpt-5',deep:'gpt-5'},short:{}}
 };
-const AI={prov:'builtin',model:'',key:'',base:'',remember:false,pass:''};
+const AI={keys:{anthropic:'',openai:''},pass:'',remember:false,models:{}};
 const PROXY={anthropic:false,openai:false,pass:false,checked:false};
-try{const sv=JSON.parse(localStorage.getItem('bohioAI')||'null');if(sv)Object.assign(AI,sv)}catch(e){}
-try{const k=sessionStorage.getItem('bohioAIkey');if(k&&!AI.key)AI.key=k}catch(e){}
+try{const sv=JSON.parse(localStorage.getItem('bohioAI2')||'null');if(sv)Object.assign(AI,sv,{keys:{...AI.keys,...(sv.keys||{})}})}catch(e){}
+try{const k=JSON.parse(sessionStorage.getItem('bohioAIkeys')||'null');if(k)for(const p in k)if(!AI.keys[p])AI.keys[p]=k[p]}catch(e){}
 function saveAI(){
-  try{localStorage.setItem('bohioAI',JSON.stringify({...AI,key:AI.remember?AI.key:''}))}catch(e){}
-  try{sessionStorage.setItem('bohioAIkey',AI.key)}catch(e){}
+  try{localStorage.setItem('bohioAI2',JSON.stringify({...AI,keys:AI.remember?AI.keys:{anthropic:'',openai:''}}))}catch(e){}
+  try{sessionStorage.setItem('bohioAIkeys',JSON.stringify(AI.keys))}catch(e){}
   renderEng();
 }
-const viaProxy=()=>!AI.key&&PROXY[AI.prov];
-const llmOn=()=>AI.prov!=='builtin'&&(!!AI.key||PROXY[AI.prov]);
+const avail=p=>!!AI.keys[p]||!!PROXY[p];
+const provs=()=>['anthropic','openai'].filter(avail);
+const apiOn=()=>provs().length>0;
+const llmOn=apiOn;
+const modelFor=(p,tier)=>AI.models[p+'.'+tier]||PROV[p].tiers[tier]||PROV[p].tiers.smart;
+const mName=(p,m)=>PROV[p].name+' '+((PROV[p].short||{})[m]||m);
 function renderEng(){
-  const on=llmOn();$('#engBtn').classList.toggle('live',on);
-  $('#engTxt').textContent=AI.prov==='builtin'?'Engine: built-in':`Engine: ${PROV[AI.prov].name} · ${AI.model||PROV[AI.prov].model}${AI.key?'':PROXY[AI.prov]?' · server key':' (no key)'}`;
+  const ps=provs();$('#engBtn').classList.toggle('live',ps.length>0);
+  $('#engTxt').textContent=ps.length?`Router · AI: ${ps.map(p=>PROV[p].name).join(' + ')}`:'Router · rules only (no AI connected)';
+  renderRouter();
 }
 const VAR_ENUM=KEYS;
 const TOOLS=[
@@ -1281,10 +1308,10 @@ function sysPrompt(ch,role){
   const r=run(S);
   const asm=KEYS.map(k=>`- ${k} (${VARS[k].label}): base ${VARS[k].fmt(BASE[k])}, now ${VARS[k].fmt(apply(S)[k])}${S[k]?` (${fD(k,S[k])} vs base${SRC[k]?', source: email from '+SRC[k].e.from:''})`:''}`).join('\n');
   return `You are the Bohio agent. You sit on top of ARGUS EstateMaster for KINAN's Al Narjis Mixed-Use project in Riyadh (residential for sale plus retail held for income; all figures in SAR).
-Connections: EstateMaster through SQL Server (you edit only the sandbox scenario BHO_SBX; the base case is read-only), a market dataset of comparable sales, leases and plot zoning (dummy demo data), and the project's Outlook folder (dummy demo inbox).
+Connections: EstateMaster through the Bohio runner (every return is calculated by EstateMaster itself; you change only the sandbox model copy BHO_SBX; the base case is read-only), SQL Server for actuals and sales, a market dataset of comparable sales, leases and plot zoning (dummy demo data), and the project's Outlook folder (dummy demo inbox).
 
 Rules:
-- Get every number from a tool. Never invent figures, comps, emails or regulations.
+- Get every number from a tool. Never do financial maths yourself and never invent figures, comps, emails or regulations.
 - Call as many tools as the request needs, then answer. Changes you make stay in the sandbox.
 - Promotion to the live model needs a human. After promote_scenario, tell the user to reply APPROVE or CANCEL. Never say the live model was changed.
 - If an assumption the user names is not listed below, say it is not in this model.
@@ -1313,92 +1340,164 @@ async function post(url,headers,body){
   if(!res.ok)throw new Error(j.error&&(j.error.message||j.error)||('HTTP '+res.status));
   return j;
 }
-async function send(payload){
-  const P=PROV[AI.prov];
-  if(viaProxy())return post('/api/llm',AI.pass?{'x-demo-pass':AI.pass}:{},{provider:AI.prov,payload});
-  if(AI.prov==='anthropic')return post(AI.base||P.base,{'x-api-key':AI.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},payload);
-  return post(AI.base||P.base,{authorization:'Bearer '+AI.key},payload);
+async function send(p,payload){
+  if(!AI.keys[p])return post('/api/llm',AI.pass?{'x-demo-pass':AI.pass}:{},{provider:p,payload});
+  if(p==='anthropic')return post(PROV[p].base,{'x-api-key':AI.keys[p],'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},payload);
+  return post(PROV[p].base,{authorization:'Bearer '+AI.keys[p]},payload);
 }
-async function callLLM(system,msgs){
-  const model=AI.model||PROV[AI.prov].model;
-  if(AI.prov==='anthropic'){
-    const j=await send({model,max_tokens:1500,system,messages:msgs,tools:TOOLS.map(t=>({name:t.name,description:t.description,input_schema:{type:'object',properties:t.p,required:t.req||[]}}))});
-    return{raw:{role:'assistant',content:j.content},text:(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim(),
+async function callOne(p,system,msgs,tier,withTools){
+  const model=modelFor(p,tier);ROUTESTATS.calls++;
+  if(p==='anthropic'){
+    const body={model,max_tokens:1500,system,messages:msgs};
+    if(withTools)body.tools=TOOLS.map(t=>({name:t.name,description:t.description,input_schema:{type:'object',properties:t.p,required:t.req||[]}}));
+    const j=await send(p,body);
+    return{p,model,raw:{role:'assistant',content:j.content},text:(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim(),
       calls:(j.content||[]).filter(b=>b.type==='tool_use').map(b=>({id:b.id,name:b.name,args:b.input||{}}))};
   }
-  const j=await send({model,max_completion_tokens:1500,messages:[{role:'system',content:system},...msgs],
-    tools:TOOLS.map(t=>({type:'function',function:{name:t.name,description:t.description,parameters:{type:'object',properties:t.p,required:t.req||[]}}}))});
+  const body={model,max_completion_tokens:1500,messages:[{role:'system',content:system},...msgs]};
+  if(withTools)body.tools=TOOLS.map(t=>({type:'function',function:{name:t.name,description:t.description,parameters:{type:'object',properties:t.p,required:t.req||[]}}}));
+  const j=await send(p,body);
   const m=j.choices&&j.choices[0]&&j.choices[0].message||{};
-  return{raw:m,text:(m.content||'').trim(),calls:(m.tool_calls||[]).map(c=>{let a={};try{a=JSON.parse(c.function.arguments||'{}')}catch(e){}return{id:c.id,name:c.function.name,args:a}})};
+  return{p,model,raw:m,text:(m.content||'').trim(),calls:(m.tool_calls||[]).map(c=>{let a={};try{a=JSON.parse(c.function.arguments||'{}')}catch(e){}return{id:c.id,name:c.function.name,args:a}})};
+}
+/* one-shot completion with provider failover (commentary, narratives, tests) */
+async function complete(system,user,tier){
+  let err;for(const p of provs()){try{return await callOne(p,system,[{role:'user',content:user}],tier,false)}catch(e){err=e}}
+  throw err||new Error('No AI provider connected');
 }
 async function checkProxy(){
   if(!/^https?:/.test(location.protocol))return;
-  try{const r=await fetch('/api/llm');if(!r.ok)return;const j=await r.json();Object.assign(PROXY,j.providers||{},{pass:!!j.passwordRequired,checked:true});
-    let saved=null;try{saved=localStorage.getItem('bohioAI')}catch(e){}
-    if(AI.prov==='builtin'&&!saved){if(PROXY.anthropic)AI.prov='anthropic';else if(PROXY.openai)AI.prov='openai'}renderEng()}catch(e){}
+  try{const r=await fetch('/api/llm');if(!r.ok)return;const j=await r.json();Object.assign(PROXY,j.providers||{},{pass:!!j.passwordRequired,checked:true});renderEng()}catch(e){}
 }
-const toolResults=(calls,outs)=>AI.prov==='anthropic'
+const toolResults=(p,calls,outs)=>p==='anthropic'
   ?[{role:'user',content:calls.map((c,i)=>({type:'tool_result',tool_use_id:c.id,content:outs[i]}))}]
   :calls.map((c,i)=>({role:'tool',tool_call_id:c.id,content:outs[i]}));
 const HIST={web:[],wa:[]};
-async function llmTurn(text,ch,role,onStep){
-  const hist=HIST[ch],msgs=[...hist.slice(-12),{role:'user',content:text}];
-  let last=null,final='';
-  for(let i=0;i<6;i++){
-    onStep(`${PROV[AI.prov].name} · ${AI.model||PROV[AI.prov].model} · thinking`);
-    const r=await callLLM(sysPrompt(ch,role),msgs);
-    if(!r.calls.length){final=r.text;break}
-    msgs.push(r.raw);const outs=[];
-    for(const c of r.calls){
-      onStep(`Tool · ${c.name}(${Object.keys(c.args).length?JSON.stringify(c.args).slice(0,80):''})`);
-      const out=await handle('',ch,role,toolIntent(c.name,c.args));
-      for(const st of out.steps)onStep(st);
-      out.fx();last=out;outs.push(out.plain);
-    }
-    msgs.push(...toolResults(r.calls,outs));
-    final=r.text;
+async function llmTurn(text,ch,role,onStep,tier='smart'){
+  const hist=HIST[ch];let lastErr;
+  for(const p of provs()){
+    const msgs=[...hist.slice(-12),{role:'user',content:text}];let last=null,final='',started=false,n=0;
+    try{
+      for(let i=0;i<6;i++){
+        await onStep(`AI · ${mName(p,modelFor(p,tier))} · ${i?'continuing':'planning'}`);
+        const r=await callOne(p,sysPrompt(ch,role),msgs,tier,true);started=true;
+        if(!r.calls.length){final=r.text;break}
+        msgs.push(r.raw);const outs=[];
+        for(const c of r.calls){
+          n++;await onStep(`Tool · ${c.name}(${Object.keys(c.args).length?JSON.stringify(c.args).slice(0,80):''})`);
+          const out=await handle('',ch,role,toolIntent(c.name,c.args));
+          for(const st of out.steps)await onStep(st);
+          out.fx();last=out;outs.push(out.plain);
+        }
+        msgs.push(...toolResults(p,r.calls,outs));final=r.text;
+      }
+      if(!final)final=last?last.plain:'Done.';
+      hist.push({role:'user',content:text},{role:'assistant',content:final});
+      return{final,last,prov:p,model:modelFor(p,tier),tools:n};
+    }catch(e){lastErr=e;if(started)throw e;await onStep(`${PROV[p].name} unavailable (${String(e.message).slice(0,70)}) · failing over`)}
   }
-  if(!final)final=last?last.plain:'Done.';
-  hist.push({role:'user',content:text},{role:'assistant',content:final});
-  return{final,last};
+  throw lastErr||new Error('No AI provider connected');
+}
+
+/* ================= TASK ROUTER ================= */
+const ROUTESTATS={calc:0,data:0,api:0,calls:0,fallback:0};
+const REASON=/\b(why|should|recommend\w*|advice|advise|explain|compare|summari[sz]e|draft|write|memo|what do you think|opinions?|risks?|concerns?|assess|evaluate|interpret|story|narrative|analy[sz]e|pros|cons|implications?|negotiat\w*|how would|what would|worth|thoughts|tell me about|walk me through|trade-?offs?)\b/;
+const SRCNAME={market:'market dataset',zoning:'zoning rules',email:'Outlook (Microsoft Graph)',why:'changelog + email sources',report:'EstateMaster outputs',files:'attached Excel',align:'market dataset'};
+function route(text){
+  const it=intent(text),t=text.toLowerCase();
+  if(it.k==='approve'||it.k==='cancel')return{lane:'calc',it,why:'Approvals are handled by fixed rules, never by AI.'};
+  if(it.k==='why')return{lane:'data',it,why:'A lookup in the changelog and email sources; no AI needed.'};
+  if(REASON.test(t)&&it.k!=='promote')return{lane:'api',it,tier:/memo|draft|write|narrative/.test(t)?'deep':'smart',why:'Needs judgement or language: an AI agent plans and calls EstateMaster and data tools.'};
+  switch(it.k){
+    case 'mod':case 'status':case 'reset':case 'stress':case 'sens':case 'reverse':case 'explore':case 'capital':case 'align':case 'promote':case 'emailapply':
+      return{lane:'calc',it,why:'Straightforward maths: EstateMaster calculates, no AI involved.'};
+    case 'zoning':return{lane:'data',it,why:'A rules check against the plot\'s zoning; no AI needed.'};
+    case 'market':return{lane:'data',it,post:'commentary',tier:'fast',why:'Benchmark query on market data; a fast AI model adds commentary.'};
+    case 'email':return{lane:'data',it,why:'Reads the Outlook folder; extraction is cached in this demo.'};
+    case 'report':return{lane:'data',it,post:'narrative',tier:'deep',why:'Numbers come from EstateMaster; the strongest model drafts the narrative.'};
+    case 'files':return apiOn()?{lane:'api',it,tier:'smart',why:'A question over Excel content needs an AI model to read it.'}:{lane:'data',it,why:'Lists attached files (no AI connected).'};
+    default:return{lane:'api',it,tier:'smart',why:'Open question: an AI agent decides which tools to use.'};
+  }
+}
+function badgeHTML(res){
+  const r=res.r;
+  if(res.kind==='api')return`<span class="rt rt-api" title="${esc(r.why)}">✦ AI · ${esc(mName(res.prov,res.model))}${res.tools?` · ${res.tools} tool call${res.tools>1?'s':''}`:''}</span>`;
+  if(r.lane==='calc')return`<span class="rt rt-calc" title="${esc(r.why)}">⚙ EstateMaster calculation · no AI</span>`;
+  if(res.noapi||r.fallback)return`<span class="rt rt-data" title="${esc(r.why)}">✦ AI route · ${r.fallback?'AI unavailable':'no AI connected'} · answered by rules</span>`;
+  return`<span class="rt rt-data" title="${esc(r.why)}">▦ Data query · ${esc(SRCNAME[r.it.k]||'workspace')}${res.post&&res.post.text?(r.post==='narrative'?' + AI narrative':' + AI commentary'):''}</span>`;
+}
+function badgeText(res){
+  if(res.kind==='api')return`AI · ${mName(res.prov,res.model)}`;
+  if(res.noapi||res.r.fallback)return 'Rules (AI not connected)';
+  return res.r.lane==='calc'?'EstateMaster calculation · no AI':`Data query · ${SRCNAME[res.r.it.k]||'workspace'}`;
+}
+async function postProcess(kind,out,tier,ch){
+  const style=ch==='wa'?'Plain text, no markdown, 3 sentences at most.':'2 to 3 sentences, no headings.';
+  if(kind==='commentary'){
+    const r=await complete(`You are a real estate investment analyst in Riyadh advising KINAN's investment committee. Comment on the benchmark results you are given: what matters, what is aggressive, what to do next. Use only the numbers given; do not invent data. ${style}`,out.plain,tier);
+    return{text:r.text,prov:r.p,model:r.model};
+  }
+  if(kind==='narrative'){
+    const plain=reportHTML().replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,9000);
+    const r=await complete('You draft Investment Committee papers for KINAN. Using only the figures in the pack below, write two short paragraphs. Start the first with "Summary:" (4 sentences: the scheme, returns versus hurdles, what drives risk) and the second with "Rationale:" (3 sentences supporting or challenging the recommendation, naming the conditions). No invented numbers, no headings, no bullet points.',plain,tier);
+    NARR={key:narrKey(),text:r.text,prov:r.p,model:r.model};renderReport();
+    return{text:r.text.split(/\n+/)[0],prov:r.p,model:r.model,note:'Full narrative added to the IC pack.'};
+  }
+}
+async function execute(text,ch,role,onStep){
+  const r=route(text);ROUTESTATS[r.lane]++;
+  if(r.lane==='api'){
+    if(apiOn()){
+      try{const x=await llmTurn(text,ch,role,onStep,r.tier);renderRouter();return{r,kind:'api',...x}}
+      catch(err){ROUTESTATS.fallback++;r.fallback=err.message;await onStep(`AI unavailable (${String(err.message).slice(0,80)}) · answering with rules`)}
+    }else r.noapi=true;
+  }
+  const out=await handle(text,ch,role,r.it);
+  for(const st of out.steps)await onStep(st);
+  out.fx();
+  let post=null;
+  if(r.post&&apiOn()){
+    await onStep(`AI · ${mName(provs()[0],modelFor(provs()[0],r.tier))} · ${r.post==='narrative'?'drafting narrative':'writing commentary'}`);
+    try{post=await postProcess(r.post,out,r.tier,ch)}catch(e){post={err:e.message}}
+  }
+  renderRouter();
+  return{r,kind:'rules',out,post,noapi:r.lane==='api'};
+}
+function renderRouter(){
+  const el=$('#rtStats');if(!el)return;
+  const ps=provs();
+  el.innerHTML=`<div class="cs" style="grid-template-columns:repeat(4,1fr)">${[['EstateMaster calcs',ROUTESTATS.calc],['Data queries',ROUTESTATS.data],['AI requests',ROUTESTATS.api],['AI API calls',ROUTESTATS.calls]].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v" style="font-size:22px">${v}</div></div>`).join('')}</div>
+   <div class="sub" style="margin:10px 0 0">AI connected: ${ps.length?ps.map(p=>PROV[p].name+(AI.keys[p]?' (browser key)':' (server key)')).join(', ')+(ps.length>1?' · failover on':''):'none: rules only. Connect a provider from the Router button.'}${ROUTESTATS.fallback?` · ${ROUTESTATS.fallback} fallback${ROUTESTATS.fallback>1?'s':''} to rules`:''}</div>`;
+  const rows=[['Assumption changes, stress tests, sensitivities, headroom, explorer, capital structure','⚙ EstateMaster calculation','none'],
+   ['Market benchmarking','▦ Data query + commentary','fast'],['Zoning checks, Outlook, "why did X change"','▦ Data query','none'],
+   ['IC report','▦ EstateMaster numbers + narrative','deep'],['Open questions, advice, Excel questions, multi-step requests','✦ AI agent with tools','smart'],['Approvals','⚙ Fixed rules (never AI)','none']];
+  const mt=t=>t==='none'?'–':ps.length?mName(ps[0],modelFor(ps[0],t)):t;
+  const tbl='<tr><th>Request</th><th>Route</th><th>Model</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${esc(mt(r[2]))}</td></tr>`).join('');
+  if($('#rtTable'))$('#rtTable').innerHTML=tbl;if($('#rtRules'))$('#rtRules').innerHTML=tbl;
 }
 const mdLite=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g,'$1<b>$2</b>').replace(/^#{1,4}\s*(.+)$/gm,'<b>$1</b>').replace(/^[-•]\s+/gm,'• ').replace(/\n/g,'<br>');
-const humanOnly=t=>['approve','cancel'].includes(intent(t).k);
 
 let busy=false;
 async function webAsk(text){
-  if(!text.trim()||busy)return;
-  if(llmOn()&&!humanOnly(text))return webAskLLM(text);
   if(!text.trim()||busy)return;busy=true;
   addMsg('user',text);$('#ask').value='';
-  const out=await handle(text,'web','Investment Director');
-  const m=addMsg('agent','');const box=m.querySelector('.steps');
-  for(const s of out.steps){const e=document.createElement('div');e.className='st';e.innerHTML=`<i></i><span>${esc(s)}</span>`;box.appendChild(e);$('#msgs').scrollTop=1e9;await sleep(380);e.classList.add('done')}
-  out.fx();
-  m.querySelector('.body').innerHTML=out.html+(out.link&&!/data-tab/.test(out.html)?`<br><a class="go" data-tab="${out.link[0]}">${out.link[1]} →</a>`:'');
-  $('#msgs').scrollTop=1e9;busy=false;
-}
-async function webAskLLM(text){
-  busy=true;addMsg('user',text);$('#ask').value='';
   const m=addMsg('agent','');const box=m.querySelector('.steps');let prev=null;
-  const onStep=st=>{if(prev)prev.classList.add('done');const e=document.createElement('div');e.className='st';e.innerHTML=`<i></i><span>${esc(st)}</span>`;box.appendChild(e);prev=e;$('#msgs').scrollTop=1e9};
+  const onStep=async st=>{if(prev)prev.classList.add('done');const e=document.createElement('div');e.className='st';e.innerHTML=`<i></i><span>${esc(st)}</span>`;box.appendChild(e);prev=e;$('#msgs').scrollTop=1e9;await sleep(170)};
   try{
-    const {final,last}=await llmTurn(text,'web','Investment Director',onStep);if(prev)prev.classList.add('done');
-    const rich=last&&/<table/.test(last.html)?`<div style="margin-top:8px">${last.html.replace(/<div class="chips">[\s\S]*?<\/div>/,'')}</div>`:'';
-    m.querySelector('.body').innerHTML=`<div class="llm">${esc(PROV[AI.prov].name)} · ${esc(AI.model||PROV[AI.prov].model)}</div>${mdLite(final)}${rich}`+(last&&last.link&&!/data-tab/.test(rich)?`<br><a class="go" data-tab="${last.link[0]}">${last.link[1]} →</a>`:'');
-  }catch(err){
-    if(prev)prev.classList.add('done');
-    m.querySelector('.body').innerHTML=`<span class="dn"><b>${esc(PROV[AI.prov].name)} API error:</b> ${esc(err.message)}</span><br>Answering with the built-in agent instead.`;
-    busy=false;$('#msgs').scrollTop=1e9;return webAskBuiltin(text);
-  }
+    const res=await execute(text,'web','Investment Director',onStep);if(prev)prev.classList.add('done');
+    let html=badgeHTML(res)+'<br>';
+    if(res.kind==='api'){
+      const last=res.last,rich=last&&/<table/.test(last.html)?`<div style="margin-top:8px">${last.html.replace(/<div class="chips">[\s\S]*?<\/div>/,'')}</div>`:'';
+      html+=mdLite(res.final)+rich+(last&&last.link&&!/data-tab/.test(rich)?`<br><a class="go" data-tab="${last.link[0]}">${last.link[1]} →</a>`:'');
+    }else{
+      const o=res.out;
+      if(res.noapi&&res.r.it.k==='help')html+='<span style="color:var(--soft)">This needs an AI model and none is connected, so here is what the rules engine can do.</span><br>';
+      html+=o.html+(o.link&&!/data-tab/.test(o.html)?`<br><a class="go" data-tab="${o.link[0]}">${o.link[1]} →</a>`:'');
+      if(res.post)html+=res.post.err?`<div class="post"><span class="dn">AI commentary unavailable: ${esc(res.post.err)}</span></div>`:`<div class="post"><div class="llm">✦ ${esc(mName(res.post.prov,res.post.model))}</div>${mdLite(res.post.text)}${res.post.note?`<br><span style="color:var(--soft)">${res.post.note}</span>`:''}</div>`;
+    }
+    m.querySelector('.body').innerHTML=html;
+  }catch(err){m.querySelector('.body').innerHTML=`<span class="dn">${esc(err.message)}</span>`}
   $('#msgs').scrollTop=1e9;busy=false;
-}
-async function webAskBuiltin(text){
-  if(busy)return;busy=true;
-  const out=await handle(text,'web','Investment Director');
-  const m=addMsg('agent','');const box=m.querySelector('.steps');
-  for(const s of out.steps){const e=document.createElement('div');e.className='st';e.innerHTML=`<i></i><span>${esc(s)}</span>`;box.appendChild(e);$('#msgs').scrollTop=1e9;await sleep(250);e.classList.add('done')}
-  out.fx();m.querySelector('.body').innerHTML=out.html;$('#msgs').scrollTop=1e9;busy=false;
 }
 $('#send').onclick=()=>webAsk($('#ask').value);
 $('#ask').onkeydown=e=>{if(e.key==='Enter')webAsk(e.target.value)};
@@ -1409,7 +1508,7 @@ document.addEventListener('click',e=>{
 $('#chips').innerHTML=CHIPS.map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('');
 $('#reset').onclick=()=>{S={};for(const k in SRC)delete SRC[k];changelog.push('Reset to base');renderAll(true)};
 $('#promote').onclick=()=>webAsk('promote scenario');
-function openModal(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S))}</b><br>Written through: SQL Server → EstateMaster sync<br>The base case is overwritten only after this approval. An audit record is written.`;$('#modal').classList.add('on')}
+function openModal(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S))}</b><br>Written by: EstateMaster runner (live model)<br>The base case is overwritten only after this approval. An audit record is written.`;$('#modal').classList.add('on')}
 $('#mno').onclick=()=>{pending=null;$('#modal').classList.remove('on')};
 $('#myes').onclick=()=>{$('#modal').classList.remove('on');webAsk('approve')};
 
@@ -1458,7 +1557,8 @@ $('#hn').onchange=e=>{hn=+e.target.value;renderHeat()};
 $('#etoggle').onclick=()=>E.run?stopExplorer():startExplorer();
 $('#eclear').onclick=()=>{stopExplorer();E.alerted=false;resetE()};
 $('#runStress').onclick=()=>{stressRes=computeStress();computeTornado();computeHeadroom();renderStress();toast('Stress tests recalculated')};
-$('#rgen').onclick=renderReport;$('#rprint').onclick=()=>{renderReport();window.print()};
+$('#rgen').onclick=renderReport;
+$('#rnarr').onclick=async()=>{if(!apiOn()){toast('No AI connected: open the Router button to connect Claude or OpenAI');return}$('#rnarr').textContent='Drafting…';try{await postProcess('narrative',null,'deep','web');toast('Narrative drafted from EstateMaster outputs')}catch(e){toast('AI error: '+e.message)}$('#rnarr').textContent='Draft narrative (AI)'};$('#rprint').onclick=()=>{renderReport();window.print()};
 $('#rhtml').onclick=()=>download('AlNarjis_IC_Pack.html','<!doctype html><meta charset="utf-8"><title>IC Pack</title><body style="font-family:sans-serif;max-width:860px;margin:40px auto">'+reportHTML()+'</body>','text/html');
 $('#rcsv').onclick=()=>download('sensitivity.csv',csv(),'text/csv');
 
@@ -1471,19 +1571,17 @@ async function waAsk(text){
   if(!text.trim()||wbusy)return;wbusy=true;
   const role=$('#warole').value;
   wBubble('me',esc(text));$('#wain').value='';
-  if(llmOn()&&!humanOnly(text)){
-    const tp=wBubble('bot tp','typing…');$('#wastat').textContent='typing…';
-    try{const {final,last}=await llmTurn(text,'wa',role,()=>{});tp.remove();
-      wBubble('bot',mdLite(final).replace(/<br>/g,'\n')+(last&&last.attach?`<div class="att"><i>${last.attach.kind}</i><span>${last.attach.label}<br><small style="color:var(--soft)">expiring secure link · 24h</small></span></div>`:''));
-      $('#wastat').textContent='online';toast(`WhatsApp · ${role} · ${PROV[AI.prov].name}`);wbusy=false;return}
-    catch(err){tp.remove();$('#wastat').textContent='online';wBubble('bot',`<i>${esc(PROV[AI.prov].name)} API error: ${esc(err.message)}. Built-in agent answering.</i>`)}
-  }
-  const out=await handle(text,'wa',role);
   const tp=wBubble('bot tp','typing…');$('#wastat').textContent='typing…';
-  await sleep(500+Math.min(out.steps.length,5)*260);
-  out.fx();tp.remove();$('#wastat').textContent='online';
-  wBubble('bot',out.plain.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])).replace(/\*(.+?)\*/g,'<b>$1</b>')+(out.attach?`<div class="att"><i>${out.attach.kind}</i><span>${out.attach.label}<br><small style="color:var(--soft)">expiring secure link · 24h</small></span></div>`:''));
-  if(text&&out.fx){toast(`WhatsApp · ${role}: ${text.length>38?text.slice(0,36)+'…':text}`)}
+  const t0=Date.now();
+  const res=await execute(text,'wa',role,async()=>{});
+  await sleep(Math.max(0,700-(Date.now()-t0)));
+  tp.remove();$('#wastat').textContent='online';
+  const fmt=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\*(.+?)\*/g,'<b>$1</b>');
+  let body,att=null;
+  if(res.kind==='api'){body=fmt(res.final);att=res.last&&res.last.attach}
+  else{body=fmt(res.out.plain)+(res.post&&res.post.text?'\n\n'+fmt(res.post.text):'');att=res.out.attach}
+  wBubble('bot',`<span class="wrt">${esc(badgeText(res))}</span>`+body+(att?`<div class="att"><i>${att.kind}</i><span>${att.label}<br><small style="color:var(--soft)">expiring secure link · 24h</small></span></div>`:''));
+  toast(`WhatsApp · ${role} · ${badgeText(res)}`);
   wbusy=false;
 }
 function waAlert(auto){
@@ -1523,29 +1621,27 @@ $('#useSample').onclick=async()=>{try{const a=document.querySelector('a[download
 document.addEventListener('click',e=>{const x=e.target.closest('[data-rmf]');if(x){FILES.splice(+x.dataset.rmf,1);renderFiles()}});
 const chat=$('.chat');['dragover','drop'].forEach(ev=>chat.addEventListener(ev,async e=>{e.preventDefault();if(ev==='drop')for(const f of e.dataTransfer.files){if(/\.(xlsx|xlsm|xls|csv)$/i.test(f.name))await addWorkbook(f.name,await f.arrayBuffer()).catch(err=>addMsg('agent',esc(err.message)))}}));
 
-/* AI engine settings */
-function aiForm(){
-  const pv=document.querySelector('input[name=prov]:checked').value;$('#aiFields').style.display=pv==='builtin'?'none':'';
-  if(pv!=='builtin'){const P=PROV[pv];$('#aiModels').innerHTML=P.models.map(m=>`<option value="${m}">`).join('');
-    if(!$('#aiModel').value||!P.models.includes($('#aiModel').value)&&$('#aiModel').dataset.prov!==pv)$('#aiModel').value=P.model;$('#aiModel').dataset.prov=pv;$('#aiBase').placeholder=P.base;
-    $('#aiProxy').innerHTML=PROXY[pv]?'<b>Server key configured.</b> Leave the API key empty to use it; the key stays on the server.':'';$('#aiKey').placeholder=PROXY[pv]?'Optional: leave empty to use the server key':'Paste your key';$('#aiPassF').style.display=PROXY[pv]&&PROXY.pass?'':'none'}
-}
+/* AI connections (admin) */
 function openAI(){
-  document.querySelector(`input[name=prov][value=${AI.prov}]`).checked=true;
-  $('#aiModel').value=AI.model;$('#aiModel').dataset.prov=AI.prov;$('#aiKey').value=AI.key;$('#aiBase').value=AI.base;$('#aiRemember').checked=AI.remember;$('#aiPass').value=AI.pass||'';$('#aiTest').textContent='';
-  aiForm();$('#aiModal').classList.add('on');
+  $('#aiKeyA').value=AI.keys.anthropic;$('#aiKeyO').value=AI.keys.openai;$('#aiPass').value=AI.pass||'';$('#aiRemember').checked=AI.remember;
+  $('#aiModels').value=Object.entries(AI.models).map(([k,v])=>k+'='+v).join('\n');$('#aiTest').textContent='';
+  const sv=['anthropic','openai'].filter(p=>PROXY[p]);
+  $('#aiProxy').innerHTML=sv.length?`<b>Server keys configured:</b> ${sv.map(p=>PROV[p].name).join(', ')}. Leave those fields empty to use them.`:'';
+  $('#aiPassF').style.display=sv.length&&PROXY.pass?'':'none';
+  renderRouter();$('#aiModal').classList.add('on');
 }
-function readAI(){AI.prov=document.querySelector('input[name=prov]:checked').value;AI.model=$('#aiModel').value.trim();AI.key=$('#aiKey').value.trim();AI.base=$('#aiBase').value.trim();AI.remember=$('#aiRemember').checked;AI.pass=$('#aiPass').value.trim()}
-$$('input[name=prov]').forEach(r=>r.onchange=aiForm);
+function readAI(){
+  AI.keys={anthropic:$('#aiKeyA').value.trim(),openai:$('#aiKeyO').value.trim()};AI.pass=$('#aiPass').value.trim();AI.remember=$('#aiRemember').checked;
+  AI.models={};$('#aiModels').value.split('\n').forEach(l=>{const m=l.match(/^\s*(anthropic|openai)\.(fast|smart|deep)\s*=\s*(\S+)\s*$/);if(m)AI.models[m[1]+'.'+m[2]]=m[3]});
+}
 $('#engBtn').onclick=openAI;
 $('#aiModal').onclick=e=>{if(e.target.id==='aiModal')$('#aiModal').classList.remove('on')};
-$('#aiSave').onclick=()=>{readAI();HIST.web=[];HIST.wa=[];saveAI();$('#aiModal').classList.remove('on');toast(AI.prov==='builtin'?'Agent engine: built-in':`Agent engine: ${PROV[AI.prov].name} · ${AI.model||PROV[AI.prov].model}`)};
+$('#aiSave').onclick=()=>{readAI();HIST.web=[];HIST.wa=[];saveAI();$('#aiModal').classList.remove('on');toast(apiOn()?`AI connected: ${provs().map(p=>PROV[p].name).join(' + ')}`:'No AI connected: rules only')};
 $('#aiTestBtn').onclick=async()=>{
-  readAI();if(AI.prov==='builtin'){$('#aiTest').textContent='Built-in needs no connection.';return}
-  if(!AI.key&&!PROXY[AI.prov]){$('#aiTest').innerHTML='<span class="warn">Add an API key first.</span>';return}
-  $('#aiTest').textContent='Testing…';
-  try{const r=await callLLM('Reply with the single word OK.',[{role:'user',content:'Connection test'}]);$('#aiTest').innerHTML=`<b>Connected.</b> ${esc((r.text||'OK').slice(0,40))}`}
-  catch(err){$('#aiTest').innerHTML=`<span class="warn">${esc(err.message).slice(0,160)}</span>`}
+  readAI();const ps=provs();if(!ps.length){$('#aiTest').innerHTML='<span class="warn">Add at least one key.</span>';return}
+  $('#aiTest').textContent='Testing…';const out=[];
+  for(const p of ps){try{await callOne(p,'Reply with the single word OK.',[{role:'user',content:'Connection test'}],'fast',false);out.push(`<b>${PROV[p].name} ✓</b>`)}catch(e){out.push(`<span class="warn">${PROV[p].name}: ${esc(String(e.message).slice(0,90))}</span>`)}}
+  $('#aiTest').innerHTML=out.join(' · ');
 };
 
 /* ================= INIT ================= */

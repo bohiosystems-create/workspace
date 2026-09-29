@@ -33,12 +33,30 @@ Al Narjis Mixed-Use project. All data is dummy data.
 
 Test locally with `vercel dev` (it reads a local `.env`).
 
-## AI engines
+## Task routing (no engine choice)
 
-- **Built-in:** offline, rule-based; works with no keys (also when you open `index.html` straight from disk).
-- **Claude** (Anthropic Messages API) and **OpenAI** (Chat Completions API): same tools, sandbox and approval rules.
-  Models are editable in the engine settings. Check the model name matches one your account can use.
-- Without a server key you can paste a personal key in the engine settings; it goes straight from the
-  browser to the provider. Fine for a private demo, not for production.
+Every request is routed automatically; the badge on each answer shows the route.
+
+| Request | Route | AI model |
+|---|---|---|
+| Assumption changes, stress tests, sensitivities, headroom, explorer, capital structure | EstateMaster calculation | none |
+| Zoning checks, Outlook, "why did X change" | Data query | none |
+| Market benchmarking | Data query + commentary | fast (Claude Haiku 4.5 / gpt-5-mini) |
+| IC report | EstateMaster numbers + narrative | deep (Claude Opus 5.5 / gpt-5) |
+| Open questions, advice, Excel questions, multi-step requests | AI agent with tools | smart (Claude Sonnet 5.5 / gpt-5) |
+| Approvals | Fixed rules, never AI | none |
+
+AI never does the financial maths: the agent calls tools, and the tools return calculated numbers.
+Connect Claude, OpenAI or both (server keys on Vercel, or paste keys under the Router button). With both,
+a failure on one provider fails over to the other. With neither, the rules engine still answers.
+Model names per tier can be overridden under Router → Routing rules and models, e.g. `openai.smart=gpt-5`.
+Check the OpenAI model names match ones your account can use.
 
 The proxy caps output at 2,000 tokens per call and never returns the key to the browser.
+
+## Where the calculations happen
+
+In production every return is calculated by EstateMaster itself: a Bohio runner (Windows VM with licensed
+EstateMaster and Excel) writes the scenario into the model's live-linked inputs, lets EstateMaster
+recalculate, and reads the outputs back. In this demo that runner is simulated in the browser by a
+calibrated replica of the project's cash flows.
