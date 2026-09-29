@@ -46,8 +46,8 @@ header{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:18p
 @media(max-width:1100px){.g2,.g3,.g4{grid-template-columns:1fr}}
 
 /* connection strip */
-.conn{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
-@media(max-width:900px){.conn{grid-template-columns:1fr}}
+.conn{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:1100px){.conn{grid-template-columns:1fr}}
 .cn{display:flex;gap:14px;align-items:center;border:1px solid rgba(255,255,255,.7);border-radius:16px;padding:12px 16px;background:linear-gradient(var(--card1),var(--card2));box-shadow:var(--shadow)}
 .cn.dk{background:var(--ink);color:#fff}
 .cn.dk small{color:rgba(255,255,255,.65)}
@@ -155,9 +155,44 @@ table.t td.n,table.t th.n{text-align:right}
 .mkbox{border-left:4px solid var(--ink);padding:10px 14px;background:rgba(0,9,25,.04);border-radius:0 10px 10px 0;margin:14px 0;font-size:13.5px}
 .mkbox.bad{border-color:var(--alert)}
 .scroll{max-height:300px;overflow:auto}
+/* floating sandbox */
+.sbhead{display:flex;align-items:center;gap:10px}
+.sbhead h2{margin:0;flex:1}
+
+#sbMin{display:none;padding:5px 11px}.card.float #sbMin{display:inline-block}
+.card.float.min>:not(.sbhead){display:none!important}.card.float .sbhead h2{font-size:19px;white-space:nowrap}.sbhead .btn{white-space:nowrap}
+.scroll table.t{white-space:nowrap}.card.float.min{width:auto}
+.card.float{position:fixed;z-index:90;width:440px;max-height:calc(100vh - 40px);overflow:auto;box-shadow:0 24px 60px rgba(0,9,25,.35),inset 0 1px 0 rgba(255,255,255,.9)}
+.card.float .sbhead{cursor:grab;user-select:none;touch-action:none}
+.card.float.drag .sbhead{cursor:grabbing}
+.card.float .asm{grid-template-columns:104px 1fr 86px}
+.card.float .grip{display:block}
+.grip{display:none;width:22px;height:14px;background:radial-gradient(circle,var(--soft) 1.3px,transparent 1.6px) 0 0/7px 7px;opacity:.8}
+.sbph{border:2px dashed var(--faint);border-radius:20px;padding:26px;text-align:center;color:var(--soft);font-size:13px}
+@media(max-width:700px){.card.float{width:calc(100vw - 32px)}}
+/* outlook */
+.ib{display:flex;flex-direction:column;gap:8px}
+.em{cursor:pointer;padding:11px 13px;border-radius:14px;background:rgba(255,255,255,.55);border:1px solid var(--hair);transition:.15s}
+.em:hover{background:rgba(255,255,255,.85)}
+.em.on{background:#fff;border-color:var(--ink);box-shadow:0 6px 16px rgba(0,9,25,.12)}
+.em .top{display:flex;gap:8px;font-size:12px;color:var(--soft)}
+.em .top span:last-child{margin-left:auto;white-space:nowrap}
+.em .sj{font-weight:600;font-size:13.5px;margin:2px 0}
+.em .sn{font-size:12.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.em .x{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.xtag{font-size:11.5px;padding:2px 9px;border-radius:999px;background:var(--ink);color:#fff}
+.xtag.no{background:rgba(0,9,25,.08);color:var(--soft)}
+.xtag.ok{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+.rd .meta{font-size:12.5px;color:var(--soft);margin-bottom:4px}
+.rd h3{font-size:19px;margin-bottom:10px}
+.rd .bd{font-size:14px;line-height:1.55;padding:14px 16px;background:#fff;border-radius:12px;border:1px solid var(--hair)}
+.rd mark{background:rgba(255,77,106,.22);color:inherit;border-radius:3px;padding:0 2px}
+.ext{margin-top:14px;border-left:4px solid var(--ink);padding:12px 14px;background:rgba(0,9,25,.04);border-radius:0 12px 12px 0;font-size:13.5px}
+.ext table{width:100%;border-collapse:collapse;margin:6px 0}
+.ext td{padding:5px 4px;border-top:1px solid var(--hair)}
 .ev{grid-template-columns:1fr 1fr}.wag{grid-template-columns:380px minmax(0,1fr)}
 .grid>*{min-width:0}
-@media(max-width:1100px){.ev,.wag{grid-template-columns:1fr}}
+@media(max-width:1100px){.ev,.wag,#ibgrid{grid-template-columns:1fr!important}}
 @media(max-width:700px){
   .wrap{padding:16px 16px 48px}
   .card{padding:18px 16px}
@@ -234,7 +269,8 @@ table.t td.n,table.t th.n{text-align:right}
 
 <div class="conn">
   <div class="cn dk"><span class="dot ok"></span><div><b>EstateMaster · SQL Server</b><small>Connected · reads outputs, writes sandbox scenario BHO_SBX · base case read-only</small></div><div class="n">INTEGRATION</div></div>
-  <div class="cn"><span class="dot"></span><div><b>Market data</b><small>Transactions · rentals · plot regulations (FAR, setbacks, coverage, height) · illustrative sample</small></div><div class="n">3 FEEDS</div></div>
+  <div class="cn"><span class="dot"></span><div><b>Market data</b><small>Transactions · rentals · zoning rules · dummy dataset</small></div><div class="n">3 FEEDS</div></div>
+  <div class="cn"><span class="dot"></span><div><b>Outlook · Microsoft Graph</b><small>Read-only · folder "Al Narjis" · context for assumption changes</small></div><div class="n">EMAIL</div></div>
 </div>
 <div class="tabs" id="tabs"></div>
 
@@ -256,9 +292,10 @@ table.t td.n,table.t th.n{text-align:right}
         <div class="sub" id="kpiSub">Sandbox scenario vs base case</div>
         <div class="kpis" id="kpis" style="grid-template-columns:repeat(3,1fr)"></div>
       </div>
-      <div class="card">
-        <div class="bar"></div><h2>Assumptions sandbox</h2>
-        <div class="sandbox"><span class="dot"></span><span id="sbx">Working on a sandbox copy. Base case in EstateMaster is untouched.</span></div>
+      <div id="sbHome"></div>
+      <div class="card" id="sbCard">
+        <div class="bar"></div><div class="sbhead" id="sbHead"><span class="grip"></span><h2>Assumptions sandbox</h2><button class="btn ghost sm" id="sbMin" title="Minimise">–</button><button class="btn ghost sm" id="sbPop" title="Float this panel over every tab and drag it anywhere">Pop out ⤢</button></div>
+        <div class="sandbox" style="margin-top:12px"><span class="dot"></span><span id="sbx">Working on a sandbox copy. Base case in EstateMaster is untouched.</span></div>
         <div class="asm" id="asm"></div>
         <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
           <button class="btn ghost sm" id="reset">Reset to base</button>
@@ -277,8 +314,9 @@ table.t td.n,table.t th.n{text-align:right}
         <div class="bar"></div><h2>Assumptions vs market</h2>
         <div class="sub">The current sandbox, checked against comparable transactions, rental evidence and the plot's regulations.</div>
         <div class="ctl">
-          <label>Comps <select id="mkScope"><option value="adj">Al Narjis + adjacent districts</option><option value="nar">Al Narjis only</option></select></label>
-          <label>Period <select id="mkPer"><option value="12">Last 12 months</option><option value="6">Last 6 months</option></select></label>
+          <label>Comps <select id="mkScope"><option value="1">Al Narjis only</option><option value="2" selected>Al Narjis + adjacent</option><option value="3">North Riyadh</option></select></label>
+          <label>Period <select id="mkPer"><option value="6">6 months</option><option value="12" selected>12 months</option><option value="18">18 months</option><option value="24">24 months</option></select></label>
+          <label>Type <select id="mkType"><option>All</option><option>Apartment</option><option>Townhouse</option><option>Duplex</option></select></label>
         </div>
         <table class="t" id="mkT"></table>
         <div id="mkRng" style="margin-top:14px"></div>
@@ -289,21 +327,33 @@ table.t td.n,table.t th.n{text-align:right}
         </div>
       </div>
       <div class="card">
-        <div class="bar"></div><h2>Evidence</h2>
-        <div class="sub">Every benchmark traces back to these records. The agent cites them in reports.</div>
+        <div class="bar"></div><div class="sbhead"><h2>Evidence</h2><a class="btn ghost sm" href="market-data.xlsx" download>Download dataset (Excel)</a></div>
+        <div class="sub" style="margin-top:4px" id="evSub">Every benchmark traces back to these records.</div>
         <div class="grid ev" style="gap:16px">
-          <div><h3 class="serif" style="font-size:15px;margin-bottom:6px">Residential sales</h3><div class="scroll"><table class="t" id="cmpP"></table></div></div>
-          <div><h3 class="serif" style="font-size:15px;margin-bottom:6px">Retail leases</h3><div class="scroll"><table class="t" id="cmpR"></table></div></div>
+          <div><h3 class="serif" style="font-size:15px;margin-bottom:6px" id="evP">Residential sales</h3><div class="scroll"><table class="t" id="cmpP"></table></div></div>
+          <div><h3 class="serif" style="font-size:15px;margin-bottom:6px" id="evR">Retail leases</h3><div class="scroll"><table class="t" id="cmpR"></table></div></div>
         </div>
       </div>
     </div>
     <div class="card">
       <div class="bar"></div><h2>Site &amp; regulations</h2>
-      <div class="sub">Plot NRJ-0417 (illustrative) · 20,000 sqm · 200 m frontage × 100 m depth</div>
+      <div class="sub" id="siteSub"></div>
       <div id="site"></div>
       <table class="t" id="regT" style="margin-top:10px"></table>
       <div class="src" id="mkSrc"></div>
     </div>
+  </div>
+</section>
+
+<!-- OUTLOOK -->
+<section class="pane" id="p-inbox">
+  <div class="grid" style="grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)" id="ibgrid">
+    <div class="card">
+      <div class="bar"></div><div class="sbhead"><h2>Outlook · Al Narjis</h2><button class="btn sm" id="ibAll">Apply all changes</button></div>
+      <div class="sub" style="margin-top:4px" id="ibSub"></div>
+      <div class="ib" id="ibList"></div>
+    </div>
+    <div class="card rd" id="ibRead"></div>
   </div>
 </section>
 
@@ -448,12 +498,34 @@ table.t td.n,table.t th.n{text-align:right}
       </div>
     </div>
   </div>
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card">
+      <div class="bar"></div><h2>Outlook integration</h2>
+      <div class="sub">How the agent gets context on assumption changes from email</div>
+      <div class="rec">
+        <div class="it"><div class="num">1</div><div><b>Microsoft Graph, read-only</b><span>An Entra ID app with Mail.Read, limited by an application access policy to one project mailbox or folder (e.g. "Al Narjis"). The agent never sends or deletes mail.</span></div></div>
+        <div class="it"><div class="num">2</div><div><b>Change notifications</b><span>A Graph subscription on the folder pings the agent when mail arrives; no polling of personal inboxes.</span></div></div>
+        <div class="it"><div class="num">3</div><div><b>Extract, then propose</b><span>The agent pulls the assumption, the new value and the sentence it came from. Changes are proposed, never applied silently.</span></div></div>
+        <div class="it"><div class="num">4</div><div><b>Cited everywhere</b><span>Applied changes carry the sender, date, subject and quote into the changelog, the IC pack and "why did this change?" answers.</span></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="bar"></div><h2>What it reads, what it ignores</h2>
+      <div class="list">
+        <div>Reads: cost plans and tender returns, pricing notes, term sheets, planning feedback, leasing LOIs, programme updates.</div>
+        <div>Ignores: anything without a model assumption (HR, logistics, newsletters). Attachments are read only from allow-listed senders.</div>
+        <div>Low-confidence extractions are flagged for a person to confirm before they can be applied.</div>
+        <div>Mail stays in Microsoft 365; the agent stores only the extracted fields and a message link.</div>
+      </div>
+    </div>
+  </div>
 </section>
 </div>
 
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="card"><div class="bar"></div><h2>Promote scenario to EstateMaster?</h2><div class="sub" id="mbody"></div><div class="row"><button class="btn ghost" id="mno">Cancel</button><button class="btn" id="myes">Approve &amp; write</button></div></div></div>
 
+<script id="mkdata" type="application/json">{"asOf":"2026-09-29","tx":[{"id":"TX-24022","date":"2026-09-09","district":"Al Narjis","ring":1,"type":"Apartment","size":162,"price":1968000,"status":"Ready","floor":8},{"id":"TX-24145","date":"2026-09-06","district":"Al Sahafa","ring":3,"type":"Apartment","size":163,"price":1984000,"status":"Ready","floor":4},{"id":"TX-24088","date":"2026-09-04","district":"Al Arid","ring":2,"type":"Apartment","size":122,"price":1388000,"status":"Ready","floor":4},{"id":"TX-24065","date":"2026-08-31","district":"Al Sahafa","ring":3,"type":"Apartment","size":105,"price":1241000,"status":"Ready","floor":8},{"id":"TX-24071","date":"2026-08-23","district":"Al Arid","ring":2,"type":"Townhouse","size":236,"price":2845000,"status":"Ready","floor":0},{"id":"TX-24124","date":"2026-08-11","district":"Al Arid","ring":2,"type":"Apartment","size":106,"price":1258000,"status":"Ready","floor":6},{"id":"TX-24032","date":"2026-07-28","district":"Al Narjis","ring":1,"type":"Townhouse","size":217,"price":2714000,"status":"Ready","floor":0},{"id":"TX-24118","date":"2026-07-28","district":"Hittin","ring":3,"type":"Apartment","size":99,"price":1326000,"status":"Ready","floor":7},{"id":"TX-24135","date":"2026-07-27","district":"Al Yasmin","ring":2,"type":"Apartment","size":149,"price":1795000,"status":"Off-plan","floor":7},{"id":"TX-24011","date":"2026-07-25","district":"Al Arid","ring":2,"type":"Townhouse","size":257,"price":3022000,"status":"Off-plan","floor":0},{"id":"TX-24132","date":"2026-07-18","district":"Hittin","ring":3,"type":"Apartment","size":146,"price":2094000,"status":"Ready","floor":2},{"id":"TX-24005","date":"2026-07-17","district":"Al Narjis","ring":1,"type":"Apartment","size":186,"price":2165000,"status":"Ready","floor":5},{"id":"TX-24121","date":"2026-07-15","district":"Al Arid","ring":2,"type":"Apartment","size":122,"price":1341000,"status":"Ready","floor":3},{"id":"TX-24029","date":"2026-07-14","district":"Al Yasmin","ring":2,"type":"Townhouse","size":292,"price":3654000,"status":"Ready","floor":0},{"id":"TX-24070","date":"2026-06-29","district":"Al Arid","ring":2,"type":"Apartment","size":102,"price":1135000,"status":"Ready","floor":3},{"id":"TX-24115","date":"2026-06-28","district":"Al Sahafa","ring":3,"type":"Apartment","size":163,"price":2097000,"status":"Ready","floor":4},{"id":"TX-24017","date":"2026-06-25","district":"Al Malqa","ring":2,"type":"Townhouse","size":258,"price":3483000,"status":"Ready","floor":0},{"id":"TX-24147","date":"2026-06-23","district":"Al Malqa","ring":2,"type":"Apartment","size":161,"price":2010000,"status":"Off-plan","floor":5},{"id":"TX-24031","date":"2026-06-19","district":"Hittin","ring":3,"type":"Duplex","size":254,"price":3677000,"status":"Off-plan","floor":0},{"id":"TX-24074","date":"2026-06-10","district":"Hittin","ring":3,"type":"Apartment","size":109,"price":1572000,"status":"Ready","floor":6},{"id":"TX-24019","date":"2026-06-08","district":"Al Narjis","ring":1,"type":"Apartment","size":114,"price":1499000,"status":"Off-plan","floor":0},{"id":"TX-24109","date":"2026-06-02","district":"Al Sahafa","ring":3,"type":"Apartment","size":103,"price":1167000,"status":"Ready","floor":4},{"id":"TX-24153","date":"2026-06-01","district":"Al Malqa","ring":2,"type":"Apartment","size":161,"price":2164000,"status":"Ready","floor":0},{"id":"TX-24003","date":"2026-05-23","district":"Al Yasmin","ring":2,"type":"Duplex","size":175,"price":2175000,"status":"Ready","floor":0},{"id":"TX-24007","date":"2026-05-12","district":"Al Yasmin","ring":2,"type":"Apartment","size":138,"price":1713000,"status":"Ready","floor":1},{"id":"TX-24133","date":"2026-05-02","district":"Al Narjis","ring":1,"type":"Apartment","size":161,"price":1914000,"status":"Ready","floor":3},{"id":"TX-24038","date":"2026-04-27","district":"Al Narjis","ring":1,"type":"Apartment","size":100,"price":1293000,"status":"Off-plan","floor":0},{"id":"TX-24037","date":"2026-04-23","district":"Al Narjis","ring":1,"type":"Townhouse","size":267,"price":3507000,"status":"Ready","floor":0},{"id":"TX-24080","date":"2026-04-21","district":"Al Arid","ring":2,"type":"Townhouse","size":206,"price":2606000,"status":"Off-plan","floor":0},{"id":"TX-24092","date":"2026-04-18","district":"Hittin","ring":3,"type":"Apartment","size":111,"price":1584000,"status":"Ready","floor":4},{"id":"TX-24072","date":"2026-04-16","district":"Al Narjis","ring":1,"type":"Duplex","size":230,"price":2709000,"status":"Off-plan","floor":0},{"id":"TX-24048","date":"2026-04-03","district":"Al Sahafa","ring":3,"type":"Apartment","size":184,"price":2125000,"status":"Off-plan","floor":2},{"id":"TX-24150","date":"2026-03-31","district":"Al Narjis","ring":1,"type":"Apartment","size":170,"price":2008000,"status":"Ready","floor":2},{"id":"TX-24090","date":"2026-03-25","district":"Hittin","ring":3,"type":"Duplex","size":201,"price":2953000,"status":"Ready","floor":0},{"id":"TX-24093","date":"2026-03-25","district":"Al Malqa","ring":2,"type":"Townhouse","size":214,"price":2774000,"status":"Off-plan","floor":0},{"id":"TX-24095","date":"2026-03-23","district":"Al Narjis","ring":1,"type":"Apartment","size":147,"price":1856000,"status":"Ready","floor":3},{"id":"TX-24091","date":"2026-03-19","district":"Al Sahafa","ring":3,"type":"Apartment","size":187,"price":2430000,"status":"Ready","floor":1},{"id":"TX-24046","date":"2026-03-14","district":"Al Malqa","ring":2,"type":"Apartment","size":103,"price":1282000,"status":"Ready","floor":4},{"id":"TX-24008","date":"2026-03-09","district":"Al Yasmin","ring":2,"type":"Townhouse","size":219,"price":2902000,"status":"Off-plan","floor":0},{"id":"TX-24120","date":"2026-03-09","district":"Hittin","ring":3,"type":"Apartment","size":128,"price":1906000,"status":"Ready","floor":1},{"id":"TX-24040","date":"2026-03-05","district":"Al Arid","ring":2,"type":"Apartment","size":126,"price":1632000,"status":"Ready","floor":8},{"id":"TX-24156","date":"2026-03-05","district":"Al Yasmin","ring":2,"type":"Apartment","size":101,"price":1210000,"status":"Ready","floor":6},{"id":"TX-24098","date":"2026-03-01","district":"Al Narjis","ring":1,"type":"Apartment","size":120,"price":1362000,"status":"Ready","floor":7},{"id":"TX-24138","date":"2026-03-01","district":"Al Arid","ring":2,"type":"Apartment","size":176,"price":1911000,"status":"Ready","floor":0},{"id":"TX-24139","date":"2026-03-01","district":"Al Sahafa","ring":3,"type":"Apartment","size":112,"price":1351000,"status":"Ready","floor":3},{"id":"TX-24067","date":"2026-02-28","district":"Al Sahafa","ring":3,"type":"Apartment","size":162,"price":1860000,"status":"Ready","floor":3},{"id":"TX-24084","date":"2026-02-25","district":"Al Sahafa","ring":3,"type":"Apartment","size":123,"price":1433000,"status":"Ready","floor":6},{"id":"TX-24096","date":"2026-02-23","district":"Al Sahafa","ring":3,"type":"Apartment","size":105,"price":1163000,"status":"Ready","floor":3},{"id":"TX-24097","date":"2026-02-17","district":"Al Narjis","ring":1,"type":"Apartment","size":148,"price":1787000,"status":"Ready","floor":4},{"id":"TX-24131","date":"2026-02-07","district":"Al Yasmin","ring":2,"type":"Apartment","size":176,"price":1927000,"status":"Off-plan","floor":2},{"id":"TX-24018","date":"2026-02-06","district":"Al Malqa","ring":2,"type":"Apartment","size":103,"price":1427000,"status":"Ready","floor":5},{"id":"TX-24026","date":"2026-01-27","district":"Al Narjis","ring":1,"type":"Townhouse","size":244,"price":2917000,"status":"Ready","floor":0},{"id":"TX-24043","date":"2026-01-22","district":"Al Narjis","ring":1,"type":"Duplex","size":220,"price":2849000,"status":"Off-plan","floor":0},{"id":"TX-24103","date":"2026-01-22","district":"Al Narjis","ring":1,"type":"Apartment","size":143,"price":1744000,"status":"Ready","floor":4},{"id":"TX-24021","date":"2026-01-21","district":"Al Arid","ring":2,"type":"Apartment","size":113,"price":1227000,"status":"Ready","floor":7},{"id":"TX-24006","date":"2026-01-20","district":"Al Arid","ring":2,"type":"Apartment","size":133,"price":1478000,"status":"Ready","floor":1},{"id":"TX-24157","date":"2026-01-20","district":"Al Narjis","ring":1,"type":"Apartment","size":117,"price":1400000,"status":"Ready","floor":0},{"id":"TX-24010","date":"2026-01-11","district":"Al Narjis","ring":1,"type":"Apartment","size":129,"price":1570000,"status":"Ready","floor":4},{"id":"TX-24073","date":"2026-01-04","district":"Al Sahafa","ring":3,"type":"Apartment","size":121,"price":1446000,"status":"Ready","floor":2},{"id":"TX-24036","date":"2025-12-25","district":"Hittin","ring":3,"type":"Apartment","size":114,"price":1506000,"status":"Off-plan","floor":1},{"id":"TX-24079","date":"2025-12-21","district":"Al Arid","ring":2,"type":"Apartment","size":142,"price":1673000,"status":"Ready","floor":6},{"id":"TX-24110","date":"2025-12-15","district":"Hittin","ring":3,"type":"Apartment","size":158,"price":2428000,"status":"Ready","floor":9},{"id":"TX-24042","date":"2025-12-13","district":"Al Narjis","ring":1,"type":"Townhouse","size":300,"price":3754000,"status":"Ready","floor":0},{"id":"TX-24049","date":"2025-12-10","district":"Al Sahafa","ring":3,"type":"Apartment","size":97,"price":1187000,"status":"Ready","floor":9},{"id":"TX-24002","date":"2025-12-09","district":"Al Narjis","ring":1,"type":"Apartment","size":123,"price":1537000,"status":"Ready","floor":9},{"id":"TX-24114","date":"2025-12-06","district":"Al Arid","ring":2,"type":"Townhouse","size":257,"price":2939000,"status":"Ready","floor":0},{"id":"TX-24035","date":"2025-12-05","district":"Hittin","ring":3,"type":"Duplex","size":186,"price":2638000,"status":"Ready","floor":0},{"id":"TX-24076","date":"2025-12-01","district":"Al Yasmin","ring":2,"type":"Apartment","size":137,"price":1679000,"status":"Ready","floor":0},{"id":"TX-24126","date":"2025-12-01","district":"Al Narjis","ring":1,"type":"Townhouse","size":246,"price":3175000,"status":"Ready","floor":0},{"id":"TX-24082","date":"2025-11-29","district":"Al Yasmin","ring":2,"type":"Apartment","size":189,"price":2370000,"status":"Ready","floor":3},{"id":"TX-24107","date":"2025-11-19","district":"Al Narjis","ring":1,"type":"Apartment","size":103,"price":1269000,"status":"Ready","floor":9},{"id":"TX-24152","date":"2025-11-16","district":"Hittin","ring":3,"type":"Duplex","size":177,"price":2557000,"status":"Ready","floor":0},{"id":"TX-24025","date":"2025-11-15","district":"Al Malqa","ring":2,"type":"Apartment","size":161,"price":2062000,"status":"Ready","floor":4},{"id":"TX-24112","date":"2025-11-06","district":"Al Malqa","ring":2,"type":"Apartment","size":103,"price":1351000,"status":"Off-plan","floor":5},{"id":"TX-24130","date":"2025-10-28","district":"Al Arid","ring":2,"type":"Townhouse","size":225,"price":2400000,"status":"Ready","floor":0},{"id":"TX-24060","date":"2025-10-26","district":"Al Narjis","ring":1,"type":"Apartment","size":178,"price":2061000,"status":"Ready","floor":1},{"id":"TX-24146","date":"2025-10-20","district":"Al Sahafa","ring":3,"type":"Apartment","size":141,"price":1605000,"status":"Ready","floor":2},{"id":"TX-24119","date":"2025-10-18","district":"Al Narjis","ring":1,"type":"Apartment","size":110,"price":1376000,"status":"Ready","floor":5},{"id":"TX-24129","date":"2025-10-15","district":"Al Malqa","ring":2,"type":"Apartment","size":139,"price":1717000,"status":"Ready","floor":1},{"id":"TX-24027","date":"2025-10-09","district":"Al Narjis","ring":1,"type":"Apartment","size":155,"price":1823000,"status":"Off-plan","floor":9},{"id":"TX-24128","date":"2025-10-09","district":"Al Yasmin","ring":2,"type":"Apartment","size":96,"price":1180000,"status":"Off-plan","floor":9},{"id":"TX-24105","date":"2025-10-01","district":"Hittin","ring":3,"type":"Apartment","size":150,"price":1957000,"status":"Ready","floor":3},{"id":"TX-24024","date":"2025-09-30","district":"Hittin","ring":3,"type":"Apartment","size":159,"price":2146000,"status":"Ready","floor":3},{"id":"TX-24141","date":"2025-09-25","district":"Al Arid","ring":2,"type":"Apartment","size":136,"price":1593000,"status":"Ready","floor":2},{"id":"TX-24012","date":"2025-09-21","district":"Al Narjis","ring":1,"type":"Apartment","size":116,"price":1426000,"status":"Ready","floor":4},{"id":"TX-24000","date":"2025-08-28","district":"Al Sahafa","ring":3,"type":"Apartment","size":101,"price":1080000,"status":"Ready","floor":9},{"id":"TX-24059","date":"2025-08-28","district":"Al Narjis","ring":1,"type":"Duplex","size":209,"price":2502000,"status":"Ready","floor":0},{"id":"TX-24106","date":"2025-08-28","district":"Al Yasmin","ring":2,"type":"Duplex","size":173,"price":2104000,"status":"Off-plan","floor":0},{"id":"TX-24143","date":"2025-08-23","district":"Al Yasmin","ring":2,"type":"Apartment","size":146,"price":1960000,"status":"Ready","floor":4},{"id":"TX-24123","date":"2025-08-16","district":"Al Narjis","ring":1,"type":"Apartment","size":158,"price":1909000,"status":"Ready","floor":6},{"id":"TX-24055","date":"2025-08-12","district":"Al Malqa","ring":2,"type":"Duplex","size":213,"price":2816000,"status":"Ready","floor":0},{"id":"TX-24083","date":"2025-08-05","district":"Al Arid","ring":2,"type":"Townhouse","size":215,"price":2421000,"status":"Ready","floor":0},{"id":"TX-24023","date":"2025-08-02","district":"Al Sahafa","ring":3,"type":"Duplex","size":259,"price":3195000,"status":"Ready","floor":0},{"id":"TX-24116","date":"2025-07-28","district":"Al Narjis","ring":1,"type":"Apartment","size":127,"price":1561000,"status":"Ready","floor":2},{"id":"TX-24077","date":"2025-07-24","district":"Al Narjis","ring":1,"type":"Apartment","size":144,"price":1696000,"status":"Ready","floor":0},{"id":"TX-24125","date":"2025-07-18","district":"Al Malqa","ring":2,"type":"Apartment","size":101,"price":1237000,"status":"Ready","floor":6},{"id":"TX-24078","date":"2025-07-15","district":"Al Narjis","ring":1,"type":"Townhouse","size":236,"price":2979000,"status":"Ready","floor":0},{"id":"TX-24053","date":"2025-07-05","district":"Al Yasmin","ring":2,"type":"Apartment","size":127,"price":1515000,"status":"Off-plan","floor":7},{"id":"TX-24159","date":"2025-06-30","district":"Al Malqa","ring":2,"type":"Townhouse","size":287,"price":3952000,"status":"Ready","floor":0},{"id":"TX-24061","date":"2025-06-28","district":"Hittin","ring":3,"type":"Apartment","size":170,"price":2264000,"status":"Off-plan","floor":8},{"id":"TX-24016","date":"2025-06-27","district":"Al Narjis","ring":1,"type":"Apartment","size":163,"price":1906000,"status":"Ready","floor":8},{"id":"TX-24086","date":"2025-06-22","district":"Hittin","ring":3,"type":"Apartment","size":97,"price":1361000,"status":"Ready","floor":8},{"id":"TX-24122","date":"2025-06-19","district":"Al Narjis","ring":1,"type":"Townhouse","size":226,"price":2779000,"status":"Off-plan","floor":0},{"id":"TX-24142","date":"2025-06-18","district":"Al Arid","ring":2,"type":"Duplex","size":196,"price":2261000,"status":"Ready","floor":0},{"id":"TX-24054","date":"2025-06-09","district":"Al Sahafa","ring":3,"type":"Apartment","size":178,"price":2004000,"status":"Ready","floor":8},{"id":"TX-24117","date":"2025-06-09","district":"Al Narjis","ring":1,"type":"Apartment","size":169,"price":1968000,"status":"Off-plan","floor":3},{"id":"TX-24111","date":"2025-05-30","district":"Al Yasmin","ring":2,"type":"Apartment","size":141,"price":1733000,"status":"Off-plan","floor":3},{"id":"TX-24044","date":"2025-05-18","district":"Al Narjis","ring":1,"type":"Apartment","size":160,"price":1882000,"status":"Ready","floor":5},{"id":"TX-24100","date":"2025-05-17","district":"Al Arid","ring":2,"type":"Duplex","size":177,"price":1976000,"status":"Off-plan","floor":0},{"id":"TX-24050","date":"2025-05-16","district":"Al Narjis","ring":1,"type":"Duplex","size":228,"price":2569000,"status":"Off-plan","floor":0},{"id":"TX-24099","date":"2025-05-15","district":"Al Narjis","ring":1,"type":"Duplex","size":183,"price":2382000,"status":"Ready","floor":0},{"id":"TX-24087","date":"2025-05-04","district":"Al Yasmin","ring":2,"type":"Apartment","size":102,"price":1184000,"status":"Ready","floor":2},{"id":"TX-24068","date":"2025-04-29","district":"Al Narjis","ring":1,"type":"Apartment","size":153,"price":1817000,"status":"Ready","floor":4},{"id":"TX-24127","date":"2025-04-27","district":"Al Sahafa","ring":3,"type":"Apartment","size":115,"price":1259000,"status":"Ready","floor":9},{"id":"TX-24041","date":"2025-04-26","district":"Hittin","ring":3,"type":"Apartment","size":110,"price":1465000,"status":"Off-plan","floor":3},{"id":"TX-24052","date":"2025-04-25","district":"Al Sahafa","ring":3,"type":"Apartment","size":162,"price":1885000,"status":"Off-plan","floor":2},{"id":"TX-24134","date":"2025-04-16","district":"Al Narjis","ring":1,"type":"Apartment","size":181,"price":1995000,"status":"Off-plan","floor":4},{"id":"TX-24094","date":"2025-04-15","district":"Al Yasmin","ring":2,"type":"Apartment","size":171,"price":1813000,"status":"Ready","floor":7},{"id":"TX-24136","date":"2025-04-02","district":"Al Narjis","ring":1,"type":"Apartment","size":157,"price":1851000,"status":"Off-plan","floor":7},{"id":"TX-24137","date":"2025-04-02","district":"Hittin","ring":3,"type":"Apartment","size":103,"price":1317000,"status":"Ready","floor":7},{"id":"TX-24113","date":"2025-03-14","district":"Al Sahafa","ring":3,"type":"Duplex","size":179,"price":2015000,"status":"Ready","floor":0},{"id":"TX-24030","date":"2025-03-12","district":"Al Narjis","ring":1,"type":"Apartment","size":114,"price":1365000,"status":"Off-plan","floor":2},{"id":"TX-24062","date":"2025-03-08","district":"Al Malqa","ring":2,"type":"Townhouse","size":276,"price":3534000,"status":"Ready","floor":0},{"id":"TX-24015","date":"2025-03-04","district":"Al Narjis","ring":1,"type":"Apartment","size":179,"price":2031000,"status":"Off-plan","floor":2},{"id":"TX-24063","date":"2025-03-03","district":"Al Narjis","ring":1,"type":"Apartment","size":113,"price":1447000,"status":"Off-plan","floor":8},{"id":"TX-24004","date":"2025-02-25","district":"Al Arid","ring":2,"type":"Apartment","size":166,"price":1874000,"status":"Off-plan","floor":9},{"id":"TX-24101","date":"2025-02-23","district":"Al Yasmin","ring":2,"type":"Townhouse","size":223,"price":2463000,"status":"Ready","floor":0},{"id":"TX-24155","date":"2025-02-23","district":"Al Yasmin","ring":2,"type":"Apartment","size":177,"price":2041000,"status":"Off-plan","floor":2},{"id":"TX-24064","date":"2025-02-20","district":"Al Sahafa","ring":3,"type":"Townhouse","size":272,"price":3375000,"status":"Off-plan","floor":0},{"id":"TX-24085","date":"2025-02-20","district":"Al Arid","ring":2,"type":"Apartment","size":117,"price":1264000,"status":"Ready","floor":5},{"id":"TX-24081","date":"2025-02-19","district":"Al Malqa","ring":2,"type":"Apartment","size":101,"price":1349000,"status":"Ready","floor":7},{"id":"TX-24014","date":"2025-02-18","district":"Hittin","ring":3,"type":"Duplex","size":205,"price":2862000,"status":"Ready","floor":0},{"id":"TX-24151","date":"2025-02-15","district":"Al Narjis","ring":1,"type":"Townhouse","size":290,"price":3861000,"status":"Ready","floor":0},{"id":"TX-24034","date":"2025-02-12","district":"Al Narjis","ring":1,"type":"Townhouse","size":258,"price":3383000,"status":"Off-plan","floor":0},{"id":"TX-24140","date":"2025-02-12","district":"Al Sahafa","ring":3,"type":"Apartment","size":116,"price":1370000,"status":"Ready","floor":1},{"id":"TX-24013","date":"2025-02-10","district":"Al Malqa","ring":2,"type":"Apartment","size":158,"price":1852000,"status":"Off-plan","floor":4},{"id":"TX-24047","date":"2025-02-10","district":"Hittin","ring":3,"type":"Townhouse","size":286,"price":4110000,"status":"Ready","floor":0},{"id":"TX-24051","date":"2025-02-10","district":"Al Narjis","ring":1,"type":"Townhouse","size":214,"price":2753000,"status":"Ready","floor":0},{"id":"TX-24158","date":"2025-02-04","district":"Al Yasmin","ring":2,"type":"Townhouse","size":288,"price":3605000,"status":"Ready","floor":0},{"id":"TX-24144","date":"2025-01-26","district":"Hittin","ring":3,"type":"Apartment","size":141,"price":2009000,"status":"Off-plan","floor":9},{"id":"TX-24102","date":"2025-01-24","district":"Al Sahafa","ring":3,"type":"Duplex","size":212,"price":2260000,"status":"Off-plan","floor":0},{"id":"TX-24045","date":"2025-01-03","district":"Al Malqa","ring":2,"type":"Apartment","size":165,"price":2020000,"status":"Ready","floor":5},{"id":"TX-24057","date":"2024-12-26","district":"Al Malqa","ring":2,"type":"Apartment","size":159,"price":2002000,"status":"Ready","floor":4},{"id":"TX-24104","date":"2024-12-22","district":"Al Yasmin","ring":2,"type":"Duplex","size":185,"price":2199000,"status":"Ready","floor":0},{"id":"TX-24009","date":"2024-12-19","district":"Al Malqa","ring":2,"type":"Apartment","size":135,"price":1637000,"status":"Ready","floor":9},{"id":"TX-24020","date":"2024-12-12","district":"Hittin","ring":3,"type":"Apartment","size":114,"price":1536000,"status":"Ready","floor":7},{"id":"TX-24039","date":"2024-12-04","district":"Al Yasmin","ring":2,"type":"Apartment","size":159,"price":1832000,"status":"Ready","floor":7},{"id":"TX-24154","date":"2024-12-03","district":"Al Arid","ring":2,"type":"Apartment","size":125,"price":1253000,"status":"Off-plan","floor":3},{"id":"TX-24001","date":"2024-11-29","district":"Al Sahafa","ring":3,"type":"Apartment","size":106,"price":1172000,"status":"Ready","floor":8},{"id":"TX-24056","date":"2024-11-25","district":"Hittin","ring":3,"type":"Apartment","size":175,"price":2377000,"status":"Ready","floor":0},{"id":"TX-24066","date":"2024-11-21","district":"Al Malqa","ring":2,"type":"Apartment","size":182,"price":2182000,"status":"Ready","floor":1},{"id":"TX-24149","date":"2024-11-18","district":"Al Narjis","ring":1,"type":"Apartment","size":178,"price":2091000,"status":"Off-plan","floor":5},{"id":"TX-24069","date":"2024-11-17","district":"Al Arid","ring":2,"type":"Apartment","size":104,"price":1139000,"status":"Off-plan","floor":4},{"id":"TX-24058","date":"2024-11-16","district":"Al Yasmin","ring":2,"type":"Apartment","size":152,"price":1629000,"status":"Ready","floor":8},{"id":"TX-24108","date":"2024-11-14","district":"Al Narjis","ring":1,"type":"Townhouse","size":240,"price":3048000,"status":"Off-plan","floor":0},{"id":"TX-24033","date":"2024-10-29","district":"Al Narjis","ring":1,"type":"Apartment","size":125,"price":1499000,"status":"Off-plan","floor":6},{"id":"TX-24075","date":"2024-10-26","district":"Al Narjis","ring":1,"type":"Duplex","size":257,"price":3032000,"status":"Ready","floor":0},{"id":"TX-24089","date":"2024-10-23","district":"Al Narjis","ring":1,"type":"Apartment","size":155,"price":1934000,"status":"Ready","floor":6},{"id":"TX-24028","date":"2024-10-02","district":"Al Arid","ring":2,"type":"Apartment","size":177,"price":1978000,"status":"Ready","floor":6},{"id":"TX-24148","date":"2024-10-02","district":"Al Malqa","ring":2,"type":"Apartment","size":132,"price":1642000,"status":"Off-plan","floor":5}],"rent":[{"id":"LS-51014","date":"2026-09-17","district":"Al Narjis","ring":1,"use":"Retail","size":320,"annual":744900,"term":10,"frontage":"Internal"},{"id":"LS-51025","date":"2026-09-11","district":"Al Narjis","ring":1,"use":"Residential","size":127,"annual":77000,"term":1,"frontage":"-"},{"id":"LS-51044","date":"2026-08-16","district":"Al Sahafa","ring":3,"use":"Retail","size":242,"annual":446600,"term":5,"frontage":"Main road"},{"id":"LS-51019","date":"2026-08-09","district":"Al Arid","ring":2,"use":"Retail","size":198,"annual":414900,"term":3,"frontage":"Main road"},{"id":"LS-51041","date":"2026-08-07","district":"Al Sahafa","ring":3,"use":"Retail","size":157,"annual":324900,"term":1,"frontage":"Main road"},{"id":"LS-51051","date":"2026-08-06","district":"Al Yasmin","ring":2,"use":"Retail","size":214,"annual":491400,"term":5,"frontage":"Internal"},{"id":"LS-51086","date":"2026-07-19","district":"Al Narjis","ring":1,"use":"Residential","size":154,"annual":91500,"term":1,"frontage":"-"},{"id":"LS-51024","date":"2026-07-16","district":"Al Sahafa","ring":3,"use":"Retail","size":306,"annual":621100,"term":5,"frontage":"Main road"},{"id":"LS-51049","date":"2026-07-14","district":"Al Malqa","ring":2,"use":"Retail","size":91,"annual":228300,"term":5,"frontage":"Internal"},{"id":"LS-51007","date":"2026-07-12","district":"Al Narjis","ring":1,"use":"Residential","size":170,"annual":100600,"term":1,"frontage":"-"},{"id":"LS-51080","date":"2026-07-10","district":"Al Yasmin","ring":2,"use":"Retail","size":160,"annual":330900,"term":5,"frontage":"Internal"},{"id":"LS-51094","date":"2026-07-06","district":"Al Yasmin","ring":2,"use":"Retail","size":268,"annual":606500,"term":3,"frontage":"Main road"},{"id":"LS-51010","date":"2026-06-26","district":"Al Malqa","ring":2,"use":"Residential","size":93,"annual":59200,"term":1,"frontage":"-"},{"id":"LS-51021","date":"2026-06-25","district":"Al Narjis","ring":1,"use":"Retail","size":143,"annual":301800,"term":3,"frontage":"Internal"},{"id":"LS-51026","date":"2026-06-11","district":"Al Malqa","ring":2,"use":"Retail","size":142,"annual":392100,"term":10,"frontage":"Main road"},{"id":"LS-51002","date":"2026-06-08","district":"Al Narjis","ring":1,"use":"Residential","size":170,"annual":110800,"term":1,"frontage":"-"},{"id":"LS-51090","date":"2026-05-29","district":"Al Yasmin","ring":2,"use":"Retail","size":200,"annual":468800,"term":3,"frontage":"Main road"},{"id":"LS-51104","date":"2026-05-20","district":"Al Yasmin","ring":2,"use":"Retail","size":257,"annual":573200,"term":1,"frontage":"Internal"},{"id":"LS-51033","date":"2026-05-12","district":"Al Yasmin","ring":2,"use":"Retail","size":201,"annual":433400,"term":10,"frontage":"Internal"},{"id":"LS-51060","date":"2026-05-05","district":"Al Arid","ring":2,"use":"Residential","size":189,"annual":108700,"term":1,"frontage":"-"},{"id":"LS-51015","date":"2026-04-28","district":"Hittin","ring":3,"use":"Retail","size":171,"annual":464900,"term":10,"frontage":"Main road"},{"id":"LS-51084","date":"2026-04-24","district":"Al Yasmin","ring":2,"use":"Residential","size":152,"annual":80500,"term":1,"frontage":"-"},{"id":"LS-51056","date":"2026-04-10","district":"Al Arid","ring":2,"use":"Retail","size":240,"annual":469200,"term":10,"frontage":"Internal"},{"id":"LS-51018","date":"2026-03-29","district":"Al Arid","ring":2,"use":"Retail","size":234,"annual":442100,"term":5,"frontage":"Internal"},{"id":"LS-51109","date":"2026-03-28","district":"Hittin","ring":3,"use":"Retail","size":142,"annual":378200,"term":1,"frontage":"Main road"},{"id":"LS-51077","date":"2026-03-18","district":"Al Sahafa","ring":3,"use":"Residential","size":156,"annual":84300,"term":1,"frontage":"-"},{"id":"LS-51105","date":"2026-03-15","district":"Hittin","ring":3,"use":"Retail","size":295,"annual":805000,"term":1,"frontage":"Internal"},{"id":"LS-51097","date":"2026-03-10","district":"Al Narjis","ring":1,"use":"Residential","size":175,"annual":115900,"term":1,"frontage":"-"},{"id":"LS-51017","date":"2026-02-26","district":"Al Narjis","ring":1,"use":"Residential","size":170,"annual":96800,"term":1,"frontage":"-"},{"id":"LS-51103","date":"2026-02-20","district":"Al Malqa","ring":2,"use":"Retail","size":115,"annual":288500,"term":3,"frontage":"Internal"},{"id":"LS-51013","date":"2026-02-19","district":"Al Arid","ring":2,"use":"Residential","size":155,"annual":79900,"term":1,"frontage":"-"},{"id":"LS-51050","date":"2026-02-09","district":"Al Malqa","ring":2,"use":"Retail","size":134,"annual":317300,"term":1,"frontage":"Internal"},{"id":"LS-51091","date":"2026-02-05","district":"Al Yasmin","ring":2,"use":"Retail","size":286,"annual":653500,"term":1,"frontage":"Main road"},{"id":"LS-51062","date":"2026-01-30","district":"Hittin","ring":3,"use":"Retail","size":101,"annual":248100,"term":10,"frontage":"Internal"},{"id":"LS-51003","date":"2026-01-27","district":"Hittin","ring":3,"use":"Retail","size":299,"annual":801300,"term":5,"frontage":"Main road"},{"id":"LS-51034","date":"2026-01-11","district":"Al Narjis","ring":1,"use":"Retail","size":180,"annual":401100,"term":5,"frontage":"Internal"},{"id":"LS-51068","date":"2025-12-24","district":"Al Yasmin","ring":2,"use":"Retail","size":284,"annual":645400,"term":10,"frontage":"Main road"},{"id":"LS-51095","date":"2025-12-24","district":"Hittin","ring":3,"use":"Retail","size":185,"annual":482100,"term":3,"frontage":"Main road"},{"id":"LS-51027","date":"2025-12-06","district":"Hittin","ring":3,"use":"Retail","size":247,"annual":713700,"term":10,"frontage":"Internal"},{"id":"LS-51069","date":"2025-12-02","district":"Al Arid","ring":2,"use":"Residential","size":147,"annual":78200,"term":1,"frontage":"-"},{"id":"LS-51030","date":"2025-11-24","district":"Al Arid","ring":2,"use":"Retail","size":303,"annual":643100,"term":1,"frontage":"Main road"},{"id":"LS-51106","date":"2025-11-24","district":"Al Sahafa","ring":3,"use":"Retail","size":303,"annual":540700,"term":3,"frontage":"Internal"},{"id":"LS-51061","date":"2025-11-19","district":"Al Yasmin","ring":2,"use":"Retail","size":179,"annual":452000,"term":3,"frontage":"Internal"},{"id":"LS-51079","date":"2025-11-17","district":"Hittin","ring":3,"use":"Residential","size":121,"annual":83600,"term":1,"frontage":"-"},{"id":"LS-51085","date":"2025-11-11","district":"Al Sahafa","ring":3,"use":"Residential","size":101,"annual":52900,"term":1,"frontage":"-"},{"id":"LS-51031","date":"2025-11-03","district":"Hittin","ring":3,"use":"Residential","size":103,"annual":65000,"term":1,"frontage":"-"},{"id":"LS-51076","date":"2025-10-30","district":"Al Yasmin","ring":2,"use":"Retail","size":286,"annual":698200,"term":5,"frontage":"Main road"},{"id":"LS-51093","date":"2025-10-30","district":"Hittin","ring":3,"use":"Retail","size":195,"annual":518500,"term":1,"frontage":"Main road"},{"id":"LS-51023","date":"2025-10-29","district":"Al Narjis","ring":1,"use":"Retail","size":157,"annual":327600,"term":1,"frontage":"Internal"},{"id":"LS-51108","date":"2025-10-26","district":"Al Arid","ring":2,"use":"Residential","size":127,"annual":66600,"term":1,"frontage":"-"},{"id":"LS-51048","date":"2025-10-19","district":"Al Yasmin","ring":2,"use":"Residential","size":176,"annual":91000,"term":1,"frontage":"-"},{"id":"LS-51035","date":"2025-09-30","district":"Al Malqa","ring":2,"use":"Retail","size":177,"annual":510500,"term":10,"frontage":"Main road"},{"id":"LS-51039","date":"2025-09-29","district":"Hittin","ring":3,"use":"Retail","size":260,"annual":731700,"term":10,"frontage":"Main road"},{"id":"LS-51036","date":"2025-09-26","district":"Al Arid","ring":2,"use":"Retail","size":157,"annual":313600,"term":3,"frontage":"Internal"},{"id":"LS-51011","date":"2025-09-21","district":"Al Yasmin","ring":2,"use":"Retail","size":224,"annual":597300,"term":5,"frontage":"Main road"},{"id":"LS-51074","date":"2025-09-21","district":"Al Arid","ring":2,"use":"Retail","size":204,"annual":358300,"term":3,"frontage":"Main road"},{"id":"LS-51052","date":"2025-09-16","district":"Al Yasmin","ring":2,"use":"Retail","size":291,"annual":602900,"term":5,"frontage":"Main road"},{"id":"LS-51096","date":"2025-09-08","district":"Hittin","ring":3,"use":"Retail","size":107,"annual":287600,"term":3,"frontage":"Main road"},{"id":"LS-51053","date":"2025-09-07","district":"Al Arid","ring":2,"use":"Retail","size":209,"annual":433900,"term":3,"frontage":"Main road"},{"id":"LS-51067","date":"2025-08-15","district":"Al Yasmin","ring":2,"use":"Retail","size":300,"annual":713200,"term":5,"frontage":"Main road"},{"id":"LS-51075","date":"2025-08-13","district":"Al Arid","ring":2,"use":"Retail","size":199,"annual":348200,"term":1,"frontage":"Internal"},{"id":"LS-51004","date":"2025-08-12","district":"Hittin","ring":3,"use":"Retail","size":229,"annual":624500,"term":1,"frontage":"Main road"},{"id":"LS-51055","date":"2025-08-04","district":"Al Narjis","ring":1,"use":"Retail","size":290,"annual":694300,"term":5,"frontage":"Main road"},{"id":"LS-51054","date":"2025-08-03","district":"Al Narjis","ring":1,"use":"Residential","size":101,"annual":59800,"term":1,"frontage":"-"},{"id":"LS-51000","date":"2025-07-30","district":"Al Malqa","ring":2,"use":"Residential","size":117,"annual":68300,"term":1,"frontage":"-"},{"id":"LS-51012","date":"2025-07-22","district":"Al Narjis","ring":1,"use":"Retail","size":131,"annual":301900,"term":3,"frontage":"Main road"},{"id":"LS-51098","date":"2025-07-21","district":"Al Narjis","ring":1,"use":"Residential","size":136,"annual":79200,"term":1,"frontage":"-"},{"id":"LS-51101","date":"2025-07-21","district":"Al Narjis","ring":1,"use":"Retail","size":313,"annual":677000,"term":3,"frontage":"Main road"},{"id":"LS-51040","date":"2025-07-15","district":"Al Yasmin","ring":2,"use":"Retail","size":162,"annual":376300,"term":1,"frontage":"Main road"},{"id":"LS-51082","date":"2025-07-14","district":"Al Yasmin","ring":2,"use":"Residential","size":188,"annual":111400,"term":1,"frontage":"-"},{"id":"LS-51059","date":"2025-06-22","district":"Hittin","ring":3,"use":"Retail","size":88,"annual":260200,"term":5,"frontage":"Main road"},{"id":"LS-51088","date":"2025-06-22","district":"Hittin","ring":3,"use":"Residential","size":172,"annual":125500,"term":1,"frontage":"-"},{"id":"LS-51009","date":"2025-06-20","district":"Al Sahafa","ring":3,"use":"Retail","size":274,"annual":551100,"term":3,"frontage":"Main road"},{"id":"LS-51029","date":"2025-06-06","district":"Hittin","ring":3,"use":"Residential","size":170,"annual":117400,"term":1,"frontage":"-"},{"id":"LS-51099","date":"2025-06-02","district":"Al Sahafa","ring":3,"use":"Retail","size":154,"annual":313300,"term":10,"frontage":"Main road"},{"id":"LS-51022","date":"2025-05-30","district":"Al Yasmin","ring":2,"use":"Retail","size":266,"annual":558700,"term":3,"frontage":"Main road"},{"id":"LS-51072","date":"2025-05-28","district":"Hittin","ring":3,"use":"Retail","size":80,"annual":206100,"term":5,"frontage":"Main road"},{"id":"LS-51038","date":"2025-05-20","district":"Hittin","ring":3,"use":"Retail","size":250,"annual":666700,"term":5,"frontage":"Internal"},{"id":"LS-51042","date":"2025-05-03","district":"Al Sahafa","ring":3,"use":"Retail","size":144,"annual":230100,"term":3,"frontage":"Internal"},{"id":"LS-51078","date":"2025-04-25","district":"Al Narjis","ring":1,"use":"Retail","size":126,"annual":253000,"term":3,"frontage":"Internal"},{"id":"LS-51028","date":"2025-04-04","district":"Al Malqa","ring":2,"use":"Retail","size":160,"annual":411100,"term":5,"frontage":"Main road"},{"id":"LS-51102","date":"2025-04-03","district":"Al Arid","ring":2,"use":"Retail","size":124,"annual":258000,"term":5,"frontage":"Main road"},{"id":"LS-51001","date":"2025-03-23","district":"Al Narjis","ring":1,"use":"Retail","size":270,"annual":533000,"term":3,"frontage":"Main road"},{"id":"LS-51032","date":"2025-03-14","district":"Al Malqa","ring":2,"use":"Residential","size":115,"annual":72500,"term":1,"frontage":"-"},{"id":"LS-51087","date":"2025-03-13","district":"Al Yasmin","ring":2,"use":"Retail","size":264,"annual":612700,"term":1,"frontage":"Main road"},{"id":"LS-51092","date":"2025-03-10","district":"Al Sahafa","ring":3,"use":"Retail","size":319,"annual":536400,"term":1,"frontage":"Internal"},{"id":"LS-51043","date":"2025-03-06","district":"Al Narjis","ring":1,"use":"Retail","size":216,"annual":512200,"term":1,"frontage":"Main road"},{"id":"LS-51071","date":"2025-03-04","district":"Al Arid","ring":2,"use":"Retail","size":189,"annual":354600,"term":5,"frontage":"Main road"},{"id":"LS-51065","date":"2025-02-26","district":"Al Malqa","ring":2,"use":"Retail","size":240,"annual":579900,"term":3,"frontage":"Internal"},{"id":"LS-51046","date":"2025-02-20","district":"Al Arid","ring":2,"use":"Retail","size":203,"annual":383900,"term":5,"frontage":"Main road"},{"id":"LS-51083","date":"2025-02-12","district":"Al Narjis","ring":1,"use":"Retail","size":131,"annual":295200,"term":1,"frontage":"Main road"},{"id":"LS-51037","date":"2025-02-10","district":"Al Sahafa","ring":3,"use":"Retail","size":284,"annual":466400,"term":10,"frontage":"Internal"},{"id":"LS-51020","date":"2025-02-07","district":"Al Yasmin","ring":2,"use":"Retail","size":258,"annual":594300,"term":10,"frontage":"Main road"},{"id":"LS-51089","date":"2025-01-12","district":"Al Narjis","ring":1,"use":"Residential","size":115,"annual":68300,"term":1,"frontage":"-"},{"id":"LS-51008","date":"2025-01-09","district":"Hittin","ring":3,"use":"Retail","size":155,"annual":402300,"term":3,"frontage":"Main road"},{"id":"LS-51016","date":"2024-12-28","district":"Al Yasmin","ring":2,"use":"Retail","size":175,"annual":387300,"term":5,"frontage":"Main road"},{"id":"LS-51057","date":"2024-12-24","district":"Al Narjis","ring":1,"use":"Retail","size":197,"annual":424600,"term":3,"frontage":"Internal"},{"id":"LS-51045","date":"2024-12-20","district":"Al Malqa","ring":2,"use":"Retail","size":305,"annual":771200,"term":3,"frontage":"Main road"},{"id":"LS-51070","date":"2024-12-02","district":"Al Malqa","ring":2,"use":"Retail","size":285,"annual":628600,"term":1,"frontage":"Internal"},{"id":"LS-51066","date":"2024-11-23","district":"Al Malqa","ring":2,"use":"Retail","size":83,"annual":201000,"term":5,"frontage":"Internal"},{"id":"LS-51006","date":"2024-11-17","district":"Al Narjis","ring":1,"use":"Retail","size":173,"annual":378800,"term":1,"frontage":"Main road"},{"id":"LS-51073","date":"2024-11-13","district":"Al Narjis","ring":1,"use":"Retail","size":307,"annual":684500,"term":5,"frontage":"Internal"},{"id":"LS-51058","date":"2024-11-07","district":"Al Yasmin","ring":2,"use":"Retail","size":318,"annual":632800,"term":10,"frontage":"Internal"},{"id":"LS-51107","date":"2024-11-07","district":"Al Narjis","ring":1,"use":"Retail","size":232,"annual":515000,"term":3,"frontage":"Main road"},{"id":"LS-51005","date":"2024-10-28","district":"Al Narjis","ring":1,"use":"Retail","size":121,"annual":277900,"term":1,"frontage":"Main road"},{"id":"LS-51081","date":"2024-10-22","district":"Al Narjis","ring":1,"use":"Retail","size":302,"annual":626100,"term":3,"frontage":"Internal"},{"id":"LS-51064","date":"2024-10-19","district":"Al Narjis","ring":1,"use":"Retail","size":195,"annual":383900,"term":10,"frontage":"Internal"},{"id":"LS-51100","date":"2024-10-17","district":"Al Yasmin","ring":2,"use":"Retail","size":210,"annual":465300,"term":5,"frontage":"Main road"},{"id":"LS-51063","date":"2024-10-16","district":"Al Yasmin","ring":2,"use":"Retail","size":251,"annual":553300,"term":5,"frontage":"Main road"},{"id":"LS-51047","date":"2024-10-07","district":"Al Narjis","ring":1,"use":"Retail","size":258,"annual":535700,"term":5,"frontage":"Internal"}],"zones":[{"code":"C-MU1","name":"Mixed-use, commercial corridor","far":3.0,"cov":0.6,"front":6,"side":3,"rear":3,"floors":12,"park_unit":1.5,"park_retail":50,"uses":"Residential, retail, office"},{"code":"C-MU2","name":"Mixed-use, high density","far":4.5,"cov":0.55,"front":8,"side":4,"rear":4,"floors":20,"park_unit":1.5,"park_retail":45,"uses":"Residential, retail, office, hotel"},{"code":"C-2","name":"Commercial","far":2.4,"cov":0.65,"front":6,"side":2,"rear":3,"floors":8,"park_unit":1.0,"park_retail":40,"uses":"Retail, office"},{"code":"R-3","name":"Residential, medium density","far":1.8,"cov":0.6,"front":5,"side":2,"rear":2,"floors":4,"park_unit":1.5,"park_retail":0,"uses":"Residential"},{"code":"R-2","name":"Residential, villas","far":1.2,"cov":0.6,"front":4,"side":2,"rear":2,"floors":3,"park_unit":2.0,"park_retail":0,"uses":"Residential"}],"plots":[{"id":"NRJ-0417","district":"Al Narjis","zone":"C-MU1","area":20000,"w":200,"d":100,"street":40,"note":"Subject site (Al Narjis Mixed-Use)"},{"id":"NRJ-0422","district":"Al Narjis","zone":"C-MU1","area":12500,"w":125,"d":100,"street":40,"note":""},{"id":"NRJ-0510","district":"Al Narjis","zone":"R-3","area":3600,"w":60,"d":60,"street":20,"note":""},{"id":"NRJ-0588","district":"Al Narjis","zone":"R-2","area":900,"w":30,"d":30,"street":15,"note":""},{"id":"YSM-0231","district":"Al Yasmin","zone":"C-2","area":8000,"w":100,"d":80,"street":30,"note":""},{"id":"MLQ-0109","district":"Al Malqa","zone":"C-MU2","area":24000,"w":200,"d":120,"street":60,"note":""},{"id":"ARD-0340","district":"Al Arid","zone":"R-3","area":4800,"w":80,"d":60,"street":20,"note":""},{"id":"HTN-0077","district":"Hittin","zone":"C-MU2","area":16000,"w":160,"d":100,"street":40,"note":""}],"emails":[{"id":"em1","date":"2026-09-27 08:14","from":"Omar H. \u00b7 Project Manager","addr":"omar.h@kinan.example","subject":"Programme update: approvals slipping","body":"Municipality comments on the building permit came back on Thursday. Resubmission plus review adds roughly 3 months. Construction start moves from Jan to Apr 2027. Handover follows.","change":{"var":"delay","delta":3,"conf":0.9,"quote":"adds roughly 3 months"}},{"id":"em2","date":"2026-09-25 16:02","from":"Layla S. \u00b7 Debt Advisory, Gulf Bank (dummy)","addr":"l.s@bank.example","subject":"Indicative term sheet: Al Narjis construction facility","body":"Please find the indicative terms: 50% loan-to-cost, pricing SAIBOR + 250 bps, which today is c. 9.0% all-in. Subject to credit approval.","change":{"var":"rate","delta":0.5,"conf":0.85,"quote":"c. 9.0% all-in","also":{"var":"ltc","delta":-5,"quote":"50% loan-to-cost"}}},{"id":"em3","date":"2026-09-22 11:40","from":"Sara K. \u00b7 Cost Consultant (QS)","addr":"sara.k@qs.example","subject":"Tender returns: podium and tower","body":"Three tenders received. The lowest compliant bid is 8% above the cost plan, driven by steel and MEP. We recommend carrying SAR 5,620/sqm GFA in the feasibility.","change":{"var":"cost","delta":8,"conf":0.95,"quote":"carrying SAR 5,620/sqm"}},{"id":"em4","date":"2026-09-18 09:05","from":"Faisal A. \u00b7 Sales Director","addr":"faisal.a@kinan.example","subject":"Off-plan launch pricing","body":"Two competing launches in Al Narjis opened at 12,600 to 12,900 SAR/sqm. I suggest we launch at 12,800 and hold the premium for the top floors.","change":{"var":"price","delta":-5.2,"conf":0.8,"quote":"launch at 12,800"}},{"id":"em5","date":"2026-09-15 14:30","from":"Dana M. \u00b7 Planning Consultant","addr":"dana.m@planning.example","subject":"Pre-application feedback, plot NRJ-0417","body":"The authority confirmed FAR 3.0 with no bonus for the public plaza. The scheme must come down to 60,000 sqm GFA. Setbacks and height are fine.","change":{"var":"area","delta":-3.3,"conf":0.9,"quote":"come down to 60,000 sqm GFA"}},{"id":"em6","date":"2026-09-10 17:20","from":"Khalid R. \u00b7 Leasing Agent","addr":"khalid.r@leasing.example","subject":"Anchor LOI for the podium","body":"Supermarket anchor has signed an LOI for 2,400 sqm at SAR 2,300/sqm/yr, 10-year term. Line shops should follow at similar levels.","change":{"var":"rent","delta":-4.2,"conf":0.75,"quote":"SAR 2,300/sqm/yr"}},{"id":"em7","date":"2026-09-09 10:00","from":"HR \u00b7 KINAN","addr":"hr@kinan.example","subject":"Team offsite logistics","body":"Buses leave at 7:30 from the head office. Please confirm dietary requirements by Sunday.","change":null}]}</script>
 <script>
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -561,6 +633,9 @@ function intent(text){
   const t=text.toLowerCase();
   if(/^(yes|approve|confirm|ok approve)/.test(t))return{k:'approve'};
   if(/^(no|cancel|reject)\b/.test(t))return{k:'cancel'};
+  if(/\bwhy\b|where did|source of|who (said|changed|asked)|what changed/.test(t))return{k:'why',v:varsIn(t)};
+  if(/apply.*(e-?mail|outlook|mail)|(e-?mail|outlook).*apply/.test(t))return{k:'emailapply'};
+  if(/outlook|e-?mails?|inbox|\bmail\b/.test(t))return{k:'email'};
   if(/reset|revert|back to base/.test(t))return{k:'reset'};
   if(/promote|write back|push to (em|estate)|apply to (the )?(live|model)/.test(t))return{k:'promote'};
   if(/report|memo|ic pack|pack|pdf|deck/.test(t))return{k:'report'};
@@ -600,7 +675,7 @@ async function handle(text,ch,role){
   case 'mod':{
     const before=run(S);const nd={...S,...it.mods};const after=run(nd);
     out.steps=['Create sandbox copy of Al Narjis feasibility',...writeSteps(it.mods),'Recalculate and read outputs',calib];
-    out.fx=()=>{Object.assign(S,it.mods);Object.keys(S).forEach(k=>{if(!S[k])delete S[k]});changelog.push(`${ch==='web'?'Workspace':'WhatsApp'}: ${scenName(it.mods)}`);renderAll(true)};
+    out.fx=()=>{Object.assign(S,it.mods);Object.keys(it.mods).forEach(k=>delete SRC[k]);Object.keys(S).forEach(k=>{if(!S[k])delete S[k]});changelog.push(`${ch==='web'?'Workspace':'WhatsApp'}: ${scenName(it.mods)}`);renderAll(true)};
     done(`*Scenario: ${scenName(it.mods)}*\nLevered IRR ${fP(before.irr)} → *${fP(after.irr)}*\nProfit on cost ${fP(before.poc)} → *${fP(after.poc)}*\nNet profit ${fM(before.profit)} → *${fM(after.profit)}*\nThis ${verdict(after)}.`);
     break}
   case 'stress':{
@@ -639,7 +714,7 @@ async function handle(text,ch,role){
     break}
   case 'market':{
     const m=mk(),c=marketCheck(),ar=alignedRun(),cur=run(S);
-    out.steps=[`Market data · residential sales, ${MK.scope==='adj'?'Al Narjis + adjacent':'Al Narjis'}, ${MK.per} months (n=${m.nP})`,`Market data · retail leases (n=${m.nR})`,`Regulations · plot ${SITE.id}: zoning, FAR, coverage, setbacks, height`,rd('GFA, NSA, GLA, sale price, rent'),'Compare sandbox assumptions with benchmarks','Re-run model with market-aligned inputs'];
+    out.steps=[`Market data · residential sales, ${SCOPES[MK.scope]}, ${MK.per} months (n=${m.nP})`,`Market data · retail leases (n=${m.nR})`,`Regulations · plot ${SITE.id}: zoning, FAR, coverage, setbacks, height`,rd('GFA, NSA, GLA, sale price, rent'),'Compare sandbox assumptions with benchmarks','Re-run model with market-aligned inputs'];
     out.fx=()=>renderMarket();out.link=['market','Open market check'];
     const flags=c.filter(r=>r.st[0]!=='p');
     done(`*Market check: ${flags.length} flag${flags.length===1?'':'s'}*\n`+c.map(r=>`${r.st[0]==='p'?'✓':r.st[0]==='s'?'◐':'✗'} ${r.plain}: ${r.st[1]}`).join('\n')+`\nMarket-aligned case: IRR ${fP(ar.irr)} (now ${fP(cur.irr)}), profit on cost ${fP(ar.poc)}. It ${verdict(ar)}.\nSay *align to market* to apply it to the sandbox.`,
@@ -657,9 +732,36 @@ async function handle(text,ch,role){
     out.fx=()=>applyAlign(ch==='web'?'Workspace':'WhatsApp');out.link=['market','Open market check'];
     done(`*Sandbox aligned to market*\n${scenName(d)}\nLevered IRR ${fP(before.irr)} → *${fP(after.irr)}*\nProfit on cost ${fP(before.poc)} → *${fP(after.poc)}*\nThis ${verdict(after)}.`);
     break}
+  case 'email':{
+    const ems=DATA.emails,withCh=ems.filter(e=>e.change),cur=run(S);
+    out.steps=['Outlook · Microsoft Graph · GET /me/mailFolders/Al Narjis/messages (last 30 days)',`Read ${ems.length} messages`,`Extract assumption changes: ${withCh.length} found, ${ems.length-withCh.length} ignored`,'Price each change on the replica engine'];
+    out.fx=()=>renderInbox();out.link=['inbox','Open Outlook view'];
+    const rows=withCh.map(e=>{const ch=emChanges(e),r=run({...S,...Object.fromEntries(ch.map(c=>[c.var,c.delta]))});return{e,ch,d:bad(r.irr)-bad(cur.irr)}});
+    const all=run({...S,...Object.fromEntries(withCh.flatMap(e=>emChanges(e)).map(c=>[c.var,c.delta]))});
+    done(`*Outlook: ${withCh.length} assumption changes in ${ems.length} emails*\n`+rows.map(x=>`• ${x.e.from.split(' · ')[0]}, ${x.e.date.slice(0,10)}: ${x.ch.map(emTag).join(', ')} (${EM.applied[x.e.id]?'applied':'IRR '+sgn(x.d*100,1)+' pts'})`).join('\n')+`\nAll together: IRR ${fP(cur.irr)} → *${fP(all.irr)}*. It ${verdict(all)}.\nSay *apply email changes* to put them in the sandbox.`,
+      `<b>Outlook: ${withCh.length} assumption changes in ${ems.length} emails</b><table><tr><th>From</th><th>Subject</th><th>Change</th><th>IRR</th></tr>${rows.map(x=>`<tr><td>${esc(x.e.from.split(' · ')[0])}<br><span style="color:var(--soft)">${x.e.date.slice(0,10)}</span></td><td>${esc(x.e.subject)}</td><td>${x.ch.map(emTag).join('<br>')}</td><td class="${x.d<0?'dn':'up'}">${EM.applied[x.e.id]?'applied':sgn(x.d*100,1)+' pts'}</td></tr>`).join('')}</table>All together: IRR ${fP(cur.irr)} → <b>${fP(all.irr)}</b>. It ${verdict(all)}. One message (${esc(ems.find(e=>!e.change).subject)}) had no assumption content and was ignored.<div class="chips"><span class="chip" data-q="Apply the email changes">Apply the email changes</span><span class="chip" data-q="Why did construction cost change?">Why did construction cost change?</span></div>`);
+    break}
+  case 'emailapply':{
+    const todo=DATA.emails.filter(e=>e.change&&!EM.applied[e.id]);
+    if(!todo.length){done('All email changes are already in the sandbox.');break}
+    const d=Object.fromEntries(todo.flatMap(e=>emChanges(e)).map(c=>[c.var,c.delta])),before=run(S),after=run({...S,...d});
+    out.steps=[`Outlook · re-read ${todo.length} messages to confirm quotes`,...writeSteps(d),'Recalculate and read outputs','Stamp each change with its email source'];
+    out.fx=()=>{applyAllEmails(ch==='web'?'Workspace':'WhatsApp');renderInbox()};out.link=['inbox','Open Outlook view'];
+    done(`*Applied ${todo.length} email changes to the sandbox*\n${scenName(d)}\nLevered IRR ${fP(before.irr)} → *${fP(after.irr)}*\nProfit on cost ${fP(before.poc)} → *${fP(after.poc)}*\nThis ${verdict(after)}. Each change is cited in the changelog.`);
+    break}
+  case 'why':{
+    const ks=(it.v&&it.v.length?it.v:Object.keys(S));
+    out.steps=['Search changelog and Outlook sources'];
+    if(!ks.length){done('Nothing has changed: the sandbox equals the base case.');break}
+    done(ks.map(k=>{const s_=SRC[k],d=S[k]||0;
+      if(!d)return `*${VARS[k].label}* is at base (${levelTxt(k,0)}).`;
+      if(s_)return `*${VARS[k].label}: ${levelTxt(k,0)} → ${levelTxt(k,d)}*\nSource: ${s_.e.from}, ${s_.e.date}, "${s_.e.subject}".\nQuote: "${s_.quote}".`;
+      return `*${VARS[k].label}: ${levelTxt(k,0)} → ${levelTxt(k,d)}*\nSet manually or by a scenario in this session; no email source.`}).join('\n\n'));
+    out.link=['inbox','Open Outlook view'];
+    break}
   case 'reset':{
     out.steps=[wr('all inputs = base'),'Recalculate'];
-    out.fx=()=>{S={};changelog.push('Reset to base');renderAll(true)};
+    out.fx=()=>{S={};for(const k in SRC)delete SRC[k];changelog.push('Reset to base');renderAll(true)};
     done(`Sandbox reset to base case.\nLevered IRR ${fP(baseRes.irr)}, profit on cost ${fP(baseRes.poc)}.`);break}
   case 'promote':{
     if(!Object.keys(S).length){done('Nothing to promote: sandbox equals base case.');break}
@@ -680,39 +782,39 @@ async function handle(text,ch,role){
     done('*Approved and written.* Change set written through SQL Server; EstateMaster updated on sync. Audit entry created.');break}
   case 'cancel':{pending=null;done('Cancelled. Nothing was written.');break}
   default:{
-    done('*I can:*\n• "What if sale price drops 10% and cost +15%"\n• "Stress test the model"\n• "Sensitivity of exit cap vs construction cost"\n• "Keep exploring autonomously"\n• "How far can prices fall?"\n• "Check assumptions against market data"\n• "Is the scheme compliant with zoning?"\n• "Build the IC report"\n• "Promote scenario"');
+    done('*I can:*\n• "What if sale price drops 10% and cost +15%"\n• "Stress test the model"\n• "Sensitivity of exit cap vs construction cost"\n• "Keep exploring autonomously"\n• "How far can prices fall?"\n• "Check Outlook for assumption changes"\n• "Why did construction cost change?"\n• "Check assumptions against market data"\n• "Is the scheme compliant with zoning?"\n• "Build the IC report"\n• "Promote scenario"');
     out.html='<b>I can:</b><div class="chips" style="margin:6px 0">'+CHIPS.map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>';
   }}
   return out;
 }
 function miniTable(res){return '<table><tr><th>Scenario</th><th>IRR</th><th>Profit</th><th></th></tr>'+res.map(x=>`<tr><td>${esc(x.name)}</td><td>${fP(x.r.irr)}</td><td>${fM(x.r.profit)}</td><td><span class="pill ${x.pass?'p':'f'}">${x.pass?'pass':'fail'}</span></td></tr>`).join('')+'</table><a class="go" data-tab="stress">Open stress tests →</a>'}
-const CHIPS=['Check assumptions against market data','Stress test the model','What if sale price drops 10% and cost rises 15%?','Sensitivity of exit cap vs construction cost','Keep exploring autonomously','How far can prices fall?','Build the IC report'];
+const CHIPS=['Check Outlook for assumption changes','Check assumptions against market data','Stress test the model','What if sale price drops 10% and cost rises 15%?','Sensitivity of exit cap vs construction cost','Keep exploring autonomously','How far can prices fall?','Build the IC report'];
 
-/* ================= MARKET DATA (illustrative sample) ================= */
-const SITE={id:'NRJ-0417',plot:20000,w:200,d:100,zone:'Mixed-use, commercial corridor',far:3.0,cov:.60,sb:{front:6,side:3,rear:3},floors:12,
-  foot:{x:25,y:10,w:150,h:76},towerFloors:11};
-const SALES=[ // SAR/sqm, months ago
- ['Al Narjis','Apartment',142,12650,1],['Al Narjis','Apartment',168,12900,2],['Al Narjis','Townhouse',240,13200,3],['Al Narjis','Apartment',125,12400,4],
- ['Al Narjis','Apartment',155,12100,6],['Al Narjis','Apartment',180,13050,8],['Al Narjis','Apartment',132,11900,10],['Al Yasmin','Apartment',150,12300,2],
- ['Al Yasmin','Apartment',138,12050,5],['Al Yasmin','Townhouse',260,13600,7],['Al Arid','Apartment',160,11600,3],['Al Arid','Apartment',145,11800,9],
- ['Al Malqa','Apartment',170,13400,4],['Al Malqa','Apartment',150,12800,11]];
-const LEASES=[ // retail SAR/sqm/yr, months ago
- ['Al Narjis',180,2250,1],['Al Narjis',240,2100,3],['Al Narjis',120,2400,4],['Al Narjis',300,1950,6],['Al Narjis',160,2300,8],['Al Narjis',210,2200,11],
- ['Al Yasmin',150,2350,2],['Al Yasmin',260,2050,5],['Al Arid',200,1850,7],['Al Malqa',140,2600,3],['Al Malqa',190,2500,9],['Al Arid',170,1900,10]];
-const MK={scope:'adj',per:12};
-const mon=m=>{const d=new Date(2026,8-m,1);return d.toLocaleString('en',{month:'short'})+' '+String(d.getFullYear()).slice(2)};
+/* ================= MARKET DATA (dummy dataset, see market-data.xlsx) ================= */
+const DATA=JSON.parse(document.getElementById('mkdata').textContent);
+const ASOF=new Date(DATA.asOf+'T00:00:00');
+const mAgo=d=>(ASOF-new Date(d+'T00:00:00'))/864e5/30.44;
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fDate=d=>`${d.slice(8,10)} ${MON[+d.slice(5,7)-1]} ${d.slice(2,4)}`;
+const PLOT=DATA.plots.find(p=>p.id==='NRJ-0417'),ZONE=DATA.zones.find(z=>z.code===PLOT.zone);
+const SITE={id:PLOT.id,plot:PLOT.area,w:PLOT.w,d:PLOT.d,street:PLOT.street,zone:ZONE.name,code:ZONE.code,uses:ZONE.uses,far:ZONE.far,cov:ZONE.cov,
+  sb:{front:ZONE.front,side:ZONE.side,rear:ZONE.rear},floors:ZONE.floors,parkUnit:ZONE.park_unit,parkRetail:ZONE.park_retail,
+  foot:{x:25,y:10,w:150,h:76},towerFloors:11,unitSize:140,parking:620};
+const SCOPES={1:'Al Narjis',2:'Al Narjis + adjacent',3:'North Riyadh'};
+const MK={scope:2,per:12,type:'All'};
 function q(arr,p){const s=arr.slice().sort((a,b)=>a-b),i=(s.length-1)*p,l=Math.floor(i);return s[l]+(s[Math.min(l+1,s.length-1)]-s[l])*(i-l)}
-function prank(arr,v){return arr.filter(x=>x<v).length/arr.length}
+function prank(arr,v){return arr.length?arr.filter(x=>x<v).length/arr.length:.5}
 function mk(){
-  const ok=(dist,m)=>(MK.scope==='adj'||dist==='Al Narjis')&&m<=MK.per;
-  const sales=SALES.filter(r=>ok(r[0],r[4])),leases=LEASES.filter(r=>ok(r[0],r[3]));
-  const P=sales.map(r=>r[3]),R=leases.map(r=>r[2]);
-  const st=v=>({p10:q(v,.1),p25:q(v,.25),p50:q(v,.5),p75:q(v,.75),p90:q(v,.9),min:Math.min(...v),max:Math.max(...v)});
+  const sales=DATA.tx.filter(r=>r.ring<=MK.scope&&mAgo(r.date)<=MK.per&&(MK.type==='All'||r.type===MK.type));
+  const leases=DATA.rent.filter(r=>r.use==='Retail'&&r.ring<=MK.scope&&mAgo(r.date)<=MK.per);
+  const P=sales.map(r=>r.price/r.size),R=leases.map(r=>r.annual/r.size);
+  const st=v=>v.length?{p10:q(v,.1),p25:q(v,.25),p50:q(v,.5),p75:q(v,.75),p90:q(v,.9),min:Math.min(...v),max:Math.max(...v)}:{p10:0,p25:0,p50:0,p75:0,p90:0,min:0,max:0};
   return{sales,leases,P:st(P),R:st(R),Pv:P,Rv:R,nP:P.length,nR:R.length};
 }
 const maxGFA=()=>SITE.plot*SITE.far;
+const parkReq=a=>Math.ceil(FIX.resNSA*a/SITE.unitSize*SITE.parkUnit+(SITE.parkRetail?FIX.retGLA*a/SITE.parkRetail:0));
 const farDelta=()=>Math.floor((maxGFA()/FIX.gfa-1)*1000)/10;
-function bandStatus(pr){return pr>=.9||pr<=.1?['f','outside range']:pr>.75||pr<.25?['s','stretched']:['p','in range']}
+function bandStatus(pr,n=99){return n<5?['s','too few comps']:pr>=.9||pr<=.1?['f','outside range']:pr>.75||pr<.25?['s','stretched']:['p','in range']}
 function marketCheck(d=S){
   const p=apply(d),m=mk(),a=p.area/100,gfa=FIX.gfa*a,far=gfa/SITE.plot;
   const f=SITE.foot,cov=f.w*f.h/SITE.plot,floors=Math.round(SITE.towerFloors*a);
@@ -721,15 +823,16 @@ function marketCheck(d=S){
   const prP=prank(m.Pv,p.price),prR=prank(m.Rv,p.rent);
   const n=v=>Math.round(v).toLocaleString();
   return[
-   {k:'price',label:'Residential sale price',model:`SAR ${n(p.price)}/sqm`,bench:`median ${n(m.P.p50)} · IQR ${n(m.P.p25)}–${n(m.P.p75)}`,pos:`P${Math.round(prP*100)}`,st:bandStatus(prP),plain:`sale price SAR ${n(p.price)} vs median ${n(m.P.p50)} (P${Math.round(prP*100)} of ${m.nP} sales)`},
-   {k:'rent',label:'Retail rent',model:`SAR ${n(p.rent)}/sqm/yr`,bench:`median ${n(m.R.p50)} · IQR ${n(m.R.p25)}–${n(m.R.p75)}`,pos:`P${Math.round(prR*100)}`,st:bandStatus(prR),plain:`retail rent SAR ${n(p.rent)} vs median ${n(m.R.p50)} (P${Math.round(prR*100)} of ${m.nR} leases)`},
+   {k:'price',label:'Residential sale price',model:`SAR ${n(p.price)}/sqm`,bench:`median ${n(m.P.p50)} · IQR ${n(m.P.p25)}–${n(m.P.p75)}`,pos:`P${Math.round(prP*100)}`,st:bandStatus(prP,m.nP),plain:`sale price SAR ${n(p.price)} vs median ${n(m.P.p50)} (P${Math.round(prP*100)} of ${m.nP} sales)`},
+   {k:'rent',label:'Retail rent',model:`SAR ${n(p.rent)}/sqm/yr`,bench:`median ${n(m.R.p50)} · IQR ${n(m.R.p25)}–${n(m.R.p75)}`,pos:`P${Math.round(prR*100)}`,st:bandStatus(prR,m.nR),plain:`retail rent SAR ${n(p.rent)} vs median ${n(m.R.p50)} (P${Math.round(prR*100)} of ${m.nR} leases)`},
    {k:'far',label:'GFA / FAR',model:`${n(gfa)} sqm · FAR ${far.toFixed(2)}`,bench:`max FAR ${SITE.far.toFixed(1)} → ${n(maxGFA())} sqm`,pos:far>SITE.far?`+${((far/SITE.far-1)*100).toFixed(1)}% over`:`${((1-far/SITE.far)*100).toFixed(1)}% spare`,st:far>SITE.far+1e-9?['f','breach']:['p','compliant'],plain:`GFA ${n(gfa)} sqm = FAR ${far.toFixed(2)} vs max ${SITE.far.toFixed(1)}`},
    {k:'cov',label:'Site coverage',model:`${(cov*100).toFixed(0)}%`,bench:`max ${(SITE.cov*100).toFixed(0)}%`,pos:'',st:cov<=SITE.cov?['p','compliant']:['f','breach'],plain:`coverage ${(cov*100).toFixed(0)}% vs max ${(SITE.cov*100).toFixed(0)}%`},
    {k:'sb',label:'Setbacks',model:`front ${sb.front} · side ${sb.side} · rear ${sb.rear} m`,bench:`min ${SITE.sb.front} · ${SITE.sb.side} · ${SITE.sb.rear} m`,pos:'',st:sbOK?['p','compliant']:['f','breach'],plain:`setbacks front ${sb.front}/side ${sb.side}/rear ${sb.rear} m vs min ${SITE.sb.front}/${SITE.sb.side}/${SITE.sb.rear}`},
+   {k:'park',label:'Parking',model:`${SITE.parking} spaces`,bench:`min ${n(parkReq(a))} (${SITE.parkUnit}/unit + 1 per ${SITE.parkRetail} sqm GLA)`,pos:'',st:SITE.parking>=parkReq(a)?['p','compliant']:['f','breach'],plain:`parking ${SITE.parking} vs min ${n(parkReq(a))} spaces`},
    {k:'h',label:'Height',model:`${floors} floors`,bench:`max ${SITE.floors} floors`,pos:'',st:floors<=SITE.floors?['p','compliant']:['f','breach'],plain:`height ${floors} floors vs max ${SITE.floors}`}
   ];
 }
-function alignDeltas(){const m=mk();return{price:+((m.P.p50/BASE.price-1)*100).toFixed(1),rent:+((m.R.p50/BASE.rent-1)*100).toFixed(1),area:Math.min(S.area||0,farDelta())}}
+function alignDeltas(){const m=mk();if(m.nP<5||m.nR<5)return{area:Math.min(S.area||0,farDelta())};return{price:+((m.P.p50/BASE.price-1)*100).toFixed(1),rent:+((m.R.p50/BASE.rent-1)*100).toFixed(1),area:Math.min(S.area||0,farDelta())}}
 function alignedRun(){return run({...S,...alignDeltas()})}
 function applyAlign(src){const d=alignDeltas();Object.assign(S,d);Object.keys(S).forEach(k=>{if(!S[k])delete S[k]});changelog.push(`${src}: aligned to market (${scenName(d)})`);renderAll(true)}
 function rngBar(label,st,val,unit){
@@ -758,12 +861,45 @@ function renderMarket(){
   const flags=c.filter(r=>r.st[0]!=='p');
   $('#mkAlign').className='mkbox'+(flags.some(r=>r.st[0]==='f')?' bad':'');
   $('#mkAlign').innerHTML=`<b>${flags.length?flags.length+' assumption'+(flags.length>1?'s':'')+' flagged':'All assumptions within market and regulatory limits'}.</b> ${flags.map(r=>r.label.toLowerCase()+' ('+r.st[1]+')').join(', ')}${flags.length?'.':''}<br>Market-aligned case (sale price and rent at comps median, GFA capped at FAR ${SITE.far.toFixed(1)}): levered IRR <b>${fP(ar.irr)}</b> vs ${fP(cur.irr)} now, profit on cost <b>${fP(ar.poc)}</b>. It ${verdict(ar)}.`;
-  $('#cmpP').innerHTML='<tr><th>Date</th><th>District</th><th>Type</th><th class="n">SAR/sqm</th></tr>'+m.sales.slice().sort((a,b)=>a[4]-b[4]).map(r=>`<tr><td>${mon(r[4])}</td><td>${r[0]}</td><td>${r[1]} · ${r[2]} sqm</td><td class="n">${r[3].toLocaleString()}</td></tr>`).join('');
-  $('#cmpR').innerHTML='<tr><th>Date</th><th>District</th><th>Unit</th><th class="n">SAR/sqm/yr</th></tr>'+m.leases.slice().sort((a,b)=>a[3]-b[3]).map(r=>`<tr><td>${mon(r[3])}</td><td>${r[0]}</td><td>${r[1]} sqm</td><td class="n">${r[2].toLocaleString()}</td></tr>`).join('');
+  $('#cmpP').innerHTML='<tr><th>Date</th><th>District</th><th>Type</th><th class="n">SAR/sqm</th><th>Record</th></tr>'+m.sales.map(r=>`<tr><td>${fDate(r.date)}</td><td>${r.district}</td><td>${r.type} · ${r.size} sqm</td><td class="n">${Math.round(r.price/r.size).toLocaleString()}</td><td style="color:var(--soft)">${r.id}</td></tr>`).join('');
+  $('#cmpR').innerHTML='<tr><th>Date</th><th>District</th><th>Unit</th><th class="n">SAR/sqm/yr</th><th>Record</th></tr>'+m.leases.map(r=>`<tr><td>${fDate(r.date)}</td><td>${r.district}</td><td>${r.frontage} · ${r.size} sqm</td><td class="n">${Math.round(r.annual/r.size).toLocaleString()}</td><td style="color:var(--soft)">${r.id}</td></tr>`).join('');
+  $('#evP').textContent=`Residential sales (${m.nP} of ${DATA.tx.length})`;$('#evR').textContent=`Retail leases (${m.nR} of ${DATA.rent.filter(r=>r.use==='Retail').length})`;
+  $('#evSub').textContent=`${SCOPES[MK.scope]} · last ${MK.per} months${MK.type!=='All'?' · '+MK.type.toLowerCase()+'s':''}. Dummy records; the same data is in the Excel file.`;
+  $('#siteSub').textContent=`Plot ${SITE.id} (dummy) · zone ${SITE.code} · ${SITE.plot.toLocaleString()} sqm · ${SITE.w} m frontage × ${SITE.d} m depth · ${SITE.street} m street`;
   $('#site').innerHTML=siteSVG();
-  $('#regT').innerHTML='<tr><th>Rule</th><th>Limit</th><th>Scheme</th><th></th></tr>'+[['Zoning',SITE.zone,'Residential + retail','p','permitted']].concat(c.slice(2).map(r=>[r.label,r.bench,r.model,r.st[0],r.st[1]])).map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td><span class="pill ${r[3]}">${r[4]}</span></td></tr>`).join('');
-  $('#mkSrc').innerHTML='<div><b>Transactions:</b> registered sales, e.g. Ministry of Justice data via a licensed partner</div><div><b>Rentals:</b> lease evidence, e.g. Ejar contracts / REGA indicators</div><div><b>Regulations:</b> plot zoning and building code, e.g. Riyadh regulations via Balady</div><div style="color:var(--alert)">Illustrative sample for this demo, not live market data.</div>';
+  $('#regT').innerHTML='<tr><th>Rule</th><th>Limit</th><th>Scheme</th><th></th></tr>'+[['Zoning',SITE.code+' · '+SITE.zone,'Residential + retail',...(/Residential/.test(SITE.uses)&&/retail/i.test(SITE.uses)?['p','permitted']:['f','not permitted'])]].concat(c.slice(2).map(r=>[r.label,r.bench,r.model,r.st[0],r.st[1]])).map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td><span class="pill ${r[3]}">${r[4]}</span></td></tr>`).join('');
+  $('#mkSrc').innerHTML=`<div><b>Transactions:</b> registered sales, e.g. Ministry of Justice data via a licensed partner</div><div><b>Rentals:</b> lease evidence, e.g. Ejar contracts / REGA indicators</div><div><b>Regulations:</b> plot zoning and building code, e.g. Riyadh regulations via Balady</div><div style="color:var(--alert)">Dummy dataset for this demo (${DATA.tx.length} sales, ${DATA.rent.length} leases, ${DATA.zones.length} zoning classes, ${DATA.plots.length} plots), not live market data.</div>`;
 }
+
+/* ================= OUTLOOK (dummy inbox) ================= */
+const SRC={};               // var -> {email, quote}
+const EM={sel:'em3',applied:{}};
+const emChanges=e=>!e.change?[]:[{var:e.change.var,delta:e.change.delta,quote:e.change.quote,conf:e.change.conf}].concat(e.change.also?[{...e.change.also,conf:e.change.conf}]:[]);
+const emTag=c=>`${VARS[c.var].label} ${fD(c.var,c.delta)}`;
+const levelTxt=(k,d)=>VARS[k].fmt(apply({[k]:d})[k]);
+function applyEmail(id,src){
+  const e=DATA.emails.find(x=>x.id===id),ch=emChanges(e);if(!ch.length)return null;
+  const d={};ch.forEach(c=>{d[c.var]=c.delta;SRC[c.var]={e,quote:c.quote}});
+  Object.assign(S,d);Object.keys(S).forEach(k=>{if(!S[k])delete S[k]});EM.applied[id]=true;
+  changelog.push(`${src}: ${scenName(d)} · source: email "${e.subject}", ${e.from}, ${e.date}`);
+  return d;
+}
+function applyAllEmails(src){const all={};DATA.emails.forEach(e=>{if(!EM.applied[e.id]){const d=applyEmail(e.id,src);if(d)Object.assign(all,d)}});renderAll(true);return all}
+function renderInbox(){
+  const n=DATA.emails.filter(e=>e.change).length;
+  $('#ibSub').textContent=`${DATA.emails.length} messages · ${n} with assumption changes · ${Object.keys(EM.applied).length} applied. Dummy inbox.`;
+  $('#ibList').innerHTML=DATA.emails.map(e=>`<div class="em ${e.id===EM.sel?'on':''}" data-em="${e.id}"><div class="top"><span>${esc(e.from)}</span><span>${e.date.slice(5,10).replace('-','/')} ${e.date.slice(11)}</span></div><div class="sj">${esc(e.subject)}</div><div class="sn">${esc(e.body)}</div><div class="x">${emChanges(e).length?emChanges(e).map(c=>`<span class="xtag ${EM.applied[e.id]?'ok':''}">${EM.applied[e.id]?'✓ ':''}${esc(emTag(c))}</span>`).join(''):'<span class="xtag no">no assumption · ignored</span>'}</div></div>`).join('');
+  const e=DATA.emails.find(x=>x.id===EM.sel),ch=emChanges(e);
+  let body=esc(e.body);ch.forEach(c=>{body=body.replace(esc(c.quote),`<mark>${esc(c.quote)}</mark>`)});
+  const cur=run(S),aft=ch.length?run({...S,...Object.fromEntries(ch.map(c=>[c.var,c.delta]))}):null;
+  $('#ibRead').innerHTML=`<div class="bar"></div><div class="meta">${esc(e.from)} &lt;${esc(e.addr)}&gt; · ${e.date}</div><h3 class="serif">${esc(e.subject)}</h3><div class="bd">${body}</div>
+   <div class="ext">${ch.length?`<b>Agent extraction</b> · confidence ${Math.round(e.change.conf*100)}%<table>${ch.map(c=>`<tr><td>${VARS[c.var].label}</td><td>${levelTxt(c.var,S[c.var]||0)} → <b>${levelTxt(c.var,c.delta)}</b></td><td style="color:var(--soft)">"${esc(c.quote)}"</td></tr>`).join('')}</table>Levered IRR ${fP(cur.irr)} → <b>${fP(aft.irr)}</b> if applied.
+   <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${EM.applied[e.id]?'<span class="pill p">applied to sandbox</span>':`<button class="btn sm" data-apply="${e.id}">Apply to sandbox</button>`}<button class="btn ghost sm" data-q="Why did ${VARS[ch[0].var].label.toLowerCase()} change?">Ask the agent why</button></div>`:'<b>No assumption content.</b> The agent ignores this message.'}</div>`;
+}
+document.addEventListener('click',e=>{
+  const m=e.target.closest('[data-em]');if(m){EM.sel=m.dataset.em;renderInbox()}
+  const a=e.target.closest('[data-apply]');if(a){applyEmail(a.dataset.apply,'Workspace');renderAll(true);toast('Applied to sandbox · source cited in changelog')}
+});
 
 /* ================= STRESS / TORNADO / HEADROOM ================= */
 const STRESS=[
@@ -902,15 +1038,16 @@ function reportHTML(){
   <p>Versus the base case the levered IRR moves from ${fP(base.irr)} to ${fP(b.irr)}. ${!ok&&Object.keys(S).length?'The sandbox scenario is already below a hurdle, so headroom shows as breached.':''} ${tight?`The tightest single assumption is <b>${VARS[tight.k].label.toLowerCase()}</b>: the IRR hurdle breaks at ${fD(tight.k,tight.irrD)}.`:''}</p>
   <h3>Market &amp; regulatory check</h3>
   <table class="t"><tr><th>Assumption</th><th>Model</th><th>Market / rule</th><th></th></tr>${marketCheck().map(r=>`<tr><td>${r.label}</td><td>${r.model}</td><td>${r.bench}${r.pos?' · '+r.pos:''}</td><td>${r.st[0]==='p'?r.st[1]:`<b style="color:${r.st[0]==='f'?'#FF4D6A':'#000919'}">${r.st[1]}</b>`}</td></tr>`).join('')}</table>
-  <p>Market-aligned case (comps medians, GFA capped at FAR ${SITE.far.toFixed(1)}): levered IRR ${fP(alignedRun().irr)}, profit on cost ${fP(alignedRun().poc)}. Evidence: ${mk().nP} registered sales and ${mk().nR} retail leases, ${MK.scope==='adj'?'Al Narjis and adjacent districts':'Al Narjis'}, last ${MK.per} months (illustrative sample).</p>
+  <p>Market-aligned case (comps medians, GFA capped at FAR ${SITE.far.toFixed(1)}): levered IRR ${fP(alignedRun().irr)}, profit on cost ${fP(alignedRun().poc)}. Evidence: ${mk().nP} registered sales and ${mk().nR} retail leases, ${SCOPES[MK.scope]}, last ${MK.per} months (dummy dataset).</p>
   <h3>Stress tests</h3>
   <table class="t"><tr><th>Scenario</th><th class="n">IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th><th></th></tr>${st.map(x=>`<tr><td>${esc(x.name)}</td><td class="n">${fP(x.r.irr)}</td><td class="n">${fP(x.r.poc)}</td><td class="n">${fM(x.r.profit)}</td><td>${x.pass?'pass':'<b style="color:#FF4D6A">fail</b>'}</td></tr>`).join('')}</table>
   <h3>Headroom before the IRR hurdle breaks</h3>
   <table class="t"><tr><th>Assumption</th><th class="n">Headroom</th><th class="n">Until loss</th></tr>${h.map(x=>`<tr><td>${VARS[x.k].label}</td><td class="n">${hd(x.k,x.irrD)}</td><td class="n">${hd(x.k,x.lossD)}</td></tr>`).join('')}</table>
   ${E.n?`<h3>Autonomous exploration</h3><p>${E.n.toLocaleString()} scenarios sampled across all nine assumptions. Probability of IRR below hurdle: ${(E.below/E.n*100).toFixed(1)}%. Median IRR ${fP(pct(E.vals,.5))}, P10 ${fP(pct(E.vals,.1))}, P90 ${fP(pct(E.vals,.9))}.</p>`:''}
+  ${Object.keys(SRC).some(k=>S[k])?`<h3>Email context used</h3><table class="t"><tr><th>Assumption</th><th>Source</th><th>Quote</th></tr>${Object.keys(SRC).filter(k=>S[k]).map(k=>`<tr><td>${VARS[k].label} ${fD(k,S[k])}</td><td>${esc(SRC[k].e.from)}, ${SRC[k].e.date.slice(0,10)}<br><span style="color:var(--soft)">${esc(SRC[k].e.subject)}</span></td><td>"${esc(SRC[k].quote)}"</td></tr>`).join('')}</table>`:''}
   <h3>Assumption changelog</h3>
   <p>${changelog.length?changelog.map(esc).join('<br>'):'No changes: base case as held in EstateMaster.'}</p>
-  <div class="lineage">Data lineage · run ${id} · EstateMaster via SQL Server · market data: ${mk().nP} sales, ${mk().nR} leases, plot regulations · engine: calibrated replica, reconciled to EstateMaster · illustrative demo data · generated by Bohio Agent</div>`;
+  <div class="lineage">Data lineage · run ${id} · EstateMaster via SQL Server · market data: ${mk().nP} sales, ${mk().nR} leases, zone ${SITE.code} (dummy) · Outlook: ${Object.keys(EM.applied).length} emails cited · engine: calibrated replica, reconciled to EstateMaster · illustrative demo data · generated by Bohio Agent</div>`;
 }
 function renderReport(){$('#report').innerHTML=reportHTML()}
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
@@ -925,11 +1062,11 @@ function renderKPIs(flash){
 }
 function renderAsm(){
   $('#asm').innerHTML=KEYS.map(k=>{const v=VARS[k],d=S[k]||0,p=apply({[k]:d})[k];
-    return`<div class="k ${d?'chg':''}" style="${d?'font-weight:600':''}">${v.label}</div><input type="range" min="${v.lo}" max="${v.hi}" step="${v.step}" value="${d}" data-k="${k}"><div class="val">${v.fmt(p)}<small>${d?fD(k,d)+' vs base':'base'}</small></div>`}).join('');
-  $$('#asm input').forEach(i=>i.oninput=()=>{const k=i.dataset.k;S[k]=+i.value;if(!S[k])delete S[k];renderAll(false)});
+    return`<div class="k ${d?'chg':''}" style="${d?'font-weight:600':''}">${v.label}</div><input type="range" min="${v.lo}" max="${v.hi}" step="${v.step}" value="${d}" data-k="${k}"><div class="val">${v.fmt(p)}<small>${d?fD(k,d)+' vs base'+(SRC[k]?' · ✉':''):'base'}</small></div>`}).join('');
+  $$('#asm input').forEach(i=>i.oninput=()=>{const k=i.dataset.k;S[k]=+i.value;delete SRC[k];if(!S[k])delete S[k];renderAll(false)});
   $('#sbx').textContent=Object.keys(S).length?`Sandbox differs from base in ${Object.keys(S).length} assumption${Object.keys(S).length>1?'s':''}. Base case in EstateMaster is untouched.`:'Working on a sandbox copy. Base case in EstateMaster is untouched.';
 }
-function renderAll(flash){renderKPIs(flash);renderAsm();stressRes=null;tornRes=null;headRes=null;renderStress();renderHeat();renderMarket();if($('#p-report').classList.contains('on'))renderReport()}
+function renderAll(flash){renderKPIs(flash);renderAsm();stressRes=null;tornRes=null;headRes=null;renderStress();renderHeat();renderMarket();renderInbox();if($('#p-report').classList.contains('on'))renderReport()}
 
 function addMsg(who,html){const m=document.createElement('div');m.className='msg '+who;m.innerHTML=who==='agent'?`<div class="steps"></div><div class="body">${html||''}</div>`:esc(html);$('#msgs').appendChild(m);$('#msgs').scrollTop=1e9;return m}
 let busy=false;
@@ -950,21 +1087,44 @@ document.addEventListener('click',e=>{
   const q=e.target.closest('[data-q]');if(q)webAsk(q.dataset.q);
 });
 $('#chips').innerHTML=CHIPS.map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('');
-$('#reset').onclick=()=>{S={};changelog.push('Reset to base');renderAll(true)};
+$('#reset').onclick=()=>{S={};for(const k in SRC)delete SRC[k];changelog.push('Reset to base');renderAll(true)};
 $('#promote').onclick=()=>webAsk('promote scenario');
 function openModal(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S))}</b><br>Written through: SQL Server → EstateMaster sync<br>The base case is overwritten only after this approval. An audit record is written.`;$('#modal').classList.add('on')}
 $('#mno').onclick=()=>{pending=null;$('#modal').classList.remove('on')};
 $('#myes').onclick=()=>{$('#modal').classList.remove('on');webAsk('approve')};
 
+/* floating, draggable sandbox */
+(function(){
+  const card=$('#sbCard'),home=$('#sbHome'),head=$('#sbHead'),btn=$('#sbPop');let pos=null;
+  const clamp=(x,y)=>[Math.max(8,Math.min(innerWidth-card.offsetWidth-8,x)),Math.max(8,Math.min(innerHeight-60,y))];
+  function place(x,y){[x,y]=clamp(x,y);card.style.left=x+'px';card.style.top=y+'px';pos=[x,y]}
+  function pop(){home.innerHTML='<div class="sbph">Sandbox is floating. Drag it by its title, or <a class="go" id="sbDock" style="cursor:pointer">dock it back</a>.</div>';
+    document.body.appendChild(card);card.classList.add('float');btn.textContent='Dock ⤡';
+    place(...(pos||[innerWidth-card.offsetWidth-24,120]));$('#sbDock').onclick=dock}
+  function dock(){card.classList.remove('float','min');$('#sbMin').textContent='–';card.style.left=card.style.top='';home.innerHTML='';home.after(card);btn.textContent='Pop out ⤢'}
+  $('#sbMin').onclick=e=>{e.stopPropagation();card.classList.toggle('min');$('#sbMin').textContent=card.classList.contains('min')?'+':'–'};
+  btn.onclick=e=>{e.stopPropagation();card.classList.contains('float')?dock():pop()};
+  head.addEventListener('pointerdown',e=>{
+    if(!card.classList.contains('float')||e.target.closest('button'))return;
+    const r=card.getBoundingClientRect(),dx=e.clientX-r.left,dy=e.clientY-r.top;
+    card.classList.add('drag');head.setPointerCapture(e.pointerId);
+    const mv=ev=>place(ev.clientX-dx,ev.clientY-dy);
+    const up=()=>{card.classList.remove('drag');head.removeEventListener('pointermove',mv);head.removeEventListener('pointerup',up)};
+    head.addEventListener('pointermove',mv);head.addEventListener('pointerup',up);
+  });
+  addEventListener('resize',()=>{if(card.classList.contains('float')&&pos)place(...pos)});
+})();
+
 /* tabs */
-const TABS=[['agent','Agent'],['market','Market check'],['explore','Sensitivity & Explorer'],['stress','Stress tests'],['report','IC report'],['wa','WhatsApp'],['arch','Architecture']];
-function showTab(id){$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report')renderReport();if(id==='explore')renderHeat();if(id==='market')renderMarket();window.scrollTo({top:0,behavior:'smooth'})}
+const TABS=[['agent','Agent'],['inbox','Outlook'],['market','Market check'],['explore','Sensitivity & Explorer'],['stress','Stress tests'],['report','IC report'],['wa','WhatsApp'],['arch','Architecture']];
+function showTab(id){$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report')renderReport();if(id==='explore')renderHeat();if(id==='market')renderMarket();if(id==='inbox')renderInbox();window.scrollTo({top:0,behavior:'smooth'})}
 $('#tabs').innerHTML=TABS.map(([id,l])=>`<div class="tab ${id==='agent'?'on':''}" data-t="${id}">${l}</div>`).join('');
 $$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
 
 /* market controls */
-$('#mkScope').onchange=e=>{MK.scope=e.target.value;stressRes=null;renderMarket();renderStress()};
+$('#mkType').onchange=e=>{MK.type=e.target.value;stressRes=null;renderMarket();renderStress()};
+$('#mkScope').onchange=e=>{MK.scope=+e.target.value;stressRes=null;renderMarket();renderStress()};
 $('#mkPer').onchange=e=>{MK.per=+e.target.value;stressRes=null;renderMarket();renderStress()};
 $('#mkAlignBtn').onclick=()=>{applyAlign('Workspace');toast('Sandbox aligned to market medians and FAR limit')};
 $('#mkAsk').addEventListener('click',()=>showTab('agent'));
@@ -983,7 +1143,7 @@ $('#rhtml').onclick=()=>download('AlNarjis_IC_Pack.html','<!doctype html><meta c
 $('#rcsv').onclick=()=>download('sensitivity.csv',csv(),'text/csv');
 
 /* ================= WHATSAPP UI ================= */
-const WQ=['Status','Check vs market','Stress test','What if price -10%','Build IC report','Promote scenario'];
+const WQ=['Status','Check emails','Check vs market','Stress test','What if price -10%','Build IC report','Promote scenario'];
 const tm=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 function wBubble(cls,html){const b=document.createElement('div');b.className='wb '+cls;b.innerHTML=html+(cls.includes('tp')?'':`<span class="tm">${tm()}${cls==='me'?' ✓✓':''}</span>`);$('#wmsgs').appendChild(b);$('#wmsgs').scrollTop=1e9;return b}
 let wbusy=false;
@@ -1011,7 +1171,7 @@ $('#waalert').onclick=()=>{if(!E.n){E.run||startExplorer();setTimeout(()=>waAler
 $('#warole').onchange=e=>wBubble('bot',`<i>Number verified: Fatima A. · role <b>${e.target.value}</b></i>`);
 
 /* ================= INIT ================= */
-addMsg('agent','<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, check them against market data and zoning, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
+addMsg('agent','<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, pick up assumption changes from Outlook, check them against market data and zoning, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
 wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
 wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
 syncHeatSel();resetE();renderAll(false);
