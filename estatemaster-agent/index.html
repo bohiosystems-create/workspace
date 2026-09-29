@@ -226,7 +226,7 @@ table.t td.n,table.t th.n{text-align:right}
 .ext td{padding:5px 4px;border-top:1px solid var(--hair)}
 .ev{grid-template-columns:1fr 1fr}.wag{grid-template-columns:380px minmax(0,1fr)}
 .grid>*{min-width:0}
-@media(max-width:1100px){.ev,.wag,#ibgrid{grid-template-columns:1fr!important}}
+@media(max-width:1100px){.ev,.wag,#ibgrid,#rpgrid{grid-template-columns:1fr!important}}
 @media(max-width:700px){
   .wrap{padding:16px 16px 48px}
   .card{padding:18px 16px}
@@ -443,6 +443,7 @@ table.t td.n,table.t th.n{text-align:right}
       <table class="t" id="stressT"></table>
     </div>
     <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card"><div class="bar"></div><h2>Every assumption</h2><div class="sub">Each line of the EstateMaster register moved on its own. Ranked by effect on levered IRR.</div><div id="ftorn" style="max-height:420px;overflow:auto"></div></div>
       <div class="card"><div class="bar"></div><h2>Tornado</h2><div class="sub">Change in levered IRR for one-at-a-time moves</div><div id="tornado"></div></div>
       <div class="card"><div class="bar"></div><h2>Reverse stress: headroom</h2><div class="sub">How far each assumption can move alone before a hurdle breaks</div><table class="t" id="headT"></table></div>
     </div>
@@ -451,13 +452,41 @@ table.t td.n,table.t th.n{text-align:right}
 
 <!-- REPORT -->
 <section class="pane" id="p-report">
-  <div class="card" style="margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-    <div><h2 style="margin:0">Investment Committee pack</h2><div class="sub" style="margin:0">Generated from the model outputs and the agent's test runs. Regenerate any time.</div></div>
-    <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" id="rgen">Regenerate</button><button class="btn ghost" id="rnarr">Draft narrative (AI)</button><button class="btn ghost" id="rprint">Print / PDF</button><button class="btn ghost" id="rhtml">Download HTML</button><button class="btn ghost" id="rcsv">Sensitivity CSV</button>
+  <div class="grid" style="grid-template-columns:350px minmax(0,1fr)" id="rpgrid">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <div class="bar"></div><h2>EstateMaster extract</h2>
+        <div class="sub">The runner pulls every assumption and output out of EstateMaster; every report is built from the latest extract.</div>
+        <div class="list"><div id="xStat"></div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn sm" id="xRun">Extract now</button><button class="btn ghost sm" id="xXls">Full extract (Excel)</button></div>
+        <div class="src" style="margin-top:12px"><div><b>Extracted:</b> assumption register, KPIs, quarterly cash flow, cost and revenue reports, funding schedule, fund waterfall.</div><div><b>Joined with:</b> SQL Server actuals (cost to date, commitments, sales) and the market dataset.</div></div>
+      </div>
+      <div class="card">
+        <div class="bar"></div><h2>Report templates</h2>
+        <div class="sub">Scheduled reports run after the nightly extract and are delivered on the chosen channel.</div>
+        <div class="ib" id="rpList"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div><h2 style="margin:0" id="rpTitle">Investment Committee pack</h2><div class="sub" style="margin:0">Numbers from the EstateMaster extract; narrative optional (AI).</div></div>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="rgen">Regenerate</button><button class="btn ghost" id="rnarr">Draft narrative (AI)</button><button class="btn ghost" id="rprint">Print / PDF</button><button class="btn ghost" id="rxls">Excel</button><button class="btn ghost" id="rhtml">HTML</button>
+        </div>
+      </div>
+      <div class="report" id="report"></div>
     </div>
   </div>
-  <div class="report" id="report"></div>
+</section>
+
+<!-- MODEL DATA -->
+<section class="pane" id="p-model">
+  <div class="card">
+    <div class="bar"></div><div class="sbhead"><h2>Model data: every assumption</h2><input id="regQ" placeholder="Search assumptions" style="border:1px solid var(--faint);border-radius:999px;padding:7px 14px;font-size:13px;min-width:0;width:220px"></div>
+    <div class="sub" style="margin-top:4px" id="regSub"></div>
+    <div class="sub">Edit any line (or ask the agent, e.g. "increase MEP by 10%" or "set contingency to 7%"). Changes go to the sandbox copy and EstateMaster recalculates.</div>
+    <table class="t" id="modT"></table>
+  </div>
 </section>
 
 <!-- WHATSAPP -->
@@ -656,17 +685,18 @@ function model(p){
   const exitV=noi/(p.cap/100)*(1-FIX.exitCost);
   inf[11+d]+=exitV;
   const ltc=Math.max(0,Math.min(.9,p.ltc/100)),r=p.rate/100/4;
-  let bal=0,peak=0,interest=0,eqIn=0,dist=0;const eq=[],un=[];
+  let bal=0,peak=0,interest=0,eqIn=0,dist=0,peakT=0;const eq=[],un=[],drawA=[],repA=[],balA=[],intA=[];
   for(let t=0;t<T;t++){
     const i=bal*r;bal+=i;interest+=i;
-    const draw=cost[t]*ltc;bal+=draw;peak=Math.max(peak,bal);
-    const rep=Math.min(bal,inf[t]);bal-=rep;
+    const draw=cost[t]*ltc;bal+=draw;if(bal>peak){peak=bal;peakT=t}
+    const rep=Math.min(bal,inf[t]);bal-=rep;drawA.push(draw);repA.push(rep);balA.push(bal);intA.push(i);
     const ds=inf[t]-rep,ein=cost[t]-draw;eqIn+=ein;dist+=ds;
     eq.push(-ein+ds);un.push(inf[t]-cost[t]);
   }
   if(bal>1){eq[T-1]-=bal;dist-=bal}
   const tc=cost.reduce((a,b)=>a+b,0)+interest,rev=inf.reduce((a,b)=>a+b,0),profit=rev-tc;
-  return{eq,eqIn,irr:irrOf(eq),uirr:irrOf(un),profit,poc:profit/tc,em:dist/eqIn,peak,rev,tc,noi,exitV,resRev,hard,interest};
+  const bd={land:p.land*1e6,hard:FIX.gfa*a*p.cost,soft:FIX.gfa*a*p.cost*FIX.soft,cont:FIX.gfa*a*p.cost*FIX.cont,delay:hard*.015*d,salesCost:resRev*FIX.sellCost,exitCost:noi/(p.cap/100)*FIX.exitCost};
+  return{cf:{cost,inf,draw:drawA,rep:repA,bal:balA,int:intA,eq},bd,peakT,eqIn,eq,irr:irrOf(eq),uirr:irrOf(un),profit,poc:profit/tc,em:dist/eqIn,peak,rev,tc,noi,exitV,resRev,hard,interest};
 }
 const run=d=>model(apply(d));
 /* Fund waterfall: LP = real estate investment fund units (e.g. a CMA-regulated private fund), GP = KINAN co-invest + promote */
@@ -686,7 +716,7 @@ function waterfall(r,ft=FT){
       if(D>0){const pr=D*ft.promote/100;promo+=pr;g+=pr+(D-pr)*gp;l+=(D-pr)*lp}}
     if(l>0)lpOut+=l;if(g>0)gpOut+=g;L.push(l);G.push(g);
   }
-  return{lpIrr:irrOf(L),gpIrr:irrOf(G),lpEm:lpOut/(lpIn+fees||1),gpEm:gpOut/(gpIn||1),promo,fees,lpIn,gpIn};
+  return{L,G,lpOut,gpOut,lpIrr:irrOf(L),gpIrr:irrOf(G),lpEm:lpOut/(lpIn+fees||1),gpEm:gpOut/(gpIn||1),promo,fees,lpIn,gpIn};
 }
 const bad=v=>Number.isNaN(v)?-1:v;
 
@@ -742,9 +772,12 @@ function intent(text){
   if(/^(yes|approve|confirm|ok approve)/.test(t))return{k:'approve'};
   if(/^(no|cancel|reject)\b/.test(t))return{k:'cancel'};
   if(/\bwhy\b|where did|source of|who (said|changed|asked)|what changed/.test(t))return{k:'why',v:varsIn(t)};
+  if(/\bextract\b|pull (the )?(data|numbers)|export (the )?(model|data)/.test(t)&&!/\breport\b/.test(t))return{k:'extract'};
+  if(/\b(report|pack|memo|deck|board paper)\b/.test(t)||/compar\w* (the )?scenarios|scenarios? side by side/.test(t)){const kind=/month/.test(t)?'monthly':/lender|bank|covenant|facility|murabaha/.test(t)?'lender':/investor|\blps?\b|fund/.test(t)?'investor':/compar|side by side|scenarios/.test(t)?'compare':'ic';return{k:'report',kind}}
   if(/apply.*(e-?mail|outlook|mail)|(e-?mail|outlook).*apply/.test(t))return{k:'emailapply'};
   if(/outlook|e-?mails?|inbox|\bmail\b/.test(t))return{k:'email'};
   if(/reset|revert|back to base/.test(t))return{k:'reset'};
+  {const ln=parseLine(t);if(ln)return{k:'line',...ln}}
   if(/\bpref\w*|carried|waterfall|\bfund\b|\blps?\b|sponsor|promote\s*(of|at|to|is|=)?\s*\d/.test(t)&&!/promote (the )?(scenario|sandbox)/.test(t))return{k:'capital',mods:parseFT(t)};
   if(/promote|write back|push to (em|estate)|apply to (the )?(live|model)/.test(t))return{k:'promote'};
   if(/capital structure|waterfall|\bfunds?\b|investors?|\blps?\b|\bgp\b|sponsor|co-?invest|mutual|carried|\bcarry\b|preferred return|\bpref\b|murabaha|financing structure|management fee|mgmt fee/.test(t)&&!/promote (the )?scenario/.test(t))return{k:'capital',mods:parseFT(t)};
@@ -843,10 +876,29 @@ async function handle(text,ch,role,forced){
     const top=h.filter(x=>x.irrD!=null&&!Number.isNaN(x.irrD)).sort((a,b)=>Math.abs(a.irrD)/(VARS[a.k].kind==='pct'?1:5)-Math.abs(b.irrD)/(VARS[b.k].kind==='pct'?1:5))[0];
     done(`*Headroom vs IRR hurdle ${fP(HURDLE.irr)}*\n`+h.filter(x=>x.k!=='ltc').map(x=>`${VARS[x.k].label}: ${hd(x.k,x.irrD)}`).join('\n')+`\nTightest: ${top?VARS[top.k].label:'n/a'}.`);
     break}
+  case 'line':{
+    const l=REGBY[it.id],before=run(S),bv=lineVal(it.id);const ev=evalLine(it.id,it.v).r;
+    out.steps=[wr(`${l.label} = ${fmtLine(l,it.v)}`),rf(),rd('outputs')];
+    out.fx=()=>setLine(it.id,it.v,web?'Workspace':'WhatsApp');out.link=['model','Open model data'];
+    done(`*${l.label}: ${fmtLine(l,bv)} → ${fmtLine(l,it.v)}*\nLevered IRR ${fP(before.irr)} → *${fP(ev.irr)}*\nProfit on cost ${fP(before.poc)} → *${fP(ev.poc)}*\nNet profit ${fM(before.profit)} → *${fM(ev.profit)}*\nThis ${verdict(ev)}.`);
+    break}
+  case 'reglist':{
+    out.steps=[rd('assumption register')];
+    done(REG.map(l=>`${l.id} | ${l.g} | ${l.label} | ${fmtLine(l,l.base)} → ${fmtLine(l,lineVal(l.id))}`).join('\n'));
+    break}
+  case 'extract':{
+    out.steps=['EM runner · open model copy BHO_SBX','EM runner · refresh live-link and recalculate',`EM runner · read assumption register (${REG.length} lines)`,'EM runner · read outputs, quarterly cash flow, cost and revenue reports','SQL Server · store extract and reconcile totals'];
+    out.fx=()=>{LASTX=snapshot();renderExtract();renderReport()};out.link=['report','Open reports'];
+    done(`*Extract complete*\n${REG.length} assumptions, all outputs and 22 quarterly periods read from EstateMaster and stored. Reports now use this extract.`);
+    break}
   case 'report':{
-    out.steps=[rd('base case outputs'),'Collect stress and sensitivity results','Draft narrative and recommendation','Assemble IC pack and stamp data lineage'];
-    out.fx=()=>{if(!stressRes){stressRes=computeStress();computeTornado();computeHeadroom()}renderReport();renderStress()};
-    out.link=['report','Open IC pack'];out.attach={label:'AlNarjis_IC_Pack.pdf',kind:'PDF'};
+    const kind=it.kind||'ic';
+    out.steps=['EM runner · extract latest outputs from EstateMaster','SQL Server · join actuals (cost to date, sales)','Run stress set for the report',`Assemble ${RPTS[kind].name} and stamp data lineage`];
+    out.fx=()=>{RSEL=kind;LASTX=snapshot();if(!stressRes){stressRes=computeStress();computeTornado();computeHeadroom()}renderReportList&&$('#rpList')&&renderReportList();renderExtract();renderReport();renderStress()};
+    out.link=['report','Open '+RPTS[kind].name];out.attach={label:`AlNarjis_${RPTS[kind].name.replace(/\W+/g,'_')}.pdf`,kind:'PDF'};
+    if(kind!=='ic'){const r=run(S),w=waterfall(r);
+      done(`*${RPTS[kind].name} ready*\n`+(kind==='monthly'?`Levered IRR ${fP(r.irr)} (base ${fP(baseRes.irr)}), total cost ${fM(r.tc)}. Includes budget vs actuals, sales progress, next-quarter cash flow and flags.`:kind==='lender'?`Peak debt ${fM(r.peak)} in ${qLab(r.peakT)}, LTC ${apply(S).ltc.toFixed(0)}%. Includes covenant tests, drawdown schedule and debt under stress.`:kind==='investor'?`Fund LP net IRR ${fP(w.lpIrr)}, KINAN ${fP(w.gpIrr)}. Includes calls, distributions by year and returns under stress.`:`Base, current, market-aligned and two downside cases side by side.`));
+      break}
     const {r}=statusText();
     done(`*IC pack ready*\n${Object.keys(S).length?'Scenario: '+scenName(S)+'.':'Base case.'} Levered IRR ${fP(r.irr)}, profit on cost ${fP(r.poc)}. This ${verdict(r)}.\nIncludes stress table, tornado, headroom and assumption changelog.`);
     break}
@@ -899,7 +951,7 @@ async function handle(text,ch,role,forced){
     break}
   case 'reset':{
     out.steps=[wr('all inputs = base'),'Recalculate'];
-    out.fx=()=>{S={};for(const k in SRC)delete SRC[k];changelog.push('Reset to base');renderAll(true)};
+    out.fx=()=>{S={};resetDetail();for(const k in SRC)delete SRC[k];changelog.push('Reset to base');renderAll(true)};
     done(`Sandbox reset to base case.\nLevered IRR ${fP(baseRes.irr)}, profit on cost ${fP(baseRes.poc)}.`);break}
   case 'promote':{
     if(!Object.keys(S).length){done('Nothing to promote: sandbox equals base case.');break}
@@ -1039,6 +1091,221 @@ document.addEventListener('click',e=>{
   const a=e.target.closest('[data-apply]');if(a){applyEmail(a.dataset.apply,'Workspace');renderAll(true);toast('Applied to sandbox · source cited in changelog')}
 });
 
+/* ================= ESTATEMASTER EXTRACT: FULL ASSUMPTION REGISTER ================= */
+/* Every input line the runner reads out of the model. Lines roll up into the replica's drivers
+   (agg = weighted group, drv = single driver, fix = model constant, ft = fund terms). Illustrative lines. */
+const REG=[
+ {id:'u1',g:'Revenue › Residential sales',label:'1-bed apartments',unit:'SAR/sqm',base:14000,agg:'price',w:.25,al:/\b(1|one)[- ]?(bed|br)\w*/},
+ {id:'u2',g:'Revenue › Residential sales',label:'2-bed apartments',unit:'SAR/sqm',base:13500,agg:'price',w:.40,al:/\b(2|two)[- ]?(bed|br)\w*/},
+ {id:'u3',g:'Revenue › Residential sales',label:'3-bed apartments',unit:'SAR/sqm',base:12800,agg:'price',w:.25,al:/\b(3|three)[- ]?(bed|br)\w*/},
+ {id:'u4',g:'Revenue › Residential sales',label:'Penthouses',unit:'SAR/sqm',base:14000,agg:'price',w:.10,al:/penthouse/},
+ {id:'com',g:'Revenue › Sales costs',label:'Agency commission',unit:'% of sales',base:2,agg:'sell',w:1,al:/commission|agency fee/},
+ {id:'mkt',g:'Revenue › Sales costs',label:'Marketing',unit:'% of sales',base:1,agg:'sell',w:1,al:/marketing/},
+ {id:'r1',g:'Revenue › Retail leasing',label:'Anchor supermarket rent',unit:'SAR/sqm/yr',base:1900,agg:'rent',w:.2,al:/anchor|supermarket/},
+ {id:'r2',g:'Revenue › Retail leasing',label:'Line shop rent',unit:'SAR/sqm/yr',base:2500,agg:'rent',w:.7,al:/line[- ]?shop/},
+ {id:'r3',g:'Revenue › Retail leasing',label:'F&B kiosk rent',unit:'SAR/sqm/yr',base:2700,agg:'rent',w:.1,al:/f&b|f and b|kiosk|food/},
+ {id:'occ',g:'Revenue › Retail leasing',label:'Stabilised occupancy',unit:'%',base:92,fix:'occ',sc:.01,al:/occupancy/},
+ {id:'opx',g:'Revenue › Retail leasing',label:'Non-recoverable opex',unit:'% of rent',base:15,fix:'opex',sc:.01,al:/opex|operating cost/},
+ {id:'cap',g:'Revenue › Retail exit',label:'Exit cap rate',unit:'%',base:7.5,drv:'cap'},
+ {id:'exc',g:'Revenue › Retail exit',label:'Exit costs',unit:'% of value',base:2,fix:'exitCost',sc:.01,al:/exit cost/},
+ {id:'land',g:'Costs › Land',label:'Land price',unit:'SAR M',base:160,drv:'land'},
+ {id:'c1',g:'Costs › Construction',label:'Substructure',unit:'SAR/sqm GFA',base:520,agg:'cost',w:1,al:/substructure|foundation|piling/},
+ {id:'c2',g:'Costs › Construction',label:'Superstructure',unit:'SAR/sqm GFA',base:1560,agg:'cost',w:1,al:/superstructure|\bframe\b/},
+ {id:'c3',g:'Costs › Construction',label:'Facade',unit:'SAR/sqm GFA',base:780,agg:'cost',w:1,al:/fa[cç]ade|cladding|curtain wall/},
+ {id:'c4',g:'Costs › Construction',label:'MEP services',unit:'SAR/sqm GFA',base:1300,agg:'cost',w:1,al:/\bmep\b|mechanical|electrical|plumbing/},
+ {id:'c5',g:'Costs › Construction',label:'Fit-out and finishes',unit:'SAR/sqm GFA',base:780,agg:'cost',w:1,al:/fit[- ]?out|finishes/},
+ {id:'c6',g:'Costs › Construction',label:'External works',unit:'SAR/sqm GFA',base:260,agg:'cost',w:1,al:/external works|landscap/},
+ {id:'pf',g:'Costs › Soft costs',label:'Professional fees',unit:'% of construction',base:8,agg:'soft',w:1,al:/professional fees?|consultant fees?|design fees?/},
+ {id:'sf',g:'Costs › Soft costs',label:'Statutory and authority fees',unit:'% of construction',base:2,agg:'soft',w:1,al:/statutory|authority fees?/},
+ {id:'dm',g:'Costs › Soft costs',label:'Development management fee',unit:'% of construction',base:2,agg:'soft',w:1,al:/development management|\bdm fee/},
+ {id:'ct',g:'Costs › Contingency',label:'Construction contingency',unit:'% of construction',base:5,fix:'cont',sc:.01,al:/contingency/},
+ {id:'gfa',g:'Areas',label:'Gross floor area',unit:'sqm',base:62000,drv:'area'},
+ {id:'dl',g:'Timing',label:'Construction start delay',unit:'months',base:0,drv:'delay'},
+ {id:'sb',g:'Finance › Murabaha facility',label:'SAIBOR (base rate)',unit:'%',base:6,agg:'rate',w:1,al:/saibor|base rate/},
+ {id:'mg',g:'Finance › Murabaha facility',label:'Facility margin',unit:'%',base:2.5,agg:'rate',w:1,al:/\bmargin\b/},
+ {id:'ltc',g:'Finance › Murabaha facility',label:'Loan to cost',unit:'%',base:55,drv:'ltc'},
+ {id:'lp',g:'Finance › Equity and fund',label:'Fund LP share of equity',unit:'%',base:80,ft:'lp'},
+ {id:'pr',g:'Finance › Equity and fund',label:'Preferred return',unit:'% p.a.',base:8,ft:'pref'},
+ {id:'pm',g:'Finance › Equity and fund',label:'Sponsor promote',unit:'%',base:20,ft:'promote'},
+ {id:'fe',g:'Finance › Equity and fund',label:'Fund management fee',unit:'% p.a.',base:1,ft:'fee'}
+];
+const FIX0={...FIX};
+let LV={};   // explicit line values inside aggregate groups
+const REGBY=Object.fromEntries(REG.map(l=>[l.id,l]));
+const AGG={price:{drv:'price',mode:'wavg'},rent:{drv:'rent',mode:'wavg'},cost:{drv:'cost',mode:'sum'},rate:{drv:'rate',mode:'add'},soft:{fix:'soft',mode:'sum',sc:.01},sell:{fix:'sellCost',mode:'sum',sc:.01}};
+const grpLines=g=>REG.filter(l=>l.agg===g);
+const grpNow=g=>{const a=AGG[g];return a.drv?apply(S)[a.drv]:FIX[a.fix]/a.sc};
+const grpFrom=(g,vals)=>grpLines(g).reduce((t,l)=>t+(AGG[g].mode==='wavg'?l.w:1)*vals[l.id],0);
+function lineVal(id){
+  const l=REGBY[id];
+  if(l.agg){const g=l.agg,vals={};grpLines(g).forEach(x=>vals[x.id]=LV[x.id]??x.base);const tot=grpFrom(g,vals),now=grpNow(g);
+    if(AGG[g].mode==='add')return vals[id]+(l===grpLines(g)[0]?now-tot:0);
+    return tot?vals[id]*now/tot:vals[id]}
+  if(l.drv){const v=apply(S)[l.drv];return l.drv==='area'?FIX.gfa*v/100:v}
+  if(l.fix)return FIX[l.fix]/l.sc;
+  if(l.ft)return FT[l.ft];
+}
+function setLineRaw(id,v){
+  const l=REGBY[id];
+  if(l.agg){const g=l.agg;grpLines(g).forEach(x=>LV[x.id]=lineVal(x.id));LV[id]=v;
+    const vals={};grpLines(g).forEach(x=>vals[x.id]=LV[x.id]);const lvl=grpFrom(g,vals),a=AGG[g];
+    if(a.drv){const V=VARS[a.drv];S[a.drv]=V.kind==='pct'?(lvl/BASE[a.drv]-1)*100:lvl-BASE[a.drv]}else FIX[a.fix]=lvl*a.sc}
+  else if(l.drv){const V=VARS[l.drv],x=l.drv==='area'?v/FIX.gfa*100:v;S[l.drv]=V.kind==='pct'?(x/BASE[l.drv]-1)*100:x-BASE[l.drv];if(l.drv==='delay')S.delay=Math.max(0,Math.round(S.delay))}
+  else if(l.fix)FIX[l.fix]=v*l.sc;
+  else if(l.ft)FT[l.ft]=v;
+  Object.keys(S).forEach(k=>{if(Math.abs(S[k])<1e-9)delete S[k]});
+}
+function setLine(id,v,src){const l=REGBY[id],before=lineVal(id);setLineRaw(id,v);delete SRC[l.agg?AGG[l.agg].drv:l.drv];
+  changelog.push(`${src}: ${l.label} ${fmtLine(l,before)} → ${fmtLine(l,v)}`);renderAll(true)}
+function resetDetail(){LV={};Object.assign(FIX,FIX0);Object.assign(FT,FT0)}
+function evalLine(id,v){const sS={...S},sF={...FIX},sT={...FT},sL={...LV};setLineRaw(id,v);const r=run(S),w=waterfall(r);S=sS;Object.assign(FIX,sF);Object.assign(FT,sT);LV=sL;return{r,w}}
+const fmtLine=(l,v)=>{const d=/SAR\/sqm|sqm$|SAR M/.test(l.unit)?0:(Math.abs(v)<20?2:0);return(l.unit==='SAR M'?'SAR ':'')+(+v).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:0})+(l.unit==='SAR M'?'M':' '+l.unit.replace(/^SAR\/sqm/,'SAR/sqm'))};
+const lineChanged=l=>Math.abs(lineVal(l.id)-l.base)>1e-6*Math.max(1,Math.abs(l.base));
+function detailDiffs(){return REG.filter(lineChanged)}
+function parseLine(t){
+  for(const l of REG){if(!l.al)continue;const m=t.match(l.al);if(!m)continue;
+    const rest=t.slice(m.index+m[0].length,m.index+m[0].length+40),pre=t.slice(Math.max(0,m.index-24),m.index);
+    const n=rest.match(/([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(%|pp|bps)?/);if(!n)continue;
+    let num=parseFloat(n[1].replace(/[,−]/g,s=>s==='−'?'-':'')),pct=n[2]==='%',cur=lineVal(l.id);
+    const ctx=pre+' '+rest.slice(0,n.index),abs=/\b(to|at|=|is)\b/.test(ctx),neg=/cut|drop|fall|reduc|lower|down|decreas|less/.test(ctx+pre)||/^-|^−/.test(n[1]);
+    if(n[2]==='bps')num/=100;
+    let v;if(abs)v=Math.abs(num);else if(/%/.test(l.unit)){v=cur+(neg?-1:1)*Math.abs(num)}else if(pct)v=cur*(1+(neg?-1:1)*Math.abs(num)/100);else v=cur+(neg?-1:1)*Math.abs(num);
+    return{id:l.id,v:Math.max(0,v)}}
+  return null;
+}
+/* Extract: what the runner pulls out of EstateMaster */
+let XN=417,LASTX=null;
+function snapshot(){const r=run(S),w=waterfall(r);return{id:'EX-'+(XN++),at:new Date(),scen:scenName(S),r,w,reg:REG.map(l=>({...l,cur:lineVal(l.id)}))}}
+const qLab=t=>`Q${(3+t)%4+1} ${25+Math.floor((3+t)/4)}`;
+const ASOF_Q=3;
+/* Dummy actuals from SQL Server (accounting): progress, commitments and variance per cost line */
+const ACT={c1:{prog:.85,commit:1,varf:1.06},c2:{prog:.30,commit:1,varf:1.02},c3:{prog:0,commit:.6,varf:1},c4:{prog:.05,commit:.45,varf:.97},c5:{prog:0,commit:0,varf:1},c6:{prog:0,commit:0,varf:1}};
+const SOLD={u1:{size:75,sold:.18,px:13850},u2:{size:120,sold:.12,px:13380},u3:{size:165,sold:.08,px:12700},u4:{size:260,sold:0,px:0}};
+
+/* ================= REPORTS ================= */
+const RPTS={
+  ic:{name:'Investment Committee pack',aud:'Investment committee',sched:'On request',fn:()=>reportHTML()},
+  monthly:{name:'Monthly project report',aud:'KINAN management',sched:'Monthly · 3rd working day',fn:()=>monthlyHTML()},
+  lender:{name:'Lender report',aud:'Murabaha lender',sched:'Quarterly · 10 days after quarter end',fn:()=>lenderHTML()},
+  investor:{name:'Fund investor report',aud:'Fund LPs and KINAN',sched:'Quarterly',fn:()=>investorHTML()},
+  compare:{name:'Scenario comparison',aud:'Investment team',sched:'On request',fn:()=>compareHTML()}
+};
+const SCHED={monthly:{on:true,ch:'Email (Outlook)'},lender:{on:true,ch:'SharePoint folder'},investor:{on:false,ch:'Email (Outlook)'},ic:{on:false,ch:'WhatsApp link'},compare:{on:false,ch:'Email (Outlook)'}};
+let RSEL='ic';
+const NARRS={};
+const narrBlock=id=>{const n=NARRS[id];return n&&n.key===narrKey()?`<h3>Narrative (AI draft)</h3>${n.text.split(/\n+/).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join('')}<p class="meta" style="margin-top:4px">Drafted by ${esc(mName(n.prov,n.model))} from the EstateMaster extract. Every figure is calculated, not generated.</p>`:''};
+const fS=v=>(v<0?'−':'')+'SAR '+(Math.abs(v)/1e6).toFixed(1)+'M';
+const T=(head,rows,num=[])=>`<table class="t"><tr>${head.map((h,i)=>`<th${i&&num!==false?' class="n"':''}>${h}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map((c,i)=>`<td${i&&num!==false?' class="n"':''}>${c}</td>`).join('')}</tr>`).join('')}</table>`;
+const lineage=(x,extra='')=>`<div class="lineage">Source: EstateMaster extract ${x.id} (${x.at.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}) via the runner · model copy BHO_SBX${extra} · generated by Bohio Agent · demo data</div>`;
+const scenLine=()=>{const d=detailDiffs();return d.length?'Scenario: '+esc(d.map(l=>l.label.toLowerCase()+' '+fmtLine(l,lineVal(l.id))).join(', ')):'Model: base case as held in EstateMaster'};
+function monthlyHTML(){
+  const x=LASTX||snapshot(),r=run(S),b=baseRes,gfa=FIX.gfa*apply(S).area/100;
+  const kp=[['Levered IRR',fP(b.irr),fP(r.irr)],['Profit on cost',fP(b.poc),fP(r.poc)],['Net profit',fS(b.profit),fS(r.profit)],['Total development cost',fS(b.tc),fS(r.tc)],['Gross revenue',fS(b.rev),fS(r.rev)],['Peak debt',fS(b.peak),fS(r.peak)]];
+  const cl=REG.filter(l=>l.agg==='cost').map(l=>{const bud=l.base*FIX0.gfa,fac=lineVal(l.id)*gfa,a=ACT[l.id],todo=bud*a.prog*a.varf;return[l.label,fS(bud),fS(todo),(a.prog*100).toFixed(0)+'%',fS(bud*a.commit),fS(fac),`<span class="${fac-bud>1?'dn':''}">${fac-bud>=0?'+':''}${fS(fac-bud)}</span>`]});
+  const tot=REG.filter(l=>l.agg==='cost').reduce((t,l)=>{const bud=l.base*FIX0.gfa,a=ACT[l.id];t[0]+=bud;t[1]+=bud*a.prog*a.varf;t[2]+=bud*a.commit;t[3]+=lineVal(l.id)*gfa;return t},[0,0,0,0]);
+  cl.push(['<b>Total construction</b>',`<b>${fS(tot[0])}</b>`,`<b>${fS(tot[1])}</b>`,((tot[1]/tot[0])*100).toFixed(0)+'%',`<b>${fS(tot[2])}</b>`,`<b>${fS(tot[3])}</b>`,`<b>${tot[3]-tot[0]>=0?'+':''}${fS(tot[3]-tot[0])}</b>`]);
+  const nsa=FIX.resNSA*apply(S).area/100;
+  const sl=REG.filter(l=>l.agg==='price').map(l=>{const z=SOLD[l.id],units=Math.round(nsa*l.w/z.size),sold=Math.round(units*z.sold),px=lineVal(l.id);return[l.label,units,sold,(z.sold*100).toFixed(0)+'%',Math.round(px).toLocaleString(),z.px?z.px.toLocaleString():'–',z.px?`<span class="${z.px<px?'dn':''}">${((z.px/px-1)*100).toFixed(1)}%</span>`:'–']});
+  const cf=r.cf,qs=[4,5,6,7];
+  const cft=[['Development costs',...qs.map(q=>fS(-cf.cost[q]))],['Sales receipts',...qs.map(q=>fS(cf.inf[q]))],['Murabaha drawdown',...qs.map(q=>fS(cf.draw[q]))],['Repayment',...qs.map(q=>fS(-cf.rep[q]))],['Equity (+ in / − out)',...qs.map(q=>fS(-cf.eq[q]))]];
+  const flags=[...marketCheck().filter(c=>c.st[0]!=='p').map(c=>`${c.label}: ${c.st[1]}`),...DATA.emails.filter(e=>e.change&&!EM.applied[e.id]).map(e=>`Email not yet reflected: ${e.subject} (${e.from.split(' · ')[0]})`)];
+  return`<div class="meta">Monthly project report · September 2026</div><h1>Al Narjis Mixed-Use, Riyadh</h1><div class="meta">${scenLine()}</div>
+  ${narrBlock('monthly')}
+  <h3>Headline numbers</h3>${T(['Metric','Approved base','This extract'],kp)}
+  <h3>Construction cost: budget, actuals, forecast</h3>${T(['Cost line','Budget','Cost to date','Progress','Committed','Forecast at completion','Variance'],cl)}
+  <p class="meta">Budget and forecast from EstateMaster; cost to date and commitments from SQL Server accounting (dummy).</p>
+  <h3>Sales progress</h3>${T(['Unit type','Units','Sold','Sold %','Model SAR/sqm','Achieved SAR/sqm','vs model'],sl)}
+  <h3>Cash flow, next four quarters</h3>${T(['',...qs.map(qLab)],cft)}
+  <h3>Flags</h3><p>${flags.length?flags.map(esc).join('<br>'):'None.'}</p>
+  ${lineage(x,' · SQL Server actuals (dummy)')}`;
+}
+function lenderHTML(){
+  const x=LASTX||snapshot(),r=run(S),p=apply(S),cf=r.cf,base=r.cf.cost.reduce((a,b)=>a+b,0),lim=base*p.ltc/100*1.05,gdv=r.resRev+r.exitV;
+  const cov=[['Loan to cost',`≤ 60%`,p.ltc.toFixed(1)+'%',p.ltc<=60],['Peak debt to GDV',`≤ 35%`,fP(r.peak/gdv),r.peak/gdv<=.35],['Contingency remaining','≥ 3% of construction',(FIX.cont*100).toFixed(1)+'%',FIX.cont>=.03],['Facility headroom at peak','≥ 5%',fP(1-r.peak/lim),1-r.peak/lim>=.05]]
+    .map(c=>[c[0],c[1],c[2],c[3]?'<span class="pill p">pass</span>':'<span class="pill f">breach</span>']);
+  const rows=cf.draw.map((d,t)=>[qLab(t),fS(d),fS(cf.int[t]),fS(cf.rep[t]),fS(cf.bal[t])]).filter((row,t)=>cf.draw[t]||cf.rep[t]||cf.bal[t]>1);
+  const st=(stressRes||computeStress()).map(s=>[esc(s.name),fS(s.r.peak),fP(s.r.peak/(s.r.resRev+s.r.exitV)),fS(s.r.interest)]);
+  return`<div class="meta">Lender report · Q3 2026</div><h1>Al Narjis Mixed-Use: Murabaha facility</h1><div class="meta">${scenLine()}</div>
+  ${narrBlock('lender')}
+  <h3>Facility</h3>${T(['Item','Value'],[['Facility limit (illustrative)',fS(lim)],['Profit rate (SAIBOR + margin)',p.rate.toFixed(2)+'%'],['Loan to cost',p.ltc.toFixed(1)+'%'],['Peak debt',`${fS(r.peak)} in ${qLab(r.peakT)}`],['Total profit cost',fS(r.interest)],['Gross development value',fS(gdv)]])}
+  <h3>Covenant tests</h3>${T(['Covenant','Threshold','Actual',''],cov)}<p class="meta">Covenant thresholds are illustrative placeholders, to be set from the actual facility agreement.</p>
+  <h3>Drawdown and repayment schedule</h3>${T(['Quarter','Drawdown','Profit','Repayment','Balance'],rows)}
+  <h3>Debt under stress</h3>${T(['Scenario','Peak debt','Peak debt / GDV','Profit cost'],st)}
+  ${lineage(x)}`;
+}
+function investorHTML(){
+  const x=LASTX||snapshot(),r=run(S),w=waterfall(r),called=r.cf.eq.slice(0,ASOF_Q+1).filter(v=>v<0).reduce((a,v)=>a-v,0);
+  const years={};w.L.forEach((v,t)=>{const y=2025+Math.floor((3+t)/4);years[y]=years[y]||[0,0];if(v>0)years[y][0]+=v;if(w.G[t]>0)years[y][1]+=w.G[t]});
+  const st=(stressRes||computeStress()).map(s=>{const ww=waterfall(s.r);return[esc(s.name),fP(ww.lpIrr),fX(ww.lpEm),fP(ww.gpIrr)]});
+  return`<div class="meta">Fund investor report · Q3 2026</div><h1>Al Narjis Mixed-Use: fund returns</h1><div class="meta">${scenLine()}</div>
+  ${narrBlock('investor')}
+  <h3>Summary</h3>${T(['Item','Fund LPs','KINAN co-invest'],[['Equity commitment',fS(w.lpIn),fS(w.gpIn)],['Called to date (to '+qLab(ASOF_Q)+')',fS(called*FT.lp/100),fS(called*(1-FT.lp/100))],['Projected distributions',fS(w.lpOut),fS(w.gpOut)],['Net IRR',fP(w.lpIrr),fP(w.gpIrr)],['Multiple',fX(w.lpEm),fX(w.gpEm)]])}
+  <h3>Terms and waterfall</h3><p>${FT.lp}% / ${100-FT.lp}% equity split; ${FT.pref}% compounding preferred return; ${FT.promote}% promote to KINAN above the pref; ${FT.fee}% p.a. management fee on LP capital. Projected promote ${fS(w.promo)}; fees ${fS(w.fees)}.</p>
+  <h3>Projected distributions by year</h3>${T(['Year','Fund LPs','KINAN'],Object.entries(years).filter(([y,v])=>v[0]||v[1]).map(([y,v])=>[y,fS(v[0]),fS(v[1])]))}
+  <h3>Returns under stress</h3>${T(['Scenario','LP net IRR','LP multiple','KINAN IRR'],st)}
+  ${lineage(x)}`;
+}
+function compareHTML(){
+  const x=LASTX||snapshot(),st=stressRes||computeStress();
+  const cols=[['Approved base',baseRes],['Current scenario',run(S)],['Market-aligned',alignedRun()],['Combined downside',st.find(s=>/Combined downside/.test(s.name)).r],['Severe combined',st.find(s=>/Severe/.test(s.name)).r]];
+  const row=(l,f)=>[l,...cols.map(([n,r])=>f(r,waterfall(r)))];
+  return`<div class="meta">Scenario comparison</div><h1>Al Narjis Mixed-Use: scenarios side by side</h1><div class="meta">${scenLine()}</div>
+  ${narrBlock('compare')}
+  <h3>Returns</h3>${T(['',...cols.map(c=>c[0])],[row('Gross revenue',r=>fS(r.rev)),row('Total cost',r=>fS(r.tc)),row('Net profit',r=>fS(r.profit)),row('Profit on cost',r=>fP(r.poc)),row('Unlevered IRR',r=>fP(r.uirr)),row('Levered IRR',r=>fP(r.irr)),row('Equity multiple',r=>fX(r.em)),row('Peak debt',r=>fS(r.peak)),row('Fund LP net IRR',(r,w)=>fP(w.lpIrr)),row('KINAN IRR',(r,w)=>fP(w.gpIrr)),row('Clears hurdles',r=>passes(r)?'yes':'<b style="color:#FF4D6A">no</b>')])}
+  ${lineage(x)}`;
+}
+function renderReportList(){
+  $('#rpList').innerHTML=Object.entries(RPTS).map(([k,v])=>`<div class="em ${k===RSEL?'on':''}" data-rp="${k}"><div class="top"><span>${esc(v.aud)}</span><span>${esc(v.sched)}</span></div><div class="sj">${esc(v.name)}</div>
+    <div class="x" style="align-items:center"><label style="font-size:12px;display:flex;gap:5px;align-items:center"><input type="checkbox" data-sch="${k}" ${SCHED[k].on?'checked':''}> Scheduled</label><select data-ch="${k}" style="font-size:11.5px;padding:3px 6px">${['Email (Outlook)','WhatsApp link','SharePoint folder'].map(o=>`<option ${o===SCHED[k].ch?'selected':''}>${o}</option>`).join('')}</select></div></div>`).join('');
+}
+function renderExtract(){
+  const x=LASTX;if(!x)return;
+  $('#xStat').innerHTML=`<b>${x.id}</b> · ${x.at.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}<br>${REG.length} assumptions · all KPIs · ${x.r.cf.cost.length} quarterly periods of cash flow, funding and fund distributions · cost report`;
+}
+async function doExtract(onStep){
+  const st=['EM runner · open model copy BHO_SBX','EM runner · refresh live-link and recalculate','EM runner · read assumption register ('+REG.length+' lines)','EM runner · read outputs, quarterly cash flow, cost and revenue reports','SQL Server · store extract and reconcile totals with EstateMaster report'];
+  for(const s of st){if(onStep)await onStep(s)}
+  LASTX=snapshot();renderExtract();if($('#p-report').classList.contains('on'))renderReport();return LASTX;
+}
+async function exportReportXlsx(){
+  try{await loadXLSX()}catch(e){toast(e.message);return}
+  const wb=XLSX.utils.book_new(),used={};
+  const nm=t=>{let n=(t||'Table').replace(/[\\/?*\[\]:]/g,'').slice(0,28)||'Table',k=n,i=2;while(used[k])k=n.slice(0,25)+' '+i++;used[k]=1;return k};
+  $$('#report table').forEach(tb=>{let h=tb.previousElementSibling;while(h&&h.tagName!=='H3')h=h.previousElementSibling;XLSX.utils.book_append_sheet(wb,XLSX.utils.table_to_sheet(tb),nm(h&&h.textContent))});
+  XLSX.writeFile(wb,`AlNarjis_${RPTS[RSEL].name.replace(/\W+/g,'_')}.xlsx`);
+}
+async function exportExtractXlsx(){
+  try{await loadXLSX()}catch(e){toast(e.message);return}
+  const x=LASTX||snapshot(),r=x.r,wb=XLSX.utils.book_new(),A=a=>XLSX.utils.aoa_to_sheet(a);
+  XLSX.utils.book_append_sheet(wb,A([['EstateMaster extract (DUMMY DATA)'],['Extract ID',x.id],['Taken',x.at.toISOString()],['Model','Al Narjis Mixed-Use · copy BHO_SBX'],['Scenario',x.scen]]),'Extract');
+  XLSX.utils.book_append_sheet(wb,A([['Section','Assumption','Unit','Base','Current'],...x.reg.map(l=>[l.g,l.label,l.unit,l.base,+(+l.cur).toFixed(4)])]),'Assumptions');
+  XLSX.utils.book_append_sheet(wb,A([['Output','Value'],['Levered IRR',r.irr],['Unlevered IRR',r.uirr],['Profit on cost',r.poc],['Net profit (SAR)',r.profit],['Total cost (SAR)',r.tc],['Gross revenue (SAR)',r.rev],['Peak debt (SAR)',r.peak],['Equity multiple',r.em],['Fund LP net IRR',x.w.lpIrr],['KINAN IRR',x.w.gpIrr]]),'Outputs');
+  const cf=r.cf;XLSX.utils.book_append_sheet(wb,A([['Quarter',...cf.cost.map((_,t)=>qLab(t))],['Development costs',...cf.cost.map(v=>-v)],['Revenue',...cf.inf],['Murabaha drawdown',...cf.draw],['Profit (interest)',...cf.int],['Repayment',...cf.rep.map(v=>-v)],['Debt balance',...cf.bal],['Equity cash flow',...cf.eq],['Fund LPs',...x.w.L],['KINAN',...x.w.G]]),'Cash flow');
+  XLSX.utils.book_append_sheet(wb,A([['Cost category','SAR'],...Object.entries(r.bd).map(([k,v])=>[k,v]),['Finance (profit)',r.interest]]),'Cost report');
+  XLSX.writeFile(wb,`AlNarjis_EstateMaster_extract_${x.id}.xlsx`);
+}
+/* Every-assumption tornado */
+let fullTorn=null;
+function computeFullTornado(){
+  const b=run(S);
+  fullTorn=REG.filter(l=>!l.ft).map(l=>{const c=lineVal(l.id),dn=l.id==='dl'?0:c*.9,up=l.id==='dl'?c+6:c*1.1;const lo=evalLine(l.id,dn).r,hi=evalLine(l.id,up).r;
+    return{l,lo:bad(lo.irr)-bad(b.irr),hi:bad(hi.irr)-bad(b.irr)}}).sort((a,c)=>Math.max(Math.abs(c.lo),Math.abs(c.hi))-Math.max(Math.abs(a.lo),Math.abs(a.hi)));
+}
+function renderFullTornado(){
+  if(!fullTorn)computeFullTornado();const mx=Math.max(...fullTorn.map(t=>Math.max(Math.abs(t.lo),Math.abs(t.hi))),.001);
+  $('#ftorn').innerHTML=`<div class="sub" style="margin:0 0 8px">${fullTorn.length} assumptions × 2 moves = ${fullTorn.length*2} EstateMaster runs · each line ±10% (delay +6 months)</div>`+fullTorn.map(t=>{const w=v=>Math.abs(v)/mx*46;const seg=v=>v<0?`<i style="position:absolute;right:50%;width:${w(v)}%;height:100%;background:var(--alert);border-radius:4px 0 0 4px"></i>`:`<i style="position:absolute;left:50%;width:${w(v)}%;height:100%;background:var(--ink);border-radius:0 4px 4px 0"></i>`;
+    return`<div style="display:grid;grid-template-columns:190px 1fr 110px;gap:8px;align-items:center;font-size:12px;margin:4px 0"><span title="${esc(t.l.g)}">${esc(t.l.label)}</span><span style="position:relative;height:13px;background:rgba(0,9,25,.05);border-radius:4px"><b style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint)"></b>${seg(t.lo)}${seg(t.hi)}</span><span style="color:var(--soft);font-size:11px">${sgn(t.lo*100,1)} / ${sgn(t.hi*100,1)} pts</span></div>`}).join('');
+}
+/* Model data tab */
+let regQ='';
+function renderRegister(){
+  const q=regQ.toLowerCase();let html='<tr><th>Section</th><th>Assumption</th><th class="n">Base</th><th class="n">Current</th><th>Unit</th></tr>',last='';
+  for(const l of REG){if(q&&!(l.label+' '+l.g).toLowerCase().includes(q))continue;const c=lineVal(l.id),ch=lineChanged(l);
+    html+=`<tr${ch?' style="background:rgba(255,77,106,.06)"':''}><td style="color:var(--soft)">${l.g!==last?esc(l.g):''}</td><td>${esc(l.label)}</td><td class="n">${(+l.base).toLocaleString()}</td><td class="n"><input class="regin" data-reg="${l.id}" value="${+c.toFixed(/%/.test(l.unit)||l.unit==='SAR M'?2:0)}" style="width:96px;text-align:right;border:1px solid ${ch?'var(--alert)':'var(--faint)'};border-radius:8px;padding:4px 6px;background:#fff"></td><td style="color:var(--soft)">${esc(l.unit)}</td></tr>`;last=l.g}
+  $('#modT').innerHTML=html;
+  const d=detailDiffs();$('#regSub').textContent=`${REG.length} assumptions extracted from EstateMaster · ${d.length} changed in the sandbox`;
+}
+
 /* ================= STRESS / TORNADO / HEADROOM ================= */
 const STRESS=[
  {name:'Sale price −15%',d:{price:-15}},
@@ -1168,7 +1435,7 @@ function renderExplorer(){
 
 /* ================= REPORT ================= */
 let NARR=null;
-const narrKey=()=>scenName(S)+'|'+JSON.stringify(FT)+'|'+MK.scope+MK.per+MK.type+'|'+Object.keys(EM.applied).join();
+const narrKey=()=>scenName(S)+'|'+JSON.stringify(FT)+'|'+JSON.stringify(FIX)+'|'+(LASTX&&LASTX.id)+'|'+MK.scope+MK.per+MK.type+'|'+Object.keys(EM.applied).join();
 function reportHTML(){
   const b=run(S),base=baseRes,st=stressRes||computeStress();
   const fails=st.filter(x=>!x.pass),v=verdict(b),ok=passes(b);
@@ -1178,10 +1445,10 @@ function reportHTML(){
   const tight=h.filter(x=>x.irrD!=null&&!Number.isNaN(x.irrD)).sort((a,c)=>Math.abs(a.irrD)/(VARS[a.k].kind==='pct'?1:5)-Math.abs(c.irrD)/(VARS[c.k].kind==='pct'?1:5))[0];
   return `<div class="meta">Investment Committee pack · ${new Date().toDateString()}</div>
   <h1>Al Narjis Mixed-Use, Riyadh</h1>
-  <div class="meta">Residential for sale + retail for hold · SAR · ${Object.keys(S).length?'Sandbox scenario: '+esc(scenName(S)):'Base case'}</div>
+  <div class="meta">Residential for sale + retail for hold · SAR · ${scenLine()}</div>
   <div class="verdict ${ok?'':'bad'}"><b>Recommendation.</b> ${esc(rec)}</div>
   <div class="rk"><div><span>Levered IRR</span><b>${fP(b.irr)}</b></div><div><span>Profit on cost</span><b>${fP(b.poc)}</b></div><div><span>Net profit</span><b>${fM(b.profit)}</b></div><div><span>Equity multiple</span><b>${fX(b.em)}</b></div></div>
-  ${NARR&&NARR.key===narrKey()?`<h3>Narrative (AI draft)</h3>${NARR.text.split(/\n+/).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join('')}<p class="meta" style="margin-top:4px">Drafted by ${esc(mName(NARR.prov,NARR.model))} from EstateMaster outputs. Every figure in this pack is calculated, not generated.</p>`:''}
+  ${narrBlock('ic')}
   <h3>Summary</h3>
   <p>Gross revenue is ${fM(b.rev)} against all-in cost of ${fM(b.tc)} including ${fM(b.interest)} of finance cost. Peak debt is ${fM(b.peak)}. Retail stabilises at NOI of ${fM(b.noi)} a year, valued at ${fM(b.exitV)} on exit at a ${(BASE.cap+(S.cap||0)).toFixed(2)}% cap rate.</p>
   <p>Versus the base case the levered IRR moves from ${fP(base.irr)} to ${fP(b.irr)}. ${!ok&&Object.keys(S).length?'The sandbox scenario is already below a hurdle, so headroom shows as breached.':''} ${tight?`The tightest single assumption is <b>${VARS[tight.k].label.toLowerCase()}</b>: the IRR hurdle breaks at ${fD(tight.k,tight.irrD)}.`:''}</p>
@@ -1200,7 +1467,7 @@ function reportHTML(){
   <p>${changelog.length?changelog.map(esc).join('<br>'):'No changes: base case as held in EstateMaster.'}</p>
   <div class="lineage">Data lineage · run ${id} · EstateMaster via SQL Server · market data: ${mk().nP} sales, ${mk().nR} leases, zone ${SITE.code} (dummy) · Outlook: ${Object.keys(EM.applied).length} emails cited · engine: calibrated replica, reconciled to EstateMaster · illustrative demo data · generated by Bohio Agent</div>`;
 }
-function renderReport(){$('#report').innerHTML=reportHTML()}
+function renderReport(){$('#rpTitle').textContent=RPTS[RSEL].name;$('#report').innerHTML=RPTS[RSEL].fn()}
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 function csv(){const xs=axis(hx,hn),ys=axis(hy,hn);let c=`${VARS[hy].label} \\ ${VARS[hx].label},`+xs.join(',')+'\n';ys.forEach(y=>{c+=y+','+xs.map(x=>{const r=run({...S,[hx]:x,[hy]:y});return Number.isNaN(r.irr)?'':(r.irr*100).toFixed(2)}).join(',')+'\n'});return c}
 
@@ -1224,7 +1491,7 @@ function renderCS(){
   $('#csK').innerHTML=k('Project IRR (unlevered)',fP(r.uirr))+k('Equity IRR (levered)',fP(r.irr),bad(r.irr)<HURDLE.irr)+k('Fund LP net IRR',fP(w.lpIrr),bad(w.lpIrr)<FT.pref/100)+k('KINAN IRR incl. promote',fP(w.gpIrr));
   $('#csTerms').innerHTML=`Terms: LP ${FT.lp}% / KINAN ${100-FT.lp}% of equity · ${FT.pref}% preferred return (compounding) · ${FT.promote}% promote above pref · ${FT.fee}% p.a. fund management fee on LP capital. Promote earned ${fM(w.promo)}; fees ${fM(w.fees)}. LP multiple ${fX(w.lpEm)}, KINAN multiple ${fX(w.gpEm)}.`;
 }
-function renderAll(flash){renderKPIs(flash);renderCS();renderAsm();stressRes=null;tornRes=null;headRes=null;renderStress();renderHeat();renderMarket();renderInbox();if($('#p-report').classList.contains('on'))renderReport()}
+function renderAll(flash){fullTorn=null;if($('#p-model').classList.contains('on'))renderRegister();renderKPIs(flash);renderCS();renderAsm();stressRes=null;tornRes=null;headRes=null;renderStress();renderFullTornado();renderHeat();renderMarket();renderInbox();if($('#p-report').classList.contains('on'))renderReport()}
 
 function addMsg(who,html){const m=document.createElement('div');m.className='msg '+who;m.innerHTML=who==='agent'?`<div class="steps"></div><div class="body">${html||''}</div>`:esc(html);$('#msgs').appendChild(m);$('#msgs').scrollTop=1e9;return m}
 /* ================= AI ENGINE (built-in · Claude · OpenAI) ================= */
@@ -1276,7 +1543,10 @@ const TOOLS=[
  {name:'read_outlook',description:'Read the project Outlook folder and extract proposed assumption changes, with sender, date, quote and IRR impact.',p:{}},
  {name:'apply_email_changes',description:'Apply every not-yet-applied assumption change found in Outlook to the sandbox, citing each email.',p:{}},
  {name:'explain_change',description:'Explain why an assumption differs from base, citing the email source if there is one. Omit assumption to explain all changes.',p:{assumption:{type:'string',enum:VAR_ENUM}}},
- {name:'build_report',description:'Build the Investment Committee pack from the current sandbox, stress tests, market check and email sources.',p:{}},
+ {name:'build_report',description:'Build a report from the latest EstateMaster extract: ic (Investment Committee pack), monthly (project report with budget vs actuals and sales), lender (facility, covenants, drawdowns), investor (fund LP returns), compare (scenarios side by side).',p:{kind:{type:'string',enum:['ic','monthly','lender','investor','compare']}}},
+ {name:'extract_from_estatemaster',description:'Run a fresh extract of every assumption and output from EstateMaster into the reporting store.',p:{}},
+ {name:'list_model_assumptions',description:'List every assumption line in the EstateMaster register with id, section, unit, base and current value.',p:{}},
+ {name:'set_model_assumption',description:'Set one line of the EstateMaster assumption register (any line, e.g. MEP services, contingency, SAIBOR, 2-bed price) to an absolute value in its own unit.',p:{id:{type:'string',enum:REG.map(l=>l.id)},value:{type:'number'}},req:['id','value']},
  {name:'capital_structure',description:'Capital stack and distribution waterfall: Murabaha debt, fund LP units and KINAN co-invest; project, equity, LP net and sponsor IRRs.',p:{}},
  {name:'set_fund_terms',description:'Change fund terms in the sandbox. Values in percent: lp_share (LP share of equity), pref (preferred return p.a.), promote (sponsor promote above pref), mgmt_fee (p.a. on LP capital).',p:{lp_share:{type:'number'},pref:{type:'number'},promote:{type:'number'},mgmt_fee:{type:'number'}}},
  {name:'list_excel_files',description:'List Excel workbooks the user attached, with sheets, sizes and header rows.',p:{}},
@@ -1301,7 +1571,10 @@ function toolIntent(name,a){
     case 'read_outlook':return{k:'email'};
     case 'apply_email_changes':return{k:'emailapply'};
     case 'explain_change':return{k:'why',v:VARS[a.assumption]?[a.assumption]:[]};
-    case 'build_report':return{k:'report'};
+    case 'build_report':return{k:'report',kind:['ic','monthly','lender','investor','compare'].includes(a.kind)?a.kind:'ic'};
+    case 'extract_from_estatemaster':return{k:'extract'};
+    case 'list_model_assumptions':return{k:'reglist'};
+    case 'set_model_assumption':return REGBY[a.id]&&typeof a.value==='number'?{k:'line',id:a.id,v:a.value}:{k:'reglist'};
     case 'promote_scenario':return{k:'promote'};
     case 'capital_structure':return{k:'capital',mods:{}};
     case 'set_fund_terms':{const m={};if(a.lp_share!=null)m.lp=+a.lp_share;if(a.pref!=null)m.pref=+a.pref;if(a.promote!=null)m.promote=+a.promote;if(a.mgmt_fee!=null)m.fee=+a.mgmt_fee;return{k:'capital',mods:m}}
@@ -1325,7 +1598,7 @@ Rules:
 ${ch==='wa'?`- Channel: WhatsApp. User role: ${role}${role!=='Investment Director'?' (cannot approve promotion)':''}. Reply in plain text, 8 lines or fewer, *single asterisks* for bold, no tables, no markdown headings.`:`- Channel: Bohio workspace chat. Reply in 2 to 6 short lines or bullets ("- "). **Bold** allowed. Tool tables are shown to the user separately, so don't repeat them in full.`}
 - Answer in the user's language (English or Arabic).
 
-Assumptions (base → now):
+Headline drivers (base → now). The full EstateMaster register has ${REG.length} lines; use list_model_assumptions and set_model_assumption to read or change any of them:
 ${asm}
 
 Current sandbox: levered IRR ${fP(r.irr)}, profit on cost ${fP(r.poc)}, net profit ${fM(r.profit)}. It ${verdict(r)}.
@@ -1408,15 +1681,17 @@ async function llmTurn(text,ch,role,onStep,tier='smart'){
 /* ================= TASK ROUTER ================= */
 const ROUTESTATS={calc:0,data:0,api:0,calls:0,fallback:0};
 const REASON=/\b(why|should|recommend\w*|advice|advise|explain|compare|summari[sz]e|draft|write|memo|what do you think|opinions?|risks?|concerns?|assess|evaluate|interpret|story|narrative|analy[sz]e|pros|cons|implications?|negotiat\w*|how would|what would|worth|thoughts|tell me about|walk me through|trade-?offs?)\b/;
-const SRCNAME={market:'market dataset',zoning:'zoning rules',email:'Outlook (Microsoft Graph)',why:'changelog + email sources',report:'EstateMaster outputs',files:'attached Excel',align:'market dataset'};
+const SRCNAME={extract:'EstateMaster extract',market:'market dataset',zoning:'zoning rules',email:'Outlook (Microsoft Graph)',why:'changelog + email sources',report:'EstateMaster outputs',files:'attached Excel',align:'market dataset'};
 function route(text){
   const it=intent(text),t=text.toLowerCase();
   if(it.k==='approve'||it.k==='cancel')return{lane:'calc',it,why:'Approvals are handled by fixed rules, never by AI.'};
   if(it.k==='why')return{lane:'data',it,why:'A lookup in the changelog and email sources; no AI needed.'};
+  if(it.k==='report'&&!/memo|draft|write|board paper/.test(t))return{lane:'data',it,post:'narrative',tier:'deep',why:'Numbers come from the EstateMaster extract; the narrative model drafts the commentary.'};
   if(REASON.test(t)&&it.k!=='promote')return{lane:'api',it,tier:/memo|draft|write|narrative/.test(t)?'deep':FILES.length&&/excel|spreadsheet|workbook|sheet|file/.test(t)?'excel':'smart',why:'Needs judgement or language: an AI agent plans and calls EstateMaster and data tools.'};
   switch(it.k){
-    case 'mod':case 'status':case 'reset':case 'stress':case 'sens':case 'reverse':case 'explore':case 'capital':case 'align':case 'promote':case 'emailapply':
+    case 'line':case 'mod':case 'status':case 'reset':case 'stress':case 'sens':case 'reverse':case 'explore':case 'capital':case 'align':case 'promote':case 'emailapply':
       return{lane:'calc',it,why:'Straightforward maths: EstateMaster calculates, no AI involved.'};
+    case 'extract':return{lane:'data',it,why:'Pulls every assumption and output out of EstateMaster through the runner; no AI.'};
     case 'zoning':return{lane:'data',it,why:'A rules check against the plot\'s zoning; no AI needed.'};
     case 'market':return{lane:'data',it,post:'commentary',tier:'fast',why:'Benchmark query on market data; an AI model adds commentary.'};
     case 'email':return{lane:'data',it,why:'Reads the Outlook folder; extraction is cached in this demo.'};
@@ -1444,10 +1719,10 @@ async function postProcess(kind,out,tier,ch){
     return{text:r.text,prov:r.p,model:r.model};
   }
   if(kind==='narrative'){
-    const plain=reportHTML().replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,9000);
-    const r=await complete('You draft Investment Committee papers for KINAN. Using only the figures in the pack below, write two short paragraphs. Start the first with "Summary:" (4 sentences: the scheme, returns versus hurdles, what drives risk) and the second with "Rationale:" (3 sentences supporting or challenging the recommendation, naming the conditions). No invented numbers, no headings, no bullet points.',plain,tier);
-    NARR={key:narrKey(),text:r.text,prov:r.p,model:r.model};renderReport();
-    return{text:r.text.split(/\n+/)[0],prov:r.p,model:r.model,note:'Full narrative added to the IC pack.'};
+    const plain=RPTS[RSEL].fn().replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,9000);
+    const r=await complete('You draft KINAN’s reports (IC packs, monthly project reports, lender and investor reports). Using only the figures in the report below, write two short paragraphs. Start the first with "Summary:" (4 sentences: the scheme, returns versus hurdles, what drives risk) and the second with "Rationale:" (3 sentences supporting or challenging the recommendation, naming the conditions). No invented numbers, no headings, no bullet points.',plain,tier);
+    NARRS[RSEL]={key:narrKey(),text:r.text,prov:r.p,model:r.model};renderReport();
+    return{text:r.text.split(/\n+/)[0],prov:r.p,model:r.model,note:`Full narrative added to the ${RPTS[RSEL].name}.`};
   }
 }
 async function execute(text,ch,role,onStep){
@@ -1477,7 +1752,7 @@ function renderRouter(){
   const mt=t=>{if(t==='none')return'–';const all=(AI.models[t]&&AI.models[t].length?AI.models[t]:CHAINS[t].m);return all.map(([p,m],i)=>`${i?'<span style="color:var(--soft)">then </span>':''}${esc(mName(p,m))}${avail(p)?'':' <span style="color:var(--soft)">(not connected)</span>'}`).join('<br>')};
   const rows=[['Assumption changes, stress tests, sensitivities, headroom, explorer, capital structure','⚙ EstateMaster calculation','none'],
    ['Market benchmarking','▦ Data query + commentary','fast'],['Zoning checks, Outlook, "why did X change"','▦ Data query','none'],
-   ['IC report narrative, memos','▦ EstateMaster numbers + narrative','deep'],['Open questions, advice, multi-step requests','✦ AI agent with tools','smart'],['Questions about attached Excel files','✦ AI agent with tools','excel'],['Approvals','⚙ Fixed rules (never AI)','none']];
+   ['Every report (IC, monthly, lender, investor, comparison)','▦ EstateMaster extract + narrative','deep'],['Extract from EstateMaster','▦ Runner extract','none'],['Open questions, advice, multi-step requests','✦ AI agent with tools','smart'],['Questions about attached Excel files','✦ AI agent with tools','excel'],['Approvals','⚙ Fixed rules (never AI)','none']];
   const tbl='<tr><th>Request</th><th>Route</th><th>Model (primary, then failover)</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${mt(r[2])}</td></tr>`).join('');
   if($('#rtTable'))$('#rtTable').innerHTML=tbl;if($('#rtRules'))$('#rtRules').innerHTML=tbl;
 }
@@ -1512,7 +1787,7 @@ document.addEventListener('click',e=>{
   const q=e.target.closest('[data-q]');if(q)webAsk(q.dataset.q);
 });
 $('#chips').innerHTML=CHIPS.map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('');
-$('#reset').onclick=()=>{S={};for(const k in SRC)delete SRC[k];changelog.push('Reset to base');renderAll(true)};
+$('#reset').onclick=()=>{S={};resetDetail();for(const k in SRC)delete SRC[k];changelog.push('Reset to base');renderAll(true)};
 $('#promote').onclick=()=>webAsk('promote scenario');
 function openModal(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S))}</b><br>Written by: EstateMaster runner (live model)<br>The base case is overwritten only after this approval. An audit record is written.`;$('#modal').classList.add('on')}
 $('#mno').onclick=()=>{pending=null;$('#modal').classList.remove('on')};
@@ -1541,8 +1816,8 @@ $('#myes').onclick=()=>{$('#modal').classList.remove('on');webAsk('approve')};
 })();
 
 /* tabs */
-const TABS=[['agent','Agent'],['inbox','Outlook'],['market','Market check'],['explore','Sensitivity & Explorer'],['stress','Stress tests'],['report','IC report'],['wa','WhatsApp'],['arch','Architecture']];
-function showTab(id){$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report')renderReport();if(id==='explore')renderHeat();if(id==='market')renderMarket();if(id==='inbox')renderInbox();window.scrollTo({top:0,behavior:'smooth'})}
+const TABS=[['agent','Agent'],['model','Model data'],['inbox','Outlook'],['market','Market check'],['explore','Sensitivity & Explorer'],['stress','Stress tests'],['report','Reports'],['wa','WhatsApp'],['arch','Architecture']];
+function showTab(id){$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report'){renderReportList();renderExtract();renderReport()}if(id==='model')renderRegister();if(id==='explore')renderHeat();if(id==='market')renderMarket();if(id==='inbox')renderInbox();window.scrollTo({top:0,behavior:'smooth'})}
 $('#tabs').innerHTML=TABS.map(([id,l])=>`<div class="tab ${id==='agent'?'on':''}" data-t="${id}">${l}</div>`).join('');
 $$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
@@ -1565,8 +1840,14 @@ $('#eclear').onclick=()=>{stopExplorer();E.alerted=false;resetE()};
 $('#runStress').onclick=()=>{stressRes=computeStress();computeTornado();computeHeadroom();renderStress();toast('Stress tests recalculated')};
 $('#rgen').onclick=renderReport;
 $('#rnarr').onclick=async()=>{if(!apiOn()){toast('No AI connected: open the Router button to connect Claude or OpenAI');return}$('#rnarr').textContent='Drafting…';try{await postProcess('narrative',null,'deep','web');toast('Narrative drafted from EstateMaster outputs')}catch(e){toast('AI error: '+e.message)}$('#rnarr').textContent='Draft narrative (AI)'};$('#rprint').onclick=()=>{renderReport();window.print()};
-$('#rhtml').onclick=()=>download('AlNarjis_IC_Pack.html','<!doctype html><meta charset="utf-8"><title>IC Pack</title><body style="font-family:sans-serif;max-width:860px;margin:40px auto">'+reportHTML()+'</body>','text/html');
-$('#rcsv').onclick=()=>download('sensitivity.csv',csv(),'text/csv');
+$('#rhtml').onclick=()=>download(`AlNarjis_${RPTS[RSEL].name.replace(/\W+/g,'_')}.html`,'<!doctype html><meta charset="utf-8"><title>'+RPTS[RSEL].name+'</title><body style="font-family:sans-serif;max-width:900px;margin:40px auto">'+RPTS[RSEL].fn()+'</body>','text/html');
+$('#rxls').onclick=exportReportXlsx;$('#xXls').onclick=exportExtractXlsx;
+$('#xRun').onclick=async()=>{$('#xRun').textContent='Extracting…';await doExtract(async st=>{$('#xStat').textContent=st;await sleep(260)});$('#xRun').textContent='Extract now';toast('Extract '+LASTX.id+' stored · reports refreshed')};
+document.addEventListener('click',e=>{const r=e.target.closest('[data-rp]');if(r&&!e.target.closest('input,select')){RSEL=r.dataset.rp;renderReportList();renderReport()}});
+document.addEventListener('change',e=>{const a=e.target.dataset.sch,b=e.target.dataset.ch;if(a){SCHED[a].on=e.target.checked;toast(`${RPTS[a].name}: ${e.target.checked?'scheduled':'schedule off'}`)}if(b){SCHED[b].ch=e.target.value}
+  const g=e.target.dataset.reg;if(g){const v=parseFloat(e.target.value);if(Number.isFinite(v))setLine(g,v,'Workspace')}});
+$('#regQ').oninput=e=>{regQ=e.target.value;renderRegister()};
+
 
 /* ================= WHATSAPP UI ================= */
 const WQ=['Status','Check emails','Check vs market','Stress test','What if price -10%','Build IC report','Promote scenario'];

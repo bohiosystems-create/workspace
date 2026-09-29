@@ -56,6 +56,18 @@ Check the OpenAI model names match ones your account can use.
 
 The proxy caps output at 2,000 tokens per call and never returns the key to the browser.
 
+## Reporting from EstateMaster
+
+The Reports tab is built on an **EstateMaster extract**: the runner reads every assumption line (the
+Model data tab shows all of them, each editable), all KPIs, the quarterly cash flow, cost and revenue
+reports, the funding schedule and the fund waterfall, and joins them with SQL Server actuals.
+From each extract it builds: Investment Committee pack, monthly project report (budget vs actuals,
+sales progress, next-quarter cash flow, flags), lender report (facility, covenant tests, drawdowns,
+debt under stress), fund investor report (calls, distributions, LP and KINAN returns under stress) and
+a scenario comparison. Each exports to PDF, Excel and HTML, can be scheduled after the nightly extract,
+and can carry an AI-drafted narrative. "Full extract (Excel)" downloads the raw extract.
+All data in the demo, including actuals and covenant thresholds, is dummy data.
+
 ## Where the calculations happen
 
 In production every return is calculated by EstateMaster itself: a Bohio runner (Windows VM with licensed
