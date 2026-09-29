@@ -45,15 +45,16 @@ header{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:18p
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(max-width:1100px){.g2,.g3,.g4{grid-template-columns:1fr}}
 
-/* route bar */
-.routes{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
-@media(max-width:900px){.routes{grid-template-columns:1fr 1fr}}
-.route{cursor:pointer;text-align:left;border:1px solid rgba(255,255,255,.7);border-radius:16px;padding:12px 14px;background:linear-gradient(var(--card1),var(--card2));box-shadow:var(--shadow);transition:.2s}
-.route .n{font-family:var(--serif);font-size:12px;letter-spacing:.14em;color:var(--soft)}
-.route .t{font-weight:600;margin:2px 0}
-.route .d{font-size:12px;color:var(--soft)}
-.route.on{background:var(--ink);color:#fff;transform:translateY(-2px)}
-.route.on .n,.route.on .d{color:rgba(255,255,255,.65)}
+/* connection strip */
+.conn{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+@media(max-width:900px){.conn{grid-template-columns:1fr}}
+.cn{display:flex;gap:14px;align-items:center;border:1px solid rgba(255,255,255,.7);border-radius:16px;padding:12px 16px;background:linear-gradient(var(--card1),var(--card2));box-shadow:var(--shadow)}
+.cn.dk{background:var(--ink);color:#fff}
+.cn.dk small{color:rgba(255,255,255,.65)}
+.cn b{display:block;font-weight:600}
+.cn small{font-size:12px;color:var(--soft)}
+.cn .dot.ok{background:#fff;animation:pl 1.6s infinite}
+.cn .n{font-family:var(--serif);font-size:12px;letter-spacing:.14em;opacity:.7;margin-left:auto;text-align:right}
 .tag{display:inline-block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid currentColor;margin-left:6px;vertical-align:middle}
 
 /* tabs */
@@ -137,9 +138,37 @@ table.t{border-collapse:collapse;width:100%;font-size:13px}
 table.t th{font-weight:500;color:var(--soft);font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:8px}
 table.t td{padding:9px 8px;border-top:1px solid var(--hair);font-variant-numeric:tabular-nums}
 table.t td.n,table.t th.n{text-align:right}
-.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;border:1px solid var(--ink)}
+.pill{display:inline-block;white-space:nowrap;padding:2px 9px;border-radius:999px;font-size:11.5px;border:1px solid var(--ink)}
 .pill.f{background:var(--alert);border-color:var(--alert);color:#fff}
 .pill.p{background:var(--ink);color:#fff}
+.pill.s{background:transparent;color:var(--ink)}
+/* market */
+.rng{position:relative;height:30px;margin:2px 0}
+.rng .band{position:absolute;top:12px;height:6px;background:rgba(0,9,25,.14);border-radius:3px}
+.rng .iqr{position:absolute;top:12px;height:6px;background:rgba(0,9,25,.45);border-radius:3px}
+.rng .med{position:absolute;top:7px;width:2px;height:16px;background:var(--ink)}
+.rng .me{position:absolute;top:7px;width:16px;height:16px;border-radius:50%;margin-left:-8px;background:var(--alert);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,9,25,.35)}
+.rng .al{position:absolute;top:7px;width:16px;height:16px;border-radius:50%;margin-left:-8px;background:#fff;border:3px solid var(--ink)}
+.rngl{display:flex;justify-content:space-between;font-size:11px;color:var(--soft)}
+.src{font-size:12px;color:var(--soft);display:flex;flex-direction:column;gap:4px;margin-top:12px}
+.src b{color:var(--ink2);font-weight:500}
+.mkbox{border-left:4px solid var(--ink);padding:10px 14px;background:rgba(0,9,25,.04);border-radius:0 10px 10px 0;margin:14px 0;font-size:13.5px}
+.mkbox.bad{border-color:var(--alert)}
+.scroll{max-height:300px;overflow:auto}
+.ev{grid-template-columns:1fr 1fr}.wag{grid-template-columns:380px minmax(0,1fr)}
+.grid>*{min-width:0}
+@media(max-width:1100px){.ev,.wag{grid-template-columns:1fr}}
+@media(max-width:700px){
+  .wrap{padding:16px 16px 48px}
+  .card{padding:18px 16px}
+  table.t,.body table{display:block;overflow-x:auto;white-space:nowrap}
+  .report{padding:24px 18px}.report .rk{grid-template-columns:1fr 1fr}.report .rk div{min-width:0}.report .rk b{font-size:18px}.report h1{font-size:26px}.report .meta{overflow-wrap:anywhere}
+  .phone{width:100%;max-width:340px}
+  #kpis{grid-template-columns:1fr 1fr!important}
+  .asm{grid-template-columns:96px 1fr 84px}
+  .cn .n{display:none}
+  header{gap:10px}.demo-chip{margin-left:0}
+}
 
 /* report */
 .report{background:#fbfaf9;border-radius:6px;padding:48px 56px;box-shadow:0 20px 50px rgba(0,9,25,.18);max-width:900px;margin:0 auto}
@@ -199,11 +228,14 @@ table.t td.n,table.t th.n{text-align:right}
 <body>
 <div class="wrap">
 <header>
-  <div class="brand"><div class="orb"></div><div><h1>Bohio workspace</h1><small>Agent on EstateMaster · Feasibility &amp; Investment</small></div></div>
+  <div class="brand"><div class="orb"></div><div><h1>Bohio workspace</h1><small>Agent on EstateMaster · Market-checked feasibility</small></div></div>
   <div class="demo-chip"><b>Demo</b> · simulated model, illustrative Al Narjis Mixed-Use data · SAR</div>
 </header>
 
-<div class="routes" id="routes"></div>
+<div class="conn">
+  <div class="cn dk"><span class="dot ok"></span><div><b>EstateMaster · SQL Server</b><small>Connected · reads outputs, writes sandbox scenario BHO_SBX · base case read-only</small></div><div class="n">INTEGRATION</div></div>
+  <div class="cn"><span class="dot"></span><div><b>Market data</b><small>Transactions · rentals · plot regulations (FAR, setbacks, coverage, height) · illustrative sample</small></div><div class="n">3 FEEDS</div></div>
+</div>
 <div class="tabs" id="tabs"></div>
 
 <!-- AGENT -->
@@ -237,6 +269,44 @@ table.t td.n,table.t th.n{text-align:right}
   </div>
 </section>
 
+<!-- MARKET -->
+<section class="pane" id="p-market">
+  <div class="grid g2">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <div class="bar"></div><h2>Assumptions vs market</h2>
+        <div class="sub">The current sandbox, checked against comparable transactions, rental evidence and the plot's regulations.</div>
+        <div class="ctl">
+          <label>Comps <select id="mkScope"><option value="adj">Al Narjis + adjacent districts</option><option value="nar">Al Narjis only</option></select></label>
+          <label>Period <select id="mkPer"><option value="12">Last 12 months</option><option value="6">Last 6 months</option></select></label>
+        </div>
+        <table class="t" id="mkT"></table>
+        <div id="mkRng" style="margin-top:14px"></div>
+        <div class="mkbox" id="mkAlign"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn sm" id="mkAlignBtn">Align sandbox to market</button>
+          <button class="btn ghost sm" data-q="Check assumptions against market data" id="mkAsk">Ask the agent</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="bar"></div><h2>Evidence</h2>
+        <div class="sub">Every benchmark traces back to these records. The agent cites them in reports.</div>
+        <div class="grid ev" style="gap:16px">
+          <div><h3 class="serif" style="font-size:15px;margin-bottom:6px">Residential sales</h3><div class="scroll"><table class="t" id="cmpP"></table></div></div>
+          <div><h3 class="serif" style="font-size:15px;margin-bottom:6px">Retail leases</h3><div class="scroll"><table class="t" id="cmpR"></table></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="bar"></div><h2>Site &amp; regulations</h2>
+      <div class="sub">Plot NRJ-0417 (illustrative) · 20,000 sqm · 200 m frontage × 100 m depth</div>
+      <div id="site"></div>
+      <table class="t" id="regT" style="margin-top:10px"></table>
+      <div class="src" id="mkSrc"></div>
+    </div>
+  </div>
+</section>
+
 <!-- EXPLORER -->
 <section class="pane" id="p-explore">
   <div class="grid g2">
@@ -254,7 +324,7 @@ table.t td.n,table.t th.n{text-align:right}
     </div>
     <div class="card">
       <div class="bar"></div><h2>Autonomous explorer</h2>
-      <div class="sub">Runs scenarios non-stop across all 8 assumptions until you pause it. Nothing is written to the model.</div>
+      <div class="sub">Runs scenarios non-stop across all 9 assumptions until you pause it. Nothing is written to the model.</div>
       <div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:8px">
         <div><div class="kpi" style="background:none;border:none;padding:0"><span class="l">Scenarios evaluated</span></div><div class="bigcount" id="ecount">0</div></div>
         <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn" id="etoggle">Start</button><button class="btn ghost" id="eclear">Clear</button></div>
@@ -298,7 +368,7 @@ table.t td.n,table.t th.n{text-align:right}
 
 <!-- WHATSAPP -->
 <section class="pane" id="p-wa">
-  <div class="grid" style="grid-template-columns:380px minmax(0,1fr);gap:28px" id="wagrid">
+  <div class="grid wag" style="gap:28px" id="wagrid">
     <div>
       <div class="phone"><div class="screen">
         <div class="wh"><div class="orb"></div><div><b>Bohio Agent</b><small id="wastat">online</small></div>
@@ -317,7 +387,8 @@ table.t td.n,table.t th.n{text-align:right}
         <div class="n l">Cloud API<small>via BSP, webhook</small></div><div class="ar">→</div>
         <div class="n">Bohio gateway<small>identity · roles · policy · audit</small></div><div class="ar">→</div>
         <div class="n">Agent<small>fast engine + connectors</small></div><div class="ar">→</div>
-        <div class="n l">EstateMaster<small>Excel / SQL route</small></div>
+        <div class="n l">EstateMaster<small>via SQL Server</small></div><div class="ar">+</div>
+        <div class="n l">Market data<small>comps · rents · zoning</small></div>
       </div>
       <div class="rec" style="margin-top:14px">
         <div class="it"><div class="num">1</div><div><b>Use the official WhatsApp Business Platform (Cloud API), through a BSP</b><span>Not the WhatsApp Business app and not unofficial libraries: those risk account bans and fail a compliance review. A BSP gives templates, delivery receipts and an SLA.</span></div></div>
@@ -336,29 +407,41 @@ table.t td.n,table.t th.n{text-align:right}
 <section class="pane" id="p-arch">
   <div class="grid g2">
     <div class="card">
-      <div class="bar"></div><h2>How the agent reaches EstateMaster</h2>
-      <div class="sub">Ranked from most to least robust. The connection bar at the top switches the route used in this demo's run log.</div>
+      <div class="bar"></div><h2>One integration: SQL Server</h2>
+      <div class="sub">The agent connects to EstateMaster through the SQL Server database EstateMaster syncs with. No screen scraping, no file shuffling.</div>
       <div class="rec">
-        <div class="it"><div class="num">1</div><div><b>SQL Server <span class="tag">read / write</span></b><span>EstateMaster syncs accounting and sales CRM data with SQL Server. Cleanest route for actuals and sales data in and out. Confirm per client which data sets are synced.</span></div></div>
-        <div class="it"><div class="num">2</div><div><b>Excel live-link <span class="tag">read / write</span></b><span>Live data between models and linked workbooks: assumptions in, KPIs out. The agent edits the workbook; a person or macro refreshes the model. This is the route the stress engine relies on for assumptions.</span></div></div>
-        <div class="it"><div class="num">3</div><div><b>Exported files <span class="tag">read only</span></b><span>Parse the Excel/PDF feasibility reports teams already produce. Build summaries, comparisons and IC packs. Nothing is written back.</span></div></div>
-        <div class="it"><div class="num">4</div><div><b>Screen automation <span class="tag">brittle</span></b><span>Drives the desktop UI. Fine for demos, breaks on UI changes and may raise licence questions with Altus. Not recommended for production.</span></div></div>
+        <div class="it"><div class="num">1</div><div><b>Read</b><span>Outputs, cash flows and actuals from the synced tables. The base case is read-only for the agent.</span></div></div>
+        <div class="it"><div class="num">2</div><div><b>Write to a sandbox scenario</b><span>Changes go to a dedicated scenario (BHO_SBX), never the approved base case. EstateMaster picks it up on sync and recalculates.</span></div></div>
+        <div class="it"><div class="num">3</div><div><b>Promote with approval</b><span>Only an Investment Director can promote a sandbox scenario, and every write is audited.</span></div></div>
+        <div class="it"><div class="num">!</div><div><b>Confirm scope in the POC</b><span>Altus documents the SQL sync for accounting and sales CRM data. Which feasibility inputs are exposed depends on each client's setup, so the first week of the POC maps the tables.</span></div></div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="card">
+      <div class="bar"></div><h2>Market data layer</h2>
+      <div class="sub">Feeds the agent checks assumptions against, through Bohio's data partnerships</div>
+      <div class="rec">
+        <div class="it"><div class="num">T</div><div><b>Transactions</b><span>Registered sale prices by district and unit type (e.g. Ministry of Justice sales registrations via a licensed data partner). Benchmarks sale price.</span></div></div>
+        <div class="it"><div class="num">R</div><div><b>Rentals</b><span>Lease evidence (e.g. Ejar contracts, REGA indicators). Benchmarks retail and residential rents.</span></div></div>
+        <div class="it"><div class="num">Z</div><div><b>Regulations</b><span>Plot-level zoning: FAR, site coverage, setbacks and height (e.g. Riyadh building regulations via Balady). Checks the massing behind GFA.</span></div></div>
+      </div>
+      <div class="sub" style="margin:12px 0 0">Data in this demo is an illustrative sample, not live market data.</div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:20px">
+    <div style="display:contents">
       <div class="card">
         <div class="bar"></div><h2>Two-speed engine</h2>
         <div class="sub">Why the agent can run "infinite" scenarios</div>
         <div class="rec">
           <div class="it"><div class="num">A</div><div><b>Fast engine: calibrated replica</b><span>Bohio rebuilds the project's cash-flow logic and calibrates it against EstateMaster outputs. Thousands of scenarios per second, used for exploration, Monte Carlo and heatmaps. <i>This demo runs on such a replica.</i></span></div></div>
-          <div class="it"><div class="num">B</div><div><b>Truth engine: EstateMaster</b><span>Anything that goes into a report or an IC decision is re-run in EstateMaster through route 1 or 2 and reconciled to the replica. Findings are flagged "verified" only after that.</span></div></div>
+          <div class="it"><div class="num">B</div><div><b>Truth engine: EstateMaster</b><span>Anything that goes into a report or an IC decision is re-run in EstateMaster through the SQL Server integration and reconciled to the replica. Findings are flagged "verified" only after that.</span></div></div>
         </div>
       </div>
       <div class="card">
         <div class="bar"></div><h2>Guardrails</h2>
         <div class="list">
           <div>Agent only edits a sandbox copy; promotion to the live model is a separate approved step.</div>
-          <div>Every read, write, recalculation and report is logged with route, user, channel and timestamp.</div>
+          <div>Every read, write, recalculation and report is logged with user, channel, data source and timestamp.</div>
           <div>Assumption changes are diffed against base and stamped on every report.</div>
           <div>Replica drift check: if replica and EstateMaster disagree beyond tolerance, the agent stops and says so.</div>
         </div>
@@ -378,10 +461,11 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
 /* ================= MODEL (replica engine) ================= */
-const BASE={price:13500,rent:2400,cost:5200,land:160,cap:7.5,rate:8.5,delay:0,ltc:55};
+const BASE={area:100,price:13500,rent:2400,cost:5200,land:160,cap:7.5,rate:8.5,delay:0,ltc:55};
 const FIX={resNSA:30000,retGLA:12000,gfa:62000,occ:.92,opex:.15,soft:.12,cont:.05,sellCost:.03,exitCost:.02};
 const HURDLE={irr:.18,poc:.15};
 const VARS={
+  area:{label:'Buildable area',kind:'pct',lo:-20,hi:10,step:.5,syn:/buildable|\bgfa\b|built.?up|\bbua\b|massing/,adv:-1,fmt:v=>Math.round(FIX.gfa*v/100).toLocaleString()+' sqm GFA'},
   price:{label:'Sale price',kind:'pct',lo:-30,hi:10,step:1,syn:/price|sales|asp|selling/,adv:-1,fmt:v=>'SAR '+Math.round(v).toLocaleString()+'/sqm'},
   rent:{label:'Retail rent',kind:'pct',lo:-30,hi:10,step:1,syn:/rent/,adv:-1,fmt:v=>'SAR '+Math.round(v).toLocaleString()+'/sqm'},
   cost:{label:'Construction cost',kind:'pct',lo:-10,hi:30,step:1,syn:/cost|capex|construction|build/,adv:1,fmt:v=>'SAR '+Math.round(v).toLocaleString()+'/sqm'},
@@ -392,7 +476,7 @@ const VARS={
   ltc:{label:'Leverage (LTC)',kind:'abs',lo:-20,hi:20,step:5,syn:/ltc|leverage|gearing|debt/,adv:0,fmt:v=>v.toFixed(0)+'%'}
 };
 const KEYS=Object.keys(VARS);
-const SYNORDER=['land','cap','ltc','rent','delay','price','cost','rate'];
+const SYNORDER=['area','land','cap','ltc','rent','delay','price','cost','rate'];
 const apply=d=>{const p={...BASE};for(const k in d){const v=VARS[k];p[k]=v.kind==='pct'?BASE[k]*(1+d[k]/100):BASE[k]+d[k]}return p};
 function irrOf(cf){
   const f=r=>cf.reduce((s,c,t)=>s+c/Math.pow(1+r,t),0);
@@ -404,13 +488,13 @@ function irrOf(cf){
 function model(p){
   const T=22,d=Math.round(p.delay/3),cost=Array(T).fill(0),inf=Array(T).fill(0);
   cost[0]=p.land*1e6;
-  const hard=FIX.gfa*p.cost*(1+FIX.soft+FIX.cont);
+  const a=p.area/100,hard=FIX.gfa*a*p.cost*(1+FIX.soft+FIX.cont);
   [.03,.06,.10,.14,.17,.17,.14,.11,.08].forEach((w,i)=>cost[1+i]+=hard*w);
   for(let j=0;j<d;j++)cost[10+j]+=hard*.015;
-  const resRev=FIX.resNSA*p.price;
+  const resRev=FIX.resNSA*a*p.price;
   for(let q=3;q<=10;q++)inf[q]+=resRev*.7/8*(1-FIX.sellCost);
   inf[10+d]+=resRev*.3*(1-FIX.sellCost);
-  const noi=FIX.retGLA*p.rent*FIX.occ*(1-FIX.opex);
+  const noi=FIX.retGLA*a*p.rent*FIX.occ*(1-FIX.opex);
   const exitV=noi/(p.cap/100)*(1-FIX.exitCost);
   inf[11+d]+=exitV;
   const ltc=Math.max(0,Math.min(.9,p.ltc/100)),r=p.rate/100/4;
@@ -431,18 +515,10 @@ const bad=v=>Number.isNaN(v)?-1:v;
 
 /* ================= STATE ================= */
 let S={};                 // sandbox deltas
-let route='excel';
 let baseRes=run({});
 let stressRes=null,tornRes=null,headRes=null;
 let hx='price',hy='cost',hmetric='irr',hn=9;
 let changelog=[];
-const ROUTES={
-  sql:{n:'01',t:'SQL Server',d:'Accounting + sales CRM sync. Read/write.',tag:'most robust'},
-  excel:{n:'02',t:'Excel live-link',d:'Assumptions in, KPIs out. Read/write.',tag:'demo default'},
-  files:{n:'03',t:'Exported files',d:'Parse Excel/PDF reports. Read-only.',tag:'read only'},
-  screen:{n:'04',t:'Screen automation',d:'Drives the UI. Brittle, licence risk.',tag:'demo only'}
-};
-
 /* ================= FORMAT ================= */
 const fP=v=>Number.isNaN(v)?'n/m':(v*100).toFixed(1)+'%';
 const fM=v=>(v/1e6>=0?'':'−')+'SAR '+Math.abs(v/1e6).toFixed(0)+'M';
@@ -451,10 +527,10 @@ const sgn=(v,dp=0)=>(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(dp);
 function fD(k,d){const v=VARS[k];if(k==='delay')return '+'+Math.round(d)+' mo';return v.kind==='pct'?sgn(d,0)+'%':sgn(d,2).replace(/\.?0+$/,'')+(k==='ltc'?'pp':'pp')}
 function scenName(d){const ks=Object.keys(d).filter(k=>d[k]);return ks.length?ks.map(k=>VARS[k].label.toLowerCase()+' '+fD(k,d[k])).join(', '):'base case'}
 
-/* ================= ROUTE-AWARE LOG LINES ================= */
-const rd=w=>({sql:`SQL · SELECT ${w} FROM EM_Sync.dbo.Outputs`,excel:`Excel live-link · read ${w} ← Outputs sheet`,files:`Exports · parse latest feasibility report for ${w}`,screen:`Screen · read ${w} from results pane (OCR)`}[route]);
-const wr=w=>({sql:`SQL · UPDATE scenario BHO_SBX SET ${w}`,excel:`Excel live-link · write ${w} → Inputs sheet (sandbox copy)`,files:`Read-only route · ${w} evaluated on Bohio replica, nothing written back`,screen:`Screen · Assumptions tab › set ${w} (brittle, licence check advised)`}[route]);
-const rf=()=>({sql:'EstateMaster sync picks up scenario BHO_SBX',excel:'Refresh model (macro / user trigger)',files:null,screen:'Recalculate via UI'}[route]);
+/* ================= SQL SERVER LOG LINES ================= */
+const rd=w=>`SQL · SELECT ${w} FROM em_sync.outputs`;
+const wr=w=>`SQL · UPDATE bho_sbx.assumptions SET ${w}`;
+const rf=()=>'EstateMaster sync recalculates scenario BHO_SBX';
 function writeSteps(d){const s=[];for(const k in d){if(d[k])s.push(wr(`${VARS[k].label} ${fD(k,d[k])}`))}const r=rf();if(r)s.push(r);return s}
 const calib='Replica check vs EstateMaster outputs: within tolerance (demo)';
 
@@ -489,6 +565,9 @@ function intent(text){
   if(/promote|write back|push to (em|estate)|apply to (the )?(live|model)/.test(t))return{k:'promote'};
   if(/report|memo|ic pack|pack|pdf|deck/.test(t))return{k:'report'};
   if(/how far|headroom|break ?even|what breaks|reverse/.test(t))return{k:'reverse'};
+  if(/align|market[- ]aligned|use market|match (the )?market|to market/.test(t))return{k:'align'};
+  if(/floor area|\bfar\b(?!\s+(can|could|until|before))|setback|zoning|regulat|coverage|height limit|complian|permit/.test(t))return{k:'zoning'};
+  if(/market|benchmark|\bcomps?\b|comparable|validate|sanity|real data|transaction|evidence/.test(t))return{k:'market'};
   if(/explor|monte|simulat|infinite|autonom|keep (going|testing|running)|thousand/.test(t))return{k:'explore'};
   if(/stress|downside|worst|severe/.test(t))return{k:'stress'};
   if(/sensitiv|heat|grid|tornado|versus| vs /.test(t)){const v=varsIn(t);return{k:'sens',v}}
@@ -525,7 +604,7 @@ async function handle(text,ch,role){
     done(`*Scenario: ${scenName(it.mods)}*\nLevered IRR ${fP(before.irr)} → *${fP(after.irr)}*\nProfit on cost ${fP(before.poc)} → *${fP(after.poc)}*\nNet profit ${fM(before.profit)} → *${fM(after.profit)}*\nThis ${verdict(after)}.`);
     break}
   case 'stress':{
-    out.steps=['Load stress library (8 scenarios)',...writeSteps({price:-15}).slice(0,1),'Run each scenario on replica engine','Score against IRR and profit-on-cost hurdles',calib];
+    out.steps=[`Load stress library (${STRESS.length+1} scenarios incl. market-aligned)`,'Pull market medians and FAR limit for market-aligned case','Run each scenario on replica engine','Score against IRR and profit-on-cost hurdles',calib];
     const res=computeStress();const fails=res.filter(x=>!x.pass);const worst=res.slice().sort((a,b)=>a.r.poc-b.r.poc)[0];
     out.fx=()=>{stressRes=res;computeTornado();computeHeadroom();renderStress()};
     out.link=['stress','Open stress tests'];
@@ -540,9 +619,9 @@ async function handle(text,ch,role){
     done(`*Sensitivity: ${VARS[a].label} × ${VARS[b].label}*\n${rows.below} of ${rows.total} cells fall below the IRR hurdle (${fP(HURDLE.irr)}).\nIRR range ${fP(rows.min)} to ${fP(rows.max)}.\n${rows.edge}`);
     break}
   case 'explore':{
-    out.steps=['Spin up autonomous explorer (all 8 assumptions)','Sample 300 scenarios per cycle, accumulate stats','Queue any hurdle breach for verification in EstateMaster'];
+    out.steps=[`Spin up autonomous explorer (all ${KEYS.length} assumptions)`,'Sample 300 scenarios per cycle, accumulate stats','Queue any hurdle breach for verification in EstateMaster'];
     out.fx=()=>{startExplorer();showTab('explore')};out.link=['explore','Watch it run'];
-    done('*Explorer started.*\nIt is sampling scenarios across all 8 assumptions until paused, tracking P(IRR below hurdle), key drivers and the smallest combined moves that break the deal. I will alert you on any breach.');
+    done('*Explorer started.*\nIt is sampling scenarios across all 9 assumptions until paused, tracking P(IRR below hurdle), key drivers and the smallest combined moves that break the deal. I will alert you on any breach.');
     break}
   case 'reverse':{
     out.steps=['Solve for break-even on each assumption (bisection)','Solve for capital-loss point',calib];
@@ -558,6 +637,26 @@ async function handle(text,ch,role){
     const {r}=statusText();
     done(`*IC pack ready*\n${Object.keys(S).length?'Scenario: '+scenName(S)+'.':'Base case.'} Levered IRR ${fP(r.irr)}, profit on cost ${fP(r.poc)}. This ${verdict(r)}.\nIncludes stress table, tornado, headroom and assumption changelog.`);
     break}
+  case 'market':{
+    const m=mk(),c=marketCheck(),ar=alignedRun(),cur=run(S);
+    out.steps=[`Market data · residential sales, ${MK.scope==='adj'?'Al Narjis + adjacent':'Al Narjis'}, ${MK.per} months (n=${m.nP})`,`Market data · retail leases (n=${m.nR})`,`Regulations · plot ${SITE.id}: zoning, FAR, coverage, setbacks, height`,rd('GFA, NSA, GLA, sale price, rent'),'Compare sandbox assumptions with benchmarks','Re-run model with market-aligned inputs'];
+    out.fx=()=>renderMarket();out.link=['market','Open market check'];
+    const flags=c.filter(r=>r.st[0]!=='p');
+    done(`*Market check: ${flags.length} flag${flags.length===1?'':'s'}*\n`+c.map(r=>`${r.st[0]==='p'?'✓':r.st[0]==='s'?'◐':'✗'} ${r.plain}: ${r.st[1]}`).join('\n')+`\nMarket-aligned case: IRR ${fP(ar.irr)} (now ${fP(cur.irr)}), profit on cost ${fP(ar.poc)}. It ${verdict(ar)}.\nSay *align to market* to apply it to the sandbox.`,
+      `<b>Market check: ${flags.length} flag${flags.length===1?'':'s'}</b><table><tr><th>Assumption</th><th>Model</th><th>Market / rule</th><th></th></tr>${c.map(r=>`<tr><td>${r.label}</td><td>${r.model}</td><td>${r.bench}${r.pos?' · '+r.pos:''}</td><td><span class="pill ${r.st[0]}">${r.st[1]}</span></td></tr>`).join('')}</table>Market-aligned case (comps medians, GFA capped at FAR ${SITE.far.toFixed(1)}): IRR <b>${fP(ar.irr)}</b> vs ${fP(cur.irr)} now. It ${verdict(ar)}.<div class="chips"><span class="chip" data-q="Align the sandbox to market">Align the sandbox to market</span><span class="chip" data-q="Is the scheme compliant with zoning?">Zoning detail</span></div>`);
+    break}
+  case 'zoning':{
+    const c=marketCheck().slice(2),bad_=c.filter(r=>r.st[0]!=='p');
+    out.steps=[`Regulations · plot ${SITE.id} zoning and building rules`,rd('GFA, footprint, floors'),'Check FAR, coverage, setbacks, height'];
+    out.fx=()=>renderMarket();out.link=['market','Open site & regulations'];
+    done(`*Plot ${SITE.id} · ${SITE.zone}*\n`+c.map(r=>`${r.st[0]==='p'?'✓':'✗'} ${r.plain}`).join('\n')+(bad_.length?`\nTo comply, cut buildable area by ${Math.abs(farDelta()).toFixed(1)}% (to ${Math.round(FIX.gfa*(1+farDelta()/100)).toLocaleString()} sqm GFA, max ${maxGFA().toLocaleString()}). IRR impact: ${fP(run({...S,area:Math.min(S.area||0,farDelta())}).irr)} vs ${fP(run(S).irr)}.`:'\nScheme is compliant.'));
+    break}
+  case 'align':{
+    const d=alignDeltas(),before=run(S),after=run({...S,...d});
+    out.steps=[`Market data · medians: sale price SAR ${Math.round(mk().P.p50).toLocaleString()}, rent SAR ${Math.round(mk().R.p50).toLocaleString()}`,`Regulations · cap GFA at FAR ${SITE.far.toFixed(1)}`,...writeSteps(d),'Recalculate and read outputs'];
+    out.fx=()=>applyAlign(ch==='web'?'Workspace':'WhatsApp');out.link=['market','Open market check'];
+    done(`*Sandbox aligned to market*\n${scenName(d)}\nLevered IRR ${fP(before.irr)} → *${fP(after.irr)}*\nProfit on cost ${fP(before.poc)} → *${fP(after.poc)}*\nThis ${verdict(after)}.`);
+    break}
   case 'reset':{
     out.steps=[wr('all inputs = base'),'Recalculate'];
     out.fx=()=>{S={};changelog.push('Reset to base');renderAll(true)};
@@ -567,7 +666,7 @@ async function handle(text,ch,role){
     if(!web&&role!=='Investment Director'){
       out.steps=['Check role permissions for this number'];
       done('*Not permitted.* Writing to the live EstateMaster model needs an Investment Director. I can send an approval request to them, or keep this as a sandbox scenario.');break}
-    out.steps=['Check role permissions',route==='files'?'Read-only route: cannot write back':'Prepare change set (diff vs base)'];
+    out.steps=['Check role permissions','Prepare change set (diff vs base)'];
     pending={ch};
     done(`*Approval needed*\nPromote to EstateMaster: ${scenName(S)}.\nReply *APPROVE* to write, or *CANCEL*.`);
     if(web)out.fx=()=>openModal();
@@ -575,19 +674,96 @@ async function handle(text,ch,role){
   case 'approve':{
     if(!pending){done('Nothing waiting for approval.');break}
     if(!web&&role!=='Investment Director'){done('*Not permitted.* Approval must come from an Investment Director.');break}
-    out.steps=['Step-up check passed (one-time code, demo)',wr('approved change set'),rf()||'Read-only: change set saved as proposal','Write audit record'].filter(Boolean);
+    out.steps=['Step-up check passed (one-time code, demo)',wr('approved change set'),rf(),'Write audit record'].filter(Boolean);
     pending=null;
     out.fx=()=>{changelog.push(`Promoted to EstateMaster (${ch}): ${scenName(S)}`);toast('Change set written to EstateMaster · audit logged')};
-    done(route==='files'?'*Saved as proposal.* This route is read-only, so nothing was written to EstateMaster.':'*Approved and written.* EstateMaster updated via '+ROUTES[route].t+'. Audit entry created.');break}
+    done('*Approved and written.* Change set written through SQL Server; EstateMaster updated on sync. Audit entry created.');break}
   case 'cancel':{pending=null;done('Cancelled. Nothing was written.');break}
   default:{
-    done('*I can:*\n• "What if sale price drops 10% and cost +15%"\n• "Stress test the model"\n• "Sensitivity of exit cap vs construction cost"\n• "Keep exploring autonomously"\n• "How far can prices fall?"\n• "Build the IC report"\n• "Promote scenario"');
+    done('*I can:*\n• "What if sale price drops 10% and cost +15%"\n• "Stress test the model"\n• "Sensitivity of exit cap vs construction cost"\n• "Keep exploring autonomously"\n• "How far can prices fall?"\n• "Check assumptions against market data"\n• "Is the scheme compliant with zoning?"\n• "Build the IC report"\n• "Promote scenario"');
     out.html='<b>I can:</b><div class="chips" style="margin:6px 0">'+CHIPS.map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>';
   }}
   return out;
 }
 function miniTable(res){return '<table><tr><th>Scenario</th><th>IRR</th><th>Profit</th><th></th></tr>'+res.map(x=>`<tr><td>${esc(x.name)}</td><td>${fP(x.r.irr)}</td><td>${fM(x.r.profit)}</td><td><span class="pill ${x.pass?'p':'f'}">${x.pass?'pass':'fail'}</span></td></tr>`).join('')+'</table><a class="go" data-tab="stress">Open stress tests →</a>'}
-const CHIPS=['Stress test the model','What if sale price drops 10% and cost rises 15%?','Sensitivity of exit cap vs construction cost','Keep exploring autonomously','How far can prices fall?','Build the IC report'];
+const CHIPS=['Check assumptions against market data','Stress test the model','What if sale price drops 10% and cost rises 15%?','Sensitivity of exit cap vs construction cost','Keep exploring autonomously','How far can prices fall?','Build the IC report'];
+
+/* ================= MARKET DATA (illustrative sample) ================= */
+const SITE={id:'NRJ-0417',plot:20000,w:200,d:100,zone:'Mixed-use, commercial corridor',far:3.0,cov:.60,sb:{front:6,side:3,rear:3},floors:12,
+  foot:{x:25,y:10,w:150,h:76},towerFloors:11};
+const SALES=[ // SAR/sqm, months ago
+ ['Al Narjis','Apartment',142,12650,1],['Al Narjis','Apartment',168,12900,2],['Al Narjis','Townhouse',240,13200,3],['Al Narjis','Apartment',125,12400,4],
+ ['Al Narjis','Apartment',155,12100,6],['Al Narjis','Apartment',180,13050,8],['Al Narjis','Apartment',132,11900,10],['Al Yasmin','Apartment',150,12300,2],
+ ['Al Yasmin','Apartment',138,12050,5],['Al Yasmin','Townhouse',260,13600,7],['Al Arid','Apartment',160,11600,3],['Al Arid','Apartment',145,11800,9],
+ ['Al Malqa','Apartment',170,13400,4],['Al Malqa','Apartment',150,12800,11]];
+const LEASES=[ // retail SAR/sqm/yr, months ago
+ ['Al Narjis',180,2250,1],['Al Narjis',240,2100,3],['Al Narjis',120,2400,4],['Al Narjis',300,1950,6],['Al Narjis',160,2300,8],['Al Narjis',210,2200,11],
+ ['Al Yasmin',150,2350,2],['Al Yasmin',260,2050,5],['Al Arid',200,1850,7],['Al Malqa',140,2600,3],['Al Malqa',190,2500,9],['Al Arid',170,1900,10]];
+const MK={scope:'adj',per:12};
+const mon=m=>{const d=new Date(2026,8-m,1);return d.toLocaleString('en',{month:'short'})+' '+String(d.getFullYear()).slice(2)};
+function q(arr,p){const s=arr.slice().sort((a,b)=>a-b),i=(s.length-1)*p,l=Math.floor(i);return s[l]+(s[Math.min(l+1,s.length-1)]-s[l])*(i-l)}
+function prank(arr,v){return arr.filter(x=>x<v).length/arr.length}
+function mk(){
+  const ok=(dist,m)=>(MK.scope==='adj'||dist==='Al Narjis')&&m<=MK.per;
+  const sales=SALES.filter(r=>ok(r[0],r[4])),leases=LEASES.filter(r=>ok(r[0],r[3]));
+  const P=sales.map(r=>r[3]),R=leases.map(r=>r[2]);
+  const st=v=>({p10:q(v,.1),p25:q(v,.25),p50:q(v,.5),p75:q(v,.75),p90:q(v,.9),min:Math.min(...v),max:Math.max(...v)});
+  return{sales,leases,P:st(P),R:st(R),Pv:P,Rv:R,nP:P.length,nR:R.length};
+}
+const maxGFA=()=>SITE.plot*SITE.far;
+const farDelta=()=>Math.floor((maxGFA()/FIX.gfa-1)*1000)/10;
+function bandStatus(pr){return pr>=.9||pr<=.1?['f','outside range']:pr>.75||pr<.25?['s','stretched']:['p','in range']}
+function marketCheck(d=S){
+  const p=apply(d),m=mk(),a=p.area/100,gfa=FIX.gfa*a,far=gfa/SITE.plot;
+  const f=SITE.foot,cov=f.w*f.h/SITE.plot,floors=Math.round(SITE.towerFloors*a);
+  const sb={front:SITE.d-f.y-f.h,side:Math.min(f.x,SITE.w-f.x-f.w),rear:f.y};
+  const sbOK=sb.front>=SITE.sb.front&&sb.side>=SITE.sb.side&&sb.rear>=SITE.sb.rear;
+  const prP=prank(m.Pv,p.price),prR=prank(m.Rv,p.rent);
+  const n=v=>Math.round(v).toLocaleString();
+  return[
+   {k:'price',label:'Residential sale price',model:`SAR ${n(p.price)}/sqm`,bench:`median ${n(m.P.p50)} · IQR ${n(m.P.p25)}–${n(m.P.p75)}`,pos:`P${Math.round(prP*100)}`,st:bandStatus(prP),plain:`sale price SAR ${n(p.price)} vs median ${n(m.P.p50)} (P${Math.round(prP*100)} of ${m.nP} sales)`},
+   {k:'rent',label:'Retail rent',model:`SAR ${n(p.rent)}/sqm/yr`,bench:`median ${n(m.R.p50)} · IQR ${n(m.R.p25)}–${n(m.R.p75)}`,pos:`P${Math.round(prR*100)}`,st:bandStatus(prR),plain:`retail rent SAR ${n(p.rent)} vs median ${n(m.R.p50)} (P${Math.round(prR*100)} of ${m.nR} leases)`},
+   {k:'far',label:'GFA / FAR',model:`${n(gfa)} sqm · FAR ${far.toFixed(2)}`,bench:`max FAR ${SITE.far.toFixed(1)} → ${n(maxGFA())} sqm`,pos:far>SITE.far?`+${((far/SITE.far-1)*100).toFixed(1)}% over`:`${((1-far/SITE.far)*100).toFixed(1)}% spare`,st:far>SITE.far+1e-9?['f','breach']:['p','compliant'],plain:`GFA ${n(gfa)} sqm = FAR ${far.toFixed(2)} vs max ${SITE.far.toFixed(1)}`},
+   {k:'cov',label:'Site coverage',model:`${(cov*100).toFixed(0)}%`,bench:`max ${(SITE.cov*100).toFixed(0)}%`,pos:'',st:cov<=SITE.cov?['p','compliant']:['f','breach'],plain:`coverage ${(cov*100).toFixed(0)}% vs max ${(SITE.cov*100).toFixed(0)}%`},
+   {k:'sb',label:'Setbacks',model:`front ${sb.front} · side ${sb.side} · rear ${sb.rear} m`,bench:`min ${SITE.sb.front} · ${SITE.sb.side} · ${SITE.sb.rear} m`,pos:'',st:sbOK?['p','compliant']:['f','breach'],plain:`setbacks front ${sb.front}/side ${sb.side}/rear ${sb.rear} m vs min ${SITE.sb.front}/${SITE.sb.side}/${SITE.sb.rear}`},
+   {k:'h',label:'Height',model:`${floors} floors`,bench:`max ${SITE.floors} floors`,pos:'',st:floors<=SITE.floors?['p','compliant']:['f','breach'],plain:`height ${floors} floors vs max ${SITE.floors}`}
+  ];
+}
+function alignDeltas(){const m=mk();return{price:+((m.P.p50/BASE.price-1)*100).toFixed(1),rent:+((m.R.p50/BASE.rent-1)*100).toFixed(1),area:Math.min(S.area||0,farDelta())}}
+function alignedRun(){return run({...S,...alignDeltas()})}
+function applyAlign(src){const d=alignDeltas();Object.assign(S,d);Object.keys(S).forEach(k=>{if(!S[k])delete S[k]});changelog.push(`${src}: aligned to market (${scenName(d)})`);renderAll(true)}
+function rngBar(label,st,val,unit){
+  const lo=st.min*.94,hi=Math.max(st.max,val)*1.03,x=v=>((v-lo)/(hi-lo)*100).toFixed(1)+'%',w=(a,b)=>((b-a)/(hi-lo)*100).toFixed(1)+'%';
+  return`<div style="font-size:12.5px;margin-top:6px">${label}</div><div class="rng"><span class="band" style="left:${x(st.p10)};width:${w(st.p10,st.p90)}"></span><span class="iqr" style="left:${x(st.p25)};width:${w(st.p25,st.p75)}"></span><span class="med" style="left:${x(st.p50)}"></span><span class="me" style="left:${x(val)}" title="Model ${Math.round(val)}"></span></div><div class="rngl"><span>${Math.round(lo).toLocaleString()} ${unit}</span><span>P10–P90 band · dark = P25–P75 · line = median · coral = model</span><span>${Math.round(hi).toLocaleString()}</span></div>`;
+}
+function siteSVG(d=S){
+  const k=3.4,W=SITE.w*k,H=SITE.d*k,f=SITE.foot,sb=SITE.sb,a=apply(d).area/100,far=FIX.gfa*a/SITE.plot,over=far>SITE.far+1e-9;
+  return`<svg viewBox="-10 -10 ${W+20} ${H+62}" style="width:100%;margin-top:4px">
+  <rect x="0" y="0" width="${W}" height="${H}" fill="rgba(255,255,255,.6)" stroke="#000919" stroke-width="1.5" rx="2"/>
+  <rect x="${sb.side*k}" y="${sb.rear*k}" width="${(SITE.w-2*sb.side)*k}" height="${(SITE.d-sb.front-sb.rear)*k}" fill="none" stroke="#3a4150" stroke-dasharray="5 4"/>
+  <rect x="${f.x*k}" y="${f.y*k}" width="${f.w*k}" height="${f.h*k}" fill="rgba(0,9,25,.14)" stroke="#000919"/>
+  <rect x="${(f.x+95)*k}" y="${(f.y+18)*k}" width="${42*k}" height="${34*k}" fill="${over?'#FF4D6A':'#000919'}" rx="2"/>
+  <text x="${(f.x+116)*k}" y="${(f.y+37)*k}" fill="#fff" font-size="15" text-anchor="middle" font-family="Space Grotesk,Arial">Tower · ${Math.round(SITE.towerFloors*a)}F</text>
+  <text x="${(f.x+8)*k}" y="${(f.y+7)*k}" font-size="15" fill="#000919" font-family="Space Grotesk,Arial">Podium · retail ${Math.round(FIX.retGLA*a).toLocaleString()} sqm GLA</text>
+  <text x="${(f.x+8)*k}" y="${(f.y+f.h-6)*k}" font-size="14" fill="#3a4150" font-family="Space Grotesk,Arial">Footprint ${(f.w*f.h).toLocaleString()} sqm</text>
+  <text x="${sb.side*k+4}" y="${sb.rear*k+16}" font-size="13" fill="#3a4150" font-family="Space Grotesk,Arial">setback envelope</text>
+  <rect x="0" y="${H+8}" width="${W}" height="20" fill="rgba(0,9,25,.08)"/><text x="${W/2}" y="${H+23}" font-size="14" text-anchor="middle" fill="#3a4150" font-family="Space Grotesk,Arial">Street frontage · front setback ${sb.front} m</text>
+  <text x="${W}" y="${H+46}" font-size="15" text-anchor="end" fill="${over?'#FF4D6A':'#000919'}" font-family="Space Grotesk,Arial">FAR ${far.toFixed(2)} / max ${SITE.far.toFixed(1)}</text>
+  </svg>`;
+}
+function renderMarket(){
+  const c=marketCheck(),m=mk(),p=apply(S),ar=alignedRun(),cur=run(S),ad=alignDeltas();
+  $('#mkT').innerHTML='<tr><th>Assumption</th><th>Model</th><th>Market / rule</th><th class="n">Position</th><th></th></tr>'+c.map(r=>`<tr><td>${r.label}</td><td>${r.model}</td><td style="color:var(--ink2)">${r.bench}</td><td class="n">${r.pos}</td><td><span class="pill ${r.st[0]}">${r.st[1]}</span></td></tr>`).join('');
+  $('#mkRng').innerHTML=rngBar(`Residential sale price · ${m.nP} registered sales`,m.P,p.price,'SAR/sqm')+rngBar(`Retail rent · ${m.nR} leases`,m.R,p.rent,'SAR/sqm/yr');
+  const flags=c.filter(r=>r.st[0]!=='p');
+  $('#mkAlign').className='mkbox'+(flags.some(r=>r.st[0]==='f')?' bad':'');
+  $('#mkAlign').innerHTML=`<b>${flags.length?flags.length+' assumption'+(flags.length>1?'s':'')+' flagged':'All assumptions within market and regulatory limits'}.</b> ${flags.map(r=>r.label.toLowerCase()+' ('+r.st[1]+')').join(', ')}${flags.length?'.':''}<br>Market-aligned case (sale price and rent at comps median, GFA capped at FAR ${SITE.far.toFixed(1)}): levered IRR <b>${fP(ar.irr)}</b> vs ${fP(cur.irr)} now, profit on cost <b>${fP(ar.poc)}</b>. It ${verdict(ar)}.`;
+  $('#cmpP').innerHTML='<tr><th>Date</th><th>District</th><th>Type</th><th class="n">SAR/sqm</th></tr>'+m.sales.slice().sort((a,b)=>a[4]-b[4]).map(r=>`<tr><td>${mon(r[4])}</td><td>${r[0]}</td><td>${r[1]} · ${r[2]} sqm</td><td class="n">${r[3].toLocaleString()}</td></tr>`).join('');
+  $('#cmpR').innerHTML='<tr><th>Date</th><th>District</th><th>Unit</th><th class="n">SAR/sqm/yr</th></tr>'+m.leases.slice().sort((a,b)=>a[3]-b[3]).map(r=>`<tr><td>${mon(r[3])}</td><td>${r[0]}</td><td>${r[1]} sqm</td><td class="n">${r[2].toLocaleString()}</td></tr>`).join('');
+  $('#site').innerHTML=siteSVG();
+  $('#regT').innerHTML='<tr><th>Rule</th><th>Limit</th><th>Scheme</th><th></th></tr>'+[['Zoning',SITE.zone,'Residential + retail','p','permitted']].concat(c.slice(2).map(r=>[r.label,r.bench,r.model,r.st[0],r.st[1]])).map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td><span class="pill ${r[3]}">${r[4]}</span></td></tr>`).join('');
+  $('#mkSrc').innerHTML='<div><b>Transactions:</b> registered sales, e.g. Ministry of Justice data via a licensed partner</div><div><b>Rentals:</b> lease evidence, e.g. Ejar contracts / REGA indicators</div><div><b>Regulations:</b> plot zoning and building code, e.g. Riyadh regulations via Balady</div><div style="color:var(--alert)">Illustrative sample for this demo, not live market data.</div>';
+}
 
 /* ================= STRESS / TORNADO / HEADROOM ================= */
 const STRESS=[
@@ -602,8 +778,8 @@ const STRESS=[
 ];
 const passes=r=>bad(r.irr)>=HURDLE.irr&&r.poc>=HURDLE.poc;
 function merge(a,b){const o={...a};for(const k in b)o[k]=(o[k]||0)+b[k];return o}
-function computeStress(){return STRESS.map(s=>{const r=run(merge(S,s.d));return{name:s.name,d:s.d,r,pass:passes(r)}})}
-const TORN={price:[-10,10],rent:[-10,10],cost:[-10,10],land:[-10,10],cap:[-1,1],rate:[-1.5,1.5],delay:[0,6],ltc:[-10,10]};
+function computeStress(){const rows=STRESS.map(s=>{const r=run(merge(S,s.d));return{name:s.name,d:s.d,r,pass:passes(r)}});const r=alignedRun();rows.push({name:'Market-aligned (comps median, FAR-capped GFA)',d:alignDeltas(),r,pass:passes(r)});return rows}
+const TORN={area:[-5,5],price:[-10,10],rent:[-10,10],cost:[-10,10],land:[-10,10],cap:[-1,1],rate:[-1.5,1.5],delay:[0,6],ltc:[-10,10]};
 function computeTornado(){
   const b=run(S);
   tornRes=KEYS.map(k=>{const [lo,hi]=TORN[k];const rl=run({...S,[k]:(S[k]||0)+lo}),rh=run({...S,[k]:(S[k]||0)+hi});
@@ -724,14 +900,17 @@ function reportHTML(){
   <h3>Summary</h3>
   <p>Gross revenue is ${fM(b.rev)} against all-in cost of ${fM(b.tc)} including ${fM(b.interest)} of finance cost. Peak debt is ${fM(b.peak)}. Retail stabilises at NOI of ${fM(b.noi)} a year, valued at ${fM(b.exitV)} on exit at a ${(BASE.cap+(S.cap||0)).toFixed(2)}% cap rate.</p>
   <p>Versus the base case the levered IRR moves from ${fP(base.irr)} to ${fP(b.irr)}. ${!ok&&Object.keys(S).length?'The sandbox scenario is already below a hurdle, so headroom shows as breached.':''} ${tight?`The tightest single assumption is <b>${VARS[tight.k].label.toLowerCase()}</b>: the IRR hurdle breaks at ${fD(tight.k,tight.irrD)}.`:''}</p>
+  <h3>Market &amp; regulatory check</h3>
+  <table class="t"><tr><th>Assumption</th><th>Model</th><th>Market / rule</th><th></th></tr>${marketCheck().map(r=>`<tr><td>${r.label}</td><td>${r.model}</td><td>${r.bench}${r.pos?' · '+r.pos:''}</td><td>${r.st[0]==='p'?r.st[1]:`<b style="color:${r.st[0]==='f'?'#FF4D6A':'#000919'}">${r.st[1]}</b>`}</td></tr>`).join('')}</table>
+  <p>Market-aligned case (comps medians, GFA capped at FAR ${SITE.far.toFixed(1)}): levered IRR ${fP(alignedRun().irr)}, profit on cost ${fP(alignedRun().poc)}. Evidence: ${mk().nP} registered sales and ${mk().nR} retail leases, ${MK.scope==='adj'?'Al Narjis and adjacent districts':'Al Narjis'}, last ${MK.per} months (illustrative sample).</p>
   <h3>Stress tests</h3>
   <table class="t"><tr><th>Scenario</th><th class="n">IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th><th></th></tr>${st.map(x=>`<tr><td>${esc(x.name)}</td><td class="n">${fP(x.r.irr)}</td><td class="n">${fP(x.r.poc)}</td><td class="n">${fM(x.r.profit)}</td><td>${x.pass?'pass':'<b style="color:#FF4D6A">fail</b>'}</td></tr>`).join('')}</table>
   <h3>Headroom before the IRR hurdle breaks</h3>
   <table class="t"><tr><th>Assumption</th><th class="n">Headroom</th><th class="n">Until loss</th></tr>${h.map(x=>`<tr><td>${VARS[x.k].label}</td><td class="n">${hd(x.k,x.irrD)}</td><td class="n">${hd(x.k,x.lossD)}</td></tr>`).join('')}</table>
-  ${E.n?`<h3>Autonomous exploration</h3><p>${E.n.toLocaleString()} scenarios sampled across all eight assumptions. Probability of IRR below hurdle: ${(E.below/E.n*100).toFixed(1)}%. Median IRR ${fP(pct(E.vals,.5))}, P10 ${fP(pct(E.vals,.1))}, P90 ${fP(pct(E.vals,.9))}.</p>`:''}
+  ${E.n?`<h3>Autonomous exploration</h3><p>${E.n.toLocaleString()} scenarios sampled across all nine assumptions. Probability of IRR below hurdle: ${(E.below/E.n*100).toFixed(1)}%. Median IRR ${fP(pct(E.vals,.5))}, P10 ${fP(pct(E.vals,.1))}, P90 ${fP(pct(E.vals,.9))}.</p>`:''}
   <h3>Assumption changelog</h3>
   <p>${changelog.length?changelog.map(esc).join('<br>'):'No changes: base case as held in EstateMaster.'}</p>
-  <div class="lineage">Data lineage · run ${id} · connection: ${ROUTES[route].t} · engine: calibrated replica${route==='files'?' (read-only route)':', reconciled to EstateMaster'} · illustrative demo data · generated by Bohio Agent</div>`;
+  <div class="lineage">Data lineage · run ${id} · EstateMaster via SQL Server · market data: ${mk().nP} sales, ${mk().nR} leases, plot regulations · engine: calibrated replica, reconciled to EstateMaster · illustrative demo data · generated by Bohio Agent</div>`;
 }
 function renderReport(){$('#report').innerHTML=reportHTML()}
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
@@ -750,7 +929,7 @@ function renderAsm(){
   $$('#asm input').forEach(i=>i.oninput=()=>{const k=i.dataset.k;S[k]=+i.value;if(!S[k])delete S[k];renderAll(false)});
   $('#sbx').textContent=Object.keys(S).length?`Sandbox differs from base in ${Object.keys(S).length} assumption${Object.keys(S).length>1?'s':''}. Base case in EstateMaster is untouched.`:'Working on a sandbox copy. Base case in EstateMaster is untouched.';
 }
-function renderAll(flash){renderKPIs(flash);renderAsm();stressRes=null;tornRes=null;headRes=null;renderStress();renderHeat();if($('#p-report').classList.contains('on'))renderReport()}
+function renderAll(flash){renderKPIs(flash);renderAsm();stressRes=null;tornRes=null;headRes=null;renderStress();renderHeat();renderMarket();if($('#p-report').classList.contains('on'))renderReport()}
 
 function addMsg(who,html){const m=document.createElement('div');m.className='msg '+who;m.innerHTML=who==='agent'?`<div class="steps"></div><div class="body">${html||''}</div>`:esc(html);$('#msgs').appendChild(m);$('#msgs').scrollTop=1e9;return m}
 let busy=false;
@@ -773,18 +952,22 @@ document.addEventListener('click',e=>{
 $('#chips').innerHTML=CHIPS.map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('');
 $('#reset').onclick=()=>{S={};changelog.push('Reset to base');renderAll(true)};
 $('#promote').onclick=()=>webAsk('promote scenario');
-function openModal(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S))}</b><br>Route: ${ROUTES[route].t}${route==='files'?' (read-only: will be saved as a proposal)':''}<br>The base case is overwritten only after this approval. An audit record is written.`;$('#modal').classList.add('on')}
+function openModal(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S))}</b><br>Written through: SQL Server → EstateMaster sync<br>The base case is overwritten only after this approval. An audit record is written.`;$('#modal').classList.add('on')}
 $('#mno').onclick=()=>{pending=null;$('#modal').classList.remove('on')};
 $('#myes').onclick=()=>{$('#modal').classList.remove('on');webAsk('approve')};
 
-/* routes + tabs */
-function renderRoutes(){$('#routes').innerHTML=Object.entries(ROUTES).map(([k,r])=>`<div class="route ${k===route?'on':''}" data-r="${k}"><div class="n">ROUTE ${r.n}<span class="tag">${r.tag}</span></div><div class="t">${r.t}</div><div class="d">${r.d}</div></div>`).join('');
-  $$('.route').forEach(e=>e.onclick=()=>{route=e.dataset.r;renderRoutes();toast('Connection route: '+ROUTES[route].t)})}
-const TABS=[['agent','Agent'],['explore','Sensitivity & Explorer'],['stress','Stress tests'],['report','IC report'],['wa','WhatsApp'],['arch','Architecture']];
-function showTab(id){$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report')renderReport();if(id==='explore')renderHeat();window.scrollTo({top:0,behavior:'smooth'})}
+/* tabs */
+const TABS=[['agent','Agent'],['market','Market check'],['explore','Sensitivity & Explorer'],['stress','Stress tests'],['report','IC report'],['wa','WhatsApp'],['arch','Architecture']];
+function showTab(id){$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report')renderReport();if(id==='explore')renderHeat();if(id==='market')renderMarket();window.scrollTo({top:0,behavior:'smooth'})}
 $('#tabs').innerHTML=TABS.map(([id,l])=>`<div class="tab ${id==='agent'?'on':''}" data-t="${id}">${l}</div>`).join('');
 $$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
+
+/* market controls */
+$('#mkScope').onchange=e=>{MK.scope=e.target.value;stressRes=null;renderMarket();renderStress()};
+$('#mkPer').onchange=e=>{MK.per=+e.target.value;stressRes=null;renderMarket();renderStress()};
+$('#mkAlignBtn').onclick=()=>{applyAlign('Workspace');toast('Sandbox aligned to market medians and FAR limit')};
+$('#mkAsk').addEventListener('click',()=>showTab('agent'));
 
 /* explorer + heat + stress controls */
 KEYS.forEach(k=>{$('#hx').add(new Option(VARS[k].label,k));$('#hy').add(new Option(VARS[k].label,k))});
@@ -800,7 +983,7 @@ $('#rhtml').onclick=()=>download('AlNarjis_IC_Pack.html','<!doctype html><meta c
 $('#rcsv').onclick=()=>download('sensitivity.csv',csv(),'text/csv');
 
 /* ================= WHATSAPP UI ================= */
-const WQ=['Status','Stress test','What if price -10%','Build IC report','Promote scenario'];
+const WQ=['Status','Check vs market','Stress test','What if price -10%','Build IC report','Promote scenario'];
 const tm=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 function wBubble(cls,html){const b=document.createElement('div');b.className='wb '+cls;b.innerHTML=html+(cls.includes('tp')?'':`<span class="tm">${tm()}${cls==='me'?' ✓✓':''}</span>`);$('#wmsgs').appendChild(b);$('#wmsgs').scrollTop=1e9;return b}
 let wbusy=false;
@@ -828,10 +1011,10 @@ $('#waalert').onclick=()=>{if(!E.n){E.run||startExplorer();setTimeout(()=>waAler
 $('#warole').onchange=e=>wBubble('bot',`<i>Number verified: Fatima A. · role <b>${e.target.value}</b></i>`);
 
 /* ================= INIT ================= */
-addMsg('agent','<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
+addMsg('agent','<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, check them against market data and zoning, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
 wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
 wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
-renderRoutes();syncHeatSel();resetE();renderAll(false);
+syncHeatSel();resetE();renderAll(false);
 </script>
 </body>
 </html>
