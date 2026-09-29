@@ -2,7 +2,9 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import Page from "../app/page";
+import InvoicesPage from "../app/invoices/page";
 import { buildMarketingDashboard, applyAction } from "../lib/marketing";
+import { ensureOracleSynced, syncOracle, buildInvoiceDashboard, applyInvoiceAction } from "../lib/invoices";
 
 const json = (o: any) => new Response(JSON.stringify(o), { headers: { "Content-Type": "application/json" } });
 
@@ -19,6 +21,18 @@ function vendorNote(d: any, id: string) {
 
 window.fetch = (async (input: any, init?: any) => {
   const url = String(input?.url ?? input);
+  if (url.includes("/api/invoices")) {
+    try {
+      await ensureOracleSynced();
+      if (!init || !init.method || init.method === "GET") return json({ dashboard: await buildInvoiceDashboard() });
+      const b = JSON.parse(init.body);
+      if (b.action === "SYNC") await syncOracle();
+      else await applyInvoiceAction({ ...b, type: b.action });
+      return json({ dashboard: await buildInvoiceDashboard() });
+    } catch (e: any) {
+      return json({ error: e.message });
+    }
+  }
   if (!url.includes("/api/marketing")) throw new Error("offline demo");
   try {
     if (!init || !init.method || init.method === "GET") {
@@ -36,4 +50,16 @@ window.fetch = (async (input: any, init?: any) => {
   }
 }) as any;
 
-createRoot(document.getElementById("root")!).render(<Page />);
+// Tiny client-side router (pages navigate with plain anchors).
+const root = createRoot(document.getElementById("root")!);
+const show = (path: string) => {
+  (window as any).__demoPath = path;
+  root.render(<React.Fragment key={path}>{path === "/invoices" ? <InvoicesPage /> : <Page />}</React.Fragment>);
+};
+document.addEventListener("click", (e) => {
+  const a = (e.target as HTMLElement).closest("a[href^='/']");
+  if (!a) return;
+  e.preventDefault();
+  show(a.getAttribute("href")!);
+});
+show("/");

@@ -26,7 +26,10 @@ model Vendor {
   slaQualifiedPct Float // contractual min qualified-lead rate
   contractEnd     DateTime
   contact         String
+  oracleSupplierNumber String? // Supplier Number in Oracle Fusion Procurement
   campaigns       Campaign[]
+  invoices        SupplierInvoice[]
+  purchaseOrders  PurchaseOrder[]
 }
 
 model Campaign {
@@ -42,6 +45,8 @@ model Campaign {
   startDate DateTime
   endDate   DateTime
   months   CampaignMonth[]
+  invoices SupplierInvoice[]
+  purchaseOrders PurchaseOrder[]
 }
 
 // One row per campaign per month: spend -> funnel -> contracted sales.
@@ -71,4 +76,53 @@ model MarketingAction {
   type      String // PAUSE | RESUME | SHIFT_BUDGET
   campaign  String
   detail    String
+}
+
+// ---- Oracle integration: purchasing & supplier invoices ---------------------
+
+model PurchaseOrder {
+  id         String    @id @default(cuid())
+  oraclePoId String    @unique
+  poNumber   String
+  vendor     Vendor    @relation(fields: [vendorId], references: [id])
+  vendorId   String
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId String?
+  amountK    Float // approved PO value, SAR K
+  status     String // OPEN | CLOSED | ...
+  description String?
+  syncedAt   DateTime  @default(now())
+}
+
+model SupplierInvoice {
+  id              String    @id @default(cuid())
+  oracleInvoiceId String    @unique
+  invoiceNumber   String
+  vendor          Vendor    @relation(fields: [vendorId], references: [id])
+  vendorId        String
+  campaign        Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId      String?
+  poNumber        String?
+  period          String? // YYYY-MM the invoice bills for
+  invoiceDate     DateTime
+  dueDate         DateTime
+  amountK         Float
+  paidK           Float     @default(0)
+  currency        String    @default("SAR")
+  oracleStatus    String // Validated | Needs revalidation | Unvalidated | Cancelled
+  description     String?
+  // Decision taken here (Oracle is not written to)
+  decision        String    @default("PENDING") // PENDING | APPROVED | DISPUTED
+  decisionNote    String?
+  decidedAt       DateTime?
+  syncedAt        DateTime  @default(now())
+}
+
+model IntegrationSync {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  mode      String // mock | live
+  invoices  Int
+  purchaseOrders Int
+  note      String?
 }

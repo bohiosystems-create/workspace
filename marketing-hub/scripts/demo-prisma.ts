@@ -8,8 +8,29 @@ const data: any = revive(raw);
 const actions: any[] = [];
 const byId = (id: string) => data.campaigns.find((c: any) => c.id === id) ?? null;
 
+// Minimal generic table for the Oracle-synced models (starts empty; filled by the mock sync).
+function table(rows: any[]) {
+  return {
+    findMany: async (a: any = {}) => {
+      const r = [...rows];
+      if (a.orderBy?.createdAt === "desc") r.sort((x, y) => y.createdAt - x.createdAt);
+      return a.take ? r.slice(0, a.take) : r;
+    },
+    count: async () => rows.length,
+    create: async ({ data: d }: any) => {
+      const row = { id: "r" + Math.random().toString(36).slice(2), createdAt: new Date(), decision: "PENDING", decisionNote: null, decidedAt: null, ...d };
+      rows.push(row);
+      return row;
+    },
+    update: async ({ where, data: d }: any) => Object.assign(rows.find((r) => r.id === where.id), d),
+  };
+}
+
 export const prisma = {
-  vendor: { findMany: async () => data.vendors },
+  supplierInvoice: table([]),
+  purchaseOrder: table([]),
+  integrationSync: table([]),
+  vendor: { findMany: async () => data.vendors, count: async () => data.vendors.length },
   campaign: {
     findMany: async () => data.campaigns,
     findUnique: async ({ where }: any) => byId(where.id),

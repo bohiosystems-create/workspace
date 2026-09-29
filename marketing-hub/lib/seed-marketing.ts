@@ -35,12 +35,12 @@ const ASSETS = [
 ];
 
 const VENDORS = [
-  { name: "Tasweeq Digital", category: "Performance media", model: "Media buy", retainerK: 18, slaResponseHrs: 4, slaQualifiedPct: 20, contractEnd: "2026-12-31", contact: "Layla Nasser" },
-  { name: "PropertyHub KSA", category: "Property portal", model: "Media buy", retainerK: 0, slaResponseHrs: 6, slaQualifiedPct: 25, contractEnd: "2026-07-31", contact: "Omar Zahrani" },
-  { name: "Mubasher Brokerage Network", category: "Broker network", model: "Commission", retainerK: 0, slaResponseHrs: 12, slaQualifiedPct: 55, contractEnd: "2027-03-31", contact: "Khalid Otaibi" },
-  { name: "Nakhla Communications", category: "PR & brand", model: "Retainer", retainerK: 45, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-08-31", contact: "Rania Habib" },
-  { name: "Hajar Outdoor", category: "Outdoor", model: "Media buy", retainerK: 0, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-06-30", contact: "Faisal Qahtani" },
-  { name: "Sada Influence", category: "Influencer", model: "Retainer", retainerK: 12, slaResponseHrs: 8, slaQualifiedPct: 15, contractEnd: "2026-09-30", contact: "Noor Bakri" },
+  { name: "Tasweeq Digital", oracleSupplierNumber: "10231", category: "Performance media", model: "Media buy", retainerK: 18, slaResponseHrs: 4, slaQualifiedPct: 20, contractEnd: "2026-12-31", contact: "Layla Nasser" },
+  { name: "PropertyHub KSA", oracleSupplierNumber: "10307", category: "Property portal", model: "Media buy", retainerK: 0, slaResponseHrs: 6, slaQualifiedPct: 25, contractEnd: "2026-07-31", contact: "Omar Zahrani" },
+  { name: "Mubasher Brokerage Network", oracleSupplierNumber: "10412", category: "Broker network", model: "Commission", retainerK: 0, slaResponseHrs: 12, slaQualifiedPct: 55, contractEnd: "2027-03-31", contact: "Khalid Otaibi" },
+  { name: "Nakhla Communications", oracleSupplierNumber: "10188", category: "PR & brand", model: "Retainer", retainerK: 45, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-08-31", contact: "Rania Habib" },
+  { name: "Hajar Outdoor", oracleSupplierNumber: "10275", category: "Outdoor", model: "Media buy", retainerK: 0, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-06-30", contact: "Faisal Qahtani" },
+  { name: "Sada Influence", oracleSupplierNumber: "10519", category: "Influencer", model: "Retainer", retainerK: 12, slaResponseHrs: 8, slaQualifiedPct: 15, contractEnd: "2026-09-30", contact: "Noor Bakri" },
 ];
 
 const CAMPAIGNS: CampaignSpec[] = [

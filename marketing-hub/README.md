@@ -9,6 +9,17 @@ app with its own database — no dependency on `deal-screener`.
 - **Orchestrate** — recommended Pause / Shift-budget actions, one-click apply, plus manual Pause/Resume; every action is written to an audit trail.
 - **Claude** — vendor briefing and drafted notes to vendors (optional; needs `ANTHROPIC_API_KEY`). All numbers are computed in code.
 
+## Oracle integration — supplier invoices (`/invoices`)
+
+Pulls purchase orders and supplier invoices from **Oracle Fusion Cloud Procurement / Payables**
+(read-only REST GETs, `lib/oracle.ts`) and reconciles them against what each vendor reported delivering:
+
+- **Checks:** invoice vs delivered spend (>3% warn, >10% critical), billed with no delivery, duplicate invoices, no PO, PO overrun, Oracle validation status, overdue payments, delivered-but-not-invoiced (accrual list).
+- **Workflow:** approve clean invoices for payment (single or in bulk), dispute the rest with a reason. Invoices with critical exceptions cannot be approved. Decisions and syncs are stored locally with an audit trail — **nothing is written back to Oracle**.
+- **Modes:** `ORACLE_MODE=mock` (default) uses built-in sample data shaped like the Oracle payloads; `ORACLE_MODE=live` needs `ORACLE_BASE_URL`, `ORACLE_USER`, `ORACLE_PASSWORD` (see `.env.example`).
+- **Mapping:** vendors are matched by Oracle *Supplier Number* (`Vendor.oracleSupplierNumber`); invoices are matched to campaigns via the PO / description containing the campaign name.
+- Live mode has **not been tested against a real Oracle instance**; field names follow the Fusion REST docs and are isolated in `mapInvoice` / `mapPurchaseOrder` in `lib/oracle.ts` for tenant-specific adjustment.
+
 ## Run
 
 ```bash
@@ -22,3 +33,7 @@ npm run dev          # http://localhost:3001
 Data is seeded on first load (`lib/seed-marketing.ts`, illustrative, Jan–May 2026). Replace it with vendor reporting feeds / CRM sales data to go live. Attribution is last-touch.
 
 Layout: `lib/marketing.ts` (compute, alerts, recommendations, actions) · `app/api/marketing/route.ts` · `app/page.tsx` · `lib/claude.ts`.
+
+## Static demo
+
+`npx tsx scripts/dump-data.ts && node scripts/build-demo.mjs` builds a single-file `demo.html` (both pages, in-memory data, offline).

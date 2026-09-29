@@ -9,13 +9,12 @@ const shim = {
   name: "prisma-shim",
   setup(b) {
     b.onResolve({ filter: /^\.\/prisma$/ }, () => ({ path: path.join(root, "scripts/demo-prisma.ts") }));
-    b.onResolve({ filter: /^\.\/_components\/Header$/ }, (a) => ({ path: path.join(root, "app/_components/Header.tsx") }));
   },
 };
 const out = await build({
   entryPoints: [path.join(root, "scripts/demo-entry.tsx")],
   bundle: true, write: false, minify: true, format: "iife", jsx: "automatic",
-  define: { "process.env.NODE_ENV": '"production"' }, plugins: [shim], loader: { ".json": "json" },
+  define: { "process.env.NODE_ENV": '"production"', "process.env.ORACLE_MODE": '"mock"' }, plugins: [shim], loader: { ".json": "json" },
   alias: { "@": root },
 });
 const css = readFileSync(path.join(root, "app/globals.css"), "utf8").replace(/@import url\([^)]*\);/, "");
