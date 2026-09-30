@@ -97,7 +97,9 @@ Bohio agent ──approved values──▶ control workbook ──Excel link─�
 3. **Fallback.** If the automation fails, or the runner is in manual mode, the job becomes a one-minute task
    for an analyst (open, Refresh, Export); pressing Collect on the change request reads their export.
 
-Without a runner connected, the demo answers from a simplified stand-in model in the browser.
+Without `RUNNER_URL`/`RUNNER_TOKEN`, the demo simulates the runner, clearly labelled, with results from a simplified
+stand-in model in the browser; Architecture → Demo runner switches the simulation to the analyst fallback. A runner
+that is configured but unreachable is reported as such, never simulated.
 
 ## Approvals, email scans and change memory
 

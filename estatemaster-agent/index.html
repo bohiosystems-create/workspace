@@ -598,7 +598,7 @@ table.t td.n,table.t th.n{text-align:right}
         <div class="it"><div class="num">4</div><div><b>Read back and reconcile</b><span>Results are read from EstateMaster’s export by row label, compared with the agent’s estimate and logged against the change request.</span></div></div>
         <div class="it"><div class="num">!</div><div><b>Fallback and licence</b><span>If the automation fails, an analyst gets a one-minute task (open, Refresh, Export) and presses Collect. Confirm unattended use with Altus.</span></div></div>
       </div>
-      <div class="sub" id="rnStat" style="margin-top:10px"></div>
+      <div class="sub" id="rnStat" style="margin-top:10px"></div><div class="sub" id="simWrap" style="margin-top:6px">Demo runner: <select id="simMode" style="border:1px solid var(--faint);border-radius:999px;padding:4px 10px;font-size:12.5px"><option value="ui">automation works</option><option value="manual">automation fails → analyst task</option></select></div>
     </div>
     <div class="card">
       <div class="bar"></div><h2>Task router</h2>
@@ -1129,7 +1129,7 @@ async function handle(text,ch,role,forced){
     const res=ids.map(id=>it.k==='approve'?approveCR(id,ch,r_):rejectCR(id,ch,r_));
     out.steps=ids.map(id=>`${it.k==='approve'?'Approve':'Reject'} ${id} · ${web?USERS.web:USERS.wa} (${r_})`).concat(it.k==='approve'?['Step-up check passed (one-time code, demo)',rf(),'Write audit record']:['Write audit record']);
     out.link=['appr','Open approvals'];
-    done(res.map((x,i)=>x.err?`*${ids[i]}:* ${x.err}`:`*${ids[i]} ${it.k==='approve'?'approved':'rejected'}* by ${x.who}.${it.k==='approve'?(x.cr.kind==='promotion'?' Live EstateMaster model updated by the runner.':x.cr.kind==='newmodel'?` Runner created the EstateMaster model; workspace switched to ${x.cr.def.name}.`:(runnerLive()?' Sent to the EstateMaster runner; results follow here.':' Written to the EstateMaster working copy.')):' Nothing was written.'}`).join('\n')+`\nLogged in the change history.`);
+    done(res.map((x,i)=>x.err?`*${ids[i]}:* ${x.err}`:`*${ids[i]} ${it.k==='approve'?'approved':'rejected'}* by ${x.who}.${it.k==='approve'?(x.cr.kind==='promotion'?' Live EstateMaster model updated by the runner.':x.cr.kind==='newmodel'?` Runner created the EstateMaster model; workspace switched to ${x.cr.def.name}.`:(runnerLive()||simRunner()?' Sent to the EstateMaster runner; the result appears on the change request.':' Approved; the EstateMaster runner is not reachable, so EstateMaster is not updated yet.')):' Nothing was written.'}`).join('\n')+`\nLogged in the change history.`);
     break}
   default:{
     done('*I can:*\n• "What if sale price drops 10% and cost +15%"\n• "Stress test the model"\n• "Sensitivity of exit cap vs construction cost"\n• "Keep exploring autonomously"\n• "How far can prices fall?"\n• "Check Outlook for assumption changes"\n• "Why did construction cost change?"\n• "Check assumptions against market data"\n• "Is the scheme compliant with zoning?"\n• "Build the IC report"\n• "Promote scenario"');
@@ -1389,7 +1389,7 @@ async function exportLog(){
 }
 document.addEventListener('click',e=>{
   const m=e.target.closest('[data-em]');if(m){EM.sel=m.dataset.em;renderInbox()}
-  const a=e.target.closest('[data-apr]');if(a){const r=approveCR(a.dataset.apr,'web',WS_ROLE);toast(r.err||`${a.dataset.apr} approved · ${runnerLive()?'sent to the EstateMaster runner':'written to EstateMaster'} · logged`)}
+  const a=e.target.closest('[data-apr]');if(a){const r=approveCR(a.dataset.apr,'web',WS_ROLE);toast(r.err||`${a.dataset.apr} approved · ${runnerLive()||simRunner()?'sent to the EstateMaster runner':'runner not reachable'} · logged`)}
   const cl=e.target.closest('[data-collect]');if(cl)runnerCollect(cl.dataset.collect);
   const j=e.target.closest('[data-rej]');if(j){const r=rejectCR(j.dataset.rej,'web',WS_ROLE);toast(r.err||`${j.dataset.rej} rejected · logged`)}
 });
@@ -1750,19 +1750,31 @@ async function checkRunner(){
   if(runnerLive())APQ.filter(c=>c.em&&c.em.job&&['queued','running'].includes(c.em.status)).forEach(c=>runnerPoll(c));
 }
 function runnerText(){
-  if(!RUNNER.checked)return'EstateMaster runner: not connected (set RUNNER_URL and RUNNER_TOKEN in Vercel). Approved changes run on the demo’s stand-in model.';
-  if(!RUNNER.configured)return'EstateMaster runner: not configured (RUNNER_URL, RUNNER_TOKEN). Approved changes run on the demo’s stand-in model.';
+  if(!RUNNER.configured)return'EstateMaster runner: simulated (no RUNNER_URL and RUNNER_TOKEN in Vercel). Approved changes go through the runner’s steps with results from the demo’s stand-in model.';
   if(!RUNNER.reachable)return`EstateMaster runner: configured but not reachable${RUNNER.status?' (HTTP '+RUNNER.status+')':''}${RUNNER.error?' ('+RUNNER.error+')':''}. Check the runner service and the tunnel.`;
   const h=RUNNER.health||{};return`EstateMaster runner: connected · mode ${h.mode==='manual'?'manual (a person presses Refresh and Export)':'automatic'} · models: ${(h.models||[]).join(', ')||'none connected'}${h.queued?` · ${h.queued} queued`:''}`;
 }
-function renderRunnerNote(){const e=$('#rnStat');if(e)e.textContent=runnerText();const st=$('#emStrip');if(st)st.textContent=runnerLive()?`All returns calculated by EstateMaster · runner connected (${(RUNNER.health||{}).mode==='manual'?'manual mode':'automatic'}) · SQL Server for actuals (demo: simulated)`:'All returns calculated by EstateMaster · control workbook + runner · SQL Server for actuals (demo: simulated)'}
+function renderRunnerNote(){const e=$('#rnStat');if(e)e.textContent=runnerText();const sw=$('#simWrap');if(sw)sw.style.display=simRunner()?'':'none';const st=$('#emStrip');if(st)st.textContent=runnerLive()?`All returns calculated by EstateMaster · runner connected (${(RUNNER.health||{}).mode==='manual'?'manual mode':'automatic'}) · SQL Server for actuals (demo: simulated)`:simRunner()?'All returns calculated by EstateMaster · control workbook + runner (demo: simulated) · SQL Server for actuals (demo: simulated)':'All returns calculated by EstateMaster · runner configured but not reachable · SQL Server for actuals (demo: simulated)'}
 function runnerInputs(){return Object.fromEntries(REG.filter(lineOn).map(l=>[l.id,+lineVal(l.id).toFixed(6)]))}
+/* No runner configured (e.g. a demo without the Windows VM): simulate the runner's steps, clearly labelled,
+   with results from the demo's stand-in model. A configured but unreachable runner is reported, never simulated. */
+const SIM={mode:'ui'};
+const simRunner=()=>!RUNNER.configured;
+function simSubmit(cr){
+  const est=run(S).irr,job='SIM-'+cr.id;cr.em={status:'queued',estIrr:est,proj:PROJ.id,job,sim:true};renderApprovals();
+  logEvent({kind:'runner',actor:'Bohio runner (simulated)',channel:'Runner',detail:`${cr.id}: EstateMaster job ${job} queued (simulated runner): all ${Object.keys(runnerInputs()).length} inputs of the working copy written to the control workbook (${scenName(S)||'base case'})`,cr:cr.id});saveMem();
+  setTimeout(()=>{if(cr.em.job!==job)return;cr.em.status='running';renderApprovals();
+    setTimeout(()=>{if(cr.em.job!==job)return;
+      if(SIM.mode==='manual')runnerDone(cr,{status:'needs_person',reason:'simulated automation failure',task:`Open ${slug()}.emdf in EstateMaster, press Office Links → Refresh, recalculate, then Office Links → Excel and save the export in C:\\Bohio\\runner\\work\\exports\\${job}. Then press Collect on ${cr.id} in the Bohio app.`});
+      else runnerDone(cr,{status:'done',seconds:3.1,outputs:{levered_irr:+(est*100).toFixed(2)},missing:[]})},1800)},900);
+}
 async function runnerSubmit(cr){
-  if(!runnerLive())return;
+  if(simRunner())return simSubmit(cr);
+  if(!runnerLive()){cr.em={status:'failed',error:'runner configured but not reachable'};logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: not sent to EstateMaster: the runner is configured but not reachable. Approved in the agent; EstateMaster not updated yet.`,cr:cr.id});renderApprovals();saveMem();return}
   const h=RUNNER.health||{};if(h.models&&!h.models.includes(PROJ.id)){cr.em={status:'failed',error:`${PROJ.name} (${PROJ.id}) is not connected on the runner`};logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: not sent to EstateMaster: model ${PROJ.id} is not in the runner’s models.json`,cr:cr.id});renderApprovals();saveMem();return}
   cr.em={status:'queued',estIrr:run(S).irr,proj:PROJ.id};renderApprovals();
   try{const j=await runnerPost({action:'submit',model:PROJ.id,inputs:runnerInputs(),cr_id:cr.id,requested_by:cr.decidedBy});cr.em.job=j.job_id;
-    logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster job ${j.job_id} queued (all ${Object.keys(runnerInputs()).length} inputs written to the control workbook)`,cr:cr.id});saveMem();runnerPoll(cr)}
+    logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster job ${j.job_id} queued: all ${Object.keys(runnerInputs()).length} inputs of the working copy written to the control workbook (${scenName(S)||'base case'})`,cr:cr.id});saveMem();runnerPoll(cr)}
   catch(e){cr.em={status:'failed',error:e.message};logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: runner did not accept the job (${e.message}). Approved in the agent; EstateMaster not updated yet.`,cr:cr.id});renderApprovals();saveMem()}
 }
 async function runnerPoll(cr,n=0){
@@ -1775,22 +1787,23 @@ async function runnerPoll(cr,n=0){
 }
 function runnerDone(cr,j){
   const em=cr.em;em.status=j.status;
-  if(j.status==='needs_person'){em.task=j.task;logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster needs a person (${j.reason}). Task: ${j.task}`,cr:cr.id});toast(`${cr.id}: one-minute EstateMaster task for an analyst`)}
+  if(j.status==='needs_person'){em.task=j.task;logEvent({kind:'runner',actor:em.sim?'Bohio runner (simulated)':'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster needs a person (${j.reason}). Task: ${j.task}`,cr:cr.id});toast(`${cr.id}: one-minute EstateMaster task for an analyst`)}
   else if(/^done/.test(j.status)){const o=j.outputs||{};em.out=o;em.missing=j.missing||[];em.seconds=j.seconds;
     const irr=o.levered_irr;let txt=`${cr.id}: EstateMaster recalculated${j.seconds?` in ${j.seconds}s`:''}`;
     if(Number.isFinite(irr)){em.gap=(irr/100-em.estIrr)*100;txt+=`: levered IRR ${irr.toFixed(2)}% (agent estimate ${fP(em.estIrr)}, gap ${em.gap>=0?'+':''}${em.gap.toFixed(2)}pp)${Math.abs(em.gap)>.2?'. Gap above 0.2pp: EstateMaster’s figure stands and the estimate is flagged for refitting':''}`}
     if(em.missing.length)txt+=`. Not found in the export: ${em.missing.join(', ')}`;
-    logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:txt,cr:cr.id});toast(txt.slice(0,120))}
+    if(em.sim)txt+=' (simulated runner: stand-in model)';logEvent({kind:'runner',actor:em.sim?'Bohio runner (simulated)':'Bohio runner',channel:'Runner',detail:txt,cr:cr.id});toast(txt.slice(0,120))}
   else{em.error=j.error||j.status;logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster run failed (${em.error}). Nothing was reported.`,cr:cr.id})}
   renderApprovals();saveMem();
 }
 async function runnerCollect(id){
   const cr=APQ.find(c=>c.id===id);if(!cr||!cr.em||!cr.em.job)return;
+  if(cr.em.sim){cr.em.task=null;return runnerDone(cr,{status:'done',outputs:{levered_irr:+(cr.em.estIrr*100).toFixed(2)},missing:[]})}
   try{const j=await runnerPost({action:'collect',job_id:cr.em.job});runnerDone(cr,j)}catch(e){toast(e.message)}
 }
 function emLine(c){const m=c.em;if(!m)return'';
   const st={queued:'queued on the runner',running:'EstateMaster running…',needs_person:'waiting for an analyst',done:'recalculated by EstateMaster',done_with_gaps:'recalculated by EstateMaster (some outputs not found)',failed:'runner failed',timeout:'no answer from the runner'}[m.status]||m.status;
-  return`<div style="font-size:12.5px;margin:4px 0;padding:6px 8px;background:rgba(0,9,25,.04);border-radius:8px"><b>EstateMaster:</b> ${esc(st)}${m.out&&Number.isFinite(m.out.levered_irr)?` · levered IRR <b>${m.out.levered_irr.toFixed(2)}%</b> (estimate ${fP(m.estIrr)})`:''}${m.error?' · '+esc(m.error):''}${m.task?`<br>${esc(m.task)}<br><button class="btn sm" style="margin-top:4px" data-collect="${c.id}">Collect EstateMaster results</button>`:''}</div>`}
+  return`<div style="font-size:12.5px;margin:4px 0;padding:6px 8px;background:rgba(0,9,25,.04);border-radius:8px"><b>EstateMaster${m.sim?' (simulated runner)':''}:</b> ${esc(st)}${m.out&&Number.isFinite(m.out.levered_irr)?` · levered IRR <b>${m.out.levered_irr.toFixed(2)}%</b> (estimate ${fP(m.estIrr)})`:''}${m.error?' · '+esc(m.error):''}${m.task?`<br>${esc(m.task)}<br><button class="btn sm" style="margin-top:4px" data-collect="${c.id}">Collect EstateMaster results</button>`:''}</div>`}
 
 /* ================= PROJECTS AND MODEL TEMPLATES ================= */
 /* A new model reuses a previous project's EstateMaster structure (sections, lines, units, logic).
@@ -2721,7 +2734,7 @@ $('#nk_parse').onclick=()=>{Object.assign(NK,{gfa:0,price:0,rent:0,land:0},parse
 $('#nk_text').onkeydown=e=>{if(e.key==='Enter')$('#nk_parse').click()};
 $('#nkNext').onclick=nkNext;document.addEventListener('click',e=>{const s_=e.target.closest('[data-nks]');if(s_&&NKDEF&&!NKDEF.err){NKSTEP=Math.min(4,+s_.dataset.nks);renderLadder()}});
 $('#projSel').onchange=e=>switchProject(e.target.value);
-$('#nmOpen').onclick=()=>openNewModel();$('#cwDown').onclick=cwDownload;$('#cwConn').onclick=()=>$('#cwFile').click();$('#cwFile').onchange=e=>{const f=e.target.files[0];if(f)cwPick(f);e.target.value=''};$('#nmCancel').onclick=()=>$('#nmModal').classList.remove('on');
+$('#nmOpen').onclick=()=>openNewModel();$('#cwDown').onclick=cwDownload;$('#simMode').onchange=e=>{SIM.mode=e.target.value;toast(SIM.mode==='manual'?'Demo runner: the next approved change will need an analyst':'Demo runner: automation works')};$('#cwConn').onclick=()=>$('#cwFile').click();$('#cwFile').onchange=e=>{const f=e.target.files[0];if(f)cwPick(f);e.target.value=''};$('#nmCancel').onclick=()=>$('#nmModal').classList.remove('on');
 ['nmTpl','nmPlot','nmName','nmLand'].forEach(i=>$('#'+i).addEventListener(i==='nmName'||i==='nmLand'?'input':'change',previewNewModel));$$('input[name=nmFill]').forEach(r=>r.onchange=previewNewModel);
 $('#nmCreate').onclick=()=>{previewNewModel();if(NM.err)return;const cr=raiseNewModel(NM,`${USERS.web} (${WS_ROLE})`,'Workspace');$('#nmModal').classList.remove('on');showTab('appr');toast(`${cr.id} raised: approve it to create "${NM.name}" in EstateMaster`)};
 $('#nmModal').onclick=e=>{if(e.target.id==='nmModal')$('#nmModal').classList.remove('on')};
@@ -2755,7 +2768,7 @@ addMsg('agent','<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixe
 wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
 wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
 const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',channel:'System',detail:'Demo started: working copy BHO_SBX opened from the approved EstateMaster base case'});scanEmails('06:00',true)}else logEvent({kind:'session',actor:'System',channel:'System',detail:`Session resumed: ${LOG.length} entries and ${APQ.length} change requests restored from memory`});
-renderProjectUI();syncHeatSel();resetE();renderAll(false);renderEng();checkProxy();checkRunner();renderApprBadge();
+renderProjectUI();syncHeatSel();resetE();renderAll(false);renderEng();checkProxy();checkRunner();renderRunnerNote();renderApprBadge();
 if(/[?&#]debug\b/.test(location.href))setTimeout(showDiagnostics,300);
 </script>
 </body>
