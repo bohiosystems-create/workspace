@@ -20,7 +20,14 @@ Pulls purchase orders and supplier invoices from **Oracle Fusion Cloud Procureme
 - **Mapping:** vendors are matched by Oracle *Supplier Number* (`Vendor.oracleSupplierNumber`); invoices are matched to campaigns via the PO / description containing the campaign name.
 - Live mode has **not been tested against a real Oracle instance**; field names follow the Fusion REST docs and are isolated in `mapInvoice` / `mapPurchaseOrder` in `lib/oracle.ts` for tenant-specific adjustment.
 
-## Recommendations & vendor emails (`/actions`)
+## Assistant (chat) — recommendations & vendor emails
+
+A chat assistant ("Ask" button, bottom-right of every page) answers questions about vendors, campaigns, results, sales conversion and supplier invoices, and hosts the recommendations: it shows them as cards and drafts vendor emails inside the conversation. (There is no separate Recommendations page.)
+
+- **Engine:** with `ANTHROPIC_API_KEY` set, Claude answers from a snapshot of the data using tools (`lib/chat-ai.ts`; `CHAT_WITH_AI=off` to disable). Without a key — and in the static demo — a built-in rules answerer handles the common questions (`lib/chat.ts`), and the UI says so.
+- **Claude can only draft.** Its tools are `show_recommendations` and `draft_email`; there is no tool to send or approve.
+
+### Recommendations and emails
 
 The agent turns vendor performance (`lib/marketing.ts`) and Oracle reconciliation (`lib/invoices.ts`) into a prioritised list (`lib/recommendations.ts`):
 SLA breaches, contracts ending soon, campaigns not converting, invoice exceptions, delivered-but-not-invoiced, late payments, budget moves, and who to scale.
@@ -50,4 +57,4 @@ Layout: `lib/marketing.ts` (compute, alerts, recommendations, actions) · `app/a
 
 ## Static demo
 
-`npx tsx scripts/dump-data.ts && node scripts/build-demo.mjs` builds a single-file `demo.html` (both pages, in-memory data, offline).
+`npx tsx scripts/dump-data.ts && node scripts/build-demo.mjs` builds a single-file `demo.html` (all pages + assistant, in-memory data, offline).

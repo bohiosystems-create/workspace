@@ -3,7 +3,6 @@
 const LINKS = [
   { href: "/", label: "Vendors & Campaigns" },
   { href: "/invoices", label: "Supplier Invoices" },
-  { href: "/actions", label: "Recommendations" },
 ];
 
 export default function Header() {

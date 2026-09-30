@@ -234,3 +234,13 @@ textarea { min-height: 200px; line-height: 1.6; resize: vertical; font-size: 12p
 .in:focus { border-color: var(--ink); }
 .in[readonly] { color: var(--ink-soft); background: rgba(0,9,25,0.03); }
 details > summary { list-style: none; }
+
+/* chat assistant */
+.chat-fab { position: fixed; right: 22px; bottom: 22px; z-index: 50; background: var(--ink); color: var(--bg); border: none; font-family: inherit; font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; font-weight: 700; padding: 16px 24px; cursor: pointer; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 24px rgba(0,9,25,0.25); }
+.chat-fab:hover { opacity: 0.9; }
+.chat-badge { background: var(--bg); color: var(--ink); border-radius: 10px; padding: 1px 7px; font-size: 10px; letter-spacing: 0; }
+.chat-badge.hot { background: var(--alert); color: #fff; }
+.chat-drawer { position: fixed; right: 16px; bottom: 16px; z-index: 50; width: 460px; max-width: calc(100vw - 32px); height: min(780px, calc(100vh - 32px)); background: var(--paper); border: 1px solid var(--ink); display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,9,25,0.3); }
+.chat-drawer .chat-log { min-height: 0; }
+.chat-drawer .kmsg { font-size: 12px; }
+@media (max-width: 560px) { .chat-drawer { right: 0; bottom: 0; width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; border: none; } }
