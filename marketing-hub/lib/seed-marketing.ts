@@ -35,12 +35,12 @@ const ASSETS = [
 ];
 
 const VENDORS = [
-  { name: "Tasweeq Digital", oracleSupplierNumber: "10231", category: "Performance media", model: "Media buy", retainerK: 18, slaResponseHrs: 4, slaQualifiedPct: 20, contractEnd: "2026-12-31", contact: "Layla Nasser" },
-  { name: "PropertyHub KSA", oracleSupplierNumber: "10307", category: "Property portal", model: "Media buy", retainerK: 0, slaResponseHrs: 6, slaQualifiedPct: 25, contractEnd: "2026-07-31", contact: "Omar Zahrani" },
-  { name: "Mubasher Brokerage Network", oracleSupplierNumber: "10412", category: "Broker network", model: "Commission", retainerK: 0, slaResponseHrs: 12, slaQualifiedPct: 55, contractEnd: "2027-03-31", contact: "Khalid Otaibi" },
-  { name: "Nakhla Communications", oracleSupplierNumber: "10188", category: "PR & brand", model: "Retainer", retainerK: 45, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-08-31", contact: "Rania Habib" },
-  { name: "Hajar Outdoor", oracleSupplierNumber: "10275", category: "Outdoor", model: "Media buy", retainerK: 0, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-06-30", contact: "Faisal Qahtani" },
-  { name: "Sada Influence", oracleSupplierNumber: "10519", category: "Influencer", model: "Retainer", retainerK: 12, slaResponseHrs: 8, slaQualifiedPct: 15, contractEnd: "2026-09-30", contact: "Noor Bakri" },
+  { name: "Tasweeq Digital", email: "layla.nasser@tasweeq-digital.example", oracleSupplierNumber: "10231", category: "Performance media", model: "Media buy", retainerK: 18, slaResponseHrs: 4, slaQualifiedPct: 20, contractEnd: "2026-12-31", contact: "Layla Nasser" },
+  { name: "PropertyHub KSA", email: "omar.zahrani@propertyhub-ksa.example", oracleSupplierNumber: "10307", category: "Property portal", model: "Media buy", retainerK: 0, slaResponseHrs: 6, slaQualifiedPct: 25, contractEnd: "2026-07-31", contact: "Omar Zahrani" },
+  { name: "Mubasher Brokerage Network", email: "khalid.otaibi@mubasher-brokers.example", oracleSupplierNumber: "10412", category: "Broker network", model: "Commission", retainerK: 0, slaResponseHrs: 12, slaQualifiedPct: 55, contractEnd: "2027-03-31", contact: "Khalid Otaibi" },
+  { name: "Nakhla Communications", email: "rania.habib@nakhla-comms.example", oracleSupplierNumber: "10188", category: "PR & brand", model: "Retainer", retainerK: 45, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-08-31", contact: "Rania Habib" },
+  { name: "Hajar Outdoor", email: "faisal.qahtani@hajar-outdoor.example", oracleSupplierNumber: "10275", category: "Outdoor", model: "Media buy", retainerK: 0, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-06-30", contact: "Faisal Qahtani" },
+  { name: "Sada Influence", email: "noor.bakri@sada-influence.example", oracleSupplierNumber: "10519", category: "Influencer", model: "Retainer", retainerK: 12, slaResponseHrs: 8, slaQualifiedPct: 15, contractEnd: "2026-09-30", contact: "Noor Bakri" },
 ];
 
 const CAMPAIGNS: CampaignSpec[] = [

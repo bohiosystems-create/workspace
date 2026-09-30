@@ -20,6 +20,20 @@ Pulls purchase orders and supplier invoices from **Oracle Fusion Cloud Procureme
 - **Mapping:** vendors are matched by Oracle *Supplier Number* (`Vendor.oracleSupplierNumber`); invoices are matched to campaigns via the PO / description containing the campaign name.
 - Live mode has **not been tested against a real Oracle instance**; field names follow the Fusion REST docs and are isolated in `mapInvoice` / `mapPurchaseOrder` in `lib/oracle.ts` for tenant-specific adjustment.
 
+## Recommendations & vendor emails (`/actions`)
+
+The agent turns vendor performance (`lib/marketing.ts`) and Oracle reconciliation (`lib/invoices.ts`) into a prioritised list (`lib/recommendations.ts`):
+SLA breaches, contracts ending soon, campaigns not converting, invoice exceptions, delivered-but-not-invoiced, late payments, budget moves, and who to scale.
+Items that need the vendor get a drafted email (built-in templates that may only cite the evidence; Claude can optionally tighten the wording — `lib/email-ai.ts`, off with `DRAFT_WITH_AI=off`).
+
+**Nothing is sent without a human.** The only path to delivery is *Approve & send*, which requires:
+a named approver, the exact revision they reviewed (edits bump the revision and re-lock approval), and the "I have read this message" confirmation.
+The recipient is fixed to the vendor's account manager; only cc is editable. One email per recommendation; every send is audited.
+
+- **Outlook (Microsoft Graph, `lib/outlook.ts`):** `OUTLOOK_MODE=mock` (default) records the send but delivers nothing and says so in the UI. `OUTLOOK_MODE=live` uses an Entra app registration (`MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`) and `OUTLOOK_SENDER`; `OUTLOOK_DELIVERY=send` uses `sendMail`, `OUTLOOK_DELIVERY=draft` only creates the message in the sender's Outlook Drafts for a person to send.
+- Restrict the app registration's `Mail.Send` to the one mailbox with an Exchange ApplicationAccessPolicy.
+- Vendor addresses in the sample data are `.example` placeholders. Live Graph calls have not been tested against a real tenant.
+
 ## Run
 
 ```bash

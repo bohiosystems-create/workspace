@@ -27,6 +27,8 @@ model Vendor {
   contractEnd     DateTime
   contact         String
   oracleSupplierNumber String? // Supplier Number in Oracle Fusion Procurement
+  email           String? // account-manager address used for outbound mail
+  emails          OutboundEmail[]
   campaigns       Campaign[]
   invoices        SupplierInvoice[]
   purchaseOrders  PurchaseOrder[]
@@ -125,4 +127,34 @@ model IntegrationSync {
   invoices  Int
   purchaseOrders Int
   note      String?
+}
+
+// ---- Recommendations & outbound email (human-approved) ----------------------
+
+// Recommendations are computed from live data; only their triage state is stored.
+model RecommendationState {
+  key       String   @id
+  status    String // DISMISSED
+  updatedAt DateTime @default(now())
+}
+
+model OutboundEmail {
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now())
+  recKey       String
+  vendor       Vendor    @relation(fields: [vendorId], references: [id])
+  vendorId     String
+  toAddress    String
+  ccAddresses  String    @default("") // comma-separated
+  subject      String
+  body         String
+  drafter      String // template | claude
+  revision     Int       @default(1) // bumped on every edit; approval must match
+  status       String    @default("DRAFT") // DRAFT | SENT | REJECTED | FAILED
+  approvedBy   String?
+  approvedAt   DateTime?
+  sentAt       DateTime?
+  delivery     String? // mock | send | draft
+  providerRef  String?
+  error        String?
 }

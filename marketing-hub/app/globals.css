@@ -228,3 +228,9 @@ textarea { min-height: 200px; line-height: 1.6; resize: vertical; font-size: 12p
 .logrow { display: flex; gap: 12px; font-size: 11px; padding: 8px 0; border-bottom: 1px solid var(--ink-hairline); }
 .logrow:last-child { border-bottom: none; }
 .logrow .lt { width: 96px; flex-shrink: 0; color: var(--ink-soft); font-family: "Courier New", monospace; font-size: 10px; }
+
+/* recommendations / email editor */
+.in { width: 100%; background: transparent; border: 1px solid var(--ink-hairline); color: var(--ink); font-family: inherit; font-size: 12px; padding: 9px 11px; outline: none; }
+.in:focus { border-color: var(--ink); }
+.in[readonly] { color: var(--ink-soft); background: rgba(0,9,25,0.03); }
+details > summary { list-style: none; }

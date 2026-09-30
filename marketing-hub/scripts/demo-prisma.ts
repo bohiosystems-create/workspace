@@ -18,11 +18,15 @@ function table(rows: any[]) {
     },
     count: async () => rows.length,
     create: async ({ data: d }: any) => {
-      const row = { id: "r" + Math.random().toString(36).slice(2), createdAt: new Date(), decision: "PENDING", decisionNote: null, decidedAt: null, ...d };
+      const row = { id: "r" + Math.random().toString(36).slice(2), createdAt: new Date(), decision: "PENDING", decisionNote: null, decidedAt: null, approvedBy: null, approvedAt: null, sentAt: null, delivery: null, providerRef: null, error: null, ...d };
       rows.push(row);
       return row;
     },
-    update: async ({ where, data: d }: any) => Object.assign(rows.find((r) => r.id === where.id), d),
+    update: async ({ where, data: d }: any) => Object.assign(rows.find((r) => (where.id ? r.id === where.id : r.key === where.key)), d),
+    delete: async ({ where }: any) => {
+      const i = rows.findIndex((r) => r.key === where.key || r.id === where.id);
+      if (i >= 0) rows.splice(i, 1);
+    },
   };
 }
 
@@ -30,6 +34,8 @@ export const prisma = {
   supplierInvoice: table([]),
   purchaseOrder: table([]),
   integrationSync: table([]),
+  recommendationState: table([]),
+  outboundEmail: table([]),
   vendor: { findMany: async () => data.vendors, count: async () => data.vendors.length },
   campaign: {
     findMany: async () => data.campaigns,

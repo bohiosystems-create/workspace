@@ -3,7 +3,9 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import Page from "../app/page";
 import InvoicesPage from "../app/invoices/page";
+import ActionsPage from "../app/actions/page";
 import { buildMarketingDashboard, applyAction } from "../lib/marketing";
+import { buildRecommendations, handleRecommendationRequest } from "../lib/recommendations";
 import { ensureOracleSynced, syncOracle, buildInvoiceDashboard, applyInvoiceAction } from "../lib/invoices";
 
 const json = (o: any) => new Response(JSON.stringify(o), { headers: { "Content-Type": "application/json" } });
@@ -21,6 +23,14 @@ function vendorNote(d: any, id: string) {
 
 window.fetch = (async (input: any, init?: any) => {
   const url = String(input?.url ?? input);
+  if (url.includes("/api/recommendations")) {
+    try {
+      if (init?.method === "POST") await handleRecommendationRequest(JSON.parse(init.body)); // template drafts only in the demo
+      return json(await buildRecommendations());
+    } catch (e: any) {
+      return json({ error: e.message });
+    }
+  }
   if (url.includes("/api/invoices")) {
     try {
       await ensureOracleSynced();
@@ -54,7 +64,7 @@ window.fetch = (async (input: any, init?: any) => {
 const root = createRoot(document.getElementById("root")!);
 const show = (path: string) => {
   (window as any).__demoPath = path;
-  root.render(<React.Fragment key={path}>{path === "/invoices" ? <InvoicesPage /> : <Page />}</React.Fragment>);
+  root.render(<React.Fragment key={path}>{path === "/invoices" ? <InvoicesPage /> : path === "/actions" ? <ActionsPage /> : <Page />}</React.Fragment>);
 };
 document.addEventListener("click", (e) => {
   const a = (e.target as HTMLElement).closest("a[href^='/']");
