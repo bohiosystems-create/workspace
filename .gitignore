@@ -1,1 +1,5 @@
 __pycache__/
+estatemaster-agent/runner/models.json
+estatemaster-agent/runner/work/
+estatemaster-agent/runner/probe_out/
+estatemaster-agent/runner/trial_out/

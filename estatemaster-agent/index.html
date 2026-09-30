@@ -305,7 +305,7 @@ table.t td.n,table.t th.n{text-align:right}
 </header>
 
 <div class="conn">
-  <div class="cn dk"><span class="dot ok"></span><div><b>EstateMaster · runner</b><small>All returns calculated by EstateMaster · live-linked model copy BHO_SBX · SQL Server for actuals (demo: simulated)</small></div><div class="n">INTEGRATION</div></div>
+  <div class="cn dk"><span class="dot ok"></span><div><b>EstateMaster · runner</b><small id="emStrip">All returns calculated by EstateMaster · control workbook + runner · SQL Server for actuals (demo: simulated)</small></div><div class="n">INTEGRATION</div></div>
   <div class="cn"><span class="dot"></span><div><b>Market data</b><small>Transactions · rentals · zoning rules · dummy dataset</small></div><div class="n">3 FEEDS</div></div>
   <div class="cn"><span class="dot"></span><div><b>Outlook · Microsoft Graph</b><small id="ibFolder">Read-only · folder "Al Narjis" · context for assumption changes</small></div><div class="n">EMAIL</div></div>
 </div>
@@ -536,8 +536,8 @@ table.t td.n,table.t th.n{text-align:right}
 <!-- MODEL DATA -->
 <section class="pane" id="p-model">
   <div class="card">
-    <div class="bar"></div><div class="sbhead"><h2>Model data: every assumption</h2><button class="btn sm" id="nmOpen">New model from template</button><input id="regQ" placeholder="Search assumptions" style="border:1px solid var(--faint);border-radius:999px;padding:7px 14px;font-size:13px;min-width:0;width:220px"></div>
-    <div class="sub" style="margin-top:4px" id="regSub"></div>
+    <div class="bar"></div><div class="sbhead"><h2>Model data: every assumption</h2><button class="btn sm" id="nmOpen">New model from template</button><button class="btn ghost sm" id="cwDown" title="The KINAN control workbook with this model’s current values">Control workbook</button><button class="btn sm" id="cwConn" title="Connect a control workbook prepared with the Copilot setup agent">Connect control workbook</button><input type="file" id="cwFile" accept=".xlsx,.xlsm,.xls" hidden><input id="regQ" placeholder="Search assumptions" style="border:1px solid var(--faint);border-radius:999px;padding:7px 14px;font-size:13px;min-width:0;width:220px"></div>
+    <div class="sub" style="margin-top:4px" id="regSub"></div><div id="cwRes"></div>
     <div class="sub">Edit any line (or ask the agent, e.g. "increase MEP by 10%" or "set contingency to 7%"). Changes go to the sandbox copy and EstateMaster recalculates.</div>
     <table class="t" id="modT"></table>
   </div>
@@ -590,14 +590,15 @@ table.t td.n,table.t th.n{text-align:right}
   <div class="grid g2">
     <div class="card">
       <div class="bar"></div><h2>How the agent operates EstateMaster</h2>
-      <div class="sub">Every return is calculated by EstateMaster itself. Bohio runs it on a server and drives it the way an analyst would, through its data links rather than the screen.</div>
+      <div class="sub">Every return is calculated by EstateMaster itself. EstateMaster has no API, so inputs and results go through Excel, and the runner presses EstateMaster’s buttons the way an analyst would.</div>
       <div class="rec">
-        <div class="it"><div class="num">1</div><div><b>Runner</b><span>A Windows VM (Azure, Saudi region) with licensed EstateMaster and Excel, plus a Bohio runner service that takes jobs from the agent.</span></div></div>
-        <div class="it"><div class="num">2</div><div><b>Write inputs</b><span>The runner opens a copy of the project model (BHO_SBX) and writes the scenario's assumptions into its live-linked Excel inputs.</span></div></div>
-        <div class="it"><div class="num">3</div><div><b>Recalculate and read back</b><span>EstateMaster refreshes the link and recalculates; KPIs, cash flows and report tables come back the same way, stamped with a job ID and stored in SQL Server.</span></div></div>
-        <div class="it"><div class="num">4</div><div><b>Scale</b><span>One run takes seconds. Stress libraries and sensitivity grids queue across several runners. The fast replica only screens; anything that is reported is re-run here.</span></div></div>
-        <div class="it"><div class="num">!</div><div><b>Confirm with Altus</b><span>Unattended use on a server licence, and whether EstateMaster exposes a native automation interface that could replace the Excel link. SQL Server stays for actuals and sales data.</span></div></div>
+        <div class="it"><div class="num">1</div><div><b>Setup, once per model (Copilot)</b><span>The Copilot setup agent fills the KINAN control workbook from the model’s Office Links export; an analyst checks it and connects it here (Model data → Connect control workbook), as a change request.</span></div></div>
+        <div class="it"><div class="num">2</div><div><b>Write approved inputs</b><span>After approval, the runner (Windows VM with licensed EstateMaster and Excel) writes the values into the control workbook’s fixed cells. Nothing unapproved is written.</span></div></div>
+        <div class="it"><div class="num">3</div><div><b>Operate EstateMaster</b><span>It opens the model, presses Office Links → Refresh, recalculates, exports to Excel, saves a copy and closes (Windows UI automation).</span></div></div>
+        <div class="it"><div class="num">4</div><div><b>Read back and reconcile</b><span>Results are read from EstateMaster’s export by row label, compared with the agent’s estimate and logged against the change request.</span></div></div>
+        <div class="it"><div class="num">!</div><div><b>Fallback and licence</b><span>If the automation fails, an analyst gets a one-minute task (open, Refresh, Export) and presses Collect. Confirm unattended use with Altus.</span></div></div>
       </div>
+      <div class="sub" id="rnStat" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <div class="bar"></div><h2>Task router</h2>
@@ -624,7 +625,7 @@ table.t td.n,table.t th.n{text-align:right}
         <div class="bar"></div><h2>Two-speed engine</h2>
         <div class="sub">Why the agent can run "infinite" scenarios</div>
         <div class="rec">
-          <div class="it"><div class="num">A</div><div><b>Fast engine: calibrated replica</b><span>Bohio rebuilds the project's cash-flow logic and calibrates it against EstateMaster outputs. Thousands of scenarios per second, used for exploration, Monte Carlo and heatmaps. <i>This demo runs on such a replica.</i></span></div></div>
+          <div class="it"><div class="num">A</div><div><b>Fast estimate</b><span>An estimator fitted to EstateMaster’s own results from the runner: instant answers and wide scans (explorer, Monte Carlo, heatmaps), always labelled as estimates. <i>This demo runs on a simplified stand-in.</i></span></div></div>
           <div class="it"><div class="num">B</div><div><b>Truth engine: EstateMaster</b><span>Anything that goes into a report or an IC decision is re-run in EstateMaster by the runner and reconciled to the replica. Findings are flagged "verified" only after that.</span></div></div>
         </div>
       </div>
@@ -1128,7 +1129,7 @@ async function handle(text,ch,role,forced){
     const res=ids.map(id=>it.k==='approve'?approveCR(id,ch,r_):rejectCR(id,ch,r_));
     out.steps=ids.map(id=>`${it.k==='approve'?'Approve':'Reject'} ${id} · ${web?USERS.web:USERS.wa} (${r_})`).concat(it.k==='approve'?['Step-up check passed (one-time code, demo)',rf(),'Write audit record']:['Write audit record']);
     out.link=['appr','Open approvals'];
-    done(res.map((x,i)=>x.err?`*${ids[i]}:* ${x.err}`:`*${ids[i]} ${it.k==='approve'?'approved':'rejected'}* by ${x.who}.${it.k==='approve'?(x.cr.kind==='promotion'?' Live EstateMaster model updated by the runner.':x.cr.kind==='newmodel'?` Runner created the EstateMaster model; workspace switched to ${x.cr.def.name}.`:' Written to the EstateMaster working copy.'):' Nothing was written.'}`).join('\n')+`\nLogged in the change history.`);
+    done(res.map((x,i)=>x.err?`*${ids[i]}:* ${x.err}`:`*${ids[i]} ${it.k==='approve'?'approved':'rejected'}* by ${x.who}.${it.k==='approve'?(x.cr.kind==='promotion'?' Live EstateMaster model updated by the runner.':x.cr.kind==='newmodel'?` Runner created the EstateMaster model; workspace switched to ${x.cr.def.name}.`:(runnerLive()?' Sent to the EstateMaster runner; results follow here.':' Written to the EstateMaster working copy.')):' Nothing was written.'}`).join('\n')+`\nLogged in the change history.`);
     break}
   default:{
     done('*I can:*\n• "What if sale price drops 10% and cost +15%"\n• "Stress test the model"\n• "Sensitivity of exit cap vs construction cost"\n• "Keep exploring autonomously"\n• "How far can prices fall?"\n• "Check Outlook for assumption changes"\n• "Why did construction cost change?"\n• "Check assumptions against market data"\n• "Is the scheme compliant with zoning?"\n• "Build the IC report"\n• "Promote scenario"');
@@ -1294,8 +1295,8 @@ function approveCR(id,ch,role){
     applyOpsRaw(cr.ops);
     cr.ops.forEach(o=>{if(o.src){const e=DATA.emails.find(x=>x.id===o.src.eid);const k=o.t==='line'?drvOfLine(o.id):Object.keys(o.mods||{})[0];if(e&&k)SRC[k]={e,quote:o.src.quote};if(e)EM.applied[e.id]=true}else{const k=o.t==='line'?drvOfLine(o.id):o.t==='mods'?Object.keys(o.mods)[0]:null;if(k)delete SRC[k]}});
     cr.status='approved';cr.decidedBy=who;cr.decidedAt=new Date().toISOString();
-    logEvent({kind:'approved',actor:who,channel:ch==='wa'?'WhatsApp':'Workspace',detail:`${id} approved and written to EstateMaster working copy BHO_SBX: ${opsDesc(cr.ops)}`,cr:id});
-    renderAll(true);
+    logEvent({kind:'approved',actor:who,channel:ch==='wa'?'WhatsApp':'Workspace',detail:cr.kind==='connect'?`${id} approved: control workbook ${cr.file} connected to ${PROJ.name}${cr.ops.length?' and '+cr.ops.length+' value(s) written: '+opsDesc(cr.ops):' (values already matched the model)'}`:`${id} approved and written to ${runnerLive()?'the control workbook for the EstateMaster runner':'EstateMaster working copy BHO_SBX'}: ${opsDesc(cr.ops)}`,cr:id});
+    renderAll(true);runnerSubmit(cr);
   }
   renderApprBadge();renderApprovals();renderInbox();saveMem();return{cr,who};
 }
@@ -1366,9 +1367,9 @@ function renderInbox(){
 function renderApprBadge(){const n=pendingCRs().length,t=document.querySelector('.tab[data-t=appr]');if(t)t.innerHTML=`Approvals${n?` <b style="background:var(--alert);color:#fff;border-radius:999px;padding:0 7px;font-size:11px;margin-left:4px">${n}</b>`:''}`}
 let logQ='';
 function crCard(c){
-  return`<div class="em ${c.status==='pending'?'on':''}" style="cursor:default"><div class="top"><span>${c.id} · ${c.kind==='email'?'email proposal':c.kind==='agent'?'AI agent proposal':c.kind==='suggestion'?'suggested change · '+esc(c.source||''):c.kind==='newmodel'?'new model':'promotion to live model'}${c.proj&&PROJECTS[c.proj]&&c.proj!==PROJ.id?' · '+esc(PROJECTS[c.proj].name):''} · raised by ${esc(c.by)}</span><span>${new Date(c.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span></div>
+  return`<div class="em ${c.status==='pending'?'on':''}" style="cursor:default"><div class="top"><span>${c.id} · ${c.kind==='email'?'email proposal':c.kind==='agent'?'AI agent proposal':c.kind==='suggestion'?'suggested change · '+esc(c.source||''):c.kind==='newmodel'?'new model':c.kind==='connect'?'model connection · '+(c.check?c.check.filled+'/'+c.check.lines+' values, '+c.check.warnings+' warnings':''):'promotion to live model'}${c.proj&&PROJECTS[c.proj]&&c.proj!==PROJ.id?' · '+esc(PROJECTS[c.proj].name):''} · raised by ${esc(c.by)}</span><span>${new Date(c.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span></div>
    <div class="sj">${esc(c.title)}</div>${c.kind==='newmodel'&&c.def?modelSummary(c.def):T(['Assumption','Current','Proposed'],c.rows,false)}
-   <div style="font-size:12.5px;margin:4px 0">${c.kind==='newmodel'?'First-pass levered IRR <b>'+fP(c.irrA)+'</b>':`Levered IRR ${fP(c.irrB)} → <b>${fP(c.irrA)}</b>`}${c.quote?` · source quote: "${esc(c.quote)}"`:''}${c.kind==='promotion'?' · needs an Investment Director':''}${c.why?`<br><span style="color:var(--ink2)">Why: ${esc(c.why)}</span>`:''}</div>
+   <div style="font-size:12.5px;margin:4px 0">${c.kind==='newmodel'?'First-pass levered IRR <b>'+fP(c.irrA)+'</b>':`Levered IRR ${fP(c.irrB)} → <b>${fP(c.irrA)}</b>`}${c.quote?` · source quote: "${esc(c.quote)}"`:''}${c.kind==='promotion'?' · needs an Investment Director':''}${c.why?`<br><span style="color:var(--ink2)">Why: ${esc(c.why)}</span>`:''}</div>${emLine(c)}
    ${c.status==='pending'?`<div style="display:flex;gap:8px;margin-top:6px"><button class="btn sm" data-apr="${c.id}">Approve</button><button class="btn ghost sm" data-rej="${c.id}">Reject</button></div>`:`<div style="font-size:12px;color:var(--soft)"><span class="pill ${c.status==='approved'?'p':'f'}">${c.status}</span> by ${esc(c.decidedBy)} · ${new Date(c.decidedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</div>`}</div>`;
 }
 function renderApprovals(){
@@ -1388,7 +1389,8 @@ async function exportLog(){
 }
 document.addEventListener('click',e=>{
   const m=e.target.closest('[data-em]');if(m){EM.sel=m.dataset.em;renderInbox()}
-  const a=e.target.closest('[data-apr]');if(a){const r=approveCR(a.dataset.apr,'web',WS_ROLE);toast(r.err||`${a.dataset.apr} approved · written to EstateMaster · logged`)}
+  const a=e.target.closest('[data-apr]');if(a){const r=approveCR(a.dataset.apr,'web',WS_ROLE);toast(r.err||`${a.dataset.apr} approved · ${runnerLive()?'sent to the EstateMaster runner':'written to EstateMaster'} · logged`)}
+  const cl=e.target.closest('[data-collect]');if(cl)runnerCollect(cl.dataset.collect);
   const j=e.target.closest('[data-rej]');if(j){const r=rejectCR(j.dataset.rej,'web',WS_ROLE);toast(r.err||`${j.dataset.rej} rejected · logged`)}
 });
 
@@ -1679,6 +1681,117 @@ function renderRegister(){
   const d=detailDiffs();$('#regSub').textContent=`${PROJ.name} · ${REG.filter(lineOn).length} assumptions extracted from EstateMaster · ${d.length} changed in the sandbox`;
 }
 
+
+/* ================= CONTROL WORKBOOK: Copilot setup agent → Bohio agent =================
+   Same layout as setup/KINAN_control_workbook_template.xlsx and runner/register_map.csv:
+   sheet "Inputs", headers on row 3, one register line per row from row 4 in REG order, value in column E. */
+const CW={FIRST:4};
+const UNIT_RANGE={'%':[0,100],'% of sales':[0,20],'% of rent':[0,60],'% of value':[0,20],'% of construction':[0,30],'% p.a.':[0,30],'SAR/sqm':[1,200000],'SAR/sqm/yr':[1,20000],'SAR/sqm GFA':[0,50000],'SAR M':[0,100000],'sqm':[1,1e7],'months':[0,120]};
+const UNIT_SPEC={cap:[1,20],sb:[0,20],mg:[0,10]};
+function cwInputsAoa(){
+  const rows=[['Assumption register: fill column E only'],['Column E is what EstateMaster reads through its Excel link. Columns F to I are the audit trail.'],['id','Section','Assumption','Unit','Value','Source in EstateMaster export','Mapped by','Confirmed (Y/N/N/A)','Notes']];
+  REG.forEach(l=>rows.push([l.id,l.g,l.label,l.unit,lineOn(l)?+lineVal(l.id).toFixed(4):null,lineOn(l)?'Bohio agent (current model)':'',lineOn(l)?'Bohio agent':'',lineOn(l)?'Y':'N/A',lineOn(l)?'':'Not used in '+PROJ.name]));return rows}
+async function cwDownload(){
+  try{await loadXLSX()}catch(e){toast(e.message);return}
+  const wb=XLSX.utils.book_new(),today=new Date().toISOString().slice(0,10);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['KINAN control workbook: the only place the Bohio agent writes EstateMaster inputs'],[''],['Fill column E of the Inputs sheet only. Do not insert or delete rows or columns, or rename sheets: the runner writes to fixed cells.'],['Percentages as percentages (7.5 means 7.5%). Lines not used by this project are marked N/A in column H.'],['Check with: py runner/control_check.py <file>, or Model data → Connect control workbook in the Bohio app.']]),'ReadMe');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Field','Value'],['Project name',PROJ.name],['Bohio model id',PROJ.id],['EstateMaster file (.emdf)',slug()+'.emdf'],['Prepared by','Bohio agent'],['Date',today],['Checked by',''],['Status (draft / checked / linked / live)','draft']]),'Project');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(cwInputsAoa()),'Inputs');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Export sheet','Export row label','Export value','Register id','Confidence (high/medium/low)','Comment']]),'Mapping');
+  XLSX.writeFile(wb,`${slug()}_control.xlsx`);logEvent({kind:'export',actor:USERS.web,channel:'Model data',detail:`Control workbook downloaded for ${PROJ.name}`});saveMem();
+}
+const cell=(ws,a)=>ws&&ws[a]?ws[a].v:null;
+function cwParse(wb){
+  const ws=wb.Sheets&&wb.Sheets.Inputs;if(!ws)return{fatal:'No "Inputs" sheet: this is not a KINAN control workbook. Start from the template (Control workbook button, or setup/KINAN_control_workbook_template.xlsx).'};
+  const res={errors:[],warnings:[],info:[],values:{},filled:0,lines:0};
+  REG.forEach((l,i)=>{const r=CW.FIRST+i,id=String(cell(ws,'A'+r)??'').trim(),raw=cell(ws,'E'+r),conf=String(cell(ws,'H'+r)??'').trim().toUpperCase();
+    if(id!==l.id){res.errors.push(`Row ${r}: expected line “${l.id}” (${l.label}) in column A, found “${id||'empty'}”. Rows were moved or deleted.`);return}
+    if(!lineOn(l)){if(raw!=null&&raw!=='')res.info.push(`${l.label}: not used in ${PROJ.name}, value ignored`);return}
+    res.lines++;
+    if(raw==null||raw===''){res.errors.push(`${l.label}: no value`);return}
+    const v=typeof raw==='number'?raw:parseFloat(String(raw).replace(/[,%\s]/g,''));
+    if(!Number.isFinite(v)){res.errors.push(`${l.label}: “${raw}” is not a number`);return}
+    const [lo,hi]=UNIT_SPEC[l.id]||UNIT_RANGE[l.unit]||[-Infinity,Infinity];
+    if(v<lo||v>hi){res.errors.push(`${l.label}: ${v} ${l.unit} is outside ${lo}–${hi}${/^%/.test(l.unit)&&v>0&&v<1?' (enter percentages as 7.5, not 0.075)':''}`);return}
+    const ref=(PROJ.regBase||{})[l.id];if(ref&&Math.abs(v/ref-1)>.6)res.warnings.push(`${l.label}: ${v} is far from the reference ${ref} ${l.unit}. ${/^%/.test(l.unit)&&v>0&&v<1&&ref>=2?'Percentages are entered as 7.5, not 0.075.':'Check the unit and the source row.'}`);
+    if(conf!=='Y')res.warnings.push(`${l.label}: not marked confirmed (column H)`);
+    res.values[l.id]=v;res.filled++});
+  const mp=wb.Sheets.Mapping;if(mp&&window.XLSX){const seen={};let un=0;XLSX.utils.sheet_to_json(mp,{header:1}).slice(1).forEach(r=>{if(!r||!r[1])return;if(!r[3]){un++;return}const k=String(r[3]).trim();if(seen[k])res.warnings.push(`${k}: mapped from two export rows (“${seen[k]}” and “${r[1]}”). Check it is not double-counted.`);seen[k]=r[1]});if(un)res.info.push(`${un} export row(s) have no register line: fine if they are totals or not used by the agent.`)}
+  res.ok=!res.errors.length;return res;
+}
+function cwOps(values){return REG.filter(l=>l.id in values&&Math.abs(values[l.id]-lineVal(l.id))>Math.max(1e-6,Math.abs(lineVal(l.id))*1e-6)).map(l=>({t:'line',id:l.id,v:values[l.id]}))}
+function cwConnect(name,wb){
+  const res=cwParse(wb),box=$('#cwRes'),li=(a,n=8)=>a.slice(0,n).map(x=>`<li>${esc(x)}</li>`).join('')+(a.length>n?`<li>… ${a.length-n} more</li>`:'');
+  if(res.fatal){box.innerHTML=`<div class="warn" style="margin:10px 0"><b>${esc(name)}:</b> ${esc(res.fatal)}</div>`;return res}
+  let html=`<div style="margin:10px 0;padding:10px 12px;border:1px solid var(--faint);border-radius:10px;font-size:13px"><b>${esc(name)}</b> · ${res.filled}/${res.lines} values · ${res.errors.length} error${res.errors.length===1?'':'s'} · ${res.warnings.length} warning${res.warnings.length===1?'':'s'}`;
+  if(res.errors.length)html+=`<div class="warn" style="margin-top:6px"><b>Not connected. Fix these in the workbook and connect again:</b><ul style="margin:4px 0 0 18px">${li(res.errors)}</ul></div>`;
+  if(res.warnings.length)html+=`<div style="margin-top:6px"><b>Check before approving:</b><ul style="margin:4px 0 0 18px">${li(res.warnings)}</ul></div>`;
+  if(res.info.length)html+=`<div style="margin-top:6px;color:var(--soft)"><ul style="margin:4px 0 0 18px">${li(res.info,3)}</ul></div>`;
+  if(res.ok){const ops=cwOps(res.values);const cr=raiseCR('connect','Copilot setup agent + analyst',`Connect control workbook: ${name}`,ops,{channel:'Model data',file:name,check:{filled:res.filled,lines:res.lines,warnings:res.warnings.length}});
+    html+=`<div style="margin-top:6px"><b>${cr.id}</b> raised for approval: ${ops.length?`${ops.length} value${ops.length>1?'s differ':' differs'} from the current model and will be written once approved`:'the workbook matches the current model, so approval only records the connection'}. See the Approvals tab.</div>`;renderApprovals();toast(`${cr.id}: control workbook ready for approval`)}
+  box.innerHTML=html+'</div>';
+  logEvent({kind:'check',actor:USERS.web,channel:'Model data',detail:`Control workbook ${name} checked: ${res.filled}/${res.lines} values, ${res.errors.length} errors, ${res.warnings.length} warnings`});saveMem();
+  return res;
+}
+async function cwPick(f){
+  try{await loadXLSX()}catch(e){toast(e.message);return}
+  try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});cwConnect(f.name,wb)}catch(e){$('#cwRes').innerHTML=`<div class="warn" style="margin:10px 0">Could not read ${esc(f.name)}: ${esc(e.message)}</div>`}
+}
+
+/* ================= RUNNER: approved changes are recalculated by EstateMaster itself =================
+   /api/runner forwards to the Windows runner (runner/em_runner.py). Without it, the demo's stand-in model answers. */
+const RUNNER={configured:false,reachable:false,health:null,checked:false};
+const runnerLive=()=>RUNNER.configured&&RUNNER.reachable;
+const runnerPost=b=>post('/api/runner',AI.pass?{'x-demo-pass':AI.pass}:{},b);
+async function checkRunner(){
+  if(!/^https?:/.test(location.protocol))return;
+  try{const r=await fetch('/api/runner');if(r.ok&&/json/.test(r.headers.get('content-type')||''))Object.assign(RUNNER,await r.json(),{checked:true})}catch(e){}
+  renderRunnerNote();
+  if(runnerLive())APQ.filter(c=>c.em&&c.em.job&&['queued','running'].includes(c.em.status)).forEach(c=>runnerPoll(c));
+}
+function runnerText(){
+  if(!RUNNER.checked)return'EstateMaster runner: not connected (set RUNNER_URL and RUNNER_TOKEN in Vercel). Approved changes run on the demo’s stand-in model.';
+  if(!RUNNER.configured)return'EstateMaster runner: not configured (RUNNER_URL, RUNNER_TOKEN). Approved changes run on the demo’s stand-in model.';
+  if(!RUNNER.reachable)return`EstateMaster runner: configured but not reachable${RUNNER.status?' (HTTP '+RUNNER.status+')':''}${RUNNER.error?' ('+RUNNER.error+')':''}. Check the runner service and the tunnel.`;
+  const h=RUNNER.health||{};return`EstateMaster runner: connected · mode ${h.mode==='manual'?'manual (a person presses Refresh and Export)':'automatic'} · models: ${(h.models||[]).join(', ')||'none connected'}${h.queued?` · ${h.queued} queued`:''}`;
+}
+function renderRunnerNote(){const e=$('#rnStat');if(e)e.textContent=runnerText();const st=$('#emStrip');if(st)st.textContent=runnerLive()?`All returns calculated by EstateMaster · runner connected (${(RUNNER.health||{}).mode==='manual'?'manual mode':'automatic'}) · SQL Server for actuals (demo: simulated)`:'All returns calculated by EstateMaster · control workbook + runner · SQL Server for actuals (demo: simulated)'}
+function runnerInputs(){return Object.fromEntries(REG.filter(lineOn).map(l=>[l.id,+lineVal(l.id).toFixed(6)]))}
+async function runnerSubmit(cr){
+  if(!runnerLive())return;
+  const h=RUNNER.health||{};if(h.models&&!h.models.includes(PROJ.id)){cr.em={status:'failed',error:`${PROJ.name} (${PROJ.id}) is not connected on the runner`};logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: not sent to EstateMaster: model ${PROJ.id} is not in the runner’s models.json`,cr:cr.id});renderApprovals();saveMem();return}
+  cr.em={status:'queued',estIrr:run(S).irr,proj:PROJ.id};renderApprovals();
+  try{const j=await runnerPost({action:'submit',model:PROJ.id,inputs:runnerInputs(),cr_id:cr.id,requested_by:cr.decidedBy});cr.em.job=j.job_id;
+    logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster job ${j.job_id} queued (all ${Object.keys(runnerInputs()).length} inputs written to the control workbook)`,cr:cr.id});saveMem();runnerPoll(cr)}
+  catch(e){cr.em={status:'failed',error:e.message};logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: runner did not accept the job (${e.message}). Approved in the agent; EstateMaster not updated yet.`,cr:cr.id});renderApprovals();saveMem()}
+}
+async function runnerPoll(cr,n=0){
+  if(!cr.em||!cr.em.job)return;
+  if(n>72){cr.em.status='timeout';logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: no result from EstateMaster after 6 minutes. Check the runner.`,cr:cr.id});renderApprovals();saveMem();return}
+  await sleep(5000);
+  let j;try{j=await runnerPost({action:'job',job_id:cr.em.job})}catch(e){return runnerPoll(cr,n+1)}
+  if(j.status==='queued'||j.status==='running'){cr.em.status=j.status;renderApprovals();return runnerPoll(cr,n+1)}
+  runnerDone(cr,j);
+}
+function runnerDone(cr,j){
+  const em=cr.em;em.status=j.status;
+  if(j.status==='needs_person'){em.task=j.task;logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster needs a person (${j.reason}). Task: ${j.task}`,cr:cr.id});toast(`${cr.id}: one-minute EstateMaster task for an analyst`)}
+  else if(/^done/.test(j.status)){const o=j.outputs||{};em.out=o;em.missing=j.missing||[];em.seconds=j.seconds;
+    const irr=o.levered_irr;let txt=`${cr.id}: EstateMaster recalculated${j.seconds?` in ${j.seconds}s`:''}`;
+    if(Number.isFinite(irr)){em.gap=(irr/100-em.estIrr)*100;txt+=`: levered IRR ${irr.toFixed(2)}% (agent estimate ${fP(em.estIrr)}, gap ${em.gap>=0?'+':''}${em.gap.toFixed(2)}pp)${Math.abs(em.gap)>.2?'. Gap above 0.2pp: EstateMaster’s figure stands and the estimate is flagged for refitting':''}`}
+    if(em.missing.length)txt+=`. Not found in the export: ${em.missing.join(', ')}`;
+    logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:txt,cr:cr.id});toast(txt.slice(0,120))}
+  else{em.error=j.error||j.status;logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster run failed (${em.error}). Nothing was reported.`,cr:cr.id})}
+  renderApprovals();saveMem();
+}
+async function runnerCollect(id){
+  const cr=APQ.find(c=>c.id===id);if(!cr||!cr.em||!cr.em.job)return;
+  try{const j=await runnerPost({action:'collect',job_id:cr.em.job});runnerDone(cr,j)}catch(e){toast(e.message)}
+}
+function emLine(c){const m=c.em;if(!m)return'';
+  const st={queued:'queued on the runner',running:'EstateMaster running…',needs_person:'waiting for an analyst',done:'recalculated by EstateMaster',done_with_gaps:'recalculated by EstateMaster (some outputs not found)',failed:'runner failed',timeout:'no answer from the runner'}[m.status]||m.status;
+  return`<div style="font-size:12.5px;margin:4px 0;padding:6px 8px;background:rgba(0,9,25,.04);border-radius:8px"><b>EstateMaster:</b> ${esc(st)}${m.out&&Number.isFinite(m.out.levered_irr)?` · levered IRR <b>${m.out.levered_irr.toFixed(2)}%</b> (estimate ${fP(m.estIrr)})`:''}${m.error?' · '+esc(m.error):''}${m.task?`<br>${esc(m.task)}<br><button class="btn sm" style="margin-top:4px" data-collect="${c.id}">Collect EstateMaster results</button>`:''}</div>`}
+
 /* ================= PROJECTS AND MODEL TEMPLATES ================= */
 /* A new model reuses a previous project's EstateMaster structure (sections, lines, units, logic).
    Previous projects below are dummy examples. */
@@ -1936,6 +2049,8 @@ function selfTest(){
   safe('Every AI tool maps to an action',()=>{const bad_=TOOLS.filter(t=>{const r=toolIntent0(t.name,{});return!r||r.k==='help'});ok('Every AI tool maps to an action',!bad_.length,`${TOOLS.length} tools${bad_.length?'; unmapped: '+bad_.map(t=>t.name).join(', '):''}`)});
   safe('Excel dataset embedded',()=>{const a=document.querySelector('a[download$=".xlsx"]');ok('Excel dataset embedded',a&&/^data:application/.test(a.href),a?Math.round(a.href.length/1024)+' KB':'missing')});
   safe('Change memory persists',()=>{let w=false;try{localStorage.setItem('bohioTest','1');w=localStorage.getItem('bohioTest')==='1';localStorage.removeItem('bohioTest')}catch(e){}ok('Change memory persists',w,w?`${LOG.length} entries, saved in this browser`:'browser storage blocked: memory lasts only for this session')});
+  safe('Control workbook round trip',()=>{const ws={};cwInputsAoa().forEach((row,i)=>row.forEach((v,j)=>{if(v!=null)ws[String.fromCharCode(65+j)+(i+1)]={v}}));const r=cwParse({Sheets:{Inputs:ws}});const ws2={...ws,E21:{v:'abc'}};const bad=cwParse({Sheets:{Inputs:ws2}});ok('Control workbook round trip',r.ok&&!cwOps(r.values).length&&!bad.ok,`${r.filled}/${r.lines} values read back, 0 differences; bad value rejected`)});
+  R.push({name:'EstateMaster runner (Vercel)',ok:true,info:true,detail:runnerText()});
   R.push({name:'Server keys (Vercel)',ok:true,info:true,detail:PROXY.status==='ok'?'/api/llm reachable; server keys found':'status: '+(PROXY.status||'not checked')+(PROXY.status==='file'?' (page opened from a file, not from Vercel)':'')});
   R.push({name:'AI providers',ok:true,info:true,detail:provs().length?provs().map(p=>PROV[p].name+(AI.keys[p]?' (browser key)':' (server key)')).join(', '):'none connected: rules engine answers AI requests'});
   // restore anything the tests touched
@@ -2587,6 +2702,7 @@ function openAI(){
   const sv=['anthropic','openai'].filter(p=>PROXY[p]);
   const why={file:'This page was opened from a file on your computer, not from your Vercel site, so it cannot reach the server keys. Open your Vercel URL (https://…vercel.app) instead.',notfound:'The server function /api/llm was not found (404). The deployment does not contain the api/ folder: redeploy the unzipped folder bohio-estatemaster-demo so that api/llm.js is at the project root.',nojson:'/api/llm returned a web page instead of data. Usually the api/ folder is missing from the deployment, or Vercel is showing a login page (Deployment Protection).',protected:'Vercel blocked /api/llm (HTTP '+PROXY.code+'): Deployment Protection is on. In Vercel → Settings → Deployment Protection, turn it off for Production or use a public domain.',nokeys:'The server function works, but it sees no ANTHROPIC_API_KEY or OPENAI_API_KEY. Add them under Settings → Environment Variables for the Production environment, then redeploy.',unreachable:'Could not reach /api/llm (network error).'}[PROXY.status]||(PROXY.status&&PROXY.status!=='ok'?`/api/llm answered with an error (${PROXY.status}). Check the function logs in Vercel.`:'');
   $('#aiProxy').innerHTML=sv.length?`<b>Server keys configured:</b> ${sv.map(p=>PROV[p].name).join(', ')}. Leave those fields empty to use them.`:(why?`<span class="warn"><b>Why no AI is connected:</b> ${esc(why)}</span>`:'');
+  $('#aiProxy').innerHTML+=`<div style="margin-top:6px">${esc(runnerText())}</div>`;
   $('#aiPassF').style.display=sv.length&&PROXY.pass?'':'none';
   const nc=Object.values(RPTS).filter(v=>!v.builtin).length;$('#setRpt').textContent=`${Object.keys(RPTS).length} report templates (${nc} custom). Build new report types from the extract with the report builder.`;
   renderRouter();$('#aiModal').classList.add('on');
@@ -2605,7 +2721,7 @@ $('#nk_parse').onclick=()=>{Object.assign(NK,{gfa:0,price:0,rent:0,land:0},parse
 $('#nk_text').onkeydown=e=>{if(e.key==='Enter')$('#nk_parse').click()};
 $('#nkNext').onclick=nkNext;document.addEventListener('click',e=>{const s_=e.target.closest('[data-nks]');if(s_&&NKDEF&&!NKDEF.err){NKSTEP=Math.min(4,+s_.dataset.nks);renderLadder()}});
 $('#projSel').onchange=e=>switchProject(e.target.value);
-$('#nmOpen').onclick=()=>openNewModel();$('#nmCancel').onclick=()=>$('#nmModal').classList.remove('on');
+$('#nmOpen').onclick=()=>openNewModel();$('#cwDown').onclick=cwDownload;$('#cwConn').onclick=()=>$('#cwFile').click();$('#cwFile').onchange=e=>{const f=e.target.files[0];if(f)cwPick(f);e.target.value=''};$('#nmCancel').onclick=()=>$('#nmModal').classList.remove('on');
 ['nmTpl','nmPlot','nmName','nmLand'].forEach(i=>$('#'+i).addEventListener(i==='nmName'||i==='nmLand'?'input':'change',previewNewModel));$$('input[name=nmFill]').forEach(r=>r.onchange=previewNewModel);
 $('#nmCreate').onclick=()=>{previewNewModel();if(NM.err)return;const cr=raiseNewModel(NM,`${USERS.web} (${WS_ROLE})`,'Workspace');$('#nmModal').classList.remove('on');showTab('appr');toast(`${cr.id} raised: approve it to create "${NM.name}" in EstateMaster`)};
 $('#nmModal').onclick=e=>{if(e.target.id==='nmModal')$('#nmModal').classList.remove('on')};
@@ -2639,7 +2755,7 @@ addMsg('agent','<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixe
 wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
 wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
 const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',channel:'System',detail:'Demo started: working copy BHO_SBX opened from the approved EstateMaster base case'});scanEmails('06:00',true)}else logEvent({kind:'session',actor:'System',channel:'System',detail:`Session resumed: ${LOG.length} entries and ${APQ.length} change requests restored from memory`});
-renderProjectUI();syncHeatSel();resetE();renderAll(false);renderEng();checkProxy();renderApprBadge();
+renderProjectUI();syncHeatSel();resetE();renderAll(false);renderEng();checkProxy();checkRunner();renderApprBadge();
 if(/[?&#]debug\b/.test(location.href))setTimeout(showDiagnostics,300);
 </script>
 </body>

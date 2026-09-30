@@ -9,6 +9,11 @@ Al Narjis Mixed-Use project. All data is dummy data.
 |---|---|
 | `index.html` | The whole demo (model, agent, market data, Outlook inbox, WhatsApp mock-up, IC report). The dummy dataset and the Excel file are embedded. |
 | `api/llm.js` | Vercel serverless function that proxies to Claude or OpenAI, so API keys stay on the server. |
+| `api/scan.js` | Live Outlook (Microsoft Graph) reader with AI extraction of assumption changes. |
+| `api/runner.js` | Proxy from the agent to the EstateMaster runner; the runner token stays on the server. |
+| `runner/` | The EstateMaster runner for the Windows VM (not deployed to Vercel). |
+| `setup/` | Copilot setup agent instructions, the KINAN control workbook template and its generator (not deployed). |
+| `docs/` | Features report, setup guide and user guide (PDF). |
 | `vercel.json` | Vercel settings (function timeout, security headers). |
 | `market-data.xlsx` | The dummy dataset as a workbook (also downloadable from inside the demo). |
 | `data/` | Generator scripts for the dummy data (not deployed). |
@@ -26,6 +31,8 @@ Al Narjis Mixed-Use project. All data is dummy data.
    | `OPENAI_API_KEY` | OpenAI engine |
    | `DEMO_PASSWORD` | Optional but recommended: an access code people must enter before the demo can call the AI (stops strangers spending your credits) |
    | `ANTHROPIC_URL`, `OPENAI_URL` | Optional: a corporate gateway instead of the public endpoints |
+   | `RUNNER_URL`, `RUNNER_TOKEN` | The EstateMaster runner (tunnel URL and shared token). Without them approved changes run on the demo's stand-in model |
+   | `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` | Optional: if the runner tunnel sits behind Cloudflare Access |
 
 3. Redeploy so the variables take effect. Open the site: the engine button (top right) switches to
    Claude automatically when a server key is set. If you set `DEMO_PASSWORD`, open the engine button
@@ -68,12 +75,29 @@ a scenario comparison. Each exports to PDF, Excel and HTML, can be scheduled aft
 and can carry an AI-drafted narrative. "Full extract (Excel)" downloads the raw extract.
 All data in the demo, including actuals and covenant thresholds, is dummy data.
 
-## Where the calculations happen
+## Architecture: Copilot for setup, Bohio agent for day to day
 
-In production every return is calculated by EstateMaster itself: a Bohio runner (Windows VM with licensed
-EstateMaster and Excel) writes the scenario into the model's live-linked inputs, lets EstateMaster
-recalculate, and reads the outputs back. In this demo that runner is simulated in the browser by a
-calibrated replica of the project's cash flows.
+EstateMaster has no API, so inputs and results go through Excel:
+
+```
+Bohio agent ──approved values──▶ control workbook ──Excel link──▶ EstateMaster (calculates)
+     ▲                                                                  │
+     └──────────── reads by label ◀── Office Links Excel export ◀───────┘
+```
+
+1. **Setup, once per model (Copilot + analyst).** The Copilot setup agent (`setup/copilot_setup_agent.md`)
+   fills the KINAN control workbook (`setup/KINAN_control_workbook_template.xlsx`) from the model's Office Links
+   export. The analyst confirms each line, links column E to the model in EstateMaster (already done on the
+   KINAN master template), and connects it in the app: Model data → Connect control workbook. The workbook is
+   checked (same rules as `runner/control_check.py`) and connecting is a change request.
+2. **Day to day (Bohio agent).** Every approved change is sent through `/api/runner` to the runner, which
+   writes all assumptions to the control workbook, operates EstateMaster (open, Office Links Refresh,
+   recalculate, Excel export, save a copy, close) and reads the results by row label. The approval card and the
+   change memory show EstateMaster's IRR next to the agent's estimate.
+3. **Fallback.** If the automation fails, or the runner is in manual mode, the job becomes a one-minute task
+   for an analyst (open, Refresh, Export); pressing Collect on the change request reads their export.
+
+Without a runner connected, the demo answers from a simplified stand-in model in the browser.
 
 ## Approvals, email scans and change memory
 
@@ -111,17 +135,29 @@ Microsoft Graph `Mail.Read` application permission and admin consent, restricted
 mailbox), `OUTLOOK_MAILBOX`, `OUTLOOK_FOLDER` (default Inbox) and an AI key. Every finding becomes a
 change request for approval. See docs/Bohio_EstateMaster_Agent_Setup_Guide.pdf.
 
-## EstateMaster runner (starter kit)
+## EstateMaster runner
 
-`runner/` holds a starter FastAPI service for the Windows machine running EstateMaster and Excel:
-it writes inputs to the model's live-linked control workbook, refreshes and reads outputs.
-Map your cells in `register_map.csv` and `outputs_map.csv`. The refresh step must be confirmed in
-your EstateMaster trial; the kit has not been run against EstateMaster.
+| File | What it does |
+|---|---|
+| `runner/em_runner.py` | FastAPI service: job queue (one EstateMaster run at a time), writes the control workbook, operates EstateMaster, reads the export; manual fallback and Collect |
+| `runner/em_ui.py` | The button presses (Windows UI Automation via pywinauto), steps from `ui_steps.json` |
+| `runner/em_ui_probe.py` | Trial step 1: records the real names of EstateMaster's buttons and dialogs |
+| `runner/em_ui_trial.py` | Trial step 2: one timed round trip with no person at the keyboard |
+| `runner/ui_steps.json` | Buttons to press. **Placeholders** until the probe has run |
+| `runner/register_map.csv` | Assumption register → fixed cells of the control workbook (Inputs!E4:E36) |
+| `runner/output_labels.csv` | Output row labels to read from the export. **Placeholders**: use the labels in your export |
+| `runner/control_check.py` | Checks a control workbook (errors block, warnings need a person) |
+| `runner/models.example.json` | Copy to `models.json` and list each connected model's .emdf and control workbook |
+
+Tested here with a fake EstateMaster export (the full loop: connect → approve → runner writes the workbook →
+"EstateMaster" → results by label → approval card and memory, in automatic and manual modes).
+**Not yet run against EstateMaster**: the button names, output labels and licence for unattended use must be
+confirmed in your trial and with Altus. See docs/Bohio_EstateMaster_Agent_Setup_Guide.pdf.
 
 ## Suggestions and diagnostics
 
 - "Suggest changes" (Approvals tab, chat or WhatsApp) reviews assumptions against market comps,
   SQL Server actuals, achieved sales, the cost library, zoning and risk policy; it also runs on
   every Outlook scan. Each suggestion is a change request.
-- Router → Run diagnostics (or open the page with `#debug`) runs 17 self-tests.
-- docs/ has the features, traceability and debug report, and the setup guide.
+- Router → Run diagnostics (or open the page with `#debug`) runs 18 self-tests and shows the AI and runner connections.
+- docs/ has the features, traceability and debug report, the setup guide and the user guide.
