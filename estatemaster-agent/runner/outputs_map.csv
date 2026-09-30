@@ -1,0 +1,9 @@
+name,sheet,cell
+levered_irr,Outputs,
+unlevered_irr,Outputs,
+profit_on_cost,Outputs,
+net_profit,Outputs,
+total_cost,Outputs,
+gross_revenue,Outputs,
+peak_debt,Outputs,
+equity_multiple,Outputs,

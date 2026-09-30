@@ -101,3 +101,27 @@ Users can create new report types from the agent settings or the Reports tab: pi
 library (returns, model, project controls, cash flow and funding, investors, risk, market and
 compliance, governance), order them, set audience, schedule and delivery, or describe the report and
 let the AI design it. Eight new report types are included as starting points.
+
+## Live Outlook (Microsoft Graph)
+
+`api/scan.js` reads one mailbox folder, read-only, and uses Claude or OpenAI to extract proposed
+assumption changes. The page switches from the dummy inbox to the live mailbox automatically when
+these Vercel variables are set: `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET` (Entra ID app with
+Microsoft Graph `Mail.Read` application permission and admin consent, restricted to the project
+mailbox), `OUTLOOK_MAILBOX`, `OUTLOOK_FOLDER` (default Inbox) and an AI key. Every finding becomes a
+change request for approval. See docs/Bohio_EstateMaster_Agent_Setup_Guide.pdf.
+
+## EstateMaster runner (starter kit)
+
+`runner/` holds a starter FastAPI service for the Windows machine running EstateMaster and Excel:
+it writes inputs to the model's live-linked control workbook, refreshes and reads outputs.
+Map your cells in `register_map.csv` and `outputs_map.csv`. The refresh step must be confirmed in
+your EstateMaster trial; the kit has not been run against EstateMaster.
+
+## Suggestions and diagnostics
+
+- "Suggest changes" (Approvals tab, chat or WhatsApp) reviews assumptions against market comps,
+  SQL Server actuals, achieved sales, the cost library, zoning and risk policy; it also runs on
+  every Outlook scan. Each suggestion is a change request.
+- Router → Run diagnostics (or open the page with `#debug`) runs 17 self-tests.
+- docs/ has the features, traceability and debug report, and the setup guide.
