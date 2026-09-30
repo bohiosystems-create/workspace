@@ -5,3 +5,4 @@ data/db.json
 data/uploads
 next-env.d.ts
 tsconfig.tsbuildinfo
+standalone/.entry.cjs
