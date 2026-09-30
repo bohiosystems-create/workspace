@@ -1349,7 +1349,7 @@ function approveCR(id,ch,role){
   const who=ch==='wa'?`${USERS.wa} (${role})`:`${USERS.web} (${role})`;
   if(cr.kind==='promotion'){cr.status='approved';cr.decidedBy=who;cr.decidedAt=new Date().toISOString();logEvent({kind:'promoted',actor:who,channel:ch==='wa'?'WhatsApp':'Workspace',detail:`${id} approved: promotion of the working copy to the live EstateMaster model sent to the runner (${scenName(S)||'no change'}${xl().filter(xChanged).length?', '+xl().filter(xChanged).length+' model lines changed':''})`,cr:id});runnerSubmit(cr,{kind:'promote'})}
   else{
-    if(cr.kind==='connect'&&cr.xdefs)mergeXDefs(cr.xdefs);
+    if(cr.kind==='connect'){PROJ.na=cr.na||[];if(cr.xdefs)mergeXDefs(cr.xdefs)}
     applyOpsRaw(cr.ops);
     cr.ops.forEach(o=>{if(o.src){const e=DATA.emails.find(x=>x.id===o.src.eid);const k=o.t==='line'?drvOfLine(o.id):Object.keys(o.mods||{})[0];if(e&&k)SRC[k]={e,quote:o.src.quote};if(e)EM.applied[e.id]=true}else{const k=o.t==='line'?drvOfLine(o.id):o.t==='mods'?Object.keys(o.mods)[0]:null;if(k)delete SRC[k]}});
     cr.status='approved';cr.decidedBy=who;cr.decidedAt=new Date().toISOString();
@@ -1402,12 +1402,12 @@ setInterval(()=>{const n=riyadhNow(),h=n.getHours(),m=n.getMinutes();if(SCAN_TIM
 /* ================= PERSISTENCE (demo memory in this browser) ================= */
 // The browser keeps the latest LOG_KEEP memory entries (export them any time); production keeps everything in SQL Server.
 const LOG_KEEP=10000;let MEMWARN=false;
-function saveMem(){try{localStorage.setItem('bohioMem',JSON.stringify({v:1,EMLAST,narjisXL:PROJECTS.narjis.xl||null,X:XV,GEN:{seed:GEN.seed,seq:GEN.seq,n:GEN.n,fail:GEN.fail,bins:GEN.bins,worst:GEN.worst.slice(0,100),custom:GEN.custom,em:GEN.em},proj:PROJ.id,projects:Object.fromEntries(Object.entries(PROJECTS).filter(([k])=>k!=='narjis').map(([k,v])=>[k,{...v,saved:undefined}])),LOG,LOGN,APQ,CRN,SCAN,EM:{applied:EM.applied,proposed:EM.proposed},state:{S,FIX,FT,LV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))}))}catch(e){if(!MEMWARN){MEMWARN=true;try{toast('Browser storage is full: new changes are not being saved in this browser. Export the change memory (Approvals tab).')}catch(_){}}}}
+function saveMem(){try{localStorage.setItem('bohioMem',JSON.stringify({v:1,EMLAST,narjisXL:PROJECTS.narjis.xl||null,narjisNA:PROJECTS.narjis.na||null,X:XV,GEN:{seed:GEN.seed,seq:GEN.seq,n:GEN.n,fail:GEN.fail,bins:GEN.bins,worst:GEN.worst.slice(0,100),custom:GEN.custom,em:GEN.em},proj:PROJ.id,projects:Object.fromEntries(Object.entries(PROJECTS).filter(([k])=>k!=='narjis').map(([k,v])=>[k,{...v,saved:undefined}])),LOG,LOGN,APQ,CRN,SCAN,EM:{applied:EM.applied,proposed:EM.proposed},state:{S,FIX,FT,LV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))}))}catch(e){if(!MEMWARN){MEMWARN=true;try{toast('Browser storage is full: new changes are not being saved in this browser. Export the change memory (Approvals tab).')}catch(_){}}}}
 function loadMem(){try{const m=JSON.parse(localStorage.getItem('bohioMem')||'null');if(!m||m.v!==1)return false;
   for(const [k,v] of Object.entries(m.projects||{}))PROJECTS[k]=v;if(m.proj&&PROJECTS[m.proj]&&m.proj!=='narjis')loadModelCore(PROJECTS[m.proj]);
   LOG=m.LOG||[];LOGN=m.LOGN||LOG.length+1;APQ=m.APQ||[];CRN=m.CRN||101;Object.assign(SCAN,m.SCAN||{});Object.assign(EM.applied,m.EM.applied||{});Object.assign(EM.proposed,m.EM.proposed||{});
   S=m.state.S||{};Object.assign(FIX,m.state.FIX||{});Object.assign(FT,m.state.FT||{});LV=m.state.LV||{};
-  if(m.narjisXL)PROJECTS.narjis.xl=m.narjisXL;EMLAST=m.EMLAST||null;XV=m.X||{};XMAP=null;if(m.GEN)Object.assign(GEN,m.GEN,{busy:false});
+  if(m.narjisXL)PROJECTS.narjis.xl=m.narjisXL;if(m.narjisNA)PROJECTS.narjis.na=m.narjisNA;EMLAST=m.EMLAST||null;XV=m.X||{};XMAP=null;if(m.GEN)Object.assign(GEN,m.GEN,{busy:false});
   for(const [k,v] of Object.entries(m.SRC||{})){const e=DATA.emails.find(x=>x.id===v.eid);if(e)SRC[k]={e,quote:v.quote}}return true}catch(e){return false}}
 function clearMem(){try{localStorage.removeItem('bohioMem')}catch(e){}location.reload()}
 
@@ -1771,10 +1771,11 @@ async function cwDownload(){
 const cell=(ws,a)=>ws&&ws[a]?ws[a].v:null;
 function cwParse(wb){
   const ws=wb.Sheets&&wb.Sheets.Inputs;if(!ws)return{fatal:'No "Inputs" sheet: this is not a KINAN control workbook. Start from the template (Control workbook button, or setup/KINAN_control_workbook_template.xlsx).'};
-  const res={errors:[],warnings:[],info:[],values:{},filled:0,lines:0};
+  const res={errors:[],warnings:[],info:[],values:{},filled:0,lines:0,na:[]};
   REG.forEach((l,i)=>{const r=CW.FIRST+i,id=String(cell(ws,'A'+r)??'').trim(),raw=cell(ws,'E'+r),conf=String(cell(ws,'H'+r)??'').trim().toUpperCase();
     if(id!==l.id){res.errors.push(`Row ${r}: expected line “${l.id}” (${l.label}) in column A, found “${id||'empty'}”. Rows were moved or deleted.`);return}
     if(!lineOn(l)){if(raw!=null&&raw!=='')res.info.push(`${l.label}: not used in ${PROJ.name}, value ignored`);return}
+    if(conf==='N/A'&&(raw==null||raw==='')){res.na.push(l.id);return}
     res.lines++;
     if(raw==null||raw===''){res.errors.push(`${l.label}: no value`);return}
     const v=typeof raw==='number'?raw:parseFloat(String(raw).replace(/[,%\s]/g,''));
@@ -1802,8 +1803,10 @@ function cwParse(wb){
     if(unl)res.info.push(`Lines: ${unl.toLocaleString()} model line(s) not linked in EstateMaster yet (column J): the runner will not write them until they are linked.`)}
   res.ok=!res.errors.length;return res;
 }
-function mergeXDefs(defs){const a=xl(),m=xIndex();for(const d of defs){const e=m.get(d.id);if(e){e.g=d.g;e.label=d.label;e.unit=d.unit;e.linked=d.linked;e.demo=false}else a.push({...d,demo:false})}XMAP=null;renderXLines()}
-function cwXOps(res){const ops=[];for(const d of res.xdefs){const e=XBY(d.id);if(e&&xVal(d.id)!==d.base)ops.push({t:'xline',id:d.id,v:d.base})}return ops}
+function mergeXDefs(defs){
+  if(defs.length&&xl().some(d=>d.demo)){const keep=xl().filter(d=>!d.demo);for(const d of xl())if(d.demo)delete XV[d.id];PROJ.xl=keep;XMAP=null}
+  const a=xl(),m=xIndex();for(const d of defs){const e=m.get(d.id);if(e){e.g=d.g;e.label=d.label;e.unit=d.unit;e.linked=d.linked}else a.push({...d,demo:false})}XMAP=null;renderXLines()}
+function cwXOps(res){const ops=[];for(const d of res.xdefs){const e=XBY(d.id);if(e&&!e.demo&&xVal(d.id)!==d.base)ops.push({t:'xline',id:d.id,v:d.base})}return ops}
 function cwOps(values){return REG.filter(l=>l.id in values&&Math.abs(values[l.id]-lineVal(l.id))>Math.max(1e-6,Math.abs(lineVal(l.id))*1e-6)).map(l=>({t:'line',id:l.id,v:values[l.id]}))}
 function cwConnect(name,wb){
   const res=cwParse(wb),box=$('#cwRes'),li=(a,n=8)=>a.slice(0,n).map(x=>`<li>${esc(x)}</li>`).join('')+(a.length>n?`<li>… ${a.length-n} more</li>`:'');
@@ -1812,7 +1815,7 @@ function cwConnect(name,wb){
   if(res.errors.length)html+=`<div class="warn" style="margin-top:6px"><b>Not connected. Fix these in the workbook and connect again:</b><ul style="margin:4px 0 0 18px">${li(res.errors)}</ul></div>`;
   if(res.warnings.length)html+=`<div style="margin-top:6px"><b>Check before approving:</b><ul style="margin:4px 0 0 18px">${li(res.warnings)}</ul></div>`;
   if(res.info.length)html+=`<div style="margin-top:6px;color:var(--soft)"><ul style="margin:4px 0 0 18px">${li(res.info,3)}</ul></div>`;
-  if(res.ok){const ops=cwOps(res.values).concat(cwXOps(res)),nNew=res.xdefs.filter(d=>!XBY(d.id)).length;const cr=raiseCR('connect','Copilot setup agent + analyst',`Connect control workbook: ${name}${res.xdefs.length?` (${res.xdefs.length.toLocaleString()} model lines, ${nNew.toLocaleString()} new)`:''}`,ops,{channel:'Model data',file:name,xdefs:res.xdefs,check:{filled:res.filled,lines:res.lines,warnings:res.warnings.length}});
+  if(res.ok){const ops=cwOps(res.values).concat(cwXOps(res)),nNew=res.xdefs.filter(d=>!XBY(d.id)).length;const cr=raiseCR('connect','Copilot setup agent + analyst',`Connect control workbook: ${name}${res.xdefs.length?` (${res.xdefs.length.toLocaleString()} model lines, ${nNew.toLocaleString()} new)`:''}`,ops,{channel:'Model data',file:name,xdefs:res.xdefs,na:res.na,check:{filled:res.filled,lines:res.lines,warnings:res.warnings.length}});
     html+=`<div style="margin-top:6px"><b>${cr.id}</b> raised for approval: ${ops.length?`${ops.length} value${ops.length>1?'s differ':' differs'} from the current model and will be written once approved`:'the workbook matches the current model, so approval only records the connection'}. See the Approvals tab.</div>`;renderApprovals();toast(`${cr.id}: control workbook ready for approval`)}
   box.innerHTML=html+'</div>';
   logEvent({kind:'check',actor:USERS.web,channel:'Model data',detail:`Control workbook ${name} checked: ${res.filled}/${res.lines} values, ${res.errors.length} errors, ${res.warnings.length} warnings`});saveMem();
@@ -1840,7 +1843,8 @@ function runnerText(){
   const h=RUNNER.health||{};return`EstateMaster runner: connected · mode ${h.mode==='manual'?'manual (a person presses Refresh and Export)':'automatic'} · models: ${(h.models||[]).join(', ')||'none connected'} · live models: ${(h.live||[]).join(', ')||'none'} · templates: ${(h.templates||[]).join(', ')||'none'}${h.queued?` · ${h.queued} queued`:''}`;
 }
 function renderRunnerNote(){const e=$('#rnStat');if(e)e.textContent=runnerText();const sw=$('#simWrap');if(sw)sw.style.display=simRunner()?'':'none';const st=$('#emStrip');if(st)st.textContent=runnerLive()?`All returns calculated by EstateMaster · runner connected (${(RUNNER.health||{}).mode==='manual'?'manual mode':'automatic'}) · SQL Server for actuals (demo: simulated)`:simRunner()?'All returns calculated by EstateMaster · control workbook + runner (demo: simulated) · SQL Server for actuals (demo: simulated)':'All returns calculated by EstateMaster · runner configured but not reachable · SQL Server for actuals (demo: simulated)'}
-function runnerInputs(){return Object.fromEntries(REG.filter(lineOn).map(l=>[l.id,+lineVal(l.id).toFixed(6)]))}
+// core lines the connected workbook marks N/A are not in this model: never sent to EstateMaster
+function runnerInputs(){const na=new Set(PROJ.na||[]);return Object.fromEntries(REG.filter(l=>lineOn(l)&&!na.has(l.id)).map(l=>[l.id,+lineVal(l.id).toFixed(6)]))}
 const TPL_RUNNER={narjis:'mixed',yasmin:'resi',hittin:'retail'};
 const JOBWORD={run:'EstateMaster job',promote:'Promotion to the live model',create:'New EstateMaster model'};
 function jobText(cr,kind,jid,p,sim){
@@ -1937,7 +1941,7 @@ const fmtN=v=>v==null||v===''?'—':typeof v==='number'?(+v.toFixed(4)).toLocale
 const fmtX=(d,v)=>fmtN(v)+(d&&d.unit&&!isText(d)?' '+d.unit:'');
 const xChanged=d=>d.id in XV&&XV[d.id]!==d.base;
 const XSTOP=new Set(['the','and','for','per','sqm','sar','with','set','change','update','make','increase','decrease','raise','lower','cut','reduce','from','into','our','this','that','please','value','line','model']);
-const xWords=s=>String(s||'').toLowerCase().split(/[^a-z0-9&]+/).filter(w=>w.length>2&&!XSTOP.has(w));
+const xWords=s=>String(s||'').toLowerCase().split(/[^a-z0-9&]+/).filter(w=>/^\d+$/.test(w)||(w.length>2&&!XSTOP.has(w)));
 function findXLines(q,limit=10){
   const qt=new Set(xWords(q)),idm=String(q).match(/\bl\d{3,6}\b/i),out=[];
   if(idm){const d=XBY(idm[0].toUpperCase());if(d)return[{d,s:2}]}
@@ -1970,8 +1974,8 @@ function renderXLines(){
     h+=`<tr${ch?' style="background:rgba(255,77,106,.06)"':''}><td style="color:var(--soft)">${d.g!==last?esc(d.g):''}</td><td>${esc(d.label)} <span style="color:var(--soft);font-size:11px">${esc(d.id)}</span>${pend.has(d.id)?' <span class="pill">pending</span>':''}</td><td class="n">${fmtN(d.base)}</td><td class="n"><input class="regin" data-xl="${esc(d.id)}" value="${esc(String(v??''))}" style="width:96px;text-align:right;border:1px solid ${ch?'var(--alert)':'var(--faint)'};border-radius:8px;padding:4px 6px;background:#fff"></td><td style="color:var(--soft)">${esc(d.unit||'')}</td><td style="font-size:12px">${d.linked?'linked':'<span style="color:var(--alert)">not linked yet</span>'}</td></tr>`;last=d.g}
   if(!all.length)h+='<tr><td colspan="6" style="color:var(--soft)">No model lines yet. Add them to the Lines sheet of the control workbook and connect it (button above).</td></tr>';
   el.innerHTML=h;
-  const nd=all.filter(d=>d.demo).length;
-  $('#xlSub').textContent=`${all.length.toLocaleString()} model lines (no limit)${nd?` · ${nd} are demo sample lines, never sent to a real runner`:''}${toks.length?` · ${hits.length.toLocaleString()} match “${XQ}”`:''} · ${all.filter(d=>!d.linked).length} not linked in EstateMaster yet · ${all.filter(xChanged).length} changed in the working copy`;
+  const nd=all.filter(d=>d.demo).length;$('#xlSub').dataset.demo=nd;
+  $('#xlSub').textContent=`${all.length.toLocaleString()} model lines (no limit)${nd?` · ${nd} are demo sample lines, replaced when you connect your own workbook and never sent to a real runner`:''}${toks.length?` · ${hits.length.toLocaleString()} match “${XQ}”`:''} · ${all.filter(d=>!d.linked).length} not linked in EstateMaster yet · ${all.filter(xChanged).length} changed in the working copy`;
   $('#xlMore').innerHTML=hits.length>XSHOW?`<button class="btn ghost sm" id="xlMoreB" style="margin-top:8px">Show ${Math.min(100,hits.length-XSHOW)} more (${(hits.length-XSHOW).toLocaleString()} not shown)</button>`:'';
 }
 function proposeXLine(id,v,by,channel,byAI){
