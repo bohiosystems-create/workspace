@@ -54,6 +54,8 @@ for i, line in enumerate([
     "Do not insert or delete rows or columns, or rename sheets: the runner writes to fixed cells (runner/register_map.csv).",
     "Units: % values as percentages (7.5 means 7.5%), money as shown in the Unit column.",
     "Lines this project does not use: leave column E blank and put N/A in column H.",
+    "Every other assumption goes on the Lines sheet: no limit, one row per input, id L0001, L0002, … Add rows at the",
+    "   bottom only, link column E in EstateMaster, then put Y in column J. Unlinked lines are never written by the runner.",
 ], start=1):
     ws.cell(row=i, column=1, value=line).font = Font(bold=(i == 1), size=13 if i == 1 else 11)
 
@@ -84,6 +86,23 @@ for i, r in enumerate(rows):
     r["sheet"], r["cell"] = "Inputs", f"{VALUE_COL}{n}"
 last = FIRST_ROW + len(rows) - 1
 
+# Lines: every other assumption in the model, no limit. Append only: never insert, delete or reorder rows.
+ws = wb.create_sheet("Lines")
+ws["A1"] = "Model lines: every other assumption, no limit. Add rows at the bottom only"
+ws["A1"].font = Font(bold=True, size=13)
+ws["A2"] = ("One row per EstateMaster input. Id in column A (L0001, L0002, …), unique and never reused. Column E is what "
+            "EstateMaster reads; link it once, then put Y in column J.")
+header(ws, HEADER_ROW, ["id", "Section", "Assumption", "Unit", "Value", "Source in EstateMaster export", "Mapped by",
+                        "Confirmed (Y/N/N/A)", "Notes", "Linked in EstateMaster (Y/N)"], [9, 30, 36, 16, 14, 36, 14, 16, 30, 16])
+yn2 = DataValidation(type="list", formula1='"Y,N,N/A"', allow_blank=True)
+yl = DataValidation(type="list", formula1='"Y,N"', allow_blank=True)
+ws.add_data_validation(yn2)
+ws.add_data_validation(yl)
+yn2.add(f"H{FIRST_ROW}:H200000")
+yl.add(f"J{FIRST_ROW}:J200000")
+for n in range(FIRST_ROW, FIRST_ROW + 200):
+    ws[f"{VALUE_COL}{n}"].fill = input_fill
+
 # Mapping
 ws = wb.create_sheet("Mapping")
 header(ws, 1, ["Export sheet", "Export row label", "Export value", "Register id", "Confidence (high/medium/low)",
@@ -103,6 +122,8 @@ checks = [
     ("Export rows logged on Mapping", "=COUNTA(Mapping!B2:B201)"),
     ("Mapping rows with no register id", '=COUNTA(Mapping!B2:B201)-COUNTA(Mapping!D2:D201)'),
     ("Ready for the checker", '=IF(AND(B4=0,B5=B2),"YES","NO")'),
+    ("Model lines (sheet Lines)", "=COUNTA(Lines!A4:A200000)"),
+    ("Model lines linked in EstateMaster", '=COUNTIF(Lines!J4:J200000,"Y")'),
 ]
 for i, (k, f_) in enumerate(checks, start=2):
     ws.cell(row=i, column=1, value=k)

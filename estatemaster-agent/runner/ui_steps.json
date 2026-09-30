@@ -1,5 +1,5 @@
 {
-  "_note": "PLACEHOLDERS. Replace titles, control types and keys with what em_ui_probe.py recorded in your trial. Output labels are in output_labels.csv.",
+  "_note": "PLACEHOLDERS. Replace titles, control types and keys with what em_ui_probe.py recorded in your trial. save_live is used only when promoting to the live model (saves the model itself). Output labels are in output_labels.csv.",
   "refresh_links": [
     {
       "do": "click",
@@ -69,6 +69,16 @@
     {
       "do": "wait_idle",
       "seconds": 2
+    }
+  ],
+  "save_live": [
+    {
+      "do": "keys",
+      "keys": "^s"
+    },
+    {
+      "do": "wait_idle",
+      "seconds": 3
     }
   ],
   "close": [

@@ -4,13 +4,15 @@ Checks a KINAN control workbook before it is connected to the Bohio agent.
     py runner/control_check.py C:\\Bohio\\Models\\AlNarjis_control.xlsx
     py runner/control_check.py setup\\KINAN_control_workbook_template.xlsx --blank-ok
 
+Model lines (sheet "Lines", any number of rows, found by id in column A) are checked too: unique ids,
+numeric values (unless the unit is text or date), and whether each is linked in EstateMaster (column J).
 Lines a project does not use (e.g. retail rents in a residential-only model) are left blank with
 N/A in column H. Errors block the connection (missing or non-numeric values, values outside what the unit allows,
 cells moved). Warnings need a person to look (values far from the reference, the same register line
 mapped from two export rows, export rows with no register line). Exit code 0 = no errors.
 The runner's /models/{id}/check and the demo's "Connect control workbook" apply the same rules.
 """
-import csv, json, sys
+import csv, json, re, sys
 from pathlib import Path
 from openpyxl import load_workbook
 
@@ -24,6 +26,33 @@ UNIT_RANGE = {
 }
 SPECIFIC = {"cap": (1, 20), "sb": (0, 20), "mg": (0, 10)}
 FAR_FROM_REFERENCE = 0.6   # warn when a value is more than 60% away from the register's reference value
+FIRST_ROW = 4              # first data row on Inputs and Lines (row 3 is the header)
+TEXT_UNITS = {"text", "date"}
+
+
+def line_range(unit):
+    """Model lines can mean anything, so only broad sanity limits (same as the app)."""
+    if "%" in unit:
+        return (-100, 100)
+    if re.match(r"^(months?|years?|sqm|units?|SAR.*)$", unit, re.I):
+        return (0, float("inf"))
+    return (float("-inf"), float("inf"))
+
+
+def read_lines(ws):
+    """Model lines on the Lines sheet: {id: {row, section, label, unit, value, confirmed, linked}}, in sheet order.
+    Rows are only ever appended, so a line keeps its row (and its EstateMaster link) for good."""
+    out, dups = {}, []
+    for n, row in enumerate(ws.iter_rows(min_row=FIRST_ROW, max_col=10, values_only=True), start=FIRST_ROW):
+        rid = str(row[0]).strip() if row[0] is not None else ""
+        if not rid:
+            continue
+        if rid in out:
+            dups.append((rid, out[rid]["row"], n))
+            continue
+        out[rid] = {"row": n, "section": row[1] or "", "label": row[2] or "", "unit": str(row[3] or ""), "value": row[4],
+                    "confirmed": str(row[7] or "").strip().upper(), "linked": str(row[9] or "").strip().upper() == "Y"}
+    return out, dups
 
 
 def load_map():
@@ -34,7 +63,8 @@ def load_map():
 def check(path, blank_ok=False):
     reg = load_map()
     wb = load_workbook(path, data_only=True)
-    res = {"file": str(path), "errors": [], "warnings": [], "info": [], "values": {}, "filled": 0, "lines": len(reg)}
+    res = {"file": str(path), "errors": [], "warnings": [], "info": [], "values": {}, "filled": 0, "lines": len(reg),
+           "lines_values": {}, "model_lines": 0}
     if "Inputs" not in wb.sheetnames:
         res["errors"].append("No 'Inputs' sheet: this is not a KINAN control workbook (start from the template).")
         res["ok"] = False
@@ -77,6 +107,41 @@ def check(path, blank_ok=False):
             res["warnings"].append(f"{r['id']} {r['label']}: not marked confirmed (column H)")
         res["values"][r["id"]] = v
         res["filled"] += 1
+    if "Lines" in wb.sheetnames:
+        lines, dups = read_lines(wb["Lines"])
+        core = {r["id"] for r in reg}
+        for rid, a, b in dups:
+            res["errors"].append(f"Lines: id '{rid}' appears on rows {a} and {b}. Ids must be unique.")
+        unconfirmed, unlinked = 0, 0
+        for rid, l in lines.items():
+            if rid in core:
+                res["errors"].append(f"Lines row {l['row']}: '{rid}' is a core line id; model lines need their own ids (e.g. L0001).")
+                continue
+            if not l["label"]:
+                res["errors"].append(f"Lines row {l['row']} ({rid}): no label")
+            v = l["value"]
+            if v is None or (isinstance(v, str) and not v.strip()):
+                if l["confirmed"] != "N/A" and not blank_ok:
+                    res["errors"].append(f"Lines {rid} {l['label']}: no value")
+                continue
+            if l["unit"].lower() not in TEXT_UNITS:
+                try:
+                    v = float(str(v).replace(",", "").replace("%", "")) if isinstance(v, str) else float(v)
+                except ValueError:
+                    res["errors"].append(f"Lines {rid} {l['label']}: '{v}' is not a number")
+                    continue
+                lo, hi = line_range(l["unit"])
+                if not lo <= v <= hi:
+                    res["errors"].append(f"Lines {rid} {l['label']}: {v:g} {l['unit']} is outside {lo:g}–{hi:g}")
+                    continue
+            unconfirmed += l["confirmed"] != "Y"
+            unlinked += not l["linked"]
+            res["lines_values"][rid] = v
+        res["model_lines"] = len(lines)
+        if unconfirmed:
+            res["warnings"].append(f"Lines: {unconfirmed} model line(s) not marked confirmed (column H)")
+        if unlinked:
+            res["info"].append(f"Lines: {unlinked} model line(s) not linked in EstateMaster yet (column J). The agent can propose changes to them, but the runner will not write them until they are linked.")
     if "Mapping" in wb.sheetnames:
         seen, unmapped = {}, 0
         for row in wb["Mapping"].iter_rows(min_row=2, values_only=True):
@@ -103,7 +168,7 @@ if __name__ == "__main__":
     if "--json" in sys.argv:
         print(json.dumps(out, indent=2))
     else:
-        print(f"{out['file']}: {out['filled']}/{out['lines']} values, {len(out['errors'])} errors, {len(out['warnings'])} warnings")
+        print(f"{out['file']}: {out['filled']}/{out['lines']} core values, {out['model_lines']} model lines, {len(out['errors'])} errors, {len(out['warnings'])} warnings")
         for k in ("errors", "warnings", "info"):
             for m in out[k]:
                 print(f"  {k[:-1].upper():8} {m}")

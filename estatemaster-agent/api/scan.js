@@ -40,6 +40,25 @@ async function folderId(token, mb) {
   }
   throw new Error(`Folder "${name}" not found in ${mb} (top level or under Inbox).`);
 }
+// The register has no size limit. The AI sees the core lines plus the model lines whose wording appears in the emails,
+// so a model with thousands of lines costs no more to scan than a small one.
+const STOP = new Set(['the', 'and', 'for', 'per', 'sqm', 'sar', 'with', 'of', 'to', 'in', 'on', 'at', 'by', 'from', 'cost', 'costs', 'rate', 'fee', 'fees', 'total']);
+const words = t => String(t || '').toLowerCase().split(/[^a-z0-9&]+/).filter(w => w.length > 2 && !STOP.has(w));
+function shortlist(register, msgs, max = 300) {
+  const core = register.filter(l => l.core !== false).slice(0, 120);
+  const extra = register.filter(l => l.core === false);
+  if (!extra.length) return core;
+  const text = new Set(words(msgs.map(m => m.subject + ' ' + m.body).join(' ')));
+  const scored = [];
+  for (const l of extra) {
+    const w = [...new Set(words(l.label + ' ' + (l.section || '')))];
+    if (!w.length) continue;
+    const hit = w.filter(x => text.has(x)).length;
+    if (hit && hit / w.length >= 0.5) scored.push([hit / w.length + hit / 100, l]);
+  }
+  return core.concat(scored.sort((a, b) => b[0] - a[0]).slice(0, max).map(x => x[1]));
+}
+
 async function extract(messages, register, project) {
   const system = `You read project emails for a real estate development and find proposed changes to the financial model's assumptions.
 Return JSON only: {"results":[{"message_id":string,"changes":[{"line":string,"value":number,"quote":string,"confidence":number}]}]}.
@@ -70,15 +89,16 @@ module.exports = async function handler(req, res) {
   if (env('DEMO_PASSWORD') && req.headers['x-demo-pass'] !== env('DEMO_PASSWORD')) return send(res, 401, { error: 'Access code missing or wrong.' });
   if (!configured()) return send(res, 400, { error: 'Outlook scan not configured: set MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET, OUTLOOK_MAILBOX and an AI key.' });
   let body; try { body = await readBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
-  const register = Array.isArray(body.register) ? body.register.slice(0, 80) : [];
+  const register = Array.isArray(body.register) ? body.register.slice(0, 50000) : [];
   if (!register.length) return send(res, 400, { error: 'Missing register' });
   const since = body.since && !isNaN(Date.parse(body.since)) ? new Date(body.since).toISOString() : new Date(Date.now() - 7 * 864e5).toISOString();
   try {
     const token = await graphToken(), mb = env('OUTLOOK_MAILBOX'), fid = await folderId(token, mb);
     const j = await graph(token, `/users/${encodeURIComponent(mb)}/mailFolders/${fid}/messages?$select=id,subject,from,receivedDateTime,body&$filter=receivedDateTime ge ${since}&$orderby=receivedDateTime desc&$top=${MAX_MSG}`);
     const msgs = (j.value || []).map(m => ({ id: m.id, subject: m.subject || '(no subject)', from: (m.from && m.from.emailAddress && (m.from.emailAddress.name || m.from.emailAddress.address)) || '', addr: (m.from && m.from.emailAddress && m.from.emailAddress.address) || '', date: m.receivedDateTime, body: String((m.body && m.body.content) || '').slice(0, MAX_BODY) }));
-    const found = msgs.length ? await extract(msgs, register, body.project) : {};
-    const ids = new Set(register.map(l => l.id));
+    const short = shortlist(register, msgs);
+    const found = msgs.length ? await extract(msgs, short, body.project) : {};
+    const ids = new Set(short.map(l => l.id));
     const messages = msgs.map(m => ({ ...m, changes: (found[m.id] || []).filter(c => ids.has(c.line) && Number.isFinite(+c.value)).map(c => ({ line: c.line, value: +c.value, quote: String(c.quote || '').slice(0, 300), conf: Math.max(0, Math.min(1, +c.confidence || 0.5)) })) }));
     return send(res, 200, { mailbox: mb, folder: env('OUTLOOK_FOLDER') || 'Inbox', since, scannedAt: new Date().toISOString(), messages });
   } catch (e) { return send(res, 502, { error: e.message }); }

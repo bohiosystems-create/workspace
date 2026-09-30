@@ -2,6 +2,10 @@
   "narjis": {
     "name": "Al Narjis Mixed-Use",
     "emdf": "C:\\Bohio\\Models\\AlNarjis.emdf",
-    "control_workbook": "C:\\Bohio\\Models\\AlNarjis_control.xlsx"
+    "control_workbook": "C:\\Bohio\\Models\\AlNarjis_control.xlsx",
+    "scratch_emdf": "C:\\Bohio\\Models\\AlNarjis_scratch.emdf",
+    "scratch_control_workbook": "C:\\Bohio\\Models\\AlNarjis_scratch_control.xlsx",
+    "live_emdf": "C:\\Bohio\\Live\\AlNarjis_LIVE.emdf",
+    "live_control_workbook": "C:\\Bohio\\Live\\AlNarjis_LIVE_control.xlsx"
   }
 }

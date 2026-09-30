@@ -75,6 +75,25 @@ a scenario comparison. Each exports to PDF, Excel and HTML, can be scheduled aft
 and can carry an AI-drafted narrative. "Full extract (Excel)" downloads the raw extract.
 All data in the demo, including actuals and covenant thresholds, is dummy data.
 
+## EstateMaster is the trusted layer
+
+Every figure the app computes itself (live returns, stress tests, sensitivities, the explorer, the napkin) is labelled
+as the agent's **estimate**. EstateMaster's own figures come only from the runner's export, are labelled
+**EstateMaster**, and are tied to the exact working copy they were calculated for: change anything and the figure is
+shown as out of date. "Check in EstateMaster" (Agent tab, chat, or the agent's `check_in_estatemaster` tool) runs the
+working copy in EstateMaster on a scratch copy and changes nothing. Reports show an EstateMaster column and say which
+figures are estimates. The AI never calculates: it calls tools, and the tools say where each number comes from.
+
+## No limits on assumptions or stress scenarios
+
+- **Assumptions:** the 33 core lines keep an instant estimate. Every other EstateMaster input is a model line on the
+  control workbook's Lines sheet: any number, found by id, added at the bottom. Model data → Model lines lists and
+  searches them (tested with 5,131). A change to a model line is a change request; EstateMaster calculates its effect.
+  Lines not yet linked in EstateMaster are never written. The demo's 131 sample lines are never sent to a real runner.
+- **Stress scenarios:** Stress tests → Scenario generator adds new scenarios on every press (correlated shocks by
+  theme, plus model-line shocks), or describe one in words. The worst are checked in EstateMaster on a scratch copy
+  that the runner restores. "Stress report" builds the Stress test report.
+
 ## Architecture: Copilot for setup, Bohio agent for day to day
 
 EstateMaster has no API, so inputs and results go through Excel:
@@ -94,7 +113,10 @@ Bohio agent ──approved values──▶ control workbook ──Excel link─�
    writes all assumptions to the control workbook, operates EstateMaster (open, Office Links Refresh,
    recalculate, Excel export, save a copy, close) and reads the results by row label. The approval card and the
    change memory show EstateMaster's IRR next to the agent's estimate.
-3. **Fallback.** If the automation fails, or the runner is in manual mode, the job becomes a one-minute task
+3. **New models and the live model.** Approving a new model makes the runner copy a KINAN master template
+   (`templates.json`), write its values, register it and run it. Approving a promotion (Investment Director) makes the
+   runner back up the live model's workbook, write the approved values and save the live model (`save_live` step).
+4. **Fallback.** If the automation fails, or the runner is in manual mode, the job becomes a one-minute task
    for an analyst (open, Refresh, Export); pressing Collect on the change request reads their export.
 
 Without `RUNNER_URL`/`RUNNER_TOKEN`, the demo simulates the runner, clearly labelled, with results from a simplified
@@ -149,7 +171,8 @@ change request for approval. See docs/Bohio_EstateMaster_Agent_Setup_Guide.pdf.
 | `runner/register_map.csv` | Assumption register → fixed cells of the control workbook (Inputs!E4:E36) |
 | `runner/output_labels.csv` | Output row labels to read from the export. **Placeholders**: use the labels in your export |
 | `runner/control_check.py` | Checks a control workbook (errors block, warnings need a person) |
-| `runner/models.example.json` | Copy to `models.json` and list each connected model's .emdf and control workbook |
+| `runner/models.example.json` | Copy to `models.json`: each model's .emdf and control workbook, plus optional scratch copy (stress checks) and live model (promotion) |
+| `runner/templates.example.json` | Copy to `templates.json`: the KINAN master templates new models are copied from |
 
 Tested here with a fake EstateMaster export (the full loop: connect → approve → runner writes the workbook →
 "EstateMaster" → results by label → approval card and memory, in automatic and manual modes).
@@ -161,5 +184,5 @@ confirmed in your trial and with Altus. See docs/Bohio_EstateMaster_Agent_Setup_
 - "Suggest changes" (Approvals tab, chat or WhatsApp) reviews assumptions against market comps,
   SQL Server actuals, achieved sales, the cost library, zoning and risk policy; it also runs on
   every Outlook scan. Each suggestion is a change request.
-- Router → Run diagnostics (or open the page with `#debug`) runs 18 self-tests and shows the AI and runner connections.
+- Router → Run diagnostics (or open the page with `#debug`) runs 21 self-tests and shows the AI and runner connections.
 - docs/ has the features, traceability and debug report, the setup guide and the user guide.

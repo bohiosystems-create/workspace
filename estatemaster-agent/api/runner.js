@@ -55,9 +55,16 @@ module.exports = async function handler(req, res) {
   try {
     let r;
     switch (b.action) {
-      case 'submit':
+      case 'submit':   // kind: run (approved change) | scratch (stress check, restored) | promote (approved, live model)
         if (!safeId(b.model) || typeof b.inputs !== 'object') return send(res, 400, { error: 'model and inputs required' });
-        r = await call('POST', '/jobs', { model: b.model, inputs: b.inputs, cr_id: b.cr_id || null, requested_by: b.requested_by || null });
+        if (b.kind && !['run', 'scratch', 'promote'].includes(b.kind)) return send(res, 400, { error: 'bad kind' });
+        r = await call('POST', '/jobs', { model: b.model, inputs: b.inputs, lines: b.lines && typeof b.lines === 'object' ? b.lines : {},
+          kind: b.kind || 'run', cr_id: b.cr_id || null, requested_by: b.requested_by || null, label: b.label ? String(b.label).slice(0, 200) : null });
+        break;
+      case 'create':   // new model from a KINAN master template (approved change request)
+        if (!safeId(b.model) || !safeId(b.template) || typeof b.inputs !== 'object') return send(res, 400, { error: 'model, template and inputs required' });
+        r = await call('POST', '/models/create', { model: b.model, name: String(b.name || b.model).slice(0, 200), template: b.template, inputs: b.inputs,
+          lines: b.lines && typeof b.lines === 'object' ? b.lines : {}, cr_id: b.cr_id || null, requested_by: b.requested_by || null });
         break;
       case 'job':
         if (!safeId(b.job_id)) return send(res, 400, { error: 'job_id required' });

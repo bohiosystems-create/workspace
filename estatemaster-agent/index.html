@@ -104,6 +104,8 @@ header{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:18p
 .btn:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(0,9,25,.25)}
 .btn.ghost{background:transparent;color:var(--ink)}
 .btn.sm{padding:5px 12px;font-size:12.5px}
+.trust{margin-top:12px;padding:8px 10px;border-radius:10px;font-size:12.5px;line-height:1.5;background:rgba(0,9,25,.04)}
+.trust.ok{background:rgba(0,9,25,.08)}.trust.warn{border:1px dashed var(--faint)}.trust .btn{margin-left:4px}
 .chip{border:1px solid var(--faint);background:rgba(255,255,255,.55);border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer;transition:.15s;text-align:left}
 .chip:hover{background:var(--ink);color:#fff}
 select{border:1px solid var(--faint);background:rgba(255,255,255,.7);border-radius:10px;padding:6px 10px;font-size:13px}
@@ -327,9 +329,10 @@ table.t td.n,table.t th.n{text-align:right}
     </div>
     <div style="display:flex;flex-direction:column;gap:20px">
       <div class="card">
-        <div class="bar"></div><h2>Live returns</h2>
+        <div class="bar"></div><h2>Live returns <span style="font-size:12px;font-family:var(--sans);color:var(--soft);font-weight:400">estimate</span></h2>
         <div class="sub" id="kpiSub">Sandbox scenario vs base case</div>
         <div class="kpis" id="kpis" style="grid-template-columns:repeat(3,1fr)"></div>
+        <div id="emTrust" class="trust"></div>
       </div>
       <div class="card">
         <div class="bar"></div><h2>Capital structure</h2>
@@ -458,10 +461,17 @@ table.t td.n,table.t th.n{text-align:right}
 
 <!-- STRESS -->
 <section class="pane" id="p-stress">
+  <div class="card" style="margin-bottom:20px">
+    <div class="bar"></div><div class="sbhead"><h2>Scenario generator: no limit</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="sgTheme" style="border:1px solid var(--faint);border-radius:999px;padding:5px 10px;font-size:12.5px;background:#fff"><option value="mixed">Mixed</option><option value="downturn">Market downturn</option><option value="construction">Construction shock</option><option value="finance">Finance shock</option><option value="timing">Delays</option><option value="tail">Tail events (severe)</option></select><select id="sgN" style="border:1px solid var(--faint);border-radius:999px;padding:5px 10px;font-size:12.5px;background:#fff"><option value="100">100</option><option value="1000" selected>1,000</option><option value="5000">5,000</option></select><button class="btn sm" id="sgGo">Generate</button><button class="btn ghost sm" id="sgVerify">Check worst 5 in EstateMaster</button><button class="btn ghost sm" id="sgReport">Stress report</button><button class="btn ghost sm" id="sgClear">Clear</button></div></div>
+    <div class="sub">Each press adds new scenarios, never the same one twice: correlated shocks across every driver, shaped by the theme, plus shocks to model lines. They are ranked on the agent’s estimate; the worst are then checked in EstateMaster on a scratch copy that the runner restores, so the model does not change.</div>
+    <div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap"><input id="sgText" placeholder="Describe a scenario, e.g. “rates up 250 bps, cost +12% and a 9-month delay”" style="flex:1;min-width:0;border:1px solid var(--faint);border-radius:999px;padding:7px 14px;font-size:13px"><button class="btn sm" id="sgAdd">Add scenario</button></div>
+    <div class="sub" id="sgStats"></div><div id="sgHist"></div><div style="overflow-x:auto"><table class="t" id="sgT"></table></div>
+  </div>
   <div class="grid g2">
     <div class="card">
       <div class="bar"></div><h2>Stress scenarios</h2>
-      <div class="sub">Hurdles: levered IRR ≥ <span id="hIRR"></span> and profit on cost ≥ <span id="hPOC"></span>. Recalculated on the current sandbox base.</div>
+      <div class="sub">Hurdles: levered IRR ≥ <span id="hIRR"></span> and profit on cost ≥ <span id="hPOC"></span>. Agent’s estimates on the current sandbox; check any scenario in EstateMaster for its own figure.</div>
       <div style="margin-bottom:12px"><button class="btn" id="runStress">Run all stress tests</button></div>
       <table class="t" id="stressT"></table>
     </div>
@@ -542,6 +552,12 @@ table.t td.n,table.t th.n{text-align:right}
     <table class="t" id="modT"></table>
   </div>
   <div class="card" style="margin-top:20px">
+    <div class="bar"></div><div class="sbhead"><h2>Model lines: every other assumption</h2><input id="xlQ" placeholder="Search model lines" style="border:1px solid var(--faint);border-radius:999px;padding:7px 14px;font-size:13px;min-width:0;width:220px"></div>
+    <div class="sub" style="margin-top:4px" id="xlSub"></div>
+    <div class="sub">No limit on the number of lines: they come from the Lines sheet of the model’s control workbook. The agent has no instant estimate for them, so a change becomes a change request and EstateMaster calculates the effect when it runs. Ask the agent too, e.g. “set pharmacy rent to 2,900”.</div>
+    <div style="overflow-x:auto"><table class="t" id="xlT"></table></div><div id="xlMore"></div>
+  </div>
+  <div class="card" style="margin-top:20px">
     <div class="bar"></div><h2>Elemental cost plan</h2>
     <div class="sub">Construction lines split into elements. Edit an element and its line in EstateMaster updates (the change is logged).</div>
     <div class="scroll" style="max-height:none"><table class="t" id="elT"></table></div>
@@ -596,6 +612,7 @@ table.t td.n,table.t th.n{text-align:right}
         <div class="it"><div class="num">2</div><div><b>Write approved inputs</b><span>After approval, the runner (Windows VM with licensed EstateMaster and Excel) writes the values into the control workbook’s fixed cells. Nothing unapproved is written.</span></div></div>
         <div class="it"><div class="num">3</div><div><b>Operate EstateMaster</b><span>It opens the model, presses Office Links → Refresh, recalculates, exports to Excel, saves a copy and closes (Windows UI automation).</span></div></div>
         <div class="it"><div class="num">4</div><div><b>Read back and reconcile</b><span>Results are read from EstateMaster’s export by row label, compared with the agent’s estimate and logged against the change request.</span></div></div>
+        <div class="it"><div class="num">5</div><div><b>New models and the live model</b><span>New models are copies of a KINAN master template, created by the runner after approval. Promotion backs up the live model’s workbook, writes the approved values and saves the live model; it needs an Investment Director.</span></div></div>
         <div class="it"><div class="num">!</div><div><b>Fallback and licence</b><span>If the automation fails, an analyst gets a one-minute task (open, Refresh, Export) and presses Collect. Confirm unattended use with Altus.</span></div></div>
       </div>
       <div class="sub" id="rnStat" style="margin-top:10px"></div><div class="sub" id="simWrap" style="margin-top:6px">Demo runner: <select id="simMode" style="border:1px solid var(--faint);border-radius:999px;padding:4px 10px;font-size:12.5px"><option value="ui">automation works</option><option value="manual">automation fails → analyst task</option></select></div>
@@ -875,11 +892,15 @@ function intent(text){
   if(/(new|start|create|build|set up|open)( a| an)?( brand)?( new)? (financial |feasibility |estatemaster )?model|new project|model for plot|feasibility for plot/.test(t)){const pm=t.match(/\b([a-z]{3}-\d{4})\b/),tp=/yasmin|residential only|resi(dential)? for sale/.test(t)?'yasmin':/hittin|retail plaza|retail only/.test(t)?'hittin':'narjis',nm=t.match(/(?:called|named)\s+["“']?([^"”'.,]+)/);return{k:'newmodel',o:{tpl:tp,plot:pm?pm[1].toUpperCase():null,name:nm?nm[1].trim().replace(/\b\w/g,c=>c.toUpperCase()):'',fill:/template values|as (they are|is)/.test(t)?'template':'market'}}}
   if(/report builder|(create|new|build|make|set up|add|design)( me)? (a |an )?(new )?(custom )?(report|report type|template)\b/.test(t))return{k:'newreport',def:parseNewReport(t)};
   {const hit=Object.entries(RPTS).find(([k,v])=>!v.builtin&&t.includes(v.name.toLowerCase()));if(hit)return{k:'report',kind:hit[0]}}
-  if(/\b(report|pack|memo|deck|board paper)\b/.test(t)||/compar\w* (the )?scenarios|scenarios? side by side/.test(t)){const kind=/month/.test(t)?'monthly':/lender|bank|covenant|facility|murabaha/.test(t)?'lender':/investor|\blps?\b|fund/.test(t)?'investor':/compar|side by side|scenarios/.test(t)?'compare':'ic';return{k:'report',kind}}
+  if(/(generate|create|build|run|more|another|new|infinite|unlimited|thousands?|\d[\d,]*)\b.*\b(stress|scenarios)/.test(t)&&!/\breport\b/.test(t)&&!/scenarios? side by side|compar/.test(t)){const n=t.match(/\b(\d{1,3}(?:,\d{3})+|\d+)\b/);const th=/downturn|market|recession|crash/.test(t)?'downturn':/construct|cost/.test(t)?'construction':/financ|rate|interest/.test(t)?'finance':/delay|timing/.test(t)?'timing':/tail|severe|extreme|black swan/.test(t)?'tail':'mixed';return{k:'stressgen',theme:th,count:n?parseInt(n[1].replace(/,/g,'')):1000}}
+  if(/(verify|check|confirm|run|test)\b.*\b(worst|scenarios?)\b.*\b(estatemaster|estate master|em)\b/.test(t))return{k:'stressverify',n:(t.match(/\b(\d+)\b/)||[0,5])[1]};
+  if(/(check|verify|confirm|run|calculate)\b.*\b(in|with|on|through)\s+(estatemaster|estate master|em)\b/.test(t)&&!/worst|scenarios?/.test(t))return{k:'emcheck'};
+  if(/\b(report|pack|memo|deck|board paper)\b/.test(t)||/compar\w* (the )?scenarios|scenarios? side by side/.test(t)){const kind=/month/.test(t)?'monthly':/lender|bank|covenant|facility|murabaha/.test(t)?'lender':/investor|\blps?\b|fund/.test(t)?'investor':/compar|side by side/.test(t)?'compare':/stress|scenario/.test(t)?'stress':/scenarios/.test(t)?'compare':'ic';return{k:'report',kind}}
   if(/apply.*(e-?mail|outlook|mail)|(e-?mail|outlook).*apply/.test(t))return{k:'emailapply'};
   if(/outlook|e-?mails?|inbox|\bmail\b/.test(t))return{k:'email'};
   if(/reset|revert|back to base/.test(t))return{k:'reset'};
   {const ln=parseLine(t);if(ln)return{k:'line',...ln}}
+  {const xn=parseXLine(t);if(xn)return{k:'xline',...xn}}
   if(/\bpref\w*|carried|waterfall|\bfund\b|\blps?\b|sponsor|promote\s*(of|at|to|is|=)?\s*\d/.test(t)&&!/promote (the )?(scenario|sandbox)/.test(t))return{k:'capital',mods:parseFT(t)};
   if(/promote|write back|push to (em|estate)|apply to (the )?(live|model)/.test(t))return{k:'promote'};
   if(/capital structure|waterfall|\bfunds?\b|investors?|\blps?\b|\bgp\b|sponsor|co-?invest|mutual|carried|\bcarry\b|preferred return|\bpref\b|murabaha|financing structure|management fee|mgmt fee/.test(t)&&!/promote (the )?scenario/.test(t))return{k:'capital',mods:parseFT(t)};
@@ -902,7 +923,7 @@ function intent(text){
 let pending=null;
 function statusText(){
   const r=run(S);
-  return{r,line:`Levered IRR ${fP(r.irr)} · profit on cost ${fP(r.poc)} · net profit ${fM(r.profit)} · equity multiple ${fX(r.em)}`}
+  return{r,line:`Estimate (agent’s model): Levered IRR ${fP(r.irr)} · profit on cost ${fP(r.poc)} · net profit ${fM(r.profit)} · equity multiple ${fX(r.em)}`+(emFresh()?`\nEstateMaster (${EMLAST.ref}${EMLAST.sim?', simulated':''}): levered IRR ${EMLAST.out.levered_irr.toFixed(2)}% for this exact working copy. EstateMaster’s figure is the one to use.`:`\nEstateMaster has not calculated this working copy yet: say “check in EstateMaster” for its figure.`)}
 }
 function verdict(r){
   const okI=bad(r.irr)>=HURDLE.irr,okP=r.poc>=HURDLE.poc;
@@ -912,7 +933,7 @@ async function handle(text,ch,role,forced){
   const it=forced||intent(text),web=ch==='web';
   const out={steps:[],plain:'',html:'',attach:null,link:null,fx:()=>{}};
   const done=(plain,html)=>{out.plain=plain;out.html=html||esc(plain).replace(/\*(.+?)\*/g,'<b>$1</b>').replace(/\n/g,'<br>')};
-  if(it.byAI&&!['newmodel','napkinmodel'].includes(it.k)){
+  if(it.byAI&&!['newmodel','napkinmodel','xline'].includes(it.k)){
     const ops=it.k==='mod'?[{t:'mods',mods:it.mods}]:it.k==='line'?[{t:'line',id:it.id,v:it.v}]:it.k==='align'?[{t:'mods',mods:alignDeltas()}]:it.k==='reset'?[{t:'reset'}]:it.k==='capital'&&it.mods&&Object.keys(it.mods).length?[{t:'ft',mods:it.mods}]:null;
     if(ops){let cr;out.steps=['Prepare change request (AI agents cannot write to EstateMaster)','Preview impact on the replica'];
       cr=raiseCR('agent',`Bohio agent (${it.byAI})`,opsDesc(ops),ops,{channel:web?'Workspace':'WhatsApp'});
@@ -922,6 +943,39 @@ async function handle(text,ch,role,forced){
       return out}
   }
   switch(it.k){
+  case 'xline':{
+    if(it.ambiguous){done(`Which line did you mean? ${it.ambiguous.slice(0,6).map(d=>`${d.label} (${d.id})`).join('; ')}. Say it with the id, e.g. “set ${it.ambiguous[0].id} to …”.`);break}
+    const d=XBY(it.id);if(!d){done('That model line was not found. Search the Model lines table or ask “find … lines”.');break}
+    const by=it.byAI?`Bohio agent (${it.byAI})`:`${web?USERS.web:USERS.wa} (${web?WS_ROLE:role})`,from=xVal(d.id);
+    const cr=proposeXLine(d.id,it.v,by,web?'Workspace':'WhatsApp',!!it.byAI);if(!cr){done(`${d.label}: that value is not valid.`);break}
+    out.steps=[`Find model line: ${d.label} (${d.id} · ${d.g})`,'Model lines are calculated only in EstateMaster: prepare a change request'];out.link=['appr','Open approvals'];
+    done(`*Proposed ${cr.id}: ${d.label} ${fmtX(d,from)} → ${fmtX(d,it.v)}*\nThis is a model line: there is no instant estimate; EstateMaster calculates its effect when the change runs.${d.linked?'':'\nIt is not linked in EstateMaster yet, so the runner will not write it until it is.'}\nReply *APPROVE ${cr.id}* to run it, or *REJECT ${cr.id}*.`,
+      `<b>Proposed ${cr.id}:</b> ${esc(d.label)} ${esc(fmtX(d,from))} → <b>${esc(fmtX(d,it.v))}</b><br>This is a model line: no instant estimate; EstateMaster calculates its effect when the change runs.${d.linked?'':'<br><span style="color:var(--alert)">Not linked in EstateMaster yet: the runner will not write it until it is.</span>'}<div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm" data-apr="${cr.id}">Approve</button><button class="btn ghost sm" data-rej="${cr.id}">Reject</button></div>`);
+    break}
+  case 'emcheck':{
+    out.steps=[`Send the working copy to EstateMaster on the scratch copy${simRunner()?' (simulated runner)':''}`,'EstateMaster refreshes, recalculates and exports; the runner restores the scratch copy (nothing changes)'];
+    out.fx=()=>checkWorkingCopy();out.link=['agent','See returns'];
+    done(`*Checking this working copy in EstateMaster*\nThe agent’s figure is an estimate: levered IRR ${fP(run(S).irr)}. EstateMaster’s own figure appears under the returns and in the change memory when it is back. Nothing in the model changes.`);
+    break}
+  case 'xsearch':{
+    const q=String(it.q||''),hits=findXLines(q,Math.min(50,+it.n||15)),core=REG.filter(l=>lineOn(l)&&xWords(l.label+' '+l.g).some(w=>xWords(q).includes(w)));
+    out.steps=[`Search ${REG.filter(lineOn).length} core lines and ${xl().length.toLocaleString()} model lines for “${q}”`];out.link=['model','Open model data'];
+    done((core.length||hits.length)?core.map(l=>`${l.id} | core | ${l.g} | ${l.label} | ${fmtLine(l,lineVal(l.id))}`).concat(hits.map(h=>`${h.d.id} | model line${h.d.linked?'':' (not linked)'} | ${h.d.g} | ${h.d.label} | ${fmtX(h.d,xVal(h.d.id))}`)).join('\n'):`No lines match “${q}”.`);
+    break}
+  case 'stressgen':{
+    const n=Math.min(5000,Math.max(10,+it.count||1000)),th=THEMES[it.theme]?it.theme:'mixed',n0=GEN.n,f0=GEN.fail;
+    genScenarios(n,th);const w=GEN.worst[0],nf=GEN.fail-f0;
+    out.steps=[`Generate ${n.toLocaleString()} new ${THEMES[th].toLowerCase()} scenarios (no limit: every run adds new ones)`,`Run each on the agent’s estimate (${GEN.n.toLocaleString()} so far)`,'Rank by levered IRR; the worst can be checked in EstateMaster'];
+    out.fx=()=>{renderGen();logEvent({kind:'stress',actor:web?USERS.web:USERS.wa,channel:web?'Workspace':'WhatsApp',detail:`Generated ${n.toLocaleString()} ${THEMES[th].toLowerCase()} stress scenarios (${GEN.n.toLocaleString()} so far)`})};out.link=['stress','Open stress tests'];
+    done(`*${n.toLocaleString()} new ${THEMES[th].toLowerCase()} scenarios*\n${nf.toLocaleString()} breach a hurdle (${(nf/n*100).toFixed(1)}%). Worst so far: ${w.name}, IRR ${fP(w.irr)} (estimate).\n${GEN.n.toLocaleString()} scenarios generated in total; ask for more at any time, or “check the worst 5 in EstateMaster”.`);
+    break}
+  case 'stressverify':{
+    const n=Math.min(20,Math.max(1,+it.n||5)),list=GEN.worst.slice(0,n);
+    if(!list.length){done('Generate scenarios first, e.g. “generate 1,000 stress scenarios”.');break}
+    out.steps=[`Send the ${n} worst scenarios to EstateMaster on the scratch copy${simRunner()?' (simulated runner)':''}`,'The runner restores the scratch copy after each run: the model does not change, so no approval is needed'];
+    out.fx=()=>verifyScenarios(list);out.link=['stress','Open stress tests'];
+    done(`*Checking the ${n} worst scenarios in EstateMaster*\nThey run on a scratch copy that is restored afterwards, so the model does not change. EstateMaster’s IRR appears next to each estimate on the Stress tests tab and in the change memory.`);
+    break}
   case 'capital':{
     const ch_=it.mods||{},bad_=Object.entries(ch_).find(([k,v])=>!(v>=0&&v<=(k==='lp'?100:k==='fee'?5:50)));
     if(bad_){done(`That ${bad_[0]} value is out of range.`);break}
@@ -1129,7 +1183,7 @@ async function handle(text,ch,role,forced){
     const res=ids.map(id=>it.k==='approve'?approveCR(id,ch,r_):rejectCR(id,ch,r_));
     out.steps=ids.map(id=>`${it.k==='approve'?'Approve':'Reject'} ${id} · ${web?USERS.web:USERS.wa} (${r_})`).concat(it.k==='approve'?['Step-up check passed (one-time code, demo)',rf(),'Write audit record']:['Write audit record']);
     out.link=['appr','Open approvals'];
-    done(res.map((x,i)=>x.err?`*${ids[i]}:* ${x.err}`:`*${ids[i]} ${it.k==='approve'?'approved':'rejected'}* by ${x.who}.${it.k==='approve'?(x.cr.kind==='promotion'?' Live EstateMaster model updated by the runner.':x.cr.kind==='newmodel'?` Runner created the EstateMaster model; workspace switched to ${x.cr.def.name}.`:(runnerLive()||simRunner()?' Sent to the EstateMaster runner; the result appears on the change request.':' Approved; the EstateMaster runner is not reachable, so EstateMaster is not updated yet.')):' Nothing was written.'}`).join('\n')+`\nLogged in the change history.`);
+    done(res.map((x,i)=>x.err?`*${ids[i]}:* ${x.err}`:`*${ids[i]} ${it.k==='approve'?'approved':'rejected'}* by ${x.who}.${it.k==='approve'?(x.cr.kind==='promotion'?' The runner is updating and saving the live EstateMaster model; the result appears on the change request.':x.cr.kind==='newmodel'?` The runner is creating the EstateMaster model from the KINAN template; workspace switched to ${x.cr.def.name}.`:(runnerLive()||simRunner()?' Sent to the EstateMaster runner; the result appears on the change request.':' Approved; the EstateMaster runner is not reachable, so EstateMaster is not updated yet.')):' Nothing was written.'}`).join('\n')+`\nLogged in the change history.`);
     break}
   default:{
     done('*I can:*\n• "What if sale price drops 10% and cost +15%"\n• "Stress test the model"\n• "Sensitivity of exit cap vs construction cost"\n• "Keep exploring autonomously"\n• "How far can prices fall?"\n• "Check Outlook for assumption changes"\n• "Why did construction cost change?"\n• "Check assumptions against market data"\n• "Is the scheme compliant with zoning?"\n• "Build the IC report"\n• "Promote scenario"');
@@ -1232,13 +1286,13 @@ DATA.emails.push(
  {id:'em9',arrive:3,date:'2026-09-29 13:05',from:'Layla S. · Debt Advisory, Gulf Bank (dummy)',addr:'l.s@bank.example',subject:'SAIBOR fixing update',
   body:'3-month SAIBOR fixed 25 bps higher this morning at 6.75%. Margin unchanged at 250 bps.',change:{line:'sb',value:6.75,conf:.85,quote:'fixed 25 bps higher this morning at 6.75%'}});
 const emChanges=e=>e.changes?e.changes.map(c=>({line:c.line,value:c.value,quote:c.quote,conf:c.conf})):!e.change?[]:(e.change.line?[{line:e.change.line,value:e.change.value,quote:e.change.quote,conf:e.change.conf}]:[{var:e.change.var,delta:e.change.delta,quote:e.change.quote,conf:e.change.conf}].concat(e.change.also?[{...e.change.also,conf:e.change.conf}]:[]));
-const chLabel=c=>c.line?REGBY[c.line].label:VARS[c.var].label;
-const chFrom=c=>c.line?fmtLine(REGBY[c.line],lineVal(c.line)):levelTxt(c.var,S[c.var]||0);
-const chTo=c=>c.line?fmtLine(REGBY[c.line],c.value):levelTxt(c.var,c.delta);
-const emTag=c=>c.line?`${REGBY[c.line].label} → ${fmtLine(REGBY[c.line],c.value)}`:`${VARS[c.var].label} ${fD(c.var,c.delta)}`;
+const chLabel=c=>c.line?(REGBY[c.line]||XBY(c.line)||{label:c.line}).label:VARS[c.var].label;
+const chFrom=c=>c.line?(REGBY[c.line]?fmtLine(REGBY[c.line],lineVal(c.line)):fmtX(XBY(c.line),xVal(c.line))):levelTxt(c.var,S[c.var]||0);
+const chTo=c=>c.line?(REGBY[c.line]?fmtLine(REGBY[c.line],c.value):fmtX(XBY(c.line),c.value)):levelTxt(c.var,c.delta);
+const emTag=c=>c.line?`${chLabel(c)} → ${chTo(c)}`:`${VARS[c.var].label} ${fD(c.var,c.delta)}`;
 const levelTxt=(k,d)=>VARS[k].fmt(apply({[k]:d})[k]);
 const drvOfLine=id=>{const l=REGBY[id];return l.agg?AGG[l.agg].drv:l.drv};
-const opsForEmail=e=>emChanges(e).map(c=>c.line?{t:'line',id:c.line,v:c.value,src:{eid:e.id,quote:c.quote}}:{t:'mods',mods:{[c.var]:c.delta},src:{eid:e.id,quote:c.quote}});
+const opsForEmail=e=>emChanges(e).map(c=>c.line?(REGBY[c.line]?{t:'line',id:c.line,v:c.value,src:{eid:e.id,quote:c.quote}}:{t:'xline',id:c.line,v:c.value,src:{eid:e.id,quote:c.quote}}):{t:'mods',mods:{[c.var]:c.delta},src:{eid:e.id,quote:c.quote}});
 
 /* ================= CHANGE MEMORY (every change, manual or agent) ================= */
 const USERS={web:'Workspace user',wa:'Fatima A.'};
@@ -1249,30 +1303,32 @@ function logEvent(o){
   const actor=o.actor||(ch==='WhatsApp'?`${USERS.wa} (${$('#warole')?$('#warole').value:'Analyst'})`:`${USERS.web} (${WS_ROLE})`);
   let irr=null;try{irr=run(S).irr}catch(e){}
   LOG.push({id:'L'+String(LOGN++).padStart(4,'0'),at:new Date().toISOString(),actor,channel:ch,kind:o.kind||'change',detail:String(o.detail||'').replace(/^(Workspace|WhatsApp|Sliders|Model data):\s*/,''),cr:o.cr||'',irr});
-  if(LOG.length>1000)LOG=LOG.slice(-1000);saveMem();if($('#p-appr')&&$('#p-appr').classList.contains('on'))renderApprovals();
+  if(LOG.length>LOG_KEEP)LOG=LOG.slice(-LOG_KEEP);saveMem();if($('#p-appr')&&$('#p-appr').classList.contains('on'))renderApprovals();
 }
 changelog.push=function(...a){a.forEach(x=>logEvent({detail:x}));return Array.prototype.push.apply(this,a)};
 
 /* ================= APPROVALS: nothing is written to EstateMaster without a person ================= */
 let APQ=[];let CRN=101;
-function snapState(){return{S:{...S},F:{...FIX},T:{...FT},L:{...LV}}}
-function restoreState(z){S=z.S;Object.assign(FIX,z.F);Object.assign(FT,z.T);LV=z.L}
+function snapState(){return{S:{...S},F:{...FIX},T:{...FT},L:{...LV},X:{...XV}}}
+function restoreState(z){S=z.S;Object.assign(FIX,z.F);Object.assign(FT,z.T);LV=z.L;if(z.X)XV=z.X}
 function applyOpsRaw(ops){
   for(const o of ops){
     if(o.t==='mods')Object.assign(S,o.mods);
     else if(o.t==='line')setLineRaw(o.id,o.v);
     else if(o.t==='ft')Object.assign(FT,o.mods);
-    else if(o.t==='reset'){S={};resetDetail()}
+    else if(o.t==='reset'){S={};resetDetail();XV={}}
+    else if(o.t==='xline')XV[o.id]=o.v;
   }
   Object.keys(S).forEach(k=>{if(Math.abs(S[k])<1e-9)delete S[k]});
 }
 function previewOps(ops){const z=snapState(),b=run(S);applyOpsRaw(ops);const a=run(S);restoreState(z);return{b,a}}
-function opsDesc(ops){return ops.map(o=>o.t==='mods'?scenName(o.mods):o.t==='line'?`${REGBY[o.id].label} → ${fmtLine(REGBY[o.id],o.v)}`:o.t==='ft'?'fund terms '+Object.entries(o.mods).map(([k,v])=>k+' '+v+'%').join(', '):o.t==='reset'?'reset to base':o.t==='promote'?'promote working copy to the live model':'').join('; ')}
+function opsDesc(ops){return ops.map(o=>o.t==='mods'?scenName(o.mods):o.t==='line'?`${REGBY[o.id].label} → ${fmtLine(REGBY[o.id],o.v)}`:o.t==='ft'?'fund terms '+Object.entries(o.mods).map(([k,v])=>k+' '+v+'%').join(', '):o.t==='reset'?'reset to base':o.t==='xline'?`${(XBY(o.id)||{label:o.id}).label} → ${fmtX(XBY(o.id),o.v)}`:o.t==='promote'?'promote working copy to the live model':'').join('; ')}
 function opsRows(ops){const rows=[];const z=snapState();for(const o of ops){
   if(o.t==='mods')for(const k in o.mods)rows.push([VARS[k].label,levelTxt(k,S[k]||0),levelTxt(k,o.mods[k])]);
   else if(o.t==='line'){const l=REGBY[o.id];rows.push([l.label,fmtLine(l,lineVal(o.id)),fmtLine(l,o.v)])}
   else if(o.t==='ft')for(const k in o.mods)rows.push(['Fund '+k,FT[k]+'%',o.mods[k]+'%']);
   else if(o.t==='reset')rows.push(['All assumptions','current','base case']);
+  else if(o.t==='xline'){const d=XBY(o.id)||(o.def)||{label:o.id,unit:''};rows.push([d.label+' <span style="color:var(--soft);font-size:11px">model line '+o.id+'</span>',fmtX(d,xVal(o.id)),fmtX(d,o.v)])}
   else if(o.t==='promote')rows.push(['Live EstateMaster model','approved base','working copy: '+(scenLine().replace(/^Scenario: /,''))]);
   applyOpsRaw([o])}restoreState(z);return rows}
 function raiseCR(kind,by,title,ops,extra={}){
@@ -1287,11 +1343,13 @@ function approveCR(id,ch,role){
   if(cr.proj&&cr.proj!==PROJ.id)return{err:`${id} belongs to ${PROJECTS[cr.proj]?PROJECTS[cr.proj].name:'another project'}. Switch to that project to approve it.`};
   if(cr.kind==='newmodel'){const who0=ch==='wa'?`${USERS.wa} (${role})`:`${USERS.web} (${role})`;const d=cr.def;PROJECTS[d.id]={id:d.id,name:d.name,district:d.district,plot:d.plot,comps:d.comps,regBase:d.regBase,areas:d.areas,template:d.template};
     cr.status='approved';cr.decidedBy=who0;cr.decidedAt=new Date().toISOString();
-    logEvent({kind:'approved',actor:who0,channel:ch==='wa'?'WhatsApp':'Workspace',detail:`${id} approved: runner created EstateMaster model "${d.name}" from template ${TEMPLATES[d.template].name} (plot ${d.plot})`,cr:id});
-    switchProject(d.id);renderApprBadge();renderApprovals();saveMem();return{cr,who:who0}}
+    if(d.template==='narjis'&&PROJECTS.narjis.xl)PROJECTS[d.id].xl=PROJECTS.narjis.xl.map(x=>({...x}));
+    logEvent({kind:'approved',actor:who0,channel:ch==='wa'?'WhatsApp':'Workspace',detail:`${id} approved: runner asked to create EstateMaster model "${d.name}" from the KINAN ${TPL_RUNNER[d.template]} master template (structure of ${TEMPLATES[d.template].name}, plot ${d.plot})`,cr:id});
+    switchProject(d.id);runnerSubmit(cr,{kind:'create',template:TPL_RUNNER[d.template]});renderApprBadge();renderApprovals();saveMem();return{cr,who:who0}}
   const who=ch==='wa'?`${USERS.wa} (${role})`:`${USERS.web} (${role})`;
-  if(cr.kind==='promotion'){cr.status='approved';cr.decidedBy=who;cr.decidedAt=new Date().toISOString();logEvent({kind:'promoted',actor:who,channel:ch==='wa'?'WhatsApp':'Workspace',detail:`${id} approved: working copy promoted to the live EstateMaster model (${scenName(S)||'no change'})`,cr:id})}
+  if(cr.kind==='promotion'){cr.status='approved';cr.decidedBy=who;cr.decidedAt=new Date().toISOString();logEvent({kind:'promoted',actor:who,channel:ch==='wa'?'WhatsApp':'Workspace',detail:`${id} approved: promotion of the working copy to the live EstateMaster model sent to the runner (${scenName(S)||'no change'}${xl().filter(xChanged).length?', '+xl().filter(xChanged).length+' model lines changed':''})`,cr:id});runnerSubmit(cr,{kind:'promote'})}
   else{
+    if(cr.kind==='connect'&&cr.xdefs)mergeXDefs(cr.xdefs);
     applyOpsRaw(cr.ops);
     cr.ops.forEach(o=>{if(o.src){const e=DATA.emails.find(x=>x.id===o.src.eid);const k=o.t==='line'?drvOfLine(o.id):Object.keys(o.mods||{})[0];if(e&&k)SRC[k]={e,quote:o.src.quote};if(e)EM.applied[e.id]=true}else{const k=o.t==='line'?drvOfLine(o.id):o.t==='mods'?Object.keys(o.mods)[0]:null;if(k)delete SRC[k]}});
     cr.status='approved';cr.decidedBy=who;cr.decidedAt=new Date().toISOString();
@@ -1331,7 +1389,7 @@ const MAIL={configured:false,mailbox:null,folder:null,last:null};
 async function scanLive(label,quiet){
   if(!MAIL.configured)return scanEmails(label,quiet);
   try{
-    const r=await post('/api/scan',AI.pass?{'x-demo-pass':AI.pass}:{},{project:PROJ.name,since:MAIL.last||new Date(Date.now()-7*864e5).toISOString(),register:REG.filter(lineOn).map(l=>({id:l.id,label:l.label,unit:l.unit,current:+lineVal(l.id).toFixed(4)}))});
+    const r=await post('/api/scan',AI.pass?{'x-demo-pass':AI.pass}:{},{project:PROJ.name,since:MAIL.last||new Date(Date.now()-7*864e5).toISOString(),register:REG.filter(lineOn).map(l=>({id:l.id,label:l.label,unit:l.unit,current:+lineVal(l.id).toFixed(4),core:true})).concat(xl().map(d=>({id:d.id,label:d.label,section:d.g,unit:d.unit,current:xVal(d.id),core:false})))});
     MAIL.last=r.scannedAt;
     for(const m of r.messages){const id='live-'+m.id.slice(-16);if(DATA.emails.some(e=>e.id===id))continue;
       DATA.emails.push({id,project:PROJ.id,arrive:0,date:m.date.replace('T',' ').slice(0,16),from:m.from,addr:m.addr,subject:m.subject,body:m.body,changes:m.changes.length?m.changes:null,change:m.changes.length?{conf:m.changes[0].conf}:null})}
@@ -1342,11 +1400,14 @@ async function scanLive(label,quiet){
 setInterval(()=>{const n=riyadhNow(),h=n.getHours(),m=n.getMinutes();if(SCAN_TIMES.includes(h)&&m===0&&SCAN.last!==`${String(h).padStart(2,'0')}:00`)scanLive(`${String(h).padStart(2,'0')}:00`)},30000);
 
 /* ================= PERSISTENCE (demo memory in this browser) ================= */
-function saveMem(){try{localStorage.setItem('bohioMem',JSON.stringify({v:1,proj:PROJ.id,projects:Object.fromEntries(Object.entries(PROJECTS).filter(([k])=>k!=='narjis').map(([k,v])=>[k,{...v,saved:undefined}])),LOG,LOGN,APQ,CRN,SCAN,EM:{applied:EM.applied,proposed:EM.proposed},state:{S,FIX,FT,LV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))}))}catch(e){}}
+// The browser keeps the latest LOG_KEEP memory entries (export them any time); production keeps everything in SQL Server.
+const LOG_KEEP=10000;let MEMWARN=false;
+function saveMem(){try{localStorage.setItem('bohioMem',JSON.stringify({v:1,EMLAST,narjisXL:PROJECTS.narjis.xl||null,X:XV,GEN:{seed:GEN.seed,seq:GEN.seq,n:GEN.n,fail:GEN.fail,bins:GEN.bins,worst:GEN.worst.slice(0,100),custom:GEN.custom,em:GEN.em},proj:PROJ.id,projects:Object.fromEntries(Object.entries(PROJECTS).filter(([k])=>k!=='narjis').map(([k,v])=>[k,{...v,saved:undefined}])),LOG,LOGN,APQ,CRN,SCAN,EM:{applied:EM.applied,proposed:EM.proposed},state:{S,FIX,FT,LV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))}))}catch(e){if(!MEMWARN){MEMWARN=true;try{toast('Browser storage is full: new changes are not being saved in this browser. Export the change memory (Approvals tab).')}catch(_){}}}}
 function loadMem(){try{const m=JSON.parse(localStorage.getItem('bohioMem')||'null');if(!m||m.v!==1)return false;
   for(const [k,v] of Object.entries(m.projects||{}))PROJECTS[k]=v;if(m.proj&&PROJECTS[m.proj]&&m.proj!=='narjis')loadModelCore(PROJECTS[m.proj]);
   LOG=m.LOG||[];LOGN=m.LOGN||LOG.length+1;APQ=m.APQ||[];CRN=m.CRN||101;Object.assign(SCAN,m.SCAN||{});Object.assign(EM.applied,m.EM.applied||{});Object.assign(EM.proposed,m.EM.proposed||{});
   S=m.state.S||{};Object.assign(FIX,m.state.FIX||{});Object.assign(FT,m.state.FT||{});LV=m.state.LV||{};
+  if(m.narjisXL)PROJECTS.narjis.xl=m.narjisXL;EMLAST=m.EMLAST||null;XV=m.X||{};XMAP=null;if(m.GEN)Object.assign(GEN,m.GEN,{busy:false});
   for(const [k,v] of Object.entries(m.SRC||{})){const e=DATA.emails.find(x=>x.id===v.eid);if(e)SRC[k]={e,quote:v.quote}}return true}catch(e){return false}}
 function clearMem(){try{localStorage.removeItem('bohioMem')}catch(e){}location.reload()}
 
@@ -1367,9 +1428,9 @@ function renderInbox(){
 function renderApprBadge(){const n=pendingCRs().length,t=document.querySelector('.tab[data-t=appr]');if(t)t.innerHTML=`Approvals${n?` <b style="background:var(--alert);color:#fff;border-radius:999px;padding:0 7px;font-size:11px;margin-left:4px">${n}</b>`:''}`}
 let logQ='';
 function crCard(c){
-  return`<div class="em ${c.status==='pending'?'on':''}" style="cursor:default"><div class="top"><span>${c.id} · ${c.kind==='email'?'email proposal':c.kind==='agent'?'AI agent proposal':c.kind==='suggestion'?'suggested change · '+esc(c.source||''):c.kind==='newmodel'?'new model':c.kind==='connect'?'model connection · '+(c.check?c.check.filled+'/'+c.check.lines+' values, '+c.check.warnings+' warnings':''):'promotion to live model'}${c.proj&&PROJECTS[c.proj]&&c.proj!==PROJ.id?' · '+esc(PROJECTS[c.proj].name):''} · raised by ${esc(c.by)}</span><span>${new Date(c.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span></div>
+  return`<div class="em ${c.status==='pending'?'on':''}" style="cursor:default"><div class="top"><span>${c.id} · ${c.kind==='email'?'email proposal':c.kind==='agent'?'AI agent proposal':c.kind==='suggestion'?'suggested change · '+esc(c.source||''):c.kind==='newmodel'?'new model':c.kind==='manual'?'change by a person (model line)':c.kind==='connect'?'model connection · '+(c.check?c.check.filled+'/'+c.check.lines+' values, '+c.check.warnings+' warnings':''):'promotion to live model'}${c.proj&&PROJECTS[c.proj]&&c.proj!==PROJ.id?' · '+esc(PROJECTS[c.proj].name):''} · raised by ${esc(c.by)}</span><span>${new Date(c.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span></div>
    <div class="sj">${esc(c.title)}</div>${c.kind==='newmodel'&&c.def?modelSummary(c.def):T(['Assumption','Current','Proposed'],c.rows,false)}
-   <div style="font-size:12.5px;margin:4px 0">${c.kind==='newmodel'?'First-pass levered IRR <b>'+fP(c.irrA)+'</b>':`Levered IRR ${fP(c.irrB)} → <b>${fP(c.irrA)}</b>`}${c.quote?` · source quote: "${esc(c.quote)}"`:''}${c.kind==='promotion'?' · needs an Investment Director':''}${c.why?`<br><span style="color:var(--ink2)">Why: ${esc(c.why)}</span>`:''}</div>${emLine(c)}
+   <div style="font-size:12.5px;margin:4px 0">${c.kind==='newmodel'?'First-pass levered IRR <b>'+fP(c.irrA)+'</b>':c.ops&&c.ops.length&&c.ops.every(o=>o.t==='xline')?'Model lines only: no instant estimate. EstateMaster calculates the effect when this runs.':`Levered IRR ${fP(c.irrB)} → <b>${fP(c.irrA)}</b>`}${c.ops&&c.ops.some(o=>o.t==='xline')&&!c.ops.every(o=>o.t==='xline')?' · model lines: EstateMaster only':''}${c.xdefs&&c.xdefs.length?` · connects ${c.xdefs.length.toLocaleString()} model lines`:''}${c.warn?`<br><span style="color:var(--alert)">${esc(c.warn)}</span>`:''}${c.quote?` · source quote: "${esc(c.quote)}"`:''}${c.kind==='promotion'?' · needs an Investment Director':''}${c.why?`<br><span style="color:var(--ink2)">Why: ${esc(c.why)}</span>`:''}</div>${emLine(c)}
    ${c.status==='pending'?`<div style="display:flex;gap:8px;margin-top:6px"><button class="btn sm" data-apr="${c.id}">Approve</button><button class="btn ghost sm" data-rej="${c.id}">Reject</button></div>`:`<div style="font-size:12px;color:var(--soft)"><span class="pill ${c.status==='approved'?'p':'f'}">${c.status}</span> by ${esc(c.decidedBy)} · ${new Date(c.decidedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</div>`}</div>`;
 }
 function renderApprovals(){
@@ -1493,14 +1554,14 @@ const NARRS={};
 const narrBlock=id=>{const n=NARRS[id];return n&&n.key===narrKey()?`<h3>Narrative (AI draft)</h3>${n.text.split(/\n+/).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join('')}<p class="meta" style="margin-top:4px">Drafted by ${esc(mName(n.prov,n.model))} from the EstateMaster extract. Every figure is calculated, not generated.</p>`:''};
 const fS=v=>(v<0?'−':'')+'SAR '+(Math.abs(v)/1e6).toFixed(1)+'M';
 const T=(head,rows,num=[])=>`<table class="t"><tr>${head.map((h,i)=>`<th${i&&num!==false?' class="n"':''}>${h}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map((c,i)=>`<td${i&&num!==false?' class="n"':''}>${c}</td>`).join('')}</tr>`).join('')}</table>`;
-const lineage=(x,extra='')=>`<div class="lineage">Source: EstateMaster extract ${x.id} (${x.at.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}) via the runner · model copy BHO_SBX${extra} · generated by Bohio Agent · demo data</div>`;
+const lineage=(x,extra='')=>`<div class="lineage">Figures: ${emFresh()?`EstateMaster column from EstateMaster’s export (${esc(EMLAST.ref)}, ${new Date(EMLAST.at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}${EMLAST.sim?', simulated runner':''}); `:''}all other figures are the agent’s estimates (extract ${x.id}, ${x.at.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}), not EstateMaster figures${emFresh()?'':'; EstateMaster has not calculated this working copy'}${extra} · generated by Bohio Agent · demo data</div>`;
 const scenLine=()=>{const parts=[],seen={};for(const l of detailDiffs()){if(l.agg&&AGG[l.agg].drv&&!grpLines(l.agg).some(x=>x.id in LV)){if(!seen[l.agg]){seen[l.agg]=1;const k=AGG[l.agg].drv;parts.push(VARS[k].label.toLowerCase()+' '+fD(k,S[k]||0))}continue}parts.push(l.label.toLowerCase()+' '+fmtLine(l,lineVal(l.id)))}
   return parts.length?'Scenario: '+esc(parts.join(', ')):'Model: base case as held in EstateMaster'};
 const yearOf=t=>2025+Math.floor((3+t)/4);
 
 /* ---- BLOCK LIBRARY: every report is a list of blocks drawn from the extract ---- */
 const BLOCKS={
- kpis:{g:'Returns',name:'Headline numbers',fn:()=>{const r=run(S),b=baseRes;return T(['Metric','Approved base','This extract'],[['Levered IRR',fP(b.irr),fP(r.irr)],['Unlevered IRR',fP(b.uirr),fP(r.uirr)],['Profit on cost',fP(b.poc),fP(r.poc)],['Net profit',fS(b.profit),fS(r.profit)],['Total development cost',fS(b.tc),fS(r.tc)],['Gross revenue',fS(b.rev),fS(r.rev)],['Equity multiple',fX(b.em),fX(r.em)],['Peak debt',fS(b.peak),fS(r.peak)]])}},
+ kpis:{g:'Returns',name:'Headline numbers',fn:()=>{const r=run(S),b=baseRes,em=(k,f)=>emFig(k,f)||'—',num=v=>(+v).toLocaleString('en-GB',{maximumFractionDigits:2});return T(['Metric','Approved base (estimate)','Working copy (estimate)','EstateMaster'],[['Levered IRR',fP(b.irr),fP(r.irr),em('levered_irr')],['Unlevered IRR',fP(b.uirr),fP(r.uirr),em('unlevered_irr')],['Profit on cost',fP(b.poc),fP(r.poc),em('profit_on_cost')],['Net profit',fS(b.profit),fS(r.profit),em('net_profit',num)],['Total development cost',fS(b.tc),fS(r.tc),em('total_cost',num)],['Gross revenue',fS(b.rev),fS(r.rev),em('gross_revenue',num)],['Equity multiple',fX(b.em),fX(r.em),em('equity_multiple',v=>(+v).toFixed(2)+'x')],['Peak debt',fS(b.peak),fS(r.peak),em('peak_debt',num)]])+`<p class="meta">${emFresh()?`EstateMaster column: EstateMaster’s own export for exactly this working copy (${esc(EMLAST.ref)}${EMLAST.sim?', simulated runner':''}), as exported. Use it where it differs from the estimate.`:'EstateMaster has not calculated this working copy yet: the figures are the agent’s estimates. Press “Check in EstateMaster” on the Agent tab before issuing this report.'}</p>`}},
  valuation:{g:'Returns',name:'Retail valuation and exit',fn:()=>{const r=run(S),p=apply(S),gla=FIX.retGLA*p.area/100;
    const roll=REG.filter(l=>l.agg==='rent').map(l=>[l.label,Math.round(gla*l.w).toLocaleString()+' sqm',Math.round(lineVal(l.id)).toLocaleString(),fS(gla*l.w*lineVal(l.id))]);
    return T(['Tenant type','GLA','Rent SAR/sqm/yr','Gross rent p.a.'],roll)+T(['Item','Value'],[['Stabilised occupancy',(FIX.occ*100).toFixed(0)+'%'],['Non-recoverable opex',(FIX.opex*100).toFixed(0)+'% of rent'],['Net operating income',fS(r.noi)],['Exit cap rate',p.cap.toFixed(2)+'%'],['Net exit value',fS(r.exitV)],['Value per sqm GLA','SAR '+Math.round(r.exitV/gla).toLocaleString()]])}},
@@ -1539,6 +1600,9 @@ const BLOCKS={
  tornado_top:{g:'Risk',name:'Top 10 assumptions by IRR impact',fn:()=>{if(!fullTorn)computeFullTornado();return T(['Assumption','−10%','+10%'],fullTorn.slice(0,10).map(t=>[esc(t.l.label),sgn(t.lo*100,1)+' pts',sgn(t.hi*100,1)+' pts']))+'<p class="meta">Each register line moved on its own (delay: +6 months).</p>'}},
  headroom:{g:'Risk',name:'Headroom before the IRR hurdle breaks',fn:()=>T(['Assumption','Headroom','Until loss'],(headRes||computeHeadroomData()).filter(x=>x.k!=='ltc').map(x=>[VARS[x.k].label,hd(x.k,x.irrD),hd(x.k,x.lossD)]))},
  explorer:{g:'Risk',name:'Monte Carlo explorer results',fn:()=>E.n?`<p>${E.n.toLocaleString()} scenarios sampled across all assumptions. Probability of IRR below hurdle ${(E.below/E.n*100).toFixed(1)}%; P10 ${fP(pct(E.vals,.1))}, median ${fP(pct(E.vals,.5))}, P90 ${fP(pct(E.vals,.9))}.</p>`:'<p>The explorer has not been run for this extract.</p>'},
+ stress_generated:{g:'Risk',name:'Generated stress scenarios',fn:()=>GEN.n?`<p>${GEN.n.toLocaleString()} scenarios generated across ${[...new Set(GEN.worst.map(g=>THEMES[g.theme]||g.theme))].join(', ')}; ${GEN.fail.toLocaleString()} (${(GEN.fail/GEN.n*100).toFixed(1)}%) breach a hurdle. Levered IRR P10 ${fP(genPct(.1))}, median ${fP(genPct(.5))}, worst ${fP(GEN.worst[0].irr)}. Estimates on the agent’s model; the EstateMaster column is EstateMaster’s own result.</p>`+T(['Scenario','Theme','IRR (estimate)','IRR (EstateMaster)','Result'],genRows().slice(0,15).map(g=>{const e=GEN.em[g.id];return[esc(g.name),esc(THEMES[g.theme]||g.theme),fP(g.irr),e&&Number.isFinite(e.irr)?e.irr.toFixed(2)+'%'+(e.sim?' (simulated)':''):'not checked',g.pass?'pass':'<b style="color:var(--alert)">fail</b>']})):'<p>No generated scenarios yet: generate them on the Stress tests tab or ask the agent.</p>'},
+ em_results:{g:'Risk',name:'EstateMaster results',fn:()=>{const rows=APQ.filter(c=>c.em&&c.em.status).map(c=>[c.id,esc(c.title),esc({run:'change',promote:'promotion to live',create:'new model'}[c.em.kind||'run']||''),esc(c.em.status.replace(/_/g,' ')),c.em.out&&Number.isFinite(c.em.out.levered_irr)?c.em.out.levered_irr.toFixed(2)+'%'+(c.em.sim?' (simulated)':''):'—',fP(c.em.estIrr)]).concat(Object.entries(GEN.em).filter(([k,e])=>e.status).map(([k,e])=>{const g=GEN.worst.concat(GEN.custom).find(x=>x.id===k);return[k,esc(g?g.name:'stress scenario'),'stress check (scratch)',esc(e.status.replace(/_/g,' ')),Number.isFinite(e.irr)?e.irr.toFixed(2)+'%'+(e.sim?' (simulated)':''):'—',g?fP(g.irr):'—']}));return rows.length?T(['Ref','What ran','Kind','Status','IRR (EstateMaster)','IRR (estimate)'],rows):'<p>Nothing has run in EstateMaster yet.</p>'}},
+ model_lines_changed:{g:'Model',name:'Model lines changed',fn:()=>{const d=xl().filter(xChanged);return d.length?T(['Line','Section','Base','Working copy','EstateMaster link'],d.slice(0,60).map(x=>[esc(x.label)+' ('+x.id+')',esc(x.g),fmtX(x,x.base),fmtX(x,xVal(x.id)),x.linked?'linked':'not linked'])):`<p>No model lines changed (${xl().length.toLocaleString()} model lines in ${esc(PROJ.name)}).</p>`}},
  scenario_compare:{g:'Risk',name:'Scenarios side by side',fn:()=>{const st=stressRes||computeStress(),cols=[['Approved base',baseRes],['Current',run(S)],['Market-aligned',alignedRun()],['Combined downside',st.find(s=>/Combined downside/.test(s.name)).r],['Severe',st.find(s=>/Severe/.test(s.name)).r]],row=(l,f)=>[l,...cols.map(([n,r])=>f(r,waterfall(r)))];
    return T(['',...cols.map(c=>c[0])],[row('Gross revenue',r=>fS(r.rev)),row('Total cost',r=>fS(r.tc)),row('Net profit',r=>fS(r.profit)),row('Profit on cost',r=>fP(r.poc)),row('Unlevered IRR',r=>fP(r.uirr)),row('Levered IRR',r=>fP(r.irr)),row('Equity multiple',r=>fX(r.em)),row('Peak debt',r=>fS(r.peak)),row('Fund LP net IRR',(r,w)=>fP(w.lpIrr)),row('KINAN IRR',(r,w)=>fP(w.gpIrr)),row('Clears hurdles',r=>passes(r)?'yes':'<b style="color:#FF4D6A">no</b>')])}},
  market_check:{g:'Market and compliance',name:'Assumptions vs market',src:'market',fn:()=>T(['Assumption','Model','Market / rule',''],marketCheck().map(r=>[r.label,r.model,r.bench+(r.pos?' · '+r.pos:''),r.st[0]==='p'?r.st[1]:`<b style="color:${r.st[0]==='f'?'#FF4D6A':'#000919'}">${r.st[1]}</b>`]),false)},
@@ -1562,7 +1626,8 @@ const RPTS={
   monthly:{name:'Monthly project report',aud:'KINAN management',sched:'Monthly · 3rd working day',builtin:true,blocks:['kpis','cost_budget','sales_progress','cashflow_next4','flags']},
   lender:{name:'Lender report',aud:'Murabaha lender',sched:'Quarterly',builtin:true,blocks:['facility','covenants','drawdowns','debt_stress']},
   investor:{name:'Fund investor report',aud:'Fund LPs and KINAN',sched:'Quarterly',builtin:true,blocks:['fund_summary','fund_terms','fund_distributions','fund_stress']},
-  compare:{name:'Scenario comparison',aud:'Investment team',sched:'On request',builtin:true,blocks:['scenario_compare']}
+  compare:{name:'Scenario comparison',aud:'Investment team',sched:'On request',builtin:true,blocks:['scenario_compare']},
+  stress:{name:'Stress test report',aud:'Investment and risk committees',sched:'On request',builtin:true,blocks:['kpis','stress_table','stress_generated','tornado_top','headroom','em_results','model_lines_changed']}
 };
 /* starting points for new report types */
 const PRESETS={
@@ -1575,7 +1640,7 @@ const PRESETS={
   treasury:{name:'Cash flow and funding forecast',aud:'Finance and treasury',blocks:['cashflow_annual','drawdowns','capital_stack','covenants']},
   valuation:{name:'Valuation and exit report',aud:'Asset management',blocks:['valuation','kpis','comps_summary']}
 };
-const SCHED={monthly:{on:true,ch:'Email (Outlook)'},lender:{on:true,ch:'SharePoint folder'},investor:{on:false,ch:'Email (Outlook)'},ic:{on:false,ch:'WhatsApp link'},compare:{on:false,ch:'Email (Outlook)'}};
+const SCHED={stress:{on:false,ch:'Email (Outlook)'},monthly:{on:true,ch:'Email (Outlook)'},lender:{on:true,ch:'SharePoint folder'},investor:{on:false,ch:'Email (Outlook)'},ic:{on:false,ch:'WhatsApp link'},compare:{on:false,ch:'Email (Outlook)'}};
 function wireReport(id,def){def.fn=def.fn||(()=>reportShell(id,RPTS[id]));RPTS[id]=def;SCHED[id]=SCHED[id]||{on:def.sched&&def.sched!=='On request',ch:def.ch||'Email (Outlook)'}}
 Object.entries(RPTS).forEach(([k,v])=>wireReport(k,v));
 function saveCustom(){try{localStorage.setItem('bohioReports',JSON.stringify(Object.fromEntries(Object.entries(RPTS).filter(([k,v])=>!v.builtin).map(([k,v])=>[k,{name:v.name,aud:v.aud,sched:v.sched,blocks:v.blocks,narr:!!v.narr,ch:SCHED[k].ch}]))))}catch(e){}}
@@ -1586,7 +1651,7 @@ function createReport(def,src){
 }
 /* keyword map used by chat and by the builder when no AI is connected */
 const BLOCK_WORDS=[[/sales|units|absorption/,['sales_progress','collections']],[/collect|escrow|receiv/,['collections']],[/cost|budget|qs|overrun|variance/,['cost_budget','cost_breakdown']],[/cash ?flow|treasury|liquidity/,['cashflow_annual','cashflow_next4']],
- [/debt|lender|bank|covenant|facility|murabaha|drawdown/,['facility','covenants','drawdowns']],[/fund|investor|\blps?\b|distribution/,['fund_summary','fund_distributions']],[/risk|stress|sensitiv|downside/,['stress_table','tornado_top','headroom']],
+ [/debt|lender|bank|covenant|facility|murabaha|drawdown/,['facility','covenants','drawdowns']],[/fund|investor|\blps?\b|distribution/,['fund_summary','fund_distributions']],[/risk|stress|sensitiv|downside/,['stress_table','stress_generated','tornado_top','headroom','em_results']],
  [/market|comps?|benchmark|pricing/,['market_check','comps_summary']],[/zoning|regulat|planning|complian|far\b/,['zoning']],[/audit|change|email|source|approval/,['approvals','assumptions_changed','email_sources','changelog']],[/valuation|exit|noi|cap rate|retail income/,['valuation']],
  [/kpi|headline|summary|returns|irr/,['kpis']],[/capital|stack|funding/,['capital_stack']],[/scenario|compar/,['scenario_compare']],[/flag|issue/,['flags']],[/assumption|register|inputs/,['register']]];
 function blocksFrom(t){const out=[];for(const [re,bs] of BLOCK_WORDS)if(re.test(t))bs.forEach(b=>{if(!out.includes(b))out.push(b)});return out}
@@ -1688,6 +1753,8 @@ function renderRegister(){
 const CW={FIRST:4};
 const UNIT_RANGE={'%':[0,100],'% of sales':[0,20],'% of rent':[0,60],'% of value':[0,20],'% of construction':[0,30],'% p.a.':[0,30],'SAR/sqm':[1,200000],'SAR/sqm/yr':[1,20000],'SAR/sqm GFA':[0,50000],'SAR M':[0,100000],'sqm':[1,1e7],'months':[0,120]};
 const UNIT_SPEC={cap:[1,20],sb:[0,20],mg:[0,10]};
+// model lines can mean anything, so only broad sanity limits: percentages within ±100, counts, areas, durations and money not negative
+const xRange=u=>/%/.test(u)?[-100,100]:/^(months?|years?|sqm|units?|SAR.*)$/i.test(u)?[0,Infinity]:[-Infinity,Infinity];
 function cwInputsAoa(){
   const rows=[['Assumption register: fill column E only'],['Column E is what EstateMaster reads through its Excel link. Columns F to I are the audit trail.'],['id','Section','Assumption','Unit','Value','Source in EstateMaster export','Mapped by','Confirmed (Y/N/N/A)','Notes']];
   REG.forEach(l=>rows.push([l.id,l.g,l.label,l.unit,lineOn(l)?+lineVal(l.id).toFixed(4):null,lineOn(l)?'Bohio agent (current model)':'',lineOn(l)?'Bohio agent':'',lineOn(l)?'Y':'N/A',lineOn(l)?'':'Not used in '+PROJ.name]));return rows}
@@ -1697,6 +1764,7 @@ async function cwDownload(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['KINAN control workbook: the only place the Bohio agent writes EstateMaster inputs'],[''],['Fill column E of the Inputs sheet only. Do not insert or delete rows or columns, or rename sheets: the runner writes to fixed cells.'],['Percentages as percentages (7.5 means 7.5%). Lines not used by this project are marked N/A in column H.'],['Check with: py runner/control_check.py <file>, or Model data → Connect control workbook in the Bohio app.']]),'ReadMe');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Field','Value'],['Project name',PROJ.name],['Bohio model id',PROJ.id],['EstateMaster file (.emdf)',slug()+'.emdf'],['Prepared by','Bohio agent'],['Date',today],['Checked by',''],['Status (draft / checked / linked / live)','draft']]),'Project');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(cwInputsAoa()),'Inputs');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Model lines: every other assumption, no limit. Add rows at the bottom only'],['One row per EstateMaster input; id never reused. Column E is what EstateMaster reads; link it, then put Y in column J.'],['id','Section','Assumption','Unit','Value','Source in EstateMaster export','Mapped by','Confirmed (Y/N/N/A)','Notes','Linked in EstateMaster (Y/N)'],...xl().map(d=>[d.id,d.g,d.label,d.unit,xVal(d.id),'Bohio agent (current model)','Bohio agent','Y','',d.linked?'Y':'N'])]),'Lines');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Export sheet','Export row label','Export value','Register id','Confidence (high/medium/low)','Comment']]),'Mapping');
   XLSX.writeFile(wb,`${slug()}_control.xlsx`);logEvent({kind:'export',actor:USERS.web,channel:'Model data',detail:`Control workbook downloaded for ${PROJ.name}`});saveMem();
 }
@@ -1717,17 +1785,34 @@ function cwParse(wb){
     if(conf!=='Y')res.warnings.push(`${l.label}: not marked confirmed (column H)`);
     res.values[l.id]=v;res.filled++});
   const mp=wb.Sheets.Mapping;if(mp&&window.XLSX){const seen={};let un=0;XLSX.utils.sheet_to_json(mp,{header:1}).slice(1).forEach(r=>{if(!r||!r[1])return;if(!r[3]){un++;return}const k=String(r[3]).trim();if(seen[k])res.warnings.push(`${k}: mapped from two export rows (“${seen[k]}” and “${r[1]}”). Check it is not double-counted.`);seen[k]=r[1]});if(un)res.info.push(`${un} export row(s) have no register line: fine if they are totals or not used by the agent.`)}
+  const ls=wb.Sheets.Lines;res.xdefs=[];res.xvalues={};
+  if(ls){const seen=new Set(),core=new Set(REG.map(l=>l.id));let last=CW.FIRST+199999,unconf=0,unl=0;
+    if(ls['!ref']&&window.XLSX)last=Math.min(last,XLSX.utils.decode_range(ls['!ref']).e.r+1);
+    for(let r=CW.FIRST,blank=0;r<=last&&blank<200;r++){const id=String(cell(ls,'A'+r)??'').trim();if(!id){blank++;continue}blank=0;
+      const label=String(cell(ls,'C'+r)??'').trim(),unit=String(cell(ls,'D'+r)??'').trim(),raw=cell(ls,'E'+r),conf=String(cell(ls,'H'+r)??'').trim().toUpperCase(),linked=String(cell(ls,'J'+r)??'').trim().toUpperCase()==='Y';
+      if(seen.has(id)){res.errors.push(`Lines row ${r}: id “${id}” is used twice. Ids must be unique.`);continue}seen.add(id);
+      if(core.has(id)){res.errors.push(`Lines row ${r}: “${id}” is a core line id; model lines need their own ids (L0001…).`);continue}
+      if(!label){res.errors.push(`Lines row ${r} (${id}): no label`);continue}
+      const d={id,g:String(cell(ls,'B'+r)??'').trim()||'Model lines',label,unit,linked};
+      if(raw==null||raw===''){if(conf!=='N/A')res.errors.push(`Lines ${id} ${label}: no value`);continue}
+      let v=raw;if(!isText(d)){v=typeof raw==='number'?raw:parseFloat(String(raw).replace(/[,%\s]/g,''));if(!Number.isFinite(v)){res.errors.push(`Lines ${id} ${label}: “${raw}” is not a number`);continue}
+        const [lo,hi]=xRange(unit);if(v<lo||v>hi){res.errors.push(`Lines ${id} ${label}: ${v} ${unit} is outside ${lo}–${hi}`);continue}}
+      if(conf!=='Y')unconf++;if(!linked)unl++;d.base=v;res.xdefs.push(d);res.xvalues[id]=v}
+    if(unconf)res.warnings.push(`Lines: ${unconf.toLocaleString()} model line(s) not marked confirmed (column H)`);
+    if(unl)res.info.push(`Lines: ${unl.toLocaleString()} model line(s) not linked in EstateMaster yet (column J): the runner will not write them until they are linked.`)}
   res.ok=!res.errors.length;return res;
 }
+function mergeXDefs(defs){const a=xl(),m=xIndex();for(const d of defs){const e=m.get(d.id);if(e){e.g=d.g;e.label=d.label;e.unit=d.unit;e.linked=d.linked;e.demo=false}else a.push({...d,demo:false})}XMAP=null;renderXLines()}
+function cwXOps(res){const ops=[];for(const d of res.xdefs){const e=XBY(d.id);if(e&&xVal(d.id)!==d.base)ops.push({t:'xline',id:d.id,v:d.base})}return ops}
 function cwOps(values){return REG.filter(l=>l.id in values&&Math.abs(values[l.id]-lineVal(l.id))>Math.max(1e-6,Math.abs(lineVal(l.id))*1e-6)).map(l=>({t:'line',id:l.id,v:values[l.id]}))}
 function cwConnect(name,wb){
   const res=cwParse(wb),box=$('#cwRes'),li=(a,n=8)=>a.slice(0,n).map(x=>`<li>${esc(x)}</li>`).join('')+(a.length>n?`<li>… ${a.length-n} more</li>`:'');
   if(res.fatal){box.innerHTML=`<div class="warn" style="margin:10px 0"><b>${esc(name)}:</b> ${esc(res.fatal)}</div>`;return res}
-  let html=`<div style="margin:10px 0;padding:10px 12px;border:1px solid var(--faint);border-radius:10px;font-size:13px"><b>${esc(name)}</b> · ${res.filled}/${res.lines} values · ${res.errors.length} error${res.errors.length===1?'':'s'} · ${res.warnings.length} warning${res.warnings.length===1?'':'s'}`;
+  let html=`<div style="margin:10px 0;padding:10px 12px;border:1px solid var(--faint);border-radius:10px;font-size:13px"><b>${esc(name)}</b> · ${res.filled}/${res.lines} core values · ${(res.xdefs||[]).length.toLocaleString()} model lines · ${res.errors.length} error${res.errors.length===1?'':'s'} · ${res.warnings.length} warning${res.warnings.length===1?'':'s'}`;
   if(res.errors.length)html+=`<div class="warn" style="margin-top:6px"><b>Not connected. Fix these in the workbook and connect again:</b><ul style="margin:4px 0 0 18px">${li(res.errors)}</ul></div>`;
   if(res.warnings.length)html+=`<div style="margin-top:6px"><b>Check before approving:</b><ul style="margin:4px 0 0 18px">${li(res.warnings)}</ul></div>`;
   if(res.info.length)html+=`<div style="margin-top:6px;color:var(--soft)"><ul style="margin:4px 0 0 18px">${li(res.info,3)}</ul></div>`;
-  if(res.ok){const ops=cwOps(res.values);const cr=raiseCR('connect','Copilot setup agent + analyst',`Connect control workbook: ${name}`,ops,{channel:'Model data',file:name,check:{filled:res.filled,lines:res.lines,warnings:res.warnings.length}});
+  if(res.ok){const ops=cwOps(res.values).concat(cwXOps(res)),nNew=res.xdefs.filter(d=>!XBY(d.id)).length;const cr=raiseCR('connect','Copilot setup agent + analyst',`Connect control workbook: ${name}${res.xdefs.length?` (${res.xdefs.length.toLocaleString()} model lines, ${nNew.toLocaleString()} new)`:''}`,ops,{channel:'Model data',file:name,xdefs:res.xdefs,check:{filled:res.filled,lines:res.lines,warnings:res.warnings.length}});
     html+=`<div style="margin-top:6px"><b>${cr.id}</b> raised for approval: ${ops.length?`${ops.length} value${ops.length>1?'s differ':' differs'} from the current model and will be written once approved`:'the workbook matches the current model, so approval only records the connection'}. See the Approvals tab.</div>`;renderApprovals();toast(`${cr.id}: control workbook ready for approval`)}
   box.innerHTML=html+'</div>';
   logEvent({kind:'check',actor:USERS.web,channel:'Model data',detail:`Control workbook ${name} checked: ${res.filled}/${res.lines} values, ${res.errors.length} errors, ${res.warnings.length} warnings`});saveMem();
@@ -1752,34 +1837,47 @@ async function checkRunner(){
 function runnerText(){
   if(!RUNNER.configured)return'EstateMaster runner: simulated (no RUNNER_URL and RUNNER_TOKEN in Vercel). Approved changes go through the runner’s steps with results from the demo’s stand-in model.';
   if(!RUNNER.reachable)return`EstateMaster runner: configured but not reachable${RUNNER.status?' (HTTP '+RUNNER.status+')':''}${RUNNER.error?' ('+RUNNER.error+')':''}. Check the runner service and the tunnel.`;
-  const h=RUNNER.health||{};return`EstateMaster runner: connected · mode ${h.mode==='manual'?'manual (a person presses Refresh and Export)':'automatic'} · models: ${(h.models||[]).join(', ')||'none connected'}${h.queued?` · ${h.queued} queued`:''}`;
+  const h=RUNNER.health||{};return`EstateMaster runner: connected · mode ${h.mode==='manual'?'manual (a person presses Refresh and Export)':'automatic'} · models: ${(h.models||[]).join(', ')||'none connected'} · live models: ${(h.live||[]).join(', ')||'none'} · templates: ${(h.templates||[]).join(', ')||'none'}${h.queued?` · ${h.queued} queued`:''}`;
 }
 function renderRunnerNote(){const e=$('#rnStat');if(e)e.textContent=runnerText();const sw=$('#simWrap');if(sw)sw.style.display=simRunner()?'':'none';const st=$('#emStrip');if(st)st.textContent=runnerLive()?`All returns calculated by EstateMaster · runner connected (${(RUNNER.health||{}).mode==='manual'?'manual mode':'automatic'}) · SQL Server for actuals (demo: simulated)`:simRunner()?'All returns calculated by EstateMaster · control workbook + runner (demo: simulated) · SQL Server for actuals (demo: simulated)':'All returns calculated by EstateMaster · runner configured but not reachable · SQL Server for actuals (demo: simulated)'}
 function runnerInputs(){return Object.fromEntries(REG.filter(lineOn).map(l=>[l.id,+lineVal(l.id).toFixed(6)]))}
+const TPL_RUNNER={narjis:'mixed',yasmin:'resi',hittin:'retail'};
+const JOBWORD={run:'EstateMaster job',promote:'Promotion to the live model',create:'New EstateMaster model'};
+function jobText(cr,kind,jid,p,sim){
+  const n=`${Object.keys(p.inputs).length} core and ${Object.keys(p.lines).length.toLocaleString()} model lines${p.skipped?` (${p.skipped} changed line${p.skipped>1?'s':''} not linked in EstateMaster, not sent)`:''}`;
+  return`${cr.id}: ${JOBWORD[kind]} ${jid} queued${sim?' (simulated runner)':''}: `+(kind==='promote'?`the live model’s workbook is backed up, ${n} written, and the live model refreshed, recalculated and saved`:kind==='create'?`the KINAN ${cr.em.template} master template is copied to a new model “${PROJ.name}”, ${n} written, then refreshed and recalculated`:`${n} of the working copy written to the control workbook (${scenName(S)||'base case'})`);
+}
 /* No runner configured (e.g. a demo without the Windows VM): simulate the runner's steps, clearly labelled,
    with results from the demo's stand-in model. A configured but unreachable runner is reported, never simulated. */
 const SIM={mode:'ui'};
 const simRunner=()=>!RUNNER.configured;
-function simSubmit(cr){
-  const est=run(S).irr,job='SIM-'+cr.id;cr.em={status:'queued',estIrr:est,proj:PROJ.id,job,sim:true};renderApprovals();
-  logEvent({kind:'runner',actor:'Bohio runner (simulated)',channel:'Runner',detail:`${cr.id}: EstateMaster job ${job} queued (simulated runner): all ${Object.keys(runnerInputs()).length} inputs of the working copy written to the control workbook (${scenName(S)||'base case'})`,cr:cr.id});saveMem();
+function simSubmit(cr,opt={}){
+  const kind=opt.kind||'run',est=run(S).irr,job='SIM-'+cr.id,p={inputs:runnerInputs(),...xPayload()};cr.em={status:'queued',estIrr:est,proj:PROJ.id,job,sim:true,kind,template:opt.template,sig:wcSig()};renderApprovals();
+  logEvent({kind:'runner',actor:'Bohio runner (simulated)',channel:'Runner',detail:jobText(cr,kind,job,p,true),cr:cr.id});saveMem();
   setTimeout(()=>{if(cr.em.job!==job)return;cr.em.status='running';renderApprovals();
     setTimeout(()=>{if(cr.em.job!==job)return;
-      if(SIM.mode==='manual')runnerDone(cr,{status:'needs_person',reason:'simulated automation failure',task:`Open ${slug()}.emdf in EstateMaster, press Office Links → Refresh, recalculate, then Office Links → Excel and save the export in C:\\Bohio\\runner\\work\\exports\\${job}. Then press Collect on ${cr.id} in the Bohio app.`});
-      else runnerDone(cr,{status:'done',seconds:3.1,outputs:{levered_irr:+(est*100).toFixed(2)},missing:[]})},1800)},900);
+      if(SIM.mode==='manual')runnerDone(cr,{status:'needs_person',reason:'simulated automation failure',task:`Open ${slug()}${kind==='promote'?'_LIVE':''}.emdf in EstateMaster, press Office Links → Refresh, recalculate${kind==='promote'?' and save the model (Ctrl+S)':''}, then Office Links → Excel and save the export in C:\\Bohio\\runner\\work\\exports\\${job}. Then press Collect on ${cr.id} in the Bohio app.`});
+      else runnerDone(cr,{status:'done',seconds:3.1,outputs:{levered_irr:+(bad(est)*100).toFixed(2)},missing:[]})},1800)},900);
 }
-async function runnerSubmit(cr){
-  if(simRunner())return simSubmit(cr);
-  if(!runnerLive()){cr.em={status:'failed',error:'runner configured but not reachable'};logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: not sent to EstateMaster: the runner is configured but not reachable. Approved in the agent; EstateMaster not updated yet.`,cr:cr.id});renderApprovals();saveMem();return}
-  const h=RUNNER.health||{};if(h.models&&!h.models.includes(PROJ.id)){cr.em={status:'failed',error:`${PROJ.name} (${PROJ.id}) is not connected on the runner`};logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: not sent to EstateMaster: model ${PROJ.id} is not in the runner’s models.json`,cr:cr.id});renderApprovals();saveMem();return}
-  cr.em={status:'queued',estIrr:run(S).irr,proj:PROJ.id};renderApprovals();
-  try{const j=await runnerPost({action:'submit',model:PROJ.id,inputs:runnerInputs(),cr_id:cr.id,requested_by:cr.decidedBy});cr.em.job=j.job_id;
-    logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster job ${j.job_id} queued: all ${Object.keys(runnerInputs()).length} inputs of the working copy written to the control workbook (${scenName(S)||'base case'})`,cr:cr.id});saveMem();runnerPoll(cr)}
-  catch(e){cr.em={status:'failed',error:e.message};logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: runner did not accept the job (${e.message}). Approved in the agent; EstateMaster not updated yet.`,cr:cr.id});renderApprovals();saveMem()}
+async function runnerSubmit(cr,opt={}){
+  const kind=opt.kind||'run';
+  if(simRunner())return simSubmit(cr,opt);
+  const fail=msg=>{cr.em={status:'failed',error:msg,kind};logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: not sent to EstateMaster: ${msg}. Approved in the agent; EstateMaster not updated yet.`,cr:cr.id});renderApprovals();saveMem()};
+  if(!runnerLive())return fail('the runner is configured but not reachable');
+  const h=RUNNER.health||{};
+  if(kind==='create'){if(h.templates&&!h.templates.includes(opt.template))return fail(`the runner has no “${opt.template}” master template (templates.json)`)}
+  else{if(h.models&&!h.models.includes(PROJ.id))return fail(`${PROJ.name} (${PROJ.id}) is not connected on the runner (models.json)`);
+    if(kind==='promote'&&h.live&&!h.live.includes(PROJ.id))return fail(`no live model is configured for ${PROJ.name} on the runner (live_emdf in models.json)`)}
+  const p={inputs:runnerInputs(),...xPayload()};cr.em={status:'queued',estIrr:run(S).irr,proj:PROJ.id,kind,template:opt.template,sig:wcSig()};renderApprovals();
+  try{const j=kind==='create'?await runnerPost({action:'create',model:PROJ.id,name:PROJ.name,template:opt.template,inputs:p.inputs,lines:p.lines,cr_id:cr.id,requested_by:cr.decidedBy})
+      :await runnerPost({action:'submit',kind,model:PROJ.id,inputs:p.inputs,lines:p.lines,cr_id:cr.id,requested_by:cr.decidedBy});
+    cr.em.job=j.job_id;logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:jobText(cr,kind,j.job_id,p,false),cr:cr.id});saveMem();runnerPoll(cr)}
+  catch(e){fail(`the runner did not accept the job (${e.message})`)}
 }
+const RUN_WAIT=360; // polls of 5 s: the app waits 30 minutes for EstateMaster before flagging a job
 async function runnerPoll(cr,n=0){
   if(!cr.em||!cr.em.job)return;
-  if(n>72){cr.em.status='timeout';logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: no result from EstateMaster after 6 minutes. Check the runner.`,cr:cr.id});renderApprovals();saveMem();return}
+  if(n>RUN_WAIT){cr.em.status='timeout';logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: no result from EstateMaster after ${RUN_WAIT*5/60} minutes. The job may still finish on the runner: check its log.`,cr:cr.id});renderApprovals();saveMem();return}
   await sleep(5000);
   let j;try{j=await runnerPost({action:'job',job_id:cr.em.job})}catch(e){return runnerPoll(cr,n+1)}
   if(j.status==='queued'||j.status==='running'){cr.em.status=j.status;renderApprovals();return runnerPoll(cr,n+1)}
@@ -1789,9 +1887,10 @@ function runnerDone(cr,j){
   const em=cr.em;em.status=j.status;
   if(j.status==='needs_person'){em.task=j.task;logEvent({kind:'runner',actor:em.sim?'Bohio runner (simulated)':'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster needs a person (${j.reason}). Task: ${j.task}`,cr:cr.id});toast(`${cr.id}: one-minute EstateMaster task for an analyst`)}
   else if(/^done/.test(j.status)){const o=j.outputs||{};em.out=o;em.missing=j.missing||[];em.seconds=j.seconds;
-    const irr=o.levered_irr;let txt=`${cr.id}: EstateMaster recalculated${j.seconds?` in ${j.seconds}s`:''}`;
+    const irr=o.levered_irr;let txt=`${cr.id}: ${em.kind==='promote'?'live EstateMaster model updated and saved':em.kind==='create'?`EstateMaster model “${PROJ.name}” created from the KINAN template and recalculated`:'EstateMaster recalculated'}${j.seconds?` in ${j.seconds}s`:''}`;
     if(Number.isFinite(irr)){em.gap=(irr/100-em.estIrr)*100;txt+=`: levered IRR ${irr.toFixed(2)}% (agent estimate ${fP(em.estIrr)}, gap ${em.gap>=0?'+':''}${em.gap.toFixed(2)}pp)${Math.abs(em.gap)>.2?'. Gap above 0.2pp: EstateMaster’s figure stands and the estimate is flagged for refitting':''}`}
     if(em.missing.length)txt+=`. Not found in the export: ${em.missing.join(', ')}`;
+    if(em.sig)setEMLast(o,cr.id,em.sim,em.kind,em.sig);
     if(em.sim)txt+=' (simulated runner: stand-in model)';logEvent({kind:'runner',actor:em.sim?'Bohio runner (simulated)':'Bohio runner',channel:'Runner',detail:txt,cr:cr.id});toast(txt.slice(0,120))}
   else{em.error=j.error||j.status;logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`${cr.id}: EstateMaster run failed (${em.error}). Nothing was reported.`,cr:cr.id})}
   renderApprovals();saveMem();
@@ -1802,8 +1901,205 @@ async function runnerCollect(id){
   try{const j=await runnerPost({action:'collect',job_id:cr.em.job});runnerDone(cr,j)}catch(e){toast(e.message)}
 }
 function emLine(c){const m=c.em;if(!m)return'';
-  const st={queued:'queued on the runner',running:'EstateMaster running…',needs_person:'waiting for an analyst',done:'recalculated by EstateMaster',done_with_gaps:'recalculated by EstateMaster (some outputs not found)',failed:'runner failed',timeout:'no answer from the runner'}[m.status]||m.status;
+  const st={queued:'queued on the runner',running:'EstateMaster running…',needs_person:'waiting for an analyst',done:m.kind==='promote'?'live model updated and saved by EstateMaster':m.kind==='create'?'model created in EstateMaster and recalculated':'recalculated by EstateMaster',done_with_gaps:(m.kind==='promote'?'live model updated and saved by EstateMaster':m.kind==='create'?'model created in EstateMaster and recalculated':'recalculated by EstateMaster')+' (some outputs not found in the export)',failed:'runner failed',timeout:'no answer from the runner'}[m.status]||m.status;
   return`<div style="font-size:12.5px;margin:4px 0;padding:6px 8px;background:rgba(0,9,25,.04);border-radius:8px"><b>EstateMaster${m.sim?' (simulated runner)':''}:</b> ${esc(st)}${m.out&&Number.isFinite(m.out.levered_irr)?` · levered IRR <b>${m.out.levered_irr.toFixed(2)}%</b> (estimate ${fP(m.estIrr)})`:''}${m.error?' · '+esc(m.error):''}${m.task?`<br>${esc(m.task)}<br><button class="btn sm" style="margin-top:4px" data-collect="${c.id}">Collect EstateMaster results</button>`:''}</div>`}
+
+
+/* ================= MODEL LINES: assumptions without limit =================
+   The 33 core lines (REG) drive the agent's instant estimate. Every other EstateMaster input is a model line:
+   any number of them, defined per project (from the control workbook's "Lines" sheet, one row per line, found by
+   id). The agent has no estimate for model lines: changes to them become change requests and EstateMaster
+   calculates their effect when the runner runs them. Lines not yet linked in EstateMaster are never sent. */
+function demoLines(){ // dummy detail for the Al Narjis demo model
+  const L=[],add=(g,label,unit,base,linked=true)=>L.push({id:'L'+String(L.length+1).padStart(4,'0'),g,label,unit,base,linked,demo:true});
+  const types=[['1-bed',120,68],['2-bed',150,105],['3-bed',70,148],['Penthouse',12,260]];
+  types.forEach(([t,n,a])=>{add('Revenue › Unit schedule',`${t}: number of units`,'units',n);add('Revenue › Unit schedule',`${t}: average saleable area`,'sqm',a);add('Revenue › Unit schedule',`${t}: floor premium per floor`,'%',t==='Penthouse'?0:.6)});
+  [['Deposit on reservation','% of sales',10],['Instalments during construction','% of sales',50],['Payment on handover','% of sales',40],['Launch discount','% of sales',3]].forEach(([l,u,v])=>add('Revenue › Sales programme',l,u,v));
+  types.forEach(([t])=>add('Revenue › Sales programme',`${t}: sales per quarter`,'units',t==='Penthouse'?1:t==='3-bed'?6:12));
+  const tenants=[['Anchor supermarket',3200,1900],['Pharmacy',420,2700],['Coffee shop A',180,3100],['Coffee shop B',160,3000],['Bank branch',300,2600],['Fashion store',650,2400],['Electronics',800,2300],['Family restaurant',520,2500],['Fitness studio',900,1600],['Clinic',600,2200],['Kiosk cluster',240,2800],['Line shops (remaining)',3930,2500]];
+  tenants.forEach(([t,g,r],i)=>{const lk=i<10;add('Revenue › Retail tenancy schedule',`${t}: GLA`,'sqm',g,lk);add('Revenue › Retail tenancy schedule',`${t}: rent`,'SAR/sqm/yr',r,lk);add('Revenue › Retail tenancy schedule',`${t}: lease term`,'years',i===0?15:i<5?10:5,lk);add('Revenue › Retail tenancy schedule',`${t}: rent-free period`,'months',i===0?6:3,lk);add('Revenue › Retail tenancy schedule',`${t}: annual escalation`,'%',i===0?2:3,lk)});
+  (typeof ELEMENTS!=='undefined'?Object.entries(ELEMENTS):[]).forEach(([k,els])=>els.forEach(([n,sh])=>add('Costs › Elemental cost plan',n,'SAR/sqm GFA',Math.round(REGBY[k].base*sh))));
+  [['Architect',3.2],['Structural engineer',1],['MEP engineer',1.2],['Quantity surveyor',.6],['Project manager',1.2],['Landscape architect',.3],['Interior designer',.4],['Specialist consultants',.1]].forEach(([n,v])=>add('Costs › Professional fees by discipline',n,'% of construction',v));
+  [['Building permit',1.2],['Utility connections',6.5],['Civil defence approvals',.4],['Municipality fees',2.1]].forEach(([n,v])=>add('Costs › Authority and utilities',n,'SAR M',v));
+  [['Design period',9],['Approvals period',6],['Construction period',30],['Sales launch after start',3],['Retail opening after completion',2],['Retail stabilisation period',12]].forEach(([n,v])=>add('Timing › Stages',n,'months',v));
+  [['Upfront facility fee',1,'%'],['Commitment fee',.5,'% p.a.'],['Debt service reserve',6,'months'],['Facility tenor',7,'years'],['Grace period',24,'months']].forEach(([n,v,u])=>add('Finance › Facility terms',n,u,v));
+  [['Real estate transaction tax (on land)',5],['VAT on construction',15]].forEach(([n,v])=>add('Taxes › Transaction taxes',n,'%',v));
+  [['Service charge','SAR/sqm/yr',120],['Marketing levy','%',2],['Property management fee','%',3],['Capex reserve','%',1.5]].forEach(([n,u,v])=>add('Operations › Retail',n,u,v));
+  return L;
+}
+function xl(){return PROJ.xl||(PROJ.xl=PROJ.id==='narjis'?demoLines():[])}
+let XV={},XMAP=null,XQ='',XSHOW=100;
+function xIndex(){const a=xl();if(!XMAP||XMAP.a!==a||XMAP.n!==a.length)XMAP={a,n:a.length,m:new Map(a.map(d=>[d.id,d]))};return XMAP.m}
+const XBY=id=>xIndex().get(id);
+const xVal=id=>id in XV?XV[id]:(XBY(id)||{}).base;
+const isText=d=>/^(text|date)$/i.test(d.unit||'');
+const fmtN=v=>v==null||v===''?'—':typeof v==='number'?(+v.toFixed(4)).toLocaleString():String(v);
+const fmtX=(d,v)=>fmtN(v)+(d&&d.unit&&!isText(d)?' '+d.unit:'');
+const xChanged=d=>d.id in XV&&XV[d.id]!==d.base;
+const XSTOP=new Set(['the','and','for','per','sqm','sar','with','set','change','update','make','increase','decrease','raise','lower','cut','reduce','from','into','our','this','that','please','value','line','model']);
+const xWords=s=>String(s||'').toLowerCase().split(/[^a-z0-9&]+/).filter(w=>w.length>2&&!XSTOP.has(w));
+function findXLines(q,limit=10){
+  const qt=new Set(xWords(q)),idm=String(q).match(/\bl\d{3,6}\b/i),out=[];
+  if(idm){const d=XBY(idm[0].toUpperCase());if(d)return[{d,s:2}]}
+  for(const d of xl()){const lw=[...new Set(xWords(d.label))];if(!lw.length)continue;const hit=lw.filter(x=>qt.has(x)).length;if(!hit)continue;
+    const gw=xWords(d.g).filter(x=>qt.has(x)).length;out.push({d,h:hit,s:hit/lw.length+hit/100+gw/1000})}
+  return out.sort((a,b)=>b.s-a.s).slice(0,limit);
+}
+function parseXLine(t){
+  if(!xl().length)return null;
+  // a line matches when the text names it by id, or uses at least two words of its label and covers most of it
+  // (or matches more label words than any other line); single words never match, so ordinary sentences stay with the core drivers
+  const hits=findXLines(t,3),top=hits[0],nxt=hits[1];if(!top)return null;
+  if(top.s<2&&!(top.h>=2&&(top.s>=.75||!nxt||top.h>nxt.h)))return null;
+  if(nxt&&Math.abs(nxt.s-top.s)<1e-9&&top.s<2)return{ambiguous:hits.filter(h=>Math.abs(h.s-top.s)<1e-9).map(h=>h.d)};
+  const d=hits[0].d,m=t.match(/(?:\bto\b|\bby\b|\bat\b|=)\s*([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(%)?/)||[...t.matchAll(/([+\-−]?\d[\d,]*(?:\.\d+)?)\s*(%)?/g)].pop();
+  if(!m)return null;
+  const num=parseFloat(m[1].replace(/[,−]/g,s=>s==='−'?'-':'')),cur=+xVal(d.id)||0,abs=/\b(to|at|=|is)\s*[+\-−]?\d/.test(t)||/^set\b/.test(t.trim());
+  const neg=/cut|drop|fall|reduc|lower|down|decreas|less/.test(t);
+  const v=abs?num:(m[2]&&!/%/.test(d.unit))?cur*(1+(neg?-1:1)*Math.abs(num)/100):cur+(neg?-1:1)*Math.abs(num);
+  return{id:d.id,v:+(+v).toFixed(6)};
+}
+// only lines that came from the connected workbook reach a real runner; the demo's sample lines stay in the demo
+function xPayload(){const lines={},live=!simRunner();let skipped=0;for(const d of xl()){if(live&&d.demo)continue;const v=xVal(d.id);if(v==null||v==='')continue;if(!d.linked){if(d.id in XV)skipped++;continue}lines[d.id]=v}return{lines,skipped}}
+function renderXLines(){
+  const el=$('#xlT');if(!el)return;
+  const toks=XQ.toLowerCase().split(/\s+/).filter(Boolean),all=xl(),hits=toks.length?all.filter(d=>{const h=(d.id+' '+d.g+' '+d.label).toLowerCase();return toks.every(t=>h.includes(t))}):all;
+  const pend=new Set(pendingHere().flatMap(c=>(c.ops||[]).filter(o=>o.t==='xline').map(o=>o.id)));
+  let h='<tr><th>Section</th><th>Assumption</th><th class="n">Base</th><th class="n">Current</th><th>Unit</th><th>EstateMaster</th></tr>',last='';
+  for(const d of hits.slice(0,XSHOW)){const v=xVal(d.id),ch=xChanged(d);
+    h+=`<tr${ch?' style="background:rgba(255,77,106,.06)"':''}><td style="color:var(--soft)">${d.g!==last?esc(d.g):''}</td><td>${esc(d.label)} <span style="color:var(--soft);font-size:11px">${esc(d.id)}</span>${pend.has(d.id)?' <span class="pill">pending</span>':''}</td><td class="n">${fmtN(d.base)}</td><td class="n"><input class="regin" data-xl="${esc(d.id)}" value="${esc(String(v??''))}" style="width:96px;text-align:right;border:1px solid ${ch?'var(--alert)':'var(--faint)'};border-radius:8px;padding:4px 6px;background:#fff"></td><td style="color:var(--soft)">${esc(d.unit||'')}</td><td style="font-size:12px">${d.linked?'linked':'<span style="color:var(--alert)">not linked yet</span>'}</td></tr>`;last=d.g}
+  if(!all.length)h+='<tr><td colspan="6" style="color:var(--soft)">No model lines yet. Add them to the Lines sheet of the control workbook and connect it (button above).</td></tr>';
+  el.innerHTML=h;
+  const nd=all.filter(d=>d.demo).length;
+  $('#xlSub').textContent=`${all.length.toLocaleString()} model lines (no limit)${nd?` · ${nd} are demo sample lines, never sent to a real runner`:''}${toks.length?` · ${hits.length.toLocaleString()} match “${XQ}”`:''} · ${all.filter(d=>!d.linked).length} not linked in EstateMaster yet · ${all.filter(xChanged).length} changed in the working copy`;
+  $('#xlMore').innerHTML=hits.length>XSHOW?`<button class="btn ghost sm" id="xlMoreB" style="margin-top:8px">Show ${Math.min(100,hits.length-XSHOW)} more (${(hits.length-XSHOW).toLocaleString()} not shown)</button>`:'';
+}
+function proposeXLine(id,v,by,channel,byAI){
+  const d=XBY(id);if(!d)return null;
+  if(!isText(d)&&!Number.isFinite(+v)){toast(`${d.label}: “${v}” is not a number`);return null}
+  const val=isText(d)?String(v):+v,ops=[{t:'xline',id,v:val}];
+  const cr=raiseCR(byAI?'agent':'manual',by,`${d.label} → ${fmtX(d,val)}`,ops,{channel,warn:d.linked?'':'Not linked in EstateMaster yet: the runner will not write it until it is linked (column J of the Lines sheet).'});
+  renderApprovals();renderXLines();return cr;
+}
+
+/* ================= STRESS SCENARIO GENERATOR: no limit =================
+   Every run draws new scenarios: correlated shocks across every driver the estimate covers, shaped by a theme, plus
+   shocks to model lines (which only EstateMaster can price). Scenarios are ranked on the estimate; the worst are then
+   checked in EstateMaster on a scratch copy that the runner restores, so the model does not change. */
+const THEMES={mixed:'Mixed',downturn:'Market downturn',construction:'Construction shock',finance:'Finance shock',timing:'Delays',tail:'Tail events (severe)'};
+const THEME_DEF={mixed:{keys:['price','rent','cost','land','cap','rate','delay','area'],rho:.4,k:.4,p:.65},downturn:{keys:['price','rent','cap','area'],rho:.8,k:.75,p:.8},construction:{keys:['cost','delay','land'],rho:.6,k:.75,p:.8},finance:{keys:['rate','cap','ltc'],rho:.7,k:1.5,p:.8},timing:{keys:['delay','cost'],rho:.5,k:.85,p:.8},tail:{keys:['price','rent','cost','land','cap','rate','delay','area'],rho:.7,k:1.8,p:.9}};
+const SHOCK={price:{sd:7,harm:-1},rent:{sd:8,harm:-1},cost:{sd:7,harm:1},land:{sd:5,harm:1},cap:{sd:.6,harm:1},rate:{sd:1,harm:1},delay:{sd:4,harm:1},area:{sd:3,harm:-1},ltc:{sd:5,harm:-1}};
+const GEN={seed:20260930,seq:0,n:0,fail:0,bins:Array(40).fill(0),worst:[],custom:[],em:{},busy:false};
+const GEN_KEEP=500;
+function grand(){GEN.seed=(GEN.seed*1664525+1013904223)%4294967296;return GEN.seed/4294967296}
+function ggauss(){let u=0;while(!u)u=grand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*grand())}
+const irrBin=v=>Math.max(0,Math.min(39,Math.floor((v+.2)/.015)));
+function shockName(d,x){
+  const parts=Object.entries(d).filter(([k,v])=>Math.abs(v)>1e-9).sort((a,b)=>Math.abs(b[1])/SHOCK[b[0]].sd-Math.abs(a[1])/SHOCK[a[0]].sd).slice(0,3).map(([k,v])=>`${VARS[k].label.toLowerCase()} ${fD(k,v)}`);
+  const nx=x?Object.keys(x).length:0;return(parts.join(', ')||'no driver shock')+(nx?` + ${nx} model line${nx>1?'s':''}`:'');
+}
+function genOne(theme){
+  const T0=THEME_DEF[theme]||THEME_DEF.mixed,common=Math.abs(ggauss()),d={};
+  for(const k of T0.keys){const s=SHOCK[k],z=T0.rho*common+Math.sqrt(1-T0.rho*T0.rho)*ggauss(),harmful=grand()<T0.p;
+    let v=(harmful?s.harm*Math.abs(z):z)*s.sd*T0.k;const V=VARS[k];v=Math.max(V.lo,Math.min(V.hi,v));if(k==='delay')v=Math.max(0,Math.round(Math.abs(v)));
+    if(Math.abs(v)>=(V.kind==='pct'?.5:k==='delay'?1:.05))d[k]=+v.toFixed(k==='delay'?0:2)}
+  let x=null;const cand=xl().filter(l=>l.linked&&!isText(l)&&typeof l.base==='number');
+  if(cand.length&&grand()<.6){x={};const m=1+Math.floor(grand()*Math.min(5,cand.length));for(let i=0;i<m;i++){const l=cand[Math.floor(grand()*cand.length)],f=1+(grand()<.5?-1:1)*(.05+grand()*.2)*T0.k/1.2;x[l.id]=+(+xVal(l.id)*f).toFixed(4)}}
+  const r=run(merge(S,d));
+  return{id:'G'+(++GEN.seq),theme,d,x,name:shockName(d,x),irr:r.irr,poc:r.poc,profit:r.profit,pass:passes(r)};
+}
+function genAdd(g){
+  GEN.n++;if(!g.pass)GEN.fail++;if(Number.isFinite(g.irr))GEN.bins[irrBin(bad(g.irr))]++;
+  const w=GEN.worst;if(w.length<GEN_KEEP||bad(g.irr)<bad(w[w.length-1].irr)){w.push(g);w.sort((a,b)=>bad(a.irr)-bad(b.irr));if(w.length>GEN_KEEP)w.length=GEN_KEEP}
+}
+function genScenarios(n,theme){for(let i=0;i<n;i++)genAdd(genOne(theme));return n}
+async function genAsync(n,theme,onProgress){
+  if(GEN.busy)return 0;GEN.busy=true;let done_=0;
+  try{while(done_<n){const k=Math.min(250,n-done_);genScenarios(k,theme);done_+=k;onProgress&&onProgress(done_,n);await sleep(0)}}finally{GEN.busy=false}
+  logEvent({kind:'stress',actor:USERS.web,channel:'Workspace',detail:`Generated ${n.toLocaleString()} ${THEMES[theme].toLowerCase()} stress scenarios (${GEN.n.toLocaleString()} so far, ${GEN.fail.toLocaleString()} breach a hurdle)`});saveMem();
+  return done_;
+}
+function genPct(p){const tot=GEN.bins.reduce((a,b)=>a+b,0);if(!tot)return NaN;let c=0;for(let i=0;i<40;i++){c+=GEN.bins[i];if(c>=p*tot)return -.2+(i+.5)*.015}return .4}
+function genRows(){const ids=new Set(GEN.custom.map(g=>g.id));return GEN.custom.concat(GEN.worst.filter(g=>!ids.has(g.id)))}
+function renderGen(){
+  const el=$('#sgT');if(!el)return;
+  const b=run(S);
+  $('#sgStats').innerHTML=GEN.n?`<b>${GEN.n.toLocaleString()}</b> scenarios generated · <b>${GEN.fail.toLocaleString()}</b> breach a hurdle (${(GEN.fail/GEN.n*100).toFixed(1)}%) · worst levered IRR ${fP(GEN.worst[0]&&GEN.worst[0].irr)} · P10 ${fP(genPct(.1))} · median ${fP(genPct(.5))} · current ${fP(b.irr)}. Estimates on the agent’s model; the EstateMaster column is EstateMaster’s own answer.`:'No scenarios yet. Choose a theme and press Generate: each press adds new scenarios.';
+  const mx=Math.max(1,...GEN.bins);
+  $('#sgHist').innerHTML=GEN.n?`<div style="display:flex;align-items:flex-end;gap:2px;height:56px;margin:8px 0">${GEN.bins.map((c,i)=>{const lo=-.2+i*.015;return`<i title="IRR ${(lo*100).toFixed(1)}% to ${((lo+.015)*100).toFixed(1)}%: ${c.toLocaleString()}" style="flex:1;height:${Math.max(c?3:0,c/mx*100)}%;background:${lo+.015<=HURDLE.irr?'var(--alert)':'var(--ink)'};border-radius:2px 2px 0 0"></i>`}).join('')}</div><div class="legend"><span><i class="sw" style="background:var(--alert)"></i>below the ${fP(HURDLE.irr)} IRR hurdle</span><span>−20% … 40% levered IRR</span></div>`:'';
+  const rows=genRows().slice(0,25);
+  el.innerHTML=rows.length?'<tr><th>#</th><th>Scenario</th><th>Theme</th><th class="n">IRR (estimate)</th><th class="n">EstateMaster</th><th></th></tr>'+rows.map(g=>{const e=GEN.em[g.id];
+    const emc=!e?'—':e.status==='done'||e.status==='done_with_gaps'?`<b>${Number.isFinite(e.irr)?e.irr.toFixed(2)+'%':'n/a'}</b>${e.sim?' <span style="color:var(--soft);font-size:11px">simulated</span>':''}`:e.status==='needs_person'?'analyst task':e.status==='failed'?'<span style="color:var(--alert)">failed</span>':'running…';
+    return`<tr><td style="color:var(--soft)">${g.id}</td><td>${esc(g.name)}${g.custom?' <span class="pill">custom</span>':''}</td><td style="color:var(--soft)">${esc(THEMES[g.theme]||g.theme)}</td><td class="n">${fP(g.irr)}</td><td class="n">${emc}</td><td><span class="pill ${g.pass?'p':'f'}">${g.pass?'pass':'fail'}</span></td></tr>`}).join(''):'';
+}
+async function stressFromText(text){
+  const it=intent(text);let d=null,name=text.trim().slice(0,120);
+  if(it.k==='mod'&&it.mods)d={...it.mods};
+  if(!d&&provs().length){try{const r=await complete('You turn a described real estate stress scenario into shocks. Reply with JSON only: {"name":string,"shocks":{"price":number,"rent":number,"cost":number,"land":number,"cap":number,"rate":number,"delay":number,"area":number}}. price, rent, cost, land, area: % change (e.g. -12). cap, rate: percentage points (e.g. 1.5). delay: months. Omit drivers the scenario does not touch.',text,'fast');
+    const j=JSON.parse((r.text.match(/\{[\s\S]*\}/)||['{}'])[0]);if(j.shocks){d={};for(const [k,v] of Object.entries(j.shocks))if(VARS[k]&&Number.isFinite(+v))d[k]=Math.max(VARS[k].lo,Math.min(VARS[k].hi,+v));if(j.name)name=String(j.name).slice(0,120)}}catch(e){}}
+  if(!d||!Object.keys(d).length)return null;
+  const r=run(merge(S,d)),g={id:'G'+(++GEN.seq),theme:'custom',d,x:null,name:name+' ('+shockName(d)+')',irr:r.irr,poc:r.poc,profit:r.profit,pass:passes(r),custom:true};
+  GEN.custom.unshift(g);genAdd(g);logEvent({kind:'stress',actor:USERS.web,channel:'Workspace',detail:`Custom stress scenario ${g.id}: ${g.name} → IRR ${fP(g.irr)} (estimate)`});saveMem();return g;
+}
+/* Check scenarios in EstateMaster: scratch jobs, restored by the runner; no approval needed because nothing is changed */
+function scenInputs(g){const z=snapState();S=merge(S,g.d);if(g.x)Object.assign(XV,g.x);const p={inputs:runnerInputs(),...xPayload()};restoreState(z);return p}
+async function verifyScenarios(list){
+  for(const g of list){
+    if(GEN.em[g.id]&&GEN.em[g.id].status!=='failed')continue;
+    if(simRunner()){GEN.em[g.id]={status:'running',sim:true};renderGen();await sleep(600);GEN.em[g.id]={status:'done',sim:true,irr:+(bad(g.irr)*100).toFixed(2)};
+      logEvent({kind:'runner',actor:'Bohio runner (simulated)',channel:'Runner',detail:`Stress check ${g.id} in EstateMaster on the scratch copy (restored, model unchanged): ${g.name} → levered IRR ${GEN.em[g.id].irr.toFixed(2)}% (simulated runner: stand-in model)`});renderGen();continue}
+    if(!runnerLive()){GEN.em[g.id]={status:'failed',error:'runner not reachable'};renderGen();continue}
+    const p=scenInputs(g);
+    try{const j=await runnerPost({action:'submit',kind:'scratch',model:PROJ.id,inputs:p.inputs,lines:p.lines,label:`${g.id}: ${g.name}`});GEN.em[g.id]={status:'queued',job:j.job_id};renderGen();pollStress(g,0)}
+    catch(e){GEN.em[g.id]={status:'failed',error:e.message};renderGen()}
+  }
+  saveMem();
+}
+async function pollStress(g,n){
+  const e=GEN.em[g.id];if(!e||!e.job||n>RUN_WAIT)return;await sleep(5000);
+  let j;try{j=await runnerPost({action:'job',job_id:e.job})}catch(err){return pollStress(g,n+1)}
+  if(j.status==='queued'||j.status==='running'){e.status=j.status;renderGen();return pollStress(g,n+1)}
+  e.status=j.status;e.irr=j.outputs&&j.outputs.levered_irr;e.task=j.task;e.error=j.error;
+  logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:/^done/.test(j.status)?`Stress check ${g.id} in EstateMaster on the scratch copy (restored, model unchanged): ${g.name} → levered IRR ${Number.isFinite(e.irr)?e.irr.toFixed(2)+'%':'not in export'} (estimate ${fP(g.irr)})`:j.status==='needs_person'?`Stress check ${g.id} needs an analyst: ${j.task}`:`Stress check ${g.id} failed: ${j.error||j.status}`});
+  renderGen();saveMem();
+}
+
+
+/* ================= TRUST: EstateMaster is the source of truth =================
+   Every figure the app computes itself (live returns, stress tests, sensitivities, explorer, napkin) is an ESTIMATE
+   from the agent's model and is labelled so. EstateMaster's own figures come only from the runner's export, are
+   labelled "EstateMaster", and are tied to the exact working copy they were calculated for. */
+let EMLAST=null;const TRUST={busy:false,task:null};
+function wcSig(){return JSON.stringify([PROJ.id,runnerInputs(),xPayload().lines])}
+const emFresh=()=>!!EMLAST&&EMLAST.proj===PROJ.id&&EMLAST.sig===wcSig();
+function setEMLast(out,ref,sim,kind,sig){if(!out||!Number.isFinite(out.levered_irr))return;EMLAST={out,ref,sim:!!sim,kind,sig,proj:PROJ.id,at:new Date().toISOString()};renderTrust();saveMem()}
+function emFig(k,fmt){if(!emFresh())return null;const v=EMLAST.out[k];return Number.isFinite(v)?(fmt||(x=>x.toFixed(2)+'%'))(v):null}
+function trustText(){
+  const t=EMLAST&&EMLAST.proj===PROJ.id?new Date(EMLAST.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'';
+  if(TRUST.busy)return{cls:'',html:'Checking this working copy in EstateMaster…'};
+  if(TRUST.task)return{cls:'warn',html:`EstateMaster needs an analyst: ${esc(TRUST.task)} <button class="btn sm" id="trCollect">Collect</button>`};
+  if(emFresh())return{cls:'ok',html:`<b>EstateMaster: levered IRR ${EMLAST.out.levered_irr.toFixed(2)}%</b> for exactly this working copy (${esc(EMLAST.ref)}, ${t}${EMLAST.sim?', simulated runner':''}). Use EstateMaster’s figure; the tiles are the agent’s estimates.`};
+  if(EMLAST&&EMLAST.proj===PROJ.id)return{cls:'warn',html:`These are the agent’s estimates. EstateMaster last calculated an earlier version (${esc(EMLAST.ref)}, ${t}: ${EMLAST.out.levered_irr.toFixed(2)}%). <button class="btn sm" id="trCheck">Check in EstateMaster</button>`};
+  return{cls:'warn',html:`These are the agent’s estimates, not EstateMaster’s figures. <button class="btn sm" id="trCheck">Check in EstateMaster</button>`};
+}
+function renderTrust(){const e=$('#emTrust');if(!e)return;const t=trustText();e.className='trust '+t.cls;e.innerHTML=t.html}
+/* Run the current working copy in EstateMaster on the scratch copy: EstateMaster's figures, nothing in the model changes */
+async function checkWorkingCopy(){
+  if(TRUST.busy)return;const sig=wcSig(),est=run(S).irr;TRUST.busy=true;TRUST.task=null;renderTrust();
+  try{
+    if(simRunner()){await sleep(1500);setEMLast({levered_irr:+(bad(est)*100).toFixed(2)},'working-copy check',true,'scratch',sig);
+      logEvent({kind:'runner',actor:'Bohio runner (simulated)',channel:'Runner',detail:`Working copy checked in EstateMaster on the scratch copy (restored, model unchanged): levered IRR ${(bad(est)*100).toFixed(2)}% (simulated runner: stand-in model)`});return}
+    if(!runnerLive()){toast('The EstateMaster runner is not reachable');return}
+    const p={inputs:runnerInputs(),...xPayload()};const j=await runnerPost({action:'submit',kind:'scratch',model:PROJ.id,inputs:p.inputs,lines:p.lines,label:'Working copy check'});
+    for(let n=0;n<RUN_WAIT;n++){await sleep(5000);let s_;try{s_=await runnerPost({action:'job',job_id:j.job_id})}catch(e){continue}
+      if(s_.status==='queued'||s_.status==='running')continue;
+      if(s_.status==='needs_person'){TRUST.task=s_.task;TRUST.job=j.job_id;TRUST.sig=sig;logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`Working copy check needs an analyst: ${s_.task}`});return}
+      if(/^done/.test(s_.status)){setEMLast(s_.outputs,'working-copy check '+j.job_id,false,'scratch',sig);logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`Working copy checked in EstateMaster on the scratch copy (restored, model unchanged): levered IRR ${Number.isFinite(s_.outputs.levered_irr)?s_.outputs.levered_irr.toFixed(2)+'%':'not in export'} (estimate ${fP(est)})`})}
+      else logEvent({kind:'runner',actor:'Bohio runner',channel:'Runner',detail:`Working copy check failed: ${s_.error||s_.status}`});return}
+  }catch(e){toast('EstateMaster check failed: '+e.message)}
+  finally{TRUST.busy=false;renderTrust()}
+}
+async function trustCollect(){try{const j=await runnerPost({action:'collect',job_id:TRUST.job});TRUST.task=null;if(/^done/.test(j.status))setEMLast(j.outputs,'working-copy check '+TRUST.job,false,'scratch',TRUST.sig);renderTrust()}catch(e){toast(e.message)}}
 
 /* ================= PROJECTS AND MODEL TEMPLATES ================= */
 /* A new model reuses a previous project's EstateMaster structure (sections, lines, units, logic).
@@ -1839,13 +2135,14 @@ function loadModelCore(p){
   const m=deriveModel(p.regBase,p.areas);
   REG.forEach(l=>l.base=p.regBase[l.id]);
   Object.keys(BASE).forEach(k=>BASE[k]=m.BASE[k]);Object.assign(FIX0,m.FIX);Object.assign(FIX,m.FIX);Object.assign(FT0,m.FT);Object.assign(FT,m.FT);
-  S={};LV={};ELV={};PROJ=p;setSite(p.plot);baseRes=run({});stressRes=null;tornRes=null;headRes=null;fullTorn=null;
+  S={};LV={};ELV={};XV={};XMAP=null;PROJ=p;setSite(p.plot);baseRes=run({});stressRes=null;tornRes=null;headRes=null;fullTorn=null;
 }
 function switchProject(id,quiet){
   if(!PROJECTS[id]||id===PROJ.id)return;
-  PROJ.saved={S:{...S},LV:{...LV},F:{...FIX},T:{...FT},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))};
+  PROJ.saved={S:{...S},LV:{...LV},F:{...FIX},T:{...FT},X:{...XV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))};
   for(const k in SRC)delete SRC[k];
   const p=PROJECTS[id];loadModelCore(p);
+  XV=p.saved&&p.saved.X?{...p.saved.X}:{};XMAP=null;
   if(p.saved){S={...p.saved.S};LV={...p.saved.LV};Object.assign(FIX,p.saved.F);Object.assign(FT,p.saved.T);for(const [k,v] of Object.entries(p.saved.SRC||{})){const e=DATA.emails.find(x=>x.id===v.eid);if(e)SRC[k]={e,quote:v.quote}}}
   resetE();LASTX=null;renderProjectUI();if(!quiet){logEvent({kind:'project',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Switched to project ${p.name}`});renderAll(true);toast('Project: '+p.name)}
 }
@@ -2062,6 +2359,13 @@ function selfTest(){
   safe('Every AI tool maps to an action',()=>{const bad_=TOOLS.filter(t=>{const r=toolIntent0(t.name,{});return!r||r.k==='help'});ok('Every AI tool maps to an action',!bad_.length,`${TOOLS.length} tools${bad_.length?'; unmapped: '+bad_.map(t=>t.name).join(', '):''}`)});
   safe('Excel dataset embedded',()=>{const a=document.querySelector('a[download$=".xlsx"]');ok('Excel dataset embedded',a&&/^data:application/.test(a.href),a?Math.round(a.href.length/1024)+' KB':'missing')});
   safe('Change memory persists',()=>{let w=false;try{localStorage.setItem('bohioTest','1');w=localStorage.getItem('bohioTest')==='1';localStorage.removeItem('bohioTest')}catch(e){}ok('Change memory persists',w,w?`${LOG.length} entries, saved in this browser`:'browser storage blocked: memory lasts only for this session')});
+  safe('Model lines have no limit',()=>{const a=PROJ.xl,xv=XV;PROJ.xl=Array.from({length:5000},(_,i)=>({id:'L'+String(i+1).padStart(5,'0'),g:'Costs › Detailed items',label:'Detailed item '+(i+1)+(i===4321?' chiller plant':''),unit:'SAR/sqm GFA',base:10+i%50,linked:i!==7}));XMAP=null;const t0=performance.now();
+    const f=findXLines('set chiller plant to 55',3),p=parseXLine('set chiller plant to 55'),no=parseXLine('what if construction cost rises 8%'),pl=xPayload().lines,ms=performance.now()-t0;PROJ.xl=a;XV=xv;XMAP=null;
+    ok('Model lines have no limit',f[0]&&f[0].d.id==='L04322'&&p&&p.id==='L04322'&&p.v===55&&!no&&Object.keys(pl).length===4999&&ms<1500,`5,000 lines: found and parsed “chiller plant” in ${ms.toFixed(0)} ms; unlinked line held back`)});
+  safe('Stress scenarios have no limit',()=>{const g0=JSON.stringify({...GEN,busy:false}),t0=performance.now();genScenarios(300,'tail');const names=new Set(GEN.worst.map(g=>g.name)),n=GEN.n,ms=performance.now()-t0;Object.assign(GEN,JSON.parse(g0));
+    ok('Stress scenarios have no limit',n>=300&&names.size>150,`300 tail scenarios in ${ms.toFixed(0)} ms, ${names.size} distinct among the worst kept`)});
+  safe('Estimates never pass as EstateMaster figures',()=>{const e0=EMLAST;EMLAST=null;const a=trustText().html,rep_=BLOCKS.kpis.fn(),st=statusText().line;EMLAST={out:{levered_irr:21.5},ref:'CR-T',sim:false,kind:'run',sig:wcSig(),proj:PROJ.id,at:new Date().toISOString()};const b_=trustText().html,rep2=BLOCKS.kpis.fn();S={...S,cost:(S.cost||0)+1};const stale=!emFresh();S.cost-=1;if(!S.cost)delete S.cost;EMLAST=e0;
+    ok('Estimates never pass as EstateMaster figures',/estimates, not EstateMaster/.test(a)&&/has not calculated/.test(rep_)&&/Estimate \(agent/.test(st)&&/EstateMaster: levered IRR 21.50%/.test(b_)&&/21.50%/.test(rep2)&&stale,'estimate labels everywhere; EstateMaster figure shown only for the exact working copy it was calculated for')});
   safe('Control workbook round trip',()=>{const ws={};cwInputsAoa().forEach((row,i)=>row.forEach((v,j)=>{if(v!=null)ws[String.fromCharCode(65+j)+(i+1)]={v}}));const r=cwParse({Sheets:{Inputs:ws}});const ws2={...ws,E21:{v:'abc'}};const bad=cwParse({Sheets:{Inputs:ws2}});ok('Control workbook round trip',r.ok&&!cwOps(r.values).length&&!bad.ok,`${r.filled}/${r.lines} values read back, 0 differences; bad value rejected`)});
   R.push({name:'EstateMaster runner (Vercel)',ok:true,info:true,detail:runnerText()});
   R.push({name:'Server keys (Vercel)',ok:true,info:true,detail:PROXY.status==='ok'?'/api/llm reachable; server keys found':'status: '+(PROXY.status||'not checked')+(PROXY.status==='file'?' (page opened from a file, not from Vercel)':'')});
@@ -2246,7 +2550,7 @@ function renderKPIs(flash){
   const r=run(S),b=baseRes,ch=Object.keys(S).length;
   const items=[['Levered IRR',fP(r.irr),bad(r.irr)-bad(b.irr),1,bad(r.irr)<HURDLE.irr,'pts',100],['Profit on cost',fP(r.poc),r.poc-b.poc,1,r.poc<HURDLE.poc,'pts',100],['Net profit',fM(r.profit),r.profit-b.profit,1,r.profit<0,'M',1e-6],['Equity multiple',fX(r.em),r.em-b.em,1,r.em<1.5,'x',1],['Peak debt',fM(r.peak),r.peak-b.peak,-1,false,'M',1e-6]];
   $('#kpis').innerHTML=items.map(([l,v,d,s,badF,u,m])=>{const dd=d*m;return`<div class="kpi ${badF?'bad':''} ${flash?'flash':''}"><div class="l">${l}</div><div class="v">${v}</div><div class="dl">${!ch||Math.abs(dd)<.005?'base':`<span class="${dd*s<0?'dn':'up'}">${sgn(dd,u==='x'?2:(u==='M'?0:1))}${u==='pts'?' pts':u==='M'?'M':'x'}</span> vs base`}</div></div>`}).join('');
-  $('#kpiSub').textContent=ch?'Sandbox: '+scenName(S):'Base case, no changes';
+  $('#kpiSub').textContent=(ch?'Sandbox: '+scenName(S):'Base case, no changes')+' · agent’s estimate';renderTrust();
 }
 function renderAsm(){
   $('#asm').innerHTML=KEYS.map(k=>{const v=VARS[k],d=S[k]||0,p=apply({[k]:d})[k];
@@ -2262,7 +2566,7 @@ function renderCS(){
   $('#csK').innerHTML=k('Project IRR (unlevered)',fP(r.uirr))+k('Equity IRR (levered)',fP(r.irr),bad(r.irr)<HURDLE.irr)+k('Fund LP net IRR',fP(w.lpIrr),bad(w.lpIrr)<FT.pref/100)+k('KINAN IRR incl. promote',fP(w.gpIrr));
   $('#csTerms').innerHTML=`Terms: LP ${FT.lp}% / KINAN ${100-FT.lp}% of equity · ${FT.pref}% preferred return (compounding) · ${FT.promote}% promote above pref · ${FT.fee}% p.a. fund management fee on LP capital. Promote earned ${fM(w.promo)}; fees ${fM(w.fees)}. LP multiple ${fX(w.lpEm)}, KINAN multiple ${fX(w.gpEm)}.`;
 }
-function renderAll(flash){fullTorn=null;if($('#p-model').classList.contains('on')){renderRegister();renderElemental()}renderKPIs(flash);renderCS();renderAsm();stressRes=null;tornRes=null;headRes=null;renderStress();renderFullTornado();renderHeat();renderMarket();renderInbox();renderApprovals();saveMem();if($('#p-report').classList.contains('on'))renderReport()}
+function renderAll(flash){fullTorn=null;if($('#p-model').classList.contains('on')){renderRegister();renderElemental();renderXLines()}renderKPIs(flash);renderCS();renderAsm();stressRes=null;tornRes=null;headRes=null;renderStress();renderFullTornado();renderHeat();renderMarket();renderInbox();renderApprovals();saveMem();if($('#p-report').classList.contains('on'))renderReport()}
 
 function addMsg(who,html){const m=document.createElement('div');m.className='msg '+who;m.innerHTML=who==='agent'?`<div class="steps"></div><div class="body">${html||''}</div>`:esc(html);$('#msgs').appendChild(m);$('#msgs').scrollTop=1e9;return m}
 /* ================= AI ENGINE (built-in · Claude · OpenAI) ================= */
@@ -2304,6 +2608,11 @@ const TOOLS=[
  {name:'set_assumptions',description:'Propose assumption changes. This raises a change request that a person must approve before EstateMaster is touched. Each change replaces that assumption\'s current setting. Use mode "delta" for a change vs base (percent for price, rent, cost, land, area; percentage points for cap, rate, ltc; months for delay) or "absolute" for a target level in the assumption\'s own unit (SAR/sqm, SAR M, %, months).',
   p:{changes:{type:'array',items:{type:'object',properties:{assumption:{type:'string',enum:VAR_ENUM},value:{type:'number'},mode:{type:'string',enum:['delta','absolute']}},required:['assumption','value','mode']}}},req:['changes']},
  {name:'reset_sandbox',description:'Reset every sandbox assumption to the EstateMaster base case.',p:{}},
+ {name:'check_in_estatemaster',description:'Get EstateMaster’s own figures for the current working copy: the runner calculates it in EstateMaster on a scratch copy (restored; nothing changes). Use before quoting figures as final.',p:{}},
+ {name:'search_model_lines',description:'Search every assumption in the model by words: the core lines and the model lines (no limit on how many a model has). Returns id, section, label and current value. Use before set_model_line.',p:{query:{type:'string'},limit:{type:'number'}},req:['query']},
+ {name:'set_model_line',description:'Propose a new value for one model line (id like L0001, from search_model_lines). Raises a change request; there is no instant estimate, EstateMaster calculates the effect after approval.',p:{id:{type:'string'},value:{type:'number'}},req:['id','value']},
+ {name:'generate_stress_scenarios',description:'Generate new stress scenarios (no limit: each call adds new ones) with correlated shocks, ranked on the estimate. theme: mixed, downturn, construction, finance, timing or tail. count up to 5000.',p:{theme:{type:'string',enum:['mixed','downturn','construction','finance','timing','tail']},count:{type:'number'}}},
+ {name:'verify_worst_scenarios',description:'Check the worst generated stress scenarios in EstateMaster on a scratch copy (restored afterwards; nothing changes, no approval needed).',p:{n:{type:'number'}}},
  {name:'run_stress_tests',description:'Run the stress library (single and combined downside scenarios plus a market-aligned case) on the current sandbox.',p:{}},
  {name:'run_sensitivity',description:'Two-way sensitivity grid of levered IRR over two assumptions.',p:{x:{type:'string',enum:VAR_ENUM},y:{type:'string',enum:VAR_ENUM}},req:['x','y']},
  {name:'headroom',description:'Reverse stress: how far each assumption can move alone before the IRR hurdle breaks and before a loss.',p:{}},
@@ -2314,7 +2623,7 @@ const TOOLS=[
  {name:'read_outlook',description:'Scan the project Outlook folder now; any assumption change found becomes a change request for human approval.',p:{}},
  {name:'apply_email_changes',description:'Show the email proposals waiting for approval (you cannot approve them).',p:{}},
  {name:'explain_change',description:'Explain why an assumption differs from base, citing the email source if there is one. Omit assumption to explain all changes.',p:{assumption:{type:'string',enum:VAR_ENUM}}},
- {name:'build_report',description:'Build a report from the latest EstateMaster extract. kind is a report id: ic, monthly, lender, investor, compare, or the id/name of a custom report created with create_report.',p:{kind:{type:'string'}}},
+ {name:'build_report',description:'Build a report from the latest EstateMaster extract. kind is a report id: ic, monthly, lender, investor, compare, stress (generated scenarios and EstateMaster results), or the id/name of a custom report created with create_report.',p:{kind:{type:'string'}}},
  {name:'create_report',description:'Create a new report type from the block library (figures always come from the EstateMaster extract). Choose blocks in order.',p:{name:{type:'string'},audience:{type:'string'},schedule:{type:'string',enum:['On request','Weekly','Monthly · 3rd working day','Quarterly']},blocks:{type:'array',items:{type:'string',enum:BLOCK_KEYS}},narrative:{type:'boolean'}},req:['name','blocks']},
  {name:'extract_from_estatemaster',description:'Run a fresh extract of every assumption and output from EstateMaster into the reporting store.',p:{}},
  {name:'list_model_assumptions',description:'List every assumption line in the EstateMaster register with id, section, unit, base and current value.',p:{}},
@@ -2331,7 +2640,7 @@ const TOOLS=[
  {name:'list_approvals',description:'List change requests waiting for human approval and the latest entries of the change memory. You cannot approve anything; only people can.',p:{}},
  {name:'promote_scenario',description:'Request promotion of the sandbox to the live EstateMaster model. This only creates an approval request; a human must reply APPROVE. Never claim the model was written.',p:{}}
 ];
-function toolIntent(name,a){const r=toolIntent0(name,a);if(r&&['mod','line','align','reset','capital','newmodel','napkinmodel'].includes(r.k))r.byAI=`AI · ${name}`;if(r&&r.k==='emailapply')return{k:'approvals'};return r}
+function toolIntent(name,a){const r=toolIntent0(name,a);if(r&&['mod','line','xline','align','reset','capital','newmodel','napkinmodel'].includes(r.k))r.byAI=`AI · ${name}`;if(r&&r.k==='emailapply')return{k:'approvals'};return r}
 function toolIntent0(name,a){
   a=a||{};
   switch(name){
@@ -2354,6 +2663,11 @@ function toolIntent0(name,a){
     case 'create_report':return{k:'newreport',def:{name:a.name,aud:a.audience||'',sched:a.schedule||'On request',blocks:(a.blocks||[]).filter(b=>BLOCKS[b]),narr:!!a.narrative}};
     case 'extract_from_estatemaster':return{k:'extract'};
     case 'list_model_assumptions':return{k:'reglist'};
+    case 'search_model_lines':return{k:'xsearch',q:a.query,n:a.limit};
+    case 'check_in_estatemaster':return{k:'emcheck'};
+    case 'set_model_line':return REGBY[a.id]&&typeof a.value==='number'?{k:'line',id:a.id,v:a.value}:XBY(a.id)&&a.value!=null?{k:'xline',id:a.id,v:a.value}:{k:'xsearch',q:String(a.id||'')};
+    case 'generate_stress_scenarios':return{k:'stressgen',theme:a.theme,count:a.count};
+    case 'verify_worst_scenarios':return{k:'stressverify',n:a.n};
     case 'set_model_assumption':return REGBY[a.id]&&typeof a.value==='number'?{k:'line',id:a.id,v:a.value}:{k:'reglist'};
     case 'promote_scenario':return{k:'promote'};
     case 'list_approvals':return{k:'approvals'};
@@ -2373,7 +2687,7 @@ function sysPrompt(ch,role){
   const r=run(S);
   const asm=KEYS.map(k=>`- ${k} (${VARS[k].label}): base ${VARS[k].fmt(BASE[k])}, now ${VARS[k].fmt(apply(S)[k])}${S[k]?` (${fD(k,S[k])} vs base${SRC[k]?', source: email from '+SRC[k].e.from:''})`:''}`).join('\n');
   return `You are the Bohio agent. You sit on top of ARGUS EstateMaster for KINAN's ${PROJ.name} project in ${PROJ.district}, Riyadh (${PROJ.comps.map(c=>c==='res'?'residential for sale':'retail held for income').join(' plus ')}; all figures in SAR). Other projects: ${Object.values(PROJECTS).filter(p=>p!==PROJ).map(p=>p.name).join(', ')||'none'}. Templates for new models: ${Object.values(TEMPLATES).map(t=>t.name+' ('+t.type+')').join('; ')}.
-Connections: EstateMaster through the Bohio runner (every return is calculated by EstateMaster itself; you change only the sandbox model copy BHO_SBX; the base case is read-only), SQL Server for actuals and sales, a market dataset of comparable sales, leases and plot zoning (dummy demo data), and the project's Outlook folder (dummy demo inbox).
+Connections: EstateMaster through the Bohio runner. EstateMaster is the trusted source of every figure. Tool figures are the agent’s ESTIMATES unless the tool says they come from EstateMaster: always call them estimates, and use check_in_estatemaster (or the EstateMaster results on change requests) for figures a decision will rest on; where the two differ, EstateMaster’s figure stands. You change only the sandbox working copy; the base case is read-only, SQL Server for actuals and sales, a market dataset of comparable sales, leases and plot zoning (dummy demo data), and the project's Outlook folder (dummy demo inbox).
 
 Rules:
 - Get every number from a tool. Never do financial maths yourself and never invent figures, comps, emails or regulations.
@@ -2385,7 +2699,7 @@ Rules:
 ${ch==='wa'?`- Channel: WhatsApp. User role: ${role}${role!=='Investment Director'?' (cannot approve promotion)':''}. Reply in plain text, 8 lines or fewer, *single asterisks* for bold, no tables, no markdown headings.`:`- Channel: Bohio workspace chat. Reply in 2 to 6 short lines or bullets ("- "). **Bold** allowed. Tool tables are shown to the user separately, so don't repeat them in full.`}
 - Answer in the user's language (English or Arabic).
 
-Headline drivers (base → now). The full EstateMaster register has ${REG.length} lines; use list_model_assumptions and set_model_assumption to read or change any of them:
+Headline drivers (base → now). The full EstateMaster register has ${REG.length} core lines plus ${xl().length.toLocaleString()} model lines (no limit; use search_model_lines and set_model_line for those: they have no instant estimate, EstateMaster calculates them after approval). Stress scenarios are unlimited: generate_stress_scenarios adds new ones each call and verify_worst_scenarios checks the worst in EstateMaster. Use list_model_assumptions and set_model_assumption to read or change any of the core lines:
 ${asm}
 
 Pending approvals: ${pendingCRs().map(c=>c.id+' '+opsDesc(c.ops)).join('; ')||'none'}.
@@ -2485,7 +2799,7 @@ function route(text){
   if(it.k==='report'&&!/memo|draft|write|board paper/.test(t))return{lane:'data',it,post:'narrative',tier:'deep',why:'Numbers come from the EstateMaster extract; the narrative model drafts the commentary.'};
   if(REASON.test(t)&&it.k!=='promote')return{lane:'api',it,tier:/memo|draft|write|narrative/.test(t)?'deep':FILES.length&&/excel|spreadsheet|workbook|sheet|file/.test(t)?'excel':'smart',why:'Needs judgement or language: an AI agent plans and calls EstateMaster and data tools.'};
   switch(it.k){
-    case 'line':case 'mod':case 'status':case 'reset':case 'stress':case 'sens':case 'reverse':case 'explore':case 'capital':case 'align':case 'promote':case 'emailapply':
+    case 'emcheck':case 'xline':case 'xsearch':case 'stressgen':case 'stressverify':case 'line':case 'mod':case 'status':case 'reset':case 'stress':case 'sens':case 'reverse':case 'explore':case 'capital':case 'align':case 'promote':case 'emailapply':
       return{lane:'calc',it,why:'Straightforward maths: EstateMaster calculates, no AI involved.'};
     case 'napkin':case 'detail':return{lane:'calc',it,why:'Straightforward maths: the napkin runs through the same model; detailing breaks it into EstateMaster lines with benchmarks. No AI.'};
     case 'napkinmodel':return{lane:'data',it,why:'Raises a change request to create the model; needs approval.'};
@@ -2616,7 +2930,7 @@ function openModal_unused(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S
 
 /* tabs */
 const TABS=[['agent','Agent'],['napkin','Napkin → model'],['appr','Approvals'],['model','Model data'],['inbox','Outlook'],['market','Market check'],['explore','Sensitivity & Explorer'],['stress','Stress tests'],['report','Reports'],['wa','WhatsApp'],['arch','Architecture']];
-function showTab(id){$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report'){renderReportList();renderExtract();renderReport()}if(id==='model'){renderRegister();renderElemental()}if(id==='napkin'){fillNapkinForm();runNapkin()}if(id==='explore')renderHeat();if(id==='market')renderMarket();if(id==='inbox')renderInbox();if(id==='appr')renderApprovals();window.scrollTo({top:0,behavior:'smooth'})}
+function showTab(id){$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report'){renderReportList();renderExtract();renderReport()}if(id==='model'){renderRegister();renderElemental();renderXLines()}if(id==='stress')renderGen();if(id==='napkin'){fillNapkinForm();runNapkin()}if(id==='explore')renderHeat();if(id==='market')renderMarket();if(id==='inbox')renderInbox();if(id==='appr')renderApprovals();window.scrollTo({top:0,behavior:'smooth'})}
 $('#tabs').innerHTML=TABS.map(([id,l])=>`<div class="tab ${id==='agent'?'on':''}" data-t="${id}">${l}</div>`).join('');
 $$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
@@ -2645,8 +2959,18 @@ $('#xRun').onclick=async()=>{$('#xRun').textContent='Extracting…';await doExtr
 document.addEventListener('click',e=>{const r=e.target.closest('[data-rp]');if(r&&!e.target.closest('input,select,[data-rbe]')){RSEL=r.dataset.rp;renderReportList();renderReport()}});
 document.addEventListener('change',e=>{const a=e.target.dataset.sch,b=e.target.dataset.ch;if(a){SCHED[a].on=e.target.checked;toast(`${RPTS[a].name}: ${e.target.checked?'scheduled':'schedule off'}`)}if(b){SCHED[b].ch=e.target.value}
   const g=e.target.dataset.reg;if(g){const v=parseFloat(e.target.value);if(Number.isFinite(v)&&Math.abs(v-lineVal(g))>1e-9)setTimeout(()=>setLine(g,v,'Model data'),0)}
+  const xk=e.target.dataset.xl;if(xk){const d=XBY(xk),raw=String(e.target.value).trim(),v=isText(d)?raw:parseFloat(raw.replace(/,/g,''));if(d&&raw!==''&&String(v)!==String(xVal(xk)))setTimeout(()=>{const cr=proposeXLine(xk,v,`${USERS.web} (${WS_ROLE})`,'Model data');if(cr)toast(`${cr.id} raised: ${d.label} → ${fmtX(d,v)}. Model lines run only in EstateMaster: approve it to run.`)},0)}
   const el=e.target.dataset.el;if(el){const v=parseFloat(String(e.target.value).replace(/,/g,''));const [L,i]=el.split(':');if(Number.isFinite(v))setTimeout(()=>setElement(L,+i,v),0)}});
 $('#regQ').oninput=e=>{regQ=e.target.value;renderRegister()};
+$('#xlQ').oninput=e=>{XQ=e.target.value;XSHOW=100;renderXLines()};
+document.addEventListener('click',e=>{if(e.target.id==='trCheck')checkWorkingCopy();if(e.target.id==='trCollect')trustCollect()});
+document.addEventListener('click',e=>{if(e.target.id==='xlMoreB'){XSHOW+=100;renderXLines()}});
+$('#sgGo').onclick=async()=>{const n=+$('#sgN').value,th=$('#sgTheme').value,b=$('#sgGo');b.disabled=true;await genAsync(n,th,(d,t)=>{b.textContent=`${d.toLocaleString()} / ${t.toLocaleString()}`;renderGen()});b.disabled=false;b.textContent='Generate more';renderGen();toast(`${n.toLocaleString()} new scenarios: ${GEN.n.toLocaleString()} in total`)};
+$('#sgVerify').onclick=()=>{const l=GEN.custom.slice(0,2).concat(GEN.worst).filter((g,i,a)=>a.indexOf(g)===i).slice(0,5);if(!l.length){toast('Generate scenarios first');return}verifyScenarios(l);toast(`${l.length} scenarios sent to EstateMaster (scratch copy)${simRunner()?' · simulated runner':''}`)};
+$('#sgReport').onclick=()=>{RSEL='stress';LASTX=snapshot();if(!stressRes){stressRes=computeStress();computeTornado();computeHeadroom()}showTab('report');toast('Stress test report generated')};
+$('#sgClear').onclick=()=>{Object.assign(GEN,{n:0,fail:0,bins:Array(40).fill(0),worst:[],custom:[],em:{}});renderGen();saveMem()};
+$('#sgAdd').onclick=async()=>{const t=$('#sgText').value.trim();if(!t)return;const g=await stressFromText(t);if(!g){toast('Could not read shocks from that description. Try e.g. “price −10% and cost +15%”.');return}$('#sgText').value='';renderGen();toast(`${g.id}: IRR ${fP(g.irr)} (estimate)`)};
+$('#sgText').onkeydown=e=>{if(e.key==='Enter')$('#sgAdd').click()};
 
 
 /* ================= WHATSAPP UI ================= */

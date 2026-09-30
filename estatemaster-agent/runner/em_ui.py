@@ -3,6 +3,7 @@ Presses EstateMaster's buttons the way an analyst would (Windows UI Automation v
 Shared by em_runner.py (unattended runs) and em_ui_trial.py (the trial). NOT yet run against EstateMaster.
 
 Sequence, from ui_steps.json:  open model -> refresh_links -> recalculate -> export_excel -> save_copy -> close
+Promotion to the live model saves the model itself instead of a copy: ... -> export_excel -> save_live -> close
 The button names in ui_steps.json are placeholders until em_ui_probe.py has recorded the real ones.
 Any failure raises UIFailed with a screenshot path; nothing is guessed.
 """
@@ -12,6 +13,7 @@ from pathlib import Path
 HERE = Path(__file__).parent
 TITLE_RE = os.environ.get("EM_TITLE_RE", r".*EstateMaster.*")
 GROUPS = ("refresh_links", "recalculate", "export_excel", "save_copy", "close")
+PROMOTE_GROUPS = ("refresh_links", "recalculate", "export_excel", "save_live", "close")
 
 
 class UIFailed(Exception):
@@ -71,7 +73,7 @@ def _do(win, step, ctx):
         raise UIFailed(f"unknown step type {kind}")
 
 
-def round_trip(emdf, export_dir, stamp, timings=None, shots_dir=None):
+def round_trip(emdf, export_dir, stamp, timings=None, shots_dir=None, groups=GROUPS):
     """Open the model, refresh the Excel links, recalculate, export, save a copy, close.
     Returns the export files produced. Appends (step, seconds) to timings."""
     timings = timings if timings is not None else []
@@ -83,7 +85,7 @@ def round_trip(emdf, export_dir, stamp, timings=None, shots_dir=None):
         os.startfile(str(emdf))  # Windows only: opens the model through the .emdf file association
         win = main_window(timeout=float(os.environ.get("EM_OPEN_WAIT_S", "60")))
         timings.append(("open model", round(time.time() - t0, 1)))
-        for g in GROUPS:
+        for g in groups:
             t0 = time.time()
             for s in cfg[g]:
                 _do(win, s, ctx)
