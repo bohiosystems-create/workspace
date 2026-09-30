@@ -1936,6 +1936,7 @@ function selfTest(){
   safe('Every AI tool maps to an action',()=>{const bad_=TOOLS.filter(t=>{const r=toolIntent0(t.name,{});return!r||r.k==='help'});ok('Every AI tool maps to an action',!bad_.length,`${TOOLS.length} tools${bad_.length?'; unmapped: '+bad_.map(t=>t.name).join(', '):''}`)});
   safe('Excel dataset embedded',()=>{const a=document.querySelector('a[download$=".xlsx"]');ok('Excel dataset embedded',a&&/^data:application/.test(a.href),a?Math.round(a.href.length/1024)+' KB':'missing')});
   safe('Change memory persists',()=>{let w=false;try{localStorage.setItem('bohioTest','1');w=localStorage.getItem('bohioTest')==='1';localStorage.removeItem('bohioTest')}catch(e){}ok('Change memory persists',w,w?`${LOG.length} entries, saved in this browser`:'browser storage blocked: memory lasts only for this session')});
+  R.push({name:'Server keys (Vercel)',ok:true,info:true,detail:PROXY.status==='ok'?'/api/llm reachable; server keys found':'status: '+(PROXY.status||'not checked')+(PROXY.status==='file'?' (page opened from a file, not from Vercel)':'')});
   R.push({name:'AI providers',ok:true,info:true,detail:provs().length?provs().map(p=>PROV[p].name+(AI.keys[p]?' (browser key)':' (server key)')).join(', '):'none connected: rules engine answers AI requests'});
   // restore anything the tests touched
   restoreState(z);APQ.length=apq;LOG.length=log;CRN=crn;LOGN=logn;for(const k in SRC)delete SRC[k];Object.assign(SRC,src);stressRes=null;renderApprBadge();
@@ -2306,9 +2307,12 @@ async function complete(system,user,tier){
   throw err||new Error('No AI provider connected');
 }
 async function checkProxy(){
-  if(!/^https?:/.test(location.protocol))return;
+  if(!/^https?:/.test(location.protocol)){PROXY.status='file';return}
   try{const m=await fetch('/api/scan');if(m.ok){const j=await m.json();Object.assign(MAIL,{configured:!!j.configured,mailbox:j.mailbox,folder:j.folder});if(MAIL.configured){$('#ibFolder').textContent=`Live · ${MAIL.mailbox} · folder "${MAIL.folder}" · read-only`;renderInbox()}}}catch(e){}
-  try{const r=await fetch('/api/llm');if(!r.ok)return;const j=await r.json();Object.assign(PROXY,j.providers||{},{pass:!!j.passwordRequired,checked:true});renderEng()}catch(e){}
+  try{const r=await fetch('/api/llm');const ct=r.headers.get('content-type')||'';
+    if(!r.ok||!/json/.test(ct)){PROXY.status=r.status===404?'notfound':(r.status===401||r.status===403)?'protected':(!/json/.test(ct)?'nojson':'http'+r.status);PROXY.code=r.status;renderEng();return}
+    const j=await r.json();Object.assign(PROXY,j.providers||{},{pass:!!j.passwordRequired,checked:true,status:(j.providers&&(j.providers.anthropic||j.providers.openai))?'ok':'nokeys'});renderEng()}
+  catch(e){PROXY.status='unreachable';renderEng()}
 }
 const toolResults=(p,calls,outs)=>p==='anthropic'
   ?[{role:'user',content:calls.map((c,i)=>({type:'tool_result',tool_use_id:c.id,content:outs[i]}))}]
@@ -2581,7 +2585,8 @@ function openAI(){
   $('#aiKeyA').value=AI.keys.anthropic;$('#aiKeyO').value=AI.keys.openai;$('#aiPass').value=AI.pass||'';$('#aiRemember').checked=AI.remember;
   $('#aiModels').value=Object.entries(AI.models).map(([k,v])=>k+'='+v.map(([p,m])=>p+':'+m).join(', ')).join('\n');$('#aiTest').textContent='';
   const sv=['anthropic','openai'].filter(p=>PROXY[p]);
-  $('#aiProxy').innerHTML=sv.length?`<b>Server keys configured:</b> ${sv.map(p=>PROV[p].name).join(', ')}. Leave those fields empty to use them.`:'';
+  const why={file:'This page was opened from a file on your computer, not from your Vercel site, so it cannot reach the server keys. Open your Vercel URL (https://…vercel.app) instead.',notfound:'The server function /api/llm was not found (404). The deployment does not contain the api/ folder: redeploy the unzipped folder bohio-estatemaster-demo so that api/llm.js is at the project root.',nojson:'/api/llm returned a web page instead of data. Usually the api/ folder is missing from the deployment, or Vercel is showing a login page (Deployment Protection).',protected:'Vercel blocked /api/llm (HTTP '+PROXY.code+'): Deployment Protection is on. In Vercel → Settings → Deployment Protection, turn it off for Production or use a public domain.',nokeys:'The server function works, but it sees no ANTHROPIC_API_KEY or OPENAI_API_KEY. Add them under Settings → Environment Variables for the Production environment, then redeploy.',unreachable:'Could not reach /api/llm (network error).'}[PROXY.status]||(PROXY.status&&PROXY.status!=='ok'?`/api/llm answered with an error (${PROXY.status}). Check the function logs in Vercel.`:'');
+  $('#aiProxy').innerHTML=sv.length?`<b>Server keys configured:</b> ${sv.map(p=>PROV[p].name).join(', ')}. Leave those fields empty to use them.`:(why?`<span class="warn"><b>Why no AI is connected:</b> ${esc(why)}</span>`:'');
   $('#aiPassF').style.display=sv.length&&PROXY.pass?'':'none';
   const nc=Object.values(RPTS).filter(v=>!v.builtin).length;$('#setRpt').textContent=`${Object.keys(RPTS).length} report templates (${nc} custom). Build new report types from the extract with the report builder.`;
   renderRouter();$('#aiModal').classList.add('on');
