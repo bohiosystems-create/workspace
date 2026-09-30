@@ -1,0 +1,30 @@
+{
+  "_note": "PLACEHOLDERS. Replace titles, control types and keys with what em_ui_probe.py recorded in your trial.",
+  "refresh_links": [
+    {"do": "click", "title": "Office Links", "control_type": "TabItem"},
+    {"do": "click", "title": "Refresh", "control_type": "Button"},
+    {"do": "wait_idle", "seconds": 3}
+  ],
+  "recalculate": [
+    {"do": "keys", "keys": "{F9}"},
+    {"do": "wait_idle", "seconds": 3}
+  ],
+  "export_excel": [
+    {"do": "click", "title": "Excel", "control_type": "Button"},
+    {"do": "wait_dialog", "title_re": ".*Excel.*"},
+    {"do": "type", "title": "File name:", "control_type": "Edit", "text": "{export_dir}\\export_{stamp}.xlsx"},
+    {"do": "keys", "keys": "{ENTER}"},
+    {"do": "wait_idle", "seconds": 5}
+  ],
+  "save_copy": [
+    {"do": "keys", "keys": "{F12}"},
+    {"do": "type", "title": "File name:", "control_type": "Edit", "text": "{export_dir}\\scenario_{stamp}.emdf"},
+    {"do": "keys", "keys": "{ENTER}"},
+    {"do": "wait_idle", "seconds": 2}
+  ],
+  "close": [
+    {"do": "keys", "keys": "%{F4}"},
+    {"do": "wait_idle", "seconds": 2}
+  ],
+  "read_labels": ["Project IRR", "Development Margin", "Net Development Profit", "Peak Debt", "Total Revenue", "Total Costs"]
+}
