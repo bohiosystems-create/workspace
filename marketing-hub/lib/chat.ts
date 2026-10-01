@@ -1,18 +1,19 @@
 import { buildMarketingDashboard } from "./marketing";
 import { buildInvoiceDashboard, ensureOracleSynced } from "./invoices";
 import { buildRecommendations, createDraft, type Polish, type Rec } from "./recommendations";
+import { buildCrmDashboard } from "./crm";
+import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr } from "./i18n";
 
 // What the chat can put in front of the user besides text. Cards are rendered live from
 // current data, so approving / editing an email happens in the card, never through the model.
 export type ChatCard = { kind: "rec"; key: string } | { kind: "email"; id: string };
 export type ChatReply = { reply: string; cards: ChatCard[]; engine: "claude" | "rules" };
 
-const n = (x: number | null | undefined, suf = "") => (x === null || x === undefined ? "n/a" : `${x}${suf}`);
 
-export async function buildChatContext() {
+export async function buildChatContext(lang: Lang = "en") {
   await ensureOracleSynced();
-  const [mkt, inv, recs] = await Promise.all([buildMarketingDashboard(), buildInvoiceDashboard(), buildRecommendations()]);
-  return { mkt, inv, recs };
+  const [mkt, inv, recs, crm] = await Promise.all([buildMarketingDashboard(lang), buildInvoiceDashboard(lang), buildRecommendations(lang), buildCrmDashboard(lang)]);
+  return { mkt, inv, recs, crm, lang };
 }
 export type ChatContext = Awaited<ReturnType<typeof buildChatContext>>;
 
@@ -21,7 +22,7 @@ export const recId = (i: number) => `R${i + 1}`;
 
 // Compact, model-friendly snapshot (no email bodies, no internal keys).
 export function snapshotForModel(c: ChatContext) {
-  const { mkt, inv, recs } = c;
+  const { mkt, inv, recs, crm } = c;
   return {
     asOf: mkt.asOf.slice(0, 10),
     currency: "SAR (spend/amounts in K, sales in M)",
@@ -50,6 +51,10 @@ export function snapshotForModel(c: ChatContext) {
       deliveredNotInvoiced: inv.unbilled,
       poUtilisation: inv.purchaseOrders.filter((p) => p.utilisationPct >= 90),
     },
+    crmVerification: {
+      mode: crm.integration.mode, attributionGapPct: crm.integration.attributionGapPct, stages: crm.stages,
+      vendors: crm.vendors.map((v) => ({ vendor: v.vendor, reportedLeads: v.reportedLeads, crmLeads: v.crmLeads, leadGapPct: v.leadGapPct, reportedContracts: v.reportedContracts, crmWon: v.crmWon, reportedSalesM: v.reportedSalesM, crmSalesM: v.crmSalesM, reportedResponseHrs: v.reportedRespHrs, crmMedianResponseHrs: v.crmRespHrs, untouchedLeads: v.untouched, verifiedCostToSalesPct: v.verifiedCostToSalesPct, flags: v.flags.map((f) => f.text) })),
+    },
     recommendations: recs.recommendations.map((r, i) => ({
       id: recId(i), type: r.type, severity: r.severity, vendor: r.vendor, title: r.title, rationale: r.rationale,
       impactK: r.impactK, handling: r.channel === "EMAIL" ? "email to vendor (needs human approval)" : "internal decision", state: r.state,
@@ -66,85 +71,116 @@ export function recCards(c: ChatContext, ids: string[]): ChatCard[] {
 }
 
 // Creates a DRAFT only. Sending is a separate, human-approved step in the UI.
-export async function draftForRec(c: ChatContext, id: string, polish?: Polish): Promise<{ ok: boolean; message: string; card?: ChatCard }> {
+export async function draftForRec(c: ChatContext, id: string, polish?: Polish, draftLang?: Lang): Promise<{ ok: boolean; message: string; card?: ChatCard }> {
   const i = Number(id.replace(/\D/g, "")) - 1;
   const rec: Rec | undefined = c.recs.recommendations[i];
   if (!rec) return { ok: false, message: `No recommendation ${id}.` };
   if (rec.channel !== "EMAIL") return { ok: false, message: `${id} is an internal decision, not an email to the vendor.` };
   if (rec.state === "SENT") return { ok: false, message: `An email for ${id} was already sent.` };
   if (rec.state !== "DRAFTED") {
-    try { await createDraft(rec.key, polish); } catch (e: any) { return { ok: false, message: e.message }; }
+    try { await createDraft(rec.key, polish, c.lang, draftLang); } catch (e: any) { return { ok: false, message: e.message }; }
   }
-  const fresh = await buildRecommendations();
+  const fresh = await buildRecommendations(c.lang);
   const email = fresh.outbox.find((e) => e.recKey === rec.key && e.status !== "REJECTED");
   if (!email) return { ok: false, message: "Draft could not be created." };
   return { ok: true, message: `Draft created for ${rec.vendor}: "${email.subject}". It has NOT been sent; the user must review and approve it.`, card: { kind: "email", id: email.id } };
 }
 
 // ----------------------------------------------------------- rules answerer
-const STOP = new Set(["the", "and", "for", "of", "a", "to", "in", "on", "is", "are", "what", "how", "about", "tell", "me", "show", "my", "our", "with", "campaign", "campaigns"]);
-const tokens = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((t) => t.length > 2 && !STOP.has(t));
+const STOP = new Set(["the", "and", "for", "of", "a", "to", "in", "on", "is", "are", "what", "how", "about", "tell", "me", "show", "my", "our", "with", "campaign", "campaigns", "حملة", "حملات", "في", "من", "على", "عن", "إلى", "ما", "هل", "كيف", "لي", "هو", "هي"]);
+const tokens = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF ]/g, " ").split(/\s+/).filter((t) => t.length > 2 && !STOP.has(t));
+const GENERIC_AR = new Set(["شبكة", "السعودية", "للإعلانات", "الخارجية", "للتأثير", "للاتصالات", "للوساطة", "ديجيتال"]);
+const GENERIC_EN = ["digital", "network", "communications", "influence", "brokerage"];
 
 function findVendor(q: string, c: ChatContext) {
   const ql = q.toLowerCase();
-  return c.mkt.vendors.find((v) => ql.includes(v.name.toLowerCase())) ??
-    c.mkt.vendors.find((v) => tokens(v.name).some((t) => t.length > 4 && ql.includes(t) && !["digital", "network", "communications", "influence", "brokerage"].includes(t))) ?? null;
+  return c.mkt.vendors.find((v) => ql.includes(v.name.toLowerCase()) || (NAMES_AR[v.name] && q.includes(NAMES_AR[v.name]))) ??
+    c.mkt.vendors.find((v) => tokens(v.name).some((t) => t.length > 4 && ql.includes(t) && !GENERIC_EN.includes(t))) ??
+    c.mkt.vendors.find((v) => tokens(NAMES_AR[v.name] ?? "").some((t) => !GENERIC_AR.has(t) && q.includes(t))) ?? null;
 }
 function findCampaign(q: string, c: ChatContext) {
   const qt = new Set(tokens(q));
   let best: { c: (typeof c.mkt.campaigns)[number]; score: number } | null = null;
   for (const x of c.mkt.campaigns) {
-    const score = tokens(`${x.name} ${x.channel}`).filter((t) => qt.has(t)).length;
+    const score = new Set([...tokens(`${x.name} ${x.channel}`), ...tokens(`${nm("ar", x.name)} ${nm("ar", x.channel)}`)]).size && [...new Set([...tokens(`${x.name} ${x.channel}`), ...tokens(`${nm("ar", x.name)} ${nm("ar", x.channel)}`)])].filter((t) => qt.has(t)).length;
     if (score >= 2 && (!best || score > best.score)) best = { c: x, score };
   }
   return best?.c ?? null;
 }
 
-const recLine = (r: Rec, i: number) => `- **${recId(i)}** [${r.severity === "crit" ? "urgent" : r.severity === "warn" ? "important" : "FYI"}] ${r.title}${r.impactK ? ` (SAR ${r.impactK}K)` : ""}`;
+const TYPE_URGENCY = (l: Lang, sev: string) => (sev === "crit" ? tx(l, "urgent", "عاجلة") : sev === "warn" ? tx(l, "important", "مهمة") : tx(l, "FYI", "للعلم"));
+const recLine = (l: Lang, r: Rec, i: number) => `- **${recId(i)}** [${TYPE_URGENCY(l, r.severity)}] ${r.title}${r.impactK ? ` (${K(l, r.impactK)})` : ""}`;
+const n = (l: Lang, x: number | null | undefined, suf = "") => (x === null || x === undefined ? tx(l, "n/a", "غير متاح") : `${x}${suf}`);
 
-export async function localAnswer(question: string, ctx?: ChatContext, polish?: Polish): Promise<ChatReply> {
-  const c = ctx ?? (await buildChatContext());
+// Arabic and English intent patterns.
+const RX = {
+  draft: /\b(draft|write|compose|email|e-mail|mail)\b|مسودة|اكتب|صياغة|رسالة|بريد|إيميل|ايميل|راسل|خاطب/,
+  recs: /recommend|what should|next step|priorit|to.?do|action|what now|first\b|urgent|advice|suggest|توصي|ماذا (أفعل|أعمل|يجب)|ما العمل|أولوي|الأهم|اقتراح|نصيح|من أين أبدأ|أبدأ/,
+  invoices: /invoice|overdue|unbill|payable|oracle|\bpo\b|purchase order|payment|pay\b|فاتور|فواتير|متأخر|مستحق|أمر شراء|أوامر الشراء|اوراكل|أوراكل|سداد|دفع/,
+  contracts: /contract|renew|expir|agreement|عقد|عقود|تجديد|ينتهي|انتهاء|تنتهي/,
+  salesWords: /contracts?\s*(signed|closed|count)|sales|مبيعات|موقّع|موقع|صفقات/,
+  best: /best|top|strong|convert|winner|perform|worst|weak|bad|under|poor|lowest|cheapest|expensive|أفضل|الأفضل|أقوى|يحوّل|يحول|أسوأ|الأسوأ|ضعيف|أضعف|الأداء|أداء/,
+  totals: /spend|sales|revenue|lead|funnel|conversion|cac|total|overall|summary|how are we|how is|إنفاق|الإنفاق|مبيعات|المبيعات|إيراد|عملاء محتملين|مسار|تحويل|إجمالي|ملخص|كيف حال|كيف نحن|الوضع/,
+  crm: /\bcrm\b|verif|reconcil|fake|spam|duplicate|attribution|response time|first response|نظام إدارة|إدارة العملاء|سي ?ار ?ام|تحقق|مطابقة|مزيف|وهمي|تكرار|الإسناد|زمن الاستجابة|الاستجابة|استجابة/,
+  ar: /in arabic|بالعربية|بالعربي|عربي/,
+  en: /in english|بالإنجليزية|بالانجليزية|بالانجليزي/,
+};
+
+export async function localAnswer(question: string, ctx?: ChatContext, polish?: Polish, uiLang?: Lang): Promise<ChatReply> {
+  const lang: Lang = looksArabic(question) ? "ar" : uiLang ?? "en";
+  const c = ctx && ctx.lang === lang ? ctx : await buildChatContext(lang);
   const q = question.toLowerCase();
-  const { mkt, inv, recs } = c;
+  const { mkt, inv, recs, crm } = c;
+  const L = lang;
+  const T = (en: string, ar: string) => tx(L, en, ar);
+  const N = (x: string) => nm(L, x);
   const cards: ChatCard[] = [];
   const done = (reply: string): ChatReply => ({ reply, cards, engine: "rules" });
   const active = recs.recommendations.map((r, i) => ({ r, i })).filter((x) => x.r.state === "OPEN" || x.r.state === "DRAFTED");
+  const cardsOf = (types: string[], max: number) => cards.push(...active.filter((x) => types.includes(x.r.type)).slice(0, max).map((x) => ({ kind: "rec" as const, key: x.r.key })));
 
   const vendor = findVendor(question, c);
   const campaign = findCampaign(question, c);
   const recRef = q.match(/\br\s?(\d{1,2})\b/);
+  const draftLang: Lang | undefined = RX.ar.test(question) || RX.ar.test(q) ? "ar" : RX.en.test(q) ? "en" : undefined;
 
   // 1. Draft an email (explicit request).
-  if (/\b(draft|write|compose|email|e-mail|mail)\b/.test(q) && (vendor || recRef || /worst|first|top|most urgent/.test(q))) {
+  if (RX.draft.test(question.toLowerCase()) && (vendor || recRef || /worst|first|top|most urgent|الأسوأ|الأهم|الأول/.test(q))) {
     let targets = active.filter((x) => x.r.channel === "EMAIL");
     if (recRef) targets = targets.filter((x) => x.i === Number(recRef[1]) - 1);
     else if (vendor) targets = targets.filter((x) => x.r.vendorId === mkt.vendors.find((v) => v.name === vendor.name)!.id);
     else targets = targets.slice(0, 1);
-    if (targets.length === 0) return done(`There is nothing to email ${vendor ? vendor.name : "about"} right now — no open recommendation needs a vendor email.`);
+    if (targets.length === 0) return done(T(`There is nothing to email ${vendor ? vendor.name : "about"} right now — no open recommendation needs a vendor email.`, `لا يوجد ما يستدعي مراسلة ${vendor ? N(vendor.name) : "أي مورد"} حالياً — لا توجد توصية مفتوحة تحتاج رسالة إلى المورد.`));
     if (targets.length === 1) {
-      const d = await draftForRec(c, recId(targets[0].i), polish);
+      const d = await draftForRec(c, recId(targets[0].i), polish, draftLang);
       if (d.card) cards.push(d.card);
-      return done(d.ok ? `I've drafted it (${recId(targets[0].i)}: ${targets[0].r.title}). Nothing has been sent — review the message below, edit it if you like, then approve to send.` : d.message);
+      return done(d.ok
+        ? T(`I've drafted it (${recId(targets[0].i)}: ${targets[0].r.title}). Nothing has been sent — review the message below, edit it if you like, then approve to send.`, `أعددت المسودة (${recId(targets[0].i)}: ${targets[0].r.title}). لم يُرسل شيء — راجعوا الرسالة أدناه وعدّلوها إن شئتم، ثم اعتمدوها للإرسال.`)
+        : d.message);
     }
     cards.push(...targets.map((x) => ({ kind: "rec" as const, key: x.r.key })));
-    return done(`There are ${targets.length} open items for ${vendor?.name ?? "that vendor"}. Which one should I draft an email for? Use "Draft email" on the card, or say e.g. "draft R${targets[0].i + 1}".`);
+    return done(T(`There are ${targets.length} open items for ${vendor?.name ?? "that vendor"}. Which one should I draft an email for? Use "Draft email" on the card, or say e.g. "draft R${targets[0].i + 1}".`, `هناك ${an(targets.length, "بند واحد", "بندان", "بنود", "بنداً")} مفتوحة لـ${vendor ? N(vendor.name) : "هذا المورد"}. أيّها أُعدّ له رسالة؟ استخدموا زر «مسودة بريد» في البطاقة، أو قولوا مثلاً «اكتب R${targets[0].i + 1}».`));
   }
 
   // 2. Recommendations / next steps.
-  if (/recommend|what should|next step|priorit|to.?do|action|what now|first\b|urgent|advice|suggest/.test(q) && !vendor) {
+  if (RX.recs.test(question.toLowerCase()) && !vendor) {
     const top = active.slice(0, 5);
     cards.push(...top.map((x) => ({ kind: "rec" as const, key: x.r.key })));
-    return done(`There are ${active.length} open recommendations. The most important:\n${top.map((x) => recLine(x.r, x.i)).join("\n")}\n\nI can draft the vendor email for any of them — say "draft R${(top[0]?.i ?? 0) + 1}" or use the button on a card. Emails are only sent after you approve them.`);
+    return done(T(
+      `There are ${active.length} open recommendations. The most important:\n${top.map((x) => recLine(L, x.r, x.i)).join("\n")}\n\nI can draft the vendor email for any of them — say "draft R${(top[0]?.i ?? 0) + 1}" or use the button on a card. Emails are only sent after you approve them.`,
+      `هناك ${an(active.length, "توصية واحدة", "توصيتان", "توصيات", "توصية")} مفتوحة. الأهم:\n${top.map((x) => recLine(L, x.r, x.i)).join("\n")}\n\nيمكنني إعداد رسالة المورد لأي منها — قولوا «اكتب R${(top[0]?.i ?? 0) + 1}» أو استخدموا الزر في البطاقة. لا تُرسل أي رسالة إلا بعد اعتمادكم لها.`));
   }
 
   // 3. A specific campaign.
   if (campaign) {
     return done(
-      `**${campaign.name}** (${campaign.vendor}, ${campaign.asset}, ${campaign.status.toLowerCase()})\n` +
-      `- Spend SAR ${campaign.spendK}K of ${campaign.budgetK}K budget (pacing ${n(campaign.pacingPct, "%")})\n` +
-      `- Funnel: ${campaign.leads} leads → ${campaign.qualified} qualified (${n(campaign.qualRatePct, "%")}) → ${campaign.viewings} viewings → ${campaign.reservations} reservations → ${campaign.contracts} contracts\n` +
-      `- Sales SAR ${campaign.revenueM}M; cost-to-sales ${n(campaign.costToSalesPct, "%")}; CAC SAR ${n(campaign.cacK, "K")}; cost per lead SAR ${n(campaign.cplSar)}${campaign.cplTrendPct ? ` (${campaign.cplTrendPct > 0 ? "+" : ""}${campaign.cplTrendPct}% latest month)` : ""}\n` +
-      `- Health: ${campaign.health}${campaign.attribution === "Weak" ? " — brand channel, so last-touch attribution understates its sales" : ""}`
+      `**${N(campaign.name)}** (${N(campaign.vendor)}، ${N(campaign.asset)}، ${campaign.status === "LIVE" ? T("live", "نشطة") : campaign.status === "PAUSED" ? T("paused", "متوقفة") : T("ended", "منتهية")})\n`.replace("،", L === "ar" ? "،" : ",") +
+      T(`- Spend SAR ${campaign.spendK}K of ${campaign.budgetK}K budget (pacing ${n(L, campaign.pacingPct, "%")})\n`, `- الإنفاق ${K(L, campaign.spendK)} من ميزانية ${K(L, campaign.budgetK)} (وتيرة الإنفاق ${n(L, campaign.pacingPct, "%")})\n`) +
+      T(`- Funnel: ${campaign.leads} leads → ${campaign.qualified} qualified (${n(L, campaign.qualRatePct, "%")}) → ${campaign.viewings} viewings → ${campaign.reservations} reservations → ${campaign.contracts} contracts\n`, `- المسار: ${campaign.leads} عميل محتمل ← ${an(campaign.qualified, "مؤهل واحد", "مؤهلان", "مؤهلين", "مؤهلاً")} (${n(L, campaign.qualRatePct, "%")}) ← ${an(campaign.viewings, "معاينة واحدة", "معاينتان", "معاينات", "معاينة")} ← ${an(campaign.reservations, "حجز واحد", "حجزان", "حجوزات", "حجزاً")} ← ${an(campaign.contracts, "عقد واحد", "عقدان", "عقود", "عقداً")}\n`) +
+      T(`- Sales SAR ${campaign.revenueM}M; cost-to-sales ${n(L, campaign.costToSalesPct, "%")}; CAC SAR ${n(L, campaign.cacK, "K")}; cost per lead SAR ${n(L, campaign.cplSar)}${campaign.cplTrendPct ? ` (${campaign.cplTrendPct > 0 ? "+" : ""}${campaign.cplTrendPct}% latest month)` : ""}\n`,
+        `- المبيعات ${M(L, campaign.revenueM)}؛ نسبة التكلفة إلى المبيعات ${n(L, campaign.costToSalesPct, "%")}؛ تكلفة اكتساب العقد ${campaign.cacK === null ? "غير متاحة" : K(L, campaign.cacK)}؛ تكلفة العميل المحتمل ${n(L, campaign.cplSar)} ر.س${campaign.cplTrendPct ? ` (${campaign.cplTrendPct > 0 ? "+" : ""}${campaign.cplTrendPct}% في آخر شهر)` : ""}\n`) +
+      T(`- Health: ${campaign.health}${campaign.attribution === "Weak" ? " — brand channel, so last-touch attribution understates its sales" : ""}`,
+        `- الحالة: ${({ Strong: "قوية", OK: "مقبولة", Weak: "ضعيفة", Idle: "خاملة" } as any)[campaign.health] ?? campaign.health}${campaign.attribution === "Weak" ? " — قناة قائمة على العلامة التجارية، فيقلّل إسناد آخر نقرة من مبيعاتها" : ""}`)
     );
   }
 
@@ -152,62 +188,81 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   if (vendor) {
     const v = vendor;
     const row = inv.vendors.find((x) => x.id === v.id);
+    const cv = crm.vendors.find((x) => x.id === v.id);
     const mine = active.filter((x) => x.r.vendorId === v.id);
     cards.push(...mine.slice(0, 4).map((x) => ({ kind: "rec" as const, key: x.r.key })));
+    const verdictAr: Record<string, string> = { Scale: "توسّع", Hold: "إبقاء", Fix: "تصحيح", Review: "مراجعة" };
     return done(
-      `**${v.name}** — ${v.category}, scorecard ${v.score}/100 (${v.verdict})\n` +
-      `- SAR ${v.spendK}K spend across ${v.campaigns} campaign(s) → ${v.contracts} contracts, SAR ${v.revenueM}M sales (cost-to-sales ${n(v.costToSalesPct, "%")})\n` +
-      `- Qualified-lead rate ${n(v.qualRatePct, "%")}; response ${n(v.latestRespHrs, "h")} vs ${v.slaResponseHrs}h SLA${v.slaBreaches.length ? ` — breaches: ${v.slaBreaches.join("; ")}` : " — within SLA"}\n` +
-      (row ? `- Payables: invoiced SAR ${row.invoicedK}K, outstanding ${row.outstandingK}K, overdue ${row.overdueK}K, delivered-not-invoiced ${row.unbilledK}K\n` : "") +
-      `- Contract ends ${new Date(v.contractEnd).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}\n` +
-      (mine.length ? `\n${mine.length} open recommendation${mine.length > 1 ? "s" : ""} for this vendor:` : "\nNo open recommendations for this vendor.")
+      T(`**${v.name}** — ${v.category}, scorecard ${v.score}/100 (${v.verdict})\n`, `**${N(v.name)}** — ${N(v.category)}، التقييم ${v.score}/100 (${verdictAr[v.verdict] ?? v.verdict})\n`) +
+      T(`- SAR ${v.spendK}K spend across ${v.campaigns} campaign(s) → ${v.contracts} contracts, SAR ${v.revenueM}M sales (cost-to-sales ${n(L, v.costToSalesPct, "%")})\n`, `- إنفاق ${K(L, v.spendK)} عبر ${an(v.campaigns, "حملة واحدة", "حملتان", "حملات", "حملة")} ← ${v.contracts} عقداً، مبيعات ${M(L, v.revenueM)} (نسبة التكلفة إلى المبيعات ${n(L, v.costToSalesPct, "%")})\n`) +
+      T(`- Qualified-lead rate ${n(L, v.qualRatePct, "%")}; response ${n(L, v.latestRespHrs, "h")} vs ${v.slaResponseHrs}h SLA${v.slaBreaches.length ? ` — breaches: ${v.slaBreaches.join("; ")}` : " — within SLA"}\n`,
+        `- نسبة العملاء المؤهلين ${n(L, v.qualRatePct, "%")}؛ الاستجابة ${v.latestRespHrs === null ? "غير متاحة" : hrs(L, v.latestRespHrs)} مقابل ${hrs(L, v.slaResponseHrs)} في اتفاقية الخدمة${v.slaBreaches.length ? ` — إخلالات: ${v.slaBreaches.join("؛ ")}` : " — ضمن الاتفاقية"}\n`) +
+      (row ? T(`- Payables: invoiced SAR ${row.invoicedK}K, outstanding ${row.outstandingK}K, overdue ${row.overdueK}K, delivered-not-invoiced ${row.unbilledK}K\n`, `- المستحقات: فواتير ${K(L, row.invoicedK)}، غير مسدّد ${K(L, row.outstandingK)}، متأخر ${K(L, row.overdueK)}، منفّذ غير مفوتر ${K(L, row.unbilledK)}\n`) : "") +
+      (cv ? T(`- CRM-verified: ${cv.crmLeads} leads vs ${cv.reportedLeads} reported; ${cv.crmWon} won vs ${cv.reportedContracts} claimed; median first response ${n(L, cv.crmRespHrs, "h")}\n`, `- المتحقَّق منه في النظام: ${an(cv.crmLeads, "عميل محتمل واحد", "عميلان محتملان", "عملاء محتملين", "عميلاً محتملاً")} مقابل ${cv.reportedLeads} مُبلَّغاً؛ ${cv.crmWon} صفقة مغلقة مقابل ${cv.reportedContracts} مُدّعاة؛ وسيط أول استجابة ${cv.crmRespHrs === null ? "غير متاح" : hrs(L, cv.crmRespHrs)}\n`) : "") +
+      T(`- Contract ends ${dt(L, v.contractEnd, { month: "short", year: "numeric" })}\n`, `- ينتهي العقد في ${dt(L, v.contractEnd, { month: "short", year: "numeric" })}\n`) +
+      (mine.length ? T(`\n${mine.length} open recommendation${mine.length > 1 ? "s" : ""} for this vendor:`, `\n${an(mine.length, "توصية واحدة", "توصيتان", "توصيات", "توصية")} مفتوحة لهذا المورد:`) : T("\nNo open recommendations for this vendor.", "\nلا توجد توصيات مفتوحة لهذا المورد."))
     );
   }
 
-  // 5. Invoices / Oracle.
-  if (/invoice|overdue|unbill|payable|oracle|\bpo\b|purchase order|payment|pay\b/.test(q)) {
+  // 5. CRM verification.
+  if (RX.crm.test(question.toLowerCase())) {
+    cardsOf(["CRM_MISMATCH", "SLA_BREACH"], 4);
+    const i = crm.integration;
+    return done(
+      T(`CRM verification (${i.mode}): ${i.leads} leads on record, ${i.attributionGapPct}% not attributable to any vendor campaign.\n`, `التحقق عبر نظام إدارة العملاء (${i.mode}): ${an(i.leads, "عميل محتمل واحد", "عميلان محتملان", "عملاء محتملين", "عميلاً محتملاً")} مسجّلاً، منها ${i.attributionGapPct}% لا يمكن إسنادها إلى أي حملة مورد.\n`) +
+      crm.vendors.map((v) => T(`- ${v.vendor}: ${v.reportedLeads} reported vs ${v.crmLeads} in CRM leads (${v.leadGapPct}% gap); ${v.reportedContracts} claimed vs ${v.crmWon} won; response ${n(L, v.reportedRespHrs, "h")} reported vs ${n(L, v.crmRespHrs, "h")} measured${v.flags.length ? ` — ${v.flags.length} flag(s)` : ""}`,
+        `- ${N(v.vendor)}: ${v.reportedLeads} مُبلَّغاً مقابل ${v.crmLeads} في النظام (فجوة ${v.leadGapPct}%)؛ ${v.reportedContracts} مُدّعاة مقابل ${v.crmWon} مغلقة؛ الاستجابة ${v.reportedRespHrs === null ? "غير متاحة" : hrs(L, v.reportedRespHrs)} مُبلَّغة مقابل ${v.crmRespHrs === null ? "غير متاحة" : hrs(L, v.crmRespHrs)} مقاسة${v.flags.length ? ` — ${v.flags.length} تنبيه` : ""}`)).join("\n")
+    );
+  }
+
+  // 6. Invoices / Oracle.
+  if (RX.invoices.test(question.toLowerCase())) {
     const k = inv.kpis;
     const exc = inv.invoices.filter((r) => r.flags.some((f) => f.code !== "OVERDUE") && r.outstandingK > 0 && r.decision === "PENDING");
-    cards.push(...active.filter((x) => ["INVOICE_EXCEPTIONS", "UNBILLED", "OVERDUE_PAYMENT"].includes(x.r.type)).slice(0, 4).map((x) => ({ kind: "rec" as const, key: x.r.key })));
+    cardsOf(["INVOICE_EXCEPTIONS", "UNBILLED", "OVERDUE_PAYMENT"], 4);
     return done(
-      `Supplier invoices (Oracle ${inv.integration.mode}): SAR ${k.invoicedK}K invoiced, ${k.outstandingK}K outstanding, **${k.overdueK}K overdue**, ${k.flaggedK}K blocked by reconciliation exceptions, ${k.unbilledK}K delivered but not yet invoiced.\n` +
-      (exc.length ? `Exceptions to resolve:\n${exc.slice(0, 5).map((r) => `- ${r.invoiceNumber} (${r.vendor}, SAR ${r.amountK}K): ${r.flags.filter((f) => f.code !== "OVERDUE").map((f) => f.text).join(" ")}`).join("\n")}` : "No unresolved exceptions.")
+      T(`Supplier invoices (Oracle ${inv.integration.mode}): SAR ${k.invoicedK}K invoiced, ${k.outstandingK}K outstanding, **${k.overdueK}K overdue**, ${k.flaggedK}K blocked by reconciliation exceptions, ${k.unbilledK}K delivered but not yet invoiced.\n`,
+        `فواتير الموردين (أوراكل ${inv.integration.mode}): ${K(L, k.invoicedK)} مفوترة، ${K(L, k.outstandingK)} غير مسددة، **${K(L, k.overdueK)} متأخرة**، ${K(L, k.flaggedK)} موقوفة بسبب استثناءات المطابقة، و${K(L, k.unbilledK)} منفّذة لم تُفوتر بعد.\n`) +
+      (exc.length ? T(`Exceptions to resolve:\n`, `استثناءات تحتاج معالجة:\n`) + exc.slice(0, 5).map((r) => `- ${L === "ar" ? ltr(r.invoiceNumber) : r.invoiceNumber} (${N(r.vendor)}${T(", ", "، ")}${K(L, r.amountK)}): ${r.flags.filter((f) => f.code !== "OVERDUE").map((f) => f.text).join(" ")}`).join("\n") : T("No unresolved exceptions.", "لا توجد استثناءات غير معالجة."))
     );
   }
 
-  // 6. Contracts.
-  if (/contract|renew|expir|agreement/.test(q) && !/contracts?\s*(signed|closed|count)|sales/.test(q)) {
+  // 7. Contracts.
+  if (RX.contracts.test(question.toLowerCase()) && !RX.salesWords.test(q)) {
     const list = [...mkt.vendors].sort((a, b) => a.monthsToExpiry - b.monthsToExpiry);
-    cards.push(...active.filter((x) => x.r.type === "CONTRACT_RENEWAL").slice(0, 3).map((x) => ({ kind: "rec" as const, key: x.r.key })));
-    return done(`Vendor contracts by end date:\n${list.map((v) => `- ${v.name}: ${new Date(v.contractEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} (${v.monthsToExpiry} month${v.monthsToExpiry === 1 ? "" : "s"}) — score ${v.score}, ${v.verdict}`).join("\n")}`);
+    cardsOf(["CONTRACT_RENEWAL"], 3);
+    const vAr: Record<string, string> = { Scale: "توسّع", Hold: "إبقاء", Fix: "تصحيح", Review: "مراجعة" };
+    return done(T("Vendor contracts by end date:\n", "عقود الموردين حسب تاريخ الانتهاء:\n") + list.map((v) => T(`- ${v.name}: ${dt(L, v.contractEnd)} (${v.monthsToExpiry} month${v.monthsToExpiry === 1 ? "" : "s"}) — score ${v.score}, ${v.verdict}`, `- ${N(v.name)}: ${dt(L, v.contractEnd)} (${an(v.monthsToExpiry, "شهر واحد", "شهران", "أشهر", "شهراً")}) — التقييم ${v.score}، ${vAr[v.verdict] ?? v.verdict}`)).join("\n"));
   }
 
-  // 7. Best / worst.
-  if (/best|top|strong|convert|winner|perform|worst|weak|bad|under|poor|lowest|cheapest|expensive/.test(q)) {
+  // 8. Best / worst.
+  if (RX.best.test(question.toLowerCase())) {
     const live = mkt.campaigns.filter((x) => x.status === "LIVE" && x.costToSalesPct !== null && x.attribution === "Direct").sort((a, b) => a.costToSalesPct! - b.costToSalesPct!);
-    const vs = mkt.vendors;
-    cards.push(...active.filter((x) => ["UNDERPERFORMING", "SCALE_UP", "REALLOCATE"].includes(x.r.type)).slice(0, 3).map((x) => ({ kind: "rec" as const, key: x.r.key })));
+    cardsOf(["UNDERPERFORMING", "SCALE_UP", "REALLOCATE"], 3);
+    const vAr: Record<string, string> = { Scale: "توسّع", Hold: "إبقاء", Fix: "تصحيح", Review: "مراجعة" };
     return done(
-      `Vendors by scorecard:\n${vs.map((v) => `- ${v.name}: ${v.score}/100 (${v.verdict}), cost-to-sales ${n(v.costToSalesPct, "%")}`).join("\n")}\n\n` +
-      `Most efficient live campaigns (cost-to-sales): ${live.slice(0, 3).map((x) => `${x.name} ${x.costToSalesPct}%`).join("; ")}.\n` +
-      `Least efficient: ${live.slice(-3).reverse().map((x) => `${x.name} ${x.costToSalesPct}%`).join("; ")}. PR and outdoor are last-touch under-attributed.`
+      T("Vendors by scorecard:\n", "الموردون حسب بطاقة التقييم:\n") + mkt.vendors.map((v) => T(`- ${v.name}: ${v.score}/100 (${v.verdict}), cost-to-sales ${n(L, v.costToSalesPct, "%")}`, `- ${N(v.name)}: ${v.score}/100 (${vAr[v.verdict] ?? v.verdict})، نسبة التكلفة إلى المبيعات ${n(L, v.costToSalesPct, "%")}`)).join("\n") + "\n\n" +
+      T(`Most efficient live campaigns (cost-to-sales): ${live.slice(0, 3).map((x) => `${x.name} ${x.costToSalesPct}%`).join("; ")}.\nLeast efficient: ${live.slice(-3).reverse().map((x) => `${x.name} ${x.costToSalesPct}%`).join("; ")}. PR and outdoor are last-touch under-attributed.`,
+        `أكفأ الحملات النشطة (التكلفة إلى المبيعات): ${live.slice(0, 3).map((x) => `${N(x.name)} ${x.costToSalesPct}%`).join("؛ ")}.\nالأقل كفاءة: ${live.slice(-3).reverse().map((x) => `${N(x.name)} ${x.costToSalesPct}%`).join("؛ ")}. العلاقات العامة والإعلانات الخارجية يقلّل إسناد آخر نقرة من أثرها.`)
     );
   }
 
-  // 8. Totals / funnel.
-  if (/spend|sales|revenue|lead|funnel|conversion|cac|total|overall|summary|how are we|how is/.test(q)) {
+  // 9. Totals / funnel.
+  if (RX.totals.test(question.toLowerCase())) {
     const f = mkt.funnel;
     const m = mkt.monthly;
+    const stageAr: Record<string, string> = { Leads: "عملاء محتملون", Qualified: "مؤهلون", Viewings: "معاينات", Reservations: "حجوزات", Contracts: "عقود" };
     return done(
-      `Overall (Jan–May 2026): SAR ${mkt.kpis.spendK}K spend → ${f.map((x) => `${x.value} ${x.stage.toLowerCase()}`).join(" → ")}; SAR ${mkt.kpis.revenueM}M contracted sales. Blended cost-to-sales ${n(mkt.kpis.costToSalesPct, "%")}, CAC SAR ${n(mkt.kpis.cacK, "K")} per contract.\n` +
-      `Latest month (${m[m.length - 1].month}): SAR ${m[m.length - 1].spendK}K spend, ${m[m.length - 1].contracts} contracts, SAR ${m[m.length - 1].revenueM}M sales.\n` +
-      `By asset: ${mkt.assets.map((a) => `${a.asset} SAR ${a.revenueM}M (${n(a.costToSalesPct, "%")})`).join("; ")}.`
+      T(`Overall (Jan–May 2026): SAR ${mkt.kpis.spendK}K spend → ${f.map((x) => `${x.value} ${x.stage.toLowerCase()}`).join(" → ")}; SAR ${mkt.kpis.revenueM}M contracted sales. Blended cost-to-sales ${n(L, mkt.kpis.costToSalesPct, "%")}, CAC SAR ${n(L, mkt.kpis.cacK, "K")} per contract.\n`,
+        `الإجمالي (يناير–مايو 2026): إنفاق ${K(L, mkt.kpis.spendK)} ← ${f.map((x) => `${x.value} ${stageAr[x.stage] ?? x.stage}`).join(" ← ")}؛ مبيعات متعاقد عليها ${M(L, mkt.kpis.revenueM)}. نسبة التكلفة إلى المبيعات المجمّعة ${n(L, mkt.kpis.costToSalesPct, "%")}، وتكلفة اكتساب العقد ${mkt.kpis.cacK === null ? "غير متاحة" : K(L, mkt.kpis.cacK)}.\n`) +
+      T(`Latest month (${m[m.length - 1].month}): SAR ${m[m.length - 1].spendK}K spend, ${m[m.length - 1].contracts} contracts, SAR ${m[m.length - 1].revenueM}M sales.\n`, `آخر شهر (${m[m.length - 1].month}): إنفاق ${K(L, m[m.length - 1].spendK)}، ${m[m.length - 1].contracts} عقداً، مبيعات ${M(L, m[m.length - 1].revenueM)}.\n`) +
+      T(`By asset: ${mkt.assets.map((a) => `${a.asset} SAR ${a.revenueM}M (${n(L, a.costToSalesPct, "%")})`).join("; ")}.`, `حسب المشروع: ${mkt.assets.map((a) => `${N(a.asset)} ${M(L, a.revenueM)} (${n(L, a.costToSalesPct, "%")})`).join("؛ ")}.`)
     );
   }
 
   // Fallback.
   cards.push(...active.slice(0, 3).map((x) => ({ kind: "rec" as const, key: x.r.key })));
-  return done(
-    `I can answer questions about the vendors, campaigns, results, sales conversion and supplier invoices, and I can draft vendor emails for you to approve. Try: "which vendor converts best?", "how is Ash Shati Broker Push doing?", "any invoice problems?", "draft an email to Hajar Outdoor".\n\nRight now the top open items are:`
-  );
+  return done(T(
+    `I can answer questions about the vendors, campaigns, results, sales conversion, CRM verification and supplier invoices, and I can draft vendor emails for you to approve. Try: "which vendor converts best?", "how is Ash Shati Broker Push doing?", "do vendor numbers match the CRM?", "draft an email to Hajar Outdoor".\n\nRight now the top open items are:`,
+    `يمكنني الإجابة عن أسئلة الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين، وإعداد رسائل للموردين لتعتمدوها. جرّبوا: «أي مورد يحقق أفضل تحويل؟»، «كيف أداء حملة الوسطاء في الشاطئ؟»، «هل أرقام الموردين تطابق نظام إدارة العملاء؟»، «اكتب رسالة إلى هجر للإعلانات الخارجية».\n\nأهم البنود المفتوحة الآن:`));
 }

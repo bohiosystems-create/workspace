@@ -20,6 +20,23 @@ Pulls purchase orders and supplier invoices from **Oracle Fusion Cloud Procureme
 - **Mapping:** vendors are matched by Oracle *Supplier Number* (`Vendor.oracleSupplierNumber`); invoices are matched to campaigns via the PO / description containing the campaign name.
 - Live mode has **not been tested against a real Oracle instance**; field names follow the Fusion REST docs and are isolated in `mapInvoice` / `mapPurchaseOrder` in `lib/oracle.ts` for tenant-specific adjustment.
 
+## Arabic (العربية) and RTL
+
+A language switch in the header flips the whole app between English and Arabic (right-to-left layout, Arabic font, Gregorian dates, Western digits; the choice is remembered).
+
+- **Everything is localised:** UI labels (`lib/i18n-ui.ts`), proper nouns such as vendors, assets and campaigns (`NAMES_AR` in `lib/i18n.ts`), and all generated text — alerts, reconciliation flags, recommendations, audit-trail entries, errors (each template has an English and an Arabic version in the code, with Arabic number agreement such as 3 عقود / 11 عقداً).
+- **The assistant understands Arabic** and answers in the language the question was asked in.
+- **Vendor emails** are drafted in each vendor's preferred language (`Vendor.language`; ask for "in Arabic" / "بالعربية" to override). Arabic emails use a formal business register and a gender-neutral form of address ("السادة / <vendor> المحترمون"). Claude may only polish wording and must keep the language; set `OUTLOOK_SENDER_NAME_AR` for the signature.
+- Arabic strings were written to be natural business Arabic but have **not been reviewed by a native speaker** — have one proof the dictionary and the email templates before sending to vendors. Names of new vendors/campaigns not listed in `NAMES_AR` display as written.
+
+## CRM integration (prepared)
+
+Vendors report their own leads, response times and wins; the CRM is the independent record. The hub has a vendor-neutral CRM layer (`lib/crm.ts`) and shows **vendor-reported vs CRM-verified** numbers on the main page: lead gap, contracts claimed vs won, first-response time measured vs reported (SLA check), never-contacted leads, unattributed leads and a verified cost-to-sales. Mismatches become recommendations (and draftable vendor emails) and are answerable in the assistant.
+
+- `CRM_MODE=mock` (default): sample leads consistent with the campaign data.
+- `CRM_MODE=ingest`: any CRM / iPaaS pushes leads to `POST /api/crm/leads` (`x-api-key: $CRM_INGEST_KEY`) in a canonical format; CRM stage names are mapped in `STAGE_MAP`.
+- Salesforce / Dynamics 365 pull adapters are **not implemented**; the interface, field mapping and the open questions to settle first (which CRM, campaign-code capture, where first-response time lives, stage names) are in `docs/crm-integration.md`.
+
 ## Assistant (chat) — recommendations & vendor emails
 
 A chat assistant ("Ask" button, bottom-right of every page) answers questions about vendors, campaigns, results, sales conversion and supplier invoices, and hosts the recommendations: it shows them as cards and drafts vendor emails inside the conversation. (There is no separate Recommendations page.)

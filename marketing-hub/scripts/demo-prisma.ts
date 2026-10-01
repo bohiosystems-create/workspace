@@ -22,6 +22,9 @@ function table(rows: any[]) {
       rows.push(row);
       return row;
     },
+    createMany: async ({ data: ds }: any) => {
+      for (const d of ds) rows.push({ id: "r" + Math.random().toString(36).slice(2), ...d });
+    },
     update: async ({ where, data: d }: any) => Object.assign(rows.find((r) => (where.id ? r.id === where.id : r.key === where.key)), d),
     delete: async ({ where }: any) => {
       const i = rows.findIndex((r) => r.key === where.key || r.id === where.id);
@@ -36,6 +39,8 @@ export const prisma = {
   integrationSync: table([]),
   recommendationState: table([]),
   outboundEmail: table([]),
+  crmLead: table([]),
+  crmSync: table([]),
   vendor: { findMany: async () => data.vendors, count: async () => data.vendors.length },
   campaign: {
     findMany: async () => data.campaigns,

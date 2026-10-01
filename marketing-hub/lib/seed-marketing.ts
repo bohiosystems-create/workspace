@@ -36,12 +36,14 @@ const ASSETS = [
 
 const VENDORS = [
   { name: "Tasweeq Digital", email: "layla.nasser@tasweeq-digital.example", oracleSupplierNumber: "10231", category: "Performance media", model: "Media buy", retainerK: 18, slaResponseHrs: 4, slaQualifiedPct: 20, contractEnd: "2026-12-31", contact: "Layla Nasser" },
-  { name: "PropertyHub KSA", email: "omar.zahrani@propertyhub-ksa.example", oracleSupplierNumber: "10307", category: "Property portal", model: "Media buy", retainerK: 0, slaResponseHrs: 6, slaQualifiedPct: 25, contractEnd: "2026-07-31", contact: "Omar Zahrani" },
-  { name: "Mubasher Brokerage Network", email: "khalid.otaibi@mubasher-brokers.example", oracleSupplierNumber: "10412", category: "Broker network", model: "Commission", retainerK: 0, slaResponseHrs: 12, slaQualifiedPct: 55, contractEnd: "2027-03-31", contact: "Khalid Otaibi" },
+  { name: "PropertyHub KSA", language: "ar", email: "omar.zahrani@propertyhub-ksa.example", oracleSupplierNumber: "10307", category: "Property portal", model: "Media buy", retainerK: 0, slaResponseHrs: 6, slaQualifiedPct: 25, contractEnd: "2026-07-31", contact: "Omar Zahrani" },
+  { name: "Mubasher Brokerage Network", language: "ar", email: "khalid.otaibi@mubasher-brokers.example", oracleSupplierNumber: "10412", category: "Broker network", model: "Commission", retainerK: 0, slaResponseHrs: 12, slaQualifiedPct: 55, contractEnd: "2027-03-31", contact: "Khalid Otaibi" },
   { name: "Nakhla Communications", email: "rania.habib@nakhla-comms.example", oracleSupplierNumber: "10188", category: "PR & brand", model: "Retainer", retainerK: 45, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-08-31", contact: "Rania Habib" },
-  { name: "Hajar Outdoor", email: "faisal.qahtani@hajar-outdoor.example", oracleSupplierNumber: "10275", category: "Outdoor", model: "Media buy", retainerK: 0, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-06-30", contact: "Faisal Qahtani" },
+  { name: "Hajar Outdoor", language: "ar", email: "faisal.qahtani@hajar-outdoor.example", oracleSupplierNumber: "10275", category: "Outdoor", model: "Media buy", retainerK: 0, slaResponseHrs: 24, slaQualifiedPct: 0, contractEnd: "2026-06-30", contact: "Faisal Qahtani" },
   { name: "Sada Influence", email: "noor.bakri@sada-influence.example", oracleSupplierNumber: "10519", category: "Influencer", model: "Retainer", retainerK: 12, slaResponseHrs: 8, slaQualifiedPct: 15, contractEnd: "2026-09-30", contact: "Noor Bakri" },
 ];
+
+export const CRM_CODES: Record<string, string> = {"Ash Shati — Search & Social Always-On": "ASH-SEARCH-26", "Andalus — Off-plan Launch Funnel": "AND-OFFPLAN-26", "Ash Shati — Featured Listings": "ASH-PORTAL-26", "Marina Tower — Retail & Residential Spotlight": "MAR-PORTAL-26", "Marina Tower — Broker Push": "MAR-BROKER-26", "Ash Shati — Broker Push": "ASH-BROKER-26", "Andalus — Launch PR & Media Relations": "AND-PR-26", "Marina Tower — Corniche Billboards": "MAR-OOH-26", "Andalus — Creator Programme": "AND-CREATOR-26", "Ash Shati — Lifestyle Creators": "ASH-CREATOR-26"};
 
 const CAMPAIGNS: CampaignSpec[] = [
   { vendor: "Tasweeq Digital", asset: "Ash Shati Residences", name: "Ash Shati — Search & Social Always-On", channel: "Google / Meta", status: "LIVE", budgetK: 700, start: "2026-01-01", end: "2026-08-31",
@@ -110,6 +112,7 @@ export async function ensureMarketingSeeded() {
         vendorId: vendorIds[c.vendor],
         assetId: assetId(c.asset),
         name: c.name,
+        crmCode: CRM_CODES[c.name],
         channel: c.channel,
         status: c.status,
         budgetK: c.budgetK,

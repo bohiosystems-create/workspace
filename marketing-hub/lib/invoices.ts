@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { ensureMarketingSeeded } from "./seed-marketing";
 import { fetchOracle, mapInvoice, mapPurchaseOrder, oracleMode } from "./oracle";
+import { type Lang, tx, K, nm , an, ltr } from "./i18n";
 
 const TODAY = new Date("2026-06-08");
 const DAY = 86_400_000;
@@ -109,7 +110,7 @@ export async function ensureOracleSynced() {
 }
 
 // -------------------------------------------------------------- dashboard ---
-export async function buildInvoiceDashboard(): Promise<InvoiceDashboard> {
+export async function buildInvoiceDashboard(lang: Lang = "en"): Promise<InvoiceDashboard> {
   const [vendors, campaigns, invoices, pos, syncs] = await Promise.all([
     prisma.vendor.findMany(),
     prisma.campaign.findMany({ include: { months: true } }),
@@ -151,25 +152,25 @@ export async function buildInvoiceDashboard(): Promise<InvoiceDashboard> {
     const daysOverdue = outstandingK > 0 ? Math.max(0, Math.floor((TODAY.getTime() - i.dueDate.getTime()) / DAY)) : 0;
 
     if (dupOf.has(i.id))
-      flags.push({ code: "DUPLICATE", severity: "crit", text: `Same vendor, campaign, period and amount as ${dupOf.get(i.id)}.` });
+      flags.push({ code: "DUPLICATE", severity: "crit", text: tx(lang, `Same vendor, campaign, period and amount as ${dupOf.get(i.id)}.`, `المورد والحملة والفترة والمبلغ نفسها في الفاتورة ${ltr(dupOf.get(i.id)!)}.`) });
     if (!i.campaignId)
-      flags.push({ code: "UNMAPPED", severity: "warn", text: "Not mapped to a campaign — cannot be reconciled to delivery." });
+      flags.push({ code: "UNMAPPED", severity: "warn", text: tx(lang, "Not mapped to a campaign — cannot be reconciled to delivery.", "غير مربوطة بحملة — لا يمكن مطابقتها مع التنفيذ.") });
     else if (!dupOf.has(i.id)) {
-      if (!del) flags.push({ code: "NO_DELIVERY", severity: "crit", text: `Billed ${round(i.amountK)}K but the vendor reported no delivery for ${i.period}.` });
+      if (!del) flags.push({ code: "NO_DELIVERY", severity: "crit", text: tx(lang, `Billed ${round(i.amountK)}K but the vendor reported no delivery for ${i.period}.`, `مفوترة بمبلغ ${K(lang, round(i.amountK))} بينما لم يُبلّغ المورد عن أي تنفيذ للفترة ${ltr(i.period ?? "")}.`) });
       else {
         const v = (i.amountK - del) / del;
-        if (v > 0.1) flags.push({ code: "OVERBILLED", severity: "crit", text: `Invoice ${round(i.amountK)}K vs ${round(del)}K delivered (+${round(v * 100)}%).` });
-        else if (v > 0.03) flags.push({ code: "VARIANCE", severity: "warn", text: `Invoice ${round(i.amountK)}K vs ${round(del)}K delivered (+${round(v * 100)}%).` });
+        if (v > 0.1) flags.push({ code: "OVERBILLED", severity: "crit", text: tx(lang, `Invoice ${round(i.amountK)}K vs ${round(del)}K delivered (+${round(v * 100)}%).`, `الفاتورة ${K(lang, round(i.amountK))} مقابل ${K(lang, round(del))} منفّذ (+${round(v * 100)}%).`) });
+        else if (v > 0.03) flags.push({ code: "VARIANCE", severity: "warn", text: tx(lang, `Invoice ${round(i.amountK)}K vs ${round(del)}K delivered (+${round(v * 100)}%).`, `الفاتورة ${K(lang, round(i.amountK))} مقابل ${K(lang, round(del))} منفّذ (+${round(v * 100)}%).`) });
       }
     }
-    if (!i.poNumber) flags.push({ code: "NO_PO", severity: "warn", text: "No purchase order on the invoice." });
-    if (overPo.has(i.id)) flags.push({ code: "OVER_PO", severity: "crit", text: `Takes ${i.poNumber} over its approved value.` });
-    if (i.oracleStatus !== "Validated") flags.push({ code: "ORACLE_STATUS", severity: "warn", text: `Oracle status: ${i.oracleStatus}.` });
+    if (!i.poNumber) flags.push({ code: "NO_PO", severity: "warn", text: tx(lang, "No purchase order on the invoice.", "لا يوجد أمر شراء على الفاتورة.") });
+    if (overPo.has(i.id)) flags.push({ code: "OVER_PO", severity: "crit", text: tx(lang, `Takes ${i.poNumber} over its approved value.`, `تتجاوز القيمة المعتمدة لأمر الشراء ${ltr(i.poNumber!)}.`) });
+    if (i.oracleStatus !== "Validated") flags.push({ code: "ORACLE_STATUS", severity: "warn", text: tx(lang, `Oracle status: ${i.oracleStatus}.`, `حالة أوراكل: ${i.oracleStatus === "Needs revalidation" ? "تحتاج إعادة تحقق" : i.oracleStatus === "Unvalidated" ? "غير محققة" : i.oracleStatus}.`) });
     if (daysOverdue > 0 && i.decision !== "DISPUTED")
-      flags.push({ code: "OVERDUE", severity: daysOverdue > 30 ? "crit" : "warn", text: `${daysOverdue} days past due — late-payment risk with the vendor.` });
+      flags.push({ code: "OVERDUE", severity: daysOverdue > 30 ? "crit" : "warn", text: tx(lang, `${daysOverdue} days past due — late-payment risk with the vendor.`, `متأخرة ${an(daysOverdue, "يوم واحد", "يومان", "أيام", "يوماً")} عن الاستحقاق — خطر تأخر السداد للمورد.`) });
 
     if (i.paidK > 0)
-      for (const f of flags) if (f.code === "OVERBILLED" || f.code === "VARIANCE" || f.code === "DUPLICATE") f.text += " Already paid — request a credit note.";
+      for (const f of flags) if (f.code === "OVERBILLED" || f.code === "VARIANCE" || f.code === "DUPLICATE") f.text += tx(lang, " Already paid — request a credit note.", " سبق سدادها — يُطلب إشعار دائن.");
 
     // Overdue is a payment-side flag: it must not stop you paying a clean invoice.
     const blocked = flags.some((f) => f.severity === "crit" && f.code !== "OVERDUE");
@@ -254,8 +255,8 @@ export type InvoiceAction =
   | { type: "DISPUTE"; invoiceId: string; note: string }
   | { type: "APPROVE_CLEAN" };
 
-export async function applyInvoiceAction(input: InvoiceAction) {
-  const dash = await buildInvoiceDashboard();
+export async function applyInvoiceAction(input: InvoiceAction, lang: Lang = "en") {
+  const dash = await buildInvoiceDashboard(lang);
   const log = (type: string, ref: string, detail: string) =>
     prisma.marketingAction.create({ data: { type, campaign: ref, detail } });
 
@@ -264,26 +265,26 @@ export async function applyInvoiceAction(input: InvoiceAction) {
     for (const r of clean) {
       await prisma.supplierInvoice.update({ where: { id: r.id }, data: { decision: "APPROVED", decidedAt: new Date() } });
     }
-    await log("APPROVE_INVOICE", "Clean invoices", `Approved ${clean.length} invoices with no reconciliation exceptions (SAR ${round(clean.reduce((s, r) => s + r.outstandingK, 0))}K).`);
+    await log("APPROVE_INVOICE", tx(lang, "Clean invoices", "الفواتير السليمة"), tx(lang, `Approved ${clean.length} invoices with no reconciliation exceptions (SAR ${round(clean.reduce((s, r) => s + r.outstandingK, 0))}K).`, `تم اعتماد ${an(clean.length, "فاتورة واحدة", "فاتورتان", "فواتير", "فاتورة")} بلا استثناءات مطابقة (${K(lang, round(clean.reduce((s, r) => s + r.outstandingK, 0)))}).`));
     return;
   }
 
   const inv = dash.invoices.find((r) => r.id === input.invoiceId);
-  if (!inv) throw new Error("Invoice not found.");
-  const ref = `${inv.vendor} · ${inv.invoiceNumber}`;
+  if (!inv) throw new Error(tx(lang, "Invoice not found.", "الفاتورة غير موجودة."));
+  const ref = `${nm(lang, inv.vendor)} · ${inv.invoiceNumber}`;
 
   if (input.type === "APPROVE") {
-    if (inv.outstandingK === 0) throw new Error("Invoice is already paid.");
-    if (inv.blocked) throw new Error("Invoice has critical reconciliation exceptions — dispute it or resolve them first.");
+    if (inv.outstandingK === 0) throw new Error(tx(lang, "Invoice is already paid.", "الفاتورة مدفوعة بالفعل."));
+    if (inv.blocked) throw new Error(tx(lang, "Invoice has critical reconciliation exceptions — dispute it or resolve them first.", "للفاتورة استثناءات مطابقة حرجة — اعترضوا عليها أو عالجوها أولاً."));
     await prisma.supplierInvoice.update({ where: { id: inv.id }, data: { decision: "APPROVED", decisionNote: null, decidedAt: new Date() } });
-    await log("APPROVE_INVOICE", ref, `Approved for payment: SAR ${inv.outstandingK}K due ${inv.dueDate.slice(0, 10)}.`);
+    await log("APPROVE_INVOICE", ref, tx(lang, `Approved for payment: SAR ${inv.outstandingK}K due ${inv.dueDate.slice(0, 10)}.`, `اعتُمدت للدفع: ${K(lang, inv.outstandingK)} تستحق في ${inv.dueDate.slice(0, 10)}.`));
   } else if (input.type === "DISPUTE") {
     const note = input.note?.trim() || inv.flags.filter((f) => f.code !== "OVERDUE").map((f) => f.text).join(" ");
-    if (!note) throw new Error("A reason is required to dispute an invoice.");
+    if (!note) throw new Error(tx(lang, "A reason is required to dispute an invoice.", "يلزم ذكر سبب للاعتراض على الفاتورة."));
     await prisma.supplierInvoice.update({ where: { id: inv.id }, data: { decision: "DISPUTED", decisionNote: note, decidedAt: new Date() } });
-    await log("DISPUTE_INVOICE", ref, `Disputed: ${note}`);
+    await log("DISPUTE_INVOICE", ref, tx(lang, `Disputed: ${note}`, `اعتراض: ${note}`));
   } else {
     await prisma.supplierInvoice.update({ where: { id: inv.id }, data: { decision: "PENDING", decisionNote: null, decidedAt: null } });
-    await log("REOPEN_INVOICE", ref, "Decision reset to pending.");
+    await log("REOPEN_INVOICE", ref, tx(lang, "Decision reset to pending.", "أُعيد القرار إلى قيد الانتظار."));
   }
 }

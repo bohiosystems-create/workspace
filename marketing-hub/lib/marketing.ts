@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { MONTHS } from "./seed-marketing";
+import { type Lang, tx, K, M, nm, dt, hrs } from "./i18n";
 
 const TODAY = new Date("2026-06-08");
 const DAY = 86_400_000;
@@ -56,7 +57,8 @@ export type VendorRow = {
   slaResponseHrs: number;
   slaQualifiedPct: number;
   latestRespHrs: number | null;
-  slaBreaches: string[];
+  slaBreaches: string[]; // localised text
+  slaBreachCodes: string[]; // language-neutral, used for stable keys
   score: number;
   scoreParts: { efficiency: number; quality: number; responsiveness: number; delivery: number };
   verdict: "Scale" | "Hold" | "Fix" | "Review";
@@ -110,9 +112,12 @@ const clamp = (x: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, x));
 const monthLabel = (m: string) =>
   new Date(`${m}-01`).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 
+const VERDICT_AR: Record<string, string> = { Scale: "توسّع", Hold: "إبقاء", Fix: "تصحيح", Review: "مراجعة" };
+const tr = (l: Lang, v: string) => (l === "ar" ? VERDICT_AR[v] ?? v : v);
+
 const WEAK_ATTRIBUTION = new Set(["PR", "OOH"]);
 
-export async function buildMarketingDashboard(): Promise<MarketingDashboard> {
+export async function buildMarketingDashboard(lang: Lang = "en"): Promise<MarketingDashboard> {
   const [vendors, campaigns, actions] = await Promise.all([
     prisma.vendor.findMany(),
     prisma.campaign.findMany({ include: { vendor: true, asset: true, months: true } }),
@@ -205,10 +210,15 @@ export async function buildMarketingDashboard(): Promise<MarketingDashboard> {
     const qualRatePct = pct(qualified, leads);
 
     const breaches: string[] = [];
-    if (latestRespHrs !== null && latestRespHrs > v.slaResponseHrs)
-      breaches.push(`Response ${latestRespHrs}h vs ${v.slaResponseHrs}h SLA`);
-    if (v.slaQualifiedPct > 0 && latestQual !== null && latestQual < v.slaQualifiedPct)
-      breaches.push(`Qualified ${round(latestQual)}% vs ${v.slaQualifiedPct}% SLA`);
+    const breachCodes: string[] = [];
+    if (latestRespHrs !== null && latestRespHrs > v.slaResponseHrs) {
+      breachCodes.push(`response:${latestRespHrs}:${v.slaResponseHrs}`);
+      breaches.push(tx(lang, `Response ${latestRespHrs}h vs ${v.slaResponseHrs}h SLA`, `زمن الاستجابة ${hrs(lang, latestRespHrs)} مقابل ${hrs(lang, v.slaResponseHrs)} في اتفاقية الخدمة`));
+    }
+    if (v.slaQualifiedPct > 0 && latestQual !== null && latestQual < v.slaQualifiedPct) {
+      breachCodes.push(`quality:${round(latestQual)}:${v.slaQualifiedPct}`);
+      breaches.push(tx(lang, `Qualified ${round(latestQual)}% vs ${v.slaQualifiedPct}% SLA`, `نسبة المؤهلين ${round(latestQual)}% مقابل ${v.slaQualifiedPct}% في اتفاقية الخدمة`));
+    }
 
     // Composite score (0–100): efficiency 40, quality 25, responsiveness 20, delivery 15.
     const efficiency = costToSalesPct === null ? 0 : clamp((4 - costToSalesPct) / 3) * 40;
@@ -236,7 +246,7 @@ export async function buildMarketingDashboard(): Promise<MarketingDashboard> {
       cacK: contracts > 0 ? round(spendK / contracts, 1) : null,
       qualRatePct,
       slaResponseHrs: v.slaResponseHrs, slaQualifiedPct: v.slaQualifiedPct,
-      latestRespHrs, slaBreaches: breaches, score,
+      latestRespHrs, slaBreaches: breaches, slaBreachCodes: breachCodes, score,
       scoreParts: {
         efficiency: Math.round(efficiency), quality: Math.round(quality),
         responsiveness: Math.round(responsiveness), delivery: Math.round(delivery),
@@ -284,62 +294,81 @@ export async function buildMarketingDashboard(): Promise<MarketingDashboard> {
   const liveRows = rows.filter((r) => r.status === "LIVE");
 
   for (const v of vendorRows) {
-    for (const b of v.slaBreaches) {
+    const vn = nm(lang, v.name);
+    v.slaBreaches.forEach((b, i) => {
+      const isResp = v.slaBreachCodes[i].startsWith("response");
       alerts.push({
-        severity: b.startsWith("Response") && v.latestRespHrs! > v.slaResponseHrs * 1.5 ? "crit" : "warn",
-        title: `${v.name} — SLA breach`,
-        detail: `${b} (spend-weighted, latest month). Slow response and weak lead quality are the fastest ways to lose a sale; raise it with ${v.contact}.`,
+        severity: isResp && v.latestRespHrs! > v.slaResponseHrs * 1.5 ? "crit" : "warn",
+        title: tx(lang, `${v.name} — SLA breach`, `${vn} — إخلال باتفاقية مستوى الخدمة`),
+        detail: tx(lang,
+          `${b} (spend-weighted, latest month). Slow response and weak lead quality are the fastest ways to lose a sale; raise it with ${v.contact}.`,
+          `${b} (مرجّح بالإنفاق، آخر شهر). بطء الاستجابة وضعف جودة العملاء المحتملين من أسرع أسباب خسارة المبيعات؛ يُرجى مناقشة ذلك مع ${nm(lang, v.contact)}.`),
         tag: "Vendor",
       });
-    }
+    });
     if (v.monthsToExpiry <= 3) {
+      const end = dt(lang, v.contractEnd, { month: "short", year: "numeric" });
       alerts.push({
         severity: "warn",
-        title: `${v.name} — contract ends ${new Date(v.contractEnd).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}`,
-        detail: `Scorecard ${v.score}/100 (${v.verdict}). Decide renew / renegotiate / exit before the window closes.`,
+        title: tx(lang, `${v.name} — contract ends ${end}`, `${vn} — ينتهي العقد في ${end}`),
+        detail: tx(lang,
+          `Scorecard ${v.score}/100 (${v.verdict}). Decide renew / renegotiate / exit before the window closes.`,
+          `التقييم ${v.score}/100 (${tr(lang, v.verdict)}). يجب اتخاذ قرار التجديد أو إعادة التفاوض أو الإنهاء قبل انتهاء المهلة.`),
         tag: "Contract",
       });
     }
     if (v.spendSharePct > 40) {
       alerts.push({
         severity: "info",
-        title: `Vendor concentration — ${v.name} is ${v.spendSharePct}% of spend`,
-        detail: "Single-vendor dependency on lead flow. Keep a second channel warm for each asset.",
+        title: tx(lang, `Vendor concentration — ${v.name} is ${v.spendSharePct}% of spend`, `تركّز الموردين — ${vn} تمثل ${v.spendSharePct}% من الإنفاق`),
+        detail: tx(lang,
+          "Single-vendor dependency on lead flow. Keep a second channel warm for each asset.",
+          "اعتماد على مورد واحد في تدفق العملاء المحتملين. أبقوا قناة ثانية جاهزة لكل مشروع."),
         tag: "Monitor",
       });
     }
   }
 
   for (const r of liveRows) {
+    const cn = nm(lang, r.name);
     if (r.costToSalesPct !== null && r.costToSalesPct > 3) {
       alerts.push({
         severity: r.attribution === "Weak" ? "warn" : "crit",
-        title: `${r.name} — cost-to-sales ${r.costToSalesPct}%`,
-        detail: `SAR ${r.spendK}K spent for SAR ${r.revenueM}M contracted (${r.contracts} contracts, CAC SAR ${r.cacK}K). Above the 3% ceiling${r.attribution === "Weak" ? "; note this channel is brand-led so last-touch attribution understates it" : ""}.`,
+        title: tx(lang, `${r.name} — cost-to-sales ${r.costToSalesPct}%`, `${cn} — نسبة التكلفة إلى المبيعات ${r.costToSalesPct}%`),
+        detail: tx(lang,
+          `SAR ${r.spendK}K spent for SAR ${r.revenueM}M contracted (${r.contracts} contracts, CAC SAR ${r.cacK}K). Above the 3% ceiling${r.attribution === "Weak" ? "; note this channel is brand-led so last-touch attribution understates it" : ""}.`,
+          `أُنفق ${K(lang, r.spendK)} مقابل ${M(lang, r.revenueM)} من العقود (${r.contracts} عقود، تكلفة اكتساب العقد ${K(lang, r.cacK ?? "—")}). أعلى من سقف 3%${r.attribution === "Weak" ? "؛ علماً أن هذه القناة تعتمد على العلامة التجارية، فيقلّل إسناد آخر نقرة من أثرها الحقيقي" : ""}.`),
         tag: "Efficiency",
       });
     }
     if (r.cplTrendPct !== null && r.cplTrendPct > 20) {
       alerts.push({
         severity: "warn",
-        title: `${r.name} — cost per lead up ${r.cplTrendPct}%`,
-        detail: `Latest-month CPL is ${r.cplTrendPct}% above the earlier average (blended SAR ${r.cplSar}/lead). Audience fatigue or rising bids.`,
+        title: tx(lang, `${r.name} — cost per lead up ${r.cplTrendPct}%`, `${cn} — ارتفاع تكلفة العميل المحتمل ${r.cplTrendPct}%`),
+        detail: tx(lang,
+          `Latest-month CPL is ${r.cplTrendPct}% above the earlier average (blended SAR ${r.cplSar}/lead). Audience fatigue or rising bids.`,
+          `تكلفة العميل المحتمل في آخر شهر أعلى بنسبة ${r.cplTrendPct}% من المتوسط السابق (المتوسط المرجّح ${r.cplSar} ر.س لكل عميل). قد يعود ذلك إلى إرهاق الجمهور أو ارتفاع أسعار المزايدة.`),
         tag: "Trend",
       });
     }
     if (r.qualRatePct !== null && r.latestQualRatePct !== null && r.qualRatePct > 0 && r.latestQualRatePct < r.qualRatePct * 0.75) {
       alerts.push({
         severity: "warn",
-        title: `${r.name} — lead quality decaying`,
-        detail: `Qualified rate fell to ${r.latestQualRatePct}% in the latest month vs ${r.qualRatePct}% cumulative. Volume is up but the funnel is filling with unqualified leads.`,
+        title: tx(lang, `${r.name} — lead quality decaying`, `${cn} — تراجع جودة العملاء المحتملين`),
+        detail: tx(lang,
+          `Qualified rate fell to ${r.latestQualRatePct}% in the latest month vs ${r.qualRatePct}% cumulative. Volume is up but the funnel is filling with unqualified leads.`,
+          `انخفضت نسبة المؤهلين إلى ${r.latestQualRatePct}% في آخر شهر مقابل ${r.qualRatePct}% تراكمياً. الحجم في ازدياد لكن المسار يمتلئ بعملاء غير مؤهلين.`),
         tag: "Funnel",
       });
     }
     if (r.pacingPct !== null && (r.pacingPct > 115 || r.pacingPct < 75)) {
+      const over = r.pacingPct > 115;
       alerts.push({
         severity: "info",
-        title: `${r.name} — pacing ${r.pacingPct}% of plan`,
-        detail: `${r.pacingPct > 115 ? "Over-delivering spend vs flight elapsed; budget will exhaust early" : "Under-spending vs flight elapsed; pipeline for this asset may starve"} (SAR ${r.spendK}K of ${r.budgetK}K).`,
+        title: tx(lang, `${r.name} — pacing ${r.pacingPct}% of plan`, `${cn} — وتيرة الإنفاق ${r.pacingPct}% من الخطة`),
+        detail: tx(lang,
+          `${over ? "Over-delivering spend vs flight elapsed; budget will exhaust early" : "Under-spending vs flight elapsed; pipeline for this asset may starve"} (SAR ${r.spendK}K of ${r.budgetK}K).`,
+          `${over ? "الإنفاق يسبق المدة المنقضية من الحملة؛ ستنفد الميزانية مبكراً" : "الإنفاق أقل من المدة المنقضية من الحملة؛ قد يجفّ تدفق العملاء المحتملين لهذا المشروع"} (${K(lang, r.spendK)} من ${K(lang, r.budgetK)}).`),
         tag: "Pacing",
       });
     }
@@ -365,16 +394,24 @@ export async function buildMarketingDashboard(): Promise<MarketingDashboard> {
       campaignId: w.id, campaign: w.name, vendor: w.vendor,
       toCampaignId: target.id, toCampaign: target.name, toVendor: target.vendor,
       amountK,
-      rationale: `${w.name} runs at ${w.costToSalesPct ?? "n/a"}% cost-to-sales (qualified rate ${w.qualRatePct}%); ${target.name} converts at ${target.costToSalesPct}%.`,
-      impact: `Indicative: ~SAR ${round(gained - lost)}M more contracted sales if ${target.vendor} can absorb the spend at its current efficiency (assumes linear scaling — validate capacity first).`,
+      rationale: tx(lang,
+        `${w.name} runs at ${w.costToSalesPct ?? "n/a"}% cost-to-sales (qualified rate ${w.qualRatePct}%); ${target.name} converts at ${target.costToSalesPct}%.`,
+        `${nm(lang, w.name)} تعمل بنسبة تكلفة إلى مبيعات ${w.costToSalesPct ?? "غير متاح"}% (نسبة المؤهلين ${w.qualRatePct}%)؛ بينما ${nm(lang, target.name)} تحقق ${target.costToSalesPct}%.`),
+      impact: tx(lang,
+        `Indicative: ~SAR ${round(gained - lost)}M more contracted sales if ${target.vendor} can absorb the spend at its current efficiency (assumes linear scaling — validate capacity first).`,
+        `تقديري: نحو ${M(lang, round(gained - lost))} مبيعات متعاقد عليها إضافية إذا استطاع ${nm(lang, target.vendor)} استيعاب الإنفاق بكفاءته الحالية (بافتراض توسّع خطي — يلزم التحقق من الطاقة الاستيعابية أولاً).`),
     });
   }
   const pauseCandidate = worst.find((w) => (w.costToSalesPct ?? 99) > 4);
   if (pauseCandidate && !recs.some((r) => r.campaignId === pauseCandidate.id && r.type === "PAUSE")) {
     recs.push({
       type: "PAUSE", campaignId: pauseCandidate.id, campaign: pauseCandidate.name, vendor: pauseCandidate.vendor,
-      rationale: `${pauseCandidate.costToSalesPct ?? "No"}% cost-to-sales with a qualified rate of ${pauseCandidate.qualRatePct}% and ${pauseCandidate.latestRespHrs ?? "n/a"}h response time.`,
-      impact: `Frees ~SAR ${pauseCandidate.remainingK}K of remaining budget for redeployment.`,
+      rationale: tx(lang,
+        `${pauseCandidate.costToSalesPct ?? "No"}% cost-to-sales with a qualified rate of ${pauseCandidate.qualRatePct}% and ${pauseCandidate.latestRespHrs ?? "n/a"}h response time.`,
+        `نسبة تكلفة إلى مبيعات ${pauseCandidate.costToSalesPct ?? "غير متاحة"}% مع نسبة مؤهلين ${pauseCandidate.qualRatePct}% وزمن استجابة ${pauseCandidate.latestRespHrs ?? "غير متاح"} ساعة.`),
+      impact: tx(lang,
+        `Frees ~SAR ${pauseCandidate.remainingK}K of remaining budget for redeployment.`,
+        `يحرّر نحو ${K(lang, pauseCandidate.remainingK)} من الميزانية المتبقية لإعادة توجيهها.`),
     });
   }
 
@@ -410,35 +447,35 @@ export type OrchestrationInput =
   | { type: "RESUME"; campaignId: string }
   | { type: "SHIFT_BUDGET"; campaignId: string; toCampaignId: string; amountK: number };
 
-export async function applyAction(input: OrchestrationInput) {
+export async function applyAction(input: OrchestrationInput, lang: Lang = "en") {
   const from = await prisma.campaign.findUnique({ where: { id: input.campaignId }, include: { vendor: true } });
-  if (!from) throw new Error("Campaign not found.");
+  if (!from) throw new Error(tx(lang, "Campaign not found.", "الحملة غير موجودة."));
 
   if (input.type === "PAUSE" || input.type === "RESUME") {
     const next = input.type === "PAUSE" ? "PAUSED" : "LIVE";
-    if (from.status === "ENDED") throw new Error("Campaign has ended.");
+    if (from.status === "ENDED") throw new Error(tx(lang, "Campaign has ended.", "الحملة منتهية."));
     await prisma.campaign.update({ where: { id: from.id }, data: { status: next } });
     await prisma.marketingAction.create({
       data: {
         type: input.type, campaign: from.name,
-        detail: `${input.type === "PAUSE" ? "Paused" : "Resumed"} with ${from.vendor.name}.`,
+        detail: tx(lang, `${input.type === "PAUSE" ? "Paused" : "Resumed"} with ${from.vendor.name}.`, `${input.type === "PAUSE" ? "تم الإيقاف" : "تم الاستئناف"} لدى ${nm(lang, from.vendor.name)}.`),
       },
     });
     return;
   }
 
   const to = await prisma.campaign.findUnique({ where: { id: input.toCampaignId }, include: { vendor: true } });
-  if (!to) throw new Error("Destination campaign not found.");
-  if (!(input.amountK > 0)) throw new Error("Amount must be positive.");
+  if (!to) throw new Error(tx(lang, "Destination campaign not found.", "الحملة المستلمة غير موجودة."));
+  if (!(input.amountK > 0)) throw new Error(tx(lang, "Amount must be positive.", "يجب أن يكون المبلغ موجباً."));
   const spent = (await prisma.campaignMonth.aggregate({ where: { campaignId: from.id }, _sum: { spendK: true } }))._sum.spendK ?? 0;
-  if (from.budgetK - spent < input.amountK) throw new Error("Not enough unspent budget on the source campaign.");
+  if (from.budgetK - spent < input.amountK) throw new Error(tx(lang, "Not enough unspent budget on the source campaign.", "لا توجد ميزانية غير منفقة كافية في الحملة المصدر."));
   await prisma.$transaction([
     prisma.campaign.update({ where: { id: from.id }, data: { budgetK: { decrement: input.amountK } } }),
     prisma.campaign.update({ where: { id: to.id }, data: { budgetK: { increment: input.amountK } } }),
     prisma.marketingAction.create({
       data: {
         type: "SHIFT_BUDGET", campaign: from.name,
-        detail: `Moved SAR ${input.amountK}K from ${from.vendor.name} to ${to.vendor.name} — ${to.name}.`,
+        detail: tx(lang, `Moved SAR ${input.amountK}K from ${from.vendor.name} to ${to.vendor.name} — ${to.name}.`, `نُقل ${K(lang, input.amountK)} من ${nm(lang, from.vendor.name)} إلى ${nm(lang, to.vendor.name)} — ${nm(lang, to.name)}.`),
       },
     }),
   ]);

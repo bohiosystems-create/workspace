@@ -18,6 +18,7 @@ export const outlookMode = () => (process.env.OUTLOOK_MODE === "live" ? "live" :
 export const outlookDelivery = () => (process.env.OUTLOOK_DELIVERY === "draft" ? "draft" : "send");
 export const outlookSender = () => process.env.OUTLOOK_SENDER || "marketing@your-company.com";
 export const outlookSenderName = () => process.env.OUTLOOK_SENDER_NAME || "Marketing Team";
+export const outlookSenderNameAr = () => process.env.OUTLOOK_SENDER_NAME_AR || "فريق التسويق";
 export const defaultCc = () =>
   (process.env.OUTLOOK_CC || "").split(",").map((s) => s.trim()).filter(Boolean);
 

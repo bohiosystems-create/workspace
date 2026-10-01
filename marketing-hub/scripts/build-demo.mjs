@@ -14,7 +14,7 @@ const shim = {
 const out = await build({
   entryPoints: [path.join(root, "scripts/demo-entry.tsx")],
   bundle: true, write: false, minify: true, format: "iife", jsx: "automatic",
-  define: { "process.env.NODE_ENV": '"production"', "process.env.ORACLE_MODE": '"mock"', "process.env.OUTLOOK_MODE": '"mock"', "process.env.OUTLOOK_DELIVERY": '"send"', "process.env.OUTLOOK_SENDER": "undefined", "process.env.OUTLOOK_SENDER_NAME": '"Marketing Team"', "process.env.OUTLOOK_CC": "undefined" }, plugins: [shim], loader: { ".json": "json" },
+  define: { "process.env.NODE_ENV": '"production"', "process.env.ORACLE_MODE": '"mock"', "process.env.CRM_MODE": '"mock"', "process.env.OUTLOOK_SENDER_NAME_AR": "undefined", "process.env.OUTLOOK_MODE": '"mock"', "process.env.OUTLOOK_DELIVERY": '"send"', "process.env.OUTLOOK_SENDER": "undefined", "process.env.OUTLOOK_SENDER_NAME": '"Marketing Team"', "process.env.OUTLOOK_CC": "undefined" }, plugins: [shim], loader: { ".json": "json" },
   alias: { "@": root },
 });
 const css = readFileSync(path.join(root, "app/globals.css"), "utf8").replace(/@import url\([^)]*\);/, "");
@@ -22,6 +22,6 @@ const js = out.outputFiles[0].text.replace(/<\/script/g, "<\\/script");
 writeFileSync(path.join(root, "demo.html"), `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bohio — Marketing Hub</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`);
 console.log("wrote demo.html");

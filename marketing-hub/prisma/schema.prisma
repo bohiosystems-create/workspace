@@ -28,6 +28,7 @@ model Vendor {
   contact         String
   oracleSupplierNumber String? // Supplier Number in Oracle Fusion Procurement
   email           String? // account-manager address used for outbound mail
+  language        String  @default("en") // preferred language for emails: en | ar
   emails          OutboundEmail[]
   campaigns       Campaign[]
   invoices        SupplierInvoice[]
@@ -46,7 +47,9 @@ model Campaign {
   budgetK  Float // total approved budget, SAR K
   startDate DateTime
   endDate   DateTime
+  crmCode  String? // UTM campaign / CRM campaign code used to attribute leads
   months   CampaignMonth[]
+  crmLeads CrmLead[]
   invoices SupplierInvoice[]
   purchaseOrders PurchaseOrder[]
 }
@@ -157,4 +160,31 @@ model OutboundEmail {
   delivery     String? // mock | send | draft
   providerRef  String?
   error        String?
+}
+
+// ---- CRM integration (lead-level truth) ------------------------------------
+
+model CrmLead {
+  id              String    @id @default(cuid())
+  crmId           String    @unique // id of the lead / opportunity in the CRM
+  createdAt       DateTime
+  source          String // campaign code as recorded in the CRM (utm_campaign / campaign)
+  campaign        Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId      String? // null = could not be attributed to a vendor campaign
+  stage           String // NEW | CONTACTED | QUALIFIED | VIEWING | RESERVED | WON | LOST
+  firstResponseAt DateTime?
+  owner           String?
+  dealValueM      Float? // SAR M, when won / reserved
+  closedAt        DateTime?
+  lostReason      String?
+  syncedAt        DateTime  @default(now())
+}
+
+model CrmSync {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  mode      String
+  leads     Int
+  matched   Int
+  unmatched Int
 }
