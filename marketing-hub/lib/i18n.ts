@@ -41,6 +41,7 @@ export const NAMES_AR: Record<string, string> = {
   "Hajar Outdoor": "هجر للإعلانات الخارجية",
   "Sada Influence": "صدى للتأثير",
   // bench vendors
+  "Wajha Events": "وجهة للفعاليات", "Sawt FM": "صوت إف إم", "Najm Media": "نجم ميديا", "Event": "فعالية", "Radio": "إذاعة",
   "Wasel Performance": "واصل للأداء", "Manazel Portal": "بوابة منازل", "Rukn Realty Brokers": "ركن للوساطة العقارية", "Mada Outdoor": "مدى للإعلانات الخارجية", "Bayan Creators": "بيان لصناع المحتوى",
   "Huda Saleh": "هدى صالح", "Tariq Mansour": "طارق منصور", "Salma Haddad": "سلمى حداد", "Majed Aziz": "ماجد عزيز", "Lina Farouk": "لينا فاروق",
   "12% media fee, media at cost (no markup), bonus per CRM-qualified lead above target": "رسوم 12% على الإعلام، والإعلام بالتكلفة (دون هامش)، ومكافأة لكل عميل مؤهل في النظام فوق المستهدف",

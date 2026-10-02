@@ -5,14 +5,16 @@ import { useI18n } from "./lang";
 
 const LINKS = [
   { href: "/", label: "Director" },
+  { href: "/daily", label: "Daily check" },
   { href: "/orchestration", label: "Orchestration" },
   { href: "/reports", label: "Reports" },
   { href: "/campaigns", label: "Campaigns" },
+  { href: "/history", label: "History" },
   { href: "/decisions", label: "Decisions" },
   { href: "/experiments", label: "Experiments" },
-  { href: "/bench", label: "Bench & Trials" },
+  { href: "/bench", label: "Bench" },
   { href: "/invoices", label: "Invoices" },
-  { href: "/data", label: "Data Sources" },
+  { href: "/data", label: "Data" },
 ];
 
 export default function Header() {

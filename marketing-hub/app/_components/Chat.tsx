@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n } from "./lang";
 
 type Card = { kind: "rec"; key: string } | { kind: "email"; id: string };
-type Msg = { role: "user" | "assistant"; content: string; cards?: Card[]; engine?: string };
+type Msg = { role: "user" | "assistant"; content: string; cards?: Card[]; engine?: string; model?: string };
 type Store = { recommendations: any[]; outbox: any[]; integration: { mode: string; delivery: string; sender: string } };
 
 const SUGGESTIONS = [
@@ -115,7 +115,7 @@ export default function Chat() {
       });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
-      setMsgs([...next, { role: "assistant", content: d.reply, cards: d.cards, engine: d.engine }]);
+      setMsgs([...next, { role: "assistant", content: d.reply, cards: d.cards, engine: d.engine, model: d.model }]);
       await refresh();
     } catch (e: any) {
       setError(e.message);
@@ -261,8 +261,11 @@ export default function Chat() {
               <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: m.role === "user" ? "flex-end" : "stretch" }}>
                 <div dir="auto" className={`kmsg ${m.role === "user" ? "user" : "bot"}`} style={{ maxWidth: m.role === "user" ? "88%" : "100%" }}>
                   <Rich text={m.content} />
+                  {m.role === "assistant" && (m.engine === "anthropic" || m.engine === "openai") && (
+                    <div className="muted" style={{ fontSize: 9, marginTop: 6 }} dir="ltr">{m.engine === "anthropic" ? "Claude" : "OpenAI"}{m.model ? ` · ${m.model}` : ""}</div>
+                  )}
                   {m.role === "assistant" && m.engine === "rules" && i === msgs.findIndex((x) => x.engine === "rules") && (
-                    <div className="muted" style={{ fontSize: 9, marginTop: 6 }}>{t("Answered by built-in rules. Set ANTHROPIC_API_KEY for free-form answers from Claude.")}</div>
+                    <div className="muted" style={{ fontSize: 9, marginTop: 6 }}>{t("Answered by built-in rules. Add an Anthropic or OpenAI API key for free-form answers.")}</div>
                   )}
                 </div>
                 {m.cards?.map((c, j) => <div key={j}>{c.kind === "rec" ? recCard(c.key) : emailCard(c.id)}</div>)}

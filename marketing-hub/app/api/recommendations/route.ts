@@ -25,8 +25,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const useAi = process.env.ANTHROPIC_API_KEY && process.env.DRAFT_WITH_AI !== "off";
-    const polish = body.action === "DRAFT" && useAi ? (await import("@/lib/email-ai")).polishWithClaude : undefined;
+    const useAi = (await import("@/lib/llm")).llmStatus().enabled && process.env.DRAFT_WITH_AI !== "off";
+    const polish = body.action === "DRAFT" && useAi ? (await import("@/lib/email-ai")).polishWithAI : undefined;
     await handleRecommendationRequest(body, polish);
     return NextResponse.json(await buildRecommendations(isLang(body.lang) ? body.lang : "en"));
   } catch (err) {

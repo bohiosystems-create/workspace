@@ -15,6 +15,7 @@ import { buildRecommendations } from "./recommendations";
 import { queueKinanEvent } from "./kinan";
 import { buildOrchestration, MINUTES } from "./orchestrator";
 import { metaState, metaMode } from "./meta";
+import { dailyState } from "./daily";
 import { type Lang, tx, K, M, nm, an } from "./i18n";
 import { TODAY, PLAN_MONTH } from "./clock";
 
@@ -133,8 +134,9 @@ export function campaignQuality(a: Agent, l: Lang) {
   });
 }
 
-// Recommendations that act on campaigns (vs vendor contracts / invoices, which feed risks and decisions).
-export const CAMPAIGN_REC_TYPES = ["REALLOCATE", "META_UNKNOWN_AGENCY", "UNDERPERFORMING", "SCALE_UP", "META_CONFLICT", "META_NO_UTM", "DATA_MISMATCH", "TEST_INCREMENTALITY"];
+// Campaign recommendations in the brief = the daily campaign check (lib/daily.ts: per-campaign performance,
+// pacing, season, renewals — compared with the campaign history) + these structural ones from the engine.
+export const CAMPAIGN_REC_TYPES = ["META_UNKNOWN_AGENCY", "META_CONFLICT", "META_NO_UTM", "DATA_MISMATCH", "TEST_INCREMENTALITY"];
 
 // ------------------------------------------------------------------- build
 export async function buildDirector(lang: Lang = "en", pre?: Agent) {
@@ -150,10 +152,12 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
   const meta = metaMode() === "off" ? null : await metaState(lang);
   // Severity first; within it, direct budget moves before governance, conversion, tracking and tests.
   const sevRank: Record<string, number> = { crit: 0, warn: 1, info: 2 };
-  const campaignRecs = recs.recommendations
+  const daily = await dailyState(lang);
+  const fromDaily = daily.recommendations.filter((r) => r.status === "OPEN").map((r) => ({ key: r.key, type: `DAILY_${r.type}`, severity: r.severity as "crit" | "warn" | "info", vendor: r.vendor, title: r.title, why: `${r.why} → ${r.action}`, impactK: null as number | null, channel: "INTERNAL" as "EMAIL" | "INTERNAL", href: "/daily", state: "OPEN" as string, emailId: null as string | null, isNew: r.isNew, since: r.since as string | null }));
+  const fromEngine = recs.recommendations
     .filter((r) => CAMPAIGN_REC_TYPES.includes(r.type) && (r.state === "OPEN" || r.state === "DRAFTED"))
-    .sort((x, y) => sevRank[x.severity] - sevRank[y.severity] || CAMPAIGN_REC_TYPES.indexOf(x.type) - CAMPAIGN_REC_TYPES.indexOf(y.type) || (y.impactK ?? 0) - (x.impactK ?? 0))
-    .map((r) => ({ key: r.key, type: r.type, severity: r.severity, vendor: r.vendor, title: r.title, why: r.rationale, impactK: r.impactK, channel: r.channel, href: r.href ?? null, state: r.state, emailId: r.emailId }));
+    .map((r) => ({ key: r.key, type: r.type, severity: r.severity, vendor: r.vendor, title: r.title, why: r.rationale, impactK: r.impactK, channel: r.channel, href: r.href ?? null, state: r.state as string, emailId: r.emailId, isNew: false, since: null as string | null }));
+  const campaignRecs = [...fromDaily, ...fromEngine].sort((x, y) => sevRank[x.severity] - sevRank[y.severity]);
 
   // Targets
   const perf = performance(a);
@@ -180,6 +184,11 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
   const inboxRaw = [
     ...(plan.status === "PROPOSED" ? [{ kind: "PLAN", title: T(`Budget plan for June 2026 (${K(lang, plan.totalK)}) — vendor briefs follow from it`, `خطة الميزانية لشهر يونيو 2026 (${K(lang, plan.totalK)}) — تُبنى عليها موجزات الموردين`), href: "#plan", severity: "warn", minutes: 10 }] : []),
     ...orch.escalations.map((x) => ({ kind: "CALL", title: x.title, href: "/orchestration", severity: "crit", minutes: MINUTES.ESCALATION })),
+    ...(daily.summary.open ? [{
+      kind: "DAILY",
+      title: T(`Daily campaign check: ${daily.summary.open} open (${daily.summary.urgent} urgent${daily.summary.new ? `, ${daily.summary.new} new today` : ""}) — accept or dismiss`, `الفحص اليومي للحملات: ${daily.summary.open} مفتوحة (${daily.summary.urgent} عاجلة${daily.summary.new ? `، ${daily.summary.new} جديدة اليوم` : ""}) — اقبلوا أو ارفضوا`),
+      href: "/daily", severity: daily.summary.urgent ? "crit" : "warn", minutes: Math.max(2, Math.ceil(daily.summary.open / 2)),
+    }] : []),
     ...(meta && meta.summary.needsReview ? [{
       kind: "META",
       title: T(`${meta.summary.needsReview} Meta campaign(s) to check — who runs them${meta.summary.unknownK ? ` (incl. ${K("en", meta.summary.unknownK)} by an agency that isn't one of yours)` : ""}`, `حملات ميتا للتحقق (${meta.summary.needsReview}) — من يديرها${meta.summary.unknownK ? ` (منها ${K(lang, meta.summary.unknownK)} لجهة ليست من وكالاتكم)` : ""}`),
@@ -209,7 +218,7 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
       ...byAsset.map((x) => T(`${x.asset}: ${x.pct}% of target; June forecast ${M(lang, x.forecastNextM)} vs ${M(lang, x.targetNextM)} target.`, `${N(x.asset)}: ${x.pct}% من المستهدف؛ توقّع يونيو ${M(lang, x.forecastNextM)} مقابل مستهدف ${M(lang, x.targetNextM)}.`)),
       T(`Vendor calls: ${decisionsLine.join("; ") || "no exits or replacements"}.`, `قرارات الموردين: ${decisionsLine.join("؛ ") || "لا خروج ولا استبدال"}.`),
       T(`June budget plan reallocates within the same ${K(lang, plan.totalK)} for about ${M(lang, plan.upliftM)} more incremental sales.`, `خطة ميزانية يونيو تعيد التوزيع ضمن الإجمالي نفسه ${K(lang, plan.totalK)} لنحو ${M(lang, plan.upliftM)} مبيعات إضافية.`),
-      T(`Campaigns: ${campaignRecs.length} recommendation(s), ${campaignRecs.filter((r) => r.severity === "crit").length} urgent${campaignRecs[0] ? ` — first: ${campaignRecs[0].title}` : ""}.`, `الحملات: ${an(campaignRecs.length, "توصية واحدة", "توصيتان", "توصيات", "توصية")}، منها ${campaignRecs.filter((r) => r.severity === "crit").length} عاجلة${campaignRecs[0] ? ` — أولاها: ${campaignRecs[0].title}` : ""}.`),
+      T(`Campaigns: ${campaignRecs.length} recommendations (${fromDaily.length} from today's campaign check), ${campaignRecs.filter((r) => r.severity === "crit").length} urgent${campaignRecs[0] ? ` — first: ${campaignRecs[0].title}` : ""}.`, `الحملات: ${an(campaignRecs.length, "توصية واحدة", "توصيتان", "توصيات", "توصية")} (${fromDaily.length} من فحص الحملات اليوم)، منها ${campaignRecs.filter((r) => r.severity === "crit").length} عاجلة${campaignRecs[0] ? ` — أولاها: ${campaignRecs[0].title}` : ""}.`),
       T(`Vendors: ${orch.summary.withVendors} work orders with vendors (${orch.summary.overdue} overdue), ${orch.summary.lateDeliverables} late deliverable(s) being chased, ${orch.summary.waiting} message(s) drafted for your approval.`, `الموردون: ${an(orch.summary.withVendors, "أمر عمل واحد", "أمرا عمل", "أوامر عمل", "أمر عمل")} لدى الموردين (${orch.summary.overdue} متأخر)، و${an(orch.summary.lateDeliverables, "تسليم متأخر واحد", "تسليمان متأخران", "تسليمات متأخرة", "تسليماً متأخراً")} قيد المتابعة، و${an(orch.summary.waiting, "رسالة واحدة مُعدّة", "رسالتان مُعدّتان", "رسائل مُعدّة", "رسالة مُعدّة")} بانتظار اعتمادكم.`),
       T(`Your time: about ${managerMinutes} minutes for ${inbox.length} decisions — the rest is handled.`, `وقتكم: نحو ${an(managerMinutes, "دقيقة واحدة", "دقيقتين", "دقائق", "دقيقة")} لـ${an(inbox.length, "قرار واحد", "قرارين", "قرارات", "قراراً")} — والباقي يُنجز تلقائياً.`),
     ],

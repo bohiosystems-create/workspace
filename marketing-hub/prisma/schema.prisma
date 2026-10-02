@@ -460,3 +460,57 @@ model MetaIdentity {
 
   @@unique([kind, value])
 }
+
+// Past campaigns (2024–2025) — the developer's own marketing history, imported from previous years' reports.
+// Kept apart from live campaigns: used for benchmarks, seasonality and lessons (lib/history.ts), the daily
+// campaign check and the assistant. Months are JSON [{ month, spendK, leads, qualified, contracts, salesM }].
+model PastCampaign {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  nameAr       String
+  project      String
+  vendor       String // vendor name at the time (may be a vendor no longer used)
+  channel      String
+  season       String // LAUNCH | RAMADAN | SUMMER | ALWAYS_ON | EVENT | BRAND
+  startMonth   String // YYYY-MM
+  endMonth     String
+  budgetK      Float
+  spendK       Float
+  leads        Int
+  qualified    Int
+  viewings     Int
+  contracts    Int
+  salesM       Float
+  months       String   @default("[]")
+  lesson       String
+  lessonAr     String
+}
+
+// Daily campaign check — one row per recommendation per day it was raised (lib/daily.ts).
+model DailyRecommendation {
+  id           String    @id @default(cuid())
+  key          String    @unique // date|type|campaignCode
+  date         String // YYYY-MM-DD (data date)
+  campaignCode String
+  type         String // COST_TO_SALES_HIGH | SCALE_WINNER | CPL_RISING | CREATIVE_FATIGUE | PACING_OVER | PACING_UNDER | QUALITY_DROP | SEASON_AHEAD | ENDING_EXTEND | ENDING_LET_END
+  severity     String // crit | warn | info
+  payload      String // JSON: numbers + bilingual title / why / action
+  status       String    @default("OPEN") // OPEN | ACCEPTED | DISMISSED
+  decidedBy    String?
+  decidedAt    DateTime?
+  note         String?
+  createdAt    DateTime  @default(now())
+}
+
+// Optional AI analyst note on the daily check (Anthropic or OpenAI), cached per day and language.
+model DailyNote {
+  id        String   @id @default(cuid())
+  key       String   @unique // date|lang
+  date      String
+  lang      String
+  provider  String
+  model     String
+  text      String
+  createdAt DateTime @default(now())
+}

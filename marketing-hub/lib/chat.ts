@@ -4,13 +4,16 @@ import { buildDirector } from "./director";
 import { buildOrchestration } from "./orchestrator";
 import { reportsState } from "./reports";
 import { metaState, metaMode } from "./meta";
+import { historyState } from "./history";
+import { dailyState } from "./daily";
+import { type QueryCtx } from "./query";
 import { kinanOutbox, kinanMode } from "./kinan";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firstSentence } from "./i18n";
 
 // What the chat can put in front of the user besides text. Cards are rendered live from
 // current data, so approving / editing an email happens in the card, never through the model.
 export type ChatCard = { kind: "rec"; key: string } | { kind: "email"; id: string };
-export type ChatReply = { reply: string; cards: ChatCard[]; engine: "claude" | "rules" };
+export type ChatReply = { reply: string; cards: ChatCard[]; engine: "anthropic" | "openai" | "rules"; model?: string };
 
 
 export async function buildChatContext(lang: Lang = "en") {
@@ -19,7 +22,10 @@ export async function buildChatContext(lang: Lang = "en") {
   const director = await buildDirector(lang, agent);
   const orch = await buildOrchestration(lang, agent);
   const meta = metaMode() === "off" ? null : await metaState(lang);
-  return { mkt: agent.mkt, inv: agent.inv, crm: agent.crm, recs, agent, director, orch, meta, lang };
+  const history = await historyState(lang);
+  const daily = await dailyState(lang);
+  const q: QueryCtx = { agent, history, daily, lang, meta };
+  return { mkt: agent.mkt, inv: agent.inv, crm: agent.crm, recs, agent, director, orch, meta, history, daily, q, lang };
 }
 export type ChatContext = Awaited<ReturnType<typeof buildChatContext>>;
 
@@ -32,6 +38,8 @@ export function snapshotForModel(c: ChatContext) {
   return {
     asOf: mkt.asOf.slice(0, 10),
     currency: "SAR (spend/amounts in K, sales in M)",
+    dailyCampaignCheck: { date: c.daily.date, summary: c.daily.summary, recommendations: c.daily.recommendations.map((r) => ({ severity: r.severity, campaign: r.campaign, title: r.title, why: r.why, action: r.action, openSince: r.since, status: r.status })) },
+    campaignHistory: { total: c.history.total, lessons: c.history.lessons, byChannel: c.history.byFamily.map((x) => ({ channel: x.label, campaigns: x.campaigns, costToSalesPct: x.costToSalesPct, qualPct: x.qualPct })), bySeason: c.history.bySeason.map((x) => ({ season: x.label, costToSalesPct: x.costToSalesPct })), byYear: c.history.byYear.map((x) => ({ year: x.key, spendK: x.spendK, salesM: x.salesM, costToSalesPct: x.costToSalesPct })), note: "Use get_history / get_campaign for individual past campaigns." },
     totals: { ...mkt.kpis, funnel: mkt.funnel, monthly: mkt.monthly },
     vendors: mkt.vendors.map((v) => ({
       name: v.name, category: v.category, model: v.model, contact: v.contact, contractEnd: v.contractEnd.slice(0, 10),
