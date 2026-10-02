@@ -148,6 +148,7 @@ export default function DataPage() {
             <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Spend gap compares digital media only (ad platforms cover Google, Meta, Snap and TikTok campaigns).")} {lang === "ar" ? "" : ""}</div>
           </div>
           {data.meta && <MetaPanel m={data.meta} act={act} busy={busy} />}
+          <AiPanel />
         </>
       )}
     </div>
@@ -244,6 +245,42 @@ function MetaPanel({ m, act, busy }: { m: any; act: (b: any, k: string) => Promi
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+const PROVIDER_NAME: Record<string, string> = { anthropic: "Claude", openai: "OpenAI", gemini: "Gemini" };
+// AI providers and the task router (lib/llm.ts): which provider each kind of work goes to, and the fallbacks.
+function AiPanel() {
+  const { lang, t } = useI18n();
+  const [ai, setAi] = useState<any>(null);
+  useEffect(() => { fetch("/api/ai").then((r) => r.json()).then(setAi).catch(() => setAi(null)); }, []);
+  if (!ai) return null;
+  const s = ai.status, tasks = Object.entries(ai.tasks) as [string, any][];
+  return (
+    <div className="panel" id="ai" style={{ marginTop: 18 }}>
+      <div className="chart-label">{t("AI providers and task routing")}</div>
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 0 }}>{t("Each kind of AI work goes to the provider best suited to it among those with a key; if it fails, the next one answers. Without any key the app runs on its built-in rules. Change the order per task with LLM_ROUTE_<TASK> in .env.")}</p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+        {(["anthropic", "openai", "gemini"] as const).map((p) => (
+          <span key={p} className={`pill ${s.keys[p] ? "healthy" : "hold"}`} dir="ltr">{PROVIDER_NAME[p]} · {p === "gemini" ? `${s.models.gemini} / ${s.models.geminiFast}` : s.models[p]} · {s.keys[p] ? t("key set") : t("no key")}</span>
+        ))}
+      </div>
+      <table className="tbl" style={{ width: "100%", fontSize: 11.5 }}>
+        <thead><tr><th>{t("Task")}</th><th>{t("Routed to (in order)")}</th><th>{t("Why")}</th></tr></thead>
+        <tbody>{tasks.map(([k, v]) => {
+          const live = s.routes?.find((r: any) => r.task === k);
+          const order: string[] = live?.order?.length ? live.order : v.order;
+          return (
+            <tr key={k}>
+              <td>{lang === "ar" ? v.ar : v.en}</td>
+              <td dir="ltr">{order.map((p: string, i: number) => <span key={p} style={{ fontWeight: i === 0 && live?.order?.length ? 700 : 400, opacity: live?.order?.length || !s.enabled ? 1 : 0.6 }}>{i ? " → " : ""}{PROVIDER_NAME[p]}</span>)}{v.tier === "fast" ? <span className="muted"> · {t("fast model")}</span> : null}{live?.custom ? <span className="muted"> · {t("custom")}</span> : null}</td>
+              <td className="muted">{lang === "ar" ? v.whyAr : v.why}</td>
+            </tr>
+          );
+        })}</tbody>
+      </table>
+      {!s.enabled && <div className="muted" style={{ fontSize: 10.5, marginTop: 6 }}>{t("No AI key set: the order shown is the default that applies once keys are added.")}</div>}
     </div>
   );
 }

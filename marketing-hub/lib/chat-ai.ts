@@ -6,6 +6,7 @@ import { runLlm, type LlmTool } from "./llm";
 import { buildChatContext, snapshotForModel, recCards, draftForRec, type ChatCard, type ChatReply, type ChatContext } from "./chat";
 import { resolve, describe, periodSummary, parsePeriod, latestLiveMonth, liveCampaign, pastCampaign, vendorDetail, projectSummary, channelSummary } from "./query";
 import type { Polish } from "./recommendations";
+import { ideasAnswer } from "./ideation";
 import { type Lang, looksArabic } from "./i18n";
 
 const SYSTEM = `You are the AI Director of Marketing for a real-estate developer in Saudi Arabia with one marketing manager and no marketing team. You run the external marketing vendors and campaigns and tell the manager what to change. Think and speak like a director: lead with the decision, be specific about money, targets and evidence, prioritise, and say what you would do — making clear which actions need the manager's approval.
@@ -16,6 +17,7 @@ What you have:
 - DATA: a snapshot of today's position (targets, plan, vendors, campaigns, recommendations, daily campaign check, history summary, Meta attribution, invoices, orchestration).
 - Tools to look up details: get_campaign (live or past, by code or name), get_vendor, get_project, get_channel, get_history (benchmarks and past campaigns, filterable), get_period (spend / contracts / sales for months or years, grouped), get_daily_check, compare, get_invoices, get_meta, search. Use them whenever the snapshot is not enough — prefer one or two precise calls.
 - show_recommendations and draft_email (drafts only; a person reviews and approves every email in the app).
+- ideate_campaigns: new campaign ideas for a brief (saved on the Ideas page). Present the ideas briefly with their forecast ranges and say the manager can shortlist or approve them there; approving drafts a vendor brief for approval.
 
 How to answer:
 - Reply in the language of the user's latest message. Arabic: clear Modern Standard Arabic with Western digits (0-9); keep names as in the data.
@@ -42,6 +44,7 @@ const TOOLS: LlmTool[] = [
   { name: "get_daily_check", description: "Today's daily campaign check: per-campaign recommendations, how long each is open, decisions taken, and what resolved since yesterday.", parameters: { type: "object", properties: {} } },
   { name: "compare", description: "Side-by-side detail for 2–4 campaigns, vendors, projects or channels.", parameters: { type: "object", properties: { items: { type: "array", items: str, minItems: 2, maxItems: 4 } }, required: ["items"] } },
   { name: "get_invoices", description: "Supplier invoices from Oracle with reconciliation flags, optionally for one vendor.", parameters: { type: "object", properties: { vendor: str } } },
+  { name: "ideate_campaigns", description: "Generate new campaign ideas for a brief and save them on the Ideas page. Runs the ideation pipeline (two AI models propose, one judges against the data; forecasts computed from the 2024–2025 history). Use when the user asks for campaign ideas, concepts or a new campaign. Leave fields empty to use the defaults (project furthest behind target, first good month, usual budget).", parameters: { type: "object", properties: { project: { type: "string", enum: ["Ash Shati Residences", "Marina Tower", "Andalus Quarter"] }, month: { ...str, description: "YYYY-MM" }, budgetK: { type: "number", description: "SAR thousands" }, goal: { type: "string", enum: ["SALES", "LAUNCH", "LEADS", "AWARENESS"] }, audience: str, notes: str } } },
   { name: "get_meta", description: "Meta (Facebook/Instagram) campaigns and which agency runs each, with evidence and confidence.", parameters: { type: "object", properties: {} } },
 ];
 
@@ -81,6 +84,7 @@ async function exec(ctx: ChatContext, name: string, input: any, cards: ChatCard[
       const e = input.vendor ? first(input.vendor, ["vendor"]) : null;
       return cap({ kpis: ctx.inv.kpis, invoices: ctx.inv.invoices.filter((i) => !e || i.vendor === e.name).map((i) => ({ number: i.invoiceNumber, vendor: i.vendor, amountK: i.amountK, outstandingK: i.outstandingK, decision: i.decision, flags: i.flags.map((f) => f.text) })) });
     }
+    case "ideate_campaigns": return ideasAnswer({ project: input.project, month: input.month, budgetK: Number(input.budgetK) || undefined, goal: input.goal, audience: input.audience, notes: input.notes }, ctx.lang);
     case "get_meta": return cap(ctx.meta ? { summary: ctx.meta.summary, accounts: ctx.meta.accounts, campaigns: ctx.meta.campaigns.map((c: any) => ({ name: c.name, createdBy: c.creator, spendK: c.spendK, attributedTo: c.kind === "VENDOR" ? `${c.vendor} ${c.code ?? ""}` : c.kind, confidence: c.confidence, evidence: c.signals, flags: c.flags.map((f: any) => f.text) })) } : "Meta connector is off.");
     default: return "Unknown tool.";
   }

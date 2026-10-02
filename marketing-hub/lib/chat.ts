@@ -8,6 +8,7 @@ import { historyState } from "./history";
 import { dailyState } from "./daily";
 import { type QueryCtx, resolve } from "./query";
 import { extraEarly, extraLate, campaignExtras } from "./chat-extra";
+import { ideasAnswer, type IdeaBrief } from "./ideation";
 import { kinanOutbox, kinanMode } from "./kinan";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firstSentence } from "./i18n";
 
@@ -172,6 +173,28 @@ const RX = {
   en: /in english|بالإنجليزية|بالانجليزية|بالانجليزي/,
 };
 
+const RX_IDEA = /\bideas?\b|brainstorm|ideate|campaign concepts?|new campaign|plan a campaign|(suggest|propose|design|create) (a |an |some )?(new )?campaigns?|أفكار|فكرة|عصف ذهني|حملة جديدة|اقترح (حملة|حملات)|صمم حملة|خطط لحملة/;
+/** Read a campaign brief from free text: project, month or season, budget, goal. */
+export function briefFromText(text: string, c: ChatContext): IdeaBrief {
+  const q = text.toLowerCase();
+  const project = resolve(text, c.q).find((e) => e.kind === "project")?.name;
+  const year = q.match(/\b(2026|2027)\b/)?.[1];
+  const MONTHS = ["january|jan", "february|feb", "march|mar", "april|apr", "may", "june|jun", "july|jul", "august|aug", "september|sept|sep", "october|oct", "november|nov", "december|dec"];
+  const AR = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+  let mi = MONTHS.findIndex((m) => new RegExp(`\\b(${m})\\b`).test(q));
+  if (mi < 0) mi = AR.findIndex((m) => text.includes(m));
+  let month: string | undefined;
+  if (mi >= 0) { const m = String(mi + 1).padStart(2, "0"); month = `${year ?? (mi + 1 > 6 ? "2026" : "2027")}-${m}`; }
+  else if (/ramadan|رمضان/.test(q)) month = `${year ?? "2027"}-02`;
+  else if (/summer|الصيف|صيف/.test(q)) month = `${year ?? "2026"}-07`;
+  else if (/cityscape|expo season|سيتي سكيب/.test(q)) month = `${year ?? "2026"}-11`;
+  const bm = q.match(/(?:sar\s*)?(\d{2,5})\s*(k\b|ألف|الف)/) ?? q.match(/budget (?:of )?(?:sar\s*)?(\d{2,5})\b/);
+  const mm = q.match(/(?:sar\s*)?(\d+(?:\.\d+)?)\s*(m\b|million|مليون)/);
+  const budgetK = bm ? Number(bm[1]) : mm ? Math.round(Number(mm[1]) * 1000) : undefined;
+  const goal = /launch|إطلاق|اطلاق/.test(q) ? "LAUNCH" : /awareness|brand|الوعي|العلامة/.test(q) ? "AWARENESS" : /leads|عملاء/.test(q) ? "LEADS" : /sales|close|مبيعات|إغلاق/.test(q) ? "SALES" : undefined;
+  return { project, month, budgetK, goal, notes: text.slice(0, 300) };
+}
+
 export async function localAnswer(question: string, ctx?: ChatContext, polish?: Polish, uiLang?: Lang): Promise<ChatReply> {
   const lang: Lang = looksArabic(question) ? "ar" : uiLang ?? "en";
   const c = ctx && ctx.lang === lang ? ctx : await buildChatContext(lang);
@@ -208,6 +231,9 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     cards.push(...targets.map((x) => ({ kind: "rec" as const, key: x.r.key })));
     return done(T(`There are ${targets.length} open items for ${vendor?.name ?? "that vendor"}. Which one should I draft an email for? Use "Draft email" on the card, or say e.g. "draft R${targets[0].i + 1}".`, `هناك ${an(targets.length, "بند واحد", "بندان", "بنود", "بنداً")} مفتوحة لـ${vendor ? N(vendor.name) : "هذا المورد"}. أيّها أُعدّ له رسالة؟ استخدموا زر «مسودة بريد» في البطاقة، أو قولوا مثلاً «اكتب R${targets[0].i + 1}».`));
   }
+
+  // 1a. Campaign ideation ("ideas for a Ramadan campaign for Marina Tower, SAR 300K").
+  if (RX_IDEA.test(q)) return done(await ideasAnswer(briefFromText(question, c), L));
 
   // 1b. Help, definitions, daily check, comparisons, periods and the campaign history.
   const early = extraEarly(question, c);

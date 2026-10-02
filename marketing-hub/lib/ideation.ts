@@ -352,7 +352,8 @@ export type IdeaView = ReturnType<ReturnType<typeof view>>;
 export async function ideasState(lang: Lang = "en") {
   const { llmStatus } = await import("./llm");
   const a = await buildAgent(lang);
-  const rows = (await prisma.campaignIdea.findMany()).sort((p, q) => q.createdAt.getTime() - p.createdAt.getTime());
+  // Newest run first; inside a run, best score first (rules ideas keep their order).
+  const rows = (await prisma.campaignIdea.findMany()).sort((p, q) => q.runKey.localeCompare(p.runKey) || (q.score ?? 0) - (p.score ?? 0) || p.createdAt.getTime() - q.createdAt.getTime());
   const s = llmStatus();
   return {
     ideas: rows.map(view(lang)),

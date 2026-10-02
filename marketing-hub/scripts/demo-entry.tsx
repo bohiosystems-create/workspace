@@ -12,6 +12,9 @@ import BenchPage from "../app/bench/page";
 import DataPage from "../app/data/page";
 import DailyPage from "../app/daily/page";
 import HistoryPage from "../app/history/page";
+import IdeasPage from "../app/ideas/page";
+import { ideasState, ideasAction } from "../lib/ideas-api";
+import { llmStatus, TASKS } from "./demo-llm"; // the offline demo has no AI provider
 import { dailyApiState, dailyAction } from "../lib/daily-api";
 import { historyState } from "../lib/history";
 import { agentState, agentDoc, agentAction } from "../lib/agent-api";
@@ -97,6 +100,15 @@ window.fetch = (async (input: any, init?: any) => {
       return json({ error: e.message });
     }
   }
+  if (url.includes("/api/ideas")) {
+    try {
+      if (init?.method === "POST") return json(await ideasAction(JSON.parse(init.body)));
+      return json(await ideasState(qlang(url)));
+    } catch (e: any) {
+      return json({ error: e.message });
+    }
+  }
+  if (url.includes("/api/ai")) return json({ status: llmStatus(), tasks: TASKS });
   if (url.includes("/api/history")) {
     try { return json(await historyState(qlang(url))); } catch (e: any) { return json({ error: e.message }); }
   }
@@ -170,7 +182,7 @@ window.fetch = (async (input: any, init?: any) => {
 const root = createRoot(document.getElementById("root")!);
 const show = (path: string) => {
   (window as any).__demoPath = path;
-  root.render(<React.Fragment key={path}>{({ "/orchestration": <OrchestrationPage />, "/reports": <ReportsPage />, "/campaigns": <Page />, "/invoices": <InvoicesPage />, "/decisions": <DecisionsPage />, "/experiments": <ExperimentsPage />, "/bench": <BenchPage />, "/data": <DataPage />, "/daily": <DailyPage />, "/history": <HistoryPage /> } as Record<string, React.ReactNode>)[path] ?? <DirectorPage />}</React.Fragment>);
+  root.render(<React.Fragment key={path}>{({ "/orchestration": <OrchestrationPage />, "/reports": <ReportsPage />, "/campaigns": <Page />, "/invoices": <InvoicesPage />, "/decisions": <DecisionsPage />, "/experiments": <ExperimentsPage />, "/bench": <BenchPage />, "/data": <DataPage />, "/daily": <DailyPage />, "/history": <HistoryPage />, "/ideas": <IdeasPage /> } as Record<string, React.ReactNode>)[path] ?? <DirectorPage />}</React.Fragment>);
 };
 document.addEventListener("click", (e) => {
   const a = (e.target as HTMLElement).closest("a[href^='/']");

@@ -84,6 +84,12 @@ const CASES: [string, string[]][] = [
   ["Incrementality tests", ["Controlled tests"]],
   ["Overall spend and sales", ["Overall"]],
 
+  // Campaign ideation
+  ["Give me campaign ideas for Marina Tower in Ramadan with SAR 300K", ["Campaign ideas", "Marina Tower", "February 2027", "SAR 300K"]],
+  ["Brainstorm a new campaign for Andalus", ["Campaign ideas", "Andalus Quarter", "Forecast"]],
+  ["Ideas for a summer campaign for Ash Shati", ["July 2026", "priority list"]],
+  ["Plan a campaign for the Cityscape season", ["November 2026", "open-house"]],
+
   // Arabic
   ["ما موجز اليوم؟", ["توصيات الحملات"]],
   ["ما الجديد منذ الأمس؟", ["الفحص اليومي"]],
@@ -110,6 +116,8 @@ const CASES: [string, string[]][] = [
   ["ماذا أرسلنا إلى كنان؟", ["كنان"]],
   ["حدثني عن وجهة للفعاليات", ["حملات سابقة"]],
   ["معيار الوسطاء في الحملات السابقة", ["تاريخ الحملات"]],
+  ["اقترح حملة جديدة للأندلس في نوفمبر", ["أفكار الحملات", "نوفمبر 2026"]],
+  ["أفكار لحملة رمضان لبرج المارينا", ["أفكار الحملات", "فبراير 2027"]],
 ];
 
 const FALLBACK = /I'm your AI director of marketing\. Ask me|أنا مدير التسويق الذكي\. اسألوني/;
