@@ -1,6 +1,7 @@
 import { buildRecommendations, createDraft, type Polish, type Rec } from "./recommendations";
 import { buildAgent } from "./agent";
 import { buildDirector } from "./director";
+import { buildOrchestration } from "./orchestrator";
 import { kinanOutbox, kinanMode } from "./kinan";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr } from "./i18n";
 
@@ -14,7 +15,8 @@ export async function buildChatContext(lang: Lang = "en") {
   const agent = await buildAgent(lang);
   const recs = await buildRecommendations(lang, agent);
   const director = await buildDirector(lang, agent);
-  return { mkt: agent.mkt, inv: agent.inv, crm: agent.crm, recs, agent, director, lang };
+  const orch = await buildOrchestration(lang, agent);
+  return { mkt: agent.mkt, inv: agent.inv, crm: agent.crm, recs, agent, director, orch, lang };
 }
 export type ChatContext = Awaited<ReturnType<typeof buildChatContext>>;
 
@@ -57,7 +59,8 @@ export function snapshotForModel(c: ChatContext) {
       vendors: crm.vendors.map((v) => ({ vendor: v.vendor, reportedLeads: v.reportedLeads, crmLeads: v.crmLeads, leadGapPct: v.leadGapPct, reportedContracts: v.reportedContracts, crmWon: v.crmWon, reportedSalesM: v.reportedSalesM, crmSalesM: v.crmSalesM, reportedResponseHrs: v.reportedRespHrs, crmMedianResponseHrs: v.crmRespHrs, untouchedLeads: v.untouched, verifiedCostToSalesPct: v.verifiedCostToSalesPct, flags: v.flags.map((f) => f.text) })),
     },
     director: {
-      brief: c.director.brief, targets: c.director.targets, budgetPlan: c.director.plan, waitingForDecision: c.director.inbox.map((x) => x.title),
+      brief: c.director.brief, targets: c.director.targets, budgetPlan: c.director.plan, waitingForDecision: c.director.inbox.map((x) => ({ title: x.title, minutes: x.minutes })), managerMinutes: c.director.managerMinutes,
+      vendorOrchestration: { summary: c.orch.summary, escalations: c.orch.escalations.map((x) => x.title), workOrders: c.orch.orders.map((x) => ({ vendor: x.vendor, kind: x.kind, title: x.title, status: x.status, overdue: x.overdue, routine: x.routine, checks: x.checks.map((k) => `${k.state}: ${k.label}`) })), deliverables: c.orch.deliverables.map((x) => ({ vendor: x.vendor, item: x.title, due: x.due.slice(0, 10), state: x.state, reminders: x.chases })) },
       delegations: c.director.tasks.map((x) => ({ to: x.assignee, title: x.title, status: x.status, leads: x.leads })),
       leadSourceQuality: c.director.sourceQuality.map((x) => ({ code: x.code, score: x.qualityScore, guidance: x.guidance })),
     },
@@ -143,6 +146,7 @@ const RX = {
   plan: /budget plan|allocation|allocate|next month|june|reallocat|خطة الميزانية|الميزانية|توزيع|الشهر القادم|يونيو/,
   approvals: /approv|waiting|inbox|pending|sign.?off|decide|بانتظار|اعتماد|موافقة|قرارات معلقة/,
   kinan: /kinan|yardi|كنان|ياردي/,
+  orch: /orchestrat|work orders?|vendors? owe|owe us|deliverables?|chas(e|ing)|remind|vendor briefs?|briefs? (to|for) (the )?vendors|what are (the )?vendors doing|my time|how much time|تنسيق|أوامر العمل|التسليمات|تسليمات|تذكير|موجزات الموردين|وقتي|كم من الوقت|يدين به الموردون|يدينون/,
   renewal: /renew|decision|exit|renegotiat|performance plan|replace|re-?engage|keep or drop|drop |fire |تجديد|نجدد|نجدّد|يجدد|التجديد|نستغني|نستمر|نبقي|قرار|الخروج|إنهاء|إعادة التفاوض|خطة أداء|استبدال|الاستغناء/,
   incr: /incremental|holdout|geo test|\bmmm\b|media.?mix|caused|lift|would have happened anyway|الأثر الإضافي|أثر إضافي|اختبار|مزيج الإعلام|المجموعة المستبعدة/,
   trials: /trial|bench|alternative|\brfp\b|re-?bid|challenger|تجربة|تجارب|بديل|بدائل|طلب عروض|منافس/,
@@ -201,7 +205,24 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   const ag = c.agent;
 
   const dr = c.director;
-  // 2a. Director: brief, targets, plan, approvals, Kinan feed.
+  // 2a. Director: vendor orchestration, brief, targets, plan, approvals, Kinan feed.
+  if (RX.orch.test(q)) {
+    const o = c.orch, vid = vendor ? mkt.vendors.find((v) => v.name === vendor.name)?.id : undefined;
+    const orders = o.orders.filter((x) => !vid || x.vendorId === vid), dels = o.deliverables.filter((x) => !vendor || x.vendor === vendor.name);
+    const ST: Record<string, string> = { PROPOSED: T("waiting for you", "بانتظاركم"), ISSUED: T("with vendor", "لدى المورد"), DONE: T("closed", "مغلق"), CANCELLED: T("cancelled", "ملغى") };
+    const DS: Record<string, string> = { DUE: T("due", "مستحق"), LATE: T("late", "متأخر"), ON_TIME: T("received", "مستلم"), LATE_RECEIVED: T("received late", "استُلم متأخراً") };
+    return done(
+      T(`**Vendor orchestration${vendor ? ` — ${vendor.name}` : ""}**
+`, `**تنسيق الموردين${vendor ? ` — ${N(vendor.name)}` : ""}**
+`) +
+      T(`${o.summary.waiting} message(s) waiting for your approval (${o.summary.routineWaiting} routine), ${o.summary.withVendors} with vendors (${o.summary.overdue} overdue), ${o.summary.lateDeliverables} late deliverable(s). About ${o.summary.minutes} minutes of your time.
+`,
+        `${an(o.summary.waiting, "رسالة واحدة", "رسالتان", "رسائل", "رسالة")} بانتظار اعتمادكم (${o.summary.routineWaiting} روتينية)، و${an(o.summary.withVendors, "أمر عمل واحد", "أمرا عمل", "أوامر عمل", "أمر عمل")} لدى الموردين (${o.summary.overdue} متأخرة)، و${an(o.summary.lateDeliverables, "تسليم متأخر واحد", "تسليمان متأخران", "تسليمات متأخرة", "تسليماً متأخراً")}. نحو ${an(o.summary.minutes, "دقيقة واحدة", "دقيقتين", "دقائق", "دقيقة")} من وقتكم.\n`) +
+      (o.escalations.length ? `\n${o.escalations.map((x) => `- ⚠ ${x.title}`).join("\n")}\n` : "") +
+      (orders.length ? `\n${T("**Work orders**", "**أوامر العمل**")}\n${orders.slice(0, 10).map((x) => `- ${N(x.vendor)}: ${x.title} — ${ST[x.status] ?? x.status}${x.overdue ? T(" (overdue)", " (متأخر)") : ""}`).join("\n")}\n` : "") +
+      (dels.length ? `\n${T("**What vendors owe us**", "**ما يدين به الموردون**")}\n${dels.slice(0, 8).map((x) => `- ${N(x.vendor)}: ${x.title} — ${DS[x.state]}${T(", due", "، موعده")} ${dt(L, x.due)}${x.chases ? T(`, ${x.chases} reminder(s)`, `، ${an(x.chases, "تذكير واحد", "تذكيران", "تذكيرات", "تذكيراً")}`) : ""}`).join("\n")}\n` : "") +
+      T("\nApprove or cancel on the Orchestration page; nothing goes to a vendor without your approval.", "\nاعتمدوا أو ألغوا من صفحة التنسيق؛ لا يصل شيء إلى أي مورد دون اعتمادكم."));
+  }
   if (RX.plan.test(q)) {
     const p = dr.plan;
     return done(T(`**Budget plan — June 2026** (${p.status === "APPROVED" ? `approved by ${p.approvedBy}` : "proposed, needs your approval"})\n`, `**خطة الميزانية — يونيو 2026** (${p.status === "APPROVED" ? `اعتمدها ${p.approvedBy}` : "مقترحة، بانتظار اعتمادكم"})\n`) +
@@ -209,7 +230,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
       T(`\n\nSame total (${K(L, p.totalK)}); expected incremental sales ${M(L, p.expectedM)} vs ${M(L, p.flatM)} if unchanged (+${M(L, p.upliftM)}).${p.unallocatedK ? ` ${K(L, p.unallocatedK)} held in reserve.` : ""} Approve it on the Director page.`, `\n\nالإجمالي نفسه (${K(L, p.totalK)})؛ المبيعات الإضافية المتوقعة ${M(L, p.expectedM)} مقابل ${M(L, p.flatM)} دون تغيير (+${M(L, p.upliftM)}).${p.unallocatedK ? ` ${K(L, p.unallocatedK)} محتفظ بها احتياطياً.` : ""} اعتمدوها من صفحة المدير.`));
   }
   if (RX.approvals.test(q) && !vendor) {
-    return done(T(`**Waiting for your decision (${dr.inbox.length})**\n`, `**بانتظار قراركم (${dr.inbox.length})**\n`) + (dr.inbox.map((x) => `- ${x.title}`).join("\n") || T("- nothing", "- لا شيء")) + T("\n\nOpen the Director page to approve; email drafts open here.", "\n\nافتحوا صفحة المدير للاعتماد؛ ومسودات الرسائل تُفتح هنا."));
+    return done(T(`**Waiting for your decision (${dr.inbox.length}, about ${dr.managerMinutes} min)**\n`, `**بانتظار قراركم (${dr.inbox.length}، نحو ${an(dr.managerMinutes, "دقيقة واحدة", "دقيقتين", "دقائق", "دقيقة")})**\n`) + (dr.inbox.map((x) => `- ${x.title}`).join("\n") || T("- nothing", "- لا شيء")) + T("\n\nOpen the Director page to approve; email drafts open here.", "\n\nافتحوا صفحة المدير للاعتماد؛ ومسودات الرسائل تُفتح هنا."));
   }
   if (RX.kinan.test(q)) {
     const out = await kinanOutbox(8, lang);
@@ -354,6 +375,6 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   // Fallback.
   cards.push(...active.slice(0, 3).map((x) => ({ kind: "rec" as const, key: x.r.key })));
   return done(T(
-    `I'm your AI director of marketing. Ask me for today's brief, where we stand against target, the budget plan, what needs your approval, or what we've sent to Kinan — or about any vendor, campaign, test, trial or invoice. I can answer questions about the vendors, campaigns, results, sales conversion, CRM verification and supplier invoices, and I can draft vendor emails for you to approve. Try: "which vendor converts best?", "how is Ash Shati Broker Push doing?", "do vendor numbers match the CRM?", "draft an email to Hajar Outdoor".\n\nRight now the top open items are:`,
-    `أنا مدير التسويق الذكي. اسألوني عن موجز اليوم، أو موقفنا من المستهدف، أو خطة الميزانية، أو ما ينتظر اعتمادكم، أو ما أُرسل إلى كنان — أو عن أي مورد أو حملة أو اختبار أو تجربة أو فاتورة. يمكنني الإجابة عن أسئلة الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين، وإعداد رسائل للموردين لتعتمدوها. جرّبوا: «أي مورد يحقق أفضل تحويل؟»، «كيف أداء حملة الوسطاء في الشاطئ؟»، «هل أرقام الموردين تطابق نظام إدارة العملاء؟»، «اكتب رسالة إلى هجر للإعلانات الخارجية».\n\nأهم البنود المفتوحة الآن:`));
+    `I'm your AI director of marketing. Ask me for today's brief, what the vendors owe us, where we stand against target, the budget plan, what needs your approval, or what we've sent to Kinan — or about any vendor, campaign, test, trial or invoice. I can answer questions about the vendors, campaigns, results, sales conversion, CRM verification and supplier invoices, and I can draft vendor emails for you to approve. Try: "which vendor converts best?", "how is Ash Shati Broker Push doing?", "do vendor numbers match the CRM?", "draft an email to Hajar Outdoor".\n\nRight now the top open items are:`,
+    `أنا مدير التسويق الذكي. اسألوني عن موجز اليوم، أو ما يدين به الموردون، أو موقفنا من المستهدف، أو خطة الميزانية، أو ما ينتظر اعتمادكم، أو ما أُرسل إلى كنان — أو عن أي مورد أو حملة أو اختبار أو تجربة أو فاتورة. يمكنني الإجابة عن أسئلة الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين، وإعداد رسائل للموردين لتعتمدوها. جرّبوا: «أي مورد يحقق أفضل تحويل؟»، «كيف أداء حملة الوسطاء في الشاطئ؟»، «هل أرقام الموردين تطابق نظام إدارة العملاء؟»، «اكتب رسالة إلى هجر للإعلانات الخارجية».\n\nأهم البنود المفتوحة الآن:`));
 }

@@ -3,17 +3,19 @@
 //   2. a daily brief: what changed, what is at risk, what needs a decision
 //   3. next month's budget plan across vendors (incremental sales per SAR, diminishing returns, guardrails)
 //   4. one approval inbox for everything waiting on a person
-//   5. delegations — to the team, and to Kinan's AI agent (lead follow-ups, re-engagement, source quality)
-// Nothing that spends money or contacts a customer happens without a named approver.
+//   5. delegations to Kinan's AI agent (lead follow-ups, re-engagement, source quality)
+//   6. vendor orchestration (lib/orchestrator.ts): briefs, feedback, chasers and notices — the team's work, done for
+//      a single marketing manager, who only approves
+// Nothing that spends money or contacts a customer or vendor happens without a named approver.
 import { prisma } from "./prisma";
-import { single } from "./single";
+import { single, serial } from "./single";
 import { buildAgent, type Agent } from "./agent";
 import { buildRecommendations } from "./recommendations";
 import { queueKinanEvent } from "./kinan";
+import { buildOrchestration, MINUTES } from "./orchestrator";
 import { type Lang, tx, K, M, nm, an } from "./i18n";
+import { TODAY, PLAN_MONTH } from "./clock";
 
-const TODAY = new Date("2026-06-08");
-const PLAN_MONTH = "2026-06";
 const r1 = (x: number) => Math.round(x * 10) / 10;
 
 // Sample targets (SAR M / contracts per month). Replace with the commercial plan.
@@ -111,11 +113,11 @@ export function proposePlan(a: Agent, l: Lang) {
 }
 
 // -------------------------------------------------------------- delegations
-async function proposeTasks(a: Agent, l: Lang) {
+type TaskProposal = { key: string; assignee: string; title: string; detail: string; payload?: unknown };
+function taskProposals(a: Agent, l: Lang, leads: Awaited<ReturnType<typeof prisma.crmLead.findMany>>) {
   const T = (en: string, ar: string) => tx(l, en, ar);
-  const leads = await prisma.crmLead.findMany();
   const campaignName = new Map(a.mkt.campaigns.map((c) => [c.id, c.name]));
-  const proposals: { key: string; assignee: string; title: string; detail: string; payload?: unknown }[] = [];
+  const proposals: TaskProposal[] = [];
 
   // 1. Leads nobody contacted for 48h+ → Kinan's AI agent follows up (customer-facing: needs approval).
   const untouched = leads.filter((x) => x.stage === "NEW" && !x.firstResponseAt && TODAY.getTime() - x.createdAt.getTime() > 2 * 86_400_000 && x.campaignId);
@@ -138,18 +140,22 @@ async function proposeTasks(a: Agent, l: Lang) {
     detail: T("Lost in the last 4 months for price or financing. Kinan's agent offers the current payment plan / financing partners and books a viewing if interested.", "خُسروا خلال الأشهر الأربعة الماضية بسبب السعر أو التمويل. يعرض عليهم وكيل كنان خطة السداد الحالية / شركاء التمويل ويحجز معاينة عند الاهتمام."),
     payload: { reason: "lost_price_or_financing", leads: lost.slice(0, 500).map((x) => ({ leadId: x.crmId, lostReason: x.lostReason, campaignCode: x.source })) },
   });
-  // 3. Team actions that follow from exit / replacement decisions.
-  for (const d of a.decisions.filter((x) => x.decision === "EXIT")) proposals.push({
-    key: `TEAM:EXIT:${d.vendorId}`, assignee: "TEAM",
-    title: T(`Prepare non-renewal of ${d.vendor}`, `التحضير لعدم تجديد عقد ${nm(l, d.vendor)}`),
-    detail: T(`Contract ends ${d.contractEnd.slice(0, 10)}. Legal to confirm the notice period; procurement to line up the replacement (trial / RFP).`, `ينتهي العقد في ${d.contractEnd.slice(0, 10)}. تتحقق الشؤون القانونية من مهلة الإشعار؛ وتُجهّز المشتريات البديل (تجربة / طلب عروض).`),
-  });
-
-  const existing = await prisma.directorTask.findMany();
-  for (const p of proposals) if (!existing.some((e) => e.key === p.key))
-    await prisma.directorTask.create({ data: { key: p.key, assignee: p.assignee, title: p.title, detail: p.detail, payload: p.payload ? JSON.stringify(p.payload) : null } });
+  // (Vendor-facing follow-ups — e.g. the non-renewal notice for an exit — are work orders: lib/orchestrator.ts.)
+  return proposals;
 }
-const proposeTasksOnce = (() => { let chain: Promise<unknown> = Promise.resolve(); return (a: Agent, l: Lang) => { const r = chain.then(() => proposeTasks(a, l)); chain = r.catch(() => undefined); return r; }; })();
+async function proposeTasks(a: Agent) {
+  const leads = await prisma.crmLead.findMany();
+  const en = taskProposals(a, "en", leads), ar = taskProposals(a, "ar", leads);
+  const existing = await prisma.directorTask.findMany();
+  const created: Promise<unknown>[] = [];
+  en.forEach((p, i) => {
+    if (existing.some((e) => e.key === p.key)) return;
+    existing.push({ key: p.key } as any);
+    created.push(prisma.directorTask.create({ data: { key: p.key, assignee: p.assignee, title: p.title, detail: p.detail, titleAr: ar[i]?.title ?? null, detailAr: ar[i]?.detail ?? null, payload: p.payload ? JSON.stringify(p.payload) : null } }));
+  });
+  await Promise.all(created);
+}
+const proposeTasksOnce = serial(proposeTasks);
 
 // Lead-source quality for Kinan's agent and Yardi: which campaign codes deserve fastest handling.
 export function sourceQuality(a: Agent, l: Lang) {
@@ -180,8 +186,11 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
     prisma.salesTarget.findMany(), prisma.budgetPlan.findMany(), prisma.directorTask.findMany(),
     buildRecommendations(lang, a), prisma.outboundEmail.findMany(), prisma.experiment.findMany(),
   ]);
-  await proposeTasksOnce(a, lang);
-  const tasks = tasksBefore.length ? await prisma.directorTask.findMany() : await prisma.directorTask.findMany();
+  await proposeTasksOnce(a);
+  void tasksBefore;
+  const tasks = (await prisma.directorTask.findMany()).filter((x) => x.assignee !== "TEAM");
+  const orch = await buildOrchestration(lang, a);
+  const taskTitle = (x: (typeof tasks)[number]) => (lang === "ar" ? x.titleAr ?? x.title : x.title);
 
   // Targets
   const perf = performance(a);
@@ -203,15 +212,23 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
     : { ...proposal, status: "PROPOSED", approvedBy: null, approvedAt: null };
 
   // Approval inbox — everything waiting on a person
-  const inbox = [
-    ...(plan.status === "PROPOSED" ? [{ kind: "PLAN", title: T(`Budget plan for June 2026 (${K(lang, plan.totalK)})`, `خطة الميزانية لشهر يونيو 2026 (${K(lang, plan.totalK)})`), href: "#plan", severity: "warn" }] : []),
-    ...tasks.filter((x) => x.status === "PROPOSED").map((x) => ({ kind: "TASK", title: x.title, href: "#tasks", severity: x.assignee === "KINAN_AGENT" ? "warn" : "info" })),
-    ...a.bench.trials.filter((x) => x.status === "PROPOSED").map((x) => ({ kind: "TRIAL", title: T(`Approve trial: ${x.challenger} vs ${x.incumbent} (${K("en", x.budgetK)})`, `اعتماد تجربة: ${N(x.challenger)} مقابل ${N(x.incumbent)} (${K(lang, x.budgetK)})`), href: "/bench", severity: "warn" })),
-    ...a.bench.trials.filter((x) => x.status === "COMPLETED" && !x.decision).map((x) => ({ kind: "TRIAL", title: T(`Decide trial result: ${x.challenger} vs ${x.incumbent}`, `البت في نتيجة تجربة: ${N(x.challenger)} مقابل ${N(x.incumbent)}`), href: "/bench", severity: "crit" })),
-    ...experiments.filter((x) => x.status === "PLANNED").map((x) => ({ kind: "TEST", title: T(`Approve test: ${x.campaign}`, `اعتماد اختبار: ${N(x.campaign)}`), href: "/experiments", severity: "info" })),
-    ...(emails.filter((e) => e.status === "DRAFT" || e.status === "FAILED").length ? [{ kind: "EMAIL", title: T(`${emails.filter((e) => e.status === "DRAFT" || e.status === "FAILED").length} vendor email draft(s) to approve`, `مسودات رسائل للموردين بانتظار الاعتماد (${emails.filter((e) => e.status === "DRAFT" || e.status === "FAILED").length})`), href: "drafts", severity: "warn" }] : []),
-    ...(a.inv.kpis.exceptions ? [{ kind: "INVOICE", title: T(`${a.inv.kpis.exceptions} supplier invoice exception(s) to resolve`, `استثناءات فواتير موردين بحاجة إلى معالجة (${a.inv.kpis.exceptions})`), href: "/invoices", severity: "warn" }] : []),
+  const woWaiting = orch.orders.filter((o) => o.status === "PROPOSED" && o.email?.status === "DRAFT");
+  const emailDrafts = emails.filter((e) => (e.status === "DRAFT" || e.status === "FAILED") && !e.recKey.startsWith("WO:")).length;
+  const inboxRaw = [
+    ...(plan.status === "PROPOSED" ? [{ kind: "PLAN", title: T(`Budget plan for June 2026 (${K(lang, plan.totalK)}) — vendor briefs follow from it`, `خطة الميزانية لشهر يونيو 2026 (${K(lang, plan.totalK)}) — تُبنى عليها موجزات الموردين`), href: "#plan", severity: "warn", minutes: 10 }] : []),
+    ...orch.escalations.map((x) => ({ kind: "CALL", title: x.title, href: "/orchestration", severity: "crit", minutes: MINUTES.ESCALATION })),
+    ...(woWaiting.some((o) => o.kind === "MONTHLY_BRIEF") ? [{ kind: "VENDOR", title: T(`${woWaiting.filter((o) => o.kind === "MONTHLY_BRIEF").length} vendor briefs for June, drafted from the approved plan`, `موجزات يونيو للموردين (${woWaiting.filter((o) => o.kind === "MONTHLY_BRIEF").length}) — أُعدّت من الخطة المعتمدة`), href: "/orchestration", severity: "warn", minutes: woWaiting.filter((o) => o.kind === "MONTHLY_BRIEF").length * MINUTES.MONTHLY_BRIEF }] : []),
+    ...woWaiting.filter((o) => !o.routine && o.kind !== "MONTHLY_BRIEF").map((o) => ({ kind: "VENDOR", title: `${N(o.vendor)}: ${o.title}`, href: "/orchestration", severity: "warn", minutes: MINUTES[o.kind] ?? 3 })),
+    ...(woWaiting.some((o) => o.routine) ? [{ kind: "VENDOR", title: T(`${woWaiting.filter((o) => o.routine).length} routine vendor messages (feedback, reminders) — approve in one go`, `رسائل روتينية للموردين (${woWaiting.filter((o) => o.routine).length}) (ملاحظات، تذكيرات) — اعتماد دفعة واحدة`), href: "/orchestration", severity: "info", minutes: woWaiting.filter((o) => o.routine).reduce((sum, o) => sum + (MINUTES[o.kind] ?? 1), 0) }] : []),
+    ...tasks.filter((x) => x.status === "PROPOSED").map((x) => ({ kind: "TASK", title: taskTitle(x), href: "#tasks", severity: x.assignee === "KINAN_AGENT" ? "warn" : "info", minutes: 2 })),
+    ...a.bench.trials.filter((x) => x.status === "PROPOSED").map((x) => ({ kind: "TRIAL", title: T(`Approve trial: ${x.challenger} vs ${x.incumbent} (${K("en", x.budgetK)})`, `اعتماد تجربة: ${N(x.challenger)} مقابل ${N(x.incumbent)} (${K(lang, x.budgetK)})`), href: "/bench", severity: "warn", minutes: 3 })),
+    ...a.bench.trials.filter((x) => x.status === "COMPLETED" && !x.decision).map((x) => ({ kind: "TRIAL", title: T(`Decide trial result: ${x.challenger} vs ${x.incumbent}`, `البت في نتيجة تجربة: ${N(x.challenger)} مقابل ${N(x.incumbent)}`), href: "/bench", severity: "crit", minutes: 5 })),
+    ...experiments.filter((x) => x.status === "PLANNED").map((x) => ({ kind: "TEST", title: T(`Approve test: ${x.campaign}`, `اعتماد اختبار: ${N(x.campaign)}`), href: "/experiments", severity: "info", minutes: 3 })),
+    ...(emailDrafts ? [{ kind: "EMAIL", title: T(`${emailDrafts} vendor email draft(s) to approve`, `مسودات رسائل للموردين بانتظار الاعتماد (${emailDrafts})`), href: "drafts", severity: "warn", minutes: 2 * emailDrafts }] : []),
+    ...(a.inv.kpis.exceptions ? [{ kind: "INVOICE", title: T(`${a.inv.kpis.exceptions} supplier invoice exception(s) to resolve`, `استثناءات فواتير موردين بحاجة إلى معالجة (${a.inv.kpis.exceptions})`), href: "/invoices", severity: "warn", minutes: 2 * a.inv.kpis.exceptions }] : []),
   ];
+  const inbox = inboxRaw;
+  const managerMinutes = inbox.reduce((sum, x) => sum + x.minutes, 0);
 
   // Brief
   const worst = byAsset[0];
@@ -225,19 +242,24 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
       ...byAsset.map((x) => T(`${x.asset}: ${x.pct}% of target; June forecast ${M(lang, x.forecastNextM)} vs ${M(lang, x.targetNextM)} target.`, `${N(x.asset)}: ${x.pct}% من المستهدف؛ توقّع يونيو ${M(lang, x.forecastNextM)} مقابل مستهدف ${M(lang, x.targetNextM)}.`)),
       T(`Vendor calls: ${decisionsLine.join("; ") || "no exits or replacements"}.`, `قرارات الموردين: ${decisionsLine.join("؛ ") || "لا خروج ولا استبدال"}.`),
       T(`June budget plan reallocates within the same ${K(lang, plan.totalK)} for about ${M(lang, plan.upliftM)} more incremental sales.`, `خطة ميزانية يونيو تعيد التوزيع ضمن الإجمالي نفسه ${K(lang, plan.totalK)} لنحو ${M(lang, plan.upliftM)} مبيعات إضافية.`),
+      T(`Vendors: ${orch.summary.withVendors} work orders with vendors (${orch.summary.overdue} overdue), ${orch.summary.lateDeliverables} late deliverable(s) being chased, ${orch.summary.waiting} message(s) drafted for your approval.`, `الموردون: ${an(orch.summary.withVendors, "أمر عمل واحد", "أمرا عمل", "أوامر عمل", "أمر عمل")} لدى الموردين (${orch.summary.overdue} متأخر)، و${an(orch.summary.lateDeliverables, "تسليم متأخر واحد", "تسليمان متأخران", "تسليمات متأخرة", "تسليماً متأخراً")} قيد المتابعة، و${an(orch.summary.waiting, "رسالة واحدة مُعدّة", "رسالتان مُعدّتان", "رسائل مُعدّة", "رسالة مُعدّة")} بانتظار اعتمادكم.`),
+      T(`Your time: about ${managerMinutes} minutes for ${inbox.length} decisions — the rest is handled.`, `وقتكم: نحو ${an(managerMinutes, "دقيقة واحدة", "دقيقتين", "دقائق", "دقيقة")} لـ${an(inbox.length, "قرار واحد", "قرارين", "قرارات", "قراراً")} — والباقي يُنجز تلقائياً.`),
     ],
     risks: crit.slice(0, 4).map((r) => r.title),
     actions: [
-      ...(plan.status === "PROPOSED" ? [T("Approve the June budget plan.", "اعتماد خطة ميزانية يونيو.")] : []),
-      ...tasks.filter((x) => x.status === "PROPOSED" && x.assignee === "KINAN_AGENT").map((x) => T(`Release to Kinan's agent: ${x.title.toLowerCase()}.`, `إحالة إلى وكيل كنان: ${x.title}.`)),
+      ...(plan.status === "PROPOSED" ? [T("Approve the June budget plan — I then draft each vendor's brief.", "اعتماد خطة ميزانية يونيو — ثم أُعدّ موجز كل مورد.")] : []),
+      ...orch.escalations.map((x) => x.title + "."),
+      ...(woWaiting.length ? [T(`Approve ${woWaiting.length} vendor message(s) on Orchestration (${woWaiting.filter((o) => o.routine).length} routine).`, `اعتماد ${woWaiting.length} رسالة للموردين في صفحة التنسيق (${woWaiting.filter((o) => o.routine).length} روتينية).`)] : []),
+      ...tasks.filter((x) => x.status === "PROPOSED" && x.assignee === "KINAN_AGENT").map((x) => T(`Release to Kinan's agent: ${x.title.toLowerCase()}.`, `إحالة إلى وكيل كنان: ${taskTitle(x)}.`)),
       ...a.bench.trials.filter((x) => x.status === "COMPLETED" && !x.decision).map((x) => T(`Decide on ${x.challenger} (won its trial against ${x.incumbent}).`, `البت في ${N(x.challenger)} (فاز في تجربته أمام ${N(x.incumbent)}).`)),
     ].slice(0, 5),
   };
 
   return {
     asOf: TODAY.toISOString(), brief, targets: { monthly, byAsset, ytdActualM: ytdA, ytdTargetM: ytdT, ytdPct },
-    plan, inbox, tasks: (await prisma.directorTask.findMany()).sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime()).map((x) => ({
-      id: x.id, assignee: x.assignee, title: x.title, detail: x.detail, status: x.status, approvedBy: x.approvedBy, eventId: x.eventId,
+    plan, inbox, managerMinutes, orchestration: orch.summary,
+    tasks: tasks.sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime()).map((x) => ({
+      id: x.id, assignee: x.assignee, title: taskTitle(x), detail: lang === "ar" ? x.detailAr ?? x.detail : x.detail, status: x.status, approvedBy: x.approvedBy, eventId: x.eventId,
       leads: x.payload ? (JSON.parse(x.payload).leads?.length ?? 0) : 0,
     })),
     sourceQuality: sourceQuality(a, lang),
@@ -271,10 +293,10 @@ export async function decideTask(id: string, decision: "APPROVE" | "REJECT" | "D
   let eventId: string | null = null;
   if (t.assignee === "KINAN_AGENT") {
     const p = t.payload ? JSON.parse(t.payload) : {};
-    eventId = await queueKinanEvent("lead.followup_requested", "AGENT", { taskId: t.id, title: t.title, instructions: t.detail, ...p }, approver.trim());
+    eventId = await queueKinanEvent("lead.followup_requested", "AGENT", { taskId: t.id, title: t.title, instructions: t.detail, titleAr: t.titleAr, instructionsAr: t.detailAr, ...p }, approver.trim());
   }
   await prisma.directorTask.update({ where: { id }, data: { status: "APPROVED", approvedBy: approver.trim(), eventId } });
-  await prisma.marketingAction.create({ data: { type: "TASK_APPROVED", campaign: t.title, detail: tx(lang, `Released by ${approver.trim()}${eventId ? " to Kinan's agent" : ""}.`, `أحالها ${approver.trim()}${eventId ? " إلى وكيل كنان" : ""}.`) } });
+  await prisma.marketingAction.create({ data: { type: "TASK_APPROVED", campaign: lang === "ar" ? t.titleAr ?? t.title : t.title, detail: tx(lang, `Released by ${approver.trim()}${eventId ? " to Kinan's agent" : ""}.`, `أحالها ${approver.trim()}${eventId ? " إلى وكيل كنان" : ""}.`) } });
 }
 
 export async function sendBriefToKinan(lang: Lang) {
@@ -300,6 +322,6 @@ export async function kinanContext(lang: Lang = "en") {
     campaigns: a.unified.campaigns.map((c) => ({ campaignCode: c.code, campaign: c.name, project: a.mkt.campaigns.find((m) => m.id === c.id)?.asset, vendor: c.vendor, channel: c.channel, status: c.status })),
     vendorDecisions: a.decisions.map((x) => ({ vendor: x.vendor, decision: x.decision, confidence: x.confidence })),
     budgetPlan: { month: d.plan.month, status: d.plan.status, allocations: d.plan.lines.map((x) => ({ vendor: x.vendor, budgetK: x.proposedK })) },
-    tasksForAgent: (await prisma.directorTask.findMany()).filter((t) => t.assignee === "KINAN_AGENT" && t.status === "APPROVED").map((t) => ({ taskId: t.id, title: t.title, instructions: t.detail, ...(t.payload ? JSON.parse(t.payload) : {}) })),
+    tasksForAgent: (await prisma.directorTask.findMany()).filter((t) => t.assignee === "KINAN_AGENT" && t.status === "APPROVED").map((t) => ({ taskId: t.id, title: lang === "ar" ? t.titleAr ?? t.title : t.title, instructions: lang === "ar" ? t.detailAr ?? t.detail : t.detail, ...(t.payload ? JSON.parse(t.payload) : {}) })),
   };
 }

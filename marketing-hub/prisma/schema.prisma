@@ -318,9 +318,11 @@ model DirectorTask {
   id         String    @id @default(cuid())
   createdAt  DateTime  @default(now())
   key        String    @unique // stable key so the same task is not created twice
-  assignee   String // TEAM | VENDOR | KINAN_AGENT
+  assignee   String // KINAN_AGENT (vendor work goes through WorkOrder)
   title      String
   detail     String
+  titleAr    String?
+  detailAr   String?
   payload    String? // JSON (e.g. lead ids for the Kinan agent)
   status     String    @default("PROPOSED") // PROPOSED | APPROVED | DONE | REJECTED
   approvedBy String?
@@ -348,4 +350,26 @@ model KinanFeedback {
   createdAt DateTime @default(now())
   type      String
   payload   String
+}
+
+// Vendor work orders — the director does a marketing team's job for one manager: briefs, feedback, chasers,
+// notices. Each one is an email draft (OutboundEmail.recKey = "WO:<key>") that only goes out when the manager approves it;
+// after it is sent the director verifies the result against the data (deliverables received, spend, CRM).
+model WorkOrder {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  key        String    @unique
+  vendorId   String
+  kind       String // MONTHLY_BRIEF | LEAD_FEEDBACK | DELIVERABLE_CHASE | NON_RENEWAL
+  routine    Boolean   @default(false) // routine = can be approved in a batch (no money, no contract change)
+  title      String
+  titleAr    String
+  detail     String
+  detailAr   String
+  payload    String? // JSON: expected deliverables, budget, deliverable being chased
+  status     String    @default("PROPOSED") // PROPOSED | ISSUED | DONE | CANCELLED
+  issuedAt   DateTime?
+  approvedBy String?
+  doneAt     DateTime?
+  error      String?
 }

@@ -1,9 +1,10 @@
 # Bohio — AI Director of Marketing (standalone)
 
-An AI assistant director of marketing: it holds the plan to the sales targets,
-orchestrates the external marketing vendors (their campaigns, results and how
-spend translates into contracted sales), decides where the money goes, and
-feeds approved work into **Kinan's CRM (Yardi) and Kinan's AI agent**. Separate
+An AI assistant director of marketing for a company with **one marketing manager
+and no marketing team**: it holds the plan to the sales targets, runs the
+external marketing vendors (briefs, feedback, chasing, verification), decides
+where the money goes, and feeds approved work into **Kinan's CRM (Yardi) and
+Kinan's AI agent**. The manager only approves. Separate
 app with its own database — no dependency on `deal-screener`.
 
 ## Director (`/`) and the Kinan feed
@@ -14,8 +15,25 @@ The home page is the director's desk (`lib/director.ts`, `app/page.tsx`); vendor
 - **Targets** — monthly contracted-sales targets per asset (`SalesTarget`, sample values Jan–Jun 2026), actual vs target by month.
 - **Approval inbox** — everything waiting for a named person: delegations, vendor non-renewals, trials to approve or read out, invoice exceptions, email drafts.
 - **Budget plan** — next month's budget per vendor, inside the range each vendor's renewal decision allows (exit, test a replacement, performance plan, renegotiate, re-engage; commission vendors ±10%). Money moves to the highest incremental sales per SAR with diminishing returns (sales ∝ spend^0.7); the plan shows expected incremental sales vs unchanged and what is held in reserve. Indicative, not a promise.
-- **Delegations** — tasks for the marketing team or Kinan's AI agent, e.g. *follow up leads nobody contacted within 48h* and *re-engage leads lost on price or financing*. A task that leads to customers being contacted is only sent to Kinan after a named approver approves it.
+- **Your time** — every item in the inbox carries a time estimate; the brief says how many minutes of decisions the week needs.
+- **Delegations to Kinan's AI agent** — e.g. *follow up leads nobody contacted within 48h* and *re-engage leads lost on price or financing*. A task that leads to customers being contacted is only sent to Kinan after a named approver approves it.
 - **Lead-source quality** — every campaign code ranked by qualified and win rate (percentiles): prioritise / standard / deprioritise, with handling guidance for Kinan's agent and Yardi.
+
+## Vendor orchestration (`/orchestration`)
+
+The work a marketing team would do with the vendors, done by the director (`lib/orchestrator.ts`). Each item is a **work order** — an email draft in the vendor's language that is only sent after the manager approves it:
+
+| Work order | When | Closed when |
+|---|---|---|
+| **Monthly brief** — budget, campaign codes, cost-per-qualified-lead and response targets, deliverables with due dates | the month's budget plan is approved | deliverables received **and** spend within ±10% of the briefed budget (ad platforms / vendor report) |
+| **Lead feedback** — per campaign code: CRM leads, qualified %, wins, top loss reason; where to shift targeting | monthly, per vendor | sent (routine) |
+| **Reminder** — for a late deliverable; 2 reminders 3 days apart, then an **escalation** asking the manager to call | weekly | the deliverable is received (routine) |
+| **Non-renewal notice** — with handover list (final report, files, account access, final invoice) | the agent recommends exit | handover pack received |
+
+- **Approvals for one person:** routine work orders (feedback, reminders — no money, no contract change) and the month's briefs (the money was decided when the plan was approved) can be approved in one batch; each still requires the approver's name, an "I have read" confirmation and the exact revision reviewed. Notices are approved one by one. Wording can be edited from the assistant's drafts.
+- **What vendors owe us:** every expected deliverable with due date, status and reminders sent. Received items feed the scorecard's deadline-adherence metric. Until vendor replies are read from Outlook (Graph `Mail.Read`, not built yet), the manager marks items received in one click.
+- **Operating rhythm:** daily lead-response watch, weekly chasing, monthly plan → briefs → feedback → reports, quarterly reviews / renewals / re-bids. `POST /api/orchestration {"action":"RUN"}` runs a cycle (point a scheduler at it).
+- The sample data runs on a fixed clock (`lib/clock.ts`, 8 June 2026); switch it to the real date when live feeds are connected.
 
 **Kinan connector** (`lib/kinan.ts`, `docs/kinan-integration.md`): an outbox (`KinanEvent`) that stores every event, delivers it and retries failures — `lead.followup_requested`, `lead_source.quality`, `director.plan_approved`, `campaign.status_changed`, `brief.daily`.
 
@@ -102,7 +120,7 @@ npm run dev          # http://localhost:3001
 
 Data is seeded on first load (`lib/seed-marketing.ts`, illustrative, Jan–May 2026). Replace it with vendor reporting feeds / CRM sales data to go live. Attribution is last-touch.
 
-Layout: `lib/director.ts` + `app/page.tsx` (director) · `lib/marketing.ts` + `app/campaigns/page.tsx` (vendors & campaigns) · `lib/kinan.ts` (Kinan feed) · `lib/claude.ts`.
+Layout: `lib/director.ts` + `app/page.tsx` (director) · `lib/orchestrator.ts` + `app/orchestration/page.tsx` (vendor orchestration) · `lib/marketing.ts` + `app/campaigns/page.tsx` (vendors & campaigns) · `lib/kinan.ts` (Kinan feed) · `lib/claude.ts`.
 
 ## Static demo
 

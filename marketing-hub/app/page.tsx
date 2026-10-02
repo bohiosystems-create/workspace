@@ -7,7 +7,7 @@ import { useApprover, openDrafts } from "./_components/useAgent";
 import { monthShort } from "@/lib/i18n";
 
 const DECISION_LABEL: Record<string, string> = { RE_ENGAGE: "Re-engage", RENEGOTIATE: "Renegotiate", PERFORMANCE_PLAN: "Performance plan", TEST_REPLACEMENT: "Test replacement", EXIT: "Exit", PROMOTED: "Promoted" };
-const ASSIGNEE: Record<string, string> = { KINAN_AGENT: "Kinan AI agent", TEAM: "Marketing team", VENDOR: "Vendor" };
+const ASSIGNEE: Record<string, string> = { KINAN_AGENT: "Kinan AI agent", VENDOR: "Vendor" };
 
 export default function DirectorPage() {
   const { lang, t, N, k, m, K, M, dm } = useI18n();
@@ -45,7 +45,7 @@ export default function DirectorPage() {
     <div className="shell">
       <Header />
       <div className="section-title">{t("Director of Marketing")}</div>
-      <p className="intro">{t("Your AI director of marketing: holds the plan to the sales targets, decides where the money goes, and tells you what needs your decision today. Approved work flows into Kinan's CRM (Yardi) and Kinan's AI agent. Nothing that spends money or contacts a customer happens without a named approver.")}</p>
+      <p className="intro">{t("Your AI director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and hands leads to Kinan's AI agent in Yardi. You only make the decisions below — nothing that spends money or contacts a customer or vendor happens without your name on it.")}</p>
       {error && <div className="err">{error}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Preparing today's brief…")}</div>}
 
@@ -96,11 +96,12 @@ export default function DirectorPage() {
             </div>
 
             <div className="panel">
-              <div className="chart-label">{t("Waiting for your decision")} ({data.inbox.length})</div>
+              <div className="chart-label">{t("Waiting for your decision")} ({data.inbox.length}) · ~{data.managerMinutes} {t("min")}</div>
               {data.inbox.length === 0 && <div className="muted">{t("Nothing waiting. ")}</div>}
               {data.inbox.map((x: any, i: number) => (
                 <div key={i} className={`alert ${sev[x.severity] ?? "info"}`} style={{ padding: "8px 12px", marginBottom: 6 }}>
                   <div style={{ flex: 1, fontSize: 12 }}>{x.title}</div>
+                  <span className="muted" style={{ fontSize: 10, whiteSpace: "nowrap" }}>~{x.minutes} {t("min")}</span>
                   {x.href === "drafts"
                     ? <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8 }} onClick={openDrafts}>{t("Review")}</button>
                     : <a className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, textDecoration: "none" }} href={x.href.startsWith("#") ? undefined : x.href} onClick={(e) => { if (x.href.startsWith("#")) { e.preventDefault(); document.getElementById(x.href.slice(1))?.scrollIntoView({ behavior: "smooth" }); } }}>{t("Open")}</a>}
@@ -151,7 +152,7 @@ export default function DirectorPage() {
           </div>
 
           <div id="tasks" className="panel" style={{ marginTop: 18 }}>
-            <div className="chart-label">{t("Delegations")}</div>
+            <div className="chart-label">{t("Delegations to Kinan's AI agent")}</div>
             {data.tasks.length === 0 && <div className="muted">{t("No delegations.")}</div>}
             {data.tasks.map((x: any) => (
               <div className="dec" key={x.id} style={{ marginBottom: 8 }}>
