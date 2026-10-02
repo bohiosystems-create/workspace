@@ -1,0 +1,330 @@
+<title>AI Director Demo Kit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap">
+<style>
+/* Layout: Bohio monochrome — one 860px column, two tabs (capabilities for the client, checklist for the presenter). */
+:root {
+  --bg: #e6e2e2; --paper: #efebeb; --ink: #000919; --soft: rgba(0, 9, 25, 0.6); --line: rgba(0, 9, 25, 0.14);
+  --alert: #d93a55; --green: #1d7a52; --chip: rgba(0, 9, 25, 0.06);
+  --display: "Space Grotesk", "Segoe UI", Arial, sans-serif;
+  --arabic: "IBM Plex Sans Arabic", Tahoma, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b0f17; --paper: #121825; --ink: #e9e6e4; --soft: rgba(233, 230, 228, 0.62); --line: rgba(233, 230, 228, 0.14);
+  --alert: #ff6f86; --green: #4cc38f; --chip: rgba(233, 230, 228, 0.07); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0b0f17; --paper: #121825; --ink: #e9e6e4; --soft: rgba(233, 230, 228, 0.62); --line: rgba(233, 230, 228, 0.14);
+  --alert: #ff6f86; --green: #4cc38f; --chip: rgba(233, 230, 228, 0.07); color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--display); font-size: 15px; line-height: 1.6; padding-inline: 16px; }
+.wrap { max-width: 860px; margin: 0 auto; padding-block: 36px 80px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { width: 36px; height: 36px; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-weight: 700; border-radius: 6px; }
+.brand b { letter-spacing: .32em; font-size: 15px; }
+.brand small { display: block; letter-spacing: .24em; text-transform: uppercase; font-size: 9px; color: var(--soft); }
+h1 { font-size: clamp(26px, 4vw, 36px); line-height: 1.15; margin: 28px 0 10px; text-wrap: balance; letter-spacing: -.01em; }
+.lede { color: var(--soft); max-width: 65ch; margin: 0; }
+.rule { border: 0; border-top: 1px solid var(--ink); margin: 24px 0; }
+
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 24px; }
+.tab { font: 700 10px/1 var(--display); letter-spacing: .2em; text-transform: uppercase; padding: 11px 16px; border: 1px solid var(--line); background: transparent; color: var(--soft); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tab:focus-visible, .check input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.label { font-size: 10px; letter-spacing: .24em; text-transform: uppercase; color: var(--soft); font-weight: 700; margin: 0 0 8px; }
+h2 { font-size: 20px; margin: 36px 0 6px; text-wrap: balance; }
+h3 { font-size: 15px; margin: 22px 0 6px; }
+p { margin: 0 0 10px; max-width: 68ch; }
+ul { margin: 6px 0 0; padding-inline-start: 20px; }
+li { margin: 4px 0; max-width: 68ch; }
+.rulebox { background: var(--paper); border: 1px solid var(--ink); padding: 14px 18px; margin: 22px 0 6px; }
+
+.caps { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 14px; }
+.cap { background: var(--paper); border: 1px solid var(--line); padding: 16px 18px; min-width: 0; }
+.cap .n { font: 700 10px var(--mono); color: var(--soft); }
+.cap h3 { margin: 4px 0 8px; }
+.cap ul { font-size: 13.5px; }
+
+.scroll { overflow-x: auto; margin-top: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 560px; }
+th { text-align: start; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; background: var(--ink); color: var(--bg); padding: 8px 10px; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.pill { display: inline-block; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; padding: 2px 8px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.ok { color: var(--green); } .pill.no { color: var(--alert); } .pill.mid { color: var(--soft); }
+
+.progress { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 18px; position: sticky; top: env(safe-area-inset-top, 0px); background: var(--bg); padding-block: 10px; z-index: 2; border-bottom: 1px solid var(--line); }
+.bar { flex: 1; min-width: 160px; height: 6px; background: var(--chip); }
+.bar i { display: block; height: 100%; background: var(--ink); width: 0; transition: width .2s; }
+.count { font: 700 12px var(--mono); font-variant-numeric: tabular-nums; }
+.btn { font: 700 10px/1 var(--display); letter-spacing: .18em; text-transform: uppercase; padding: 9px 12px; border: 1px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer; }
+
+.step { border-inline-start: 2px solid var(--ink); padding-inline-start: 16px; margin-top: 26px; }
+.step h3 { margin-top: 0; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.step .t { font: 700 11px var(--mono); color: var(--soft); }
+.check { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+.check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.check span.box { flex: 0 0 18px; height: 18px; border: 1.5px solid var(--ink); margin-top: 3px; display: grid; place-items: center; font-size: 12px; color: var(--bg); }
+.check input:checked + .box { background: var(--ink); }
+.check input:checked + .box::after { content: "✓"; }
+.check input:checked ~ .txt { color: var(--soft); text-decoration: line-through; text-decoration-color: var(--line); }
+.expect { display: inline-block; font: 600 12.5px var(--mono); background: var(--chip); padding: 1px 6px; }
+.say { background: var(--paper); border: 1px solid var(--line); padding: 12px 16px; margin-top: 10px; }
+.qs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 18px; margin-top: 8px; }
+.q { display: flex; gap: 8px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 6px 0; min-width: 0; }
+.q span { min-width: 0; overflow-wrap: anywhere; }
+.q[dir="rtl"] span { font-family: var(--arabic); }
+.copy { font: 700 9px var(--display); letter-spacing: .16em; text-transform: uppercase; border: 1px solid var(--line); background: transparent; color: var(--soft); padding: 4px 8px; cursor: pointer; flex: none; }
+.foot { margin-top: 40px; color: var(--soft); font-size: 12.5px; }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <div class="brand"><div class="logo">B</div><div><b>BOHIO</b><small>AI Director of Marketing</small></div></div>
+  <h1>An AI director of marketing for a one-person marketing function</h1>
+  <p class="lede">Built for a real-estate developer whose CRM is Kinan's (Yardi plus Kinan's AI agent). It holds the plan to the sales targets, runs the marketing vendors, proves what they deliver, decides where the money goes and tells the manager every morning which campaigns to change. Leads, follow-up and sales stay with Kinan's own agent; the director reads the CRM results. The manager makes the decisions; the director does the rest.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-caps" aria-controls="caps" aria-selected="true">Capabilities</button>
+    <button class="tab" role="tab" id="tab-demo" aria-controls="demo" aria-selected="false">Demo checklist</button>
+  </div>
+  <hr class="rule">
+
+  <!-- ============================== CAPABILITIES ============================== -->
+  <section id="caps" role="tabpanel" aria-labelledby="tab-caps">
+    <div class="rulebox"><b>Ground rule.</b> Nothing that spends money or contacts a vendor or a customer happens without a named person approving it. Every approval is in the audit trail.</div>
+
+    <div class="caps">
+      <div class="cap"><div class="n">Director · home</div><h3>Plan and decide</h3><ul>
+        <li>Daily brief: sales vs target (CRM-verified), the project furthest behind, next month's forecast, risks, this week's actions</li>
+        <li><b>Campaign recommendations</b> in the brief: today's daily check first, then pause or shift budget, campaigns not converting, Meta and tracking issues, tests — each with the reason and one action</li>
+        <li>Budget plan that moves money to the vendors bringing the most extra sales per riyal, within each vendor's renewal range</li>
+        <li>One approval inbox with a time estimate per decision and a weekly total</li>
+        <li>Campaign quality from the CRM: strongest, middle, weakest</li></ul></div>
+      <div class="cap"><div class="n">Daily check</div><h3>What to change in each campaign, every morning</h3><ul>
+        <li>Each live campaign checked against its own trend and similar past campaigns: cost to sales vs history, rising cost per qualified lead, falling quality or volume, pacing, winners to scale, summer ahead, ending soon, stale CRM feed</li>
+        <li>Evidence, one action and the lessons of similar past campaigns per item</li>
+        <li>New today, open since, resolved since yesterday; accept or dismiss, and the decision carries over</li>
+        <li>Optional AI second opinion (Claude or OpenAI)</li></ul></div>
+      <div class="cap"><div class="n">History</div><h3>2024–2025 campaigns</h3><ul>
+        <li>22 past campaigns: launches, Ramadan, summer, always-on, events, brand, radio, billboards</li>
+        <li>Benchmarks by channel, season, year, project and vendor; a lesson per campaign</li>
+        <li>The yardstick for the daily check and the assistant</li></ul></div>
+      <div class="cap"><div class="n">Orchestration</div><h3>Runs the vendors</h3><ul>
+        <li>Monthly briefs from the approved plan: budget, campaign codes, targets, deliverables and due dates</li>
+        <li>Monthly lead feedback from the CRM: what converted, why leads were lost</li>
+        <li>Two reminders for late work, then it asks the manager to call</li>
+        <li>Non-renewal notices with a handover list</li>
+        <li>Checks results against the data and closes the work order</li></ul></div>
+      <div class="cap"><div class="n">Reports</div><h3>Daily scheduled report</h3><ul>
+        <li>Every scheduled morning (default 07:30 Riyadh, Sun–Thu, English and Arabic)</li>
+        <li>Shows what changed since the last report, and the campaign recommendations with what's at stake</li>
+        <li>Emailed via Outlook to internal addresses only; full history to view or download</li></ul></div>
+      <div class="cap"><div class="n">Performance</div><h3>Measured fairly</h3><ul>
+        <li>Spend → leads → qualified → viewings → reservations → contracts → sales</li>
+        <li>Vendor-reported vs verified numbers (ad platforms, CRM, Oracle)</li>
+        <li>Scorecard against each channel's benchmark, adjusted for budget, with a range and confidence</li></ul></div>
+      <div class="cap"><div class="n">Meta ads</div><h3>Which agency runs each campaign</h3><ul>
+        <li>Reads Meta ad accounts and campaigns: spend, leads, tracking codes, who created each one</li>
+        <li>Works out the agency from the code in the name, utm_campaign, the creator and the account owner, with a confidence level</li>
+        <li>Flags agencies that aren't your vendors, conflicting evidence, campaigns without tracking codes, and your own boosted posts</li>
+        <li>You confirm or correct in one click</li></ul></div>
+      <div class="cap"><div class="n">Incrementality</div><h3>Proof of what a vendor caused</h3><ul>
+        <li>Holdout and geo tests with lift, interval and cost per extra result</li>
+        <li>Test designer with minimum detectable lift; starts only on approval</li>
+        <li>Media-mix model with seasonality (Ramadan, summer)</li></ul></div>
+      <div class="cap"><div class="n">Decisions</div><h3>Renew or replace</h3><ul>
+        <li>Re-engage, renegotiate, performance plan, test a replacement or exit, with evidence and confidence</li>
+        <li>Quarterly reviews, billing anomaly checks, replacement RFPs</li>
+        <li>Bench of alternatives, paid trials read from the CRM, one-click promotion</li></ul></div>
+      <div class="cap"><div class="n">Invoices</div><h3>Supplier invoices (Oracle)</h3><ul>
+        <li>Invoices reconciled with delivery: variances, duplicates, no PO, overruns, overdue payments</li>
+        <li>Approve or dispute; critical exceptions cannot be approved; nothing written back to Oracle</li></ul></div>
+      <div class="cap"><div class="n">Assistant</div><h3>Ask in English or Arabic</h3><ul>
+        <li>Answers on targets, the daily check, any campaign (live or past), vendors, projects, channels, any month, quarter or year, comparisons, history and lessons, metric definitions, tests, invoices, Meta</li>
+        <li><b>Anthropic (Claude) and OpenAI</b> both built in, with 13 read-only data tools and automatic failover</li>
+        <li>Without a key: built-in answers, checked by a 92-question English/Arabic test</li>
+        <li>Drafts vendor emails in the vendor's language, sent only after approval</li></ul></div>
+      <div class="cap"><div class="n">Kinan</div><h3>CRM: Yardi + Kinan's AI agent</h3><ul>
+        <li>Kinan's agent owns leads, follow-up and sales; the director reads the CRM results</li>
+        <li>Shares the approved plan, campaign codes and changes, and the daily brief; signed and retried</li>
+        <li>Whole app, emails and reports in Arabic, right to left</li></ul></div>
+    </div>
+
+    <h2>Integration status</h2>
+    <p class="lede">Everything in the demo runs on sample data frozen on 8 June 2026. Integrations are simulated and labelled as such.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Component</th><th>Status</th><th>Needed to go live</th></tr></thead>
+      <tbody>
+        <tr><td>Kinan AI agent (plan, campaign changes, brief)</td><td><span class="pill ok">Built</span></td><td>Kinan's webhook URL, shared secret, an API key</td></tr>
+        <tr><td>Yardi (reading CRM results)</td><td><span class="pill no">Not built</span></td><td>Yardi interface licence, credentials, field mapping</td></tr>
+        <tr><td>Outlook</td><td><span class="pill mid">Built, untested on tenant</span></td><td>Entra app registration, sending mailbox</td></tr>
+        <tr><td>Oracle Fusion invoices</td><td><span class="pill mid">Built, untested on instance</span></td><td>Oracle user and URL (read-only)</td></tr>
+        <tr><td>CRM results</td><td><span class="pill mid">Ingest API built</span></td><td>Lead results with campaign codes</td></tr>
+        <tr><td>Meta ads (Facebook / Instagram)</td><td><span class="pill mid">Built, live mode untested</span></td><td>System-user token (ads_read, business_management), ad account IDs</td></tr>
+        <tr><td>Google, Snap, TikTok</td><td><span class="pill mid">Ingest API built</span></td><td>Access per ad account</td></tr>
+        <tr><td>AI: Anthropic (Claude) and OpenAI</td><td><span class="pill ok">Built</span></td><td>An Anthropic and/or OpenAI API key (tested against mock servers so far)</td></tr>
+        <tr><td>Daily report scheduler</td><td><span class="pill ok">Built</span></td><td>A scheduler calling the report endpoint every 15 minutes</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ============================== DEMO CHECKLIST ============================== -->
+  <section id="demo" role="tabpanel" aria-labelledby="tab-demo" hidden>
+    <p class="lede">About 35 minutes. Every step and number here was rehearsed on the demo file in English and Arabic. Your ticks are saved in this browser only.</p>
+    <div class="progress"><span class="count" id="count">0 / 0</span><div class="bar"><i id="bar"></i></div><button class="btn" id="reset" type="button">Clear ticks</button></div>
+
+    <h2>Before the day</h2>
+    <div id="list-prep"></div>
+
+    <div class="say"><p class="label">Say this upfront</p><ul>
+      <li><b>Sample data, frozen on 8 June 2026.</b> Reports are dated today and say "Figures as of 8 Jun 2026".</li>
+      <li><b>Integrations are simulated.</b> Outlook, Kinan, Yardi and Oracle are in mock mode, and the screens say so. Nothing is sent.</li>
+      <li><b>One manager, no team.</b> The director does the team's work; you only approve.</li></ul></div>
+
+    <h2>Storyline</h2>
+    <div id="list-story"></div>
+
+    <h2>Question bank</h2>
+    <p class="lede">All tested. In the demo file the assistant uses built-in answers, which cover a wide range; these are safe bets.</p>
+    <div class="qs" id="qs"></div>
+
+    <h2>Pitfalls</h2>
+    <ul>
+      <li><b>Reloading the demo file resets everything.</b> Don't reload mid-demo. To reset the live app: Ctrl+C, then <span class="expect">npm run demo:live</span>.</li>
+      <li><b>Buttons greyed out?</b> Your name is missing in "Approving as", or the "I have read" box isn't ticked.</li>
+      <li><b>Off-script question?</b> Say: "With Claude or OpenAI connected it answers anything from this data."</li>
+      <li><b>CRM-feed alert is expected:</b> the sample CRM data ends on 30 May; the clock is 8 June.</li>
+    </ul>
+
+    <h2>Questions to ask the client</h2>
+    <ul>
+      <li>Which Yardi product and version does Kinan run, and can we write activities and marketing sources into it?</li>
+      <li>Where is the campaign code captured on a lead in Yardi?</li>
+      <li>Does Kinan's agent want the plan, campaign changes and daily brief, and through what (webhook, queue, MCP)?</li>
+      <li>What are the real monthly sales targets per project?</li>
+      <li>Vendor list, contract end dates and notice periods, account-manager emails.</li>
+      <li>Oracle supplier numbers and access; report recipients and preferred time.</li>
+      <li>Meta: which ad accounts exist, who owns each, which agencies have partner access, and will agencies adopt the naming and utm_campaign convention?</li>
+    </ul>
+    <p class="foot">Source: docs/demo-checklist.md in the marketing-hub repository.</p>
+  </section>
+</div>
+
+<script>
+const PREP = [
+  "Unzip <b>kinan-demo.zip</b> and read <b>START-HERE.md</b>",
+  "Demo file (recommended): double-click <b>1-OPEN-ME-demo.html</b> — no install, works offline",
+  "Live app (for free-form AI chat or the APIs): Node.js 18.17+, then in <b>app-source</b>: <span class='expect'>npm install</span> and <span class='expect'>npm run demo:live</span>, open http://localhost:3001",
+  "Optional, live app only: set ANTHROPIC_API_KEY and/or OPENAI_API_KEY in app-source/.env, run <span class='expect'>npm run demo:live</span> again, and check one free-form question shows \"Claude · model\" or \"OpenAI · model\"",
+  "Open in Chrome or Edge, window at least 1366 px wide",
+  "Rehearse the storyline once, then reset: reload the demo file, or Ctrl+C and <span class='expect'>npm run demo:live</span>",
+  "Five minutes before: reset, then type your name in <b>Approving as</b> on the Director page",
+];
+const STORY = [
+  ["Director: the morning view", "3 min", [
+    "Read the headline: <span class='expect'>Sales are at 81% of target year to date; Andalus Quarter is furthest behind (38%)</span>",
+    "Show the tiles (SAR 133.9M of 165M; 38% / 90% / 92%)",
+    "Inbox: <span class='expect'>8 items, about 53 min</span>, including <b>Daily campaign check: 14 open (2 urgent)</b>. This is the manager's whole week",
+    "Say: leads, follow-up and sales are Kinan's agent's job; the director reads the CRM results"]],
+  ["Campaign recommendations in the brief", "3 min", [
+    "<b>Campaign recommendations (22)</b>. Urgent: <span class='expect'>CRM feed quiet for 8 days · Andalus Off-plan at 8.5% of sales, 4.5× past digital · unknown agency on Meta (SAR 8K)</span>",
+    "On the CRM item, say: the sample CRM data stops on 30 May; the director notices and won't judge campaigns on missing data",
+    "Each has the reason and one action: <b>Open</b> or <b>Draft email</b>",
+    "<b>Show all (22)</b> → <b>Draft email</b> on <i>Tasweeq Digital: reported media spend not matched by the ad platforms</i> (SAR 58.4K) → the draft opens for approval; don't send",
+    "<b>Ask the director</b> → \"What should I change in the campaigns?\""]],
+  ["Daily campaign check", "4 min", [
+    "<b>Daily check</b>: <span class='expect'>14 recommendations, 2 urgent</span>; day chips for the last 7 days",
+    "Andalus Off-plan has four items: <span class='expect'>8.5% vs 1.9% history · cost per qualified lead +35% in May · 130% pacing · summer in 23 days</span>",
+    "Open <b>Similar past campaigns</b>: each past campaign's cost to sales and lesson",
+    "Ash Shati Search &amp; Social is a winner (1.19%): trim ~15% in July–August, scale again in September",
+    "<b>Accept</b> one item → <span class='expect'>Decided 1</span>; the decision carries over to the next days",
+    "Click an earlier day chip to see that morning's check",
+    "Point at <b>AI second opinion</b> (needs an Anthropic or OpenAI key; not in the demo file)"]],
+  ["Campaign history", "2 min", [
+    "<b>History</b>: <span class='expect'>22 past campaigns, SAR 8.2M spend, SAR 555.7M sales, 1.5% cost to sales</span>",
+    "Lessons: brokers and events convert best; Ramadan payment-plan offer worked; summer weakest; radio and billboards most expensive",
+    "Switch benchmark tabs and expand a campaign to show its lesson"]],
+  ["Daily report: baseline", "1 min", [
+    "<b>Reports</b> → <b>Send now</b>. Show <span class='expect'>Campaign recommendations — 22 open, 3 urgent</span>",
+    "Show the schedule: 07:30 Riyadh, Sun–Thu, English and Arabic, internal only"]],
+  ["Approve the June budget plan", "3 min", [
+    "Budget plan: <span class='expect'>SAR 596K, about +SAR 0.6M extra sales, SAR 62K in reserve</span>",
+    "<b>Approve plan and send to Kinan</b>. Kinan's agent gets the plan and campaign codes",
+    "Scroll to <b>Feed to Kinan</b>: the approved plan is in the feed (simulated). In production: a signed webhook to Kinan's agent; marketing context only, no lead tasks"]],
+  ["Orchestration: running the vendors", "5 min", [
+    "<span class='expect'>14 waiting</span>: 6 June briefs, 7 routine (feedback and reminders), 1 non-renewal notice",
+    "Open the PropertyHub KSA brief: written in Arabic, the vendor's language",
+    "Tick <b>I have read the routine messages</b> → <b>Approve and send all routine</b>",
+    "Tick <b>I have read the briefs</b> → <b>Approve and send all briefs</b>",
+    "Show each brief's checks under <b>With vendors</b>",
+    "<b>Mark received</b> on Sada Influence's late item → \"Received late\"",
+    "Leave the Hajar non-renewal notice unapproved: \"a contract decision\""]],
+  ["The report shows what changed", "2 min", [
+    "<b>Reports</b> → <b>Send now</b> again",
+    "Since the last report: <span class='expect'>decisions 9 → 7 · late deliverables 2 → 1 · with vendors 0 → 7 · overdue 0 → 1</span>",
+    "<b>Download</b>: this is the email the manager gets"]],
+  ["Meta: which agency runs each campaign", "3 min", [
+    "<b>Data Sources</b> → <b>Meta ads</b>: <span class='expect'>SAR 576.2K, 8 campaigns, 92% attributed</span>",
+    "Clean example ASH-SEARCH-26: high confidence (code in name, utm on ads, created by Tasweeq)",
+    "<b>New campaign 14/05</b>: Digital Wave Agency isn't one of your vendors but has access to the account (SAR 8K)",
+    "<b>Corniche video views</b>: Hajar's code, created by Tasweeq → choose Hajar Outdoor → <b>Confirm</b> → <span class='expect'>98% attributed</span>",
+    "<b>Andalus retargeting</b>: no tracking codes, code inferred (medium); an email asks Tasweeq to add codes",
+    "Ask \"Which agency runs each Meta campaign?\""]],
+  ["Who's worth renewing", "3 min", [
+    "<b>Decisions</b>: Hajar Outdoor exit (high confidence), Tasweeq Digital test a replacement",
+    "<b>Experiments</b>: what share of results the vendor really caused",
+    "<b>Bench &amp; Trials</b>: Wasel Performance won its trial against Tasweeq Digital"]],
+  ["Ask the assistant", "3 min", [
+    "Four or five questions from the bank, e.g. \"What changed since yesterday?\", \"How did Ramadan campaigns perform?\", \"Compare 2024 and 2025\", \"How much did we spend in March by project?\"",
+    "\"Draft an email to Tasweeq Digital\" → pick an item → show the approval controls; don't send"]],
+  ["Arabic", "2 min", [
+    "Click <b>العربية</b>: the whole app flips right to left",
+    "Ask \"ما موجز اليوم؟\" or \"ما الجديد منذ الأمس؟\", open <b>Daily check</b>, then view the Arabic report on <b>Reports</b>"]],
+  ["Close", "2 min", [
+    "Walk through the integration status on the Capabilities tab",
+    "Ask the questions for Kinan at the bottom of this checklist"]],
+];
+const QS = [["What's today's brief?"],["What needs my approval?"],["What should I change in the campaigns?"],["What do vendors owe us?"],["What's the budget plan for June?"],["When is my daily report?"],["Which vendor converts best?"],["Should we renew Hajar Outdoor?"],["Do vendor numbers match the CRM?"],["Any invoice problems?"],["Which contracts are ending?"],["What did we send to Kinan?"],["How is Ash Shati Broker Push doing?"],["What did the holdout test show?"],["Draft an email to Tasweeq Digital"],["Which agency runs each Meta campaign?"],["Who created the Andalus retargeting campaign on Meta?"],["What changed since yesterday?"],["How is ASH-SEARCH-26 doing?"],["Compare Tasweeq Digital and Hajar Outdoor"],["Brokers vs influencers"],["How much did we spend in March by project?"],["Sales in Q1 2025 by project"],["Compare 2024 and 2025"],["What did we learn from past campaigns?"],["How did Ramadan campaigns perform?"],["Worst past campaigns"],["Tell me about MAR-RAMADAN-25"],["How is Andalus Quarter doing?"],["What is cost to sales?"],["ما موجز اليوم؟","rtl"],["ما الذي ينتظر اعتمادي؟","rtl"],["ماذا أغيّر في الحملات؟","rtl"],["ما الذي يدين به الموردون لنا؟","rtl"],["هل نجدد عقد هجر للإعلانات الخارجية؟","rtl"],["متى يصلني التقرير اليومي؟","rtl"],["أي مورد يحقق أفضل تحويل؟","rtl"],["أي وكالة تدير كل حملة على ميتا؟","rtl"],["ما الجديد منذ الأمس؟","rtl"],["كيف كان أداء حملات رمضان؟","rtl"],["قارن 2024 و 2025","rtl"],["ما الدروس من الحملات السابقة؟","rtl"]];
+
+const KEY = "director-demo-kit";
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch { state = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+
+let n = 0;
+const item = (html) => { const id = "c" + (n++); return `<label class="check"><input type="checkbox" id="${id}" data-k="${id}"${state[id] ? " checked" : ""}><span class="box"></span><span class="txt">${html}</span></label>`; };
+document.getElementById("list-prep").innerHTML = PREP.map(item).join("");
+document.getElementById("list-story").innerHTML = STORY.map(([h, t, xs], i) =>
+  `<div class="step"><h3><span class="t">${String(i + 1).padStart(2, "0")}</span>${h}<span class="t">${t}</span></h3>${xs.map(item).join("")}</div>`).join("");
+document.getElementById("qs").innerHTML = QS.map(([q, d]) => `<div class="q"${d ? ' dir="rtl"' : ""}><span>${q}</span><button class="copy" type="button" data-q="${q.replace(/"/g, "&quot;")}">Copy</button></div>`).join("");
+
+const boxes = [...document.querySelectorAll(".check input")];
+const update = () => {
+  const done = boxes.filter((b) => b.checked).length;
+  document.getElementById("count").textContent = `${done} / ${boxes.length}`;
+  document.getElementById("bar").style.width = `${(done / boxes.length) * 100}%`;
+};
+boxes.forEach((b) => b.addEventListener("change", () => { state[b.dataset.k] = b.checked; save(); update(); }));
+document.getElementById("reset").addEventListener("click", () => { state = {}; save(); boxes.forEach((b) => (b.checked = false)); update(); });
+update();
+
+document.getElementById("qs").addEventListener("click", (e) => {
+  const b = e.target.closest(".copy"); if (!b) return;
+  const done = () => { b.textContent = "Copied"; setTimeout(() => (b.textContent = "Copy"), 1200); };
+  try { navigator.clipboard.writeText(b.dataset.q).then(done, () => { selectText(b.previousElementSibling); }); } catch { selectText(b.previousElementSibling); }
+});
+function selectText(el) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+const tabs = [...document.querySelectorAll(".tab")];
+const show = (id) => {
+  tabs.forEach((t) => t.setAttribute("aria-selected", String(t.getAttribute("aria-controls") === id)));
+  document.getElementById("caps").hidden = id !== "caps";
+  document.getElementById("demo").hidden = id !== "demo";
+  try { localStorage.setItem(KEY + ":tab", id); } catch {}
+};
+tabs.forEach((t) => t.addEventListener("click", () => show(t.getAttribute("aria-controls"))));
+let start = location.hash === "#demo" ? "demo" : "caps";
+try { if (!location.hash) start = localStorage.getItem(KEY + ":tab") || start; } catch {}
+show(start === "demo" ? "demo" : "caps");
+</script>

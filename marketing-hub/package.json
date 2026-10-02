@@ -10,7 +10,10 @@
     "demo:reset": "node -e \"require('fs').rmSync('prisma/dev.db',{force:true})\" && prisma db push --skip-generate",
     "demo:build": "tsx scripts/dump-data.ts && node scripts/build-demo.mjs",
     "chat:eval": "tsx scripts/chat-eval.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "setup": "node scripts/setup.mjs",
+    "demo:package": "node scripts/package-demo.mjs",
+    "demo:live": "node scripts/setup.mjs && next build && next start -p 3001"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
@@ -28,5 +31,8 @@
     "prisma": "^5.22.0",
     "tsx": "^4.23.15",
     "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18.17"
   }
 }

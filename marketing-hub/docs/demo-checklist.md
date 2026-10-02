@@ -6,12 +6,14 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 
 ## A. The day before
 
+- [ ] **Get the package:** unzip `kinan-demo.zip`. Start with `START-HERE.md`.
 - [ ] **Pick how you will run it**
-  - **Demo file (recommended):** `marketing-hub-demo.html` at the repo root. One file, no install, works offline (only the fonts need internet). All data lives in the browser.
-  - **Live app:** `cd marketing-hub && npm install && npm run demo:reset && npm run dev`, then open http://localhost:3001. Use this if you want to show the API endpoints or free-form AI chat (Claude or OpenAI).
+  - **Demo file (recommended):** double-click `1-OPEN-ME-demo.html`. One file, no install, works offline (only the fonts need internet). All data lives in the browser.
+  - **Live app:** needs Node.js 18.17+. In `app-source/`: `npm install`, then `npm run demo:live` (resets the sample data, builds and starts), then open http://localhost:3001. Use this to show free-form AI chat (Claude or OpenAI) or the APIs.
 - [ ] **Open it in Chrome or Edge**, window at least 1366 px wide (the menu then fits on one line).
-- [ ] **Rehearse the storyline once** (section C), then reload the page to reset.
-- [ ] **Optional — free-form AI chat:** in the live app, set `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` in `.env` (with both, the second takes over if the first fails). Without a key (and always in the demo file) the assistant uses built-in answers, which cover a wide range of questions (section D).
+- [ ] **Rehearse the storyline once** (section C), then reset: reload the demo file, or in the live app stop it (Ctrl+C) and run `npm run demo:live` again.
+- [ ] **Optional — free-form AI chat (live app only):** set `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` in `app-source/.env` and run `npm run demo:live` again. With both, the second takes over if the first fails. Ask one free-form question in rehearsal to check the key works; the answer shows "Claude · model" or "OpenAI · model" underneath. Without a key the assistant uses built-in answers, which cover a wide range of questions (section D).
+- [ ] **Keep `2-demo-kit-capabilities-and-checklist.html` open** on a second screen or tab: the same checklist with tick-boxes.
 - [ ] **Know the three things to say upfront** (section B).
 
 ## B. Say this upfront
@@ -24,9 +26,9 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 0. Five minutes before
 
-- [ ] Reload the demo file, so you start from a clean state.
+- [ ] Reset to a clean state: reload the demo file (live app: Ctrl+C, then `npm run demo:live`).
 - [ ] **Type your name in "Approving as"** on the Director page. Buttons stay disabled until a name is entered, and the browser remembers it.
-- [ ] Language: English (switch to العربية in step 9).
+- [ ] Language: English (switch to العربية in step 12).
 
 ### 1. Director — the morning view (3 min)
 
@@ -45,7 +47,7 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] Click **Show all (22)**, then **Draft email** on *Tasweeq Digital: reported media spend not matched by the ad platforms* (SAR 58.4K). The assistant opens the draft for approval. Don't send it; show that nothing goes out without a name and the "I have read this" box.
 - [ ] Click **Ask the director** and type *"What's today's brief?"* The campaign recommendations come back as cards.
 
-### 2a. Daily campaign check (4 min)
+### 3. Daily campaign check (4 min)
 
 - [ ] Open **Daily check**. KPIs: **14 recommendations, 2 urgent**. The day chips at the top show the last 7 days.
 - [ ] Walk through **Andalus — Off-plan Launch Funnel**, which has four items: 8.5% cost to sales vs 1.9% for past digital campaigns; cost per qualified lead up 35% in May; spending ahead of plan (130% pacing); summer starts in 23 days.
@@ -55,26 +57,27 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] Click an earlier day chip to show the check as it was that morning, and **Resolved since yesterday** when something improves.
 - [ ] Point at **AI second opinion**: with an Anthropic or OpenAI key, the AI reads the day's check with the history and says what to do first. (Not in the demo file.)
 
-### 2b. Campaign history (2 min)
+### 4. Campaign history (2 min)
 
 - [ ] Open **History**: **22 past campaigns** (2024–2025), SAR 8.2M spend, SAR 555.7M sales, **1.5% cost to sales**.
 - [ ] Show the **lessons**: brokers and events convert best; Ramadan with a payment-plan offer worked; summer is the weakest season; radio and billboards cost the most per sale.
 - [ ] Switch the benchmark tabs (channel, season, year, project, vendor) and expand a campaign to show its lesson.
 - [ ] Say: *"This is the yardstick for every live campaign in the daily check, and the assistant can answer anything about it."*
 
-### 3. Daily report — baseline (1 min)
+### 5. Daily report — baseline (1 min)
 
 - [ ] Go to **Reports** and click **Send now**. The report opens below.
 - [ ] Show the **Campaign recommendations — 22 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
 - [ ] Show the schedule: 07:30 Riyadh, Sunday–Thursday, English and Arabic, internal addresses only.
 
-### 4. Approve the June budget plan (3 min)
+### 6. Approve the June budget plan (3 min)
 
 - [ ] On **Director**, go to **Budget plan**: total SAR 596K, about **+SAR 0.6M** extra sales, **SAR 62K** held in reserve.
 - [ ] Explain the logic: money moves to the vendors that bring the most extra sales per riyal. The exiting vendor (Hajar) is halved, and Tasweeq is cut while it's being tested.
 - [ ] Click **Approve plan and send to Kinan**. Kinan's agent gets the plan and campaign codes as context.
+- [ ] Scroll to **Feed to Kinan (Yardi + AI agent)**: the approved plan is now in the feed, marked simulated. Say: *"In production this is a signed webhook to Kinan's agent; it also gets campaign changes and the daily brief — marketing context only, no lead tasks."*
 
-### 5. Orchestration — running the vendors (5 min)
+### 7. Orchestration — running the vendors (5 min)
 
 - [ ] Open **Orchestration**. Show the four role cards: you, the director, vendors, and Kinan's agent (owns leads and sales).
 - [ ] **14 waiting**: 6 June briefs (drafted from the plan you just approved), 7 routine (5 lead-feedback emails and 2 reminders for late items), and 1 non-renewal notice.
@@ -84,7 +87,7 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] In **What vendors owe us**, click **Mark received** on Sada Influence's late item. It becomes "Received late".
 - [ ] Leave the **Hajar non-renewal notice** unapproved: a contract decision.
 
-### 6. The report shows what changed (2 min)
+### 8. The report shows what changed (2 min)
 
 - [ ] **Reports**, then **Send now** again. In **"Since the last report"** expect:
   - Decisions waiting **9 → 7** (9 because the email you drafted in step 2 joined the list)
@@ -93,7 +96,7 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
   - Overdue work orders **0 → 1**, in red (Nakhla's press release is still late after a reminder)
 - [ ] Click **Download**: this is exactly the email the manager gets.
 
-### 7. Meta — which agency runs each campaign (3 min)
+### 9. Meta — which agency runs each campaign (3 min)
 
 - [ ] **Data Sources**, then scroll to **Meta ads — which agency runs each campaign** (or click the Meta item in the Director's inbox). Expect: **SAR 576.2K Meta spend, 8 campaigns, 92% attributed to an agency.**
 - [ ] Show a clean one, *ASH-SEARCH-26 | Ash Shati…*: high confidence. The evidence is the code in its name, the utm on its ads, and that it was created by Layla Nasser of Tasweeq.
@@ -103,26 +106,26 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
   - *Andalus | Retargeting*: no tracking codes, so the agent inferred the code from Tasweeq's other campaign in that account (medium confidence). It also drafts an email asking Tasweeq to add the codes.
 - [ ] Ask the assistant *"Which agency runs each Meta campaign?"*
 
-### 8. Who's worth renewing (3 min)
+### 10. Who's worth renewing (3 min)
 
 - [ ] **Decisions**: six vendors, each with a decision. For example, **Hajar Outdoor: exit** (high confidence) and **Tasweeq Digital: test a replacement**. Show the evidence and "what would change this".
 - [ ] **Experiments**: the holdout test shows how much of a vendor's results it really caused.
 - [ ] **Bench & Trials**: **Wasel Performance won its trial against Tasweeq Digital**. One click promotes it, and it gets budget in the next plan.
 
-### 9. Ask the assistant (3 min)
+### 11. Ask the assistant (3 min)
 
 - [ ] Use 4–5 questions from section D, for example *"What changed since yesterday?"*, *"How did Ramadan campaigns perform?"*, *"Compare 2024 and 2025"*, *"How much did we spend in March by project?"* and *"Should we renew Hajar Outdoor?"*
 - [ ] Say: *"With an Anthropic or OpenAI key it answers anything from this data, in its own words, and shows which model answered."*
 - [ ] *"Draft an email to Tasweeq Digital"*, then pick an item: the draft appears for approval. Don't send it; show the approval controls instead.
 
-### 10. Arabic (2 min)
+### 12. Arabic (2 min)
 
 - [ ] Click **العربية**: the whole app flips right-to-left.
 - [ ] Ask *"ما موجز اليوم؟"*, *"ما الجديد منذ الأمس؟"* or *"كيف كان أداء حملات رمضان؟"*
 - [ ] Open **Daily check** in Arabic.
 - [ ] **Reports** in Arabic, then **View** the Arabic report.
 
-### 11. Close (2 min)
+### 13. Close (2 min)
 
 - [ ] Walk through the integration status table (section F) and the questions for Kinan (section G).
 
@@ -183,7 +186,7 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 
 ## E. Pitfalls and recovery
 
-- **Reloading the demo file resets everything.** Don't reload mid-demo unless you want to start over. To reset the live app: `npm run demo:reset`, then restart.
+- **Reloading the demo file resets everything.** Don't reload mid-demo unless you want to start over. To reset the live app: stop it (Ctrl+C) and run `npm run demo:live`.
 - **Off-script questions in the demo file** may get the general help answer (built-in answers, no AI). Say: *"With Claude or OpenAI connected it answers anything from this data."*
 - **The CRM-feed alert is expected:** the sample CRM data ends on 30 May, and the clock is 8 June.
 - **Buttons greyed out?** Your name isn't in "Approving as", or the "I have read" box isn't ticked.

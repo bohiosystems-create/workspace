@@ -9,7 +9,7 @@ the director reads CRM results and shares the plan and campaign changes with it.
 The manager only approves. Separate
 app with its own database — no dependency on `deal-screener`.
 
-**Client demo:** capabilities in [`docs/capabilities.md`](docs/capabilities.md), step-by-step script in [`docs/demo-checklist.md`](docs/demo-checklist.md). `npm run demo:reset` gives the live app a clean sample database; `npm run demo:build` rebuilds the one-file demo (`demo.html`). 
+**Client demo:** capabilities in [`docs/capabilities.md`](docs/capabilities.md), step-by-step script in [`docs/demo-checklist.md`](docs/demo-checklist.md). Everything for Kinan is in **`kinan-demo.zip`** at the repo root (`npm run demo:package`; start with `docs/START-HERE.md`). `npm run demo:live` resets, builds and starts the live app for a demo; `npm run demo:build` rebuilds the one-file demo (`demo.html`).
 
 ## Director (`/`) and the Kinan feed
 
@@ -162,13 +162,16 @@ The recipient is fixed to the vendor's account manager; only cc is editable. One
 
 ## Run
 
+Needs Node.js 18.17+.
+
 ```bash
 cd marketing-hub
-cp .env.example .env
 npm install
-npm run db:push
+npm run setup        # creates .env from .env.example (all mock, no AI key) and a fresh sample database
 npm run dev          # http://localhost:3001
 ```
+
+For a client demo use `npm run demo:live` instead: it resets the sample data, makes a production build and starts it on port 3001 (pages open instantly). Stop the app before resetting.
 
 Data is seeded on first load (`lib/seed-marketing.ts`, illustrative, Jan–May 2026). Replace it with vendor reporting feeds / CRM sales data to go live. Attribution is last-touch.
 
@@ -176,4 +179,8 @@ Layout: `lib/director.ts` + `app/page.tsx` (director) · `lib/orchestrator.ts` +
 
 ## Static demo
 
-`npx tsx scripts/dump-data.ts && node scripts/build-demo.mjs` builds a single-file `demo.html` (all pages + assistant, in-memory data, offline; built-in answers only, no AI provider).
+`npm run demo:reset && npm run demo:build` builds a single-file `demo.html` (all pages + assistant, in-memory data, offline; built-in answers only, no AI provider).
+
+## Kinan demo package
+
+`npm run demo:package` rebuilds the demo file and writes `../kinan-demo.zip`: `START-HERE.md`, `1-OPEN-ME-demo.html`, `2-demo-kit-capabilities-and-checklist.html` (`docs/demo-kit.html`), the docs, and the app source (`app-source/`, tracked files only — no `.env`, database or `node_modules`). Commit first: the source is taken from the files git tracks.
