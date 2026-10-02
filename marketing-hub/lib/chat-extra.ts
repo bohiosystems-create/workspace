@@ -1,9 +1,12 @@
 // More built-in answers for the assistant (no AI key needed): help, metric definitions, the daily campaign check,
-// comparisons, any month / quarter / year, the 2024–2025 campaign history, projects, channels and past vendors.
+// comparisons, any month / quarter / year, the 2023–2025 campaign history, projects, channels and past vendors.
 // Every number comes from lib/query.ts, lib/history.ts or lib/daily.ts. Returns null when the question is not one of these.
 import type { ChatContext } from "./chat";
 import { resolve, describe, parsePeriod, periodSummary, latestLiveMonth, projectSummary, channelSummary, vendorDetail, type Entity } from "./query";
 import { FAMILY_LABEL, SEASON_LABEL } from "./history";
+import { breakdown, DIM_LABEL, VALUE_AR, type Dimension } from "./audience";
+import { creativeSummary, tr as CR_AR } from "./creatives";
+import { marketSummary, MORTGAGE, COMPETITORS, AD_MONTHS, CALENDAR } from "./market";
 import { type Lang, tx, K, M, nm, dt, firstSentence } from "./i18n";
 
 const RX = {
@@ -40,7 +43,7 @@ const GLOSSARY: { rx: RegExp; en: string; ar: string }[] = [
   { rx: /last.?touch|attribution|الإسناد|آخر نقرة/, en: "**Last-touch attribution** credits a sale to the last campaign the buyer came through. It under-credits PR, outdoor and radio, which build awareness earlier — so those are judged with tests and the media-mix model too.", ar: "**إسناد آخر نقرة** ينسب البيع إلى آخر حملة جاء منها المشتري. يقلّل من أثر العلاقات العامة واللوحات والإذاعة التي تبني الوعي مبكراً — لذا تُقيَّم أيضاً بالاختبارات ونموذج مزيج الإعلام." },
   { rx: /\butm\b|campaign code|رمز الحملة/, en: "**Campaign code / utm_campaign** = the code each vendor must put in campaign names and links (e.g. ASH-SEARCH-26). It is how CRM leads and Meta campaigns are matched to a vendor.", ar: "**رمز الحملة / utm_campaign** = الرمز الذي يضعه كل مورد في أسماء الحملات وروابطها (مثل ASH-SEARCH-26). به تُربط عملاء النظام وحملات ميتا بالمورد." },
   { rx: /\bsla\b|response time|اتفاقية الخدمة|زمن الاستجابة/, en: "**SLA response time** = hours from lead to first contact, measured in the CRM, against the hours agreed in the vendor's contract.", ar: "**زمن الاستجابة في اتفاقية الخدمة** = الساعات من وصول العميل إلى أول تواصل، مقاسة في النظام، مقابل المتفق عليه في عقد المورد." },
-  { rx: /benchmark|المعيار|معيار/, en: "**Benchmark** = the same channel's result across the 2024–2025 campaign history (e.g. digital, brokers, outdoor). Live campaigns are judged against it in the daily check.", ar: "**المعيار** = نتيجة القناة نفسها عبر تاريخ الحملات 2024–2025 (رقمي، وسطاء، لوحات…). تُقارن به الحملات النشطة في الفحص اليومي." },
+  { rx: /benchmark|المعيار|معيار/, en: "**Benchmark** = the same channel's result across the 2023–2025 campaign history (e.g. digital, brokers, outdoor). Live campaigns are judged against it in the daily check.", ar: "**المعيار** = نتيجة القناة نفسها عبر تاريخ الحملات 2023–2025 (رقمي، وسطاء، لوحات…). تُقارن به الحملات النشطة في الفحص اليومي." },
 ];
 
 const pct = (x: number | null | undefined) => (x === null || x === undefined ? "—" : `${x}%`);
@@ -65,11 +68,15 @@ export function extraEarly(question: string, c: ChatContext): string | null {
   // Daily campaign check.
   if (RX.daily.test(q)) return dailyAnswer(c, ents);
 
+  // Lead profiles, creatives, market, competitors, calendar.
+  const data = extraData(question, c);
+  if (data) return data;
+
   // Comparison of two or more things.
   const uniq = ents.filter((e, i) => ents.findIndex((x) => x.kind === e.kind && x.name === e.name) === i);
   // "Tasweeq Digital vs Hajar Outdoor" names two vendors, not the digital and outdoor channels.
   const distinct = uniq.filter((e) => e.kind !== "channel").length >= 2 ? uniq.filter((e) => e.kind !== "channel") : uniq;
-  const years = [...new Set(q.match(/\b(2024|2025|2026)\b/g) ?? [])];
+  const years = [...new Set(q.match(/\b(2023|2024|2025|2026)\b/g) ?? [])];
   if (RX.compare.test(q) && years.length >= 2 && distinct.length === 0) return yearCompare(c, years);
   if (RX.compare.test(q) && distinct.length >= 2) return compareAnswer(c, distinct.slice(0, 4));
 
@@ -88,7 +95,7 @@ export function extraEarly(question: string, c: ChatContext): string | null {
     const focus = ents.find((e) => e.kind !== "past");
     const groupBy = RX.groupProject.test(q) || focus?.kind === "project" ? "project" : RX.groupChannel.test(q) || focus?.kind === "channel" ? "channel" : RX.groupCampaign.test(q) || focus?.kind === "campaign" ? "campaign" : "vendor";
     const s = periodSummary(c.q, period.months, groupBy);
-    if (!s.rows.length) return T(`I have no campaign data for ${period.label}. Live data covers Jan–May 2026; the history covers 2024–2025.`, `لا تتوفر بيانات حملات لـ${period.label}. البيانات الحية تغطي يناير–مايو 2026، والتاريخ يغطي 2024–2025.`);
+    if (!s.rows.length) return T(`I have no campaign data for ${period.label}. Live data covers Jan–May 2026; the history covers 2023–2025.`, `لا تتوفر بيانات حملات لـ${period.label}. البيانات الحية تغطي يناير–مايو 2026، والتاريخ يغطي 2023–2025.`);
     const label = (g: string) => groupBy === "channel" ? T(FAMILY_LABEL[g]?.[0] ?? g, FAMILY_LABEL[g]?.[1] ?? g) : nm(L, g);
     const key = focus ? (focus.kind === "channel" ? focus.family : focus.name) : null;
     const row = key ? s.rows.find((r) => r.group === key) : null;
@@ -111,9 +118,11 @@ export function extraLate(question: string, c: ChatContext): string | null {
   const project = ents.find((e) => e.kind === "project");
   if (project) {
     const p = projectSummary(c.q, project.name), hp = p.history;
+    // A past project (e.g. Palm Villas, sold out in 2024) or the corporate brand: answer from the history.
+    if (!p.live.campaigns) return historyAnswer(c, question.toLowerCase(), ents);
     return T(`**${p.project}** — ${p.live.campaigns} campaigns in 2026: ${K(L, p.live.spendK)} spend → ${p.live.qualified} qualified → ${p.live.contracts} contracts, ${M(L, p.live.salesM)} sales (${pct(p.live.costToSalesPct)} cost to sales).\n`, `**${nm(L, p.project)}** — ${p.live.campaigns} حملات في 2026: إنفاق ${K(L, p.live.spendK)} ← ${p.live.qualified} مؤهلاً ← ${p.live.contracts} عقداً، مبيعات ${M(L, p.live.salesM)} (${pct(p.live.costToSalesPct)} من المبيعات).\n`) +
       p.live.list.map((x) => `- ${nm(L, x.name)} (${nm(L, x.vendor)}): ${pct(x.costToSalesPct)}`).join("\n") +
-      (hp ? T(`\n\nHistory 2024–2025: ${hp.campaigns} campaigns, ${hp.contracts} contracts, ${M(L, hp.salesM)} sales at ${pct(hp.costToSalesPct)}.`, `\n\nالتاريخ 2024–2025: ${hp.campaigns} حملات، ${hp.contracts} عقداً، مبيعات ${M(L, hp.salesM)} بنسبة ${pct(hp.costToSalesPct)}.`) : "") +
+      (hp ? T(`\n\nHistory 2023–2025: ${hp.campaigns} campaigns, ${hp.contracts} contracts, ${M(L, hp.salesM)} sales at ${pct(hp.costToSalesPct)}.`, `\n\nالتاريخ 2023–2025: ${hp.campaigns} حملات، ${hp.contracts} عقداً، مبيعات ${M(L, hp.salesM)} بنسبة ${pct(hp.costToSalesPct)}.`) : "") +
       (p.dailyCheck.length ? T(`\n\nToday's check flags: ${p.dailyCheck.slice(0, 4).join("; ")}.`, `\n\nيشير فحص اليوم إلى: ${p.dailyCheck.slice(0, 4).join("؛ ")}.`) : "");
   }
   const vendor = ents.find((e) => e.kind === "vendor" && !e.id);
@@ -159,6 +168,9 @@ function help(L: Lang) {
     `- **History**: "what did we learn from past campaigns?", "how did Ramadan campaigns perform?", "worst past campaigns", "broker benchmark"\n` +
     `- **Projects and channels**: "how is Andalus Quarter doing?", "how are influencers performing?"\n` +
     `- **Data**: "do vendor numbers match the CRM?", "which agency runs each Meta campaign?", "overdue invoices", "what is cost to sales?"\n` +
+    `- **Buyers and leads**: "which cities do leads come from?", "investors or end users?", "why do we lose leads?", "buyer types for Marina Tower"\n` +
+    `- **Ads and market**: "which creatives work best?", "Arabic or English ads?", "how is the property market in Jeddah?", "what are competitors doing?", "when is Ramadan?"\n` +
+    `- **Ideas**: "ideas for a Ramadan campaign for Marina Tower, SAR 300K"\n` +
     `- **Actions**: "draft an email to Hajar Outdoor" (drafts only — you approve every email), "the daily report", "what did we send to Kinan?"`,
     `أنا مدير التسويق الذكي. يمكنني الإجابة، من بين أمور أخرى، عن:\n` +
     `- **اليوم**: «موجز اليوم»، «ما الجديد منذ الأمس؟»، «ماذا أغيّر في الحملات؟»، «ما الذي ينتظر اعتمادي؟»\n` +
@@ -168,6 +180,9 @@ function help(L: Lang) {
     `- **التاريخ**: «ما الدروس من الحملات السابقة؟»، «كيف كان أداء حملات رمضان؟»، «أسوأ الحملات السابقة»، «معيار الوسطاء»\n` +
     `- **المشاريع والقنوات**: «كيف أداء الأندلس؟»، «كيف أداء المؤثرين؟»\n` +
     `- **البيانات**: «هل أرقام الموردين تطابق النظام؟»، «من يدير حملات ميتا؟»، «الفواتير المتأخرة»، «ما معنى نسبة التكلفة إلى المبيعات؟»\n` +
+    `- **المشترون والعملاء**: «من أين يأتي العملاء حسب المدينة؟»، «المستثمرون أم المستخدمون النهائيون؟»، «لماذا نخسر العملاء؟»\n` +
+    `- **الإعلانات والسوق**: «أي الإعلانات الأفضل؟»، «كيف السوق العقاري في جدة؟»، «ماذا يفعل المنافسون؟»، «متى رمضان القادم؟»\n` +
+    `- **الأفكار**: «أفكار لحملة رمضان لبرج المارينا»\n` +
     `- **الإجراءات**: «اكتب رسالة إلى هجر» (مسودات فقط — تعتمدون كل رسالة)، «التقرير اليومي»، «ماذا أرسلنا إلى كنان؟»`);
 }
 
@@ -216,7 +231,7 @@ function yearCompare(c: ChatContext, years: string[]) {
     const p = parsePeriod(y, latestLiveMonth(c.q))!;
     return { y, t: periodSummary(c.q, p.months, "vendor").total };
   });
-  return T("**Year comparison** (2024–2025 from the history; 2026 is live data to date)\n", "**مقارنة السنوات** (2024–2025 من التاريخ؛ 2026 بيانات حية حتى الآن)\n") +
+  return T("**Year comparison** (2023–2025 from the history; 2026 is live data to date)\n", "**مقارنة السنوات** (2023–2025 من التاريخ؛ 2026 بيانات حية حتى الآن)\n") +
     rows.map(({ y, t }) => T(`- **${y}**: ${K(L, t.spendK)} spend → ${t.qualified} qualified, ${t.contracts} contracts, ${M(L, t.salesM)} sales (**${pct(t.costToSalesPct)}** cost to sales)`, `- **${y}**: إنفاق ${K(L, t.spendK)} ← ${t.qualified} مؤهلاً، ${t.contracts} عقداً، مبيعات ${M(L, t.salesM)} (**${pct(t.costToSalesPct)}** من المبيعات)`)).join("\n");
 }
 
@@ -231,7 +246,7 @@ function pastAnswer(c: ChatContext, code: string) {
 
 function historyAnswer(c: ChatContext, q: string, ents: Entity[], season?: string) {
   const L = c.lang, T = (en: string, ar: string) => tx(L, en, ar), h = c.history;
-  const year = q.match(/\b(2024|2025)\b/)?.[1];
+  const year = q.match(/\b(2023|2024|2025)\b/)?.[1];
   const ch = ents.find((e) => e.kind === "channel") as Extract<Entity, { kind: "channel" }> | undefined;
   const proj = ents.find((e) => e.kind === "project");
   const vend = ents.find((e) => e.kind === "vendor");
@@ -239,7 +254,7 @@ function historyAnswer(c: ChatContext, q: string, ents: Entity[], season?: strin
   const scope = [season && T(SEASON_LABEL[season][0], SEASON_LABEL[season][1]), ch && T(FAMILY_LABEL[ch.family]?.[0] ?? ch.name, FAMILY_LABEL[ch.family]?.[1] ?? ch.name), proj && nm(L, proj.name), vend && nm(L, vend.name), year].filter(Boolean).join(" · ");
   const fmt = (r: (typeof rows)[number]) => T(`- **${r.name}** (${r.vendor}, ${r.start}→${r.end}): ${K(L, r.spendK)} → ${r.contracts} contracts, ${M(L, r.salesM)} — **${pct(r.costToSalesPct)}**`, `- **${r.name}** (${r.vendor}، ${r.start}→${r.end}): ${K(L, r.spendK)} ← ${r.contracts} عقداً، ${M(L, r.salesM)} — **${pct(r.costToSalesPct)}**`);
 
-  if (RX.lessons.test(q) && !scope) return T(`**What the 2024–2025 campaigns taught us** (${h.total.campaigns} campaigns)\n`, `**ما تعلمناه من حملات 2024–2025** (${h.total.campaigns} حملة)\n`) + h.lessons.map((x) => `- ${x}`).join("\n");
+  if (RX.lessons.test(q) && !scope) return T(`**What the 2023–2025 campaigns taught us** (${h.total.campaigns} campaigns)\n`, `**ما تعلمناه من حملات 2023–2025** (${h.total.campaigns} حملة)\n`) + h.lessons.map((x) => `- ${x}`).join("\n");
 
   if (!rows.length) return T(`No past campaigns match ${scope || "that"}. The history covers ${h.total.from} to ${h.total.to}.`, `لا حملات سابقة تطابق ${scope || "ذلك"}. يغطي التاريخ ${h.total.from} إلى ${h.total.to}.`);
   const sorted = [...rows].filter((r) => r.costToSalesPct !== null).sort((a, b) => a.costToSalesPct! - b.costToSalesPct!);
@@ -253,7 +268,7 @@ function historyAnswer(c: ChatContext, q: string, ents: Entity[], season?: strin
     return head + T(worst && !best ? "Least efficient:\n" : "Most efficient:\n", worst && !best ? "الأقل كفاءة:\n" : "الأكفأ:\n") + pick.map((r) => `${fmt(r)}\n  ${firstSentence(r.lesson)}`).join("\n");
   }
   if (!scope && /benchmark|by channel|channels|معيار|المعايير|القنوات/.test(q)) {
-    return T("**Benchmarks by channel** (2024–2025, cost to sales — lower is better)\n", "**المعايير حسب القناة** (2024–2025، التكلفة إلى المبيعات — الأقل أفضل)\n") + h.byFamily.map((x) => T(`- ${x.label}: **${pct(x.costToSalesPct)}**, qualified ${pct(x.qualPct)}, ${x.contracts} contracts from ${x.campaigns} campaign(s)`, `- ${x.label}: **${pct(x.costToSalesPct)}**، المؤهلون ${pct(x.qualPct)}، ${x.contracts} عقداً من ${x.campaigns} حملات`)).join("\n");
+    return T("**Benchmarks by channel** (2023–2025, cost to sales — lower is better)\n", "**المعايير حسب القناة** (2023–2025، التكلفة إلى المبيعات — الأقل أفضل)\n") + h.byFamily.map((x) => T(`- ${x.label}: **${pct(x.costToSalesPct)}**, qualified ${pct(x.qualPct)}, ${x.contracts} contracts from ${x.campaigns} campaign(s)`, `- ${x.label}: **${pct(x.costToSalesPct)}**، المؤهلون ${pct(x.qualPct)}، ${x.contracts} عقداً من ${x.campaigns} حملات`)).join("\n");
   }
   if (!scope) {
     return head + T("\nBy season: ", "\nحسب الموسم: ") + h.bySeason.map((x) => `${x.label} ${pct(x.costToSalesPct)}`).join(T("; ", "؛ ")) +
@@ -263,4 +278,106 @@ function historyAnswer(c: ChatContext, q: string, ents: Entity[], season?: strin
       T("\n\nAsk about a season (Ramadan, summer), a year, a channel or a past campaign by name; the full list is on the History page.", "\n\nاسألوا عن موسم (رمضان، الصيف) أو سنة أو قناة أو حملة سابقة بالاسم؛ القائمة الكاملة في صفحة التاريخ.");
   }
   return head + sorted.slice(0, 8).map(fmt).join("\n") + (rows.length <= 3 ? `\n\n${rows.map((r) => `${r.name}: ${r.lesson}`).join("\n")}` : "");
+}
+
+// ------------------------------------------------- lead profiles, creatives, market, competitors, calendar
+
+const RX2 = {
+  lost: /lost reason|why (do|did|are) we (lose|losing)|reasons? (for )?(losing|lost)|lose leads|lost leads|leads? (we )?lost|أسباب الخسارة|لماذا نخسر|سبب خسارة|أسباب خسارة/,
+  response: /speed.to.lead|does (the )?response time (affect|matter|change)|response time (and|vs) (conversion|sales)|how fast .* (respond|call)|سرعة الاستجابة/,
+  city: /\bcit(y|ies)\b|where (are|do) (the |our )?(leads|buyers) (come )?from|region|المدينة|المدن|من أين/,
+  nationality: /nationalit|\bexpats?\b|\bgcc\b|الجنسي|مقيم|خليجي/,
+  buyerType: /investors?|end.?users?|first.?time|buyer types?|who (buys|is buying|are the buyers)|مستثمر|المستخدم النهائي|لأول مرة|نوع المشتري|من يشتري/,
+  budget: /budget (band|range)s?|buyers'? budget|price range|affordab|ميزانية المشترين|فئة الميزانية|القدرة الشرائية/,
+  unit: /unit types?|apartments? or|townhouse|penthouse|office.*retail|نوع الوحدة|أنواع الوحدات|تاون هاوس|بنتهاوس/,
+  age: /\bages?\b|how old|age group|العمر|الأعمار|الفئة العمرية/,
+  audience: /audience|segments?|profile|demographic|persona|who are (our|the) (buyers|leads)|الجمهور|الشرائح|ملف العملاء|من هم العملاء|شرائح/,
+  creative: /creatives?|ad copy|which ads?\b|best ads?\b|ads? (perform|work)|ad formats?|which formats?|videos?\b|carousel|messag(e|es|ing)|ad fatigue|fatigue|arabic (or|vs) english|الإعلانات الأفضل|أي إعلان|أي الإعلانات|الرسائل الإعلانية|الرسالة الإعلانية|فيديو|التصاميم|الإبداعي/,
+  agencyWords: /which agency|what agency|who (runs|created|made)|أي وكالة|من يدير|من أنشأ/,
+  market: /\bmarket\b|price per (sqm|square|met)|\bsqm\b|prices? (in|trend|per)|property prices|transactions|supply|mortgage|interest rates?|السوق|سعر المتر|أسعار|الصفقات|المعروض|التمويل العقاري|الرهن|الفائدة/,
+  competitors: /competitor|competition|compet(e|es|ing) with|rivals?|other developers|developers (nearby|around)|المنافس|المنافسين|المنافسة|المطورين الآخرين/,
+  calendar: /calendar|when is (ramadan|eid|cityscape|national day)|holidays?|\beid\b|national day|school (holiday|year)|key dates|التقويم|متى رمضان|العيد|اليوم الوطني|الإجازة|المدارس|المواعيد المهمة/,
+};
+
+/** Lead profiles, creatives, market, competitors and calendar (called from extraEarly). */
+export function extraData(question: string, c: ChatContext): string | null {
+  const L = c.lang, T = (en: string, ar: string) => tx(L, en, ar), q = question.toLowerCase();
+  const ents = resolve(question, c.q);
+  const proj = ents.find((e) => e.kind === "project")?.name;
+  const fam = (ents.find((e) => e.kind === "channel") as any)?.family as string | undefined;
+  const code = (ents.find((e) => e.kind === "campaign") as any)?.code as string | undefined;
+  const vend = ents.find((e) => e.kind === "vendor")?.name;
+  const V = (v: string) => (L === "ar" ? VALUE_AR[v] ?? nm("ar", v) : v);
+  const scope = [proj && nm(L, proj), fam && T(FAMILY_LABEL[fam]?.[0] ?? fam, FAMILY_LABEL[fam]?.[1] ?? fam), code, vend && nm(L, vend)].filter(Boolean).join(" · ");
+
+  // Lead profiles.
+  const dim: Dimension | null = RX2.lost.test(q) ? "lostReason" : RX2.response.test(q) ? "responseBand" : RX2.city.test(q) ? "city" : RX2.nationality.test(q) ? "nationality" : RX2.buyerType.test(q) ? "buyerType" : RX2.budget.test(q) ? "budgetBand" : RX2.unit.test(q) ? "unitType" : RX2.age.test(q) ? "ageBand" : null;
+  if ((dim || RX2.audience.test(q)) && c.q.leads?.length && !RX2.creative.test(q)) {
+    const dims: Dimension[] = dim ? [dim] : ["buyerType", "city", "nationality"];
+    const f = { project: proj, family: fam, campaignCode: code, vendor: vend };
+    const parts = dims.map((d) => {
+      const b = breakdown(c.q.leads!, d, f);
+      if (!b.total) return "";
+      const head = T(`**${DIM_LABEL[d][0]}${scope ? ` — ${scope}` : ""}** (${b.total} ${d === "lostReason" ? "lost leads" : "CRM leads"})`, `**${DIM_LABEL[d][1]}${scope ? ` — ${scope}` : ""}** (${b.total} ${d === "lostReason" ? "عميلاً خسرناه" : "عميلاً في النظام"})`);
+      const rows = b.rows.slice(0, 8).map((r) => d === "lostReason"
+        ? `- ${V(r.value)}: ${r.leads} (${r.sharePct}%)`
+        : T(`- ${r.value}: ${r.leads} leads (${r.sharePct}%), ${pct(r.qualRatePct)} qualified, ${r.won} won${r.salesM ? `, SAR ${r.salesM}M` : ""}`, `- ${V(r.value)}: ${r.leads} عميلاً (${r.sharePct}%)، ${pct(r.qualRatePct)} مؤهلون، ${r.won} صفقة${r.salesM ? `، ${M("ar", r.salesM)}` : ""}`));
+      const big = b.rows.filter((r) => r.leads >= 50 && r.qualRatePct !== null && r.value !== "Never contacted");
+      const best = [...big].sort((x, y) => (y.qualRatePct ?? 0) - (x.qualRatePct ?? 0))[0], worst = [...big].sort((x, y) => (x.qualRatePct ?? 0) - (y.qualRatePct ?? 0))[0];
+      const tip = d === "lostReason"
+        ? T(`\nThe top reason is **${b.rows[0]?.value}**. Leads lost to "No response" point at follow-up speed (Kinan's agent); "Not a buyer" and "Price" point at targeting and offer.`, `\nالسبب الأول **${V(b.rows[0]?.value ?? "")}**. الخسارة بسبب "عدم الرد" تشير إلى سرعة المتابعة (وكيل كنان)؛ و"ليس مشترياً" و"السعر" تشيران إلى الاستهداف والعرض.`)
+        : d === "responseBand" ? (() => {
+          const slow = b.rows.find((r) => r.value === "Over 24 hours"), never = b.rows.find((r) => r.value === "Never contacted"), fast = b.rows.filter((r) => r.value === "Within 4 hours" || r.value === "4–24 hours");
+          const fq = fast.reduce((a, r) => a + r.qualified, 0), fl = fast.reduce((a, r) => a + r.leads, 0);
+          return T(`\nAnswered within a day: ${fl ? Math.round((fq / fl) * 1000) / 10 : "—"}% qualified; after a day: ${slow ? pct(slow.qualRatePct) : "—"}${never ? `; ${never.leads} leads were never contacted` : ""}. Follow-up speed is Kinan's agent's area — share this with them; for vendors it is part of the response-time SLA.`, `\nالرد خلال يوم: ${fl ? Math.round((fq / fl) * 1000) / 10 : "—"}% مؤهلون؛ وبعد يوم: ${slow ? pct(slow.qualRatePct) : "—"}${never ? `؛ ولم يُتواصل مع ${never.leads} عميلاً` : ""}. سرعة المتابعة من اختصاص وكيل كنان — شاركوه ذلك؛ وهي للموردين جزء من اتفاقية زمن الاستجابة.`);
+        })()
+        : best && worst && best !== worst ? T(`\nBest qualified rate: **${best.value}** (${best.qualRatePct}%); weakest: **${worst.value}** (${worst.qualRatePct}%) — shift targeting towards the first.`, `\nأعلى نسبة مؤهلين: **${V(best.value)}** (${best.qualRatePct}%)؛ والأضعف: **${V(worst.value)}** (${worst.qualRatePct}%) — وجّهوا الاستهداف نحو الأولى.`) : "";
+      return `${head}\n${rows.join("\n")}${tip}`;
+    }).filter(Boolean);
+    if (parts.length) return parts.join("\n\n") + T("\n\n_Lead profiles are sample data shaped like CRM fields; live, they come from Yardi._", "\n\n_ملفات العملاء بيانات تجريبية بصيغة حقول النظام؛ وفي التشغيل الفعلي تأتي من ياردي._");
+  }
+
+  // Creatives.
+  if (RX2.creative.test(q) && !RX2.agencyWords.test(q) && c.q.creatives?.length) {
+    const live = c.q.agent.unified.campaigns;
+    const rows = c.q.creatives.filter((r: any) => (!proj || r.project === proj) && (!fam || r.family === fam) && (!vend || r.vendor === vend) && (!code || live.find((u) => u.code === code)?.id === r.campaignId));
+    if (rows.length) {
+      const by = /format|video|carousel|التنسيق|فيديو/.test(q) ? "format" : /arabic|english|language|عربي|إنجليزي|اللغة/.test(q) ? "language" : code ? "creative" : "message";
+      const g = creativeSummary(rows, by as any);
+      const lab = (k: string) => (L === "ar" ? (by === "message" ? CR_AR.msg[k] : by === "format" ? CR_AR.format[k] : by === "language" ? (k === "AR" ? "العربية" : "الإنجليزية") : rows.find((r: any) => r.creative === k)?.creativeAr) ?? k : by === "language" ? (k === "AR" ? "Arabic" : "English") : k);
+      const BY: Record<string, [string, string]> = { message: ["message", "الرسالة"], format: ["format", "التنسيق"], language: ["language", "اللغة"], creative: ["creative", "الإعلان"] };
+      const fat = rows.filter((r: any) => r.fatigued);
+      return T(`**Creatives by ${BY[by][0]}${scope ? ` — ${scope}` : ""}** (${rows.length} ads; ranked by cost per qualified lead)\n`, `**الإعلانات حسب ${BY[by][1]}${scope ? ` — ${scope}` : ""}** (${rows.length} إعلاناً؛ مرتبة حسب تكلفة العميل المؤهل)\n`) +
+        g.slice(0, 8).map((x) => T(`- ${lab(x.key)}: SAR ${x.spendK}K → ${x.leads} leads, ${x.qualified} qualified (${pct(x.qualRatePct)}), **SAR ${x.cpqlSAR ?? "—"} per qualified lead**`, `- ${lab(x.key)}: ${K("ar", x.spendK)} ← ${x.leads} عميلاً، ${x.qualified} مؤهلاً (${pct(x.qualRatePct)})، **${x.cpqlSAR ?? "—"} ر.س لكل عميل مؤهل**`)).join("\n") +
+        (fat.length ? T(`\n\nFatigued (shown 4+ times per person): ${fat.slice(0, 4).map((r: any) => `${r.creative} (${r.campaign})`).join("; ")} — refresh them.`, `\n\nإعلانات مُستهلكة (تُعرض 4 مرات أو أكثر للشخص): ${fat.slice(0, 4).map((r: any) => `${r.creativeAr} (${nm("ar", r.campaign)})`).join("؛ ")} — جدّدوها.`) : "") +
+        T("\n\n_Creative-level figures are sample data that add up to each campaign's totals; live, they come from the ad platforms._", "\n\n_أرقام الإعلانات بيانات تجريبية تساوي مجموع كل حملة؛ وفي التشغيل الفعلي تأتي من المنصات الإعلانية._");
+    }
+  }
+
+  // Competitors.
+  if (RX2.competitors.test(q)) {
+    const list = COMPETITORS.filter((x) => !proj || x.threatTo === proj);
+    return T(`**Competitors${proj ? ` — around ${proj}` : ""}** (active Meta ads, ${AD_MONTHS[0]} → ${AD_MONTHS[AD_MONTHS.length - 1]})\n`, `**المنافسون${proj ? ` — حول ${nm("ar", proj)}` : ""}** (إعلانات ميتا النشطة، ${AD_MONTHS[0]} ← ${AD_MONTHS[AD_MONTHS.length - 1]})\n`) +
+      (list.length ? list : COMPETITORS).map((x) => T(`- **${x.name} — ${x.project}** (${x.district}, ${x.type}, SAR ${x.pricePerSqmSAR.toLocaleString("en")}/sqm, launched ${x.launched}): ${x.offer}. Ads ${x.activeAds.join(" → ")}; ${x.channels}. Competes with ${x.threatTo}.`, `- **${x.nameAr} — ${x.projectAr}** (${VALUE_AR[x.district] ?? x.district}، ${x.pricePerSqmSAR} ر.س/م²، أُطلق ${x.launched}): ${x.offerAr}. الإعلانات ${x.activeAds.join(" ← ")}؛ ينافس ${nm("ar", x.threatTo)}.`)).join("\n") +
+      T("\n\n_Competitor data is sample data (fictional developers); live, it comes from the Meta Ad Library, portals and site visits._", "\n\n_بيانات المنافسين تجريبية (مطورون وهميون)؛ وفي التشغيل الفعلي تأتي من مكتبة إعلانات ميتا والبوابات والزيارات الميدانية._");
+  }
+
+  // Market.
+  if (RX2.market.test(q) && !RX.history.test(q)) {
+    const all = marketSummary();
+    const rows = proj ? all.filter((x) => x.project === proj) : all;
+    const mg = MORTGAGE[MORTGAGE.length - 1], mg0 = MORTGAGE[MORTGAGE.length - 13];
+    return T(`**Property market${proj ? ` — ${proj}` : " — Jeddah (and Riyadh for reference)"}** (${rows[0]?.month})\n`, `**السوق العقاري${proj ? ` — ${nm("ar", proj)}` : " — جدة (والرياض للمقارنة)"}** (${rows[0]?.month})\n`) +
+      rows.map((x) => T(`- **${x.district}** (${x.note}): SAR ${x.pricePerSqmSAR.toLocaleString("en")}/sqm (${x.priceYoYPct > 0 ? "+" : ""}${x.priceYoYPct}% a year), ${x.transactions} sales a month (${x.transactionsYoYPct > 0 ? "+" : ""}${x.transactionsYoYPct}% a year); off-plan ${x.offPlanSharePct}% of supply`, `- **${x.districtAr}** (${x.noteAr}): ${x.pricePerSqmSAR} ر.س/م² (${x.priceYoYPct > 0 ? "+" : ""}${x.priceYoYPct}% سنوياً)، ${x.transactions} صفقة شهرياً (${x.transactionsYoYPct > 0 ? "+" : ""}${x.transactionsYoYPct}% سنوياً)؛ على الخارطة ${x.offPlanSharePct}% من المعروض`)).join("\n") +
+      T(`\nMortgages: rates from ${mg.rateFromPct}% (from ${mg0.rateFromPct}% a year ago); new mortgages SAR ${mg.newMortgagesSARbn}bn a month.`, `\nالتمويل العقاري: أسعار تبدأ من ${mg.rateFromPct}% (من ${mg0.rateFromPct}% قبل عام)؛ وتمويلات جديدة ${mg.newMortgagesSARbn} مليار ر.س شهرياً.`) +
+      (rows.some((x) => x.project === "Andalus Quarter") ? T("\nJeddah South is the only district with falling prices and sales and the most off-plan supply — part of why Andalus is behind target; compete on payment terms rather than price.", "\nجنوب جدة الحي الوحيد بأسعار ومبيعات متراجعة وأكبر معروض على الخارطة — وهذا جزء من سبب تأخر الأندلس؛ نافسوا بشروط السداد لا بالسعر.") : "") +
+      T("\n\n_Market figures are sample data; live, from REGA / Ministry of Justice transactions and SAMA._", "\n\n_أرقام السوق تجريبية؛ وفي التشغيل الفعلي من صفقات الهيئة العامة للعقار ووزارة العدل والبنك المركزي._");
+  }
+
+  // Calendar.
+  if (RX2.calendar.test(q)) {
+    return T("**Marketing calendar** (approximate dates)\n", "**التقويم التسويقي** (تواريخ تقريبية)\n") +
+      CALENDAR.map((x) => `- ${x.from === x.to ? x.from : `${x.from} → ${x.to}`}: ${T(x.en, x.ar)}`).join("\n");
+  }
+  return null;
 }

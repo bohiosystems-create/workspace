@@ -5,6 +5,8 @@ import { buildOrchestration } from "./orchestrator";
 import { reportsState } from "./reports";
 import { metaState, metaMode } from "./meta";
 import { historyState } from "./history";
+import { leadProfiles } from "./audience";
+import { creativesFor } from "./creatives";
 import { dailyState } from "./daily";
 import { type QueryCtx, resolve } from "./query";
 import { extraEarly, extraLate, campaignExtras } from "./chat-extra";
@@ -26,7 +28,8 @@ export async function buildChatContext(lang: Lang = "en") {
   const meta = metaMode() === "off" ? null : await metaState(lang);
   const history = await historyState(lang);
   const daily = await dailyState(lang);
-  const q: QueryCtx = { agent, history, daily, lang, meta };
+  const [leads, creatives] = [await leadProfiles(), creativesFor(agent.mkt.campaigns as any)];
+  const q: QueryCtx = { agent, history, daily, lang, meta, leads, creatives };
   return { mkt: agent.mkt, inv: agent.inv, crm: agent.crm, recs, agent, director, orch, meta, history, daily, q, lang };
 }
 export type ChatContext = Awaited<ReturnType<typeof buildChatContext>>;

@@ -1,4 +1,4 @@
-// Campaign history — the developer's past campaigns (2024–2025), as sample data.
+// Campaign history — the developer's past campaigns (2023–2025: Palm Villas, Ash Shati, Marina Tower, Andalus, corporate brand and Cityscape), as sample data.
 //
 // Used for: benchmarks per channel / season / project / vendor / year, lessons learned (what worked, what didn't,
 // seasonality), the daily campaign check (lib/daily.ts compares live campaigns against similar past ones), the
@@ -25,6 +25,51 @@ type Seed = [code: string, name: string, nameAr: string, project: string, vendor
 
 // Sample history. Figures are illustrative but internally consistent (spend → leads → qualified → viewings → contracts → sales).
 const SEED: Seed[] = [
+  // ---- 2023: Palm Villas (sold out April 2024) and the corporate brand
+  ["PLM-LAUNCH-23", "Palm Villas — Digital launch", "فلل النخيل — الإطلاق الرقمي", "Palm Villas", "Najm Media", "Google / Meta", "LAUNCH", "2023-01", "2023-03", 380, 370, 2900, 470, 160, 9, 20,
+    "Villa buyers needed to see the product: digital gave volume but few contracts until the show villa opened.", "احتاج مشترو الفلل إلى رؤية المنتج: أعطى الإعلان الرقمي حجماً لكن عقوداً قليلة حتى افتتاح الفيلا النموذجية."],
+  ["PLM-OPENDAYS-23", "Palm Villas — Show-villa open days", "فلل النخيل — أيام مفتوحة في الفيلا النموذجية", "Palm Villas", "Wajha Events", "Event", "EVENT", "2023-02", "2023-02", 220, 230, 520, 330, 260, 16, 36,
+    "Open days at the show villa closed 16 villas in one month (0.6% cost to sales) — the best result of 2023.", "أغلقت الأيام المفتوحة في الفيلا النموذجية 16 فيلا في شهر واحد (0.6% من المبيعات) — أفضل نتيجة في 2023."],
+  ["PLM-BROKER-23", "Palm Villas — Broker network 2023", "فلل النخيل — شبكة الوسطاء 2023", "Palm Villas", "Mubasher Brokerage Network", "Broker network", "ALWAYS_ON", "2023-01", "2023-12", 900, 880, 980, 640, 470, 38, 84,
+    "Brokers sold most villas at about 1.0% cost to sales.", "باع الوسطاء معظم الفلل بنسبة تقارب 1.0% من المبيعات."],
+  ["PLM-RAMADAN-23", "Palm Villas — Ramadan 2023", "فلل النخيل — رمضان 2023", "Palm Villas", "Najm Media", "Google / Meta", "RAMADAN", "2023-03", "2023-04", 240, 240, 2400, 380, 110, 5, 11,
+    "Ramadan without an offer: cheap leads, few contracts (2.2% cost to sales). The 2025 payment-plan offer fixed this.", "رمضان دون عرض: عملاء رخيصون وعقود قليلة (2.2% من المبيعات). عالج عرض خطة السداد في 2025 ذلك."],
+  ["PLM-PORTAL-23", "Palm Villas — Portal listings 2023", "فلل النخيل — إعلانات البوابات 2023", "Palm Villas", "PropertyHub KSA", "Portal", "ALWAYS_ON", "2023-01", "2023-12", 460, 450, 3800, 860, 300, 14, 30,
+    "Portals were steady at 1.5% cost to sales; villa listings with video tours got twice the enquiries.", "كانت البوابات ثابتة بنسبة 1.5% من المبيعات؛ وحصلت إعلانات الفلل المصحوبة بجولات فيديو على ضعف الاستفسارات."],
+  ["PLM-OOH-23", "Palm Villas — Highway billboards", "فلل النخيل — لوحات الطرق السريعة", "Palm Villas", "Hajar Outdoor", "OOH", "BRAND", "2023-04", "2023-06", 300, 300, 180, 50, 20, 2, 4.4,
+    "Highway billboards cost 6.8% of sales and could not be tracked.", "كلّفت لوحات الطرق السريعة 6.8% من المبيعات وتعذّر تتبعها."],
+  ["PLM-RETARGET-23", "Palm Villas — Retargeting 2023", "فلل النخيل — إعادة الاستهداف 2023", "Palm Villas", "Najm Media", "Google / Meta", "ALWAYS_ON", "2023-05", "2023-12", 110, 105, 800, 220, 90, 5, 10.5,
+    "Retargeting visitors of the villa pages was the cheapest digital source (1.0% cost to sales).", "كانت إعادة استهداف زوار صفحات الفلل أرخص مصدر رقمي (1.0% من المبيعات)."],
+  ["PLM-SUMMER-23", "Palm Villas — Summer 2023", "فلل النخيل — صيف 2023", "Palm Villas", "Najm Media", "Google / Meta", "SUMMER", "2023-07", "2023-08", 200, 200, 1900, 240, 60, 2, 4.6,
+    "Summer was weak already in 2023: 4.3% cost to sales.", "كان الصيف ضعيفاً منذ 2023: 4.3% من المبيعات."],
+  ["PLM-CREATOR-23", "Palm Villas — Family creators", "فلل النخيل — صنّاع محتوى عائليون", "Palm Villas", "Sada Influence", "Instagram / TikTok", "BRAND", "2023-10", "2023-11", 120, 120, 700, 120, 40, 2, 4.0,
+    "Family creators touring the villa built awareness (3.0% cost to sales); the tours were reused in ads.", "بنت جولات صنّاع المحتوى العائليين في الفيلا الوعي (3.0% من المبيعات)؛ وأُعيد استخدام الجولات في الإعلانات."],
+  ["BRAND-PR-23", "Corporate brand — Developer story", "العلامة المؤسسية — قصة المطوّر", "All projects", "Nakhla Communications", "PR", "BRAND", "2023-05", "2023-07", 180, 180, 300, 90, 40, 3, 6.5,
+    "The developer story in business media lifted trust ahead of Ash Shati; direct sales were small (2.8%).", "رفعت قصة المطوّر في الإعلام الاقتصادي الثقة قبل الشاطئ؛ وكانت المبيعات المباشرة محدودة (2.8%)."],
+  ["BRAND-RADIO-23", "Corporate brand — Radio 2023", "العلامة المؤسسية — الإذاعة 2023", "All projects", "Sawt FM", "Radio", "BRAND", "2023-09", "2023-10", 160, 160, 120, 30, 10, 1, 1.3,
+    "Brand radio did not pay back (12.3% cost to sales).", "لم تحقق إذاعة العلامة عائداً (12.3% من المبيعات)."],
+  ["CITYSCAPE-23", "Cityscape Global 2023 (Riyadh)", "سيتي سكيب جلوبال 2023 (الرياض)", "All projects", "Wajha Events", "Event", "EVENT", "2023-09", "2023-09", 450, 470, 1300, 520, 260, 12, 30,
+    "Riyadh buyers and investors: the stand cost more per contract than Jeddah events (1.6%) but opened the investor segment.", "مشترو الرياض والمستثمرون: كلّف الجناح أكثر لكل عقد من فعاليات جدة (1.6%) لكنه فتح شريحة المستثمرين."],
+  // ---- 2024 additions
+  ["PLM-CLOSEOUT-24", "Palm Villas — Last villas close-out", "فلل النخيل — بيع آخر الفلل", "Palm Villas", "Mubasher Brokerage Network", "Broker network", "ALWAYS_ON", "2024-01", "2024-04", 260, 250, 300, 210, 160, 11, 25,
+    "The last 11 villas sold through brokers with a price lock; the project sold out in April 2024.", "بيعت آخر 11 فيلا عبر الوسطاء مع تثبيت السعر؛ واكتمل بيع المشروع في أبريل 2024."],
+  ["ASH-RETARGET-24", "Ash Shati — Retargeting 2024", "الشاطئ — إعادة الاستهداف 2024", "Ash Shati Residences", "Tasweeq Digital", "Google / Meta", "ALWAYS_ON", "2024-05", "2024-12", 120, 115, 850, 230, 95, 6, 9.2,
+    "Retargeting kept converting at 1.3% cost to sales.", "واصلت إعادة الاستهداف التحويل بنسبة 1.3% من المبيعات."],
+  ["MAR-PRESALE-24", "Marina Tower — VIP pre-sale evening", "برج المارينا — أمسية البيع المسبق لكبار العملاء", "Marina Tower", "Wajha Events", "Event", "LAUNCH", "2024-10", "2024-10", 160, 170, 220, 150, 110, 8, 22,
+    "An invitation-only evening for past buyers and brokers sold 8 units at 0.8% cost to sales.", "باعت أمسية بالدعوة لمشترين سابقين ووسطاء 8 وحدات بنسبة 0.8% من المبيعات."],
+  ["CITYSCAPE-24", "Cityscape Global 2024 (Riyadh)", "سيتي سكيب جلوبال 2024 (الرياض)", "All projects", "Wajha Events", "Event", "EVENT", "2024-11", "2024-11", 520, 540, 1500, 640, 330, 16, 48,
+    "Cityscape 2024 brought Riyadh investors to Marina Tower: 16 contracts at 1.1% cost to sales.", "جلب سيتي سكيب 2024 مستثمري الرياض إلى برج المارينا: 16 عقداً بنسبة 1.1% من المبيعات."],
+  // ---- 2025 additions
+  ["MAR-OOH-25", "Marina Tower — Corniche billboards 2025", "برج المارينا — لوحات الكورنيش 2025", "Marina Tower", "Hajar Outdoor", "OOH", "BRAND", "2025-03", "2025-05", 330, 330, 240, 55, 22, 2, 4.4,
+    "The second billboard flight repeated the first: 7.5% cost to sales — the basis of the 2026 exit decision.", "كرّرت الحملة الثانية للوحات نتيجة الأولى: 7.5% من المبيعات — وهو أساس قرار الخروج في 2026."],
+  ["MAR-CREATOR-25", "Marina Tower — Lifestyle creators", "برج المارينا — صنّاع محتوى أسلوب الحياة", "Marina Tower", "Sada Influence", "Instagram / TikTok", "BRAND", "2025-04", "2025-06", 130, 130, 800, 140, 50, 2, 5.2,
+    "Creators worked better for the tower's large units (2.5%) than for Ash Shati, but still behind brokers.", "نجح صنّاع المحتوى مع وحدات البرج الكبيرة (2.5%) أكثر من الشاطئ، لكنهم بقوا خلف الوسطاء."],
+  ["MAR-BROKER-25H2", "Marina Tower — Broker network H2 2025", "برج المارينا — شبكة الوسطاء النصف الثاني 2025", "Marina Tower", "Mubasher Brokerage Network", "Broker network", "ALWAYS_ON", "2025-07", "2025-12", 600, 590, 480, 330, 250, 15, 47,
+    "Brokers kept the tower selling through the summer at 1.3% cost to sales.", "أبقى الوسطاء مبيعات البرج مستمرة خلال الصيف بنسبة 1.3% من المبيعات."],
+  ["CITYSCAPE-25", "Cityscape Global 2025 (Riyadh)", "سيتي سكيب جلوبال 2025 (الرياض)", "All projects", "Wajha Events", "Event", "EVENT", "2025-11", "2025-11", 560, 580, 1700, 700, 360, 17, 52,
+    "Cityscape 2025: 17 contracts at 1.1%; investors asked for rental guarantees.", "سيتي سكيب 2025: 17 عقداً بنسبة 1.1%؛ وطلب المستثمرون ضمانات إيجار."],
+  ["AND-BROKER-25", "Andalus — Broker pre-sales", "الأندلس — البيع المسبق عبر الوسطاء", "Andalus Quarter", "Mubasher Brokerage Network", "Broker network", "LAUNCH", "2025-11", "2025-12", 180, 170, 210, 140, 90, 4, 3.6,
+    "Even brokers struggled to pre-sell Andalus before show units existed (4.7% cost to sales).", "واجه حتى الوسطاء صعوبة في البيع المسبق للأندلس قبل وجود وحدات نموذجية (4.7% من المبيعات)."],
   ["ASH-PRELAUNCH-24", "Ash Shati — Pre-launch register interest", "الشاطئ — التسجيل المسبق للاهتمام", "Ash Shati Residences", "Tasweeq Digital", "Google / Meta", "LAUNCH", "2024-01", "2024-03", 450, 420, 3900, 820, 260, 18, 27,
     "Pre-launch digital built the waiting list cheaply; most contracts came after the launch event.", "بنى الإعلان الرقمي قبل الإطلاق قائمة الانتظار بتكلفة منخفضة؛ وجاءت أغلب العقود بعد فعالية الإطلاق."],
   ["ASH-LAUNCH-EVENT-24", "Ash Shati — Launch event", "الشاطئ — فعالية الإطلاق", "Ash Shati Residences", "Wajha Events", "Event", "EVENT", "2024-03", "2024-03", 300, 310, 640, 380, 240, 22, 33,
@@ -87,8 +132,9 @@ function spread(s: Seed) {
 }
 
 export const ensureHistory = single(async function ensureHistoryImpl() {
-  if ((await prisma.pastCampaign.count()) > 0) return;
-  for (const s of SEED)
+  // Adds any sample campaign not stored yet (so an existing database picks up newly added history too).
+  const have = new Set((await prisma.pastCampaign.findMany()).map((r) => r.code));
+  for (const s of SEED.filter((x) => !have.has(x[0])))
     await prisma.pastCampaign.create({ data: {
       code: s[0], name: s[1], nameAr: s[2], project: s[3], vendor: s[4], channel: s[5], season: s[6], startMonth: s[7], endMonth: s[8],
       budgetK: s[9], spendK: s[10], leads: s[11], qualified: s[12], viewings: s[13], contracts: s[14], salesM: s[15], months: JSON.stringify(spread(s)), lesson: s[16], lessonAr: s[17],

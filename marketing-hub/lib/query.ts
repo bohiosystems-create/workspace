@@ -4,15 +4,17 @@
 import type { Agent } from "./agent";
 import type { HistoryState } from "./history";
 import type { DailyState } from "./daily";
+import type { LeadRow } from "./audience";
+import type { Creative } from "./creatives";
 import { familyOf, FAMILY_LABEL, kpis } from "./history";
 import { type Lang, nm, NAMES_AR, tx } from "./i18n";
 
-export type QueryCtx = { agent: Agent; history: HistoryState; daily: DailyState; lang: Lang; meta: any | null };
+export type QueryCtx = { agent: Agent; history: HistoryState; daily: DailyState; lang: Lang; meta: any | null; leads?: LeadRow[]; creatives?: Creative[] };
 const r1 = (x: number) => Math.round(x * 10) / 10;
 const norm = (s: string) => s.toLowerCase().replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[^\p{L}\p{N}\s-]/gu, " ").replace(/\s+/g, " ").trim();
 const words = (s: string) => norm(s).split(" ").filter((w) => w.length >= 3);
 const STOP = new Set(["the", "and", "for", "how", "what", "with", "campaign", "campaigns", "doing", "about", "show", "tell", "did", "does", "our", "was", "were", "this", "that", "from", "last", "year", "month", "حمله", "حملات", "الحمله", "الحملات", "كيف", "ماذا", "عن", "هل", "في", "من", "على", "اداء", "أداء"]);
-const key = (s: string) => words(s).filter((w) => !STOP.has(w));
+const key = (s: string) => [...new Set(words(s).filter((w) => !STOP.has(w)))];
 
 // ----------------------------------------------------------------- entities
 export type Entity =
@@ -26,6 +28,8 @@ const PROJECT_ALIASES: Record<string, string[]> = {
   "Ash Shati Residences": ["ash shati", "shati", "الشاطئ", "الشاطي", "شاطئ"],
   "Marina Tower": ["marina", "المارينا", "مارينا", "برج المارينا"],
   "Andalus Quarter": ["andalus", "الأندلس", "الاندلس", "اندلس"],
+  "Palm Villas": ["palm villas", "palm", "فلل النخيل", "النخيل"],
+  "All projects": ["cityscape", "corporate brand", "سيتي سكيب", "العلامة المؤسسية"],
 };
 const CHANNEL_ALIASES: Record<string, string[]> = {
   DIGITAL: ["digital", "google", "search", "social", "meta", "snap", "online", "رقمي", "الرقمي", "جوجل", "سناب", "التواصل"],
@@ -73,7 +77,7 @@ const MONTHS: [string, string[]][] = [
 /** Months (YYYY-MM) a question refers to, or a year. Defaults to 2026 for live data. */
 export function parsePeriod(text: string, latestMonth: string): { months: string[]; label: string } | null {
   const q = norm(text);
-  const year = q.match(/\b(2024|2025|2026)\b/)?.[1];
+  const year = q.match(/\b(2023|2024|2025|2026)\b/)?.[1];
   const q1 = q.match(/\bq([1-4])\b/)?.[1];
   if (q1) { const y = year ?? latestMonth.slice(0, 4); const s = (Number(q1) - 1) * 3; return { months: [1, 2, 3].map((i) => `${y}-${String(s + i).padStart(2, "0")}`), label: `Q${q1} ${y}` }; }
   for (const [mm, names] of MONTHS) if (names.some((n) => new RegExp(`(^|\\s)${norm(n)}(\\s|$)`).test(q))) { const y = year ?? latestMonth.slice(0, 4); return { months: [`${y}-${mm}`], label: `${y}-${mm}` }; }
@@ -140,7 +144,7 @@ export function channelSummary(c: QueryCtx, family: string) {
   const hist = c.history.byFamily.find((x) => x.key === family);
   return { channel: tx(c.lang, ...(FAMILY_LABEL[family] ?? [family, family])), live: { campaigns: live.length, ...kpis(sum), list: live.map((x) => ({ name: x.name, vendor: x.vendor, costToSalesPct: x.costToSalesPct })) }, history: hist ?? null, seasons: c.history.rows.filter((r) => r.family === family).map((r) => ({ name: r.name, season: r.seasonLabel, costToSalesPct: r.costToSalesPct })) };
 }
-/** Totals for months (live 2026 data from campaigns; 2024–2025 from the history), grouped. */
+/** Totals for months (live 2026 data from campaigns; 2023–2025 from the history), grouped. */
 export function periodSummary(c: QueryCtx, months: string[], groupBy: "vendor" | "project" | "channel" | "campaign" = "vendor") {
   const rows: { group: string; spendK: number; qualified: number; contracts: number; salesM: number; leads: number }[] = [];
   const add = (g: string, x: { spendK: number; qualified: number; contracts: number; salesM: number; leads?: number }) => {

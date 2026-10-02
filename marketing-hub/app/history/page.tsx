@@ -28,7 +28,7 @@ export default function HistoryPage() {
     <div className="shell">
       <Header />
       <div className="section-title">{t("Campaign history")}</div>
-      <p className="intro">{t("Every campaign you ran in 2024 and 2025 — spend, leads, contracts and sales — with what each one taught us. The director uses this history as the benchmark for today's campaigns and for the daily recommendations.")}</p>
+      <p className="intro">{t("Every campaign you ran from 2023 to 2025 — spend, leads, contracts and sales — with what each one taught us. The director uses this history as the benchmark for today's campaigns and for the daily recommendations.")}</p>
       {error && <div className="err">{error}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
       {data && (
@@ -86,7 +86,7 @@ export default function HistoryPage() {
                 </Fragment>
               ))}</tbody>
             </table>
-            <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Sample history (2024–2025). Click a campaign for its lesson and monthly figures.")}</div>
+            <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Sample history (2023–2025). Click a campaign for its lesson and monthly figures.")}</div>
           </div>
         </>
       )}

@@ -110,8 +110,8 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
         <li>Ideas from a brief (or none): grounded in the target gap, season, history lessons, today's checks and available vendors</li>
         <li>Channel mix, vendors, forecast ranges computed from the history, guardrails and measurement</li>
         <li>With AI: two models propose, Claude ranks against the data; approving drafts a vendor brief</li></ul></div>
-      <div class="cap"><div class="n">History</div><h3>2024–2025 campaigns</h3><ul>
-        <li>22 past campaigns: launches, Ramadan, summer, always-on, events, brand, radio, billboards</li>
+      <div class="cap"><div class="n">History</div><h3>2023–2025 campaigns</h3><ul>
+        <li>43 past campaigns (2023–2025): launches, Ramadan, summer, always-on, events and Cityscape, brand, radio, billboards — including Palm Villas, sold out in 2024</li>
         <li>Benchmarks by channel, season, year, project and vendor; a lesson per campaign</li>
         <li>The yardstick for the daily check and the assistant</li></ul></div>
       <div class="cap"><div class="n">Orchestration</div><h3>Runs the vendors</h3><ul>
@@ -147,7 +147,7 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
       <div class="cap"><div class="n">Assistant</div><h3>Ask in English or Arabic</h3><ul>
         <li>Answers on targets, the daily check, any campaign (live or past), vendors, projects, channels, any month, quarter or year, comparisons, history and lessons, metric definitions, tests, invoices, Meta</li>
         <li><b>Claude, OpenAI and Gemini</b> built in, with a task router (best provider per task, automatic fallback) and 14 read-only data tools</li>
-        <li>Without a key: built-in answers, checked by a 98-question English/Arabic test</li>
+        <li>Without a key: built-in answers, checked by a 131-question English/Arabic test</li>
         <li>Testable in the Claude app: Claude answers through your own account, no key</li>
         <li>Drafts vendor emails in the vendor's language, sent only after approval</li></ul></div>
       <div class="cap"><div class="n">Kinan</div><h3>CRM: Yardi + Kinan's AI agent</h3><ul>
@@ -248,7 +248,7 @@ const STORY = [
     "Click an earlier day chip to see that morning's check",
     "Point at <b>AI second opinion</b> (needs an Anthropic or OpenAI key; not in the demo file)"]],
   ["Campaign history", "2 min", [
-    "<b>History</b>: <span class='expect'>22 past campaigns, SAR 8.2M spend, SAR 555.7M sales, 1.5% cost to sales</span>",
+    "<b>History</b>: <span class='expect'>43 past campaigns, SAR 14.8M spend, SAR 1,014.4M sales, 1.5% cost to sales</span>",
     "Lessons: brokers and events convert best; Ramadan payment-plan offer worked; summer weakest; radio and billboards most expensive",
     "Switch benchmark tabs and expand a campaign to show its lesson"]],
   ["Daily report: baseline", "1 min", [
@@ -283,15 +283,22 @@ const STORY = [
     "<b>Bench &amp; Trials</b>: Wasel Performance won its trial against Tasweeq Digital"]],
   ["Ideate a campaign", "4 min", [
     "<b>Ideas</b> → <b>Generate ideas</b> with the brief empty: <span class='expect'>Andalus Quarter · September 2026 · After summer · Close sales · SAR 150K</span>",
-    "Three ideas: <span class='expect'>broker &amp; site-visit sprint (6–11 contracts, SAR 4.7–8.7M, ~2.2%) · open-house mini-expo · payment-plan offer (digital capped at 20%)</span>",
-    "Say: forecasts come from the 2024–2025 history, adjusted for project and season — not invented by the AI",
-    "Brief <b>Marina Tower, Feb 2027 (Ramadan), 300</b> → payment-plan offer leads at <span class='expect'>~1.3% cost to sales</span>",
+    "Three ideas: <span class='expect'>broker &amp; site-visit sprint (5–10 contracts, SAR 4.6–8.6M, ~2.3%) · open-house mini-expo · payment-plan offer (digital capped at 20%)</span>",
+    "Say: forecasts come from the 2023–2025 history, adjusted for project and season — not invented by the AI",
+    "Brief <b>Marina Tower, Feb 2027 (Ramadan), 300</b> → payment-plan offer leads at <span class='expect'>~1.4% cost to sales</span>",
     "<b>Shortlist</b> one; <b>Approve &amp; draft vendor brief</b> another → draft opens in the assistant in the vendor's language; don't send",
     "Say: with keys, Gemini and OpenAI propose ideas and Claude ranks them; in the Claude app edition Claude does both",
     "If asked: Claude, OpenAI and Gemini are built in; each task goes to the best one, with fallback — in the background, no screen"]],
   ["Ask the assistant", "3 min", [
     "Four or five questions from the bank, e.g. \"What changed since yesterday?\", \"How did Ramadan campaigns perform?\", \"Compare 2024 and 2025\", \"How much did we spend in March by project?\"",
     "\"Draft an email to Tasweeq Digital\" → pick an item → show the approval controls; don't send"]],
+  ["Ask about buyers, ads and the market (optional)", "3 min", [
+    "\"Investors or end users — who converts better?\" → <span class='expect'>investors ~27% qualified, first-time buyers ~16%</span>",
+    "\"Why do we lose leads?\" → <span class='expect'>Not a buyer 26%, No response 16%</span>",
+    "\"Which creatives work best?\" → show-unit tours, search and payment-plan ads; lifestyle stories cheap but 11% qualified",
+    "\"How is the property market in Jeddah?\" → <span class='expect'>Jeddah South −1% prices, −4.8% sales, 61% off-plan</span> (why Andalus lags)",
+    "\"Who competes with Marina Tower?\" → Mirsa Towers, 6% guaranteed yield",
+    "Say: profiles, creatives, market and competitors are sample data shaped like the real sources"]],
   ["Arabic", "2 min", [
     "Click <b>العربية</b>: the whole app flips right to left",
     "Ask \"ما موجز اليوم؟\" or \"ما الجديد منذ الأمس؟\", open <b>Daily check</b>, then view the Arabic report on <b>Reports</b>"]],
@@ -299,7 +306,7 @@ const STORY = [
     "Walk through the integration status on the Capabilities tab",
     "Ask the questions for Kinan at the bottom of this checklist"]],
 ];
-const QS = [["What's today's brief?"],["What needs my approval?"],["What should I change in the campaigns?"],["What do vendors owe us?"],["What's the budget plan for June?"],["When is my daily report?"],["Which vendor converts best?"],["Should we renew Hajar Outdoor?"],["Do vendor numbers match the CRM?"],["Any invoice problems?"],["Which contracts are ending?"],["What did we send to Kinan?"],["How is Ash Shati Broker Push doing?"],["What did the holdout test show?"],["Draft an email to Tasweeq Digital"],["Which agency runs each Meta campaign?"],["Who created the Andalus retargeting campaign on Meta?"],["What changed since yesterday?"],["How is ASH-SEARCH-26 doing?"],["Compare Tasweeq Digital and Hajar Outdoor"],["Brokers vs influencers"],["How much did we spend in March by project?"],["Sales in Q1 2025 by project"],["Compare 2024 and 2025"],["What did we learn from past campaigns?"],["How did Ramadan campaigns perform?"],["Worst past campaigns"],["Tell me about MAR-RAMADAN-25"],["How is Andalus Quarter doing?"],["What is cost to sales?"],["ما موجز اليوم؟","rtl"],["ما الذي ينتظر اعتمادي؟","rtl"],["ماذا أغيّر في الحملات؟","rtl"],["ما الذي يدين به الموردون لنا؟","rtl"],["هل نجدد عقد هجر للإعلانات الخارجية؟","rtl"],["متى يصلني التقرير اليومي؟","rtl"],["أي مورد يحقق أفضل تحويل؟","rtl"],["أي وكالة تدير كل حملة على ميتا؟","rtl"],["ما الجديد منذ الأمس؟","rtl"],["كيف كان أداء حملات رمضان؟","rtl"],["قارن 2024 و 2025","rtl"],["ما الدروس من الحملات السابقة؟","rtl"],["Give me campaign ideas for Marina Tower in Ramadan with SAR 300K"],["Brainstorm a new campaign for Andalus"],["اقترح حملة جديدة للأندلس في نوفمبر","rtl"]];
+const QS = [["What's today's brief?"],["What needs my approval?"],["What should I change in the campaigns?"],["What do vendors owe us?"],["What's the budget plan for June?"],["When is my daily report?"],["Which vendor converts best?"],["Should we renew Hajar Outdoor?"],["Do vendor numbers match the CRM?"],["Any invoice problems?"],["Which contracts are ending?"],["What did we send to Kinan?"],["How is Ash Shati Broker Push doing?"],["What did the holdout test show?"],["Draft an email to Tasweeq Digital"],["Which agency runs each Meta campaign?"],["Who created the Andalus retargeting campaign on Meta?"],["What changed since yesterday?"],["How is ASH-SEARCH-26 doing?"],["Compare Tasweeq Digital and Hajar Outdoor"],["Brokers vs influencers"],["How much did we spend in March by project?"],["Sales in Q1 2025 by project"],["Compare 2024 and 2025"],["What did we learn from past campaigns?"],["How did Ramadan campaigns perform?"],["Worst past campaigns"],["Tell me about MAR-RAMADAN-25"],["How is Andalus Quarter doing?"],["What is cost to sales?"],["ما موجز اليوم؟","rtl"],["ما الذي ينتظر اعتمادي؟","rtl"],["ماذا أغيّر في الحملات؟","rtl"],["ما الذي يدين به الموردون لنا؟","rtl"],["هل نجدد عقد هجر للإعلانات الخارجية؟","rtl"],["متى يصلني التقرير اليومي؟","rtl"],["أي مورد يحقق أفضل تحويل؟","rtl"],["أي وكالة تدير كل حملة على ميتا؟","rtl"],["ما الجديد منذ الأمس؟","rtl"],["كيف كان أداء حملات رمضان؟","rtl"],["قارن 2024 و 2025","rtl"],["ما الدروس من الحملات السابقة؟","rtl"],["Give me campaign ideas for Marina Tower in Ramadan with SAR 300K"],["Brainstorm a new campaign for Andalus"],["اقترح حملة جديدة للأندلس في نوفمبر","rtl"],["Investors or end users — who converts better?"],["Why do we lose leads?"],["Which creatives work best?"],["How is the property market in Jeddah?"],["Who competes with Marina Tower?"],["لماذا نخسر العملاء؟","rtl"],["كيف السوق العقاري في جدة؟","rtl"]];
 
 const KEY = "director-demo-kit";
 let state = {};

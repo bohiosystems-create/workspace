@@ -53,7 +53,7 @@ export const NAMES_AR: Record<string, string> = {
   "Layla Nasser": "ليلى ناصر", "Omar Zahrani": "عمر الزهراني", "Khalid Otaibi": "خالد العتيبي",
   "Rania Habib": "رانيا حبيب", "Faisal Qahtani": "فيصل القحطاني", "Noor Bakri": "نور بكري",
   // assets
-  "Ash Shati Residences": "مساكن الشاطئ", "Andalus Quarter": "حي الأندلس", "Marina Tower": "برج المارينا",
+  "Ash Shati Residences": "مساكن الشاطئ", "Andalus Quarter": "حي الأندلس", "Marina Tower": "برج المارينا", "Palm Villas": "فلل النخيل", "All projects": "جميع المشاريع",
   "Ash Shati": "الشاطئ", "Andalus": "الأندلس",
   // campaign descriptors
   "Search & Social Always-On": "البحث والتواصل الاجتماعي المستمر",

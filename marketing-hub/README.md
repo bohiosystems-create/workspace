@@ -96,11 +96,19 @@ Every AI job names a **task**, and the router sends it to the best provider for 
 ## Campaign ideas (`/ideas`)
 
 Describe a brief (project, month, budget, goal, audience, anything else — or leave it empty) and the director proposes campaign ideas grounded in the data (`lib/ideation.ts`):
-- **Context:** the project's gap to target, the season of the month (Ramadan, summer, Cityscape in November, after summer), channel benchmarks and lessons from the 2024–2025 history, today's daily-check flags for the project, and the vendors available (current, bench alternatives when exiting a vendor, past vendors for events and radio).
+- **Context:** the project's gap to target, the season of the month (Ramadan, summer, Cityscape in November, after summer), channel benchmarks and lessons from the 2023–2025 history, today's daily-check flags for the project, and the vendors available (current, bench alternatives when exiting a vendor, past vendors for events and radio).
 - **Ideas:** title, big idea, audience, offer, headline, channel mix with each channel's role and vendor. With AI, the `ideate` task runs on two different providers and the `judge` task scores them (1–10, why, one improvement) and keeps the best distinct three; without AI, season- and goal-aware built-in concepts (broker sprint, open-house expo, payment plan, summer list → September pre-sale, launch with proof).
 - **Computed, never invented:** forecasts (contracts and sales ranges, cost to sales) come from the history, adjusted for the project and season; a channel costing over 2× its benchmark for the project today is capped at 20%; guardrails (stop rule, budget in two halves), a campaign code and holdout for measurement, and the past campaigns it builds on.
 - **Decisions:** shortlist, approve or discard with a name. Approving drafts a campaign brief email to the lead vendor in its language — sent only after the manager approves it in the assistant.
 - The assistant answers "ideas for a Ramadan campaign for Marina Tower, SAR 300K" (built-in or AI, `ideate_campaigns` tool).
+
+## More data to ask about (sample)
+
+So the assistant can answer a wide range of questions, the demo carries four more data sets. All are sample data in the shape the real sources will provide, and the answers say so:
+- **Lead profiles** (`lib/audience.ts`): city, nationality, buyer type (end user, investor, first-time), budget band, unit type, age band, reason lost and first-response time for every CRM lead, with qualified and win rates per segment. Derived deterministically from each lead's CRM id (counts, stages and sales are the CRM's own); live, from Yardi's lead record.
+- **Creatives** (`lib/creatives.ts`): the ads inside each live campaign (format, message, language, spend, impressions, clicks, leads, qualified, cost per qualified lead, frequency and fatigue), adding up to each campaign's totals; live, from the ad platforms.
+- **Market and competitors** (`lib/market.ts`): price per sqm and monthly transactions for Jeddah North, Corniche and South and Riyadh North (2025-01 to 2026-05), off-plan share, mortgage rates, five fictional competitor developers with offers and Meta ad activity, and the marketing calendar; live, from REGA / Ministry of Justice, SAMA, portals and the Meta Ad Library.
+- Built-in answers and AI tools (`get_audience`, `get_creatives`, `get_market`, `get_competitors`, `get_calendar`) cover all four.
 
 ## Test it in the Claude app (claude.ai artifact)
 
@@ -117,7 +125,7 @@ Every morning the director checks each live campaign against its own trend and a
 
 ## Campaign history (`/history`)
 
-22 past campaigns (2024–2025, sample data in `lib/history.ts`): launches, Ramadan, summer, always-on, events, brand, radio and billboards, across the three projects and nine vendors, including three past vendors (Wajha Events, Sawt FM, Najm Media). Totals: SAR 8.2M spend, SAR 555.7M sales, 1.5% cost to sales.
+43 past campaigns (2023–2025, sample data in `lib/history.ts`): launches, Ramadan, summer, always-on, events and three Cityscape stands, brand, radio and billboards, across the three current projects, Palm Villas (sold out in 2024) and the corporate brand, including three past vendors (Wajha Events, Sawt FM, Najm Media). Totals: SAR 14.8M spend, SAR 1,014.4M sales, 1.5% cost to sales.
 - Benchmarks by channel, season, year, project and vendor; a lesson per campaign; overall lessons (brokers and events convert best; Ramadan with a payment-plan offer works; summer is the weakest season; radio and billboards are the most expensive per sale; a low qualified rate in month one predicts weak sales).
 - The daily check, the assistant and the AI tools all use it as the benchmark.
 
@@ -168,7 +176,7 @@ A chat assistant ("Ask" button, bottom-right of every page) answers questions ab
 
 - **With an AI key** (Claude, OpenAI or Gemini — task `chat`) the model answers anything from the data (`lib/chat-ai.ts`; `CHAT_WITH_AI=off` to disable). It gets a compact snapshot and 14 read-only tools (`lib/query.ts`, plus `ideate_campaigns`): look up any live or past campaign, vendor (current, bench or past), project or channel; totals for any month, quarter or year grouped by vendor, project, channel or campaign; the history and its benchmarks; today's daily check; side-by-side comparisons; invoices; Meta attribution; plus `show_recommendations` and `draft_email`. There is no tool to send or approve.
 - **Without a key** (and in the static demo) the built-in answers (`lib/chat.ts`, `lib/chat-extra.ts`) cover: today's brief, daily check and what changed since yesterday, campaign recommendations, approvals, any campaign (by name or code, with benchmark, today's items and similar past campaigns), vendors (current, bench, past), projects, channels, comparisons of 2–4 campaigns / vendors / projects / channels or years, any month / quarter / year, the history (seasons, years, lessons, best / worst, benchmarks), metric definitions, renewals, tests, trials, CRM verification, Meta, invoices, contracts, the plan, reports, orchestration and Kinan — in English and Arabic.
-- `npm run chat:eval` asks 92 English and Arabic questions and checks each answer (currently 92/92).
+- `npm run chat:eval` asks 131 English and Arabic questions and checks each answer (currently 131/131).
 
 ### Recommendations and emails
 

@@ -56,7 +56,7 @@ const CASES: [string, string[]][] = [
   ["How much did Hajar Outdoor spend in February?", ["Hajar", "2026-02"]],
   ["Spend year to date", ["2026 YTD"]],
   // History
-  ["What did we learn from past campaigns?", ["What the 2024–2025 campaigns taught us"]],
+  ["What did we learn from past campaigns?", ["What the 2023–2025 campaigns taught us"]],
   ["How did Ramadan campaigns perform?", ["Ramadan", "Campaign history"]],
   ["How did summer campaigns do?", ["Summer"]],
   ["Worst past campaigns", ["Least efficient"]],
@@ -69,7 +69,7 @@ const CASES: [string, string[]][] = [
   ["Previous radio campaigns", ["Radio"]],
   ["What happened in 2024 campaigns history?", ["Campaign history", "2024"]],
   // Projects and channels
-  ["How is Andalus Quarter doing?", ["Andalus Quarter", "History 2024–2025"]],
+  ["How is Andalus Quarter doing?", ["Andalus Quarter", "History 2023–2025"]],
   ["How is Marina Tower performing?", ["Marina Tower"]],
   ["How are influencers performing?", ["Influencer", "Benchmark"]],
   ["How is outdoor doing?", ["Outdoor|Billboards", "Benchmark"]],
@@ -89,6 +89,37 @@ const CASES: [string, string[]][] = [
   ["Brainstorm a new campaign for Andalus", ["Campaign ideas", "Andalus Quarter", "Forecast"]],
   ["Ideas for a summer campaign for Ash Shati", ["July 2026", "priority list"]],
   ["Plan a campaign for the Cityscape season", ["November 2026", "open-house"]],
+
+  // Lead profiles (sample CRM fields)
+  ["Which cities do our leads come from?", ["City", "Jeddah", "Riyadh"]],
+  ["Investors or end users — who converts better?", ["Buyer type", "Investor"]],
+  ["Buyer types for Marina Tower", ["Buyer type — Marina Tower", "Investor"]],
+  ["What nationalities are the leads for Marina Tower?", ["Nationality", "GCC"]],
+  ["What budget range do buyers have for Andalus?", ["Budget", "Under SAR 1M"]],
+  ["Why do we lose leads?", ["Reason lost", "Not a buyer"]],
+  ["Lost reasons for Andalus Quarter", ["Reason lost — Andalus Quarter"]],
+  ["Age groups of the leads from influencers", ["Age", "25–34"]],
+  ["Unit types for Ash Shati", ["Unit type", "Townhouse"]],
+  ["Show me the audience profile", ["Buyer type", "City", "Nationality"]],
+  ["Does response time affect conversion?", ["First response"]],
+  // Creatives (sample, adds up to campaign totals)
+  ["Which creatives work best?", ["Creatives by message", "Payment plan"]],
+  ["Which ad format performs best for Ash Shati?", ["Creatives by format", "Video 15s"]],
+  ["Arabic or English ads?", ["Creatives by language", "Arabic"]],
+  ["Which ads are fatigued?", ["Fatigued"]],
+  ["Best ads for ASH-SEARCH-26", ["Creatives by creative", "Payment plan 10/90"]],
+  // Market, competitors, calendar (sample)
+  ["How is the property market in Jeddah?", ["Property market", "Jeddah South", "Mortgages"]],
+  ["Price per sqm around Andalus Quarter", ["Jeddah South", "off-plan"]],
+  ["What are competitors doing?", ["Competitors", "Sahil Living"]],
+  ["Who competes with Marina Tower?", ["Mirsa Developments"]],
+  ["When is Ramadan next year?", ["Marketing calendar", "Ramadan 2027"]],
+  ["Key dates in the marketing calendar", ["Cityscape"]],
+  // Expanded history
+  ["How did Palm Villas campaigns perform?", ["Campaign history", "Palm Villas"]],
+  ["Cityscape results in past years", ["Cityscape"]],
+  ["Compare 2023 and 2025", ["Year comparison", "2023", "2025"]],
+  ["Spend in 2023", ["2023", "spend"]],
 
   // Arabic
   ["ما موجز اليوم؟", ["توصيات الحملات"]],
@@ -118,6 +149,13 @@ const CASES: [string, string[]][] = [
   ["معيار الوسطاء في الحملات السابقة", ["تاريخ الحملات"]],
   ["اقترح حملة جديدة للأندلس في نوفمبر", ["أفكار الحملات", "نوفمبر 2026"]],
   ["أفكار لحملة رمضان لبرج المارينا", ["أفكار الحملات", "فبراير 2027"]],
+  ["من أين يأتي العملاء؟ حسب المدينة", ["المدينة", "جدة"]],
+  ["لماذا نخسر العملاء؟", ["سبب الخسارة"]],
+  ["أي الإعلانات الأفضل؟", ["الإعلانات حسب"]],
+  ["كيف السوق العقاري في جدة؟", ["السوق العقاري"]],
+  ["ماذا يفعل المنافسون؟", ["المنافسون"]],
+  ["متى رمضان القادم؟", ["التقويم التسويقي"]],
+  ["المستثمرون أم المستخدمون النهائيون؟", ["نوع المشتري"]],
 ];
 
 const FALLBACK = /I'm your AI director of marketing\. Ask me|أنا مدير التسويق الذكي\. اسألوني/;

@@ -60,7 +60,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 4. Campaign history (2 min)
 
-- [ ] Open **History**: **22 past campaigns** (2024–2025), SAR 8.2M spend, SAR 555.7M sales, **1.5% cost to sales**.
+- [ ] Open **History**: **43 past campaigns** (2023–2025, including Palm Villas, sold out in 2024, and three Cityscape stands), SAR 14.8M spend, SAR 1,014.4M sales, **1.5% cost to sales**.
 - [ ] Show the **lessons**: brokers and events convert best; Ramadan with a payment-plan offer worked; summer is the weakest season; radio and billboards cost the most per sale.
 - [ ] Switch the benchmark tabs (channel, season, year, project, vendor) and expand a campaign to show its lesson.
 - [ ] Say: *"This is the yardstick for every live campaign in the daily check, and the assistant can answer anything about it."*
@@ -117,11 +117,11 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Open **Ideas** and click **Generate ideas** with the brief empty. The director picks the project furthest behind target: **Andalus Quarter · September 2026 · After summer · Close sales · SAR 150K**.
 - [ ] Three ideas, each with a channel mix, vendors, forecast and guardrails:
-  1. **Broker & site-visit sprint**: 6–11 contracts, SAR 4.7–8.7M, about 2.2% cost to sales.
-  2. **Open-house mini-expo**: events converted best in the history (0.9%).
+  1. **Broker & site-visit sprint**: 5–10 contracts, SAR 4.6–8.6M, about 2.3% cost to sales.
+  2. **Open-house mini-expo**: events converted best in the history (1.0%).
   3. **Payment-plan offer**: digital is capped at 20% automatically, because it costs 6% of sales for Andalus today (benchmark 1.9%).
-- [ ] Say: *"The forecasts come from your 2024–2025 history, adjusted for this project and the season. They are not invented by the AI."* Open **Guardrails, measurement, evidence and risks** on one idea.
-- [ ] Change the brief to **Marina Tower, February 2027 (Ramadan), 300** and generate. The payment-plan offer leads (Ramadan 2025 lesson), at about 1.3% cost to sales.
+- [ ] Say: *"The forecasts come from your 2023–2025 history, adjusted for this project and the season. They are not invented by the AI."* Open **Guardrails, measurement, evidence and risks** on one idea.
+- [ ] Change the brief to **Marina Tower, February 2027 (Ramadan), 300** and generate. The payment-plan offer leads (Ramadan 2025 lesson), at about 1.4% cost to sales.
 - [ ] Click **Shortlist** on one idea, then **Approve & draft vendor brief** on another. The brief opens in the assistant as a draft to the lead vendor, in the vendor's language. Don't send it.
 - [ ] Say: *"With AI keys, two different models propose ideas (Gemini and OpenAI by default) and Claude ranks them against your data. In the Claude app edition, Claude does both through your own account."*
 - [ ] If asked about the AI set-up: Claude, OpenAI and Gemini are all built in. Each kind of work goes to the one best suited to it (data questions, analysis and Arabic email wording to Claude; ideas to Gemini plus a second model; bulk work to Gemini Flash), and the next one answers if one fails. This runs in the background; there is no screen for it.
@@ -131,6 +131,15 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] Use 4–5 questions from section D, for example *"What changed since yesterday?"*, *"How did Ramadan campaigns perform?"*, *"Compare 2024 and 2025"*, *"How much did we spend in March by project?"* and *"Should we renew Hajar Outdoor?"*
 - [ ] Say: *"With a Claude, OpenAI or Gemini key (or in the Claude app edition) it answers anything from this data, in its own words, and shows which model answered."*
 - [ ] *"Draft an email to Tasweeq Digital"*, then pick an item: the draft appears for approval. Don't send it; show the approval controls instead.
+
+### 12b. Ask about buyers, ads and the market (optional, 3 min)
+
+- [ ] *"Investors or end users — who converts better?"* Investors qualify best (about 27%), first-time buyers worst (about 16%).
+- [ ] *"Why do we lose leads?"* The top reason is "Not a buyer" (26%), then "No response" (16%), which is Kinan's follow-up.
+- [ ] *"Which creatives work best?"* Show-unit tours, location search and payment-plan ads cost the least per qualified lead; lifestyle stories are cheap per lead but only 11% qualify, and two are fatigued.
+- [ ] *"How is the property market in Jeddah?"* Jeddah South is the only district with falling prices and sales (–1% and –4.8% a year) and 61% off-plan supply. This is part of why Andalus is behind target.
+- [ ] *"Who competes with Marina Tower?"* Mirsa Towers offers a guaranteed 6% rental yield, and its Meta ads went from 0 to 15–16 a month since February.
+- [ ] Say: *"Lead profiles, creatives, market and competitor figures are sample data in the shape the real sources (Yardi, the ad platforms, REGA, the Meta Ad Library) will provide."*
 
 ### 13. Arabic (2 min)
 
@@ -143,7 +152,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Walk through the integration status table (section F) and the questions for Kinan (section G).
 
-## D. Question bank (all tested; `npm run chat:eval` checks 98 questions)
+## D. Question bank (all tested; `npm run chat:eval` checks 131 questions)
 
 **English**
 - What's today's brief?
@@ -183,6 +192,14 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - Give me campaign ideas for Marina Tower in Ramadan with SAR 300K
 - Brainstorm a new campaign for Andalus
 - Plan a campaign for the Cityscape season
+- Which cities do our leads come from?
+- Investors or end users — who converts better?
+- Why do we lose leads?
+- Which creatives work best? / Arabic or English ads?
+- How is the property market in Jeddah?
+- What are competitors doing? / Who competes with Marina Tower?
+- When is Ramadan next year?
+- How did Palm Villas campaigns perform? / Compare 2023 and 2025
 
 **العربية**
 - ما موجز اليوم؟
@@ -202,6 +219,10 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - ما معنى نسبة التكلفة إلى المبيعات؟
 - اقترح حملة جديدة للأندلس في نوفمبر
 - أفكار لحملة رمضان لبرج المارينا
+- لماذا نخسر العملاء؟
+- أي الإعلانات الأفضل؟
+- كيف السوق العقاري في جدة؟
+- ماذا يفعل المنافسون؟
 
 ## E. Pitfalls and recovery
 

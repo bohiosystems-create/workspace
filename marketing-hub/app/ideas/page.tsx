@@ -45,7 +45,7 @@ export default function IdeasPage() {
     <div className="shell">
       <Header />
       <div className="section-title">{t("Campaign ideas")}</div>
-      <p className="intro">{t("Describe what you need and the director proposes campaign ideas grounded in your data: the project's gap to target, the season, what worked and failed in the 2024–2025 campaigns, today's checks and the vendors available. Forecasts are computed from the campaign history, not by the AI. Approving an idea drafts a brief to the lead vendor for your approval.")}</p>
+      <p className="intro">{t("Describe what you need and the director proposes campaign ideas grounded in your data: the project's gap to target, the season, what worked and failed in the 2023–2025 campaigns, today's checks and the vendors available. Forecasts are computed from the campaign history, not by the AI. Approving an idea drafts a brief to the lead vendor for your approval.")}</p>
       {error && <div className="err">{error}</div>}
       {info && <div className="panel" style={{ marginBottom: 12 }}><div style={{ fontSize: 12.5 }}>{info}</div></div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}

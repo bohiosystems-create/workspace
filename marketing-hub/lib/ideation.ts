@@ -1,4 +1,4 @@
-// Campaign ideation — new campaign ideas grounded in the data: the project's gap to target, the season, the 2024–2025
+// Campaign ideation — new campaign ideas grounded in the data: the project's gap to target, the season, the 2023–2025
 // campaign history (benchmarks and lessons), today's daily check and the vendors available (current, bench, past).
 //
 // Two engines, one output shape:
@@ -185,10 +185,11 @@ export function finalize(c: IdeationContext, dft: Draft): Idea | null {
 function rulesDrafts(c: IdeationContext): Draft[] {
   const P = c.project, PA = nm("ar", P), mon = monthShort("en", c.month), monAr = monthShort("ar", c.month);
   const role = (en: string, ar: string) => bi(en, ar);
+  const bench = (f: string) => c.families.find((x) => x.family === f)?.benchCts ?? "—";
   const T: Record<string, Draft> = {
     BROKER_SPRINT: {
       title: bi(`${P}: broker & site-visit sprint`, `${PA}: دفعة الوسطاء وزيارات الموقع`),
-      bigIdea: bi(`Put brokers — the best-converting channel in the history (1.1% cost to sales) — at the centre for ${mon}: a time-boxed commission booster for reservations, weekend site visits every broker can book, and retargeting that sends online visitors to a visit slot.`, `جعل الوسطاء — أعلى القنوات تحويلاً في التاريخ (1.1% من المبيعات) — محور شهر ${monAr}: حافز عمولة محدد المدة على الحجوزات، وزيارات موقع في عطلات نهاية الأسبوع يحجزها أي وسيط، وإعادة استهداف توجّه زوار الإنترنت إلى موعد زيارة.`),
+      bigIdea: bi(`Put brokers — the best-converting channel in the history (${bench("BROKER")}% cost to sales) — at the centre for ${mon}: a time-boxed commission booster for reservations, weekend site visits every broker can book, and retargeting that sends online visitors to a visit slot.`, `جعل الوسطاء — أعلى القنوات تحويلاً في التاريخ (${bench("BROKER")}% من المبيعات) — محور شهر ${monAr}: حافز عمولة محدد المدة على الحجوزات، وزيارات موقع في عطلات نهاية الأسبوع يحجزها أي وسيط، وإعادة استهداف توجّه زوار الإنترنت إلى موعد زيارة.`),
       audience: bi("Ready-to-buy families and investors already talking to brokers; past site visitors who did not reserve.", "أسر ومستثمرون جاهزون للشراء يتعاملون مع الوسطاء؛ وزوار سابقون للموقع لم يحجزوا."),
       offer: bi("Reservation incentive valid for the campaign window only (e.g. registration fee covered).", "حافز حجز صالح خلال فترة الحملة فقط (مثل تحمّل رسوم التسجيل)."),
       headline: bi(`Visit ${P} this weekend — reserve before the month ends`, `زوروا ${PA} هذا الأسبوع — احجزوا قبل نهاية الشهر`),
@@ -207,7 +208,7 @@ function rulesDrafts(c: IdeationContext): Draft[] {
     },
     OPEN_HOUSE: {
       title: bi(`${P}: open-house mini-expo`, `${PA}: معرض مفتوح مصغّر`),
-      bigIdea: bi(`Events converted best of all channels in the history (0.9% cost to sales). Run a two-weekend mini-expo on site with the show unit, finance partners and creators who invite their followers to book a tour; portals push the dates.`, `كانت الفعاليات الأعلى تحويلاً بين القنوات في التاريخ (0.9% من المبيعات). معرض مصغّر لعطلتي نهاية أسبوع في الموقع مع الوحدة النموذجية وشركاء التمويل وصنّاع محتوى يدعون متابعيهم لحجز جولة؛ وتروّج البوابات للمواعيد.`),
+      bigIdea: bi(`Events converted best of all channels in the history (${bench("EVENT")}% cost to sales). Run a two-weekend mini-expo on site with the show unit, finance partners and creators who invite their followers to book a tour; portals push the dates.`, `كانت الفعاليات الأعلى تحويلاً بين القنوات في التاريخ (${bench("EVENT")}% من المبيعات). معرض مصغّر لعطلتي نهاية أسبوع في الموقع مع الوحدة النموذجية وشركاء التمويل وصنّاع محتوى يدعون متابعيهم لحجز جولة؛ وتروّج البوابات للمواعيد.`),
       audience: bi("Families who want to see the product before deciding; followers of local lifestyle creators.", "أسر تريد رؤية المنتج قبل القرار؛ ومتابعو صنّاع محتوى أسلوب الحياة المحليين."),
       offer: bi("Event-only price lock for reservations made at the expo.", "تثبيت سعر خاص بالفعالية للحجوزات أثناء المعرض."),
       headline: bi(`${P} open house — two weekends only`, `يوم مفتوح في ${PA} — عطلتا نهاية أسبوع فقط`),
@@ -247,7 +248,7 @@ function rulesDrafts(c: IdeationContext): Draft[] {
 // ------------------------------------------------------------------- AI ideas
 const IDEATE_SYSTEM = `You are a senior real-estate marketing strategist in Saudi Arabia, ideating campaigns for a developer's AI Director of Marketing. The marketing manager works alone and runs external vendors.
 
-Propose 3 DISTINCT campaign ideas for the brief in DATA. Ground every idea in the data: the project's gap to target, the season, the channel benchmarks and lessons from the 2024–2025 campaign history, today's flags, and the vendors available. Be specific and creative about the concept, offer and message; be realistic for the Saudi market (family decision-making, Ramadan, summer travel, Cityscape, payment plans, off-plan regulation).
+Propose 3 DISTINCT campaign ideas for the brief in DATA. Ground every idea in the data: the project's gap to target, the season, the channel benchmarks and lessons from the 2023–2025 campaign history, today's flags, and the vendors available. Be specific and creative about the concept, offer and message; be realistic for the Saudi market (family decision-making, Ramadan, summer travel, Cityscape, payment plans, off-plan regulation).
 
 Rules:
 - Channels only from: DIGITAL, PORTAL, BROKER, EVENT, INFLUENCER, PR, OUTDOOR, RADIO; sharePct are whole numbers summing to 100. Avoid channels the history shows as expensive unless the idea needs them, and explain why.
@@ -398,5 +399,5 @@ export async function ideasAnswer(brief: IdeaBrief, lang: Lang) {
     rows.map((x, i) => T(`${i + 1}. **${x.title}** — ${x.bigIdea}\n   Mix: ${x.channels.map((ch) => `${ch.label} ${ch.sharePct}%`).join(", ")}. Forecast: ${x.forecast.contracts[0]}–${x.forecast.contracts[2]} contracts, SAR ${x.forecast.salesM[0]}–${x.forecast.salesM[2]}M (~${x.forecast.costToSalesPct}% cost to sales).`,
       `${i + 1}. **${x.title}** — ${x.bigIdea}\n   المزيج: ${x.channels.map((ch) => `${ch.label} ${ch.sharePct}%`).join("، ")}. التوقع: ${x.forecast.contracts[0]}–${x.forecast.contracts[2]} عقود، ${M("ar", `${x.forecast.salesM[0]}–${x.forecast.salesM[2]}`)} (نحو ${x.forecast.costToSalesPct}% من المبيعات).`)).join("\n") +
     (g.note ? `\n\n${g.note}` : "") +
-    T(`\n\nForecasts come from the 2024–2025 history${g.engine === "rules" ? "; ideas from the built-in rules" : ` (ideas by ${g.engine})`}. Shortlist or approve them on the **Ideas** page — approving drafts a brief to the lead vendor for your approval.`, `\n\nالتوقعات من تاريخ 2024–2025${g.engine === "rules" ? "؛ والأفكار من القواعد المدمجة" : ` (الأفكار من ${g.engine})`}. أدرجوها في القائمة المختصرة أو اعتمدوها من صفحة **الأفكار** — يُعِدّ الاعتماد موجزاً للمورد الرئيسي لتعتمدوه.`);
+    T(`\n\nForecasts come from the 2023–2025 history${g.engine === "rules" ? "; ideas from the built-in rules" : ` (ideas by ${g.engine})`}. Shortlist or approve them on the **Ideas** page — approving drafts a brief to the lead vendor for your approval.`, `\n\nالتوقعات من تاريخ 2023–2025${g.engine === "rules" ? "؛ والأفكار من القواعد المدمجة" : ` (الأفكار من ${g.engine})`}. أدرجوها في القائمة المختصرة أو اعتمدوها من صفحة **الأفكار** — يُعِدّ الاعتماد موجزاً للمورد الرئيسي لتعتمدوه.`);
 }

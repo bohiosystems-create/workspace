@@ -28,14 +28,14 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 ## 1c. Campaign ideas
 
 - Ask for ideas with a brief (project, month, budget, goal, audience, notes — or nothing) on the Ideas page or in the chat ("ideas for a Ramadan campaign for Marina Tower, SAR 300K").
-- Ideas are grounded in the data: the project's gap to target, the season (Ramadan, summer, Cityscape, after summer), what worked and failed in the 2024–2025 campaigns, today's checks, and which vendors are available (current, bench alternatives, past vendors).
+- Ideas are grounded in the data: the project's gap to target, the season (Ramadan, summer, Cityscape, after summer), what worked and failed in the 2023–2025 campaigns, today's checks, and which vendors are available (current, bench alternatives, past vendors).
 - Each idea has a big idea, audience, offer, headline, channel mix with roles and vendors, a forecast range (contracts, sales, cost to sales) computed from the history, guardrails (stop rule, budget in two halves), a campaign code and holdout for measurement, and the past campaigns it builds on. A channel that is underperforming for the project today is capped automatically.
 - With AI, two different models propose ideas and a third step ranks them against the data (score, why, one improvement); without AI, built-in concepts for each season and goal.
 - Shortlist, approve or discard with a name. Approving drafts a campaign brief to the lead vendor in its language; it is sent only after the manager approves it.
 
-## 1b. Campaign history — 2024–2025
+## 1b. Campaign history — 2023–2025
 
-- 22 past campaigns (sample data): launches, Ramadan, summer, always-on, events, brand, radio and billboards, across the three projects and nine vendors, including three vendors no longer used. SAR 8.2M spend, SAR 555.7M sales, 1.5% cost to sales.
+- 43 past campaigns (sample data, 2023–2025): launches, Ramadan, summer, always-on, events and Cityscape, brand, radio and billboards, across the three current projects, Palm Villas (sold out in 2024) and the corporate brand, including three vendors no longer used. SAR 14.8M spend, SAR 1,014.4M sales, 1.5% cost to sales.
 - Benchmarks by channel, season, year, project and vendor; a lesson per campaign and overall lessons (brokers and events convert best; Ramadan with a payment-plan offer works; summer is weakest; radio and billboards cost the most per sale; a low qualified rate in month one predicts weak sales).
 - Used as the yardstick by the daily check and the assistant.
 
@@ -98,9 +98,16 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 - Ask about targets, the plan, today's check and what changed since yesterday, any campaign (live or past, by name or code), any vendor (current, alternative or past), projects, channels, any month, quarter or year, comparisons, the campaign history and its lessons, metric definitions, tests, trials, invoices, Meta, what vendors owe, the daily report — in **English or Arabic**.
 - **Three AI providers built in: Claude (Anthropic), OpenAI and Google Gemini**, with a task router: each kind of work goes to the provider best suited to it (data questions, analysis and Arabic drafting to Claude first; campaign ideation to Gemini plus a second model; long or bulk work to Gemini Flash), and the next provider answers if one fails. With any key, the assistant answers free-form questions using 14 read-only data tools plus campaign ideation. Each answer shows which model wrote it.
-- **Without a key** (and in the demo file), built-in answers cover a wide range of questions, including campaign ideas; a 98-question English/Arabic test checks them.
+- **Without a key** (and in the demo file), built-in answers cover a wide range of questions, including campaign ideas; a 131-question English/Arabic test checks them.
 - **Test it in the Claude app:** the demo can be opened as a claude.ai artifact, where the assistant, the daily second opinion and ideation run on Claude through the viewer's own Claude account, with no API key.
 - Shows recommendations as cards and **drafts vendor emails** for approval. The AI can only read and draft — never send, approve or spend.
+
+## 10b. Buyers, ads and the market (sample data)
+
+- **Who the campaigns bring:** leads by city, nationality, buyer type, budget, unit type and age, with qualified and win rates per segment; why leads are lost; how response time relates to conversion.
+- **Which ads work:** each campaign's creatives by message, format and language, with cost per qualified lead and fatigue warnings.
+- **The market:** prices and sales per Jeddah district (and Riyadh), off-plan supply, mortgage rates; competitor developers' offers and ad activity; the marketing calendar.
+- Available in the assistant now, as sample data shaped like the real sources (Yardi, the ad platforms, REGA / Ministry of Justice, the Meta Ad Library).
 
 ## 11. Vendor emails through Outlook
 
