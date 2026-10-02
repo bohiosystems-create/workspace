@@ -6,7 +6,8 @@ import { reportsState } from "./reports";
 import { metaState, metaMode } from "./meta";
 import { historyState } from "./history";
 import { dailyState } from "./daily";
-import { type QueryCtx } from "./query";
+import { type QueryCtx, resolve } from "./query";
+import { extraEarly, extraLate, campaignExtras } from "./chat-extra";
 import { kinanOutbox, kinanMode } from "./kinan";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firstSentence } from "./i18n";
 
@@ -123,7 +124,7 @@ export async function draftForRec(c: ChatContext, id: string, polish?: Polish, d
 const STOP = new Set(["the", "and", "for", "of", "a", "to", "in", "on", "is", "are", "what", "how", "about", "tell", "me", "show", "my", "our", "with", "campaign", "campaigns", "حملة", "حملات", "في", "من", "على", "عن", "إلى", "ما", "هل", "كيف", "لي", "هو", "هي"]);
 const tokens = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF ]/g, " ").split(/\s+/).filter((t) => t.length > 2 && !STOP.has(t));
 const GENERIC_AR = new Set(["شبكة", "السعودية", "للإعلانات", "الخارجية", "للتأثير", "للاتصالات", "للوساطة", "ديجيتال"]);
-const GENERIC_EN = ["digital", "network", "communications", "influence", "brokerage"];
+const GENERIC_EN = ["digital", "network", "communications", "influence", "brokerage", "outdoor"];
 
 function findVendor(q: string, c: ChatContext) {
   const ql = q.toLowerCase();
@@ -185,7 +186,8 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   const cardsOf = (types: string[], max: number) => cards.push(...active.filter((x) => types.includes(x.r.type)).slice(0, max).map((x) => ({ kind: "rec" as const, key: x.r.key })));
 
   const vendor = findVendor(question, c);
-  const campaign = findCampaign(question, c);
+  const byCode = resolve(question, c.q).find((e) => e.kind === "campaign");
+  const campaign = findCampaign(question, c) ?? (byCode && byCode.kind === "campaign" ? mkt.campaigns.find((x) => x.id === byCode.id) ?? null : null);
   const recRef = q.match(/\br\s?(\d{1,2})\b/);
   const draftLang: Lang | undefined = RX.ar.test(question) || RX.ar.test(q) ? "ar" : RX.en.test(q) ? "en" : undefined;
 
@@ -206,6 +208,10 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     cards.push(...targets.map((x) => ({ kind: "rec" as const, key: x.r.key })));
     return done(T(`There are ${targets.length} open items for ${vendor?.name ?? "that vendor"}. Which one should I draft an email for? Use "Draft email" on the card, or say e.g. "draft R${targets[0].i + 1}".`, `هناك ${an(targets.length, "بند واحد", "بندان", "بنود", "بنداً")} مفتوحة لـ${vendor ? N(vendor.name) : "هذا المورد"}. أيّها أُعدّ له رسالة؟ استخدموا زر «مسودة بريد» في البطاقة، أو قولوا مثلاً «اكتب R${targets[0].i + 1}».`));
   }
+
+  // 1b. Help, definitions, daily check, comparisons, periods and the campaign history.
+  const early = extraEarly(question, c);
+  if (early) return done(early);
 
   // 2a. Campaign recommendations (the brief's campaign section).
   if (RX.campaignRecs.test(q) && !vendor) {
@@ -325,7 +331,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   }
 
   // 2e. Director's brief / targets (after the more specific intents).
-  if (RX.brief.test(q) && !vendor && !campaign) {
+  if (RX.brief.test(q) && !vendor && !campaign && !RX.invoices.test(q)) {
     // Campaign recommendations are part of the brief: show them as actionable cards.
     cards.push(...dr.campaignRecs.slice(0, 4).map((x) => ({ kind: "rec" as const, key: x.key })));
     const cr = dr.campaignRecs.slice(0, 5).map((x) => `- ${x.severity === "crit" ? T("[urgent] ", "[عاجل] ") : ""}**${x.title}**${x.impactK && !/SAR|ر\.س/.test(x.title) ? ` (${K(L, x.impactK)})` : ""} — ${firstSentence(x.why)}`).join("\n");
@@ -341,7 +347,8 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
       T(`- Sales SAR ${campaign.revenueM}M; cost-to-sales ${n(L, campaign.costToSalesPct, "%")}; CAC SAR ${n(L, campaign.cacK, "K")}; cost per lead SAR ${n(L, campaign.cplSar)}${campaign.cplTrendPct ? ` (${campaign.cplTrendPct > 0 ? "+" : ""}${campaign.cplTrendPct}% latest month)` : ""}\n`,
         `- المبيعات ${M(L, campaign.revenueM)}؛ نسبة التكلفة إلى المبيعات ${n(L, campaign.costToSalesPct, "%")}؛ تكلفة اكتساب العقد ${campaign.cacK === null ? "غير متاحة" : K(L, campaign.cacK)}؛ تكلفة العميل المحتمل ${n(L, campaign.cplSar)} ر.س${campaign.cplTrendPct ? ` (${campaign.cplTrendPct > 0 ? "+" : ""}${campaign.cplTrendPct}% في آخر شهر)` : ""}\n`) +
       T(`- Health: ${campaign.health}${campaign.attribution === "Weak" ? " — brand channel, so last-touch attribution understates its sales" : ""}`,
-        `- الحالة: ${({ Strong: "قوية", OK: "مقبولة", Weak: "ضعيفة", Idle: "خاملة" } as any)[campaign.health] ?? campaign.health}${campaign.attribution === "Weak" ? " — قناة قائمة على العلامة التجارية، فيقلّل إسناد آخر نقرة من مبيعاتها" : ""}`)
+        `- الحالة: ${({ Strong: "قوية", OK: "مقبولة", Weak: "ضعيفة", Idle: "خاملة" } as any)[campaign.health] ?? campaign.health}${campaign.attribution === "Weak" ? " — قناة قائمة على العلامة التجارية، فيقلّل إسناد آخر نقرة من مبيعاتها" : ""}`) +
+      campaignExtras(c, campaign.id)
     );
   }
 
@@ -364,6 +371,10 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
       (mine.length ? T(`\n${mine.length} open recommendation${mine.length > 1 ? "s" : ""} for this vendor:`, `\n${an(mine.length, "توصية واحدة", "توصيتان", "توصيات", "توصية")} مفتوحة لهذا المورد:`) : T("\nNo open recommendations for this vendor.", "\nلا توجد توصيات مفتوحة لهذا المورد."))
     );
   }
+
+  // 4b. Projects, channels, past and bench vendors.
+  const late = extraLate(question, c);
+  if (late) return done(late);
 
   // 5. CRM verification.
   if (RX.crm.test(question.toLowerCase())) {

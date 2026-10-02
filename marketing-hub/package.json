@@ -9,6 +9,7 @@
     "db:push": "prisma db push",
     "demo:reset": "node -e \"require('fs').rmSync('prisma/dev.db',{force:true})\" && prisma db push --skip-generate",
     "demo:build": "tsx scripts/dump-data.ts && node scripts/build-demo.mjs",
+    "chat:eval": "tsx scripts/chat-eval.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
