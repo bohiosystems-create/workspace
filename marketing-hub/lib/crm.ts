@@ -1,3 +1,4 @@
+import { single } from "./single";
 // CRM integration layer (vendor-neutral).
 //
 // The CRM is the source of truth for what a vendor's leads actually did: were they real, how fast did
@@ -191,10 +192,10 @@ export async function syncCrm() {
   return res;
 }
 
-export async function ensureCrmSynced() {
+export const ensureCrmSynced = single(async function ensureCrmSyncedImpl() {
   await ensureMarketingSeeded();
   if (crmMode() === "mock" && (await prisma.crmSync.count()) === 0) await syncCrm();
-}
+});
 
 // ------------------------------------------------------------ reconciliation
 const median = (xs: number[]) => {
@@ -279,7 +280,7 @@ export async function buildCrmDashboard(lang: Lang = "en"): Promise<CrmDashboard
     return flags;
   };
 
-  const vendorRows = vendors.map((v) => {
+  const vendorRows = vendors.filter((v) => (v.status ?? "ACTIVE") !== "BENCH" && rows.some((r) => r.vendorId === v.id)).map((v) => {
     const cs = rows.filter((r) => r.vendorId === v.id);
     const sum = (k: "reportedLeads" | "crmLeads" | "reportedContracts" | "crmWon" | "reportedSalesM" | "crmSalesM" | "untouched" | "spendK") => cs.reduce((s, c) => s + c[k], 0);
     const resps = cs.filter((c) => c.crmRespHrs !== null);

@@ -1,7 +1,5 @@
-import { buildMarketingDashboard } from "./marketing";
-import { buildInvoiceDashboard, ensureOracleSynced } from "./invoices";
 import { buildRecommendations, createDraft, type Polish, type Rec } from "./recommendations";
-import { buildCrmDashboard } from "./crm";
+import { buildAgent } from "./agent";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr } from "./i18n";
 
 // What the chat can put in front of the user besides text. Cards are rendered live from
@@ -11,9 +9,9 @@ export type ChatReply = { reply: string; cards: ChatCard[]; engine: "claude" | "
 
 
 export async function buildChatContext(lang: Lang = "en") {
-  await ensureOracleSynced();
-  const [mkt, inv, recs, crm] = await Promise.all([buildMarketingDashboard(lang), buildInvoiceDashboard(lang), buildRecommendations(lang), buildCrmDashboard(lang)]);
-  return { mkt, inv, recs, crm, lang };
+  const agent = await buildAgent(lang);
+  const recs = await buildRecommendations(lang, agent);
+  return { mkt: agent.mkt, inv: agent.inv, crm: agent.crm, recs, agent, lang };
 }
 export type ChatContext = Awaited<ReturnType<typeof buildChatContext>>;
 
@@ -55,6 +53,18 @@ export function snapshotForModel(c: ChatContext) {
       mode: crm.integration.mode, attributionGapPct: crm.integration.attributionGapPct, stages: crm.stages,
       vendors: crm.vendors.map((v) => ({ vendor: v.vendor, reportedLeads: v.reportedLeads, crmLeads: v.crmLeads, leadGapPct: v.leadGapPct, reportedContracts: v.reportedContracts, crmWon: v.crmWon, reportedSalesM: v.reportedSalesM, crmSalesM: v.crmSalesM, reportedResponseHrs: v.reportedRespHrs, crmMedianResponseHrs: v.crmRespHrs, untouchedLeads: v.untouched, verifiedCostToSalesPct: v.verifiedCostToSalesPct, flags: v.flags.map((f) => f.text) })),
     },
+    fairScorecard: {
+      method: c.agent.method,
+      vendors: c.agent.scores.map((x) => ({ vendor: x.vendor, channel: x.category, score: x.score, range: `${x.low}-${x.high}`, confidence: x.confidence, rank: x.rank, trend: x.trend, incrementalShare: x.incrementalShare, incrementalEvidence: x.incrementalEvidence, metrics: x.metrics.map((m) => ({ metric: m.key, actual: m.actual, benchmark: m.benchmark, points: m.points })) })),
+    },
+    renewalDecisions: c.agent.decisions.map((d) => ({ vendor: d.vendor, decision: d.decision, confidence: d.confidence, why: d.confidenceWhy, headline: d.headline, evidence: d.evidence, wouldChange: d.wouldChange, nextStep: d.nextStep, targets: d.targets, alternatives: d.alternatives })),
+    incrementality: {
+      tests: c.agent.incrementality.tests.map((t) => ({ name: t.name, vendor: t.vendor, kind: t.kind, status: t.status, readout: t.readout, minDetectableLiftPct: t.mdePct })),
+      mediaMixModel: c.agent.incrementality.mmm && { notes: c.agent.incrementality.mmm.notes, r2: c.agent.incrementality.mmm.r2, channels: c.agent.incrementality.mmm.channels },
+    },
+    trials: c.agent.bench.trials.map((t) => ({ challenger: t.challenger, incumbent: t.incumbent, status: t.status, origin: t.origin, budgetK: t.budgetK, weeks: t.weeks, readout: t.readout, decision: t.decision })),
+    bench: c.agent.bench.bench.map((b) => ({ vendor: b.name, channel: b.category, status: b.status, terms: b.rateNote })),
+    dataSources: { sources: c.agent.unified.sources, discrepancies: c.agent.unified.flags.map((f) => `${f.vendor}: ${f.text}`) },
     recommendations: recs.recommendations.map((r, i) => ({
       id: recId(i), type: r.type, severity: r.severity, vendor: r.vendor, title: r.title, rationale: r.rationale,
       impactK: r.impactK, handling: r.channel === "EMAIL" ? "email to vendor (needs human approval)" : "internal decision", state: r.state,
@@ -121,6 +131,10 @@ const RX = {
   salesWords: /contracts?\s*(signed|closed|count)|sales|مبيعات|موقّع|موقع|صفقات/,
   best: /best|top|strong|convert|winner|perform|worst|weak|bad|under|poor|lowest|cheapest|expensive|أفضل|الأفضل|أقوى|يحوّل|يحول|أسوأ|الأسوأ|ضعيف|أضعف|الأداء|أداء/,
   totals: /spend|sales|revenue|lead|funnel|conversion|cac|total|overall|summary|how are we|how is|إنفاق|الإنفاق|مبيعات|المبيعات|إيراد|عملاء محتملين|مسار|تحويل|إجمالي|ملخص|كيف حال|كيف نحن|الوضع/,
+  renewal: /renew|decision|exit|renegotiat|performance plan|replace|re-?engage|keep or drop|drop |fire |تجديد|نجدد|نجدّد|يجدد|التجديد|نستغني|نستمر|نبقي|قرار|الخروج|إنهاء|إعادة التفاوض|خطة أداء|استبدال|الاستغناء/,
+  incr: /incremental|holdout|geo test|\bmmm\b|media.?mix|caused|lift|would have happened anyway|الأثر الإضافي|أثر إضافي|اختبار|مزيج الإعلام|المجموعة المستبعدة/,
+  trials: /trial|bench|alternative|\brfp\b|re-?bid|challenger|تجربة|تجارب|بديل|بدائل|طلب عروض|منافس/,
+  score: /score|rank|fair|compare|benchmark|تقييم|ترتيب|مقارنة|معيار/,
   crm: /\bcrm\b|verif|reconcil|fake|spam|duplicate|attribution|response time|first response|نظام إدارة|إدارة العملاء|سي ?ار ?ام|تحقق|مطابقة|مزيف|وهمي|تكرار|الإسناد|زمن الاستجابة|الاستجابة|استجابة/,
   ar: /in arabic|بالعربية|بالعربي|عربي/,
   en: /in english|بالإنجليزية|بالانجليزية|بالانجليزي/,
@@ -169,6 +183,42 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     return done(T(
       `There are ${active.length} open recommendations. The most important:\n${top.map((x) => recLine(L, x.r, x.i)).join("\n")}\n\nI can draft the vendor email for any of them — say "draft R${(top[0]?.i ?? 0) + 1}" or use the button on a card. Emails are only sent after you approve them.`,
       `هناك ${an(active.length, "توصية واحدة", "توصيتان", "توصيات", "توصية")} مفتوحة. الأهم:\n${top.map((x) => recLine(L, x.r, x.i)).join("\n")}\n\nيمكنني إعداد رسالة المورد لأي منها — قولوا «اكتب R${(top[0]?.i ?? 0) + 1}» أو استخدموا الزر في البطاقة. لا تُرسل أي رسالة إلا بعد اعتمادكم لها.`));
+  }
+
+  const CONF: Record<string, string> = { High: T("high", "عالية"), Medium: T("medium", "متوسطة"), Low: T("low", "منخفضة") };
+  const ag = c.agent;
+
+  // 2b. Renewal decisions (all vendors, or the one asked about).
+  if (RX.renewal.test(q)) {
+    const ds = ag.decisions.filter((d) => !vendor || d.vendor === vendor.name);
+    cardsOf(["RENEWAL"], 6);
+    if (vendor && ds[0]) {
+      const d = ds[0];
+      return done(`**${N(d.vendor)}: ${d.headline}** (${T("confidence", "الثقة")} ${CONF[d.confidence]})\n${d.confidenceWhy}\n${d.evidence.slice(0, 6).map((e) => `- ${e}`).join("\n")}\n\n${T("Next step", "الخطوة التالية")}: ${d.nextStep}\n${T("What would change this", "ما الذي قد يغيّر القرار")}: ${d.wouldChange}`);
+    }
+    return done(T("Renewal recommendation per vendor (fair score, confidence):\n", "توصية التجديد لكل مورد (التقييم العادل، الثقة):\n") + ag.decisions.map((d) => {
+      const sc = ag.scores.find((x) => x.vendorId === d.vendorId)!;
+      return `- **${N(d.vendor)}** — ${d.headline} (${sc.score}/100، ${T("confidence", "الثقة")} ${CONF[d.confidence]})`.replace("،", L === "ar" ? "،" : ",");
+    }).join("\n"));
+  }
+
+  // 2c. Incrementality.
+  if (RX.incr.test(q)) {
+    const mmm = ag.incrementality.mmm;
+    cardsOf(["TEST_INCREMENTALITY"], 4);
+    const tests = ag.incrementality.tests.filter((t) => t.readout).map((t) => `- ${t.name} (${N(t.vendor)}): ${ag.incrementality.perVendor.find((p) => p.vendorId === t.vendorId && p.evidence === "TEST")?.text ?? ""}`);
+    const ch = mmm ? mmm.channels.map((x) => T(`- ${x.channel}: ~${x.incrementalRatio === null ? "—" : Math.round(x.incrementalRatio * 100) + "%"} of CRM-attributed sales is incremental (90% range ${x.incrementalRatioLow === null ? "—" : Math.round(x.incrementalRatioLow * 100)}–${x.incrementalRatioHigh === null ? "—" : Math.round(x.incrementalRatioHigh * 100)}%)${x.reliable ? "" : " — low reliability"}`, `- ${N(x.channel)}: نحو ${x.incrementalRatio === null ? "—" : Math.round(x.incrementalRatio * 100) + "%"} من المبيعات المنسوبة إضافية فعلاً (النطاق ${x.incrementalRatioLow === null ? "—" : Math.round(x.incrementalRatioLow * 100)}–${x.incrementalRatioHigh === null ? "—" : Math.round(x.incrementalRatioHigh * 100)}%)${x.reliable ? "" : " — موثوقية منخفضة"}`)) : [];
+    return done(T("**Controlled tests**\n", "**الاختبارات المضبوطة**\n") + (tests.join("\n") || T("- none completed", "- لا يوجد اختبار مكتمل")) + T("\n\n**Media-mix model** (Jan–May 2026)\n", "\n\n**نموذج مزيج الإعلام** (يناير–مايو 2026)\n") + ch.join("\n") + (mmm ? `\n\n${mmm.notes.join(" ")}` : ""));
+  }
+
+  // 2d. Bench, trials and re-bids.
+  if (RX.trials.test(q)) {
+    cardsOf(["TRIAL"], 4);
+    const st: Record<string, string> = { PROPOSED: T("proposed — needs approval", "مقترحة — بحاجة إلى اعتماد"), RUNNING: T("running", "جارية"), COMPLETED: T("completed", "مكتملة"), CANCELLED: T("cancelled", "ملغاة"), APPROVED: T("approved", "معتمدة") };
+    return done(
+      T("**Trials**\n", "**التجارب**\n") + ag.bench.trials.map((t) => `- ${N(t.challenger)} ${T("vs", "مقابل")} ${N(t.incumbent)}: ${st[t.status] ?? t.status}${T(", ", "، ")}${K(L, t.budgetK)}${t.readout ? T(` — challenger ${t.readout.qlRatio}× qualified leads per SAR (${t.readout.confidencePct}% confidence) → ${t.readout.outcome}`, ` — المنافس ${t.readout.qlRatio}× العملاء المؤهلين لكل ريال (ثقة ${t.readout.confidencePct}%) ← ${({ PROMOTE: "ترقية", EXTEND: "تمديد", KEEP_INCUMBENT: "الإبقاء على الحالي" } as Record<string, string>)[t.readout.outcome]}`) : ""}`).join("\n") +
+      T("\n\n**Bench**\n", "\n\n**البدائل الجاهزة**\n") + ag.bench.bench.map((b) => `- ${N(b.name)} (${N(b.category)}): ${N(b.rateNote ?? "")}`).join("\n")
+    );
   }
 
   // 3. A specific campaign.
@@ -236,7 +286,12 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   }
 
   // 8. Best / worst.
-  if (RX.best.test(question.toLowerCase())) {
+  if (RX.score.test(q) || RX.best.test(question.toLowerCase())) {
+    if (ag.scores.length) {
+      cardsOf(["RENEWAL", "UNDERPERFORMING"], 3);
+      return done(T("Fair scorecard — normalised by channel and budget, on verified data (50 = channel benchmark):\n", "التقييم العادل — معدّل حسب القناة والميزانية وعلى بيانات متحقَّق منها (50 = معيار القناة):\n") +
+        ag.scores.map((x) => T(`- ${x.rank}. **${x.vendor}** (${x.category}): ${x.score}/100, range ${x.low}–${x.high}, ${CONF[x.confidence]} confidence${x.incrementalShare !== null ? `, incremental share ${Math.round(x.incrementalShare * 100)}% (${x.incrementalEvidence})` : ""}`, `- ${x.rank}. **${N(x.vendor)}** (${N(x.category)}): ${x.score}/100، النطاق ${x.low}–${x.high}، ثقة ${CONF[x.confidence]}${x.incrementalShare !== null ? `، نسبة الأثر الإضافي ${Math.round(x.incrementalShare * 100)}% (${x.incrementalEvidence === "TEST" ? "اختبار" : "نموذج مزيج"})` : ""}`)).join("\n"));
+    }
     const live = mkt.campaigns.filter((x) => x.status === "LIVE" && x.costToSalesPct !== null && x.attribution === "Direct").sort((a, b) => a.costToSalesPct! - b.costToSalesPct!);
     cardsOf(["UNDERPERFORMING", "SCALE_UP", "REALLOCATE"], 3);
     const vAr: Record<string, string> = { Scale: "توسّع", Hold: "إبقاء", Fix: "تصحيح", Review: "مراجعة" };

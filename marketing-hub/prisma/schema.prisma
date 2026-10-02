@@ -29,7 +29,13 @@ model Vendor {
   oracleSupplierNumber String? // Supplier Number in Oracle Fusion Procurement
   email           String? // account-manager address used for outbound mail
   language        String  @default("en") // preferred language for emails: en | ar
+  status          String  @default("ACTIVE") // ACTIVE | BENCH (pre-vetted alternative) | EXITED
+  rateNote        String? // commercial terms / rate card summary (bench vendors)
   emails          OutboundEmail[]
+  deliverables    Deliverable[]
+  trialsAsChallenger Trial[] @relation("challenger")
+  trialsAsIncumbent  Trial[] @relation("incumbent")
+  experiments     Experiment[]
   campaigns       Campaign[]
   invoices        SupplierInvoice[]
   purchaseOrders  PurchaseOrder[]
@@ -187,4 +193,97 @@ model CrmSync {
   leads     Int
   matched   Int
   unmatched Int
+}
+
+// ---- Vendor operations, incrementality, re-bidding, data sources ----------
+
+// Work items a vendor owes (creative, landing pages, reports…) → deadline adherence and revisions.
+model Deliverable {
+  id          String    @id @default(cuid())
+  vendor      Vendor    @relation(fields: [vendorId], references: [id])
+  vendorId    String
+  title       String
+  kind        String // CREATIVE | LANDING_PAGE | REPORT | LISTING | EVENT
+  dueDate     DateTime
+  deliveredAt DateTime?
+  revisions   Int       @default(0)
+}
+
+// Paid trial of a bench vendor against an incumbent on the same brief.
+model Trial {
+  id            String    @id @default(cuid())
+  createdAt     DateTime  @default(now())
+  challenger    Vendor    @relation("challenger", fields: [challengerId], references: [id])
+  challengerId  String
+  incumbent     Vendor    @relation("incumbent", fields: [incumbentId], references: [id])
+  incumbentId   String
+  asset         String
+  brief         String
+  budgetK       Float
+  weeks         Int
+  crmCode       String // leads are attributed through the CRM with this code
+  status        String // PROPOSED | APPROVED | RUNNING | COMPLETED | CANCELLED
+  origin        String    @default("AGENT") // AGENT (auto re-bid) | USER
+  approvedBy    String?
+  startDate     DateTime?
+  resultsJson   String? // { challenger: {spendK, leads, qualified, contracts}, incumbent: {...} }
+  decision      String? // PROMOTE | EXTEND | KEEP_INCUMBENT
+  decidedBy     String?
+}
+
+// Incrementality tests (audience holdout or geo test).
+model Experiment {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  kind        String // HOLDOUT | GEO
+  vendor      Vendor   @relation(fields: [vendorId], references: [id])
+  vendorId    String
+  campaign    String
+  name        String
+  status      String // PLANNED | RUNNING | COMPLETED
+  designJson  String // holdout share / regions, weeks, metric, MDE
+  dataJson    String? // results: holdout counts or weekly test/control series
+  approvedBy  String?
+}
+
+// Weekly history for the media-mix model: spend per channel + total contracted sales.
+model ChannelWeek {
+  id       String @id @default(cuid())
+  week     String // ISO date of the Monday
+  channel  String // vendor category
+  spendK   Float
+
+  @@unique([week, channel])
+}
+
+model SalesWeek {
+  id       String  @id @default(cuid())
+  week     String  @unique
+  salesM   Float
+  ramadan  Boolean @default(false)
+}
+
+// Ad-platform data pulled from the ad accounts (independent of what vendors report).
+model AdPlatformWeek {
+  id           String @id @default(cuid())
+  week         String
+  platform     String // META | GOOGLE | SNAP | TIKTOK
+  campaignCode String
+  spendK       Float
+  impressionsK Float
+  clicks       Int
+  platformLeads Int
+
+  @@unique([week, platform, campaignCode])
+}
+
+// Log of syncs / imports for every source except CRM and Oracle (they have their own).
+model SourceSync {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  source    String // ADS | VENDOR_REPORT
+  mode      String
+  rows      Int
+  rejected  Int      @default(0)
+  note      String?
 }

@@ -5,7 +5,11 @@ import { useI18n } from "./lang";
 
 const LINKS = [
   { href: "/", label: "Vendors & Campaigns" },
+  { href: "/decisions", label: "Decisions" },
+  { href: "/experiments", label: "Experiments" },
+  { href: "/bench", label: "Bench & Trials" },
   { href: "/invoices", label: "Supplier Invoices" },
+  { href: "/data", label: "Data Sources" },
 ];
 
 export default function Header() {

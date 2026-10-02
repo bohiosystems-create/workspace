@@ -189,7 +189,7 @@ export async function buildMarketingDashboard(lang: Lang = "en"): Promise<Market
 
   // ---- Vendor level -------------------------------------------------------
   const totalSpend = rows.reduce((s, r) => s + r.spendK, 0);
-  const vendorRows: VendorRow[] = vendors.map((v) => {
+  const vendorRows: VendorRow[] = vendors.filter((v) => (v.status ?? "ACTIVE") !== "BENCH" && rows.some((r) => r.vendorId === v.id)).map((v) => {
     const cs = rows.filter((r) => r.vendorId === v.id);
     const spendK = cs.reduce((s, r) => s + r.spendK, 0);
     const leads = cs.reduce((s, r) => s + r.leads, 0);

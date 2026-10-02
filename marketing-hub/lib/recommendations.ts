@@ -1,13 +1,13 @@
 import { prisma } from "./prisma";
-import { buildMarketingDashboard } from "./marketing";
-import { ensureOracleSynced, buildInvoiceDashboard } from "./invoices";
-import { buildCrmDashboard, ensureCrmSynced } from "./crm";
+import { buildAgent, type Agent } from "./agent";
+import { powerHoldout, powerGeo } from "./stats";
+import { isDigital } from "./adaccounts";
 import { type Lang, isLang, tx, K, M, nm, dt , an, ltr } from "./i18n";
 import { deliverMail, defaultCc, outlookDelivery, outlookMode, outlookSender, outlookSenderName, outlookSenderNameAr } from "./outlook";
 
 export type Rec = {
   key: string;
-  type: "SLA_BREACH" | "CRM_MISMATCH" | "CONTRACT_RENEWAL" | "UNDERPERFORMING" | "INVOICE_EXCEPTIONS" | "UNBILLED" | "OVERDUE_PAYMENT" | "REALLOCATE" | "SCALE_UP";
+  type: "RENEWAL" | "SLA_BREACH" | "CRM_MISMATCH" | "DATA_MISMATCH" | "UNDERPERFORMING" | "INVOICE_EXCEPTIONS" | "UNBILLED" | "OVERDUE_PAYMENT" | "TEST_INCREMENTALITY" | "TRIAL" | "REALLOCATE" | "SCALE_UP";
   severity: "crit" | "warn" | "info";
   vendorId: string;
   vendor: string;
@@ -19,6 +19,7 @@ export type Rec = {
   href?: string; // where an INTERNAL decision is taken
   state: "OPEN" | "DRAFTED" | "SENT" | "DISMISSED";
   emailId: string | null;
+  meta?: { decision?: string };
 };
 
 export type EmailRow = {
@@ -37,20 +38,16 @@ const hash = (s: string) => {
 const k1 = (x: number) => Math.round(x * 10) / 10;
 
 // ------------------------------------------------------------ recommendations
-export async function buildRecommendations(lang: Lang = "en") {
-  await ensureOracleSynced();
-  await ensureCrmSynced();
-  const [mkt, inv, crm, vendors, states, emails] = await Promise.all([
-    buildMarketingDashboard(lang),
-    buildInvoiceDashboard(lang),
-    buildCrmDashboard(lang),
+export async function buildRecommendations(lang: Lang = "en", pre?: Agent) {
+  const agent = pre ?? (await buildAgent(lang));
+  const { mkt, inv, crm } = agent;
+  const [vendors, states, emails] = await Promise.all([
     prisma.vendor.findMany(),
     prisma.recommendationState.findMany(),
     prisma.outboundEmail.findMany(),
   ]);
   const vName = new Map(vendors.map((v) => [v.id, v.name]));
   const recs: Omit<Rec, "state" | "emailId">[] = [];
-
   const T = (en: string, ar: string) => tx(lang, en, ar);
   const N = (x: string) => nm(lang, x);
 
@@ -94,26 +91,81 @@ export async function buildRecommendations(lang: Lang = "en") {
     });
   }
 
-  // 2. Contracts expiring within 3 months → open the renewal conversation on our terms.
-  for (const v of mkt.vendors) {
-    if (v.monthsToExpiry > 3 || v.monthsToExpiry < 0) continue;
-    const end = dt(lang, v.contractEnd, { day: "numeric", month: "long", year: "numeric" });
+  // 0. Renewal decision per vendor (re-engage / renegotiate / performance plan / test replacement / exit).
+  const DEC_SEV: Record<string, Rec["severity"]> = { EXIT: "crit", TEST_REPLACEMENT: "crit", PERFORMANCE_PLAN: "warn", RENEGOTIATE: "warn", RE_ENGAGE: "info" };
+  const CONF: Record<string, string> = { High: T("high", "عالية"), Medium: T("medium", "متوسطة"), Low: T("low", "منخفضة") };
+  for (const d of agent.decisions) {
+    if (d.decision === "RE_ENGAGE" && d.monthsToExpiry > 6) continue;
+    const score = agent.scores.find((x) => x.vendorId === d.vendorId)!;
+    const weakest = [...score.metrics].sort((a, b) => a.points - b.points).slice(0, 2);
+    const mv = mkt.vendors.find((v) => v.id === d.vendorId);
+    const MN: Record<string, [string, string]> = { cpql: ["Cost per CRM-qualified lead", "تكلفة العميل المؤهل في النظام"], value: ["Revenue and pipeline per SAR", "الإيرادات وخط المبيعات لكل ريال"], plan: ["Spend vs plan (deviation)", "الإنفاق مقابل الخطة (الانحراف)"], deadlines: ["Deliverables on time", "التسليمات في الموعد"], revisions: ["Revisions per deliverable", "المراجعات لكل تسليم"] };
+    // Vendor-facing facts only: no bench names, rankings or internal confidence.
+    const vendorFacing = [
+      ...weakest.map((m) => {
+        const u = (x: number | null) => `${x ?? "—"}${m.unit === "%" ? "%" : m.unit === "SAR" ? T(" SAR", " ر.س") : ""}`;
+        return T(`${MN[m.key][0]}: ${u(m.actual)} (channel benchmark ${u(m.benchmark)})`, `${MN[m.key][1]}: ${u(m.actual)} (معيار القناة ${u(m.benchmark)})`);
+      }),
+      ...(mv?.slaBreaches ?? []).map((b) => T(`SLA: ${b}`, `اتفاقية الخدمة: ${b}`)),
+      ...(crm.vendors.find((v) => v.id === d.vendorId)?.flags.map((f) => f.text) ?? []),
+      ...d.targets.map((t) => T(`Target: ${t}`, `المستهدف: ${t}`)),
+    ];
     recs.push({
-      key: `CONTRACT_RENEWAL:${v.id}:${v.contractEnd.slice(0, 7)}`,
-      type: "CONTRACT_RENEWAL", severity: v.verdict === "Review" ? "warn" : "info",
-      vendorId: v.id, vendor: v.name,
-      title: T(`${v.name} contract ends ${end}`, `ينتهي عقد ${N(v.name)} في ${end}`),
+      key: `RENEWAL:${d.vendorId}:${d.decision}`, type: "RENEWAL", severity: DEC_SEV[d.decision], vendorId: d.vendorId, vendor: d.vendor,
+      title: `${N(d.vendor)}: ${d.headline}`,
+      rationale: T(`${CONF[d.confidence]} confidence — ${d.confidenceWhy} `, `ثقة ${CONF[d.confidence]} — ${d.confidenceWhy} `) + d.evidence.slice(0, 3).join(" ") + " " + d.nextStep,
+      evidence: vendorFacing, impactK: k1(score.costK),
+      channel: ["RENEGOTIATE", "PERFORMANCE_PLAN", "RE_ENGAGE"].includes(d.decision) ? "EMAIL" : "INTERNAL",
+      href: d.decision === "TEST_REPLACEMENT" ? "/bench" : "/decisions", meta: { decision: d.decision },
+    });
+  }
+
+  // 0b. Prove incrementality where it is unknown and the money is material.
+  const running = await prisma.experiment.findMany();
+  for (const s0 of agent.scores) {
+    if (s0.incrementalEvidence === "TEST" || s0.costK < 200) continue;
+    if (running.some((e) => e.vendorId === s0.vendorId && e.status !== "COMPLETED")) continue;
+    const vcs = agent.unified.campaigns.filter((c) => c.vendorId === s0.vendorId);
+    const digital = vcs.some((c) => c.digital);
+    const weeklyQ = Math.max(1, Math.round(s0.qualified / 21.6));
+    const mde = digital ? powerHoldout(weeklyQ, 20, 6) : powerGeo(Math.max(1, Math.round(vcs.reduce((t, c) => t + c.verified.leads, 0) / 21.6 / 2)), 0.1, 6);
+    const inc = agent.incrementality.perVendor.find((x) => x.vendorId === s0.vendorId);
+    recs.push({
+      key: `TEST_INCREMENTALITY:${s0.vendorId}`, type: "TEST_INCREMENTALITY", severity: s0.costK >= 400 ? "warn" : "info", vendorId: s0.vendorId, vendor: s0.vendor,
+      title: T(`Prove ${s0.vendor}'s incremental effect`, `إثبات الأثر الإضافي لـ${N(s0.vendor)}`),
       rationale: T(
-        `Scorecard ${v.score}/100 (${v.verdict}); cost-to-sales ${v.costToSalesPct ?? "n/a"}%, qualified rate ${v.qualRatePct ?? "n/a"}%. ${v.verdict === "Review" ? "Performance does not currently support a like-for-like renewal — negotiate performance-linked terms." : "Open renewal early to keep leverage."}`,
-        `التقييم ${v.score}/100 (${VERDICT_AR[v.verdict] ?? v.verdict})؛ نسبة التكلفة إلى المبيعات ${v.costToSalesPct ?? "غير متاحة"}%، ونسبة المؤهلين ${v.qualRatePct ?? "غير متاحة"}%. ${v.verdict === "Review" ? "الأداء الحالي لا يبرّر التجديد بالشروط نفسها — فاوضوا على شروط مرتبطة بالأداء." : "افتحوا باب التجديد مبكراً للحفاظ على قوة التفاوض."}`),
-      evidence: [
-        T(`Contract end date: ${end}`, `تاريخ انتهاء العقد: ${end}`),
-        T(`Spend to date: SAR ${v.spendK}K across ${v.campaigns} campaign(s); ${v.contracts} attributed contracts (SAR ${v.revenueM}M)`,
-          `الإنفاق حتى تاريخه: ${K(lang, v.spendK)} عبر ${v.campaigns} حملة؛ ${an(v.contracts, "عقد واحد", "عقدان", "عقود", "عقداً")} منسوباً (${M(lang, v.revenueM)})`),
-        T(`Cost-to-sales ${v.costToSalesPct ?? "n/a"}%; qualified-lead rate ${v.qualRatePct ?? "n/a"}%`,
-          `نسبة التكلفة إلى المبيعات ${v.costToSalesPct ?? "غير متاحة"}%؛ نسبة العملاء المؤهلين ${v.qualRatePct ?? "غير متاحة"}%`),
-      ],
-      impactK: v.spendK, channel: "EMAIL",
+        `${K(lang, s0.costK)} spent with ${inc?.evidence === "MMM" ? "only media-mix evidence" : "no incrementality evidence"}. Suggested: ${digital ? "6-week audience holdout (20%)" : "6-week geo test"} — detects a lift of about ${mde ?? "—"}% or more.`,
+        `أُنفق ${K(lang, s0.costK)} ${inc?.evidence === "MMM" ? "بأدلة من نموذج مزيج الإعلام فقط" : "دون أدلة على الأثر الإضافي"}. المقترح: ${digital ? "مجموعة مستبعدة من الجمهور (20%) لمدة 6 أسابيع" : "اختبار جغرافي لمدة 6 أسابيع"} — يرصد أثراً بنحو ${mde ?? "—"}% أو أكثر.`),
+      evidence: [inc?.text ?? ""], impactK: k1(s0.costK), channel: "INTERNAL", href: "/experiments",
+    });
+  }
+
+  // 0c. Trials: approvals to give and results to act on.
+  for (const t of agent.bench.trials) {
+    if (t.status === "PROPOSED") recs.push({
+      key: `TRIAL:${t.id}:PROPOSED`, type: "TRIAL", severity: "warn", vendorId: t.incumbentId, vendor: t.incumbent,
+      title: T(`Approve trial: ${t.challenger} vs ${t.incumbent}`, `اعتماد تجربة: ${N(t.challenger)} مقابل ${N(t.incumbent)}`),
+      rationale: t.brief, evidence: [t.brief], impactK: t.budgetK, channel: "INTERNAL", href: "/bench",
+    });
+    if (t.status === "COMPLETED" && !t.decision && t.readout) recs.push({
+      key: `TRIAL:${t.id}:RESULT`, type: "TRIAL", severity: t.readout.outcome === "PROMOTE" ? "crit" : "info", vendorId: t.incumbentId, vendor: t.incumbent,
+      title: t.readout.outcome === "PROMOTE"
+        ? T(`${t.challenger} beat ${t.incumbent} — decide on promotion`, `تفوّق ${N(t.challenger)} على ${N(t.incumbent)} — قرّروا الترقية`)
+        : T(`Trial ${t.challenger} vs ${t.incumbent} — decide`, `تجربة ${N(t.challenger)} مقابل ${N(t.incumbent)} — اتخذوا القرار`),
+      rationale: T(`Challenger delivered ${t.readout.qlRatio ?? "—"}× the CRM-qualified leads per SAR (90% range ${t.readout.qlLow ?? "—"}–${t.readout.qlHigh ?? "—"}); cost per qualified lead SAR ${t.readout.challengerCpql ?? "—"} vs ${t.readout.incumbentCpql ?? "—"}.`,
+        `حقق المنافس ${t.readout.qlRatio ?? "—"}× العملاء المؤهلين لكل ريال (النطاق عند ثقة 90%: ${t.readout.qlLow ?? "—"}–${t.readout.qlHigh ?? "—"})؛ تكلفة العميل المؤهل ${t.readout.challengerCpql ?? "—"} مقابل ${t.readout.incumbentCpql ?? "—"} ر.س.`),
+      evidence: [], impactK: t.budgetK, channel: "INTERNAL", href: "/bench",
+    });
+  }
+
+  // 0d. Reported media spend that the ad platforms do not support.
+  for (const v of agent.unified.vendors) for (const f of v.flags.filter((x) => x.code === "MEDIA_GAP")) {
+    recs.push({
+      key: `DATA_MISMATCH:${v.id}:${hash(f.text.replace(/\D/g, ""))}`, type: "DATA_MISMATCH", severity: f.severity, vendorId: v.id, vendor: v.name,
+      title: T(`${v.name}: reported media spend not matched by the ad platforms`, `${N(v.name)}: الإنفاق الإعلامي المُبلَّغ لا تؤكده المنصات الإعلانية`),
+      rationale: f.text,
+      evidence: [f.text, ...agent.unified.campaigns.filter((c) => c.vendorId === v.id && c.platform).map((c) => T(`${c.name}: reported SAR ${c.reported.spendK}K, ad platforms SAR ${c.platform!.spendK}K`, `${N(c.name)}: المُبلَّغ ${K(lang, c.reported.spendK)}، المنصات الإعلانية ${K(lang, c.platform!.spendK)}`))],
+      impactK: k1((v.digitalReportedSpendK ?? 0) - (v.platformSpendK ?? 0)), channel: "EMAIL",
     });
   }
 
@@ -216,7 +268,8 @@ export async function buildRecommendations(lang: Lang = "en") {
 
   // 8. Best performer with headroom → consider scaling.
   const best = mkt.vendors.find((v) => v.verdict === "Scale");
-  if (best) {
+  // Only suggest scaling when the fair-score renewal decision agrees.
+  if (best && agent.decisions.find((d) => d.vendorId === best.id)?.decision === "RE_ENGAGE") {
     recs.push({
       key: `SCALE_UP:${best.id}:${best.score}`,
       type: "SCALE_UP", severity: "info", vendorId: best.id, vendor: best.name,
@@ -269,12 +322,33 @@ const OPENERS: Record<Rec["type"], (r: Rec, l: Lang) => Parts> = {
     ask: tx(l, "Please send the raw lead lists (name / phone / created date) for the periods concerned, explain the differences (duplicates, filtering, late delivery) and your plan to close them. We will review the monthly scorecard in light of the outcome.",
       "نرجو إرسال قوائم العملاء المحتملين الخام (الاسم / الهاتف / تاريخ الإنشاء) للفترات المعنية، وتوضيح أسباب الفروقات (تكرار، تصفية، تأخر في التسليم)، وخطتكم لمعالجتها. وسنراجع التقييم الشهري في ضوء نتيجة المطابقة."),
   }),
-  CONTRACT_RENEWAL: (r, l) => ({
-    subject: tx(l, `Contract renewal discussion — ${r.vendor}`, `مناقشة تجديد العقد — ${nm(l, r.vendor)}`),
-    intro: tx(l, "Ahead of your contract end date, we would like to review the partnership. Our current view of results:", "قبل تاريخ انتهاء عقدكم، نود مراجعة الشراكة. هذه قراءتنا الحالية للنتائج:"),
-    ask: tx(l, "Could you propose a time this month for a review, and bring your recommendations for the next term — including how fees could be linked to qualified leads and contracted sales? This is an invitation to discuss and does not commit either side.",
-      "هل يمكنكم اقتراح موعد خلال هذا الشهر للمراجعة، مع إحضار توصياتكم للمدة القادمة — بما في ذلك كيفية ربط الأتعاب بالعملاء المؤهلين والمبيعات المتعاقد عليها؟ هذه دعوة للنقاش ولا تُلزم أيّاً من الطرفين."),
+  RENEWAL: (r, l) => {
+    const due = dt(l, new Date(new Date("2026-06-08").getTime() + 10 * 86_400_000));
+    const review = dt(l, new Date(new Date("2026-06-08").getTime() + 60 * 86_400_000));
+    const d = r.meta?.decision;
+    if (d === "PERFORMANCE_PLAN") return {
+      subject: tx(l, `60-day performance plan — ${r.vendor}`, `خطة أداء لمدة 60 يوماً — ${nm(l, r.vendor)}`),
+      intro: tx(l, "Our review of results on verified data (CRM, ad platforms and invoices) shows performance below where we need it:", "تُظهر مراجعتنا للنتائج على البيانات المتحقَّق منها (نظام إدارة العملاء، المنصات الإعلانية، الفواتير) أداءً أقل مما نحتاجه:"),
+      ask: tx(l, `We are putting the account on a 60-day performance plan with the targets above, reviewed on ${review}. Please confirm the plan and the actions you will take within 5 business days.`, `سنضع الحساب على خطة أداء لمدة 60 يوماً بالأهداف المذكورة أعلاه، وتُراجع في ${review}. نرجو تأكيد الخطة والإجراءات التي ستتخذونها خلال 5 أيام عمل.`),
+    };
+    if (d === "RE_ENGAGE") return {
+      subject: tx(l, `Renewal and growth plan — ${r.vendor}`, `التجديد وخطة النمو — ${nm(l, r.vendor)}`),
+      intro: tx(l, "Your results on our verified data are strong:", "نتائجكم على بياناتنا المتحقَّق منها قوية:"),
+      ask: tx(l, "We would like to renew and discuss a growth budget. Could you propose a plan, including the capacity you can add while holding cost per qualified lead?", "نرغب في التجديد ومناقشة ميزانية نمو. هل يمكنكم اقتراح خطة، تشمل الطاقة الإضافية الممكنة مع الحفاظ على تكلفة العميل المؤهل؟"),
+    };
+    return {
+      subject: tx(l, `Partnership review and next term — ${r.vendor}`, `مراجعة الشراكة والمدة القادمة — ${nm(l, r.vendor)}`),
+      intro: tx(l, "Ahead of the next term we have reviewed results on our verified data (CRM, ad platforms and invoices):", "قبل المدة القادمة راجعنا النتائج على بياناتنا المتحقَّق منها (نظام إدارة العملاء، المنصات الإعلانية، الفواتير):"),
+      ask: tx(l, `We would like to continue on performance-linked terms: a fixed base plus a variable part tied to CRM-qualified leads or signed contracts, and the targets above. Could you send a proposal by ${due}? This is a basis for discussion and does not commit either side.`, `نرغب في الاستمرار بشروط مرتبطة بالأداء: أساس ثابت وجزء متغيّر مرتبط بالعملاء المؤهلين في النظام أو العقود الموقعة، مع الأهداف المذكورة أعلاه. هل يمكنكم إرسال عرض قبل ${due}؟ هذا أساس للنقاش ولا يُلزم أيّاً من الطرفين.`),
+    };
+  },
+  DATA_MISMATCH: (r, l) => ({
+    subject: tx(l, `Media spend reconciliation — ${r.vendor}`, `مطابقة الإنفاق الإعلامي — ${nm(l, r.vendor)}`),
+    intro: tx(l, "Comparing your reported media spend with our ad-account data shows a difference:", "تُظهر مقارنة الإنفاق الإعلامي الذي أبلغتم عنه مع بيانات حساباتنا الإعلانية فرقاً:"),
+    ask: tx(l, "Please send the platform invoices or account exports for the period and a breakdown of any fees, so we can reconcile within 10 business days.", "نرجو إرسال فواتير المنصات أو بيانات الحسابات للفترة المعنية مع تفصيل أي رسوم، لنتمكن من المطابقة خلال 10 أيام عمل."),
   }),
+  TEST_INCREMENTALITY: () => ({ subject: "", intro: "", ask: "" }),
+  TRIAL: () => ({ subject: "", intro: "", ask: "" }),
   UNDERPERFORMING: (r, l) => ({
     subject: tx(l, `Campaign performance review — ${r.vendor}`, `مراجعة أداء الحملات — ${nm(l, r.vendor)}`),
     intro: tx(l, "The following campaigns are not converting into sales at an acceptable cost:", "الحملات التالية لا تتحول إلى مبيعات بتكلفة مقبولة:"),
@@ -338,6 +412,16 @@ export async function createDraft(key: string, polish?: Polish, ui: Lang = "en",
       subject: draft.subject, body: draft.body, drafter, status: "DRAFT", revision: 1,
     },
   });
+}
+
+/** A draft not tied to a recommendation (QBR cover note, RFP to bench vendors). Returns false if one exists. */
+export async function createCustomDraft(d: { vendorId: string; recKey: string; subject: string; body: string }, ui: Lang = "en") {
+  const v = (await prisma.vendor.findMany()).find((x) => x.id === d.vendorId);
+  if (!v?.email) throw new Error(tx(ui, `No email address on file for ${v?.name ?? "this vendor"}.`, `لا يوجد عنوان بريد مسجّل للمورد ${nm(ui, v?.name ?? "")}.`));
+  const existing = (await prisma.outboundEmail.findMany()).find((e) => e.recKey === d.recKey && (e.status === "DRAFT" || e.status === "SENT" || e.status === "FAILED"));
+  if (existing) return false;
+  await prisma.outboundEmail.create({ data: { recKey: d.recKey, vendorId: v.id, toAddress: v.email, ccAddresses: defaultCc().join(", "), subject: d.subject, body: d.body, drafter: "template", status: "DRAFT", revision: 1 } });
+  return true;
 }
 
 // ------------------------------------------------------------ human approval

@@ -2,7 +2,7 @@
 import raw from "./demo-data.json";
 
 const revive = (o: any): any =>
-  JSON.parse(JSON.stringify(o), (k, v) => (/(Date|End|Start)$/.test(k) && typeof v === "string" ? new Date(v) : v));
+  JSON.parse(JSON.stringify(o), (k, v) => (/(Date|End|Start|At)$/.test(k) && typeof v === "string" ? new Date(v) : v));
 
 const data: any = revive(raw);
 const actions: any[] = [];
@@ -41,7 +41,19 @@ export const prisma = {
   outboundEmail: table([]),
   crmLead: table([]),
   crmSync: table([]),
-  vendor: { findMany: async () => data.vendors, count: async () => data.vendors.length },
+  vendor: {
+    findMany: async () => data.vendors, count: async () => data.vendors.length,
+    create: async ({ data: d }: any) => { const row = { id: "v" + Math.random().toString(36).slice(2), ...d }; data.vendors.push(row); return row; },
+    update: async ({ where, data: d }: any) => Object.assign(data.vendors.find((v: any) => v.id === where.id), d),
+  },
+  asset: table(data.assets ?? []),
+  deliverable: table(data.deliverables ?? []),
+  trial: table(data.trials ?? []),
+  experiment: table(data.experiments ?? []),
+  channelWeek: table(data.channelWeeks ?? []),
+  salesWeek: table(data.salesWeeks ?? []),
+  adPlatformWeek: table([]),
+  sourceSync: table([]),
   campaign: {
     findMany: async () => data.campaigns,
     findUnique: async ({ where }: any) => byId(where.id),
@@ -59,6 +71,15 @@ export const prisma = {
     aggregate: async ({ where }: any) => ({
       _sum: { spendK: byId(where.campaignId).months.reduce((s: number, m: any) => s + m.spendK, 0) },
     }),
+    update: async ({ where, data: d }: any) => {
+      const m = data.campaigns.flatMap((c: any) => c.months).find((x: any) => x.id === where.id);
+      return Object.assign(m, d);
+    },
+    create: async ({ data: d }: any) => {
+      const row = { id: "m" + Math.random().toString(36).slice(2), ...d };
+      byId(d.campaignId).months.push(row);
+      return row;
+    },
   },
   marketingAction: {
     findMany: async ({ take }: any) => actions.slice(0, take),

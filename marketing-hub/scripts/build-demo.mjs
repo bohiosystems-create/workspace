@@ -14,7 +14,7 @@ const shim = {
 const out = await build({
   entryPoints: [path.join(root, "scripts/demo-entry.tsx")],
   bundle: true, write: false, minify: true, format: "iife", jsx: "automatic",
-  define: { "process.env.NODE_ENV": '"production"', "process.env.ORACLE_MODE": '"mock"', "process.env.CRM_MODE": '"mock"', "process.env.OUTLOOK_SENDER_NAME_AR": "undefined", "process.env.OUTLOOK_MODE": '"mock"', "process.env.OUTLOOK_DELIVERY": '"send"', "process.env.OUTLOOK_SENDER": "undefined", "process.env.OUTLOOK_SENDER_NAME": '"Marketing Team"', "process.env.OUTLOOK_CC": "undefined" }, plugins: [shim], loader: { ".json": "json" },
+  define: { "process.env.NODE_ENV": '"production"', "process.env.ORACLE_MODE": '"mock"', "process.env.CRM_MODE": '"mock"', "process.env.ADS_MODE": '"mock"', "process.env.INGEST_API_KEY": "undefined", "process.env.OUTLOOK_SENDER_NAME_AR": "undefined", "process.env.OUTLOOK_MODE": '"mock"', "process.env.OUTLOOK_DELIVERY": '"send"', "process.env.OUTLOOK_SENDER": "undefined", "process.env.OUTLOOK_SENDER_NAME": '"Marketing Team"', "process.env.OUTLOOK_CC": "undefined" }, plugins: [shim], loader: { ".json": "json" },
   alias: { "@": root },
 });
 const css = readFileSync(path.join(root, "app/globals.css"), "utf8").replace(/@import url\([^)]*\);/, "");

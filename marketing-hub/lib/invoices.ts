@@ -1,3 +1,4 @@
+import { single } from "./single";
 import { prisma } from "./prisma";
 import { ensureMarketingSeeded } from "./seed-marketing";
 import { fetchOracle, mapInvoice, mapPurchaseOrder, oracleMode } from "./oracle";
@@ -104,10 +105,10 @@ export async function syncOracle() {
   return { invoices: n, purchaseOrders: raw.purchaseOrders.length };
 }
 
-export async function ensureOracleSynced() {
+export const ensureOracleSynced = single(async function ensureOracleSyncedImpl() {
   await ensureMarketingSeeded();
   if ((await prisma.integrationSync.count()) === 0) await syncOracle();
-}
+});
 
 // -------------------------------------------------------------- dashboard ---
 export async function buildInvoiceDashboard(lang: Lang = "en"): Promise<InvoiceDashboard> {
@@ -169,6 +170,13 @@ export async function buildInvoiceDashboard(lang: Lang = "en"): Promise<InvoiceD
     if (daysOverdue > 0 && i.decision !== "DISPUTED")
       flags.push({ code: "OVERDUE", severity: daysOverdue > 30 ? "crit" : "warn", text: tx(lang, `${daysOverdue} days past due — late-payment risk with the vendor.`, `متأخرة ${an(daysOverdue, "يوم واحد", "يومان", "أيام", "يوماً")} عن الاستحقاق — خطر تأخر السداد للمورد.`) });
 
+    // Billing anomaly: amount well above this campaign's earlier invoices (median of ≥ 2 prior).
+    const prior = sorted.filter((o) => o.campaignId && o.campaignId === i.campaignId && o.invoiceDate < i.invoiceDate && !dupOf.has(o.id)).map((o) => o.amountK).sort((a, b) => a - b);
+    if (prior.length >= 2) {
+      const med = prior[Math.floor(prior.length / 2)];
+      if (i.amountK > med * 1.3)
+        flags.push({ code: "SPIKE", severity: "warn", text: tx(lang, `Amount is ${Math.round((i.amountK / med - 1) * 100)}% above this campaign's usual invoice (median ${round(med)}K) — confirm the scope change.`, `المبلغ أعلى بنسبة ${Math.round((i.amountK / med - 1) * 100)}% من الفاتورة المعتادة لهذه الحملة (الوسيط ${K(lang, round(med))}) — يُرجى تأكيد تغيّر النطاق.`) });
+    }
     if (i.paidK > 0)
       for (const f of flags) if (f.code === "OVERBILLED" || f.code === "VARIANCE" || f.code === "DUPLICATE") f.text += tx(lang, " Already paid — request a credit note.", " سبق سدادها — يُطلب إشعار دائن.");
 
@@ -199,7 +207,7 @@ export async function buildInvoiceDashboard(lang: Lang = "en"): Promise<InvoiceD
 
   const sum = (xs: number[]) => round(xs.reduce((s, x) => s + x, 0));
   const live = rows.filter((r) => r.decision !== "DISPUTED");
-  const vendorRows = vendors.map((v) => {
+  const vendorRows = vendors.filter((v) => (v.status ?? "ACTIVE") !== "BENCH").map((v) => {
     const rs = rows.filter((r) => r.vendorId === v.id);
     const cs = campaigns.filter((c) => c.vendorId === v.id);
     const deliveredK = sum(cs.flatMap((c) => c.months.map((m) => m.spendK)));

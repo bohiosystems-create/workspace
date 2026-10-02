@@ -23,7 +23,7 @@ const SUGGESTIONS_AR: Record<string, string> = {
   "Which contracts are ending?": "أي العقود ستنتهي قريباً؟",
 };
 const TYPE_LABEL: Record<string, string> = {
-  CRM_MISMATCH: "CRM", SLA_BREACH: "SLA", CONTRACT_RENEWAL: "Contract", UNDERPERFORMING: "Performance", INVOICE_EXCEPTIONS: "Invoices",
+  RENEWAL: "Renewal", DATA_MISMATCH: "Data", TEST_INCREMENTALITY: "Test", TRIAL: "Trial", CRM_MISMATCH: "CRM", SLA_BREACH: "SLA", CONTRACT_RENEWAL: "Contract", UNDERPERFORMING: "Performance", INVOICE_EXCEPTIONS: "Invoices",
   UNBILLED: "Unbilled", OVERDUE_PAYMENT: "Payment", REALLOCATE: "Budget", SCALE_UP: "Scale",
 };
 
@@ -69,6 +69,19 @@ export default function Chat() {
   useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight }); }, [msgs, busy, open, store]);
 
   const activeRecs = store ? store.recommendations.filter((r) => r.state === "OPEN" || r.state === "DRAFTED") : [];
+  const pending = store ? store.outbox.filter((e) => e.status === "DRAFT" || e.status === "FAILED") : [];
+  const showDrafts = (list = pending) =>
+    setMsgs((m) => [...m, { role: "assistant", content: list.length ? t("Drafts waiting for your approval:") : t("No drafts waiting for approval."), cards: list.map((e: any) => ({ kind: "email" as const, id: e.id })), engine: "rules" }]);
+  // Other pages (e.g. "Send RFP to bench") create drafts and ask the assistant to show them for approval.
+  useEffect(() => {
+    const h = async () => {
+      setOpen(true);
+      const d = await (await fetch(`/api/recommendations?lang=${langRef.current}`)).json().catch(() => null);
+      if (d && !d.error) { setStore(d); showDrafts(d.outbox.filter((e: any) => e.status === "DRAFT" || e.status === "FAILED")); }
+    };
+    window.addEventListener("open-drafts", h);
+    return () => window.removeEventListener("open-drafts", h);
+  });
   const urgent = activeRecs.filter((r) => r.severity === "crit").length;
 
   async function ask(text: string) {
@@ -135,7 +148,7 @@ export default function Chat() {
           <div className="at" style={{ fontSize: 11 }}>{r.title}</div>
           <div className="ad" style={{ fontSize: 10 }}>{r.rationale}</div>
           <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <span className="tag">{TYPE_LABEL[r.type]}</span>
+            <span className="tag">{t(TYPE_LABEL[r.type] ?? r.type)}</span>
             {r.impactK !== null && <span className="tag">{lang === "ar" ? `${r.impactK} ألف ر.س` : `SAR ${r.impactK}K`}</span>}
             <span className={`pill ${r.state === "SENT" ? "healthy" : r.state === "DRAFTED" ? "fix" : "hold"}`}>{t(r.state)}</span>
             <div style={{ flex: 1 }} />
@@ -243,6 +256,7 @@ export default function Chat() {
             {error && <div className="err" style={{ marginTop: 0 }}>{error}</div>}
           </div>
           <div className="chips">
+            {pending.length > 0 && <button className="chip" style={{ borderColor: "var(--ink)", color: "var(--ink)", fontWeight: 700 }} onClick={() => showDrafts()}>{t("Drafts to approve")} ({pending.length})</button>}
             {(msgs.length === 0 ? SUGGESTIONS : SUGGESTIONS.slice(0, 3)).map((s) => <button key={s} className="chip" onClick={() => ask(lang === "ar" ? SUGGESTIONS_AR[s] : s)} disabled={busy}>{lang === "ar" ? SUGGESTIONS_AR[s] : s}</button>)}
           </div>
           <form className="chat-input" onSubmit={(e) => { e.preventDefault(); ask(input); }}>

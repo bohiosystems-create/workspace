@@ -20,6 +20,19 @@ Pulls purchase orders and supplier invoices from **Oracle Fusion Cloud Procureme
 - **Mapping:** vendors are matched by Oracle *Supplier Number* (`Vendor.oracleSupplierNumber`); invoices are matched to campaigns via the PO / description containing the campaign name.
 - Live mode has **not been tested against a real Oracle instance**; field names follow the Fusion REST docs and are isolated in `mapInvoice` / `mapPurchaseOrder` in `lib/oracle.ts` for tenant-specific adjustment.
 
+## Vendor agent — score, prove, decide, review, re-bid
+
+Pages: **Decisions** (`/decisions`), **Experiments** (`/experiments`), **Bench & Trials** (`/bench`), **Data Sources** (`/data`). All bilingual; the assistant answers questions about every part.
+
+1. **Unified data** (`lib/unified.ts`, `docs/data-sources.md`) — vendor reports, ad accounts, CRM and Oracle invoices in one model, with a source of truth per metric. The Data Sources page shows every source, its coverage, and vendor-reported vs independent figures (spend vs ad platforms, leads vs CRM, contracts vs CRM wins, response time vs CRM). Vendor reports are imported from one canonical CSV template with validation.
+2. **Fair scorecard** (`lib/scoring.ts`) — cost per CRM-qualified lead (30%), CRM revenue + stage-weighted pipeline per SAR (30%), spend vs plan (15%, neutral for commission vendors), deadline adherence (15%), revisions (10%). Each metric is indexed against a **channel benchmark adjusted for budget size** (50 = par), multiplied by the measured incremental share where available, and shown with a **score range and confidence**. Benchmarks are assumptions to calibrate (`BENCHMARKS`).
+3. **Incrementality** (`lib/incrementality.ts`, `lib/stats.ts`) — audience-holdout and geo-test readouts (lift, 90% interval, share of results the vendor caused, cost per incremental result, significance), a test designer with power calculation (minimum detectable lift), approval before a test starts, and a **media-mix model** (adstock + saturation per channel, ridge regression with trend / Ramadan / summer, block-bootstrap intervals, reliability and data-sufficiency checks). Tests take precedence over the model.
+4. **Renewal recommendations** (`lib/renewal.ts`) — per vendor: **re-engage, renegotiate, performance plan, test a replacement, or exit**, with evidence, a confidence level (and why), what would change the decision, and targets. Renegotiate / plan / re-engage come with a vendor email (only vendor-safe facts) for human approval.
+5. **Vendor reviews** (`lib/reviews.ts`) — quarterly business review per vendor (results vs last quarter and benchmark, delivery, CRM / ad-platform verification, incrementality, billing anomalies, decision and asks), printable and sendable as a draft; billing anomaly detection (invoice spikes vs the campaign's history, on top of the reconciliation checks); a replacement **RFP** generated from the incumbent's data, sendable to bench vendors as drafts in each vendor's language.
+6. **Re-bid automatically** (`lib/bench.ts`) — a bench of pre-vetted alternatives; when a vendor is flagged *test replacement* or *exit*, the agent **proposes a paid trial** against the incumbent (budget, brief, CRM code, success criteria). Nothing is spent until a named person approves. Results are read from the CRM by trial code, compared on cost per qualified lead with a confidence level, and the decision (promote / extend / keep) is recorded.
+
+Everything that spends money, withholds spend (tests) or contacts a vendor requires a named approver and is written to the audit trail. All data is sample data until the real sources are connected.
+
 ## Arabic (العربية) and RTL
 
 A language switch in the header flips the whole app between English and Arabic (right-to-left layout, Arabic font, Gregorian dates, Western digits; the choice is remembered).

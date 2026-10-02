@@ -40,6 +40,14 @@ export const NAMES_AR: Record<string, string> = {
   "Nakhla Communications": "نخلة للاتصالات",
   "Hajar Outdoor": "هجر للإعلانات الخارجية",
   "Sada Influence": "صدى للتأثير",
+  // bench vendors
+  "Wasel Performance": "واصل للأداء", "Manazel Portal": "بوابة منازل", "Rukn Realty Brokers": "ركن للوساطة العقارية", "Mada Outdoor": "مدى للإعلانات الخارجية", "Bayan Creators": "بيان لصناع المحتوى",
+  "Huda Saleh": "هدى صالح", "Tariq Mansour": "طارق منصور", "Salma Haddad": "سلمى حداد", "Majed Aziz": "ماجد عزيز", "Lina Farouk": "لينا فاروق",
+  "12% media fee, media at cost (no markup), bonus per CRM-qualified lead above target": "رسوم 12% على الإعلام، والإعلام بالتكلفة (دون هامش)، ومكافأة لكل عميل مؤهل في النظام فوق المستهدف",
+  "SAR 38K / month featured package, cancellable monthly": "باقة مميزة بقيمة 38 ألف ر.س شهرياً، قابلة للإلغاء شهرياً",
+  "1.75% commission on signed contracts only": "عمولة 1.75% على العقود الموقعة فقط",
+  "Digital billboards, SAR 60K per 4-week flight, QR-tracked creative included": "لوحات رقمية، 60 ألف ر.س لكل حملة مدتها 4 أسابيع، تشمل محتوى برموز QR قابلة للتتبع",
+  "SAR 8K per creator package, paid on tracked leads": "8 آلاف ر.س لكل باقة صانع محتوى، تُدفع على العملاء المحتملين المتتبَّعين",
   // vendor contacts
   "Layla Nasser": "ليلى ناصر", "Omar Zahrani": "عمر الزهراني", "Khalid Otaibi": "خالد العتيبي",
   "Rania Habib": "رانيا حبيب", "Faisal Qahtani": "فيصل القحطاني", "Noor Bakri": "نور بكري",

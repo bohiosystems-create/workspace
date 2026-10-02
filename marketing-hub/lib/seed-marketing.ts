@@ -1,3 +1,4 @@
+import { single } from "./single";
 import { prisma } from "./prisma";
 
 // Seeds the demo properties, marketing vendors, campaigns and 5 months of funnel data (Jan–May 2026).
@@ -74,7 +75,7 @@ function wiggle(seed: number) {
   return 0.94 + (x - Math.floor(x)) * 0.12; // 0.94 .. 1.06
 }
 
-export async function ensureMarketingSeeded() {
+export const ensureMarketingSeeded = single(async function ensureMarketingSeededImpl() {
   if ((await prisma.vendor.count()) > 0) return;
 
   const vendorIds: Record<string, string> = {};
@@ -122,4 +123,4 @@ export async function ensureMarketingSeeded() {
       },
     });
   }
-}
+});
