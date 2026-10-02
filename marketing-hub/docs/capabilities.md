@@ -105,6 +105,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - **Chart types:** pie, donut, bars, horizontal bars or line.
   - **Measures:** revenue (contracted sales), spend, qualified leads, contracts, leads, cost to sales or cost per qualified lead.
   - **Groupings:** vendor, project, channel, campaign, month, year, or a lead profile (city, buyer type and so on), with any period, project, channel or vendor filter.
+  - **A chart request is always drawn, by the app itself, before the AI runs.** It appears even if the AI wouldn't call the chart tool or the view can't run tools; the AI then adds a short comment. On phones the legend sits under the pie and long bar charts turn horizontal.
   - **The numbers are always computed from the data, never typed by the AI.** A ratio such as cost to sales is never drawn as a pie. 2026 is labelled as partial.
   - **Under each chart:** switch its type, or download it as PNG or SVG (in the Claude app, the download asks you to confirm).
   - This works with the built-in answers too, in English and Arabic (*"ارسم رسماً بيانياً دائرياً للإيرادات حسب المورد"*).

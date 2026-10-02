@@ -2,7 +2,7 @@
 
 // A chart drawn by the assistant (lib/charts.ts computes the numbers). Plain SVG: pie, donut, bar, horizontal bar,
 // line. The viewer can switch the type and download it as PNG or SVG.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChartSpec, ChartType } from "@/lib/charts";
 import { saveFile } from "./saveFile";
 import { useI18n } from "./lang";
@@ -14,11 +14,13 @@ const W = 560;
 const fmt = (v: number, unit: string) => `${v.toLocaleString("en-US", { maximumFractionDigits: 1 })}${unit === "%" ? "%" : ""}`;
 const short = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-function Pie({ s, donut }: { s: ChartSpec; donut: boolean }) {
+function Pie({ s, donut, narrow }: { s: ChartSpec; donut: boolean; narrow: boolean }) {
   const total = s.values.reduce((a, b) => a + b, 0) || 1;
   const cx = 150, cy = 150, r = 120, ri = donut ? 66 : 0;
   let a0 = -Math.PI / 2;
-  const H = Math.max(300, 40 + s.labels.length * 24);
+  // Phones: legend under the pie (a 320-wide drawing), so the text stays readable.
+  const VW = narrow ? 300 : W, lx = narrow ? 14 : 300, ly = narrow ? 300 : 30, lw = narrow ? 272 : 250;
+  const H = narrow ? 300 + s.labels.length * 24 + 6 : Math.max(300, 40 + s.labels.length * 24);
   const arcs = s.values.map((v, i) => {
     const a1 = a0 + (v / total) * Math.PI * 2, large = a1 - a0 > Math.PI ? 1 : 0;
     const p = (a: number, rr: number) => `${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`;
@@ -31,26 +33,26 @@ function Pie({ s, donut }: { s: ChartSpec; donut: boolean }) {
     return <g key={i}><path d={d} fill={COLORS[i % COLORS.length]} stroke="#fff" strokeWidth="1.5" fillRule="evenodd" />{lab}</g>;
   });
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ fontFamily: FONT }}>
+    <svg viewBox={`0 0 ${VW} ${H}`} width="100%" style={{ fontFamily: FONT }}>
       {arcs}
       {donut && s.total !== null && <><text x={cx} y={cy - 2} textAnchor="middle" fontSize="16" fontWeight="700" fill="#000919">{fmt(s.total, s.unit)}</text><text x={cx} y={cy + 15} textAnchor="middle" fontSize="9" fill="#555">{s.unit}</text></>}
       {s.labels.map((l, i) => (
-        <g key={i} transform={`translate(300, ${30 + i * 24})`}>
+        <g key={i} transform={`translate(${lx}, ${ly + i * 24})`}>
           <rect width="11" height="11" y="-9" fill={COLORS[i % COLORS.length]} />
-          <text x="17" fontSize="11" fill="#000919">{short(l, 26)}</text>
-          <text x="250" fontSize="11" textAnchor="end" fontWeight="700" fill="#000919">{fmt(s.values[i], s.unit)}</text>
+          <text x="17" fontSize="11" fill="#000919">{short(l, narrow ? 30 : 26)}</text>
+          <text x={lw} fontSize="11" textAnchor="end" fontWeight="700" fill="#000919">{fmt(s.values[i], s.unit)}</text>
         </g>
       ))}
     </svg>
   );
 }
 
-function Bars({ s, horizontal }: { s: ChartSpec; horizontal: boolean }) {
+function Bars({ s, horizontal, w = W }: { s: ChartSpec; horizontal: boolean; w?: number }) {
   const max = Math.max(...s.values) || 1;
   if (horizontal) {
-    const H = 20 + s.labels.length * 26, x0 = 170, bw = W - x0 - 70;
+    const H = 20 + s.labels.length * 26, x0 = w < 400 ? 130 : 170, bw = w - x0 - 70;
     return (
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ fontFamily: FONT }}>
+      <svg viewBox={`0 0 ${w} ${H}`} width="100%" style={{ fontFamily: FONT }}>
         {s.labels.map((l, i) => (
           <g key={i} transform={`translate(0, ${10 + i * 26})`}>
             <text x={x0 - 8} y="14" fontSize="11" textAnchor="end" fill="#000919">{short(l, 26)}</text>
@@ -61,10 +63,10 @@ function Bars({ s, horizontal }: { s: ChartSpec; horizontal: boolean }) {
       </svg>
     );
   }
-  const H = 290, top = 24, bottom = 70, left = 44, plotH = H - top - bottom, n = s.labels.length, slot = (W - left - 10) / n, bw = Math.min(46, slot * 0.66);
+  const H = 290, top = 24, bottom = 70, left = 44, plotH = H - top - bottom, n = s.labels.length, slot = (w - left - 10) / n, bw = Math.min(46, slot * 0.66);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ fontFamily: FONT }}>
-      {[0, 0.5, 1].map((t) => <g key={t}><line x1={left} x2={W - 10} y1={top + plotH * (1 - t)} y2={top + plotH * (1 - t)} stroke="#000919" strokeOpacity="0.12" /><text x={left - 6} y={top + plotH * (1 - t) + 4} fontSize="9" textAnchor="end" fill="#555">{fmt(max * t, s.unit)}</text></g>)}
+    <svg viewBox={`0 0 ${w} ${H}`} width="100%" style={{ fontFamily: FONT }}>
+      {[0, 0.5, 1].map((t) => <g key={t}><line x1={left} x2={w - 10} y1={top + plotH * (1 - t)} y2={top + plotH * (1 - t)} stroke="#000919" strokeOpacity="0.12" /><text x={left - 6} y={top + plotH * (1 - t) + 4} fontSize="9" textAnchor="end" fill="#555">{fmt(max * t, s.unit)}</text></g>)}
       {s.values.map((v, i) => {
         const h = (v / max) * plotH, x = left + slot * i + (slot - bw) / 2;
         return (
@@ -79,13 +81,13 @@ function Bars({ s, horizontal }: { s: ChartSpec; horizontal: boolean }) {
   );
 }
 
-function Line({ s }: { s: ChartSpec }) {
+function Line({ s, w = W }: { s: ChartSpec; w?: number }) {
   const H = 270, top = 24, bottom = 46, left = 48, plotH = H - top - bottom, n = s.labels.length;
-  const max = Math.max(...s.values) || 1, step = n > 1 ? (W - left - 24) / (n - 1) : 0;
+  const max = Math.max(...s.values) || 1, step = n > 1 ? (w - left - 24) / (n - 1) : 0;
   const pts = s.values.map((v, i) => [left + step * i, top + plotH - (v / max) * plotH]);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ fontFamily: FONT }}>
-      {[0, 0.5, 1].map((t) => <g key={t}><line x1={left} x2={W - 10} y1={top + plotH * (1 - t)} y2={top + plotH * (1 - t)} stroke="#000919" strokeOpacity="0.12" /><text x={left - 6} y={top + plotH * (1 - t) + 4} fontSize="9" textAnchor="end" fill="#555">{fmt(max * t, s.unit)}</text></g>)}
+    <svg viewBox={`0 0 ${w} ${H}`} width="100%" style={{ fontFamily: FONT }}>
+      {[0, 0.5, 1].map((t) => <g key={t}><line x1={left} x2={w - 10} y1={top + plotH * (1 - t)} y2={top + plotH * (1 - t)} stroke="#000919" strokeOpacity="0.12" /><text x={left - 6} y={top + plotH * (1 - t) + 4} fontSize="9" textAnchor="end" fill="#555">{fmt(max * t, s.unit)}</text></g>)}
       <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke={COLORS[1]} strokeWidth="2.5" />
       {pts.map(([x, y], i) => (
         <g key={i}>
@@ -102,9 +104,17 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
   const { t } = useI18n();
   const [type, setType] = useState<ChartType>(spec.type);
   const ref = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const ro = new ResizeObserver(() => setNarrow(el.clientWidth < 440)); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const additive = spec.total !== null, timeline = spec.groupBy === "month" || spec.groupBy === "year";
   const allowed: ChartType[] = (["pie", "donut", "bar", "hbar", "line"] as ChartType[]).filter((x) => (x === "pie" || x === "donut" ? additive && !timeline : x === "line" ? spec.labels.length >= 3 : true));
-  const s = { ...spec, type };
+  // On a phone, many vertical bars with slanted labels get cut off: draw them horizontally instead.
+  const shown: ChartType = narrow && type === "bar" && spec.labels.length > 4 ? "hbar" : type;
+  const s = { ...spec, type: shown };
   const name = `${spec.metric}-by-${spec.groupBy}-${spec.period}`.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
 
   const svgText = () => {
@@ -140,11 +150,11 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
       <div style={{ fontSize: 12, fontWeight: 700 }} dir="auto">{spec.title}</div>
       <div className="muted" style={{ fontSize: 10, marginBottom: 8 }} dir="auto">{spec.period}{spec.unit && spec.unit !== "%" ? ` · ${spec.unit}` : ""}{spec.total !== null ? ` · ${t("total")} ${fmt(spec.total, spec.unit)}` : ""}</div>
       <div ref={ref}>
-        {type === "pie" || type === "donut" ? <Pie s={s} donut={type === "donut"} /> : type === "line" ? <Line s={s} /> : <Bars s={s} horizontal={type === "hbar"} />}
+        {type === "pie" || type === "donut" ? <Pie s={s} donut={type === "donut"} narrow={narrow} /> : type === "line" ? <Line s={s} w={narrow ? 360 : W} /> : <Bars s={s} horizontal={shown === "hbar"} w={narrow ? 360 : W} />}
       </div>
       {spec.note && <div className="muted" style={{ fontSize: 9, marginTop: 6 }} dir="auto">{spec.note}</div>}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
-        {allowed.map((x) => <button key={x} className={`chip${x === type ? " on" : ""}`} style={{ fontSize: 10, ...(x === type ? { borderColor: "var(--ink)", color: "var(--ink)", fontWeight: 700 } : {}) }} onClick={() => setType(x)}>{LABEL[x]}</button>)}
+        {allowed.map((x) => <button key={x} className={`chip${x === shown ? " on" : ""}`} style={{ fontSize: 10, ...(x === shown ? { borderColor: "var(--ink)", color: "var(--ink)", fontWeight: 700 } : {}) }} onClick={() => setType(x)}>{LABEL[x]}</button>)}
         <div style={{ flex: 1 }} />
         <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 8 }} onClick={() => download("png")}>{t("Download PNG")}</button>
         <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 8 }} onClick={() => download("svg")}>SVG</button>

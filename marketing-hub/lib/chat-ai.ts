@@ -3,7 +3,7 @@
 // past), vendors, projects, channels, periods, the campaign history, the daily campaign check, invoices and Meta.
 // It can show recommendation cards and create email DRAFTS — never send or approve.
 import { runLlm, type LlmTool } from "./llm";
-import { buildChart } from "./charts";
+import { buildChart, chartRequestFromText, chartSummary, RX_CHART, type ChartSpec } from "./charts";
 import { buildChatContext, snapshotForModel, recCards, draftForRec, type ChatCard, type ChatReply, type ChatContext } from "./chat";
 import { resolve, describe, periodSummary, parsePeriod, latestLiveMonth, liveCampaign, pastCampaign, vendorDetail, projectSummary, channelSummary } from "./query";
 import type { Polish } from "./recommendations";
@@ -20,7 +20,7 @@ Scope: leads, lead follow-up, sales and the CRM are handled by Kinan's own AI ag
 What you have:
 - DATA: a snapshot of today's position (targets, plan, vendors, campaigns, recommendations, daily campaign check, history summary, Meta attribution, invoices, orchestration).
 - Tools to look up details: get_campaign (live or past, by code or name), get_vendor, get_project, get_channel, get_history (benchmarks and past campaigns, filterable), get_period (spend / contracts / sales for months or years, grouped), get_daily_check, compare, get_invoices, get_meta, search. Use them whenever the snapshot is not enough — prefer one or two precise calls.
-- make_chart: draws a pie/donut/bar/line chart in the chat from the data (you choose metric, grouping, period, filters; the numbers are computed for you). Use it whenever a chart, graph or visual is asked for, then add one or two sentences on what it shows. Never draw charts in text or invent values.
+- make_chart: YOU CAN DRAW CHARTS — it draws a pie/donut/bar/line chart in the chat from the data (you choose metric, grouping, period, filters; the numbers are computed for you). Use it whenever a chart, graph or visual is asked for, then add one or two sentences on what it shows. Never draw charts in text or invent values.
 - show_recommendations and draft_email (drafts only; a person reviews and approves every email in the app).
 - get_audience (lead profiles: city, nationality, buyer type, budget, unit type, age, reason lost, response time), get_creatives (ads by message, format, language), get_market (prices and transactions per district, mortgages), get_competitors, get_calendar. Profiles, creatives, market and competitors are sample data: say so when you use them.
 - ideate_campaigns: new campaign ideas for a brief (saved on the Ideas page). Present the ideas briefly with their forecast ranges and say the manager can shortlist or approve them there; approving drafts a vendor brief for approval.
@@ -133,17 +133,29 @@ export async function aiAnswer(history: { role: "user" | "assistant"; content: s
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
   const ctx = await buildChatContext(looksArabic(lastUser) ? "ar" : uiLang);
   const cards: ChatCard[] = [];
+  // A chart request is drawn here, before the model runs, so the chart appears whatever the model does (and even
+  // where the view can't run tools). The model is told it's on screen and only comments on it.
+  let drawn: ChartSpec | null = null;
+  if (RX_CHART.test(lastUser.toLowerCase())) {
+    const spec = buildChart(chartRequestFromText(lastUser, ctx.q), ctx.q, ctx.lang);
+    if (!("error" in spec)) { drawn = spec; cards.push({ kind: "chart", chart: spec }); }
+  }
+  const chartNote = drawn
+    ? `\n\nCHART ALREADY SHOWN TO THE USER under your reply (drawn by the app from CRM-verified data — do not say you can't draw charts, don't redraw it, don't list every value): ${drawn.type} "${drawn.title}" (${drawn.period}, unit ${drawn.unit || "count"}): ${JSON.stringify(drawn.labels.map((l, i) => [l, drawn!.values[i]]))}${drawn.total !== null ? `; total ${drawn.total}` : ""}${drawn.note ? `. ${drawn.note}` : ""}. Reply in 2–4 sentences with what the chart shows and what it means for the decisions (score, renewal, budget). If the user wanted a different chart, call make_chart.`
+    : "";
   const res = await runLlm({
     task: "chat",
-    system: SYSTEM,
+    system: SYSTEM + chartNote,
     data: `DATA (as of ${ctx.mkt.asOf.slice(0, 10)}):\n${JSON.stringify(snapshotForModel(ctx))}`,
     messages: history.slice(-10),
-    tools: TOOLS,
+    tools: drawn ? TOOLS.filter((t) => t.name !== "make_chart") : TOOLS,
     exec: (name, input) => exec(ctx, name, input, cards, polish),
     maxTurns: 6,
   });
   const reply = res.refused
     ? (ctx.lang === "ar" ? "لا أستطيع المساعدة في هذا الطلب." : "I can't help with that request.")
     : res.text || (ctx.lang === "ar" ? "لم أتمكن من إعداد إجابة — جرّبوا صياغة أبسط." : "I could not produce an answer — could you ask it more simply?");
+  // Belt and braces: never show "I can't draw charts" next to a chart.
+  if (drawn && /can.?t (render|draw|create|generate|produce)|cannot (render|draw|create|generate|produce)|not a charting|no charting|لا أستطيع (رسم|إنشاء)/i.test(reply)) return { reply: chartSummary(drawn), cards, engine: res.provider, model: res.model };
   return { reply, cards: cards.filter((c, i) => cards.findIndex((x) => JSON.stringify(x) === JSON.stringify(c)) === i), engine: res.provider, model: res.model };
 }
