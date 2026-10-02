@@ -1,8 +1,27 @@
 // Turn the emailed report (a full HTML document, English or Arabic) into an A4 PDF in the browser: the report is laid
 // out off-screen at email width, captured as an image (so Arabic shaping and right-to-left layout come out exactly as
 // the browser draws them), and split across pages.
-export async function reportPdf(html: string): Promise<Blob> {
+// The Claude app edition (a claude.ai artifact) loads the two libraries from jsDelivr when the button is clicked,
+// which keeps the page small; the app and the offline demo bundle them.
+const CDN = { jspdf: "https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js", h2c: "https://cdn.jsdelivr.net/npm/html2canvas-pro@2.5.0/dist/html2canvas-pro.min.js" };
+const script = (src: string) => new Promise<void>((ok, fail) => {
+  if (document.querySelector(`script[src="${src}"]`)) return ok();
+  const s = document.createElement("script");
+  s.src = src; s.onload = () => ok(); s.onerror = () => fail(new Error("The PDF tools could not be loaded. Check the connection, or use Download HTML."));
+  document.head.appendChild(s);
+});
+async function libs(): Promise<{ jsPDF: any; html2canvas: any }> {
+  if (process.env.PDF_FROM_CDN === "1") {
+    await Promise.all([script(CDN.jspdf), script(CDN.h2c)]);
+    const w = window as any;
+    return { jsPDF: w.jspdf?.jsPDF, html2canvas: w.html2canvas?.default ?? w.html2canvas };
+  }
   const [{ jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas-pro")]);
+  return { jsPDF, html2canvas };
+}
+
+export async function reportPdf(html: string): Promise<Blob> {
+  const { jsPDF, html2canvas } = await libs();
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.style.cssText = "position:fixed;left:-12000px;top:0;width:760px;height:1200px;border:0;visibility:hidden";
