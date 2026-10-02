@@ -1,4 +1,4 @@
-// Optional: the AI (Anthropic or OpenAI, lib/llm.ts) tightens the wording of a template draft. It may not add or
+// Optional: the AI (task "draft", routed by lib/llm.ts) tightens the wording of a template draft. It may not add or
 // change facts; anything unparseable falls back to the template. A human still reviews and approves every email.
 import { runLlm } from "./llm";
 import type { Polish } from "./recommendations";
@@ -7,7 +7,7 @@ const SYSTEM = `You edit business emails from a real-estate developer's marketin
 
 export const polishWithAI: Polish = async (draft, facts) => {
   const res = await runLlm({
-    system: SYSTEM, maxTokens: 4000,
+    task: "draft", system: SYSTEM, maxTokens: 4000,
     messages: [{ role: "user", content: `FACTS (the only allowed content):\n${facts.map((f) => `- ${f}`).join("\n")}\n\nDRAFT:\nSubject: ${draft.subject}\n\n${draft.body}` }],
   });
   const m = res.text.match(/^Subject:\s*(.+)\n\s*\n([\s\S]+)$/);

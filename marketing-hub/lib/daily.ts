@@ -244,14 +244,15 @@ export async function decideDaily(id: string, decision: "ACCEPT" | "DISMISS" | "
   await prisma.marketingAction.create({ data: { type: "DAILY_" + status, campaign: f.campaign, detail: tx(lang, `${f.title.en} — ${status.toLowerCase()} by ${approver.trim()}${note ? ` (${note})` : ""}.`, `${f.title.ar} — ${status === "ACCEPTED" ? "قبلها" : status === "DISMISSED" ? "رفضها" : "أعاد فتحها"} ${approver.trim()}${note ? ` (${note})` : ""}.`) } });
 }
 
-/** Optional AI second opinion on today's check (Anthropic or OpenAI). On demand, cached per day and language. */
+/** Optional AI second opinion on today's check (Claude, OpenAI or Gemini). On demand, cached per day and language. */
 export async function generateDailyNote(lang: Lang) {
   const { runLlm, llmStatus } = await import("./llm");
-  if (!llmStatus().enabled) throw new Error(tx(lang, "AI needs an Anthropic or OpenAI API key (ANTHROPIC_API_KEY / OPENAI_API_KEY). The rules-based check above works without it.", "يتطلب الذكاء الاصطناعي مفتاح Anthropic أو OpenAI (ANTHROPIC_API_KEY / OPENAI_API_KEY). يعمل الفحص المعتمد على القواعد أعلاه دونه."));
+  if (!llmStatus().enabled) throw new Error(tx(lang, "AI needs an Anthropic, OpenAI or Gemini API key (ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY). The rules-based check above works without it.", "يتطلب الذكاء الاصطناعي مفتاح Anthropic أو OpenAI أو Gemini (ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY). يعمل الفحص المعتمد على القواعد أعلاه دونه."));
   const s = await dailyState(lang);
   const { historyState } = await import("./history");
   const h = await historyState(lang);
   const res = await runLlm({
+    task: "analysis",
     system: `You are the AI Director of Marketing for a Saudi real-estate developer with a single marketing manager. Write today's note on the daily campaign check: at most 140 words, ${lang === "ar" ? "in Modern Standard Arabic with Western digits" : "in English"}, plain text with "- " bullets. Say what to do first and why, group items that belong to the same campaign, point out where today's figures repeat a lesson from the campaign history, and flag anything the rules may have missed. Use only the numbers given; do not invent any. Do not propose lead follow-up or sales tasks (Kinan's agent handles leads).`,
     data: JSON.stringify({ date: s.date, summary: s.summary, recommendations: s.recommendations.map((r) => ({ severity: r.severity, campaign: r.campaign, title: r.title, why: r.why, action: r.action, openSince: r.since, status: r.status })), resolvedSinceYesterday: s.resolved.map((r) => r.title), historyLessons: h.lessons, benchmarks: h.byFamily.map((x) => ({ channel: x.label, costToSalesPct: x.costToSalesPct })) }),
     messages: [{ role: "user", content: tx(lang, "Write today's note.", "اكتب ملاحظة اليوم.") }],

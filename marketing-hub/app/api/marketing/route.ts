@@ -17,7 +17,7 @@ function fail(err: any, label: string) {
 }
 
 // GET  /api/marketing              -> dashboard (deterministic, no Claude)
-// GET  /api/marketing?narrative=1  -> dashboard + AI vendor brief (Anthropic or OpenAI)
+// GET  /api/marketing?narrative=1  -> dashboard + AI vendor brief (Claude, OpenAI or Gemini)
 export async function GET(req: Request) {
   try {
     await ensureMarketingSeeded();

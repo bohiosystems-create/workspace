@@ -261,11 +261,11 @@ export default function Chat() {
               <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: m.role === "user" ? "flex-end" : "stretch" }}>
                 <div dir="auto" className={`kmsg ${m.role === "user" ? "user" : "bot"}`} style={{ maxWidth: m.role === "user" ? "88%" : "100%" }}>
                   <Rich text={m.content} />
-                  {m.role === "assistant" && (m.engine === "anthropic" || m.engine === "openai") && (
-                    <div className="muted" style={{ fontSize: 9, marginTop: 6 }} dir="ltr">{m.engine === "anthropic" ? "Claude" : "OpenAI"}{m.model ? ` · ${m.model}` : ""}</div>
+                  {m.role === "assistant" && m.engine && m.engine !== "rules" && (
+                    <div className="muted" style={{ fontSize: 9, marginTop: 6 }} dir="ltr">{({ anthropic: "Claude", openai: "OpenAI", gemini: "Gemini" } as Record<string, string>)[m.engine] ?? m.engine}{m.model ? ` · ${m.model}` : ""}</div>
                   )}
                   {m.role === "assistant" && m.engine === "rules" && i === msgs.findIndex((x) => x.engine === "rules") && (
-                    <div className="muted" style={{ fontSize: 9, marginTop: 6 }}>{t("Answered by built-in rules. Add an Anthropic or OpenAI API key for free-form answers.")}</div>
+                    <div className="muted" style={{ fontSize: 9, marginTop: 6 }}>{t("Answered by built-in rules. Add a Claude, OpenAI or Gemini API key for free-form answers.")}</div>
                   )}
                 </div>
                 {m.cards?.map((c, j) => <div key={j}>{c.kind === "rec" ? recCard(c.key) : emailCard(c.id)}</div>)}

@@ -514,3 +514,19 @@ model DailyNote {
   text      String
   createdAt DateTime @default(now())
 }
+
+// Campaign ideas (lib/ideation.ts). One generation run creates several ideas sharing a runKey. Ideas carry both
+// languages; forecasts are computed in code from the campaign history, never taken from a model.
+model CampaignIdea {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  runKey     String
+  brief      String // JSON: project, month, budgetK, goal, audience, notes
+  payload    String // JSON: the idea (titles, big idea, offer, channels, forecast, guardrails, evidence, source)
+  source     String // rules | anthropic | openai | gemini
+  score      Float?
+  status     String    @default("NEW") // NEW | SHORTLISTED | APPROVED | DISCARDED
+  decidedBy  String?
+  decidedAt  DateTime?
+  note       String?
+}

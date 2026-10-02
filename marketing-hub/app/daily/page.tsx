@@ -71,8 +71,8 @@ export default function DailyPage() {
                 {data.ai.enabled && isToday && <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "ai"} onClick={() => act({ action: "AI_NOTE" }, "ai")}>{busy === "ai" ? t("Thinking…") : data.aiNote ? t("Refresh") : t("Ask the AI")}</button>}
               </div>
               {data.aiNote
-                ? <><div style={{ fontSize: 12.5, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{data.aiNote.text}</div><div className="muted" style={{ fontSize: 9, marginTop: 6 }} dir="ltr">{data.aiNote.provider === "anthropic" ? "Claude" : "OpenAI"} · {data.aiNote.model}</div></>
-                : <div className="muted" style={{ fontSize: 11.5 }}>{data.ai.enabled ? t("Ask the AI to read today's check together with the campaign history and say what to do first.") : t("Add an Anthropic or OpenAI API key to get an AI second opinion. The checks on this page are rules-based and work without one.")}</div>}
+                ? <><div style={{ fontSize: 12.5, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{data.aiNote.text}</div><div className="muted" style={{ fontSize: 9, marginTop: 6 }} dir="ltr">{({ anthropic: "Claude", openai: "OpenAI", gemini: "Gemini" } as Record<string, string>)[data.aiNote.provider] ?? data.aiNote.provider} · {data.aiNote.model}</div></>
+                : <div className="muted" style={{ fontSize: 11.5 }}>{data.ai.enabled ? t("Ask the AI to read today's check together with the campaign history and say what to do first.") : t("Add a Claude, OpenAI or Gemini API key to get an AI second opinion. The checks on this page are rules-based and work without one.")}</div>}
             </div>
           </div>
 

@@ -14,7 +14,7 @@ import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firs
 // What the chat can put in front of the user besides text. Cards are rendered live from
 // current data, so approving / editing an email happens in the card, never through the model.
 export type ChatCard = { kind: "rec"; key: string } | { kind: "email"; id: string };
-export type ChatReply = { reply: string; cards: ChatCard[]; engine: "anthropic" | "openai" | "rules"; model?: string };
+export type ChatReply = { reply: string; cards: ChatCard[]; engine: "anthropic" | "openai" | "gemini" | "rules"; model?: string };
 
 
 export async function buildChatContext(lang: Lang = "en") {

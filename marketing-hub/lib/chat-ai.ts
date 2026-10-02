@@ -91,6 +91,7 @@ export async function aiAnswer(history: { role: "user" | "assistant"; content: s
   const ctx = await buildChatContext(looksArabic(lastUser) ? "ar" : uiLang);
   const cards: ChatCard[] = [];
   const res = await runLlm({
+    task: "chat",
     system: SYSTEM,
     data: `DATA (as of ${ctx.mkt.asOf.slice(0, 10)}):\n${JSON.stringify(snapshotForModel(ctx))}`,
     messages: history.slice(-10),
