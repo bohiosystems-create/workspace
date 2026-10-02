@@ -262,7 +262,7 @@ export async function buildRecommendations(lang: Lang = "en", pre?: Agent) {
         : T(`Move SAR ${r.amountK}K from ${r.campaign} to ${r.toCampaign}`, `نقل ${K(lang, r.amountK)} من ${N(r.campaign)} إلى ${N(r.toCampaign)}`),
       rationale: `${r.rationale} ${r.impact}`,
       evidence: [r.rationale, r.impact],
-      impactK: r.type === "PAUSE" ? null : r.amountK, channel: "INTERNAL", href: "/",
+      impactK: r.type === "PAUSE" ? null : r.amountK, channel: "INTERNAL", href: "/campaigns",
     });
   }
 
@@ -277,7 +277,7 @@ export async function buildRecommendations(lang: Lang = "en", pre?: Agent) {
       rationale: T(
         `Scorecard ${best.score}/100, ${best.costToSalesPct ?? "n/a"}% cost-to-sales, ${best.qualRatePct ?? "n/a"}% qualified rate, no SLA breaches. Confirm capacity before increasing spend.`,
         `التقييم ${best.score}/100، نسبة التكلفة إلى المبيعات ${best.costToSalesPct ?? "غير متاحة"}%، نسبة المؤهلين ${best.qualRatePct ?? "غير متاحة"}%، بلا إخلال باتفاقية الخدمة. تأكدوا من الطاقة الاستيعابية قبل زيادة الإنفاق.`),
-      evidence: [T(`Scorecard ${best.score}/100`, `التقييم ${best.score}/100`)], impactK: null, channel: "INTERNAL", href: "/",
+      evidence: [T(`Scorecard ${best.score}/100`, `التقييم ${best.score}/100`)], impactK: null, channel: "INTERNAL", href: "/campaigns",
     });
   }
 

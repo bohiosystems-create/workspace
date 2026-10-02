@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useI18n } from "./lang";
 
 const LINKS = [
-  { href: "/", label: "Vendors & Campaigns" },
+  { href: "/", label: "Director" },
+  { href: "/campaigns", label: "Vendors & Campaigns" },
   { href: "/decisions", label: "Decisions" },
   { href: "/experiments", label: "Experiments" },
   { href: "/bench", label: "Bench & Trials" },
@@ -24,7 +25,7 @@ export default function Header() {
         <div className="logo">B</div>
         <div>
           <b>{lang === "ar" ? "بوهيو" : "Bohio"}</b>
-          <small>{t("Marketing Hub")}</small>
+          <small>{t("AI Director of Marketing")}</small>
         </div>
       </div>
       <div className="navlinks">

@@ -287,3 +287,65 @@ model SourceSync {
   rejected  Int      @default(0)
   note      String?
 }
+
+// ---- AI Director of Marketing ------------------------------------------------
+
+// Monthly sales targets per project — the director's north star.
+model SalesTarget {
+  id         String @id @default(cuid())
+  asset      String
+  month      String // YYYY-MM
+  salesM     Float // contracted sales target, SAR M
+  contracts  Int
+
+  @@unique([asset, month])
+}
+
+// Next month's budget allocation across vendors, proposed by the director, approved by a person.
+model BudgetPlan {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  month       String
+  status      String // PROPOSED | APPROVED | REJECTED
+  totalK      Float
+  linesJson   String // [{ vendorId, vendor, currentK, proposedK, expectedIncrementalSalesM, rationale }]
+  approvedBy  String?
+  approvedAt  DateTime?
+}
+
+// Work the director delegates — to the team, to a vendor, or to Kinan's AI agent.
+model DirectorTask {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  key        String    @unique // stable key so the same task is not created twice
+  assignee   String // TEAM | VENDOR | KINAN_AGENT
+  title      String
+  detail     String
+  payload    String? // JSON (e.g. lead ids for the Kinan agent)
+  status     String    @default("PROPOSED") // PROPOSED | APPROVED | DONE | REJECTED
+  approvedBy String?
+  eventId    String? // Kinan event created on approval
+}
+
+// Outbox of everything fed to Kinan (Yardi + AI agent). Delivered with retries; audited.
+model KinanEvent {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  type       String // lead.followup_requested | lead_source.quality | vendor.decision | budget.plan_approved | campaign.status_changed | brief.daily
+  target     String // AGENT | YARDI
+  payload    String // JSON
+  status     String    @default("PENDING") // PENDING | DELIVERED | FAILED
+  attempts   Int       @default(0)
+  lastError  String?
+  deliveredAt DateTime?
+  mode       String? // mock | webhook | yardi
+  approvedBy String? // who released it (events that reach customers need a person)
+}
+
+// What Kinan's agent reports back (e.g. a follow-up outcome) — becomes CRM truth when it carries a lead id.
+model KinanFeedback {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  type      String
+  payload   String
+}

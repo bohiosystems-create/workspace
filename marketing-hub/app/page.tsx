@@ -1,391 +1,222 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Header from "./_components/Header";
 import { useI18n } from "./_components/lang";
+import { useApprover, openDrafts } from "./_components/useAgent";
 import { monthShort } from "@/lib/i18n";
 
-const n0 = (x: number) => x.toLocaleString("en-GB");
-const dash = (x: number | null | undefined, suffix = "") => (x === null || x === undefined ? "—" : `${x}${suffix}`);
+const DECISION_LABEL: Record<string, string> = { RE_ENGAGE: "Re-engage", RENEGOTIATE: "Renegotiate", PERFORMANCE_PLAN: "Performance plan", TEST_REPLACEMENT: "Test replacement", EXIT: "Exit", PROMOTED: "Promoted" };
+const ASSIGNEE: Record<string, string> = { KINAN_AGENT: "Kinan AI agent", TEAM: "Marketing team", VENDOR: "Vendor" };
 
-export default function MarketingPage() {
-  const { lang, t, N, k: kk, m: mm, K: KK, M: MM, d: dd, dm } = useI18n();
-  const [crm, setCrm] = useState<any>(null);
+export default function DirectorPage() {
+  const { lang, t, N, k, m, K, M, dm } = useI18n();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [narrative, setNarrative] = useState("");
-  const [narrLoading, setNarrLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [note, setNote] = useState<{ vendor: string; text: string } | null>(null);
-  const [vendorFilter, setVendorFilter] = useState<string>("all");
+  const [savedApprover, saveApprover] = useApprover();
+  const [approver, setApprover] = useState("");
+  const langRef = useRef(lang);
+  langRef.current = lang;
+  useEffect(() => setApprover(savedApprover), [savedApprover]);
 
   useEffect(() => {
-    let live = true; // ignore responses that arrive after the language changed
-    setNarrative("");
-    setNote(null);
-    fetch(`/api/marketing?lang=${lang}`)
-      .then((r) => r.json())
-      .then((d) => { if (live) (d.error ? setError(d.error) : setData(d.dashboard)); })
-      .catch((e) => live && setError(e.message));
-    fetch(`/api/crm?lang=${lang}`)
-      .then((r) => r.json())
-      .then((d) => { if (live && !d.error) setCrm(d.dashboard); })
-      .catch(() => null);
+    let live = true;
+    fetch(`/api/director?lang=${lang}`).then((r) => r.json()).then((d) => { if (live) (d.error ? setError(d.error) : setData(d)); }).catch((e) => live && setError(e.message));
     return () => { live = false; };
   }, [lang]);
 
-  async function syncCrm() {
-    setBusy("crm");
-    setError(null);
-    try {
-      const d = await (await fetch("/api/crm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SYNC", lang }) })).json();
-      if (d.error) throw new Error(d.error);
-      setCrm(d.dashboard);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function post(body: any, key: string) {
+  async function act(body: any, key: string) {
     setBusy(key);
     setError(null);
     try {
-      const res = await fetch("/api/marketing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...body, lang }),
-      });
-      const d = await res.json();
+      const d = await (await fetch("/api/director", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, approver, lang: langRef.current }) })).json();
       if (d.error) throw new Error(d.error);
-      return d;
-    } catch (e: any) {
-      setError(e.message);
-      return null;
-    } finally {
-      setBusy(null);
-    }
+      setData(d);
+    } catch (e: any) { setError(e.message); } finally { setBusy(null); }
   }
+  const openChat = () => window.dispatchEvent(new Event("open-director"));
 
-  async function act(body: any, key: string) {
-    const d = await post(body, key);
-    if (d?.dashboard) setData(d.dashboard);
-  }
-
-  async function getNarrative() {
-    setNarrLoading(true);
-    setError(null);
-    try {
-      const d = await (await fetch(`/api/marketing?narrative=1&lang=${lang}`)).json();
-      if (d.error) throw new Error(d.error);
-      setNarrative(d.narrative);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setNarrLoading(false);
-    }
-  }
-
-  async function draftNote(v: any) {
-    const d = await post({ action: "VENDOR_NOTE", vendorId: v.id }, `note-${v.id}`);
-    if (d?.note) setNote({ vendor: v.name, text: d.note });
-  }
-
-  const k = data?.kpis;
-  const sevOrder: Record<string, number> = { crit: 0, warn: 1, info: 2 };
-  const maxSales = data ? Math.max(...data.monthly.map((m: any) => m.revenueM), 1) : 1;
-  const maxSpend = data ? Math.max(...data.monthly.map((m: any) => m.spendK), 1) : 1;
-  const funnelMax = data ? Math.max(...data.funnel.map((f: any) => f.value), 1) : 1;
-  const campaigns = data
-    ? data.campaigns.filter((c: any) => vendorFilter === "all" || c.vendorId === vendorFilter)
-    : [];
+  const tg = data?.targets;
+  const maxBar = tg ? Math.max(...tg.monthly.map((x: any) => Math.max(x.actualM, x.targetM)), 1) : 1;
+  const sev: Record<string, string> = { crit: "crit", warn: "warn", info: "info" };
 
   return (
     <div className="shell">
       <Header />
-      <div className="section-title">{t("Marketing & Sales")}</div>
-      <p className="intro">
-        {t("Every external marketing vendor, the campaigns they run per asset, and how that spend translates into leads, viewings, reservations and contracted sales — computed from the campaign register and verified against the CRM. Rule-based alerts flag SLA and contract issues; recommendations can be applied in one click and are written to an audit trail.")}
-      </p>
-
+      <div className="section-title">{t("Director of Marketing")}</div>
+      <p className="intro">{t("Your AI director of marketing: holds the plan to the sales targets, decides where the money goes, and tells you what needs your decision today. Approved work flows into Kinan's CRM (Yardi) and Kinan's AI agent. Nothing that spends money or contacts a customer happens without a named approver.")}</p>
       {error && <div className="err">{error}</div>}
-      {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading vendors…")}</div>}
+      {!data && !error && <div className="muted"><span className="spin dark" /> {t("Preparing today's brief…")}</div>}
 
       {data && (
         <>
-          <div className="kpis">
-            <Kpi v={KK(n0(k.spendK))} l={t("Marketing Spend")} d={`${k.liveCampaigns} ${t("live campaigns")}`} />
-            <Kpi v={n0(k.leads)} l={t("Leads")} />
-            <Kpi v={n0(k.contracts)} l={t("Contracts")} d={`${MM(k.revenueM)} ${t("sales")}`} />
-            <Kpi v={dash(k.costToSalesPct, "%")} l={t("Cost-to-Sales")} d={`${t("CAC")} ${k.cacK === null ? "—" : KK(k.cacK)}`} />
-            <Kpi v={String(k.alertCount)} l={t("Alerts")} alert={k.alertCount > 0} />
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px" }}>
-            <div className="section-title" style={{ fontSize: 12 }}>{t("Orchestration")}</div>
-            <button className="btn ghost" style={{ padding: "7px 14px", fontSize: 9 }} onClick={getNarrative} disabled={narrLoading}>
-              {narrLoading ? <><span className="spin dark" /> &nbsp;{t("Asking Claude…")}</> : t("AI vendor briefing")}
-            </button>
-          </div>
-          {narrative && <div className="panel" style={{ marginBottom: 14, fontSize: 12, lineHeight: 1.6 }}>{narrative}</div>}
-
-          {data.recommendations.length === 0 && <div className="muted" style={{ marginBottom: 14 }}>{t("No recommended actions — spend is converting within thresholds.")}</div>}
-          {data.recommendations.map((r: any, i: number) => {
-            const key = `rec-${i}`;
-            return (
-              <div className="rec" key={key}>
-                <span className={`badge ${r.type === "PAUSE" ? "alert" : "solid"}`}>{r.type === "PAUSE" ? t("Pause") : t("Shift budget")}</span>
-                <div style={{ flex: 1, minWidth: 240 }}>
-                  <div className="rt">
-                    {r.type === "PAUSE"
-                      ? `${t("Pause")} ${N(r.campaign)} (${N(r.vendor)})`
-                      : `${t("Move")} ${KK(r.amountK)} ${t("from")} ${N(r.campaign)} (${N(r.vendor)}) ${t("to")} ${N(r.toCampaign)} (${N(r.toVendor)})`}
-                  </div>
-                  <div className="rd">{r.rationale} {r.impact}</div>
-                </div>
-                <button
-                  className="btn"
-                  disabled={busy === key}
-                  onClick={() =>
-                    act(
-                      r.type === "PAUSE"
-                        ? { action: "PAUSE", campaignId: r.campaignId }
-                        : { action: "SHIFT_BUDGET", campaignId: r.campaignId, toCampaignId: r.toCampaignId, amountK: r.amountK },
-                      key
-                    )
-                  }
-                >
-                  {busy === key ? t("Applying…") : t("Apply")}
-                </button>
+          <div className="panel" style={{ borderWidth: 2 }}>
+            <div className="chart-label">{t("Today's brief")} · {data.asOf.slice(0, 10)}</div>
+            <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{data.brief.headline}</div>
+            <ul style={{ margin: "10px 0 0", paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.brief.bullets.map((b: string, i: number) => <li key={i}>{b}</li>)}</ul>
+            <div className="row twocol" style={{ marginTop: 14 }}>
+              <div>
+                <div className="chart-label">{t("Risks")}</div>
+                <ul style={{ margin: 0, paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.brief.risks.map((b: string, i: number) => <li key={i} className="bad">{b}</li>)}</ul>
               </div>
-            );
-          })}
-
-          <div className="section-title" style={{ fontSize: 12, margin: "22px 0 14px" }}>{t("Alerts")}</div>
-          {[...data.alerts].sort((a: any, b: any) => sevOrder[a.severity] - sevOrder[b.severity]).map((a: any, i: number) => (
-            <div key={i} className={`alert ${a.severity}`}>
-              <div className="ai">{a.severity === "crit" ? "!" : a.severity === "warn" ? "◷" : "≡"}</div>
-              <div style={{ flex: 1 }}>
-                <div className="at">{a.title}</div>
-                <div className="ad">{a.detail}</div>
+              <div>
+                <div className="chart-label">{t("This week I recommend")}</div>
+                <ol style={{ margin: 0, paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.brief.actions.map((b: string, i: number) => <li key={i}>{b}</li>)}</ol>
               </div>
-              <span className={`badge ${a.severity === "crit" ? "alert" : ""}`}>{t(a.tag)}</span>
             </div>
-          ))}
-          {data.alerts.length === 0 && <div className="muted">{t("No alerts.")}</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+              <button className="btn" onClick={openChat}>{t("Ask the director")}</button>
+              <button className="btn ghost" disabled={busy === "brief"} onClick={() => act({ action: "SEND_BRIEF" }, "brief")}>{t("Send brief to Kinan's agent")}</button>
+            </div>
+          </div>
 
-          <div className="row twocol" style={{ marginTop: 22 }}>
+          <div className="kpis" style={{ marginTop: 18 }}>
+            <Kpi v={M(tg.ytdActualM)} l={t("Sales year to date (CRM)")} d={`${t("target")} ${M(tg.ytdTargetM)}`} />
+            <Kpi v={`${tg.ytdPct}%`} l={t("Of target")} alert={tg.ytdPct < 90} />
+            {tg.byAsset.map((x: any) => <Kpi key={x.asset} v={`${x.pct}%`} l={N(x.asset)} d={`${t("June forecast")} ${m(x.forecastNextM)} / ${m(x.targetNextM)}`} alert={(x.pct ?? 0) < 75} />)}
+          </div>
+
+          <div className="row twocol">
             <div className="panel">
-              <div className="chart-label">{t("Spend vs contracted sales, by month")}</div>
+              <div className="chart-label">{t("Contracted sales vs target, by month (SAR M)")}</div>
               <div className="trend">
-                {data.monthly.map((m: any) => (
-                  <div className="tcol" key={m.month}>
+                {tg.monthly.map((x: any) => (
+                  <div className="tcol" key={x.month}>
                     <div className="tbars">
-                      <div className="tbar" title={`${t("Spend")} ${KK(m.spendK)}`} style={{ height: `${(m.spendK / maxSpend) * 100}%`, background: "var(--ink-faint)" }} />
-                      <div className="tbar" title={`${t("Sales")} ${MM(m.revenueM)}`} style={{ height: `${(m.revenueM / maxSales) * 100}%`, background: "var(--ink)" }} />
+                      <div className="tbar" title={`${t("Target")} ${x.targetM}`} style={{ height: `${(x.targetM / maxBar) * 100}%`, background: "var(--ink-faint)" }} />
+                      <div className="tbar" title={`${t("Actual")} ${x.actualM}`} style={{ height: `${(x.actualM / maxBar) * 100}%`, background: x.actualM < x.targetM * 0.9 ? "var(--alert)" : "var(--ink)" }} />
                     </div>
-                    <div className="lv">{mm(m.revenueM)}</div>
-                    <div className="ly">{monthShort(lang, m.month)}</div>
+                    <div className="lv">{x.actualM}</div>
+                    <div className="ly">{monthShort(lang, x.month)}</div>
                   </div>
                 ))}
               </div>
-              <div className="legend">
-                <span><i style={{ background: "var(--ink-faint)" }} />{t("Spend (SAR K)")}</span>
-                <span><i style={{ background: "var(--ink)" }} />{t("Sales (SAR M)")}</span>
-              </div>
+              <div className="legend"><span><i style={{ background: "var(--ink-faint)" }} />{t("Target")}</span><span><i style={{ background: "var(--ink)" }} />{t("Actual (red = below 90%)")}</span></div>
             </div>
 
             <div className="panel">
-              <div className="chart-label">{t("Lead-to-contract funnel")}</div>
-              <div style={{ marginTop: 8 }}>
-                {data.funnel.map((f: any, i: number) => (
-                  <div className="hbar-row" key={f.stage}>
-                    <div className="hbar-name">{t(f.stage)}</div>
-                    <div className="hbar-track">
-                      <div className="hbar-fill" style={{ width: `${Math.max((f.value / funnelMax) * 100, 1.5)}%`, background: "var(--ink)" }} />
-                    </div>
-                    <div className="hbar-v" style={{ width: 96 }}>
-                      {n0(f.value)}
-                      {i > 0 && <span className="muted" style={{ fontSize: 9 }}> {Math.round((f.value / data.funnel[i - 1].value) * 100)}%</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="chart-label" style={{ marginTop: 18 }}>{t("By asset — cost-to-sales")}</div>
-              {data.assets.map((a: any) => (
-                <div className="hbar-row" key={a.asset}>
-                  <div className="hbar-name">{N(a.asset)}</div>
-                  <div className="hbar-track">
-                    <div className="hbar-fill" style={{ width: `${Math.min(((a.costToSalesPct ?? 0) / 4) * 100, 100)}%`, background: (a.costToSalesPct ?? 0) > 3 ? "var(--alert)" : "var(--ink)" }} />
-                  </div>
-                  <div className="hbar-v" style={{ width: 96 }}>{dash(a.costToSalesPct, "%")} <span className="muted" style={{ fontSize: 9 }}>· {mm(a.revenueM)}</span></div>
+              <div className="chart-label">{t("Waiting for your decision")} ({data.inbox.length})</div>
+              {data.inbox.length === 0 && <div className="muted">{t("Nothing waiting. ")}</div>}
+              {data.inbox.map((x: any, i: number) => (
+                <div key={i} className={`alert ${sev[x.severity] ?? "info"}`} style={{ padding: "8px 12px", marginBottom: 6 }}>
+                  <div style={{ flex: 1, fontSize: 12 }}>{x.title}</div>
+                  {x.href === "drafts"
+                    ? <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8 }} onClick={openDrafts}>{t("Review")}</button>
+                    : <a className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, textDecoration: "none" }} href={x.href.startsWith("#") ? undefined : x.href} onClick={(e) => { if (x.href.startsWith("#")) { e.preventDefault(); document.getElementById(x.href.slice(1))?.scrollIntoView({ behavior: "smooth" }); } }}>{t("Open")}</a>}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="panel" style={{ marginTop: 18 }}>
-            <div className="chart-label">{t("Vendor scorecard")}</div>
-            <div style={{ overflowX: "auto" }}>
-              <table className="dtable">
-                <thead>
-                  <tr>
-                    <th>{t("Vendor")}</th><th>{t("Category")}</th><th className="num">{t("Spend")}</th><th className="num">{t("Contracts")}</th>
-                    <th className="num">{t("Sales (M)")}</th><th className="num">{t("Cost / Sales")}</th><th className="num">{t("Qual. rate")}</th>
-                    <th className="num">{t("Resp. (h)")}</th><th>{t("Score")}</th><th>{t("Verdict")}</th><th>{t("Contract")}</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.vendors.map((v: any) => (
-                    <tr key={v.id}>
-                      <td>
-                        <b>{N(v.name)}</b>
-                        {v.slaBreaches.map((b: string) => <div key={b} style={{ color: "var(--alert)", fontSize: 9, marginTop: 3 }}>{b}</div>)}
-                      </td>
-                      <td>{N(v.category)}</td>
-                      <td className="num">{kk(n0(v.spendK))} <span className="muted">({v.spendSharePct}%)</span></td>
-                      <td className="num">{v.contracts}</td>
-                      <td className="num">{v.revenueM}</td>
-                      <td className="num" style={v.costToSalesPct === null || v.costToSalesPct > 3 ? { color: "var(--alert)", fontWeight: 700 } : {}}>{dash(v.costToSalesPct, "%")}</td>
-                      <td className="num">{dash(v.qualRatePct, "%")}</td>
-                      <td className="num">{dash(v.latestRespHrs)} <span className="muted">/ {v.slaResponseHrs}</span></td>
-                      <td>
-                        <div className="score" title={`${t("Efficiency")} ${v.scoreParts.efficiency}/40 · ${t("Quality")} ${v.scoreParts.quality}/25 · ${t("Responsiveness")} ${v.scoreParts.responsiveness}/20 · ${t("Delivery")} ${v.scoreParts.delivery}/15`}>
-                          <div className="score-track"><div className="score-fill" style={{ width: `${v.score}%`, background: v.score < 45 ? "var(--alert)" : "var(--ink)" }} /></div>
-                          <b>{v.score}</b>
-                        </div>
-                      </td>
-                      <td><span className={`pill ${v.verdict.toLowerCase()}`}>{t(v.verdict)}</span></td>
-                      <td>{dd(v.contractEnd, { month: "short", year: "numeric" })}</td>
-                      <td>
-                        <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => draftNote(v)} disabled={busy === `note-${v.id}`}>
-                          {busy === `note-${v.id}` ? t("Drafting…") : t("Draft note")}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="muted" style={{ marginTop: 10, fontSize: 10 }}>
-              {t("Score = efficiency 40 (cost-to-sales) + quality 25 (qualified rate) + responsiveness 20 (vs contract SLA) + delivery 15 (budget pacing). PR and outdoor are last-touch under-attributed.")}
-            </div>
-            {note && (
-              <>
-                <div className="chart-label" style={{ marginTop: 18 }}>{t("Draft note")} — {N(note.vendor)}</div>
-                <div className="note" dir="auto">{note.text}</div>
-              </>
-            )}
+          <div className="panel" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div className="field" style={{ width: 220 }}><label>{t("Approving as")}</label><input className="in" placeholder={t("Your name")} value={approver} onChange={(e) => { setApprover(e.target.value); saveApprover(e.target.value); }} /></div>
+            <div className="muted" style={{ flex: 1, minWidth: 220 }}>{t("Approvals below are recorded with this name and sent to Kinan with it.")}</div>
           </div>
 
-          {crm && (
-            <div className="panel" style={{ marginTop: 18 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-                <div className="chart-label" style={{ margin: 0 }}>{t("CRM verification — vendor-reported vs CRM")}</div>
-                <span className="badge">{t("CRM")} · {crm.integration.mode}</span>
-                <div style={{ flex: 1 }} />
-                <button className="btn ghost" style={{ padding: "7px 14px", fontSize: 9 }} onClick={syncCrm} disabled={busy === "crm"}>
-                  {busy === "crm" ? t("Syncing…") : t("Sync CRM")}
-                </button>
-              </div>
-              <div className="muted" style={{ fontSize: 10, marginBottom: 10 }}>
-                {n0(crm.integration.leads)} {t("leads on record")}
-                {crm.integration.lastSync ? ` · ${t("last sync")} ${dm(crm.integration.lastSync)}` : ""}
-                {` · ${crm.integration.attributionGapPct}% ${t("not attributable to a vendor campaign")}`}
-                {crm.integration.mode === "mock" && ` · ${t("sample CRM data (set CRM_MODE — see docs/crm-integration.md)")}`}
-              </div>
-              <div style={{ overflowX: "auto" }}>
-                <table className="dtable">
-                  <thead>
-                    <tr>
-                      <th>{t("Vendor")}</th><th className="num">{t("Leads reported")}</th><th className="num">{t("Leads in CRM")}</th><th className="num">{t("Gap")}</th>
-                      <th className="num">{t("Contracts claimed")}</th><th className="num">{t("Won in CRM")}</th>
-                      <th className="num">{t("Response reported (h)")}</th><th className="num">{t("Response in CRM (h)")}</th><th className="num">{t("Never contacted")}</th><th className="num">{t("Verified cost / sales")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {crm.vendors.map((v: any) => (
-                      <tr key={v.id}>
-                        <td>
-                          <b>{N(v.vendor)}</b>
-                          {v.flags.map((f: any) => <div key={f.code} style={{ color: f.severity === "crit" ? "var(--alert)" : "var(--ink-soft)", fontSize: 9, marginTop: 3 }}>{f.severity === "crit" ? "! " : "◷ "}{f.text}</div>)}
-                        </td>
-                        <td className="num">{n0(v.reportedLeads)}</td>
-                        <td className="num">{n0(v.crmLeads)}</td>
-                        <td className="num" style={v.leadGapPct > 15 ? { color: "var(--alert)", fontWeight: 700 } : {}}>{v.leadGapPct}%</td>
-                        <td className="num">{v.reportedContracts}</td>
-                        <td className="num">{v.crmWon}</td>
-                        <td className="num">{dash(v.reportedRespHrs)}</td>
-                        <td className="num" style={v.reportedRespHrs !== null && v.crmRespHrs !== null && v.crmRespHrs > v.reportedRespHrs * 1.2 ? { color: "var(--alert)", fontWeight: 700 } : {}}>{dash(v.crmRespHrs)}</td>
-                        <td className="num">{v.untouched}</td>
-                        <td className="num">{dash(v.verifiedCostToSalesPct, "%")}</td>
+          <div id="plan" className="panel" style={{ marginTop: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+              <div className="chart-label" style={{ margin: 0 }}>{t("Budget plan")} — {monthShort(lang, data.plan.month)} {data.plan.month.slice(0, 4)}</div>
+              <span className={`pill ${data.plan.status === "APPROVED" ? "healthy" : "fix"}`}>{t(data.plan.status)}</span>
+              {data.plan.approvedBy && <span className="muted">{t("approved by")} {data.plan.approvedBy}</span>}
+              <div style={{ flex: 1 }} />
+              {data.plan.status === "PROPOSED" && <button className="btn" disabled={!approver.trim() || busy === "plan"} title={!approver.trim() ? t("Enter your name") : ""} onClick={() => act({ action: "APPROVE_PLAN" }, "plan")}>{t("Approve plan and send to Kinan")}</button>}
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table className="dtable">
+                <thead><tr><th>{t("Vendor")}</th><th>{t("Decision")}</th><th className="num">{t("Last month")}</th><th className="num">{t("Proposed")}</th><th className="num">{t("Change")}</th><th className="num">{t("Expected incremental sales")}</th><th>{t("Why")}</th></tr></thead>
+                <tbody>
+                  {data.plan.lines.map((x: any) => {
+                    const ch = x.proposedK - x.currentK;
+                    return (
+                      <tr key={x.vendorId}>
+                        <td><b>{N(x.vendor)}</b></td>
+                        <td><span className={`dec-badge ${x.decision}`} style={{ fontSize: 8, padding: "3px 7px" }}>{t(DECISION_LABEL[x.decision] ?? x.decision)}</span></td>
+                        <td className="num">{k(x.currentK)}</td>
+                        <td className="num"><b>{k(x.proposedK)}</b></td>
+                        <td className={`num ${ch > 0 ? "ok" : ch < 0 ? "bad" : ""}`}>{ch > 0 ? "+" : ""}{Math.round(ch)}</td>
+                        <td className="num">{m(x.expectedM)}</td>
+                        <td style={{ fontSize: 10, color: "var(--ink-soft)", maxWidth: 300 }}>{x.rationale}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          <div className="panel" style={{ marginTop: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-              <div className="chart-label" style={{ margin: 0 }}>{t("Campaigns")}</div>
-              <select style={{ width: "auto" }} value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)}>
-                <option value="all">{t("All vendors")}</option>
-                {data.vendors.map((v: any) => <option key={v.id} value={v.id}>{N(v.name)}</option>)}
-              </select>
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              <table className="dtable">
-                <thead>
-                  <tr>
-                    <th>{t("Campaign")}</th><th>{t("Vendor")}</th><th>{t("Status")}</th><th className="num">{t("Spend / Budget")}</th><th className="num">{t("Pacing")}</th>
-                    <th className="num">{t("Leads")}</th><th className="num">{t("CPL (SAR)")}</th><th className="num">{t("Qual.")}</th><th className="num">{t("View.")}</th>
-                    <th className="num">{t("Contracts")}</th><th className="num">{t("Sales (M)")}</th><th className="num">{t("CAC (K)")}</th><th className="num">{t("Cost / Sales")}</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {campaigns.map((c: any) => (
-                    <tr key={c.id}>
-                      <td><b>{N(c.name)}</b><div className="muted" style={{ fontSize: 9 }}>{N(c.asset)} · {N(c.channel)}{c.attribution === "Weak" ? ` · ${t("weak attribution")}` : ""}</div></td>
-                      <td>{N(c.vendor)}</td>
-                      <td><span className={`pill ${c.status.toLowerCase()}`}>{t(c.status)}</span></td>
-                      <td className="num">{c.spendK} / {kk(c.budgetK)}</td>
-                      <td className="num" style={c.pacingPct !== null && (c.pacingPct > 115 || c.pacingPct < 75) ? { color: "var(--alert)" } : {}}>{dash(c.pacingPct, "%")}</td>
-                      <td className="num">{n0(c.leads)}</td>
-                      <td className="num">{dash(c.cplSar)}{c.cplTrendPct !== null && c.cplTrendPct > 20 ? <span style={{ color: "var(--alert)" }}> ↑</span> : ""}</td>
-                      <td className="num">{c.qualified}</td>
-                      <td className="num">{c.viewings}</td>
-                      <td className="num">{c.contracts}</td>
-                      <td className="num">{c.revenueM}</td>
-                      <td className="num">{dash(c.cacK)}</td>
-                      <td className="num"><span className={`pill ${c.health.toLowerCase()}`}>{dash(c.costToSalesPct, "%")}</span></td>
-                      <td>
-                        {c.status === "LIVE" && (
-                          <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === c.id} onClick={() => act({ action: "PAUSE", campaignId: c.id }, c.id)}>{t("Pause")}</button>
-                        )}
-                        {c.status === "PAUSED" && (
-                          <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === c.id} onClick={() => act({ action: "RESUME", campaignId: c.id }, c.id)}>{t("Resume")}</button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            <div style={{ fontSize: 12, marginTop: 10 }}>
+              {t("Total")} <b>{K(data.plan.totalK)}</b> · {t("expected incremental sales")} <b>{M(data.plan.expectedM)}</b> {t("vs")} {M(data.plan.flatM)} {t("if unchanged")} (<b className="ok">+{m(data.plan.upliftM)}</b>)
+              {data.plan.unallocatedK > 0 && <> · {t("held in reserve")} <b>{K(data.plan.unallocatedK)}</b> {t("(no vendor can use more profitably — fund trials or new vendors)")}</>}
+            </div>
+            <div className="muted" style={{ fontSize: 10, marginTop: 6 }}>{data.plan.assumptions}</div>
           </div>
 
-          <div className="panel" style={{ marginTop: 18 }}>
-            <div className="chart-label">{t("Orchestration audit trail")}</div>
-            {data.actions.length === 0 && <div className="muted">{t("No actions taken yet.")}</div>}
-            {data.actions.map((a: any) => (
-              <div className="logrow" key={a.id}>
-                <div className="lt">{dm(a.createdAt)}</div>
-                <span className="tag">{t(a.type)}</span>
-                <div><b>{a.campaign}</b> — {a.detail}</div>
+          <div id="tasks" className="panel" style={{ marginTop: 18 }}>
+            <div className="chart-label">{t("Delegations")}</div>
+            {data.tasks.length === 0 && <div className="muted">{t("No delegations.")}</div>}
+            {data.tasks.map((x: any) => (
+              <div className="dec" key={x.id} style={{ marginBottom: 8 }}>
+                <div className="dec-head">
+                  <span className="tag">{t(ASSIGNEE[x.assignee] ?? x.assignee)}</span>
+                  <b>{x.title}</b>
+                  <div style={{ flex: 1 }} />
+                  <span className={`pill ${x.status === "DONE" ? "healthy" : x.status === "APPROVED" ? "live" : x.status === "REJECTED" ? "hold" : "fix"}`}>{t(x.status)}</span>
+                </div>
+                <div style={{ fontSize: 12, marginTop: 6, color: "var(--ink-soft)" }}>{x.detail}</div>
+                {x.approvedBy && <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{t("approved by")} {x.approvedBy}{x.eventId ? ` · ${t("sent to Kinan")}` : ""}</div>}
+                <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                  {x.status === "PROPOSED" && <>
+                    <button className="btn" style={{ padding: "8px 12px", fontSize: 9 }} disabled={!approver.trim() || busy === x.id} onClick={() => act({ action: "DECIDE_TASK", id: x.id, decision: "APPROVE" }, x.id)}>{x.assignee === "KINAN_AGENT" ? `${t("Approve and send to Kinan's agent")} (${x.leads})` : t("Approve")}</button>
+                    <button className="btn ghost" style={{ padding: "8px 12px", fontSize: 9 }} disabled={!approver.trim() || busy === x.id} onClick={() => act({ action: "DECIDE_TASK", id: x.id, decision: "REJECT" }, x.id)}>{t("Reject")}</button>
+                  </>}
+                  {x.status === "APPROVED" && <button className="btn ghost" style={{ padding: "8px 12px", fontSize: 9 }} disabled={!approver.trim() || busy === x.id} onClick={() => act({ action: "DECIDE_TASK", id: x.id, decision: "DONE" }, x.id)}>{t("Mark done")}</button>}
+                </div>
               </div>
             ))}
+          </div>
+
+          <div className="row twocol" style={{ marginTop: 18 }}>
+            <div className="panel">
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                <div className="chart-label" style={{ margin: 0 }}>{t("Feed to Kinan (Yardi + AI agent)")}</div>
+                <span className="tag" dir="ltr">agent · {data.kinan.mode}</span><span className="tag" dir="ltr">yardi · {data.kinan.yardi}</span>
+                <div style={{ flex: 1 }} />
+                <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "retry"} onClick={() => act({ action: "RETRY" }, "retry")}>{t("Retry failed")}</button>
+              </div>
+              {data.kinan.outbox.length === 0 && <div className="muted">{t("Nothing sent yet.")}</div>}
+              {data.kinan.outbox.map((e: any) => (
+                <div className="logrow" key={e.id}>
+                  <div className="lt">{dm(e.createdAt)}</div>
+                  <span className={`pill ${e.status === "DELIVERED" ? "healthy" : e.status === "FAILED" ? "weak" : "hold"}`}>{t(e.status)}</span>
+                  <div style={{ flex: 1 }}>
+                    <b dir="ltr">{e.type}</b> <span className="muted">→ {e.target === "YARDI" ? "Yardi" : t("AI agent")}{e.mode === "mock" ? ` (${t("simulated")})` : ""}</span>
+                    <div className="muted" style={{ fontSize: 10 }}>{e.summary}{e.approvedBy ? ` · ${t("approved by")} ${e.approvedBy}` : ""}{e.lastError ? ` · ${e.lastError}` : ""}</div>
+                  </div>
+                </div>
+              ))}
+              {data.kinan.mode === "mock" && <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Simulated: events are recorded but not sent. Set KINAN_MODE=webhook to deliver to Kinan's agent (see docs/kinan-integration.md).")}</div>}
+            </div>
+
+            <div className="panel">
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                <div className="chart-label" style={{ margin: 0 }}>{t("Lead-source quality — handling guidance for Kinan")}</div>
+                <div style={{ flex: 1 }} />
+                <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "src"} onClick={() => act({ action: "PUSH_SOURCES" }, "src")}>{t("Send to Kinan")}</button>
+              </div>
+              <table className="dtable">
+                <thead><tr><th>{t("Campaign code")}</th><th className="num">{t("Qualified")}</th><th className="num">{t("Won")}</th><th className="num">{t("Score")}</th><th>{t("Guidance")}</th></tr></thead>
+                <tbody>
+                  {data.sourceQuality.map((s: any) => (
+                    <tr key={s.code}>
+                      <td><b dir="ltr">{s.code}</b><div className="muted" style={{ fontSize: 9 }}>{N(s.campaign)}</div></td>
+                      <td className="num">{s.qualifiedRate}%</td>
+                      <td className="num">{s.winRate}%</td>
+                      <td className="num">{s.qualityScore}</td>
+                      <td><span className={`pill ${s.guidance === "PRIORITISE" ? "healthy" : s.guidance === "DEPRIORITISE" ? "weak" : "hold"}`} style={{ display: "inline-block" }}>{t(s.guidance)}</span><div className="muted" style={{ fontSize: 9, marginTop: 4, lineHeight: 1.4 }}>{s.guidanceText}</div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}

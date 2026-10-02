@@ -9,7 +9,7 @@ const actions: any[] = [];
 const byId = (id: string) => data.campaigns.find((c: any) => c.id === id) ?? null;
 
 // Minimal generic table for the Oracle-synced models (starts empty; filled by the mock sync).
-function table(rows: any[]) {
+function table(rows: any[], defaults: Record<string, unknown> = {}) {
   return {
     findMany: async (a: any = {}) => {
       const r = [...rows];
@@ -18,7 +18,7 @@ function table(rows: any[]) {
     },
     count: async () => rows.length,
     create: async ({ data: d }: any) => {
-      const row = { id: "r" + Math.random().toString(36).slice(2), createdAt: new Date(), decision: "PENDING", decisionNote: null, decidedAt: null, approvedBy: null, approvedAt: null, sentAt: null, delivery: null, providerRef: null, error: null, ...d };
+      const row = { id: "r" + Math.random().toString(36).slice(2), createdAt: new Date(), decision: "PENDING", decisionNote: null, decidedAt: null, approvedBy: null, approvedAt: null, sentAt: null, delivery: null, providerRef: null, error: null, ...defaults, ...d };
       rows.push(row);
       return row;
     },
@@ -54,6 +54,11 @@ export const prisma = {
   salesWeek: table(data.salesWeeks ?? []),
   adPlatformWeek: table([]),
   sourceSync: table([]),
+  salesTarget: table([]),
+  budgetPlan: table([]),
+  directorTask: table([], { status: "PROPOSED", eventId: null }),
+  kinanEvent: table([], { status: "PENDING", attempts: 0, lastError: null, deliveredAt: null, mode: null }),
+  kinanFeedback: table([]),
   campaign: {
     findMany: async () => data.campaigns,
     findUnique: async ({ where }: any) => byId(where.id),

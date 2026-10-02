@@ -46,7 +46,7 @@ export const isStage = (s: unknown): s is CrmStage => typeof s === "string" && (
 
 export const crmMode = () => {
   const m = process.env.CRM_MODE;
-  return m === "ingest" || m === "salesforce" || m === "dynamics" ? m : "mock";
+  return m === "ingest" || m === "salesforce" || m === "dynamics" || m === "yardi" ? m : "mock";
 };
 
 export type CrmContext = {
@@ -151,7 +151,7 @@ const mockAdapter: CrmAdapter = {
 };
 
 export const adapterFor = (mode: string): CrmAdapter | null =>
-  mode === "mock" ? mockAdapter : mode === "salesforce" ? notImplemented("Salesforce") : mode === "dynamics" ? notImplemented("Microsoft Dynamics 365") : null;
+  mode === "mock" ? mockAdapter : mode === "yardi" ? notImplemented("Yardi (Kinan)") : mode === "salesforce" ? notImplemented("Salesforce") : mode === "dynamics" ? notImplemented("Microsoft Dynamics 365") : null;
 
 // ---------------------------------------------------------------------- sync
 export async function upsertLeads(leads: CanonicalLead[]) {

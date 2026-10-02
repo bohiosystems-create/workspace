@@ -1,8 +1,27 @@
-# Bohio — Marketing Hub (standalone)
+# Bohio — AI Director of Marketing (standalone)
 
-Monitor and orchestrate external marketing vendors: the campaigns they run per
-asset, their results, and how spend translates into contracted sales. Separate
+An AI assistant director of marketing: it holds the plan to the sales targets,
+orchestrates the external marketing vendors (their campaigns, results and how
+spend translates into contracted sales), decides where the money goes, and
+feeds approved work into **Kinan's CRM (Yardi) and Kinan's AI agent**. Separate
 app with its own database — no dependency on `deal-screener`.
+
+## Director (`/`) and the Kinan feed
+
+The home page is the director's desk (`lib/director.ts`, `app/page.tsx`); vendor and campaign monitoring moved to `/campaigns`.
+
+- **Today's brief** — sales vs target year to date (CRM-verified), the asset furthest behind, June forecast per asset, vendor calls, risks and what to do this week. Also answerable in the assistant ("What's today's brief?").
+- **Targets** — monthly contracted-sales targets per asset (`SalesTarget`, sample values Jan–Jun 2026), actual vs target by month.
+- **Approval inbox** — everything waiting for a named person: delegations, vendor non-renewals, trials to approve or read out, invoice exceptions, email drafts.
+- **Budget plan** — next month's budget per vendor, inside the range each vendor's renewal decision allows (exit, test a replacement, performance plan, renegotiate, re-engage; commission vendors ±10%). Money moves to the highest incremental sales per SAR with diminishing returns (sales ∝ spend^0.7); the plan shows expected incremental sales vs unchanged and what is held in reserve. Indicative, not a promise.
+- **Delegations** — tasks for the marketing team or Kinan's AI agent, e.g. *follow up leads nobody contacted within 48h* and *re-engage leads lost on price or financing*. A task that leads to customers being contacted is only sent to Kinan after a named approver approves it.
+- **Lead-source quality** — every campaign code ranked by qualified and win rate (percentiles): prioritise / standard / deprioritise, with handling guidance for Kinan's agent and Yardi.
+
+**Kinan connector** (`lib/kinan.ts`, `docs/kinan-integration.md`): an outbox (`KinanEvent`) that stores every event, delivers it and retries failures — `lead.followup_requested`, `lead_source.quality`, `director.plan_approved`, `campaign.status_changed`, `brief.daily`.
+
+- `KINAN_MODE=mock` (default) records events without sending; `KINAN_MODE=webhook` POSTs to `KINAN_AGENT_WEBHOOK_URL`, signed with HMAC-SHA256 (`X-Bohio-Signature: sha256=…`, secret `KINAN_WEBHOOK_SECRET`).
+- Kinan's agent reads `GET /api/kinan/context` (priorities, source quality, campaign codes, open tasks) and reports back on `POST /api/kinan/feedback` (`lead.contacted`, `lead.outcome`, `task.done`), both with `x-api-key: $KINAN_API_KEY`.
+- **Yardi delivery is not implemented** (`YARDI_MODE=mock` only): it needs Kinan's Yardi interface licence and credentials. `CRM_MODE=yardi` is reserved for pulling leads from Yardi. The questions to settle with Kinan are in `docs/kinan-integration.md`.
 
 - **Monitor** — spend → leads → qualified → viewings → reservations → contracts → sales; cost-to-sales, CAC, CPL, budget pacing; 0–100 vendor scorecard (efficiency 40, quality 25, SLA responsiveness 20, delivery 15).
 - **Alerts** — SLA breaches, contract expiry, cost-to-sales > 3%, CPL inflation, lead-quality decay, pacing, vendor concentration.
@@ -83,7 +102,7 @@ npm run dev          # http://localhost:3001
 
 Data is seeded on first load (`lib/seed-marketing.ts`, illustrative, Jan–May 2026). Replace it with vendor reporting feeds / CRM sales data to go live. Attribution is last-touch.
 
-Layout: `lib/marketing.ts` (compute, alerts, recommendations, actions) · `app/api/marketing/route.ts` · `app/page.tsx` · `lib/claude.ts`.
+Layout: `lib/director.ts` + `app/page.tsx` (director) · `lib/marketing.ts` + `app/campaigns/page.tsx` (vendors & campaigns) · `lib/kinan.ts` (Kinan feed) · `lib/claude.ts`.
 
 ## Static demo
 

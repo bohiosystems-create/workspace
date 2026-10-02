@@ -8,6 +8,9 @@ type Msg = { role: "user" | "assistant"; content: string; cards?: Card[]; engine
 type Store = { recommendations: any[]; outbox: any[]; integration: { mode: string; delivery: string; sender: string } };
 
 const SUGGESTIONS = [
+  "What's today's brief?",
+  "What needs my approval?",
+  "What's the budget plan for June?",
   "What should I do first?",
   "Which vendor converts best?",
   "Do vendor numbers match the CRM?",
@@ -16,6 +19,9 @@ const SUGGESTIONS = [
 ];
 // Suggested questions are sent in the user's language so the answer comes back in it.
 const SUGGESTIONS_AR: Record<string, string> = {
+  "What's today's brief?": "ما موجز اليوم؟",
+  "What needs my approval?": "ما الذي ينتظر اعتمادي؟",
+  "What's the budget plan for June?": "ما خطة الميزانية لشهر يونيو؟",
   "What should I do first?": "ماذا يجب أن أفعل أولاً؟",
   "Which vendor converts best?": "أي مورد يحقق أفضل تحويل؟",
   "Do vendor numbers match the CRM?": "هل أرقام الموردين تطابق نظام إدارة العملاء؟",
@@ -79,8 +85,10 @@ export default function Chat() {
       const d = await (await fetch(`/api/recommendations?lang=${langRef.current}`)).json().catch(() => null);
       if (d && !d.error) { setStore(d); showDrafts(d.outbox.filter((e: any) => e.status === "DRAFT" || e.status === "FAILED")); }
     };
+    const o = () => setOpen(true);
     window.addEventListener("open-drafts", h);
-    return () => window.removeEventListener("open-drafts", h);
+    window.addEventListener("open-director", o);
+    return () => { window.removeEventListener("open-drafts", h); window.removeEventListener("open-director", o); };
   });
   const urgent = activeRecs.filter((r) => r.severity === "crit").length;
 
@@ -230,15 +238,15 @@ export default function Chat() {
       {open && (
         <div className="chat-drawer">
           <div className="chat-head" style={{ justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9 }}><span className="dot" />{t("Marketing assistant")}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 9 }}><span className="dot" />{t("AI Director of Marketing")}</div>
             <button className="btn ghost" style={{ padding: "4px 10px", fontSize: 9 }} onClick={() => setOpen(false)}>{t("Close")}</button>
           </div>
           <div className="chat-log" ref={logRef}>
             {msgs.length === 0 && (
               <div className="kmsg bot">
                 <Rich text={lang === "ar"
-                  ? `اسألوني عن الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين.${store ? `\n\nهناك **${activeRecs.length} توصية مفتوحة** (${urgent} عاجلة). يمكنني عرضها وإعداد رسائل الموردين — وأنتم تعتمدون كل رسالة قبل إرسالها.` : ""}`
-                  : `Ask me anything about the vendors, campaigns, results, sales conversion, CRM verification or supplier invoices.${store ? `\n\nThere are **${activeRecs.length} open recommendations** (${urgent} urgent). I can show them and draft the vendor emails — you approve every email before it goes.` : ""}`} />
+                  ? `أنا مدير التسويق الذكي. اسألوني عن الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين.${store ? `\n\nهناك **${activeRecs.length} توصية مفتوحة** (${urgent} عاجلة). يمكنني عرضها وإعداد رسائل الموردين — وأنتم تعتمدون كل رسالة قبل إرسالها.` : ""}`
+                  : `I'm your AI director of marketing. Ask me anything about the vendors, campaigns, results, sales conversion, CRM verification or supplier invoices.${store ? `\n\nThere are **${activeRecs.length} open recommendations** (${urgent} urgent). I can show them and draft the vendor emails — you approve every email before it goes.` : ""}`} />
               </div>
             )}
             {msgs.map((m, i) => (
