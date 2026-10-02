@@ -407,7 +407,7 @@ const UI2: Record<string, string> = {
 
 const UI3: Record<string, string> = {
  "(no vendor can use more profitably — fund trials or new vendors)": "(لا يوجد مورد يستطيع استخدامها بعائد أفضل — موّلوا بها التجارب أو موردين جدداً)",
- "AI Director of Marketing": "مدير التسويق الذكي",
+ "AI Assistant Director of Marketing": "مساعد مدير التسويق الذكي",
  "Director of Marketing": "مدير التسويق",
  "Director": "المدير",
  "AI agent": "الوكيل الذكي",
@@ -451,7 +451,7 @@ const UI3: Record<string, string> = {
  "Waiting for your decision": "بانتظار قراركم",
  "Why": "السبب",
  "Won": "المغلقة",
- "Your AI director of marketing: holds the plan to the sales targets, decides where the money goes, and tells you what needs your decision today. Approved work flows into Kinan's CRM (Yardi) and Kinan's AI agent. Nothing that spends money or contacts a customer happens without a named approver.": "مدير التسويق الذكي: يُبقي الخطة متوافقة مع مستهدفات المبيعات، ويقرر أين يُنفق المال، ويخبركم بما يحتاج قراركم اليوم. تنتقل الأعمال المعتمدة إلى نظام كنان لإدارة العملاء (Yardi) ووكيل كنان الذكي. لا شيء يُنفق مالاً أو يتواصل مع عميل دون معتمِد مسمّى.",
+ "Your AI assistant director of marketing: holds the plan to the sales targets, decides where the money goes, and tells you what needs your decision today. Approved work flows into Kinan's CRM (Yardi) and Kinan's AI agent. Nothing that spends money or contacts a customer happens without a named approver.": "مساعد مدير التسويق الذكي: يُبقي الخطة متوافقة مع مستهدفات المبيعات، ويقرر أين يُنفق المال، ويخبركم بما يحتاج قراركم اليوم. تنتقل الأعمال المعتمدة إلى نظام كنان لإدارة العملاء (Yardi) ووكيل كنان الذكي. لا شيء يُنفق مالاً أو يتواصل مع عميل دون معتمِد مسمّى.",
  "held in reserve": "محتفظ به احتياطياً",
  "if unchanged": "دون تغيير",
  "sent to Kinan": "أُرسلت إلى كنان",
@@ -513,7 +513,7 @@ const UI4: Record<string, string> = {
  "With vendors": "لدى الموردين",
  "Works the leads in Yardi and reports outcomes back.": "يتابع العملاء المحتملين في Yardi ويعيد النتائج.",
  "You (marketing manager)": "أنتم (مدير التسويق)",
- "Your AI director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and hands leads to Kinan's AI agent in Yardi. You only make the decisions below — nothing that spends money or contacts a customer or vendor happens without your name on it.": "مدير التسويق الذكي، مصمَّم لمدير تسويق واحد: يُبقي الخطة على مستهدفات المبيعات، ويقرر أين يُنفَق المال، ويدير الموردين (الموجزات، والملاحظات، والمتابعة)، ويُحيل العملاء المحتملين إلى وكيل كنان الذكي في Yardi. تتخذون القرارات أدناه فقط — لا يُنفَق مال ولا يُتواصل مع عميل أو مورد دون اسمكم.",
+ "Your AI assistant director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and hands leads to Kinan's AI agent in Yardi. You only make the decisions below — nothing that spends money or contacts a customer or vendor happens without your name on it.": "مساعد مدير التسويق الذكي، مصمَّم لمدير تسويق واحد: يُبقي الخطة على مستهدفات المبيعات، ويقرر أين يُنفَق المال، ويدير الموردين (الموجزات، والملاحظات، والمتابعة)، ويُحيل العملاء المحتملين إلى وكيل كنان الذكي في Yardi. تتخذون القرارات أدناه فقط — لا يُنفَق مال ولا يُتواصل مع عميل أو مورد دون اسمكم.",
  "active": "نشطون",
  "days late": "أيام تأخير",
  "min of your time": "دقيقة من وقتكم",
@@ -620,7 +620,7 @@ const UI6: Record<string, string> = {
 };
 
 const UI7: Record<string, string> = {
- "Your AI director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and tells you which campaigns to change. Leads and sales stay with Kinan's agent; the director reads the CRM results and shares the plan and campaign changes with it. You only make the decisions below — nothing that spends money or contacts a vendor happens without your name on it.": "مدير التسويق الذكي، مصمَّم لمدير تسويق واحد: يُبقي الخطة على مستهدفات المبيعات، ويقرر أين يُنفَق المال، ويدير الموردين (الموجزات، والملاحظات، والمتابعة)، ويخبركم بالحملات التي يجب تغييرها. العملاء المحتملون والمبيعات من اختصاص وكيل كنان؛ يقرأ المدير الذكي نتائج نظام العملاء ويشارك الخطة وتغييرات الحملات مع الوكيل. تتخذون القرارات أدناه فقط — لا يُنفَق مال ولا يُتواصل مع مورد دون اسمكم.",
+ "Your AI assistant director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and tells you which campaigns to change. Leads and sales stay with Kinan's agent; the director reads the CRM results and shares the plan and campaign changes with it. You only make the decisions below — nothing that spends money or contacts a vendor happens without your name on it.": "مساعد مدير التسويق الذكي، مصمَّم لمدير تسويق واحد: يُبقي الخطة على مستهدفات المبيعات، ويقرر أين يُنفَق المال، ويدير الموردين (الموجزات، والملاحظات، والمتابعة)، ويخبركم بالحملات التي يجب تغييرها. العملاء المحتملون والمبيعات من اختصاص وكيل كنان؛ يقرأ المدير الذكي نتائج نظام العملاء ويشارك الخطة وتغييرات الحملات مع الوكيل. تتخذون القرارات أدناه فقط — لا يُنفَق مال ولا يُتواصل مع مورد دون اسمكم.",
  "Owns leads, follow-up and sales in Yardi. The director reads the results and shares the plan.": "يتولى العملاء المحتملين والمتابعة والمبيعات في Yardi. يقرأ المدير الذكي النتائج ويشارك الخطة.",
  "Every scheduled morning the director writes your report — sales against target, what changed since yesterday, campaign recommendations, decisions waiting (with minutes), vendors, risks and invoices — and emails it to you. Reports go to internal addresses only and take no action.": "في كل صباح مجدول يكتب المدير الذكي تقريركم — المبيعات مقابل المستهدف، وما تغيّر منذ الأمس، وتوصيات الحملات، والقرارات المنتظرة (مع الدقائق)، والموردون، والمخاطر والفواتير — ويرسله إليكم بالبريد. تُرسل التقارير إلى عناوين داخلية فقط ولا تتخذ أي إجراء.",
  "Campaign recommendations": "توصيات الحملات",
@@ -760,6 +760,13 @@ const UI9: Record<string, string> = {
 
 // Vendor directory (Orchestration)
 const UI10: Record<string, string> = {
+  "Pie": "دائري",
+  "Donut": "حلقي",
+  "Bars": "أعمدة",
+  "Horizontal": "أفقي",
+  "Line chart": "خطي",
+  "Download PNG": "تنزيل PNG",
+  "total": "الإجمالي",
   "Related:": "ذات صلة:",
   "Not what I asked": "ليس ما سألت عنه",
   "Thanks — noted for review. Closest questions I can answer:": "شكراً — سُجّل للمراجعة. أقرب الأسئلة التي أجيب عنها:",

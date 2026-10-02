@@ -23,6 +23,8 @@ export const CATALOG: { en: string; ar: string }[] = [
   { en: "What's the budget plan for June?", ar: "خطة الميزانية" },
   { en: "Which agency runs each Meta campaign?", ar: "من يدير حملات ميتا؟" },
   { en: "Overall spend and sales", ar: "الإنفاق والمبيعات الإجمالية" },
+  { en: "Pie chart of revenue by vendor", ar: "رسم دائري للإيرادات حسب المورد" },
+  { en: "Line chart of monthly spend", ar: "رسم خطي للإنفاق الشهري" },
   { en: "How much did we spend last month by vendor?", ar: "كم أنفقنا الشهر الماضي حسب المورد؟" },
   { en: "Spend year to date", ar: "الإنفاق منذ بداية العام" },
   { en: "Compare 2024 and 2025", ar: "قارن 2024 و 2025" },

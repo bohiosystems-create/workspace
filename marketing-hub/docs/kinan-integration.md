@@ -1,4 +1,4 @@
-# Kinan integration — what the AI Director of Marketing shares with Kinan's CRM (Yardi) and Kinan's AI agent
+# Kinan integration — what the AI Assistant Director of Marketing shares with Kinan's CRM (Yardi) and Kinan's AI agent
 
 **Scope.** Kinan's own AI agent takes care of leads, follow-up, sales and the CRM. The director does not work leads.
 It **reads** CRM results (which campaigns bring leads that qualify and buy) to judge campaigns and vendors, and it

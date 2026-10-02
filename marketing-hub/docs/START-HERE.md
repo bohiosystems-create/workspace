@@ -1,6 +1,6 @@
-# Kinan demo — AI Director of Marketing
+# Kinan demo — AI Assistant Director of Marketing
 
-Everything you need to demo the AI Director of Marketing to Kinan.
+Everything you need to demo the AI Assistant Director of Marketing to Kinan.
 
 | File | What it is |
 |---|---|

@@ -176,11 +176,11 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   const html = `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
 <body style="margin:0;background:${C.paper};color:${C.ink};font-family:${lang === "ar" ? "Tahoma,Arial" : "Helvetica,Arial"},sans-serif">
 <div style="max-width:720px;margin:0 auto;padding:24px 20px">
-<div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700">${lang === "ar" ? "بوهيو" : "BOHIO"} · ${esc(T("AI Director of Marketing", "مدير التسويق الذكي"))}</div>
+<div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700">${lang === "ar" ? "بوهيو" : "BOHIO"} · ${esc(T("AI Assistant Director of Marketing", "مساعد مدير التسويق الذكي"))}</div>
 <h1 style="font-size:20px;margin:10px 0 4px">${esc(title)}</h1>
 <div style="font-size:12px;color:${C.soft};margin:0 0 18px;border-bottom:2px solid ${C.ink};padding-bottom:10px">${esc(T(`Figures as of ${dt("en", d.asOf)}`, `الأرقام حتى ${dt("ar", d.asOf)}`))}</div>
 ${sec.map(([h, body]) => `<div style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}
-<p style="font-size:11px;color:${C.soft}">${esc(T("Generated automatically by the AI Director of Marketing. This report takes no action: approvals happen in the app.", "أُعدّ تلقائياً بواسطة مدير التسويق الذكي. لا يتخذ هذا التقرير أي إجراء: تتم الاعتمادات داخل التطبيق."))}</p>
+<p style="font-size:11px;color:${C.soft}">${esc(T("Generated automatically by the AI Assistant Director of Marketing. This report takes no action: approvals happen in the app.", "أُعدّ تلقائياً بواسطة مساعد مدير التسويق الذكي. لا يتخذ هذا التقرير أي إجراء: تتم الاعتمادات داخل التطبيق."))}</p>
 </div></body></html>`;
   const text = `${title}\n\n${sec.map(([h, , t]) => `${h.toUpperCase()}\n${t}`).join("\n\n")}\n`;
   return { title, html, text, metrics, headline: d.brief.headline, bullets: d.brief.bullets, actions: d.brief.actions };

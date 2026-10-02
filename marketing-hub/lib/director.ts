@@ -1,4 +1,4 @@
-// AI Director of Marketing — the layer that turns the agent's analysis into a director's job:
+// AI Assistant Director of Marketing — the layer that turns the agent's analysis into a director's job:
 //   1. hold the team to sales targets (per project), and say where the plan is off track
 //   2. a daily brief: what changed, what is at risk, what needs a decision
 //   3. next month's budget plan across vendors (incremental sales per SAR, diminishing returns, guardrails)

@@ -1,4 +1,4 @@
-// Kinan connector — how the AI Director of Marketing feeds Kinan's CRM (Yardi) and Kinan's AI agent.
+// Kinan connector — how the AI Assistant Director of Marketing feeds Kinan's CRM (Yardi) and Kinan's AI agent.
 //
 // OUT (outbox, KinanEvent): every event is stored first, then delivered; failures are retried and audited.
 //   KINAN_MODE=mock     events are recorded as delivered, nothing leaves the app (default)

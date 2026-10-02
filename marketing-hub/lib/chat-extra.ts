@@ -166,7 +166,7 @@ export function campaignExtras(c: ChatContext, campaignId: string): string {
 // ------------------------------------------------------------------ answers
 function help(L: Lang) {
   return tx(L,
-    `I'm your AI director of marketing. I can answer, among others:\n` +
+    `I'm your AI assistant director of marketing. I can answer, among others:\n` +
     `- **Today**: "today's brief", "what changed since yesterday?", "what should I change in the campaigns?", "what needs my approval?"\n` +
     `- **Campaigns**: "how is ASH-SEARCH-26 doing?", "compare Marina Influencer Launch and Ash Shati Search", "which campaigns are over budget?"\n` +
     `- **Vendors**: "which vendor converts best?", "should we renew Hajar Outdoor?", "what do vendors owe us?", "trials and alternatives"\n` +
@@ -178,7 +178,7 @@ function help(L: Lang) {
     `- **Ads and market**: "which creatives work best?", "Arabic or English ads?", "how is the property market in Jeddah?", "what are competitors doing?", "when is Ramadan?"\n` +
     `- **Ideas**: "ideas for a Ramadan campaign for Marina Tower, SAR 300K"\n` +
     `- **Actions**: "draft an email to Hajar Outdoor" (drafts only — you approve every email), "the daily report", "what did we send to Kinan?"`,
-    `أنا مدير التسويق الذكي. يمكنني الإجابة، من بين أمور أخرى، عن:\n` +
+    `أنا مساعد مدير التسويق الذكي. يمكنني الإجابة، من بين أمور أخرى، عن:\n` +
     `- **اليوم**: «موجز اليوم»، «ما الجديد منذ الأمس؟»، «ماذا أغيّر في الحملات؟»، «ما الذي ينتظر اعتمادي؟»\n` +
     `- **الحملات**: «كيف أداء ASH-SEARCH-26؟»، «قارن حملة إطلاق المؤثرين في المارينا وبحث الشاطئ»\n` +
     `- **الموردون**: «أي مورد يحقق أفضل تحويل؟»، «هل نجدد لهجر؟»، «ما يدين به الموردون»، «التجارب والبدائل»\n` +

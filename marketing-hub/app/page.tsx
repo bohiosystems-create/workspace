@@ -58,8 +58,8 @@ export default function DirectorPage() {
   return (
     <div className="shell">
       <Header />
-      <div className="section-title">{t("Director of Marketing")}</div>
-      <p className="intro">{t("Your AI director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and tells you which campaigns to change. Leads and sales stay with Kinan's agent; the director reads the CRM results and shares the plan and campaign changes with it. You only make the decisions below — nothing that spends money or contacts a vendor happens without your name on it.")}</p>
+      <div className="section-title">{t("AI Assistant Director of Marketing")}</div>
+      <p className="intro">{t("Your AI assistant director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and tells you which campaigns to change. Leads and sales stay with Kinan's agent; the director reads the CRM results and shares the plan and campaign changes with it. You only make the decisions below — nothing that spends money or contacts a vendor happens without your name on it.")}</p>
       {error && <div className="err">{error}</div>}
       {message && <div className="alert info" style={{ padding: "10px 14px", marginBottom: 12 }}>{message}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Preparing today's brief…")}</div>}

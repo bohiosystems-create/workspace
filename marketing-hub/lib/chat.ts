@@ -13,11 +13,12 @@ import { extraEarly, extraLate, campaignExtras } from "./chat-extra";
 import { ideasAnswer, type IdeaBrief } from "./ideation";
 import { kinanOutbox, kinanMode } from "./kinan";
 import { closest } from "./chat-catalog";
+import { RX_CHART, buildChart, chartRequestFromText, chartSummary, type ChartSpec } from "./charts";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firstSentence } from "./i18n";
 
 // What the chat can put in front of the user besides text. Cards are rendered live from
 // current data, so approving / editing an email happens in the card, never through the model.
-export type ChatCard = { kind: "rec"; key: string } | { kind: "email"; id: string };
+export type ChatCard = { kind: "rec"; key: string } | { kind: "email"; id: string } | { kind: "chart"; chart: ChartSpec };
 export type ChatReply = { reply: string; cards: ChatCard[]; engine: "anthropic" | "openai" | "gemini" | "rules"; model?: string; note?: string; suggest?: string[]; missed?: boolean };
 
 
@@ -239,6 +240,14 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     }
     cards.push(...targets.map((x) => ({ kind: "rec" as const, key: x.r.key })));
     return done(T(`There are ${targets.length} open items for ${vendor?.name ?? "that vendor"}. Which one should I draft an email for? Use "Draft email" on the card, or say e.g. "draft R${targets[0].i + 1}".`, `هناك ${an(targets.length, "بند واحد", "بندان", "بنود", "بنداً")} مفتوحة لـ${vendor ? N(vendor.name) : "هذا المورد"}. أيّها أُعدّ له رسالة؟ استخدموا زر «مسودة بريد» في البطاقة، أو قولوا مثلاً «اكتب R${targets[0].i + 1}».`));
+  }
+
+  // 1. Charts from a prompt ("pie chart of revenue by vendor"). Numbers computed from the data, never typed in.
+  if (RX_CHART.test(q)) {
+    const spec = buildChart(chartRequestFromText(question, c.q), c.q, L);
+    if ("error" in spec) return done(spec.error);
+    cards.push({ kind: "chart", chart: spec });
+    return done(chartSummary(spec) + T("\n\nSwitch the chart type or download it (PNG or SVG) under the chart.", "\n\nغيّروا نوع الرسم أو نزّلوه (PNG أو SVG) أسفل الرسم."));
   }
 
   // 1a. Campaign ideation ("ideas for a Ramadan campaign for Marina Tower, SAR 300K").
@@ -507,6 +516,6 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     `لم أتمكن من مطابقة السؤال مع إجاباتي المدمجة بدقة، فبدلاً من التخمين هذه أقرب الأسئلة التي أجيب عنها — اضغطوا أحدها أو أعيدوا الصياغة مع ذكر مورد أو حملة أو مشروع أو فترة.${polish ? "" : " عند ربط Claude (أو في نسخة تطبيق Claude) أجيب عن الأسئلة الحرة مثل هذا مباشرة."}`), true);
   cards.push(...active.slice(0, 3).map((x) => ({ kind: "rec" as const, key: x.r.key })));
   return done(T(
-    `I'm your AI director of marketing. Ask me for today's brief, what the vendors owe us, where we stand against target, the budget plan, what needs your approval, or what we've sent to Kinan — or about any vendor, campaign, test, trial or invoice. I can answer questions about the vendors, campaigns, results, sales conversion, CRM verification and supplier invoices, and I can draft vendor emails for you to approve. Try: "which vendor converts best?", "how is Ash Shati Broker Push doing?", "do vendor numbers match the CRM?", "draft an email to Hajar Outdoor".\n\nRight now the top open items are:`,
-    `أنا مدير التسويق الذكي. اسألوني عن موجز اليوم، أو ما يدين به الموردون، أو موقفنا من المستهدف، أو خطة الميزانية، أو ما ينتظر اعتمادكم، أو ما أُرسل إلى كنان — أو عن أي مورد أو حملة أو اختبار أو تجربة أو فاتورة. يمكنني الإجابة عن أسئلة الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين، وإعداد رسائل للموردين لتعتمدوها. جرّبوا: «أي مورد يحقق أفضل تحويل؟»، «كيف أداء حملة الوسطاء في الشاطئ؟»، «هل أرقام الموردين تطابق نظام إدارة العملاء؟»، «اكتب رسالة إلى هجر للإعلانات الخارجية».\n\nأهم البنود المفتوحة الآن:`), true);
+    `I'm your AI assistant director of marketing. Ask me for today's brief, what the vendors owe us, where we stand against target, the budget plan, what needs your approval, or what we've sent to Kinan — or about any vendor, campaign, test, trial or invoice. I can answer questions about the vendors, campaigns, results, sales conversion, CRM verification and supplier invoices, and I can draft vendor emails for you to approve. Try: "which vendor converts best?", "how is Ash Shati Broker Push doing?", "do vendor numbers match the CRM?", "draft an email to Hajar Outdoor".\n\nRight now the top open items are:`,
+    `أنا مساعد مدير التسويق الذكي. اسألوني عن موجز اليوم، أو ما يدين به الموردون، أو موقفنا من المستهدف، أو خطة الميزانية، أو ما ينتظر اعتمادكم، أو ما أُرسل إلى كنان — أو عن أي مورد أو حملة أو اختبار أو تجربة أو فاتورة. يمكنني الإجابة عن أسئلة الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين، وإعداد رسائل للموردين لتعتمدوها. جرّبوا: «أي مورد يحقق أفضل تحويل؟»، «كيف أداء حملة الوسطاء في الشاطئ؟»، «هل أرقام الموردين تطابق نظام إدارة العملاء؟»، «اكتب رسالة إلى هجر للإعلانات الخارجية».\n\nأهم البنود المفتوحة الآن:`), true);
 }

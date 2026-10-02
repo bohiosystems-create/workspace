@@ -124,6 +124,15 @@ export const PARAPHRASES: [string, string[]][] = [
   ["ما الذي يجب أن أركز عليه اليوم؟", ["توصيات الحملات|توصية|الفحص اليومي"]],
   ["هل المؤثرون يستحقون الإنفاق؟", ["المعيار|المؤثر"]],
   ["How do buyers feel about the payment plan offers?", ["Creatives by message"]],
+  // Charts, phrased loosely
+  ["show me revenue split by agency as a pie", ["Revenue (contracted sales) by vendor"]],
+  ["can you plot leads per month", ["Leads (CRM sample) by month"]],
+  ["make a graph of spend per vendor", ["Marketing spend by vendor"]],
+  ["I want a visual of contracts by project", ["Contracts signed by project"]],
+  ["pie of sales by channel for 2024", ["by channel", "2024"]],
+  ["chart the cost per qualified lead by vendor", ["Cost per qualified lead by vendor"]],
+  ["اعرض الإنفاق الشهري كرسم خطي", ["الإنفاق التسويقي حسب الشهر"]],
+  ["رسم بياني للعقود حسب القناة", ["العقود الموقعة حسب القناة"]],
   // Held-out round 1 (written fresh, measured before tuning: 27 right, 7 honest "closest questions", 6 wrong)
   ["Which agency is costing us the most per sale?", ["scorecard|Comparison|Overall"]],
   ["Who should get more budget next month?", ["Budget plan"]],
@@ -167,7 +176,7 @@ export const PARAPHRASES: [string, string[]][] = [
   ["متى اليوم الوطني؟", ["التقويم"]],
 ];
 
-const FALLBACK = /I'm your AI director of marketing\. Ask me|أنا مدير التسويق الذكي\. اسألوني|couldn't match that question|لم أتمكن من مطابقة/;
+const FALLBACK = /I'm your AI assistant director of marketing\. Ask me|أنا مساعد مدير التسويق الذكي\. اسألوني|couldn't match that question|لم أتمكن من مطابقة/;
 
 if (require.main === module) (async () => {
   const ctx = { en: await buildChatContext("en"), ar: await buildChatContext("ar") };

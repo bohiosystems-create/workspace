@@ -3,6 +3,7 @@
 // past), vendors, projects, channels, periods, the campaign history, the daily campaign check, invoices and Meta.
 // It can show recommendation cards and create email DRAFTS — never send or approve.
 import { runLlm, type LlmTool } from "./llm";
+import { buildChart } from "./charts";
 import { buildChatContext, snapshotForModel, recCards, draftForRec, type ChatCard, type ChatReply, type ChatContext } from "./chat";
 import { resolve, describe, periodSummary, parsePeriod, latestLiveMonth, liveCampaign, pastCampaign, vendorDetail, projectSummary, channelSummary } from "./query";
 import type { Polish } from "./recommendations";
@@ -12,13 +13,14 @@ import { creativeSummary } from "./creatives";
 import { marketSummary, marketSeries, MORTGAGE, COMPETITORS, AD_MONTHS, CALENDAR } from "./market";
 import { type Lang, looksArabic } from "./i18n";
 
-const SYSTEM = `You are the AI Director of Marketing for a real-estate developer in Saudi Arabia with one marketing manager and no marketing team. You run the external marketing vendors and campaigns and tell the manager what to change. Think and speak like a director: lead with the decision, be specific about money, targets and evidence, prioritise, and say what you would do — making clear which actions need the manager's approval.
+const SYSTEM = `You are the AI Assistant Director of Marketing for a real-estate developer in Saudi Arabia with one marketing manager and no marketing team. You run the external marketing vendors and campaigns and tell the manager what to change. Think and speak like a director: lead with the decision, be specific about money, targets and evidence, prioritise, and say what you would do — making clear which actions need the manager's approval.
 
 Scope: leads, lead follow-up, sales and the CRM are handled by Kinan's own AI agent (CRM: Yardi). Use CRM results to judge campaigns and vendors, but never propose lead follow-up or sales tasks.
 
 What you have:
 - DATA: a snapshot of today's position (targets, plan, vendors, campaigns, recommendations, daily campaign check, history summary, Meta attribution, invoices, orchestration).
 - Tools to look up details: get_campaign (live or past, by code or name), get_vendor, get_project, get_channel, get_history (benchmarks and past campaigns, filterable), get_period (spend / contracts / sales for months or years, grouped), get_daily_check, compare, get_invoices, get_meta, search. Use them whenever the snapshot is not enough — prefer one or two precise calls.
+- make_chart: draws a pie/donut/bar/line chart in the chat from the data (you choose metric, grouping, period, filters; the numbers are computed for you). Use it whenever a chart, graph or visual is asked for, then add one or two sentences on what it shows. Never draw charts in text or invent values.
 - show_recommendations and draft_email (drafts only; a person reviews and approves every email in the app).
 - get_audience (lead profiles: city, nationality, buyer type, budget, unit type, age, reason lost, response time), get_creatives (ads by message, format, language), get_market (prices and transactions per district, mortgages), get_competitors, get_calendar. Profiles, creatives, market and competitors are sample data: say so when you use them.
 - ideate_campaigns: new campaign ideas for a brief (saved on the Ideas page). Present the ideas briefly with their forecast ranges and say the manager can shortlist or approve them there; approving drafts a vendor brief for approval.
@@ -55,6 +57,7 @@ const TOOLS: LlmTool[] = [
   { name: "get_market", description: "Property market (sample): price per sqm and monthly transactions per district (Jeddah North, Corniche, South; Riyadh North) for 2025-01..2026-05 with year-on-year change and off-plan share, plus mortgage rates.", parameters: { type: "object", properties: { district: str, months: { type: "boolean", description: "Include the monthly series" } } } },
   { name: "get_competitors", description: "Competitor developers (sample, fictional names): project, district, price per sqm, launch, offer, active Meta ads per month, channels, and which of our projects they compete with.", parameters: { type: "object", properties: { project: str } } },
   { name: "get_calendar", description: "Marketing calendar: summer holiday, Eid, National Day, Cityscape, Jeddah Season, Ramadan 2027 (approximate dates).", parameters: { type: "object", properties: {} } },
+  { name: "make_chart", description: "Draw a chart in the chat (pie, donut, bar, hbar or line) computed from the data — never pass numbers. Use whenever the user asks for a chart, graph, plot, visual, or 'show me … by …'. Returns the plotted values so you can comment on them.", parameters: { type: "object", properties: { type: { type: "string", enum: ["pie", "donut", "bar", "hbar", "line"], description: "Omit to choose automatically (pie for shares, line for months/years, bars for ratios)." }, metric: { type: "string", enum: ["sales", "spend", "qualified", "contracts", "leads", "costToSales", "cpql"], description: "sales = revenue (contracted sales, SAR M); spend in SAR K." }, group_by: { type: "string", enum: ["vendor", "project", "channel", "campaign", "month", "year", "city", "nationality", "buyerType", "budgetBand", "unitType", "ageBand", "lostReason", "responseBand"] }, period: { ...str, description: "e.g. 'May 2026', 'Q1 2025', '2024', 'last month'. Omit for 2026 year to date (or all years when grouping by year)." }, project: { type: "string", enum: ["Ash Shati Residences", "Marina Tower", "Andalus Quarter", "Palm Villas"] }, channel: { type: "string", enum: ["DIGITAL", "INFLUENCER", "PORTAL", "BROKER", "PR", "OUTDOOR", "EVENT", "RADIO"] }, vendor: str, top: { type: "number", description: "Max slices/bars (default 7 for pies, 12 for bars)." } }, required: ["metric", "group_by"] } },
   { name: "get_meta", description: "Meta (Facebook/Instagram) campaigns and which agency runs each, with evidence and confidence.", parameters: { type: "object", properties: {} } },
 ];
 
@@ -64,6 +67,12 @@ async function exec(ctx: ChatContext, name: string, input: any, cards: ChatCard[
   const q = ctx.q;
   const first = (text: string, kinds?: string[]) => resolve(String(text ?? ""), q).find((e) => !kinds || kinds.includes(e.kind));
   switch (name) {
+    case "make_chart": {
+      const spec = buildChart({ type: input.type, metric: input.metric, groupBy: input.group_by, period: input.period || undefined, project: input.project || undefined, channel: input.channel || undefined, vendor: input.vendor ? resolve(String(input.vendor), ctx.q).find((e) => e.kind === "vendor")?.name ?? String(input.vendor) : undefined, top: input.top ? Number(input.top) : undefined }, ctx.q, ctx.lang);
+      if ("error" in spec) return spec.error;
+      cards.push({ kind: "chart", chart: spec });
+      return `Chart shown to the user (${spec.type}, ${spec.period}, unit ${spec.unit || "count"}): ${JSON.stringify(spec.labels.map((l, i) => [l, spec.values[i]]))}${spec.total !== null ? `; total ${spec.total}` : ""}${spec.note ? `. Note: ${spec.note}` : ""}`;
+    }
     case "show_recommendations": { const cs = recCards(ctx, (input.ids ?? []).map(String)); cards.push(...cs); return cs.length ? `Showing ${cs.length} card(s).` : "No matching recommendation ids."; }
     case "draft_email": { const d = await draftForRec(ctx, String(input.id), polish, input.language === "ar" || input.language === "en" ? input.language : undefined); if (d.card) cards.push(d.card); return d.message; }
     case "search": return cap(resolve(String(input.query ?? ""), q).slice(0, 8));

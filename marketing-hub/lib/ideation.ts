@@ -246,7 +246,7 @@ function rulesDrafts(c: IdeationContext): Draft[] {
 }
 
 // ------------------------------------------------------------------- AI ideas
-const IDEATE_SYSTEM = `You are a senior real-estate marketing strategist in Saudi Arabia, ideating campaigns for a developer's AI Director of Marketing. The marketing manager works alone and runs external vendors.
+const IDEATE_SYSTEM = `You are a senior real-estate marketing strategist in Saudi Arabia, ideating campaigns for a developer's AI Assistant Director of Marketing. The marketing manager works alone and runs external vendors.
 
 Propose 3 DISTINCT campaign ideas for the brief in DATA. Ground every idea in the data: the project's gap to target, the season, the channel benchmarks and lessons from the 2023–2025 campaign history, today's flags, and the vendors available. Be specific and creative about the concept, offer and message; be realistic for the Saudi market (family decision-making, Ramadan, summer travel, Cityscape, payment plans, off-plan regulation).
 
@@ -260,7 +260,7 @@ Rules:
 Reply with JSON only, no prose, exactly:
 {"ideas":[{"title":{"en":"","ar":""},"bigIdea":{"en":"","ar":""},"audience":{"en":"","ar":""},"offer":{"en":"","ar":""},"headline":{"en":"","ar":""},"channels":[{"family":"BROKER","sharePct":40,"role":{"en":"","ar":""}}],"risks":[{"en":"","ar":""}],"evidence":["CODE"]}]}`;
 
-const JUDGE_SYSTEM = `You are the AI Director of Marketing judging campaign ideas before they reach the marketing manager. For each candidate in DATA you get the concept and a forecast computed from the campaign history (trust the forecast; do not invent numbers).
+const JUDGE_SYSTEM = `You are the AI Assistant Director of Marketing judging campaign ideas before they reach the marketing manager. For each candidate in DATA you get the concept and a forecast computed from the campaign history (trust the forecast; do not invent numbers).
 
 Score each idea 1–10 on: fit with the data and the lessons of the history, expected efficiency (cost to sales vs the project's history and the target gap), distinctiveness from the other ideas, and feasibility with the vendors available in the season. Penalise ideas that repeat a past mistake or lean on channels flagged as expensive for this project. Keep the best 3 that are clearly different from each other; drop near-duplicates.
 

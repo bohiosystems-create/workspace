@@ -29,7 +29,7 @@ export default function Header() {
         <div className="logo">B</div>
         <div>
           <b>{lang === "ar" ? "بوهيو" : "Bohio"}</b>
-          <small>{t("AI Director of Marketing")}</small>
+          <small>{t("AI Assistant Director of Marketing")}</small>
         </div>
       </div>
       <div className="navlinks">

@@ -2,14 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { closest } from "@/lib/chat-catalog";
+import type { ChartSpec } from "@/lib/charts";
+import { ChartView } from "./ChartView";
 import { useI18n } from "./lang";
 
-type Card = { kind: "rec"; key: string } | { kind: "email"; id: string };
+type Card = { kind: "rec"; key: string } | { kind: "email"; id: string } | { kind: "chart"; chart: ChartSpec };
 type Msg = { role: "user" | "assistant"; content: string; cards?: Card[]; engine?: string; model?: string; note?: string; api?: boolean; suggest?: string[]; flagged?: boolean };
 type Store = { recommendations: any[]; outbox: any[]; integration: { mode: string; delivery: string; sender: string } };
 
 const SUGGESTIONS = [
   "What's today's brief?",
+  "Pie chart of revenue by vendor",
   "What needs my approval?",
   "What should I change in the campaigns?",
   "What do vendors owe us?",
@@ -25,6 +28,7 @@ const SUGGESTIONS = [
 // Suggested questions are sent in the user's language so the answer comes back in it.
 const SUGGESTIONS_AR: Record<string, string> = {
   "What's today's brief?": "ما موجز اليوم؟",
+  "Pie chart of revenue by vendor": "رسم دائري للإيرادات حسب المورد",
   "What needs my approval?": "ما الذي ينتظر اعتمادي؟",
   "What should I change in the campaigns?": "ماذا أغيّر في الحملات؟",
   "What do vendors owe us?": "ما الذي يدين به الموردون لنا؟",
@@ -253,15 +257,15 @@ export default function Chat() {
       {open && (
         <div className="chat-drawer">
           <div className="chat-head" style={{ justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9 }}><span className="dot" />{t("AI Director of Marketing")}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 9 }}><span className="dot" />{t("AI Assistant Director of Marketing")}</div>
             <button className="btn ghost" style={{ padding: "4px 10px", fontSize: 9 }} onClick={() => setOpen(false)}>{t("Close")}</button>
           </div>
           <div className="chat-log" ref={logRef}>
             {msgs.length === 0 && (
               <div className="kmsg bot">
                 <Rich text={lang === "ar"
-                  ? `أنا مدير التسويق الذكي. اسألوني عن الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين.${store ? `\n\nهناك **${activeRecs.length} توصية مفتوحة** (${urgent} عاجلة). يمكنني عرضها وإعداد رسائل الموردين — وأنتم تعتمدون كل رسالة قبل إرسالها.` : ""}`
-                  : `I'm your AI director of marketing. Ask me anything about the vendors, campaigns, results, sales conversion, CRM verification or supplier invoices.${store ? `\n\nThere are **${activeRecs.length} open recommendations** (${urgent} urgent). I can show them and draft the vendor emails — you approve every email before it goes.` : ""}`} />
+                  ? `أنا مساعد مدير التسويق الذكي. اسألوني عن الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين.${store ? `\n\nهناك **${activeRecs.length} توصية مفتوحة** (${urgent} عاجلة). يمكنني عرضها وإعداد رسائل الموردين — وأنتم تعتمدون كل رسالة قبل إرسالها.` : ""}`
+                  : `I'm your AI assistant director of marketing. Ask me anything about the vendors, campaigns, results, sales conversion, CRM verification or supplier invoices.${store ? `\n\nThere are **${activeRecs.length} open recommendations** (${urgent} urgent). I can show them and draft the vendor emails — you approve every email before it goes.` : ""}`} />
               </div>
             )}
             {msgs.map((m, i) => (
@@ -275,7 +279,7 @@ export default function Chat() {
                     <div className="muted" style={{ fontSize: 9, marginTop: 6 }}>{m.note ?? t("Answered by built-in rules. Add a Claude, OpenAI or Gemini API key for free-form answers.")}</div>
                   )}
                 </div>
-                {m.cards?.map((c, j) => <div key={j}>{c.kind === "rec" ? recCard(c.key) : emailCard(c.id)}</div>)}
+                {m.cards?.map((c, j) => <div key={j}>{c.kind === "rec" ? recCard(c.key) : c.kind === "chart" ? <ChartView spec={c.chart} /> : emailCard(c.id)}</div>)}
                 {m.role === "assistant" && m.api && i === msgs.length - 1 && !busy && (() => {
                   // Safety net for questions nobody anticipated: the closest questions the assistant knows, and a way to
                   // say the answer missed (logged for review on the Reports page).
