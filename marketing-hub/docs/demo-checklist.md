@@ -95,7 +95,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   - Late vendor deliverables **2 → 1**
   - Work orders with vendors **0 → 7**
   - Overdue work orders **0 → 1**, in red (Nakhla's press release is still late after a reminder)
-- [ ] Click **Download**: this is exactly the email the manager gets.
+- [ ] Click **Download PDF** (or **Download HTML**): the same report the manager gets by email, as an A4 PDF to forward or file. **Download PDF** next to **Send now** also works before any report is open.
 
 ### 9. Meta — which agency runs each campaign (3 min)
 

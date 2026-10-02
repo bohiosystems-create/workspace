@@ -53,10 +53,25 @@ export default function ReportsPage() {
     } catch (e: any) { setError(e.message); } finally { setBusy(null); }
   }
   const toggle = (k: "days" | "languages", v: any) => setForm({ ...form, [k]: form[k].includes(v) ? form[k].filter((x: any) => x !== v) : [...form[k], v] });
-  const download = () => {
-    if (!view) return;
-    saveFile(`marketing-report-${view.date}-${view.lang}.html`, view.html, "text/html").catch((e) => setError(e.message));
-  };
+  // Download the open report — or, if none is open, today's report (prepared first) — as PDF or HTML.
+  async function download(format: "pdf" | "html") {
+    setBusy(format); setError(null);
+    try {
+      let r = view;
+      if (!r) {
+        const x = await (await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PREVIEW", approver, lang: langRef.current }) })).json();
+        if (x.error) throw new Error(x.error);
+        load(x);
+        r = x.openId ? await (await fetch(`/api/reports?id=${encodeURIComponent(x.openId)}`)).json() : null;
+        if (!r || r.error) throw new Error(t("The report could not be prepared."));
+        setView(r);
+      }
+      const name = `marketing-report-${r.date}-${r.lang}`;
+      if (format === "html") await saveFile(`${name}.html`, r.html, "text/html");
+      else await saveFile(`${name}.pdf`, await (await import("../_components/reportPdf")).reportPdf(r.html), "application/pdf");
+      setMessage(t("Report saved."));
+    } catch (e: any) { setError(e.message); } finally { setBusy(null); }
+  }
 
   return (
     <div className="shell">
@@ -115,6 +130,7 @@ export default function ReportsPage() {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button className="btn ghost" disabled={busy === "preview"} onClick={() => act({ action: "PREVIEW" }, "preview")}>{t("Preview today's report")}</button>
                 <button className="btn" disabled={busy === "send"} onClick={() => act({ action: "SEND_NOW" }, "send")}>{t("Send now")}</button>
+                <button className="btn ghost" disabled={!!busy} onClick={() => download("pdf")}>{busy === "pdf" ? t("Preparing PDF…") : t("Download PDF")}</button>
                 <button className="btn ghost" disabled={busy === "run"} onClick={() => act({ action: "RUN" }, "run")}>{t("Run the schedule check")}</button>
               </div>
               <div className="muted" style={{ fontSize: 11, marginTop: 12, lineHeight: 1.6 }}>
@@ -144,7 +160,8 @@ export default function ReportsPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
                 <div className="chart-label" style={{ margin: 0 }}>{view.title}</div>
                 <div style={{ flex: 1 }} />
-                <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} onClick={download}>{t("Download")}</button>
+                <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => download("pdf")}>{busy === "pdf" ? t("Preparing PDF…") : t("Download PDF")}</button>
+                <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => download("html")}>{t("Download HTML")}</button>
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => setView(null)}>{t("Close")}</button>
               </div>
               <iframe title={view.title} sandbox="" srcDoc={view.html} style={{ width: "100%", height: 1100, border: "1px solid var(--ink-hairline)", background: "#fff" }} />
