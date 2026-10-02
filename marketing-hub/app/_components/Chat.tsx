@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n } from "./lang";
 
 type Card = { kind: "rec"; key: string } | { kind: "email"; id: string };
-type Msg = { role: "user" | "assistant"; content: string; cards?: Card[]; engine?: string; model?: string };
+type Msg = { role: "user" | "assistant"; content: string; cards?: Card[]; engine?: string; model?: string; note?: string; api?: boolean };
 type Store = { recommendations: any[]; outbox: any[]; integration: { mode: string; delivery: string; sender: string } };
 
 const SUGGESTIONS = [
@@ -115,7 +115,7 @@ export default function Chat() {
       });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
-      setMsgs([...next, { role: "assistant", content: d.reply, cards: d.cards, engine: d.engine, model: d.model }]);
+      setMsgs([...next, { role: "assistant", content: d.reply, cards: d.cards, engine: d.engine, model: d.model, note: d.note, api: true }]);
       await refresh();
     } catch (e: any) {
       setError(e.message);
@@ -264,8 +264,8 @@ export default function Chat() {
                   {m.role === "assistant" && m.engine && m.engine !== "rules" && (
                     <div className="muted" style={{ fontSize: 9, marginTop: 6 }} dir="ltr">{({ anthropic: "Claude", openai: "OpenAI", gemini: "Gemini" } as Record<string, string>)[m.engine] ?? m.engine}{m.model ? ` · ${m.model}` : ""}</div>
                   )}
-                  {m.role === "assistant" && m.engine === "rules" && i === msgs.findIndex((x) => x.engine === "rules") && (
-                    <div className="muted" style={{ fontSize: 9, marginTop: 6 }}>{t("Answered by built-in rules. Add a Claude, OpenAI or Gemini API key for free-form answers.")}</div>
+                  {m.role === "assistant" && m.engine === "rules" && m.api && (m.note || i === msgs.findIndex((x) => x.api && x.engine === "rules")) && (
+                    <div className="muted" style={{ fontSize: 9, marginTop: 6 }}>{m.note ?? t("Answered by built-in rules. Add a Claude, OpenAI or Gemini API key for free-form answers.")}</div>
                   )}
                 </div>
                 {m.cards?.map((c, j) => <div key={j}>{c.kind === "rec" ? recCard(c.key) : emailCard(c.id)}</div>)}

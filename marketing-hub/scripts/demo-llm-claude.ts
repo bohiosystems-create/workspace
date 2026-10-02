@@ -31,22 +31,57 @@ export const llmStatus = () => ({
 });
 
 const TIER: Record<Task, "quick" | "default" | "complex"> = { chat: "default", analysis: "default", draft: "quick", ideate: "default", judge: "default", summarize: "quick" };
-const HIDE = new Set(["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed", "tools_unavailable"]);
+// Permanent for this view: stop asking Claude and say why. (tools_unavailable is NOT here: plain calls still work.)
+const HIDE = new Set(["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"]);
+// When the view allows fewer tools than the assistant has, keep the ones that answer most questions.
+const PRIORITY = ["search", "get_vendor", "get_campaign", "get_daily_check", "compare", "get_history", "get_period", "show_recommendations", "draft_email", "get_project", "get_channel", "get_audience", "get_market", "get_creatives", "get_competitors", "ideate_campaigns", "get_invoices", "get_meta", "get_calendar"];
+const MAX_RESULT = 30_000; // a tool result may be at most 32 KB
+const MAX_PROMPT = 240_000; // all turns together at most 256 KiB
+
+let lastError: string | null = null;
+let limits: { maxPromptBytes?: number; tools?: { maxCount: number } } | null | undefined;
+const getLimits = async () => {
+  if (limits === undefined) limits = await Promise.resolve(sample?.limits?.()).catch(() => null) ?? null;
+  return limits;
+};
+/** Why Claude did or didn't answer, for the chat's footnote. */
+export const aiState = () => ({ available: !!sample, gone, lastError });
+
+const bytes = (x: string) => new TextEncoder().encode(x).length;
+const clip = (x: string, max: number) => (bytes(x) <= max ? x : `${x.slice(0, Math.floor(max / 2))}\n…[cut to fit]`);
 
 type Run = { task?: Task; system: string; data?: string; messages: LlmTurn[]; tools?: LlmTool[]; exec?: (name: string, input: any) => Promise<string>; maxTurns?: number; maxTokens?: number; only?: Provider };
 export async function runLlm(r: Run): Promise<{ text: string; provider: Provider; model: string; task: Task; refused?: boolean; tried?: Provider[] }> {
   const task = r.task ?? "chat";
-  if (!on()) throw new Error("Claude is not available in this view; using the built-in answers.");
+  await sampleReady;
+  if (!on()) throw new Error(gone ? `Claude is off for this view (${lastError})` : "Claude is not available in this view; using the built-in answers.");
+  const lim = await getLimits();
   // No system role in `sample`: standing instructions and the data go in a leading user turn.
-  const turns = [{ role: "user" as const, content: `${r.system}${r.data ? `\n\n${r.data}` : ""}` }, ...r.messages.filter((m) => m.content?.trim())];
+  const msgs = r.messages.filter((m) => m.content?.trim()).slice(-10);
+  const room = Math.min(lim?.maxPromptBytes ?? 262_144, MAX_PROMPT) - bytes(r.system) - msgs.reduce((n, m) => n + bytes(m.content), 0) - 2_000;
+  const turns = [{ role: "user" as const, content: `${r.system}${r.data ? `\n\n${clip(r.data, Math.max(room, 20_000))}` : ""}` }, ...msgs];
   if (turns[turns.length - 1].role !== "user") turns.push({ role: "user", content: "Continue." });
-  const tools = r.tools?.length && r.exec ? r.tools.map((t) => ({ name: t.name, description: t.description.slice(0, 1000), inputSchema: t.parameters, execute: (input: any) => r.exec!(t.name, input ?? {}) })) : undefined;
-  try {
-    const res = await sample(turns, { modelTier: TIER[task], cache: false, ...(tools ? { tools } : {}) });
-    return { text: String(res.text ?? "").trim(), provider: "anthropic", model: MODEL, task, tried: ["anthropic"] };
-  } catch (e: any) {
-    if (HIDE.has(e?.code)) gone = true;
-    if (e?.code === "refused") return { text: "", provider: "anthropic", model: MODEL, task, refused: true };
-    throw new Error(`Claude (${e?.code ?? "error"}): ${e?.message ?? e}`);
+  // Merge consecutive same-role turns (the first turn is ours, the chat may also start with the viewer's).
+  const merged = turns.reduce<LlmTurn[]>((a, t) => { const p = a[a.length - 1]; if (p && p.role === t.role) p.content += `\n\n${t.content}`; else a.push({ ...t }); return a; }, []);
+  let tools = r.tools?.length && r.exec && lim?.tools?.maxCount
+    ? [...r.tools].sort((a, b) => rank(a.name) - rank(b.name)).slice(0, lim.tools.maxCount).map((t) => ({
+        name: t.name, description: t.description.slice(0, 1000), inputSchema: t.parameters,
+        execute: async (input: any) => clip(String(await r.exec!(t.name, input ?? {})), MAX_RESULT),
+      }))
+    : undefined;
+  for (;;) {
+    try {
+      const res = await sample(merged, { modelTier: TIER[task], cache: false, ...(tools ? { tools } : {}) });
+      lastError = null;
+      return { text: String(res.text ?? "").trim(), provider: "anthropic", model: MODEL, task, tried: ["anthropic"] };
+    } catch (e: any) {
+      lastError = e?.code ?? "error";
+      // One retry without the data tools when this view can't run them (never a loop: tools is now undefined).
+      if (tools && (e?.code === "tools_unavailable" || e?.code === "invalid_request" || e?.code === "prompt_too_large")) { console.warn("Claude: retrying without tools", e); tools = undefined; continue; }
+      if (HIDE.has(e?.code)) gone = true;
+      if (e?.code === "refused") return { text: "", provider: "anthropic", model: MODEL, task, refused: true };
+      throw new Error(`Claude (${e?.code ?? "error"}): ${e?.message ?? e}`);
+    }
   }
 }
+const rank = (n: string) => { const i = PRIORITY.indexOf(n); return i < 0 ? 99 : i; };

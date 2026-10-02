@@ -18,3 +18,5 @@ export const TASKS: Record<Task, { order: Provider[]; tier: "deep" | "fast"; en:
   judge: { order: ["anthropic", "openai", "gemini"], tier: "deep", en: "Rank and merge ideas against the data", ar: "ترتيب الأفكار ودمجها مقابل البيانات", why: "Checks ideas against history, targets and budget.", whyAr: "يقارن الأفكار بالتاريخ والمستهدفات والميزانية." },
   summarize: { order: ["gemini", "openai", "anthropic"], tier: "fast", en: "Long inputs, bulk and low-cost work", ar: "المدخلات الطويلة والأعمال الكبيرة منخفضة التكلفة", why: "Large context at low cost.", whyAr: "سياق كبير بتكلفة منخفضة." },
 };
+export const sampleReady: Promise<boolean> = Promise.resolve(false);
+export const aiState = (): { available: boolean; gone: boolean; lastError: string | null } => ({ available: false, gone: false, lastError: null });

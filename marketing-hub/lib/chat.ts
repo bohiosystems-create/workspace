@@ -17,7 +17,7 @@ import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firs
 // What the chat can put in front of the user besides text. Cards are rendered live from
 // current data, so approving / editing an email happens in the card, never through the model.
 export type ChatCard = { kind: "rec"; key: string } | { kind: "email"; id: string };
-export type ChatReply = { reply: string; cards: ChatCard[]; engine: "anthropic" | "openai" | "gemini" | "rules"; model?: string };
+export type ChatReply = { reply: string; cards: ChatCard[]; engine: "anthropic" | "openai" | "gemini" | "rules"; model?: string; note?: string };
 
 
 export async function buildChatContext(lang: Lang = "en") {
@@ -177,6 +177,7 @@ const RX = {
 };
 
 const RX_IDEA = /\bideas?\b|brainstorm|ideate|campaign concepts?|new campaign|plan a campaign|(suggest|propose|design|create) (a |an |some )?(new )?campaigns?|أفكار|فكرة|عصف ذهني|حملة جديدة|اقترح (حملة|حملات)|صمم حملة|خطط لحملة/;
+const RX_EXIT = /terminat|end (the |our |their )?(contract|relationship)|cancel (the |our |their )?contract|\bfire\b|let .{0,12} go\b(?! to)|let go of|stop working with|get rid of|part ways|cut ties|(which|what) (vendor|agency|supplier)s? .{0,40}(drop|replace|remove|cut|exit|lose)|(drop|replace|remove|cut) (a|one|which) (vendor|agency)|worst (vendor|agency)|إنهاء (عقد|العقد|التعاقد|التعامل)|فسخ|نستغني|الاستغناء|نوقف التعامل|نتخلص/;
 /** Read a campaign brief from free text: project, month or season, budget, goal. */
 export function briefFromText(text: string, c: ChatContext): IdeaBrief {
   const q = text.toLowerCase();
@@ -241,6 +242,34 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   // 1b. Help, definitions, daily check, comparisons, periods and the campaign history.
   const early = extraEarly(question, c);
   if (early) return done(early);
+
+  // 1c. "Which vendor should we terminate / drop / replace, and why?" — the renewal decisions, worst first.
+  if (RX_EXIT.test(q)) {
+    const RANK: Record<string, number> = { EXIT: 0, TEST_REPLACEMENT: 1, PERFORMANCE_PLAN: 2, RENEGOTIATE: 3, RE_ENGAGE: 4 };
+    const CF: Record<string, string> = { High: T("high", "عالية"), Medium: T("medium", "متوسطة"), Low: T("low", "منخفضة") };
+    const all = c.agent.decisions.filter((d) => !vendor || d.vendor === vendor.name).slice().sort((a, b) => RANK[a.decision] - RANK[b.decision]);
+    const out = all.filter((d) => d.decision === "EXIT" || d.decision === "TEST_REPLACEMENT");
+    const score = (id: string) => c.agent.scores.find((x) => x.vendorId === id)?.score;
+    const names = new Set((out.length ? out : all.slice(0, 1)).map((d) => d.vendor));
+    cards.push(...active.filter((x) => x.r.type === "RENEWAL" && names.has(x.r.vendor)).slice(0, 4).map((x) => ({ kind: "rec" as const, key: x.r.key })));
+    const block = (d: (typeof all)[number]) =>
+      `**${N(d.vendor)}** (${d.category}) — **${d.headline}** · ${T("score", "التقييم")} ${score(d.vendorId) ?? "—"}/100 · ${T("confidence", "الثقة")} ${CF[d.confidence]}\n` +
+      `${T("Why", "السبب")}:\n${d.evidence.slice(0, 5).map((e) => `- ${e}`).join("\n")}\n` +
+      `${T("Contract ends", "ينتهي العقد")} ${dt(L, d.contractEnd)} (${T(`${d.monthsToExpiry} month${d.monthsToExpiry === 1 ? "" : "s"}`, an(d.monthsToExpiry, "شهر واحد", "شهران", "أشهر", "شهراً"))})` +
+      (d.alternatives.length ? T(`; replacement on the bench: ${d.alternatives.map(N).join(", ")}`, `؛ البديل المتاح: ${d.alternatives.map(N).join("، ")}`) : "") + ".\n" +
+      `${T("Next step", "الخطوة التالية")}: ${d.nextStep}\n${T("What would change this", "ما الذي قد يغيّر القرار")}: ${d.wouldChange}`;
+    if (!out.length) {
+      const d = all[0];
+      return done(d ? (vendor ? T(`I wouldn't terminate ${N(vendor.name)} right now — the evidence supports a different decision:\n\n`, `لا أنصح بإنهاء عقد ${N(vendor.name)} الآن — الأدلة تدعم قراراً آخر:\n\n`) : T("I wouldn't terminate any vendor right now — none has reached an exit or replacement decision. The weakest:\n\n", "لا أنصح بإنهاء عقد أي مورد الآن — لم يصل أي مورد إلى قرار الخروج أو الاستبدال. الأضعف:\n\n")) + block(d) : T("No vendor decisions yet.", "لا توجد قرارات بعد."));
+    }
+    const head = out[0];
+    return done(
+      T(`**My recommendation: ${head.decision === "EXIT" ? "terminate" : "start replacing"} ${N(head.vendor)}.**${out.length > 1 ? ` ${out.slice(1).map((d) => N(d.vendor)).join(", ")} ${out.length > 2 ? "are" : "is"} next in line (${out.slice(1).map((d) => d.headline.toLowerCase()).join("; ")}).` : ""}\n\n`,
+        `**توصيتي: ${head.decision === "EXIT" ? "إنهاء العقد مع" : "البدء باستبدال"} ${N(head.vendor)}.**${out.length > 1 ? ` ويليه ${out.slice(1).map((d) => N(d.vendor)).join("، ")}.` : ""}\n\n`) +
+      out.map(block).join("\n\n") +
+      T("\n\nThis is a recommendation, not an action: nothing is cancelled and no vendor is contacted until a named approver signs off. Check the contract's notice period with procurement before deciding.",
+        "\n\nهذه توصية وليست إجراءً: لا يُلغى شيء ولا يُراسل أي مورد قبل اعتماد مسؤول مسمّى. راجعوا مدة الإشعار في العقد مع المشتريات قبل القرار."));
+  }
 
   // 2a. Campaign recommendations (the brief's campaign section).
   if (RX.campaignRecs.test(q) && !vendor) {

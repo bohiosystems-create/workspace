@@ -178,7 +178,7 @@ A chat assistant ("Ask" button, bottom-right of every page) answers questions ab
 
 - **With an AI key** (Claude, OpenAI or Gemini — task `chat`) the model answers anything from the data (`lib/chat-ai.ts`; `CHAT_WITH_AI=off` to disable). It gets a compact snapshot and 14 read-only tools (`lib/query.ts`, plus `ideate_campaigns`): look up any live or past campaign, vendor (current, bench or past), project or channel; totals for any month, quarter or year grouped by vendor, project, channel or campaign; the history and its benchmarks; today's daily check; side-by-side comparisons; invoices; Meta attribution; plus `show_recommendations` and `draft_email`. There is no tool to send or approve.
 - **Without a key** (and in the static demo) the built-in answers (`lib/chat.ts`, `lib/chat-extra.ts`) cover: today's brief, daily check and what changed since yesterday, campaign recommendations, approvals, any campaign (by name or code, with benchmark, today's items and similar past campaigns), vendors (current, bench, past), projects, channels, comparisons of 2–4 campaigns / vendors / projects / channels or years, any month / quarter / year, the history (seasons, years, lessons, best / worst, benchmarks), metric definitions, renewals, tests, trials, CRM verification, Meta, invoices, contracts, the plan, reports, orchestration and Kinan — in English and Arabic.
-- `npm run chat:eval` asks 131 English and Arabic questions and checks each answer (currently 131/131).
+- `npm run chat:eval` asks 135 English and Arabic questions and checks each answer (currently 135/135).
 
 ### Recommendations and emails
 

@@ -14,7 +14,7 @@ import DailyPage from "../app/daily/page";
 import HistoryPage from "../app/history/page";
 import IdeasPage from "../app/ideas/page";
 import { ideasState, ideasAction } from "../lib/ideas-api";
-import { llmStatus, TASKS } from "./demo-llm"; // the offline demo has no AI provider
+import { llmStatus, TASKS, sampleReady, aiState } from "./demo-llm"; // the offline demo has no AI provider
 import { dailyApiState, dailyAction } from "../lib/daily-api";
 import { historyState } from "../lib/history";
 import { agentState, agentDoc, agentAction } from "../lib/agent-api";
@@ -120,10 +120,20 @@ window.fetch = (async (input: any, init?: any) => {
       const { messages, lang } = JSON.parse(init.body);
       const history = (messages as any[]).filter((m) => (m?.role === "user" || m?.role === "assistant") && typeof m.content === "string" && m.content.trim()).slice(-12);
       // Claude app edition: Claude answers with the data tools (viewer's own Claude account); otherwise built-in rules.
+      await sampleReady;
       if (llmStatus().enabled) {
         try { return json(await aiAnswer(history, undefined, langOf(lang))); } catch (e) { console.warn("Claude unavailable, using built-in answers", e); }
       }
-      return json(await localAnswer(history[history.length - 1].content, undefined, undefined, langOf(lang)));
+      const r = await localAnswer(history[history.length - 1].content, undefined, undefined, langOf(lang));
+      // Say why Claude didn't answer (Claude app edition only; the offline file keeps the usual footnote).
+      const st = aiState(), ar = langOf(lang) === "ar";
+      if (st.available) r.note = ({
+        not_granted: ar ? "أُجيب بالقواعد المدمجة لأن استخدام Claude لم يُسمح به في هذا العرض. أعيدوا فتح الصفحة واضغطوا «السماح» للحصول على إجابات Claude." : "Answered by built-in rules because Claude wasn't allowed in this view. Reopen the page and choose Allow to get Claude's answers.",
+        rate_limited: ar ? "أُجيب بالقواعد المدمجة: بلغ حسابكم في Claude حدّ الاستخدام مؤقتاً. حاولوا بعد قليل." : "Answered by built-in rules: your Claude usage limit was reached for now. Try again in a little while.",
+        sampling_disabled: ar ? "أُجيب بالقواعد المدمجة: Claude غير متاح لهذا الحساب أو المؤسسة." : "Answered by built-in rules: Claude isn't available for this account or organization.",
+      } as Record<string, string>)[st.lastError ?? ""] ?? (ar ? `أُجيب بالقواعد المدمجة لأن Claude لم يتمكن من الإجابة${st.lastError ? ` (${st.lastError})` : ""}. أعيدوا السؤال للمحاولة مجدداً.` : `Answered by built-in rules because Claude couldn't answer${st.lastError ? ` (${st.lastError})` : ""}. Ask again to retry.`);
+      else if (llmStatus().enabled === false && (window as any).claude) r.note = ar ? "أُجيب بالقواعد المدمجة: Claude غير متاح في هذا العرض." : "Answered by built-in rules: Claude isn't available in this view.";
+      return json(r);
     } catch (e: any) {
       return json({ error: e.message });
     }

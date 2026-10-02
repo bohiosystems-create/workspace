@@ -9,7 +9,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] **Get the package:** unzip `kinan-demo.zip`. Start with `START-HERE.md`.
 - [ ] **Pick how you will run it**
   - **Demo file (recommended):** double-click `1-OPEN-ME-demo.html`. One file, no install, works offline (only the fonts need internet). All data lives in the browser.
-  - **Claude app edition:** open the claude.ai link in the Claude app (web, desktop or mobile). The same demo, but the assistant, the daily second opinion and campaign ideas are answered by Claude through your own Claude account, with no API key. Allow it when the Claude app asks. Use this to show free-form AI without setting anything up.
+  - **Claude app edition:** open the claude.ai link in the Claude app (web, desktop or mobile). The same demo, but the assistant, the daily second opinion and campaign ideas are answered by Claude through your own Claude account, with no API key. Allow it when the Claude app asks (if you decline, answers come from the built-in rules and the footnote under each answer says so; reopen the page to be asked again). Each answer shows "Claude · Claude (your Claude account)" when Claude answered. Use this to show free-form AI without setting anything up.
   - **Live app:** needs Node.js 18.17+. In `app-source/`: `npm install`, then `npm run demo:live` (resets the sample data, builds and starts), then open http://localhost:3001. Use this to show the APIs, or free-form AI with your own Claude, OpenAI or Gemini keys.
 - [ ] **Open it in Chrome or Edge**, window at least 1366 px wide (the menu then fits on one line).
 - [ ] **Rehearse the storyline once** (section C), then reset: reload the demo file, or in the live app stop it (Ctrl+C) and run `npm run demo:live` again.
@@ -156,7 +156,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Walk through the integration status table (section F) and the questions for Kinan (section G).
 
-## D. Question bank (all tested; `npm run chat:eval` checks 131 questions)
+## D. Question bank (all tested; `npm run chat:eval` checks 135 questions)
 
 **English**
 - What's today's brief?
@@ -167,6 +167,8 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - When is my daily report?
 - Which vendor converts best?
 - Should we renew Hajar Outdoor?
+- What vendor do you suggest to terminate and why? (Hajar Outdoor: exit at contract end, with the evidence; Tasweeq Digital next)
+- أي مورد تقترح إنهاء عقده ولماذا؟
 - Do vendor numbers match the CRM?
 - Any invoice problems?
 - Which contracts are ending?

@@ -33,6 +33,10 @@ const CASES: [string, string[]][] = [
   // Vendors
   ["Which vendor converts best?", ["Fair scorecard|scorecard"]],
   ["Should we renew Hajar Outdoor?", ["Hajar"]],
+  ["What vendor you suggest to terminate and why", ["My recommendation: terminate", "Hajar", "Why"]],
+  ["Which agency should we drop?", ["My recommendation", "Hajar"]],
+  ["Should we terminate Sada Influence?", ["Sada"]],
+  ["أي مورد تقترح إنهاء عقده ولماذا؟", ["توصيتي", "السبب"]],
   ["How is Tasweeq Digital doing?", ["Tasweeq", "scorecard"]],
   ["What do vendors owe us?", ["What vendors owe us|Vendor orchestration"]],
   ["Which trials are running?", ["Trials"]],

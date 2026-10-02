@@ -99,7 +99,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 - Ask about targets, the plan, today's check and what changed since yesterday, any campaign (live or past, by name or code), any vendor (current, alternative or past), projects, channels, any month, quarter or year, comparisons, the campaign history and its lessons, metric definitions, tests, trials, invoices, Meta, what vendors owe, the daily report — in **English or Arabic**.
 - **Three AI providers built in: Claude (Anthropic), OpenAI and Google Gemini**, with a task router: each kind of work goes to the provider best suited to it (data questions, analysis and Arabic drafting to Claude first; campaign ideation to Gemini plus a second model; long or bulk work to Gemini Flash), and the next provider answers if one fails. With any key, the assistant answers free-form questions using 14 read-only data tools plus campaign ideation. Each answer shows which model wrote it.
-- **Without a key** (and in the demo file), built-in answers cover a wide range of questions, including campaign ideas; a 131-question English/Arabic test checks them.
+- **Without a key** (and in the demo file), built-in answers cover a wide range of questions, including campaign ideas; a 135-question English/Arabic test checks them.
 - **Test it in the Claude app:** the demo can be opened as a claude.ai artifact, where the assistant, the daily second opinion and ideation run on Claude through the viewer's own Claude account, with no API key.
 - Shows recommendations as cards and **drafts vendor emails** for approval. The AI can only read and draft — never send, approve or spend.
 
