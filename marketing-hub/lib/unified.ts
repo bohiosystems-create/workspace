@@ -13,6 +13,7 @@ import { ensureCrmSynced, crmMode } from "./crm";
 import { ensureOracleSynced, buildInvoiceDashboard } from "./invoices";
 import { oracleMode } from "./oracle";
 import { ensureAdsSynced, adsMode, isDigital } from "./adaccounts";
+import { ensureMetaSynced, metaMode } from "./meta";
 import { outlookMode, outlookDelivery } from "./outlook";
 import { type Lang, tx, K, nm } from "./i18n";
 
@@ -42,6 +43,7 @@ export async function ensureAllSources() {
   await ensureOracleSynced();
   await ensureCrmSynced();
   await ensureAdsSynced();
+  if (metaMode() !== "off") await ensureMetaSynced();
 }
 
 export async function buildUnified(lang: Lang = "en") {
@@ -143,10 +145,12 @@ export async function buildUnified(lang: Lang = "en") {
     });
 
   const last = (src: string) => syncs.find((x) => x.source === src);
+  const metaCamps = metaMode() === "off" ? [] : await prisma.metaCampaign.findMany();
   const digitalCampaigns = rows.filter((r) => r.digital);
   const sources: SourceStatus[] = [
     { key: "VENDOR_REPORTS", mode: last("VENDOR_REPORT") ? "upload" : "seed", connected: true, lastSync: last("VENDOR_REPORT")?.createdAt.toISOString() ?? null, records: campaigns.reduce((s, c) => s + c.months.length, 0), coverage: `${campaigns.filter((c) => c.months.length).length}/${campaigns.length}` },
     { key: "ADS", mode: adsMode(), connected: ads.length > 0, lastSync: last("ADS")?.createdAt.toISOString() ?? null, records: ads.length, coverage: `${digitalCampaigns.filter((r) => r.platform).length}/${digitalCampaigns.length}` },
+    { key: "META", mode: metaMode(), connected: metaCamps.length > 0, lastSync: last("META")?.createdAt.toISOString() ?? null, records: metaCamps.length, coverage: (() => { const t = metaCamps.reduce((s, c) => s + c.spendK, 0); const a = metaCamps.filter((c) => c.kind === "VENDOR" && c.campaignCode && (c.review === "CONFIRMED" || c.confidence !== "LOW")).reduce((s, c) => s + c.spendK, 0); return t ? `${Math.round((a / t) * 100)}% ${tx(lang, "attributed", "منسوب")}` : "—"; })() },
     { key: "CRM", mode: crmMode(), connected: leads.length > 0, lastSync: crmSyncs[0]?.createdAt.toISOString() ?? null, records: leads.length, coverage: leads.length ? `${Math.round((leads.filter((l) => l.campaignId).length / leads.length) * 100)}%` : "0%" },
     { key: "ORACLE", mode: oracleMode(), connected: inv.integration.invoices > 0, lastSync: inv.integration.lastSync, records: inv.integration.invoices + inv.integration.purchaseOrders, coverage: `${new Set(inv.invoices.map((i) => i.vendorId)).size}/${vendorRows.length}` },
     { key: "OUTLOOK", mode: `${outlookMode()} · ${outlookDelivery()}`, connected: outlookMode() === "live", lastSync: null, records: 0, coverage: "—" },

@@ -21,6 +21,7 @@ Code: `lib/unified.ts` (model), `lib/adaccounts.ts`, `lib/vendor-reports.ts`, `l
 |---|---|---|
 | Vendor reports | CSV upload on the Data Sources page, or `POST /api/ingest/vendor-report` | **Built** (template: `GET /api/ingest/vendor-report`) |
 | Ad accounts | `ADS_MODE=mock` (default) · `ingest` → `POST /api/ingest/ad-spend` · `meta` / `google` pull adapters | push **built**; pull adapters **not implemented** |
+| Meta ads | `META_MODE=mock` (default) · `live` (Marketing API) · `off` — accounts, campaigns, creator, utm codes, weekly insights; agency attribution in `lib/meta.ts` | **built**; live mode not yet run on a real account |
 | CRM | `CRM_MODE=mock` · `ingest` → `POST /api/crm/leads` · `salesforce` / `dynamics` | push **built**; pull adapters **not implemented** (see `crm-integration.md`) |
 | Oracle | `ORACLE_MODE=mock` · `live` (read-only REST) | **built**, live mode untested against a real instance |
 | Outlook | `OUTLOOK_MODE=mock` · `live` (Microsoft Graph, human-approved sends only) | **built**, live mode untested against a real tenant |

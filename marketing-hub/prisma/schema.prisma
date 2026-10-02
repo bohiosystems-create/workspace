@@ -407,3 +407,56 @@ model Report {
   sentAt     DateTime?
   kinanEventId String?
 }
+
+// Meta (Facebook / Instagram) ads — lib/meta.ts. Ad accounts and campaigns as Meta reports them, plus the agent's
+// answer to "which agency runs this campaign" (attribution) and the manager's confirmations.
+model MetaAdAccount {
+  id                String   @id // act_<id>
+  name              String
+  ownerBusinessId   String?
+  ownerBusinessName String?
+  agencies          String   @default("[]") // JSON [{ id, name }] — businesses with partner access
+  currency          String   @default("SAR")
+  syncedAt          DateTime @default(now())
+}
+
+model MetaCampaign {
+  id                  String    @id // Meta campaign id
+  accountId           String
+  name                String
+  objective           String?
+  status              String // ACTIVE | PAUSED | ARCHIVED
+  createdTime         DateTime?
+  creatorId           String? // Meta user id of whoever created it (activity log: create_campaign_group)
+  creatorName         String?
+  creatorBusinessId   String?
+  creatorBusinessName String?
+  utmCampaigns        String    @default("[]") // JSON — utm_campaign values found on the campaign's ads
+  spendK              Float     @default(0)
+  leads               Int       @default(0)
+  weeks               String    @default("[]") // JSON [{ week, spendK, impressionsK, clicks, leads }]
+  kind                String    @default("UNRESOLVED") // VENDOR | IN_HOUSE | UNKNOWN_AGENCY | CONFLICT | UNRESOLVED
+  vendorId            String?
+  campaignCode        String?
+  confidence          String    @default("LOW") // HIGH | MEDIUM | LOW
+  signals             String    @default("[]") // JSON evidence behind the attribution
+  flags               String    @default("[]") // JSON NO_CODE | CODE_INFERRED | CODE_OF_OTHER_VENDOR | UNKNOWN_AGENCY | IN_HOUSE
+  review              String    @default("AUTO") // AUTO | CONFIRMED
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  syncedAt            DateTime  @default(now())
+}
+
+// Who is who on Meta: business ids of each agency (and of the client itself), learned from confirmations.
+model MetaIdentity {
+  id        String   @id @default(cuid())
+  kind      String // BUSINESS | USER
+  value     String // Meta business id or user id
+  label     String
+  vendorId  String?
+  inHouse   Boolean  @default(false)
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@unique([kind, value])
+}

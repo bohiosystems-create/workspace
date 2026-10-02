@@ -36,43 +36,55 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - **One source of truth per number:** vendor reports, ad platforms, CRM and Oracle invoices side by side. Vendor-reported vs independently verified figures (spend, leads, contracts, response time).
 - **Fair scorecard:** each vendor scored against its own channel's benchmark, adjusted for budget size (50 = par), with a score range and a confidence level.
 
-## 5. Proof that a vendor caused the sales (incrementality)
+## 5. Meta ads — which agency runs each campaign
+
+- **Meta connector** (Facebook / Instagram): ad accounts, campaigns, weekly spend, impressions, clicks and leads, the tracking codes on the ads, and who created each campaign (the ad account's activity log).
+- **Agency recognition:** Meta doesn't label a campaign with the agency behind it, so the agent works it out from the evidence: our campaign code in the name, `utm_campaign` on the ads, the person and business who created it, and who owns the ad account. Each campaign gets an agency, a campaign code and a confidence level (high / medium / low), with the evidence listed.
+- **Catches what needs a human:**
+  - an agency that isn't one of your vendors running ads in your account;
+  - conflicting evidence (one agency's code on a campaign another agency created);
+  - campaigns without tracking codes, whose leads reach the CRM unattributed;
+  - your own team's boosted posts, kept separate from agency spend.
+- **The manager confirms or corrects** in one click; the agent can learn an unknown creator, but never re-labels an agency it already knows. Only attributed spend counts when checking a vendor's reported media spend.
+- **Recommendations:** an urgent alert for an unknown agency, a "who runs this?" decision for conflicts, and a drafted email asking the agency to add campaign codes.
+
+## 6. Proof that a vendor caused the sales (incrementality)
 
 - **Holdout and geo tests:** lift, 90% interval, share of results the vendor actually caused, cost per extra result.
 - **Test designer** with a minimum-detectable-lift calculation; tests start only after approval.
 - **Media-mix model** across channels (carry-over, saturation, seasonality such as Ramadan and summer) with reliability checks. Controlled tests take precedence.
 
-## 6. Renewal decisions
+## 7. Renewal decisions
 
 - Per vendor: **re-engage, renegotiate, performance plan, test a replacement, or exit** — with the evidence, a confidence level, what would change the decision, and targets.
 
-## 7. Vendor reviews and re-bidding
+## 8. Vendor reviews and re-bidding
 
 - **Quarterly business review** per vendor, printable and sendable.
 - **Billing anomaly detection** (invoice spikes vs the campaign's history).
 - **RFP** for a replacement, generated from the incumbent's data and sent to bench vendors.
 - **Bench of pre-vetted alternatives:** when a vendor is flagged, the agent proposes a **paid trial** against it; results are read from the CRM by trial code and the winner can be promoted.
 
-## 8. Supplier invoices (Oracle)
+## 9. Supplier invoices (Oracle)
 
 - Purchase orders and supplier invoices reconciled against what each vendor delivered: amount variances, billed with no delivery, duplicates, missing POs, PO overruns, overdue payments, delivered-but-not-invoiced.
 - Approve clean invoices or dispute with a reason; invoices with critical exceptions cannot be approved. Nothing is written back to Oracle.
 
-## 9. The assistant (chat)
+## 10. The assistant (chat)
 
 - Ask anything about targets, the plan, vendors, campaigns, tests, trials, invoices, what vendors owe, the daily report — in **English or Arabic**.
 - Shows recommendations as cards and **drafts vendor emails** for approval. With a Claude API key it answers free-form questions; without one, built-in answers cover the common questions.
 
-## 10. Vendor emails through Outlook
+## 11. Vendor emails through Outlook
 
 - Drafts in the vendor's language, using only verifiable facts. Sending needs a named approver, the exact revision reviewed and an "I have read this" confirmation. Recipient is fixed to the vendor's account manager.
 
-## 11. Kinan integration (CRM = Yardi + Kinan's AI agent)
+## 12. Kinan integration (CRM = Yardi + Kinan's AI agent)
 
 - **Outbox to Kinan:** approved plan, lead follow-up tasks, lead-source quality, campaign status changes, daily brief — stored, delivered, retried; signed webhooks (HMAC-SHA256).
 - **Kinan's agent can read** priorities, source quality, campaign codes and open tasks, and **report back** contacts, outcomes and completed tasks (API-key protected). Those outcomes update the CRM view and the reports.
 
-## 12. Arabic
+## 13. Arabic
 
 - The whole app, the assistant, vendor emails and the reports switch to Arabic, right-to-left, with Gregorian dates and Western digits.
 
@@ -88,7 +100,8 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 | Outlook | Simulated | Built, not yet tested on a real tenant | Entra app registration, sending mailbox |
 | Oracle Fusion (invoices) | Sample data | Built (read-only), not yet tested on a real instance | Oracle user and URL |
 | CRM leads | Sample data | Ingest API built; Yardi pull pending | Lead feed with campaign codes |
-| Ad platforms | Sample data | Interface prepared | Platform access per vendor account |
+| Meta ads (Facebook / Instagram) | Sample accounts and campaigns | Built; live mode written against the Marketing API, not yet run on a real account | A system-user token with `ads_read` (and `business_management` to see partner access); the ad account IDs |
+| Other ad platforms (Google, Snap, TikTok) | Sample data | Ingest API built; pull adapters not built | Platform access per account |
 | Claude (free-form chat) | Built-in answers | Built | Anthropic API key |
 | Report scheduler | "Send now" | Built | A scheduler calling the report endpoint every 15 minutes |
 

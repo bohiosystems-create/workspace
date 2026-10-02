@@ -34,7 +34,7 @@ function mondaysOf(month: string) {
   return out;
 }
 
-async function mockRows(): Promise<AdWeekRow[]> {
+export async function mockRows(): Promise<AdWeekRow[]> {
   const campaigns = await prisma.campaign.findMany({ include: { months: true } });
   const rows: AdWeekRow[] = [];
   for (const c of campaigns) {

@@ -60,6 +60,9 @@ export const prisma = {
   kinanEvent: table([], { status: "PENDING", attempts: 0, lastError: null, deliveredAt: null, mode: null }),
   kinanFeedback: table([]),
   reportSchedule: table([]),
+  metaAdAccount: table([]),
+  metaCampaign: table([], { kind: "UNRESOLVED", confidence: "LOW", review: "AUTO", reviewedBy: null, reviewedAt: null, vendorId: null, campaignCode: null }),
+  metaIdentity: table([], { vendorId: null, inHouse: false }),
   report: table([], { kind: "DAILY", recipients: "", delivery: null, error: null, sentAt: null, kinanEventId: null }),
   workOrder: table([], { status: "PROPOSED", routine: false, payload: null, issuedAt: null, doneAt: null }),
   campaign: {

@@ -4,6 +4,7 @@ import { buildQbr, buildRfp, qbrText, draftRfpEmails, QUARTERS } from "./reviews
 import { createTest, approveTest } from "./incrementality";
 import { approveTrial, cancelTrial, decideTrial } from "./bench";
 import { syncAds } from "./adaccounts";
+import { metaState, syncMeta, assignMetaCampaign, metaMode } from "./meta";
 import { importVendorReport } from "./vendor-reports";
 import { createCustomDraft } from "./recommendations";
 import { type Lang, isLang, tx, nm } from "./i18n";
@@ -18,6 +19,7 @@ export async function agentState(lang: Lang) {
     vendors: a.unified.vendors,
     campaigns: a.unified.campaigns.map(({ months, ...c }) => c),
     quarters: QUARTERS.map((q) => q.id),
+    meta: metaMode() === "off" ? null : await metaState(lang),
     vendorOptions: a.mkt.vendors.map((v) => ({ id: v.id, name: v.name, category: v.category, campaigns: a.mkt.campaigns.filter((c) => c.vendorId === v.id).map((c) => c.name) })),
   };
 }
@@ -36,7 +38,9 @@ export async function agentAction(b: any) {
     case "APPROVE_TRIAL": await approveTrial(String(b.id), String(b.approver ?? ""), l); break;
     case "CANCEL_TRIAL": await cancelTrial(String(b.id), String(b.approver ?? ""), l); break;
     case "DECIDE_TRIAL": await decideTrial(String(b.id), b.decision, String(b.approver ?? ""), l); break;
-    case "SYNC_ADS": await syncAds(); break;
+    case "SYNC_ADS": await syncAds(); if (metaMode() !== "off") await syncMeta(); break;
+    case "META_SYNC": await syncMeta(); break;
+    case "META_ASSIGN": await assignMetaCampaign({ id: String(b.id), target: String(b.target ?? ""), code: b.code ? String(b.code) : null, approver: String(b.approver ?? ""), remember: b.remember === true }, l); break;
     case "IMPORT_REPORT": return { imported: await importVendorReport(String(b.csv ?? ""), String(b.fileName ?? "upload.csv"), l), state: await agentState(l) };
     case "SEND_RFP": return { drafted: await draftRfpEmails((x) => buildAgent(x), String(b.vendorId), l), state: await agentState(l) };
     case "QBR_DRAFT": {

@@ -1,6 +1,6 @@
 # Client demo checklist — AI Director of Marketing
 
-About 25 minutes. Every step and number below was rehearsed on the demo file in English and Arabic.
+About 28 minutes. Every step and number below was rehearsed on the demo file in English and Arabic.
 
 ---
 
@@ -33,7 +33,7 @@ About 25 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] Read the brief headline: **"Sales are at 81% of target year to date; Andalus Quarter is furthest behind (38%)."**
 - [ ] Show the tiles: SAR 133.9M of SAR 165M, and the three projects (38% / 90% / 92%).
 - [ ] Show the actual-vs-target chart: red months are below 90% of target.
-- [ ] **Waiting for your decision: 8 items, about 44 min.** Point at the minutes; this is the manager's whole week.
+- [ ] **Waiting for your decision: 9 items, about 50 min.** Point at the minutes; this is the manager's whole week.
 - [ ] Click **Ask the director** and type *"What's today's brief?"*
 
 ### 2. Daily report — baseline (1 min)
@@ -69,31 +69,41 @@ About 25 minutes. Every step and number below was rehearsed on the demo file in 
 ### 6. The report shows what changed (2 min)
 
 - [ ] **Reports**, then **Send now** again. In **"Since the last report"** expect:
-  - Decisions waiting **8 → 6**
+  - Decisions waiting **9 → 7**
   - Leads nobody contacted **151 → 61**
   - Late vendor deliverables **2 → 1**
   - Work orders with vendors **0 → 7**
   - Overdue work orders **0 → 1**, in red (Nakhla's press release is still late after a reminder)
 - [ ] Click **Download**: this is exactly the email the manager gets.
 
-### 7. Who's worth renewing (3 min)
+### 7. Meta — which agency runs each campaign (3 min)
+
+- [ ] **Data Sources**, then scroll to **Meta ads — which agency runs each campaign** (or click the Meta item in the Director's inbox). Expect: **SAR 576.2K Meta spend, 8 campaigns, 92% attributed to an agency.**
+- [ ] Show a clean one, *ASH-SEARCH-26 | Ash Shati…*: high confidence. The evidence is the code in its name, the utm on its ads, and that it was created by Layla Nasser of Tasweeq.
+- [ ] Show the **red rows**:
+  - *New campaign 14/05*: **Digital Wave Agency isn't one of your vendors** but has access to the ad account (SAR 8K). The agent flags it as urgent.
+  - *Marina Tower | Corniche video views*: **conflicting evidence**. It carries Hajar Outdoor's code but was created by Tasweeq (SAR 33.6K). Choose **Hajar Outdoor → Confirm**: attributed rises to **98%**.
+  - *Andalus | Retargeting*: no tracking codes, so the agent inferred the code from Tasweeq's other campaign in that account (medium confidence). It also drafts an email asking Tasweeq to add the codes.
+- [ ] Ask the assistant *"Which agency runs each Meta campaign?"*
+
+### 8. Who's worth renewing (3 min)
 
 - [ ] **Decisions**: six vendors, each with a decision. For example, **Hajar Outdoor: exit** (high confidence) and **Tasweeq Digital: test a replacement**. Show the evidence and "what would change this".
 - [ ] **Experiments**: the holdout test shows how much of a vendor's results it really caused.
 - [ ] **Bench & Trials**: **Wasel Performance won its trial against Tasweeq Digital**. One click promotes it, and it gets budget in the next plan.
 
-### 8. Ask the assistant (3 min)
+### 9. Ask the assistant (3 min)
 
 - [ ] Use 3–4 questions from section D, for example *"Should we renew Hajar Outdoor?"*, *"Do vendor numbers match the CRM?"* and *"Any invoice problems?"*
 - [ ] *"Draft an email to Tasweeq Digital"*, then pick an item: the draft appears for approval. Don't send it; show the approval controls instead.
 
-### 9. Arabic (2 min)
+### 10. Arabic (2 min)
 
 - [ ] Click **العربية**: the whole app flips right-to-left.
 - [ ] Ask *"ما موجز اليوم؟"* or *"ما الذي يدين به الموردون لنا؟"*
 - [ ] **Reports** in Arabic, then **View** the Arabic report.
 
-### 10. Close (2 min)
+### 11. Close (2 min)
 
 - [ ] Walk through the integration status table (section F) and the questions for Kinan (section G).
 
@@ -115,6 +125,8 @@ About 25 minutes. Every step and number below was rehearsed on the demo file in 
 - What did the holdout test show?
 - Draft an email to Tasweeq Digital
 - What should I do first?
+- Which agency runs each Meta campaign?
+- Who created the Andalus retargeting campaign on Meta?
 
 **العربية**
 - ما موجز اليوم؟
@@ -123,6 +135,7 @@ About 25 minutes. Every step and number below was rehearsed on the demo file in 
 - هل نجدد عقد هجر للإعلانات الخارجية؟
 - متى يصلني التقرير اليومي؟
 - أي مورد يحقق أفضل تحويل؟
+- أي وكالة تدير كل حملة على ميتا؟
 
 ## E. Pitfalls and recovery
 
@@ -141,6 +154,7 @@ About 25 minutes. Every step and number below was rehearsed on the demo file in 
 | Yardi | Not built yet | Yardi interface licence, credentials, field mapping |
 | Outlook | Built; not yet tested on their tenant | Entra app registration, sending mailbox |
 | Oracle Fusion | Built (read-only); not yet tested on their instance | Oracle user and URL |
+| Meta ads | Built; simulated in the demo; live mode not yet run on a real account | System-user token (`ads_read`, `business_management`), ad account IDs |
 | Scheduler for daily reports | Built | A scheduler calling the endpoint every 15 minutes |
 | Claude (free-form chat) | Built | Anthropic API key |
 
@@ -154,3 +168,4 @@ About 25 minutes. Every step and number below was rehearsed on the demo file in 
 6. The vendor list, contracts (end dates, notice periods) and account-manager emails.
 7. Oracle supplier numbers per vendor; access to Oracle Fusion.
 8. Report recipients and the time they want the daily report.
+9. Meta: which ad accounts exist, which Business Manager owns each, and which agencies have partner access. Will agencies adopt the naming and `utm_campaign` convention?

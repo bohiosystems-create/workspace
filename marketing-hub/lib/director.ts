@@ -13,6 +13,7 @@ import { buildAgent, type Agent } from "./agent";
 import { buildRecommendations } from "./recommendations";
 import { queueKinanEvent } from "./kinan";
 import { buildOrchestration, MINUTES } from "./orchestrator";
+import { metaState, metaMode } from "./meta";
 import { type Lang, tx, K, M, nm, an } from "./i18n";
 import { TODAY, PLAN_MONTH } from "./clock";
 
@@ -190,6 +191,7 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
   void tasksBefore;
   const tasks = (await prisma.directorTask.findMany()).filter((x) => x.assignee !== "TEAM");
   const orch = await buildOrchestration(lang, a);
+  const meta = metaMode() === "off" ? null : await metaState(lang);
   const taskTitle = (x: (typeof tasks)[number]) => (lang === "ar" ? x.titleAr ?? x.title : x.title);
 
   // Targets
@@ -217,6 +219,11 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
   const inboxRaw = [
     ...(plan.status === "PROPOSED" ? [{ kind: "PLAN", title: T(`Budget plan for June 2026 (${K(lang, plan.totalK)}) — vendor briefs follow from it`, `خطة الميزانية لشهر يونيو 2026 (${K(lang, plan.totalK)}) — تُبنى عليها موجزات الموردين`), href: "#plan", severity: "warn", minutes: 10 }] : []),
     ...orch.escalations.map((x) => ({ kind: "CALL", title: x.title, href: "/orchestration", severity: "crit", minutes: MINUTES.ESCALATION })),
+    ...(meta && meta.summary.needsReview ? [{
+      kind: "META",
+      title: T(`${meta.summary.needsReview} Meta campaign(s) to check — who runs them${meta.summary.unknownK ? ` (incl. ${K("en", meta.summary.unknownK)} by an agency that isn't one of yours)` : ""}`, `حملات ميتا للتحقق (${meta.summary.needsReview}) — من يديرها${meta.summary.unknownK ? ` (منها ${K(lang, meta.summary.unknownK)} لجهة ليست من وكالاتكم)` : ""}`),
+      href: "/data#meta", severity: meta.summary.unknownK ? "crit" : "warn", minutes: 2 * meta.summary.needsReview,
+    }] : []),
     ...(woWaiting.some((o) => o.kind === "MONTHLY_BRIEF") ? [{ kind: "VENDOR", title: T(`${woWaiting.filter((o) => o.kind === "MONTHLY_BRIEF").length} vendor briefs for June, drafted from the approved plan`, `موجزات يونيو للموردين (${woWaiting.filter((o) => o.kind === "MONTHLY_BRIEF").length}) — أُعدّت من الخطة المعتمدة`), href: "/orchestration", severity: "warn", minutes: woWaiting.filter((o) => o.kind === "MONTHLY_BRIEF").length * MINUTES.MONTHLY_BRIEF }] : []),
     ...woWaiting.filter((o) => !o.routine && o.kind !== "MONTHLY_BRIEF").map((o) => ({ kind: "VENDOR", title: `${N(o.vendor)}: ${o.title}`, href: "/orchestration", severity: "warn", minutes: MINUTES[o.kind] ?? 3 })),
     ...(woWaiting.some((o) => o.routine) ? [{ kind: "VENDOR", title: T(`${woWaiting.filter((o) => o.routine).length} routine vendor messages (feedback, reminders) — approve in one go`, `رسائل روتينية للموردين (${woWaiting.filter((o) => o.routine).length}) (ملاحظات، تذكيرات) — اعتماد دفعة واحدة`), href: "/orchestration", severity: "info", minutes: woWaiting.filter((o) => o.routine).reduce((sum, o) => sum + (MINUTES[o.kind] ?? 1), 0) }] : []),

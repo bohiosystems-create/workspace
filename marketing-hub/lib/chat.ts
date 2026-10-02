@@ -3,6 +3,7 @@ import { buildAgent } from "./agent";
 import { buildDirector } from "./director";
 import { buildOrchestration } from "./orchestrator";
 import { reportsState } from "./reports";
+import { metaState, metaMode } from "./meta";
 import { kinanOutbox, kinanMode } from "./kinan";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr } from "./i18n";
 
@@ -17,7 +18,8 @@ export async function buildChatContext(lang: Lang = "en") {
   const recs = await buildRecommendations(lang, agent);
   const director = await buildDirector(lang, agent);
   const orch = await buildOrchestration(lang, agent);
-  return { mkt: agent.mkt, inv: agent.inv, crm: agent.crm, recs, agent, director, orch, lang };
+  const meta = metaMode() === "off" ? null : await metaState(lang);
+  return { mkt: agent.mkt, inv: agent.inv, crm: agent.crm, recs, agent, director, orch, meta, lang };
 }
 export type ChatContext = Awaited<ReturnType<typeof buildChatContext>>;
 
@@ -61,6 +63,7 @@ export function snapshotForModel(c: ChatContext) {
     },
     director: {
       brief: c.director.brief, targets: c.director.targets, budgetPlan: c.director.plan, waitingForDecision: c.director.inbox.map((x) => ({ title: x.title, minutes: x.minutes })), managerMinutes: c.director.managerMinutes,
+      metaAttribution: c.meta ? { summary: c.meta.summary, accounts: c.meta.accounts, campaigns: c.meta.campaigns.map((x) => ({ name: x.name, account: x.account, createdBy: x.creator, spendK: x.spendK, leads: x.leads, utm: x.utm, attributedTo: x.kind === "VENDOR" ? `${x.vendor} ${x.code ?? ""}` : x.kind, confidence: x.confidence, evidence: x.signals, flags: x.flags.map((f) => f.text), needsReview: x.needsReview })) } : null,
       vendorOrchestration: { summary: c.orch.summary, escalations: c.orch.escalations.map((x) => x.title), workOrders: c.orch.orders.map((x) => ({ vendor: x.vendor, kind: x.kind, title: x.title, status: x.status, overdue: x.overdue, routine: x.routine, checks: x.checks.map((k) => `${k.state}: ${k.label}`) })), deliverables: c.orch.deliverables.map((x) => ({ vendor: x.vendor, item: x.title, due: x.due.slice(0, 10), state: x.state, reminders: x.chases })) },
       delegations: c.director.tasks.map((x) => ({ to: x.assignee, title: x.title, status: x.status, leads: x.leads })),
       leadSourceQuality: c.director.sourceQuality.map((x) => ({ code: x.code, score: x.qualityScore, guidance: x.guidance })),
@@ -147,6 +150,7 @@ const RX = {
   plan: /budget plan|allocation|allocate|next month|june|reallocat|خطة الميزانية|الميزانية|توزيع|الشهر القادم|يونيو/,
   approvals: /approv|waiting|inbox|pending|sign.?off|decide|بانتظار|اعتماد|موافقة|قرارات معلقة/,
   kinan: /kinan|yardi|كنان|ياردي/,
+  meta: /\bmeta\b|facebook|instagram|which agency|what agency|who (runs|created|is running|made)|agency behind|ميتا|فيسبوك|فيس بوك|انستغرام|إنستغرام|أي وكالة|من أنشأ|من يدير|الوكالة التي/,
   report: /daily report|scheduled report|morning report|reports? schedule|التقرير اليومي|تقرير يومي|التقارير المجدولة|جدول التقارير/,
   orch: /orchestrat|work orders?|vendors? owe|owe us|deliverables?|chas(e|ing)|remind|vendor briefs?|briefs? (to|for) (the )?vendors|what are (the )?vendors doing|my time|how much time|تنسيق|أوامر العمل|التسليمات|تسليمات|تذكير|موجزات الموردين|وقتي|كم من الوقت|يدين به الموردون|يدينون/,
   renewal: /renew|decision|exit|renegotiat|performance plan|replace|re-?engage|keep or drop|drop |fire |تجديد|نجدد|نجدّد|يجدد|التجديد|نستغني|نستمر|نبقي|قرار|الخروج|إنهاء|إعادة التفاوض|خطة أداء|استبدال|الاستغناء/,
@@ -208,6 +212,23 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
 
   const dr = c.director;
   // 2a. Director: daily report, vendor orchestration, brief, targets, plan, approvals, Kinan feed.
+  if (RX.meta.test(q) && c.meta) {
+    const m = c.meta, s = m.summary;
+    const KIND: Record<string, string> = { VENDOR: "", IN_HOUSE: T("in-house", "داخلي"), UNKNOWN_AGENCY: T("NOT one of your agencies", "ليست من وكالاتكم"), CONFLICT: T("unclear — conflicting evidence", "غير واضح — أدلة متعارضة"), UNRESOLVED: T("unknown", "غير معروف") };
+    const CF: Record<string, string> = { HIGH: T("high confidence", "ثقة عالية"), MEDIUM: T("medium confidence", "ثقة متوسطة"), LOW: T("low confidence", "ثقة منخفضة") };
+    const vid = vendor ? mkt.vendors.find((v) => v.name === vendor.name)?.id : undefined;
+    // A question about one campaign ("who created the Andalus retargeting campaign?") gets just that campaign.
+    const words = (x: string) => x.toLowerCase().split(/[^a-z0-9\u0600-\u06ff-]+/).filter((w) => w.length >= 4);
+    const qw = new Set(words(q));
+    const scored = m.campaigns.map((x) => ({ x, n: words(x.name).filter((w) => qw.has(w)).length })).sort((a, b) => b.n - a.n);
+    const one = scored[0] && scored[0].n >= 2 && (!scored[1] || scored[1].n < scored[0].n) ? [scored[0].x] : null;
+    const rows = one ?? m.campaigns.filter((x) => !vid || x.vendorId === vid || x.suggested.includes(vid));
+    return done(
+      T(`**Meta ads — who runs what** (${m.mode})\n${s.campaigns} campaigns, ${K(L, s.spendK)} spent; **${s.attributedPct}%** attributed to an agency. ${s.needsReview} need your confirmation.\n\n`,
+        `**إعلانات ميتا — من يدير ماذا** (${m.mode})\n${s.campaigns} حملات، أُنفق ${K(L, s.spendK)}؛ **${s.attributedPct}%** منسوبة إلى وكالة. ${s.needsReview} بحاجة إلى تأكيدكم.\n\n`) +
+      rows.slice(0, 10).map((x) => `- ${x.needsReview ? "⚠ " : ""}**${x.name}** — ${x.kind === "VENDOR" ? `${x.vendor}${x.code ? ` · ${x.code}` : ""} (${x.review === "CONFIRMED" ? T(`confirmed by ${x.reviewedBy}`, `أكّده ${x.reviewedBy}`) : CF[x.confidence]})` : KIND[x.kind]} · ${K(L, x.spendK)}\n  ${[...x.signals, ...x.flags.filter((f) => !["IN_HOUSE", "UNKNOWN_AGENCY"].includes(f.code)).map((f) => f.text)].join(T("; ", "؛ "))}`).join("\n") +
+      T("\n\nHow I tell: the campaign code in the name, the utm_campaign on the ads, who created it (Meta activity log) and who owns the ad account. Confirm or correct on Data Sources → Meta.", "\n\nكيف أحدد: رمز الحملة في الاسم، وutm_campaign على الإعلانات، ومن أنشأها (سجل نشاط ميتا)، ومن يملك الحساب الإعلاني. أكّدوا أو صحّحوا من مصادر البيانات ← ميتا."));
+  }
   if (RX.report.test(q)) {
     const r = await reportsState(L);
     const s = r.schedule, last = r.reports[0];

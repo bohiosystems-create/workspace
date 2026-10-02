@@ -582,4 +582,41 @@ const UI5: Record<string, string> = {
  "Loading…": "جارٍ التحميل…",
 };
 
-export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5 };
+const UI6: Record<string, string> = {
+ "Agency · code": "الوكالة · الرمز",
+ "Attributed to an agency": "منسوب إلى وكالة",
+ "Confirm": "تأكيد",
+ "Confirming as": "التأكيد باسم",
+ "Created by": "أنشأها",
+ "In-house": "داخلي",
+ "Meta ads — which agency runs each campaign": "إعلانات ميتا — أي وكالة تدير كل حملة",
+ "Meta campaign": "حملة ميتا",
+ "Meta doesn't say which agency runs a campaign. The agent works it out from the campaign code in the name, the utm_campaign on the ads, who created the campaign (ad-account activity log) and who owns the ad account — and asks you when the evidence is weak or conflicting. Only attributed spend counts towards checking a vendor's reported media spend.": "لا تُظهر ميتا أي وكالة تدير الحملة. يستنتج الوكيل ذلك من رمز الحملة في الاسم، وutm_campaign على الإعلانات، ومن أنشأ الحملة (سجل نشاط الحساب الإعلاني)، ومن يملك الحساب — ويسألكم عندما تكون الأدلة ضعيفة أو متعارضة. لا يُحتسب إلا الإنفاق المنسوب عند التحقق من الإنفاق الإعلامي الذي يبلّغ عنه المورد.",
+ "Meta spend": "إنفاق ميتا",
+ "Not one of your agencies": "ليست من وكالاتكم",
+ "Owner": "المالك",
+ "Partners with access": "شركاء لديهم صلاحية",
+ "Remember this creator": "تذكّر هذا المُنشئ",
+ "Sync now": "مزامنة الآن",
+ "Unclear — to confirm": "غير واضح — للتأكيد",
+ "Who runs it?": "من يديرها؟",
+ "campaigns": "حملات",
+ "confirmed by": "أكّده",
+ "leads": "عملاء محتملون",
+ "not a vendor": "ليست مورداً",
+ "Agency": "وكالة",
+ "Conflicting evidence": "أدلة متعارضة",
+ "Unknown": "غير معروف",
+ "HIGH": "ثقة عالية",
+ "MEDIUM": "ثقة متوسطة",
+ "LOW": "ثقة منخفضة",
+ "you": "أنتم",
+ "an agency": "وكالة",
+ "unknown": "غير معروف",
+ "Meta ads (Facebook / Instagram)": "إعلانات ميتا (فيسبوك / إنستغرام)",
+ "Ad accounts, campaigns, who created them and their tracking codes — the agent works out which agency runs each campaign.": "الحسابات الإعلانية والحملات ومن أنشأها ورموز تتبعها — يستنتج الوكيل أي وكالة تدير كل حملة.",
+ "META_ATTRIBUTION": "نسب حملة ميتا",
+ "Which agency runs each Meta campaign?": "أي وكالة تدير كل حملة على ميتا؟",
+};
+
+export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5, ...UI6 };

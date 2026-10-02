@@ -37,6 +37,18 @@ The work a marketing team would do with the vendors, done by the director (`lib/
 - **Operating rhythm:** daily lead-response watch, weekly chasing, monthly plan → briefs → feedback → reports, quarterly reviews / renewals / re-bids. `POST /api/orchestration {"action":"RUN"}` runs a cycle (point a scheduler at it).
 - The sample data runs on a fixed clock (`lib/clock.ts`, 8 June 2026); switch it to the real date when live feeds are connected.
 
+## Meta ads — which agency runs each campaign (`/data#meta`)
+
+`lib/meta.ts` reads Meta ad accounts and campaigns (`META_MODE=mock` default · `live` · `off`). Meta does not say which agency runs a campaign, so the agent attributes each one from evidence:
+- **Campaign code in the name**, **`utm_campaign` on the ads** (also what lets the CRM credit leads), the **creator** (ad-account activity log, `create_campaign_group`) mapped to an agency's Business Manager or user, and the **ad-account owner**.
+- Result per campaign: agency + campaign code + confidence (HIGH / MEDIUM / LOW), or **in-house** (the client's own people), **not one of your agencies** (a business with partner access but no contract), **conflict** (evidence points at two vendors).
+- A missing code is inferred from the agency's other campaigns in the same account, and flagged.
+- Only attributed spend (HIGH/MEDIUM, or confirmed) is written to the ad-platform figures that check each vendor's reported media spend.
+- The manager confirms or corrects on Data Sources → Meta. "Remember this creator" teaches the agent an unknown creator, but never re-labels a known agency.
+- Recommendations: unknown agency (urgent), conflict (decide), no tracking codes (vendor email).
+- The Director inbox shows campaigns to check, and the assistant answers "which agency runs each Meta campaign?".
+- **Live mode** (`META_ACCESS_TOKEN` system-user token with `ads_read` + `business_management`, `META_AD_ACCOUNT_IDS`, `META_API_VERSION`) is written against the Marketing API (account + `agencies`, `campaigns`, `activities`, `ads{creative{url_tags}}`, weekly `insights`) and **has not been run against a real account**. In live mode, agencies' businesses or users are learned from confirmations (no sample identities).
+
 ## Daily scheduled reports (`/reports`)
 
 The director writes the manager's daily report (`lib/reports.ts`) and emails it through Outlook:

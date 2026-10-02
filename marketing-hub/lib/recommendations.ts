@@ -2,12 +2,13 @@ import { prisma } from "./prisma";
 import { buildAgent, type Agent } from "./agent";
 import { powerHoldout, powerGeo } from "./stats";
 import { isDigital } from "./adaccounts";
+import { metaRecommendations } from "./meta";
 import { type Lang, isLang, tx, K, M, nm, dt , an, ltr } from "./i18n";
 import { deliverMail, defaultCc, outlookDelivery, outlookMode, outlookSender, outlookSenderName, outlookSenderNameAr } from "./outlook";
 
 export type Rec = {
   key: string;
-  type: "RENEWAL" | "SLA_BREACH" | "CRM_MISMATCH" | "DATA_MISMATCH" | "UNDERPERFORMING" | "INVOICE_EXCEPTIONS" | "UNBILLED" | "OVERDUE_PAYMENT" | "TEST_INCREMENTALITY" | "TRIAL" | "REALLOCATE" | "SCALE_UP";
+  type: "RENEWAL" | "SLA_BREACH" | "CRM_MISMATCH" | "DATA_MISMATCH" | "UNDERPERFORMING" | "INVOICE_EXCEPTIONS" | "UNBILLED" | "OVERDUE_PAYMENT" | "TEST_INCREMENTALITY" | "TRIAL" | "REALLOCATE" | "SCALE_UP" | "META_UNKNOWN_AGENCY" | "META_CONFLICT" | "META_NO_UTM";
   severity: "crit" | "warn" | "info";
   vendorId: string;
   vendor: string;
@@ -281,6 +282,9 @@ export async function buildRecommendations(lang: Lang = "en", pre?: Agent) {
     });
   }
 
+  // Meta: who runs which campaign — unknown agencies, conflicting evidence, campaigns without tracking codes.
+  recs.push(...(await metaRecommendations(lang)));
+
   // Attach triage state.
   const dismissed = new Set(states.filter((s) => s.status === "DISMISSED").map((s) => s.key));
   const emailRows: EmailRow[] = emails
@@ -348,6 +352,13 @@ const OPENERS: Record<Rec["type"], (r: Rec, l: Lang) => Parts> = {
     ask: tx(l, "Please send the platform invoices or account exports for the period and a breakdown of any fees, so we can reconcile within 10 business days.", "نرجو إرسال فواتير المنصات أو بيانات الحسابات للفترة المعنية مع تفصيل أي رسوم، لنتمكن من المطابقة خلال 10 أيام عمل."),
   }),
   TEST_INCREMENTALITY: () => ({ subject: "", intro: "", ask: "" }),
+  META_UNKNOWN_AGENCY: () => ({ subject: "", intro: "", ask: "" }),
+  META_CONFLICT: () => ({ subject: "", intro: "", ask: "" }),
+  META_NO_UTM: (r, l) => ({
+    subject: tx(l, `Tracking codes on a Meta campaign — ${r.vendor}`, `رموز التتبع في حملة ميتا — ${nm(l, r.vendor)}`),
+    intro: tx(l, "One of the Meta campaigns you run for us has no campaign code on its ads, so the leads it brings cannot be credited to you in our CRM:", "إحدى حملات ميتا التي تديرونها لنا لا تحمل رمز الحملة على إعلاناتها، لذا لا يمكن نسب العملاء الذين تجلبهم إليكم في نظامنا:"),
+    ask: tx(l, "Please add utm_campaign with our campaign code to every ad in this campaign, and start each campaign name with its code (e.g. \"CODE | …\"), within 3 business days. Leads that arrive without a code cannot count towards your results.", "نرجو إضافة utm_campaign برمز حملتنا إلى كل إعلان في هذه الحملة، وبدء اسم كل حملة برمزها (مثل «الرمز | …») خلال 3 أيام عمل. العملاء الذين يصلون دون رمز لا يُحتسبون ضمن نتائجكم."),
+  }),
   TRIAL: () => ({ subject: "", intro: "", ask: "" }),
   UNDERPERFORMING: (r, l) => ({
     subject: tx(l, `Campaign performance review — ${r.vendor}`, `مراجعة أداء الحملات — ${nm(l, r.vendor)}`),

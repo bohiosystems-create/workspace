@@ -161,7 +161,9 @@ document.addEventListener("click", (e) => {
   const a = (e.target as HTMLElement).closest("a[href^='/']");
   if (!a) return;
   e.preventDefault();
-  show(a.getAttribute("href")!);
+  const [path, hash] = a.getAttribute("href")!.split("#");
+  try { history.replaceState(null, "", hash ? `#${hash}` : location.pathname + location.search); } catch {}
+  show(path || "/");
 });
 // The assistant lives outside the page root so it survives navigation.
 const chatHost = document.createElement("div");
