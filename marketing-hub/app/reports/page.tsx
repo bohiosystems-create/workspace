@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Header from "../_components/Header";
+import { saveFile } from "../_components/saveFile";
 import { useI18n } from "../_components/lang";
 import { useApprover } from "../_components/useAgent";
 
@@ -54,11 +55,7 @@ export default function ReportsPage() {
   const toggle = (k: "days" | "languages", v: any) => setForm({ ...form, [k]: form[k].includes(v) ? form[k].filter((x: any) => x !== v) : [...form[k], v] });
   const download = () => {
     if (!view) return;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([view.html], { type: "text/html" }));
-    a.download = `marketing-report-${view.date}-${view.lang}.html`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    saveFile(`marketing-report-${view.date}-${view.lang}.html`, view.html, "text/html").catch((e) => setError(e.message));
   };
 
   return (

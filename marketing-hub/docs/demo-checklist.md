@@ -1,6 +1,6 @@
 # Client demo checklist — AI Director of Marketing
 
-About 35 minutes. Every step and number below was rehearsed on the demo file in English and Arabic.
+About 40 minutes. Every step and number below was rehearsed on the demo file in English and Arabic.
 
 ---
 
@@ -9,10 +9,11 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] **Get the package:** unzip `kinan-demo.zip`. Start with `START-HERE.md`.
 - [ ] **Pick how you will run it**
   - **Demo file (recommended):** double-click `1-OPEN-ME-demo.html`. One file, no install, works offline (only the fonts need internet). All data lives in the browser.
-  - **Live app:** needs Node.js 18.17+. In `app-source/`: `npm install`, then `npm run demo:live` (resets the sample data, builds and starts), then open http://localhost:3001. Use this to show free-form AI chat (Claude or OpenAI) or the APIs.
+  - **Claude app edition:** open the claude.ai link in the Claude app (web, desktop or mobile). The same demo, but the assistant, the daily second opinion and campaign ideas are answered by Claude through your own Claude account, with no API key. Allow it when the Claude app asks. Use this to show free-form AI without setting anything up.
+  - **Live app:** needs Node.js 18.17+. In `app-source/`: `npm install`, then `npm run demo:live` (resets the sample data, builds and starts), then open http://localhost:3001. Use this to show the APIs, or free-form AI with your own Claude, OpenAI or Gemini keys.
 - [ ] **Open it in Chrome or Edge**, window at least 1366 px wide (the menu then fits on one line).
 - [ ] **Rehearse the storyline once** (section C), then reset: reload the demo file, or in the live app stop it (Ctrl+C) and run `npm run demo:live` again.
-- [ ] **Optional — free-form AI chat (live app only):** set `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` in `app-source/.env` and run `npm run demo:live` again. With both, the second takes over if the first fails. Ask one free-form question in rehearsal to check the key works; the answer shows "Claude · model" or "OpenAI · model" underneath. Without a key the assistant uses built-in answers, which cover a wide range of questions (section D).
+- [ ] **Optional — free-form AI chat (live app only):** set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` and/or `GEMINI_API_KEY` in `app-source/.env` and run `npm run demo:live` again. With two or more, each task goes to its preferred provider and the next takes over if one fails. Ask one free-form question in rehearsal to check the key works; the answer shows the provider and model underneath (e.g. "Claude · claude-opus-5-5"). Without a key the assistant uses built-in answers, which cover a wide range of questions (section D).
 - [ ] **Keep `2-demo-kit-capabilities-and-checklist.html` open** on a second screen or tab: the same checklist with tick-boxes.
 - [ ] **Know the three things to say upfront** (section B).
 
@@ -28,7 +29,7 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Reset to a clean state: reload the demo file (live app: Ctrl+C, then `npm run demo:live`).
 - [ ] **Type your name in "Approving as"** on the Director page. Buttons stay disabled until a name is entered, and the browser remembers it.
-- [ ] Language: English (switch to العربية in step 12).
+- [ ] Language: English (switch to العربية in step 14).
 
 ### 1. Director — the morning view (3 min)
 
@@ -55,7 +56,7 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] Show **Ash Shati — Search & Social**: a winner (1.19%), so the advice is to trim only ~15% in July–August and scale up again in September, not cut.
 - [ ] Click **Accept** on one item (optionally with a note): *Decided* goes to 1. Say: *"The decision carries over: the same item tomorrow keeps your decision. Accepting records it; the change itself happens on Campaigns or with the agency."*
 - [ ] Click an earlier day chip to show the check as it was that morning, and **Resolved since yesterday** when something improves.
-- [ ] Point at **AI second opinion**: with an Anthropic or OpenAI key, the AI reads the day's check with the history and says what to do first. (Not in the demo file.)
+- [ ] Point at **AI second opinion**: with a Claude, OpenAI or Gemini key (or in the Claude app edition), the AI reads the day's check with the history and says what to do first. (Not in the demo file.)
 
 ### 4. Campaign history (2 min)
 
@@ -112,24 +113,40 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] **Experiments**: the holdout test shows how much of a vendor's results it really caused.
 - [ ] **Bench & Trials**: **Wasel Performance won its trial against Tasweeq Digital**. One click promotes it, and it gets budget in the next plan.
 
-### 11. Ask the assistant (3 min)
+### 11. Ideate a campaign (4 min)
+
+- [ ] Open **Ideas** and click **Generate ideas** with the brief empty. The director picks the project furthest behind target: **Andalus Quarter · September 2026 · After summer · Close sales · SAR 150K**.
+- [ ] Three ideas, each with a channel mix, vendors, forecast and guardrails:
+  1. **Broker & site-visit sprint**: 6–11 contracts, SAR 4.7–8.7M, about 2.2% cost to sales.
+  2. **Open-house mini-expo**: events converted best in the history (0.9%).
+  3. **Payment-plan offer**: digital is capped at 20% automatically, because it costs 6% of sales for Andalus today (benchmark 1.9%).
+- [ ] Say: *"The forecasts come from your 2024–2025 history, adjusted for this project and the season. They are not invented by the AI."* Open **Guardrails, measurement, evidence and risks** on one idea.
+- [ ] Change the brief to **Marina Tower, February 2027 (Ramadan), 300** and generate. The payment-plan offer leads (Ramadan 2025 lesson), at about 1.3% cost to sales.
+- [ ] Click **Shortlist** on one idea, then **Approve & draft vendor brief** on another. The brief opens in the assistant as a draft to the lead vendor, in the vendor's language. Don't send it.
+- [ ] Say: *"With AI keys, two different models propose ideas (Gemini and OpenAI by default) and Claude ranks them against your data. In the Claude app edition, Claude does both through your own account."*
+
+### 12. AI providers and routing (1 min)
+
+- [ ] **Data Sources**, scroll to **AI providers and task routing**. Claude, OpenAI and Gemini are all built in. Each task (data questions, analysis, email wording, ideation, judging, bulk work) goes to the provider best suited to it, and the next one answers if one fails.
+
+### 13. Ask the assistant (3 min)
 
 - [ ] Use 4–5 questions from section D, for example *"What changed since yesterday?"*, *"How did Ramadan campaigns perform?"*, *"Compare 2024 and 2025"*, *"How much did we spend in March by project?"* and *"Should we renew Hajar Outdoor?"*
-- [ ] Say: *"With an Anthropic or OpenAI key it answers anything from this data, in its own words, and shows which model answered."*
+- [ ] Say: *"With a Claude, OpenAI or Gemini key (or in the Claude app edition) it answers anything from this data, in its own words, and shows which model answered."*
 - [ ] *"Draft an email to Tasweeq Digital"*, then pick an item: the draft appears for approval. Don't send it; show the approval controls instead.
 
-### 12. Arabic (2 min)
+### 14. Arabic (2 min)
 
 - [ ] Click **العربية**: the whole app flips right-to-left.
 - [ ] Ask *"ما موجز اليوم؟"*, *"ما الجديد منذ الأمس؟"* or *"كيف كان أداء حملات رمضان؟"*
 - [ ] Open **Daily check** in Arabic.
 - [ ] **Reports** in Arabic, then **View** the Arabic report.
 
-### 13. Close (2 min)
+### 15. Close (2 min)
 
 - [ ] Walk through the integration status table (section F) and the questions for Kinan (section G).
 
-## D. Question bank (all tested; `npm run chat:eval` checks 92 questions)
+## D. Question bank (all tested; `npm run chat:eval` checks 98 questions)
 
 **English**
 - What's today's brief?
@@ -166,6 +183,9 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 - How are influencers performing?
 - What is cost to sales?
 - Help
+- Give me campaign ideas for Marina Tower in Ramadan with SAR 300K
+- Brainstorm a new campaign for Andalus
+- Plan a campaign for the Cityscape season
 
 **العربية**
 - ما موجز اليوم؟
@@ -183,11 +203,15 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 - ما الدروس من الحملات السابقة؟
 - كيف أداء الأندلس؟
 - ما معنى نسبة التكلفة إلى المبيعات؟
+- اقترح حملة جديدة للأندلس في نوفمبر
+- أفكار لحملة رمضان لبرج المارينا
 
 ## E. Pitfalls and recovery
 
 - **Reloading the demo file resets everything.** Don't reload mid-demo unless you want to start over. To reset the live app: stop it (Ctrl+C) and run `npm run demo:live`.
-- **Off-script questions in the demo file** may get the general help answer (built-in answers, no AI). Say: *"With Claude or OpenAI connected it answers anything from this data."*
+- **Off-script questions in the demo file** may get the general help answer (built-in answers, no AI). Say: *"With Claude, OpenAI or Gemini connected it answers anything from this data"*, or switch to the Claude app edition, where Claude answers.
+- **Claude app edition slow or not answering?** An answer that looks up data takes about 30–90 seconds. If the viewer declined Claude, or Claude is unavailable, it answers with the built-in rules; reload the page to be asked again.
+- **Approving an idea adds an email draft**, so the "Decisions waiting" count in the report goes up by one. Do the ideation step after step 8, as written.
 - **The CRM-feed alert is expected:** the sample CRM data ends on 30 May, and the clock is 8 June.
 - **Buttons greyed out?** Your name isn't in "Approving as", or the "I have read" box isn't ticked.
 - **Report dated today, figures from 8 June:** expected (sample data).
@@ -203,7 +227,7 @@ About 35 minutes. Every step and number below was rehearsed on the demo file in 
 | Oracle Fusion | Built (read-only); not yet tested on their instance | Oracle user and URL |
 | Meta ads | Built; simulated in the demo; live mode not yet run on a real account | System-user token (`ads_read`, `business_management`), ad account IDs |
 | Scheduler for daily reports | Built | A scheduler calling the endpoint every 15 minutes |
-| AI: Anthropic (Claude) and OpenAI | Built, with failover; tested against mock servers | An Anthropic and/or OpenAI API key |
+| AI: Claude, OpenAI and Gemini, with task routing | Built, with failover; tested against mock servers (Claude app edition uses your Claude account) | Any of an Anthropic, OpenAI or Gemini API key |
 
 ## G. Questions to ask (to move to a pilot)
 

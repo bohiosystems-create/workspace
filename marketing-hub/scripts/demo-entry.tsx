@@ -26,6 +26,7 @@ import Chat from "../app/_components/Chat";
 import { buildMarketingDashboard, applyAction } from "../lib/marketing";
 import { buildRecommendations, handleRecommendationRequest } from "../lib/recommendations";
 import { localAnswer } from "../lib/chat";
+import { aiAnswer } from "../lib/chat-ai";
 import { buildCrmDashboard, syncCrm } from "../lib/crm";
 import { type Lang, isLang, nm, K, M, dt } from "../lib/i18n";
 import { ensureOracleSynced, syncOracle, buildInvoiceDashboard, applyInvoiceAction } from "../lib/invoices";
@@ -116,7 +117,12 @@ window.fetch = (async (input: any, init?: any) => {
   if (url.includes("/api/chat")) {
     try {
       const { messages, lang } = JSON.parse(init.body);
-      return json(await localAnswer(messages[messages.length - 1].content, undefined, undefined, langOf(lang))); // rules answerer only in the demo
+      const history = (messages as any[]).filter((m) => (m?.role === "user" || m?.role === "assistant") && typeof m.content === "string" && m.content.trim()).slice(-12);
+      // Claude app edition: Claude answers with the data tools (viewer's own Claude account); otherwise built-in rules.
+      if (llmStatus().enabled) {
+        try { return json(await aiAnswer(history, undefined, langOf(lang))); } catch (e) { console.warn("Claude unavailable, using built-in answers", e); }
+      }
+      return json(await localAnswer(history[history.length - 1].content, undefined, undefined, langOf(lang)));
     } catch (e: any) {
       return json({ error: e.message });
     }

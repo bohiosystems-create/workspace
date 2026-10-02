@@ -11,6 +11,7 @@ const run = (c, cwd = root) => execSync(c, { cwd, stdio: "inherit" });
 
 run("npm run demo:reset");
 run("npm run demo:build");
+run("node scripts/build-demo.mjs --claude-app"); // demo-claude-app.html, republished to claude.ai separately
 copyFileSync(path.join(root, "demo.html"), path.join(repo, "marketing-hub-demo.html"));
 
 const stage = path.join(os.tmpdir(), "kinan-demo-stage");

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Header from "../_components/Header";
+import { saveFile } from "../_components/saveFile";
 import { useI18n } from "../_components/lang";
 import { useAgent, useApprover } from "../_components/useAgent";
 
@@ -38,10 +39,7 @@ export default function DataPage() {
   async function template() {
     try {
       const text = await (await fetch("/api/ingest/vendor-report")).text();
-      const url = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
-      const a = document.createElement("a");
-      a.href = url; a.download = "vendor-report-template.csv"; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await saveFile("vendor-report-template.csv", text, "text/csv");
     } catch (e: any) { setError(e.message); }
   }
   // Deep link (/data#meta): scroll once the panel exists (data loads after navigation).
@@ -263,7 +261,7 @@ function AiPanel() {
       <p className="muted" style={{ fontSize: 11.5, marginTop: 0 }}>{t("Each kind of AI work goes to the provider best suited to it among those with a key; if it fails, the next one answers. Without any key the app runs on its built-in rules. Change the order per task with LLM_ROUTE_<TASK> in .env.")}</p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
         {(["anthropic", "openai", "gemini"] as const).map((p) => (
-          <span key={p} className={`pill ${s.keys[p] ? "healthy" : "hold"}`} dir="ltr">{PROVIDER_NAME[p]} · {p === "gemini" ? `${s.models.gemini} / ${s.models.geminiFast}` : s.models[p]} · {s.keys[p] ? t("key set") : t("no key")}</span>
+          <span key={p} className={`pill ${s.keys[p] ? "healthy" : "hold"}`} dir="ltr">{PROVIDER_NAME[p]} · {p === "gemini" ? `${s.models.gemini} / ${s.models.geminiFast}` : s.models[p]} · {s.keys[p] ? (/account/.test(String(s.models[p])) ? t("your Claude account") : t("key set")) : t("no key")}</span>
         ))}
       </div>
       <table className="tbl" style={{ width: "100%", fontSize: 11.5 }}>

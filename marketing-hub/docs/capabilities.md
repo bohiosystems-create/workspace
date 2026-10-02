@@ -23,7 +23,15 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - Each item shows the evidence, the action, and the similar past campaigns with what they taught us.
 - **Day over day:** new today, open since when, resolved since yesterday. The manager accepts or dismisses each item (with a name and an optional note); the decision carries over while the same issue repeats.
 - Feeds the daily brief, the emailed report, the approval inbox and the chat.
-- **Optional AI second opinion** (Claude or OpenAI): reads the day's check with the history and says what to do first.
+- **Optional AI second opinion** (Claude, OpenAI or Gemini): reads the day's check with the history and says what to do first.
+
+## 1c. Campaign ideas
+
+- Ask for ideas with a brief (project, month, budget, goal, audience, notes — or nothing) on the Ideas page or in the chat ("ideas for a Ramadan campaign for Marina Tower, SAR 300K").
+- Ideas are grounded in the data: the project's gap to target, the season (Ramadan, summer, Cityscape, after summer), what worked and failed in the 2024–2025 campaigns, today's checks, and which vendors are available (current, bench alternatives, past vendors).
+- Each idea has a big idea, audience, offer, headline, channel mix with roles and vendors, a forecast range (contracts, sales, cost to sales) computed from the history, guardrails (stop rule, budget in two halves), a campaign code and holdout for measurement, and the past campaigns it builds on. A channel that is underperforming for the project today is capped automatically.
+- With AI, two different models propose ideas and a third step ranks them against the data (score, why, one improvement); without AI, built-in concepts for each season and goal.
+- Shortlist, approve or discard with a name. Approving drafts a campaign brief to the lead vendor in its language; it is sent only after the manager approves it.
 
 ## 1b. Campaign history — 2024–2025
 
@@ -89,8 +97,9 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 ## 10. The assistant (chat)
 
 - Ask about targets, the plan, today's check and what changed since yesterday, any campaign (live or past, by name or code), any vendor (current, alternative or past), projects, channels, any month, quarter or year, comparisons, the campaign history and its lessons, metric definitions, tests, trials, invoices, Meta, what vendors owe, the daily report — in **English or Arabic**.
-- **Two AI providers built in: Anthropic (Claude) and OpenAI.** With either key, the assistant answers free-form questions using 13 read-only data tools. If one provider is down, the other answers. Each answer shows which model wrote it.
-- **Without a key** (and in the demo file), built-in answers cover a wide range of questions; a 92-question English/Arabic test checks them.
+- **Three AI providers built in: Claude (Anthropic), OpenAI and Google Gemini**, with a task router: each kind of work goes to the provider best suited to it (data questions, analysis and Arabic drafting to Claude first; campaign ideation to Gemini plus a second model; long or bulk work to Gemini Flash), and the next provider answers if one fails. With any key, the assistant answers free-form questions using 14 read-only data tools plus campaign ideation. Each answer shows which model wrote it.
+- **Without a key** (and in the demo file), built-in answers cover a wide range of questions, including campaign ideas; a 98-question English/Arabic test checks them.
+- **Test it in the Claude app:** the demo can be opened as a claude.ai artifact, where the assistant, the daily second opinion and ideation run on Claude through the viewer's own Claude account, with no API key.
 - Shows recommendations as cards and **drafts vendor emails** for approval. The AI can only read and draft — never send, approve or spend.
 
 ## 11. Vendor emails through Outlook
@@ -133,7 +142,7 @@ The recommendations are only as good as the data behind them. In order of value:
 | CRM results | Sample data | Ingest API built; Yardi pull pending | Lead results with campaign codes |
 | Meta ads (Facebook / Instagram) | Sample accounts and campaigns | Built; live mode written against the Marketing API, not yet run on a real account | A system-user token with `ads_read` (and `business_management` to see partner access); the ad account IDs |
 | Other ad platforms (Google, Snap, TikTok) | Sample data | Ingest API built; pull adapters not built | Platform access per account |
-| AI: Anthropic (Claude) and OpenAI — free-form chat, AI second opinion, draft polishing | Built-in answers | Built, with automatic failover; tested against mock servers | An Anthropic and/or OpenAI API key |
+| AI: Claude, OpenAI and Gemini with task routing — free-form chat, campaign ideation, AI second opinion, draft polishing | Built-in answers (Claude through your own account in the Claude app edition) | Built, with per-task routing and failover; tested against mock servers | Any of an Anthropic, OpenAI or Gemini API key |
 | Report scheduler | "Send now" | Built | A scheduler calling the report endpoint every 15 minutes |
 
 All figures in the demo are **sample data**, frozen on **8 June 2026**.

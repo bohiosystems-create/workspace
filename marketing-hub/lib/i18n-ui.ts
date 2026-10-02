@@ -697,6 +697,7 @@ const UI9: Record<string, string> = {
   "Each kind of AI work goes to the provider best suited to it among those with a key; if it fails, the next one answers. Without any key the app runs on its built-in rules. Change the order per task with LLM_ROUTE_<TASK> in .env.": "يذهب كل نوع من أعمال الذكاء الاصطناعي إلى المزود الأنسب له بين المزودين الذين لديهم مفتاح؛ وإذا تعذّر، يجيب التالي. دون أي مفتاح يعمل التطبيق بقواعده المدمجة. غيّروا الترتيب لكل مهمة عبر LLM_ROUTE_<TASK> في ملف ‎.env.",
   "key set": "المفتاح مضبوط",
   "no key": "لا يوجد مفتاح",
+  "your Claude account": "حسابكم في Claude",
   "Task": "المهمة",
   "Routed to (in order)": "يُوجَّه إلى (بالترتيب)",
   "fast model": "نموذج سريع",

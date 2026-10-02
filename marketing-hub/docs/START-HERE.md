@@ -11,7 +11,11 @@ Everything you need to demo the AI Director of Marketing to Kinan.
 | `docs/kinan-integration.md` | How the director and Kinan's agent exchange data, and the questions to settle with Kinan. |
 | `app-source/` | The full application, to run it live (below). |
 
-## Option 1 — the demo file (recommended)
+## Option 0 — in the Claude app (no install, real AI)
+
+Open the **Claude app edition** in the Claude app or on claude.ai: https://claude.ai/artifact/HWEHdX6xHRMPKJiP2NaKMV (private until its owner shares it from the page's Share menu). It is the same demo, but the assistant, the daily second opinion and campaign ideas are answered by Claude through your own Claude account, with no API key. Allow it when the Claude app asks. Answers with data lookups take about 30–90 seconds; if Claude is unavailable it falls back to the built-in answers.
+
+## Option 1 — the demo file (recommended for the meeting: works offline)
 
 1. Double-click **`1-OPEN-ME-demo.html`**. Use Chrome or Edge, with the window at least 1366 px wide.
 2. Type your name in **Approving as** on the Director page.
@@ -31,7 +35,7 @@ npm run demo:live    # resets the sample data, builds and starts — then open h
 
 - `npm run demo:live` takes about a minute; it is ready when it prints "Ready". The first page load then takes about 5 seconds while the sample data is created; after that pages open instantly.
 - **Reset before the demo or after a rehearsal:** stop the app (Ctrl+C) and run `npm run demo:live` again. Don't delete the database while the app is running.
-- **Free-form AI chat (optional):** `npm run demo:live` creates `app-source/.env` the first time. Set `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` in it, then run `npm run demo:live` again. With both keys, if one provider fails the other answers. Check with one free-form question: the answer shows "Claude · model" or "OpenAI · model" underneath. Without a key the assistant uses the same built-in answers as the demo file.
+- **Free-form AI (optional):** `npm run demo:live` creates `app-source/.env` the first time. Set any of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` and `GEMINI_API_KEY` in it, then run `npm run demo:live` again. Each kind of work goes to its preferred provider (see Data Sources → AI providers and task routing), and the next one answers if one fails. Check with one free-form question: the answer shows the provider and model underneath. Without a key the assistant uses the same built-in answers as the demo file.
 - Port 3001 busy? After `npm run demo:live` fails, run `npx next start -p 3002` and open http://localhost:3002.
 - For development (pages compile on first visit, slower): `npm run setup`, then `npm run dev`.
 - Windows: the commands are the same in PowerShell or Command Prompt.

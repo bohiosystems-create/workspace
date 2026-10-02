@@ -106,6 +106,10 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
         <li>Evidence, one action and the lessons of similar past campaigns per item</li>
         <li>New today, open since, resolved since yesterday; accept or dismiss, and the decision carries over</li>
         <li>Optional AI second opinion (Claude or OpenAI)</li></ul></div>
+      <div class="cap"><div class="n">Ideas</div><h3>Campaign ideation</h3><ul>
+        <li>Ideas from a brief (or none): grounded in the target gap, season, history lessons, today's checks and available vendors</li>
+        <li>Channel mix, vendors, forecast ranges computed from the history, guardrails and measurement</li>
+        <li>With AI: two models propose, Claude ranks against the data; approving drafts a vendor brief</li></ul></div>
       <div class="cap"><div class="n">History</div><h3>2024–2025 campaigns</h3><ul>
         <li>22 past campaigns: launches, Ramadan, summer, always-on, events, brand, radio, billboards</li>
         <li>Benchmarks by channel, season, year, project and vendor; a lesson per campaign</li>
@@ -142,8 +146,9 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
         <li>Approve or dispute; critical exceptions cannot be approved; nothing written back to Oracle</li></ul></div>
       <div class="cap"><div class="n">Assistant</div><h3>Ask in English or Arabic</h3><ul>
         <li>Answers on targets, the daily check, any campaign (live or past), vendors, projects, channels, any month, quarter or year, comparisons, history and lessons, metric definitions, tests, invoices, Meta</li>
-        <li><b>Anthropic (Claude) and OpenAI</b> both built in, with 13 read-only data tools and automatic failover</li>
-        <li>Without a key: built-in answers, checked by a 92-question English/Arabic test</li>
+        <li><b>Claude, OpenAI and Gemini</b> built in, with a task router (best provider per task, automatic fallback) and 14 read-only data tools</li>
+        <li>Without a key: built-in answers, checked by a 98-question English/Arabic test</li>
+        <li>Testable in the Claude app: Claude answers through your own account, no key</li>
         <li>Drafts vendor emails in the vendor's language, sent only after approval</li></ul></div>
       <div class="cap"><div class="n">Kinan</div><h3>CRM: Yardi + Kinan's AI agent</h3><ul>
         <li>Kinan's agent owns leads, follow-up and sales; the director reads the CRM results</li>
@@ -163,7 +168,7 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
         <tr><td>CRM results</td><td><span class="pill mid">Ingest API built</span></td><td>Lead results with campaign codes</td></tr>
         <tr><td>Meta ads (Facebook / Instagram)</td><td><span class="pill mid">Built, live mode untested</span></td><td>System-user token (ads_read, business_management), ad account IDs</td></tr>
         <tr><td>Google, Snap, TikTok</td><td><span class="pill mid">Ingest API built</span></td><td>Access per ad account</td></tr>
-        <tr><td>AI: Anthropic (Claude) and OpenAI</td><td><span class="pill ok">Built</span></td><td>An Anthropic and/or OpenAI API key (tested against mock servers so far)</td></tr>
+        <tr><td>AI: Claude, OpenAI and Gemini, task routing</td><td><span class="pill ok">Built</span></td><td>Any of an Anthropic, OpenAI or Gemini API key (tested against mock servers so far; the Claude app edition needs none)</td></tr>
         <tr><td>Daily report scheduler</td><td><span class="pill ok">Built</span></td><td>A scheduler calling the report endpoint every 15 minutes</td></tr>
       </tbody>
     </table></div>
@@ -171,7 +176,7 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
 
   <!-- ============================== DEMO CHECKLIST ============================== -->
   <section id="demo" role="tabpanel" aria-labelledby="tab-demo" hidden>
-    <p class="lede">About 35 minutes. Every step and number here was rehearsed on the demo file in English and Arabic. Your ticks are saved in this browser only.</p>
+    <p class="lede">About 40 minutes. Every step and number here was rehearsed on the demo file in English and Arabic. Your ticks are saved in this browser only.</p>
     <div class="progress"><span class="count" id="count">0 / 0</span><div class="bar"><i id="bar"></i></div><button class="btn" id="reset" type="button">Clear ticks</button></div>
 
     <h2>Before the day</h2>
@@ -214,9 +219,10 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
 <script>
 const PREP = [
   "Unzip <b>kinan-demo.zip</b> and read <b>START-HERE.md</b>",
-  "Demo file (recommended): double-click <b>1-OPEN-ME-demo.html</b> — no install, works offline",
+  "Demo file (recommended for the meeting): double-click <b>1-OPEN-ME-demo.html</b> — no install, works offline",
+  "Claude app edition: open its claude.ai link in the Claude app — same demo, but the assistant, daily AI note and campaign ideas are answered by Claude through your own account (allow it when asked; 30–90 s per answer)",
   "Live app (for free-form AI chat or the APIs): Node.js 18.17+, then in <b>app-source</b>: <span class='expect'>npm install</span> and <span class='expect'>npm run demo:live</span>, open http://localhost:3001",
-  "Optional, live app only: set ANTHROPIC_API_KEY and/or OPENAI_API_KEY in app-source/.env, run <span class='expect'>npm run demo:live</span> again, and check one free-form question shows \"Claude · model\" or \"OpenAI · model\"",
+  "Optional, live app only: set ANTHROPIC_API_KEY, OPENAI_API_KEY and/or GEMINI_API_KEY in app-source/.env, run <span class='expect'>npm run demo:live</span> again, and check one free-form question shows \"Claude · model\" or \"OpenAI · model\"",
   "Open in Chrome or Edge, window at least 1366 px wide",
   "Rehearse the storyline once, then reset: reload the demo file, or Ctrl+C and <span class='expect'>npm run demo:live</span>",
   "Five minutes before: reset, then type your name in <b>Approving as</b> on the Director page",
@@ -275,6 +281,15 @@ const STORY = [
     "<b>Decisions</b>: Hajar Outdoor exit (high confidence), Tasweeq Digital test a replacement",
     "<b>Experiments</b>: what share of results the vendor really caused",
     "<b>Bench &amp; Trials</b>: Wasel Performance won its trial against Tasweeq Digital"]],
+  ["Ideate a campaign", "4 min", [
+    "<b>Ideas</b> → <b>Generate ideas</b> with the brief empty: <span class='expect'>Andalus Quarter · September 2026 · After summer · Close sales · SAR 150K</span>",
+    "Three ideas: <span class='expect'>broker &amp; site-visit sprint (6–11 contracts, SAR 4.7–8.7M, ~2.2%) · open-house mini-expo · payment-plan offer (digital capped at 20%)</span>",
+    "Say: forecasts come from the 2024–2025 history, adjusted for project and season — not invented by the AI",
+    "Brief <b>Marina Tower, Feb 2027 (Ramadan), 300</b> → payment-plan offer leads at <span class='expect'>~1.3% cost to sales</span>",
+    "<b>Shortlist</b> one; <b>Approve &amp; draft vendor brief</b> another → draft opens in the assistant in the vendor's language; don't send",
+    "Say: with keys, Gemini and OpenAI propose ideas and Claude ranks them; in the Claude app edition Claude does both"]],
+  ["AI providers and routing", "1 min", [
+    "<b>Data Sources</b> → <b>AI providers and task routing</b>: Claude, OpenAI and Gemini; each task goes to the best provider, with fallback"]],
   ["Ask the assistant", "3 min", [
     "Four or five questions from the bank, e.g. \"What changed since yesterday?\", \"How did Ramadan campaigns perform?\", \"Compare 2024 and 2025\", \"How much did we spend in March by project?\"",
     "\"Draft an email to Tasweeq Digital\" → pick an item → show the approval controls; don't send"]],
@@ -285,7 +300,7 @@ const STORY = [
     "Walk through the integration status on the Capabilities tab",
     "Ask the questions for Kinan at the bottom of this checklist"]],
 ];
-const QS = [["What's today's brief?"],["What needs my approval?"],["What should I change in the campaigns?"],["What do vendors owe us?"],["What's the budget plan for June?"],["When is my daily report?"],["Which vendor converts best?"],["Should we renew Hajar Outdoor?"],["Do vendor numbers match the CRM?"],["Any invoice problems?"],["Which contracts are ending?"],["What did we send to Kinan?"],["How is Ash Shati Broker Push doing?"],["What did the holdout test show?"],["Draft an email to Tasweeq Digital"],["Which agency runs each Meta campaign?"],["Who created the Andalus retargeting campaign on Meta?"],["What changed since yesterday?"],["How is ASH-SEARCH-26 doing?"],["Compare Tasweeq Digital and Hajar Outdoor"],["Brokers vs influencers"],["How much did we spend in March by project?"],["Sales in Q1 2025 by project"],["Compare 2024 and 2025"],["What did we learn from past campaigns?"],["How did Ramadan campaigns perform?"],["Worst past campaigns"],["Tell me about MAR-RAMADAN-25"],["How is Andalus Quarter doing?"],["What is cost to sales?"],["ما موجز اليوم؟","rtl"],["ما الذي ينتظر اعتمادي؟","rtl"],["ماذا أغيّر في الحملات؟","rtl"],["ما الذي يدين به الموردون لنا؟","rtl"],["هل نجدد عقد هجر للإعلانات الخارجية؟","rtl"],["متى يصلني التقرير اليومي؟","rtl"],["أي مورد يحقق أفضل تحويل؟","rtl"],["أي وكالة تدير كل حملة على ميتا؟","rtl"],["ما الجديد منذ الأمس؟","rtl"],["كيف كان أداء حملات رمضان؟","rtl"],["قارن 2024 و 2025","rtl"],["ما الدروس من الحملات السابقة؟","rtl"]];
+const QS = [["What's today's brief?"],["What needs my approval?"],["What should I change in the campaigns?"],["What do vendors owe us?"],["What's the budget plan for June?"],["When is my daily report?"],["Which vendor converts best?"],["Should we renew Hajar Outdoor?"],["Do vendor numbers match the CRM?"],["Any invoice problems?"],["Which contracts are ending?"],["What did we send to Kinan?"],["How is Ash Shati Broker Push doing?"],["What did the holdout test show?"],["Draft an email to Tasweeq Digital"],["Which agency runs each Meta campaign?"],["Who created the Andalus retargeting campaign on Meta?"],["What changed since yesterday?"],["How is ASH-SEARCH-26 doing?"],["Compare Tasweeq Digital and Hajar Outdoor"],["Brokers vs influencers"],["How much did we spend in March by project?"],["Sales in Q1 2025 by project"],["Compare 2024 and 2025"],["What did we learn from past campaigns?"],["How did Ramadan campaigns perform?"],["Worst past campaigns"],["Tell me about MAR-RAMADAN-25"],["How is Andalus Quarter doing?"],["What is cost to sales?"],["ما موجز اليوم؟","rtl"],["ما الذي ينتظر اعتمادي؟","rtl"],["ماذا أغيّر في الحملات؟","rtl"],["ما الذي يدين به الموردون لنا؟","rtl"],["هل نجدد عقد هجر للإعلانات الخارجية؟","rtl"],["متى يصلني التقرير اليومي؟","rtl"],["أي مورد يحقق أفضل تحويل؟","rtl"],["أي وكالة تدير كل حملة على ميتا؟","rtl"],["ما الجديد منذ الأمس؟","rtl"],["كيف كان أداء حملات رمضان؟","rtl"],["قارن 2024 و 2025","rtl"],["ما الدروس من الحملات السابقة؟","rtl"],["Give me campaign ideas for Marina Tower in Ramadan with SAR 300K"],["Brainstorm a new campaign for Andalus"],["اقترح حملة جديدة للأندلس في نوفمبر","rtl"]];
 
 const KEY = "director-demo-kit";
 let state = {};

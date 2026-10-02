@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 // POST { messages: [{ role: "user" | "assistant", content }] } -> { reply, cards, engine }
-// Uses an AI provider (Anthropic and/or OpenAI, lib/llm.ts — with data tools) when a key is set, otherwise the
+// Uses an AI provider (Claude, OpenAI or Gemini, routed by lib/llm.ts — with data tools) when a key is set, otherwise the
 // built-in rules answerer. The chat can only DRAFT emails; sending needs a human approval in the UI.
 export async function POST(req: Request) {
   try {

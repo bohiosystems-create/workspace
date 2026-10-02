@@ -70,17 +70,41 @@ The director writes the manager's daily report (`lib/reports.ts`) and emails it 
 - **Monitor** — spend → leads → qualified → viewings → reservations → contracts → sales; cost-to-sales, CAC, CPL, budget pacing; 0–100 vendor scorecard (efficiency 40, quality 25, SLA responsiveness 20, delivery 15).
 - **Alerts** — SLA breaches, contract expiry, cost-to-sales > 3%, CPL inflation, lead-quality decay, pacing, vendor concentration.
 - **Orchestrate** — recommended Pause / Shift-budget actions, one-click apply, plus manual Pause/Resume; every action is written to an audit trail.
-- **AI** — vendor briefing and drafted notes to vendors (optional; Anthropic or OpenAI). All numbers are computed in code.
+- **AI** — vendor briefing and drafted notes to vendors (optional; routed to Claude, OpenAI or Gemini). All numbers are computed in code.
 
-## AI providers — Anthropic (Claude) and OpenAI (`lib/llm.ts`)
+## AI providers and task routing — Claude, OpenAI and Gemini (`lib/llm.ts`)
 
-Both are built in behind one interface. Everything works without either (built-in rules); with a key, the assistant answers free-form questions, drafts are polished, and the daily check gets an AI second opinion.
+All three are built in behind one interface. Everything works without any of them (built-in rules); with a key, the assistant answers free-form questions, campaign ideas come from AI models, drafts are polished, and the daily check gets an AI second opinion.
 
-- `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY`. `LLM_PROVIDER=auto` (default) uses Anthropic first when its key is set, else OpenAI; `anthropic` / `openai` sets the preference. If the first provider fails (outage, rate limit, auth) the other answers (`LLM_FALLBACK=off` to disable).
-- Models: `ANTHROPIC_MODEL` (default `claude-opus-5-5`, `ANTHROPIC_EFFORT=medium`, prompt caching on the instructions and data snapshot) and `OPENAI_MODEL` (default `gpt-5`; `OPENAI_BASE_URL` for Azure OpenAI or a compatible gateway).
-- The UI shows which provider and model wrote each AI answer.
+Every AI job names a **task**, and the router sends it to the best provider for that task among those with a key, falling back down the list when one fails (outage, rate limit, auth, empty answer):
+
+| Task | What it is | Default order | Model tier |
+|---|---|---|---|
+| `chat` | questions on the data, with 14 read-only lookups | Claude → OpenAI → Gemini | deep |
+| `analysis` | daily second opinion, vendor briefings | Claude → OpenAI → Gemini | deep |
+| `draft` | vendor email wording (formal Arabic / English, facts unchanged) | Claude → OpenAI → Gemini | fast |
+| `ideate` | campaign ideas — run on **two** providers for variety | Gemini → OpenAI → Claude | deep |
+| `judge` | rank and filter ideas against the data and the history | Claude → OpenAI → Gemini | deep |
+| `summarize` | long inputs, bulk and low-cost work | Gemini → OpenAI → Claude | fast |
+
+- Keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (or `GOOGLE_API_KEY`). Per-task order: `LLM_ROUTE_<TASK>=gemini,anthropic` (unlisted providers stay as fallbacks); `LLM_PROVIDER` moves one provider to the front of every task; `LLM_FALLBACK=off` uses only the first.
+- Models: `ANTHROPIC_MODEL` (default `claude-opus-5-5`; effort `ANTHROPIC_EFFORT=medium`, low for fast tasks; prompt caching on instructions and data), `OPENAI_MODEL` (default `gpt-5`; low reasoning effort for fast tasks; `OPENAI_BASE_URL` for Azure / gateways), `GEMINI_MODEL` (default `gemini-3.8-flash`) and `GEMINI_FAST_MODEL` (default `gemini-3.5-flash-lite`) — Google renames models often, so check the current list.
+- The Data Sources page shows which providers have keys and where each task goes; every AI answer shows the provider and model that wrote it.
 - Models only read data and create drafts. There is no tool to send, approve or spend.
-- Tested against mock servers for both providers (tool calls, failover), **not yet with real keys**.
+- Tested against mock servers for all three providers (tool calls, Gemini thought signatures, failover, per-task routing, ideation ensemble and judge), **not yet with real keys**.
+
+## Campaign ideas (`/ideas`)
+
+Describe a brief (project, month, budget, goal, audience, anything else — or leave it empty) and the director proposes campaign ideas grounded in the data (`lib/ideation.ts`):
+- **Context:** the project's gap to target, the season of the month (Ramadan, summer, Cityscape in November, after summer), channel benchmarks and lessons from the 2024–2025 history, today's daily-check flags for the project, and the vendors available (current, bench alternatives when exiting a vendor, past vendors for events and radio).
+- **Ideas:** title, big idea, audience, offer, headline, channel mix with each channel's role and vendor. With AI, the `ideate` task runs on two different providers and the `judge` task scores them (1–10, why, one improvement) and keeps the best distinct three; without AI, season- and goal-aware built-in concepts (broker sprint, open-house expo, payment plan, summer list → September pre-sale, launch with proof).
+- **Computed, never invented:** forecasts (contracts and sales ranges, cost to sales) come from the history, adjusted for the project and season; a channel costing over 2× its benchmark for the project today is capped at 20%; guardrails (stop rule, budget in two halves), a campaign code and holdout for measurement, and the past campaigns it builds on.
+- **Decisions:** shortlist, approve or discard with a name. Approving drafts a campaign brief email to the lead vendor in its language — sent only after the manager approves it in the assistant.
+- The assistant answers "ideas for a Ramadan campaign for Marina Tower, SAR 300K" (built-in or AI, `ideate_campaigns` tool).
+
+## Test it in the Claude app (claude.ai artifact)
+
+`npm run demo:build:claude` builds `demo-claude-app.html`, the offline demo as a claude.ai artifact page that declares the artifact runtime's `sample` capability. Opened in the Claude app (web, desktop or mobile), the assistant, the daily second opinion and campaign ideation run on **Claude through the viewer's own Claude account** — no API key — with the same read-only data tools as the live app, executed in the page on the sample data (`scripts/demo-llm-claude.ts`). The viewer is asked once to allow it; if they decline, or outside the Claude app, it falls back to the built-in answers. Downloads go through the artifact's `downloads` capability.
 
 ## Daily campaign check (`/daily`)
 
@@ -142,7 +166,7 @@ Vendors report their own leads, response times and wins; the CRM is the independ
 
 A chat assistant ("Ask" button, bottom-right of every page) answers questions about vendors, campaigns (live and past), periods, results, sales conversion and supplier invoices, and hosts the recommendations: it shows them as cards and drafts vendor emails inside the conversation. (There is no separate Recommendations page.)
 
-- **With an AI key** (Anthropic or OpenAI) the model answers anything from the data (`lib/chat-ai.ts`; `CHAT_WITH_AI=off` to disable). It gets a compact snapshot and 13 read-only tools (`lib/query.ts`): look up any live or past campaign, vendor (current, bench or past), project or channel; totals for any month, quarter or year grouped by vendor, project, channel or campaign; the history and its benchmarks; today's daily check; side-by-side comparisons; invoices; Meta attribution; plus `show_recommendations` and `draft_email`. There is no tool to send or approve.
+- **With an AI key** (Claude, OpenAI or Gemini — task `chat`) the model answers anything from the data (`lib/chat-ai.ts`; `CHAT_WITH_AI=off` to disable). It gets a compact snapshot and 14 read-only tools (`lib/query.ts`, plus `ideate_campaigns`): look up any live or past campaign, vendor (current, bench or past), project or channel; totals for any month, quarter or year grouped by vendor, project, channel or campaign; the history and its benchmarks; today's daily check; side-by-side comparisons; invoices; Meta attribution; plus `show_recommendations` and `draft_email`. There is no tool to send or approve.
 - **Without a key** (and in the static demo) the built-in answers (`lib/chat.ts`, `lib/chat-extra.ts`) cover: today's brief, daily check and what changed since yesterday, campaign recommendations, approvals, any campaign (by name or code, with benchmark, today's items and similar past campaigns), vendors (current, bench, past), projects, channels, comparisons of 2–4 campaigns / vendors / projects / channels or years, any month / quarter / year, the history (seasons, years, lessons, best / worst, benchmarks), metric definitions, renewals, tests, trials, CRM verification, Meta, invoices, contracts, the plan, reports, orchestration and Kinan — in English and Arabic.
 - `npm run chat:eval` asks 92 English and Arabic questions and checks each answer (currently 92/92).
 
@@ -175,7 +199,7 @@ For a client demo use `npm run demo:live` instead: it resets the sample data, ma
 
 Data is seeded on first load (`lib/seed-marketing.ts`, illustrative, Jan–May 2026). Replace it with vendor reporting feeds / CRM sales data to go live. Attribution is last-touch.
 
-Layout: `lib/director.ts` + `app/page.tsx` (director) · `lib/orchestrator.ts` + `app/orchestration/page.tsx` (vendor orchestration) · `lib/reports.ts` + `app/reports/page.tsx` + `app/api/reports/run` (daily reports) · `lib/marketing.ts` + `app/campaigns/page.tsx` (vendors & campaigns) · `lib/kinan.ts` (Kinan feed) · `lib/daily.ts` + `app/daily/page.tsx` (daily campaign check) · `lib/history.ts` + `app/history/page.tsx` (campaign history) · `lib/llm.ts` (Anthropic / OpenAI) · `lib/chat.ts`, `lib/chat-extra.ts`, `lib/chat-ai.ts`, `lib/query.ts` (assistant).
+Layout: `lib/director.ts` + `app/page.tsx` (director) · `lib/orchestrator.ts` + `app/orchestration/page.tsx` (vendor orchestration) · `lib/reports.ts` + `app/reports/page.tsx` + `app/api/reports/run` (daily reports) · `lib/marketing.ts` + `app/campaigns/page.tsx` (vendors & campaigns) · `lib/kinan.ts` (Kinan feed) · `lib/daily.ts` + `app/daily/page.tsx` (daily campaign check) · `lib/history.ts` + `app/history/page.tsx` (campaign history) · `lib/llm.ts` (Claude / OpenAI / Gemini, task routing) · `lib/ideation.ts` + `app/ideas/page.tsx` (campaign ideas) · `lib/chat.ts`, `lib/chat-extra.ts`, `lib/chat-ai.ts`, `lib/query.ts` (assistant).
 
 ## Static demo
 
