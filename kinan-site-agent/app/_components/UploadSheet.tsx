@@ -8,11 +8,12 @@ interface Props {
   locationId: string;
   pin?: { x: number; y: number };
   author: string;
+  directPrefix?: string | null;
   onClose: () => void;
   onDone: (docId: string) => void;
 }
 
-export default function UploadSheet({ locations, locationId, pin, author, onClose, onDone }: Props) {
+export default function UploadSheet({ locations, locationId, pin, author, directPrefix, onClose, onDone }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -34,6 +35,29 @@ export default function UploadSheet({ locations, locationId, pin, author, onClos
   const submit = async () => {
     if (!file) return;
     setBusy(true); setErr("");
+    try {
+      // Vercel functions accept ≤ 4.5 MB per request: big files go straight to Blob storage.
+      if (directPrefix && file.size > 4 * 1024 * 1024) {
+        const { upload } = await import("@vercel/blob/client");
+        const safe = file.name.replace(/[^\w.\-]+/g, "_").slice(-80);
+        // Unique path per upload so re-sending the same file name never collides.
+        const unique = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}-${safe}`;
+        const blob = await upload(directPrefix + unique, file, { access: "private", handleUploadUrl: "/api/upload/token", multipart: file.size > 50 * 1024 * 1024, contentType: file.type || undefined });
+        const key = blob.pathname.slice(directPrefix.length - "uploads/direct/".length);
+        const r = await fetch("/api/upload", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+          fileKey: key, filename: file.name, mime: file.type || "application/octet-stream", size: file.size, locationId: loc, author,
+          title: title.trim() || undefined, category: category || undefined, revision: revision.trim() || undefined, summary: note.trim() || undefined,
+          x: pin ? Math.round(pin.x) : undefined, y: pin ? Math.round(pin.y) : undefined,
+        }) });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "Upload failed");
+        return onDone(j.doc.id);
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Upload failed");
+      setBusy(false);
+      return;
+    }
     const fd = new FormData();
     fd.set("file", file); fd.set("locationId", loc); fd.set("author", author);
     if (title.trim()) fd.set("title", title.trim());
@@ -43,6 +67,7 @@ export default function UploadSheet({ locations, locationId, pin, author, onClos
     if (pin) { fd.set("x", String(Math.round(pin.x))); fd.set("y", String(Math.round(pin.y))); }
     try {
       const r = await fetch("/api/upload", { method: "POST", body: fd });
+      if (r.status === 413) throw new Error("File too large for this server (limit 4.5 MB on Vercel without Blob storage, 40 MB otherwise).");
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Upload failed");
       onDone(j.doc.id);

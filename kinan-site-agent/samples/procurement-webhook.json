@@ -1,0 +1,14 @@
+{
+  "type": "purchase_order",
+  "data": {
+    "po": "4500123456",
+    "supplier": "Najd Steel Supply",
+    "date": "2026-10-01",
+    "currency": "SAR",
+    "status": "Open",
+    "packageId": "PKG-01",
+    "lines": [
+      { "line": 10, "item": "Rebar Grade 60 Ø16", "qty": 250, "unit": "t", "unitPrice": 3120, "delivered": 0 }
+    ]
+  }
+}

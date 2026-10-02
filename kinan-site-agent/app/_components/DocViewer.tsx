@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Location, Note } from "@/lib/types";
 import { fmtDate, pathOf, type ChatItem, type ClientDoc } from "./site";
 import { usePanZoom } from "./usePanZoom";
+import { runtime } from "./runtime";
 import { useSpeech } from "./useSpeech";
 
 interface Props {
@@ -21,7 +22,7 @@ interface Props {
 export default function DocViewer({ doc, locations, notes, lastReply, agentBusy, onClose, onAsk, onAddNote, onToggleNote, onShowOnMap }: Props) {
   const isImg = doc.mime.startsWith("image/");
   const isPdf = doc.mime === "application/pdf";
-  const src = `/api/file?id=${encodeURIComponent(doc.id)}&v=${encodeURIComponent(doc.revision ?? "")}`;
+  const src = runtime.fileUrl(doc);
   const [dim, setDim] = useState({ w: 1200, h: 850 });
   const [text, setText] = useState("");
   const [mode, setMode] = useState<"note" | "ask">("note");

@@ -1,0 +1,4 @@
+Activity ID,Activity Name,WBS,Location,Responsible,Start,Finish,BL Project Start,BL Project Finish,% Complete,Total Float,Predecessors,Critical
+TA-STR-L13,Tower A L13 — columns core walls & PT slab,2.1.13,Tower A level 13,Al-Bunyan Contracting,30-Sep-26,07-Oct-26,29-Sep-26,05-Oct-26,10,-2,TA-STR-L12,Yes
+TA-STR-L12,Tower A L12 — columns core walls & PT slab,2.1.12,Tower A level 12,Al-Bunyan Contracting,22-Sep-26 A,29-Sep-26 A,21-Sep-26,28-Sep-26,100,0,TA-STR-L11,Yes
+PD-ATR-GLZ,Atrium structural glazing,5.4,Podium,Skyline Façade Systems,15-Nov-26,31-Jan-27,15-Nov-26,10-Jan-27,0,-21,PD-ATR-STL,Yes

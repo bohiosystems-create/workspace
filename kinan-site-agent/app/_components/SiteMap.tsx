@@ -59,7 +59,8 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
       const root = rootOf(locations, locId);
       const l = locations.find((q) => q.id === locId);
       const a = l?.type === "level" ? root : l;
-      return a?.x !== undefined ? { x: a.x!, y: a.y!, loc: a.id } : null;
+      // Site-wide documents (specs, plans) would all pile up mid-map — they live in the Documents tab.
+      return a?.x !== undefined && a.type !== "site" ? { x: a.x!, y: a.y!, loc: a.id } : null;
     };
     const slot = (a: { x: number; y: number; loc: string }) => {
       const key = `${Math.round(a.x)},${Math.round(a.y)}`;

@@ -1,5 +1,7 @@
 import type { Category, Db, Doc, Note } from "./types";
 import { SEED_LOCATIONS } from "./siteplan";
+import { buildProjectData } from "./data";
+import { DESIGN_DOCS } from "./data/designdocs";
 
 const day = (n: number) => new Date(Date.UTC(2026, 8, 30) - n * 86400000).toISOString();
 
@@ -120,6 +122,8 @@ export function seedDb(): Db {
       tags: ["utilities", "duct bank", "crossing", "underground"], ago: 16 }),
   ];
 
+  for (const x of DESIGN_DOCS) docs.push(doc({ ...x }));
+
   const notes: Note[] = [
     { id: "n_seed1", docId: "d_seed02", locationId: "tower-a-l12", text: "Confirm trimmer bars at lift pit opening before L13 pour.", kind: "instruction", status: "open", author: "Dev Manager", createdAt: day(3), at: { x: 0.43, y: 0.33 }, via: "manual" },
     { id: "n_seed2", locationId: "laydown-2", text: "Pipe stacks over 1.5 m — re-stack today, HSE flagged.", kind: "issue", status: "open", author: "Dev Manager", createdAt: day(2), via: "manual" },
@@ -131,5 +135,6 @@ export function seedDb(): Db {
     locations: SEED_LOCATIONS.map((l) => ({ ...l })),
     docs,
     notes,
+    data: buildProjectData(),
   };
 }

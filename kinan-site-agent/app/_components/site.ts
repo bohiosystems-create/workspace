@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Doc, Location, Note, UiAction } from "@/lib/types";
+import type { Doc, Location, Note, RouteInfo, UiAction } from "@/lib/types";
 
 export type ClientDoc = Omit<Doc, "text">;
 export interface SiteState {
@@ -8,9 +8,14 @@ export interface SiteState {
   locations: Location[];
   docs: ClientDoc[];
   notes: Note[];
-  agentMode: "claude" | "offline";
+  agentMode: "ai" | "offline";
+  providers: ("anthropic" | "openai")[];
+  dataDate: string;
+  storage?: "fs" | "blob" | "tmp";
+  /** Blob pathname prefix for direct browser uploads (Vercel Blob), else null. */
+  directUpload?: string | null;
 }
-export interface ChatItem { role: "user" | "assistant"; content: string; actions?: UiAction[]; mode?: string }
+export interface ChatItem { role: "user" | "assistant"; content: string; actions?: UiAction[]; route?: RouteInfo }
 
 export function useSite() {
   const [state, setState] = useState<SiteState | null>(null);
@@ -64,7 +69,7 @@ export function useAgent(ctx: () => { focus?: { docId?: string; locationId?: str
         body: JSON.stringify({ messages: next.map(({ role, content }) => ({ role, content })), ...ctx() }),
       });
       const j = await r.json();
-      setItems((cur) => [...cur, { role: "assistant", content: j.reply ?? j.error ?? "No reply", actions: j.actions, mode: j.mode }]);
+      setItems((cur) => [...cur, { role: "assistant", content: j.reply ?? j.error ?? "No reply", actions: j.actions, route: j.route }]);
       onDone(j.actions ?? []);
     } catch {
       setItems((cur) => [...cur, { role: "assistant", content: "I couldn't reach the server. Check your signal and try again." }]);
