@@ -35,7 +35,8 @@ export async function buildAgent(lang: Lang = "en") {
   let bench = await buildBench(lang);
   let decisions = decideAll(bench);
   const proposed = await autoRebid(decisions);
-  if (proposed.length) { bench = await buildBench(lang); decisions = decideAll(bench); }
+  // Rebuild when this call proposed a trial, or when a concurrent call did after this bench was read.
+  if (proposed.length || (await prisma.trial.count()) !== bench.trials.length) { bench = await buildBench(lang); decisions = decideAll(bench); }
 
   return { scores: sc.scores, method: sc.method, unified: sc.unified, incrementality: sc.incrementality, decisions, bench, mkt, crm, inv, proposed };
 }

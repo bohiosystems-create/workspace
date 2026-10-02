@@ -16,7 +16,7 @@ app with its own database — no dependency on `deal-screener`.
 The home page is the director's desk (`lib/director.ts`, `app/page.tsx`); vendor and campaign monitoring moved to `/campaigns`.
 
 - **Today's brief** — sales vs target year to date (CRM-verified), the asset furthest behind, June forecast per asset, vendor calls, risks, what to do this week and **campaign recommendations**. Also answerable in the assistant ("What's today's brief?") and emailed as the daily report.
-- **Campaign recommendations** — the recommendations that act on campaigns, ranked (urgent first; budget moves before governance, conversion, tracking and tests): pause or shift budget, campaigns not converting, scale up, Meta agency / tracking issues, media spend not matched by the ad platforms, incrementality tests. Each with the reason, what is at stake and one action (open the page, or draft the vendor email for approval).
+- **Campaign recommendations** — the open items from today's **daily campaign check** first, then the recommendations that act on campaigns, ranked (urgent first; budget moves before governance, conversion, tracking and tests): pause or shift budget, campaigns not converting, scale up, Meta agency / tracking issues, media spend not matched by the ad platforms, incrementality tests. Each with the reason, what is at stake and one action (open the page, or draft the vendor email for approval).
 - **Targets** — monthly contracted-sales targets per asset (`SalesTarget`, sample values Jan–Jun 2026), actual vs target by month.
 - **Approval inbox** — everything waiting for a named person: the plan, Meta campaigns to check, vendor messages, vendor non-renewals, trials to approve or read out, invoice exceptions, email drafts.
 - **Budget plan** — next month's budget per vendor, inside the range each vendor's renewal decision allows (exit, test a replacement, performance plan, renegotiate, re-engage; commission vendors ±10%). Money moves to the highest incremental sales per SAR with diminishing returns (sales ∝ spend^0.7); the plan shows expected incremental sales vs unchanged and what is held in reserve. Indicative, not a promise.
@@ -70,7 +70,32 @@ The director writes the manager's daily report (`lib/reports.ts`) and emails it 
 - **Monitor** — spend → leads → qualified → viewings → reservations → contracts → sales; cost-to-sales, CAC, CPL, budget pacing; 0–100 vendor scorecard (efficiency 40, quality 25, SLA responsiveness 20, delivery 15).
 - **Alerts** — SLA breaches, contract expiry, cost-to-sales > 3%, CPL inflation, lead-quality decay, pacing, vendor concentration.
 - **Orchestrate** — recommended Pause / Shift-budget actions, one-click apply, plus manual Pause/Resume; every action is written to an audit trail.
-- **Claude** — vendor briefing and drafted notes to vendors (optional; needs `ANTHROPIC_API_KEY`). All numbers are computed in code.
+- **AI** — vendor briefing and drafted notes to vendors (optional; Anthropic or OpenAI). All numbers are computed in code.
+
+## AI providers — Anthropic (Claude) and OpenAI (`lib/llm.ts`)
+
+Both are built in behind one interface. Everything works without either (built-in rules); with a key, the assistant answers free-form questions, drafts are polished, and the daily check gets an AI second opinion.
+
+- `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY`. `LLM_PROVIDER=auto` (default) uses Anthropic first when its key is set, else OpenAI; `anthropic` / `openai` sets the preference. If the first provider fails (outage, rate limit, auth) the other answers (`LLM_FALLBACK=off` to disable).
+- Models: `ANTHROPIC_MODEL` (default `claude-opus-5-5`, `ANTHROPIC_EFFORT=medium`, prompt caching on the instructions and data snapshot) and `OPENAI_MODEL` (default `gpt-5`; `OPENAI_BASE_URL` for Azure OpenAI or a compatible gateway).
+- The UI shows which provider and model wrote each AI answer.
+- Models only read data and create drafts. There is no tool to send, approve or spend.
+- Tested against mock servers for both providers (tool calls, failover), **not yet with real keys**.
+
+## Daily campaign check (`/daily`)
+
+Every morning the director checks each live campaign against its own trend and against similar past campaigns (`lib/daily.ts`) and says what to change:
+- **Cost to sales far above the channel's history** (e.g. Andalus off-plan 8.5% vs 1.9% for past digital), **cost per qualified lead rising**, **qualified rate dropping**, **lead volume dropping**, **pacing over / under** (not for commission vendors), **winners to scale**, **summer ahead** (past summers cost 3.6% of sales: trim, then scale again in September), **ending soon: extend or let end**, and **CRM feed stale** (no new leads for days, so the other checks are measured to the last normal day).
+- Each item has the evidence, the action and the **similar past campaigns with their lesson**.
+- Items are stored per day: new today, open since, resolved since yesterday. **Accept / dismiss** (named person, optional note) carries over for up to 14 days while the same finding repeats. Accepting records the decision; the change itself is made on Campaigns or with the agency.
+- Open items lead the Director's campaign recommendations, the morning brief, the daily report and the inbox ("Daily campaign check: N open").
+- **AI second opinion** (optional): Claude or OpenAI reads the day's check with the history and says what to do first.
+
+## Campaign history (`/history`)
+
+22 past campaigns (2024–2025, sample data in `lib/history.ts`): launches, Ramadan, summer, always-on, events, brand, radio and billboards, across the three projects and nine vendors, including three past vendors (Wajha Events, Sawt FM, Najm Media). Totals: SAR 8.2M spend, SAR 555.7M sales, 1.5% cost to sales.
+- Benchmarks by channel, season, year, project and vendor; a lesson per campaign; overall lessons (brokers and events convert best; Ramadan with a payment-plan offer works; summer is the weakest season; radio and billboards are the most expensive per sale; a low qualified rate in month one predicts weak sales).
+- The daily check, the assistant and the AI tools all use it as the benchmark.
 
 ## Oracle integration — supplier invoices (`/invoices`)
 
@@ -102,7 +127,7 @@ A language switch in the header flips the whole app between English and Arabic (
 
 - **Everything is localised:** UI labels (`lib/i18n-ui.ts`), proper nouns such as vendors, assets and campaigns (`NAMES_AR` in `lib/i18n.ts`), and all generated text — alerts, reconciliation flags, recommendations, audit-trail entries, errors (each template has an English and an Arabic version in the code, with Arabic number agreement such as 3 عقود / 11 عقداً).
 - **The assistant understands Arabic** and answers in the language the question was asked in.
-- **Vendor emails** are drafted in each vendor's preferred language (`Vendor.language`; ask for "in Arabic" / "بالعربية" to override). Arabic emails use a formal business register and a gender-neutral form of address ("السادة / <vendor> المحترمون"). Claude may only polish wording and must keep the language; set `OUTLOOK_SENDER_NAME_AR` for the signature.
+- **Vendor emails** are drafted in each vendor's preferred language (`Vendor.language`; ask for "in Arabic" / "بالعربية" to override). Arabic emails use a formal business register and a gender-neutral form of address ("السادة / <vendor> المحترمون"). The AI may only polish wording and must keep the language; set `OUTLOOK_SENDER_NAME_AR` for the signature.
 - Arabic strings were written to be natural business Arabic but have **not been reviewed by a native speaker** — have one proof the dictionary and the email templates before sending to vendors. Names of new vendors/campaigns not listed in `NAMES_AR` display as written.
 
 ## CRM integration (prepared)
@@ -115,16 +140,17 @@ Vendors report their own leads, response times and wins; the CRM is the independ
 
 ## Assistant (chat) — recommendations & vendor emails
 
-A chat assistant ("Ask" button, bottom-right of every page) answers questions about vendors, campaigns, results, sales conversion and supplier invoices, and hosts the recommendations: it shows them as cards and drafts vendor emails inside the conversation. (There is no separate Recommendations page.)
+A chat assistant ("Ask" button, bottom-right of every page) answers questions about vendors, campaigns (live and past), periods, results, sales conversion and supplier invoices, and hosts the recommendations: it shows them as cards and drafts vendor emails inside the conversation. (There is no separate Recommendations page.)
 
-- **Engine:** with `ANTHROPIC_API_KEY` set, Claude answers from a snapshot of the data using tools (`lib/chat-ai.ts`; `CHAT_WITH_AI=off` to disable). Without a key — and in the static demo — a built-in rules answerer handles the common questions (`lib/chat.ts`), and the UI says so.
-- **Claude can only draft.** Its tools are `show_recommendations` and `draft_email`; there is no tool to send or approve.
+- **With an AI key** (Anthropic or OpenAI) the model answers anything from the data (`lib/chat-ai.ts`; `CHAT_WITH_AI=off` to disable). It gets a compact snapshot and 13 read-only tools (`lib/query.ts`): look up any live or past campaign, vendor (current, bench or past), project or channel; totals for any month, quarter or year grouped by vendor, project, channel or campaign; the history and its benchmarks; today's daily check; side-by-side comparisons; invoices; Meta attribution; plus `show_recommendations` and `draft_email`. There is no tool to send or approve.
+- **Without a key** (and in the static demo) the built-in answers (`lib/chat.ts`, `lib/chat-extra.ts`) cover: today's brief, daily check and what changed since yesterday, campaign recommendations, approvals, any campaign (by name or code, with benchmark, today's items and similar past campaigns), vendors (current, bench, past), projects, channels, comparisons of 2–4 campaigns / vendors / projects / channels or years, any month / quarter / year, the history (seasons, years, lessons, best / worst, benchmarks), metric definitions, renewals, tests, trials, CRM verification, Meta, invoices, contracts, the plan, reports, orchestration and Kinan — in English and Arabic.
+- `npm run chat:eval` asks 92 English and Arabic questions and checks each answer (currently 92/92).
 
 ### Recommendations and emails
 
 The agent turns vendor performance (`lib/marketing.ts`) and Oracle reconciliation (`lib/invoices.ts`) into a prioritised list (`lib/recommendations.ts`):
 SLA breaches, contracts ending soon, campaigns not converting, invoice exceptions, delivered-but-not-invoiced, late payments, budget moves, and who to scale.
-Items that need the vendor get a drafted email (built-in templates that may only cite the evidence; Claude can optionally tighten the wording — `lib/email-ai.ts`, off with `DRAFT_WITH_AI=off`).
+Items that need the vendor get a drafted email (built-in templates that may only cite the evidence; the AI can optionally tighten the wording — `lib/email-ai.ts`, off with `DRAFT_WITH_AI=off`).
 
 **Nothing is sent without a human.** The only path to delivery is *Approve & send*, which requires:
 a named approver, the exact revision they reviewed (edits bump the revision and re-lock approval), and the "I have read this message" confirmation.
@@ -146,8 +172,8 @@ npm run dev          # http://localhost:3001
 
 Data is seeded on first load (`lib/seed-marketing.ts`, illustrative, Jan–May 2026). Replace it with vendor reporting feeds / CRM sales data to go live. Attribution is last-touch.
 
-Layout: `lib/director.ts` + `app/page.tsx` (director) · `lib/orchestrator.ts` + `app/orchestration/page.tsx` (vendor orchestration) · `lib/reports.ts` + `app/reports/page.tsx` + `app/api/reports/run` (daily reports) · `lib/marketing.ts` + `app/campaigns/page.tsx` (vendors & campaigns) · `lib/kinan.ts` (Kinan feed) · `lib/claude.ts`.
+Layout: `lib/director.ts` + `app/page.tsx` (director) · `lib/orchestrator.ts` + `app/orchestration/page.tsx` (vendor orchestration) · `lib/reports.ts` + `app/reports/page.tsx` + `app/api/reports/run` (daily reports) · `lib/marketing.ts` + `app/campaigns/page.tsx` (vendors & campaigns) · `lib/kinan.ts` (Kinan feed) · `lib/daily.ts` + `app/daily/page.tsx` (daily campaign check) · `lib/history.ts` + `app/history/page.tsx` (campaign history) · `lib/llm.ts` (Anthropic / OpenAI) · `lib/chat.ts`, `lib/chat-extra.ts`, `lib/chat-ai.ts`, `lib/query.ts` (assistant).
 
 ## Static demo
 
-`npx tsx scripts/dump-data.ts && node scripts/build-demo.mjs` builds a single-file `demo.html` (all pages + assistant, in-memory data, offline).
+`npx tsx scripts/dump-data.ts && node scripts/build-demo.mjs` builds a single-file `demo.html` (all pages + assistant, in-memory data, offline; built-in answers only, no AI provider).

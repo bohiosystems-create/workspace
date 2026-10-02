@@ -9,6 +9,7 @@ const shim = {
   name: "prisma-shim",
   setup(b) {
     b.onResolve({ filter: /^\.\/prisma$/ }, () => ({ path: path.join(root, "scripts/demo-prisma.ts") }));
+    b.onResolve({ filter: /^\.\/llm$/ }, () => ({ path: path.join(root, "scripts/demo-llm.ts") }));
   },
 };
 const out = await build({

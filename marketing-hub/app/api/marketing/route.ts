@@ -11,13 +11,13 @@ function fail(err: any, label: string) {
   console.error(label, err);
   const message =
     err?.status === 401
-      ? "Authentication failed — check ANTHROPIC_API_KEY."
+      ? "Authentication failed — check ANTHROPIC_API_KEY / OPENAI_API_KEY."
       : err?.message ?? "Marketing request failed.";
   return NextResponse.json({ error: message }, { status: err?.status ?? 500 });
 }
 
 // GET  /api/marketing              -> dashboard (deterministic, no Claude)
-// GET  /api/marketing?narrative=1  -> dashboard + Claude vendor brief
+// GET  /api/marketing?narrative=1  -> dashboard + AI vendor brief (Anthropic or OpenAI)
 export async function GET(req: Request) {
   try {
     await ensureMarketingSeeded();
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
 }
 
 // POST { action: "PAUSE" | "RESUME" | "SHIFT_BUDGET", ... } -> apply + return fresh dashboard
-// POST { action: "VENDOR_NOTE", vendorId }                  -> Claude-drafted note to the vendor
+// POST { action: "VENDOR_NOTE", vendorId }                  -> AI-drafted note to the vendor
 export async function POST(req: Request) {
   try {
     await ensureMarketingSeeded();

@@ -41,6 +41,9 @@ export const prisma = {
   outboundEmail: table([]),
   crmLead: table([]),
   crmSync: table([]),
+  pastCampaign: table([]),
+  dailyRecommendation: table([], { status: "OPEN", decidedBy: null, decidedAt: null, note: null }),
+  dailyNote: table([]),
   vendor: {
     findMany: async () => data.vendors, count: async () => data.vendors.length,
     create: async ({ data: d }: any) => { const row = { id: "v" + Math.random().toString(36).slice(2), ...d }; data.vendors.push(row); return row; },

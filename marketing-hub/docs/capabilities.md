@@ -9,12 +9,27 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 ## 1. Director — plan and decide (home page)
 
 - **Daily brief:** where sales stand against target (CRM-verified), which project is furthest behind, the next month's forecast per project, vendor decisions, risks, what to do this week, and **campaign recommendations**.
-- **Campaign recommendations:** ranked changes to make to campaigns — pause or shift budget, campaigns not converting, scale up, Meta agency or tracking issues, media spend the ad platforms don't confirm, incrementality tests — each with the reason, what's at stake and one action (open the page, or draft the vendor email for approval). Also in the emailed daily report and the chat.
+- **Campaign recommendations:** today's daily campaign check first, then ranked changes to make to campaigns — pause or shift budget, campaigns not converting, scale up, Meta agency or tracking issues, media spend the ad platforms don't confirm, incrementality tests — each with the reason, what's at stake and one action (open the page, or draft the vendor email for approval). Also in the emailed daily report and the chat.
 - **Sales targets:** monthly contracted-sales targets per project, with actual vs target by month.
 - **Budget plan:** next month's budget per vendor, moved towards the vendors that bring the most *extra* sales per riyal. Each vendor stays inside the range its renewal decision allows. Shows expected extra sales and the reserve held back.
-- **One approval inbox:** everything waiting for the manager in one list, each item with a time estimate and a weekly total ("about 44 minutes for 8 decisions").
+- **One approval inbox:** everything waiting for the manager in one list, each item with a time estimate and a weekly total ("about 53 minutes for 8 decisions").
 - **Campaign quality from the CRM:** every campaign code ranked by qualified and win rate: strongest (fund first), middle, weakest (fix targeting or cut).
 - **Leads stay with Kinan:** lead follow-up, sales and the CRM are handled by Kinan's own agent. The director reads CRM results only to judge campaigns and vendors.
+
+## 1a. Daily campaign check — what to change in each campaign, every morning
+
+- Every live campaign is checked against **its own trend** and against **similar past campaigns** (same channel, season or project), and the director says what to change: cut, scale, refresh, renew or let end.
+- Checks: cost to sales far above the channel's history; cost per qualified lead rising; qualified rate dropping; lead volume dropping; spending ahead of or behind plan; winners worth scaling; the summer slowdown ahead (trim, then scale again in September); campaigns ending soon (extend or let end); and a stale CRM feed.
+- Each item shows the evidence, the action, and the similar past campaigns with what they taught us.
+- **Day over day:** new today, open since when, resolved since yesterday. The manager accepts or dismisses each item (with a name and an optional note); the decision carries over while the same issue repeats.
+- Feeds the daily brief, the emailed report, the approval inbox and the chat.
+- **Optional AI second opinion** (Claude or OpenAI): reads the day's check with the history and says what to do first.
+
+## 1b. Campaign history — 2024–2025
+
+- 22 past campaigns (sample data): launches, Ramadan, summer, always-on, events, brand, radio and billboards, across the three projects and nine vendors, including three vendors no longer used. SAR 8.2M spend, SAR 555.7M sales, 1.5% cost to sales.
+- Benchmarks by channel, season, year, project and vendor; a lesson per campaign and overall lessons (brokers and events convert best; Ramadan with a payment-plan offer works; summer is weakest; radio and billboards cost the most per sale; a low qualified rate in month one predicts weak sales).
+- Used as the yardstick by the daily check and the assistant.
 
 ## 2. Vendor orchestration — the team's work, done for one manager
 
@@ -73,8 +88,10 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 ## 10. The assistant (chat)
 
-- Ask anything about targets, the plan, vendors, campaigns, tests, trials, invoices, what vendors owe, the daily report — in **English or Arabic**.
-- Shows recommendations as cards and **drafts vendor emails** for approval. With a Claude API key it answers free-form questions; without one, built-in answers cover the common questions.
+- Ask about targets, the plan, today's check and what changed since yesterday, any campaign (live or past, by name or code), any vendor (current, alternative or past), projects, channels, any month, quarter or year, comparisons, the campaign history and its lessons, metric definitions, tests, trials, invoices, Meta, what vendors owe, the daily report — in **English or Arabic**.
+- **Two AI providers built in: Anthropic (Claude) and OpenAI.** With either key, the assistant answers free-form questions using 13 read-only data tools. If one provider is down, the other answers. Each answer shows which model wrote it.
+- **Without a key** (and in the demo file), built-in answers cover a wide range of questions; a 92-question English/Arabic test checks them.
+- Shows recommendations as cards and **drafts vendor emails** for approval. The AI can only read and draft — never send, approve or spend.
 
 ## 11. Vendor emails through Outlook
 
@@ -90,6 +107,19 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 - The whole app, the assistant, vendor emails and the reports switch to Arabic, right-to-left, with Gregorian dates and Western digits.
 
+## Data that would sharpen the recommendations (suggested next connectors)
+
+The recommendations are only as good as the data behind them. In order of value:
+
+1. **Real CRM outcomes with campaign codes** (Yardi via Kinan): qualified, viewing, reservation, contract and value per lead. This matters more than any model.
+2. **Google Ads API**, **TikTok Marketing API** and **Snapchat Marketing API**: actual spend, clicks and leads per campaign, to check vendor reports and pacing directly (Meta is already built).
+3. **Meta Conversions API / Google offline conversions**: send CRM-qualified and won leads back to the ad platforms, so their bidding optimises for buyers rather than form-fills.
+4. **GA4 Data API** (and Search Console): site visits, landing-page conversion and search demand per project, which explain whether a drop is the campaign or the market.
+5. **Saudi property market data**: REGA / Ministry of Justice sales transactions, Ejar, and portal listings and prices (Bayut, Aqar, Property Finder), so a weak month can be compared with the market.
+6. **Calendar data**: Hijri calendar (Ramadan, Eid), school holidays and events such as Cityscape, to time budgets better than fixed summer and Ramadan rules.
+7. **Meta Ad Library API**: competitor developers' active ads and offers.
+8. **Call tracking** (e.g. CallRail or a local provider): phone leads by campaign, often the biggest unattributed share in real estate.
+
 ---
 
 ## Integration status
@@ -103,7 +133,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 | CRM results | Sample data | Ingest API built; Yardi pull pending | Lead results with campaign codes |
 | Meta ads (Facebook / Instagram) | Sample accounts and campaigns | Built; live mode written against the Marketing API, not yet run on a real account | A system-user token with `ads_read` (and `business_management` to see partner access); the ad account IDs |
 | Other ad platforms (Google, Snap, TikTok) | Sample data | Ingest API built; pull adapters not built | Platform access per account |
-| Claude (free-form chat) | Built-in answers | Built | Anthropic API key |
+| AI: Anthropic (Claude) and OpenAI — free-form chat, AI second opinion, draft polishing | Built-in answers | Built, with automatic failover; tested against mock servers | An Anthropic and/or OpenAI API key |
 | Report scheduler | "Send now" | Built | A scheduler calling the report endpoint every 15 minutes |
 
 All figures in the demo are **sample data**, frozen on **8 June 2026**.

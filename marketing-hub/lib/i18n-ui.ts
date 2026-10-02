@@ -143,7 +143,6 @@ const UI: Record<string, string> = {
   "Thinking…": "جارٍ التفكير…",
   "Send": "إرسال",
   "Ask about a vendor, campaign, invoice…": "اسألوا عن مورد أو حملة أو فاتورة…",
-  "Answered by built-in rules. Set ANTHROPIC_API_KEY for free-form answers from Claude.": "أُجيب عنه بقواعد مدمجة. اضبطوا ANTHROPIC_API_KEY للحصول على إجابات حرّة من Claude.",
   "Draft ready. Nothing has been sent — review it, edit if needed, then approve.": "المسودة جاهزة. لم يُرسل شيء — راجعوها وعدّلوها عند اللزوم ثم اعتمدوها.",
   "Here is the draft for that item.": "هذه مسودة ذلك البند.",
   "Draft email": "مسودة بريد",

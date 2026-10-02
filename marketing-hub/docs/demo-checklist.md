@@ -1,6 +1,6 @@
 # Client demo checklist — AI Director of Marketing
 
-About 30 minutes. Every step and number below was rehearsed on the demo file in English and Arabic.
+About 35 minutes. Every step and number below was rehearsed on the demo file in English and Arabic.
 
 ---
 
@@ -8,10 +8,10 @@ About 30 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] **Pick how you will run it**
   - **Demo file (recommended):** `marketing-hub-demo.html` at the repo root. One file, no install, works offline (only the fonts need internet). All data lives in the browser.
-  - **Live app:** `cd marketing-hub && npm install && npm run demo:reset && npm run dev`, then open http://localhost:3001. Use this if you want to show the API endpoints or free-form chat with Claude.
+  - **Live app:** `cd marketing-hub && npm install && npm run demo:reset && npm run dev`, then open http://localhost:3001. Use this if you want to show the API endpoints or free-form AI chat (Claude or OpenAI).
 - [ ] **Open it in Chrome or Edge**, window at least 1366 px wide (the menu then fits on one line).
 - [ ] **Rehearse the storyline once** (section C), then reload the page to reset.
-- [ ] **Optional — free-form chat:** in the live app, set `ANTHROPIC_API_KEY` in `.env`. Without it (and always in the demo file) the assistant uses built-in answers; stick to the question bank in section D.
+- [ ] **Optional — free-form AI chat:** in the live app, set `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` in `.env` (with both, the second takes over if the first fails). Without a key (and always in the demo file) the assistant uses built-in answers, which cover a wide range of questions (section D).
 - [ ] **Know the three things to say upfront** (section B).
 
 ## B. Say this upfront
@@ -32,23 +32,40 @@ About 30 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Read the brief headline: **"Sales are at 81% of target year to date; Andalus Quarter is furthest behind (38%)."**
 - [ ] Show the tiles: SAR 133.9M of SAR 165M, and the three projects (38% / 90% / 92%).
-- [ ] **Waiting for your decision: 7 items, about 46 min.** Point at the minutes; this is the manager's whole week.
+- [ ] **Waiting for your decision: 8 items, about 53 min.** Point at the minutes; this is the manager's whole week. One of them is **Daily campaign check: 14 open (2 urgent)**.
 - [ ] Say: *"Leads, follow-up and sales are Kinan's own agent's job. The director reads the CRM results to judge the campaigns."*
 
 ### 2. Campaign recommendations in the brief (3 min)
 
-- [ ] In the brief, **Campaign recommendations (11)**. The first three are urgent:
-  1. **Pause Andalus — Off-plan Launch Funnel**: 6.03% cost to sales.
-  2. **An agency that isn't one of your vendors is running Meta ads in your account** (Digital Wave, SAR 8K).
-  3. **1 Tasweeq Digital campaign not converting into sales** (SAR 164K).
-- [ ] Each line has the reason and one action: **Open** (Campaigns, Data Sources, Experiments) or **Draft email**.
-- [ ] Click **Draft email** on the Tasweeq item. The assistant opens the draft for approval. Don't send it; show that nothing goes out without a name and the "I have read this" box.
+- [ ] In the brief, **Campaign recommendations (22)**: today's daily campaign check first, then the rest. The first three are urgent:
+  1. **CRM feed: almost no new leads for 8 days** (normal volume until 30 May). Say: *"The sample CRM data stops on 30 May. The director notices the feed went quiet and won't judge campaigns on missing data."*
+  2. **Andalus — Off-plan Launch Funnel costs 8.5% of sales, 4.5× past digital campaigns** (SAR 297.5K spent for SAR 3.5M of sales in the last 3 months).
+  3. **An agency that isn't one of your vendors is running Meta ads in your account** (Digital Wave Agency, SAR 8K).
+- [ ] Each line has the reason and one action: **Open** (Daily check, Campaigns, Data Sources, Experiments) or **Draft email**.
+- [ ] Click **Show all (22)**, then **Draft email** on *Tasweeq Digital: reported media spend not matched by the ad platforms* (SAR 58.4K). The assistant opens the draft for approval. Don't send it; show that nothing goes out without a name and the "I have read this" box.
 - [ ] Click **Ask the director** and type *"What's today's brief?"* The campaign recommendations come back as cards.
+
+### 2a. Daily campaign check (4 min)
+
+- [ ] Open **Daily check**. KPIs: **14 recommendations, 2 urgent**. The day chips at the top show the last 7 days.
+- [ ] Walk through **Andalus — Off-plan Launch Funnel**, which has four items: 8.5% cost to sales vs 1.9% for past digital campaigns; cost per qualified lead up 35% in May; spending ahead of plan (130% pacing); summer starts in 23 days.
+- [ ] Open **Similar past campaigns** under an item: each past campaign's cost to sales and its lesson (e.g. Ash Shati Summer 2024 at 3.6%).
+- [ ] Show **Ash Shati — Search & Social**: a winner (1.19%), so the advice is to trim only ~15% in July–August and scale up again in September, not cut.
+- [ ] Click **Accept** on one item (optionally with a note): *Decided* goes to 1. Say: *"The decision carries over: the same item tomorrow keeps your decision. Accepting records it; the change itself happens on Campaigns or with the agency."*
+- [ ] Click an earlier day chip to show the check as it was that morning, and **Resolved since yesterday** when something improves.
+- [ ] Point at **AI second opinion**: with an Anthropic or OpenAI key, the AI reads the day's check with the history and says what to do first. (Not in the demo file.)
+
+### 2b. Campaign history (2 min)
+
+- [ ] Open **History**: **22 past campaigns** (2024–2025), SAR 8.2M spend, SAR 555.7M sales, **1.5% cost to sales**.
+- [ ] Show the **lessons**: brokers and events convert best; Ramadan with a payment-plan offer worked; summer is the weakest season; radio and billboards cost the most per sale.
+- [ ] Switch the benchmark tabs (channel, season, year, project, vendor) and expand a campaign to show its lesson.
+- [ ] Say: *"This is the yardstick for every live campaign in the daily check, and the assistant can answer anything about it."*
 
 ### 3. Daily report — baseline (1 min)
 
 - [ ] Go to **Reports** and click **Send now**. The report opens below.
-- [ ] Show the **Campaign recommendations — 11 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
+- [ ] Show the **Campaign recommendations — 22 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
 - [ ] Show the schedule: 07:30 Riyadh, Sunday–Thursday, English and Arabic, internal addresses only.
 
 ### 4. Approve the June budget plan (3 min)
@@ -70,7 +87,7 @@ About 30 minutes. Every step and number below was rehearsed on the demo file in 
 ### 6. The report shows what changed (2 min)
 
 - [ ] **Reports**, then **Send now** again. In **"Since the last report"** expect:
-  - Decisions waiting **8 → 6** (8 because the email you drafted in step 2 joined the list)
+  - Decisions waiting **9 → 7** (9 because the email you drafted in step 2 joined the list)
   - Late vendor deliverables **2 → 1**
   - Work orders with vendors **0 → 7**
   - Overdue work orders **0 → 1**, in red (Nakhla's press release is still late after a reminder)
@@ -94,20 +111,22 @@ About 30 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 9. Ask the assistant (3 min)
 
-- [ ] Use 3–4 questions from section D, for example *"Should we renew Hajar Outdoor?"*, *"Do vendor numbers match the CRM?"* and *"Any invoice problems?"*
+- [ ] Use 4–5 questions from section D, for example *"What changed since yesterday?"*, *"How did Ramadan campaigns perform?"*, *"Compare 2024 and 2025"*, *"How much did we spend in March by project?"* and *"Should we renew Hajar Outdoor?"*
+- [ ] Say: *"With an Anthropic or OpenAI key it answers anything from this data, in its own words, and shows which model answered."*
 - [ ] *"Draft an email to Tasweeq Digital"*, then pick an item: the draft appears for approval. Don't send it; show the approval controls instead.
 
 ### 10. Arabic (2 min)
 
 - [ ] Click **العربية**: the whole app flips right-to-left.
-- [ ] Ask *"ما موجز اليوم؟"* or *"ما الذي يدين به الموردون لنا؟"*
+- [ ] Ask *"ما موجز اليوم؟"*, *"ما الجديد منذ الأمس؟"* or *"كيف كان أداء حملات رمضان؟"*
+- [ ] Open **Daily check** in Arabic.
 - [ ] **Reports** in Arabic, then **View** the Arabic report.
 
 ### 11. Close (2 min)
 
 - [ ] Walk through the integration status table (section F) and the questions for Kinan (section G).
 
-## D. Question bank (all tested)
+## D. Question bank (all tested; `npm run chat:eval` checks 92 questions)
 
 **English**
 - What's today's brief?
@@ -128,6 +147,22 @@ About 30 minutes. Every step and number below was rehearsed on the demo file in 
 - What should I do first?
 - Which agency runs each Meta campaign?
 - Who created the Andalus retargeting campaign on Meta?
+- What changed since yesterday?
+- How is ASH-SEARCH-26 doing?
+- Compare Tasweeq Digital and Hajar Outdoor
+- Brokers vs influencers
+- How much did we spend in March by project?
+- Sales in Q1 2025 by project
+- Compare 2024 and 2025
+- What did we learn from past campaigns?
+- How did Ramadan campaigns perform?
+- Worst past campaigns
+- Tell me about MAR-RAMADAN-25
+- Tell me about Wajha Events (a past vendor)
+- How is Andalus Quarter doing?
+- How are influencers performing?
+- What is cost to sales?
+- Help
 
 **العربية**
 - ما موجز اليوم؟
@@ -138,11 +173,19 @@ About 30 minutes. Every step and number below was rehearsed on the demo file in 
 - متى يصلني التقرير اليومي؟
 - أي مورد يحقق أفضل تحويل؟
 - أي وكالة تدير كل حملة على ميتا؟
+- ما الجديد منذ الأمس؟
+- كيف كان أداء حملات رمضان؟
+- قارن 2024 و 2025
+- الإنفاق في مارس
+- ما الدروس من الحملات السابقة؟
+- كيف أداء الأندلس؟
+- ما معنى نسبة التكلفة إلى المبيعات؟
 
 ## E. Pitfalls and recovery
 
 - **Reloading the demo file resets everything.** Don't reload mid-demo unless you want to start over. To reset the live app: `npm run demo:reset`, then restart.
-- **Off-script questions in the demo file** may get a general answer (built-in answers, no AI). Say: *"With Claude connected it answers anything from this data."*
+- **Off-script questions in the demo file** may get the general help answer (built-in answers, no AI). Say: *"With Claude or OpenAI connected it answers anything from this data."*
+- **The CRM-feed alert is expected:** the sample CRM data ends on 30 May, and the clock is 8 June.
 - **Buttons greyed out?** Your name isn't in "Approving as", or the "I have read" box isn't ticked.
 - **Report dated today, figures from 8 June:** expected (sample data).
 - **No email is sent anywhere**, and the screens say "simulated".
@@ -157,7 +200,7 @@ About 30 minutes. Every step and number below was rehearsed on the demo file in 
 | Oracle Fusion | Built (read-only); not yet tested on their instance | Oracle user and URL |
 | Meta ads | Built; simulated in the demo; live mode not yet run on a real account | System-user token (`ads_read`, `business_management`), ad account IDs |
 | Scheduler for daily reports | Built | A scheduler calling the endpoint every 15 minutes |
-| Claude (free-form chat) | Built | Anthropic API key |
+| AI: Anthropic (Claude) and OpenAI | Built, with failover; tested against mock servers | An Anthropic and/or OpenAI API key |
 
 ## G. Questions to ask (to move to a pilot)
 
