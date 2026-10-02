@@ -12,12 +12,13 @@ import { type QueryCtx, resolve } from "./query";
 import { extraEarly, extraLate, campaignExtras } from "./chat-extra";
 import { ideasAnswer, type IdeaBrief } from "./ideation";
 import { kinanOutbox, kinanMode } from "./kinan";
+import { closest } from "./chat-catalog";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firstSentence } from "./i18n";
 
 // What the chat can put in front of the user besides text. Cards are rendered live from
 // current data, so approving / editing an email happens in the card, never through the model.
 export type ChatCard = { kind: "rec"; key: string } | { kind: "email"; id: string };
-export type ChatReply = { reply: string; cards: ChatCard[]; engine: "anthropic" | "openai" | "gemini" | "rules"; model?: string; note?: string };
+export type ChatReply = { reply: string; cards: ChatCard[]; engine: "anthropic" | "openai" | "gemini" | "rules"; model?: string; note?: string; suggest?: string[]; missed?: boolean };
 
 
 export async function buildChatContext(lang: Lang = "en") {
@@ -153,31 +154,34 @@ const n = (l: Lang, x: number | null | undefined, suf = "") => (x === null || x 
 // Arabic and English intent patterns.
 const RX = {
   draft: /\b(draft|write|compose|email|e-mail|mail)\b|مسودة|اكتب|صياغة|رسالة|بريد|إيميل|ايميل|راسل|خاطب/,
-  recs: /recommend|what should|next step|priorit|to.?do|action|what now|first\b|urgent|advice|suggest|توصي|ماذا (أفعل|أعمل|يجب)|ما العمل|أولوي|الأهم|اقتراح|نصيح|من أين أبدأ|أبدأ/,
-  invoices: /invoice|overdue|unbill|payable|oracle|\bpo\b|purchase order|payment|pay\b|فاتور|فواتير|متأخر|مستحق|أمر شراء|أوامر الشراء|اوراكل|أوراكل|سداد|دفع/,
+  recs: /recommend|خطوات|what should|next step|priorit|to.?do|action|what now|first\b|urgent|advice|suggest|توصي|ماذا (أفعل|أعمل|يجب)|ما العمل|أولوي|الأهم|اقتراح|نصيح|من أين أبدأ|أبدأ/,
+  invoices: /invoice|we owe|owe (the |our )?(vendors|agencies|suppliers)|overdue|unbill|payable|overbill|overcharg|double.?bill|billing|billed|unpaid|oracle|\bpo\b|purchase order|payment(?!.?plan)|pay\b|فاتور|فواتير|متأخر|مستحق|أمر شراء|أوامر الشراء|اوراكل|أوراكل|سداد|دفع/,
   contracts: /contract|renew|expir|agreement|عقد|عقود|تجديد|ينتهي|انتهاء|تنتهي/,
   salesWords: /contracts?\s*(signed|closed|count)|sales|مبيعات|موقّع|موقع|صفقات/,
-  best: /best|top|strong|convert|winner|perform|worst|weak|bad|under|poor|lowest|cheapest|expensive|أفضل|الأفضل|أقوى|يحوّل|يحول|أسوأ|الأسوأ|ضعيف|أضعف|الأداء|أداء/,
+  best: /best|top|per sale|per contract|costing|most expensive|أنجح|الأنجح|أكفأ|strong|convert|winner|perform|efficien|value for money|worth|worst|weak|bad|under|poor|lowest|cheapest|expensive|أفضل|الأفضل|أقوى|يحوّل|يحول|أسوأ|الأسوأ|ضعيف|أضعف|الأداء|أداء/,
   totals: /spend|sales|revenue|lead|funnel|conversion|cac|total|overall|summary|how are we|how is|إنفاق|الإنفاق|مبيعات|المبيعات|إيراد|عملاء محتملين|مسار|تحويل|إجمالي|ملخص|كيف حال|كيف نحن|الوضع/,
   brief: /\bbrief\b|today|focus|status|how are we|update|target|on track|behind|forecast|موجز|اليوم|التركيز|الوضع|المستهدف|الأهداف|متأخر|التوقع/,
-  plan: /budget plan|allocation|allocate|next month|june|reallocat|خطة الميزانية|الميزانية|توزيع|الشهر القادم|يونيو/,
+  plan: /budget plan|allocation|allocate|(move|shift|put|spend) (the |our |more |extra )?(budget|money)|where .{0,20}(budget|money) (go|should)|next month|june|reallocat|خطة الميزانية|الميزانية|توزيع|الشهر القادم|يونيو/,
   approvals: /approv|waiting|inbox|pending|sign.?off|decide|بانتظار|اعتماد|موافقة|قرارات معلقة/,
   kinan: /kinan|yardi|كنان|ياردي/,
-  campaignRecs: /campaign recommendation|change (in|to|on) (the |our |my )?campaigns|which campaigns (should|to|need)|what (should|do) (i|we) change|توصيات الحملات|ماذا (أغيّر|أغير|نغيّر|نغير)|أي الحملات/,
-  meta: /\bmeta\b|facebook|instagram|which agency|what agency|who (runs|created|is running|made)|agency behind|ميتا|فيسبوك|فيس بوك|انستغرام|إنستغرام|أي وكالة|من أنشأ|من يدير|الوكالة التي/,
+  campaignRecs: /campaign recommendation|which campaigns? (should|to|do we|would you) (get |be )?(cut|paus|stop|kill)|change (in|to|on) (the |our |my )?campaigns|which campaigns (should|to|need)|what (should|do) (i|we) change|توصيات الحملات|ماذا (أغيّر|أغير|نغيّر|نغير)|أي الحملات/,
+  meta: /\bmeta\b|facebook|instagram|(which|what) agency (runs|created|is running|manages|made|is behind|owns)|who (runs|created|is running|made)|agency behind|ميتا|فيسبوك|فيس بوك|انستغرام|إنستغرام|أي وكالة|من أنشأ|من يدير|الوكالة التي/,
   report: /daily report|scheduled report|morning report|reports? schedule|التقرير اليومي|تقرير يومي|التقارير المجدولة|جدول التقارير/,
-  orch: /orchestrat|work orders?|vendors? owe|owe us|deliverables?|chas(e|ing)|remind|vendor briefs?|briefs? (to|for) (the )?vendors|what are (the )?vendors doing|my time|how much time|تنسيق|أوامر العمل|التسليمات|تسليمات|تذكير|موجزات الموردين|وقتي|كم من الوقت|يدين به الموردون|يدينون/,
-  renewal: /renew|decision|exit|renegotiat|performance plan|replace|re-?engage|keep or drop|drop |fire |تجديد|نجدد|نجدّد|يجدد|التجديد|نستغني|نستمر|نبقي|قرار|الخروج|إنهاء|إعادة التفاوض|خطة أداء|استبدال|الاستغناء/,
-  incr: /incremental|holdout|geo test|\bmmm\b|media.?mix|caused|lift|would have happened anyway|الأثر الإضافي|أثر إضافي|اختبار|مزيج الإعلام|المجموعة المستبعدة/,
+  orch: /orchestrat|work orders?|vendors? owe|owe us|deliverables?|late from|(is|are|running) late|behind schedule|(hasn'?t|haven'?t|didn'?t|not) deliver|deliver(ed)? (on time|late)|missed (a )?deadline|ما المتأخر من|المتأخر من الموردين|تأخر الموردين|لم يسلّم|لم يسلم|لم يسلموا|chas(e|ing)|remind|vendor briefs?|briefs? (to|for) (the )?vendors|what are (the )?vendors doing|my time|how much time|تنسيق|أوامر العمل|التسليمات|تسليمات|تذكير|موجزات الموردين|وقتي|كم من الوقت|يدين به الموردون|يدينون/,
+  renewal: /renew|decision|exit|\bkeep\b|renegotiat|performance plan|replace|re-?engage|keep or drop|drop |fire |تجديد|نجدد|نجدّد|يجدد|التجديد|نستغني|نستمر|نبقي|قرار|الخروج|إنهاء|إعادة التفاوض|خطة أداء|استبدال|الاستغناء/,
+  incr: /incremental|holdout|geo test|actually (cause|drive|work|bring)|really (cause|drive|work)|cause[sd]? (sales|leads)|would .{0,20}anyway|\bmmm\b|media.?mix|caused|lift|would have happened anyway|الأثر الإضافي|أثر إضافي|اختبار|مزيج الإعلام|المجموعة المستبعدة/,
   trials: /trial|bench|alternative|\brfp\b|re-?bid|challenger|تجربة|تجارب|بديل|بدائل|طلب عروض|منافس/,
   score: /score|rank|fair|compare|benchmark|تقييم|ترتيب|مقارنة|معيار/,
-  crm: /\bcrm\b|verif|reconcil|fake|spam|duplicate|attribution|response time|first response|نظام إدارة|إدارة العملاء|سي ?ار ?ام|تحقق|مطابقة|مزيف|وهمي|تكرار|الإسناد|زمن الاستجابة|الاستجابة|استجابة/,
+  crm: /\bcrm\b|lying|\blie\b|cheat|honest|manipulat|padd(ing|ed)|verif|reconcil|fake|spam|duplicate|\breal\b|genuine|inflat|accurate|trust (the|their|vendor) (numbers|leads|reports)|match yardi|attribution|response time|first response|نظام إدارة|إدارة العملاء|سي ?ار ?ام|تحقق|مطابقة|مزيف|وهمي|تكرار|الإسناد|زمن الاستجابة|الاستجابة|استجابة/,
   ar: /in arabic|بالعربية|بالعربي|عربي/,
   en: /in english|بالإنجليزية|بالانجليزية|بالانجليزي/,
 };
 
-const RX_IDEA = /\bideas?\b|brainstorm|ideate|campaign concepts?|new campaign|plan a campaign|(suggest|propose|design|create) (a |an |some )?(new )?campaigns?|أفكار|فكرة|عصف ذهني|حملة جديدة|اقترح (حملة|حملات)|صمم حملة|خطط لحملة/;
-const RX_EXIT = /terminat|end (the |our |their )?(contract|relationship)|cancel (the |our |their )?contract|\bfire\b|let .{0,12} go\b(?! to)|let go of|stop working with|get rid of|part ways|cut ties|(which|what) (vendor|agency|supplier)s? .{0,40}(drop|replace|remove|cut|exit|lose)|(drop|replace|remove|cut) (a|one|which) (vendor|agency)|worst (vendor|agency)|إنهاء (عقد|العقد|التعاقد|التعامل)|فسخ|نستغني|الاستغناء|نوقف التعامل|نتخلص/;
+const RX_IDEA = /\bideas?\b|plan something|something (for|around) (the )?(summer|ramadan|eid|national day|cityscape|holidays?|season|launch)|brainstorm|ideate|campaign concepts?|new campaign|plan a campaign|(need|want|run|launch|do) (a |an )?(new )?campaign (for|around|on)|come up with|what campaign (would|should|could|to)|campaign (idea|plan)s? for|next campaign|(suggest|propose|design|create) (a |an |some )?(new )?campaigns?|أفكار|فكرة|عصف ذهني|حملة جديدة|اقترح (حملة|حملات)|صمم حملة|خطط لحملة/;
+const RX_EXIT = /terminat|end (the |our |their )?(contract|relationship)|cancel (the |our |their )?contract|\bfire\b|let .{0,12} go\b(?! to)|let go\b|stop working with|get rid of|part ways|cut ties|(drop|replace|remove|cut) (a|one|which) (vendor|agency)|إنهاء (عقد|العقد|التعاقد|التعامل)|ننهي|نوقفه|نوقفها|إيقاف التعامل|فسخ|نستغني|الاستغناء|نوقف التعامل|نتخلص/;
+// "Which agency would you exit / replace?" — a selection word, a vendor word and an exit verb anywhere in the question.
+const isExitQ = (q: string) => RX_EXIT.test(q) ||
+  (/(vendor|agenc|supplier|partner|مورد|وكال)/.test(q) && /\b(exit|drop|replace|cut|remove|lose|dump|ditch)\b|استبدال|استبدالها|نستبدل|نستغني/.test(q) && /which|what|who|any|should|weakest|worst|recommend|suggest|advise|أي|من |هل|ينبغي|يجب/.test(q));
 /** Read a campaign brief from free text: project, month or season, budget, goal. */
 export function briefFromText(text: string, c: ChatContext): IdeaBrief {
   const q = text.toLowerCase();
@@ -208,7 +212,8 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   const T = (en: string, ar: string) => tx(L, en, ar);
   const N = (x: string) => nm(L, x);
   const cards: ChatCard[] = [];
-  const done = (reply: string): ChatReply => ({ reply, cards, engine: "rules" });
+  // Every built-in answer offers the closest questions it knows, so a misread question is one click from the right one.
+  const done = (reply: string, missed = false): ChatReply => ({ reply, cards, engine: "rules", suggest: closest(question, L, 3), ...(missed ? { missed } : {}) });
   const active = recs.recommendations.map((r, i) => ({ r, i })).filter((x) => x.r.state === "OPEN" || x.r.state === "DRAFTED");
   const cardsOf = (types: string[], max: number) => cards.push(...active.filter((x) => types.includes(x.r.type)).slice(0, max).map((x) => ({ kind: "rec" as const, key: x.r.key })));
 
@@ -244,7 +249,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   if (early) return done(early);
 
   // 1c. "Which vendor should we terminate / drop / replace, and why?" — the renewal decisions, worst first.
-  if (RX_EXIT.test(q)) {
+  if (isExitQ(q)) {
     const RANK: Record<string, number> = { EXIT: 0, TEST_REPLACEMENT: 1, PERFORMANCE_PLAN: 2, RENEGOTIATE: 3, RE_ENGAGE: 4 };
     const CF: Record<string, string> = { High: T("high", "عالية"), Medium: T("medium", "متوسطة"), Low: T("low", "منخفضة") };
     const all = c.agent.decisions.filter((d) => !vendor || d.vendor === vendor.name).slice().sort((a, b) => RANK[a.decision] - RANK[b.decision]);
@@ -466,7 +471,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   }
 
   // 8. Best / worst.
-  if (RX.score.test(q) || RX.best.test(question.toLowerCase())) {
+  if ((RX.score.test(q) || RX.best.test(question.toLowerCase())) && !/summary|overview|ملخص|نظرة عامة/.test(q)) {
     if (ag.scores.length) {
       cardsOf(["RENEWAL", "UNDERPERFORMING"], 3);
       return done(T("Fair scorecard — normalised by channel and budget, on verified data (50 = channel benchmark):\n", "التقييم العادل — معدّل حسب القناة والميزانية وعلى بيانات متحقَّق منها (50 = معيار القناة):\n") +
@@ -496,8 +501,12 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   }
 
   // Fallback.
+  const near = closest(question, L, 3);
+  if (near.length) return done(T(
+    `I couldn't match that question to my built-in answers exactly, so rather than guess, here are the closest questions I can answer — tap one, or rephrase with a vendor, campaign, project or period.${polish ? "" : " With Claude connected (or in the Claude app edition) I answer free-form questions like this directly."}`,
+    `لم أتمكن من مطابقة السؤال مع إجاباتي المدمجة بدقة، فبدلاً من التخمين هذه أقرب الأسئلة التي أجيب عنها — اضغطوا أحدها أو أعيدوا الصياغة مع ذكر مورد أو حملة أو مشروع أو فترة.${polish ? "" : " عند ربط Claude (أو في نسخة تطبيق Claude) أجيب عن الأسئلة الحرة مثل هذا مباشرة."}`), true);
   cards.push(...active.slice(0, 3).map((x) => ({ kind: "rec" as const, key: x.r.key })));
   return done(T(
     `I'm your AI director of marketing. Ask me for today's brief, what the vendors owe us, where we stand against target, the budget plan, what needs your approval, or what we've sent to Kinan — or about any vendor, campaign, test, trial or invoice. I can answer questions about the vendors, campaigns, results, sales conversion, CRM verification and supplier invoices, and I can draft vendor emails for you to approve. Try: "which vendor converts best?", "how is Ash Shati Broker Push doing?", "do vendor numbers match the CRM?", "draft an email to Hajar Outdoor".\n\nRight now the top open items are:`,
-    `أنا مدير التسويق الذكي. اسألوني عن موجز اليوم، أو ما يدين به الموردون، أو موقفنا من المستهدف، أو خطة الميزانية، أو ما ينتظر اعتمادكم، أو ما أُرسل إلى كنان — أو عن أي مورد أو حملة أو اختبار أو تجربة أو فاتورة. يمكنني الإجابة عن أسئلة الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين، وإعداد رسائل للموردين لتعتمدوها. جرّبوا: «أي مورد يحقق أفضل تحويل؟»، «كيف أداء حملة الوسطاء في الشاطئ؟»، «هل أرقام الموردين تطابق نظام إدارة العملاء؟»، «اكتب رسالة إلى هجر للإعلانات الخارجية».\n\nأهم البنود المفتوحة الآن:`));
+    `أنا مدير التسويق الذكي. اسألوني عن موجز اليوم، أو ما يدين به الموردون، أو موقفنا من المستهدف، أو خطة الميزانية، أو ما ينتظر اعتمادكم، أو ما أُرسل إلى كنان — أو عن أي مورد أو حملة أو اختبار أو تجربة أو فاتورة. يمكنني الإجابة عن أسئلة الموردين والحملات والنتائج وتحويل الإنفاق إلى مبيعات والتحقق عبر نظام إدارة العملاء وفواتير الموردين، وإعداد رسائل للموردين لتعتمدوها. جرّبوا: «أي مورد يحقق أفضل تحويل؟»، «كيف أداء حملة الوسطاء في الشاطئ؟»، «هل أرقام الموردين تطابق نظام إدارة العملاء؟»، «اكتب رسالة إلى هجر للإعلانات الخارجية».\n\nأهم البنود المفتوحة الآن:`), true);
 }

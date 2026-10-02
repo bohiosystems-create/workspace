@@ -33,7 +33,7 @@ const PROJECT_ALIASES: Record<string, string[]> = {
 };
 const CHANNEL_ALIASES: Record<string, string[]> = {
   DIGITAL: ["digital", "google", "search", "social", "meta", "snap", "online", "رقمي", "الرقمي", "جوجل", "سناب", "التواصل"],
-  INFLUENCER: ["influencer", "influencers", "creator", "creators", "instagram", "tiktok", "مؤثر", "المؤثرين", "صناع المحتوى", "انستغرام", "تيك توك"],
+  INFLUENCER: ["influencer", "influencers", "creator", "creators", "instagram", "tiktok", "مؤثر", "المؤثرين", "المؤثرون", "مؤثرين", "صناع المحتوى", "انستغرام", "تيك توك"],
   PORTAL: ["portal", "portals", "listing", "listings", "بوابه", "البوابات", "بوابات"],
   BROKER: ["broker", "brokers", "brokerage", "وسطاء", "الوسطاء", "وساطه"],
   PR: ["pr", "press", "media relations", "علاقات عامه", "العلاقات العامه"],

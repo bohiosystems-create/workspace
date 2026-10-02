@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { localAnswer } from "@/lib/chat";
 import { llmStatus } from "@/lib/llm";
 import { isLang } from "@/lib/i18n";
+import { logMiss } from "@/lib/chat-misses";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -29,7 +30,9 @@ export async function POST(req: Request) {
         console.error("chat AI error, falling back to built-in rules", err);
       }
     }
-    return NextResponse.json(await localAnswer(last.content, undefined, polish, ui));
+    const r = await localAnswer(last.content, undefined, polish, ui);
+    if (r.missed) await logMiss({ question: last.content, answer: r.reply, lang: ui, engine: "rules", source: "AUTO" }).catch(() => {});
+    return NextResponse.json(r);
   } catch (err: any) {
     console.error("chat error", err);
     return NextResponse.json({ error: err?.message ?? "Chat failed." }, { status: 500 });

@@ -760,6 +760,14 @@ const UI9: Record<string, string> = {
 
 // Vendor directory (Orchestration)
 const UI10: Record<string, string> = {
+  "Related:": "ذات صلة:",
+  "Not what I asked": "ليس ما سألت عنه",
+  "Thanks — noted for review. Closest questions I can answer:": "شكراً — سُجّل للمراجعة. أقرب الأسئلة التي أجيب عنها:",
+  "Questions the assistant missed": "أسئلة لم يُحسن المساعد الإجابة عنها",
+  "Logged automatically when the built-in answers can't match a question, and when someone presses \"Not what I asked\". Each one becomes a new answer, synonym or test question.": "تُسجّل تلقائياً عندما لا تطابق الإجابات المدمجة السؤال، وعندما يضغط أحد «ليس ما سألت عنه». يتحول كل منها إلى إجابة أو مرادف أو سؤال اختبار جديد.",
+  "None yet.": "لا شيء بعد.",
+  "Pressed by a person": "أبلغ عنه شخص",
+  "No built-in match": "لا تطابق مدمج",
   "All your vendors in one place: open a vendor to see the campaigns it ran, its invoices, what it owes you and every email exchanged through Outlook. The director briefs each vendor from the approved plan, sends lead feedback from the CRM, chases what is late and checks results against the data; you approve every message before it goes out — routine ones in one go.": "كل مورديكم في مكان واحد: افتحوا أي مورد لتروا حملاته وفواتيره وما يدين به لكم وكل الرسائل المتبادلة عبر Outlook. يُعِدّ المدير موجز كل مورد من الخطة المعتمدة، ويرسل ملاحظات العملاء من النظام، ويتابع المتأخر ويطابق النتائج مع البيانات؛ وتعتمدون كل رسالة قبل إرسالها — والروتينية دفعة واحدة.",
   "Search vendors": "ابحثوا عن مورد", "Score · decision": "التقييم · القرار", "Spend 2026": "إنفاق 2026", "Work": "العمل", "Emails": "الرسائل", "past": "سابقة",
   "waiting for you": "بانتظاركم", "with vendor": "لدى المورد", "late": "متأخر", "drafts": "مسودات", "No vendors match.": "لا يوجد مورد مطابق.",

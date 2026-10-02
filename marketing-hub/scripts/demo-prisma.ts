@@ -35,6 +35,7 @@ function table(rows: any[], defaults: Record<string, unknown> = {}) {
 
 export const prisma = {
   supplierInvoice: table([]),
+  chatMiss: table([]),
   purchaseOrder: table([]),
   integrationSync: table([]),
   recommendationState: table([]),

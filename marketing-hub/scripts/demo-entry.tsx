@@ -26,6 +26,7 @@ import Chat from "../app/_components/Chat";
 import { buildMarketingDashboard, applyAction } from "../lib/marketing";
 import { buildRecommendations, handleRecommendationRequest } from "../lib/recommendations";
 import { localAnswer } from "../lib/chat";
+import { logMiss, listMisses } from "../lib/chat-misses";
 import { aiAnswer } from "../lib/chat-ai";
 import { buildCrmDashboard, syncCrm } from "../lib/crm";
 import { type Lang, isLang, nm, K, M, dt } from "../lib/i18n";
@@ -115,6 +116,10 @@ window.fetch = (async (input: any, init?: any) => {
     try { return json(await historyState(qlang(url))); } catch (e: any) { return json({ error: e.message }); }
   }
   if (url.includes("/api/ingest/vendor-report")) return new Response(await templateCsv(), { headers: { "Content-Type": "text/csv" } });
+  if (url.includes("/api/chat/miss")) {
+    if (init?.method === "POST") { await logMiss({ ...JSON.parse(init.body), source: "USER" }); return json({ ok: true }); }
+    return json(await listMisses());
+  }
   if (url.includes("/api/chat")) {
     try {
       const { messages, lang } = JSON.parse(init.body);
@@ -125,6 +130,7 @@ window.fetch = (async (input: any, init?: any) => {
         try { return json(await aiAnswer(history, undefined, langOf(lang))); } catch (e) { console.warn("Claude unavailable, using built-in answers", e); }
       }
       const r = await localAnswer(history[history.length - 1].content, undefined, undefined, langOf(lang));
+      if (r.missed) await logMiss({ question: history[history.length - 1].content, answer: r.reply, lang: langOf(lang), engine: "rules", source: "AUTO" });
       // Say why Claude didn't answer (Claude app edition only; the offline file keeps the usual footnote).
       const st = aiState(), ar = langOf(lang) === "ar";
       if (st.available) r.note = ({

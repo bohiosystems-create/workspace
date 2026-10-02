@@ -156,7 +156,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Walk through the integration status table (section F) and the questions for Kinan (section G).
 
-## D. Question bank (all tested; `npm run chat:eval` checks 135 questions)
+## D. Question bank (all tested; `npm run chat:eval` checks 135 questions and 140 off-script phrasings)
 
 **English**
 - What's today's brief?
@@ -234,6 +234,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - **Reloading the demo file resets everything.** Don't reload mid-demo unless you want to start over. To reset the live app: stop it (Ctrl+C) and run `npm run demo:live`.
 - **Off-script questions in the demo file** may get the general help answer (built-in answers, no AI). Say: *"With Claude, OpenAI or Gemini connected it answers anything from this data"*, or switch to the Claude app edition, where Claude answers.
+- **If an answer misses:** press **Not what I asked** under it. The assistant offers the closest questions it can answer and logs the miss on Reports → *Questions the assistant missed*. Say: *"Nobody can predict every question, so it never bluffs: it offers the nearest answers, and every miss becomes a test case."*
 - **Claude app edition slow or not answering?** An answer that looks up data takes about 30–90 seconds. If the viewer declined Claude, or Claude is unavailable, it answers with the built-in rules; reload the page to be asked again.
 - **Approving an idea adds an email draft**, so the "Decisions waiting" count in the report goes up by one. Do the ideation step after step 8, as written.
 - **The CRM-feed alert is expected:** the sample CRM data ends on 30 May, and the clock is 8 June.

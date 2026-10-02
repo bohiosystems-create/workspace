@@ -162,7 +162,7 @@ const CASES: [string, string[]][] = [
   ["المستثمرون أم المستخدمون النهائيون؟", ["نوع المشتري"]],
 ];
 
-const FALLBACK = /I'm your AI director of marketing\. Ask me|أنا مدير التسويق الذكي\. اسألوني/;
+const FALLBACK = /I'm your AI director of marketing\. Ask me|أنا مدير التسويق الذكي\. اسألوني|couldn't match that question|لم أتمكن من مطابقة/;
 
 (async () => {
   const ctx = { en: await buildChatContext("en"), ar: await buildChatContext("ar") };

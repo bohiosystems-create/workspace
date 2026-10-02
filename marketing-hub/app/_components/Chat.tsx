@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { closest } from "@/lib/chat-catalog";
 import { useI18n } from "./lang";
 
 type Card = { kind: "rec"; key: string } | { kind: "email"; id: string };
-type Msg = { role: "user" | "assistant"; content: string; cards?: Card[]; engine?: string; model?: string; note?: string; api?: boolean };
+type Msg = { role: "user" | "assistant"; content: string; cards?: Card[]; engine?: string; model?: string; note?: string; api?: boolean; suggest?: string[]; flagged?: boolean };
 type Store = { recommendations: any[]; outbox: any[]; integration: { mode: string; delivery: string; sender: string } };
 
 const SUGGESTIONS = [
@@ -100,6 +101,12 @@ export default function Chat() {
   });
   const urgent = activeRecs.filter((r) => r.severity === "crit").length;
 
+  async function flag(i: number) {
+    const m = msgs[i];
+    setMsgs((all) => all.map((x, j) => (j === i ? { ...x, flagged: true } : x)));
+    try { await fetch("/api/chat/miss", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: msgs[i - 1]?.content ?? "", answer: m.content, lang, engine: m.engine ?? "rules" }) }); } catch { /* best effort */ }
+  }
+
   async function ask(text: string) {
     const q = text.trim();
     if (!q || busy) return;
@@ -115,7 +122,7 @@ export default function Chat() {
       });
       const d = await res.json();
       if (d.error) throw new Error(d.error);
-      setMsgs([...next, { role: "assistant", content: d.reply, cards: d.cards, engine: d.engine, model: d.model, note: d.note, api: true }]);
+      setMsgs([...next, { role: "assistant", content: d.reply, cards: d.cards, engine: d.engine, model: d.model, note: d.note, api: true, suggest: d.suggest }]);
       await refresh();
     } catch (e: any) {
       setError(e.message);
@@ -269,6 +276,20 @@ export default function Chat() {
                   )}
                 </div>
                 {m.cards?.map((c, j) => <div key={j}>{c.kind === "rec" ? recCard(c.key) : emailCard(c.id)}</div>)}
+                {m.role === "assistant" && m.api && i === msgs.length - 1 && !busy && (() => {
+                  // Safety net for questions nobody anticipated: the closest questions the assistant knows, and a way to
+                  // say the answer missed (logged for review on the Reports page).
+                  const asked = msgs[i - 1]?.content ?? "";
+                  const near = (m.suggest?.length ? m.suggest : m.flagged ? closest(asked, lang === "ar" ? "ar" : "en", 3) : []).filter((x) => x !== asked);
+                  const showNear = near.length > 0 && (m.engine === "rules" || m.flagged);
+                  return (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                      {showNear && <span className="muted" style={{ fontSize: 9 }}>{m.flagged ? t("Thanks — noted for review. Closest questions I can answer:") : t("Related:")}</span>}
+                      {showNear && near.map((x) => <button key={x} className="chip" style={{ fontSize: 10 }} onClick={() => ask(x)}>{x}</button>)}
+                      {!m.flagged && <button className="chip" style={{ fontSize: 10, opacity: 0.75 }} onClick={() => flag(i)}>{t("Not what I asked")}</button>}
+                    </div>
+                  );
+                })()}
               </div>
             ))}
             {busy && <div className="kmsg bot"><span className="spin dark" /> &nbsp;{t("Thinking…")}</div>}

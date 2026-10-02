@@ -103,6 +103,14 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - **Test it in the Claude app:** the demo can be opened as a claude.ai artifact, where the assistant, the daily second opinion and ideation run on Claude through the viewer's own Claude account, with no API key.
 - Shows recommendations as cards and **drafts vendor emails** for approval. The AI can only read and draft — never send, approve or spend.
 
+### Questions nobody anticipated (how the assistant stays reliable)
+People can ask anything, so the assistant has five layers of protection:
+1. **AI first.** With a Claude, OpenAI or Gemini key, or in the Claude app edition, the AI answers in its own words. It looks things up in the data with 19 read-only tools rather than matching keywords. The built-in rules are only the fallback.
+2. **Built-in rules that don't guess.** Specific topics take priority over generic words (for example, "suggest" no longer sends a termination question to the general list). If a question can't be matched, the assistant says so and offers the **closest questions it can answer** as one-click buttons. It does not give a confident wrong answer.
+3. **"Related" and "Not what I asked".** Every answer shows related questions. If an answer misses, from the AI or the rules, one click logs it and offers the closest alternatives.
+4. **A miss log.** Reports → *Questions the assistant missed* lists every unmatched question and every "Not what I asked", newest first. Each one becomes a new answer, a synonym or a test question.
+5. **Regression tests on unseen phrasings.** `npm run chat:eval` checks 135 standard questions and 140 off-script phrasings (paraphrases, informal wording, Arabic dialect and a held-out set written without tuning). Every miss found is added, so a fixed question can't silently break again.
+
 ## 10b. Buyers, ads and the market (sample data)
 
 - **Who the campaigns bring:** leads by city, nationality, buyer type, budget, unit type and age, with qualified and win rates per segment; why leads are lost; how response time relates to conversion.

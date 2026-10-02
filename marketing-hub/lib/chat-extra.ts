@@ -11,13 +11,13 @@ import { type Lang, tx, K, M, nm, dt, firstSentence } from "./i18n";
 
 const RX = {
   help: /^(help|hi|hello|hey|menu|\?)\b|what can (you|i) (do|ask)|how (do|can) (i|you) use|what do you know|capabilit|example questions|مساعدة|ماذا (تستطيع|يمكنك)|ما الذي يمكنك|ماذا أسأل|كيف أستخدم|مرحبا|أهلا/,
-  define: /what (is|are|does|'s) (an? |the )?(cost.?to.?sales|cpl|cpql|cac|qualified (lead )?rate|close rate|pacing|incremental|fair score|score ?card|holdout|geo.?test|mmm|media.?mix|last.?touch|attribution|utm|sla|benchmark|cost per)|\bdefin|meaning of|stand for|ما معنى|ماذا يعني|ما هو|ما هي|تعريف/,
+  define: /what(?: is| are| does|'s|s) (an? |the )?(cost.?to.?sales|cpl|cpql|cac|qualified (lead )?rate|close rate|pacing|incremental|fair score|score ?card|holdout|geo.?test|mmm|media.?mix|last.?touch|attribution|utm|sla|benchmark|cost per)|\bdefin|meaning of|stand for|ما معنى|ماذا يعني|ما هو|ما هي|تعريف/,
   daily: /daily (campaign )?check|campaign check|since yesterday|changed (today|since|overnight)|what('s| is) new|new today|today'?s (check|changes|findings)|open (items|findings) (on|for) campaigns|الفحص اليومي|فحص الحملات|منذ الأمس|ما الجديد|جديد اليوم|تغيّر اليوم|تغير اليوم/,
   compare: /compar|\bvs\.?\b|versus|against|better than|worse than|difference between|قارن|مقارنة|مقابل|أفضل من|أسوأ من|الفرق بين/,
-  metric: /spend|spent|cost|sales|revenue|contracts?|leads?|qualified|how much|how many|perform|result|numbers|total|إنفاق|أنفق|الإنفاق|مبيعات|المبيعات|عقود|عقد|عملاء|مؤهل|كم|أداء|نتائج|أرقام|إجمالي/,
+  metric: /spend|spent|cost|صرف|sales|revenue|contracts?|leads?|qualified|how much|how many|perform|result|numbers|total|إنفاق|أنفق|الإنفاق|مبيعات|المبيعات|عقود|عقد|عملاء|مؤهل|كم|أداء|نتائج|أرقام|إجمالي/,
   history: /histor|\bpast\b|previous|last year|lesson|learn|ramadan|summer|season|launch (season|campaigns)|launches|always.on|did we (run|do)|we ran|have we (ever|run|done)|سابق|السابقة|الماضي|العام الماضي|رمضان|الصيف|موسم|المواسم|إطلاق|دروس|الدروس|تعلم|تعلّم|تاريخ|أرشيف/,
   best: /best|top|most efficient|cheapest|strong|winner|أفضل|الأفضل|أكفأ|الأقوى/,
-  worst: /worst|weakest|most expensive|bad|poor|lowest|failed|أسوأ|الأسوأ|أضعف|الأغلى|فشل/,
+  worst: /worst|weakest|most expensive|bad|poor|lowest|failed|flop|failure|disaster|least efficient|didn'?t work|أسوأ|الأسوأ|أضعف|الأغلى|فشل/,
   lessons: /lesson|learn|takeaway|insight|دروس|الدروس|تعلم|تعلّم|استنتاج/,
   groupProject: /by project|per project|each project|حسب المشروع|لكل مشروع/,
   groupChannel: /by channel|per channel|each channel|حسب القناة|لكل قناة/,
@@ -60,7 +60,8 @@ export function extraEarly(question: string, c: ChatContext): string | null {
   if (RX.help.test(q.trim()) && question.trim().split(/\s+/).length <= 8) return help(L);
 
   // Definitions.
-  if (RX.define.test(q)) {
+  // A metric named next to a project, campaign or vendor ("cost to sales on Marina Tower") asks for the number, not the definition.
+  if (RX.define.test(q) && (!ents.length || /\bdefin|meaning|stand for|what does|ما معنى|ماذا يعني|تعريف/.test(q))) {
     const hits = GLOSSARY.filter((g) => g.rx.test(q));
     if (hits.length) return hits.slice(0, 3).map((g) => T(g.en, g.ar)).join("\n\n");
   }
@@ -72,6 +73,11 @@ export function extraEarly(question: string, c: ChatContext): string | null {
   const data = extraData(question, c);
   if (data) return data;
 
+  // "Rank our projects by cost to sales" — all live projects side by side.
+  if (/\bprojects\b|المشاريع|مشاريعنا/.test(q) && /rank|compar|best|worst|which project|most|least|ترتيب|قارن|أفضل|أسوأ/.test(q)) {
+    const all = resolve(PROJECT_NAMES, c.q).filter((e, i, a) => e.kind === "project" && a.findIndex((x) => x.name === e.name) === i);
+    if (all.length >= 2) return compareAnswer(c, all.slice(0, 4));
+  }
   // Comparison of two or more things.
   const uniq = ents.filter((e, i) => ents.findIndex((x) => x.kind === e.kind && x.name === e.name) === i);
   // "Tasweeq Digital vs Hajar Outdoor" names two vendors, not the digital and outdoor channels.
@@ -87,7 +93,7 @@ export function extraEarly(question: string, c: ChatContext): string | null {
   // History questions (seasons, years, lessons, best / worst past campaigns, benchmarks).
   const season = SEASON_RX.find(([, rx]) => rx.test(q))?.[0];
   const live = ents.some((e) => e.kind === "campaign");
-  if ((RX.history.test(q) && !(live && !/histor|\bpast\b|previous|last year|سابق|الماضي|تاريخ/.test(q))) || (season && !RX.metric.test(q) && !live)) return historyAnswer(c, q, ents, season);
+  if (!/last month|this month|الشهر الماضي|هذا الشهر/.test(q) && (RX.history.test(q) && !(live && !/histor|\bpast\b|previous|last year|سابق|الماضي|تاريخ/.test(q))) || (season && !RX.metric.test(q) && !live)) return historyAnswer(c, q, ents, season);
 
   // Any month / quarter / year with a metric.
   const period = parsePeriod(question, latestLiveMonth(c.q));
@@ -282,17 +288,18 @@ function historyAnswer(c: ChatContext, q: string, ents: Entity[], season?: strin
 
 // ------------------------------------------------- lead profiles, creatives, market, competitors, calendar
 
+const PROJECT_NAMES = "Ash Shati Residences, Marina Tower, Andalus Quarter";
 const RX2 = {
-  lost: /lost reason|why (do|did|are) we (lose|losing)|reasons? (for )?(losing|lost)|lose leads|lost leads|leads? (we )?lost|أسباب الخسارة|لماذا نخسر|سبب خسارة|أسباب خسارة/,
+  lost: /lost reason|why (do|did|are) we (lose|losing)|(makes?|causes?) us (to )?los|(lose|losing) (deals|buyers|sales|customers|clients)|why (deals|leads|buyers) (fall through|drop|don'?t close)|reasons? (for )?(losing|lost)|lose leads|lost leads|leads? (we )?lost|أسباب الخسارة|لماذا نخسر|سبب خسارة|أسباب خسارة/,
   response: /speed.to.lead|does (the )?response time (affect|matter|change)|response time (and|vs) (conversion|sales)|how fast .* (respond|call)|سرعة الاستجابة/,
-  city: /\bcit(y|ies)\b|where (are|do) (the |our )?(leads|buyers) (come )?from|region|المدينة|المدن|من أين/,
+  city: /\bcit(y|ies)\b|(buyers|leads|customers|clients) (from|in) (riyadh|jeddah|dammam|makkah|mecca|medina|khobar)|where (are|do) (the |our |most (of )?(the |our )?)?(leads|buyers|customers) (come from|from|live|located|based)|region|المدينة|المدن|من أين/,
   nationality: /nationalit|\bexpats?\b|\bgcc\b|الجنسي|مقيم|خليجي/,
-  buyerType: /investors?|end.?users?|first.?time|buyer types?|who (buys|is buying|are the buyers)|مستثمر|المستخدم النهائي|لأول مرة|نوع المشتري|من يشتري/,
+  buyerType: /investors?|families|family buyers|end.?users?|first.?time|buyer types?|who (buys|is buying|are the buyers)|مستثمر|المستخدم النهائي|لأول مرة|نوع المشتري|من يشتري/,
   budget: /budget (band|range)s?|buyers'? budget|price range|affordab|ميزانية المشترين|فئة الميزانية|القدرة الشرائية/,
   unit: /unit types?|apartments? or|townhouse|penthouse|office.*retail|نوع الوحدة|أنواع الوحدات|تاون هاوس|بنتهاوس/,
   age: /\bages?\b|how old|age group|العمر|الأعمار|الفئة العمرية/,
   audience: /audience|segments?|profile|demographic|persona|who are (our|the) (buyers|leads)|الجمهور|الشرائح|ملف العملاء|من هم العملاء|شرائح/,
-  creative: /creatives?|ad copy|which ads?\b|best ads?\b|ads? (perform|work)|ad formats?|which formats?|videos?\b|carousel|messag(e|es|ing)|ad fatigue|fatigue|arabic (or|vs) english|الإعلانات الأفضل|أي إعلان|أي الإعلانات|الرسائل الإعلانية|الرسالة الإعلانية|فيديو|التصاميم|الإبداعي/,
+  creative: /creatives?|payment.?plan|ad copy|which ads?\b|best ads?\b|ads? (perform|work)|ad formats?|which formats?|videos?\b|carousel|messag(e|es|ing)|ad fatigue|fatigue|arabic (or|vs) english|الإعلانات الأفضل|أي إعلان|أي الإعلانات|الرسائل الإعلانية|الرسالة الإعلانية|فيديو|التصاميم|الإبداعي/,
   agencyWords: /which agency|what agency|who (runs|created|made)|أي وكالة|من يدير|من أنشأ/,
   market: /\bmarket\b|price per (sqm|square|met)|\bsqm\b|prices? (in|trend|per)|property prices|transactions|supply|mortgage|interest rates?|السوق|سعر المتر|أسعار|الصفقات|المعروض|التمويل العقاري|الرهن|الفائدة/,
   competitors: /competitor|competition|compet(e|es|ing) with|rivals?|other developers|developers (nearby|around)|المنافس|المنافسين|المنافسة|المطورين الآخرين/,

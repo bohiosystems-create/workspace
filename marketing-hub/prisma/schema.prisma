@@ -530,3 +530,15 @@ model CampaignIdea {
   decidedAt  DateTime?
   note       String?
 }
+
+// Questions the assistant could not answer well: logged automatically when the built-in answers fall back,
+// and when a person presses "Not what I asked". Reviewed to teach the assistant new questions.
+model ChatMiss {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  lang      String
+  engine    String
+  source    String   // AUTO (fallback) | USER ("Not what I asked")
+  createdAt DateTime @default(now())
+}

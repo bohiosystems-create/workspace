@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Header from "../_components/Header";
 import { saveFile } from "../_components/saveFile";
 import { useI18n } from "../_components/lang";
+import { MissedQuestions } from "./misses";
 import { useApprover } from "../_components/useAgent";
 
 const DAYS = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] };
@@ -167,6 +168,7 @@ export default function ReportsPage() {
               <iframe title={view.title} sandbox="" srcDoc={view.html} style={{ width: "100%", height: 1100, border: "1px solid var(--ink-hairline)", background: "#fff" }} />
             </div>
           )}
+          <MissedQuestions />
         </>
       )}
     </div>
