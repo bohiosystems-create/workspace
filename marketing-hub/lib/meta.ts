@@ -382,7 +382,7 @@ export async function metaRecommendations(lang: Lang): Promise<MetaRec[]> {
       key: `META_UNKNOWN:${c.id}`, type: "META_UNKNOWN_AGENCY", severity: "crit", vendorId: "", vendor: c.creatorBusinessName ?? c.creatorName ?? "",
       title: T(`An agency that isn't one of your vendors is running Meta ads in your account (${c.creatorBusinessName ?? c.creatorName}, ${K("en", c.spendK)})`, `جهة ليست من مورديكم تدير إعلانات ميتا في حسابكم (${c.creatorBusinessName ?? c.creatorName}، ${K("ar", c.spendK)})`),
       rationale: T(`"${c.name}" was created by ${c.creatorName} (${c.creatorBusinessName ?? "unknown business"}), which has partner access to the ad account but no contract with you. Check who granted access in Business Manager; pause it or confirm who it works for.`, `أنشأ ${c.creatorName} (${c.creatorBusinessName ?? "جهة غير معروفة"}) الحملة «${c.name}»، ولديه صلاحية شريك على الحساب الإعلاني دون عقد معكم. تحققوا ممن منح الصلاحية في مدير الأعمال؛ أوقفوها أو أكّدوا لمن تعمل.`),
-      evidence: [], impactK: c.spendK, channel: "INTERNAL", href: "/data#meta",
+      evidence: [], impactK: c.spendK, channel: "INTERNAL", href: "/campaigns#meta",
     });
     if (c.kind === "CONFLICT") {
       const vs = signals.filter((s) => s.vendorId).map((s) => s.vendorId!).filter((v, i, a) => a.indexOf(v) === i).map((id) => vendors.find((v) => v.id === id)?.name ?? "");
@@ -390,7 +390,7 @@ export async function metaRecommendations(lang: Lang): Promise<MetaRec[]> {
         key: `META_CONFLICT:${c.id}`, type: "META_CONFLICT", severity: "warn", vendorId: "", vendor: vs.join(" / "),
         title: T(`Who runs "${c.name}"? The evidence points at ${vs.join(" and ")} (${K("en", c.spendK)})`, `من يدير «${c.name}»؟ الأدلة تشير إلى ${vs.map((x) => nm("ar", x)).join(" و")} (${K("ar", c.spendK)})`),
         rationale: T(`${signals.map((s) => SIGNAL_TEXT[s.type](s, nm("en", vendors.find((v) => v.id === s.vendorId)?.name ?? ""), "en")).join("; ")}. Until you confirm, this spend is not counted for either vendor and doesn't appear in their reports.`, `${signals.map((s) => SIGNAL_TEXT[s.type](s, nm("ar", vendors.find((v) => v.id === s.vendorId)?.name ?? ""), "ar")).join("؛ ")}. إلى أن تؤكدوا، لا يُحتسب هذا الإنفاق لأي من الموردَين ولا يظهر في تقاريرهما.`),
-        evidence: [], impactK: c.spendK, channel: "INTERNAL", href: "/data#meta",
+        evidence: [], impactK: c.spendK, channel: "INTERNAL", href: "/campaigns#meta",
       });
     }
     if (c.kind === "VENDOR" && c.vendorId && flags.includes("NO_UTM") && c.spendK > 0) {

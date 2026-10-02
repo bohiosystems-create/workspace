@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Header from "../_components/Header";
+import MetaReview from "../_components/MetaReview";
 import { useI18n } from "../_components/lang";
 import { monthShort } from "@/lib/i18n";
 
@@ -389,6 +390,7 @@ export default function MarketingPage() {
           </div>
         </>
       )}
+      <MetaReview />
     </div>
   );
 }

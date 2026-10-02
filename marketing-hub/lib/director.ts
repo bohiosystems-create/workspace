@@ -192,7 +192,7 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
     ...(meta && meta.summary.needsReview ? [{
       kind: "META",
       title: T(`${meta.summary.needsReview} Meta campaign(s) to check — who runs them${meta.summary.unknownK ? ` (incl. ${K("en", meta.summary.unknownK)} by an agency that isn't one of yours)` : ""}`, `حملات ميتا للتحقق (${meta.summary.needsReview}) — من يديرها${meta.summary.unknownK ? ` (منها ${K(lang, meta.summary.unknownK)} لجهة ليست من وكالاتكم)` : ""}`),
-      href: "/data#meta", severity: meta.summary.unknownK ? "crit" : "warn", minutes: 2 * meta.summary.needsReview,
+      href: "/campaigns#meta", severity: meta.summary.unknownK ? "crit" : "warn", minutes: 2 * meta.summary.needsReview,
     }] : []),
     ...(woWaiting.some((o) => o.kind === "MONTHLY_BRIEF") ? [{ kind: "VENDOR", title: T(`${woWaiting.filter((o) => o.kind === "MONTHLY_BRIEF").length} vendor briefs for June, drafted from the approved plan`, `موجزات يونيو للموردين (${woWaiting.filter((o) => o.kind === "MONTHLY_BRIEF").length}) — أُعدّت من الخطة المعتمدة`), href: "/orchestration", severity: "warn", minutes: woWaiting.filter((o) => o.kind === "MONTHLY_BRIEF").length * MINUTES.MONTHLY_BRIEF }] : []),
     ...woWaiting.filter((o) => !o.routine && o.kind !== "MONTHLY_BRIEF").map((o) => ({ kind: "VENDOR", title: `${N(o.vendor)}: ${o.title}`, href: "/orchestration", severity: "warn", minutes: MINUTES[o.kind] ?? 3 })),

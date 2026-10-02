@@ -277,7 +277,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
       T(`**Meta ads — who runs what** (${m.mode})\n${s.campaigns} campaigns, ${K(L, s.spendK)} spent; **${s.attributedPct}%** attributed to an agency. ${s.needsReview} need your confirmation.\n\n`,
         `**إعلانات ميتا — من يدير ماذا** (${m.mode})\n${s.campaigns} حملات، أُنفق ${K(L, s.spendK)}؛ **${s.attributedPct}%** منسوبة إلى وكالة. ${s.needsReview} بحاجة إلى تأكيدكم.\n\n`) +
       rows.slice(0, 10).map((x) => `- ${x.needsReview ? "⚠ " : ""}**${x.name}** — ${x.kind === "VENDOR" ? `${x.vendor}${x.code ? ` · ${x.code}` : ""} (${x.review === "CONFIRMED" ? T(`confirmed by ${x.reviewedBy}`, `أكّده ${x.reviewedBy}`) : CF[x.confidence]})` : KIND[x.kind]} · ${K(L, x.spendK)}\n  ${[...x.signals, ...x.flags.filter((f) => !["IN_HOUSE", "UNKNOWN_AGENCY"].includes(f.code)).map((f) => f.text)].join(T("; ", "؛ "))}`).join("\n") +
-      T("\n\nHow I tell: the campaign code in the name, the utm_campaign on the ads, who created it (Meta activity log) and who owns the ad account. Confirm or correct on Data Sources → Meta.", "\n\nكيف أحدد: رمز الحملة في الاسم، وutm_campaign على الإعلانات، ومن أنشأها (سجل نشاط ميتا)، ومن يملك الحساب الإعلاني. أكّدوا أو صحّحوا من مصادر البيانات ← ميتا."));
+      T("\n\nHow I tell: the campaign code in the name, the utm_campaign on the ads, who created it (Meta activity log) and who owns the ad account. Confirm or correct on Campaigns → Meta ads.", "\n\nكيف أحدد: رمز الحملة في الاسم، وutm_campaign على الإعلانات، ومن أنشأها (سجل نشاط ميتا)، ومن يملك الحساب الإعلاني. أكّدوا أو صحّحوا من الحملات ← إعلانات ميتا."));
   }
   if (RX.report.test(q)) {
     const r = await reportsState(L);

@@ -29,7 +29,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Reset to a clean state: reload the demo file (live app: Ctrl+C, then `npm run demo:live`).
 - [ ] **Type your name in "Approving as"** on the Director page. Buttons stay disabled until a name is entered, and the browser remembers it.
-- [ ] Language: English (switch to العربية in step 14).
+- [ ] Language: English (switch to العربية in step 13).
 
 ### 1. Director — the morning view (3 min)
 
@@ -44,7 +44,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   1. **CRM feed: almost no new leads for 8 days** (normal volume until 30 May). Say: *"The sample CRM data stops on 30 May. The director notices the feed went quiet and won't judge campaigns on missing data."*
   2. **Andalus — Off-plan Launch Funnel costs 8.5% of sales, 4.5× past digital campaigns** (SAR 297.5K spent for SAR 3.5M of sales in the last 3 months).
   3. **An agency that isn't one of your vendors is running Meta ads in your account** (Digital Wave Agency, SAR 8K).
-- [ ] Each line has the reason and one action: **Open** (Daily check, Campaigns, Data Sources, Experiments) or **Draft email**.
+- [ ] Each line has the reason and one action: **Open** (Daily check, Campaigns, Experiments) or **Draft email**.
 - [ ] Click **Show all (22)**, then **Draft email** on *Tasweeq Digital: reported media spend not matched by the ad platforms* (SAR 58.4K). The assistant opens the draft for approval. Don't send it; show that nothing goes out without a name and the "I have read this" box.
 - [ ] Click **Ask the director** and type *"What's today's brief?"* The campaign recommendations come back as cards.
 
@@ -99,7 +99,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 9. Meta — which agency runs each campaign (3 min)
 
-- [ ] **Data Sources**, then scroll to **Meta ads — which agency runs each campaign** (or click the Meta item in the Director's inbox). Expect: **SAR 576.2K Meta spend, 8 campaigns, 92% attributed to an agency.**
+- [ ] **Campaigns**, then scroll to **Meta ads — which agency runs each campaign** at the bottom (or click the Meta item in the Director's inbox, which jumps there). Expect: **SAR 576.2K Meta spend, 8 campaigns, 92% attributed to an agency.**
 - [ ] Show a clean one, *ASH-SEARCH-26 | Ash Shati…*: high confidence. The evidence is the code in its name, the utm on its ads, and that it was created by Layla Nasser of Tasweeq.
 - [ ] Show the **red rows**:
   - *New campaign 14/05*: **Digital Wave Agency isn't one of your vendors** but has access to the ad account (SAR 8K). The agent flags it as urgent.
@@ -124,25 +124,22 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] Change the brief to **Marina Tower, February 2027 (Ramadan), 300** and generate. The payment-plan offer leads (Ramadan 2025 lesson), at about 1.3% cost to sales.
 - [ ] Click **Shortlist** on one idea, then **Approve & draft vendor brief** on another. The brief opens in the assistant as a draft to the lead vendor, in the vendor's language. Don't send it.
 - [ ] Say: *"With AI keys, two different models propose ideas (Gemini and OpenAI by default) and Claude ranks them against your data. In the Claude app edition, Claude does both through your own account."*
+- [ ] If asked about the AI set-up: Claude, OpenAI and Gemini are all built in. Each kind of work goes to the one best suited to it (data questions, analysis and Arabic email wording to Claude; ideas to Gemini plus a second model; bulk work to Gemini Flash), and the next one answers if one fails. This runs in the background; there is no screen for it.
 
-### 12. AI providers and routing (1 min)
-
-- [ ] **Data Sources**, scroll to **AI providers and task routing**. Claude, OpenAI and Gemini are all built in. Each task (data questions, analysis, email wording, ideation, judging, bulk work) goes to the provider best suited to it, and the next one answers if one fails.
-
-### 13. Ask the assistant (3 min)
+### 12. Ask the assistant (3 min)
 
 - [ ] Use 4–5 questions from section D, for example *"What changed since yesterday?"*, *"How did Ramadan campaigns perform?"*, *"Compare 2024 and 2025"*, *"How much did we spend in March by project?"* and *"Should we renew Hajar Outdoor?"*
 - [ ] Say: *"With a Claude, OpenAI or Gemini key (or in the Claude app edition) it answers anything from this data, in its own words, and shows which model answered."*
 - [ ] *"Draft an email to Tasweeq Digital"*, then pick an item: the draft appears for approval. Don't send it; show the approval controls instead.
 
-### 14. Arabic (2 min)
+### 13. Arabic (2 min)
 
 - [ ] Click **العربية**: the whole app flips right-to-left.
 - [ ] Ask *"ما موجز اليوم؟"*, *"ما الجديد منذ الأمس؟"* or *"كيف كان أداء حملات رمضان؟"*
 - [ ] Open **Daily check** in Arabic.
 - [ ] **Reports** in Arabic, then **View** the Arabic report.
 
-### 15. Close (2 min)
+### 14. Close (2 min)
 
 - [ ] Walk through the integration status table (section F) and the questions for Kinan (section G).
 

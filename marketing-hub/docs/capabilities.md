@@ -57,7 +57,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 ## 4. Vendor performance — measured fairly
 
 - **Monitoring:** spend → leads → qualified → viewings → reservations → contracts → sales, per vendor and campaign; cost to sales, cost per lead, budget pacing, alerts (SLA breaches, contracts ending, cost-to-sales above 3%, lead-quality decay).
-- **One source of truth per number:** vendor reports, ad platforms, CRM and Oracle invoices side by side. Vendor-reported vs independently verified figures (spend, leads, contracts, response time).
+- **One source of truth per number (in the background):** vendor reports, ad platforms, CRM and Oracle invoices joined behind the scenes; the screens show the verified results, not the plumbing. Vendor-reported vs independently verified figures (spend, leads, contracts, response time).
 - **Fair scorecard:** each vendor scored against its own channel's benchmark, adjusted for budget size (50 = par), with a score range and a confidence level.
 
 ## 5. Meta ads — which agency runs each campaign

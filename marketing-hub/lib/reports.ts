@@ -6,7 +6,7 @@
 //           scheduled days. "Send now" / "Preview" on the Reports page run it by hand.
 // Content:  computed from the same data as the Director page (no AI needed): headline and brief, sales vs target,
 //           what changed since the last report, decisions waiting (with minutes), campaign recommendations, vendors, risks,
-//           invoices, data freshness. Stored as HTML + text with a metrics snapshot for the next day's comparison.
+//           invoices. Stored as HTML + text with a metrics snapshot for the next day's comparison.
 // Delivery: Outlook (lib/outlook.ts), internal recipients only — every address must be on an allowed domain
 //           (REPORTS_ALLOWED_DOMAINS, default: the sender's domain). The report takes no action and contacts no
 //           vendor or customer.
@@ -147,7 +147,7 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
     !prev ? T("First report.", "التقرير الأول.") : changes.length ? changes.map((c) => `  • ${c.label}: ${c.from} → ${c.to} (${c.delta > 0 ? "+" : ""}${c.delta})`).join("\n") : T("No change.", "لا تغيير.")]);
   // 4. Campaign recommendations — what to change in the campaigns today, with the reason and what's at stake.
   const HOW = (r: (typeof d.campaignRecs)[number]) => r.channel === "EMAIL" ? T("email to the agency drafted for your approval in the app", "رسالة إلى الوكالة مُعدّة لاعتمادكم في التطبيق")
-    : r.href === "/campaigns" ? T("apply in one click on Campaigns", "تطبيق بنقرة واحدة في صفحة الحملات") : r.href?.startsWith("/data") ? T("check on Data Sources → Meta", "تحقق في مصادر البيانات ← ميتا") : r.href === "/experiments" ? T("plan the test on Experiments", "خطّطوا الاختبار في صفحة الاختبارات") : T("open in the app", "افتحوها في التطبيق");
+    : r.href === "/campaigns" ? T("apply in one click on Campaigns", "تطبيق بنقرة واحدة في صفحة الحملات") : r.href === "/campaigns#meta" ? T("check on Campaigns → Meta ads", "تحقق في الحملات ← إعلانات ميتا") : r.href === "/experiments" ? T("plan the test on Experiments", "خطّطوا الاختبار في صفحة الاختبارات") : T("open in the app", "افتحوها في التطبيق");
   const crs = d.campaignRecs.slice(0, 6);
   const crHtml = crs.length ? `<ol style="margin:0;padding-inline-start:20px;line-height:1.55">${crs.map((r) => `<li style="margin-bottom:8px">${r.severity === "crit" ? `<b style="color:${C.alert}">${esc(T("Urgent", "عاجل"))}</b> · ` : ""}<b>${esc(r.title)}</b>${r.impactK && !/SAR|ر\.س/.test(r.title) ? ` <span style="color:${C.soft}">(${esc(K(lang, r.impactK))})</span>` : ""}<br><span style="color:${C.soft}">${esc(firstSentence(r.why))}</span><br><span style="font-size:12px">→ ${esc(HOW(r))}</span></li>`).join("")}</ol>${d.campaignRecs.length > crs.length ? `<p style="margin:6px 0 0;color:${C.soft};font-size:12px">${esc(T(`+ ${d.campaignRecs.length - crs.length} more in the app.`, `+ ${d.campaignRecs.length - crs.length} أخرى في التطبيق.`))}</p>` : ""}
     <p style="margin:10px 0 0;color:${C.soft};font-size:12px">${esc(T(`Campaign quality in the CRM — strongest: ${top.map((x) => `${x.code} (${x.qualifiedRate}% qualified)`).join(", ")}; weakest: ${bottom.map((x) => `${x.code} (${x.qualifiedRate}%)`).join(", ")}.`, `جودة الحملات في النظام — الأقوى: ${top.map((x) => `${x.code} (${x.qualifiedRate}% مؤهلون)`).join("، ")}؛ والأضعف: ${bottom.map((x) => `${x.code} (${x.qualifiedRate}%)`).join("، ")}.`))}</p>`
@@ -170,9 +170,7 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   // 8. Invoices
   const invl = [esc(T(`${a.inv.kpis.exceptions} invoice exception(s) to resolve; ${K(lang, Math.round(a.inv.kpis.overdueK))} overdue for payment; ${K(lang, Math.round(a.inv.kpis.unbilledK))} delivered but not yet invoiced.`, `${an(a.inv.kpis.exceptions, "استثناء واحد", "استثناءان", "استثناءات", "استثناءً")} في الفواتير بحاجة إلى معالجة؛ ${K(lang, Math.round(a.inv.kpis.overdueK))} مستحقة الدفع ومتأخرة؛ ${K(lang, Math.round(a.inv.kpis.unbilledK))} نُفّذت ولم تُفوتر بعد.`))];
   sec.push([T("Supplier invoices", "فواتير الموردين"), ul(invl), tl(invl)]);
-  // 9. Data
-  const src = [...a.unified.sources.map((x) => `${x.key}: ${x.mode}${x.lastSync ? ` · ${dt(lang, x.lastSync)}` : ""}`), T(`Kinan feed (24h): ${ev24.length} sent, ${failed.length} failed`, `التغذية إلى كنان (24 ساعة): ${ev24.length} مُرسلة، ${failed.length} فاشلة`)];
-  sec.push([T("Data", "البيانات"), `<p style="margin:0;color:${C.soft};font-size:12px">${esc(T(`Figures as of ${dt("en", d.asOf)}. Sources — `, `الأرقام حتى ${dt("ar", d.asOf)}. المصادر — `))}${esc(src.join(" · "))}</p>`, src.join(" · ")]);
+
 
   const dir = lang === "ar" ? "rtl" : "ltr";
   const html = `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>

@@ -40,14 +40,14 @@ The work a marketing team would do with the vendors, done by the director (`lib/
 - **Operating rhythm:** daily campaign check (recommendations into the brief), weekly chasing, monthly plan → briefs → feedback → reports, quarterly reviews / renewals / re-bids. `POST /api/orchestration {"action":"RUN"}` runs a cycle (point a scheduler at it).
 - The sample data runs on a fixed clock (`lib/clock.ts`, 8 June 2026); switch it to the real date when live feeds are connected.
 
-## Meta ads — which agency runs each campaign (`/data#meta`)
+## Meta ads — which agency runs each campaign (`/campaigns#meta`)
 
 `lib/meta.ts` reads Meta ad accounts and campaigns (`META_MODE=mock` default · `live` · `off`). Meta does not say which agency runs a campaign, so the agent attributes each one from evidence:
 - **Campaign code in the name**, **`utm_campaign` on the ads** (also what lets the CRM credit leads), the **creator** (ad-account activity log, `create_campaign_group`) mapped to an agency's Business Manager or user, and the **ad-account owner**.
 - Result per campaign: agency + campaign code + confidence (HIGH / MEDIUM / LOW), or **in-house** (the client's own people), **not one of your agencies** (a business with partner access but no contract), **conflict** (evidence points at two vendors).
 - A missing code is inferred from the agency's other campaigns in the same account, and flagged.
 - Only attributed spend (HIGH/MEDIUM, or confirmed) is written to the ad-platform figures that check each vendor's reported media spend.
-- The manager confirms or corrects on Data Sources → Meta. "Remember this creator" teaches the agent an unknown creator, but never re-labels a known agency.
+- The manager confirms or corrects on Campaigns → Meta ads (bottom of the page; the inbox item links there). "Remember this creator" teaches the agent an unknown creator, but never re-labels a known agency.
 - Recommendations: unknown agency (urgent), conflict (decide), no tracking codes (vendor email).
 - The Director inbox shows campaigns to check, and the assistant answers "which agency runs each Meta campaign?".
 - **Live mode** (`META_ACCESS_TOKEN` system-user token with `ads_read` + `business_management`, `META_AD_ACCOUNT_IDS`, `META_API_VERSION`) is written against the Marketing API (account + `agencies`, `campaigns`, `activities`, `ads{creative{url_tags}}`, weekly `insights`) and **has not been run against a real account**. In live mode, agencies' businesses or users are learned from confirmations (no sample identities).
@@ -89,7 +89,7 @@ Every AI job names a **task**, and the router sends it to the best provider for 
 
 - Keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (or `GOOGLE_API_KEY`). Per-task order: `LLM_ROUTE_<TASK>=gemini,anthropic` (unlisted providers stay as fallbacks); `LLM_PROVIDER` moves one provider to the front of every task; `LLM_FALLBACK=off` uses only the first.
 - Models: `ANTHROPIC_MODEL` (default `claude-opus-5-5`; effort `ANTHROPIC_EFFORT=medium`, low for fast tasks; prompt caching on instructions and data), `OPENAI_MODEL` (default `gpt-5`; low reasoning effort for fast tasks; `OPENAI_BASE_URL` for Azure / gateways), `GEMINI_MODEL` (default `gemini-3.8-flash`) and `GEMINI_FAST_MODEL` (default `gemini-3.5-flash-lite`) — Google renames models often, so check the current list.
-- The Data Sources page shows which providers have keys and where each task goes; every AI answer shows the provider and model that wrote it.
+- `GET /api/ai` reports which providers have keys and where each task goes (no screen for it); every AI answer shows the provider and model that wrote it.
 - Models only read data and create drafts. There is no tool to send, approve or spend.
 - Tested against mock servers for all three providers (tool calls, Gemini thought signatures, failover, per-task routing, ideation ensemble and judge), **not yet with real keys**.
 
@@ -134,9 +134,9 @@ Pulls purchase orders and supplier invoices from **Oracle Fusion Cloud Procureme
 
 ## Vendor agent — score, prove, decide, review, re-bid
 
-Pages: **Decisions** (`/decisions`), **Experiments** (`/experiments`), **Bench & Trials** (`/bench`), **Data Sources** (`/data`). All bilingual; the assistant answers questions about every part.
+Pages: **Decisions** (`/decisions`), **Experiments** (`/experiments`), **Bench & Trials** (`/bench`). The data-source layer runs in the background and is not shown in the menu (the `/data` page still exists for set-up and troubleshooting: source status, reported vs independent figures, vendor-report CSV upload). All bilingual; the assistant answers questions about every part.
 
-1. **Unified data** (`lib/unified.ts`, `docs/data-sources.md`) — vendor reports, ad accounts, CRM and Oracle invoices in one model, with a source of truth per metric. The Data Sources page shows every source, its coverage, and vendor-reported vs independent figures (spend vs ad platforms, leads vs CRM, contracts vs CRM wins, response time vs CRM). Vendor reports are imported from one canonical CSV template with validation.
+1. **Unified data** (`lib/unified.ts`, `docs/data-sources.md`) — vendor reports, ad accounts, CRM and Oracle invoices in one model, with a source of truth per metric. A hidden page (`/data`, not in the menu) shows every source, its coverage, and vendor-reported vs independent figures (spend vs ad platforms, leads vs CRM, contracts vs CRM wins, response time vs CRM). Vendor reports are imported from one canonical CSV template with validation.
 2. **Fair scorecard** (`lib/scoring.ts`) — cost per CRM-qualified lead (30%), CRM revenue + stage-weighted pipeline per SAR (30%), spend vs plan (15%, neutral for commission vendors), deadline adherence (15%), revisions (10%). Each metric is indexed against a **channel benchmark adjusted for budget size** (50 = par), multiplied by the measured incremental share where available, and shown with a **score range and confidence**. Benchmarks are assumptions to calibrate (`BENCHMARKS`).
 3. **Incrementality** (`lib/incrementality.ts`, `lib/stats.ts`) — audience-holdout and geo-test readouts (lift, 90% interval, share of results the vendor caused, cost per incremental result, significance), a test designer with power calculation (minimum detectable lift), approval before a test starts, and a **media-mix model** (adstock + saturation per channel, ridge regression with trend / Ramadan / summer, block-bootstrap intervals, reliability and data-sufficiency checks). Tests take precedence over the model.
 4. **Renewal recommendations** (`lib/renewal.ts`) — per vendor: **re-engage, renegotiate, performance plan, test a replacement, or exit**, with evidence, a confidence level (and why), what would change the decision, and targets. Renegotiate / plan / re-engage come with a vendor email (only vendor-safe facts) for human approval.

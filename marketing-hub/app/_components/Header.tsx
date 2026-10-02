@@ -15,7 +15,6 @@ const LINKS = [
   { href: "/experiments", label: "Experiments" },
   { href: "/bench", label: "Bench" },
   { href: "/invoices", label: "Invoices" },
-  { href: "/data", label: "Data" },
 ];
 
 export default function Header() {
