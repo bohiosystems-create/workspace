@@ -294,7 +294,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   // 3. A specific campaign.
   if (campaign) {
     return done(
-      `**${N(campaign.name)}** (${N(campaign.vendor)}، ${N(campaign.asset)}، ${campaign.status === "LIVE" ? T("live", "نشطة") : campaign.status === "PAUSED" ? T("paused", "متوقفة") : T("ended", "منتهية")})\n`.replace("،", L === "ar" ? "،" : ",") +
+      `**${N(campaign.name)}** (${[N(campaign.vendor), N(campaign.asset), campaign.status === "LIVE" ? T("live", "نشطة") : campaign.status === "PAUSED" ? T("paused", "متوقفة") : T("ended", "منتهية")].join(T(", ", "، "))})\n` +
       T(`- Spend SAR ${campaign.spendK}K of ${campaign.budgetK}K budget (pacing ${n(L, campaign.pacingPct, "%")})\n`, `- الإنفاق ${K(L, campaign.spendK)} من ميزانية ${K(L, campaign.budgetK)} (وتيرة الإنفاق ${n(L, campaign.pacingPct, "%")})\n`) +
       T(`- Funnel: ${campaign.leads} leads → ${campaign.qualified} qualified (${n(L, campaign.qualRatePct, "%")}) → ${campaign.viewings} viewings → ${campaign.reservations} reservations → ${campaign.contracts} contracts\n`, `- المسار: ${campaign.leads} عميل محتمل ← ${an(campaign.qualified, "مؤهل واحد", "مؤهلان", "مؤهلين", "مؤهلاً")} (${n(L, campaign.qualRatePct, "%")}) ← ${an(campaign.viewings, "معاينة واحدة", "معاينتان", "معاينات", "معاينة")} ← ${an(campaign.reservations, "حجز واحد", "حجزان", "حجوزات", "حجزاً")} ← ${an(campaign.contracts, "عقد واحد", "عقدان", "عقود", "عقداً")}\n`) +
       T(`- Sales SAR ${campaign.revenueM}M; cost-to-sales ${n(L, campaign.costToSalesPct, "%")}; CAC SAR ${n(L, campaign.cacK, "K")}; cost per lead SAR ${n(L, campaign.cplSar)}${campaign.cplTrendPct ? ` (${campaign.cplTrendPct > 0 ? "+" : ""}${campaign.cplTrendPct}% latest month)` : ""}\n`,

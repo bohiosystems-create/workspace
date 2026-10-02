@@ -7,11 +7,11 @@ const LINKS = [
   { href: "/", label: "Director" },
   { href: "/orchestration", label: "Orchestration" },
   { href: "/reports", label: "Reports" },
-  { href: "/campaigns", label: "Vendors & Campaigns" },
+  { href: "/campaigns", label: "Campaigns" },
   { href: "/decisions", label: "Decisions" },
   { href: "/experiments", label: "Experiments" },
   { href: "/bench", label: "Bench & Trials" },
-  { href: "/invoices", label: "Supplier Invoices" },
+  { href: "/invoices", label: "Invoices" },
   { href: "/data", label: "Data Sources" },
 ];
 

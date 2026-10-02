@@ -105,8 +105,8 @@ textarea { min-height: 200px; line-height: 1.6; resize: vertical; font-size: 12p
 
 /* top nav */
 .topnav { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--ink); padding-bottom: 14px; margin-bottom: 26px; flex-wrap: wrap; gap: 12px; }
-.navlinks { display: flex; gap: 6px; flex-wrap: wrap; }
-.navlink { font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 700; padding: 8px 13px; border: 1px solid var(--ink-hairline); color: var(--ink-soft); text-decoration: none; }
+.navlinks { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; }
+.navlink { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; padding: 8px 11px; border: 1px solid var(--ink-hairline); color: var(--ink-soft); text-decoration: none; }
 .navlink:hover { border-color: var(--ink); color: var(--ink); }
 .navlink.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
@@ -295,3 +295,9 @@ details > summary { list-style: none; }
 [dir="rtl"] .doc h4 { font-size: 12px; }
 [dir="rtl"] .dec-badge { font-size: 11px; }
 [dir="rtl"] .range .par { left: auto; right: 50%; }
+
+/* narrow screens: wide tables scroll inside their panel instead of widening the page */
+.row > *, .panel { min-width: 0; }
+@media (max-width: 720px) {
+  .dtable { display: block; overflow-x: auto; max-width: 100%; }
+}

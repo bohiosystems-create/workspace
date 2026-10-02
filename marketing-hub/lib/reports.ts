@@ -18,7 +18,7 @@ import { buildOrchestration } from "./orchestrator";
 import { buildRecommendations } from "./recommendations";
 import { queueKinanEvent } from "./kinan";
 import { deliverMail, outlookMode, outlookSender } from "./outlook";
-import { type Lang, tx, nm, dt, M, K, an } from "./i18n";
+import { type Lang, tx, nm, dt, dtm, M, K, an } from "./i18n";
 import { TODAY } from "./clock";
 
 const DAY = 86_400_000;
@@ -29,7 +29,7 @@ export const ensureSchedule = single(async function ensureScheduleImpl() {
   const s = (await prisma.reportSchedule.findMany()).find((x) => x.id === "daily");
   if (s) return s;
   return prisma.reportSchedule.create({
-    data: { id: "daily", enabled: true, time: "07:30", timezone: "Asia/Riyadh", days: "0,1,2,3,4", recipients: outlookSender(), languages: "en", toKinan: false, updatedAt: new Date() },
+    data: { id: "daily", enabled: true, time: "07:30", timezone: "Asia/Riyadh", days: "0,1,2,3,4", recipients: outlookSender(), languages: "en,ar", toKinan: false, updatedAt: new Date() },
   });
 });
 
@@ -91,7 +91,7 @@ type Metrics = Record<string, number>;
 const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const C = { ink: "#000919", soft: "#5b6170", line: "#d9d7d4", alert: "#d6334b", green: "#1f7a4d", paper: "#f6f5f3" };
 
-export async function buildReport(lang: Lang, date: string, prev: { metrics: Metrics; date: string } | null) {
+export async function buildReport(lang: Lang, date: string, prev: { metrics: Metrics; date: string; at: Date } | null) {
   const T = (en: string, ar: string) => tx(lang, en, ar);
   const N = (s: string) => nm(lang, s);
   const a = await buildAgent(lang);
@@ -141,10 +141,11 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
      <p style="margin:6px 0 0;color:${C.soft};font-size:12px">${esc(T(`Total: ${M(lang, d.targets.ytdActualM)} of ${M(lang, d.targets.ytdTargetM)} (${d.targets.ytdPct}%), CRM-verified.`, `الإجمالي: ${M(lang, d.targets.ytdActualM)} من ${M(lang, d.targets.ytdTargetM)} (${d.targets.ytdPct}%)، متحقَّق منه في النظام.`))}</p>`,
     rows.map((r) => `  • ${r[0]}: ${r[1]} / ${r[2]} (${r[3]}); ${T("June", "يونيو")} ${r[4]}`).join("\n")]);
   // 3. Since last report
-  const chHtml = !prev ? `<p style="margin:0;color:${C.soft}">${esc(T("First report — tomorrow's will show what changed.", "التقرير الأول — سيُظهر تقرير الغد ما تغيّر."))}</p>`
-    : !changes.length ? `<p style="margin:0;color:${C.soft}">${esc(T(`No change in the key numbers since ${dt("en", prev.date)}.`, `لا تغيير في الأرقام الرئيسية منذ ${dt("ar", prev.date)}.`))}</p>`
+  const prevLabel = prev ? (prev.date === date ? dtm(lang, prev.at) : dt(lang, prev.date)) : "";
+  const chHtml = !prev ? `<p style="margin:0;color:${C.soft}">${esc(T("First report — the next one will show what changed.", "التقرير الأول — سيُظهر التقرير التالي ما تغيّر."))}</p>`
+    : !changes.length ? `<p style="margin:0;color:${C.soft}">${esc(T(`No change in the key numbers since ${prevLabel}.`, `لا تغيير في الأرقام الرئيسية منذ ${prevLabel}.`))}</p>`
     : ul(changes.map((c) => `${esc(c.label)}: ${c.from} → <b>${c.to}</b> <span style="color:${c.good ? C.green : C.alert}">(${c.delta > 0 ? "+" : ""}${c.delta})</span>`));
-  sec.push([prev ? T(`Since the last report (${dt("en", prev.date)})`, `منذ التقرير السابق (${dt("ar", prev.date)})`) : T("Since the last report", "منذ التقرير السابق"), chHtml,
+  sec.push([prev ? T(`Since the last report (${prevLabel})`, `منذ التقرير السابق (${prevLabel})`) : T("Since the last report", "منذ التقرير السابق"), chHtml,
     !prev ? T("First report.", "التقرير الأول.") : changes.length ? changes.map((c) => `  • ${c.label}: ${c.from} → ${c.to} (${c.delta > 0 ? "+" : ""}${c.delta})`).join("\n") : T("No change.", "لا تغيير.")]);
   // 4. Decisions
   const dec = d.inbox.map((x) => `${esc(x.title)} <span style="color:${C.soft}">(~${x.minutes} ${T("min", "د")})</span>`);
@@ -178,7 +179,8 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
 <body style="margin:0;background:${C.paper};color:${C.ink};font-family:${lang === "ar" ? "Tahoma,Arial" : "Helvetica,Arial"},sans-serif">
 <div style="max-width:720px;margin:0 auto;padding:24px 20px">
 <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700">${lang === "ar" ? "بوهيو" : "BOHIO"} · ${esc(T("AI Director of Marketing", "مدير التسويق الذكي"))}</div>
-<h1 style="font-size:20px;margin:10px 0 18px;border-bottom:2px solid ${C.ink};padding-bottom:10px">${esc(title)}</h1>
+<h1 style="font-size:20px;margin:10px 0 4px">${esc(title)}</h1>
+<div style="font-size:12px;color:${C.soft};margin:0 0 18px;border-bottom:2px solid ${C.ink};padding-bottom:10px">${esc(T(`Figures as of ${dt("en", d.asOf)}`, `الأرقام حتى ${dt("ar", d.asOf)}`))}</div>
 ${sec.map(([h, body]) => `<div style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}
 <p style="font-size:11px;color:${C.soft}">${esc(T("Generated automatically by the AI Director of Marketing. This report takes no action: approvals happen in the app.", "أُعدّ تلقائياً بواسطة مدير التسويق الذكي. لا يتخذ هذا التقرير أي إجراء: تتم الاعتمادات داخل التطبيق."))}</p>
 </div></body></html>`;
@@ -194,8 +196,9 @@ async function produce(trigger: "SCHEDULED" | "MANUAL", date: string, send: bool
   const out: { id: string; lang: Lang }[] = [];
   let kinanSent = false;
   for (const lang of langs) {
-    const prev = all.filter((r) => r.lang === lang && r.date < date).sort((p, q) => q.createdAt.getTime() - p.createdAt.getTime())[0];
-    const r = await buildReport(lang, date, prev ? { metrics: JSON.parse(prev.metrics), date: prev.date } : null);
+    // Compare with the most recent earlier report in this language (yesterday's, or an earlier run today).
+    const prev = all.filter((r) => r.lang === lang).sort((p, q) => q.createdAt.getTime() - p.createdAt.getTime())[0];
+    const r = await buildReport(lang, date, prev ? { metrics: JSON.parse(prev.metrics), date: prev.date, at: prev.createdAt } : null);
     let status = "GENERATED", delivery: string | null = null, error: string | null = null, sentAt: Date | null = null, kinanEventId: string | null = null;
     if (send) {
       if (!recipients.length) { status = "FAILED"; error = tx(lang, "No recipients set.", "لم يُحدَّد مستلمون."); }

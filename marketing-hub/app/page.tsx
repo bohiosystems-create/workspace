@@ -13,6 +13,7 @@ export default function DirectorPage() {
   const { lang, t, N, k, m, K, M, dm } = useI18n();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [savedApprover, saveApprover] = useApprover();
   const [approver, setApprover] = useState("");
@@ -29,10 +30,12 @@ export default function DirectorPage() {
   async function act(body: any, key: string) {
     setBusy(key);
     setError(null);
+    setMessage(null);
     try {
       const d = await (await fetch("/api/director", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, approver, lang: langRef.current }) })).json();
       if (d.error) throw new Error(d.error);
       setData(d);
+      if (d.message) setMessage(d.message);
     } catch (e: any) { setError(e.message); } finally { setBusy(null); }
   }
   const openChat = () => window.dispatchEvent(new Event("open-director"));
@@ -47,6 +50,7 @@ export default function DirectorPage() {
       <div className="section-title">{t("Director of Marketing")}</div>
       <p className="intro">{t("Your AI director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and hands leads to Kinan's AI agent in Yardi. You only make the decisions below — nothing that spends money or contacts a customer or vendor happens without your name on it.")}</p>
       {error && <div className="err">{error}</div>}
+      {message && <div className="alert info" style={{ padding: "10px 14px", marginBottom: 12 }}>{message}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Preparing today's brief…")}</div>}
 
       {data && (
@@ -183,6 +187,9 @@ export default function DirectorPage() {
                 <span className="tag" dir="ltr">agent · {data.kinan.mode}</span><span className="tag" dir="ltr">yardi · {data.kinan.yardi}</span>
                 <div style={{ flex: 1 }} />
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "retry"} onClick={() => act({ action: "RETRY" }, "retry")}>{t("Retry failed")}</button>
+                {data.kinan.mode === "mock" && data.tasks.some((x: any) => x.assignee === "KINAN_AGENT" && x.status === "APPROVED") && (
+                  <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "sim"} title={t("Demo only: plays Kinan's agent reporting back through the real feedback API.")} onClick={() => act({ action: "SIMULATE_KINAN" }, "sim")}>{t("Simulate Kinan's reply")}</button>
+                )}
               </div>
               {data.kinan.outbox.length === 0 && <div className="muted">{t("Nothing sent yet.")}</div>}
               {data.kinan.outbox.map((e: any) => (

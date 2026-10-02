@@ -568,6 +568,8 @@ const UI5: Record<string, string> = {
  "Timezone": "المنطقة الزمنية",
  "To send on schedule, set REPORTS_CRON_KEY and call POST /api/reports/run every 15 minutes (any scheduler). Until then, use Send now.": "للإرسال وفق الجدول، اضبطوا REPORTS_CRON_KEY واستدعوا POST /api/reports/run كل 15 دقيقة (بأي أداة جدولة). وحتى ذلك الحين استخدموا «إرسال الآن».",
  "View": "عرض",
+ "Simulate Kinan's reply": "محاكاة رد وكيل كنان",
+ "Demo only: plays Kinan's agent reporting back through the real feedback API.": "للعرض فقط: يحاكي وكيل كنان وهو يعيد النتائج عبر واجهة الملاحظات الفعلية.",
  "due now": "مستحق الآن",
  "Scheduled": "مجدول",
  "Manual": "يدوي",

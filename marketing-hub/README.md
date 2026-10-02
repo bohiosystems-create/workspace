@@ -7,6 +7,8 @@ where the money goes, and feeds approved work into **Kinan's CRM (Yardi) and
 Kinan's AI agent**. The manager only approves. Separate
 app with its own database — no dependency on `deal-screener`.
 
+**Client demo:** capabilities in [`docs/capabilities.md`](docs/capabilities.md), step-by-step script in [`docs/demo-checklist.md`](docs/demo-checklist.md). `npm run demo:reset` gives the live app a clean sample database; `npm run demo:build` rebuilds the one-file demo (`demo.html`). In mock mode, "Simulate Kinan's reply" on the Director page plays Kinan's agent reporting back through the real feedback API.
+
 ## Director (`/`) and the Kinan feed
 
 The home page is the director's desk (`lib/director.ts`, `app/page.tsx`); vendor and campaign monitoring moved to `/campaigns`.

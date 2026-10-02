@@ -126,3 +126,32 @@ export async function recordKinanFeedback(b: any) {
   if (Object.keys(data).length) await prisma.crmLead.update({ where: { id: lead.id }, data });
   return { ok: true, updated: Object.keys(data).length ? 1 : 0 };
 }
+
+/**
+ * Demo only (KINAN_MODE=mock): play Kinan's agent working the approved follow-up tasks, through the same
+ * feedback path the real agent would use (recordKinanFeedback). Deterministic: about 60% of each task's leads
+ * are contacted, a quarter of those qualify (follow-ups) or book a viewing (re-engagement); the task is closed.
+ */
+export async function simulateKinanReplies() {
+  if (kinanMode() !== "mock") throw new Error("The Kinan simulator only runs in KINAN_MODE=mock.");
+  const tasks = (await prisma.directorTask.findMany()).filter((t) => t.assignee === "KINAN_AGENT" && t.status === "APPROVED" && t.payload);
+  let contacted = 0, progressed = 0;
+  for (const t of tasks) {
+    const p = JSON.parse(t.payload!);
+    const leads: { leadId: string }[] = (p.leads ?? []).slice(0, 150);
+    for (let i = 0; i < leads.length; i++) {
+      if (i % 5 >= 3) continue; // ~60% reached
+      const at = new Date("2026-06-08T10:00:00Z");
+      if (p.reason === "no_first_response_48h") {
+        await recordKinanFeedback({ type: "lead.contacted", leadId: leads[i].leadId, at: at.toISOString(), source: "simulator" });
+        contacted++;
+        if (i % 4 === 0) { await recordKinanFeedback({ type: "lead.outcome", leadId: leads[i].leadId, stage: "QUALIFIED", source: "simulator" }); progressed++; }
+      } else {
+        contacted++;
+        if (i % 4 === 0) { await recordKinanFeedback({ type: "lead.outcome", leadId: leads[i].leadId, stage: "VIEWING", source: "simulator" }); progressed++; }
+      }
+    }
+    await recordKinanFeedback({ type: "task.done", taskId: t.id, source: "simulator" });
+  }
+  return { tasks: tasks.length, contacted, progressed };
+}

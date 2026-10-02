@@ -258,7 +258,11 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
   return {
     asOf: TODAY.toISOString(), brief, targets: { monthly, byAsset, ytdActualM: ytdA, ytdTargetM: ytdT, ytdPct },
     plan, inbox, managerMinutes, orchestration: orch.summary,
-    tasks: tasks.sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime()).map((x) => ({
+    tasks: tasks.sort((x, y) => {
+      // Open work first; follow-ups (most urgent) before re-engagement; then newest first.
+      const st = ["PROPOSED", "APPROVED", "DONE", "REJECTED"], kind = (k: string) => (k.startsWith("FOLLOWUP") ? 0 : 1);
+      return st.indexOf(x.status) - st.indexOf(y.status) || kind(x.key) - kind(y.key) || y.createdAt.getTime() - x.createdAt.getTime();
+    }).map((x) => ({
       id: x.id, assignee: x.assignee, title: taskTitle(x), detail: lang === "ar" ? x.detailAr ?? x.detail : x.detail, status: x.status, approvedBy: x.approvedBy, eventId: x.eventId,
       leads: x.payload ? (JSON.parse(x.payload).leads?.length ?? 0) : 0,
     })),

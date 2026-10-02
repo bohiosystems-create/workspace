@@ -383,7 +383,7 @@ model ReportSchedule {
   timezone   String   @default("Asia/Riyadh")
   days       String   @default("0,1,2,3,4") // 0 = Sunday … 6 = Saturday (default Sunday–Thursday)
   recipients String   @default("") // comma-separated internal addresses
-  languages  String   @default("en") // en | ar | en,ar
+  languages  String   @default("en,ar") // en | ar | en,ar
   toKinan    Boolean  @default(false) // also send the headline to Kinan's agent (brief.daily)
   updatedBy  String?
   updatedAt  DateTime @default(now())
