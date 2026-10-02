@@ -68,6 +68,7 @@ export default function DirectorPage() {
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
               <button className="btn" onClick={openChat}>{t("Ask the director")}</button>
               <button className="btn ghost" disabled={busy === "brief"} onClick={() => act({ action: "SEND_BRIEF" }, "brief")}>{t("Send brief to Kinan's agent")}</button>
+              <a className="btn ghost" style={{ textDecoration: "none" }} href="/reports">{t("Daily report")}</a>
             </div>
           </div>
 

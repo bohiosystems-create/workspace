@@ -2,6 +2,7 @@ import { buildRecommendations, createDraft, type Polish, type Rec } from "./reco
 import { buildAgent } from "./agent";
 import { buildDirector } from "./director";
 import { buildOrchestration } from "./orchestrator";
+import { reportsState } from "./reports";
 import { kinanOutbox, kinanMode } from "./kinan";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr } from "./i18n";
 
@@ -146,6 +147,7 @@ const RX = {
   plan: /budget plan|allocation|allocate|next month|june|reallocat|خطة الميزانية|الميزانية|توزيع|الشهر القادم|يونيو/,
   approvals: /approv|waiting|inbox|pending|sign.?off|decide|بانتظار|اعتماد|موافقة|قرارات معلقة/,
   kinan: /kinan|yardi|كنان|ياردي/,
+  report: /daily report|scheduled report|morning report|reports? schedule|التقرير اليومي|تقرير يومي|التقارير المجدولة|جدول التقارير/,
   orch: /orchestrat|work orders?|vendors? owe|owe us|deliverables?|chas(e|ing)|remind|vendor briefs?|briefs? (to|for) (the )?vendors|what are (the )?vendors doing|my time|how much time|تنسيق|أوامر العمل|التسليمات|تسليمات|تذكير|موجزات الموردين|وقتي|كم من الوقت|يدين به الموردون|يدينون/,
   renewal: /renew|decision|exit|renegotiat|performance plan|replace|re-?engage|keep or drop|drop |fire |تجديد|نجدد|نجدّد|يجدد|التجديد|نستغني|نستمر|نبقي|قرار|الخروج|إنهاء|إعادة التفاوض|خطة أداء|استبدال|الاستغناء/,
   incr: /incremental|holdout|geo test|\bmmm\b|media.?mix|caused|lift|would have happened anyway|الأثر الإضافي|أثر إضافي|اختبار|مزيج الإعلام|المجموعة المستبعدة/,
@@ -205,7 +207,18 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   const ag = c.agent;
 
   const dr = c.director;
-  // 2a. Director: vendor orchestration, brief, targets, plan, approvals, Kinan feed.
+  // 2a. Director: daily report, vendor orchestration, brief, targets, plan, approvals, Kinan feed.
+  if (RX.report.test(q)) {
+    const r = await reportsState(L);
+    const s = r.schedule, last = r.reports[0];
+    const days = s.days.map((i) => T(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][i], ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][i])).join(T(", ", "، "));
+    return done(
+      T(`**Daily report** — ${s.enabled ? `on, ${s.time} (${s.timezone}), ${days}` : "paused"}; to ${s.recipients || "nobody yet"}${s.toKinan ? ", with a copy of the brief to Kinan's agent" : ""}.\n`,
+        `**التقرير اليومي** — ${s.enabled ? `مفعّل، الساعة ${s.time} (${s.timezone})، ${days}` : "متوقف"}؛ إلى ${s.recipients || "لا أحد بعد"}${s.toKinan ? "، مع نسخة من الموجز إلى وكيل كنان" : ""}.\n`) +
+      (r.next ? T(`Next: ${dt("en", r.next.date)} at ${r.next.time}.\n`, `التالي: ${dt("ar", r.next.date)} الساعة ${r.next.time}.\n`) : "") +
+      (last ? T(`Last: ${last.title} — ${last.status.toLowerCase()}${last.delivery === "mock" ? " (simulated)" : ""}.\n`, `الأخير: ${last.title} — ${({ SENT: "أُرسل", GENERATED: "أُعدّ", FAILED: "فشل" } as Record<string, string>)[last.status] ?? last.status}${last.delivery === "mock" ? " (تجريبي)" : ""}.\n`) : T("No report yet.\n", "لا تقارير بعد.\n")) +
+      T("\nChange the time, days or recipients, preview or send it now on the Reports page.", "\nغيّروا الوقت أو الأيام أو المستلمين، أو اعرضوه أو أرسلوه الآن من صفحة التقارير."));
+  }
   if (RX.orch.test(q)) {
     const o = c.orch, vid = vendor ? mkt.vendors.find((v) => v.name === vendor.name)?.id : undefined;
     const orders = o.orders.filter((x) => !vid || x.vendorId === vid), dels = o.deliverables.filter((x) => !vendor || x.vendor === vendor.name);

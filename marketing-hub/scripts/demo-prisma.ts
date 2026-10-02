@@ -59,6 +59,8 @@ export const prisma = {
   directorTask: table([], { status: "PROPOSED", eventId: null, titleAr: null, detailAr: null }),
   kinanEvent: table([], { status: "PENDING", attempts: 0, lastError: null, deliveredAt: null, mode: null }),
   kinanFeedback: table([]),
+  reportSchedule: table([]),
+  report: table([], { kind: "DAILY", recipients: "", delivery: null, error: null, sentAt: null, kinanEventId: null }),
   workOrder: table([], { status: "PROPOSED", routine: false, payload: null, issuedAt: null, doneAt: null }),
   campaign: {
     findMany: async () => data.campaigns,

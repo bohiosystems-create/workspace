@@ -6,6 +6,7 @@ import { useI18n } from "./lang";
 const LINKS = [
   { href: "/", label: "Director" },
   { href: "/orchestration", label: "Orchestration" },
+  { href: "/reports", label: "Reports" },
   { href: "/campaigns", label: "Vendors & Campaigns" },
   { href: "/decisions", label: "Decisions" },
   { href: "/experiments", label: "Experiments" },

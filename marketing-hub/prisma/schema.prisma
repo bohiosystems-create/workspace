@@ -373,3 +373,37 @@ model WorkOrder {
   doneAt     DateTime?
   error      String?
 }
+
+// Scheduled reports. One schedule row ("daily"); a run creates one Report per language and emails it to internal
+// recipients only. Triggered by POST /api/reports/run (cron) or "Generate now".
+model ReportSchedule {
+  id         String   @id @default("daily")
+  enabled    Boolean  @default(true)
+  time       String   @default("07:30") // local time, HH:MM
+  timezone   String   @default("Asia/Riyadh")
+  days       String   @default("0,1,2,3,4") // 0 = Sunday … 6 = Saturday (default Sunday–Thursday)
+  recipients String   @default("") // comma-separated internal addresses
+  languages  String   @default("en") // en | ar | en,ar
+  toKinan    Boolean  @default(false) // also send the headline to Kinan's agent (brief.daily)
+  updatedBy  String?
+  updatedAt  DateTime @default(now())
+}
+
+model Report {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  date       String // local date the report is for (schedule timezone), YYYY-MM-DD
+  kind       String    @default("DAILY")
+  trigger    String // SCHEDULED | MANUAL
+  lang       String
+  title      String
+  html       String
+  text       String
+  metrics    String // JSON snapshot, compared by the next report ("since last report")
+  recipients String    @default("")
+  status     String // GENERATED | SENT | FAILED
+  delivery   String? // mock | send
+  error      String?
+  sentAt     DateTime?
+  kinanEventId String?
+}

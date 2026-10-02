@@ -35,6 +35,15 @@ The work a marketing team would do with the vendors, done by the director (`lib/
 - **Operating rhythm:** daily lead-response watch, weekly chasing, monthly plan → briefs → feedback → reports, quarterly reviews / renewals / re-bids. `POST /api/orchestration {"action":"RUN"}` runs a cycle (point a scheduler at it).
 - The sample data runs on a fixed clock (`lib/clock.ts`, 8 June 2026); switch it to the real date when live feeds are connected.
 
+## Daily scheduled reports (`/reports`)
+
+The director writes the manager's daily report (`lib/reports.ts`) and emails it through Outlook:
+
+- **Content** (same data as the Director page, no AI needed): headline and brief; sales vs target per project with the month's forecast; **what changed since the last report** (sales, decisions waiting, uncontacted leads, late deliverables, overdue work orders, invoice exceptions, overdue payments, failed Kinan deliveries, critical risks — compared with the stored snapshot of the previous report); decisions waiting with minutes; vendors (escalations, late deliverables, exits / replacements); leads and Kinan (uncontacted leads, last 24h of the Kinan feed, best and weakest sources); risks; supplier invoices; data freshness. HTML email (RTL for Arabic) plus a text version; every report is kept in the history and can be viewed or downloaded.
+- **Schedule** (set on the page, change recorded with a name): time, timezone (default 07:30 Asia/Riyadh), days (default Sunday–Thursday), language(s), recipients, optional copy of the brief to Kinan's agent (`brief.daily`).
+- **Trigger:** a scheduler calls `POST /api/reports/run` every 15 minutes with `x-api-key: $REPORTS_CRON_KEY` (or `Authorization: Bearer …`, so Vercel Cron works). It sends once per local day, at or after the set time, on scheduled days — a missed slot is sent at the next check that day; repeated calls do nothing. Without `REPORTS_CRON_KEY` the endpoint is disabled; "Send now" and "Preview" still work.
+- **Internal only:** recipients must be on `REPORTS_ALLOWED_DOMAINS` (default: the domain of `OUTLOOK_SENDER`). Reports are always sent, never left as Outlook drafts, and take no action — approvals stay in the app.
+
 **Kinan connector** (`lib/kinan.ts`, `docs/kinan-integration.md`): an outbox (`KinanEvent`) that stores every event, delivers it and retries failures — `lead.followup_requested`, `lead_source.quality`, `director.plan_approved`, `campaign.status_changed`, `brief.daily`.
 
 - `KINAN_MODE=mock` (default) records events without sending; `KINAN_MODE=webhook` POSTs to `KINAN_AGENT_WEBHOOK_URL`, signed with HMAC-SHA256 (`X-Bohio-Signature: sha256=…`, secret `KINAN_WEBHOOK_SECRET`).
@@ -120,7 +129,7 @@ npm run dev          # http://localhost:3001
 
 Data is seeded on first load (`lib/seed-marketing.ts`, illustrative, Jan–May 2026). Replace it with vendor reporting feeds / CRM sales data to go live. Attribution is last-touch.
 
-Layout: `lib/director.ts` + `app/page.tsx` (director) · `lib/orchestrator.ts` + `app/orchestration/page.tsx` (vendor orchestration) · `lib/marketing.ts` + `app/campaigns/page.tsx` (vendors & campaigns) · `lib/kinan.ts` (Kinan feed) · `lib/claude.ts`.
+Layout: `lib/director.ts` + `app/page.tsx` (director) · `lib/orchestrator.ts` + `app/orchestration/page.tsx` (vendor orchestration) · `lib/reports.ts` + `app/reports/page.tsx` + `app/api/reports/run` (daily reports) · `lib/marketing.ts` + `app/campaigns/page.tsx` (vendors & campaigns) · `lib/kinan.ts` (Kinan feed) · `lib/claude.ts`.
 
 ## Static demo
 

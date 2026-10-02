@@ -6,12 +6,13 @@
 //           OUTLOOK_DELIVERY=draft : POST /users/{sender}/messages       (Mail.ReadWrite) — a person then
 //                                    reviews and sends it from Outlook.
 //
-// This module only ever runs AFTER a human has approved the exact revision of the email
-// (see lib/recommendations.ts). Plain-text bodies only.
+// Vendor emails only reach this module AFTER a human has approved the exact revision of the email
+// (see lib/recommendations.ts). The other caller is the scheduled internal report (lib/reports.ts), which goes
+// only to internal addresses (allowed domains) and is always sent, never left as a draft.
 //
 // NOTE: written against the Microsoft Graph v1.0 docs; not exercised against a real tenant.
 
-export type MailToSend = { to: string; cc: string[]; subject: string; body: string };
+export type MailToSend = { to: string; cc: string[]; subject: string; body: string; html?: boolean; internal?: boolean };
 export type SendResult = { delivery: "mock" | "send" | "draft"; providerRef: string };
 
 export const outlookMode = () => (process.env.OUTLOOK_MODE === "live" ? "live" : "mock");
@@ -44,13 +45,13 @@ export async function deliverMail(mail: MailToSend): Promise<SendResult> {
   const sender = encodeURIComponent(outlookSender());
   const message = {
     subject: mail.subject,
-    body: { contentType: "Text", content: mail.body },
+    body: { contentType: mail.html ? "HTML" : "Text", content: mail.body },
     toRecipients: [{ emailAddress: { address: mail.to } }],
     ccRecipients: mail.cc.map((address) => ({ emailAddress: { address } })),
   };
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-  if (outlookDelivery() === "draft") {
+  if (outlookDelivery() === "draft" && !mail.internal) {
     const res = await fetch(`https://graph.microsoft.com/v1.0/users/${sender}/messages`, { method: "POST", headers, body: JSON.stringify(message) });
     if (!res.ok) throw new Error(`Outlook draft creation failed (${res.status}).`);
     const j = await res.json();
