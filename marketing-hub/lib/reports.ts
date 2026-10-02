@@ -5,7 +5,7 @@
 //           at it every 15 minutes; a report runs once per local day, at or after the scheduled time, on the
 //           scheduled days. "Send now" / "Preview" on the Reports page run it by hand.
 // Content:  computed from the same data as the Director page (no AI needed): headline and brief, sales vs target,
-//           what changed since the last report, decisions waiting (with minutes), vendors, leads and Kinan, risks,
+//           what changed since the last report, decisions waiting (with minutes), campaign recommendations, vendors, risks,
 //           invoices, data freshness. Stored as HTML + text with a metrics snapshot for the next day's comparison.
 // Delivery: Outlook (lib/outlook.ts), internal recipients only — every address must be on an allowed domain
 //           (REPORTS_ALLOWED_DOMAINS, default: the sender's domain). The report takes no action and contacts no
@@ -18,8 +18,7 @@ import { buildOrchestration } from "./orchestrator";
 import { buildRecommendations } from "./recommendations";
 import { queueKinanEvent } from "./kinan";
 import { deliverMail, outlookMode, outlookSender } from "./outlook";
-import { type Lang, tx, nm, dt, dtm, M, K, an } from "./i18n";
-import { TODAY } from "./clock";
+import { type Lang, tx, nm, dt, dtm, M, K, an, firstSentence } from "./i18n";
 
 const DAY = 86_400_000;
 export const TIMEZONES = ["Asia/Riyadh", "Asia/Dubai", "Asia/Qatar", "Africa/Cairo", "Europe/London", "UTC"];
@@ -95,20 +94,19 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   const T = (en: string, ar: string) => tx(lang, en, ar);
   const N = (s: string) => nm(lang, s);
   const a = await buildAgent(lang);
-  const [d, o, leads, events] = await Promise.all([buildDirector(lang, a), buildOrchestration(lang, a), prisma.crmLead.findMany(), prisma.kinanEvent.findMany()]);
-  const untouched = leads.filter((x) => x.stage === "NEW" && !x.firstResponseAt && TODAY.getTime() - x.createdAt.getTime() > 2 * DAY && x.campaignId).length;
+  const [d, o, events] = await Promise.all([buildDirector(lang, a), buildOrchestration(lang, a), prisma.kinanEvent.findMany()]);
   const since = Date.now() - DAY;
   const ev24 = events.filter((e) => e.createdAt.getTime() >= since);
   const recs = (await buildRecommendations(lang, a)).recommendations.filter((r) => r.severity === "crit" && (r.state === "OPEN" || r.state === "DRAFTED"));
 
   const metrics: Metrics = {
     ytdSalesM: d.targets.ytdActualM, ytdPct: d.targets.ytdPct, decisions: d.inbox.length, minutes: d.managerMinutes,
-    untouchedLeads: untouched, lateDeliverables: o.summary.lateDeliverables, overdueWorkOrders: o.summary.overdue, withVendors: o.summary.withVendors,
+    campaignRecs: d.campaignRecs.length, urgentCampaignRecs: d.campaignRecs.filter((r) => r.severity === "crit").length, lateDeliverables: o.summary.lateDeliverables, overdueWorkOrders: o.summary.overdue, withVendors: o.summary.withVendors,
     invoiceExceptions: a.inv.kpis.exceptions, overdueK: Math.round(a.inv.kpis.overdueK), kinanFailed: events.filter((e) => e.status === "FAILED").length, criticalRisks: recs.length,
   };
   const LABEL: Record<string, [string, string, "up" | "down"]> = {
     ytdSalesM: ["Sales year to date (SAR M)", "المبيعات منذ بداية العام (مليون ر.س)", "up"], ytdPct: ["% of target", "% من المستهدف", "up"],
-    decisions: ["Decisions waiting", "قرارات بانتظاركم", "down"], untouchedLeads: ["Leads nobody contacted (48h+)", "عملاء لم يتواصل معهم أحد (48+ ساعة)", "down"],
+    decisions: ["Decisions waiting", "قرارات بانتظاركم", "down"], campaignRecs: ["Campaign recommendations open", "توصيات الحملات المفتوحة", "down"], urgentCampaignRecs: ["Urgent campaign recommendations", "توصيات حملات عاجلة", "down"],
     lateDeliverables: ["Late vendor deliverables", "تسليمات موردين متأخرة", "down"], overdueWorkOrders: ["Overdue work orders", "أوامر عمل متأخرة", "down"],
     withVendors: ["Work orders with vendors", "أوامر عمل لدى الموردين", "up"], invoiceExceptions: ["Invoice exceptions", "استثناءات الفواتير", "down"],
     overdueK: ["Overdue payments (SAR K)", "مدفوعات متأخرة (ألف ر.س)", "down"], kinanFailed: ["Failed deliveries to Kinan", "إرسالات فاشلة إلى كنان", "down"],
@@ -124,7 +122,7 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   const title = T(`Daily marketing report — ${dateLabel}`, `التقرير التسويقي اليومي — ${dateLabel}`);
   const lateDels = o.deliverables.filter((x) => x.state === "LATE");
   const failed = events.filter((e) => e.status === "FAILED");
-  const top = d.sourceQuality.slice(0, 2), bottom = d.sourceQuality.slice(-2);
+  const top = d.campaignQuality.slice(0, 2), bottom = d.campaignQuality.slice(-2);
 
   // Sections as [heading, html, text]
   const sec: [string, string, string][] = [];
@@ -147,7 +145,16 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
     : ul(changes.map((c) => `${esc(c.label)}: ${c.from} → <b>${c.to}</b> <span style="color:${c.good ? C.green : C.alert}">(${c.delta > 0 ? "+" : ""}${c.delta})</span>`));
   sec.push([prev ? T(`Since the last report (${prevLabel})`, `منذ التقرير السابق (${prevLabel})`) : T("Since the last report", "منذ التقرير السابق"), chHtml,
     !prev ? T("First report.", "التقرير الأول.") : changes.length ? changes.map((c) => `  • ${c.label}: ${c.from} → ${c.to} (${c.delta > 0 ? "+" : ""}${c.delta})`).join("\n") : T("No change.", "لا تغيير.")]);
-  // 4. Decisions
+  // 4. Campaign recommendations — what to change in the campaigns today, with the reason and what's at stake.
+  const HOW = (r: (typeof d.campaignRecs)[number]) => r.channel === "EMAIL" ? T("email to the agency drafted for your approval in the app", "رسالة إلى الوكالة مُعدّة لاعتمادكم في التطبيق")
+    : r.href === "/campaigns" ? T("apply in one click on Campaigns", "تطبيق بنقرة واحدة في صفحة الحملات") : r.href?.startsWith("/data") ? T("check on Data Sources → Meta", "تحقق في مصادر البيانات ← ميتا") : r.href === "/experiments" ? T("plan the test on Experiments", "خطّطوا الاختبار في صفحة الاختبارات") : T("open in the app", "افتحوها في التطبيق");
+  const crs = d.campaignRecs.slice(0, 6);
+  const crHtml = crs.length ? `<ol style="margin:0;padding-inline-start:20px;line-height:1.55">${crs.map((r) => `<li style="margin-bottom:8px">${r.severity === "crit" ? `<b style="color:${C.alert}">${esc(T("Urgent", "عاجل"))}</b> · ` : ""}<b>${esc(r.title)}</b>${r.impactK && !/SAR|ر\.س/.test(r.title) ? ` <span style="color:${C.soft}">(${esc(K(lang, r.impactK))})</span>` : ""}<br><span style="color:${C.soft}">${esc(firstSentence(r.why))}</span><br><span style="font-size:12px">→ ${esc(HOW(r))}</span></li>`).join("")}</ol>${d.campaignRecs.length > crs.length ? `<p style="margin:6px 0 0;color:${C.soft};font-size:12px">${esc(T(`+ ${d.campaignRecs.length - crs.length} more in the app.`, `+ ${d.campaignRecs.length - crs.length} أخرى في التطبيق.`))}</p>` : ""}
+    <p style="margin:10px 0 0;color:${C.soft};font-size:12px">${esc(T(`Campaign quality in the CRM — strongest: ${top.map((x) => `${x.code} (${x.qualifiedRate}% qualified)`).join(", ")}; weakest: ${bottom.map((x) => `${x.code} (${x.qualifiedRate}%)`).join(", ")}.`, `جودة الحملات في النظام — الأقوى: ${top.map((x) => `${x.code} (${x.qualifiedRate}% مؤهلون)`).join("، ")}؛ والأضعف: ${bottom.map((x) => `${x.code} (${x.qualifiedRate}%)`).join("، ")}.`))}</p>`
+    : `<p style="margin:0">${esc(T("No campaign changes recommended today.", "لا تغييرات مقترحة على الحملات اليوم."))}</p>`;
+  sec.push([T(`Campaign recommendations — ${d.campaignRecs.length} open, ${d.campaignRecs.filter((r) => r.severity === "crit").length} urgent`, `توصيات الحملات — ${d.campaignRecs.length} مفتوحة، ${d.campaignRecs.filter((r) => r.severity === "crit").length} عاجلة`), crHtml,
+    crs.map((r, i) => `  ${i + 1}. ${r.severity === "crit" ? `[${T("urgent", "عاجل")}] ` : ""}${r.title}${r.impactK && !/SAR|ر\.س/.test(r.title) ? ` (${K(lang, r.impactK)})` : ""} — ${firstSentence(r.why)} → ${HOW(r)}`).join("\n")]);
+  // 4b. Decisions
   const dec = d.inbox.map((x) => `${esc(x.title)} <span style="color:${C.soft}">(~${x.minutes} ${T("min", "د")})</span>`);
   sec.push([T(`Waiting for your decision — about ${d.managerMinutes} min`, `بانتظار قراركم — نحو ${an(d.managerMinutes, "دقيقة واحدة", "دقيقتين", "دقائق", "دقيقة")}`), dec.length ? ul(dec) : `<p style="margin:0">${T("Nothing waiting.", "لا شيء بالانتظار.")}</p>`, tl(d.inbox.map((x) => `${x.title} (~${x.minutes} min)`))]);
   // 5. Vendors
@@ -158,20 +165,13 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
     ...a.decisions.filter((x) => x.decision === "EXIT" || x.decision === "TEST_REPLACEMENT").map((x) => esc(`${N(x.vendor)}: ${x.headline}`)),
   ];
   sec.push([T("Vendors", "الموردون"), ul(vend), tl(vend)]);
-  // 6. Leads & Kinan
-  const lk = [
-    esc(T(`${untouched} leads older than 48h with no first response${untouched ? " — follow-up task for Kinan's agent is on your list" : ""}.`, `${an(untouched, "عميل محتمل واحد", "عميلان محتملان", "عملاء محتملين", "عميلاً محتملاً")} مضى عليهم أكثر من 48 ساعة دون رد${untouched ? " — مهمة المتابعة لوكيل كنان ضمن قائمتكم" : ""}.`)),
-    esc(T(`Kinan feed, last 24h: ${ev24.length} event(s), ${ev24.filter((e) => e.status === "DELIVERED").length} delivered; ${failed.length} failed overall.`, `التغذية إلى كنان، آخر 24 ساعة: ${ev24.length} حدث، سُلّم ${ev24.filter((e) => e.status === "DELIVERED").length}؛ والفاشلة إجمالاً ${failed.length}.`)),
-    esc(T(`Best lead sources: ${top.map((x) => `${x.code} (${x.qualifiedRate}% qualified)`).join(", ")}; weakest: ${bottom.map((x) => `${x.code} (${x.qualifiedRate}%)`).join(", ")}.`, `أفضل مصادر العملاء: ${top.map((x) => `${x.code} (${x.qualifiedRate}% مؤهلون)`).join("، ")}؛ والأضعف: ${bottom.map((x) => `${x.code} (${x.qualifiedRate}%)`).join("، ")}.`)),
-  ];
-  sec.push([T("Leads and Kinan", "العملاء المحتملون وكنان"), ul(lk), tl(lk)]);
   // 7. Risks
   if (recs.length) sec.push([T("Risks", "المخاطر"), ul(recs.slice(0, 6).map((r) => `<span style="color:${C.alert}">${esc(r.title)}</span>`)), tl(recs.slice(0, 6).map((r) => r.title))]);
   // 8. Invoices
   const invl = [esc(T(`${a.inv.kpis.exceptions} invoice exception(s) to resolve; ${K(lang, Math.round(a.inv.kpis.overdueK))} overdue for payment; ${K(lang, Math.round(a.inv.kpis.unbilledK))} delivered but not yet invoiced.`, `${an(a.inv.kpis.exceptions, "استثناء واحد", "استثناءان", "استثناءات", "استثناءً")} في الفواتير بحاجة إلى معالجة؛ ${K(lang, Math.round(a.inv.kpis.overdueK))} مستحقة الدفع ومتأخرة؛ ${K(lang, Math.round(a.inv.kpis.unbilledK))} نُفّذت ولم تُفوتر بعد.`))];
   sec.push([T("Supplier invoices", "فواتير الموردين"), ul(invl), tl(invl)]);
   // 9. Data
-  const src = a.unified.sources.map((x) => `${x.key}: ${x.mode}${x.lastSync ? ` · ${dt(lang, x.lastSync)}` : ""}`);
+  const src = [...a.unified.sources.map((x) => `${x.key}: ${x.mode}${x.lastSync ? ` · ${dt(lang, x.lastSync)}` : ""}`), T(`Kinan feed (24h): ${ev24.length} sent, ${failed.length} failed`, `التغذية إلى كنان (24 ساعة): ${ev24.length} مُرسلة، ${failed.length} فاشلة`)];
   sec.push([T("Data", "البيانات"), `<p style="margin:0;color:${C.soft};font-size:12px">${esc(T(`Figures as of ${dt("en", d.asOf)}. Sources — `, `الأرقام حتى ${dt("ar", d.asOf)}. المصادر — `))}${esc(src.join(" · "))}</p>`, src.join(" · ")]);
 
   const dir = lang === "ar" ? "rtl" : "ltr";

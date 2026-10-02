@@ -5,7 +5,7 @@ import { buildOrchestration } from "./orchestrator";
 import { reportsState } from "./reports";
 import { metaState, metaMode } from "./meta";
 import { kinanOutbox, kinanMode } from "./kinan";
-import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr } from "./i18n";
+import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firstSentence } from "./i18n";
 
 // What the chat can put in front of the user besides text. Cards are rendered live from
 // current data, so approving / editing an email happens in the card, never through the model.
@@ -65,8 +65,8 @@ export function snapshotForModel(c: ChatContext) {
       brief: c.director.brief, targets: c.director.targets, budgetPlan: c.director.plan, waitingForDecision: c.director.inbox.map((x) => ({ title: x.title, minutes: x.minutes })), managerMinutes: c.director.managerMinutes,
       metaAttribution: c.meta ? { summary: c.meta.summary, accounts: c.meta.accounts, campaigns: c.meta.campaigns.map((x) => ({ name: x.name, account: x.account, createdBy: x.creator, spendK: x.spendK, leads: x.leads, utm: x.utm, attributedTo: x.kind === "VENDOR" ? `${x.vendor} ${x.code ?? ""}` : x.kind, confidence: x.confidence, evidence: x.signals, flags: x.flags.map((f) => f.text), needsReview: x.needsReview })) } : null,
       vendorOrchestration: { summary: c.orch.summary, escalations: c.orch.escalations.map((x) => x.title), workOrders: c.orch.orders.map((x) => ({ vendor: x.vendor, kind: x.kind, title: x.title, status: x.status, overdue: x.overdue, routine: x.routine, checks: x.checks.map((k) => `${k.state}: ${k.label}`) })), deliverables: c.orch.deliverables.map((x) => ({ vendor: x.vendor, item: x.title, due: x.due.slice(0, 10), state: x.state, reminders: x.chases })) },
-      delegations: c.director.tasks.map((x) => ({ to: x.assignee, title: x.title, status: x.status, leads: x.leads })),
-      leadSourceQuality: c.director.sourceQuality.map((x) => ({ code: x.code, score: x.qualityScore, guidance: x.guidance })),
+      campaignRecommendations: c.director.campaignRecs.map((x) => ({ title: x.title, severity: x.severity, why: x.why, impactK: x.impactK, action: x.channel === "EMAIL" ? "draft vendor email" : x.href })),
+      campaignQualityFromCrm: c.director.campaignQuality.map((x) => ({ code: x.code, score: x.qualityScore, verdict: x.verdict })),
     },
     fairScorecard: {
       method: c.agent.method,
@@ -150,6 +150,7 @@ const RX = {
   plan: /budget plan|allocation|allocate|next month|june|reallocat|خطة الميزانية|الميزانية|توزيع|الشهر القادم|يونيو/,
   approvals: /approv|waiting|inbox|pending|sign.?off|decide|بانتظار|اعتماد|موافقة|قرارات معلقة/,
   kinan: /kinan|yardi|كنان|ياردي/,
+  campaignRecs: /campaign recommendation|change (in|to|on) (the |our |my )?campaigns|which campaigns (should|to|need)|what (should|do) (i|we) change|توصيات الحملات|ماذا (أغيّر|أغير|نغيّر|نغير)|أي الحملات/,
   meta: /\bmeta\b|facebook|instagram|which agency|what agency|who (runs|created|is running|made)|agency behind|ميتا|فيسبوك|فيس بوك|انستغرام|إنستغرام|أي وكالة|من أنشأ|من يدير|الوكالة التي/,
   report: /daily report|scheduled report|morning report|reports? schedule|التقرير اليومي|تقرير يومي|التقارير المجدولة|جدول التقارير/,
   orch: /orchestrat|work orders?|vendors? owe|owe us|deliverables?|chas(e|ing)|remind|vendor briefs?|briefs? (to|for) (the )?vendors|what are (the )?vendors doing|my time|how much time|تنسيق|أوامر العمل|التسليمات|تسليمات|تذكير|موجزات الموردين|وقتي|كم من الوقت|يدين به الموردون|يدينون/,
@@ -196,6 +197,15 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     }
     cards.push(...targets.map((x) => ({ kind: "rec" as const, key: x.r.key })));
     return done(T(`There are ${targets.length} open items for ${vendor?.name ?? "that vendor"}. Which one should I draft an email for? Use "Draft email" on the card, or say e.g. "draft R${targets[0].i + 1}".`, `هناك ${an(targets.length, "بند واحد", "بندان", "بنود", "بنداً")} مفتوحة لـ${vendor ? N(vendor.name) : "هذا المورد"}. أيّها أُعدّ له رسالة؟ استخدموا زر «مسودة بريد» في البطاقة، أو قولوا مثلاً «اكتب R${targets[0].i + 1}».`));
+  }
+
+  // 2a. Campaign recommendations (the brief's campaign section).
+  if (RX.campaignRecs.test(q) && !vendor) {
+    const crs = c.director.campaignRecs;
+    cards.push(...crs.slice(0, 5).map((x) => ({ kind: "rec" as const, key: x.key })));
+    return done(T(`**Campaign recommendations** — ${crs.length} open, ${crs.filter((x) => x.severity === "crit").length} urgent\n`, `**توصيات الحملات** — ${crs.length} مفتوحة، ${crs.filter((x) => x.severity === "crit").length} عاجلة\n`) +
+      crs.slice(0, 8).map((x, i) => `${i + 1}. ${x.severity === "crit" ? T("[urgent] ", "[عاجل] ") : ""}**${x.title}** — ${firstSentence(x.why)}`).join("\n") +
+      T("\n\nPause or move budget on Campaigns; vendor emails are drafted for your approval (use the cards).", "\n\nأوقفوا أو انقلوا الميزانية من صفحة الحملات؛ وتُعدّ رسائل الموردين لاعتمادكم (استخدموا البطاقات)."));
   }
 
   // 2. Recommendations / next steps.
@@ -270,7 +280,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     const out = await kinanOutbox(8, lang);
     return done(T(`**Feed to Kinan** (agent: ${kinanMode()})\n`, `**التغذية إلى كنان** (الوكيل: ${kinanMode()})\n`) +
       (out.map((e) => `- ${e.type} → ${e.target === "YARDI" ? "Yardi" : T("AI agent", "الوكيل الذكي")}: ${e.status}${e.summary ? ` (${e.summary})` : ""}`).join("\n") || T("- nothing sent yet", "- لم يُرسل شيء بعد")) +
-      T(`\n\nDelegations for Kinan's agent: ${dr.tasks.filter((x) => x.assignee === "KINAN_AGENT").map((x) => `${x.title} (${x.status.toLowerCase()})`).join("; ") || "none"}.`, `\n\nالمهام المحالة إلى وكيل كنان: ${dr.tasks.filter((x) => x.assignee === "KINAN_AGENT").map((x) => `${x.title} (${({ PROPOSED: "مقترحة", APPROVED: "معتمدة", DONE: "منجزة", REJECTED: "مرفوضة" } as Record<string, string>)[x.status] ?? x.status})`).join("؛ ") || "لا يوجد"}.`));
+      T("\n\nLeads, follow-ups and sales stay with Kinan's agent; I share the plan, campaign codes, campaign changes and the daily brief.", "\n\nالعملاء المحتملون والمتابعة والمبيعات من اختصاص وكيل كنان؛ وأشارك الخطة ورموز الحملات وتغييراتها والموجز اليومي."));
   }
 
   // 2b. Renewal decisions (all vendors, or the one asked about).
@@ -308,8 +318,10 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
 
   // 2e. Director's brief / targets (after the more specific intents).
   if (RX.brief.test(q) && !vendor && !campaign) {
-    cards.push(...active.filter((x) => x.r.severity === "crit").slice(0, 3).map((x) => ({ kind: "rec" as const, key: x.r.key })));
-    return done(`**${dr.brief.headline}**\n${dr.brief.bullets.map((b) => `- ${b}`).join("\n")}\n\n${T("**This week I recommend**", "**أوصي هذا الأسبوع بما يلي**")}\n${dr.brief.actions.map((a, i) => `${i + 1}. ${a}`).join("\n")}`);
+    // Campaign recommendations are part of the brief: show them as actionable cards.
+    cards.push(...dr.campaignRecs.slice(0, 4).map((x) => ({ kind: "rec" as const, key: x.key })));
+    const cr = dr.campaignRecs.slice(0, 5).map((x) => `- ${x.severity === "crit" ? T("[urgent] ", "[عاجل] ") : ""}**${x.title}**${x.impactK && !/SAR|ر\.س/.test(x.title) ? ` (${K(L, x.impactK)})` : ""} — ${firstSentence(x.why)}`).join("\n");
+    return done(`**${dr.brief.headline}**\n${dr.brief.bullets.map((b) => `- ${b}`).join("\n")}\n\n${cr ? `${T("**Campaign recommendations**", "**توصيات الحملات**")}\n${cr}\n\n` : ""}${T("**This week I recommend**", "**أوصي هذا الأسبوع بما يلي**")}\n${dr.brief.actions.map((a, i) => `${i + 1}. ${a}`).join("\n")}`);
   }
 
   // 3. A specific campaign.

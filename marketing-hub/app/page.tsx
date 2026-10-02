@@ -4,10 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import Header from "./_components/Header";
 import { useI18n } from "./_components/lang";
 import { useApprover, openDrafts } from "./_components/useAgent";
-import { monthShort } from "@/lib/i18n";
+import { monthShort, firstSentence } from "@/lib/i18n";
 
 const DECISION_LABEL: Record<string, string> = { RE_ENGAGE: "Re-engage", RENEGOTIATE: "Renegotiate", PERFORMANCE_PLAN: "Performance plan", TEST_REPLACEMENT: "Test replacement", EXIT: "Exit", PROMOTED: "Promoted" };
-const ASSIGNEE: Record<string, string> = { KINAN_AGENT: "Kinan AI agent", VENDOR: "Vendor" };
 
 export default function DirectorPage() {
   const { lang, t, N, k, m, K, M, dm } = useI18n();
@@ -39,6 +38,18 @@ export default function DirectorPage() {
     } catch (e: any) { setError(e.message); } finally { setBusy(null); }
   }
   const openChat = () => window.dispatchEvent(new Event("open-director"));
+  const [showAllRecs, setShowAllRecs] = useState(false);
+  // Draft the vendor email for a campaign recommendation, then open it in the assistant for review.
+  async function draft(key: string) {
+    setBusy(key); setError(null);
+    try {
+      const r = await (await fetch("/api/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "DRAFT", key, lang: langRef.current }) })).json();
+      if (r.error) throw new Error(r.error);
+      const d = await (await fetch(`/api/director?lang=${langRef.current}`)).json();
+      if (!d.error) setData(d);
+      openDrafts();
+    } catch (e: any) { setError(e.message); } finally { setBusy(null); }
+  }
 
   const tg = data?.targets;
   const maxBar = tg ? Math.max(...tg.monthly.map((x: any) => Math.max(x.actualM, x.targetM)), 1) : 1;
@@ -48,7 +59,7 @@ export default function DirectorPage() {
     <div className="shell">
       <Header />
       <div className="section-title">{t("Director of Marketing")}</div>
-      <p className="intro">{t("Your AI director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and hands leads to Kinan's AI agent in Yardi. You only make the decisions below — nothing that spends money or contacts a customer or vendor happens without your name on it.")}</p>
+      <p className="intro">{t("Your AI director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and tells you which campaigns to change. Leads and sales stay with Kinan's agent; the director reads the CRM results and shares the plan and campaign changes with it. You only make the decisions below — nothing that spends money or contacts a vendor happens without your name on it.")}</p>
       {error && <div className="err">{error}</div>}
       {message && <div className="alert info" style={{ padding: "10px 14px", marginBottom: 12 }}>{message}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Preparing today's brief…")}</div>}
@@ -68,6 +79,22 @@ export default function DirectorPage() {
                 <div className="chart-label">{t("This week I recommend")}</div>
                 <ol style={{ margin: 0, paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.brief.actions.map((b: string, i: number) => <li key={i}>{b}</li>)}</ol>
               </div>
+            </div>
+            <div id="campaign-recs" style={{ marginTop: 16, borderTop: "1px solid var(--ink-hairline)", paddingTop: 12 }}>
+              <div className="chart-label">{t("Campaign recommendations")} ({data.campaignRecs.length})</div>
+              {data.campaignRecs.length === 0 && <div className="muted">{t("No campaign changes recommended today.")}</div>}
+              {data.campaignRecs.slice(0, showAllRecs ? 99 : 5).map((r: any) => (
+                <div key={r.key} className={`alert ${r.severity === "crit" ? "crit" : r.severity === "warn" ? "warn" : "info"}`} style={{ padding: "8px 12px", marginBottom: 6, alignItems: "flex-start" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5 }}><b>{r.title}</b>{r.impactK && !/SAR|ر\.س/.test(r.title) ? <span className="muted"> · {K(r.impactK)}</span> : null}</div>
+                    <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{firstSentence(r.why)}</div>
+                  </div>
+                  {r.channel === "EMAIL"
+                    ? <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, flex: "none" }} disabled={busy === r.key} onClick={() => (r.state === "DRAFTED" ? openDrafts() : draft(r.key))}>{t(r.state === "DRAFTED" ? "Review draft" : "Draft email")}</button>
+                    : r.href ? <a className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, textDecoration: "none", flex: "none" }} href={r.href}>{t("Open")}</a> : null}
+                </div>
+              ))}
+              {data.campaignRecs.length > 5 && <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8 }} onClick={() => setShowAllRecs(!showAllRecs)}>{showAllRecs ? t("Show fewer") : `${t("Show all")} (${data.campaignRecs.length})`}</button>}
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
               <button className="btn" onClick={openChat}>{t("Ask the director")}</button>
@@ -156,30 +183,6 @@ export default function DirectorPage() {
             <div className="muted" style={{ fontSize: 10, marginTop: 6 }}>{data.plan.assumptions}</div>
           </div>
 
-          <div id="tasks" className="panel" style={{ marginTop: 18 }}>
-            <div className="chart-label">{t("Delegations to Kinan's AI agent")}</div>
-            {data.tasks.length === 0 && <div className="muted">{t("No delegations.")}</div>}
-            {data.tasks.map((x: any) => (
-              <div className="dec" key={x.id} style={{ marginBottom: 8 }}>
-                <div className="dec-head">
-                  <span className="tag">{t(ASSIGNEE[x.assignee] ?? x.assignee)}</span>
-                  <b>{x.title}</b>
-                  <div style={{ flex: 1 }} />
-                  <span className={`pill ${x.status === "DONE" ? "healthy" : x.status === "APPROVED" ? "live" : x.status === "REJECTED" ? "hold" : "fix"}`}>{t(x.status)}</span>
-                </div>
-                <div style={{ fontSize: 12, marginTop: 6, color: "var(--ink-soft)" }}>{x.detail}</div>
-                {x.approvedBy && <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{t("approved by")} {x.approvedBy}{x.eventId ? ` · ${t("sent to Kinan")}` : ""}</div>}
-                <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-                  {x.status === "PROPOSED" && <>
-                    <button className="btn" style={{ padding: "8px 12px", fontSize: 9 }} disabled={!approver.trim() || busy === x.id} onClick={() => act({ action: "DECIDE_TASK", id: x.id, decision: "APPROVE" }, x.id)}>{x.assignee === "KINAN_AGENT" ? `${t("Approve and send to Kinan's agent")} (${x.leads})` : t("Approve")}</button>
-                    <button className="btn ghost" style={{ padding: "8px 12px", fontSize: 9 }} disabled={!approver.trim() || busy === x.id} onClick={() => act({ action: "DECIDE_TASK", id: x.id, decision: "REJECT" }, x.id)}>{t("Reject")}</button>
-                  </>}
-                  {x.status === "APPROVED" && <button className="btn ghost" style={{ padding: "8px 12px", fontSize: 9 }} disabled={!approver.trim() || busy === x.id} onClick={() => act({ action: "DECIDE_TASK", id: x.id, decision: "DONE" }, x.id)}>{t("Mark done")}</button>}
-                </div>
-              </div>
-            ))}
-          </div>
-
           <div className="row twocol" style={{ marginTop: 18 }}>
             <div className="panel">
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
@@ -187,9 +190,6 @@ export default function DirectorPage() {
                 <span className="tag" dir="ltr">agent · {data.kinan.mode}</span><span className="tag" dir="ltr">yardi · {data.kinan.yardi}</span>
                 <div style={{ flex: 1 }} />
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "retry"} onClick={() => act({ action: "RETRY" }, "retry")}>{t("Retry failed")}</button>
-                {data.kinan.mode === "mock" && data.tasks.some((x: any) => x.assignee === "KINAN_AGENT" && x.status === "APPROVED") && (
-                  <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "sim"} title={t("Demo only: plays Kinan's agent reporting back through the real feedback API.")} onClick={() => act({ action: "SIMULATE_KINAN" }, "sim")}>{t("Simulate Kinan's reply")}</button>
-                )}
               </div>
               {data.kinan.outbox.length === 0 && <div className="muted">{t("Nothing sent yet.")}</div>}
               {data.kinan.outbox.map((e: any) => (
@@ -207,20 +207,18 @@ export default function DirectorPage() {
 
             <div className="panel">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-                <div className="chart-label" style={{ margin: 0 }}>{t("Lead-source quality — handling guidance for Kinan")}</div>
-                <div style={{ flex: 1 }} />
-                <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "src"} onClick={() => act({ action: "PUSH_SOURCES" }, "src")}>{t("Send to Kinan")}</button>
+                <div className="chart-label" style={{ margin: 0 }}>{t("Campaign quality from the CRM")}</div>
               </div>
               <table className="dtable">
-                <thead><tr><th>{t("Campaign code")}</th><th className="num">{t("Qualified")}</th><th className="num">{t("Won")}</th><th className="num">{t("Score")}</th><th>{t("Guidance")}</th></tr></thead>
+                <thead><tr><th>{t("Campaign code")}</th><th className="num">{t("Qualified")}</th><th className="num">{t("Won")}</th><th className="num">{t("Score")}</th><th>{t("Verdict")}</th></tr></thead>
                 <tbody>
-                  {data.sourceQuality.map((s: any) => (
+                  {data.campaignQuality.map((s: any) => (
                     <tr key={s.code}>
                       <td><b dir="ltr">{s.code}</b><div className="muted" style={{ fontSize: 9 }}>{N(s.campaign)}</div></td>
                       <td className="num">{s.qualifiedRate}%</td>
                       <td className="num">{s.winRate}%</td>
                       <td className="num">{s.qualityScore}</td>
-                      <td><span className={`pill ${s.guidance === "PRIORITISE" ? "healthy" : s.guidance === "DEPRIORITISE" ? "weak" : "hold"}`} style={{ display: "inline-block" }}>{t(s.guidance)}</span><div className="muted" style={{ fontSize: 9, marginTop: 4, lineHeight: 1.4 }}>{s.guidanceText}</div></td>
+                      <td><span className={`pill ${s.verdict === "STRONGEST" ? "healthy" : s.verdict === "WEAKEST" ? "weak" : "hold"}`} style={{ display: "inline-block" }}>{t(s.verdict)}</span><div className="muted" style={{ fontSize: 9, marginTop: 4, lineHeight: 1.4 }}>{s.advice}</div></td>
                     </tr>
                   ))}
                 </tbody>

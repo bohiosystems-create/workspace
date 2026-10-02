@@ -65,7 +65,7 @@ export default function ReportsPage() {
     <div className="shell">
       <Header />
       <div className="section-title">{t("Daily reports")}</div>
-      <p className="intro">{t("Every scheduled morning the director writes your report — sales against target, what changed since yesterday, decisions waiting (with minutes), vendors, leads and Kinan, risks and invoices — and emails it to you. Reports go to internal addresses only and take no action.")}</p>
+      <p className="intro">{t("Every scheduled morning the director writes your report — sales against target, what changed since yesterday, campaign recommendations, decisions waiting (with minutes), vendors, risks and invoices — and emails it to you. Reports go to internal addresses only and take no action.")}</p>
       {error && <div className="err">{error}</div>}
       {message && <div className="alert info" style={{ padding: "10px 14px", marginBottom: 12 }}>{message}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}

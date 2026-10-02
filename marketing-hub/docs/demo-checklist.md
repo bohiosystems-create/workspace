@@ -1,6 +1,6 @@
 # Client demo checklist — AI Director of Marketing
 
-About 28 minutes. Every step and number below was rehearsed on the demo file in English and Arabic.
+About 30 minutes. Every step and number below was rehearsed on the demo file in English and Arabic.
 
 ---
 
@@ -32,45 +32,45 @@ About 28 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Read the brief headline: **"Sales are at 81% of target year to date; Andalus Quarter is furthest behind (38%)."**
 - [ ] Show the tiles: SAR 133.9M of SAR 165M, and the three projects (38% / 90% / 92%).
-- [ ] Show the actual-vs-target chart: red months are below 90% of target.
-- [ ] **Waiting for your decision: 9 items, about 50 min.** Point at the minutes; this is the manager's whole week.
-- [ ] Click **Ask the director** and type *"What's today's brief?"*
+- [ ] **Waiting for your decision: 7 items, about 46 min.** Point at the minutes; this is the manager's whole week.
+- [ ] Say: *"Leads, follow-up and sales are Kinan's own agent's job. The director reads the CRM results to judge the campaigns."*
 
-### 2. Daily report — baseline (1 min)
+### 2. Campaign recommendations in the brief (3 min)
+
+- [ ] In the brief, **Campaign recommendations (11)**. The first three are urgent:
+  1. **Pause Andalus — Off-plan Launch Funnel**: 6.03% cost to sales.
+  2. **An agency that isn't one of your vendors is running Meta ads in your account** (Digital Wave, SAR 8K).
+  3. **1 Tasweeq Digital campaign not converting into sales** (SAR 164K).
+- [ ] Each line has the reason and one action: **Open** (Campaigns, Data Sources, Experiments) or **Draft email**.
+- [ ] Click **Draft email** on the Tasweeq item. The assistant opens the draft for approval. Don't send it; show that nothing goes out without a name and the "I have read this" box.
+- [ ] Click **Ask the director** and type *"What's today's brief?"* The campaign recommendations come back as cards.
+
+### 3. Daily report — baseline (1 min)
 
 - [ ] Go to **Reports** and click **Send now**. The report opens below.
+- [ ] Show the **Campaign recommendations — 11 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
 - [ ] Show the schedule: 07:30 Riyadh, Sunday–Thursday, English and Arabic, internal addresses only.
-- [ ] Say: *"Watch the 'since the last report' section later."*
 
-### 3. Approve the June budget plan (3 min)
+### 4. Approve the June budget plan (3 min)
 
 - [ ] On **Director**, go to **Budget plan**: total SAR 596K, about **+SAR 0.6M** extra sales, **SAR 62K** held in reserve.
 - [ ] Explain the logic: money moves to the vendors that bring the most extra sales per riyal. The exiting vendor (Hajar) is halved, and Tasweeq is cut while it's being tested.
-- [ ] Click **Approve plan and send to Kinan**. The Kinan feed shows `director.plan_approved` with your name.
-
-### 4. Hand leads to Kinan's AI agent (3 min)
-
-- [ ] Under **Delegations to Kinan's AI agent**, click **Approve and send to Kinan's agent (151)** on *"Follow up 151 leads that nobody contacted"*.
-- [ ] Click **Simulate Kinan's reply** (demo only). Expect: **"90 leads contacted, 22 qualified or booked a viewing; 1 task closed."**
-- [ ] Point out that a new task appeared, *"Follow up 61 leads…"*: the director keeps tracking what's left.
+- [ ] Click **Approve plan and send to Kinan**. Kinan's agent gets the plan and campaign codes as context.
 
 ### 5. Orchestration — running the vendors (5 min)
 
-- [ ] Open **Orchestration**. Show the four role cards: you, the director, vendors, Kinan's agent.
+- [ ] Open **Orchestration**. Show the four role cards: you, the director, vendors, and Kinan's agent (owns leads and sales).
 - [ ] **14 waiting**: 6 June briefs (drafted from the plan you just approved), 7 routine (5 lead-feedback emails and 2 reminders for late items), and 1 non-renewal notice.
-- [ ] Open the **PropertyHub KSA** brief email: it's in **Arabic**, the vendor's language, with budget, campaign codes, targets and due dates.
+- [ ] Open the **PropertyHub KSA** brief email: it's in **Arabic**, the vendor's language.
 - [ ] Tick **I have read the routine messages**, then click **Approve and send all routine**.
 - [ ] Tick **I have read the briefs**, then click **Approve and send all briefs**.
-- [ ] Show **With vendors — checked against the data**: each brief's checks (report due 5 Jul, creative due 15 Jun, spend check waiting for June data).
-- [ ] In **What vendors owe us**, click **Mark received** on Sada Influence's late item. It becomes "Received late", feeds the on-time score, and its reminder closes.
-- [ ] Explain escalation: two reminders, then the director asks *you* to call.
-- [ ] Leave the **Hajar non-renewal notice** unapproved and say: *"A contract decision — I'd check the notice period first."*
+- [ ] In **What vendors owe us**, click **Mark received** on Sada Influence's late item. It becomes "Received late".
+- [ ] Leave the **Hajar non-renewal notice** unapproved: a contract decision.
 
 ### 6. The report shows what changed (2 min)
 
 - [ ] **Reports**, then **Send now** again. In **"Since the last report"** expect:
-  - Decisions waiting **9 → 7**
-  - Leads nobody contacted **151 → 61**
+  - Decisions waiting **8 → 6** (8 because the email you drafted in step 2 joined the list)
   - Late vendor deliverables **2 → 1**
   - Work orders with vendors **0 → 7**
   - Overdue work orders **0 → 1**, in red (Nakhla's press release is still late after a reminder)
@@ -112,6 +112,7 @@ About 28 minutes. Every step and number below was rehearsed on the demo file in 
 **English**
 - What's today's brief?
 - What needs my approval?
+- What should I change in the campaigns?
 - What do vendors owe us?
 - What's the budget plan for June?
 - When is my daily report?
@@ -131,6 +132,7 @@ About 28 minutes. Every step and number below was rehearsed on the demo file in 
 **العربية**
 - ما موجز اليوم؟
 - ما الذي ينتظر اعتمادي؟
+- ماذا أغيّر في الحملات؟
 - ما الذي يدين به الموردون لنا؟
 - هل نجدد عقد هجر للإعلانات الخارجية؟
 - متى يصلني التقرير اليومي؟
@@ -143,7 +145,6 @@ About 28 minutes. Every step and number below was rehearsed on the demo file in 
 - **Off-script questions in the demo file** may get a general answer (built-in answers, no AI). Say: *"With Claude connected it answers anything from this data."*
 - **Buttons greyed out?** Your name isn't in "Approving as", or the "I have read" box isn't ticked.
 - **Report dated today, figures from 8 June:** expected (sample data).
-- **"Simulate Kinan's reply"** only exists in mock mode. Say that it's standing in for Kinan's agent.
 - **No email is sent anywhere**, and the screens say "simulated".
 
 ## F. Integration status (for the close)
@@ -163,7 +164,7 @@ About 28 minutes. Every step and number below was rehearsed on the demo file in 
 1. Which Yardi product and version does Kinan run, and can we write activities and marketing sources into it?
 2. Where is the campaign code captured on a lead in Yardi?
 3. How does Kinan's AI agent want to receive tasks (webhook, queue, API)? Who approves on Kinan's side?
-4. Do we need customer consent before Kinan's agent contacts lost leads?
+4. Does Kinan's agent want the plan, campaign changes and daily brief, and through what (webhook, queue, MCP)?
 5. What are the real monthly sales targets per project?
 6. The vendor list, contracts (end dates, notice periods) and account-manager emails.
 7. Oracle supplier numbers per vendor; access to Oracle Fusion.

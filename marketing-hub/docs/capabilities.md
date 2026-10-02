@@ -1,6 +1,6 @@
 # AI Director of Marketing — capabilities
 
-An AI assistant director of marketing for a real-estate developer with **one marketing manager and no marketing team**. It holds the plan to the sales targets, runs the external marketing vendors, measures what they really deliver, decides where the money goes, and feeds the work into **Kinan's CRM (Yardi) and Kinan's AI agent**. The manager makes the decisions; the director does the rest.
+An AI assistant director of marketing for a real-estate developer with **one marketing manager and no marketing team**. It holds the plan to the sales targets, runs the external marketing vendors, measures what they really deliver, decides where the money goes, and tells the manager every morning which campaigns to change. Leads, follow-up and sales stay with **Kinan's own AI agent** (CRM: Yardi); the director reads the CRM results and shares the plan and campaign changes with it. The manager makes the decisions; the director does the rest.
 
 **Ground rule:** nothing that spends money or contacts a vendor or a customer happens without a named person approving it. Every approval is recorded in an audit trail.
 
@@ -8,12 +8,13 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 ## 1. Director — plan and decide (home page)
 
-- **Daily brief:** where sales stand against target (CRM-verified), which project is furthest behind, the next month's forecast per project, vendor decisions, risks, and what to do this week.
+- **Daily brief:** where sales stand against target (CRM-verified), which project is furthest behind, the next month's forecast per project, vendor decisions, risks, what to do this week, and **campaign recommendations**.
+- **Campaign recommendations:** ranked changes to make to campaigns — pause or shift budget, campaigns not converting, scale up, Meta agency or tracking issues, media spend the ad platforms don't confirm, incrementality tests — each with the reason, what's at stake and one action (open the page, or draft the vendor email for approval). Also in the emailed daily report and the chat.
 - **Sales targets:** monthly contracted-sales targets per project, with actual vs target by month.
 - **Budget plan:** next month's budget per vendor, moved towards the vendors that bring the most *extra* sales per riyal. Each vendor stays inside the range its renewal decision allows. Shows expected extra sales and the reserve held back.
 - **One approval inbox:** everything waiting for the manager in one list, each item with a time estimate and a weekly total ("about 44 minutes for 8 decisions").
-- **Tasks for Kinan's AI agent:** follow up leads nobody contacted within 48 hours; re-engage leads lost on price or financing. Released only after approval.
-- **Lead-source quality:** every campaign code ranked by qualified and win rate, with handling guidance (prioritise / standard / deprioritise) sent to Kinan.
+- **Campaign quality from the CRM:** every campaign code ranked by qualified and win rate: strongest (fund first), middle, weakest (fix targeting or cut).
+- **Leads stay with Kinan:** lead follow-up, sales and the CRM are handled by Kinan's own agent. The director reads CRM results only to judge campaigns and vendors.
 
 ## 2. Vendor orchestration — the team's work, done for one manager
 
@@ -27,7 +28,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 ## 3. Daily scheduled reports
 
-- A report every scheduled morning (default 07:30 Riyadh time, Sunday–Thursday, English and Arabic): brief, sales vs target, **what changed since the last report**, decisions waiting with minutes, vendors, leads and Kinan, risks, invoices, data freshness.
+- A report every scheduled morning (default 07:30 Riyadh time, Sunday–Thursday, English and Arabic): brief, sales vs target, **what changed since the last report**, **campaign recommendations** (what to change, why, what's at stake and how), decisions waiting with minutes, vendors, risks, invoices, data freshness.
 - Emailed through Outlook to internal addresses only; kept in a history to view or download. Optional copy of the brief to Kinan's agent.
 
 ## 4. Vendor performance — measured fairly
@@ -81,8 +82,9 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 ## 12. Kinan integration (CRM = Yardi + Kinan's AI agent)
 
-- **Outbox to Kinan:** approved plan, lead follow-up tasks, lead-source quality, campaign status changes, daily brief — stored, delivered, retried; signed webhooks (HMAC-SHA256).
-- **Kinan's agent can read** priorities, source quality, campaign codes and open tasks, and **report back** contacts, outcomes and completed tasks (API-key protected). Those outcomes update the CRM view and the reports.
+- **Scope:** Kinan's own agent handles leads, follow-up, sales and the CRM. The director reads CRM results and shares marketing context.
+- **Outbox to Kinan:** approved plan, campaign status changes, daily brief with campaign recommendations — stored, delivered, retried; signed webhooks (HMAC-SHA256).
+- **Kinan's agent can read** targets, the plan, campaign codes, campaign quality and recommendations (API-key protected).
 
 ## 13. Arabic
 
@@ -94,12 +96,11 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 | Component | In the demo | Status | Needed to go live |
 |---|---|---|---|
-| Kinan AI agent (outbound) | Simulated | Built (signed webhook, retries) | Kinan's webhook URL and shared secret |
-| Kinan AI agent (inbound) | Simulated reply button | Built (context + feedback APIs) | Exchange an API key with Kinan |
-| Yardi | Simulated | **Not built** | Kinan's Yardi interface licence and credentials; field mapping |
+| Kinan AI agent (shares plan, campaign changes, brief) | Simulated | Built (signed webhook, retries; read-only context API) | Kinan's webhook URL, shared secret, an API key |
+| Yardi (reading CRM results) | Sample CRM data | **Not built** | Kinan's Yardi interface licence and credentials; field mapping |
 | Outlook | Simulated | Built, not yet tested on a real tenant | Entra app registration, sending mailbox |
 | Oracle Fusion (invoices) | Sample data | Built (read-only), not yet tested on a real instance | Oracle user and URL |
-| CRM leads | Sample data | Ingest API built; Yardi pull pending | Lead feed with campaign codes |
+| CRM results | Sample data | Ingest API built; Yardi pull pending | Lead results with campaign codes |
 | Meta ads (Facebook / Instagram) | Sample accounts and campaigns | Built; live mode written against the Marketing API, not yet run on a real account | A system-user token with `ads_read` (and `business_management` to see partner access); the ad account IDs |
 | Other ad platforms (Google, Snap, TikTok) | Sample data | Ingest API built; pull adapters not built | Platform access per account |
 | Claude (free-form chat) | Built-in answers | Built | Anthropic API key |

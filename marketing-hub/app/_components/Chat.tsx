@@ -10,6 +10,7 @@ type Store = { recommendations: any[]; outbox: any[]; integration: { mode: strin
 const SUGGESTIONS = [
   "What's today's brief?",
   "What needs my approval?",
+  "What should I change in the campaigns?",
   "What do vendors owe us?",
   "When is my daily report?",
   "Which agency runs each Meta campaign?",
@@ -24,6 +25,7 @@ const SUGGESTIONS = [
 const SUGGESTIONS_AR: Record<string, string> = {
   "What's today's brief?": "ما موجز اليوم؟",
   "What needs my approval?": "ما الذي ينتظر اعتمادي؟",
+  "What should I change in the campaigns?": "ماذا أغيّر في الحملات؟",
   "What do vendors owe us?": "ما الذي يدين به الموردون لنا؟",
   "When is my daily report?": "متى يصلني التقرير اليومي؟",
   "Which agency runs each Meta campaign?": "أي وكالة تدير كل حملة على ميتا؟",

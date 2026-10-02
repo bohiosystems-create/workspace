@@ -96,3 +96,6 @@ export function an(n: number, one: string, two: string, few: string, many: strin
 
 /** Isolate codes (invoice / PO numbers, periods) so they keep their left-to-right order inside Arabic text. */
 export const ltr = (s: string | number) => `\u2066${s}\u2069`;
+
+/** First sentence of a text, for one-line reasons (does not split on initials such as "Rami K."). */
+export const firstSentence = (s: string) => s.split(/(?<=[a-z0-9%)\]"؀-ۿ]{2}\.)\s/)[0];

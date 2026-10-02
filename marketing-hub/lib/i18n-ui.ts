@@ -619,4 +619,21 @@ const UI6: Record<string, string> = {
  "Which agency runs each Meta campaign?": "أي وكالة تدير كل حملة على ميتا؟",
 };
 
-export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5, ...UI6 };
+const UI7: Record<string, string> = {
+ "Your AI director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and tells you which campaigns to change. Leads and sales stay with Kinan's agent; the director reads the CRM results and shares the plan and campaign changes with it. You only make the decisions below — nothing that spends money or contacts a vendor happens without your name on it.": "مدير التسويق الذكي، مصمَّم لمدير تسويق واحد: يُبقي الخطة على مستهدفات المبيعات، ويقرر أين يُنفَق المال، ويدير الموردين (الموجزات، والملاحظات، والمتابعة)، ويخبركم بالحملات التي يجب تغييرها. العملاء المحتملون والمبيعات من اختصاص وكيل كنان؛ يقرأ المدير الذكي نتائج نظام العملاء ويشارك الخطة وتغييرات الحملات مع الوكيل. تتخذون القرارات أدناه فقط — لا يُنفَق مال ولا يُتواصل مع مورد دون اسمكم.",
+ "Owns leads, follow-up and sales in Yardi. The director reads the results and shares the plan.": "يتولى العملاء المحتملين والمتابعة والمبيعات في Yardi. يقرأ المدير الذكي النتائج ويشارك الخطة.",
+ "Every scheduled morning the director writes your report — sales against target, what changed since yesterday, campaign recommendations, decisions waiting (with minutes), vendors, risks and invoices — and emails it to you. Reports go to internal addresses only and take no action.": "في كل صباح مجدول يكتب المدير الذكي تقريركم — المبيعات مقابل المستهدف، وما تغيّر منذ الأمس، وتوصيات الحملات، والقرارات المنتظرة (مع الدقائق)، والموردون، والمخاطر والفواتير — ويرسله إليكم بالبريد. تُرسل التقارير إلى عناوين داخلية فقط ولا تتخذ أي إجراء.",
+ "Campaign recommendations": "توصيات الحملات",
+ "No campaign changes recommended today.": "لا تغييرات مقترحة على الحملات اليوم.",
+ "Review draft": "مراجعة المسودة",
+ "Draft email": "إعداد رسالة",
+ "Show fewer": "عرض أقل",
+ "Show all": "عرض الكل",
+ "Campaign quality from the CRM": "جودة الحملات من نظام العملاء",
+ "Verdict": "الحكم",
+ "STRONGEST": "الأقوى",
+ "WEAKEST": "الأضعف",
+ "MIDDLE": "متوسط",
+};
+
+export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5, ...UI6, ...UI7 };

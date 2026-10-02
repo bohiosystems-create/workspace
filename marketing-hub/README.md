@@ -3,23 +3,26 @@
 An AI assistant director of marketing for a company with **one marketing manager
 and no marketing team**: it holds the plan to the sales targets, runs the
 external marketing vendors (briefs, feedback, chasing, verification), decides
-where the money goes, and feeds approved work into **Kinan's CRM (Yardi) and
-Kinan's AI agent**. The manager only approves. Separate
+where the money goes, and tells the manager each morning which campaigns to
+change. Leads, follow-up and sales stay with **Kinan's own AI agent** (CRM: Yardi);
+the director reads CRM results and shares the plan and campaign changes with it.
+The manager only approves. Separate
 app with its own database — no dependency on `deal-screener`.
 
-**Client demo:** capabilities in [`docs/capabilities.md`](docs/capabilities.md), step-by-step script in [`docs/demo-checklist.md`](docs/demo-checklist.md). `npm run demo:reset` gives the live app a clean sample database; `npm run demo:build` rebuilds the one-file demo (`demo.html`). In mock mode, "Simulate Kinan's reply" on the Director page plays Kinan's agent reporting back through the real feedback API.
+**Client demo:** capabilities in [`docs/capabilities.md`](docs/capabilities.md), step-by-step script in [`docs/demo-checklist.md`](docs/demo-checklist.md). `npm run demo:reset` gives the live app a clean sample database; `npm run demo:build` rebuilds the one-file demo (`demo.html`). 
 
 ## Director (`/`) and the Kinan feed
 
 The home page is the director's desk (`lib/director.ts`, `app/page.tsx`); vendor and campaign monitoring moved to `/campaigns`.
 
-- **Today's brief** — sales vs target year to date (CRM-verified), the asset furthest behind, June forecast per asset, vendor calls, risks and what to do this week. Also answerable in the assistant ("What's today's brief?").
+- **Today's brief** — sales vs target year to date (CRM-verified), the asset furthest behind, June forecast per asset, vendor calls, risks, what to do this week and **campaign recommendations**. Also answerable in the assistant ("What's today's brief?") and emailed as the daily report.
+- **Campaign recommendations** — the recommendations that act on campaigns, ranked (urgent first; budget moves before governance, conversion, tracking and tests): pause or shift budget, campaigns not converting, scale up, Meta agency / tracking issues, media spend not matched by the ad platforms, incrementality tests. Each with the reason, what is at stake and one action (open the page, or draft the vendor email for approval).
 - **Targets** — monthly contracted-sales targets per asset (`SalesTarget`, sample values Jan–Jun 2026), actual vs target by month.
-- **Approval inbox** — everything waiting for a named person: delegations, vendor non-renewals, trials to approve or read out, invoice exceptions, email drafts.
+- **Approval inbox** — everything waiting for a named person: the plan, Meta campaigns to check, vendor messages, vendor non-renewals, trials to approve or read out, invoice exceptions, email drafts.
 - **Budget plan** — next month's budget per vendor, inside the range each vendor's renewal decision allows (exit, test a replacement, performance plan, renegotiate, re-engage; commission vendors ±10%). Money moves to the highest incremental sales per SAR with diminishing returns (sales ∝ spend^0.7); the plan shows expected incremental sales vs unchanged and what is held in reserve. Indicative, not a promise.
 - **Your time** — every item in the inbox carries a time estimate; the brief says how many minutes of decisions the week needs.
-- **Delegations to Kinan's AI agent** — e.g. *follow up leads nobody contacted within 48h* and *re-engage leads lost on price or financing*. A task that leads to customers being contacted is only sent to Kinan after a named approver approves it.
-- **Lead-source quality** — every campaign code ranked by qualified and win rate (percentiles): prioritise / standard / deprioritise, with handling guidance for Kinan's agent and Yardi.
+- **Campaign quality from the CRM** — every campaign code ranked by qualified and win rate (percentiles): strongest (fund first) / middle / weakest (fix targeting or cut).
+- **Leads are Kinan's.** Lead follow-up, sales and the CRM are handled by Kinan's own agent; the director only reads CRM results to judge campaigns and vendors.
 
 ## Vendor orchestration (`/orchestration`)
 
@@ -34,7 +37,7 @@ The work a marketing team would do with the vendors, done by the director (`lib/
 
 - **Approvals for one person:** routine work orders (feedback, reminders — no money, no contract change) and the month's briefs (the money was decided when the plan was approved) can be approved in one batch; each still requires the approver's name, an "I have read" confirmation and the exact revision reviewed. Notices are approved one by one. Wording can be edited from the assistant's drafts.
 - **What vendors owe us:** every expected deliverable with due date, status and reminders sent. Received items feed the scorecard's deadline-adherence metric. Until vendor replies are read from Outlook (Graph `Mail.Read`, not built yet), the manager marks items received in one click.
-- **Operating rhythm:** daily lead-response watch, weekly chasing, monthly plan → briefs → feedback → reports, quarterly reviews / renewals / re-bids. `POST /api/orchestration {"action":"RUN"}` runs a cycle (point a scheduler at it).
+- **Operating rhythm:** daily campaign check (recommendations into the brief), weekly chasing, monthly plan → briefs → feedback → reports, quarterly reviews / renewals / re-bids. `POST /api/orchestration {"action":"RUN"}` runs a cycle (point a scheduler at it).
 - The sample data runs on a fixed clock (`lib/clock.ts`, 8 June 2026); switch it to the real date when live feeds are connected.
 
 ## Meta ads — which agency runs each campaign (`/data#meta`)
@@ -58,11 +61,11 @@ The director writes the manager's daily report (`lib/reports.ts`) and emails it 
 - **Trigger:** a scheduler calls `POST /api/reports/run` every 15 minutes with `x-api-key: $REPORTS_CRON_KEY` (or `Authorization: Bearer …`, so Vercel Cron works). It sends once per local day, at or after the set time, on scheduled days — a missed slot is sent at the next check that day; repeated calls do nothing. Without `REPORTS_CRON_KEY` the endpoint is disabled; "Send now" and "Preview" still work.
 - **Internal only:** recipients must be on `REPORTS_ALLOWED_DOMAINS` (default: the domain of `OUTLOOK_SENDER`). Reports are always sent, never left as Outlook drafts, and take no action — approvals stay in the app.
 
-**Kinan connector** (`lib/kinan.ts`, `docs/kinan-integration.md`): an outbox (`KinanEvent`) that stores every event, delivers it and retries failures — `lead.followup_requested`, `lead_source.quality`, `director.plan_approved`, `campaign.status_changed`, `brief.daily`.
+**Kinan connector** (`lib/kinan.ts`, `docs/kinan-integration.md`): an outbox (`KinanEvent`) that stores every event, delivers it and retries failures — `director.plan_approved`, `campaign.status_changed`, `brief.daily` (with campaign recommendations). Marketing context only: no lead tasks.
 
 - `KINAN_MODE=mock` (default) records events without sending; `KINAN_MODE=webhook` POSTs to `KINAN_AGENT_WEBHOOK_URL`, signed with HMAC-SHA256 (`X-Bohio-Signature: sha256=…`, secret `KINAN_WEBHOOK_SECRET`).
-- Kinan's agent reads `GET /api/kinan/context` (priorities, source quality, campaign codes, open tasks) and reports back on `POST /api/kinan/feedback` (`lead.contacted`, `lead.outcome`, `task.done`), both with `x-api-key: $KINAN_API_KEY`.
-- **Yardi delivery is not implemented** (`YARDI_MODE=mock` only): it needs Kinan's Yardi interface licence and credentials. `CRM_MODE=yardi` is reserved for pulling leads from Yardi. The questions to settle with Kinan are in `docs/kinan-integration.md`.
+- Kinan's agent can read `GET /api/kinan/context` (targets, plan, campaign codes, campaign quality and recommendations) with `x-api-key: $KINAN_API_KEY`.
+- **Yardi delivery is not implemented** (`YARDI_MODE=mock` only): it needs Kinan's Yardi interface licence and credentials. `CRM_MODE=yardi` is reserved for reading CRM results from Yardi. The questions to settle with Kinan are in `docs/kinan-integration.md`.
 
 - **Monitor** — spend → leads → qualified → viewings → reservations → contracts → sales; cost-to-sales, CAC, CPL, budget pacing; 0–100 vendor scorecard (efficiency 40, quality 25, SLA responsiveness 20, delivery 15).
 - **Alerts** — SLA breaches, contract expiry, cost-to-sales > 3%, CPL inflation, lead-quality decay, pacing, vendor concentration.

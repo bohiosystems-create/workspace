@@ -6,17 +6,16 @@
 //                       headers: X-Bohio-Event, X-Bohio-Delivery, X-Bohio-Signature: sha256=<hex>
 //   YARDI_MODE=mock | live — Yardi delivery (guest-card activities / marketing sources) is NOT implemented:
 //                       it needs Kinan's Yardi interface licence and credentials. See docs/kinan-integration.md.
-// IN (for Kinan's agent): GET /api/kinan/context (priorities, lead-source quality, campaign codes, tasks) and
-//   POST /api/kinan/feedback (follow-up outcomes, task completion), both with x-api-key: KINAN_API_KEY.
+// IN (for Kinan's agent): GET /api/kinan/context (targets, plan, campaign codes, campaign quality, campaign
+//   recommendations) with x-api-key: KINAN_API_KEY.
 //
-// Events that lead to a customer being contacted (lead follow-ups) are only created after a named person
-// approves the task; informational events (source quality, plan, brief, campaign status) flow automatically.
+// Scope: leads, follow-ups, sales and the CRM belong to Kinan's agent. The director only shares marketing context
+// (approved plan, campaign codes and status changes, daily brief) and reads CRM results to judge campaigns.
 import { prisma } from "./prisma";
-import { type Lang, tx, an } from "./i18n";
+import { type Lang, tx } from "./i18n";
 
 export type KinanEventType =
-  | "lead.followup_requested" | "lead_source.quality" | "director.plan_approved"
-  | "campaign.status_changed" | "brief.daily" | "vendor.decision";
+  | "director.plan_approved" | "campaign.status_changed" | "brief.daily" | "vendor.decision";
 export type KinanTarget = "AGENT" | "YARDI";
 
 export const kinanMode = () => (process.env.KINAN_MODE === "webhook" ? "webhook" : "mock");
@@ -82,76 +81,12 @@ export async function kinanOutbox(limit = 30, lang: Lang = "en") {
   }));
 }
 
-const REASONS: Record<string, [string, string]> = {
-  no_first_response_48h: ["no response within 48h", "بلا رد خلال 48 ساعة"],
-  lost_price_or_financing: ["lost on price or financing", "خسارة بسبب السعر أو التمويل"],
-};
-
 function summarize(type: string, payload: string, l: Lang = "en") {
   try {
     const p = JSON.parse(payload);
-    if (type === "lead.followup_requested") {
-      const n = p.leads?.length ?? 0, r = REASONS[p.reason] ?? [p.reason ?? "", p.reason ?? ""];
-      return tx(l, `${n} leads · ${r[0]}`, `${an(n, "عميل محتمل واحد", "عميلان محتملان", "عملاء محتملين", "عميلاً محتملاً")} · ${r[1]}`);
-    }
-    if (type === "lead_source.quality") return tx(l, `${p.sources?.length ?? 0} sources`, `${p.sources?.length ?? 0} مصدراً`);
     if (type === "director.plan_approved") return tx(l, `${p.month} · SAR ${p.totalK}K`, `${p.month} · ${p.totalK} ألف ر.س`);
     if (type === "campaign.status_changed") return `${p.campaignCode ?? p.campaign} → ${p.status}`;
     if (type === "brief.daily") return p.headline ?? "";
     return "";
   } catch { return ""; }
-}
-
-/** Kinan's agent reporting back. Lead updates become CRM truth; task completion closes the director's task. */
-export async function recordKinanFeedback(b: any) {
-  const type = String(b?.type ?? "");
-  if (!["lead.contacted", "lead.outcome", "task.done"].includes(type)) throw new Error("type must be lead.contacted | lead.outcome | task.done");
-  await prisma.kinanFeedback.create({ data: { type, payload: JSON.stringify(b) } });
-  if (type === "task.done" && b.taskId) {
-    const t = (await prisma.directorTask.findMany()).find((x) => x.id === String(b.taskId));
-    if (t) await prisma.directorTask.update({ where: { id: t.id }, data: { status: "DONE" } });
-    return { ok: true, updated: t ? 1 : 0 };
-  }
-  const lead = (await prisma.crmLead.findMany()).find((l) => l.crmId === String(b.leadId ?? ""));
-  if (!lead) return { ok: true, updated: 0 };
-  const at = b.at && !Number.isNaN(Date.parse(b.at)) ? new Date(b.at) : new Date();
-  const data: Record<string, unknown> = {};
-  if (type === "lead.contacted" && !lead.firstResponseAt) { data.firstResponseAt = at; if (lead.stage === "NEW") data.stage = "CONTACTED"; }
-  const STAGES = ["NEW", "CONTACTED", "QUALIFIED", "VIEWING", "RESERVED", "WON", "LOST"];
-  if (type === "lead.outcome" && typeof b.stage === "string") {
-    if (!STAGES.includes(b.stage.toUpperCase())) throw new Error(`stage must be one of ${STAGES.join(", ")}`);
-    data.stage = b.stage.toUpperCase();
-    if (typeof b.dealValueM === "number") data.dealValueM = b.dealValueM;
-  }
-  if (Object.keys(data).length) await prisma.crmLead.update({ where: { id: lead.id }, data });
-  return { ok: true, updated: Object.keys(data).length ? 1 : 0 };
-}
-
-/**
- * Demo only (KINAN_MODE=mock): play Kinan's agent working the approved follow-up tasks, through the same
- * feedback path the real agent would use (recordKinanFeedback). Deterministic: about 60% of each task's leads
- * are contacted, a quarter of those qualify (follow-ups) or book a viewing (re-engagement); the task is closed.
- */
-export async function simulateKinanReplies() {
-  if (kinanMode() !== "mock") throw new Error("The Kinan simulator only runs in KINAN_MODE=mock.");
-  const tasks = (await prisma.directorTask.findMany()).filter((t) => t.assignee === "KINAN_AGENT" && t.status === "APPROVED" && t.payload);
-  let contacted = 0, progressed = 0;
-  for (const t of tasks) {
-    const p = JSON.parse(t.payload!);
-    const leads: { leadId: string }[] = (p.leads ?? []).slice(0, 150);
-    for (let i = 0; i < leads.length; i++) {
-      if (i % 5 >= 3) continue; // ~60% reached
-      const at = new Date("2026-06-08T10:00:00Z");
-      if (p.reason === "no_first_response_48h") {
-        await recordKinanFeedback({ type: "lead.contacted", leadId: leads[i].leadId, at: at.toISOString(), source: "simulator" });
-        contacted++;
-        if (i % 4 === 0) { await recordKinanFeedback({ type: "lead.outcome", leadId: leads[i].leadId, stage: "QUALIFIED", source: "simulator" }); progressed++; }
-      } else {
-        contacted++;
-        if (i % 4 === 0) { await recordKinanFeedback({ type: "lead.outcome", leadId: leads[i].leadId, stage: "VIEWING", source: "simulator" }); progressed++; }
-      }
-    }
-    await recordKinanFeedback({ type: "task.done", taskId: t.id, source: "simulator" });
-  }
-  return { tasks: tasks.length, contacted, progressed };
 }
