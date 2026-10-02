@@ -41,6 +41,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 ## 2. Vendor orchestration — the team's work, done for one manager
 
+- **Vendor directory:** every vendor (current, bench alternatives, past) in one list. Open one to see the campaigns it ran (live and past), its Oracle invoices, its work orders and deliverables, and all email correspondence through Outlook (sent and received).
 - **Monthly briefs** per vendor, drafted from the approved plan: budget, campaign codes, cost-per-qualified-lead and response-time targets, deliverables with due dates.
 - **Monthly lead feedback** per vendor from the CRM: what converted, the main loss reason, where to shift targeting.
 - **Chasing:** late deliverables get up to two reminders, then the manager is asked to phone the vendor.
@@ -144,7 +145,7 @@ The recommendations are only as good as the data behind them. In order of value:
 |---|---|---|---|
 | Kinan AI agent (shares plan, campaign changes, brief) | Simulated | Built (signed webhook, retries; read-only context API) | Kinan's webhook URL, shared secret, an API key |
 | Yardi (reading CRM results) | Sample CRM data | **Not built** | Kinan's Yardi interface licence and credentials; field mapping |
-| Outlook | Simulated | Built, not yet tested on a real tenant | Entra app registration, sending mailbox |
+| Outlook (send, and read vendor correspondence) | Simulated | Built, not yet tested on a real tenant | Entra app registration with Mail.Send and Mail.Read, scoped to the marketing mailbox |
 | Oracle Fusion (invoices) | Sample data | Built (read-only), not yet tested on a real instance | Oracle user and URL |
 | CRM results | Sample data | Ingest API built; Yardi pull pending | Lead results with campaign codes |
 | Meta ads (Facebook / Instagram) | Sample accounts and campaigns | Built; live mode written against the Marketing API, not yet run on a real account | A system-user token with `ads_read` (and `business_management` to see partner access); the ad account IDs |

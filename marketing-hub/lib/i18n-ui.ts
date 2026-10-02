@@ -757,4 +757,23 @@ const UI9: Record<string, string> = {
   "IDEA_NEW": "إعادة فتح فكرة حملة",
 };
 
-export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5, ...UI6, ...UI7, ...UI8, ...UI9 };
+
+// Vendor directory (Orchestration)
+const UI10: Record<string, string> = {
+  "All your vendors in one place: open a vendor to see the campaigns it ran, its invoices, what it owes you and every email exchanged through Outlook. The director briefs each vendor from the approved plan, sends lead feedback from the CRM, chases what is late and checks results against the data; you approve every message before it goes out — routine ones in one go.": "كل مورديكم في مكان واحد: افتحوا أي مورد لتروا حملاته وفواتيره وما يدين به لكم وكل الرسائل المتبادلة عبر Outlook. يُعِدّ المدير موجز كل مورد من الخطة المعتمدة، ويرسل ملاحظات العملاء من النظام، ويتابع المتأخر ويطابق النتائج مع البيانات؛ وتعتمدون كل رسالة قبل إرسالها — والروتينية دفعة واحدة.",
+  "Search vendors": "ابحثوا عن مورد", "Score · decision": "التقييم · القرار", "Spend 2026": "إنفاق 2026", "Work": "العمل", "Emails": "الرسائل", "past": "سابقة",
+  "waiting for you": "بانتظاركم", "with vendor": "لدى المورد", "late": "متأخر", "drafts": "مسودات", "No vendors match.": "لا يوجد مورد مطابق.",
+  "Overview": "نظرة عامة", "contract ends": "ينتهي العقد", "Spend (history)": "الإنفاق (التاريخ)", "Work orders": "أوامر العمل", "No work orders.": "لا أوامر عمل.",
+  "Read email": "اقرأ الرسالة", "Service level": "مستوى الخدمة", "Response": "الاستجابة", "qualified": "مؤهلون", "What this vendor owes us": "ما يدين به هذا المورد",
+  "Nothing on record.": "لا شيء مسجل.", "Live campaigns (2026)": "الحملات النشطة (2026)", "No live campaigns.": "لا حملات نشطة.", "Its Meta campaigns": "حملاته على ميتا",
+  "Past campaigns (2023–2025)": "الحملات السابقة (2023–2025)", "None in the history.": "لا شيء في التاريخ.", "No invoices from this vendor in Oracle.": "لا فواتير لهذا المورد في أوراكل.",
+  "For": "عن", "Date": "التاريخ", "Amount": "المبلغ", "Checks": "الفحوص", "days overdue": "يوماً تأخير", "Delivered but not invoiced yet": "منفّذ ولم يُفوتر بعد",
+  "Approve or dispute invoices on the Invoices page; nothing is written back to Oracle.": "اعتمدوا الفواتير أو اعترضوا عليها من صفحة الفواتير؛ لا يُكتب شيء في أوراكل.",
+  "Mailbox": "صندوق البريد", "live": "فعلي", "No emails.": "لا رسائل.", "To vendor": "إلى المورد", "From vendor": "من المورد", "Open in Outlook": "افتح في Outlook", "Review in the assistant": "راجعها في المساعد",
+  "Current": "حاليون", "Alternative": "بديل", "Past": "سابق", "Alternatives": "البدائل", "Test a replacement": "اختبار بديل", "With vendor": "لدى المورد",
+  "high confidence": "ثقة عالية", "medium confidence": "ثقة متوسطة", "low confidence": "ثقة منخفضة", "confirmed": "مؤكَّد",
+  "Hide the messages": "إخفاء الرسائل", "Show the messages": "عرض الرسائل",
+  "PROMOTE": "ترقية", "EXTEND": "تمديد", "KEEP_INCUMBENT": "الإبقاء على الحالي", "paused": "متوقفة", "ended": "منتهية",
+};
+
+export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5, ...UI6, ...UI7, ...UI8, ...UI9, ...UI10 };

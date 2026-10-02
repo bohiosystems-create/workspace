@@ -4,19 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import Header from "../_components/Header";
 import { useI18n } from "../_components/lang";
 import { useApprover } from "../_components/useAgent";
+import VendorView, { VendorDirectory } from "./vendors";
 
 const KIND: Record<string, string> = { MONTHLY_BRIEF: "Monthly brief", LEAD_FEEDBACK: "Lead feedback", DELIVERABLE_CHASE: "Reminder", NON_RENEWAL: "Non-renewal notice" };
-const DSTATE: Record<string, [string, string]> = { DUE: ["Due", "hold"], LATE: ["Late", "weak"], ON_TIME: ["Received", "healthy"], LATE_RECEIVED: ["Received late", "watch"] };
-const MARK: Record<string, [string, string]> = { ok: ["✓", "pass"], late: ["!", "fail"], due: ["·", ""], wait: ["…", ""] };
 
 export default function OrchestrationPage() {
-  const { lang, t, N, d } = useI18n();
+  const { lang, t, N } = useI18n();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [savedApprover, saveApprover] = useApprover();
   const [approver, setApprover] = useState("");
   const [read, setRead] = useState<Record<string, boolean>>({});
+  const [vendorId, setVendorId] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const [showQueue, setShowQueue] = useState(false);
   const langRef = useRef(lang);
   langRef.current = lang;
   useEffect(() => setApprover(savedApprover), [savedApprover]);
@@ -40,13 +42,13 @@ export default function OrchestrationPage() {
       }
       setData(x);
       setRead({});
+      setReload((n) => n + 1); // refresh an open vendor view
     } catch (e: any) { setError(e.message); } finally { setBusy(null); }
   }
 
   const waiting = data ? data.orders.filter((o: any) => o.status === "PROPOSED") : [];
   const routine = waiting.filter((o: any) => o.routine && o.email?.status === "DRAFT");
   const briefs = waiting.filter((o: any) => o.kind === "MONTHLY_BRIEF" && o.email?.status === "DRAFT");
-  const issued = data ? data.orders.filter((o: any) => o.status === "ISSUED") : [];
   const closed = data ? data.orders.filter((o: any) => o.status === "DONE" || o.status === "CANCELLED") : [];
   const noName = !approver.trim();
 
@@ -54,7 +56,7 @@ export default function OrchestrationPage() {
     <div className="shell">
       <Header />
       <div className="section-title">{t("Vendor orchestration")}</div>
-      <p className="intro">{t("Run by one manager, no team: the director briefs every vendor from the approved plan, sends lead feedback from the CRM, tracks what each vendor owes, chases what is late and checks the results against the data. You approve every message before it goes out — routine ones in one go.")}</p>
+      <p className="intro">{t("All your vendors in one place: open a vendor to see the campaigns it ran, its invoices, what it owes you and every email exchanged through Outlook. The director briefs each vendor from the approved plan, sends lead feedback from the CRM, chases what is late and checks results against the data; you approve every message before it goes out — routine ones in one go.")}</p>
       {error && <div className="err">{error}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
       {data && (
@@ -101,6 +103,12 @@ export default function OrchestrationPage() {
             </div>
           )}
 
+          <div id="vendors" style={{ marginTop: 18 }}>
+            {vendorId
+              ? <VendorView id={vendorId} reload={reload} onBack={() => setVendorId(null)} act={act} busy={busy} approver={approver} />
+              : <VendorDirectory vendors={data.vendors} onOpen={(id: string) => { setVendorId(id); setTimeout(() => document.getElementById("vendors")?.scrollIntoView({ behavior: "smooth" }), 50); }} />}
+          </div>
+
           <div className="panel" style={{ marginTop: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
               <div className="chart-label" style={{ margin: 0 }}>{t("Waiting for your approval")} ({waiting.length})</div>
@@ -127,6 +135,8 @@ export default function OrchestrationPage() {
               </>}
             </div>
             {waiting.length === 0 && <div className="muted">{t("Nothing waiting.")}</div>}
+            {waiting.length > 0 && <details id="queue" open={showQueue} onToggle={(e) => setShowQueue((e.target as HTMLDetailsElement).open)}>
+            <summary className="muted" style={{ cursor: "pointer", fontSize: 11, marginBottom: 6 }}>▸ {showQueue ? t("Hide the messages") : t("Show the messages")} ({waiting.length})</summary>
             {waiting.map((o: any) => (
               <div className="dec" key={o.id}>
                 <div className="dec-head">
@@ -154,54 +164,11 @@ export default function OrchestrationPage() {
                 )}
               </div>
             ))}
+            </details>}
           </div>
 
-          <div className="panel" style={{ marginTop: 18 }}>
-            <div className="chart-label">{t("With vendors — checked against the data")} ({issued.length})</div>
-            {issued.length === 0 && <div className="muted">{t("Nothing with vendors yet.")}</div>}
-            {issued.map((o: any) => (
-              <div className="dec" key={o.id} style={o.overdue ? { borderInlineStart: "3px solid var(--alert)" } : {}}>
-                <div className="dec-head">
-                  <span className="tag">{t(KIND[o.kind] ?? o.kind)}</span>
-                  <b>{N(o.vendor)}</b><span>— {o.title}</span>
-                  <div style={{ flex: 1 }} />
-                  {o.overdue && <span className="pill weak">{t("Overdue")}</span>}
-                  <span className="muted" style={{ fontSize: 10 }}>{t("sent")} {o.issuedAt ? d(o.issuedAt) : ""}{o.approvedBy ? ` · ${t("approved by")} ${o.approvedBy}` : ""}</span>
-                </div>
-                <div style={{ marginTop: 8 }}>
-                  {o.checks.map((c: any, i: number) => (
-                    <div className="hurdle" key={i} style={{ padding: "5px 0" }}>
-                      <div className={`check ${MARK[c.state][1]}`}>{MARK[c.state][0]}</div>
-                      <div className="name">{c.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="row twocol" style={{ marginTop: 18 }}>
-            <div className="panel">
-              <div className="chart-label">{t("What vendors owe us")}</div>
-              <table className="dtable">
-                <thead><tr><th>{t("Vendor")}</th><th>{t("Item")}</th><th>{t("Due")}</th><th>{t("Status")}</th><th className="num">{t("Reminders")}</th><th /></tr></thead>
-                <tbody>
-                  {data.deliverables.map((x: any) => (
-                    <tr key={x.id}>
-                      <td><b>{N(x.vendor)}</b></td>
-                      <td>{x.title}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>{d(x.due)}</td>
-                      <td><span className={`pill ${DSTATE[x.state][1]}`} style={{ display: "inline-block" }}>{t(DSTATE[x.state][0])}</span>{x.daysLate ? <div className="muted" style={{ fontSize: 9, marginTop: 3 }}>{x.daysLate} {t("days late")}</div> : null}</td>
-                      <td className="num">{x.chases}</td>
-                      <td>{!x.deliveredAt && <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 8 }} disabled={busy === x.id} onClick={() => act({ action: "RECEIVE", id: x.id }, x.id)}>{t("Mark received")}</button>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Received items feed the vendor scorecard (deadline adherence). Until vendor replies are read from Outlook, mark items received here.")}</div>
-            </div>
-
-            <div className="panel">
+          {!vendorId && (
+            <div className="panel" style={{ marginTop: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <div className="chart-label" style={{ margin: 0 }}>{t("Operating rhythm — what runs without you")}</div>
                 <div style={{ flex: 1 }} />
@@ -223,7 +190,7 @@ export default function OrchestrationPage() {
                 ))}
               </>}
             </div>
-          </div>
+          )}
         </>
       )}
     </div>

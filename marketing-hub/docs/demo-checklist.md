@@ -81,12 +81,16 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 ### 7. Orchestration — running the vendors (5 min)
 
 - [ ] Open **Orchestration**. Show the four role cards: you, the director, vendors, and Kinan's agent (owns leads and sales).
-- [ ] **14 waiting**: 6 June briefs (drafted from the plan you just approved), 7 routine (5 lead-feedback emails and 2 reminders for late items), and 1 non-renewal notice.
-- [ ] Open the **PropertyHub KSA** brief email: it's in **Arabic**, the vendor's language.
+- [ ] The **vendor list**: 6 current vendors with score, decision, campaigns, spend, cost to sales, invoices outstanding, work in progress and emails. The filters show **Alternatives (5)** (the bench) and **Past (3)** (vendors from the history).
+- [ ] **14 waiting for your approval** under the list: 6 June briefs (drafted from the plan you just approved), 7 routine (5 lead-feedback emails and 2 reminders for late items), and 1 non-renewal notice. Click **Show the messages** and open the **PropertyHub KSA** brief: it's in **Arabic**, the vendor's language.
 - [ ] Tick **I have read the routine messages**, then click **Approve and send all routine**.
 - [ ] Tick **I have read the briefs**, then click **Approve and send all briefs**.
-- [ ] In **What vendors owe us**, click **Mark received** on Sada Influence's late item. It becomes "Received late".
-- [ ] Leave the **Hajar non-renewal notice** unapproved: a contract decision.
+- [ ] Click **Sada Influence** in the vendor list. Show the header (score 45, SAR 232K spend, SAR 54K outstanding) and the decision: a 60-day performance plan.
+  - **Overview:** its work orders with the director's checks, and what it owes us. Click **Mark received** on the late item, *Creator content — June batch*. It becomes "Received late".
+  - **Campaigns:** its live 2026 campaigns and its past campaigns with their lessons.
+  - **Invoices:** its 7 Oracle invoices with payment status and reconciliation checks.
+  - **Emails:** the correspondence through Outlook: our briefs, feedback and reminders, and the vendor's replies, invoices and reports. Say: *"In the demo, the vendor's replies are simulated; live, they are read from the Outlook mailbox."*
+- [ ] Click **← All vendors**. Leave the **Hajar non-renewal notice** unapproved: a contract decision.
 
 ### 8. The report shows what changed (2 min)
 
@@ -241,7 +245,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 |---|---|---|
 | Kinan AI agent | Built; simulated in the demo | Webhook URL, shared secret, API key exchange |
 | Yardi | Not built yet | Yardi interface licence, credentials, field mapping |
-| Outlook | Built; not yet tested on their tenant | Entra app registration, sending mailbox |
+| Outlook (send, and read vendor correspondence) | Built; not yet tested on their tenant | Entra app registration with Mail.Send and Mail.Read on the marketing mailbox |
 | Oracle Fusion | Built (read-only); not yet tested on their instance | Oracle user and URL |
 | Meta ads | Built; simulated in the demo; live mode not yet run on a real account | System-user token (`ads_read`, `business_management`), ad account IDs |
 | Scheduler for daily reports | Built | A scheduler calling the endpoint every 15 minutes |

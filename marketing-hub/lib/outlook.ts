@@ -63,3 +63,26 @@ export async function deliverMail(mail: MailToSend): Promise<SendResult> {
   if (res.status !== 202) throw new Error(`Outlook send failed (${res.status}).`);
   return { delivery: "send", providerRef: res.headers.get("request-id") ?? "accepted" };
 }
+
+// ------------------------------------------------------------------ reading
+// Vendor correspondence: messages in the sending mailbox exchanged with a vendor's domain (Graph Mail.Read,
+// application permission, scoped to that one mailbox with an Exchange ApplicationAccessPolicy). Read-only.
+export type MailMessage = { id: string; direction: "IN" | "OUT"; from: string; to: string; subject: string; preview: string; date: string; webLink?: string | null };
+
+export async function readVendorMail(domain: string, top = 40): Promise<MailMessage[]> {
+  if (outlookMode() === "mock") return [];
+  const token = await graphToken();
+  const sender = outlookSender();
+  const url = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(sender)}/messages?$search=${encodeURIComponent(`"participants:${domain}"`)}&$top=${top}&$select=id,subject,from,toRecipients,receivedDateTime,sentDateTime,bodyPreview,webLink`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Reading Outlook failed (${res.status}). The app registration needs Mail.Read for ${sender}.`);
+  const j = await res.json();
+  return (j.value ?? []).map((m: any) => {
+    const from = m.from?.emailAddress?.address ?? "";
+    return {
+      id: String(m.id), direction: from.toLowerCase() === sender.toLowerCase() ? "OUT" : "IN", from,
+      to: (m.toRecipients ?? []).map((r: any) => r.emailAddress?.address).filter(Boolean).join(", "),
+      subject: m.subject ?? "", preview: m.bodyPreview ?? "", date: m.receivedDateTime ?? m.sentDateTime ?? "", webLink: m.webLink ?? null,
+    };
+  });
+}

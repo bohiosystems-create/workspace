@@ -19,7 +19,7 @@ import { dailyApiState, dailyAction } from "../lib/daily-api";
 import { historyState } from "../lib/history";
 import { agentState, agentDoc, agentAction } from "../lib/agent-api";
 import { directorState, directorAction } from "../lib/director-api";
-import { orchestrationState, orchestrationAction } from "../lib/orchestrator-api";
+import { orchestrationState, orchestrationAction, vendorState } from "../lib/orchestrator-api";
 import { reportsState, reportsAction, getReport } from "../lib/reports-api";
 import { templateCsv } from "../lib/vendor-reports";
 import Chat from "../app/_components/Chat";
@@ -68,7 +68,8 @@ window.fetch = (async (input: any, init?: any) => {
   if (url.includes("/api/orchestration")) {
     try {
       if (init?.method === "POST") return json(await orchestrationAction(JSON.parse(init.body)));
-      return json(await orchestrationState(qlang(url)));
+      const vendor = new URL(url, "http://x").searchParams.get("vendor");
+      return json(vendor ? await vendorState(vendor, qlang(url)) : await orchestrationState(qlang(url)));
     } catch (e: any) {
       return json({ error: e.message });
     }

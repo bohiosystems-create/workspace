@@ -26,6 +26,8 @@ The home page is the director's desk (`lib/director.ts`, `app/page.tsx`); vendor
 
 ## Vendor orchestration (`/orchestration`)
 
+**Vendor directory** (`lib/vendor-hub.ts`, `app/orchestration/vendors.tsx`): every vendor — current, bench alternatives and past vendors from the history — with score, renewal decision, campaigns, 2026 spend, cost to sales, invoices outstanding, work in progress and emails. Open a vendor for four tabs: **Overview** (profile, SLA, decision, work orders with their checks, deliverables with *Mark received*, trials), **Campaigns** (live 2026, its Meta campaigns, past campaigns with lessons), **Invoices** (from Oracle, with payment status and reconciliation checks; decisions stay on the Invoices page) and **Emails** (Outlook: what the app drafted and sent, plus the vendor's messages read from the marketing mailbox with Graph `Mail.Read` in live mode — `readVendorMail` in `lib/outlook.ts`, untested on a real tenant; in mock mode, simulated replies consistent with the data). `GET /api/orchestration?vendor=<id>`.
+
 The work a marketing team would do with the vendors, done by the director (`lib/orchestrator.ts`). Each item is a **work order** — an email draft in the vendor's language that is only sent after the manager approves it:
 
 | Work order | When | Closed when |
@@ -189,7 +191,7 @@ a named approver, the exact revision they reviewed (edits bump the revision and 
 The recipient is fixed to the vendor's account manager; only cc is editable. One email per recommendation; every send is audited.
 
 - **Outlook (Microsoft Graph, `lib/outlook.ts`):** `OUTLOOK_MODE=mock` (default) records the send but delivers nothing and says so in the UI. `OUTLOOK_MODE=live` uses an Entra app registration (`MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`) and `OUTLOOK_SENDER`; `OUTLOOK_DELIVERY=send` uses `sendMail`, `OUTLOOK_DELIVERY=draft` only creates the message in the sender's Outlook Drafts for a person to send.
-- Restrict the app registration's `Mail.Send` to the one mailbox with an Exchange ApplicationAccessPolicy.
+- Reading vendor correspondence (Orchestration → vendor → Emails) needs `Mail.Read` on the same mailbox. Restrict the app registration's `Mail.Send` and `Mail.Read` to that one mailbox with an Exchange ApplicationAccessPolicy.
 - Vendor addresses in the sample data are `.example` placeholders. Live Graph calls have not been tested against a real tenant.
 
 ## Run

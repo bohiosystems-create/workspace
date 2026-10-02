@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { orchestrationState, orchestrationAction } from "@/lib/orchestrator-api";
+import { orchestrationState, orchestrationAction, vendorState } from "@/lib/orchestrator-api";
 import { isLang } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-// GET  /api/orchestration?lang=ar -> work orders, deliverables, escalations, operating rhythm
+// GET  /api/orchestration?lang=ar -> vendor directory, work orders, deliverables, escalations, operating rhythm
+// GET  /api/orchestration?vendor=<id>&lang=ar -> one vendor: campaigns, invoices, work orders, deliverables, emails
 // POST { action: APPROVE (items [{id, revision}], approver, confirmRead) | CANCEL | RECEIVE | RUN, ... }
 export async function GET(req: Request) {
   try {
-    const l = new URL(req.url).searchParams.get("lang");
+    const u = new URL(req.url).searchParams, l = u.get("lang"), vendor = u.get("vendor");
+    if (vendor) return NextResponse.json(await vendorState(vendor, isLang(l) ? l : "en"));
     return NextResponse.json(await orchestrationState(isLang(l) ? l : "en"));
   } catch (err: any) {
     console.error("orchestration error", err);

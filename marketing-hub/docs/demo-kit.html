@@ -115,6 +115,7 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
         <li>Benchmarks by channel, season, year, project and vendor; a lesson per campaign</li>
         <li>The yardstick for the daily check and the assistant</li></ul></div>
       <div class="cap"><div class="n">Orchestration</div><h3>Runs the vendors</h3><ul>
+        <li>Vendor directory: open any vendor for its campaigns, Oracle invoices, work orders, deliverables and Outlook emails</li>
         <li>Monthly briefs from the approved plan: budget, campaign codes, targets, deliverables and due dates</li>
         <li>Monthly lead feedback from the CRM: what converted, why leads were lost</li>
         <li>Two reminders for late work, then it asks the manager to call</li>
@@ -163,7 +164,7 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
       <tbody>
         <tr><td>Kinan AI agent (plan, campaign changes, brief)</td><td><span class="pill ok">Built</span></td><td>Kinan's webhook URL, shared secret, an API key</td></tr>
         <tr><td>Yardi (reading CRM results)</td><td><span class="pill no">Not built</span></td><td>Yardi interface licence, credentials, field mapping</td></tr>
-        <tr><td>Outlook</td><td><span class="pill mid">Built, untested on tenant</span></td><td>Entra app registration, sending mailbox</td></tr>
+        <tr><td>Outlook (send and read vendor mail)</td><td><span class="pill mid">Built, untested on tenant</span></td><td>Entra app registration (Mail.Send, Mail.Read), marketing mailbox</td></tr>
         <tr><td>Oracle Fusion invoices</td><td><span class="pill mid">Built, untested on instance</span></td><td>Oracle user and URL (read-only)</td></tr>
         <tr><td>CRM results</td><td><span class="pill mid">Ingest API built</span></td><td>Lead results with campaign codes</td></tr>
         <tr><td>Meta ads (Facebook / Instagram)</td><td><span class="pill mid">Built, live mode untested</span></td><td>System-user token (ads_read, business_management), ad account IDs</td></tr>
@@ -259,12 +260,14 @@ const STORY = [
     "<b>Approve plan and send to Kinan</b>. Kinan's agent gets the plan and campaign codes",
     "Scroll to <b>Feed to Kinan</b>: the approved plan is in the feed (simulated). In production: a signed webhook to Kinan's agent; marketing context only, no lead tasks"]],
   ["Orchestration: running the vendors", "5 min", [
-    "<span class='expect'>14 waiting</span>: 6 June briefs, 7 routine (feedback and reminders), 1 non-renewal notice",
-    "Open the PropertyHub KSA brief: written in Arabic, the vendor's language",
+    "The <b>vendor list</b>: 6 current, <b>Alternatives (5)</b>, <b>Past (3)</b> — score, decision, campaigns, spend, invoices, work and emails per vendor",
+    "<span class='expect'>14 waiting</span> under the list: 6 June briefs, 7 routine, 1 non-renewal notice → <b>Show the messages</b>, open the PropertyHub KSA brief (in Arabic)",
     "Tick <b>I have read the routine messages</b> → <b>Approve and send all routine</b>",
     "Tick <b>I have read the briefs</b> → <b>Approve and send all briefs</b>",
-    "Show each brief's checks under <b>With vendors</b>",
-    "<b>Mark received</b> on Sada Influence's late item → \"Received late\"",
+    "Click <b>Sada Influence</b>: <span class='expect'>score 45, SAR 232K spend, SAR 54K outstanding</span>, decision: 60-day performance plan",
+    "<b>Overview</b>: work orders with checks; <b>Mark received</b> on <i>Creator content — June batch</i> → \"Received late\"",
+    "<b>Campaigns</b> (live and past) · <b>Invoices</b> (7, from Oracle) · <b>Emails</b> (Outlook thread; vendor replies simulated in the demo)",
+    "<b>← All vendors</b>",
     "Leave the Hajar non-renewal notice unapproved: \"a contract decision\""]],
   ["The report shows what changed", "2 min", [
     "<b>Reports</b> → <b>Send now</b> again",
