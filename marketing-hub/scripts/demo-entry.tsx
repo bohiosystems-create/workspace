@@ -26,6 +26,7 @@ import Chat from "../app/_components/Chat";
 import { buildMarketingDashboard, applyAction } from "../lib/marketing";
 import { buildRecommendations, handleRecommendationRequest } from "../lib/recommendations";
 import { localAnswer } from "../lib/chat";
+import { chartApi, chartCatalogue } from "../lib/chart-api";
 import { logMiss, listMisses } from "../lib/chat-misses";
 import { aiAnswer } from "../lib/chat-ai";
 import { buildCrmDashboard, syncCrm } from "../lib/crm";
@@ -116,6 +117,10 @@ window.fetch = (async (input: any, init?: any) => {
     try { return json(await historyState(qlang(url))); } catch (e: any) { return json({ error: e.message }); }
   }
   if (url.includes("/api/ingest/vendor-report")) return new Response(await templateCsv(), { headers: { "Content-Type": "text/csv" } });
+  if (url.includes("/api/chart")) {
+    if (init?.method === "POST") { try { return json(await chartApi(JSON.parse(init.body))); } catch (e: any) { return json({ error: e.message }); } }
+    return json(chartCatalogue());
+  }
   if (url.includes("/api/chat/miss")) {
     if (init?.method === "POST") { await logMiss({ ...JSON.parse(init.body), source: "USER" }); return json({ ok: true }); }
     return json(await listMisses());

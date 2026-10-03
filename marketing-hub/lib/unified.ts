@@ -32,7 +32,12 @@ export type UnifiedCampaign = {
   platform: { spendK: number; leads: number } | null;
   billing: { invoicedK: number; accruedK: number };
   verified: Metrics & { costSource: "oracle" | "vendor"; leadSource: "crm" | "vendor" };
-  months: { month: string; costK: number; qualified: number; won: number; salesM: number }[];
+  months: {
+    month: string; costK: number; qualified: number; won: number; salesM: number;
+    // Also per month, for charts: CRM leads and funnel, and what the vendor reported.
+    leads: number; viewings: number; reservations: number;
+    reported: { spendK: number; leads: number; qualified: number; contracts: number; salesM: number; impressionsK: number; clicks: number };
+  }[];
 };
 export type DataFlag = { code: string; severity: "crit" | "warn" | "info"; text: string };
 export type UnifiedVendor = { id: string; name: string; category: string; campaigns: number; reported: UnifiedCampaign["reported"]; platformSpendK: number | null; digitalReportedSpendK: number; verified: Metrics; flags: DataFlag[] };
@@ -86,6 +91,10 @@ export async function buildUnified(lang: Lang = "en") {
         qualified: ls.filter((l) => inM(l.createdAt) && QUALIFIED_STAGES.has(l.stage)).length,
         won: ls.filter((l) => l.stage === "WON" && inM(l.createdAt)).length,
         salesM: r2(ls.filter((l) => l.stage === "WON" && inM(l.createdAt)).reduce((s, l) => s + (l.dealValueM ?? 0), 0)),
+        leads: ls.length ? ls.filter((l) => inM(l.createdAt)).length : m.leads,
+        viewings: ls.filter((l) => inM(l.createdAt) && ["VIEWING", "RESERVED", "WON"].includes(l.stage)).length,
+        reservations: ls.filter((l) => inM(l.createdAt) && ["RESERVED", "WON"].includes(l.stage)).length,
+        reported: { spendK: m.spendK, leads: m.leads, qualified: m.qualified, contracts: m.contracts, salesM: m.revenueM, impressionsK: m.impressionsK, clicks: m.clicks },
       };
     });
     return {

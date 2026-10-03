@@ -7,12 +7,15 @@ import { familyOf, FAMILY_LABEL } from "./history";
 import { breakdown, DIMENSIONS, type Dimension } from "./audience";
 import { type Lang, tx, nm } from "./i18n";
 
-export type ChartType = "pie" | "donut" | "bar" | "hbar" | "line";
+export type ChartType = "pie" | "donut" | "bar" | "hbar" | "line" | "area" | "stacked" | "stackedh" | "grouped" | "scatter" | "table" | "kpi";
 export type Metric = "sales" | "spend" | "qualified" | "contracts" | "leads" | "costToSales" | "cpql";
 export type GroupBy = "vendor" | "project" | "channel" | "campaign" | "month" | "year" | Dimension;
 export type ChartSpec = {
-  type: ChartType; title: string; metric: Metric; unit: string; groupBy: GroupBy;
+  type: ChartType; title: string; metric: Metric | string; unit: string; groupBy: GroupBy | string;
   labels: string[]; values: number[]; total: number | null; period: string; note?: string; lang: Lang;
+  // Open-ended charts (lib/chart-query.ts): several series, scatter points, the query that produced it.
+  subtitle?: string; series?: { name: string; values: (number | null)[]; unit?: string }[]; units?: string[];
+  points?: { label: string; x: number; y: number }[]; xLabel?: string; yLabel?: string; xUnit?: string; query?: unknown;
 };
 export type ChartRequest = { type?: ChartType; metric?: Metric; groupBy?: GroupBy; period?: string; months?: string[]; project?: string; channel?: string; vendor?: string; top?: number };
 

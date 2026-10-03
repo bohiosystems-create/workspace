@@ -180,6 +180,24 @@ A chat assistant ("Ask" button, bottom-right of every page) answers questions ab
 - **Without a key** (and in the static demo) the built-in answers (`lib/chat.ts`, `lib/chat-extra.ts`) cover: today's brief, daily check and what changed since yesterday, campaign recommendations, approvals, any campaign (by name or code, with benchmark, today's items and similar past campaigns), vendors (current, bench, past), projects, channels, comparisons of 2–4 campaigns / vendors / projects / channels or years, any month / quarter / year, the history (seasons, years, lessons, best / worst, benchmarks), metric definitions, renewals, tests, trials, CRM verification, Meta, invoices, contracts, the plan, reports, orchestration and Kinan — in English and Arabic.
 - `npm run chat:eval` asks 145 English and Arabic questions plus 148 off-script phrasings and checks each answer (currently 145/145 and 148/148). Questions the assistant missed in use are listed on Reports → *Questions the assistant missed* (`GET /api/chat/miss`); add each one as a test case when you teach it.
 
+### Charts — any chart, from a prompt or the API (`lib/chart-query.ts`, `/api/chart`)
+- The AI writes a chart **query**; the app computes every number. The query sets:
+  - a dataset (`campaigns`, `leads`, `creatives`, `invoices`, `vendors`, `market`, `mortgage`, `competitors`);
+  - `x`, plus an optional `series` split;
+  - `measures`: formulas such as `sum(spend)*1000/sum(qualified)`, or named measures like `cost_to_sales`, `cpql` or `roas`;
+  - `filters`;
+  - `period` or `from`/`to`;
+  - `transform`: share, cumulative, index, change, change_pct or rank;
+  - `sort`, `limit`, `type` (12 chart types) and `title`.
+- Formulas are parsed, never `eval`'d.
+- `GET /api/chart` returns the catalogue. `POST /api/chart` takes `{ prompt }` (the AI plans the charts; with no key, the built-in reading is used), `{ query }` or `{ queries }`, and returns `{ charts, queries, engine }`.
+- Example:
+  ```bash
+  curl -X POST localhost:3000/api/chart -H 'content-type: application/json' \
+    -d '{"query":{"dataset":"campaigns","type":"stacked","x":"year","series":"channel","measures":["sum(spend)"]}}'
+  ```
+- `npm run chart:eval` runs 22 engine checks: the numbers match the rest of the app, transforms add up, and bad queries return guiding errors. It is part of `npm run chat:eval`.
+
 ### Recommendations and emails
 
 The agent turns vendor performance (`lib/marketing.ts`) and Oracle reconciliation (`lib/invoices.ts`) into a prioritised list (`lib/recommendations.ts`):

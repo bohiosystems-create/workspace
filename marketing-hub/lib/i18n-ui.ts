@@ -760,6 +760,13 @@ const UI9: Record<string, string> = {
 
 // Vendor directory (Orchestration)
 const UI10: Record<string, string> = {
+  "Area": "مساحي",
+  "Stacked": "مكدّس",
+  "Stacked (horizontal)": "مكدّس أفقي",
+  "Side by side": "متجاور",
+  "Scatter": "تشتت",
+  "Table": "جدول",
+  "Figures": "أرقام",
   "Pie": "دائري",
   "Donut": "حلقي",
   "Bars": "أعمدة",
