@@ -53,6 +53,13 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 ## 3. Daily scheduled reports
 
 - A report every scheduled morning (default 07:30 Riyadh time, Sunday–Thursday, English and Arabic): brief, sales vs target, **what changed since the last report**, **campaign recommendations** (what to change, why, what's at stake and how), decisions waiting with minutes, vendors, risks, invoices, data freshness.
+- **Charts in every report:**
+  - sales vs target per project (red below 75%, amber 75–95%, green from 95%);
+  - sales by month this year;
+  - revenue share by vendor;
+  - cost to sales by channel (red where it is more than 1.5× the 2023–2025 average).
+
+  The charts are built from plain HTML tables rather than images or SVG, so they look the same in Outlook, Gmail, Apple Mail, on phones, in the app and in the PDF and HTML downloads. Their numbers come from the same chart engine as the assistant, in English and Arabic.
 - Emailed through Outlook to internal addresses only; kept in a history to view or download. Optional copy of the brief to Kinan's agent.
 
 ## 4. Vendor performance — measured fairly

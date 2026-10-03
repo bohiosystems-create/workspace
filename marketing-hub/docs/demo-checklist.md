@@ -68,6 +68,11 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 ### 5. Daily report — baseline (1 min)
 
 - [ ] Go to **Reports** and click **Send now**. The report opens below.
+- [ ] Scroll through the charts:
+  - **Sales vs target**: Andalus 38% in red; Ash Shati 90% and Marina 92% in amber.
+  - **At a glance**: sales by month (May SAR 32.8M, the best month); revenue by vendor (Mubasher 38%, Tasweeq 30%, PropertyHub 20%); cost to sales by channel (brokers 0.8% best; PR, outdoor and influencers in red).
+
+  Say: *"The same charts arrive by email — they're built so Outlook shows them, not as images that get blocked."*
 - [ ] Show the **Campaign recommendations — 22 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
 - [ ] Show the schedule: 07:30 Riyadh, Sunday–Thursday, English and Arabic, internal addresses only.
 

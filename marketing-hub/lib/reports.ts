@@ -13,6 +13,8 @@
 import { prisma } from "./prisma";
 import { single, serial } from "./single";
 import { buildAgent } from "./agent";
+import { historyState } from "./history";
+import { reportCharts } from "./report-charts";
 import { buildDirector } from "./director";
 import { buildOrchestration } from "./orchestrator";
 import { buildRecommendations } from "./recommendations";
@@ -131,13 +133,21 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
 
   // 1. Brief
   sec.push([T("Today's brief", "موجز اليوم"), `<p style="font-size:16px;font-weight:700;margin:0 0 6px">${esc(d.brief.headline)}</p>${ul(d.brief.bullets.map(esc))}`, `${d.brief.headline}\n${tl(d.brief.bullets)}`]);
+  // Charts (e-mail-safe HTML, numbers from the chart engine).
+  const charts = reportCharts({ agent: a, history: await historyState(lang), daily: null as any, lang, meta: null, leads: [], creatives: [] }, lang,
+    { byAsset: d.targets.byAsset.map((x) => ({ asset: N(x.asset), actualM: x.actualM, targetM: x.targetM, pct: x.pct })), ytdActualM: d.targets.ytdActualM, ytdTargetM: d.targets.ytdTargetM, ytdPct: d.targets.ytdPct });
+  const chartBox = (h: string) => `<div style="margin:0 0 16px">${h}</div>`;
   // 2. Sales vs target
   const rows = d.targets.byAsset.map((x) => [N(x.asset), M(lang, x.actualM), M(lang, x.targetM), `${x.pct}%`, `${M(lang, x.forecastNextM)} / ${M(lang, x.targetNextM)}`, (x.pct ?? 0) < 75]);
   const th = (h: string[]) => `<tr>${h.map((x) => `<th style="text-align:start;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:${C.ink};padding:6px 8px">${esc(x)}</th>`).join("")}</tr>`;
+  const salesChart = charts.find((c) => c.title === T("Sales vs target by project", "المبيعات مقابل المستهدف حسب المشروع"));
   sec.push([T("Sales vs target", "المبيعات مقابل المستهدف"),
-    `<table style="border-collapse:collapse;width:100%;font-size:13px">${th([T("Project", "المشروع"), T("Year to date", "منذ بداية العام"), T("Target", "المستهدف"), "%", T("June forecast / target", "توقع يونيو / المستهدف")])}${rows.map((r) => `<tr>${r.slice(0, 5).map((c, i) => `<td style="padding:6px 8px;border-bottom:1px solid ${C.line};${i === 3 && r[5] ? `color:${C.alert};font-weight:700` : ""}">${esc(c)}</td>`).join("")}</tr>`).join("")}</table>
-     <p style="margin:6px 0 0;color:${C.soft};font-size:12px">${esc(T(`Total: ${M(lang, d.targets.ytdActualM)} of ${M(lang, d.targets.ytdTargetM)} (${d.targets.ytdPct}%), CRM-verified.`, `الإجمالي: ${M(lang, d.targets.ytdActualM)} من ${M(lang, d.targets.ytdTargetM)} (${d.targets.ytdPct}%)، متحقَّق منه في النظام.`))}</p>`,
+    salesChart ? `${salesChart.html}<p style="margin:10px 0 0;font-size:12px">${esc(T("June forecast / target:", "توقع يونيو / المستهدف:"))} ${rows.map((r) => `${esc(r[0])} <b>${esc(r[4])}</b>`).join(" · ")}</p>`
+      : `<table style="border-collapse:collapse;width:100%;font-size:13px">${th([T("Project", "المشروع"), T("Year to date", "منذ بداية العام"), T("Target", "المستهدف"), "%", T("June forecast / target", "توقع يونيو / المستهدف")])}${rows.map((r) => `<tr>${r.slice(0, 5).map((c, i) => `<td style="padding:6px 8px;border-bottom:1px solid ${C.line};${i === 3 && r[5] ? `color:${C.alert};font-weight:700` : ""}">${esc(c)}</td>`).join("")}</tr>`).join("")}</table>`,
     rows.map((r) => `  • ${r[0]}: ${r[1]} / ${r[2]} (${r[3]}); ${T("June", "يونيو")} ${r[4]}`).join("\n")]);
+  // 2b. At a glance — charts.
+  const glance = charts.filter((c) => c !== salesChart);
+  if (glance.length) sec.push([T("At a glance", "نظرة سريعة"), glance.map((c) => chartBox(c.html)).join(""), glance.map((c) => `${c.title}\n${c.text}`).join("\n")]);
   // 3. Since last report
   const prevLabel = prev ? (prev.date === date ? dtm(lang, prev.at) : dt(lang, prev.date)) : "";
   const chHtml = !prev ? `<p style="margin:0;color:${C.soft}">${esc(T("First report — the next one will show what changed.", "التقرير الأول — سيُظهر التقرير التالي ما تغيّر."))}</p>`
