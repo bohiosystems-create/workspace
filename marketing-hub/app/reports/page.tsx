@@ -130,13 +130,13 @@ export default function ReportsPage() {
               <div className="chart-label">{t("Run")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button className="btn ghost" disabled={busy === "preview"} onClick={() => act({ action: "PREVIEW" }, "preview")}>{t("Preview today's report")}</button>
-                <button className="btn" disabled={busy === "send"} onClick={() => act({ action: "SEND_NOW" }, "send")}>{t("Send now")}</button>
+                <button className="btn" disabled={busy === "snapshot"} onClick={() => act({ action: "SNAPSHOT" }, "snapshot")}>{busy === "snapshot" ? t("Building snapshot…") : t("Run snapshot")}</button>
                 <button className="btn ghost" disabled={!!busy} onClick={() => download("pdf")}>{busy === "pdf" ? t("Preparing PDF…") : t("Download PDF")}</button>
-                <button className="btn ghost" disabled={busy === "run"} onClick={() => act({ action: "RUN" }, "run")}>{t("Run the schedule check")}</button>
               </div>
               <div className="muted" style={{ fontSize: 11, marginTop: 12, lineHeight: 1.6 }}>
                 {data.outlook === "mock" ? t("Outlook is simulated: sends are recorded, not delivered. Set OUTLOOK_MODE=live to email the report.") : t("Reports are emailed from Outlook.")}<br />
-                {data.cronConfigured ? t("Scheduler endpoint is enabled: POST /api/reports/run every 15 minutes.") : t("To send on schedule, set REPORTS_CRON_KEY and call POST /api/reports/run every 15 minutes (any scheduler). Until then, use Send now.")}<br />
+                {t("Run snapshot builds a live marketing snapshot — headline figures, charts, today's campaign check and what's waiting for you — saved below and not e-mailed.")}<br />
+                {data.cronConfigured ? t("Scheduler endpoint is enabled: POST /api/reports/run every 15 minutes.") : t("To e-mail the daily report on schedule, set REPORTS_CRON_KEY and call POST /api/reports/run every 15 minutes (any scheduler).")}<br />
                 {t("Local time now")}: <b dir="ltr">{data.local.date} {data.local.hhmm}</b> ({data.schedule.timezone})
               </div>
 
@@ -147,7 +147,7 @@ export default function ReportsPage() {
                   <div className="lt">{dm(r.createdAt)}</div>
                   <span className={`pill ${STATUS[r.status] ?? "hold"}`}>{t(r.status)}</span>
                   <div style={{ flex: 1 }}>
-                    {t(r.trigger === "SCHEDULED" ? "Scheduled" : "Manual")} · {r.lang === "ar" ? "العربية" : "English"}{r.delivery === "mock" ? ` · ${t("simulated")}` : ""}{r.kinan ? ` · ${t("sent to Kinan")}` : ""}
+                    {r.kind === "SNAPSHOT" ? <b>{t("Live snapshot")}</b> : t(r.trigger === "SCHEDULED" ? "Scheduled" : "Manual")} · {r.lang === "ar" ? "العربية" : "English"}{r.delivery === "mock" ? ` · ${t("simulated")}` : ""}{r.kinan ? ` · ${t("sent to Kinan")}` : ""}
                     {(r.recipients || r.error) && <div className="muted" style={{ fontSize: 10 }} dir="ltr">{r.recipients}{r.error ? ` · ${r.error}` : ""}</div>}
                   </div>
                   <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 8 }} onClick={() => open(r.id)}>{t("View")}</button>

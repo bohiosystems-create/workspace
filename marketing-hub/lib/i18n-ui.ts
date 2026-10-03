@@ -760,6 +760,11 @@ const UI9: Record<string, string> = {
 
 // Vendor directory (Orchestration)
 const UI10: Record<string, string> = {
+  "Run snapshot": "تشغيل لقطة فورية",
+  "Building snapshot…": "جارٍ إعداد اللقطة…",
+  "Live snapshot": "لقطة فورية",
+  "Run snapshot builds a live marketing snapshot — headline figures, charts, today's campaign check and what's waiting for you — saved below and not e-mailed.": "«تشغيل لقطة فورية» يُعدّ لقطة تسويقية حية — الأرقام الرئيسية والرسوم البيانية وفحص الحملات اليوم وما ينتظر قراركم — تُحفظ أدناه ولا تُرسل بالبريد.",
+  "To e-mail the daily report on schedule, set REPORTS_CRON_KEY and call POST /api/reports/run every 15 minutes (any scheduler).": "لإرسال التقرير اليومي بالبريد حسب الجدول، اضبطوا REPORTS_CRON_KEY واستدعوا POST /api/reports/run كل 15 دقيقة (بأي مُجدول).",
   "2023–2025 archive": "أرشيف 2023–2025",
   "invoices, all paid": "فاتورة، جميعها مسددة",
   "No 2026 invoices from this vendor in Oracle.": "لا فواتير لعام 2026 من هذا المورد في أوراكل.",

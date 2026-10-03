@@ -60,6 +60,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - cost to sales by channel (red where it is more than 1.5× the 2023–2025 average).
 
   The charts are built from plain HTML tables rather than images or SVG, so they look the same in Outlook, Gmail, Apple Mail, on phones, in the app and in the PDF and HTML downloads. Their numbers come from the same chart engine as the assistant, in English and Arabic.
+- **Run snapshot** (Reports page): a live marketing snapshot built on demand. It contains nine headline figures, the report charts plus Meta revenue, today's campaign check, what's waiting for your decision, and what changed since the last report or snapshot. It is saved in the history and can be downloaded as PDF or HTML; it is never emailed.
 - Emailed through Outlook to internal addresses only; kept in a history to view or download. Optional copy of the brief to Kinan's agent.
 
 ## 4. Vendor performance — measured fairly
@@ -211,6 +212,6 @@ The recommendations are only as good as the data behind them. In order of value:
 | Meta ads (Facebook / Instagram) | Sample accounts and campaigns | Built; live mode written against the Marketing API, not yet run on a real account | A system-user token with `ads_read` (and `business_management` to see partner access); the ad account IDs |
 | Other ad platforms (Google, Snap, TikTok) | Sample data | Ingest API built; pull adapters not built | Platform access per account |
 | AI: Claude, OpenAI and Gemini with task routing — free-form chat, campaign ideation, AI second opinion, draft polishing | Built-in answers (Claude through your own account in the Claude app edition) | Built, with per-task routing and failover; tested against mock servers | Any of an Anthropic, OpenAI or Gemini API key |
-| Report scheduler | "Send now" | Built | A scheduler calling the report endpoint every 15 minutes |
+| Report scheduler | "Run snapshot" (on demand), "Preview today's report" | Built | A scheduler calling the report endpoint every 15 minutes |
 
 All figures in the demo are **sample data**, frozen on **8 June 2026**.

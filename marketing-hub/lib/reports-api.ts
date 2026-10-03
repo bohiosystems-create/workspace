@@ -1,5 +1,5 @@
 // Request handlers for scheduled reports (shared by the API route and the offline demo).
-import { reportsState, saveSchedule, runNow, runSchedule, getReport } from "./reports";
+import { reportsState, saveSchedule, runNow, runSchedule, getReport, runSnapshot } from "./reports";
 import { type Lang, isLang, tx } from "./i18n";
 
 export { reportsState, getReport };
@@ -9,6 +9,7 @@ export async function reportsAction(b: any) {
   let message: string | null = null, openId: string | null = null;
   switch (b.action) {
     case "SAVE_SCHEDULE": await saveSchedule(b.schedule ?? {}, String(b.approver ?? ""), l); message = tx(l, "Schedule saved.", "حُفظ الجدول."); break;
+    case "SNAPSHOT": openId = await runSnapshot(l); message = tx(l, "Live snapshot ready — saved in the history, not e-mailed.", "اللقطة الفورية جاهزة — حُفظت في السجل ولم تُرسل بالبريد."); break;
     case "PREVIEW": openId = (await runNow(false, l))[0]?.id ?? null; break;
     case "SEND_NOW": {
       const ids = await runNow(true, l);

@@ -14,7 +14,9 @@ import { prisma } from "./prisma";
 import { single, serial } from "./single";
 import { buildAgent } from "./agent";
 import { historyState } from "./history";
-import { reportCharts } from "./report-charts";
+import { reportCharts, kpiTiles, metaRevenueChart } from "./report-charts";
+import { buildChatContext } from "./chat";
+import { runChartQuery } from "./chart-query";
 import { buildDirector } from "./director";
 import { buildOrchestration } from "./orchestrator";
 import { buildRecommendations } from "./recommendations";
@@ -196,6 +198,79 @@ ${sec.map(([h, body]) => `<div style="background:#fff;border:1px solid ${C.line}
   return { title, html, text, metrics, headline: d.brief.headline, bullets: d.brief.bullets, actions: d.brief.actions };
 }
 
+// -------------------------------------------------------------------- live snapshot
+/** A live marketing snapshot: the position right now — headline figures, charts, today's campaign issues, what's
+ * waiting for a decision, and what changed since the previous report or snapshot. On demand, never e-mailed. */
+export async function buildSnapshot(lang: Lang, at: Date, prev: { metrics: Metrics; date: string; at: Date } | null) {
+  const T = (en: string, ar: string) => tx(lang, en, ar);
+  const N = (x: string) => nm(lang, x);
+  const s = await ensureSchedule();
+  const ln = localNow(s.timezone, at);
+  const daily = await buildReport(lang, ln.date, prev); // same sections and metrics as the daily report
+  const c = await buildChatContext(lang);
+  const d = c.director, o = c.orch, a = c.agent;
+  const k = (q: any) => { const r = runChartQuery(q, c.q, lang); return "error" in r ? null : (r.series?.[0]?.values ?? r.values); };
+  const ytd = k({ dataset: "campaigns", measures: ["sum(spend)", "sum(sales)", "cost_to_sales"], period: "year to date" }) ?? [];
+  const latest = d.targets.monthly[d.targets.monthly.length - 1];
+  const lastMonth = k({ dataset: "campaigns", measures: ["sum(qualified)", "sum(contracts)"], period: "last month" }) ?? [];
+  const meta6 = k({ dataset: "meta", measures: ["sum(revenue)", "sum(spend)"], period: "last 6 months" }) ?? [];
+  const urgent = d.campaignRecs.filter((r) => r.severity === "crit").length;
+  const monthName = (m: string | undefined, l: Lang) => (m ? new Date(`${m}-01T00:00:00Z`).toLocaleDateString(l === "ar" ? "ar-SA-u-nu-latn-ca-gregory" : "en-GB", { month: "long", year: "numeric", timeZone: "UTC" }) : "");
+  const tiles = kpiTiles([
+    { label: T("Sales year to date", "المبيعات منذ بداية العام"), value: M(lang, d.targets.ytdActualM), sub: T(`${d.targets.ytdPct}% of ${M(lang, d.targets.ytdTargetM)} target`, `${d.targets.ytdPct}% من مستهدف ${M(lang, d.targets.ytdTargetM)}`), tone: d.targets.ytdPct < 85 ? "bad" : d.targets.ytdPct < 95 ? "warn" : "good" },
+    { label: T("Marketing spend YTD", "الإنفاق التسويقي منذ بداية العام"), value: K(lang, Math.round(Number(ytd[0] ?? 0))), sub: T(`cost to sales ${ytd[2] ?? "—"}%`, `نسبة التكلفة إلى المبيعات ${ytd[2] ?? "—"}%`) },
+    { label: T(`Sales in ${monthName(latest?.month, "en")}`, `مبيعات ${monthName(latest?.month, "ar")}`), value: M(lang, latest?.actualM ?? 0), sub: T(`target ${M(lang, latest?.targetM ?? 0)}`, `المستهدف ${M(lang, latest?.targetM ?? 0)}`), tone: (latest?.actualM ?? 0) >= (latest?.targetM ?? 0) ? "good" : "warn" },
+    { label: T("Qualified leads, last month", "العملاء المؤهلون، الشهر الماضي"), value: String(lastMonth[0] ?? "—"), sub: T(`${lastMonth[1] ?? "—"} contracts`, `${lastMonth[1] ?? "—"} عقود`) },
+    { label: T("Meta ads revenue, 6 months", "إيرادات إعلانات ميتا، 6 أشهر"), value: M(lang, Math.round(Number(meta6[0] ?? 0) * 10) / 10), sub: T(`on ${K(lang, Math.round(Number(meta6[1] ?? 0)))} Meta spend`, `مقابل إنفاق ${K(lang, Math.round(Number(meta6[1] ?? 0)))} على ميتا`) },
+    { label: T("Waiting for your decision", "بانتظار قراركم"), value: String(d.inbox.length), sub: T(`about ${d.managerMinutes} min`, `نحو ${d.managerMinutes} دقيقة`), tone: d.inbox.length ? "warn" : "good" },
+    { label: T("Campaign recommendations", "توصيات الحملات"), value: String(d.campaignRecs.length), sub: T(`${urgent} urgent`, `${urgent} عاجلة`), tone: urgent ? "bad" : undefined },
+    { label: T("Late vendor deliverables", "تسليمات موردين متأخرة"), value: String(o.summary.lateDeliverables), sub: T(`${o.summary.withVendors} work orders with vendors`, `${o.summary.withVendors} أوامر عمل لدى الموردين`), tone: o.summary.lateDeliverables ? "bad" : "good" },
+    { label: T("Overdue payments", "مدفوعات متأخرة"), value: K(lang, Math.round(a.inv.kpis.overdueK)), sub: T(`${a.inv.kpis.exceptions} invoice exceptions`, `${a.inv.kpis.exceptions} استثناءات في الفواتير`), tone: a.inv.kpis.overdueK ? "bad" : "good" },
+  ]);
+  const charts = reportCharts(c.q, lang, { byAsset: d.targets.byAsset.map((x) => ({ asset: N(x.asset), actualM: x.actualM, targetM: x.targetM, pct: x.pct })), ytdActualM: d.targets.ytdActualM, ytdTargetM: d.targets.ytdTargetM, ytdPct: d.targets.ytdPct });
+  const meta = metaRevenueChart(c.q, lang);
+  const allCharts = [...charts, ...(meta ? [meta] : [])];
+  // Today's per-campaign check: urgent first.
+  const SEV: Record<string, number> = { crit: 0, warn: 1, info: 2 };
+  const items = [...((c.daily as any).recommendations ?? [])].sort((p: any, q: any) => SEV[p.severity] - SEV[q.severity]).slice(0, 6);
+  const checkHtml = items.length ? `<ol style="margin:0;padding-inline-start:20px;line-height:1.55">${items.map((r: any) => `<li style="margin-bottom:6px">${r.severity === "crit" ? `<b style="color:${C.alert}">${esc(T("Urgent", "عاجل"))}</b> · ` : ""}<b>${esc(r.title)}</b><br><span style="color:${C.soft}">${esc(firstSentence(r.why ?? ""))}</span></li>`).join("")}</ol>` : `<p style="margin:0">${esc(T("Nothing flagged on the campaigns today.", "لا ملاحظات على الحملات اليوم."))}</p>`;
+  const dec = d.inbox.slice(0, 8).map((x) => `${esc(x.title)} <span style="color:${C.soft}">(~${x.minutes} ${T("min", "د")})</span>`);
+  // Changes since the previous report or snapshot (same metrics as the daily report).
+  const changes = daily.html.match(/<div style="font-size:10px;letter-spacing:\.2em[^>]*>([^<]*(?:Since the last report|منذ التقرير السابق)[^<]*)<\/div><div style="font-size:13px">([\s\S]*?)<\/div><\/div>/);
+
+  const stamp = `${dt(lang, ln.date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}${lang === "ar" ? "، " : ", "}${ln.hhmm}`;
+  const title = T(`Live marketing snapshot — ${stamp}`, `لقطة تسويقية فورية — ${stamp}`);
+  const sec: [string, string, string][] = [
+    [T("Headline figures", "الأرقام الرئيسية"), tiles, ""],
+    [T("Charts", "الرسوم البيانية"), allCharts.map((x) => `<div style="margin:0 0 18px">${x.html}</div>`).join(""), allCharts.map((x) => `${x.title}\n${x.text}`).join("\n")],
+    [T(`Today's campaign check — ${items.length ? `${(c.daily as any).recommendations.length} items` : "clear"}`, `فحص الحملات اليوم — ${items.length ? `${(c.daily as any).recommendations.length} ملاحظات` : "لا ملاحظات"}`), checkHtml, items.map((r: any) => `  • ${r.title}`).join("\n")],
+    [T(`Waiting for your decision — about ${d.managerMinutes} min`, `بانتظار قراركم — نحو ${d.managerMinutes} دقيقة`), dec.length ? `<ul style="margin:6px 0 0;padding-inline-start:18px;line-height:1.6">${dec.map((x) => `<li>${x}</li>`).join("")}</ul>` : `<p style="margin:0">${esc(T("Nothing waiting.", "لا شيء بالانتظار."))}</p>`, d.inbox.map((x) => `  • ${x.title}`).join("\n")],
+  ];
+  if (changes) sec.push([T(changes[1].replace("Since the last report", "Since the last report or snapshot"), changes[1].replace("منذ التقرير السابق", "منذ التقرير أو اللقطة السابقة")), changes[2], ""]);
+
+  const dir = lang === "ar" ? "rtl" : "ltr";
+  const html = `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
+<body style="margin:0;background:${C.paper};color:${C.ink};font-family:${lang === "ar" ? "Tahoma,Arial" : "Helvetica,Arial"},sans-serif">
+<div style="max-width:720px;margin:0 auto;padding:24px 20px">
+<div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700">${lang === "ar" ? "بوهيو" : "BOHIO"} · ${esc(T("AI Assistant Director of Marketing", "مساعد مدير التسويق الذكي"))}</div>
+<h1 style="font-size:20px;margin:10px 0 4px">${esc(title)}</h1>
+<div style="font-size:12px;color:${C.soft};margin:0 0 18px;border-bottom:2px solid ${C.ink};padding-bottom:10px">${esc(T(`Live position at ${ln.hhmm} (${s.timezone}) · figures as of ${dt("en", d.asOf)} · not e-mailed`, `الوضع الفوري الساعة ${ln.hhmm} (${s.timezone}) · الأرقام حتى ${dt("ar", d.asOf)} · لا يُرسل بالبريد`))}</div>
+${sec.map(([h, body]) => `<div style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}
+<p style="font-size:11px;color:${C.soft}">${esc(T("Snapshot generated on request by the AI Assistant Director of Marketing. It takes no action: approvals happen in the app.", "لقطة أُعدّت عند الطلب بواسطة مساعد مدير التسويق الذكي. لا تتخذ أي إجراء: تتم الاعتمادات داخل التطبيق."))}</p>
+</div></body></html>`;
+  const text = `${title}\n\n${sec.filter(([, , t]) => t).map(([h, , t]) => `${h.toUpperCase()}\n${t}`).join("\n\n")}\n`;
+  return { title, html, text, metrics: daily.metrics, date: ln.date };
+}
+
+/** Run a live snapshot in one language and keep it in the history (never sent). */
+export async function runSnapshot(lang: Lang) {
+  const all = await prisma.report.findMany();
+  const prev = all.filter((r) => r.lang === lang).sort((p, q) => q.createdAt.getTime() - p.createdAt.getTime())[0];
+  const r = await buildSnapshot(lang, new Date(), prev ? { metrics: JSON.parse(prev.metrics), date: prev.date, at: prev.createdAt } : null);
+  const row = await prisma.report.create({ data: { date: r.date, kind: "SNAPSHOT", trigger: "MANUAL", lang, title: r.title, html: r.html, text: r.text, metrics: JSON.stringify(r.metrics), recipients: "", status: "GENERATED", delivery: null, error: null, sentAt: null, kinanEventId: null } });
+  return row.id;
+}
+
 // -------------------------------------------------------------------- run
 async function produce(trigger: "SCHEDULED" | "MANUAL", date: string, send: boolean, langs: Lang[]) {
   const s = await ensureSchedule();
@@ -256,7 +331,7 @@ export async function reportsState(lang: Lang) {
     schedule: { enabled: s.enabled, time: s.time, timezone: s.timezone, days: s.days.split(",").map(Number), recipients: s.recipients, languages: s.languages.split(","), toKinan: s.toKinan, updatedBy: s.updatedBy, updatedAt: s.updatedAt.toISOString() },
     local: ln, next: nextRun(s, ranToday), timezones: TIMEZONES, allowedDomains: allowedDomains(),
     outlook: outlookMode(), cronConfigured: !!process.env.REPORTS_CRON_KEY,
-    reports: reports.slice(0, 60).map((r) => ({ id: r.id, createdAt: r.createdAt.toISOString(), date: r.date, trigger: r.trigger, lang: r.lang, title: r.title, status: r.status, delivery: r.delivery, recipients: r.recipients, error: r.error, kinan: !!r.kinanEventId })),
+    reports: reports.slice(0, 60).map((r) => ({ id: r.id, createdAt: r.createdAt.toISOString(), date: r.date, kind: r.kind, trigger: r.trigger, lang: r.lang, title: r.title, status: r.status, delivery: r.delivery, recipients: r.recipients, error: r.error, kinan: !!r.kinanEventId })),
     latestId: reports.find((r) => r.lang === lang)?.id ?? null,
   };
 }

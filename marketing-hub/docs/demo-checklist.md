@@ -67,7 +67,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 5. Daily report — baseline (1 min)
 
-- [ ] Go to **Reports** and click **Send now**. The report opens below.
+- [ ] Go to **Reports** and click **Preview today's report**. The daily report opens below. Then click **Run snapshot** for the live version: headline figures, charts including Meta revenue, today's campaign check (saved in History, not emailed).
 - [ ] Scroll through the charts:
   - **Sales vs target**: Andalus 38% in red; Ash Shati 90% and Marina 92% in amber.
   - **At a glance**: sales by month (May SAR 32.8M, the best month); revenue by vendor (Mubasher 38%, Tasweeq 30%, PropertyHub 20%); cost to sales by channel (brokers 0.8% best; PR, outdoor and influencers in red).
@@ -99,7 +99,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 8. The report shows what changed (2 min)
 
-- [ ] **Reports**, then **Send now** again. In **"Since the last report"** expect:
+- [ ] **Reports**, then **Preview today's report** again. In **"Since the last report"** expect:
   - Decisions waiting **9 → 7** (9 because the email you drafted in step 2 joined the list)
   - Late vendor deliverables **2 → 1**
   - Work orders with vendors **0 → 7**
