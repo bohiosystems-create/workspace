@@ -172,9 +172,13 @@ export function chartSummary(s: ChartSpec): string {
   const T = (en: string, ar: string) => tx(s.lang, en, ar);
   const fmt = (v: number) => `${v.toLocaleString("en-US")}${s.unit === "%" ? "%" : s.unit ? ` ${s.unit}` : ""}`;
   const top = s.labels.map((l, i) => ({ l, v: s.values[i] }));
-  const lead = s.groupBy === "month" || s.groupBy === "year" ? [] : top.slice(0, 3);
+  const timeline = ["month", "quarter", "year"].includes(String(s.groupBy));
+  const lead = timeline ? [] : top.slice(0, 3);
+  const vals = (s.series?.[0]?.values ?? s.values).map((v) => v ?? 0);
+  const trend = timeline && vals.length >= 2 && (s.series?.length ?? 1) === 1
+    ? T(`${s.labels[0]}: ${fmt(vals[0])} → ${s.labels[s.labels.length - 1]}: ${fmt(vals[vals.length - 1])}; highest ${fmt(Math.max(...vals))} (${s.labels[vals.indexOf(Math.max(...vals))]}).\n`, `${s.labels[0]}: ${fmt(vals[0])} ← ${s.labels[s.labels.length - 1]}: ${fmt(vals[vals.length - 1])}؛ الأعلى ${fmt(Math.max(...vals))} (${s.labels[vals.indexOf(Math.max(...vals))]}).\n`) : "";
   return T(`**${s.title}** (${s.period})`, `**${s.title}** (${s.period})`) +
     (s.total !== null ? T(` — total ${fmt(s.total)}`, ` — الإجمالي ${fmt(s.total)}`) : "") + "\n" +
-    (lead.length ? lead.map((x) => `- ${x.l}: ${fmt(x.v)}${s.total ? ` (${Math.round((x.v / s.total) * 100)}%)` : ""}`).join("\n") + "\n" : "") +
+    trend + (lead.length ? lead.map((x) => `- ${x.l}: ${fmt(x.v)}${s.total ? ` (${Math.round((x.v / s.total) * 100)}%)` : ""}`).join("\n") + "\n" : "") +
     (s.note ? `\n${s.note}` : "");
 }

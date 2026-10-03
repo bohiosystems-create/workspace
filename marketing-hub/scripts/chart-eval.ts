@@ -82,6 +82,13 @@ import { buildChart } from "../lib/charts";
     const real = r.error ? false : (r.series ?? [{ values: r.values }]).some((s: any) => s.values.filter((v: any) => v !== null && v !== 0).length >= (r.type === "kpi" ? 1 : 2));
     ok(`demo use case: ${name}`, !r.error && n >= 2 && real, r.error ?? { n, values: r.series?.map((s: any) => s.values) });
   }
+  // Meta revenue (the question that produced the wrong charts) and chart-type guard rails.
+  const mr = run({ dataset: "meta", type: "line", x: "month", measures: ["sum(revenue)"], period: "last six months" });
+  ok("Meta revenue, last six months: 6 months, Dec 2025 = 0, total ≈ 18.6M", mr.labels?.length === 6 && mr.series?.[0]?.values[0] === 0 && Math.abs(sum(mr.series?.[0]?.values ?? []) - 18.6) < 0.3, [mr.labels, mr.series?.[0]?.values]);
+  ok("Meta revenue never exceeds its campaigns' CRM sales", (() => { const lv = run({ dataset: "campaigns", measures: ["sum(sales)"], filters: [{ field: "code", op: "in", value: ["ASH-SEARCH-26", "AND-OFFPLAN-26", "ASH-CREATOR-26", "AND-CREATOR-26"] }] }); return sum(mr.series[0].values) <= lv.series[0].values[0]; })());
+  ok("line over categories becomes bars", run({ dataset: "campaigns", type: "line", x: "channel", measures: ["sum(sales)"] }).type === "bar");
+  ok("Meta chart title says Meta", /^Meta ads/.test(mr.title));
+
   // The deeper data keeps the live demo numbers: history leads add up to the history, invoices archive to its spend.
   const hl = run({ dataset: "leads", measures: ["count()"], filters: [{ field: "status", op: "=", value: "past" }] });
   ok("past leads = history leads (63,260)", hl.series?.[0]?.values[0] === 63260, hl.series?.[0]?.values);

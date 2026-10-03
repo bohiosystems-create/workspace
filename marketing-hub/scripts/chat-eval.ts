@@ -97,6 +97,8 @@ const CASES: [string, string[]][] = [
   ["Donut chart of qualified leads by project last month", ["Qualified leads (CRM) by project", "2026-05"]],
   ["Pie chart of leads by buyer type", ["by buyer type", "Investor"]],
   ["Visualise spend by channel", ["Marketing spend by channel"]],
+  ["Generate a graph that tracks the meta ads generated revenue over the last six months", ["Meta ads — CRM revenue by month", "2025-12"]],
+  ["Meta spend by agency as a pie", ["Meta ads — spend by agency", "Tasweeq"]],
   ["ارسم رسماً بيانياً دائرياً للإيرادات حسب المورد", ["الإيرادات", "حسب المورد"]],
   ["مخطط أعمدة للإنفاق حسب المشروع", ["الإنفاق التسويقي حسب المشروع"]],
 

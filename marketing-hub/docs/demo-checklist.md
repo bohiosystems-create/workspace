@@ -152,7 +152,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   - *"What we paid each vendor per year"*.
   - *"Sales target vs actual by month"*.
   - *"On-time deliverables by vendor"*.
-  - *"Meta spend by agency"*.
+  - *"Meta spend by agency"*, and *"a graph of Meta ads revenue over the last six months"* (SAR 2.6M in January → ~4M a month from March).
   - *"Price per sqm by district since 2023"*.
   - *"2023–2025 sales by vendor, including past vendors"*.
 

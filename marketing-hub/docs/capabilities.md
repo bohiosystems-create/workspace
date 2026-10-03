@@ -80,6 +80,8 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - **The manager confirms or corrects** in one click; the agent can learn an unknown creator, but never re-labels an agency it already knows. Only attributed spend counts when checking a vendor's reported media spend.
 - **Recommendations:** an urgent alert for an unknown agency, a "who runs this?" decision for conflicts, and a drafted email asking the agency to add campaign codes.
 
+- **Meta revenue:** each Meta campaign's monthly spend, leads and CRM revenue. Revenue is the linked campaign's CRM-verified sales multiplied by Meta's share of that campaign's spend. Ask *"a graph of Meta ads revenue over the last six months"*: about SAR 2.6M in January rising to roughly 4M a month from March, SAR 18.6M in total. This works with or without AI.
+
 ## 6. Proof that a vendor caused the sales (incrementality)
 
 - **Holdout and geo tests:** lift, 90% interval, share of results the vendor actually caused, cost per extra result.
@@ -142,6 +144,9 @@ An AI assistant director of marketing for a real-estate developer with **one mar
     - **12 chart types:** pie, donut, bars, horizontal bars, stacked, stacked horizontal, side-by-side, line, area, scatter, table and KPI figures.
   - **The numbers are always computed from the data, never typed by the AI.** A ratio is never drawn as a pie, different units are never mixed on one axis (the assistant makes two charts instead), and more than 8 series fold into "Other". 2026 is labelled as partial.
   - **If the AI writes an impossible query,** the app replies with the valid fields and the AI corrects it.
+  - **The AI can check numbers without drawing** (`query_data`), so trial queries never appear in your chat.
+  - **Lines are drawn only over time;** a line across categories becomes bars.
+  - **Meta questions always get a Meta chart:** if the AI draws something else, the app adds the Meta chart.
   - **Where the AI can't use tools,** it writes the query as a `chart` block in its reply and the app draws it.
   - **If no chart comes back at all,** the built-in reading of the request is drawn, so a chart request always gets a chart.
   - **Under each chart:** a hover tooltip, a type switcher (only types that suit the data), a table view, and PNG, SVG or CSV download. On phones, legends move under pies and long bar charts turn horizontal.

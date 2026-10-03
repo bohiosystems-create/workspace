@@ -5,7 +5,7 @@
 //                                      them; without an AI key the built-in reading of the request is used
 // GET /api/chart → the catalogue of datasets, fields, named measures, chart types and transforms.
 import { buildChatContext } from "./chat";
-import { runChartQuery, chartSchema, chartSchemaText, chartDigest, type ChartQuery } from "./chart-query";
+import { runChartQuery, chartSchema, chartSchemaText, chartDigest, type ChartQuery, chartFromText } from "./chart-query";
 import { buildChart, chartRequestFromText } from "./charts";
 import { llmStatus, runLlm } from "./llm";
 import { type Lang, looksArabic } from "./i18n";
@@ -49,7 +49,7 @@ export async function chartApi(body: any, uiLang?: Lang): Promise<{ charts: Char
       } catch (e: any) { errors = [e?.message ?? String(e)]; }
     }
   }
-  const spec = buildChart(chartRequestFromText(text, ctx.q), ctx.q, lang);
+  const spec = chartFromText(text, ctx.q, lang);
   if ("error" in spec) throw new Error(spec.error);
   return { charts: [spec], queries: [], engine: "rules" };
 }

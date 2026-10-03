@@ -15,6 +15,7 @@ import { kinanOutbox, kinanMode } from "./kinan";
 import { closest } from "./chat-catalog";
 import { prisma } from "./prisma";
 import { RX_CHART, buildChart, chartRequestFromText, chartSummary, type ChartSpec } from "./charts";
+import { chartFromText } from "./chart-query";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firstSentence } from "./i18n";
 
 // What the chat can put in front of the user besides text. Cards are rendered live from
@@ -33,7 +34,8 @@ export async function buildChatContext(lang: Lang = "en") {
   const daily = await dailyState(lang);
   const [leads, creatives] = [await leadProfiles(), creativesFor(agent.mkt.campaigns as any)];
   const [deliverables, vendors, targets, trials] = await Promise.all([prisma.deliverable.findMany(), prisma.vendor.findMany(), prisma.salesTarget.findMany(), prisma.trial.findMany()]);
-  const extra = { deliverables, vendors, targets, recs: recs.recommendations, orders: orch.orders, plan: director.plan, trials };
+  const metaRaw = meta ? await prisma.metaCampaign.findMany() : [];
+  const extra = { deliverables, vendors, targets, recs: recs.recommendations, orders: orch.orders, plan: director.plan, trials, metaRaw };
   const q: QueryCtx = { agent, history, daily, lang, meta, leads, creatives, extra };
   return { mkt: agent.mkt, inv: agent.inv, crm: agent.crm, recs, agent, director, orch, meta, history, daily, q, lang };
 }
@@ -247,7 +249,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
 
   // 1. Charts from a prompt ("pie chart of revenue by vendor"). Numbers computed from the data, never typed in.
   if (RX_CHART.test(q)) {
-    const spec = buildChart(chartRequestFromText(question, c.q), c.q, L);
+    const spec = chartFromText(question, c.q, L);
     if ("error" in spec) return done(spec.error);
     cards.push({ kind: "chart", chart: spec });
     return done(chartSummary(spec) + T("\n\nSwitch the chart type or download it (PNG or SVG) under the chart.", "\n\nغيّروا نوع الرسم أو نزّلوه (PNG أو SVG) أسفل الرسم."));

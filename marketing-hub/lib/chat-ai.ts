@@ -4,7 +4,7 @@
 // It can show recommendation cards and create email DRAFTS — never send or approve.
 import { runLlm, type LlmTool } from "./llm";
 import { buildChart, chartRequestFromText, chartSummary, RX_CHART, type ChartSpec } from "./charts";
-import { runChartQuery, chartSchemaText, chartDigest } from "./chart-query";
+import { runChartQuery, chartSchemaText, chartDigest, chartFromText } from "./chart-query";
 import { buildChatContext, snapshotForModel, recCards, draftForRec, type ChatCard, type ChatReply, type ChatContext } from "./chat";
 import { resolve, describe, periodSummary, parsePeriod, latestLiveMonth, liveCampaign, pastCampaign, vendorDetail, projectSummary, channelSummary } from "./query";
 import type { Polish } from "./recommendations";
@@ -22,7 +22,8 @@ Scope: leads, lead follow-up, sales and the CRM are handled by Kinan's own AI ag
 What you have:
 - DATA: a snapshot of today's position (targets, plan, vendors, campaigns, recommendations, daily campaign check, history summary, Meta attribution, invoices, orchestration).
 - Tools to look up details: get_campaign (live or past, by code or name), get_vendor, get_project, get_channel, get_history (benchmarks and past campaigns, filterable), get_period (spend / contracts / sales for months or years, grouped), get_daily_check, compare, get_invoices, get_meta, search. Use them whenever the snapshot is not enough — prefer one or two precise calls.
-- make_chart: YOU CAN DRAW ANY CHART. Write a query over the datasets below (the app computes every number): pick the dataset, x (axis/slices), optional series (split), measures (formulas with sum/avg/min/max/median/count/distinct and + - * /, or the named measures), filters, period/from/to, transform (share, cumulative, index, change, change_pct, rank), sort, limit, type (pie, donut, bar, hbar, stacked, stackedh, grouped, line, area, scatter, table, kpi) and a title in the user's language. Use it whenever a chart, graph, plot, visual, trend, breakdown or split is asked for; several charts = several calls. If the result is an error, fix the query and call again. Revenue = sum(sales) (CRM contracted sales, SAR M); spend is SAR K. One chart has one axis: never mix units — make two charts instead. Pies only for parts of one total. If you cannot call tools, put the query in your reply as a fenced block: \`\`\`chart {"dataset":"campaigns","type":"pie","x":"vendor","measures":["sum(sales)"],"period":"year to date"}\`\`\` and the app draws it.
+- query_data: the same query without drawing — use it to explore, check a field or test a figure. Every make_chart call is shown to the user, so never use make_chart to try things out.
+- make_chart: YOU CAN DRAW ANY CHART. Write a query over the datasets below (the app computes every number): pick the dataset, x (axis/slices), optional series (split), measures (formulas with sum/avg/min/max/median/count/distinct and + - * /, or the named measures), filters, period/from/to, transform (share, cumulative, index, change, change_pct, rank), sort, limit, type (pie, donut, bar, hbar, stacked, stackedh, grouped, line, area, scatter, table, kpi) and a title in the user's language. Use it whenever a chart, graph, plot, visual, trend, breakdown or split is asked for. Draw exactly the chart(s) asked for — one chart for one request — matching what was asked (e.g. "Meta ads revenue over the last six months" = dataset meta, x month, measure sum(revenue), period "last 6 months", a line). If the data can't answer it exactly, say so and draw the closest honest chart, never a stand-in for something else. Lines only for time on the x-axis. If the result is an error, fix the query and call again. Revenue = sum(sales) (CRM contracted sales, SAR M); spend is SAR K. One chart has one axis: never mix units — make two charts instead. Pies only for parts of one total. If you cannot call tools, put the query in your reply as a fenced block: \`\`\`chart {"dataset":"campaigns","type":"pie","x":"vendor","measures":["sum(sales)"],"period":"year to date"}\`\`\` and the app draws it.
 CHARTS — datasets you can chart:
 ${CHART_SCHEMA}
 - show_recommendations and draft_email (drafts only; a person reviews and approves every email in the app).
@@ -73,6 +74,18 @@ const TOOLS: LlmTool[] = [
     transform: { type: "string", enum: ["share", "cumulative", "index", "change", "change_pct", "rank"] },
     sort: { type: "string", enum: ["value_desc", "value_asc", "label", "none"] }, limit: { type: "number" }, title: { type: "string", description: "In the user's language." },
   }, required: ["dataset", "measures"] } },
+  { name: "query_data", description: "Run the same query as make_chart WITHOUT drawing anything: returns the numbers so you can check a dataset, a field or a figure before charting, or answer with numbers only. Use this — never make_chart — to explore or test.", parameters: { type: "object", properties: {
+    dataset: { type: "string", enum: ["campaigns", "leads", "creatives", "invoices", "vendors", "market", "mortgage", "competitors", "deliverables", "work_orders", "recommendations", "daily_check", "targets", "budget_plan", "meta"] },
+    type: { type: "string", enum: ["pie", "donut", "bar", "hbar", "stacked", "stackedh", "grouped", "line", "area", "scatter", "table", "kpi"], description: "Omit to choose automatically." },
+    x: { type: "string", description: "Dimension on the axis / slices (e.g. vendor, month, quarter, channel, city). Omit for KPI figures." },
+    series: { type: "string", description: "Optional dimension to split into coloured series (stacked/grouped/multi-line), max 8 (rest folds into Other)." },
+    measures: { type: "array", items: { anyOf: [{ type: "string" }, { type: "object", properties: { expr: { type: "string" }, label: { type: "string" }, unit: { type: "string" } }, required: ["expr"] }] }, description: "Formulas, e.g. \"sum(sales)\", \"cost_to_sales\", \"sum(spend)*1000/sum(qualified)\", \"count()\". Several = several series (same unit). Scatter: [x, y]." },
+    filters: { type: "array", items: { type: "object", properties: { field: { type: "string" }, op: { type: "string", enum: ["=", "!=", "in", "not_in", ">", ">=", "<", "<=", "between", "contains"] }, value: {} }, required: ["field", "op", "value"] } },
+    period: { type: "string", description: "e.g. '2025', 'Q1 2026', 'May 2026', 'last month', 'last 6 months', 'year to date'. Omit = all data in the dataset." },
+    from: { type: "string", description: "YYYY-MM" }, to: { type: "string", description: "YYYY-MM" },
+    transform: { type: "string", enum: ["share", "cumulative", "index", "change", "change_pct", "rank"] },
+    sort: { type: "string", enum: ["value_desc", "value_asc", "label", "none"] }, limit: { type: "number" }, title: { type: "string", description: "In the user's language." },
+  }, required: ["dataset", "measures"] } },
   { name: "get_meta", description: "Meta (Facebook/Instagram) campaigns and which agency runs each, with evidence and confidence.", parameters: { type: "object", properties: {} } },
 ];
 
@@ -82,7 +95,13 @@ async function exec(ctx: ChatContext, name: string, input: any, cards: ChatCard[
   const q = ctx.q;
   const first = (text: string, kinds?: string[]) => resolve(String(text ?? ""), q).find((e) => !kinds || kinds.includes(e.kind));
   switch (name) {
+    case "query_data": {
+      const r = runChartQuery(input.dataset ? input : { ...input, dataset: "campaigns" }, ctx.q, ctx.lang);
+      return "error" in r ? `Error: ${r.error}` : `Result (not shown to the user): ${r.type}, "${r.title}", ${r.period}, unit ${r.unit || "count"}. ${chartDigest(r)}${r.note ? ` Note: ${r.note}` : ""}`;
+    }
     case "make_chart": {
+      // Exploratory calls must not land in the user's chat.
+      if (/^\s*(test|testing|tmp|temp|draft|check|probe|sample|debug)\b/i.test(String(input.title ?? ""))) return exec(ctx, "query_data", input, cards, polish);
       // Accept the older simple shape too ({ metric, group_by }).
       if (input.title && looksArabic(String(input.title)) !== (ctx.lang === "ar")) delete input.title;
       const qy = input.dataset ? input : { dataset: "campaigns", type: input.type, x: input.group_by, measures: [{ sales: "sum(sales)", spend: "sum(spend)", qualified: "sum(qualified)", contracts: "sum(contracts)", leads: "sum(leads)", costToSales: "cost_to_sales", cpql: "cpql" }[String(input.metric)] ?? "sum(sales)"], period: input.period };
@@ -174,9 +193,12 @@ export async function aiAnswer(history: { role: "user" | "assistant"; content: s
   let text = reply.replace(/```chart\s*([\s\S]*?)```/g, (_m, body) => {
     try { const spec = runChartQuery(JSON.parse(body), ctx.q, ctx.lang); if (!("error" in spec)) { cards.push({ kind: "chart", chart: spec }); return ""; } return ""; } catch { return ""; }
   }).trim();
-  // Safety net: a chart was asked for and none was drawn → draw the built-in reading of the request.
-  if (wantsChart && !cards.some((c) => c.kind === "chart")) {
-    const spec = buildChart(chartRequestFromText(lastUser, ctx.q), ctx.q, ctx.lang);
+  // Safety net: a chart was asked for and none was drawn — or a Meta chart was asked for and none of the charts uses
+  // the Meta data — so draw the built-in reading of the request.
+  const metaAsked = /\bmeta\b|facebook|instagram|ميتا|فيسبوك|انستغرام|إنستغرام/i.test(lastUser);
+  const metaDrawn = cards.some((c) => c.kind === "chart" && (c.chart.query as any)?.dataset === "meta");
+  if (wantsChart && (!cards.some((c) => c.kind === "chart") || (metaAsked && !metaDrawn))) {
+    const spec = chartFromText(lastUser, ctx.q, ctx.lang);
     if (!("error" in spec)) {
       cards.push({ kind: "chart", chart: spec });
       if (!text || /can.?t (render|draw|create|generate|produce)|cannot (render|draw|create|generate|produce)|not a charting|no charting|لا أستطيع (رسم|إنشاء)/i.test(text)) text = chartSummary(spec);

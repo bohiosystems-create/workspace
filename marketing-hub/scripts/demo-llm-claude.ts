@@ -34,7 +34,7 @@ const TIER: Record<Task, "quick" | "default" | "complex"> = { chat: "default", a
 // Permanent for this view: stop asking Claude and say why. (tools_unavailable is NOT here: plain calls still work.)
 const HIDE = new Set(["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"]);
 // When the view allows fewer tools than the assistant has, keep the ones that answer most questions.
-const PRIORITY = ["search", "make_chart", "get_vendor", "get_campaign", "get_daily_check", "compare", "get_history", "get_period", "show_recommendations", "draft_email", "get_project", "get_channel", "get_audience", "get_market", "get_creatives", "get_competitors", "ideate_campaigns", "get_invoices", "get_meta", "get_calendar"];
+const PRIORITY = ["search", "make_chart", "query_data", "get_vendor", "get_campaign", "get_daily_check", "compare", "get_history", "get_period", "show_recommendations", "draft_email", "get_project", "get_channel", "get_audience", "get_market", "get_creatives", "get_competitors", "ideate_campaigns", "get_invoices", "get_meta", "get_calendar"];
 const MAX_RESULT = 30_000; // a tool result may be at most 32 KB
 const MAX_PROMPT = 240_000; // all turns together at most 256 KiB
 

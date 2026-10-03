@@ -14,6 +14,7 @@ import { marketSeries, MORTGAGE, COMPETITORS, AD_MONTHS_ALL, adsHistory } from "
 import { historyLeadRows } from "./audience";
 import { type Lang, tx, nm } from "./i18n";
 import type { ChartSpec, ChartType } from "./charts";
+import { buildChart, chartRequestFromText } from "./charts";
 
 type Row = Record<string, string | number | null>;
 type Field = { name: string; kind: "dim" | "num"; about: string; unit?: string; avg?: boolean };
@@ -198,11 +199,37 @@ export const DATASETS: Dataset[] = [
     rows: (c) => (c.extra?.plan?.lines ?? []).map((l: any) => ({ vendor: l.vendor, decision: l.decision, current: l.currentK, proposed: l.proposedK, change: Math.round((l.proposedK - l.currentK) * 10) / 10, expected_sales: l.expectedM })),
   },
   {
-    name: "meta", grain: "one row per Meta (Facebook/Instagram) campaign in the ad accounts", about: "Who runs each Meta campaign and with what evidence.",
-    fields: [...TIME, D("campaign", ""), D("agency", "attributed vendor, or in-house / unknown"), D("kind", "VENDOR | IN_HOUSE | UNKNOWN_AGENCY | CONFLICT | UNRESOLVED"), D("confidence", "HIGH | MEDIUM | LOW"), D("needs_review", "yes | no"), D("account", "ad account"),
-      N("spend", "", "SAR K"), N("leads", "platform leads"), N("campaigns", "1 per campaign")],
-    rows: (c) => (c.meta?.campaigns ?? []).map((m: any) => ({ ...time(String(m.createdTime).slice(0, 7)), campaign: m.name, agency: m.kind === "VENDOR" ? m.vendor : m.kind === "IN_HOUSE" ? "In-house" : m.kind === "UNKNOWN_AGENCY" ? "Unknown agency" : "Unclear",
-      kind: m.kind, confidence: m.confidence, needs_review: m.needsReview ? "yes" : "no", account: m.account, spend: m.spendK, leads: m.leads ?? 0, campaigns: 1 })),
+    name: "meta", grain: "one row per Meta (Facebook/Instagram) campaign per month (weekly ad-platform data rolled up), with CRM revenue",
+    about: "Meta ads: spend, platform leads, and the CRM revenue they brought. revenue / contracts = the linked campaign's CRM-verified sales that month × Meta's share of that campaign's spend (campaigns without a campaign code — in-house, unknown agency — have none). Use this for 'Meta revenue', 'revenue from Facebook/Instagram ads', Meta ROAS.",
+    fields: [...TIME, D("campaign", "Meta campaign name"), D("agency", "attributed vendor, or In-house / Unknown agency / Unclear"), D("kind", "VENDOR | IN_HOUSE | UNKNOWN_AGENCY | CONFLICT | UNRESOLVED"), D("confidence", "HIGH | MEDIUM | LOW"),
+      D("needs_review", "yes | no"), D("account", "ad account"), D("code", "linked campaign code"), D("project", ""),
+      N("spend", "Meta spend", "SAR K"), N("leads", "platform leads"), N("impressions", "thousands", "K"), N("clicks", ""), N("revenue", "CRM sales attributed to the Meta campaign", "SAR M"), N("contracts", "CRM contracts attributed (fractional)"), N("campaigns", "distinct Meta campaigns (use distinct(campaign))")],
+    rows: (c) => {
+      const info = new Map((c.meta?.campaigns ?? []).map((m: any) => [m.id, m]));
+      const byCode = new Map(c.agent.unified.campaigns.filter((u) => u.code).map((u) => [u.code as string, u]));
+      const asset = new Map(c.agent.mkt.campaigns.map((m: any) => [m.id, m.asset]));
+      // Meta spend per campaign code and month (to share a campaign's CRM sales among its Meta campaigns).
+      const raw = (c.extra?.metaRaw ?? []).map((m: any) => ({ m, weeks: JSON.parse(m.weeks || "[]") as { week: string; spendK: number; impressionsK?: number; clicks?: number; leads: number }[] }));
+      const metaSpend = new Map<string, number>();
+      for (const { m, weeks } of raw) if (m.campaignCode) for (const w of weeks) { const k = `${m.campaignCode}|${w.week.slice(0, 7)}`; metaSpend.set(k, (metaSpend.get(k) ?? 0) + w.spendK); }
+      const out: Row[] = [];
+      for (const { m, weeks } of raw) {
+        const x: any = info.get(m.id) ?? {};
+        const months = new Map<string, { spend: number; leads: number; impressions: number; clicks: number }>();
+        for (const w of weeks) { const mo = w.week.slice(0, 7), a = months.get(mo) ?? { spend: 0, leads: 0, impressions: 0, clicks: 0 }; a.spend += w.spendK; a.leads += w.leads; a.impressions += w.impressionsK ?? 0; a.clicks += w.clicks ?? 0; months.set(mo, a); }
+        const u = m.campaignCode ? byCode.get(m.campaignCode) : undefined;
+        for (const [mo, a] of months) {
+          const um = u?.months.find((z) => z.month === mo);
+          const all = metaSpend.get(`${m.campaignCode}|${mo}`) ?? 0;
+          const share = um && all ? (a.spend / Math.max(um.costK, all)) : 0; // never more than the campaign's own sales
+          out.push({ ...time(mo), campaign: m.name, agency: x.kind === "VENDOR" || m.kind === "VENDOR" ? (x.vendor ?? u?.vendor ?? "—") : (m.kind === "IN_HOUSE" ? "In-house" : m.kind === "UNKNOWN_AGENCY" ? "Unknown agency" : "Unclear"),
+            kind: m.kind, confidence: m.confidence, needs_review: x.needsReview ? "yes" : "no", account: x.account ?? m.accountId, code: m.campaignCode ?? null, project: u ? asset.get(u.id) ?? null : null,
+            spend: Math.round(a.spend * 10) / 10, leads: a.leads, impressions: Math.round(a.impressions), clicks: a.clicks,
+            revenue: um ? Math.round(um.salesM * share * 100) / 100 : 0, contracts: um ? Math.round(um.won * share * 100) / 100 : 0, campaigns: 1 });
+        }
+      }
+      return out;
+    },
   }
 ];
 
@@ -362,11 +389,12 @@ export function runChartQuery(qy: ChartQuery, c: QueryCtx, lang: Lang): ChartSpe
   // Rows: filters, then the period (on the month field) when the dataset has one.
   let rows = ds.rows(c).filter((r) => (qy.filters ?? []).every((f) => match(r, f)));
   let periodLabel = "";
+  let periodMonths: string[] | null = null;
   if (fieldNames.has("month")) {
     const latest = latestLiveMonth(c);
     const p = qy.period ? parsePeriod(qy.period, latest) ?? lastN(qy.period, latest) : null;
     if (qy.period && !p) return { error: `Couldn't read period "${qy.period}". Use e.g. "May 2026", "Q1 2025", "2024", "last month", "year to date", "last 6 months", or from/to as YYYY-MM.` };
-    if (p) { rows = rows.filter((r) => p.months.includes(String(r.month))); periodLabel = p.label; }
+    if (p) { rows = rows.filter((r) => p.months.includes(String(r.month))); periodLabel = p.label; periodMonths = p.months.filter((m) => m <= latest); }
     if (qy.from) rows = rows.filter((r) => String(r.month) >= qy.from!);
     if (qy.to) rows = rows.filter((r) => String(r.month) <= qy.to!);
     if (qy.from || qy.to) { const mm = rows.map((r) => String(r.month)).sort(); periodLabel = `${qy.from ?? mm[0] ?? "…"} → ${qy.to ?? mm[mm.length - 1] ?? "…"}`; }
@@ -379,8 +407,9 @@ export function runChartQuery(qy: ChartQuery, c: QueryCtx, lang: Lang): ChartSpe
   const type: ChartType = qy.type && CHART_TYPES.includes(qy.type) ? qy.type : !qy.x ? "kpi" : qy.series ? (TIME_DIMS.has(qy.x) ? "line" : "stacked") : TIME_DIMS.has(qy.x) ? "line" : parsed.length > 1 ? "grouped" : "bar";
   const label = (dim: string | undefined, k: string) => !dim ? k : dim === "channel" ? T(FAMILY_LABEL[k]?.[0] ?? k, FAMILY_LABEL[k]?.[1] ?? k) : NAME_DIMS.has(dim) ? nm(lang, k) : k;
   const round = (v: number | null) => (v === null || !Number.isFinite(v) ? null : Math.abs(v) >= 1000 ? Math.round(v) : Math.round(v * 10) / 10);
-  const title = qy.title || defaultTitle(qy, parsed.map((p) => p.label), lang);
+  const title = qy.title || (ds.name === "meta" ? T("Meta ads — ", "إعلانات ميتا — ") : "") + defaultTitle(qy, parsed.map((p) => p.label), lang);
   const notes: string[] = [];
+  if (ds.name === "meta" && parsed.some((p) => /revenue|contracts/.test(p.expr))) notes.push(T("Meta revenue = the linked campaign's CRM-verified sales × Meta's share of that campaign's spend, per month; Meta campaigns without a campaign code (in-house, unknown agency) have none.", "إيرادات ميتا = مبيعات الحملة المرتبطة المتحقَّق منها في النظام × حصة ميتا من إنفاق تلك الحملة، شهرياً؛ حملات ميتا دون رمز حملة (داخلية أو وكالة غير معروفة) لا إيرادات لها."));
   if (ds.name === "leads" || ds.name === "creatives" || ds.name === "market" || ds.name === "competitors" || ds.name === "mortgage") notes.push(T("Sample data.", "بيانات عينة."));
 
   if (type === "kpi" || !qy.x) {
@@ -391,6 +420,8 @@ export function runChartQuery(qy: ChartQuery, c: QueryCtx, lang: Lang): ChartSpe
   // Group by x (and by series when split).
   const keyX = (r: Row) => String(r[qy.x!] ?? "—");
   let xs = [...new Set(rows.map(keyX))];
+  // An explicit period on a monthly axis shows every month of it, including months with no activity.
+  if (qy.x === "month" && periodMonths) for (const m of periodMonths) if (!xs.includes(m)) xs.push(m);
   const timeline = TIME_DIMS.has(qy.x);
 
   if (type === "scatter") {
@@ -404,7 +435,8 @@ export function runChartQuery(qy: ChartQuery, c: QueryCtx, lang: Lang): ChartSpe
   let seriesKeys: string[] = qy.series ? [...new Set(rows.map((r) => String(r[qy.series!] ?? "—")))] : parsed.map((p) => p.label);
   const cell = (k: string, s: string, mi: number) => {
     const rs = rows.filter((r) => keyX(r) === k && (!qy.series || String(r[qy.series] ?? "—") === s));
-    return rs.length ? groupVal(parsed[qy.series ? 0 : mi].ast, rs) : null;
+    const ast = parsed[qy.series ? 0 : mi].ast;
+    return rs.length ? groupVal(ast, rs) : qy.x === "month" && periodMonths?.includes(k) && ast.k === "agg" && ["sum", "count"].includes(ast.fn) ? 0 : null;
   };
   if (qy.series && parsed.length > 1) notes.push(T("With a split, only the first measure is drawn.", "مع التقسيم يُرسم المقياس الأول فقط."));
   units = qy.series ? [parsed[0].unit] : parsed.map((p) => p.unit);
@@ -453,6 +485,8 @@ export function runChartQuery(qy: ChartQuery, c: QueryCtx, lang: Lang): ChartSpe
     notes.push(T("A pie only shows parts of one total, so this is drawn as bars.", "الرسم الدائري يعرض أجزاء إجمالي واحد فقط، لذا رُسم كأعمدة."));
     t = seriesKeys.length > 1 ? "grouped" : "bar";
   }
+  // A line joins points in order, which only means something over time: categories get bars.
+  if ((t === "line" || t === "area") && !timeline) { notes.push(T("Lines are for trends over time, so these categories are drawn as bars.", "الخطوط للاتجاهات عبر الزمن، لذا رُسمت هذه الفئات كأعمدة.")); t = seriesKeys.length > 1 ? "grouped" : "bar"; }
   if ((t === "stacked" || t === "stackedh") && (!additive || tf === "change" || tf === "change_pct" || tf === "index" || tf === "rank")) t = t === "stacked" ? "grouped" : "hbar";
 
   const oth = (k: string) => (k.startsWith("__other:") ? T(`Other (${k.slice(8)})`, `أخرى (${k.slice(8)})`) : null);
@@ -462,7 +496,11 @@ export function runChartQuery(qy: ChartQuery, c: QueryCtx, lang: Lang): ChartSpe
   return finish({ type: t, title, labels, values: series[0].values.map((v) => v ?? 0), series, unit });
 
   function finish(x: Partial<ChartSpec> & { type: ChartType; title: string; labels: string[]; values: number[] }): ChartSpec {
-    const u = x.unit ?? units[0] ?? parsed[0].unit;
+    const UNIT_AR: Record<string, string> = { "SAR M": "مليون ر.س", "SAR K": "ألف ر.س", SAR: "ر.س", "SAR bn": "مليار ر.س", days: "يوم", index: "index", rank: "rank" };
+    const loc = (v: string) => (lang === "ar" ? UNIT_AR[v] ?? v : v);
+    const u = loc(x.unit ?? units[0] ?? parsed[0].unit);
+    if (x.units) x.units = x.units.map(loc);
+    if (x.series) x.series = x.series.map((z: any) => ({ ...z, unit: z.unit ? loc(z.unit) : z.unit }));
     const single = (x.series?.length ?? 0) <= 1 && x.type !== "kpi" && x.type !== "scatter";
     const total = single && additive && !tf && x.type !== "line" ? round(x.values.reduce((s, v) => s + v, 0)) : null;
     return {
@@ -473,9 +511,11 @@ export function runChartQuery(qy: ChartQuery, c: QueryCtx, lang: Lang): ChartSpe
 }
 
 function lastN(text: string, latest: string): { months: string[]; label: string } | null {
-  const m = text.toLowerCase().match(/last (\d{1,2}) months?|آخر (\d{1,2}) (?:أشهر|شهر)/);
+  const W: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, eighteen: 18, "ستة": 6, "ثلاثة": 3, "ستة أشهر": 6 };
+  const t = text.toLowerCase().replace(/\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|eighteen)\b/g, (w) => String(W[w])).replace(/(past|previous|recent)/g, "last").replace(/half a year/g, "last 6 months").replace(/last year\b(?! of)/g, "last 12 months_");
+  const m = t.match(/last (\d{1,2}) months?|آخر (\d{1,2}) (?:أشهر|شهر)|آخر (ستة|ثلاثة) أشهر/);
   if (!m) return null;
-  const n = Number(m[1] ?? m[2]), out: string[] = [];
+  const n = Number(m[1] ?? m[2] ?? W[m[3]]), out: string[] = [];
   let y = Number(latest.slice(0, 4)), mo = Number(latest.slice(5, 7));
   for (let i = 0; i < n; i++) { out.unshift(`${y}-${String(mo).padStart(2, "0")}`); if (--mo === 0) { mo = 12; y--; } }
   return { months: out, label: `${out[0]} → ${out[out.length - 1]}` };
@@ -538,4 +578,19 @@ export function chartDigest(s: ChartSpec): string {
   if (s.type === "kpi") return `Figures: ${JSON.stringify(s.labels.map((l, i) => [l, ser[0].values[i], s.units?.[i] ?? s.unit]))}`;
   const out = ser.length === 1 ? `Values: ${JSON.stringify(s.labels.map((l, i) => [l, ser[0].values[i]]))}` : `x = ${JSON.stringify(s.labels)}; ${ser.map((x) => `${x.name}: ${JSON.stringify(x.values)}`).join("; ")}`;
   return (out.length > 6000 ? out.slice(0, 6000) + "…" : out) + (s.total !== null ? `; total ${s.total}` : "");
+}
+
+/** The built-in (no-AI) reading of a chart request: Meta requests use the Meta data; the rest the simple chart. */
+export function chartFromText(text: string, c: QueryCtx, lang: Lang): ChartSpec | { error: string } {
+  const q = text.toLowerCase();
+  if (/\bmeta\b|facebook|instagram|ميتا|فيسبوك|انستغرام|إنستغرام/.test(q)) {
+    const measure = /spend|spent|cost|budget|إنفاق|الإنفاق|صرف/.test(q) ? "sum(spend)" : /lead|عملاء/.test(q) ? "sum(leads)" : /roas|return|per sar|عائد/.test(q) ? "sum(revenue)*1000/sum(spend)" : "sum(revenue)";
+    const x = /agenc|vendor|by campaign|per campaign|وكال|مورد|حملة/.test(q) && !/month|trend|over time|track|شهر|تطور/.test(q) ? (/campaign|حملة/.test(q) ? "campaign" : "agency") : "month";
+    const type = /\bpie\b|دائري/.test(q) && x !== "month" ? "pie" : /\bbar|column|أعمدة/.test(q) ? "bar" : x === "month" ? "line" : undefined;
+    const period = lastN(text, latestLiveMonth(c)) ? text : parsePeriod(text, latestLiveMonth(c)) ? text : undefined;
+    const title = tx(lang, `Meta ads — ${measure === "sum(spend)" ? "spend" : measure === "sum(leads)" ? "leads" : measure.includes("/") ? "revenue per SAR spent" : "CRM revenue"}${x === "month" ? " by month" : ` by ${x}`}`, `إعلانات ميتا — ${measure === "sum(spend)" ? "الإنفاق" : measure === "sum(leads)" ? "العملاء المحتملون" : measure.includes("/") ? "الإيراد لكل ريال" : "إيرادات النظام"}${x === "month" ? " حسب الشهر" : ` حسب ${x === "agency" ? "الوكالة" : "الحملة"}`}`);
+    const r = runChartQuery({ dataset: "meta", type: type as any, x, measures: [measure], ...(period ? { period } : {}), sort: x === "month" ? "label" : "value_desc", title }, c, lang);
+    if (!("error" in r)) return r;
+  }
+  return buildChart(chartRequestFromText(text, c), c, lang);
 }
