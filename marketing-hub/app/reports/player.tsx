@@ -6,6 +6,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../_components/lang";
 import { KINAN, kinanLogoHtml } from "../../lib/brand";
+import { deckFromHtml } from "../../lib/deck";
+import { DeckPlayer } from "./deck-player";
 
 type Slide = { kicker: string; html: string; say: string };
 
@@ -48,7 +50,13 @@ export function slidesFrom(html: string, title: string, lang: string): Slide[] {
   return slides;
 }
 
-export function ReportPlayer({ html, title, lang, onClose }: { html: string; title: string; lang: string; onClose: () => void }) {
+/** Reports with a deck play as animated Kinan slides; older ones fall back to slides cut from the report HTML. */
+export function ReportPlayer(p: { html: string; title: string; lang: string; onClose: () => void }) {
+  const deck = useMemo(() => deckFromHtml(p.html), [p.html]);
+  return deck ? <DeckPlayer deck={deck} onClose={p.onClose} /> : <LegacyPlayer {...p} />;
+}
+
+function LegacyPlayer({ html, title, lang, onClose }: { html: string; title: string; lang: string; onClose: () => void }) {
   const { t } = useI18n();
   const slides = useMemo(() => slidesFrom(html, title, lang), [html, title, lang]);
   const [i, setI] = useState(0);

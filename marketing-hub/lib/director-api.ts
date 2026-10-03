@@ -3,15 +3,16 @@ import { buildDirector, approvePlan, sendBriefToKinan } from "./director";
 import { kinanOutbox, retryKinanEvents, kinanMode, yardiMode } from "./kinan";
 import { dailyScan, scanView } from "./signals";
 import { dailyIdeasReady } from "./ideation";
+import { todayRiyadh } from "./clock";
 import { type Lang, isLang, tx } from "./i18n";
 
 export async function directorState(lang: Lang) {
   const d = await buildDirector(lang);
   // Today's scan of every source, and the initiatives already prepared for it (by the daily report run).
   const scan = scanView(await dailyScan(), lang);
-  const ideas = await dailyIdeasReady(d.asOf.slice(0, 10), lang);
+  const ideas = await dailyIdeasReady(todayRiyadh(), lang);
   const findings = scan.signals.filter((s) => !s.linkedTo).map((s) => ({ ...s, answer: ideas.find((i) => i.trigger?.id === s.id) ?? null }));
-  return { ...d, kinan: { mode: kinanMode(), yardi: yardiMode(), outbox: await kinanOutbox(30, lang) }, scan: { date: scan.date, sources: scan.sources, findings, total: scan.signals.length, ideasReady: ideas.length > 0 } };
+  return { ...d, today: todayRiyadh(), kinan: { mode: kinanMode(), yardi: yardiMode(), outbox: await kinanOutbox(30, lang) }, scan: { date: scan.date, sources: scan.sources, findings, total: scan.signals.length, ideasReady: ideas.length > 0 } };
 }
 
 export async function directorAction(b: any) {

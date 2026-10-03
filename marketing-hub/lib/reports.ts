@@ -13,11 +13,12 @@
 import { prisma } from "./prisma";
 import { now } from "./clock";
 import { KINAN, kinanLogoHtml, chevron } from "./brand";
+import { type DeckSlide, type Deck, deckScript, short } from "./deck";
 
 /** A report in Kinan's style (kinan.com.sa): charcoal header with the white logo and the orange chevron, light
  *  letter-spaced capitals, white sections with an orange rule, and a charcoal footer with the tagline. Email-safe
  *  (tables and inline styles; the web font falls back to Helvetica / Tahoma where mail clients block it). */
-function kinanDoc(lang: Lang, kicker: string, title: string, sub: string, sec: [string, string, string][], note: string) {
+function kinanDoc(lang: Lang, kicker: string, title: string, sub: string, sec: [string, string, string][], note: string, deck?: Deck) {
   const dir = lang === "ar" ? "rtl" : "ltr", ff = lang === "ar" ? KINAN.fontAr : KINAN.font;
   const caps = lang === "ar" ? "" : "text-transform:uppercase;";
   return `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="${KINAN.fontsHref}" rel="stylesheet"><title>${esc(title)}</title></head>
@@ -39,8 +40,12 @@ ${sec.map(([h, body]) => `<div data-slide="${esc(h)}" style="background:${KINAN.
 <div style="font-size:11px;color:#bdbdbd;margin-top:8px">in · X · ◎ ${KINAN.social} &nbsp;|&nbsp; ${KINAN.site}</div>
 <div style="font-size:10.5px;color:#9a9a9a;margin-top:10px;line-height:1.5">${esc(note)}</div>
 </td></tr></table>
-</div></body></html>`;
+</div>${deck ? deckScript(deck) : ""}</body></html>`;
 }
+
+/** Cover and closing slides shared by the daily report and the snapshot. */
+const coverSlide = (lang: Lang, kicker: string, title: string, sub: string): DeckSlide => ({ kind: "cover", kicker, title: title.startsWith(kicker) ? title.slice(kicker.length).replace(/^\s*[—–-]\s*/, "") : title, sub, say: title });
+const closingSlide = (lang: Lang): DeckSlide => ({ kind: "closing", kicker: "", title: KINAN.tagline, sub: tx(lang, "Approvals happen in the app — the report takes no action.", "الاعتمادات تتم داخل التطبيق — لا يتخذ التقرير أي إجراء."), say: tx(lang, "End of report.", "انتهى التقرير.") });
 import { single, serial } from "./single";
 import { buildAgent } from "./agent";
 import { historyState } from "./history";
@@ -203,7 +208,8 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   sec.push([T(`Campaign recommendations — ${d.campaignRecs.length} open, ${d.campaignRecs.filter((r) => r.severity === "crit").length} urgent`, `توصيات الحملات — ${d.campaignRecs.length} مفتوحة، ${d.campaignRecs.filter((r) => r.severity === "crit").length} عاجلة`), crHtml,
     crs.map((r, i) => `  ${i + 1}. ${r.severity === "crit" ? `[${T("urgent", "عاجل")}] ` : ""}${r.title}${r.impactK && !/SAR|ر\.س/.test(r.title) ? ` (${K(lang, r.impactK)})` : ""} — ${firstSentence(r.why)} → ${HOW(r)}`).join("\n")]);
   // 4a. Market initiatives for today (answering what the CRM shows).
-  sec.push(await ideasP);
+  const ideasR = await ideasP;
+  sec.push(ideasR.sec);
   // 4b. Decisions
   const dec = d.inbox.map((x) => `${esc(x.title)} <span style="color:${C.soft}">(~${x.minutes} ${T("min", "د")})</span>`);
   sec.push([T(`Waiting for your decision — about ${d.managerMinutes} min`, `بانتظار قراركم — نحو ${an(d.managerMinutes, "دقيقة واحدة", "دقيقتين", "دقائق", "دقيقة")}`), dec.length ? ul(dec) : `<p style="margin:0">${T("Nothing waiting.", "لا شيء بالانتظار.")}</p>`, tl(d.inbox.map((x) => `${x.title} (~${x.minutes} min)`))]);
@@ -222,8 +228,29 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   sec.push([T("Supplier invoices", "فواتير الموردين"), ul(invl), tl(invl)]);
 
 
+  // The presentation (▶ Play): one idea per slide, animated charts.
+  const urgentN = d.campaignRecs.filter((r) => r.severity === "crit").length;
+  const deck: Deck = { lang, title, slides: [
+    coverSlide(lang, T("Daily marketing report", "التقرير التسويقي اليومي"), title, T(`Figures as of ${dt("en", d.asOf)}`, `الأرقام حتى ${dt("ar", d.asOf)}`)),
+    { kind: "headline", kicker: T("Today's brief", "موجز اليوم"), headline: d.brief.headline,
+      kpis: [
+        { label: T("Sales year to date", "المبيعات منذ بداية العام"), value: d.targets.ytdActualM, prefix: lang === "ar" ? "" : "SAR ", suffix: lang === "ar" ? " مليون" : "M", decimals: 1, sub: T(`target SAR ${d.targets.ytdTargetM}M`, `المستهدف ${d.targets.ytdTargetM} مليون`) },
+        { label: T("Of target", "من المستهدف"), value: d.targets.ytdPct, suffix: "%", tone: d.targets.ytdPct < 90 ? "bad" : "good" },
+        { label: T("Your decisions today", "قراراتكم اليوم"), value: d.inbox.length, sub: T(`about ${d.managerMinutes} min`, `نحو ${d.managerMinutes} دقيقة`) },
+        { label: T("Campaign recommendations", "توصيات الحملات"), value: d.campaignRecs.length, sub: T(`${urgentN} urgent`, `${urgentN} عاجلة`), tone: urgentN ? "bad" : "neutral" },
+      ],
+      points: d.brief.actions.slice(0, 3), say: `${d.brief.headline} ${T("This week I recommend:", "أوصي هذا الأسبوع بما يلي:")} ${d.brief.actions.slice(0, 3).join(" ")}` },
+    ...charts.map((c) => c.slide).filter((x): x is DeckSlide => !!x),
+    ...ideasR.slides,
+    { kind: "list", kicker: T("Campaign recommendations", "توصيات الحملات"), title: T(`${d.campaignRecs.length} open · ${urgentN} urgent`, `${d.campaignRecs.length} مفتوحة · ${urgentN} عاجلة`),
+      items: d.campaignRecs.slice(0, 5).map((r) => ({ text: r.title, sub: short(firstSentence(r.why), 140), tone: r.severity === "crit" ? "bad" : r.severity === "warn" ? "warn" : "neutral" })), say: T(`Top campaign changes: ${d.campaignRecs.slice(0, 3).map((r) => r.title).join(". ")}.`, `أهم تغييرات الحملات: ${d.campaignRecs.slice(0, 3).map((r) => r.title).join(". ")}.`) },
+    { kind: "list", kicker: T("Waiting for your decision", "بانتظار قراركم"), title: T(`About ${d.managerMinutes} minutes, ${d.inbox.length} decisions`, `نحو ${d.managerMinutes} دقيقة، ${d.inbox.length} قرارات`),
+      items: d.inbox.map((x) => ({ text: x.title, minutes: x.minutes, tone: x.severity === "crit" ? "bad" : x.severity === "warn" ? "warn" : "neutral" })), say: T(`${d.inbox.length} decisions wait for you, about ${d.managerMinutes} minutes in total. Everything else is handled.`, `${d.inbox.length} قرارات بانتظاركم، نحو ${d.managerMinutes} دقيقة إجمالاً. والباقي يُنجز تلقائياً.`) },
+    ...(recs.length ? [{ kind: "list", kicker: T("Risks", "المخاطر"), title: T("What could hurt this month", "ما قد يضر هذا الشهر"), items: recs.slice(0, 5).map((r) => ({ text: r.title, tone: "bad" as const })), say: T(`Risks: ${recs.slice(0, 3).map((r) => r.title).join(". ")}.`, `المخاطر: ${recs.slice(0, 3).map((r) => r.title).join(". ")}.`) } as DeckSlide] : []),
+    closingSlide(lang),
+  ] };
   const html = kinanDoc(lang, T("Daily marketing report", "التقرير التسويقي اليومي"), title, T(`Figures as of ${dt("en", d.asOf)}`, `الأرقام حتى ${dt("ar", d.asOf)}`), sec,
-    T("Generated automatically by the AI Assistant Director of Marketing. This report takes no action: approvals happen in the app.", "أُعدّ تلقائياً بواسطة مساعد مدير التسويق الذكي. لا يتخذ هذا التقرير أي إجراء: تتم الاعتمادات داخل التطبيق."));
+    T("Generated automatically by the AI Assistant Director of Marketing. This report takes no action: approvals happen in the app.", "أُعدّ تلقائياً بواسطة مساعد مدير التسويق الذكي. لا يتخذ هذا التقرير أي إجراء: تتم الاعتمادات داخل التطبيق."), deck);
   const text = `${title}\n\n${sec.map(([h, , t]) => `${h.toUpperCase()}\n${t}`).join("\n\n")}\n`;
   return { title, html, text, metrics, headline: d.brief.headline, bullets: d.brief.bullets, actions: d.brief.actions };
 }
@@ -231,11 +258,11 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
 // -------------------------------------------------------------------- market initiatives section
 const WHO: Record<string, string> = { gemini: "Gemini", openai: "OpenAI", anthropic: "Claude", rules: "built-in rules" };
 /** Today's market initiatives (and the CRM signals they answer) as a report section [heading, html, text]. Never fails the report: on error, a short note. */
-async function ideasSection(lang: Lang, date: string): Promise<[string, string, string]> {
+async function ideasSection(lang: Lang, date: string): Promise<{ sec: [string, string, string]; slides: DeckSlide[] }> {
   const T = (en: string, ar: string) => tx(lang, en, ar);
   try {
     const di = await dailyIdeas(date, lang);
-    if (!di.ideas.length) return [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), `<p style="margin:0">${esc(T("No initiatives today.", "لا مبادرات اليوم."))}</p>`, ""];
+    if (!di.ideas.length) return { slides: [], sec: [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), `<p style="margin:0">${esc(T("No initiatives today.", "لا مبادرات اليوم."))}</p>`, ""] };
     const by = di.sources.filter((x) => x !== "rules").map((x) => WHO[x] ?? x);
     const engine = by.length ? T(`Ideas by ${by.join(" + ")}${di.judge ? `, ranked by ${WHO[di.judge] ?? di.judge}` : ""}`, `أفكار من ${by.join(" + ")}${di.judge ? `، رتّبها ${WHO[di.judge] ?? di.judge}` : ""}`) : T("Ideas from the built-in rules (no AI key)", "أفكار من القواعد المدمجة (دون مفتاح ذكاء اصطناعي)");
     const rng = (x: [number, number, number]) => `${x[0]}–${x[2]}`;
@@ -262,10 +289,23 @@ async function ideasSection(lang: Lang, date: string): Promise<[string, string, 
       di.ideas.map((x, k) => card(x, k + 1)).join("") +
       `<p style="margin:8px 0 0;color:${C.soft};font-size:11px">${esc(engine)}. ${esc(T("Findings are computed from your data sources; forecasts come from the 2023–2025 history, not from the AI. Shortlist or approve on the Initiatives page; approving drafts a vendor brief for your approval.", "النتائج محسوبة من مصادر بياناتكم؛ والتوقعات من تاريخ 2023–2025 وليست من الذكاء الاصطناعي. ضعوها في القائمة المختصرة أو اعتمدوها من صفحة المبادرات؛ الاعتماد يُعدّ موجزاً للمورد بانتظار موافقتكم."))}</p>`;
     const text = `${T("Scanned", "فُحص")}: ${di.scanned.map((x) => `${x.label} ${x.items}${x.found ? ` → ${x.found}` : ""}`).join(" · ")}\n` + (sigs.length ? sigs.map((x) => `  ! [${x.sourceLabel}] ${x.title}${x.related.length ? ` (${x.related.map((r) => r.title).join("; ")})` : ""}`).join("\n") + "\n" : "") + `${T(`Focus: ${di.project}, ${di.month}; angle: ${di.angle}`, `التركيز: ${di.project}، ${di.month}؛ الزاوية: ${di.angle}`)}\n` + di.ideas.map((i, n) => `  ${n + 1}. [${i.kindLabel}] ${i.title}${i.trigger ? ` (${T("answers", "يستجيب لـ")}: ${i.trigger.title})` : ""} — ${i.bigIdea} (${rng(i.forecast.contracts)} ${T("contracts", "عقود")}, SAR ${rng(i.forecast.salesM)}M)`).join("\n") + `\n  ${engine}`;
-    return [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), html, text];
+    // Presentation slides: what was scanned, one slide per finding, one per initiative.
+    const KICK = T("What the data shows", "ما تُظهره البيانات"), KICK2 = T("Market initiatives", "مبادرات السوق");
+    const slides: DeckSlide[] = [
+      { kind: "scan", kicker: KICK, title: T("Every source, scanned this morning", "كل المصادر، فُحصت هذا الصباح"), sources: di.scanned.map((x) => ({ label: x.label, items: x.items, found: x.found })),
+        say: T(`This morning the director scanned ${di.scanned.length} sources and found ${di.scanned.reduce((a, x) => a + x.found, 0)} things worth a look.`, `فحص المدير هذا الصباح ${di.scanned.length} مصادر ووجد ${di.scanned.reduce((a, x) => a + x.found, 0)} نتيجة تستحق النظر.`) },
+      ...top.slice(0, 6).map((x, n, arr): DeckSlide => ({ kind: "finding", kicker: KICK, source: x.sourceLabel, title: x.title, why: short(x.why, 230), down: x.direction === "down", changePct: x.changePct ? x.changePct : null, series: x.series, evidence: x.related.slice(0, 4).map((r) => ({ source: r.sourceLabel, title: short(r.title, 120) })), n: n + 1, of: arr.length,
+        say: `${x.title}. ${short(x.why, 200)}${x.related.length ? T(` Explained by: ${x.related.slice(0, 2).map((r) => r.title).join("; ")}.`, ` يفسّره: ${x.related.slice(0, 2).map((r) => r.title).join("؛ ")}.`) : ""}` })),
+      ...di.ideas.slice(0, 5).map((i, n, arr): DeckSlide => ({ kind: "initiative", kicker: KICK2, type: i.kindLabel, project: i.brief?.projectLabel, title: ((t) => t.charAt(0).toUpperCase() + t.slice(1))(i.title.replace(/^[^:]+:\s*/, "")), answers: i.trigger?.title ?? null,
+        // The idea often opens by restating the finding it answers; that is already shown, so start after it.
+        idea: short((i.trigger && i.bigIdea.replace(/^(The CRM shows |An inbound offer: |An inbound proposal: |The ad platforms show |يُظهر النظام |عرض وارد: |مقترح وارد: |تُظهر المنصات الإعلانية )?/, "").startsWith(i.trigger.title.slice(0, 25)) ? i.bigIdea.slice(i.bigIdea.indexOf(". ", i.bigIdea.indexOf(i.trigger.title.slice(0, 25))) + 2) : i.bigIdea) || i.bigIdea, 260), offer: short(i.offer ?? "", 120),
+        channels: i.channels.map((ch) => ({ label: ch.label, pct: ch.sharePct })), contracts: [i.forecast.contracts[0], i.forecast.contracts[2]], salesM: [i.forecast.salesM[0], i.forecast.salesM[2]], cts: i.forecast.costToSalesPct, spendK: i.forecast.spendK, n: n + 1, of: arr.length,
+        say: `${i.title}. ${short(i.bigIdea, 220)} ${T(`Forecast: ${i.forecast.contracts[0]} to ${i.forecast.contracts[2]} contracts.`, `التوقع: من ${i.forecast.contracts[0]} إلى ${i.forecast.contracts[2]} عقود.`)}` })),
+    ];
+    return { sec: [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), html, text], slides };
   } catch (e: any) {
     console.error("report: initiatives section failed:", e?.stack ?? e);
-    return [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), `<p style="margin:0;color:${C.soft}">${esc(T("Initiatives could not be prepared this time; open the Initiatives page to generate them.", "تعذّر إعداد المبادرات هذه المرة؛ افتحوا صفحة المبادرات لإنشائها."))}</p>`, ""];
+    return { slides: [], sec: [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), `<p style="margin:0;color:${C.soft}">${esc(T("Initiatives could not be prepared this time; open the Initiatives page to generate them.", "تعذّر إعداد المبادرات هذه المرة؛ افتحوا صفحة المبادرات لإنشائها."))}</p>`, ""] };
   }
 }
 
@@ -318,11 +358,27 @@ export async function buildSnapshot(lang: Lang, at: Date, prev: { metrics: Metri
     [T(`Today's campaign check — ${items.length ? `${(c.daily as any).recommendations.length} items` : "clear"}`, `فحص الحملات اليوم — ${items.length ? `${(c.daily as any).recommendations.length} ملاحظات` : "لا ملاحظات"}`), checkHtml, items.map((r: any) => `  • ${r.title}`).join("\n")],
     [T(`Waiting for your decision — about ${d.managerMinutes} min`, `بانتظار قراركم — نحو ${d.managerMinutes} دقيقة`), dec.length ? `<ul style="margin:6px 0 0;padding-inline-start:18px;line-height:1.6">${dec.map((x) => `<li>${x}</li>`).join("")}</ul>` : `<p style="margin:0">${esc(T("Nothing waiting.", "لا شيء بالانتظار."))}</p>`, d.inbox.map((x) => `  • ${x.title}`).join("\n")],
   ];
-  sec.splice(3, 0, await ideasSection(lang, ln.date));
+  const ideasR = await ideasSection(lang, ln.date);
+  sec.splice(3, 0, ideasR.sec);
   if (changes) sec.push([T(changes[1].replace("Since the last report", "Since the last report or snapshot"), changes[1].replace("منذ التقرير السابق", "منذ التقرير أو اللقطة السابقة")), changes[2], ""]);
 
+  const deck: Deck = { lang, title, slides: [
+    coverSlide(lang, T("Live marketing snapshot", "لقطة تسويقية فورية"), title, T(`Figures as of ${dt("en", d.asOf)}`, `الأرقام حتى ${dt("ar", d.asOf)}`)),
+    { kind: "headline", kicker: T("Headline figures", "الأرقام الرئيسية"), headline: d.brief.headline,
+      kpis: [
+        { label: T("Sales year to date", "المبيعات منذ بداية العام"), value: d.targets.ytdActualM, prefix: lang === "ar" ? "" : "SAR ", suffix: lang === "ar" ? " مليون" : "M", decimals: 1, sub: T(`${d.targets.ytdPct}% of target`, `${d.targets.ytdPct}% من المستهدف`), tone: d.targets.ytdPct < 90 ? "bad" : "good" },
+        { label: T("Marketing spend YTD", "الإنفاق منذ بداية العام"), value: Math.round(Number(ytd[0] ?? 0)), prefix: lang === "ar" ? "" : "SAR ", suffix: lang === "ar" ? " ألف" : "K", sub: T(`cost to sales ${ytd[2] ?? "—"}%`, `نسبة التكلفة ${ytd[2] ?? "—"}%`) },
+        { label: T("Qualified leads, last month", "العملاء المؤهلون، الشهر الماضي"), value: Number(lastMonth[0] ?? 0), sub: T(`${lastMonth[1] ?? "—"} contracts`, `${lastMonth[1] ?? "—"} عقود`) },
+        { label: T("Waiting for your decision", "بانتظار قراركم"), value: d.inbox.length, sub: T(`about ${d.managerMinutes} min`, `نحو ${d.managerMinutes} دقيقة`) },
+      ], points: [], say: d.brief.headline },
+    ...allCharts.map((c) => c.slide).filter((x): x is DeckSlide => !!x),
+    ...ideasR.slides,
+    { kind: "list", kicker: T("Waiting for your decision", "بانتظار قراركم"), title: T(`About ${d.managerMinutes} minutes, ${d.inbox.length} decisions`, `نحو ${d.managerMinutes} دقيقة، ${d.inbox.length} قرارات`),
+      items: d.inbox.map((x) => ({ text: x.title, minutes: x.minutes, tone: x.severity === "crit" ? "bad" : x.severity === "warn" ? "warn" : "neutral" })), say: T(`${d.inbox.length} decisions wait for you.`, `${d.inbox.length} قرارات بانتظاركم.`) },
+    closingSlide(lang),
+  ] };
   const html = kinanDoc(lang, T("Live marketing snapshot", "لقطة تسويقية فورية"), title, T(`Live position at ${ln.hhmm} (${s.timezone}) · figures as of ${dt("en", d.asOf)} · not e-mailed`, `الوضع الفوري الساعة ${ln.hhmm} (${s.timezone}) · الأرقام حتى ${dt("ar", d.asOf)} · لا يُرسل بالبريد`), sec,
-    T("Snapshot generated on request by the AI Assistant Director of Marketing. It takes no action: approvals happen in the app.", "لقطة أُعدّت عند الطلب بواسطة مساعد مدير التسويق الذكي. لا تتخذ أي إجراء: تتم الاعتمادات داخل التطبيق."));
+    T("Snapshot generated on request by the AI Assistant Director of Marketing. It takes no action: approvals happen in the app.", "لقطة أُعدّت عند الطلب بواسطة مساعد مدير التسويق الذكي. لا تتخذ أي إجراء: تتم الاعتمادات داخل التطبيق."), deck);
   const text = `${title}\n\n${sec.filter(([, , t]) => t).map(([h, , t]) => `${h.toUpperCase()}\n${t}`).join("\n\n")}\n`;
   return { title, html, text, metrics: daily.metrics, date: ln.date };
 }

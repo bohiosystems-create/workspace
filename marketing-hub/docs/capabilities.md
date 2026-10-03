@@ -83,8 +83,9 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - **Which AI does the creative work:** two different models generate ideas for variety (Gemini and OpenAI by default) and Claude ranks them against the data. In the Claude app edition, Claude does both; without keys, the built-in rules.
   - **Cost:** ideas are generated once per day and language, then reused. They also appear on the Initiatives page to shortlist or approve.
 - **▶ Play — the report as a presentation:**
-  - one slide per section, chart and idea, auto-advancing with a progress bar;
-  - an optional voice-over (the browser's own voice, English or Arabic);
+  - a full-screen deck in Kinan's style (charcoal stage, orange accent), built from the report's data rather than shrunk from the email: about 20 slides, one idea each — the brief with four headline figures, ring gauges per project, sales by month, revenue by vendor, cost to sales by channel against the 2023–2025 average, the morning scan of every source, one slide per finding (with its trend and the evidence that explains it) and per initiative (with its channel mix and forecast), campaign changes, decisions with minutes, risks;
+  - animated: numbers count up, bars grow, rings fill, the donut and trend lines draw themselves (respects "reduce motion");
+  - voice-over by **ElevenLabs** (natural English and Arabic, server-side; replays are cached) when a key is set, else the browser's own voice;
   - pause, back and next, tap or arrow keys;
   - from the report viewer or the ▶ on any History row.
 - **Run snapshot** (Reports page): a live marketing snapshot built on demand. It contains nine headline figures, the report charts plus Meta revenue, today's campaign check, what's waiting for your decision, and what changed since the last report or snapshot. It is saved in the history and can be downloaded as PDF or HTML; it is never emailed.

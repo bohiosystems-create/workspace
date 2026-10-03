@@ -5,6 +5,7 @@
 import type { QueryCtx } from "./query";
 import { runChartQuery, type ChartQuery } from "./chart-query";
 import type { ChartSpec } from "./charts";
+import type { DeckSlide } from "./deck";
 import { type Lang, tx } from "./i18n";
 
 // Same colour-blind-checked categorical order as the in-app charts; text stays in ink, never in a series colour.
@@ -50,7 +51,7 @@ function columns(s: ChartSpec, opts: { color?: string; highlightLast?: boolean }
   return `<table ${T0} width="100%" style="border-collapse:collapse;table-layout:fixed"><tr>${vals.map(col).join("")}</tr><tr>${s.labels.map((l) => `<td align="center" style="padding:4px 2px 0;font-size:11px;color:${SOFT};border-top:1px solid #c3c2b7">${esc(l)}</td>`).join("")}</tr></table>`;
 }
 
-export type ReportChart = { title: string; html: string; text: string };
+export type ReportChart = { title: string; html: string; text: string; slide?: DeckSlide };
 
 /** The charts in every daily report (figures as of the latest data month). */
 export function reportCharts(c: QueryCtx, lang: Lang, targets: { byAsset: { asset: string; actualM: number; targetM: number; pct: number | null }[]; ytdActualM: number; ytdTargetM: number; ytdPct: number }): ReportChart[] {
@@ -66,19 +67,27 @@ export function reportCharts(c: QueryCtx, lang: Lang, targets: { byAsset: { asse
       return `<tr><td width="34%" style="padding:4px 8px 4px 0;color:${INK}">${esc(x.asset)}</td><td style="padding:4px 0">${bar(Math.min(100, p), color, 14)}</td><td width="26%" align="right" style="padding:4px 0 4px 8px;white-space:nowrap;color:${INK}"><b>${p}%</b> <span style="color:${SOFT}">${fmt(x.actualM, "")} / ${fmt(x.targetM, "")}</span></td></tr>`;
     }).join("")}</table>` + caption(esc(T(`SAR M, CRM-verified. Total ${targets.ytdActualM} of ${targets.ytdTargetM} (${targets.ytdPct}%). Green ≥ 95%, amber 75–95%, red < 75%.`, `مليون ر.س، متحقَّق منه في النظام. الإجمالي ${targets.ytdActualM} من ${targets.ytdTargetM} (${targets.ytdPct}%). أخضر ≥ 95%، كهرماني 75–95%، أحمر < 75%.`)));
     out.push({ title: T("Sales vs target by project", "المبيعات مقابل المستهدف حسب المشروع"), html: titleRow(T("Sales vs target by project", "المبيعات مقابل المستهدف حسب المشروع"), T("Year to date", "منذ بداية العام")) + html,
-      text: targets.byAsset.map((x) => `  ${x.asset}: ${x.pct}% (${x.actualM} / ${x.targetM} SAR M)`).join("\n") });
+      text: targets.byAsset.map((x) => `  ${x.asset}: ${x.pct}% (${x.actualM} / ${x.targetM} SAR M)`).join("\n"),
+      slide: { kind: "gauges", kicker: T("Sales vs target", "المبيعات مقابل المستهدف"), title: T("Sales vs target by project — year to date", "المبيعات مقابل المستهدف حسب المشروع — منذ بداية العام"),
+        items: targets.byAsset.map((x) => ({ label: x.asset, pct: x.pct ?? 0, actual: `${x.actualM}`, target: `${x.targetM}` })),
+        foot: T(`SAR M, CRM-verified · total ${targets.ytdActualM} of ${targets.ytdTargetM} (${targets.ytdPct}%)`, `مليون ر.س، متحقَّق منه · الإجمالي ${targets.ytdActualM} من ${targets.ytdTargetM} (${targets.ytdPct}%)`),
+        say: T(`Sales against target by project. ${targets.byAsset.map((x) => `${x.asset}, ${x.pct} percent`).join(". ")}.`, `المبيعات مقابل المستهدف حسب المشروع. ${targets.byAsset.map((x) => `${x.asset}، ${x.pct} في المئة`).join(". ")}.`) } });
   }
   // 2. Sales by month this year (latest month highlighted).
   const m = q({ dataset: "campaigns", x: "month", measures: ["sum(sales)"], period: "year to date", sort: "label" });
   if (m) {
     const s = { ...m, labels: m.labels.map(MON) };
     out.push({ title: T("Sales by month", "المبيعات حسب الشهر"), html: titleRow(T("Sales by month", "المبيعات حسب الشهر"), T(`${m.period} · SAR M, CRM-verified · latest month highlighted`, `${m.period} · مليون ر.س، متحقَّق منه · آخر شهر مميّز`)) + columns(s, { highlightLast: true }),
-      text: m.labels.map((l, i) => `  ${l}: ${m.series![0].values[i]} SAR M`).join("\n") });
+      text: m.labels.map((l, i) => `  ${l}: ${m.series![0].values[i]} SAR M`).join("\n"),
+      slide: { kind: "columns", kicker: T("At a glance", "نظرة سريعة"), title: T("Sales by month", "المبيعات حسب الشهر"), sub: T(`${m.period} · SAR M, CRM-verified`, `${m.period} · مليون ر.س، متحقَّق منها`), labels: m.labels.map(MON), values: (m.series![0].values as number[]).map((x) => x ?? 0), unit: T("SAR M", "مليون ر.س"), decimals: 1,
+        say: T(`Sales by month: ${m.labels.map((l, i) => `${MON(l)} ${m.series![0].values[i]} million`).join(", ")}.`, `المبيعات حسب الشهر: ${m.labels.map((l, i) => `${MON(l)} ${m.series![0].values[i]} مليون`).join("، ")}.`) } });
   }
   // 3. Revenue share by vendor (part-to-whole).
   const v = q({ dataset: "campaigns", x: "vendor", measures: ["sum(sales)"], period: "year to date", limit: 7 });
   if (v) out.push({ title: T("Revenue by vendor", "الإيرادات حسب المورد"), html: titleRow(T("Revenue by vendor", "الإيرادات حسب المورد"), T(`${v.period} · SAR M, contracted sales in the CRM · total ${v.total}`, `${v.period} · مليون ر.س، مبيعات متعاقد عليها في النظام · الإجمالي ${v.total}`)) + shareBar(v),
-    text: v.labels.map((l, i) => `  ${l}: ${v.series![0].values[i]} SAR M`).join("\n") });
+    text: v.labels.map((l, i) => `  ${l}: ${v.series![0].values[i]} SAR M`).join("\n"),
+    slide: { kind: "donut", kicker: T("At a glance", "نظرة سريعة"), title: T("Revenue by vendor", "الإيرادات حسب المورد"), sub: T(`${v.period} · SAR M, contracted sales in the CRM`, `${v.period} · مليون ر.س، مبيعات متعاقد عليها`), labels: v.labels, values: (v.series![0].values as number[]).map((x) => x ?? 0), unit: T("SAR M", "مليون ر.س"),
+      say: T(`Revenue by vendor, led by ${v.labels[0]} with ${v.series![0].values[0]} million.`, `الإيرادات حسب المورد، يتصدرها ${v.labels[0]} بـ${v.series![0].values[0]} مليون.`) } });
   // 4. Cost to sales by channel (lower is better; red where it's above the 2023–2025 average for all channels).
   const ch = q({ dataset: "campaigns", x: "channel", measures: ["cost_to_sales"], period: "year to date", sort: "value_asc" });
   const hist = q({ dataset: "campaigns", measures: ["cost_to_sales"], filters: [{ field: "status", op: "=", value: "past" }] });
@@ -86,7 +95,9 @@ export function reportCharts(c: QueryCtx, lang: Lang, targets: { byAsset: { asse
   if (ch) out.push({ title: T("Cost to sales by channel", "نسبة التكلفة إلى المبيعات حسب القناة"),
     html: titleRow(T("Cost to sales by channel", "نسبة التكلفة إلى المبيعات حسب القناة"), T(`${ch.period} · marketing spend ÷ contracted sales · lower is better`, `${ch.period} · الإنفاق ÷ المبيعات المتعاقد عليها · الأقل أفضل`)) +
       hbars(ch, { color: (_i, val) => (bench !== null && val > bench * 1.5 ? ALERT : SERIES[0]) }) + (bench !== null ? caption(esc(T(`Red: more than 1.5× the 2023–2025 average (${bench}%).`, `الأحمر: أكثر من 1.5 ضعف متوسط 2023–2025 (${bench}%).`))) : ""),
-    text: ch.labels.map((l, i) => `  ${l}: ${ch.series![0].values[i]}%`).join("\n") });
+    text: ch.labels.map((l, i) => `  ${l}: ${ch.series![0].values[i]}%`).join("\n") ,
+    slide: { kind: "hbars", kicker: T("At a glance", "نظرة سريعة"), title: T("Cost to sales by channel", "نسبة التكلفة إلى المبيعات حسب القناة"), sub: T(`${ch.period} · spend ÷ contracted sales · lower is better`, `${ch.period} · الإنفاق ÷ المبيعات · الأقل أفضل`), labels: ch.labels, values: (ch.series![0].values as number[]).map((x) => x ?? 0), unit: "%", bench, benchLabel: bench !== null ? T(`2023–2025 average ${bench}%`, `متوسط 2023–2025: ${bench}%`) : undefined,
+      say: T(`Cost to sales by channel: ${ch.labels[0]} is the most efficient at ${ch.series![0].values[0]} percent; ${ch.labels[ch.labels.length - 1]} the costliest at ${ch.series![0].values[ch.labels.length - 1]} percent.`, `نسبة التكلفة إلى المبيعات: ${ch.labels[0]} الأكفأ بـ${ch.series![0].values[0]}٪؛ و${ch.labels[ch.labels.length - 1]} الأعلى تكلفة بـ${ch.series![0].values[ch.labels.length - 1]}٪.`) } });
   return out;
 }
 
@@ -115,5 +126,7 @@ export function metaRevenueChart(c: QueryCtx, lang: Lang): ReportChart | null {
     html: titleRow(T("Meta ads — CRM revenue by month", "إعلانات ميتا — إيرادات النظام حسب الشهر"), T(`Last 6 months · SAR M · total ${total}`, `آخر 6 أشهر · مليون ر.س · الإجمالي ${total}`)) + columns({ ...r, labels: r.labels.map(MON) }, { color: SERIES[6], highlightLast: false }) +
       caption(esc(T("The linked campaign's CRM-verified sales × Meta's share of its spend.", "مبيعات الحملة المرتبطة المتحقَّق منها × حصة ميتا من إنفاقها."))),
     text: r.labels.map((l, i) => `  ${l}: ${r.series![0].values[i]} SAR M`).join("\n"),
+    slide: { kind: "line", kicker: T("Meta ads", "إعلانات ميتا"), title: T("Meta ads — CRM revenue by month", "إعلانات ميتا — إيرادات النظام حسب الشهر"), sub: T(`Last 6 months · SAR M · total ${total}`, `آخر 6 أشهر · مليون ر.س · الإجمالي ${total}`), labels: r.labels.map(MON), values: (r.series![0].values as number[]).map((x) => x ?? 0), unit: T("SAR M", "مليون ر.س"),
+      say: T(`Meta ads revenue over six months: ${total} million in total.`, `إيرادات إعلانات ميتا خلال ستة أشهر: ${total} مليون إجمالاً.`) },
   };
 }

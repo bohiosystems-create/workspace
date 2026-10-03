@@ -699,6 +699,7 @@ const UI8: Record<string, string> = {
 const UI9: Record<string, string> = {
   "Ideas": "الأفكار",
  "Initiatives": "المبادرات",
+ "figures as of": "الأرقام حتى",
  "Supplier invoices (Oracle)": "فواتير الموردين (أوراكل)",
  "Purchase orders and invoices from Oracle, reconciled against what each vendor delivered. Approve clean invoices, dispute the rest; click a vendor to see only its invoices. Decisions are recorded here — nothing is written back to Oracle.": "أوامر الشراء والفواتير من أوراكل، مطابقة مع ما سلّمه كل مورد. اعتمدوا الفواتير السليمة واعترضوا على البقية؛ انقروا على مورد لعرض فواتيره فقط. تُسجَّل القرارات هنا — ولا يُكتب شيء في أوراكل.",
  "Accounts payable": "الحسابات الدائنة",

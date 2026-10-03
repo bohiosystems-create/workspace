@@ -10,7 +10,7 @@ import { monthShort, firstSentence } from "@/lib/i18n";
 const DECISION_LABEL: Record<string, string> = { RE_ENGAGE: "Re-engage", RENEGOTIATE: "Renegotiate", PERFORMANCE_PLAN: "Performance plan", TEST_REPLACEMENT: "Test replacement", EXIT: "Exit", PROMOTED: "Promoted" };
 
 export default function DirectorPage() {
-  const { lang, t, N, k, m, K, M, dm } = useI18n();
+  const { lang, t, N, k, m, K, M, dm, d } = useI18n();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -68,7 +68,7 @@ export default function DirectorPage() {
       {data && (
         <>
           <div className="panel" style={{ borderWidth: 2 }}>
-            <div className="chart-label">{t("Today's brief")} · {data.asOf.slice(0, 10)}</div>
+            <div className="chart-label">{t("Today's brief")} · {d(data.today ?? data.asOf, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {t("figures as of")} {d(data.asOf, { day: "numeric", month: "short", year: "numeric" })}</div>
             <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{data.brief.headline}</div>
             <ul style={{ margin: "10px 0 0", paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.brief.bullets.map((b: string, i: number) => <li key={i}>{b}</li>)}</ul>
             <div className="row twocol" style={{ marginTop: 14 }}>

@@ -19,7 +19,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ## B. Say this upfront
 
-1. **Sample data, frozen on 8 June 2026.** Vendors, campaigns, leads and invoices are realistic but invented. Reports are dated 8 June 2026 to match the figures.
+1. **Sample data, frozen on 8 June 2026.** Vendors, campaigns, leads and invoices are realistic but invented. Reports and the brief carry today's real date; their figures are labelled "as of 8 Jun 2026".
 2. **Integrations are simulated.** Outlook, Kinan's agent, Yardi and Oracle are in mock mode, and the screens say "simulated". Nothing is sent to anyone.
 3. **One manager, no team.** The director does the team's work; you only approve. Nothing spends money or contacts a vendor or customer without your name on it.
 
@@ -76,7 +76,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   Say: *"The same charts arrive by email — they're built so Outlook shows them, not as images that get blocked."*
 - [ ] Show the **Campaign recommendations — 23 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
 - [ ] Scroll to **What the data shows & market initiatives**: first the sources scanned this morning with their counts, then the findings with their cross-source evidence (e.g. the PropertyHub email under the Marina Tower drop), then initiatives of different types, each marked with the finding it answers. They're also on the Initiatives page to shortlist or approve.
-- [ ] Press **▶ Play**: the report becomes a presentation, one slide per section, chart and idea, with a voice-over you can mute.
+- [ ] Press **▶ Play**: a full-screen Kinan-style presentation (about 20 slides, one idea each) with animated charts — rings fill for each project, bars grow, the vendor donut draws itself, each finding gets its own slide with its trend and evidence, each initiative its forecast. The voice-over is ElevenLabs when a key is set (else the browser voice); mute it with **Voice on**.
 - [ ] Show the schedule: 07:30 Riyadh, Sunday–Thursday, English and Arabic, internal addresses only.
 
 ### 6. Approve the June budget plan (3 min)
