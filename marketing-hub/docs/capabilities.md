@@ -120,7 +120,21 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - *"2025 at a glance"* (KPI figures)
   - several charts in one message.
   - **What a query can include:**
-    - **8 datasets:** campaigns by month 2023–2026, CRM leads, creatives, invoices, the vendor scorecard, the market, mortgages and competitors.
+    - **15 datasets:**
+      - campaigns by month, 2023–2026, with seasons including Ramadan 2026;
+      - leads with profiles: 68,000 leads, the 2026 CRM sample plus reconstructed 2023–2025 profiles;
+      - ad creatives;
+      - invoices: Oracle 2026 plus a paid 2023–2025 archive;
+      - vendors: current, bench and past, with scores, trials and 2023–2025 results;
+      - the property market and mortgages, from 2023;
+      - competitor ads, from 2025;
+      - deliverables;
+      - work orders;
+      - recommendations;
+      - today's daily check;
+      - sales targets by project and month;
+      - the budget plan;
+      - Meta campaigns.
     - **Groupings:** any dimension (vendor, project, channel, campaign, month, quarter, year, season, city, buyer type, payment status, district and more), plus an optional split into coloured series.
     - **Measures:** any formula (sum, avg, min, max, median, count, distinct with + − × ÷), or a named measure (cost to sales, CPL, CPQL, CAC, ROAS, qualified rate, close rate, win rate, CTR, average deal, reported-vs-CRM overstatement).
     - **Filters and periods:** filters (=, ≠, in, >, <, between, contains) and any period ("Q1 2025", "last 6 months", from/to).

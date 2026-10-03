@@ -45,6 +45,51 @@ import { buildChart } from "../lib/charts";
   ok("no eval: code is not executed", /unknown function|unexpected/.test(run({ dataset: "campaigns", x: "vendor", measures: ["constructor(1)"] }).error ?? ""));
   ok("unknown dataset", /Use one of/.test(run({ dataset: "x", measures: ["count()"] } as any).error ?? ""));
 
+  // Demo coverage: every use case shown in the demo has data behind it (≥ 2 points, no error).
+  const COVER: [string, ChartQuery][] = [
+    ["Revenue by vendor (pie)", { dataset: "campaigns", type: "pie", x: "vendor", measures: ["sum(sales)"], period: "year to date" }],
+    ["Spend by year and channel", { dataset: "campaigns", type: "stacked", x: "year", series: "channel", measures: ["sum(spend)"] }],
+    ["Ramadan 2026 vs past Ramadans", { dataset: "campaigns", x: "year", measures: ["cost_to_sales"], filters: [{ field: "season", op: "=", value: "RAMADAN" }] }],
+    ["Cost to sales by quarter per project", { dataset: "campaigns", type: "line", x: "quarter", series: "project", measures: ["cost_to_sales"] }],
+    ["Monthly leads funnel 2026", { dataset: "campaigns", x: "month", measures: ["sum(leads)", "sum(qualified)", "sum(viewings)", "sum(contracts)"], period: "2026" }],
+    ["CRM vs reported sales", { dataset: "campaigns", type: "grouped", x: "vendor", measures: ["sum(sales)", "sum(reported_sales)"], filters: [{ field: "status", op: "=", value: "live" }] }],
+    ["Buyer types by year", { dataset: "leads", type: "stacked", x: "year", series: "buyerType", measures: ["count()"], transform: "share" }],
+    ["Investors' share in past Ramadan campaigns", { dataset: "leads", x: "year", measures: ["count()"], filters: [{ field: "season", op: "=", value: "RAMADAN" }, { field: "buyerType", op: "=", value: "Investor" }] }],
+    ["Response time by year", { dataset: "leads", type: "stacked", x: "year", series: "responseBand", measures: ["count()"], transform: "share" }],
+    ["Why we lose leads, by year", { dataset: "leads", type: "stacked", x: "year", series: "lostReason", measures: ["count()"], filters: [{ field: "stage", op: "=", value: "LOST" }] }],
+    ["Creatives by message", { dataset: "creatives", x: "message", measures: ["cpql"] }],
+    ["Paid to vendors by year", { dataset: "invoices", type: "stacked", x: "year", series: "vendor", measures: ["sum(paid)"] }],
+    ["Outstanding by vendor", { dataset: "invoices", x: "vendor", measures: ["sum(outstanding)"], filters: [{ field: "source", op: "=", value: "oracle" }] }],
+    ["Vendors: past sales incl. past vendors", { dataset: "vendors", type: "hbar", x: "vendor", measures: ["past_sales"], filters: [{ field: "past_sales", op: ">", value: 0 }] }],
+    ["Vendors by status", { dataset: "vendors", x: "status", measures: ["count()"] }],
+    ["Market prices since 2023", { dataset: "market", type: "line", x: "quarter", series: "district", measures: ["avg(price_per_sqm)"] }],
+    ["Mortgage rate trend", { dataset: "mortgage", type: "line", x: "quarter", measures: ["avg(rate)"] }],
+    ["Competitor ads since 2025", { dataset: "competitors", type: "line", x: "month", series: "competitor", measures: ["sum(ads)"] }],
+    ["Late deliverables by vendor", { dataset: "deliverables", x: "vendor", measures: ["sum(late)"], filters: [{ field: "late", op: ">", value: 0 }] }],
+    ["On-time rate by vendor", { dataset: "deliverables", x: "vendor", measures: ["sum(on_time)/count()*100"] }],
+    ["Work orders by kind", { dataset: "work_orders", x: "kind", measures: ["count()"] }],
+    ["Recommendations by type and severity", { dataset: "recommendations", type: "stacked", x: "type", series: "severity", measures: ["count()"] }],
+    ["Money at stake by vendor", { dataset: "recommendations", x: "vendor", measures: ["sum(impact)"] }],
+    ["Daily check by severity", { dataset: "daily_check", x: "severity", measures: ["count()"] }],
+    ["Target vs actual by month", { dataset: "targets", type: "grouped", x: "month", measures: ["sum(target)", "sum(actual)"], to: "2026-05" }],
+    ["% of target by project", { dataset: "targets", x: "project", measures: ["sum(actual)/sum(target)*100"], to: "2026-05" }],
+    ["Budget plan change by vendor", { dataset: "budget_plan", x: "vendor", measures: ["sum(change)"] }],
+    ["Meta spend by agency", { dataset: "meta", type: "pie", x: "agency", measures: ["sum(spend)"] }],
+  ];
+  for (const [name, q] of COVER) {
+    const r = run(q);
+    const n = r.error ? 0 : r.points?.length ?? r.labels?.length ?? 0;
+    const real = r.error ? false : (r.series ?? [{ values: r.values }]).some((s: any) => s.values.filter((v: any) => v !== null && v !== 0).length >= (r.type === "kpi" ? 1 : 2));
+    ok(`demo use case: ${name}`, !r.error && n >= 2 && real, r.error ?? { n, values: r.series?.map((s: any) => s.values) });
+  }
+  // The deeper data keeps the live demo numbers: history leads add up to the history, invoices archive to its spend.
+  const hl = run({ dataset: "leads", measures: ["count()"], filters: [{ field: "status", op: "=", value: "past" }] });
+  ok("past leads = history leads (63,260)", hl.series?.[0]?.values[0] === 63260, hl.series?.[0]?.values);
+  const hi = run({ dataset: "invoices", measures: ["sum(amount)"], filters: [{ field: "source", op: "=", value: "history" }] });
+  ok("archive invoices = history spend (SAR 14,780K)", Math.abs((hi.series?.[0]?.values[0] ?? 0) - 14780) < 2, hi.series?.[0]?.values);
+  const mk = run({ dataset: "market", x: "month", measures: ["avg(price_per_sqm)"], filters: [{ field: "district", op: "=", value: "Jeddah South" }], from: "2025-01" });
+  ok("market 2025+ unchanged by the extension", mk.labels?.length === 17);
+
   if (fails.length) console.log(fails.join("\n"));
   console.log(`\n${pass}/${pass + fails.length} chart engine checks passed.`);
   process.exit(fails.length ? 1 : 0);

@@ -145,7 +145,9 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
     const bottom = rot ? 74 : 30, plotH = H - top - bottom, slot = (W - left - right) / n;
     const stackTop = labels.map((_, i) => series.reduce((s, x) => s + Math.max(0, x.values[i] ?? 0), 0));
     const all = mode === "stacked" ? stackTop : series.flatMap((s) => s.values.filter((v): v is number => v !== null));
-    const tk = ticks(Math.min(0, ...all), Math.max(0, ...all)), lo = tk[0], hi = tk[tk.length - 1];
+    // Shares that stack to 100% get a 0–100% axis (rounding can push a stack a hair over 100).
+    const top100 = mode === "stacked" && unit === "%" && Math.max(...all) <= 100.6;
+    const tk = top100 ? [0, 25, 50, 75, 100] : ticks(Math.min(0, ...all), Math.max(0, ...all)), lo = tk[0], hi = tk[tk.length - 1];
     const Y = (v: number) => top + plotH * (1 - (v - lo) / (hi - lo)), y0 = Y(0);
     const k = mode === "grouped" ? series.length : 1;
     const bw = Math.min(24, (slot * 0.7 - (k - 1) * 2) / k);

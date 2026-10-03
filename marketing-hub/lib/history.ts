@@ -128,7 +128,10 @@ function spread(s: Seed) {
   const w = ms.map((_, i) => (ms.length === 1 ? 1 : i === 0 ? 0.7 : 1 + i * 0.03));
   const tw = w.reduce((x, y) => x + y, 0);
   const part = (total: number, i: number, dec = 0) => Math.round((total * w[i]) / tw * 10 ** dec) / 10 ** dec;
-  return ms.map((month, i) => ({ month, spendK: part(s[10], i, 1), leads: part(s[11], i), qualified: part(s[12], i), contracts: part(s[14], i), salesM: part(s[15], i, 1) }));
+  // The last month takes the rounding remainder, so the months always add up exactly to the campaign's totals.
+  const split = (total: number, dec = 0) => { const xs = ms.map((_, i) => part(total, i, dec)); xs[xs.length - 1] = Math.round((total - xs.slice(0, -1).reduce((a, b) => a + b, 0)) * 10 ** dec) / 10 ** dec; return xs; };
+  const [sp, ld, ql, ct, sl] = [split(s[10], 1), split(s[11]), split(s[12]), split(s[14]), split(s[15], 1)];
+  return ms.map((month, i) => ({ month, spendK: sp[i], leads: ld[i], qualified: ql[i], contracts: ct[i], salesM: sl[i] }));
 }
 
 export const ensureHistory = single(async function ensureHistoryImpl() {
@@ -176,7 +179,8 @@ export async function historyState(lang: Lang) {
     code: c.code, name: lang === "ar" ? c.nameAr : c.name, project: N(c.project), projectKey: c.project, vendor: N(c.vendor), vendorKey: c.vendor,
     channel: N(c.channel), family: familyOf(c.channel), season: c.season, seasonLabel: tx(lang, ...(SEASON_LABEL[c.season] ?? [c.season, c.season])),
     start: c.startMonth, end: c.endMonth, year: c.startMonth.slice(0, 4), budgetK: c.budgetK, ...kpis(c), lesson: lang === "ar" ? c.lessonAr : c.lesson,
-    months: JSON.parse(c.months),
+    // Recomputed from the seed when known, so rows stored before a fix to the split pick it up too.
+    months: (() => { const sd = SEED.find((x) => x[0] === c.code); return sd ? spread(sd) : JSON.parse(c.months); })(),
   }));
   const groupBy = (key: (c: (typeof all)[number]) => string, label: (k: string) => string) => {
     const m = new Map<string, typeof all>();

@@ -183,7 +183,7 @@ A chat assistant ("Ask" button, bottom-right of every page) answers questions ab
 
 ### Charts — any chart, from a prompt or the API (`lib/chart-query.ts`, `/api/chart`)
 - The AI writes a chart **query**; the app computes every number. The query sets:
-  - a dataset (`campaigns`, `leads`, `creatives`, `invoices`, `vendors`, `market`, `mortgage`, `competitors`);
+  - a dataset (`campaigns`, `leads`, `creatives`, `invoices`, `vendors`, `market`, `mortgage`, `competitors`, `deliverables`, `work_orders`, `recommendations`, `daily_check`, `targets`, `budget_plan`, `meta`);
   - `x`, plus an optional `series` split;
   - `measures`: formulas such as `sum(spend)*1000/sum(qualified)`, or named measures like `cost_to_sales`, `cpql` or `roas`;
   - `filters`;
@@ -197,7 +197,18 @@ A chat assistant ("Ask" button, bottom-right of every page) answers questions ab
   curl -X POST localhost:3000/api/chart -H 'content-type: application/json' \
     -d '{"query":{"dataset":"campaigns","type":"stacked","x":"year","series":"channel","measures":["sum(spend)"]}}'
   ```
-- `npm run chart:eval` runs 22 engine checks: the numbers match the rest of the app, transforms add up, and bad queries return guiding errors. It is part of `npm run chat:eval`.
+- `npm run chart:eval` runs 53 checks, all part of `npm run chat:eval`:
+  - the numbers match the rest of the app;
+  - transforms add up;
+  - bad queries return guiding errors;
+  - 28 demo use cases each return a real chart.
+- **Sample-data depth:** none of the live 2026 scenario's numbers change. The extra history fills in around it:
+  - **2023–2025 lead profiles:** 63,260 leads, reconstructed so each campaign-month keeps its history totals.
+  - **Invoice archive:** 187 paid invoices, one per campaign-month, also shown on each vendor's Invoices tab.
+  - **Market and mortgage data:** extended back to 2023.
+  - **Competitor ads:** from 2025, based on each competitor's launch date.
+  - **Live 2026 seasons:** Ramadan for February–March.
+  - **History months:** now add up exactly to each campaign's totals.
 
 ### Recommendations and emails
 

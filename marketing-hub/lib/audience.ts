@@ -115,3 +115,37 @@ export function breakdown(rows: LeadRow[], dim: Dimension, f: { project?: string
     .sort((a, b) => b.leads - a.leads);
   return { dimension: dim, total: sel.length, rows: out };
 }
+
+// ---- 2023–2025: lead profiles for the past campaigns ------------------------------------------------------------
+// The history has lead, qualified and contract counts per campaign and month, not individual leads. For profile
+// questions across years ("did investors grow?", "buyer types in past Ramadan campaigns") we expand those counts into
+// lead rows with the same deterministic method as above: the totals per campaign-month stay exactly the history's.
+const PAST_LOST: Mix = [["Not a buyer", 26, 1], ["No response", 18, 1], ["Price", 16, 1], ["Chose competitor", 14, 1], ["Location", 10, 1], ["Financing", 10, 1], ["Other", 6, 1]];
+const PAST_RESPONSE: Record<string, Mix> = {
+  "2023": [["Within 4 hours", 30, 1], ["4–24 hours", 35, 1], ["Over 24 hours", 25, 1], ["Never contacted", 10, 1]],
+  "2024": [["Within 4 hours", 38, 1], ["4–24 hours", 34, 1], ["Over 24 hours", 20, 1], ["Never contacted", 8, 1]],
+  "2025": [["Within 4 hours", 45, 1], ["4–24 hours", 32, 1], ["Over 24 hours", 16, 1], ["Never contacted", 7, 1]],
+};
+const pastCache = new WeakMap<object, LeadRow[]>();
+export function historyLeadRows(history: { rows: any[] }): LeadRow[] {
+  const hit = pastCache.get(history);
+  if (hit) return hit;
+  const out: LeadRow[] = [];
+  for (const r of history.rows) {
+    const project = r.projectKey === "All projects" ? null : r.projectKey, fam = r.family as string, nudge = CHANNEL_NUDGE[fam] ?? {};
+    for (const mo of r.months as { month: string; leads?: number; qualified: number; contracts: number; salesM: number }[]) {
+      const leads = mo.leads ?? 0, won = Math.min(mo.contracts, leads), qual = Math.max(won, Math.min(mo.qualified, leads)), deal = won ? mo.salesM / won : null;
+      for (let k = 0; k < leads; k++) {
+        const id = `${r.code}|${mo.month}|${k}`, level = k < won ? 2 : k < qual ? 1 : 0;
+        const stage = level === 2 ? "WON" : level === 1 ? (u(id, 21) < 0.3 ? "LOST" : u(id, 21) < 0.55 ? "QUALIFIED" : u(id, 21) < 0.9 ? "VIEWING" : "RESERVED") : u(id, 22) < 0.5 ? "LOST" : "CONTACTED";
+        const prof = {} as Record<Dimension, string>;
+        (Object.keys(MIX) as (keyof typeof MIX)[]).forEach((d, i) => { prof[d] = pick(MIX[d][project ?? "_"] ?? MIX[d]._, u(id, i + 1), level, nudge); });
+        prof.lostReason = stage === "LOST" ? pick(PAST_LOST, u(id, 23), 0, {}) : "—";
+        prof.responseBand = pick(PAST_RESPONSE[mo.month.slice(0, 4)] ?? PAST_RESPONSE["2025"], u(id, 24), level, { "Within 4 hours": 1 + level * 0.25, "Never contacted": level ? 0 : 1 });
+        out.push({ campaignCode: r.code, campaign: r.name, project, vendor: r.vendorKey, family: fam, month: mo.month, stage, dealValueM: stage === "WON" ? deal : null, profile: prof });
+      }
+    }
+  }
+  pastCache.set(history, out);
+  return out;
+}

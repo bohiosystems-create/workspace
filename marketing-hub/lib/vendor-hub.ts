@@ -83,6 +83,10 @@ export async function vendorDetail(id: string, lang: Lang, a: Agent, orch: Orche
     payment: i.payment, daysOverdue: i.daysOverdue, decision: i.decision, oracleStatus: i.oracleStatus, flags: i.flags.map((f) => ({ severity: f.severity, text: f.text })),
   }));
   const unbilled = a.inv.unbilled.filter((u: any) => u.vendorId === id || u.vendor === row.name);
+  // 2023–2025 archive: one paid invoice per campaign and month of the past campaigns (before the Oracle connection).
+  const archive = h.rows.filter((r) => r.vendorKey === row.name).flatMap((r) => (r.months as any[]).filter((m) => m.spendK > 0).map((m) => ({
+    number: `ARC-${r.code}-${m.month.replace("-", "")}`, campaign: r.name, period: m.month, amountK: r1(m.spendK),
+  }))).sort((p, q) => q.period.localeCompare(p.period));
 
   // Work orders and deliverables.
   const orders = orch.orders.filter((o) => o.vendorId === id);
@@ -123,7 +127,7 @@ export async function vendorDetail(id: string, lang: Lang, a: Agent, orch: Orche
       slaBreaches: mv?.slaBreaches ?? [], latestRespHrs: mv?.latestRespHrs ?? null, qualRatePct: mv?.qualRatePct ?? null,
     } : null,
     campaigns: { live, past, meta, trials },
-    invoices: { rows: invoices, unbilled, totals: { invoicedK: r1(invoices.reduce((s, i) => s + i.amountK, 0)), paidK: r1(invoices.reduce((s, i) => s + i.paidK, 0)), outstandingK: row.outstandingK, overdueK: row.overdueK } },
+    invoices: { rows: invoices, unbilled, archive, archiveTotalK: r1(archive.reduce((t, x) => t + x.amountK, 0)), totals: { invoicedK: r1(invoices.reduce((s, i) => s + i.amountK, 0)), paidK: r1(invoices.reduce((s, i) => s + i.paidK, 0)), outstandingK: row.outstandingK, overdueK: row.overdueK } },
     work: { orders, deliverables },
     mail: { mode: outlookMode(), mailbox: outlookSender(), domain, note: mailNote, messages: mails },
   };

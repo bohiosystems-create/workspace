@@ -189,7 +189,7 @@ export default function VendorView({ id, reload, onBack, act, busy, approver }: 
             <div className="kpi"><div className="kv">{K(inv.totals.outstandingK)}</div><div className="kl">{t("Outstanding")}</div></div>
             <div className="kpi"><div className="kv" style={inv.totals.overdueK ? { color: "var(--alert)" } : {}}>{K(inv.totals.overdueK)}</div><div className="kl">{t("Overdue")}</div></div>
           </div>
-          {inv.rows.length === 0 ? <div className="muted">{t("No invoices from this vendor in Oracle.")}</div> : (
+          {inv.rows.length === 0 ? <div className="muted">{t(inv.archive?.length ? "No 2026 invoices from this vendor in Oracle." : "No invoices from this vendor in Oracle.")}</div> : (
             <div style={{ overflowX: "auto" }}><table className="dtable" style={{ minWidth: 820 }}>
               <thead><tr><th>{t("Invoice")}</th><th>{t("For")}</th><th>{t("Date")}</th><th>{t("Due")}</th><th className="num">{t("Amount")}</th><th className="num">{t("Outstanding")}</th><th>{t("Status")}</th><th>{t("Checks")}</th></tr></thead>
               <tbody>{inv.rows.map((x: any) => (
@@ -200,6 +200,15 @@ export default function VendorView({ id, reload, onBack, act, busy, approver }: 
                   <td style={{ fontSize: 10.5 }}>{x.flags.length ? x.flags.map((f: any, i: number) => <div key={i} className={f.severity === "crit" ? "bad" : ""}>• {f.text}</div>) : <span className="ok">✓</span>}</td></tr>
               ))}</tbody>
             </table></div>
+          )}
+          {inv.archive?.length > 0 && (
+            <details style={{ marginTop: 12 }} open={inv.rows.length === 0}>
+              <summary style={{ cursor: "pointer", fontSize: 12 }}><b>{t("2023–2025 archive")}</b> — {inv.archive.length} {t("invoices, all paid")} · {K(inv.archiveTotalK)}</summary>
+              <div style={{ overflowX: "auto", marginTop: 8 }}><table className="dtable" style={{ minWidth: 520 }}>
+                <thead><tr><th>{t("Invoice")}</th><th>{t("For")}</th><th className="num">{t("Amount")}</th><th>{t("Status")}</th></tr></thead>
+                <tbody>{inv.archive.map((x: any) => <tr key={x.number}><td dir="ltr" style={{ fontSize: 11 }}>{x.number}</td><td>{N(x.campaign)}<div className="muted" style={{ fontSize: 10 }}>{x.period}</div></td><td className="num">{K(x.amountK)}</td><td><span className="pill healthy">{t("Paid")}</span></td></tr>)}</tbody>
+              </table></div>
+            </details>
           )}
           {inv.unbilled.length > 0 && <div className="muted" style={{ fontSize: 11, marginTop: 10 }}>{t("Delivered but not invoiced yet")}: {inv.unbilled.map((u: any) => `${N(u.campaign)} ${u.period} (${K(u.deliveredK)})`).join(lang === "ar" ? "؛ " : "; ")}</div>}
           <div className="muted" style={{ fontSize: 11, marginTop: 10 }}>{t("Approve or dispute invoices on the Invoices page; nothing is written back to Oracle.")} <a href="/invoices">{t("Invoices")} →</a></div>

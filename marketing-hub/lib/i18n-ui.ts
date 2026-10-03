@@ -760,6 +760,9 @@ const UI9: Record<string, string> = {
 
 // Vendor directory (Orchestration)
 const UI10: Record<string, string> = {
+  "2023–2025 archive": "أرشيف 2023–2025",
+  "invoices, all paid": "فاتورة، جميعها مسددة",
+  "No 2026 invoices from this vendor in Oracle.": "لا فواتير لعام 2026 من هذا المورد في أوراكل.",
   "Area": "مساحي",
   "Stacked": "مكدّس",
   "Stacked (horizontal)": "مكدّس أفقي",

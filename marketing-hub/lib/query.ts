@@ -9,7 +9,9 @@ import type { Creative } from "./creatives";
 import { familyOf, FAMILY_LABEL, kpis } from "./history";
 import { type Lang, nm, NAMES_AR, tx } from "./i18n";
 
-export type QueryCtx = { agent: Agent; history: HistoryState; daily: DailyState; lang: Lang; meta: any | null; leads?: LeadRow[]; creatives?: Creative[] };
+// `extra`: the rest of the app's state, for the chart datasets (deliverables, work orders, recommendations, targets…).
+export type QueryExtra = { deliverables: any[]; vendors: any[]; targets: any[]; recs: any[]; orders: any[]; plan: any | null; trials: any[] };
+export type QueryCtx = { agent: Agent; history: HistoryState; daily: DailyState; lang: Lang; meta: any | null; leads?: LeadRow[]; creatives?: Creative[]; extra?: QueryExtra };
 const r1 = (x: number) => Math.round(x * 10) / 10;
 const norm = (s: string) => s.toLowerCase().replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[^\p{L}\p{N}\s-]/gu, " ").replace(/\s+/g, " ").trim();
 const words = (s: string) => norm(s).split(" ").filter((w) => w.length >= 3);

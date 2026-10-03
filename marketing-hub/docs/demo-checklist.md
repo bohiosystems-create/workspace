@@ -146,6 +146,18 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   - *"Spend vs sales per vendor as a scatter"*.
   - *"Price per sqm by district, indexed"*: Jeddah South is the only district below 100.
 
+  More that the data now supports, in the Claude app edition:
+  - *"Buyer types by year as a 100% stacked chart"*: investors' share rises from 2023 to 2025.
+  - *"Ramadan cost to sales by year, including 2026"*.
+  - *"What we paid each vendor per year"*.
+  - *"Sales target vs actual by month"*.
+  - *"On-time deliverables by vendor"*.
+  - *"Meta spend by agency"*.
+  - *"Price per sqm by district since 2023"*.
+  - *"2023–2025 sales by vendor, including past vendors"*.
+
+  On **Orchestration**, open a past vendor (e.g. Najm Media), then **Invoices**: its 2023–2025 invoice archive (18 invoices, SAR 1,295K, all paid).
+
   Hover a bar or line, press **Table**, then **CSV**. Say: *"Any chart the data can support, from one sentence, and the same through the API for Kinan's systems."*
 - [ ] *"Draft an email to Tasweeq Digital"*, then pick an item: the draft appears for approval. Don't send it; show the approval controls instead.
 

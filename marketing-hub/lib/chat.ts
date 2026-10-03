@@ -13,6 +13,7 @@ import { extraEarly, extraLate, campaignExtras } from "./chat-extra";
 import { ideasAnswer, type IdeaBrief } from "./ideation";
 import { kinanOutbox, kinanMode } from "./kinan";
 import { closest } from "./chat-catalog";
+import { prisma } from "./prisma";
 import { RX_CHART, buildChart, chartRequestFromText, chartSummary, type ChartSpec } from "./charts";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firstSentence } from "./i18n";
 
@@ -31,7 +32,9 @@ export async function buildChatContext(lang: Lang = "en") {
   const history = await historyState(lang);
   const daily = await dailyState(lang);
   const [leads, creatives] = [await leadProfiles(), creativesFor(agent.mkt.campaigns as any)];
-  const q: QueryCtx = { agent, history, daily, lang, meta, leads, creatives };
+  const [deliverables, vendors, targets, trials] = await Promise.all([prisma.deliverable.findMany(), prisma.vendor.findMany(), prisma.salesTarget.findMany(), prisma.trial.findMany()]);
+  const extra = { deliverables, vendors, targets, recs: recs.recommendations, orders: orch.orders, plan: director.plan, trials };
+  const q: QueryCtx = { agent, history, daily, lang, meta, leads, creatives, extra };
   return { mkt: agent.mkt, inv: agent.inv, crm: agent.crm, recs, agent, director, orch, meta, history, daily, q, lang };
 }
 export type ChatContext = Awaited<ReturnType<typeof buildChatContext>>;

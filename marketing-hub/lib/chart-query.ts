@@ -10,7 +10,8 @@
 import type { QueryCtx } from "./query";
 import { parsePeriod, latestLiveMonth } from "./query";
 import { familyOf, FAMILY_LABEL } from "./history";
-import { marketSeries, MORTGAGE, COMPETITORS, AD_MONTHS } from "./market";
+import { marketSeries, MORTGAGE, COMPETITORS, AD_MONTHS_ALL, adsHistory } from "./market";
+import { historyLeadRows } from "./audience";
 import { type Lang, tx, nm } from "./i18n";
 import type { ChartSpec, ChartType } from "./charts";
 
@@ -28,12 +29,17 @@ const N = (name: string, about: string, unit = "", avg = false): Field => ({ nam
 // Levels (scores, prices, rates) are averaged when written bare; amounts and counts are summed.
 const A = (name: string, about: string, unit = ""): Field => N(name, about, unit, true);
 
+// Live 2026 months get a season too, so "Ramadan 2026 vs Ramadan 2025" works: Ramadan 2026 ran mid-February to
+// mid-March; otherwise launch campaigns are LAUNCH and the rest ALWAYS_ON.
+const liveSeason = (month: string, name: string) => (month === "2026-02" || month === "2026-03" ? "RAMADAN" : /launch/i.test(name) ? "LAUNCH" : "ALWAYS_ON");
+const ymd = (d: unknown) => (d ? new Date(d as any).toISOString().slice(0, 10) : null);
+
 export const DATASETS: Dataset[] = [
   {
     name: "campaigns", grain: "one row per campaign per month, 2023-01 → latest (live 2026 campaigns + 2023–2025 history)",
     about: "Marketing results. Live rows use verified sources (Oracle cost, CRM leads/sales); reported_* is what the vendor reported.",
     fields: [...TIME, D("vendor", "agency"), D("project", "development"), D("channel", "DIGITAL, INFLUENCER, PORTAL, BROKER, PR, OUTDOOR, EVENT, RADIO"), D("campaign", "campaign name"), D("code", "campaign code"),
-      D("season", "RAMADAN, SUMMER, LAUNCH, EVENT, ALWAYS_ON, BRAND, LIVE"), D("status", "live | past"),
+      D("season", "RAMADAN, SUMMER, LAUNCH, EVENT, ALWAYS_ON, BRAND (live 2026 months: RAMADAN in Feb–Mar, LAUNCH for launch campaigns, else ALWAYS_ON)"), D("status", "live | past"),
       N("spend", "marketing cost", "SAR K"), N("leads", "leads (CRM)"), N("qualified", "CRM-qualified leads"), N("viewings", "site viewings (live only)"), N("reservations", "reservations (live only)"),
       N("contracts", "signed contracts (CRM)"), N("sales", "contracted sales value (CRM)", "SAR M"),
       N("reported_spend", "vendor-reported spend (live only)", "SAR K"), N("reported_leads", "vendor-reported leads (live only)"), N("reported_contracts", "vendor-reported contracts (live only)"), N("reported_sales", "vendor-reported sales (live only)", "SAR M"),
@@ -43,7 +49,7 @@ export const DATASETS: Dataset[] = [
       for (const u of c.agent.unified.campaigns) {
         const m = c.agent.mkt.campaigns.find((x) => x.id === u.id)!;
         for (const mo of u.months) out.push({
-          ...time(mo.month), vendor: u.vendor, project: m.asset, channel: familyOf(u.channel), campaign: u.name, code: u.code, season: "LIVE", status: "live",
+          ...time(mo.month), vendor: u.vendor, project: m.asset, channel: familyOf(u.channel), campaign: u.name, code: u.code, season: liveSeason(mo.month, u.name), status: "live",
           spend: mo.costK, leads: mo.leads, qualified: mo.qualified, viewings: mo.viewings, reservations: mo.reservations, contracts: mo.won, sales: mo.salesM,
           reported_spend: mo.reported.spendK, reported_leads: mo.reported.leads, reported_contracts: mo.reported.contracts, reported_sales: mo.reported.salesM, impressions: mo.reported.impressionsK, clicks: mo.reported.clicks,
         });
@@ -57,14 +63,18 @@ export const DATASETS: Dataset[] = [
     },
   },
   {
-    name: "leads", grain: "one row per CRM lead (2026 sample)", about: "Lead profiles and outcomes from the CRM.",
+    name: "leads", grain: "one row per lead: the 2026 CRM sample plus the 2023–2025 campaigns' leads (profiles reconstructed)", about: "Lead profiles and outcomes. status = live (2026 CRM) | past (2023–2025).",
     fields: [...TIME, D("vendor", ""), D("project", ""), D("channel", ""), D("campaign", ""), D("stage", "NEW, CONTACTED, QUALIFIED, VIEWING, RESERVED, WON, LOST"),
-      D("city", ""), D("nationality", ""), D("buyerType", ""), D("budgetBand", ""), D("unitType", ""), D("ageBand", ""), D("lostReason", ""), D("responseBand", "first response time band"),
+      D("city", ""), D("nationality", ""), D("buyerType", ""), D("budgetBand", ""), D("unitType", ""), D("ageBand", ""), D("lostReason", ""), D("responseBand", "first response time band"), D("status", "live | past"), D("season", "past campaigns' season; live: LIVE"),
       N("leads", "1 per lead"), N("qualified", "1 if qualified or later"), N("won", "1 if won"), N("sales", "deal value of won leads", "SAR M")],
-    rows: (c) => (c.leads ?? []).map((l: any) => ({
-      ...time(l.month), vendor: l.vendor, project: l.project, channel: l.family, campaign: l.campaign, stage: l.stage, ...l.profile,
-      leads: 1, qualified: ["QUALIFIED", "VIEWING", "RESERVED", "WON"].includes(l.stage) ? 1 : 0, won: l.stage === "WON" ? 1 : 0, sales: l.stage === "WON" ? l.dealValueM ?? 0 : 0,
-    })),
+    rows: (c) => {
+      const row = (l: any, status: string, season: string) => ({
+        ...time(l.month), vendor: l.vendor, project: l.project, channel: l.family, campaign: l.campaign, stage: l.stage, ...l.profile, status, season,
+        leads: 1, qualified: ["QUALIFIED", "VIEWING", "RESERVED", "WON"].includes(l.stage) ? 1 : 0, won: l.stage === "WON" ? 1 : 0, sales: l.stage === "WON" ? l.dealValueM ?? 0 : 0,
+      });
+      const seasonOf = new Map((c.history.rows as any[]).map((r) => [r.code, r.season]));
+      return [...(c.leads ?? []).map((l) => row(l, "live", "LIVE")), ...historyLeadRows(c.history as any).map((l) => row(l, "past", seasonOf.get(l.campaignCode) ?? ""))];
+    },
   },
   {
     name: "creatives", grain: "one row per ad creative of the live campaigns (sample, adds up to campaign totals)", about: "Ad creatives.",
@@ -74,39 +84,126 @@ export const DATASETS: Dataset[] = [
       spend: r.spendK, impressions: r.impressions, clicks: r.clicks, leads: r.leads, qualified: r.qualified, frequency: r.frequency })),
   },
   {
-    name: "invoices", grain: "one row per supplier invoice (Oracle)", about: "Supplier invoices and payment status.",
-    fields: [...TIME, D("vendor", ""), D("campaign", ""), D("payment", "Paid | Partly paid | Unpaid"), D("oracle_status", ""), D("decision", "PENDING | APPROVED | DISPUTED"), D("blocked", "yes | no"), D("overdue", "yes | no"),
+    name: "invoices", grain: "one row per supplier invoice: Oracle 2026 plus the 2023–2025 campaigns' monthly invoices (paid)", about: "Supplier invoices and payment status. source = oracle | history.",
+    fields: [...TIME, D("vendor", ""), D("campaign", ""), D("payment", "Paid | Partly paid | Unpaid"), D("oracle_status", ""), D("decision", "PENDING | APPROVED | DISPUTED"), D("blocked", "yes | no"), D("overdue", "yes | no"), D("source", "oracle | history"), D("project", ""), D("channel", ""),
       N("amount", "invoiced", "SAR K"), N("paid", "", "SAR K"), N("outstanding", "", "SAR K"), A("days_overdue", "days"), N("invoices", "1 per invoice")],
-    rows: (c) => (c.agent.inv?.invoices ?? []).map((i: any) => ({
-      ...time((i.period ?? i.invoiceDate).slice(0, 7)), vendor: i.vendor, campaign: i.campaign, payment: i.payment, oracle_status: i.oracleStatus, decision: i.decision, blocked: i.blocked ? "yes" : "no", overdue: i.daysOverdue > 0 ? "yes" : "no",
-      amount: i.amountK, paid: i.paidK, outstanding: i.outstandingK, days_overdue: i.daysOverdue, invoices: 1,
-    })),
+    rows: (c) => {
+      const camp = new Map(c.agent.mkt.campaigns.map((x: any) => [x.name, x]));
+      const live = (c.agent.inv?.invoices ?? []).map((i: any) => ({
+        ...time((i.period ?? i.invoiceDate).slice(0, 7)), vendor: i.vendor, campaign: i.campaign, payment: i.payment, oracle_status: i.oracleStatus, decision: i.decision, blocked: i.blocked ? "yes" : "no", overdue: i.daysOverdue > 0 ? "yes" : "no",
+        source: "oracle", project: (camp.get(i.campaign) as any)?.asset ?? null, channel: camp.get(i.campaign) ? familyOf((camp.get(i.campaign) as any).channel) : null,
+        amount: i.amountK, paid: i.paidK, outstanding: i.outstandingK, days_overdue: i.daysOverdue, invoices: 1,
+      }));
+      // Past campaigns: one invoice per campaign and month, for the month's spend, paid on time.
+      const past = (c.history.rows as any[]).flatMap((r) => r.months.filter((m: any) => m.spendK > 0).map((m: any) => ({
+        ...time(m.month), vendor: r.vendorKey, campaign: r.name, payment: "Paid", oracle_status: "Validated", decision: "APPROVED", blocked: "no", overdue: "no",
+        source: "history", project: r.projectKey, channel: r.family, amount: m.spendK, paid: m.spendK, outstanding: 0, days_overdue: 0, invoices: 1,
+      })));
+      return [...live, ...past];
+    },
   },
   {
-    name: "vendors", grain: "one row per current vendor", about: "Fair scorecard (50 = channel benchmark) and renewal decision.",
-    fields: [D("vendor", ""), D("category", ""), D("decision", "RE_ENGAGE, RENEGOTIATE, PERFORMANCE_PLAN, TEST_REPLACEMENT, EXIT"), D("confidence", ""), D("trend", ""),
-      A("score", "fair score 0–100"), A("score_low", ""), A("score_high", ""), N("cost", "verified cost", "SAR K"), N("qualified", ""), N("won", ""), A("on_time", "deliverables on time", "%"), A("revisions", "avg. revisions"), A("incremental_share", "share of results caused by the vendor", "%")],
-    rows: (c) => c.agent.scores.map((s: any) => {
-      const d = c.agent.decisions.find((x: any) => x.vendorId === s.vendorId);
-      return { vendor: s.vendor, category: s.category, decision: d?.decision ?? null, confidence: s.confidence, trend: s.trend, score: s.score, score_low: s.low, score_high: s.high, cost: s.costK,
-        qualified: s.qualified, won: s.won, on_time: s.onTimePct, revisions: s.avgRevisions, incremental_share: s.incrementalShare === null ? null : Math.round(s.incrementalShare * 1000) / 10 };
-    }),
+    name: "vendors", grain: "one row per vendor: current, bench (pre-vetted alternatives) and past (2023–2025 only)", about: "Fair scorecard (50 = channel benchmark; current vendors only), renewal decision, trials and 2023–2025 results.",
+    fields: [D("vendor", ""), D("category", ""), D("decision", "RE_ENGAGE, RENEGOTIATE, PERFORMANCE_PLAN, TEST_REPLACEMENT, EXIT"), D("confidence", ""), D("trend", ""), D("status", "current | bench | past"), D("model", "Retainer | Commission | Media buy"),
+      A("score", "fair score 0–100"), A("score_low", ""), A("score_high", ""), N("cost", "verified cost", "SAR K"), N("qualified", ""), N("won", ""), A("on_time", "deliverables on time", "%"), A("revisions", "avg. revisions"), A("incremental_share", "share of results caused by the vendor", "%"),
+      N("retainer", "monthly fixed fee", "SAR K"), N("trials", "head-to-head trials as challenger or incumbent"), N("past_campaigns", "2023–2025 campaigns"), N("past_spend", "2023–2025 spend", "SAR K"), N("past_sales", "2023–2025 sales", "SAR M"), N("months_to_contract_end", "months")],
+    rows: (c) => {
+      const ex = c.extra, today = new Date(`${latestLiveMonth(c)}-28T00:00:00Z`).getTime();
+      const past = (name: string) => { const rs = (c.history.rows as any[]).filter((r) => r.vendorKey === name); return { past_campaigns: rs.length, past_spend: rs.reduce((t, r) => t + r.spendK, 0), past_sales: rs.reduce((t, r) => t + r.salesM, 0) }; };
+      const trials = (id: string) => (ex?.trials ?? []).filter((t: any) => t.challengerId === id || t.incumbentId === id).length;
+      const rec = (name: string) => ex?.vendors.find((v: any) => v.name === name);
+      const cur = c.agent.scores.map((s: any) => {
+        const d = c.agent.decisions.find((x: any) => x.vendorId === s.vendorId), v = rec(s.vendor);
+        return { vendor: s.vendor, category: s.category, decision: d?.decision ?? null, confidence: s.confidence, trend: s.trend, status: "current", model: v?.model ?? null,
+          score: s.score, score_low: s.low, score_high: s.high, cost: s.costK, qualified: s.qualified, won: s.won, on_time: s.onTimePct, revisions: s.avgRevisions,
+          incremental_share: s.incrementalShare === null ? null : Math.round(s.incrementalShare * 1000) / 10, retainer: v?.retainerK ?? null, trials: v ? trials(v.id) : 0,
+          months_to_contract_end: v ? Math.round((new Date(v.contractEnd).getTime() - today) / (30.44 * 86400000)) : null, ...past(s.vendor) };
+      });
+      const names = new Set(cur.map((x: any) => x.vendor));
+      const bench = (ex?.vendors ?? []).filter((v: any) => v.status === "BENCH" && !names.has(v.name)).map((v: any) => ({
+        vendor: v.name, category: v.category, decision: null, confidence: null, trend: null, status: "bench", model: v.model, score: null, score_low: null, score_high: null, cost: null, qualified: null, won: null,
+        on_time: null, revisions: null, incremental_share: null, retainer: v.retainerK, trials: trials(v.id), months_to_contract_end: null, ...past(v.name) }));
+      bench.forEach((b: any) => names.add(b.vendor));
+      const gone = [...new Set((c.history.rows as any[]).map((r) => r.vendorKey))].filter((n) => !names.has(n)).map((n) => ({
+        vendor: n, category: (c.history.rows as any[]).find((r) => r.vendorKey === n)?.family ?? null, decision: null, confidence: null, trend: null, status: "past", model: null, score: null, score_low: null, score_high: null,
+        cost: null, qualified: null, won: null, on_time: null, revisions: null, incremental_share: null, retainer: null, trials: 0, months_to_contract_end: null, ...past(n) }));
+      return [...cur, ...bench, ...gone];
+    },
   },
   {
-    name: "market", grain: "one row per district per month, 2025-01 → 2026-05 (sample)", about: "Residential market by district.",
+    name: "market", grain: "one row per district per month, 2023-01 → 2026-05 (sample)", about: "Residential market by district.",
     fields: [...TIME, D("district", "Jeddah North, Jeddah Corniche, Jeddah South, Riyadh North"), D("project", "our project in the district"), A("price_per_sqm", "average", "SAR"), N("transactions", "residential deals")],
     rows: () => marketSeries().flatMap((d) => d.months.map((m) => ({ ...time(m.month), district: d.district, project: d.project, price_per_sqm: m.pricePerSqmSAR, transactions: m.transactions }))),
   },
   {
-    name: "mortgage", grain: "one row per month (sample)", about: "Mortgage market.",
+    name: "mortgage", grain: "one row per month, 2023-01 → 2026-05 (sample)", about: "Mortgage market.",
     fields: [...TIME, A("rate", "rate from", "%"), N("new_mortgages", "new mortgages", "SAR bn")],
     rows: () => MORTGAGE.map((m) => ({ ...time(m.month), rate: m.rateFromPct, new_mortgages: m.newMortgagesSARbn })),
   },
   {
-    name: "competitors", grain: "one row per competitor per month of Meta ads (sample, fictional names)", about: "Competitor developers.",
+    name: "competitors", grain: "one row per competitor per month of Meta ads, 2025-01 → 2026-05 (sample, fictional names)", about: "Competitor developers.",
     fields: [...TIME, D("competitor", ""), D("project", "their project"), D("district", ""), D("competes_with", "our project"), N("ads", "active Meta ads"), A("price_per_sqm", "", "SAR")],
-    rows: () => COMPETITORS.flatMap((x: any) => AD_MONTHS.map((m, i) => ({ ...time(m), competitor: x.name, project: x.project, district: x.district, competes_with: x.threatTo ?? null, ads: x.activeAds?.[i] ?? 0, price_per_sqm: x.pricePerSqmSAR }))),
+    rows: () => COMPETITORS.flatMap((x: any) => { const ads = adsHistory(x); return AD_MONTHS_ALL.map((m, i) => ({ ...time(m), competitor: x.name, project: x.project, district: x.district, competes_with: x.threatTo ?? null, ads: ads[i] ?? 0, price_per_sqm: x.pricePerSqmSAR })); }),
   },
+  {
+    name: "deliverables", grain: "one row per vendor deliverable (creatives, landing pages, reports, listings, events), all of 2026", about: "What vendors owe us and whether it came on time.",
+    fields: [...TIME, D("vendor", ""), D("kind", "CREATIVE, LANDING_PAGE, REPORT, LISTING, EVENT"), D("state", "on time | late (received) | late (open) | due"), D("delivered", "yes | no"),
+      N("deliverables", "1 per deliverable"), N("late", "1 if late (open or received)"), N("on_time", "1 if received on time"), A("days_late", "days past due (late ones)", "days"), A("revisions", "revision rounds")],
+    rows: (c) => {
+      const today = new Date(`${latestLiveMonth(c)}-28T00:00:00Z`).getTime() + 11 * 86400000; // demo date 8 June 2026
+      const name = new Map((c.extra?.vendors ?? []).map((v: any) => [v.id, v.name]));
+      return (c.extra?.deliverables ?? []).map((d: any) => {
+        const due = new Date(d.dueDate).getTime(), got = d.deliveredAt ? new Date(d.deliveredAt).getTime() : null;
+        const late = got ? got > due : today > due, days = late ? Math.max(1, Math.round(((got ?? today) - due) / 86400000)) : 0;
+        return { ...time(ymd(d.dueDate)!.slice(0, 7)), vendor: name.get(d.vendorId) ?? d.vendorId, kind: d.kind, state: got ? (late ? "late (received)" : "on time") : late ? "late (open)" : "due", delivered: got ? "yes" : "no",
+          deliverables: 1, late: late ? 1 : 0, on_time: got && !late ? 1 : 0, days_late: late ? days : null, revisions: d.revisions };
+      });
+    },
+  },
+  {
+    name: "work_orders", grain: "one row per work order the agent prepared for a vendor (briefs, lead feedback, chases, notices)", about: "Vendor orchestration.",
+    fields: [D("vendor", ""), D("kind", "MONTHLY_BRIEF, LEAD_FEEDBACK, DELIVERABLE_CHASE, NON_RENEWAL"), D("status", "PROPOSED (waiting for you), ISSUED (with vendor), DONE, CANCELLED"), D("routine", "yes | no"), D("overdue", "yes | no"),
+      N("orders", "1 per work order")],
+    rows: (c) => (c.extra?.orders ?? []).map((o: any) => ({ vendor: o.vendor, kind: o.kind, status: o.status, routine: o.routine ? "yes" : "no", overdue: o.overdue ? "yes" : "no", orders: 1 })),
+  },
+  {
+    name: "recommendations", grain: "one row per open or recent recommendation (vendor and campaign)", about: "What the agent recommends; severity crit = urgent.",
+    fields: [D("type", "RENEWAL, DATA_MISMATCH, CRM_MISMATCH, SLA_BREACH, INVOICE_EXCEPTIONS, REALLOCATE, …"), D("severity", "crit | warn | info"), D("state", "OPEN | DRAFTED | SENT | DISMISSED"), D("vendor", ""), D("handling", "EMAIL (to the vendor) | INTERNAL"),
+      N("recommendations", "1 per recommendation"), N("impact", "money at stake", "SAR K")],
+    rows: (c) => (c.extra?.recs ?? []).map((r: any) => ({ type: r.type, severity: r.severity, state: r.state, vendor: r.vendor ?? null, handling: r.channel ?? null, recommendations: 1, impact: r.impactK ?? 0 })),
+  },
+  {
+    name: "daily_check", grain: "one row per item of today's per-campaign check", about: "Today's campaign-level findings.",
+    fields: [D("type", "e.g. CPQL_RISING, OVER_PACING, BEHIND_BENCHMARK, DATA_STALE"), D("severity", "crit | warn | info"), D("campaign", ""), D("vendor", ""), D("project", ""), D("decision", "open | accepted | dismissed"),
+      N("items", "1 per item"), A("days_open", "days the item has been open", "days")],
+    rows: (c) => ((c.daily as any)?.recommendations ?? []).map((r: any) => ({ type: r.type, severity: r.severity, campaign: r.campaign, vendor: r.vendor || null, project: r.asset || null,
+      decision: r.decision ? String(r.decision).toLowerCase() : "open", items: 1, days_open: r.daysOpen ?? r.days ?? null })),
+  },
+  {
+    name: "targets", grain: "one row per project per month of 2026 (sales targets vs CRM-verified sales)", about: "Sales targets.",
+    fields: [...TIME, D("project", ""), N("target", "sales target", "SAR M"), N("actual", "CRM-verified contracted sales", "SAR M"), N("target_contracts", "contracts target"), N("gap", "actual − target", "SAR M")],
+    rows: (c) => {
+      const act = new Map<string, number>();
+      for (const u of c.agent.unified.campaigns) { const a = c.agent.mkt.campaigns.find((x) => x.id === u.id)!.asset; for (const m of u.months) act.set(`${a}|${m.month}`, (act.get(`${a}|${m.month}`) ?? 0) + m.salesM); }
+      const latest = latestLiveMonth(c);
+      return (c.extra?.targets ?? []).map((t: any) => {
+        const a = t.month <= latest ? Math.round((act.get(`${t.asset}|${t.month}`) ?? 0) * 10) / 10 : null;
+        return { ...time(t.month), project: t.asset, target: t.salesM, actual: a, target_contracts: t.contracts, gap: a === null ? null : Math.round((a - t.salesM) * 10) / 10 };
+      });
+    },
+  },
+  {
+    name: "budget_plan", grain: "one row per vendor in next month's budget plan", about: "Proposed budget reallocation (same total).",
+    fields: [D("vendor", ""), D("decision", "renewal decision behind the change"), N("current", "this month", "SAR K"), N("proposed", "next month", "SAR K"), N("change", "proposed − current", "SAR K"), N("expected_sales", "expected incremental sales", "SAR M")],
+    rows: (c) => (c.extra?.plan?.lines ?? []).map((l: any) => ({ vendor: l.vendor, decision: l.decision, current: l.currentK, proposed: l.proposedK, change: Math.round((l.proposedK - l.currentK) * 10) / 10, expected_sales: l.expectedM })),
+  },
+  {
+    name: "meta", grain: "one row per Meta (Facebook/Instagram) campaign in the ad accounts", about: "Who runs each Meta campaign and with what evidence.",
+    fields: [...TIME, D("campaign", ""), D("agency", "attributed vendor, or in-house / unknown"), D("kind", "VENDOR | IN_HOUSE | UNKNOWN_AGENCY | CONFLICT | UNRESOLVED"), D("confidence", "HIGH | MEDIUM | LOW"), D("needs_review", "yes | no"), D("account", "ad account"),
+      N("spend", "", "SAR K"), N("leads", "platform leads"), N("campaigns", "1 per campaign")],
+    rows: (c) => (c.meta?.campaigns ?? []).map((m: any) => ({ ...time(String(m.createdTime).slice(0, 7)), campaign: m.name, agency: m.kind === "VENDOR" ? m.vendor : m.kind === "IN_HOUSE" ? "In-house" : m.kind === "UNKNOWN_AGENCY" ? "Unknown agency" : "Unclear",
+      kind: m.kind, confidence: m.confidence, needs_review: m.needsReview ? "yes" : "no", account: m.account, spend: m.spendK, leads: m.leads ?? 0, campaigns: 1 })),
+  }
 ];
 
 // Named measures: write them bare ("cost_to_sales") or inside a formula.
@@ -272,7 +369,7 @@ export function runChartQuery(qy: ChartQuery, c: QueryCtx, lang: Lang): ChartSpe
     if (p) { rows = rows.filter((r) => p.months.includes(String(r.month))); periodLabel = p.label; }
     if (qy.from) rows = rows.filter((r) => String(r.month) >= qy.from!);
     if (qy.to) rows = rows.filter((r) => String(r.month) <= qy.to!);
-    if (qy.from || qy.to) periodLabel = `${qy.from ?? "…"} → ${qy.to ?? "…"}`;
+    if (qy.from || qy.to) { const mm = rows.map((r) => String(r.month)).sort(); periodLabel = `${qy.from ?? mm[0] ?? "…"} → ${qy.to ?? mm[mm.length - 1] ?? "…"}`; }
     if (!periodLabel && rows.length) { const mm = rows.map((r) => String(r.month)).sort(); periodLabel = mm[0] === mm[mm.length - 1] ? mm[0] : `${mm[0]} → ${mm[mm.length - 1]}`; }
   }
   if (!rows.length) return { error: T("No data matches that selection.", "لا توجد بيانات تطابق هذا الاختيار.") };
