@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 895" width="1600" height="895" role="img" aria-label="Incrementality tests: the data that goes in (ad platform and CRM for holdouts, CRM and Oracle for geo tests, Oracle and CRM history for the media-mix model), the four-step workflow of a test (design, approve, run, read out), and how the result feeds the vendor score, renewal decision, recommendations and budget plan." font-family="system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0b0b0b"/></marker></defs>
+<rect width="1600" height="895" fill="#fff"/>
+<text x="40" y="46" font-size="28" font-weight="700" fill="#0b0b0b" text-anchor="start">How an incrementality test works</text>
+<text x="40" y="72" font-size="14" font-weight="400" fill="#52514e" text-anchor="start">What data goes in, how a test runs, and what the result changes. Figures are the demo's sample data.</text>
+<rect x="40" y="92" width="350" height="100" rx="6" fill="#f4f3ef" stroke="#c3c2b7" stroke-width="1.2"/>
+<circle cx="68" cy="122" r="14" fill="#2a78d6"/>
+<text x="68" y="127" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="94" y="127" font-size="17" font-weight="700" fill="#0b0b0b" text-anchor="start">Design</text>
+<text x="60" y="155" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">Pick vendor, campaign, type, weeks, holdout %</text>
+<text x="60" y="176" font-size="13" font-weight="400" fill="#52514e" text-anchor="start">Power check: smallest detectable lift ≤ ~25%</text>
+<line x1="390" y1="142" x2="430" y2="142" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<rect x="430" y="92" width="350" height="100" rx="6" fill="#f4f3ef" stroke="#c3c2b7" stroke-width="1.2"/>
+<circle cx="458" cy="122" r="14" fill="#2a78d6"/>
+<text x="458" y="127" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="484" y="127" font-size="17" font-weight="700" fill="#0b0b0b" text-anchor="start">Approve</text>
+<text x="450" y="155" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">A named approver signs off</text>
+<text x="450" y="176" font-size="13" font-weight="400" fill="#52514e" text-anchor="start">Tests withhold ads, so they cost leads</text>
+<line x1="780" y1="142" x2="820" y2="142" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<rect x="820" y="92" width="350" height="100" rx="6" fill="#f4f3ef" stroke="#c3c2b7" stroke-width="1.2"/>
+<circle cx="848" cy="122" r="14" fill="#2a78d6"/>
+<text x="848" y="127" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="874" y="127" font-size="17" font-weight="700" fill="#0b0b0b" text-anchor="start">Run</text>
+<text x="840" y="155" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">4–16 weeks; ads on for the test group only</text>
+<text x="840" y="176" font-size="13" font-weight="400" fill="#52514e" text-anchor="start">Spend and leads logged weekly</text>
+<line x1="1170" y1="142" x2="1210" y2="142" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<rect x="1210" y="92" width="350" height="100" rx="6" fill="#f4f3ef" stroke="#c3c2b7" stroke-width="1.2"/>
+<circle cx="1238" cy="122" r="14" fill="#2a78d6"/>
+<text x="1238" y="127" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="1264" y="127" font-size="17" font-weight="700" fill="#0b0b0b" text-anchor="start">Read out</text>
+<text x="1230" y="155" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">Lift with a 90% range, share caused,</text>
+<text x="1230" y="176" font-size="13" font-weight="400" fill="#52514e" text-anchor="start">cost per incremental result, verdict</text>
+<text x="40" y="222" font-size="13" font-weight="400" fill="#52514e" text-anchor="start">Steps 1–4 apply to holdout and geo tests. The media-mix model needs no test: it reads history and fills the gaps.</text>
+<text x="40" y="262" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">DATA GOING IN</text>
+<text x="620" y="262" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">METHOD</text>
+<text x="960" y="262" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">WHAT IT SAYS (DEMO)</text>
+<text x="1340" y="262" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">WHAT IT CHANGES</text>
+<line x1="40" y1="270" x2="1560" y2="270" stroke="#c3c2b7"/>
+<rect x="40" y="282" width="520" height="172" rx="6" fill="#f4f3ef" stroke="#c3c2b7" stroke-width="1.2"/>
+<text x="60" y="310" font-size="16" font-weight="700" fill="#0b0b0b" text-anchor="start">Audience holdout</text>
+<text x="227.6" y="310" font-size="13" font-weight="400" fill="#52514e" text-anchor="start">· digital vendors</text>
+<text x="60" y="338" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">Ad platform: users exposed vs held out</text>
+<text x="60" y="358" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">(410K vs 102.5K) and the spend</text>
+<text x="60" y="378" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">CRM: qualified leads in each group (262 vs 39)</text>
+<text x="60" y="398" font-size="13" font-weight="600" fill="#0b0b0b" text-anchor="start">Needs: CRM sends qualified leads back to Meta/Google</text>
+<rect x="60" y="422" width="480" height="22" rx="11" fill="#fff" stroke="#1f7a4d" stroke-width="1.4"/>
+<circle cx="75" cy="433" r="8" fill="#1f7a4d"/>
+<text x="75" y="437" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">✓</text>
+<text x="92" y="437" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">Realistic once CRM feedback to ad platforms exists</text>
+<line x1="560" y1="368" x2="620" y2="368" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="590.0" y="360" font-size="11" font-weight="400" fill="#52514e" text-anchor="middle">inputs</text>
+<rect x="620" y="282" width="280" height="172" rx="6" fill="#fff" stroke="#0b0b0b" stroke-width="1.4"/>
+<text x="640" y="310" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">How</text>
+<text x="640" y="340" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">Compare conversion</text>
+<text x="640" y="362" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">rates: exposed vs</text>
+<text x="640" y="384" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">held out</text>
+<line x1="900" y1="368" x2="960" y2="368" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="930.0" y="360" font-size="11" font-weight="400" fill="#52514e" text-anchor="middle">readout</text>
+<rect x="960" y="282" width="320" height="172" rx="6" fill="#eef4fb" stroke="#2a78d6" stroke-width="1.4"/>
+<text x="980" y="310" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">Result</text>
+<text x="980" y="340" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="start">40% of leads caused by</text>
+<text x="980" y="362" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">the vendor (range 22–59%)</text>
+<text x="980" y="384" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">SAR 575 per extra lead</text>
+<rect x="40" y="472" width="520" height="172" rx="6" fill="#f4f3ef" stroke="#c3c2b7" stroke-width="1.2"/>
+<text x="60" y="500" font-size="16" font-weight="700" fill="#0b0b0b" text-anchor="start">Geo test</text>
+<text x="150.8" y="500" font-size="13" font-weight="400" fill="#52514e" text-anchor="start">· outdoor, radio, events</text>
+<text x="60" y="528" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">CRM: weekly leads, test districts vs matched</text>
+<text x="60" y="548" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">control districts; 6 weeks before, 6 during</text>
+<text x="60" y="568" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">Oracle / vendor report: spend (SAR 128K)</text>
+<rect x="60" y="612" width="480" height="22" rx="11" fill="#fff" stroke="#b7791f" stroke-width="1.4"/>
+<circle cx="75" cy="623" r="8" fill="#b7791f"/>
+<text x="75" y="627" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">!</text>
+<text x="92" y="627" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">Weak in one city: ~20 leads/week, people cross districts</text>
+<line x1="560" y1="558" x2="620" y2="558" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="590.0" y="550" font-size="11" font-weight="400" fill="#52514e" text-anchor="middle">inputs</text>
+<rect x="620" y="472" width="280" height="172" rx="6" fill="#fff" stroke="#0b0b0b" stroke-width="1.4"/>
+<text x="640" y="500" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">How</text>
+<text x="640" y="530" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">Scale control to test,</text>
+<text x="640" y="552" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">compare during vs</text>
+<text x="640" y="574" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">before</text>
+<line x1="900" y1="558" x2="960" y2="558" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="930.0" y="550" font-size="11" font-weight="400" fill="#52514e" text-anchor="middle">readout</text>
+<rect x="960" y="472" width="320" height="172" rx="6" fill="#eef4fb" stroke="#2a78d6" stroke-width="1.4"/>
+<text x="980" y="500" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">Result</text>
+<text x="980" y="530" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="start">Lift 0.7%: not significant</text>
+<text x="980" y="552" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">(range −8% to +9%)</text>
+<text x="980" y="574" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">effect not proven</text>
+<rect x="40" y="662" width="520" height="172" rx="6" fill="#f4f3ef" stroke="#c3c2b7" stroke-width="1.2"/>
+<text x="60" y="690" font-size="16" font-weight="700" fill="#0b0b0b" text-anchor="start">Media-mix model</text>
+<text x="218.0" y="690" font-size="13" font-weight="400" fill="#52514e" text-anchor="start">· vendors with no test</text>
+<text x="60" y="718" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">Oracle + vendor reports: weekly spend per channel,</text>
+<text x="60" y="738" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">104 weeks</text>
+<text x="60" y="758" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">CRM: weekly contracted sales; Ramadan, summer flags</text>
+<rect x="60" y="802" width="480" height="22" rx="11" fill="#fff" stroke="#6b7280" stroke-width="1.4"/>
+<circle cx="75" cy="813" r="8" fill="#6b7280"/>
+<text x="75" y="817" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">~</text>
+<text x="92" y="817" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">Directional: lumpy sales, long lag, under 52 weeks</text>
+<line x1="560" y1="748" x2="620" y2="748" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="590.0" y="740" font-size="11" font-weight="400" fill="#52514e" text-anchor="middle">inputs</text>
+<rect x="620" y="662" width="280" height="172" rx="6" fill="#fff" stroke="#0b0b0b" stroke-width="1.4"/>
+<text x="640" y="690" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">How</text>
+<text x="640" y="720" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">Regression with lag and</text>
+<text x="640" y="742" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">diminishing returns,</text>
+<text x="640" y="764" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">bootstrapped range</text>
+<line x1="900" y1="748" x2="960" y2="748" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="930.0" y="740" font-size="11" font-weight="400" fill="#52514e" text-anchor="middle">readout</text>
+<rect x="960" y="662" width="320" height="172" rx="6" fill="#eef4fb" stroke="#2a78d6" stroke-width="1.4"/>
+<text x="980" y="690" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">Result</text>
+<text x="980" y="720" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="start">Incremental sales per channel</text>
+<text x="980" y="742" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">vs what the CRM credits</text>
+<text x="980" y="764" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">reliability flag per channel</text>
+<rect x="1340" y="282" width="220" height="552" rx="6" fill="#fff" stroke="#0b0b0b" stroke-width="1.6"/>
+<text x="1360" y="312" font-size="14" font-weight="700" fill="#0b0b0b" text-anchor="start">Feeds the director</text>
+<text x="1360" y="346" font-size="14" font-weight="700" fill="#0b0b0b" text-anchor="start">Fair score</text>
+<text x="1360" y="368" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">proven incremental share</text>
+<text x="1360" y="418" font-size="14" font-weight="700" fill="#0b0b0b" text-anchor="start">Renewal decision</text>
+<text x="1360" y="440" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">exit · test a replacement ·</text>
+<text x="1360" y="458" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">renegotiate · keep</text>
+<text x="1360" y="508" font-size="14" font-weight="700" fill="#0b0b0b" text-anchor="start">Recommendations</text>
+<text x="1360" y="530" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">e.g. "test Sada Influence"</text>
+<text x="1360" y="580" font-size="14" font-weight="700" fill="#0b0b0b" text-anchor="start">Budget plan</text>
+<text x="1360" y="602" font-size="12.5" font-weight="400" fill="#52514e" text-anchor="start">shift spend to proven vendors</text>
+<line x1="1360" y1="642" x2="1540" y2="642" stroke="#c3c2b7"/>
+<text x="1360" y="666" font-size="13" font-weight="700" fill="#0b0b0b" text-anchor="start">Example: Hajar Outdoor</text>
+<text x="1360" y="688" font-size="12.5" font-weight="400" fill="#0b0b0b" text-anchor="start">no proven lift + a bench</text>
+<text x="1360" y="706" font-size="12.5" font-weight="400" fill="#0b0b0b" text-anchor="start">alternative → exit at</text>
+<text x="1360" y="724" font-size="12.5" font-weight="400" fill="#0b0b0b" text-anchor="start">contract end</text>
+<line x1="1280" y1="368" x2="1340" y2="368" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="1310.0" y="360" font-size="11" font-weight="400" fill="#52514e" text-anchor="middle">informs</text>
+<line x1="1280" y1="558" x2="1340" y2="558" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="1280" y1="748" x2="1340" y2="748" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
+<line x1="40" y1="844" x2="1560" y2="844" stroke="#c3c2b7"/>
+<text x="40" y="876" font-size="13" font-weight="400" fill="#52514e" text-anchor="start">A test always overrides the model. Live use needs: qualified leads sent back to the ad platforms, lead source and district in the CRM, weekly vendor spend.</text>
+</svg>
