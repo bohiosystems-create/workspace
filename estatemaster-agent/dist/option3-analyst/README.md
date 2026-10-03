@@ -25,3 +25,5 @@ and for live Outlook the Microsoft Graph variables listed in the main README. No
 All data is dummy data. Browser memory is kept per option.
 
 `setup/`: control workbook template, Copilot setup instructions and the checker (`py setup/control_check.py <file>`); not deployed.
+
+See `SETUP.md` for the step-by-step setup guide.

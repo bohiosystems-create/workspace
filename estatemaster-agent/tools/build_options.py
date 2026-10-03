@@ -97,6 +97,8 @@ def build(mode):
         shutil.copy(ROOT / "runner" / "register_map.csv", out / "setup" / "register_map.csv")
         (out / ".vercelignore").write_text("setup/\n")
         readme += "\n`setup/`: control workbook template, Copilot setup instructions and the checker (`py setup/control_check.py <file>`); not deployed.\n"
+    shutil.copy(ROOT / "docs" / f"SETUP_{'option2_readonly' if mode == 'readonly' else 'option3_analyst'}.md", out / "SETUP.md")
+    readme += "\nSee `SETUP.md` for the step-by-step setup guide.\n"
     (out / "README.md").write_text(readme, encoding="utf-8")
     z = DIST / f"bohio-{folder}.zip"
     with zipfile.ZipFile(z, "w", zipfile.ZIP_DEFLATED) as zf:

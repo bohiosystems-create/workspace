@@ -23,3 +23,5 @@ Environment variables: `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` for the AI ro
 and for live Outlook the Microsoft Graph variables listed in the main README. No runner variables: this option has no runner.
 
 All data is dummy data. Browser memory is kept per option.
+
+See `SETUP.md` for the step-by-step setup guide.
