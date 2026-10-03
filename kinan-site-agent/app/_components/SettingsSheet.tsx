@@ -12,6 +12,7 @@ interface Status {
   whatsapp?: boolean;
   storage?: string;
   keys?: { anthropic?: string; openai?: string };
+  builtin?: boolean;
 }
 const TIER: Record<string, string> = { fast: "Fast — short lookups & commands", main: "Main — normal questions", deep: "Deep — analysis, delay/risk, reports" };
 const fmt = (ts: Target[]) => ts.map((t) => `${t.provider}:${t.model}`).join(", ");
@@ -69,6 +70,8 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
                 <p className="keybox">Keys are stored only in this browser and sent only to api.anthropic.com / api.openai.com.</p>
                 <button className="primary" onClick={save}>Save {saved && `· ${saved}`}</button>
               </>
+            ) : s.builtin ? (
+              <p className="keybox">This test page asks Claude through your own Claude account, so no API keys are needed. The first question asks you to allow it. The deployed app (Vercel) uses its own Anthropic and OpenAI keys with the routing shown above.</p>
             ) : (
               <p className="keybox">Keys and routing are set by the server administrator (environment variables — see SETUP.md).</p>
             )}

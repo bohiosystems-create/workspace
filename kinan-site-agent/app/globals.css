@@ -206,3 +206,4 @@ text{paint-order:stroke;stroke:#fff;stroke-linejoin:round;pointer-events:none;fo
 .modal-card label.chk{flex-direction:row;align-items:center;gap:8px;padding-top:18px}.modal-card label.chk input{width:20px;height:20px}
 .tmpwarn{flex:none;background:#fef3c7;color:#92400e;font-size:12px;padding:6px 12px;border-bottom:1px solid #f3d9a0}
 .routes .bad{color:var(--red)}
+.whoedit input{height:30px;width:150px;border-radius:16px;border:0;padding:0 11px;font-size:13px;background:#fff;color:var(--ink)}

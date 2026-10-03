@@ -25,3 +25,25 @@ const html = `<!doctype html>
 <script>${js}</script></body></html>`;
 fs.writeFileSync(root + "kinan-site-agent.html", html);
 console.log("wrote kinan-site-agent.html", (html.length / 1024).toFixed(0) + " KB");
+
+// --artifact <file>: the same app as a claude.ai Artifact page. The publisher adds the
+// document skeleton and pads :root by the phone's safe areas, so: no doctype/head/body,
+// title + style first, full-height layout from 100% (not dvh), no double safe-area padding.
+const ai = process.argv.indexOf("--artifact");
+if (ai > 0) {
+  const out = process.argv[ai + 1];
+  const fit = `
+html,body,#root{height:100%}
+.app{height:100%;max-width:none}
+.top{padding-top:0}
+.tabs{height:var(--tab);padding-bottom:0}
+.viewer header{padding-top:8px}
+.composer{padding-bottom:10px}`;
+  const page = `<title>Kinan Site Agent</title>
+<style>${css}${fit}</style>
+<div id="root"><div class="boot">Loading site…</div></div>
+<script>${js}</script>
+`;
+  fs.writeFileSync(out, page);
+  console.log("wrote", out, (page.length / 1024).toFixed(0) + " KB");
+}

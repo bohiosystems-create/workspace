@@ -25,6 +25,7 @@ export default function Home() {
   const [gps, setGps] = useState<{ x: number; y: number; locationId?: string } | null>(null);
   const [search, setSearch] = useState("");
   const [settings, setSettings] = useState(false);
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [projKey, setProjKey] = useState(0);
   const mapRef = useRef<MapHandle>(null);
 
@@ -90,7 +91,13 @@ export default function Home() {
         <div className="brand"><span className="logo">▟</span><div><b>{state.project.name}</b><em>{state.project.client} · {state.project.code}</em></div></div>
         <div className="hbtns">
           <button className="who" onClick={() => setSettings(true)} aria-label="AI settings">⚙ AI</button>
-          <button className="who" onClick={() => { const n = window.prompt("Your name (shown on notes you leave)", author); if (n?.trim()) setAuthor(n.trim()); }}>{author} ✎</button>
+          {nameDraft === null ? (
+            <button className="who" onClick={() => setNameDraft(author)} aria-label="Change your name">{author} ✎</button>
+          ) : (
+            <form className="whoedit" onSubmit={(e) => { e.preventDefault(); if (nameDraft.trim()) setAuthor(nameDraft.trim()); setNameDraft(null); }}>
+              <input id="author-name" autoFocus value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} onBlur={() => setNameDraft(null)} aria-label="Your name (shown on notes you leave)" maxLength={60} />
+            </form>
+          )}
         </div>
       </header>
 
