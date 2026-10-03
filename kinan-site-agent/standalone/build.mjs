@@ -7,7 +7,7 @@ const root = new URL("..", import.meta.url).pathname;
 const res = await build({
   entryPoints: [root + "standalone/main.tsx"], bundle: true, write: false, minify: true, format: "iife",
   target: "es2020", jsx: "automatic", platform: "browser", logLevel: "error",
-  define: { "process.env.NODE_ENV": '"production"' },
+  define: { "process.env.NODE_ENV": '"production"', "process.env.NEXT_PUBLIC_BRAND_LOGO": '""' },
   // Direct-to-Blob uploads only exist on Vercel deployments; never loaded here.
   external: ["@vercel/blob/client"],
   tsconfig: root + "tsconfig.json",
@@ -18,10 +18,10 @@ const icon = "data:image/svg+xml," + encodeURIComponent(fs.readFileSync(root + "
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#14213d"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1c1c1e"><meta name="apple-mobile-web-app-capable" content="yes">
 <title>Kinan Site Agent</title><link rel="icon" href="${icon}">
 <style>${css}</style></head>
-<body><div id="root"><div class="boot">Loading site…</div></div>
+<body><div id="root"><div class="boot">Kinan Site Agent</div></div>
 <script>${js}</script></body></html>`;
 fs.writeFileSync(root + "kinan-site-agent.html", html);
 console.log("wrote kinan-site-agent.html", (html.length / 1024).toFixed(0) + " KB");
@@ -41,7 +41,7 @@ html,body,#root{height:100%}
 .composer{padding-bottom:10px}`;
   const page = `<title>Kinan Site Agent</title>
 <style>${css}${fit}</style>
-<div id="root"><div class="boot">Loading site…</div></div>
+<div id="root"><div class="boot">Kinan Site Agent</div></div>
 <script>${js}</script>
 `;
   fs.writeFileSync(out, page);

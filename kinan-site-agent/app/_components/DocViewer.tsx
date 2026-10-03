@@ -5,6 +5,7 @@ import { fmtDate, pathOf, type ChatItem, type ClientDoc } from "./site";
 import { usePanZoom } from "./usePanZoom";
 import { runtime } from "./runtime";
 import { useSpeech } from "./useSpeech";
+import { Icon } from "./icons";
 
 interface Props {
   doc: ClientDoc;
@@ -141,7 +142,7 @@ export default function DocViewer({ doc, locations, notes, lastReply, agentBusy,
           <div className="row">
             <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()}
               placeholder={mode === "ask" ? "Ask about this document…" : pending ? "Note for the pinned spot…" : "Leave a note on this document…"} />
-            {speech.supported && <button className={"mic" + (speech.listening ? " live" : "")} onClick={speech.toggle} aria-label="Dictate">🎙</button>}
+            {speech.supported && <button className={"mic" + (speech.listening ? " live" : "")} onClick={speech.toggle} aria-label="Dictate"><Icon name="mic" /></button>}
             <button onClick={submit} disabled={!text.trim() || agentBusy}>{mode === "ask" ? (agentBusy ? "…" : "Ask") : "Save"}</button>
           </div>
           {speech.error && <div className="err">{speech.error}</div>}

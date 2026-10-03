@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import type { Location, Note } from "@/lib/types";
 import { descendants, fmtDate, pathOf, type ClientDoc } from "./site";
+import { CATEGORY_ICON, Icon } from "./icons";
 
 interface Props {
   locations: Location[];
@@ -16,7 +17,6 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
-const ICON: Record<string, string> = { Drawing: "📐", Specification: "📘", RFI: "❓", Inspection: "✅", "Method Statement": "🛠", Permit: "🪪", HSE: "🦺", Submittal: "📦", Minutes: "🗒", "Snag List": "🔧", Variation: "💰", Photo: "📷", Other: "📄" };
 
 export default function LocationSheet({ locations, docs, notes, locationId, onClose, onOpenDoc, onUpload, onNote, onToggleNote, onSelect }: Props) {
   const [noteText, setNoteText] = useState("");
@@ -75,7 +75,7 @@ export default function LocationSheet({ locations, docs, notes, locationId, onCl
           return (
             <li key={d.id}>
               <button onClick={() => onOpenDoc(d.id)}>
-                <span className="ico">{ICON[d.category] ?? "📄"}</span>
+                <span className="ico"><Icon name={CATEGORY_ICON[d.category] ?? "file"} /></span>
                 <span className="meta">
                   <b>{d.title}</b>
                   <em>{d.category}{d.revision ? ` · Rev ${d.revision}` : ""}{d.locationId !== locationId ? ` · ${locations.find((l) => l.id === d.locationId)?.name.split(" — ").pop()}` : ""} · {fmtDate(d.uploadedAt)}</em>

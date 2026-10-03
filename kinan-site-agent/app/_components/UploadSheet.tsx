@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { CATEGORIES, type Location } from "@/lib/types";
 import { pathOf } from "./site";
+import { Icon } from "./icons";
 
 interface Props {
   locations: Location[];
@@ -86,8 +87,8 @@ export default function UploadSheet({ locations, locationId, pin, author, direct
         <div className="placechip">📍 {pathOf(locations, loc)}{pin ? ` · pinned (${Math.round(pin.x)}, ${Math.round(pin.y)})` : ""}</div>
 
         <div className="pickrow">
-          <button className="big" onClick={() => camRef.current?.click()}>📷 Take photo</button>
-          <button className="big" onClick={() => fileRef.current?.click()}>📄 Choose file</button>
+          <button className="big" onClick={() => camRef.current?.click()}><Icon name="camera" />Take photo</button>
+          <button className="big" onClick={() => fileRef.current?.click()}><Icon name="file" />Choose file</button>
         </div>
         <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => pick(e.target.files?.[0])} />
         <input ref={fileRef} data-testid="file" type="file" accept=".pdf,image/*,.txt,.md,.csv,.dwg,.dxf,.docx,.xlsx" hidden onChange={(e) => pick(e.target.files?.[0])} />

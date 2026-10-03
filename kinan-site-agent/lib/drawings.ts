@@ -15,7 +15,7 @@ ${body}
 <rect width="380" height="120" fill="#fff" stroke="#111" stroke-width="1.5"/>
 <line x1="0" y1="34" x2="380" y2="34" stroke="#111"/><line x1="0" y1="78" x2="380" y2="78" stroke="#111"/>
 <line x1="260" y1="78" x2="260" y2="120" stroke="#111"/>
-<text x="10" y="23" font-size="14" font-weight="700">KINAN — KINAN HEIGHTS</text>
+<path d="M10 9 20 17 10 25" fill="none" stroke="#f26522" stroke-width="3.5"/><text x="28" y="23" font-size="14" font-weight="700" letter-spacing="1">KINAN · KINAN HEIGHTS</text>
 <text x="10" y="62" font-size="17" font-weight="700">${esc(title)}</text>
 <text x="10" y="98" font-size="11" fill="#444">${esc(sub)}</text>
 <text x="10" y="113" font-size="10" fill="#444">Scale ${scale}</text>

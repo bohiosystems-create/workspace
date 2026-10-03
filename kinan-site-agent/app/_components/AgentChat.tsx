@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RouteInfo, UiAction } from "@/lib/types";
 import type { ChatItem, ClientDoc } from "./site";
 import { speak, useSpeech } from "./useSpeech";
+import { Icon } from "./icons";
 
 interface Props {
   items: ChatItem[];
@@ -63,14 +64,14 @@ export default function AgentChat({ items, busy, providers, docs, hereName, onSe
         <span className={"dot " + (providers.length ? "ai" : "offline")} /> <span className="nm">{providers.length ? providers.map((p) => PNAME[p]).join(" + ") : "Offline assistant"}</span>
         {hereName && <span className="here">📍 {hereName}</span>}
         <span className="sp" />
-        <button className={"mini" + (talk ? " on" : "")} onClick={() => setTalk((t) => !t)} aria-pressed={talk}>🔊 {talk ? "Voice on" : "Voice off"}</button>
+        <button className={"mini" + (talk ? " on" : "")} onClick={() => setTalk((t) => !t)} aria-pressed={talk}><Icon name="speaker" />{talk ? "Voice on" : "Voice off"}</button>
         {items.length > 0 && <button className="mini" onClick={onClear}>Clear</button>}
       </div>
       <div className="msgs">
         {items.length === 0 && (
           <div className="welcome">
             <h3>Ask anything about the project</h3>
-            <p>Drawings, specs, programme, procurement, safety rules and regulations — I answer from the project data and leave notes in the right place. Tap 🎙 to talk.</p>
+            <p>Ask about drawings, specs, the programme, procurement, safety rules and regulations. I answer from the project data and file notes in the right place. Tap the microphone to talk.</p>
             <div className="sugg">{SUGGEST.map((s) => <button key={s} onClick={() => onSend(s)}>{s}</button>)}</div>
           </div>
         )}
@@ -79,7 +80,7 @@ export default function AgentChat({ items, busy, providers, docs, hereName, onSe
             <div className="bubble">{m.content}</div>
             {m.role === "assistant" && <RouteBadge r={m.route} />}
             {m.actions && m.actions.length > 0 && (
-              <div className="acts">{m.actions.map((a, j) => <button key={j} onClick={() => onAction(a)}>{a.type === "open_doc" ? "📐" : "🗺"} {label(a)}</button>)}</div>
+              <div className="acts">{m.actions.map((a, j) => <button key={j} onClick={() => onAction(a)}><Icon name={a.type === "open_doc" ? "drawing" : "map"} />{label(a)}</button>)}</div>
             )}
           </div>
         ))}
@@ -89,7 +90,7 @@ export default function AgentChat({ items, busy, providers, docs, hereName, onSe
       <div className="composer chatbar">
         {speech.error && <div className="err">{speech.error}</div>}
         <div className="row">
-          {speech.supported && <button className={"mic big" + (speech.listening ? " live" : "")} onClick={speech.toggle} aria-label="Talk to agent">🎙</button>}
+          {speech.supported && <button className={"mic big" + (speech.listening ? " live" : "")} onClick={speech.toggle} aria-label="Talk to agent"><Icon name="mic" /></button>}
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder={speech.listening ? "Listening…" : "Ask or say “note: …”"}
             onKeyDown={(e) => { if (e.key === "Enter") { onSend(text); setText(""); } }} />
           <button onClick={() => { onSend(text); setText(""); }} disabled={!text.trim() || busy}>Send</button>

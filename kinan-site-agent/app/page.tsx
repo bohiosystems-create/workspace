@@ -11,6 +11,10 @@ import DocsTab from "./_components/DocsTab";
 import ProjectTab from "./_components/ProjectTab";
 import SettingsSheet from "./_components/SettingsSheet";
 import { pathOf, useAgent, useAuthor, useSite } from "./_components/site";
+import { Icon, Mark } from "./_components/icons";
+
+// Optional official logo (e.g. /brand/kinan-logo.svg placed in public/) — set by Kinan's team.
+const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
 
 type Tab = "map" | "agent" | "project" | "docs";
 
@@ -26,6 +30,21 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [settings, setSettings] = useState(false);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
+  // Theme: follow the device until the user picks one (like the Dark Mode switch on kinan.com.sa).
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    let saved: string | null = null;
+    try { saved = localStorage.getItem("kinan.theme"); } catch { /* storage blocked */ }
+    if (saved === "dark" || saved === "light") document.documentElement.dataset.theme = saved;
+    const attr = document.documentElement.dataset.theme;
+    setDark(attr ? attr === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }, []);
+  const toggleTheme = () => {
+    const next = dark ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("kinan.theme", next); } catch { /* storage blocked */ }
+    setDark(!dark);
+  };
   const [projKey, setProjKey] = useState(0);
   const mapRef = useRef<MapHandle>(null);
 
@@ -82,15 +101,19 @@ export default function Home() {
   const hereName = gps?.locationId ? pathOf(locs, gps.locationId).split(" › ").pop() : undefined;
 
   if (!state) {
-    return <div className="boot">{error || "Loading site…"}</div>;
+    return <div className="boot"><Mark />{error || "Kinan Site Agent"}</div>;
   }
 
   return (
     <div className="app">
       <header className="top">
-        <div className="brand"><span className="logo">▟</span><div><b>{state.project.name}</b><em>{state.project.client} · {state.project.code}</em></div></div>
+        <div className="brand">
+          {LOGO ? <img className="logo-img" src={LOGO} alt={state.project.client} /> : <Mark />}
+          <div><b>Site Agent</b><em>{state.project.name} · {state.project.code}</em></div>
+        </div>
         <div className="hbtns">
-          <button className="who" onClick={() => setSettings(true)} aria-label="AI settings">⚙ AI</button>
+          <button className="who icon" onClick={toggleTheme} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} title={dark ? "Light mode" : "Dark mode"}><Icon name={dark ? "sun" : "moon"} /></button>
+          <button className="who" onClick={() => setSettings(true)} aria-label="AI settings"><Icon name="gear" />AI</button>
           {nameDraft === null ? (
             <button className="who" onClick={() => setNameDraft(author)} aria-label="Change your name">{author} ✎</button>
           ) : (
@@ -117,7 +140,7 @@ export default function Home() {
             onGps={setGps}
           />
           {!selId && !dropMode && (
-            <button className="fab" onClick={() => setDropMode(true)}>📌 Pin a document to the plan</button>
+            <button className="fab" onClick={() => setDropMode(true)}><Icon name="pin" />Pin a document to the plan</button>
           )}
           {dropMode && <button className="fab cancel" onClick={() => setDropMode(false)}>Cancel</button>}
           {selId && (
@@ -148,8 +171,8 @@ export default function Home() {
       </main>
 
       <nav className="tabs">
-        {([["map", "🗺", "Site map"], ["agent", "💬", "Agent"], ["project", "📊", "Project"], ["docs", "📁", "Docs"]] as const).map(([id, ico, label]) => (
-          <button key={id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}><span>{ico}</span>{label}</button>
+        {([["map", "map", "Site map"], ["agent", "chat", "Agent"], ["project", "chart", "Project"], ["docs", "folder", "Docs"]] as const).map(([id, ico, label]) => (
+          <button key={id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}><Icon name={ico} />{label}</button>
         ))}
       </nav>
 
