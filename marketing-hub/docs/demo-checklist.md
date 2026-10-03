@@ -88,7 +88,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 ### 7. Orchestration — running the vendors (5 min)
 
 - [ ] Open **Orchestration**. Show the four role cards: you, the director, vendors, and Kinan's agent (owns leads and sales).
-- [ ] The **vendor list**: 6 current vendors with score, decision, campaigns, spend, cost to sales, invoices outstanding, work in progress and emails. The filters show **Alternatives (5)** (the bench) and **Past (3)** (vendors from the history).
+- [ ] The **vendor list**: 6 current vendors with score, decision, campaigns, spend, cost to sales, invoices outstanding, work in progress and emails. The filters show **Alternatives (5)** (pre-vetted alternative vendors) and **Past (3)** (vendors from the history).
 - [ ] **14 waiting for your approval** under the list: 6 June briefs (drafted from the plan you just approved), 7 routine (5 lead-feedback emails and 2 reminders for late items), and 1 non-renewal notice. Click **Show the messages** and open the **PropertyHub KSA** brief: it's in **Arabic**, the vendor's language.
 - [ ] Tick **I have read the routine messages**, then click **Approve and send all routine**.
 - [ ] Tick **I have read the briefs**, then click **Approve and send all briefs**.
@@ -122,7 +122,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] **Decisions**: six vendors, each with a decision. For example, **Hajar Outdoor: exit** (high confidence) and **Tasweeq Digital: test a replacement**. Show the evidence and "what would change this".
 - [ ] **Experiments**: the holdout test shows how much of a vendor's results it really caused.
-- [ ] **Bench & Trials**: **Wasel Performance won its trial against Tasweeq Digital**. One click promotes it, and it gets budget in the next plan.
+- [ ] **Decisions → Replacement trials**: **Wasel Performance won its trial against Tasweeq Digital**. One click promotes it, and it gets budget in the next plan.
 
 ### 11. Ideate a campaign (4 min)
 

@@ -117,7 +117,7 @@ export async function buildRecommendations(lang: Lang = "en", pre?: Agent) {
       rationale: T(`${CONF[d.confidence]} confidence — ${d.confidenceWhy} `, `ثقة ${CONF[d.confidence]} — ${d.confidenceWhy} `) + d.evidence.slice(0, 3).join(" ") + " " + d.nextStep,
       evidence: vendorFacing, impactK: k1(score.costK),
       channel: ["RENEGOTIATE", "PERFORMANCE_PLAN", "RE_ENGAGE"].includes(d.decision) ? "EMAIL" : "INTERNAL",
-      href: d.decision === "TEST_REPLACEMENT" ? "/bench" : "/decisions", meta: { decision: d.decision },
+      href: d.decision === "TEST_REPLACEMENT" ? "/decisions#trials" : "/decisions", meta: { decision: d.decision },
     });
   }
 
@@ -146,7 +146,7 @@ export async function buildRecommendations(lang: Lang = "en", pre?: Agent) {
     if (t.status === "PROPOSED") recs.push({
       key: `TRIAL:${t.id}:PROPOSED`, type: "TRIAL", severity: "warn", vendorId: t.incumbentId, vendor: t.incumbent,
       title: T(`Approve trial: ${t.challenger} vs ${t.incumbent}`, `اعتماد تجربة: ${N(t.challenger)} مقابل ${N(t.incumbent)}`),
-      rationale: t.brief, evidence: [t.brief], impactK: t.budgetK, channel: "INTERNAL", href: "/bench",
+      rationale: t.brief, evidence: [t.brief], impactK: t.budgetK, channel: "INTERNAL", href: "/decisions#trials",
     });
     if (t.status === "COMPLETED" && !t.decision && t.readout) recs.push({
       key: `TRIAL:${t.id}:RESULT`, type: "TRIAL", severity: t.readout.outcome === "PROMOTE" ? "crit" : "info", vendorId: t.incumbentId, vendor: t.incumbent,
@@ -155,7 +155,7 @@ export async function buildRecommendations(lang: Lang = "en", pre?: Agent) {
         : T(`Trial ${t.challenger} vs ${t.incumbent} — decide`, `تجربة ${N(t.challenger)} مقابل ${N(t.incumbent)} — اتخذوا القرار`),
       rationale: T(`Challenger delivered ${t.readout.qlRatio ?? "—"}× the CRM-qualified leads per SAR (90% range ${t.readout.qlLow ?? "—"}–${t.readout.qlHigh ?? "—"}); cost per qualified lead SAR ${t.readout.challengerCpql ?? "—"} vs ${t.readout.incumbentCpql ?? "—"}.`,
         `حقق المنافس ${t.readout.qlRatio ?? "—"}× العملاء المؤهلين لكل ريال (النطاق عند ثقة 90%: ${t.readout.qlLow ?? "—"}–${t.readout.qlHigh ?? "—"})؛ تكلفة العميل المؤهل ${t.readout.challengerCpql ?? "—"} مقابل ${t.readout.incumbentCpql ?? "—"} ر.س.`),
-      evidence: [], impactK: t.budgetK, channel: "INTERNAL", href: "/bench",
+      evidence: [], impactK: t.budgetK, channel: "INTERNAL", href: "/decisions#trials",
     });
   }
 

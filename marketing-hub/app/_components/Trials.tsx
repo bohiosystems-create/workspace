@@ -1,36 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Header from "../_components/Header";
-import { useI18n } from "../_components/lang";
-import { useAgent, useApprover } from "../_components/useAgent";
+import { useI18n } from "./lang";
+import { useApprover } from "./useAgent";
 
 const OUTCOME: Record<string, string> = { PROMOTE: "Promote the challenger", EXTEND: "Inconclusive — extend", KEEP_INCUMBENT: "Keep the incumbent" };
 
-export default function BenchPage() {
+/** Replacement trials (challenger vs incumbent): approve, cancel and decide. Shown on the Decisions page. */
+export default function Trials({ data, busy, act }: { data: any; busy: string | null; act: (body: any, key: string) => Promise<any> }) {
   const { t, N, K, d } = useI18n();
-  const { data, error, busy, act } = useAgent();
   const [savedApprover, saveApprover] = useApprover();
   const [approver, setApprover] = useState("");
   useEffect(() => setApprover(savedApprover), [savedApprover]);
   const setA = (v: string) => { setApprover(v); saveApprover(v); };
+  const needsAction = data.bench.trials.some((x: any) => x.status === "PROPOSED" || (x.status === "COMPLETED" && !x.decision));
 
   return (
-    <div className="shell">
-      <Header />
-      <div className="section-title">{t("Bench & trials")}</div>
-      <p className="intro">{t("A bench of pre-vetted alternative vendors, and small paid trials against incumbents on the same brief. When a vendor is flagged for replacement or exit, the agent proposes a trial automatically; nothing is spent until a named person approves it. Trial results are read from the CRM.")}</p>
-      {error && <div className="err">{error}</div>}
-      {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
-
-      {data && (
-        <>
-          <div className="panel" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+    <>
+          <div id="trials" className="section-title" style={{ fontSize: 12, margin: "24px 0 12px" }}>{t("Replacement trials")}</div>
+          <p className="muted" style={{ fontSize: 11, margin: "-4px 0 12px", lineHeight: 1.6 }}>{t("When a vendor is flagged for replacement or exit, the agent proposes a small paid trial of a pre-vetted alternative on the same brief. Nothing is spent until a named person approves it; results are read from the CRM.")}</p>
+      {needsAction && (
+          <div className="panel" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, marginBottom: 14, flexWrap: "wrap" }}>
             <div className="field" style={{ width: 220 }}><label>{t("Approving as")}</label><input className="in" placeholder={t("Your name")} value={approver} onChange={(e) => setA(e.target.value)} /></div>
             <div className="muted" style={{ flex: 1, minWidth: 220 }}>{t("Approvals and decisions are recorded in the audit trail with this name.")}</div>
           </div>
-
-          <div className="section-title" style={{ fontSize: 12, margin: "6px 0 12px" }}>{t("Trials")}</div>
+      )}
           {data.bench.trials.length === 0 && <div className="muted">{t("No trials yet.")}</div>}
           {data.bench.trials.map((x: any) => (
             <div className="dec" key={x.id}>
@@ -90,29 +84,6 @@ export default function BenchPage() {
             </div>
           ))}
 
-          <div className="panel" style={{ marginTop: 18 }}>
-            <div className="chart-label">{t("Bench of alternative vendors")}</div>
-            <div style={{ overflowX: "auto" }}>
-              <table className="dtable">
-                <thead><tr><th>{t("Vendor")}</th><th>{t("Channel")}</th><th>{t("Commercial terms")}</th><th>{t("Contact")}</th><th>{t("Status")}</th><th className="num">{t("Trials")}</th></tr></thead>
-                <tbody>
-                  {data.bench.bench.map((b: any) => (
-                    <tr key={b.id}>
-                      <td><b>{N(b.name)}</b></td>
-                      <td>{N(b.category)}<div className="muted" style={{ fontSize: 9 }}>{N(b.model)}</div></td>
-                      <td style={{ maxWidth: 320 }}>{N(b.rateNote)}</td>
-                      <td>{N(b.contact)}<div className="muted" style={{ fontSize: 9 }} dir="ltr">{b.email}</div></td>
-                      <td><span className={`pill ${b.status === "ACTIVE" ? "healthy" : "hold"}`}>{t(b.status === "ACTIVE" ? "Onboarded" : "On bench")}</span></td>
-                      <td className="num">{b.trials}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Channels without a bench vendor get a replacement RFP instead (Decisions page).")}</div>
-          </div>
-        </>
-      )}
-    </div>
+    </>
   );
 }

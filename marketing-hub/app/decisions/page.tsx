@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Header from "../_components/Header";
 import { useI18n } from "../_components/lang";
 import { useAgent, openDrafts } from "../_components/useAgent";
+import Trials from "../_components/Trials";
 
 const METRIC_LABEL: Record<string, string> = { cpql: "Cost / qualified lead", value: "Revenue + pipeline / SAR", plan: "Spend vs plan", deadlines: "On time", revisions: "Revisions" };
 const DECISION_LABEL: Record<string, string> = { RE_ENGAGE: "Re-engage", RENEGOTIATE: "Renegotiate", PERFORMANCE_PLAN: "Performance plan", TEST_REPLACEMENT: "Test replacement", EXIT: "Exit" };
@@ -26,6 +27,10 @@ export default function DecisionsPage() {
     const repl = data.decisions.find((x: any) => x.decision === "EXIT" || x.decision === "TEST_REPLACEMENT");
     if (!rfpVendor && repl) setRfpVendor(repl.vendorId);
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (data && typeof location !== "undefined" && location.hash === "#trials") setTimeout(() => document.getElementById("trials")?.scrollIntoView({ behavior: "smooth" }), 50);
+  }, [!!data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!qbrVendor) return;
@@ -133,12 +138,14 @@ export default function DecisionsPage() {
               )}
               <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
                 {["RENEGOTIATE", "PERFORMANCE_PLAN", "RE_ENGAGE"].includes(x.decision) && <button className="btn" style={{ padding: "8px 12px", fontSize: 9 }} onClick={() => draftRenewal(x)}>{t("Draft email to vendor")}</button>}
-                {["TEST_REPLACEMENT", "EXIT"].includes(x.decision) && <a className="btn" style={{ padding: "8px 12px", fontSize: 9, textDecoration: "none" }} href="/bench">{t("Trials & bench →")}</a>}
+                {["TEST_REPLACEMENT", "EXIT"].includes(x.decision) && <a className="btn" style={{ padding: "8px 12px", fontSize: 9, textDecoration: "none" }} href="#trials" onClick={(e) => { e.preventDefault(); document.getElementById("trials")?.scrollIntoView({ behavior: "smooth" }); }}>{t("Replacement trial ↓")}</a>}
                 <button className="btn ghost" style={{ padding: "8px 12px", fontSize: 9 }} onClick={() => { setQbrVendor(x.vendorId); document.getElementById("qbr")?.scrollIntoView({ behavior: "smooth" }); }}>{t("Quarterly review")}</button>
                 <button className="btn ghost" style={{ padding: "8px 12px", fontSize: 9 }} onClick={() => { setRfpVendor(x.vendorId); document.getElementById("rfp")?.scrollIntoView({ behavior: "smooth" }); }}>{t("Replacement RFP")}</button>
               </div>
             </div>
           ))}
+
+          <Trials data={data} busy={busy} act={act} />
 
           <div id="qbr" className="section-title" style={{ fontSize: 12, margin: "24px 0 12px" }}>{t("Quarterly business review")}</div>
           <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
@@ -182,15 +189,15 @@ export default function DecisionsPage() {
             </select>
             <button className="btn ghost" onClick={() => { try { navigator.clipboard.writeText(rfp?.text ?? ""); setNote(t("RFP copied.")); } catch {} }}>{t("Copy text")}</button>
             <button className="btn ghost" onClick={() => setPrinting("rfp")}>{t("Print / PDF")}</button>
-            <button className="btn" disabled={busy === "rfp" || !rfp?.benchVendors.length} title={rfp && !rfp.benchVendors.length ? t("No bench vendors in this channel yet") : ""}
+            <button className="btn" disabled={busy === "rfp" || !rfp?.benchVendors.length} title={rfp && !rfp.benchVendors.length ? t("No alternative vendors in this channel yet") : ""}
               onClick={async () => { const r = await act({ action: "SEND_RFP", vendorId: rfpVendor }, "rfp"); if (r) { setNote(`${r.drafted} ${t("draft emails created — review and approve them in the assistant.")}`); openDrafts(); } }}>
-              {t("Send to bench vendors (drafts)")}{rfp ? ` (${rfp.benchVendors.length})` : ""}
+              {t("Send to alternative vendors (drafts)")}{rfp ? ` (${rfp.benchVendors.length})` : ""}
             </button>
           </div>
           {rfp && (
             <div className={`doc${printing === "rfp" ? " print-area" : ""}`}>
               <h3>{rfp.title}</h3>
-              <div className="muted">{t("Incumbent")}: {N(rfp.incumbent)} · {t("Bench vendors invited")}: {rfp.benchVendors.map((b: any) => N(b.name)).join(", ") || "—"}</div>
+              <div className="muted">{t("Incumbent")}: {N(rfp.incumbent)} · {t("Alternative vendors invited")}: {rfp.benchVendors.map((b: any) => N(b.name)).join(", ") || "—"}</div>
               {rfp.sections.map((s: any) => (<div key={s.title}><h4>{s.title}</h4><ul>{s.lines.map((l: string, i: number) => <li key={i}>{l}</li>)}</ul></div>))}
             </div>
           )}

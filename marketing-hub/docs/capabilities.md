@@ -111,8 +111,8 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 - **Quarterly business review** per vendor, printable and sendable.
 - **Billing anomaly detection** (invoice spikes vs the campaign's history).
-- **RFP** for a replacement, generated from the incumbent's data and sent to bench vendors.
-- **Bench of pre-vetted alternatives:** when a vendor is flagged, the agent proposes a **paid trial** against it; results are read from the CRM by trial code and the winner can be promoted.
+- **RFP** for a replacement, generated from the incumbent's data and sent to the alternative vendors.
+- **Replacement trials** (on the Decisions page): when a vendor is flagged, the agent proposes a **paid trial** of a pre-vetted alternative against it; results are read from the CRM by trial code and the winner can be promoted. Alternatives are listed in the vendor directory.
 
 ## 9. Supplier invoices (Oracle)
 

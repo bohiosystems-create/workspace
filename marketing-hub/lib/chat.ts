@@ -403,7 +403,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     const st: Record<string, string> = { PROPOSED: T("proposed — needs approval", "مقترحة — بحاجة إلى اعتماد"), RUNNING: T("running", "جارية"), COMPLETED: T("completed", "مكتملة"), CANCELLED: T("cancelled", "ملغاة"), APPROVED: T("approved", "معتمدة") };
     return done(
       T("**Trials**\n", "**التجارب**\n") + ag.bench.trials.map((t) => `- ${N(t.challenger)} ${T("vs", "مقابل")} ${N(t.incumbent)}: ${st[t.status] ?? t.status}${T(", ", "، ")}${K(L, t.budgetK)}${t.readout ? T(` — challenger ${t.readout.qlRatio}× qualified leads per SAR (${t.readout.confidencePct}% confidence) → ${t.readout.outcome}`, ` — المنافس ${t.readout.qlRatio}× العملاء المؤهلين لكل ريال (ثقة ${t.readout.confidencePct}%) ← ${({ PROMOTE: "ترقية", EXTEND: "تمديد", KEEP_INCUMBENT: "الإبقاء على الحالي" } as Record<string, string>)[t.readout.outcome]}`) : ""}`).join("\n") +
-      T("\n\n**Bench**\n", "\n\n**البدائل الجاهزة**\n") + ag.bench.bench.map((b) => `- ${N(b.name)} (${N(b.category)}): ${N(b.rateNote ?? "")}`).join("\n")
+      T("\n\n**Alternative vendors**\n", "\n\n**الموردون البدلاء**\n") + ag.bench.bench.map((b) => `- ${N(b.name)} (${N(b.category)}): ${N(b.rateNote ?? "")}`).join("\n")
     );
   }
 
