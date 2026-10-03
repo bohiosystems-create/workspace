@@ -625,3 +625,16 @@ a:not(.btn):not(.navlink):not(.card):not(.k-band-logo):hover { color: var(--oran
 @keyframes sbGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (max-width: 720px) { .sb-row { grid-template-columns: 30px 1fr 60px; } .sb-bar { grid-column: 1 / -1; order: 5; } .sb-row .pill { display: none; } }
 @media (prefers-reduced-motion: reduce) { .sb-fill, .sb-row { animation: none; } }
+
+/* ---- Reports page: the report layout behind an icon, top right ---- */
+.rp-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rp-layout { position: relative; }
+.rp-icon { position: relative; width: 38px; height: 38px; display: grid; place-items: center; background: var(--paper, #fff); border: 1px solid var(--ink-hairline, #e3e1de); border-top: 2px solid var(--orange, #f15a22); color: var(--ink, #2e2e2f); cursor: pointer; transition: background .2s, color .2s; }
+.rp-icon:hover, .rp-icon.on { background: var(--ink, #2e2e2f); color: #fff; }
+.rp-icon:focus-visible { outline: 2px solid var(--orange, #f15a22); outline-offset: 2px; }
+.rp-dot { position: absolute; top: 5px; inset-inline-end: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--orange, #f15a22); }
+.rp-scrim { position: fixed; inset: 0; z-index: 40; }
+.rp-pop { position: absolute; top: calc(100% + 8px); inset-inline-end: 0; z-index: 41; width: min(760px, calc(100vw - 32px)); max-height: 75vh; overflow: auto; background: var(--paper, #fff); border-top: 3px solid var(--orange, #f15a22); box-shadow: 0 18px 50px rgba(46,46,47,.22); padding: 14px 16px 16px; animation: kUp .3s cubic-bezier(.2,.8,.2,1) both; }
+.rp-pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.rp-x { all: unset; cursor: pointer; font-size: 22px; line-height: 1; color: var(--ink-soft, #6f6f6f); padding: 0 4px; }
+.rp-x:hover { color: var(--orange, #f15a22); }

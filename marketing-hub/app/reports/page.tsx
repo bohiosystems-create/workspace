@@ -37,6 +37,8 @@ export default function ReportsPage() {
   const langRef = useRef(lang);
   const autoPreviewed = useRef(false);
   const [layout, setLayout] = useState<any>(null);
+  const [layoutOpen, setLayoutOpen] = useState(false);
+  useEffect(() => { if (!layoutOpen) return; const k = (e: KeyboardEvent) => e.key === "Escape" && setLayoutOpen(false); window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [layoutOpen]);
   const loadLayout = () => fetch(`/api/reports/layout?lang=${langRef.current}`).then((r) => r.json()).then((x) => { if (!x.error) setLayout(x); }).catch(() => {});
   useEffect(() => { loadLayout(); }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
   async function layoutAction(action: "UNDO" | "RESET") {
@@ -108,7 +110,41 @@ export default function ReportsPage() {
   return (
     <div className="shell">
       <Header />
-      <div className="section-title">{t("Daily reports")}</div>
+      <div className="rp-title">
+        <div className="section-title">{t("Daily reports")}</div>
+        {layout && (
+          <div className="rp-layout">
+            <button className={`rp-icon ${layoutOpen ? "on" : ""}`} aria-label={t("Report layout")} title={t("Report layout")} aria-expanded={layoutOpen} onClick={() => setLayoutOpen(!layoutOpen)}>
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="18" height="18" rx="1" /><path d="M3 9h18M9 9v12" /></svg>
+              {layout.view.custom && <span className="rp-dot" />}
+            </button>
+            {layoutOpen && (
+              <>
+                <div className="rp-scrim" onClick={() => setLayoutOpen(false)} />
+                <div className="rp-pop" role="dialog" aria-label={t("Report layout")}>
+                  <div className="rp-pop-head"><div className="chart-label" style={{ margin: 0 }}>{t("Report layout")}</div><button className="rp-x" aria-label={t("Close")} onClick={() => setLayoutOpen(false)}>×</button></div>
+
+              <div className="muted" style={{ fontSize: 11, marginBottom: 10 }}>{t("Change it from the assistant: “remove the invoices section”, “move risks to the top”, “only Andalus Quarter”, “top 3 items”, “add a chart of spend by channel”, “add a note: …”, “undo”.")}</div>
+              <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }}>
+                <div style={{ flex: "1 1 320px", maxWidth: 520 }}><ReportLayoutCard view={layout.view} onUndo={layout.history.some((h: any) => !h.undone && h.source !== "undo") ? () => layoutAction("UNDO") : undefined} onReset={() => layoutAction("RESET")} /></div>
+                <div style={{ flex: "1 1 280px" }}>
+                  <div className="muted" style={{ fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6 }}>{t("Changes")}</div>
+                  {layout.history.length === 0 && <div className="muted" style={{ fontSize: 12 }}>{t("No changes yet — this is the standard report.")}</div>}
+                  {layout.history.map((h: any) => (
+                    <div className="logrow" key={h.id} style={{ fontSize: 12, opacity: h.undone ? 0.5 : 1 }}>
+                      <div className="lt">{dm(h.at)}</div>
+                      <div style={{ flex: 1, textDecoration: h.undone ? "line-through" : "none" }}>{h.summary}</div>
+                      <span className="muted" style={{ fontSize: 10 }}>{h.undone ? t("undone") : t(h.source === "chat" ? "from the chat" : h.source)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
       <p className="intro">{t("Every scheduled morning the director writes your report — sales against target, what changed since yesterday, campaign recommendations, decisions waiting (with minutes), vendors, risks and invoices — and emails it to you. Reports go to internal addresses only and take no action.")}</p>
       {error && <div className="err">{error}</div>}
       {message && <div className="alert info" style={{ padding: "10px 14px", marginBottom: 12 }}>{message}</div>}
@@ -205,26 +241,6 @@ export default function ReportsPage() {
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => setView(null)}>{t("Close")}</button>
               </div>
               <iframe title={view.title} sandbox="" srcDoc={screenHtml(view.html)} style={{ width: "100%", height: 1100, border: "1px solid var(--ink-hairline)", background: "#fff" }} />
-            </div>
-          )}
-          {layout && (
-            <div className="panel" style={{ marginTop: 18 }}>
-              <div className="chart-label">{t("Report layout")}</div>
-              <div className="muted" style={{ fontSize: 11, marginBottom: 10 }}>{t("Change it from the assistant: “remove the invoices section”, “move risks to the top”, “only Andalus Quarter”, “top 3 items”, “add a chart of spend by channel”, “add a note: …”, “undo”.")}</div>
-              <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }}>
-                <div style={{ flex: "1 1 320px", maxWidth: 520 }}><ReportLayoutCard view={layout.view} onUndo={layout.history.some((h: any) => !h.undone && h.source !== "undo") ? () => layoutAction("UNDO") : undefined} onReset={() => layoutAction("RESET")} /></div>
-                <div style={{ flex: "1 1 280px" }}>
-                  <div className="muted" style={{ fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6 }}>{t("Changes")}</div>
-                  {layout.history.length === 0 && <div className="muted" style={{ fontSize: 12 }}>{t("No changes yet — this is the standard report.")}</div>}
-                  {layout.history.map((h: any) => (
-                    <div className="logrow" key={h.id} style={{ fontSize: 12, opacity: h.undone ? 0.5 : 1 }}>
-                      <div className="lt">{dm(h.at)}</div>
-                      <div style={{ flex: 1, textDecoration: h.undone ? "line-through" : "none" }}>{h.summary}</div>
-                      <span className="muted" style={{ fontSize: 10 }}>{h.undone ? t("undone") : t(h.source === "chat" ? "from the chat" : h.source)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
           <MissedQuestions />
