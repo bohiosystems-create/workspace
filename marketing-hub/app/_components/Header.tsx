@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "./lang";
+import { KINAN_LOGO } from "../../lib/brand-logo";
 
 const LINKS = [
   { href: "/", label: "Director" },
@@ -25,11 +26,11 @@ export default function Header() {
   return (
     <div className="topnav">
       <div className="brand">
-        <div className="logo">K</div>
-        <div>
-          <b>{lang === "ar" ? "كنان" : "Kinan"}</b>
-          <small>{t("AI Assistant Director of Marketing")}</small>
-        </div>
+        {/* The Kinan logo on a dark band (brand/kinan-logo.*, embedded by scripts/brand-logo.mjs); wordmark until it is added. */}
+        <a href="/" className="brand-band" aria-label="Kinan">
+          {KINAN_LOGO ? <img src={KINAN_LOGO} alt="Kinan" /> : <span className="brand-word">{lang === "ar" ? "كنان" : "KINAN"}</span>}
+        </a>
+        <small>{t("AI Assistant Director of Marketing")}</small>
       </div>
       <div className="navlinks">
         {LINKS.map((l) => (

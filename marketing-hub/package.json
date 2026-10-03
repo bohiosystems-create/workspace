@@ -8,7 +8,7 @@
     "start": "next start -p 3001",
     "db:push": "prisma db push",
     "demo:reset": "node -e \"require('fs').rmSync('prisma/dev.db',{force:true})\" && prisma db push --skip-generate",
-    "demo:build": "tsx scripts/dump-data.ts && node scripts/build-demo.mjs",
+    "demo:build": "node scripts/brand-logo.mjs && tsx scripts/dump-data.ts && node scripts/build-demo.mjs",
     "demo:build:claude": "tsx scripts/dump-data.ts && node scripts/build-demo.mjs --claude-app",
     "chat:eval": "tsx scripts/chat-eval.ts && tsx scripts/chat-paraphrase.ts && tsx scripts/chart-eval.ts",
     "chart:eval": "tsx scripts/chart-eval.ts",
@@ -16,7 +16,9 @@
     "postinstall": "prisma generate",
     "setup": "node scripts/setup.mjs",
     "demo:package": "node scripts/package-demo.mjs",
-    "demo:live": "node scripts/setup.mjs && next build && next start -p 3001"
+    "demo:live": "node scripts/setup.mjs && next build && next start -p 3001",
+    "brand": "node scripts/brand-logo.mjs",
+    "prebuild": "node scripts/brand-logo.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

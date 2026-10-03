@@ -12,6 +12,10 @@
 //           vendor or customer.
 import { prisma } from "./prisma";
 import { now } from "./clock";
+import { KINAN_LOGO } from "./brand-logo";
+
+/** Report header: the Kinan logo on a dark band (wordmark if no logo file; alt text if the mail client blocks images). */
+const brandBand = (lang: Lang) => `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td style="background:#0b0d12;border-radius:8px;padding:10px 16px">${KINAN_LOGO ? `<img src="${KINAN_LOGO}" alt="KINAN" height="22" style="display:block;height:22px;width:auto;color:#fff;font:700 14px Helvetica,Arial,sans-serif;letter-spacing:.3em">` : `<span style="color:#fff;font-weight:700;font-size:14px;letter-spacing:${lang === "ar" ? "0" : ".3em"}">${lang === "ar" ? "كنان" : "KINAN"}</span>`}</td><td style="padding-inline-start:12px;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#5b6170">${lang === "ar" ? "مساعد مدير التسويق الذكي" : "AI Assistant Director of Marketing"}</td></tr></table>`;
 import { single, serial } from "./single";
 import { buildAgent } from "./agent";
 import { historyState } from "./history";
@@ -197,7 +201,7 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   const html = `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
 <body style="margin:0;background:${C.paper};color:${C.ink};font-family:${lang === "ar" ? "Tahoma,Arial" : "Helvetica,Arial"},sans-serif">
 <div style="max-width:720px;margin:0 auto;padding:24px 20px">
-<div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700">${lang === "ar" ? "كنان" : "KINAN"} · ${esc(T("AI Assistant Director of Marketing", "مساعد مدير التسويق الذكي"))}</div>
+${brandBand(lang)}
 <h1 style="font-size:20px;margin:10px 0 4px">${esc(title)}</h1>
 <div style="font-size:12px;color:${C.soft};margin:0 0 18px;border-bottom:2px solid ${C.ink};padding-bottom:10px">${esc(T(`Figures as of ${dt("en", d.asOf)}`, `الأرقام حتى ${dt("ar", d.asOf)}`))}</div>
 ${sec.map(([h, body]) => `<div data-slide="${esc(h)}" style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}
@@ -303,7 +307,7 @@ export async function buildSnapshot(lang: Lang, at: Date, prev: { metrics: Metri
   const html = `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
 <body style="margin:0;background:${C.paper};color:${C.ink};font-family:${lang === "ar" ? "Tahoma,Arial" : "Helvetica,Arial"},sans-serif">
 <div style="max-width:720px;margin:0 auto;padding:24px 20px">
-<div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700">${lang === "ar" ? "كنان" : "KINAN"} · ${esc(T("AI Assistant Director of Marketing", "مساعد مدير التسويق الذكي"))}</div>
+${brandBand(lang)}
 <h1 style="font-size:20px;margin:10px 0 4px">${esc(title)}</h1>
 <div style="font-size:12px;color:${C.soft};margin:0 0 18px;border-bottom:2px solid ${C.ink};padding-bottom:10px">${esc(T(`Live position at ${ln.hhmm} (${s.timezone}) · figures as of ${dt("en", d.asOf)} · not e-mailed`, `الوضع الفوري الساعة ${ln.hhmm} (${s.timezone}) · الأرقام حتى ${dt("ar", d.asOf)} · لا يُرسل بالبريد`))}</div>
 ${sec.map(([h, body]) => `<div data-slide="${esc(h)}" style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}

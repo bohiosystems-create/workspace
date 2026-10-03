@@ -43,7 +43,7 @@ const CASES: [string, string[]][] = [
   ["Draft an email to Hajar Outdoor", ["draft|nothing to email|Which one"]],
   ["Contracts ending soon", ["contracts by end date"]],
   ["Tell me about Wajha Events", ["Wajha", "Past campaigns"]],
-  ["Tell me about Mada Outdoor", ["Mada", "bench"]],
+  ["Tell me about Mada Outdoor", ["Mada", "alternative"]],
   ["What did Najm Media do for us?", ["Najm", "Past campaigns"]],
   // Compare
   ["Compare Tasweeq Digital and Hajar Outdoor", ["Comparison", "Tasweeq", "Hajar"]],

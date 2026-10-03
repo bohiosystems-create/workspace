@@ -20,7 +20,8 @@
 body { background: var(--bg); color: var(--ink); font-family: var(--display); font-size: 15px; line-height: 1.6; padding-inline: 16px; }
 .wrap { max-width: 860px; margin: 0 auto; padding-block: 36px 80px; }
 .brand { display: flex; align-items: center; gap: 12px; }
-.logo { width: 36px; height: 36px; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-weight: 700; border-radius: 6px; }
+.logo { display: inline-flex; align-items: center; height: 44px; padding: 0 18px; background: #0b0d12; color: #fff; font-weight: 700; letter-spacing: .32em; border-radius: 10px; }
+.logo img { height: 24px; width: auto; display: block; }
 .brand b { letter-spacing: .32em; font-size: 15px; }
 .brand small { display: block; letter-spacing: .24em; text-transform: uppercase; font-size: 9px; color: var(--soft); }
 h1 { font-size: clamp(26px, 4vw, 36px); line-height: 1.15; margin: 28px 0 10px; text-wrap: balance; letter-spacing: -.01em; }
@@ -80,7 +81,7 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
 </style>
 
 <div class="wrap">
-  <div class="brand"><div class="logo">K</div><div><b>KINAN</b><small>AI Assistant Director of Marketing</small></div></div>
+  <div class="brand"><div class="logo">KINAN</div><div><small>AI Assistant Director of Marketing</small></div></div>
   <h1>An AI assistant director of marketing for a one-person marketing function</h1>
   <p class="lede">Built for a real-estate developer whose CRM is Kinan's (Yardi plus Kinan's AI agent). It holds the plan to the sales targets, runs the marketing vendors, proves what they deliver, decides where the money goes and tells the manager every morning which campaigns to change. Leads, follow-up and sales stay with Kinan's own agent; the director reads the CRM results. The manager makes the decisions; the director does the rest.</p>
 
