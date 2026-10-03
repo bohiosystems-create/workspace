@@ -80,7 +80,7 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
 </style>
 
 <div class="wrap">
-  <div class="brand"><div class="logo">B</div><div><b>BOHIO</b><small>AI Assistant Director of Marketing</small></div></div>
+  <div class="brand"><div class="logo">K</div><div><b>KINAN</b><small>AI Assistant Director of Marketing</small></div></div>
   <h1>An AI assistant director of marketing for a one-person marketing function</h1>
   <p class="lede">Built for a real-estate developer whose CRM is Kinan's (Yardi plus Kinan's AI agent). It holds the plan to the sales targets, runs the marketing vendors, proves what they deliver, decides where the money goes and tells the manager every morning which campaigns to change. Leads, follow-up and sales stay with Kinan's own agent; the director reads the CRM results. The manager makes the decisions; the director does the rest.</p>
 
@@ -222,7 +222,7 @@ td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: to
 const PREP = [
   "Unzip <b>kinan-demo.zip</b> and read <b>START-HERE.md</b>",
   "Demo file (recommended for the meeting): double-click <b>1-OPEN-ME-demo.html</b> — no install, works offline",
-  "Claude app edition: open its claude.ai link in the Claude app — same demo, but the assistant, daily AI note and campaign ideas are answered by Claude through your own account (allow it when asked; 30–90 s per answer)",
+  "Claude app edition: open its claude.ai link in the Claude app — same demo, but the assistant, daily AI note and market initiatives are answered by Claude through your own account (allow it when asked; 30–90 s per answer)",
   "Live app (for free-form AI chat or the APIs): Node.js 18.17+, then in <b>app-source</b>: <span class='expect'>npm install</span> and <span class='expect'>npm run demo:live</span>, open http://localhost:3001",
   "Optional, live app only: set ANTHROPIC_API_KEY, OPENAI_API_KEY and/or GEMINI_API_KEY in app-source/.env, run <span class='expect'>npm run demo:live</span> again, and check one free-form question shows \"Claude · model\" or \"OpenAI · model\"",
   "Open in Chrome or Edge, window at least 1366 px wide",
@@ -233,7 +233,7 @@ const STORY = [
   ["Director: the morning view", "3 min", [
     "Read the headline: <span class='expect'>Sales are at 81% of target year to date; Andalus Quarter is furthest behind (38%)</span>",
     "Show the tiles (SAR 133.9M of 165M; 38% / 90% / 92%)",
-    "Inbox: <span class='expect'>8 items, about 53 min</span>, including <b>Daily campaign check: 14 open (2 urgent)</b>. This is the manager's whole week",
+    "Inbox: <span class='expect'>8 items, about 54 min</span>, including <b>Daily campaign check: 15 open (2 urgent)</b>. This is the manager's whole week",
     "Say: leads, follow-up and sales are Kinan's agent's job; the director reads the CRM results"]],
   ["Campaign recommendations in the brief", "3 min", [
     "<b>Campaign recommendations (22)</b>. Urgent: <span class='expect'>CRM feed quiet for 8 days · Andalus Off-plan at 8.5% of sales, 4.5× past digital · unknown agency on Meta (SAR 8K)</span>",
@@ -242,7 +242,7 @@ const STORY = [
     "<b>Show all (22)</b> → <b>Draft email</b> on <i>Tasweeq Digital: reported media spend not matched by the ad platforms</i> (SAR 58.4K) → the draft opens for approval; don't send",
     "<b>Ask the director</b> → \"What should I change in the campaigns?\""]],
   ["Daily campaign check", "4 min", [
-    "<b>Daily check</b>: <span class='expect'>14 recommendations, 2 urgent</span>; day chips for the last 7 days",
+    "<b>Daily check</b>: <span class='expect'>15 recommendations, 2 urgent</span>; day chips for the last 7 days",
     "Andalus Off-plan has four items: <span class='expect'>8.5% vs 1.9% history · cost per qualified lead +35% in May · 130% pacing · summer in 23 days</span>",
     "Open <b>Similar past campaigns</b>: each past campaign's cost to sales and lesson",
     "Ash Shati Search &amp; Social is a winner (1.19%): trim ~15% in July–August, scale again in September",
@@ -254,9 +254,9 @@ const STORY = [
     "Lessons: brokers and events convert best; Ramadan payment-plan offer worked; summer weakest; radio and billboards most expensive",
     "Switch benchmark tabs and expand a campaign to show its lesson"]],
   ["Daily report: baseline", "1 min", [
-    "<b>Reports</b> → <b>Preview today's report</b>, then <b>Run snapshot</b> for the live version. Show <span class='expect'>Campaign recommendations — 22 open, 3 urgent</span>",
+    "<b>Reports</b> → <b>Preview today's report</b>, then <b>Run snapshot</b> for the live version. Show <span class='expect'>Campaign recommendations — 23 open, 3 urgent</span>",
     "Scroll the charts: <span class='expect'>Andalus 38% of target in red; Mubasher 38% / Tasweeq 30% / PropertyHub 20% of revenue; brokers 0.8% cost to sales</span> — the same charts arrive in Outlook",
-    "Scroll to <b>Campaign ideas for today</b>: three ideas with forecasts, a new project and angle each day (Gemini + OpenAI ideate, Claude ranks; Claude in the Claude app)",
+    "Scroll to <b>Market initiatives for today</b>: first <b>what the CRM shows</b> (Andalus leads −41% over 12 weeks, Andalus contracts down, Marina Tower leads −39% in 3 weeks), then initiatives of different types, each marked with the signal it answers (Gemini + OpenAI ideate, Claude ranks; Claude in the Claude app)",
     "Press <b>▶ Play</b>: the report as a presentation, one slide per section, chart and idea, with optional voice-over",
     "Show the schedule: 07:30 Riyadh, Sun–Thu, English and Arabic, internal only"]],
   ["Approve the June budget plan", "3 min", [

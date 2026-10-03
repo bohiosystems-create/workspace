@@ -699,6 +699,17 @@ const UI8: Record<string, string> = {
 // Campaign ideas, AI routing
 const UI9: Record<string, string> = {
   "Ideas": "الأفكار",
+ "Initiatives": "المبادرات",
+ "Market initiatives": "مبادرات السوق",
+ "Campaigns, offers, partnerships, events, broker programmes, content, budget shifts and positioning — proposed from your data. The CRM is watched for unusual falls or surges in leads, qualified leads, sales and lost reasons, and every signal gets an initiative that answers it. Forecasts are computed from the 2023–2025 campaign history, not by the AI. Approving an initiative drafts a brief to the lead vendor for your approval.": "حملات وعروض وشراكات وفعاليات وبرامج وسطاء ومحتوى وتحويلات ميزانية وتموضع — مقترحة من بياناتكم. يُراقَب نظام العملاء لرصد أي انخفاض أو ارتفاع غير معتاد في العملاء المحتملين والمؤهلين والمبيعات وأسباب الخسارة، ولكل إشارة مبادرة تستجيب لها. تُحسب التوقعات من تاريخ حملات 2023–2025 لا من الذكاء الاصطناعي. اعتماد المبادرة يُعدّ موجزاً للمورد الرئيسي بانتظار موافقتكم.",
+ "What the CRM shows": "ما يُظهره نظام العملاء",
+ "No unusual change in leads, qualified leads, sales or lost reasons in the CRM.": "لا تغيّر غير معتاد في العملاء أو المؤهلين أو المبيعات أو أسباب الخسارة في النظام.",
+ "Opportunity": "فرصة",
+ "Watch": "للمتابعة",
+ "Initiatives for this": "مبادرات لهذه الإشارة",
+ "Generate initiatives": "اقترح مبادرات",
+ "Answers the CRM signal": "يستجيب لإشارة النظام",
+ "No initiatives yet. Fill in the brief (or leave it empty for the project furthest behind target) and generate, or answer a CRM signal above.": "لا مبادرات بعد. املؤوا الموجز (أو اتركوه فارغاً للمشروع الأبعد عن المستهدف) واضغطوا اقترح، أو استجيبوا لإحدى إشارات النظام أعلاه.",
   "AI providers and task routing": "مزودو الذكاء الاصطناعي وتوجيه المهام",
   "Each kind of AI work goes to the provider best suited to it among those with a key; if it fails, the next one answers. Without any key the app runs on its built-in rules. Change the order per task with LLM_ROUTE_<TASK> in .env.": "يذهب كل نوع من أعمال الذكاء الاصطناعي إلى المزود الأنسب له بين المزودين الذين لديهم مفتاح؛ وإذا تعذّر، يجيب التالي. دون أي مفتاح يعمل التطبيق بقواعده المدمجة. غيّروا الترتيب لكل مهمة عبر LLM_ROUTE_<TASK> في ملف ‎.env.",
   "key set": "المفتاح مضبوط",

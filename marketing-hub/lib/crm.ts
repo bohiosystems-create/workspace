@@ -136,6 +136,15 @@ const mockAdapter: CrmAdapter = {
         }
       }
     });
+    // A real-world dip for the demo: Marina Tower's featured portal slot lapsed on 11 May, so new portal enquiries
+    // fell by about 60% for the rest of the month. Viewings, reservations and contracts already in motion are kept
+    // (revenue is unchanged); the CRM signal detector (lib/crm-signals.ts) should spot it.
+    const r3 = rng(4242);
+    const lapse = new Date("2026-05-11T00:00:00Z").toISOString();
+    for (let i = out.length - 1; i >= 0; i--) {
+      const l = out[i];
+      if (l.source === "MAR-PORTAL-26" && l.createdAt >= lapse && ["NEW", "CONTACTED", "LOST", "QUALIFIED"].includes(l.stage) && r3() < 0.6) out.splice(i, 1);
+    }
     // Leads that arrive with no / unknown campaign attribution (walk-ins, WhatsApp, untagged links).
     const r2 = rng(99);
     for (let i = 0; i < 60; i++) {

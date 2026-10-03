@@ -35,7 +35,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Read the brief headline: **"Sales are at 81% of target year to date; Andalus Quarter is furthest behind (38%)."**
 - [ ] Show the tiles: SAR 133.9M of SAR 165M, and the three projects (38% / 90% / 92%).
-- [ ] **Waiting for your decision: 8 items, about 53 min.** Point at the minutes; this is the manager's whole week. One of them is **Daily campaign check: 14 open (2 urgent)**.
+- [ ] **Waiting for your decision: 8 items, about 54 min.** Point at the minutes; this is the manager's whole week. One of them is **Daily campaign check: 15 open (2 urgent)**.
 - [ ] Say: *"Leads, follow-up and sales are Kinan's own agent's job. The director reads the CRM results to judge the campaigns."*
 
 ### 2. Campaign recommendations in the brief (3 min)
@@ -50,7 +50,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 3. Daily campaign check (4 min)
 
-- [ ] Open **Daily check**. KPIs: **14 recommendations, 2 urgent**. The day chips at the top show the last 7 days.
+- [ ] Open **Daily check**. KPIs: **15 recommendations, 2 urgent**. One of them: **Marina Tower — Retail & Residential Spotlight: leads down 49% this week** (the portal slot lapsed). The day chips at the top show the last 7 days.
 - [ ] Walk through **Andalus — Off-plan Launch Funnel**, which has four items: 8.5% cost to sales vs 1.9% for past digital campaigns; cost per qualified lead up 35% in May; spending ahead of plan (130% pacing); summer starts in 23 days.
 - [ ] Open **Similar past campaigns** under an item: each past campaign's cost to sales and its lesson (e.g. Ash Shati Summer 2024 at 3.6%).
 - [ ] Show **Ash Shati — Search & Social**: a winner (1.19%), so the advice is to trim only ~15% in July–August and scale up again in September, not cut.
@@ -73,8 +73,8 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   - **At a glance**: sales by month (May SAR 32.8M, the best month); revenue by vendor (Mubasher 38%, Tasweeq 30%, PropertyHub 20%); cost to sales by channel (brokers 0.8% best; PR, outdoor and influencers in red).
 
   Say: *"The same charts arrive by email — they're built so Outlook shows them, not as images that get blocked."*
-- [ ] Show the **Campaign recommendations — 22 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
-- [ ] Scroll to **Campaign ideas for today**: three ideas with offer, channel mix and forecast. Each day brings a new focus project and creative angle. They're also on the Ideas page to shortlist. Say: *"Two AI models brainstorm, Claude ranks them against our data — and the forecasts come from our history, not the AI."*
+- [ ] Show the **Campaign recommendations — 23 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
+- [ ] Scroll to **Market initiatives for today**: first **what the CRM shows** (Andalus leads falling for 12 weeks, Andalus contracts down, Marina Tower leads down 39% in 3 weeks), then three or four initiatives of different types (campaign, offer, broker programme, partnership…), each marked with the CRM signal it answers. They're also on the Initiatives page to shortlist or approve.
 - [ ] Press **▶ Play**: the report becomes a presentation, one slide per section, chart and idea, with a voice-over you can mute.
 - [ ] Show the schedule: 07:30 Riyadh, Sunday–Thursday, English and Arabic, internal addresses only.
 
@@ -124,13 +124,16 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] **Experiments**: the holdout test shows how much of a vendor's results it really caused.
 - [ ] **Decisions → Replacement trials**: **Wasel Performance won its trial against Tasweeq Digital**. One click promotes it, and it gets budget in the next plan.
 
-### 11. Ideate a campaign (4 min)
+### 11. Market initiatives from the CRM (4 min)
 
-- [ ] Open **Ideas** and click **Generate ideas** with the brief empty. The director picks the project furthest behind target: **Andalus Quarter · September 2026 · After summer · Close sales · SAR 150K**.
-- [ ] Three ideas, each with a channel mix, vendors, forecast and guardrails:
-  1. **Broker & site-visit sprint**: 5–10 contracts, SAR 4.6–8.6M, about 2.3% cost to sales.
-  2. **Open-house mini-expo**: events converted best in the history (1.0%).
-  3. **Payment-plan offer**: digital is capped at 20% automatically, because it costs 6% of sales for Andalus today (benchmark 1.9%).
+- [ ] Open **Initiatives**. The top panel, **What the CRM shows**, lists three signals: **Andalus Quarter: new leads falling for 12 weeks (−41%)** (biggest fall: the paused Sada creator programme), **Andalus Quarter: contracts down — 0 in May 2026 vs 2.3 a month before**, and **Marina Tower: new leads down 39% in the last 3 weeks** (PropertyHub's portal campaign).
+- [ ] Click **Generate initiatives** with the brief empty. The director picks the project furthest behind target: **Andalus Quarter · September 2026 · After summer · Close sales · SAR 150K**.
+- [ ] Four initiatives of different types, each with a channel mix, vendors, forecast and guardrails:
+  1. **Refill the top of the funnel** (campaign) — *answers the CRM signal* "new leads falling for 12 weeks": 4–8 contracts, about 2.8% cost to sales; digital is capped at 20% because it costs 6% of sales for Andalus today (benchmark 1.9%).
+  2. **Closing offer to turn interest into contracts** (offer) — *answers* "contracts down": 5–9 contracts, about 2.3%.
+  3. **Broker & site-visit sprint** (broker programme): 5–10 contracts, SAR 4.6–8.6M.
+  4. **Bank & employer home-finance partnership** (partnership).
+- [ ] Back in the signals panel, click **Initiatives for this** next to the Marina Tower drop: the first initiative is **Recover the property portals lead flow** (budget & channel shift) — re-secure the featured slot and bridge the gap with events and brokers.
 - [ ] Say: *"The forecasts come from your 2023–2025 history, adjusted for this project and the season. They are not invented by the AI."* Open **Guardrails, measurement, evidence and risks** on one idea.
 - [ ] Change the brief to **Marina Tower, February 2027 (Ramadan), 300** and generate. The payment-plan offer leads (Ramadan 2025 lesson), at about 1.4% cost to sales.
 - [ ] Click **Shortlist** on one idea, then **Approve & draft vendor brief** on another. The brief opens in the assistant as a draft to the lead vendor, in the vendor's language. Don't send it.

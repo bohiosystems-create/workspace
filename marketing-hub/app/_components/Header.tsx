@@ -6,7 +6,7 @@ import { useI18n } from "./lang";
 const LINKS = [
   { href: "/", label: "Director" },
   { href: "/daily", label: "Daily check" },
-  { href: "/ideas", label: "Ideas" },
+  { href: "/ideas", label: "Initiatives" },
   { href: "/orchestration", label: "Orchestration" },
   { href: "/reports", label: "Reports" },
   { href: "/campaigns", label: "Campaigns" },
@@ -25,9 +25,9 @@ export default function Header() {
   return (
     <div className="topnav">
       <div className="brand">
-        <div className="logo">B</div>
+        <div className="logo">K</div>
         <div>
-          <b>{lang === "ar" ? "بوهيو" : "Bohio"}</b>
+          <b>{lang === "ar" ? "كنان" : "Kinan"}</b>
           <small>{t("AI Assistant Director of Marketing")}</small>
         </div>
       </div>

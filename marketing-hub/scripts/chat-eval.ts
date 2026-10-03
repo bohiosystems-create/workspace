@@ -103,8 +103,12 @@ const CASES: [string, string[]][] = [
   ["مخطط أعمدة للإنفاق حسب المشروع", ["الإنفاق التسويقي حسب المشروع"]],
 
   // Campaign ideation
-  ["Give me campaign ideas for Marina Tower in Ramadan with SAR 300K", ["Campaign ideas", "Marina Tower", "February 2027", "SAR 300K"]],
-  ["Brainstorm a new campaign for Andalus", ["Campaign ideas", "Andalus Quarter", "Forecast"]],
+  ["Give me campaign ideas for Marina Tower in Ramadan with SAR 300K", ["Market initiatives", "Marina Tower", "February 2027", "SAR 300K"]],
+  ["Brainstorm a new campaign for Andalus", ["Market initiatives", "Andalus Quarter", "Forecast"]],
+  ["Any unusual drop in leads or sales?", ["What the CRM shows", "Marina Tower", "Andalus Quarter", "contracts down"]],
+  ["What does the CRM show this week?", ["What the CRM shows", "Initiatives"]],
+  ["هل هناك انخفاض مفاجئ في العملاء؟", ["ما يُظهره النظام", "برج المارينا"]],
+  ["Give me market initiatives for Andalus", ["Market initiatives", "Answers the CRM signal", "refill the top of the funnel"]],
   ["Ideas for a summer campaign for Ash Shati", ["July 2026", "priority list"]],
   ["Plan a campaign for the Cityscape season", ["November 2026", "open-house"]],
 
@@ -165,8 +169,8 @@ const CASES: [string, string[]][] = [
   ["ماذا أرسلنا إلى كنان؟", ["كنان"]],
   ["حدثني عن وجهة للفعاليات", ["حملات سابقة"]],
   ["معيار الوسطاء في الحملات السابقة", ["تاريخ الحملات"]],
-  ["اقترح حملة جديدة للأندلس في نوفمبر", ["أفكار الحملات", "نوفمبر 2026"]],
-  ["أفكار لحملة رمضان لبرج المارينا", ["أفكار الحملات", "فبراير 2027"]],
+  ["اقترح حملة جديدة للأندلس في نوفمبر", ["مبادرات السوق", "نوفمبر 2026"]],
+  ["أفكار لحملة رمضان لبرج المارينا", ["مبادرات السوق", "فبراير 2027"]],
   ["من أين يأتي العملاء؟ حسب المدينة", ["المدينة", "جدة"]],
   ["لماذا نخسر العملاء؟", ["سبب الخسارة"]],
   ["أي الإعلانات الأفضل؟", ["الإعلانات حسب"]],

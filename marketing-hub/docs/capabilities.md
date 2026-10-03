@@ -12,7 +12,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - **Campaign recommendations:** today's daily campaign check first, then ranked changes to make to campaigns — pause or shift budget, campaigns not converting, scale up, Meta agency or tracking issues, media spend the ad platforms don't confirm, incrementality tests — each with the reason, what's at stake and one action (open the page, or draft the vendor email for approval). Also in the emailed daily report and the chat.
 - **Sales targets:** monthly contracted-sales targets per project, with actual vs target by month.
 - **Budget plan:** next month's budget per vendor, moved towards the vendors that bring the most *extra* sales per riyal. Each vendor stays inside the range its renewal decision allows. Shows expected extra sales and the reserve held back.
-- **One approval inbox:** everything waiting for the manager in one list, each item with a time estimate and a weekly total ("about 53 minutes for 8 decisions").
+- **One approval inbox:** everything waiting for the manager in one list, each item with a time estimate and a weekly total ("about 54 minutes for 8 decisions").
 - **Campaign quality from the CRM:** every campaign code ranked by qualified and win rate: strongest (fund first), middle, weakest (fix targeting or cut).
 - **Leads stay with Kinan:** lead follow-up, sales and the CRM are handled by Kinan's own agent. The director reads CRM results only to judge campaigns and vendors.
 
@@ -25,13 +25,17 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - Feeds the daily brief, the emailed report, the approval inbox and the chat.
 - **Optional AI second opinion** (Claude, OpenAI or Gemini): reads the day's check with the history and says what to do first.
 
-## 1c. Campaign ideas
+## 1c. Market initiatives (answering what the CRM shows)
 
-- Ask for ideas with a brief (project, month, budget, goal, audience, notes — or nothing) on the Ideas page or in the chat ("ideas for a Ramadan campaign for Marina Tower, SAR 300K").
-- Ideas are grounded in the data: the project's gap to target, the season (Ramadan, summer, Cityscape, after summer), what worked and failed in the 2023–2025 campaigns, today's checks, and which vendors are available (current, bench alternatives, past vendors).
-- Each idea has a big idea, audience, offer, headline, channel mix with roles and vendors, a forecast range (contracts, sales, cost to sales) computed from the history, guardrails (stop rule, budget in two halves), a campaign code and holdout for measurement, and the past campaigns it builds on. A channel that is underperforming for the project today is capped automatically.
+- Not only ad campaigns: **offers and pricing, partnerships (banks, employers), events and on-site experiences, broker programmes, content and PR, budget and channel shifts, positioning, referral and community**. Each initiative is labelled with its type.
+- **CRM signals** (`lib/crm-signals.ts`): the CRM is checked for unusual changes per project and campaign: a sudden drop or surge in leads or qualified leads (last 3 weeks vs the 8 before, beyond normal week-to-week swings), a steady 12-week decline, a fall in contracts by closing month, a fall in the qualified rate, and more leads lost on price, financing, location or to a competitor. Each signal names the campaigns, vendors and channels that drove it (e.g. a paused campaign).
+- **Every signal gets an answer:** when one is found, at least one initiative responds to its cause and says which signal it answers ("Answers the CRM signal: Marina Tower: new leads down 39% in the last 3 weeks"). The AI is required to cover each signal and the system checks it; if it doesn't, the built-in answer is added. Follow-up of the leads themselves stays with Kinan's agent.
+- In the demo the CRM shows three signals: **Andalus Quarter leads falling for 12 weeks (−41%)**, mostly because the Sada creator programme was paused; **Andalus contracts down (0 in May vs 2.3 a month)**; and **Marina Tower leads down 39% in 3 weeks**, after PropertyHub's featured portal slot lapsed on 11 May.
+- Ask with a brief (project, month, budget, goal, audience, notes — or nothing) on the **Initiatives** page, press **Initiatives for this** next to a CRM signal, or ask in the chat ("ideas for a Ramadan campaign for Marina Tower, SAR 300K", "any unusual drop in leads?").
+- Initiatives are also grounded in: the project's gap to target, the season (Ramadan, summer, Cityscape, after summer), what worked and failed in the 2023–2025 campaigns, today's checks, and which vendors are available (current, pre-vetted alternatives, past vendors).
+- Each initiative has a big idea, audience, offer, headline, channel mix with roles and vendors, a forecast range (contracts, sales, cost to sales) computed from the history, guardrails (stop rule, budget in two halves), a campaign code and holdout for measurement, and the past campaigns it builds on. A channel that is underperforming for the project today is capped automatically.
 - With AI, two different models propose ideas and a third step ranks them against the data (score, why, one improvement); without AI, built-in concepts for each season and goal.
-- Shortlist, approve or discard with a name. Approving drafts a campaign brief to the lead vendor in its language; it is sent only after the manager approves it.
+- Shortlist, approve or discard with a name. Approving drafts a brief to the lead vendor in its language; it is sent only after the manager approves it.
 
 ## 1b. Campaign history — 2023–2025
 
@@ -60,13 +64,14 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - cost to sales by channel (red where it is more than 1.5× the 2023–2025 average).
 
   The charts are built from plain HTML tables rather than images or SVG, so they look the same in Outlook, Gmail, Apple Mail, on phones, in the app and in the PDF and HTML downloads. Their numbers come from the same chart engine as the assistant, in English and Arabic.
-- **Campaign ideas every day:** each daily report (and live snapshot) has three campaign ideas, each with:
+- **Market initiatives every day:** each daily report (and live snapshot) starts the section with **what the CRM shows** (the signals above), then three or four initiatives, each with:
+  - its type, and the CRM signal it answers (if any);
   - the big idea, offer, headline and channel mix;
   - the lead vendor;
   - a forecast from the 2023–2025 history.
-  - **Variety:** each day focuses on a different project (cycling from the one furthest behind target) with a different creative angle, such as partnerships, on-site experiences, the investor story or first-time buyers.
+  - **Focus:** when the CRM shows a signal, the day focuses on the project concerned (cycling between them if several); otherwise each day focuses on a different project (cycling from the one furthest behind target) with a different creative angle, such as partnerships, on-site experiences, the investor story or first-time buyers.
   - **Which AI does the creative work:** two different models generate ideas for variety (Gemini and OpenAI by default) and Claude ranks them against the data. In the Claude app edition, Claude does both; without keys, the built-in rules.
-  - **Cost:** ideas are generated once per day and language, then reused. They also appear on the Ideas page to shortlist or approve.
+  - **Cost:** ideas are generated once per day and language, then reused. They also appear on the Initiatives page to shortlist or approve.
 - **▶ Play — the report as a presentation:**
   - one slide per section, chart and idea, auto-advancing with a progress bar;
   - an optional voice-over (the browser's own voice, English or Arabic);
@@ -123,7 +128,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 
 - Ask about targets, the plan, today's check and what changed since yesterday, any campaign (live or past, by name or code), any vendor (current, alternative or past), projects, channels, any month, quarter or year, comparisons, the campaign history and its lessons, metric definitions, tests, trials, invoices, Meta, what vendors owe, the daily report — in **English or Arabic**.
 - **Three AI providers built in: Claude (Anthropic), OpenAI and Google Gemini**, with a task router: each kind of work goes to the provider best suited to it (data questions, analysis and Arabic drafting to Claude first; campaign ideation to Gemini plus a second model; long or bulk work to Gemini Flash), and the next provider answers if one fails. With any key, the assistant answers free-form questions using 20 read-only data tools plus campaign ideation. Each answer shows which model wrote it.
-- **Without a key** (and in the demo file), built-in answers cover a wide range of questions, including campaign ideas; a 145-question English/Arabic test checks them.
+- **Without a key** (and in the demo file), built-in answers cover a wide range of questions, including market initiatives and CRM signals; a 145-question English/Arabic test checks them.
 - **Test it in the Claude app:** the demo can be opened as a claude.ai artifact, where the assistant, the daily second opinion and ideation run on Claude through the viewer's own Claude account, with no API key.
 - **Charts from a prompt, without limits.** With the AI (Claude, OpenAI, Gemini, or Claude in the Claude app), the assistant writes a chart *query* and the app computes it. So almost any chart the data can support can be asked for. For example:
   - *"Spend by year split by channel"*

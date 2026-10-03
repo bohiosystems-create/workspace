@@ -44,13 +44,27 @@ export default function IdeasPage() {
   return (
     <div className="shell">
       <Header />
-      <div className="section-title">{t("Campaign ideas")}</div>
-      <p className="intro">{t("Describe what you need and the director proposes campaign ideas grounded in your data: the project's gap to target, the season, what worked and failed in the 2023–2025 campaigns, today's checks and the vendors available. Forecasts are computed from the campaign history, not by the AI. Approving an idea drafts a brief to the lead vendor for your approval.")}</p>
+      <div className="section-title">{t("Market initiatives")}</div>
+      <p className="intro">{t("Campaigns, offers, partnerships, events, broker programmes, content, budget shifts and positioning — proposed from your data. The CRM is watched for unusual falls or surges in leads, qualified leads, sales and lost reasons, and every signal gets an initiative that answers it. Forecasts are computed from the 2023–2025 campaign history, not by the AI. Approving an initiative drafts a brief to the lead vendor for your approval.")}</p>
       {error && <div className="err">{error}</div>}
       {info && <div className="panel" style={{ marginBottom: 12 }}><div style={{ fontSize: 12.5 }}>{info}</div></div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
       {data && (
         <>
+          <div className="panel" style={{ marginBottom: 12 }}>
+            <div className="chart-label">{t("What the CRM shows")}{data.crmAsOf ? ` · ${t("to")} ${new Date(data.crmAsOf).toLocaleDateString(lang === "ar" ? "ar-SA-u-nu-latn" : "en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}</div>
+            {data.signals.length === 0 && <div className="muted" style={{ fontSize: 12 }}>{t("No unusual change in leads, qualified leads, sales or lost reasons in the CRM.")}</div>}
+            {data.signals.map((sg: any) => (
+              <div key={sg.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0", borderTop: "1px solid var(--line)", flexWrap: "wrap" }}>
+                <span className={`pill ${sg.direction === "up" ? "healthy" : sg.severity === "crit" ? "weak" : "watch"}`} style={{ flex: "none" }}>{sg.direction === "up" ? t("Opportunity") : sg.severity === "crit" ? t("Urgent") : t("Watch")}</span>
+                <div style={{ flex: "1 1 320px", fontSize: 12, lineHeight: 1.55 }}>
+                  <b>{sg.title}</b>
+                  <div className="muted" style={{ fontSize: 11.5 }}>{sg.why}</div>
+                </div>
+                {sg.projectKey && <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, flex: "none" }} disabled={busy === sg.id} onClick={() => act({ action: "GENERATE", brief: { project: sg.projectKey, signalId: sg.id, engine: brief.engine } }, sg.id)}>{busy === sg.id ? t("Thinking…") : t("Initiatives for this")}</button>}
+              </div>
+            ))}
+          </div>
           <div className="panel">
             <div className="chart-label">{t("Brief")}</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
@@ -66,7 +80,7 @@ export default function IdeasPage() {
               <div className="field" style={{ flex: "2 1 320px" }}><label>{t("Anything else (optional)")}</label><input className="in" dir="auto" value={brief.notes} onChange={set("notes")} placeholder={t("e.g. new phase release, show unit ready in August, avoid outdoor")} /></div>
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
-              <button className="btn" disabled={busy === "gen"} onClick={() => act({ action: "GENERATE", brief: { ...brief, engine: brief.engine } }, "gen")}>{busy === "gen" ? t("Thinking…") : t("Generate ideas")}</button>
+              <button className="btn" disabled={busy === "gen"} onClick={() => act({ action: "GENERATE", brief: { ...brief, engine: brief.engine } }, "gen")}>{busy === "gen" ? t("Thinking…") : t("Generate initiatives")}</button>
               {data.ai.enabled && (
                 <label className="muted" style={{ fontSize: 11 }}><input type="checkbox" checked={brief.engine === "rules"} onChange={(e) => setBrief({ ...brief, engine: e.target.checked ? "rules" : "auto" })} /> {t("Built-in rules only (no AI)")}</label>
               )}
@@ -85,7 +99,7 @@ export default function IdeasPage() {
             <div className="panel"><div className="muted" style={{ fontSize: 11.5 }}>{t("Shortlist the ideas worth discussing; approving one drafts a campaign brief to its lead vendor. Nothing is sent and no money is committed until you approve the email and the vendor's proposal.")}</div></div>
           </div>
 
-          {runs.length === 0 && <div className="panel" style={{ marginTop: 14 }}><div className="muted">{t("No ideas yet. Fill in the brief (or leave it empty for the project furthest behind target) and generate.")}</div></div>}
+          {runs.length === 0 && <div className="panel" style={{ marginTop: 14 }}><div className="muted">{t("No initiatives yet. Fill in the brief (or leave it empty for the project furthest behind target) and generate, or answer a CRM signal above.")}</div></div>}
           {runs.map(([run, ideas]) => (
             <div key={run} style={{ marginTop: 18 }}>
               <div className="chart-label">{ideas[0].brief.projectLabel} · {ideas[0].brief.monthLabel} · {ideas[0].brief.seasonLabel} · {ideas[0].brief.goalLabel} · <span dir="ltr">{lang === "ar" ? `${ideas[0].brief.budgetK} ألف ر.س` : `SAR ${ideas[0].brief.budgetK}K`}</span></div>
@@ -110,8 +124,10 @@ function IdeaCard({ x, t, lang, busy, approver, act }: any) {
         {x.status !== "NEW" && <span className={`pill ${STATUS_PILL[x.status] ?? ""}`}>{t(x.status)}{x.decidedBy ? ` · ${x.decidedBy}` : ""}</span>}
         {x.score !== null && x.score !== undefined && <span className="tag" dir="ltr">{x.score}/10</span>}
         <span className="muted" style={{ fontSize: 10 }} dir="ltr">{x.source === "rules" ? t("Built-in") : `${PROVIDER[x.source] ?? x.source}${x.model ? ` · ${x.model}` : ""}`}{x.judge ? ` → ${PROVIDER[x.judge.by]}` : ""}</span>
+        <span className="tag">{x.kindLabel}</span>
         <span className="tag" dir="ltr">{x.campaignCode}</span>
       </div>
+      {x.trigger && <div style={{ fontSize: 12, marginTop: 6, padding: "5px 9px", borderInlineStart: "3px solid var(--alert)", background: "var(--paper)" }}>{t("Answers the CRM signal")}: <b>{x.trigger.title}</b><div className="muted" style={{ fontSize: 11 }}>{x.trigger.why}</div></div>}
       <div style={{ fontSize: 13, marginTop: 6, lineHeight: 1.55 }}>{x.bigIdea}</div>
       <div className="row twocol" style={{ marginTop: 8, gap: 12 }}>
         <div style={{ fontSize: 12, lineHeight: 1.6 }}>

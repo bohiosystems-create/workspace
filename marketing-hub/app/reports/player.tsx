@@ -14,7 +14,7 @@ const clean = (s: string) => s.replace(/\s+/g, " ").trim();
 export function slidesFrom(html: string, title: string, lang: string): Slide[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const sub = clean(doc.querySelector("h1 + div")?.textContent ?? "");
-  const slides: Slide[] = [{ kicker: lang === "ar" ? "بوهيو · مساعد مدير التسويق الذكي" : "BOHIO · AI Assistant Director of Marketing", html: `<div style="font-size:30px;font-weight:700;line-height:1.25">${title.replace(/</g, "&lt;")}</div><div style="margin-top:14px;font-size:14px;color:#5b6170">${sub.replace(/</g, "&lt;")}</div>`, say: title }];
+  const slides: Slide[] = [{ kicker: lang === "ar" ? "كنان · مساعد مدير التسويق الذكي" : "KINAN · AI Assistant Director of Marketing", html: `<div style="font-size:30px;font-weight:700;line-height:1.25">${title.replace(/</g, "&lt;")}</div><div style="margin-top:14px;font-size:14px;color:#5b6170">${sub.replace(/</g, "&lt;")}</div>`, say: title }];
   let sections = [...doc.querySelectorAll<HTMLElement>("[data-slide]")];
   if (!sections.length) sections = [...doc.querySelectorAll<HTMLElement>("body > div > div")].filter((d) => /background:\s*#fff/.test(d.getAttribute("style") ?? ""));
   for (const sec of sections) {

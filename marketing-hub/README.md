@@ -1,4 +1,4 @@
-# Bohio — AI Assistant Director of Marketing (standalone)
+# Kinan — AI Assistant Director of Marketing (standalone)
 
 An AI assistant director of marketing for a company with **one marketing manager
 and no marketing team**: it holds the plan to the sales targets, runs the
@@ -59,7 +59,7 @@ The work a marketing team would do with the vendors, done by the director (`lib/
 The director writes the manager's daily report (`lib/reports.ts`) and emails it through Outlook:
 
 - **Content** (same data as the Director page, no AI needed): headline and brief; sales vs target per project with the month's forecast; **what changed since the last report** (sales, decisions waiting, uncontacted leads, late deliverables, overdue work orders, invoice exceptions, overdue payments, failed Kinan deliveries, critical risks — compared with the stored snapshot of the previous report); decisions waiting with minutes; vendors (escalations, late deliverables, exits / replacements); leads and Kinan (uncontacted leads, last 24h of the Kinan feed, best and weakest sources); risks; supplier invoices; data freshness. HTML email (RTL for Arabic) plus a text version; every report is kept in the history and can be viewed or downloaded as **PDF** (A4, generated in the browser, Arabic included — `app/_components/reportPdf.ts`) or HTML. In the Claude app edition downloads go through the artifact's `downloads` capability.
-- **Campaign ideas** (`dailyIdeas` in `lib/ideation.ts`): three ideas a day via the ideation pipeline. The `ideate` route (Gemini + OpenAI) generates them and the `judge` route (Claude) ranks them. Each day rotates the focus project and creative angle. Ideas are generated once per day and language and also listed on the Ideas page.
+- **Market initiatives** (`dailyIdeas` in `lib/ideation.ts`): the section opens with **what the CRM shows** (`lib/crm-signals.ts`), then three or four initiatives a day via the ideation pipeline, each answering a CRM signal where there is one. The `ideate` route (Gemini + OpenAI) generates them and the `judge` route (Claude) ranks them. The focus project is the one with a CRM signal (else a rotation from the furthest behind target). Generated once per day and language and also listed on the Initiatives page.
 - **▶ Play** (`app/reports/player.tsx`): any report as a slideshow. Slides are split on the report's `data-slide` / `data-part` markers, with optional speech-synthesis narration.
 - **Charts** (`lib/report-charts.ts`): sales vs target per project, sales by month, revenue share by vendor, and cost to sales by channel. They are built from HTML tables (no SVG or images), so Outlook desktop, Gmail, Apple Mail, the in-app view and the PDF/HTML downloads all show them the same. The numbers come from the chart engine (`lib/chart-query.ts`). The plain-text part lists the same figures.
 - **Schedule** (set on the page, change recorded with a name): time, timezone (default 07:30 Asia/Riyadh), days (default Sunday–Thursday), language(s), recipients, optional copy of the brief to Kinan's agent (`brief.daily`).
@@ -79,7 +79,7 @@ The director writes the manager's daily report (`lib/reports.ts`) and emails it 
 
 ## AI providers and task routing — Claude, OpenAI and Gemini (`lib/llm.ts`)
 
-All three are built in behind one interface. Everything works without any of them (built-in rules); with a key, the assistant answers free-form questions, campaign ideas come from AI models, drafts are polished, and the daily check gets an AI second opinion.
+All three are built in behind one interface. Everything works without any of them (built-in rules); with a key, the assistant answers free-form questions, market initiatives come from AI models, drafts are polished, and the daily check gets an AI second opinion.
 
 Every AI job names a **task**, and the router sends it to the best provider for that task among those with a key, falling back down the list when one fails (outage, rate limit, auth, empty answer):
 
@@ -88,7 +88,7 @@ Every AI job names a **task**, and the router sends it to the best provider for 
 | `chat` | questions on the data, with 20 read-only lookups (including charts) | Claude → OpenAI → Gemini | deep |
 | `analysis` | daily second opinion, vendor briefings | Claude → OpenAI → Gemini | deep |
 | `draft` | vendor email wording (formal Arabic / English, facts unchanged) | Claude → OpenAI → Gemini | fast |
-| `ideate` | campaign ideas — run on **two** providers for variety | Gemini → OpenAI → Claude | deep |
+| `ideate` | market initiatives — run on **two** providers for variety | Gemini → OpenAI → Claude | deep |
 | `judge` | rank and filter ideas against the data and the history | Claude → OpenAI → Gemini | deep |
 | `summarize` | long inputs, bulk and low-cost work | Gemini → OpenAI → Claude | fast |
 
@@ -98,14 +98,15 @@ Every AI job names a **task**, and the router sends it to the best provider for 
 - Models only read data and create drafts. There is no tool to send, approve or spend.
 - Tested against mock servers for all three providers (tool calls, Gemini thought signatures, failover, per-task routing, ideation ensemble and judge), **not yet with real keys**.
 
-## Campaign ideas (`/ideas`)
+## Market initiatives (`/ideas`, menu "Initiatives")
 
-Describe a brief (project, month, budget, goal, audience, anything else — or leave it empty) and the director proposes campaign ideas grounded in the data (`lib/ideation.ts`):
-- **Context:** the project's gap to target, the season of the month (Ramadan, summer, Cityscape in November, after summer), channel benchmarks and lessons from the 2023–2025 history, today's daily-check flags for the project, and the vendors available (current, bench alternatives when exiting a vendor, past vendors for events and radio).
-- **Ideas:** title, big idea, audience, offer, headline, channel mix with each channel's role and vendor. With AI, the `ideate` task runs on two different providers and the `judge` task scores them (1–10, why, one improvement) and keeps the best distinct three; without AI, season- and goal-aware built-in concepts (broker sprint, open-house expo, payment plan, summer list → September pre-sale, launch with proof).
+Describe a brief (project, month, budget, goal, audience, anything else — or leave it empty), or press **Initiatives for this** next to a CRM signal, and the director proposes market initiatives grounded in the data (`lib/ideation.ts`). Types: campaign, offer & pricing, partnership, event & experience, broker programme, content & PR, budget & channel shift, positioning, referral & community.
+- **CRM signals** (`lib/crm-signals.ts`): from CRM leads per portfolio, project and campaign — sudden drop / surge (last 3 weeks vs the 8 before, z with the baseline's over-dispersion: drop ≥25% and z ≤ −2; surge ≥30% and z ≥ 2.5), steady 12-week decline (fitted trend ≥25% down, t ≤ −2.5), qualified-rate drop (≥20% relative, two-proportion z ≤ −2), contracts by closing month (≤70% of the 3 months before, Poisson p < 0.1), and market lost reasons (price, financing, competitor, location: +6 points, z ≥ 2.5). Each signal lists the campaigns that drove it (paused / ended noted). Up to two signals for the project are passed to the AI as `crmSignalsToAnswer`; every one must be answered by an initiative with `trigger` = the signal id, and `coverSignals` adds the built-in answer if the models missed one. Signals are answered when the initiative runs within 6 months of the CRM data. The mock CRM includes one deliberate dip (Marina Tower's featured portal slot lapsed on 11 May: about 60% fewer new portal enquiries; deals already in motion kept, so revenue is unchanged).
+- **Context:** the project's gap to target, the season of the month (Ramadan, summer, Cityscape in November, after summer), channel benchmarks and lessons from the 2023–2025 history, today's daily-check flags for the project, and the vendors available (current, pre-vetted alternatives when exiting a vendor, past vendors for events and radio).
+- **Initiatives:** type, the CRM signal answered (if any), title, big idea, audience, offer, headline, channel mix with each channel's role and vendor. With AI, the `ideate` task runs on two different providers and the `judge` task scores them (1–10, why, one improvement) and keeps the best distinct three or four; without AI, built-in answers to each signal type (recover a channel's lead flow, refill the funnel, closing offer, quality reset, bank partnership, proof vs competitors, neighbourhood tours, scale what works) plus season- and goal-aware concepts (broker sprint, open-house expo, payment plan, bank & employer partnership, owners' referral, summer list → September pre-sale, launch with proof).
 - **Computed, never invented:** forecasts (contracts and sales ranges, cost to sales) come from the history, adjusted for the project and season; a channel costing over 2× its benchmark for the project today is capped at 20%; guardrails (stop rule, budget in two halves), a campaign code and holdout for measurement, and the past campaigns it builds on.
 - **Decisions:** shortlist, approve or discard with a name. Approving drafts a campaign brief email to the lead vendor in its language — sent only after the manager approves it in the assistant.
-- The assistant answers "ideas for a Ramadan campaign for Marina Tower, SAR 300K" (built-in or AI, `ideate_campaigns` tool).
+- The assistant answers "ideas for a Ramadan campaign for Marina Tower, SAR 300K" (built-in or AI, `ideate_campaigns` tool) and "any unusual drop in leads?" (`get_crm_signals`).
 
 ## More data to ask about (sample)
 
