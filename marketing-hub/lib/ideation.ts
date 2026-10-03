@@ -33,7 +33,7 @@ const PROJECT_CODE: Record<string, string> = { "Ash Shati Residences": "ASH", "M
 const CATEGORY_FAMILY: Record<string, Family> = { "Broker network": "BROKER", "Property portal": "PORTAL", "Performance media": "DIGITAL", "PR & brand": "PR", Influencer: "INFLUENCER", Outdoor: "OUTDOOR" };
 const PAST_VENDOR: Partial<Record<Family, string>> = { EVENT: "Wajha Events", RADIO: "Sawt FM" };
 
-export type IdeaBrief = { project?: string; goal?: Goal; month?: string; budgetK?: number; audience?: string; notes?: string; engine?: "auto" | "rules" };
+export type IdeaBrief = { project?: string; goal?: Goal; month?: string; budgetK?: number; audience?: string; notes?: string; engine?: "auto" | "rules"; runTag?: string };
 export type Channel = { family: Family; label: Bi; sharePct: number; role: Bi; spendK: number; vendor: string; vendorStatus: "current" | "bench" | "past"; vendorNote: Bi; ctsPct: number; qualified: number; contracts: number; salesM: number };
 export type Idea = {
   title: Bi; bigIdea: Bi; audience: Bi; offer: Bi; headline: Bi; channels: Channel[];
@@ -329,7 +329,7 @@ export const generateIdeas = serial(async function generateIdeasImpl(brief: Idea
     else note = tx(lang, "The AI did not return usable ideas, so these come from the built-in rules.", "لم يُرجع الذكاء الاصطناعي أفكاراً صالحة، لذا هذه من القواعد المدمجة.");
   }
   if (!ideas.length) ideas = rulesDrafts(c).map((d) => finalize(c, d)).filter(Boolean) as Idea[];
-  const runKey = `${new Date().toISOString()}|${c.project}|${c.month}`;
+  const runKey = `${new Date().toISOString()}|${brief.runTag ? `${brief.runTag}|` : ""}${c.project}|${c.month}`;
   const savedBrief = { project: c.project, month: c.month, budgetK: c.budgetK, goal: c.goal, audience: c.audience, notes: c.notes, season: c.season.key };
   for (const idea of ideas) await prisma.campaignIdea.create({ data: { runKey, brief: JSON.stringify(savedBrief), payload: JSON.stringify(idea), source: idea.source, score: idea.score ?? null } });
   return { runKey, engine, note, count: ideas.length };
@@ -400,4 +400,42 @@ export async function ideasAnswer(brief: IdeaBrief, lang: Lang) {
       `${i + 1}. **${x.title}** — ${x.bigIdea}\n   المزيج: ${x.channels.map((ch) => `${ch.label} ${ch.sharePct}%`).join("، ")}. التوقع: ${x.forecast.contracts[0]}–${x.forecast.contracts[2]} عقود، ${M("ar", `${x.forecast.salesM[0]}–${x.forecast.salesM[2]}`)} (نحو ${x.forecast.costToSalesPct}% من المبيعات).`)).join("\n") +
     (g.note ? `\n\n${g.note}` : "") +
     T(`\n\nForecasts come from the 2023–2025 history${g.engine === "rules" ? "; ideas from the built-in rules" : ` (ideas by ${g.engine})`}. Shortlist or approve them on the **Ideas** page — approving drafts a brief to the lead vendor for your approval.`, `\n\nالتوقعات من تاريخ 2023–2025${g.engine === "rules" ? "؛ والأفكار من القواعد المدمجة" : ` (الأفكار من ${g.engine})`}. أدرجوها في القائمة المختصرة أو اعتمدوها من صفحة **الأفكار** — يُعِدّ الاعتماد موجزاً للمورد الرئيسي لتعتمدوه.`);
+}
+
+// --------------------------------------------------------------- daily ideas for the report
+// Every daily report (and live snapshot) carries fresh campaign ideas. Creative work goes to the "ideate" route
+// (two different models for variety — Gemini and OpenAI by default — ranked by the "judge" route, Claude); without
+// AI keys, the built-in rules. To keep them fresh, each day focuses on another project (cycling from the one furthest
+// behind target) with a different creative angle. Generated once per day and language, then reused; the ideas also
+// appear on the Ideas page to shortlist or approve.
+const ANGLES: Bi[] = [
+  bi("Partnerships: banks, employers or schools that bring qualified buyers", "الشراكات: بنوك أو جهات عمل أو مدارس تجلب مشترين مؤهلين"),
+  bi("An on-site experience that gets families to the show units", "تجربة في الموقع تجلب الأسر إلى الوحدات النموذجية"),
+  bi("The investor story: yield, rental demand and resale", "قصة المستثمر: العائد والطلب الإيجاري وإعادة البيع"),
+  bi("First-time buyers: make the financing simple and visible", "المشترون لأول مرة: تبسيط التمويل وإبرازه"),
+  bi("Referrals and the owners' community", "الإحالات ومجتمع الملاك"),
+  bi("Creators and content that show daily life in the project", "صناع المحتوى ومحتوى يُظهر الحياة اليومية في المشروع"),
+  bi("Data-led digital: retargeting and lookalikes from CRM-qualified leads", "رقمي قائم على البيانات: إعادة الاستهداف والجماهير المشابهة من العملاء المؤهلين"),
+  bi("The season or calendar moment ahead", "الموسم أو المناسبة القادمة"),
+];
+export async function dailyIdeas(date: string, lang: Lang = "en") {
+  const tag = `DAILY:${date}`;
+  const pick = async () => (await prisma.campaignIdea.findMany()).filter((r) => r.runKey.includes(`|${tag}|`));
+  let rows = await pick();
+  const day = Math.floor(Date.parse(`${date}T00:00:00Z`) / 86400000);
+  const angle = ANGLES[day % ANGLES.length];
+  let engine = rows[0]?.source ?? "";
+  if (!rows.length) {
+    const d = await buildDirector("en");
+    const order = [...d.targets.byAsset].sort((p, q) => (p.pct ?? 0) - (q.pct ?? 0)).map((x) => x.asset);
+    const project = order[day % Math.max(1, order.length)];
+    const r = await generateIdeas({ project, notes: `Creative angle for today: ${angle.en}`, runTag: tag }, lang);
+    engine = r.engine; rows = await pick();
+  }
+  const runKey = rows.map((r) => r.runKey).sort().pop();
+  const ideas = rows.filter((r) => r.runKey === runKey).sort((p, q) => (q.score ?? 0) - (p.score ?? 0) || p.createdAt.getTime() - q.createdAt.getTime()).slice(0, 3).map(view(lang));
+  const b = ideas[0]?.brief;
+  const sources = [...new Set(ideas.map((i) => i.source))];
+  const judge = ideas.find((i) => i.judge)?.judge?.by ?? null;
+  return { angle: lang === "ar" ? angle.ar : angle.en, project: b?.projectLabel ?? "", month: b?.monthLabel ?? "", goal: b?.goalLabel ?? "", budgetK: b?.budgetK ?? null, ideas, sources, judge, engine };
 }

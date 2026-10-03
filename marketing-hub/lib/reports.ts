@@ -16,6 +16,7 @@ import { buildAgent } from "./agent";
 import { historyState } from "./history";
 import { reportCharts, kpiTiles, metaRevenueChart } from "./report-charts";
 import { buildChatContext } from "./chat";
+import { dailyIdeas } from "./ideation";
 import { runChartQuery } from "./chart-query";
 import { buildDirector } from "./director";
 import { buildOrchestration } from "./orchestrator";
@@ -97,6 +98,7 @@ const C = { ink: "#000919", soft: "#5b6170", line: "#d9d7d4", alert: "#d6334b", 
 export async function buildReport(lang: Lang, date: string, prev: { metrics: Metrics; date: string; at: Date } | null) {
   const T = (en: string, ar: string) => tx(lang, en, ar);
   const N = (s: string) => nm(lang, s);
+  const ideasP = ideasSection(lang, date); // runs alongside the rest (AI ideation can take a while)
   const a = await buildAgent(lang);
   const [d, o, events] = await Promise.all([buildDirector(lang, a), buildOrchestration(lang, a), prisma.kinanEvent.findMany()]);
   const since = Date.now() - DAY;
@@ -138,7 +140,7 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   // Charts (e-mail-safe HTML, numbers from the chart engine).
   const charts = reportCharts({ agent: a, history: await historyState(lang), daily: null as any, lang, meta: null, leads: [], creatives: [] }, lang,
     { byAsset: d.targets.byAsset.map((x) => ({ asset: N(x.asset), actualM: x.actualM, targetM: x.targetM, pct: x.pct })), ytdActualM: d.targets.ytdActualM, ytdTargetM: d.targets.ytdTargetM, ytdPct: d.targets.ytdPct });
-  const chartBox = (h: string) => `<div style="margin:0 0 16px">${h}</div>`;
+  const chartBox = (h: string) => `<div data-part style="margin:0 0 16px">${h}</div>`;
   // 2. Sales vs target
   const rows = d.targets.byAsset.map((x) => [N(x.asset), M(lang, x.actualM), M(lang, x.targetM), `${x.pct}%`, `${M(lang, x.forecastNextM)} / ${M(lang, x.targetNextM)}`, (x.pct ?? 0) < 75]);
   const th = (h: string[]) => `<tr>${h.map((x) => `<th style="text-align:start;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:${C.ink};padding:6px 8px">${esc(x)}</th>`).join("")}</tr>`;
@@ -166,6 +168,8 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
     : `<p style="margin:0">${esc(T("No campaign changes recommended today.", "لا تغييرات مقترحة على الحملات اليوم."))}</p>`;
   sec.push([T(`Campaign recommendations — ${d.campaignRecs.length} open, ${d.campaignRecs.filter((r) => r.severity === "crit").length} urgent`, `توصيات الحملات — ${d.campaignRecs.length} مفتوحة، ${d.campaignRecs.filter((r) => r.severity === "crit").length} عاجلة`), crHtml,
     crs.map((r, i) => `  ${i + 1}. ${r.severity === "crit" ? `[${T("urgent", "عاجل")}] ` : ""}${r.title}${r.impactK && !/SAR|ر\.س/.test(r.title) ? ` (${K(lang, r.impactK)})` : ""} — ${firstSentence(r.why)} → ${HOW(r)}`).join("\n")]);
+  // 4a. Campaign ideas for today.
+  sec.push(await ideasP);
   // 4b. Decisions
   const dec = d.inbox.map((x) => `${esc(x.title)} <span style="color:${C.soft}">(~${x.minutes} ${T("min", "د")})</span>`);
   sec.push([T(`Waiting for your decision — about ${d.managerMinutes} min`, `بانتظار قراركم — نحو ${an(d.managerMinutes, "دقيقة واحدة", "دقيقتين", "دقائق", "دقيقة")}`), dec.length ? ul(dec) : `<p style="margin:0">${T("Nothing waiting.", "لا شيء بالانتظار.")}</p>`, tl(d.inbox.map((x) => `${x.title} (~${x.minutes} min)`))]);
@@ -191,11 +195,40 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
 <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700">${lang === "ar" ? "بوهيو" : "BOHIO"} · ${esc(T("AI Assistant Director of Marketing", "مساعد مدير التسويق الذكي"))}</div>
 <h1 style="font-size:20px;margin:10px 0 4px">${esc(title)}</h1>
 <div style="font-size:12px;color:${C.soft};margin:0 0 18px;border-bottom:2px solid ${C.ink};padding-bottom:10px">${esc(T(`Figures as of ${dt("en", d.asOf)}`, `الأرقام حتى ${dt("ar", d.asOf)}`))}</div>
-${sec.map(([h, body]) => `<div style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}
+${sec.map(([h, body]) => `<div data-slide="${esc(h)}" style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}
 <p style="font-size:11px;color:${C.soft}">${esc(T("Generated automatically by the AI Assistant Director of Marketing. This report takes no action: approvals happen in the app.", "أُعدّ تلقائياً بواسطة مساعد مدير التسويق الذكي. لا يتخذ هذا التقرير أي إجراء: تتم الاعتمادات داخل التطبيق."))}</p>
 </div></body></html>`;
   const text = `${title}\n\n${sec.map(([h, , t]) => `${h.toUpperCase()}\n${t}`).join("\n\n")}\n`;
   return { title, html, text, metrics, headline: d.brief.headline, bullets: d.brief.bullets, actions: d.brief.actions };
+}
+
+// -------------------------------------------------------------------- campaign ideas section
+const WHO: Record<string, string> = { gemini: "Gemini", openai: "OpenAI", anthropic: "Claude", rules: "built-in rules" };
+/** Today's campaign ideas as a report section [heading, html, text]. Never fails the report: on error, a short note. */
+async function ideasSection(lang: Lang, date: string): Promise<[string, string, string]> {
+  const T = (en: string, ar: string) => tx(lang, en, ar);
+  try {
+    const di = await dailyIdeas(date, lang);
+    if (!di.ideas.length) return [T("Campaign ideas for today", "أفكار الحملات لليوم"), `<p style="margin:0">${esc(T("No ideas today.", "لا أفكار اليوم."))}</p>`, ""];
+    const by = di.sources.filter((x) => x !== "rules").map((x) => WHO[x] ?? x);
+    const engine = by.length ? T(`Ideas by ${by.join(" + ")}${di.judge ? `, ranked by ${WHO[di.judge] ?? di.judge}` : ""}`, `أفكار من ${by.join(" + ")}${di.judge ? `، رتّبها ${WHO[di.judge] ?? di.judge}` : ""}`) : T("Ideas from the built-in rules (no AI key)", "أفكار من القواعد المدمجة (دون مفتاح ذكاء اصطناعي)");
+    const rng = (x: [number, number, number]) => `${x[0]}–${x[2]}`;
+    const card = (i: (typeof di.ideas)[number], n: number) => `<div data-part style="border-top:1px solid ${C.line};padding:10px 0 2px">
+      <div style="font-size:14px;font-weight:700">${n}. ${esc(i.title)}${i.score ? ` <span style="font-size:11px;font-weight:400;color:${C.soft}">· ${esc(T("score", "التقييم"))} ${i.score}/10</span>` : ""}</div>
+      <div style="margin:4px 0">${esc(i.bigIdea)}</div>
+      ${i.offer ? `<div style="font-size:12px"><b>${esc(T("Offer", "العرض"))}:</b> ${esc(i.offer)}${i.headline ? ` · <b>${esc(T("Headline", "العنوان"))}:</b> “${esc(i.headline)}”` : ""}</div>` : ""}
+      <div style="font-size:12px;color:${C.soft};margin-top:3px">${esc(i.channels.map((ch) => `${ch.label} ${ch.sharePct}%`).join(" · "))}${i.leadVendor ? ` · ${esc(T("lead vendor", "المورد الرئيسي"))} ${esc(i.leadVendor)}` : ""}</div>
+      <div style="font-size:12px;margin-top:3px"><b>${esc(T("Forecast", "التوقع"))}:</b> ${esc(T(`${rng(i.forecast.contracts)} contracts, SAR ${rng(i.forecast.salesM)}M, ~${i.forecast.costToSalesPct}% cost to sales on SAR ${i.forecast.spendK}K`, `${rng(i.forecast.contracts)} عقود، ${rng(i.forecast.salesM)} مليون ر.س، نحو ${i.forecast.costToSalesPct}% من المبيعات مقابل ${i.forecast.spendK} ألف ر.س`))}</div>
+      ${i.judge?.why ? `<div style="font-size:11px;color:${C.soft};margin-top:3px">${esc(i.judge.why)}</div>` : ""}
+    </div>`;
+    const html = `<p style="margin:0 0 4px">${esc(T(`Focus today: <${di.project}> for ${di.month} (${di.goal.toLowerCase()}), angle: ${di.angle}.`, `تركيز اليوم: <${di.project}> لشهر ${di.month} (${di.goal})، الزاوية: ${di.angle}.`)).replace(/&lt;(.*?)&gt;/, "<b>$1</b>")}</p>` +
+      di.ideas.map((x, k) => card(x, k + 1)).join("") +
+      `<p style="margin:8px 0 0;color:${C.soft};font-size:11px">${esc(engine)}. ${esc(T("Forecasts come from the 2023–2025 history, not from the AI. Shortlist or approve on the Ideas page; approving drafts a vendor brief for your approval.", "التوقعات من تاريخ 2023–2025 وليست من الذكاء الاصطناعي. ضعوها في القائمة المختصرة أو اعتمدوها من صفحة الأفكار؛ الاعتماد يُعدّ موجزاً للمورد بانتظار موافقتكم."))}</p>`;
+    const text = `${T(`Focus: ${di.project}, ${di.month}; angle: ${di.angle}`, `التركيز: ${di.project}، ${di.month}؛ الزاوية: ${di.angle}`)}\n` + di.ideas.map((i, n) => `  ${n + 1}. ${i.title} — ${i.bigIdea} (${rng(i.forecast.contracts)} ${T("contracts", "عقود")}, SAR ${rng(i.forecast.salesM)}M)`).join("\n") + `\n  ${engine}`;
+    return [T("Campaign ideas for today", "أفكار الحملات لليوم"), html, text];
+  } catch (e: any) {
+    return [T("Campaign ideas for today", "أفكار الحملات لليوم"), `<p style="margin:0;color:${C.soft}">${esc(T("Ideas could not be prepared this time; open the Ideas page to generate them.", "تعذّر إعداد الأفكار هذه المرة؛ افتحوا صفحة الأفكار لإنشائها."))}</p>`, ""];
+  }
 }
 
 // -------------------------------------------------------------------- live snapshot
@@ -242,10 +275,11 @@ export async function buildSnapshot(lang: Lang, at: Date, prev: { metrics: Metri
   const title = T(`Live marketing snapshot — ${stamp}`, `لقطة تسويقية فورية — ${stamp}`);
   const sec: [string, string, string][] = [
     [T("Headline figures", "الأرقام الرئيسية"), tiles, ""],
-    [T("Charts", "الرسوم البيانية"), allCharts.map((x) => `<div style="margin:0 0 18px">${x.html}</div>`).join(""), allCharts.map((x) => `${x.title}\n${x.text}`).join("\n")],
+    [T("Charts", "الرسوم البيانية"), allCharts.map((x) => `<div data-part style="margin:0 0 18px">${x.html}</div>`).join(""), allCharts.map((x) => `${x.title}\n${x.text}`).join("\n")],
     [T(`Today's campaign check — ${items.length ? `${(c.daily as any).recommendations.length} items` : "clear"}`, `فحص الحملات اليوم — ${items.length ? `${(c.daily as any).recommendations.length} ملاحظات` : "لا ملاحظات"}`), checkHtml, items.map((r: any) => `  • ${r.title}`).join("\n")],
     [T(`Waiting for your decision — about ${d.managerMinutes} min`, `بانتظار قراركم — نحو ${d.managerMinutes} دقيقة`), dec.length ? `<ul style="margin:6px 0 0;padding-inline-start:18px;line-height:1.6">${dec.map((x) => `<li>${x}</li>`).join("")}</ul>` : `<p style="margin:0">${esc(T("Nothing waiting.", "لا شيء بالانتظار."))}</p>`, d.inbox.map((x) => `  • ${x.title}`).join("\n")],
   ];
+  sec.splice(3, 0, await ideasSection(lang, ln.date));
   if (changes) sec.push([T(changes[1].replace("Since the last report", "Since the last report or snapshot"), changes[1].replace("منذ التقرير السابق", "منذ التقرير أو اللقطة السابقة")), changes[2], ""]);
 
   const dir = lang === "ar" ? "rtl" : "ltr";
@@ -255,7 +289,7 @@ export async function buildSnapshot(lang: Lang, at: Date, prev: { metrics: Metri
 <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700">${lang === "ar" ? "بوهيو" : "BOHIO"} · ${esc(T("AI Assistant Director of Marketing", "مساعد مدير التسويق الذكي"))}</div>
 <h1 style="font-size:20px;margin:10px 0 4px">${esc(title)}</h1>
 <div style="font-size:12px;color:${C.soft};margin:0 0 18px;border-bottom:2px solid ${C.ink};padding-bottom:10px">${esc(T(`Live position at ${ln.hhmm} (${s.timezone}) · figures as of ${dt("en", d.asOf)} · not e-mailed`, `الوضع الفوري الساعة ${ln.hhmm} (${s.timezone}) · الأرقام حتى ${dt("ar", d.asOf)} · لا يُرسل بالبريد`))}</div>
-${sec.map(([h, body]) => `<div style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}
+${sec.map(([h, body]) => `<div data-slide="${esc(h)}" style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}
 <p style="font-size:11px;color:${C.soft}">${esc(T("Snapshot generated on request by the AI Assistant Director of Marketing. It takes no action: approvals happen in the app.", "لقطة أُعدّت عند الطلب بواسطة مساعد مدير التسويق الذكي. لا تتخذ أي إجراء: تتم الاعتمادات داخل التطبيق."))}</p>
 </div></body></html>`;
   const text = `${title}\n\n${sec.filter(([, , t]) => t).map(([h, , t]) => `${h.toUpperCase()}\n${t}`).join("\n\n")}\n`;

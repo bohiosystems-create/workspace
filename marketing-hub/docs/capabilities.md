@@ -60,6 +60,18 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - cost to sales by channel (red where it is more than 1.5× the 2023–2025 average).
 
   The charts are built from plain HTML tables rather than images or SVG, so they look the same in Outlook, Gmail, Apple Mail, on phones, in the app and in the PDF and HTML downloads. Their numbers come from the same chart engine as the assistant, in English and Arabic.
+- **Campaign ideas every day:** each daily report (and live snapshot) has three campaign ideas, each with:
+  - the big idea, offer, headline and channel mix;
+  - the lead vendor;
+  - a forecast from the 2023–2025 history.
+  - **Variety:** each day focuses on a different project (cycling from the one furthest behind target) with a different creative angle, such as partnerships, on-site experiences, the investor story or first-time buyers.
+  - **Which AI does the creative work:** two different models generate ideas for variety (Gemini and OpenAI by default) and Claude ranks them against the data. In the Claude app edition, Claude does both; without keys, the built-in rules.
+  - **Cost:** ideas are generated once per day and language, then reused. They also appear on the Ideas page to shortlist or approve.
+- **▶ Play — the report as a presentation:**
+  - one slide per section, chart and idea, auto-advancing with a progress bar;
+  - an optional voice-over (the browser's own voice, English or Arabic);
+  - pause, back and next, tap or arrow keys;
+  - from the report viewer or the ▶ on any History row.
 - **Run snapshot** (Reports page): a live marketing snapshot built on demand. It contains nine headline figures, the report charts plus Meta revenue, today's campaign check, what's waiting for your decision, and what changed since the last report or snapshot. It is saved in the history and can be downloaded as PDF or HTML; it is never emailed.
 - Emailed through Outlook to internal addresses only; kept in a history to view or download. Optional copy of the brief to Kinan's agent.
 

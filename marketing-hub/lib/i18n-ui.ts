@@ -760,6 +760,12 @@ const UI9: Record<string, string> = {
 
 // Vendor directory (Orchestration)
 const UI10: Record<string, string> = {
+  "Play as a presentation": "تشغيل كعرض تقديمي",
+  "Voice on": "الصوت مفعّل",
+  "Voice off": "الصوت متوقف",
+  "Play": "تشغيل",
+  "Back": "السابق",
+  "Next": "التالي",
   "Run snapshot": "تشغيل لقطة فورية",
   "Building snapshot…": "جارٍ إعداد اللقطة…",
   "Live snapshot": "لقطة فورية",

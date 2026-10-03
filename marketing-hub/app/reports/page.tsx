@@ -5,6 +5,7 @@ import Header from "../_components/Header";
 import { saveFile } from "../_components/saveFile";
 import { useI18n } from "../_components/lang";
 import { MissedQuestions } from "./misses";
+import { ReportPlayer } from "./player";
 import { useApprover } from "../_components/useAgent";
 
 const DAYS = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] };
@@ -18,6 +19,7 @@ export default function ReportsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [view, setView] = useState<any>(null);
+  const [playing, setPlaying] = useState<any>(null); // report shown as a presentation
   const [savedApprover, saveApprover] = useApprover();
   const [approver, setApprover] = useState("");
   const langRef = useRef(lang);
@@ -28,10 +30,10 @@ export default function ReportsPage() {
     setData(x);
     setForm({ ...x.schedule, days: [...x.schedule.days], languages: [...x.schedule.languages] });
   };
-  async function open(id: string | null) {
+  async function open(id: string | null, play = false) {
     if (!id) return;
     const r = await (await fetch(`/api/reports?id=${encodeURIComponent(id)}`)).json();
-    if (!r.error) setView(r);
+    if (!r.error) { setView(r); if (play) setPlaying(r); }
   }
 
   useEffect(() => {
@@ -150,6 +152,7 @@ export default function ReportsPage() {
                     {r.kind === "SNAPSHOT" ? <b>{t("Live snapshot")}</b> : t(r.trigger === "SCHEDULED" ? "Scheduled" : "Manual")} · {r.lang === "ar" ? "العربية" : "English"}{r.delivery === "mock" ? ` · ${t("simulated")}` : ""}{r.kinan ? ` · ${t("sent to Kinan")}` : ""}
                     {(r.recipients || r.error) && <div className="muted" style={{ fontSize: 10 }} dir="ltr">{r.recipients}{r.error ? ` · ${r.error}` : ""}</div>}
                   </div>
+                  <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 10 }} title={t("Play as a presentation")} aria-label={t("Play as a presentation")} onClick={() => open(r.id, true)}>▶</button>
                   <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 8 }} onClick={() => open(r.id)}>{t("View")}</button>
                 </div>
               ))}
@@ -163,6 +166,7 @@ export default function ReportsPage() {
                 <div style={{ flex: 1 }} />
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => download("pdf")}>{busy === "pdf" ? t("Preparing PDF…") : t("Download PDF")}</button>
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => download("html")}>{t("Download HTML")}</button>
+                <button className="btn" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => setPlaying(view)} title={t("Play as a presentation")}>▶ {t("Play")}</button>
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => setView(null)}>{t("Close")}</button>
               </div>
               <iframe title={view.title} sandbox="" srcDoc={view.html} style={{ width: "100%", height: 1100, border: "1px solid var(--ink-hairline)", background: "#fff" }} />
@@ -171,6 +175,7 @@ export default function ReportsPage() {
           <MissedQuestions />
         </>
       )}
+      {playing && <ReportPlayer html={playing.html} title={playing.title} lang={playing.lang ?? lang} onClose={() => setPlaying(null)} />}
     </div>
   );
 }

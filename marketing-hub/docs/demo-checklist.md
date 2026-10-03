@@ -74,6 +74,8 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
   Say: *"The same charts arrive by email — they're built so Outlook shows them, not as images that get blocked."*
 - [ ] Show the **Campaign recommendations — 22 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
+- [ ] Scroll to **Campaign ideas for today**: three ideas with offer, channel mix and forecast. Each day brings a new focus project and creative angle. They're also on the Ideas page to shortlist. Say: *"Two AI models brainstorm, Claude ranks them against our data — and the forecasts come from our history, not the AI."*
+- [ ] Press **▶ Play**: the report becomes a presentation, one slide per section, chart and idea, with a voice-over you can mute.
 - [ ] Show the schedule: 07:30 Riyadh, Sunday–Thursday, English and Arabic, internal addresses only.
 
 ### 6. Approve the June budget plan (3 min)
@@ -104,7 +106,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   - Late vendor deliverables **2 → 1**
   - Work orders with vendors **0 → 7**
   - Overdue work orders **0 → 1**, in red (Nakhla's press release is still late after a reminder)
-- [ ] Click **Download PDF** (or **Download HTML**): the same report the manager gets by email, as an A4 PDF to forward or file. **Download PDF** next to **Send now** also works before any report is open.
+- [ ] Click **Download PDF** (or **Download HTML**): the same report the manager gets by email, as an A4 PDF to forward or file. **Download PDF** next to **Run snapshot** also works before any report is open. Press **▶ Play** (or ▶ on any History row) to watch the report as a presentation: one slide per section, chart and idea, with an optional voice-over.
 
 ### 9. Meta — which agency runs each campaign (3 min)
 
