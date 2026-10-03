@@ -844,6 +844,8 @@ const UI10: Record<string, string> = {
   "high confidence": "ثقة عالية", "medium confidence": "ثقة متوسطة", "low confidence": "ثقة منخفضة", "confirmed": "مؤكَّد",
   "Hide the messages": "إخفاء الرسائل", "Show the messages": "عرض الرسائل",
   "PROMOTE": "ترقية", "EXTEND": "تمديد", "KEEP_INCUMBENT": "الإبقاء على الحالي", "paused": "متوقفة", "ended": "منتهية",
+  "Latest month": "آخر شهر", "best": "الأفضل", "findings": "ملاحظات", "of the 2023–2025 average": "من متوسط 2023–2025",
+  "your time this week": "وقتك هذا الأسبوع", "On track": "على المسار", "Behind": "متأخر",
 };
 
 export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5, ...UI6, ...UI7, ...UI8, ...UI9, ...UI10 };

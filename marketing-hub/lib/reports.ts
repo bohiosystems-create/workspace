@@ -230,22 +230,28 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
 
   // The presentation (▶ Play): one idea per slide, animated charts.
   const urgentN = d.campaignRecs.filter((r) => r.severity === "crit").length;
+  // Extra context for the animated charts: monthly targets under the sales columns, each project's next-month outlook.
+  const enrich = (xs: DeckSlide[]): DeckSlide[] => xs.map((x) => {
+    if (x.kind === "columns" && x.values.length === d.targets.monthly.length) return { ...x, target: d.targets.monthly.map((m) => m.targetM) };
+    if (x.kind === "gauges") return { ...x, items: x.items.map((it, i) => { const p = d.targets.byAsset[i]; return p ? { ...it, outlook: { label: T("June forecast vs target", "توقع يونيو مقابل المستهدف"), forecast: p.forecastNextM, target: p.targetNextM } } : it; }) };
+    return x;
+  });
   const deck: Deck = { lang, title, slides: [
     coverSlide(lang, T("Daily marketing report", "التقرير التسويقي اليومي"), title, T(`Figures as of ${dt("en", d.asOf)}`, `الأرقام حتى ${dt("ar", d.asOf)}`)),
     { kind: "headline", kicker: T("Today's brief", "موجز اليوم"), headline: d.brief.headline,
       kpis: [
-        { label: T("Sales year to date", "المبيعات منذ بداية العام"), value: d.targets.ytdActualM, prefix: lang === "ar" ? "" : "SAR ", suffix: lang === "ar" ? " مليون" : "M", decimals: 1, sub: T(`target SAR ${d.targets.ytdTargetM}M`, `المستهدف ${d.targets.ytdTargetM} مليون`) },
-        { label: T("Of target", "من المستهدف"), value: d.targets.ytdPct, suffix: "%", tone: d.targets.ytdPct < 90 ? "bad" : "good" },
+        { label: T("Sales year to date", "المبيعات منذ بداية العام"), value: d.targets.ytdActualM, prefix: lang === "ar" ? "" : "SAR ", suffix: lang === "ar" ? " مليون" : "M", decimals: 1, sub: T(`target SAR ${d.targets.ytdTargetM}M`, `المستهدف ${d.targets.ytdTargetM} مليون`), spark: d.targets.monthly.map((m) => m.actualM) },
+        { label: T("Of target", "من المستهدف"), value: d.targets.ytdPct, suffix: "%", tone: d.targets.ytdPct < 90 ? "bad" : "good", ring: d.targets.ytdPct },
         { label: T("Your decisions today", "قراراتكم اليوم"), value: d.inbox.length, sub: T(`about ${d.managerMinutes} min`, `نحو ${d.managerMinutes} دقيقة`) },
         { label: T("Campaign recommendations", "توصيات الحملات"), value: d.campaignRecs.length, sub: T(`${urgentN} urgent`, `${urgentN} عاجلة`), tone: urgentN ? "bad" : "neutral" },
       ],
       points: d.brief.actions.slice(0, 3), say: `${d.brief.headline} ${T("This week I recommend:", "أوصي هذا الأسبوع بما يلي:")} ${d.brief.actions.slice(0, 3).join(" ")}` },
-    ...charts.map((c) => c.slide).filter((x): x is DeckSlide => !!x),
+    ...enrich(charts.map((c) => c.slide).filter((x): x is DeckSlide => !!x)),
     ...ideasR.slides,
     { kind: "list", kicker: T("Campaign recommendations", "توصيات الحملات"), title: T(`${d.campaignRecs.length} open · ${urgentN} urgent`, `${d.campaignRecs.length} مفتوحة · ${urgentN} عاجلة`),
       items: d.campaignRecs.slice(0, 5).map((r) => ({ text: r.title, sub: short(firstSentence(r.why), 140), tone: r.severity === "crit" ? "bad" : r.severity === "warn" ? "warn" : "neutral" })), say: T(`Top campaign changes: ${d.campaignRecs.slice(0, 3).map((r) => r.title).join(". ")}.`, `أهم تغييرات الحملات: ${d.campaignRecs.slice(0, 3).map((r) => r.title).join(". ")}.`) },
     { kind: "list", kicker: T("Waiting for your decision", "بانتظار قراركم"), title: T(`About ${d.managerMinutes} minutes, ${d.inbox.length} decisions`, `نحو ${d.managerMinutes} دقيقة، ${d.inbox.length} قرارات`),
-      items: d.inbox.map((x) => ({ text: x.title, minutes: x.minutes, tone: x.severity === "crit" ? "bad" : x.severity === "warn" ? "warn" : "neutral" })), say: T(`${d.inbox.length} decisions wait for you, about ${d.managerMinutes} minutes in total. Everything else is handled.`, `${d.inbox.length} قرارات بانتظاركم، نحو ${d.managerMinutes} دقيقة إجمالاً. والباقي يُنجز تلقائياً.`) },
+      items: d.inbox.map((x) => ({ text: x.title, minutes: x.minutes, tone: x.severity === "crit" ? "bad" : x.severity === "warn" ? "warn" : "neutral" })), totalMinutes: d.managerMinutes, say: T(`${d.inbox.length} decisions wait for you, about ${d.managerMinutes} minutes in total. Everything else is handled.`, `${d.inbox.length} قرارات بانتظاركم، نحو ${d.managerMinutes} دقيقة إجمالاً. والباقي يُنجز تلقائياً.`) },
     ...(recs.length ? [{ kind: "list", kicker: T("Risks", "المخاطر"), title: T("What could hurt this month", "ما قد يضر هذا الشهر"), items: recs.slice(0, 5).map((r) => ({ text: r.title, tone: "bad" as const })), say: T(`Risks: ${recs.slice(0, 3).map((r) => r.title).join(". ")}.`, `المخاطر: ${recs.slice(0, 3).map((r) => r.title).join(". ")}.`) } as DeckSlide] : []),
     closingSlide(lang),
   ] };
@@ -294,7 +300,11 @@ async function ideasSection(lang: Lang, date: string): Promise<{ sec: [string, s
     const slides: DeckSlide[] = [
       { kind: "scan", kicker: KICK, title: T("Every source, scanned this morning", "كل المصادر، فُحصت هذا الصباح"), sources: di.scanned.map((x) => ({ label: x.label, items: x.items, found: x.found })),
         say: T(`This morning the director scanned ${di.scanned.length} sources and found ${di.scanned.reduce((a, x) => a + x.found, 0)} things worth a look.`, `فحص المدير هذا الصباح ${di.scanned.length} مصادر ووجد ${di.scanned.reduce((a, x) => a + x.found, 0)} نتيجة تستحق النظر.`) },
-      ...top.slice(0, 6).map((x, n, arr): DeckSlide => ({ kind: "finding", kicker: KICK, source: x.sourceLabel, title: x.title, why: short(x.why, 230), down: x.direction === "down", changePct: x.changePct ? x.changePct : null, series: x.series, evidence: x.related.slice(0, 4).map((r) => ({ source: r.sourceLabel, title: short(r.title, 120) })), n: n + 1, of: arr.length,
+      ...top.slice(0, 6).map((x, n, arr): DeckSlide => ({ kind: "finding", kicker: KICK, source: x.sourceLabel, title: x.title, why: short(x.why, 230), down: x.direction === "down", changePct: x.changePct ? x.changePct : null, series: x.series,
+        ...(x.series && x.series.length >= 8 ? {
+          windows: x.kind === "SUDDEN_DROP" || x.kind === "SURGE" ? { base: [x.series.length - 11, x.series.length - 3] as [number, number], recent: [x.series.length - 3, x.series.length] as [number, number] } : { base: [0, 4] as [number, number], recent: [x.series.length - 4, x.series.length] as [number, number] },
+          recent: x.recent, baseline: x.baseline,
+          unit: x.metric === "ctr" ? T("% click-through", "% نسبة النقر") : x.metric === "qualified" ? T("qualified a week", "مؤهلاً أسبوعياً") : T("a week", "أسبوعياً") } : {}), evidence: x.related.slice(0, 4).map((r) => ({ source: r.sourceLabel, title: short(r.title, 120) })), n: n + 1, of: arr.length,
         say: `${x.title}. ${short(x.why, 200)}${x.related.length ? T(` Explained by: ${x.related.slice(0, 2).map((r) => r.title).join("; ")}.`, ` يفسّره: ${x.related.slice(0, 2).map((r) => r.title).join("؛ ")}.`) : ""}` })),
       ...di.ideas.slice(0, 5).map((i, n, arr): DeckSlide => ({ kind: "initiative", kicker: KICK2, type: i.kindLabel, project: i.brief?.projectLabel, title: ((t) => t.charAt(0).toUpperCase() + t.slice(1))(i.title.replace(/^[^:]+:\s*/, "")), answers: i.trigger?.title ?? null,
         // The idea often opens by restating the finding it answers; that is already shown, so start after it.

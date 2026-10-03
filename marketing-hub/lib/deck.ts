@@ -4,20 +4,23 @@
 // All text is already in the report's language.
 
 export type Tone = "good" | "bad" | "warn" | "neutral";
-export type Kpi = { label: string; value: number; prefix?: string; suffix?: string; decimals?: number; sub?: string; tone?: Tone };
+export type Kpi = { label: string; value: number; prefix?: string; suffix?: string; decimals?: number; sub?: string; tone?: Tone;
+  /** Optional mini visual: a trend (oldest first) or a 0–100 progress ring. */ spark?: number[]; ring?: number };
 
 export type DeckSlide =
   | { kind: "cover"; kicker: string; title: string; sub: string; say: string }
   | { kind: "headline"; kicker: string; headline: string; kpis: Kpi[]; points: string[]; say: string }
-  | { kind: "gauges"; kicker: string; title: string; items: { label: string; pct: number; actual: string; target: string; note?: string }[]; foot?: string; say: string }
+  | { kind: "gauges"; kicker: string; title: string; items: { label: string; pct: number; actual: string; target: string; note?: string; outlook?: { label: string; forecast: number; target: number } }[]; foot?: string; say: string }
   | { kind: "columns"; kicker: string; title: string; sub: string; labels: string[]; values: number[]; unit: string; decimals?: number; target?: (number | null)[]; say: string }
   | { kind: "donut"; kicker: string; title: string; sub: string; labels: string[]; values: number[]; unit: string; say: string }
   | { kind: "hbars"; kicker: string; title: string; sub: string; labels: string[]; values: number[]; unit: string; bench?: number | null; benchLabel?: string; say: string }
   | { kind: "line"; kicker: string; title: string; sub: string; labels: string[]; values: number[]; unit: string; say: string }
   | { kind: "scan"; kicker: string; title: string; sources: { label: string; items: number; found: number }[]; say: string }
-  | { kind: "finding"; kicker: string; source: string; title: string; why: string; down: boolean; changePct: number | null; series: number[] | null; evidence: { source: string; title: string }[]; n: number; of: number; say: string }
+  | { kind: "finding"; kicker: string; source: string; title: string; why: string; down: boolean; changePct: number | null; series: number[] | null;
+      /** How the change was measured: series index ranges [from, to) of the baseline and recent windows, their averages and the unit. */
+      windows?: { base: [number, number]; recent: [number, number] }; recent?: number; baseline?: number; unit?: string; evidence: { source: string; title: string }[]; n: number; of: number; say: string }
   | { kind: "initiative"; kicker: string; type: string; project?: string; title: string; answers: string | null; idea: string; offer: string; channels: { label: string; pct: number }[]; contracts: [number, number]; salesM: [number, number]; cts: number; spendK: number; n: number; of: number; say: string }
-  | { kind: "list"; kicker: string; title: string; items: { text: string; sub?: string; tone?: Tone; tag?: string; minutes?: number }[]; say: string }
+  | { kind: "list"; kicker: string; title: string; items: { text: string; sub?: string; tone?: Tone; tag?: string; minutes?: number }[]; totalMinutes?: number; say: string }
   | { kind: "closing"; kicker: string; title: string; sub: string; say: string };
 
 export type Deck = { lang: "en" | "ar"; title: string; slides: DeckSlide[] };
