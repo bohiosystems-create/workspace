@@ -105,10 +105,11 @@ const CASES: [string, string[]][] = [
   // Campaign ideation
   ["Give me campaign ideas for Marina Tower in Ramadan with SAR 300K", ["Market initiatives", "Marina Tower", "February 2027", "SAR 300K"]],
   ["Brainstorm a new campaign for Andalus", ["Market initiatives", "Andalus Quarter", "Forecast"]],
-  ["Any unusual drop in leads or sales?", ["What the CRM shows", "Marina Tower", "Andalus Quarter", "contracts down"]],
-  ["What does the CRM show this week?", ["What the CRM shows", "Initiatives"]],
-  ["هل هناك انخفاض مفاجئ في العملاء؟", ["ما يُظهره النظام", "برج المارينا"]],
-  ["Give me market initiatives for Andalus", ["Market initiatives", "Answers the CRM signal", "refill the top of the funnel"]],
+  ["Any unusual drop in leads or sales?", ["What the data shows today", "Marina Tower", "Andalus Quarter", "contracts down", "featured slot ended"]],
+  ["What does the data show today?", ["What the data shows today", "Email", "Invoices", "Competitors", "Initiatives"]],
+  ["Anything unusual in the data?", ["What the data shows today", "Lumen Residences"]],
+  ["هل هناك انخفاض مفاجئ في العملاء؟", ["ما تُظهره البيانات اليوم", "برج المارينا"]],
+  ["Give me market initiatives for Andalus", ["Market initiatives", "Answers the signal", "refill the top of the funnel", "creative refresh"]],
   ["Ideas for a summer campaign for Ash Shati", ["July 2026", "priority list"]],
   ["Plan a campaign for the Cityscape season", ["November 2026", "open-house"]],
 

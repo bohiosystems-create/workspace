@@ -132,6 +132,7 @@ textarea { min-height: 200px; line-height: 1.6; resize: vertical; font-size: 12p
 .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
 .chip { flex: 0 0 auto; border: 1px solid var(--ink-hairline); border-radius: 30px; background: transparent; padding: 6px 11px; font-size: 10px; font-family: inherit; color: var(--ink-soft); cursor: pointer; }
 .chip:hover { border-color: var(--ink); color: var(--ink); }
+.chip.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .chat-input { border-top: 1px solid var(--ink-hairline); padding: 10px 12px; display: flex; gap: 8px; }
 .chat-input input { flex: 1; background: transparent; border: 1px solid var(--ink-hairline); color: var(--ink); font-family: inherit; font-size: 12px; padding: 9px 11px; outline: none; }
 .chat-input input:focus { border-color: var(--ink); }

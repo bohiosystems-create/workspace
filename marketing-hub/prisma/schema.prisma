@@ -543,3 +543,15 @@ model ChatMiss {
   source    String   // AUTO (fallback) | USER ("Not what I asked")
   createdAt DateTime @default(now())
 }
+
+// The daily scan (lib/signals.ts): every data source checked once a day before the report — CRM, Outlook, Oracle
+// invoices and POs, ad platforms and creatives, Meta Ad Library (competitors), market data and the calendar. One row
+// per day; the payload holds the signals found and what was scanned, so the report, the Initiatives page and the
+// assistant all use the same findings.
+model SignalScan {
+  id        String   @id @default(cuid())
+  key       String   @unique // YYYY-MM-DD
+  date      String
+  payload   String
+  createdAt DateTime @default(now())
+}

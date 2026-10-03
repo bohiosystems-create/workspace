@@ -45,6 +45,7 @@ export const prisma = {
   pastCampaign: table([]),
   dailyRecommendation: table([], { status: "OPEN", decidedBy: null, decidedAt: null, note: null }),
   dailyNote: table([]),
+  signalScan: table([]),
   campaignIdea: table([], { status: "NEW", score: null, decidedBy: null, decidedAt: null, note: null }),
   vendor: {
     findMany: async () => data.vendors, count: async () => data.vendors.length,

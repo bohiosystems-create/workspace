@@ -23,7 +23,7 @@ export const outlookSenderNameAr = () => process.env.OUTLOOK_SENDER_NAME_AR || "
 export const defaultCc = () =>
   (process.env.OUTLOOK_CC || "").split(",").map((s) => s.trim()).filter(Boolean);
 
-async function graphToken(): Promise<string> {
+export async function graphToken(): Promise<string> {
   const { MS_TENANT_ID: tenant, MS_CLIENT_ID: id, MS_CLIENT_SECRET: secret } = process.env;
   if (!tenant || !id || !secret) throw new Error("Outlook live mode needs MS_TENANT_ID, MS_CLIENT_ID and MS_CLIENT_SECRET.");
   const res = await fetch(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`, {

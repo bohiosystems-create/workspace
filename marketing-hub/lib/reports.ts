@@ -17,6 +17,7 @@ import { historyState } from "./history";
 import { reportCharts, kpiTiles, metaRevenueChart } from "./report-charts";
 import { buildChatContext } from "./chat";
 import { dailyIdeas } from "./ideation";
+import { dailyScan } from "./signals";
 import { runChartQuery } from "./chart-query";
 import { buildDirector } from "./director";
 import { buildOrchestration } from "./orchestrator";
@@ -98,6 +99,9 @@ const C = { ink: "#000919", soft: "#5b6170", line: "#d9d7d4", alert: "#d6334b", 
 export async function buildReport(lang: Lang, date: string, prev: { metrics: Metrics; date: string; at: Date } | null) {
   const T = (en: string, ar: string) => tx(lang, en, ar);
   const N = (s: string) => nm(lang, s);
+  // The daily scan of every source (CRM, email, invoices, social & ads, competitors, market, calendar) runs first;
+  // the initiatives below answer what it found.
+  await dailyScan();
   const ideasP = ideasSection(lang, date); // runs alongside the rest (AI ideation can take a while)
   const a = await buildAgent(lang);
   const [d, o, events] = await Promise.all([buildDirector(lang, a), buildOrchestration(lang, a), prisma.kinanEvent.findMany()]);
@@ -209,31 +213,35 @@ async function ideasSection(lang: Lang, date: string): Promise<[string, string, 
   const T = (en: string, ar: string) => tx(lang, en, ar);
   try {
     const di = await dailyIdeas(date, lang);
-    if (!di.ideas.length) return [T("Market initiatives for today", "مبادرات السوق لليوم"), `<p style="margin:0">${esc(T("No initiatives today.", "لا مبادرات اليوم."))}</p>`, ""];
+    if (!di.ideas.length) return [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), `<p style="margin:0">${esc(T("No initiatives today.", "لا مبادرات اليوم."))}</p>`, ""];
     const by = di.sources.filter((x) => x !== "rules").map((x) => WHO[x] ?? x);
     const engine = by.length ? T(`Ideas by ${by.join(" + ")}${di.judge ? `, ranked by ${WHO[di.judge] ?? di.judge}` : ""}`, `أفكار من ${by.join(" + ")}${di.judge ? `، رتّبها ${WHO[di.judge] ?? di.judge}` : ""}`) : T("Ideas from the built-in rules (no AI key)", "أفكار من القواعد المدمجة (دون مفتاح ذكاء اصطناعي)");
     const rng = (x: [number, number, number]) => `${x[0]}–${x[2]}`;
     const card = (i: (typeof di.ideas)[number], n: number) => `<div data-part style="border-top:1px solid ${C.line};padding:10px 0 2px">
       <div style="font-size:14px;font-weight:700">${n}. ${esc(i.title)}${i.score ? ` <span style="font-size:11px;font-weight:400;color:${C.soft}">· ${esc(T("score", "التقييم"))} ${i.score}/10</span>` : ""}</div>
       <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:${C.soft};margin-top:2px">${esc(i.kindLabel)}</div>
-      ${i.trigger ? `<div style="font-size:12px;margin-top:4px;padding:4px 8px;border-inline-start:3px solid ${C.alert};background:#fbf3f3">${esc(T("Answers the CRM signal", "يستجيب لإشارة النظام"))}: <b>${esc(i.trigger.title)}</b></div>` : ""}
+      ${i.trigger ? `<div style="font-size:12px;margin-top:4px;padding:4px 8px;border-inline-start:3px solid ${C.alert};background:#fbf3f3">${esc(T("Answers", "يستجيب لـ"))}: <b>${esc(i.trigger.title)}</b></div>` : ""}
       <div style="margin:4px 0">${esc(i.bigIdea)}</div>
       ${i.offer ? `<div style="font-size:12px"><b>${esc(T("Offer", "العرض"))}:</b> ${esc(i.offer)}${i.headline ? ` · <b>${esc(T("Headline", "العنوان"))}:</b> “${esc(i.headline)}”` : ""}</div>` : ""}
       <div style="font-size:12px;color:${C.soft};margin-top:3px">${esc(i.channels.map((ch) => `${ch.label} ${ch.sharePct}%`).join(" · "))}${i.leadVendor ? ` · ${esc(T("lead vendor", "المورد الرئيسي"))} ${esc(i.leadVendor)}` : ""}</div>
       <div style="font-size:12px;margin-top:3px"><b>${esc(T("Forecast", "التوقع"))}:</b> ${esc(T(`${rng(i.forecast.contracts)} contracts, SAR ${rng(i.forecast.salesM)}M, ~${i.forecast.costToSalesPct}% cost to sales on SAR ${i.forecast.spendK}K`, `${rng(i.forecast.contracts)} عقود، ${rng(i.forecast.salesM)} مليون ر.س، نحو ${i.forecast.costToSalesPct}% من المبيعات مقابل ${i.forecast.spendK} ألف ر.س`))}</div>
       ${i.judge?.why ? `<div style="font-size:11px;color:${C.soft};margin-top:3px">${esc(i.judge.why)}</div>` : ""}
     </div>`;
-    const sigs = di.signals.filter((x) => x.direction === "down" || x.kind === "SURGE").slice(0, 4);
-    const sigHtml = sigs.length
-      ? `<div data-part style="margin:0 0 8px"><div style="font-size:12px;font-weight:700;margin-bottom:4px">${esc(T(`What the CRM shows (to ${di.crmAsOf ? dt("en", di.crmAsOf) : "—"})`, `ما يُظهره النظام (حتى ${di.crmAsOf ? dt("ar", di.crmAsOf) : "—"})`))}</div><ul style="margin:0;padding-inline-start:18px;line-height:1.5;font-size:12px">${sigs.map((x) => `<li><b style="color:${x.direction === "down" ? C.alert : C.ink}">${esc(x.title)}</b><br><span style="color:${C.soft}">${esc(x.why)}</span></li>`).join("")}</ul></div>`
-      : `<p style="margin:0 0 8px;font-size:12px;color:${C.soft}">${esc(T("No unusual change in leads, qualified leads, sales or lost reasons in the CRM.", "لا تغيّر غير معتاد في العملاء أو المؤهلين أو المبيعات أو أسباب الخسارة في النظام."))}</p>`;
+    // Every source scanned today, then the findings (evidence from other sources nested under what it explains).
+    const top = di.signals.filter((x) => !x.linkedTo && (x.direction === "down" || x.severity !== "info" || ["EMAIL_OPPORTUNITY", "EMAIL_EVENT", "BUDGET_HEADROOM"].includes(x.kind))).slice(0, 8);
+    const more = di.signals.filter((x) => !x.linkedTo).length - top.length;
+    const scannedLine = `${esc(T(`Scanned today (${di.crmAsOf ? dt("en", di.crmAsOf) : "—"})`, `فُحص اليوم (${di.crmAsOf ? dt("ar", di.crmAsOf) : "—"})`))}: ${di.scanned.map((x) => `${esc(x.label)} <span style="color:${C.soft}">${x.items.toLocaleString("en")}</span>${x.found ? ` <b>→ ${x.found}</b>` : ""}`).join(" · ")}`;
+    const sigHtml = `<div data-part style="margin:0 0 8px"><div style="font-size:11px;color:${C.soft};margin-bottom:6px">${scannedLine}</div>` + (top.length
+      ? `<ul style="margin:0;padding-inline-start:18px;line-height:1.5;font-size:12px">${top.map((x) => `<li style="margin-bottom:4px"><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:${C.soft}">${esc(x.sourceLabel)}</span> <b style="color:${x.direction === "down" ? C.alert : C.ink}">${esc(x.title)}</b><br><span style="color:${C.soft}">${esc(x.why)}</span>${x.related.length ? `<br><span style="font-size:11px">↳ ${x.related.map((r) => `${esc(r.sourceLabel)}: ${esc(r.title)}`).join("<br>↳ ")}</span>` : ""}</li>`).join("")}</ul>${more > 0 ? `<p style="margin:4px 0 0;color:${C.soft};font-size:11px">${esc(T(`+ ${more} smaller findings on the Initiatives page.`, `+ ${more} نتائج أصغر في صفحة المبادرات.`))}</p>` : ""}`
+      : `<p style="margin:0;font-size:12px;color:${C.soft}">${esc(T("Nothing unusual in any source today.", "لا شيء غير معتاد في أي مصدر اليوم."))}</p>`) + `</div>`;
+    const sigs = top;
     const html = sigHtml + `<p style="margin:0 0 4px">${esc(T(`Focus today: <${di.project}> for ${di.month} (${di.goal.toLowerCase()}), angle: ${di.angle}.`, `تركيز اليوم: <${di.project}> لشهر ${di.month} (${di.goal})، الزاوية: ${di.angle}.`)).replace(/&lt;(.*?)&gt;/, "<b>$1</b>")}</p>` +
       di.ideas.map((x, k) => card(x, k + 1)).join("") +
-      `<p style="margin:8px 0 0;color:${C.soft};font-size:11px">${esc(engine)}. ${esc(T("Signals are computed from the CRM; forecasts come from the 2023–2025 history, not from the AI. Shortlist or approve on the Initiatives page; approving drafts a vendor brief for your approval.", "الإشارات محسوبة من نظام العملاء؛ والتوقعات من تاريخ 2023–2025 وليست من الذكاء الاصطناعي. ضعوها في القائمة المختصرة أو اعتمدوها من صفحة المبادرات؛ الاعتماد يُعدّ موجزاً للمورد بانتظار موافقتكم."))}</p>`;
-    const text = (sigs.length ? `${T("CRM signals", "إشارات النظام")}:\n${sigs.map((x) => `  ! ${x.title}`).join("\n")}\n` : "") + `${T(`Focus: ${di.project}, ${di.month}; angle: ${di.angle}`, `التركيز: ${di.project}، ${di.month}؛ الزاوية: ${di.angle}`)}\n` + di.ideas.map((i, n) => `  ${n + 1}. [${i.kindLabel}] ${i.title}${i.trigger ? ` (${T("answers", "يستجيب لـ")}: ${i.trigger.title})` : ""} — ${i.bigIdea} (${rng(i.forecast.contracts)} ${T("contracts", "عقود")}, SAR ${rng(i.forecast.salesM)}M)`).join("\n") + `\n  ${engine}`;
-    return [T("Market initiatives for today", "مبادرات السوق لليوم"), html, text];
+      `<p style="margin:8px 0 0;color:${C.soft};font-size:11px">${esc(engine)}. ${esc(T("Findings are computed from your data sources; forecasts come from the 2023–2025 history, not from the AI. Shortlist or approve on the Initiatives page; approving drafts a vendor brief for your approval.", "النتائج محسوبة من مصادر بياناتكم؛ والتوقعات من تاريخ 2023–2025 وليست من الذكاء الاصطناعي. ضعوها في القائمة المختصرة أو اعتمدوها من صفحة المبادرات؛ الاعتماد يُعدّ موجزاً للمورد بانتظار موافقتكم."))}</p>`;
+    const text = `${T("Scanned", "فُحص")}: ${di.scanned.map((x) => `${x.label} ${x.items}${x.found ? ` → ${x.found}` : ""}`).join(" · ")}\n` + (sigs.length ? sigs.map((x) => `  ! [${x.sourceLabel}] ${x.title}${x.related.length ? ` (${x.related.map((r) => r.title).join("; ")})` : ""}`).join("\n") + "\n" : "") + `${T(`Focus: ${di.project}, ${di.month}; angle: ${di.angle}`, `التركيز: ${di.project}، ${di.month}؛ الزاوية: ${di.angle}`)}\n` + di.ideas.map((i, n) => `  ${n + 1}. [${i.kindLabel}] ${i.title}${i.trigger ? ` (${T("answers", "يستجيب لـ")}: ${i.trigger.title})` : ""} — ${i.bigIdea} (${rng(i.forecast.contracts)} ${T("contracts", "عقود")}, SAR ${rng(i.forecast.salesM)}M)`).join("\n") + `\n  ${engine}`;
+    return [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), html, text];
   } catch (e: any) {
-    return [T("Market initiatives for today", "مبادرات السوق لليوم"), `<p style="margin:0;color:${C.soft}">${esc(T("Initiatives could not be prepared this time; open the Initiatives page to generate them.", "تعذّر إعداد المبادرات هذه المرة؛ افتحوا صفحة المبادرات لإنشائها."))}</p>`, ""];
+    return [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), `<p style="margin:0;color:${C.soft}">${esc(T("Initiatives could not be prepared this time; open the Initiatives page to generate them.", "تعذّر إعداد المبادرات هذه المرة؛ افتحوا صفحة المبادرات لإنشائها."))}</p>`, ""];
   }
 }
 
@@ -243,6 +251,7 @@ async function ideasSection(lang: Lang, date: string): Promise<[string, string, 
 export async function buildSnapshot(lang: Lang, at: Date, prev: { metrics: Metrics; date: string; at: Date } | null) {
   const T = (en: string, ar: string) => tx(lang, en, ar);
   const N = (x: string) => nm(lang, x);
+  await dailyScan(true); // live snapshot: rescan every source now
   const s = await ensureSchedule();
   const ln = localNow(s.timezone, at);
   const daily = await buildReport(lang, ln.date, prev); // same sections and metrics as the daily report

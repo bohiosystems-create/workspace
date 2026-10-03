@@ -74,7 +74,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
   Say: *"The same charts arrive by email — they're built so Outlook shows them, not as images that get blocked."*
 - [ ] Show the **Campaign recommendations — 23 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
-- [ ] Scroll to **Market initiatives for today**: first **what the CRM shows** (Andalus leads falling for 12 weeks, Andalus contracts down, Marina Tower leads down 39% in 3 weeks), then three or four initiatives of different types (campaign, offer, broker programme, partnership…), each marked with the CRM signal it answers. They're also on the Initiatives page to shortlist or approve.
+- [ ] Scroll to **What the data shows & market initiatives**: first the sources scanned this morning with their counts, then the findings with their cross-source evidence (e.g. the PropertyHub email under the Marina Tower drop), then initiatives of different types, each marked with the finding it answers. They're also on the Initiatives page to shortlist or approve.
 - [ ] Press **▶ Play**: the report becomes a presentation, one slide per section, chart and idea, with a voice-over you can mute.
 - [ ] Show the schedule: 07:30 Riyadh, Sunday–Thursday, English and Arabic, internal addresses only.
 
@@ -124,16 +124,17 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] **Experiments**: the holdout test shows how much of a vendor's results it really caused.
 - [ ] **Decisions → Replacement trials**: **Wasel Performance won its trial against Tasweeq Digital**. One click promotes it, and it gets budget in the next plan.
 
-### 11. Market initiatives from the CRM (4 min)
+### 11. Market initiatives from all your data (4 min)
 
-- [ ] Open **Initiatives**. The top panel, **What the CRM shows**, lists three signals: **Andalus Quarter: new leads falling for 12 weeks (−41%)** (biggest fall: the paused Sada creator programme), **Andalus Quarter: contracts down — 0 in May 2026 vs 2.3 a month before**, and **Marina Tower: new leads down 39% in the last 3 weeks** (PropertyHub's portal campaign).
+- [ ] Open **Initiatives**. The top panel, **What the data shows**, starts with the daily scan's sources: **CRM 5,100 leads → 3 · Email 6 → 5 · Invoices & POs 53 → 1 · Social & ad platforms 128 → 1 · Competitors 5 → 3 · Market 5 → 3 · Calendar 8 → 3**. Click a source chip to filter.
+- [ ] Point at the cross-links: under **Marina Tower: new leads down 39% in the last 3 weeks** sits PropertyHub's email "featured slot ended 10 May"; under **Andalus Quarter: new leads falling for 12 weeks (−41%)** sit Sada's restart proposal, the **SAR 92K unused on the paused creator PO**, Lumen's ad push, the ad fatigue and the softening Jeddah South market. Say: *"Every source is scanned every morning before the report — the CRM, the inbox, Oracle, the ad platforms, competitors' ads, the market and the calendar."*
 - [ ] Click **Generate initiatives** with the brief empty. The director picks the project furthest behind target: **Andalus Quarter · September 2026 · After summer · Close sales · SAR 150K**.
 - [ ] Four initiatives of different types, each with a channel mix, vendors, forecast and guardrails:
-  1. **Refill the top of the funnel** (campaign) — *answers the CRM signal* "new leads falling for 12 weeks": 4–8 contracts, about 2.8% cost to sales; digital is capped at 20% because it costs 6% of sales for Andalus today (benchmark 1.9%).
-  2. **Closing offer to turn interest into contracts** (offer) — *answers* "contracts down": 5–9 contracts, about 2.3%.
-  3. **Broker & site-visit sprint** (broker programme): 5–10 contracts, SAR 4.6–8.6M.
-  4. **Bank & employer home-finance partnership** (partnership).
-- [ ] Back in the signals panel, click **Initiatives for this** next to the Marina Tower drop: the first initiative is **Recover the property portals lead flow** (budget & channel shift) — re-secure the featured slot and bridge the gap with events and brokers.
+  1. **Refill the top of the funnel** (campaign) — *answers* "new leads falling for 12 weeks", and quotes the evidence: Sada's proposal, the SAR 92K on its PO, the ad fatigue. Digital is capped at 20% because it costs 6% of sales for Andalus today (benchmark 1.9%).
+  2. **Closing offer to turn interest into contracts** (offer) — *answers* "contracts down".
+  3. **Creative refresh for the off-plan funnel** (content) — *answers* "click-through rate down 28% (Meta, Snap)".
+  4. **Broker & site-visit sprint** (broker programme).
+- [ ] In the panel, click **Initiatives for this** next to: the Marina Tower drop (→ **Recover the property portals lead flow**), Mirsa's yield promise (→ **Investor proof against Mirsa Developments' yield promise**), and the Cityscape email (→ **Cityscape stand, show-unit VR and booked meetings**).
 - [ ] Say: *"The forecasts come from your 2023–2025 history, adjusted for this project and the season. They are not invented by the AI."* Open **Guardrails, measurement, evidence and risks** on one idea.
 - [ ] Change the brief to **Marina Tower, February 2027 (Ramadan), 300** and generate. The payment-plan offer leads (Ramadan 2025 lesson), at about 1.4% cost to sales.
 - [ ] Click **Shortlist** on one idea, then **Approve & draft vendor brief** on another. The brief opens in the assistant as a draft to the lead vendor, in the vendor's language. Don't send it.

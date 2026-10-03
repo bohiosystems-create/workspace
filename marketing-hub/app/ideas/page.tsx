@@ -14,6 +14,7 @@ export default function IdeasPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [srcFilter, setSrcFilter] = useState("");
   const [brief, setBrief] = useState<any>({ project: "", month: "", budgetK: "", goal: "", audience: "", notes: "", engine: "auto" });
   const [saved, save] = useApprover();
   const [approver, setApprover] = useState("");
@@ -40,28 +41,38 @@ export default function IdeasPage() {
 
   const runs: [string, any[]][] = data ? [...data.ideas.reduce((m: Map<string, any[]>, r: any) => m.set(r.runKey, [...(m.get(r.runKey) ?? []), r]), new Map()).entries()] : [];
   const set = (k: string) => (e: any) => setBrief({ ...brief, [k]: e.target.value });
+  // Findings explained by another one are shown under it, not twice.
+  const shown = data ? data.signals.filter((x: any) => !x.linkedTo && (!srcFilter || x.source === srcFilter || x.related.some((r: any) => r.source === srcFilter))) : [];
 
   return (
     <div className="shell">
       <Header />
       <div className="section-title">{t("Market initiatives")}</div>
-      <p className="intro">{t("Campaigns, offers, partnerships, events, broker programmes, content, budget shifts and positioning — proposed from your data. The CRM is watched for unusual falls or surges in leads, qualified leads, sales and lost reasons, and every signal gets an initiative that answers it. Forecasts are computed from the 2023–2025 campaign history, not by the AI. Approving an initiative drafts a brief to the lead vendor for your approval.")}</p>
+      <p className="intro">{t("Campaigns, offers, partnerships, events, broker programmes, content, budget shifts and positioning — proposed from your data. Every day, before the report, all your data is scanned — the CRM, the email inbox, Oracle invoices and POs, social and ad platforms, competitors' ads, the market and the calendar — and each finding gets an initiative that answers it. Forecasts are computed from the 2023–2025 campaign history, not by the AI. Approving an initiative drafts a brief to the lead vendor for your approval.")}</p>
       {error && <div className="err">{error}</div>}
       {info && <div className="panel" style={{ marginBottom: 12 }}><div style={{ fontSize: 12.5 }}>{info}</div></div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
       {data && (
         <>
           <div className="panel" style={{ marginBottom: 12 }}>
-            <div className="chart-label">{t("What the CRM shows")}{data.crmAsOf ? ` · ${t("to")} ${new Date(data.crmAsOf).toLocaleDateString(lang === "ar" ? "ar-SA-u-nu-latn" : "en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}</div>
-            {data.signals.length === 0 && <div className="muted" style={{ fontSize: 12 }}>{t("No unusual change in leads, qualified leads, sales or lost reasons in the CRM.")}</div>}
-            {data.signals.map((sg: any) => (
+            <div className="chart-label">{t("What the data shows")} · {t("daily scan")} {data.crmAsOf ? new Date(data.crmAsOf).toLocaleDateString(lang === "ar" ? "ar-SA-u-nu-latn" : "en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "0 0 8px" }}>
+              {data.sources.map((x: any) => (
+                <button key={x.source} className={`chip${srcFilter === x.source ? " on" : ""}`} style={{ fontSize: 10 }} title={x.note ?? ""} onClick={() => setSrcFilter(srcFilter === x.source ? "" : x.source)}>
+                  {x.label} · <span dir="ltr">{x.items.toLocaleString("en")}</span> {x.unit}{x.found ? <b> → {x.found}</b> : null}
+                </button>
+              ))}
+            </div>
+            {shown.length === 0 && <div className="muted" style={{ fontSize: 12 }}>{t("Nothing unusual in any source today.")}</div>}
+            {shown.map((sg: any) => (
               <div key={sg.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0", borderTop: "1px solid var(--line)", flexWrap: "wrap" }}>
                 <span className={`pill ${sg.direction === "up" ? "healthy" : sg.severity === "crit" ? "weak" : "watch"}`} style={{ flex: "none" }}>{sg.direction === "up" ? t("Opportunity") : sg.severity === "crit" ? t("Urgent") : t("Watch")}</span>
                 <div style={{ flex: "1 1 320px", fontSize: 12, lineHeight: 1.55 }}>
-                  <b>{sg.title}</b>
+                  <span className="tag" style={{ marginInlineEnd: 6 }}>{sg.sourceLabel}</span><b>{sg.title}</b>
                   <div className="muted" style={{ fontSize: 11.5 }}>{sg.why}</div>
+                  {sg.related.length > 0 && <div style={{ fontSize: 11, marginTop: 3 }}>{sg.related.map((r: any) => <div key={r.id}>↳ <span className="muted">{r.sourceLabel}:</span> {r.title}</div>)}</div>}
                 </div>
-                {sg.projectKey && <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, flex: "none" }} disabled={busy === sg.id} onClick={() => act({ action: "GENERATE", brief: { project: sg.projectKey, signalId: sg.id, engine: brief.engine } }, sg.id)}>{busy === sg.id ? t("Thinking…") : t("Initiatives for this")}</button>}
+                {(sg.projectKey || sg.scope === "portfolio") && <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, flex: "none" }} disabled={busy === sg.id} title={!sg.projectKey ? t("For the project chosen in the brief (or the one furthest behind target)") : ""} onClick={() => act({ action: "GENERATE", brief: { project: sg.projectKey || brief.project || undefined, signalId: sg.id, engine: brief.engine } }, sg.id)}>{busy === sg.id ? t("Thinking…") : t("Initiatives for this")}</button>}
               </div>
             ))}
           </div>
@@ -127,7 +138,7 @@ function IdeaCard({ x, t, lang, busy, approver, act }: any) {
         <span className="tag">{x.kindLabel}</span>
         <span className="tag" dir="ltr">{x.campaignCode}</span>
       </div>
-      {x.trigger && <div style={{ fontSize: 12, marginTop: 6, padding: "5px 9px", borderInlineStart: "3px solid var(--alert)", background: "var(--paper)" }}>{t("Answers the CRM signal")}: <b>{x.trigger.title}</b><div className="muted" style={{ fontSize: 11 }}>{x.trigger.why}</div></div>}
+      {x.trigger && <div style={{ fontSize: 12, marginTop: 6, padding: "5px 9px", borderInlineStart: "3px solid var(--alert)", background: "var(--paper)" }}>{t("Answers")}: <b>{x.trigger.title}</b><div className="muted" style={{ fontSize: 11 }}>{x.trigger.why}</div></div>}
       <div style={{ fontSize: 13, marginTop: 6, lineHeight: 1.55 }}>{x.bigIdea}</div>
       <div className="row twocol" style={{ marginTop: 8, gap: 12 }}>
         <div style={{ fontSize: 12, lineHeight: 1.6 }}>

@@ -21,7 +21,8 @@ import { type Lang, tx, nm, K, M, dt } from "./i18n";
 
 const monthShort = (l: Lang, ym: string) => dt(l, `${ym}-01`, { month: "long", year: "numeric" });
 import { serial } from "./single";
-import { crmSignals, signalView, signalsForModel, type Signal } from "./crm-signals";
+import { signalsForModel, type Signal } from "./crm-signals";
+import { dailyScan, scanView } from "./signals";
 
 type Bi = { en: string; ar: string };
 const bi = (en: string, ar: string): Bi => ({ en, ar });
@@ -71,18 +72,22 @@ export const defaultMonth = () => { let m = nextMonth(PLAN_MONTH); while (season
 // ------------------------------------------------------------------- context
 export async function ideationContext(brief: IdeaBrief, pre?: Agent) {
   const a = pre ?? (await buildAgent("en"));
-  const [d, h, daily, sig] = await Promise.all([buildDirector("en", a), historyState("en"), dailyState("en"), crmSignals()]);
+  const [d, h, daily, sig] = await Promise.all([buildDirector("en", a), historyState("en"), dailyState("en"), dailyScan()]);
   const byAsset = d.targets.byAsset;
   const focus = brief.signalId ? sig.signals.find((x) => x.id === brief.signalId) ?? null : null;
   const wanted = brief.project || focus?.project || "";
   const project = wanted && byAsset.some((x) => x.asset === wanted) ? wanted : byAsset[0]?.asset ?? "Ash Shati Residences";
   // CRM signals for this project (and the whole portfolio): the initiatives must answer the falls.
   const signals = sig.signals.filter((x) => x.project === project || x.scope === "portfolio");
-  const answerable = (x: Signal) => (x.direction === "down" ? x.severity !== "info" : x.kind === "SURGE");
+  // What needs an answer: falls and risks that matter, and concrete opportunities (a proposal, unused budget, a dated
+  // moment, a market or financing shift). Evidence already attached to another signal is answered with it.
+  const OPP = new Set(["SURGE", "EMAIL_OPPORTUNITY", "EMAIL_EVENT", "BUDGET_HEADROOM", "FINANCE_SHIFT", "MARKET_SHIFT", "CALENDAR_MOMENT"]);
+  const answerable = (x: Signal) => !x.linkedTo && (x.direction === "down" ? x.severity !== "info" || x.kind === "MARKET_SHIFT" : OPP.has(x.kind));
+  const rank = (x: Signal) => (x.project === project ? 0 : 10) + ({ crit: 0, warn: 1, info: 2 } as const)[x.severity] * 2 + (x.direction === "down" ? 0 : 1) + (x.kind === "CALENDAR_MOMENT" ? 3 : 0);
   // Signals are answered when the initiative would run soon enough to matter (within 6 months of the CRM data).
   const gapMonths = (y: string, x: string | null) => (x ? (Number(y.slice(0, 4)) - Number(x.slice(0, 4))) * 12 + Number(y.slice(5, 7)) - Number(x.slice(5, 7)) : 0);
-  const soon = !!focus || gapMonths(brief.month && /^\d{4}-\d{2}$/.test(brief.month) ? brief.month : defaultMonth(), sig.asOf) <= 6;
-  const toAnswer = !soon ? [] : [...(focus && signals.includes(focus) ? [focus] : []), ...signals.filter((x) => x !== focus && answerable(x))].slice(0, 2);
+  const soon = !!focus || gapMonths(brief.month && /^\d{4}-\d{2}$/.test(brief.month) ? brief.month : defaultMonth(), sig.date) <= 6;
+  const toAnswer = !soon ? [] : [...(focus && signals.includes(focus) ? [focus] : []), ...signals.filter((x) => x !== focus && answerable(x)).sort((p, q) => rank(p) - rank(q))].slice(0, 3);
   const target = byAsset.find((x) => x.asset === project) ?? null;
   const month = brief.month && /^\d{4}-\d{2}$/.test(brief.month) ? brief.month : defaultMonth();
   const season = seasonOf(month);
@@ -124,7 +129,7 @@ export async function ideationContext(brief: IdeaBrief, pre?: Agent) {
     projectFactor, projectCtsPct: r1(projCts), historyCtsPct: h.total.costToSalesPct, avgDealM: r1(avgDealM), families, flags,
     pastForProject: projRows.map((r) => ({ code: r.code, name: r.name, family: r.family, season: r.season, costToSalesPct: r.costToSalesPct, lesson: r.lesson })),
     seasonPast: h.rows.filter((r) => r.season === season.key).map((r) => ({ code: r.code, name: r.name, family: r.family, costToSalesPct: r.costToSalesPct, lesson: r.lesson })),
-    lessons: h.lessons, history: h, signals, toAnswer, crmAsOf: sig.asOf,
+    lessons: h.lessons, history: h, signals, toAnswer, crmAsOf: sig.date,
   };
 }
 export type IdeationContext = Awaited<ReturnType<typeof ideationContext>>;
@@ -295,7 +300,7 @@ function rulesDrafts(c: IdeationContext): Draft[] {
   // Mix initiative types: the season's best concept, then a partnership / referral, then the next concepts.
   const mixed = [order[0], extra[0], order[1], extra[1], order[2]];
   const seasonal = mixed.map((k) => T[k]).filter((d) => !sigDrafts.some((x) => x.kind === d.kind));
-  return [...sigDrafts, ...seasonal].slice(0, Math.max(3, sigDrafts.length + 2));
+  return [...sigDrafts, ...seasonal].slice(0, Math.min(5, Math.max(3, sigDrafts.length + 1)));
 }
 
 // What each channel does when it is the one to restore.
@@ -322,16 +327,20 @@ function signalDraft(c: IdeationContext, s: Signal): Draft | null {
   const lead = down[0];
   const keepOffer = bi("Keep the current offer — fix the flow first, then judge the offer.", "الإبقاء على العرض الحالي — إصلاح التدفق أولاً ثم الحكم على العرض.");
   const kinan = bi("Follow-up of the open leads stays with Kinan's agent; this initiative only changes marketing.", "تبقى متابعة العملاء المفتوحين لدى وكيل كنان؛ هذه المبادرة تغيّر التسويق فقط.");
-  if ((s.kind === "SUDDEN_DROP" || s.kind === "QUAL_RATE_DROP") && s.metric !== "contracts") {
-    const f = lead?.family && lead.family !== "OTHER" ? lead.family : s.family ?? "DIGITAL";
+  // Evidence from other sources attached to this signal (an email, a PO, a competitor…), quoted in the initiative.
+  const rel = (s.related ?? []).slice(0, 3);
+  const withEv = (x: Bi): Bi => rel.length ? bi(`${x.en} Evidence from other sources: ${rel.map((r) => `${r.title.en} (${r.source.toLowerCase()})`).join("; ")}.`, `${x.ar} أدلة من مصادر أخرى: ${rel.map((r) => r.title.ar).join("؛ ")}.`) : x;
+  const m = s.meta ?? {};
+  if (s.kind === "SUDDEN_DROP" || s.kind === "QUAL_RATE_DROP" || s.kind === "EMAIL_ISSUE") {
+    const f = lead?.family && lead.family !== "OTHER" ? lead.family : s.family && s.family !== "OTHER" ? s.family : "DIGITAL";
     const others = best.filter((x) => x !== f).slice(0, 2);
     const quality = s.kind === "QUAL_RATE_DROP";
     return {
       kind: "CHANNEL_SHIFT", trigger: s.id, source: "rules",
       title: quality ? bi(`${P}: lead-quality reset`, `${PA}: إعادة ضبط جودة العملاء`) : bi(`${P}: recover the ${lab(f).en.toLowerCase()} lead flow`, `${PA}: استعادة تدفق العملاء من ${lab(f).ar}`),
-      bigIdea: quality
+      bigIdea: withEv(quality
         ? bi(`The CRM shows ${what.en}. Tighten targeting and add qualifying questions (budget, timing, unit type) to every form, and move budget for four weeks towards ${others.map((x) => lab(x).en).join(" and ")}, which bring qualified buyers for ${P}.`, `يُظهر النظام ${what.ar}. تضييق الاستهداف وإضافة أسئلة تأهيل (الميزانية، التوقيت، نوع الوحدة) إلى كل نموذج، ونقل جزء من الميزانية لأربعة أسابيع نحو ${others.map((x) => lab(x).ar).join(" و")} التي تجلب مشترين مؤهلين لـ${PA}.`)
-        : bi(`The CRM shows ${what.en}${lead ? `, mostly from ${lead.campaign} (${lead.vendor})` : ""}. Find out what changed and ${RESTORE[f]?.en ?? "restore it"}; meanwhile bridge the gap for 3–4 weeks with ${others.map((x) => lab(x).en).join(" and ")} so the month's qualified leads don't slip.`, `يُظهر النظام ${what.ar}${lead ? `، معظمه من ${nm("ar", lead.campaign)} (${nm("ar", lead.vendor)})` : ""}. معرفة ما الذي تغيّر و${RESTORE[f]?.ar ?? "استعادته"}؛ وفي الأثناء سدّ الفجوة لـ3–4 أسابيع عبر ${others.map((x) => lab(x).ar).join(" و")} كي لا يتراجع عدد المؤهلين هذا الشهر.`),
+        : bi(`The CRM shows ${what.en}${lead ? `, mostly from ${lead.campaign} (${lead.vendor})` : ""}. Find out what changed and ${RESTORE[f]?.en ?? "restore it"}; meanwhile bridge the gap for 3–4 weeks with ${others.map((x) => lab(x).en).join(" and ")} so the month's qualified leads don't slip.`, `يُظهر النظام ${what.ar}${lead ? `، معظمه من ${nm("ar", lead.campaign)} (${nm("ar", lead.vendor)})` : ""}. معرفة ما الذي تغيّر و${RESTORE[f]?.ar ?? "استعادته"}؛ وفي الأثناء سدّ الفجوة لـ3–4 أسابيع عبر ${others.map((x) => lab(x).ar).join(" و")} كي لا يتراجع عدد المؤهلين هذا الشهر.`)),
       audience: bi("The same buyers the channel was reaching before the drop.", "المشترون أنفسهم الذين كانت القناة تصل إليهم قبل التراجع."),
       offer: keepOffer,
       headline: bi(`Keep the current ${P} message`, `الإبقاء على رسالة ${PA} الحالية`),
@@ -347,7 +356,7 @@ function signalDraft(c: IdeationContext, s: Signal): Draft | null {
     return {
       kind: "CAMPAIGN", trigger: s.id, source: "rules",
       title: bi(`${P}: refill the top of the funnel`, `${PA}: إعادة ملء أعلى مسار المبيعات`),
-      bigIdea: bi(`The CRM shows ${what.en}${paused ? `; the biggest loss is ${paused.campaign}, which was paused` : ""}. A fresh 6-week push: new creative and audiences built from CRM-qualified buyers (lookalikes), ${hasInfl ? "creators back on a pay-for-performance brief, " : ""}and featured listings, so new demand replaces what stopped.`, `يُظهر النظام ${what.ar}${paused ? `؛ وأكبر خسارة من ${nm("ar", paused.campaign)} التي أُوقفت` : ""}. دفعة جديدة لستة أسابيع: إعلانات وجماهير جديدة مبنية على المشترين المؤهلين في النظام (جماهير مشابهة)${hasInfl ? "، وعودة صناع المحتوى بموجز مدفوع حسب الأداء" : ""}، وإعلانات مميزة في البوابات، ليحل طلب جديد محل ما توقف.`),
+      bigIdea: withEv(bi(`The CRM shows ${what.en}${paused ? `; the biggest loss is ${paused.campaign}, which was paused` : ""}. A fresh 6-week push: new creative and audiences built from CRM-qualified buyers (lookalikes), ${hasInfl ? "creators back on a pay-for-performance brief, " : ""}and featured listings, so new demand replaces what stopped.`, `يُظهر النظام ${what.ar}${paused ? `؛ وأكبر خسارة من ${nm("ar", paused.campaign)} التي أُوقفت` : ""}. دفعة جديدة لستة أسابيع: إعلانات وجماهير جديدة مبنية على المشترين المؤهلين في النظام (جماهير مشابهة)${hasInfl ? "، وعودة صناع المحتوى بموجز مدفوع حسب الأداء" : ""}، وإعلانات مميزة في البوابات، ليحل طلب جديد محل ما توقف.`)),
       audience: bi("New audiences that look like the buyers who qualified in the CRM.", "جماهير جديدة تشبه المشترين المؤهلين في النظام."),
       offer: bi("A reason to act now: limited release of the best-value units.", "سبب للتحرك الآن: طرح محدود لأفضل الوحدات قيمة."),
       headline: bi(`${P}: new release, limited units`, `${PA}: طرح جديد بوحدات محدودة`),
@@ -358,7 +367,7 @@ function signalDraft(c: IdeationContext, s: Signal): Draft | null {
   if (s.kind === "SALES_DROP") return {
     kind: "OFFER", trigger: s.id, source: "rules",
     title: bi(`${P}: closing offer to turn interest into contracts`, `${PA}: عرض إغلاق لتحويل الاهتمام إلى عقود`),
-    bigIdea: bi(`The CRM shows ${what.en}. A time-limited closing offer (payment plan or fees covered) for reservations made within 30 days, a broker booster on signed contracts, and a weekend viewing event — so buyers already in the pipeline have a reason to decide now.`, `يُظهر النظام ${what.ar}. عرض إغلاق محدد المدة (خطة سداد أو تحمّل الرسوم) للحجوزات خلال 30 يوماً، وحافز للوسطاء على العقود الموقعة، وفعالية معاينة نهاية الأسبوع — ليكون لدى المشترين في المسار سبب لاتخاذ القرار الآن.`),
+    bigIdea: withEv(bi(`The CRM shows ${what.en}. A time-limited closing offer (payment plan or fees covered) for reservations made within 30 days, a broker booster on signed contracts, and a weekend viewing event — so buyers already in the pipeline have a reason to decide now.`, `يُظهر النظام ${what.ar}. عرض إغلاق محدد المدة (خطة سداد أو تحمّل الرسوم) للحجوزات خلال 30 يوماً، وحافز للوسطاء على العقود الموقعة، وفعالية معاينة نهاية الأسبوع — ليكون لدى المشترين في المسار سبب لاتخاذ القرار الآن.`)),
     audience: bi("Buyers who viewed or reserved but have not signed; broker clients close to a decision.", "مشترون عاينوا أو حجزوا ولم يوقعوا؛ وعملاء الوسطاء القريبون من القرار."),
     offer: bi("Payment plan with a low first instalment, or registration fees covered — 30 days only.", "خطة سداد بدفعة أولى منخفضة أو تحمّل رسوم التسجيل — لمدة 30 يوماً فقط."),
     headline: bi(`${P}: decide this month, pay over time`, `${PA}: قرروا هذا الشهر وادفعوا على مراحل`),
@@ -391,14 +400,99 @@ function signalDraft(c: IdeationContext, s: Signal): Draft | null {
       channels: [{ family: f, sharePct: 70, role: role("scale in 20% steps", "التوسع بخطوات 20%") }, { family: best.find((x) => x !== f) ?? "BROKER", sharePct: 30, role: role("convert the extra demand", "تحويل الطلب الإضافي") }], risks: [kinan],
     };
   }
+  const say = bi(s.title.en, s.title.ar);
+  if (s.kind === "AD_FATIGUE" || s.kind === "AD_COST_RISE") return {
+    kind: "CONTENT_PR", trigger: s.id, source: "rules",
+    title: bi(`${P}: creative refresh for ${s.campaign ?? "the digital campaign"}`, `${PA}: تجديد الإعلانات لـ${nm("ar", s.campaign ?? "")}`),
+    bigIdea: withEv(bi(`The ad platforms show ${say.en.replace(/^[^:]+:\s*/, "")}: the same creatives have run too long. Replace them with a new set built on the messages that qualify best in your creative data (payment plan, show-unit tour, floor plans), in Arabic first; retire anything shown more than 4 times per person; rotate every 3–4 weeks.`, `تُظهر المنصات الإعلانية ${say.ar.replace(/^[^:]+:\s*/, "")}: استمرت الإعلانات نفسها طويلاً. استبدالها بمجموعة جديدة مبنية على الرسائل الأعلى تأهيلاً في بيانات الإعلانات (خطة السداد، جولة الوحدة النموذجية، المخططات) وبالعربية أولاً؛ وإيقاف ما يُعرض أكثر من 4 مرات للشخص؛ والتدوير كل 3–4 أسابيع.`)),
+    audience: bi("The same audiences, plus lookalikes of CRM-qualified buyers.", "الجماهير نفسها، مع جماهير مشابهة للمشترين المؤهلين."),
+    offer: bi("Keep the offer; change the creative and the opening seconds.", "الإبقاء على العرض وتغيير الإعلان والثواني الأولى."),
+    headline: bi(`${P}: see your home before you buy`, `${PA}: شاهدوا منزلكم قبل الشراء`),
+    channels: [{ family: "DIGITAL", sharePct: 75, role: role("new creative set on Meta, Snap and TikTok", "مجموعة إعلانات جديدة على ميتا وسناب وتيك توك") }, { family: "INFLUENCER", sharePct: 25, role: role("creator-made show-unit tours as ad content", "جولات صناع المحتوى كمحتوى إعلاني") }],
+    risks: [bi("Brief the agency with the creative data, not taste; judge new creatives on cost per CRM-qualified lead after 2 weeks.", "إحاطة الوكالة ببيانات الإعلانات لا بالذوق؛ والحكم على الإعلانات الجديدة بتكلفة العميل المؤهل بعد أسبوعين.")],
+  };
+  if (s.kind === "COMPETITOR_PUSH" || s.kind === "EMAIL_MARKET") {
+    const offer = String(m.offer ?? ""), comp = String(m.competitor ?? "the competitor");
+    const yieldy = /yield|rental/i.test(offer), lowPay = /down payment|payment plan|10\/90|1%/i.test(offer);
+    return {
+      kind: yieldy ? "POSITIONING" : "OFFER", trigger: s.id, source: "rules",
+      title: yieldy ? bi(`${P}: investor proof against ${comp}${comp.endsWith("s") ? "'" : "'s"} yield promise`, `${PA}: إثبات للمستثمرين أمام وعد العائد من ${nm("ar", comp)}`) : bi(`${P}: answer ${comp}${comp.endsWith("s") ? "'" : "'s"} offer`, `${PA}: الرد على عرض ${nm("ar", comp)}`),
+      bigIdea: withEv(yieldy
+        ? bi(`${say.en}. Don't match a guarantee you can't price; answer with proof: actual rents and occupancy around ${P}, the resale record of past projects, and a rental-management option — in investor content, broker kits and portal listings.`, `${say.ar}. لا تجاروا ضماناً لا يمكن تسعيره؛ بل أجيبوا بالأدلة: الإيجارات والإشغال الفعلي حول ${PA}، وسجل إعادة البيع للمشاريع السابقة، وخيار لإدارة التأجير — في محتوى المستثمرين وحقائب الوسطاء وإعلانات البوابات.`)
+        : bi(`${say.en}. Buyers compare first payments. Offer a structured plan with a low first instalment for ${P} (finance to approve), show the monthly amount in every ad and listing, and give brokers a side-by-side against ${comp}.`, `${say.ar}. يقارن المشترون الدفعة الأولى. تقديم خطة منظمة بدفعة أولى منخفضة لـ${PA} (بموافقة المالية)، وإظهار القسط الشهري في كل إعلان وقائمة، وتزويد الوسطاء بمقارنة مع ${nm("ar", comp)}.`)),
+      audience: yieldy ? bi("Investors comparing yields in the area.", "مستثمرون يقارنون العوائد في المنطقة.") : bi("Buyers comparing offers in the same district.", "مشترون يقارنون العروض في الحي نفسه."),
+      offer: yieldy ? bi("Rental-management option and published rent evidence.", "خيار إدارة التأجير وأدلة الإيجار المنشورة.") : bi("Low first instalment, rest over construction — for reservations this quarter.", "دفعة أولى منخفضة والباقي خلال الإنشاء — لحجوزات هذا الربع."),
+      headline: yieldy ? bi(`${P}: real rents, real resale — see the numbers`, `${PA}: إيجارات حقيقية وإعادة بيع حقيقية — اطّلعوا على الأرقام`) : bi(`${P}: start with a small first payment`, `${PA}: ابدؤوا بدفعة أولى صغيرة`),
+      channels: [{ family: "DIGITAL", sharePct: 40, role: role("comparison and instalment ads", "إعلانات المقارنة والقسط") }, { family: "BROKER", sharePct: 35, role: role("side-by-side kit for brokers", "حقيبة مقارنة للوسطاء") }, { family: "PORTAL", sharePct: 25, role: role("offer badge on listings", "شارة العرض على الإعلانات") }],
+      risks: [bi("Never name or disparage the competitor in ads; compare facts in broker material only. Offers need finance approval.", "عدم ذكر المنافس أو الإساءة إليه في الإعلانات؛ والمقارنة بالحقائق في مواد الوسطاء فقط. تحتاج العروض إلى موافقة المالية.")],
+    };
+  }
+  if (s.kind === "BUDGET_HEADROOM") {
+    const k = Number(m.amountK ?? 0), to = best.filter((x) => x !== s.family).slice(0, 2);
+    return {
+      kind: "CHANNEL_SHIFT", trigger: s.id, source: "rules",
+      title: bi(`${P}: put SAR ${k}K of committed budget to work`, `${PA}: تشغيل ${k} ألف ر.س من الميزانية الملتزم بها`),
+      bigIdea: withEv(bi(`${say.en}. Ask the vendor to release it or move it (with finance) to ${to.map((x) => lab(x).en).join(" and ")}, the best-converting channels for ${P} today — no new budget needed.`, `${say.ar}. مطالبة المورد بالإفراج عنها أو نقلها (مع المالية) إلى ${to.map((x) => lab(x).ar).join(" و")}، أعلى القنوات تحويلاً لـ${PA} حالياً — دون ميزانية جديدة.`)),
+      audience: bi("Buyers the best-converting channels already reach.", "المشترون الذين تصل إليهم القنوات الأعلى تحويلاً."), offer: keepOffer, headline: bi(`Keep the current ${P} message`, `الإبقاء على رسالة ${PA} الحالية`),
+      channels: to.map((x, i) => ({ family: x, sharePct: i === 0 ? 60 : 40, role: role("receives the redeployed budget", "تستقبل الميزانية المعاد توجيهها") })),
+      risks: [bi("PO changes need procurement; confirm the vendor's notice terms first.", "تحتاج تعديلات أوامر الشراء إلى المشتريات؛ تأكدوا أولاً من شروط الإشعار لدى المورد.")],
+    };
+  }
+  if (s.kind === "EMAIL_OPPORTUNITY") {
+    const bank = /bank|mortgage|financ|تمويل|بنك/i.test(`${s.title.en} ${s.why.en}`);
+    const sender = String(m.sender ?? "");
+    return {
+      kind: bank ? "PARTNERSHIP" : "CAMPAIGN", trigger: s.id, source: "rules",
+      title: bank ? bi(`${P}: finance partnership with ${sender.replace(/ \(.*\)$/, "")}`, `${PA}: شراكة تمويل مع ${sender.replace(/ \(.*\)$/, "")}`) : bi(`${P}: take up ${sender}'s proposal`, `${PA}: الاستفادة من مقترح ${nm("ar", sender)}`),
+      bigIdea: withEv(bank
+        ? bi(`An inbound offer: ${say.en}. Accept it for ${P}: pre-approval for buyers in 24 hours, a weekend finance desk on site, and a joint campaign to the bank's salaried customers — buyers arrive already able to pay.`, `عرض وارد: ${say.ar}. قبوله لـ${PA}: موافقة مسبقة للمشترين خلال 24 ساعة، ومكتب تمويل في الموقع نهاية الأسبوع، وحملة مشتركة لعملاء البنك من الموظفين — فيصل المشترون قادرين على الدفع.`)
+        : bi(`An inbound proposal: ${say.en}. Pilot it for 6 weeks on a pay-for-results basis, judged on CRM-qualified leads.`, `مقترح وارد: ${say.ar}. تجربته لستة أسابيع بالدفع حسب النتائج، والحكم بالعملاء المؤهلين في النظام.`)),
+      audience: bank ? bi("Salaried buyers eligible for a mortgage.", "مشترون موظفون مؤهلون للتمويل.") : bi("The audience named in the proposal.", "الجمهور المذكور في المقترح."),
+      offer: bank ? bi("Partner-bank pre-approval and fees covered in the window.", "موافقة مسبقة من البنك الشريك وتحمّل الرسوم خلال الفترة.") : keepOffer,
+      headline: bank ? bi(`${P}: your home, pre-approved`, `${PA}: منزلكم بتمويل معتمد مسبقاً`) : bi(`Keep the current ${P} message`, `الإبقاء على رسالة ${PA} الحالية`),
+      channels: bank ? [{ family: "PR", sharePct: 20, role: role("joint announcement", "إعلان مشترك") }, { family: "DIGITAL", sharePct: 40, role: role("finance-calculator ads", "إعلانات حاسبة التمويل") }, { family: "EVENT", sharePct: 20, role: role("finance desk weekends", "عطلات مكتب التمويل") }, { family: "BROKER", sharePct: 20, role: role("brokers with the bank offer", "الوسطاء بعرض البنك") }]
+        : [{ family: s.family && s.family !== "OTHER" ? s.family : "DIGITAL", sharePct: 70, role: role("the proposed pilot", "التجربة المقترحة") }, { family: "PORTAL", sharePct: 30, role: role("listings carry the message", "الإعلانات تحمل الرسالة") }],
+      risks: [bi("Reply only after approval; partnership terms go through legal and finance.", "الرد بعد الاعتماد فقط؛ وتمر شروط الشراكة عبر القانونية والمالية.")],
+    };
+  }
+  if (s.kind === "EMAIL_EVENT" || (s.kind === "CALENDAR_MOMENT" && s.direction === "up")) {
+    const city = /cityscape/i.test(s.title.en), nd = /national day/i.test(s.title.en);
+    return {
+      kind: "EVENT", trigger: s.id, source: "rules",
+      title: city ? bi(`${P} at Cityscape: stand, show-unit VR and booked meetings`, `${PA} في سيتي سكيب: جناح وجولة افتراضية واجتماعات محجوزة`) : nd ? bi(`${P}: National Day family weekend`, `${PA}: عطلة اليوم الوطني للعائلات`) : bi(`${P}: ${say.en}`, `${PA}: ${say.ar}`),
+      bigIdea: withEv(city
+        ? bi(`${say.en}. Book a stand at the early-bird price, bring a VR tour of the show unit, and pre-book meetings with Riyadh investors through brokers and ads in the four weeks before. Events converted best in the history.`, `${say.ar}. حجز جناح بسعر الحجز المبكر، وجولة افتراضية في الوحدة النموذجية، وحجز اجتماعات مسبقة مع مستثمري الرياض عبر الوسطاء والإعلانات قبل أربعة أسابيع. كانت الفعاليات الأعلى تحويلاً في التاريخ.`)
+        : bi(`${say.en}. A family open weekend on site with a dated offer, promoted two weeks ahead; ad costs peak on the day itself, so spend before it.`, `${say.ar}. عطلة مفتوحة للعائلات في الموقع بعرض مؤقت، يُروَّج لها قبل أسبوعين؛ وتبلغ تكلفة الإعلانات ذروتها يوم المناسبة، فالإنفاق قبله.`)),
+      audience: city ? bi("Riyadh investors and Jeddah families visiting Cityscape.", "مستثمرو الرياض وأسر جدة زوار سيتي سكيب.") : bi("Families out for the holiday.", "العائلات في عطلة المناسبة."),
+      offer: bi("Event-only price lock for reservations made at the event.", "تثبيت سعر خاص بالفعالية للحجوزات خلالها."),
+      headline: city ? bi(`Meet ${P} at Cityscape`, `قابلوا ${PA} في سيتي سكيب`) : bi(`${P}: celebrate at home`, `${PA}: احتفلوا في منزلكم`),
+      channels: [{ family: "EVENT", sharePct: 55, role: role(city ? "stand and VR tour" : "the open weekend", city ? "الجناح والجولة الافتراضية" : "العطلة المفتوحة") }, { family: "BROKER", sharePct: 25, role: role("pre-booked meetings", "اجتماعات محجوزة مسبقاً") }, { family: "DIGITAL", sharePct: 20, role: role("invitations to book a slot", "دعوات لحجز موعد") }],
+      evidence: ["MAR-EXPO-25"], risks: [bi("Events need 6–10 weeks of preparation; decide by the deadline in the signal.", "تحتاج الفعاليات إلى 6–10 أسابيع تحضير؛ قرروا قبل الموعد المذكور في الإشارة.")],
+    };
+  }
+  if (s.kind === "MARKET_SHIFT" || s.kind === "FINANCE_SHIFT") {
+    const rate = s.kind === "FINANCE_SHIFT", up = s.direction === "up";
+    return {
+      kind: rate ? "PARTNERSHIP" : up ? "OFFER" : "POSITIONING", trigger: s.id, source: "rules",
+      title: rate ? bi(`${P}: lead with the monthly instalment at today's rates`, `${PA}: إبراز القسط الشهري بأسعار اليوم`) : up ? bi(`${P}: buy before prices move`, `${PA}: اشتروا قبل تحرك الأسعار`) : bi(`${P}: certainty in a softer market`, `${PA}: اليقين في سوق أهدأ`),
+      bigIdea: withEv(rate
+        ? bi(`${say.en}. Show the monthly instalment at today's rate in every ad and listing, with a bank calculator and pre-approval; brokers quote the monthly figure first.`, `${say.ar}. إظهار القسط الشهري بسعر اليوم في كل إعلان وقائمة، مع حاسبة بنكية وموافقة مسبقة؛ ويذكر الوسطاء الرقم الشهري أولاً.`)
+        : up ? bi(`${say.en}. A price lock for reservations this month, with the district's price trend shown in ads and broker kits.`, `${say.ar}. تثبيت السعر لحجوزات هذا الشهر، مع إظهار اتجاه أسعار الحي في الإعلانات وحقائب الوسطاء.`)
+          : bi(`${say.en}. With many off-plan alternatives, sell certainty: delivery record, escrow, handover dates and a price-protection promise.`, `${say.ar}. مع كثرة البدائل على الخارطة، بيعوا اليقين: سجل التسليم وحساب الضمان ومواعيد التسليم ووعد حماية السعر.`)),
+      audience: bi("Buyers deciding in this market now.", "المشترون الذين يقررون في هذا السوق الآن."), offer: rate ? bi("Pre-approval and the monthly figure up front.", "موافقة مسبقة والرقم الشهري أولاً.") : up ? bi("Price lock for reservations this month.", "تثبيت السعر لحجوزات هذا الشهر.") : bi("Price protection until handover.", "حماية السعر حتى التسليم."),
+      headline: rate ? bi(`${P} from a monthly amount you know`, `${PA} بقسط شهري تعرفونه`) : up ? bi(`${P}: today's price, locked`, `${PA}: سعر اليوم مثبّت`) : bi(`${P}: on time, protected`, `${PA}: في الموعد ومحمي`),
+      channels: [{ family: "DIGITAL", sharePct: 45, role: role("message in ads", "الرسالة في الإعلانات") }, { family: "PORTAL", sharePct: 25, role: role("message on listings", "الرسالة في الإعلانات العقارية") }, { family: "BROKER", sharePct: 30, role: role("brokers lead with it", "الوسطاء يبدؤون بها") }],
+      risks: [bi("Rates and prices are public data; quote the source and date.", "الأسعار بيانات عامة؛ اذكروا المصدر والتاريخ.")],
+    };
+  }
   return null;
 }
 
 // ------------------------------------------------------------------- AI ideas
 const IDEATE_SYSTEM = `You are a senior real-estate marketing strategist in Saudi Arabia, ideating market initiatives for a developer's AI Assistant Director of Marketing. The marketing manager works alone and runs external vendors.
 
-Propose 4 DISTINCT market initiatives for the brief in DATA — not only ad campaigns: offers and pricing, partnerships (banks, employers, schools), events and on-site experiences, broker programmes, content and PR, budget and channel shifts, positioning and product messaging, referral and community. Use at least two different kinds. Ground every initiative in the data: what the CRM shows right now (crmSignals: unusual falls or surges in leads, qualified leads, contracts, lost reasons), the project's gap to target, the season, the channel benchmarks and lessons from the 2023–2025 campaign history, today's flags, and the vendors available.
-- crmSignalsToAnswer: EVERY signal listed there must be answered by at least one initiative that responds to its likely cause (use the drivers: which campaign, vendor and channel moved), with "trigger" set to the signal's id. Initiatives not answering a signal have "trigger": null. Be specific and creative about the concept, offer and message; be realistic for the Saudi market (family decision-making, Ramadan, summer travel, Cityscape, payment plans, off-plan regulation).
+Propose 4 DISTINCT market initiatives for the brief in DATA — not only ad campaigns: offers and pricing, partnerships (banks, employers, schools), events and on-site experiences, broker programmes, content and PR, budget and channel shifts, positioning and product messaging, referral and community. Use at least two different kinds. Ground every initiative in the data: what today's scan of ALL sources found (signals: the CRM — leads, qualified leads, contracts, lost reasons; the email inbox — vendor notices, proposals, market news, event deadlines; Oracle invoices and POs — unused committed budget; social and ad platforms — click-through and cost trends, creative fatigue; competitors' Meta ads and offers; the market — district transactions, prices, mortgage rates; the calendar), with "related" evidence from other sources; the project's gap to target, the season, the channel benchmarks and lessons from the 2023–2025 campaign history, today's flags, and the vendors available.
+- signalsToAnswer: EVERY signal listed there must be answered by at least one initiative that responds to its likely cause (use the drivers and the related evidence: which campaign, vendor, channel, email, PO or competitor explains it), with "trigger" set to the signal's id. Use concrete facts from the evidence (e.g. a vendor's proposal, unused PO budget, a competitor's offer). Initiatives not answering a signal have "trigger": null. Be specific and creative about the concept, offer and message; be realistic for the Saudi market (family decision-making, Ramadan, summer travel, Cityscape, payment plans, off-plan regulation).
 
 Rules:
 - "kind" one of: CAMPAIGN, OFFER, PARTNERSHIP, EVENT, BROKER_PROGRAM, CONTENT_PR, CHANNEL_SHIFT, POSITIONING, REFERRAL.
@@ -413,7 +507,7 @@ Reply with JSON only, no prose, exactly:
 
 const JUDGE_SYSTEM = `You are the AI Assistant Director of Marketing judging market initiatives before they reach the marketing manager. For each candidate in DATA you get the concept and a forecast computed from the campaign history (trust the forecast; do not invent numbers).
 
-Score each idea 1–10 on: fit with the data and the lessons of the history, expected efficiency (cost to sales vs the project's history and the target gap), distinctiveness from the other ideas, and feasibility with the vendors available in the season. Penalise ideas that repeat a past mistake or lean on channels flagged as expensive for this project. Keep the best 3–4 that are clearly different from each other; drop near-duplicates. For every signal in crmSignalsToAnswer, keep at least one candidate whose trigger is that signal (the best one), and judge whether it really addresses the cause.
+Score each idea 1–10 on: fit with the data and the lessons of the history, expected efficiency (cost to sales vs the project's history and the target gap), distinctiveness from the other ideas, and feasibility with the vendors available in the season. Penalise ideas that repeat a past mistake or lean on channels flagged as expensive for this project. Keep the best 3–4 that are clearly different from each other; drop near-duplicates. For every signal in signalsToAnswer, keep at least one candidate whose trigger is that signal (the best one), and judge whether it really addresses the cause.
 
 Reply with JSON only:
 {"ranking":[{"id":"A1","score":8.5,"keep":true,"why":{"en":"","ar":""},"improve":{"en":"","ar":""}}]}
@@ -441,7 +535,7 @@ const forModel = (c: IdeationContext) => ({
   target: c.target, projectCostToSalesPct: c.projectCtsPct, historyCostToSalesPct: c.historyCtsPct,
   channels: c.families.map((f) => ({ family: f.family, benchmarkCostToSalesPct: f.benchCts, cpqlSAR: f.cpql, qualifiedPct: f.qualPct, pastCampaigns: f.campaigns, seasonFactor: f.seasonFactor, liveCostToSalesForProject: f.liveCts, vendor: f.vendor ? `${f.vendor.name} (${f.vendor.note.en})` : "none" })),
   todaysFlagsForProject: c.flags, pastCampaignsForProject: c.pastForProject, pastCampaignsSameSeason: c.seasonPast, lessons: c.lessons,
-  crmSignals: signalsForModel(c.signals), crmSignalsToAnswer: c.toAnswer.map((x) => x.id), crmDataUpTo: c.crmAsOf,
+  signals: signalsForModel(c.signals), signalsToAnswer: c.toAnswer.map((x) => x.id), scannedOn: c.crmAsOf,
 });
 /** Make sure every signal to answer has an initiative: the best AI one that names it, else the rules one. */
 function coverSignals(c: IdeationContext, kept: Idea[], pool: Idea[]): Idea[] {
@@ -520,9 +614,9 @@ export async function ideasState(lang: Lang = "en") {
   // Newest run first; inside a run, best score first (rules ideas keep their order).
   const rows = (await prisma.campaignIdea.findMany()).sort((p, q) => q.runKey.localeCompare(p.runKey) || (q.score ?? 0) - (p.score ?? 0) || p.createdAt.getTime() - q.createdAt.getTime());
   const s = llmStatus();
-  const sig = await crmSignals();
+  const scan = scanView(await dailyScan(), lang);
   return {
-    ideas: rows.map(view(lang)), signals: sig.signals.map(signalView(lang)), crmAsOf: sig.asOf,
+    ideas: rows.map(view(lang)), signals: scan.signals, sources: scan.sources, crmAsOf: scan.date, scannedAt: scan.scannedAt,
     defaults: { month: defaultMonth(), projects: [...new Set(a.mkt.campaigns.map((c) => c.asset))].map((p) => ({ value: p, label: nm(lang, p) })), goals: GOALS.map((g) => ({ value: g, label: tx(lang, GOAL_LABEL[g].en, GOAL_LABEL[g].ar) })) },
     ai: { enabled: s.enabled, ideate: s.routes.find((r) => r.task === "ideate")?.order.slice(0, 2) ?? [], judge: s.routes.find((r) => r.task === "judge")?.order[0] ?? null },
   };
@@ -561,8 +655,8 @@ export async function ideasAnswer(brief: IdeaBrief, lang: Lang) {
   const T = (en: string, ar: string) => tx(lang, en, ar);
   const b = rows[0]?.brief;
   return T(`**Market initiatives — ${b?.projectLabel}, ${b?.monthLabel}** (${b?.seasonLabel}; ${b?.goalLabel}; budget SAR ${b?.budgetK}K)\n`, `**مبادرات السوق — ${b?.projectLabel}، ${b?.monthLabel}** (${b?.seasonLabel}؛ ${b?.goalLabel}؛ الميزانية ${K("ar", b?.budgetK)})\n`) +
-    rows.map((x, i) => T(`${i + 1}. **${x.title}** _(${x.kindLabel})_ — ${x.bigIdea}${x.trigger ? `\n   Answers the CRM signal: ${x.trigger.title}.` : ""}\n   Mix: ${x.channels.map((ch) => `${ch.label} ${ch.sharePct}%`).join(", ")}. Forecast: ${x.forecast.contracts[0]}–${x.forecast.contracts[2]} contracts, SAR ${x.forecast.salesM[0]}–${x.forecast.salesM[2]}M (~${x.forecast.costToSalesPct}% cost to sales).`,
-      `${i + 1}. **${x.title}** _(${x.kindLabel})_ — ${x.bigIdea}${x.trigger ? `\n   يستجيب لإشارة النظام: ${x.trigger.title}.` : ""}\n   المزيج: ${x.channels.map((ch) => `${ch.label} ${ch.sharePct}%`).join("، ")}. التوقع: ${x.forecast.contracts[0]}–${x.forecast.contracts[2]} عقود، ${M("ar", `${x.forecast.salesM[0]}–${x.forecast.salesM[2]}`)} (نحو ${x.forecast.costToSalesPct}% من المبيعات).`)).join("\n") +
+    rows.map((x, i) => T(`${i + 1}. **${x.title}** _(${x.kindLabel})_ — ${x.bigIdea}${x.trigger ? `\n   Answers the signal: ${x.trigger.title}.` : ""}\n   Mix: ${x.channels.map((ch) => `${ch.label} ${ch.sharePct}%`).join(", ")}. Forecast: ${x.forecast.contracts[0]}–${x.forecast.contracts[2]} contracts, SAR ${x.forecast.salesM[0]}–${x.forecast.salesM[2]}M (~${x.forecast.costToSalesPct}% cost to sales).`,
+      `${i + 1}. **${x.title}** _(${x.kindLabel})_ — ${x.bigIdea}${x.trigger ? `\n   يستجيب للإشارة: ${x.trigger.title}.` : ""}\n   المزيج: ${x.channels.map((ch) => `${ch.label} ${ch.sharePct}%`).join("، ")}. التوقع: ${x.forecast.contracts[0]}–${x.forecast.contracts[2]} عقود، ${M("ar", `${x.forecast.salesM[0]}–${x.forecast.salesM[2]}`)} (نحو ${x.forecast.costToSalesPct}% من المبيعات).`)).join("\n") +
     (g.note ? `\n\n${g.note}` : "") +
     T(`\n\nForecasts come from the 2023–2025 history${g.engine === "rules" ? "; ideas from the built-in rules" : ` (ideas by ${g.engine})`}. Shortlist or approve them on the **Initiatives** page — approving drafts a brief to the lead vendor for your approval.`, `\n\nالتوقعات من تاريخ 2023–2025${g.engine === "rules" ? "؛ والأفكار من القواعد المدمجة" : ` (الأفكار من ${g.engine})`}. أدرجوها في القائمة المختصرة أو اعتمدوها من صفحة **المبادرات** — يُعِدّ الاعتماد موجزاً للمورد الرئيسي لتعتمدوه.`);
 }
@@ -592,8 +686,8 @@ export async function dailyIdeas(date: string, lang: Lang = "en") {
   const day = Math.floor(Date.parse(`${date}T00:00:00Z`) / 86400000);
   const angle = ANGLES[day % ANGLES.length];
   let engine = rows[0]?.source ?? "";
-  const sig = await crmSignals();
-  const alerts = sig.signals.filter((x) => x.project && (x.direction === "down" ? x.severity !== "info" : x.kind === "SURGE"));
+  const sig = await dailyScan();
+  const alerts = sig.signals.filter((x) => x.project && !x.linkedTo && x.direction === "down" && x.severity !== "info");
   if (!rows.length) {
     const d = await buildDirector("en");
     const order = [...d.targets.byAsset].sort((p, q) => (p.pct ?? 0) - (q.pct ?? 0)).map((x) => x.asset);
@@ -603,10 +697,10 @@ export async function dailyIdeas(date: string, lang: Lang = "en") {
     engine = r.engine; rows = await pick();
   }
   const runKey = rows.map((r) => r.runKey).sort().pop();
-  const ideas = rows.filter((r) => r.runKey === runKey).sort((p, q) => (q.score ?? 0) - (p.score ?? 0) || p.createdAt.getTime() - q.createdAt.getTime()).slice(0, 4).map(view(lang));
+  const ideas = rows.filter((r) => r.runKey === runKey).sort((p, q) => (q.score ?? 0) - (p.score ?? 0) || p.createdAt.getTime() - q.createdAt.getTime()).slice(0, 5).map(view(lang));
   const b = ideas[0]?.brief;
   const sources = [...new Set(ideas.map((i) => i.source))];
   const judge = ideas.find((i) => i.judge)?.judge?.by ?? null;
   return { angle: lang === "ar" ? angle.ar : angle.en, project: b?.projectLabel ?? "", month: b?.monthLabel ?? "", goal: b?.goalLabel ?? "", budgetK: b?.budgetK ?? null, ideas, sources, judge, engine,
-    signals: sig.signals.map(signalView(lang)), crmAsOf: sig.asOf };
+    ...(() => { const v = scanView(sig, lang); return { signals: v.signals, scanned: v.sources, crmAsOf: v.date, scannedAt: v.scannedAt }; })() };
 }

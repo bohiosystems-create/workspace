@@ -34,6 +34,14 @@ function mondaysOf(month: string) {
   return out;
 }
 
+// Click-through rate per week. Sample pattern: the Andalus off-plan funnel has run the same creatives since February,
+// so its CTR wears down week by week on Meta and Snap (ad fatigue) — the daily scan (lib/signals.ts) should spot it.
+function ctrOf(code: string, week: string, platform: string) {
+  if (code !== "AND-OFFPLAN-26" || platform === "GOOGLE") return 0.012;
+  const weeks = Math.max(0, (Date.parse(week) - Date.parse("2026-02-02")) / (7 * 86400000));
+  return 0.016 * Math.pow(0.96, weeks);
+}
+
 export async function mockRows(): Promise<AdWeekRow[]> {
   const campaigns = await prisma.campaign.findMany({ include: { months: true } });
   const rows: AdWeekRow[] = [];
@@ -47,7 +55,7 @@ export async function mockRows(): Promise<AdWeekRow[]> {
           const spendK = Math.round(((m.spendK * ratio * share) / weeks.length) * 10) / 10;
           rows.push({
             week: w, platform, campaignCode: c.crmCode, spendK,
-            impressionsK: Math.round(spendK / 0.045), clicks: Math.round((spendK / 0.045) * 1000 * 0.012),
+            impressionsK: Math.round(spendK / 0.045), clicks: Math.round((spendK / 0.045) * 1000 * ctrOf(c.crmCode, w, platform)),
             platformLeads: Math.round(((m.leads * 1.12 * share) / weeks.length)),
           });
         }

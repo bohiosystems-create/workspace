@@ -7,6 +7,7 @@ import type { Orchestration } from "./orchestrator";
 import { historyState } from "./history";
 import { metaMode, metaState } from "./meta";
 import { outlookMode, outlookSender, readVendorMail, type MailMessage } from "./outlook";
+import { sampleMailFrom } from "./inbox";
 import { TODAY } from "./clock";
 import { type Lang, tx, nm, dt } from "./i18n";
 
@@ -113,6 +114,7 @@ export async function vendorDetail(id: string, lang: Lang, a: Agent, orch: Orche
       catch (e: any) { mailNote = String(e?.message ?? e); }
     } else {
       mails.push(...simulatedReplies(v, out, invoices, deliverables, live.length > 0).map((m) => ({ ...m, source: "simulated" as const })));
+      mails.push(...sampleMailFrom(v.name, lang).map((m) => ({ ...m, source: "simulated" as const })));
       mailNote = T("Outlook is simulated: vendor replies below are sample messages consistent with the data. With OUTLOOK_MODE=live they are read from the mailbox (Mail.Read).", "Outlook تجريبي: ردود المورد أدناه رسائل نموذجية متسقة مع البيانات. مع OUTLOOK_MODE=live تُقرأ من صندوق البريد (Mail.Read).");
     }
   } else if (!v) mailNote = T("A past vendor: no contract or mailbox on record; its campaigns are in the history.", "مورد سابق: لا عقد ولا مراسلات مسجلة؛ وحملاته في التاريخ.");
