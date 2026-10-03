@@ -5,7 +5,6 @@ import DirectorPage from "../app/page";
 import OrchestrationPage from "../app/orchestration/page";
 import ReportsPage from "../app/reports/page";
 import Page from "../app/campaigns/page";
-import InvoicesPage from "../app/invoices/page";
 import DecisionsPage from "../app/decisions/page";
 import ExperimentsPage from "../app/experiments/page";
 import DataPage from "../app/data/page";
@@ -209,7 +208,7 @@ window.fetch = (async (input: any, init?: any) => {
 const root = createRoot(document.getElementById("root")!);
 const show = (path: string) => {
   (window as any).__demoPath = path;
-  root.render(<React.Fragment key={path}>{({ "/orchestration": <OrchestrationPage />, "/reports": <ReportsPage />, "/campaigns": <Page />, "/invoices": <InvoicesPage />, "/decisions": <DecisionsPage />, "/experiments": <ExperimentsPage />, "/data": <DataPage />, "/daily": <DailyPage />, "/history": <HistoryPage />, "/ideas": <IdeasPage /> } as Record<string, React.ReactNode>)[path] ?? <DirectorPage />}</React.Fragment>);
+  root.render(<React.Fragment key={path}>{({ "/orchestration": <OrchestrationPage />, "/reports": <ReportsPage />, "/campaigns": <Page />, "/decisions": <DecisionsPage />, "/experiments": <ExperimentsPage />, "/data": <DataPage />, "/daily": <DailyPage />, "/history": <HistoryPage />, "/ideas": <IdeasPage /> } as Record<string, React.ReactNode>)[path] ?? <DirectorPage />}</React.Fragment>);
 };
 document.addEventListener("click", (e) => {
   const a = (e.target as HTMLElement).closest("a[href^='/']");

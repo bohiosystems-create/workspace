@@ -2,19 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "./lang";
-import { KINAN_LOGO } from "../../lib/brand-logo";
+import { kinanLogoHtml } from "../../lib/brand";
 
 const LINKS = [
   { href: "/", label: "Director" },
   { href: "/daily", label: "Daily check" },
   { href: "/ideas", label: "Initiatives" },
-  { href: "/orchestration", label: "Orchestration" },
+  { href: "/orchestration", label: "Vendors" },
   { href: "/reports", label: "Reports" },
   { href: "/campaigns", label: "Campaigns" },
   { href: "/history", label: "History" },
   { href: "/decisions", label: "Decisions" },
   { href: "/experiments", label: "Experiments" },
-  { href: "/invoices", label: "Invoices" },
 ];
 
 export default function Header() {
@@ -28,7 +27,8 @@ export default function Header() {
       <div className="brand">
         {/* The Kinan logo on a dark band (brand/kinan-logo.*, embedded by scripts/brand-logo.mjs); wordmark until it is added. */}
         <a href="/" className="brand-band" aria-label="Kinan">
-          {KINAN_LOGO ? <img src={KINAN_LOGO} alt="Kinan" /> : <span className="brand-word">{lang === "ar" ? "كنان" : "KINAN"}</span>}
+          <span dangerouslySetInnerHTML={{ __html: kinanLogoHtml(36) }} />
+          <span className="brand-chev">‹</span>
         </a>
         <small>{t("AI Assistant Director of Marketing")}</small>
       </div>

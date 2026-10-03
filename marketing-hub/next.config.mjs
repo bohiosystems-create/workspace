@@ -1,8 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // The Bench page was removed; trials now live on the Decisions page.
+  // Removed pages: Bench (trials are on Decisions) and Invoices (on Vendors).
   async redirects() {
-    return [{ source: "/bench", destination: "/decisions#trials", permanent: false }];
+    return [
+      { source: "/bench", destination: "/decisions#trials", permanent: false },
+      // Invoices moved into the Vendors page (per vendor, and all vendors at #invoices).
+      { source: "/invoices", destination: "/orchestration#invoices", permanent: false },
+    ];
   },
 };
 

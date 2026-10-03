@@ -202,7 +202,7 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
     ...a.bench.trials.filter((x) => x.status === "COMPLETED" && !x.decision).map((x) => ({ kind: "TRIAL", title: T(`Decide trial result: ${x.challenger} vs ${x.incumbent}`, `البت في نتيجة تجربة: ${N(x.challenger)} مقابل ${N(x.incumbent)}`), href: "/decisions#trials", severity: "crit", minutes: 5 })),
     ...experiments.filter((x) => x.status === "PLANNED").map((x) => ({ kind: "TEST", title: T(`Approve test: ${x.campaign}`, `اعتماد اختبار: ${N(x.campaign)}`), href: "/experiments", severity: "info", minutes: 3 })),
     ...(emailDrafts ? [{ kind: "EMAIL", title: T(`${emailDrafts} vendor email draft(s) to approve`, `مسودات رسائل للموردين بانتظار الاعتماد (${emailDrafts})`), href: "drafts", severity: "warn", minutes: 2 * emailDrafts }] : []),
-    ...(a.inv.kpis.exceptions ? [{ kind: "INVOICE", title: T(`${a.inv.kpis.exceptions} supplier invoice exception(s) to resolve`, `استثناءات فواتير موردين بحاجة إلى معالجة (${a.inv.kpis.exceptions})`), href: "/invoices", severity: "warn", minutes: 2 * a.inv.kpis.exceptions }] : []),
+    ...(a.inv.kpis.exceptions ? [{ kind: "INVOICE", title: T(`${a.inv.kpis.exceptions} supplier invoice exception(s) to resolve`, `استثناءات فواتير موردين بحاجة إلى معالجة (${a.inv.kpis.exceptions})`), href: "/orchestration#invoices", severity: "warn", minutes: 2 * a.inv.kpis.exceptions }] : []),
   ];
   const inbox = inboxRaw;
   const managerMinutes = inbox.reduce((sum, x) => sum + x.minutes, 0);
@@ -233,7 +233,7 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
       ...(plan.status === "PROPOSED" ? [T("Approve the June budget plan — I then draft each vendor's brief.", "اعتماد خطة ميزانية يونيو — ثم أُعدّ موجز كل مورد.")] : []),
       ...campaignRecs.filter((r) => r.severity === "crit").slice(0, 2).map((r) => r.title + "."),
       ...orch.escalations.map((x) => x.title + "."),
-      ...(woWaiting.length ? [T(`Approve ${woWaiting.length} vendor message(s) on Orchestration (${woWaiting.filter((o) => o.routine).length} routine).`, `اعتماد ${woWaiting.length} رسالة للموردين في صفحة التنسيق (${woWaiting.filter((o) => o.routine).length} روتينية).`)] : []),
+      ...(woWaiting.length ? [T(`Approve ${woWaiting.length} vendor message(s) on the Vendors page (${woWaiting.filter((o) => o.routine).length} routine).`, `اعتماد ${woWaiting.length} رسالة للموردين في صفحة الموردين (${woWaiting.filter((o) => o.routine).length} روتينية).`)] : []),
       ...a.bench.trials.filter((x) => x.status === "COMPLETED" && !x.decision).map((x) => T(`Decide on ${x.challenger} (won its trial against ${x.incumbent}).`, `البت في ${N(x.challenger)} (فاز في تجربته أمام ${N(x.incumbent)}).`)),
     ].slice(0, 6),
   };

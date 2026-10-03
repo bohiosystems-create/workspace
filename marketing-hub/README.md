@@ -110,6 +110,7 @@ Describe a brief (project, month, budget, goal, audience, anything else — or l
   - **Market** — district transactions ≤ −4% y/y (softening) or ≥ +8% with prices ≥ +5% (rising); mortgage rate moved ≥0.3 pt in a year.
   - **Calendar** — National Day, Cityscape and summer within ~5 months.
   - **Linking** — a vendor email (issue or proposal) or unused PO budget behind a CRM fall is attached to it and marked `linkedTo` (answered with it); a broker's market email is attached to the competitor push; competitor, ad and market findings are added as context to a CRM fall in the same project.
+- **Kinan style** (`lib/brand.ts`): as on kinan.com.sa — white "كنان / kinan" logo on a charcoal header, orange accent and chevron, Montserrat in light letter-spaced capitals, white pages, a charcoal footer with "LIVE THE PLACE". The daily report and snapshot (`kinanDoc` in `lib/reports.ts`), the report charts (charcoal and orange palette), the slide player and the app header use it.
 - **Branding:** put the Kinan logo in `brand/kinan-logo.svg` (or `.png` / `.webp`, light artwork on transparent); `npm run brand` (run automatically before `build` and `demo:build`) embeds it in `lib/brand-logo.ts`. It shows on a dark band in the header, the daily report, the slide player and the demo kit; without the file, the KINAN wordmark is used.
 - **Director home:** `directorState` adds today's scan (sources, top findings with sparklines and the initiative answering each, read from the day's prepared initiatives without generating). Reports and snapshots are dated with the sample clock (`now()` in `lib/clock.ts`; `DEMO_CLOCK=off` for the real clock).
 - **Answering:** up to three findings for the project (falls and risks first, then opportunities; portfolio findings such as a bank proposal or Cityscape too) are passed to the AI as `signalsToAnswer` with all findings and their evidence; every one must be answered by an initiative with `trigger` = its id, and `coverSignals` adds the built-in answer if the models missed one. Findings are answered when the initiative runs within 6 months of the scan. The demo data includes a lapsed Marina Tower portal slot (CRM dip + PropertyHub email), ad fatigue on the Andalus off-plan funnel (CTR decays on Meta and Snap), and sample inbox messages.
@@ -146,7 +147,9 @@ Every morning the director checks each live campaign against its own trend and a
 - Benchmarks by channel, season, year, project and vendor; a lesson per campaign; overall lessons (brokers and events convert best; Ramadan with a payment-plan offer works; summer is the weakest season; radio and billboards are the most expensive per sale; a low qualified rate in month one predicts weak sales).
 - The daily check, the assistant and the AI tools all use it as the benchmark.
 
-## Oracle integration — supplier invoices (`/invoices`)
+## Oracle integration — supplier invoices (on the Vendors page, `/orchestration#invoices`)
+
+The Invoices page was folded into **Vendors** (`app/_components/InvoicesPanel.tsx`): each vendor's Invoices tab shows only its invoices, POs and deliveries with approve / dispute / reopen, and the all-vendor view sits under the vendor list. `/invoices` redirects there.
 
 Pulls purchase orders and supplier invoices from **Oracle Fusion Cloud Procurement / Payables**
 (read-only REST GETs, `lib/oracle.ts`) and reconciles them against what each vendor reported delivering:

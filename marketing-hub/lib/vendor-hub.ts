@@ -1,4 +1,4 @@
-// Vendor hub — the Orchestration page's vendor directory: every vendor (current, bench alternatives, past) with its
+// Vendor hub — the Vendors page's vendor directory: every vendor (current, bench alternatives, past) with its
 // headline numbers, and per vendor the campaigns it ran, its supplier invoices (Oracle), the work orders and
 // deliverables, and the email correspondence (Outlook). Read-only: approvals stay on their own controls.
 import { prisma } from "./prisma";

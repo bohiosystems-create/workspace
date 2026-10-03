@@ -364,7 +364,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
       (o.escalations.length ? `\n${o.escalations.map((x) => `- ⚠ ${x.title}`).join("\n")}\n` : "") +
       (orders.length ? `\n${T("**Work orders**", "**أوامر العمل**")}\n${orders.slice(0, 10).map((x) => `- ${N(x.vendor)}: ${x.title} — ${ST[x.status] ?? x.status}${x.overdue ? T(" (overdue)", " (متأخر)") : ""}`).join("\n")}\n` : "") +
       (dels.length ? `\n${T("**What vendors owe us**", "**ما يدين به الموردون**")}\n${dels.slice(0, 8).map((x) => `- ${N(x.vendor)}: ${x.title} — ${DS[x.state]}${T(", due", "، موعده")} ${dt(L, x.due)}${x.chases ? T(`, ${x.chases} reminder(s)`, `، ${an(x.chases, "تذكير واحد", "تذكيران", "تذكيرات", "تذكيراً")}`) : ""}`).join("\n")}\n` : "") +
-      T("\nApprove or cancel on the Orchestration page; nothing goes to a vendor without your approval.", "\nاعتمدوا أو ألغوا من صفحة التنسيق؛ لا يصل شيء إلى أي مورد دون اعتمادكم."));
+      T("\nApprove or cancel on the Vendors page; nothing goes to a vendor without your approval.", "\nاعتمدوا أو ألغوا من صفحة الموردين؛ لا يصل شيء إلى أي مورد دون اعتمادكم."));
   }
   if (RX.plan.test(q)) {
     const p = dr.plan;

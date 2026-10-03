@@ -12,10 +12,35 @@
 //           vendor or customer.
 import { prisma } from "./prisma";
 import { now } from "./clock";
-import { KINAN_LOGO } from "./brand-logo";
+import { KINAN, kinanLogoHtml, chevron } from "./brand";
 
-/** Report header: the Kinan logo on a dark band (wordmark if no logo file; alt text if the mail client blocks images). */
-const brandBand = (lang: Lang) => `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td style="background:#0b0d12;border-radius:8px;padding:10px 16px">${KINAN_LOGO ? `<img src="${KINAN_LOGO}" alt="KINAN" height="22" style="display:block;height:22px;width:auto;color:#fff;font:700 14px Helvetica,Arial,sans-serif;letter-spacing:.3em">` : `<span style="color:#fff;font-weight:700;font-size:14px;letter-spacing:${lang === "ar" ? "0" : ".3em"}">${lang === "ar" ? "كنان" : "KINAN"}</span>`}</td><td style="padding-inline-start:12px;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#5b6170">${lang === "ar" ? "مساعد مدير التسويق الذكي" : "AI Assistant Director of Marketing"}</td></tr></table>`;
+/** A report in Kinan's style (kinan.com.sa): charcoal header with the white logo and the orange chevron, light
+ *  letter-spaced capitals, white sections with an orange rule, and a charcoal footer with the tagline. Email-safe
+ *  (tables and inline styles; the web font falls back to Helvetica / Tahoma where mail clients block it). */
+function kinanDoc(lang: Lang, kicker: string, title: string, sub: string, sec: [string, string, string][], note: string) {
+  const dir = lang === "ar" ? "rtl" : "ltr", ff = lang === "ar" ? KINAN.fontAr : KINAN.font;
+  const caps = lang === "ar" ? "" : "text-transform:uppercase;";
+  return `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="${KINAN.fontsHref}" rel="stylesheet"><title>${esc(title)}</title></head>
+<body style="margin:0;background:${KINAN.page};color:${KINAN.ink};font-family:${ff}">
+<div style="max-width:760px;margin:0 auto">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:${KINAN.charcoal}"><tr>
+<td style="padding:16px 24px;width:1%">${kinanLogoHtml(38)}</td>
+<td style="padding:16px 8px;color:#fff;font-size:10px;letter-spacing:${lang === "ar" ? "0" : ".26em"};${caps}opacity:.85;text-align:end">${esc(lang === "ar" ? "مساعد مدير التسويق الذكي" : "AI Assistant Director of Marketing")}</td>
+<td style="padding:16px 24px 16px 6px;width:1%;text-align:end">${chevron(dir, 34)}</td></tr></table>
+<div style="background:${KINAN.paper};padding:28px 24px 18px">
+<div style="font-size:11px;letter-spacing:${lang === "ar" ? "0" : ".28em"};${caps}color:${KINAN.orange};font-weight:600">${esc(kicker)}</div>
+<h1 style="font-family:${ff};font-weight:400;${caps}letter-spacing:${lang === "ar" ? "0" : ".03em"};font-size:25px;line-height:1.25;margin:8px 0 8px">${esc(title.startsWith(kicker) ? title.slice(kicker.length).replace(/^\s*[—–-]\s*/, "") : title)}</h1>
+<div style="font-size:12px;color:${KINAN.soft}">${esc(sub)}</div>
+<div style="width:64px;height:3px;background:${KINAN.orange};margin-top:16px"></div>
+</div>
+${sec.map(([h, body]) => `<div data-slide="${esc(h)}" style="background:${KINAN.paper};border-top:1px solid ${KINAN.line};padding:20px 24px"><div style="font-size:13px;letter-spacing:${lang === "ar" ? "0" : ".14em"};${caps}font-weight:500;color:${KINAN.ink};margin-bottom:12px"><span style="display:inline-block;width:18px;height:2px;background:${KINAN.orange};vertical-align:middle;margin-inline-end:10px"></span>${esc(h)}</div><div style="font-size:13px;line-height:1.55">${body}</div></div>`).join("\n")}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:${KINAN.charcoal}"><tr><td style="padding:22px 24px;color:#fff">
+<div style="font-size:18px;font-weight:300;letter-spacing:.18em">${KINAN.tagline}</div>
+<div style="font-size:11px;color:#bdbdbd;margin-top:8px">in · X · ◎ ${KINAN.social} &nbsp;|&nbsp; ${KINAN.site}</div>
+<div style="font-size:10.5px;color:#9a9a9a;margin-top:10px;line-height:1.5">${esc(note)}</div>
+</td></tr></table>
+</div></body></html>`;
+}
 import { single, serial } from "./single";
 import { buildAgent } from "./agent";
 import { historyState } from "./history";
@@ -99,7 +124,7 @@ export function nextRun(s: { enabled: boolean; time: string; timezone: string; d
 // ------------------------------------------------------------------ build
 type Metrics = Record<string, number>;
 const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const C = { ink: "#000919", soft: "#5b6170", line: "#d9d7d4", alert: "#d6334b", green: "#1f7a4d", paper: "#f6f5f3" };
+const C = { ink: KINAN.ink, soft: KINAN.soft, line: KINAN.line, alert: "#d6334b", green: "#1f7a4d", paper: KINAN.page, orange: KINAN.orange };
 
 export async function buildReport(lang: Lang, date: string, prev: { metrics: Metrics; date: string; at: Date } | null) {
   const T = (en: string, ar: string) => tx(lang, en, ar);
@@ -197,16 +222,8 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   sec.push([T("Supplier invoices", "فواتير الموردين"), ul(invl), tl(invl)]);
 
 
-  const dir = lang === "ar" ? "rtl" : "ltr";
-  const html = `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
-<body style="margin:0;background:${C.paper};color:${C.ink};font-family:${lang === "ar" ? "Tahoma,Arial" : "Helvetica,Arial"},sans-serif">
-<div style="max-width:720px;margin:0 auto;padding:24px 20px">
-${brandBand(lang)}
-<h1 style="font-size:20px;margin:10px 0 4px">${esc(title)}</h1>
-<div style="font-size:12px;color:${C.soft};margin:0 0 18px;border-bottom:2px solid ${C.ink};padding-bottom:10px">${esc(T(`Figures as of ${dt("en", d.asOf)}`, `الأرقام حتى ${dt("ar", d.asOf)}`))}</div>
-${sec.map(([h, body]) => `<div data-slide="${esc(h)}" style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}
-<p style="font-size:11px;color:${C.soft}">${esc(T("Generated automatically by the AI Assistant Director of Marketing. This report takes no action: approvals happen in the app.", "أُعدّ تلقائياً بواسطة مساعد مدير التسويق الذكي. لا يتخذ هذا التقرير أي إجراء: تتم الاعتمادات داخل التطبيق."))}</p>
-</div></body></html>`;
+  const html = kinanDoc(lang, T("Daily marketing report", "التقرير التسويقي اليومي"), title, T(`Figures as of ${dt("en", d.asOf)}`, `الأرقام حتى ${dt("ar", d.asOf)}`), sec,
+    T("Generated automatically by the AI Assistant Director of Marketing. This report takes no action: approvals happen in the app.", "أُعدّ تلقائياً بواسطة مساعد مدير التسويق الذكي. لا يتخذ هذا التقرير أي إجراء: تتم الاعتمادات داخل التطبيق."));
   const text = `${title}\n\n${sec.map(([h, , t]) => `${h.toUpperCase()}\n${t}`).join("\n\n")}\n`;
   return { title, html, text, metrics, headline: d.brief.headline, bullets: d.brief.bullets, actions: d.brief.actions };
 }
@@ -225,13 +242,14 @@ async function ideasSection(lang: Lang, date: string): Promise<[string, string, 
     const card = (i: (typeof di.ideas)[number], n: number) => `<div data-part style="border-top:1px solid ${C.line};padding:10px 0 2px">
       <div style="font-size:14px;font-weight:700">${n}. ${esc(i.title)}${i.score ? ` <span style="font-size:11px;font-weight:400;color:${C.soft}">· ${esc(T("score", "التقييم"))} ${i.score}/10</span>` : ""}</div>
       <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:${C.soft};margin-top:2px">${esc(i.kindLabel)}</div>
-      ${i.trigger ? `<div style="font-size:12px;margin-top:4px;padding:4px 8px;border-inline-start:3px solid ${C.alert};background:#fbf3f3">${esc(T("Answers", "يستجيب لـ"))}: <b>${esc(i.trigger.title)}</b></div>` : ""}
+      ${i.trigger ? `<div style="font-size:12px;margin-top:4px;padding:4px 8px;border-inline-start:3px solid ${C.orange};background:#fff4ee">${esc(T("Answers", "يستجيب لـ"))}: <b>${esc(i.trigger.title)}</b></div>` : ""}
       <div style="margin:4px 0">${esc(i.bigIdea)}</div>
       ${i.offer ? `<div style="font-size:12px"><b>${esc(T("Offer", "العرض"))}:</b> ${esc(i.offer)}${i.headline ? ` · <b>${esc(T("Headline", "العنوان"))}:</b> “${esc(i.headline)}”` : ""}</div>` : ""}
       <div style="font-size:12px;color:${C.soft};margin-top:3px">${esc(i.channels.map((ch) => `${ch.label} ${ch.sharePct}%`).join(" · "))}${i.leadVendor ? ` · ${esc(T("lead vendor", "المورد الرئيسي"))} ${esc(i.leadVendor)}` : ""}</div>
       <div style="font-size:12px;margin-top:3px"><b>${esc(T("Forecast", "التوقع"))}:</b> ${esc(T(`${rng(i.forecast.contracts)} contracts, SAR ${rng(i.forecast.salesM)}M, ~${i.forecast.costToSalesPct}% cost to sales on SAR ${i.forecast.spendK}K`, `${rng(i.forecast.contracts)} عقود، ${rng(i.forecast.salesM)} مليون ر.س، نحو ${i.forecast.costToSalesPct}% من المبيعات مقابل ${i.forecast.spendK} ألف ر.س`))}</div>
       ${i.judge?.why ? `<div style="font-size:11px;color:${C.soft};margin-top:3px">${esc(i.judge.why)}</div>` : ""}
     </div>`;
+    const spark = (xs: number[] | null, down: boolean) => { if (!xs || xs.length < 4) return ""; const max = Math.max(...xs, 0.0001); return `<span style="display:inline-block;vertical-align:middle;margin-inline-start:6px;line-height:0;white-space:nowrap">${xs.map((v, i) => `<span style="display:inline-block;width:4px;margin-inline-end:1px;height:${Math.max(1, Math.round((v / max) * 14))}px;background:${i >= xs.length - 3 ? (down ? C.alert : C.ink) : C.line}"></span>`).join("")}</span>`; };
     // Every source scanned today, then the findings (evidence from other sources nested under what it explains).
     const top = di.signals.filter((x) => !x.linkedTo && (x.direction === "down" || x.severity !== "info" || ["EMAIL_OPPORTUNITY", "EMAIL_EVENT", "BUDGET_HEADROOM"].includes(x.kind))).slice(0, 8);
     const more = di.signals.filter((x) => !x.linkedTo).length - top.length;
@@ -240,13 +258,13 @@ async function ideasSection(lang: Lang, date: string): Promise<[string, string, 
       ? `<ul style="margin:0;padding-inline-start:18px;line-height:1.5;font-size:12px">${top.map((x) => `<li style="margin-bottom:4px"><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:${C.soft}">${esc(x.sourceLabel)}</span> <b style="color:${x.direction === "down" ? C.alert : C.ink}">${esc(x.title)}</b>${spark(x.series, x.direction === "down")}<br><span style="color:${C.soft}">${esc(x.why)}</span>${x.related.length ? `<br><span style="font-size:11px">↳ ${x.related.map((r) => `${esc(r.sourceLabel)}: ${esc(r.title)}`).join("<br>↳ ")}</span>` : ""}</li>`).join("")}</ul>${more > 0 ? `<p style="margin:4px 0 0;color:${C.soft};font-size:11px">${esc(T(`+ ${more} smaller findings on the Initiatives page.`, `+ ${more} نتائج أصغر في صفحة المبادرات.`))}</p>` : ""}`
       : `<p style="margin:0;font-size:12px;color:${C.soft}">${esc(T("Nothing unusual in any source today.", "لا شيء غير معتاد في أي مصدر اليوم."))}</p>`) + `</div>`;
     const sigs = top;
-    const spark = (xs: number[] | null, down: boolean) => { if (!xs || xs.length < 4) return ""; const max = Math.max(...xs, 0.0001); return `<span style="display:inline-block;vertical-align:middle;margin-inline-start:6px;line-height:0;white-space:nowrap">${xs.map((v, i) => `<span style="display:inline-block;width:4px;margin-inline-end:1px;height:${Math.max(1, Math.round((v / max) * 14))}px;background:${i >= xs.length - 3 ? (down ? C.alert : C.ink) : C.line}"></span>`).join("")}</span>`; };
     const html = sigHtml + `<p style="margin:0 0 4px">${esc(T(`Focus today: <${di.project}> for ${di.month} (${di.goal.toLowerCase()}), angle: ${di.angle}.`, `تركيز اليوم: <${di.project}> لشهر ${di.month} (${di.goal})، الزاوية: ${di.angle}.`)).replace(/&lt;(.*?)&gt;/, "<b>$1</b>")}</p>` +
       di.ideas.map((x, k) => card(x, k + 1)).join("") +
       `<p style="margin:8px 0 0;color:${C.soft};font-size:11px">${esc(engine)}. ${esc(T("Findings are computed from your data sources; forecasts come from the 2023–2025 history, not from the AI. Shortlist or approve on the Initiatives page; approving drafts a vendor brief for your approval.", "النتائج محسوبة من مصادر بياناتكم؛ والتوقعات من تاريخ 2023–2025 وليست من الذكاء الاصطناعي. ضعوها في القائمة المختصرة أو اعتمدوها من صفحة المبادرات؛ الاعتماد يُعدّ موجزاً للمورد بانتظار موافقتكم."))}</p>`;
     const text = `${T("Scanned", "فُحص")}: ${di.scanned.map((x) => `${x.label} ${x.items}${x.found ? ` → ${x.found}` : ""}`).join(" · ")}\n` + (sigs.length ? sigs.map((x) => `  ! [${x.sourceLabel}] ${x.title}${x.related.length ? ` (${x.related.map((r) => r.title).join("; ")})` : ""}`).join("\n") + "\n" : "") + `${T(`Focus: ${di.project}, ${di.month}; angle: ${di.angle}`, `التركيز: ${di.project}، ${di.month}؛ الزاوية: ${di.angle}`)}\n` + di.ideas.map((i, n) => `  ${n + 1}. [${i.kindLabel}] ${i.title}${i.trigger ? ` (${T("answers", "يستجيب لـ")}: ${i.trigger.title})` : ""} — ${i.bigIdea} (${rng(i.forecast.contracts)} ${T("contracts", "عقود")}, SAR ${rng(i.forecast.salesM)}M)`).join("\n") + `\n  ${engine}`;
     return [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), html, text];
   } catch (e: any) {
+    console.error("report: initiatives section failed:", e?.stack ?? e);
     return [T("What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"), `<p style="margin:0;color:${C.soft}">${esc(T("Initiatives could not be prepared this time; open the Initiatives page to generate them.", "تعذّر إعداد المبادرات هذه المرة؛ افتحوا صفحة المبادرات لإنشائها."))}</p>`, ""];
   }
 }
@@ -303,16 +321,8 @@ export async function buildSnapshot(lang: Lang, at: Date, prev: { metrics: Metri
   sec.splice(3, 0, await ideasSection(lang, ln.date));
   if (changes) sec.push([T(changes[1].replace("Since the last report", "Since the last report or snapshot"), changes[1].replace("منذ التقرير السابق", "منذ التقرير أو اللقطة السابقة")), changes[2], ""]);
 
-  const dir = lang === "ar" ? "rtl" : "ltr";
-  const html = `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
-<body style="margin:0;background:${C.paper};color:${C.ink};font-family:${lang === "ar" ? "Tahoma,Arial" : "Helvetica,Arial"},sans-serif">
-<div style="max-width:720px;margin:0 auto;padding:24px 20px">
-${brandBand(lang)}
-<h1 style="font-size:20px;margin:10px 0 4px">${esc(title)}</h1>
-<div style="font-size:12px;color:${C.soft};margin:0 0 18px;border-bottom:2px solid ${C.ink};padding-bottom:10px">${esc(T(`Live position at ${ln.hhmm} (${s.timezone}) · figures as of ${dt("en", d.asOf)} · not e-mailed`, `الوضع الفوري الساعة ${ln.hhmm} (${s.timezone}) · الأرقام حتى ${dt("ar", d.asOf)} · لا يُرسل بالبريد`))}</div>
-${sec.map(([h, body]) => `<div data-slide="${esc(h)}" style="background:#fff;border:1px solid ${C.line};padding:14px 16px;margin-bottom:12px"><div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:${C.soft};margin-bottom:8px">${esc(h)}</div><div style="font-size:13px">${body}</div></div>`).join("\n")}
-<p style="font-size:11px;color:${C.soft}">${esc(T("Snapshot generated on request by the AI Assistant Director of Marketing. It takes no action: approvals happen in the app.", "لقطة أُعدّت عند الطلب بواسطة مساعد مدير التسويق الذكي. لا تتخذ أي إجراء: تتم الاعتمادات داخل التطبيق."))}</p>
-</div></body></html>`;
+  const html = kinanDoc(lang, T("Live marketing snapshot", "لقطة تسويقية فورية"), title, T(`Live position at ${ln.hhmm} (${s.timezone}) · figures as of ${dt("en", d.asOf)} · not e-mailed`, `الوضع الفوري الساعة ${ln.hhmm} (${s.timezone}) · الأرقام حتى ${dt("ar", d.asOf)} · لا يُرسل بالبريد`), sec,
+    T("Snapshot generated on request by the AI Assistant Director of Marketing. It takes no action: approvals happen in the app.", "لقطة أُعدّت عند الطلب بواسطة مساعد مدير التسويق الذكي. لا تتخذ أي إجراء: تتم الاعتمادات داخل التطبيق."));
   const text = `${title}\n\n${sec.filter(([, , t]) => t).map(([h, , t]) => `${h.toUpperCase()}\n${t}`).join("\n\n")}\n`;
   return { title, html, text, metrics: daily.metrics, date: ln.date };
 }

@@ -1,8 +1,9 @@
 "use client";
 
-// Vendor directory and vendor view for the Orchestration page: campaigns, invoices (Oracle), work and emails (Outlook).
+// Vendor directory and vendor view for the Vendors page: campaigns, invoices (Oracle, with approve / dispute), work and emails (Outlook).
 import { useEffect, useState } from "react";
 import { useI18n } from "../_components/lang";
+import InvoicesPanel from "../_components/InvoicesPanel";
 import { openDrafts } from "../_components/useAgent";
 
 const STATUS: Record<string, [string, string]> = { CURRENT: ["Current", "healthy"], BENCH: ["Alternative", "hold"], PAST: ["Past", "hold"] };
@@ -63,11 +64,12 @@ export function VendorDirectory({ vendors, onOpen }: { vendors: any[]; onOpen: (
   );
 }
 
-export default function VendorView({ id, reload, onBack, act, busy, approver }: { id: string; reload: number; onBack: () => void; act: (b: any, k: string) => Promise<void>; busy: string | null; approver: string }) {
+export default function VendorView({ id, reload, onBack, act, busy, approver, initialTab }: { id: string; reload: number; onBack: () => void; act: (b: any, k: string) => Promise<void>; busy: string | null; approver: string; initialTab?: "overview" | "campaigns" | "invoices" | "emails" }) {
   const { lang, t, N, d, K, M } = useI18n();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "campaigns" | "invoices" | "emails">("overview");
+  const [tab, setTab] = useState<"overview" | "campaigns" | "invoices" | "emails">(initialTab ?? "overview");
+  useEffect(() => { if (initialTab) setTab(initialTab); }, [id, initialTab]);
   const [read, setRead] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<string | null>(null);
 
@@ -183,24 +185,7 @@ export default function VendorView({ id, reload, onBack, act, busy, approver }: 
 
       {tab === "invoices" && (
         <div>
-          <div className="kpis" style={{ marginBottom: 12 }}>
-            <div className="kpi"><div className="kv">{K(inv.totals.invoicedK)}</div><div className="kl">{t("Invoiced")}</div></div>
-            <div className="kpi"><div className="kv">{K(inv.totals.paidK)}</div><div className="kl">{t("Paid")}</div></div>
-            <div className="kpi"><div className="kv">{K(inv.totals.outstandingK)}</div><div className="kl">{t("Outstanding")}</div></div>
-            <div className="kpi"><div className="kv" style={inv.totals.overdueK ? { color: "var(--alert)" } : {}}>{K(inv.totals.overdueK)}</div><div className="kl">{t("Overdue")}</div></div>
-          </div>
-          {inv.rows.length === 0 ? <div className="muted">{t(inv.archive?.length ? "No 2026 invoices from this vendor in Oracle." : "No invoices from this vendor in Oracle.")}</div> : (
-            <div style={{ overflowX: "auto" }}><table className="dtable" style={{ minWidth: 820 }}>
-              <thead><tr><th>{t("Invoice")}</th><th>{t("For")}</th><th>{t("Date")}</th><th>{t("Due")}</th><th className="num">{t("Amount")}</th><th className="num">{t("Outstanding")}</th><th>{t("Status")}</th><th>{t("Checks")}</th></tr></thead>
-              <tbody>{inv.rows.map((x: any) => (
-                <tr key={x.id}><td dir="ltr"><b>{x.number}</b>{x.po && <div className="muted" style={{ fontSize: 10 }}>PO {x.po}</div>}</td><td>{x.campaign ? N(x.campaign) : "—"}{x.period && <div className="muted" style={{ fontSize: 10 }}>{x.period}</div>}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>{d(x.date)}</td><td style={{ whiteSpace: "nowrap" }}>{d(x.due)}{x.daysOverdue ? <div className="bad" style={{ fontSize: 10 }}>{x.daysOverdue} {t("days overdue")}</div> : null}</td>
-                  <td className="num">{K(x.amountK)}</td><td className="num">{x.outstandingK ? K(x.outstandingK) : "—"}</td>
-                  <td><span className={`pill ${x.decision === "APPROVED" ? "healthy" : x.decision === "DISPUTED" ? "weak" : "hold"}`}>{t(x.payment)}</span>{x.decision !== "PENDING" && <div className="muted" style={{ fontSize: 9 }}>{t(x.decision)}</div>}</td>
-                  <td style={{ fontSize: 10.5 }}>{x.flags.length ? x.flags.map((f: any, i: number) => <div key={i} className={f.severity === "crit" ? "bad" : ""}>• {f.text}</div>) : <span className="ok">✓</span>}</td></tr>
-              ))}</tbody>
-            </table></div>
-          )}
+          {v.status === "PAST" || v.status === "BENCH" ? null : <InvoicesPanel vendor={v.name} />}
           {inv.archive?.length > 0 && (
             <details style={{ marginTop: 12 }} open={inv.rows.length === 0}>
               <summary style={{ cursor: "pointer", fontSize: 12 }}><b>{t("2023–2025 archive")}</b> — {inv.archive.length} {t("invoices, all paid")} · {K(inv.archiveTotalK)}</summary>
@@ -210,8 +195,7 @@ export default function VendorView({ id, reload, onBack, act, busy, approver }: 
               </table></div>
             </details>
           )}
-          {inv.unbilled.length > 0 && <div className="muted" style={{ fontSize: 11, marginTop: 10 }}>{t("Delivered but not invoiced yet")}: {inv.unbilled.map((u: any) => `${N(u.campaign)} ${u.period} (${K(u.deliveredK)})`).join(lang === "ar" ? "؛ " : "; ")}</div>}
-          <div className="muted" style={{ fontSize: 11, marginTop: 10 }}>{t("Approve or dispute invoices on the Invoices page; nothing is written back to Oracle.")} <a href="/invoices">{t("Invoices")} →</a></div>
+          {(v.status === "PAST" || v.status === "BENCH") && !inv.archive?.length && <div className="muted">{t("No invoices from this vendor in Oracle.")}</div>}
         </div>
       )}
 

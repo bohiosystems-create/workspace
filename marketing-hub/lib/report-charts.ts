@@ -8,8 +8,9 @@ import type { ChartSpec } from "./charts";
 import { type Lang, tx } from "./i18n";
 
 // Same colour-blind-checked categorical order as the in-app charts; text stays in ink, never in a series colour.
-const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
-const INK = "#000919", SOFT = "#5b6170", TRACK = "#e8e7e3", GOOD = "#1f7a4d", ALERT = "#d6334b";
+// Kinan palette: charcoal and orange first, then greys and orange tints that stay distinct when stacked.
+const SERIES = ["#3a3a3a", "#f15a29", "#9a9a9a", "#f7a07f", "#5e5e5e", "#b8401a", "#c9c9c9", "#fbcdb9"];
+const INK = "#1a1a1a", SOFT = "#6b6b6b", TRACK = "#ededed", GOOD = "#1f7a4d", ALERT = "#d6334b";
 const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const fmt = (v: number | null | undefined, unit: string) => (v === null || v === undefined ? "—" : `${v.toLocaleString("en-US", { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : Math.abs(v) >= 10 ? 1 : 2 })}${unit === "%" ? "%" : ""}`);
 const T0 = `role="presentation" cellpadding="0" cellspacing="0" border="0"`;

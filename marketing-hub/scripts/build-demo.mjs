@@ -31,7 +31,7 @@ const js = out.outputFiles[0].text.replace(/<\/script/g, "<\\/script");
 const ARTIFACT_CSS = `:root{color-scheme:light}html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{background:var(--bg);color:var(--ink);overflow-x:hidden}
 @media (max-width:600px){.shell{padding:20px 16px 72px}.topnav{flex-wrap:wrap}.navlinks{flex-wrap:wrap;max-width:100%}.panel,.row>*{min-width:0}table{display:block;overflow-x:auto;max-width:100%}}`;
 if (CLAUDE_APP) writeFileSync(path.join(root, OUT), `<title>Kinan AI Assistant Director of Marketing</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Montserrat:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>${css}
 ${ARTIFACT_CSS}</style>
 <div id="root"></div><script>${js}</script>
@@ -39,6 +39,6 @@ ${ARTIFACT_CSS}</style>
 else writeFileSync(path.join(root, OUT), `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kinan — AI Assistant Director of Marketing</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Montserrat:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`);
 console.log(`wrote ${OUT}`);

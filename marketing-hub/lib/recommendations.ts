@@ -248,7 +248,7 @@ export async function buildRecommendations(lang: Lang = "en", pre?: Agent) {
         `${late.length} clean invoice${late.length > 1 ? "s" : ""} past due (${Math.max(...late.map((r) => r.daysOverdue))} days at most). Late payment puts lead-response and delivery at risk.`,
         `${an(late.length, "فاتورة واحدة", "فاتورتان", "فواتير", "فاتورة")} سليمة تجاوزت الاستحقاق (حتى ${an(Math.max(...late.map((r) => r.daysOverdue)), "يوم واحد", "يومان", "أيام", "يوماً")}). التأخر في السداد يعرّض سرعة الاستجابة والتنفيذ للخطر.`),
       evidence: late.map((r) => T(`${r.invoiceNumber}: SAR ${r.outstandingK}K, ${r.daysOverdue} days overdue`, `${ltr(r.invoiceNumber)}: ${K(lang, r.outstandingK)}، متأخرة ${an(r.daysOverdue, "يوم واحد", "يومان", "أيام", "يوماً")}`)),
-      impactK: amt, channel: "INTERNAL", href: "/invoices",
+      impactK: amt, channel: "INTERNAL", href: "/orchestration#invoices",
     });
   }
 

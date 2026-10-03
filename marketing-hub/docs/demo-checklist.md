@@ -19,7 +19,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ## B. Say this upfront
 
-1. **Sample data, frozen on 8 June 2026.** Vendors, campaigns, leads and invoices are realistic but invented. Reports are dated today, and their header says "Figures as of 8 Jun 2026".
+1. **Sample data, frozen on 8 June 2026.** Vendors, campaigns, leads and invoices are realistic but invented. Reports are dated 8 June 2026 to match the figures.
 2. **Integrations are simulated.** Outlook, Kinan's agent, Yardi and Oracle are in mock mode, and the screens say "simulated". Nothing is sent to anyone.
 3. **One manager, no team.** The director does the team's work; you only approve. Nothing spends money or contacts a vendor or customer without your name on it.
 
@@ -88,7 +88,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 7. Orchestration — running the vendors (5 min)
 
-- [ ] Open **Orchestration**. Show the four role cards: you, the director, vendors, and Kinan's agent (owns leads and sales).
+- [ ] Open **Vendors** (the old Orchestration page; supplier invoices now live here too). Show the four role cards: you, the director, vendors, and Kinan's agent (owns leads and sales).
 - [ ] The **vendor list**: 6 current vendors with score, decision, campaigns, spend, cost to sales, invoices outstanding, work in progress and emails. The filters show **Alternatives (5)** (pre-vetted alternative vendors) and **Past (3)** (vendors from the history).
 - [ ] **14 waiting for your approval** under the list: 6 June briefs (drafted from the plan you just approved), 7 routine (5 lead-feedback emails and 2 reminders for late items), and 1 non-renewal notice. Click **Show the messages** and open the **PropertyHub KSA** brief: it's in **Arabic**, the vendor's language.
 - [ ] Tick **I have read the routine messages**, then click **Approve and send all routine**.
@@ -96,7 +96,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] Click **Sada Influence** in the vendor list. Show the header (score 41, SAR 232K spend, SAR 54K outstanding) and the decision: a 60-day performance plan.
   - **Overview:** its work orders with the director's checks, and what it owes us. Click **Mark received** on the late item, *Creator content — June batch*. It becomes "Received late".
   - **Campaigns:** its live 2026 campaigns and its past campaigns with their lessons.
-  - **Invoices:** its 7 Oracle invoices with payment status and reconciliation checks.
+  - **Invoices:** its Oracle invoices with payment status and reconciliation checks — approve, dispute or reopen them right here (e.g. Tasweeq Digital: an invoice SAR 107.5K vs 96K delivered, +12%). Below the vendor list, **Supplier invoices (Oracle)** shows every vendor; click a vendor name to jump to its invoices.
   - **Emails:** the correspondence through Outlook: our briefs, feedback and reminders, and the vendor's replies, invoices and reports. Say: *"In the demo, the vendor's replies are simulated; live, they are read from the Outlook mailbox."*
 - [ ] Click **← All vendors**. Leave the **Hajar non-renewal notice** unapproved: a contract decision.
 
@@ -163,7 +163,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   - *"Price per sqm by district since 2023"*.
   - *"2023–2025 sales by vendor, including past vendors"*.
 
-  On **Orchestration**, open a past vendor (e.g. Najm Media), then **Invoices**: its 2023–2025 invoice archive (18 invoices, SAR 1,295K, all paid).
+  On **Vendors**, open a past vendor (e.g. Najm Media), then **Invoices**: its 2023–2025 invoice archive (18 invoices, SAR 1,295K, all paid).
 
   Hover a bar or line, press **Table**, then **CSV**. Say: *"Any chart the data can support, from one sentence, and the same through the API for Kinan's systems."*
 - [ ] *"Draft an email to Tasweeq Digital"*, then pick an item: the draft appears for approval. Don't send it; show the approval controls instead.

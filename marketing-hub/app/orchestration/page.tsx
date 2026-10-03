@@ -5,6 +5,7 @@ import Header from "../_components/Header";
 import { useI18n } from "../_components/lang";
 import { useApprover } from "../_components/useAgent";
 import VendorView, { VendorDirectory } from "./vendors";
+import InvoicesPanel from "../_components/InvoicesPanel";
 
 const KIND: Record<string, string> = { MONTHLY_BRIEF: "Monthly brief", LEAD_FEEDBACK: "Lead feedback", DELIVERABLE_CHASE: "Reminder", NON_RENEWAL: "Non-renewal notice" };
 
@@ -17,6 +18,8 @@ export default function OrchestrationPage() {
   const [approver, setApprover] = useState("");
   const [read, setRead] = useState<Record<string, boolean>>({});
   const [vendorId, setVendorId] = useState<string | null>(null);
+  const [vendorTab, setVendorTab] = useState<"invoices" | undefined>(undefined);
+  const openVendor = (id: string, tab?: "invoices") => { setVendorId(id); setVendorTab(tab); setTimeout(() => document.getElementById("vendors")?.scrollIntoView({ behavior: "smooth" }), 50); };
   const [reload, setReload] = useState(0);
   const [showQueue, setShowQueue] = useState(false);
   const langRef = useRef(lang);
@@ -28,6 +31,10 @@ export default function OrchestrationPage() {
     fetch(`/api/orchestration?lang=${lang}`).then((r) => r.json()).then((x) => { if (live) (x.error ? setError(x.error) : setData(x)); }).catch((e) => live && setError(e.message));
     return () => { live = false; };
   }, [lang]);
+  // Old Invoices links land here (/orchestration#invoices).
+  useEffect(() => {
+    if (data && typeof location !== "undefined" && location.hash === "#invoices") setTimeout(() => document.getElementById("invoices")?.scrollIntoView({ behavior: "smooth" }), 300);
+  }, [!!data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function act(body: any, key: string) {
     setBusy(key);
@@ -55,8 +62,8 @@ export default function OrchestrationPage() {
   return (
     <div className="shell">
       <Header />
-      <div className="section-title">{t("Vendor orchestration")}</div>
-      <p className="intro">{t("All your vendors in one place: open a vendor to see the campaigns it ran, its invoices, what it owes you and every email exchanged through Outlook. The director briefs each vendor from the approved plan, sends lead feedback from the CRM, chases what is late and checks results against the data; you approve every message before it goes out — routine ones in one go.")}</p>
+      <div className="section-title">{t("Vendors")}</div>
+      <p className="intro">{t("All your vendors in one place: open a vendor to see the campaigns it ran, its invoices (approve or dispute them there), what it owes you and every email exchanged through Outlook. The director briefs each vendor from the approved plan, sends lead feedback from the CRM, chases what is late and checks results against the data; you approve every message before it goes out — routine ones in one go.")}</p>
       {error && <div className="err">{error}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
       {data && (
@@ -105,8 +112,8 @@ export default function OrchestrationPage() {
 
           <div id="vendors" style={{ marginTop: 18 }}>
             {vendorId
-              ? <VendorView id={vendorId} reload={reload} onBack={() => setVendorId(null)} act={act} busy={busy} approver={approver} />
-              : <VendorDirectory vendors={data.vendors} onOpen={(id: string) => { setVendorId(id); setTimeout(() => document.getElementById("vendors")?.scrollIntoView({ behavior: "smooth" }), 50); }} />}
+              ? <VendorView id={vendorId} reload={reload} onBack={() => { setVendorId(null); setVendorTab(undefined); }} act={act} busy={busy} approver={approver} initialTab={vendorTab} />
+              : <VendorDirectory vendors={data.vendors} onOpen={(id: string) => openVendor(id)} />}
           </div>
 
           <div className="panel" style={{ marginTop: 18 }}>
@@ -191,6 +198,11 @@ export default function OrchestrationPage() {
               </>}
             </div>
           )}
+          <div id="invoices" style={{ marginTop: 26 }}>
+            <div className="section-title" style={{ fontSize: 12, margin: "0 0 6px" }}>{t("Supplier invoices (Oracle)")}</div>
+            <p className="muted" style={{ fontSize: 11.5, margin: "0 0 12px", lineHeight: 1.6 }}>{t("Purchase orders and invoices from Oracle, reconciled against what each vendor delivered. Approve clean invoices, dispute the rest; click a vendor to see only its invoices. Decisions are recorded here — nothing is written back to Oracle.")}</p>
+            <InvoicesPanel onOpenVendor={(id) => openVendor(id, "invoices")} />
+          </div>
         </>
       )}
     </div>

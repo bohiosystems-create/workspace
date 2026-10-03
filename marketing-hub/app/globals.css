@@ -1,5 +1,5 @@
 /* Bohio monochrome design language — ported from the demo. */
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Montserrat:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap");
 
 :root {
   --bg: #e6e2e2;
@@ -27,10 +27,9 @@ a { color: inherit; }
 
 .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; flex-wrap: wrap; }
 /* Kinan logo on a dark band. */
-.brand-band { display: inline-flex; align-items: center; height: 46px; padding: 0 18px; background: #0b0d12; border-radius: 10px; text-decoration: none; }
-.brand-band img { height: 26px; width: auto; display: block; }
-.brand-word { color: #fff; font-size: 17px; font-weight: 700; letter-spacing: 0.34em; }
-[dir="rtl"] .brand-word { letter-spacing: 0; font-size: 19px; }
+.brand-band { display: inline-flex; align-items: center; gap: 16px; height: 58px; padding: 0 18px; background: #1e1e1e; text-decoration: none; }
+.brand-chev { color: #f15a29; font-size: 30px; font-weight: 700; line-height: 1; }
+[dir="rtl"] .brand-chev { transform: scaleX(-1); }
 .brand small { display: block; color: var(--ink-soft); font-size: 9px; letter-spacing: 0.32em; text-transform: uppercase; }
 
 .section-title { font-size: 15px; letter-spacing: 0.3em; text-transform: uppercase; font-weight: 700; }
@@ -132,6 +131,8 @@ textarea { min-height: 200px; line-height: 1.6; resize: vertical; font-size: 12p
 .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
 .chip { flex: 0 0 auto; border: 1px solid var(--ink-hairline); border-radius: 30px; background: transparent; padding: 6px 11px; font-size: 10px; font-family: inherit; color: var(--ink-soft); cursor: pointer; }
 .chip:hover { border-color: var(--ink); color: var(--ink); }
+.linkish { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: start; }
+.linkish:hover b { text-decoration: underline; }
 .chip.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .chat-input { border-top: 1px solid var(--ink-hairline); padding: 10px 12px; display: flex; gap: 8px; }
 .chat-input input { flex: 1; background: transparent; border: 1px solid var(--ink-hairline); color: var(--ink); font-family: inherit; font-size: 12px; padding: 9px 11px; outline: none; }

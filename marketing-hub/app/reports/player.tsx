@@ -5,7 +5,7 @@
 // speech synthesis, English or Arabic). Tap the left/right side or use the arrows to move; Space pauses; Esc closes.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../_components/lang";
-import { KINAN_LOGO } from "../../lib/brand-logo";
+import { KINAN, kinanLogoHtml } from "../../lib/brand";
 
 type Slide = { kicker: string; html: string; say: string };
 
@@ -15,7 +15,7 @@ const clean = (s: string) => s.replace(/\s+/g, " ").trim();
 export function slidesFrom(html: string, title: string, lang: string): Slide[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const sub = clean(doc.querySelector("h1 + div")?.textContent ?? "");
-  const slides: Slide[] = [{ kicker: lang === "ar" ? "كنان · مساعد مدير التسويق الذكي" : "KINAN · AI Assistant Director of Marketing", html: `<div style="display:inline-flex;align-items:center;background:#0b0d12;border-radius:10px;padding:12px 20px;margin-bottom:22px">${KINAN_LOGO ? `<img src="${KINAN_LOGO}" alt="Kinan" style="height:30px;width:auto;display:block">` : `<span style="color:#fff;font-weight:700;font-size:18px;letter-spacing:${lang === "ar" ? "0" : ".34em"}">${lang === "ar" ? "كنان" : "KINAN"}</span>`}</div><div style="font-size:30px;font-weight:700;line-height:1.25">${title.replace(/</g, "&lt;")}</div><div style="margin-top:14px;font-size:14px;color:#5b6170">${sub.replace(/</g, "&lt;")}</div>`, say: title }];
+  const slides: Slide[] = [{ kicker: lang === "ar" ? "كنان · مساعد مدير التسويق الذكي" : "KINAN · AI Assistant Director of Marketing", html: `<div style="display:inline-flex;align-items:center;gap:18px;background:${KINAN.charcoal};padding:14px 22px;margin-bottom:22px">${kinanLogoHtml(44)}<span style="color:${KINAN.orange};font-size:34px;font-weight:700;line-height:1">‹</span></div><div style="font-size:30px;font-weight:700;line-height:1.25">${title.replace(/</g, "&lt;")}</div><div style="margin-top:14px;font-size:14px;color:#5b6170">${sub.replace(/</g, "&lt;")}</div>`, say: title }];
   let sections = [...doc.querySelectorAll<HTMLElement>("[data-slide]")];
   if (!sections.length) sections = [...doc.querySelectorAll<HTMLElement>("body > div > div")].filter((d) => /background:\s*#fff/.test(d.getAttribute("style") ?? ""));
   for (const sec of sections) {
