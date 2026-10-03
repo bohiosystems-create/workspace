@@ -1,5 +1,18 @@
 # Bohio agent on EstateMaster (demo)
 
+## Three ways to run it (one source, separate builds)
+
+| Option | How EstateMaster is updated | Build |
+|---|---|---|
+| **Option 2 · Read-only agent** | The agent reads EstateMaster exports and proposes; after approval an analyst types the values into EstateMaster and uploads the export | `dist/option2-readonly/` |
+| **Option 3 · Analyst in the loop** | After approval the agent writes the control workbook; an analyst presses Refresh Values and Export (about a minute) | `dist/option3-analyst/` |
+| Runner (full) | The Windows runner operates EstateMaster after approval | this folder, `?mode=full` |
+
+`python tools/build_options.py` rebuilds both option folders and a zip for each. Each is its own Vercel project, locked to
+its option, with no runner function. This folder's `index.html` opens Option 2 by default; `?mode=analyst` or
+`?mode=full` switch it. In Options 2 and 3 every figure shown as EstateMaster's comes from an export, and the
+model only changes when an export is read.
+
 A single-page demo of an AI agent that sits on top of ARGUS EstateMaster for KINAN's
 Al Narjis Mixed-Use project. All data is dummy data.
 
@@ -14,6 +27,7 @@ Al Narjis Mixed-Use project. All data is dummy data.
 | `runner/` | The EstateMaster runner for the Windows VM (not deployed to Vercel). |
 | `setup/` | Copilot setup agent instructions, the KINAN control workbook template and its generator (not deployed). |
 | `docs/` | Features report, setup guide and user guide (PDF). |
+| `tools/build_options.py`, `dist/` | Builds the separate Option 2 and Option 3 demos (not deployed from this folder). |
 | `vercel.json` | Vercel settings (function timeout, security headers). |
 | `market-data.xlsx` | The dummy dataset as a workbook (also downloadable from inside the demo). |
 | `data/` | Generator scripts for the dummy data (not deployed). |

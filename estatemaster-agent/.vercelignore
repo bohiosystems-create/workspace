@@ -4,3 +4,5 @@ runner/
 docs/
 setup/
 trial/
+dist/
+tools/
