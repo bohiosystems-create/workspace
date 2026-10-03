@@ -5,12 +5,12 @@ import * as P from "@/lib/core/project";
 import { pathOf } from "./site";
 
 type Section = "programme" | "procurement" | "safety" | "regs" | "drawings" | "team";
-interface Props { locations: Location[]; refreshKey: number; onAsk: (q: string) => void; onSelectLocation: (id: string) => void; onOpenDoc: (id: string) => void }
+interface Props { locations: Location[]; refreshKey: number; onSelectLocation: (id: string) => void; onOpenDoc: (id: string) => void }
 
 const sar = (n: number) => (n >= 1e6 ? `SAR ${(n / 1e6).toFixed(1)}M` : `SAR ${Math.round(n).toLocaleString("en")}`);
 const Slip = ({ d }: { d: number }) => (d > 0 ? <span className="slip late">+{d} d</span> : d < 0 ? <span className="slip early">{d} d</span> : <span className="slip ok">on time</span>);
 
-export default function ProjectTab({ locations, refreshKey, onAsk, onSelectLocation, onOpenDoc }: Props) {
+export default function ProjectTab({ locations, refreshKey, onSelectLocation, onOpenDoc }: Props) {
   const [data, setData] = useState<ProjectData | null>(null);
   const [sec, setSec] = useState<Section>("programme");
   const [q, setQ] = useState("");
@@ -21,7 +21,6 @@ export default function ProjectTab({ locations, refreshKey, onAsk, onSelectLocat
   if (!db || !data) return <div className="proj"><div className="empty pad">Loading project data…</div></div>;
 
   const Loc = ({ id }: { id: string }) => <a className="loc" onClick={() => onSelectLocation(id)}>{pathOf(locations, id).split(" › ").slice(-1)[0]}</a>;
-  const Ask = ({ text }: { text: string }) => <button className="mini ask" onClick={() => onAsk(text)}>Ask ✦</button>;
   const chips = (opts: [string, string][]) => (
     <div className="chips scroll">{opts.map(([v, l]) => <button key={v} className={"chip" + (f === v ? " hot" : "")} onClick={() => setF(f === v ? "" : v)}>{l}</button>)}</div>
   );
@@ -70,7 +69,7 @@ export default function ProjectTab({ locations, refreshKey, onAsk, onSelectLocat
         {(view === "pos" || view === "packages" || view === "deliveries") && search(view === "pos" ? "PO number, supplier, item…" : "Search…")}
         <ul className="rows">
           {view === "deliveries" && (dl.deliveries ?? []).map((d) => <li key={d.id}><span className="t"><b>{d.date} {d.slot} — {d.items}</b><em>{d.supplier} · {d.po} · {d.gate} → <Loc id={d.locationId} /> · {d.vehicle}{d.remarks ? ` · ${d.remarks}` : ""}</em></span><span className={"st " + d.status.toLowerCase().replace(" ", "")}>{d.status}</span></li>)}
-          {(view === "risk" || view === "packages") && P.packagesQuery(db, { atRisk: view === "risk", query: q }).packages.map((p) => <li key={p.id}><span className="t"><b>{p.id} {p.name}</b><em>{p.supplier || "—"} · {p.status} · need {p.requiredOnSite} · forecast {p.forecastOnSite} · {sar(p.committed)} / {sar(p.budget)}</em><em className="note">{p.notes}</em></span>{p.floatDays < 0 ? <span className="slip late">{p.floatDays} d</span> : <span className="slip ok">ok</span>}<Ask text={`What is the schedule impact of ${p.id} ${p.name}, and what should we do?`} /></li>)}
+          {(view === "risk" || view === "packages") && P.packagesQuery(db, { atRisk: view === "risk", query: q }).packages.map((p) => <li key={p.id}><span className="t"><b>{p.id} {p.name}</b><em>{p.supplier || "—"} · {p.status} · need {p.requiredOnSite} · forecast {p.forecastOnSite} · {sar(p.committed)} / {sar(p.budget)}</em><em className="note">{p.notes}</em></span>{p.floatDays < 0 ? <span className="slip late">{p.floatDays} d</span> : <span className="slip ok">ok</span>}</li>)}
           {view === "pos" && P.poQuery(db, { query: q, limit: 60 }).purchaseOrders.map((p) => <li key={p.po}><span className="t"><b>{p.po} — {p.supplier}</b><em>{p.date} · {p.package} · {sar(p.value)}</em><em className="note">{p.items}</em></span><span className={"st " + p.status.toLowerCase().replace(/ /g, "")}>{p.status}</span></li>)}
           {view === "mr" && P.requestsQuery(db, {}).requests.map((m) => <li key={m.id}><span className="t"><b>{m.id} {m.item}</b><em>{m.qty} {m.unit} · need {m.neededBy} · <Loc id={m.locationId} /> · {m.requestedBy}{m.externalRef ? ` · ${m.externalRef}` : ""}</em></span><span className="st">{m.status}</span></li>)}
           {view === "stock" && P.stockQuery(db, {}).stock.map((s) => <li key={s.item + s.locationId}><span className="t"><b>{s.item}</b><em>{s.qty.toLocaleString("en")} {s.unit} (min {s.min.toLocaleString("en")}) · <Loc id={s.locationId} /></em></span>{s.belowMinimum ? <span className="slip late">low</span> : <span className="slip ok">ok</span>}</li>)}

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import type { Location, Note } from "@/lib/types";
-import { fmtDate, pathOf, type ChatItem, type ClientDoc } from "./site";
+import { fmtDate, pathOf, type ClientDoc } from "./site";
 import { usePanZoom } from "./usePanZoom";
 import { runtime } from "./runtime";
 import { useSpeech } from "./useSpeech";
@@ -11,22 +11,18 @@ interface Props {
   doc: ClientDoc;
   locations: Location[];
   notes: Note[];
-  lastReply?: ChatItem;
-  agentBusy: boolean;
   onClose: () => void;
-  onAsk: (q: string) => void;
   onAddNote: (p: { docId: string; text: string; kind: Note["kind"]; at?: { x: number; y: number } }) => Promise<void>;
   onToggleNote: (n: Note) => void;
   onShowOnMap: (locationId: string) => void;
 }
 
-export default function DocViewer({ doc, locations, notes, lastReply, agentBusy, onClose, onAsk, onAddNote, onToggleNote, onShowOnMap }: Props) {
+export default function DocViewer({ doc, locations, notes, onClose, onAddNote, onToggleNote, onShowOnMap }: Props) {
   const isImg = doc.mime.startsWith("image/");
   const isPdf = doc.mime === "application/pdf";
   const src = runtime.fileUrl(doc);
   const [dim, setDim] = useState({ w: 1200, h: 850 });
   const [text, setText] = useState("");
-  const [mode, setMode] = useState<"note" | "ask">("note");
   const [kind, setKind] = useState<Note["kind"]>("note");
   const [mark, setMark] = useState(false);
   const [pending, setPending] = useState<{ x: number; y: number } | null>(null);
@@ -50,15 +46,14 @@ export default function DocViewer({ doc, locations, notes, lastReply, agentBusy,
   const pz = usePanZoom(dim.w, dim.h, (t) => {
     const m = t.target?.closest?.("[data-note]")?.getAttribute("data-note");
     if (m) { setHi(m); setPanel(true); return; }
-    if (mark) { setPending({ x: t.cx / dim.w, y: t.cy / dim.h }); setMode("note"); setMark(false); }
+    if (mark) { setPending({ x: t.cx / dim.w, y: t.cy / dim.h }); setMark(false); }
   }, 24);
 
-  const speech = useSpeech((t, fin) => { setText(t); if (fin && mode === "ask") { onAsk(t); setText(""); } });
+  const speech = useSpeech((t) => setText(t));
 
   const submit = async () => {
     const t = text.trim();
     if (!t) return;
-    if (mode === "ask") { onAsk(t); setText(""); return; }
     await onAddNote({ docId: doc.id, text: t, kind, at: pending ?? undefined });
     setText(""); setPending(null);
   };
@@ -110,10 +105,6 @@ export default function DocViewer({ doc, locations, notes, lastReply, agentBusy,
         )}
       </div>
 
-      {lastReply && mode === "ask" && (
-        <div className="reply">{lastReply.content}</div>
-      )}
-
       <div className={"dock" + (panel ? " open" : "")}>
         <button className="dockhead" onClick={() => setPanel((p) => !p)}>
           <span>Notes ({docNotes.length}) · {doc.summary ? doc.summary.slice(0, 70) : "no summary"}</span><span>{panel ? "▾" : "▴"}</span>
@@ -132,18 +123,16 @@ export default function DocViewer({ doc, locations, notes, lastReply, agentBusy,
         )}
         <div className="composer">
           <div className="seg">
-            <button className={mode === "note" ? "on" : ""} onClick={() => setMode("note")}>✎ Leave note</button>
-            <button className={mode === "ask" ? "on" : ""} onClick={() => setMode("ask")}>✦ Ask agent</button>
-            {mode === "note" && (["note", "issue", "instruction"] as const).map((k2) => (
-              <button key={k2} className={"sub " + (kind === k2 ? "on" : "")} onClick={() => setKind(k2)}>{k2}</button>
+            {(["note", "issue", "instruction"] as const).map((k2) => (
+              <button key={k2} className={kind === k2 ? "on" : ""} onClick={() => setKind(k2)}>{k2}</button>
             ))}
           </div>
-          {pending && mode === "note" && <div className="pendingpin">📍 Note will be pinned on the drawing <button onClick={() => setPending(null)}>remove</button></div>}
+          {pending && <div className="pendingpin">📍 Note will be pinned on the drawing <button onClick={() => setPending(null)}>remove</button></div>}
           <div className="row">
             <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()}
-              placeholder={mode === "ask" ? "Ask about this document…" : pending ? "Note for the pinned spot…" : "Leave a note on this document…"} />
+              placeholder={pending ? "Note for the pinned spot…" : "Leave a note on this document…"} />
             {speech.supported && <button className={"mic" + (speech.listening ? " live" : "")} onClick={speech.toggle} aria-label="Dictate"><Icon name="mic" /></button>}
-            <button onClick={submit} disabled={!text.trim() || agentBusy}>{mode === "ask" ? (agentBusy ? "…" : "Ask") : "Save"}</button>
+            <button onClick={submit} disabled={!text.trim()}>Save</button>
           </div>
           {speech.error && <div className="err">{speech.error}</div>}
         </div>

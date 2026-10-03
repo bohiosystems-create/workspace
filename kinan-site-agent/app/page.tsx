@@ -1,22 +1,20 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Note, UiAction } from "@/lib/types";
+import type { Note } from "@/lib/types";
 import { locationAt } from "@/lib/siteplan";
 import SiteMap, { type MapHandle } from "./_components/SiteMap";
 import LocationSheet from "./_components/LocationSheet";
 import UploadSheet from "./_components/UploadSheet";
 import DocViewer from "./_components/DocViewer";
-import AgentChat from "./_components/AgentChat";
 import DocsTab from "./_components/DocsTab";
 import ProjectTab from "./_components/ProjectTab";
-import SettingsSheet from "./_components/SettingsSheet";
-import { pathOf, useAgent, useAuthor, useSite } from "./_components/site";
+import { useAuthor, useSite } from "./_components/site";
 import { Icon, Mark } from "./_components/icons";
 
 // Optional official logo (e.g. /brand/kinan-logo.svg placed in public/) — set by Kinan's team.
 const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
 
-type Tab = "map" | "agent" | "project" | "docs";
+type Tab = "map" | "project" | "docs";
 
 export default function Home() {
   const { state, error, refresh } = useSite();
@@ -26,9 +24,8 @@ export default function Home() {
   const [viewerId, setViewerId] = useState<string | undefined>();
   const [dropMode, setDropMode] = useState(false);
   const [upload, setUpload] = useState<{ locationId: string; pin?: { x: number; y: number } } | null>(null);
-  const [gps, setGps] = useState<{ x: number; y: number; locationId?: string } | null>(null);
+  const [, setGps] = useState<{ x: number; y: number; locationId?: string } | null>(null);
   const [search, setSearch] = useState("");
-  const [settings, setSettings] = useState(false);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   // Theme: follow the device until the user picks one (like the Dark Mode switch on kinan.com.sa).
   const [dark, setDark] = useState(false);
@@ -59,20 +56,6 @@ export default function Home() {
     requestAnimationFrame(() => mapRef.current?.focusLocation(id));
   }, []);
 
-  const runAction = useCallback((a: UiAction) => {
-    if (a.type === "open_doc") setViewerId(a.docId);
-    else selectLocation(a.locationId);
-  }, [selectLocation]);
-
-  const ctx = useCallback(() => ({
-    author,
-    focus: { docId: viewerId, locationId: selId },
-    here: gps?.locationId ? { locationId: gps.locationId } : undefined,
-  }), [author, viewerId, selId, gps?.locationId]);
-
-  const agent = useAgent(ctx, useCallback(() => { refresh(); setProjKey((k) => k + 1); }, [refresh]));
-  const askAgent = useCallback((q: string) => { setTab("agent"); agent.send(q); }, [agent]);
-
   const addNote = async (p: { docId?: string; locationId?: string; text: string; kind: Note["kind"]; at?: { x: number; y: number } }) => {
     await fetch("/api/notes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...p, author }) });
     await refresh();
@@ -97,8 +80,6 @@ export default function Home() {
   useEffect(() => { if (tab !== "map") setDropMode(false); }, [tab]);
 
   const viewerDoc = viewerId ? docs.find((d) => d.id === viewerId) : undefined;
-  const lastReply = [...agent.items].reverse().find((m) => m.role === "assistant");
-  const hereName = gps?.locationId ? pathOf(locs, gps.locationId).split(" › ").pop() : undefined;
 
   if (!state) {
     return <div className="boot"><Mark />{error || "Kinan Site Agent"}</div>;
@@ -113,7 +94,6 @@ export default function Home() {
         </div>
         <div className="hbtns">
           <button className="who icon" onClick={toggleTheme} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} title={dark ? "Light mode" : "Dark mode"}><Icon name={dark ? "sun" : "moon"} /></button>
-          <button className="who" onClick={() => setSettings(true)} aria-label="AI settings"><Icon name="gear" />AI</button>
           {nameDraft === null ? (
             <button className="who" onClick={() => setNameDraft(author)} aria-label="Change your name">{author} ✎</button>
           ) : (
@@ -156,13 +136,8 @@ export default function Home() {
           )}
         </section>
 
-        <section className={"pane" + (tab === "agent" ? "" : " off")}>
-          <AgentChat items={agent.items} busy={agent.busy} providers={state.providers ?? []} docs={docs} hereName={hereName}
-            onSend={agent.send} onClear={agent.clear} onAction={runAction} />
-        </section>
-
         <section className={"pane" + (tab === "project" ? "" : " off")}>
-          <ProjectTab locations={locs} refreshKey={projKey} onAsk={askAgent} onSelectLocation={selectLocation} onOpenDoc={setViewerId} />
+          <ProjectTab locations={locs} refreshKey={projKey} onSelectLocation={selectLocation} onOpenDoc={setViewerId} />
         </section>
 
         <section className={"pane" + (tab === "docs" ? "" : " off")}>
@@ -171,8 +146,8 @@ export default function Home() {
       </main>
 
       <nav className="tabs">
-        {([["map", "map", "Site map"], ["agent", "chat", "Agent"], ["project", "chart", "Project"], ["docs", "folder", "Docs"]] as const).map(([id, ico, label]) => (
-          <button key={id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}><Icon name={ico} />{label}</button>
+        {([["map", "map", "Site map"], ["project", "chart", "Project"], ["docs", "folder", "Docs"]] as const).map(([id, ico, label]) => (
+          <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project") setProjKey((k) => k + 1); }}><Icon name={ico} />{label}</button>
         ))}
       </nav>
 
@@ -180,16 +155,13 @@ export default function Home() {
 
       {viewerDoc && (
         <DocViewer
-          key={viewerDoc.id} doc={viewerDoc} locations={locs} notes={notes} lastReply={lastReply} agentBusy={agent.busy}
+          key={viewerDoc.id} doc={viewerDoc} locations={locs} notes={notes}
           onClose={() => setViewerId(undefined)}
-          onAsk={agent.send}
           onAddNote={(p) => addNote(p)}
           onToggleNote={toggleNote}
           onShowOnMap={(id) => { setViewerId(undefined); selectLocation(id); }}
         />
       )}
-
-      {settings && <SettingsSheet onClose={() => { setSettings(false); refresh(); }} />}
 
       {upload && (
         <UploadSheet

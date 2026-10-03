@@ -24,12 +24,14 @@ cp .env.example .env.local   # add ANTHROPIC_API_KEY and/or OPENAI_API_KEY (opti
 npm run dev                  # http://localhost:3000
 ```
 
-`npm run build:html` produces `kinan-site-agent.html`: the same app as one file, with no server. Add keys under ⚙ AI.
+`npm run build:html` produces `kinan-site-agent.html`: the same app as one file, with no server (map, documents, notes, project data; no AI).
+
+The AI agent has no chat screen in the web app. It is used **only through WhatsApp**.
 
 ## Layout
 
 ```
-app/                 Next.js app: UI (Map · Agent · Project · Docs) and API routes
+app/                 Next.js app: UI (Map · Project · Docs) and API routes
 app/api/whatsapp     WhatsApp Cloud API webhook
 lib/core/            Agent core (pure, also runs in the browser): tools, queries, LLM router
 lib/core/llm/        Anthropic + OpenAI adapters, tiered routing with fallback

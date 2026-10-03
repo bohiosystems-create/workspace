@@ -89,10 +89,10 @@ One AI key is enough. With both, you get routing and automatic fallback between 
 ## Step 4 — Check it works
 
 1. Open `https://<project>.vercel.app` on your phone and log in with `APP_PASSWORD`. The username can be anything unless `APP_USER` is set.
-2. Tap **⚙ AI** and check:
-   - Anthropic / OpenAI show **connected**
-   - **Storage: Vercel Blob (private)**
-3. In the **Agent** tab, ask *"What's late on Tower A?"*. Under the answer you'll see which model replied, e.g. *✳ Claude · claude-sonnet-5-5 · main*.
+2. Open `https://<project>.vercel.app/api/llm` and check:
+   - `"providers"` shows `anthropic: true` and/or `openai: true`
+   - `"storage": "blob"`
+3. The app shows the site map, project data and documents. There is no chat screen: the AI agent is used through WhatsApp (Step 5).
 4. Add it to your home screen: Safari → Share → *Add to Home Screen* (iOS), or Chrome → ⋮ → *Add to Home screen* (Android). Allow **location** and **microphone** when asked.
 
 ---
@@ -180,7 +180,7 @@ Details for each system are in **SETUP.md §7**.
 | **Function Region** | Settings → Functions | The region closest to Saudi Arabia that your plan offers |
 | **Custom domain** | Settings → Domains | e.g. `siteagent.kinan.example`. Then update the WhatsApp callback URL. |
 | **Spend limits** | Anthropic and OpenAI consoles | Set monthly limits |
-| **Time limits** | code | Answers are capped at about 50 s (`maxDuration` 60 s), which works on every plan. On Pro you can raise `maxDuration` in `app/api/agent/route.ts` and `app/api/whatsapp/route.ts`, and set `AGENT_DEADLINE_MS`. |
+| **Time limits** | code | Answers are capped at about 50 s (`maxDuration` 60 s), which works on every plan. On Pro you can raise `maxDuration` in `app/api/whatsapp/route.ts`, and set `AGENT_DEADLINE_MS`. |
 
 ---
 
@@ -199,7 +199,7 @@ Details for each system are in **SETUP.md §7**.
 
 ## Go-live checklist
 
-- [ ] Blob store connected, and ⚙ AI shows **Storage: Vercel Blob (private)**
+- [ ] Blob store connected, and `/api/llm` shows `"storage": "blob"`
 - [ ] `APP_PASSWORD` set (long and random)
 - [ ] At least one AI key; spend limits set
 - [ ] WhatsApp: permanent token, app secret set, only named staff in `WHATSAPP_ALLOWED_NUMBERS`
@@ -216,7 +216,7 @@ Details for each system are in **SETUP.md §7**.
 |---|---|
 | Build fails on Vercel | Check that the Root Directory points at the folder containing `package.json`. Node 20+ is used automatically. |
 | Yellow "Demo storage" banner | Connect the Blob store (Step 2), then redeploy |
-| Agent answers "offline" | No AI key, or both providers failing. Check ⚙ AI, and Vercel → Logs for the error. |
+| Agent answers "offline" | No AI key, or both providers failing. Check `/api/llm`, and Vercel → Logs for the error. |
 | `HTTP 404 … model` in logs | A model name was retired. Set `LLM_ROUTE_*` to current model names. |
 | WhatsApp webhook won't verify | Verify token mismatch, or Deployment Protection is on for production |
 | No replies on WhatsApp | `messages` field not subscribed; sender not in `WHATSAPP_ALLOWED_NUMBERS`; expired temporary token; wrong app secret (401 in logs) |

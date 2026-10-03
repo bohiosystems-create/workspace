@@ -2,8 +2,10 @@
 
 This guide takes you from zero to a working site agent that a development manager can use **on site, from a phone**, through:
 
-- the **web app** (site map, drawings, documents, project data, AI chat), and
-- **WhatsApp**: text, voice notes, photos, PDFs and shared location.
+- the **web app**: site map, drawings, documents, notes and project data (no chat screen), and
+- **WhatsApp**: the AI agent. Text, voice notes, photos, PDFs and shared location.
+
+The AI agent is reached **only through WhatsApp**. The web app is for browsing the map and documents and leaving notes.
 
 The agent answers from the project's documents, programme, procurement, safety and regulations data. It uses **both Anthropic (Claude) and OpenAI**, with built-in routing and automatic fallback between them.
 
@@ -47,7 +49,7 @@ The agent answers from the project's documents, programme, procurement, safety a
 ```
 
 - **One app** runs everything — on **Vercel** (serverless; data in a private **Vercel Blob** store) or on **your own server/Docker** (data in a `data/` folder). No database to manage either way.
-- **`kinan-site-agent.html`** is a separate *single-file* version of the same app (no server). Keys go in its ⚙ AI screen and data stays in that browser. Use it for demos and offline review; use the server for the team and WhatsApp.
+- **`kinan-site-agent.html`** is a separate *single-file* version of the same app (no server). It has no AI and its data stays in that browser. Use it for demos and offline review; use the server for the team and WhatsApp.
 
 ---
 
@@ -94,7 +96,7 @@ The app starts with the **Kinan Heights demo dataset**:
 
 To reset the demo, stop the server and delete the `data/` folder.
 
-**Single-file version:** `npm run build:html` produces `kinan-site-agent.html`. Open it in any browser and add keys under **⚙ AI**.
+**Single-file version:** `npm run build:html` produces `kinan-site-agent.html`. Open it in any browser (map, documents, notes and project data; no AI).
 
 ---
 
@@ -130,15 +132,13 @@ LLM_ROUTE_MAIN=anthropic:claude-sonnet-5-5,openai:gpt-5
 LLM_ROUTE_DEEP=anthropic:claude-opus-5-5,openai:gpt-5
 OPENAI_REASONING_EFFORT=low
 ```
-Model names change over time. If a provider retires a model, update these lines. Nothing else needs to change. You can review the current routing anytime in the app under **⚙ AI**.
+Model names change over time. If a provider retires a model, update these lines. Nothing else needs to change. You can review the current routing anytime at `/api/llm` (log in with `APP_PASSWORD`).
 
 ### 4.4 Check it works
 ```bash
-curl -u :$APP_PASSWORD http://localhost:3000/api/llm      # which providers are connected + routes
-curl -u :$APP_PASSWORD -H 'content-type: application/json' http://localhost:3000/api/agent \
-  -d '{"messages":[{"role":"user","content":"What is late on Tower A?"}]}'
+curl -u :$APP_PASSWORD http://localhost:3000/api/llm      # which providers are connected + routes, storage, WhatsApp
 ```
-The JSON reply contains a `route` object: provider, model, tier, reason and any fallbacks.
+To test the agent itself, message the WhatsApp number (section 5). Set `WHATSAPP_SHOW_MODEL=true` to see which provider, model and tier answered under each reply.
 
 ---
 
@@ -156,13 +156,13 @@ The JSON reply contains a `route` object: provider, model, tier, reason and any 
 **A3. Environment variables.** Project → **Settings → Environment Variables**, add (Production + Preview):
 `APP_PASSWORD`, `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY`, and when you get to them the `WHATSAPP_*`, `PROCUREMENT_*`, `IMPORT_SECRET` values from `.env.example`. Then **Deployments → ⋯ → Redeploy** (env changes apply on the next deployment).
 
-**A4. Check it.** Open `https://<project>.vercel.app` → log in with `APP_PASSWORD` → ⚙ AI should show your providers and **Storage: Vercel Blob (private)**.
+**A4. Check it.** Open `https://<project>.vercel.app` → log in with `APP_PASSWORD` → then open `/api/llm`: it should list your providers and `"storage": "blob"`.
 
 **A5. Settings worth changing**
 - **Functions → Function Region:** pick the region closest to KSA that your plan offers (lower latency for the site team).
 - **Deployment Protection:** keep it for *preview* deployments, but the **production** domain must be reachable by Meta and your ERP webhooks (they are authenticated by signature/secret; the UI by `APP_PASSWORD`). If production is protected, webhooks get 401.
 - **Custom domain** (optional): Settings → Domains, e.g. `siteagent.kinan.example`.
-- **Time limits:** answers are capped at ~50 s per question (`maxDuration` 60 s) so they work on every plan. On Pro you can raise `maxDuration` in `app/api/agent/route.ts` / `app/api/whatsapp/route.ts` and set `AGENT_DEADLINE_MS`.
+- **Time limits:** answers are capped at ~50 s per question (`maxDuration` 60 s) so they work on every plan. On Pro you can raise `maxDuration` in `app/api/whatsapp/route.ts` and set `AGENT_DEADLINE_MS`.
 - **Scheduled ERP sync** (optional): add a `vercel.json` with `{"crons":[{"path":"/api/integrations/procurement?action=sync","schedule":"0 5 * * *"}]}` and set `CRON_SECRET`. (Hobby plans allow daily crons only; the agent also re-syncs automatically when data is older than `PROCUREMENT_SYNC_MINUTES`.)
 
 **Vercel limits handled by the app:** request/response bodies are limited to ~4.5 MB on Vercel — the app uploads bigger files straight from the phone to Blob (up to 200 MB) and opens them through 15-minute signed links. Backups: Blob data lives under the `kinan/` folder of the store (download from the Storage tab, or copy with the Blob CLI/SDK).
@@ -407,8 +407,7 @@ Columns: `Sheet, Title, Discipline, Location, Revision, Status, Issued, Reason`.
 
 **Web app tabs**
 - **Site map:** pinch/zoom the detailed plan, toggle layers (utilities, grid, cranes…), tap places to see documents, notes, activities and permits, and pin uploads to exact spots. The blue dot is your GPS position.
-- **Agent:** chat or 🎙 talk. Under each answer you see which model answered, the tier, and whether it fell back.
-- **Project:** Programme (KPIs, milestones, in-progress/late/critical, 2-week look-ahead), Procurement (deliveries, packages at risk, POs, MRs, stock), Safety (permits, rules, incidents, PPE), Regulations, Drawings register, Team (tap to call). "Ask ✦" sends a ready-made question to the agent.
+- **Project:** Programme (KPIs, milestones, in-progress/late/critical, 2-week look-ahead), Procurement (deliveries, packages at risk, POs, MRs, stock), Safety (permits, rules, incidents, PPE), Regulations, Drawings register, Team (tap to call).
 - **Docs:** all documents and open notes.
 
 **Good questions to try**

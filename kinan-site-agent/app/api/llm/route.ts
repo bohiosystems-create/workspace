@@ -6,7 +6,7 @@ import { getRepo, storageKind } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-/** Read-only status for the settings sheet. Never returns keys. */
+/** Read-only admin status (providers, routes, storage, WhatsApp). Never returns keys. */
 export async function GET() {
   const c = serverLlm();
   const db = (await getRepo()).db;

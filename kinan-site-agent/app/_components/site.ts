@@ -1,6 +1,6 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { Doc, Location, Note, RouteInfo, UiAction } from "@/lib/types";
+import { useCallback, useEffect, useState } from "react";
+import type { Doc, Location, Note } from "@/lib/types";
 
 export type ClientDoc = Omit<Doc, "text">;
 export interface SiteState {
@@ -15,7 +15,6 @@ export interface SiteState {
   /** Blob pathname prefix for direct browser uploads (Vercel Blob), else null. */
   directUpload?: string | null;
 }
-export interface ChatItem { role: "user" | "assistant"; content: string; actions?: UiAction[]; route?: RouteInfo }
 
 export function useSite() {
   const [state, setState] = useState<SiteState | null>(null);
@@ -39,44 +38,6 @@ export function useAuthor() {
   useEffect(() => { try { const a = localStorage.getItem("kinan.author"); if (a) setAuthorState(a); } catch {} }, []);
   const setAuthor = (a: string) => { setAuthorState(a); try { localStorage.setItem("kinan.author", a); } catch {} };
   return [author, setAuthor] as const;
-}
-
-export function useAgent(ctx: () => { focus?: { docId?: string; locationId?: string }; here?: { locationId: string }; author: string }, onDone: (actions: UiAction[]) => void) {
-  const [items, setItems] = useState<ChatItem[]>([]);
-  const [busy, setBusy] = useState(false);
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
-  const loaded = useRef(false);
-
-  useEffect(() => {
-    try { const s = localStorage.getItem("kinan.chat"); if (s) setItems(JSON.parse(s)); } catch {}
-    loaded.current = true;
-  }, []);
-  useEffect(() => {
-    if (!loaded.current) return;
-    try { localStorage.setItem("kinan.chat", JSON.stringify(items.slice(-40))); } catch {}
-  }, [items]);
-
-  const send = useCallback(async (text: string) => {
-    const t = text.trim();
-    if (!t || busy) return;
-    const next: ChatItem[] = [...itemsRef.current, { role: "user", content: t }];
-    setItems(next);
-    setBusy(true);
-    try {
-      const r = await fetch("/api/agent", {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: next.map(({ role, content }) => ({ role, content })), ...ctx() }),
-      });
-      const j = await r.json();
-      setItems((cur) => [...cur, { role: "assistant", content: j.reply ?? j.error ?? "No reply", actions: j.actions, route: j.route }]);
-      onDone(j.actions ?? []);
-    } catch {
-      setItems((cur) => [...cur, { role: "assistant", content: "I couldn't reach the server. Check your signal and try again." }]);
-    } finally { setBusy(false); }
-  }, [busy, ctx, onDone]);
-
-  return { items, busy, send, clear: () => setItems([]) };
 }
 
 export function rootOf(locs: Location[], id: string): Location | undefined {
