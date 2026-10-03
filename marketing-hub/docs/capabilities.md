@@ -14,7 +14,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - **Budget plan:** next month's budget per vendor, moved towards the vendors that bring the most *extra* sales per riyal. Each vendor stays inside the range its renewal decision allows. Shows expected extra sales and the reserve held back.
 - **One approval inbox:** everything waiting for the manager in one list, each item with a time estimate and a weekly total ("about 54 minutes for 8 decisions").
 - **Campaign quality from the CRM:** every campaign code ranked by qualified and win rate: strongest (fund first), middle, weakest (fix targeting or cut).
-- **Leads stay with Kinan:** lead follow-up, sales and the CRM are handled by Kinan's own agent. The director reads CRM results only to judge campaigns and vendors.
+- **Leads stay with Kinan:** lead follow-up, sales and the CRM are handled by Kinan's own agent. The director only reads CRM results only to judge campaigns and vendors.
 
 ## 1a. Daily campaign check — what to change in each campaign, every morning
 
@@ -89,7 +89,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - pause, back and next, tap or arrow keys;
   - from the report viewer or the ▶ on any History row.
 - **Run snapshot** (Reports page): a live marketing snapshot built on demand. It contains nine headline figures, the report charts plus Meta revenue, today's campaign check, what's waiting for your decision, and what changed since the last report or snapshot. It is saved in the history and can be downloaded as PDF or HTML; it is never emailed.
-- Emailed through Outlook to internal addresses only; kept in a history to view or download. Optional copy of the brief to Kinan's agent.
+- Emailed through Outlook to internal addresses only; kept in a history to view or download.
 
 ## 4. Vendor performance — measured fairly
 
@@ -205,11 +205,10 @@ People can ask anything, so the assistant has five layers of protection:
 
 - Drafts in the vendor's language, using only verifiable facts. Sending needs a named approver, the exact revision reviewed and an "I have read this" confirmation. Recipient is fixed to the vendor's account manager.
 
-## 12. Kinan integration (CRM = Yardi + Kinan's AI agent)
+## 12. Kinan's sales agent (read-only source; CRM = Yardi)
 
-- **Scope:** Kinan's own agent handles leads, follow-up, sales and the CRM. The director reads CRM results and shares marketing context.
-- **Outbox to Kinan:** approved plan, campaign status changes, daily brief with campaign recommendations — stored, delivered, retried; signed webhooks (HMAC-SHA256).
-- **Kinan's agent can read** targets, the plan, campaign codes, campaign quality and recommendations (API-key protected).
+- **Scope:** Kinan's sales agent handles leads, follow-up, sales and the CRM. The director does not talk to it: it sends it nothing and exposes no API to it.
+- **Read only:** the director reads the CRM results the sales agent produces (leads by campaign code, qualification, viewings, reservations, contracts, lost reasons, response times) to judge campaigns and vendors. The Director page shows what is read, from where, and when.
 
 ## 13. Arabic
 
@@ -235,7 +234,6 @@ The recommendations are only as good as the data behind them. In order of value:
 
 | Component | In the demo | Status | Needed to go live |
 |---|---|---|---|
-| Kinan AI agent (shares plan, campaign changes, brief) | Simulated | Built (signed webhook, retries; read-only context API) | Kinan's webhook URL, shared secret, an API key |
 | Yardi (reading CRM results) | Sample CRM data | **Not built** | Kinan's Yardi interface licence and credentials; field mapping |
 | Outlook (send, and read vendor correspondence) | Simulated | Built, not yet tested on a real tenant | Entra app registration with Mail.Send and Mail.Read, scoped to the marketing mailbox |
 | Oracle Fusion (invoices) | Sample data | Built (read-only), not yet tested on a real instance | Oracle user and URL |

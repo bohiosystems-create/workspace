@@ -11,7 +11,6 @@ const LINKS = [
   { href: "/orchestration", label: "Vendors" },
   { href: "/reports", label: "Reports" },
   { href: "/campaigns", label: "Campaigns" },
-  { href: "/history", label: "History" },
   { href: "/decisions", label: "Decisions" },
   { href: "/experiments", label: "Experiments" },
 ];

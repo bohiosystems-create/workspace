@@ -9,6 +9,7 @@
 // a PDF capture that doesn't run them still shows the finished chart.
 import type { DeckSlide } from "./deck";
 import { type Lang, tx } from "./i18n";
+import { box, pie3d, shade, DEPTH } from "./chart3d";
 
 const OR = "#f15a22", CH = "#2e2e2f", TAUPE = "#51473d", SOFT = "#6f6f6f", TRACK = "#efeeec", GRID = "#e6e5e2";
 const GOOD = "#1f8a4c", WARN = "#d99400", CRIT = "#d03b3b";
@@ -50,7 +51,7 @@ export const RICH_CSS = `
 .kr-ol-m { position: absolute; top: -3px; bottom: -3px; inset-inline-end: 0; width: 2px; background: ${CH}; }
 .kr-ol b { color: ${CH}; font-variant-numeric: tabular-nums; }
 .kr-donut { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
-.kr-donut > div:first-child { flex: 0 0 210px; }
+.kr-donut > div:first-child { flex: 0 0 260px; }
 .kr-leg { flex: 1 1 260px; }
 .kr-leg-r { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid ${GRID}; font-size: 12px; }
 .kr-leg-r i { width: 11px; height: 11px; border-radius: 2px; flex: none; }
@@ -67,6 +68,10 @@ export const RICH_CSS = `
 .kr-br-c { width: 64px; }
 .kr-bench { position: absolute; top: 0; bottom: 0; border-inline-start: 2px dashed ${OR}; pointer-events: none; }
 .kr-bench span { position: absolute; top: -2px; inset-inline-start: 6px; white-space: nowrap; font-size: 10px; color: ${OR}; background: #fff; padding: 0 4px; }
+.kr-br-t { margin-top: 6px; }
+.kr-br-f { position: relative; }
+.k-screen .kr-br-f::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 6px; background: inherit; filter: brightness(1.35); transform: skewX(-45deg); transform-origin: bottom left; }
+.k-screen .kr-br-f::after { content: ""; position: absolute; top: 0; bottom: 0; left: 100%; width: 6px; background: inherit; filter: brightness(.62); transform: skewY(-45deg); transform-origin: top left; }
 .kr-cap { font-size: 10.5px; color: ${SOFT}; margin-top: 8px; }
 @media screen and (prefers-reduced-motion: no-preference) {
   .k-screen .kr-arc { animation: krArc 1.4s cubic-bezier(.2,.8,.2,1) both; }
@@ -118,6 +123,8 @@ function gauges(s: Extract<DeckSlide, { kind: "gauges" }>, lang: Lang) {
       return `<div class="kr-ol">${esc(it.outlook.label)}<div class="kr-ol-t"><div class="kr-ol-f" style="width:${f.toFixed(1)}%;background:${c};${d(900 + i * 150)}"></div><div class="kr-ol-m"></div></div><span dir="ltr"><b>${fmt(it.outlook.forecast)}</b> / ${fmt(it.outlook.target)}</span></div>`; })() : "";
     return `<div class="kr-g"><svg viewBox="0 0 160 160" style="max-width:170px;margin:0 auto" aria-hidden="true">
       ${ticks}
+      <circle cx="80" cy="84" r="${R}" fill="none" stroke="#dcdbd8" stroke-width="12"/>
+      <circle class="kr-arc" cx="80" cy="84" r="${R}" fill="none" stroke="${shade(col, 0.6)}" stroke-width="12" stroke-linecap="round" transform="rotate(-90 80 84)" stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}" style="--len:${len.toFixed(1)};${d(200 + i * 150)}"/>
       <circle cx="80" cy="80" r="${R}" fill="none" stroke="${TRACK}" stroke-width="12"/>
       <circle class="kr-arc" cx="80" cy="80" r="${R}" fill="none" stroke="${col}" stroke-width="12" stroke-linecap="round" transform="rotate(-90 80 80)" stroke-dasharray="${len.toFixed(1)} ${C.toFixed(1)}" style="--len:${len.toFixed(1)};${d(200 + i * 150)}"/>
       <text x="80" y="86" text-anchor="middle" font-size="30" font-weight="700" fill="${CH}" style="font-variant-numeric:tabular-nums">${Math.round(p)}%</text>
@@ -132,37 +139,45 @@ function columns(s: { title: string; sub: string; labels: string[]; values: numb
   const T = (en: string, ar: string) => tx(lang, en, ar);
   const id = nid(), tg = s.target ?? [], n = s.values.length, W = 700, H = 230, top = 34, pad = 8;
   const max = Math.max(...s.values, ...tg.map((x) => x ?? 0), 0.0001) * 1.16;
-  const slot = (W - pad * 2) / n, bw = Math.min(70, slot * 0.56), x = (i: number) => pad + slot * (i + 0.5), y = (v: number) => H - ((H - top) * v) / max;
+  const slot = (W - pad * 2 - DEPTH.dx) / n, bw = Math.min(70, slot * 0.56), x = (i: number) => pad + slot * (i + 0.5), y = (v: number) => H - ((H - top) * v) / max;
   const last = n - 1, prev = s.values[last - 1], delta = prev ? ((s.values[last] - prev) / prev) * 100 : null;
   const grid = [0.25, 0.5, 0.75, 1].map((g) => `<line x1="${pad}" x2="${W - pad}" y1="${(H - (H - top) * g).toFixed(1)}" y2="${(H - (H - top) * g).toFixed(1)}" stroke="${GRID}"/>`).join("");
   const bars = s.values.map((v, i) => {
     const hot = i === last, t = tg[i] ?? null, under = t != null && v < t * 0.9;
-    const yv = y(v), labelY = Math.min(yv, t != null ? y(t) : 9e9) - 8;
-    return `<rect class="kr-grow-y" x="${(x(i) - bw / 2).toFixed(1)}" y="${yv.toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - yv).toFixed(1)}" rx="3" fill="url(#${id}${hot ? "h" : "c"})" style="${d(150 + i * 110)}"/>
+    const yv = y(v), labelY = Math.min(yv + DEPTH.dy, t != null ? y(t) : 9e9) - 8, b = box(x(i) - bw / 2, yv, bw, H - yv), base = under ? CRIT : hot ? OR : CH;
+    return `<g class="kr-grow-y" style="${d(150 + i * 110)}"><path d="${b.side}" fill="${shade(base, 0.62)}"/><path d="${b.top}" fill="${shade(base, 1.35)}"/><path d="${b.front}" fill="url(#${id}${under ? "r" : hot ? "h" : "c"})"/></g>
       ${t != null ? `<line class="kr-fade" x1="${(x(i) - bw / 2 - 7).toFixed(1)}" x2="${(x(i) + bw / 2 + 7).toFixed(1)}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" stroke="${under ? CRIT : CH}" stroke-width="2" stroke-dasharray="5 4" style="${d(800 + i * 110)}"/>` : ""}
-      <text class="kr-fade" x="${x(i).toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" font-size="15" font-weight="700" fill="${hot ? OR : CH}" style="font-variant-numeric:tabular-nums;${d(900 + i * 110)}">${fmt(v, s.decimals ?? 1)}</text>
+      <text class="kr-fade" x="${(x(i) + DEPTH.dx / 2).toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle" font-size="15" font-weight="700" fill="${under ? CRIT : hot ? OR : CH}" style="font-variant-numeric:tabular-nums;${d(900 + i * 110)}">${fmt(v, s.decimals ?? 1)}</text>
       <text x="${x(i).toFixed(1)}" y="${H + 20}" text-anchor="middle" font-size="12" fill="${SOFT}">${esc(s.labels[i])}</text>`;
   }).join("");
-  const bubble = delta != null ? (() => { const txt = `${delta >= 0 ? "▲ +" : "▼ −"}${fmt(Math.abs(delta))}% ${T("vs", "مقابل")} ${s.labels[last - 1]}`, w = 22 + txt.length * 6.6, bx = Math.max(pad, x(last) - bw / 2 - w - 14), by = Math.max(2, y(s.values[last]) - 30);
+  const bubble = delta != null ? (() => { const txt = `${delta >= 0 ? "▲ +" : "▼ −"}${fmt(Math.abs(delta))}% ${T("vs", "مقابل")} ${s.labels[last - 1]}`, w = 22 + txt.length * 6.6, bx = Math.min(W - pad - w, Math.max(pad, x(last) - w / 2)), by = -28;
     return `<g class="kr-pop" style="${d(1400)}"><rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${w.toFixed(1)}" height="22" rx="11" fill="#fff" stroke="${OR}"/><text x="${(bx + w / 2).toFixed(1)}" y="${(by + 15).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="${CH}">${esc(txt)}</text></g>`; })() : "";
   return `<div class="kr">${head(s.title, s.sub)}<div class="kr-legend"><span><i style="background:${CH}"></i>${T("Actual", "الفعلي")}</span><span><i style="background:${OR}"></i>${T("Latest month", "آخر شهر")}</span>${tg.length ? `<span><i class="dash"></i>${T("Target", "المستهدف")}</span>` : ""}</div>
-  <svg viewBox="0 0 ${W} ${H + 28}" style="direction:ltr" aria-hidden="true"><defs>
+  <svg viewBox="0 ${delta != null ? -30 : 0} ${W} ${H + 28 + (delta != null ? 30 : 0)}" style="direction:ltr" aria-hidden="true"><defs>
     <linearGradient id="${id}h" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff7a45"/><stop offset="1" stop-color="${OR}"/></linearGradient>
-    <linearGradient id="${id}c" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#5a5a5c"/><stop offset="1" stop-color="${CH}"/></linearGradient></defs>
-    ${grid}<line x1="${pad}" x2="${W - pad}" y1="${H}" y2="${H}" stroke="#bdbcb8"/>${bars}${bubble}</svg></div>`;
+    <linearGradient id="${id}c" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#5a5a5c"/><stop offset="1" stop-color="${CH}"/></linearGradient>
+    <linearGradient id="${id}r" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e86a6a"/><stop offset="1" stop-color="${CRIT}"/></linearGradient></defs>
+    ${grid}<path d="M${pad},${H} L${pad + DEPTH.dx},${H + DEPTH.dy} L${W - pad + DEPTH.dx},${H + DEPTH.dy} L${W - pad},${H} Z" fill="#f1f0ee"/><line x1="${pad}" x2="${W - pad}" y1="${H}" y2="${H}" stroke="#bdbcb8"/>${bars}${bubble}</svg></div>`;
 }
 
 function donut(s: { title: string; sub: string; labels: string[]; values: number[]; unit: string }) {
-  const total = s.values.reduce((a, b) => a + b, 0) || 1, R = 70, C = 2 * Math.PI * R, gap = 2.5;
-  let acc = 0;
-  const segs = s.values.map((v, i) => { const len = (v / total) * C, start = acc; acc += len; const mid = ((start + len / 2) / C) * 2 * Math.PI - Math.PI / 2; return { i, v, len, start, mid }; });
-  const arcs = segs.map((g) => { const L = Math.max(0, g.len - gap); return `<circle class="kr-arc" cx="110" cy="110" r="${R}" fill="none" stroke="${PAL[g.i] ?? "#9a9a9a"}" stroke-width="30" transform="rotate(-90 110 110)" stroke-dasharray="${L.toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-g.start).toFixed(1)}" style="--len:${(L - g.start).toFixed(1)};${d(150 + g.i * 160)}"/>`; }).join("");
-  const labels = segs.slice(0, 3).filter((g) => g.v / total >= 0.08).map((g) => { const r = R + 26, x = 110 + r * Math.cos(g.mid), y = 110 + r * Math.sin(g.mid); return `<text class="kr-fade" x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="${CH}" style="${d(1100 + g.i * 120)}">${Math.round((g.v / total) * 100)}%</text>`; }).join("");
-  const leg = s.labels.map((l, i) => `<div class="kr-leg-r"><i style="background:${PAL[i] ?? "#9a9a9a"}"></i><span>${esc(l)}</span><b dir="ltr">${fmtAuto(s.values[i])}</b><em dir="ltr">${Math.round((s.values[i] / total) * 100)}%</em></div>`).join("");
-  return `<div class="kr">${head(s.title, s.sub)}<div class="kr-donut"><div><svg viewBox="0 0 220 220" style="max-width:210px;direction:ltr" aria-hidden="true">
-    <circle cx="110" cy="110" r="${R}" fill="none" stroke="${TRACK}" stroke-width="30"/>${arcs}${labels}
-    <text x="110" y="112" text-anchor="middle" font-size="24" font-weight="700" fill="${CH}" style="font-variant-numeric:tabular-nums">${fmtAuto(total)}</text>
-    <text x="110" y="130" text-anchor="middle" font-size="9" letter-spacing="2" fill="${TAUPE}">${esc(s.unit.toUpperCase())}</text></svg></div><div class="kr-leg">${leg}</div></div></div>`;
+  // Tilted 3D donut (lib/chart3d.ts); every slice of 6% or more carries its share.
+  const total = s.values.reduce((a, b) => a + b, 0) || 1, cx = 130, cy = 92, R = 112, depth = 20, tilt = 0.58;
+  let a = -Math.PI / 2;
+  const segs = s.values.map((v) => { const a0 = a; a += (v / total) * Math.PI * 2; return { a0, a1: a }; });
+  const g = pie3d(segs, { cx, cy, r: R, inner: 62, tilt, depth });
+  const col = (i: number) => PAL[i] ?? "#9a9a9a";
+  const inner = g.inner.map((w) => `<path class="kr-fade" d="${w.d}" fill="${shade(col(w.i), 0.5)}" style="${d(w.i * 90)}"/>`).join("");
+  const outer = g.outer.map((w) => `<path class="kr-fade" d="${w.d}" fill="${shade(col(w.i), 0.66)}" stroke="${shade(col(w.i), 0.6)}" stroke-width=".6" style="${d(w.i * 90)}"/>`).join("");
+  const tops = g.tops.map((t, i) => `<path class="kr-fade" d="${t}" fill="${col(i)}" stroke="#fff" stroke-width="1.5" fill-rule="evenodd" style="${d(i * 90)}"/>`).join("");
+  const labels = segs.map((sg, i) => { const pct = (s.values[i] / total) * 100; if (pct < 6) return ""; const [x, y] = g.point((sg.a0 + sg.a1) / 2, 0.78);
+    const light = ["#eda100", "#e87ba4", "#1baf7a"].includes(col(i)); return `<text class="kr-fade" x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="${light ? CH : "#fff"}" style="${d(500 + i * 90)}">${Math.round(pct)}%</text>`; }).join("");
+  const leg = s.labels.map((l, i) => `<div class="kr-leg-r"><i style="background:${col(i)}"></i><span>${esc(l)}</span><b dir="ltr">${fmtAuto(s.values[i])}</b><em dir="ltr">${Math.round((s.values[i] / total) * 100)}%</em></div>`).join("");
+  return `<div class="kr">${head(s.title, s.sub)}<div class="kr-donut"><div><svg viewBox="0 0 260 200" style="max-width:260px;direction:ltr" aria-hidden="true">
+    <ellipse cx="${cx}" cy="${cy + depth + 8}" rx="${R * 0.98}" ry="${R * tilt * 0.55}" fill="rgba(46,46,47,.10)"/>
+    ${inner}${outer}${tops}${labels}
+    <text x="${cx}" y="${cy + 3}" text-anchor="middle" font-size="18" font-weight="700" fill="${CH}" style="font-variant-numeric:tabular-nums">${fmtAuto(total)}</text>
+    <text x="${cx}" y="${cy + 16}" text-anchor="middle" font-size="8" letter-spacing="2" fill="${TAUPE}">${esc(s.unit.toUpperCase())}</text></svg></div><div class="kr-leg">${leg}</div></div></div>`;
 }
 
 function hbars(s: Extract<DeckSlide, { kind: "hbars" }>, lang: Lang) {

@@ -93,6 +93,9 @@ export function extraEarly(question: string, c: ChatContext): string | null {
   // History questions (seasons, years, lessons, best / worst past campaigns, benchmarks).
   const season = SEASON_RX.find(([, rx]) => rx.test(q))?.[0];
   const live = ents.some((e) => e.kind === "campaign");
+  // The history has no menu page any more: "list the 2024 campaigns", "past campaigns in 2023", "campaigns we ran in 2025".
+  const histYear = /\b(2023|2024|2025)\b/.test(q) && /campaigns?|حملات|الحملات|حملة/.test(q) && !RX.metric.test(q) && !/chart|graph|plot|رسم|مخطط/.test(q);
+  if (histYear || (/\b(list|show|all)\b.*\bpast campaigns\b|\bpast campaigns\b|الحملات السابقة|حملاتنا السابقة/.test(q) && !/chart|graph|plot|رسم|مخطط/.test(q))) return historyAnswer(c, q, ents, season);
   if (!/last month|this month|الشهر الماضي|هذا الشهر/.test(q) && (RX.history.test(q) && !(live && !/histor|\bpast\b|previous|last year|سابق|الماضي|تاريخ/.test(q))) || (season && !RX.metric.test(q) && !live)) return historyAnswer(c, q, ents, season);
 
   // Any month / quarter / year with a metric.
@@ -177,7 +180,7 @@ function help(L: Lang) {
     `- **Buyers and leads**: "which cities do leads come from?", "investors or end users?", "why do we lose leads?", "buyer types for Marina Tower"\n` +
     `- **Ads and market**: "which creatives work best?", "Arabic or English ads?", "how is the property market in Jeddah?", "what are competitors doing?", "when is Ramadan?"\n` +
     `- **Ideas**: "ideas for a Ramadan campaign for Marina Tower, SAR 300K"\n` +
-    `- **Actions**: "draft an email to Hajar Outdoor" (drafts only — you approve every email), "the daily report", "what did we send to Kinan?"`,
+    `- **Actions**: "draft an email to Hajar Outdoor" (drafts only — you approve every email), "the daily report", "what data do we read from Kinan's sales agent?"`,
     `أنا مساعد مدير التسويق الذكي. يمكنني الإجابة، من بين أمور أخرى، عن:\n` +
     `- **اليوم**: «موجز اليوم»، «ما الجديد منذ الأمس؟»، «ماذا أغيّر في الحملات؟»، «ما الذي ينتظر اعتمادي؟»\n` +
     `- **الحملات**: «كيف أداء ASH-SEARCH-26؟»، «قارن حملة إطلاق المؤثرين في المارينا وبحث الشاطئ»\n` +
@@ -281,9 +284,10 @@ function historyAnswer(c: ChatContext, q: string, ents: Entity[], season?: strin
       T("\nBy channel: ", "\nحسب القناة: ") + h.byFamily.map((x) => `${x.label} ${pct(x.costToSalesPct)}`).join(T("; ", "؛ ")) +
       T("\nBy year: ", "\nحسب السنة: ") + h.byYear.map((x) => `${x.key} ${pct(x.costToSalesPct)} (${M(L, x.salesM)})`).join(T("; ", "؛ ")) +
       T("\n\n**Lessons**\n", "\n\n**الدروس**\n") + h.lessons.slice(0, 4).map((x) => `- ${x}`).join("\n") +
-      T("\n\nAsk about a season (Ramadan, summer), a year, a channel or a past campaign by name; the full list is on the History page.", "\n\nاسألوا عن موسم (رمضان، الصيف) أو سنة أو قناة أو حملة سابقة بالاسم؛ القائمة الكاملة في صفحة التاريخ.");
+      T("\n\nAsk me about a season (Ramadan, summer), a year, a channel, a project, a vendor or a past campaign by name — e.g. \"list the 2024 campaigns\" or \"chart cost to sales by season\".", "\n\nاسألوني عن موسم (رمضان، الصيف) أو سنة أو قناة أو مشروع أو مورد أو حملة سابقة بالاسم — مثل «اعرض حملات 2024» أو «رسم نسبة التكلفة إلى المبيعات حسب الموسم».");
   }
-  return head + sorted.slice(0, 8).map(fmt).join("\n") + (rows.length <= 3 ? `\n\n${rows.map((r) => `${r.name}: ${r.lesson}`).join("\n")}` : "");
+  const all = /\b(list|all|every|show)\b|كل|اعرض|قائمة/.test(q);
+  return head + (all ? [...rows].sort((a, b) => a.start.localeCompare(b.start)) : sorted.slice(0, 8)).slice(0, all ? 30 : 8).map(fmt).join("\n") + (rows.length <= 3 ? `\n\n${rows.map((r) => `${r.name}: ${r.lesson}`).join("\n")}` : "");
 }
 
 // ------------------------------------------------- lead profiles, creatives, market, competitors, calendar
@@ -332,7 +336,7 @@ export function extraData(question: string, c: ChatContext): string | null {
       const big = b.rows.filter((r) => r.leads >= 50 && r.qualRatePct !== null && r.value !== "Never contacted");
       const best = [...big].sort((x, y) => (y.qualRatePct ?? 0) - (x.qualRatePct ?? 0))[0], worst = [...big].sort((x, y) => (x.qualRatePct ?? 0) - (y.qualRatePct ?? 0))[0];
       const tip = d === "lostReason"
-        ? T(`\nThe top reason is **${b.rows[0]?.value}**. Leads lost to "No response" point at follow-up speed (Kinan's agent); "Not a buyer" and "Price" point at targeting and offer.`, `\nالسبب الأول **${V(b.rows[0]?.value ?? "")}**. الخسارة بسبب "عدم الرد" تشير إلى سرعة المتابعة (وكيل كنان)؛ و"ليس مشترياً" و"السعر" تشيران إلى الاستهداف والعرض.`)
+        ? T(`\nThe top reason is **${b.rows[0]?.value}**. Leads lost to "No response" point at follow-up speed (handled by Kinan's sales agent); "Not a buyer" and "Price" point at targeting and offer.`, `\nالسبب الأول **${V(b.rows[0]?.value ?? "")}**. الخسارة بسبب "عدم الرد" تشير إلى سرعة المتابعة (وكيل كنان)؛ و"ليس مشترياً" و"السعر" تشيران إلى الاستهداف والعرض.`)
         : d === "responseBand" ? (() => {
           const slow = b.rows.find((r) => r.value === "Over 24 hours"), never = b.rows.find((r) => r.value === "Never contacted"), fast = b.rows.filter((r) => r.value === "Within 4 hours" || r.value === "4–24 hours");
           const fq = fast.reduce((a, r) => a + r.qualified, 0), fl = fast.reduce((a, r) => a + r.leads, 0);

@@ -1,7 +1,7 @@
 // Builds the Kinan demo package: ../kinan-demo.zip with the one-file demo, the demo kit, the docs and the app source.
 //   npm run demo:package   (rebuilds demo.html from a fresh sample database first)
 import { execSync } from "child_process";
-import { mkdirSync, rmSync, cpSync, copyFileSync, writeFileSync, readFileSync } from "fs";
+import { mkdirSync, rmSync, cpSync, copyFileSync, writeFileSync, readFileSync, existsSync } from "fs";
 import path from "path";
 import os from "os";
 
@@ -26,7 +26,7 @@ for (const f of ["demo-checklist.md", "capabilities.md", "kinan-integration.md",
   copyFileSync(path.join(root, "docs", f), path.join(top, "docs", f));
 
 // App source: tracked files only (no node_modules, database, .env or build output).
-const files = execSync("git ls-files", { cwd: root }).toString().trim().split("\n").filter((f) => f && f !== "demo.html");
+const files = execSync("git ls-files", { cwd: root }).toString().trim().split("\n").filter((f) => f && f !== "demo.html" && existsSync(path.join(root, f)));
 for (const f of files) {
   const to = path.join(top, "app-source", f);
   mkdirSync(path.dirname(to), { recursive: true });

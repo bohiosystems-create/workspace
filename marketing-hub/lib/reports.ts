@@ -1,6 +1,6 @@
 // Daily scheduled reports — the director writes the manager's morning report and emails it.
 //
-// Schedule: one ReportSchedule row (time, timezone, days, recipients, languages, optional copy to Kinan's agent).
+// Schedule: one ReportSchedule row (time, timezone, days, recipients, languages). Reports go to internal recipients only.
 // Trigger:  POST /api/reports/run with x-api-key: $REPORTS_CRON_KEY (or Authorization: Bearer) — point any scheduler
 //           at it every 15 minutes; a report runs once per local day, at or after the scheduled time, on the
 //           scheduled days. "Send now" / "Preview" on the Reports page run it by hand.
@@ -106,7 +106,6 @@ import { runChartQuery } from "./chart-query";
 import { buildDirector } from "./director";
 import { buildOrchestration } from "./orchestrator";
 import { buildRecommendations } from "./recommendations";
-import { queueKinanEvent } from "./kinan";
 import { deliverMail, outlookMode, outlookSender } from "./outlook";
 import { type Lang, tx, nm, dt, dtm, M, K, an, firstSentence } from "./i18n";
 
@@ -118,7 +117,7 @@ export const ensureSchedule = single(async function ensureScheduleImpl() {
   const s = (await prisma.reportSchedule.findMany()).find((x) => x.id === "daily");
   if (s) return s;
   return prisma.reportSchedule.create({
-    data: { id: "daily", enabled: true, time: "07:30", timezone: "Asia/Riyadh", days: "0,1,2,3,4", recipients: outlookSender(), languages: "en,ar", toKinan: false, updatedAt: new Date() },
+    data: { id: "daily", enabled: true, time: "07:30", timezone: "Asia/Riyadh", days: "0,1,2,3,4", recipients: outlookSender(), languages: "en,ar", updatedAt: new Date() },
   });
 });
 
@@ -147,7 +146,7 @@ export async function saveSchedule(b: any, approver: string, l: Lang) {
   await ensureSchedule();
   await prisma.reportSchedule.update({
     where: { id: "daily" },
-    data: { enabled: !!b.enabled, time, timezone, days: days.join(","), recipients: recipients.join(", "), languages: langs.join(","), toKinan: !!b.toKinan, updatedBy: approver.trim(), updatedAt: new Date() },
+    data: { enabled: !!b.enabled, time, timezone, days: days.join(","), recipients: recipients.join(", "), languages: langs.join(","), updatedBy: approver.trim(), updatedAt: new Date() },
   });
   await prisma.marketingAction.create({ data: { type: "REPORT_SCHEDULE", campaign: T("Daily report", "التقرير اليومي"), detail: T(`${b.enabled ? `Daily at ${time} (${timezone})` : "Paused"} → ${recipients.join(", ") || "no recipients"}; changed by ${approver.trim()}.`, `${b.enabled ? `يومياً الساعة ${time} (${timezone})` : "متوقف"} ← ${recipients.join("، ") || "بلا مستلمين"}؛ عدّله ${approver.trim()}.`) } });
 }
@@ -193,22 +192,21 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   const inFocus = (...xs: (string | null | undefined)[]) => !lay.focus || xs.some((x) => x && mentions(x, lay.focus!, focusAr));
   const ideasP = ideasSection(lang, date, { limit: lay.maxItems, inFocus: lay.focus ? inFocus : null }); // runs alongside the rest (AI ideation can take a while)
   const a = await buildAgent(lang);
-  const [d, o, events] = await Promise.all([buildDirector(lang, a), buildOrchestration(lang, a), prisma.kinanEvent.findMany()]);
+  const [d, o] = await Promise.all([buildDirector(lang, a), buildOrchestration(lang, a)]);
   const since = Date.now() - DAY;
-  const ev24 = events.filter((e) => e.createdAt.getTime() >= since);
   const recs = (await buildRecommendations(lang, a)).recommendations.filter((r) => r.severity === "crit" && (r.state === "OPEN" || r.state === "DRAFTED") && inFocus(r.title, (r as any).why, (r as any).campaign, (r as any).project));
 
   const metrics: Metrics = {
     ytdSalesM: d.targets.ytdActualM, ytdPct: d.targets.ytdPct, decisions: d.inbox.length, minutes: d.managerMinutes,
     campaignRecs: d.campaignRecs.length, urgentCampaignRecs: d.campaignRecs.filter((r) => r.severity === "crit").length, lateDeliverables: o.summary.lateDeliverables, overdueWorkOrders: o.summary.overdue, withVendors: o.summary.withVendors,
-    invoiceExceptions: a.inv.kpis.exceptions, overdueK: Math.round(a.inv.kpis.overdueK), kinanFailed: events.filter((e) => e.status === "FAILED").length, criticalRisks: recs.length,
+    invoiceExceptions: a.inv.kpis.exceptions, overdueK: Math.round(a.inv.kpis.overdueK), criticalRisks: recs.length,
   };
   const LABEL: Record<string, [string, string, "up" | "down"]> = {
     ytdSalesM: ["Sales year to date (SAR M)", "المبيعات منذ بداية العام (مليون ر.س)", "up"], ytdPct: ["% of target", "% من المستهدف", "up"],
     decisions: ["Decisions waiting", "قرارات بانتظاركم", "down"], campaignRecs: ["Campaign recommendations open", "توصيات الحملات المفتوحة", "down"], urgentCampaignRecs: ["Urgent campaign recommendations", "توصيات حملات عاجلة", "down"],
     lateDeliverables: ["Late vendor deliverables", "تسليمات موردين متأخرة", "down"], overdueWorkOrders: ["Overdue work orders", "أوامر عمل متأخرة", "down"],
     withVendors: ["Work orders with vendors", "أوامر عمل لدى الموردين", "up"], invoiceExceptions: ["Invoice exceptions", "استثناءات الفواتير", "down"],
-    overdueK: ["Overdue payments (SAR K)", "مدفوعات متأخرة (ألف ر.س)", "down"], kinanFailed: ["Failed deliveries to Kinan", "إرسالات فاشلة إلى كنان", "down"],
+    overdueK: ["Overdue payments (SAR K)", "مدفوعات متأخرة (ألف ر.س)", "down"],
     criticalRisks: ["Critical risks", "مخاطر حرجة", "down"],
   };
   const changes = prev ? Object.keys(LABEL).filter((k) => (prev.metrics[k] ?? null) !== null && Math.abs((metrics[k] ?? 0) - prev.metrics[k]) > 1e-9).map((k) => {
@@ -220,7 +218,6 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   const dateLabel = dt(lang, date, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const title = T(`Daily marketing report — ${dateLabel}`, `التقرير التسويقي اليومي — ${dateLabel}`);
   const lateDels = o.deliverables.filter((x) => x.state === "LATE");
-  const failed = events.filter((e) => e.status === "FAILED");
   const top = d.campaignQuality.slice(0, 2), bottom = d.campaignQuality.slice(-2);
 
   // Sections as [heading, html, text]
@@ -493,7 +490,7 @@ export async function runSnapshot(lang: Lang) {
   const all = await prisma.report.findMany();
   const prev = all.filter((r) => r.lang === lang).sort((p, q) => q.createdAt.getTime() - p.createdAt.getTime())[0];
   const r = await buildSnapshot(lang, now(), prev ? { metrics: JSON.parse(prev.metrics), date: prev.date, at: prev.createdAt } : null);
-  const row = await prisma.report.create({ data: { date: r.date, kind: "SNAPSHOT", trigger: "MANUAL", lang, title: r.title, html: r.html, text: r.text, metrics: JSON.stringify(r.metrics), recipients: "", status: "GENERATED", delivery: null, error: null, sentAt: null, kinanEventId: null } });
+  const row = await prisma.report.create({ data: { date: r.date, kind: "SNAPSHOT", trigger: "MANUAL", lang, title: r.title, html: r.html, text: r.text, metrics: JSON.stringify(r.metrics), recipients: "", status: "GENERATED", delivery: null, error: null, sentAt: null } });
   return row.id;
 }
 
@@ -503,12 +500,11 @@ async function produce(trigger: "SCHEDULED" | "MANUAL", date: string, send: bool
   const recipients = list(s.recipients);
   const all = await prisma.report.findMany();
   const out: { id: string; lang: Lang }[] = [];
-  let kinanSent = false;
   for (const lang of langs) {
     // Compare with the most recent earlier report in this language (yesterday's, or an earlier run today).
     const prev = all.filter((r) => r.lang === lang).sort((p, q) => q.createdAt.getTime() - p.createdAt.getTime())[0];
     const r = await buildReport(lang, date, prev ? { metrics: JSON.parse(prev.metrics), date: prev.date, at: prev.createdAt } : null);
-    let status = "GENERATED", delivery: string | null = null, error: string | null = null, sentAt: Date | null = null, kinanEventId: string | null = null;
+    let status = "GENERATED", delivery: string | null = null, error: string | null = null, sentAt: Date | null = null;
     if (send) {
       if (!recipients.length) { status = "FAILED"; error = tx(lang, "No recipients set.", "لم يُحدَّد مستلمون."); }
       else {
@@ -517,12 +513,8 @@ async function produce(trigger: "SCHEDULED" | "MANUAL", date: string, send: bool
           status = "SENT"; delivery = res.delivery; sentAt = new Date();
         } catch (e: any) { status = "FAILED"; error = String(e?.message ?? e).slice(0, 300); }
       }
-      if (s.toKinan && !kinanSent) {
-        kinanEventId = await queueKinanEvent("brief.daily", "AGENT", { date, headline: r.headline, bullets: r.bullets, actions: r.actions, metrics: r.metrics });
-        kinanSent = true;
-      }
     }
-    const row = await prisma.report.create({ data: { date, kind: "DAILY", trigger, lang, title: r.title, html: r.html, text: r.text, metrics: JSON.stringify(r.metrics), recipients: send ? recipients.join(", ") : "", status, delivery, error, sentAt, kinanEventId } });
+    const row = await prisma.report.create({ data: { date, kind: "DAILY", trigger, lang, title: r.title, html: r.html, text: r.text, metrics: JSON.stringify(r.metrics), recipients: send ? recipients.join(", ") : "", status, delivery, error, sentAt } });
     if (send) await prisma.marketingAction.create({ data: { type: "REPORT_SENT", campaign: r.title, detail: status === "SENT" ? tx(lang, `${delivery === "mock" ? "Simulated send" : "Sent"} to ${recipients.join(", ")} (${trigger.toLowerCase()}).`, `${delivery === "mock" ? "إرسال تجريبي" : "أُرسل"} إلى ${recipients.join("، ")}.`) : tx(lang, `Not sent: ${error}`, `لم يُرسل: ${error}`) } });
     out.push({ id: row.id, lang });
   }
@@ -554,10 +546,10 @@ export async function reportsState(lang: Lang) {
   const reports = (await prisma.report.findMany()).sort((p, q) => q.createdAt.getTime() - p.createdAt.getTime());
   const ranToday = reports.some((r) => r.trigger === "SCHEDULED" && r.date === ln.date);
   return {
-    schedule: { enabled: s.enabled, time: s.time, timezone: s.timezone, days: s.days.split(",").map(Number), recipients: s.recipients, languages: s.languages.split(","), toKinan: s.toKinan, updatedBy: s.updatedBy, updatedAt: s.updatedAt.toISOString() },
+    schedule: { enabled: s.enabled, time: s.time, timezone: s.timezone, days: s.days.split(",").map(Number), recipients: s.recipients, languages: s.languages.split(","), updatedBy: s.updatedBy, updatedAt: s.updatedAt.toISOString() },
     local: ln, next: nextRun(s, ranToday), timezones: TIMEZONES, allowedDomains: allowedDomains(),
     outlook: outlookMode(), cronConfigured: !!process.env.REPORTS_CRON_KEY,
-    reports: reports.slice(0, 60).map((r) => ({ id: r.id, createdAt: r.createdAt.toISOString(), date: r.date, kind: r.kind, trigger: r.trigger, lang: r.lang, title: r.title, status: r.status, delivery: r.delivery, recipients: r.recipients, error: r.error, kinan: !!r.kinanEventId })),
+    reports: reports.slice(0, 60).map((r) => ({ id: r.id, createdAt: r.createdAt.toISOString(), date: r.date, kind: r.kind, trigger: r.trigger, lang: r.lang, title: r.title, status: r.status, delivery: r.delivery, recipients: r.recipients, error: r.error })),
     latestId: reports.find((r) => r.lang === lang)?.id ?? null,
   };
 }

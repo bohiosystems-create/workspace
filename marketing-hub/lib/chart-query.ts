@@ -9,7 +9,7 @@
 // brackets), e.g. "sum(spend)*1000/sum(qualified)". Named measures (cost_to_sales, cpql, roas, …) expand to formulas.
 import type { QueryCtx } from "./query";
 import { parsePeriod, latestLiveMonth } from "./query";
-import { familyOf, FAMILY_LABEL } from "./history";
+import { familyOf, FAMILY_LABEL, SEASON_LABEL } from "./history";
 import { marketSeries, MORTGAGE, COMPETITORS, AD_MONTHS_ALL, adsHistory } from "./market";
 import { historyLeadRows } from "./audience";
 import { type Lang, tx, nm } from "./i18n";
@@ -405,7 +405,7 @@ export function runChartQuery(qy: ChartQuery, c: QueryCtx, lang: Lang): ChartSpe
   let units: string[] = parsed.map((p) => p.unit);
   // KPI: one number per measure, no grouping.
   const type: ChartType = qy.type && CHART_TYPES.includes(qy.type) ? qy.type : !qy.x ? "kpi" : qy.series ? (TIME_DIMS.has(qy.x) ? "line" : "stacked") : TIME_DIMS.has(qy.x) ? "line" : parsed.length > 1 ? "grouped" : "bar";
-  const label = (dim: string | undefined, k: string) => !dim ? k : dim === "channel" ? T(FAMILY_LABEL[k]?.[0] ?? k, FAMILY_LABEL[k]?.[1] ?? k) : NAME_DIMS.has(dim) ? nm(lang, k) : k;
+  const label = (dim: string | undefined, k: string) => !dim ? k : dim === "channel" ? T(FAMILY_LABEL[k]?.[0] ?? k, FAMILY_LABEL[k]?.[1] ?? k) : dim === "season" && SEASON_LABEL[k] ? T(SEASON_LABEL[k][0], SEASON_LABEL[k][1]) : NAME_DIMS.has(dim) ? nm(lang, k) : k;
   const round = (v: number | null) => (v === null || !Number.isFinite(v) ? null : Math.abs(v) >= 1000 ? Math.round(v) : Math.abs(v) >= 10 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100);
   const title = qy.title || (ds.name === "meta" ? T("Meta ads — ", "إعلانات ميتا — ") : "") + defaultTitle(qy, parsed.map((p) => p.label), lang);
   const notes: string[] = [];
@@ -590,6 +590,15 @@ export function chartFromText(text: string, c: QueryCtx, lang: Lang): ChartSpec 
     const period = lastN(text, latestLiveMonth(c)) ? text : parsePeriod(text, latestLiveMonth(c)) ? text : undefined;
     const title = tx(lang, `Meta ads — ${measure === "sum(spend)" ? "spend" : measure === "sum(leads)" ? "leads" : measure.includes("/") ? "revenue per SAR spent" : "CRM revenue"}${x === "month" ? " by month" : ` by ${x}`}`, `إعلانات ميتا — ${measure === "sum(spend)" ? "الإنفاق" : measure === "sum(leads)" ? "العملاء المحتملون" : measure.includes("/") ? "الإيراد لكل ريال" : "إيرادات النظام"}${x === "month" ? " حسب الشهر" : ` حسب ${x === "agency" ? "الوكالة" : "الحملة"}`}`);
     const r = runChartQuery({ dataset: "meta", type: type as any, x, measures: [measure], ...(period ? { period } : {}), sort: x === "month" ? "label" : "value_desc", title }, c, lang);
+    if (!("error" in r)) return r;
+  }
+  // Seasons (Ramadan, summer, launch, events…) live in the campaign history: "cost to sales by season".
+  if (/by season|per season|each season|seasons\b|seasonal|حسب الموسم|المواسم|موسمي/.test(q)) {
+    const measure = /cost.?to.?sales|efficien|التكلفة إلى المبيعات/.test(q) ? "cost_to_sales" : /spend|spent|budget|إنفاق|الإنفاق/.test(q) ? "sum(spend)"
+      : /contracts?|deals?|عقود/.test(q) ? "sum(contracts)" : /qualified|مؤهل/.test(q) ? "sum(qualified)" : /leads?|عملاء/.test(q) ? "sum(leads)" : "sum(sales)";
+    const live = /2026|this year|live|هذا العام|الحالية/.test(q);
+    const type = /\bpie\b|دائري/.test(q) && measure !== "cost_to_sales" ? "pie" : /donut|حلقي/.test(q) && measure !== "cost_to_sales" ? "donut" : /horizontal|أفقي/.test(q) ? "hbar" : "bar";
+    const r = runChartQuery({ dataset: "campaigns", type: type as any, x: "season", measures: [measure], filters: [{ field: "status", op: "=", value: live ? "live" : "past" }], sort: measure === "cost_to_sales" ? "value_asc" : "value_desc" }, c, lang);
     if (!("error" in r)) return r;
   }
   return buildChart(chartRequestFromText(text, c), c, lang);

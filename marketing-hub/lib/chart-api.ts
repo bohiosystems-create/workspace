@@ -1,4 +1,4 @@
-// POST /api/chart — charts for any caller (the app, Kinan's agent, a BI tool, a script):
+// POST /api/chart — charts for any caller (the app, a BI tool, a script):
 //   { query: ChartQuery }            → that chart, computed from the data
 //   { queries: ChartQuery[] }        → several charts
 //   { prompt: "…" }                  → the AI turns the request into queries (any number of charts), the app computes

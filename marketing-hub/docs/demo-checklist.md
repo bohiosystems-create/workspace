@@ -20,7 +20,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 ## B. Say this upfront
 
 1. **Sample data, frozen on 8 June 2026.** Vendors, campaigns, leads and invoices are realistic but invented. Reports and the brief carry today's real date; their figures are labelled "as of 8 Jun 2026".
-2. **Integrations are simulated.** Outlook, Kinan's agent, Yardi and Oracle are in mock mode, and the screens say "simulated". Nothing is sent to anyone.
+2. **Integrations are simulated.** Outlook, Yardi and Oracle are in mock mode, and the screens say "simulated". Nothing is sent to anyone.
 3. **One manager, no team.** The director does the team's work; you only approve. Nothing spends money or contacts a vendor or customer without your name on it.
 
 ## C. Storyline
@@ -61,10 +61,9 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 4. Campaign history (2 min)
 
-- [ ] Open **History**: **43 past campaigns** (2023–2025, including Palm Villas, sold out in 2024, and three Cityscape stands), SAR 14.8M spend, SAR 1,014.4M sales, **1.5% cost to sales**.
-- [ ] Show the **lessons**: brokers and events convert best; Ramadan with a payment-plan offer worked; summer is the weakest season; radio and billboards cost the most per sale.
-- [ ] Switch the benchmark tabs (channel, season, year, project, vendor) and expand a campaign to show its lesson.
-- [ ] Say: *"This is the yardstick for every live campaign in the daily check, and the assistant can answer anything about it."*
+- [ ] The campaign history isn't a menu page: it sits in the assistant's context. Open **Ask** and type *"What does our campaign history teach us?"* — **43 past campaigns** (2023–2025, including Palm Villas, sold out in 2024, and three Cityscape stands), SAR 14.8M spend, SAR 1,014.4M sales, **1.5% cost to sales**, and the lessons: brokers and events convert best; Ramadan with a payment-plan offer worked; summer is the weakest season; radio and billboards cost the most per sale.
+- [ ] Follow up: *"Chart cost to sales by season"*, *"List the 2024 campaigns"*, *"How did Palm Villas Ramadan do?"*
+- [ ] Say: *"This is the yardstick for every live campaign in the daily check, and you can ask the assistant anything about it."*
 
 ### 5. Daily report — baseline (1 min)
 
@@ -83,8 +82,8 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] On **Director**, go to **Budget plan**: total SAR 596K, about **+SAR 0.6M** extra sales, **SAR 62K** held in reserve.
 - [ ] Explain the logic: money moves to the vendors that bring the most extra sales per riyal. The exiting vendor (Hajar) is halved, and Tasweeq is cut while it's being tested.
-- [ ] Click **Approve plan and send to Kinan**. Kinan's agent gets the plan and campaign codes as context.
-- [ ] Scroll to **Feed to Kinan (Yardi + AI agent)**: the approved plan is now in the feed, marked simulated. Say: *"In production this is a signed webhook to Kinan's agent; it also gets campaign changes and the daily brief — marketing context only, no lead tasks."*
+- [ ] Click **Approve plan**. The approval is recorded with your name; nothing is sent to Kinan's sales agent.
+- [ ] Scroll to **Data from Kinan's sales agent**: read-only — leads read, matched to a campaign code, last sync. Say: *"The director only takes data from the sales agent; it never sends it anything."*
 
 ### 7. Orchestration — running the vendors (5 min)
 
@@ -207,7 +206,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - Do vendor numbers match the CRM?
 - Any invoice problems?
 - Which contracts are ending?
-- What did we send to Kinan?
+- What data do we read from Kinan's sales agent?
 - How is Ash Shati Broker Push doing?
 - What did the holdout test show?
 - Draft an email to Tasweeq Digital
@@ -283,7 +282,6 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 | Component | Status | Needed from the client |
 |---|---|---|
-| Kinan AI agent | Built; simulated in the demo | Webhook URL, shared secret, API key exchange |
 | Yardi | Not built yet | Yardi interface licence, credentials, field mapping |
 | Outlook (send, and read vendor correspondence) | Built; not yet tested on their tenant | Entra app registration with Mail.Send and Mail.Read on the marketing mailbox |
 | Oracle Fusion | Built (read-only); not yet tested on their instance | Oracle user and URL |
@@ -293,10 +291,9 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ## G. Questions to ask (to move to a pilot)
 
-1. Which Yardi product and version does Kinan run, and can we write activities and marketing sources into it?
+1. Which Yardi product and version does Kinan run, and which interface or export can we read from?
 2. Where is the campaign code captured on a lead in Yardi?
-3. How does Kinan's AI agent want to receive tasks (webhook, queue, API)? Who approves on Kinan's side?
-4. Does Kinan's agent want the plan, campaign changes and daily brief, and through what (webhook, queue, MCP)?
+3. Can the CRM export run daily before the 07:30 report, and who at Kinan owns it?
 5. What are the real monthly sales targets per project?
 6. The vendor list, contracts (end dates, notice periods) and account-manager emails.
 7. Oracle supplier numbers per vendor; access to Oracle Fusion.

@@ -148,7 +148,6 @@ export default function ReportsPage() {
                 {[["en", "English"], ["ar", "العربية"]].map(([k, n]) => (
                   <label key={k} className="muted" style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}><input type="checkbox" checked={form.languages.includes(k)} onChange={() => toggle("languages", k)} />{n}</label>
                 ))}
-                <label className="muted" style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}><input type="checkbox" checked={form.toKinan} onChange={(e) => setForm({ ...form, toKinan: e.target.checked })} />{t("Also send the brief to Kinan's sales agent")}</label>
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", marginTop: 14 }}>
                 <div className="field" style={{ width: 200 }}><label>{t("Changed by")}</label><input className="in" placeholder={t("Your name")} value={approver} onChange={(e) => { setApprover(e.target.value); saveApprover(e.target.value); }} /></div>
@@ -178,7 +177,7 @@ export default function ReportsPage() {
                   <div className="lt">{dm(r.createdAt)}</div>
                   <span className={`pill ${STATUS[r.status] ?? "hold"}`}>{t(r.status)}</span>
                   <div style={{ flex: 1 }}>
-                    {r.kind === "SNAPSHOT" ? <b>{t("Live snapshot")}</b> : t(r.trigger === "SCHEDULED" ? "Scheduled" : "Manual")} · {r.lang === "ar" ? "العربية" : "English"}{r.delivery === "mock" ? ` · ${t("simulated")}` : ""}{r.kinan ? ` · ${t("shared with Kinan's sales agent")}` : ""}
+                    {r.kind === "SNAPSHOT" ? <b>{t("Live snapshot")}</b> : t(r.trigger === "SCHEDULED" ? "Scheduled" : "Manual")} · {r.lang === "ar" ? "العربية" : "English"}{r.delivery === "mock" ? ` · ${t("simulated")}` : ""}
                     {(r.recipients || r.error) && <div className="muted" style={{ fontSize: 10 }} dir="ltr">{r.recipients}{r.error ? ` · ${r.error}` : ""}</div>}
                   </div>
                   <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 10 }} title={t("Play as a presentation")} aria-label={t("Play as a presentation")} onClick={() => open(r.id, true)}>▶</button>

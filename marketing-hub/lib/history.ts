@@ -2,7 +2,7 @@
 //
 // Used for: benchmarks per channel / season / project / vendor / year, lessons learned (what worked, what didn't,
 // seasonality), the daily campaign check (lib/daily.ts compares live campaigns against similar past ones), the
-// History page and the assistant. Kept apart from live campaigns so scores and plans are unaffected.
+// assistant (the History page is no longer in the menu; the data stays in the assistant's context). Kept apart from live campaigns so scores and plans are unaffected.
 import { prisma } from "./prisma";
 import { single } from "./single";
 import { type Lang, tx, nm, M } from "./i18n";

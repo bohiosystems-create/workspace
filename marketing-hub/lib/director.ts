@@ -6,13 +6,13 @@
 //   5. campaign recommendations in the brief (pause / shift budget, not converting, scale, tracking, tests)
 //   6. vendor orchestration (lib/orchestrator.ts): briefs, feedback, chasers and notices — the team's work, done for
 //      a single marketing manager, who only approves
-// Leads, sales follow-up and the CRM are Kinan's agent's job: the director only reads CRM results to judge campaigns.
+// Leads, sales follow-up and the CRM are Kinan's sales agent's job. The director never talks to it: it only reads
+// the CRM results it produces to judge campaigns and vendors.
 // Nothing that spends money or contacts a customer or vendor happens without a named approver.
 import { prisma } from "./prisma";
 import { single } from "./single";
 import { buildAgent, type Agent } from "./agent";
 import { buildRecommendations } from "./recommendations";
-import { queueKinanEvent } from "./kinan";
 import { buildOrchestration, MINUTES } from "./orchestrator";
 import { metaState, metaMode } from "./meta";
 import { dailyState } from "./daily";
@@ -255,31 +255,6 @@ export async function approvePlan(lang: Lang, approver: string) {
   if ((await prisma.budgetPlan.findMany()).some((x) => x.month === p.month && x.status === "APPROVED")) throw new Error(tx(lang, "This month's plan is already approved.", "خطة هذا الشهر معتمدة بالفعل."));
   await prisma.budgetPlan.create({ data: { month: p.month, status: "APPROVED", totalK: p.totalK, linesJson: JSON.stringify(p.lines), approvedBy: approver.trim(), approvedAt: new Date() } });
   await prisma.marketingAction.create({ data: { type: "PLAN_APPROVED", campaign: p.month, detail: tx(lang, `Budget plan ${K("en", p.totalK)} approved by ${approver.trim()}.`, `اعتمد ${approver.trim()} خطة الميزانية ${K(lang, p.totalK)}.`) } });
-  // Kinan's agent and Yardi get the plan and the vendor decisions as context.
-  await queueKinanEvent("director.plan_approved", "AGENT", {
-    month: p.month, totalK: p.totalK, approvedBy: approver.trim(),
-    allocations: p.lines.map((x) => ({ vendor: x.vendor, decision: x.decision, budgetK: x.proposedK, changeK: r1(x.proposedK - x.currentK) })),
-    campaigns: a.mkt.campaigns.map((c) => ({ campaignCode: a.unified.campaigns.find((u) => u.id === c.id)?.code, campaign: c.name, vendor: c.vendor, status: c.status })),
-  }, approver.trim());
 }
 
-export async function sendBriefToKinan(lang: Lang) {
-  const d = await buildDirector(lang);
-  await queueKinanEvent("brief.daily", "AGENT", { date: d.asOf.slice(0, 10), headline: d.brief.headline, bullets: d.brief.bullets, risks: d.brief.risks, actions: d.brief.actions, campaignRecommendations: d.campaignRecs.slice(0, 8).map((r) => ({ title: r.title, severity: r.severity, impactK: r.impactK })) });
-}
 
-/** Compact context for Kinan's AI agent (GET /api/kinan/context). No personal data. */
-export async function kinanContext(lang: Lang = "en") {
-  const a = await buildAgent(lang);
-  const d = await buildDirector(lang, a);
-  return {
-    generatedAt: new Date().toISOString(), asOf: d.asOf.slice(0, 10), language: lang,
-    brief: { headline: d.brief.headline, actions: d.brief.actions },
-    targets: d.targets.byAsset.map((x) => ({ project: x.asset, ytdActualM: x.actualM, ytdTargetM: x.targetM, pctOfTarget: x.pct, nextMonthForecastM: x.forecastNextM, nextMonthTargetM: x.targetNextM })),
-    campaignQuality: d.campaignQuality.map(({ advice, ...s }) => s),
-    campaigns: a.unified.campaigns.map((c) => ({ campaignCode: c.code, campaign: c.name, project: a.mkt.campaigns.find((m) => m.id === c.id)?.asset, vendor: c.vendor, channel: c.channel, status: c.status })),
-    vendorDecisions: a.decisions.map((x) => ({ vendor: x.vendor, decision: x.decision, confidence: x.confidence })),
-    budgetPlan: { month: d.plan.month, status: d.plan.status, allocations: d.plan.lines.map((x) => ({ vendor: x.vendor, budgetK: x.proposedK })) },
-    campaignRecommendations: d.campaignRecs.map((r) => ({ title: r.title, severity: r.severity, why: r.why })),
-  };
-}

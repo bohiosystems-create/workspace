@@ -15,15 +15,12 @@ export default function MarketingPage() {
   const [crm, setCrm] = useState<any>(null);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [narrative, setNarrative] = useState("");
-  const [narrLoading, setNarrLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ vendor: string; text: string } | null>(null);
   const [vendorFilter, setVendorFilter] = useState<string>("all");
 
   useEffect(() => {
     let live = true; // ignore responses that arrive after the language changed
-    setNarrative("");
     setNote(null);
     fetch(`/api/marketing?lang=${lang}`)
       .then((r) => r.json())
@@ -75,19 +72,6 @@ export default function MarketingPage() {
     if (d?.dashboard) setData(d.dashboard);
   }
 
-  async function getNarrative() {
-    setNarrLoading(true);
-    setError(null);
-    try {
-      const d = await (await fetch(`/api/marketing?narrative=1&lang=${lang}`)).json();
-      if (d.error) throw new Error(d.error);
-      setNarrative(d.narrative);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setNarrLoading(false);
-    }
-  }
 
   async function draftNote(v: any) {
     const d = await post({ action: "VENDOR_NOTE", vendorId: v.id }, `note-${v.id}`);
@@ -126,11 +110,7 @@ export default function MarketingPage() {
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px" }}>
             <div className="section-title" style={{ fontSize: 12 }}>{t("Orchestration")}</div>
-            <button className="btn ghost" style={{ padding: "7px 14px", fontSize: 9 }} onClick={getNarrative} disabled={narrLoading}>
-              {narrLoading ? <><span className="spin dark" /> &nbsp;{t("Asking Claude…")}</> : t("AI vendor briefing")}
-            </button>
           </div>
-          {narrative && <div className="panel" style={{ marginBottom: 14, fontSize: 12, lineHeight: 1.6 }}>{narrative}</div>}
 
           {data.recommendations.length === 0 && <div className="muted" style={{ marginBottom: 14 }}>{t("No recommended actions — spend is converting within thresholds.")}</div>}
           {data.recommendations.map((r: any, i: number) => {

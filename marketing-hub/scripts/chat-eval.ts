@@ -83,7 +83,7 @@ const CASES: [string, string[]][] = [
   ["Which agency runs each Meta campaign?", ["Meta ads"]],
   ["Overdue invoices", ["Supplier invoices"]],
   ["What's the budget plan for June?", ["Budget plan"]],
-  ["What did we send to Kinan?", ["Shared with Kinan's sales agent"]],
+  ["What data do we read from Kinan's sales agent?", ["Data from Kinan's sales agent", "read-only"]],
   ["Show the daily report schedule", ["Daily report"]],
   ["Incrementality tests", ["Controlled tests"]],
   ["Overall spend and sales", ["Overall"]],
@@ -179,6 +179,11 @@ const CASES: [string, string[]][] = [
   ["ماذا يفعل المنافسون؟", ["المنافسون"]],
   ["متى رمضان القادم؟", ["التقويم التسويقي"]],
   ["المستثمرون أم المستخدمون النهائيون؟", ["نوع المشتري"]],
+
+  // Campaign history (no menu page; asked through the assistant)
+  ["List the 2024 campaigns", ["Campaign history — 2024", "Palm Villas"]],
+  ["Chart cost to sales by season", ["Cost to sales by season", "Ramadan"]],
+  ["What does our campaign history teach us?", ["Campaign history", "Lessons"]],
 
   // Changing the daily report from the chat (run in order; the last one resets it)
   ["Reset the daily report to default", ["Daily report updated|Nothing to change|already"]],

@@ -8,7 +8,7 @@ Everything you need to demo the AI Assistant Director of Marketing to Kinan.
 | `2-demo-kit-capabilities-and-checklist.html` | Capabilities, integration status and the demo checklist with tick-boxes (ticks are saved in your browser). |
 | `docs/demo-checklist.md` | The same checklist as text, with the question bank and the recovery tips. |
 | `docs/capabilities.md` | What the director does, the integration status, and the data sources that would sharpen its recommendations. |
-| `docs/kinan-integration.md` | How the director and Kinan's agent exchange data, and the questions to settle with Kinan. |
+| `docs/kinan-integration.md` | What the director reads from Kinan's sales agent (read-only), and the questions to settle with Kinan. |
 | `app-source/` | The full application, to run it live (below). |
 
 ## Option 0 — in the Claude app (no install, real AI)
@@ -43,5 +43,5 @@ npm run demo:live    # resets the sample data, builds and starts — then open h
 ## Say this upfront
 
 1. **Sample data, frozen on 8 June 2026.** Realistic but invented vendors, campaigns, leads and invoices.
-2. **Integrations are simulated** (Kinan's agent, Yardi, Outlook, Oracle, Meta), and the screens say so. Nothing is sent to anyone.
+2. **Integrations are simulated** (Yardi, Outlook, Oracle, Meta), and the screens say so. Nothing is sent to anyone.
 3. **One manager, no team.** The director does the team's work; the manager only approves. Leads, follow-up and sales stay with Kinan's own agent.

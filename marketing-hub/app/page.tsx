@@ -61,7 +61,7 @@ export default function DirectorPage() {
     <div className="shell">
       <Header />
       <div className="section-title">{t("AI Assistant Director of Marketing")}</div>
-      <p className="intro">{t("Your AI assistant director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and tells you which campaigns to change. Leads and sales stay with Kinan's agent; the director reads the CRM results and shares the plan and campaign changes with it. You only make the decisions below — nothing that spends money or contacts a vendor happens without your name on it.")}</p>
+      <p className="intro">{t("Your AI assistant director of marketing, built for a single marketing manager: it holds the plan to the sales targets, decides where the money goes, runs the vendors (briefs, feedback, chasing) and tells you which campaigns to change. Leads and sales stay with Kinan's sales agent; the director only reads the CRM results it produces. You only make the decisions below — nothing that spends money or contacts a vendor happens without your name on it.")}</p>
       {error && <div className="err">{error}</div>}
       {message && <div className="alert info" style={{ padding: "10px 14px", marginBottom: 12 }}>{message}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Preparing today's brief…")}</div>}
@@ -100,7 +100,6 @@ export default function DirectorPage() {
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
               <button className="btn" onClick={openChat}>{t("Ask the director")}</button>
-              <button className="btn ghost" disabled={busy === "brief"} onClick={() => act({ action: "SEND_BRIEF" }, "brief")}>{t("Send brief to Kinan's sales agent")}</button>
               <a className="btn ghost" style={{ textDecoration: "none" }} href="/reports">{t("Daily report")}</a>
             </div>
           </div>
@@ -161,7 +160,7 @@ export default function DirectorPage() {
 
           <div className="panel" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <div className="field" style={{ width: 220 }}><label>{t("Approving as")}</label><input className="in" placeholder={t("Your name")} value={approver} onChange={(e) => { setApprover(e.target.value); saveApprover(e.target.value); }} /></div>
-            <div className="muted" style={{ flex: 1, minWidth: 220 }}>{t("Approvals below are recorded with this name and shared with Kinan's sales agent (the AI that handles leads and sales in Yardi).")}</div>
+            <div className="muted" style={{ flex: 1, minWidth: 220 }}>{t("Approvals below are recorded with this name in the audit trail.")}</div>
           </div>
 
           <div id="plan" className="panel" style={{ marginTop: 18 }}>
@@ -170,7 +169,7 @@ export default function DirectorPage() {
               <span className={`pill ${data.plan.status === "APPROVED" ? "healthy" : "fix"}`}>{t(data.plan.status)}</span>
               {data.plan.approvedBy && <span className="muted">{t("approved by")} {data.plan.approvedBy}</span>}
               <div style={{ flex: 1 }} />
-              {data.plan.status === "PROPOSED" && <button className="btn" disabled={!approver.trim() || busy === "plan"} title={!approver.trim() ? t("Enter your name") : ""} onClick={() => act({ action: "APPROVE_PLAN" }, "plan")}>{t("Approve plan and share with Kinan's sales agent")}</button>}
+              {data.plan.status === "PROPOSED" && <button className="btn" disabled={!approver.trim() || busy === "plan"} title={!approver.trim() ? t("Enter your name") : ""} onClick={() => act({ action: "APPROVE_PLAN" }, "plan")}>{t("Approve plan")}</button>}
             </div>
             <div style={{ overflowX: "auto" }}>
               <table className="dtable">
@@ -202,24 +201,20 @@ export default function DirectorPage() {
 
           <div className="row twocol" style={{ marginTop: 18 }}>
             <div className="panel">
+              {/* Kinan's sales agent is a read-only source: the director reads its CRM results and sends it nothing. */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-                <div className="chart-label" style={{ margin: 0 }}>{t("Shared with Kinan's sales agent (Yardi)")}</div>
-                <span className="tag" dir="ltr">agent · {data.kinan.mode}</span><span className="tag" dir="ltr">yardi · {data.kinan.yardi}</span>
-                <div style={{ flex: 1 }} />
-                <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "retry"} onClick={() => act({ action: "RETRY" }, "retry")}>{t("Retry failed")}</button>
+                <div className="chart-label" style={{ margin: 0 }}>{t("Data from Kinan's sales agent")}</div>
+                <span className="pill healthy">{t("read-only")}</span>
+                <span className="tag" dir="ltr">crm · {data.salesAgent.mode}</span>
               </div>
-              {data.kinan.outbox.length === 0 && <div className="muted">{t("Nothing sent yet.")}</div>}
-              {data.kinan.outbox.map((e: any) => (
-                <div className="logrow" key={e.id}>
-                  <div className="lt">{dm(e.createdAt)}</div>
-                  <span className={`pill ${e.status === "DELIVERED" ? "healthy" : e.status === "FAILED" ? "weak" : "hold"}`}>{t(e.status)}</span>
-                  <div style={{ flex: 1 }}>
-                    <b dir="ltr">{e.type}</b> <span className="muted">→ {e.target === "YARDI" ? "Yardi" : t("AI agent")}{e.mode === "mock" ? ` (${t("simulated")})` : ""}</span>
-                    <div className="muted" style={{ fontSize: 10 }}>{e.summary}{e.approvedBy ? ` · ${t("approved by")} ${e.approvedBy}` : ""}{e.lastError ? ` · ${e.lastError}` : ""}</div>
-                  </div>
-                </div>
-              ))}
-              {data.kinan.mode === "mock" && <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Simulated: events are recorded but not sent. Set KINAN_MODE=webhook to deliver to Kinan's sales agent (see docs/kinan-integration.md).")}</div>}
+              <div className="grid3" style={{ marginBottom: 10 }}>
+                <div className="ex"><div className="l">{t("Leads read")}</div><div className="v">{data.salesAgent.leads.toLocaleString("en")}</div></div>
+                <div className="ex"><div className="l">{t("Matched to a campaign")}</div><div className="v">{data.salesAgent.matched.toLocaleString("en")}</div></div>
+                <div className="ex"><div className="l">{t("No campaign code")}</div><div className="v" style={data.salesAgent.unmatched ? { color: "var(--alert)" } : {}}>{data.salesAgent.unmatched.toLocaleString("en")}</div></div>
+              </div>
+              <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>{data.salesAgent.label}{data.salesAgent.lastSync ? ` · ${t("last sync")} ${dm(data.salesAgent.lastSync)}` : ""}</div>
+              <ul style={{ margin: "0 0 8px", paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.salesAgent.reads.map((x: string) => <li key={x}>{x}</li>)}</ul>
+              <div className="muted" style={{ fontSize: 10.5 }}>{t("The director only reads this data to judge campaigns and vendors. Nothing is sent to the sales agent; leads, follow-up and sales stay with it.")}</div>
             </div>
 
             <div className="panel">

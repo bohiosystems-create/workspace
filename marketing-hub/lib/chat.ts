@@ -12,7 +12,7 @@ import { type QueryCtx, resolve } from "./query";
 import { extraEarly, extraLate, campaignExtras } from "./chat-extra";
 import { ideasAnswer, type IdeaBrief } from "./ideation";
 import { scanAnswer } from "./signals";
-import { kinanOutbox, kinanMode } from "./kinan";
+import { salesAgentSource } from "./kinan";
 import { closest } from "./chat-catalog";
 import { prisma } from "./prisma";
 import { RX_CHART, buildChart, chartRequestFromText, chartSummary, type ChartSpec } from "./charts";
@@ -346,8 +346,8 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     const s = r.schedule, last = r.reports[0];
     const days = s.days.map((i) => T(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][i], ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][i])).join(T(", ", "، "));
     return done(
-      T(`**Daily report** — ${s.enabled ? `on, ${s.time} (${s.timezone}), ${days}` : "paused"}; to ${s.recipients || "nobody yet"}${s.toKinan ? ", with a copy of the brief to Kinan's sales agent" : ""}.\n`,
-        `**التقرير اليومي** — ${s.enabled ? `مفعّل، الساعة ${s.time} (${s.timezone})، ${days}` : "متوقف"}؛ إلى ${s.recipients || "لا أحد بعد"}${s.toKinan ? "، مع نسخة من الموجز إلى وكيل كنان" : ""}.\n`) +
+      T(`**Daily report** — ${s.enabled ? `on, ${s.time} (${s.timezone}), ${days}` : "paused"}; to ${s.recipients || "nobody yet"}.\n`,
+        `**التقرير اليومي** — ${s.enabled ? `مفعّل، الساعة ${s.time} (${s.timezone})، ${days}` : "متوقف"}؛ إلى ${s.recipients || "لا أحد بعد"}.\n`) +
       (r.next ? T(`Next: ${dt("en", r.next.date)} at ${r.next.time}.\n`, `التالي: ${dt("ar", r.next.date)} الساعة ${r.next.time}.\n`) : "") +
       (last ? T(`Last: ${last.title} — ${last.status.toLowerCase()}${last.delivery === "mock" ? " (simulated)" : ""}.\n`, `الأخير: ${last.title} — ${({ SENT: "أُرسل", GENERATED: "أُعدّ", FAILED: "فشل" } as Record<string, string>)[last.status] ?? last.status}${last.delivery === "mock" ? " (تجريبي)" : ""}.\n`) : T("No report yet.\n", "لا تقارير بعد.\n")) +
       T("\nChange the time, days or recipients, preview or send it now on the Reports page.", "\nغيّروا الوقت أو الأيام أو المستلمين، أو اعرضوه أو أرسلوه الآن من صفحة التقارير."));
@@ -379,11 +379,16 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     return done(T(`**Waiting for your decision (${dr.inbox.length}, about ${dr.managerMinutes} min)**\n`, `**بانتظار قراركم (${dr.inbox.length}، نحو ${an(dr.managerMinutes, "دقيقة واحدة", "دقيقتين", "دقائق", "دقيقة")})**\n`) + (dr.inbox.map((x) => `- ${x.title}`).join("\n") || T("- nothing", "- لا شيء")) + T("\n\nOpen the Director page to approve; email drafts open here.", "\n\nافتحوا صفحة المدير للاعتماد؛ ومسودات الرسائل تُفتح هنا."));
   }
   if (RX.kinan.test(q)) {
-    const out = await kinanOutbox(8, lang);
-    return done(T(`**Shared with Kinan's sales agent** (connection: ${kinanMode()})\n`, `**التغذية إلى كنان** (الوكيل: ${kinanMode()})\n`) +
-      (out.map((e) => `- ${e.type} → ${e.target === "YARDI" ? "Yardi" : T("AI agent", "الوكيل الذكي")}: ${e.status}${e.summary ? ` (${e.summary})` : ""}`).join("\n") || T("- nothing sent yet", "- لم يُرسل شيء بعد")) +
-      T("\n\nLeads, follow-ups and sales stay with Kinan's sales agent (the AI that works in Yardi); I share the plan, campaign codes, campaign changes and the daily brief.", "\n\nالعملاء المحتملون والمتابعة والمبيعات من اختصاص وكيل كنان؛ وأشارك الخطة ورموز الحملات وتغييراتها والموجز اليومي."));
+    // Kinan's sales agent is a read-only source: the director takes its CRM data and sends it nothing.
+    const src = salesAgentSource(L, c.crm.integration);
+    return done(T(`**Data from Kinan's sales agent** (read-only · ${src.label})\n`, `**بيانات من وكيل المبيعات لدى كنان** (قراءة فقط · ${src.label})\n`) +
+      T(`- ${src.leads.toLocaleString("en")} leads read${src.lastSync ? `, last sync ${dt("en", src.lastSync.slice(0, 10))}` : ""}; ${src.matched.toLocaleString("en")} matched to a campaign code, ${src.unmatched.toLocaleString("en")} without one\n`,
+        `- قُرئ ${src.leads.toLocaleString("en")} عميلاً محتملاً${src.lastSync ? `، آخر مزامنة ${dt("ar", src.lastSync.slice(0, 10))}` : ""}؛ ${src.matched.toLocaleString("en")} مطابقة لرمز حملة، و${src.unmatched.toLocaleString("en")} دون رمز\n`) +
+      src.reads.map((x) => `- ${x}`).join("\n") +
+      T("\n\nI only read this data to judge campaigns and vendors. I don't send anything to the sales agent — no plan, brief or campaign changes — and leads, follow-up and sales stay entirely with it.",
+        "\n\nأقرأ هذه البيانات فقط لتقييم الحملات والموردين. لا أرسل أي شيء إلى وكيل المبيعات — لا خطة ولا موجز ولا تغييرات حملات — ويبقى العملاء والمتابعة والمبيعات من اختصاصه بالكامل."));
   }
+
 
   // 2b. Renewal decisions (all vendors, or the one asked about).
   if (RX.renewal.test(q)) {

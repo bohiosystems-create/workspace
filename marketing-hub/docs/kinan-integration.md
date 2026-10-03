@@ -1,36 +1,24 @@
-# Kinan integration — what the AI Assistant Director of Marketing shares with Kinan's CRM (Yardi) and Kinan's AI agent
+# Kinan's sales agent — a read-only data source
 
-**Scope.** Kinan's own AI agent takes care of leads, follow-up, sales and the CRM. The director does not work leads.
-It **reads** CRM results (which campaigns bring leads that qualify and buy) to judge campaigns and vendors, and it
-**shares** marketing context with Kinan's agent: the approved budget plan, campaign codes and campaign changes, the
-daily brief and its campaign recommendations.
+**Scope.** Kinan's sales agent is the AI that handles leads, follow-up and sales in Kinan's CRM (Yardi). The AI
+Assistant Director of Marketing **does not talk to it**. It sends it nothing — no plan, no brief, no campaign
+changes — and exposes no API for it to call. It only **reads** the CRM results the sales agent produces, to judge
+campaigns and vendors.
 
 ```
- ad accounts · Meta · vendor reports · Oracle ─┐
-                                               ▼
- Yardi (CRM results, read) ───────────► Director (this app) ──► events / context ──► Kinan AI agent
-                                                                                     (owns leads, follow-up, sales)
+ Kinan's sales agent ─► Yardi (CRM results) ──read──► Director (this app)
 ```
 
-## 1. Director → Kinan (outbox, `lib/kinan.ts`)
-Every event is stored first (outbox), delivered, retried on failure (max 5) and visible on the Director page.
+## 1. What the director reads
+Per lead, by campaign code: created, qualified, viewing, reservation, contract (won) or lost with the reason, deal
+value and first-response time. That is all the director needs to compute cost to sales, qualified rate and vendor
+scores and to spot anomalies (lib/crm.ts, lib/crm-signals.ts). The Director page shows the source, the last sync and
+how many leads matched a campaign code; the assistant answers "what data do we read from Kinan's sales agent?".
 
-| Event | Sent when | Payload (summary) |
-|---|---|---|
-| `director.plan_approved` | the monthly budget plan is approved by a named person | month, total, allocations per vendor, campaign codes and statuses |
-| `campaign.status_changed` | a campaign is paused / resumed / budget moved (a human action) | campaign code, status |
-| `brief.daily` | "Send brief to Kinan's agent", or with the daily report when enabled | headline, bullets, risks, actions, campaign recommendations |
-
-Delivery modes: `KINAN_MODE=mock` (default, nothing leaves) or `webhook`:
-`POST $KINAN_AGENT_WEBHOOK_URL` with JSON `{ id, type, createdAt, payload }` and headers
-`X-Bohio-Event`, `X-Bohio-Delivery` (event id — use it to de-duplicate), `X-Bohio-Signature: sha256=<HMAC-SHA256(body, KINAN_WEBHOOK_SECRET)>`.
-Kinan should verify the signature, respond 2xx quickly, and process asynchronously. **No personal data is sent.**
-
-## 2. Kinan's agent → Director (read-only)
-`GET /api/kinan/context?lang=en|ar` with `x-api-key: $KINAN_API_KEY` (disabled when unset): the brief, targets per
-project, active campaigns and codes, campaign quality from the CRM, campaign recommendations, vendor decisions and the
-budget plan. Useful as context for Kinan's agent (e.g. which campaign a lead came from and whether it is being scaled
-or paused). If Kinan's agent uses MCP, this maps onto one tool (`get_marketing_context`).
+## 2. What the director never does
+- send events, briefs, plans or campaign changes to the sales agent or to Yardi;
+- create, assign or follow up leads, or suggest sales tasks;
+- write anything into Yardi.
 
 ## 3. Yardi as the CRM source (`CRM_MODE=yardi`) — not implemented yet
 The director needs CRM **results** per campaign code (lead created, qualified, viewing, reserved, won / lost, deal
@@ -54,5 +42,5 @@ Starting field mapping (to confirm):
 ## 4. Questions for Kinan
 1. Which Yardi products (Voyager, RentCafe CRM, other) and which interface can we read from?
 2. How are marketing sources / campaign codes captured on Yardi guest cards today?
-3. Does Kinan's agent want the plan / campaign changes / brief (webhook, queue or MCP), and in which language?
+3. Can the export run daily (before the 07:30 report), and who at Kinan owns it?
 4. Data residency and retention requirements for the CRM results we read.

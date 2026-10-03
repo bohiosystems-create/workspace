@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ChartSpec, ChartType } from "@/lib/charts";
 import { saveFile } from "./saveFile";
 import { useI18n } from "./lang";
+import { pie3d, box as box3d, hbox, shade, DEPTH } from "@/lib/chart3d";
 
 // Kinan orange first; validated for colour-blind separation on the light surface (direct labels carry identity too).
 const SERIES = ["#f15a22", "#2a78d6", "#1baf7a", "#eda100", "#e87ba4", "#4a3aa7", "#008300", "#e34948"];
@@ -41,14 +42,6 @@ function ticks(lo: number, hi: number, n = 6) {
   const a = Math.floor(lo / step) * step, b = Math.ceil(hi / step) * step, out: number[] = [];
   for (let v = a; v <= b + step / 1e6; v += step) out.push(Math.round(v * 1e6) / 1e6);
   return out;
-}
-/** A bar with a 4px rounded data end and a square base (vertical: up or down; horizontal: right or left). */
-function barPath(x: number, y: number, w: number, h: number, dir: "up" | "down" | "right" | "left") {
-  const r = Math.min(4, (dir === "up" || dir === "down" ? w : h) / 2, Math.abs(dir === "up" || dir === "down" ? h : w));
-  if (dir === "up") return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`;
-  if (dir === "down") return `M${x},${y} V${y + h - r} Q${x},${y + h} ${x + r},${y + h} H${x + w - r} Q${x + w},${y + h} ${x + w},${y + h - r} V${y} Z`;
-  if (dir === "right") return `M${x},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h - r} Q${x + w},${y + h} ${x + w - r},${y + h} H${x} Z`;
-  return `M${x + w},${y} H${x + r} Q${x},${y} ${x},${y + r} V${y + h - r} Q${x},${y + h} ${x + r},${y + h} H${x + w} Z`;
 }
 
 function Legend({ series, kind }: { series: Series[]; kind: "rect" | "line" }) {
@@ -117,30 +110,31 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
 
   // ---- Pie / donut -------------------------------------------------------------------------------------------------
   const pie = (donut: boolean) => {
+    // Tilted 3D pie / donut (lib/chart3d.ts): rim walls in a darker shade, every slice labelled with its share.
     const vals = series[0].values.map((v) => v ?? 0), total = vals.reduce((a, b) => a + b, 0) || 1;
-    const cx = 150, cy = 150, r = 118, ri = donut ? 70 : 0, VW = narrow ? 300 : W;
-    const lx = narrow ? 14 : 310, ly = narrow ? 300 : 40, lw = narrow ? 272 : 230;
-    const H = narrow ? 300 + labels.length * 24 + 6 : Math.max(300, 50 + labels.length * 24);
-    let a0 = -Math.PI / 2;
-    const P = (a: number, rr: number) => `${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`;
+    const VW = narrow ? 300 : W, cx = 150, cy = 118, r = 128, depth = 22, tilt = 0.58;
+    const lx = narrow ? 14 : 312, ly = narrow ? 262 : 40, lw = narrow ? 272 : 230;
+    const H = narrow ? 262 + labels.length * 24 + 6 : Math.max(250, 50 + labels.length * 24);
+    let a = -Math.PI / 2;
+    const segs = vals.map((v) => { const s0 = a; a += (v / total) * Math.PI * 2; return { a0: s0, a1: a }; });
+    const g = pie3d(segs, { cx, cy, r, inner: donut ? 74 : 0, tilt, depth });
     return (
       <svg viewBox={`0 0 ${VW} ${H}`} width="100%" style={{ fontFamily: FONT, display: "block" }} role="img" aria-label={spec.title}>
+        <ellipse cx={cx} cy={cy + depth + 10} rx={r * 0.98} ry={r * tilt * 0.55} fill="rgba(46,46,47,.10)" className="kc-fade" />
+        {g.inner.map((w, k) => <path key={`in${k}`} d={w.d} fill={shade(SERIES[w.i % 8], 0.5)} className="kc-fade" style={{ animationDelay: `${w.i * 90}ms` }} />)}
+        {g.outer.map((w, k) => <path key={`out${k}`} d={w.d} fill={shade(SERIES[w.i % 8], 0.66)} stroke={shade(SERIES[w.i % 8], 0.6)} strokeWidth=".6" className="kc-fade" style={{ animationDelay: `${w.i * 90}ms` }} />)}
         {vals.map((v, i) => {
-          const a1 = a0 + (v / total) * Math.PI * 2, large = a1 - a0 > Math.PI ? 1 : 0, mid = (a0 + a1) / 2, pct = Math.round((v / total) * 100);
-          const d = vals.length === 1 ? `M${cx - r},${cy} a${r},${r} 0 1,0 ${2 * r},0 a${r},${r} 0 1,0 ${-2 * r},0` + (ri ? ` M${cx - ri},${cy} a${ri},${ri} 0 1,1 ${2 * ri},0 a${ri},${ri} 0 1,1 ${-2 * ri},0` : "")
-            : ri ? `M${P(a0, r)} A${r},${r} 0 ${large} 1 ${P(a1, r)} L${P(a1, ri)} A${ri},${ri} 0 ${large} 0 ${P(a0, ri)} Z` : `M${cx},${cy} L${P(a0, r)} A${r},${r} 0 ${large} 1 ${P(a1, r)} Z`;
-          const lr = ri ? (r + ri) / 2 : r * 0.64;
+          const pct = Math.round((v / total) * 100), mid = (segs[i].a0 + segs[i].a1) / 2;
+          const [tx, ty] = g.point(mid, donut ? 0.79 : 0.62);
           const light = ["#eda100", "#e87ba4", "#1baf7a"].includes(SERIES[i % 8]);
-          const el = (
+          return (
             <g key={i} {...hit(labels[i], [{ color: SERIES[i % 8], name: labels[i], value: `${fmt(v, unit)} · ${pct}%` }])}>
-              <path className="kc-fade" style={{ animationDelay: `${i * 90}ms` }} d={d} fill={SERIES[i % 8]} stroke={SURFACE} strokeWidth="2" fillRule="evenodd" />
-              {pct >= 7 && <text x={cx + lr * Math.cos(mid)} y={cy + lr * Math.sin(mid) + 4} textAnchor="middle" fontSize="11" fontWeight="600" fill={light ? INK : "#fff"} pointerEvents="none">{pct}%</text>}
+              <path className="kc-fade" style={{ animationDelay: `${i * 90}ms` }} d={g.tops[i]} fill={SERIES[i % 8]} stroke={SURFACE} strokeWidth="1.5" fillRule="evenodd" />
+              {pct >= 6 && <text x={tx} y={ty + 4} textAnchor="middle" fontSize="11.5" fontWeight="700" fill={light ? INK : "#fff"} pointerEvents="none" className="kc-fade" style={{ animationDelay: `${400 + i * 90}ms` }}>{pct}%</text>}
             </g>
           );
-          a0 = a1;
-          return el;
         })}
-        {donut && spec.total !== null && <><text x={cx} y={cy - 1} textAnchor="middle" fontSize="18" fontWeight="600" fill={INK}>{fmt(spec.total, unit)}</text><text x={cx} y={cy + 16} textAnchor="middle" fontSize="10" fill={MUTED}>{unit}</text></>}
+        {donut && spec.total !== null && <><text x={cx} y={cy + 2} textAnchor="middle" fontSize="16" fontWeight="700" fill={INK}>{fmt(spec.total, unit)}</text><text x={cx} y={cy + 16} textAnchor="middle" fontSize="9" fill={MUTED}>{t("total")}</text></>}
         {labels.map((l, i) => (
           <g key={i} transform={`translate(${lx}, ${ly + i * 24})`}>
             <rect width="10" height="10" y="-9" rx="2" fill={SERIES[i % 8]} />
@@ -170,11 +164,12 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
         {labels.map((l, i) => {
           const cx = left + slot * i + slot / 2;
           const marks = mode === "stacked"
-            ? (() => { let acc = 0; const last = series.map((s, si) => ((s.values[i] ?? 0) > 0 ? si : -1)).filter((x) => x >= 0).pop(); return series.map((s, si) => { const v = s.values[i] ?? 0; if (v <= 0) return null; const yA = Y(acc + v), yB = Y(acc); acc += v; const h = Math.max(0, yB - yA - (si === last ? 0 : 2)); return si === last ? <path key={si} d={barPath(cx - bw / 2, yA, bw, h, "up")} fill={SERIES[si % 8]} /> : <rect key={si} x={cx - bw / 2} y={yA + 2} width={bw} height={Math.max(0, h)} fill={SERIES[si % 8]} />; }); })()
+            ? (() => { let acc = 0; const last = series.map((s, si) => ((s.values[i] ?? 0) > 0 ? si : -1)).filter((x) => x >= 0).pop(); return series.map((s, si) => { const v = s.values[i] ?? 0; if (v <= 0) return null; const yA = Y(acc + v), yB = Y(acc); acc += v; const h = Math.max(0, yB - yA - (si === last ? 0 : 2)); const col = SERIES[si % 8], b = box3d(cx - bw / 2, si === last ? yA : yA + 2, bw, Math.max(0, h), Math.min(DEPTH.dx, bw * 0.45), Math.max(DEPTH.dy, -bw * 0.35)); return <g key={si} className="kc-gy" style={{ animationDelay: `${i * 60 + si * 70}ms` }}><path d={b.side} fill={shade(col, 0.62)} />{si === last && <path d={b.top} fill={shade(col, 1.3)} />}<path d={b.front} fill={col} /></g>; }); })()
             : series.map((s, si) => {
                 const v = s.values[i]; if (v === null) return null;
                 const x = cx - (k * bw + (k - 1) * 2) / 2 + (mode === "grouped" ? si * (bw + 2) : 0), y = v >= 0 ? Y(v) : y0, h = Math.max(1, Math.abs(Y(v) - y0));
-                return <path key={si} className="kc-gy" style={{ animationDelay: `${i * 60 + si * 40}ms` }} d={barPath(x, y, bw, h, v >= 0 ? "up" : "down")} fill={SERIES[(mode === "single" ? 0 : si) % 8]} />;
+                const col = SERIES[(mode === "single" ? 0 : si) % 8], b = box3d(x, y, bw, h, Math.min(DEPTH.dx, bw * 0.45), Math.max(DEPTH.dy, -bw * 0.35));
+                return <g key={si} className="kc-gy" style={{ animationDelay: `${i * 60 + si * 40}ms` }}><path d={b.side} fill={shade(col, 0.62)} />{v >= 0 && <path d={b.top} fill={shade(col, 1.3)} />}<path d={b.front} fill={col} /></g>;
               });
           const v = series[0].values[i];
           return (
@@ -207,11 +202,12 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
         {labels.map((l, i) => {
           const y = 8 + i * rowH;
           const marks = mode === "stacked"
-            ? (() => { let acc = 0; const last = series.map((s, si) => ((s.values[i] ?? 0) > 0 ? si : -1)).filter((x) => x >= 0).pop(); return series.map((s, si) => { const v = s.values[i] ?? 0; if (v <= 0) return null; const xa = X(acc), w = X(acc + v) - xa - (si === last ? 0 : 2); acc += v; return si === last ? <path key={si} d={barPath(xa, y + (rowH - bh) / 2 - 4, Math.max(0, w), bh, "right")} fill={SERIES[si % 8]} /> : <rect key={si} x={xa} y={y + (rowH - bh) / 2 - 4} width={Math.max(0, w)} height={bh} fill={SERIES[si % 8]} />; }); })()
+            ? (() => { let acc = 0; const last = series.map((s, si) => ((s.values[i] ?? 0) > 0 ? si : -1)).filter((x) => x >= 0).pop(); return series.map((s, si) => { const v = s.values[i] ?? 0; if (v <= 0) return null; const xa = X(acc), w = X(acc + v) - xa - (si === last ? 0 : 2); acc += v; const col = SERIES[si % 8], b = hbox(xa, y + (rowH - bh) / 2 - 4, Math.max(0, w), bh, Math.min(7, bh * 0.45), -Math.min(6, bh * 0.4)); return <g key={si} className="kc-gx" style={{ transformBox: "fill-box", transformOrigin: "left center", animationDelay: `${i * 60 + si * 70}ms` }}><path d={b.top} fill={shade(col, 1.3)} />{si === last && <path d={b.side} fill={shade(col, 0.62)} />}<path d={b.front} fill={col} /></g>; }); })()
             : series.map((s, si) => {
                 const v = s.values[i]; if (v === null) return null;
                 const yy = mode === "grouped" ? y + si * 14 : y + (rowH - bh) / 2 - 4, w = Math.max(1, Math.abs(X(v) - xz));
-                return <path key={si} className="kc-gx" style={{ transformBox: "fill-box", transformOrigin: "left center", animationDelay: `${i * 60 + si * 40}ms` }} d={barPath(v >= 0 ? xz : xz - w, yy, w, bh, v >= 0 ? "right" : "left")} fill={SERIES[(mode === "single" ? 0 : si) % 8]} />;
+                const col = SERIES[(mode === "single" ? 0 : si) % 8], b = hbox(v >= 0 ? xz : xz - w, yy, w, bh, Math.min(7, bh * 0.45), -Math.min(6, bh * 0.4));
+                return <g key={si} className="kc-gx" style={{ transformBox: "fill-box", transformOrigin: "left center", animationDelay: `${i * 60 + si * 40}ms` }}><path d={b.top} fill={shade(col, 1.3)} /><path d={b.side} fill={shade(col, 0.62)} /><path d={b.front} fill={col} /></g>;
               });
           const end = mode === "stacked" ? (unit === "%" ? null : stackTot[i]) : mode === "single" ? series[0].values[i] : null;
           return (
@@ -219,7 +215,7 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
               <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />
               <text x={labW} y={y + rowH / 2 - 0.5} fontSize="11" textAnchor="end" fill={INK}>{short(l, narrow ? 16 : 24)}</text>
               {marks}
-              {end !== null && end !== undefined && <text x={X(Math.max(0, end)) + 6} y={y + rowH / 2 - 0.5} fontSize="10.5" fontWeight="600" fill={INK}>{fmt(end, unit)}</text>}
+              {end !== null && end !== undefined && <text x={X(Math.max(0, end)) + 13} y={y + rowH / 2 - 0.5} fontSize="10.5" fontWeight="600" fill={INK}>{fmt(end, unit)}</text>}
             </g>
           );
         })}

@@ -6,6 +6,7 @@
 // globals.css; still for reduced motion). Numbers are formatted here only; every value comes from the data.
 import { useRef, useState } from "react";
 import { useI18n } from "./lang";
+import { box, shade, DEPTH } from "@/lib/chart3d";
 
 export const KC = { or: "#f15a22", ink: "#2e2e2f", taupe: "#51473d", soft: "#6f6f6f", grey: "#9c9ea1", track: "#efeeec", grid: "#e6e5e2", good: "#1f8a4c", warn: "#d99400", crit: "#d03b3b" };
 const fmt = (v: number, d = 1) => (v ?? 0).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -52,7 +53,7 @@ export function KColumns({ labels, values, target, unit = "", decimals = 1, titl
   const tip = useTip(); const id = nid();
   const tg = target ?? [], n = values.length, W = 700, H = height, top = 34, pad = 8;
   const max = Math.max(...values, ...tg.map((x) => x ?? 0), 0.0001) * 1.16;
-  const slot = (W - pad * 2) / Math.max(1, n), bw = Math.min(70, slot * 0.56), x = (i: number) => pad + slot * (i + 0.5), y = (v: number) => H - ((H - top) * v) / max;
+  const slot = (W - pad * 2 - DEPTH.dx) / Math.max(1, n), bw = Math.min(70, slot * 0.56), x = (i: number) => pad + slot * (i + 0.5), y = (v: number) => H - ((H - top) * v) / max;
   const callout = n > 1 && values[n - 2] ? 28 : 0; // room above the plot for the change call-out
   const last = n - 1, prev = values[last - 1], delta = prev ? ((values[last] - prev) / prev) * 100 : null;
   const bubble = delta != null ? `${delta >= 0 ? "▲ +" : "▼ −"}${fmt(Math.abs(delta))}% ${t("vs")} ${labels[last - 1]}` : "";
@@ -69,6 +70,7 @@ export function KColumns({ labels, values, target, unit = "", decimals = 1, titl
             <linearGradient id={`${id}r`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#e86a6a" /><stop offset="1" stopColor={KC.crit} /></linearGradient>
           </defs>
           {[0.25, 0.5, 0.75, 1].map((g) => <line key={g} x1={pad} x2={W - pad} y1={H - (H - top) * g} y2={H - (H - top) * g} stroke={KC.grid} />)}
+          <path d={`M${pad},${H} L${pad + DEPTH.dx},${H + DEPTH.dy} L${W - pad + DEPTH.dx},${H + DEPTH.dy} L${W - pad},${H} Z`} fill="#f1f0ee" />
           <line x1={pad} x2={W - pad} y1={H} y2={H} stroke="#bdbcb8" />
           {values.map((v, i) => {
             const hot = i === last, tv = tg[i] ?? null, under = tv != null && v < tv * underPct;
@@ -76,9 +78,14 @@ export function KColumns({ labels, values, target, unit = "", decimals = 1, titl
             return (
               <g key={i} onPointerMove={(e) => tip.show(e, labels[i], rows)}>
                 <rect x={x(i) - slot / 2} y={top - 20} width={slot} height={H - top + 48} fill="transparent" />
-                <rect className="kc-gy" x={x(i) - bw / 2} y={y(v)} width={bw} height={H - y(v)} rx="3" fill={`url(#${id}${under ? "r" : hot ? "h" : "c"})`} style={d(100 + i * 100)} />
+                {(() => { const b = box(x(i) - bw / 2, y(v), bw, H - y(v)), base = under ? KC.crit : hot ? KC.or : KC.ink; return (
+                  <g className="kc-gy" style={d(100 + i * 100)}>
+                    <path d={b.side} fill={shade(base, 0.62)} />
+                    <path d={b.top} fill={shade(base, 1.35)} />
+                    <path d={b.front} fill={`url(#${id}${under ? "r" : hot ? "h" : "c"})`} />
+                  </g>); })()}
                 {tv != null && <line className="kc-fade" x1={x(i) - bw / 2 - 7} x2={x(i) + bw / 2 + 7} y1={y(tv)} y2={y(tv)} stroke={under ? KC.crit : KC.ink} strokeWidth="2" strokeDasharray="5 4" style={d(700 + i * 100)} />}
-                <text className="kc-fade" x={x(i)} y={Math.min(y(v), tv != null ? y(tv) : 9e9) - 8} textAnchor="middle" fontSize="15" fontWeight="700" fill={under ? KC.crit : hot ? KC.or : KC.ink} style={{ fontVariantNumeric: "tabular-nums", ...d(800 + i * 100) }}>{fmt(v, decimals)}</text>
+                <text className="kc-fade" x={x(i) + DEPTH.dx / 2} y={Math.min(y(v) + DEPTH.dy, tv != null ? y(tv) : 9e9) - 8} textAnchor="middle" fontSize="15" fontWeight="700" fill={under ? KC.crit : hot ? KC.or : KC.ink} style={{ fontVariantNumeric: "tabular-nums", ...d(800 + i * 100) }}>{fmt(v, decimals)}</text>
                 <text x={x(i)} y={H + 20} textAnchor="middle" fontSize="12" fill={KC.soft}>{labels[i]}</text>
               </g>
             );
@@ -135,7 +142,9 @@ export function KGauges({ items }: { items: { label: string; pct: number; actual
           <div key={i} className="kc-g">
             <svg viewBox="0 0 160 160" style={{ maxWidth: 150, margin: "0 auto" }} aria-hidden="true">
               {Array.from({ length: 40 }, (_, k) => { const a = (k / 40) * 2 * Math.PI - Math.PI / 2, r1 = 76, r2 = k % 10 === 0 ? 70 : 73; return <line key={k} x1={80 + r1 * Math.cos(a)} y1={80 + r1 * Math.sin(a)} x2={80 + r2 * Math.cos(a)} y2={80 + r2 * Math.sin(a)} stroke={k / 40 <= p / 100 ? col : "#d6d5d2"} strokeWidth={k % 10 === 0 ? 1.6 : 1} />; })}
+              <circle cx="80" cy="84" r={R} fill="none" stroke="#dcdbd8" strokeWidth="12" />
               <circle cx="80" cy="80" r={R} fill="none" stroke={KC.track} strokeWidth="12" />
+              <circle className="kc-arc" cx="80" cy="84" r={R} fill="none" stroke={shade(col, 0.6)} strokeWidth="12" strokeLinecap="round" transform="rotate(-90 80 84)" strokeDasharray={`${len} ${C}`} style={{ ["--len" as any]: len, ...d(150 + i * 150) }} />
               <circle className="kc-arc" cx="80" cy="80" r={R} fill="none" stroke={col} strokeWidth="12" strokeLinecap="round" transform="rotate(-90 80 80)" strokeDasharray={`${len} ${C}`} style={{ ["--len" as any]: len, ...d(150 + i * 150) }} />
               <text x="80" y="88" textAnchor="middle" fontSize="30" fontWeight="700" fill={KC.ink} style={{ fontVariantNumeric: "tabular-nums" }}>{Math.round(p)}%</text>
             </svg>

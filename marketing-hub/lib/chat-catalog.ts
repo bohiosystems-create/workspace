@@ -48,7 +48,7 @@ export const CATALOG: { en: string; ar: string }[] = [
   { en: "How is the property market in Jeddah?", ar: "كيف السوق العقاري في جدة؟" },
   { en: "What are competitors doing?", ar: "ماذا يفعل المنافسون؟" },
   { en: "Key dates in the marketing calendar", ar: "المواعيد المهمة في التقويم التسويقي" },
-  { en: "What did we send to Kinan?", ar: "ماذا أرسلنا إلى كنان؟" },
+  { en: "What data do we read from Kinan's sales agent?", ar: "ما البيانات التي نقرؤها من وكيل المبيعات لدى كنان؟" },
   { en: "Show the daily report schedule", ar: "جدول التقرير اليومي" },
   { en: "What is cost to sales?", ar: "ما معنى نسبة التكلفة إلى المبيعات؟" },
 ];

@@ -17,6 +17,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../_components/lang";
 import { KINAN, kinanLogoHtml, chevron } from "../../lib/brand";
 import type { Deck, DeckSlide, Kpi, Tone } from "../../lib/deck";
+import { box as box3d, pie3d, shade, DEPTH } from "../../lib/chart3d";
 
 // The slides follow Kinan's collateral: white faceted pages, charcoal text, orange uppercase headings, stat blocks and
 // chevron bars; orange or charcoal full-bleed covers and dividers. Categorical hues validated on the light surface
@@ -207,6 +208,10 @@ function Gauge({ pct, delay }: { pct: number; delay: number }) {
       <Defs />
       <linearGradient id={id} x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor={OR} /><stop offset="1" stopColor={color} /></linearGradient>
       {Array.from({ length: 40 }, (_, k) => { const a = (k / 40) * 2 * Math.PI - Math.PI / 2; const r1 = 104, r2 = k % 10 === 0 ? 96 : 100; return <line key={k} x1={110 + r1 * Math.cos(a)} y1={110 + r1 * Math.sin(a)} x2={110 + r2 * Math.cos(a)} y2={110 + r2 * Math.sin(a)} stroke={k % 10 === 0 ? "rgba(46,46,47,.35)" : "rgba(46,46,47,.12)"} strokeWidth="1.5" className="kd-fade" style={{ animationDelay: `${delay + k * 12}ms` }} />; })}
+      {/* coin edge: the ring's thickness, a few pixels below */}
+      <circle cx="110" cy="116" r={r} fill="none" stroke="#dcdbd8" strokeWidth="14" />
+      <circle cx="110" cy="116" r={r} fill="none" stroke={shade(color, 0.6)} strokeWidth="14" strokeLinecap="round" transform="rotate(-90 110 116)" strokeDasharray={c}
+        style={{ strokeDashoffset: c, animation: `kdRing 1.8s ${EASE} ${delay}ms forwards`, ["--kd-off" as any]: c * (1 - p / 100) }} />
       <circle cx="110" cy="110" r={r} fill="none" stroke={FAINT} strokeWidth="14" />
       <circle cx="110" cy="110" r={r} fill="none" stroke={`url(#${id})`} strokeWidth="14" strokeLinecap="round" transform="rotate(-90 110 110)" strokeDasharray={c}
         style={{ strokeDashoffset: c, animation: `kdRing 1.8s ${EASE} ${delay}ms forwards`, ["--kd-off" as any]: c * (1 - p / 100) }} />
@@ -272,7 +277,10 @@ function Columns({ s }: { s: Extract<DeckSlide, { kind: "columns" }> }) {
             return (
               <g key={i} tabIndex={0} onPointerMove={(e) => tip.show(e, s.labels[i], [[`${fmt(v, s.decimals ?? 1)} ${s.unit}`, t("Actual")], ...(target != null ? [[`${fmt(target, 1)} ${s.unit}`, t("Target")] as [string, string], [`${Math.round((v / target) * 100)}%`, t("Of target")] as [string, string]] : [])])} onFocus={(e) => tip.show(e, s.labels[i], [[`${fmt(v, s.decimals ?? 1)} ${s.unit}`, t("Actual")]])} onBlur={tip.hide}>
                 <rect x={x(i) - slot / 2} y={top - 20} width={slot} height={H - top + 60} fill="transparent" />
-                <rect x={x(i) - bw / 2} y={y(v)} width={bw} height={H - y(v)} rx="6" fill={hot ? "url(#kdHot)" : "url(#kdCool)"} filter={hot ? "url(#kdGlow)" : undefined} className="kd-spring" style={{ animationDelay: `${300 + i * 130}ms` }} />
+                {(() => { const b = box3d(x(i) - bw / 2, y(v), bw, H - y(v), DEPTH.dx * 1.6, DEPTH.dy * 1.6), base = hot ? OR : CH; return (
+                  <g className="kd-spring" style={{ animationDelay: `${300 + i * 130}ms` }} filter={hot ? "url(#kdGlow)" : undefined}>
+                    <path d={b.side} fill={shade(base, 0.6)} /><path d={b.top} fill={shade(base, 1.35)} /><path d={b.front} fill={hot ? "url(#kdHot)" : "url(#kdCool)"} />
+                  </g>); })()}
                 {target != null && <line x1={x(i) - bw / 2 - 10} x2={x(i) + bw / 2 + 10} y1={y(target)} y2={y(target)} stroke={under ? CRIT : INK} strokeWidth="2.5" strokeDasharray="7 5" className="kd-fade" style={{ animationDelay: `${1000 + i * 130}ms` }} />}
                 <text x={x(i)} y={Math.min(y(v), target != null ? y(target) : 9999) - 16} textAnchor="middle" fill={hot ? OR : INK} className="kd-fade kd-svgnum" style={{ animationDelay: `${1150 + i * 130}ms` }}>{fmt(v, s.decimals ?? 0)}</text>
                 <text x={x(i)} y={H + 36} textAnchor="middle" fill={SOFT} className="kd-svglab">{s.labels[i]}</text>
@@ -305,21 +313,25 @@ function Donut({ s }: { s: Extract<DeckSlide, { kind: "donut" }> }) {
       <In d={200}><div className="kd-sub">{s.sub}</div></In>
       <div style={{ display: "flex", gap: 48, alignItems: "center", flexWrap: "wrap", marginTop: 18 }}>
         <div style={{ position: "relative", flex: "0 0 auto", width: "min(500px, 84vw)" }} onPointerLeave={() => setHi(null)}>
-          <svg viewBox="-60 -20 520 440" width="100%" style={{ overflow: "visible", direction: "ltr" }}>
-            <Defs />
-            <circle cx="200" cy="200" r={R} fill="none" stroke="rgba(46,46,47,.05)" strokeWidth="46" />
-            {segs.map((g) => (
-              <circle key={g.i} cx="200" cy="200" r={R} fill="none" stroke={PAL[g.i % PAL.length]} strokeWidth={focus === g.i ? 60 : 46} transform="rotate(-90 200 200)"
-                strokeDasharray={`0 ${c}`} strokeDashoffset={-g.start} opacity={focus == null || focus === g.i ? 1 : 0.28}
-                className="kd-arc" style={{ animationDelay: `${300 + g.i * 180}ms`, ["--kd-len" as any]: `${Math.max(0, g.len - gap)} ${c}`, transition: "stroke-width .25s, opacity .25s", cursor: "pointer" }}
-                onPointerEnter={() => setHi(g.i)} />
-            ))}
-            {segs.slice(0, 3).map((g) => {
-              const x1 = 200 + (R + 30) * Math.cos(g.mid), y1 = 200 + (R + 30) * Math.sin(g.mid), x2 = 200 + (R + 58) * Math.cos(g.mid), y2 = 200 + (R + 58) * Math.sin(g.mid), right = Math.cos(g.mid) >= 0;
-              return <g key={g.i} className="kd-fade" style={{ animationDelay: `${1300 + g.i * 150}ms` }}><line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(46,46,47,.5)" /><line x1={x2} y1={y2} x2={x2 + (right ? 18 : -18)} y2={y2} stroke="rgba(46,46,47,.5)" /><text x={x2 + (right ? 24 : -24)} y={y2 + 6} textAnchor={right ? "start" : "end"} fill={INK} className="kd-svgnum" style={{ fontSize: 22 }}>{Math.round((g.v / total) * 100)}%</text></g>;
-            })}
-          </svg>
-          <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center", pointerEvents: "none" }}>
+          {(() => {
+            // Tilted 3D donut; hover lifts a slice. Shares are printed on the slices and listed in the legend.
+            const segs3 = segs.map((g) => ({ a0: (g.start / c) * 2 * Math.PI - Math.PI / 2, a1: ((g.start + g.len) / c) * 2 * Math.PI - Math.PI / 2 }));
+            const g3 = pie3d(segs3, { cx: 200, cy: 170, r: 190, inner: 104, tilt: 0.56, depth: 34 });
+            const op = (i: number) => (focus == null || focus === i ? 1 : 0.32);
+            return (
+              <svg viewBox="0 0 400 300" width="100%" style={{ overflow: "visible", direction: "ltr" }}>
+                <ellipse cx="200" cy="216" rx="186" ry="58" fill="rgba(46,46,47,.10)" className="kd-fade" />
+                {g3.inner.map((w, k) => <path key={`i${k}`} d={w.d} fill={shade(PAL[w.i % PAL.length], 0.5)} opacity={op(w.i)} className="kd-fade" style={{ animationDelay: `${300 + w.i * 160}ms`, transition: "opacity .25s" }} />)}
+                {g3.outer.map((w, k) => <path key={`o${k}`} d={w.d} fill={shade(PAL[w.i % PAL.length], 0.66)} opacity={op(w.i)} className="kd-fade" style={{ animationDelay: `${300 + w.i * 160}ms`, transition: "opacity .25s" }} />)}
+                {g3.tops.map((d, k) => <path key={`t${k}`} d={d} fill={PAL[k % PAL.length]} stroke="#fff" strokeWidth="2" fillRule="evenodd" opacity={op(k)} className="kd-pop" onPointerEnter={() => setHi(k)}
+                  style={{ animationDelay: `${300 + k * 160}ms`, transition: "opacity .25s, transform .25s", transform: focus === k ? "translateY(-8px)" : "none", cursor: "pointer" }} />)}
+                {segs.map((g, k) => { const pct = (g.v / total) * 100; if (pct < 5) return null; const [x, y] = g3.point((segs3[k].a0 + segs3[k].a1) / 2, 0.77);
+                  const light = ["#eda100", "#e87ba4", "#1baf7a"].includes(PAL[k % PAL.length]);
+                  return <text key={`l${k}`} x={x} y={y + 6} textAnchor="middle" fill={light ? INK : "#fff"} className="kd-fade kd-svgnum" style={{ fontSize: 19, animationDelay: `${900 + k * 140}ms`, pointerEvents: "none" }}>{Math.round(pct)}%</text>; })}
+              </svg>
+            );
+          })()}
+          <div style={{ position: "absolute", left: "50%", top: "56.7%", transform: "translate(-50%, -50%) scale(.82)", textAlign: "center", pointerEvents: "none" }}>
             {focus == null
               ? <div><div className="kd-kpi-v" style={{ fontSize: "clamp(30px,3.6vw,50px)" }}><Count value={total} decimals={1} delay={300} /></div><div className="kd-kpi-l">{s.unit}</div></div>
               : <div style={{ maxWidth: 170 }}><div className="kd-kpi-v" style={{ fontSize: "clamp(26px,3vw,42px)", color: INK }}>{fmt(s.values[focus], 1)}</div><div className="kd-kpi-l" style={{ letterSpacing: ".08em" }}>{s.labels[focus]}</div><div className="kd-muted">{Math.round((s.values[focus] / total) * 100)}%</div></div>}
@@ -883,6 +895,12 @@ const CSS = `
 .kd-hlabel { width: var(--kd-lab); font-size: clamp(13px, 1.25vw, 17px); }
 .kd-htrack { flex: 1; height: 18px; background: rgba(46,46,47,.07); position: relative; border-radius: 3px; overflow: hidden; }
 .kd-hfill { height: 100%; border-radius: 3px; transform-origin: left center; transform: scaleX(0); animation: kdGrowX 1.1s ${SPRING} forwards; }
+.kd-htrack { overflow: visible !important; margin-top: 8px; }
+.kd-hfill { position: relative; }
+.kd-hfill::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 8px; background: inherit; filter: brightness(1.35); transform: skewX(-45deg); transform-origin: bottom left; }
+.kd-hfill::after { content: ""; position: absolute; top: 0; bottom: 0; left: 100%; width: 8px; background: inherit; filter: brightness(.6); transform: skewY(-45deg); transform-origin: top left; }
+[dir="rtl"] .kd-hfill::before { transform: skewX(45deg); transform-origin: bottom right; }
+[dir="rtl"] .kd-hfill::after { left: auto; right: 100%; transform: skewY(45deg); transform-origin: top right; }
 [dir="rtl"] .kd-hfill { transform-origin: right center; }
 .kd-hval { width: 84px; text-align: end; font-weight: 600; font-size: clamp(14px, 1.3vw, 18px); font-variant-numeric: tabular-nums; }
 .kd-benchline { --kd-lab: clamp(130px, 18vw, 240px); position: absolute; top: -22px; bottom: 0; border-inline-start: 2px dashed ${OR}; z-index: 1; animation: kdFade .6s ease 1.2s both; opacity: 0; }

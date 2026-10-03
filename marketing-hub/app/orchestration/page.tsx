@@ -73,7 +73,7 @@ export default function OrchestrationPage() {
               [t("You (marketing manager)"), t("Approve the plan, vendor messages and anything that contacts a customer."), `~${data.summary.minutes} ${t("min of your time")}`],
               [t("AI Director"), t("Plans, briefs vendors, verifies delivery and spend, chases, reports."), `${data.summary.withVendors} ${t("with vendors")}`],
               [t("Vendors"), t("Run the campaigns; receive briefs, feedback and reminders by email."), `${data.summary.activeVendors} ${t("active")}`],
-              [t("Kinan's sales agent"), t("Owns leads, follow-up and sales in Yardi. The director reads the results and shares the plan."), t("See Director")],
+              [t("Kinan's sales agent"), t("Owns leads, follow-up and sales in Yardi. The director only reads its results — it sends it nothing."), t("See Director")],
             ].map(([h, b, f], i) => (
               <div key={i} className="panel" style={{ padding: "14px 16px" }}>
                 <div className="chart-label" style={{ marginBottom: 6 }}>{h}</div>

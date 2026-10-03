@@ -568,3 +568,12 @@ a:not(.btn):not(.navlink):not(.card):not(.k-band-logo):hover { color: var(--oran
 
 .kc-range { margin: 4px 0; }
 [dir="rtl"] .kc-br-v { text-align: start; }
+
+/* 3D: horizontal bars get a top face and an end face (lib/chart3d.ts draws the SVG ones) */
+.kc-br-t { overflow: visible; margin-top: 6px; }
+.kc-br-f { position: relative; }
+.kc-br-f::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 6px; background: inherit; filter: brightness(1.35); transform: skewX(-45deg); transform-origin: bottom left; border-radius: 2px 2px 0 0; }
+.kc-br-f::after { content: ""; position: absolute; top: 0; bottom: 0; left: 100%; width: 6px; background: inherit; filter: brightness(.62); transform: skewY(-45deg); transform-origin: top left; }
+[dir="rtl"] .kc-br-f::before { transform: skewX(45deg); transform-origin: bottom right; }
+[dir="rtl"] .kc-br-f::after { left: auto; right: 100%; transform: skewY(45deg); transform-origin: top right; }
+.kc-br-t { background: linear-gradient(#efeeec, #e6e5e2); box-shadow: inset 0 -1px 0 #dcdbd8; }

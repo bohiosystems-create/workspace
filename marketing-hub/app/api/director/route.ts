@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 // GET  /api/director?lang=ar  -> brief, targets, budget plan, approval inbox, delegations, Kinan outbox
-// POST { action: APPROVE_PLAN | DECIDE_TASK | SEND_BRIEF | PUSH_SOURCES | RETRY, ... }
+// POST { action: APPROVE_PLAN, ... }
 export async function GET(req: Request) {
   try {
     const l = new URL(req.url).searchParams.get("lang");

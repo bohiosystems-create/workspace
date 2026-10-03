@@ -1,92 +1,24 @@
-// Kinan connector — how the AI Assistant Director of Marketing feeds Kinan's CRM (Yardi) and Kinan's AI agent.
+// Kinan's sales agent — a READ-ONLY data source for the AI Assistant Director of Marketing.
 //
-// OUT (outbox, KinanEvent): every event is stored first, then delivered; failures are retried and audited.
-//   KINAN_MODE=mock     events are recorded as delivered, nothing leaves the app (default)
-//   KINAN_MODE=webhook  POST to KINAN_AGENT_WEBHOOK_URL, body signed with HMAC-SHA256 (KINAN_WEBHOOK_SECRET)
-//                       headers: X-Bohio-Event, X-Bohio-Delivery, X-Bohio-Signature: sha256=<hex>
-//   YARDI_MODE=mock | live — Yardi delivery (guest-card activities / marketing sources) is NOT implemented:
-//                       it needs Kinan's Yardi interface licence and credentials. See docs/kinan-integration.md.
-// IN (for Kinan's agent): GET /api/kinan/context (targets, plan, campaign codes, campaign quality, campaign
-//   recommendations) with x-api-key: KINAN_API_KEY.
-//
-// Scope: leads, follow-ups, sales and the CRM belong to Kinan's agent. The director only shares marketing context
-// (approved plan, campaign codes and status changes, daily brief) and reads CRM results to judge campaigns.
-import { prisma } from "./prisma";
+// Kinan's sales agent is the AI that handles leads, follow-up and sales in Kinan's CRM (Yardi). The marketing
+// director never talks to it: it sends it nothing (no plan, no brief, no campaign changes, no API for it to call).
+// It only reads the CRM results the sales agent produces — leads, qualification, viewings, reservations, contracts
+// and lost reasons, by campaign code — to judge campaigns and vendors (lib/crm.ts, CRM_MODE).
+import { crmMode } from "./crm";
 import { type Lang, tx } from "./i18n";
 
-export type KinanEventType =
-  | "director.plan_approved" | "campaign.status_changed" | "brief.daily" | "vendor.decision";
-export type KinanTarget = "AGENT" | "YARDI";
-
-export const kinanMode = () => (process.env.KINAN_MODE === "webhook" ? "webhook" : "mock");
-export const yardiMode = () => (process.env.YARDI_MODE === "live" ? "live" : "mock");
-const MAX_ATTEMPTS = 5;
-
-async function hmacHex(secret: string, body: string) {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(body));
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function deliver(e: { id: string; type: string; target: string; payload: string; createdAt: Date }): Promise<{ mode: string }> {
-  if (e.target === "YARDI") {
-    if (yardiMode() === "mock") return { mode: "mock" };
-    throw new Error("Yardi delivery is not implemented yet (needs Kinan's Yardi interface credentials) — see docs/kinan-integration.md.");
-  }
-  if (kinanMode() === "mock") return { mode: "mock" };
-  const url = process.env.KINAN_AGENT_WEBHOOK_URL, secret = process.env.KINAN_WEBHOOK_SECRET;
-  if (!url || !secret) throw new Error("KINAN_MODE=webhook needs KINAN_AGENT_WEBHOOK_URL and KINAN_WEBHOOK_SECRET.");
-  const body = JSON.stringify({ id: e.id, type: e.type, createdAt: e.createdAt.toISOString(), payload: JSON.parse(e.payload) });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Bohio-Event": e.type, "X-Bohio-Delivery": e.id, "X-Bohio-Signature": `sha256=${await hmacHex(secret, body)}` },
-    body,
-  });
-  if (!res.ok) throw new Error(`Kinan agent webhook returned ${res.status}.`);
-  return { mode: "webhook" };
-}
-
-async function attempt(id: string) {
-  const e = (await prisma.kinanEvent.findMany()).find((x) => x.id === id);
-  if (!e || e.status === "DELIVERED") return;
-  try {
-    const r = await deliver(e);
-    await prisma.kinanEvent.update({ where: { id }, data: { status: "DELIVERED", deliveredAt: new Date(), attempts: e.attempts + 1, mode: r.mode, lastError: null } });
-  } catch (err: any) {
-    await prisma.kinanEvent.update({ where: { id }, data: { status: "FAILED", attempts: e.attempts + 1, lastError: String(err?.message ?? err).slice(0, 300) } });
-  }
-}
-
-/** Store an event in the outbox and try to deliver it straight away. */
-export async function queueKinanEvent(type: KinanEventType, target: KinanTarget, payload: unknown, approvedBy?: string) {
-  const e = await prisma.kinanEvent.create({ data: { type, target, payload: JSON.stringify(payload), approvedBy: approvedBy ?? null } });
-  await attempt(e.id);
-  return e.id;
-}
-
-/** Retry failed deliveries (manual "Retry" or a scheduled job). */
-export async function retryKinanEvents(id?: string) {
-  const es = (await prisma.kinanEvent.findMany()).filter((e) => e.status === "FAILED" && e.attempts < MAX_ATTEMPTS && (!id || e.id === id));
-  for (const e of es) await attempt(e.id);
-  return es.length;
-}
-
-export async function kinanOutbox(limit = 30, lang: Lang = "en") {
-  const es = await prisma.kinanEvent.findMany();
-  return [...es].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, limit).map((e) => ({
-    id: e.id, createdAt: e.createdAt.toISOString(), type: e.type, target: e.target, status: e.status, attempts: e.attempts,
-    lastError: e.lastError, mode: e.mode, approvedBy: e.approvedBy, deliveredAt: e.deliveredAt?.toISOString() ?? null,
-    summary: summarize(e.type, e.payload, lang),
-  }));
-}
-
-function summarize(type: string, payload: string, l: Lang = "en") {
-  try {
-    const p = JSON.parse(payload);
-    if (type === "director.plan_approved") return tx(l, `${p.month} · SAR ${p.totalK}K`, `${p.month} · ${p.totalK} ألف ر.س`);
-    if (type === "campaign.status_changed") return `${p.campaignCode ?? p.campaign} → ${p.status}`;
-    if (type === "brief.daily") return p.headline ?? "";
-    return "";
-  } catch { return ""; }
+/** How the director reads Kinan's sales-agent data (for the Director page and the assistant). */
+export function salesAgentSource(lang: Lang, crm: { lastSync: string | null; leads: number; matched: number; unmatched: number; attributionGapPct: number }) {
+  const mode = crmMode();
+  return {
+    mode,
+    label: mode === "mock" ? tx(lang, "Sample CRM data (Yardi not connected yet)", "بيانات نظام تجريبية (Yardi غير متصل بعد)") : tx(lang, "Yardi CRM export", "تصدير نظام Yardi"),
+    lastSync: crm.lastSync, leads: crm.leads, matched: crm.matched, unmatched: crm.unmatched, attributionGapPct: crm.attributionGapPct,
+    reads: [
+      tx(lang, "Leads and their source campaign code", "العملاء المحتملون ورمز الحملة المصدر"),
+      tx(lang, "Qualification, viewings, reservations and contracts", "التأهيل والمعاينات والحجوزات والعقود"),
+      tx(lang, "Lost reasons and first-response times", "أسباب الخسارة وزمن الاستجابة الأول"),
+      tx(lang, "Contracted sales by project and month", "المبيعات المتعاقد عليها حسب المشروع والشهر"),
+    ],
+  };
 }

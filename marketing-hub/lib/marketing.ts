@@ -1,6 +1,5 @@
 import { prisma } from "./prisma";
 import { MONTHS } from "./seed-marketing";
-import { queueKinanEvent } from "./kinan";
 import { type Lang, tx, K, M, nm, dt, hrs } from "./i18n";
 
 const TODAY = new Date("2026-06-08");
@@ -462,8 +461,6 @@ export async function applyAction(input: OrchestrationInput, lang: Lang = "en") 
         detail: tx(lang, `${input.type === "PAUSE" ? "Paused" : "Resumed"} with ${from.vendor.name}.`, `${input.type === "PAUSE" ? "تم الإيقاف" : "تم الاستئناف"} لدى ${nm(lang, from.vendor.name)}.`),
       },
     });
-    // Kinan's agent stops / restarts routing to this campaign; Yardi marks the marketing source.
-    await queueKinanEvent("campaign.status_changed", "AGENT", { campaign: from.name, campaignCode: from.crmCode, vendor: from.vendor.name, status: next });
     return;
   }
 
@@ -482,7 +479,6 @@ export async function applyAction(input: OrchestrationInput, lang: Lang = "en") 
       },
     }),
   ]);
-  await queueKinanEvent("campaign.status_changed", "AGENT", { campaign: from.name, campaignCode: from.crmCode, status: "BUDGET_DECREASED", amountK: input.amountK, movedTo: { campaign: to.name, campaignCode: to.crmCode } });
 }
 
 export { monthLabel };
