@@ -155,7 +155,7 @@ So the assistant can answer a wide range of questions, the demo carries four mor
 
 ## Test it in the Claude app (claude.ai artifact)
 
-`npm run demo:build:claude` builds `demo-claude-app.html`, the offline demo as a claude.ai artifact page that declares the artifact runtime's `sample` capability. Opened in the Claude app (web, desktop or mobile), the assistant, the daily second opinion and campaign ideation run on **Claude through the viewer's own Claude account** — no API key — with the same read-only data tools as the live app, executed in the page on the sample data (`scripts/demo-llm-claude.ts`). The viewer is asked once to allow it; if they decline, or outside the Claude app, it falls back to the built-in answers. Downloads go through the artifact's `downloads` capability.
+`npm run demo:build:claude` builds `demo-claude-app.html`, the offline demo as a claude.ai artifact page that declares the artifact runtime's `sample` capability. Opened in the Claude app (web, desktop or mobile), the assistant, the daily second opinion and campaign ideation run on **Claude through the viewer's own Claude account** — no API key — with the same read-only data tools as the live app, executed in the page on the sample data (`scripts/demo-llm-claude.ts`). The viewer is asked once to allow it; if they decline, or outside the Claude app, it falls back to the built-in answers. Downloads go through the artifact's `downloads` capability. It also writes `demo-claude-app/` (a small `index.html` plus `app.js`): publish that pair — the single large file can be refused by the artifact service's page validation.
 
 ## Daily campaign check (a section of Reports, `/reports#daily-check`; the old `/daily` page redirects there)
 

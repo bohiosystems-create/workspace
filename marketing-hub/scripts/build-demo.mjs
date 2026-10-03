@@ -1,7 +1,7 @@
 // Builds a single self-contained demo.html (no server, no DB, no API key).
 //   npx tsx scripts/dump-data.ts && node scripts/build-demo.mjs
 import { build } from "esbuild";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import path from "path";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -42,3 +42,14 @@ else writeFileSync(path.join(root, OUT), `<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Montserrat:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>${css}</style></head><body><div id="root"></div><script>${js}</script></body></html>`);
 console.log(`wrote ${OUT}`);
+// Claude app edition also as a small page + app.js (demo-claude-app/), which is how it is published: the single
+// large file can trip the artifact service's page validation.
+if (CLAUDE_APP) {
+  const dir = path.join(root, "demo-claude-app");
+  mkdirSync(dir, { recursive: true });
+  const html = readFileSync(path.join(root, OUT), "utf8");
+  const i = html.indexOf('<div id="root"></div><script>') + '<div id="root"></div>'.length, j = html.lastIndexOf("</script>");
+  writeFileSync(path.join(dir, "index.html"), html.slice(0, i) + '<script src="app.js"></script>' + html.slice(j + "</script>".length));
+  writeFileSync(path.join(dir, "app.js"), html.slice(i + "<script>".length, j));
+  console.log("wrote demo-claude-app/index.html + app.js");
+}
