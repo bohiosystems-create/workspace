@@ -12,6 +12,7 @@ import { ReportLayoutCard } from "../_components/ReportLayoutCard";
 import { screenHtml } from "../../lib/report-svg";
 import Blk from "../_components/Blk";
 import { deckFromHtml } from "@/lib/deck";
+import DailyCheck from "./daily-check";
 
 const DAYS = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] };
 const STATUS: Record<string, string> = { SENT: "healthy", GENERATED: "hold", FAILED: "weak" };
@@ -251,6 +252,7 @@ export default function ReportsPage() {
               <iframe title={view.title} sandbox="" srcDoc={screenHtml(view.html)} style={{ width: "100%", height: 1100, border: "1px solid var(--ink-hairline)", background: "#fff" }} />
             </div>
           )}
+          <Blk page="reports" id="dailycheck"><DailyCheck /></Blk>
           <Blk page="reports" id="missed"><MissedQuestions /></Blk>
         </>
       )}

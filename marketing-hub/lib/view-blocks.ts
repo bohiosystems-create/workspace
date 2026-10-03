@@ -30,15 +30,6 @@ export const PAGES: PageDef[] = [
     B("salesAgent", "Data from Kinan's sales agent", "بيانات وكيل المبيعات في كنان", /sales agent|kinan'?s (agent|data)|وكيل المبيعات/i),
     B("quality", "Campaign quality from the CRM", "جودة الحملات من النظام", /campaign quality|quality from the crm|جودة الحملات/i),
   ] },
-  { id: "daily", name: ["Daily check", "الفحص اليومي"], path: "/daily", rx: /daily check|daily campaign check|الفحص اليومي/i, blocks: [
-    B("kpi-recs", "Recommendations tile", "بطاقة التوصيات", /recommendations? (tile|count)|number of recommendations|عدد التوصيات/i, "kpi"),
-    B("kpi-urgent", "Urgent tile", "بطاقة العاجل", /\burgent\b|عاجل/i, "kpi"),
-    B("kpi-new", "New today tile", "بطاقة الجديد اليوم", /new today|جديدة اليوم/i, "kpi"),
-    B("kpi-resolved", "Resolved since yesterday tile", "بطاقة المحلولة منذ الأمس", /resolved( since yesterday)? (tile|count)|المحلولة/i, "kpi"),
-    B("kpi-decided", "Decided tile", "بطاقة المحسومة", /\bdecided\b|محسوم/i, "kpi"),
-    B("second", "AI second opinion", "الرأي الثاني", /second opinion|الرأي الثاني/i),
-    B("resolved", "Resolved since yesterday list", "قائمة المحلولة منذ الأمس", /resolved (list|items|section)|ما حُل/i),
-  ] },
   { id: "ideas", name: ["Initiatives", "المبادرات"], path: "/ideas", rx: /initiatives?( page)?|ideas page|المبادرات/i, blocks: [
     B("signals", "What the data shows", "ما تُظهره البيانات", /what the data shows|signals?|findings|daily scan|ما تظهره البيانات|الإشارات/i),
     B("calendar", "Celebrations and moments", "المناسبات والمواسم", /celebrations?|calendar|moments|المناسبات|التقويم/i),
@@ -71,7 +62,15 @@ export const PAGES: PageDef[] = [
     B("audit", "Audit trail", "سجل التدقيق", /audit( trail)?|سجل التدقيق/i),
     B("meta", "Meta ads review", "مراجعة إعلانات ميتا", /\bmeta\b|facebook|instagram|ميتا/i),
   ] },
-  { id: "reports", name: ["Reports", "التقارير"], path: "/reports", rx: /reports? page|reporting page|صفحة التقارير/i, blocks: [
+  { id: "reports", name: ["Reports", "التقارير"], path: "/reports", rx: /reports? page|reporting page|daily check page|صفحة التقارير|صفحة الفحص اليومي/i, blocks: [
+    B("dailycheck", "Daily campaign check", "الفحص اليومي للحملات", /daily (campaign )?check|الفحص اليومي/i),
+    B("kpi-recs", "Recommendations tile", "بطاقة التوصيات", /recommendations? (tile|count)|number of recommendations|عدد التوصيات/i, "kpi"),
+    B("kpi-urgent", "Urgent tile", "بطاقة العاجل", /\burgent\b|عاجل/i, "kpi"),
+    B("kpi-new", "New today tile", "بطاقة الجديد اليوم", /new today|جديدة اليوم/i, "kpi"),
+    B("kpi-resolved", "Resolved since yesterday tile", "بطاقة المحلولة منذ الأمس", /resolved( since yesterday)? (tile|count)|المحلولة/i, "kpi"),
+    B("kpi-decided", "Decided tile", "بطاقة المحسومة", /\bdecided\b|محسوم/i, "kpi"),
+    B("second", "AI second opinion", "الرأي الثاني", /second opinion|الرأي الثاني/i),
+    B("resolved", "Resolved since yesterday list", "قائمة المحلولة منذ الأمس", /resolved (list|items|section)|ما حُل/i),
     B("schedule", "Schedule", "الجدولة", /schedule|الجدولة/i),
     B("run", "Run and history", "التشغيل والسجل", /\brun\b|history of reports|report history|سجل التقارير/i),
     B("missed", "Questions the assistant missed", "الأسئلة التي فاتت المساعد", /missed questions|questions (the assistant )?missed|الأسئلة/i),

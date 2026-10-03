@@ -154,7 +154,7 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
   // Severity first; within it, direct budget moves before governance, conversion, tracking and tests.
   const sevRank: Record<string, number> = { crit: 0, warn: 1, info: 2 };
   const daily = await dailyState(lang);
-  const fromDaily = daily.recommendations.filter((r) => r.status === "OPEN").map((r) => ({ key: r.key, type: `DAILY_${r.type}`, severity: r.severity as "crit" | "warn" | "info", vendor: r.vendor, title: r.title, why: `${r.why} → ${r.action}`, impactK: null as number | null, channel: "INTERNAL" as "EMAIL" | "INTERNAL", href: "/daily", state: "OPEN" as string, emailId: null as string | null, isNew: r.isNew, since: r.since as string | null }));
+  const fromDaily = daily.recommendations.filter((r) => r.status === "OPEN").map((r) => ({ key: r.key, type: `DAILY_${r.type}`, severity: r.severity as "crit" | "warn" | "info", vendor: r.vendor, title: r.title, why: `${r.why} → ${r.action}`, impactK: null as number | null, channel: "INTERNAL" as "EMAIL" | "INTERNAL", href: "/reports#daily-check", state: "OPEN" as string, emailId: null as string | null, isNew: r.isNew, since: r.since as string | null }));
   const fromEngine = recs.recommendations
     .filter((r) => CAMPAIGN_REC_TYPES.includes(r.type) && (r.state === "OPEN" || r.state === "DRAFTED"))
     .map((r) => ({ key: r.key, type: r.type, severity: r.severity, vendor: r.vendor, title: r.title, why: r.rationale, impactK: r.impactK, channel: r.channel, href: r.href ?? null, state: r.state as string, emailId: r.emailId, isNew: false, since: null as string | null }));
@@ -188,7 +188,7 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
     ...(daily.summary.open ? [{
       kind: "DAILY",
       title: T(`Daily campaign check: ${daily.summary.open} open (${daily.summary.urgent} urgent${daily.summary.new ? `, ${daily.summary.new} new today` : ""}) — accept or dismiss`, `الفحص اليومي للحملات: ${daily.summary.open} مفتوحة (${daily.summary.urgent} عاجلة${daily.summary.new ? `، ${daily.summary.new} جديدة اليوم` : ""}) — اقبلوا أو ارفضوا`),
-      href: "/daily", severity: daily.summary.urgent ? "crit" : "warn", minutes: Math.max(2, Math.ceil(daily.summary.open / 2)),
+      href: "/reports#daily-check", severity: daily.summary.urgent ? "crit" : "warn", minutes: Math.max(2, Math.ceil(daily.summary.open / 2)),
     }] : []),
     ...(meta && meta.summary.needsReview ? [{
       kind: "META",

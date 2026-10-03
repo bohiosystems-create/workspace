@@ -1,14 +1,16 @@
 "use client";
+// The Daily campaign check, as a section of the Reports page (it used to be its own page, /daily): every live
+// campaign checked each morning against its own trend and similar past campaigns — what to change, why, and your
+// decision (accept / dismiss, carried over to the next days), the AI second opinion and what was resolved.
 
 import { useEffect, useRef, useState } from "react";
-import Header from "../_components/Header";
 import { useI18n } from "../_components/lang";
 import { useApprover } from "../_components/useAgent";
 import Blk from "../_components/Blk";
 
 const STRIPE: Record<string, string> = { crit: "var(--alert)", warn: "var(--ink)", info: "var(--ink-faint)" };
 
-export default function DailyPage() {
+export default function DailyCheck() {
   const { lang, t, d } = useI18n();
   const [data, setData] = useState<any>(null);
   const [date, setDate] = useState<string | null>(null);
@@ -27,6 +29,11 @@ export default function DailyPage() {
     return () => { live = false; };
   }, [lang, date]);
 
+  // Old Daily check links land here (/reports#daily-check).
+  useEffect(() => {
+    if (data && typeof location !== "undefined" && location.hash === "#daily-check") setTimeout(() => document.getElementById("daily-check")?.scrollIntoView({ behavior: "smooth" }), 300);
+  }, [!!data]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function act(body: any, key: string) {
     setBusy(key); setError(null);
     try {
@@ -40,10 +47,9 @@ export default function DailyPage() {
   const isToday = data && data.date === data.days[data.days.length - 1];
 
   return (
-    <div className="shell">
-      <Header />
-      <div className="section-title">{t("Daily campaign check")}</div>
-      <p className="intro">{t("Every morning the director checks each live campaign against its own trend and against similar past campaigns, and says what to change: cut, scale, refresh, renew or let end. Items stay open until the numbers change or you decide; your decision carries over to the next days.")}</p>
+    <div id="daily-check" style={{ marginTop: 22 }}>
+      <div className="section-title" style={{ fontSize: 14, margin: "0 0 6px" }}>{t("Daily campaign check")}</div>
+      <p className="muted" style={{ fontSize: 12, margin: "0 0 12px", lineHeight: 1.6 }}>{t("Every morning the director checks each live campaign against its own trend and against similar past campaigns, and says what to change: cut, scale, refresh, renew or let end. Items stay open until the numbers change or you decide; your decision carries over to the next days.")}</p>
       {error && <div className="err">{error}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
       {data && (
@@ -54,11 +60,11 @@ export default function DailyPage() {
             ))}
           </div>
           <div className="kpis">
-            <Blk page="daily" id="kpi-recs"><Kpi v={String(data.summary.total)} l={t("Recommendations")} /></Blk>
-            <Blk page="daily" id="kpi-urgent"><Kpi v={String(data.summary.urgent)} l={t("Urgent")} alert={data.summary.urgent > 0} /></Blk>
-            <Blk page="daily" id="kpi-new"><Kpi v={String(data.summary.new)} l={t("New today")} /></Blk>
-            <Blk page="daily" id="kpi-resolved"><Kpi v={String(data.summary.resolved)} l={t("Resolved since yesterday")} /></Blk>
-            <Blk page="daily" id="kpi-decided"><Kpi v={String(data.summary.total - data.summary.open)} l={t("Decided")} /></Blk>
+            <Blk page="reports" id="kpi-recs"><Kpi v={String(data.summary.total)} l={t("Recommendations")} /></Blk>
+            <Blk page="reports" id="kpi-urgent"><Kpi v={String(data.summary.urgent)} l={t("Urgent")} alert={data.summary.urgent > 0} /></Blk>
+            <Blk page="reports" id="kpi-new"><Kpi v={String(data.summary.new)} l={t("New today")} /></Blk>
+            <Blk page="reports" id="kpi-resolved"><Kpi v={String(data.summary.resolved)} l={t("Resolved since yesterday")} /></Blk>
+            <Blk page="reports" id="kpi-decided"><Kpi v={String(data.summary.total - data.summary.open)} l={t("Decided")} /></Blk>
           </div>
 
           <div className="row twocol" style={{ marginTop: 4 }}>
@@ -66,7 +72,7 @@ export default function DailyPage() {
               <div className="field" style={{ width: 220 }}><label>{t("Deciding as")}</label><input className="in" placeholder={t("Your name")} value={approver} onChange={(e) => { setApprover(e.target.value); save(e.target.value); }} /></div>
               <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>{t("Accepting records your decision; the change itself is made on Campaigns or with the agency. Nothing is changed automatically.")}</div>
             </div>
-            <Blk page="daily" id="second"><div className="panel">
+            <Blk page="reports" id="second"><div className="panel">
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
                 <div className="chart-label" style={{ margin: 0, flex: 1 }}>{t("AI second opinion")}</div>
                 {data.ai.enabled && isToday && <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "ai"} onClick={() => act({ action: "AI_NOTE" }, "ai")}>{busy === "ai" ? t("Thinking…") : data.aiNote ? t("Refresh") : t("Ask the AI")}</button>}
@@ -107,7 +113,7 @@ export default function DailyPage() {
                         <button className="btn" style={{ padding: "5px 10px", fontSize: 8 }} disabled={!approver.trim() || busy === r.id} title={!approver.trim() ? t("Enter your name") : ""} onClick={() => act({ action: "DECIDE", id: r.id, decision: "ACCEPT", note: notes[r.id] }, r.id)}>{t("Accept")}</button>
                         <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8 }} disabled={!approver.trim() || busy === r.id} onClick={() => act({ action: "DECIDE", id: r.id, decision: "DISMISS", note: notes[r.id] }, r.id)}>{t("Dismiss")}</button>
                         <input className="in" style={{ width: 220, padding: "4px 8px", fontSize: 11 }} placeholder={t("Note (optional)")} value={notes[r.id] ?? ""} onChange={(e) => setNotes({ ...notes, [r.id]: e.target.value })} />
-                        {r.href && r.href !== "/daily" && <a className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, textDecoration: "none" }} href={r.href}>{t("Open")}</a>}
+                        {r.href && r.href !== "/reports" && !r.href.startsWith("/reports#") && <a className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, textDecoration: "none" }} href={r.href}>{t("Open")}</a>}
                       </> : <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8 }} disabled={!approver.trim() || busy === r.id} onClick={() => act({ action: "DECIDE", id: r.id, decision: "REOPEN" }, r.id)}>{t("Reopen")}</button>}
                     </div>
                   )}
@@ -117,7 +123,7 @@ export default function DailyPage() {
           ))}
 
           {data.resolved.length > 0 && (
-            <Blk page="daily" id="resolved"><div className="panel" style={{ marginTop: 14 }}>
+            <Blk page="reports" id="resolved"><div className="panel" style={{ marginTop: 14 }}>
               <div className="chart-label">{t("Resolved since yesterday")}</div>
               <ul style={{ margin: 0, paddingInlineStart: 18, fontSize: 12 }}>{data.resolved.map((r: any) => <li key={r.id} className="ok">{r.title}</li>)}</ul>
             </div></Blk>

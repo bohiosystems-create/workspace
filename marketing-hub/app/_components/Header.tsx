@@ -7,7 +7,6 @@ import Integrations from "./Integrations";
 
 const LINKS = [
   { href: "/", label: "Director" },
-  { href: "/daily", label: "Daily check" },
   { href: "/ideas", label: "Initiatives" },
   { href: "/orchestration", label: "Vendors" },
   { href: "/reports", label: "Reports" },

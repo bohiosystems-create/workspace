@@ -48,7 +48,7 @@ async function findings(a: Agent, date: string): Promise<Finding[]> {
     if ((perDay.get(iso(day)) ?? 0) >= Math.max(1, avg * 0.25)) { crmAsOf = new Date(`${iso(day)}T23:59:59Z`); break; }
   }
   const staleDays = Math.floor((d.getTime() - crmAsOf.getTime()) / DAY);
-  if (staleDays >= 3) out.push({ type: "DATA_STALE", severity: staleDays >= 7 ? "crit" : "warn", code: "ALL", campaign: "CRM feed", vendor: "", asset: "", similar: [], href: "/daily",
+  if (staleDays >= 3) out.push({ type: "DATA_STALE", severity: staleDays >= 7 ? "crit" : "warn", code: "ALL", campaign: "CRM feed", vendor: "", asset: "", similar: [], href: "/reports#daily-check",
     title: both(`CRM feed: almost no new leads for ${staleDays} days (normal volume until ${dt("en", crmAsOf)})`, `نظام العملاء: شبه انعدام للعملاء الجدد منذ ${staleDays} أيام (حجم طبيعي حتى ${dt("ar", crmAsOf)})`),
     why: both("Campaign results after that date are missing, so today's lead-volume and quality checks stop at that date.", "نتائج الحملات بعد ذلك التاريخ غير متوفرة، لذا تتوقف فحوص حجم العملاء وجودتهم اليوم عند ذلك التاريخ."),
     action: both("Ask Kinan to check the Yardi export / sync; campaign decisions this week rely on it.", "اطلبوا من كنان التحقق من تصدير Yardi أو المزامنة؛ فقرارات الحملات هذا الأسبوع تعتمد عليه."),

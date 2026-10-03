@@ -106,11 +106,11 @@ const TOOLS: LlmTool[] = [
       which: { type: "string", description: "remove_chart: title words, 'last' or 'all'." },
     }, required: ["op"] } },
   }, required: ["ops"] } },
-  { name: "get_dashboards", description: "Every page's dashboard (Director, Daily check, Initiatives, Vendors, Campaigns, Reports, Experiments): its figure tiles, charts and sections and which are hidden.", parameters: { type: "object", properties: {} } },
+  { name: "get_dashboards", description: "Every page's dashboard (Director, Initiatives, Vendors, Campaigns, Reports — which includes the Daily campaign check —, Experiments): its figure tiles, charts and sections and which are hidden.", parameters: { type: "object", properties: {} } },
   { name: "change_dashboard", description: "Hide or show figure tiles, charts and sections on any page's dashboard, or on all of them at once (page 'all'), e.g. remove the YTD sales tile from all dashboards, hide the budget plan on the Director page. Saved and logged; the user can undo. Use whenever the user asks to remove, hide, show or bring back something on a dashboard/page (for the per-campaign dashboards use change_campaign_dashboards; for the daily report use change_daily_report).", parameters: { type: "object", properties: {
     ops: { type: "array", items: { type: "object", properties: {
       op: { type: "string", enum: ["hide", "show", "reset", "undo"] },
-      page: { type: "string", enum: ["all", "director", "daily", "ideas", "vendors", "campaigns", "reports", "experiments"] },
+      page: { type: "string", enum: ["all", "director", "ideas", "vendors", "campaigns", "reports", "experiments"] },
       block: { type: "string", description: "A block id from get_dashboards (e.g. kpi-ytd) or its name in plain words (e.g. 'YTD sales')." },
     }, required: ["op"] } },
   }, required: ["ops"] } },

@@ -157,7 +157,7 @@ So the assistant can answer a wide range of questions, the demo carries four mor
 
 `npm run demo:build:claude` builds `demo-claude-app.html`, the offline demo as a claude.ai artifact page that declares the artifact runtime's `sample` capability. Opened in the Claude app (web, desktop or mobile), the assistant, the daily second opinion and campaign ideation run on **Claude through the viewer's own Claude account** — no API key — with the same read-only data tools as the live app, executed in the page on the sample data (`scripts/demo-llm-claude.ts`). The viewer is asked once to allow it; if they decline, or outside the Claude app, it falls back to the built-in answers. Downloads go through the artifact's `downloads` capability.
 
-## Daily campaign check (`/daily`)
+## Daily campaign check (a section of Reports, `/reports#daily-check`; the old `/daily` page redirects there)
 
 Every morning the director checks each live campaign against its own trend and against similar past campaigns (`lib/daily.ts`) and says what to change:
 - **Cost to sales far above the channel's history** (e.g. Andalus off-plan 8.5% vs 1.9% for past digital), **cost per qualified lead rising**, **qualified rate dropping**, **lead volume dropping**, **pacing over / under** (not for commission vendors), **winners to scale**, **summer ahead** (past summers cost 3.6% of sales: trim, then scale again in September), **ending soon: extend or let end**, and **CRM feed stale** (no new leads for days, so the other checks are measured to the last normal day).

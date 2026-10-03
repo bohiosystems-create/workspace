@@ -45,13 +45,13 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   1. **CRM feed: almost no new leads for 8 days** (normal volume until 30 May). Say: *"The sample CRM data stops on 30 May. The director notices the feed went quiet and won't judge campaigns on missing data."*
   2. **Andalus — Off-plan Launch Funnel costs 8.5% of sales, 4.5× past digital campaigns** (SAR 297.5K spent for SAR 3.5M of sales in the last 3 months).
   3. **An agency that isn't one of your vendors is running Meta ads in your account** (Digital Wave Agency, SAR 8K).
-- [ ] Each line has the reason and one action: **Open** (Daily check, Campaigns, Experiments) or **Draft email**.
+- [ ] Each line has the reason and one action: **Open** (Reports → Daily campaign check, Campaigns, Experiments) or **Draft email**.
 - [ ] Click **Show all (22)**, then **Draft email** on *Tasweeq Digital: reported media spend not matched by the ad platforms* (SAR 58.4K). The assistant opens the draft for approval. Don't send it; show that nothing goes out without a name and the "I have read this" box.
 - [ ] Click **Ask the director** and type *"What's today's brief?"* The campaign recommendations come back as cards.
 
 ### 3. Daily campaign check (4 min)
 
-- [ ] Open **Daily check**. KPIs: **15 recommendations, 2 urgent**. One of them: **Marina Tower — Retail & Residential Spotlight: leads down 49% this week** (the portal slot lapsed). The day chips at the top show the last 7 days.
+- [ ] Open **Reports** and scroll to **Daily campaign check** (the old /daily link lands there). KPIs: **15 recommendations, 2 urgent**. One of them: **Marina Tower — Retail & Residential Spotlight: leads down 49% this week** (the portal slot lapsed). The day chips at the top show the last 7 days.
 - [ ] Walk through **Andalus — Off-plan Launch Funnel**, which has four items: 8.5% cost to sales vs 1.9% for past digital campaigns; cost per qualified lead up 35% in May; spending ahead of plan (130% pacing); summer starts in 23 days.
 - [ ] Open **Similar past campaigns** under an item: each past campaign's cost to sales and its lesson (e.g. Ash Shati Summer 2024 at 3.6%).
 - [ ] Show **Ash Shati — Search & Social**: a winner (1.19%), so the advice is to trim only ~15% in July–August and scale up again in September, not cut.
@@ -194,7 +194,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Click **العربية**: the whole app flips right-to-left.
 - [ ] Ask *"ما موجز اليوم؟"*, *"ما الجديد منذ الأمس؟"* or *"كيف كان أداء حملات رمضان؟"*
-- [ ] Open **Daily check** in Arabic.
+- [ ] Open **Reports → Daily campaign check** in Arabic.
 - [ ] **Reports** in Arabic, then **View** the Arabic report.
 
 ### 14. Close (2 min)

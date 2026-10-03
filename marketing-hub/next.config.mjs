@@ -12,6 +12,8 @@ const nextConfig = {
   async redirects() {
     return [
       { source: "/bench", destination: "/orchestration#trials", permanent: false },
+      // The Daily campaign check is now a section of the Reports page.
+      { source: "/daily", destination: "/reports#daily-check", permanent: false },
       // Decisions became the vendor scoring board inside the Vendors page.
       { source: "/decisions", destination: "/orchestration#scoring", permanent: false },
       // Invoices moved into the Vendors page (per vendor, and all vendors at #invoices).

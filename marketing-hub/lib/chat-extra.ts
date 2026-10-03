@@ -205,7 +205,7 @@ function dailyAnswer(c: ChatContext, ents: Entity[]) {
   return T(`**Daily campaign check — ${dt("en", d.date)}**: ${s.total} recommendations (${s.urgent} urgent, ${s.new} new today, ${s.open} still open); ${s.resolved} resolved since yesterday.\n`, `**الفحص اليومي للحملات — ${dt("ar", d.date)}**: ${s.total} توصية (${s.urgent} عاجلة، ${s.new} جديدة اليوم، ${s.open} ما زالت مفتوحة)؛ وحُلّت ${s.resolved} منذ الأمس.\n`) +
     items.slice(0, 10).map((r) => `- ${r.severity === "crit" ? T("[urgent] ", "[عاجل] ") : ""}${r.isNew ? T("[new] ", "[جديد] ") : ""}${r.title.startsWith(r.campaign) || r.campaign === "CRM feed" ? `**${r.title}**` : `**${r.campaign}** — ${r.title}`}${r.isNew ? "" : T(` (open since ${dt("en", r.since, { day: "numeric", month: "short" })})`, ` (مفتوحة منذ ${dt("ar", r.since, { day: "numeric", month: "short" })})`)}${ST[r.status] ? ` · ${ST[r.status]}` : ""}\n  → ${r.action}`).join("\n") +
     (d.resolved.length ? T(`\n\n**Resolved since yesterday**: ${d.resolved.map((r) => r.title).join("; ")}`, `\n\n**حُلّت منذ الأمس**: ${d.resolved.map((r) => r.title).join("؛ ")}`) : "") +
-    T("\n\nAccept or dismiss each item on the Daily check page; your decision carries over to the next days.", "\n\nاقبلوا أو ارفضوا كل بند من صفحة الفحص اليومي؛ ويُحتفظ بقراركم في الأيام التالية.");
+    T("\n\nAccept or dismiss each item in Reports → Daily campaign check; your decision carries over to the next days.", "\n\nاقبلوا أو ارفضوا كل بند في التقارير ← الفحص اليومي للحملات؛ ويُحتفظ بقراركم في الأيام التالية.");
 }
 
 function line(c: ChatContext, e: Entity): string {
