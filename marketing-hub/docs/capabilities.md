@@ -162,6 +162,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - **Meta questions always get a Meta chart:** if the AI draws something else, the app adds the Meta chart.
   - **Where the AI can't use tools,** it writes the query as a `chart` block in its reply and the app draws it.
   - **If no chart comes back at all,** the built-in reading of the request is drawn, so a chart request always gets a chart.
+  - **Detailed numbers:** every point and bar is labelled where it fits (switch with **Hide/Show values**), values have two decimals under 10 and full figures with commas above 1,000, axes have finer gridlines, and months read "Jan 26".
   - **Under each chart:** a hover tooltip, a type switcher (only types that suit the data), a table view, and PNG, SVG or CSV download. On phones, legends move under pies and long bar charts turn horizontal.
   - **Through the API:** `GET /api/chart` lists the datasets and fields. `POST /api/chart` takes `{ "prompt": "…" }` (the AI plans one or more charts; without a key, the built-in reading), `{ "query": {…} }` or `{ "queries": [ … ] }`, and returns the computed charts. Any system, including Kinan's agent, a BI tool or a script, can request any chart.
   - **Without an AI key,** the built-in answers still draw the common charts (revenue, spend, leads, contracts, cost to sales by vendor, project, channel, month, year or lead profile), in English and Arabic.

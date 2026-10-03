@@ -153,7 +153,8 @@ export function buildChart(req: ChartRequest, c: QueryCtx, lang: Lang): ChartSpe
   }
 
   const label = (k: string) => groupBy === "channel" ? T(FAMILY_LABEL[k]?.[0] ?? k, FAMILY_LABEL[k]?.[1] ?? k) : groupBy === "month" || groupBy === "year" || isDim ? k : nm(lang, k);
-  const round = (x: number) => (metric === "cpql" ? Math.round(x) : metric === "spend" ? Math.round(x * 10) / 10 : r1(x));
+  // Same precision as the chart engine: 2 decimals under 10, 1 under 1,000, whole numbers above.
+  const round = (x: number) => (metric === "cpql" || Math.abs(x) >= 1000 ? Math.round(x) : Math.abs(x) >= 10 ? r1(x) : Math.round(x * 100) / 100);
   const values = rows.map((x) => round(x.v));
   const scope = [req.project && nm(lang, req.project), req.channel && T(FAMILY_LABEL[req.channel]?.[0] ?? req.channel, FAMILY_LABEL[req.channel]?.[1] ?? req.channel), req.vendor && nm(lang, req.vendor)].filter(Boolean).join(", ");
   const title = T(`${META[metric].en} by ${GROUP_LABEL[groupBy][0]}${scope ? ` — ${scope}` : ""}`, `${META[metric].ar} حسب ${GROUP_LABEL[groupBy][1]}${scope ? ` — ${scope}` : ""}`);

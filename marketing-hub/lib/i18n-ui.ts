@@ -760,6 +760,8 @@ const UI9: Record<string, string> = {
 
 // Vendor directory (Orchestration)
 const UI10: Record<string, string> = {
+  "Show values": "إظهار القيم",
+  "Hide values": "إخفاء القيم",
   "Play as a presentation": "تشغيل كعرض تقديمي",
   "Voice on": "الصوت مفعّل",
   "Voice off": "الصوت متوقف",

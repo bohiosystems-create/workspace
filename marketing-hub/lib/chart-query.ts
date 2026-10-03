@@ -406,7 +406,7 @@ export function runChartQuery(qy: ChartQuery, c: QueryCtx, lang: Lang): ChartSpe
   // KPI: one number per measure, no grouping.
   const type: ChartType = qy.type && CHART_TYPES.includes(qy.type) ? qy.type : !qy.x ? "kpi" : qy.series ? (TIME_DIMS.has(qy.x) ? "line" : "stacked") : TIME_DIMS.has(qy.x) ? "line" : parsed.length > 1 ? "grouped" : "bar";
   const label = (dim: string | undefined, k: string) => !dim ? k : dim === "channel" ? T(FAMILY_LABEL[k]?.[0] ?? k, FAMILY_LABEL[k]?.[1] ?? k) : NAME_DIMS.has(dim) ? nm(lang, k) : k;
-  const round = (v: number | null) => (v === null || !Number.isFinite(v) ? null : Math.abs(v) >= 1000 ? Math.round(v) : Math.round(v * 10) / 10);
+  const round = (v: number | null) => (v === null || !Number.isFinite(v) ? null : Math.abs(v) >= 1000 ? Math.round(v) : Math.abs(v) >= 10 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100);
   const title = qy.title || (ds.name === "meta" ? T("Meta ads — ", "إعلانات ميتا — ") : "") + defaultTitle(qy, parsed.map((p) => p.label), lang);
   const notes: string[] = [];
   if (ds.name === "meta" && parsed.some((p) => /revenue|contracts/.test(p.expr))) notes.push(T("Meta revenue = the linked campaign's CRM-verified sales × Meta's share of that campaign's spend, per month; Meta campaigns without a campaign code (in-house, unknown agency) have none.", "إيرادات ميتا = مبيعات الحملة المرتبطة المتحقَّق منها في النظام × حصة ميتا من إنفاق تلك الحملة، شهرياً؛ حملات ميتا دون رمز حملة (داخلية أو وكالة غير معروفة) لا إيرادات لها."));

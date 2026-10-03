@@ -16,14 +16,25 @@ const FONT = "system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif
 type Series = { name: string; values: (number | null)[] };
 type Tip = { x: number; y: number; title: string; rows: { color: string; name: string; value: string }[] } | null;
 
+// Full precision where it matters: two decimals under 10, one under 1,000, whole numbers with commas above, and
+// only millions abbreviated.
 const fmtNum = (v: number) => {
   const a = Math.abs(v);
-  return a >= 10000 ? `${(v / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })}K` : v.toLocaleString("en-US", { maximumFractionDigits: a >= 100 ? 0 : 1 });
+  if (a >= 1e6) return `${(v / 1e6).toLocaleString("en-US", { maximumFractionDigits: 2 })}M`;
+  return v.toLocaleString("en-US", { maximumFractionDigits: a >= 1000 ? 0 : a >= 10 ? 1 : 2 });
+};
+/** Month and quarter keys as short, readable labels: 2026-01 → Jan 26, 2026-Q1 → Q1 26. */
+const AR_MON = ["ينا", "فبر", "مار", "أبر", "ماي", "يون", "يول", "أغس", "سبت", "أكت", "نوف", "ديس"];
+const EN_MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const nice = (l: string, lang: string) => {
+  const m = l.match(/^(\d{4})-(\d{2})$/); if (m) return `${(lang === "ar" ? AR_MON : EN_MON)[Number(m[2]) - 1]} ${m[1].slice(2)}`;
+  const q = l.match(/^(\d{4})-Q(\d)$/); if (q) return `Q${q[2]} ${q[1].slice(2)}`;
+  return l;
 };
 const fmt = (v: number | null | undefined, unit: string) => (v === null || v === undefined ? "—" : `${fmtNum(v)}${unit === "%" ? "%" : unit === "×" ? "×" : ""}`);
 const short = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 /** Clean axis ticks (0, 50, 100 …) covering [lo, hi]. */
-function ticks(lo: number, hi: number, n = 4) {
+function ticks(lo: number, hi: number, n = 6) {
   if (hi === lo) hi = lo + 1;
   const raw = (hi - lo) / n, mag = 10 ** Math.floor(Math.log10(raw)), step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw)!;
   const a = Math.floor(lo / step) * step, b = Math.ceil(hi / step) * step, out: number[] = [];
@@ -97,6 +108,7 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
     setTip({ x: p.x, y: p.y, title, rows });
   };
   const hide = () => setTip(null);
+  const tipTitle = (l: string) => nice(l, spec.lang);
   const rowsAt = (i: number) => series.map((s, si) => ({ color: SERIES[si % 8], name: s.name, value: fmt(s.values[i], unit) }));
   const hit = (title: string, rows: NonNullable<Tip>["rows"]) => ({
     onPointerMove: (e: React.PointerEvent) => show(e, title, rows), onPointerLeave: hide, onFocus: (e: React.FocusEvent) => show(e, title, rows), onBlur: hide, tabIndex: 0, style: { cursor: "default", outline: "none" } as React.CSSProperties,
@@ -165,12 +177,13 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
               });
           const v = series[0].values[i];
           return (
-            <g key={i} {...hit(l, rowsAt(i))}>
+            <g key={i} {...hit(tipTitle(l), rowsAt(i))}>
               <rect x={left + slot * i} y={top} width={slot} height={plotH} fill="transparent" />
               {marks}
-              {mode === "single" && v !== null && n <= 16 && <text x={cx} y={v >= 0 ? Y(v) - 5 : Y(v) + 13} fontSize="10" textAnchor="middle" fontWeight="600" fill={INK}>{fmt(v, unit)}</text>}
+              {mode === "grouped" && (showValues ?? (series.length * n <= 16)) && series.map((s, si) => { const vv = s.values[i]; if (vv === null) return null; const x = cx - (k * bw + (k - 1) * 2) / 2 + si * (bw + 2) + bw / 2; return <text key={`g${si}`} x={x} y={vv >= 0 ? Y(vv) - 4 : Y(vv) + 11} fontSize="8.5" textAnchor="middle" fill={INK}>{fmt(vv, unit)}</text>; })}
+              {mode === "single" && v !== null && (showValues ?? n <= 16) && <text x={cx} y={v >= 0 ? Y(v) - 5 : Y(v) + 13} fontSize="10" textAnchor="middle" fontWeight="600" fill={INK}>{fmt(v, unit)}</text>}
               {mode === "stacked" && n <= 12 && unit !== "%" && <text x={cx} y={Y(stackTop[i]) - 5} fontSize="10" textAnchor="middle" fontWeight="600" fill={INK}>{fmt(stackTop[i], unit)}</text>}
-              <text transform={`translate(${cx}, ${top + plotH + 14}) rotate(${rot ? 35 : 0})`} fontSize="10" textAnchor={rot ? "start" : "middle"} fill={INK2}>{short(l, rot ? 18 : 16)}</text>
+              <text transform={`translate(${cx}, ${top + plotH + 14}) rotate(${rot ? 35 : 0})`} fontSize="10" textAnchor={rot ? "start" : "middle"} fill={INK2}>{short(nice(l, spec.lang), rot ? 18 : 16)}</text>
             </g>
           );
         })}
@@ -201,7 +214,7 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
               });
           const end = mode === "stacked" ? (unit === "%" ? null : stackTot[i]) : mode === "single" ? series[0].values[i] : null;
           return (
-            <g key={i} {...hit(l, rowsAt(i))}>
+            <g key={i} {...hit(tipTitle(l), rowsAt(i))}>
               <rect x={0} y={y - 4} width={W} height={rowH} fill="transparent" />
               <text x={labW} y={y + rowH / 2 - 0.5} fontSize="11" textAnchor="end" fill={INK}>{short(l, narrow ? 16 : 24)}</text>
               {marks}
@@ -215,21 +228,22 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
 
   // ---- Line / area (with a crosshair that snaps to the nearest x) -------------------------------------------------
   const lines = (area: boolean) => {
-    const H = 270, top = 22, left = 50, right = narrow ? 34 : 56, bottom = 34, plotH = H - top - bottom, n = labels.length;
+    const n = labels.length, every = Math.max(1, Math.ceil(n / (narrow ? 8 : 14))), rot = narrow && n > 6;
+    const H = 290, top = 26, left = 50, right = narrow ? 34 : 56, bottom = rot ? 50 : 34, plotH = H - top - bottom;
+    const valuesOn = showValues ?? ((series.length === 1 && n <= 24) || (series.length <= 3 && n <= 10));
     const all = series.flatMap((s) => s.values.filter((v): v is number => v !== null));
     const mn = Math.min(...all), mx = Math.max(...all);
     const tk = ticks(mn < 0 ? mn : area || mn < mx * 0.5 ? 0 : mn * 0.95, mx);
     const lo = tk[0], hi = tk[tk.length - 1], step = n > 1 ? (W - left - right) / (n - 1) : 0;
     const X = (i: number) => left + step * i, Y = (v: number) => top + plotH * (1 - (v - lo) / (hi - lo));
-    const every = Math.ceil(n / (narrow ? 5 : 9));
     const ends = series.map((s) => { const i = s.values.map((v, k) => (v === null ? -1 : k)).filter((k) => k >= 0).pop(); return i === undefined ? null : Y(s.values[i]!); }).filter((y): y is number => y !== null).sort((a, b) => a - b);
     const endLabels = series.length <= 4 && ends.every((y, k) => k === 0 || y - ends[k - 1] >= 12);
     return (
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ fontFamily: FONT, display: "block" }} role="img" aria-label={spec.title}
-        onPointerMove={(e) => { const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect(); const vx = ((e.clientX - r.left) / r.width) * W; const i = Math.max(0, Math.min(n - 1, Math.round((vx - left) / (step || 1)))); show(e, labels[i], rowsAt(i)); setCross(i); }}
+        onPointerMove={(e) => { const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect(); const vx = ((e.clientX - r.left) / r.width) * W; const i = Math.max(0, Math.min(n - 1, Math.round((vx - left) / (step || 1)))); show(e, tipTitle(labels[i]), rowsAt(i)); setCross(i); }}
         onPointerLeave={() => { hide(); setCross(null); }}>
         {tk.map((v) => <g key={v}><line x1={left} x2={W - right} y1={Y(v)} y2={Y(v)} stroke={v === 0 ? AXIS : GRID} /><text x={left - 6} y={Y(v) + 3.5} fontSize="10" textAnchor="end" fill={MUTED}>{fmt(v, unit)}</text></g>)}
-        {labels.map((l, i) => (i % every === 0 || i === n - 1) && <text key={i} x={X(i)} y={H - bottom + 16} fontSize="10" textAnchor="middle" fill={INK2}>{l}</text>)}
+        {labels.map((l, i) => (i % every === 0 || i === n - 1) && <text key={i} transform={`translate(${X(i)}, ${H - bottom + 14}) rotate(${rot ? 40 : 0})`} fontSize="10" textAnchor={rot ? "start" : "middle"} fill={INK2}>{nice(l, spec.lang)}</text>)}
         {cross !== null && <line x1={X(cross)} x2={X(cross)} y1={top} y2={top + plotH} stroke={AXIS} />}
         {series.map((s, si) => {
           const pts = s.values.map((v, i) => (v === null ? null : [X(i), Y(v)] as const));
@@ -243,7 +257,16 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
               {segs.map((d, j) => <path key={j} d={d} fill="none" stroke={SERIES[si % 8]} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />)}
               {cross !== null && s.values[cross] !== null && <circle cx={X(cross)} cy={Y(s.values[cross]!)} r="4" fill={SERIES[si % 8]} stroke={SURFACE} strokeWidth="2" />}
               {firstI >= 0 && <circle cx={X(lastI)} cy={Y(s.values[lastI]!)} r="4" fill={SERIES[si % 8]} stroke={SURFACE} strokeWidth="2" />}
-              {endLabels && firstI >= 0 && <text x={X(lastI) + 7} y={Y(s.values[lastI]!) + 3.5} fontSize="10" fontWeight="600" fill={INK}>{fmt(s.values[lastI], unit)}</text>}
+              {n <= 36 && s.values.map((v, i) => v === null || i === lastI ? null : <circle key={`p${i}`} cx={X(i)} cy={Y(v)} r="3" fill={SERIES[si % 8]} stroke={SURFACE} strokeWidth="1.5" />)}
+              {valuesOn && s.values.map((v, i) => {
+                if (v === null) return null;
+                // Above the point; below it if another series' label at this x would collide.
+                const others = series.filter((o, oi) => oi < si && o.values[i] !== null).map((o) => Y(o.values[i]!));
+                const y = Y(v), up = !others.some((oy) => Math.abs(oy - y) < 14 && oy <= y), dy = up ? -8 : 15;
+                if (!up && others.some((oy) => Math.abs(oy - (y + 15)) < 12)) return null;
+                return <text key={`v${i}`} x={X(i)} y={Math.max(10, y + dy)} fontSize="9.5" textAnchor="middle" fontWeight="600" fill={INK} stroke={SURFACE} strokeWidth="3" paintOrder="stroke">{fmt(v, unit)}</text>;
+              })}
+              {endLabels && !valuesOn && firstI >= 0 && <text x={X(lastI) + 7} y={Y(s.values[lastI]!) + 3.5} fontSize="10" fontWeight="600" fill={INK}>{fmt(s.values[lastI], unit)}</text>}
             </g>
           );
         })}
@@ -251,6 +274,8 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
     );
   };
   const [cross, setCross] = useState<number | null>(null);
+  // Value labels on every point/bar: on by default where they fit, switchable with the "Values" chip.
+  const [showValues, setShowValues] = useState<boolean | null>(null);
 
   // ---- Scatter ----------------------------------------------------------------------------------------------------
   const scatter = () => {
@@ -297,7 +322,7 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
   );
   const tableRows = spec.type === "scatter"
     ? { head: ["", spec.xLabel ?? "x", spec.yLabel ?? "y"], body: (spec.points ?? []).map((p) => [p.label, fmt(p.x, spec.xUnit ?? ""), fmt(p.y, unit)]) }
-    : { head: ["", ...series.map((s) => s.name)], body: labels.map((l, i) => [l, ...series.map((s) => fmt(s.values[i], spec.units?.[i] && spec.type === "kpi" ? spec.units[i] : unit))]) };
+    : { head: ["", ...series.map((s) => s.name)], body: labels.map((l, i) => [nice(l, spec.lang), ...series.map((s) => fmt(s.values[i], spec.units?.[i] && spec.type === "kpi" ? spec.units[i] : unit))]) };
   const tableView = () => (
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, fontVariantNumeric: "tabular-nums" }}>
@@ -351,7 +376,7 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
     <div className="panel chart-card" style={{ padding: 14, background: SURFACE, position: "relative" }} dir="ltr">
       <div style={{ fontSize: 12.5, fontWeight: 600, color: INK }} dir="auto">{spec.title}</div>
       <div style={{ fontSize: 10, color: INK2, marginBottom: 8 }} dir="auto">
-        {[spec.subtitle, spec.period, unit && spec.type !== "kpi" && !["%", "×", "index", "rank"].includes(unit) ? unit : "", spec.total !== null ? `${t("total")} ${fmt(spec.total, unit)}` : ""].filter(Boolean).join(" · ")}
+        {[spec.subtitle, String(spec.period ?? "").replace(/\b(\d{4}-\d{2}|\d{4}-Q\d)\b/g, (m) => nice(m, spec.lang)), unit && spec.type !== "kpi" && !["%", "×", "index", "rank"].includes(unit) ? unit : "", spec.total !== null ? `${t("total")} ${fmt(spec.total, unit)}` : ""].filter(Boolean).join(" · ")}
       </div>
       {!table && view !== "pie" && view !== "donut" && view !== "kpi" && view !== "scatter" && <Legend series={series} kind={view === "line" || view === "area" ? "line" : "rect"} />}
       <div ref={box} style={{ position: "relative" }} onPointerLeave={hide}>
@@ -372,6 +397,7 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
       {spec.note && <div style={{ fontSize: 9.5, color: MUTED, marginTop: 6 }} dir="auto">{spec.note}</div>}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
         {options.length > 1 && options.map((x) => <button key={x} className="chip" style={{ fontSize: 10, ...(x === view && !table ? { borderColor: "var(--ink)", color: "var(--ink)", fontWeight: 700 } : {}) }} onClick={() => { setType(x); setTable(false); }}>{LABEL[x]}</button>)}
+        {!table && view !== "kpi" && view !== "pie" && view !== "donut" && view !== "scatter" && <button className="chip" style={{ fontSize: 10 }} aria-pressed={showValues !== false} onClick={() => setShowValues(showValues === false ? true : false)}>{showValues === false ? t("Show values") : t("Hide values")}</button>}
         <button className="chip" style={{ fontSize: 10, ...(table ? { borderColor: "var(--ink)", color: "var(--ink)", fontWeight: 700 } : {}) }} onClick={() => setTable(!table)}>{t("Table")}</button>
         <div style={{ flex: 1 }} />
         {!table && view !== "kpi" && <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 8 }} onClick={() => download("png")}>{t("Download PNG")}</button>}

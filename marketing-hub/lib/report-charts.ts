@@ -11,7 +11,7 @@ import { type Lang, tx } from "./i18n";
 const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
 const INK = "#000919", SOFT = "#5b6170", TRACK = "#e8e7e3", GOOD = "#1f7a4d", ALERT = "#d6334b";
 const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const fmt = (v: number | null | undefined, unit: string) => (v === null || v === undefined ? "—" : `${v.toLocaleString("en-US", { maximumFractionDigits: Math.abs(v) >= 100 ? 0 : 1 })}${unit === "%" ? "%" : ""}`);
+const fmt = (v: number | null | undefined, unit: string) => (v === null || v === undefined ? "—" : `${v.toLocaleString("en-US", { maximumFractionDigits: Math.abs(v) >= 1000 ? 0 : Math.abs(v) >= 10 ? 1 : 2 })}${unit === "%" ? "%" : ""}`);
 const T0 = `role="presentation" cellpadding="0" cellspacing="0" border="0"`;
 
 /** A filled bar of `pct` (0–100) on a light track — a table, so Outlook draws it. */
