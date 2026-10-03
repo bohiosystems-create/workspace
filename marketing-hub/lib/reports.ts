@@ -44,6 +44,7 @@ const MOTION = `<style>
   }
 }
 .k-sec li::marker { color: ${KINAN.orange}; }
+${RICH_CSS}
 @keyframes kUp { from { opacity: 0; transform: translateY(18px); } }
 @keyframes kFade { from { opacity: 0; } }
 @keyframes kCard { from { opacity: 0; transform: translateY(26px) scale(.985); } }
@@ -58,7 +59,8 @@ function kinanDoc(lang: Lang, kicker: string, title: string, sub: string, sec: [
   const caps = lang === "ar" ? "" : "text-transform:uppercase;";
   const ls = (x: string) => (lang === "ar" ? "0" : x);
   const shown = title.startsWith(kicker) ? title.slice(kicker.length).replace(/^\s*[—–-]\s*/, "") : title;
-  const tex = KINAN.texture ? `background-image:url('${KINAN.texture}');background-size:cover;background-position:center;` : "";
+  // The faceted texture only behind the header area, fading to white so long reports stay easy to read.
+  const tex = KINAN.texture ? `background-image:linear-gradient(to bottom,rgba(255,255,255,.35) 0,#fff 460px),url('${KINAN.texture}');background-size:100% auto,100% auto;background-repeat:no-repeat,no-repeat;background-position:top center,top center;` : "";
   // The logo in e-mail: an <img> with the SVG as a data URI (inline SVG is stripped by most mail clients; Gmail also
   // drops data URIs and shows the alt text — the HTML download, the app and the PDF show it).
   const logoImg = (h: number, white: boolean) => (kinanLogoSrc && !white ? `<img src="${kinanLogoSrc}" alt="Kinan" height="${h}" style="display:block;height:${h}px;width:auto;border:0">` : kinanLogoHtml(h, white ? "#fff" : KINAN.ink));
@@ -71,7 +73,7 @@ function kinanDoc(lang: Lang, kicker: string, title: string, sub: string, sec: [
 <td style="padding:22px 8px;color:${KINAN.greyText};font-size:9px;letter-spacing:${ls(".3em")};${caps}text-align:end">${esc(lang === "ar" ? "مساعد مدير التسويق الذكي" : "AI Assistant Director of Marketing")}</td>
 <td style="padding:22px 26px 22px 6px;width:1%;text-align:end"><span class="k-head-chev">${chevron(dir, 38)}</span></td></tr></table>
 <div style="padding:4px 26px 26px">
-<div class="k-card" style="background:${KINAN.orange};background-image:${KINAN.texture ? `url('${KINAN.texture}'),` : ""}linear-gradient(118deg,#f5602a,${KINAN.orange} 55%,#e04f22);background-size:cover;background-blend-mode:multiply;color:#fff;padding:44px 28px 40px;text-align:center">
+<div class="k-card" style="background:${KINAN.orange};background-image:linear-gradient(118deg,rgba(245,96,42,.93),rgba(241,90,34,.9) 55%,rgba(224,79,34,.94))${KINAN.texture ? `,url('${KINAN.texture}')` : ""};background-size:cover;color:#fff;padding:44px 28px 40px;text-align:center">
 <div style="font-size:11px;letter-spacing:${ls(".3em")};${caps}font-weight:700;opacity:.92">${esc(kicker)}</div>
 <h1 style="font-family:${ff};font-weight:600;${caps}letter-spacing:${ls(".03em")};font-size:30px;line-height:1.2;margin:14px 0 10px;color:#fff">${esc(shown)}</h1>
 <div class="k-sub" style="font-size:13px;opacity:.9">${esc(sub)}</div>
@@ -95,6 +97,7 @@ import { single, serial } from "./single";
 import { buildAgent } from "./agent";
 import { historyState } from "./history";
 import { reportCharts, kpiTiles, metaRevenueChart, customReportChart } from "./report-charts";
+import { richChart, dualChart, RICH_CSS } from "./report-svg";
 import { getLayout, mentions, sectionName, type Layout, type SectionId } from "./report-layout";
 import { buildChatContext } from "./chat";
 import { dailyIdeas } from "./ideation";
@@ -239,14 +242,22 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   // Charts (e-mail-safe HTML, numbers from the chart engine).
   const charts = reportCharts({ agent: a, history: await historyState(lang), daily: null as any, lang, meta: null, leads: [], creatives: [] }, lang,
     { byAsset: byAsset.map((x) => ({ asset: N(x.asset), actualM: x.actualM, targetM: x.targetM, pct: x.pct })), ytdActualM: d.targets.ytdActualM, ytdTargetM: d.targets.ytdTargetM, ytdPct: d.targets.ytdPct });
+  // Extra context for the animated charts: monthly targets under the sales columns, each project's next-month outlook.
+  const enrich = (xs: DeckSlide[]): DeckSlide[] => xs.map((x) => {
+    if (x.kind === "columns" && x.values.length === d.targets.monthly.length) return { ...x, target: d.targets.monthly.map((m) => m.targetM) };
+    if (x.kind === "gauges") return { ...x, items: x.items.map((it, i) => { const p = byAsset[i]; return p ? { ...it, outlook: { label: T("June forecast vs target", "توقع يونيو مقابل المستهدف"), forecast: p.forecastNextM, target: p.targetNextM } } : it; }) };
+    return x;
+  });
   const chartBox = (h: string) => `<div data-part style="margin:0 0 16px">${h}</div>`;
+  // Each chart twice: e-mail-safe tables, and the presentation-quality version the app shows (lib/report-svg.ts).
+  const both = (c: { html: string; slide?: DeckSlide }) => dualChart(c.html, richChart(c.slide ? enrich([c.slide])[0] : undefined, lang));
   // 2. Sales vs target
   at("sales");
   const rows = byAsset.map((x) => [N(x.asset), M(lang, x.actualM), M(lang, x.targetM), `${x.pct}%`, `${M(lang, x.forecastNextM)} / ${M(lang, x.targetNextM)}`, (x.pct ?? 0) < 75]);
   const th = (h: string[]) => `<tr>${h.map((x) => `<th style="text-align:start;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:${C.ink};padding:6px 8px">${esc(x)}</th>`).join("")}</tr>`;
   const salesChart = charts.find((c) => c.title === T("Sales vs target by project", "المبيعات مقابل المستهدف حسب المشروع"));
   sec.push([T("Sales vs target", "المبيعات مقابل المستهدف"),
-    salesChart ? `${salesChart.html}<p style="margin:10px 0 0;font-size:12px">${esc(T("June forecast / target:", "توقع يونيو / المستهدف:"))} ${rows.map((r) => `${esc(r[0])} <b>${esc(r[4])}</b>`).join(" · ")}</p>`
+    salesChart ? dualChart(`${salesChart.html}<p style="margin:10px 0 0;font-size:12px">${esc(T("June forecast / target:", "توقع يونيو / المستهدف:"))} ${rows.map((r) => `${esc(r[0])} <b>${esc(r[4])}</b>`).join(" · ")}</p>`, richChart(salesChart.slide ? enrich([salesChart.slide])[0] : undefined, lang))
       : `<table style="border-collapse:collapse;width:100%;font-size:13px">${th([T("Project", "المشروع"), T("Year to date", "منذ بداية العام"), T("Target", "المستهدف"), "%", T("June forecast / target", "توقع يونيو / المستهدف")])}${rows.map((r) => `<tr>${r.slice(0, 5).map((c, i) => `<td style="padding:6px 8px;border-bottom:1px solid ${C.line};${i === 3 && r[5] ? `color:${C.alert};font-weight:700` : ""}">${esc(c)}</td>`).join("")}</tr>`).join("")}</table>`,
     rows.map((r) => `  • ${r[0]}: ${r[1]} / ${r[2]} (${r[3]}); ${T("June", "يونيو")} ${r[4]}`).join("\n")]);
   // 2b. At a glance — charts.
@@ -257,7 +268,7 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
     return lay.charts.map((c) => { const r = c.query ? runChartQuery(c.query as any, qc, lang) : chartFromText(c.prompt, qc, lang); return "error" in r ? null : customReportChart(r, lang); }).filter((x): x is NonNullable<typeof x> => !!x);
   })().catch(() => []) : [];
   const glance = [...charts.filter((c) => c !== salesChart && !lay.hiddenCharts.includes(c.id as any)), ...added];
-  if (glance.length) sec.push([T("At a glance", "نظرة سريعة"), glance.map((c) => chartBox(c.html)).join(""), glance.map((c) => `${c.title}\n${c.text}`).join("\n")]);
+  if (glance.length) sec.push([T("At a glance", "نظرة سريعة"), glance.map((c) => chartBox(both(c))).join(""), glance.map((c) => `${c.title}\n${c.text}`).join("\n")]);
   // 3. Since last report
   at("since");
   const prevLabel = prev ? (prev.date === date ? dtm(lang, prev.at) : dt(lang, prev.date)) : "";
@@ -305,12 +316,6 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
 
   // The presentation (▶ Play): one idea per slide, animated charts.
   const urgentN = d.campaignRecs.filter((r) => r.severity === "crit").length;
-  // Extra context for the animated charts: monthly targets under the sales columns, each project's next-month outlook.
-  const enrich = (xs: DeckSlide[]): DeckSlide[] => xs.map((x) => {
-    if (x.kind === "columns" && x.values.length === d.targets.monthly.length) return { ...x, target: d.targets.monthly.map((m) => m.targetM) };
-    if (x.kind === "gauges") return { ...x, items: x.items.map((it, i) => { const p = d.targets.byAsset[i]; return p ? { ...it, outlook: { label: T("June forecast vs target", "توقع يونيو مقابل المستهدف"), forecast: p.forecastNextM, target: p.targetNextM } } : it; }) };
-    return x;
-  });
   const tag = (id: SectionId, xs: DeckSlide[]) => xs.map((slide) => ({ id, slide }));
   const divider = (title: string, sub: string, say: string): DeckSlide => ({ kind: "divider", kicker: sub, title, sub, say });
   const parts: { id: SectionId; slide: DeckSlide }[] = [
@@ -454,7 +459,7 @@ export async function buildSnapshot(lang: Lang, at: Date, prev: { metrics: Metri
   const title = T(`Live marketing snapshot — ${stamp}`, `لقطة تسويقية فورية — ${stamp}`);
   const sec: [string, string, string][] = [
     [T("Headline figures", "الأرقام الرئيسية"), tiles, ""],
-    [T("Charts", "الرسوم البيانية"), allCharts.map((x) => `<div data-part style="margin:0 0 18px">${x.html}</div>`).join(""), allCharts.map((x) => `${x.title}\n${x.text}`).join("\n")],
+    [T("Charts", "الرسوم البيانية"), allCharts.map((x) => `<div data-part style="margin:0 0 18px">${dualChart(x.html, richChart(x.slide, lang))}</div>`).join(""), allCharts.map((x) => `${x.title}\n${x.text}`).join("\n")],
     [T(`Today's campaign check — ${items.length ? `${(c.daily as any).recommendations.length} items` : "clear"}`, `فحص الحملات اليوم — ${items.length ? `${(c.daily as any).recommendations.length} ملاحظات` : "لا ملاحظات"}`), checkHtml, items.map((r: any) => `  • ${r.title}`).join("\n")],
     [T(`Waiting for your decision — about ${d.managerMinutes} min`, `بانتظار قراركم — نحو ${d.managerMinutes} دقيقة`), dec.length ? `<ul style="margin:6px 0 0;padding-inline-start:18px;line-height:1.6">${dec.map((x) => `<li>${x}</li>`).join("")}</ul>` : `<p style="margin:0">${esc(T("Nothing waiting.", "لا شيء بالانتظار."))}</p>`, d.inbox.map((x) => `  • ${x.title}`).join("\n")],
   ];

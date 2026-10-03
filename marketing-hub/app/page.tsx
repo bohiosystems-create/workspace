@@ -99,7 +99,7 @@ export default function DirectorPage() {
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
               <button className="btn" onClick={openChat}>{t("Ask the director")}</button>
-              <button className="btn ghost" disabled={busy === "brief"} onClick={() => act({ action: "SEND_BRIEF" }, "brief")}>{t("Send brief to Kinan's agent")}</button>
+              <button className="btn ghost" disabled={busy === "brief"} onClick={() => act({ action: "SEND_BRIEF" }, "brief")}>{t("Send brief to Kinan's sales agent")}</button>
               <a className="btn ghost" style={{ textDecoration: "none" }} href="/reports">{t("Daily report")}</a>
             </div>
           </div>
@@ -170,7 +170,7 @@ export default function DirectorPage() {
 
           <div className="panel" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <div className="field" style={{ width: 220 }}><label>{t("Approving as")}</label><input className="in" placeholder={t("Your name")} value={approver} onChange={(e) => { setApprover(e.target.value); saveApprover(e.target.value); }} /></div>
-            <div className="muted" style={{ flex: 1, minWidth: 220 }}>{t("Approvals below are recorded with this name and sent to Kinan with it.")}</div>
+            <div className="muted" style={{ flex: 1, minWidth: 220 }}>{t("Approvals below are recorded with this name and shared with Kinan's sales agent (the AI that handles leads and sales in Yardi).")}</div>
           </div>
 
           <div id="plan" className="panel" style={{ marginTop: 18 }}>
@@ -179,7 +179,7 @@ export default function DirectorPage() {
               <span className={`pill ${data.plan.status === "APPROVED" ? "healthy" : "fix"}`}>{t(data.plan.status)}</span>
               {data.plan.approvedBy && <span className="muted">{t("approved by")} {data.plan.approvedBy}</span>}
               <div style={{ flex: 1 }} />
-              {data.plan.status === "PROPOSED" && <button className="btn" disabled={!approver.trim() || busy === "plan"} title={!approver.trim() ? t("Enter your name") : ""} onClick={() => act({ action: "APPROVE_PLAN" }, "plan")}>{t("Approve plan and send to Kinan")}</button>}
+              {data.plan.status === "PROPOSED" && <button className="btn" disabled={!approver.trim() || busy === "plan"} title={!approver.trim() ? t("Enter your name") : ""} onClick={() => act({ action: "APPROVE_PLAN" }, "plan")}>{t("Approve plan and share with Kinan's sales agent")}</button>}
             </div>
             <div style={{ overflowX: "auto" }}>
               <table className="dtable">
@@ -212,7 +212,7 @@ export default function DirectorPage() {
           <div className="row twocol" style={{ marginTop: 18 }}>
             <div className="panel">
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-                <div className="chart-label" style={{ margin: 0 }}>{t("Feed to Kinan (Yardi + AI agent)")}</div>
+                <div className="chart-label" style={{ margin: 0 }}>{t("Shared with Kinan's sales agent (Yardi)")}</div>
                 <span className="tag" dir="ltr">agent · {data.kinan.mode}</span><span className="tag" dir="ltr">yardi · {data.kinan.yardi}</span>
                 <div style={{ flex: 1 }} />
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "retry"} onClick={() => act({ action: "RETRY" }, "retry")}>{t("Retry failed")}</button>
@@ -228,7 +228,7 @@ export default function DirectorPage() {
                   </div>
                 </div>
               ))}
-              {data.kinan.mode === "mock" && <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Simulated: events are recorded but not sent. Set KINAN_MODE=webhook to deliver to Kinan's agent (see docs/kinan-integration.md).")}</div>}
+              {data.kinan.mode === "mock" && <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Simulated: events are recorded but not sent. Set KINAN_MODE=webhook to deliver to Kinan's sales agent (see docs/kinan-integration.md).")}</div>}
             </div>
 
             <div className="panel">

@@ -1,7 +1,8 @@
 "use client";
 // "The agent is working" indicator for long jobs (building a report, a snapshot, a PDF): a spinner, a running timer,
-// the steps the job goes through, and how long the same job took last time — so a slow run never looks stuck.
-// The job runs in one request, so the highlighted step is paced from the typical duration, not reported by the server;
+// the steps the job goes through, and — once it has been measured on this device — how long the same job took last
+// time, so a slow run never looks stuck. No duration is ever guessed: before the first measured run the bar is an
+// indeterminate sweep. The job runs in one request, so the highlighted step is paced, not reported by the server;
 // the list completes when the job does.
 import { useEffect, useState } from "react";
 import { useI18n } from "./lang";
@@ -30,11 +31,11 @@ export function WorkingPanel({ job, since, title, steps, typicalMs = 20000 }: { 
   const { t } = useI18n();
   const s = useElapsed(since);
   const [last] = useState(() => readLast(job));
-  const expected = (last ?? typicalMs) / 1000;
-  // Ease towards the end without ever claiming to be done: 95% at the expected time, creeping on after it.
-  const frac = Math.min(0.97, s <= expected ? (s / expected) * 0.9 : 0.9 + 0.07 * (1 - Math.exp(-(s - expected) / Math.max(5, expected))));
+  const expected = (last ?? typicalMs) / 1000; // only paces the step list; never shown as a promise
+  // With a measured duration the bar eases towards the end without ever claiming to be done; without one it sweeps.
+  const frac = last ? Math.min(0.97, s <= expected ? (s / expected) * 0.9 : 0.9 + 0.07 * (1 - Math.exp(-(s - expected) / Math.max(5, expected)))) : null;
   const active = Math.min(steps.length - 1, Math.floor((s / expected) * steps.length));
-  const slow = s > expected * 1.6 + 5;
+  const slow = !!last && s > expected * 1.6 + 5;
   return (
     <div className="panel working" role="status" aria-live="polite" style={{ marginTop: 18 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -42,13 +43,13 @@ export function WorkingPanel({ job, since, title, steps, typicalMs = 20000 }: { 
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontWeight: 600, fontSize: 15 }}>{title}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-            {last ? `${t("Last time it took")} ${clock(last / 1000)}` : `${t("Usually takes")} ~${clock(typicalMs / 1000)}`}
-            {slow ? ` · ${t("Taking longer than usual — still working.")}` : ""}
+            {last ? `${t("Last time it took")} ${clock(last / 1000)}` : t("Working through every source — this can take a few minutes.")}
+            {slow ? ` · ${t("Taking longer than last time — still working.")}` : ""}
           </div>
         </div>
         <div dir="ltr" className="wk-clock">{clock(s)}</div>
       </div>
-      <div className="wk-track"><div className="wk-fill" style={{ width: `${frac * 100}%` }} /></div>
+      <div className="wk-track">{frac != null ? <div className="wk-fill" style={{ width: `${frac * 100}%` }} /> : <div className="wk-fill wk-indet" />}</div>
       <ol className="wk-steps">
         {steps.map((x, i) => (
           <li key={i} className={i < active ? "done" : i === active ? "on" : ""}>

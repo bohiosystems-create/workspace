@@ -346,7 +346,7 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     const s = r.schedule, last = r.reports[0];
     const days = s.days.map((i) => T(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][i], ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][i])).join(T(", ", "، "));
     return done(
-      T(`**Daily report** — ${s.enabled ? `on, ${s.time} (${s.timezone}), ${days}` : "paused"}; to ${s.recipients || "nobody yet"}${s.toKinan ? ", with a copy of the brief to Kinan's agent" : ""}.\n`,
+      T(`**Daily report** — ${s.enabled ? `on, ${s.time} (${s.timezone}), ${days}` : "paused"}; to ${s.recipients || "nobody yet"}${s.toKinan ? ", with a copy of the brief to Kinan's sales agent" : ""}.\n`,
         `**التقرير اليومي** — ${s.enabled ? `مفعّل، الساعة ${s.time} (${s.timezone})، ${days}` : "متوقف"}؛ إلى ${s.recipients || "لا أحد بعد"}${s.toKinan ? "، مع نسخة من الموجز إلى وكيل كنان" : ""}.\n`) +
       (r.next ? T(`Next: ${dt("en", r.next.date)} at ${r.next.time}.\n`, `التالي: ${dt("ar", r.next.date)} الساعة ${r.next.time}.\n`) : "") +
       (last ? T(`Last: ${last.title} — ${last.status.toLowerCase()}${last.delivery === "mock" ? " (simulated)" : ""}.\n`, `الأخير: ${last.title} — ${({ SENT: "أُرسل", GENERATED: "أُعدّ", FAILED: "فشل" } as Record<string, string>)[last.status] ?? last.status}${last.delivery === "mock" ? " (تجريبي)" : ""}.\n`) : T("No report yet.\n", "لا تقارير بعد.\n")) +
@@ -380,9 +380,9 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   }
   if (RX.kinan.test(q)) {
     const out = await kinanOutbox(8, lang);
-    return done(T(`**Feed to Kinan** (agent: ${kinanMode()})\n`, `**التغذية إلى كنان** (الوكيل: ${kinanMode()})\n`) +
+    return done(T(`**Shared with Kinan's sales agent** (connection: ${kinanMode()})\n`, `**التغذية إلى كنان** (الوكيل: ${kinanMode()})\n`) +
       (out.map((e) => `- ${e.type} → ${e.target === "YARDI" ? "Yardi" : T("AI agent", "الوكيل الذكي")}: ${e.status}${e.summary ? ` (${e.summary})` : ""}`).join("\n") || T("- nothing sent yet", "- لم يُرسل شيء بعد")) +
-      T("\n\nLeads, follow-ups and sales stay with Kinan's agent; I share the plan, campaign codes, campaign changes and the daily brief.", "\n\nالعملاء المحتملون والمتابعة والمبيعات من اختصاص وكيل كنان؛ وأشارك الخطة ورموز الحملات وتغييراتها والموجز اليومي."));
+      T("\n\nLeads, follow-ups and sales stay with Kinan's sales agent (the AI that works in Yardi); I share the plan, campaign codes, campaign changes and the daily brief.", "\n\nالعملاء المحتملون والمتابعة والمبيعات من اختصاص وكيل كنان؛ وأشارك الخطة ورموز الحملات وتغييراتها والموجز اليومي."));
   }
 
   // 2b. Renewal decisions (all vendors, or the one asked about).

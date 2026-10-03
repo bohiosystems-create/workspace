@@ -9,6 +9,7 @@ import { ReportPlayer } from "./player";
 import { useApprover } from "../_components/useAgent";
 import { WorkingPanel, WorkingInline, rememberDuration } from "../_components/Working";
 import { ReportLayoutCard } from "../_components/ReportLayoutCard";
+import { screenHtml } from "../../lib/report-svg";
 
 const DAYS = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] };
 const STATUS: Record<string, string> = { SENT: "healthy", GENERATED: "hold", FAILED: "weak" };
@@ -98,8 +99,8 @@ export default function ReportsPage() {
         setView(r);
       }
       const name = `marketing-report-${r.date}-${r.lang}`;
-      if (format === "html") await saveFile(`${name}.html`, r.html, "text/html");
-      else await saveFile(`${name}.pdf`, await (await import("../_components/reportPdf")).reportPdf(r.html), "application/pdf");
+      if (format === "html") await saveFile(`${name}.html`, screenHtml(r.html), "text/html");
+      else await saveFile(`${name}.pdf`, await (await import("../_components/reportPdf")).reportPdf(screenHtml(r.html)), "application/pdf");
       setMessage(t("Report saved."));
     } catch (e: any) { setError(e.message); } finally { setBusy(null); }
   }
@@ -147,7 +148,7 @@ export default function ReportsPage() {
                 {[["en", "English"], ["ar", "العربية"]].map(([k, n]) => (
                   <label key={k} className="muted" style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}><input type="checkbox" checked={form.languages.includes(k)} onChange={() => toggle("languages", k)} />{n}</label>
                 ))}
-                <label className="muted" style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}><input type="checkbox" checked={form.toKinan} onChange={(e) => setForm({ ...form, toKinan: e.target.checked })} />{t("Also send the brief to Kinan's agent")}</label>
+                <label className="muted" style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12 }}><input type="checkbox" checked={form.toKinan} onChange={(e) => setForm({ ...form, toKinan: e.target.checked })} />{t("Also send the brief to Kinan's sales agent")}</label>
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", marginTop: 14 }}>
                 <div className="field" style={{ width: 200 }}><label>{t("Changed by")}</label><input className="in" placeholder={t("Your name")} value={approver} onChange={(e) => { setApprover(e.target.value); saveApprover(e.target.value); }} /></div>
@@ -177,7 +178,7 @@ export default function ReportsPage() {
                   <div className="lt">{dm(r.createdAt)}</div>
                   <span className={`pill ${STATUS[r.status] ?? "hold"}`}>{t(r.status)}</span>
                   <div style={{ flex: 1 }}>
-                    {r.kind === "SNAPSHOT" ? <b>{t("Live snapshot")}</b> : t(r.trigger === "SCHEDULED" ? "Scheduled" : "Manual")} · {r.lang === "ar" ? "العربية" : "English"}{r.delivery === "mock" ? ` · ${t("simulated")}` : ""}{r.kinan ? ` · ${t("sent to Kinan")}` : ""}
+                    {r.kind === "SNAPSHOT" ? <b>{t("Live snapshot")}</b> : t(r.trigger === "SCHEDULED" ? "Scheduled" : "Manual")} · {r.lang === "ar" ? "العربية" : "English"}{r.delivery === "mock" ? ` · ${t("simulated")}` : ""}{r.kinan ? ` · ${t("shared with Kinan's sales agent")}` : ""}
                     {(r.recipients || r.error) && <div className="muted" style={{ fontSize: 10 }} dir="ltr">{r.recipients}{r.error ? ` · ${r.error}` : ""}</div>}
                   </div>
                   <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 10 }} title={t("Play as a presentation")} aria-label={t("Play as a presentation")} onClick={() => open(r.id, true)}>▶</button>
@@ -204,7 +205,7 @@ export default function ReportsPage() {
                 <button className="btn" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => setPlaying(view)} title={t("Play as a presentation")}>▶ {t("Play")}</button>
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => setView(null)}>{t("Close")}</button>
               </div>
-              <iframe title={view.title} sandbox="" srcDoc={view.html} style={{ width: "100%", height: 1100, border: "1px solid var(--ink-hairline)", background: "#fff" }} />
+              <iframe title={view.title} sandbox="" srcDoc={screenHtml(view.html)} style={{ width: "100%", height: 1100, border: "1px solid var(--ink-hairline)", background: "#fff" }} />
             </div>
           )}
           {layout && (

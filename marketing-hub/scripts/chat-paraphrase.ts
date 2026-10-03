@@ -107,7 +107,7 @@ export const PARAPHRASES: [string, string[]][] = [
   ["Who's running our Instagram ads?", ["Meta ads"]],
   ["Are the agencies' lead numbers real?", ["CRM verification"]],
   ["Do the vendor reports match Yardi?", ["CRM verification|Kinan"]],
-  ["What have we shared with Kinan's agent?", ["Feed to Kinan"]],
+  ["What have we shared with Kinan's agent?", ["Shared with Kinan's sales agent"]],
   ["When does the daily report go out?", ["Daily report"]],
   ["Do our ads actually cause sales?", ["Controlled tests|Incrementality"]],
   // Definitions / help

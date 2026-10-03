@@ -83,7 +83,7 @@ const CASES: [string, string[]][] = [
   ["Which agency runs each Meta campaign?", ["Meta ads"]],
   ["Overdue invoices", ["Supplier invoices"]],
   ["What's the budget plan for June?", ["Budget plan"]],
-  ["What did we send to Kinan?", ["Feed to Kinan"]],
+  ["What did we send to Kinan?", ["Shared with Kinan's sales agent"]],
   ["Show the daily report schedule", ["Daily report"]],
   ["Incrementality tests", ["Controlled tests"]],
   ["Overall spend and sales", ["Overall"]],

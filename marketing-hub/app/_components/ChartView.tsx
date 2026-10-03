@@ -9,8 +9,9 @@ import type { ChartSpec, ChartType } from "@/lib/charts";
 import { saveFile } from "./saveFile";
 import { useI18n } from "./lang";
 
-const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
-const INK = "#0b0b0b", INK2 = "#52514e", MUTED = "#898781", GRID = "#e1e0d9", AXIS = "#c3c2b7", SURFACE = "#fcfcfb";
+// Kinan orange first; validated for colour-blind separation on the light surface (direct labels carry identity too).
+const SERIES = ["#f15a22", "#2a78d6", "#1baf7a", "#eda100", "#e87ba4", "#4a3aa7", "#008300", "#e34948"];
+const INK = "#2e2e2f", INK2 = "#51473d", MUTED = "#898781", GRID = "#e1e0d9", AXIS = "#c3c2b7", SURFACE = "#fcfcfb";
 const FONT = "system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif";
 
 type Series = { name: string; values: (number | null)[] };
