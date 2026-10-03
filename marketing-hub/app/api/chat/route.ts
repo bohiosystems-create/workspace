@@ -20,6 +20,12 @@ export async function POST(req: Request) {
     const last = history[history.length - 1];
     if (!last || last.role !== "user" || !last.content.trim()) return NextResponse.json({ error: "Ask a question first." }, { status: 400 });
 
+    // Report layout changes are applied by the same rules with or without AI (so they behave the same and can be undone);
+    // anything the rules can't read goes to the AI, which has the change_daily_report tool.
+    const { reportEditAnswer } = await import("@/lib/report-chat");
+    const { buildChatContext } = await import("@/lib/chat");
+    const edit = await reportEditAnswer(last.content, ui, () => buildChatContext(ui), { allowUnclear: !llmStatus().enabled });
+    if (edit) return NextResponse.json(edit);
     const ai = llmStatus().enabled;
     const useAi = ai && process.env.CHAT_WITH_AI !== "off";
     const polish = ai && process.env.DRAFT_WITH_AI !== "off" ? (await import("@/lib/email-ai")).polishWithAI : undefined;

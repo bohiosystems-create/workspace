@@ -31,6 +31,10 @@ export async function reportPdf(html: string): Promise<Blob> {
   try {
     await loaded;
     const doc = frame.contentDocument!;
+    // The report's entrance animations must not be caught half-way: the PDF shows the finished page.
+    const still = doc.createElement("style");
+    still.textContent = "*,*::before,*::after{animation:none!important;transition:none!important}";
+    doc.head.appendChild(still);
     // Letter-spacing makes the capture draw Arabic letter by letter (unjoined); Arabic needs none.
     if (doc.documentElement.dir === "rtl" || /[\u0600-\u06FF]/.test(doc.body.textContent ?? "")) {
       const st = doc.createElement("style");

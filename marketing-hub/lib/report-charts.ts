@@ -22,7 +22,7 @@ const T0 = `role="presentation" cellpadding="0" cellspacing="0" border="0"`;
 function bar(pct: number, color: string, h = 12) {
   const p = Math.max(0, Math.min(100, Math.round(pct)));
   const cell = (w: number, c: string) => `<td width="${w}%" bgcolor="${c}" style="background:${c};height:${h}px;font-size:0;line-height:0">&nbsp;</td>`;
-  return `<table ${T0} width="100%" style="border-collapse:collapse"><tr>${p > 0 ? cell(p, color) : ""}${p < 100 ? cell(100 - p, TRACK) : ""}</tr></table>`;
+  return `<table ${T0} width="100%" class="k-bar" style="border-collapse:collapse"><tr>${p > 0 ? cell(p, color) : ""}${p < 100 ? cell(100 - p, TRACK) : ""}</tr></table>`;
 }
 const swatch = (c: string) => `<span style="display:inline-block;width:9px;height:9px;background:${c};vertical-align:middle"></span>`;
 const caption = (s: string) => `<div style="font-size:11px;color:${SOFT};margin:6px 0 0">${s}</div>`;
@@ -41,19 +41,19 @@ function shareBar(s: ChartSpec) {
   const vals = (s.series?.[0]?.values ?? s.values).map((v) => v ?? 0), tot = vals.reduce((a, b) => a + b, 0) || 1;
   const cells = vals.map((v, i) => { const w = Math.max(1, Math.round((v / tot) * 100)); return `<td width="${w}%" bgcolor="${(SERIES[i] ?? "#9a9a9a")}" style="background:${(SERIES[i] ?? "#9a9a9a")};height:18px;font-size:0;line-height:0;border-inline-end:2px solid #fff">&nbsp;</td>`; }).join("");
   const legend = s.labels.map((l, i) => `<tr><td width="14" style="padding:3px 0">${swatch((SERIES[i] ?? "#9a9a9a"))}</td><td style="padding:3px 6px;color:${INK}">${esc(l)}</td><td align="right" style="padding:3px 0;font-weight:700;color:${INK};white-space:nowrap">${fmt(vals[i], s.unit)}</td><td width="48" align="right" style="padding:3px 0;color:${SOFT}">${Math.round((vals[i] / tot) * 100)}%</td></tr>`).join("");
-  return `<table ${T0} width="100%" style="border-collapse:collapse"><tr>${cells}</tr></table><table ${T0} width="100%" style="border-collapse:collapse;font-size:12px;margin-top:8px">${legend}</table>`;
+  return `<table ${T0} width="100%" class="k-bar" style="border-collapse:collapse"><tr>${cells}</tr></table><table ${T0} width="100%" style="border-collapse:collapse;font-size:12px;margin-top:8px">${legend}</table>`;
 }
 /** Columns over time: value on the cap, label below. */
 function columns(s: ChartSpec, opts: { color?: string; highlightLast?: boolean } = {}) {
   const vals = s.series?.[0]?.values ?? s.values, max = Math.max(...vals.map((v) => v ?? 0)) || 1, H = 110;
   const col = (v: number | null, i: number) => {
     const h = Math.max(2, Math.round(((v ?? 0) / max) * H)), c = opts.highlightLast && i === vals.length - 1 ? SERIES[0] : opts.color ?? BASE;
-    return `<td valign="bottom" align="center" style="padding:0 4px;height:${H + 18}px"><div style="font-size:11px;font-weight:700;color:${INK};margin-bottom:3px">${fmt(v, s.unit)}</div><table ${T0} width="70%" style="border-collapse:collapse;margin:0 auto"><tr><td height="${h}" bgcolor="${c}" style="background:${c};height:${h}px;font-size:0;line-height:0">&nbsp;</td></tr></table></td>`;
+    return `<td valign="bottom" align="center" style="padding:0 4px;height:${H + 18}px"><div style="font-size:11px;font-weight:700;color:${INK};margin-bottom:3px">${fmt(v, s.unit)}</div><table ${T0} width="70%" class="k-col" style="border-collapse:collapse;margin:0 auto;animation-delay:${200 + i * 90}ms"><tr><td height="${h}" bgcolor="${c}" style="background:${c};height:${h}px;font-size:0;line-height:0">&nbsp;</td></tr></table></td>`;
   };
   return `<table ${T0} width="100%" style="border-collapse:collapse;table-layout:fixed"><tr>${vals.map(col).join("")}</tr><tr>${s.labels.map((l) => `<td align="center" style="padding:4px 2px 0;font-size:11px;color:${SOFT};border-top:1px solid #c3c2b7">${esc(l)}</td>`).join("")}</tr></table>`;
 }
 
-export type ReportChart = { title: string; html: string; text: string; slide?: DeckSlide };
+export type ReportChart = { id?: string; title: string; html: string; text: string; slide?: DeckSlide };
 
 /** The charts in every daily report (figures as of the latest data month). */
 export function reportCharts(c: QueryCtx, lang: Lang, targets: { byAsset: { asset: string; actualM: number; targetM: number; pct: number | null }[]; ytdActualM: number; ytdTargetM: number; ytdPct: number }): ReportChart[] {
@@ -68,7 +68,7 @@ export function reportCharts(c: QueryCtx, lang: Lang, targets: { byAsset: { asse
       const p = x.pct ?? 0, color = p < 75 ? ALERT : p < 95 ? WARN : GOOD;
       return `<tr><td width="34%" style="padding:4px 8px 4px 0;color:${INK}">${esc(x.asset)}</td><td style="padding:4px 0">${bar(Math.min(100, p), color, 14)}</td><td width="26%" align="right" style="padding:4px 0 4px 8px;white-space:nowrap;color:${INK}"><b>${p}%</b> <span style="color:${SOFT}">${fmt(x.actualM, "")} / ${fmt(x.targetM, "")}</span></td></tr>`;
     }).join("")}</table>` + caption(esc(T(`SAR M, CRM-verified. Total ${targets.ytdActualM} of ${targets.ytdTargetM} (${targets.ytdPct}%). Green ≥ 95%, amber 75–95%, red < 75%.`, `مليون ر.س، متحقَّق منه في النظام. الإجمالي ${targets.ytdActualM} من ${targets.ytdTargetM} (${targets.ytdPct}%). أخضر ≥ 95%، كهرماني 75–95%، أحمر < 75%.`)));
-    out.push({ title: T("Sales vs target by project", "المبيعات مقابل المستهدف حسب المشروع"), html: titleRow(T("Sales vs target by project", "المبيعات مقابل المستهدف حسب المشروع"), T("Year to date", "منذ بداية العام")) + html,
+    out.push({ id: "sales", title: T("Sales vs target by project", "المبيعات مقابل المستهدف حسب المشروع"), html: titleRow(T("Sales vs target by project", "المبيعات مقابل المستهدف حسب المشروع"), T("Year to date", "منذ بداية العام")) + html,
       text: targets.byAsset.map((x) => `  ${x.asset}: ${x.pct}% (${x.actualM} / ${x.targetM} SAR M)`).join("\n"),
       slide: { kind: "gauges", kicker: T("Sales vs target", "المبيعات مقابل المستهدف"), title: T("Sales vs target by project — year to date", "المبيعات مقابل المستهدف حسب المشروع — منذ بداية العام"),
         items: targets.byAsset.map((x) => ({ label: x.asset, pct: x.pct ?? 0, actual: `${x.actualM}`, target: `${x.targetM}` })),
@@ -79,14 +79,14 @@ export function reportCharts(c: QueryCtx, lang: Lang, targets: { byAsset: { asse
   const m = q({ dataset: "campaigns", x: "month", measures: ["sum(sales)"], period: "year to date", sort: "label" });
   if (m) {
     const s = { ...m, labels: m.labels.map(MON) };
-    out.push({ title: T("Sales by month", "المبيعات حسب الشهر"), html: titleRow(T("Sales by month", "المبيعات حسب الشهر"), T(`${m.period} · SAR M, CRM-verified · latest month highlighted`, `${m.period} · مليون ر.س، متحقَّق منه · آخر شهر مميّز`)) + columns(s, { highlightLast: true }),
+    out.push({ id: "monthly", title: T("Sales by month", "المبيعات حسب الشهر"), html: titleRow(T("Sales by month", "المبيعات حسب الشهر"), T(`${m.period} · SAR M, CRM-verified · latest month highlighted`, `${m.period} · مليون ر.س، متحقَّق منه · آخر شهر مميّز`)) + columns(s, { highlightLast: true }),
       text: m.labels.map((l, i) => `  ${l}: ${m.series![0].values[i]} SAR M`).join("\n"),
       slide: { kind: "columns", kicker: T("At a glance", "نظرة سريعة"), title: T("Sales by month", "المبيعات حسب الشهر"), sub: T(`${m.period} · SAR M, CRM-verified`, `${m.period} · مليون ر.س، متحقَّق منها`), labels: m.labels.map(MON), values: (m.series![0].values as number[]).map((x) => x ?? 0), unit: T("SAR M", "مليون ر.س"), decimals: 1,
         say: T(`Sales by month: ${m.labels.map((l, i) => `${MON(l)} ${m.series![0].values[i]} million`).join(", ")}.`, `المبيعات حسب الشهر: ${m.labels.map((l, i) => `${MON(l)} ${m.series![0].values[i]} مليون`).join("، ")}.`) } });
   }
   // 3. Revenue share by vendor (part-to-whole).
   const v = q({ dataset: "campaigns", x: "vendor", measures: ["sum(sales)"], period: "year to date", limit: 7 });
-  if (v) out.push({ title: T("Revenue by vendor", "الإيرادات حسب المورد"), html: titleRow(T("Revenue by vendor", "الإيرادات حسب المورد"), T(`${v.period} · SAR M, contracted sales in the CRM · total ${v.total}`, `${v.period} · مليون ر.س، مبيعات متعاقد عليها في النظام · الإجمالي ${v.total}`)) + shareBar(v),
+  if (v) out.push({ id: "vendors", title: T("Revenue by vendor", "الإيرادات حسب المورد"), html: titleRow(T("Revenue by vendor", "الإيرادات حسب المورد"), T(`${v.period} · SAR M, contracted sales in the CRM · total ${v.total}`, `${v.period} · مليون ر.س، مبيعات متعاقد عليها في النظام · الإجمالي ${v.total}`)) + shareBar(v),
     text: v.labels.map((l, i) => `  ${l}: ${v.series![0].values[i]} SAR M`).join("\n"),
     slide: { kind: "donut", kicker: T("At a glance", "نظرة سريعة"), title: T("Revenue by vendor", "الإيرادات حسب المورد"), sub: T(`${v.period} · SAR M, contracted sales in the CRM`, `${v.period} · مليون ر.س، مبيعات متعاقد عليها`), labels: v.labels, values: (v.series![0].values as number[]).map((x) => x ?? 0), unit: T("SAR M", "مليون ر.س"),
       say: T(`Revenue by vendor, led by ${v.labels[0]} with ${v.series![0].values[0]} million.`, `الإيرادات حسب المورد، يتصدرها ${v.labels[0]} بـ${v.series![0].values[0]} مليون.`) } });
@@ -94,7 +94,7 @@ export function reportCharts(c: QueryCtx, lang: Lang, targets: { byAsset: { asse
   const ch = q({ dataset: "campaigns", x: "channel", measures: ["cost_to_sales"], period: "year to date", sort: "value_asc" });
   const hist = q({ dataset: "campaigns", measures: ["cost_to_sales"], filters: [{ field: "status", op: "=", value: "past" }] });
   const bench = hist ? hist.series?.[0]?.values[0] ?? null : null;
-  if (ch) out.push({ title: T("Cost to sales by channel", "نسبة التكلفة إلى المبيعات حسب القناة"),
+  if (ch) out.push({ id: "channels", title: T("Cost to sales by channel", "نسبة التكلفة إلى المبيعات حسب القناة"),
     html: titleRow(T("Cost to sales by channel", "نسبة التكلفة إلى المبيعات حسب القناة"), T(`${ch.period} · marketing spend ÷ contracted sales · lower is better`, `${ch.period} · الإنفاق ÷ المبيعات المتعاقد عليها · الأقل أفضل`)) +
       hbars(ch, { color: (_i, val) => (bench !== null && val > bench * 1.5 ? ALERT : BASE) }) + (bench !== null ? caption(esc(T(`Red: more than 1.5× the 2023–2025 average (${bench}%).`, `الأحمر: أكثر من 1.5 ضعف متوسط 2023–2025 (${bench}%).`))) : ""),
     text: ch.labels.map((l, i) => `  ${l}: ${ch.series![0].values[i]}%`).join("\n") ,
@@ -125,10 +125,30 @@ export function metaRevenueChart(c: QueryCtx, lang: Lang): ReportChart | null {
   const total = Math.round((r.series![0].values as number[]).reduce((a, b) => a + (b ?? 0), 0) * 10) / 10;
   return {
     title: T("Meta ads — CRM revenue", "إعلانات ميتا — إيرادات النظام"),
-    html: titleRow(T("Meta ads — CRM revenue by month", "إعلانات ميتا — إيرادات النظام حسب الشهر"), T(`Last 6 months · SAR M · total ${total}`, `آخر 6 أشهر · مليون ر.س · الإجمالي ${total}`)) + columns({ ...r, labels: r.labels.map(MON) }, { color: SERIES[6], highlightLast: false }) +
+    html: titleRow(T("Meta ads — CRM revenue by month", "إعلانات ميتا — إيرادات النظام حسب الشهر"), T(`Last 6 months · SAR M · total ${total}`, `آخر 6 أشهر · مليون ر.س · الإجمالي ${total}`)) + columns({ ...r, labels: r.labels.map(MON) }, { color: SERIES[1], highlightLast: false }) +
       caption(esc(T("The linked campaign's CRM-verified sales × Meta's share of its spend.", "مبيعات الحملة المرتبطة المتحقَّق منها × حصة ميتا من إنفاقها."))),
     text: r.labels.map((l, i) => `  ${l}: ${r.series![0].values[i]} SAR M`).join("\n"),
     slide: { kind: "line", kicker: T("Meta ads", "إعلانات ميتا"), title: T("Meta ads — CRM revenue by month", "إعلانات ميتا — إيرادات النظام حسب الشهر"), sub: T(`Last 6 months · SAR M · total ${total}`, `آخر 6 أشهر · مليون ر.س · الإجمالي ${total}`), labels: r.labels.map(MON), values: (r.series![0].values as number[]).map((x) => x ?? 0), unit: T("SAR M", "مليون ر.س"),
       say: T(`Meta ads revenue over six months: ${total} million in total.`, `إيرادات إعلانات ميتا خلال ستة أشهر: ${total} مليون إجمالاً.`) },
   };
+}
+
+/** A chart the manager added to the report from the chat ("add a pie chart of spend by channel"): the stored query is
+ * re-run on today's data, drawn e-mail-safe, and given a presentation slide. */
+export function customReportChart(spec: ChartSpec, lang: Lang): ReportChart {
+  const T = (en: string, ar: string) => tx(lang, en, ar);
+  const vals = ((spec.series?.[0]?.values ?? spec.values) as (number | null)[]).map((x) => x ?? 0);
+  const s: ChartSpec = { ...spec, values: vals, series: spec.series?.length ? [{ ...spec.series[0], values: vals }] : undefined };
+  const part = spec.type === "pie" || spec.type === "donut";
+  const time = spec.type === "line" || spec.type === "area" || /month|quarter|year|week/i.test(String(spec.groupBy ?? (spec.query as any)?.x ?? ""));
+  const unit = spec.unit || "";
+  const sub = [spec.period, unit].filter(Boolean).join(" · ") + (spec.series && spec.series.length > 1 ? T(` · first series: ${spec.series[0].name}`, ` · السلسلة الأولى: ${spec.series[0].name}`) : "");
+  const body = part ? shareBar(s) : time && spec.type !== "hbar" ? columns(s, { highlightLast: true }) : hbars(s, { color: () => SERIES[1] });
+  const added = T("Added to the report from the chat", "أُضيف إلى التقرير من المحادثة");
+  const slide: DeckSlide = part
+    ? { kind: "donut", kicker: T("Your charts", "رسومكم"), title: spec.title, sub: sub || added, labels: spec.labels, values: vals, unit, say: T(`${spec.title}: ${spec.labels[0]} leads with ${vals[0]}.`, `${spec.title}: يتصدر ${spec.labels[0]} بـ${vals[0]}.`) }
+    : time
+      ? { kind: spec.type === "line" || spec.type === "area" ? "line" : "columns", kicker: T("Your charts", "رسومكم"), title: spec.title, sub: sub || added, labels: spec.labels, values: vals, unit, say: T(`${spec.title}: latest ${spec.labels[spec.labels.length - 1]}, ${vals[vals.length - 1]}.`, `${spec.title}: الأحدث ${spec.labels[spec.labels.length - 1]}، ${vals[vals.length - 1]}.`) } as DeckSlide
+      : { kind: "hbars", kicker: T("Your charts", "رسومكم"), title: spec.title, sub: sub || added, labels: spec.labels, values: vals, unit, bench: null, say: T(`${spec.title}: ${spec.labels[0]} first with ${vals[0]}.`, `${spec.title}: ${spec.labels[0]} أولاً بـ${vals[0]}.`) };
+  return { id: "custom", title: spec.title, html: titleRow(spec.title, sub) + body + caption(esc(added)), text: spec.labels.map((l, i) => `  ${l}: ${vals[i]}${unit ? ` ${unit}` : ""}`).join("\n"), slide };
 }

@@ -1,4 +1,5 @@
 // Entry for the static demo: mounts the real page and answers /api/marketing in the browser.
+import { layoutState, layoutAction } from "../lib/report-layout";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import DirectorPage from "../app/page";
@@ -56,6 +57,10 @@ const qlang = (url: string) => langOf(new URL(url, "http://x").searchParams.get(
 
 window.fetch = (async (input: any, init?: any) => {
   const url = String(input?.url ?? input);
+  if (url.includes("/api/reports/layout")) {
+    try { return json(init?.method === "POST" ? await layoutAction(JSON.parse(init.body)) : await layoutState(qlang(url))); }
+    catch (e: any) { return json({ error: e.message }); }
+  }
   if (url.includes("/api/reports")) {
     try {
       if (init?.method === "POST") return json(await reportsAction(JSON.parse(init.body)));
@@ -214,7 +219,9 @@ document.addEventListener("click", (e) => {
   const a = (e.target as HTMLElement).closest("a[href^='/']");
   if (!a) return;
   e.preventDefault();
-  const [path, hash] = a.getAttribute("href")!.split("#");
+  const [full, hash] = a.getAttribute("href")!.split("#");
+  const [path, query] = full.split("?");
+  (window as any).__demoQuery = query ?? "";
   try { history.replaceState(null, "", hash ? `#${hash}` : location.pathname + location.search); } catch {}
   show(path || "/");
 });

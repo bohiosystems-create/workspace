@@ -179,6 +179,21 @@ const CASES: [string, string[]][] = [
   ["ماذا يفعل المنافسون؟", ["المنافسون"]],
   ["متى رمضان القادم؟", ["التقويم التسويقي"]],
   ["المستثمرون أم المستخدمون النهائيون؟", ["نوع المشتري"]],
+
+  // Changing the daily report from the chat (run in order; the last one resets it)
+  ["Reset the daily report to default", ["Daily report updated|Nothing to change|already"]],
+  ["Remove the invoices section from the daily report", ["Daily report updated", "Supplier invoices"]],
+  ["Move risks to the top of the report, then add a note to the report: Eid break, no approvals", ["moved", "Risks", "Eid break, no approvals"]],
+  ["Only show Andalus Quarter in the report", ["focus on Andalus Quarter"]],
+  ["Keep the report to the top 3 items", ["at most 3"]],
+  ["Add a pie chart of spend by channel to the report", ["added the chart"]],
+  ["Add a note to the report: Ramadan budget freeze starts Sunday", ["Ramadan budget freeze starts Sunday"]],
+  ["What's in the daily report?", ["The daily report, in order", "Not shown"]],
+  ["Undo the last report change", ["Undone"]],
+  ["احذف قسم المخاطر من التقرير", ["تم تعديل التقرير اليومي", "المخاطر"]],
+  ["أعلى 5 بنود فقط في التقرير", ["تم تعديل التقرير اليومي", "5"]],
+  ["Change the report please", ["I can change the daily report"]],
+  ["Reset the daily report to default", ["back to the standard report"]],
 ];
 
 const FALLBACK = /I'm your AI assistant director of marketing\. Ask me|أنا مساعد مدير التسويق الذكي\. اسألوني|couldn't match that question|لم أتمكن من مطابقة/;

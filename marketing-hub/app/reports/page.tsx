@@ -7,6 +7,8 @@ import { useI18n } from "../_components/lang";
 import { MissedQuestions } from "./misses";
 import { ReportPlayer } from "./player";
 import { useApprover } from "../_components/useAgent";
+import { WorkingPanel, WorkingInline, rememberDuration } from "../_components/Working";
+import { ReportLayoutCard } from "../_components/ReportLayoutCard";
 
 const DAYS = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] };
 const STATUS: Record<string, string> = { SENT: "healthy", GENERATED: "hold", FAILED: "weak" };
@@ -17,12 +19,29 @@ export default function ReportsPage() {
   const [form, setForm] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusyRaw] = useState<string | null>(null);
+  const [since, setSince] = useState<number | null>(null);
+  // Every long job is timed: the panel shows a running clock, and the duration is kept for next time's estimate.
+  const since0 = useRef<number | null>(null), busyRef = useRef<string | null>(null);
+  const setBusy = (k: string | null) => {
+    if (k) { since0.current = Date.now(); setSince(since0.current); }
+    else if (busyRef.current && since0.current) rememberDuration(busyRef.current, Date.now() - since0.current);
+    busyRef.current = k; setBusyRaw(k);
+  };
+  const [opening, setOpening] = useState<number | null>(null);
   const [view, setView] = useState<any>(null);
   const [playing, setPlaying] = useState<any>(null); // report shown as a presentation
   const [savedApprover, saveApprover] = useApprover();
   const [approver, setApprover] = useState("");
   const langRef = useRef(lang);
+  const autoPreviewed = useRef(false);
+  const [layout, setLayout] = useState<any>(null);
+  const loadLayout = () => fetch(`/api/reports/layout?lang=${langRef.current}`).then((r) => r.json()).then((x) => { if (!x.error) setLayout(x); }).catch(() => {});
+  useEffect(() => { loadLayout(); }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function layoutAction(action: "UNDO" | "RESET") {
+    const x = await (await fetch("/api/reports/layout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, lang: langRef.current }) })).json();
+    if (x.error) setError(x.error); else { setLayout(x); setMessage(x.message ?? null); }
+  }
   langRef.current = lang;
   useEffect(() => setApprover(savedApprover), [savedApprover]);
 
@@ -32,15 +51,23 @@ export default function ReportsPage() {
   };
   async function open(id: string | null, play = false) {
     if (!id) return;
-    const r = await (await fetch(`/api/reports?id=${encodeURIComponent(id)}`)).json();
-    if (!r.error) { setView(r); if (play) setPlaying(r); }
+    setOpening(Date.now());
+    try {
+      const r = await (await fetch(`/api/reports?id=${encodeURIComponent(id)}`)).json();
+      if (!r.error) { setView(r); if (play) setPlaying(r); }
+    } finally { setOpening(null); }
   }
 
   useEffect(() => {
     let live = true;
     fetch(`/api/reports?lang=${lang}`).then((r) => r.json()).then((x) => {
       if (!live) return;
-      if (x.error) setError(x.error); else { load(x); open(x.latestId); }
+      if (x.error) { setError(x.error); return; }
+      load(x);
+      // From the chat's report card ("Preview the report"): build today's report with the new layout right away.
+      const qs = new URLSearchParams(location.search).get("preview") ?? new URLSearchParams((window as any).__demoQuery ?? "").get("preview");
+      if (qs && !autoPreviewed.current) { autoPreviewed.current = true; (window as any).__demoQuery = ""; act({ action: "PREVIEW" }, "preview"); }
+      else open(x.latestId);
     }).catch((e) => live && setError(e.message));
     return () => { live = false; };
   }, [lang]);
@@ -53,6 +80,7 @@ export default function ReportsPage() {
       load(x);
       setMessage(x.message);
       if (x.openId) await open(x.openId);
+      loadLayout();
     } catch (e: any) { setError(e.message); } finally { setBusy(null); }
   }
   const toggle = (k: "days" | "languages", v: any) => setForm({ ...form, [k]: form[k].includes(v) ? form[k].filter((x: any) => x !== v) : [...form[k], v] });
@@ -131,9 +159,9 @@ export default function ReportsPage() {
             <div className="panel">
               <div className="chart-label">{t("Run")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button className="btn ghost" disabled={busy === "preview"} onClick={() => act({ action: "PREVIEW" }, "preview")}>{t("Preview today's report")}</button>
-                <button className="btn" disabled={busy === "snapshot"} onClick={() => act({ action: "SNAPSHOT" }, "snapshot")}>{busy === "snapshot" ? t("Building snapshot…") : t("Run snapshot")}</button>
-                <button className="btn ghost" disabled={!!busy} onClick={() => download("pdf")}>{busy === "pdf" ? t("Preparing PDF…") : t("Download PDF")}</button>
+                <button className="btn ghost" disabled={!!busy} onClick={() => act({ action: "PREVIEW" }, "preview")}>{busy === "preview" && since ? <WorkingInline since={since} label={t("Preparing report…")} /> : t("Preview today's report")}</button>
+                <button className="btn" disabled={!!busy} onClick={() => act({ action: "SNAPSHOT" }, "snapshot")}>{busy === "snapshot" && since ? <WorkingInline since={since} label={t("Building snapshot…")} dark={false} /> : t("Run snapshot")}</button>
+                <button className="btn ghost" disabled={!!busy} onClick={() => download("pdf")}>{busy === "pdf" && since ? <WorkingInline since={since} label={t("Preparing PDF…")} /> : t("Download PDF")}</button>
               </div>
               <div className="muted" style={{ fontSize: 11, marginTop: 12, lineHeight: 1.6 }}>
                 {data.outlook === "mock" ? t("Outlook is simulated: sends are recorded, not delivered. Set OUTLOOK_MODE=live to email the report.") : t("Reports are emailed from Outlook.")}<br />
@@ -159,7 +187,14 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {view && (
+          {busy && since && busy !== "save" && (
+            <WorkingPanel job={busy} since={since} typicalMs={busy === "pdf" && view ? 6000 : 25000}
+              title={busy === "snapshot" ? t("The director is building a live snapshot…") : busy === "pdf" && view ? t("Preparing the PDF…") : t("The director is writing today's report…")}
+              steps={busy === "pdf" && view ? [t("Laying out the pages"), t("Drawing the charts"), t("Saving the PDF")]
+                : [t("Scanning every source: CRM, email, invoices, ads, competitors, market, calendar"), t("Checking sales against target"), t("Reviewing campaigns and vendors"), t("Preparing market initiatives"), t("Drawing the charts"), t("Writing the report and the presentation")]} />
+          )}
+          {opening && !busy && <div className="panel" style={{ marginTop: 18 }}><WorkingInline since={opening} label={t("Opening the report…")} /></div>}
+          {view && !busy && (
             <div className="panel" style={{ marginTop: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
                 <div className="chart-label" style={{ margin: 0 }}>{view.title}</div>
@@ -170,6 +205,26 @@ export default function ReportsPage() {
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => setView(null)}>{t("Close")}</button>
               </div>
               <iframe title={view.title} sandbox="" srcDoc={view.html} style={{ width: "100%", height: 1100, border: "1px solid var(--ink-hairline)", background: "#fff" }} />
+            </div>
+          )}
+          {layout && (
+            <div className="panel" style={{ marginTop: 18 }}>
+              <div className="chart-label">{t("Report layout")}</div>
+              <div className="muted" style={{ fontSize: 11, marginBottom: 10 }}>{t("Change it from the assistant: “remove the invoices section”, “move risks to the top”, “only Andalus Quarter”, “top 3 items”, “add a chart of spend by channel”, “add a note: …”, “undo”.")}</div>
+              <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }}>
+                <div style={{ flex: "1 1 320px", maxWidth: 520 }}><ReportLayoutCard view={layout.view} onUndo={layout.history.some((h: any) => !h.undone && h.source !== "undo") ? () => layoutAction("UNDO") : undefined} onReset={() => layoutAction("RESET")} /></div>
+                <div style={{ flex: "1 1 280px" }}>
+                  <div className="muted" style={{ fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 6 }}>{t("Changes")}</div>
+                  {layout.history.length === 0 && <div className="muted" style={{ fontSize: 12 }}>{t("No changes yet — this is the standard report.")}</div>}
+                  {layout.history.map((h: any) => (
+                    <div className="logrow" key={h.id} style={{ fontSize: 12, opacity: h.undone ? 0.5 : 1 }}>
+                      <div className="lt">{dm(h.at)}</div>
+                      <div style={{ flex: 1, textDecoration: h.undone ? "line-through" : "none" }}>{h.summary}</div>
+                      <span className="muted" style={{ fontSize: 10 }}>{h.undone ? t("undone") : t(h.source === "chat" ? "from the chat" : h.source)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
           <MissedQuestions />

@@ -22,10 +22,10 @@ export const KINAN = {
 };
 
 /** The logo as HTML: the real file when present, else the two-line "كنان / kinan" lockup in white. */
-export function kinanLogoHtml(height = 34) {
-  if (KINAN_LOGO) return `<img src="${KINAN_LOGO}" alt="Kinan" height="${height}" style="display:block;height:${height}px;width:auto;border:0">`;
+export function kinanLogoHtml(height = 34, color = "#fff") {
+  if (KINAN_LOGO) return `<img src="${KINAN_LOGO}" alt="Kinan" height="${height}" style="display:block;height:${height}px;width:auto;border:0${color !== "#fff" ? ";filter:invert(1)" : ""}">`;
   const ar = Math.round(height * 0.42), en = Math.round(height * 0.62);
-  return `<div style="display:inline-block;color:#fff;line-height:1;text-align:center"><div style="font-family:${KINAN.fontAr};font-weight:700;font-size:${ar}px;line-height:1.05">كنان</div><div style="font-family:${KINAN.font};font-weight:700;font-size:${en}px;letter-spacing:.01em;line-height:.95">kinan</div></div>`;
+  return `<div style="display:inline-block;color:${color};line-height:1;text-align:center"><div style="font-family:${KINAN.fontAr};font-weight:700;font-size:${ar}px;line-height:1.05">كنان</div><div style="font-family:${KINAN.font};font-weight:700;font-size:${en}px;letter-spacing:.01em;line-height:.95">kinan</div></div>`;
 }
 
 /** The orange chevron used on kinan.com.sa (‹ in LTR headers, › in RTL). */

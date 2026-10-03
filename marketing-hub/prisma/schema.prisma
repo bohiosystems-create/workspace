@@ -555,3 +555,23 @@ model SignalScan {
   payload   String
   createdAt DateTime @default(now())
 }
+
+// Daily report layout, changed from the chat (lib/report-layout.ts): hidden/reordered sections, item limit, project
+// focus, notes and added charts — applied to the next report. Every change is logged so it can be undone.
+model ReportLayout {
+  id        String   @id @default("daily")
+  json      String   @default("{}")
+  updatedBy String?
+  updatedAt DateTime @default(now())
+}
+
+model ReportLayoutChange {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  summary   String
+  before    String
+  after     String
+  source    String   @default("chat")
+  by        String?
+  undone    Boolean  @default(false)
+}
