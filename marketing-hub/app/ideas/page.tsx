@@ -5,12 +5,13 @@ import Header from "../_components/Header";
 import Spark from "../_components/Spark";
 import { useI18n } from "../_components/lang";
 import { useApprover, openDrafts } from "../_components/useAgent";
+import Blk from "../_components/Blk";
 
 const PROVIDER: Record<string, string> = { anthropic: "Claude", openai: "OpenAI", gemini: "Gemini", rules: "" };
 const STATUS_PILL: Record<string, string> = { SHORTLISTED: "watch", APPROVED: "healthy", DISCARDED: "hold" };
 
 export default function IdeasPage() {
-  const { lang, t } = useI18n();
+  const { lang, t, N } = useI18n();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -49,13 +50,13 @@ export default function IdeasPage() {
     <div className="shell">
       <Header />
       <div className="section-title">{t("Market initiatives")}</div>
-      <p className="intro">{t("Campaigns, offers, partnerships, events, broker programmes, content, budget shifts and positioning — proposed from your data. Every day, before the report, all your data is scanned — the CRM, the email inbox, Oracle invoices and POs, social and ad platforms, competitors' ads, the market and the calendar — and each finding gets an initiative that answers it. Forecasts are computed from the 2023–2025 campaign history, not by the AI. Approving an initiative drafts a brief to the lead vendor for your approval.")}</p>
+      <p className="intro">{t("Campaigns, offers, partnerships, events, broker programmes, content, budget shifts and positioning — proposed from your data. Every day, before the report, all your data is scanned — the CRM, the email inbox, Oracle invoices and POs, social and ad platforms, competitors' ads, the market, live news for Jeddah and Riyadh, and the celebrations calendar (Ramadan, the Eids, Founding and National Day, Riyadh Season, Cityscape) — and each finding gets an initiative that answers it. Forecasts are computed from the 2023–2025 campaign history, not by the AI. Approving an initiative drafts a brief to the lead vendor for your approval.")}</p>
       {error && <div className="err">{error}</div>}
       {info && <div className="panel" style={{ marginBottom: 12 }}><div style={{ fontSize: 12.5 }}>{info}</div></div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
       {data && (
         <>
-          <div className="panel" style={{ marginBottom: 12 }}>
+          <Blk page="ideas" id="signals"><div className="panel" style={{ marginBottom: 12 }}>
             <div className="chart-label">{t("What the data shows")} · {t("daily scan")} {data.crmAsOf ? new Date(data.crmAsOf).toLocaleDateString(lang === "ar" ? "ar-SA-u-nu-latn" : "en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""}</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "0 0 8px" }}>
               {data.sources.map((x: any) => (
@@ -71,13 +72,34 @@ export default function IdeasPage() {
                 <div style={{ flex: "1 1 320px", fontSize: 12, lineHeight: 1.55 }}>
                   <span className="tag" style={{ marginInlineEnd: 6 }}>{sg.sourceLabel}</span><b>{sg.title}</b>
                   <div className="muted" style={{ fontSize: 11.5 }}>{sg.why}</div>
+                  {sg.url && <div style={{ fontSize: 11, marginTop: 3 }}><a href={sg.url} target="_blank" rel="noopener noreferrer" dir="ltr">{sg.publisher ?? t("Source")} ↗</a></div>}
                   {sg.related.length > 0 && <div style={{ fontSize: 11, marginTop: 3 }}>{sg.related.map((r: any) => <div key={r.id}>↳ <span className="muted">{r.sourceLabel}:</span> {r.title}</div>)}</div>}
                 </div>
                 <Spark values={sg.series} down={sg.direction === "down"} width={84} height={22} />
                 {(sg.projectKey || sg.scope === "portfolio") && <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, flex: "none" }} disabled={busy === sg.id} title={!sg.projectKey ? t("For the project chosen in the brief (or the one furthest behind target)") : ""} onClick={() => act({ action: "GENERATE", brief: { project: sg.projectKey || brief.project || undefined, signalId: sg.id, engine: brief.engine } }, sg.id)}>{busy === sg.id ? t("Thinking…") : t("Initiatives for this")}</button>}
               </div>
             ))}
-          </div>
+          </div></Blk>
+          {data.calendar && (
+            <Blk page="ideas" id="calendar"><div className="panel" style={{ marginBottom: 12 }}>
+              <div className="chart-label">{t("Celebrations and moments — next 6 months")}</div>
+              <div className="muted" style={{ fontSize: 11, marginBottom: 10 }}>{t("Ramadan, the Eids and Hijri dates from the official Umm al-Qura calendar; national days; seasons and events as announced for Jeddah and Riyadh")}{data.calendar.ics.connected ? ` · ${t("plus your calendar")} (${data.calendar.ics.count})` : ""}.</div>
+              <div className="cal-strip">
+                {data.calendar.items.map((m: any) => (
+                  <div key={m.id} className={`cal-item ${m.late ? "late" : ""} ${m.ongoing ? "now" : ""} ${m.direction === "down" ? "down" : ""}`}>
+                    <div className="cal-when"><b>{m.ongoing ? t("Now") : lang === "ar" ? `${m.inDays} يوماً` : `${m.inDays}d`}</b><span>{m.when}</span></div>
+                    <div className="cal-name">{m.name}{m.city && !m.name.includes(N(m.city)) && !m.name.includes(m.city) ? <span className="muted"> · {N(m.city)}</span> : null}</div>
+                    <div className="cal-angle">{m.angle}</div>
+                    <div className="cal-foot">
+                      <span className={m.late ? "bad" : "muted"} style={{ fontSize: 10 }}>{m.late ? t("Preparation should have started — decide now") : m.prep}</span>
+                      {m.url && <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10 }}>{t("Source")} ↗</a>}
+                      {m.signalId && <button className="btn ghost" style={{ padding: "4px 8px", fontSize: 8 }} disabled={busy === m.signalId} onClick={() => act({ action: "GENERATE", brief: { project: brief.project || undefined, signalId: m.signalId, engine: brief.engine } }, m.signalId)}>{busy === m.signalId ? t("Thinking…") : t("Initiatives for this")}</button>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div></Blk>
+          )}
           <div className="panel">
             <div className="chart-label">{t("Brief")}</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>

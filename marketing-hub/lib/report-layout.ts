@@ -33,7 +33,7 @@ export type Op =
 
 const SECTION_NAME: Record<SectionId, [string, string]> = {
   brief: ["Today's brief", "موجز اليوم"], sales: ["Sales vs target", "المبيعات مقابل المستهدف"], glance: ["Charts (at a glance)", "الرسوم (نظرة سريعة)"],
-  since: ["Since the last report", "منذ التقرير السابق"], campaigns: ["Campaign recommendations", "توصيات الحملات"],
+  since: ["Since the last report", "منذ التقرير السابق"], campaigns: ["Daily campaign check", "الفحص اليومي للحملات"],
   initiatives: ["What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"], decisions: ["Waiting for your decision", "بانتظار قراركم"],
   vendors: ["Vendors", "الموردون"], risks: ["Risks", "المخاطر"], invoices: ["Supplier invoices", "فواتير الموردين"],
 };
@@ -206,7 +206,7 @@ const RX_CHARTWORD = /\b(chart|graph|plot|pie|donut|doughnut|bar chart|line char
 const SECTION_RX: [SectionId, RegExp][] = [
   ["since", /since (the )?(last|previous) report|what changed|changes section|the changes|التغييرات|منذ التقرير السابق/i],
   ["sales", /sales (vs\.?|versus|against|to) targets?|targets? section|\btargets?\b|gauges?|المبيعات مقابل المستهدف|المستهدف/i],
-  ["campaigns", /campaign recommendations?|campaign recs|recommendations|campaign changes|\bcampaigns?\b|توصيات الحملات|التوصيات|الحملات/i],
+  ["campaigns", /daily (campaign )?check|campaign recommendations?|campaign recs|الفحص اليومي|recommendations|campaign changes|\bcampaigns?\b|توصيات الحملات|التوصيات|الحملات/i],
   ["initiatives", /initiatives?|\bideas\b|what the data shows|findings|daily scan|\bscan\b|signals|anomal|المبادرات|مبادرات|الأفكار|ما ت[ُ]?ظهره البيانات|الفحص|الملاحظات المكتشفة/i],
   ["decisions", /decisions?|waiting for (your|my) (decision|approval)|approvals?|\binbox\b|القرارات|قراركم|قراري|الاعتمادات/i],
   ["vendors", /\bvendors?\b|suppliers? section|work orders?|الموردين|الموردون|أوامر العمل/i],

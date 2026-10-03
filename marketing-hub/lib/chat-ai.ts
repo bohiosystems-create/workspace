@@ -11,7 +11,7 @@ import type { Polish } from "./recommendations";
 import { ideasAnswer } from "./ideation";
 import { breakdown, DIMENSIONS } from "./audience";
 import { creativeSummary } from "./creatives";
-import { marketSummary, marketSeries, MORTGAGE, COMPETITORS, AD_MONTHS, CALENDAR } from "./market";
+import { marketSummary, marketSeries, MORTGAGE, COMPETITORS, AD_MONTHS } from "./market";
 import { type Lang, looksArabic } from "./i18n";
 
 const CHART_SCHEMA = chartSchemaText();
@@ -27,7 +27,7 @@ What you have:
 CHARTS — datasets you can chart:
 ${CHART_SCHEMA}
 - show_recommendations and draft_email (drafts only; a person reviews and approves every email in the app).
-- get_audience (lead profiles: city, nationality, buyer type, budget, unit type, age, reason lost, response time), get_creatives (ads by message, format, language), get_market (prices and transactions per district, mortgages), get_competitors, get_calendar. Profiles, creatives, market and competitors are sample data: say so when you use them.
+- get_audience (lead profiles: city, nationality, buyer type, budget, unit type, age, reason lost, response time), get_creatives (ads by message, format, language), get_market (prices and transactions per district, mortgages), get_competitors, get_calendar (celebrations: Ramadan and the Eids from the Umm al-Qura calendar, national days, Riyadh Season, Cityscape, the user's own calendar), get_news (LIVE news for Jeddah and Riyadh, with links — real, not sample; cite the publisher and date). Profiles, creatives, market and competitors are sample data: say so when you use them. When proposing initiatives, take upcoming celebrations and relevant news into account.
 - get_signals: today's scan of all data — CRM anomalies, inbox (vendor notices, proposals, market news, event deadlines), unused PO budget, ad fatigue and costs, competitor ad pushes, market and mortgage shifts, calendar moments — with cross-source evidence.
 - ideate_campaigns: new market initiatives for a brief — campaigns, offers, partnerships, events, broker programmes, content, budget shifts — that also answer the findings of the daily scan of all sources (saved on the Initiatives page). Present the ideas briefly with their forecast ranges and say the manager can shortlist or approve them there; approving drafts a vendor brief for approval.
 
@@ -40,6 +40,7 @@ How to answer:
 - Asked which vendor to terminate, drop or replace: answer with a clear pick from renewalDecisions (EXIT first, then TEST_REPLACEMENT), each with score, confidence, the strongest evidence, contract end, the bench replacement and what would change your mind. It is a recommendation: ending a contract needs a named approver and the notice terms from procurement.
 - For Meta, say which agency runs a campaign and on what evidence (code in the name, utm_campaign, creator, account owner) and how confident that is.
 - Be concise: short paragraphs or "- " bullets, no headings, no tables.
+- Every page's dashboard can be changed from this chat: use change_dashboard to hide or show figure tiles, charts and sections on one page or on all of them (e.g. "remove the YTD sales from all dashboards"). Never say you can't change a dashboard.
 - The Campaigns page lists every campaign run (live 2026 and 2023–2025), each with its own dashboard. The user can change what it lists and what each dashboard shows from this chat: use change_campaign_dashboards (get_campaign_dashboards to read it), then say what changed.
 - The user can change the daily report from this chat (sections, order, item limit, project focus, notes, added charts): use change_daily_report, then say what changed and that it applies from the next report (Reports → Preview shows it now).
 - Call show_recommendations with ids (R1…) when you mention recommendations. Draft emails only with draft_email. If several recommendations could fit, ask which one.
@@ -65,7 +66,8 @@ const TOOLS: LlmTool[] = [
   { name: "get_creatives", description: "Ad creatives of the live campaigns (sample, adds up to campaign totals): format, message, language, spend, impressions, clicks, leads, qualified, cost per qualified lead, frequency/fatigue. Filter by campaign code, project, channel or vendor; group by message, format, language or creative.", parameters: { type: "object", properties: { campaign: str, project: str, channel: str, vendor: str, group_by: { type: "string", enum: ["message", "format", "language", "creative"] } } } },
   { name: "get_market", description: "Property market (sample): price per sqm and monthly transactions per district (Jeddah North, Corniche, South; Riyadh North) for 2025-01..2026-05 with year-on-year change and off-plan share, plus mortgage rates.", parameters: { type: "object", properties: { district: str, months: { type: "boolean", description: "Include the monthly series" } } } },
   { name: "get_competitors", description: "Competitor developers (sample, fictional names): project, district, price per sqm, launch, offer, active Meta ads per month, channels, and which of our projects they compete with.", parameters: { type: "object", properties: { project: str } } },
-  { name: "get_calendar", description: "Marketing calendar: summer holiday, Eid, National Day, Cityscape, Jeddah Season, Ramadan 2027 (approximate dates).", parameters: { type: "object", properties: {} } },
+  { name: "get_calendar", description: "Celebrations and moments calendar from today's real date: Ramadan, Eid al-Fitr, Eid al-Adha, Hijri New Year (Umm al-Qura), Founding Day, National Day, Riyadh Season, Cityscape, Jeddah events, school holidays, plus the user's own ICS calendar — with the marketing angle and the date to start preparing.", parameters: { type: "object", properties: { days: { type: "number", description: "How far ahead (default 240)." } } } },
+  { name: "get_news", description: "Live news for Kinan's focus cities (Jeddah, Riyadh) and Saudi property/finance: headline, publisher, date, link, topic, the project it touches and what it means for marketing. Use for 'what's in the news', and to base initiatives on real market news.", parameters: { type: "object", properties: { city: { type: "string", description: "Jeddah or Riyadh (optional)." } } } },
   { name: "make_chart", description: "Draw ANY chart in the chat from the data: you write a query (dataset, x, optional series split, measure formulas, filters, period, transform, chart type) and the app computes every number — never pass values. Datasets and fields are listed in CHARTS in your instructions. Returns the plotted values, or an error naming the valid fields (fix and call again). Call it several times for several charts.", parameters: { type: "object", properties: {
     dataset: { type: "string", enum: ["campaigns", "leads", "creatives", "invoices", "vendors", "market", "mortgage", "competitors", "deliverables", "work_orders", "recommendations", "daily_check", "targets", "budget_plan", "meta"] },
     type: { type: "string", enum: ["pie", "donut", "bar", "hbar", "stacked", "stackedh", "grouped", "line", "area", "scatter", "table", "kpi"], description: "Omit to choose automatically." },
@@ -102,6 +104,14 @@ const TOOLS: LlmTool[] = [
       text: { type: "string", description: "add_note text, in the user's words." },
       prompt: { type: "string", description: "add_chart: the chart request in plain words, e.g. 'pie chart of spend by channel this year'." },
       which: { type: "string", description: "remove_chart: title words, 'last' or 'all'." },
+    }, required: ["op"] } },
+  }, required: ["ops"] } },
+  { name: "get_dashboards", description: "Every page's dashboard (Director, Daily check, Initiatives, Vendors, Campaigns, Reports, Experiments): its figure tiles, charts and sections and which are hidden.", parameters: { type: "object", properties: {} } },
+  { name: "change_dashboard", description: "Hide or show figure tiles, charts and sections on any page's dashboard, or on all of them at once (page 'all'), e.g. remove the YTD sales tile from all dashboards, hide the budget plan on the Director page. Saved and logged; the user can undo. Use whenever the user asks to remove, hide, show or bring back something on a dashboard/page (for the per-campaign dashboards use change_campaign_dashboards; for the daily report use change_daily_report).", parameters: { type: "object", properties: {
+    ops: { type: "array", items: { type: "object", properties: {
+      op: { type: "string", enum: ["hide", "show", "reset", "undo"] },
+      page: { type: "string", enum: ["all", "director", "daily", "ideas", "vendors", "campaigns", "reports", "experiments"] },
+      block: { type: "string", description: "A block id from get_dashboards (e.g. kpi-ytd) or its name in plain words (e.g. 'YTD sales')." },
     }, required: ["op"] } },
   }, required: ["ops"] } },
   { name: "get_campaign_dashboards", description: "The Campaigns page layout: which campaigns are listed (live/past, year, project, vendor, channel), the order, the figures on each campaign and the charts in each campaign's dashboard.", parameters: { type: "object", properties: {} } },
@@ -193,7 +203,8 @@ async function exec(ctx: ChatContext, name: string, input: any, cards: ChatCard[
       return cap({ summary: marketSummary().filter((x) => !d || x.district.toLowerCase().includes(d) || (x.project ?? "").toLowerCase().includes(d)), mortgage: MORTGAGE.slice(-6), ...(input.months ? { series: marketSeries().filter((x) => !d || x.district.toLowerCase().includes(d)) } : {}) });
     }
     case "get_competitors": { const pr = input.project ? first(input.project, ["project"])?.name : undefined; return cap({ months: AD_MONTHS, competitors: COMPETITORS.filter((x) => !pr || x.threatTo === pr) }); }
-    case "get_calendar": return cap(CALENDAR);
+    case "get_calendar": { const { upcoming, momentView } = await import("./calendar"); const u = await upcoming(Number(input.days) > 0 ? Math.min(400, Number(input.days)) : 240); return cap({ today: u.today, yourCalendar: u.ics, moments: u.items.map((m) => momentView(m, ctx.lang, u.today)) }); }
+    case "get_news": { const { readNews, newsAngle } = await import("./news"); const n = await readNews(); const city = input.city ? String(input.city).toLowerCase() : ""; return cap({ mode: n.mode, fetchedAt: n.fetchedAt, note: n.mode === "snapshot" ? "Real news gathered on the snapshot date (live feeds not reachable from here)." : "Live (Google News).", items: n.items.filter((x) => !city || (x.city ?? "").toLowerCase() === city).slice(0, 15).map((x) => ({ title: ctx.lang === "ar" ? x.title.ar : x.title.en, summary: x.summary ? (ctx.lang === "ar" ? x.summary.ar : x.summary.en) : null, publisher: x.publisher, date: x.date, city: x.city, topic: x.topic, project: x.project, url: x.url, whatItMeans: ctx.lang === "ar" ? newsAngle(x).ar : newsAngle(x).en, signalId: `NEWS|${x.id}` })) }); }
     case "get_report_layout": { const { getLayout, layoutView } = await import("./report-layout"); return cap(layoutView(await getLayout(), ctx.lang)); }
     case "change_daily_report": {
       const ops = Array.isArray(input.ops) ? input.ops : [];
@@ -202,6 +213,16 @@ async function exec(ctx: ChatContext, name: string, input: any, cards: ChatCard[
       const { getLayout, layoutView } = await import("./report-layout");
       cards.push({ kind: "report", view: layoutView(await getLayout(), ctx.lang) });
       return r.done.length ? `Saved (applies from the next report; the user can say "undo"): ${r.done.join("; ")}.${r.notes.length ? ` Notes: ${r.notes.join(" ")}` : ""}` : `Nothing changed. ${r.notes.join(" ")}`;
+    }
+    case "get_dashboards": { const V = await import("./view-blocks"); return cap(V.viewsView(await V.getLayouts(), ctx.lang)); }
+    case "change_dashboard": {
+      const V = await import("./view-blocks");
+      const ops = Array.isArray(input.ops) ? input.ops : [];
+      let msg: string, changed: string[] = [];
+      if (ops.some((o: any) => o?.op === "undo")) msg = (await V.undoViews(ctx.lang)).message;
+      else { const r = await V.changeViews(ops.filter((o: any) => ["hide", "show", "reset"].includes(o?.op)).map((o: any) => o.op === "reset" ? { op: "reset", page: o.page ?? "all" } : { op: o.op, page: o.page ?? "all", block: String(o.block ?? "") }), ctx.lang); changed = r.done; msg = r.done.length ? `Saved (the pages show it now; the user can say "undo"): ${r.done.join("; ")}.${r.notes.length ? ` Notes: ${r.notes.join(" ")}` : ""}` : `Nothing changed. ${r.notes.join(" ")}`; }
+      cards.push({ kind: "views", view: V.viewsView(await V.getLayouts(), ctx.lang), changed });
+      return msg;
     }
     case "get_campaign_dashboards": { const { getCampaignLayout, campaignLayoutView } = await import("./campaign-layout"); return cap(campaignLayoutView(await getCampaignLayout(), ctx.lang)); }
     case "change_campaign_dashboards": {

@@ -6,6 +6,7 @@ import Header from "../_components/Header";
 import { useI18n } from "../_components/lang";
 import { useAgent, useApprover } from "../_components/useAgent";
 import { powerHoldout, powerGeo } from "@/lib/stats";
+import Blk from "../_components/Blk";
 
 export default function ExperimentsPage() {
   const { t, N, k, m, lang } = useI18n();
@@ -43,7 +44,7 @@ export default function ExperimentsPage() {
 
       {data && (
         <>
-          <div className="section-title" style={{ fontSize: 12, margin: "6px 0 12px" }}>{t("Tests")}</div>
+          <Blk page="experiments" id="tests"><div className="section-title" style={{ fontSize: 12, margin: "6px 0 12px" }}>{t("Tests")}</div>
           {data.incrementality.tests.map((x: any) => (
             <div className="dec" key={x.id}>
               <div className="dec-head">
@@ -74,9 +75,9 @@ export default function ExperimentsPage() {
                 </div>
               )}
             </div>
-          ))}
+          ))}</Blk>
 
-          <div className="panel" style={{ marginTop: 14 }}>
+          <Blk page="experiments" id="design"><div className="panel" style={{ marginTop: 14 }}>
             <div className="chart-label">{t("Design a new test")}</div>
             <div className="grid3">
               <div className="field"><label>{t("Vendor")}</label><select value={form.vendorId} onChange={(e) => pick(e.target.value)}>{data.vendorOptions.map((v: any) => <option key={v.id} value={v.id}>{N(v.name)}</option>)}</select></div>
@@ -90,10 +91,10 @@ export default function ExperimentsPage() {
               {t("This design can detect a lift of")} <b className={mde !== null && mde <= 25 ? "ok" : "bad"}>{mde ?? "—"}%</b> {t("or more (90% confidence, 80% power).")} {mde !== null && mde > 25 && <span className="bad">{t("Too coarse — run longer, hold out more, or test a bigger campaign.")}</span>}
             </div>
             <button className="btn" style={{ marginTop: 12 }} disabled={!form.vendorId || !form.campaign || busy === "create"} onClick={() => act({ action: "CREATE_TEST", vendorId: form.vendorId, campaign: form.campaign, kind: form.kind, weeks: form.weeks, holdoutPct: form.holdoutPct, weeklyConversions: form.weekly, weeklyVolume: form.weekly }, "create")}>{t("Create planned test")}</button>
-          </div>
+          </div></Blk>
 
           {data.incrementality.mmm && (
-            <div className="panel" style={{ marginTop: 18 }}>
+            <Blk page="experiments" id="mmm"><div className="panel" style={{ marginTop: 18 }}>
               <div className="chart-label">{t("Media-mix model — incremental qualified leads by channel")} ({data.incrementality.mmm.periodLabel})</div>
               <ul style={{ fontSize: 11, color: "var(--ink-soft)", margin: "0 0 12px", paddingInlineStart: 18 }}>{data.incrementality.mmm.notes.map((n: string, i: number) => <li key={i}>{n}</li>)}</ul>
               <div style={{ overflowX: "auto" }}>
@@ -123,7 +124,7 @@ export default function ExperimentsPage() {
                 </table>
               </div>
               <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Below 100% = the CRM over-credits the channel (some of those leads would have come anyway); above 100% = it is under-credited (typically brand channels). The red line marks 100%.")}</div>
-            </div>
+            </div></Blk>
           )}
         </>
       )}

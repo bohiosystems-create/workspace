@@ -7,6 +7,7 @@ import { KRange } from "../_components/KCharts";
 import { useI18n } from "../_components/lang";
 import { useAgent, openDrafts } from "../_components/useAgent";
 import Trials from "../_components/Trials";
+import Blk from "../_components/Blk";
 
 const METRIC_LABEL: Record<string, string> = { cpql: "Cost / qualified lead", value: "Revenue + pipeline / SAR", plan: "Spend vs plan", deadlines: "On time", revisions: "Revisions" };
 const DECISION_LABEL: Record<string, string> = { RE_ENGAGE: "Re-engage", RENEGOTIATE: "Renegotiate", PERFORMANCE_PLAN: "Performance plan", TEST_REPLACEMENT: "Test replacement", EXIT: "Exit" };
@@ -78,8 +79,8 @@ export default function VendorScoringBoard() {
 
       {data && (
         <>
-          <ScoreBoard scores={data.scores} />
-          <div className="panel" style={{ marginTop: 14 }}>
+          <Blk page="vendors" id="scoring"><ScoreBoard scores={data.scores} /></Blk>
+          <Blk page="vendors" id="scorecard"><div className="panel" style={{ marginTop: 14 }}>
             <div className="chart-label">{t("Fair scorecard — 50 = channel benchmark")}</div>
             <div style={{ overflowX: "auto" }}>
               <table className="dtable">
@@ -114,9 +115,9 @@ export default function VendorScoringBoard() {
               </table>
             </div>
             <div className="muted" style={{ fontSize: 10, marginTop: 10, lineHeight: 1.6 }}>{data.method}</div>
-          </div>
+          </div></Blk>
 
-          <div className="chart-label" style={{ margin: "22px 0 10px" }}>{t("Renewal recommendations")}</div>
+          <Blk page="vendors" id="renewals"><div className="chart-label" style={{ margin: "22px 0 10px" }}>{t("Renewal recommendations")}</div>
           {data.decisions.map((x: any) => (
             <div className="dec" key={x.vendorId}>
               <div className="dec-head">
@@ -143,11 +144,11 @@ export default function VendorScoringBoard() {
                 <button className="btn ghost" style={{ padding: "8px 12px", fontSize: 9 }} onClick={() => { setRfpVendor(x.vendorId); document.getElementById("rfp")?.scrollIntoView({ behavior: "smooth" }); }}>{t("Replacement RFP")}</button>
               </div>
             </div>
-          ))}
+          ))}</Blk>
 
           <Trials data={data} busy={busy} act={act} />
 
-          <div id="qbr" className="chart-label" style={{ margin: "22px 0 10px" }}>{t("Quarterly business review")}</div>
+          <Blk page="vendors" id="qbr"><div id="qbr" className="chart-label" style={{ margin: "22px 0 10px" }}>{t("Quarterly business review")}</div>
           <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
             <select style={{ width: "auto" }} value={qbrVendor} onChange={(e) => setQbrVendor(e.target.value)}>
               {data.decisions.map((x: any) => <option key={x.vendorId} value={x.vendorId}>{N(x.vendor)}</option>)}
@@ -180,9 +181,9 @@ export default function VendorScoringBoard() {
               <h4>{t("Recommendation and asks")}</h4>
               <ul><li><b>{qbr.decision.headline}</b> ({t("Confidence")}: {CONF[qbr.decision.confidence]}) — {qbr.decision.nextStep}</li>{qbr.asks.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul>
             </div>
-          )}
+          )}</Blk>
 
-          <div id="rfp" className="chart-label" style={{ margin: "22px 0 10px" }}>{t("Replacement brief / RFP")}</div>
+          <Blk page="vendors" id="rfp"><div id="rfp" className="chart-label" style={{ margin: "22px 0 10px" }}>{t("Replacement brief / RFP")}</div>
           <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
             <select style={{ width: "auto" }} value={rfpVendor} onChange={(e) => setRfpVendor(e.target.value)}>
               {data.decisions.map((x: any) => <option key={x.vendorId} value={x.vendorId}>{N(x.vendor)} — {t(DECISION_LABEL[x.decision])}</option>)}
@@ -200,7 +201,7 @@ export default function VendorScoringBoard() {
               <div className="muted">{t("Incumbent")}: {N(rfp.incumbent)} · {t("Alternative vendors invited")}: {rfp.benchVendors.map((b: any) => N(b.name)).join(", ") || "—"}</div>
               {rfp.sections.map((s: any) => (<div key={s.title}><h4>{s.title}</h4><ul>{s.lines.map((l: string, i: number) => <li key={i}>{l}</li>)}</ul></div>))}
             </div>
-          )}
+          )}</Blk>
         </>
       )}
     </div>

@@ -105,6 +105,24 @@ Every AI job names a **task**, and the router sends it to the best provider for 
 - Models only read data and create drafts. There is no tool to send, approve or spend.
 - Tested against mock servers for all three providers (tool calls, Gemini thought signatures, failover, per-task routing, ideation ensemble and judge), **not yet with real keys**.
 
+## Celebrations calendar and live news (feed the initiatives)
+
+- **Celebrations calendar** (`lib/calendar.ts`): Ramadan, Eid al-Fitr, Day of Arafah and Eid al-Adha and the Hijri New Year are computed from the official **Umm al-Qura** calendar (so every year is right without editing; the final day follows the moon sighting), plus Founding Day, Flag Day, National Day, Riyadh Season, Cityscape Global (16–19 Nov 2026), Jeddah events, the school summer and back to school. Each moment carries its marketing angle from the 2023–2025 history and the date to start preparing. **Your own calendar** (Outlook or Google, published as an ICS link) is merged in — paste the link in Settings or set `CALENDAR_ICS_URL`.
+- **Live news** (`lib/news.ts`): Google News (English and Arabic, no key) for Kinan's focus cities (Jeddah and Riyadh by default; change in Settings or `NEWS_CITIES`) and Saudi property finance, read every few hours, sorted into property market, financing, regulation, infrastructure, events and developers, and mapped to the project it touches. `NEWS_MODE=off` turns it off. Where the internet can't be reached (the offline demo, the Claude app edition) it shows a snapshot of **real news gathered on 3 Oct 2026**, each with its publisher and link.
+- Both are sources of the **daily scan**: each upcoming celebration and each relevant news item becomes a finding with **Initiatives for this** — with playbooks per celebration (Ramadan payment-plan offer, Eid open house, National Day weekend, Riyadh-Season investor lounge, Cityscape stand…) and per kind of news (a new-access location campaign, a mortgage-ready offer, a foreign-buyer programme, an event audience, "buy before prices move"). The news and calendar part of the scan refreshes every 3 hours; the rest once a day. The Initiatives page shows the next six months as a strip. Ask the assistant "what's in the news in Jeddah?" or "upcoming celebrations" (AI tools `get_news`, `get_calendar`).
+
+## Settings and integrations (gear icon, top right)
+
+Every integration with its live status, what it brings and how to connect it: Meta (Facebook & Instagram), Google Ads, Snapchat, TikTok, X, LinkedIn, Outlook email, the celebrations calendar and your own calendar (ICS), live news, Yardi via Kinan's sales agent (read-only), Oracle, market data, the AI providers and the ElevenLabs voice (`lib/integrations.ts`, `/api/integrations`). Keys and tokens stay server-side environment variables and are never typed into or shown on the page; the panel saves only the news cities, news on/off and calendar links, and can test the news and calendar connections.
+
+## Every dashboard, editable from the chat
+
+Each page's figure tiles, charts and sections can be hidden or shown from the assistant — on one page or all at once: "remove the YTD sales from all dashboards", "hide the budget plan on the director page", "show the alerts again on the campaigns page", "what's hidden on the dashboards?", "undo the last dashboard change", "reset all dashboards" (`lib/view-blocks.ts`, `lib/view-chat.ts`, AI tools `get_dashboards` / `change_dashboard`, `/api/views`). The open page changes at once. Works the same in the Claude app edition (the edit rules run before Claude, and the edit tools are kept first when the view limits the tool count).
+
+## Daily report — includes the whole Daily check, and downloads as PowerPoint
+
+The report's campaign section is now the full **Daily campaign check**: the counts (open, urgent, new today, decided, resolved), every recommendation with its status (new / open since / accepted or dismissed by whom), the reason, the action and the lessons from similar past campaigns, the data and tracking fixes, what was resolved since yesterday and the AI second opinion — in the e-mail, the read version and ▶ Play. **Download PowerPoint** (on the open report and in ▶ Play) exports the presentation as a .pptx in Kinan's style with native, editable charts and the narration in the speaker notes (`app/_components/deckPptx.ts`, pptxgenjs, in the browser).
+
 ## Market initiatives (`/ideas`, menu "Initiatives")
 
 Describe a brief (project, month, budget, goal, audience, anything else — or leave it empty), or press **Initiatives for this** next to a CRM signal, and the director proposes market initiatives grounded in the data (`lib/ideation.ts`). Types: campaign, offer & pricing, partnership, event & experience, broker programme, content & PR, budget & channel shift, positioning, referral & community.

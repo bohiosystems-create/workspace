@@ -199,6 +199,7 @@ export function parseCampaignEdit(text: string, find: (s: string) => { project?:
   if (!RX_CTX.test(q) && !sortish && !(RX_EACH.test(q) && RX_EDIT_VERB.test(q) && !/^(what|how|which|who|why|show me)\b|^(ما|كيف|أي|من|لماذا)\s/.test(q))) return null;
   if (/^(what|how|which|who|why|is|are|did|does)\b/.test(q) && !/what('?s| is) (on|in) the (campaign )?dashboards?|what do the (campaign )?dashboards show/.test(q) && !RX_EDIT_VERB.test(q)) return null;
   if (/\breport\b|التقرير/.test(q)) return null; // the daily report has its own editor
+  if (/\b(all|every) (the )?(dashboards|pages)\b|everywhere|كل اللوحات|جميع اللوحات/.test(q)) return null; // every page: lib/view-blocks.ts
   if (/\b(undo|revert|roll ?back)\b|تراجع/.test(q)) return { kind: "undo" };
   if (/\breset\b|back to (the )?(default|standard)|default (layout|view)|الافتراضي|القياسي/.test(q)) return { kind: "edit", ops: [{ op: "reset" }] };
   if (/what('?s| is) (on|in) the (campaign )?dashboards?|what do the (campaign )?dashboards show|campaign dashboards? (layout|settings)|ما الذي تعرضه لوحات الحملات|ماذا تعرض لوحات/.test(q)) return { kind: "view" };

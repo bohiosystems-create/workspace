@@ -10,6 +10,8 @@ import { useApprover } from "../_components/useAgent";
 import { WorkingPanel, WorkingInline, rememberDuration } from "../_components/Working";
 import { ReportLayoutCard } from "../_components/ReportLayoutCard";
 import { screenHtml } from "../../lib/report-svg";
+import Blk from "../_components/Blk";
+import { deckFromHtml } from "@/lib/deck";
 
 const DAYS = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] };
 const STATUS: Record<string, string> = { SENT: "healthy", GENERATED: "hold", FAILED: "weak" };
@@ -41,6 +43,7 @@ export default function ReportsPage() {
   useEffect(() => { if (!layoutOpen) return; const k = (e: KeyboardEvent) => e.key === "Escape" && setLayoutOpen(false); window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [layoutOpen]);
   const loadLayout = () => fetch(`/api/reports/layout?lang=${langRef.current}`).then((r) => r.json()).then((x) => { if (!x.error) setLayout(x); }).catch(() => {});
   useEffect(() => { loadLayout(); }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const f = () => loadLayout(); window.addEventListener("report-changed", f); return () => window.removeEventListener("report-changed", f); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   async function layoutAction(action: "UNDO" | "RESET") {
     const x = await (await fetch("/api/reports/layout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, lang: langRef.current }) })).json();
     if (x.error) setError(x.error); else { setLayout(x); setMessage(x.message ?? null); }
@@ -88,7 +91,7 @@ export default function ReportsPage() {
   }
   const toggle = (k: "days" | "languages", v: any) => setForm({ ...form, [k]: form[k].includes(v) ? form[k].filter((x: any) => x !== v) : [...form[k], v] });
   // Download the open report — or, if none is open, today's report (prepared first) — as PDF or HTML.
-  async function download(format: "pdf" | "html") {
+  async function download(format: "pdf" | "html" | "pptx") {
     setBusy(format); setError(null);
     try {
       let r = view;
@@ -101,7 +104,11 @@ export default function ReportsPage() {
         setView(r);
       }
       const name = `marketing-report-${r.date}-${r.lang}`;
-      if (format === "html") await saveFile(`${name}.html`, screenHtml(r.html), "text/html");
+      if (format === "pptx") {
+        const deck = deckFromHtml(r.html);
+        if (!deck) throw new Error(t("This report has no presentation — run a new one."));
+        await saveFile(`${name}.pptx`, await (await import("../_components/deckPptx")).deckToPptx(deck), "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+      } else if (format === "html") await saveFile(`${name}.html`, screenHtml(r.html), "text/html");
       else await saveFile(`${name}.pdf`, await (await import("../_components/reportPdf")).reportPdf(screenHtml(r.html)), "application/pdf");
       setMessage(t("Report saved."));
     } catch (e: any) { setError(e.message); } finally { setBusy(null); }
@@ -152,7 +159,7 @@ export default function ReportsPage() {
       {data && form && (
         <>
           <div className="row twocol">
-            <div className="panel">
+            <Blk page="reports" id="schedule"><div className="panel">
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
                 <div className="chart-label" style={{ margin: 0 }}>{t("Schedule")}</div>
                 <span className={`pill ${data.schedule.enabled ? "healthy" : "hold"}`}>{data.schedule.enabled ? t("On") : t("Paused")}</span>
@@ -190,9 +197,9 @@ export default function ReportsPage() {
                 <button className="btn" disabled={!approver.trim() || busy === "save"} title={!approver.trim() ? t("Enter your name") : ""} onClick={() => act({ action: "SAVE_SCHEDULE", schedule: { ...form, days: form.days.join(","), languages: form.languages.join(",") } }, "save")}>{t("Save schedule")}</button>
               </div>
               {data.schedule.updatedBy && <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Last changed by")} {data.schedule.updatedBy} · {dm(data.schedule.updatedAt)}</div>}
-            </div>
+            </div></Blk>
 
-            <div className="panel">
+            <Blk page="reports" id="run"><div className="panel">
               <div className="chart-label">{t("Run")}</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button className="btn ghost" disabled={!!busy} onClick={() => act({ action: "PREVIEW" }, "preview")}>{busy === "preview" && since ? <WorkingInline since={since} label={t("Preparing report…")} /> : t("Preview today's report")}</button>
@@ -220,7 +227,7 @@ export default function ReportsPage() {
                   <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 8 }} onClick={() => open(r.id)}>{t("View")}</button>
                 </div>
               ))}
-            </div>
+            </div></Blk>
           </div>
 
           {busy && since && busy !== "save" && (
@@ -237,13 +244,14 @@ export default function ReportsPage() {
                 <div style={{ flex: 1 }} />
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => download("pdf")}>{busy === "pdf" ? t("Preparing PDF…") : t("Download PDF")}</button>
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => download("html")}>{t("Download HTML")}</button>
+                <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => download("pptx")}>{busy === "pptx" ? t("Preparing…") : t("Download PowerPoint")}</button>
                 <button className="btn" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => setPlaying(view)} title={t("Play as a presentation")}>▶ {t("Play")}</button>
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => setView(null)}>{t("Close")}</button>
               </div>
               <iframe title={view.title} sandbox="" srcDoc={screenHtml(view.html)} style={{ width: "100%", height: 1100, border: "1px solid var(--ink-hairline)", background: "#fff" }} />
             </div>
           )}
-          <MissedQuestions />
+          <Blk page="reports" id="missed"><MissedQuestions /></Blk>
         </>
       )}
       {playing && <ReportPlayer html={playing.html} title={playing.title} lang={playing.lang ?? lang} onClose={() => setPlaying(null)} />}

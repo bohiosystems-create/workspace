@@ -7,8 +7,11 @@ import { KColumns } from "./_components/KCharts";
 import { useI18n } from "./_components/lang";
 import { useApprover, openDrafts } from "./_components/useAgent";
 import { monthShort, firstSentence } from "@/lib/i18n";
+import Blk from "./_components/Blk";
 
 const DECISION_LABEL: Record<string, string> = { RE_ENGAGE: "Re-engage", RENEGOTIATE: "Renegotiate", PERFORMANCE_PLAN: "Performance plan", TEST_REPLACEMENT: "Test replacement", EXIT: "Exit", PROMOTED: "Promoted" };
+
+const ASSET_BLOCK: Record<string, string> = { "Ash Shati Residences": "kpi-ash", "Marina Tower": "kpi-marina", "Andalus Quarter": "kpi-andalus" };
 
 export default function DirectorPage() {
   const { lang, t, N, k, m, K, M, dm, d } = useI18n();
@@ -70,19 +73,19 @@ export default function DirectorPage() {
         <>
           <div className="panel" style={{ borderWidth: 2 }}>
             <div className="chart-label">{t("Today's brief")} · {d(data.today ?? data.asOf, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {t("figures as of")} {d(data.asOf, { day: "numeric", month: "short", year: "numeric" })}</div>
-            <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{data.brief.headline}</div>
-            <ul style={{ margin: "10px 0 0", paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.brief.bullets.map((b: string, i: number) => <li key={i}>{b}</li>)}</ul>
+            <Blk page="director" id="brief"><div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{data.brief.headline}</div></Blk>
+            <Blk page="director" id="brief"><ul style={{ margin: "10px 0 0", paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.brief.bullets.map((b: string, i: number) => <li key={i}>{b}</li>)}</ul></Blk>
             <div className="row twocol" style={{ marginTop: 14 }}>
-              <div>
+              <Blk page="director" id="risks"><div>
                 <div className="chart-label">{t("Risks")}</div>
                 <ul style={{ margin: 0, paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.brief.risks.map((b: string, i: number) => <li key={i} className="bad">{b}</li>)}</ul>
-              </div>
-              <div>
+              </div></Blk>
+              <Blk page="director" id="recommend"><div>
                 <div className="chart-label">{t("This week I recommend")}</div>
                 <ol style={{ margin: 0, paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.brief.actions.map((b: string, i: number) => <li key={i}>{b}</li>)}</ol>
-              </div>
+              </div></Blk>
             </div>
-            <div id="campaign-recs" style={{ marginTop: 16, borderTop: "1px solid var(--ink-hairline)", paddingTop: 12 }}>
+            <Blk page="director" id="campaignRecs"><div id="campaign-recs" style={{ marginTop: 16, borderTop: "1px solid var(--ink-hairline)", paddingTop: 12 }}>
               <div className="chart-label">{t("Campaign recommendations")} ({data.campaignRecs.length})</div>
               {data.campaignRecs.length === 0 && <div className="muted">{t("No campaign changes recommended today.")}</div>}
               {data.campaignRecs.slice(0, showAllRecs ? 99 : 5).map((r: any) => (
@@ -97,7 +100,7 @@ export default function DirectorPage() {
                 </div>
               ))}
               {data.campaignRecs.length > 5 && <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8 }} onClick={() => setShowAllRecs(!showAllRecs)}>{showAllRecs ? t("Show fewer") : `${t("Show all")} (${data.campaignRecs.length})`}</button>}
-            </div>
+            </div></Blk>
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
               <button className="btn" onClick={openChat}>{t("Ask the director")}</button>
               <a className="btn ghost" style={{ textDecoration: "none" }} href="/reports">{t("Daily report")}</a>
@@ -105,7 +108,7 @@ export default function DirectorPage() {
           </div>
 
           {data.scan && (
-            <div className="panel" style={{ marginTop: 18 }}>
+            <Blk page="director" id="signals"><div className="panel" style={{ marginTop: 18 }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
                 <div className="chart-label" style={{ margin: 0 }}>{t("What the data shows today")}</div>
                 <div className="muted" style={{ fontSize: 10.5 }}>{t("scanned before the report")}: {data.scan.sources.map((x: any) => `${x.label} ${x.items.toLocaleString("en")}`).join(" · ")}</div>
@@ -126,24 +129,24 @@ export default function DirectorPage() {
                 ))}
               </div>
               {data.scan.findings.length > 6 && <a className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, textDecoration: "none", display: "inline-block", marginTop: 10 }} href="/ideas">{t("All findings")} ({data.scan.findings.length})</a>}
-            </div>
+            </div></Blk>
           )}
 
           <div className="kpis" style={{ marginTop: 18 }}>
-            <Kpi v={M(tg.ytdActualM)} l={t("Sales year to date (CRM)")} d={`${t("target")} ${M(tg.ytdTargetM)}`} />
-            <Kpi v={`${tg.ytdPct}%`} l={t("Of target")} alert={tg.ytdPct < 90} />
-            {tg.byAsset.map((x: any) => <Kpi key={x.asset} v={`${x.pct}%`} l={N(x.asset)} d={`${t("June forecast")} ${m(x.forecastNextM)} / ${m(x.targetNextM)}`} alert={(x.pct ?? 0) < 75} />)}
+            <Blk page="director" id="kpi-ytd"><Kpi v={M(tg.ytdActualM)} l={t("Sales year to date (CRM)")} d={`${t("target")} ${M(tg.ytdTargetM)}`} /></Blk>
+            <Blk page="director" id="kpi-target"><Kpi v={`${tg.ytdPct}%`} l={t("Of target")} alert={tg.ytdPct < 90} /></Blk>
+            {tg.byAsset.map((x: any) => <Blk key={x.asset} page="director" id={ASSET_BLOCK[x.asset] ?? x.asset}><Kpi v={`${x.pct}%`} l={N(x.asset)} d={`${t("June forecast")} ${m(x.forecastNextM)} / ${m(x.targetNextM)}`} alert={(x.pct ?? 0) < 75} /></Blk>)}
           </div>
 
           <div className="row twocol">
-            <div className="panel">
+            <Blk page="director" id="chart-sales"><div className="panel">
               <div className="chart-label">{t("Contracted sales vs target, by month (SAR M)")}</div>
               <KColumns labels={tg.monthly.map((x: any) => monthShort(lang, x.month))} values={tg.monthly.map((x: any) => x.actualM)} target={tg.monthly.map((x: any) => x.targetM)} unit="SAR M" decimals={1}
                 actualLabel={t("Actual")} targetLabel={t("Target")} latestLabel={t("Latest month")} />
               <div className="muted" style={{ fontSize: 10.5, marginTop: 6 }}>{t("Red: below 90% of the month's target.")}</div>
-            </div>
+            </div></Blk>
 
-            <div className="panel">
+            <Blk page="director" id="inbox"><div className="panel">
               <div className="chart-label">{t("Waiting for your decision")} ({data.inbox.length}) · ~{data.managerMinutes} {t("min")}</div>
               {data.inbox.length === 0 && <div className="muted">{t("Nothing waiting. ")}</div>}
               {data.inbox.map((x: any, i: number) => (
@@ -155,7 +158,7 @@ export default function DirectorPage() {
                     : <a className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, textDecoration: "none" }} href={x.href.startsWith("#") ? undefined : x.href} onClick={(e) => { if (x.href.startsWith("#")) { e.preventDefault(); document.getElementById(x.href.slice(1))?.scrollIntoView({ behavior: "smooth" }); } }}>{t("Open")}</a>}
                 </div>
               ))}
-            </div>
+            </div></Blk>
           </div>
 
           <div className="panel" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -163,7 +166,7 @@ export default function DirectorPage() {
             <div className="muted" style={{ flex: 1, minWidth: 220 }}>{t("Approvals below are recorded with this name in the audit trail.")}</div>
           </div>
 
-          <div id="plan" className="panel" style={{ marginTop: 18 }}>
+          <Blk page="director" id="plan"><div id="plan" className="panel" style={{ marginTop: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
               <div className="chart-label" style={{ margin: 0 }}>{t("Budget plan")} — {monthShort(lang, data.plan.month)} {data.plan.month.slice(0, 4)}</div>
               <span className={`pill ${data.plan.status === "APPROVED" ? "healthy" : "fix"}`}>{t(data.plan.status)}</span>
@@ -197,10 +200,10 @@ export default function DirectorPage() {
               {data.plan.unallocatedK > 0 && <> · {t("held in reserve")} <b>{K(data.plan.unallocatedK)}</b> {t("(no vendor can use more profitably — fund trials or new vendors)")}</>}
             </div>
             <div className="muted" style={{ fontSize: 10, marginTop: 6 }}>{data.plan.assumptions}</div>
-          </div>
+          </div></Blk>
 
           <div className="row twocol" style={{ marginTop: 18 }}>
-            <div className="panel">
+            <Blk page="director" id="salesAgent"><div className="panel">
               {/* Kinan's sales agent is a read-only source: the director reads its CRM results and sends it nothing. */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                 <div className="chart-label" style={{ margin: 0 }}>{t("Data from Kinan's sales agent")}</div>
@@ -215,9 +218,9 @@ export default function DirectorPage() {
               <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>{data.salesAgent.label}{data.salesAgent.lastSync ? ` · ${t("last sync")} ${dm(data.salesAgent.lastSync)}` : ""}</div>
               <ul style={{ margin: "0 0 8px", paddingInlineStart: 18, fontSize: 12, lineHeight: 1.7 }}>{data.salesAgent.reads.map((x: string) => <li key={x}>{x}</li>)}</ul>
               <div className="muted" style={{ fontSize: 10.5 }}>{t("The director only reads this data to judge campaigns and vendors. Nothing is sent to the sales agent; leads, follow-up and sales stay with it.")}</div>
-            </div>
+            </div></Blk>
 
-            <div className="panel">
+            <Blk page="director" id="quality"><div className="panel">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
                 <div className="chart-label" style={{ margin: 0 }}>{t("Campaign quality from the CRM")}</div>
               </div>
@@ -235,7 +238,7 @@ export default function DirectorPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </div></Blk>
           </div>
         </>
       )}

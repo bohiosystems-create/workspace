@@ -2,6 +2,7 @@
 // mortgage rates, competitor developers' projects, offers and ad activity, and the marketing calendar.
 // SAMPLE DATA, invented but plausible — competitor names are fictional. Live sources: REGA / Ministry of Justice
 // transactions, Ejar, portal listings (Bayut, Aqar, Property Finder), SAMA mortgage data, the Meta Ad Library.
+import { calendarList } from "./calendar";
 const r1 = (x: number) => Math.round(x * 10) / 10;
 
 export const DISTRICTS = [
@@ -50,13 +51,5 @@ export function adsHistory(x: { launched: string; activeAds: number[] }): number
   return [...early, ...x.activeAds];
 }
 
-export const CALENDAR = [
-  { from: "2026-06-26", to: "2026-08-30", en: "School summer holiday — many families travel; weakest season in the history", ar: "إجازة الصيف المدرسية — تسافر أسر كثيرة؛ أضعف موسم في التاريخ" },
-  { from: "2026-05-26", to: "2026-05-30", en: "Eid al-Adha (approx.)", ar: "عيد الأضحى (تقريباً)" },
-  { from: "2026-08-30", to: "2026-08-30", en: "Schools reopen — buyers return", ar: "عودة المدارس — عودة المشترين" },
-  { from: "2026-09-23", to: "2026-09-23", en: "Saudi National Day — high ad competition, strong family footfall", ar: "اليوم الوطني — منافسة إعلانية عالية وإقبال عائلي قوي" },
-  { from: "2026-11-09", to: "2026-11-12", en: "Cityscape Global, Riyadh (approx.) — events converted best in the history", ar: "سيتي سكيب جلوبال، الرياض (تقريباً) — الفعاليات الأعلى تحويلاً في التاريخ" },
-  { from: "2026-12-01", to: "2027-01-31", en: "Jeddah Season events (approx.)", ar: "فعاليات موسم جدة (تقريباً)" },
-  { from: "2027-02-08", to: "2027-03-09", en: "Ramadan 2027 (approx.) — payment-plan offers worked best", ar: "رمضان 2027 (تقريباً) — كانت عروض خطط السداد الأنجح" },
-  { from: "2027-03-10", to: "2027-03-12", en: "Eid al-Fitr 2027 (approx.)", ar: "عيد الفطر 2027 (تقريباً)" },
-];
+/** The marketing calendar for the next 12 months (celebrations, seasons, events) — see lib/calendar.ts. */
+export const CALENDAR = calendarList(365);

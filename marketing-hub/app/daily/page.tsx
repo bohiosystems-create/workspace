@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Header from "../_components/Header";
 import { useI18n } from "../_components/lang";
 import { useApprover } from "../_components/useAgent";
+import Blk from "../_components/Blk";
 
 const STRIPE: Record<string, string> = { crit: "var(--alert)", warn: "var(--ink)", info: "var(--ink-faint)" };
 
@@ -53,11 +54,11 @@ export default function DailyPage() {
             ))}
           </div>
           <div className="kpis">
-            <Kpi v={String(data.summary.total)} l={t("Recommendations")} />
-            <Kpi v={String(data.summary.urgent)} l={t("Urgent")} alert={data.summary.urgent > 0} />
-            <Kpi v={String(data.summary.new)} l={t("New today")} />
-            <Kpi v={String(data.summary.resolved)} l={t("Resolved since yesterday")} />
-            <Kpi v={String(data.summary.total - data.summary.open)} l={t("Decided")} />
+            <Blk page="daily" id="kpi-recs"><Kpi v={String(data.summary.total)} l={t("Recommendations")} /></Blk>
+            <Blk page="daily" id="kpi-urgent"><Kpi v={String(data.summary.urgent)} l={t("Urgent")} alert={data.summary.urgent > 0} /></Blk>
+            <Blk page="daily" id="kpi-new"><Kpi v={String(data.summary.new)} l={t("New today")} /></Blk>
+            <Blk page="daily" id="kpi-resolved"><Kpi v={String(data.summary.resolved)} l={t("Resolved since yesterday")} /></Blk>
+            <Blk page="daily" id="kpi-decided"><Kpi v={String(data.summary.total - data.summary.open)} l={t("Decided")} /></Blk>
           </div>
 
           <div className="row twocol" style={{ marginTop: 4 }}>
@@ -65,7 +66,7 @@ export default function DailyPage() {
               <div className="field" style={{ width: 220 }}><label>{t("Deciding as")}</label><input className="in" placeholder={t("Your name")} value={approver} onChange={(e) => { setApprover(e.target.value); save(e.target.value); }} /></div>
               <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>{t("Accepting records your decision; the change itself is made on Campaigns or with the agency. Nothing is changed automatically.")}</div>
             </div>
-            <div className="panel">
+            <Blk page="daily" id="second"><div className="panel">
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
                 <div className="chart-label" style={{ margin: 0, flex: 1 }}>{t("AI second opinion")}</div>
                 {data.ai.enabled && isToday && <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === "ai"} onClick={() => act({ action: "AI_NOTE" }, "ai")}>{busy === "ai" ? t("Thinking…") : data.aiNote ? t("Refresh") : t("Ask the AI")}</button>}
@@ -73,7 +74,7 @@ export default function DailyPage() {
               {data.aiNote
                 ? <><div style={{ fontSize: 12.5, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{data.aiNote.text}</div><div className="muted" style={{ fontSize: 9, marginTop: 6 }} dir="ltr">{({ anthropic: "Claude", openai: "OpenAI", gemini: "Gemini" } as Record<string, string>)[data.aiNote.provider] ?? data.aiNote.provider} · {data.aiNote.model}</div></>
                 : <div className="muted" style={{ fontSize: 11.5 }}>{data.ai.enabled ? t("Ask the AI to read today's check together with the campaign history and say what to do first.") : t("Add a Claude, OpenAI or Gemini API key to get an AI second opinion. The checks on this page are rules-based and work without one.")}</div>}
-            </div>
+            </div></Blk>
           </div>
 
           {groups.length === 0 && <div className="panel" style={{ marginTop: 18 }}><div className="muted">{t("No changes recommended for this day.")}</div></div>}
@@ -116,10 +117,10 @@ export default function DailyPage() {
           ))}
 
           {data.resolved.length > 0 && (
-            <div className="panel" style={{ marginTop: 14 }}>
+            <Blk page="daily" id="resolved"><div className="panel" style={{ marginTop: 14 }}>
               <div className="chart-label">{t("Resolved since yesterday")}</div>
               <ul style={{ margin: 0, paddingInlineStart: 18, fontSize: 12 }}>{data.resolved.map((r: any) => <li key={r.id} className="ok">{r.title}</li>)}</ul>
-            </div>
+            </div></Blk>
           )}
         </>
       )}

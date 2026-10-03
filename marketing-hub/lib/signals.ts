@@ -19,7 +19,9 @@ import { crmSignals, signalView, SOURCE_LABEL, type Signal, type SignalSource } 
 import { readInbox, senderLabel } from "./inbox";
 import { buildInvoiceDashboard, ensureOracleSynced } from "./invoices";
 import { ensureAdsSynced } from "./adaccounts";
-import { COMPETITORS, AD_MONTHS, marketSummary, MORTGAGE, CALENDAR } from "./market";
+import { COMPETITORS, AD_MONTHS, marketSummary, MORTGAGE } from "./market";
+import { upcoming, momentView } from "./calendar";
+import { readNews, newsAngle, newsCities, TOPIC_LABEL } from "./news";
 import { familyOf } from "./history";
 import { type Lang, nm, dt } from "./i18n";
 import { serial } from "./single";
@@ -32,7 +34,7 @@ const iso = (d: Date) => d.toISOString().slice(0, 10);
 const base = { recent: 0, baseline: 0, changePct: 0, stat: 0, drivers: [] as Signal["drivers"], campaign: null as string | null, vendor: null as string | null, family: null as string | null };
 
 export type ScannedSource = { source: SignalSource; items: number; unit: Bi; mode: string; note: Bi | null; found: number };
-export type Scan = { date: string; scannedAt: string; sources: ScannedSource[]; signals: Signal[] };
+export type Scan = { date: string; scannedAt: string; liveAt?: string; sources: ScannedSource[]; signals: Signal[] };
 
 type Camp = { id: string; name: string; project: string; vendor: string; family: string; status: string; startDate: Date; endDate: Date; crmCode: string | null };
 
@@ -148,14 +150,39 @@ function marketSignals(): Signal[] {
 }
 
 // --------------------------------------------------------------- calendar
-function calendarSignals(now: Date): Signal[] {
-  return CALENDAR.filter((c) => Date.parse(c.from) > now.getTime() && Date.parse(c.from) - now.getTime() <= 170 * DAY && /National Day|Cityscape|summer/i.test(c.en)).map((c): Signal => {
-    const days = Math.round((Date.parse(c.from) - now.getTime()) / DAY);
-    const risk = /summer/i.test(c.en);
-    return { ...base, source: "CALENDAR", id: `CALENDAR|${c.from}`, kind: "CALENDAR_MOMENT", metric: "date", direction: risk ? "down" : "up", severity: "info", scope: "portfolio", project: null, recent: days, from: c.from, to: c.to, meta: { days, moment: c.en },
-      title: bi(`In ${days} days: ${c.en.split(" — ")[0]} (${dt("en", c.from)})`, `بعد ${days} يوماً: ${c.ar.split(" — ")[0]} (${dt("ar", c.from)})`),
-      why: bi(`${c.en}. ${risk ? "Plan the summer posture now (spend lightly, build a priority list)." : "Events and dated offers need 6–10 weeks to prepare — decide now."}`, `${c.ar}. ${risk ? "خططوا لموسم الصيف الآن (إنفاق خفيف وبناء قائمة أولوية)." : "تحتاج الفعاليات والعروض المؤقتة إلى 6–10 أسابيع تحضير — قرروا الآن."}`) };
+// Celebrations and moments (lib/calendar.ts) from today's real date: each one inside its preparation window, or
+// coming within ~5 months, becomes a dated moment to plan for. Light content-only days are left out.
+async function calendarSignals(): Promise<{ signals: Signal[]; items: number; mode: string; note: Bi | null }> {
+  const u = await upcoming(170);
+  const SKIP = new Set(["FLAG_DAY", "HIJRI_NY"]);
+  const signals = u.items.filter((m) => !SKIP.has(m.key) && m.from > u.today).map((m): Signal => {
+    const v = momentView(m, "en", u.today), va = momentView(m, "ar", u.today);
+    const urgent = v.late || v.inDays <= m.leadWeeks * 7 + 7;
+    return { ...base, source: "CALENDAR", id: `CALENDAR|${m.id}`, kind: "CALENDAR_MOMENT", metric: "date", direction: m.direction, severity: urgent && m.direction === "up" ? "warn" : "info", scope: "portfolio", project: null,
+      recent: v.inDays, from: m.from, to: m.to, meta: { days: v.inDays, moment: m.name.en, key: m.key, city: m.city, prepBy: v.prepBy, source: m.source, url: m.url ?? null },
+      title: bi(`In ${v.inDays} days: ${m.name.en} (${v.when})`, `بعد ${va.inDays} يوماً: ${m.name.ar} (${va.when})`),
+      why: bi(`${m.angle.en} ${v.late ? `Preparation should have started by ${dt("en", v.prepBy)} — decide now.` : `Prepare from ${dt("en", v.prepBy)} (${m.leadWeeks} weeks ahead).`} Source: ${m.sourceNote.en}.`,
+        `${m.angle.ar} ${va.late ? `كان ينبغي بدء التحضير بحلول ${dt("ar", v.prepBy)} — قرروا الآن.` : `التحضير من ${dt("ar", v.prepBy)} (قبل ${m.leadWeeks} أسابيع).`} المصدر: ${m.sourceNote.ar}.`) };
   });
+  return { signals, items: u.items.length, mode: u.ics.connected ? "Umm al-Qura + your calendar" : "Umm al-Qura + announced", note: u.ics.error ? bi(`your calendar: ${u.ics.error}`, `تقويمكم: ${u.ics.error}`) : null };
+}
+
+// ------------------------------------------------------------------- news
+// Live news for Kinan's focus cities (lib/news.ts): what a property marketer should act on becomes a signal.
+async function newsSignals(): Promise<{ signals: Signal[]; items: number; mode: string; note: Bi | null }> {
+  const n = await readNews();
+  const signals = n.items.filter((x) => x.topic !== "ECONOMY" || x.score >= 3).slice(0, 10).map((x): Signal => {
+    const a = newsAngle(x), lab = TOPIC_LABEL[x.topic];
+    return { ...base, source: "NEWS", id: `NEWS|${x.id}`, kind: "NEWS_ITEM", metric: "news", direction: x.direction, severity: x.topic === "REGULATION" || (x.direction === "down" && x.topic === "REAL_ESTATE") ? "warn" : "info",
+      scope: x.project ? "project" : "portfolio", project: x.project, from: x.date, to: x.date,
+      meta: { url: x.url, publisher: x.publisher, topic: x.topic, city: x.city, date: x.date },
+      title: bi(`${x.city && !x.title.en.includes(x.city) ? `${x.city} · ` : ""}${x.title.en}`, `${x.city && !x.title.ar.includes(nm("ar", x.city)) ? `${nm("ar", x.city)} · ` : ""}${x.title.ar}`),
+      why: bi(`${lab.en} — ${x.publisher}, ${dt("en", x.date)}${x.summary ? `: ${x.summary.en}` : "."} What it means: ${a.en}`, `${lab.ar} — ${x.publisher}، ${dt("ar", x.date)}${x.summary ? `: ${x.summary.ar}` : "."} ما يعنيه: ${a.ar}`) };
+  });
+  const when = dt("en", n.fetchedAt.slice(0, 10));
+  return { signals, items: n.items.length, mode: n.mode === "live" ? "live (Google News)" : n.mode,
+    note: n.mode === "snapshot" ? bi(`real news gathered ${when}${n.error ? ` — live feeds unreachable (${n.error})` : ""}`, `أخبار حقيقية جُمعت في ${dt("ar", n.fetchedAt.slice(0, 10))}${n.error ? ` — تعذّر الوصول للمصادر المباشرة` : ""}`)
+      : bi(`read ${new Date(n.fetchedAt).toLocaleString("en-GB", { timeZone: "Asia/Riyadh", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} (Riyadh) · ${newsCities().join(", ")}`, `قُرئت ${new Date(n.fetchedAt).toLocaleString("ar-SA-u-nu-latn", { timeZone: "Asia/Riyadh", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · ${newsCities().map((c) => nm("ar", c)).join("، ")}`) };
 }
 
 // -------------------------------------------------------------- linking
@@ -177,7 +204,7 @@ function link(all: Signal[]) {
 }
 
 const SEV = { crit: 0, warn: 1, info: 2 } as const;
-const SRC_ORDER: SignalSource[] = ["CRM", "EMAIL", "ADS", "INVOICES", "COMPETITORS", "MARKET", "CALENDAR"];
+const SRC_ORDER: SignalSource[] = ["CRM", "EMAIL", "ADS", "INVOICES", "COMPETITORS", "MARKET", "NEWS", "CALENDAR"];
 
 /** Run every detector now (no cache). */
 export async function runScan(): Promise<Scan> {
@@ -188,8 +215,9 @@ export async function runScan(): Promise<Scan> {
   const camps: Camp[] = campaigns.map((c) => ({ id: c.id, name: c.name, project: c.asset.name, vendor: c.vendor.name, family: familyOf(c.channel), status: c.status, startDate: c.startDate, endDate: c.endDate, crmCode: c.crmCode }));
   const [crm, inbox, inv, ads] = await Promise.all([crmSignals(), readInbox(vendors.map((v) => ({ name: v.name, email: v.email }))), invoiceSignals(camps, now), adSignals(camps)]);
   const leadCount = await prisma.crmLead.count();
-  const email = emailSignals(inbox.messages, camps, now), comp = competitorSignals(), mkt = marketSignals(), cal = calendarSignals(now);
-  const signals = [...crm.signals, ...email, ...inv.signals, ...ads.signals, ...comp, ...mkt, ...cal];
+  const email = emailSignals(inbox.messages, camps, now), comp = competitorSignals(), mkt = marketSignals();
+  const [cal, news] = await Promise.all([calendarSignals(), newsSignals()]);
+  const signals = [...crm.signals, ...email, ...inv.signals, ...ads.signals, ...comp, ...mkt, ...news.signals, ...cal.signals];
   link(signals);
   signals.sort((p, q) => SEV[p.severity] - SEV[q.severity] || (p.direction === q.direction ? 0 : p.direction === "down" ? -1 : 1) || SRC_ORDER.indexOf(p.source) - SRC_ORDER.indexOf(q.source));
   const cnt = (src: SignalSource) => signals.filter((s) => s.source === src).length;
@@ -200,16 +228,36 @@ export async function runScan(): Promise<Scan> {
     { source: "ADS", items: ads.items, unit: bi("weekly ad rows", "صفاً أسبوعياً من المنصات"), mode: process.env.ADS_MODE ?? "mock", note: null, found: cnt("ADS") },
     { source: "COMPETITORS", items: COMPETITORS.length, unit: bi("competitors (Meta Ad Library)", "منافسين (مكتبة إعلانات ميتا)"), mode: "sample", note: null, found: cnt("COMPETITORS") },
     { source: "MARKET", items: marketSummary().length + 1, unit: bi("district series + mortgage rates", "سلاسل الأحياء + أسعار التمويل"), mode: "sample", note: null, found: cnt("MARKET") },
-    { source: "CALENDAR", items: CALENDAR.length, unit: bi("dates", "مواعيد"), mode: "built-in", note: null, found: cnt("CALENDAR") },
+    { source: "NEWS", items: news.items, unit: bi("news items (Jeddah, Riyadh)", "خبراً (جدة، الرياض)"), mode: news.mode, note: news.note, found: cnt("NEWS") },
+    { source: "CALENDAR", items: cal.items, unit: bi("celebrations and moments (6 months)", "مناسبة وموسماً (6 أشهر)"), mode: cal.mode, note: cal.note, found: cnt("CALENDAR") },
   ];
-  return { date: iso(now), scannedAt: new Date().toISOString(), sources, signals };
+  return { date: iso(now), scannedAt: new Date().toISOString(), liveAt: new Date().toISOString(), sources, signals };
+}
+
+const LIVE_TTL = 3 * 3_600_000;
+/** Replace the news and calendar findings in a stored scan with fresh ones. */
+async function refreshLive(scan: Scan): Promise<Scan> {
+  const [cal, news] = await Promise.all([calendarSignals(), newsSignals()]);
+  const keep = scan.signals.filter((s) => s.source !== "NEWS" && s.source !== "CALENDAR");
+  const signals = [...keep, ...news.signals, ...cal.signals];
+  const src = (k: SignalSource, x: typeof cal, unit: Bi): ScannedSource => ({ source: k, items: x.items, unit, mode: x.mode, note: x.note, found: signals.filter((s) => s.source === k).length });
+  const sources = [...scan.sources.filter((s) => s.source !== "NEWS" && s.source !== "CALENDAR"),
+    src("NEWS", news, bi("news items (Jeddah, Riyadh)", "خبراً (جدة، الرياض)")), src("CALENDAR", cal, bi("celebrations and moments (6 months)", "مناسبة وموسماً (6 أشهر)"))];
+  return { ...scan, liveAt: new Date().toISOString(), sources, signals };
 }
 
 /** Today's scan: run once per day (before the report), then reused. force = rescan now (live snapshot). */
 export const dailyScan = serial(async function dailyScanImpl(force = false): Promise<Scan> {
   const key = iso(TODAY);
   const existing = (await prisma.signalScan.findMany()).find((r) => r.key === key);
-  if (existing && !force) return JSON.parse(existing.payload) as Scan;
+  if (existing && !force) {
+    // The data sources are scanned once a day; the live ones (news, calendar) are refreshed every few hours.
+    const scan = JSON.parse(existing.payload) as Scan;
+    if (scan.liveAt && Date.now() - Date.parse(scan.liveAt) < LIVE_TTL) return scan;
+    const fresh = await refreshLive(scan);
+    await prisma.signalScan.update({ where: { key }, data: { payload: JSON.stringify(fresh) } });
+    return fresh;
+  }
   const scan = await runScan();
   if (existing) await prisma.signalScan.update({ where: { key }, data: { payload: JSON.stringify(scan) } });
   else await prisma.signalScan.create({ data: { key, date: key, payload: JSON.stringify(scan) } });

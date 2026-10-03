@@ -58,6 +58,13 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - The Campaigns page lists every campaign that has run: the live 2026 campaigns (verified against Oracle cost and the CRM) and the 2023–2025 history. Each has its figures and a dashboard: sales and spend by month, leads and qualified by month, the funnel, cost to sales against the channel benchmark, budget used against flight elapsed; past campaigns show their lesson.
 - The user changes what is listed and what each dashboard shows by asking the assistant: add or remove figures and charts, add any chart in plain words (drawn for each campaign), filter by live/past, year, project, vendor or channel, and change the order. Every change is logged and can be undone; the page also has scope, year and order controls.
 
+## 1e. Celebrations, live news, settings and dashboards
+- Celebrations calendar from the Umm al-Qura Hijri calendar (Ramadan, Eids, Hijri New Year) plus national days, Riyadh Season, Cityscape and Jeddah events, and your own Outlook/Google calendar (ICS) — every moment with its marketing angle and preparation date, answered by initiatives.
+- Live news (Google News, EN/AR) for Jeddah and Riyadh: property, financing, regulation, infrastructure, events, developers — each item a finding with initiatives built on it; a real-news snapshot where the internet can't be reached.
+- Settings (gear icon): every integration with status and how to connect it (Meta, Google Ads, Snapchat, TikTok, X, LinkedIn, Outlook, calendars, news, Yardi, Oracle, market data, AI, voice).
+- Every page's dashboard can be changed from the chat (hide/show tiles, charts, sections; one page or all; undo).
+- The daily report includes the full Daily campaign check, and ▶ Play downloads as PowerPoint with native charts and speaker notes.
+
 ## 2. Vendor orchestration — the team's work, done for one manager
 
 - **Vendor directory:** every vendor (current, bench alternatives, past) in one list. Open one to see the campaigns it ran (live and past), its Oracle invoices, its work orders and deliverables, and all email correspondence through Outlook (sent and received).

@@ -136,7 +136,7 @@ const CASES: [string, string[]][] = [
   ["Price per sqm around Andalus Quarter", ["Jeddah South", "off-plan"]],
   ["What are competitors doing?", ["Competitors", "Sahil Living"]],
   ["Who competes with Marina Tower?", ["Mirsa Developments"]],
-  ["When is Ramadan next year?", ["Marketing calendar", "Ramadan 2027"]],
+  ["When is Ramadan next year?", ["Celebrations and moments", "Ramadan 2027"]],
   ["Key dates in the marketing calendar", ["Cityscape"]],
   // Expanded history
   ["How did Palm Villas campaigns perform?", ["Campaign history", "Palm Villas"]],
@@ -177,7 +177,7 @@ const CASES: [string, string[]][] = [
   ["أي الإعلانات الأفضل؟", ["الإعلانات حسب"]],
   ["كيف السوق العقاري في جدة؟", ["السوق العقاري"]],
   ["ماذا يفعل المنافسون؟", ["المنافسون"]],
-  ["متى رمضان القادم؟", ["التقويم التسويقي"]],
+  ["متى رمضان القادم؟", ["المناسبات والمواسم"]],
   ["المستثمرون أم المستخدمون النهائيون؟", ["نوع المشتري"]],
 
   // Campaign history (no menu page; asked through the assistant)
@@ -213,6 +213,18 @@ const CASES: [string, string[]][] = [
   ["أضف وتيرة الإنفاق إلى لوحات الحملات", ["تم تعديل لوحات الحملات", "وتيرة الإنفاق"]],
   ["رتّب الحملات حسب المبيعات", ["مرتبة حسب المبيعات"]],
   ["Reset the campaign dashboards", ["back to the standard campaign dashboards"]],
+  // Any page's dashboard from the chat (run in order; the last one resets)
+  ["Reset all dashboards", ["Dashboards updated|Nothing to change"]],
+  ["Remove the YTD sales from all dashboards", ["Dashboards updated", "Sales year to date"]],
+  ["Hide the budget plan on the director page", ["Budget plan"]],
+  ["Hide the alerts on the campaigns page", ["Alerts"]],
+  ["What is hidden on the dashboards?", ["Hidden on the dashboards", "Budget plan"]],
+  ["Undo the last dashboard change", ["Undone"]],
+  ["أزل جدول التقييم من صفحة الموردين", ["تم تعديل اللوحات"]],
+  ["Reset all dashboards", ["every dashboard back to standard"]],
+  // News and celebrations
+  ["What's in the news in Jeddah?", ["In the news", "Jeddah"]],
+  ["Upcoming celebrations", ["Celebrations and moments", "Ramadan"]],
   // …and questions that mention campaigns stay questions
   ["Show spend for each campaign", ["!Campaign dashboards updated"]],
 ];

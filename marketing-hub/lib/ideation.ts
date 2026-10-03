@@ -16,7 +16,7 @@ import { buildDirector } from "./director";
 import { historyState, FAMILY_LABEL, SEASON_LABEL, familyOf } from "./history";
 import { dailyState } from "./daily";
 import { createCustomDraft } from "./recommendations";
-import { PLAN_MONTH } from "./clock";
+import { PLAN_MONTH, todayRiyadh } from "./clock";
 import { type Lang, tx, nm, K, M, dt } from "./i18n";
 
 const monthShort = (l: Lang, ym: string) => dt(l, `${ym}-01`, { month: "long", year: "numeric" });
@@ -81,15 +81,19 @@ export async function ideationContext(brief: IdeaBrief, pre?: Agent) {
   const signals = sig.signals.filter((x) => x.project === project || x.scope === "portfolio");
   // What needs an answer: falls and risks that matter, and concrete opportunities (a proposal, unused budget, a dated
   // moment, a market or financing shift). Evidence already attached to another signal is answered with it.
-  const OPP = new Set(["SURGE", "EMAIL_OPPORTUNITY", "EMAIL_EVENT", "BUDGET_HEADROOM", "FINANCE_SHIFT", "MARKET_SHIFT", "CALENDAR_MOMENT"]);
-  const answerable = (x: Signal) => !x.linkedTo && (x.direction === "down" ? x.severity !== "info" || x.kind === "MARKET_SHIFT" : OPP.has(x.kind));
-  const rank = (x: Signal) => (x.project === project ? 0 : 10) + ({ crit: 0, warn: 1, info: 2 } as const)[x.severity] * 2 + (x.direction === "down" ? 0 : 1) + (x.kind === "CALENDAR_MOMENT" ? 3 : 0);
+  const OPP = new Set(["SURGE", "EMAIL_OPPORTUNITY", "EMAIL_EVENT", "BUDGET_HEADROOM", "FINANCE_SHIFT", "MARKET_SHIFT", "CALENDAR_MOMENT", "NEWS_ITEM"]);
+  const answerable = (x: Signal) => !x.linkedTo && (x.direction === "down" ? x.severity !== "info" || x.kind === "MARKET_SHIFT" || x.kind === "NEWS_ITEM" : OPP.has(x.kind));
+  const rank = (x: Signal) => (x.project === project ? 0 : 10) + ({ crit: 0, warn: 1, info: 2 } as const)[x.severity] * 2 + (x.direction === "down" ? 0 : 1) + (x.kind === "CALENDAR_MOMENT" ? (x.severity === "warn" ? 1 : 3) : x.kind === "NEWS_ITEM" ? 2 : 0);
   // Signals are answered when the initiative would run soon enough to matter (within 6 months of the CRM data).
   const gapMonths = (y: string, x: string | null) => (x ? (Number(y.slice(0, 4)) - Number(x.slice(0, 4))) * 12 + Number(y.slice(5, 7)) - Number(x.slice(5, 7)) : 0);
   const soon = !!focus || gapMonths(brief.month && /^\d{4}-\d{2}$/.test(brief.month) ? brief.month : defaultMonth(), sig.date) <= 6;
   const toAnswer = !soon ? [] : [...(focus && signals.includes(focus) ? [focus] : []), ...signals.filter((x) => x !== focus && answerable(x)).sort((p, q) => rank(p) - rank(q))].slice(0, 3);
   const target = byAsset.find((x) => x.asset === project) ?? null;
-  const month = brief.month && /^\d{4}-\d{2}$/.test(brief.month) ? brief.month : defaultMonth();
+  // Answering a dated moment (a celebration, an event in the news): plan for the month it happens in.
+  // News is today's (real date): plan from the current month.
+  const momentMonth = focus && focus.kind === "CALENDAR_MOMENT" && focus.from > `${PLAN_MONTH}-31` ? focus.from.slice(0, 7)
+    : focus && focus.kind === "NEWS_ITEM" ? (() => { const t = todayRiyadh(); return Number(t.slice(8)) > 20 ? nextMonth(t.slice(0, 7)) : t.slice(0, 7); })() : null;
+  const month = brief.month && /^\d{4}-\d{2}$/.test(brief.month) ? brief.month : momentMonth ?? defaultMonth();
   const season = seasonOf(month);
   const live = a.mkt.campaigns.filter((c) => c.asset === project);
   const monthlySpend = live.reduce((s, c) => s + c.spendK, 0) / 5;
@@ -455,6 +459,9 @@ function signalDraft(c: IdeationContext, s: Signal): Draft | null {
       risks: [bi("Reply only after approval; partnership terms go through legal and finance.", "الرد بعد الاعتماد فقط؛ وتمر شروط الشراكة عبر القانونية والمالية.")],
     };
   }
+  // Celebrations with their own playbook (Ramadan, Eids, Founding / National Day, Riyadh Season, Jeddah events).
+  if (s.kind === "CALENDAR_MOMENT" && s.direction === "up" && m.key && CELEBRATION[String(m.key)]) return { ...CELEBRATION[String(m.key)](P, PA, say), trigger: s.id, source: "rules" };
+  if (s.kind === "NEWS_ITEM") return newsDraft(c, s, P, PA, role);
   if (s.kind === "EMAIL_EVENT" || (s.kind === "CALENDAR_MOMENT" && s.direction === "up")) {
     const city = /cityscape/i.test(s.title.en), nd = /national day/i.test(s.title.en);
     return {
@@ -485,6 +492,114 @@ function signalDraft(c: IdeationContext, s: Signal): Draft | null {
       risks: [bi("Rates and prices are public data; quote the source and date.", "الأسعار بيانات عامة؛ اذكروا المصدر والتاريخ.")],
     };
   }
+  return null;
+}
+
+// ------------------------------------------------------- celebrations and news
+type Concept = Omit<Draft, "source" | "trigger">;
+const R = (en: string, ar: string) => bi(en, ar);
+const CELEBRATION: Record<string, (P: string, PA: string, say: Bi) => Concept> = {
+  RAMADAN: (P, PA, say) => ({ kind: "OFFER",
+    title: R(`${P}: Ramadan payment-plan offer`, `${PA}: عرض خطة السداد في رمضان`),
+    bigIdea: R(`${say.en}. The history's best Ramadan lever was a payment plan (qualified rate up to 22% in 2025): an extended plan for reservations made during the month, evening site visits after iftar, and media booked 6–8 weeks ahead before costs rise in the last ten days.`, `${say.ar}. كانت خطة السداد أنجح أداة في رمضان تاريخياً (نسبة المؤهلين حتى 22% في 2025): خطة ممتدة للحجوزات خلال الشهر، وزيارات مسائية بعد الإفطار، وحجز الإعلانات قبل 6–8 أسابيع قبل ارتفاع التكلفة في العشر الأواخر.`),
+    audience: R("Families and salaried buyers planning a move after Eid.", "العائلات والموظفون الذين يخططون للانتقال بعد العيد."), offer: R("Extended payment plan for Ramadan reservations.", "خطة سداد ممتدة لحجوزات رمضان."),
+    headline: R(`${P}: your home, in easy Ramadan instalments`, `${PA}: منزلكم بأقساط رمضانية ميسّرة`),
+    channels: [{ family: "DIGITAL", sharePct: 45, role: R("evening ads and the offer", "إعلانات مسائية والعرض") }, { family: "BROKER", sharePct: 30, role: R("the plan in broker kits", "الخطة في حقائب الوسطاء") }, { family: "PORTAL", sharePct: 25, role: R("offer badge on listings", "شارة العرض في الإعلانات العقارية") }],
+    evidence: ["MAR-RAMADAN-25", "ASH-RAMADAN-25"], risks: [R("Ramadan dates follow the moon sighting; keep the start flexible by a day.", "تتبع مواعيد رمضان رؤية الهلال؛ أبقوا البداية مرنة بيوم.")] }),
+  EID_FITR: (P, PA, say) => ({ kind: "EVENT",
+    title: R(`${P}: Eid open house for families`, `${PA}: بيت مفتوح للعائلات في العيد`),
+    bigIdea: R(`${say.en}. Families visit and decide together: open the show unit on Eid days 2–4 with hospitality and a gift on reservation; promote it the week before Eid, not on the day.`, `${say.ar}. تزور العائلات وتقرر معاً: فتح الوحدة النموذجية في أيام العيد 2–4 بضيافة وهدية عند الحجز؛ والترويج في الأسبوع السابق لا يوم العيد.`),
+    audience: R("Families visiting relatives in Jeddah over Eid.", "العائلات التي تزور أقاربها في جدة خلال العيد."), offer: R("Eid gift on reservation (e.g. a furniture voucher).", "هدية العيد عند الحجز (مثل قسيمة أثاث)."),
+    headline: R(`Eid at ${P} — come and see`, `العيد في ${PA} — تفضلوا بالزيارة`),
+    channels: [{ family: "EVENT", sharePct: 45, role: R("the open house", "البيت المفتوح") }, { family: "DIGITAL", sharePct: 35, role: R("invitations the week before", "الدعوات في الأسبوع السابق") }, { family: "BROKER", sharePct: 20, role: R("booked family visits", "زيارات عائلية محجوزة") }],
+    evidence: ["PLM-OPENDAYS-23"], risks: [R("Many families travel for Eid — keep the open house to the days after the first.", "تسافر عائلات كثيرة في العيد — اجعلوا البيت المفتوح بعد اليوم الأول.")] }),
+  EID_ADHA: (P, PA, say) => ({ kind: "OFFER",
+    title: R(`${P}: pre-Eid al-Adha family offer`, `${PA}: عرض عائلي قبل عيد الأضحى`),
+    bigIdea: R(`${say.en}. The holiday is long and many travel, so spend before it: a dated family offer in the two weeks before Arafah, then pause paid media over the holiday and restart the day after.`, `${say.ar}. الإجازة طويلة ويسافر كثيرون، فالإنفاق قبلها: عرض عائلي مؤقت في الأسبوعين السابقين ليوم عرفة، ثم إيقاف الإعلانات المدفوعة خلال الإجازة واستئنافها بعدها.`),
+    audience: R("Families deciding before the holiday.", "العائلات التي تقرر قبل الإجازة."), offer: R("Offer valid until the day before Arafah.", "عرض ساري حتى اليوم السابق لعرفة."),
+    headline: R(`${P}: reserve before Eid`, `${PA}: احجزوا قبل العيد`),
+    channels: [{ family: "DIGITAL", sharePct: 50, role: R("the dated offer", "العرض المؤقت") }, { family: "PORTAL", sharePct: 25, role: R("offer on listings", "العرض في الإعلانات العقارية") }, { family: "BROKER", sharePct: 25, role: R("closing before the break", "الإغلاق قبل الإجازة") }],
+    risks: [R("Hajj traffic through Jeddah raises media and site-visit friction in the holiday week.", "حركة الحج عبر جدة تزيد صعوبة الإعلانات والزيارات في أسبوع الإجازة.")] }),
+  FOUNDING_DAY: (P, PA, say) => ({ kind: "CONTENT_PR",
+    title: R(`${P}: Founding Day heritage stories`, `${PA}: قصص التراث في يوم التأسيس`),
+    bigIdea: R(`${say.en}. Tell the design's Saudi-heritage story (materials, courtyards, Hijazi details) in short films and PR the week before, with a dated family offer; ad costs peak on the day.`, `${say.ar}. رواية قصة التصميم المستوحى من التراث السعودي (المواد والأفنية والتفاصيل الحجازية) في أفلام قصيرة وعلاقات عامة في الأسبوع السابق، مع عرض عائلي مؤقت؛ وتبلغ التكلفة ذروتها يوم المناسبة.`),
+    audience: R("Saudi families who value heritage and belonging.", "العائلات السعودية التي تقدّر التراث والانتماء."), offer: R("Founding Day offer for one week.", "عرض يوم التأسيس لأسبوع واحد."),
+    headline: R(`${P}: rooted here`, `${PA}: جذورنا هنا`),
+    channels: [{ family: "PR", sharePct: 30, role: R("heritage stories", "قصص التراث") }, { family: "INFLUENCER", sharePct: 30, role: R("heritage-design walkthroughs", "جولات تصميم تراثي") }, { family: "DIGITAL", sharePct: 40, role: R("the offer, before the day", "العرض قبل اليوم") }] }),
+  NATIONAL_DAY: (P, PA, say) => ({ kind: "EVENT",
+    title: R(`${P}: National Day family weekend`, `${PA}: عطلة اليوم الوطني للعائلات`),
+    bigIdea: R(`${say.en}. A family open weekend on site with a dated offer, promoted two weeks ahead; ad costs peak on the day itself, so spend before it.`, `${say.ar}. عطلة مفتوحة للعائلات في الموقع بعرض مؤقت، يُروَّج لها قبل أسبوعين؛ وتبلغ تكلفة الإعلانات ذروتها يوم المناسبة، فالإنفاق قبله.`),
+    audience: R("Families out for the holiday.", "العائلات في عطلة المناسبة."), offer: R("National Day price for reservations that weekend.", "سعر اليوم الوطني لحجوزات تلك العطلة."),
+    headline: R(`${P}: celebrate at home`, `${PA}: احتفلوا في منزلكم`),
+    channels: [{ family: "EVENT", sharePct: 50, role: R("the open weekend", "العطلة المفتوحة") }, { family: "DIGITAL", sharePct: 30, role: R("invitations two weeks ahead", "دعوات قبل أسبوعين") }, { family: "BROKER", sharePct: 20, role: R("booked visits", "زيارات محجوزة") }] }),
+  RIYADH_SEASON: (P, PA, say) => ({ kind: "EVENT",
+    title: R(`${P}: Riyadh investor lounge during Riyadh Season`, `${PA}: صالة مستثمري الرياض خلال موسم الرياض`),
+    bigIdea: R(`${say.en}. Riyadh is where Jeddah's investor buyers live, and for ten weeks they are out: a ${P} investor lounge near a Season venue (Boulevard area) on weekends, pre-booked through Riyadh brokers, with digital geo-targeted around the venues and a VR tour of the show unit. Cityscape investors asked for rental guarantees — bring a rental-yield sheet.`, `${say.ar}. الرياض موطن المستثمرين المشترين في جدة، وهم في الخارج لعشرة أسابيع: صالة مستثمرين لـ${PA} قرب أحد مواقع الموسم (منطقة البوليفارد) في عطلات نهاية الأسبوع، بحجز مسبق عبر وسطاء الرياض، وإعلانات رقمية موجهة جغرافياً حول المواقع، وجولة افتراضية في الوحدة النموذجية. طلب مستثمرو سيتي سكيب ضمانات إيجارية — جهّزوا ورقة العائد الإيجاري.`),
+    audience: R("Riyadh investors and families looking at Jeddah.", "مستثمرو الرياض والعائلات المهتمة بجدة."), offer: R("Investor price lock for reservations made in the lounge; rental-yield illustration.", "تثبيت سعر للمستثمرين للحجوزات في الصالة؛ مع توضيح للعائد الإيجاري."),
+    headline: R(`Your Jeddah address, presented in Riyadh`, `عنوانكم في جدة، يُعرض في الرياض`),
+    channels: [{ family: "EVENT", sharePct: 40, role: R("the weekend lounge", "صالة عطلة نهاية الأسبوع") }, { family: "BROKER", sharePct: 30, role: R("Riyadh brokers book meetings", "وسطاء الرياض يحجزون الاجتماعات") }, { family: "DIGITAL", sharePct: 30, role: R("geo-targeted around the venues", "استهداف جغرافي حول المواقع") }],
+    evidence: ["CITYSCAPE-24", "CITYSCAPE-25"], risks: [R("Venue space during the Season is booked early — confirm within two weeks.", "تُحجز المساحات خلال الموسم مبكراً — أكّدوا خلال أسبوعين.")] }),
+  CITYSCAPE: (P, PA, say) => ({ kind: "EVENT",
+    title: R(`${P} at Cityscape: stand, show-unit VR and booked meetings`, `${PA} في سيتي سكيب: جناح وجولة افتراضية واجتماعات محجوزة`),
+    bigIdea: R(`${say.en}. Book the stand now, bring a VR tour of the show unit and a rental-guarantee option (2025 investors asked for it), and pre-book meetings with Riyadh investors through brokers and ads in the four weeks before. Cityscape converted best in the history (1.1% cost to sales).`, `${say.ar}. احجزوا الجناح الآن، مع جولة افتراضية وخيار ضمان إيجاري (طلبه مستثمرو 2025)، واحجزوا اجتماعات مسبقة مع مستثمري الرياض عبر الوسطاء والإعلانات قبل أربعة أسابيع. كان سيتي سكيب الأعلى تحويلاً تاريخياً (1.1% من المبيعات).`),
+    audience: R("Riyadh investors and Jeddah families visiting Cityscape.", "مستثمرو الرياض وأسر جدة زوار سيتي سكيب."), offer: R("Event-only price lock; optional rental guarantee.", "تثبيت سعر خاص بالمعرض؛ وضمان إيجاري اختياري."),
+    headline: R(`Meet ${P} at Cityscape`, `قابلوا ${PA} في سيتي سكيب`),
+    channels: [{ family: "EVENT", sharePct: 55, role: R("stand and VR tour", "الجناح والجولة الافتراضية") }, { family: "BROKER", sharePct: 25, role: R("pre-booked meetings", "اجتماعات محجوزة مسبقاً") }, { family: "DIGITAL", sharePct: 20, role: R("invitations to book a slot", "دعوات لحجز موعد") }],
+    evidence: ["CITYSCAPE-24", "CITYSCAPE-25"], risks: [R("Stands need 8–10 weeks; decide this week.", "تحتاج الأجنحة إلى 8–10 أسابيع؛ قرروا هذا الأسبوع.")] }),
+  JEWELS_JEDDAH: (P, PA, say) => ({ kind: "EVENT",
+    title: R(`Marina Tower: private penthouse viewings for “Jewels of the World” guests`, `برج المارينا: معاينات خاصة للبنتهاوس لضيوف «مجوهرات العالم»`),
+    bigIdea: R(`${say.en}. A high-net-worth audience in Jeddah for four days: invitation-only evening viewings of the Marina Tower penthouses, through the exhibitors' VIP lists and private bankers — not a stand.`, `${say.ar}. جمهور من أصحاب الثروات في جدة لأربعة أيام: معاينات مسائية بدعوات خاصة لبنتهاوس برج المارينا، عبر قوائم كبار ضيوف العارضين والمصرفيين الخاصين — لا جناح.`),
+    audience: R("High-net-worth visitors and collectors.", "الزوار وجامعو المقتنيات من أصحاب الثروات."), offer: R("Private viewing with a reserved-unit hold for 14 days.", "معاينة خاصة مع حجز مؤقت للوحدة 14 يوماً."),
+    headline: R("A rare piece on the Corniche", "قطعة نادرة على الكورنيش"),
+    channels: [{ family: "EVENT", sharePct: 50, role: R("private viewings", "المعاينات الخاصة") }, { family: "PR", sharePct: 25, role: R("VIP invitations", "دعوات كبار الشخصيات") }, { family: "BROKER", sharePct: 25, role: R("private-banking referrals", "إحالات المصرفية الخاصة") }],
+    evidence: ["MAR-PRESALE-24"] }),
+};
+
+function newsDraft(c: IdeationContext, s: Signal, P: string, PA: string, role: (en: string, ar: string) => Bi): Draft | null {
+  const m = s.meta ?? {}, topic = String(m.topic ?? ""), city = String(m.city ?? "");
+  const head = bi(s.title.en.replace(/^(Jeddah|Riyadh|Makkah|Dammam|Khobar|Madinah) · /, ""), s.title.ar.replace(/^\S+ · /, ""));
+  const src = bi(`(${m.publisher}, ${dt("en", String(m.date))})`, `(${m.publisher}، ${dt("ar", String(m.date))})`);
+  const base = { trigger: s.id, source: "rules" as const };
+  const quote = (en: string, ar: string) => bi(`In the news ${src.en}: “${head.en}”. ${en}`, `في الأخبار ${src.ar}: «${head.ar}». ${ar}`);
+  const risk = [bi("Built on a news report — confirm the facts with the source before spending.", "مبنية على خبر — تحققوا من الحقائق مع المصدر قبل الإنفاق.")];
+  if (topic === "EVENT" && city === "Riyadh") return { ...base, kind: "EVENT", ...CELEBRATION.RIYADH_SEASON(P, PA, head), bigIdea: quote(CELEBRATION.RIYADH_SEASON(P, PA, bi("", "")).bigIdea.en.replace(/^\. /, ""), CELEBRATION.RIYADH_SEASON(P, PA, bi("", "")).bigIdea.ar.replace(/^\. /, "")), risks: risk };
+  if (topic === "EVENT") return { ...base, kind: "EVENT",
+    title: bi(`${P}: meet the audience of “${head.en.slice(0, 48)}${head.en.length > 48 ? "…" : ""}”`, `${PA}: الوصول إلى جمهور «${head.ar.slice(0, 48)}${head.ar.length > 48 ? "…" : ""}»`),
+    bigIdea: quote(`Reach that audience while it is out: geo-targeted ads around the venue, private viewings for VIP guests, and a dated offer for reservations that week.`, `الوصول إلى هذا الجمهور أثناء الحدث: إعلانات موجهة جغرافياً حول الموقع، ومعاينات خاصة لكبار الضيوف، وعرض مؤقت للحجوزات خلال الأسبوع.`),
+    audience: bi("Visitors of the event and its VIP guests.", "زوار الحدث وكبار ضيوفه."), offer: bi("Event-week reservation offer.", "عرض حجز لأسبوع الحدث."),
+    headline: bi(`${P}, minutes from the event`, `${PA}، على بُعد دقائق من الحدث`),
+    channels: [{ family: "DIGITAL", sharePct: 45, role: role("geo-targeted around the venue", "استهداف حول الموقع") }, { family: "EVENT", sharePct: 35, role: role("private viewings", "معاينات خاصة") }, { family: "INFLUENCER", sharePct: 20, role: role("coverage on the day", "تغطية يوم الحدث") }], risks: risk };
+  if (topic === "INFRASTRUCTURE") return { ...base, kind: "POSITIONING",
+    title: bi(`${P}: new-access location campaign`, `${PA}: حملة الموقع مع الوصول الجديد`),
+    bigIdea: quote(`Say what it means for residents of ${P} in every ad, listing and broker kit while the news is fresh: travel times, a map, a short film of the drive.`, `قولوا ما يعنيه لسكان ${PA} في كل إعلان وقائمة وحقيبة وسيط ما دام الخبر حديثاً: أزمنة الوصول، خريطة، وفيلم قصير للطريق.`),
+    audience: bi("Buyers who weigh commute and travel (frequent flyers, Riyadh–Jeddah commuters).", "المشترون الذين يهتمون بالتنقل (المسافرون الدائمون والمتنقلون بين الرياض وجدة)."), offer: bi("No new offer — a sharper location message.", "لا عرض جديد — رسالة موقع أوضح."),
+    headline: bi(`${P}: closer than you think`, `${PA}: أقرب مما تظنون`),
+    channels: [{ family: "DIGITAL", sharePct: 45, role: role("the location message", "رسالة الموقع") }, { family: "PORTAL", sharePct: 25, role: role("travel times on listings", "أزمنة الوصول في الإعلانات") }, { family: "PR", sharePct: 30, role: role("a location story with the news", "قصة الموقع مع الخبر") }], risks: risk };
+  if (topic === "FINANCE") return { ...base, kind: "PARTNERSHIP",
+    title: bi(`${P}: mortgage-ready offer with a partner bank`, `${PA}: عرض جاهز للتمويل مع بنك شريك`),
+    bigIdea: quote(`Show the monthly instalment at today's rate in every ad, with pre-approval through a partner bank at the sales centre; brokers quote the monthly figure first.`, `إظهار القسط الشهري بسعر اليوم في كل إعلان، مع موافقة مبدئية عبر بنك شريك في مركز المبيعات؛ ويبدأ الوسطاء بالرقم الشهري.`),
+    audience: bi("Salaried buyers who qualify for a mortgage.", "الموظفون المؤهلون للتمويل العقاري."), offer: bi("Pre-approval in 48 hours; the monthly figure up front.", "موافقة مبدئية خلال 48 ساعة؛ والقسط الشهري أولاً."),
+    headline: bi(`${P} from a monthly amount you know`, `${PA} بقسط شهري تعرفونه`),
+    channels: [{ family: "DIGITAL", sharePct: 45, role: role("instalment in the ads", "القسط في الإعلانات") }, { family: "PORTAL", sharePct: 25, role: role("instalment on listings", "القسط في الإعلانات العقارية") }, { family: "BROKER", sharePct: 30, role: role("broker scripts", "نصوص الوسطاء") }], risks: risk };
+  if (topic === "REGULATION" && /foreign|non-saudi/i.test(s.title.en)) return { ...base, kind: "CAMPAIGN",
+    title: bi(`${P}: expat and foreign-buyer programme`, `${PA}: برنامج المقيمين والمشترين الأجانب`),
+    bigIdea: quote(`If ${P} sits in an approved zone, open a new buyer group: a one-page guide to the rules and fees, an English/Arabic sales track, and ads to resident expats and GCC investors.`, `إن كان ${PA} ضمن نطاق معتمد، فافتحوا شريحة مشترين جديدة: دليل من صفحة للأنظمة والرسوم، ومسار مبيعات بالعربية والإنجليزية، وإعلانات للمقيمين ومستثمري الخليج.`),
+    audience: bi("Resident expats (one home) and foreign investors in approved zones.", "المقيمون (وحدة واحدة) والمستثمرون الأجانب في النطاقات المعتمدة."), offer: bi("Guided purchase with the legal steps handled.", "شراء موجَّه مع إنجاز الخطوات النظامية."),
+    headline: bi(`Own your home in Jeddah`, `تملّكوا منزلكم في جدة`),
+    channels: [{ family: "DIGITAL", sharePct: 50, role: role("expat and GCC targeting", "استهداف المقيمين والخليجيين") }, { family: "BROKER", sharePct: 30, role: role("international brokers", "وسطاء دوليون") }, { family: "PR", sharePct: 20, role: role("explainer coverage", "تغطية توضيحية") }],
+    risks: [bi("Check with legal that the project is inside an approved zone before any ad runs.", "تحققوا قانونياً من وقوع المشروع ضمن نطاق معتمد قبل أي إعلان."), ...risk] };
+  if (topic === "REGULATION") return { ...base, kind: "POSITIONING",
+    title: bi(`${P}: value-for-Riyadh-buyers positioning`, `${PA}: تموضع القيمة لمشتري الرياض`),
+    bigIdea: quote(`Riyadh buyers are comparing on value: show ${P}'s price per sqm, yield and payment terms side by side with Riyadh alternatives, aimed at Riyadh investors.`, `يقارن مشترو الرياض على أساس القيمة: اعرضوا سعر المتر والعائد وشروط السداد في ${PA} مقارنة ببدائل الرياض، موجهة لمستثمري الرياض.`),
+    audience: bi("Riyadh investors weighing where to buy.", "مستثمرو الرياض الذين يقارنون أين يشترون."), offer: bi("Investor payment terms.", "شروط سداد للمستثمرين."),
+    headline: bi(`More home for the money, by the sea`, `منزل أكبر بالمبلغ نفسه، على البحر`),
+    channels: [{ family: "DIGITAL", sharePct: 50, role: role("Riyadh targeting", "استهداف الرياض") }, { family: "BROKER", sharePct: 35, role: role("Riyadh brokers", "وسطاء الرياض") }, { family: "PORTAL", sharePct: 15, role: role("comparison on listings", "المقارنة في الإعلانات العقارية") }], risks: risk };
+  if (topic === "REAL_ESTATE" || topic === "DEVELOPER") return { ...base, kind: s.direction === "up" ? "OFFER" : "POSITIONING",
+    title: s.direction === "up" ? bi(`${P}: buy before prices move`, `${PA}: اشترِ قبل ارتفاع الأسعار`) : bi(`${P}: certainty in a cooling market`, `${PA}: الطمأنينة في سوق يتباطأ`),
+    bigIdea: quote(s.direction === "up" ? `An active market makes the message credible: a price lock for reservations this month, with the transaction trend shown in ads and broker kits.` : `Sell certainty and terms, not price: delivery record, escrow, handover dates and a price-protection promise.`, s.direction === "up" ? `السوق النشط يجعل الرسالة مقنعة: تثبيت السعر لحجوزات هذا الشهر، مع عرض اتجاه الصفقات في الإعلانات وحقائب الوسطاء.` : `بيعوا الطمأنينة والشروط لا السعر: سجل التسليم والضمان ومواعيد التسليم ووعد حماية السعر.`),
+    audience: bi("Buyers deciding in this market now.", "المشترون الذين يقررون في هذا السوق الآن."), offer: s.direction === "up" ? bi("Price lock for 30 days.", "تثبيت السعر 30 يوماً.") : bi("Price protection until handover.", "حماية السعر حتى التسليم."),
+    headline: s.direction === "up" ? bi(`${P}: today's price, locked`, `${PA}: سعر اليوم مثبّت`) : bi(`${P}: on time, protected`, `${PA}: في موعده ومحمي`),
+    channels: [{ family: "DIGITAL", sharePct: 45, role: role("the message in ads", "الرسالة في الإعلانات") }, { family: "PORTAL", sharePct: 25, role: role("on listings", "في الإعلانات العقارية") }, { family: "BROKER", sharePct: 30, role: role("broker kits", "حقائب الوسطاء") }], risks: risk };
   return null;
 }
 
@@ -615,7 +730,10 @@ export async function ideasState(lang: Lang = "en") {
   const rows = (await prisma.campaignIdea.findMany()).sort((p, q) => q.runKey.localeCompare(p.runKey) || (q.score ?? 0) - (p.score ?? 0) || p.createdAt.getTime() - q.createdAt.getTime());
   const s = llmStatus();
   const scan = scanView(await dailyScan(), lang);
+  const { upcoming, momentView } = await import("./calendar");
+  const cal = await upcoming(180);
   return {
+    calendar: { today: cal.today, ics: cal.ics, items: cal.items.filter((m) => m.key !== "FLAG_DAY").map((m) => ({ ...momentView(m, lang, cal.today), signalId: scan.signals.some((x) => x.id === `CALENDAR|${m.id}`) ? `CALENDAR|${m.id}` : null })) },
     ideas: rows.map(view(lang)), signals: scan.signals, sources: scan.sources, crmAsOf: scan.date, scannedAt: scan.scannedAt,
     defaults: { month: defaultMonth(), projects: [...new Set(a.mkt.campaigns.map((c) => c.asset))].map((p) => ({ value: p, label: nm(lang, p) })), goals: GOALS.map((g) => ({ value: g, label: tx(lang, GOAL_LABEL[g].en, GOAL_LABEL[g].ar) })) },
     ai: { enabled: s.enabled, ideate: s.routes.find((r) => r.task === "ideate")?.order.slice(0, 2) ?? [], judge: s.routes.find((r) => r.task === "judge")?.order[0] ?? null },

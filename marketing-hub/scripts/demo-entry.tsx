@@ -2,6 +2,8 @@
 import { layoutState, layoutAction } from "../lib/report-layout";
 import { campaignBoards } from "../lib/campaign-boards";
 import { campaignLayoutAction } from "../lib/campaign-layout";
+import { viewsState, viewsAction } from "../lib/view-blocks";
+import { integrationsState, integrationsAction } from "../lib/integrations";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import DirectorPage from "../app/page";
@@ -25,7 +27,10 @@ import { templateCsv } from "../lib/vendor-reports";
 import Chat from "../app/_components/Chat";
 import { buildMarketingDashboard, applyAction } from "../lib/marketing";
 import { buildRecommendations, handleRecommendationRequest } from "../lib/recommendations";
-import { localAnswer } from "../lib/chat";
+import { localAnswer, buildChatContext } from "../lib/chat";
+import { reportEditAnswer } from "../lib/report-chat";
+import { viewEditAnswer } from "../lib/view-chat";
+import { campaignEditAnswer } from "../lib/campaign-chat";
 import { chartApi, chartCatalogue } from "../lib/chart-api";
 import { logMiss, listMisses } from "../lib/chat-misses";
 import { aiAnswer } from "../lib/chat-ai";
@@ -58,6 +63,12 @@ const qlang = (url: string) => langOf(new URL(url, "http://x").searchParams.get(
 
 window.fetch = (async (input: any, init?: any) => {
   const url = String(input?.url ?? input);
+  if (url.includes("/api/integrations")) {
+    try { return json(init?.method === "POST" ? await integrationsAction(JSON.parse(init.body)) : await integrationsState(qlang(url))); } catch (e: any) { return json({ error: e.message }); }
+  }
+  if (url.includes("/api/views")) {
+    try { return json(init?.method === "POST" ? await viewsAction(JSON.parse(init.body)) : await viewsState()); } catch (e: any) { return json({ error: e.message }); }
+  }
   if (url.includes("/api/campaigns/boards")) {
     try {
       if (init?.method === "POST") { const b = JSON.parse(init.body); return json({ ...(await campaignLayoutAction(b)), boards: await campaignBoards(b?.lang === "ar" ? "ar" : "en") }); }
@@ -140,6 +151,9 @@ window.fetch = (async (input: any, init?: any) => {
       const { messages, lang } = JSON.parse(init.body);
       const history = (messages as any[]).filter((m) => (m?.role === "user" || m?.role === "assistant") && typeof m.content === "string" && m.content.trim()).slice(-12);
       // Claude app edition: Claude answers with the data tools (viewer's own Claude account); otherwise built-in rules.
+      // Dashboard and report changes run on the same rules with or without Claude (so they always work and can be undone).
+      const lastQ = history[history.length - 1].content;
+      for (const f of [() => reportEditAnswer(lastQ, langOf(lang), () => buildChatContext(langOf(lang))), () => viewEditAnswer(lastQ, langOf(lang)), () => campaignEditAnswer(lastQ, langOf(lang), () => buildChatContext(langOf(lang)))]) { const r = await f(); if (r) return json(r); }
       await sampleReady;
       if (llmStatus().enabled) {
         try { return json(await aiAnswer(history, undefined, langOf(lang))); } catch (e) { console.warn("Claude unavailable, using built-in answers", e); }

@@ -6,7 +6,9 @@ import { resolve, describe, parsePeriod, periodSummary, latestLiveMonth, project
 import { FAMILY_LABEL, SEASON_LABEL } from "./history";
 import { breakdown, DIM_LABEL, VALUE_AR, type Dimension } from "./audience";
 import { creativeSummary, tr as CR_AR } from "./creatives";
-import { marketSummary, MORTGAGE, COMPETITORS, AD_MONTHS, CALENDAR } from "./market";
+import { marketSummary, MORTGAGE, COMPETITORS, AD_MONTHS } from "./market";
+import { upcomingSync, momentView } from "./calendar";
+import { newsCached, newsAngle, newsCities, TOPIC_LABEL } from "./news";
 import { type Lang, tx, K, M, nm, dt, firstSentence } from "./i18n";
 
 const RX = {
@@ -307,7 +309,8 @@ const RX2 = {
   agencyWords: /which agency|what agency|who (runs|created|made)|أي وكالة|من يدير|من أنشأ/,
   market: /\bmarket\b|price per (sqm|square|met)|\bsqm\b|prices? (in|trend|per)|property prices|transactions|supply|mortgage|interest rates?|السوق|سعر المتر|أسعار|الصفقات|المعروض|التمويل العقاري|الرهن|الفائدة/,
   competitors: /competitor|competition|compet(e|es|ing) with|rivals?|other developers|developers (nearby|around)|المنافس|المنافسين|المنافسة|المطورين الآخرين/,
-  calendar: /calendar|when is (ramadan|eid|cityscape|national day)|holidays?|\beid\b|national day|school (holiday|year)|key dates|التقويم|متى رمضان|العيد|اليوم الوطني|الإجازة|المدارس|المواعيد المهمة/,
+  news: /\bnews\b|headlines?|what('?s| is) (going on|happening) in (jeddah|riyadh)|in the press|الأخبار|أخبار|ما الجديد في (جدة|الرياض)|ماذا يحدث في/,
+  calendar: /calendar|celebrations?|when (is|does|will) (the )?(founding day|riyadh season|jeddah season)|upcoming (holidays|events|celebrations|occasions)|المناسبات|موسم الرياض متى|when is (ramadan|eid|cityscape|national day)|holidays?|\beid\b|national day|school (holiday|year)|key dates|التقويم|متى رمضان|العيد|اليوم الوطني|الإجازة|المدارس|المواعيد المهمة/,
 };
 
 /** Lead profiles, creatives, market, competitors and calendar (called from extraEarly). */
@@ -385,10 +388,26 @@ export function extraData(question: string, c: ChatContext): string | null {
       T("\n\n_Market figures are sample data; live, from REGA / Ministry of Justice transactions and SAMA._", "\n\n_أرقام السوق تجريبية؛ وفي التشغيل الفعلي من صفقات الهيئة العامة للعقار ووزارة العدل والبنك المركزي._");
   }
 
+  // News for the focus cities.
+  if (RX2.news.test(q)) {
+    const n = newsCached();
+    const city = /riyadh|الرياض/.test(q) ? "Riyadh" : /jeddah|جدة/.test(q) ? "Jeddah" : null;
+    const items = n.items.filter((x) => !city || x.city === city || !x.city).slice(0, 8);
+    const when = n.fetchedAt ? dt(L, n.fetchedAt.slice(0, 10)) : "";
+    return T(`**In the news — ${city ?? newsCities().join(" and ")}** (${n.mode === "live" ? `live, read ${when}` : `real news gathered ${when}`})\n`, `**في الأخبار — ${city ? nm("ar", city) : newsCities().map((c) => nm("ar", c)).join(" و")}** (${n.mode === "live" ? `مباشر، قُرئ ${when}` : `أخبار حقيقية جُمعت ${when}`})\n`) +
+      (items.length ? items.map((x) => `- **${L === "ar" ? x.title.ar : x.title.en}** — ${x.publisher}, ${dt(L, x.date)} · ${L === "ar" ? TOPIC_LABEL[x.topic].ar : TOPIC_LABEL[x.topic].en}\n  ${T("What it means", "ما يعنيه")}: ${L === "ar" ? newsAngle(x).ar : newsAngle(x).en} [${T("source", "المصدر")}](${x.url})`).join("\n") : T("Nothing relevant in the last three weeks.", "لا شيء ذو صلة في الأسابيع الثلاثة الأخيرة.")) +
+      T("\n\nEach item is a finding in today's scan — open **Initiatives** and press **Initiatives for this** to get proposals built on it.", "\n\nكل خبر نتيجة في فحص اليوم — افتحوا **المبادرات** واضغطوا **مبادرات لهذه الإشارة** للحصول على مقترحات مبنية عليه.");
+  }
   // Calendar.
   if (RX2.calendar.test(q)) {
-    return T("**Marketing calendar** (approximate dates)\n", "**التقويم التسويقي** (تواريخ تقريبية)\n") +
-      CALENDAR.map((x) => `- ${x.from === x.to ? x.from : `${x.from} → ${x.to}`}: ${T(x.en, x.ar)}`).join("\n");
+    // A question about one moment ("when is National Day?") looks a year ahead and puts it first.
+    const KEYS: [string, RegExp][] = [["NATIONAL_DAY", /national day|اليوم الوطني/], ["RAMADAN", /ramadan|رمضان/], ["EID_FITR", /eid al.?fitr|الفطر/], ["EID_ADHA", /adha|الأضحى|عرفة/], ["FOUNDING_DAY", /founding day|يوم التأسيس/], ["CITYSCAPE", /cityscape|سيتي سكيب/], ["RIYADH_SEASON", /riyadh season|موسم الرياض/], ["SUMMER", /summer|school holiday|الصيف|الإجازة/]];
+    const want = KEYS.filter(([, rx]) => rx.test(q)).map(([k]) => k);
+    const u = upcomingSync(want.length ? 400 : 240);
+    const items = want.length ? [...u.items.filter((m) => want.includes(m.key)).slice(0, 2), ...u.items.filter((m) => !want.includes(m.key) && Date.parse(m.from) - Date.now() < 120 * 86_400_000)] : u.items;
+    return T(`**Calendar: celebrations and moments${want.length ? "" : " — the next 8 months"}** (Ramadan, Eid and the Hijri dates from the Umm al-Qura calendar; seasons and events as announced)\n`, `**التقويم: المناسبات والمواسم${want.length ? "" : " — الأشهر الثمانية القادمة"}** (رمضان والعيدان والتواريخ الهجرية من تقويم أم القرى؛ والمواسم والفعاليات كما أُعلنت)\n`) +
+      items.filter((m) => m.key !== "FLAG_DAY").map((m) => { const v = momentView(m, L); return `- **${v.name}** — ${v.when}${v.city ? ` · ${nm(L, v.city)}` : ""}: ${v.angle} _(${v.prep}; ${v.sourceNote})_`; }).join("\n") +
+      (u.ics.connected ? T(`\n\nYour calendar: ${u.ics.count} events read${u.ics.error ? ` (error: ${u.ics.error})` : ""}.`, `\n\nتقويمكم: قُرئت ${u.ics.count} مناسبة${u.ics.error ? ` (خطأ: ${u.ics.error})` : ""}.`) : T("\n\nConnect your own calendar (Outlook / Google, ICS link) with CALENDAR_ICS_URL and its events are added here and to the initiatives.", "\n\nاربطوا تقويمكم (Outlook / Google برابط ICS) عبر CALENDAR_ICS_URL لتُضاف مناسباته هنا وإلى المبادرات."));
   }
   return null;
 }

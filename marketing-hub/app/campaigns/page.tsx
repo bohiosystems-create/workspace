@@ -7,6 +7,7 @@ import Header from "../_components/Header";
 import MetaReview from "../_components/MetaReview";
 import { useI18n } from "../_components/lang";
 import { monthShort } from "@/lib/i18n";
+import Blk from "../_components/Blk";
 
 const n0 = (x: number) => x.toLocaleString("en-GB");
 const dash = (x: number | null | undefined, suffix = "") => (x === null || x === undefined ? "—" : `${x}${suffix}`);
@@ -86,6 +87,11 @@ export default function MarketingPage() {
       setBoards(d.boards); setOpen({});
     } catch (e: any) { setError(e.message); } finally { setBusy(null); }
   }
+  // A change made in the chat shows here right away.
+  useEffect(() => {
+    const f = () => fetch(`/api/campaigns/boards?lang=${lang}`).then((r) => r.json()).then((d) => { if (!d.error) { setBoards(d); setOpen({}); } }).catch(() => {});
+    window.addEventListener("campaigns-changed", f); return () => window.removeEventListener("campaigns-changed", f);
+  }, [lang]);
   // Pause / resume from a campaign's dashboard, then refresh the list.
   async function campaignAct(body: any, key: string) {
     await act(body, key);
@@ -146,11 +152,11 @@ export default function MarketingPage() {
           </div>
 
           <div className="kpis">
-            <Kpi v={String(tot.campaigns)} l={t("Campaigns")} d={`${tot.live} ${t("live campaigns")} · ${boards.view.scopeLabel}`} />
-            <Kpi v={tot.spendK >= 1000 ? MM(Math.round(tot.spendK / 100) / 10) : KK(n0(Math.round(tot.spendK)))} l={t("Spend")} />
-            <Kpi v={n0(tot.qualified)} l={t("Qualified leads")} d={`${n0(tot.leads)} ${t("leads")}`} />
-            <Kpi v={n0(tot.contracts)} l={t("Contracts")} d={`${MM(tot.salesM)} ${t("sales")}`} />
-            <Kpi v={dash(tot.costToSales, "%")} l={t("Cost-to-Sales")} />
+            <Blk page="campaigns" id="kpi-campaigns"><Kpi v={String(tot.campaigns)} l={t("Campaigns")} d={`${tot.live} ${t("live campaigns")} · ${boards.view.scopeLabel}`} /></Blk>
+            <Blk page="campaigns" id="kpi-spend"><Kpi v={tot.spendK >= 1000 ? MM(Math.round(tot.spendK / 100) / 10) : KK(n0(Math.round(tot.spendK)))} l={t("Spend")} /></Blk>
+            <Blk page="campaigns" id="kpi-qualified"><Kpi v={n0(tot.qualified)} l={t("Qualified leads")} d={`${n0(tot.leads)} ${t("leads")}`} /></Blk>
+            <Blk page="campaigns" id="kpi-contracts"><Kpi v={n0(tot.contracts)} l={t("Contracts")} d={`${MM(tot.salesM)} ${t("sales")}`} /></Blk>
+            <Blk page="campaigns" id="kpi-cts"><Kpi v={dash(tot.costToSales, "%")} l={t("Cost-to-Sales")} /></Blk>
           </div>
 
           {list.length === 0 && <div className="muted" style={{ margin: "10px 0 20px" }}>{t("No campaign matches this view — ask the assistant to show all campaigns, or clear the filters.")}</div>}
@@ -166,7 +172,7 @@ export default function MarketingPage() {
 
       {data && (
         <>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "26px 0 14px" }}>
+          <Blk page="campaigns" id="orchestration"><div style={{ display: "flex", alignItems: "center", gap: 10, margin: "26px 0 14px" }}>
             <div className="section-title" style={{ fontSize: 12 }}>{t("Orchestration")}</div>
           </div>
 
@@ -200,9 +206,9 @@ export default function MarketingPage() {
                 </button>
               </div>
             );
-          })}
+          })}</Blk>
 
-          <div className="section-title" style={{ fontSize: 12, margin: "22px 0 14px" }}>{t("Alerts")}</div>
+          <Blk page="campaigns" id="alerts"><div className="section-title" style={{ fontSize: 12, margin: "22px 0 14px" }}>{t("Alerts")}</div>
           {[...data.alerts].sort((a: any, b: any) => sevOrder[a.severity] - sevOrder[b.severity]).map((a: any, i: number) => (
             <div key={i} className={`alert ${a.severity}`}>
               <div className="ai">{a.severity === "crit" ? "!" : a.severity === "warn" ? "◷" : "≡"}</div>
@@ -213,10 +219,10 @@ export default function MarketingPage() {
               <span className={`badge ${a.severity === "crit" ? "alert" : ""}`}>{t(a.tag)}</span>
             </div>
           ))}
-          {data.alerts.length === 0 && <div className="muted">{t("No alerts.")}</div>}
+          {data.alerts.length === 0 && <div className="muted">{t("No alerts.")}</div>}</Blk>
 
           {crm && (
-            <div className="panel" style={{ marginTop: 18 }}>
+            <Blk page="campaigns" id="crm"><div className="panel" style={{ marginTop: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
                 <div className="chart-label" style={{ margin: 0 }}>{t("CRM verification — vendor-reported vs CRM")}</div>
                 <span className="badge">{t("CRM")} · {crm.integration.mode}</span>
@@ -261,10 +267,10 @@ export default function MarketingPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </div></Blk>
           )}
 
-          <div className="panel" style={{ marginTop: 18 }}>
+          <Blk page="campaigns" id="audit"><div className="panel" style={{ marginTop: 18 }}>
             <div className="chart-label">{t("Orchestration audit trail")}</div>
             {data.actions.length === 0 && <div className="muted">{t("No actions taken yet.")}</div>}
             {data.actions.map((a: any) => (
@@ -274,10 +280,10 @@ export default function MarketingPage() {
                 <div><b>{a.campaign}</b> — {a.detail}</div>
               </div>
             ))}
-          </div>
+          </div></Blk>
         </>
       )}
-      <MetaReview />
+      <Blk page="campaigns" id="meta"><MetaReview /></Blk>
     </div>
   );
 }

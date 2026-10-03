@@ -33,6 +33,7 @@ export const monthShort = (l: Lang, ym: string) => new Date(`${ym}-01`).toLocale
 
 // --- names & terms -------------------------------------------------------
 export const NAMES_AR: Record<string, string> = {
+  Jeddah: "جدة", Riyadh: "الرياض", Makkah: "مكة المكرمة", Dammam: "الدمام", Khobar: "الخبر", Madinah: "المدينة المنورة",
   // vendors
   "Tasweeq Digital": "تسويق ديجيتال",
   "PropertyHub KSA": "بروبرتي هب السعودية",

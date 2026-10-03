@@ -25,15 +25,15 @@ const MARKET_REASONS: Record<string, Bi> = { Price: bi("price", "السعر"), F
 const r1 = (x: number) => Math.round(x * 10) / 10;
 const pctS = (x: number) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(Math.round(x * 100))}%`;
 
-export type SignalSource = "CRM" | "EMAIL" | "INVOICES" | "ADS" | "COMPETITORS" | "MARKET" | "CALENDAR";
+export type SignalSource = "CRM" | "EMAIL" | "INVOICES" | "ADS" | "COMPETITORS" | "MARKET" | "CALENDAR" | "NEWS";
 export const SOURCE_LABEL: Record<SignalSource, Bi> = {
   CRM: bi("CRM", "نظام العملاء"), EMAIL: bi("Email", "البريد"), INVOICES: bi("Invoices & POs", "الفواتير وأوامر الشراء"), ADS: bi("Social & ad platforms", "التواصل والمنصات الإعلانية"),
-  COMPETITORS: bi("Competitors", "المنافسون"), MARKET: bi("Market", "السوق"), CALENDAR: bi("Calendar", "التقويم"),
+  COMPETITORS: bi("Competitors", "المنافسون"), MARKET: bi("Market", "السوق"), CALENDAR: bi("Calendar", "التقويم"), NEWS: bi("News", "الأخبار"),
 };
 export type SignalKind = "SUDDEN_DROP" | "DECLINE" | "SURGE" | "QUAL_RATE_DROP" | "SALES_DROP" | "LOST_REASON"
   | "EMAIL_ISSUE" | "EMAIL_OPPORTUNITY" | "EMAIL_MARKET" | "EMAIL_EVENT" | "BUDGET_HEADROOM" | "AD_FATIGUE" | "AD_COST_RISE"
-  | "COMPETITOR_PUSH" | "MARKET_SHIFT" | "FINANCE_SHIFT" | "CALENDAR_MOMENT";
-export type SignalMetric = "leads" | "qualified" | "qualRate" | "contracts" | "lost" | "ctr" | "cpl" | "budget" | "ads" | "transactions" | "rate" | "mail" | "date";
+  | "COMPETITOR_PUSH" | "MARKET_SHIFT" | "FINANCE_SHIFT" | "CALENDAR_MOMENT" | "NEWS_ITEM";
+export type SignalMetric = "leads" | "qualified" | "qualRate" | "contracts" | "lost" | "ctr" | "cpl" | "budget" | "ads" | "transactions" | "rate" | "mail" | "date" | "news";
 export type Driver = { campaign: string; vendor: string; channel: string; family: string; perWeek: number; note: Bi | null };
 export type Signal = {
   id: string; kind: SignalKind; metric: SignalMetric; direction: "down" | "up"; severity: "crit" | "warn" | "info";
@@ -249,6 +249,7 @@ export const signalView = (lang: Lang) => (s: Signal) => ({
   family: s.family, familyLabel: s.family && FAMILY_LABEL[s.family] ? FAMILY_LABEL[s.family][lang === "ar" ? 1 : 0] : null,
   changePct: s.changePct, recent: s.recent, baseline: s.baseline, from: s.from, to: s.to, series: s.series ?? null,
   title: lang === "ar" ? s.title.ar : s.title.en, why: lang === "ar" ? s.why.ar : s.why.en,
+  url: typeof s.meta?.url === "string" ? s.meta.url : null, publisher: typeof s.meta?.publisher === "string" ? s.meta.publisher : null,
 });
 export type SignalView = ReturnType<ReturnType<typeof signalView>>;
 

@@ -114,6 +114,14 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] In the assistant: *"Add cost per qualified lead to the campaign dashboards"*, then *"Add a chart of leads by city to each campaign"*, then *"Sort campaigns by cost to sales"*. Each answer shows a card with **Open Campaigns** and **Undo**; reopen Campaigns to see the changes.
 - [ ] *"Show 2024 campaigns on the campaigns page"*: the list switches to 2024, each with its lesson. Finish with *"Reset the campaign dashboards"*.
 
+### 8c. Celebrations, live news, settings, dashboards, PowerPoint (4 min)
+
+- [ ] **Initiatives**: the chips include **News** (real news for Jeddah and Riyadh) and **Calendar** (celebrations from the Umm al-Qura calendar). Click **News**, then **Initiatives for this** on *Riyadh Season 2026 opens on 21 October* → a Riyadh investor lounge during Riyadh Season, quoting the news. Scroll to **Celebrations and moments** and do the same on **Ramadan 2027** → a Ramadan payment-plan offer planned for February 2027.
+- [ ] Ask the assistant *"What's in the news in Jeddah?"* and *"Upcoming celebrations"*.
+- [ ] Click the **gear icon** (top right): every integration with its status and how to connect it.
+- [ ] Ask *"Remove the YTD sales from all dashboards"* — the tile disappears from the Director page at once; *"Undo the last dashboard change"* brings it back.
+- [ ] **Reports** → open a report → **Download PowerPoint**: the presentation as a .pptx with native charts and speaker notes. The report's **Daily campaign check** section lists every item of the Daily check.
+
 ### 9. Meta — which agency runs each campaign (3 min)
 
 - [ ] **Campaigns**, then scroll to **Meta ads — which agency runs each campaign** at the bottom (or click the Meta item in the Director's inbox, which jumps there). Expect: **SAR 576.2K Meta spend, 8 campaigns, 92% attributed to an agency.**

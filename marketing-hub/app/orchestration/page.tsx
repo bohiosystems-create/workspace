@@ -7,6 +7,7 @@ import { useApprover } from "../_components/useAgent";
 import VendorView, { VendorDirectory } from "./vendors";
 import InvoicesPanel from "../_components/InvoicesPanel";
 import VendorScoringBoard from "./scoring";
+import Blk from "../_components/Blk";
 
 const KIND: Record<string, string> = { MONTHLY_BRIEF: "Monthly brief", LEAD_FEEDBACK: "Lead feedback", DELIVERABLE_CHASE: "Reminder", NON_RENEWAL: "Non-renewal notice" };
 
@@ -69,7 +70,7 @@ export default function OrchestrationPage() {
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
       {data && (
         <>
-          <div className="grid3" style={{ marginBottom: 18 }}>
+          <Blk page="vendors" id="roles"><div className="grid3" style={{ marginBottom: 18 }}>
             {[
               [t("You (marketing manager)"), t("Approve the plan, vendor messages and anything that contacts a customer."), `~${data.summary.minutes} ${t("min of your time")}`],
               [t("AI Director"), t("Plans, briefs vendors, verifies delivery and spend, chases, reports."), `${data.summary.withVendors} ${t("with vendors")}`],
@@ -82,14 +83,14 @@ export default function OrchestrationPage() {
                 <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{f}</div>
               </div>
             ))}
-          </div>
+          </div></Blk>
 
           <div className="kpis">
-            <Kpi v={String(data.summary.waiting)} l={t("Waiting for you")} d={`${data.summary.routineWaiting} ${t("routine")}`} />
-            <Kpi v={String(data.summary.withVendors)} l={t("With vendors")} d={`${data.summary.overdue} ${t("overdue")}`} alert={data.summary.overdue > 0} />
-            <Kpi v={String(data.summary.lateDeliverables)} l={t("Late deliverables")} alert={data.summary.lateDeliverables > 0} />
-            <Kpi v={String(data.summary.done)} l={t("Closed")} />
-            <Kpi v={`~${data.summary.minutes}`} l={t("Minutes of your time")} />
+            <Blk page="vendors" id="kpi-waiting"><Kpi v={String(data.summary.waiting)} l={t("Waiting for you")} d={`${data.summary.routineWaiting} ${t("routine")}`} /></Blk>
+            <Blk page="vendors" id="kpi-with"><Kpi v={String(data.summary.withVendors)} l={t("With vendors")} d={`${data.summary.overdue} ${t("overdue")}`} alert={data.summary.overdue > 0} /></Blk>
+            <Blk page="vendors" id="kpi-late"><Kpi v={String(data.summary.lateDeliverables)} l={t("Late deliverables")} alert={data.summary.lateDeliverables > 0} /></Blk>
+            <Blk page="vendors" id="kpi-closed"><Kpi v={String(data.summary.done)} l={t("Closed")} /></Blk>
+            <Blk page="vendors" id="kpi-minutes"><Kpi v={`~${data.summary.minutes}`} l={t("Minutes of your time")} /></Blk>
           </div>
 
           <div className="panel" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -119,7 +120,7 @@ export default function OrchestrationPage() {
 
           {!vendorId && <VendorScoringBoard />}
 
-          <div className="panel" style={{ marginTop: 18 }}>
+          <Blk page="vendors" id="approvals"><div className="panel" style={{ marginTop: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
               <div className="chart-label" style={{ margin: 0 }}>{t("Waiting for your approval")} ({waiting.length})</div>
               <div style={{ flex: 1 }} />
@@ -175,10 +176,10 @@ export default function OrchestrationPage() {
               </div>
             ))}
             </details>}
-          </div>
+          </div></Blk>
 
           {!vendorId && (
-            <div className="panel" style={{ marginTop: 18 }}>
+            <Blk page="vendors" id="rhythm"><div className="panel" style={{ marginTop: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <div className="chart-label" style={{ margin: 0 }}>{t("Operating rhythm — what runs without you")}</div>
                 <div style={{ flex: 1 }} />
@@ -199,13 +200,13 @@ export default function OrchestrationPage() {
                   </div>
                 ))}
               </>}
-            </div>
+            </div></Blk>
           )}
-          <div id="invoices" style={{ marginTop: 26 }}>
+          <Blk page="vendors" id="invoices"><div id="invoices" style={{ marginTop: 26 }}>
             <div className="section-title" style={{ fontSize: 12, margin: "0 0 6px" }}>{t("Supplier invoices (Oracle)")}</div>
             <p className="muted" style={{ fontSize: 11.5, margin: "0 0 12px", lineHeight: 1.6 }}>{t("Purchase orders and invoices from Oracle, reconciled against what each vendor delivered. Approve clean invoices, dispute the rest; click a vendor to see only its invoices. Decisions are recorded here — nothing is written back to Oracle.")}</p>
             <InvoicesPanel onOpenVendor={(id) => openVendor(id, "invoices")} />
-          </div>
+          </div></Blk>
         </>
       )}
     </div>

@@ -635,6 +635,7 @@ function Caption({ text, playing }: { text: string; playing: boolean }) {
 }
 
 export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void }) {
+  const [pptBusy, setPptBusy] = useState(false);
   const { t } = useI18n();
   const lang = deck.lang, slides = deck.slides;
   const [i, setI] = useState(0);
@@ -758,6 +759,11 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
         {voice.mode !== "none" && <button className="kd-btn" onClick={() => { setVoiceOn(!voiceOn); setStarted(Date.now()); }} aria-pressed={voiceOn}>{voiceOn ? `🔊 ${voice.mode === "eleven" ? "ElevenLabs" : t("Voice on")}` : `🔇 ${t("Voice off")}`}</button>}
         <button className="kd-btn" onClick={() => setCaptions(!captions)} aria-pressed={captions}>CC</button>
         <button className="kd-btn" onClick={full} aria-label="Fullscreen">⛶</button>
+        <button className="kd-btn" disabled={pptBusy} onClick={async () => {
+          setPptBusy(true);
+          try { const { deckToPptx } = await import("../_components/deckPptx"); const { saveFile } = await import("../_components/saveFile"); await saveFile(`${(deck.title || "report").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "")}.pptx`, await deckToPptx(deck), "application/vnd.openxmlformats-officedocument.presentationml.presentation"); }
+          catch (e) { console.error(e); alert(t("The PowerPoint file could not be created.")); } finally { setPptBusy(false); }
+        }} title={t("Download as PowerPoint")}>{pptBusy ? t("Preparing…") : `⬇ ${t("PowerPoint")}`}</button>
       </div>
       <style>{CSS}</style>
     </div>
