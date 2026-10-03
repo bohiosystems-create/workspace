@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { KColumns, KHBars } from "../_components/KCharts";
 import Header from "../_components/Header";
 import MetaReview from "../_components/MetaReview";
 import { useI18n } from "../_components/lang";
@@ -179,50 +180,19 @@ export default function MarketingPage() {
           <div className="row twocol" style={{ marginTop: 22 }}>
             <div className="panel">
               <div className="chart-label">{t("Spend vs contracted sales, by month")}</div>
-              <div className="trend">
-                {data.monthly.map((m: any) => (
-                  <div className="tcol" key={m.month}>
-                    <div className="tbars">
-                      <div className="tbar" title={`${t("Spend")} ${KK(m.spendK)}`} style={{ height: `${(m.spendK / maxSpend) * 100}%`, background: "var(--ink-faint)" }} />
-                      <div className="tbar" title={`${t("Sales")} ${MM(m.revenueM)}`} style={{ height: `${(m.revenueM / maxSales) * 100}%`, background: "var(--ink)" }} />
-                    </div>
-                    <div className="lv">{mm(m.revenueM)}</div>
-                    <div className="ly">{monthShort(lang, m.month)}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="legend">
-                <span><i style={{ background: "var(--ink-faint)" }} />{t("Spend (SAR K)")}</span>
-                <span><i style={{ background: "var(--ink)" }} />{t("Sales (SAR M)")}</span>
-              </div>
+              <KColumns title={t("Contracted sales")} sub="SAR M" labels={data.monthly.map((m: any) => monthShort(lang, m.month))} values={data.monthly.map((m: any) => m.revenueM)} unit="SAR M" decimals={1} height={170} />
+              <div style={{ height: 14 }} />
+              <KColumns title={t("Marketing spend")} sub="SAR K" labels={data.monthly.map((m: any) => monthShort(lang, m.month))} values={data.monthly.map((m: any) => m.spendK)} unit="SAR K" decimals={0} height={170} />
             </div>
 
             <div className="panel">
               <div className="chart-label">{t("Lead-to-contract funnel")}</div>
               <div style={{ marginTop: 8 }}>
-                {data.funnel.map((f: any, i: number) => (
-                  <div className="hbar-row" key={f.stage}>
-                    <div className="hbar-name">{t(f.stage)}</div>
-                    <div className="hbar-track">
-                      <div className="hbar-fill" style={{ width: `${Math.max((f.value / funnelMax) * 100, 1.5)}%`, background: "var(--ink)" }} />
-                    </div>
-                    <div className="hbar-v" style={{ width: 96 }}>
-                      {n0(f.value)}
-                      {i > 0 && <span className="muted" style={{ fontSize: 9 }}> {Math.round((f.value / data.funnel[i - 1].value) * 100)}%</span>}
-                    </div>
-                  </div>
-                ))}
+                <KHBars rows={data.funnel.map((f: any, i: number) => ({ label: t(f.stage), value: f.value, sub: i > 0 ? `${Math.round((f.value / data.funnel[i - 1].value) * 100)}% ${t("of previous")}` : undefined }))} decimals={0} labelWidth="38%" />
               </div>
               <div className="chart-label" style={{ marginTop: 18 }}>{t("By asset — cost-to-sales")}</div>
-              {data.assets.map((a: any) => (
-                <div className="hbar-row" key={a.asset}>
-                  <div className="hbar-name">{N(a.asset)}</div>
-                  <div className="hbar-track">
-                    <div className="hbar-fill" style={{ width: `${Math.min(((a.costToSalesPct ?? 0) / 4) * 100, 100)}%`, background: (a.costToSalesPct ?? 0) > 3 ? "var(--alert)" : "var(--ink)" }} />
-                  </div>
-                  <div className="hbar-v" style={{ width: 96 }}>{dash(a.costToSalesPct, "%")} <span className="muted" style={{ fontSize: 9 }}>· {mm(a.revenueM)}</span></div>
-                </div>
-              ))}
+              <KHBars rows={data.assets.map((a: any) => ({ label: N(a.asset), value: a.costToSalesPct ?? 0, sub: mm(a.revenueM) }))} unit="%" decimals={2} max={4}
+                bench={{ value: 3, label: t("3% ceiling") }} hot={(r) => (r.value > 3 ? `> 3%` : null)} best={(r, i) => (i === 0 ? `✓ ${t("best")}` : null)} labelWidth="38%" />
             </div>
           </div>
 

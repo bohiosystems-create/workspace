@@ -127,7 +127,7 @@ function LegacyPlayer({ html, title, lang, onClose }: { html: string; title: str
   const btn: React.CSSProperties = { background: "rgba(255,255,255,0.12)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 20, padding: "7px 14px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" };
 
   return (
-    <div role="dialog" aria-label={title} dir={lang === "ar" ? "rtl" : "ltr"} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#0b0d12", color: "#fff", display: "flex", flexDirection: "column" }}>
+    <div role="dialog" aria-label={title} dir={lang === "ar" ? "rtl" : "ltr"} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#2e2e2f", color: "#fff", display: "flex", flexDirection: "column" }}>
       {/* Progress: one segment per slide */}
       <div style={{ display: "flex", gap: 3, padding: "10px 12px 6px" }}>
         {slides.map((_, k) => (
@@ -144,13 +144,13 @@ function LegacyPlayer({ html, title, lang, onClose }: { html: string; title: str
       {/* Stage: tap the start side to go back, the end side to go forward */}
       <div ref={stage} style={{ flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 16 }}
         onClick={(e) => { const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect(); const back = (e.clientX - r.left < r.width * 0.3) !== (lang === "ar"); go(back ? i - 1 : i + 1); }}>
-        <div key={i} style={{ background: "#fff", color: "#000919", borderRadius: 6, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", padding: "clamp(16px, 4vw, 28px)", transform: `scale(${scale})`, transformOrigin: "center", flex: "0 0 auto" }}>
+        <div key={i} style={{ background: "#fff", color: "#2e2e2f", borderRadius: 6, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", padding: "clamp(16px, 4vw, 28px)", transform: `scale(${scale})`, transformOrigin: "center", flex: "0 0 auto" }}>
           <div ref={content} style={{ width: "min(680px, calc(100vw - 72px))", animation: "slideIn .35s ease", fontFamily: lang === "ar" ? "Tahoma, Arial, sans-serif" : "Helvetica, Arial, sans-serif", fontSize: 14, lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: slide.html }} />
         </div>
       </div>
       <div style={{ display: "flex", justifyContent: "center", gap: 8, padding: "10px 12px 18px", flexWrap: "wrap" }}>
         <button style={btn} onClick={() => go(i - 1)} disabled={i === 0}>{lang === "ar" ? "→" : "←"} {t("Back")}</button>
-        <button style={{ ...btn, background: "#fff", color: "#0b0d12", fontWeight: 700 }} onClick={() => { setPlaying(!playing); setStarted(Date.now()); }}>{playing ? `❚❚ ${t("Pause")}` : `▶ ${t("Play")}`}</button>
+        <button style={{ ...btn, background: "#fff", color: "#2e2e2f", fontWeight: 700 }} onClick={() => { setPlaying(!playing); setStarted(Date.now()); }}>{playing ? `❚❚ ${t("Pause")}` : `▶ ${t("Play")}`}</button>
         <button style={btn} onClick={() => go(i + 1)} disabled={i === slides.length - 1}>{t("Next")} {lang === "ar" ? "←" : "→"}</button>
         {tts && <button style={btn} onClick={() => { setVoice(!voice); setStarted(Date.now()); }} aria-pressed={voice}>{voice ? `🔊 ${t("Voice on")}` : `🔇 ${t("Voice off")}`}</button>}
       </div>

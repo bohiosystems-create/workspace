@@ -11,8 +11,8 @@ import { useI18n } from "./lang";
 
 // Kinan orange first; validated for colour-blind separation on the light surface (direct labels carry identity too).
 const SERIES = ["#f15a22", "#2a78d6", "#1baf7a", "#eda100", "#e87ba4", "#4a3aa7", "#008300", "#e34948"];
-const INK = "#2e2e2f", INK2 = "#51473d", MUTED = "#898781", GRID = "#e1e0d9", AXIS = "#c3c2b7", SURFACE = "#fcfcfb";
-const FONT = "system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif";
+const INK = "#2e2e2f", INK2 = "#51473d", MUTED = "#6f6f6f", GRID = "#e6e5e2", AXIS = "#bdbcb8", SURFACE = "#ffffff";
+const FONT = "Montserrat, 'IBM Plex Sans Arabic', 'Segoe UI', Helvetica, Arial, sans-serif";
 
 type Series = { name: string; values: (number | null)[] };
 type Tip = { x: number; y: number; title: string; rows: { color: string; name: string; value: string }[] } | null;
@@ -133,7 +133,7 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
           const light = ["#eda100", "#e87ba4", "#1baf7a"].includes(SERIES[i % 8]);
           const el = (
             <g key={i} {...hit(labels[i], [{ color: SERIES[i % 8], name: labels[i], value: `${fmt(v, unit)} · ${pct}%` }])}>
-              <path d={d} fill={SERIES[i % 8]} stroke={SURFACE} strokeWidth="2" fillRule="evenodd" />
+              <path className="kc-fade" style={{ animationDelay: `${i * 90}ms` }} d={d} fill={SERIES[i % 8]} stroke={SURFACE} strokeWidth="2" fillRule="evenodd" />
               {pct >= 7 && <text x={cx + lr * Math.cos(mid)} y={cy + lr * Math.sin(mid) + 4} textAnchor="middle" fontSize="11" fontWeight="600" fill={light ? INK : "#fff"} pointerEvents="none">{pct}%</text>}
             </g>
           );
@@ -174,7 +174,7 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
             : series.map((s, si) => {
                 const v = s.values[i]; if (v === null) return null;
                 const x = cx - (k * bw + (k - 1) * 2) / 2 + (mode === "grouped" ? si * (bw + 2) : 0), y = v >= 0 ? Y(v) : y0, h = Math.max(1, Math.abs(Y(v) - y0));
-                return <path key={si} d={barPath(x, y, bw, h, v >= 0 ? "up" : "down")} fill={SERIES[(mode === "single" ? 0 : si) % 8]} />;
+                return <path key={si} className="kc-gy" style={{ animationDelay: `${i * 60 + si * 40}ms` }} d={barPath(x, y, bw, h, v >= 0 ? "up" : "down")} fill={SERIES[(mode === "single" ? 0 : si) % 8]} />;
               });
           const v = series[0].values[i];
           return (
@@ -211,7 +211,7 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
             : series.map((s, si) => {
                 const v = s.values[i]; if (v === null) return null;
                 const yy = mode === "grouped" ? y + si * 14 : y + (rowH - bh) / 2 - 4, w = Math.max(1, Math.abs(X(v) - xz));
-                return <path key={si} d={barPath(v >= 0 ? xz : xz - w, yy, w, bh, v >= 0 ? "right" : "left")} fill={SERIES[(mode === "single" ? 0 : si) % 8]} />;
+                return <path key={si} className="kc-gx" style={{ transformBox: "fill-box", transformOrigin: "left center", animationDelay: `${i * 60 + si * 40}ms` }} d={barPath(v >= 0 ? xz : xz - w, yy, w, bh, v >= 0 ? "right" : "left")} fill={SERIES[(mode === "single" ? 0 : si) % 8]} />;
               });
           const end = mode === "stacked" ? (unit === "%" ? null : stackTot[i]) : mode === "single" ? series[0].values[i] : null;
           return (
@@ -254,8 +254,8 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
           const firstI = s.values.findIndex((v) => v !== null);
           return (
             <g key={si}>
-              {area && segs.map((d, j) => <path key={j} d={`${d}L${pts.filter(Boolean).slice(-1)[0]![0]},${Y(Math.max(lo, 0))}L${pts.find(Boolean)![0]},${Y(Math.max(lo, 0))}Z`} fill={SERIES[si % 8]} opacity="0.1" />)}
-              {segs.map((d, j) => <path key={j} d={d} fill="none" stroke={SERIES[si % 8]} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />)}
+              {area && segs.map((d, j) => <path key={j} d={`${d}L${pts.filter(Boolean).slice(-1)[0]![0]},${Y(Math.max(lo, 0))}L${pts.find(Boolean)![0]},${Y(Math.max(lo, 0))}Z`} fill={SERIES[si % 8]} opacity="0.12" className="kc-fade" style={{ animationDelay: "900ms" }} />)}
+              {segs.map((d, j) => <path key={j} className="kc-draw" pathLength={1} d={d} fill="none" stroke={SERIES[si % 8]} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />)}
               {cross !== null && s.values[cross] !== null && <circle cx={X(cross)} cy={Y(s.values[cross]!)} r="4" fill={SERIES[si % 8]} stroke={SURFACE} strokeWidth="2" />}
               {firstI >= 0 && <circle cx={X(lastI)} cy={Y(s.values[lastI]!)} r="4" fill={SERIES[si % 8]} stroke={SURFACE} strokeWidth="2" />}
               {n <= 36 && s.values.map((v, i) => v === null || i === lastI ? null : <circle key={`p${i}`} cx={X(i)} cy={Y(v)} r="3" fill={SERIES[si % 8]} stroke={SURFACE} strokeWidth="1.5" />)}
@@ -301,7 +301,7 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
         {pts.map((p, i) => (
           <g key={i} {...hit(p.label, [{ color: SERIES[0], name: spec.xLabel ?? "x", value: fmt(p.x, spec.xUnit ?? "") }, { color: SERIES[0], name: spec.yLabel ?? "y", value: fmt(p.y, unit) }])}>
             <circle cx={X(p.x)} cy={Y(p.y)} r="12" fill="transparent" />
-            <circle cx={X(p.x)} cy={Y(p.y)} r="5" fill={SERIES[0]} stroke={SURFACE} strokeWidth="2" />
+            <circle className="kc-pop" style={{ animationDelay: `${i * 30}ms` }} cx={X(p.x)} cy={Y(p.y)} r="5" fill={SERIES[0]} stroke={SURFACE} strokeWidth="2" />
             {labelled.has(p.label) && <text x={labelled.get(p.label) === "end" ? X(p.x) - 8 : X(p.x) + 8} y={Y(p.y) - 7} fontSize="10" textAnchor={labelled.get(p.label)} fill={INK2}>{short(p.label, 20)}</text>}
           </g>
         ))}
@@ -313,8 +313,8 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
   const kpi = () => (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fit, minmax(${narrow ? 120 : 140}px, 1fr))`, gap: 10 }}>
       {spec.labels.map((l, i) => (
-        <div key={i} style={{ border: "1px solid rgba(11,11,11,0.10)", padding: "10px 12px", background: SURFACE }}>
-          <div style={{ fontSize: 10, color: INK2 }} dir="auto">{l}</div>
+        <div key={i} style={{ borderTop: "2px solid #f15a22", borderBottom: "1px solid #e6e5e2", padding: "8px 4px 10px", background: SURFACE }}>
+          <div style={{ fontSize: 9, color: INK2, letterSpacing: ".12em", textTransform: "uppercase", fontWeight: 600 }} dir="auto">{l}</div>
           <div style={{ fontSize: 24, fontWeight: 600, color: INK, marginTop: 4 }}>{fmt(series[0].values[i], spec.units?.[i] ?? unit)}</div>
           {(spec.units?.[i] ?? unit) && !["%", "×"].includes(spec.units?.[i] ?? unit) && <div style={{ fontSize: 10, color: MUTED }}>{spec.units?.[i] ?? unit}</div>}
         </div>
@@ -383,8 +383,8 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
       <div ref={box} style={{ position: "relative" }} onPointerLeave={hide}>
         {body}
         {tip && !table && (
-          <div style={{ position: "absolute", left: Math.min(Math.max(0, tip.x + 12), Math.max(0, width - 190)), top: Math.max(0, tip.y - 12), pointerEvents: "none", background: "#fff", border: "1px solid rgba(11,11,11,0.10)", boxShadow: "0 4px 14px rgba(0,0,0,0.08)", padding: "7px 9px", fontSize: 11, minWidth: 120, maxWidth: 220, zIndex: 2 }}>
-            <div style={{ color: INK2, marginBottom: 4 }} dir="auto">{tip.title}</div>
+          <div className="kc-tip" style={{ left: Math.min(Math.max(0, tip.x + 12), Math.max(0, width - 190)), top: Math.max(0, tip.y - 12) }}>
+            <div className="kc-tip-t" dir="auto">{tip.title}</div>
             {tip.rows.slice(0, 8).map((r, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {tip.rows.length > 1 && <span style={{ width: 10, height: 2, background: r.color, flex: "0 0 auto" }} />}
@@ -397,9 +397,9 @@ export function ChartView({ spec }: { spec: ChartSpec }) {
       </div>
       {spec.note && <div style={{ fontSize: 9.5, color: MUTED, marginTop: 6 }} dir="auto">{spec.note}</div>}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
-        {options.length > 1 && options.map((x) => <button key={x} className="chip" style={{ fontSize: 10, ...(x === view && !table ? { borderColor: "var(--ink)", color: "var(--ink)", fontWeight: 700 } : {}) }} onClick={() => { setType(x); setTable(false); }}>{LABEL[x]}</button>)}
+        {options.length > 1 && options.map((x) => <button key={x} className={`chip${x === view && !table ? " on" : ""}`} style={{ fontSize: 10 }} onClick={() => { setType(x); setTable(false); }}>{LABEL[x]}</button>)}
         {!table && view !== "kpi" && view !== "pie" && view !== "donut" && view !== "scatter" && <button className="chip" style={{ fontSize: 10 }} aria-pressed={showValues !== false} onClick={() => setShowValues(showValues === false ? true : false)}>{showValues === false ? t("Show values") : t("Hide values")}</button>}
-        <button className="chip" style={{ fontSize: 10, ...(table ? { borderColor: "var(--ink)", color: "var(--ink)", fontWeight: 700 } : {}) }} onClick={() => setTable(!table)}>{t("Table")}</button>
+        <button className={`chip${table ? " on" : ""}`} style={{ fontSize: 10 }} onClick={() => setTable(!table)}>{t("Table")}</button>
         <div style={{ flex: 1 }} />
         {!table && view !== "kpi" && <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 8 }} onClick={() => download("png")}>{t("Download PNG")}</button>}
         {!table && view !== "kpi" && <button className="btn ghost" style={{ padding: "5px 9px", fontSize: 8 }} onClick={() => download("svg")}>SVG</button>}

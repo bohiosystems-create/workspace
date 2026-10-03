@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { KHBars } from "./KCharts";
 import { useI18n } from "./lang";
 
 const n0 = (x: number) => x.toLocaleString("en-GB");
@@ -217,13 +218,8 @@ export default function InvoicesPanel({ vendor, onOpenVendor }: { vendor?: strin
 
             <div className="panel">
               <div className="chart-label">{t("Purchase order utilisation")}</div>
-              {data.purchaseOrders.map((p: any) => (
-                <div className="hbar-row" key={p.poNumber} title={`${N(p.vendor)} · ${p.campaign ? N(p.campaign) : ""}`}>
-                  <div className="hbar-name" style={{ width: 150 }}><span dir="ltr" style={{ display: "inline-block" }}>{p.poNumber}</span><div style={{ fontSize: 8, textTransform: "none", letterSpacing: 0 }}>{p.campaign ? N(p.campaign) : N(p.vendor)}</div></div>
-                  <div className="hbar-track"><div className="hbar-fill" style={{ width: `${Math.min(p.utilisationPct, 100)}%`, background: p.utilisationPct > 100 ? "var(--alert)" : "var(--ink)" }} /></div>
-                  <div className="hbar-v" style={{ width: 84 }}>{p.utilisationPct}% <span className="muted" style={{ fontSize: 9 }}>· {kk(n0(p.amountK))}</span></div>
-                </div>
-              ))}
+              <KHBars rows={data.purchaseOrders.map((p: any) => ({ label: p.poNumber, value: p.utilisationPct, sub: p.campaign ? N(p.campaign) : N(p.vendor), note: kk(n0(p.amountK)) }))} unit="%" decimals={0} max={125}
+                bench={{ value: 100, label: t("PO amount") }} hot={(r) => (r.value > 100 ? t("over") : null)} labelWidth="34%" />
             </div>
           </div>
         </>

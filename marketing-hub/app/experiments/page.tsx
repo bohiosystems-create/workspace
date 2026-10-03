@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { KRange } from "../_components/KCharts";
 import Header from "../_components/Header";
 import { useI18n } from "../_components/lang";
 import { useAgent, useApprover } from "../_components/useAgent";
@@ -110,7 +111,7 @@ export default function ExperimentsPage() {
                         <td style={{ minWidth: 150 }}>
                           {c.incrementalRatio === null ? "—" : (
                             <>
-                              <div className="range"><div className="par" style={{ insetInlineStart: "33.3%", left: undefined }} /><div className="band" style={{ insetInlineStart: `${Math.min(100, (c.incrementalRatioLow / 3) * 100)}%`, width: `${Math.max(1, Math.min(100, ((c.incrementalRatioHigh - c.incrementalRatioLow) / 3) * 100))}%` }} /><div className="pt" style={{ insetInlineStart: `${Math.min(99, (c.incrementalRatio / 3) * 100)}%` }} /></div>
+                              <KRange lo={c.incrementalRatioLow} hi={c.incrementalRatioHigh} point={c.incrementalRatio} par={1} max={3} tone={c.reliable ? undefined : "bad"} />
                               <div className="muted" style={{ fontSize: 9 }}>{Math.round(c.incrementalRatio * 100)}% ({Math.round(c.incrementalRatioLow * 100)}–{Math.round(c.incrementalRatioHigh * 100)}%)</div>
                             </>
                           )}

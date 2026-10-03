@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { KRange } from "../_components/KCharts";
 import Header from "../_components/Header";
 import { useI18n } from "../_components/lang";
 import { useAgent, openDrafts } from "../_components/useAgent";
@@ -92,11 +93,7 @@ export default function DecisionsPage() {
                       <td><b>{N(s.vendor)}</b><div className="muted" style={{ fontSize: 9 }}>{N(s.category)} · {k(s.costK)}</div></td>
                       <td className="num"><b style={{ fontSize: 14, color: s.score < 40 ? "var(--alert)" : undefined }}>{s.score}</b></td>
                       <td style={{ minWidth: 140 }}>
-                        <div className="range" title={`${s.low}–${s.high}`}>
-                          <div className="par" />
-                          <div className="band" style={{ insetInlineStart: `${s.low}%`, width: `${Math.max(1, s.high - s.low)}%` }} />
-                          <div className="pt" style={{ insetInlineStart: `${s.score}%` }} />
-                        </div>
+                        <div title={`${s.low}–${s.high}`}><KRange lo={s.low} hi={s.high} point={s.score} par={50} tone={s.score < 40 ? "bad" : undefined} /></div>
                         <div className="muted" style={{ fontSize: 9 }}>{s.low}–{s.high}</div>
                       </td>
                       <td><span className={`pill ${s.confidence === "High" ? "healthy" : s.confidence === "Low" ? "weak" : "hold"}`}>{CONF[s.confidence]}</span></td>

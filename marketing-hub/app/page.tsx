@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Header from "./_components/Header";
 import Spark from "./_components/Spark";
+import { KColumns } from "./_components/KCharts";
 import { useI18n } from "./_components/lang";
 import { useApprover, openDrafts } from "./_components/useAgent";
 import { monthShort, firstSentence } from "@/lib/i18n";
@@ -138,19 +139,9 @@ export default function DirectorPage() {
           <div className="row twocol">
             <div className="panel">
               <div className="chart-label">{t("Contracted sales vs target, by month (SAR M)")}</div>
-              <div className="trend">
-                {tg.monthly.map((x: any) => (
-                  <div className="tcol" key={x.month}>
-                    <div className="tbars">
-                      <div className="tbar" title={`${t("Target")} ${x.targetM}`} style={{ height: `${(x.targetM / maxBar) * 100}%`, background: "var(--ink-faint)" }} />
-                      <div className="tbar" title={`${t("Actual")} ${x.actualM}`} style={{ height: `${(x.actualM / maxBar) * 100}%`, background: x.actualM < x.targetM * 0.9 ? "var(--alert)" : "var(--ink)" }} />
-                    </div>
-                    <div className="lv">{x.actualM}</div>
-                    <div className="ly">{monthShort(lang, x.month)}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="legend"><span><i style={{ background: "var(--ink-faint)" }} />{t("Target")}</span><span><i style={{ background: "var(--ink)" }} />{t("Actual (red = below 90%)")}</span></div>
+              <KColumns labels={tg.monthly.map((x: any) => monthShort(lang, x.month))} values={tg.monthly.map((x: any) => x.actualM)} target={tg.monthly.map((x: any) => x.targetM)} unit="SAR M" decimals={1}
+                actualLabel={t("Actual")} targetLabel={t("Target")} latestLabel={t("Latest month")} />
+              <div className="muted" style={{ fontSize: 10.5, marginTop: 6 }}>{t("Red: below 90% of the month's target.")}</div>
             </div>
 
             <div className="panel">
