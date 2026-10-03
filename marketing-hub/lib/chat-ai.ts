@@ -30,7 +30,7 @@ ${CHART_SCHEMA}
 - ideate_campaigns: new campaign ideas for a brief (saved on the Ideas page). Present the ideas briefly with their forecast ranges and say the manager can shortlist or approve them there; approving drafts a vendor brief for approval.
 
 How to answer:
-- Reply in the language of the user's latest message. Arabic: clear Modern Standard Arabic with Western digits (0-9); keep names as in the data.
+- Reply in the language set under LANGUAGE (the language of the user's latest message). Arabic: clear Modern Standard Arabic with Western digits (0-9); keep names as in the data.
 - Use only numbers from DATA or tool results. Never invent figures; if something is not in the data, say so. Spend and invoices are SAR thousands (K); sales are SAR millions (M).
 - When judging a live campaign, compare it with similar past campaigns from the history (same channel, season or project) and quote the benchmark.
 - The daily campaign check is the agent's own per-campaign recommendations for today; lead with it when asked what to change, and say how long an item has been open.
@@ -84,6 +84,7 @@ async function exec(ctx: ChatContext, name: string, input: any, cards: ChatCard[
   switch (name) {
     case "make_chart": {
       // Accept the older simple shape too ({ metric, group_by }).
+      if (input.title && looksArabic(String(input.title)) !== (ctx.lang === "ar")) delete input.title;
       const qy = input.dataset ? input : { dataset: "campaigns", type: input.type, x: input.group_by, measures: [{ sales: "sum(sales)", spend: "sum(spend)", qualified: "sum(qualified)", contracts: "sum(contracts)", leads: "sum(leads)", costToSales: "cost_to_sales", cpql: "cpql" }[String(input.metric)] ?? "sum(sales)"], period: input.period };
       const spec = runChartQuery(qy, ctx.q, ctx.lang);
       if ("error" in spec) return `Error: ${spec.error}`;
@@ -148,14 +149,20 @@ async function exec(ctx: ChatContext, name: string, input: any, cards: ChatCard[
 
 export async function aiAnswer(history: { role: "user" | "assistant"; content: string }[], polish?: Polish, uiLang: Lang = "en"): Promise<ChatReply> {
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
-  const ctx = await buildChatContext(looksArabic(lastUser) ? "ar" : uiLang);
+  // The question decides the language: Arabic text → Arabic, Latin text → English; only symbols/codes fall back to the UI.
+  const ctx = await buildChatContext(looksArabic(lastUser) ? "ar" : /[A-Za-z]{3,}/.test(lastUser) ? "en" : uiLang);
   const cards: ChatCard[] = [];
   const wantsChart = RX_CHART.test(lastUser.toLowerCase());
+  // The reply language is decided here, not left to the model: Arabic only when the question is in Arabic, otherwise
+  // the app's language. (Earlier Arabic turns in the chat, or the viewer's locale in the Claude app, must not switch it.)
+  const L = ctx.lang === "ar" ? "Arabic (Modern Standard Arabic, Western digits 0-9)" : "English";
+  const langRule = `\n\nLANGUAGE: write your whole reply, chart titles and labels in ${L} — regardless of the language of earlier messages or of the viewer's settings.`;
+  const turns = history.slice(-10).map((m, i, all) => (i === all.length - 1 && m.role === "user" ? { ...m, content: `${m.content}\n\n[${ctx.lang === "ar" ? "أجب بالعربية." : "Answer in English."}]` } : m));
   const res = await runLlm({
     task: "chat",
-    system: SYSTEM + (wantsChart ? "\n\nThe user is asking for a chart: draw it with make_chart now (more than one call if they asked for several), then comment in 2–4 sentences. Never say you can't draw charts." : ""),
+    system: SYSTEM + langRule + (wantsChart ? "\n\nThe user is asking for a chart: draw it with make_chart now (more than one call if they asked for several), then comment in 2–4 sentences. Never say you can't draw charts." : ""),
     data: `DATA (as of ${ctx.mkt.asOf.slice(0, 10)}):\n${JSON.stringify(snapshotForModel(ctx))}`,
-    messages: history.slice(-10),
+    messages: turns,
     tools: TOOLS,
     exec: (name, input) => exec(ctx, name, input, cards, polish),
     maxTurns: 6,

@@ -388,7 +388,7 @@ const LABELS: Record<string, [string, string]> = {
   cost_to_sales: ["Cost to sales", "نسبة التكلفة إلى المبيعات"], cpl: ["Cost per lead", "تكلفة العميل المحتمل"], cpql: ["Cost per qualified lead", "تكلفة العميل المؤهل"],
   cac: ["Cost per contract", "تكلفة العقد"], roas: ["Sales per SAR spent", "المبيعات لكل ريال"], qual_rate: ["Qualified rate", "نسبة المؤهلين"], close_rate: ["Close rate", "نسبة الإغلاق"],
   win_rate: ["Win rate", "نسبة الفوز"], ctr: ["Click-through rate", "نسبة النقر"], avg_deal: ["Average deal", "متوسط الصفقة"], overstatement: ["Reported vs CRM sales", "المُبلغ مقابل مبيعات النظام"],
-  spend: ["Spend", "الإنفاق"], sales: ["Sales", "المبيعات"], leads: ["Leads", "العملاء المحتملون"], qualified: ["Qualified leads", "العملاء المؤهلون"], contracts: ["Contracts", "العقود"],
+  spend: ["Spend", "الإنفاق"], sales: ["Revenue", "الإيرادات"], leads: ["Leads", "العملاء المحتملون"], qualified: ["Qualified leads", "العملاء المؤهلون"], contracts: ["Contracts", "العقود"],
   viewings: ["Viewings", "المعاينات"], reservations: ["Reservations", "الحجوزات"], won: ["Won", "المكتسبة"], amount: ["Invoiced", "المبالغ المفوترة"], outstanding: ["Outstanding", "غير المسدد"],
   paid: ["Paid", "المسدد"], score: ["Fair score", "التقييم العادل"], transactions: ["Transactions", "الصفقات"], price_per_sqm: ["Price per sqm", "سعر المتر"], ads: ["Active ads", "الإعلانات النشطة"],
   impressions: ["Impressions", "مرات الظهور"], clicks: ["Clicks", "النقرات"], count: ["Count", "العدد"], invoices: ["Invoices", "الفواتير"],

@@ -205,7 +205,7 @@ export function briefFromText(text: string, c: ChatContext): IdeaBrief {
 }
 
 export async function localAnswer(question: string, ctx?: ChatContext, polish?: Polish, uiLang?: Lang): Promise<ChatReply> {
-  const lang: Lang = looksArabic(question) ? "ar" : uiLang ?? "en";
+  const lang: Lang = looksArabic(question) ? "ar" : /[A-Za-z]{3,}/.test(question) ? "en" : uiLang ?? "en";
   const c = ctx && ctx.lang === lang ? ctx : await buildChatContext(lang);
   const q = question.toLowerCase();
   const { mkt, inv, recs, crm } = c;

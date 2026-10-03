@@ -163,6 +163,7 @@ People can ask anything, so the assistant has five layers of protection:
 ## 13. Arabic
 
 - The whole app, the assistant, vendor emails and the reports switch to Arabic, right-to-left, with Gregorian dates and Western digits.
+- **Reply language follows the question:** an English question gets an English answer and an Arabic question an Arabic one, whatever the app language, earlier messages or the viewer's Claude settings. Chart titles follow the same rule.
 
 ## Data that would sharpen the recommendations (suggested next connectors)
 
