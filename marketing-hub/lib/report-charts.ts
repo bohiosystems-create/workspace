@@ -60,7 +60,7 @@ export function reportCharts(c: QueryCtx, lang: Lang, targets: { byAsset: { asse
   const T = (en: string, ar: string) => tx(lang, en, ar);
   const q = (x: ChartQuery) => { const r = runChartQuery(x, c, lang); return "error" in r ? null : r; };
   const out: ReportChart[] = [];
-  const MON = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString(lang === "ar" ? "ar-SA-u-nu-latn" : "en-GB", { month: "short", timeZone: "UTC" });
+  const MON = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString(lang === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-GB", { month: "short", timeZone: "UTC" });
 
   // 1. Sales vs target by project (bars = % of year-to-date target; red below 75%).
   if (targets.byAsset.length) {
@@ -108,9 +108,9 @@ export function kpiTiles(items: { label: string; value: string; sub?: string; to
   const color = (t?: string) => (t === "bad" ? ALERT : t === "good" ? GOOD : t === "warn" ? "#b7791f" : INK);
   const rows: string[] = [];
   for (let i = 0; i < items.length; i += 3) {
-    rows.push(`<tr>${items.slice(i, i + 3).map((k) => `<td width="33%" valign="top" style="padding:4px"><table ${T0} width="100%" style="border-collapse:collapse;border:1px solid #d9d7d4;background:#fff"><tr><td style="padding:10px 12px">
-      <div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:${SOFT}">${esc(k.label)}</div>
-      <div style="font-size:22px;font-weight:700;color:${color(k.tone)};margin-top:4px">${esc(k.value)}</div>
+    rows.push(`<tr>${items.slice(i, i + 3).map((k) => `<td width="33%" valign="top" style="padding:4px"><table ${T0} width="100%" style="border-collapse:collapse;border-bottom:1px solid #c9c7c3"><tr><td style="padding:8px 4px 10px">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#51473d;font-weight:700">${esc(k.label)}</div>
+      <div style="font-size:22px;font-weight:600;color:${color(k.tone)};margin-top:4px">${esc(k.value)}</div>
       ${k.sub ? `<div style="font-size:11px;color:${SOFT};margin-top:2px">${esc(k.sub)}</div>` : ""}</td></tr></table></td>`).join("")}${"<td></td>".repeat(Math.max(0, 3 - items.slice(i, i + 3).length))}</tr>`);
   }
   return `<table ${T0} width="100%" style="border-collapse:collapse;margin:0 -4px">${rows.join("")}</table>`;
@@ -121,7 +121,7 @@ export function metaRevenueChart(c: QueryCtx, lang: Lang): ReportChart | null {
   const T = (en: string, ar: string) => tx(lang, en, ar);
   const r = runChartQuery({ dataset: "meta", x: "month", measures: ["sum(revenue)"], period: "last 6 months", sort: "label" }, c, lang);
   if ("error" in r || !(r.series?.[0]?.values ?? []).some((v) => v)) return null;
-  const MON = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString(lang === "ar" ? "ar-SA-u-nu-latn" : "en-GB", { month: "short", timeZone: "UTC" });
+  const MON = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString(lang === "ar" ? "ar-SA-u-ca-gregory-nu-latn" : "en-GB", { month: "short", timeZone: "UTC" });
   const total = Math.round((r.series![0].values as number[]).reduce((a, b) => a + (b ?? 0), 0) * 10) / 10;
   return {
     title: T("Meta ads — CRM revenue", "إعلانات ميتا — إيرادات النظام"),

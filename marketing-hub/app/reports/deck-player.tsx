@@ -15,21 +15,24 @@
 // reserved for good / warning / critical. Respects "reduce motion".
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../_components/lang";
-import { KINAN, kinanLogoHtml } from "../../lib/brand";
+import { KINAN, kinanLogoHtml, chevron } from "../../lib/brand";
 import type { Deck, DeckSlide, Kpi, Tone } from "../../lib/deck";
 
-// Validated for the dark surface (#141414): Kinan orange, blue, aqua, yellow, magenta, violet.
-const PAL = ["#e8562a", "#3987e5", "#199e70", "#c98500", "#d55181", "#9085e9"];
-const OR = KINAN.orange, GOOD = "#0ca30c", WARN = "#fab219", CRIT = "#d03b3b", INK = "#f4f2ef", SOFT = "rgba(244,242,239,.62)", FAINT = "rgba(244,242,239,.14)";
+// The slides follow Kinan's collateral: white faceted pages, charcoal text, orange uppercase headings, stat blocks and
+// chevron bars; orange or charcoal full-bleed covers and dividers. Categorical hues validated on the light surface
+// (Kinan orange first; direct labels everywhere, so colour never carries identity alone).
+const PAL = ["#f15a22", "#2a78d6", "#1baf7a", "#eda100", "#e87ba4", "#4a3aa7"];
+const OR = KINAN.orange, CH = KINAN.charcoal, GOOD = "#1f8a4c", WARN = "#d99400", CRIT = "#d03b3b", INK = "#2e2e2f", SOFT = "#6f6f6f", FAINT = "rgba(46,46,47,.12)", PAPER = "#ffffff", TAUPE = KINAN.taupe, GREY = KINAN.grey;
 const toneColor = (t?: Tone) => (t === "bad" ? CRIT : t === "good" ? GOOD : t === "warn" ? WARN : INK);
 const fmt = (v: number, d = 0) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 const SPRING = "cubic-bezier(.34,1.56,.64,1)", EASE = "cubic-bezier(.2,.8,.2,1)";
+const HOLD = 420; // ms the slide waits behind the chevron wipe before its own motion starts
 
 // ------------------------------------------------------------------ motion helpers
 function useCount(target: number, ms = 1300, delay = 0) {
   const [v, setV] = useState(0);
   useEffect(() => {
-    let raf = 0; const t0 = performance.now() + delay;
+    let raf = 0; const t0 = performance.now() + delay + HOLD;
     const tick = (now: number) => { const p = Math.min(1, Math.max(0, (now - t0) / ms)); setV(target * (1 - Math.pow(1 - p, 4))); if (p < 1) raf = requestAnimationFrame(tick); };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -43,7 +46,7 @@ function Count({ value, decimals = 0, prefix = "", suffix = "", delay = 0, sign 
 const In = ({ d = 0, children, style, className = "" }: { d?: number; children: React.ReactNode; style?: React.CSSProperties; className?: string }) =>
   <div className={`kd-in ${className}`} style={{ animationDelay: `${d}ms`, ...style }}>{children}</div>;
 /** A headline that rises word by word behind a mask. */
-function Rise({ text, d = 0, className = "kd-h2", step = 55, as: Tag = "h2" }: { text: string; d?: number; className?: string; step?: number; as?: any }) {
+function Rise({ text, d = 0, className = "kd-h2", step = 45, as: Tag = "h2" }: { text: string; d?: number; className?: string; step?: number; as?: any }) {
   const words = text.split(/\s+/).filter(Boolean);
   return <Tag className={className}>{words.map((w, i) => <Fragment key={i}><span className="kd-mask"><span className="kd-rise" style={{ animationDelay: `${d + i * step}ms` }}>{w}</span></span>{i < words.length - 1 ? " " : ""}</Fragment>)}</Tag>;
 }
@@ -94,7 +97,8 @@ function smoothPath(pts: [number, number][]) {
   return d;
 }
 /** A light that travels along a path while it draws. */
-function Tracer({ pathRef, ms = 1800, delay = 300, color = OR }: { pathRef: React.RefObject<SVGPathElement>; ms?: number; delay?: number; color?: string }) {
+function Tracer({ pathRef, ms = 1800, delay: delay0 = 300, color = OR }: { pathRef: React.RefObject<SVGPathElement>; ms?: number; delay?: number; color?: string }) {
+  const delay = delay0 + HOLD;
   const dot = useRef<SVGGElement>(null);
   useEffect(() => {
     let raf = 0; const t0 = performance.now() + delay;
@@ -113,10 +117,10 @@ function Tracer({ pathRef, ms = 1800, delay = 300, color = OR }: { pathRef: Reac
 const Defs = () => (
   <defs>
     <filter id="kdGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-    <linearGradient id="kdHot" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#ff7a45" /><stop offset="1" stopColor="#b8401a" /></linearGradient>
-    <linearGradient id="kdCool" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="rgba(244,242,239,.92)" /><stop offset="1" stopColor="rgba(244,242,239,.38)" /></linearGradient>
+    <linearGradient id="kdHot" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#ff7a45" /><stop offset="1" stopColor={OR} /></linearGradient>
+    <linearGradient id="kdCool" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#5a5a5c" /><stop offset="1" stopColor={CH} /></linearGradient>
     <linearGradient id="kdArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor={OR} stopOpacity=".42" /><stop offset="1" stopColor={OR} stopOpacity="0" /></linearGradient>
-    <linearGradient id="kdAreaW" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#fff" stopOpacity=".22" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></linearGradient>
+    <linearGradient id="kdAreaW" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor={CH} stopOpacity=".18" /><stop offset="1" stopColor={CH} stopOpacity="0" /></linearGradient>
   </defs>
 );
 
@@ -126,7 +130,7 @@ function MiniSpark({ values }: { values: number[] }) {
   const pts = values.map((v, i) => [6 + ((W - 12) * i) / Math.max(1, values.length - 1), H - 6 - ((H - 14) * (v - min)) / Math.max(0.0001, max - min)] as [number, number]);
   const d = smoothPath(pts);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ display: "block", marginTop: 10, direction: "ltr" }} aria-hidden="true">
+    <svg viewBox={`0 0 ${W} ${H}`} width="84" height="22" preserveAspectRatio="none" style={{ display: "block", direction: "ltr", flex: "none" }} aria-hidden="true">
       <Defs />
       <path d={`${d} L${pts[pts.length - 1][0]},${H} L${pts[0][0]},${H} Z`} fill="url(#kdArea)" className="kd-fade" style={{ animationDelay: "900ms" }} />
       <path d={d} fill="none" stroke={OR} strokeWidth="2.5" pathLength={1} className="kd-draw" style={{ animationDelay: "500ms" }} />
@@ -137,7 +141,7 @@ function MiniSpark({ values }: { values: number[] }) {
 function MiniRing({ pct }: { pct: number }) {
   const r = 22, c = 2 * Math.PI * r, p = Math.max(0, Math.min(100, pct)), color = pct >= 95 ? GOOD : pct >= 75 ? WARN : CRIT;
   return (
-    <svg viewBox="0 0 56 56" width="56" height="56" style={{ position: "absolute", insetInlineEnd: 18, top: 18 }} aria-hidden="true">
+    <svg viewBox="0 0 56 56" width="44" height="44" style={{ flex: "none" }} aria-hidden="true">
       <circle cx="28" cy="28" r={r} fill="none" stroke={FAINT} strokeWidth="6" />
       <circle cx="28" cy="28" r={r} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" transform="rotate(-90 28 28)" strokeDasharray={c}
         style={{ strokeDashoffset: c, animation: `kdRing 1.6s ${EASE} 500ms forwards`, ["--kd-off" as any]: c * (1 - p / 100) }} />
@@ -148,40 +152,50 @@ function MiniRing({ pct }: { pct: number }) {
 // ------------------------------------------------------------------ slides
 function Cover({ s }: { s: Extract<DeckSlide, { kind: "cover" }> }) {
   return (
-    <div className="kd-center" style={{ position: "relative" }}>
-      <svg className="kd-orbits" viewBox="0 0 1200 700" aria-hidden="true">
-        {[200, 300, 410].map((r, i) => <ellipse key={r} cx="600" cy="350" rx={r * 1.45} ry={r * 0.62} fill="none" stroke={i === 1 ? "rgba(232,86,42,.35)" : "rgba(255,255,255,.08)"} strokeWidth="1.2" pathLength={1} className="kd-draw" style={{ animationDelay: `${200 + i * 220}ms`, animationDuration: "2.4s" }} />)}
-        <circle r="5" fill={OR} filter="url(#kdGlow)"><animateMotion dur="9s" repeatCount="indefinite" path="M165,350 a435,186 0 1,0 870,0 a435,186 0 1,0 -870,0" /></circle>
-        <Defs />
-      </svg>
-      <In><div style={{ display: "inline-flex", alignItems: "center", gap: 30, position: "relative" }}><span dangerouslySetInnerHTML={{ __html: kinanLogoHtml(118) }} /><span className="kd-chev kd-chev-anim" style={{ fontSize: 96 }}>‹</span></div></In>
-      <In d={350}><div className="kd-kicker" style={{ marginTop: 46, justifyContent: "center" }}><span className="kd-kbar" />{s.kicker}</div></In>
-      <Letters className="kd-cover-title" text={s.title} d={450} />
-      <In d={1000}><div className="kd-sub">{s.sub}</div></In>
+    <div className="kd-center kd-onbg">
+      <In><div className="kd-kicker kd-kicker-w" style={{ justifyContent: "center" }}><span className="kd-kbar" />{s.kicker}</div></In>
+      <Letters className="kd-cover-title" text={s.title} d={350} />
+      <In d={1000}><div className="kd-cover-sub">{s.sub}</div></In>
       <div className="kd-sweep" />
     </div>
   );
 }
-function KpiCard({ k, i }: { k: Kpi; i: number }) {
+/** A section divider as in Kinan's collateral (charcoal, diagonal orange chevron band, big chevron beside the title). */
+function Divider({ s, lang }: { s: Extract<DeckSlide, { kind: "divider" }>; lang: "en" | "ar" }) {
   return (
-    <In d={350 + i * 140} style={{ flex: "1 1 220px" }}>
-      <div className="kd-kpi kd-lift" style={{ position: "relative" }}>
-        {k.ring != null && <MiniRing pct={k.ring} />}
-        <div className="kd-kpi-v" style={{ color: toneColor(k.tone), ...(`${k.prefix ?? ""}${fmt(k.value, k.decimals ?? 0)}${k.suffix ?? ""}`.length > 6 ? { fontSize: "clamp(26px, 2.9vw, 44px)" } : {}) }}><Count value={k.value} decimals={k.decimals ?? 0} prefix={k.prefix} suffix={k.suffix} delay={350 + i * 140} /></div>
-        <div className="kd-kpi-l">{k.label}</div>
-        {k.sub && <div className="kd-kpi-s">{k.sub}</div>}
-        {k.spark && k.spark.length > 2 && <MiniSpark values={k.spark} />}
+    <div className="kd-onbg kd-div">
+      <In><span className="kd-div-chev" dangerouslySetInnerHTML={{ __html: chevron(lang === "ar" ? "rtl" : "ltr", 76, OR) }} /></In>
+      <div>
+        <Rise as="h1" text={s.title} d={150} step={90} className="kd-div-title" />
+        <In d={700}><div className="kd-div-sub">{s.sub ?? s.kicker}{s.n && s.of ? <span dir="ltr" style={{ marginInlineStart: 14, opacity: .8 }}>{s.n} / {s.of}</span> : null}</div></In>
+      </div>
+    </div>
+  );
+}
+function Stat({ k, i }: { k: Kpi; i: number }) {
+  return (
+    <In d={300 + i * 140}>
+      <div className="kd-stat">
+        <div className="kd-stat-l">{k.label}</div>
+        <div className="kd-stat-row">
+          <div className="kd-stat-v" style={{ color: toneColor(k.tone) }}><Count value={k.value} decimals={k.decimals ?? 0} prefix={k.prefix} suffix={k.suffix} delay={300 + i * 140} /></div>
+          {k.ring != null && <MiniRing pct={k.ring} />}
+          {k.spark && k.spark.length > 2 && <MiniSpark values={k.spark} />}
+        </div>
+        {k.sub && <div className="kd-stat-s">{k.sub}</div>}
       </div>
     </In>
   );
 }
 function Headline({ s }: { s: Extract<DeckSlide, { kind: "headline" }> }) {
   return (
-    <div>
-      <Kicker>{s.kicker}</Kicker>
-      <Rise text={s.headline} d={120} />
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 34 }}>{s.kpis.map((k, i) => <KpiCard key={i} k={k} i={i} />)}</div>
-      {s.points.length > 0 && <ol className="kd-points">{s.points.map((p, i) => <In key={i} d={1000 + i * 170}><li><span className="kd-num">{String(i + 1).padStart(2, "0")}</span><span>{p}</span></li></In>)}</ol>}
+    <div className="kd-hgrid">
+      <div className="kd-stats">{s.kpis.map((k, i) => <Stat key={i} k={k} i={i} />)}</div>
+      <div>
+        <Kicker>{s.kicker}</Kicker>
+        <Rise text={s.headline} d={120} />
+        {s.points.length > 0 && <ol className="kd-points">{s.points.map((p, i) => <In key={i} d={900 + i * 170}><li><span className="kd-cbar" /><span>{p}</span></li></In>)}</ol>}
+      </div>
     </div>
   );
 }
@@ -192,12 +206,12 @@ function Gauge({ pct, delay }: { pct: number; delay: number }) {
     <svg viewBox="0 0 220 220" width="100%" style={{ maxWidth: 250, display: "block", margin: "0 auto", overflow: "visible" }} aria-hidden="true">
       <Defs />
       <linearGradient id={id} x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor={OR} /><stop offset="1" stopColor={color} /></linearGradient>
-      {Array.from({ length: 40 }, (_, k) => { const a = (k / 40) * 2 * Math.PI - Math.PI / 2; const r1 = 104, r2 = k % 10 === 0 ? 96 : 100; return <line key={k} x1={110 + r1 * Math.cos(a)} y1={110 + r1 * Math.sin(a)} x2={110 + r2 * Math.cos(a)} y2={110 + r2 * Math.sin(a)} stroke={k % 10 === 0 ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.12)"} strokeWidth="1.5" className="kd-fade" style={{ animationDelay: `${delay + k * 12}ms` }} />; })}
+      {Array.from({ length: 40 }, (_, k) => { const a = (k / 40) * 2 * Math.PI - Math.PI / 2; const r1 = 104, r2 = k % 10 === 0 ? 96 : 100; return <line key={k} x1={110 + r1 * Math.cos(a)} y1={110 + r1 * Math.sin(a)} x2={110 + r2 * Math.cos(a)} y2={110 + r2 * Math.sin(a)} stroke={k % 10 === 0 ? "rgba(46,46,47,.35)" : "rgba(46,46,47,.12)"} strokeWidth="1.5" className="kd-fade" style={{ animationDelay: `${delay + k * 12}ms` }} />; })}
       <circle cx="110" cy="110" r={r} fill="none" stroke={FAINT} strokeWidth="14" />
       <circle cx="110" cy="110" r={r} fill="none" stroke={`url(#${id})`} strokeWidth="14" strokeLinecap="round" transform="rotate(-90 110 110)" strokeDasharray={c}
         style={{ strokeDashoffset: c, animation: `kdRing 1.8s ${EASE} ${delay}ms forwards`, ["--kd-off" as any]: c * (1 - p / 100) }} />
       <g style={{ transformOrigin: "110px 110px", transform: "rotate(0deg)", animation: `kdRot 1.8s ${EASE} ${delay}ms forwards`, ["--kd-rot" as any]: `${(p / 100) * 360}deg` }}>
-        <circle cx="110" cy={110 - r} r="11" fill={color} opacity=".25" /><circle cx="110" cy={110 - r} r="6" fill="#fff" filter="url(#kdGlow)" />
+        <circle cx="110" cy={110 - r} r="11" fill={color} opacity=".25" /><circle cx="110" cy={110 - r} r="6" fill={color} stroke="#fff" strokeWidth="2" />
       </g>
     </svg>
   );
@@ -206,7 +220,7 @@ function Gauges({ s }: { s: Extract<DeckSlide, { kind: "gauges" }> }) {
   return (
     <div>
       <Kicker>{s.kicker}</Kicker>
-      <Rise text={s.title} d={100} />
+      <Rise text={s.title} d={100} className="kd-h2 kd-or" />
       <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(4, s.items.length)}, minmax(0, 1fr))`, gap: 28, marginTop: 30 }}>
         {s.items.map((x, i) => (
           <In key={i} d={250 + i * 200} style={{ textAlign: "center" }}>
@@ -245,22 +259,22 @@ function Columns({ s }: { s: Extract<DeckSlide, { kind: "columns" }> }) {
   return (
     <div>
       <Kicker>{s.kicker}</Kicker>
-      <Rise text={s.title} d={100} />
+      <Rise text={s.title} d={100} className="kd-h2 kd-or" />
       <In d={200}><div className="kd-sub">{s.sub}</div></In>
-      <In d={260}><div className="kd-legend-row"><span><i style={{ background: "rgba(244,242,239,.85)" }} />{t("Actual")}</span><span><i style={{ background: OR }} />{t("Latest month")}</span>{tg.length > 0 && <span><i className="kd-dash" />{t("Target")}</span>}</div></In>
+      <In d={260}><div className="kd-legend-row"><span><i style={{ background: "rgba(46,46,47,.85)" }} />{t("Actual")}</span><span><i style={{ background: OR }} />{t("Latest month")}</span>{tg.length > 0 && <span><i className="kd-dash" />{t("Target")}</span>}</div></In>
       <div ref={tip.box} style={{ position: "relative", marginTop: 8, direction: "ltr" }} onPointerLeave={tip.hide}>
         <svg viewBox={`0 0 ${W} ${H + 48}`} width="100%" style={{ display: "block", maxHeight: "50vh", overflow: "visible" }}>
           <Defs />
-          {[0.25, 0.5, 0.75, 1].map((g, k) => <line key={g} x1={pad} x2={W - pad} y1={H - (H - top) * g} y2={H - (H - top) * g} stroke="rgba(255,255,255,.07)" className="kd-gx" style={{ animationDelay: `${150 + k * 80}ms` }} />)}
-          <line x1={pad} x2={W - pad} y1={H} y2={H} stroke="rgba(255,255,255,.4)" className="kd-gx" />
+          {[0.25, 0.5, 0.75, 1].map((g, k) => <line key={g} x1={pad} x2={W - pad} y1={H - (H - top) * g} y2={H - (H - top) * g} stroke="rgba(46,46,47,.07)" className="kd-gx" style={{ animationDelay: `${150 + k * 80}ms` }} />)}
+          <line x1={pad} x2={W - pad} y1={H} y2={H} stroke="rgba(46,46,47,.4)" className="kd-gx" />
           {s.values.map((v, i) => {
             const hot = i === last, target = tg[i] ?? null, under = target != null && v < target * 0.9;
             return (
               <g key={i} tabIndex={0} onPointerMove={(e) => tip.show(e, s.labels[i], [[`${fmt(v, s.decimals ?? 1)} ${s.unit}`, t("Actual")], ...(target != null ? [[`${fmt(target, 1)} ${s.unit}`, t("Target")] as [string, string], [`${Math.round((v / target) * 100)}%`, t("Of target")] as [string, string]] : [])])} onFocus={(e) => tip.show(e, s.labels[i], [[`${fmt(v, s.decimals ?? 1)} ${s.unit}`, t("Actual")]])} onBlur={tip.hide}>
                 <rect x={x(i) - slot / 2} y={top - 20} width={slot} height={H - top + 60} fill="transparent" />
                 <rect x={x(i) - bw / 2} y={y(v)} width={bw} height={H - y(v)} rx="6" fill={hot ? "url(#kdHot)" : "url(#kdCool)"} filter={hot ? "url(#kdGlow)" : undefined} className="kd-spring" style={{ animationDelay: `${300 + i * 130}ms` }} />
-                {target != null && <line x1={x(i) - bw / 2 - 10} x2={x(i) + bw / 2 + 10} y1={y(target)} y2={y(target)} stroke={under ? CRIT : "#fff"} strokeWidth="2.5" strokeDasharray="7 5" className="kd-fade" style={{ animationDelay: `${1000 + i * 130}ms` }} />}
-                <text x={x(i)} y={Math.min(y(v), target != null ? y(target) : 9999) - 16} textAnchor="middle" fill={hot ? "#ff8a5c" : INK} className="kd-fade kd-svgnum" style={{ animationDelay: `${800 + i * 130}ms` }}>{fmt(v, s.decimals ?? 0)}</text>
+                {target != null && <line x1={x(i) - bw / 2 - 10} x2={x(i) + bw / 2 + 10} y1={y(target)} y2={y(target)} stroke={under ? CRIT : INK} strokeWidth="2.5" strokeDasharray="7 5" className="kd-fade" style={{ animationDelay: `${1000 + i * 130}ms` }} />}
+                <text x={x(i)} y={Math.min(y(v), target != null ? y(target) : 9999) - 16} textAnchor="middle" fill={hot ? OR : INK} className="kd-fade kd-svgnum" style={{ animationDelay: `${1150 + i * 130}ms` }}>{fmt(v, s.decimals ?? 0)}</text>
                 <text x={x(i)} y={H + 36} textAnchor="middle" fill={SOFT} className="kd-svglab">{s.labels[i]}</text>
               </g>
             );
@@ -268,7 +282,7 @@ function Columns({ s }: { s: Extract<DeckSlide, { kind: "columns" }> }) {
           {delta != null && (
             <g className="kd-pop" style={{ animationDelay: "1700ms" }}>
               <line x1={x(last)} x2={x(last) - slot * 0.55} y1={y(s.values[last]) - 48} y2={y(s.values[last]) - 86} stroke={OR} strokeWidth="1.5" />
-              <rect x={x(last) - slot * 0.55 - bubble} y={y(s.values[last]) - 108} width={bubble} height="40" rx="20" fill="#1f1f1f" stroke={OR} />
+              <rect x={x(last) - slot * 0.55 - bubble} y={y(s.values[last]) - 108} width={bubble} height="40" rx="20" fill="#fff" stroke={OR} />
               <text x={x(last) - slot * 0.55 - bubble / 2} y={y(s.values[last]) - 82} textAnchor="middle" fill={INK} className="kd-svglab" style={{ fontWeight: 700 }}>{delta >= 0 ? "▲ +" : "▼ −"}{fmt(Math.abs(delta), 1)}% {t("vs")} {s.labels[last - 1]}</text>
             </g>
           )}
@@ -287,13 +301,13 @@ function Donut({ s }: { s: Extract<DeckSlide, { kind: "donut" }> }) {
   return (
     <div>
       <Kicker>{s.kicker}</Kicker>
-      <Rise text={s.title} d={100} />
+      <Rise text={s.title} d={100} className="kd-h2 kd-or" />
       <In d={200}><div className="kd-sub">{s.sub}</div></In>
       <div style={{ display: "flex", gap: 48, alignItems: "center", flexWrap: "wrap", marginTop: 18 }}>
         <div style={{ position: "relative", flex: "0 0 auto", width: "min(500px, 84vw)" }} onPointerLeave={() => setHi(null)}>
           <svg viewBox="-60 -20 520 440" width="100%" style={{ overflow: "visible", direction: "ltr" }}>
             <Defs />
-            <circle cx="200" cy="200" r={R} fill="none" stroke="rgba(255,255,255,.05)" strokeWidth="46" />
+            <circle cx="200" cy="200" r={R} fill="none" stroke="rgba(46,46,47,.05)" strokeWidth="46" />
             {segs.map((g) => (
               <circle key={g.i} cx="200" cy="200" r={R} fill="none" stroke={PAL[g.i % PAL.length]} strokeWidth={focus === g.i ? 60 : 46} transform="rotate(-90 200 200)"
                 strokeDasharray={`0 ${c}`} strokeDashoffset={-g.start} opacity={focus == null || focus === g.i ? 1 : 0.28}
@@ -302,7 +316,7 @@ function Donut({ s }: { s: Extract<DeckSlide, { kind: "donut" }> }) {
             ))}
             {segs.slice(0, 3).map((g) => {
               const x1 = 200 + (R + 30) * Math.cos(g.mid), y1 = 200 + (R + 30) * Math.sin(g.mid), x2 = 200 + (R + 58) * Math.cos(g.mid), y2 = 200 + (R + 58) * Math.sin(g.mid), right = Math.cos(g.mid) >= 0;
-              return <g key={g.i} className="kd-fade" style={{ animationDelay: `${1300 + g.i * 150}ms` }}><line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,.5)" /><line x1={x2} y1={y2} x2={x2 + (right ? 18 : -18)} y2={y2} stroke="rgba(255,255,255,.5)" /><text x={x2 + (right ? 24 : -24)} y={y2 + 6} textAnchor={right ? "start" : "end"} fill={INK} className="kd-svgnum" style={{ fontSize: 22 }}>{Math.round((g.v / total) * 100)}%</text></g>;
+              return <g key={g.i} className="kd-fade" style={{ animationDelay: `${1300 + g.i * 150}ms` }}><line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(46,46,47,.5)" /><line x1={x2} y1={y2} x2={x2 + (right ? 18 : -18)} y2={y2} stroke="rgba(46,46,47,.5)" /><text x={x2 + (right ? 24 : -24)} y={y2 + 6} textAnchor={right ? "start" : "end"} fill={INK} className="kd-svgnum" style={{ fontSize: 22 }}>{Math.round((g.v / total) * 100)}%</text></g>;
             })}
           </svg>
           <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center", pointerEvents: "none" }}>
@@ -332,18 +346,18 @@ function HBars({ s }: { s: Extract<DeckSlide, { kind: "hbars" }> }) {
   return (
     <div>
       <Kicker>{s.kicker}</Kicker>
-      <Rise text={s.title} d={100} />
+      <Rise text={s.title} d={100} className="kd-h2 kd-or" />
       <In d={200}><div className="kd-sub">{s.sub}</div></In>
       <div ref={tip.box} style={{ marginTop: 34, position: "relative" }} onPointerLeave={tip.hide}>
         {s.bench != null && <div className="kd-benchline" style={{ insetInlineStart: `calc(var(--kd-lab) + 16px + (100% - var(--kd-lab) - 16px - 200px) * ${s.bench / max})` }}><span>{s.benchLabel}</span></div>}
         {s.values.map((v, i) => {
           const ratio = s.bench ? v / s.bench : null, hot = ratio != null && ratio > 1.5, best = i === 0;
-          const color = hot ? CRIT : best ? GOOD : "#d9d6d1";
+          const color = hot ? CRIT : best ? GOOD : GREY;
           return (
             <In key={i} d={250 + i * 120}>
               <div className="kd-hrow" onPointerMove={(e) => tip.show(e, s.labels[i], [[`${fmt(v, 2)}${s.unit}`, s.title], ...(ratio != null ? [[`${fmt(ratio, 1)}×`, t("of the 2023–2025 average")] as [string, string]] : [])])}>
                 <div className="kd-hlabel">{s.labels[i]}</div>
-                <div className="kd-htrack"><div className="kd-hfill" style={{ width: `${(v / max) * 100}%`, background: `linear-gradient(90deg, ${color}66, ${color})`, animationDelay: `${300 + i * 120}ms` }} /></div>
+                <div className="kd-htrack"><div className="kd-hfill" style={{ width: `${(v / max) * 100}%`, background: `linear-gradient(90deg, ${color}99, ${color})`, animationDelay: `${300 + i * 120}ms` }} /></div>
                 <div className="kd-hval" dir="ltr" style={{ color: hot ? CRIT : INK }}>{fmt(v, 2)}{s.unit}</div>
                 <div style={{ width: 84 }}>{hot ? <span className="kd-chip" style={{ borderColor: CRIT, color: CRIT }}>{fmt(ratio!, 1)}×</span> : best ? <span className="kd-chip" style={{ borderColor: GOOD, color: GOOD }}>✓ {t("best")}</span> : null}</div>
               </div>
@@ -364,20 +378,20 @@ function Line({ s }: { s: Extract<DeckSlide, { kind: "line" }> }) {
   return (
     <div>
       <Kicker>{s.kicker}</Kicker>
-      <Rise text={s.title} d={100} />
+      <Rise text={s.title} d={100} className="kd-h2 kd-or" />
       <In d={200}><div className="kd-sub">{s.sub}</div></In>
       <div ref={tip.box} style={{ position: "relative", marginTop: 20, direction: "ltr" }} onPointerLeave={() => { tip.hide(); setHx(null); }}
         onPointerMove={(e) => { const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect(); const vx = ((e.clientX - r.left) / r.width) * W; let k = 0; pts.forEach((p, i) => { if (Math.abs(p[0] - vx) < Math.abs(pts[k][0] - vx)) k = i; }); setHx(k); tip.show(e, s.labels[k], [[`${fmt(s.values[k], 2)} ${s.unit}`, s.title]]); }}>
         <svg viewBox={`0 0 ${W} ${H + 50}`} width="100%" style={{ display: "block", maxHeight: "50vh", overflow: "visible" }}>
           <Defs />
-          {[0.25, 0.5, 0.75, 1].map((g, k) => <line key={g} x1={pad} x2={W - pad} y1={H - (H - top) * g} y2={H - (H - top) * g} stroke="rgba(255,255,255,.07)" className="kd-gx" style={{ animationDelay: `${100 + k * 80}ms` }} />)}
-          <line x1={pad} x2={W - pad} y1={H} y2={H} stroke="rgba(255,255,255,.4)" className="kd-gx" />
+          {[0.25, 0.5, 0.75, 1].map((g, k) => <line key={g} x1={pad} x2={W - pad} y1={H - (H - top) * g} y2={H - (H - top) * g} stroke="rgba(46,46,47,.07)" className="kd-gx" style={{ animationDelay: `${100 + k * 80}ms` }} />)}
+          <line x1={pad} x2={W - pad} y1={H} y2={H} stroke="rgba(46,46,47,.4)" className="kd-gx" />
           <path d={`${d} L${pts[n - 1][0]},${H} L${pts[0][0]},${H} Z`} fill="url(#kdArea)" className="kd-fade" style={{ animationDelay: "1400ms" }} />
           <path ref={path} d={d} fill="none" stroke={OR} strokeWidth="4" strokeLinecap="round" pathLength={1} className="kd-draw" style={{ animationDuration: "1.8s" }} />
           <Tracer pathRef={path} ms={1800} delay={300} />
-          {hx != null && <line x1={pts[hx][0]} x2={pts[hx][0]} y1={top - 10} y2={H} stroke="rgba(255,255,255,.35)" strokeDasharray="4 4" />}
+          {hx != null && <line x1={pts[hx][0]} x2={pts[hx][0]} y1={top - 10} y2={H} stroke="rgba(46,46,47,.35)" strokeDasharray="4 4" />}
           {pts.map((p, i) => <g key={i} className="kd-pop" style={{ animationDelay: `${500 + (i / Math.max(1, n - 1)) * 1500}ms` }}>
-            <circle cx={p[0]} cy={p[1]} r={hx === i ? 10 : 7} fill="#141414" stroke={OR} strokeWidth="3.5" />
+            <circle cx={p[0]} cy={p[1]} r={hx === i ? 10 : 7} fill="#fff" stroke={OR} strokeWidth="3.5" />
             {(i === n - 1 || i === s.values.indexOf(Math.max(...s.values))) && <text x={p[0]} y={p[1] - 22} textAnchor="middle" fill={INK} className="kd-svgnum">{fmt(s.values[i], 1)}</text>}
             <text x={p[0]} y={H + 36} textAnchor="middle" fill={SOFT} className="kd-svglab">{s.labels[i]}</text>
           </g>)}
@@ -394,11 +408,11 @@ function Scan({ s }: { s: Extract<DeckSlide, { kind: "scan" }> }) {
   return (
     <div>
       <Kicker>{s.kicker}</Kicker>
-      <Rise text={s.title} d={100} />
+      <Rise text={s.title} d={100} className="kd-h2 kd-or" />
       <div className="kd-orbit">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="kd-orbit-svg" aria-hidden="true">
-          <ellipse cx="50" cy="50" rx="40" ry="38" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth=".25" vectorEffect="non-scaling-stroke" />
-          {s.sources.map((x, i) => { const p = pos(i); return <g key={i} className="kd-fade" style={{ animationDelay: `${400 + i * 140}ms` }}><line x1="50" y1="50" x2={p.x} y2={p.y} stroke={x.found ? "rgba(232,86,42,.28)" : "rgba(255,255,255,.1)"} strokeWidth={x.found ? 2 : 1} vectorEffect="non-scaling-stroke" />{x.found > 0 && <line x1={p.x} y1={p.y} x2="50" y2="50" stroke={OR} strokeWidth="2.5" strokeLinecap="round" strokeDasharray="3 14" vectorEffect="non-scaling-stroke" className="kd-flow" style={{ animationDelay: `${i * 170}ms` }} />}</g>; })}
+          <ellipse cx="50" cy="50" rx="40" ry="38" fill="none" stroke="rgba(46,46,47,.08)" strokeWidth=".25" vectorEffect="non-scaling-stroke" />
+          {s.sources.map((x, i) => { const p = pos(i); return <g key={i} className="kd-fade" style={{ animationDelay: `${400 + i * 140}ms` }}><line x1="50" y1="50" x2={p.x} y2={p.y} stroke={x.found ? "rgba(241,90,34,.28)" : "rgba(46,46,47,.1)"} strokeWidth={x.found ? 2 : 1} vectorEffect="non-scaling-stroke" />{x.found > 0 && <line x1={p.x} y1={p.y} x2="50" y2="50" stroke={OR} strokeWidth="2.5" strokeLinecap="round" strokeDasharray="3 14" vectorEffect="non-scaling-stroke" className="kd-flow" style={{ animationDelay: `${i * 170}ms` }} />}</g>; })}
         </svg>
         <div className="kd-core">
           <span className="kd-pulse" /><span className="kd-pulse" style={{ animationDelay: "1.2s" }} />
@@ -430,22 +444,22 @@ function FindingChart({ s }: { s: Extract<DeckSlide, { kind: "finding" }> }) {
   const d = smoothPath(pts), path = useRef<SVGPathElement>(null);
   const color = s.down ? CRIT : GOOD, w = s.windows;
   const band = (a: number, b: number) => { const step = (W - pad * 2) / (n - 1), x0 = Math.max(pad, x(Math.max(0, a)) - step / 2), x1 = Math.min(W - pad, x(Math.max(0, a)) - step / 2 + step * (b - Math.max(0, a))); return { x: x0, w: Math.max(0, x1 - x0) }; };
-  const pill = (x: number, y: number, txt: string, size: number, end = false) => { const w = txt.length * size * 0.56 + 14; return <rect x={end ? x - w + 7 : x - 7} y={y - size - 1} width={w} height={size + 10} rx={4} fill="#141414" fillOpacity={0.88} />; };
+  const pill = (x: number, y: number, txt: string, size: number, end = false) => { const w = txt.length * size * 0.56 + 14; return <rect x={end ? x - w + 7 : x - 7} y={y - size - 1} width={w} height={size + 10} rx={4} fill="#fff" fillOpacity={0.88} />; };
   const bTxt = s.baseline != null ? `${fmt(s.baseline, s.baseline < 10 ? 2 : 1)} ${s.unit ?? ""}` : "", rTxt = s.recent != null ? `${fmt(s.recent, s.recent < 10 ? 2 : 1)} ${s.unit ?? ""}` : "";
   return (
     <svg viewBox={`0 0 ${W} ${H + 30}`} width="100%" style={{ display: "block", overflow: "visible", direction: "ltr" }} aria-hidden="true">
       <Defs />
       {w && <>
-        <rect x={band(w.base[0], w.base[1]).x} y={top - 10} width={band(w.base[0], w.base[1]).w} height={H - top + 10} fill="rgba(255,255,255,.04)" className="kd-fade" style={{ animationDelay: "300ms" }} />
+        <rect x={band(w.base[0], w.base[1]).x} y={top - 10} width={band(w.base[0], w.base[1]).w} height={H - top + 10} fill="rgba(46,46,47,.04)" className="kd-fade" style={{ animationDelay: "300ms" }} />
         <rect x={band(w.recent[0], w.recent[1]).x} y={top - 10} width={band(w.recent[0], w.recent[1]).w} height={H - top + 10} fill={s.down ? "rgba(208,59,59,.12)" : "rgba(12,163,12,.12)"} className="kd-fade" style={{ animationDelay: "500ms" }} />
       </>}
-      <line x1={pad} x2={W - pad} y1={H} y2={H} stroke="rgba(255,255,255,.35)" />
+      <line x1={pad} x2={W - pad} y1={H} y2={H} stroke="rgba(46,46,47,.35)" />
       <path d={`${d} L${pts[n - 1][0]},${H} L${pts[0][0]},${H} Z`} fill="url(#kdAreaW)" className="kd-fade" style={{ animationDelay: "1200ms" }} />
-      <path ref={path} d={d} fill="none" stroke="rgba(244,242,239,.9)" strokeWidth="3" pathLength={1} className="kd-draw" style={{ animationDuration: "1.6s" }} />
+      <path ref={path} d={d} fill="none" stroke={CH} strokeWidth="3" pathLength={1} className="kd-draw" style={{ animationDuration: "1.6s" }} />
       <Tracer pathRef={path} ms={1600} delay={300} color={color} />
       {w && pts.slice(w.recent[0]).map((p, k) => <circle key={k} cx={p[0]} cy={p[1]} r="6" fill={color} className="kd-pop" style={{ animationDelay: `${1500 + k * 120}ms` }} />)}
       {w && s.baseline != null && s.recent != null && <>
-        <line x1={band(w.base[0], w.base[1]).x} x2={band(w.recent[0], w.recent[1]).x + band(w.recent[0], w.recent[1]).w} y1={y(s.baseline)} y2={y(s.baseline)} stroke="rgba(255,255,255,.55)" strokeDasharray="6 5" className="kd-gx" style={{ animationDelay: "1700ms" }} />
+        <line x1={band(w.base[0], w.base[1]).x} x2={band(w.recent[0], w.recent[1]).x + band(w.recent[0], w.recent[1]).w} y1={y(s.baseline)} y2={y(s.baseline)} stroke="rgba(46,46,47,.55)" strokeDasharray="6 5" className="kd-gx" style={{ animationDelay: "1700ms" }} />
         <line x1={band(w.recent[0], w.recent[1]).x} x2={band(w.recent[0], w.recent[1]).x + band(w.recent[0], w.recent[1]).w} y1={y(s.recent)} y2={y(s.recent)} stroke={color} strokeWidth="3" className="kd-gx" style={{ animationDelay: "1900ms" }} />
         <g className="kd-fade" style={{ animationDelay: "2000ms" }}>
           {pill(band(w.base[0], w.base[1]).x + 10, y(s.baseline) - 12, bTxt, 17)}
@@ -518,11 +532,11 @@ function Initiative({ s }: { s: Extract<DeckSlide, { kind: "initiative" }> }) {
 function List({ s }: { s: Extract<DeckSlide, { kind: "list" }> }) {
   const { t } = useI18n();
   const maxMin = Math.max(...s.items.map((x) => x.minutes ?? 0), 1);
-  const ICON: Record<string, [string, string]> = { bad: ["!", CRIT], warn: ["◆", WARN], good: ["✓", GOOD], neutral: ["·", "rgba(255,255,255,.5)"] };
+  const ICON: Record<string, [string, string]> = { bad: ["!", CRIT], warn: ["◆", WARN], good: ["✓", GOOD], neutral: ["·", "rgba(46,46,47,.55)"] };
   return (
     <div>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
-        <div><Kicker>{s.kicker}</Kicker><Rise text={s.title} d={100} /></div>
+        <div><Kicker>{s.kicker}</Kicker><Rise text={s.title} d={100} className="kd-h2 kd-or" /></div>
         {s.totalMinutes != null && <In d={300}><div className="kd-total"><div className="kd-kpi-v" style={{ fontSize: "clamp(30px,3.4vw,48px)" }}><Count value={s.totalMinutes} delay={300} /><span style={{ fontSize: ".5em", marginInlineStart: 6 }}>{t("min")}</span></div><div className="kd-kpi-l">{t("your time this week")}</div></div></In>}
       </div>
       <div style={{ marginTop: 20 }}>
@@ -531,6 +545,7 @@ function List({ s }: { s: Extract<DeckSlide, { kind: "list" }> }) {
           return (
             <In key={i} d={300 + i * 120}>
               <div className="kd-li">
+                <span className="kd-cbar sm" style={{ ["--c" as any]: x.tone && x.tone !== "neutral" ? col : OR }} />
                 <span className="kd-ico" style={{ borderColor: col, color: col }}>{ic}</span>
                 <div style={{ flex: 1, minWidth: 0 }}><div className="kd-li-t">{x.text}</div>{x.sub && <div className="kd-muted" style={{ marginTop: 3 }}>{x.sub}</div>}</div>
                 {x.minutes != null && <div style={{ width: 170, display: "flex", alignItems: "center", gap: 10 }}><div className="kd-htrack" style={{ height: 8 }}><div className="kd-hfill" style={{ width: `${(x.minutes / maxMin) * 100}%`, background: `linear-gradient(90deg, ${OR}55, ${OR})`, animationDelay: `${400 + i * 120}ms` }} /></div><span className="kd-muted kd-num-t" dir="ltr" style={{ width: 34 }}>{x.minutes}′</span></div>}
@@ -544,18 +559,20 @@ function List({ s }: { s: Extract<DeckSlide, { kind: "list" }> }) {
 }
 function Closing({ s }: { s: Extract<DeckSlide, { kind: "closing" }> }) {
   return (
-    <div className="kd-center">
-      <Letters className="kd-tagline" text={s.title} step={45} />
-      <In d={700}><div className="kd-rule" style={{ margin: "28px auto" }} /></In>
-      <In d={850}><span dangerouslySetInnerHTML={{ __html: kinanLogoHtml(74) }} /></In>
-      <In d={1050}><div className="kd-sub" style={{ marginTop: 22 }}>{s.sub}</div></In>
-      <In d={1200}><div className="kd-muted" style={{ marginTop: 10 }}>{KINAN.site}</div></In>
+    <div className="kd-center kd-onbg kd-closing">
+      <div className="kd-close-tag"><Letters className="kd-tagline" text={s.title} step={45} /></div>
+      <div className="kd-close-card">
+        <In d={3300}><span dangerouslySetInnerHTML={{ __html: kinanLogoHtml(110, "#fff") }} /></In>
+        <In d={3650}><div className="kd-social"><span>in</span><span>f</span><span>𝕏</span><span>◎</span><b>{KINAN.site}</b></div></In>
+        <In d={3900}><div className="kd-cover-sub" style={{ marginTop: 18 }}>{s.sub}</div></In>
+      </div>
     </div>
   );
 }
-function SlideView({ s }: { s: DeckSlide }) {
+function SlideView({ s, lang }: { s: DeckSlide; lang: "en" | "ar" }) {
   switch (s.kind) {
     case "cover": return <Cover s={s} />;
+    case "divider": return <Divider s={s} lang={lang} />;
     case "headline": return <Headline s={s} />;
     case "gauges": return <Gauges s={s} />;
     case "columns": return <Columns s={s} />;
@@ -610,6 +627,9 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
   const lang = deck.lang, slides = deck.slides;
   const [i, setI] = useState(0);
   const [leaving, setLeaving] = useState<number | null>(null);
+  const [wipe, setWipe] = useState(0); // the orange chevron sweep between slides
+  const [held, setHeld] = useState(true); // inner motion paused until the wipe has passed
+  useEffect(() => { setHeld(true); const id = setTimeout(() => setHeld(false), HOLD); return () => clearTimeout(id); }, [i]);
   const [playing, setPlaying] = useState(true);
   const [voiceOn, setVoiceOn] = useState(true);
   const [captions, setCaptions] = useState(true);
@@ -624,7 +644,7 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
     const to = Math.max(0, Math.min(slides.length - 1, n));
     if (to === i) return;
     tts?.cancel(); audio.current?.pause();
-    setLeaving(i); setTimeout(() => setLeaving(null), 520);
+    setLeaving(i); setTimeout(() => setLeaving(null), 520); setWipe((w) => w + 1);
     setI(to); setStarted(Date.now());
   };
 
@@ -685,14 +705,19 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
   useEffect(() => () => { tts?.cancel(); audio.current?.pause(); }, [tts]);
 
   const narrating = voiceOn && voice.mode !== "none";
+  // Cover, dividers and the closing page are full-bleed (orange or charcoal); the chrome turns white on them.
+  const bg = s.kind === "cover" ? "orange" : s.kind === "divider" || s.kind === "closing" ? "dark" : null;
   const progress = playing ? Math.min(narrating ? 0.96 : 1, (tick - started) / (narrating ? Math.max(dur, 9000) : dur)) : 0;
   const ff = lang === "ar" ? KINAN.fontAr : KINAN.font;
 
   return (
-    <div ref={root} role="dialog" aria-label={deck.title} dir={lang === "ar" ? "rtl" : "ltr"} className="kd-root" style={{ fontFamily: ff }}>
-      <div className="kd-bg" aria-hidden="true"><span className="kd-blob a" /><span className="kd-blob b" /><span className="kd-grid" /><span className="kd-grain" /></div>
+    <div ref={root} role="dialog" aria-label={deck.title} dir={lang === "ar" ? "rtl" : "ltr"} className={`kd-root${bg ? ` kd-on-${bg}` : ""}`} style={{ fontFamily: ff }}>
+      <div className="kd-bg" aria-hidden="true">
+        <span className="kd-tex" />
+        {bg && <div key={`bg${i}`} className={`kd-fullbg kd-fb-${bg}${s.kind === "closing" ? " kd-fb-closing" : ""}`}><span className="kd-fb-tex" />{s.kind === "divider" && <><span className="kd-fb-band a" /><span className="kd-fb-band b" /></>}{s.kind === "cover" && <><span className="kd-fb-band w1" /><span className="kd-fb-band w2" /></>}</div>}
+      </div>
       <div className="kd-top">
-        <span className="kd-toplogo" dangerouslySetInnerHTML={{ __html: kinanLogoHtml(40) }} />
+        <span className="kd-toplogo" dangerouslySetInnerHTML={{ __html: kinanLogoHtml(34, bg ? "#fff" : CH) }} />
         <div className="kd-timeline">
           {slides.map((x, k) => (
             <button key={k} className="kd-seg" title={`${k + 1}. ${slideTitle(x)}`} aria-label={`${k + 1}. ${slideTitle(x)}`} onClick={() => go(k)}>
@@ -700,15 +725,17 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
             </button>
           ))}
         </div>
-        <span dir="ltr" className="kd-muted kd-num-t" style={{ fontSize: 12, minWidth: 48, textAlign: "end" }}>{i + 1} / {slides.length}</span>
+        {s.kind !== "cover" && <span className="kd-topchev" dangerouslySetInnerHTML={{ __html: chevron(lang === "ar" ? "rtl" : "ltr", 34, bg ? "#fff" : OR) }} />}
         <button className="kd-btn kd-icon" onClick={onClose} aria-label={t("Close")}>✕</button>
       </div>
       <div className="kd-stage">
         <button className="kd-edge start" aria-label={t("Back")} onClick={() => go(lang === "ar" ? i + 1 : i - 1)} />
         <button className="kd-edge end" aria-label={t("Next")} onClick={() => go(lang === "ar" ? i - 1 : i + 1)} />
+        <div className="kd-footline" dir="ltr"><b>{i + 1}</b><span>|</span>KINAN<span>|</span>{t(deck.title.split("—")[0].trim() || "Daily marketing report")}</div>
+        {wipe > 0 && <div key={`w${wipe}`} className="kd-wipe" aria-hidden="true"><span /><span /></div>}
         <div className="kd-stack">
-          {leaving != null && <div key={`l${leaving}`} className="kd-slide kd-exit" aria-hidden="true"><SlideView s={slides[leaving]} /></div>}
-          <div key={i} className="kd-slide kd-enter"><SlideView s={s} /></div>
+          {leaving != null && <div key={`l${leaving}`} className="kd-slide kd-exit" aria-hidden="true"><SlideView s={slides[leaving]} lang={lang} /></div>}
+          <div key={i} className={`kd-slide kd-enter${held ? " kd-hold" : ""}`}><SlideView s={s} lang={lang} /></div>
         </div>
       </div>
       {captions && <Caption key={`cc${i}`} text={s.say} playing={playing} />}
@@ -726,125 +753,173 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
 }
 
 const CSS = `
-.kd-root { position: fixed; inset: 0; z-index: 1000; color: ${INK}; display: flex; flex-direction: column; background: #101010; overflow: hidden; }
+.kd-root { position: fixed; inset: 0; z-index: 1000; color: ${INK}; display: flex; flex-direction: column; background: ${PAPER}; overflow: hidden; }
+.kd-on-orange, .kd-on-dark { color: #fff; }
+.kd-tex { position: absolute; inset: 0; background: ${KINAN.texture ? `url("${KINAN.texture}") center / cover no-repeat` : "linear-gradient(135deg, #fbfbfa, #ececec)"}; opacity: .26; }
+.kd-tex::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(255,255,255,0) 35%, rgba(255,255,255,.55) 70%, rgba(255,255,255,.75)); }
+.kd-fullbg { position: absolute; inset: 0; animation: kdFade .7s ease both; }
+.kd-fb-orange { background: linear-gradient(118deg, #f5602a, ${OR} 55%, #e04f22); }
+.kd-fb-dark { background: ${CH}; }
+.kd-fb-tex { position: absolute; inset: 0; background: ${KINAN.texture ? `url("${KINAN.texture}") center / cover no-repeat` : "none"}; mix-blend-mode: multiply; opacity: .35; }
+.kd-fb-dark .kd-fb-tex { mix-blend-mode: soft-light; opacity: .3; }
+.kd-fb-band { position: absolute; top: -12%; bottom: -12%; width: 24vw; background: ${OR}; clip-path: polygon(0 0, 56% 0, 100% 50%, 56% 100%, 0 100%, 44% 50%); inset-inline-end: 10vw; opacity: .96; animation: kdBand 1.3s ${EASE} .25s both; will-change: transform; }
+.kd-fb-band.b { inset-inline-end: 24vw; background: rgba(255,255,255,.07); animation-delay: .15s; }
+.kd-fb-band.w1 { background: rgba(255,255,255,.09); --o: 1; inset-inline-end: 6vw; width: 30vw; animation-duration: 1.6s; }
+.kd-fb-band.w2 { background: rgba(255,255,255,.06); --o: 1; inset-inline-end: 26vw; width: 22vw; animation-duration: 2s; animation-delay: .2s; }
+[dir="rtl"] .kd-fb-band { transform: scaleX(-1); }
+.kd-fb-closing { background: ${CH}; }
+.kd-fb-closing::before { content: ""; position: absolute; inset: 0; background: linear-gradient(118deg, #f5602a, ${OR} 55%, #e04f22); animation: kdWipe 1s ${EASE} 2.75s forwards; }
+.kd-onbg { position: relative; }
 .kd-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.kd-blob { position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; filter: blur(90px); opacity: .55; }
-.kd-blob.a { background: radial-gradient(circle, rgba(232,86,42,.38), transparent 60%); top: -35vmax; right: -20vmax; animation: kdDrift 26s ease-in-out infinite alternate; }
-.kd-blob.b { background: radial-gradient(circle, rgba(57,135,229,.16), transparent 60%); bottom: -40vmax; left: -25vmax; animation: kdDrift 32s ease-in-out infinite alternate-reverse; }
-.kd-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size: 64px 64px; mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); }
-.kd-grain { position: absolute; inset: -50%; opacity: .07; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); animation: kdGrain 1.2s steps(6) infinite; }
 .kd-top { position: relative; display: flex; align-items: center; gap: 18px; padding: 14px 22px 6px; }
-.kd-toplogo { display: inline-block; transform: scale(.7); transform-origin: left center; height: 40px; }
-[dir="rtl"] .kd-toplogo { transform-origin: right center; }
+.kd-toplogo { display: inline-block; height: 34px; }
+.kd-topchev { display: inline-flex; }
 .kd-timeline { flex: 1; display: flex; gap: 4px; }
 .kd-seg { flex: 1; height: 14px; background: none; border: 0; padding: 5px 0; cursor: pointer; position: relative; }
-.kd-seg::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.14); transition: background .2s; }
-.kd-seg:hover::before { background: rgba(255,255,255,.3); }
-.kd-seg span { position: absolute; left: 0; top: 5px; height: 4px; border-radius: 2px; background: ${OR}; box-shadow: 0 0 10px rgba(232,86,42,.6); }
+.kd-seg::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 4px; border-radius: 2px; background: rgba(46,46,47,.14); transition: background .2s; }
+.kd-on-orange .kd-seg::before, .kd-on-dark .kd-seg::before { background: rgba(255,255,255,.28); }
+.kd-on-orange .kd-seg span { background: #fff; box-shadow: none; }
+.kd-seg:hover::before { background: rgba(46,46,47,.3); }
+.kd-seg span { position: absolute; left: 0; top: 5px; height: 4px; border-radius: 2px; background: ${OR}; }
 [dir="rtl"] .kd-seg span { left: auto; right: 0; }
 .kd-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: clamp(10px, 2.4vh, 30px) clamp(18px, 6vw, 100px); overflow: hidden; }
 .kd-stack { display: grid; width: 100%; max-width: 1280px; max-height: 100%; }
 .kd-slide { grid-area: 1 / 1; min-width: 0; overflow-y: auto; overflow-x: hidden; max-height: calc(100vh - 190px); padding: 6px 4px 14px; scrollbar-width: none; }
-.kd-enter { animation: kdReveal .8s ${EASE} both; }
-.kd-exit { animation: kdExit .5s ease forwards; pointer-events: none; }
+.kd-enter { animation: kdReveal 1s ${EASE} both; will-change: transform, opacity; }
+.kd-exit { animation: kdExit .45s ease forwards; pointer-events: none; will-change: transform, opacity; }
+.kd-hold * { animation-play-state: paused !important; }
+.kd-wipe { position: absolute; inset: -10% 0; z-index: 3; pointer-events: none; overflow: hidden; }
+.kd-wipe span { position: absolute; top: 0; bottom: 0; width: 36vw; left: -52vw; background: ${OR}; clip-path: polygon(0 0, 58% 0, 100% 50%, 58% 100%, 0 100%, 42% 50%); animation: kdSweep 1s cubic-bezier(.7,0,.2,1) both; will-change: transform; }
+.kd-wipe span:nth-child(2) { background: ${CH}; opacity: .92; animation-delay: .08s; }
+[dir="rtl"] .kd-wipe span { left: auto; right: -50vw; transform: scaleX(-1); animation-name: kdSweepR; }
 .kd-edge { position: absolute; top: 0; bottom: 0; width: 8vw; min-width: 40px; background: none; border: 0; cursor: pointer; z-index: 2; }
 .kd-edge.start { inset-inline-start: 0; } .kd-edge.end { inset-inline-end: 0; }
-.kd-edge:hover { background: linear-gradient(var(--kd-dir, 90deg), rgba(255,255,255,.04), transparent); }
+.kd-edge:hover { background: linear-gradient(var(--kd-dir, 90deg), rgba(46,46,47,.04), transparent); }
+.kd-footline { position: absolute; bottom: 6px; inset-inline-start: 26px; z-index: 2; font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: ${KINAN.greyText}; display: flex; gap: 10px; align-items: center; pointer-events: none; }
+.kd-footline b { color: ${OR}; font-weight: 700; } .kd-footline span { opacity: .6; }
+.kd-on-orange .kd-footline, .kd-on-dark .kd-footline { color: rgba(255,255,255,.7); } .kd-on-orange .kd-footline b { color: #fff; }
 .kd-cc { position: relative; text-align: center; padding: 0 12vw 6px; min-height: 30px; }
-.kd-cc span { display: inline-block; max-width: 980px; background: rgba(0,0,0,.55); color: rgba(255,255,255,.92); font-size: clamp(12px, 1.1vw, 15px); line-height: 1.5; padding: 6px 14px; border-radius: 6px; animation: kdFade .45s ease 300ms both; opacity: 0; display: -webkit-inline-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.kd-on-orange .kd-cc span, .kd-on-dark .kd-cc span { background: rgba(255,255,255,.94); color: ${INK}; }
+.kd-cc span { display: inline-block; max-width: 980px; background: ${CH}; color: #fff; font-size: clamp(12px, 1.1vw, 15px); line-height: 1.5; padding: 6px 14px; border-radius: 6px; animation: kdFade .45s ease 300ms both; opacity: 0; display: -webkit-inline-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .kd-controls { position: relative; display: flex; justify-content: center; gap: 10px; padding: 8px 12px 20px; flex-wrap: wrap; }
-.kd-btn { background: rgba(255,255,255,.07); color: #fff; border: 1px solid rgba(255,255,255,.2); border-radius: 24px; padding: 9px 18px; font-size: 13px; cursor: pointer; font-family: inherit; letter-spacing: .03em; transition: background .2s, border-color .2s, transform .15s; backdrop-filter: blur(6px); }
-.kd-btn:hover:not(:disabled) { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.4); transform: translateY(-1px); }
+.kd-on-orange .kd-btn, .kd-on-dark .kd-btn { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.4); }
+.kd-on-orange .kd-primary { background: ${CH}; border-color: ${CH}; }
+.kd-btn { background: ${PAPER}; color: ${INK}; border: 1px solid rgba(46,46,47,.28); border-radius: 24px; padding: 9px 18px; font-size: 13px; cursor: pointer; font-family: inherit; letter-spacing: .03em; transition: background .2s, border-color .2s, transform .15s; backdrop-filter: blur(6px); }
+.kd-btn:hover:not(:disabled) { background: rgba(46,46,47,.06); border-color: rgba(46,46,47,.5); transform: translateY(-1px); }
 .kd-btn:disabled { opacity: .35; cursor: default; }
 .kd-btn[aria-pressed="false"] { opacity: .6; }
-.kd-primary { background: ${OR}; border-color: ${OR}; font-weight: 700; box-shadow: 0 6px 24px rgba(232,86,42,.35); }
+.kd-primary { background: ${OR}; border-color: ${OR}; color: #fff; font-weight: 700; box-shadow: 0 6px 20px rgba(241,90,34,.3); }
 .kd-primary:hover:not(:disabled) { background: #ff6a37; }
 .kd-icon { padding: 5px 12px; }
-.kd-in { opacity: 0; animation: kdUp .8s ${EASE} forwards; }
+.kd-in { opacity: 0; animation: kdUp .8s ${EASE} forwards; animation-delay: var(--d, 0ms); }
 .kd-word { display: inline-block; white-space: nowrap; }
 .kd-mask { display: inline-block; overflow: hidden; vertical-align: bottom; padding-bottom: .08em; margin-bottom: -.08em; }
 .kd-rise { display: inline-block; transform: translateY(105%); animation: kdRiseW .9s ${EASE} forwards; }
 .kd-center { text-align: center; }
-.kd-kicker { display: flex; align-items: center; gap: 12px; color: ${OR}; font-size: clamp(11px, 1.05vw, 14px); letter-spacing: .32em; text-transform: uppercase; font-weight: 600; }
+.kd-kicker { display: flex; align-items: center; gap: 12px; color: ${TAUPE}; font-size: clamp(11px, 1.05vw, 13px); letter-spacing: .26em; text-transform: uppercase; font-weight: 600; }
+.kd-kicker-w { color: rgba(255,255,255,.9); } .kd-kicker-w .kd-kbar { background: #fff; }
 .kd-kbar { display: inline-block; width: 26px; height: 2px; background: ${OR}; transform-origin: left; animation: kdBar .8s ${EASE} both; }
 [dir="rtl"] .kd-kicker, [dir="rtl"] .kd-kpi-l, [dir="rtl"] .kd-tag, [dir="rtl"] .kd-tagline, [dir="rtl"] .kd-cover-title { letter-spacing: 0; }
-.kd-cover-title { font-weight: 300; font-size: clamp(32px, 5vw, 72px); line-height: 1.08; letter-spacing: .04em; text-transform: uppercase; margin: 16px 0 12px; }
-.kd-h2 { font-weight: 500; font-size: clamp(24px, 3.1vw, 46px); line-height: 1.16; margin: 14px 0 0; letter-spacing: -.005em; }
+.kd-cover-title { font-weight: 600; font-size: clamp(32px, 5.2vw, 76px); line-height: 1.08; letter-spacing: .03em; text-transform: uppercase; margin: 22px 0 12px; color: #fff; }
+.kd-cover-sub { color: rgba(255,255,255,.88); font-size: clamp(14px, 1.3vw, 19px); }
+.kd-div { display: flex; align-items: center; gap: 34px; min-height: 52vh; padding: 0 2vw; }
+.kd-div-chev { display: inline-flex; animation: kdChevIn 1s ${SPRING} both; }
+.kd-div-title { font-weight: 600; font-size: clamp(34px, 5.4vw, 78px); line-height: 1.04; letter-spacing: .01em; text-transform: uppercase; margin: 0; color: #fff; max-width: 14ch; }
+.kd-div-sub { color: ${OR}; font-size: clamp(12px, 1.1vw, 15px); letter-spacing: .34em; text-transform: uppercase; font-weight: 600; margin-top: 16px; }
+[dir="rtl"] .kd-div-title, [dir="rtl"] .kd-div-sub, [dir="rtl"] .kd-footline, [dir="rtl"] .kd-stat-l { letter-spacing: 0; }
+.kd-closing { min-height: 60vh; display: flex; flex-direction: column; justify-content: center; }
+.kd-close-tag { animation: kdOut .6s ease 2.4s forwards; }
+.kd-close-card { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; }
+.kd-social { display: flex; gap: 16px; align-items: center; margin-top: 30px; font-size: 14px; color: #fff; }
+.kd-social span { color: ${OR}; font-weight: 700; } .kd-social b { font-weight: 500; margin-inline-start: 8px; }
+.kd-h2 { font-weight: 600; font-size: clamp(24px, 3vw, 44px); line-height: 1.16; margin: 14px 0 0; letter-spacing: -.005em; color: ${INK}; }
+.kd-or { color: ${OR}; text-transform: uppercase; letter-spacing: .01em; }
+[dir="rtl"] .kd-or { letter-spacing: 0; }
 .kd-sub { color: ${SOFT}; font-size: clamp(13px, 1.2vw, 17px); margin-top: 10px; }
-.kd-body { color: rgba(244,242,239,.84); font-size: clamp(15px, 1.4vw, 20px); line-height: 1.6; margin: 16px 0 0; max-width: 64ch; }
+.kd-body { color: rgba(46,46,47,.9); font-size: clamp(15px, 1.4vw, 20px); line-height: 1.6; margin: 16px 0 0; max-width: 64ch; }
 .kd-muted { color: ${SOFT}; font-size: clamp(12px, 1.02vw, 15px); }
 .kd-label { font-size: clamp(14px, 1.3vw, 19px); font-weight: 500; }
 .kd-foot { color: ${SOFT}; font-size: clamp(12px, 1.02vw, 15px); margin-top: 24px; }
 .kd-num-t { font-variant-numeric: tabular-nums; }
 .kd-rule { width: 84px; height: 3px; background: ${OR}; margin: 26px auto 0; }
+.kd-hgrid { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: clamp(24px, 4vw, 64px); align-items: start; }
+.kd-stats { border-top: 2px solid ${OR}; }
+.kd-stat { padding: 12px 0 10px; border-bottom: 1px solid rgba(46,46,47,.16); }
+.kd-stat-l { font-size: clamp(10px, .85vw, 12px); letter-spacing: .14em; text-transform: uppercase; color: ${TAUPE}; font-weight: 600; }
+.kd-stat-row { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+.kd-stat-v { font-size: clamp(26px, 2.7vw, 40px); font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kd-stat-s { color: ${SOFT}; font-size: clamp(12px, 1vw, 14px); margin-top: 2px; }
+.kd-cbar { position: relative; flex: none; width: 96px; height: 11px; background: ${GREY}; margin-top: .45em; }
+.kd-cbar::after { content: ""; position: absolute; inset-inline-end: -14px; top: -3px; bottom: -3px; width: 40px; background: var(--c, ${OR}); clip-path: polygon(0 0, 62% 0, 100% 50%, 62% 100%, 0 100%, 38% 50%); }
+[dir="rtl"] .kd-cbar::after { transform: scaleX(-1); }
+.kd-cbar.sm { width: 42px; height: 8px; margin-top: 0; } .kd-cbar.sm::after { width: 26px; inset-inline-end: -10px; top: -2px; bottom: -2px; }
 .kd-chev { color: ${OR}; font-weight: 700; line-height: 1; display: inline-block; }
 .kd-chev-anim { animation: kdChev 2.8s ease-in-out 1s infinite; }
-.kd-sweep { height: 2px; width: min(520px, 60vw); margin: 30px auto 0; background: linear-gradient(90deg, transparent, ${OR}, transparent); transform-origin: center; animation: kdBar 1.4s ${EASE} 1.1s both; }
-.kd-orbits { position: absolute; left: 50%; top: 50%; width: min(1200px, 120vw); transform: translate(-50%, -50%); pointer-events: none; z-index: -1; overflow: visible; }
-.kd-kpi { background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.1); border-top: 3px solid ${OR}; padding: 18px 20px; height: 100%; box-sizing: border-box; border-radius: 4px; backdrop-filter: blur(4px); }
-.kd-lift { transition: transform .25s, box-shadow .25s; } .kd-lift:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(0,0,0,.4); }
+.kd-sweep { height: 3px; width: 72px; margin: 26px auto 0; background: #fff; transform-origin: center; animation: kdBar 1.4s ${EASE} 1.1s both; }
+.kd-kpi { background: ${PAPER}; border: 1px solid rgba(46,46,47,.12); border-top: 3px solid ${OR}; box-shadow: 0 10px 30px rgba(46,46,47,.08); padding: 18px 20px; height: 100%; box-sizing: border-box; border-radius: 4px; backdrop-filter: blur(4px); }
+.kd-lift { transition: transform .25s, box-shadow .25s; } .kd-lift:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(46,46,47,.16); }
 .kd-kpi-v { white-space: nowrap; font-size: clamp(30px, 3.9vw, 60px); font-weight: 600; line-height: 1.05; letter-spacing: -.015em; font-variant-numeric: tabular-nums; }
 .kd-kpi-l { color: ${SOFT}; font-size: clamp(10px, .9vw, 12px); letter-spacing: .2em; text-transform: uppercase; margin-top: 10px; }
-.kd-kpi-s { color: rgba(244,242,239,.8); font-size: clamp(12px, 1vw, 14px); margin-top: 6px; }
+.kd-kpi-s { color: ${SOFT}; font-size: clamp(12px, 1vw, 14px); margin-top: 6px; }
 .kd-points { list-style: none; padding: 0; margin: 30px 0 0; }
-.kd-points li { display: flex; gap: 16px; align-items: baseline; font-size: clamp(14px, 1.35vw, 19px); line-height: 1.45; margin-bottom: 10px; }
+.kd-points li { display: flex; gap: 22px; align-items: flex-start; font-size: clamp(14px, 1.35vw, 19px); line-height: 1.45; margin-bottom: 14px; }
 .kd-num { color: ${OR}; font-weight: 700; min-width: 28px; font-variant-numeric: tabular-nums; }
 .kd-ring-v { font-size: clamp(30px, 3.4vw, 50px); font-weight: 600; font-variant-numeric: tabular-nums; }
-.kd-status { display: inline-flex; gap: 6px; align-items: center; border: 1px solid; border-radius: 20px; padding: 2px 10px; font-size: 12px; margin-top: 6px; background: rgba(0,0,0,.35); }
+.kd-status { display: inline-flex; gap: 6px; align-items: center; border: 1px solid; border-radius: 20px; padding: 2px 10px; font-size: 12px; margin-top: 6px; background: ${PAPER}; }
 .kd-outlook { margin: 14px auto 0; max-width: 240px; text-align: start; }
 .kd-otrack { position: relative; height: 8px; background: ${FAINT}; border-radius: 4px; margin-top: 6px; }
 .kd-ofill { height: 100%; border-radius: 4px; transform-origin: left center; transform: scaleX(0); animation: kdGrowX 1.1s ${EASE} forwards; }
 [dir="rtl"] .kd-ofill { transform-origin: right center; }
-.kd-omark { position: absolute; top: -4px; bottom: -4px; inset-inline-end: 0; width: 2px; background: #fff; }
+.kd-omark { position: absolute; top: -4px; bottom: -4px; inset-inline-end: 0; width: 2px; background: ${INK}; }
 .kd-legend-row { display: flex; gap: 22px; margin-top: 14px; font-size: 13px; color: ${SOFT}; flex-wrap: wrap; }
 .kd-legend-row i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-inline-end: 8px; vertical-align: middle; }
-.kd-legend-row i.kd-dash { background: none; border-top: 2px dashed #fff; height: 0; width: 18px; }
+.kd-legend-row i.kd-dash { background: none; border-top: 2px dashed ${INK}; height: 0; width: 18px; }
 .kd-svgnum { font: 600 26px ${KINAN.font}; font-variant-numeric: tabular-nums; }
 .kd-svglab { font: 500 21px ${KINAN.font}; letter-spacing: .06em; }
-.kd-legend { display: flex; align-items: center; gap: 14px; padding: 11px 10px; border-bottom: 1px solid rgba(255,255,255,.09); font-size: clamp(14px, 1.3vw, 18px); border-radius: 4px; transition: background .2s; cursor: default; }
-.kd-legend.on { background: rgba(255,255,255,.07); }
+.kd-legend { display: flex; align-items: center; gap: 14px; padding: 11px 10px; border-bottom: 1px solid rgba(46,46,47,.09); font-size: clamp(14px, 1.3vw, 18px); border-radius: 4px; transition: background .2s; cursor: default; }
+.kd-legend.on { background: rgba(241,90,34,.08); }
 .kd-legend i { width: 14px; height: 14px; display: inline-block; flex: none; border-radius: 3px; }
 .kd-hrow { --kd-lab: clamp(130px, 18vw, 240px); display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 .kd-hlabel { width: var(--kd-lab); font-size: clamp(13px, 1.25vw, 17px); }
-.kd-htrack { flex: 1; height: 18px; background: rgba(255,255,255,.06); position: relative; border-radius: 3px; overflow: hidden; }
+.kd-htrack { flex: 1; height: 18px; background: rgba(46,46,47,.07); position: relative; border-radius: 3px; overflow: hidden; }
 .kd-hfill { height: 100%; border-radius: 3px; transform-origin: left center; transform: scaleX(0); animation: kdGrowX 1.1s ${SPRING} forwards; }
 [dir="rtl"] .kd-hfill { transform-origin: right center; }
 .kd-hval { width: 84px; text-align: end; font-weight: 600; font-size: clamp(14px, 1.3vw, 18px); font-variant-numeric: tabular-nums; }
 .kd-benchline { --kd-lab: clamp(130px, 18vw, 240px); position: absolute; top: -22px; bottom: 0; border-inline-start: 2px dashed ${OR}; z-index: 1; animation: kdFade .6s ease 1.2s both; opacity: 0; }
-.kd-benchline span { position: absolute; top: -8px; inset-inline-start: 8px; white-space: nowrap; font-size: 12px; color: ${OR}; background: #101010; padding: 0 6px; }
+.kd-benchline span { position: absolute; top: -8px; inset-inline-start: 8px; white-space: nowrap; font-size: 12px; color: ${OR}; background: ${PAPER}; padding: 0 6px; }
 .kd-chip { display: inline-block; border: 1px solid; border-radius: 14px; padding: 2px 9px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-.kd-tag { display: inline-block; font-size: clamp(10px, .85vw, 12px); letter-spacing: .18em; text-transform: uppercase; padding: 4px 10px; border: 1px solid rgba(255,255,255,.3); color: rgba(255,255,255,.85); border-radius: 2px; }
+.kd-tag { display: inline-block; font-size: clamp(10px, .85vw, 12px); letter-spacing: .18em; text-transform: uppercase; padding: 4px 10px; border: 1px solid rgba(46,46,47,.3); color: ${TAUPE}; border-radius: 2px; background: ${PAPER}; }
 .kd-tag-or { border-color: ${OR}; color: ${OR}; }
-.kd-badge { display: inline-block; background: ${OR}; color: #fff; font-weight: 700; padding: 3px 12px; border-radius: 20px; font-size: 13px; box-shadow: 0 0 18px rgba(232,86,42,.55); }
-.kd-big { font-size: clamp(60px, 8.5vw, 132px); font-weight: 600; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; text-shadow: 0 0 40px rgba(208,59,59,.25); }
-.kd-evidence { display: flex; gap: 12px; align-items: baseline; padding: 11px 0; border-top: 1px solid rgba(255,255,255,.1); font-size: clamp(13px, 1.2vw, 16px); color: rgba(244,242,239,.88); }
-.kd-answers { margin-top: 16px; padding: 12px 16px; border-inline-start: 4px solid ${OR}; background: linear-gradient(90deg, rgba(232,86,42,.16), rgba(232,86,42,.04)); font-size: clamp(13px, 1.2vw, 17px); border-radius: 2px; }
-[dir="rtl"] .kd-answers { background: linear-gradient(270deg, rgba(232,86,42,.16), rgba(232,86,42,.04)); }
+.kd-badge { display: inline-block; background: ${OR}; color: #fff; font-weight: 700; padding: 3px 12px; border-radius: 20px; font-size: 13px; }
+.kd-big { font-size: clamp(60px, 8.5vw, 132px); font-weight: 600; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.kd-evidence { display: flex; gap: 12px; align-items: baseline; padding: 11px 0; border-top: 1px solid rgba(46,46,47,.14); font-size: clamp(13px, 1.2vw, 16px); color: ${INK}; }
+.kd-answers { margin-top: 16px; padding: 12px 16px; border-inline-start: 4px solid ${OR}; background: linear-gradient(90deg, rgba(241,90,34,.12), rgba(241,90,34,.03)); font-size: clamp(13px, 1.2vw, 17px); border-radius: 2px; }
+[dir="rtl"] .kd-answers { background: linear-gradient(270deg, rgba(241,90,34,.16), rgba(241,90,34,.04)); }
 .kd-mixrow { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0; }
-.kd-mixrow i { width: 10px; height: 10px; border-radius: 2px; flex: none; } .kd-mixrow span { flex: 1; color: rgba(244,242,239,.85); }
+.kd-mixrow i { width: 10px; height: 10px; border-radius: 2px; flex: none; } .kd-mixrow span { flex: 1; color: ${INK}; }
 .kd-rtrack { position: relative; height: 10px; background: ${FAINT}; border-radius: 5px; margin-top: 14px; }
 .kd-rband { position: absolute; top: 0; bottom: 0; border-radius: 5px; transform-origin: left center; transform: scaleX(0); animation: kdGrowX 1s ${SPRING} forwards; opacity: .9; }
-.kd-rmid { position: absolute; top: -5px; width: 4px; height: 20px; background: #fff; border-radius: 2px; margin-inline-start: -2px; }
-.kd-li { display: flex; gap: 16px; align-items: center; padding: 13px 4px; border-bottom: 1px solid rgba(255,255,255,.09); transition: background .2s; }
-.kd-li:hover { background: rgba(255,255,255,.04); }
+.kd-rmid { position: absolute; top: -5px; width: 4px; height: 20px; background: ${INK}; border-radius: 2px; margin-inline-start: -2px; }
+.kd-li { display: flex; gap: 16px; align-items: center; padding: 13px 4px; border-bottom: 1px solid rgba(46,46,47,.09); transition: background .2s; }
+.kd-li:hover { background: rgba(46,46,47,.04); }
 .kd-li-t { font-size: clamp(14px, 1.35vw, 19px); line-height: 1.4; }
 .kd-ico { width: 26px; height: 26px; border: 1.5px solid; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
 .kd-total { text-align: end; border-inline-end: 3px solid ${OR}; padding-inline-end: 14px; }
-.kd-tagline { font-weight: 300; font-size: clamp(42px, 7.4vw, 112px); letter-spacing: .14em; line-height: 1.05; margin: 0; }
+.kd-tagline { font-weight: 600; font-size: clamp(38px, 6.6vw, 100px); letter-spacing: .1em; line-height: 1.05; margin: 0; color: #fff; }
 .kd-orbit { position: relative; width: 100%; height: min(58vh, 560px); margin-top: 16px; }
 .kd-flow { animation: kdFlow 1.1s linear infinite; }
 @keyframes kdFlow { to { stroke-dashoffset: -17; } }
 .kd-orbit-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.kd-core { position: absolute; left: 50%; top: 50%; width: 170px; height: 170px; transform: translate(-50%, -50%); border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle, #3b1c11, #141414 70%); box-shadow: 0 0 60px rgba(232,86,42,.25); border: 1px solid rgba(232,86,42,.5); }
+.kd-core { position: absolute; left: 50%; top: 50%; width: 170px; height: 170px; transform: translate(-50%, -50%); border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle, #fff1ea, #ffffff 70%); box-shadow: 0 10px 40px rgba(46,46,47,.14); border: 1px solid rgba(241,90,34,.5); }
 .kd-core-in { text-align: center; position: relative; }
-.kd-pulse { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(232,86,42,.6); animation: kdPulse 2.4s ease-out infinite; }
+.kd-pulse { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(241,90,34,.6); animation: kdPulse 2.4s ease-out infinite; }
 .kd-node { position: absolute; transform: translate(-50%, -50%); width: clamp(120px, 14vw, 180px); }
-.kd-node-in { background: #171717; border: 1px solid rgba(255,255,255,.14); border-top: 2px solid ${OR}; border-radius: 4px; padding: 10px 12px; text-align: center; backdrop-filter: blur(6px); }
+.kd-node-in { background: ${PAPER}; border: 1px solid rgba(46,46,47,.12); border-top: 2px solid ${OR}; border-radius: 4px; padding: 10px 12px; text-align: center; box-shadow: 0 8px 24px rgba(46,46,47,.1); }
 .kd-node-l { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: ${SOFT}; }
 .kd-node-v { font-size: clamp(20px, 2vw, 28px); font-weight: 600; margin: 4px 0 6px; font-variant-numeric: tabular-nums; }
-.kd-tip { position: absolute; z-index: 5; pointer-events: none; min-width: 170px; background: rgba(14,14,14,.96); border: 1px solid rgba(255,255,255,.18); border-radius: 6px; padding: 10px 12px; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+.kd-tip { position: absolute; z-index: 5; pointer-events: none; min-width: 170px; background: ${PAPER}; border: 1px solid rgba(46,46,47,.18); border-radius: 6px; padding: 10px 12px; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
 .kd-tip-t { font-size: 12px; color: ${SOFT}; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
-.kd-tip-r { display: flex; gap: 10px; align-items: baseline; font-size: 13px; } .kd-tip-r b { font-size: 16px; color: #fff; font-variant-numeric: tabular-nums; } .kd-tip-r span { color: ${SOFT}; }
+.kd-tip-r { display: flex; gap: 10px; align-items: baseline; font-size: 13px; } .kd-tip-r b { font-size: 16px; color: ${INK}; font-variant-numeric: tabular-nums; } .kd-tip-r span { color: ${SOFT}; }
 .kd-spring { transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(0); animation: kdGrowY 1.1s ${SPRING} forwards; }
 .kd-fade { opacity: 0; animation: kdFade .7s ease forwards; }
 .kd-pop { opacity: 0; transform-box: fill-box; transform-origin: center; animation: kdPop .6s ${SPRING} forwards; }
@@ -854,8 +929,11 @@ const CSS = `
 @media (max-width: 900px) { .kd-igrid { grid-template-columns: 1fr 1fr !important; } .kd-orbit { height: 70vh; } .kd-node { width: 110px; } .kd-core { width: 120px; height: 120px; } }
 @keyframes kdUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
 @keyframes kdRiseW { to { transform: none; } }
-@keyframes kdReveal { from { opacity: 0; transform: scale(.985) translateY(10px); filter: blur(8px); clip-path: inset(0 0 12% 0); } to { opacity: 1; transform: none; filter: none; clip-path: inset(0 0 0 0); } }
-@keyframes kdExit { to { opacity: 0; transform: scale(1.015) translateY(-14px); filter: blur(10px); } }
+@keyframes kdReveal { 0% { opacity: 0; transform: translateX(2.5%); } 40% { opacity: 0; transform: translateX(2.5%); } 100% { opacity: 1; transform: none; } }
+[dir="rtl"] .kd-enter { animation-name: kdRevealR; } @keyframes kdRevealR { 0% { opacity: 0; transform: translateX(-3%); } 35% { opacity: 0; transform: translateX(-3%); } 100% { opacity: 1; transform: none; } }
+@keyframes kdExit { to { opacity: 0; transform: translateX(-3%); } }
+@keyframes kdSweep { from { transform: translateX(0); } to { transform: translateX(240vw); } }
+@keyframes kdSweepR { from { transform: scaleX(-1) translateX(0); } to { transform: scaleX(-1) translateX(240vw); } }
 @keyframes kdFade { to { opacity: 1; } }
 @keyframes kdPop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
 @keyframes kdGrowY { to { transform: scaleY(1); } }
@@ -866,11 +944,16 @@ const CSS = `
 @keyframes kdArc { to { stroke-dasharray: var(--kd-len); } }
 @keyframes kdBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes kdChev { 0%, 100% { transform: translateX(0); opacity: 1; } 50% { transform: translateX(-10px); opacity: .7; } }
+@keyframes kdChevIn { from { opacity: 0; transform: translateX(-30px) scale(.6); } to { opacity: 1; transform: none; } }
+@keyframes kdBand { from { transform: translateX(28%); opacity: 0; } to { opacity: var(--o, .96); } }
+[dir="rtl"] .kd-fb-band { animation-name: kdBandR; } @keyframes kdBandR { from { transform: scaleX(-1) translateX(40%); opacity: 0; } to { transform: scaleX(-1); } }
+@keyframes kdWipe { to { clip-path: inset(0 0 0 100%); } }
+@keyframes kdOut { to { opacity: 0; transform: translateY(-16px); } }
 @keyframes kdPulse { from { transform: scale(1); opacity: .9; } to { transform: scale(1.9); opacity: 0; } }
-@keyframes kdDrift { from { transform: translate(0, 0) scale(1); } to { transform: translate(-8vmax, 6vmax) scale(1.15); } }
-@keyframes kdGrain { 0% { transform: translate(0,0); } 20% { transform: translate(-5%,3%); } 40% { transform: translate(4%,-4%); } 60% { transform: translate(-3%,5%); } 80% { transform: translate(5%,2%); } 100% { transform: translate(0,0); } }
 @media (prefers-reduced-motion: reduce) {
   .kd-in, .kd-rise, .kd-spring, .kd-fade, .kd-pop, .kd-draw, .kd-arc, .kd-hfill, .kd-gx, .kd-enter, .kd-exit, .kd-rband, .kd-ofill, .kd-kbar, .kd-sweep { animation-duration: .01s !important; animation-delay: 0s !important; }
-  .kd-blob, .kd-grain, .kd-pulse, .kd-flow, .kd-chev-anim { animation: none !important; }
+  .kd-pulse, .kd-flow, .kd-chev-anim { animation: none !important; }
+  .kd-fullbg, .kd-fb-band, .kd-div-chev, .kd-close-tag, .kd-fb-closing::before { animation-duration: .01s !important; animation-delay: 0s !important; }
+  .kd-wipe { display: none; }
 }
 `;

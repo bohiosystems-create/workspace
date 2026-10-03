@@ -21,6 +21,8 @@ export type DeckSlide =
       windows?: { base: [number, number]; recent: [number, number] }; recent?: number; baseline?: number; unit?: string; evidence: { source: string; title: string }[]; n: number; of: number; say: string }
   | { kind: "initiative"; kicker: string; type: string; project?: string; title: string; answers: string | null; idea: string; offer: string; channels: { label: string; pct: number }[]; contracts: [number, number]; salesM: [number, number]; cts: number; spendK: number; n: number; of: number; say: string }
   | { kind: "list"; kicker: string; title: string; items: { text: string; sub?: string; tone?: Tone; tag?: string; minutes?: number }[]; totalMinutes?: number; say: string }
+  /** A section divider in the style of Kinan's collateral: dark photo-less panel, big title, orange sub line, chevron band. */
+  | { kind: "divider"; kicker: string; title: string; sub?: string; n?: number; of?: number; say: string }
   | { kind: "closing"; kicker: string; title: string; sub: string; say: string };
 
 export type Deck = { lang: "en" | "ar"; title: string; slides: DeckSlide[] };

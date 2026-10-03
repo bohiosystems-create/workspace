@@ -12,26 +12,25 @@
 //           vendor or customer.
 import { prisma } from "./prisma";
 import { now } from "./clock";
-import { KINAN, kinanLogoHtml, chevron } from "./brand";
+import { KINAN, kinanLogoHtml, kinanLogoSrc, chevron } from "./brand";
 import { type DeckSlide, type Deck, deckScript, short } from "./deck";
 
-/** A report in Kinan's style (kinan.com.sa): charcoal page and header band with the logo and the orange chevron, the
- *  title as one of their news cards (grey paper, orange chevron and logo in the corners, the social line at the foot),
- *  white sections with an orange rule, and a charcoal footer with the tagline. Email-safe (tables and inline styles;
- *  the web font falls back to Helvetica / Tahoma where mail clients block it). On screen it animates — the card settles,
- *  sections rise as they scroll into view, bars grow and columns rise — and it is complete without motion: mail clients
- *  that drop the <style>, reduced-motion viewers and the PDF all get the finished page. */
+/** A report in the style of Kinan's collateral (the Malls corporate profile) and kinan.com.sa: white pages on a soft
+ *  faceted texture, the charcoal logo top-left and the orange chevron top-right, a full-bleed orange title page with the
+ *  white uppercase title, orange uppercase section headings with the chevron, and a charcoal closing band with the white
+ *  logo, orange social icons and www.kinan.com.sa. Email-safe (tables and inline styles; the web font falls back to
+ *  Helvetica / Tahoma where mail clients block it). On screen it animates — the title page settles, sections rise as they
+ *  scroll into view, bars grow and columns rise — and it is complete without motion: mail clients that drop the <style>,
+ *  reduced-motion viewers and the PDF all get the finished page. */
 const MOTION = `<style>
 @media screen and (prefers-reduced-motion: no-preference) {
   .k-card { animation: kCard .9s cubic-bezier(.2,.8,.2,1) both; }
-  .k-card-chev { display: inline-block; animation: kChev 1s cubic-bezier(.34,1.56,.64,1) .35s both, kNudge 2.8s ease-in-out 1.6s infinite; }
   .k-card h1 { animation: kUp .8s cubic-bezier(.2,.8,.2,1) .25s both; }
   .k-card .k-sub { animation: kUp .8s ease .45s both; }
-  .k-rule { animation: kRule 1s cubic-bezier(.2,.8,.2,1) .6s both; transform-origin: 0 50%; }
-  [dir="rtl"] .k-rule { transform-origin: 100% 50%; }
+  .k-rule { animation: kRule 1s cubic-bezier(.2,.8,.2,1) .6s both; transform-origin: 50% 50%; }
   .k-head-chev { display: inline-block; animation: kChev .9s cubic-bezier(.34,1.56,.64,1) .1s both; }
   .k-sec { animation: kUp .7s cubic-bezier(.2,.8,.2,1) both; }
-  .k-sec .k-sec-bar { display: inline-block; animation: kRule .7s ease both; animation-delay: inherit; transform-origin: 0 50%; }
+  .k-sec .k-sec-chev { display: inline-block; animation: kChev .7s cubic-bezier(.34,1.56,.64,1) both; animation-delay: inherit; }
   .k-bar { animation: kGrow 1.1s cubic-bezier(.2,.8,.2,1) .35s both; }
   [dir="rtl"] .k-bar { animation-name: kGrowR; }
   .k-col { animation: kRise .9s cubic-bezier(.34,1.3,.64,1) both; }
@@ -39,17 +38,16 @@ const MOTION = `<style>
   .k-sec li:nth-child(2) { animation-delay: .06s } .k-sec li:nth-child(3) { animation-delay: .12s } .k-sec li:nth-child(4) { animation-delay: .18s }
   .k-sec li:nth-child(5) { animation-delay: .24s } .k-sec li:nth-child(6) { animation-delay: .3s } .k-sec li:nth-child(n+7) { animation-delay: .36s }
   .k-sec [data-part] { animation: kUp .6s ease .1s both; }
-  .k-tag { animation: kFade 1.2s ease 1s both; }
-  /* Browsers that can tie animation to scrolling reveal each section as it comes into view. */
+  .k-foot { animation: kFade 1s ease .3s both; }
   @supports (animation-timeline: view()) {
     .k-sec, .k-sec .k-bar, .k-sec .k-col, .k-sec li, .k-sec [data-part] { animation-timeline: view(); animation-range: entry 0% entry 75%; animation-delay: 0s !important; animation-duration: auto; }
   }
 }
+.k-sec li::marker { color: ${KINAN.orange}; }
 @keyframes kUp { from { opacity: 0; transform: translateY(18px); } }
 @keyframes kFade { from { opacity: 0; } }
-@keyframes kCard { from { opacity: 0; transform: translateY(26px) scale(.97); } }
+@keyframes kCard { from { opacity: 0; transform: translateY(26px) scale(.985); } }
 @keyframes kChev { from { opacity: 0; transform: translateX(-22px) scale(.6); } }
-@keyframes kNudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
 @keyframes kRule { from { transform: scaleX(0); } }
 @keyframes kGrow { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes kGrowR { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
@@ -60,33 +58,32 @@ function kinanDoc(lang: Lang, kicker: string, title: string, sub: string, sec: [
   const caps = lang === "ar" ? "" : "text-transform:uppercase;";
   const ls = (x: string) => (lang === "ar" ? "0" : x);
   const shown = title.startsWith(kicker) ? title.slice(kicker.length).replace(/^\s*[—–-]\s*/, "") : title;
-  const social = `<span style="letter-spacing:.06em">in&nbsp; f&nbsp; 𝕏&nbsp; ◎</span>&nbsp; ${KINAN.social} &nbsp;|&nbsp; ${KINAN.site}`;
+  const tex = KINAN.texture ? `background-image:url('${KINAN.texture}');background-size:cover;background-position:center;` : "";
+  // The logo in e-mail: an <img> with the SVG as a data URI (inline SVG is stripped by most mail clients; Gmail also
+  // drops data URIs and shows the alt text — the HTML download, the app and the PDF show it).
+  const logoImg = (h: number, white: boolean) => (kinanLogoSrc && !white ? `<img src="${kinanLogoSrc}" alt="Kinan" height="${h}" style="display:block;height:${h}px;width:auto;border:0">` : kinanLogoHtml(h, white ? "#fff" : KINAN.ink));
+  const social = `<span style="color:${KINAN.orange};font-weight:700;letter-spacing:.08em">in&nbsp; f&nbsp; 𝕏&nbsp; ◎</span>&nbsp;&nbsp; ${KINAN.site}`;
   return `<!doctype html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link href="${KINAN.fontsHref}" rel="stylesheet"><title>${esc(title)}</title>${MOTION}</head>
-<body style="margin:0;background:${KINAN.charcoal};color:${KINAN.ink};font-family:${ff}">
-<div style="max-width:760px;margin:0 auto">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:${KINAN.charcoal}"><tr>
-<td style="padding:18px 24px;width:1%">${kinanLogoHtml(38)}</td>
-<td style="padding:18px 8px;color:#fff;font-size:10px;letter-spacing:${ls(".26em")};${caps}opacity:.85;text-align:end">${esc(lang === "ar" ? "مساعد مدير التسويق الذكي" : "AI Assistant Director of Marketing")}</td>
-<td style="padding:18px 24px 18px 6px;width:1%;text-align:end"><span class="k-head-chev">${chevron(dir, 36)}</span></td></tr></table>
-<div style="padding:8px 24px 26px;background:${KINAN.charcoal}">
-<div class="k-card" style="background:#e4e3e0;background-image:linear-gradient(135deg,#ebeae7 0%,#dcdbd7 100%);padding:22px 26px 16px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" dir="ltr" style="border-collapse:collapse;direction:ltr"><tr>
-<td style="width:1%;vertical-align:top"><span class="k-card-chev" style="color:${KINAN.orange};font-family:${KINAN.font};font-weight:800;font-size:40px;line-height:.8">›</span></td>
-<td></td><td style="width:1%;vertical-align:top;text-align:right">${kinanLogoHtml(26, KINAN.ink)}</td></tr></table>
-<div style="text-align:center;padding:14px 4px 6px">
-<div style="font-size:11px;letter-spacing:${ls(".28em")};${caps}color:${KINAN.orange};font-weight:700">${esc(kicker)}</div>
-<h1 style="font-family:${ff};font-weight:700;${caps}letter-spacing:${ls(".03em")};font-size:26px;line-height:1.25;margin:10px 0 8px;color:${KINAN.ink}">${esc(shown)}</h1>
-<div class="k-sub" style="font-size:12px;color:#555">${esc(sub)}</div>
-<div class="k-rule" style="width:64px;height:3px;background:${KINAN.orange};margin:16px auto 0"></div>
-</div>
-<div class="k-tag" style="font-size:9.5px;color:#666;margin-top:20px;direction:ltr;text-align:${dir === "rtl" ? "right" : "left"}">${social}</div>
+<body style="margin:0;background:${KINAN.page};color:${KINAN.ink};font-family:${ff}">
+<div style="max-width:760px;margin:0 auto;background:${KINAN.paper};${tex}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+<td style="padding:22px 26px;width:1%">${logoImg(40, false)}</td>
+<td style="padding:22px 8px;color:${KINAN.greyText};font-size:9px;letter-spacing:${ls(".3em")};${caps}text-align:end">${esc(lang === "ar" ? "مساعد مدير التسويق الذكي" : "AI Assistant Director of Marketing")}</td>
+<td style="padding:22px 26px 22px 6px;width:1%;text-align:end"><span class="k-head-chev">${chevron(dir, 38)}</span></td></tr></table>
+<div style="padding:4px 26px 26px">
+<div class="k-card" style="background:${KINAN.orange};background-image:${KINAN.texture ? `url('${KINAN.texture}'),` : ""}linear-gradient(118deg,#f5602a,${KINAN.orange} 55%,#e04f22);background-size:cover;background-blend-mode:multiply;color:#fff;padding:44px 28px 40px;text-align:center">
+<div style="font-size:11px;letter-spacing:${ls(".3em")};${caps}font-weight:700;opacity:.92">${esc(kicker)}</div>
+<h1 style="font-family:${ff};font-weight:600;${caps}letter-spacing:${ls(".03em")};font-size:30px;line-height:1.2;margin:14px 0 10px;color:#fff">${esc(shown)}</h1>
+<div class="k-sub" style="font-size:13px;opacity:.9">${esc(sub)}</div>
+<div class="k-rule" style="width:72px;height:3px;background:#fff;margin:22px auto 0"></div>
 </div>
 </div>
-${sec.map(([h, body], k) => `<div data-slide="${esc(h)}" class="k-sec" style="background:${KINAN.paper};border-top:1px solid ${KINAN.line};padding:20px 24px;animation-delay:${Math.min(k, 6) * 90 + 500}ms"><div style="font-size:13px;letter-spacing:${ls(".14em")};${caps}font-weight:600;color:${KINAN.ink};margin-bottom:12px"><span class="k-sec-bar" style="display:inline-block;width:18px;height:2px;background:${KINAN.orange};vertical-align:middle;margin-inline-end:10px"></span>${esc(h)}</div><div style="font-size:13px;line-height:1.55">${body}</div></div>`).join("\n")}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:${KINAN.charcoal}"><tr><td style="padding:24px 24px;color:#fff">
-<div style="font-size:18px;font-weight:300;letter-spacing:.18em">${KINAN.tagline}</div>
-<div style="font-size:11px;color:#bdbdbd;margin-top:8px;direction:ltr;text-align:${dir === "rtl" ? "right" : "left"}">${social}</div>
-<div style="font-size:10.5px;color:#9a9a9a;margin-top:10px;line-height:1.5">${esc(note)}</div>
+${sec.map(([h, body], k) => `<div data-slide="${esc(h)}" class="k-sec" style="border-top:1px solid ${KINAN.line};padding:22px 26px;animation-delay:${Math.min(k, 6) * 90 + 500}ms"><div style="font-size:14px;letter-spacing:${ls(".1em")};${caps}font-weight:700;color:${KINAN.orange};margin-bottom:12px"><span class="k-sec-chev" style="vertical-align:middle;margin-inline-end:10px">${chevron(dir, 16)}</span>${esc(h)}</div><div style="font-size:13px;line-height:1.55;color:${KINAN.ink}">${body}</div></div>`).join("\n")}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="k-foot" style="border-collapse:collapse;background:${KINAN.charcoal}"><tr><td align="center" style="padding:34px 26px 26px;color:#fff;text-align:center">
+<div style="display:inline-block">${logoImg(56, true)}</div>
+<div style="font-size:12px;color:#fff;margin-top:18px;direction:ltr">${social}</div>
+<div style="font-size:12px;letter-spacing:${ls(".2em")};${caps}color:${KINAN.orange};margin-top:14px;font-weight:600">${KINAN.tagline}</div>
+<div style="font-size:10.5px;color:#9a9a9a;margin-top:12px;line-height:1.5;max-width:560px;margin-inline:auto">${esc(note)}</div>
 </td></tr></table>
 </div>${deck ? deckScript(deck) : ""}</body></html>`;
 }
@@ -315,6 +312,7 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
     return x;
   });
   const tag = (id: SectionId, xs: DeckSlide[]) => xs.map((slide) => ({ id, slide }));
+  const divider = (title: string, sub: string, say: string): DeckSlide => ({ kind: "divider", kicker: sub, title, sub, say });
   const parts: { id: SectionId; slide: DeckSlide }[] = [
     ...tag("brief", [
     { kind: "headline", kicker: T("Today's brief", "موجز اليوم"), headline: d.brief.headline,
@@ -326,12 +324,12 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
       ],
       points: d.brief.actions.slice(0, 3), say: `${d.brief.headline} ${T("This week I recommend:", "أوصي هذا الأسبوع بما يلي:")} ${d.brief.actions.slice(0, 3).join(" ")}` },
       ...(lay.notes.length ? [{ kind: "list" as const, kicker: T("Notes", "ملاحظات"), title: T("For this report", "لهذا التقرير"), items: lay.notes.map((n) => ({ text: n.text })), say: `${T("Notes:", "ملاحظات:")} ${lay.notes.map((n) => n.text).join(". ")}` }] : [])]),
-    ...tag("sales", enrich(salesChart?.slide ? [salesChart.slide] : [])),
+    ...tag("sales", [divider(T("Sales vs target", "المبيعات مقابل المستهدف"), T("Year to date, by project", "منذ بداية العام، حسب المشروع"), T("Sales against target.", "المبيعات مقابل المستهدف.")), ...enrich(salesChart?.slide ? [salesChart.slide] : [])]),
     ...tag("glance", enrich(glance.map((c) => c.slide).filter((x): x is DeckSlide => !!x))),
-    ...tag("initiatives", ideasR.slides),
+    ...tag("initiatives", ideasR.slides.length ? [divider(T("What the data shows", "ما تُظهره البيانات"), T("Today's scan of every source, and the initiatives that answer it", "فحص اليوم لكل المصادر والمبادرات التي تستجيب له"), T("What the data shows this morning.", "ما تُظهره البيانات هذا الصباح.")), ...ideasR.slides] : []),
     ...tag("campaigns", [{ kind: "list", kicker: T("Campaign recommendations", "توصيات الحملات"), title: T(`${d.campaignRecs.length} open · ${urgentN} urgent`, `${d.campaignRecs.length} مفتوحة · ${urgentN} عاجلة`),
       items: campRecs.slice(0, lim(5)).map((r) => ({ text: r.title, sub: short(firstSentence(r.why), 140), tone: r.severity === "crit" ? "bad" : r.severity === "warn" ? "warn" : "neutral" })), say: T(`Top campaign changes: ${d.campaignRecs.slice(0, 3).map((r) => r.title).join(". ")}.`, `أهم تغييرات الحملات: ${d.campaignRecs.slice(0, 3).map((r) => r.title).join(". ")}.`) }]),
-    ...tag("decisions", [{ kind: "list", kicker: T("Waiting for your decision", "بانتظار قراركم"), title: T(`About ${d.managerMinutes} minutes, ${d.inbox.length} decisions`, `نحو ${d.managerMinutes} دقيقة، ${d.inbox.length} قرارات`),
+    ...tag("decisions", [divider(T("Your decisions", "قراراتكم"), T(`${d.inbox.length} waiting · about ${d.managerMinutes} minutes`, `${d.inbox.length} بانتظاركم · نحو ${d.managerMinutes} دقيقة`), T("What is waiting for your decision.", "ما ينتظر قراركم.")), { kind: "list", kicker: T("Waiting for your decision", "بانتظار قراركم"), title: T(`About ${d.managerMinutes} minutes, ${d.inbox.length} decisions`, `نحو ${d.managerMinutes} دقيقة، ${d.inbox.length} قرارات`),
       items: d.inbox.slice(0, lim(99)).map((x) => ({ text: x.title, minutes: x.minutes, tone: x.severity === "crit" ? "bad" : x.severity === "warn" ? "warn" : "neutral" })), totalMinutes: d.managerMinutes, say: T(`${d.inbox.length} decisions wait for you, about ${d.managerMinutes} minutes in total. Everything else is handled.`, `${d.inbox.length} قرارات بانتظاركم، نحو ${d.managerMinutes} دقيقة إجمالاً. والباقي يُنجز تلقائياً.`) }]),
     ...tag("risks", recs.length ? [{ kind: "list", kicker: T("Risks", "المخاطر"), title: T("What could hurt this month", "ما قد يضر هذا الشهر"), items: recs.slice(0, lim(5)).map((r) => ({ text: r.title, tone: "bad" as const })), say: T(`Risks: ${recs.slice(0, 3).map((r) => r.title).join(". ")}.`, `المخاطر: ${recs.slice(0, 3).map((r) => r.title).join(". ")}.`) } as DeckSlide] : []),
   ];
