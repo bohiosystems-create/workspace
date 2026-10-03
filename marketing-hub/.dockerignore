@@ -1,0 +1,8 @@
+node_modules
+.next
+.env
+prisma/dev.db*
+demo.html
+demo-claude-app.html
+*.zip
+docs/*.png
