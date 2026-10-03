@@ -6,6 +6,7 @@ import { useI18n } from "../_components/lang";
 import { useApprover } from "../_components/useAgent";
 import VendorView, { VendorDirectory } from "./vendors";
 import InvoicesPanel from "../_components/InvoicesPanel";
+import VendorScoringBoard from "./scoring";
 
 const KIND: Record<string, string> = { MONTHLY_BRIEF: "Monthly brief", LEAD_FEEDBACK: "Lead feedback", DELIVERABLE_CHASE: "Reminder", NON_RENEWAL: "Non-renewal notice" };
 
@@ -63,7 +64,7 @@ export default function OrchestrationPage() {
     <div className="shell">
       <Header />
       <div className="section-title">{t("Vendors")}</div>
-      <p className="intro">{t("All your vendors in one place: open a vendor to see the campaigns it ran, its invoices (approve or dispute them there), what it owes you and every email exchanged through Outlook. The director briefs each vendor from the approved plan, sends lead feedback from the CRM, chases what is late and checks results against the data; you approve every message before it goes out — routine ones in one go.")}</p>
+      <p className="intro">{t("All your vendors in one place: open a vendor to see the campaigns it ran, its invoices (approve or dispute them there), what it owes you and every email exchanged through Outlook. The vendor scoring board ranks every vendor on one fair scale, with renewal recommendations, quarterly reviews and replacement RFPs. The director briefs each vendor from the approved plan, sends lead feedback from the CRM, chases what is late and checks results against the data; you approve every message before it goes out — routine ones in one go.")}</p>
       {error && <div className="err">{error}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
       {data && (
@@ -115,6 +116,8 @@ export default function OrchestrationPage() {
               ? <VendorView id={vendorId} reload={reload} onBack={() => { setVendorId(null); setVendorTab(undefined); }} act={act} busy={busy} approver={approver} initialTab={vendorTab} />
               : <VendorDirectory vendors={data.vendors} onOpen={(id: string) => openVendor(id)} />}
           </div>
+
+          {!vendorId && <VendorScoringBoard />}
 
           <div className="panel" style={{ marginTop: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>

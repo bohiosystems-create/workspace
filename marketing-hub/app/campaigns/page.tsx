@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { KColumns, KHBars } from "../_components/KCharts";
+import { KColumns, KHBars, KSpark } from "../_components/KCharts";
+import { ChartView } from "../_components/ChartView";
 import Header from "../_components/Header";
 import MetaReview from "../_components/MetaReview";
 import { useI18n } from "../_components/lang";
@@ -16,12 +17,16 @@ export default function MarketingPage() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [note, setNote] = useState<{ vendor: string; text: string } | null>(null);
-  const [vendorFilter, setVendorFilter] = useState<string>("all");
+  const [boards, setBoards] = useState<any>(null);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [more, setMore] = useState(false);
 
   useEffect(() => {
     let live = true; // ignore responses that arrive after the language changed
-    setNote(null);
+    fetch(`/api/campaigns/boards?lang=${lang}`)
+      .then((r) => r.json())
+      .then((d) => { if (live) (d.error ? setError(d.error) : setBoards(d)); })
+      .catch((e) => live && setError(e.message));
     fetch(`/api/marketing?lang=${lang}`)
       .then((r) => r.json())
       .then((d) => { if (live) (d.error ? setError(d.error) : setData(d.dashboard)); })
@@ -73,42 +78,95 @@ export default function MarketingPage() {
   }
 
 
-  async function draftNote(v: any) {
-    const d = await post({ action: "VENDOR_NOTE", vendorId: v.id }, `note-${v.id}`);
-    if (d?.note) setNote({ vendor: v.name, text: d.note });
+  async function layout(body: any) {
+    setBusy("layout");
+    try {
+      const d = await (await fetch("/api/campaigns/boards", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, lang }) })).json();
+      if (d.error) throw new Error(d.error);
+      setBoards(d.boards); setOpen({});
+    } catch (e: any) { setError(e.message); } finally { setBusy(null); }
+  }
+  // Pause / resume from a campaign's dashboard, then refresh the list.
+  async function campaignAct(body: any, key: string) {
+    await act(body, key);
+    const d = await (await fetch(`/api/campaigns/boards?lang=${lang}`)).json();
+    if (!d.error) setBoards(d);
   }
 
-  const k = data?.kpis;
   const sevOrder: Record<string, number> = { crit: 0, warn: 1, info: 2 };
-  const maxSales = data ? Math.max(...data.monthly.map((m: any) => m.revenueM), 1) : 1;
-  const maxSpend = data ? Math.max(...data.monthly.map((m: any) => m.spendK), 1) : 1;
-  const funnelMax = data ? Math.max(...data.funnel.map((f: any) => f.value), 1) : 1;
-  const campaigns = data
-    ? data.campaigns.filter((c: any) => vendorFilter === "all" || c.vendorId === vendorFilter)
-    : [];
+  const L = boards?.layout;
+  const isOpen = (c: any) => open[c.key] ?? (L?.open === "all" || (L?.open === "live" && c.status !== "past"));
+  const list: any[] = boards?.campaigns ?? [];
+  const shown = more ? list : list.slice(0, 16);
+  const tot = boards?.totals;
 
   return (
     <div className="shell">
       <Header />
-      <div className="section-title">{t("Marketing & Sales")}</div>
+      <div className="section-title">{t("Campaigns")}</div>
       <p className="intro">
-        {t("Every external marketing vendor, the campaigns they run per asset, and how that spend translates into leads, viewings, reservations and contracted sales — computed from the campaign register and verified against the CRM. Rule-based alerts flag SLA and contract issues; recommendations can be applied in one click and are written to an audit trail.")}
+        {t("Every campaign that has run — the live 2026 campaigns (verified against Oracle cost and the CRM) and the 2023–2025 history — each with its own dashboard. Ask the assistant to change what is listed and what each dashboard shows.")}
       </p>
 
       {error && <div className="err">{error}</div>}
-      {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading vendors…")}</div>}
+      {!boards && !error && <div className="muted"><span className="spin dark" /> {t("Loading campaigns…")}</div>}
+
+      {boards && (
+        <>
+          <div className="cb-bar">
+            <div className="cb-chips">
+              {(["all", "live", "past"] as const).map((sc) => (
+                <button key={sc} className={`chip ${L.scope === sc && !L.year ? "on" : ""}`} disabled={busy === "layout"} onClick={() => layout({ action: "OPS", ops: [{ op: "scope", scope: sc }] })}>
+                  {sc === "all" ? t("All campaigns") : sc === "live" ? t("Live") : t("Past (2023–2025)")}
+                </button>
+              ))}
+              <span className="cb-sep" />
+              {boards.options.years.map((y: string) => (
+                <button key={y} className={`chip ${L.year === y ? "on" : ""}`} disabled={busy === "layout"} onClick={() => layout({ action: "OPS", ops: [{ op: "year", year: L.year === y ? null : y }] })}>{y}</button>
+              ))}
+              {boards.filterLabels.map((f: string) => <span key={f} className="chip on">{f}</span>)}
+              {boards.filterLabels.length > 0 && <button className="chip" onClick={() => layout({ action: "OPS", ops: [{ op: "clear_filters" }] })}>✕ {t("Clear filters")}</button>}
+            </div>
+            <div className="cb-chips">
+              <span className="muted" style={{ fontSize: 11 }}>{t("Order")}</span>
+              <select style={{ width: "auto" }} value={`${L.sort}:${L.dir}`} disabled={busy === "layout"} onChange={(e) => { const [by, dir] = e.target.value.split(":"); layout({ action: "OPS", ops: [{ op: "sort", by, dir }] }); }}>
+                {[["recent", "desc", "Most recent"], ["sales", "desc", "Sales, highest first"], ["contracts", "desc", "Contracts, most first"], ["qualified", "desc", "Qualified leads, most first"], ["spend", "desc", "Spend, highest first"], ["costToSales", "asc", "Cost to sales, best first"], ["cpql", "asc", "Cost per qualified lead, best first"], ["name", "asc", "Name"]]
+                  .concat([[L.sort, L.dir, boards.view.sortLabel]].filter(([a, b]) => !["recent:desc", "sales:desc", "contracts:desc", "qualified:desc", "spend:desc", "costToSales:asc", "cpql:asc", "name:asc"].includes(`${a}:${b}`)))
+                  .map(([by, dir, label]) => <option key={`${by}:${dir}`} value={`${by}:${dir}`}>{t(label)}</option>)}
+              </select>
+              <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 9 }} onClick={() => setOpen(Object.fromEntries(list.map((c) => [c.key, true])))}>{t("Expand all")}</button>
+              <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 9 }} onClick={() => setOpen(Object.fromEntries(list.map((c) => [c.key, false])))}>{t("Collapse all")}</button>
+              <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 9 }} disabled={busy === "layout"} onClick={() => layout({ action: "UNDO" })}>↶ {t("Undo")}</button>
+              {boards.view.custom_ && <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 9 }} disabled={busy === "layout"} onClick={() => layout({ action: "RESET" })}>{t("Reset to standard")}</button>}
+            </div>
+            <div className="cb-hint">
+              <span className="rl-chev" aria-hidden="true">❯</span>
+              {t("Customise with the assistant — e.g. “add cost per qualified lead to the campaign dashboards”, “add a chart of leads by city to each campaign”, “sort campaigns by cost to sales”, “only Andalus Quarter campaigns on the dashboards”.")}
+            </div>
+          </div>
+
+          <div className="kpis">
+            <Kpi v={String(tot.campaigns)} l={t("Campaigns")} d={`${tot.live} ${t("live campaigns")} · ${boards.view.scopeLabel}`} />
+            <Kpi v={tot.spendK >= 1000 ? MM(Math.round(tot.spendK / 100) / 10) : KK(n0(Math.round(tot.spendK)))} l={t("Spend")} />
+            <Kpi v={n0(tot.qualified)} l={t("Qualified leads")} d={`${n0(tot.leads)} ${t("leads")}`} />
+            <Kpi v={n0(tot.contracts)} l={t("Contracts")} d={`${MM(tot.salesM)} ${t("sales")}`} />
+            <Kpi v={dash(tot.costToSales, "%")} l={t("Cost-to-Sales")} />
+          </div>
+
+          {list.length === 0 && <div className="muted" style={{ margin: "10px 0 20px" }}>{t("No campaign matches this view — ask the assistant to show all campaigns, or clear the filters.")}</div>}
+          <div className="cb-list">
+            {shown.map((c: any, i: number) => (
+              <CampaignBoard key={c.key} c={c} i={i} kpis={boards.view.kpis} charts={boards.view.charts} open={isOpen(c)} onToggle={() => setOpen({ ...open, [c.key]: !isOpen(c) })}
+                busy={busy} onAct={(body: any, key: string) => campaignAct(body, key)} />
+            ))}
+          </div>
+          {list.length > shown.length && <button className="btn ghost" style={{ margin: "4px 0 20px" }} onClick={() => setMore(true)}>{t("Show all")} ({list.length})</button>}
+        </>
+      )}
 
       {data && (
         <>
-          <div className="kpis">
-            <Kpi v={KK(n0(k.spendK))} l={t("Marketing Spend")} d={`${k.liveCampaigns} ${t("live campaigns")}`} />
-            <Kpi v={n0(k.leads)} l={t("Leads")} />
-            <Kpi v={n0(k.contracts)} l={t("Contracts")} d={`${MM(k.revenueM)} ${t("sales")}`} />
-            <Kpi v={dash(k.costToSalesPct, "%")} l={t("Cost-to-Sales")} d={`${t("CAC")} ${k.cacK === null ? "—" : KK(k.cacK)}`} />
-            <Kpi v={String(k.alertCount)} l={t("Alerts")} alert={k.alertCount > 0} />
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "8px 0 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "26px 0 14px" }}>
             <div className="section-title" style={{ fontSize: 12 }}>{t("Orchestration")}</div>
           </div>
 
@@ -156,79 +214,6 @@ export default function MarketingPage() {
             </div>
           ))}
           {data.alerts.length === 0 && <div className="muted">{t("No alerts.")}</div>}
-
-          <div className="row twocol" style={{ marginTop: 22 }}>
-            <div className="panel">
-              <div className="chart-label">{t("Spend vs contracted sales, by month")}</div>
-              <KColumns title={t("Contracted sales")} sub="SAR M" labels={data.monthly.map((m: any) => monthShort(lang, m.month))} values={data.monthly.map((m: any) => m.revenueM)} unit="SAR M" decimals={1} height={170} />
-              <div style={{ height: 14 }} />
-              <KColumns title={t("Marketing spend")} sub="SAR K" labels={data.monthly.map((m: any) => monthShort(lang, m.month))} values={data.monthly.map((m: any) => m.spendK)} unit="SAR K" decimals={0} height={170} />
-            </div>
-
-            <div className="panel">
-              <div className="chart-label">{t("Lead-to-contract funnel")}</div>
-              <div style={{ marginTop: 8 }}>
-                <KHBars rows={data.funnel.map((f: any, i: number) => ({ label: t(f.stage), value: f.value, sub: i > 0 ? `${Math.round((f.value / data.funnel[i - 1].value) * 100)}% ${t("of previous")}` : undefined }))} decimals={0} labelWidth="38%" />
-              </div>
-              <div className="chart-label" style={{ marginTop: 18 }}>{t("By asset — cost-to-sales")}</div>
-              <KHBars rows={data.assets.map((a: any) => ({ label: N(a.asset), value: a.costToSalesPct ?? 0, sub: mm(a.revenueM) }))} unit="%" decimals={2} max={4}
-                bench={{ value: 3, label: t("3% ceiling") }} hot={(r) => (r.value > 3 ? `> 3%` : null)} best={(r, i) => (i === 0 ? `✓ ${t("best")}` : null)} labelWidth="38%" />
-            </div>
-          </div>
-
-          <div className="panel" style={{ marginTop: 18 }}>
-            <div className="chart-label">{t("Vendor scorecard")}</div>
-            <div style={{ overflowX: "auto" }}>
-              <table className="dtable">
-                <thead>
-                  <tr>
-                    <th>{t("Vendor")}</th><th>{t("Category")}</th><th className="num">{t("Spend")}</th><th className="num">{t("Contracts")}</th>
-                    <th className="num">{t("Sales (M)")}</th><th className="num">{t("Cost / Sales")}</th><th className="num">{t("Qual. rate")}</th>
-                    <th className="num">{t("Resp. (h)")}</th><th>{t("Score")}</th><th>{t("Verdict")}</th><th>{t("Contract")}</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.vendors.map((v: any) => (
-                    <tr key={v.id}>
-                      <td>
-                        <b>{N(v.name)}</b>
-                        {v.slaBreaches.map((b: string) => <div key={b} style={{ color: "var(--alert)", fontSize: 9, marginTop: 3 }}>{b}</div>)}
-                      </td>
-                      <td>{N(v.category)}</td>
-                      <td className="num">{kk(n0(v.spendK))} <span className="muted">({v.spendSharePct}%)</span></td>
-                      <td className="num">{v.contracts}</td>
-                      <td className="num">{v.revenueM}</td>
-                      <td className="num" style={v.costToSalesPct === null || v.costToSalesPct > 3 ? { color: "var(--alert)", fontWeight: 700 } : {}}>{dash(v.costToSalesPct, "%")}</td>
-                      <td className="num">{dash(v.qualRatePct, "%")}</td>
-                      <td className="num">{dash(v.latestRespHrs)} <span className="muted">/ {v.slaResponseHrs}</span></td>
-                      <td>
-                        <div className="score" title={`${t("Efficiency")} ${v.scoreParts.efficiency}/40 · ${t("Quality")} ${v.scoreParts.quality}/25 · ${t("Responsiveness")} ${v.scoreParts.responsiveness}/20 · ${t("Delivery")} ${v.scoreParts.delivery}/15`}>
-                          <div className="score-track"><div className="score-fill" style={{ width: `${v.score}%`, background: v.score < 45 ? "var(--alert)" : "var(--ink)" }} /></div>
-                          <b>{v.score}</b>
-                        </div>
-                      </td>
-                      <td><span className={`pill ${v.verdict.toLowerCase()}`}>{t(v.verdict)}</span></td>
-                      <td>{dd(v.contractEnd, { month: "short", year: "numeric" })}</td>
-                      <td>
-                        <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} onClick={() => draftNote(v)} disabled={busy === `note-${v.id}`}>
-                          {busy === `note-${v.id}` ? t("Drafting…") : t("Draft note")}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="muted" style={{ marginTop: 10, fontSize: 10 }}>
-              {t("Score = efficiency 40 (cost-to-sales) + quality 25 (qualified rate) + responsiveness 20 (vs contract SLA) + delivery 15 (budget pacing). PR and outdoor are last-touch under-attributed.")}
-            </div>
-            {note && (
-              <>
-                <div className="chart-label" style={{ marginTop: 18 }}>{t("Draft note")} — {N(note.vendor)}</div>
-                <div className="note" dir="auto">{note.text}</div>
-              </>
-            )}
-          </div>
 
           {crm && (
             <div className="panel" style={{ marginTop: 18 }}>
@@ -280,54 +265,6 @@ export default function MarketingPage() {
           )}
 
           <div className="panel" style={{ marginTop: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-              <div className="chart-label" style={{ margin: 0 }}>{t("Campaigns")}</div>
-              <select style={{ width: "auto" }} value={vendorFilter} onChange={(e) => setVendorFilter(e.target.value)}>
-                <option value="all">{t("All vendors")}</option>
-                {data.vendors.map((v: any) => <option key={v.id} value={v.id}>{N(v.name)}</option>)}
-              </select>
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              <table className="dtable">
-                <thead>
-                  <tr>
-                    <th>{t("Campaign")}</th><th>{t("Vendor")}</th><th>{t("Status")}</th><th className="num">{t("Spend / Budget")}</th><th className="num">{t("Pacing")}</th>
-                    <th className="num">{t("Leads")}</th><th className="num">{t("CPL (SAR)")}</th><th className="num">{t("Qual.")}</th><th className="num">{t("View.")}</th>
-                    <th className="num">{t("Contracts")}</th><th className="num">{t("Sales (M)")}</th><th className="num">{t("CAC (K)")}</th><th className="num">{t("Cost / Sales")}</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {campaigns.map((c: any) => (
-                    <tr key={c.id}>
-                      <td><b>{N(c.name)}</b><div className="muted" style={{ fontSize: 9 }}>{N(c.asset)} · {N(c.channel)}{c.attribution === "Weak" ? ` · ${t("weak attribution")}` : ""}</div></td>
-                      <td>{N(c.vendor)}</td>
-                      <td><span className={`pill ${c.status.toLowerCase()}`}>{t(c.status)}</span></td>
-                      <td className="num">{c.spendK} / {kk(c.budgetK)}</td>
-                      <td className="num" style={c.pacingPct !== null && (c.pacingPct > 115 || c.pacingPct < 75) ? { color: "var(--alert)" } : {}}>{dash(c.pacingPct, "%")}</td>
-                      <td className="num">{n0(c.leads)}</td>
-                      <td className="num">{dash(c.cplSar)}{c.cplTrendPct !== null && c.cplTrendPct > 20 ? <span style={{ color: "var(--alert)" }}> ↑</span> : ""}</td>
-                      <td className="num">{c.qualified}</td>
-                      <td className="num">{c.viewings}</td>
-                      <td className="num">{c.contracts}</td>
-                      <td className="num">{c.revenueM}</td>
-                      <td className="num">{dash(c.cacK)}</td>
-                      <td className="num"><span className={`pill ${c.health.toLowerCase()}`}>{dash(c.costToSalesPct, "%")}</span></td>
-                      <td>
-                        {c.status === "LIVE" && (
-                          <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === c.id} onClick={() => act({ action: "PAUSE", campaignId: c.id }, c.id)}>{t("Pause")}</button>
-                        )}
-                        {c.status === "PAUSED" && (
-                          <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={busy === c.id} onClick={() => act({ action: "RESUME", campaignId: c.id }, c.id)}>{t("Resume")}</button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="panel" style={{ marginTop: 18 }}>
             <div className="chart-label">{t("Orchestration audit trail")}</div>
             {data.actions.length === 0 && <div className="muted">{t("No actions taken yet.")}</div>}
             {data.actions.map((a: any) => (
@@ -351,6 +288,85 @@ function Kpi({ v, l, d, alert }: { v: string; l: string; d?: string; alert?: boo
       <div className="kv" style={alert ? { color: "var(--alert)" } : {}}>{v}</div>
       <div className="kl">{l}</div>
       {d && <div className="kd">{d}</div>}
+    </div>
+  );
+}
+
+// One campaign: header (status, name, vendor · project · channel, dates), the figures chosen from the chat, and its
+// dashboard — the built-in charts chosen from the chat plus any chart added in plain words.
+function CampaignBoard({ c, i, kpis, charts, open, onToggle, busy, onAct }: {
+  c: any; i: number; kpis: { id: string; name: string }[]; charts: { id: string; name: string }[]; open: boolean; onToggle: () => void; busy: string | null; onAct: (body: any, key: string) => void;
+}) {
+  const { lang, t, K: KK, M: MM } = useI18n();
+  const k = c.k, n0 = (x: number) => x.toLocaleString("en-GB");
+  const sar = (x: number | null) => (x === null ? "—" : lang === "ar" ? `${n0(x)} ر.س` : `SAR ${n0(x)}`);
+  const span = c.start.slice(0, 4) === c.end.slice(0, 4) ? `${monthShort(lang, c.start)} → ${monthShort(lang, c.end)} ${c.end.slice(0, 4)}` : `${monthShort(lang, c.start)} ${c.start.slice(0, 4)} → ${monthShort(lang, c.end)} ${c.end.slice(0, 4)}`;
+  const over = k.costToSales !== null && k.benchmark !== null && k.costToSales > k.benchmark * 1.25, under = k.costToSales !== null && k.benchmark !== null && k.costToSales <= k.benchmark;
+  const tile: Record<string, [string, string?, ("good" | "bad")?]> = {
+    spend: [KK(n0(k.spendK)), k.budgetK ? `${t("of")} ${KK(n0(k.budgetK))}` : undefined],
+    budget: [KK(n0(k.budgetK)), k.usedPct !== null ? `${k.usedPct}% ${t("used")}` : undefined],
+    leads: [n0(k.leads), k.cpl !== null ? `${sar(k.cpl)} ${t("per lead")}` : undefined],
+    qualified: [n0(k.qualified), k.qualRate !== null ? `${k.qualRate}% ${t("of leads")}` : undefined],
+    qualRate: [dash(k.qualRate, "%")], viewings: [k.viewings === null ? "—" : n0(k.viewings)], reservations: [k.reservations === null ? "—" : n0(k.reservations)],
+    contracts: [n0(k.contracts), k.cacK !== null ? `${KK(k.cacK)} ${t("each")}` : undefined],
+    sales: [MM(k.salesM)],
+    costToSales: [dash(k.costToSales, "%"), k.benchmark !== null ? `${t("benchmark")} ${k.benchmark}%` : undefined, over ? "bad" : under ? "good" : undefined],
+    cpl: [sar(k.cpl)], cpql: [sar(k.cpql)], cac: [k.cacK === null ? "—" : KK(k.cacK)],
+    pacing: [dash(k.pacing, "%"), k.pacing !== null ? t("100% = on plan") : t("ended"), k.pacing !== null && (k.pacing > 115 || k.pacing < 75) ? "bad" : undefined],
+    benchmark: [dash(k.benchmark, "%"), k.benchmarkLabel],
+  };
+  const labels = c.months.map((m: any) => monthShort(lang, m.month));
+  const elapsed = k.pacing ? Math.round((k.usedPct / k.pacing) * 1000) / 10 : null;
+  const chart = (id: string, name: string) => {
+    switch (id) {
+      case "sales": return <KColumns title={name} sub="SAR M" labels={labels} values={c.months.map((m: any) => m.salesM)} unit="SAR M" decimals={1} height={150} />;
+      case "spend": return <KColumns title={name} sub="SAR K" labels={labels} values={c.months.map((m: any) => m.spendK)} unit="SAR K" decimals={0} height={150} />;
+      case "leads": return <ChartView spec={{ type: "grouped", title: name, metric: "leads", unit: "", groupBy: "month", labels, values: c.months.map((m: any) => m.leads), total: null, period: "", lang,
+        series: [{ name: t("Leads"), values: c.months.map((m: any) => m.leads) }, { name: t("Qualified leads"), values: c.months.map((m: any) => m.qualified) }] } as any} />;
+      case "funnel": return <><div className="kc-head"><span className="kc-title">{name}</span></div>
+        <KHBars rows={c.funnel.map((f: any, j: number) => ({ label: f.stage, value: f.value, sub: j > 0 && c.funnel[j - 1].value ? `${Math.round((f.value / c.funnel[j - 1].value) * 100)}% ${t("of previous")}` : undefined }))} decimals={0} labelWidth="34%" /></>;
+      case "benchmark": return <><div className="kc-head"><span className="kc-title">{name}</span><span className="kc-sub">{t("lower is better")}</span></div>
+        {k.costToSales === null ? <div className="muted" style={{ fontSize: 11 }}>{t("No contracted sales yet.")}</div> :
+          <KHBars rows={[{ label: t("This campaign"), value: k.costToSales }, ...(k.benchmark !== null ? [{ label: `${k.benchmarkLabel} · 2023–2025`, value: k.benchmark }] : [])]} unit="%" decimals={1}
+            hot={(r, j) => (j === 0 && over ? t("above benchmark") : null)} best={(r, j) => (j === 0 && under ? `✓ ${t("at or below benchmark")}` : null)} labelWidth="38%" />}</>;
+      case "pacing": return <><div className="kc-head"><span className="kc-title">{name}</span><span className="kc-sub">{KK(n0(k.spendK))} / {KK(n0(k.budgetK))}</span></div>
+        <KHBars rows={[{ label: t("Budget spent"), value: k.usedPct ?? 0 }, ...(elapsed !== null && c.status !== "past" ? [{ label: t("Flight elapsed"), value: elapsed }] : [])]} unit="%" decimals={0} max={Math.max(100, k.usedPct ?? 0, elapsed ?? 0)} labelWidth="34%" /></>;
+      default: return null;
+    }
+  };
+  const status = c.status === "past" ? t("Ended") : c.status === "live" ? t("LIVE") : c.status === "paused" ? t("PAUSED") : t("ENDED");
+  return (
+    <div className={`cb-card ${open ? "open" : ""}`} style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }}>
+      <button className="cb-head" onClick={onToggle} aria-expanded={open}>
+        <span className={`pill ${c.status === "past" ? "cb-past" : c.status}`}>{status}</span>
+        <span className="cb-name">
+          <b>{c.name}</b>
+          <span className="cb-meta">{c.code} · {c.vendor} · {c.project} · {c.channel}{c.season ? ` · ${c.season}` : ""} · {span}</span>
+        </span>
+        <KSpark values={c.months.map((m: any) => m.qualified)} />
+        <span className="cb-chev" aria-hidden="true">{open ? "−" : "+"}</span>
+      </button>
+      <div className="cb-kpis">
+        {kpis.map((x) => { const [v, sub, tone] = tile[x.id] ?? ["—"]; return (
+          <div key={x.id} className={`cb-kpi ${tone ?? ""}`}><div className="l">{x.name}</div><div className="v">{v}</div>{sub && <div className="s">{sub}</div>}</div>
+        ); })}
+      </div>
+      {open && (
+        <div className="cb-dash">
+          {charts.map((x) => <div key={x.id} className="cb-chart">{chart(x.id, x.name)}</div>)}
+          {c.custom.map((cu: any) => (
+            <div key={cu.id} className="cb-chart">
+              {cu.chart ? <ChartView spec={cu.chart} /> : <div className="muted" style={{ fontSize: 11 }}><b>{cu.title}</b> — {cu.error}</div>}
+            </div>
+          ))}
+          {charts.length === 0 && c.custom.length === 0 && <div className="muted" style={{ fontSize: 11 }}>{t("No charts on the dashboards — ask the assistant to add some.")}</div>}
+          <div className="cb-foot">
+            {c.lesson && <div className="cb-lesson"><b>{t("Lesson")}:</b> {c.lesson}</div>}
+            {c.status === "live" && <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 9 }} disabled={busy === c.id} onClick={() => onAct({ action: "PAUSE", campaignId: c.id }, c.id)}>{t("Pause")}</button>}
+            {c.status === "paused" && <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 9 }} disabled={busy === c.id} onClick={() => onAct({ action: "RESUME", campaignId: c.id }, c.id)}>{t("Resume")}</button>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

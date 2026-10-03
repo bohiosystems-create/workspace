@@ -534,3 +534,23 @@ model ReportLayoutChange {
   by        String?
   undone    Boolean  @default(false)
 }
+
+// A page's layout changed from the assistant's chat (today: the Campaigns page, id "campaigns").
+model ViewLayout {
+  id        String   @id
+  json      String   @default("{}")
+  updatedBy String?
+  updatedAt DateTime @default(now())
+}
+
+model ViewLayoutChange {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  view      String
+  summary   String
+  before    String
+  after     String
+  source    String   @default("chat")
+  by        String?
+  undone    Boolean  @default(false)
+}

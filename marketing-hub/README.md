@@ -169,7 +169,7 @@ Pulls purchase orders and supplier invoices from **Oracle Fusion Cloud Procureme
 
 ## Vendor agent — score, prove, decide, review, re-bid
 
-Pages: **Decisions** (`/decisions`, which also holds the replacement trials) and **Experiments** (`/experiments`). The old Bench page was removed (`/bench` redirects to the trials on Decisions). The data-source layer runs in the background and is not shown in the menu (the `/data` page still exists for set-up and troubleshooting: source status, reported vs independent figures, vendor-report CSV upload). All bilingual; the assistant answers questions about every part.
+The **vendor scoring board** is part of the Vendors page (`/orchestration#scoring`): the fair scorecard ranked as a board (score against the channel benchmark of 50, with its uncertainty range), renewal recommendations with their evidence, the replacement trials, the quarterly business review and the replacement RFP. The old Decisions and Bench pages were removed (`/decisions` and `/bench` redirect there). **Experiments** stays at `/experiments`. The data-source layer runs in the background and is not shown in the menu (the `/data` page still exists for set-up and troubleshooting: source status, reported vs independent figures, vendor-report CSV upload). All bilingual; the assistant answers questions about every part.
 
 1. **Unified data** (`lib/unified.ts`, `docs/data-sources.md`) — vendor reports, ad accounts, CRM and Oracle invoices in one model, with a source of truth per metric. A hidden page (`/data`, not in the menu) shows every source, its coverage, and vendor-reported vs independent figures (spend vs ad platforms, leads vs CRM, contracts vs CRM wins, response time vs CRM). Vendor reports are imported from one canonical CSV template with validation.
 2. **Fair scorecard** (`lib/scoring.ts`) — cost per CRM-qualified lead (30%), CRM revenue + stage-weighted pipeline per SAR (30%), spend vs plan (15%, neutral for commission vendors), deadline adherence (15%), revisions (10%). Each metric is indexed against a **channel benchmark adjusted for budget size** (50 = par), multiplied by the measured incremental share where available, and shown with a **score range and confidence**. Benchmarks are assumptions to calibrate (`BENCHMARKS`).
@@ -179,6 +179,20 @@ Pages: **Decisions** (`/decisions`, which also holds the replacement trials) and
 6. **Re-bid automatically** (`lib/bench.ts`) — a list of pre-vetted alternatives (shown in the vendor directory under Alternatives); when a vendor is flagged *test replacement* or *exit*, the agent **proposes a paid trial** against the incumbent (budget, brief, CRM code, success criteria). Nothing is spent until a named person approves. Results are read from the CRM by trial code, compared on cost per qualified lead with a confidence level, and the decision (promote / extend / keep) is recorded.
 
 Everything that spends money, withholds spend (tests) or contacts a vendor requires a named approver and is written to the audit trail. All data is sample data until the real sources are connected.
+
+
+### Campaigns page — every campaign as a dashboard, changed from the chat
+
+`/campaigns` lists every campaign that has run: the live 2026 campaigns (verified: Oracle cost, CRM leads and sales) and the 2023–2025 history (`lib/campaign-boards.ts`). Each campaign has a header (status, vendor, project, channel, season, dates), its figures, and a dashboard with charts: sales and spend by month, leads and qualified by month, the lead-to-contract funnel, cost to sales against the channel's 2023–2025 benchmark, and budget used against flight elapsed. Past campaigns show their lesson; live ones can be paused or resumed. Below the list stay the orchestration recommendations, alerts, CRM verification, the audit trail and the Meta ads review.
+
+What the page lists and what each dashboard shows is a layout (`lib/campaign-layout.ts`, stored in `ViewLayout` with every change in `ViewLayoutChange`, so any change can be undone). Change it from the assistant, in English or Arabic (`lib/campaign-chat.ts`, and the AI tools `get_campaign_dashboards` / `change_campaign_dashboards`):
+
+- figures: "add cost per qualified lead to the campaign dashboards", "remove budget from the campaign cards"
+- charts: "remove the funnel from the campaign dashboards", "add the pacing chart to each campaign"; any chart in plain words, drawn for each campaign: "add a chart of qualified leads by month to each campaign dashboard", "add a chart of leads by city to each campaign"
+- which campaigns and the order: "show only live campaigns", "show 2024 campaigns on the campaigns page", "only Andalus Quarter campaigns on the dashboards", "sort campaigns by cost to sales"
+- "what's on the campaign dashboards?", "undo the last campaign dashboard change", "reset the campaign dashboards"
+
+The page has the same controls for scope, year and order, plus Undo and Reset. After pulling this change run `npx prisma db push` (two new tables).
 
 ## Arabic (العربية) and RTL
 

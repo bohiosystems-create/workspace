@@ -914,4 +914,20 @@ const UI10: Record<string, string> = {
   "reports page": "صفحة التقارير",
 };
 
-export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5, ...UI6, ...UI7, ...UI8, ...UI9, ...UI10 };
+const UI11: Record<string, string> = {
+  "All your vendors in one place: open a vendor to see the campaigns it ran, its invoices (approve or dispute them there), what it owes you and every email exchanged through Outlook. The vendor scoring board ranks every vendor on one fair scale, with renewal recommendations, quarterly reviews and replacement RFPs. The director briefs each vendor from the approved plan, sends lead feedback from the CRM, chases what is late and checks results against the data; you approve every message before it goes out — routine ones in one go.": "كل مورديكم في مكان واحد: افتحوا أي مورد لتروا حملاته وفواتيره (اعتمدوها أو اعترضوا عليها هناك) وما يدين به لكم وكل الرسائل المتبادلة عبر Outlook. ترتّب لوحة تقييم الموردين كل الموردين على مقياس عادل واحد، مع توصيات التجديد والمراجعات الربعية وطلبات العروض البديلة. يُعِدّ المدير موجز كل مورد من الخطة المعتمدة، ويرسل ملاحظات العملاء من النظام، ويتابع المتأخر ويطابق النتائج مع البيانات؛ وتعتمدون كل رسالة قبل إرسالها — والروتينية دفعة واحدة.",
+  "Vendor scoring board": "لوحة تقييم الموردين", "Channel benchmark": "معيار القناة",
+  "Channels without a bench vendor get a replacement RFP instead (vendor scoring board).": "القنوات التي لا يوجد بها بديل جاهز يُعدّ لها طلب عروض بدلاً من ذلك (لوحة تقييم الموردين).",
+  "Every campaign that has run — the live 2026 campaigns (verified against Oracle cost and the CRM) and the 2023–2025 history — each with its own dashboard. Ask the assistant to change what is listed and what each dashboard shows.": "كل حملة نُفّذت — حملات 2026 الحالية (مُتحقق منها مقابل تكاليف Oracle ونظام إدارة العملاء) وسجل 2023–2025 — ولكل حملة لوحتها الخاصة. اطلبوا من المساعد تغيير ما يُعرض وما تُظهره كل لوحة.",
+  "Loading campaigns…": "جارٍ تحميل الحملات…", "All campaigns": "كل الحملات", "Live": "الحالية", "Past (2023–2025)": "السابقة (2023–2025)", "Clear filters": "مسح التصفية", "Order": "الترتيب",
+  "Expand all": "فتح الكل", "Collapse all": "إغلاق الكل",
+  "Customise with the assistant — e.g. “add cost per qualified lead to the campaign dashboards”, “add a chart of leads by city to each campaign”, “sort campaigns by cost to sales”, “only Andalus Quarter campaigns on the dashboards”.": "خصّصوها عبر المساعد — مثل «أضف تكلفة العميل المؤهل إلى لوحات الحملات» أو «أضف رسماً للعملاء حسب المدينة لكل حملة» أو «رتّب الحملات حسب التكلفة إلى المبيعات».",
+  "Qualified leads": "العملاء المؤهلون", "No campaign matches this view — ask the assistant to show all campaigns, or clear the filters.": "لا توجد حملة تطابق هذا العرض — اطلبوا من المساعد عرض كل الحملات أو امسحوا التصفية.",
+  "of": "من", "used": "مستخدمة", "per lead": "لكل عميل", "of leads": "من العملاء", "each": "للعقد", "100% = on plan": "100% = وفق الخطة", "lower is better": "الأقل أفضل",
+  "No contracted sales yet.": "لا مبيعات متعاقد عليها بعد.", "This campaign": "هذه الحملة", "above benchmark": "أعلى من المعيار", "at or below benchmark": "عند المعيار أو أقل",
+  "Budget spent": "الميزانية المصروفة", "Flight elapsed": "المدة المنقضية", "Ended": "منتهية", "No charts on the dashboards — ask the assistant to add some.": "لا رسوم في اللوحات — اطلبوا من المساعد إضافة بعضها.",
+  "Lesson": "الدرس", "Campaign dashboards": "لوحات الحملات", "Figures on each campaign": "الأرقام في كل حملة", "Charts in each dashboard": "الرسوم في كل لوحة", "Open Campaigns": "افتح الحملات",
+  "Most recent": "الأحدث", "Sales, highest first": "المبيعات، الأعلى أولاً", "Contracts, most first": "العقود، الأكثر أولاً", "Qualified leads, most first": "العملاء المؤهلون، الأكثر أولاً",
+  "Spend, highest first": "الإنفاق، الأعلى أولاً", "Cost to sales, best first": "التكلفة إلى المبيعات، الأفضل أولاً", "Cost per qualified lead, best first": "تكلفة العميل المؤهل، الأفضل أولاً", "Name": "الاسم",
+};
+export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5, ...UI6, ...UI7, ...UI8, ...UI9, ...UI10, ...UI11 };

@@ -6,7 +6,7 @@ import { useApprover } from "./useAgent";
 
 const OUTCOME: Record<string, string> = { PROMOTE: "Promote the challenger", EXTEND: "Inconclusive — extend", KEEP_INCUMBENT: "Keep the incumbent" };
 
-/** Replacement trials (challenger vs incumbent): approve, cancel and decide. Shown on the Decisions page. */
+/** Replacement trials (challenger vs incumbent): approve, cancel and decide. Shown in the vendor scoring board on the Vendors page. */
 export default function Trials({ data, busy, act }: { data: any; busy: string | null; act: (body: any, key: string) => Promise<any> }) {
   const { t, N, K, d } = useI18n();
   const [savedApprover, saveApprover] = useApprover();

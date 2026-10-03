@@ -26,6 +26,8 @@ export async function POST(req: Request) {
     const { buildChatContext } = await import("@/lib/chat");
     const edit = await reportEditAnswer(last.content, ui, () => buildChatContext(ui), { allowUnclear: !llmStatus().enabled });
     if (edit) return NextResponse.json(edit);
+    const cedit = await (await import("@/lib/campaign-chat")).campaignEditAnswer(last.content, ui, () => buildChatContext(ui), { allowUnclear: !llmStatus().enabled });
+    if (cedit) return NextResponse.json(cedit);
     const ai = llmStatus().enabled;
     const useAi = ai && process.env.CHAT_WITH_AI !== "off";
     const polish = ai && process.env.DRAFT_WITH_AI !== "off" ? (await import("@/lib/email-ai")).polishWithAI : undefined;

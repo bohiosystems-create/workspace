@@ -53,6 +53,11 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - Benchmarks by channel, season, year, project and vendor; a lesson per campaign and overall lessons (brokers and events convert best; Ramadan with a payment-plan offer works; summer is weakest; radio and billboards cost the most per sale; a low qualified rate in month one predicts weak sales).
 - Used as the yardstick by the daily check and the assistant.
 
+## 1d. Campaigns — every campaign as a dashboard, shaped from the chat
+
+- The Campaigns page lists every campaign that has run: the live 2026 campaigns (verified against Oracle cost and the CRM) and the 2023–2025 history. Each has its figures and a dashboard: sales and spend by month, leads and qualified by month, the funnel, cost to sales against the channel benchmark, budget used against flight elapsed; past campaigns show their lesson.
+- The user changes what is listed and what each dashboard shows by asking the assistant: add or remove figures and charts, add any chart in plain words (drawn for each campaign), filter by live/past, year, project, vendor or channel, and change the order. Every change is logged and can be undone; the page also has scope, year and order controls.
+
 ## 2. Vendor orchestration — the team's work, done for one manager
 
 - **Vendor directory:** every vendor (current, bench alternatives, past) in one list. Open one to see the campaigns it ran (live and past), its Oracle invoices, its work orders and deliverables, and all email correspondence through Outlook (sent and received).
@@ -119,7 +124,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - **It explains weekly CRM-qualified leads, not contracted sales.** A developer signs only a handful of contracts a week, which is too lumpy to model. Qualified leads arrive in the tens a week and respond to spend sooner. The CRM's own attribution is compared on the same basis (leads against leads).
   - **Wide estimates are flagged:** a channel whose 90% range spans more than about 1.2× its attributed leads is marked low reliability, as is one whose spend barely varied.
 
-## 7. Renewal decisions
+## 7. Renewal decisions (vendor scoring board, on the Vendors page)
 
 - Per vendor: **re-engage, renegotiate, performance plan, test a replacement, or exit** — with the evidence, a confidence level, what would change the decision, and targets.
 
@@ -128,7 +133,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - **Quarterly business review** per vendor, printable and sendable.
 - **Billing anomaly detection** (invoice spikes vs the campaign's history).
 - **RFP** for a replacement, generated from the incumbent's data and sent to the alternative vendors.
-- **Replacement trials** (on the Decisions page): when a vendor is flagged, the agent proposes a **paid trial** of a pre-vetted alternative against it; results are read from the CRM by trial code and the winner can be promoted. Alternatives are listed in the vendor directory.
+- **Replacement trials** (in the vendor scoring board on the Vendors page): when a vendor is flagged, the agent proposes a **paid trial** of a pre-vetted alternative against it; results are read from the CRM by trial code and the winner can be promoted. Alternatives are listed in the vendor directory.
 
 ## 9. Supplier invoices (Oracle)
 

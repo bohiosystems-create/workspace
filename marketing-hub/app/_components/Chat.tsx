@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { closest } from "@/lib/chat-catalog";
 import type { ChartSpec } from "@/lib/charts";
 import type { LayoutView } from "@/lib/report-layout";
+import type { CampaignLayoutView } from "@/lib/campaign-layout";
+import { CampaignLayoutCard } from "./CampaignLayoutCard";
 import { ChartView } from "./ChartView";
 import { useI18n } from "./lang";
 import { WorkingInline } from "./Working";
 import { ReportLayoutCard } from "./ReportLayoutCard";
 
-type Card = { kind: "rec"; key: string } | { kind: "email"; id: string } | { kind: "chart"; chart: ChartSpec } | { kind: "report"; view: LayoutView };
+type Card = { kind: "rec"; key: string } | { kind: "email"; id: string } | { kind: "chart"; chart: ChartSpec } | { kind: "report"; view: LayoutView } | { kind: "campaigns"; view: CampaignLayoutView };
 type Msg = { role: "user" | "assistant"; content: string; cards?: Card[]; engine?: string; model?: string; note?: string; api?: boolean; suggest?: string[]; flagged?: boolean };
 type Store = { recommendations: any[]; outbox: any[]; integration: { mode: string; delivery: string; sender: string } };
 
@@ -286,7 +288,7 @@ export default function Chat() {
                     <div className="muted" style={{ fontSize: 9, marginTop: 6 }}>{m.note ?? t("Answered by built-in rules. Add a Claude, OpenAI or Gemini API key for free-form answers.")}</div>
                   )}
                 </div>
-                {m.cards?.map((c, j) => <div key={j}>{c.kind === "rec" ? recCard(c.key) : c.kind === "chart" ? <ChartView spec={c.chart} /> : c.kind === "report" ? <ReportLayoutCard view={c.view} compact onUndo={i === msgs.length - 1 ? () => ask(lang === "ar" ? "تراجع عن آخر تعديل على التقرير" : "Undo the last report change") : undefined} /> : emailCard(c.id)}</div>)}
+                {m.cards?.map((c, j) => <div key={j}>{c.kind === "rec" ? recCard(c.key) : c.kind === "chart" ? <ChartView spec={c.chart} /> : c.kind === "report" ? <ReportLayoutCard view={c.view} compact onUndo={i === msgs.length - 1 ? () => ask(lang === "ar" ? "تراجع عن آخر تعديل على التقرير" : "Undo the last report change") : undefined} /> : c.kind === "campaigns" ? <CampaignLayoutCard view={c.view} onUndo={i === msgs.length - 1 ? () => ask(lang === "ar" ? "تراجع عن آخر تعديل على لوحات الحملات" : "Undo the last campaign dashboard change") : undefined} /> : emailCard(c.id)}</div>)}
                 {m.role === "assistant" && m.api && i === msgs.length - 1 && !busy && (() => {
                   // Safety net for questions nobody anticipated: the closest questions the assistant knows, and a way to
                   // say the answer missed (logged for review on the Reports page).

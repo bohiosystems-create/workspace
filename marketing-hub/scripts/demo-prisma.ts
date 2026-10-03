@@ -65,6 +65,8 @@ export const prisma = {
   reportSchedule: table([]),
   reportLayout: table([]),
   reportLayoutChange: table([]),
+  viewLayout: table([]),
+  viewLayoutChange: table([]),
   metaAdAccount: table([]),
   metaCampaign: table([], { kind: "UNRESOLVED", confidence: "LOW", review: "AUTO", reviewedBy: null, reviewedAt: null, vendorId: null, campaignCode: null }),
   metaIdentity: table([], { vendorId: null, inHouse: false }),

@@ -188,8 +188,8 @@ async function proposals(agents: (l: Lang) => Promise<Agent>): Promise<Proposal[
       key: `NONRENEW:${v.id}`, vendorId: v.id, kind: "NON_RENEWAL", routine: false,
       title: [`Non-renewal notice — contract ends ${dt("en", end)}`, `إشعار عدم التجديد — ينتهي العقد ${dt("ar", end)}`],
       detail: [
-        "Recommended exit (see Decisions). Check the contract's notice period before approving. Includes the handover list.",
-        "خروج موصى به (انظر القرارات). تحققوا من مهلة الإشعار في العقد قبل الاعتماد. يشمل قائمة التسليم.",
+        "Recommended exit (see the vendor scoring board on Vendors). Check the contract's notice period before approving. Includes the handover list.",
+        "خروج موصى به (انظر لوحة تقييم الموردين في صفحة الموردين). تحققوا من مهلة الإشعار في العقد قبل الاعتماد. يشمل قائمة التسليم.",
       ],
       payload: { contractEnd: d.contractEnd, expected },
       email: (l) => ({

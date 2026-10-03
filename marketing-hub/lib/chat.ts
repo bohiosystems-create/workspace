@@ -21,7 +21,7 @@ import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firs
 
 // What the chat can put in front of the user besides text. Cards are rendered live from
 // current data, so approving / editing an email happens in the card, never through the model.
-export type ChatCard = { kind: "rec"; key: string } | { kind: "email"; id: string } | { kind: "chart"; chart: ChartSpec } | { kind: "report"; view: import("./report-layout").LayoutView };
+export type ChatCard = { kind: "rec"; key: string } | { kind: "email"; id: string } | { kind: "chart"; chart: ChartSpec } | { kind: "report"; view: import("./report-layout").LayoutView } | { kind: "campaigns"; view: import("./campaign-layout").CampaignLayoutView };
 export type ChatReply = { reply: string; cards: ChatCard[]; engine: "anthropic" | "openai" | "gemini" | "rules"; model?: string; note?: string; suggest?: string[]; missed?: boolean };
 
 
@@ -216,6 +216,9 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   // 0. Changes to the daily report ("remove the invoices section", "move risks to the top", "undo").
   const edit = await (await import("./report-chat")).reportEditAnswer(question, lang, async () => (ctx && ctx.lang === lang ? ctx : buildChatContext(lang)), { allowUnclear: true });
   if (edit) return edit;
+  // 0b. Changes to the Campaigns page's dashboards ("add cost per qualified lead to the campaign dashboards").
+  const cedit = await (await import("./campaign-chat")).campaignEditAnswer(question, lang, async () => (ctx && ctx.lang === lang ? ctx : buildChatContext(lang)), { allowUnclear: true });
+  if (cedit) return cedit;
   const c = ctx && ctx.lang === lang ? ctx : await buildChatContext(lang);
   const q = question.toLowerCase();
   const { mkt, inv, recs, crm } = c;

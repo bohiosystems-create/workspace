@@ -199,6 +199,22 @@ const CASES: [string, string[]][] = [
   ["أعلى 5 بنود فقط في التقرير", ["تم تعديل التقرير اليومي", "5"]],
   ["Change the report please", ["I can change the daily report"]],
   ["Reset the daily report to default", ["back to the standard report"]],
+  // Changing the Campaigns page's dashboards from the chat (run in order; the last one resets it)
+  ["Reset the campaign dashboards", ["Campaign dashboards updated|Nothing to change"]],
+  ["Add cost per qualified lead to the campaign dashboards", ["Campaign dashboards updated", "Cost per qualified lead"]],
+  ["Remove the funnel from the campaign dashboards", ["removed", "funnel"]],
+  ["Add a chart of qualified leads by month to each campaign dashboard", ["Qualified leads by month"]],
+  ["Add a chart of leads by city to each campaign", ["Leads by city"]],
+  ["Sort campaigns by cost to sales", ["sorted by cost to sales", "lowest first"]],
+  ["Show only live campaigns on the campaigns page", ["live campaigns only"]],
+  ["Only Andalus Quarter campaigns on the dashboards", ["Andalus Quarter"]],
+  ["What's on the campaign dashboards?", ["Campaigns page", "Figures on each campaign"]],
+  ["Undo the last campaign dashboard change", ["Undone"]],
+  ["أضف وتيرة الإنفاق إلى لوحات الحملات", ["تم تعديل لوحات الحملات", "وتيرة الإنفاق"]],
+  ["رتّب الحملات حسب المبيعات", ["مرتبة حسب المبيعات"]],
+  ["Reset the campaign dashboards", ["back to the standard campaign dashboards"]],
+  // …and questions that mention campaigns stay questions
+  ["Show spend for each campaign", ["!Campaign dashboards updated"]],
 ];
 
 const FALLBACK = /I'm your AI assistant director of marketing\. Ask me|أنا مساعد مدير التسويق الذكي\. اسألوني|couldn't match that question|لم أتمكن من مطابقة/;
@@ -210,7 +226,7 @@ const FALLBACK = /I'm your AI assistant director of marketing\. Ask me|أنا م
   for (const [question, groups] of CASES) {
     const ar = /[؀-ۿ]/.test(question);
     const r = await localAnswer(question, ar ? ctx.ar : ctx.en, undefined, ar ? "ar" : "en");
-    const missing = groups.filter((g) => !g.split("|").some((w) => r.reply.toLowerCase().includes(w.toLowerCase())));
+    const missing = groups.filter((g) => g.startsWith("!") ? r.reply.toLowerCase().includes(g.slice(1).toLowerCase()) : !g.split("|").some((w) => r.reply.toLowerCase().includes(w.toLowerCase())));
     const fb = FALLBACK.test(r.reply);
     if (!fb && !missing.length) pass++;
     else fails.push(`✗ ${question}\n    ${fb ? "fell back to the generic answer" : `missing: ${missing.join(", ")}`}\n    got: ${r.reply.slice(0, 220).replace(/\n/g, " ⏎ ")}`);

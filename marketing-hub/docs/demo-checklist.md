@@ -108,6 +108,12 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   - Overdue work orders **0 → 1**, in red (Nakhla's press release is still late after a reminder)
 - [ ] Click **Download PDF** (or **Download HTML**): the same report the manager gets by email, as an A4 PDF to forward or file. **Download PDF** next to **Run snapshot** also works before any report is open. Press **▶ Play** (or ▶ on any History row) to watch the report as a presentation: one slide per section, chart and idea, with an optional voice-over.
 
+### 8b. Campaigns — every campaign as a dashboard (2 min)
+
+- [ ] **Campaigns**: 53 campaigns (10 live, 43 from 2023–2025), each with its figures; the live ones open on their dashboard (sales and spend by month, funnel, cost to sales vs the channel benchmark).
+- [ ] In the assistant: *"Add cost per qualified lead to the campaign dashboards"*, then *"Add a chart of leads by city to each campaign"*, then *"Sort campaigns by cost to sales"*. Each answer shows a card with **Open Campaigns** and **Undo**; reopen Campaigns to see the changes.
+- [ ] *"Show 2024 campaigns on the campaigns page"*: the list switches to 2024, each with its lesson. Finish with *"Reset the campaign dashboards"*.
+
 ### 9. Meta — which agency runs each campaign (3 min)
 
 - [ ] **Campaigns**, then scroll to **Meta ads — which agency runs each campaign** at the bottom (or click the Meta item in the Director's inbox, which jumps there). Expect: **SAR 576.2K Meta spend, 8 campaigns, 92% attributed to an agency.**
@@ -120,9 +126,9 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 10. Who's worth renewing (3 min)
 
-- [ ] **Decisions**: six vendors, each with a decision. For example, **Hajar Outdoor: exit** (high confidence) and **Tasweeq Digital: test a replacement**. Show the evidence and "what would change this".
+- [ ] **Vendors → Vendor scoring board** (scroll down, or open `/decisions`, which redirects there): six vendors ranked on one fair scale, each with a decision. For example, **Hajar Outdoor: exit** (high confidence) and **Tasweeq Digital: test a replacement**. Show the evidence and "what would change this".
 - [ ] **Experiments**: the holdout test shows how much of a vendor's results it really caused.
-- [ ] **Decisions → Replacement trials**: **Wasel Performance won its trial against Tasweeq Digital**. One click promotes it, and it gets budget in the next plan.
+- [ ] **Vendor scoring board → Replacement trials**: **Wasel Performance won its trial against Tasweeq Digital**. One click promotes it, and it gets budget in the next plan.
 
 ### 11. Market initiatives from all your data (4 min)
 

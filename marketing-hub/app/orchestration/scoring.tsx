@@ -1,8 +1,9 @@
 "use client";
+// The vendor scoring board (part of the Vendors page): every vendor on one fair scale, a renewal recommendation with its
+// evidence, replacement trials, the quarterly review and the replacement RFP — all from the same verified data.
 
 import { useEffect, useState } from "react";
 import { KRange } from "../_components/KCharts";
-import Header from "../_components/Header";
 import { useI18n } from "../_components/lang";
 import { useAgent, openDrafts } from "../_components/useAgent";
 import Trials from "../_components/Trials";
@@ -10,7 +11,7 @@ import Trials from "../_components/Trials";
 const METRIC_LABEL: Record<string, string> = { cpql: "Cost / qualified lead", value: "Revenue + pipeline / SAR", plan: "Spend vs plan", deadlines: "On time", revisions: "Revisions" };
 const DECISION_LABEL: Record<string, string> = { RE_ENGAGE: "Re-engage", RENEGOTIATE: "Renegotiate", PERFORMANCE_PLAN: "Performance plan", TEST_REPLACEMENT: "Test replacement", EXIT: "Exit" };
 
-export default function DecisionsPage() {
+export default function VendorScoringBoard() {
   const { t, N, k, d, lang } = useI18n();
   const { data, error, setError, busy, act, doc } = useAgent();
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -30,7 +31,9 @@ export default function DecisionsPage() {
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (data && typeof location !== "undefined" && location.hash === "#trials") setTimeout(() => document.getElementById("trials")?.scrollIntoView({ behavior: "smooth" }), 50);
+    // Old Decisions links land here (/orchestration#scoring, #trials, #qbr, #rfp).
+    const h = typeof location !== "undefined" ? location.hash.slice(1) : "";
+    if (data && ["scoring", "trials", "qbr", "rfp"].includes(h)) setTimeout(() => document.getElementById(h)?.scrollIntoView({ behavior: "smooth" }), 300);
   }, [!!data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -65,10 +68,9 @@ export default function DecisionsPage() {
   const CONF: Record<string, string> = { High: t("High"), Medium: t("Medium"), Low: t("Low") };
 
   return (
-    <div className="shell">
-      <Header />
-      <div className="section-title">{t("Vendor decisions")}</div>
-      <p className="intro">{t("Every vendor on one fair scale — verified data, normalised by channel and budget, adjusted for what the vendor actually caused — and a renewal recommendation with its evidence and confidence. Quarterly reviews and replacement RFPs are generated from the same data.")}</p>
+    <div id="scoring" style={{ marginTop: 26 }}>
+      <div className="section-title" style={{ fontSize: 12, margin: "0 0 6px" }}>{t("Vendor scoring board")}</div>
+      <p className="muted" style={{ fontSize: 11.5, margin: "0 0 12px", lineHeight: 1.6 }}>{t("Every vendor on one fair scale — verified data, normalised by channel and budget, adjusted for what the vendor actually caused — and a renewal recommendation with its evidence and confidence. Quarterly reviews and replacement RFPs are generated from the same data.")}</p>
 
       {error && <div className="err">{error}</div>}
       {note && <div className="panel" style={{ marginBottom: 12, fontSize: 12 }}>{note}</div>}
@@ -76,7 +78,8 @@ export default function DecisionsPage() {
 
       {data && (
         <>
-          <div className="panel">
+          <ScoreBoard scores={data.scores} />
+          <div className="panel" style={{ marginTop: 14 }}>
             <div className="chart-label">{t("Fair scorecard — 50 = channel benchmark")}</div>
             <div style={{ overflowX: "auto" }}>
               <table className="dtable">
@@ -113,7 +116,7 @@ export default function DecisionsPage() {
             <div className="muted" style={{ fontSize: 10, marginTop: 10, lineHeight: 1.6 }}>{data.method}</div>
           </div>
 
-          <div className="section-title" style={{ fontSize: 12, margin: "24px 0 12px" }}>{t("Renewal recommendations")}</div>
+          <div className="chart-label" style={{ margin: "22px 0 10px" }}>{t("Renewal recommendations")}</div>
           {data.decisions.map((x: any) => (
             <div className="dec" key={x.vendorId}>
               <div className="dec-head">
@@ -144,7 +147,7 @@ export default function DecisionsPage() {
 
           <Trials data={data} busy={busy} act={act} />
 
-          <div id="qbr" className="section-title" style={{ fontSize: 12, margin: "24px 0 12px" }}>{t("Quarterly business review")}</div>
+          <div id="qbr" className="chart-label" style={{ margin: "22px 0 10px" }}>{t("Quarterly business review")}</div>
           <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
             <select style={{ width: "auto" }} value={qbrVendor} onChange={(e) => setQbrVendor(e.target.value)}>
               {data.decisions.map((x: any) => <option key={x.vendorId} value={x.vendorId}>{N(x.vendor)}</option>)}
@@ -179,7 +182,7 @@ export default function DecisionsPage() {
             </div>
           )}
 
-          <div id="rfp" className="section-title" style={{ fontSize: 12, margin: "24px 0 12px" }}>{t("Replacement brief / RFP")}</div>
+          <div id="rfp" className="chart-label" style={{ margin: "22px 0 10px" }}>{t("Replacement brief / RFP")}</div>
           <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
             <select style={{ width: "auto" }} value={rfpVendor} onChange={(e) => setRfpVendor(e.target.value)}>
               {data.decisions.map((x: any) => <option key={x.vendorId} value={x.vendorId}>{N(x.vendor)} — {t(DECISION_LABEL[x.decision])}</option>)}
@@ -200,6 +203,32 @@ export default function DecisionsPage() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// The board: vendors ranked on the fair score, each a bar against the channel benchmark (50) with its uncertainty range.
+function ScoreBoard({ scores }: { scores: any[] }) {
+  const { t, N, k } = useI18n();
+  return (
+    <div className="sb-board">
+      {scores.map((s, i) => {
+        const tone = s.score < 40 ? "sb-bad" : s.score >= 60 ? "sb-good" : "";
+        return (
+          <div key={s.vendorId} className={`sb-row ${tone}`} style={{ animationDelay: `${i * 45}ms` }}>
+            <div className="sb-rank">{s.rank}</div>
+            <div className="sb-who"><b>{N(s.vendor)}</b><span>{N(s.category)} · {k(s.costK)}</span></div>
+            <div className="sb-bar" dir="ltr">
+              <div className="sb-par" style={{ left: "50%" }} title={t("Channel benchmark")} />
+              <div className="sb-range" style={{ left: `${s.low}%`, width: `${Math.max(1, s.high - s.low)}%` }} />
+              <div className="sb-fill" style={{ width: `${s.score}%`, animationDelay: `${120 + i * 45}ms` }} />
+            </div>
+            <div className="sb-score">{s.score}<span>/100</span></div>
+            <span className={`pill ${s.confidence === "High" ? "healthy" : s.confidence === "Low" ? "weak" : "hold"}`}>{t(s.confidence)}</span>
+          </div>
+        );
+      })}
+      <div className="sb-key"><span><i className="sb-k-fill" />{t("Score")}</span><span><i className="sb-k-range" />{t("Range")}</span><span><i className="sb-k-par" />{t("Channel benchmark")} = 50</span></div>
     </div>
   );
 }

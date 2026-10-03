@@ -1,12 +1,13 @@
 // Entry for the static demo: mounts the real page and answers /api/marketing in the browser.
 import { layoutState, layoutAction } from "../lib/report-layout";
+import { campaignBoards } from "../lib/campaign-boards";
+import { campaignLayoutAction } from "../lib/campaign-layout";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import DirectorPage from "../app/page";
 import OrchestrationPage from "../app/orchestration/page";
 import ReportsPage from "../app/reports/page";
 import Page from "../app/campaigns/page";
-import DecisionsPage from "../app/decisions/page";
 import ExperimentsPage from "../app/experiments/page";
 import DataPage from "../app/data/page";
 import DailyPage from "../app/daily/page";
@@ -57,6 +58,12 @@ const qlang = (url: string) => langOf(new URL(url, "http://x").searchParams.get(
 
 window.fetch = (async (input: any, init?: any) => {
   const url = String(input?.url ?? input);
+  if (url.includes("/api/campaigns/boards")) {
+    try {
+      if (init?.method === "POST") { const b = JSON.parse(init.body); return json({ ...(await campaignLayoutAction(b)), boards: await campaignBoards(b?.lang === "ar" ? "ar" : "en") }); }
+      return json(await campaignBoards(qlang(url)));
+    } catch (e: any) { return json({ error: e.message }); }
+  }
   if (url.includes("/api/reports/layout")) {
     try { return json(init?.method === "POST" ? await layoutAction(JSON.parse(init.body)) : await layoutState(qlang(url))); }
     catch (e: any) { return json({ error: e.message }); }
@@ -213,7 +220,7 @@ window.fetch = (async (input: any, init?: any) => {
 const root = createRoot(document.getElementById("root")!);
 const show = (path: string) => {
   (window as any).__demoPath = path;
-  root.render(<React.Fragment key={path}>{({ "/orchestration": <OrchestrationPage />, "/reports": <ReportsPage />, "/campaigns": <Page />, "/decisions": <DecisionsPage />, "/experiments": <ExperimentsPage />, "/data": <DataPage />, "/daily": <DailyPage />, "/history": <HistoryPage />, "/ideas": <IdeasPage /> } as Record<string, React.ReactNode>)[path] ?? <DirectorPage />}</React.Fragment>);
+  root.render(<React.Fragment key={path}>{({ "/orchestration": <OrchestrationPage />, "/reports": <ReportsPage />, "/campaigns": <Page />, "/decisions": <OrchestrationPage />, "/experiments": <ExperimentsPage />, "/data": <DataPage />, "/daily": <DailyPage />, "/history": <HistoryPage />, "/ideas": <IdeasPage /> } as Record<string, React.ReactNode>)[path] ?? <DirectorPage />}</React.Fragment>);
 };
 document.addEventListener("click", (e) => {
   const a = (e.target as HTMLElement).closest("a[href^='/']");
