@@ -90,25 +90,25 @@
 <text x="218.0" y="690" font-size="13" font-weight="400" fill="#52514e" text-anchor="start">· vendors with no test</text>
 <text x="60" y="718" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">Oracle + vendor reports: weekly spend per channel,</text>
 <text x="60" y="738" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">104 weeks</text>
-<text x="60" y="758" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">CRM: weekly contracted sales; Ramadan, summer flags</text>
+<text x="60" y="758" font-size="13" font-weight="400" fill="#0b0b0b" text-anchor="start">CRM: weekly qualified leads (not sales); Ramadan, summer flags</text>
 <rect x="60" y="802" width="480" height="22" rx="11" fill="#fff" stroke="#6b7280" stroke-width="1.4"/>
 <circle cx="75" cy="813" r="8" fill="#6b7280"/>
 <text x="75" y="817" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">~</text>
-<text x="92" y="817" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">Directional: lumpy sales, long lag, under 52 weeks</text>
+<text x="92" y="817" font-size="12" font-weight="400" fill="#0b0b0b" text-anchor="start">Directional: needs ~2 years of weekly data; flags wide ranges</text>
 <line x1="560" y1="748" x2="620" y2="748" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
 <text x="590.0" y="740" font-size="11" font-weight="400" fill="#52514e" text-anchor="middle">inputs</text>
 <rect x="620" y="662" width="280" height="172" rx="6" fill="#fff" stroke="#0b0b0b" stroke-width="1.4"/>
 <text x="640" y="690" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">How</text>
-<text x="640" y="720" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">Regression with lag and</text>
-<text x="640" y="742" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">diminishing returns,</text>
-<text x="640" y="764" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">bootstrapped range</text>
+<text x="640" y="720" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">Regression of weekly leads</text>
+<text x="640" y="742" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">with lag and diminishing</text>
+<text x="640" y="764" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">returns, bootstrapped range</text>
 <line x1="900" y1="748" x2="960" y2="748" stroke="#0b0b0b" stroke-width="1.6" marker-end="url(#a)"/>
 <text x="930.0" y="740" font-size="11" font-weight="400" fill="#52514e" text-anchor="middle">readout</text>
 <rect x="960" y="662" width="320" height="172" rx="6" fill="#eef4fb" stroke="#2a78d6" stroke-width="1.4"/>
 <text x="980" y="690" font-size="12" font-weight="700" fill="#52514e" text-anchor="start">Result</text>
-<text x="980" y="720" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="start">Incremental sales per channel</text>
-<text x="980" y="742" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">vs what the CRM credits</text>
-<text x="980" y="764" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">reliability flag per channel</text>
+<text x="980" y="720" font-size="14" font-weight="600" fill="#0b0b0b" text-anchor="start">Incremental qualified leads</text>
+<text x="980" y="742" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">per channel vs what the CRM</text>
+<text x="980" y="764" font-size="14" font-weight="400" fill="#0b0b0b" text-anchor="start">credits; reliability flag</text>
 <rect x="1340" y="282" width="220" height="552" rx="6" fill="#fff" stroke="#0b0b0b" stroke-width="1.6"/>
 <text x="1360" y="312" font-size="14" font-weight="700" fill="#0b0b0b" text-anchor="start">Feeds the director</text>
 <text x="1360" y="346" font-size="14" font-weight="700" fill="#0b0b0b" text-anchor="start">Fair score</text>

@@ -204,7 +204,7 @@ const UI2: Record<string, string> = {
  "Approve and start test": "اعتماد الاختبار وبدؤه",
  "Approve trial": "اعتماد التجربة",
  "Audience holdout": "مجموعة مستبعدة من الجمهور",
- "Below 100% = the CRM over-credits the channel (some of those sales would have happened anyway); above 100% = it is under-credited (typically brand channels). The red line marks 100%.": "أقل من 100% = ينسب النظام للقناة أكثر من أثرها (بعض هذه المبيعات كانت ستحدث على أي حال)؛ وأكثر من 100% = ينسب لها أقل من أثرها (غالباً قنوات العلامة التجارية). الخط الأحمر يمثل 100%.",
+ "Below 100% = the CRM over-credits the channel (some of those leads would have come anyway); above 100% = it is under-credited (typically brand channels). The red line marks 100%.": "أقل من 100% = ينسب النظام للقناة أكثر من أثرها (بعض هذه المبيعات كانت ستحدث على أي حال)؛ وأكثر من 100% = ينسب لها أقل من أثرها (غالباً قنوات العلامة التجارية). الخط الأحمر يمثل 100%.",
  "Bench & trials": "البدائل والتجارب",
  "Bench & Trials": "البدائل والتجارب",
  "Bench of alternative vendors": "قائمة الموردين البدلاء",
@@ -760,6 +760,9 @@ const UI9: Record<string, string> = {
 
 // Vendor directory (Orchestration)
 const UI10: Record<string, string> = {
+  "Media-mix model — incremental qualified leads by channel": "نموذج مزيج الإعلام — العملاء المؤهلون الإضافيون حسب القناة",
+  "Incremental qualified leads": "العملاء المؤهلون الإضافيون",
+  "Leads per SAR K": "العملاء لكل ألف ريال",
   "Show values": "إظهار القيم",
   "Hide values": "إخفاء القيم",
   "Play as a presentation": "تشغيل كعرض تقديمي",

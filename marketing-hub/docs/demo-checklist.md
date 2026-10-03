@@ -92,7 +92,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] **14 waiting for your approval** under the list: 6 June briefs (drafted from the plan you just approved), 7 routine (5 lead-feedback emails and 2 reminders for late items), and 1 non-renewal notice. Click **Show the messages** and open the **PropertyHub KSA** brief: it's in **Arabic**, the vendor's language.
 - [ ] Tick **I have read the routine messages**, then click **Approve and send all routine**.
 - [ ] Tick **I have read the briefs**, then click **Approve and send all briefs**.
-- [ ] Click **Sada Influence** in the vendor list. Show the header (score 45, SAR 232K spend, SAR 54K outstanding) and the decision: a 60-day performance plan.
+- [ ] Click **Sada Influence** in the vendor list. Show the header (score 41, SAR 232K spend, SAR 54K outstanding) and the decision: a 60-day performance plan.
   - **Overview:** its work orders with the director's checks, and what it owes us. Click **Mark received** on the late item, *Creator content — June batch*. It becomes "Received late".
   - **Campaigns:** its live 2026 campaigns and its past campaigns with their lessons.
   - **Invoices:** its 7 Oracle invoices with payment status and reconciliation checks.

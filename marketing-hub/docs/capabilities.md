@@ -100,6 +100,8 @@ An AI assistant director of marketing for a real-estate developer with **one mar
 - **Holdout and geo tests:** lift, 90% interval, share of results the vendor actually caused, cost per extra result.
 - **Test designer** with a minimum-detectable-lift calculation; tests start only after approval.
 - **Media-mix model** across channels (carry-over, saturation, seasonality such as Ramadan and summer) with reliability checks. Controlled tests take precedence.
+  - **It explains weekly CRM-qualified leads, not contracted sales.** A developer signs only a handful of contracts a week, which is too lumpy to model. Qualified leads arrive in the tens a week and respond to spend sooner. The CRM's own attribution is compared on the same basis (leads against leads).
+  - **Wide estimates are flagged:** a channel whose 90% range spans more than about 1.2× its attributed leads is marked low reliability, as is one whose spend barely varied.
 
 ## 7. Renewal decisions
 

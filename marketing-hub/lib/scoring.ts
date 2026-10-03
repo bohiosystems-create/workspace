@@ -41,9 +41,12 @@ export type VendorScore = {
 
 export async function buildScores(lang: Lang = "en", pre?: { unified?: Unified; incrementality?: Incrementality }) {
   const unified = pre?.unified ?? (await buildUnified(lang));
-  const attributed: Record<string, number> = {};
-  for (const v of unified.vendors) attributed[v.category] = (attributed[v.category] ?? 0) + v.verified.salesM;
-  const inc = pre?.incrementality ?? (await buildIncrementality(lang, attributed));
+  const attributed: Record<string, number> = {}, attributedSales: Record<string, number> = {};
+  for (const v of unified.vendors) {
+    attributed[v.category] = (attributed[v.category] ?? 0) + v.verified.qualified; // qualified leads: the media-mix outcome
+    attributedSales[v.category] = (attributedSales[v.category] ?? 0) + v.verified.salesM;
+  }
+  const inc = pre?.incrementality ?? (await buildIncrementality(lang, attributed, attributedSales));
   const [deliverables, vendorRecs] = await Promise.all([prisma.deliverable.findMany(), prisma.vendor.findMany()]);
 
   const scores: VendorScore[] = unified.vendors.map((v) => {

@@ -260,6 +260,7 @@ model SalesWeek {
   id       String  @id @default(cuid())
   week     String  @unique
   salesM   Float
+  qualified Float  @default(0) // CRM-qualified leads that week — the media-mix model's outcome (sales per week are too lumpy)
   ramadan  Boolean @default(false)
 }
 

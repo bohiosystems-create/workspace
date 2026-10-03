@@ -93,20 +93,20 @@ export default function ExperimentsPage() {
 
           {data.incrementality.mmm && (
             <div className="panel" style={{ marginTop: 18 }}>
-              <div className="chart-label">{t("Media-mix model — incremental sales by channel")} ({data.incrementality.mmm.periodLabel})</div>
+              <div className="chart-label">{t("Media-mix model — incremental qualified leads by channel")} ({data.incrementality.mmm.periodLabel})</div>
               <ul style={{ fontSize: 11, color: "var(--ink-soft)", margin: "0 0 12px", paddingInlineStart: 18 }}>{data.incrementality.mmm.notes.map((n: string, i: number) => <li key={i}>{n}</li>)}</ul>
               <div style={{ overflowX: "auto" }}>
                 <table className="dtable">
-                  <thead><tr><th>{t("Channel")}</th><th className="num">{t("Spend")}</th><th className="num">{t("Incremental sales")}</th><th className="num">{t("90% range")}</th><th className="num">{t("Sales per SAR")}</th><th className="num">{t("CRM-attributed")}</th><th>{t("Incremental ÷ attributed")}</th><th>{t("Reliability")}</th></tr></thead>
+                  <thead><tr><th>{t("Channel")}</th><th className="num">{t("Spend")}</th><th className="num">{t("Incremental qualified leads")}</th><th className="num">{t("90% range")}</th><th className="num">{t("Leads per SAR K")}</th><th className="num">{t("CRM-attributed")}</th><th>{t("Incremental ÷ attributed")}</th><th>{t("Reliability")}</th></tr></thead>
                   <tbody>
                     {data.incrementality.mmm.channels.map((c: any) => (
                       <tr key={c.channel}>
                         <td><b>{N(c.channel)}</b>{c.caveat && <div className="muted" style={{ fontSize: 9, maxWidth: 240 }}>{c.caveat}</div>}</td>
                         <td className="num">{k(c.spendK)}</td>
-                        <td className="num">{m(c.contributionM)}</td>
-                        <td className="num">{c.lowM}–{c.highM}</td>
-                        <td className="num">{c.salesPerSar}</td>
-                        <td className="num">{c.attributedM === null ? "—" : m(c.attributedM)}</td>
+                        <td className="num">{c.contribution}</td>
+                        <td className="num">{c.low}–{c.high}</td>
+                        <td className="num">{c.leadsPerK}</td>
+                        <td className="num">{c.attributed === null ? "—" : c.attributed}</td>
                         <td style={{ minWidth: 150 }}>
                           {c.incrementalRatio === null ? "—" : (
                             <>
@@ -121,7 +121,7 @@ export default function ExperimentsPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Below 100% = the CRM over-credits the channel (some of those sales would have happened anyway); above 100% = it is under-credited (typically brand channels). The red line marks 100%.")}</div>
+              <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Below 100% = the CRM over-credits the channel (some of those leads would have come anyway); above 100% = it is under-credited (typically brand channels). The red line marks 100%.")}</div>
             </div>
           )}
         </>

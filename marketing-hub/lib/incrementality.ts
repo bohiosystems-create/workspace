@@ -7,7 +7,7 @@
 //
 // Tests are the gold standard; the MMM fills gaps for vendors that have not been tested.
 import { prisma } from "./prisma";
-import { ensureOpsSeeded } from "./seed-ops";
+import { ensureOpsSeeded, seedMediaMix } from "./seed-ops";
 import { type Lang, tx, K, M, nm } from "./i18n";
 import { powerHoldout, powerGeo } from "./stats";
 export { powerHoldout, powerGeo };
@@ -94,8 +94,10 @@ const adstock = (x: number[], decay: number) => { let a = 0; return x.map((v) =>
 const hill = (a: number[], half: number) => a.map((v) => v / (v + half));
 
 export type MmmChannel = {
-  channel: string; spendK: number; contributionM: number; lowM: number; highM: number; salesPerSar: number;
-  attributedM: number | null; incrementalRatio: number | null; incrementalRatioLow: number | null; incrementalRatioHigh: number | null;
+  // The outcome is CRM-qualified leads per week (not contracted sales: a developer signs a handful of contracts a week,
+  // far too lumpy to model). contribution = qualified leads the channel added Jan–May 2026.
+  channel: string; spendK: number; contribution: number; low: number; high: number; leadsPerK: number;
+  attributed: number | null; incrementalRatio: number | null; incrementalRatioLow: number | null; incrementalRatioHigh: number | null;
   decay: number; spendVariation: number; reliable: boolean; caveat: string | null;
 };
 export type Mmm = {
@@ -103,14 +105,19 @@ export type Mmm = {
   channels: MmmChannel[]; notes: string[];
 };
 
-export async function fitMmm(lang: Lang = "en", attributedByChannel: Record<string, number> = {}): Promise<Mmm | null> {
+export async function fitMmm(lang: Lang = "en", attributedByChannel: Record<string, number> = {}, salesByChannel: Record<string, number> = {}): Promise<Mmm | null> {
   await ensureOpsSeeded();
-  const [cw, sw] = await Promise.all([prisma.channelWeek.findMany(), prisma.salesWeek.findMany()]);
-  if (sw.length < 20) return null;
+  let [cw, sw] = await Promise.all([prisma.channelWeek.findMany(), prisma.salesWeek.findMany()]);
+  // The sample's weekly lead series is built once the CRM has synced, from each channel's CRM leads per SAR M of sales.
+  if (sw.length >= 20 && sw.every((w) => !w.qualified) && typeof (prisma.salesWeek as any).deleteMany === "function") {
+    await seedMediaMix(Object.fromEntries(Object.keys(attributedByChannel).map((ch) => [ch, salesByChannel[ch] ? attributedByChannel[ch] / salesByChannel[ch] : 15])));
+    [cw, sw] = await Promise.all([prisma.channelWeek.findMany(), prisma.salesWeek.findMany()]);
+  }
+  if (sw.length < 20 || sw.every((w) => !w.qualified)) return null;
   const weeks = [...sw].sort((a, b) => a.week.localeCompare(b.week));
   const channels = [...new Set(cw.map((c) => c.channel))].sort();
   const spend: Record<string, number[]> = Object.fromEntries(channels.map((ch) => [ch, weeks.map((w) => cw.find((c) => c.week === w.week && c.channel === ch)?.spendK ?? 0)]));
-  const y = weeks.map((w) => w.salesM);
+  const y = weeks.map((w) => w.qualified);
   const T = weeks.length;
   const base = weeks.map((w, t) => [1, t / T, w.ramadan ? 1 : 0, ["07", "08"].includes(w.week.slice(5, 7)) ? 1 : 0]);
   const mean = (a: number[]) => a.reduce((s, x) => s + x, 0) / a.length;
@@ -175,27 +182,28 @@ export async function fitMmm(lang: Lang = "en", attributedByChannel: Record<stri
     const c = contrib(f.beta, j);
     const cv = Math.sqrt(mean(spend[ch].map((x) => (x - mean(spend[ch])) ** 2))) / Math.max(1e-6, mean(spend[ch]));
     const attributed = attributedByChannel[ch] ?? null;
-    const caveat = ch === "Broker network"
-      ? tx(lang, "Commission is paid on sales, so spend follows sales — the model can overstate this channel.", "تُدفع العمولة على المبيعات، فيتبع الإنفاق المبيعات — قد يبالغ النموذج في تقدير هذه القناة.")
-      : cv < 0.2 ? tx(lang, "Spend barely varied, so its effect cannot be separated reliably.", "لم يتغيّر الإنفاق كثيراً، فلا يمكن فصل أثره بموثوقية.") : null;
+    const wide = !!attributed && (pct(draws[j], 0.95) - pct(draws[j], 0.05)) / attributed > 1.2;
+    const caveat = cv < 0.2 ? tx(lang, "Spend barely varied, so its effect cannot be separated reliably.", "لم يتغيّر الإنفاق كثيراً، فلا يمكن فصل أثره بموثوقية.")
+      : wide ? tx(lang, "The estimate's range is too wide to rely on.", "نطاق التقدير واسع جداً للاعتماد عليه.") : null;
     return {
-      channel: ch, spendK: r1(sp), contributionM: r1(c), lowM: r1(pct(draws[j], 0.05)), highM: r1(pct(draws[j], 0.95)),
-      salesPerSar: sp > 0 ? r1((c * 1000) / sp) : 0,
-      attributedM: attributed === null ? null : r1(attributed),
+      channel: ch, spendK: r1(sp), contribution: Math.round(c), low: Math.round(pct(draws[j], 0.05)), high: Math.round(pct(draws[j], 0.95)),
+      leadsPerK: sp > 0 ? r2(c / sp) : 0,
+      attributed: attributed === null ? null : Math.round(attributed),
       incrementalRatio: attributed ? r2(c / attributed) : null,
       incrementalRatioLow: attributed ? r2(pct(draws[j], 0.05) / attributed) : null,
       incrementalRatioHigh: attributed ? r2(pct(draws[j], 0.95) / attributed) : null,
-      decay: params[ch].decay, spendVariation: r2(cv), reliable: cv >= 0.2 && ch !== "Broker network", caveat,
+      decay: params[ch].decay, spendVariation: r2(cv), reliable: cv >= 0.2 && !(attributed && (pct(draws[j], 0.95) - pct(draws[j], 0.05)) / attributed > 1.2), caveat,
     };
   });
-  const media = out.reduce((s, c) => s + c.contributionM, 0);
+  const media = out.reduce((s, c) => s + c.contribution, 0);
   const sufficient = T >= 52;
   const notes = [
     tx(lang, `${T} weeks of history; fit R² ${r2(r2v)}, mean error ${r1(mape)}%.`, `${T} أسبوعاً من البيانات التاريخية؛ جودة المطابقة R² ${r2(r2v)}، ومتوسط الخطأ ${r1(mape)}%.`),
     sufficient
       ? tx(lang, "Enough history to be directionally useful. Validate big decisions with a test.", "البيانات كافية لاستخدام النتائج بشكل استرشادي. تحقّقوا من القرارات الكبيرة باختبار.")
       : tx(lang, "Less than 52 weeks of history — treat as indicative only.", "أقل من 52 أسبوعاً من البيانات — النتائج إرشادية فقط."),
-    tx(lang, "Sample history (seeded). Replace with real weekly spend per channel and CRM sales before relying on it.", "بيانات تاريخية تجريبية. استبدلوها بالإنفاق الأسبوعي الفعلي لكل قناة ومبيعات نظام إدارة العملاء قبل الاعتماد عليها."),
+    tx(lang, "The model explains weekly CRM-qualified leads, not contracted sales: a developer signs only a handful of contracts a week, too lumpy to model, while qualified leads arrive in tens a week and respond to spend sooner.", "يفسّر النموذج العملاء المؤهلين أسبوعياً في النظام وليس المبيعات المتعاقد عليها: فالمطوّر يوقّع بضعة عقود فقط في الأسبوع، وهذا متقلب جداً للنمذجة، بينما يصل العملاء المؤهلون بعشرات أسبوعياً ويستجيبون للإنفاق أسرع."),
+    tx(lang, "Sample history (seeded). Replace with real weekly spend per channel and weekly CRM-qualified leads before relying on it.", "بيانات تاريخية تجريبية. استبدلوها بالإنفاق الأسبوعي الفعلي لكل قناة والعملاء المؤهلين أسبوعياً في النظام قبل الاعتماد عليها."),
   ];
   return { weeks: T, r2: r2(r2v), mape: r1(mape), sufficient, periodLabel: "Jan–May 2026", baseShare: r2(1 - media / totalPeriod), channels: out, notes };
 }
@@ -206,9 +214,9 @@ export type VendorIncrementality = {
   significant: boolean | null; source: string; text: string;
 };
 
-export async function buildIncrementality(lang: Lang = "en", attributedByChannel: Record<string, number> = {}) {
+export async function buildIncrementality(lang: Lang = "en", attributedByChannel: Record<string, number> = {}, salesByChannel: Record<string, number> = {}) {
   await ensureOpsSeeded();
-  const [experiments, vendors, mmm] = await Promise.all([prisma.experiment.findMany(), prisma.vendor.findMany(), fitMmm(lang, attributedByChannel)]);
+  const [experiments, vendors, mmm] = await Promise.all([prisma.experiment.findMany(), prisma.vendor.findMany(), fitMmm(lang, attributedByChannel, salesByChannel)]);
   const vName = new Map(vendors.map((v) => [v.id, v.name]));
   const tests = experiments.map((e) => {
     const design = JSON.parse(e.designJson);
@@ -237,10 +245,10 @@ export async function buildIncrementality(lang: Lang = "en", attributedByChannel
     const ch = mmm?.channels.find((c) => c.channel === v.category);
     if (ch && ch.incrementalRatio !== null) {
       return {
-        vendorId: v.id, evidence: "MMM", share: ch.incrementalRatio, low: ch.incrementalRatioLow, high: ch.incrementalRatioHigh, significant: ch.reliable ? ch.lowM > 0 : null, source: "MMM",
+        vendorId: v.id, evidence: "MMM", share: ch.incrementalRatio, low: ch.incrementalRatioLow, high: ch.incrementalRatioHigh, significant: ch.reliable ? ch.low > 0 : null, source: "MMM",
         text: tx(lang,
-          `Media-mix model: incremental sales ≈ ${Math.round(ch.incrementalRatio * 100)}% of CRM-attributed sales (90% range ${Math.round((ch.incrementalRatioLow ?? 0) * 100)}–${Math.round((ch.incrementalRatioHigh ?? 0) * 100)}%)${ch.reliable ? "" : " — low reliability"}.`,
-          `نموذج مزيج الإعلام: المبيعات الإضافية ≈ ${Math.round(ch.incrementalRatio * 100)}% من المبيعات المنسوبة في النظام (النطاق عند ثقة 90%: ${Math.round((ch.incrementalRatioLow ?? 0) * 100)}–${Math.round((ch.incrementalRatioHigh ?? 0) * 100)}%)${ch.reliable ? "" : " — موثوقية منخفضة"}.`),
+          `Media-mix model: incremental qualified leads ≈ ${Math.round(ch.incrementalRatio * 100)}% of CRM-attributed qualified leads (90% range ${Math.round((ch.incrementalRatioLow ?? 0) * 100)}–${Math.round((ch.incrementalRatioHigh ?? 0) * 100)}%)${ch.reliable ? "" : " — low reliability"}.`,
+          `نموذج مزيج الإعلام: العملاء المؤهلون الإضافيون ≈ ${Math.round(ch.incrementalRatio * 100)}% من العملاء المؤهلين المنسوبين في النظام (النطاق عند ثقة 90%: ${Math.round((ch.incrementalRatioLow ?? 0) * 100)}–${Math.round((ch.incrementalRatioHigh ?? 0) * 100)}%)${ch.reliable ? "" : " — موثوقية منخفضة"}.`),
       };
     }
     return { vendorId: v.id, evidence: "NONE", share: null, low: null, high: null, significant: null, source: "", text: tx(lang, "No incrementality evidence yet.", "لا توجد أدلة على الأثر الإضافي بعد.") };

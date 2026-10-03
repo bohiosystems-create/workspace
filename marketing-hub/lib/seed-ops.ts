@@ -103,10 +103,22 @@ export const ensureOpsSeeded = single(async function ensureOpsSeededImpl() {
     },
   });
 
-  // Media-mix history: 104 weeks of spend per channel and contracted sales.
+  await seedMediaMix();
+});
+
+/** Media-mix history: 104 weeks of spend per channel, contracted sales and — when `leadsPerM` is given — CRM-qualified
+ * leads (sample data). Qualified leads come from the same hidden channel effects as sales, scaled by each channel's
+ * CRM-qualified leads per SAR M of CRM sales, with their own noise. The model calls this once the CRM has synced
+ * (that is when those ratios are known). Safe to re-run: it replaces the weekly series. */
+export async function seedMediaMix(leadsPerM?: Record<string, number>) {
+  await prisma.channelWeek.deleteMany();
+  await prisma.salesWeek.deleteMany();
   const campaigns = await prisma.campaign.findMany({ include: { vendor: true, months: true } });
   const channels = Object.keys(TRUE_EFFECT);
-  const r2 = rng(42);
+  const r2 = rng(42), r3 = rng(7); // r2 drives the sales series (unchanged); r3 only the lead noise
+  const lpm = (ch: string) => leadsPerM?.[ch] ?? 0;
+  const vals = leadsPerM ? Object.values(leadsPerM) : [];
+  const avgRatio = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
   const start = new Date("2024-06-03T00:00:00Z");
   const level: Record<string, number> = {};
   for (const ch of channels) {
@@ -121,8 +133,9 @@ export const ensureOpsSeeded = single(async function ensureOpsSeededImpl() {
     const week = iso(d);
     const ym = week.slice(0, 7);
     let sales = 3.2 * (1 + 0.006 * w); // base demand, SAR M / week
-    if (ramadan(d)) sales *= 0.75;
-    if (["07", "08"].includes(week.slice(5, 7))) sales *= 0.85;
+    let qual = sales * avgRatio; // base qualified leads / week
+    if (ramadan(d)) { sales *= 0.75; qual *= 0.75; }
+    if (["07", "08"].includes(week.slice(5, 7))) { sales *= 0.85; qual *= 0.85; }
     for (const ch of channels) {
       let spend: number;
       if (d >= new Date("2026-01-01")) {
@@ -140,9 +153,11 @@ export const ensureOpsSeeded = single(async function ensureOpsSeededImpl() {
       ad[ch] = spend + e.decay * ad[ch];
       const half = level[ch] * 1.5;
       sales += e.beta * (ad[ch] / (ad[ch] + half));
+      qual += e.beta * lpm(ch) * (ad[ch] / (ad[ch] + half));
       await prisma.channelWeek.create({ data: { week, channel: ch, spendK: spend } });
     }
     sales *= 1 + (r2() - 0.5) * 0.12;
-    await prisma.salesWeek.create({ data: { week, salesM: Math.round(sales * 100) / 100, ramadan: ramadan(d) } });
+    qual *= 1 + (r3() - 0.5) * 0.2;
+    await prisma.salesWeek.create({ data: { week, salesM: Math.round(sales * 100) / 100, qualified: leadsPerM ? Math.round(qual) : 0, ramadan: ramadan(d) } });
   }
-});
+}
