@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Header from "../_components/Header";
+import Spark from "../_components/Spark";
 import { useI18n } from "../_components/lang";
 import { useApprover, openDrafts } from "../_components/useAgent";
 
@@ -58,7 +59,7 @@ export default function IdeasPage() {
             <div className="chart-label">{t("What the data shows")} · {t("daily scan")} {data.crmAsOf ? new Date(data.crmAsOf).toLocaleDateString(lang === "ar" ? "ar-SA-u-nu-latn" : "en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""}</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "0 0 8px" }}>
               {data.sources.map((x: any) => (
-                <button key={x.source} className={`chip${srcFilter === x.source ? " on" : ""}`} style={{ fontSize: 10 }} title={x.note ?? ""} onClick={() => setSrcFilter(srcFilter === x.source ? "" : x.source)}>
+                <button key={x.source} className={`chip${srcFilter === x.source ? " on" : ""}`} style={{ fontSize: 10, maxWidth: "100%", whiteSpace: "normal", textAlign: "start" }} title={x.note ?? ""} onClick={() => setSrcFilter(srcFilter === x.source ? "" : x.source)}>
                   {x.label} · <span dir="ltr">{x.items.toLocaleString("en")}</span> {x.unit}{x.found ? <b> → {x.found}</b> : null}
                 </button>
               ))}
@@ -72,6 +73,7 @@ export default function IdeasPage() {
                   <div className="muted" style={{ fontSize: 11.5 }}>{sg.why}</div>
                   {sg.related.length > 0 && <div style={{ fontSize: 11, marginTop: 3 }}>{sg.related.map((r: any) => <div key={r.id}>↳ <span className="muted">{r.sourceLabel}:</span> {r.title}</div>)}</div>}
                 </div>
+                <Spark values={sg.series} down={sg.direction === "down"} width={84} height={22} />
                 {(sg.projectKey || sg.scope === "portfolio") && <button className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, flex: "none" }} disabled={busy === sg.id} title={!sg.projectKey ? t("For the project chosen in the brief (or the one furthest behind target)") : ""} onClick={() => act({ action: "GENERATE", brief: { project: sg.projectKey || brief.project || undefined, signalId: sg.id, engine: brief.engine } }, sg.id)}>{busy === sg.id ? t("Thinking…") : t("Initiatives for this")}</button>}
               </div>
             ))}

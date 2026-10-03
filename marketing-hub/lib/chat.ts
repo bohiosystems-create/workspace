@@ -185,7 +185,7 @@ const RX = {
 };
 
 const RX_IDEA = /\bideas?\b|plan something|something (for|around) (the )?(summer|ramadan|eid|national day|cityscape|holidays?|season|launch)|brainstorm|ideate|campaign concepts?|initiatives?|new campaign|plan a campaign|(need|want|run|launch|do) (a |an )?(new )?campaign (for|around|on)|come up with|what campaign (would|should|could|to)|campaign (idea|plan)s? for|next campaign|(suggest|propose|design|create) (a |an |some )?(new )?campaigns?|أفكار|فكرة|مبادرات|مبادرة|عصف ذهني|حملة جديدة|اقترح (حملة|حملات)|صمم حملة|خطط لحملة/;
-const RX_SIGNALS = /anomal|unusual (drop|fall|change|dip|decline|surge)|(sudden|sharp) (drop|fall|dip)|(drop|decline|fall|dip)s? in (leads|sales|contracts|qualified)|(leads|sales|contracts) (are )?(dropping|falling|declining|down)|what does the (crm|data) show|what did the (daily )?scan find|(crm|data) (signals?|alerts?|anomal)|anything unusual|daily scan|شذوذ|غير معتاد|غير طبيعي|(انخفاض|تراجع) (مفاجئ )?(في )?(العملاء|المبيعات|العقود)|ماذا يظهر النظام/;
+const RX_SIGNALS = /why (did|are|is|have|has|were)\b[^?]{0,60}(drop|down|fall|fell|declin|dip|slow)|what('s| is) (going on|happening|wrong) with|لماذا (انخفض|تراجع|انخفضت|تراجعت)|ما الذي يحدث (مع|في)|anomal|unusual (drop|fall|change|dip|decline|surge)|(sudden|sharp) (drop|fall|dip)|(drop|decline|fall|dip)s? in (leads|sales|contracts|qualified)|(leads|sales|contracts) (are )?(dropping|falling|declining|down)|what does the (crm|data) show|what did the (daily )?scan find|(crm|data) (signals?|alerts?|anomal)|anything unusual|daily scan|شذوذ|غير معتاد|غير طبيعي|(انخفاض|تراجع) (مفاجئ )?(في )?(العملاء|المبيعات|العقود)|ماذا يظهر النظام/;
 const RX_EXIT = /terminat|end (the |our |their )?(contract|relationship)|cancel (the |our |their )?contract|\bfire\b|let .{0,12} go\b(?! to)|let go\b|stop working with|get rid of|part ways|cut ties|(drop|replace|remove|cut) (a|one|which) (vendor|agency)|إنهاء (عقد|العقد|التعاقد|التعامل)|ننهي|نوقفه|نوقفها|إيقاف التعامل|فسخ|نستغني|الاستغناء|نوقف التعامل|نتخلص/;
 // "Which agency would you exit / replace?" — a selection word, a vendor word and an exit verb anywhere in the question.
 const isExitQ = (q: string) => RX_EXIT.test(q) ||
@@ -260,7 +260,11 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   // 1a. Market initiatives ("ideas for a Ramadan campaign for Marina Tower, SAR 300K"); they also answer CRM signals.
   if (RX_IDEA.test(q)) return done(await ideasAnswer(briefFromText(question, c), L));
   // 1a'. CRM anomalies ("any unusual drop in leads?", "what does the CRM show?").
-  if (RX_SIGNALS.test(q)) return done(await scanAnswer(L));
+  if (RX_SIGNALS.test(q)) {
+    const proj = resolve(question, c.q).find((e) => e.kind === "project")?.name ?? null;
+    // "What's going on with X" is only a scan question when X is a project; a vendor or campaign gets its own card.
+    if (proj || !/going on|happening|wrong with|ما الذي يحدث/.test(q)) return done(await scanAnswer(L, proj));
+  }
 
   // 1b. Help, definitions, daily check, comparisons, periods and the campaign history.
   const early = extraEarly(question, c);

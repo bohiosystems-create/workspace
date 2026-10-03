@@ -91,7 +91,7 @@ async function adSignals(camps: Camp[]): Promise<{ signals: Signal[]; items: num
     const plats = [...new Set(rs.map((r) => r.platform))].filter((p) => { const x = agg(first, p), y = agg(last, p); return x.ctr && y.ctr / x.ctr - 1 <= -0.2; });
     if (ch <= -0.2) {
       out.push({ ...base, source: "ADS", id: `ADS|${c.crmCode}|ctr`, kind: "AD_FATIGUE", metric: "ctr", direction: "down", severity: ch <= -0.4 ? "crit" : "warn", scope: "campaign",
-        project: c.project, campaign: c.name, vendor: c.vendor, family: c.family, recent: r1(b.ctr), baseline: r1(a.ctr), changePct: Math.round(ch * 100), from: weeks[0], to: weeks[weeks.length - 1], meta: { platforms: plats.join(", ") },
+        project: c.project, campaign: c.name, vendor: c.vendor, family: c.family, recent: r1(b.ctr), baseline: r1(a.ctr), changePct: Math.round(ch * 100), from: weeks[0], to: weeks[weeks.length - 1], meta: { platforms: plats.join(", ") }, series: weeks.map((w) => r1(agg([w]).ctr * 100) / 100),
         title: bi(`${c.name}: click-through rate down ${Math.round(-ch * 100)}% in 12 weeks${plats.length ? ` (${plats.map((p) => p[0] + p.slice(1).toLowerCase()).join(", ")})` : ""}`, `${nm("ar", c.name)}: انخفاض نسبة النقر ${Math.round(-ch * 100)}% خلال 12 أسبوعاً${plats.length ? ` (${plats.join("، ")})` : ""}`),
         why: bi(`Ad platforms: ${r1(a.ctr)}% CTR in the first 4 weeks vs ${r1(b.ctr)}% in the last 4, with the same creatives running — the audience has seen them too often (creative fatigue). Cost per platform lead SAR ${Math.round(a.cpl)} → ${Math.round(b.cpl)}.`,
           `المنصات الإعلانية: نسبة نقر ${r1(a.ctr)}% في أول 4 أسابيع مقابل ${r1(b.ctr)}% في آخر 4، بالإعلانات نفسها — شاهدها الجمهور أكثر من اللازم (إرهاق الإعلانات). تكلفة العميل من المنصة ${Math.round(a.cpl)} ← ${Math.round(b.cpl)} ر.س.`) });
@@ -197,7 +197,7 @@ export async function runScan(): Promise<Scan> {
     { source: "CRM", items: leadCount, unit: bi("leads", "عميل"), mode: process.env.CRM_MODE ?? "mock", note: crm.asOf ? bi(`data to ${dt("en", crm.asOf)}`, `بيانات حتى ${dt("ar", crm.asOf)}`) : null, found: cnt("CRM") },
     { source: "EMAIL", items: inbox.messages.length, unit: bi("emails (30 days)", "رسالة (30 يوماً)"), mode: inbox.mode, note: inbox.error ? bi(inbox.error, inbox.error) : inbox.mode === "mock" ? bi("sample inbox", "صندوق بريد نموذجي") : null, found: cnt("EMAIL") },
     { source: "INVOICES", items: inv.items, unit: bi("invoices and POs", "فاتورة وأمر شراء"), mode: inv.mode, note: null, found: cnt("INVOICES") },
-    { source: "ADS", items: ads.items, unit: bi("weekly platform rows (Meta, Google, Snap, TikTok)", "صف أسبوعي من المنصات (ميتا، جوجل، سناب، تيك توك)"), mode: process.env.ADS_MODE ?? "mock", note: null, found: cnt("ADS") },
+    { source: "ADS", items: ads.items, unit: bi("weekly ad rows", "صفاً أسبوعياً من المنصات"), mode: process.env.ADS_MODE ?? "mock", note: null, found: cnt("ADS") },
     { source: "COMPETITORS", items: COMPETITORS.length, unit: bi("competitors (Meta Ad Library)", "منافسين (مكتبة إعلانات ميتا)"), mode: "sample", note: null, found: cnt("COMPETITORS") },
     { source: "MARKET", items: marketSummary().length + 1, unit: bi("district series + mortgage rates", "سلاسل الأحياء + أسعار التمويل"), mode: "sample", note: null, found: cnt("MARKET") },
     { source: "CALENDAR", items: CALENDAR.length, unit: bi("dates", "مواعيد"), mode: "built-in", note: null, found: cnt("CALENDAR") },
@@ -228,10 +228,13 @@ export function scanView(scan: Scan, lang: Lang) {
 export type ScanView = ReturnType<typeof scanView>;
 
 /** Short answer for the assistant: what today's scan found, by source. */
-export async function scanAnswer(lang: Lang) {
+export async function scanAnswer(lang: Lang, project?: string | null) {
   const T = (en: string, ar: string) => (lang === "ar" ? ar : en);
   const v = scanView(await dailyScan(), lang);
-  const top = v.signals.filter((s) => !s.linkedTo);
+  const top = v.signals.filter((s) => !s.linkedTo && (!project || s.projectKey === project));
+  if (project) return T(`**What the data shows for ${nm("en", project)}**\n`, `**ما تُظهره البيانات لـ${nm("ar", project)}**\n`) +
+    (top.length ? top.map((s) => `- [${s.sourceLabel}] **${s.title}** — ${s.why}${s.related.length ? `\n  ${T("Explained by", "يفسّره")}: ${s.related.map((r) => `[${r.sourceLabel}] ${r.title} — ${r.why}`).join("; ")}` : ""}`).join("\n") : T("Nothing unusual for this project in any source.", "لا شيء غير معتاد لهذا المشروع في أي مصدر.")) +
+    T("\n\nThe initiative that answers each finding is on the **Initiatives** page (\"Initiatives for this\").", "\n\nالمبادرة التي تستجيب لكل نتيجة في صفحة **المبادرات** («مبادرات لهذه الإشارة»).");
   return T(`**What the data shows today** — scanned ${v.sources.map((s) => `${s.label} (${s.items.toLocaleString("en")} ${s.unit})`).join(", ")}.\n`, `**ما تُظهره البيانات اليوم** — فُحص: ${v.sources.map((s) => `${s.label} (${s.items.toLocaleString("en")} ${s.unit})`).join("، ")}.\n`) +
     (top.length ? top.slice(0, 10).map((s) => `- [${s.sourceLabel}] **${s.title}** — ${s.why}${s.related.length ? `\n  ${T("Related", "مرتبط")}: ${s.related.map((r) => `[${r.sourceLabel}] ${r.title}`).join("; ")}` : ""}`).join("\n") : T("Nothing unusual in any source.", "لا شيء غير معتاد في أي مصدر.")) +
     T("\n\nEach finding gets a market initiative that answers it, in the daily report and on the **Initiatives** page. Follow-up of the leads themselves stays with Kinan's agent.", "\n\nلكل نتيجة مبادرة سوق تستجيب لها في التقرير اليومي وصفحة **المبادرات**. وتبقى متابعة العملاء أنفسهم لدى وكيل كنان.");

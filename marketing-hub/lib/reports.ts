@@ -11,6 +11,7 @@
 //           (REPORTS_ALLOWED_DOMAINS, default: the sender's domain). The report takes no action and contacts no
 //           vendor or customer.
 import { prisma } from "./prisma";
+import { now } from "./clock";
 import { single, serial } from "./single";
 import { buildAgent } from "./agent";
 import { historyState } from "./history";
@@ -232,9 +233,10 @@ async function ideasSection(lang: Lang, date: string): Promise<[string, string, 
     const more = di.signals.filter((x) => !x.linkedTo).length - top.length;
     const scannedLine = `${esc(T(`Scanned today (${di.crmAsOf ? dt("en", di.crmAsOf) : "—"})`, `فُحص اليوم (${di.crmAsOf ? dt("ar", di.crmAsOf) : "—"})`))}: ${di.scanned.map((x) => `${esc(x.label)} <span style="color:${C.soft}">${x.items.toLocaleString("en")}</span>${x.found ? ` <b>→ ${x.found}</b>` : ""}`).join(" · ")}`;
     const sigHtml = `<div data-part style="margin:0 0 8px"><div style="font-size:11px;color:${C.soft};margin-bottom:6px">${scannedLine}</div>` + (top.length
-      ? `<ul style="margin:0;padding-inline-start:18px;line-height:1.5;font-size:12px">${top.map((x) => `<li style="margin-bottom:4px"><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:${C.soft}">${esc(x.sourceLabel)}</span> <b style="color:${x.direction === "down" ? C.alert : C.ink}">${esc(x.title)}</b><br><span style="color:${C.soft}">${esc(x.why)}</span>${x.related.length ? `<br><span style="font-size:11px">↳ ${x.related.map((r) => `${esc(r.sourceLabel)}: ${esc(r.title)}`).join("<br>↳ ")}</span>` : ""}</li>`).join("")}</ul>${more > 0 ? `<p style="margin:4px 0 0;color:${C.soft};font-size:11px">${esc(T(`+ ${more} smaller findings on the Initiatives page.`, `+ ${more} نتائج أصغر في صفحة المبادرات.`))}</p>` : ""}`
+      ? `<ul style="margin:0;padding-inline-start:18px;line-height:1.5;font-size:12px">${top.map((x) => `<li style="margin-bottom:4px"><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:${C.soft}">${esc(x.sourceLabel)}</span> <b style="color:${x.direction === "down" ? C.alert : C.ink}">${esc(x.title)}</b>${spark(x.series, x.direction === "down")}<br><span style="color:${C.soft}">${esc(x.why)}</span>${x.related.length ? `<br><span style="font-size:11px">↳ ${x.related.map((r) => `${esc(r.sourceLabel)}: ${esc(r.title)}`).join("<br>↳ ")}</span>` : ""}</li>`).join("")}</ul>${more > 0 ? `<p style="margin:4px 0 0;color:${C.soft};font-size:11px">${esc(T(`+ ${more} smaller findings on the Initiatives page.`, `+ ${more} نتائج أصغر في صفحة المبادرات.`))}</p>` : ""}`
       : `<p style="margin:0;font-size:12px;color:${C.soft}">${esc(T("Nothing unusual in any source today.", "لا شيء غير معتاد في أي مصدر اليوم."))}</p>`) + `</div>`;
     const sigs = top;
+    const spark = (xs: number[] | null, down: boolean) => { if (!xs || xs.length < 4) return ""; const max = Math.max(...xs, 0.0001); return `<span style="display:inline-block;vertical-align:middle;margin-inline-start:6px;line-height:0;white-space:nowrap">${xs.map((v, i) => `<span style="display:inline-block;width:4px;margin-inline-end:1px;height:${Math.max(1, Math.round((v / max) * 14))}px;background:${i >= xs.length - 3 ? (down ? C.alert : C.ink) : C.line}"></span>`).join("")}</span>`; };
     const html = sigHtml + `<p style="margin:0 0 4px">${esc(T(`Focus today: <${di.project}> for ${di.month} (${di.goal.toLowerCase()}), angle: ${di.angle}.`, `تركيز اليوم: <${di.project}> لشهر ${di.month} (${di.goal})، الزاوية: ${di.angle}.`)).replace(/&lt;(.*?)&gt;/, "<b>$1</b>")}</p>` +
       di.ideas.map((x, k) => card(x, k + 1)).join("") +
       `<p style="margin:8px 0 0;color:${C.soft};font-size:11px">${esc(engine)}. ${esc(T("Findings are computed from your data sources; forecasts come from the 2023–2025 history, not from the AI. Shortlist or approve on the Initiatives page; approving drafts a vendor brief for your approval.", "النتائج محسوبة من مصادر بياناتكم؛ والتوقعات من تاريخ 2023–2025 وليست من الذكاء الاصطناعي. ضعوها في القائمة المختصرة أو اعتمدوها من صفحة المبادرات؛ الاعتماد يُعدّ موجزاً للمورد بانتظار موافقتكم."))}</p>`;
@@ -315,7 +317,7 @@ ${sec.map(([h, body]) => `<div data-slide="${esc(h)}" style="background:#fff;bor
 export async function runSnapshot(lang: Lang) {
   const all = await prisma.report.findMany();
   const prev = all.filter((r) => r.lang === lang).sort((p, q) => q.createdAt.getTime() - p.createdAt.getTime())[0];
-  const r = await buildSnapshot(lang, new Date(), prev ? { metrics: JSON.parse(prev.metrics), date: prev.date, at: prev.createdAt } : null);
+  const r = await buildSnapshot(lang, now(), prev ? { metrics: JSON.parse(prev.metrics), date: prev.date, at: prev.createdAt } : null);
   const row = await prisma.report.create({ data: { date: r.date, kind: "SNAPSHOT", trigger: "MANUAL", lang, title: r.title, html: r.html, text: r.text, metrics: JSON.stringify(r.metrics), recipients: "", status: "GENERATED", delivery: null, error: null, sentAt: null, kinanEventId: null } });
   return row.id;
 }
@@ -367,13 +369,13 @@ export const runSchedule = serial(async (now: Date = new Date()) => {
 /** Preview (no send) in one language, or send now to the schedule's recipients in its languages. */
 export async function runNow(send: boolean, lang: Lang) {
   const s = await ensureSchedule();
-  const ln = localNow(s.timezone);
+  const ln = localNow(s.timezone, now());
   return produce("MANUAL", ln.date, send, send ? (s.languages.split(",") as Lang[]) : [lang]);
 }
 
 export async function reportsState(lang: Lang) {
   const s = await ensureSchedule();
-  const ln = localNow(s.timezone);
+  const ln = localNow(s.timezone, now());
   const reports = (await prisma.report.findMany()).sort((p, q) => q.createdAt.getTime() - p.createdAt.getTime());
   const ranToday = reports.some((r) => r.trigger === "SCHEDULED" && r.date === ln.date);
   return {

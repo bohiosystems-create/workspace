@@ -134,9 +134,9 @@ export function extraLate(question: string, c: ChatContext): string | null {
   const vendor = ents.find((e) => e.kind === "vendor" && !e.id);
   if (vendor) {
     const v = vendorDetail(c.q, vendor.name) as any;
-    return T(`**${vendor.name}** — not a current vendor${v.onBench ? " (on the bench as an alternative)" : ""}.\n`, `**${nm(L, vendor.name)}** — ليس مورداً حالياً${v.onBench ? " (ضمن البدائل الجاهزة)" : ""}.\n`) +
+    return T(`**${vendor.name}** — not a current vendor${v.onBench ? " (a pre-vetted alternative)" : ""}.\n`, `**${nm(L, vendor.name)}** — ليس مورداً حالياً${v.onBench ? " (ضمن البدائل الجاهزة)" : ""}.\n`) +
       (v.pastCampaigns.length ? T("Past campaigns:\n", "حملات سابقة:\n") + v.pastCampaigns.map((p: any) => `- ${p.name} (${p.when}): ${pct(p.costToSalesPct)}, ${p.contracts} ${T("contracts", "عقداً")}${p.lesson ? ` — ${p.lesson}` : ""}`).join("\n") : T("No past campaigns on record.", "لا حملات سابقة مسجلة.")) +
-      (v.bench ? `\n${T("Bench note", "ملاحظة")}: ${nm(L, v.bench.rateNote ?? "")}` : "");
+      (v.bench ? `\n${T("Terms", "الشروط")}: ${nm(L, v.bench.rateNote ?? "")}` : "");
   }
   const channel = ents.find((e) => e.kind === "channel");
   if (channel && channel.kind === "channel") {

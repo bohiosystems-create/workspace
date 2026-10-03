@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Header from "./_components/Header";
+import Spark from "./_components/Spark";
 import { useI18n } from "./_components/lang";
 import { useApprover, openDrafts } from "./_components/useAgent";
 import { monthShort, firstSentence } from "@/lib/i18n";
@@ -102,6 +103,31 @@ export default function DirectorPage() {
               <a className="btn ghost" style={{ textDecoration: "none" }} href="/reports">{t("Daily report")}</a>
             </div>
           </div>
+
+          {data.scan && (
+            <div className="panel" style={{ marginTop: 18 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <div className="chart-label" style={{ margin: 0 }}>{t("What the data shows today")}</div>
+                <div className="muted" style={{ fontSize: 10.5 }}>{t("scanned before the report")}: {data.scan.sources.map((x: any) => `${x.label} ${x.items.toLocaleString("en")}`).join(" · ")}</div>
+              </div>
+              {data.scan.findings.length === 0 && <div className="muted" style={{ marginTop: 8 }}>{t("Nothing unusual in any source today.")}</div>}
+              <div className="row twocol" style={{ marginTop: 10, gap: 10 }}>
+                {data.scan.findings.slice(0, 6).map((sg: any) => (
+                  <div key={sg.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 10px", border: "1px solid var(--ink-hairline)", borderInlineStart: `3px solid ${sg.direction === "down" ? "var(--alert)" : "var(--ink)"}` }}>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.5 }}>
+                      <span className="tag" style={{ marginInlineEnd: 6 }}>{sg.sourceLabel}</span><b>{sg.title}</b>
+                      {sg.related.length > 0 && <div className="muted" style={{ fontSize: 10.5 }}>↳ {sg.related.map((r: any) => `${r.sourceLabel}: ${r.title}`).join(" · ")}</div>}
+                      {sg.answer
+                        ? <div style={{ fontSize: 11, marginTop: 3 }}>→ <a href="/ideas" style={{ color: "inherit" }}><b>{sg.answer.title}</b></a> <span className="muted">({sg.answer.kindLabel})</span></div>
+                        : <div style={{ fontSize: 11, marginTop: 3 }}>→ <a href="/ideas" style={{ color: "inherit" }}>{t("Initiatives for this")}</a></div>}
+                    </div>
+                    <Spark values={sg.series} down={sg.direction === "down"} />
+                  </div>
+                ))}
+              </div>
+              {data.scan.findings.length > 6 && <a className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, textDecoration: "none", display: "inline-block", marginTop: 10 }} href="/ideas">{t("All findings")} ({data.scan.findings.length})</a>}
+            </div>
+          )}
 
           <div className="kpis" style={{ marginTop: 18 }}>
             <Kpi v={M(tg.ytdActualM)} l={t("Sales year to date (CRM)")} d={`${t("target")} ${M(tg.ytdTargetM)}`} />

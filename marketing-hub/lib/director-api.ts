@@ -1,11 +1,17 @@
 // Request handlers for the Director (shared by the API routes and the offline demo).
 import { buildDirector, approvePlan, sendBriefToKinan } from "./director";
 import { kinanOutbox, retryKinanEvents, kinanMode, yardiMode } from "./kinan";
+import { dailyScan, scanView } from "./signals";
+import { dailyIdeasReady } from "./ideation";
 import { type Lang, isLang, tx } from "./i18n";
 
 export async function directorState(lang: Lang) {
   const d = await buildDirector(lang);
-  return { ...d, kinan: { mode: kinanMode(), yardi: yardiMode(), outbox: await kinanOutbox(30, lang) } };
+  // Today's scan of every source, and the initiatives already prepared for it (by the daily report run).
+  const scan = scanView(await dailyScan(), lang);
+  const ideas = await dailyIdeasReady(d.asOf.slice(0, 10), lang);
+  const findings = scan.signals.filter((s) => !s.linkedTo).map((s) => ({ ...s, answer: ideas.find((i) => i.trigger?.id === s.id) ?? null }));
+  return { ...d, kinan: { mode: kinanMode(), yardi: yardiMode(), outbox: await kinanOutbox(30, lang) }, scan: { date: scan.date, sources: scan.sources, findings, total: scan.signals.length, ideasReady: ideas.length > 0 } };
 }
 
 export async function directorAction(b: any) {

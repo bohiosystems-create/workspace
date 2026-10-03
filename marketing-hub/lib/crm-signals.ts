@@ -46,6 +46,8 @@ export type Signal = {
   /** Set when this signal is the explanation of another one (it is then answered together with it). */
   linkedTo?: string | null;
   meta?: Record<string, string | number | null>;
+  /** Weekly values behind the finding (oldest first), for a sparkline. */
+  series?: number[];
 };
 
 const monday = (d: Date) => { const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x; };
@@ -162,7 +164,7 @@ export async function crmSignals() {
       if (ch <= -0.25 && z <= -2) {
         const ds = drivers(k, metric, [W - RECENT - BASE, W - RECENT], [W - RECENT, W]);
         out.push({ source: "CRM", id: `SUDDEN_DROP|${id}`, kind: "SUDDEN_DROP", metric, direction: "down", severity: ch <= -0.4 && z <= -3 ? "crit" : "warn", scope: L.scope, ...base,
-          recent: r1(rSum / RECENT), baseline: r1(bMean), changePct: Math.round(ch * 100), stat: r1(z), from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10), drivers: ds,
+          recent: r1(rSum / RECENT), baseline: r1(bMean), changePct: Math.round(ch * 100), stat: r1(z), from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10), drivers: ds, series: x.map((v) => r1(v)),
           title: bi(`${L.en}: ${METRIC[metric].en} down ${pctS(ch).slice(1)} in the last 3 weeks`, `${L.ar}: انخفاض ${METRIC[metric].ar} ${pctS(ch).slice(1)} في آخر 3 أسابيع`),
           why: bi(`${r1(rSum / RECENT)} a week (${recentR.en}) vs ${r1(bMean)} a week over the 8 weeks before — well outside the normal week-to-week swing (z ${r1(z)}).${drvText(ds, "down").en}`,
             `${r1(rSum / RECENT)} أسبوعياً (${recentR.ar}) مقابل ${r1(bMean)} أسبوعياً في الأسابيع الثمانية السابقة — خارج التذبذب المعتاد بوضوح (z ${r1(z)}).${drvText(ds, "down").ar}`) });
@@ -171,7 +173,7 @@ export async function crmSignals() {
       if (ch >= 0.3 && z >= 2.5) {
         const ds = drivers(k, metric, [W - RECENT - BASE, W - RECENT], [W - RECENT, W]);
         out.push({ source: "CRM", id: `SURGE|${id}`, kind: "SURGE", metric, direction: "up", severity: "info", scope: L.scope, ...base,
-          recent: r1(rSum / RECENT), baseline: r1(bMean), changePct: Math.round(ch * 100), stat: r1(z), from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10), drivers: ds,
+          recent: r1(rSum / RECENT), baseline: r1(bMean), changePct: Math.round(ch * 100), stat: r1(z), from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10), drivers: ds, series: x.map((v) => r1(v)),
           title: bi(`${L.en}: ${METRIC[metric].en} up ${pctS(ch).slice(1)} in the last 3 weeks`, `${L.ar}: ارتفاع ${METRIC[metric].ar} ${pctS(ch).slice(1)} في آخر 3 أسابيع`),
           why: bi(`${r1(rSum / RECENT)} a week (${recentR.en}) vs ${r1(bMean)} before (z ${r1(z)}) — room to scale while it lasts.${drvText(ds, "up").en}`, `${r1(rSum / RECENT)} أسبوعياً (${recentR.ar}) مقابل ${r1(bMean)} سابقاً (z ${r1(z)}) — فرصة للتوسع ما دام مستمراً.${drvText(ds, "up").ar}`) });
         continue;
@@ -182,7 +184,7 @@ export async function crmSignals() {
       if (mean(x) >= (metric === "leads" ? 8 : 4) && fall <= -0.25 && t.t <= -2.5) {
         const ds = drivers(k, metric, [0, 4], [W - 4, W]);
         out.push({ source: "CRM", id: `DECLINE|${id}`, kind: "DECLINE", metric, direction: "down", severity: fall <= -0.4 ? "crit" : "warn", scope: L.scope, ...base,
-          recent: r1(mean(x.slice(W - 4))), baseline: r1(mean(x.slice(0, 4))), changePct: Math.round(fall * 100), stat: r1(t.t), from: weeks[0].toISOString().slice(0, 10), to: to.toISOString().slice(0, 10), drivers: ds,
+          recent: r1(mean(x.slice(W - 4))), baseline: r1(mean(x.slice(0, 4))), changePct: Math.round(fall * 100), stat: r1(t.t), from: weeks[0].toISOString().slice(0, 10), to: to.toISOString().slice(0, 10), drivers: ds, series: x.map((v) => r1(v)),
           title: bi(`${L.en}: ${METRIC[metric].en} falling for 12 weeks (${pctS(fall)})`, `${L.ar}: تراجع ${METRIC[metric].ar} منذ 12 أسبوعاً (${pctS(fall)})`),
           why: bi(`From about ${r1(t.first)} a week in early ${dt("en", weeks[0], { month: "long" })} to ${r1(t.last)} a week by ${dt("en", to, { day: "numeric", month: "long" })} — a steady fall, not a one-off week (trend t ${r1(t.t)}).${drvText(ds, "down").en}`,
             `من نحو ${r1(t.first)} أسبوعياً مطلع ${dt("ar", weeks[0], { month: "long" })} إلى ${r1(t.last)} أسبوعياً بحلول ${dt("ar", to, { day: "numeric", month: "long" })} — تراجع مستمر وليس أسبوعاً عابراً (t ${r1(t.t)}).${drvText(ds, "down").ar}`) });
@@ -245,7 +247,7 @@ export const signalView = (lang: Lang) => (s: Signal) => ({
   related: (s.related ?? []).map((r) => ({ id: r.id, source: r.source, sourceLabel: lang === "ar" ? SOURCE_LABEL[r.source].ar : SOURCE_LABEL[r.source].en, title: lang === "ar" ? r.title.ar : r.title.en, why: lang === "ar" ? r.why.ar : r.why.en })), metric: s.metric, direction: s.direction, severity: s.severity, scope: s.scope,
   project: s.project ? nm(lang, s.project) : null, projectKey: s.project, campaign: s.campaign ? nm(lang, s.campaign) : null, vendor: s.vendor ? nm(lang, s.vendor) : null,
   family: s.family, familyLabel: s.family && FAMILY_LABEL[s.family] ? FAMILY_LABEL[s.family][lang === "ar" ? 1 : 0] : null,
-  changePct: s.changePct, recent: s.recent, baseline: s.baseline, from: s.from, to: s.to,
+  changePct: s.changePct, recent: s.recent, baseline: s.baseline, from: s.from, to: s.to, series: s.series ?? null,
   title: lang === "ar" ? s.title.ar : s.title.en, why: lang === "ar" ? s.why.ar : s.why.en,
 });
 export type SignalView = ReturnType<ReturnType<typeof signalView>>;

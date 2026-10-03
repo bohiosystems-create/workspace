@@ -35,6 +35,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] Read the brief headline: **"Sales are at 81% of target year to date; Andalus Quarter is furthest behind (38%)."**
 - [ ] Show the tiles: SAR 133.9M of SAR 165M, and the three projects (38% / 90% / 92%).
+- [ ] In the brief, point at the **Data scan** line: *7 sources checked (CRM 3, email 5, invoices 1, ad platforms 1, competitors 3, market 3, calendar 3) — 8 need an answer*. Scroll to **What the data shows today**: each finding has a tiny 12-week trend bar, the evidence from other sources under it (↳ Email: PropertyHub — featured slot ended 10 May), and the initiative that answers it.
 - [ ] **Waiting for your decision: 8 items, about 54 min.** Point at the minutes; this is the manager's whole week. One of them is **Daily campaign check: 15 open (2 urgent)**.
 - [ ] Say: *"Leads, follow-up and sales are Kinan's own agent's job. The director reads the CRM results to judge the campaigns."*
 
@@ -229,6 +230,8 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - How are influencers performing?
 - What is cost to sales?
 - Help
+- Why did Marina Tower leads drop? (the finding plus the PropertyHub email that explains it)
+- What does the data show today?
 - Give me campaign ideas for Marina Tower in Ramadan with SAR 300K
 - Brainstorm a new campaign for Andalus
 - Plan a campaign for the Cityscape season

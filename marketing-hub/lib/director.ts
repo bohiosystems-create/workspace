@@ -16,6 +16,7 @@ import { queueKinanEvent } from "./kinan";
 import { buildOrchestration, MINUTES } from "./orchestrator";
 import { metaState, metaMode } from "./meta";
 import { dailyState } from "./daily";
+import { dailyScan } from "./signals";
 import { type Lang, tx, K, M, nm, an } from "./i18n";
 import { TODAY, PLAN_MONTH } from "./clock";
 
@@ -207,6 +208,10 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
   const managerMinutes = inbox.reduce((sum, x) => sum + x.minutes, 0);
 
   // Brief
+  const scan = await dailyScan();
+  const scanTop = scan.signals.filter((s) => !s.linkedTo && s.direction === "down" && s.severity !== "info");
+  const scanLine = T(`Data scan: ${scan.sources.length} sources checked (${scan.sources.filter((s) => s.found).map((s) => `${s.source === "CRM" ? "CRM" : s.source === "EMAIL" ? "email" : s.source === "INVOICES" ? "invoices" : s.source === "ADS" ? "ad platforms" : s.source === "COMPETITORS" ? "competitors" : s.source === "MARKET" ? "market" : "calendar"} ${s.found}`).join(", ")}) — ${scanTop.length} need an answer${scanTop[0] ? `; first: ${scanTop[0].title.en}` : ""}. Initiatives for each are in the daily report.`,
+    `فحص البيانات: ${scan.sources.length} مصادر (${scan.sources.filter((s) => s.found).map((s) => `${({ CRM: "النظام", EMAIL: "البريد", INVOICES: "الفواتير", ADS: "المنصات", COMPETITORS: "المنافسون", MARKET: "السوق", CALENDAR: "التقويم" } as Record<string, string>)[s.source]} ${s.found}`).join("، ")}) — ${scanTop.length} تحتاج إلى استجابة${scanTop[0] ? `؛ أولاها: ${scanTop[0].title.ar}` : ""}. والمبادرات لكل منها في التقرير اليومي.`);
   const worst = byAsset[0];
   const crit = recs.recommendations.filter((r) => r.severity === "crit" && (r.state === "OPEN" || r.state === "DRAFTED"));
   const ytdPct = ytdT ? Math.round((ytdA / ytdT) * 100) : 0;
@@ -219,6 +224,7 @@ export async function buildDirector(lang: Lang = "en", pre?: Agent) {
       T(`Vendor calls: ${decisionsLine.join("; ") || "no exits or replacements"}.`, `قرارات الموردين: ${decisionsLine.join("؛ ") || "لا خروج ولا استبدال"}.`),
       T(`June budget plan reallocates within the same ${K(lang, plan.totalK)} for about ${M(lang, plan.upliftM)} more incremental sales.`, `خطة ميزانية يونيو تعيد التوزيع ضمن الإجمالي نفسه ${K(lang, plan.totalK)} لنحو ${M(lang, plan.upliftM)} مبيعات إضافية.`),
       T(`Campaigns: ${campaignRecs.length} recommendations (${fromDaily.length} from today's campaign check), ${campaignRecs.filter((r) => r.severity === "crit").length} urgent${campaignRecs[0] ? ` — first: ${campaignRecs[0].title}` : ""}.`, `الحملات: ${an(campaignRecs.length, "توصية واحدة", "توصيتان", "توصيات", "توصية")} (${fromDaily.length} من فحص الحملات اليوم)، منها ${campaignRecs.filter((r) => r.severity === "crit").length} عاجلة${campaignRecs[0] ? ` — أولاها: ${campaignRecs[0].title}` : ""}.`),
+      ...(scanLine ? [scanLine] : []),
       T(`Vendors: ${orch.summary.withVendors} work orders with vendors (${orch.summary.overdue} overdue), ${orch.summary.lateDeliverables} late deliverable(s) being chased, ${orch.summary.waiting} message(s) drafted for your approval.`, `الموردون: ${an(orch.summary.withVendors, "أمر عمل واحد", "أمرا عمل", "أوامر عمل", "أمر عمل")} لدى الموردين (${orch.summary.overdue} متأخر)، و${an(orch.summary.lateDeliverables, "تسليم متأخر واحد", "تسليمان متأخران", "تسليمات متأخرة", "تسليماً متأخراً")} قيد المتابعة، و${an(orch.summary.waiting, "رسالة واحدة مُعدّة", "رسالتان مُعدّتان", "رسائل مُعدّة", "رسالة مُعدّة")} بانتظار اعتمادكم.`),
       T(`Your time: about ${managerMinutes} minutes for ${inbox.length} decisions — the rest is handled.`, `وقتكم: نحو ${an(managerMinutes, "دقيقة واحدة", "دقيقتين", "دقائق", "دقيقة")} لـ${an(inbox.length, "قرار واحد", "قرارين", "قرارات", "قراراً")} — والباقي يُنجز تلقائياً.`),
     ],

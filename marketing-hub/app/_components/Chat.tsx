@@ -101,7 +101,9 @@ export default function Chat() {
     const o = () => setOpen(true);
     window.addEventListener("open-drafts", h);
     window.addEventListener("open-director", o);
-    return () => { window.removeEventListener("open-drafts", h); window.removeEventListener("open-director", o); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", esc);
+    return () => { window.removeEventListener("open-drafts", h); window.removeEventListener("open-director", o); window.removeEventListener("keydown", esc); };
   });
   const urgent = activeRecs.filter((r) => r.severity === "crit").length;
 

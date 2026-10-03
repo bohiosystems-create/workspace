@@ -679,6 +679,12 @@ const ANGLES: Bi[] = [
   bi("Data-led digital: retargeting and lookalikes from CRM-qualified leads", "رقمي قائم على البيانات: إعادة الاستهداف والجماهير المشابهة من العملاء المؤهلين"),
   bi("The season or calendar moment ahead", "الموسم أو المناسبة القادمة"),
 ];
+/** Today's initiatives if the daily run already produced them (no generation): for the Director home. */
+export async function dailyIdeasReady(date: string, lang: Lang = "en") {
+  const rows = (await prisma.campaignIdea.findMany()).filter((r) => r.runKey.includes(`|DAILY:${date}|`));
+  const runKey = rows.map((r) => r.runKey).sort().pop();
+  return rows.filter((r) => r.runKey === runKey).sort((p, q) => (q.score ?? 0) - (p.score ?? 0) || p.createdAt.getTime() - q.createdAt.getTime()).slice(0, 5).map(view(lang));
+}
 export async function dailyIdeas(date: string, lang: Lang = "en") {
   const tag = `DAILY:${date}`;
   const pick = async () => (await prisma.campaignIdea.findMany()).filter((r) => r.runKey.includes(`|${tag}|`));
