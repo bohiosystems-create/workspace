@@ -260,6 +260,13 @@ export default function ReportsPage() {
             <div className="panel" style={{ marginTop: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
                 <div className="chart-label" style={{ margin: 0 }}>{view.title}</div>
+                <div className="rp-langs" role="group" aria-label={t("Language")} style={{ display: "inline-flex", border: "1px solid var(--ink-hairline)" }}>
+                  {(["en", "ar"] as const).map((k) => (
+                    <button key={k} type="button" className={`btn ${view.lang === k ? "" : "ghost"}`} aria-pressed={view.lang === k} style={{ padding: "5px 10px", fontSize: 9, border: 0, opacity: 1, cursor: view.lang === k ? "default" : undefined }}
+                      disabled={view.lang !== k && (!!busy || !!opening)}
+                      onClick={() => view.lang === k ? undefined : view.other?.id ? open(view.other.id) : act({ action: "OPEN_IN_LANG", id: view.id, to: k }, "lang")}>{k === "en" ? "English" : "العربية"}</button>
+                  ))}
+                </div>
                 <div style={{ flex: 1 }} />
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => download("pdf")}>{busy === "pdf" ? t("Preparing PDF…") : t("Download PDF")}</button>
                 <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => download("html")}>{t("Download HTML")}</button>

@@ -664,8 +664,35 @@ export async function reportsState(lang: Lang) {
   };
 }
 
+type ReportRow = Awaited<ReturnType<typeof prisma.report.findMany>>[number];
+/** The same report in the other language: same date, kind and trigger, produced in the same run (within 10 minutes). */
+function twinOf(r: ReportRow, all: ReportRow[], lang: Lang) {
+  const near = all.filter((x) => x.lang === lang && x.id !== r.id && x.date === r.date && x.kind === r.kind && x.trigger === r.trigger
+    && Math.abs(x.createdAt.getTime() - r.createdAt.getTime()) < 10 * 60_000);
+  return near.sort((p, q) => Math.abs(p.createdAt.getTime() - r.createdAt.getTime()) - Math.abs(q.createdAt.getTime() - r.createdAt.getTime()))[0] ?? null;
+}
+
 export async function getReport(id: string) {
-  const r = (await prisma.report.findMany()).find((x) => x.id === id);
+  const all = await prisma.report.findMany();
+  const r = all.find((x) => x.id === id);
   if (!r) throw new Error("Report not found.");
-  return { id: r.id, title: r.title, html: r.html, text: r.text, date: r.date, lang: r.lang, status: r.status };
+  const other: Lang = r.lang === "ar" ? "en" : "ar";
+  return { id: r.id, title: r.title, html: r.html, text: r.text, date: r.date, lang: r.lang, status: r.status,
+    other: { lang: other, id: twinOf(r, all, other)?.id ?? null } };
+}
+
+/** Open a report in another language: its twin from the same run, or — when that language wasn't produced — the same
+ *  report (same date, same kind) built now in that language and kept in the history. Never sent. */
+export async function reportInLang(id: string, lang: Lang) {
+  const all = await prisma.report.findMany();
+  const r = all.find((x) => x.id === id);
+  if (!r) throw new Error("Report not found.");
+  if (r.lang === lang) return r.id;
+  const twin = twinOf(r, all, lang);
+  if (twin) return twin.id;
+  const prev = all.filter((x) => x.lang === lang && x.createdAt < r.createdAt).sort((p, q) => q.createdAt.getTime() - p.createdAt.getTime())[0];
+  const p = prev ? { metrics: JSON.parse(prev.metrics), date: prev.date, at: prev.createdAt } : null;
+  const b = r.kind === "SNAPSHOT" ? await buildSnapshot(lang, r.createdAt, p) : await buildReport(lang, r.date, p);
+  const row = await prisma.report.create({ data: { date: r.date, kind: r.kind, trigger: r.trigger, lang, title: b.title, html: b.html, text: b.text, metrics: JSON.stringify(b.metrics), recipients: "", status: "GENERATED", delivery: null, error: null, sentAt: null, createdAt: new Date(r.createdAt.getTime() + 1) } });
+  return row.id;
 }
