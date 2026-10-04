@@ -37,7 +37,9 @@ Files are in the zip's `setup/` folder.
 ## Reports and ▶ Play
 Reports → pick a report → **▶ Play** runs it as a full-screen presentation in KINAN's style (cover, dividers, headline
 figures, gauges, cost and funding donuts, cash flow by year, stress bars against the hurdle, headroom, market check,
-closing page), with captions and the browser's voice; ← → move, Space pauses, F is fullscreen, Esc closes.
+closing page), with captions and narration; ← → move, Space pauses, F is fullscreen, Esc closes. **🔊 Read** plays the report document itself,
+section by section, with the same narration. Narration uses ElevenLabs when `ELEVENLABS_API_KEY` is set in Vercel (optional
+`ELEVENLABS_VOICE_ID`), otherwise the browser's own voice.
 **PowerPoint** downloads the same deck with native, editable charts and the narration in the speaker notes.
 **HTML** and **Print / PDF** give the report document (logo band, orange cover, charts, closing page).
 Every figure shown as EstateMaster's comes from an export; charts built on the agent's model say "agent's estimate".

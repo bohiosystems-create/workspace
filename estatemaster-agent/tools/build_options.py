@@ -64,6 +64,7 @@ DEPLOY = """
 ## Deploy to Vercel
 Run `vercel` in this folder (or import it from Git, framework *Other*, no build command).
 Environment variables: `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` for the AI routes, `DEMO_PASSWORD` (recommended),
+`ELEVENLABS_API_KEY` (and optionally `ELEVENLABS_VOICE_ID`) for ElevenLabs narration in ▶ Play and Read (the browser's own voice otherwise),
 and for live Outlook the Microsoft Graph variables listed in the main README. No runner variables: this option has no runner.
 
 All data is dummy data. Browser memory is kept per option.
@@ -81,7 +82,7 @@ def build(mode):
     html = html.replace("\n<script>\n", f"\n<script>window.BOHIO_MODE='{mode}';</script>\n<script>\n", 1)
     html = re.sub(r"<title>.*?</title>", f"<title>KINAN · {name}</title>", html, count=1, flags=re.S)
     (out / "index.html").write_text(html, encoding="utf-8")
-    for f in ("llm.js", "scan.js"):
+    for f in ("llm.js", "scan.js", "voice.js"):
         shutil.copy(ROOT / "api" / f, out / "api" / f)
     vj = json.loads((ROOT / "vercel.json").read_text())
     vj["functions"].pop("api/runner.js", None)

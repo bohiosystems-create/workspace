@@ -23,6 +23,7 @@ Al Narjis Mixed-Use project. All data is dummy data.
 | `index.html` | The whole demo (model, agent, market data, Outlook inbox, WhatsApp mock-up, IC report). The dummy dataset and the Excel file are embedded. |
 | `api/llm.js` | Vercel serverless function that proxies to Claude or OpenAI, so API keys stay on the server. |
 | `api/scan.js` | Live Outlook (Microsoft Graph) reader with AI extraction of assumption changes. |
+| `api/voice.js` | ElevenLabs text-to-speech for ▶ Play and the report's Read mode; audio cached, key never in the browser. |
 | `api/runner.js` | Proxy from the agent to the EstateMaster runner; the runner token stays on the server. |
 | `runner/` | The EstateMaster runner for the Windows VM (not deployed to Vercel). |
 | `setup/` | Copilot setup agent instructions, the KINAN control workbook template and its generator (not deployed). |
@@ -47,6 +48,7 @@ Al Narjis Mixed-Use project. All data is dummy data.
    | `DEMO_PASSWORD` | Optional but recommended: an access code people must enter before the demo can call the AI (stops strangers spending your credits) |
    | `ANTHROPIC_URL`, `OPENAI_URL` | Optional: a corporate gateway instead of the public endpoints |
    | `RUNNER_URL`, `RUNNER_TOKEN` | The EstateMaster runner (tunnel URL and shared token). Without them approved changes run on the demo's stand-in model |
+   | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | ElevenLabs narration for ▶ Play and Read (key stays on the server; without it the browser's voice is used) |
    | `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` | Optional: if the runner tunnel sits behind Cloudflare Access |
 
 3. Redeploy so the variables take effect. Open the site: the engine button (top right) switches to
