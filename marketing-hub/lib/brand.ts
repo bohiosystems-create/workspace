@@ -43,6 +43,10 @@ export function kinanLogoHtml(height = 34, color = "#fff") {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${KINAN_LOGO_VIEWBOX}" width="${width}" height="${height}" role="img" aria-label="Kinan" style="display:block;width:${width}px;height:${height}px"><path fill="${color}" d="${KINAN_LOGO_PATH}"/></svg>`;
   }
   if (KINAN_LOGO) return `<img src="${KINAN_LOGO}" alt="Kinan" height="${height}" style="display:block;height:${height}px;width:auto;border:0${color !== "#fff" ? ";filter:invert(1)" : ""}">`;
+  return kinanLogoText(height, color);
+}
+/** The two-line "كنان / kinan" lockup in plain styled text: shows in every mail client (no image, no SVG). */
+export function kinanLogoText(height = 34, color = "#fff") {
   const ar = Math.round(height * 0.42), en = Math.round(height * 0.62);
   return `<div style="display:inline-block;color:${color};line-height:1;text-align:center"><div style="font-family:${KINAN.fontAr};font-weight:700;font-size:${ar}px;line-height:1.05">كنان</div><div style="font-family:${KINAN.font};font-weight:700;font-size:${en}px;letter-spacing:.01em;line-height:.95">kinan</div></div>`;
 }

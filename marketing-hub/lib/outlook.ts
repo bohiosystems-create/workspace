@@ -12,7 +12,8 @@
 //
 // NOTE: written against the Microsoft Graph v1.0 docs; not exercised against a real tenant.
 
-export type MailToSend = { to: string; cc: string[]; subject: string; body: string; html?: boolean; internal?: boolean };
+export type MailAttachment = { name: string; contentType: string; content: string };
+export type MailToSend = { to: string; cc: string[]; subject: string; body: string; html?: boolean; internal?: boolean; attachments?: MailAttachment[] };
 export type SendResult = { delivery: "mock" | "send" | "draft"; providerRef: string };
 
 export const outlookMode = () => (process.env.OUTLOOK_MODE === "live" ? "live" : "mock");
@@ -48,6 +49,9 @@ export async function deliverMail(mail: MailToSend): Promise<SendResult> {
     body: { contentType: mail.html ? "HTML" : "Text", content: mail.body },
     toRecipients: [{ emailAddress: { address: mail.to } }],
     ccRecipients: mail.cc.map((address) => ({ emailAddress: { address } })),
+    ...(mail.attachments?.length ? { attachments: mail.attachments.map((a) => ({
+      "@odata.type": "#microsoft.graph.fileAttachment", name: a.name, contentType: a.contentType, contentBytes: Buffer.from(a.content, "utf8").toString("base64"),
+    })) } : {}),
   };
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
@@ -60,7 +64,10 @@ export async function deliverMail(mail: MailToSend): Promise<SendResult> {
   const res = await fetch(`https://graph.microsoft.com/v1.0/users/${sender}/sendMail`, {
     method: "POST", headers, body: JSON.stringify({ message, saveToSentItems: true }),
   });
-  if (res.status !== 202) throw new Error(`Outlook send failed (${res.status}).`);
+  if (res.status !== 202) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Outlook send failed (${res.status})${detail ? `: ${detail.slice(0, 200)}` : ""}.`);
+  }
   return { delivery: "send", providerRef: res.headers.get("request-id") ?? "accepted" };
 }
 

@@ -185,7 +185,7 @@ export default function ReportsPage() {
               </div>
               <div className="field" style={{ marginTop: 10 }}><label>{t("Recipients (internal only)")}</label>
                 <input className="in" dir="ltr" value={form.recipients} onChange={(e) => setForm({ ...form, recipients: e.target.value })} placeholder="name@company.com, …" />
-                <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{t("Allowed domains")}: <span dir="ltr">{data.allowedDomains.join(", ") || "—"}</span></div>
+                <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{t("Allowed")}: <span dir="ltr">{[...data.allowedDomains.map((x: string) => `@${x}`), ...(data.allowedRecipients ?? [])].join(", ") || "—"}</span></div>
               </div>
               <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 10 }}>
                 <span className="muted" style={{ fontSize: 11 }}>{t("Language")}:</span>
@@ -197,6 +197,24 @@ export default function ReportsPage() {
                 <div className="field" style={{ width: 200 }}><label>{t("Changed by")}</label><input className="in" placeholder={t("Your name")} value={approver} onChange={(e) => { setApprover(e.target.value); saveApprover(e.target.value); }} /></div>
                 <button className="btn" disabled={!approver.trim() || busy === "save"} title={!approver.trim() ? t("Enter your name") : ""} onClick={() => act({ action: "SAVE_SCHEDULE", schedule: { ...form, days: form.days.join(","), languages: form.languages.join(",") } }, "save")}>{t("Save schedule")}</button>
               </div>
+              {data.delivery && (
+                <div className="rp-deliv" style={{ marginTop: 14, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                    <div className="chart-label" style={{ margin: 0 }}>{t("Delivery check")}</div>
+                    <span className={`pill ${data.delivery.ready ? "healthy" : "hold"}`}>{data.delivery.ready ? t("Ready — you'll receive it") : t("Not ready yet")}</span>
+                    <div style={{ flex: 1 }} />
+                    <button className="btn" style={{ padding: "6px 10px", fontSize: 9 }} disabled={!!busy || !data.schedule.recipients} title={t("Generates today's report and e-mails it to the saved recipients now. The scheduled send still runs.")}
+                      onClick={() => act({ action: "SEND_NOW" }, "send")}>{busy === "send" && since ? <WorkingInline since={since} label={t("Sending…")} dark={false} /> : t("Send test now")}</button>
+                  </div>
+                  {data.delivery.items.map((it: any, i: number) => (
+                    <div key={i} style={{ display: "flex", gap: 8, fontSize: 11, padding: "3px 0", alignItems: "baseline" }}>
+                      <span aria-hidden="true" style={{ color: it.ok ? "#1f8a4c" : "#d99400", fontWeight: 700 }}>{it.ok ? "✓" : "!"}</span>
+                      <span style={{ flex: 1 }}><span dir="auto">{it.label}</span>{it.fix && <span className="muted"> — {it.fix}</span>}</span>
+                    </div>
+                  ))}
+                  {data.delivery.notes.map((n: string, i: number) => <div key={i} className="muted" style={{ fontSize: 10, marginTop: 4 }}>{n}</div>)}
+                </div>
+              )}
               {data.schedule.updatedBy && <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>{t("Last changed by")} {data.schedule.updatedBy} · {dm(data.schedule.updatedAt)}</div>}
             </div></Blk>
 

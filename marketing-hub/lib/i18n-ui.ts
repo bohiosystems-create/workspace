@@ -956,4 +956,8 @@ const UI11: Record<string, string> = {
   "Most recent": "الأحدث", "Sales, highest first": "المبيعات، الأعلى أولاً", "Contracts, most first": "العقود، الأكثر أولاً", "Qualified leads, most first": "العملاء المؤهلون، الأكثر أولاً",
   "Spend, highest first": "الإنفاق، الأعلى أولاً", "Cost to sales, best first": "التكلفة إلى المبيعات، الأفضل أولاً", "Cost per qualified lead, best first": "تكلفة العميل المؤهل، الأفضل أولاً", "Name": "الاسم",
 };
-export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5, ...UI6, ...UI7, ...UI8, ...UI9, ...UI10, ...UI11 };
+const UI12: Record<string, string> = {
+  "Allowed": "المسموح", "Delivery check": "فحص التسليم", "Ready — you'll receive it": "جاهز — سيصلكم", "Not ready yet": "غير جاهز بعد", "Send test now": "إرسال تجريبي الآن",
+  "Generates today's report and e-mails it to the saved recipients now. The scheduled send still runs.": "يُعدّ تقرير اليوم ويرسله الآن إلى المستلمين المحفوظين. ويبقى الإرسال المجدول كما هو.",
+};
+export const AR_UI: Record<string, string> = { ...NAMES_AR, ...UI, ...UI2, ...UI3, ...UI4, ...UI5, ...UI6, ...UI7, ...UI8, ...UI9, ...UI10, ...UI11, ...UI12 };

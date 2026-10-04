@@ -8,11 +8,13 @@
 //           what changed since the last report, decisions waiting (with minutes), campaign recommendations, vendors, risks,
 //           invoices. Stored as HTML + text with a metrics snapshot for the next day's comparison.
 // Delivery: Outlook (lib/outlook.ts), internal recipients only — every address must be on an allowed domain
-//           (REPORTS_ALLOWED_DOMAINS, default: the sender's domain). The report takes no action and contacts no
-//           vendor or customer.
+//           (REPORTS_ALLOWED_DOMAINS, default: the sender's domain) or be named one by one in
+//           REPORTS_ALLOWED_RECIPIENTS (default: mb@jeddahsicon.com). The list is checked again at every send. The e-mail
+//           body is made mail-client-safe (emailHtml) and the full report rides along as an HTML attachment.
+//           The report takes no action and contacts no vendor or customer.
 import { prisma } from "./prisma";
 import { now } from "./clock";
-import { KINAN, kinanLogoHtml, kinanLogoSrc, chevron } from "./brand";
+import { KINAN, kinanLogoHtml, kinanLogoSrc, kinanLogoText, chevron } from "./brand";
 import { type DeckSlide, type Deck, deckScript, short } from "./deck";
 
 /** A report in the style of Kinan's collateral (the Malls corporate profile) and kinan.com.sa: white pages on a soft
@@ -97,7 +99,7 @@ import { single, serial } from "./single";
 import { buildAgent } from "./agent";
 import { historyState } from "./history";
 import { reportCharts, kpiTiles, metaRevenueChart, customReportChart } from "./report-charts";
-import { richChart, dualChart, RICH_CSS } from "./report-svg";
+import { richChart, dualChart, RICH_CSS, screenHtml } from "./report-svg";
 import { getLayout, mentions, sectionName, type Layout, type SectionId } from "./report-layout";
 import { buildChatContext } from "./chat";
 import { dailyIdeas } from "./ideation";
@@ -114,6 +116,40 @@ import { type Lang, tx, nm, dt, dtm, M, K, an, firstSentence } from "./i18n";
 const DAY = 86_400_000;
 export const TIMEZONES = ["Asia/Riyadh", "Asia/Dubai", "Asia/Qatar", "Africa/Cairo", "Europe/London", "UTC"];
 
+// ------------------------------------------------------------ e-mail body
+/** Remove every <div class="k-rich" …>…</div> (balanced), i.e. the on-screen SVG charts mail clients can't show. */
+function dropRich(html: string) {
+  let out = "", i = 0;
+  for (;;) {
+    const at = html.indexOf('<div class="k-rich"', i);
+    if (at < 0) return out + html.slice(i);
+    out += html.slice(i, at);
+    let depth = 0, j = at;
+    const tag = /<\/?div\b[^>]*>/g;
+    tag.lastIndex = at;
+    for (let m; (m = tag.exec(html)); ) {
+      depth += m[0][1] === "/" ? -1 : 1;
+      if (depth === 0) { j = tag.lastIndex; break; }
+    }
+    if (depth !== 0) return out + html.slice(at); // malformed: leave the rest as is
+    i = j;
+  }
+}
+/** The report as sent: what Outlook, Gmail and Apple Mail all show. Inline SVG and data: images are stripped or blocked
+ *  by most clients, so the logo becomes the text lockup, the decorative chevrons and textures go (the solid colours
+ *  underneath stay), the hidden on-screen charts are dropped (their table versions stay), and so are the on-screen
+ *  animations and the embedded deck. */
+export function emailHtml(html: string) {
+  return dropRich(html)
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<style>(?:(?!<\/style>)[\s\S])*?prefers-reduced-motion[\s\S]*?<\/style>/g, "<style>.k-sec li::marker{color:#f15a22}</style>") // motion + on-screen chart CSS
+    .replace(/<img src="data:[^"]*" alt="Kinan" height="(\d+)"[^>]*>/g, (_, h) => kinanLogoText(Number(h), KINAN.ink))
+    .replace(/<svg\b[^>]*aria-label="Kinan"[^>]*style="display:block;width:\d+px;height:(\d+)px"[^>]*>[\s\S]*?<\/svg>/g, (m, h) => kinanLogoText(Number(h), /fill="#fff(?:fff)?"/i.test(m) ? "#fff" : KINAN.ink))
+    .replace(/<svg\b[\s\S]*?<\/svg>/g, "")
+    .replace(/,\s*url\('data:[^']*'\)/g, "")
+    .replace(/url\('data:[^']*'\)/g, "none");
+}
+
 // ---------------------------------------------------------------- schedule
 export const ensureSchedule = single(async function ensureScheduleImpl() {
   const s = (await prisma.reportSchedule.findMany()).find((x) => x.id === "daily");
@@ -125,6 +161,14 @@ export const ensureSchedule = single(async function ensureScheduleImpl() {
 
 export const allowedDomains = () =>
   (process.env.REPORTS_ALLOWED_DOMAINS || outlookSender().split("@")[1] || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+/** Individual addresses allowed to receive the report even though their domain isn't an allowed domain. */
+export const allowedRecipients = () =>
+  (process.env.REPORTS_ALLOWED_RECIPIENTS ?? "mb@jeddahsicon.com").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+/** True when an address may receive the report (allowed domain, or named in the allowed recipients). */
+export function recipientAllowed(addr: string) {
+  const a = addr.trim().toLowerCase(), domains = allowedDomains();
+  return allowedRecipients().includes(a) || (domains.length > 0 && domains.includes(a.split("@")[1] ?? ""));
+}
 const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 const list = (s: string) => s.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
 
@@ -142,9 +186,9 @@ export async function saveSchedule(b: any, approver: string, l: Lang) {
   const recipients = [...new Set(list(String(b.recipients ?? "")).map((x) => x.toLowerCase()))];
   const bad = recipients.find((r) => !EMAIL_RE.test(r));
   if (bad) throw new Error(T(`Not a valid address: ${bad}`, `عنوان غير صالح: ${bad}`));
-  const domains = allowedDomains();
-  const outside = recipients.find((r) => domains.length && !domains.includes(r.split("@")[1]));
-  if (outside) throw new Error(T(`${outside} is outside the allowed domains (${domains.join(", ")}). Reports go to internal addresses only.`, `${outside} خارج النطاقات المسموح بها (${domains.join("، ")}). تُرسل التقارير إلى عناوين داخلية فقط.`));
+  const domains = allowedDomains(), named = allowedRecipients();
+  const outside = recipients.find((r) => !recipientAllowed(r));
+  if (outside) { const ok = [...domains.map((d) => `@${d}`), ...named].join(", "); throw new Error(T(`${outside} is not an allowed recipient (${ok}). Reports go to internal addresses only.`, `${outside} ليس من المستلمين المسموح بهم (${ok}). تُرسل التقارير إلى عناوين داخلية فقط.`)); }
   await ensureSchedule();
   await prisma.reportSchedule.update({
     where: { id: "daily" },
@@ -542,10 +586,13 @@ async function produce(trigger: "SCHEDULED" | "MANUAL", date: string, send: bool
     const r = await buildReport(lang, date, prev ? { metrics: JSON.parse(prev.metrics), date: prev.date, at: prev.createdAt } : null);
     let status = "GENERATED", delivery: string | null = null, error: string | null = null, sentAt: Date | null = null;
     if (send) {
+      const blocked = recipients.filter((x) => !recipientAllowed(x));
       if (!recipients.length) { status = "FAILED"; error = tx(lang, "No recipients set.", "لم يُحدَّد مستلمون."); }
+      else if (blocked.length) { status = "FAILED"; error = tx(lang, `Not an allowed recipient: ${blocked.join(", ")}.`, `ليس من المستلمين المسموح بهم: ${blocked.join("، ")}.`); }
       else {
         try {
-          const res = await deliverMail({ to: recipients[0], cc: recipients.slice(1), subject: r.title, body: r.html, html: true, internal: true });
+          const res = await deliverMail({ to: recipients[0], cc: recipients.slice(1), subject: r.title, body: emailHtml(r.html), html: true, internal: true,
+            attachments: [{ name: `Kinan-marketing-report-${date}-${lang}.html`, contentType: "text/html", content: screenHtml(r.html) }] });
           status = "SENT"; delivery = res.delivery; sentAt = new Date();
         } catch (e: any) { status = "FAILED"; error = String(e?.message ?? e).slice(0, 300); }
       }
@@ -576,6 +623,32 @@ export async function runNow(send: boolean, lang: Lang) {
   return produce("MANUAL", ln.date, send, send ? (s.languages.split(",") as Lang[]) : [lang]);
 }
 
+/** Everything that has to be true for the scheduled report to land in the recipients' inboxes, checked live. */
+function deliveryCheck(s: { enabled: boolean; recipients: string }, reports: { kind: string; status: string; delivery: string | null; recipients: string; error: string | null; createdAt: Date }[], l: Lang) {
+  const T = (en: string, ar: string) => tx(l, en, ar);
+  const rcpt = list(s.recipients), blocked = rcpt.filter((x) => !recipientAllowed(x));
+  const live = outlookMode() === "live", creds = !!(process.env.MS_TENANT_ID && process.env.MS_CLIENT_ID && process.env.MS_CLIENT_SECRET);
+  const senderSet = !!process.env.OUTLOOK_SENDER, cron = !!process.env.REPORTS_CRON_KEY;
+  const senderDomain = outlookSender().split("@")[1]?.toLowerCase() ?? "";
+  const external = rcpt.filter((x) => x.split("@")[1]?.toLowerCase() !== senderDomain);
+  const sent = reports.filter((r) => r.kind === "DAILY" && r.recipients);
+  const lastOk = sent.find((r) => r.status === "SENT" && r.delivery === "send"), lastFail = sent.find((r) => r.status === "FAILED");
+  const failNewer = lastFail && (!lastOk || lastFail.createdAt > lastOk.createdAt);
+  const items: { ok: boolean; label: string; fix?: string }[] = [
+    { ok: rcpt.length > 0 && !blocked.length, label: rcpt.length ? T(`Recipients: ${rcpt.join(", ")}`, `المستلمون: ${rcpt.join("، ")}`) : T("No recipients", "لا مستلمين"),
+      fix: blocked.length ? T(`Not allowed: ${blocked.join(", ")}`, `غير مسموح: ${blocked.join("، ")}`) : rcpt.length ? undefined : T("Add your address and save the schedule.", "أضيفوا عنوانكم واحفظوا الجدول.") },
+    { ok: s.enabled, label: s.enabled ? T("Daily sending is on", "الإرسال اليومي مفعّل") : T("Daily sending is paused", "الإرسال اليومي متوقف"), fix: s.enabled ? undefined : T("Tick “Send the daily report automatically” and save.", "فعّلوا «إرسال التقرير اليومي تلقائياً» واحفظوا.") },
+    { ok: live, label: live ? T("Outlook is live", "Outlook مفعّل") : T("Outlook is simulated — nothing is e-mailed", "Outlook تجريبي — لا يُرسل شيء"), fix: live ? undefined : T("Set OUTLOOK_MODE=live.", "اضبطوا OUTLOOK_MODE=live.") },
+    { ok: creds, label: creds ? T("Microsoft 365 app credentials set", "بيانات تطبيق Microsoft 365 مضبوطة") : T("Microsoft 365 app credentials missing", "بيانات تطبيق Microsoft 365 ناقصة"), fix: creds ? undefined : T("Set MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET (app with Mail.Send).", "اضبطوا MS_TENANT_ID وMS_CLIENT_ID وMS_CLIENT_SECRET (تطبيق بصلاحية Mail.Send).") },
+    { ok: senderSet, label: T(`Sent from ${outlookSender()}`, `يُرسل من ${outlookSender()}`), fix: senderSet ? undefined : T("Set OUTLOOK_SENDER to the mailbox that sends the report.", "اضبطوا OUTLOOK_SENDER على صندوق البريد المرسِل.") },
+    { ok: cron, label: cron ? T("Scheduler endpoint enabled", "نقطة الجدولة مفعّلة") : T("No scheduler yet", "لا جدولة بعد"), fix: cron ? undefined : T("Set REPORTS_CRON_KEY and call POST /api/reports/run every 15 minutes.", "اضبطوا REPORTS_CRON_KEY واستدعوا POST /api/reports/run كل 15 دقيقة.") },
+    { ok: !!lastOk && !failNewer, label: failNewer ? T(`Last send failed: ${lastFail!.error ?? ""}`, `فشل آخر إرسال: ${lastFail!.error ?? ""}`) : lastOk ? T(`Last delivered ${lastOk.createdAt.toISOString().slice(0, 16).replace("T", " ")} UTC to ${lastOk.recipients}`, `آخر تسليم ${lastOk.createdAt.toISOString().slice(0, 16).replace("T", " ")} UTC إلى ${lastOk.recipients}`) : T("Not delivered yet", "لم يُسلَّم بعد"),
+      fix: lastOk && !failNewer ? undefined : T("Press “Send test now” and check your inbox (and spam folder).", "اضغطوا «إرسال تجريبي الآن» وتحققوا من بريدكم (ومجلد الرسائل غير المرغوبة).") },
+  ];
+  const notes = external.length ? [T(`${external.join(", ")} is outside ${senderDomain || "the sender's domain"}: the Microsoft 365 tenant must allow sending to external recipients.`, `${external.join("، ")} خارج نطاق ${senderDomain || "المرسِل"}: يجب أن يسمح مستأجر Microsoft 365 بالإرسال إلى مستلمين خارجيين.`)] : [];
+  return { ready: items.every((i) => i.ok), items, notes };
+}
+
 export async function reportsState(lang: Lang) {
   const s = await ensureSchedule();
   const ln = localNow(s.timezone, now());
@@ -583,7 +656,8 @@ export async function reportsState(lang: Lang) {
   const ranToday = reports.some((r) => r.trigger === "SCHEDULED" && r.date === ln.date);
   return {
     schedule: { enabled: s.enabled, time: s.time, timezone: s.timezone, days: s.days.split(",").map(Number), recipients: s.recipients, languages: s.languages.split(","), updatedBy: s.updatedBy, updatedAt: s.updatedAt.toISOString() },
-    local: ln, next: nextRun(s, ranToday), timezones: TIMEZONES, allowedDomains: allowedDomains(),
+    local: ln, next: nextRun(s, ranToday), timezones: TIMEZONES, allowedDomains: allowedDomains(), allowedRecipients: allowedRecipients(),
+    delivery: deliveryCheck(s, reports, lang),
     outlook: outlookMode(), cronConfigured: !!process.env.REPORTS_CRON_KEY,
     reports: reports.slice(0, 60).map((r) => ({ id: r.id, createdAt: r.createdAt.toISOString(), date: r.date, kind: r.kind, trigger: r.trigger, lang: r.lang, title: r.title, status: r.status, delivery: r.delivery, recipients: r.recipients, error: r.error })),
     latestId: reports.find((r) => r.lang === lang)?.id ?? null,

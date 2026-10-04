@@ -14,7 +14,10 @@ export async function reportsAction(b: any) {
     case "SEND_NOW": {
       const ids = await runNow(true, l);
       openId = (ids.find((x) => x.lang === l) ?? ids[0])?.id ?? null;
-      message = tx(l, `Report generated and sent (${ids.length}).`, `أُعدّ التقرير وأُرسل (${ids.length}).`);
+      const st = await reportsState(l), rows = st.reports.slice(0, ids.length), failed = rows.filter((r: any) => r.status === "FAILED");
+      message = failed.length ? tx(l, `Not sent: ${failed[0].error}`, `لم يُرسل: ${failed[0].error}`)
+        : rows[0]?.delivery === "mock" ? tx(l, `Simulated only — Outlook isn't live, so nothing reached ${rows[0].recipients}. See the delivery check.`, `إرسال تجريبي فقط — Outlook غير مفعّل، فلم يصل شيء إلى ${rows[0].recipients}. راجعوا فحص التسليم.`)
+        : tx(l, `Sent to ${rows[0]?.recipients} (${ids.length} report${ids.length > 1 ? "s" : ""}). Check the inbox — and the spam folder the first time.`, `أُرسل إلى ${rows[0]?.recipients} (${ids.length}). تحققوا من البريد الوارد — ومن مجلد الرسائل غير المرغوبة في المرة الأولى.`);
       break;
     }
     case "RUN": {
