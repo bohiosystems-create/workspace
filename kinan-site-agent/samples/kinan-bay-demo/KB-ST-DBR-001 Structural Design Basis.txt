@@ -1,0 +1,9 @@
+KB-ST-DBR-001  STRUCTURAL DESIGN BASIS — KINAN BAY RESIDENCES  (Rev B)
+
+1. Towers T1 and T2: RC core and flat-plate PT slabs, 250 mm. Floor-to-floor 3.35 m typical; ground floor 5.0 m (taken as typical for massing).
+   Two basement levels under T1, T2 and the podium (shared basement, 3.6 m per level). Piled raft, 1200 mm bored piles.
+2. Waterfront Hotel H1: RC frame, 3.60 m floor-to-floor, one basement. Transfer level at L2.
+3. Retail podium P1: long-span PT beams, 5.40 m floor-to-floor, 3 storeys.
+4. MSCP: precast double-tees on RC frame, 3.10 m split-level, 6 levels.
+5. School, mosque, utility building, townhouses: RC frame on pad footings. Mosque prayer hall clear height 6.5 m with central dome.
+6. Design life 50 years; exposure class XS3 (marine) — 50 mm cover to external elements.
