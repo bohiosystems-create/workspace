@@ -26,12 +26,77 @@ interface Props {
 const niceMetres = (m: number) => { const steps = [1, 2, 5, 10, 20, 50, 100, 200, 500]; const v = steps.reduce((a, b) => (Math.abs(b - m) < Math.abs(a - m) ? b : a)); return `≈ ${v} m`; };
 const dist = (a: { x: number; y: number }, b: { x?: number; y?: number }) => Math.hypot(a.x - (b.x ?? 1e9), a.y - (b.y ?? 1e9));
 
-function renderShape(s: Shape, i: number, k: number, z: number, sel: string | undefined) {
+// ------------------------------------------------------------ label layout
+// Labels are drawn at a fixed screen size, so on a zoomed-out plan they would run into each other, out of their
+// buildings and under the document pins. Each frame they are laid out in priority order (site and building names
+// first): a label too wide for its footprint is shortened ("Laydown Area 1 — Formwork" → "Laydown Area 1"), one
+// that collides is nudged up or down, and failing that it is hidden until there is room.
+const fontPx = (s: Shape) => { const d = s.detail ?? 1; return Math.min(Math.max((s.size ?? 10) * (d === 1 ? 0.9 : 1.15), 8), 15); };
+const BOLD = /lbl-(b|c|big|zone|gate|h)\b/;
+const SPACING: Record<string, number> = { "lbl-big": 0.08, "lbl-zone": 0.12, "lbl-b": 0.04 };
+let measureCtx: CanvasRenderingContext2D | null = null;
+const widthCache = new Map<string, number>();
+function textWidth(text: string, cls: string, px: number) {
+  const key = `${cls}|${text}`;
+  let w100 = widthCache.get(key);
+  if (w100 === undefined) {
+    measureCtx ??= typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
+    const ls = SPACING[cls.split(" ")[0]] ?? 0;
+    if (measureCtx) { measureCtx.font = `${BOLD.test(cls) ? 700 : cls.includes("lbl-road") ? 600 : 400} 100px Montserrat, "Segoe UI", system-ui, sans-serif`; w100 = measureCtx.measureText(text).width + text.length * ls * 100; }
+    else w100 = text.length * 62;
+    widthCache.set(key, w100);
+  }
+  return (w100 * px) / 100;
+}
+const shorter = (t: string) => {
+  const out: string[] = [];
+  if (t.includes(" — ")) out.push(t.split(" — ")[0]);
+  const np = t.replace(/\s*\([^)]*\)/g, "").trim(); if (np !== t) out.push(np);
+  if (t.includes(" · ")) out.push(t.split(" · ")[0]);
+  return [...new Set(out)];
+};
+type Box = [number, number, number, number]; // x0, y0, x1, y1 (plan units)
+const hit = (a: Box, b: Box) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
+export interface Placed { text: string; dy: number }
+function layoutLabels(texts: { s: Shape; i: number }[], k: number, z: number, pins: { x: number; y: number }[]): Map<number, Placed> {
+  const out = new Map<number, Placed>();
+  const pinBoxes: Box[] = pins.map((p) => [p.x - 11 / k, p.y - 27 / k, p.x + 11 / k, p.y + 1 / k]);
+  const placed: Box[] = [];
+  const rank = (s: Shape) => ((s.detail ?? 1) * 10) + (/lbl-(big|zone)/.test(s.cls) ? -5 : /lbl-(b|c|road|gate|h)\b/.test(s.cls) ? 0 : 5);
+  const order = texts.filter(({ s }) => { const d = s.detail ?? 1; return !((d === 2 && z < 1.5) || (d === 3 && z < 2.8)); }).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i);
+  for (const { s, i } of order) {
+    const px = fontPx(s), h = (px * 1.15) / k, start = s.cls.includes("lbl-zone");
+    // fit the footprint: full text, then shorter forms
+    let text = s.text ?? "";
+    if (s.fit) {
+      const cands = [text, ...shorter(text)];
+      const ok = cands.find((t) => textWidth(t, s.cls, px) / k <= s.fit! * 1.02);
+      if (!ok) continue;
+      text = ok;
+    }
+    const w = textWidth(text, s.cls, px) / k + 4 / k;
+    const x0 = start ? s.x! - 2 / k : s.x! - w / 2;
+    const fixed = /lbl-(big|zone|gate|h)\b/.test(s.cls);
+    const tries = fixed ? [0] : [0, h * 1.05, -h * 1.05];
+    let done = false;
+    for (const dy of tries) {
+      const b: Box = [x0, s.y! + dy - h * 0.82, x0 + w, s.y! + dy + h * 0.25];
+      if (!fixed && (placed.some((q) => hit(q, b)) || pinBoxes.some((q) => hit(q, b)))) continue;
+      placed.push(b); out.set(i, { text, dy }); done = true; break;
+    }
+    // a building's own name stays even under a pin, as long as it does not collide with another label
+    if (!done && (s.detail ?? 1) === 1 && !s.cls.includes("lbl-s")) {
+      const b: Box = [x0, s.y! - h * 0.82, x0 + w, s.y! + h * 0.25];
+      if (!placed.some((q) => hit(q, b))) { placed.push(b); out.set(i, { text, dy: 0 }); }
+    }
+  }
+  return out;
+}
+
+function renderShape(s: Shape, i: number, k: number, sel: string | undefined, lay: Map<number, Placed>, si: number) {
   if (s.t === "text") {
-    const d = s.detail ?? 1;
-    if ((d === 2 && z < 1.5) || (d === 3 && z < 2.8)) return null;
-    const px = Math.min(Math.max((s.size ?? 10) * (d === 1 ? 0.9 : 1.15), 8), 15);
-    return <text key={i} x={s.x} y={s.y} className={s.cls} style={{ fontSize: px / k, strokeWidth: 3 / k }} textAnchor="middle">{s.text}</text>;
+    const p = lay.get(si); if (!p) return null;
+    return <text key={i} x={s.x} y={s.y! + p.dy} className={s.cls} style={{ fontSize: fontPx(s) / k, strokeWidth: 3 / k }} textAnchor="middle">{p.text}</text>;
   }
   const common = { className: s.cls + (s.loc && s.loc === sel ? " sel" : ""), "data-loc": s.loc, style: { strokeWidth: undefined as number | undefined } };
   switch (s.t) {
@@ -42,6 +107,7 @@ function renderShape(s: Shape, i: number, k: number, z: number, sel: string | un
   }
   return null;
 }
+const SHAPE_INDEX = new Map(SHAPES.map((s, i) => [s, i]));
 
 const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs, notes, selectedId, dropMode, onSelect, onDrop, onGps }, handle) {
   const [layers, setLayers] = useState<Record<Layer, boolean>>(() => Object.fromEntries(LAYER_DEFS.map((l) => [l.id, l.on])) as Record<Layer, boolean>);
@@ -133,6 +199,9 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
   const visible = SHAPES.filter((s) => layers[s.layer]);
   const order: Layer[] = ["base", "landscape", "grid", "utilities", "roads", "buildings", "temp", "cranes", "hse"];
   const selLoc = selectedId ? rootOf(locations, selectedId)?.id : undefined;
+  const lay = useMemo(() => layoutLabels(
+    SHAPES.map((s, i) => ({ s, i })).filter(({ s }) => s.t === "text" && layers[s.layer]), k, zoom, pins),
+  [k, zoom, layers, pins]);
 
   return (
     <div className={"mapwrap" + (dropMode ? " dropping" : "")}>
@@ -142,7 +211,7 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
           <g transform={`translate(${view.x} ${view.y}) scale(${k})`}>
             <rect x={-2000} y={-2000} width={PLAN.w + 4000} height={PLAN.h + 4000} className="ground" />
             {order.flatMap((ly) => layers[ly] || ly === "base"
-              ? visible.filter((s) => s.layer === ly).map((s, i) => renderShape(s, ly.length * 1000 + i, k, zoom, selLoc))
+              ? visible.filter((s) => s.layer === ly).map((s, i) => renderShape(s, ly.length * 1000 + i, k, selLoc, lay, SHAPE_INDEX.get(s)!))
               : [])}
             {/* document / issue pins */}
             <g>

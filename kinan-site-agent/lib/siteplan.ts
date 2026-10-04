@@ -32,6 +32,8 @@ export interface Shape {
   cx?: number; cy?: number; r?: number;
   // text
   text?: string; size?: number; detail?: 1 | 2 | 3; // detail = min zoom tier
+  /** the label must fit this width (plan units): it is shortened, then hidden, when it would spill out */
+  fit?: number;
 }
 
 const S: Shape[] = [];
@@ -127,8 +129,8 @@ const levelsFor = (b: B): { id: string; name: string }[] => {
 for (const b of BUILDINGS) {
   loc({ id: b.id, name: b.name, type: "building", x: b.x + b.w / 2, y: b.y + b.h / 2, aliases: b.alias });
   add({ layer: "buildings", t: "rect", cls: b.cls, loc: b.id, x: b.x, y: b.y, w: b.w, h: b.h });
-  add({ layer: "buildings", t: "text", cls: "lbl-b", x: b.x + b.w / 2, y: b.y + 20, text: b.name.toUpperCase(), size: 13, detail: 1 });
-  add({ layer: "buildings", t: "text", cls: "lbl-s", x: b.x + b.w / 2, y: b.y + 34, text: `${b.use} · ${b.floors} lvls`, size: 8, detail: 2 });
+  add({ layer: "buildings", t: "text", cls: "lbl-b", x: b.x + b.w / 2, y: b.y + 20, text: b.name.toUpperCase(), size: 13, detail: 1, fit: b.w - 8 });
+  add({ layer: "buildings", t: "text", cls: "lbl-s", x: b.x + b.w / 2, y: b.y + 34, text: `${b.use} · ${b.floors} lvls`, size: 8, detail: 2, fit: b.w - 8 });
   for (const lv of levelsFor(b)) loc({ id: lv.id, name: lv.name, type: "level", parentId: b.id, x: b.x + b.w / 2, y: b.y + b.h / 2 });
 }
 // Tower cores + columns (detail)
@@ -164,7 +166,7 @@ for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
   VILLAS.push({ id, x, y, w: 52, h: 60 });
   add({ layer: "buildings", t: "rect", cls: "bld villa", loc: id, x, y, w: 52, h: 60 });
   add({ layer: "buildings", t: "rect", cls: "pool", x: x + 12, y: y + 64, w: 28, h: 12 });
-  add({ layer: "buildings", t: "text", cls: "lbl-s", x: x + 26, y: y + 34, text: `D${vn}`, size: 10, detail: 2 });
+  add({ layer: "buildings", t: "text", cls: "lbl-s", x: x + 26, y: y + 34, text: `D${vn}`, size: 10, detail: 2, fit: 50 });
   vn++;
 }
 add({ layer: "buildings", t: "text", cls: "lbl-b", x: 1310, y: 122, text: "VILLA CLUSTER D", size: 11, detail: 1 });
@@ -173,7 +175,7 @@ add({ layer: "buildings", t: "text", cls: "lbl-b", x: 1310, y: 122, text: "VILLA
 const svc = (id: string, name: string, x: number, y: number, w: number, h: number, cls: string, al: string[] = []) => {
   loc({ id, name, type: "utility", x: x + w / 2, y: y + h / 2, aliases: al });
   add({ layer: "buildings", t: "rect", cls, loc: id, x, y, w, h });
-  add({ layer: "buildings", t: "text", cls: "lbl-s", x: x + w / 2, y: y + h / 2 + 3, text: name, size: 8, detail: 2 });
+  add({ layer: "buildings", t: "text", cls: "lbl-s", x: x + w / 2, y: y + h / 2 + 3, text: name, size: 8, detail: 2, fit: w - 6 });
 };
 svc("substation", "Substation (33/11 kV)", 1200, 620, 90, 60, "bld util", ["transformer", "electrical substation", "SEC"]);
 svc("stp", "STP", 1340, 720, 120, 110, "bld util", ["sewage treatment", "sewage plant"]);
@@ -184,7 +186,7 @@ svc("mosque", "Mosque", 1320, 600, 100, 80, "bld civic", ["prayer hall"]);
 const tmp = (id: string, name: string, x: number, y: number, w: number, h: number, cls: string, type: Location["type"] = "temp", al: string[] = []) => {
   loc({ id, name, type, x: x + w / 2, y: y + h / 2, aliases: al });
   add({ layer: "temp", t: "rect", cls, loc: id, x, y, w, h });
-  add({ layer: "temp", t: "text", cls: "lbl-s", x: x + w / 2, y: y + h / 2 + 3, text: name, size: 8, detail: 2 });
+  add({ layer: "temp", t: "text", cls: "lbl-s", x: x + w / 2, y: y + h / 2 + 3, text: name, size: 8, detail: 2, fit: w - 6 });
 };
 tmp("site-office", "Site Offices", 160, 640, 140, 70, "tmp office", "temp", ["site office", "PM office", "cabins"]);
 tmp("labour-camp", "Labour Camp", 160, 740, 240, 130, "tmp camp", "temp", ["camp", "accommodation"]);
