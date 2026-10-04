@@ -15,6 +15,7 @@ import { structKey, type SiteState, type StructState, type VillaState } from "@/
 import { M, concrete, drawGround, glow, rng, sky } from "./textures";
 import { ORANGE, STOREY, W, at, box, materials, mergeStatic, perim, rectOf, shadow, tag, walls, type Mats } from "./common";
 import { constructionKit, createDetails, roofKit, type Deck } from "./details";
+import { aroundKit } from "./around";
 
 export { STOREY };
 const PODIUM_STOREY = 5.4;
@@ -408,11 +409,14 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     // structures
     for (const b of BUILDINGS) {
       const st = s.struct[b.id]; if (!st) continue;
-      const key = structKey(st) + (night ? "n" : "d") + (b.id === "podium" ? String(s.groundSlab) : "");
+      const inPit = s.excavation > 0 && !s.groundSlab && ["tower-a", "tower-b", "podium"].includes(b.id);
+      const key = structKey(st) + (night ? "n" : "d") + (b.id === "podium" ? String(s.groundSlab) : "") + inPit;
       if (built[b.id]?.key === key) continue;
       if (built[b.id]) { structs.remove(built[b.id].group); disposeTree(built[b.id].group); }
       const r = footprint(b.id)!;
       const mdl = b.id === "podium" ? towerModel(m, b.id, r, 4, st, PODIUM_STOREY, { podium: true, raft: s.groundSlab }) : b.id === "club-e" ? towerModel(m, b.id, r, 3, st, 4.6, { club: true }) : towerModel(m, b.id, r, b.floors, st);
+      // the work zone / finished landscaping at the building's foot (not while it stands in the open pit)
+      if (!inPit) mdl.group.add(aroundKit(m, b.id, b.id === "podium" ? "podium" : b.id === "club-e" ? "club" : "tower", r, { built: st.built, floors: b.id === "podium" ? 4 : b.id === "club-e" ? 3 : b.floors, glazed: st.glazed, fitted: st.fitted, topped: st.topped, active: st.active }, b.id === "podium" ? PODIUM_STOREY : b.id === "club-e" ? 4.6 : STOREY));
       built[b.id] = { ...mdl, key }; structs.add(mdl.group);
     }
     for (const v of VILLAS) {
@@ -421,6 +425,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
       if (built[v.id]?.key === key) continue;
       if (built[v.id]) { structs.remove(built[v.id].group); disposeTree(built[v.id].group); }
       const mdl = villaModel(m, v.id, W(v), vs, night);
+      if (vs.built > 0 && !vs.finished) mdl.group.add(aroundKit(m, v.id, "villa", W(v), { built: vs.built, floors: 2, glazed: vs.enclosed ? 2 : 0, fitted: 0, topped: vs.built >= 2, active: vs.active }, STOREY, Number(v.id.split("-")[1])));
       built[v.id] = { ...mdl, key }; structs.add(mdl.group);
     }
     rebuildPulse();

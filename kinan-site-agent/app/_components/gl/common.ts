@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { SHAPES } from "@/lib/siteplan";
-import { M, cabin, climbScreen, concrete, curtainWall, hoarding, lattice, rebar } from "./textures";
+import { M, cabin, climbScreen, concrete, curtainWall, fenceMesh, hoarding, lattice, paving, rebar, scaffold } from "./textures";
 
 export const STOREY = 3.6;
 export const ORANGE = 0xf15a22;
@@ -50,7 +50,7 @@ export interface Mats {
   glass: THREE.MeshStandardMaterial; glassLit: THREE.MeshStandardMaterial; formwork: THREE.MeshStandardMaterial; deck: THREE.MeshStandardMaterial;
   screen: THREE.MeshStandardMaterial; steel: THREE.MeshStandardMaterial; lattice: THREE.MeshStandardMaterial; weight: THREE.MeshStandardMaterial;
   render: THREE.MeshStandardMaterial; renderLit: THREE.MeshStandardMaterial; block: THREE.MeshStandardMaterial; water: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial;
-  cabin: THREE.MeshStandardMaterial; hoard: THREE.MeshStandardMaterial; ghost: THREE.LineDashedMaterial; ghostFill: THREE.MeshBasicMaterial;
+  cabin: THREE.MeshStandardMaterial; hoard: THREE.MeshStandardMaterial; fence: THREE.MeshStandardMaterial; scaffold: THREE.MeshStandardMaterial; paving: THREE.MeshStandardMaterial; yellow: THREE.MeshStandardMaterial; ghost: THREE.LineDashedMaterial; ghostFill: THREE.MeshBasicMaterial;
   white: THREE.MeshStandardMaterial; dark: THREE.MeshStandardMaterial; skylight: THREE.MeshStandardMaterial; palm: THREE.MeshStandardMaterial; trunk: THREE.MeshStandardMaterial;
   aviation: THREE.MeshBasicMaterial; rust: THREE.MeshStandardMaterial; ply: THREE.MeshStandardMaterial; sel: THREE.LineBasicMaterial;
 }
@@ -77,6 +77,10 @@ export function materials(): Mats {
     stone: S({ map: stoneT, roughness: 0.8 }),
     cabin: S({ map: cabin(), roughness: 0.8 }),
     hoard: S({ map: hoarding(), roughness: 0.7 }),
+    fence: S({ map: fenceMesh(), alphaTest: 0.45, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.6, metalness: 0.3 }),
+    scaffold: S({ map: scaffold(), alphaTest: 0.45, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.7, metalness: 0.2 }),
+    paving: S({ map: paving(), roughness: 0.85 }),
+    yellow: S({ color: 0xf2b705, roughness: 0.55 }),
     ghost: new THREE.LineDashedMaterial({ color: 0x2e2e2f, dashSize: 3, gapSize: 2.4, transparent: true, opacity: 0.45 }),
     ghostFill: new THREE.MeshBasicMaterial({ color: 0x2e2e2f, transparent: true, opacity: 0.045, depthWrite: false }),
     white: S({ color: 0xf4f4f2, roughness: 0.6 }),

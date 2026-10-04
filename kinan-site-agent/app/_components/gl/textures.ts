@@ -229,3 +229,36 @@ export function glow() {
   g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
   return tex(c);
 }
+
+/** Temporary mesh fence panel: galvanised frame, diamond mesh, orange privacy band (alpha-tested). */
+export function fenceMesh() {
+  const { c, g } = canvas(128, 64);
+  g.clearRect(0, 0, 128, 64);
+  g.strokeStyle = "rgba(170,175,180,.95)"; g.lineWidth = 1.2;
+  for (let x = -64; x < 192; x += 7) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 64, 64); g.stroke(); g.beginPath(); g.moveTo(x + 64, 0); g.lineTo(x, 64); g.stroke(); }
+  g.fillStyle = "rgba(241,90,34,.92)"; g.fillRect(0, 40, 128, 12);
+  g.strokeStyle = "#9aa0a6"; g.lineWidth = 5; g.strokeRect(2.5, 2.5, 123, 59);
+  return tex(c, { repeat: true, aniso: 8 });
+}
+/** Tube-and-fitting scaffold with boards every lift (alpha-tested). */
+export function scaffold() {
+  const { c, g } = canvas(128, 128);
+  g.clearRect(0, 0, 128, 128);
+  g.strokeStyle = "#a9adb2"; g.lineWidth = 5;
+  for (const x of [3, 64, 125]) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 128); g.stroke(); }
+  for (const y of [3, 64, 125]) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); }
+  g.lineWidth = 3; g.beginPath(); g.moveTo(3, 125); g.lineTo(64, 64); g.moveTo(64, 64); g.lineTo(125, 3); g.stroke();
+  g.fillStyle = "#c4a46a"; g.fillRect(0, 56, 128, 9); g.fillRect(0, 119, 128, 9);
+  g.fillStyle = "#e0c58a"; g.fillRect(0, 47, 128, 4); g.fillRect(0, 110, 128, 4); // toe boards
+  return tex(c, { repeat: true, aniso: 8 });
+}
+/** Stone paving for finished plazas: 600 × 300 slabs, two tones, a darker border course. */
+export function paving() {
+  const { c, g } = canvas(256, 256);
+  const R = rng(77);
+  for (let y = 0; y < 256; y += 16) for (let x = (y / 16) % 2 ? -16 : 0; x < 256; x += 32) {
+    const t = 214 + Math.round(R() * 18); g.fillStyle = `rgb(${t},${t - 6},${t - 16})`; g.fillRect(x + 1, y + 1, 30, 14);
+  }
+  g.fillStyle = "rgba(90,80,65,.35)"; g.fillRect(0, 0, 256, 1);
+  return tex(c, { repeat: true, aniso: 8 });
+}

@@ -125,25 +125,106 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
       if (cx !== t.x || cz !== t.z || cy !== t.y) { const dlt = new THREE.Vector3(cx - t.x, cy - t.y, cz - t.z); t.add(dlt); camera.position.add(dlt); }
     });
 
-    // tap to select
+    let touched = performance.now();
+    const poke = () => { touched = performance.now(); };
+    // tap to select (mouse; touch taps are handled with the gestures below)
     let down: { x: number; y: number; t: number } | null = null;
     const el = renderer.domElement;
-    const pd = (e: PointerEvent) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; setHint(false); };
-    const pu = (e: PointerEvent) => {
-      if (!down) return;
-      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = performance.now() - down.t; down = null;
-      if (moved > 8 || dt > 450) return;
+    const pd = (e: PointerEvent) => { down = { x: e.clientX, y: e.clientY, t: e.timeStamp }; setHint(false); };
+    const pickAt = (cx: number, cy: number) => {
       const r = el.getBoundingClientRect();
-      const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      const ndc = new THREE.Vector2(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
       const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, camera);
       const hit = ray.intersectObjects(api.pickables(), false).find((h) => h.object.userData.loc);
       if (hit) onSelectRef.current(hit.object.userData.loc);
     };
+    const pu = (e: PointerEvent) => {
+      if (!down) return;
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), dt = e.timeStamp - down.t; down = null;
+      if (moved > 8 || dt > 500) return;
+      pickAt(e.clientX, e.clientY);
+    };
     el.addEventListener("pointerdown", pd); el.addEventListener("pointerup", pu);
 
+    // ---- touch, handled here rather than by OrbitControls: one finger orbits (turn + tilt);
+    // two fingers TWIST to turn, PINCH to zoom and DRAG to move, all at once, like a map app.
+    const wrapEl = wrap.current;
+    const fingers = new Map<number, { x: number; y: number }>();
+    let g0: { cx: number; cy: number; dist: number; ang: number } | null = null;
+    let tap: { x: number; y: number; t: number; multi: boolean; hud: boolean } | null = null;
+    const sph = new THREE.Spherical(), UP = new THREE.Vector3(0, 1, 0);
+    const clampN = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
+    const metrics = () => { const [a, b] = [...fingers.values()]; return { cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, dist: Math.max(1, Math.hypot(b.x - a.x, b.y - a.y)), ang: Math.atan2(b.y - a.y, b.x - a.x) }; };
+    const orbitBy = (dTheta: number, dPhi: number) => {
+      const off = camera.position.clone().sub(controls.target); sph.setFromVector3(off);
+      sph.theta += dTheta; sph.phi = clampN(sph.phi + dPhi, controls.minPolarAngle, controls.maxPolarAngle);
+      off.setFromSpherical(sph); camera.position.copy(controls.target).add(off); camera.lookAt(controls.target);
+    };
+    const dollyBy = (k: number) => {
+      const off = camera.position.clone().sub(controls.target);
+      off.setLength(clampN(off.length() * k, controls.minDistance, controls.maxDistance)); camera.position.copy(controls.target).add(off);
+    };
+    const panBy = (dx: number, dy: number) => {
+      const dist = camera.position.distanceTo(controls.target), s = (2 * dist * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, el.clientHeight);
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0); right.y = 0; right.normalize();
+      const fwd = new THREE.Vector3().crossVectors(UP, right);
+      const mv = right.multiplyScalar(-dx * s).add(fwd.multiplyScalar(dy * s));
+      const t = controls.target.clone().add(mv);
+      t.x = clampN(t.x, -100, PLAN.w * M + 100); t.z = clampN(t.z, -100, PLAN.h * M + 100);
+      mv.subVectors(t, controls.target); controls.target.add(mv); camera.position.add(mv);
+    };
+    const tDown = (e: PointerEvent) => {
+      if (e.pointerType !== "touch") return;
+      // the canvas, plus labels and pins drawn over it: a finger landing on a label must still turn / zoom the model
+      const tgt = e.target as Element, onHud = !!tgt.closest?.(".gl-hud");
+      if (tgt !== el && !onHud) return;
+      e.stopPropagation(); if (!onHud) e.preventDefault();
+      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (R.current) R.current.fly = undefined;
+      setHint(false); poke();
+      if (fingers.size === 1) tap = { x: e.clientX, y: e.clientY, t: e.timeStamp, multi: false, hud: onHud };
+      else { if (tap) tap.multi = true; }
+      g0 = fingers.size === 2 ? metrics() : null;
+    };
+    const tMove = (e: PointerEvent) => {
+      if (e.pointerType !== "touch" || !fingers.has(e.pointerId)) return;
+      e.stopPropagation(); e.preventDefault();
+      const prev = fingers.get(e.pointerId)!;
+      const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+      fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      poke();
+      if (fingers.size === 1) {
+        const k = (2 * Math.PI) / Math.max(1, el.clientHeight) * 0.75;
+        orbitBy(-dx * k, -dy * k);
+      } else if (fingers.size === 2 && g0) {
+        const m2 = metrics();
+        let dAng = m2.ang - g0.ang; if (dAng > Math.PI) dAng -= 2 * Math.PI; if (dAng < -Math.PI) dAng += 2 * Math.PI;
+        orbitBy(dAng, 0);                    // twist: the site turns with your fingers
+        dollyBy(g0.dist / m2.dist);          // pinch: zoom
+        panBy(m2.cx - g0.cx, m2.cy - g0.cy); // drag: move
+        g0 = m2;
+      }
+    };
+    const tUp = (e: PointerEvent) => {
+      if (e.pointerType !== "touch" || !fingers.has(e.pointerId)) return;
+      e.stopPropagation();
+      fingers.delete(e.pointerId);
+      g0 = fingers.size === 2 ? metrics() : null;
+      // a tap on the 3D picks what is under it; a tap on a label or pin is handled by its own button
+      if (fingers.size === 0 && tap && !tap.multi && !tap.hud && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 10 && e.timeStamp - tap.t < 500) pickAt(e.clientX, e.clientY);
+      if (fingers.size === 0) tap = null;
+    };
+    // No synthetic click after a touch on the canvas: the sheet that a tap opens would otherwise receive it
+    // (and its close button sits right where the finger was).
+    const noClick = (e: TouchEvent) => { if (e.cancelable) e.preventDefault(); };
+    el.addEventListener("touchend", noClick, { passive: false });
+    wrapEl?.addEventListener("pointerdown", tDown, { capture: true, passive: false });
+    wrapEl?.addEventListener("pointermove", tMove, { capture: true, passive: false });
+    wrapEl?.addEventListener("pointerup", tUp, { capture: true });
+    wrapEl?.addEventListener("pointercancel", tUp, { capture: true });
+
     // render loop
-    let raf = 0, last = performance.now(), frames = 0, slow = 0, degraded = false, touched = performance.now(), odd = false, fc = 0;
-    const poke = () => { touched = performance.now(); };
+    let raf = 0, last = performance.now(), frames = 0, slow = 0, degraded = false, fc = 0;
     controls.addEventListener("change", poke); el.addEventListener("pointermove", poke);
     const v = new THREE.Vector3();
     const loop = (now: number) => {
@@ -177,6 +258,7 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
       api.tick(dt, now / 1000, !reducedMotion());
       renderer.render(api.scene, camera);
       if (++fc === 3 || fc % 30 === 0) el.dataset.calls = String(renderer.info.render.calls);
+      if (fc % 10 === 0) { const o = camera.position.clone().sub(controls.target), sp = new THREE.Spherical().setFromVector3(o); el.dataset.cam = `${sp.theta.toFixed(2)},${sp.phi.toFixed(2)},${Math.round(sp.radius)},${Math.round(controls.target.x)},${Math.round(controls.target.z)}`; }
       // HUD: project anchors to the screen
       const ov = overlay.current;
       if (ov) {
@@ -211,6 +293,9 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
     return () => {
       cancelAnimationFrame(raf); ro.disconnect();
       controls.removeEventListener("change", poke); el.removeEventListener("pointermove", poke);
+      el.removeEventListener("touchend", noClick);
+      wrapEl?.removeEventListener("pointerdown", tDown, { capture: true }); wrapEl?.removeEventListener("pointermove", tMove, { capture: true });
+      wrapEl?.removeEventListener("pointerup", tUp, { capture: true }); wrapEl?.removeEventListener("pointercancel", tUp, { capture: true });
       el.removeEventListener("pointerdown", pd); el.removeEventListener("pointerup", pu); el.removeEventListener("webglcontextlost", ctxLost);
       controls.dispose(); api.dispose(); renderer.dispose();
       R.current = null;
@@ -303,7 +388,7 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
         ))}
         {gps && <span className="gl-gps" data-ground="1" data-loc="gps" data-x={gps.x * M} data-z={gps.y * M} />}
       </div>
-      {hint && <div className="gl-hint" onClick={() => setHint(false)}><span>{coarse ? "One finger to turn and tilt · two fingers to move and zoom · tap a building" : "Drag to turn · right-drag to move · scroll to zoom · click a building"}</span></div>}
+      {hint && <div className="gl-hint" onClick={() => setHint(false)}><span>{coarse ? "One finger: turn and tilt · two fingers: twist to turn, pinch to zoom, drag to move · tap a building" : "Drag to turn · right-drag to move · scroll to zoom · click a building"}</span></div>}
       <div className={"tl4d" + (cur !== today ? " away" : "")}>
         <button className="tl4d-play" onClick={togglePlay} aria-label={playing ? "Pause the timeline" : "Play construction from the start"}>
           {playing ? <svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" /><rect x="14" y="5" width="4" height="14" /></svg> : <svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" /></svg>}

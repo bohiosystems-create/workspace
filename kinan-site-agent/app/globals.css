@@ -465,3 +465,7 @@ button,a,input,select,label{touch-action:manipulation}
 .docs .seg.top{padding:0 12px;gap:2px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
 .docs .seg.top button{flex:1;border:0;border-bottom:3px solid transparent;background:none;color:var(--mute);padding:13px 8px 10px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
 .docs .seg.top button.on{background:none;color:var(--accent);border-bottom-color:var(--accent)}
+/* labels and pins over the 3D model take part in gestures (a pinch may start on one) */
+.gl-canvas,.gl-hud,.gl-hud *{touch-action:none}
+/* the controls column is as wide as the 2D/3D switch: only the buttons themselves catch touches */
+.mapctl{pointer-events:none}.mapctl>*{pointer-events:auto}
