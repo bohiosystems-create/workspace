@@ -28,10 +28,18 @@ npm run dev                  # http://localhost:3000
 
 The AI agent has no chat screen in the web app. It is used **only through WhatsApp**.
 
+## Look and feel
+
+The app carries Kinan's visual identity, shared with the marketing assistant: the charcoal band with the white logo and the orange chevron, Montserrat, orange uppercase headings, taupe caps labels over big charcoal numbers, the faceted page texture. The artwork lives in `brand/` (`kinan-logo.svg`, `kinan-chevron.svg`, `kinan-texture.jpg`) and is embedded by `npm run brand` into `lib/brand-assets.ts` (run automatically before `npm run build` and `npm run build:html`), so the web app, the single-file HTML, the WhatsApp map images and the drawing title blocks all carry the same vectors with no runtime file loads. Replace the files in `brand/` to update the artwork.
+
+**Site map** has two views: the detailed 2D plan sheet and a **3D massing model** (the `3D` button). The model is projected SVG, so it runs on any phone: buildings rise to the level the schedule says is cast, the rest of each tower is a ghost outline, the level being cast pulses orange, tower cranes slew and hoists travel; `↻` rotates the view. **Project** shows counting KPIs, a progress ring and schedule gauge, the S-curve, 3D columns per building, a milestone timeline, and 3D donuts for procurement packages, permits, compliance and the drawing register (`app/_components/Charts.tsx`, geometry in `lib/chart3d.ts`). Motion is off under the device's reduce-motion setting.
+
 ## Layout
 
 ```
 app/                 Next.js app: UI (Map · Project · Docs) and API routes
+app/_components/     SiteMap (2D) · Site3D (3D model) · Charts (Kinan chart kit) · icons
+brand/               Kinan logo, chevron and page texture (embedded by scripts/brand.mjs)
 app/api/whatsapp     WhatsApp Cloud API webhook
 lib/core/            Agent core (pure, also runs in the browser): tools, queries, LLM router
 lib/core/llm/        Anthropic + OpenAI adapters, tiered routing with fallback

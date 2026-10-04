@@ -80,7 +80,7 @@ One AI key is enough. With both, you get routing and automatic fallback between 
 | `PROCUREMENT_PROVIDER` + `SAP_*` / `ORACLE_*` / `PROCUREMENT_REST_*` + `PROCUREMENT_WEBHOOK_SECRET` | purchasing system (Step 6) |
 | `CRON_SECRET` | scheduled ERP sync (Step 6) |
 | `APP_USER` | also require this username at login |
-| `NEXT_PUBLIC_BRAND_LOGO` | URL of your official logo (e.g. `/kinan-logo.svg` after adding the file to `public/`); replaces the orange chevron in the header |
+| `NEXT_PUBLIC_BRAND_LOGO` | optional: another logo image URL in `public/` instead of the embedded Kinan logo (`brand/kinan-logo.svg`) |
 
 **After changing variables:** go to **Deployments → ⋯ (latest) → Redeploy**. Variables only apply to new deployments.
 

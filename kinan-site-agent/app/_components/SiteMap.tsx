@@ -1,9 +1,10 @@
 "use client";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { LAYER_DEFS, PLAN, SHAPES, gpsToPlan, type Layer, type Shape } from "@/lib/siteplan";
 import type { Location, Note } from "@/lib/types";
 import { rootOf, type ClientDoc } from "./site";
 import { usePanZoom } from "./usePanZoom";
+import Site3D, { type Site3DHandle } from "./Site3D";
 
 export interface MapHandle { focusLocation: (id: string) => void; locateMe: () => void }
 
@@ -43,6 +44,12 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
   const [layerOpen, setLayerOpen] = useState(false);
   const [gps, setGps] = useState<{ x: number; y: number; acc: number } | null>(null);
   const [drop, setDrop] = useState<{ x: number; y: number } | null>(null);
+  // 2D plan sheet or the 3D massing model (remembered per device). Pinning a document needs the flat sheet.
+  const [mode, setMode] = useState<"2d" | "3d">("2d");
+  const s3 = useRef<Site3DHandle>(null);
+  useEffect(() => { try { if (localStorage.getItem("kinan.mapmode") === "3d") setMode("3d"); } catch { /* blocked */ } }, []);
+  const setView = (m: "2d" | "3d") => { setMode(m); try { localStorage.setItem("kinan.mapmode", m); } catch { /* blocked */ } };
+  useEffect(() => { if (dropMode && mode === "3d") setMode("2d"); }, [dropMode, mode]);
 
   const pz = usePanZoom(PLAN.w, PLAN.h, (t) => {
     if (dropMode) { setDrop({ x: t.cx, y: t.cy }); onDrop(t.cx, t.cy); return; }
@@ -103,10 +110,12 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
     focusLocation: (id) => {
       const l = locations.find((q) => q.id === id);
       const a = l?.type === "level" ? rootOf(locations, id) : l;
-      if (a?.x !== undefined) pz.flyTo(a.x, a.y!, a.type === "building" || a.type === "zone" ? 3.2 : 5.5, 0.27);
+      if (a?.x === undefined) return;
+      if (mode === "3d") s3.current?.focus(a.x, a.y!, a.type === "building" || a.type === "zone" ? 3 : 4.5);
+      else pz.flyTo(a.x, a.y!, a.type === "building" || a.type === "zone" ? 3.2 : 5.5, 0.27);
     },
-    locateMe: () => { if (gps) pz.flyTo(gps.x, gps.y, 4.5); },
-  }), [locations, pz, gps]);
+    locateMe: () => { if (!gps) return; if (mode === "3d") s3.current?.focus(gps.x, gps.y, 4.5); else pz.flyTo(gps.x, gps.y, 4.5); },
+  }), [locations, pz, gps, mode]);
 
   useEffect(() => { if (!dropMode) setDrop(null); }, [dropMode]);
 
@@ -117,7 +126,8 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
 
   return (
     <div className={"mapwrap" + (dropMode ? " dropping" : "")}>
-      <div ref={pz.ref} className="viewport" aria-label="Site plan">
+      {mode === "3d" && <Site3D ref={s3} layers={layers} selectedId={selLoc} pins={pins} gps={gps} onSelect={onSelect} />}
+      <div ref={pz.ref} className="viewport" aria-label="Site plan" hidden={mode === "3d"}>
         <svg width={pz.size.w} height={pz.size.h} className="plan" role="img">
           <g transform={`translate(${view.x} ${view.y}) scale(${k})`}>
             <rect x={-2000} y={-2000} width={PLAN.w + 4000} height={PLAN.h + 4000} className="ground" />
@@ -130,9 +140,11 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
                 const r = 0.72 / k;
                 return (
                   <g key={`${p.x},${p.y}`} transform={`translate(${p.x} ${p.y}) scale(${r})`} data-pin={p.loc} className="pin">
-                    <path d="M0,0 C-4,-8 -13,-13 -13,-22 A13,13 0 1 1 13,-22 C13,-13 4,-8 0,0Z" className={p.issues ? "pinbody warn" : "pinbody"} data-pin={p.loc} />
-                    <text y={-18} textAnchor="middle" className="pintxt" data-pin={p.loc}>{p.docs || "!"}</text>
-                    {p.issues > 0 && <g data-pin={p.loc}><circle cx={12} cy={-34} r={8} className="pinflag" /><text x={12} y={-31} textAnchor="middle" className="pinflagtxt">{p.issues}</text></g>}
+                    <g className={"pindrop" + (p.loc === selLoc ? " pinsel" : "")}>
+                      <path d="M0,0 C-4,-8 -13,-13 -13,-22 A13,13 0 1 1 13,-22 C13,-13 4,-8 0,0Z" className={p.issues ? "pinbody warn" : "pinbody"} data-pin={p.loc} />
+                      <text y={-18} textAnchor="middle" className="pintxt" data-pin={p.loc}>{p.docs || "!"}</text>
+                      {p.issues > 0 && <g data-pin={p.loc}><circle cx={12} cy={-34} r={8} className="pinflag" /><text x={12} y={-31} textAnchor="middle" className="pinflagtxt">{p.issues}</text></g>}
+                    </g>
                   </g>
                 );
               })}
@@ -151,10 +163,12 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
       {dropMode && <div className="banner">Tap the exact spot on the plan to attach a document</div>}
 
       <div className="mapctl">
-        <button aria-label="Zoom in" onClick={() => pz.zoomBy(1.6)}>＋</button>
-        <button aria-label="Zoom out" onClick={() => pz.zoomBy(1 / 1.6)}>－</button>
-        <button aria-label="Fit site" onClick={pz.fit}>⤢</button>
-        <button aria-label="My location" onClick={() => gps && pz.flyTo(gps.x, gps.y, 4.5)} disabled={!gps} className={gps ? "" : "dim"}>◎</button>
+        <button className={"txt" + (mode === "3d" ? " on" : "")} aria-label={mode === "3d" ? "Show the 2D plan" : "Show the 3D model"} onClick={() => setView(mode === "3d" ? "2d" : "3d")} disabled={dropMode}>{mode === "3d" ? "2D" : "3D"}</button>
+        {mode === "3d" && <button aria-label="Rotate the model" onClick={() => s3.current?.rotate()}>↻</button>}
+        <button aria-label="Zoom in" onClick={() => (mode === "3d" ? s3.current?.zoomBy(1.6) : pz.zoomBy(1.6))}>＋</button>
+        <button aria-label="Zoom out" onClick={() => (mode === "3d" ? s3.current?.zoomBy(1 / 1.6) : pz.zoomBy(1 / 1.6))}>－</button>
+        <button aria-label="Fit site" onClick={() => (mode === "3d" ? s3.current?.fit() : pz.fit())}>⤢</button>
+        <button aria-label="My location" onClick={() => { if (!gps) return; if (mode === "3d") s3.current?.focus(gps.x, gps.y, 4.5); else pz.flyTo(gps.x, gps.y, 4.5); }} disabled={!gps} className={gps ? "" : "dim"}>◎</button>
         <button aria-label="Layers" onClick={() => setLayerOpen((o) => !o)} className={layerOpen ? "on" : ""}>▤</button>
       </div>
       {layerOpen && (
@@ -164,7 +178,7 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
           ))}
         </div>
       )}
-      <div className="scaletxt"><i style={{ width: 80 }} />{niceMetres(80 / k * PLAN.metresPerUnit)}</div>
+      {mode === "2d" && <div className="scaletxt"><i style={{ width: 80 }} />{niceMetres(80 / k * PLAN.metresPerUnit)}</div>}
     </div>
   );
 });

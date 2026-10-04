@@ -108,8 +108,8 @@ loc({ id: "wheel-wash", name: "Wheel Wash Bay", type: "temp", x: 1151, y: 861 })
 add({ layer: "temp", t: "text", cls: "lbl-s", x: 1151, y: 845, text: "Wheel wash", size: 7, detail: 3 });
 
 // ------------------------------------------------------------ buildings
-interface B { id: string; name: string; x: number; y: number; w: number; h: number; floors: number; use: string; cls: string; alias?: string[] }
-const buildings: B[] = [
+export interface B { id: string; name: string; x: number; y: number; w: number; h: number; floors: number; use: string; cls: string; alias?: string[] }
+export const BUILDINGS: B[] = [
   { id: "tower-a", name: "Tower A", x: 300, y: 150, w: 170, h: 170, floors: 42, use: "Residential tower", cls: "bld res", alias: ["TA", "tower 1"] },
   { id: "tower-b", name: "Tower B", x: 560, y: 150, w: 170, h: 170, floors: 36, use: "Residential tower", cls: "bld res", alias: ["TB", "tower 2"] },
   { id: "podium", name: "Podium & Retail", x: 280, y: 340, w: 470, h: 170, floors: 4, use: "Retail podium", cls: "bld ret", alias: ["mall", "retail"] },
@@ -124,7 +124,7 @@ const levelsFor = (b: B): { id: string; name: string }[] => {
   out.push({ id: `${b.id}-roof`, name: `${b.name} — Roof` });
   return out;
 };
-for (const b of buildings) {
+for (const b of BUILDINGS) {
   loc({ id: b.id, name: b.name, type: "building", x: b.x + b.w / 2, y: b.y + b.h / 2, aliases: b.alias });
   add({ layer: "buildings", t: "rect", cls: b.cls, loc: b.id, x: b.x, y: b.y, w: b.w, h: b.h });
   add({ layer: "buildings", t: "text", cls: "lbl-b", x: b.x + b.w / 2, y: b.y + 20, text: b.name.toUpperCase(), size: 13, detail: 1 });
@@ -132,7 +132,7 @@ for (const b of buildings) {
   for (const lv of levelsFor(b)) loc({ id: lv.id, name: lv.name, type: "level", parentId: b.id, x: b.x + b.w / 2, y: b.y + b.h / 2 });
 }
 // Tower cores + columns (detail)
-for (const b of buildings.slice(0, 2)) {
+for (const b of BUILDINGS.slice(0, 2)) {
   add({ layer: "buildings", t: "rect", cls: "core", x: b.x + b.w / 2 - 25, y: b.y + b.h / 2 - 28, w: 50, h: 56 });
   add({ layer: "buildings", t: "text", cls: "lbl-s", x: b.x + b.w / 2, y: b.y + b.h / 2 + 46, text: "Core", size: 7, detail: 3 });
   for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
@@ -155,11 +155,13 @@ add({ layer: "buildings", t: "text", cls: "lbl-s", x: 785, y: 523, text: "Ramp �
 
 // Villas cluster D — 3 rows x 4
 loc({ id: "villas-d", name: "Villa Cluster D", type: "building", x: 1310, y: 270, aliases: ["villas"] });
+export const VILLAS: { id: string; x: number; y: number; w: number; h: number }[] = [];
 let vn = 1;
 for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
   const id = `villa-${vn}`;
   const x = 1200 + c * 68, y = 135 + r * 100;
   loc({ id, name: `Villa D${vn}`, type: "building", parentId: "villas-d", x: x + 25, y: y + 30 });
+  VILLAS.push({ id, x, y, w: 52, h: 60 });
   add({ layer: "buildings", t: "rect", cls: "bld villa", loc: id, x, y, w: 52, h: 60 });
   add({ layer: "buildings", t: "rect", cls: "pool", x: x + 12, y: y + 64, w: 28, h: 12 });
   add({ layer: "buildings", t: "text", cls: "lbl-s", x: x + 26, y: y + 34, text: `D${vn}`, size: 10, detail: 2 });

@@ -406,7 +406,7 @@ Columns: `Sheet, Title, Discipline, Location, Revision, Status, Issued, Reason`.
 ## 10. Using it on site
 
 **Web app tabs**
-- **Site map:** pinch/zoom the detailed plan, toggle layers (utilities, grid, cranes…), tap places to see documents, notes, activities and permits, and pin uploads to exact spots. The blue dot is your GPS position.
+- **Site map:** pinch/zoom the detailed plan, toggle layers (utilities, grid, cranes…), tap places to see documents, notes, activities and permits, and pin uploads to exact spots. The blue dot is your GPS position. Tap **3D** for the massing model: each building stands at the level the schedule says is cast, the level being cast pulses orange, **↻** rotates the view. Pinning a document uses the 2D sheet.
 - **Project:** Programme (KPIs, milestones, in-progress/late/critical, 2-week look-ahead), Procurement (deliveries, packages at risk, POs, MRs, stock), Safety (permits, rules, incidents, PPE), Regulations, Drawings register, Team (tap to call).
 - **Docs:** all documents and open notes.
 

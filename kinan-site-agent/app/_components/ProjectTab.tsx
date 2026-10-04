@@ -2,13 +2,20 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Db, Location, ProjectData } from "@/lib/types";
 import * as P from "@/lib/core/project";
+import { progressByLocation, sCurve } from "@/lib/core/progress";
 import { pathOf } from "./site";
+import { C, Columns3D, Curve, Donut3D, Gauge, Kpi, Panel, Ring, Timeline } from "./Charts";
 
 type Section = "programme" | "procurement" | "safety" | "regs" | "drawings" | "team";
 interface Props { locations: Location[]; refreshKey: number; onSelectLocation: (id: string) => void; onOpenDoc: (id: string) => void }
 
 const sar = (n: number) => (n >= 1e6 ? `SAR ${(n / 1e6).toFixed(1)}M` : `SAR ${Math.round(n).toLocaleString("en")}`);
 const Slip = ({ d }: { d: number }) => (d > 0 ? <span className="slip late">+{d} d</span> : d < 0 ? <span className="slip early">{d} d</span> : <span className="slip ok">on time</span>);
+const BUILDING_NAMES: Record<string, string> = { "tower-a": "Tower A", "tower-b": "Tower B", podium: "Podium", "hotel-c": "Hotel C", "club-e": "Club E", "villas-d": "Villas D" };
+const PKG_COLORS: Record<string, string> = { Planning: "#9c9ea1", RFQ: C.blue, Evaluation: C.violet, Awarded: C.teal, Manufacturing: C.warn, Delivering: C.or, Complete: C.good };
+const PERMIT_COLORS = [C.or, C.blue, C.teal, C.violet, C.warn, C.good, "#9c9ea1", C.crit];
+const count = <T,>(xs: T[], key: (x: T) => string) => { const m = new Map<string, number>(); for (const x of xs) m.set(key(x), (m.get(key(x)) ?? 0) + 1); return m; };
+const addDays = (iso: string, n: number) => new Date(Date.parse(iso) + n * 86400000).toISOString().slice(0, 10);
 
 export default function ProjectTab({ locations, refreshKey, onSelectLocation, onOpenDoc }: Props) {
   const [data, setData] = useState<ProjectData | null>(null);
@@ -18,6 +25,8 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
   useEffect(() => { fetch("/api/project", { cache: "no-store" }).then((r) => r.json()).then(setData).catch(() => setData(null)); }, [refreshKey]);
   useEffect(() => { setQ(""); setF(""); }, [sec]);
   const db = useMemo(() => (data ? ({ locations, data, docs: [], notes: [], project: { name: "", client: "", code: "" } } as Db) : null), [data, locations]);
+  const curve = useMemo(() => (db ? sCurve(db) : []), [db]);
+  const byBuilding = useMemo(() => (db ? progressByLocation(db, Object.keys(BUILDING_NAMES)) : []), [db]);
   if (!db || !data) return <div className="proj"><div className="empty pad">Loading project data…</div></div>;
 
   const Loc = ({ id }: { id: string }) => <a className="loc" onClick={() => onSelectLocation(id)}>{pathOf(locations, id).split(" › ").slice(-1)[0]}</a>;
@@ -37,12 +46,26 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
     body = (
       <>
         <div className="kpis">
-          <div><b>{s.progressPercent}%</b><em>complete · plan {s.plannedPercent}%</em></div>
-          <div><b className={s.spi < 0.95 ? "bad" : ""}>{s.spi}</b><em>SPI</em></div>
-          <div><b>{s.practicalCompletion?.forecast}</b><em>completion · BL {s.practicalCompletion?.baseline}</em></div>
+          <Kpi value={s.progressPercent} decimals={1} suffix="%" label="Complete" sub={`baseline plan ${s.plannedPercent}%`} bad={s.progressPercent < s.plannedPercent - 2} />
+          <Kpi value={s.spi} decimals={2} label="SPI" sub={s.spi < 0.95 ? "behind schedule" : "on schedule"} bad={s.spi < 0.95} />
+          <Kpi value={s.criticalLate} label="Critical late" sub="activities past baseline" bad={s.criticalLate > 0} />
+          <Kpi text={s.practicalCompletion?.forecast ?? "—"} label="Completion" sub={`baseline ${s.practicalCompletion?.baseline ?? "—"}`} />
         </div>
-        <div className="lbl">Next milestones</div>
-        <ul className="rows">{s.upcomingMilestones.slice(0, 5).map((m) => <li key={m.id}><span className="t"><b>{m.name}</b><em>{m.forecast} · baseline {m.baseline}</em></span><Slip d={m.varianceDays} /></li>)}</ul>
+        <Panel title="Progress" sub={`Earned vs baseline at data date ${data.meta.dataDate}`}>
+          <div className="side">
+            <Ring pct={s.progressPercent} plan={s.plannedPercent} />
+            <Gauge value={s.spi} min={0.7} max={1.2} decimals={2} label="Schedule performance" bands={[{ to: 0.9, color: C.crit, name: "Behind" }, { to: 0.97, color: C.warn, name: "Slipping" }, { to: 1.2, color: C.good, name: "On track" }]} />
+          </div>
+        </Panel>
+        <Panel title="S-curve" sub="Cumulative % complete — baseline, earned to date and forecast">
+          <Curve points={curve} />
+        </Panel>
+        <Panel title="Progress by building" sub="Earned % per building; the orange mark is the baseline plan">
+          <Columns3D unit="%" max={100} targetLabel="Baseline plan" rows={byBuilding.map((b) => ({ label: BUILDING_NAMES[b.id], value: Math.round(b.earned), target: b.planned, color: b.earned < b.planned - 3 ? C.crit : undefined, sub: b.late ? `${b.late} late` : undefined }))} />
+        </Panel>
+        <Panel title="Milestones" sub="Baseline ◇ to forecast ●, next six">
+          <Timeline items={s.upcomingMilestones.slice(0, 6)} today={data.meta.dataDate} />
+        </Panel>
         <div className="lbl">Activities <span className="dd">data date {data.meta.dataDate}</span></div>
         {search("Search activities: slab, façade, L14, TA-…")}
         {chips([["progress", "In progress"], ["late", "Late"], ["critical", "Critical"], ["next2", "Next 2 weeks"]])}
@@ -60,11 +83,29 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
     );
   } else if (sec === "procurement") {
     const view = f || "deliveries";
-    const in14 = new Date(Date.parse(data.meta.dataDate) + 14 * 86400000).toISOString().slice(0, 10);
+    const in14 = addDays(data.meta.dataDate, 14);
     const dl = P.deliveriesQuery(db, { from: data.meta.dataDate, to: in14, query: q });
+    const all14 = P.deliveriesQuery(db, { from: data.meta.dataDate, to: in14 }).deliveries ?? [];
+    const pk = P.packagesQuery(db, {}).packages;
+    const atRisk = pk.filter((p) => p.floatDays < 0).length;
+    const openPo = P.poQuery(db, { limit: 1000 }).purchaseOrders.filter((p) => p.status === "Open" || p.status === "Partially Delivered");
+    const low = P.stockQuery(db, { low: true }).stock.length;
+    const byStatus = count(pk, (p) => p.status);
+    const days = Array.from({ length: 14 }, (_, i) => addDays(data.meta.dataDate, i));
     body = (
       <>
-        <div className="srcline">Source: <b>{data.procurement.source}</b>{data.procurement.lastSync ? ` · synced ${data.procurement.lastSync.slice(0, 16).replace("T", " ")}` : ""}</div>
+        <div className="kpis">
+          <Kpi value={atRisk} label="Packages at risk" sub={`of ${pk.length} packages`} bad={atRisk > 0} />
+          <Kpi value={all14.length} label="Deliveries · 14 days" sub={`${all14.filter((d) => d.status === "Delayed").length} delayed`} bad={all14.some((d) => d.status === "Delayed")} />
+          <Kpi text={sar(openPo.reduce((s, p) => s + p.value, 0))} label="Open PO value" sub={`${openPo.length} purchase orders`} />
+          <Kpi value={low} label="Stock below min" sub="items to reorder" bad={low > 0} />
+        </div>
+        <Panel title="Packages by status" sub={`Source: ${data.procurement.source}${data.procurement.lastSync ? ` · synced ${data.procurement.lastSync.slice(0, 16).replace("T", " ")}` : ""}`}>
+          <Donut3D centre={String(pk.length)} centreSub="packages" segs={Object.keys(PKG_COLORS).map((k) => ({ label: k, value: byStatus.get(k) ?? 0, color: PKG_COLORS[k] }))} />
+        </Panel>
+        <Panel title="Deliveries · next 14 days" sub="Trucks booked per day through Gate 2; red = a delayed load that day">
+          <Columns3D rows={days.map((d) => { const xs = all14.filter((x) => x.date === d); return { label: d.slice(8), sub: new Date(d).toLocaleDateString("en-GB", { weekday: "short" }).slice(0, 2), value: xs.length, color: xs.some((x) => x.status === "Delayed") ? C.crit : undefined }; })} height={120} />
+        </Panel>
         <div className="chips scroll">{([["deliveries", "Deliveries"], ["risk", "Packages at risk"], ["packages", "All packages"], ["pos", "Purchase orders"], ["mr", "Material requests"], ["stock", "Stock"]] as const).map(([v, l]) => <button key={v} className={"chip" + (view === v ? " hot" : "")} onClick={() => setF(v)}>{l}</button>)}</div>
         {(view === "pos" || view === "packages" || view === "deliveries") && search(view === "pos" ? "PO number, supplier, item…" : "Search…")}
         <ul className="rows">
@@ -80,13 +121,25 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
     const h = P.hseOverview(db);
     const st = h.stats as Record<string, number | string>;
     const reqs = data.safety.requirements.filter((r) => !q || `${r.topic} ${r.requirement} ${r.appliesTo.join(" ")}`.toLowerCase().includes(q.toLowerCase()));
+    const byType = count(data.safety.incidents, (i) => i.type);
+    const permitTypes = [...count(h.activePermits, (p) => p.type).entries()];
     body = (
       <>
         <div className="kpis">
-          <div><b>{st.ltiFreeDays}</b><em>LTI-free days</em></div>
-          <div><b>{st.trir}</b><em>TRIR</em></div>
-          <div><b>{Number(st.workforceToday).toLocaleString("en")}</b><em>workforce today</em></div>
+          <Kpi value={Number(st.ltiFreeDays)} label="LTI-free days" sub="lost-time injury free" />
+          <Kpi value={Number(st.trir)} decimals={2} label="TRIR" sub="recordable rate" bad={Number(st.trir) >= 1} />
+          <Kpi value={Number(st.workforceToday)} label="Workforce today" sub="on site" />
+          <Kpi value={h.openIncidents.length} label="Open incidents" sub={`${data.safety.incidents.length} this year`} bad={h.openIncidents.length > 0} />
         </div>
+        <Panel title="Safety performance" sub="Total recordable incident rate and the permits live now">
+          <div className="side">
+            <Gauge value={Number(st.trir)} min={0} max={2} decimals={2} label="TRIR" bands={[{ to: 0.5, color: C.good, name: "Excellent" }, { to: 1, color: C.warn, name: "Watch" }, { to: 2, color: C.crit, name: "High" }]} />
+            <Donut3D centre={String(h.activePermits.length)} centreSub="permits" segs={permitTypes.map(([k, v], i) => ({ label: k, value: v, color: PERMIT_COLORS[i % PERMIT_COLORS.length] }))} />
+          </div>
+        </Panel>
+        <Panel title="Incidents by type" sub="Year to date, all severities">
+          <Columns3D rows={["Near Miss", "First Aid", "Medical Treatment", "Property Damage", "Environmental", "Unsafe Condition"].map((t) => ({ label: t.split(" ")[0], sub: t.split(" ")[1], value: byType.get(t) ?? 0, color: t === "Medical Treatment" ? C.crit : t === "Near Miss" ? C.warn : undefined }))} height={130} />
+        </Panel>
         {chips([["permits", "Active permits"], ["rules", "Requirements"], ["incidents", "Incidents"], ["ppe", "PPE matrix"]])}
         {(f === "" || f === "permits") && <ul className="rows">{h.activePermits.map((p) => <li key={p.id}><span className="t"><b>{p.type}</b><em>{p.id} · {p.location} · until {p.validTo}</em><em className="note">{p.description}</em></span></li>)}</ul>}
         {f === "rules" && <>{search("Search: hot work, edge, crane, heat…")}<ul className="rows">{reqs.map((r) => <li key={r.id}><span className="t"><b>{r.critical ? "⚠ " : ""}{r.topic}</b><em className="note">{r.requirement}</em><em>{r.permit ? `Permit: ${r.permit} · ` : ""}PPE: {r.ppe.join(", ")} · {r.source}</em></span></li>)}</ul></>}
@@ -96,9 +149,14 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
     );
   } else if (sec === "regs") {
     const r = P.regulationsQuery(db, { query: q, status: f || undefined, limit: 100 });
+    const all = P.regulationsQuery(db, { limit: 1000 }).regulations;
+    const byStatus = count(all, (x) => x.status);
     body = (
       <>
         <div className="disclaimer">{data.meta.disclaimer}</div>
+        <Panel title="Compliance" sub="Regulatory items by status">
+          <Donut3D centre={String(all.length)} centreSub="items" segs={[["Compliant", C.good], ["In Progress", C.warn], ["Action Required", C.crit]].map(([k, c]) => ({ label: k, value: byStatus.get(k) ?? 0, color: c }))} />
+        </Panel>
         {search("Search: SBC 801, Civil Defense, heat, permit…")}
         {chips([["Action Required", "Action required"], ["In Progress", "In progress"], ["Compliant", "Compliant"]])}
         <ul className="rows">{r.regulations.map((x) => <li key={x.id}><span className="t"><b>{x.code} — {x.title}</b><em>{x.authority} · {x.topic} · owner {x.owner} · review {x.nextReview}</em><em className="note">{x.requirement}</em>{x.evidence && <em>Evidence: {x.evidence}</em>}</span><span className={"st " + x.status.toLowerCase().replace(/ /g, "")}>{x.status}</span></li>)}</ul>
@@ -106,8 +164,13 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
     );
   } else if (sec === "drawings") {
     const r = P.registerQuery(db, { query: q, discipline: f || undefined, limit: 80 });
+    const all = data.register;
+    const byDisc = count(all, (s) => s.discipline);
     body = (
       <>
+        <Panel title="Drawing register" sub={`${all.length} sheets by discipline; red = sheets under review or rejected`}>
+          <Columns3D rows={[...byDisc.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ label: k, value: v, sub: `${all.filter((s) => s.discipline === k && /review|rejected/i.test(s.status)).length} open`, color: all.some((s) => s.discipline === k && /rejected/i.test(s.status)) ? C.crit : undefined }))} height={130} />
+        </Panel>
         {search("Sheet no. or title: TA-STR L14, façade, roof…")}
         {chips([["ARC", "ARC"], ["STR", "STR"], ["MEP", "MEP"], ["FIRE", "FIRE"], ["FAC", "Façade"], ["CIV", "CIV"]])}
         <div className="srcline">{r.count ?? 0} sheets{(r.count ?? 0) > 80 ? " — showing 80, refine the search" : ""}</div>
@@ -131,7 +194,7 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
           <button key={k} className={sec === k ? "on" : ""} onClick={() => setSec(k)}>{l}</button>
         ))}
       </div>
-      <div className="projbody">{body}</div>
+      <div className="projbody" key={sec}>{body}</div>
     </div>
   );
 }

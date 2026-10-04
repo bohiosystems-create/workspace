@@ -2,6 +2,17 @@
  * Generates demo construction drawings as SVG so the drawing viewer has real
  * content to pan / zoom / mark up before any files are uploaded.
  */
+import { CHEVRON, KINAN, LOGO, artTransform, artWidth } from "./brand";
+
+// Kinan logo + chevron for the title block (the real vectors from brand/, embedded at build time).
+function brandMark(x: number, y: number, h: number) {
+  const logo = LOGO ? `<g transform="${artTransform(LOGO, x, y, h)}"><path d="${LOGO.d}" fill="${KINAN.charcoal}"/></g>` : `<text x="${x}" y="${y + h - 4}" font-size="${h}" font-weight="700">kinan</text>`;
+  const cx = x + artWidth(LOGO, h) + 6;
+  const chev = CHEVRON ? `<g transform="${artTransform(CHEVRON, cx, y, h)}"><path d="${CHEVRON.d}" fill="${KINAN.orange}"/></g>` : "";
+  return logo + chev;
+}
+const brandMarkEnd = (x: number, h: number) => x + artWidth(LOGO, h) + 6 + artWidth(CHEVRON, h);
+
 const W = 1200, H = 850;
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
@@ -15,7 +26,7 @@ ${body}
 <rect width="380" height="120" fill="#fff" stroke="#111" stroke-width="1.5"/>
 <line x1="0" y1="34" x2="380" y2="34" stroke="#111"/><line x1="0" y1="78" x2="380" y2="78" stroke="#111"/>
 <line x1="260" y1="78" x2="260" y2="120" stroke="#111"/>
-<path d="M10 9 20 17 10 25" fill="none" stroke="#f26522" stroke-width="3.5"/><text x="28" y="23" font-size="14" font-weight="700" letter-spacing="1">KINAN · KINAN HEIGHTS</text>
+${brandMark(10, 7, 20)}<text x="${brandMarkEnd(10, 20) + 8}" y="23" font-size="14" font-weight="700" letter-spacing="1">KINAN HEIGHTS</text>
 <text x="10" y="62" font-size="17" font-weight="700">${esc(title)}</text>
 <text x="10" y="98" font-size="11" fill="#444">${esc(sub)}</text>
 <text x="10" y="113" font-size="10" fill="#444">Scale ${scale}</text>

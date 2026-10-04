@@ -1,3 +1,4 @@
+import { CHEVRON, LOGO, artWidth } from "@/lib/brand";
 /** Line icons in the style of Kinan's site graphics (1.7px strokes, rounded). */
 import type { ReactElement } from "react";
 
@@ -34,12 +35,16 @@ export function Icon({ name, className = "i" }: { name: keyof typeof P | string;
 }
 
 /** Brand mark: an orange chevron (Kinan's arrow motif), not the Kinan logo. */
-export function Mark({ className = "mark" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 26 30" aria-hidden="true">
-      <path d="M4 2.5 21 15 4 27.5" fill="none" stroke="#f26522" strokeWidth="6" strokeLinejoin="miter" strokeLinecap="butt" />
-    </svg>
-  );
+/** Kinan's orange chevron (the real vector from brand/kinan-chevron.svg). */
+export function Mark({ className = "mark", color = "#f15a22" }: { className?: string; color?: string }) {
+  if (!CHEVRON) return <svg className={className} viewBox="0 0 26 30" aria-hidden="true"><path d="M4 2.5 21 15 4 27.5" fill="none" stroke={color} strokeWidth="6" /></svg>;
+  return <svg className={className} viewBox={CHEVRON.viewBox} aria-hidden="true"><path d={CHEVRON.d} fill={color} /></svg>;
+}
+
+/** Kinan's logo (brand/kinan-logo.svg), white on the charcoal band by default. */
+export function Logo({ className = "logo", color = "#ffffff", height = 30 }: { className?: string; color?: string; height?: number }) {
+  if (!LOGO) return <span className={className} style={{ color, fontWeight: 700, fontSize: height * 0.6 }}>kinan</span>;
+  return <svg className={className} viewBox={LOGO.viewBox} role="img" aria-label="Kinan" style={{ height, width: artWidth(LOGO, height) }}><path d={LOGO.d} fill={color} /></svg>;
 }
 
 export const CATEGORY_ICON: Record<string, string> = {

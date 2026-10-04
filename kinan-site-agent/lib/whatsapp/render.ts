@@ -3,6 +3,7 @@ import fs from "node:fs";
 import type { Db } from "../types";
 import { PLAN, SHAPES } from "../siteplan";
 import { rootLocation } from "../core/query";
+import { CHEVRON, KINAN, LOGO, artTransform, artWidth } from "../brand";
 
 const STYLE = `
 .ground{fill:#cfc8b3}.plot{fill:#efe9d8;stroke:#7a7051;stroke-width:1.5}.fence{fill:none;stroke:#4b5563;stroke-width:1;stroke-dasharray:6 4}
@@ -17,7 +18,7 @@ const STYLE = `
 .gate{fill:#16a34a;stroke:#fff}.guard{fill:#e5e7eb;stroke:#374151}.hse-pt{fill:#22c55e;stroke:#fff;stroke-width:1.5}
 .tree{fill:#86efac;stroke:#15803d;stroke-width:.5}.garden{fill:#bbf7d0;stroke:#4ade80}.gridline{display:none}
 .u-water,.u-sewer,.u-storm,.u-power,.u-tel,.u-fire,.mh,.lbl-u{display:none}
-.sel{stroke:#f26522;stroke-width:6;fill-opacity:.9}
+.sel{stroke:#f15a22;stroke-width:6;fill-opacity:.9}
 text{font-family:DejaVu Sans,Arial,sans-serif;paint-order:stroke;stroke:#fff;stroke-linejoin:round;text-anchor:middle}
 .lbl-big{display:none}.lbl-b{font-weight:bold;fill:#0f172a}.lbl-zone{fill:#475569;font-weight:bold;text-anchor:start}.lbl-s{fill:#334155}.lbl-road{fill:#fff;stroke:#374151}
 .lbl-c{fill:#9a3412;font-weight:bold}.lbl-gate,.lbl-h{fill:#fff;stroke:none;font-weight:bold}.lbl-grid{display:none}`;
@@ -50,9 +51,13 @@ export function planSvg(db: Db, locationId?: string, title?: string): string {
   }
   if (anchor?.x !== undefined) {
     const r = 1 / scale;
-    parts.push(`<g transform="translate(${anchor.x} ${anchor.y}) scale(${r * 1.6})"><path d="M0,0 C-4,-8 -13,-13 -13,-22 A13,13 0 1 1 13,-22 C13,-13 4,-8 0,0Z" fill="#f26522" stroke="#fff" stroke-width="2"/><circle cy="-22" r="5" fill="#fff"/></g>`);
+    parts.push(`<g transform="translate(${anchor.x} ${anchor.y}) scale(${r * 1.6})"><path d="M0,0 C-4,-8 -13,-13 -13,-22 A13,13 0 1 1 13,-22 C13,-13 4,-8 0,0Z" fill="#f15a22" stroke="#fff" stroke-width="2"/><circle cy="-22" r="5" fill="#fff"/></g>`);
   }
-  const banner = title ? `<g><rect x="${vx}" y="${vy}" width="${vw}" height="${46 / scale}" fill="#1c1c1e" opacity=".94"/><text x="${vx + 14 / scale}" y="${vy + 31 / scale}" font-size="${22 / scale}" fill="#fff" stroke="none" style="text-anchor:start;font-weight:bold">${esc(title)}</text></g>` : "";
+  const bh = 46 / scale, lh = 26 / scale;
+  const logo = LOGO ? `<g transform="${artTransform(LOGO, vx + 12 / scale, vy + 10 / scale, lh)}"><path d="${LOGO.d}" fill="#fff"/></g>` : "";
+  const chev = CHEVRON ? `<g transform="${artTransform(CHEVRON, vx + vw - 12 / scale - artWidth(CHEVRON, lh), vy + 10 / scale, lh)}"><path d="${CHEVRON.d}" fill="${KINAN.orange}"/></g>` : "";
+  const tx = vx + (LOGO ? 12 / scale + artWidth(LOGO, lh) + 14 / scale : 14 / scale);
+  const banner = title ? `<g><rect x="${vx}" y="${vy}" width="${vw}" height="${bh}" fill="${KINAN.charcoal}" opacity=".95"/>${logo}<line x1="${tx - 7 / scale}" y1="${vy + 10 / scale}" x2="${tx - 7 / scale}" y2="${vy + 36 / scale}" stroke="rgba(255,255,255,.35)" stroke-width="${1 / scale}"/><text x="${tx}" y="${vy + 31 / scale}" font-size="${20 / scale}" fill="#fff" stroke="none" style="text-anchor:start;font-weight:bold">${esc(title)}</text>${chev}</g>` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="${vx} ${vy} ${vw} ${vh}"><style>${STYLE}</style><rect x="-2000" y="-2000" width="6000" height="6000" class="ground"/>${parts.join("")}${banner}</svg>`;
 }
 

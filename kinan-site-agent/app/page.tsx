@@ -9,7 +9,8 @@ import DocViewer from "./_components/DocViewer";
 import DocsTab from "./_components/DocsTab";
 import ProjectTab from "./_components/ProjectTab";
 import { useAuthor, useSite } from "./_components/site";
-import { Icon, Mark } from "./_components/icons";
+import { Icon, Logo, Mark } from "./_components/icons";
+import { TEXTURE } from "@/lib/brand";
 
 // Optional official logo (e.g. /brand/kinan-logo.svg placed in public/) — set by Kinan's team.
 const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
@@ -35,6 +36,8 @@ export default function Home() {
     if (saved === "dark" || saved === "light") document.documentElement.dataset.theme = saved;
     const attr = document.documentElement.dataset.theme;
     setDark(attr ? attr === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches);
+    // Kinan's faceted page texture behind the app (brand/kinan-texture.jpg, embedded at build time).
+    if (TEXTURE) document.documentElement.style.setProperty("--texture", `url("${TEXTURE}")`);
   }, []);
   const toggleTheme = () => {
     const next = dark ? "light" : "dark";
@@ -82,14 +85,14 @@ export default function Home() {
   const viewerDoc = viewerId ? docs.find((d) => d.id === viewerId) : undefined;
 
   if (!state) {
-    return <div className="boot"><Mark />{error || "Kinan Site Agent"}</div>;
+    return <div className="boot"><Logo height={46} /><span>{error || "Site Agent"}</span><Mark /></div>;
   }
 
   return (
     <div className="app">
       <header className="top">
         <div className="brand">
-          {LOGO ? <img className="logo-img" src={LOGO} alt={state.project.client} /> : <Mark />}
+          {LOGO ? <img className="logo-img" src={LOGO} alt={state.project.client} /> : <Logo />}
           <div><b>Site Agent</b><em>{state.project.name} · {state.project.code}</em></div>
         </div>
         <div className="hbtns">
@@ -101,6 +104,7 @@ export default function Home() {
               <input id="author-name" autoFocus value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} onBlur={() => setNameDraft(null)} aria-label="Your name (shown on notes you leave)" maxLength={60} />
             </form>
           )}
+          <span className="chev" aria-hidden="true"><Mark /></span>
         </div>
       </header>
 

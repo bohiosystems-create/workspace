@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "typecheck": "tsc --noEmit",
-    "build:html": "node standalone/build.mjs"
+    "build:html": "node scripts/brand.mjs && node standalone/build.mjs",
+    "brand": "node scripts/brand.mjs",
+    "prebuild": "node scripts/brand.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

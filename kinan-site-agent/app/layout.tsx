@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "Site Agent", statusBarStyle: "black-translucent" },
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
 };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, maximumScale: 1, viewportFit: "cover", themeColor: "#1c1c1e" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, maximumScale: 1, viewportFit: "cover", themeColor: "#2e2e2f" };
 
 // Apply a saved Dark/Light choice before first paint (no flash).
 const THEME = `try{var t=localStorage.getItem("kinan.theme");if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}`;
