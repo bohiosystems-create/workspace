@@ -692,6 +692,26 @@ a:not(.btn):not(.navlink):not(.card):not(.k-band-logo):hover { color: var(--oran
 .tp-cand { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid #f0eeeb; flex-wrap: wrap; }
 .tp-cand .b { flex: 1 1 320px; font-size: 12px; line-height: 1.55; }
 
+/* ---- Chat drawer: resizable by dragging its outer corner / edges; full screen when dragged all the way out ---- */
+.chat-drawer.sized { max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
+.chat-drawer.dragging { animation: none; user-select: none; transition: none; }
+.chat-drawer.dragging .chat-log { pointer-events: none; }
+.chat-drawer.full { inset: 0 !important; width: 100vw !important; height: 100vh !important; max-width: 100vw; max-height: 100vh; border-top-width: 3px; animation: none; }
+.chat-drawer.full .chat-log { padding: 20px max(16px, calc((100vw - 980px) / 2)); }
+.chat-drawer.full .chat-input { padding: 12px max(12px, calc((100vw - 980px) / 2)); }
+.chat-drawer.full .kmsg { font-size: 13.5px; }
+.chat-resize { position: absolute; z-index: 3; touch-action: none; }
+.chat-resize.corner { width: 22px; height: 22px; top: -4px; left: -4px; cursor: nwse-resize; }
+.chat-resize.corner::before { content: ""; position: absolute; left: 6px; top: 6px; width: 10px; height: 10px; border-left: 2px solid var(--orange, #f15a22); border-top: 2px solid var(--orange, #f15a22); opacity: .9; }
+.chat-resize.edge-x { width: 8px; top: 20px; bottom: 0; left: -4px; cursor: ew-resize; }
+.chat-resize.edge-y { height: 8px; left: 20px; right: 0; top: -4px; cursor: ns-resize; }
+[dir="rtl"] .chat-resize.corner { left: auto; right: -4px; cursor: nesw-resize; }
+[dir="rtl"] .chat-resize.corner::before { left: auto; right: 6px; border-left: 0; border-right: 2px solid var(--orange, #f15a22); }
+[dir="rtl"] .chat-resize.edge-x { left: auto; right: -4px; }
+[dir="rtl"] .chat-resize.edge-y { left: 0; right: 20px; }
+.chat-resize:hover { background: rgba(241,90,34,.08); }
+@media (max-width: 560px) { .chat-resize { display: none; } .chat-size-btn { display: none; } }
+
 :root{color-scheme:light}html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{background:var(--bg);color:var(--ink);overflow-x:hidden}
 @media (max-width:600px){.shell{padding:20px 16px 72px}.topnav{flex-wrap:wrap}.navlinks{flex-wrap:wrap;max-width:100%}.panel,.row>*{min-width:0}table{display:block;overflow-x:auto;max-width:100%}}</style>
 <div id="root"></div><script src="app.js"></script>

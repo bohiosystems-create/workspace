@@ -915,6 +915,7 @@ const UI10: Record<string, string> = {
 };
 
 const UI11: Record<string, string> = {
+  "Drag to resize — all the way out for full screen": "اسحبوا لتغيير الحجم — حتى النهاية لملء الشاشة", "Restore size": "استعادة الحجم", "Full screen": "ملء الشاشة",
   "Results feed the fair scorecard and the renewal decisions.": "تدخل النتائج في بطاقة التقييم العادل وقرارات التجديد.",
   "Recommended tests": "اختبارات يُنصح بها", "Design this test": "صمّم هذا الاختبار", "Design and email the vendor": "صمّم وراسل المورد",
   "Every vendor with material spend has test evidence or a test in progress.": "كل مورد بإنفاق مادي لديه أدلة اختبار أو اختبار جارٍ.",

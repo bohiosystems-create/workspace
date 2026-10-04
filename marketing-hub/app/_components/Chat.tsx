@@ -68,6 +68,30 @@ function Rich({ text }: { text: string }) {
 export default function Chat() {
   const { lang, t, N } = useI18n();
   const [open, setOpen] = useState(false);
+  // The drawer's size: drag its outer corner or edges to make it bigger; dragged (nearly) all the way out it snaps to
+  // full screen. Remembered per browser.
+  const [size, setSize] = useState<{ w: number; h: number } | "full" | null>(null);
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => { try { const s = localStorage.getItem("chat-size"); if (s) setSize(JSON.parse(s)); } catch {} }, []);
+  const remember = (s: { w: number; h: number } | "full" | null) => { setSize(s); try { s ? localStorage.setItem("chat-size", JSON.stringify(s)) : localStorage.removeItem("chat-size"); } catch {} };
+  function startResize(e: React.PointerEvent, axis: "both" | "x" | "y") {
+    e.preventDefault();
+    const rtl = document.documentElement.dir === "rtl";
+    const start = size && size !== "full" ? size : { w: Math.min(460, window.innerWidth - 32), h: Math.min(780, window.innerHeight - 32) };
+    const x0 = e.clientX, y0 = e.clientY;
+    setDragging(true);
+    const move = (ev: PointerEvent) => {
+      const dx = rtl ? ev.clientX - x0 : x0 - ev.clientX, dy = y0 - ev.clientY;
+      const w = axis === "y" ? start.w : Math.max(340, Math.min(window.innerWidth - 16, start.w + dx));
+      const h = axis === "x" ? start.h : Math.max(360, Math.min(window.innerHeight - 16, start.h + dy));
+      // Dragged (almost) all the way out → full screen.
+      if (w >= window.innerWidth - 60 && (axis === "x" || h >= window.innerHeight - 60)) setSize("full");
+      else setSize({ w, h });
+    };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); setDragging(false); setSize((s) => { try { s ? localStorage.setItem("chat-size", JSON.stringify(s)) : localStorage.removeItem("chat-size"); } catch {} return s; }); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  }
+  const drawerStyle: React.CSSProperties = size === "full" ? {} : size ? { width: size.w, height: size.h, maxWidth: "calc(100vw - 16px)", maxHeight: "calc(100vh - 16px)" } : {};
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -268,10 +292,18 @@ export default function Chat() {
         </button>
       )}
       {open && (
-        <div className="chat-drawer">
+        <div className={`chat-drawer${size === "full" ? " full" : ""}${dragging ? " dragging" : ""}${size ? " sized" : ""}`} style={drawerStyle}>
+          {size !== "full" && <>
+            <div className="chat-resize corner" onPointerDown={(e) => startResize(e, "both")} title={t("Drag to resize — all the way out for full screen")} aria-hidden="true" />
+            <div className="chat-resize edge-x" onPointerDown={(e) => startResize(e, "x")} aria-hidden="true" />
+            <div className="chat-resize edge-y" onPointerDown={(e) => startResize(e, "y")} aria-hidden="true" />
+          </>}
           <div className="chat-head" style={{ justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}><span className="dot" />{t("AI Assistant Director of Marketing")}</div>
-            <button className="btn ghost" style={{ padding: "4px 10px", fontSize: 9 }} onClick={() => setOpen(false)}>{t("Close")}</button>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className="btn ghost chat-size-btn" style={{ padding: "4px 9px", fontSize: 10 }} onClick={() => remember(size === "full" ? null : "full")} aria-label={size === "full" ? t("Restore size") : t("Full screen")} title={size === "full" ? t("Restore size") : t("Full screen")}>{size === "full" ? "⤡" : "⤢"}</button>
+              <button className="btn ghost" style={{ padding: "4px 10px", fontSize: 9 }} onClick={() => setOpen(false)}>{t("Close")}</button>
+            </div>
           </div>
           <div className="chat-log" ref={logRef}>
             {msgs.length === 0 && (
