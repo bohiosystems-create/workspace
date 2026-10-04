@@ -99,7 +99,8 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
     controls.minPolarAngle = 0.2;
     controls.screenSpacePanning = false;
     controls.zoomToCursor = true;
-    controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+    controls.rotateSpeed = 0.7;
     controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
     const api = createSiteScene(renderer, { textureSize: small ? 2048 : 4096, night, layers });
     R.current = { renderer, camera, controls, api };
@@ -302,7 +303,7 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
         ))}
         {gps && <span className="gl-gps" data-ground="1" data-loc="gps" data-x={gps.x * M} data-z={gps.y * M} />}
       </div>
-      {hint && <div className="gl-hint" onClick={() => setHint(false)}><span>{coarse ? "One finger to move · two fingers to turn, tilt and zoom · tap a building" : "Drag to turn · right-drag to move · scroll to zoom · click a building"}</span></div>}
+      {hint && <div className="gl-hint" onClick={() => setHint(false)}><span>{coarse ? "One finger to turn and tilt · two fingers to move and zoom · tap a building" : "Drag to turn · right-drag to move · scroll to zoom · click a building"}</span></div>}
       <div className={"tl4d" + (cur !== today ? " away" : "")}>
         <button className="tl4d-play" onClick={togglePlay} aria-label={playing ? "Pause the timeline" : "Play construction from the start"}>
           {playing ? <svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" /><rect x="14" y="5" width="4" height="14" /></svg> : <svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" /></svg>}

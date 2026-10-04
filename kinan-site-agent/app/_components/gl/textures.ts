@@ -77,6 +77,13 @@ export function drawGround(o: GroundOpts) {
     for (let i = 0; i < 160 * o.landscape; i++) { const x = z2.x! + R() * z2.w!, y = z2.y! + R() * z2.h!; g.beginPath(); g.arc(x, y, 4 + R() * 9, 0, Math.PI * 2); g.fill(); }
     g.globalAlpha = 1;
   }
+  // zebra crossings at the gates, hatched no-go zones under the cranes, tyre streaks on the haul road, the camp pitch
+  g.fillStyle = P.line;
+  for (const gx of [600, 1150]) for (let i = 0; i < 7; i++) g.fillRect(gx - 14 + i * 4, 950, 2.2, 22);
+  for (const s of SHAPES) if (s.t === "circle" && s.cls === "crane") { g.save(); g.beginPath(); g.arc(s.cx!, s.cy!, 11, 0, Math.PI * 2); g.clip(); g.strokeStyle = "rgba(241,90,34,.7)"; g.lineWidth = 1.2; for (let k = -24; k < 24; k += 4) { g.beginPath(); g.moveTo(s.cx! + k - 12, s.cy! - 12); g.lineTo(s.cx! + k + 12, s.cy! + 12); g.stroke(); } g.restore(); }
+  g.strokeStyle = o.night ? "rgba(0,0,0,.35)" : "rgba(60,45,25,.16)"; g.lineWidth = 2.2;
+  for (let i = 0; i < 14; i++) { const y = 552 + (i % 4) * 7 + R() * 2; g.beginPath(); g.moveTo(130 + R() * 300, y); g.lineTo(600 + R() * 800, y + (R() - 0.5) * 3); g.stroke(); }
+  { const camp = SHAPES.find((s) => s.t === "rect" && s.loc === "labour-camp"); if (camp) { const px = camp.x! + camp.w! - 70, py = camp.y! + 8; g.fillStyle = P.green; g.globalAlpha = 0.7; g.fillRect(px, py, 60, 40); g.globalAlpha = 1; g.strokeStyle = P.line; g.lineWidth = 0.8; g.strokeRect(px + 2, py + 2, 56, 36); g.beginPath(); g.moveTo(px + 30, py + 2); g.lineTo(px + 30, py + 38); g.stroke(); g.beginPath(); g.arc(px + 30, py + 20, 6, 0, Math.PI * 2); g.stroke(); } }
   // HSE muster points, first aid: painted circles
   for (const s of SHAPES) if (s.t === "circle" && s.cls === "hse-pt") { g.fillStyle = "#3f9a5a"; g.beginPath(); g.arc(s.cx!, s.cy!, s.r! * 1.4, 0, Math.PI * 2); g.fill(); g.fillStyle = "#fff"; g.font = `700 ${s.r! * 1.3}px Montserrat, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; const lbl = SHAPES.find((q) => q.t === "text" && q.cls === "lbl-h" && Math.abs(q.x! - s.cx!) < 1 && Math.abs(q.y! - 3 - s.cy!) < 1); g.fillText(lbl?.text ?? "", s.cx!, s.cy! + 0.5); }
   // crane radius rings

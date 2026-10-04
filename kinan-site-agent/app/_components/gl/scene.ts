@@ -12,116 +12,16 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { BUILDINGS, PLAN, SHAPES, VILLAS, type Layer } from "@/lib/siteplan";
 import { structKey, type SiteState, type StructState, type VillaState } from "@/lib/scene/progress4d";
-import { M, cabin, climbScreen, concrete, curtainWall, drawGround, glow, hoarding, lattice, rebar, rng, sky } from "./textures";
+import { M, concrete, drawGround, glow, rng, sky } from "./textures";
+import { ORANGE, STOREY, W, at, box, materials, mergeStatic, perim, rectOf, shadow, tag, walls, type Mats } from "./common";
+import { constructionKit, createDetails, roofKit, type Deck } from "./details";
 
-export const STOREY = 3.6;
+export { STOREY };
 const PODIUM_STOREY = 5.4;
-const ORANGE = 0xf15a22;
 const CRANE_AT: Record<string, { x: number; z: number; r: number; tower: string }> = {};
 for (const s of SHAPES) if (s.layer === "cranes" && s.t === "circle" && s.cls === "crane" && s.loc) {
   const ring = SHAPES.find((q) => q.cls === "crane-r" && q.cx === s.cx && q.cy === s.cy);
   CRANE_AT[s.loc] = { x: s.cx! * M, z: s.cy! * M, r: (ring?.r ?? 100) * M, tower: s.loc === "tc3" ? "hotel-c" : s.loc === "tc2" ? "tower-b" : "tower-a" };
-}
-const rectOf = (loc: string) => SHAPES.find((s) => s.t === "rect" && s.loc === loc && s.layer !== "base" && s.layer !== "roads");
-const W = (r: { x?: number; y?: number; w?: number; h?: number }) => ({ x: r.x! * M, z: r.y! * M, w: r.w! * M, d: r.h! * M });
-
-/** A box whose UVs repeat by face size (so one texture tiles at a fixed real-world module). */
-function box(w: number, h: number, d: number, modW = 0, modH = 0) {
-  const g = new THREE.BoxGeometry(w, h, d);
-  if (modW && modH) {
-    const uv = g.attributes.uv as THREE.BufferAttribute;
-    const faces: [number, number][] = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
-    for (let f = 0; f < 6; f++) for (let v = 0; v < 4; v++) { const i = f * 4 + v; uv.setXY(i, uv.getX(i) * (faces[f][0] / modW), uv.getY(i) * (faces[f][1] / modH)); }
-  }
-  return g;
-}
-/** Four outward wall planes round a footprint (no top or bottom), UVs tiled by size. */
-function walls(w: number, d: number, h: number, modW: number, modH: number) {
-  const parts: THREE.BufferGeometry[] = [];
-  const side = (len: number, rotY: number, x: number, z: number) => {
-    const p = new THREE.PlaneGeometry(len, h);
-    const uv = p.attributes.uv as THREE.BufferAttribute;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (len / modW), uv.getY(i) * (h / modH));
-    p.rotateY(rotY); p.translate(x, h / 2, z); parts.push(p);
-  };
-  side(w, 0, 0, d / 2); side(w, Math.PI, 0, -d / 2); side(d, Math.PI / 2, w / 2, 0); side(d, -Math.PI / 2, -w / 2, 0);
-  return mergeGeometries(parts)!;
-}
-const at = <T extends THREE.Object3D>(o: T, x: number, y: number, z: number) => { o.position.set(x, y, z); return o; };
-function shadow<T extends THREE.Object3D>(o: T, cast = true, receive = true) { o.traverse((c) => { if ((c as THREE.Mesh).isMesh) { c.castShadow = cast; c.receiveShadow = receive; } }); return o; }
-function tag<T extends THREE.Object3D>(o: T, loc?: string): T { if (loc) o.traverse((c) => { c.userData.loc = loc; }); return o; }
-
-interface Mats {
-  concrete: THREE.MeshStandardMaterial; core: THREE.MeshStandardMaterial; slabEdge: THREE.MeshStandardMaterial;
-  glass: THREE.MeshStandardMaterial; glassLit: THREE.MeshStandardMaterial; formwork: THREE.MeshStandardMaterial; deck: THREE.MeshStandardMaterial;
-  screen: THREE.MeshStandardMaterial; steel: THREE.MeshStandardMaterial; lattice: THREE.MeshStandardMaterial; weight: THREE.MeshStandardMaterial;
-  render: THREE.MeshStandardMaterial; renderLit: THREE.MeshStandardMaterial; block: THREE.MeshStandardMaterial; water: THREE.MeshStandardMaterial; stone: THREE.MeshStandardMaterial;
-  cabin: THREE.MeshStandardMaterial; hoard: THREE.MeshStandardMaterial; ghost: THREE.LineDashedMaterial; ghostFill: THREE.MeshBasicMaterial;
-  white: THREE.MeshStandardMaterial; dark: THREE.MeshStandardMaterial; skylight: THREE.MeshStandardMaterial; palm: THREE.MeshStandardMaterial; trunk: THREE.MeshStandardMaterial;
-  aviation: THREE.MeshBasicMaterial; rust: THREE.MeshStandardMaterial; ply: THREE.MeshStandardMaterial; sel: THREE.LineBasicMaterial;
-}
-function materials(): Mats {
-  const cw = curtainWall(false), cwl = curtainWall(true);
-  const S = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial(p);
-  const conc = concrete(5, 200), conc2 = concrete(9, 168), stoneT = concrete(13, 222);
-  return {
-    concrete: S({ map: conc, roughness: 0.92 }),
-    core: S({ map: conc2, roughness: 0.95 }),
-    slabEdge: S({ color: 0xc9c6bf, roughness: 0.9 }),
-    glass: S({ map: cw.map, roughness: 0.18, metalness: 0.55, envMapIntensity: 1.25 }),
-    glassLit: S({ map: cw.map, emissiveMap: cwl.emissive, emissive: 0xffd9a0, emissiveIntensity: 0, roughness: 0.18, metalness: 0.55, envMapIntensity: 1.25 }),
-    formwork: S({ color: 0xe0a030, roughness: 0.75, emissive: ORANGE, emissiveIntensity: 0 }),
-    deck: S({ map: rebar(), roughness: 0.8, emissive: ORANGE, emissiveIntensity: 0 }),
-    screen: S({ map: climbScreen(), roughness: 0.7, side: THREE.DoubleSide }),
-    steel: S({ color: ORANGE, roughness: 0.55, metalness: 0.3 }),
-    lattice: S({ map: lattice("#f15a22"), alphaTest: 0.4, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.55, metalness: 0.3 }),
-    weight: S({ color: 0x8c8a86, roughness: 0.9 }),
-    render: S({ color: 0xf2ede3, roughness: 0.85 }),
-    renderLit: S({ color: 0xf2ede3, roughness: 0.85, emissive: 0xffd9a0, emissiveIntensity: 0 }),
-    block: S({ map: concrete(21, 150), roughness: 0.95 }),
-    water: S({ color: 0x3fa7d6, roughness: 0.08, metalness: 0.1, envMapIntensity: 1.4 }),
-    stone: S({ map: stoneT, roughness: 0.8 }),
-    cabin: S({ map: cabin(), roughness: 0.8 }),
-    hoard: S({ map: hoarding(), roughness: 0.7 }),
-    ghost: new THREE.LineDashedMaterial({ color: 0x2e2e2f, dashSize: 3, gapSize: 2.4, transparent: true, opacity: 0.45 }),
-    ghostFill: new THREE.MeshBasicMaterial({ color: 0x2e2e2f, transparent: true, opacity: 0.045, depthWrite: false }),
-    white: S({ color: 0xf4f4f2, roughness: 0.6 }),
-    dark: S({ color: 0x24272b, roughness: 0.4, metalness: 0.3 }),
-    skylight: S({ color: 0x9cc6dd, roughness: 0.05, metalness: 0.6, transparent: true, opacity: 0.75, envMapIntensity: 1.5 }),
-    palm: S({ color: 0x4f7d39, roughness: 0.85, side: THREE.DoubleSide }),
-    trunk: S({ color: 0x8a6a48, roughness: 0.95 }),
-    aviation: new THREE.MeshBasicMaterial({ color: 0xff2a1a }),
-    rust: S({ color: 0x8a4a2a, roughness: 0.9, metalness: 0.2 }),
-    ply: S({ color: 0xc89a55, roughness: 0.85 }),
-    sel: new THREE.LineBasicMaterial({ color: ORANGE, transparent: true, opacity: 0.95, depthTest: false }),
-  };
-}
-
-
-/** Merge a static group's meshes that share a material into one mesh each (fewer draw calls on phones). */
-function mergeStatic<T extends THREE.Group>(g: T): T {
-  g.updateMatrixWorld(true);
-  const inv = new THREE.Matrix4().copy(g.matrixWorld).invert();
-  const byMat = new Map<THREE.Material, { geos: THREE.BufferGeometry[]; meshes: THREE.Mesh[] }>();
-  g.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh || (mesh as unknown as THREE.InstancedMesh).isInstancedMesh || Array.isArray(mesh.material) || o.userData.keep) return;
-    const geo = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
-    for (const k of Object.keys(geo.attributes)) if (!["position", "normal", "uv"].includes(k)) geo.deleteAttribute(k);
-    if (!geo.attributes.uv) geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
-    geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, mesh.matrixWorld));
-    const e = byMat.get(mesh.material) ?? { geos: [], meshes: [] };
-    e.geos.push(geo); e.meshes.push(mesh); byMat.set(mesh.material, e);
-  });
-  for (const [mat, e] of byMat) {
-    if (e.meshes.length < 2) { e.geos.forEach((x) => x.dispose()); continue; }
-    const merged = mergeGeometries(e.geos); e.geos.forEach((x) => x.dispose());
-    if (!merged) continue;
-    for (const mesh of e.meshes) { mesh.parent?.remove(mesh); mesh.geometry.dispose(); }
-    const out = new THREE.Mesh(merged, mat); out.userData = { ...e.meshes[0].userData }; out.castShadow = true; out.receiveShadow = true;
-    g.add(out);
-  }
-  return g;
 }
 
 // ------------------------------------------------------------------ structures
@@ -191,8 +91,6 @@ function towerModel(m: Mats, id: string, r: { x: number; z: number; w: number; d
   if (s.topped && s.built > 0) {
     g.add(at(new THREE.Mesh(walls(w + 0.8, d + 0.8, 1.4, 6, 1.4), m.slabEdge), 0, top + 0.12, 0));
     if (!opts.podium) {
-      const R = rng(id.length * 7);
-      for (let i = 0; i < 4; i++) g.add(at(new THREE.Mesh(box(4 + R() * 5, 2.2 + R() * 1.5, 3 + R() * 4), m.white), (R() - 0.5) * w * 0.55, top + 1.4, (R() - 0.5) * d * 0.55));
       if (floors > 10) g.add(at(new THREE.Mesh(box(w * 0.7, 0.6, 0.6), m.dark), 0, top + 2.2, d * 0.38));
     }
   }
@@ -201,6 +99,9 @@ function towerModel(m: Mats, id: string, r: { x: number; z: number; w: number; d
     const sk = new THREE.Mesh(box(w * 0.34, 1.2, d * 0.42, 4, 4), s.glazed >= 3.9 ? m.skylight : m.lattice);
     g.add(at(sk, 0, top + 0.6, 0));
   }
+  // edge protection, falsework, the pour and the pump; rooftop equipment once topped out
+  { const kit = constructionKit(m, { w, d, storey, built: s.built, glazed, floors, active: s.active, topped: s.topped, podium: !!opts.podium, id }); g.add(kit.group); pulse.push(...kit.pulse); }
+  if (s.topped && s.built > 0) g.add(roofKit(m, id, w, d, top));
   // ghost of the finished massing above what is built
   if (s.built < floors) {
     const h = (floors - s.built) * storey;
@@ -234,8 +135,12 @@ function villaModel(m: Mats, id: string, r: { x: number; z: number; w: number; d
   if (v.finished) {
     g.add(at(new THREE.Mesh(walls(w * 0.72, d, 1, 4, 1), m.render), -w * 0.14, 2 * STOREY, 0));
     g.add(at(new THREE.Mesh(box(w * 0.26, 0.2, d * 0.7), m.dark), w * 0.36, STOREY + 2.8, 0));
-    // pool and garden wall
+    // pool, garden wall, planting, and the owner's car once handed over
     g.add(at(new THREE.Mesh(box(r.w * 0.5, 0.15, r.d * 0.18), m.water), 0, 0.1, d / 2 + r.d * 0.16));
+    g.add(at(new THREE.Mesh(walls(r.w * 0.96, r.d * 1.3, 1.8, 4, 1.8), m.render), 0, 0, r.d * 0.08));
+    const R2 = rng(id.length * 31 + r.x);
+    for (let i = 0; i < 4; i++) g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.9 + R2() * 0.6, 8, 6), m.palm), -r.w * 0.42 + R2() * r.w * 0.84, 0.9, d / 2 + r.d * 0.3 + R2() * r.d * 0.2));
+    if (v.handedOver) { g.add(at(new THREE.Mesh(box(4.4, 1.3, 1.9), new THREE.MeshStandardMaterial({ color: id.endsWith("3") || id.endsWith("7") ? 0x2e2e2f : 0xf4f4f2, roughness: 0.35, metalness: 0.4 })), -r.w * 0.3, 0.75, -d / 2 - 2)); g.add(at(new THREE.Mesh(box(2.3, 0.8, 1.7), m.dark), -r.w * 0.3 - 0.2, 1.75, -d / 2 - 2)); }
   }
   shadow(g);
   const pulse: THREE.MeshStandardMaterial[] = [];
@@ -488,6 +393,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
   const trucks: Truck[] = [];
   const truckGroup = new THREE.Group(); scene.add(truckGroup);
   { const ring = pathOf(RING, true), haul = pathOf(HAUL, true); for (let i = 0; i < 7; i++) { const g = truckModel(m, i); const path = i < 3 ? ring : haul; const t: Truck = { g, drum: g.userData.drum, path, s: (path.len * i) / (i < 3 ? 3 : 4), speed: 7 + (i % 3) }; trucks.push(t); truckGroup.add(g); placeTruck(t); } }
+  const details = createDetails(m); scene.add(details.group);
   const sel = new THREE.Group(); scene.add(sel);
   let selId: string | undefined;
   let state: SiteState | null = null;
@@ -533,6 +439,10 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
       if (!cs?.up) continue;
       const h = cs.erect < 1 ? Math.max(8, 60 * cs.erect) : Math.max(40, cs.floors * STOREY + 10);
       setCraneHeight(c, h); c.slew.visible = cs.erect >= 1;
+      // ties to the building every ten floors
+      c.root.children.filter((o) => o.userData.tie).forEach((o) => c.root.remove(o));
+      const tw = s.struct[CRANE_AT[c.id].tower]; const fp = footprint(CRANE_AT[c.id].tower);
+      if (tw && fp && tw.built >= 10) { const cx = fp.x + fp.w / 2, cz = fp.z + fp.d / 2; const dx = cx - c.root.position.x, dz = cz - c.root.position.z; const ex = Math.abs(dx) > Math.abs(dz) ? Math.sign(dx) * (Math.abs(dx) - fp.w / 2) : 0, ez = ex ? 0 : Math.sign(dz) * (Math.abs(dz) - fp.d / 2); const len = Math.hypot(ex, ez); for (let f = 10; f <= tw.built; f += 10) { const t = at(new THREE.Mesh(box(len, 0.35, 0.35), m.steel), ex / 2, f * STOREY + 1, ez / 2); t.rotation.y = -Math.atan2(ez, ex); t.userData.tie = true; c.root.add(t); } }
       if (first) c.cab = c.cabTarget = Math.max(6, h * 0.4);
     }
     // hoists ride up the tower faces
@@ -546,6 +456,8 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
       g.add(at(new THREE.Mesh(box(1.4, top, 1.4, 1.4, 1.4), m.lattice), q.x + q.w / 2, top / 2, q.z + q.d / 2));
       const cage = at(new THREE.Mesh(box(3.2, 2.6, 2.4), m.steel), q.x + q.w / 2 + (id === "hoist-a" ? -2.2 : 2.2), 2, q.z + q.d / 2);
       g.add(cage); hoistCages.push({ cage, top, ph: id === "hoist-a" ? 0 : 2.4 });
+      const lv = s.struct[tower]?.built ?? 0;
+      if (lv > 0) { const plat = new THREE.InstancedMesh(box(3, 0.25, 1.6), m.steel, lv); const mm = new THREE.Matrix4(); for (let i = 0; i < lv; i++) plat.setMatrixAt(i, mm.makeTranslation(q.x + q.w / 2 + (id === "hoist-a" ? 2.6 : -2.6), (i + 1) * STOREY + 0.2, q.z + q.d / 2)); g.add(plat); }
       hoists.add(tag(shadow(g), id));
     }
     // temp works appear with mobilisation; camp grows in two phases; batching after installation
@@ -557,6 +469,9 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     for (const g of services.children) { const f = s.services[g.userData.svc as string] ?? 1; g.visible = f > 0.05; g.scale.y = Math.max(0.05, Math.min(1, f * 1.4)); }
     truckGroup.visible = s.mobilised > 0.5;
     hoard.visible = s.mobilised > 0.2;
+    const decks: Deck[] = [];
+    for (const b of BUILDINGS) { const st = s.struct[b.id]; if (!st || st.active <= 0 || st.built >= b.floors) continue; const r = footprint(b.id)!, sy = b.id === "podium" ? PODIUM_STOREY : b.id === "club-e" ? 4.6 : STOREY; decks.push({ id: b.id, x: r.x + r.w / 2, z: r.z + r.d / 2, w: r.w * 0.84, d: r.d * 0.84, y: st.built * sy + sy - 0.05 + (open && ["tower-a", "tower-b", "podium"].includes(b.id) ? pitFloor.position.y + 3.6 * s.basementLevels : 0) }); }
+    details.setState(s, { pitDepth: pitFloor.position.y, pitOpen: open, decks, topOf });
     // ground: redraw only when the road surface or landscaping changes state
     const gk = `${s.roads > 0.99}|${Math.round(s.landscape * 5)}`;
     if (groundKey !== gk) { groundKey = gk; redrawGround(); }
@@ -583,6 +498,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     (desert.material as THREE.MeshStandardMaterial).color.set(n ? 0x2f2a22 : 0xd2bd98);
     m.ghost.color.set(n ? 0xffffff : 0x2e2e2f); m.ghostFill.color.set(n ? 0xffffff : 0x2e2e2f);
     lights.children.forEach((c) => { if (c.userData.flood) c.visible = n; });
+    details.setNight(n);
     redrawGround();
     if (state) { for (const k of Object.keys(built)) built[k].key = ""; setState(state); }
   }
@@ -592,7 +508,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     const gk = `${l.grid}|${l.utilities}|${l.cranes}`, ok = `${layers.grid}|${layers.utilities}|${layers.cranes}`;
     layers = l;
     structs.visible = l.buildings; services.visible = l.buildings;
-    temp.visible = l.temp; palms.visible = l.landscape;
+    temp.visible = l.temp; palms.visible = l.landscape; details.group.visible = l.temp;
     if (gk !== ok) redrawGround();
     if (state) setState(state);
   }
@@ -624,6 +540,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     for (const mm of pulseMats) mm.emissiveIntensity = 0.15 + p * (night ? 1.4 : 0.75);
     m.formwork.emissiveIntensity = night ? 0.25 : 0;
     for (const o of sel.children) if (o.userData.ring) { const s = 1 + 0.05 * Math.sin(time * 2.4); o.scale.set(s, 1, s); }
+    details.tick(dt, time, animate);
     for (const c of cranes) { c.light.visible = !night || Math.sin(time * 4 + c.r) > 0; if (c.up && c.slew.visible && animate) stepCrane(c, dt, time, (x, z) => groundAt(x, z)); else if (c.up) { c.slew.rotation.y = c.ang; c.trolley.position.x = c.tr; c.cable.scale.y = c.cab; c.cable.position.y = 0.6 - c.cab / 2; c.hook.position.y = 0.6 - c.cab; } }
     if (animate) {
       for (const h of hoistCages) h.cage.position.y = 2 + (h.top - 4) * (0.5 - 0.5 * Math.cos(time * 0.18 + h.ph));
