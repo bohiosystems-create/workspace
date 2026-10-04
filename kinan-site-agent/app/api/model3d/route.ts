@@ -16,6 +16,7 @@ export async function GET() {
 /** multipart/form-data: files (many), engine = auto | anthropic | openai | gemini | offline */
 export async function POST(req: NextRequest) {
   const fd = await req.formData();
+  // The engine is routed on the server from the documents themselves; "engine" is only honoured for testing.
   const engine = (String(fd.get("engine") ?? "auto") as Engine);
   const files = fd.getAll("files").filter((f): f is File => typeof f === "object" && "arrayBuffer" in f).slice(0, MAX_FILES);
   if (!files.length) return NextResponse.json({ error: "Add at least one document" }, { status: 400 });
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     else if (mime === "application/pdf" || mime.startsWith("image/")) docs.push({ name: f.name, mime, base64: buf.toString("base64") });
   }
   try {
-    const out = await extractModel(model3dConfig(process.env as Record<string, string | undefined>), docs, engine, { deadline: Date.now() + 55_000 });
+    const out = await extractModel(model3dConfig(process.env as Record<string, string | undefined>), docs, engine, { deadline: Date.now() + 55_000, route: process.env.MODEL3D_ROUTE });
     return NextResponse.json(out);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 502 });

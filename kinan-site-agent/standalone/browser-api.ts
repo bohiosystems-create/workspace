@@ -133,7 +133,7 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
         const raw = await sm.json(`${SYSTEM}\n\n${promptFor(docs)}`, { modelTier: "default" });
         const { spec, warnings } = normalizeSpec(raw);
         if (!spec.buildings.length) throw new Error("no buildings in Claude's answer");
-        return json({ spec, warnings, engine: "anthropic", model: "Claude", ms: Date.now() - t0, log: [{ step: "AI", detail: `${spec.buildings.length} buildings, ${spec.schedule.activities.length} activities read by Claude` }], tried });
+        return json({ spec, warnings, engine: "anthropic", model: "Claude", route: "routed to Claude in this page", ms: Date.now() - t0, log: [{ step: "AI", detail: `${spec.buildings.length} buildings, ${spec.schedule.activities.length} activities read by Claude` }], tried });
       } catch (e) {
         const msg = (e as { message?: string; code?: string })?.message ?? String(e);
         if (engine === "anthropic") return json({ error: msg }, 502);
@@ -141,7 +141,7 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
       }
     } else if (engine === "anthropic" || engine === "openai" || engine === "gemini") return json({ error: "Only the offline parser (and Claude, when this page runs on claude.ai) is available in the standalone page" }, 400);
     const out = await extractModel({}, docs, "offline");
-    return json({ ...out, tried: [...tried, ...out.tried], ms: Date.now() - t0 });
+    return json({ ...out, tried: [...tried, ...out.tried], ms: Date.now() - t0, route: sm ? "Claude did not return a usable model, so the offline parser took over" : "no AI engine available in this page" });
   }
   return json({ error: "Not available in the standalone version" }, 404);
 }

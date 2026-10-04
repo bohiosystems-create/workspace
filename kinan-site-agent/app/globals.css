@@ -610,3 +610,11 @@ main.main-solo{display:flex;flex-direction:column}
   .home-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
   .pcard{min-height:150px}
 }
+.studio-drop.one{align-items:center;text-align:center;gap:6px;padding:22px 16px;cursor:pointer;border-width:2px;transition:border-color .15s,background .15s}
+.studio-drop.one:hover,.studio-drop.one:focus-visible{border-color:var(--accent);outline:none}
+.studio-drop.one b{font-size:16px;font-weight:800;color:var(--ink)}
+.studio-drop.one span{font-size:13px;color:var(--ink-2);max-width:52ch}
+.studio-drop.one em{font-style:normal;font-size:11.5px;color:var(--mute);max-width:60ch;line-height:1.45}
+.drop-ico{width:52px;height:52px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 30%,transparent)}
+.drop-ico svg{width:26px;height:26px;stroke-width:2.2}
+.linkish{border:0;background:none;padding:0;color:var(--accent-strong);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer}

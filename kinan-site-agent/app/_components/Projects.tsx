@@ -2,7 +2,8 @@
 /**
  * Home: the project list. Kinan Heights is the live site (map, 4D model, documents, WhatsApp agent); every other
  * project was generated from its documents. "+" starts a new one: drop or pick files, a whole folder or a .zip,
- * pick an engine (Claude, OpenAI, Gemini or the offline parser) and the documents become a playable 3D/4D model.
+ * and the server routes them to the best engine (Claude, Gemini, OpenAI, then the offline parser); the documents
+ * become a playable 3D/4D model.
  */
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { mockDocs, MOCK_PROJECT } from "@/lib/model3d/mock";
@@ -12,13 +13,11 @@ import { Icon } from "./icons";
 
 const ModelViewer = lazy(() => import("./ModelViewer"));
 
-type Engine = "auto" | "anthropic" | "openai" | "gemini" | "offline";
 interface Doc { name: string; size: number; file?: File; text?: string; demo?: boolean }
 
-const ENGINES: { id: Engine; label: string }[] = [{ id: "auto", label: "Auto" }, { id: "anthropic", label: "Claude" }, { id: "openai", label: "OpenAI" }, { id: "gemini", label: "Gemini" }, { id: "offline", label: "Offline" }];
 const ENGINE_NAME: Record<string, string> = { anthropic: "Claude", openai: "OpenAI", gemini: "Gemini", offline: "Offline parser" };
 const USE_LABEL: Record<string, string> = { residential: "Residential", office: "Office", hotel: "Hotel", retail: "Retail", townhouse: "Townhouse", amenity: "Amenity", parking: "Parking", school: "School", mosque: "Mosque", utility: "Utility" };
-const STEPS = ["Reading the documents", "Matching the area schedule to the setting-out", "Reading the programme", "Placing roads, gates and cranes", "Building the 3D model"];
+const STEPS = ["Routing to the best engine for these documents", "Reading the documents", "Matching the area schedule to the setting-out", "Reading the programme", "Placing roads, gates and cranes", "Building the 3D model"];
 const MAX_FILES = 20, MAX_BYTES = 4_000_000;
 const kb = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`);
 const nice = (s: string) => new Date(s + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -78,8 +77,6 @@ export function ProjectHome({ site, projects, onOpenSite, onOpen, onNew, onDelet
 // ==================================================================== new project
 export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCreated: (p: GenProject) => void }) {
   const [docs, setDocs] = useState<Doc[]>([]);
-  const [engine, setEngine] = useState<Engine>("auto");
-  const [avail, setAvail] = useState<Record<string, string | null> | null>(null);
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState(false);
   const [step, setStep] = useState(0);
@@ -87,10 +84,9 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
   const [note, setNote] = useState("");
   const [peek, setPeek] = useState<string | null>(null);
   const [over, setOver] = useState(false);
-  const files = useRef<HTMLInputElement>(null), folder = useRef<HTMLInputElement>(null), zip = useRef<HTMLInputElement>(null);
+  const files = useRef<HTMLInputElement>(null), folder = useRef<HTMLInputElement>(null);
   const folderOk = useMemo(() => typeof document !== "undefined" && "webkitdirectory" in document.createElement("input"), []);
 
-  useEffect(() => { fetch("/api/model3d").then((r) => r.json()).then((j) => setAvail(j.engines ?? null)).catch(() => setAvail(null)); }, []);
   useEffect(() => { if (!busy) return; setStep(0); const t = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2600); return () => clearInterval(t); }, [busy]);
 
   const docsRef = useRef(docs); docsRef.current = docs;
@@ -128,7 +124,7 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
     try {
       const fd = new FormData();
       for (const d of docs) fd.append("files", d.file ?? new File([d.text ?? ""], d.name, { type: mimeOf(d.name) }));
-      fd.append("engine", engine);
+      fd.append("engine", "auto"); // routed on the server from the documents (see lib/model3d/extract.ts routeFor)
       const r = await fetch("/api/model3d", { method: "POST", body: fd });
       const j = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
       if (!r.ok || j.error) throw new Error(j.error || `HTTP ${r.status}`);
@@ -137,27 +133,25 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
     finally { setBusy(false); }
   };
 
-  const missing = (e: Engine) => e !== "auto" && e !== "offline" && avail !== null && !avail[e];
   return (
     <div className="studio studio-setup">
       <button className="crumb" onClick={onCancel}><Icon name="back" />Projects</button>
       <div className="studio-head">
         <span className="studio-ico"><Icon name="plus" /></span>
-        <div><h2>New project</h2><p>Add the project&apos;s documents and programme. Claude, OpenAI or Gemini reads them and builds a 3D model you can play through the programme.</p></div>
+        <div><h2>New project</h2><p>Add the project&apos;s documents and programme. The app sends them to the best AI engine for the pack (Claude, Gemini or OpenAI, with automatic fallback) and builds a 3D model you can play through the programme.</p></div>
       </div>
 
       <div className="studio-card">
         <div className="studio-l">1 · Documents</div>
-        <div className={"studio-drop" + (over ? " over" : "")} onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={drop}>
-          <div className="drop-btns">
-            <button className="studio-add" onClick={() => files.current?.click()}><Icon name="file" />Files</button>
-            {folderOk && <button className="studio-add" onClick={() => folder.current?.click()}><Icon name="folder" />Folder</button>}
-            <button className="studio-add" onClick={() => zip.current?.click()}><Icon name="zip" />Zip</button>
-          </div>
-          <span>{reading ? "Reading…" : "or drop files, folders or .zip archives here. Area schedule, setting-out, P6 / MS Project export (CSV), logistics plan, brief, PDFs, plan images · up to 20 documents, 4 MB"}</span>
-          <input ref={files} type="file" multiple hidden accept=".csv,.tsv,.txt,.md,.json,.xml,.xer,.pdf,.png,.jpg,.jpeg,.webp,.zip" onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
-          <input ref={folder} type="file" multiple hidden {...{ webkitdirectory: "", directory: "" }} onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
-          <input ref={zip} type="file" multiple hidden accept=".zip,application/zip,application/x-zip-compressed" onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
+        <div className={"studio-drop one" + (over ? " over" : "")} role="button" tabIndex={0} aria-label="Upload documents: files, a folder or a zip"
+          onClick={() => files.current?.click()} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); files.current?.click(); } }}
+          onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={drop}>
+          <span className="drop-ico"><Icon name="upload" /></span>
+          <b>{reading ? "Reading…" : over ? "Drop to add" : "Upload documents"}</b>
+          <span>Drop files, folders or .zip archives here, or tap to choose. Zips are unpacked automatically{folderOk ? <>; <button type="button" className="linkish" onClick={(e) => { e.stopPropagation(); folder.current?.click(); }}>pick a whole folder</button></> : null}.</span>
+          <em>Area schedule, setting-out, P6 / MS Project export (CSV), logistics plan, brief, PDFs, plan images · up to 20 documents, 4 MB</em>
+          <input ref={files} type="file" multiple hidden onClick={(e) => e.stopPropagation()} accept=".csv,.tsv,.txt,.md,.json,.xml,.xer,.pdf,.png,.jpg,.jpeg,.webp,.zip,application/zip" onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
+          <input ref={folder} type="file" multiple hidden onClick={(e) => e.stopPropagation()} {...{ webkitdirectory: "", directory: "" }} onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
         </div>
         {note && <p className="studio-ok">{note}</p>}
         {!docs.length && <button className="studio-demo" onClick={loadDemo}><b>No documents to hand? Load the demo pack</b><em>{MOCK_PROJECT.name}, {MOCK_PROJECT.location} · 7 mock documents · 16 buildings · P6 programme</em></button>}
@@ -179,18 +173,6 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
             </ul>
           </>
         )}
-      </div>
-
-      <div className="studio-card">
-        <div className="studio-l">2 · Engine</div>
-        <div className="seg studio-eng" role="radiogroup" aria-label="Engine">
-          {ENGINES.map((e) => <button key={e.id} role="radio" aria-checked={engine === e.id} className={engine === e.id ? "on" : ""} disabled={missing(e.id)} onClick={() => setEngine(e.id)}>{e.label}{missing(e.id) && <i>no key</i>}</button>)}
-        </div>
-        <p className="studio-note">
-          {engine === "auto" ? `Uses the first AI engine available${avail ? ` (${["anthropic", "openai", "gemini"].filter((k) => avail[k]).map((k) => ENGINE_NAME[k]).join(", ") || "none set"})` : ""}, then falls back to the offline parser.`
-            : engine === "offline" ? "Reads CSV, Markdown and text with fixed rules: no AI and no keys. Skips PDFs and images."
-            : `Sends the documents to ${ENGINE_NAME[engine]}${avail?.[engine] ? ` (${avail[engine]})` : ""}. The model returns positions, floors, the programme mapped to each building, and what it had to assume.`}
-        </p>
       </div>
 
       {err && <div className="studio-err">{err}</div>}
@@ -245,6 +227,7 @@ export function ProjectView({ project, onBack }: { project: GenProject; onBack: 
             </table>
           </div>
           {project.docs.length > 0 && <><h4>Documents uploaded</h4><ul className="studio-list">{project.docs.map((d) => <li key={d}>{d}</li>)}</ul></>}
+          {res.route && <><h4>Routing</h4><ul className="studio-list"><li>{res.route} → <b>{ENGINE_NAME[res.engine] ?? res.engine}</b>{res.model && res.engine !== "offline" ? ` (${res.model})` : ""}</li></ul></>}
           {res.log.length > 0 && <><h4>Steps</h4><ul className="studio-list">{res.log.map((l, i) => <li key={i}><b>{l.step}</b> {l.detail}</li>)}</ul></>}
           {spec.assumptions.length > 0 && <><h4>Assumptions</h4><ul className="studio-list">{spec.assumptions.map((a, i) => <li key={i}>{a}</li>)}</ul></>}
           {res.warnings.length > 0 && <><h4>Check these</h4><ul className="studio-list warn">{res.warnings.map((a, i) => <li key={i}>{a}</li>)}</ul></>}

@@ -17,7 +17,30 @@ export interface Model3dConfig {
   openai?: { apiKey: string; model: string; baseUrl?: string; reasoningEffort?: string };
   gemini?: { apiKey: string; model: string; baseUrl?: string };
 }
-export interface ExtractResult { spec: ProjectModelSpec; warnings: string[]; engine: Exclude<Engine, "auto">; model: string; ms: number; log: ParseLog[]; tried: { engine: string; error: string }[] }
+export interface ExtractResult { spec: ProjectModelSpec; warnings: string[]; engine: Exclude<Engine, "auto">; model: string; ms: number; log: ParseLog[]; tried: { engine: string; error: string }[]; route?: string }
+type Provider = "anthropic" | "openai" | "gemini";
+
+/**
+ * Pick the engine order from the documents themselves (the user never chooses):
+ * - drawings or PDFs in the pack → engines that read them natively first: Claude, then Gemini, then OpenAI;
+ * - a very large text pack (> 150k characters) → Gemini's long context first, then Claude, then OpenAI;
+ * - otherwise → Claude, OpenAI, Gemini.
+ * Engines without a key are skipped; the offline parser is always last. MODEL3D_ROUTE (e.g. "gemini,anthropic")
+ * overrides the order. Every AI answer is cross-checked against the offline parser: one that finds less than half
+ * the buildings the schedules list is treated as a failure and the next engine is tried.
+ */
+export function routeFor(cfg: Model3dConfig, docs: ExtractDoc[], override?: string): { order: Exclude<Engine, "auto">[]; reason: string } {
+  const binary = docs.filter((d) => !d.text).length, chars = docs.reduce((a, d) => a + (d.text?.length ?? 0), 0);
+  let pref: Provider[], reason: string;
+  const forced = (override ?? "").split(",").map((x) => x.trim()).filter((x): x is Provider => ["anthropic", "openai", "gemini"].includes(x));
+  if (forced.length) { pref = forced; reason = "fixed order (MODEL3D_ROUTE)"; }
+  else if (binary) { pref = ["anthropic", "gemini", "openai"]; reason = `${binary} PDF/drawing file${binary > 1 ? "s" : ""}: engines that read them natively first`; }
+  else if (chars > 150_000) { pref = ["gemini", "anthropic", "openai"]; reason = `large text pack (${Math.round(chars / 1000)}k characters): long-context engine first`; }
+  else { pref = ["anthropic", "openai", "gemini"]; reason = "text and tables: best structured-extraction engine first"; }
+  const order = pref.filter((p) => cfg[p]) as Exclude<Engine, "auto">[];
+  if (!order.length) reason = "no AI engine configured";
+  return { order: [...order, "offline"], reason };
+}
 
 export function model3dConfig(env: Record<string, string | undefined>): Model3dConfig {
   return {
@@ -101,9 +124,13 @@ async function viaGemini(c: NonNullable<Model3dConfig["gemini"]>, docs: ExtractD
 }
 
 /** Run the chosen engine (or the first that works, for "auto") and normalise the result. */
-export async function extractModel(cfg: Model3dConfig, docs: ExtractDoc[], engine: Engine, opts: { deadline?: number } = {}): Promise<ExtractResult> {
+export async function extractModel(cfg: Model3dConfig, docs: ExtractDoc[], engine: Engine, opts: { deadline?: number; route?: string } = {}): Promise<ExtractResult> {
   const t0 = Date.now(), tried: { engine: string; error: string }[] = [];
-  const order: Exclude<Engine, "auto">[] = engine === "auto" ? ["anthropic", "openai", "gemini", "offline"] : [engine];
+  const routed = engine === "auto" ? routeFor(cfg, docs, opts.route) : { order: [engine], reason: `${engine} requested` };
+  const order = routed.order;
+  // the offline reading of the text documents, used to cross-check AI answers
+  let baseline = 0;
+  try { const txt = docs.filter((d) => d.text).map((d) => ({ name: d.name, text: d.text! })); if (txt.length) baseline = normalizeSpec(parseOffline(txt).raw).spec.buildings.length; } catch { /* no baseline */ }
   const left = () => Math.max(5000, (opts.deadline ?? t0 + 110_000) - Date.now() - 2000);
   for (const e of order) {
     try {
@@ -111,14 +138,15 @@ export async function extractModel(cfg: Model3dConfig, docs: ExtractDoc[], engin
         const { raw, log } = parseOffline(docs.filter((d) => d.text).map((d) => ({ name: d.name, text: d.text! })));
         const { spec, warnings } = normalizeSpec(raw);
         if (docs.some((d) => !d.text)) warnings.push("The offline parser reads text, CSV and Markdown only — PDFs and images were skipped (an AI engine reads them).");
-        return { spec, warnings, engine: e, model: "offline parser", ms: Date.now() - t0, log, tried };
+        return { spec, warnings, engine: e, model: "offline parser", ms: Date.now() - t0, log, tried, route: routed.reason };
       }
       const c = cfg[e];
       if (!c) { if (engine !== "auto") throw new LlmError(`${e === "anthropic" ? "ANTHROPIC_API_KEY" : e === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY"} is not set`); continue; }
       const raw = e === "anthropic" ? await viaAnthropic(c as NonNullable<Model3dConfig["anthropic"]>, docs, left()) : e === "openai" ? await viaOpenAI(c as NonNullable<Model3dConfig["openai"]>, docs, left()) : await viaGemini(c as NonNullable<Model3dConfig["gemini"]>, docs, left());
       const { spec, warnings } = normalizeSpec(raw);
       if (!spec.buildings.length) throw new LlmError("no buildings in the model's answer");
-      return { spec, warnings, engine: e, model: c.model, ms: Date.now() - t0, log: [{ step: "AI", detail: `${spec.buildings.length} buildings, ${spec.schedule.activities.length} activities read by ${c.model}` }], tried };
+      if (baseline >= 4 && spec.buildings.length < baseline / 2) throw new LlmError(`found ${spec.buildings.length} buildings where the schedules list ${baseline}`);
+      return { spec, warnings, engine: e, model: c.model, ms: Date.now() - t0, log: [{ step: "Route", detail: routed.reason }, { step: "AI", detail: `${spec.buildings.length} buildings, ${spec.schedule.activities.length} activities read by ${c.model}${baseline ? ` (schedules list ${baseline})` : ""}` }], tried, route: routed.reason };
     } catch (err) {
       const msg = err instanceof Error ? err.message.slice(0, 240) : String(err);
       tried.push({ engine: e, error: msg });
