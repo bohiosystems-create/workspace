@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { CATEGORIES, type Location } from "@/lib/types";
 import { pathOf } from "./site";
 import { Icon } from "./icons";
+import { useSheetDrag } from "./useSheetDrag";
 
 interface Props {
   locations: Location[];
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function UploadSheet({ locations, locationId, pin, author, directPrefix, onClose, onDone }: Props) {
+  const drag = useSheetDrag<HTMLDivElement>({ expanded: true, setExpanded: () => {}, onClose });
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
@@ -81,9 +83,9 @@ export default function UploadSheet({ locations, locationId, pin, author, direct
   const places = locations.filter((l) => l.type !== "level" || l.id === loc);
 
   return (
-    <div className="modal" role="dialog" aria-label="Attach document">
-      <div className="modal-card">
-        <div className="sheet-h"><b>Attach document</b><button className="x" onClick={onClose} aria-label="Close">✕</button></div>
+    <div className="modal" role="dialog" aria-label="Attach document" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-card" ref={drag.sheet}>
+        <div className="sheet-handle" ref={drag.handle}><div className="grab" aria-hidden="true" /><div className="sheet-h"><b>Attach document</b><button className="x" onClick={onClose} aria-label="Close">✕</button></div></div>
         <div className="placechip">📍 {pathOf(locations, loc)}{pin ? ` · pinned (${Math.round(pin.x)}, ${Math.round(pin.y)})` : ""}</div>
 
         <div className="pickrow">

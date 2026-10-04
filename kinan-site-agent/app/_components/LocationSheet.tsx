@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import type { Location, Note } from "@/lib/types";
 import { descendants, fmtDate, pathOf, type ClientDoc } from "./site";
 import { CATEGORY_ICON, Icon } from "./icons";
+import { useSheetDrag } from "./useSheetDrag";
 
 interface Props {
   locations: Location[];
@@ -22,6 +23,7 @@ export default function LocationSheet({ locations, docs, notes, locationId, onCl
   const [noteText, setNoteText] = useState("");
   const [kind, setKind] = useState<Note["kind"]>("note");
   const [expanded, setExpanded] = useState(false);
+  const drag = useSheetDrag<HTMLDivElement>({ expanded, setExpanded, onClose });
   const loc = locations.find((l) => l.id === locationId);
   const kids = useMemo(() => locations.filter((l) => l.parentId === locationId), [locations, locationId]);
   const ids = useMemo(() => descendants(locations, locationId), [locations, locationId]);
@@ -39,8 +41,9 @@ export default function LocationSheet({ locations, docs, notes, locationId, onCl
   };
 
   return (
-    <div className={"sheet" + (expanded ? " full" : "")} role="dialog" aria-label={loc.name}>
-      <div className="grab" onClick={() => setExpanded((e) => !e)} />
+    <div ref={drag.sheet} className={"sheet" + (expanded ? " full" : "")} role="dialog" aria-label={loc.name}>
+      <div ref={drag.handle} className="sheet-handle">
+      <div className="grab" aria-hidden="true" />
       <div className="sheet-h">
         <div>
           {parent && <button className="crumb" onClick={() => onSelect(parent.id)}>‹ {parent.name}</button>}
@@ -48,6 +51,7 @@ export default function LocationSheet({ locations, docs, notes, locationId, onCl
           <div className="sub">{pathOf(locations, loc.id)} · {here.length} doc{here.length === 1 ? "" : "s"} · {here_notes.filter((n) => n.status === "open").length} open</div>
         </div>
         <button className="x" onClick={onClose} aria-label="Close">✕</button>
+      </div>
       </div>
 
       <div className="actions">

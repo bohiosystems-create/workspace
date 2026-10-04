@@ -28,23 +28,22 @@ export default function Home() {
   const [, setGps] = useState<{ x: number; y: number; locationId?: string } | null>(null);
   const [search, setSearch] = useState("");
   const [nameDraft, setNameDraft] = useState<string | null>(null);
-  // Theme: follow the device until the user picks one (like the Dark Mode switch on kinan.com.sa).
-  const [dark, setDark] = useState(false);
+  // Theme: Auto follows the device; Light / Dark pin it (like the Dark Mode switch on kinan.com.sa).
+  const [theme, setTheme] = useState<"auto" | "light" | "dark">("auto");
+  const [meOpen, setMeOpen] = useState(false);
   useEffect(() => {
     let saved: string | null = null;
     try { saved = localStorage.getItem("kinan.theme"); } catch { /* storage blocked */ }
-    if (saved === "dark" || saved === "light") document.documentElement.dataset.theme = saved;
-    const attr = document.documentElement.dataset.theme;
-    setDark(attr ? attr === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches);
+    if (saved === "dark" || saved === "light") { document.documentElement.dataset.theme = saved; setTheme(saved); }
     // Kinan's faceted page texture behind the app (brand/kinan-texture.jpg, embedded at build time).
     if (TEXTURE) document.documentElement.style.setProperty("--texture", `url("${TEXTURE}")`);
   }, []);
-  const toggleTheme = () => {
-    const next = dark ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem("kinan.theme", next); } catch { /* storage blocked */ }
-    setDark(!dark);
+  const pickTheme = (t: "auto" | "light" | "dark") => {
+    if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+    try { if (t === "auto") localStorage.removeItem("kinan.theme"); else localStorage.setItem("kinan.theme", t); } catch { /* storage blocked */ }
+    setTheme(t);
   };
+  const initials = author.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
   const [projKey, setProjKey] = useState(0);
   const mapRef = useRef<MapHandle>(null);
 
@@ -96,17 +95,24 @@ export default function Home() {
           <div><b>Site Agent</b><em>{state.project.name} · {state.project.code}</em></div>
         </div>
         <div className="hbtns">
-          <button className="who icon" onClick={toggleTheme} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} title={dark ? "Light mode" : "Dark mode"}><Icon name={dark ? "sun" : "moon"} /></button>
-          {nameDraft === null ? (
-            <button className="who" onClick={() => setNameDraft(author)} aria-label="Change your name">{author} ✎</button>
-          ) : (
-            <form className="whoedit" onSubmit={(e) => { e.preventDefault(); if (nameDraft.trim()) setAuthor(nameDraft.trim()); setNameDraft(null); }}>
-              <input id="author-name" autoFocus value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} onBlur={() => setNameDraft(null)} aria-label="Your name (shown on notes you leave)" maxLength={60} />
-            </form>
-          )}
+          <button className="avatar" onClick={() => { setMeOpen((o) => !o); setNameDraft(author); }} aria-label={`${author}: name and display settings`} aria-expanded={meOpen}>{initials}</button>
           <span className="chev" aria-hidden="true"><Mark /></span>
         </div>
       </header>
+      {meOpen && (
+        <div className="me" role="dialog" aria-label="Your settings">
+          <form onSubmit={(e) => { e.preventDefault(); if (nameDraft?.trim()) setAuthor(nameDraft.trim()); setMeOpen(false); }}>
+            <label>Your name<span>Shown on the notes and uploads you leave</span>
+              <input id="author-name" value={nameDraft ?? ""} onChange={(e) => setNameDraft(e.target.value)} onBlur={() => { if (nameDraft?.trim()) setAuthor(nameDraft.trim()); }} maxLength={60} autoComplete="name" />
+            </label>
+          </form>
+          <div className="me-l">Appearance</div>
+          <div className="seg3" role="group" aria-label="Appearance">
+            {(["auto", "light", "dark"] as const).map((t) => <button key={t} className={theme === t ? "on" : ""} aria-pressed={theme === t} onClick={() => pickTheme(t)}><Icon name={t === "auto" ? "contrast" : t === "light" ? "sun" : "moon"} />{t === "auto" ? "Auto" : t === "light" ? "Light" : "Dark"}</button>)}
+          </div>
+          <button className="me-done" onClick={() => setMeOpen(false)}>Done</button>
+        </div>
+      )}
 
       {state.storage === "tmp" && <div className="tmpwarn">Demo storage: uploads and notes are temporary on this deployment. Connect Vercel Blob to keep them (see SETUP.md).</div>}
       <main>
@@ -119,14 +125,14 @@ export default function Home() {
           </div>
           <SiteMap
             ref={mapRef} locations={locs} docs={docs} notes={notes} selectedId={selId} dropMode={dropMode}
-            onSelect={(id) => { setSelId(id); requestAnimationFrame(() => mapRef.current?.focusLocation(id)); }}
+            onSelect={(id) => { navigator.vibrate?.(8); setSelId(id); requestAnimationFrame(() => mapRef.current?.focusLocation(id)); }}
             onDrop={(x, y) => { setDropMode(false); setUpload({ locationId: locationAt(x, y), pin: { x, y } }); }}
             onGps={setGps}
           />
           {!selId && !dropMode && (
-            <button className="fab" onClick={() => setDropMode(true)}><Icon name="pin" />Pin a document to the plan</button>
+            <button className="fab" onClick={() => setDropMode(true)} aria-label="Pin a document to the plan"><Icon name="pin" /><span>Pin a document</span></button>
           )}
-          {dropMode && <button className="fab cancel" onClick={() => setDropMode(false)}>Cancel</button>}
+          {dropMode && <button className="fab cancel" onClick={() => setDropMode(false)}>✕<span>Cancel</span></button>}
           {selId && (
             <LocationSheet
               locations={locs} docs={docs} notes={notes} locationId={selId}

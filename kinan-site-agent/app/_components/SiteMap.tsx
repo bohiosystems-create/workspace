@@ -1,10 +1,14 @@
 "use client";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, lazy, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { LAYER_DEFS, PLAN, SHAPES, gpsToPlan, type Layer, type Shape } from "@/lib/siteplan";
 import type { Location, Note } from "@/lib/types";
 import { rootOf, type ClientDoc } from "./site";
 import { usePanZoom } from "./usePanZoom";
-import Site3D, { type Site3DHandle } from "./Site3D";
+import type { Site3DHandle } from "./Site3D";
+import { Icon } from "./icons";
+
+// three.js only downloads when someone opens the 3D view.
+const SiteGL = lazy(() => import("./SiteGL"));
 
 export interface MapHandle { focusLocation: (id: string) => void; locateMe: () => void }
 
@@ -57,6 +61,12 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
     if (hit) onSelect(hit);
   });
   const { view, zoom } = pz;
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current || !pz.size.w) return;
+    opened.current = true;
+    if (pz.size.w < 600) requestAnimationFrame(() => pz.flyTo(600, 340, 2.1));
+  }, [pz.size.w, pz]);
 
   // --- document / issue pins: one badge per anchor point ---
   const pins = useMemo(() => {
@@ -126,7 +136,7 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
 
   return (
     <div className={"mapwrap" + (dropMode ? " dropping" : "")}>
-      {mode === "3d" && <Site3D ref={s3} layers={layers} selectedId={selLoc} pins={pins} gps={gps} onSelect={onSelect} />}
+      {mode === "3d" && <Suspense fallback={<div className="gl-loading"><span className="spin" />Loading 3D model…</div>}><SiteGL ref={s3} layers={layers} selectedId={selLoc} pins={pins} gps={gps} onSelect={onSelect} /></Suspense>}
       <div ref={pz.ref} className="viewport" aria-label="Site plan" hidden={mode === "3d"}>
         <svg width={pz.size.w} height={pz.size.h} className="plan" role="img">
           <g transform={`translate(${view.x} ${view.y}) scale(${k})`}>
@@ -162,20 +172,27 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
 
       {dropMode && <div className="banner">Tap the exact spot on the plan to attach a document</div>}
 
-      <div className="mapctl">
-        <button className={"txt" + (mode === "3d" ? " on" : "")} aria-label={mode === "3d" ? "Show the 2D plan" : "Show the 3D model"} onClick={() => setView(mode === "3d" ? "2d" : "3d")} disabled={dropMode}>{mode === "3d" ? "2D" : "3D"}</button>
-        {mode === "3d" && <button aria-label="Rotate the model" onClick={() => s3.current?.rotate()}>↻</button>}
-        <button aria-label="Zoom in" onClick={() => (mode === "3d" ? s3.current?.zoomBy(1.6) : pz.zoomBy(1.6))}>＋</button>
-        <button aria-label="Zoom out" onClick={() => (mode === "3d" ? s3.current?.zoomBy(1 / 1.6) : pz.zoomBy(1 / 1.6))}>－</button>
-        <button aria-label="Fit site" onClick={() => (mode === "3d" ? s3.current?.fit() : pz.fit())}>⤢</button>
+      {/* Thumb zone: the view switch and camera controls sit bottom-right; zoom buttons only for mouse users. */}
+      <div className={"mapctl" + (mode === "3d" ? " is3d" : "")}>
+        <div className="seg2" role="group" aria-label="Map view">
+          <button className={mode === "2d" ? "on" : ""} aria-pressed={mode === "2d"} onClick={() => setView("2d")}>2D</button>
+          <button className={mode === "3d" ? "on" : ""} aria-pressed={mode === "3d"} onClick={() => setView("3d")} disabled={dropMode}>3D</button>
+        </div>
+        <button className="fine" aria-label="Zoom in" onClick={() => (mode === "3d" ? s3.current?.zoomBy(1.6) : pz.zoomBy(1.6))}>＋</button>
+        <button className="fine" aria-label="Zoom out" onClick={() => (mode === "3d" ? s3.current?.zoomBy(1 / 1.6) : pz.zoomBy(1 / 1.6))}>－</button>
+        {mode === "3d" && <button aria-label="Turn the model a quarter" onClick={() => s3.current?.rotate()}>↻</button>}
+        <button aria-label="Show the whole site" onClick={() => (mode === "3d" ? s3.current?.fit() : pz.fit())}>⤢</button>
         <button aria-label="My location" onClick={() => { if (!gps) return; if (mode === "3d") s3.current?.focus(gps.x, gps.y, 4.5); else pz.flyTo(gps.x, gps.y, 4.5); }} disabled={!gps} className={gps ? "" : "dim"}>◎</button>
-        <button aria-label="Layers" onClick={() => setLayerOpen((o) => !o)} className={layerOpen ? "on" : ""}>▤</button>
       </div>
+      <button className={"layerbtn" + (layerOpen ? " on" : "")} aria-label="Map layers" aria-expanded={layerOpen} onClick={() => setLayerOpen((o) => !o)}><Icon name="layers" /></button>
       {layerOpen && (
-        <div className="layers">
-          {LAYER_DEFS.map((l) => (
-            <label key={l.id}><input type="checkbox" checked={layers[l.id]} onChange={() => setLayers({ ...layers, [l.id]: !layers[l.id] })} /> {l.label}</label>
-          ))}
+        <div className="layers" role="dialog" aria-label="Map layers">
+          <div className="layers-h"><b>Layers</b><button className="x" onClick={() => setLayerOpen(false)} aria-label="Close">✕</button></div>
+          <div className="layers-grid">
+            {LAYER_DEFS.map((l) => (
+              <button key={l.id} className={"layer" + (layers[l.id] ? " on" : "")} aria-pressed={layers[l.id]} onClick={() => setLayers({ ...layers, [l.id]: !layers[l.id] })}>{l.label}</button>
+            ))}
+          </div>
         </div>
       )}
       {mode === "2d" && <div className="scaletxt"><i style={{ width: 80 }} />{niceMetres(80 / k * PLAN.metresPerUnit)}</div>}
