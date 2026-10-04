@@ -44,6 +44,12 @@ section by section, with the same narration. Narration uses ElevenLabs when `ELE
 **HTML** and **Print / PDF** give the report document (logo band, orange cover, charts, closing page).
 Every figure shown as EstateMaster's comes from an export; charts built on the agent's model say "agent's estimate".
 
+
+**Report designer:** Reports tab → *Report designer* chat. Say who the report is for, what to show and which slides
+(*"for the board, stress tests as a table, max 6 slides"*). It lists the changes, with ▶ Play and Undo. Figures still
+come only from EstateMaster. Uses Claude Fable 5.1 (then Opus 5.5, then gpt-5) when an AI key is set in Vercel;
+otherwise a rules engine.
+
 ## Scheduled reports and email alerts
 **In the app.** Reports → **Schedule** on any report: daily (Sun–Thu), weekly, monthly or quarterly at a Riyadh time, delivered by
 email (internal addresses only), WhatsApp link or SharePoint folder. The app runs a report when it falls due and, if it was

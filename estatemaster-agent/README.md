@@ -72,6 +72,7 @@ Every request is routed automatically; the badge on each answer shows the route.
 | IC report narrative, memos | EstateMaster numbers + narrative | Claude Opus 5.5 → OpenAI gpt-5 |
 | Open questions, advice, multi-step requests | AI agent with tools | Claude Sonnet 5.5 → OpenAI gpt-5 |
 | Questions about attached Excel files | AI agent with tools | OpenAI gpt-5 → Claude Sonnet 5.5 |
+| Report design ("for the board, as tables, max 6 slides") | Report designer | Claude Fable 5.1 → Claude Opus 5.5 → OpenAI gpt-5 |
 | Approvals | Fixed rules, never AI | none |
 
 AI never does the financial maths: the agent calls tools, and the tools return calculated numbers.
@@ -169,6 +170,22 @@ Users can create new report types from the agent settings or the Reports tab: pi
 library (returns, model, project controls, cash flow and funding, investors, risk, market and
 compliance, governance), order them, set audience, schedule and delivery, or describe the report and
 let the AI design it. Eight new report types are included as starting points.
+
+## Report designer (change a report by talking to it)
+
+Reports tab → **Report designer** chat (or the main agent chat). Say who the report is for, what it should show and
+which slides to use, e.g. *"for the board, returns and capital structure, stress tests as a table, max 6 slides, no
+change log"* or *"for the lender: facility and covenants as tables"*. It changes the open report: audience, purpose,
+tone, parts and their order, slide type per part (table, list, bar, column or line chart, donut, waterfall, stacked
+columns, gauges), slide limit, dividers, narrative. The reply lists every change, with **▶ Play** and **Undo**; say
+"undo" in the main chat too. Changes are logged and kept after reload.
+
+The designer only decides what to show and how. It never writes figures: they still come from EstateMaster.
+Slide types the data cannot support (e.g. a waterfall for a list of flags) are refused and named in the reply.
+
+Model: **Claude Fable 5.1** (Anthropic's most capable model) at high effort, with a schema-checked tool call and
+server-side fallback on refusal; then Claude Opus 5.5; then OpenAI gpt-5. No AI connected: a rules engine handles
+the common requests. The `/api/llm` proxy allows 12,000 output tokens and 300 s for this task only.
 
 ## Live Outlook (Microsoft Graph)
 

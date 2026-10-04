@@ -2,7 +2,7 @@
   "cleanUrls": true,
   "functions": {
     "api/llm.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/scan.js": {
       "maxDuration": 60

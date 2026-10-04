@@ -9,6 +9,10 @@ const UPSTREAM = {
   openai: () => process.env.OPENAI_URL || 'https://api.openai.com/v1/chat/completions',
 };
 const MAX_TOKENS = 2000;
+// Report design (task: 'report') returns a full report spec through a tool call: allow more room.
+const REPORT_MAX_TOKENS = 12000;
+// Beta headers the page may ask for; anything else is dropped.
+const BETAS = ['server-side-fallback-2026-07-01'];
 
 function send(res, status, obj) {
   res.statusCode = status;
@@ -37,19 +41,24 @@ module.exports = async function handler(req, res) {
 
   let body;
   try { body = await readBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
-  const { provider, payload } = body || {};
+  const { provider, payload, task, betas } = body || {};
   if (!UPSTREAM[provider]) return send(res, 400, { error: 'Unknown provider' });
   if (!has[provider]) return send(res, 400, { error: `No server key for ${provider}. Set ${provider === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'} in Vercel.` });
   if (!payload || typeof payload !== 'object' || !Array.isArray(payload.messages)) return send(res, 400, { error: 'Missing payload' });
 
   // Cap output size so a public demo can't be used for long generations.
   const p = { ...payload };
-  if (provider === 'anthropic') p.max_tokens = Math.min(+p.max_tokens || MAX_TOKENS, MAX_TOKENS);
-  else { p.max_completion_tokens = Math.min(+p.max_completion_tokens || MAX_TOKENS, MAX_TOKENS); delete p.max_tokens; }
+  const cap = task === 'report' ? REPORT_MAX_TOKENS : MAX_TOKENS;
+  if (provider === 'anthropic') p.max_tokens = Math.min(+p.max_tokens || cap, cap);
+  else { p.max_completion_tokens = Math.min(+p.max_completion_tokens || cap, cap); delete p.max_tokens; }
   delete p.stream;
 
   const headers = { 'content-type': 'application/json' };
-  if (provider === 'anthropic') { headers['x-api-key'] = process.env.ANTHROPIC_API_KEY; headers['anthropic-version'] = '2023-06-01'; }
+  if (provider === 'anthropic') { headers['x-api-key'] = process.env.ANTHROPIC_API_KEY; headers['anthropic-version'] = '2023-06-01';
+    const b = (Array.isArray(betas) ? betas : []).filter((x) => BETAS.includes(x));
+    if (b.length) headers['anthropic-beta'] = b.join(',');
+    else delete p.fallbacks; // fallbacks needs its beta header
+  }
   else headers.authorization = `Bearer ${process.env.OPENAI_API_KEY}`;
 
   try {

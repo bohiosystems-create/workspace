@@ -639,6 +639,13 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
   <div class="grid" style="grid-template-columns:350px minmax(0,1fr)" id="rpgrid">
     <div style="display:flex;flex-direction:column;gap:20px">
       <div class="card">
+        <div class="bar"></div><h2>Report designer</h2>
+        <div class="sub">Tell it who the report is for, what to show and which slides to use. It changes the report you have open; figures still come only from EstateMaster.</div>
+        <div class="msgs" id="rdMsgs" style="height:300px;min-height:0"></div>
+        <div id="rdChips" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0"></div>
+        <div style="display:flex;gap:8px"><input id="rdAsk" placeholder="e.g. for the board, max 6 slides, cash flow as a line chart" style="flex:1;min-width:0"><button class="btn sm" id="rdSend">Send</button></div>
+      </div>
+      <div class="card">
         <div class="bar"></div><h2>EstateMaster extract</h2>
         <div class="sub">The runner pulls every assumption and output out of EstateMaster; every report is built from the latest extract.</div>
         <div class="list"><div id="xStat"></div></div>
@@ -1054,10 +1061,22 @@ function parseFT(t){const o={},g=(re)=>{const m=t.match(re);return m?parseFloat(
   const lp=g(/(?:\blp|\bfund|investors?)s?(?:\s+(?:share|units|stake|equity|split))?(?:\s+(?:to|at|of|is|=))?\s*(\d+(?:\.\d+)?)\s*%/),pr=g(/pref\w*(?:\s+return)?\D{0,12}?(\d+(?:\.\d+)?)\s*%/),pm=g(/(?:promote|carry|carried interest)\D{0,12}?(\d+(?:\.\d+)?)\s*%/),fe=g(/fee\D{0,12}?(\d+(?:\.\d+)?)\s*%/);
   if(lp!=null)o.lp=lp;if(pr!=null)o.pref=pr;if(pm!=null)o.promote=pm;if(fe!=null)o.fee=fe;return o}
 function varsIn(t){return SYNORDER.filter(k=>VARS[k].syn.test(t))}
+/* "make the lender pack tables only", "change the IC report for the board, max 6 slides" → the report designer */
+const RNAMEWORDS={ic:/\bic\b|investment committee|committee pack/,monthly:/monthly/,lender:/lender|bank pack/,investor:/investor|\blp\b/,compare:/compar/,stress:/stress (pack|report)/};
+function editReportIntent(t){
+  if(/(create|new|build|make|set up|add|design)( me)? (a |an )(new )?(custom )?(report|report type|template)\b/.test(t))return null;
+  const named=Object.entries(RPTS).find(([k,v])=>t.includes(v.name.toLowerCase()))||Object.entries(RNAMEWORDS).find(([k,re])=>RPTS[k]&&re.test(t)&&/\b(report|pack|deck|presentation)\b/.test(t));
+  const ref=named||(/\b(the|this|that|my) (report|pack|deck|presentation)\b/.test(t)?[RSEL]:null);if(!ref)return null;
+  const change=/\b(change|edit|redesign|rework|restyle|tailor|adapt|make it|turn it|reorder|rename|shorten|simplify|remove|drop|add|include|show|use|as (a |an )?(table|list|chart|donut|waterfall)|max(imum)? \d+|\d+ slides|one[- ]pager|for the|aimed at|destined)\b/.test(t);
+  const kind=KIND_WORDS.some(([re])=>re.test(t))||AUD_WORDS.some(([re])=>re.test(t))&&/\b(for|to|aimed at|destined)\b/.test(t);
+  if(!change||(!kind&&!/\b(change|edit|redesign|rework|restyle|tailor|adapt|reorder|rename|shorten|simplify|remove|drop|add|include|max(imum)? \d+|\d+ slides|one[- ]pager)\b/.test(t)))return null;
+  if(/\b(send|email|e-mail|schedule|every)\b/.test(t))return null;
+  return{k:'editreport',rk:ref[0]}}
 function intent(text){
   const t=text.toLowerCase();
   if(/^(yes|approve|confirm|ok approve)/.test(t))return{k:'approve'};
   if(/^(no|cancel|reject)\b/.test(t))return{k:'cancel'};
+  if(/^undo( (the|that|last))?( report)?( (change|edit|design))?$/.test(t)&&RHIST[RSEL]&&RHIST[RSEL].length)return{k:'undoreport'};
   if(/pending approvals?|what needs (my )?approval|approval queue|change (log|history)|audit (log|trail)/.test(t))return{k:'approvals'};
   if(/\bwhy\b|where did|source of|who (said|changed|asked)|what changed/.test(t))return{k:'why',v:varsIn(t)};
   if(/\bextract\b|pull (the )?(data|numbers)|export (the )?(model|data)/.test(t)&&!/\breport\b/.test(t))return{k:'extract'};
@@ -1068,6 +1087,7 @@ function intent(text){
   if(/(new|start|create|build|set up|open)( a| an)?( brand)?( new)? (financial |feasibility |estatemaster )?model|new project|model for plot|feasibility for plot/.test(t)){const pm=t.match(/\b([a-z]{3}-\d{4})\b/),tp=/yasmin|residential only|resi(dential)? for sale/.test(t)?'yasmin':/hittin|retail plaza|retail only/.test(t)?'hittin':'narjis',nm=t.match(/(?:called|named)\s+["“']?([^"”'.,]+)/);return{k:'newmodel',o:{tpl:tp,plot:pm?pm[1].toUpperCase():null,name:nm?nm[1].trim().replace(/\b\w/g,c=>c.toUpperCase()):'',fill:/template values|as (they are|is)/.test(t)?'template':'market'}}}
   if(/\b(schedule|unschedule|reschedule)\b|\b(every|each) (day|week|month|quarter|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b|\b(stop|cancel) (the |sending (the )?)?.*\breport\b/.test(t)&&/report|pack/.test(t))return{k:'schedule',o:parseSchedule(t)};
   if(/\b(e-?mail|send|mail)\b.{0,40}\b(report|pack)\b|\b(report|pack)\b.{0,30}\bto [a-z0-9._%+-]+@/.test(t)&&!/\b(create|build|design|new)\b.{0,20}report (type|template)/.test(t))return{k:'sendreport',o:parseSchedule(t)};
+  {const er=editReportIntent(t);if(er)return er}
   if(/report builder|(create|new|build|make|set up|add|design)( me)? (a |an )?(new )?(custom )?(report|report type|template)\b/.test(t))return{k:'newreport',def:parseNewReport(t)};
   {const hit=Object.entries(RPTS).find(([k,v])=>!v.builtin&&t.includes(v.name.toLowerCase()));if(hit)return{k:'report',kind:hit[0]}}
   if(/(generate|create|build|run|more|another|new|infinite|unlimited|thousands?|\d[\d,]*)\b.*\b(stress|scenarios)/.test(t)&&!/\breport\b/.test(t)&&!/scenarios? side by side|compar/.test(t)){const n=t.match(/\b(\d{1,3}(?:,\d{3})+|\d+)\b/);const th=/downturn|market|recession|crash/.test(t)?'downturn':/construct|cost/.test(t)?'construction':/financ|rate|interest/.test(t)?'finance':/delay|timing/.test(t)?'timing':/tail|severe|extreme|black swan/.test(t)?'tail':'mixed';return{k:'stressgen',theme:th,count:n?parseInt(n[1].replace(/,/g,'')):1000}}
@@ -1267,6 +1287,15 @@ async function handle(text,ch,role,forced){
   case 'approvals':{
     const p=pendingCRs();out.steps=['Read approval queue and change memory'];out.link=['appr','Open approvals'];
     done(`*${p.length} waiting for approval*`+(p.length?'\n'+p.map(c=>`• ${c.id} (${c.kind}): ${opsDesc(c.ops)} · ${crIRR(c,{})}`).join('\n'):'')+`\nChange memory: ${LOG.length} entries. Latest:\n`+LOG.slice(-5).reverse().map(l=>`• ${new Date(l.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})} · ${l.actor} · ${l.detail}`).join('\n'));
+    break}
+  case 'undoreport':{undoSpec(RSEL);out.link=['report','Open the report'];done(`Last design change to *${RPTS[RSEL].name}* undone.`);break}
+  case 'editreport':{
+    const k=RPTS[it.rk]?it.rk:RSEL,by=it.byAI?`Bohio agent (${it.byAI})`:`${web?USERS.web:USERS.wa} (${web?WS_ROLE:role})`;
+    const r=await reportDesign(k,it.text||text,by);RSEL=k;
+    out.steps=[r.model?`Report designer · ${r.model}`:'Report designer · rules engine (no AI)','Rewrite the report spec: audience, blocks, slide types, options','Rebuild from the EstateMaster figures'];out.link=['report','Open the report'];
+    out.fx=()=>{if($('#rpList'))renderReportList();if($('#p-report').classList.contains('on'))renderReport()};
+    if(r.err){done(r.err);break}if(r.nochange){done(`Nothing to change in *${RPTS[k].name}*. Say who it is for, what to add or remove, or a slide type (table, bar chart, line chart, donut, waterfall, gauges).`);break}
+    done(`*${RPTS[k].name} redesigned*${r.summary?'\n'+r.summary:''}\n${r.changes.map(c=>'• '+c).join('\n')}${(r.skip||[]).length?'\nNot possible with this data: '+r.skip.join('; ')+'.':''}\nPress ▶ Play on the Reports tab to see it, or say “undo”.`);
     break}
   case 'newreport':{
     const d=it.def||{};
@@ -1837,7 +1866,7 @@ const PRESETS={
 const SCHED={stress:{on:false,ch:'Email (Outlook)'},monthly:{on:true,ch:'Email (Outlook)'},lender:{on:true,ch:'SharePoint folder'},investor:{on:false,ch:'Email (Outlook)'},ic:{on:false,ch:'WhatsApp link'},compare:{on:false,ch:'Email (Outlook)'}};
 function wireReport(id,def){def.fn=def.fn||(()=>reportShell(id,RPTS[id]));RPTS[id]=def;SCHED[id]=SCHED[id]||{on:def.sched&&def.sched!=='On request',ch:def.ch||'Email (Outlook)'}}
 Object.entries(RPTS).forEach(([k,v])=>wireReport(k,v));
-function saveCustom(){try{localStorage.setItem('bohioReports',JSON.stringify(Object.fromEntries(Object.entries(RPTS).filter(([k,v])=>!v.builtin).map(([k,v])=>[k,{name:v.name,aud:v.aud,sched:v.sched,blocks:v.blocks,narr:!!v.narr,ch:SCHED[k].ch}]))))}catch(e){}}
+function saveCustom(){try{localStorage.setItem('bohioReports',JSON.stringify(Object.fromEntries(Object.entries(RPTS).filter(([k,v])=>!v.builtin).map(([k,v])=>[k,{name:v.name,aud:v.aud,sched:v.sched,blocks:v.blocks,narr:!!v.narr,ch:SCHED[k].ch,purpose:v.purpose||'',tone:v.tone||'',slides:v.slides||{},opts:v.opts||null}]))))}catch(e){}}
 try{const c=JSON.parse(localStorage.getItem('bohioReports')||'{}');for(const [k,v] of Object.entries(c))if(Array.isArray(v.blocks))wireReport(k,{...v,blocks:v.blocks.filter(b=>BLOCKS[b])})}catch(e){}
 function createReport(def,src){
   const id='c'+Date.now().toString(36);const d={name:def.name||'Untitled report',aud:def.aud||'',sched:def.sched||'On request',blocks:(def.blocks||[]).filter(b=>BLOCKS[b]),narr:!!def.narr};
@@ -1847,7 +1876,7 @@ function createReport(def,src){
 const BLOCK_WORDS=[[/sales|units|absorption/,['sales_progress','collections']],[/collect|escrow|receiv/,['collections']],[/cost|budget|qs|overrun|variance/,['cost_budget','cost_breakdown']],[/cash ?flow|treasury|liquidity/,['cashflow_annual','cashflow_next4']],
  [/debt|lender|bank|covenant|facility|murabaha|drawdown/,['facility','covenants','drawdowns']],[/fund|investor|\blps?\b|distribution/,['fund_summary','fund_distributions']],[/risk|stress|sensitiv|downside/,['stress_table','stress_generated','tornado_top','headroom','em_results']],
  [/market|comps?|benchmark|pricing/,['market_check','comps_summary']],[/zoning|regulat|planning|complian|far\b/,['zoning']],[/audit|change|email|source|approval/,['approvals','assumptions_changed','email_sources','changelog']],[/valuation|exit|noi|cap rate|retail income/,['valuation']],
- [/kpi|headline|summary|returns|irr/,['kpis']],[/capital|stack|funding/,['capital_stack']],[/scenario|compar/,['scenario_compare']],[/flag|issue/,['flags']],[/assumption|register|inputs/,['register']]];
+ [/kpi|headline|summary|returns|irr/,['kpis']],[/capital|stack|funding|sources (of funds|and uses)/,['capital_stack']],[/scenario|compar/,['scenario_compare']],[/flag|issue/,['flags']],[/assumption|register|inputs/,['register']]];
 function blocksFrom(t){const out=[];for(const [re,bs] of BLOCK_WORDS)if(re.test(t))bs.forEach(b=>{if(!out.includes(b))out.push(b)});return out}
 function parseNewReport(t){
   const nm=t.match(/(?:called|named|titled)\s+["“']?([^"”'.,]+?)["”']?(?:\s+(?:with|for|showing|covering|that)\b|$)/),au=t.match(/\bfor (?:the |our )?([a-z &]+?)(?:\s+(?:team|committee|board))?\s+(?:with|showing|covering|that|including)\b/);
@@ -2816,6 +2845,8 @@ function selfTest(){
     ok('Nothing changes until EstateMaster exports it',held&&applied,'approved change waits as an analyst task; the model and figures change only when the export is read')});
   if(!RO)safe('Estimates never pass as EstateMaster figures',()=>{const e0=EMLAST;EMLAST=null;const a=trustText().html,rep_=BLOCKS.kpis.fn(),st=statusText().line;EMLAST={out:{levered_irr:21.5},ref:'CR-T',sim:false,kind:'run',sig:wcSig(),proj:PROJ.id,at:new Date().toISOString()};const b_=trustText().html,rep2=BLOCKS.kpis.fn();S={...S,cost:(S.cost||0)+1};const stale=!emFresh();S.cost-=1;if(!S.cost)delete S.cost;EMLAST=e0;
     ok('Estimates never pass as EstateMaster figures',/estimates, not EstateMaster/.test(a)&&/has not calculated/.test(rep_)&&/Estimate \(agent/.test(st)&&/EstateMaster: levered IRR 21.50%/.test(b_)&&/21.50%/.test(rep2)&&stale,'estimate labels everywhere; EstateMaster figure shown only for the exact working copy it was calculated for')});
+  safe('Report designer edits a report',()=>{const keep=JSON.stringify(specOf('lender')),h0=(RHIST.lender||[]).length,l0=LOG.length;const rd=ruleDesign('lender','for the board, capital structure as a waterfall and the stress tests as a table, max 6 slides, remove the change log');const r=applySpec('lender',rd.spec,'Self-test','self-test');const d=buildDeck('lender'),ok_=!r.err&&RPTS.lender.aud==='Board of directors'&&d.slides.length<=6&&!RPTS.lender.blocks.includes('changelog')&&RPTS.lender.slides.stress_table==='table'&&buildDeck('lender',{doc:true}).slides.some(s=>s.kind==='table'&&/^Stress tests/.test(s.kicker));undoSpec('lender');RHIST.lender.length=h0;LOG.length=l0;saveReportEdits();const back=JSON.stringify(specOf('lender'))===keep;
+    ok('Report designer edits a report',ok_&&back,'audience, blocks, slide types and slide limit changed by request; undo restores it; figures unchanged')});
   safe('Control workbook round trip',()=>{const ws={};cwInputsAoa().forEach((row,i)=>row.forEach((v,j)=>{if(v!=null)ws[String.fromCharCode(65+j)+(i+1)]={v}}));const r=cwParse({Sheets:{Inputs:ws}});const ws2={...ws,E21:{v:'abc'}};const bad=cwParse({Sheets:{Inputs:ws2}});ok('Control workbook round trip',r.ok&&!cwOps(r.values).length&&!bad.ok,`${r.filled}/${r.lines} values read back, 0 differences; bad value rejected`)});
   R.push({name:'EstateMaster runner (Vercel)',ok:true,info:true,detail:runnerText()});
   R.push({name:'Server keys (Vercel)',ok:true,info:true,detail:PROXY.status==='ok'?'/api/llm reachable; server keys found':'status: '+(PROXY.status||'not checked')+(PROXY.status==='file'?' (page opened from a file, not from Vercel)':'')});
@@ -3078,11 +3109,11 @@ function kFigures(){
   const pick=(k,est)=>o&&Number.isFinite(o[k])?o[k]:est;
   return{r,src:x?`EstateMaster export ${x.id}`:em?`EstateMaster (${EMLAST.ref})`:'agent’s estimate',fromEM:!!o,
     irr:pick('levered_irr',bad(r.irr)*100),uirr:pick('unlevered_irr',bad(r.uirr)*100),poc:pick('profit_on_cost',r.poc*100),profit:pick('net_profit',r.profit),em:pick('equity_multiple',r.em),peak:pick('peak_debt',r.peak),tc:pick('total_cost',r.tc),rev:pick('gross_revenue',r.rev)}}
-function buildDeck(id){
+function buildDeck(id,o={}){
   const def=RPTS[id]||RPTS.ic,F=kFigures(),r=F.r,est=F.fromEM?'':' (agent’s estimate)',estK=RO||!F.fromEM?' · agent’s estimate':'',date=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  const hI=HURDLE.irr*100,hP=HURDLE.poc*100,okI=F.irr>=hI,okP=F.poc>=hP,sl=[],blocks=def.blocks||[];
+  const hI=HURDLE.irr*100,hP=HURDLE.poc*100,okI=F.irr>=hI,okP=F.poc>=hP,sl=[],blocks=o.only?[o.only]:def.blocks||[];
   const scen=RO?(latestExport()?`Figures from ${F.src}`:'No EstateMaster export yet'):scenLine().replace(/<[^>]+>/g,'');
-  sl.push({kind:'cover',kicker:def.name,title:PROJ.name,sub:`${date} · ${scen}`,say:`${def.name} for ${PROJ.name}, ${date}.`});
+  sl.push({kind:'cover',kicker:def.name,title:PROJ.name,sub:`${def.aud?'For '+def.aud+' · ':''}${date} · ${scen}`,say:`${def.name} for ${PROJ.name}, ${date}.`});
   const pts=[`${okI&&okP?'Clears both hurdles':!okI&&!okP?'Misses both hurdles':!okI?'Misses the IRR hurdle':'Misses the profit-on-cost hurdle'} (IRR ≥ ${hI.toFixed(0)}%, profit on cost ≥ ${hP.toFixed(0)}%).`,`Peak debt ${fM(F.peak)} on total cost ${fM(F.tc)}; gross revenue ${fM(F.rev)}.`];
   if(!RO){const h=(headRes||computeHeadroomData()).filter(x=>x.k!=='ltc'&&x.irrD!=null&&!Number.isNaN(x.irrD)).sort((a,c)=>Math.abs(a.irrD)/(VARS[a.k].kind==='pct'?1:5)-Math.abs(c.irrD)/(VARS[c.k].kind==='pct'?1:5))[0];if(h)pts.push(`Tightest assumption: ${VARS[h.k].label.toLowerCase()}, the IRR hurdle breaks at ${hd(h.k,h.irrD)}.`)}
   sl.push({kind:'headline',kicker:`Headline figures · ${F.src}`,headline:okI&&okP?`${PROJ.name} clears the hurdles`:`${PROJ.name} needs work before committee`,kpis:[{label:'Levered IRR',value:F.irr,decimals:1,suffix:'%',tone:okI?'good':'bad',ring:Math.min(100,F.irr/hI*100),sub:`hurdle ${hI.toFixed(0)}%`},{label:'Profit on cost',value:F.poc,decimals:1,suffix:'%',tone:okP?'good':'bad',ring:Math.min(100,F.poc/hP*100),sub:`hurdle ${hP.toFixed(0)}%`},{label:'Net profit',value:kM(F.profit),prefix:'SAR ',suffix:'M',tone:F.profit<0?'bad':'neutral',spark:(()=>{let c=0;return r.cf.inf.map((v,t)=>c+=Math.abs(v)-Math.abs(r.cf.cost[t]))})()},{label:'Equity multiple',value:F.em,decimals:2,suffix:'x',tone:F.em<1.5?'warn':'neutral'}],points:pts,say:`Levered IRR ${F.irr.toFixed(1)} percent against a hurdle of ${hI.toFixed(0)}; profit on cost ${F.poc.toFixed(1)} percent; net profit ${fM(F.profit)}; equity multiple ${(+F.em).toFixed(2)} times. ${pts[0]}`});
@@ -3110,14 +3141,14 @@ function buildDeck(id){
     case 'fund_summary':case 'fund_distributions':case 'fund_stress':case 'fund_terms':{const w=waterfall(r);return[{kind:'gauges',kicker:'Fund returns'+estK,title:'Fund LP and KINAN returns',items:[{label:'Fund LP net IRR',pct:bad(w.lpIrr)*100/FT.pref*100,actual:fP(w.lpIrr),target:`${FT.pref}% pref`},{label:'KINAN IRR incl. promote',pct:bad(w.gpIrr)*100/hI*100,actual:fP(w.gpIrr),target:`${hI.toFixed(0)}% hurdle`},{label:'LP multiple',pct:w.lpEm/1.5*100,actual:fX(w.lpEm),target:'1.50x'}],foot:`Terms: LP ${FT.lp}% of equity · ${FT.pref}% preferred return · ${FT.promote}% promote · ${FT.fee}% p.a. fee`,say:`Fund LP net IRR ${fP(w.lpIrr)} against a ${FT.pref} percent preferred return; KINAN earns ${fP(w.gpIrr)} including the promote.`}]}
     case 'scenario_compare':{const st=stress().slice(0,6);return[{kind:'hbars',kicker:'Scenarios'+estK,title:'Scenario comparison',sub:'Levered IRR by scenario',labels:['Current case',...st.map(x=>x.name)],values:[+(F.irr).toFixed(1),...st.map(x=>+(bad(x.r.irr)*100).toFixed(1))],unit:'%',decimals:1,bench:hI,benchLabel:`hurdle ${hI.toFixed(0)}%`,tones:[okI?'good':'bad',...st.map(x=>x.pass?'good':'bad')],say:'Scenario comparison against the hurdle.'}]}
     default:return[]}};
-  for(const grp of groups){const bs=blocks.filter(b=>BLOCKS[b]&&BLOCKS[b].g===grp),cs=bs.flatMap(chartsFor);if(!cs.length)continue;n++;sl.push({kind:'divider',kicker:def.name,title:grp,sub:`${cs.length} slide${cs.length>1?'s':''}`,n,of:groups.length,say:grp+'.'});sl.push(...cs)}
+  for(const grp of groups){const bs=blocks.filter(b=>BLOCKS[b]&&BLOCKS[b].g===grp),cs=bs.flatMap(b=>chartsFor(b).map(s=>o.raw?s:kConv(s,(def.slides||{})[b])));if(!cs.length)continue;n++;sl.push({kind:'divider',kicker:def.name,title:grp,sub:`${cs.length} slide${cs.length>1?'s':''}`,n,of:groups.length,say:grp+'.'});sl.push(...cs)}
   const nr=NARRS[id];if(nr&&nr.key===narrKey())sl.push({kind:'list',kicker:'Narrative (AI draft)',title:'Commentary',items:nr.text.split(/\n+/).filter(Boolean).slice(0,6).map(t=>({text:t.slice(0,160)})),say:nr.text.slice(0,500)});
   sl.push({kind:'closing',kicker:'KINAN',title:KD.tagline,sub:F.fromEM?`Figures from ${F.src} · ${PROJ.name}`:`Agent’s estimates; EstateMaster is the source of truth · ${PROJ.name}`,say:`${def.name}, ${PROJ.name}. Thank you.`});
-  return{title:`${def.name} — ${PROJ.name}`,slides:sl}}
+  return{title:`${def.name} — ${PROJ.name}`,slides:trimDeck(sl,def.opts||{},o.doc)}}
 
 /* ---- the report document (the Reports tab, the HTML download and print) ---- */
 function reportDoc(id){
-  const def=RPTS[id]||RPTS.ic,x=LASTX||snapshot(),F=kFigures(),deck=buildDeck(id),date=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  const def=RPTS[id]||RPTS.ic,x=LASTX||snapshot(),F=kFigures(),deck=buildDeck(id,{doc:true}),date=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
   const byBlock={};let gi=0;for(const s of deck.slides){if(s.kind==='divider'){gi=s.title;continue}if(['cover','headline','closing'].includes(s.kind))continue;(byBlock[gi]=byBlock[gi]||[]).push(s)}
   const head=deck.slides.find(s=>s.kind==='headline'),used=new Set();
   const sec=def.blocks.filter(b=>BLOCKS[b]).map(b=>{const g=BLOCKS[b].g,charts=(byBlock[g]||[]).filter(s=>!used.has(s)&&kBlockOwns(b,s));charts.forEach(s=>used.add(s));
@@ -3523,6 +3554,153 @@ function scheduleFromChat(o,by){const k=o.k;if(!k)return{err:'Which report? '+Ob
   logEvent({kind:'report',actor:by,channel:'Workspace',detail:`Schedule ${s.on?'set':'removed'} from chat: ${RPTS[k].name}${s.on?` · ${schedLabel(s)} · ${s.ch}${s.ch==='Email (Outlook)'?' to '+s.to:''} · next ${fmtWhen(s.next)}`:''}`});
   saveCustom&&saveCustom();renderDelivery();$('#rpList')&&renderReportList();saveMem();return{k,s}}
 
+/* ================= REPORT DESIGNER: change any report by talking to it =================
+   Say who the report is for, what it should show and which slides to use ("for the board, returns and the capital
+   stack as a waterfall, max 8 slides, no change log"). The agent rewrites the report's spec: audience, purpose, tone,
+   blocks in order, the slide type of each block, and the deck options. Figures still come only from the model data and
+   EstateMaster's exports; the designer decides what to show and how, never the numbers.
+   Model: the "report" route, Claude Fable 5.1 (Anthropic's most capable widely released model) at high effort, with
+   server-side refusal fallback; then Claude Opus 5.5; then GPT-5. The reply is a schema-checked tool call. With no
+   AI connected, a rules engine handles the common requests. Every edit is logged and can be undone. */
+const SLIDE_NAMES={gauges:'Gauges',columns:'Column chart',line:'Line chart',donut:'Donut',hbars:'Bar chart',bridge:'Waterfall',tower:'Stacked columns',list:'List',table:'Table'};
+const SLIDE_KINDS=Object.keys(SLIDE_NAMES);
+const KIND_WORDS=[[/\btables?\b|tabular|as numbers/,'table'],[/bullet|\blists?\b|as text/,'list'],[/waterfall|bridge/,'bridge'],[/stacked|tower|sources (and|&) uses/,'tower'],[/donuts?|pies?|doughnut/,'donut'],[/line (chart|graph)|trend line|\blines?\b(?! of)/,'line'],[/column (chart|graph)s?|vertical bars?|columns/,'columns'],[/bar (chart|graph)s?|horizontal bars?|\bbars\b/,'hbars'],[/gauges?|dials?|rings?/,'gauges']];
+const TONES={board:'Board: short, decisions first',committee:'Investment committee: full analysis',lender:'Lender: facility and covenants',investor:'Investor: returns and distributions',operational:'Operational: actions and owners',detailed:'Detailed'};
+const RHIST={},RDCHAT={};
+function specOf(k){const d=RPTS[k]||{};return{name:d.name||'',aud:d.aud||'',purpose:d.purpose||'',tone:d.tone||'',blocks:[...(d.blocks||[])],slides:{...(d.slides||{})},opts:{max:null,dividers:true,narrative:!!d.narr,headline:true,closing:true,...(d.opts||{})}}}
+/* what a slide can become: its own kind, a table or a list, and any chart its data supports */
+function seriesOf(s){if(s.labels&&s.values)return{L:s.labels,V:s.values,unit:s.unit||''};if(s.kind==='bridge')return{L:s.steps.map(x=>x.label),V:s.steps.map(x=>Math.round(Math.abs(x.v)/1e6)),unit:'SAR M'};if(s.kind==='gauges')return{L:s.items.map(x=>x.label),V:s.items.map(x=>+(+x.pct).toFixed(1)),unit:'% of target'};if(s.kind==='tower'){const c=s.columns[1]||s.columns[0];return{L:c.segs.map(g=>g.label),V:c.segs.map(g=>Math.round(g.v/1e6)),unit:'SAR M'}}return null}
+function kindsFor(s){const k=new Set([s.kind,'table','list']);const se=seriesOf(s);if(se){['hbars','columns','line'].forEach(x=>k.add(x));if(se.V.every(v=>v>=0))k.add('donut')}return[...k]}
+function kConv(s,kind){
+  if(!kind||kind===s.kind||!SLIDE_NAMES[kind])return s;const se=seriesOf(s),base={kicker:s.kicker,title:s.title||s.headline||'',sub:s.sub||'',say:s.say};
+  if(kind==='table'){if(s.kind==='list')return{...base,kind:'table',head:['Item','Detail'],rows:s.items.map(x=>[esc(x.text),esc(x.sub||x.tag||'')])};
+    if(s.kind==='gauges')return{...base,kind:'table',head:['Measure','Actual','Target','Of target'],rows:s.items.map(x=>[esc(x.label),esc(x.actual),esc(x.target),Math.round(x.pct)+'%'])};
+    if(s.kind==='tower')return{...base,kind:'table',head:['Item',...s.columns.map(c=>c.label)],rows:[...new Set(s.columns.flatMap(c=>c.segs.map(g=>g.label)))].map(l=>[esc(l),...s.columns.map(c=>{const g=c.segs.find(x=>x.label===l);return g?'SAR '+Math.round(g.v/1e6)+'M':'—'})])};
+    if(se)return{...base,kind:'table',head:['Item',se.unit||'Value'],rows:se.L.map((l,i)=>[esc(l),kfmt(se.V[i],s.decimals??1)])};return s}
+  if(kind==='list'){if(s.kind==='table')return{...base,kind:'list',items:s.rows.map(r=>({text:String(r[0]).replace(/<[^>]+>/g,''),sub:r.slice(1).map(c=>String(c).replace(/<[^>]+>/g,'')).join(' · ')}))};
+    if(s.kind==='gauges')return{...base,kind:'list',items:s.items.map(x=>({text:`${x.label}: ${x.actual}`,sub:`target ${x.target} · ${Math.round(x.pct)}%`,tone:x.pct>=95?'good':x.pct>=75?'warn':'bad'}))};
+    if(se)return{...base,kind:'list',items:se.L.map((l,i)=>({text:`${l}: ${kfmt(se.V[i],s.decimals??1)}${se.unit&&se.unit.length<4?se.unit:' '+se.unit}`,tone:s.tones?s.tones[i]:null}))};return s}
+  if(!se||['bridge','tower','gauges'].includes(kind))return s;
+  if(kind==='donut'&&se.V.some(v=>v<0))return s;
+  const o={...base,kind,labels:se.L,values:se.V,unit:se.unit,decimals:s.decimals};
+  if(kind==='hbars'){o.bench=s.bench;o.benchLabel=s.benchLabel;o.tones=s.tones;o.chips=s.chips}
+  if(kind==='columns'){o.target=s.target;o.seriesLabel=s.seriesLabel;o.targetLabel=s.targetLabel;o.latestLabel=s.latestLabel}
+  return o}
+function trimDeck(sl,opts,doc){
+  if(doc)return sl;let out=sl.filter(s=>(opts.headline!==false||s.kind!=='headline')&&(opts.dividers!==false||s.kind!=='divider')&&(opts.closing!==false||s.kind!=='closing'));
+  const max=+opts.max||0;if(max&&out.length>max){out=out.filter(s=>s.kind!=='divider');if(out.length>max){const head=out.filter(s=>s.kind==='cover'||s.kind==='headline'),tail=out.filter(s=>s.kind==='closing'),mid=out.filter(s=>!['cover','headline','closing'].includes(s.kind));out=[...head,...mid.slice(0,Math.max(1,max-head.length-tail.length)),...tail]}}
+  return out}
+/* the slide kinds a block's data supports (from its default slide) */
+function blockKinds(k,b){try{const s=buildDeck(k,{doc:true,only:b,raw:true}).slides.find(x=>!['cover','headline','divider','closing'].includes(x.kind));return s?kindsFor(s):[]}catch(e){return['table','list']}}
+/* apply a spec: validate, keep history, save, log, re-render; returns the list of changes in plain words */
+function applySpec(k,spec,by,how){
+  const before=specOf(k),d=RPTS[k],nm=b=>BLOCKS[b]?BLOCKS[b].name:b;
+  const blocks=(spec.blocks||before.blocks).filter((b,i,a)=>BLOCKS[b]&&a.indexOf(b)===i);if(!blocks.length)return{err:'A report needs at least one block.'};
+  const slides={},skip=[];for(const [b,kd] of Object.entries(spec.slides||{}))if(blocks.includes(b)&&SLIDE_NAMES[kd]){const can=blockKinds(k,b);if(!can.length||can.includes(kd)){if(can[0]!==kd)slides[b]=kd}else skip.push(`${nm(b)} can’t be a ${SLIDE_NAMES[kd].toLowerCase()} (possible: ${can.map(x=>SLIDE_NAMES[x].toLowerCase()).join(', ')})`)}
+  const opts={...before.opts,...(spec.opts||{})};if(opts.max!=null)opts.max=Math.max(3,Math.min(40,Math.round(+opts.max)))||null;
+  const ch=[];if(spec.name&&spec.name!==before.name)ch.push(`Name: “${before.name}” → “${spec.name}”`);
+  if(spec.aud!=null&&spec.aud!==before.aud)ch.push(`Audience: ${before.aud||'—'} → ${spec.aud}`);if(spec.purpose!=null&&spec.purpose!==before.purpose)ch.push(`Purpose: ${spec.purpose||'—'}`);
+  if(spec.tone&&spec.tone!==before.tone)ch.push(`Tone: ${TONES[spec.tone]||spec.tone}`);
+  const add=blocks.filter(b=>!before.blocks.includes(b)),rem=before.blocks.filter(b=>!blocks.includes(b));
+  if(add.length)ch.push('Added: '+add.map(nm).join(', '));if(rem.length)ch.push('Removed: '+rem.map(nm).join(', '));
+  if(!add.length&&!rem.length&&blocks.join()!==before.blocks.join())ch.push('Reordered: '+blocks.map(nm).join(' → '));
+  for(const b of blocks)if((slides[b]||'')!==(before.slides[b]||''))ch.push(`${nm(b)}: ${slides[b]?SLIDE_NAMES[slides[b]]:'default slides'}`);
+  for(const [o,l] of [['max','Slide limit'],['dividers','Section dividers'],['narrative','AI narrative'],['headline','Headline slide'],['closing','Closing page']])if(opts[o]!==before.opts[o])ch.push(`${l}: ${o==='max'?(opts.max||'none'):opts[o]?'on':'off'}`);
+  if(!ch.length)return{changes:[],nochange:true,skip};
+  (RHIST[k]=RHIST[k]||[]).push(before);if(RHIST[k].length>20)RHIST[k].shift();
+  Object.assign(d,{name:spec.name||d.name,aud:spec.aud!=null?spec.aud:d.aud,purpose:spec.purpose!=null?spec.purpose:d.purpose,tone:spec.tone||d.tone,blocks,slides,opts,narr:!!opts.narrative});
+  saveReportEdits();logEvent({kind:'report',actor:by,channel:'Workspace',detail:`Report “${d.name}” redesigned${how?' ('+how+')':''}: ${ch.join('; ')}`});
+  if(typeof RSEL!=='undefined'&&RSEL===k&&$('#report'))renderReport();if($('#rpList'))renderReportList();return{changes:ch,skip}}
+function undoSpec(k){const h=RHIST[k];if(!h||!h.length)return false;const prev=h.pop();Object.assign(RPTS[k],{...prev,narr:!!prev.opts.narrative});saveReportEdits();logEvent({kind:'report',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Report “${RPTS[k].name}”: last design change undone`});if(RSEL===k)renderReport();renderReportList();return true}
+function saveReportEdits(){try{localStorage.setItem('bohioReportEdits',JSON.stringify(Object.fromEntries(Object.entries(RPTS).filter(([k,v])=>v.builtin).map(([k,v])=>[k,{name:v.name,aud:v.aud,purpose:v.purpose||'',tone:v.tone||'',blocks:v.blocks,slides:v.slides||{},opts:v.opts||null,narr:!!v.narr}]))))}catch(e){}saveCustom()}
+try{const e=JSON.parse(localStorage.getItem('bohioReportEdits')||'{}');for(const [k,v] of Object.entries(e))if(RPTS[k]&&Array.isArray(v.blocks)){Object.assign(RPTS[k],{...v,blocks:v.blocks.filter(b=>BLOCKS[b])});if(!v.opts)delete RPTS[k].opts}}catch(e){}
+/* ---- the rules engine (no AI connected): the common requests ---- */
+const AUD_WORDS=[[/\bboard\b|directors/,'Board of directors','board'],[/investment committee|\bic\b/,'Investment committee','committee'],[/lenders?|bank|murabaha/,'Murabaha lender','lender'],[/investors?|\blps?\b|limited partners|fund/,'Fund investors (LPs)','investor'],[/sales team|sales/,'Sales team','operational'],[/management|exec(utive)?s?|ceo|cfo/,'KINAN management','board'],[/project controls|qs|cost team/,'Project controls and QS','operational'],[/risk committee|risk team/,'Risk committee','committee']];
+function ruleDesign(k,text){
+  let t=' '+text.toLowerCase()+' ';for(const v of Object.values(RPTS))t=t.split(v.name.toLowerCase()).join(' report ');
+  t=t.replace(/(^|[,.;:]\s*)\s*(?:please |can you |could you )?(?:change|edit|redesign|rework|update|modify|tailor|adapt|restyle|make)\s+(?:the |this |that |my |our )?(?:[a-z]+ ){0,3}?(?:report|pack|deck|presentation)\b/g,'$1 ');
+  const sp=specOf(k),out={...sp,blocks:[...sp.blocks],slides:{...sp.slides},opts:{...sp.opts}},notes=[];
+  const am=t.match(/\b(?:for|to|aimed at|destined (?:to|for)|audience(?: is)?:?)\s+(?:the |our |a )?([a-z &]+?)(?=[,.;]| with | showing | and | using | as | so |$)/);
+  if(am){const hit=AUD_WORDS.find(([re])=>re.test(am[1]));if(hit){out.aud=hit[1];out.tone=hit[2]}else if(am[1].length<40&&!/^(the )?(report|pack|deck)/.test(am[1]))out.aud=am[1].replace(/^./,c=>c.toUpperCase())}
+  const nm=t.match(/\b(?:call it|rename (?:it )?(?:to)?|name it|title it)\s+["“']?([^"”'.,;]+)/);if(nm)out.name=nm[1].trim().replace(/^./,c=>c.toUpperCase());
+  const pm=t.match(/\b(?:purpose|goal|so that|so they can)\s*(?:is|:)?\s*([^.;]{6,120})/);if(pm)out.purpose=pm[1].trim().replace(/^./,c=>c.toUpperCase());
+  for(const clause of t.split(/[.;]|\band then\b|\bthen\b|,\s*(?=(?:add|remove|drop|show|use|include|without|no |make|keep|put)\b)/)){
+    const c=' '+clause.trim()+' ';if(!c.trim())continue;
+    const named=blocksFrom(c).filter(b=>BLOCKS[b]);
+    if(/\b(remove|drop|without|exclude|delete|take out|no more|get rid of|hide)\b/.test(c)||/\bno (change|email|audit|stress|market|fund|cash|approval)/.test(c)){
+      const rm=named.length?named:[];out.blocks=out.blocks.filter(b=>!rm.includes(b));if(rm.length)continue}
+    const kind=(KIND_WORDS.find(([re])=>re.test(c))||[])[1];
+    if(/\b(add|include|show|with|plus|also|cover|put in|need)\b/.test(c)||(named.length&&!kind))for(const b of named)if(!out.blocks.includes(b))out.blocks.push(b);
+    if(kind){let pend=[];for(const part of c.split(/\band\b|&/)){const kd=(KIND_WORDS.find(([re])=>re.test(part))||[])[1];
+      const nb=blocksFrom(part).filter(b=>BLOCKS[b]),here=nb.filter(b=>out.blocks.includes(b)),exact=nb.filter(b=>{const nm_=BLOCKS[b].name.toLowerCase().replace(/ \(.*$/,'');return part.includes(nm_)||part.includes(nm_.split(' ')[0].replace(/s$/,''))}),tg=exact.length?exact:here.length?here:nb.slice(0,1);
+      if(!kd){pend.push(...tg);continue}
+      const all=[...pend,...(tg.length?tg:pend.length?[]:out.blocks.slice(-1))];pend=[];
+      for(const b of all){if(!out.blocks.includes(b))out.blocks.push(b);out.slides[b]=kd}}}}
+  if(/\bonly\b/.test(t)){const keep=blocksFrom(t.split(/\bonly\b/)[1]||'').filter(b=>BLOCKS[b]);if(keep.length)out.blocks=out.blocks.filter(b=>keep.includes(b)).concat(keep.filter(b=>!out.blocks.includes(b)))}
+  const mx=t.match(/\b(?:max(?:imum)?|at most|no more than|up to|limit(?: it)? to|keep it to)\s*(\d{1,2})\s*slides?\b|\b(\d{1,2})\s*slides?\s*(?:max|maximum|long|only)?\b/);if(mx)out.opts.max=+(mx[1]||mx[2]);
+  if(/one[- ]pager|very short|keep it short|shorter|brief|concise/.test(t)&&!mx){out.opts.max=out.opts.max&&out.opts.max<8?out.opts.max:6;out.tone=out.tone||'board'}
+  if(/no (section )?dividers|without dividers|remove (the )?dividers/.test(t))out.opts.dividers=false;if(/\b(add|with|use|keep) (section )?dividers/.test(t))out.opts.dividers=true;
+  if(/(add|with|include|write) (a |an )?(ai )?(narrative|commentary|summary text)/.test(t))out.opts.narrative=true;if(/no (narrative|commentary)/.test(t))out.opts.narrative=false;
+  if(/no (closing|end) (page|slide)/.test(t))out.opts.closing=false;if(/no (limit|maximum)|full (deck|length)|all slides/.test(t))out.opts.max=null;
+  return{spec:out,notes}}
+/* ---- the AI designer: Claude Fable 5.1 → Claude Opus 5.5 → GPT-5 ---- */
+function designTool(){const blocks=BLOCK_KEYS.filter(b=>BLOCKS[b]);return{name:'update_report',description:'Replace the report design with this complete spec. Always call this tool once with the full spec (not a diff).',
+  schema:{type:'object',additionalProperties:false,required:['name','audience','purpose','tone','blocks','slides','options','summary'],properties:{
+    name:{type:'string',description:'Report title'},audience:{type:'string',description:'Who the report is for'},purpose:{type:'string',description:'One sentence: what the reader should decide or learn'},
+    tone:{type:'string',enum:Object.keys(TONES)},blocks:{type:'array',items:{type:'string',enum:blocks},description:'Content blocks in reading order'},
+    slides:{type:'array',items:{type:'object',additionalProperties:false,required:['block','kind'],properties:{block:{type:'string',enum:blocks},kind:{type:'string',enum:SLIDE_KINDS}}},description:'Slide type per block, only where it should differ from the default'},
+    options:{type:'object',additionalProperties:false,required:['max_slides','dividers','narrative','headline','closing'],properties:{max_slides:{type:['integer','null']},dividers:{type:'boolean'},narrative:{type:'boolean'},headline:{type:'boolean'},closing:{type:'boolean'}}},
+    summary:{type:'string',description:'Two or three plain sentences for the user: what you changed and why'}}}}}
+function designSystem(k){const sp=specOf(k);
+  return`You design reports and presentation decks for KINAN, a Saudi real estate developer, built on ARGUS EstateMaster figures. You change what a report shows and how; you never write or change numbers: every figure is drawn from the model and EstateMaster's exports when the report runs.
+Edit the current report to follow the user's request, keeping everything they did not ask to change. Fit the content and the slides to the audience: a board wants decisions and few slides; lenders want the facility, covenants and drawdowns; investors want returns and distributions; an investment committee wants the full case with risks.
+Use only the block ids and slide kinds below. A block's slide kind must be one listed as possible for that block (blocks without a list take table or list). Then call update_report once with the complete spec.
+
+Project: ${PROJ.name}. Deployment: ${RO?MI().name+' (figures from EstateMaster exports)':'runner build'}.
+Current report (id ${k}): ${JSON.stringify({name:sp.name,audience:sp.aud,purpose:sp.purpose,tone:sp.tone,blocks:sp.blocks,slides:Object.entries(sp.slides).map(([block,kind])=>({block,kind})),options:{max_slides:sp.opts.max,dividers:sp.opts.dividers,narrative:sp.opts.narrative,headline:sp.opts.headline!==false,closing:sp.opts.closing!==false}})}
+Block library (id | name | group | possible slide kinds):
+${BLOCK_KEYS.filter(b=>BLOCKS[b]).map(b=>`${b} | ${BLOCKS[b].name} | ${BLOCKS[b].g} | ${(blockKinds(k,b).join(', ')||'table, list')}`).join('\n')}
+Slide kinds: ${SLIDE_KINDS.map(x=>`${x} (${SLIDE_NAMES[x]})`).join(', ')}. Tones: ${Object.entries(TONES).map(([a,b])=>`${a} = ${b}`).join('; ')}.`}
+async function designCall(system,user){
+  const tool=designTool();let err;
+  for(const {p,model} of chain('report')){
+    try{ROUTESTATS.calls++;
+      if(p==='anthropic'){const top=/fable|opus-5/.test(model);
+        const body={model,max_tokens:12000,system,messages:[{role:'user',content:user}],tools:[{name:tool.name,description:tool.description,input_schema:tool.schema,strict:true}],output_config:{effort:'high'}};
+        if(top)body.fallbacks='default';
+        const j=AI.keys[p]?await post(PROV[p].base,{'x-api-key':AI.keys[p],'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(top?{'anthropic-beta':'server-side-fallback-2026-07-01'}:{})},body)
+          :await post('/api/llm',AI.pass?{'x-demo-pass':AI.pass}:{},{provider:p,task:'report',betas:top?['server-side-fallback-2026-07-01']:[],payload:body});
+        if(j.stop_reason==='refusal')throw new Error('declined ('+((j.stop_details&&j.stop_details.category)||'refusal')+')');
+        if(j.stop_reason==='max_tokens')throw new Error('ran out of room');
+        const tu=(j.content||[]).find(b=>b.type==='tool_use'&&b.name===tool.name);const txt=(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+        const input=tu?tu.input:JSON.parse((txt.match(/\{[\s\S]*\}/)||['null'])[0]);if(!input)throw new Error('no design returned');return{p,model:j.model||model,input}}
+      const body={model,max_completion_tokens:12000,messages:[{role:'system',content:system},{role:'user',content:user}],tools:[{type:'function',function:{name:tool.name,description:tool.description,parameters:tool.schema}}],tool_choice:{type:'function',function:{name:tool.name}}};
+      const j=AI.keys[p]?await post(PROV[p].base,{authorization:'Bearer '+AI.keys[p]},body):await post('/api/llm',AI.pass?{'x-demo-pass':AI.pass}:{},{provider:p,task:'report',payload:body});
+      const m=j.choices&&j.choices[0]&&j.choices[0].message||{},c=(m.tool_calls||[])[0];if(!c)throw new Error('no design returned');return{p,model,input:JSON.parse(c.function.arguments||'{}')}}
+    catch(e){err=e}}
+  throw err||new Error('No AI provider connected')}
+function specFromAI(input){const sl={};for(const x of input.slides||[])if(x&&x.block&&x.kind)sl[x.block]=x.kind;const o=input.options||{};
+  return{name:input.name,aud:input.audience,purpose:input.purpose,tone:TONES[input.tone]?input.tone:'',blocks:input.blocks,slides:sl,opts:{max:o.max_slides??null,dividers:o.dividers!==false,narrative:!!o.narrative,headline:o.headline!==false,closing:o.closing!==false}}}
+/* one request → design → apply; used by the designer chat and the main agent */
+async function reportDesign(k,text,by){
+  RDCHAT[k]=RDCHAT[k]||[];const hist=RDCHAT[k].slice(-6).map(m=>`${m.role}: ${m.text}`).join('\n');let res,model=null,summary='',fallback=null;
+  if(apiOn()){try{const r=await designCall(designSystem(k),(hist?`Earlier in this conversation:\n${hist}\n\n`:'')+`Request: ${text}`);model=mName(r.p,r.model);summary=String(r.input.summary||'');res=applySpec(k,specFromAI(r.input),by,`designed by ${model}`)}catch(e){fallback=e.message}}
+  if(!res){const rd=ruleDesign(k,text);res=applySpec(k,rd.spec,by,'rules engine')}
+  RDCHAT[k].push({role:'user',text},{role:'agent',text:summary||(res.changes||[]).join('; ')});if(RDCHAT[k].length>20)RDCHAT[k].splice(0,RDCHAT[k].length-20);
+  return{...res,model,summary,fallback,k}}
+/* the designer chat on the Reports tab */
+const RD_CHIPS=['Make it a board one-pager: returns, sources of funds as a donut, flags. Max 6 slides','For the lender: facility, covenants and drawdowns, all as tables','Add the cash flow and show it as a line chart','Show the stress tests as a table and remove the change log','No section dividers, and add an AI narrative'];
+function rdBubble(who,html){const m=document.createElement('div');m.className='msg '+who;m.innerHTML=html;$('#rdMsgs').appendChild(m);$('#rdMsgs').scrollTop=1e9;return m}
+async function rdSend(text){text=String(text||'').trim();if(!text)return;const k=RSEL;$('#rdAsk').value='';rdBubble('user',esc(text));
+  const m=rdBubble('agent',`<div class="steps"><div class="st"><i></i><span>${apiOn()?`Designing with ${esc(mName(...(chain('report')[0]?[chain('report')[0].p,chain('report')[0].model]:['anthropic','claude-fable-5-1'])))}`:'Rules engine (no AI connected)'}…</span></div></div>`);
+  const r=await reportDesign(k,text,`${USERS.web} (${WS_ROLE})`);
+  m.innerHTML=rdReply(r);$('#rdMsgs').scrollTop=1e9}
+function rdReply(r){const n=RPTS[r.k].name;
+  const badge=r.model?`<span class="rt rt-api">✦ ${esc(r.model)} · report design</span>`:`<span class="rt rt-calc">⚙ Rules engine · no AI</span>`;
+  if(r.err)return`${badge}<br>${esc(r.err)}`;
+  if(r.nochange)return`${badge}<br>Nothing to change in <b>${esc(n)}</b>. Try naming who it is for, a block to add or remove, or a slide type (table, bar chart, line chart, donut, waterfall, gauges).`;
+  return`${badge}${r.fallback?`<div class="sub" style="margin:4px 0">AI unavailable (${esc(String(r.fallback).slice(0,80))}); used the rules engine.</div>`:''}<br>${r.summary?esc(r.summary)+'<br>':''}<b>${esc(n)}</b> updated:<ul style="margin:6px 0 6px 18px">${r.changes.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>${(r.skip||[]).length?`<div class="sub" style="margin:0 0 6px">Not possible with this data: ${r.skip.map(esc).join('; ')}.</div>`:''}<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-rdplay="${r.k}">▶ Play</button><button class="btn ghost sm" data-rdundo="${r.k}">Undo</button></div>`}
+
 /* ================= WEB UI ================= */
 function renderKPIs(flash){
   if(RO)return renderKPIsRO(flash);
@@ -3560,7 +3738,8 @@ const CHAINS={
   fast:{label:'Commentary',m:[['openai','gpt-5-mini'],['anthropic','claude-sonnet-5-5']]},
   smart:{label:'Agent with tools',m:[['anthropic','claude-sonnet-5-5'],['openai','gpt-5']]},
   deep:{label:'IC narrative, memos',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
-  excel:{label:'Excel questions',m:[['openai','gpt-5'],['anthropic','claude-sonnet-5-5']]}
+  excel:{label:'Excel questions',m:[['openai','gpt-5'],['anthropic','claude-sonnet-5-5']]},
+  report:{label:'Report design',m:[['anthropic','claude-fable-5-1'],['anthropic','claude-opus-5-5'],['openai','gpt-5']]}
 };
 const AI={keys:{anthropic:'',openai:''},pass:'',remember:false,models:{}};
 const PROXY={anthropic:false,openai:false,pass:false,checked:false};
@@ -3607,6 +3786,7 @@ const TOOLS=[
  {name:'send_report',description:'Send a report now by email (internal addresses only): the email has the headline figures and the full report attached.',p:{report:{type:'string',enum:['ic','monthly','lender','investor','compare','stress']},recipients:{type:'string'}},req:['report']},
  {name:'build_report',description:'Build a report from the latest EstateMaster extract. kind is a report id: ic, monthly, lender, investor, compare, stress (generated scenarios and EstateMaster results), or the id/name of a custom report created with create_report.',p:{kind:{type:'string'}}},
  {name:'create_report',description:'Create a new report type from the block library (figures always come from the EstateMaster extract). Choose blocks in order.',p:{name:{type:'string'},audience:{type:'string'},schedule:{type:'string',enum:['On request','Weekly','Monthly · 3rd working day','Quarterly']},blocks:{type:'array',items:{type:'string',enum:BLOCK_KEYS}},narrative:{type:'boolean'}},req:['name','blocks']},
+ {name:'design_report',description:'Change an existing report in natural language: who it is for, what it shows (blocks to add, remove or reorder), the slide type of each part (table, list, bar, column or line chart, donut, waterfall, gauges), slide limit, dividers, narrative. Pass the user\'s request as instruction. Figures always stay EstateMaster\'s.',p:{report:{type:'string',description:'Report id (ic, monthly, lender, investor, compare, stress) or a custom report name'},instruction:{type:'string'}},req:['report','instruction']},
  {name:'extract_from_estatemaster',description:'Run a fresh extract of every assumption and output from EstateMaster into the reporting store.',p:{}},
  {name:'list_model_assumptions',description:'List every assumption line in the EstateMaster register with id, section, unit, base and current value.',p:{}},
  {name:'set_model_assumption',description:'Set one line of the EstateMaster assumption register (any line, e.g. MEP services, contingency, SAIBOR, 2-bed price) to an absolute value in its own unit.',p:{id:{type:'string',enum:REG.map(l=>l.id)},value:{type:'number'}},req:['id','value']},
@@ -3645,6 +3825,7 @@ function toolIntent0(name,a){
     case 'send_report':return{k:'sendreport',o:{k:RPTS[a.report]?a.report:'ic',to:String(a.recipients||'')}};
     case 'build_report':return{k:'report',kind:RPTS[a.kind]?a.kind:(Object.entries(RPTS).find(([k,v])=>v.name.toLowerCase()===String(a.kind||'').toLowerCase())||['ic'])[0]};
     case 'create_report':return{k:'newreport',def:{name:a.name,aud:a.audience||'',sched:a.schedule||'On request',blocks:(a.blocks||[]).filter(b=>BLOCKS[b]),narr:!!a.narrative}};
+    case 'design_report':return{k:'editreport',rk:RPTS[a.report]?a.report:(Object.entries(RPTS).find(([k,v])=>v.name.toLowerCase()===String(a.report||'').toLowerCase())||[RSEL])[0],text:String(a.instruction||'')};
     case 'extract_from_estatemaster':return{k:'extract'};
     case 'list_model_assumptions':return{k:'reglist'};
     case 'search_model_lines':return{k:'xsearch',q:a.query,n:a.limit};
@@ -3780,6 +3961,8 @@ function route(text){
   if(it.k==='why')return{lane:'data',it,why:'A lookup in the changelog and email sources; no AI needed.'};
   if(it.k==='suggest')return{lane:'data',it,why:'Checks assumptions against market data, actuals, sales, the cost library and zoning; each suggestion needs approval.'};
   if(it.k==='newreport')return{lane:'data',it,why:'Creates a report template from the block library.'};
+  if(it.k==='editreport')return{lane:'data',it,why:'The report designer changes what the report shows and how (best model: Claude Fable 5.1); figures stay EstateMaster’s.'};
+  if(it.k==='undoreport')return{lane:'data',it,why:'Restores the previous report design.'};
   if(it.k==='schedule'||it.k==='sendreport')return{lane:'data',it,why:'Scheduling and sending reports are fixed actions: no AI needed.'};
   if(it.k==='report'&&!/memo|draft|write|board paper/.test(t))return{lane:'data',it,post:'narrative',tier:'deep',why:'Numbers come from the EstateMaster extract; the narrative model drafts the commentary.'};
   if(REASON.test(t)&&it.k!=='promote')return{lane:'api',it,tier:/memo|draft|write|narrative/.test(t)?'deep':FILES.length&&/excel|spreadsheet|workbook|sheet|file/.test(t)?'excel':'smart',why:'Needs judgement or language: an AI agent plans and calls EstateMaster and data tools.'};
@@ -4070,6 +4253,9 @@ $('#ibNext').onclick=()=>{const h=riyadhNow().getHours(),nx=SCAN_TIMES[SCAN.n%SC
 $('#wsRole').onchange=e=>{WS_ROLE=e.target.value;renderApprovals();toast('Signed in as '+WS_ROLE)};
 $('#logQ').oninput=e=>{logQ=e.target.value;renderApprovals()};$('#logX').onclick=exportLog;$('#logClr').onclick=()=>{if(confirm('Clear the demo memory in this browser and reload?'))clearMem()};
 $('#setNewRpt').onclick=()=>openBuilder();$('#setRptTab').onclick=()=>{$('#aiModal').classList.remove('on');showTab('report')};
+$('#rdSend').onclick=()=>rdSend($('#rdAsk').value);$('#rdAsk').onkeydown=e=>{if(e.key==='Enter')rdSend($('#rdAsk').value)};$('#rdChips').innerHTML=RD_CHIPS.map((c,i)=>`<button class="chip" data-rdchip="${i}">${esc(c)}</button>`).join('');
+rdBubble('agent',`I change the report you have open. Say who it is for, what it should show and which slides to use (table, list, bar, column or line chart, donut, waterfall, gauges). Best available model: ${esc(mName('anthropic','claude-fable-5-1'))}, then ${esc(mName('anthropic','claude-opus-5-5'))}, then ${esc(mName('openai','gpt-5'))}; rules engine with no AI connected.`);
+document.addEventListener('click',e=>{const c=e.target.closest('[data-rdchip]');if(c)rdSend(RD_CHIPS[+c.dataset.rdchip]);const pl=e.target.closest('[data-rdplay]');if(pl){RSEL=pl.dataset.rdplay;renderReportList();renderReport();openDeck(buildDeck(RSEL))}const u=e.target.closest('[data-rdundo]');if(u){if(undoSpec(u.dataset.rdundo)){u.disabled=true;u.textContent='Undone'}else toast('Nothing to undo')}});
 $('#rbNew').onclick=()=>openBuilder();$('#rbCancel').onclick=()=>$('#rbModal').classList.remove('on');$('#rbSave').onclick=saveBuilder;$('#rbAIBtn').onclick=designWithAI;
 $('#rbFrom').onchange=e=>openBuilder(e.target.value||undefined);
 $('#rbDel').onclick=()=>{if(!RB.edit)return;const n=RPTS[RB.edit].name;delete RPTS[RB.edit];delete SCHED[RB.edit];saveCustom();if(RSEL===RB.edit)RSEL='ic';$('#rbModal').classList.remove('on');renderReportList();renderReport();toast(`Report "${n}" deleted`)};
