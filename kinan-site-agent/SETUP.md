@@ -409,7 +409,8 @@ Columns: `Sheet, Title, Discipline, Location, Revision, Status, Issued, Reason`.
 - **Site map:** pinch/zoom the detailed plan, toggle layers (utilities, grid, cranes…), tap places to see documents, notes, activities and permits, and pin uploads to exact spots. The blue dot is your GPS position. Tap **3D** for the real-time model: each building stands at the level the schedule says is cast, cranes and trucks work, and the **timeline** under it replays the whole programme (▶) or jumps to any date; **Today** returns to the data date. One finger turns and tilts; two fingers twist to turn, pinch to zoom and drag to move; **↻** turns a quarter. Pinning a document uses the 2D sheet. Drag a place's sheet up for more, down to close.
 - **Project:** Programme (KPIs, milestones, in-progress/late/critical, 2-week look-ahead), Procurement (deliveries, packages at risk, POs, MRs, stock), Safety (permits, rules, incidents, PPE), Regulations, Drawings register, Team (tap to call).
 - **Docs:** all documents and open notes.
-- **3D Studio:** build a 3D/4D model of a *new* project from its documents. Tap **Add files** (or **Load the demo pack** for the mock *Kinan Bay Residences* set), check a document with **View**, pick an engine (**Auto**, **Claude**, **OpenAI**, **Gemini** or **Offline**) and tap **Generate 3D model**. The model opens at the programme's data date; play the timeline to watch it built. **What it read** lists every building with its source document and confidence, the programme, the assumptions the engine made, and anything to check. Tap a building for its activities. The last model is kept on the device. Best inputs: an area/accommodation schedule (storeys, floor-to-floor), setting-out or survey coordinates for footprints, a P6 / MS Project CSV export, and a logistics plan (roads, gates, cranes, laydown). PDFs and plan images are read by the AI engines (not by the offline parser). Limits: 20 files, 4 MB in total per request.
+- **Projects (home page):** the app opens on the project list. **Kinan Heights** is the live site (map, 4D model, programme, documents). Tap **+ New project** to build a 3D/4D model of another project from its documents: add **Files**, a whole **Folder** (sub-folders included) or a **Zip** (or drag any of them onto the box). Zips are unpacked in the browser, zips inside folders or zips too; macOS `__MACOSX` files, hidden files and unsupported types are skipped and listed. No documents to hand? **Load the demo pack** (or upload `samples/kinan-bay-demo.zip`). Check a document with **View**, pick an engine (**Auto**, **Claude**, **OpenAI**, **Gemini** or **Offline**) and tap **Create project**. The project opens at the programme's data date; play the timeline to watch it built. **What it read** lists every building with its source document and confidence, the programme, the engine's assumptions and anything to check. Tap a building for its activities. Generated projects stay on the device and appear on the home page (🗑 deletes one). Best inputs: an area/accommodation schedule (storeys, floor-to-floor), setting-out or survey coordinates, a P6 / MS Project CSV export, and a logistics plan (roads, gates, cranes, laydown). PDFs and plan images are read by the AI engines, not by the offline parser. Limits: 20 documents, 4 MB in total.
+- **Projects** tab (inside the live site) returns to the project list.
 
 **Good questions to try**
 - "What's late on Tower A and how does it affect topping out?" *(deep)*
@@ -459,10 +460,10 @@ Columns: `Sheet, Title, Discipline, Location, Revision, Status, Issued, Reason`.
 | `OPENAI_TRANSCRIBE_MODEL` | `whisper-1` | Voice-note transcription |
 | `LLM_TIMEOUT_MS` | `60000` | Per-call timeout before fallback |
 | `ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL` | official APIs | Gateways or proxies |
-| `GEMINI_API_KEY` | — | Google Gemini for the 3D Studio (optional) |
-| `GEMINI_MODEL` | `gemini-2.5-pro` | Gemini model for the 3D Studio |
+| `GEMINI_API_KEY` | — | Google Gemini for new projects built from documents (optional) |
+| `GEMINI_MODEL` | `gemini-2.5-pro` | Gemini model for new projects |
 | `GEMINI_BASE_URL` | Google's API | Gateway or proxy for Gemini |
-| `MODEL3D_ANTHROPIC_MODEL` / `MODEL3D_OPENAI_MODEL` | `claude-sonnet-5-5` / `gpt-5` | Models the 3D Studio uses to read documents |
+| `MODEL3D_ANTHROPIC_MODEL` / `MODEL3D_OPENAI_MODEL` | `claude-sonnet-5-5` / `gpt-5` | Models that read the documents of a new project |
 | `WHATSAPP_TOKEN` | — | System User permanent token |
 | `WHATSAPP_PHONE_NUMBER_ID` | — | Sending number id |
 | `WHATSAPP_APP_SECRET` | — | Webhook signature check (required in production) |

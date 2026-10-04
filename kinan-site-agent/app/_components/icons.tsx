@@ -16,6 +16,11 @@ const P: Record<string, ReactElement> = {
   camera: <><path d="M4 8h3l1.5-2.5h7L17 8h3v11H4V8z" /><circle cx="12" cy="13" r="3.5" /></>,
   mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></>,
   speaker: <><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></>,
+  plus: <><path d="M12 5v14M5 12h14" /></>,
+  grid: <><rect x="4" y="4" width="7" height="7" /><rect x="13" y="4" width="7" height="7" /><rect x="4" y="13" width="7" height="7" /><rect x="13" y="13" width="7" height="7" /></>,
+  zip: <><path d="M6 3h8l4 4v14H6V3z" /><path d="M11 3v2h2v2h-2v2h2v2h-2v2" /><rect x="10" y="14" width="4" height="4" /></>,
+  back: <><path d="M15 5l-7 7 7 7" /></>,
+  trash: <><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" /></>,
   cube: <><path d="M12 2.8 20 7.3v9.4L12 21.2 4 16.7V7.3z" /><path d="M4 7.3 12 12l8-4.7M12 12v9.2" /></>,
   file: <><path d="M6 3h8l4 4v14H6V3z" /><path d="M14 3v4h4" /></>,
   // document categories

@@ -61,7 +61,7 @@ Project → **Settings → Environment Variables**. Add each one for **Productio
 
 One AI key is enough. With both, you get routing and automatic fallback between them.
 
-Optional for the **3D Studio** (documents → 3D model): `GEMINI_API_KEY` (https://aistudio.google.com/apikey) adds Gemini as an engine; `GEMINI_MODEL`, `MODEL3D_ANTHROPIC_MODEL` and `MODEL3D_OPENAI_MODEL` pick the models. On the Hobby plan a generation must finish within 60 s; large document packs need Pro.
+Optional for **new projects from documents** (home page → +): `GEMINI_API_KEY` (https://aistudio.google.com/apikey) adds Gemini as an engine; `GEMINI_MODEL`, `MODEL3D_ANTHROPIC_MODEL` and `MODEL3D_OPENAI_MODEL` pick the models. On the Hobby plan a generation must finish within 60 s; large document packs need Pro.
 
 ### WhatsApp (Step 5)
 | Variable | Value |

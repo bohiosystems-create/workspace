@@ -13,7 +13,7 @@ A phone-first AI agent for a development manager walking the construction site. 
 | **Project dataset** | Demo "Kinan Heights": ~635 programme activities (baseline vs forecast, critical path), ~830-sheet drawing register, 58 documents (design basis, specs, RFIs, ITRs, method statements, minutes), 32-item compliance register (SBC, Civil Defense, MHRSD, MOMRAH, GACA, SEC/NWC, NCEC, PDPL), safety rules / PPE / permits / incidents, procurement (packages, POs, deliveries, MRs, stock), NCRs, contacts. |
 | **Purchasing systems** | SAP S/4HANA (OData: POs + purchase requisitions), Oracle Fusion (REST), generic REST with field mapping, and a push webhook for any integration platform. Site material requests are pushed as requisitions. |
 | **Real data import** | Primavera P6 / MS Project CSV programme, document-control register CSV, uploads from phone or WhatsApp. |
-| **3D Studio: documents → 3D** | Upload a project's area schedule, setting-out, P6/MS Project programme, logistics plan, brief, PDFs or plan images. **Claude, OpenAI or Gemini** reads them into a model spec (buildings, floors, footprints, roads, gates, cranes, zones, programme per building, with sources, confidence and assumptions) and the app renders it as a playable 3D/4D model. An offline parser works without keys. A demo pack of 7 mock documents (fictional *Kinan Bay Residences*, 16 buildings) shows the whole flow. |
+| **Projects home + documents → 3D** | The app opens on a project list. **+ New project** takes files, whole folders or .zip archives of a project's area schedule, setting-out, P6/MS Project programme, logistics plan, brief, PDFs or plan images. **Claude, OpenAI or Gemini** reads them into a model spec (buildings, floors, footprints, roads, gates, cranes, zones, programme per building, with sources, confidence and assumptions) and the app renders it as a playable 3D/4D model. An offline parser works without keys. A demo pack of 7 mock documents (fictional *Kinan Bay Residences*, 16 buildings; also `samples/kinan-bay-demo.zip`) shows the whole flow. Generated projects are kept on the device. |
 | **Detailed site map** | Pan/zoom plan with layers (buildings, roads, cranes & radii, temp works, utilities, HSE, grid), per-level locations, GPS dot, pin-a-document-to-the-spot, drawing markup. |
 | **Deploy anywhere** | Vercel (private Vercel Blob storage, conflict-safe saves across instances, direct large uploads, signed downloads) or Docker with automatic HTTPS. Also a single-file offline HTML build. |
 
@@ -25,7 +25,7 @@ cp .env.example .env.local   # add ANTHROPIC_API_KEY and/or OPENAI_API_KEY (opti
 npm run dev                  # http://localhost:3000
 ```
 
-`npm run build:html` produces `kinan-site-agent.html`: the same app as one file, with no server (map, documents, notes, project data). Its 3D Studio uses the offline parser, or Claude when the page is opened as a claude.ai artifact.
+`npm run build:html` produces `kinan-site-agent.html`: the same app as one file, with no server (map, documents, notes, project data). New projects there use the offline parser, or Claude when the page is opened as a claude.ai artifact.
 
 The AI agent has no chat screen in the web app. It is used **only through WhatsApp**.
 
@@ -41,15 +41,15 @@ The app carries Kinan's visual identity, shared with the marketing assistant: th
 ## Layout
 
 ```
-app/                 Next.js app: UI (Map · Project · Docs · 3D Studio) and API routes
-app/_components/     SiteMap (2D) · SiteGL (WebGL 3D/4D) · StudioTab + ModelViewer · Charts · icons
+app/                 Next.js app: UI (Projects home · Map · Project · Docs) and API routes
+app/_components/     SiteMap (2D) · SiteGL (WebGL 3D/4D) · Projects (home, new project, viewer) + ModelViewer · Charts · icons
 app/_components/gl/  three.js scene kit: buildings, cranes, grounds, details, generated-project scene
 app/api/model3d      Documents → 3D model spec (Claude / OpenAI / Gemini / offline)
 brand/               Kinan logo, chevron and page texture (embedded by scripts/brand.mjs)
 app/api/whatsapp     WhatsApp Cloud API webhook
 lib/core/            Agent core (pure, also runs in the browser): tools, queries, LLM router
 lib/core/llm/        Anthropic + OpenAI adapters, tiered routing with fallback
-lib/model3d/         Model spec + 4D state, AI extraction, offline parser, mock document pack
+lib/model3d/         Model spec + 4D state, AI extraction, offline parser, mock pack, zip/folder intake, project store
 lib/data/            Demo project dataset generators
 lib/integrations/    Purchasing-system adapters (SAP, Oracle, REST, webhook)
 lib/whatsapp/        WhatsApp client, sessions, map/drawing PNG rendering
