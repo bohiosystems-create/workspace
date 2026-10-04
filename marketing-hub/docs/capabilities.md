@@ -131,6 +131,9 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - **It explains weekly CRM-qualified leads, not contracted sales.** A developer signs only a handful of contracts a week, which is too lumpy to model. Qualified leads arrive in the tens a week and respond to spend sooner. The CRM's own attribution is compared on the same basis (leads against leads).
   - **Wide estimates are flagged:** a channel whose 90% range spans more than about 1.2× its attributed leads is marked low reliability, as is one whose spend barely varied.
 
+## 6b. Incrementality tests end to end
+- Recommends which vendors to test (report, Tests page, chat), designs the test from the data (holdout or geo with matched regions from the CRM), drafts the vendor's set-up brief for approval, records weekly results until the test closes itself, and feeds the readout into scores and renewals. A one-minute end-to-end demo on the Tests page.
+
 ## 7. Renewal decisions (vendor scoring board, on the Vendors page)
 
 - Per vendor: **re-engage, renegotiate, performance plan, test a replacement, or exit** — with the evidence, a confidence level, what would change the decision, and targets.

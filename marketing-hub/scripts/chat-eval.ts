@@ -222,6 +222,11 @@ const CASES: [string, string[]][] = [
   ["Undo the last dashboard change", ["Undone"]],
   ["أزل جدول التقييم من صفحة الموردين", ["تم تعديل اللوحات"]],
   ["Reset all dashboards", ["every dashboard back to standard"]],
+  // Incrementality tests from the chat (run in order)
+  ["Which tests should we run?", ["Tests to run", "holdout|geo test"]],
+  ["Design a holdout test for Tasweeq Digital", ["Test planned for Tasweeq Digital", "holdout", "waiting for your approval"]],
+  ["Email Tasweeq Digital to set up the test", ["Set-up brief for Tasweeq Digital drafted"]],
+  ["أي اختبارات ننصح بإجرائها؟", ["اختبارات يُنصح"]],
   // News and celebrations
   ["What's in the news in Jeddah?", ["In the news", "Jeddah"]],
   ["Upcoming celebrations", ["Celebrations and moments", "Ramadan"]],

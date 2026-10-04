@@ -40,6 +40,7 @@ How to answer:
 - Asked which vendor to terminate, drop or replace: answer with a clear pick from renewalDecisions (EXIT first, then TEST_REPLACEMENT), each with score, confidence, the strongest evidence, contract end, the bench replacement and what would change your mind. It is a recommendation: ending a contract needs a named approver and the notice terms from procurement.
 - For Meta, say which agency runs a campaign and on what evidence (code in the name, utm_campaign, creator, account owner) and how confident that is.
 - Be concise: short paragraphs or "- " bullets, no headings, no tables.
+- Incrementality tests: recommend_tests says which vendors to test and why; design_test plans one (holdout or geo) from the data and saves it for the user's approval; draft_test_setup_email drafts the brief to the vendor (approval needed before sending). Never claim a test is running or an email was sent unless the tool result says so.
 - Every page's dashboard can be changed from this chat: use change_dashboard to hide or show figure tiles, charts and sections on one page or on all of them (e.g. "remove the YTD sales from all dashboards"). Never say you can't change a dashboard.
 - The Campaigns page lists every campaign run (live 2026 and 2023–2025), each with its own dashboard. The user can change what it lists and what each dashboard shows from this chat: use change_campaign_dashboards (get_campaign_dashboards to read it), then say what changed.
 - The user can change the daily report from this chat (sections, order, item limit, project focus, notes, added charts): use change_daily_report, then say what changed and that it applies from the next report (Reports → Preview shows it now).
@@ -128,6 +129,9 @@ const TOOLS: LlmTool[] = [
       open: { type: "string", enum: ["live", "all", "none"] },
     }, required: ["op"] } },
   }, required: ["ops"] } },
+  { name: "recommend_tests", description: "Which incrementality tests to run now (vendors with material spend and no test evidence, the renewal at stake first), each with a ready design, plus planned, running and completed tests with readouts.", parameters: { type: "object", properties: {} } },
+  { name: "design_test", description: "Design and save (as PLANNED, awaiting the user's approval on the Tests page) an incrementality test for a vendor: audience holdout (digital) or geo test with matched test/control regions from the CRM, weeks, dates, campaign code, smallest detectable lift. Use when the user asks to design, plan or set up a test for a vendor.", parameters: { type: "object", properties: { vendor: { type: "string" }, kind: { type: "string", enum: ["HOLDOUT", "GEO"] }, weeks: { type: "number" }, holdoutPct: { type: "number" }, campaign: { type: "string" } }, required: ["vendor"] } },
+  { name: "draft_test_setup_email", description: "Draft the set-up brief to the vendor for its planned or running test (what to exclude or pause, dates, code, what not to change, weekly numbers to send) into the email queue — the user must approve it before anything is sent. Use when the user asks to email / brief the vendor to set up the test.", parameters: { type: "object", properties: { vendor: { type: "string" }, testId: { type: "string" } } } },
   { name: "get_meta", description: "Meta (Facebook/Instagram) campaigns and which agency runs each, with evidence and confidence.", parameters: { type: "object", properties: {} } },
 ];
 
@@ -213,6 +217,24 @@ async function exec(ctx: ChatContext, name: string, input: any, cards: ChatCard[
       const { getLayout, layoutView } = await import("./report-layout");
       cards.push({ kind: "report", view: layoutView(await getLayout(), ctx.lang) });
       return r.done.length ? `Saved (applies from the next report; the user can say "undo"): ${r.done.join("; ")}.${r.notes.length ? ` Notes: ${r.notes.join(" ")}` : ""}` : `Nothing changed. ${r.notes.join(" ")}`;
+    }
+    case "recommend_tests": return await (await import("./test-plan")).testsAnswer(ctx.agent, ctx.lang);
+    case "design_test": {
+      const v = first(String(input.vendor ?? ""), ["vendor"]) as any;
+      const vid = v?.id ?? ctx.agent.mkt.vendors.find((x) => x.name.toLowerCase().includes(String(input.vendor ?? "").toLowerCase()))?.id;
+      if (!vid) return `Error: vendor "${input.vendor}" not found.`;
+      const tp = await import("./test-plan");
+      const p = await tp.planTest({ vendorId: vid, kind: input.kind === "GEO" || input.kind === "HOLDOUT" ? input.kind : undefined, weeks: Number(input.weeks) || undefined, holdoutPct: Number(input.holdoutPct) || undefined, campaign: input.campaign ? String(input.campaign) : undefined }, ctx.agent, ctx.lang);
+      return `Test planned (PLANNED, id ${p.id}; the user approves it on the Tests page): ${tp.designText(p.design, p.vendor, ctx.lang)} Offer to draft the set-up email to the vendor (draft_test_setup_email).`;
+    }
+    case "draft_test_setup_email": {
+      const tp = await import("./test-plan");
+      let id = input.testId ? String(input.testId) : null;
+      if (!id) { const v = first(String(input.vendor ?? ""), ["vendor"]) as any; const t = ctx.agent.incrementality.tests.filter((x) => (!v?.id || x.vendorId === v.id) && x.status !== "COMPLETED").sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]; id = t?.id ?? null; }
+      if (!id) return "Error: no planned or running test for that vendor — design one first (design_test).";
+      const r = await tp.draftSetupEmail(id, ctx.lang);
+      if (r.emailId) cards.push({ kind: "email", id: r.emailId });
+      return `Set-up brief drafted for ${r.vendor} ("${r.subject}") and shown to the user as an email card; it is NOT sent until the user approves it.`;
     }
     case "get_dashboards": { const V = await import("./view-blocks"); return cap(V.viewsView(await V.getLayouts(), ctx.lang)); }
     case "change_dashboard": {

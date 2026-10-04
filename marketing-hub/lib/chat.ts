@@ -184,6 +184,7 @@ const RX = {
   en: /in english|بالإنجليزية|بالانجليزية|بالانجليزي/,
 };
 
+const RX_TEST = /\b(which|what) (incrementality )?tests? (should|to|could|do) (we |i )?(run|do)|recommend(ed)? (incrementality )?tests?|tests? (to|worth) run|(design|plan|set up|create|prepare|propose) (a |an )?(\d+[- ]week )?(holdout|geo|incrementality|audience|lift|controlled)? ?test|(holdout|geo) test for|(email|e-mail|mail|write to|brief) \w[\w ]* (to )?set ?up (the |a )?test|send (the )?(test )?set-?up (email|brief)|test set-?up (email|brief)|اختبار (الأثر|مجموعة|جغرافي)|صمّم اختبار|صمم اختبار|أي اختبارات|اختبارات (يُنصح|ننصح|نجري)|لإعداد الاختبار/;
 const RX_IDEA = /\bideas?\b|plan something|something (for|around) (the )?(summer|ramadan|eid|national day|cityscape|holidays?|season|launch)|brainstorm|ideate|campaign concepts?|initiatives?|new campaign|plan a campaign|(need|want|run|launch|do) (a |an )?(new )?campaign (for|around|on)|come up with|what campaign (would|should|could|to)|campaign (idea|plan)s? for|next campaign|(suggest|propose|design|create) (a |an |some )?(new )?campaigns?|أفكار|فكرة|مبادرات|مبادرة|عصف ذهني|حملة جديدة|اقترح (حملة|حملات)|صمم حملة|خطط لحملة/;
 const RX_SIGNALS = /why (did|are|is|have|has|were)\b[^?]{0,60}(drop|down|fall|fell|declin|dip|slow)|what('s| is) (going on|happening|wrong) with|لماذا (انخفض|تراجع|انخفضت|تراجعت)|ما الذي يحدث (مع|في)|anomal|unusual (drop|fall|change|dip|decline|surge)|(sudden|sharp) (drop|fall|dip)|(drop|decline|fall|dip)s? in (leads|sales|contracts|qualified)|(leads|sales|contracts) (are )?(dropping|falling|declining|down)|what does the (crm|data) show|what did the (daily )?scan find|(crm|data) (signals?|alerts?|anomal)|anything unusual|daily scan|شذوذ|غير معتاد|غير طبيعي|(انخفاض|تراجع) (مفاجئ )?(في )?(العملاء|المبيعات|العقود)|ماذا يظهر النظام/;
 const RX_EXIT = /terminat|end (the |our |their )?(contract|relationship)|cancel (the |our |their )?contract|\bfire\b|let .{0,12} go\b(?! to)|let go\b|stop working with|get rid of|part ways|cut ties|(drop|replace|remove|cut) (a|one|which) (vendor|agency)|إنهاء (عقد|العقد|التعاقد|التعامل)|ننهي|نوقفه|نوقفها|إيقاف التعامل|فسخ|نستغني|الاستغناء|نوقف التعامل|نتخلص/;
@@ -233,6 +234,29 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
   const done = (reply: string, missed = false): ChatReply => ({ reply, cards, engine: "rules", suggest: closest(question, L, 3), ...(missed ? { missed } : {}) });
   const active = recs.recommendations.map((r, i) => ({ r, i })).filter((x) => x.r.state === "OPEN" || x.r.state === "DRAFTED");
   const cardsOf = (types: string[], max: number) => cards.push(...active.filter((x) => types.includes(x.r.type)).slice(0, max).map((x) => ({ kind: "rec" as const, key: x.r.key })));
+
+  // 1a0. Incrementality tests: which to run, design one for a vendor, email the vendor to set it up.
+  if (RX_TEST.test(q)) {
+    const tp = await import("./test-plan");
+    const vend = resolve(question, c.q).find((e) => e.kind === "vendor");
+    const vid = vend && "id" in vend ? vend.id : null;
+    if (/\b(email|e-mail|mail|brief|write to|send)\b|راسل|أرسل|رسالة|موجز/.test(q)) {
+      const tests = c.agent.incrementality.tests.filter((t) => (!vid || t.vendorId === vid) && t.status !== "COMPLETED" && !(t as any).archived).sort((x, y) => y.createdAt.localeCompare(x.createdAt));
+      if (!tests.length) return done(T(vid ? `There is no planned or running test for ${vend!.name} yet — say “design a holdout test for ${vend!.name}” first.` : "Which test? Name the vendor (e.g. “email Tasweeq to set up the test”), or design one first.", vid ? `لا يوجد اختبار مخطط أو جارٍ لـ${nm("ar", vend!.name)} بعد — قولوا أولاً «صمّم اختبار مجموعة مستبعدة لـ${nm("ar", vend!.name)}».` : "أي اختبار؟ سمّوا المورد (مثل «راسل تسويق ديجيتال لإعداد الاختبار») أو صمّموا اختباراً أولاً."));
+      const r = await tp.draftSetupEmail(tests[0].id, L);
+      if (r.emailId) cards.push({ kind: "email", id: r.emailId });
+      return done(T(`Set-up brief for ${r.vendor} drafted${r.existed ? " (it already existed)" : ""}: “${r.subject}”. Review and approve it below — nothing is sent until you do.`, `أُعدّت مسودة موجز الإعداد لـ${nm("ar", r.vendor)}${r.existed ? " (كانت موجودة)" : ""}: «${r.subject}». راجعوها واعتمدوها أدناه — لا يُرسل شيء قبل ذلك.`));
+    }
+    if (/\b(design|plan|set up|create|prepare|propose)\b|صمّم|صمم|خطط|أنشئ|جهّز/.test(q) && vid) {
+      const kind = /holdout|audience|مستبعدة|جمهور/.test(q) ? "HOLDOUT" : /\bgeo\b|region|district|cit(y|ies)|جغرافي|مناطق/.test(q) ? "GEO" : undefined;
+      const weeks = Number(q.match(/(\d{1,2})\s*(weeks?|أسابيع|أسبوع)/)?.[1]) || undefined;
+      const holdoutPct = Number(q.match(/(\d{1,2})\s*%/)?.[1]) || undefined;
+      const p = await tp.planTest({ vendorId: vid, kind, weeks, holdoutPct }, c.agent, L);
+      return done(T(`**Test planned for ${p.vendor}** — ${tp.designText(p.design, p.vendor, L)}\n\nIt is on the **Tests** page waiting for your approval (starting it withholds spend from part of the audience, so it needs your name). Say “email ${p.vendor} to set up the test” and I'll draft the set-up brief for the vendor.`, `**خُطط اختبار لـ${nm("ar", p.vendor)}** — ${tp.designText(p.design, p.vendor, L)}\n\nهو في صفحة **الاختبارات** بانتظار اعتمادكم (بدؤه يحجب الإنفاق عن جزء من الجمهور فيحتاج إلى اسمكم). قولوا «راسل ${nm("ar", p.vendor)} لإعداد الاختبار» وسأُعدّ موجز الإعداد للمورد.`));
+    }
+    return done(await tp.testsAnswer(c.agent, L));
+  }
+
 
   const vendor = findVendor(question, c);
   const byCode = resolve(question, c.q).find((e) => e.kind === "campaign");

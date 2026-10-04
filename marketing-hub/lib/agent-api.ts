@@ -1,12 +1,13 @@
 // Request handlers for the vendor agent (shared by the API routes and the offline demo).
 import { buildAgent } from "./agent";
 import { buildQbr, buildRfp, qbrText, draftRfpEmails, QUARTERS } from "./reviews";
-import { createTest, approveTest } from "./incrementality";
+import { approveTest } from "./incrementality";
 import { approveTrial, cancelTrial, decideTrial } from "./bench";
 import { syncAds } from "./adaccounts";
 import { metaState, syncMeta, assignMetaCampaign, metaMode } from "./meta";
 import { importVendorReport } from "./vendor-reports";
 import { createCustomDraft } from "./recommendations";
+import { planTest, draftSetupEmail, recordTestWeek, demoTest, testsOverview } from "./test-plan";
 import { type Lang, isLang, tx, nm } from "./i18n";
 
 export async function agentState(lang: Lang) {
@@ -20,6 +21,7 @@ export async function agentState(lang: Lang) {
     campaigns: a.unified.campaigns.map(({ months, ...c }) => c),
     quarters: QUARTERS.map((q) => q.id),
     meta: metaMode() === "off" ? null : await metaState(lang),
+    testPlan: await testsOverview(a, lang),
     vendorOptions: a.mkt.vendors.map((v) => ({ id: v.id, name: v.name, category: v.category, campaigns: a.mkt.campaigns.filter((c) => c.vendorId === v.id).map((c) => c.name) })),
   };
 }
@@ -33,7 +35,13 @@ export async function agentDoc(kind: string, vendorId: string, quarter: string, 
 export async function agentAction(b: any) {
   const l: Lang = isLang(b.lang) ? b.lang : "en";
   switch (b.action) {
-    case "CREATE_TEST": await createTest({ vendorId: String(b.vendorId), campaign: String(b.campaign ?? ""), kind: b.kind === "GEO" ? "GEO" : "HOLDOUT", weeks: Number(b.weeks), holdoutPct: Number(b.holdoutPct), weeklyConversions: Number(b.weeklyConversions) || undefined, weeklyVolume: Number(b.weeklyVolume) || undefined }, l); break;
+    case "CREATE_TEST": { // designed from the data (dates, regions, volumes); the form's weeks / holdout / campaign are kept
+      const p = await planTest({ vendorId: String(b.vendorId), campaign: b.campaign ? String(b.campaign) : undefined, kind: b.kind === "GEO" ? "GEO" : b.kind === "HOLDOUT" ? "HOLDOUT" : undefined, weeks: Number(b.weeks) || undefined, holdoutPct: Number(b.holdoutPct) || undefined }, await buildAgent(l), l);
+      return { id: p.id, state: await agentState(l) };
+    }
+    case "DRAFT_TEST_EMAIL": { const r = await draftSetupEmail(String(b.id), l); return { ...r, state: await agentState(l) }; }
+    case "RECORD_TEST_WEEK": { const r = await recordTestWeek(String(b.id), b.week ?? {}, l); return { ...r, state: await agentState(l) }; }
+    case "DEMO_TEST": { const r = await demoTest({ step: b.step, id: b.id ? String(b.id) : undefined, vendorId: b.vendorId ? String(b.vendorId) : undefined, approver: b.approver }, await buildAgent(l), l); return { ...r, state: await agentState(l) }; }
     case "APPROVE_TEST": await approveTest(String(b.id), String(b.approver ?? ""), l); break;
     case "APPROVE_TRIAL": await approveTrial(String(b.id), String(b.approver ?? ""), l); break;
     case "CANCEL_TRIAL": await cancelTrial(String(b.id), String(b.approver ?? ""), l); break;

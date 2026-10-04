@@ -122,6 +122,12 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 - [ ] Ask *"Remove the YTD sales from all dashboards"* — the tile disappears from the Director page at once; *"Undo the last dashboard change"* brings it back.
 - [ ] **Reports** → open a report → **Download PowerPoint**: the presentation as a .pptx with native charts and speaker notes. The report's **Daily campaign check** section lists every item of the Daily check.
 
+### 8d. Tests — from recommendation to readout (3 min)
+
+- [ ] **Reports** → open a report: the **Tests to run** section names the vendors to test and why (renewal at stake, no proof of effect).
+- [ ] In the assistant: *"Which tests should we run?"*, then *"Design a holdout test for Tasweeq Digital"* (planned from the data: holdout share, weeks, dates, detectable lift), then *"Email Tasweeq Digital to set up the test"* — the set-up brief appears as a draft to approve; nothing is sent.
+- [ ] **Tests** → **▶ Demo an end-to-end test**: watch the timeline — design, set-up brief, approval, six weekly results, readout — then **Archive demo tests**.
+
 ### 9. Meta — which agency runs each campaign (3 min)
 
 - [ ] **Campaigns**, then scroll to **Meta ads — which agency runs each campaign** at the bottom (or click the Meta item in the Director's inbox, which jumps there). Expect: **SAR 576.2K Meta spend, 8 campaigns, 92% attributed to an agency.**

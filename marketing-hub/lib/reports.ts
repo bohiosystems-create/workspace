@@ -103,6 +103,7 @@ import { buildChatContext } from "./chat";
 import { dailyIdeas } from "./ideation";
 import { dailyScan } from "./signals";
 import { dailyState } from "./daily";
+import { testsOverview } from "./test-plan";
 import { runChartQuery } from "./chart-query";
 import { buildDirector } from "./director";
 import { buildOrchestration } from "./orchestrator";
@@ -307,6 +308,16 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
   const ideasR = await ideasP;
   sec.push(ideasR.sec);
   // 4b. Decisions
+  // 4b. Tests to run — which vendors to test now and why, with a ready design; running tests' progress; readouts.
+  at("tests");
+  const tp = await testsOverview(a, lang);
+  const tCands = tp.candidates.slice(0, lim(3));
+  const tHtml = (tCands.length ? `<ol style="margin:0;padding-inline-start:20px;line-height:1.55">${tCands.map((c) => `<li style="margin-bottom:10px"><b>${esc(nm(lang, c.vendor))}</b> — ${esc(c.why)}<br><span style="color:${C.soft};font-size:12px">${esc(c.stake)}</span><br><span style="font-size:12px">→ ${esc(T(`Ask the assistant: “design a ${c.kind === "HOLDOUT" ? "holdout" : "geo"} test for ${c.vendor}” — it plans it, then “email ${c.vendor} to set up the test” drafts the brief for your approval.`, `اطلبوا من المساعد: «صمّم اختبار ${c.kind === "HOLDOUT" ? "مجموعة مستبعدة" : "جغرافي"} لـ${nm("ar", c.vendor)}» — يخطط له، ثم «راسل ${nm("ar", c.vendor)} لإعداد الاختبار» يُعدّ الموجز لاعتمادكم.`))}</span></li>`).join("")}</ol>` : `<p style="margin:0">${esc(T("Every vendor with material spend has test evidence or a test in progress.", "كل مورد بإنفاق مادي لديه أدلة اختبار أو اختبار جارٍ."))}</p>`) +
+    (tp.planned.length ? `<p style="margin:10px 0 4px;font-weight:600">${esc(T("Planned — waiting for your approval", "مخطط لها — بانتظار اعتمادكم"))}</p>${ul(tp.planned.map((x) => esc(x.text)))}` : "") +
+    (tp.running.length ? `<p style="margin:10px 0 4px;font-weight:600">${esc(T("Running", "جارية"))}</p>${ul(tp.running.map((x) => `${esc(x.name)} — ${esc(T(`week ${x.weeksDone} of ${x.weeks}, ends ${dt("en", x.endDate)}`, `الأسبوع ${x.weeksDone} من ${x.weeks}، ينتهي ${dt("ar", x.endDate)}`))}`))}` : "") +
+    (tp.completed.length ? `<p style="margin:10px 0 4px;font-weight:600">${esc(T("Completed", "مكتملة"))}</p>${ul(tp.completed.map((x) => `<b>${esc(x.name)}</b>: ${esc(x.text)}`))}` : "");
+  sec.push([T(`Tests to run — ${tp.candidates.length} recommended, ${tp.running.length} running`, `اختبارات يُنصح بها — ${tp.candidates.length} مقترحة، ${tp.running.length} جارية`), tHtml,
+    [...tCands.map((c, i) => `  ${i + 1}. ${c.vendor} — ${c.why}\n     ${c.stake}`), ...(tp.running.length ? [T("Running:", "جارية:"), ...tp.running.map((x) => `  • ${x.name} — ${x.weeksDone}/${x.weeks}`)] : []), ...(tp.completed.length ? [T("Completed:", "مكتملة:"), ...tp.completed.map((x) => `  • ${x.name}: ${x.text}`)] : [])].join("\n") || T("No tests recommended.", "لا اختبارات مقترحة.")]);
   at("decisions");
   const dec = d.inbox.slice(0, lim(99)).map((x) => `${esc(x.title)} <span style="color:${C.soft}">(~${x.minutes} ${T("min", "د")})</span>`);
   sec.push([T(`Waiting for your decision — about ${d.managerMinutes} min`, `بانتظار قراركم — نحو ${an(d.managerMinutes, "دقيقة واحدة", "دقيقتين", "دقائق", "دقيقة")}`), dec.length ? ul(dec) : `<p style="margin:0">${T("Nothing waiting.", "لا شيء بالانتظار.")}</p>`, tl(d.inbox.map((x) => `${x.title} (~${x.minutes} min)`))]);
@@ -353,6 +364,9 @@ export async function buildReport(lang: Lang, date: string, prev: { metrics: Met
       ...(engineRecs.length ? [{ kind: "list" as const, kicker: T("Data and tracking", "البيانات والتتبع"), title: T(`${engineRecs.length} to fix`, `${engineRecs.length} للتصحيح`), items: engineRecs.slice(0, 6).map((r) => ({ text: r.title, sub: short(firstSentence(r.why), 140), tone: (r.severity === "crit" ? "bad" : "warn") as "bad" | "warn" })), say: engineRecs.slice(0, 3).map((r) => r.title).join(". ") }] : []),
       ...(dc.resolved.length ? [{ kind: "list" as const, kicker: T("Resolved since yesterday", "حُلّت منذ الأمس"), title: T(`${dc.resolved.length} fixed`, `${dc.resolved.length} حُلّت`), items: dc.resolved.slice(0, 6).map((r) => ({ text: r.title, tone: "good" as const })), say: T(`${dc.resolved.length} items were resolved since yesterday.`, `حُلّت ${dc.resolved.length} منذ الأمس.`) }] : []),
       ...(dc.aiNote ? [{ kind: "list" as const, kicker: T("AI second opinion", "الرأي الثاني"), title: T("On today's check", "على فحص اليوم"), items: [{ text: short(dc.aiNote.text, 300) }], say: dc.aiNote.text }] : [])]),
+    ...tag("tests", tCands.length || tp.running.length ? [{ kind: "list", kicker: T("Tests to run", "اختبارات يُنصح بها"), title: T(`${tp.candidates.length} recommended · ${tp.running.length} running`, `${tp.candidates.length} مقترحة · ${tp.running.length} جارية`),
+      items: [...tCands.map((c) => ({ text: T(`Test ${c.vendor}: ${c.kind === "HOLDOUT" ? `${c.design.weeks}-week ${c.design.holdoutPct}% holdout` : `${c.design.weeks}-week geo test`}`, `اختبار ${nm("ar", c.vendor)}: ${c.kind === "HOLDOUT" ? `مجموعة مستبعدة ${c.design.holdoutPct}% لمدة ${c.design.weeks} أسابيع` : `اختبار جغرافي لمدة ${c.design.weeks} أسابيع`}`), sub: short(c.stake, 140), tone: "warn" as const })), ...tp.running.map((x) => ({ text: x.name, sub: T(`week ${x.weeksDone} of ${x.weeks}`, `الأسبوع ${x.weeksDone} من ${x.weeks}`), tone: "neutral" as const }))],
+      say: T(`Tests to run: ${tCands.map((c) => `${c.vendor}, ${c.stake}`).join(" ")}`, `اختبارات يُنصح بها: ${tCands.map((c) => `${nm("ar", c.vendor)}، ${c.stake}`).join(" ")}`) }] : []),
     ...tag("decisions", [divider(T("Your decisions", "قراراتكم"), T(`${d.inbox.length} waiting · about ${d.managerMinutes} minutes`, `${d.inbox.length} بانتظاركم · نحو ${d.managerMinutes} دقيقة`), T("What is waiting for your decision.", "ما ينتظر قراركم.")), { kind: "list", kicker: T("Waiting for your decision", "بانتظار قراركم"), title: T(`About ${d.managerMinutes} minutes, ${d.inbox.length} decisions`, `نحو ${d.managerMinutes} دقيقة، ${d.inbox.length} قرارات`),
       items: d.inbox.slice(0, lim(99)).map((x) => ({ text: x.title, minutes: x.minutes, tone: x.severity === "crit" ? "bad" : x.severity === "warn" ? "warn" : "neutral" })), totalMinutes: d.managerMinutes, say: T(`${d.inbox.length} decisions wait for you, about ${d.managerMinutes} minutes in total. Everything else is handled.`, `${d.inbox.length} قرارات بانتظاركم، نحو ${d.managerMinutes} دقيقة إجمالاً. والباقي يُنجز تلقائياً.`) }]),
     ...tag("risks", recs.length ? [{ kind: "list", kicker: T("Risks", "المخاطر"), title: T("What could hurt this month", "ما قد يضر هذا الشهر"), items: recs.slice(0, lim(5)).map((r) => ({ text: r.title, tone: "bad" as const })), say: T(`Risks: ${recs.slice(0, 3).map((r) => r.title).join(". ")}.`, `المخاطر: ${recs.slice(0, 3).map((r) => r.title).join(". ")}.`) } as DeckSlide] : []),

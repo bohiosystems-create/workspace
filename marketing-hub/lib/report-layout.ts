@@ -6,7 +6,7 @@
 import { prisma } from "./prisma";
 import { type Lang, tx } from "./i18n";
 
-export const SECTIONS = ["brief", "sales", "glance", "since", "campaigns", "initiatives", "decisions", "vendors", "risks", "invoices"] as const;
+export const SECTIONS = ["brief", "sales", "glance", "since", "campaigns", "initiatives", "tests", "decisions", "vendors", "risks", "invoices"] as const;
 export type SectionId = (typeof SECTIONS)[number];
 export const CHARTS = ["monthly", "vendors", "channels"] as const;
 export type ChartId = (typeof CHARTS)[number];
@@ -34,7 +34,7 @@ export type Op =
 const SECTION_NAME: Record<SectionId, [string, string]> = {
   brief: ["Today's brief", "موجز اليوم"], sales: ["Sales vs target", "المبيعات مقابل المستهدف"], glance: ["Charts (at a glance)", "الرسوم (نظرة سريعة)"],
   since: ["Since the last report", "منذ التقرير السابق"], campaigns: ["Daily campaign check", "الفحص اليومي للحملات"],
-  initiatives: ["What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"], decisions: ["Waiting for your decision", "بانتظار قراركم"],
+  initiatives: ["What the data shows & market initiatives", "ما تُظهره البيانات ومبادرات السوق"], tests: ["Tests to run", "اختبارات يُنصح بها"], decisions: ["Waiting for your decision", "بانتظار قراركم"],
   vendors: ["Vendors", "الموردون"], risks: ["Risks", "المخاطر"], invoices: ["Supplier invoices", "فواتير الموردين"],
 };
 const CHART_NAME: Record<ChartId, [string, string]> = {
@@ -208,6 +208,7 @@ const SECTION_RX: [SectionId, RegExp][] = [
   ["sales", /sales (vs\.?|versus|against|to) targets?|targets? section|\btargets?\b|gauges?|المبيعات مقابل المستهدف|المستهدف/i],
   ["campaigns", /daily (campaign )?check|campaign recommendations?|campaign recs|الفحص اليومي|recommendations|campaign changes|\bcampaigns?\b|توصيات الحملات|التوصيات|الحملات/i],
   ["initiatives", /initiatives?|\bideas\b|what the data shows|findings|daily scan|\bscan\b|signals|anomal|المبادرات|مبادرات|الأفكار|ما ت[ُ]?ظهره البيانات|الفحص|الملاحظات المكتشفة/i],
+  ["tests", /\btests?\b|holdout|geo test|incrementality|الاختبارات|اختبار/i],
   ["decisions", /decisions?|waiting for (your|my) (decision|approval)|approvals?|\binbox\b|القرارات|قراركم|قراري|الاعتمادات/i],
   ["vendors", /\bvendors?\b|suppliers? section|work orders?|الموردين|الموردون|أوامر العمل/i],
   ["risks", /\brisks?\b|المخاطر/i],

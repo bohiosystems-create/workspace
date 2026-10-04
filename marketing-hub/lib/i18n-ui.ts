@@ -915,6 +915,16 @@ const UI10: Record<string, string> = {
 };
 
 const UI11: Record<string, string> = {
+  "Results feed the fair scorecard and the renewal decisions.": "تدخل النتائج في بطاقة التقييم العادل وقرارات التجديد.",
+  "Recommended tests": "اختبارات يُنصح بها", "Design this test": "صمّم هذا الاختبار", "Design and email the vendor": "صمّم وراسل المورد",
+  "Every vendor with material spend has test evidence or a test in progress.": "كل مورد بإنفاق مادي لديه أدلة اختبار أو اختبار جارٍ.",
+  "Email vendor to set up": "راسل المورد للإعداد", "Set-up brief drafted — review and approve it in the assistant's drafts.": "أُعدّت مسودة موجز الإعداد — راجعوها واعتمدوها في مسودات المساعد.",
+  "Demo an end-to-end test": "عرض اختبار من البداية إلى النهاية", "Running the demo…": "جارٍ تشغيل العرض…", "Archive demo tests": "أرشفة اختبارات العرض",
+  "The demo plans a test from the data, drafts the vendor's set-up brief, approves it, feeds six weeks of simulated results and closes with the readout — in about a minute. Clearly labelled “demo”.": "يخطط العرض اختباراً من البيانات، ويُعدّ موجز الإعداد للمورد، ويعتمده، ويغذّيه بستة أسابيع من النتائج المحاكاة، ويختم بالنتيجة — في نحو دقيقة. موسوم بوضوح «عرض».",
+  "1. Design from the data": "1. التصميم من البيانات", "2. Set-up brief to the vendor": "2. موجز الإعداد للمورد", "3. Approval": "3. الاعتماد", "4. Weekly results": "4. النتائج الأسبوعية", "5. Readout": "5. النتيجة",
+  "week": "الأسبوع", "ends": "ينتهي", "starts": "يبدأ", "Weekly numbers arrive from the vendor's export and the CRM; the test closes itself when its weeks are done.": "تصل الأرقام الأسبوعية من تصدير المورد والنظام؛ ويُغلق الاختبار تلقائياً عند اكتمال أسابيعه.",
+  "demo": "عرض", "Regions": "المناطق", "Why": "السبب", "At stake": "ما على المحك",
+  "Which vendors to test now, from the data: material spend with no proof of effect, the renewal at stake first. Each comes with a ready design; the assistant can plan it and draft the set-up brief to the vendor (“design a holdout test for Tasweeq”, “email Tasweeq to set up the test”).": "أي الموردين يُختبرون الآن، من البيانات: إنفاق مادي دون إثبات للأثر، والتجديد على المحك أولاً. لكل منها تصميم جاهز؛ ويمكن للمساعد تخطيطه وإعداد موجز الإعداد للمورد («صمّم اختبار مجموعة مستبعدة لتسويق ديجيتال»، «راسل تسويق ديجيتال لإعداد الاختبار»).",
   "Running and completed tests": "الاختبارات الجارية والمكتملة",
   "Tests": "الاختبارات", "On this page": "في هذه الصفحة", "Meta ads": "إعلانات ميتا",
   "Real-news snapshot": "لقطة أخبار حقيقية",

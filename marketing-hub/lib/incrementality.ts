@@ -227,10 +227,11 @@ export async function buildIncrementality(lang: Lang = "en", attributedByChannel
     const metric = /qualified/i.test(design.metric ?? "") ? tx(lang, "CRM-qualified leads", "العملاء المؤهلون في النظام") : tx(lang, "CRM leads", "العملاء المحتملون في النظام");
     design.metric = metric;
     if (readout) readout.metric = metric;
-    return { id: e.id, kind: e.kind, vendorId: e.vendorId, vendor: vName.get(e.vendorId) ?? "", campaign: e.campaign, name: `${kindLabel} — ${nm(lang, e.campaign)}`, status: e.status, design, readout, mdePct: mde, approvedBy: e.approvedBy, createdAt: e.createdAt.toISOString() };
+    const weeksDone = e.status === "COMPLETED" ? design.weeks ?? 0 : Array.isArray(data?.weeks) ? data.weeks.length : 0;
+    return { id: e.id, kind: e.kind, vendorId: e.vendorId, vendor: vName.get(e.vendorId) ?? "", campaign: e.campaign, name: `${kindLabel} — ${nm(lang, e.campaign)}${/\(demo\)/.test(e.name) ? ` (${tx(lang, "demo", "عرض")})` : ""}`, status: e.status, design, readout, mdePct: mde, approvedBy: e.approvedBy, createdAt: e.createdAt.toISOString(), weeksDone, demo: !!design.demo, archived: /✕$/.test(e.name) };
   });
   const perVendor: VendorIncrementality[] = vendors.filter((v) => (v.status ?? "ACTIVE") !== "BENCH").map((v) => {
-    const t = tests.filter((x) => x.vendorId === v.id && x.readout).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    const t = tests.filter((x) => x.vendorId === v.id && x.readout && !x.demo).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     if (t?.readout) {
       const r = t.readout;
       return {

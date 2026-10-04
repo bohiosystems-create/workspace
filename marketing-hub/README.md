@@ -115,6 +115,15 @@ Every AI job names a **task**, and the router sends it to the best provider for 
 
 Every integration with its live status, what it brings and how to connect it: Meta (Facebook & Instagram), Google Ads, Snapchat, TikTok, X, LinkedIn, Outlook email, the celebrations calendar and your own calendar (ICS), live news, Yardi via Kinan's sales agent (read-only), Oracle, market data, the AI providers and the ElevenLabs voice (`lib/integrations.ts`, `/api/integrations`). Keys and tokens stay server-side environment variables and are never typed into or shown on the page; the panel saves only the news cities, news on/off and calendar links, and can test the news and calendar connections.
 
+## Incrementality tests, end to end (`lib/test-plan.ts`, Tests page)
+
+- **Which tests to run** — vendors with material spend (≥ SAR 200K), no test evidence and no test in progress, the renewal at stake first; each with a ready design and the smallest lift it can detect. In the daily report (section "Tests to run"), on the Tests page ("Recommended tests") and from the assistant ("which tests should we run?").
+- **Design** — from the Tests page or the chat ("design a holdout test for Tasweeq", "design a 8-week geo test for PropertyHub"): audience holdout for digital vendors, geo test otherwise, with matched test / control regions taken from the CRM's lead cities (balanced volumes), weekly volume from the CRM, start on the next Monday, dates, campaign code and detectable lift. Saved as PLANNED; starting it needs a named approver.
+- **Set up with the vendor** — "email Tasweeq to set up the test" (or the button on the test) drafts the set-up brief in the vendor's language: the exclusion audience or paused regions, dates, code, what not to change, the weekly numbers to send and the confirmation date. It goes into the email queue and is sent only after approval.
+- **Run** — weekly numbers are recorded with `RECORD_TEST_WEEK` (vendor export / ad platform; geo tests can be read from the CRM by region); the test closes itself when its weeks are done and the readout (lift with a 90% range, share caused, cost per incremental result) feeds the fair scorecard and the renewal decision. Progress shows on the test card and in the report.
+- **Demo an end-to-end test** — a button on the Tests page runs the whole flow in about a minute on simulated results (design → set-up brief → approval → six weekly results → readout), clearly labelled "demo"; demo tests never feed real scores and can be archived.
+- AI tools: `recommend_tests`, `design_test`, `draft_test_setup_email`.
+
 ## Menu
 
 Director · Vendors (with the vendor scoring board and invoices) · Reports (with the Daily campaign check) · Campaigns (campaign dashboards, market initiatives, orchestration, Meta ads) · Tests. Old links (`/decisions`, `/daily`, `/ideas`, `/experiments`, `/bench`, `/invoices`) redirect to where their content now lives.
