@@ -673,6 +673,11 @@ a:not(.btn):not(.navlink):not(.card):not(.k-band-logo):hover { color: var(--oran
 .ig-pill.connected, .ig-pill.builtin { color: #1f8a4c; } .ig-pill.sample { color: #b7791f; } .ig-pill.snapshot { color: #2a78d6; } .ig-pill.available, .ig-pill.off { color: #8a8a8a; }
 .ig-body { padding: 0 2px 12px 21px; font-size: 12px; line-height: 1.55; animation: rlIn .25s ease both; } .ig-body p { margin: 0 0 6px; }
 
+/* ---- Campaigns page: jump links (dashboards · initiatives · orchestration · Meta) ---- */
+.cb-jump { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.cb-jump a { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; color: var(--taupe, #51473d); text-decoration: none; padding: 7px 12px; border: 1px solid var(--ink-hairline, #e3e1de); background: var(--paper, #fff); }
+.cb-jump a:hover { border-color: #f15a22; color: #f15a22; }
+
 :root{color-scheme:light}html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{background:var(--bg);color:var(--ink);overflow-x:hidden}
 @media (max-width:600px){.shell{padding:20px 16px 72px}.topnav{flex-wrap:wrap}.navlinks{flex-wrap:wrap;max-width:100%}.panel,.row>*{min-width:0}table{display:block;overflow-x:auto;max-width:100%}}</style>
 <div id="root"></div><script src="app.js"></script>

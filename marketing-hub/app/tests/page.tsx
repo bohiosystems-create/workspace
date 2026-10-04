@@ -8,7 +8,7 @@ import { useAgent, useApprover } from "../_components/useAgent";
 import { powerHoldout, powerGeo } from "@/lib/stats";
 import Blk from "../_components/Blk";
 
-export default function ExperimentsPage() {
+export default function TestsPage() {
   const { t, N, k, m, lang } = useI18n();
   const { data, error, busy, act } = useAgent();
   const [approver, setApprover] = useState("");
@@ -37,14 +37,14 @@ export default function ExperimentsPage() {
   return (
     <div className="shell">
       <Header />
-      <div className="section-title">{t("Incrementality")}</div>
+      <div className="section-title">{t("Tests")}</div>
       <p className="intro">{t("What did each vendor actually cause, versus what would have happened anyway? Controlled tests (audience holdouts and geo tests) are the gold standard; the media-mix model covers vendors that have not been tested. Results feed the fair scorecard and the renewal decisions.")}</p>
       {error && <div className="err">{error}</div>}
       {!data && !error && <div className="muted"><span className="spin dark" /> {t("Loading…")}</div>}
 
       {data && (
         <>
-          <Blk page="experiments" id="tests"><div className="section-title" style={{ fontSize: 12, margin: "6px 0 12px" }}>{t("Tests")}</div>
+          <Blk page="tests" id="tests"><div className="section-title" style={{ fontSize: 12, margin: "6px 0 12px" }}>{t("Running and completed tests")}</div>
           {data.incrementality.tests.map((x: any) => (
             <div className="dec" key={x.id}>
               <div className="dec-head">
@@ -77,7 +77,7 @@ export default function ExperimentsPage() {
             </div>
           ))}</Blk>
 
-          <Blk page="experiments" id="design"><div className="panel" style={{ marginTop: 14 }}>
+          <Blk page="tests" id="design"><div className="panel" style={{ marginTop: 14 }}>
             <div className="chart-label">{t("Design a new test")}</div>
             <div className="grid3">
               <div className="field"><label>{t("Vendor")}</label><select value={form.vendorId} onChange={(e) => pick(e.target.value)}>{data.vendorOptions.map((v: any) => <option key={v.id} value={v.id}>{N(v.name)}</option>)}</select></div>
@@ -94,7 +94,7 @@ export default function ExperimentsPage() {
           </div></Blk>
 
           {data.incrementality.mmm && (
-            <Blk page="experiments" id="mmm"><div className="panel" style={{ marginTop: 18 }}>
+            <Blk page="tests" id="mmm"><div className="panel" style={{ marginTop: 18 }}>
               <div className="chart-label">{t("Media-mix model — incremental qualified leads by channel")} ({data.incrementality.mmm.periodLabel})</div>
               <ul style={{ fontSize: 11, color: "var(--ink-soft)", margin: "0 0 12px", paddingInlineStart: 18 }}>{data.incrementality.mmm.notes.map((n: string, i: number) => <li key={i}>{n}</li>)}</ul>
               <div style={{ overflowX: "auto" }}>

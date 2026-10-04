@@ -121,14 +121,14 @@ export default function DirectorPage() {
                       <span className="tag" style={{ marginInlineEnd: 6 }}>{sg.sourceLabel}</span><b>{sg.title}</b>
                       {sg.related.length > 0 && <div className="muted" style={{ fontSize: 10.5 }}>↳ {sg.related.map((r: any) => `${r.sourceLabel}: ${r.title}`).join(" · ")}</div>}
                       {sg.answer
-                        ? <div style={{ fontSize: 11, marginTop: 3 }}>→ <a href="/ideas" style={{ color: "inherit" }}><b>{sg.answer.title}</b></a> <span className="muted">({sg.answer.kindLabel})</span></div>
-                        : <div style={{ fontSize: 11, marginTop: 3 }}>→ <a href="/ideas" style={{ color: "inherit" }}>{t("Initiatives for this")}</a></div>}
+                        ? <div style={{ fontSize: 11, marginTop: 3 }}>→ <a href="/campaigns#initiatives" style={{ color: "inherit" }}><b>{sg.answer.title}</b></a> <span className="muted">({sg.answer.kindLabel})</span></div>
+                        : <div style={{ fontSize: 11, marginTop: 3 }}>→ <a href="/campaigns#initiatives" style={{ color: "inherit" }}>{t("Initiatives for this")}</a></div>}
                     </div>
                     <Spark values={sg.series} down={sg.direction === "down"} />
                   </div>
                 ))}
               </div>
-              {data.scan.findings.length > 6 && <a className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, textDecoration: "none", display: "inline-block", marginTop: 10 }} href="/ideas">{t("All findings")} ({data.scan.findings.length})</a>}
+              {data.scan.findings.length > 6 && <a className="btn ghost" style={{ padding: "5px 10px", fontSize: 8, textDecoration: "none", display: "inline-block", marginTop: 10 }} href="/campaigns#initiatives">{t("All findings")} ({data.scan.findings.length})</a>}
             </div></Blk>
           )}
 

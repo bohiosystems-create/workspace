@@ -15,7 +15,7 @@ import { scanAnswer } from "./signals";
 import { salesAgentSource } from "./kinan";
 import { closest } from "./chat-catalog";
 import { prisma } from "./prisma";
-import { RX_CHART, buildChart, chartRequestFromText, chartSummary, type ChartSpec } from "./charts";
+import { RX_CHART, buildChart, chartRequestFromText, chartSummary, chartExplain, type ChartSpec } from "./charts";
 import { chartFromText } from "./chart-query";
 import { type Lang, tx, K, M, nm, hrs, dt, looksArabic, NAMES_AR , an, ltr, firstSentence } from "./i18n";
 
@@ -263,7 +263,8 @@ export async function localAnswer(question: string, ctx?: ChatContext, polish?: 
     const spec = chartFromText(question, c.q, L);
     if ("error" in spec) return done(spec.error);
     cards.push({ kind: "chart", chart: spec });
-    return done(chartSummary(spec) + T("\n\nSwitch the chart type or download it (PNG or SVG) under the chart.", "\n\nغيّروا نوع الرسم أو نزّلوه (PNG أو SVG) أسفل الرسم."));
+    const why = chartExplain(spec);
+    return done(chartSummary(spec) + (why ? T(`\n**What it shows:** ${why}`, `\n**ما يُظهره الرسم:** ${why}`) : "") + T("\n\nSwitch the chart type or download it (PNG or SVG) under the chart.", "\n\nغيّروا نوع الرسم أو نزّلوه (PNG أو SVG) أسفل الرسم."));
   }
 
   // 1a. Market initiatives ("ideas for a Ramadan campaign for Marina Tower, SAR 300K"); they also answer CRM signals.

@@ -915,6 +915,8 @@ const UI10: Record<string, string> = {
 };
 
 const UI11: Record<string, string> = {
+  "Running and completed tests": "الاختبارات الجارية والمكتملة",
+  "Tests": "الاختبارات", "On this page": "في هذه الصفحة", "Meta ads": "إعلانات ميتا",
   "Real-news snapshot": "لقطة أخبار حقيقية",
   "Campaigns, offers, partnerships, events, broker programmes, content, budget shifts and positioning — proposed from your data. Every day, before the report, all your data is scanned — the CRM, the email inbox, Oracle invoices and POs, social and ad platforms, competitors' ads, the market, live news for Jeddah and Riyadh, and the celebrations calendar (Ramadan, the Eids, Founding and National Day, Riyadh Season, Cityscape) — and each finding gets an initiative that answers it. Forecasts are computed from the 2023–2025 campaign history, not by the AI. Approving an initiative drafts a brief to the lead vendor for your approval.": "حملات وعروض وشراكات وفعاليات وبرامج وسطاء ومحتوى وتحويلات ميزانية وتموضع — مقترحة من بياناتكم. كل يوم وقبل التقرير تُفحص كل بياناتكم — نظام العملاء وصندوق البريد وفواتير أوراكل وأوامر الشراء والمنصات الاجتماعية والإعلانية وإعلانات المنافسين والسوق والأخبار المباشرة لجدة والرياض وتقويم المناسبات (رمضان والعيدان ويوما التأسيس والوطني وموسم الرياض وسيتي سكيب) — ولكل نتيجة مبادرة تستجيب لها. تُحسب التوقعات من تاريخ حملات 2023–2025 لا من الذكاء الاصطناعي. واعتماد أي مبادرة يُعدّ موجزاً للمورد الرئيسي لاعتمادكم.",
   "Celebrations and moments — next 6 months": "المناسبات والمواسم — الأشهر الستة القادمة",

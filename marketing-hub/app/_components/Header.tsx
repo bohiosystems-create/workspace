@@ -7,11 +7,10 @@ import Integrations from "./Integrations";
 
 const LINKS = [
   { href: "/", label: "Director" },
-  { href: "/ideas", label: "Initiatives" },
   { href: "/orchestration", label: "Vendors" },
   { href: "/reports", label: "Reports" },
   { href: "/campaigns", label: "Campaigns" },
-  { href: "/experiments", label: "Experiments" },
+  { href: "/tests", label: "Tests" },
 ];
 
 export default function Header() {

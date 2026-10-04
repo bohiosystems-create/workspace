@@ -1,6 +1,6 @@
 // The daily scan: every data source is checked once a day, before the report is built, for anything a marketing
 // initiative should answer. Findings from all sources share one shape (Signal, lib/crm-signals.ts) and are stored per
-// day (SignalScan), so the report, the Initiatives page and the assistant use the same findings.
+// day (SignalScan), so the report, the Campaigns → Market initiatives and the assistant use the same findings.
 //
 //   CRM          unusual falls / surges in leads, qualified leads, contracts, lost reasons     lib/crm-signals.ts
 //   Email        vendor notices, proposals, market news and event deadlines in the inbox      lib/inbox.ts
@@ -282,8 +282,8 @@ export async function scanAnswer(lang: Lang, project?: string | null) {
   const top = v.signals.filter((s) => !s.linkedTo && (!project || s.projectKey === project));
   if (project) return T(`**What the data shows for ${nm("en", project)}**\n`, `**ما تُظهره البيانات لـ${nm("ar", project)}**\n`) +
     (top.length ? top.map((s) => `- [${s.sourceLabel}] **${s.title}** — ${s.why}${s.related.length ? `\n  ${T("Explained by", "يفسّره")}: ${s.related.map((r) => `[${r.sourceLabel}] ${r.title} — ${r.why}`).join("; ")}` : ""}`).join("\n") : T("Nothing unusual for this project in any source.", "لا شيء غير معتاد لهذا المشروع في أي مصدر.")) +
-    T("\n\nThe initiative that answers each finding is on the **Initiatives** page (\"Initiatives for this\").", "\n\nالمبادرة التي تستجيب لكل نتيجة في صفحة **المبادرات** («مبادرات لهذه الإشارة»).");
+    T("\n\nThe initiative that answers each finding is in **Campaigns → Market initiatives** (\"Initiatives for this\").", "\n\nالمبادرة التي تستجيب لكل نتيجة في **الحملات ← مبادرات السوق** («مبادرات لهذه الإشارة»).");
   return T(`**What the data shows today** — scanned ${v.sources.map((s) => `${s.label} (${s.items.toLocaleString("en")} ${s.unit})`).join(", ")}.\n`, `**ما تُظهره البيانات اليوم** — فُحص: ${v.sources.map((s) => `${s.label} (${s.items.toLocaleString("en")} ${s.unit})`).join("، ")}.\n`) +
     (top.length ? top.slice(0, 10).map((s) => `- [${s.sourceLabel}] **${s.title}** — ${s.why}${s.related.length ? `\n  ${T("Related", "مرتبط")}: ${s.related.map((r) => `[${r.sourceLabel}] ${r.title}`).join("; ")}` : ""}`).join("\n") : T("Nothing unusual in any source.", "لا شيء غير معتاد في أي مصدر.")) +
-    T("\n\nEach finding gets a market initiative that answers it, in the daily report and on the **Initiatives** page. Follow-up of the leads themselves stays with Kinan's agent.", "\n\nلكل نتيجة مبادرة سوق تستجيب لها في التقرير اليومي وصفحة **المبادرات**. وتبقى متابعة العملاء أنفسهم لدى وكيل كنان.");
+    T("\n\nEach finding gets a market initiative that answers it, in the daily report and in **Campaigns → Market initiatives**. Follow-up of the leads themselves stays with Kinan's agent.", "\n\nلكل نتيجة مبادرة سوق تستجيب لها في التقرير اليومي و**الحملات ← مبادرات السوق**. وتبقى متابعة العملاء أنفسهم لدى وكيل كنان.");
 }

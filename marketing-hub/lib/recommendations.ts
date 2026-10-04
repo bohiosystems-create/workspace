@@ -137,7 +137,7 @@ export async function buildRecommendations(lang: Lang = "en", pre?: Agent) {
       rationale: T(
         `${K(lang, s0.costK)} spent with ${inc?.evidence === "MMM" ? "only media-mix evidence" : "no incrementality evidence"}. Suggested: ${digital ? "6-week audience holdout (20%)" : "6-week geo test"} — detects a lift of about ${mde ?? "—"}% or more.`,
         `أُنفق ${K(lang, s0.costK)} ${inc?.evidence === "MMM" ? "بأدلة من نموذج مزيج الإعلام فقط" : "دون أدلة على الأثر الإضافي"}. المقترح: ${digital ? "مجموعة مستبعدة من الجمهور (20%) لمدة 6 أسابيع" : "اختبار جغرافي لمدة 6 أسابيع"} — يرصد أثراً بنحو ${mde ?? "—"}% أو أكثر.`),
-      evidence: [inc?.text ?? ""], impactK: k1(s0.costK), channel: "INTERNAL", href: "/experiments",
+      evidence: [inc?.text ?? ""], impactK: k1(s0.costK), channel: "INTERNAL", href: "/tests",
     });
   }
 

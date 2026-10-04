@@ -30,10 +30,6 @@ export const PAGES: PageDef[] = [
     B("salesAgent", "Data from Kinan's sales agent", "بيانات وكيل المبيعات في كنان", /sales agent|kinan'?s (agent|data)|وكيل المبيعات/i),
     B("quality", "Campaign quality from the CRM", "جودة الحملات من النظام", /campaign quality|quality from the crm|جودة الحملات/i),
   ] },
-  { id: "ideas", name: ["Initiatives", "المبادرات"], path: "/ideas", rx: /initiatives?( page)?|ideas page|المبادرات/i, blocks: [
-    B("signals", "What the data shows", "ما تُظهره البيانات", /what the data shows|signals?|findings|daily scan|ما تظهره البيانات|الإشارات/i),
-    B("calendar", "Celebrations and moments", "المناسبات والمواسم", /celebrations?|calendar|moments|المناسبات|التقويم/i),
-  ] },
   { id: "vendors", name: ["Vendors", "الموردون"], path: "/orchestration", rx: /vendors? page|vendors?( dashboard)?\b|orchestration page|صفحة الموردين|الموردين/i, blocks: [
     B("roles", "Who does what", "من يفعل ماذا", /who does what|roles|الأدوار/i),
     B("kpi-waiting", "Waiting for you tile", "بطاقة بانتظاركم", /waiting for (you|me)\b(?! decision)|بانتظاركم/i, "kpi"),
@@ -50,12 +46,15 @@ export const PAGES: PageDef[] = [
     B("rhythm", "Operating rhythm", "إيقاع التشغيل", /operating rhythm|what runs without you|إيقاع التشغيل/i),
     B("invoices", "Supplier invoices", "فواتير الموردين", /invoices?|الفواتير/i),
   ] },
-  { id: "campaigns", name: ["Campaigns", "الحملات"], path: "/campaigns", rx: /campaigns? page|الحملات/i, blocks: [
+  { id: "campaigns", name: ["Campaigns", "الحملات"], path: "/campaigns", rx: /campaigns? page|initiatives? (page|section)|ideas page|الحملات|المبادرات/i, blocks: [
     B("kpi-campaigns", "Campaigns count tile", "بطاقة عدد الحملات", /campaigns? (count|tile)|number of campaigns|عدد الحملات/i, "kpi"),
     B("kpi-spend", "Spend tile", "بطاقة الإنفاق", /\bspend\b|الإنفاق/i, "kpi"),
     B("kpi-qualified", "Qualified leads tile", "بطاقة العملاء المؤهلين", /qualified leads|العملاء المؤهل/i, "kpi"),
     B("kpi-contracts", "Contracts tile", "بطاقة العقود", /\bcontracts\b|العقود/i, "kpi"),
     B("kpi-cts", "Cost-to-sales tile", "بطاقة التكلفة إلى المبيعات", /cost.?to.?sales|التكلفة إلى المبيعات/i, "kpi"),
+    B("signals", "What the data shows", "ما تُظهره البيانات", /what the data shows|signals?|findings|daily scan|ما تظهره البيانات|الإشارات/i),
+    B("calendar", "Celebrations and moments", "المناسبات والمواسم", /celebrations?|calendar|moments|المناسبات|التقويم/i),
+  
     B("orchestration", "Orchestration recommendations", "توصيات التنسيق", /orchestration|pause and shift|توصيات التنسيق/i),
     B("alerts", "Alerts", "التنبيهات", /\balerts?\b|التنبيهات/i),
     B("crm", "CRM verification", "التحقق من النظام", /crm verification|vendor.?reported vs crm|التحقق/i),
@@ -75,7 +74,7 @@ export const PAGES: PageDef[] = [
     B("run", "Run and history", "التشغيل والسجل", /\brun\b|history of reports|report history|سجل التقارير/i),
     B("missed", "Questions the assistant missed", "الأسئلة التي فاتت المساعد", /missed questions|questions (the assistant )?missed|الأسئلة/i),
   ] },
-  { id: "experiments", name: ["Experiments", "الاختبارات"], path: "/experiments", rx: /experiments?( page)?|incrementality|الاختبارات/i, blocks: [
+  { id: "tests", name: ["Tests", "الاختبارات"], path: "/tests", rx: /tests? page|experiments?( page)?|incrementality|الاختبارات/i, blocks: [
     B("tests", "Tests", "الاختبارات", /\btests\b|holdout/i),
     B("design", "Design a new test", "تصميم اختبار", /design (a )?(new )?test|تصميم اختبار/i),
     B("mmm", "Media-mix model", "نموذج المزيج الإعلاني", /media.?mix|\bmmm\b|المزيج/i, "chart"),

@@ -3,7 +3,7 @@
 // past), vendors, projects, channels, periods, the campaign history, the daily campaign check, invoices and Meta.
 // It can show recommendation cards and create email DRAFTS — never send or approve.
 import { runLlm, type LlmTool } from "./llm";
-import { buildChart, chartRequestFromText, chartSummary, RX_CHART, type ChartSpec } from "./charts";
+import { buildChart, chartRequestFromText, chartSummary, chartExplain, RX_CHART, type ChartSpec } from "./charts";
 import { runChartQuery, chartSchemaText, chartDigest, chartFromText } from "./chart-query";
 import { buildChatContext, snapshotForModel, recCards, draftForRec, type ChatCard, type ChatReply, type ChatContext } from "./chat";
 import { resolve, describe, periodSummary, parsePeriod, latestLiveMonth, liveCampaign, pastCampaign, vendorDetail, projectSummary, channelSummary } from "./query";
@@ -106,11 +106,11 @@ const TOOLS: LlmTool[] = [
       which: { type: "string", description: "remove_chart: title words, 'last' or 'all'." },
     }, required: ["op"] } },
   }, required: ["ops"] } },
-  { name: "get_dashboards", description: "Every page's dashboard (Director, Initiatives, Vendors, Campaigns, Reports — which includes the Daily campaign check —, Experiments): its figure tiles, charts and sections and which are hidden.", parameters: { type: "object", properties: {} } },
+  { name: "get_dashboards", description: "Every page's dashboard (Director, Vendors, Campaigns — which includes the market initiatives —, Reports — which includes the Daily campaign check —, Tests): its figure tiles, charts and sections and which are hidden.", parameters: { type: "object", properties: {} } },
   { name: "change_dashboard", description: "Hide or show figure tiles, charts and sections on any page's dashboard, or on all of them at once (page 'all'), e.g. remove the YTD sales tile from all dashboards, hide the budget plan on the Director page. Saved and logged; the user can undo. Use whenever the user asks to remove, hide, show or bring back something on a dashboard/page (for the per-campaign dashboards use change_campaign_dashboards; for the daily report use change_daily_report).", parameters: { type: "object", properties: {
     ops: { type: "array", items: { type: "object", properties: {
       op: { type: "string", enum: ["hide", "show", "reset", "undo"] },
-      page: { type: "string", enum: ["all", "director", "ideas", "vendors", "campaigns", "reports", "experiments"] },
+      page: { type: "string", enum: ["all", "director", "vendors", "campaigns", "reports", "tests"] },
       block: { type: "string", description: "A block id from get_dashboards (e.g. kpi-ytd) or its name in plain words (e.g. 'YTD sales')." },
     }, required: ["op"] } },
   }, required: ["ops"] } },
@@ -252,7 +252,7 @@ export async function aiAnswer(history: { role: "user" | "assistant"; content: s
   const turns = history.slice(-10).map((m, i, all) => (i === all.length - 1 && m.role === "user" ? { ...m, content: `${m.content}\n\n[${ctx.lang === "ar" ? "أجب بالعربية." : "Answer in English."}]` } : m));
   const res = await runLlm({
     task: "chat",
-    system: SYSTEM + langRule + (wantsChart ? "\n\nThe user is asking for a chart: draw it with make_chart now (more than one call if they asked for several), then comment in 2–4 sentences. Never say you can't draw charts." : ""),
+    system: SYSTEM + langRule + (wantsChart ? "\n\nThe user is asking for a chart: draw it with make_chart now (more than one call if they asked for several), then EXPLAIN it in text, 3–5 sentences: what it shows, the main takeaway with the key numbers, the notable outlier or trend, and what it means for marketing (one concrete implication). Never say you can't draw charts." : ""),
     data: `DATA (as of ${ctx.mkt.asOf.slice(0, 10)}):\n${JSON.stringify(snapshotForModel(ctx))}`,
     messages: turns,
     tools: TOOLS,
@@ -274,8 +274,11 @@ export async function aiAnswer(history: { role: "user" | "assistant"; content: s
     const spec = chartFromText(lastUser, ctx.q, ctx.lang);
     if (!("error" in spec)) {
       cards.push({ kind: "chart", chart: spec });
-      if (!text || /can.?t (render|draw|create|generate|produce)|cannot (render|draw|create|generate|produce)|not a charting|no charting|لا أستطيع (رسم|إنشاء)/i.test(text)) text = chartSummary(spec);
+      if (!text || /can.?t (render|draw|create|generate|produce)|cannot (render|draw|create|generate|produce)|not a charting|no charting|لا أستطيع (رسم|إنشاء)/i.test(text)) text = `${chartSummary(spec)}\n${chartExplain(spec)}`;
     }
   }
+  // Every chart comes with a written explanation: if the model only drew it (or said very little), add the reading.
+  const charts = cards.filter((c): c is Extract<ChatCard, { kind: "chart" }> => c.kind === "chart");
+  if (charts.length && (text || "").replace(/\s+/g, " ").length < 120) text = [text, ...charts.map((c) => `**${c.chart.title}** — ${chartExplain(c.chart)}`)].filter(Boolean).join("\n\n");
   return { reply: text || reply, cards: cards.filter((c, i) => cards.findIndex((x) => JSON.stringify(x) === JSON.stringify(c)) === i), engine: res.provider, model: res.model };
 }

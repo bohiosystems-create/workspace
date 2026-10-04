@@ -396,7 +396,7 @@ export function extraData(question: string, c: ChatContext): string | null {
     const when = n.fetchedAt ? dt(L, n.fetchedAt.slice(0, 10)) : "";
     return T(`**In the news — ${city ?? newsCities().join(" and ")}** (${n.mode === "live" ? `live, read ${when}` : `real news gathered ${when}`})\n`, `**في الأخبار — ${city ? nm("ar", city) : newsCities().map((c) => nm("ar", c)).join(" و")}** (${n.mode === "live" ? `مباشر، قُرئ ${when}` : `أخبار حقيقية جُمعت ${when}`})\n`) +
       (items.length ? items.map((x) => `- **${L === "ar" ? x.title.ar : x.title.en}** — ${x.publisher}, ${dt(L, x.date)} · ${L === "ar" ? TOPIC_LABEL[x.topic].ar : TOPIC_LABEL[x.topic].en}\n  ${T("What it means", "ما يعنيه")}: ${L === "ar" ? newsAngle(x).ar : newsAngle(x).en} [${T("source", "المصدر")}](${x.url})`).join("\n") : T("Nothing relevant in the last three weeks.", "لا شيء ذو صلة في الأسابيع الثلاثة الأخيرة.")) +
-      T("\n\nEach item is a finding in today's scan — open **Initiatives** and press **Initiatives for this** to get proposals built on it.", "\n\nكل خبر نتيجة في فحص اليوم — افتحوا **المبادرات** واضغطوا **مبادرات لهذه الإشارة** للحصول على مقترحات مبنية عليه.");
+      T("\n\nEach item is a finding in today's scan — open **Campaigns → Market initiatives** and press **Initiatives for this** to get proposals built on it.", "\n\nكل خبر نتيجة في فحص اليوم — افتحوا **الحملات ← مبادرات السوق** واضغطوا **مبادرات لهذه الإشارة** للحصول على مقترحات مبنية عليه.");
   }
   // Calendar.
   if (RX2.calendar.test(q)) {

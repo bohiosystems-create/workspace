@@ -8,6 +8,7 @@ import MetaReview from "../_components/MetaReview";
 import { useI18n } from "../_components/lang";
 import { monthShort } from "@/lib/i18n";
 import Blk from "../_components/Blk";
+import Initiatives from "./initiatives";
 
 const n0 = (x: number) => x.toLocaleString("en-GB");
 const dash = (x: number | null | undefined, suffix = "") => (x === null || x === undefined ? "—" : `${x}${suffix}`);
@@ -113,6 +114,11 @@ export default function MarketingPage() {
       <p className="intro">
         {t("Every campaign that has run — the live 2026 campaigns (verified against Oracle cost and the CRM) and the 2023–2025 history — each with its own dashboard. Ask the assistant to change what is listed and what each dashboard shows.")}
       </p>
+      <nav className="cb-jump" aria-label={t("On this page")}>
+        {[["#campaign-list", t("Campaign dashboards")], ["#initiatives", t("Market initiatives")], ["#orchestration", t("Orchestration")], ["#meta", t("Meta ads")]].map(([h, l]) => (
+          <a key={h} href={h} onClick={(e) => { e.preventDefault(); document.getElementById(h.slice(1))?.scrollIntoView({ behavior: "smooth" }); }}>{l}</a>
+        ))}
+      </nav>
 
       {error && <div className="err">{error}</div>}
       {!boards && !error && <div className="muted"><span className="spin dark" /> {t("Loading campaigns…")}</div>}
@@ -160,19 +166,20 @@ export default function MarketingPage() {
           </div>
 
           {list.length === 0 && <div className="muted" style={{ margin: "10px 0 20px" }}>{t("No campaign matches this view — ask the assistant to show all campaigns, or clear the filters.")}</div>}
-          <div className="cb-list">
+          <div className="cb-list" id="campaign-list">
             {shown.map((c: any, i: number) => (
               <CampaignBoard key={c.key} c={c} i={i} kpis={boards.view.kpis} charts={boards.view.charts} open={isOpen(c)} onToggle={() => setOpen({ ...open, [c.key]: !isOpen(c) })}
                 busy={busy} onAct={(body: any, key: string) => campaignAct(body, key)} />
             ))}
           </div>
           {list.length > shown.length && <button className="btn ghost" style={{ margin: "4px 0 20px" }} onClick={() => setMore(true)}>{t("Show all")} ({list.length})</button>}
+          <Initiatives />
         </>
       )}
 
       {data && (
         <>
-          <Blk page="campaigns" id="orchestration"><div style={{ display: "flex", alignItems: "center", gap: 10, margin: "26px 0 14px" }}>
+          <Blk page="campaigns" id="orchestration"><div id="orchestration" style={{ display: "flex", alignItems: "center", gap: 10, margin: "26px 0 14px" }}>
             <div className="section-title" style={{ fontSize: 12 }}>{t("Orchestration")}</div>
           </div>
 

@@ -169,6 +169,64 @@ export function buildChart(req: ChartRequest, c: QueryCtx, lang: Lang): ChartSpe
 }
 
 /** A short text version of the chart for the chat bubble (and for the AI to comment on). */
+/** A plain-language reading of a chart: what it shows, the main takeaway with its numbers, the spread or the trend,
+ *  and what it suggests — written from the chart's own values (nothing invented). */
+export function chartExplain(s: ChartSpec): string {
+  const T = (en: string, ar: string) => tx(s.lang, en, ar);
+  const pctUnit = s.unit === "%";
+  const r1 = (v: number) => Math.round(v * 10) / 10;
+  const fmt = (v: number) => `${r1(v).toLocaleString("en-US")}${pctUnit ? "%" : s.unit ? ` ${s.unit}` : ""}`;
+  const lowerBetter = /cost|cpl|cpql|cac|تكلفة/i.test(`${s.metric} ${s.title} ${(s.query as any)?.measures ?? ""}`);
+  const series = s.series?.length ? s.series : [{ name: s.title, values: s.values }];
+  const timeline = ["month", "quarter", "year", "week"].includes(String(s.groupBy)) || s.type === "line" || s.type === "area" || /month|quarter|year|week/i.test(String((s.query as any)?.x ?? ""));
+  const out: string[] = [];
+  if (s.type === "scatter" && s.points?.length) {
+    const xs = s.points.map((p) => p.x), ys = s.points.map((p) => p.y), n = xs.length;
+    const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+    const cov = xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0), vx = xs.reduce((a, x) => a + (x - mx) ** 2, 0), vy = ys.reduce((a, y) => a + (y - my) ** 2, 0);
+    const r = vx && vy ? cov / Math.sqrt(vx * vy) : 0;
+    out.push(T(`Each point is one ${s.groupBy}. ${Math.abs(r) < 0.3 ? "There is no clear relationship" : r > 0 ? `The two move together (correlation ${r1(r)})` : `When one rises the other falls (correlation ${r1(r)})`} across ${n} points.`, `كل نقطة تمثل ${s.groupBy}. ${Math.abs(r) < 0.3 ? "لا توجد علاقة واضحة" : r > 0 ? `يتحركان معاً (ارتباط ${r1(r)})` : `عندما يرتفع أحدهما ينخفض الآخر (ارتباط ${r1(r)})`} عبر ${n} نقطة.`));
+    return out.join(" ");
+  }
+  const vals = (series[0].values ?? []).map((v) => v ?? 0);
+  if (!vals.length) return "";
+  if (timeline) {
+    const first = vals[0], last = vals[vals.length - 1], max = Math.max(...vals), min = Math.min(...vals);
+    const ch = first ? ((last - first) / Math.abs(first)) * 100 : 0;
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const up = last > first;
+    out.push(T(`${s.title} went from ${fmt(first)} in ${s.labels[0]} to ${fmt(last)} in ${s.labels[s.labels.length - 1]}${first ? ` (${ch > 0 ? "+" : ""}${Math.round(ch)}%)` : ""}.`, `${s.title}: من ${fmt(first)} في ${s.labels[0]} إلى ${fmt(last)} في ${s.labels[s.labels.length - 1]}${first ? ` (${ch > 0 ? "+" : ""}${Math.round(ch)}%)` : ""}.`));
+    out.push(T(`The peak was ${s.labels[vals.indexOf(max)]} (${fmt(max)}) and the low ${s.labels[vals.indexOf(min)]} (${fmt(min)}); the latest period is ${last >= avg ? "above" : "below"} the average of ${fmt(avg)}.`, `الذروة في ${s.labels[vals.indexOf(max)]} (${fmt(max)}) والأدنى في ${s.labels[vals.indexOf(min)]} (${fmt(min)})؛ والفترة الأخيرة ${last >= avg ? "أعلى" : "أدنى"} من المتوسط البالغ ${fmt(avg)}.`));
+    if (vals.length >= 3) { const l3 = vals.slice(-3); const rising = l3[2] > l3[1] && l3[1] > l3[0], falling = l3[2] < l3[1] && l3[1] < l3[0];
+      if (rising || falling) out.push(T(`The last three periods are ${rising ? "rising" : "falling"} in a row${(rising !== lowerBetter) ? " — a good sign" : " — worth watching"}.`, `آخر ثلاث فترات ${rising ? "في ارتفاع" : "في انخفاض"} متتالٍ${(rising !== lowerBetter) ? " — مؤشر جيد" : " — يستحق المتابعة"}.`)); }
+    void up;
+  } else {
+    const rows = s.labels.map((l, i) => ({ l, v: vals[i] })).filter((x) => Number.isFinite(x.v));
+    const sorted = [...rows].sort((a, b) => b.v - a.v);
+    const total = rows.reduce((a, b) => a + b.v, 0);
+    const additive = !pctUnit && !/rate|ratio|avg|average|cost per|per sar|نسبة|متوسط/i.test(`${s.title} ${s.unit}`);
+    const best = lowerBetter ? sorted[sorted.length - 1] : sorted[0], worst = lowerBetter ? sorted[0] : sorted[sorted.length - 1];
+    if (additive && total > 0) {
+      const top = sorted[0], share = Math.round((top.v / total) * 100);
+      const top3 = Math.round((sorted.slice(0, 3).reduce((a, b) => a + b.v, 0) / total) * 100);
+      out.push(T(`${top.l} leads with ${fmt(top.v)} — ${share}% of the ${fmt(total)} total.`, `يتصدر ${top.l} بـ${fmt(top.v)} — ${share}% من الإجمالي البالغ ${fmt(total)}.`));
+      if (sorted.length > 3) out.push(T(`The top three make up ${top3}% of it${top3 >= 75 ? ", so results depend on a few names" : ""}.`, `وتمثل الثلاثة الأولى ${top3}% منه${top3 >= 75 ? "، فالنتائج تعتمد على عدد قليل" : ""}.`));
+      if (sorted.length > 1) out.push(T(`${sorted[sorted.length - 1].l} is lowest at ${fmt(sorted[sorted.length - 1].v)}.`, `والأدنى ${sorted[sorted.length - 1].l} بـ${fmt(sorted[sorted.length - 1].v)}.`));
+    } else if (sorted.length) {
+      out.push(T(`${best.l} does best at ${fmt(best.v)}${lowerBetter ? " (lower is better here)" : ""}; ${worst.l} is weakest at ${fmt(worst.v)}${best.v && worst.v ? ` — ${r1(Math.max(best.v, worst.v) / Math.max(0.0001, Math.min(best.v, worst.v)))}× apart` : ""}.`, `الأفضل ${best.l} عند ${fmt(best.v)}${lowerBetter ? " (الأقل أفضل هنا)" : ""}؛ والأضعف ${worst.l} عند ${fmt(worst.v)}${best.v && worst.v ? ` — بفارق ${r1(Math.max(best.v, worst.v) / Math.max(0.0001, Math.min(best.v, worst.v)))} مرة` : ""}.`));
+      const avg = rows.reduce((a, b) => a + b.v, 0) / rows.length;
+      out.push(T(`The average across the ${rows.length} is ${fmt(avg)}.`, `والمتوسط عبر ${rows.length} هو ${fmt(avg)}.`));
+    }
+  }
+  if (series.length > 1) {
+    const sum = (v: (number | null)[]) => v.reduce((a: number, b) => a + (b ?? 0), 0);
+    const tops = series.map((x) => ({ n: x.name, t: sum(x.values) })).sort((a, b) => b.t - a.t);
+    out.push(T(`Of the ${series.length} series, ${tops[0].n} is largest overall.`, `ومن بين ${series.length} سلاسل، ${tops[0].n} هي الأكبر إجمالاً.`));
+  }
+  if (lowerBetter && timeline) out.push(T("For cost measures, lower is better.", "في مقاييس التكلفة، الأقل أفضل."));
+  return out.join(" ");
+}
+
 export function chartSummary(s: ChartSpec): string {
   const T = (en: string, ar: string) => tx(s.lang, en, ar);
   const fmt = (v: number) => `${v.toLocaleString("en-US")}${s.unit === "%" ? "%" : s.unit ? ` ${s.unit}` : ""}`;

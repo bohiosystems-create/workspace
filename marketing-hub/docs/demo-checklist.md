@@ -45,7 +45,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
   1. **CRM feed: almost no new leads for 8 days** (normal volume until 30 May). Say: *"The sample CRM data stops on 30 May. The director notices the feed went quiet and won't judge campaigns on missing data."*
   2. **Andalus — Off-plan Launch Funnel costs 8.5% of sales, 4.5× past digital campaigns** (SAR 297.5K spent for SAR 3.5M of sales in the last 3 months).
   3. **An agency that isn't one of your vendors is running Meta ads in your account** (Digital Wave Agency, SAR 8K).
-- [ ] Each line has the reason and one action: **Open** (Reports → Daily campaign check, Campaigns, Experiments) or **Draft email**.
+- [ ] Each line has the reason and one action: **Open** (Reports → Daily campaign check, Campaigns, Tests) or **Draft email**.
 - [ ] Click **Show all (22)**, then **Draft email** on *Tasweeq Digital: reported media spend not matched by the ad platforms* (SAR 58.4K). The assistant opens the draft for approval. Don't send it; show that nothing goes out without a name and the "I have read this" box.
 - [ ] Click **Ask the director** and type *"What's today's brief?"* The campaign recommendations come back as cards.
 
@@ -74,7 +74,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
   Say: *"The same charts arrive by email — they're built so Outlook shows them, not as images that get blocked."*
 - [ ] Show the **Campaign recommendations — 23 open, 3 urgent** section: what to change, why, and how ("apply in one click on Campaigns", "email drafted for your approval").
-- [ ] Scroll to **What the data shows & market initiatives**: first the sources scanned this morning with their counts, then the findings with their cross-source evidence (e.g. the PropertyHub email under the Marina Tower drop), then initiatives of different types, each marked with the finding it answers. They're also on the Initiatives page to shortlist or approve.
+- [ ] Scroll to **What the data shows & market initiatives**: first the sources scanned this morning with their counts, then the findings with their cross-source evidence (e.g. the PropertyHub email under the Marina Tower drop), then initiatives of different types, each marked with the finding it answers. They're also on the Campaigns → Market initiatives to shortlist or approve.
 - [ ] Press **▶ Play**: a full-screen Kinan-style presentation (about 20 slides, one idea each) with animated charts — rings fill for each project, bars grow, the vendor donut draws itself, each finding gets its own slide with its trend and evidence, each initiative its forecast. The voice-over is ElevenLabs when a key is set (else the browser voice); mute it with **Voice on**.
 - [ ] Show the schedule: 07:30 Riyadh, Sunday–Thursday, English and Arabic, internal addresses only.
 
@@ -116,7 +116,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 ### 8c. Celebrations, live news, settings, dashboards, PowerPoint (4 min)
 
-- [ ] **Initiatives**: the chips include **News** (real news for Jeddah and Riyadh) and **Calendar** (celebrations from the Umm al-Qura calendar). Click **News**, then **Initiatives for this** on *Riyadh Season 2026 opens on 21 October* → a Riyadh investor lounge during Riyadh Season, quoting the news. Scroll to **Celebrations and moments** and do the same on **Ramadan 2027** → a Ramadan payment-plan offer planned for February 2027.
+- [ ] **Campaigns → Market initiatives**: the chips include **News** (real news for Jeddah and Riyadh) and **Calendar** (celebrations from the Umm al-Qura calendar). Click **News**, then **Initiatives for this** on *Riyadh Season 2026 opens on 21 October* → a Riyadh investor lounge during Riyadh Season, quoting the news. Scroll to **Celebrations and moments** and do the same on **Ramadan 2027** → a Ramadan payment-plan offer planned for February 2027.
 - [ ] Ask the assistant *"What's in the news in Jeddah?"* and *"Upcoming celebrations"*.
 - [ ] Click the **gear icon** (top right): every integration with its status and how to connect it.
 - [ ] Ask *"Remove the YTD sales from all dashboards"* — the tile disappears from the Director page at once; *"Undo the last dashboard change"* brings it back.
@@ -135,7 +135,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 ### 10. Who's worth renewing (3 min)
 
 - [ ] **Vendors → Vendor scoring board** (scroll down, or open `/decisions`, which redirects there): six vendors ranked on one fair scale, each with a decision. For example, **Hajar Outdoor: exit** (high confidence) and **Tasweeq Digital: test a replacement**. Show the evidence and "what would change this".
-- [ ] **Experiments**: the holdout test shows how much of a vendor's results it really caused.
+- [ ] **Tests**: the holdout test shows how much of a vendor's results it really caused.
 - [ ] **Vendor scoring board → Replacement trials**: **Wasel Performance won its trial against Tasweeq Digital**. One click promotes it, and it gets budget in the next plan.
 
 ### 11. Market initiatives from all your data (4 min)

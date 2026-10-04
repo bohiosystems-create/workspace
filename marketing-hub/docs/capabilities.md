@@ -93,7 +93,7 @@ An AI assistant director of marketing for a real-estate developer with **one mar
   - a forecast from the 2023–2025 history.
   - **Focus:** when the scan finds a fall or risk, the day focuses on the project concerned (cycling between them if several); otherwise each day focuses on a different project (cycling from the one furthest behind target) with a different creative angle, such as partnerships, on-site experiences, the investor story or first-time buyers.
   - **Which AI does the creative work:** two different models generate ideas for variety (Gemini and OpenAI by default) and Claude ranks them against the data. In the Claude app edition, Claude does both; without keys, the built-in rules.
-  - **Cost:** ideas are generated once per day and language, then reused. They also appear on the Initiatives page to shortlist or approve.
+  - **Cost:** ideas are generated once per day and language, then reused. They also appear on the Campaigns → Market initiatives to shortlist or approve.
 - **▶ Play — the report as a presentation:**
   - a full-screen deck in Kinan's style (charcoal stage, orange accent), built from the report's data rather than shrunk from the email: about 20 slides, one idea each — the brief with four headline figures, ring gauges per project, sales by month, revenue by vendor, cost to sales by channel against the 2023–2025 average, the morning scan of every source, one slide per finding (with its trend and the evidence that explains it) and per initiative (with its channel mix and forecast), campaign changes, decisions with minutes, risks;
   - animated: numbers count up, bars grow, rings fill, the donut and trend lines draw themselves (respects "reduce motion");
