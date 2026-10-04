@@ -79,7 +79,7 @@ def build(mode):
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     assert html.count("\n<script>\n") == 1
     html = html.replace("\n<script>\n", f"\n<script>window.BOHIO_MODE='{mode}';</script>\n<script>\n", 1)
-    html = re.sub(r"<title>.*?</title>", f"<title>Bohio × KINAN · {name}</title>", html, count=1, flags=re.S)
+    html = re.sub(r"<title>.*?</title>", f"<title>KINAN · {name}</title>", html, count=1, flags=re.S)
     (out / "index.html").write_text(html, encoding="utf-8")
     for f in ("llm.js", "scan.js"):
         shutil.copy(ROOT / "api" / f, out / "api" / f)
