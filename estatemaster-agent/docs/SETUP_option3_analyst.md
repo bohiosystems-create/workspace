@@ -34,12 +34,31 @@ Files are in the zip's `setup/` folder.
 3. Press **Upload export** on the task. The tiles update to EstateMaster's figures.
 4. Several approved changes can be batched into one refresh.
 
+## Reports and ▶ Play
+Reports → pick a report → **▶ Play** runs it as a full-screen presentation in KINAN's style (cover, dividers, headline
+figures, gauges, cost and funding donuts, cash flow by year, stress bars against the hurdle, headroom, market check,
+closing page), with captions and the browser's voice; ← → move, Space pauses, F is fullscreen, Esc closes.
+**PowerPoint** downloads the same deck with native, editable charts and the narration in the speaker notes.
+**HTML** and **Print / PDF** give the report document (logo band, orange cover, charts, closing page).
+Every figure shown as EstateMaster's comes from an export; charts built on the agent's model say "agent's estimate".
+
 ## F. Test it (10 minutes)
 - [ ] Ask "what if construction cost rises 8%": a change request, no IRR.
 - [ ] Approve it: a refresh task appears; the model is unchanged.
 - [ ] Download the control workbook: the Inputs value is the approved one.
 - [ ] Refresh in EstateMaster, export, upload: the tiles show the new IRR and **Compare exports** shows the move.
 - [ ] A line with column J blank shows up in the task as a manual step.
+
+## H. Tested against the DF_CS046 trial model (what to repeat on your PC)
+Verified in the build with `trial/DF_CS046_control.xlsx` (30 financing lines, all 33 core lines N/A):
+1. Model data → Connect control workbook → `DF_CS046_control.xlsx`: 0 errors, 30 model lines, a change request; approve it.
+2. Ask: "set loan 1 interest rate to 8" → CR → approve → task on the EstateMaster tab.
+   The task lists the line as "type it in" because column J is N (not linked yet). Link it in EstateMaster, put Y in J, reconnect, and it becomes a Refresh Values step instead.
+3. Download control workbook → the file is `DF_CS046_control.xlsx` with L0007 = 8, the other 29 lines unchanged, core lines still N/A. Point EstateMaster's link at this file (same name, same cells).
+4. In EstateMaster: Refresh Values → recalculate → Office Links → Excel (include the Summary sheet) → Upload export on the task.
+   The reader finds, by row label: Equity/Levered/Geared IRR, Project/Unlevered IRR, Development margin or Profit on cost, Net development profit, Total development cost, Total revenue, Peak debt, Equity multiple.
+5. The tiles, "status" in the chat and the reports now show that export; Reports → ▶ Play presents it.
+If a label in your export is not found, the tile says "not in export": send me the export and I will add the label.
 
 ## G. Limits to tell KINAN
 - The analyst still presses Refresh Values and Export: no unattended runs, results wait for them.

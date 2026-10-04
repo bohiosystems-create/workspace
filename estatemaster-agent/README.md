@@ -27,6 +27,7 @@ Al Narjis Mixed-Use project. All data is dummy data.
 | `runner/` | The EstateMaster runner for the Windows VM (not deployed to Vercel). |
 | `setup/` | Copilot setup agent instructions, the KINAN control workbook template and its generator (not deployed). |
 | `docs/` | Features report, setup guide and user guide (PDF). |
+| Reports | KINAN report document (logo band, orange cover, SVG charts, closing page), **▶ Play** presentation with captions and voice, PowerPoint with native charts, HTML and print. Same design as the KINAN marketing hub. |
 | `tools/build_options.py`, `dist/` | Builds the separate Option 2 and Option 3 demos (not deployed from this folder). |
 | `vercel.json` | Vercel settings (function timeout, security headers). |
 | `market-data.xlsx` | The dummy dataset as a workbook (also downloadable from inside the demo). |

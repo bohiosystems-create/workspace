@@ -41,6 +41,14 @@ Without it the demo uses a dummy inbox.
 
 **What the reader looks for in the export** (by row label, any sheet): Equity/Levered IRR, Project/Unlevered IRR, Profit on cost or Development margin, Net profit, Total development cost, Gross revenue, Equity multiple, Peak debt. If a label is missing the tile shows "not in export". Percentages can be 0.187 or 18.7%.
 
+## Reports and ▶ Play
+Reports → pick a report → **▶ Play** runs it as a full-screen presentation in KINAN's style (cover, dividers, headline
+figures, gauges, cost and funding donuts, cash flow by year, stress bars against the hurdle, headroom, market check,
+closing page), with captions and the browser's voice; ← → move, Space pauses, F is fullscreen, Esc closes.
+**PowerPoint** downloads the same deck with native, editable charts and the narration in the speaker notes.
+**HTML** and **Print / PDF** give the report document (logo band, orange cover, charts, closing page).
+Every figure shown as EstateMaster's comes from an export; charts built on the agent's model say "agent's estimate".
+
 ## 5. Test it (5 minutes)
 - [ ] Tab bar shows Option 2; strip says "Read-only".
 - [ ] Ask "what if sale price drops 10%": a change request, no IRR.
