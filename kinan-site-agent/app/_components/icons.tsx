@@ -16,6 +16,7 @@ const P: Record<string, ReactElement> = {
   camera: <><path d="M4 8h3l1.5-2.5h7L17 8h3v11H4V8z" /><circle cx="12" cy="13" r="3.5" /></>,
   mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></>,
   speaker: <><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></>,
+  cube: <><path d="M12 2.8 20 7.3v9.4L12 21.2 4 16.7V7.3z" /><path d="M4 7.3 12 12l8-4.7M12 12v9.2" /></>,
   file: <><path d="M6 3h8l4 4v14H6V3z" /><path d="M14 3v4h4" /></>,
   // document categories
   drawing: <><path d="M4 20 20 4" /><path d="M4 4h16v16H4z" /><path d="M8 4v3M12 4v2M16 4v3" /></>,

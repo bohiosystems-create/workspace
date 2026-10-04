@@ -16,6 +16,7 @@ import { M, concrete, drawGround, glow, rng, sky } from "./textures";
 import { ORANGE, STOREY, W, at, box, materials, mergeStatic, perim, rectOf, shadow, tag, walls, type Mats } from "./common";
 import { constructionKit, createDetails, roofKit, type Deck } from "./details";
 import { aroundKit } from "./around";
+import { createGrounds } from "./grounds";
 
 export { STOREY };
 const PODIUM_STOREY = 5.4;
@@ -26,9 +27,9 @@ for (const s of SHAPES) if (s.layer === "cranes" && s.t === "circle" && s.cls ==
 }
 
 // ------------------------------------------------------------------ structures
-interface Built { group: THREE.Group; top: number; pulse: THREE.MeshStandardMaterial[] }
+export interface Built { group: THREE.Group; top: number; pulse: THREE.MeshStandardMaterial[] }
 
-function towerModel(m: Mats, id: string, r: { x: number; z: number; w: number; d: number }, floors: number, s: StructState, storey = STOREY, opts: { podium?: boolean; club?: boolean; raft?: boolean } = {}): Built {
+export function towerModel(m: Mats, id: string, r: { x: number; z: number; w: number; d: number }, floors: number, s: StructState, storey = STOREY, opts: { podium?: boolean; club?: boolean; raft?: boolean } = {}): Built {
   const g = new THREE.Group();
   const inset = opts.podium ? 0.6 : opts.club ? 1 : Math.min(r.w, r.d) * 0.08;
   const w = r.w - inset * 2, d = r.d - inset * 2, cx = r.x + r.w / 2, cz = r.z + r.d / 2;
@@ -116,7 +117,7 @@ function towerModel(m: Mats, id: string, r: { x: number; z: number; w: number; d
   return { group: tag(g, id), top: Math.max(top, 1) + (s.active > 0 ? storey : 0), pulse };
 }
 
-function villaModel(m: Mats, id: string, r: { x: number; z: number; w: number; d: number }, v: VillaState, night: boolean): Built {
+export function villaModel(m: Mats, id: string, r: { x: number; z: number; w: number; d: number }, v: VillaState, night: boolean): Built {
   const g = new THREE.Group();
   const w = r.w * 0.82, d = r.d * 0.62, cx = r.x + r.w / 2, cz = r.z + r.d * 0.42;
   g.position.set(cx, 0, cz);
@@ -150,10 +151,10 @@ function villaModel(m: Mats, id: string, r: { x: number; z: number; w: number; d
 }
 
 // ------------------------------------------------------------------ cranes
-interface Crane { id: string; root: THREE.Group; mast: THREE.Mesh; slew: THREE.Group; trolley: THREE.Group; cable: THREE.Mesh; hook: THREE.Group; light: THREE.Mesh; h: number; r: number;
+export interface Crane { id: string; root: THREE.Group; mast: THREE.Mesh; slew: THREE.Group; trolley: THREE.Group; cable: THREE.Mesh; hook: THREE.Group; light: THREE.Mesh; h: number; r: number;
   ang: number; target: number; tr: number; trTarget: number; cab: number; cabTarget: number; phase: "slew" | "trolley" | "lower" | "hold" | "raise"; wait: number; rand: () => number; floors: number; up: boolean }
-function craneModel(m: Mats, id: string): Crane {
-  const c = CRANE_AT[id];
+export function craneModel(m: Mats, id: string, pos?: { x: number; z: number; r: number; skip?: boolean }): Crane {
+  const c = pos ?? CRANE_AT[id];
   const root = new THREE.Group(); root.position.set(c.x, 0, c.z);
   const mast = new THREE.Mesh(box(2.2, 1, 2.2, 2.2, 2.2), m.lattice); root.add(mast);
   root.add(at(new THREE.Mesh(box(6, 1.4, 6), m.concrete), 0, 0.7, 0));
@@ -174,20 +175,20 @@ function craneModel(m: Mats, id: string): Crane {
   hook.add(at(new THREE.Mesh(box(0.9, 1.2, 0.6), m.steel), 0, 0, 0));
   // the load: a bundle of rebar or a concrete skip
   const load = new THREE.Group(); hook.add(load);
-  if (id === "tc2") load.add(at(new THREE.Mesh(new THREE.CylinderGeometry(1, 0.6, 1.8, 10), m.weight), 0, -2.4, 0));
+  if (pos ? pos.skip : id === "tc2") load.add(at(new THREE.Mesh(new THREE.CylinderGeometry(1, 0.6, 1.8, 10), m.weight), 0, -2.4, 0));
   else for (let i = 0; i < 5; i++) load.add(at(new THREE.Mesh(box(0.25, 0.25, 9), m.rust), (i - 2) * 0.28, -2, 0));
   shadow(root);
-  const rand = rng(id.charCodeAt(2) * 97);
+  const rand = rng((id.charCodeAt(2) || id.charCodeAt(id.length - 1) || 7) * 97);
   const ang = rand() * Math.PI * 2;
   return { id, root: tag(root, id) as THREE.Group, mast, slew, trolley, cable, hook, light, h: 0, r: R, ang, target: ang, tr: R * 0.5, trTarget: R * 0.6, cab: 8, cabTarget: 8, phase: "slew", wait: 0, rand, floors: 0, up: false };
 }
-function setCraneHeight(c: Crane, h: number) {
+export function setCraneHeight(c: Crane, h: number) {
   if (Math.abs(c.h - h) < 0.01) return;
   c.h = h;
   c.mast.geometry.dispose(); c.mast.geometry = box(2.2, h, 2.2, 2.2, 2.2); c.mast.position.y = h / 2;
   c.slew.position.y = h;
 }
-function stepCrane(c: Crane, dt: number, time: number, groundAt: (x: number, z: number) => number) {
+export function stepCrane(c: Crane, dt: number, time: number, groundAt: (x: number, z: number) => number) {
   const ease = (cur: number, tgt: number, speed: number) => { const dlt = tgt - cur; const s = Math.sign(dlt) * Math.min(Math.abs(dlt), speed * dt * Math.min(1, 0.25 + Math.abs(dlt))); return cur + s; };
   if (c.phase === "slew") {
     let dlt = ((c.target - c.ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
@@ -222,7 +223,7 @@ function pathOf(pts: [number, number][], closed: boolean) {
   return { P, seg, len: seg.reduce((a, b) => a + b, 0) };
 }
 interface Truck { g: THREE.Group; drum?: THREE.Mesh; path: ReturnType<typeof pathOf>; s: number; speed: number }
-function truckModel(m: Mats, kind: number): THREE.Group {
+export function truckModel(m: Mats, kind: number): THREE.Group {
   const g = new THREE.Group();
   const cab = new THREE.MeshStandardMaterial({ color: [0xf4f4f2, 0xf15a22, 0x2e2e2f][kind % 3], roughness: 0.5 });
   g.add(at(new THREE.Mesh(box(2.5, 2.6, 2.4), cab), 4.1, 1.9, 0));
@@ -395,6 +396,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
   const truckGroup = new THREE.Group(); scene.add(truckGroup);
   { const ring = pathOf(RING, true), haul = pathOf(HAUL, true); for (let i = 0; i < 7; i++) { const g = truckModel(m, i); const path = i < 3 ? ring : haul; const t: Truck = { g, drum: g.userData.drum, path, s: (path.len * i) / (i < 3 ? 3 : 4), speed: 7 + (i % 3) }; trucks.push(t); truckGroup.add(g); placeTruck(t); } }
   const details = createDetails(m); scene.add(details.group);
+  const grounds = createGrounds(m); scene.add(grounds.group);
   const sel = new THREE.Group(); scene.add(sel);
   let selId: string | undefined;
   let state: SiteState | null = null;
@@ -477,6 +479,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     const decks: Deck[] = [];
     for (const b of BUILDINGS) { const st = s.struct[b.id]; if (!st || st.active <= 0 || st.built >= b.floors) continue; const r = footprint(b.id)!, sy = b.id === "podium" ? PODIUM_STOREY : b.id === "club-e" ? 4.6 : STOREY; decks.push({ id: b.id, x: r.x + r.w / 2, z: r.z + r.d / 2, w: r.w * 0.84, d: r.d * 0.84, y: st.built * sy + sy - 0.05 + (open && ["tower-a", "tower-b", "podium"].includes(b.id) ? pitFloor.position.y + 3.6 * s.basementLevels : 0) }); }
     details.setState(s, { pitDepth: pitFloor.position.y, pitOpen: open, decks, topOf });
+    grounds.setState(s);
     // ground: redraw only when the road surface or landscaping changes state
     const gk = `${s.roads > 0.99}|${Math.round(s.landscape * 5)}`;
     if (groundKey !== gk) { groundKey = gk; redrawGround(); }
@@ -513,7 +516,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     const gk = `${l.grid}|${l.utilities}|${l.cranes}`, ok = `${layers.grid}|${layers.utilities}|${layers.cranes}`;
     layers = l;
     structs.visible = l.buildings; services.visible = l.buildings;
-    temp.visible = l.temp; palms.visible = l.landscape; details.group.visible = l.temp;
+    temp.visible = l.temp; palms.visible = l.landscape; details.group.visible = l.temp; grounds.group.visible = l.roads;
     if (gk !== ok) redrawGround();
     if (state) setState(state);
   }
@@ -578,6 +581,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
   function dispose() {
     scene.traverse((c) => { const mesh = c as THREE.Mesh; mesh.geometry?.dispose(); });
     for (const mm of Object.values(m)) { const tx = (mm as THREE.MeshStandardMaterial).map; tx?.dispose(); (mm as THREE.MeshStandardMaterial).emissiveMap?.dispose(); mm.dispose(); }
+    grounds.dispose();
     groundTex.dispose(); skyMat.map?.dispose(); skyMat.dispose(); glowTex.dispose(); envTex.dispose(); pm.dispose();
   }
   return { scene, sun, setState, setNight, setLayers, setSelected, tick, pickables, topOf, heightOf, dispose };

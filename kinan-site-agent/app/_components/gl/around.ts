@@ -36,13 +36,16 @@ const mats = () => (shared ??= {
   red: S({ color: 0xd03b3b, roughness: 0.6 }), white: S({ color: 0xf4f4f2, roughness: 0.5 }),
 });
 
-export function aroundKit(m: Mats, id: string, kind: Kind, r: Rect, st: AroundState, storey: number, seed = 1): THREE.Group {
+/** Obstacles for placement: roads and other footprints. Defaults to Kinan Heights' plan. */
+export interface AroundEnv { roads: Rect[]; footprints: { id: string; r: Rect }[] }
+export function aroundKit(m: Mats, id: string, kind: Kind, r: Rect, st: AroundState, storey: number, seed = 1, env: AroundEnv = { roads: ROADS, footprints: FOOTPRINTS }): THREE.Group {
+  const { roads: ROADS_, footprints: FOOTPRINTS_ } = env;
   const k = mats();
   const g = new THREE.Group();
   const R = rng(seed * 977 + id.length * 31);
   const cx = r.x + r.w / 2, cz = r.z + r.d / 2;
   /** is world point (x, z) on open ground (not a road, not another footprint, not this building)? */
-  const free = (x: number, z: number, pad = 1.5) => !inside(r, x, z, 0.8) && !ROADS.some((q) => inside(q, x, z, pad)) && !FOOTPRINTS.some((f) => f.id !== id && inside(f.r, x, z, pad));
+  const free = (x: number, z: number, pad = 1.5) => !inside(r, x, z, 0.8) && !ROADS_.some((q) => inside(q, x, z, pad)) && !FOOTPRINTS_.some((f) => f.id !== id && inside(f.r, x, z, pad));
   /** add a mesh at world position, local to the building group */
   const put = (mesh: THREE.Object3D, x: number, y: number, z: number, ry = 0) => { mesh.position.set(x - cx, y, z - cz); mesh.rotation.y = ry; g.add(mesh); return mesh; };
   /** spot on a ring round the building at distance off, walking the perimeter from t, tried until free */
@@ -166,7 +169,7 @@ export function aroundKit(m: Mats, id: string, kind: Kind, r: Rect, st: AroundSt
       for (let a = 0; a < w; a += 6) for (let b = 0; b < d; b += 6) {
         const tw = Math.min(6, w - a), td = Math.min(6, d - b), px = x + a + tw / 2, pz = z + b + td / 2;
         if (!free(px, pz, 0) && !inside(r, px, pz, pad + 0.5)) continue;
-        if (ROADS.some((q) => inside(q, px, pz, 0.5)) || FOOTPRINTS.some((f) => f.id !== id && inside(f.r, px, pz, 0.5))) continue;
+        if (ROADS_.some((q) => inside(q, px, pz, 0.5)) || FOOTPRINTS_.some((f) => f.id !== id && inside(f.r, px, pz, 0.5))) continue;
         put(new THREE.Mesh(box(tw, 0.15, td, 4, 4), m.paving), px, 0.075, pz);
       }
     }

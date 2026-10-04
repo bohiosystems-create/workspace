@@ -12,6 +12,15 @@ import { describeUpload } from "../lib/core/describe";
 import { configFrom } from "../lib/core/llm/router";
 import type { Repo } from "../lib/core/tools";
 import { runtime } from "../app/_components/runtime";
+import { SYSTEM, extractModel, promptFor, type ExtractDoc } from "../lib/model3d/extract";
+import { normalizeSpec } from "../lib/model3d/spec";
+
+// ---------------------------------------------------------------- Claude inside the artifact (the `sample` capability)
+type Sampler = { json: (input: string, o?: { modelTier?: string }) => Promise<unknown> };
+let samplerP: Promise<Sampler | null> | null = null;
+const sampler = () => (samplerP ??= (async () => {
+  try { const c = (window as unknown as { claude?: { use(n: string): Promise<unknown> } }).claude; return c?.use ? ((await c.use("sample")) as Sampler | null) : null; } catch { return null; }
+})());
 
 // ---------------------------------------------------------------- IndexedDB
 let idb: IDBDatabase | null = null;
@@ -110,6 +119,29 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
     files.set(doc.id, file); await put("file:" + doc.id, file);
     db.docs.unshift(doc); repo.save();
     return json({ doc: { ...doc, text: undefined }, indexed: !!ai });
+  }
+  if (p === "/api/model3d") {
+    const sm = await sampler();
+    if (method === "GET") return json({ engines: { anthropic: sm ? "Claude (in this page)" : null, openai: null, gemini: null, offline: "offline parser" } });
+    const fd = init?.body as FormData, engine = String(fd.get("engine") ?? "auto");
+    const docs: ExtractDoc[] = [];
+    for (const f of fd.getAll("files") as File[]) if (/\.(csv|tsv|txt|md|json|xml|xer)$/i.test(f.name) || f.type.startsWith("text/")) docs.push({ name: f.name, mime: f.type || "text/plain", text: await f.text() });
+    if (!docs.length) return json({ error: "The standalone page reads CSV, Markdown and text documents" }, 400);
+    const t0 = Date.now(), tried: { engine: string; error: string }[] = [];
+    if (sm && (engine === "auto" || engine === "anthropic")) {
+      try {
+        const raw = await sm.json(`${SYSTEM}\n\n${promptFor(docs)}`, { modelTier: "default" });
+        const { spec, warnings } = normalizeSpec(raw);
+        if (!spec.buildings.length) throw new Error("no buildings in Claude's answer");
+        return json({ spec, warnings, engine: "anthropic", model: "Claude", ms: Date.now() - t0, log: [{ step: "AI", detail: `${spec.buildings.length} buildings, ${spec.schedule.activities.length} activities read by Claude` }], tried });
+      } catch (e) {
+        const msg = (e as { message?: string; code?: string })?.message ?? String(e);
+        if (engine === "anthropic") return json({ error: msg }, 502);
+        tried.push({ engine: "anthropic", error: msg.slice(0, 240) });
+      }
+    } else if (engine === "anthropic" || engine === "openai" || engine === "gemini") return json({ error: "Only the offline parser (and Claude, when this page runs on claude.ai) is available in the standalone page" }, 400);
+    const out = await extractModel({}, docs, "offline");
+    return json({ ...out, tried: [...tried, ...out.tried], ms: Date.now() - t0 });
   }
   return json({ error: "Not available in the standalone version" }, 404);
 }

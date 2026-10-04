@@ -9,12 +9,12 @@ import { CHEVRON, KINAN, LOGO } from "@/lib/brand";
 
 export const M = PLAN.metresPerUnit; // metres per plan unit
 
-function canvas(w: number, h: number) {
+export function canvas(w: number, h: number) {
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
   return { c, g: c.getContext("2d")! };
 }
-function tex(c: HTMLCanvasElement, opts: { repeat?: boolean; srgb?: boolean; aniso?: number } = {}) {
+export function tex(c: HTMLCanvasElement, opts: { repeat?: boolean; srgb?: boolean; aniso?: number } = {}) {
   const t = new THREE.CanvasTexture(c);
   if (opts.srgb !== false) t.colorSpace = THREE.SRGBColorSpace;
   if (opts.repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -84,6 +84,24 @@ export function drawGround(o: GroundOpts) {
   g.strokeStyle = o.night ? "rgba(0,0,0,.35)" : "rgba(60,45,25,.16)"; g.lineWidth = 2.2;
   for (let i = 0; i < 14; i++) { const y = 552 + (i % 4) * 7 + R() * 2; g.beginPath(); g.moveTo(130 + R() * 300, y); g.lineTo(600 + R() * 800, y + (R() - 0.5) * 3); g.stroke(); }
   { const camp = SHAPES.find((s) => s.t === "rect" && s.loc === "labour-camp"); if (camp) { const px = camp.x! + camp.w! - 70, py = camp.y! + 8; g.fillStyle = P.green; g.globalAlpha = 0.7; g.fillRect(px, py, 60, 40); g.globalAlpha = 1; g.strokeStyle = P.line; g.lineWidth = 0.8; g.strokeRect(px + 2, py + 2, 56, 36); g.beginPath(); g.moveTo(px + 30, py + 2); g.lineTo(px + 30, py + 38); g.stroke(); g.beginPath(); g.arc(px + 30, py + 20, 6, 0, Math.PI * 2); g.stroke(); } }
+  // road markings: direction arrows on the one-way ring road, stop and give-way lines at the junctions,
+  // SLOW on the approaches, a yellow box junction where the spine meets the haul road, drainage channels
+  const arrow = (x: number, y: number, ang: number) => { g.save(); g.translate(x, y); g.rotate(ang); g.fillStyle = P.line; g.beginPath(); g.moveTo(9, 0); g.lineTo(1, -5); g.lineTo(1, -2); g.lineTo(-9, -2); g.lineTo(-9, 2); g.lineTo(1, 2); g.lineTo(1, 5); g.closePath(); g.fill(); g.restore(); };
+  for (let x = 200; x < 1450; x += 160) { arrow(x, 894, 0); arrow(x, 104, Math.PI); }
+  for (let y = 180; y < 860; y += 160) { arrow(104, y, Math.PI / 2); arrow(1486, y, -Math.PI / 2); }
+  for (let x = 180; x < 1440; x += 220) { arrow(x, 558, 0); arrow(x + 110, 571, Math.PI); }
+  g.fillStyle = P.line;
+  for (const [x, y, w, h] of [[871, 545, 28, 1.6], [871, 581, 28, 1.6], [430, 581, 26, 1.6], [1140, 581, 26, 1.6]]) g.fillRect(x, y, w, h);
+  g.font = "800 9px Montserrat, sans-serif"; g.textAlign = "center";
+  for (const [x, y, r] of [[300, 562, 0], [700, 562, 0], [1000, 568, Math.PI], [1300, 568, Math.PI], [885, 300, -Math.PI / 2]]) { g.save(); g.translate(x, y); g.rotate(r); g.fillText("SLOW", 0, 3); g.restore(); }
+  for (const [x, y] of [[443, 586], [1153, 586]]) { for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(x - 9 + i * 6, y); g.lineTo(x - 6 + i * 6, y + 4); g.lineTo(x - 3 + i * 6, y); g.closePath(); g.fill(); } }
+  g.save(); g.beginPath(); g.rect(871, 548, 28, 32); g.clip(); g.strokeStyle = "#f2c200"; g.lineWidth = 1.2; g.strokeRect(871.5, 548.5, 27, 31); for (let k = -40; k < 40; k += 5) { g.beginPath(); g.moveTo(871 + k, 548); g.lineTo(871 + k + 32, 580); g.stroke(); g.beginPath(); g.moveTo(899 - k, 548); g.lineTo(899 - k - 32, 580); g.stroke(); } g.restore();
+  g.strokeStyle = o.night ? "rgba(0,0,0,.5)" : "rgba(70,70,72,.5)"; g.lineWidth = 1.4; g.setLineDash([3, 1.5]);
+  for (const y of [547, 581]) { g.beginPath(); g.moveTo(118, y); g.lineTo(1472, y); g.stroke(); }
+  g.setLineDash([]);
+  // oil stains and patching on the haul road, tyre tracks in the yards
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(20,20,20,${0.05 + R() * 0.08})`; g.beginPath(); g.ellipse(130 + R() * 1330, 552 + R() * 24, 2 + R() * 4, 1 + R() * 2, R() * 3, 0, Math.PI * 2); g.fill(); }
+  for (const s of SHAPES) if (s.t === "rect" && s.cls.includes("tmp yard")) { g.strokeStyle = o.night ? "rgba(0,0,0,.3)" : "rgba(80,60,35,.18)"; g.lineWidth = 1.6; for (let i = 0; i < 4; i++) { g.beginPath(); const y0 = s.y! + R() * s.h!; g.moveTo(s.x!, y0); g.bezierCurveTo(s.x! + s.w! * 0.3, y0 + (R() - 0.5) * 30, s.x! + s.w! * 0.7, y0 + (R() - 0.5) * 30, s.x! + s.w!, y0 + (R() - 0.5) * 20); g.stroke(); } }
   // HSE muster points, first aid: painted circles
   for (const s of SHAPES) if (s.t === "circle" && s.cls === "hse-pt") { g.fillStyle = "#3f9a5a"; g.beginPath(); g.arc(s.cx!, s.cy!, s.r! * 1.4, 0, Math.PI * 2); g.fill(); g.fillStyle = "#fff"; g.font = `700 ${s.r! * 1.3}px Montserrat, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; const lbl = SHAPES.find((q) => q.t === "text" && q.cls === "lbl-h" && Math.abs(q.x! - s.cx!) < 1 && Math.abs(q.y! - 3 - s.cy!) < 1); g.fillText(lbl?.text ?? "", s.cx!, s.cy! + 0.5); }
   // crane radius rings

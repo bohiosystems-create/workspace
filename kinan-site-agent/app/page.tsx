@@ -8,6 +8,7 @@ import UploadSheet from "./_components/UploadSheet";
 import DocViewer from "./_components/DocViewer";
 import DocsTab from "./_components/DocsTab";
 import ProjectTab from "./_components/ProjectTab";
+import StudioTab from "./_components/StudioTab";
 import { useAuthor, useSite } from "./_components/site";
 import { Icon, Logo, Mark } from "./_components/icons";
 import { TEXTURE } from "@/lib/brand";
@@ -15,12 +16,13 @@ import { TEXTURE } from "@/lib/brand";
 // Optional official logo (e.g. /brand/kinan-logo.svg placed in public/) — set by Kinan's team.
 const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
 
-type Tab = "map" | "project" | "docs";
+type Tab = "map" | "project" | "docs" | "studio";
 
 export default function Home() {
   const { state, error, refresh } = useSite();
   const [author, setAuthor] = useAuthor();
   const [tab, setTab] = useState<Tab>("map");
+  const [studioSeen, setStudioSeen] = useState(false);
   const [selId, setSelId] = useState<string | undefined>();
   const [viewerId, setViewerId] = useState<string | undefined>();
   const [dropMode, setDropMode] = useState(false);
@@ -153,11 +155,15 @@ export default function Home() {
         <section className={"pane" + (tab === "docs" ? "" : " off")}>
           <DocsTab docs={docs} locations={locs} notes={notes} onOpen={setViewerId} onToggleNote={toggleNote} onSelectLocation={selectLocation} />
         </section>
+
+        <section className={"pane" + (tab === "studio" ? "" : " off")}>
+          {studioSeen && <StudioTab />}
+        </section>
       </main>
 
       <nav className="tabs">
-        {([["map", "map", "Site map"], ["project", "chart", "Project"], ["docs", "folder", "Docs"]] as const).map(([id, ico, label]) => (
-          <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project") setProjKey((k) => k + 1); }}><Icon name={ico} />{label}</button>
+        {([["map", "map", "Site map"], ["project", "chart", "Project"], ["docs", "folder", "Docs"], ["studio", "cube", "3D Studio"]] as const).map(([id, ico, label]) => (
+          <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project") setProjKey((k) => k + 1); if (id === "studio") setStudioSeen(true); }}><Icon name={ico} />{label}</button>
         ))}
       </nav>
 
