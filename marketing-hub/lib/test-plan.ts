@@ -201,12 +201,13 @@ export async function recordTestWeek(id: string, w: Partial<HoldoutWeek & GeoWee
 function fakeWeek(d: TestDesign, i: number, lift = 0.45): Partial<HoldoutWeek & GeoWeek> {
   const noise = () => 0.85 + ((Math.sin(i * 12.9898 + 78.233) * 43758.5453) % 1 + 1) % 1 * 0.3; // deterministic jitter
   if (d.kind === "HOLDOUT") {
+    // Simulated volumes are kept large enough for a readable result even for a small vendor (it is a demo).
     const h = (d.holdoutPct ?? 20) / 100, exposedUsers = 400_000, holdoutUsers = Math.round((exposedUsers * h) / (1 - h));
-    const base = (d.weeklyConversions ?? 30) * noise();
-    const holdoutConv = Math.round((base * h) / (1 - h) / (1 + lift)), exposedConv = Math.round(base);
+    const base = Math.max(40, d.weeklyConversions ?? 30) * noise();
+    const holdoutConv = Math.max(1, Math.round((base * h) / (1 - h) / (1 + lift))), exposedConv = Math.round(base);
     return { exposedUsers, holdoutUsers, exposedConv, holdoutConv, spendK: r1(10 * noise()) };
   }
-  const v = d.weeklyVolume ?? 20;
+  const v = Math.max(15, d.weeklyVolume ?? 20);
   return { test: Math.round(v * (1 + lift) * noise()), control: Math.round(v * noise()), spendK: r1(20 * noise()) };
 }
 /** One step of the demo: create → email → approve → week… → (closes itself). Returns what happened, for the timeline. */

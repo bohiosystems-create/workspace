@@ -16,13 +16,14 @@ export default function TestsPage() {
   const [form, setForm] = useState({ vendorId: "", campaign: "", kind: "HOLDOUT", weeks: 6, holdoutPct: 20, weekly: 30 });
   const [note, setNote] = useState<string | null>(null);
   // The end-to-end demo: a timeline of what the agent did, step by step.
-  const [demo, setDemo] = useState<{ running: boolean; id: string | null; steps: { title: string; detail: string }[] } | null>(null);
+  // "End to end" on a recommended test: the whole flow simulated for that vendor, shown as a timeline under it.
+  const [demo, setDemo] = useState<{ vendorId: string; running: boolean; id: string | null; steps: { title: string; detail: string }[] } | null>(null);
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  async function runDemo() {
+  async function runDemo(vendorId: string) {
     const who = approver.trim() || "Demo";
-    setDemo({ running: true, id: null, steps: [] });
+    setDemo({ vendorId, running: true, id: null, steps: [] });
     const push = (title: string, detail: string) => setDemo((d) => d ? { ...d, steps: [...d.steps, { title, detail }] } : d);
-    const r1 = await act({ action: "DEMO_TEST", step: "create" }, "demo"); if (!r1) { setDemo((d) => d && { ...d, running: false }); return; }
+    const r1 = await act({ action: "DEMO_TEST", step: "create", vendorId }, "demo"); if (!r1) { setDemo((d) => d && { ...d, running: false }); return; }
     const id = r1.id as string; setDemo((d) => d && { ...d, id }); push(t("1. Design from the data"), r1.message);
     await wait(1000); const r2 = await act({ action: "DEMO_TEST", step: "email", id }, "demo"); if (r2) push(t("2. Set-up brief to the vendor"), r2.message);
     await wait(1000); const r3 = await act({ action: "DEMO_TEST", step: "approve", id, approver: who }, "demo"); if (r3) push(t("3. Approval"), r3.message);
@@ -69,7 +70,10 @@ export default function TestsPage() {
         <>
           {note && <div className="alert info" style={{ padding: "8px 12px", marginBottom: 12, fontSize: 12 }}>{note}</div>}
           <Blk page="tests" id="recommended"><div className="panel" style={{ marginBottom: 14 }}>
-            <div className="chart-label">{t("Recommended tests")} ({data.testPlan.candidates.length})</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div className="chart-label" style={{ margin: 0, flex: 1 }}>{t("Recommended tests")} ({data.testPlan.candidates.length})</div>
+              {data.incrementality.tests.some((x: any) => x.demo && !x.archived) && <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={async () => { await act({ action: "DEMO_TEST", step: "reset" }, "demo"); setDemo(null); }}>{t("Archive demo tests")}</button>}
+            </div>
             <div className="muted" style={{ fontSize: 11.5, marginBottom: 6, lineHeight: 1.6 }}>{t("Which vendors to test now, from the data: material spend with no proof of effect, the renewal at stake first. Each comes with a ready design; the assistant can plan it and draft the set-up brief to the vendor (“design a holdout test for Tasweeq”, “email Tasweeq to set up the test”).")}</div>
             {data.testPlan.candidates.length === 0 && <div className="muted" style={{ fontSize: 12 }}>{t("Every vendor with material spend has test evidence or a test in progress.")}</div>}
             {data.testPlan.candidates.map((c: any) => (
@@ -83,28 +87,20 @@ export default function TestsPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "none" }}>
                   <button className="btn" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => designFromCandidate(c, true)}>{busy === `cand-${c.vendorId}` ? t("Thinking…") : t("Design and email the vendor")}</button>
                   <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8 }} disabled={!!busy} onClick={() => designFromCandidate(c, false)}>{t("Design this test")}</button>
+                  <button className="btn ghost" style={{ padding: "6px 10px", fontSize: 8, borderColor: "var(--ink)" }} disabled={!!busy || !!demo?.running} title={t("The demo plans a test from the data, drafts the vendor's set-up brief, approves it, feeds six weeks of simulated results and closes with the readout — in about a minute. Clearly labelled “demo”.")} onClick={() => runDemo(c.vendorId)}>{demo && demo.vendorId === c.vendorId && demo.running ? t("Running the demo…") : `▶ ${t("End to end")}`}</button>
                 </div>
-              </div>
-            ))}
-          </div></Blk>
-
-          <Blk page="tests" id="demo"><div className="panel" style={{ marginBottom: 14, borderTop: "3px solid var(--ink)" }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <div className="chart-label" style={{ margin: 0, flex: 1 }}>{t("Demo an end-to-end test")}</div>
-              <button className="btn" style={{ padding: "7px 12px", fontSize: 9 }} disabled={!!busy || !!demo?.running} onClick={runDemo}>{demo?.running ? t("Running the demo…") : `▶ ${t("Demo an end-to-end test")}`}</button>
-              {data.incrementality.tests.some((x: any) => x.demo && !x.archived) && <button className="btn ghost" style={{ padding: "7px 12px", fontSize: 9 }} disabled={!!busy} onClick={async () => { await act({ action: "DEMO_TEST", step: "reset" }, "demo"); setDemo(null); }}>{t("Archive demo tests")}</button>}
-            </div>
-            <div className="muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.6 }}>{t("The demo plans a test from the data, drafts the vendor's set-up brief, approves it, feeds six weeks of simulated results and closes with the readout — in about a minute. Clearly labelled “demo”.")}</div>
-            {demo && (
-              <div className="tp-steps">
-                {demo.steps.map((s, i) => <div key={i} className="tp-step done"><div className="n">✓</div><div><div className="t">{s.title}</div><div className="d">{s.detail}</div></div></div>)}
-                {demo.running && <div className="tp-step now"><div className="n">…</div><div><div className="t">{t("Running the demo…")}</div></div></div>}
-                {!demo.running && demoTest?.readout && (
-                  <div className="tp-step done"><div className="n">✓</div><div><div className="t">{t("5. Readout")}</div>
-                    <div className="d">{t("Lift vs counterfactual")}: <b>{demoTest.readout.liftPct}%</b> (90%: {demoTest.readout.liftLowPct}% → {demoTest.readout.liftHighPct}%) · {t("Share caused by the vendor")}: <b>{fmtPct(demoTest.readout.incrementalShare)}</b> · {t("Cost per incremental result")}: <b>{demoTest.readout.costPerIncremental === null ? "—" : `${demoTest.readout.costPerIncremental.toLocaleString("en-GB")} ${lang === "ar" ? "ر.س" : "SAR"}`}</b> · <span className={demoTest.readout.significant ? "ok" : "bad"}>{demoTest.readout.significant ? t("Effect proven") : t("Not proven")}</span>. {t("Results feed the fair scorecard and the renewal decisions.")}</div></div></div>
+                {demo && demo.vendorId === c.vendorId && (
+                  <div className="tp-steps" style={{ flexBasis: "100%" }}>
+                    {demo.steps.map((s, i) => <div key={i} className="tp-step done"><div className="n">✓</div><div><div className="t">{s.title}</div><div className="d">{s.detail}</div></div></div>)}
+                    {demo.running && <div className="tp-step now"><div className="n">…</div><div><div className="t">{t("Running the demo…")}</div></div></div>}
+                    {!demo.running && demoTest?.readout && (
+                      <div className="tp-step done"><div className="n">✓</div><div><div className="t">{t("5. Readout")}</div>
+                        <div className="d">{t("Lift vs counterfactual")}: <b>{demoTest.readout.liftPct}%</b> (90%: {demoTest.readout.liftLowPct}% → {demoTest.readout.liftHighPct}%) · {t("Share caused by the vendor")}: <b>{fmtPct(demoTest.readout.incrementalShare)}</b> · {t("Cost per incremental result")}: <b>{demoTest.readout.costPerIncremental === null ? "—" : `${demoTest.readout.costPerIncremental.toLocaleString("en-GB")} ${lang === "ar" ? "ر.س" : "SAR"}`}</b> · <span className={demoTest.readout.significant ? "ok" : "bad"}>{demoTest.readout.significant ? t("Effect proven") : t("Not proven")}</span>. {t("Results feed the fair scorecard and the renewal decisions.")}</div></div></div>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
+            ))}
           </div></Blk>
 
           <Blk page="tests" id="tests"><div id="tests-list" className="section-title" style={{ fontSize: 12, margin: "6px 0 12px" }}>{t("Running and completed tests")}</div>

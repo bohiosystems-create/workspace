@@ -126,7 +126,7 @@ About 40 minutes. Every step and number below was rehearsed on the demo file in 
 
 - [ ] **Reports** → open a report: the **Tests to run** section names the vendors to test and why (renewal at stake, no proof of effect).
 - [ ] In the assistant: *"Which tests should we run?"*, then *"Design a holdout test for Tasweeq Digital"* (planned from the data: holdout share, weeks, dates, detectable lift), then *"Email Tasweeq Digital to set up the test"* — the set-up brief appears as a draft to approve; nothing is sent.
-- [ ] **Tests** → **▶ Demo an end-to-end test**: watch the timeline — design, set-up brief, approval, six weekly results, readout — then **Archive demo tests**.
+- [ ] **Tests** → press **▶ End to end** on a recommended test: watch the timeline under it — design, set-up brief, approval, six weekly results, readout — then **Archive demo tests**.
 
 ### 9. Meta — which agency runs each campaign (3 min)
 
