@@ -21,6 +21,7 @@ analyst to run · draft reports from the latest export · keep a memory of every
 Run `vercel` in this folder (or import it from Git, framework *Other*, no build command).
 Environment variables: `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` for the AI routes, `DEMO_PASSWORD` (recommended),
 `ELEVENLABS_API_KEY` (and optionally `ELEVENLABS_VOICE_ID`) for ElevenLabs narration in ▶ Play and Read (the browser's own voice otherwise),
+`CRON_SECRET`, `ALERT_TO`, `REPORT_TO`, `EXPORTS_FOLDER` for the twice-daily email scan with alerts and the morning EstateMaster report (see SETUP.md),
 and for live Outlook the Microsoft Graph variables listed in the main README. No runner variables: this option has no runner.
 
 All data is dummy data. Browser memory is kept per option.

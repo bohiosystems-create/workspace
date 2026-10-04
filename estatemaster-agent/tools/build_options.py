@@ -64,7 +64,7 @@ DEPLOY = """
 ## Deploy to Vercel
 Run `vercel` in this folder (or import it from Git, framework *Other*, no build command).
 Environment variables: `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` for the AI routes, `DEMO_PASSWORD` (recommended),
-`ELEVENLABS_API_KEY` (and optionally `ELEVENLABS_VOICE_ID`) for ElevenLabs narration in ▶ Play and Read (the browser's own voice otherwise),
+`ELEVENLABS_API_KEY` (and optionally `ELEVENLABS_VOICE_ID`) for ElevenLabs narration in ▶ Play and Read (the browser's own voice otherwise),\n`CRON_SECRET`, `ALERT_TO`, `REPORT_TO`, `EXPORTS_FOLDER` for the twice-daily email scan with alerts and the morning EstateMaster report (see SETUP.md),
 and for live Outlook the Microsoft Graph variables listed in the main README. No runner variables: this option has no runner.
 
 All data is dummy data. Browser memory is kept per option.
@@ -82,12 +82,14 @@ def build(mode):
     html = html.replace("\n<script>\n", f"\n<script>window.BOHIO_MODE='{mode}';</script>\n<script>\n", 1)
     html = re.sub(r"<title>.*?</title>", f"<title>KINAN · {name}</title>", html, count=1, flags=re.S)
     (out / "index.html").write_text(html, encoding="utf-8")
-    for f in ("llm.js", "scan.js", "voice.js"):
+    for f in ("llm.js", "scan.js", "voice.js", "mail.js", "cron.js"):
         shutil.copy(ROOT / "api" / f, out / "api" / f)
+    shutil.copytree(ROOT / "api" / "_lib", out / "api" / "_lib")
     vj = json.loads((ROOT / "vercel.json").read_text())
     vj["functions"].pop("api/runner.js", None)
     (out / "vercel.json").write_text(json.dumps(vj, indent=2) + "\n")
-    (out / "package.json").write_text(json.dumps({"name": f"bohio-estatemaster-{folder}", "private": True}, indent=2) + "\n")
+    pk = json.loads((ROOT / "package.json").read_text()); pk["name"] = f"bohio-estatemaster-{folder}"
+    (out / "package.json").write_text(json.dumps(pk, indent=2) + "\n")
     shutil.copy(ROOT / "market-data.xlsx", out / "market-data.xlsx")
     readme = README[mode] + DEPLOY
     if mode == "analyst":

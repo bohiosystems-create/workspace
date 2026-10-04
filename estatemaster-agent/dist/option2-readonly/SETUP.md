@@ -27,10 +27,10 @@
 
 ## 3. Live Outlook (optional)
 Without it the demo uses a dummy inbox.
-1. Entra ID → App registrations → New. Add **Microsoft Graph → Mail.Read (application)** and grant admin consent.
+1. Entra ID → App registrations → New. Add **Microsoft Graph → Mail.Read, Mail.Send and Files.Read.All (application)** and grant admin consent.
 2. Create a client secret.
 3. Add to Vercel: `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `OUTLOOK_MAILBOX` (e.g. al-narjis@kinan.com), `OUTLOOK_FOLDER` (folder name, default Inbox). An AI key is also required.
-4. Redeploy. The Outlook tab shows "Live mailbox". Scans run at 06:00, 10:00, 14:00 and 18:00 Riyadh while the app is open.
+4. Redeploy. The Outlook tab shows "Live mailbox". Scans run at 07:00 and 15:00 Riyadh (on the server, see below).
 5. Recommended: restrict the app to that one mailbox with an Exchange application access policy.
 
 ## 4. Daily use (the analyst's one minute)
@@ -51,6 +51,44 @@ section by section, with the same narration. Narration uses ElevenLabs when `ELE
 **PowerPoint** downloads the same deck with native, editable charts and the narration in the speaker notes.
 **HTML** and **Print / PDF** give the report document (logo band, orange cover, charts, closing page).
 Every figure shown as EstateMaster's comes from an export; charts built on the agent's model say "agent's estimate".
+
+## Scheduled reports and email alerts
+**In the app.** Reports → **Schedule** on any report: daily (Sun–Thu), weekly, monthly or quarterly at a Riyadh time, delivered by
+email (internal addresses only), WhatsApp link or SharePoint folder. The app runs a report when it falls due and, if it was
+closed at that time, sends one catch-up run when it next opens. **Run now** and **Send a test now** send immediately. Every run
+is in **Run history** and every email in the **Outbox** (open it to see exactly what was sent). The chat also works:
+"schedule the lender report every Monday at 9am to cfo@kinan.com.sa", "email the IC pack to board@kinan.com.sa",
+"stop the monthly report".
+
+**On the server (runs with the app closed).** Two Vercel cron jobs (already in `vercel.json`):
+- 07:00 Riyadh: email scan + the morning EstateMaster report (Sun–Thu by default)
+- 15:00 Riyadh: email scan
+
+Each scan reads the project folder since the previous scan. When an email proposes or reports a change to any assumption
+(prices, costs, fees, timing, financing terms, yields), the agent emails the alert list with the quote, the proposed value and
+a link. It changes nothing: in the app each finding becomes a change request for approval. The app also shows it on the bell
+and on WhatsApp, and does not send a second email when the server already did.
+
+The morning report reads the two latest EstateMaster exports in the exports folder and emails EstateMaster's own figures,
+the change since the previous export and the hurdle check.
+
+| Variable | Purpose |
+|---|---|
+| `CRON_SECRET` | Any long random string. Vercel sends it to the jobs; calls without it are refused |
+| `ALERT_TO` | Who gets assumption alerts (comma-separated, internal addresses) |
+| `REPORT_TO` | Who gets the morning report |
+| `REPORT_DAYS` | Optional, default `sun,mon,tue,wed,thu` |
+| `EXPORTS_FOLDER` | Graph path of the folder where the analyst saves exports, e.g. `/sites/{site-id}/drive/root:/Bohio/Exports` |
+| `MAIL_ALLOWED_DOMAINS` | Optional; default is the mailbox's own domain. Emails to any other domain are refused |
+| `APP_URL` | Optional link in the emails (default: this deployment) |
+
+Microsoft Entra app permissions (application, admin consent): **Mail.Read**, **Mail.Send**, **Files.Read.All**. Restrict the
+app to the project mailbox with an Exchange application access policy.
+
+Test without waiting: `curl -H "Authorization: Bearer $CRON_SECRET" "https://<your-app>/api/cron?run=scan,report&dry=1"`
+returns what would be sent without sending it. Vercel's Hobby plan runs each cron once a day and may fire within the hour;
+the two jobs together give the two daily scans, and each scan covers the time since the previous one, so a late run misses
+nothing.
 
 ## 5. Test it (5 minutes)
 - [ ] Tab bar shows Option 2; strip says "Read-only".

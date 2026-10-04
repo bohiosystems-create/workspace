@@ -9,6 +9,12 @@
     },
     "api/voice.js": {
       "maxDuration": 30
+    },
+    "api/mail.js": {
+      "maxDuration": 30
+    },
+    "api/cron.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
@@ -24,6 +30,16 @@
           "value": "strict-origin-when-cross-origin"
         }
       ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron?run=scan,report",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron?run=scan",
+      "schedule": "0 12 * * *"
     }
   ]
 }

@@ -8,38 +8,9 @@
 //   OUTLOOK_FOLDER                                folder display name (default "Inbox")
 //   ANTHROPIC_API_KEY and/or OPENAI_API_KEY        model used for extraction (Claude preferred)
 //   DEMO_PASSWORD                                  optional access code (same as /api/llm)
-const MAX_MSG = 15, MAX_BODY = 6000;
-
-function send(res, status, obj) {
-  res.statusCode = status; res.setHeader('content-type', 'application/json'); res.setHeader('cache-control', 'no-store'); res.end(JSON.stringify(obj));
-}
-async function readBody(req) {
-  if (req.body !== undefined) return typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body;
-  const chunks = []; for await (const c of req) chunks.push(c); const raw = Buffer.concat(chunks).toString('utf8'); return raw ? JSON.parse(raw) : {};
-}
-const env = k => process.env[k] || '';
+const { env, send, readBody, graphToken, readMessages } = require('./_lib/graph');
 const configured = () => !!(env('MS_TENANT_ID') && env('MS_CLIENT_ID') && env('MS_CLIENT_SECRET') && env('OUTLOOK_MAILBOX') && (env('ANTHROPIC_API_KEY') || env('OPENAI_API_KEY')));
 
-async function graphToken() {
-  const r = await fetch(`${env('LOGIN_BASE')||'https://login.microsoftonline.com'}/${env('MS_TENANT_ID')}/oauth2/v2.0/token`, {
-    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: env('MS_CLIENT_ID'), client_secret: env('MS_CLIENT_SECRET'), scope: 'https://graph.microsoft.com/.default', grant_type: 'client_credentials' })
-  });
-  const j = await r.json(); if (!r.ok) throw new Error('Microsoft sign-in failed: ' + (j.error_description || j.error || r.status)); return j.access_token;
-}
-async function graph(token, path) {
-  const r = await fetch((env('GRAPH_BASE') || 'https://graph.microsoft.com') + '/v1.0' + path, { headers: { authorization: 'Bearer ' + token, prefer: 'outlook.body-content-type="text"' } });
-  const j = await r.json(); if (!r.ok) throw new Error('Graph ' + r.status + ': ' + ((j.error && j.error.message) || '')); return j;
-}
-async function folderId(token, mb) {
-  const name = env('OUTLOOK_FOLDER') || 'Inbox';
-  if (name.toLowerCase() === 'inbox') return 'inbox';
-  const q = `?$filter=displayName eq '${name.replace(/'/g, "''")}'&$select=id,displayName`;
-  for (const base of [`/users/${encodeURIComponent(mb)}/mailFolders`, `/users/${encodeURIComponent(mb)}/mailFolders/inbox/childFolders`]) {
-    const j = await graph(token, base + q); if (j.value && j.value[0]) return j.value[0].id;
-  }
-  throw new Error(`Folder "${name}" not found in ${mb} (top level or under Inbox).`);
-}
 // The register has no size limit. The AI sees the core lines plus the model lines whose wording appears in the emails,
 // so a model with thousands of lines costs no more to scan than a small one.
 const STOP = new Set(['the', 'and', 'for', 'per', 'sqm', 'sar', 'with', 'of', 'to', 'in', 'on', 'at', 'by', 'from', 'cost', 'costs', 'rate', 'fee', 'fees', 'total']);
@@ -93,9 +64,7 @@ module.exports = async function handler(req, res) {
   if (!register.length) return send(res, 400, { error: 'Missing register' });
   const since = body.since && !isNaN(Date.parse(body.since)) ? new Date(body.since).toISOString() : new Date(Date.now() - 7 * 864e5).toISOString();
   try {
-    const token = await graphToken(), mb = env('OUTLOOK_MAILBOX'), fid = await folderId(token, mb);
-    const j = await graph(token, `/users/${encodeURIComponent(mb)}/mailFolders/${fid}/messages?$select=id,subject,from,receivedDateTime,body&$filter=receivedDateTime ge ${since}&$orderby=receivedDateTime desc&$top=${MAX_MSG}`);
-    const msgs = (j.value || []).map(m => ({ id: m.id, subject: m.subject || '(no subject)', from: (m.from && m.from.emailAddress && (m.from.emailAddress.name || m.from.emailAddress.address)) || '', addr: (m.from && m.from.emailAddress && m.from.emailAddress.address) || '', date: m.receivedDateTime, body: String((m.body && m.body.content) || '').slice(0, MAX_BODY) }));
+    const token = await graphToken(), mb = env('OUTLOOK_MAILBOX'), msgs = await readMessages(token, since);
     const short = shortlist(register, msgs);
     const found = msgs.length ? await extract(msgs, short, body.project) : {};
     const ids = new Set(short.map(l => l.id));

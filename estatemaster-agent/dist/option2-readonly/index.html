@@ -322,6 +322,13 @@ header.kband .demo-chip{margin-left:auto;border:1px solid rgba(255,255,255,.35);
 header.kband .demo-chip b{color:#fff;font-weight:700}
 header.kband .eng{border-radius:0;background:transparent;border:1px solid #fff;color:#fff;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;padding:9px 14px;white-space:nowrap}
 header.kband .eng i{background:#bcbec0}header.kband .eng.live i{background:var(--orange);box-shadow:0 0 0 3px rgba(241,90,34,.25)}
+.kbell{position:relative;padding:9px 12px!important;font-size:14px!important;letter-spacing:0!important}
+.kbell b{position:absolute;top:-7px;right:-7px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--orange);color:#fff;font-size:10px;line-height:18px;text-align:center}
+#bellPanel{position:fixed;top:calc(70px + env(safe-area-inset-top,0px));right:16px;width:min(400px,calc(100vw - 32px));max-height:70vh;overflow:auto;background:#fff;border-top:3px solid var(--orange);box-shadow:0 18px 50px rgba(46,46,47,.25);z-index:130}
+.kn{padding:11px 14px;border-bottom:1px solid var(--hair);cursor:pointer;border-left:3px solid transparent}.kn:hover{background:#fafafa}.kn.unread{background:var(--orange-soft);border-left-color:var(--orange)}
+.kn-t{font-weight:600;font-size:13px}.kn-d{font-size:12px;color:var(--soft);margin-top:2px}.kn-w{font-size:11px;color:var(--soft);margin-top:4px}
+.kn-change .kn-t::before{content:"✉ ";color:var(--orange)}.kn-report .kn-t::before{content:"▤ ";color:var(--orange)}
+.kv{display:flex;gap:12px;align-items:baseline;font-size:12.5px;padding:8px 0;border-bottom:1px solid var(--hair)}.kv b{width:104px;flex:none;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--taupe)}
 .kchev{display:flex;flex:none}.kchev svg{height:34px;width:auto}
 /* tabs: white strip, caps, orange underline */
 .tabs{margin:0 -28px 0;padding:0 18px;background:#fff;box-shadow:0 0 0 100vmax #fff;clip-path:inset(0 -100vmax);border-bottom:1px solid var(--hair);gap:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
@@ -423,6 +430,7 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
   <div class="klogo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="31.67 30.03 77.85 38.05" aria-label="KINAN"><path fill="#ffffff" fill-rule="nonzero" d="M79.35 59.93 C79.35 58.78 79.68 57.86 80.36 57.18 C81.04 56.51 81.93 56.17 83.02 56.17 C84.11 56.17 84.99 56.51 85.67 57.18 C86.35 57.86 86.69 58.78 86.69 59.93 C86.69 61.08 86.35 62.00 85.67 62.68 C84.99 63.35 84.11 63.69 83.02 63.69 C81.93 63.69 81.04 63.35 80.36 62.68 C79.68 62.00 79.35 61.08 79.35 59.93 M76.88 54.15 C75.44 55.72 74.72 57.65 74.72 59.93 C74.72 62.21 75.44 64.14 76.88 65.71 C78.32 67.29 80.06 68.07 82.09 68.07 C84.07 68.08 85.60 67.45 86.69 66.19 L86.69 67.64 L91.32 67.64 L91.32 52.22 L86.69 52.22 L86.69 53.67 C85.60 52.41 84.07 51.79 82.09 51.79 C80.06 51.79 78.32 52.57 76.88 54.15 M49.81 52.22H54.43V67.64H49.81Z M36.58 59.93 L37.45 61.08 L39.39 63.67 L42.37 67.64 L43.49 67.64 L47.97 67.64 L43.05 61.08 L42.19 59.93 L43.05 58.78 L47.97 52.22 L46.85 52.22 L42.37 52.22 L39.39 56.19 L37.45 58.78 L36.58 59.93 M31.67 52.22H36.29V67.64H31.67Z M47.88 35.98 L50.78 33.08 L47.88 30.17 L44.97 33.08 L47.88 35.98 M65.15 43.43 L65.15 38.11 L60.66 38.78 L60.66 43.76 L31.67 43.76 L31.67 48.27 L60.31 48.27 C62.98 48.27 65.15 46.10 65.15 43.43 M70.66 53.48 C69.56 52.35 68.19 51.78 66.54 51.78 C64.53 51.78 63.06 52.41 62.13 53.67 L62.13 52.22 L57.50 52.22 L57.50 67.64 L62.13 67.64 L62.13 59.22 C62.13 58.17 62.39 57.38 62.90 56.84 C63.42 56.31 64.12 56.04 65.00 56.04 C65.78 56.04 66.42 56.28 66.93 56.77 C67.43 57.25 67.68 57.95 67.68 58.85 L67.68 67.64 L72.31 67.64 L72.31 58.17 C72.31 56.18 71.76 54.61 70.66 53.48 M81.28 35.98 L84.18 33.08 L81.28 30.18 L78.37 33.08 L81.28 35.98 M83.16 48.28 L109.52 48.28 L109.52 41.58 C109.52 38.91 107.35 36.74 104.67 36.74 L93.30 36.73 L98.22 30.18 L97.10 30.18 L92.61 30.18 L87.69 36.73 L87.70 36.75 L87.70 41.22 L105.83 41.22 L105.83 43.76 L83.65 43.76 L83.65 37.54 L79.16 38.21 L79.16 43.76 L72.48 43.76 L72.48 30.03 L68.00 30.88 L68.00 48.27 L68.87 48.27 L72.48 48.27 L80.42 48.27 C81.58 48.27 82.59 47.66 83.16 46.74 L83.16 48.28 M109.52 67.64 L109.52 58.17 C109.52 56.18 108.97 54.61 107.87 53.48 C106.77 52.35 105.39 51.79 103.75 51.79 C101.73 51.79 100.26 52.41 99.34 53.67 L99.34 52.22 L94.71 52.22 L94.71 67.64 L99.34 67.64 L99.34 59.22 C99.34 58.17 99.59 57.38 100.11 56.85 C100.62 56.31 101.32 56.04 102.21 56.04 C102.99 56.04 103.63 56.29 104.13 56.77 C104.64 57.25 104.89 57.95 104.89 58.85 L104.89 67.64 L109.52 67.64 Z"/></svg></div>
   <div class="ksub"><span>AI agent on EstateMaster</span><select id="projSel" title="Switch project" style="font-size:11px;padding:2px 6px;letter-spacing:.06em;text-transform:none"></select></div>
   <div class="demo-chip"><b>Demo</b> · simulated model, illustrative Al Narjis Mixed-Use data · SAR</div>
+  <button class="eng kbell" id="bellBtn" title="Notifications" aria-label="Notifications">🔔<b id="bellN" style="display:none"></b></button>
   <button class="eng" id="engBtn" title="AI connections (admin)"><i></i><span id="engTxt">Router</span></button>
   <span class="kchev"><svg xmlns="http://www.w3.org/2000/svg" viewBox="935.84 30.03 24.66 38.05" aria-hidden="true"><path fill="#f15a22" d="M935.84 30.03 L945.50 43.65 L945.51 43.65 L949.35 49.06 L945.51 54.48 L945.50 54.48 L935.86 68.08 L946.99 68.08 L954.92 56.91 L956.64 54.48 L956.65 54.48 L960.49 49.06 L956.65 43.65 L956.64 43.65 L954.92 41.22 L946.98 30.03 L935.84 30.03 Z"/></svg></span>
 </header>
@@ -561,6 +569,13 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
     </div>
     <div class="card rd" id="ibRead"></div>
   </div>
+  <div class="card" style="margin-top:20px"><div class="bar"></div><div class="sbhead"><h2>Assumption alerts</h2><button class="btn sm" id="alSave">Save</button></div>
+    <div class="sub" id="alStat"></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+      <label class="f" style="flex:1 1 320px;display:flex;flex-direction:column;gap:4px;font-size:12.5px">Alert recipients (internal addresses, comma-separated)<input type="text" id="alTo" style="border:1px solid var(--faint);padding:8px 10px;font-size:13px"></label>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="alEmail"> Email</label>
+      <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="alWa"> WhatsApp</label>
+    </div></div>
 </section>
 
 <!-- EXPLORER -->
@@ -644,6 +659,13 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
         </div>
       </div>
       <div class="report" id="report"></div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card"><div class="bar"></div><h2>Schedules and delivery</h2><div class="sub">Scheduled reports, the server jobs and where the agent's emails go.</div><div id="dlvStat"></div><div style="overflow-x:auto;margin-top:12px"><table class="t" id="dlvSched"></table></div></div>
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card"><div class="bar"></div><h2>Run history</h2><div style="overflow-x:auto"><table class="t" id="dlvRuns"></table></div></div>
+      <div class="card"><div class="bar"></div><h2>Outbox</h2><div class="sub">Every email the agent sends: scheduled reports and assumption alerts.</div><div style="overflow-x:auto"><table class="t" id="dlvOut"></table></div></div>
     </div>
   </div>
 </section>
@@ -799,7 +821,7 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
       <div class="sub">How the agent gets context on assumption changes from email</div>
       <div class="rec">
         <div class="it"><div class="num">1</div><div><b>Microsoft Graph, read-only</b><span>An Entra ID app with Mail.Read, limited by an application access policy to one project mailbox or folder (e.g. "Al Narjis"). The agent never sends or deletes mail.</span></div></div>
-        <div class="it"><div class="num">2</div><div><b>Four scans a day</b><span>06:00, 10:00, 14:00 and 18:00 Riyadh time (plus on request). Each scan reads new mail in the project folder only.</span></div></div>
+        <div class="it"><div class="num">2</div><div><b>Two scans a day</b><span>07:00 and 15:00 Riyadh time (plus on request), on the server even when nobody has the app open. Each scan reads new mail in the project folder only, and when it senses a possible assumption change it alerts the people on the alert list by email, WhatsApp and the bell.</span></div></div>
         <div class="it"><div class="num">3</div><div><b>Extract, then propose</b><span>The agent pulls the assumption, the new value and the sentence it came from, and raises a change request. Nothing is written to EstateMaster until a person approves it; promotion to the live model needs an Investment Director.</span></div></div>
         <div class="it"><div class="num">4</div><div><b>Cited everywhere</b><span>Applied changes carry the sender, date, subject and quote into the changelog, the IC pack and "why did this change?" answers.</span></div></div>
       </div>
@@ -856,6 +878,18 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
   <div id="dbgBody" style="margin-top:10px"></div>
   <div class="row"><button class="btn ghost" id="dbgCopy">Copy results</button><button class="btn" id="dbgClose">Close</button></div>
 </div></div>
+<div id="bellPanel" hidden><div class="sbhead" style="padding:12px 14px;border-bottom:1px solid var(--hair)"><h2 style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;margin:0">Notifications</h2><button class="btn ghost sm" id="bellRead">Mark all read</button></div><div id="bellList"></div></div>
+<div class="modal" id="schModal"><div class="card set"><div class="bar"></div><h2>Schedule · <span id="schTitle"></span></h2>
+  <label class="f" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="schOn"> Run this report on a schedule</label>
+  <div class="f">Repeat<select id="schCad"><option value="daily">Daily (Sun–Thu)</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly (Jan, Apr, Jul, Oct)</option></select></div>
+  <div class="f" id="schDowW">Day<select id="schDow"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div>
+  <div class="f" id="schDomW">Day of the month<input type="text" id="schDom" inputmode="numeric" value="3"></div>
+  <div class="f">Time (Riyadh)<input type="text" id="schTime" value="07:30" placeholder="07:30"></div>
+  <div class="f">Deliver by<select id="schCh"><option>Email (Outlook)</option><option>WhatsApp link</option><option>SharePoint folder</option></select></div>
+  <div class="f" id="schToW">Send to (internal addresses, comma-separated)<input type="text" id="schTo" placeholder="ic@kinan.com.sa, cfo@kinan.com.sa"></div>
+  <div class="note" id="schNext"></div><div id="schMsg"></div>
+  <div class="row"><button class="btn ghost" id="schTest">Send a test now</button><button class="btn ghost" id="schCancel">Cancel</button><button class="btn" id="schSave">Save schedule</button></div></div></div>
+<div class="modal" id="viewModal"><div class="card" style="max-width:940px;width:calc(100vw - 32px);height:calc(100vh - 60px);display:flex;flex-direction:column;gap:10px"><div class="sbhead"><h2 id="viewTitle" style="margin:0"></h2><button class="btn ghost sm" id="viewClose">Close</button></div><iframe id="viewFrame" title="Preview" style="flex:1;width:100%;border:1px solid var(--hair);background:#fff"></iframe></div></div>
 <div class="modal" id="rbModal"><div class="card set" style="max-width:860px;max-height:calc(100vh - 40px);overflow:auto"><div class="bar"></div><h2>Report builder</h2>
   <div class="sub" style="margin:0">Build a new report type from blocks of EstateMaster, actuals, market and email data. Every figure comes from the extract; AI only writes the optional narrative.</div>
   <div class="f">Describe the report (the AI designs it; without AI, keywords are matched)<div style="display:flex;gap:8px"><input type="text" id="rbAI" style="flex:1" placeholder="e.g. a quarterly report for the sales team with sales progress, collections and pricing vs comps"><button class="btn sm" id="rbAIBtn">Design</button></div></div>
@@ -1032,6 +1066,8 @@ function intent(text){
   if(/detail (it|this|the napkin)|(turn|convert|take) (it|this|the napkin) into|more detail(ed)? cost|elemental|cost plan|break (it|the cost) down/.test(t))return{k:'detail'};
   if(NKDEF&&!NKDEF.err&&/(create|build|make|set up|raise)( the| a)? (estatemaster )?model( from (it|this|the napkin))?$|create it in estatemaster/.test(t))return{k:'napkinmodel'};
   if(/(new|start|create|build|set up|open)( a| an)?( brand)?( new)? (financial |feasibility |estatemaster )?model|new project|model for plot|feasibility for plot/.test(t)){const pm=t.match(/\b([a-z]{3}-\d{4})\b/),tp=/yasmin|residential only|resi(dential)? for sale/.test(t)?'yasmin':/hittin|retail plaza|retail only/.test(t)?'hittin':'narjis',nm=t.match(/(?:called|named)\s+["“']?([^"”'.,]+)/);return{k:'newmodel',o:{tpl:tp,plot:pm?pm[1].toUpperCase():null,name:nm?nm[1].trim().replace(/\b\w/g,c=>c.toUpperCase()):'',fill:/template values|as (they are|is)/.test(t)?'template':'market'}}}
+  if(/\b(schedule|unschedule|reschedule)\b|\b(every|each) (day|week|month|quarter|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b|\b(stop|cancel) (the |sending (the )?)?.*\breport\b/.test(t)&&/report|pack/.test(t))return{k:'schedule',o:parseSchedule(t)};
+  if(/\b(e-?mail|send|mail)\b.{0,40}\b(report|pack)\b|\b(report|pack)\b.{0,30}\bto [a-z0-9._%+-]+@/.test(t)&&!/\b(create|build|design|new)\b.{0,20}report (type|template)/.test(t))return{k:'sendreport',o:parseSchedule(t)};
   if(/report builder|(create|new|build|make|set up|add|design)( me)? (a |an )?(new )?(custom )?(report|report type|template)\b/.test(t))return{k:'newreport',def:parseNewReport(t)};
   {const hit=Object.entries(RPTS).find(([k,v])=>!v.builtin&&t.includes(v.name.toLowerCase()));if(hit)return{k:'report',kind:hit[0]}}
   if(/(generate|create|build|run|more|another|new|infinite|unlimited|thousands?|\d[\d,]*)\b.*\b(stress|scenarios)/.test(t)&&!/\breport\b/.test(t)&&!/scenarios? side by side|compar/.test(t)){const n=t.match(/\b(\d{1,3}(?:,\d{3})+|\d+)\b/);const th=/downturn|market|recession|crash/.test(t)?'downturn':/construct|cost/.test(t)?'construction':/financ|rate|interest/.test(t)?'finance':/delay|timing/.test(t)?'timing':/tail|severe|extreme|black swan/.test(t)?'tail':'mixed';return{k:'stressgen',theme:th,count:n?parseInt(n[1].replace(/,/g,'')):1000}}
@@ -1222,6 +1258,12 @@ async function handle(text,ch,role,forced){
     done(`*New model proposed: ${d.name}* (${cr.id})\nTemplate ${TEMPLATES[o.tpl].name} · plot ${d.plot} · GFA ${d.areas.gfa.toLocaleString()} sqm.\nFirst-pass levered IRR ${fP(d.preview.irr)}, profit on cost ${fP(d.preview.poc)}.\n${d.notes.join(' ')}\nThe EstateMaster file is created only after approval: reply *APPROVE ${cr.id}*.`,
       `<b>New model proposed: ${esc(d.name)}</b> (${cr.id})${modelSummary(d)}<div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm" data-apr="${cr.id}">Approve and create</button><button class="btn ghost sm" data-rej="${cr.id}">Reject</button></div>`);
     break}
+  case 'schedule':{const by=`${web?USERS.web:USERS.wa} (${web?WS_ROLE:role})`,r=scheduleFromChat(it.o,by);out.link=['report','Open schedules'];
+    if(r.err){done(r.err);break}const s=r.s,n=RPTS[r.k].name;out.steps=[`Find report: ${n}`,s.on?`Schedule: ${schedLabel(s)} · ${s.ch}`:'Remove the schedule','Save; the scheduler runs it when due (and catches up a missed run)'];
+    done(s.on?`*${n}: ${schedLabel(s)}*\nDelivered by ${s.ch}${s.ch==='Email (Outlook)'?' to '+s.to:''}. Next run ${fmtWhen(s.next)} (Riyadh).${MAILCFG.configured?'':'\nEmail is simulated in this demo: each run is kept in the Outbox on the Reports tab.'}`:`*${n}: schedule removed.* It now runs on request only.`);break}
+  case 'sendreport':{const k=it.o.k||'ic',to=it.o.to||schedOf(k).to||ALERT.to,n=RPTS[k].name;out.steps=[`Build ${n} from the latest ${RO?'EstateMaster export':'EstateMaster figures'}`,'KINAN email with the headline figures; the full report attached',`Send to ${to}${MAILCFG.configured?'':' (simulated: kept in the Outbox)'}`];out.link=['report','Open the outbox'];
+    out.fx=()=>{const sc=schedOf(k),ch0=sc.ch;sc.ch='Email (Outlook)';runReport(k,'now',to).finally(()=>{sc.ch=ch0;renderDelivery()})};
+    done(`*Sending ${n} to ${to}*\nThe email carries the headline figures and anything that needs attention; the full KINAN report is attached.${MAILCFG.configured?'':' This demo has no mail server, so it is kept in the Outbox on the Reports tab, marked simulated.'}`);break}
   case 'approvals':{
     const p=pendingCRs();out.steps=['Read approval queue and change memory'];out.link=['appr','Open approvals'];
     done(`*${p.length} waiting for approval*`+(p.length?'\n'+p.map(c=>`• ${c.id} (${c.kind}): ${opsDesc(c.ops)} · ${crIRR(c,{})}`).join('\n'):'')+`\nChange memory: ${LOG.length} entries. Latest:\n`+LOG.slice(-5).reverse().map(l=>`• ${new Date(l.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})} · ${l.actor} · ${l.detail}`).join('\n'));
@@ -1429,6 +1471,7 @@ DATA.emails.push(
   body:'The facade subcontractor re-priced after the aluminium increase. We now expect facade at SAR 850/sqm GFA, up from 780. Other packages unchanged.',change:{line:'c3',value:850,conf:.9,quote:'facade at SAR 850/sqm GFA'}},
  {id:'em9',arrive:3,date:'2026-09-29 13:05',from:'Layla S. · Debt Advisory, Gulf Bank (dummy)',addr:'l.s@bank.example',subject:'SAIBOR fixing update',
   body:'3-month SAIBOR fixed 25 bps higher this morning at 6.75%. Margin unchanged at 250 bps.',change:{line:'sb',value:6.75,conf:.85,quote:'fixed 25 bps higher this morning at 6.75%'}});
+DATA.emails.forEach(e=>{e.project=e.project||'narjis'});   // the later arrivals belong to Al Narjis too
 const emChanges=e=>e.changes?e.changes.map(c=>({line:c.line,value:c.value,quote:c.quote,conf:c.conf})):!e.change?[]:(e.change.line?[{line:e.change.line,value:e.change.value,quote:e.change.quote,conf:e.change.conf}]:[{var:e.change.var,delta:e.change.delta,quote:e.change.quote,conf:e.change.conf}].concat(e.change.also?[{...e.change.also,conf:e.change.conf}]:[]));
 const chLabel=c=>c.line?(REGBY[c.line]||XBY(c.line)||{label:c.line}).label:VARS[c.var].label;
 const chFrom=c=>c.line?(REGBY[c.line]?fmtLine(REGBY[c.line],lineVal(c.line)):fmtX(XBY(c.line),xVal(c.line))):levelTxt(c.var,S[c.var]||0);
@@ -1512,17 +1555,18 @@ function rejectCR(id,ch,role,note){
 const pendingCRs=()=>APQ.filter(c=>c.status==='pending');
 const pendingHere=()=>pendingCRs().filter(c=>!c.proj||c.proj===PROJ.id);
 
-/* ================= OUTLOOK SCANS: 4 times a day ================= */
-const SCAN_TIMES=[6,10,14,18];   // Riyadh time
+/* ================= OUTLOOK SCANS: twice a day ================= */
+const SCAN_TIMES=[7,15];   // Riyadh time (the server scan in api/cron.js runs at the same times)
 const SCAN={n:0,last:null,runs:[]};
 const riyadhNow=()=>new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Riyadh'}));
-function nextScanLabel(){const h=riyadhNow().getHours()+riyadhNow().getMinutes()/60;const nx=SCAN_TIMES.find(t=>t>h);return nx!=null?`today ${String(nx).padStart(2,'0')}:00`:`tomorrow 06:00`}
-function scanEmails(label,quiet){
+function nextScanLabel(){const h=riyadhNow().getHours()+riyadhNow().getMinutes()/60;const nx=SCAN_TIMES.find(t=>t>h);return nx!=null?`today ${String(nx).padStart(2,'0')}:00`:`tomorrow ${String(SCAN_TIMES[0]).padStart(2,'0')}:00`}
+function scanEmails(label,quiet,noAlert){
   SCAN.n++;const at=label||new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   const inbox=DATA.emails.filter(e=>e.project===PROJ.id&&e.arrive<=SCAN.n),fresh=inbox.filter(e=>e.change&&!EM.proposed[e.id]&&!EM.applied[e.id]);
   const raised=fresh.map(e=>{EM.proposed[e.id]=true;return raiseCR('email',`Bohio agent (Outlook scan ${at})`,`${e.subject} · ${e.from.split(' · ')[0]}`,opsForEmail(e),{channel:'Outlook scan',email:e.id,quote:emChanges(e)[0].quote,conf:emChanges(e)[0].conf})});
   SCAN.last=at;SCAN.runs.push({at,read:inbox.length,raised:raised.map(c=>c.id)});
   logEvent({kind:'scan',actor:'Bohio agent',channel:'Outlook scan',detail:`Outlook scan ${at}: ${inbox.length} messages read, ${raised.length} change proposal${raised.length===1?'':'s'} raised${raised.length?' ('+raised.map(c=>c.id).join(', ')+')':''}`});
+  if(raised.length&&!noAlert)alertChanges(raised.slice(),at);
   const sugg=runSuggestions(at,true);raised.push(...sugg);
   renderInbox();renderApprovals();
   if(raised.length&&!quiet){toast(`Outlook scan: ${raised.length} proposed change${raised.length>1?'s':''} waiting for approval`);
@@ -1547,21 +1591,21 @@ setInterval(()=>{const n=riyadhNow(),h=n.getHours(),m=n.getMinutes();if(SCAN_TIM
 /* ================= PERSISTENCE (demo memory in this browser) ================= */
 // The browser keeps the latest LOG_KEEP memory entries (export them any time); production keeps everything in SQL Server.
 const LOG_KEEP=10000;let MEMWARN=false;
-function saveMem(){try{localStorage.setItem(MEMKEY,JSON.stringify({v:1,RO:RO?{EXPORTS,EXN,TASKS,TKN,DRAFT}:undefined,EMLAST,narjisXL:PROJECTS.narjis.xl||null,narjisNA:PROJECTS.narjis.na||null,narjisCW:PROJECTS.narjis.cwFile||null,X:XV,GEN:{seed:GEN.seed,seq:GEN.seq,n:GEN.n,fail:GEN.fail,bins:GEN.bins,worst:GEN.worst.slice(0,100),custom:GEN.custom,em:GEN.em},proj:PROJ.id,projects:Object.fromEntries(Object.entries(PROJECTS).filter(([k])=>k!=='narjis').map(([k,v])=>[k,{...v,saved:undefined}])),LOG,LOGN,APQ,CRN,SCAN,EM:{applied:EM.applied,proposed:EM.proposed},state:{S,FIX,FT,LV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))}))}catch(e){if(!MEMWARN){MEMWARN=true;try{toast('Browser storage is full: new changes are not being saved in this browser. Export the change memory (Approvals tab).')}catch(_){}}}}
+function saveMem(){try{localStorage.setItem(MEMKEY,JSON.stringify({v:1,DLV:{OUTBOX:OUTBOX.map((o,i)=>i<8?o:{...o,html:null}),OBN,NOTIFS,NTN,RUNS:RUNS.map((r,i)=>i<3?r:{...r,html:null}),RUNN,ALERT,SCHED},RO:RO?{EXPORTS,EXN,TASKS,TKN,DRAFT}:undefined,EMLAST,narjisXL:PROJECTS.narjis.xl||null,narjisNA:PROJECTS.narjis.na||null,narjisCW:PROJECTS.narjis.cwFile||null,X:XV,GEN:{seed:GEN.seed,seq:GEN.seq,n:GEN.n,fail:GEN.fail,bins:GEN.bins,worst:GEN.worst.slice(0,100),custom:GEN.custom,em:GEN.em},proj:PROJ.id,projects:Object.fromEntries(Object.entries(PROJECTS).filter(([k])=>k!=='narjis').map(([k,v])=>[k,{...v,saved:undefined}])),LOG,LOGN,APQ,CRN,SCAN,EM:{applied:EM.applied,proposed:EM.proposed},state:{S,FIX,FT,LV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))}))}catch(e){if(!MEMWARN){MEMWARN=true;try{toast('Browser storage is full: new changes are not being saved in this browser. Export the change memory (Approvals tab).')}catch(_){}}}}
 function loadMem(){try{const m=JSON.parse(localStorage.getItem(MEMKEY)||'null');if(!m||m.v!==1)return false;
   for(const [k,v] of Object.entries(m.projects||{}))PROJECTS[k]=v;if(m.proj&&PROJECTS[m.proj]&&m.proj!=='narjis')loadModelCore(PROJECTS[m.proj]);
   LOG=m.LOG||[];LOGN=m.LOGN||LOG.length+1;APQ=m.APQ||[];CRN=m.CRN||101;Object.assign(SCAN,m.SCAN||{});Object.assign(EM.applied,m.EM.applied||{});Object.assign(EM.proposed,m.EM.proposed||{});
   S=m.state.S||{};Object.assign(FIX,m.state.FIX||{});Object.assign(FT,m.state.FT||{});LV=m.state.LV||{};
-  if(m.narjisXL)PROJECTS.narjis.xl=m.narjisXL;if(m.narjisNA)PROJECTS.narjis.na=m.narjisNA;if(m.narjisCW)PROJECTS.narjis.cwFile=m.narjisCW;EMLAST=m.EMLAST||null;XV=m.X||{};if(RO&&m.RO){EXPORTS=m.RO.EXPORTS||[];EXN=m.RO.EXN||1;TASKS=m.RO.TASKS||[];TKN=m.RO.TKN||1;DRAFT=m.RO.DRAFT||{}}XMAP=null;if(m.GEN)Object.assign(GEN,m.GEN,{busy:false});
+  if(m.narjisXL)PROJECTS.narjis.xl=m.narjisXL;if(m.narjisNA)PROJECTS.narjis.na=m.narjisNA;if(m.narjisCW)PROJECTS.narjis.cwFile=m.narjisCW;EMLAST=m.EMLAST||null;XV=m.X||{};if(m.DLV){OUTBOX=m.DLV.OUTBOX||[];OBN=m.DLV.OBN||1;NOTIFS=m.DLV.NOTIFS||[];NTN=m.DLV.NTN||1;RUNS=m.DLV.RUNS||[];RUNN=m.DLV.RUNN||1;Object.assign(ALERT,m.DLV.ALERT||{});for(const [k,v] of Object.entries(m.DLV.SCHED||{}))SCHED[k]=Object.assign(SCHED[k]||{},v)}if(RO&&m.RO){EXPORTS=m.RO.EXPORTS||[];EXN=m.RO.EXN||1;TASKS=m.RO.TASKS||[];TKN=m.RO.TKN||1;DRAFT=m.RO.DRAFT||{}}XMAP=null;if(m.GEN)Object.assign(GEN,m.GEN,{busy:false});
   for(const [k,v] of Object.entries(m.SRC||{})){const e=DATA.emails.find(x=>x.id===v.eid);if(e)SRC[k]={e,quote:v.quote}}return true}catch(e){return false}}
 function clearMem(){try{localStorage.removeItem(MEMKEY)}catch(e){}location.reload()}
 
 function renderInbox(){
   const vis=DATA.emails.filter(e=>e.project===PROJ.id&&e.arrive<=Math.max(1,SCAN.n)).sort((a,b)=>a.date<b.date?-1:1);
-  if(!vis.length){$('#ibSub').textContent=`No messages in the "${PROJ.name}" folder yet. Scans run at 06:00, 10:00, 14:00 and 18:00 (Riyadh).`;$('#ibList').innerHTML='';$('#ibRead').innerHTML='<div class="bar"></div><div class="sub">When project emails arrive, the agent reads them on each scan and raises change requests for approval.</div>';return}
+  if(!vis.length){$('#ibSub').textContent=`No messages in the "${PROJ.name}" folder yet. Scans run at 07:00 and 15:00 (Riyadh).`;$('#ibList').innerHTML='';$('#ibRead').innerHTML='<div class="bar"></div><div class="sub">When project emails arrive, the agent reads them on each scan and raises change requests for approval.</div>';return}
   if(!vis.find(e=>e.id===EM.sel))EM.sel=vis[0].id;
   const crOf=id=>APQ.filter(c=>c.email===id).slice(-1)[0];
-  $('#ibSub').innerHTML=`${MAIL.configured?`<b>Live mailbox ${esc(MAIL.mailbox)}</b> · `:''}Scanned automatically at 06:00, 10:00, 14:00 and 18:00 (Riyadh) · last scan ${SCAN.last||'not yet'} · next ${nextScanLabel()} · ${vis.length} messages · ${pendingHere().filter(c=>c.kind==='email').length} proposals pending. Dummy inbox.`;
+  $('#ibSub').innerHTML=`${MAIL.configured?`<b>Live mailbox ${esc(MAIL.mailbox)}</b> · `:''}Scanned automatically at 07:00 and 15:00 (Riyadh) · last scan ${SCAN.last||'not yet'} · next ${nextScanLabel()} · ${vis.length} messages · ${pendingHere().filter(c=>c.kind==='email').length} proposals pending. Dummy inbox.`;
   $('#ibList').innerHTML=vis.slice().reverse().map(e=>{const cr=crOf(e.id);return`<div class="em ${e.id===EM.sel?'on':''}" data-em="${e.id}"><div class="top"><span>${esc(e.from)}</span><span>${e.date.slice(5,10).replace('-','/')} ${e.date.slice(11)}</span></div><div class="sj">${esc(e.subject)}</div><div class="sn">${esc(e.body)}</div><div class="x">${emChanges(e).length?emChanges(e).map(c=>`<span class="xtag ${cr&&cr.status==='approved'?'ok':''}">${esc(emTag(c))}</span>`).join('')+(cr?` <span class="xtag ${cr.status==='pending'?'':cr.status==='approved'?'ok':'no'}">${cr.id} · ${cr.status}</span>`:' <span class="xtag no">not scanned yet</span>'):'<span class="xtag no">no assumption · ignored</span>'}</div></div>`}).join('');
   const e=DATA.emails.find(x=>x.id===EM.sel),ch=emChanges(e),cr=crOf(e.id);
   let body=esc(e.body);ch.forEach(c=>{body=body.replace(esc(c.quote),`<mark>${esc(c.quote)}</mark>`)});
@@ -1813,8 +1857,8 @@ function parseNewReport(t){
   return{name:nm?nm[1].trim().replace(/^./,c=>c.toUpperCase()):(au?au[1].replace(/^./,c=>c.toUpperCase())+' report':head&&head.length<60?head.replace(/^./,c=>c.toUpperCase()):'Custom report'),aud:au?au[1].replace(/^./,c=>c.toUpperCase()):'',blocks,sched:cad,narr:/narrative|commentary|summary text/.test(t)};
 }
 function renderReportList(){
-  $('#rpList').innerHTML=Object.entries(RPTS).map(([k,v])=>`<div class="em ${k===RSEL?'on':''}" data-rp="${k}"><div class="top"><span>${esc(v.aud||'')}</span><span>${esc(v.sched||'')}</span></div><div class="sj">${esc(v.name)}${v.builtin?'':' <span class="xtag ok" style="font-size:10px">custom</span>'}</div>
-    <div class="x" style="align-items:center"><label style="font-size:12px;display:flex;gap:5px;align-items:center"><input type="checkbox" data-sch="${k}" ${SCHED[k].on?'checked':''}> Scheduled</label><select data-ch="${k}" style="font-size:11.5px;padding:3px 6px">${['Email (Outlook)','WhatsApp link','SharePoint folder'].map(o=>`<option ${o===SCHED[k].ch?'selected':''}>${o}</option>`).join('')}</select>
+  $('#rpList').innerHTML=Object.entries(RPTS).map(([k,v])=>`<div class="em ${k===RSEL?'on':''}" data-rp="${k}"><div class="top"><span>${esc(v.aud||'')}</span><span>${esc(schedOf(k).on?schedLabel(schedOf(k)):'On request')}</span></div><div class="sj">${esc(v.name)}${v.builtin?'':' <span class="xtag ok" style="font-size:10px">custom</span>'}</div>
+    <div class="x" style="align-items:center"><span style="font-size:12px;flex:1 1 100%">${schedOf(k).on?`⏱ <b>${esc(schedLabel(schedOf(k)))}</b> · ${esc(schedOf(k).ch)} · next ${fmtWhen(schedOf(k).next)}`:'<span style="color:var(--soft)">On request</span>'}</span><button class="btn ghost sm" data-sched="${k}">Schedule</button>
     <button class="btn sm" data-play="${k}" title="Play as a presentation" aria-label="Play ${esc(v.name)} as a presentation">▶</button><a class="go" data-rbe="${k}" style="font-size:11.5px;cursor:pointer">${v.builtin?'Duplicate':'Edit'}</a></div></div>`).join('');
 }
 /* ---- Report builder (opened from AI settings or the Reports tab) ---- */
@@ -2757,6 +2801,8 @@ function selfTest(){
   safe('Templates build new models',()=>{const t=[['narjis','MLQ-0109'],['yasmin','ARD-0340'],['hittin','YSM-0231']].map(([a,b])=>buildNewModel({tpl:a,plot:b,fill:'market'}));ok('Templates build new models',t.every(d=>!d.err&&Number.isFinite(d.preview.irr)),t.map(d=>d.err||d.name).join('; '))});
   safe('Every AI tool maps to an action',()=>{const bad_=TOOLS.filter(t=>{const r=toolIntent0(t.name,{});return!r||r.k==='help'});ok('Every AI tool maps to an action',!bad_.length,`${TOOLS.length} tools${bad_.length?'; unmapped: '+bad_.map(t=>t.name).join(', '):''}`)});
   safe('Excel dataset embedded',()=>{const a=document.querySelector('a[download$=".xlsx"]');ok('Excel dataset embedded',a&&/^data:application/.test(a.href),a?Math.round(a.href.length/1024)+' KB':'missing')});
+  safe('Report schedules compute the next run',()=>{const sat=Date.UTC(2026,9,3,12,0),a=nextRun({cad:'weekly',dow:0,time:'08:00'},sat),b=nextRun({cad:'daily',time:'07:30'},Date.UTC(2026,9,8,6,0)),c=nextRun({cad:'monthly',dom:31,time:'07:30'},Date.UTC(2026,10,5)),d=nextRun({cad:'quarterly',dom:3,time:'07:30'},Date.UTC(2026,9,4));
+    ok('Report schedules compute the next run',a===Date.UTC(2026,9,4,5,0)&&b===Date.UTC(2026,9,11,4,30)&&c===Date.UTC(2026,10,30,4,30)&&d===Date.UTC(2027,0,3,4,30),'weekly Sun 08:00, daily skips Fri–Sat, monthly day 31 → 30 Nov, quarterly → 3 Jan (Riyadh time)')});
   safe('Change memory persists',()=>{let w=false;try{localStorage.setItem('bohioTest','1');w=localStorage.getItem('bohioTest')==='1';localStorage.removeItem('bohioTest')}catch(e){}ok('Change memory persists',w,w?`${LOG.length} entries, saved in this browser`:'browser storage blocked: memory lasts only for this session')});
   safe('Model lines have no limit',()=>{const a=PROJ.xl,xv=XV;PROJ.xl=Array.from({length:5000},(_,i)=>({id:'L'+String(i+1).padStart(5,'0'),g:'Costs › Detailed items',label:'Detailed item '+(i+1)+(i===4321?' chiller plant':''),unit:'SAR/sqm GFA',base:10+i%50,linked:i!==7}));XMAP=null;const t0=performance.now();
     const f=findXLines('set chiller plant to 55',3),p=parseXLine('set chiller plant to 55'),no=parseXLine('what if construction cost rises 8%'),pl=xPayload().lines,ms=performance.now()-t0;PROJ.xl=a;XV=xv;XMAP=null;
@@ -3348,6 +3394,135 @@ const KD_CSS=`
 `;
 (function(){const st=document.createElement('style');st.id='kdcss';st.textContent=KD_CSS;document.head.appendChild(st)})();
 
+/* ================= SCHEDULED REPORTS, EMAIL AND ALERTS =================
+   Scheduled reports: each report has its own schedule (daily Sun–Thu, weekly, monthly or quarterly, at a Riyadh time)
+   and channel. The app runs them when they fall due and catches up a run it missed while closed. Emails go out from the
+   project mailbox through /api/mail (Microsoft Graph); without it they are kept in the Outbox, marked simulated.
+   On the server, /api/cron runs the email scan at 07:00 and 15:00 and the morning EstateMaster report every day, with
+   or without the app open (vercel.json). Alerts: when a scan senses a possible assumption change in an email, the agent
+   tells the people on the alert list (email, WhatsApp, the bell); the change itself waits for approval. */
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const CADS={daily:'Daily (Sun–Thu)',weekly:'Weekly',monthly:'Monthly',quarterly:'Quarterly'};
+let OUTBOX=[],OBN=1,NOTIFS=[],NTN=1,RUNS=[],RUNN=1;
+const ALERT={to:'investments@kinan.com.sa',email:true,wa:true};
+const MAILCFG={checked:false,configured:false,from:null,domains:[]},CRONCFG={checked:false,scan:null,report:null};
+/* Riyadh is UTC+3 all year (no daylight saving): schedule maths in Riyadh wall-clock time */
+const RYD=3*36e5,ryd=t=>new Date(t+RYD),fromRyd=(y,m,d,hh,mm)=>Date.UTC(y,m,d,hh,mm)-RYD;
+function schedFromLabel(lbl){const s=String(lbl||'').toLowerCase();
+  if(/daily|every day/.test(s))return{cad:'daily'};if(/weekly|every week/.test(s))return{cad:'weekly',dow:0};if(/quarter/.test(s))return{cad:'quarterly',dom:3};if(/month/.test(s))return{cad:'monthly',dom:3};return null}
+function nextRun(sc,after=Date.now()){
+  const [hh,mm]=String(sc.time||'07:30').split(':').map(Number),a=ryd(after);
+  for(let i=0;i<400;i++){const d=new Date(Date.UTC(a.getUTCFullYear(),a.getUTCMonth(),a.getUTCDate()+i)),y=d.getUTCFullYear(),m=d.getUTCMonth(),dd=d.getUTCDate(),w=d.getUTCDay(),last=new Date(Date.UTC(y,m+1,0)).getUTCDate(),dom=Math.min(sc.dom||1,last);
+    const ok=sc.cad==='daily'?w<=4:sc.cad==='weekly'?w===(sc.dow??0):sc.cad==='monthly'?dd===dom:sc.cad==='quarterly'?m%3===0&&dd===dom:false;
+    if(!ok)continue;const t=fromRyd(y,m,dd,hh||0,mm||0);if(t>after)return t}
+  return null}
+const fmtWhen=t=>t?new Date(t).toLocaleString('en-GB',{timeZone:'Asia/Riyadh',weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+function schedLabel(sc){if(!sc||!sc.on)return'On request';const t=sc.time||'07:30';return sc.cad==='daily'?`Daily Sun–Thu · ${t}`:sc.cad==='weekly'?`Weekly · ${DOW[sc.dow??0]} ${t}`:sc.cad==='monthly'?`Monthly · day ${sc.dom||1} · ${t}`:`Quarterly · day ${sc.dom||1} · ${t}`}
+/* the schedule of every report, filled from its label the first time */
+function schedOf(k){const s=SCHED[k]||(SCHED[k]={on:false,ch:'Email (Outlook)'});const def=RPTS[k];
+  if(!s.cad){const f=schedFromLabel(def&&def.sched)||{cad:'monthly',dom:3};Object.assign(s,f,{time:s.time||'07:30',to:s.to||ALERT.to})}
+  if(s.on&&!s.next)s.next=nextRun(s);return s}
+async function mailCheck(){if(MAILCFG.checked)return MAILCFG;MAILCFG.checked=true;if(!/^https?:/.test(location.protocol))return MAILCFG;
+  try{const r=await fetch('/api/mail');if(r.ok&&/json/.test(r.headers.get('content-type')||''))Object.assign(MAILCFG,await r.json())}catch(e){}
+  try{const r=await fetch('/api/cron');if(r.ok&&/json/.test(r.headers.get('content-type')||''))Object.assign(CRONCFG,await r.json(),{checked:true})}catch(e){}
+  renderDelivery();return MAILCFG}
+const b64=s=>btoa(unescape(encodeURIComponent(s)));
+/* send (or, without /api/mail, keep as simulated) an email; every one lands in the Outbox */
+async function deliverEmail({to,subject,html,attachments=[],kind='report',ref=''}){
+  await mailCheck();const list=String(to||'').split(/[;,]/).map(x=>x.trim()).filter(Boolean);
+  const o={id:'OB-'+String(OBN++).padStart(4,'0'),at:new Date().toISOString(),to:list,subject,kind,ref,html,files:attachments.map(a=>a.name),status:'simulated'};
+  if(!list.length){o.status='failed';o.error='No recipient';}
+  else if(MAILCFG.configured){try{const r=await post('/api/mail',AI.pass?{'x-demo-pass':AI.pass}:{},{to:list,subject,html,attachments});o.status='sent';o.from=r.from}catch(e){o.status='failed';o.error=e.message}}
+  OUTBOX.unshift(o);if(OUTBOX.length>60)OUTBOX.length=60;OUTBOX.slice(8).forEach(x=>{x.html=null});
+  logEvent({kind:'email',actor:'Bohio agent',channel:'Email (Outlook)',detail:`${o.id} ${o.status==='sent'?'sent':o.status==='failed'?'NOT sent ('+o.error+')':'simulated (no mail server in this demo)'}: “${subject}” to ${list.join(', ')||'nobody'}${o.files.length?' · attached '+o.files.join(', '):''}`,cr:ref});
+  renderDelivery();saveMem();return o}
+/* the same KINAN email frame the server uses (tables and inline styles: Outlook and Gmail show it as designed) */
+function emailFrame(kicker,title,sub,body){const C='#2e2e2f',O='#f15a22';
+  return`<!doctype html><html><body style="margin:0;background:#f4f4f4;font-family:Montserrat,'Segoe UI',Arial,sans-serif;color:${C}"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#fff">
+<tr><td style="background:${C};padding:18px 26px;color:#fff;font-size:11px;letter-spacing:.32em;text-transform:uppercase;font-weight:700">KINAN <span style="color:${O}">›</span> <span style="font-weight:600;color:#cfcfcf;letter-spacing:.24em">AI agent on EstateMaster</span></td></tr>
+<tr><td style="background:${O};padding:30px 26px;color:#fff"><div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700;opacity:.92">${esc(kicker)}</div><div style="font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;margin:10px 0 6px">${esc(title)}</div><div style="font-size:13px;opacity:.92">${esc(sub)}</div></td></tr>
+<tr><td style="padding:22px 26px;font-size:14px;line-height:1.55">${body}</td></tr>
+<tr><td style="background:${C};padding:16px 26px;color:#bbb;font-size:11px">Nothing changes in EstateMaster until a person approves it in the app. Sent by the Bohio agent.</td></tr></table></td></tr></table></body></html>`}
+const eTh=t=>`<th align="left" style="background:#2e2e2f;color:#fff;font-size:10px;letter-spacing:.2em;text-transform:uppercase;padding:8px">${t}</th>`,eTd=(t,x='')=>`<td style="padding:9px 8px;border-top:1px solid #e3e2df;font-size:13px;vertical-align:top${x}">${t}</td>`;
+function reportEmail(k){const def=RPTS[k],F=kFigures(),hI=HURDLE.irr*100,hP=HURDLE.poc*100,okI=F.irr>=hI,okP=F.poc>=hP;
+  const stat=(l,v,c)=>`<td width="25%" style="padding:10px 8px 10px 0;border-top:2px solid #f15a22;vertical-align:top"><div style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#51473d;font-weight:700">${l}</div><div style="font-size:22px;font-weight:700;margin-top:6px;color:${c||'#2e2e2f'}">${v}</div></td>`;
+  const flags=[...marketCheck().filter(c=>c.st[0]==='f').map(c=>c.plain),...pendingHere().slice(0,4).map(c=>`${c.id} waiting for approval: ${opsDesc(c.ops)}`),...(RO?openTasks(PROJ.id).map(t=>`${t.id}: ${taskTitle(t)} (analyst)`):[])];
+  const body=`<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${stat('Levered IRR',F.irr.toFixed(1)+'%',okI?'#1f8a4c':'#d03b3b')}${stat('Profit on cost',F.poc.toFixed(1)+'%',okP?'#1f8a4c':'#d03b3b')}${stat('Net profit',fM(F.profit))}${stat('Equity multiple',(+F.em).toFixed(2)+'x')}</tr></table>
+<p style="margin:16px 0 0">${okI&&okP?'Clears both hurdles':!okI&&!okP?'<b style="color:#d03b3b">Misses both hurdles</b>':!okI?'<b style="color:#d03b3b">Misses the IRR hurdle</b>':'<b style="color:#d03b3b">Misses the profit-on-cost hurdle</b>'} (IRR ≥ ${hI.toFixed(0)}%, profit on cost ≥ ${hP.toFixed(0)}%). Figures: ${esc(F.fromEM?F.src:'the agent’s estimate (EstateMaster’s own figures stand where they differ)')}.</p>
+${flags.length?`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:16px"><tr>${eTh('Needs attention')}</tr>${flags.slice(0,8).map(f=>`<tr>${eTd(esc(f))}</tr>`).join('')}</table>`:''}
+<p style="margin:16px 0 0">The full report is attached (open it in a browser). In the app: Reports → ${esc(def.name)} → ▶ Play.</p>`;
+  return emailFrame(def.name,PROJ.name,`${new Date().toLocaleDateString('en-GB',{timeZone:'Asia/Riyadh',weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${def.aud||''}`,body)}
+/* run a report now: scheduled, catch-up or on request; deliver on its channel; keep it in the run history */
+async function runReport(k,how='now',to){
+  const def=RPTS[k];if(!def)return null;const sc=schedOf(k),ch=sc.ch||'Email (Outlook)',dest=to||sc.to||ALERT.to,date=new Date().toLocaleDateString('en-GB',{timeZone:'Asia/Riyadh',day:'numeric',month:'short',year:'numeric'});
+  if(!LASTX)LASTX=snapshot();if(!stressRes){stressRes=computeStress();computeTornado();computeHeadroom()}
+  const html=reportStandalone(k),file=`${slug()}_${def.name.replace(/\W+/g,'_')}_${new Date().toISOString().slice(0,10)}.html`;
+  const run={id:'RUN-'+String(RUNN++).padStart(4,'0'),k,name:def.name,at:new Date().toISOString(),how,ch,to:dest,file,status:'done'};
+  if(ch==='Email (Outlook)'){const o=await deliverEmail({to:dest,subject:`KINAN · ${def.name} · ${PROJ.name} · ${date}`,html:reportEmail(k),attachments:[{name:file,contentType:'text/html',base64:b64(html)}],kind:'report',ref:run.id});run.status=o.status;run.outbox=o.id;run.error=o.error}
+  else if(ch==='WhatsApp link'){run.status='simulated';try{wBubble('bot',`📊 <b>${esc(def.name)}</b> (${how==='now'?'on request':how})\n${esc(PROJ.name)} · levered IRR ${kFigures().irr.toFixed(1)}%\nOpen the report: Reports → ${esc(def.name)} → ▶ Play`)}catch(e){}}
+  else{run.status='simulated';run.note=`saved to SharePoint /Bohio/Reports/${file}`}
+  run.html=html;RUNS.unshift(run);if(RUNS.length>40)RUNS.length=40;RUNS.slice(5).forEach(x=>{x.html=null});
+  logEvent({kind:'report',actor:'Bohio agent',channel:ch,detail:`${run.id}: ${def.name} ${how==='scheduled'?'ran on schedule':how==='catch-up'?'ran late (catch-up: the app was closed at the scheduled time)':'ran on request'} → ${ch}${ch==='Email (Outlook)'?' to '+dest:''} · ${run.status}${run.note?' · '+run.note:''}`});
+  notify({kind:'report',title:`${def.name} ${run.status==='failed'?'not delivered':'delivered'}`,detail:`${ch}${ch==='Email (Outlook)'?' to '+dest:''} · ${how==='scheduled'?'on schedule':how==='catch-up'?'catch-up run':'on request'}${run.status==='simulated'?' (simulated)':''}`,tab:'report'});
+  renderDelivery();renderReportList&&$('#rpList')&&renderReportList();saveMem();return run}
+/* the scheduler: every 30 s, and once at start-up for runs missed while the app was closed (one catch-up each) */
+let SCHED_BUSY=false;
+async function schedTick(startup){if(SCHED_BUSY)return;SCHED_BUSY=true;try{const now=Date.now();
+  for(const k of Object.keys(RPTS)){const sc=schedOf(k);if(!sc.on||!sc.next||sc.next>now)continue;const missed=now-sc.next>5*60e3;sc.last=now;sc.next=nextRun(sc,now);await runReport(k,startup&&missed?'catch-up':'scheduled')}}
+  finally{SCHED_BUSY=false}}
+setInterval(()=>schedTick(false),30000);
+/* notifications: the bell in the header */
+function notify(n){NOTIFS.unshift({id:'N'+(NTN++),at:new Date().toISOString(),read:false,...n});if(NOTIFS.length>80)NOTIFS.length=80;renderBell();saveMem()}
+function renderBell(){const b=$('#bellN');if(!b)return;const u=NOTIFS.filter(n=>!n.read).length;b.textContent=u||'';b.style.display=u?'':'none';const p=$('#bellPanel');if(p&&!p.hidden)renderBellPanel()}
+function renderBellPanel(){$('#bellList').innerHTML=NOTIFS.length?NOTIFS.slice(0,30).map(n=>`<div class="kn ${n.read?'':'unread'} kn-${n.kind}" data-ntab="${n.tab||''}" data-nid="${n.id}"><div class="kn-t">${esc(n.title)}</div><div class="kn-d">${esc(n.detail||'')}</div><div class="kn-w">${fmtWhen(Date.parse(n.at))}</div></div>`).join(''):'<div class="sub" style="padding:12px">No notifications yet.</div>'}
+/* an email scan sensed possible assumption changes: tell the alert list (email, WhatsApp, the bell) */
+async function alertChanges(crs,at){
+  if(!crs.length)return;
+  const rows=crs.map(c=>{const e=DATA.emails.find(x=>x.id===c.email)||{};return{c,e,quote:c.quote||'',conf:c.conf}});
+  notify({kind:'change',title:`${crs.length} possible assumption change${crs.length>1?'s':''} in Outlook`,detail:rows.map(r=>`${r.c.id}: ${opsDesc(r.c.ops)} (${(r.e.from||'').split(' · ')[0]})`).join(' · '),tab:'appr'});
+  const server=CRONCFG.scan&&CRONCFG.scan.enabled;
+  if(ALERT.email&&!server){
+    const body=`<p style="margin:0 0 14px">The ${esc(at)} scan of the project folder sensed <b>${crs.length}</b> possible assumption change${crs.length>1?'s':''}. Each is a change request waiting for approval; nothing has been changed.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${eTh('Request')}${eTh('Proposed change')}${eTh('From')}${eTh('Quote')}${eTh('Conf.')}</tr>${rows.map(r=>`<tr>${eTd(`<b>${r.c.id}</b>`)}${eTd(esc(opsDesc(r.c.ops)))}${eTd(`${esc((r.e.from||'').split(' · ')[0])}<br><span style="color:#6f6f6f;font-size:12px">${esc(r.e.subject||'')}</span>`)}${eTd(`<span style="color:#6f6f6f">“${esc(r.quote)}”</span>`)}${eTd(r.conf!=null?Math.round(r.conf*100)+'%':'—',';text-align:right')}</tr>`).join('')}</table>
+<p style="margin:16px 0 0">Approve or reject them in the app (Approvals), or reply on WhatsApp with APPROVE ${crs[0].id}.</p>`;
+    await deliverEmail({to:ALERT.to,subject:`KINAN · ${crs.length} possible assumption change${crs.length>1?'s':''} · ${PROJ.name}`,html:emailFrame('Assumption alert',`${crs.length} possible change${crs.length>1?'s':''} in Outlook`,`${PROJ.name} · scan of ${at} (Riyadh)`,body),kind:'alert',ref:crs.map(c=>c.id).join(', ')})}
+  else if(ALERT.email&&server)logEvent({kind:'email',actor:'Bohio agent',channel:'Email (Outlook)',detail:`Alert for ${crs.map(c=>c.id).join(', ')}: emailed by the scheduled server scan (07:00 / 15:00), not again by the app`});
+  if(ALERT.wa){try{wBubble('bot',`🔔 <b>Possible assumption change${crs.length>1?'s':''}</b> (scan ${esc(at)})\n${crs.map(c=>`• ${c.id}: ${esc(opsDesc(c.ops))}`).join('\n')}\nReply <b>APPROVE ${crs[0].id}</b> or <b>REJECT ${crs[0].id}</b>. Nothing changes until approved.`)}catch(e){}}}
+/* Reports tab: schedules, delivery status, run history, outbox */
+function renderDelivery(){
+  const box=$('#dlvStat');if(!box)return;
+  const mail=MAILCFG.configured?`<span class="pill p">live</span> from ${esc(MAILCFG.from)} · internal recipients only (${esc((MAILCFG.domains||[]).join(', '))})`:`<span class="pill s">simulated</span> no mail server in this demo: emails are kept in the outbox below`;
+  const srv=CRONCFG.checked?`${CRONCFG.scan&&CRONCFG.scan.enabled?'<span class="pill p">on</span>':'<span class="pill s">off</span>'} email scan 07:00 and 15:00 · ${CRONCFG.report&&CRONCFG.report.enabled?'<span class="pill p">on</span>':'<span class="pill s">off</span>'} morning EstateMaster report ${esc((CRONCFG.report&&CRONCFG.report.days)||'')}`:'<span class="pill s">not deployed</span> the server jobs run once the app is on Vercel (vercel.json crons)';
+  box.innerHTML=`<div class="kv"><b>Email</b><span>${mail}</span></div><div class="kv"><b>Server jobs</b><span>${srv}</span></div><div class="kv"><b>In the app</b><span>Scheduled reports below run when due and catch up a run missed while the app was closed. Scans at ${SCAN_TIMES.map(h=>String(h).padStart(2,'0')+':00').join(' and ')} (Riyadh).</span></div>`;
+  const sch=Object.keys(RPTS).map(k=>[k,schedOf(k)]).filter(([k,s])=>s.on);
+  $('#dlvSched').innerHTML=sch.length?'<tr><th>Report</th><th>Schedule</th><th>Channel</th><th>Next run</th><th></th></tr>'+sch.map(([k,s])=>`<tr><td><b>${esc(RPTS[k].name)}</b></td><td>${esc(schedLabel(s))}</td><td style="font-size:12px">${esc(s.ch)}${s.ch==='Email (Outlook)'?'<br><span style="color:var(--soft)">'+esc(s.to||'')+'</span>':''}</td><td>${fmtWhen(s.next)}</td><td style="white-space:nowrap"><button class="btn ghost sm" data-sched="${k}">Edit</button> <button class="btn sm" data-runnow="${k}">Run now</button></td></tr>`).join(''):'<tr><td class="sub">No report is scheduled. Use Schedule on a report, or ask “schedule the monthly report every Sunday at 8:00”.</td></tr>';
+  $('#dlvRuns').innerHTML=RUNS.length?'<tr><th>Run</th><th>Report</th><th>How</th><th>Delivered</th><th></th></tr>'+RUNS.slice(0,12).map(r=>`<tr><td style="font-size:12px">${r.id}<br><span style="color:var(--soft)">${fmtWhen(Date.parse(r.at))}</span></td><td>${esc(r.name)}</td><td style="font-size:12px">${r.how==='catch-up'?'catch-up':r.how==='scheduled'?'scheduled':'on request'}</td><td style="font-size:12px">${esc(r.ch)}${r.ch==='Email (Outlook)'?' · '+esc(r.to):''}<br><span class="pill ${r.status==='sent'||r.status==='done'?'p':r.status==='failed'?'f':'s'}">${r.status}</span>${r.error?' '+esc(r.error):''}${r.note?' '+esc(r.note):''}</td><td>${r.html?`<button class="btn ghost sm" data-runview="${r.id}">View</button>`:''}</td></tr>`).join(''):'<tr><td class="sub">No runs yet.</td></tr>';
+  $('#dlvOut').innerHTML=OUTBOX.length?'<tr><th>Email</th><th>To</th><th>Status</th><th></th></tr>'+OUTBOX.slice(0,12).map(o=>`<tr><td style="font-size:12px"><b>${esc(o.subject)}</b><br><span style="color:var(--soft)">${o.id} · ${fmtWhen(Date.parse(o.at))}${o.files.length?' · 📎 '+esc(o.files.join(', ')):''}</span></td><td style="font-size:12px">${esc(o.to.join(', '))}</td><td><span class="pill ${o.status==='sent'?'p':o.status==='failed'?'f':'s'}">${o.status}</span></td><td>${o.html?`<button class="btn ghost sm" data-obview="${o.id}">Open</button>`:''}</td></tr>`).join(''):'<tr><td class="sub">Nothing sent yet.</td></tr>';
+  const al=$('#alStat');if(al)al.innerHTML=`Alerts go to <b>${esc(ALERT.to||'nobody')}</b> by ${[ALERT.email&&'email',ALERT.wa&&'WhatsApp','the bell'].filter(Boolean).join(', ')} when a scan (${SCAN_TIMES.map(h=>String(h).padStart(2,'0')+':00').join(' and ')} Riyadh) senses a possible assumption change. ${CRONCFG.scan&&CRONCFG.scan.enabled?'The server scan sends the email even with the app closed.':'Email: '+(MAILCFG.configured?'live':'simulated in this demo (Outbox on the Reports tab)')+'.'}`}
+function openSched(k){const s=schedOf(k);SCHED_EDIT=k;$('#schTitle').textContent=RPTS[k].name;$('#schOn').checked=!!s.on;$('#schCad').value=s.cad||'monthly';$('#schDow').value=String(s.dow??0);$('#schDom').value=s.dom||3;$('#schTime').value=s.time||'07:30';$('#schCh').value=s.ch||'Email (Outlook)';$('#schTo').value=s.to||ALERT.to;$('#schMsg').textContent='';schFields();$('#schModal').classList.add('on')}
+let SCHED_EDIT=null;
+function schFields(){const c=$('#schCad').value;$('#schDowW').hidden=c!=='weekly';$('#schDomW').hidden=!(c==='monthly'||c==='quarterly');$('#schToW').hidden=$('#schCh').value!=='Email (Outlook)';const prev={cad:c,dow:+$('#schDow').value,dom:+$('#schDom').value,time:$('#schTime').value};$('#schNext').textContent=$('#schOn').checked?'Next run: '+fmtWhen(nextRun(prev)):'Not scheduled: runs on request only.'}
+function saveSched(){const k=SCHED_EDIT,s=schedOf(k),to=$('#schTo').value.trim();
+  if($('#schCh').value==='Email (Outlook)'&&$('#schOn').checked&&!/^[^\s@]+@[^\s@]+\.[^\s@]+(\s*[;,]\s*[^\s@]+@[^\s@]+\.[^\s@]+)*$/.test(to)){$('#schMsg').innerHTML='<span class="warn">Enter one or more email addresses, separated by commas.</span>';return}
+  Object.assign(s,{on:$('#schOn').checked,cad:$('#schCad').value,dow:+$('#schDow').value,dom:Math.max(1,Math.min(28,+$('#schDom').value||1)),time:$('#schTime').value||'07:30',ch:$('#schCh').value,to});s.next=s.on?nextRun(s):null;
+  RPTS[k].sched=s.on?schedLabel(s):'On request';saveCustom&&saveCustom();
+  logEvent({kind:'report',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Schedule ${s.on?'set':'removed'}: ${RPTS[k].name}${s.on?` · ${schedLabel(s)} · ${s.ch}${s.ch==='Email (Outlook)'?' to '+s.to:''} · next ${fmtWhen(s.next)}`:''}`});
+  $('#schModal').classList.remove('on');renderReportList();renderDelivery();saveMem();toast(s.on?`${RPTS[k].name}: next run ${fmtWhen(s.next)}`:`${RPTS[k].name}: on request only`)}
+/* chat: “schedule the monthly report every Sunday at 8 to cfo@kinan.com.sa”, “email me the IC pack”, “stop the lender report” */
+function parseSchedule(t){
+  const k=/\bic\b|investment committee/.test(t)?'ic':/monthly( project)?\s*report|project report/.test(t)?'monthly':/lender/.test(t)?'lender':/investor|\blp\b|fund/.test(t)?'investor':/stress/.test(t)?'stress':/compar/.test(t)?'compare':(Object.entries(RPTS).find(([k,v])=>t.includes(v.name.toLowerCase()))||[])[0]||null;
+  const days=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'],di=days.findIndex(d=>t.includes(d)||new RegExp('\\b'+d.slice(0,3)+'\\b').test(t));
+  const tm=t.match(/\b(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b(?!\s*(?:%|st|nd|rd|th|days?|months?))/);let time=null;
+  if(tm&&(/at\s*\d/.test(t)||tm[2]||tm[3])){let h=+tm[1];if(tm[3]==='pm'&&h<12)h+=12;if(tm[3]==='am'&&h===12)h=0;if(h<24)time=String(h).padStart(2,'0')+':'+(tm[2]||'00')}
+  const cad=/daily|every (work|week)?day|each day/.test(t)?'daily':/quarter/.test(t)?'quarterly':/month/.test(t)&&!/monthly( project)? report/.test(t.replace(/every month|each month|monthly on/,''))?'monthly':/every month|each month|monthly on/.test(t)?'monthly':di>=0||/week/.test(t)?'weekly':null;
+  const dm=t.match(/\b(?:on the |day )?(\d{1,2})(?:st|nd|rd|th)\b/);
+  const to=(t.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g)||[]).join(', ');
+  return{k,cad,dow:di>=0?di:undefined,dom:dm?+dm[1]:undefined,time,to,stop:/\b(stop|cancel|unschedule|turn off|remove)\b/.test(t)}}
+function scheduleFromChat(o,by){const k=o.k;if(!k)return{err:'Which report? '+Object.values(RPTS).map(v=>v.name).join(', ')};const s=schedOf(k);
+  if(o.stop){s.on=false;s.next=null;RPTS[k].sched='On request'}else{s.on=true;if(o.cad)s.cad=o.cad;if(o.dow!=null)s.dow=o.dow;if(o.dom)s.dom=Math.min(28,o.dom);if(o.time)s.time=o.time;if(o.to){s.to=o.to;s.ch='Email (Outlook)'}s.next=nextRun(s);RPTS[k].sched=schedLabel(s)}
+  logEvent({kind:'report',actor:by,channel:'Workspace',detail:`Schedule ${s.on?'set':'removed'} from chat: ${RPTS[k].name}${s.on?` · ${schedLabel(s)} · ${s.ch}${s.ch==='Email (Outlook)'?' to '+s.to:''} · next ${fmtWhen(s.next)}`:''}`});
+  saveCustom&&saveCustom();renderDelivery();$('#rpList')&&renderReportList();saveMem();return{k,s}}
+
 /* ================= WEB UI ================= */
 function renderKPIs(flash){
   if(RO)return renderKPIsRO(flash);
@@ -3428,6 +3603,8 @@ const TOOLS=[
  {name:'read_outlook',description:'Scan the project Outlook folder now; any assumption change found becomes a change request for human approval.',p:{}},
  {name:'apply_email_changes',description:'Show the email proposals waiting for approval (you cannot approve them).',p:{}},
  {name:'explain_change',description:'Explain why an assumption differs from base, citing the email source if there is one. Omit assumption to explain all changes.',p:{assumption:{type:'string',enum:VAR_ENUM}}},
+ {name:'schedule_report',description:'Schedule a report (or stop its schedule). It then runs automatically and is delivered by email (internal addresses only), WhatsApp link or SharePoint folder. Times are Riyadh time.',p:{report:{type:'string',enum:['ic','monthly','lender','investor','compare','stress']},cadence:{type:'string',enum:['daily','weekly','monthly','quarterly']},day_of_week:{type:'integer',description:'0 = Sunday … 6 = Saturday, for weekly'},day_of_month:{type:'integer',description:'1-28, for monthly and quarterly'},time:{type:'string',description:'HH:MM, 24-hour'},recipients:{type:'string',description:'comma-separated email addresses'},stop:{type:'boolean'}},req:['report']},
+ {name:'send_report',description:'Send a report now by email (internal addresses only): the email has the headline figures and the full report attached.',p:{report:{type:'string',enum:['ic','monthly','lender','investor','compare','stress']},recipients:{type:'string'}},req:['report']},
  {name:'build_report',description:'Build a report from the latest EstateMaster extract. kind is a report id: ic, monthly, lender, investor, compare, stress (generated scenarios and EstateMaster results), or the id/name of a custom report created with create_report.',p:{kind:{type:'string'}}},
  {name:'create_report',description:'Create a new report type from the block library (figures always come from the EstateMaster extract). Choose blocks in order.',p:{name:{type:'string'},audience:{type:'string'},schedule:{type:'string',enum:['On request','Weekly','Monthly · 3rd working day','Quarterly']},blocks:{type:'array',items:{type:'string',enum:BLOCK_KEYS}},narrative:{type:'boolean'}},req:['name','blocks']},
  {name:'extract_from_estatemaster',description:'Run a fresh extract of every assumption and output from EstateMaster into the reporting store.',p:{}},
@@ -3464,6 +3641,8 @@ function toolIntent0(name,a){
     case 'read_outlook':return{k:'email'};
     case 'apply_email_changes':return{k:'emailapply'};
     case 'explain_change':return{k:'why',v:VARS[a.assumption]?[a.assumption]:[]};
+    case 'schedule_report':return{k:'schedule',o:{k:RPTS[a.report]?a.report:'ic',cad:CADS[a.cadence]?a.cadence:null,dow:Number.isInteger(a.day_of_week)?a.day_of_week:undefined,dom:Number.isInteger(a.day_of_month)?a.day_of_month:undefined,time:/^\d{1,2}:\d{2}$/.test(a.time||'')?a.time.padStart(5,'0'):null,to:String(a.recipients||''),stop:!!a.stop}};
+    case 'send_report':return{k:'sendreport',o:{k:RPTS[a.report]?a.report:'ic',to:String(a.recipients||'')}};
     case 'build_report':return{k:'report',kind:RPTS[a.kind]?a.kind:(Object.entries(RPTS).find(([k,v])=>v.name.toLowerCase()===String(a.kind||'').toLowerCase())||['ic'])[0]};
     case 'create_report':return{k:'newreport',def:{name:a.name,aud:a.audience||'',sched:a.schedule||'On request',blocks:(a.blocks||[]).filter(b=>BLOCKS[b]),narr:!!a.narrative}};
     case 'extract_from_estatemaster':return{k:'extract'};
@@ -3601,6 +3780,7 @@ function route(text){
   if(it.k==='why')return{lane:'data',it,why:'A lookup in the changelog and email sources; no AI needed.'};
   if(it.k==='suggest')return{lane:'data',it,why:'Checks assumptions against market data, actuals, sales, the cost library and zoning; each suggestion needs approval.'};
   if(it.k==='newreport')return{lane:'data',it,why:'Creates a report template from the block library.'};
+  if(it.k==='schedule'||it.k==='sendreport')return{lane:'data',it,why:'Scheduling and sending reports are fixed actions: no AI needed.'};
   if(it.k==='report'&&!/memo|draft|write|board paper/.test(t))return{lane:'data',it,post:'narrative',tier:'deep',why:'Numbers come from the EstateMaster extract; the narrative model drafts the commentary.'};
   if(REASON.test(t)&&it.k!=='promote')return{lane:'api',it,tier:/memo|draft|write|narrative/.test(t)?'deep':FILES.length&&/excel|spreadsheet|workbook|sheet|file/.test(t)?'excel':'smart',why:'Needs judgement or language: an AI agent plans and calls EstateMaster and data tools.'};
   switch(it.k){
@@ -3735,9 +3915,9 @@ function openModal_unused(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S
 
 /* tabs */
 const TABS=[['agent','Agent'],['napkin','Napkin → model'],['appr','Approvals'],...(RO?[['em','EstateMaster']]:[]),['model','Model data'],['inbox','Outlook'],['market','Market check'],['explore','Sensitivity & Explorer'],['stress','Stress tests'],['report','Reports'],['wa','WhatsApp'],['arch','Architecture']];
-const TAB_INTRO={agent:'Ask in plain language. Every return comes from EstateMaster; anything that would change the model goes to Approvals first, with a person’s name on it.',napkin:'From a napkin sketch to a first-pass model, then to a change request to set it up in EstateMaster.',appr:'Every change waits here for a person. Nothing reaches EstateMaster without a name on it, and every decision is kept in the change memory.',em:'Analyst tasks and EstateMaster exports. The latest export is the only source of the figures shown as EstateMaster’s.',model:'Every assumption in the model: the core register, model lines without limit and the elemental cost plan.',inbox:'The project folder in Outlook, read four times a day. Assumption changes become proposals for approval.',market:'Assumptions against transactions, rents and the zoning rules for the plot.',explore:'Two-way sensitivity grids and the autonomous explorer. Grid figures are the agent’s estimates.',stress:'Stress scenarios without limit. The most severe are checked in EstateMaster.',report:'IC pack, monthly and custom reports, built from the latest EstateMaster figures.',wa:'The same agent on WhatsApp, with roles and approvals.',arch:'How the agent connects to EstateMaster, Outlook, market data and AI, and what it can and can’t do.'};
+const TAB_INTRO={agent:'Ask in plain language. Every return comes from EstateMaster; anything that would change the model goes to Approvals first, with a person’s name on it.',napkin:'From a napkin sketch to a first-pass model, then to a change request to set it up in EstateMaster.',appr:'Every change waits here for a person. Nothing reaches EstateMaster without a name on it, and every decision is kept in the change memory.',em:'Analyst tasks and EstateMaster exports. The latest export is the only source of the figures shown as EstateMaster’s.',model:'Every assumption in the model: the core register, model lines without limit and the elemental cost plan.',inbox:'The project folder in Outlook, read twice a day. Assumption changes become proposals for approval.',market:'Assumptions against transactions, rents and the zoning rules for the plot.',explore:'Two-way sensitivity grids and the autonomous explorer. Grid figures are the agent’s estimates.',stress:'Stress scenarios without limit. The most severe are checked in EstateMaster.',report:'IC pack, monthly and custom reports, built from the latest EstateMaster figures.',wa:'The same agent on WhatsApp, with roles and approvals.',arch:'How the agent connects to EstateMaster, Outlook, market data and AI, and what it can and can’t do.'};
 function kTitle(id){const t=TABS.find(x=>x[0]===id);const e=$('#kTitle span');if(e)e.textContent=t?(id==='agent'?'AI agent on EstateMaster':t[1]):'';const n=$('#kIntro');if(n)n.textContent=TAB_INTRO[id]||''}
-function showTab(id){kTitle(id);$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report'){renderReportList();renderExtract();renderReport()}if(id==='model'){renderRegister();renderElemental();renderXLines()}if(id==='stress')renderGen();if(id==='napkin'){fillNapkinForm();runNapkin()}if(id==='explore')renderHeat();if(id==='market')renderMarket();if(id==='inbox')renderInbox();if(id==='appr')renderApprovals();if(id==='em')renderEMTab();window.scrollTo({top:0,behavior:'smooth'})}
+function showTab(id){kTitle(id);$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report'){renderReportList();renderExtract();renderReport()}if(id==='model'){renderRegister();renderElemental();renderXLines()}if(id==='stress')renderGen();if(id==='napkin'){fillNapkinForm();runNapkin()}if(id==='explore')renderHeat();if(id==='market')renderMarket();if(id==='inbox'){renderInbox();renderDelivery()}if(id==='report')renderDelivery();if(id==='appr')renderApprovals();if(id==='em')renderEMTab();window.scrollTo({top:0,behavior:'smooth'})}
 $('#tabs').innerHTML=TABS.map(([id,l])=>`<div class="tab ${id==='agent'?'on':''}" data-t="${id}">${l}</div>`).join('');
 $$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));kTitle('agent');
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
@@ -3765,6 +3945,19 @@ $('#rxls').onclick=exportReportXlsx;$('#xXls').onclick=exportExtractXlsx;
 $('#xRun').onclick=async()=>{$('#xRun').textContent='Extracting…';await doExtract(async st=>{$('#xStat').textContent=st;await sleep(260)});$('#xRun').textContent='Extract now';toast('Extract '+LASTX.id+' stored · reports refreshed')};
 document.addEventListener('click',e=>{const r=e.target.closest('[data-rp]');if(r&&!e.target.closest('input,select,[data-rbe],[data-play]')){RSEL=r.dataset.rp;renderReportList();renderReport()}const pl=e.target.closest('[data-play]');if(pl){RSEL=pl.dataset.play;renderReportList();renderReport();openDeck(buildDeck(RSEL))}});
 $('#rplay').onclick=()=>{renderReport();openDeck(buildDeck(RSEL))};
+document.addEventListener('click',e=>{const sc=e.target.closest('[data-sched]'),rn=e.target.closest('[data-runnow]'),rv=e.target.closest('[data-runview]'),ov=e.target.closest('[data-obview]'),nt=e.target.closest('[data-nid]');
+  if(sc){e.stopPropagation();openSched(sc.dataset.sched)}
+  if(rn)runReport(rn.dataset.runnow,'now').then(r=>toast(`${r.name}: ${r.status==='sent'?'sent':r.status==='failed'?'not sent':'delivered (simulated)'}`));
+  if(rv||ov){const x=rv?RUNS.find(r=>r.id===rv.dataset.runview):OUTBOX.find(o=>o.id===ov.dataset.obview);if(x&&x.html){$('#viewTitle').textContent=rv?`${x.name} · ${x.id}`:x.subject;$('#viewFrame').srcdoc=x.html;$('#viewModal').classList.add('on')}}
+  if(nt){const n=NOTIFS.find(x=>x.id===nt.dataset.nid);if(n){n.read=true;renderBell();saveMem();if(n.tab){$('#bellPanel').hidden=true;showTab(n.tab)}}}
+  if(e.target.closest('#bellBtn')){const p=$('#bellPanel');p.hidden=!p.hidden;if(!p.hidden)renderBellPanel()}else if(!e.target.closest('#bellPanel'))$('#bellPanel').hidden=true});
+$('#bellRead').onclick=()=>{NOTIFS.forEach(n=>n.read=true);renderBell();renderBellPanel();saveMem()};
+$('#viewClose').onclick=()=>{$('#viewModal').classList.remove('on');$('#viewFrame').srcdoc=''};
+['schCad','schDow','schDom','schTime','schCh','schOn'].forEach(i=>$('#'+i).addEventListener(i==='schDom'||i==='schTime'?'input':'change',schFields));
+$('#schSave').onclick=saveSched;$('#schCancel').onclick=()=>$('#schModal').classList.remove('on');
+$('#schTest').onclick=()=>{const k=SCHED_EDIT,s=schedOf(k),ch0=s.ch,to0=s.to;s.ch=$('#schCh').value;s.to=$('#schTo').value.trim()||to0;runReport(k,'now').then(r=>{s.ch=ch0;s.to=to0;$('#schMsg').innerHTML=`<span class="${r.status==='failed'?'warn':''}">Test ${r.status==='sent'?'sent':r.status==='failed'?'not sent: '+esc(r.error||''):'delivered (simulated: see the Outbox)'}.</span>`})};
+$('#alTo').value=ALERT.to;$('#alEmail').checked=ALERT.email;$('#alWa').checked=ALERT.wa;
+$('#alSave').onclick=()=>{const to=$('#alTo').value.trim();if(to&&!/^[^\s@]+@[^\s@]+\.[^\s@]+(\s*[;,]\s*[^\s@]+@[^\s@]+\.[^\s@]+)*$/.test(to)){toast('Enter email addresses separated by commas');return}Object.assign(ALERT,{to,email:$('#alEmail').checked,wa:$('#alWa').checked});logEvent({kind:'settings',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Assumption alerts: ${[ALERT.email&&'email',ALERT.wa&&'WhatsApp'].filter(Boolean).join(' + ')||'bell only'} to ${ALERT.to||'nobody'}`});renderDelivery();saveMem();toast('Alert settings saved')};
 $('#rread').onclick=()=>KR?kReadStop():kReadStart();
 $('#rpptx').onclick=async()=>{const b=$('#rpptx');b.disabled=true;b.textContent='Preparing…';try{const n=await deckToPptx(buildDeck(RSEL));toast('PowerPoint downloaded: '+n)}catch(e){toast('PowerPoint: '+e.message)}b.disabled=false;b.textContent='PowerPoint'};
 document.addEventListener('change',e=>{const a=e.target.dataset.sch,b=e.target.dataset.ch;if(a){SCHED[a].on=e.target.checked;toast(`${RPTS[a].name}: ${e.target.checked?'scheduled':'schedule off'}`)}if(b){SCHED[b].ch=e.target.value}
@@ -3873,7 +4066,7 @@ $('#nmOpen').onclick=()=>openNewModel();$('#cwDown').onclick=cwDownload;$('#simM
 $('#nmCreate').onclick=()=>{previewNewModel();if(NM.err)return;const cr=raiseNewModel(NM,`${USERS.web} (${WS_ROLE})`,'Workspace');$('#nmModal').classList.remove('on');showTab('appr');toast(`${cr.id} raised: approve it to create "${NM.name}" in EstateMaster`)};
 $('#nmModal').onclick=e=>{if(e.target.id==='nmModal')$('#nmModal').classList.remove('on')};
 $('#ibScan').onclick=async()=>{const r=await scanLive();if(!r.length)toast('Outlook scanned: no new assumption changes')};
-$('#ibNext').onclick=()=>{const h=riyadhNow().getHours(),nx=SCAN_TIMES[Math.min(SCAN.n,3)];const r=scanEmails(`${String(nx).padStart(2,'0')}:00`);if(!r.length)toast('Scheduled scan: no new assumption changes')};
+$('#ibNext').onclick=()=>{const h=riyadhNow().getHours(),nx=SCAN_TIMES[SCAN.n%SCAN_TIMES.length];const r=scanEmails(`${String(nx).padStart(2,'0')}:00`);if(!r.length)toast('Scheduled scan: no new assumption changes')};
 $('#wsRole').onchange=e=>{WS_ROLE=e.target.value;renderApprovals();toast('Signed in as '+WS_ROLE)};
 $('#logQ').oninput=e=>{logQ=e.target.value;renderApprovals()};$('#logX').onclick=exportLog;$('#logClr').onclick=()=>{if(confirm('Clear the demo memory in this browser and reload?'))clearMem()};
 $('#setNewRpt').onclick=()=>openBuilder();$('#setRptTab').onclick=()=>{$('#aiModal').classList.remove('on');showTab('report')};
@@ -3901,9 +4094,10 @@ $('#aiTestBtn').onclick=async()=>{
 addMsg('agent',RO?`<b>Hello.</b> I work on EstateMaster’s figures for <b>Al Narjis Mixed-Use</b> (${MI().name}). I answer from EstateMaster’s exports, pick up assumption changes from Outlook, check them against market data and zoning, design stress tests and draft reports. I never write to EstateMaster: ${MODE==='analyst'?'approved changes go into the control workbook and an analyst refreshes EstateMaster.':'an analyst applies approved changes.'}<div class="chips" style="margin-top:8px">`+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>':'<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, pick up assumption changes from Outlook, check them against market data and zoning, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
 wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
 wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
-const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',channel:'System',detail:'Demo started: working copy BHO_SBX opened from the approved EstateMaster base case'});scanEmails('06:00',true)}else logEvent({kind:'session',actor:'System',channel:'System',detail:`Session resumed: ${LOG.length} entries and ${APQ.length} change requests restored from memory`});
+const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',channel:'System',detail:'Demo started: working copy BHO_SBX opened from the approved EstateMaster base case'});scanEmails('07:00',true,true)}else logEvent({kind:'session',actor:'System',channel:'System',detail:`Session resumed: ${LOG.length} entries and ${APQ.length} change requests restored from memory`});
 if(RO)roInit();
-renderProjectUI();syncHeatSel();resetE();renderAll(false);renderEng();checkProxy();checkRunner();renderRunnerNote();renderApprBadge();
+$('#alTo').value=ALERT.to;$('#alEmail').checked=ALERT.email;$('#alWa').checked=ALERT.wa;
+renderProjectUI();syncHeatSel();resetE();renderAll(false);renderBell();mailCheck().then(()=>schedTick(true));renderEng();checkProxy();checkRunner();renderRunnerNote();renderApprBadge();
 if(/[?&#]debug\b/.test(location.href))setTimeout(showDiagnostics,300);
 </script>
 </body>

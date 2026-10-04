@@ -23,6 +23,8 @@ Al Narjis Mixed-Use project. All data is dummy data.
 | `index.html` | The whole demo (model, agent, market data, Outlook inbox, WhatsApp mock-up, IC report). The dummy dataset and the Excel file are embedded. |
 | `api/llm.js` | Vercel serverless function that proxies to Claude or OpenAI, so API keys stay on the server. |
 | `api/scan.js` | Live Outlook (Microsoft Graph) reader with AI extraction of assumption changes. |
+| `api/mail.js` | Sends the agent's emails (scheduled reports, alerts) from the project mailbox; internal recipients only. |
+| `api/cron.js` | Server jobs (Vercel Cron): email scan with alerts at 07:00 and 15:00 Riyadh, morning EstateMaster report. |
 | `api/voice.js` | ElevenLabs text-to-speech for ▶ Play and the report's Read mode; audio cached, key never in the browser. |
 | `api/runner.js` | Proxy from the agent to the EstateMaster runner; the runner token stays on the server. |
 | `runner/` | The EstateMaster runner for the Windows VM (not deployed to Vercel). |
@@ -48,6 +50,7 @@ Al Narjis Mixed-Use project. All data is dummy data.
    | `DEMO_PASSWORD` | Optional but recommended: an access code people must enter before the demo can call the AI (stops strangers spending your credits) |
    | `ANTHROPIC_URL`, `OPENAI_URL` | Optional: a corporate gateway instead of the public endpoints |
    | `RUNNER_URL`, `RUNNER_TOKEN` | The EstateMaster runner (tunnel URL and shared token). Without them approved changes run on the demo's stand-in model |
+   | `CRON_SECRET`, `ALERT_TO`, `REPORT_TO`, `EXPORTS_FOLDER` | Twice-daily email scan with alerts and the morning EstateMaster report (see the setup guides) |
    | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | ElevenLabs narration for ▶ Play and Read (key stays on the server; without it the browser's voice is used) |
    | `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` | Optional: if the runner tunnel sits behind Cloudflare Access |
 
@@ -146,7 +149,7 @@ that is configured but unreachable is reported as such, never simulated.
   proposes, new models and promotion to the live model all become change requests (CR-xxx) in the
   Approvals tab, approvable there, in chat or on WhatsApp ("APPROVE CR-103"). Promotion needs an
   Investment Director. Changes a person makes directly are their own decision and are logged.
-- **Outlook is scanned four times a day** (06:00, 10:00, 14:00, 18:00 Riyadh) and on request; each
+- **Outlook is scanned twice a day** (07:00 and 15:00 Riyadh, on the server even with the app closed) and on request; when a scan senses a possible assumption change the alert list is told by email, WhatsApp and the bell; each
   assumption change found in an email becomes a proposal with the quote it came from.
 - **Change memory:** every change, proposal, approval, rejection, scan and project switch is logged
   with who, when, channel and the IRR after. Exportable to Excel. In the demo it is kept in the
