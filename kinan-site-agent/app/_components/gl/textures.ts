@@ -34,14 +34,15 @@ const GROUND = {
 
 /** The site ground, drawn from the same plan shapes as the 2D sheet, in plan units scaled to the canvas. */
 export function drawGround(o: GroundOpts) {
-  const W = o.size, H = Math.round((o.size * PLAN.h) / PLAN.w), k = W / PLAN.w;
+  // power-of-two canvas (stretched; the mesh UVs are by world fraction) so every GPU mipmaps it
+  const W = o.size, H = o.size / 2, k = W / PLAN.w, ky = H / PLAN.h;
   const { c, g } = canvas(W, H);
   const P = o.night ? GROUND.night : GROUND.day;
   const R = rng(7);
   g.fillStyle = P.sand; g.fillRect(0, 0, W, H);
   // sand grain
   for (let i = 0; i < (W * H) / 90; i++) { g.fillStyle = `rgba(${o.night ? "255,240,210" : "90,70,40"},${0.03 + R() * 0.05})`; g.fillRect(R() * W, R() * H, 1 + R() * 2, 1 + R() * 2); }
-  g.save(); g.scale(k, k);
+  g.save(); g.scale(k, ky);
   const rect = (s: { x?: number; y?: number; w?: number; h?: number }) => g.fillRect(s.x!, s.y!, s.w!, s.h!);
   const poly = (pts: [number, number][]) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); };
   for (const s of SHAPES) {
@@ -148,14 +149,13 @@ export function concrete(seed = 5, tone = 196) {
 }
 /** Tower crane lattice: alpha-tested so the bracing reads from any angle. */
 export function lattice(color = "#f15a22") {
-  const { c, g } = canvas(64, 64);
-  g.clearRect(0, 0, 64, 64);
+  const { c, g } = canvas(128, 128);
+  g.clearRect(0, 0, 128, 128);
   g.strokeStyle = color; g.lineCap = "square";
-  g.lineWidth = 7; g.strokeRect(3.5, -4, 57, 72);
-  g.lineWidth = 4; g.beginPath(); g.moveTo(4, 4); g.lineTo(60, 60); g.moveTo(60, 4); g.lineTo(4, 60); g.stroke();
-  g.lineWidth = 5; g.beginPath(); g.moveTo(0, 2); g.lineTo(64, 2); g.stroke();
-  const t = tex(c, { repeat: true, aniso: 8 });
-  return t;
+  g.lineWidth = 16; g.strokeRect(8, -8, 112, 144);
+  g.lineWidth = 9; g.beginPath(); g.moveTo(8, 8); g.lineTo(120, 120); g.moveTo(120, 8); g.lineTo(8, 120); g.stroke();
+  g.lineWidth = 11; g.beginPath(); g.moveTo(0, 5); g.lineTo(128, 5); g.stroke();
+  return tex(c, { repeat: true, aniso: 8 });
 }
 /** Rebar mat on the deck being cast. */
 export function rebar() {

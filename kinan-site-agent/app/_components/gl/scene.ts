@@ -74,7 +74,7 @@ function materials(): Mats {
     deck: S({ map: rebar(), roughness: 0.8, emissive: ORANGE, emissiveIntensity: 0 }),
     screen: S({ map: climbScreen(), roughness: 0.7, side: THREE.DoubleSide }),
     steel: S({ color: ORANGE, roughness: 0.55, metalness: 0.3 }),
-    lattice: S({ map: lattice("#f15a22"), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.55, metalness: 0.3 }),
+    lattice: S({ map: lattice("#f15a22"), alphaTest: 0.4, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.55, metalness: 0.3 }),
     weight: S({ color: 0x8c8a86, roughness: 0.9 }),
     render: S({ color: 0xf2ede3, roughness: 0.85 }),
     renderLit: S({ color: 0xf2ede3, roughness: 0.85, emissive: 0xffd9a0, emissiveIntensity: 0 }),
@@ -157,8 +157,9 @@ function towerModel(m: Mats, id: string, r: { x: number; z: number; w: number; d
   }
   // curtain wall: fitted floors (lit at night) and the rest of the glazed floors
   const skin = opts.podium ? m.stone : m.glass;
-  if (fitted > 0) g.add(at(new THREE.Mesh(box(w + 0.6, fitted * storey, d + 0.6, 9, storey * 4), opts.podium ? m.stone : m.glassLit), 0, (fitted * storey) / 2, 0));
-  if (glazed > fitted) g.add(at(new THREE.Mesh(box(w + 0.6, (glazed - fitted) * storey, d + 0.6, 9, storey * 4), skin), 0, fitted * storey + ((glazed - fitted) * storey) / 2, 0));
+  if (fitted > 0) g.add(at(new THREE.Mesh(walls(w + 0.6, d + 0.6, fitted * storey, 9, storey * 4), opts.podium ? m.stone : m.glassLit), 0, 0, 0));
+  if (glazed > fitted) g.add(at(new THREE.Mesh(walls(w + 0.6, d + 0.6, (glazed - fitted) * storey, 9, storey * 4), skin), 0, fitted * storey, 0));
+  if (glazed > 0) g.add(at(new THREE.Mesh(box(w + 0.6, 0.12, d + 0.6), m.slabEdge), 0, glazed * storey + 0.06, 0));
   if (opts.podium && glazed > 0) {
     // retail shopfronts: a glass band round the ground floor
     g.add(at(new THREE.Mesh(box(w + 0.8, storey * 0.72, d + 0.8, 9, storey * 4), m.glassLit), 0, storey * 0.36 + 0.2, 0));
@@ -188,7 +189,7 @@ function towerModel(m: Mats, id: string, r: { x: number; z: number; w: number; d
   }
   // roof: parapet, plant and BMU track once topped out
   if (s.topped && s.built > 0) {
-    g.add(at(new THREE.Mesh(walls(w + 0.6, d + 0.6, 1.4, 6, 1.4), m.slabEdge), 0, top, 0));
+    g.add(at(new THREE.Mesh(walls(w + 0.8, d + 0.8, 1.4, 6, 1.4), m.slabEdge), 0, top + 0.12, 0));
     if (!opts.podium) {
       const R = rng(id.length * 7);
       for (let i = 0; i < 4; i++) g.add(at(new THREE.Mesh(box(4 + R() * 5, 2.2 + R() * 1.5, 3 + R() * 4), m.white), (R() - 0.5) * w * 0.55, top + 1.4, (R() - 0.5) * d * 0.55));
@@ -359,8 +360,12 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
 
   // sky, fog, light
   const skyMat = new THREE.MeshBasicMaterial({ map: sky(night), side: THREE.BackSide, fog: false, depthWrite: false });
-  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(3000, 32, 16), skyMat); skyDome.position.set(400, 0, 250); scene.add(skyDome);
-  scene.fog = new THREE.Fog(0xe9dcc4, 900, 2600);
+  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(2300, 32, 16), skyMat); skyDome.position.set(400, 0, 250); scene.add(skyDome);
+  scene.fog = new THREE.Fog(0xe9dcc4, 700, 2100);
+  scene.background = new THREE.Color(0xe9dcc4);
+  // sun disc
+  const sunDisc = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow(), color: 0xfff3d0, transparent: true, depthWrite: false, fog: false }));
+  sunDisc.scale.set(260, 260, 1); scene.add(sunDisc);
   const hemi = new THREE.HemisphereLight(0xdfe9f5, 0xa88c66, 0.7); scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
   // late-afternoon Riyadh sun from the south-west: long shadows towards the north-east
@@ -369,7 +374,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
   const sc = sun.shadow.camera as THREE.OrthographicCamera;
   sc.left = -520; sc.right = 520; sc.top = 380; sc.bottom = -380; sc.near = 10; sc.far = 1500;
   sun.shadow.mapSize.set(opts.textureSize >= 4096 ? 4096 : 2048, opts.textureSize >= 4096 ? 4096 : 2048);
-  sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.8;
+  sun.shadow.bias = -0.00015; sun.shadow.normalBias = 0.35; sun.shadow.radius = 3;
   scene.add(sun, sun.target);
 
   // ground: desert, then the plot drawn from the plan with a hole for the basement pit
@@ -385,7 +390,10 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
   const dShape = new THREE.Shape([V(-3000, -3000), V(3800, -3000), V(3800, 3500), V(-3000, 3500)]);
   dShape.holes.push(new THREE.Path([V(B.x, B.z), V(B.x, B.z + B.d), V(B.x + B.w, B.z + B.d), V(B.x + B.w, B.z)]));
   const desert = new THREE.Mesh(new THREE.ShapeGeometry(dShape).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xd2bd98, roughness: 1 }));
-  desert.position.y = -0.06; desert.receiveShadow = true; scene.add(desert);
+  desert.position.y = -0.45; desert.receiveShadow = true; scene.add(desert);
+  // the plot's kerb
+  const kerb = new THREE.Mesh(walls(PLAN.w * M, PLAN.h * M, 0.45, 4, 0.45), new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.9 }));
+  kerb.position.set(PLAN.w * M / 2, -0.45, PLAN.h * M / 2); scene.add(kerb);
   const ground = new THREE.Mesh(groundGeo, groundMat); ground.receiveShadow = true; scene.add(ground);
   const cover = new THREE.Mesh(uvByWorld(new THREE.PlaneGeometry(B.w, B.d).rotateX(-Math.PI / 2).translate(B.x + B.w / 2, 0, B.z + B.d / 2)), groundMat);
   cover.receiveShadow = true; scene.add(cover);
@@ -565,7 +573,8 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     if (n === night && state) return;
     night = n;
     skyMat.map?.dispose(); skyMat.map = sky(n); skyMat.needsUpdate = true;
-    (scene.fog as THREE.Fog).color.set(n ? 0x161a26 : 0xe9dcc4);
+    (scene.fog as THREE.Fog).color.set(n ? 0x161a26 : 0xe9dcc4); (scene.background as THREE.Color).set(n ? 0x161a26 : 0xe9dcc4);
+    sunDisc.visible = !n; sunDisc.position.copy(sun.position).sub(sun.target.position).normalize().multiplyScalar(2100).add(sun.target.position);
     hemi.intensity = n ? 0.32 : 0.7; hemi.color.set(n ? 0x7d8fb8 : 0xdfe9f5); hemi.groundColor.set(n ? 0x2a2420 : 0xa88c66);
     sun.intensity = n ? 0.55 : 3.2; sun.color.set(n ? 0x9fb2ff : 0xfff0d8);
     scene.environmentIntensity = n ? 0.25 : 0.7;

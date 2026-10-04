@@ -77,19 +77,26 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
     if (!supported || !canvasRef.current || !wrap.current) return;
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: false });
+      renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: false, stencil: false });
+      // Phones that only give a 16-bit depth buffer z-fight on a 1 km site; a logarithmic depth buffer cures that.
+      const gl = renderer.getContext();
+      if ((gl.getParameter(gl.DEPTH_BITS) as number) < 24) {
+        renderer.dispose();
+        renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: false, stencil: false, logarithmicDepthBuffer: true });
+      }
     } catch { setFailed(true); return; }
     const small = Math.min(window.innerWidth, window.innerHeight) < 600;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, small ? 2 : 1.75));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, small ? 1.6 : 1.75));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
-    const camera = new THREE.PerspectiveCamera(42, 1, 1, 7000);
+    const camera = new THREE.PerspectiveCamera(42, 1, 8, 4000);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.09;
     controls.maxPolarAngle = 1.42; controls.minPolarAngle = 0.12;
-    controls.minDistance = 30; controls.maxDistance = 1500;
+    controls.minDistance = 36; controls.maxDistance = 1400;
+    controls.minPolarAngle = 0.2;
     controls.screenSpacePanning = false;
     controls.zoomToCursor = true;
     controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
@@ -144,8 +151,7 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
       const hidden = document.hidden || !wrap.current || wrap.current.offsetParent === null || !!wrap.current.closest(".pane.off");
       if (hidden) return;
       // battery: halve the frame rate when nothing is being touched, played or flown
-      odd = !odd;
-      if (odd && now - touched > 2500 && !playRef.current.playing && !R.current?.fly) return;
+      if (now - touched > 3000 && !playRef.current.playing && !R.current?.fly && now - last < 31) return;
       last = now;
       // timeline playback: ~25 s for the whole programme
       const P = playRef.current;
@@ -163,6 +169,10 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
         if (F.t >= 1) R.current!.fly = undefined;
       }
       controls.update();
+      // Depth precision: keep the near plane as far out as the view allows (the biggest z-fighting fix).
+      const camDist0 = camera.position.distanceTo(controls.target);
+      const near = Math.max(2, Math.min(24, camDist0 * 0.03)), far = Math.max(2600, camDist0 * 6);
+      if (Math.abs(camera.near - near) > 0.2 || Math.abs(camera.far - far) > 50) { camera.near = near; camera.far = far; camera.updateProjectionMatrix(); }
       api.tick(dt, now / 1000, !reducedMotion());
       renderer.render(api.scene, camera);
       if (++fc === 3 || fc % 30 === 0) el.dataset.calls = String(renderer.info.render.calls);
@@ -175,11 +185,14 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
           const y = node.dataset.ground ? 0.5 : (anchors.current.get(loc) ?? 0) + (node.dataset.pin ? 3 : 10);
           v.set(x, y, z).project(camera);
           const off = v.z > 1 || v.x < -1.2 || v.x > 1.2 || v.y < -1.2 || v.y > 1.2;
-          const far = node.dataset.label && camDist > 1100;
+          // hysteresis on the distance thresholds so labels never flip while the camera settles
+          const wasFar = node.dataset.far === "1", far = !!node.dataset.label && (wasFar ? camDist > 1000 : camDist > 1150);
+          node.dataset.far = far ? "1" : "";
           if (off || far) { node.style.visibility = "hidden"; continue; }
           node.style.visibility = "visible";
-          node.style.transform = `translate3d(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h}px, 0)`;
-          node.dataset.compact = camDist > 650 ? "1" : "";
+          node.style.transform = `translate3d(${Math.round(((v.x + 1) / 2) * w)}px, ${Math.round(((1 - v.y) / 2) * h)}px, 0)`;
+          const wasCompact = node.dataset.compact === "1";
+          node.dataset.compact = (wasCompact ? camDist > 600 : camDist > 700) ? "1" : "";
         }
       }
       // adaptive quality: drop resolution and shadow detail on slow devices
