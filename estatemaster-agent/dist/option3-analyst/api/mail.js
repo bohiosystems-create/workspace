@@ -4,13 +4,14 @@
 //   Needs the Graph variables (see api/_lib/graph.js) with Mail.Send (application) granted.
 //   DEMO_PASSWORD   optional; if set, callers must send it as the x-demo-pass header
 const { env, send, readBody, graphConfigured, graphToken, checkRecipients, sendMail, allowedDomains } = require('./_lib/graph');
+const G_access = () => require('./_lib/graph.js').accessCode();
 const MAX_HTML = 900000, MAX_ATTACH = 3_000_000;
 
 module.exports = async function handler(req, res) {
-  if (req.method === 'GET') return send(res, 200, { configured: graphConfigured(), from: graphConfigured() ? env('OUTLOOK_MAILBOX') : null, domains: allowedDomains(), passwordRequired: !!env('DEMO_PASSWORD') });
+  if (req.method === 'GET') return send(res, 200, { configured: graphConfigured(), from: graphConfigured() ? env('OUTLOOK_MAILBOX') : null, domains: allowedDomains(), passwordRequired: !!G_access() });
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
   if (!graphConfigured()) return send(res, 501, { error: 'Email is not configured: set MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET and OUTLOOK_MAILBOX.' });
-  if (env('DEMO_PASSWORD') && req.headers['x-demo-pass'] !== env('DEMO_PASSWORD')) return send(res, 401, { error: 'Access code missing or wrong.' });
+  if (G_access() && req.headers['x-demo-pass'] !== G_access()) return send(res, 401, { error: 'Access code missing or wrong.' });
   const origin = req.headers.origin, host = req.headers.host;
   if (origin && host) { try { if (new URL(origin).host !== host) return send(res, 403, { error: 'Forbidden' }); } catch { return send(res, 403, { error: 'Forbidden' }); } }
   let b; try { b = await readBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }

@@ -4,7 +4,14 @@
 //   OUTLOOK_MAILBOX, OUTLOOK_FOLDER                mailbox and folder the agent reads (and the mailbox it sends from)
 //   ANTHROPIC_API_KEY / OPENAI_API_KEY             model used to read emails (Claude preferred); EXTRACT_MODEL overrides it
 //   LOGIN_BASE, GRAPH_BASE, ANTHROPIC_URL, OPENAI_URL   optional overrides (tests, corporate gateways)
+// Same variable names as the other Bohio demo apps (kinan-marketing): OUTLOOK_SENDER is the mailbox,
+// OUTLOOK_MODE=live turns Outlook on, OUTLOOK_DELIVERY=draft leaves emails as drafts, REPORTS_ALLOWED_RECIPIENTS /
+// REPORTS_ALLOWED_DOMAINS limit who can receive anything. The older names still work.
+for (const [a, b] of [['OUTLOOK_MAILBOX', 'OUTLOOK_SENDER'], ['MAIL_ALLOWED_DOMAINS', 'REPORTS_ALLOWED_DOMAINS'], ['ALERT_TO', 'REPORTS_ALLOWED_RECIPIENTS'], ['REPORT_TO', 'REPORTS_ALLOWED_RECIPIENTS']])
+  if (!process.env[a] && process.env[b]) process.env[a] = process.env[b];
 const env = k => process.env[k] || '';
+// Inside the Bohio sign-in (DEMO_SESSION_SECRET set) the gate protects every call; the old access code is not used.
+const accessCode = () => (env('DEMO_SESSION_SECRET') ? '' : env('DEMO_PASSWORD'));
 
 function send(res, status, obj) {
   res.statusCode = status; res.setHeader('content-type', 'application/json'); res.setHeader('cache-control', 'no-store'); res.end(JSON.stringify(obj));
@@ -13,7 +20,7 @@ async function readBody(req) {
   if (req.body !== undefined) return typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body;
   const chunks = []; for await (const c of req) chunks.push(c); const raw = Buffer.concat(chunks).toString('utf8'); return raw ? JSON.parse(raw) : {};
 }
-const graphConfigured = () => !!(env('MS_TENANT_ID') && env('MS_CLIENT_ID') && env('MS_CLIENT_SECRET') && env('OUTLOOK_MAILBOX'));
+const graphConfigured = () => (!env('OUTLOOK_MODE') || env('OUTLOOK_MODE') === 'live') && !!(env('MS_TENANT_ID') && env('MS_CLIENT_ID') && env('MS_CLIENT_SECRET') && env('OUTLOOK_MAILBOX'));
 const aiConfigured = () => !!(env('ANTHROPIC_API_KEY') || env('OPENAI_API_KEY'));
 
 async function graphToken() {
@@ -56,22 +63,28 @@ function allowedDomains() {
 }
 function checkRecipients(list) {
   const doms = allowedDomains(), ok = [], bad = [];
+  const people = env('REPORTS_ALLOWED_RECIPIENTS').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
   for (const a of list.map(x => String(x).trim()).filter(Boolean)) {
     const dom = (a.split('@')[1] || '').toLowerCase();
-    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a) && doms.includes(dom)) ok.push(a); else bad.push(a);
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a) && (doms.includes(dom) || people.includes(a.toLowerCase()))) ok.push(a); else bad.push(a);
   }
   return { ok, bad, domains: doms };
 }
 /* Send an HTML email from the agent's mailbox (Graph sendMail; needs Mail.Send). */
 async function sendMail(token, { to, subject, html, attachments = [] }) {
-  const mb = env('OUTLOOK_MAILBOX');
-  const r = await fetch(`${gbase()}/users/${encodeURIComponent(mb)}/sendMail`, {
+  const mb = env('OUTLOOK_MAILBOX'), draft = env('OUTLOOK_DELIVERY') === 'draft';
+  const name = env('OUTLOOK_SENDER_NAME'), cc = env('OUTLOOK_CC').split(',').map(x => x.trim()).filter(Boolean);
+  const message = { subject, body: { contentType: 'HTML', content: html }, toRecipients: to.map(a => ({ emailAddress: { address: a } })),
+    ...(cc.length ? { ccRecipients: cc.map(a => ({ emailAddress: { address: a } })) } : {}),
+    ...(name ? { from: { emailAddress: { address: mb, name } } } : {}),
+    attachments: attachments.map(a => ({ '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.contentType || 'application/octet-stream', contentBytes: a.base64 })) };
+  // OUTLOOK_DELIVERY=draft: the email waits in the mailbox's Drafts for a person to send (needs Mail.ReadWrite)
+  const r = await fetch(`${gbase()}/users/${encodeURIComponent(mb)}/${draft ? 'messages' : 'sendMail'}`, {
     method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
-    body: JSON.stringify({ message: { subject, body: { contentType: 'HTML', content: html }, toRecipients: to.map(a => ({ emailAddress: { address: a } })),
-      attachments: attachments.map(a => ({ '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.contentType || 'application/octet-stream', contentBytes: a.base64 })) }, saveToSentItems: true })
+    body: JSON.stringify(draft ? message : { message, saveToSentItems: true })
   });
-  if (r.status !== 202 && !r.ok) { let m = ''; try { const j = await r.json(); m = (j.error && j.error.message) || ''; } catch {} throw new Error(`Graph sendMail ${r.status}: ${m}`); }
-  return { from: mb, to };
+  if (r.status !== 202 && !r.ok) { let m = ''; try { const j = await r.json(); m = (j.error && j.error.message) || ''; } catch {} throw new Error(`Graph ${draft ? 'draft' : 'sendMail'} ${r.status}: ${m}`); }
+  return { from: mb, to, draft };
 }
 
 async function ai(system, user, maxTokens = 2000) {
@@ -88,4 +101,4 @@ async function ai(system, user, maxTokens = 2000) {
 }
 const jsonOf = t => { const m = String(t || '').match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : {}; };
 
-module.exports = { env, send, readBody, graphConfigured, aiConfigured, graphToken, graph, graphBytes, folderId, readMessages, allowedDomains, checkRecipients, sendMail, ai, jsonOf };
+module.exports = { accessCode, env, send, readBody, graphConfigured, aiConfigured, graphToken, graph, graphBytes, folderId, readMessages, allowedDomains, checkRecipients, sendMail, ai, jsonOf };

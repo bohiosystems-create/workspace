@@ -9,6 +9,7 @@
 //   ANTHROPIC_API_KEY and/or OPENAI_API_KEY        model used for extraction (Claude preferred)
 //   DEMO_PASSWORD                                  optional access code (same as /api/llm)
 const { env, send, readBody, graphToken, readMessages } = require('./_lib/graph');
+const G_access = () => require('./_lib/graph.js').accessCode();
 const configured = () => !!(env('MS_TENANT_ID') && env('MS_CLIENT_ID') && env('MS_CLIENT_SECRET') && env('OUTLOOK_MAILBOX') && (env('ANTHROPIC_API_KEY') || env('OPENAI_API_KEY')));
 
 // The register has no size limit. The AI sees the core lines plus the model lines whose wording appears in the emails,
@@ -55,9 +56,9 @@ ${register.map(l => `${l.id} | ${l.label} | ${l.unit} | ${l.current}`).join('\n'
 }
 
 module.exports = async function handler(req, res) {
-  if (req.method === 'GET') return send(res, 200, { configured: configured(), mailbox: configured() ? env('OUTLOOK_MAILBOX') : null, folder: env('OUTLOOK_FOLDER') || 'Inbox', passwordRequired: !!env('DEMO_PASSWORD') });
+  if (req.method === 'GET') return send(res, 200, { configured: configured(), mailbox: configured() ? env('OUTLOOK_MAILBOX') : null, folder: env('OUTLOOK_FOLDER') || 'Inbox', passwordRequired: !!G_access() });
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
-  if (env('DEMO_PASSWORD') && req.headers['x-demo-pass'] !== env('DEMO_PASSWORD')) return send(res, 401, { error: 'Access code missing or wrong.' });
+  if (G_access() && req.headers['x-demo-pass'] !== G_access()) return send(res, 401, { error: 'Access code missing or wrong.' });
   if (!configured()) return send(res, 400, { error: 'Outlook scan not configured: set MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET, OUTLOOK_MAILBOX and an AI key.' });
   let body; try { body = await readBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
   const register = Array.isArray(body.register) ? body.register.slice(0, 50000) : [];

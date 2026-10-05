@@ -29,14 +29,15 @@ async function readBody(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
+const DEMO_CODE = () => (process.env.DEMO_SESSION_SECRET ? '' : process.env.DEMO_PASSWORD);
 module.exports = async function handler(req, res) {
   const has = { anthropic: !!process.env.ANTHROPIC_API_KEY, openai: !!process.env.OPENAI_API_KEY };
 
   // GET: tell the page which providers have a server-side key (never the key itself).
-  if (req.method === 'GET') return send(res, 200, { providers: has, passwordRequired: !!process.env.DEMO_PASSWORD });
+  if (req.method === 'GET') return send(res, 200, { providers: has, passwordRequired: !!DEMO_CODE() });
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
 
-  if (process.env.DEMO_PASSWORD && req.headers['x-demo-pass'] !== process.env.DEMO_PASSWORD)
+  if (DEMO_CODE() && req.headers['x-demo-pass'] !== DEMO_CODE())
     return send(res, 401, { error: 'Access code missing or wrong. Enter it in the AI engine settings.' });
 
   let body;

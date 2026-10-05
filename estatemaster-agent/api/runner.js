@@ -38,6 +38,7 @@ async function call(method, path, body) {
 
 const safeId = s => typeof s === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(s);
 
+const DEMO_CODE = () => (process.env.DEMO_SESSION_SECRET ? '' : process.env.DEMO_PASSWORD);
 module.exports = async function handler(req, res) {
   const configured = !!(process.env.RUNNER_URL && process.env.RUNNER_TOKEN);
   if (req.method === 'GET') {
@@ -46,7 +47,7 @@ module.exports = async function handler(req, res) {
     catch (e) { return send(res, 200, { configured: true, reachable: false, error: String(e.message || e) }); }
   }
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
-  if (process.env.DEMO_PASSWORD && req.headers['x-demo-pass'] !== process.env.DEMO_PASSWORD)
+  if (DEMO_CODE() && req.headers['x-demo-pass'] !== DEMO_CODE())
     return send(res, 401, { error: 'Access code missing or wrong.' });
   if (!configured) return send(res, 400, { error: 'Runner not configured: set RUNNER_URL and RUNNER_TOKEN in Vercel.' });
 

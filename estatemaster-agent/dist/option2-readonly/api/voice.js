@@ -4,7 +4,8 @@
 //   ELEVENLABS_VOICE_ID   default voice for English narration (the page can pick another from the account's voices)
 //   ELEVENLABS_VOICE_ID_AR  default voice for Arabic narration (falls back to ELEVENLABS_VOICE_ID)
 //   ELEVENLABS_MODEL      default eleven_multilingual_v2 (English and Arabic); eleven_v3 for the most expressive delivery
-//   ELEVENLABS_SETTINGS   optional JSON to override voice_settings, e.g. {"stability":0.4,"style":0.3}
+//   ELEVENLABS_STABILITY 0–1 (0.4), ELEVENLABS_SIMILARITY 0–1 (0.8), ELEVENLABS_STYLE 0–1 (0.35), ELEVENLABS_SPEED 0.7–1.2
+//                        (optional): the same settings as the other Bohio demo apps. ELEVENLABS_SETTINGS (JSON) still overrides.
 //   DEMO_PASSWORD         optional; if set, callers must send it as the x-demo-pass header (same as /api/llm)
 // POST {text, timestamps, previous_text, next_text, voice, lang}: with timestamps the reply is JSON
 // {audio_base64, alignment} (character start times, used to light up the figure being spoken about); otherwise MP3.
@@ -29,18 +30,22 @@ async function readBody(req) {
 }
 // Settings that read naturally: lower stability lets the voice move with the sentence; v3 only takes 0 / 0.5 / 1.
 function settingsFor(model) {
+  const num = (v, d, lo, hi) => { const n = parseFloat(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+  const E = process.env;
   const base = /eleven_v3/.test(model)
-    ? { stability: 0.5, similarity_boost: 0.8, use_speaker_boost: true }
-    : { stability: 0.4, similarity_boost: 0.8, style: 0.3, use_speaker_boost: true };
+    ? { stability: [0, 0.5, 1].reduce((a, b) => Math.abs(b - num(E.ELEVENLABS_STABILITY, 0.5, 0, 1)) < Math.abs(a - num(E.ELEVENLABS_STABILITY, 0.5, 0, 1)) ? b : a), similarity_boost: num(E.ELEVENLABS_SIMILARITY, 0.8, 0, 1), use_speaker_boost: true }
+    : { stability: num(E.ELEVENLABS_STABILITY, 0.4, 0, 1), similarity_boost: num(E.ELEVENLABS_SIMILARITY, 0.8, 0, 1), style: num(E.ELEVENLABS_STYLE, 0.35, 0, 1), use_speaker_boost: true };
+  if (E.ELEVENLABS_SPEED) base.speed = num(E.ELEVENLABS_SPEED, 1, 0.7, 1.2);
   try { return { ...base, ...JSON.parse(process.env.ELEVENLABS_SETTINGS || '{}') }; } catch { return base; }
 }
 function authorised(req) {
-  if (process.env.DEMO_PASSWORD && req.headers['x-demo-pass'] !== process.env.DEMO_PASSWORD) return 'Access code missing or wrong.';
+  if (DEMO_CODE() && req.headers['x-demo-pass'] !== DEMO_CODE()) return 'Access code missing or wrong.';
   const origin = req.headers.origin, host = req.headers.host;
   if (origin && host) { try { if (new URL(origin).host !== host) return 'Forbidden'; } catch { return 'Forbidden'; } }
   return null;
 }
 
+const DEMO_CODE = () => (process.env.DEMO_SESSION_SECRET ? '' : process.env.DEMO_PASSWORD);
 module.exports = async function handler(req, res) {
   const key = process.env.ELEVENLABS_API_KEY;
   const model = process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
@@ -60,7 +65,7 @@ module.exports = async function handler(req, res) {
       return send(res, 200, { voices: voicesCache, voice: defaultVoice, voiceAr: defaultVoiceAr, model });
     } catch (e) { return send(res, 502, { error: 'ElevenLabs unreachable: ' + (e && e.message) }); }
   }
-  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', voiceAr: key ? defaultVoiceAr : '', passwordRequired: !!process.env.DEMO_PASSWORD });
+  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', voiceAr: key ? defaultVoiceAr : '', passwordRequired: !!DEMO_CODE() });
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
   if (!key) return send(res, 501, { error: 'Voice is not configured (set ELEVENLABS_API_KEY).' });
   const bad = authorised(req); if (bad) return send(res, bad === 'Forbidden' ? 403 : 401, { error: bad });
