@@ -17,6 +17,7 @@
 | `ELEVENLABS_VOICE_ID` | the default English voice (Voices → the voice → ID). Users can still pick another in the player. |
 | `ELEVENLABS_VOICE_ID_AR` | the default Arabic voice (a native Arabic narrator from the Voice Library). Falls back to the English voice if unset. |
 | `ELEVENLABS_MODEL` | `eleven_multilingual_v2` (default: consistent, English and Arabic). `eleven_v3` for the most expressive delivery (check it is enabled on your plan). |
+| `ELEVENLABS_RIYAL` | how the voice is told to say "riyals". Default `ree-yaals` (stress on the a, as in Saudi usage). Change it here if a voice still says it wrong, e.g. `ree-yahls`; no code change needed. |
 | `ELEVENLABS_SETTINGS` | optional JSON, e.g. `{"stability":0.4,"style":0.3}` |
 
 ## Why it sounded robotic, and what changed
@@ -39,5 +40,6 @@
 1. Set the variables (including `ELEVENLABS_VOICE_ID_AR`), redeploy, open Reports → ▶ Play. The voice button should read "🔊 ElevenLabs".
 2. 🎙 Voice → pick a voice, press ▶ on a sample, then Next → the next slide speaks with it.
 3. 🎙 Voice → العربية: the next slide is narrated in Arabic; CC shows the Arabic script right-to-left.
-4. Watch the headline slide: the IRR tile glows while the IRR is spoken, then profit on cost, then net profit.
+4. Watch any slide: each figure, bar, chart segment, row or bullet glows at the moment the voice names it (timed from ElevenLabs' character timestamps); what has been discussed stays readable, the rest steps back.
+   The voice hears "riyals" as `ELEVENLABS_RIYAL`; the captions keep the written word.
 5. Audio is cached per text and voice, so replaying a deck does not spend credits again.

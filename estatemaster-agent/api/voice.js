@@ -65,7 +65,7 @@ module.exports = async function handler(req, res) {
       return send(res, 200, { voices: voicesCache, voice: defaultVoice, voiceAr: defaultVoiceAr, model });
     } catch (e) { return send(res, 502, { error: 'ElevenLabs unreachable: ' + (e && e.message) }); }
   }
-  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', voiceAr: key ? defaultVoiceAr : '', passwordRequired: !!DEMO_CODE() });
+  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', voiceAr: key ? defaultVoiceAr : '', riyal: process.env.ELEVENLABS_RIYAL || 'ree-yaals', passwordRequired: !!DEMO_CODE() });
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
   if (!key) return send(res, 501, { error: 'Voice is not configured (set ELEVENLABS_API_KEY).' });
   const bad = authorised(req); if (bad) return send(res, bad === 'Forbidden' ? 403 : 401, { error: bad });

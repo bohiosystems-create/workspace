@@ -3205,7 +3205,7 @@ function ksmooth(pts){const n=pts.length;if(n<3)return pts.map((p,i)=>`${i?'L':'
 const ktone=t=>t==='bad'?KD.CRIT:t==='good'?KD.GOOD:t==='warn'?KD.WARN:KD.INK;
 const kstatus=p=>p>=95?[KD.GOOD,'✓','On track']:p>=75?[KD.WARN,'!','Watch']:[KD.CRIT,'✕','Behind'];
 const kd_=ms=>`style="animation-delay:${ms}ms"`;
-const ktip=(title,rows)=>`data-tip="${esc(JSON.stringify({t:title,r:rows}))}"`;
+const ktip=(title,rows)=>`data-tip="${esc(JSON.stringify({t:title,r:rows})).replace(/"/g,'&quot;')}"`;
 const KDEFS=`<defs><filter id="kdGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter><linearGradient id="kdHot" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff7a45"/><stop offset="1" stop-color="${KD.OR}"/></linearGradient><linearGradient id="kdCool" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#5a5a5c"/><stop offset="1" stop-color="${KD.CH}"/></linearGradient><linearGradient id="kdBad" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e86a6a"/><stop offset="1" stop-color="${KD.CRIT}"/></linearGradient><linearGradient id="kdGood" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#4cc08a"/><stop offset="1" stop-color="${KD.GOOD}"/></linearGradient><linearGradient id="kdArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${KD.OR}" stop-opacity=".42"/><stop offset="1" stop-color="${KD.OR}" stop-opacity="0"/></linearGradient></defs>`;
 
 /* ---- chart drawings (SVG strings; the report and the player share them) ---- */
@@ -3312,11 +3312,11 @@ function reportStandalone(id){const tex=getComputedStyle(document.documentElemen
 /* ---- ▶ Play ---- */
 const KVOICE={mode:null,checked:false,cache:new Map(),pass:()=>AI.pass?{'x-demo-pass':AI.pass}:{}};
 async function kVoiceCheck(){if(KVOICE.checked)return KVOICE.mode;KVOICE.checked=true;KVOICE.mode='speechSynthesis' in window?'browser':'none';
-  if(/^https?:/.test(location.protocol)){try{const r=await fetch('/api/voice');if(r.ok){const j=await r.json();if(j.enabled)KVOICE.mode='eleven';KVOICE.model=j.model||'';KVOICE.current=j.voice||''}}catch(e){}}return KVOICE.mode}
+  if(/^https?:/.test(location.protocol)){try{const r=await fetch('/api/voice');if(r.ok){const j=await r.json();if(j.enabled)KVOICE.mode='eleven';KVOICE.model=j.model||'';KVOICE.current=j.voice||'';if(j.riyal)KVOICE.riyal=j.riyal}}catch(e){}}return KVOICE.mode}
 /* speak text; resolves when it ends (or at once when there is no voice). onStart gets the Audio for pause/stop. */
 let KAUDIO=null;
 function kStopVoice(){if(KAUDIO){KAUDIO.pause();KAUDIO=null}if(window.speechSynthesis)speechSynthesis.cancel()}
-async function kSay(text,dur){kStopVoice();if(KVOICE.mode==='eleven'){const url=await kVoiceUrl(text);if(url){return new Promise(ok=>{const a=new Audio(url);KAUDIO=a;a.onended=()=>{if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>ok(false);a.play().catch(()=>ok(false))})}}
+async function kSay(text,dur){kStopVoice();text=kSpeech(text);if(KVOICE.mode==='eleven'){const url=await kVoiceUrl(text);if(url){return new Promise(ok=>{const a=new Audio(url);KAUDIO=a;a.onended=()=>{if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>ok(false);a.play().catch(()=>ok(false))})}}
   if(KVOICE.mode!=='none'&&window.speechSynthesis){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(String(text).slice(0,600));u.lang='en-GB';const v=speechSynthesis.getVoices().find(x=>/^en/i.test(x.lang));if(v)u.voice=v;u.rate=1;u.onend=()=>ok(true);u.onerror=()=>ok(false);speechSynthesis.speak(u)})}
   return new Promise(ok=>setTimeout(()=>ok(false),dur||0))}
 /* ================= NARRATION: a spoken script, not the slide text, with the figure under discussion lit up =================
@@ -3344,9 +3344,9 @@ function kFigIndex(el,s){const labels=kFigLabels(s),byLabel={},norm=x=>kPlain(x)
     case 'hbars':el.querySelectorAll('.kd-hrow').forEach((n,i)=>tag(n,s.labels[i]));break;
     case 'list':el.querySelectorAll('.kd-li').forEach((n,i)=>tag(n,s.items[i]&&s.items[i].text));break;
     case 'table':el.querySelectorAll('tr').forEach(n=>{const td=n.querySelector('td');if(td)tag(n,td.textContent)});break;
-    default:el.querySelectorAll('[data-tip]').forEach(n=>{let t;try{t=JSON.parse(n.dataset.tip).t}catch(e){}tag(n,t)})}
+    default:el.querySelectorAll('[data-tip]').forEach(n=>{let t;try{t=JSON.parse(n.dataset.tip).t}catch(e){}tag(n,t)});el.querySelectorAll('[data-leg]').forEach(n=>{if(!n.hasAttribute('data-fig'))n.setAttribute('data-fig','legend')})}
   return{labels,byLabel,find:l=>{if(!l)return null;const k=norm(l);if(byLabel[k])return byLabel[k];const hit=Object.keys(byLabel).find(x=>x.includes(k)||k.includes(x));return hit?byLabel[hit]:null}}}
-function kFocus(el,node){if(!el)return;el.querySelectorAll('.kd-focus').forEach(x=>x.classList.remove('kd-focus'));if(node){el.classList.add('kd-dimmed');node.classList.add('kd-focus')}else el.classList.remove('kd-dimmed')}
+function kFocus(el,node){if(!el)return;el.querySelectorAll('.kd-focus').forEach(x=>x.classList.remove('kd-focus'));if(node){el.classList.add('kd-dimmed');node.classList.add('kd-focus','kd-seen');const sg=node.getAttribute&&node.getAttribute('data-seg');if(sg!=null){const lg=el.querySelector(`[data-leg="${sg}"]`);if(lg)lg.classList.add('kd-focus','kd-seen')}}}
 /* ---- the built-in script writer: the same figures, said the way a presenter would ---- */
 function kScriptSlide(s,ctx){const seg=[],say=(t,f)=>{t=kPlain(t);if(t)seg.push({t,f:f||null})},A=ctx.aud?` for ${ctx.aud}`:'';const H=HURDLE.irr*100,HP=HURDLE.poc*100;
   switch(s.kind){
@@ -3469,6 +3469,44 @@ async function kSpeakSegs(segs,onSeg,next){kStopVoice();const text=kSegText(segs
   return new Promise(ok=>{fire(0);const stop=kPaceSegs(segs,fire);const total=Math.max(2500,text.split(/\s+/).length/2.6*1000);setTimeout(()=>{stop();ok(false)},total)})}
 /* pacing by word count when there are no timestamps; returns a cancel function */
 function kPaceSegs(segs,fire){const timers=[];let t=0;segs.forEach((g,k)=>{if(k)timers.push(setTimeout(()=>fire(k),t));t+=Math.max(1200,g.t.split(/\s+/).length/2.6*1000)});return()=>timers.forEach(clearTimeout)}
+/* ---- what the voice actually says: currency and symbols spelled for the ear, "riyal" with the stress on the a ---- */
+function kRiyal(plural){const w=(KVOICE.riyal||'ree-yaals').trim();return plural?w:w.replace(/s$/,'')}
+function kSpeech(t){t=String(t==null?'':t).replace(/\s+/g,' ').trim();if(!t||kLang()==='ar')return t;
+  return t.replace(/−/g,'-').replace(/\bSAR\s?(-?[\d.,]+)\s?(?:M|m|mn)\b/g,'$1 million riyals').replace(/\bSAR\s?(-?[\d.,]+)\s?(?:bn|B)\b/g,'$1 billion riyals').replace(/\bSAR\s?(-?[\d.,]+)/g,'$1 riyals').replace(/\bSAR\b/g,'riyals')
+    .replace(/(\d)\s?%/g,'$1 percent').replace(/(\d(?:\.\d+)?)x\b/g,'$1 times').replace(/\/sqm\b/g,' per square metre').replace(/\bsqm\b/g,'square metres')
+    .replace(/\briyals\b/gi,()=>kRiyal(true)).replace(/\briyal\b/gi,()=>kRiyal(false))}
+const kTrackText=segs=>segs.map(g=>kSpeech(g.t)).join(' ');
+/* ---- the narration track: every figure and bullet the voice names, at the character where it is named ---- */
+function kNums(s){return[...String(s).matchAll(/-?\d[\d,]*(?:\.\d+)?/g)].map(m=>m[0].replace(/,/g,'').replace(/^-/,'')).filter(v=>v.length>1||v.includes('.'))}
+function kNodeNums(node){const set=new Set(kNums(node.textContent));node.querySelectorAll('[data-count]').forEach(e=>{const v=+e.dataset.count,d=+e.dataset.dec||0;set.add(kfmt(Math.abs(v),d).replace(/,/g,''));set.add(String(Math.abs(v)))});
+  [node,...node.querySelectorAll('[data-tip]')].forEach(e=>{if(e.dataset&&e.dataset.tip)kNums(e.dataset.tip).forEach(v=>set.add(v))});return set}
+function kTrack(segs,figs){const sp=segs.map(g=>kSpeech(g.t)),text=sp.join(' '),off=[];let n=0;sp.forEach((t,i)=>{off.push(n);n+=t.length+1});
+  const nodes=figs?Object.entries(figs.byLabel):[],nums=new Map(nodes.map(([l,nd])=>[nd,kNodeNums(nd)])),ev=[];
+  sp.forEach((t,k)=>{ev.push({at:off[k],k});const lc=t.toLowerCase(),base=off[k],hit=[];
+    if(segs[k].f&&figs){const nd=figs.find(segs[k].f);if(nd)hit.push({at:base,node:nd})}
+    for(const [label,nd] of nodes){const cands=[label,label.replace(/\s*\(.*?\)\s*/g,' ').trim(),label.split(/[:·—-]/)[0].trim()].filter(c=>c.length>=4&&!/^point \d/.test(c));
+      if(/^(li|div)$/i.test(nd.tagName)&&/kd-li|kd-points|LI/.test(nd.className+nd.tagName)){const w=kPlain(nd.textContent).toLowerCase().replace(/^\W+/,'');if(w.length>14)cands.push(w.slice(0,24))}
+      for(const c of cands){const i=lc.indexOf(c.toLowerCase());if(i>=0){hit.push({at:base+i,node:nd});break}}}
+    for(const m of lc.matchAll(/-?\d[\d,]*(?:\.\d+)?/g)){const v=m[0].replace(/,/g,'').replace(/^-/,'');if(v.length<2&&!v.includes('.'))continue;
+      const own=nodes.filter(([l,nd])=>nums.get(nd).has(v)).map(x=>x[1]);if(!own.length)continue;
+      const near=hit.filter(h=>Math.abs(h.at-(base+m.index))<60).map(h=>h.node),pick=own.length===1?own[0]:own.find(nd=>near.includes(nd));if(pick)hit.push({at:base+m.index,node:pick})}
+    hit.sort((a,b)=>a.at-b.at).forEach(h=>ev.push(h))});
+  ev.sort((a,b)=>a.at-b.at||(a.node?1:0)-(b.node?1:0));
+  const out=[];for(const e of ev){const last=out[out.length-1];if(e.node&&last&&last.node===e.node)continue;out.push(e)}
+  return{text,off,ev:out,len:text.length}}
+/* play a track: ElevenLabs timestamps, browser word boundaries, or pacing; on(e) gets {k} (sentence) and {node} (figure) */
+function kPaceTrack(tr,on,ms){let ei=0;const t0=performance.now(),total=ms||Math.max(2500,tr.text.split(/\s+/).length/2.6*1000);const adv=pos=>{while(ei<tr.ev.length&&tr.ev[ei].at<=pos)on(tr.ev[ei++])};adv(0);
+  const iv=setInterval(()=>adv((performance.now()-t0)/total*tr.len),120);return()=>clearInterval(iv)}
+async function kSpeakTrack(tr,on,next){kStopVoice();if(!tr.text)return false;let ei=0;const adv=pos=>{while(ei<tr.ev.length&&tr.ev[ei].at<=pos){try{on(tr.ev[ei])}catch(e){}ei++}};
+  if(KVOICE.mode==='eleven'){const clip=await kVoiceClip(tr.text,next);if(clip){KVPREV=tr.text;const st=clip.starts||[],exact=st.length===tr.len;
+      const posAt=(t,dur)=>{if(st.length>10){let lo=0,hi=st.length-1;while(lo<hi){const mid=(lo+hi+1)>>1;if(st[mid]<=t)lo=mid;else hi=mid-1}return exact?lo:lo*tr.len/st.length}return dur?t/dur*tr.len:0};
+      return new Promise(ok=>{const a=new Audio(clip.url);KAUDIO=a;let raf=0;adv(0);
+        const tick=()=>{if(KAUDIO!==a)return;adv(posAt(a.currentTime+0.08,a.duration));raf=requestAnimationFrame(tick)};raf=requestAnimationFrame(tick);
+        a.onended=()=>{cancelAnimationFrame(raf);adv(tr.len);if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>{cancelAnimationFrame(raf);ok(false)};a.play().catch(()=>{cancelAnimationFrame(raf);ok(false)})})}}
+  if(KVOICE.mode!=='none'&&window.speechSynthesis){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(tr.text.slice(0,1400));const L=kLang();u.lang=L==='ar'?'ar-SA':'en-GB';const v=speechSynthesis.getVoices().find(x=>new RegExp('^'+L,'i').test(x.lang));if(v)u.voice=v;u.rate=1;let bounded=false;adv(0);
+      u.onboundary=e=>{bounded=true;adv(e.charIndex+(e.charLength||1))};const stop=kPaceTrack(tr,ev_=>{if(!bounded)adv(ev_.at)});
+      u.onend=()=>{stop();adv(tr.len);ok(true)};u.onerror=()=>{stop();ok(false)};speechSynthesis.speak(u)})}
+  return new Promise(ok=>{const total=Math.max(2500,tr.text.split(/\s+/).length/2.6*1000),stop=kPaceTrack(tr,on,total);setTimeout(()=>{stop();ok(false)},total)})}
 /* ---- the voice menu: pick an ElevenLabs voice from the account, hear a sample ---- */
 async function kVoiceList(){if(KVOICE.list)return KVOICE.list;try{const r=await fetch('/api/voice?list=1',{headers:KVOICE.pass()});if(!r.ok)return[];const j=await r.json();KVOICE.list=j.voices||[];KVOICE.current=j.voice||'';KVOICE.currentAr=j.voiceAr||KVOICE.current;return KVOICE.list}catch(e){return[]}}
 async function kVoiceMenu(btn){const root=KP&&KP.root;if(!root)return;let m=root.querySelector('.kd-vmenu');if(m){m.remove();return}
@@ -3489,7 +3527,7 @@ function openDeck(deck){
   document.body.appendChild(root);document.body.style.overflow='hidden';
   const tts='speechSynthesis' in window?window.speechSynthesis:null;
   KP={deck,root,i:-1,playing:true,voice:true,cc:false,timer:null,tick:null,started:0,dur:8000,raf:[],px:0,py:0,script:kScriptFor(deck,RPTS[RSEL]),figs:null};deck.script=KP.script;KVPREV='';
-  kVoiceCheck().then(m=>{if(!KP)return;const b=root.querySelector('[data-act=voice]');if(m==='none'){KP.voice=false;b.style.display='none'}else b.textContent=KP.voice?(m==='eleven'?'🔊 ElevenLabs':'🔊 Voice on'):'🔇 Voice off';if(m==='eleven'&&KP.deck.slides[KP.i+1]&&!KP.script.pending)kVoiceClip(kSegText(KP.script.segs[KP.i+1]||[{t:KP.deck.slides[KP.i+1].say}]));if(m==='eleven'&&KP.i>=0&&KP.playing)kStartTimer()});
+  kVoiceCheck().then(m=>{if(!KP)return;const b=root.querySelector('[data-act=voice]');if(m==='none'){KP.voice=false;b.style.display='none'}else b.textContent=KP.voice?(m==='eleven'?'🔊 ElevenLabs':'🔊 Voice on'):'🔇 Voice off';if(m==='eleven'&&KP.deck.slides[KP.i+1]&&!KP.script.pending)kVoiceClip(kTrackText(KP.script.segs[KP.i+1]||[{t:KP.deck.slides[KP.i+1].say}]));if(m==='eleven'&&KP.i>=0&&KP.playing)kStartTimer()});
   root.addEventListener('pointermove',e=>{if(!KP)return;KP.px=(e.clientX/innerWidth-.5);KP.py=(e.clientY/innerHeight-.5);root.style.setProperty('--kd-px',KP.px.toFixed(3));root.style.setProperty('--kd-py',KP.py.toFixed(3))});
   root.querySelector('.kd-toplogo').innerHTML=klogo(34,KD.CH);root.querySelector('.kd-topchev').innerHTML=kchev(34);
   root.addEventListener('click',e=>{const a=e.target.closest('[data-act]'),g=e.target.closest('[data-go]');if(g){kGo(+g.dataset.go);return}if(!a)return;const act=a.dataset.act;
@@ -3516,7 +3554,7 @@ function kGo(n){if(!KP)return;const {deck,root}=KP,to=Math.max(0,Math.min(deck.s
   setTimeout(()=>{if(!KP||KP.i!==to)return;el.classList.remove('kd-hold');kAnimate(el)},420);
   root.querySelector('.kd-footline b').textContent=to+1;root.querySelectorAll('.kd-seg span').forEach((sp,k)=>{sp.style.width=k<to?'100%':'0%'});
   const segs=KP.script.segs[to]||[{t:s.say,f:null}];KP.segs=segs;kCaption('');KP.dur=Math.min(40000,Math.max(6000,(kSegText(segs).split(/\s+/).length/2.5)*1000+2500));
-  if(KVOICE.mode==='eleven'&&KP.voice&&deck.slides[to+1]&&!KP.script.pending)kVoiceClip(kSegText(KP.script.segs[to+1]||[{t:deck.slides[to+1].say}]));
+  if(KVOICE.mode==='eleven'&&KP.voice&&deck.slides[to+1]&&!KP.script.pending)kVoiceClip(kTrackText(KP.script.segs[to+1]||[{t:deck.slides[to+1].say}]));
   if(KP.playing)kStartTimer()}
 function kAnimate(el){
   el.querySelectorAll('[data-count]').forEach(e=>{const v=+e.dataset.count,dec=+e.dataset.dec,pre=e.dataset.pre,suf=e.dataset.suf,t0=performance.now()+(+e.dataset.delay||0),ms=1400;
@@ -3529,10 +3567,10 @@ function kCaption(say){if(!KP)return;clearTimeout(KP.ccTimer);const box=KP.root.
 function kStartTimer(){if(!KP)return;clearTimeout(KP.timer);kStopVoice();const {deck}=KP,i=KP.i,s=deck.slides[i],t0=Date.now(),minShow=4500;let done=false;
   const next=()=>{if(done||!KP||KP.i!==i)return;done=true;if(i<deck.slides.length-1)kGo(i+1);else{KP.playing=false;KP.root.querySelector('[data-act=pause]').textContent='▶ Replay';}};
   const after=()=>{if(done||!KP||KP.i!==i)return;KP.timer=setTimeout(next,Math.max(900,minShow-(Date.now()-t0)))};
-  const segs=KP.segs||[{t:s.say,f:null}],onSeg=k=>{if(!KP||KP.i!==i)return;const g=segs[k];if(!g)return;kFocus(KP.el,KP.figs&&g.f?KP.figs.find(g.f):null);if(KP.cc)kCaption(g.t)};
+  const segs=KP.segs||[{t:s.say,f:null}],tr=kTrack(segs,KP.figs),onEv=e=>{if(!KP||KP.i!==i)return;if(e.node){kFocus(KP.el,e.node);return}const g=segs[e.k];if(!g)return;if(KP.cc)kCaption(g.t);if(!tr.ev.some(x=>x.node&&x.at>=tr.off[e.k]&&(e.k+1>=tr.off.length||x.at<tr.off[e.k+1])))kFocus(KP.el,null)};
   const go=async()=>{if(KP.script.pending){await Promise.race([KP.script.pending,new Promise(r=>setTimeout(r,12000))]);if(!KP||KP.i!==i||done)return;const fresh=KP.script.segs[i];if(fresh&&fresh!==segs){KP.segs=fresh;return go()}}
-    if(KP.voice&&KVOICE.mode&&KVOICE.mode!=='none'){KP.timer=setTimeout(next,Math.max(KP.dur,45000));const next_=deck.slides[i+1]?kSegText(KP.script.segs[i+1]||[{t:deck.slides[i+1].say}]):'';kSpeakSegs(segs,onSeg,next_).then(spoke=>{if(!KP||KP.i!==i||done)return;clearTimeout(KP.timer);if(spoke)after();else KP.timer=setTimeout(next,Math.max(900,KP.dur-(Date.now()-t0)))});return}
-    onSeg(0);KP.pace=kPaceSegs(segs,onSeg);KP.timer=setTimeout(next,KP.dur)};
+    if(KP.voice&&KVOICE.mode&&KVOICE.mode!=='none'){KP.timer=setTimeout(next,Math.max(KP.dur,45000));const next_=deck.slides[i+1]?kTrackText(KP.script.segs[i+1]||[{t:deck.slides[i+1].say}]):'';kSpeakTrack(tr,onEv,next_).then(spoke=>{if(!KP||KP.i!==i||done)return;clearTimeout(KP.timer);if(spoke)after();else KP.timer=setTimeout(next,Math.max(900,KP.dur-(Date.now()-t0)))});return}
+    KP.pace=kPaceTrack(tr,onEv,KP.dur-1500);KP.timer=setTimeout(next,KP.dur)};
   if(KP.pace){KP.pace();KP.pace=null}go()}
 if(!KP){document.addEventListener('click',e=>{if(KP&&KP.playing&&KP.root.querySelector('[data-act=pause]').textContent==='▶ Replay'&&e.target.closest('[data-act=pause]')){kGo(0)}})}
 
@@ -3650,10 +3688,12 @@ const KD_CSS=`
 .kd-footline b{color:#f15a22;font-weight:700}.kd-footline span{opacity:.6}.kd-on-orange .kd-footline,.kd-on-dark .kd-footline{color:rgba(255,255,255,.7)}.kd-on-orange .kd-footline b{color:#fff}
 /* narration focus: the figure being spoken about steps forward, the rest steps back */
 .kd-slide [data-fig]{transition:opacity .4s ease,transform .4s cubic-bezier(.2,.8,.2,1),filter .4s ease,box-shadow .4s ease}
-.kd-slide.kd-dimmed [data-fig]:not(.kd-focus){opacity:.42}
+.kd-slide.kd-dimmed [data-fig]:not(.kd-focus){opacity:.4}
+.kd-slide.kd-dimmed [data-fig].kd-seen:not(.kd-focus){opacity:.78}
 .kd-slide .kd-focus{opacity:1!important;filter:drop-shadow(0 0 12px rgba(241,90,34,.55))}
 .kd-slide div.kd-focus,.kd-slide li.kd-focus{transform:scale(1.025);transform-origin:left center;box-shadow:0 0 0 2px #f15a22,0 18px 40px rgba(46,46,47,.18);border-radius:8px;background:rgba(255,255,255,.92);z-index:2;position:relative;padding-left:8px;margin-left:-8px}
 .kd-slide li.kd-focus{padding-left:6px}
+.kd-slide .kd-li.kd-focus,.kd-slide .kd-hrow.kd-focus{transform:none}
 .kd-slide tr.kd-focus td{background:rgba(241,90,34,.14);font-weight:600}
 .kd-slide tr.kd-focus td:first-child{box-shadow:inset 4px 0 0 #f15a22}
 .kd-slide g.kd-focus,.kd-slide path.kd-focus{transform-box:fill-box;transform-origin:center bottom;transform:scale(1.08);filter:drop-shadow(0 0 14px rgba(241,90,34,.9)) drop-shadow(0 0 4px rgba(241,90,34,.9))}
