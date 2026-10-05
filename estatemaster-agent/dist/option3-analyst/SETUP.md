@@ -39,7 +39,7 @@ Reports → pick a report → **▶ Play** runs it as a full-screen presentation
 figures, gauges, cost and funding donuts, cash flow by year, stress bars against the hurdle, headroom, market check,
 closing page), with captions and narration; ← → move, Space pauses, F is fullscreen, Esc closes. **🔊 Read** plays the report document itself,
 section by section, with the same narration. Narration uses ElevenLabs when `ELEVENLABS_API_KEY` is set in Vercel (optional
-`ELEVENLABS_VOICE_ID`), otherwise the browser's own voice.
+`ELEVENLABS_VOICE_ID`, and `ELEVENLABS_VOICE_ID_AR` for Arabic), otherwise the browser's own voice.
 **PowerPoint** downloads the same deck with native, editable charts and the narration in the speaker notes.
 **HTML** and **Print / PDF** give the report document (logo band, orange cover, charts, closing page).
 Every figure shown as EstateMaster's comes from an export; charts built on the agent's model say "agent's estimate".
@@ -54,7 +54,7 @@ otherwise a rules engine.
 **Narration:** ▶ Play speaks a hidden script written for the audience (Claude Fable 5.1 when an AI key is set), and the
 figure being spoken about lights up on the slide. **🎙 Voice** in the player picks any ElevenLabs voice from your account
 and switches to Arabic. Voice setup and choice: `docs/VOICE_elevenlabs.md` (`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`,
-`ELEVENLABS_MODEL`).
+`ELEVENLABS_VOICE_ID_AR`, `ELEVENLABS_MODEL`).
 
 **New reports on the spot:** in the Report designer chat or the agent chat, "create a … report for … with …" designs,
 creates and builds it (API model first, rules engine without AI). Reports can use the **data library** (past projects,

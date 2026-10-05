@@ -23,7 +23,7 @@ Same package as before, with two more demos and the EstateMaster agent's server 
 | `ANTHROPIC_API_KEY` | Claude (routing, report designer, narration script) |
 | `OPENAI_API_KEY` | OpenAI failover |
 | `DEMO_PASSWORD` | optional access code the demo asks for before spending AI/voice credits |
-| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL` | narration (see `docs/VOICE_elevenlabs.md` in the agent repo) |
+| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_VOICE_ID_AR`, `ELEVENLABS_MODEL` | narration (see `docs/VOICE_elevenlabs.md` in the agent repo) |
 | `CRON_SECRET` | any long random string; Vercel sends it with the scheduled jobs |
 | `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `OUTLOOK_MAILBOX`, `OUTLOOK_FOLDER` | live Outlook scan (optional; simulated otherwise) |
 | `ALERT_TO`, `REPORT_TO`, `MAIL_ALLOWED_DOMAINS`, `APP_URL` | alert and report emails (internal domains only); `APP_URL` = `https://bohiotech.com/demos/kinan-estatemaster/` |

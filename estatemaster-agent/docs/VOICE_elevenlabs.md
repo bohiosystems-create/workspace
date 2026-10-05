@@ -14,7 +14,8 @@
 | Variable | Value |
 |---|---|
 | `ELEVENLABS_API_KEY` | from elevenlabs.io → Profile → API keys |
-| `ELEVENLABS_VOICE_ID` | the default voice (Voices → the voice → ID). Users can still pick another in the player. |
+| `ELEVENLABS_VOICE_ID` | the default English voice (Voices → the voice → ID). Users can still pick another in the player. |
+| `ELEVENLABS_VOICE_ID_AR` | the default Arabic voice (a native Arabic narrator from the Voice Library). Falls back to the English voice if unset. |
 | `ELEVENLABS_MODEL` | `eleven_multilingual_v2` (default: consistent, English and Arabic). `eleven_v3` for the most expressive delivery (check it is enabled on your plan). |
 | `ELEVENLABS_SETTINGS` | optional JSON, e.g. `{"stability":0.4,"style":0.3}` |
 
@@ -35,7 +36,7 @@
    your plan the API returns an error and the app falls back to the browser voice, so test on one deck first.
 
 ## Checklist to test
-1. Set the three variables, redeploy, open Reports → ▶ Play. The voice button should read "🔊 ElevenLabs".
+1. Set the variables (including `ELEVENLABS_VOICE_ID_AR`), redeploy, open Reports → ▶ Play. The voice button should read "🔊 ElevenLabs".
 2. 🎙 Voice → pick a voice, press ▶ on a sample, then Next → the next slide speaks with it.
 3. 🎙 Voice → العربية: the next slide is narrated in Arabic; CC shows the Arabic script right-to-left.
 4. Watch the headline slide: the IRR tile glows while the IRR is spoken, then profit on cost, then net profit.

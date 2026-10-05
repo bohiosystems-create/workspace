@@ -1,7 +1,8 @@
 // Narration for ▶ Play and the report's read-aloud mode with ElevenLabs text-to-speech. The API key stays on the
 // server; without ELEVENLABS_API_KEY the page uses the browser's own voice.
 //   ELEVENLABS_API_KEY    required to enable it
-//   ELEVENLABS_VOICE_ID   default voice (the page can pick another from the account's voices)
+//   ELEVENLABS_VOICE_ID   default voice for English narration (the page can pick another from the account's voices)
+//   ELEVENLABS_VOICE_ID_AR  default voice for Arabic narration (falls back to ELEVENLABS_VOICE_ID)
 //   ELEVENLABS_MODEL      default eleven_multilingual_v2 (English and Arabic); eleven_v3 for the most expressive delivery
 //   ELEVENLABS_SETTINGS   optional JSON to override voice_settings, e.g. {"stability":0.4,"style":0.3}
 //   DEMO_PASSWORD         optional; if set, callers must send it as the x-demo-pass header (same as /api/llm)
@@ -44,21 +45,22 @@ module.exports = async function handler(req, res) {
   const key = process.env.ELEVENLABS_API_KEY;
   const model = process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
   const defaultVoice = process.env.ELEVENLABS_VOICE_ID || DEFAULT_VOICE;
+  const defaultVoiceAr = process.env.ELEVENLABS_VOICE_ID_AR || defaultVoice;
   const url = new URL(req.url || '/', 'http://x');
   if (req.method === 'GET' && url.searchParams.get('list')) {
     if (!key) return send(res, 200, { voices: [], voice: '', model });
     const bad = authorised(req); if (bad) return send(res, 401, { error: bad });
-    if (voicesCache && Date.now() - voicesAt < 10 * 60 * 1000) return send(res, 200, { voices: voicesCache, voice: defaultVoice, model });
+    if (voicesCache && Date.now() - voicesAt < 10 * 60 * 1000) return send(res, 200, { voices: voicesCache, voice: defaultVoice, voiceAr: defaultVoiceAr, model });
     try {
       const r = await fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': key } });
       if (!r.ok) return send(res, 502, { error: `ElevenLabs voices failed (${r.status})` });
       const j = await r.json();
       voicesCache = (j.voices || []).map((v) => ({ id: v.voice_id, name: v.name, labels: v.labels || {}, preview: v.preview_url || '', category: v.category || '' }));
       voicesAt = Date.now();
-      return send(res, 200, { voices: voicesCache, voice: defaultVoice, model });
+      return send(res, 200, { voices: voicesCache, voice: defaultVoice, voiceAr: defaultVoiceAr, model });
     } catch (e) { return send(res, 502, { error: 'ElevenLabs unreachable: ' + (e && e.message) }); }
   }
-  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', passwordRequired: !!process.env.DEMO_PASSWORD });
+  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', voiceAr: key ? defaultVoiceAr : '', passwordRequired: !!process.env.DEMO_PASSWORD });
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
   if (!key) return send(res, 501, { error: 'Voice is not configured (set ELEVENLABS_API_KEY).' });
   const bad = authorised(req); if (bad) return send(res, bad === 'Forbidden' ? 403 : 401, { error: bad });
@@ -67,7 +69,7 @@ module.exports = async function handler(req, res) {
   const text = String((body && body.text) || '').replace(/\s+/g, ' ').trim().slice(0, MAX_CHARS);
   if (!text) return send(res, 400, { error: 'Nothing to say.' });
   const withTs = !!(body && body.timestamps);
-  const voice = body && /^[A-Za-z0-9]{10,40}$/.test(String(body.voice || '')) ? String(body.voice) : defaultVoice;
+  const voice = body && /^[A-Za-z0-9]{10,40}$/.test(String(body.voice || '')) ? String(body.voice) : (body && body.lang === 'ar' ? defaultVoiceAr : defaultVoice);
   const ck = `${voice}|${model}|${withTs ? 1 : 0}|${text}`;
   let out = cache.get(ck);
   if (!out) {
