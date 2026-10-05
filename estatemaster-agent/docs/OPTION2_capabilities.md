@@ -20,6 +20,8 @@ loaded; everything else is labelled as the agent's estimate. Nothing changes wit
 - A new model from a previous project's structure (creation in EstateMaster needs approval).
 
 ## 3. Watch the inbox and the market
+- Every export is checked for likely mistakes, especially in the inputs: outputs that do not reconcile, unit slips, peak debt above cost, negative leverage, sensitivity tables not refreshed, inputs at zero or out of range, inputs that differ from the approved register, unexplained jumps since the previous export. On the EstateMaster tab, in the chat ("check the export for mistakes"), in the monthly report and IC pack, and in the 07:00 morning report.
+- The morning report also lists the assumption changes the emails of the last 24 hours propose, and says the export does not include them yet.
 - Outlook folder scanned twice a day (07:00 and 15:00 Riyadh) on the server, plus on request: anything that reads like a change to an assumption becomes a proposal for approval, with the quote and sender.
 - Email alerts to the internal team when a scan finds a potential change (internal addresses only).
 - Market check against transactions, rental evidence and the plot's zoning; suggestions raised as change requests.

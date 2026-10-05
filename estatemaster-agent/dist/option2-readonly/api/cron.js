@@ -16,6 +16,7 @@
 //   PROJECT_NAME         default "Al Narjis Mixed-Use"
 // plus the Graph and AI variables in api/_lib/graph.js.
 const G = require('./_lib/graph');
+const EM = require('./_lib/emcheck');
 const { env } = G;
 const SLOTS = [4, 12]; // UTC hours of the two scans (07:00 and 15:00 Riyadh)
 const OR = '#f15a22', CH = '#2e2e2f', SOFT = '#6f6f6f', TAUPE = '#51473d', LINE = '#e3e2df';
@@ -47,9 +48,10 @@ ${appUrl ? `<tr><td style="padding:0 26px 24px"><a href="${esc(appUrl)}" style="
 const th = t => `<th align="left" style="background:${CH};color:#fff;font-size:10px;letter-spacing:.2em;text-transform:uppercase;padding:8px">${t}</th>`;
 const td = (t, x = '') => `<td style="padding:9px 8px;border-top:1px solid ${LINE};font-size:13px;vertical-align:top${x}">${t}</td>`;
 
-async function scanJob(token, now, dry, appUrl) {
-  const w = windowFor(now), msgs = await G.readMessages(token, w.since);
-  if (!msgs.length) return { job: 'scan', window: w, messages: 0, findings: 0, sent: false };
+/* The emails since a given time and what they propose (used by the scan and by the morning report). */
+async function scanFindings(token, since) {
+  const msgs = await G.readMessages(token, since);
+  if (!msgs.length) return { msgs, findings: [] };
   const system = `You read emails for a real estate development project and find any email that proposes or reports a change to an assumption of its financial model (sale prices, rents, construction costs and their elements, fees, contingency, timing and delays, areas, financing terms such as interest rate, margin, loan to cost, facility limits, equity terms, exit yields).
 Return JSON only: {"findings":[{"message_id":string,"assumption":string,"new_value":string,"previous_value":string|null,"quote":string,"confidence":number}]}.
 "quote" is the exact text that supports it. Include an item only if the email states or proposes a change; ignore everything else. Confidence 0-1. Project: ${env('PROJECT_NAME') || 'Al Narjis Mixed-Use'}.`;
@@ -57,12 +59,18 @@ Return JSON only: {"findings":[{"message_id":string,"assumption":string,"new_val
   const j = G.jsonOf(await G.ai(system, user));
   const byId = Object.fromEntries(msgs.map(m => [m.id, m]));
   const findings = (j.findings || []).filter(f => byId[f.message_id] && f.assumption).map(f => ({ ...f, msg: byId[f.message_id], confidence: Math.max(0, Math.min(1, +f.confidence || 0.5)) }));
+  return { msgs, findings };
+}
+const findingRows = findings => findings.map(f => `<tr>${td(`<b>${esc(f.assumption)}</b>`)}${td(`${f.previous_value ? esc(f.previous_value) + ' → ' : ''}<b style="color:${OR}">${esc(f.new_value)}</b>`)}${td(`${esc(f.msg.from)}<br><span style="color:${SOFT};font-size:12px">${esc(f.msg.subject)} · ${esc(riyadh(f.msg.date))}</span>`)}${td(`<span style="color:${SOFT}">“${esc(f.quote)}”</span>`)}${td(`${Math.round(f.confidence * 100)}%`, ';text-align:right')}</tr>`).join('');
+async function scanJob(token, now, dry, appUrl) {
+  const w = windowFor(now), { msgs, findings } = await scanFindings(token, w.since);
+  if (!msgs.length) return { job: 'scan', window: w, messages: 0, findings: 0, sent: false };
   const out = { job: 'scan', window: w, messages: msgs.length, findings: findings.length, items: findings.map(f => ({ from: f.msg.from, subject: f.msg.subject, assumption: f.assumption, new_value: f.new_value, quote: f.quote, confidence: f.confidence })), sent: false };
   if (!findings.length) return out;
   const to = G.checkRecipients(env('ALERT_TO').split(','));
   if (to.bad.length) out.rejected = to.bad;
   if (!to.ok.length) { out.note = 'ALERT_TO is not set (or has no internal address): no alert sent'; return out; }
-  const rows = findings.map(f => `<tr>${td(`<b>${esc(f.assumption)}</b>`)}${td(`${f.previous_value ? esc(f.previous_value) + ' → ' : ''}<b style="color:${OR}">${esc(f.new_value)}</b>`)}${td(`${esc(f.msg.from)}<br><span style="color:${SOFT};font-size:12px">${esc(f.msg.subject)} · ${esc(riyadh(f.msg.date))}</span>`)}${td(`<span style="color:${SOFT}">“${esc(f.quote)}”</span>`)}${td(`${Math.round(f.confidence * 100)}%`, ';text-align:right')}</tr>`).join('');
+  const rows = findingRows(findings);
   const body = `<p style="margin:0 0 14px">The ${riyadh(w.slot).split(',').pop().trim()} scan read <b>${msgs.length}</b> new message${msgs.length > 1 ? 's' : ''} in the project folder and sensed <b>${findings.length}</b> possible assumption change${findings.length > 1 ? 's' : ''}:</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${th('Assumption')}${th('Proposed')}${th('From')}${th('Quote')}${th('Conf.')}</tr>${rows}</table>
 <p style="margin:16px 0 0;color:${SOFT};font-size:12px">Open the agent to review them: each one becomes a change request for approval, checked against the model's current value. Nothing has been changed.</p>`;
@@ -74,17 +82,7 @@ Return JSON only: {"findings":[{"message_id":string,"assumption":string,"new_val
 
 /* EstateMaster's figures from an Office Links export, by row label (the same labels the app reads). */
 const LAB = [['levered_irr', /(equity|levered|geared)\s*irr|irr\s*\((equity|levered|geared)/i], ['unlevered_irr', /(unlevered|ungeared|project)\s*irr|irr\s*\((unlevered|ungeared|project)/i], ['profit_on_cost', /(profit|margin)\s*on\s*(cost|development)|development\s*margin/i], ['net_profit', /(net|development)\s*profit/i], ['total_cost', /total\s*(development\s*)?costs?\b/i], ['gross_revenue', /(gross|total)\s*(revenue|realisation|realization|sales)/i], ['equity_multiple', /equity\s*multiple/i], ['peak_debt', /peak\s*(debt|funding|loan)/i]];
-function readExport(buf) {
-  const XLSX = require('xlsx'); const wb = XLSX.read(buf, { type: 'buffer' }), out = {};
-  for (const name of wb.SheetNames) for (const row of XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true })) {
-    if (!row) continue;
-    for (let i = 0; i < row.length; i++) { const c = row[i]; if (typeof c !== 'string' || c.length > 80) continue;
-      for (const [k, re] of LAB) { if (k in out || !re.test(c)) continue; if (k === 'levered_irr' && /unlevered|ungeared/i.test(c)) continue;
-        const v = row.slice(i + 1).find(x => typeof x === 'number'); if (v == null) continue;
-        out[k] = /irr|profit_on_cost/.test(k) && Math.abs(v) < 1 ? +(v * 100).toFixed(4) : v; break; } }
-  }
-  return out;
-}
+function readExport(buf, name) { const XLSX = require('xlsx'); return EM.parseWorkbook(XLSX.read(buf, { type: 'buffer' }), XLSX, name); }
 const ROWS = [['levered_irr', 'Levered IRR', '%'], ['unlevered_irr', 'Unlevered IRR', '%'], ['profit_on_cost', 'Profit on cost', '%'], ['net_profit', 'Net profit', 'M'], ['total_cost', 'Total development cost', 'M'], ['gross_revenue', 'Gross revenue', 'M'], ['equity_multiple', 'Equity multiple', 'x'], ['peak_debt', 'Peak debt', 'M']];
 const fmt = (v, u) => !Number.isFinite(v) ? '—' : u === '%' ? v.toFixed(2) + '%' : u === 'x' ? v.toFixed(2) + 'x' : 'SAR ' + Math.round(v / 1e6).toLocaleString('en-GB') + 'M';
 const dlt = (a, b, u) => !Number.isFinite(a) || !Number.isFinite(b) || Math.abs(b - a) < 1e-9 ? '–' : u === '%' ? `${b > a ? '+' : '−'}${Math.abs(b - a).toFixed(2)} pts` : u === 'x' ? `${b > a ? '+' : '−'}${Math.abs(b - a).toFixed(2)}x` : `${b > a ? '+' : '−'}${Math.round(Math.abs(b - a) / 1e6)}M`;
@@ -102,20 +100,32 @@ async function reportJob(token, now, dry, appUrl) {
   const files = all.filter(f => isBase(optOf(f.name))).slice(0, 2);
   if (!files.length) return { job: 'report', skipped: all.length ? `only option exports in the folder (${all.slice(0, 5).map(f => optOf(f.name)).join(', ')}); no base export` : 'no export in the folder yet' };
   const base = folder.replace(/\/root:.*$/, '');
-  const read = async f => ({ name: f.name, at: f.lastModifiedDateTime, out: readExport(await G.graphBytes(token, `${base}/items/${f.id}/content`)) });
+  const read = async f => ({ name: f.name, at: f.lastModifiedDateTime, ...readExport(await G.graphBytes(token, `${base}/items/${f.id}/content`), f.name) });
   const [b, a] = await Promise.all(files.map(read));
   const options = all.filter(f => !isBase(optOf(f.name))).slice(0, 10).map(f => ({ option: optOf(f.name), file: f.name, at: f.lastModifiedDateTime }));
   if (!Object.keys(b.out).length) return { job: 'report', skipped: `no EstateMaster returns found in ${b.name}` };
   const hurdle = +(env('HURDLE_IRR') || 18);
   const ok = Number.isFinite(b.out.levered_irr) ? b.out.levered_irr >= hurdle : null;
+  // checks on the export (the same emChecks the app runs) and the assumption changes sensed in Outlook over the last day
+  const checks = EM.emChecks({ out: b.out, inputs: b.inputs, sens: b.sens, at: b.at, file: b.name }, a ? { out: a.out, file: a.name } : null, { now: now.toISOString(), hurdle }).filter(c => c.code !== 'hurdle');
+  let flags = { msgs: [], findings: [], note: '' };
+  if (G.aiConfigured()) { try { flags = await scanFindings(token, new Date(now.getTime() - 864e5).toISOString()); } catch (e) { flags.note = e.message; } } else flags.note = 'no AI key: emails not read';
+  const lvl = { error: ['Likely error', '#d03b3b'], warn: ['Check', OR], note: ['Note', SOFT] };
+  const checksHtml = `<h3 style="margin:22px 0 6px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:${TAUPE}">Checks on the export</h3>` + (checks.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${checks.map(c => `<tr>${td(`<span style="display:inline-block;background:${lvl[c.level][1]};color:#fff;font-size:9px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:2px 6px;border-radius:3px;white-space:nowrap">${lvl[c.level][0]}</span>`, ';width:90px')}${td(esc(c.text))}</tr>`).join('')}</table><p style="margin:8px 0 0;color:${SOFT};font-size:12px">${checks.filter(c => c.level !== 'note').length} to look at. These are checks for a person; nothing was changed.</p>`
+    : `<p style="margin:0;color:${SOFT}">Outputs reconcile, units look right, the sensitivity tables match the Summary and the inputs are in range. Nothing to look at.</p>`);
+  const flagsHtml = `<h3 style="margin:22px 0 6px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:${TAUPE}">Assumptions possibly changing (Outlook, last 24 hours)</h3>` + (flags.findings.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${th('Assumption')}${th('Proposed')}${th('From')}${th('Quote')}${th('Conf.')}</tr>${findingRows(flags.findings)}</table><p style="margin:8px 0 0;color:${SOFT};font-size:12px">${flags.findings.length} possible change${flags.findings.length > 1 ? 's' : ''} in ${flags.msgs.length} email${flags.msgs.length > 1 ? 's' : ''}. Each one becomes a change request in the app; nothing changes until a person approves it. The export above does not include them yet.</p>`
+    : `<p style="margin:0;color:${SOFT}">${flags.note ? esc(flags.note) : `No assumption change sensed in the ${flags.msgs.length} email${flags.msgs.length === 1 ? '' : 's'} of the last 24 hours.`}</p>`);
   const stats = ROWS.slice(0, 4).map(([k, l, u]) => `<td width="25%" style="padding:10px 8px 10px 0;border-top:2px solid ${OR};vertical-align:top"><div style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:${TAUPE};font-weight:700">${l}</div><div style="font-size:24px;font-weight:700;margin-top:6px;color:${k === 'levered_irr' && ok === false ? '#d03b3b' : k === 'levered_irr' && ok ? '#1f8a4c' : CH}">${fmt(b.out[k], u)}</div>${a ? `<div style="font-size:11px;color:${SOFT}">${dlt(a.out[k], b.out[k], u)} vs previous</div>` : ''}</td>`).join('');
   const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:18px"><tr>${th('Output')}${a ? th('Previous') : ''}${th('Latest')}${a ? th('Change') : ''}</tr>${ROWS.map(([k, l, u]) => `<tr>${td(l)}${a ? td(fmt(a.out[k], u), ';text-align:right') : ''}${td(`<b>${fmt(b.out[k], u)}</b>`, ';text-align:right')}${a ? td(dlt(a.out[k], b.out[k], u), ';text-align:right') : ''}</tr>`).join('')}</table>`;
   const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${stats}</tr></table>
 <p style="margin:16px 0 0">${ok == null ? 'The latest export has no levered IRR.' : ok ? `Levered IRR is above the ${hurdle}% hurdle.` : `<b style="color:#d03b3b">Levered IRR is below the ${hurdle}% hurdle.</b>`}</p>${table}
-<p style="margin:16px 0 0;color:${SOFT};font-size:12px">Every figure is EstateMaster's own, read from ${esc(b.name)} (${esc(riyadh(b.at))})${a ? ` and compared with ${esc(a.name)} (${esc(riyadh(a.at))})` : ''}. Open the agent for the full report and ▶ Play.</p>`;
+${checksHtml}${flagsHtml}
+<p style="margin:16px 0 0;color:${SOFT};font-size:12px">Every figure is EstateMaster's own, read from ${esc(b.name)} (${esc(riyadh(b.at))}${b.opt ? ', option ' + esc(b.opt) : ''})${a ? ` and compared with ${esc(a.name)} (${esc(riyadh(a.at))})` : ''}${options.length ? `. Other options in the folder: ${options.map(o => esc(o.option)).join(', ')}` : ''}. Open the agent for the full report and ▶ Play.</p>`;
   const html = frame('Morning EstateMaster report', env('PROJECT_NAME') || 'Al Narjis Mixed-Use', riyadh(now.toISOString()), body, appUrl);
   const to = G.checkRecipients(env('REPORT_TO').split(','));
-  const out = { job: 'report', latest: b.name, previous: a ? a.name : null, figures: b.out, subject: `KINAN · EstateMaster report · ${env('PROJECT_NAME') || 'Al Narjis Mixed-Use'} · ${now.toLocaleDateString('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short' })}`, sent: false };
+  const out = { job: 'report', latest: b.name, previous: a ? a.name : null, figures: b.out, checks, flags: flags.findings.map(f => ({ assumption: f.assumption, new_value: f.new_value, from: f.msg.from })), options, subject: `KINAN · EstateMaster report · ${env('PROJECT_NAME') || 'Al Narjis Mixed-Use'} · ${now.toLocaleDateString('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short' })}`, sent: false };
   if (to.bad.length) out.rejected = to.bad;
   if (dry) { out.preview = html; return out; }
   if (!to.ok.length) { out.note = 'REPORT_TO is not set (or has no internal address): report not sent'; return out; }

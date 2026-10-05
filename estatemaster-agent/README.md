@@ -181,6 +181,23 @@ Without `RUNNER_URL`/`RUNNER_TOKEN`, the demo simulates the runner, clearly labe
 stand-in model in the browser; Architecture → Demo runner switches the simulation to the analyst fallback. A runner
 that is configured but unreachable is reported as such, never simulated.
 
+## Checks on every export, and what the emails are proposing
+
+`api/_lib/emcheck.js` holds `emChecks()`, copied into the app by `tools/sync_emcheck.py` (the build runs it), so the
+07:00 morning report on the server, the EstateMaster tab, the chat ("check the export for mistakes", the AI tool
+`check_estatemaster_export`) and the report block *Checks on the EstateMaster export* (in the monthly report and the IC
+pack) all run the same checks on the latest export: outputs that do not reconcile (profit on cost vs net profit / total
+cost, revenue − cost vs profit, sign), unit slips (thousands vs SAR), peak debt above cost, negative leverage, implausible
+ranges, a sensitivity table whose base cell no longer matches the Summary (not refreshed after a change), inputs at zero
+or out of range (interest rate, cap rate, contingency, VAT, percentages above 100), inputs that differ from the approved
+register (an unapproved change or a typing slip), jumps since the previous export with no approved change behind them,
+and a stale export. Each finding is a sentence with a level (likely error, check, note); nothing is changed.
+
+The morning report also carries **Assumptions possibly changing (Outlook, last 24 hours)**: the same reader the scans
+use, over the last day, so the report says what the emails propose and that the export does not include it yet. In the
+app, "which assumptions are changing?" and the report block *Assumption changes sensed in Outlook* list the change
+requests the scans raised, with sender, quote and approval status.
+
 ## Approvals, email scans and change memory
 
 - **Nothing reaches EstateMaster without a person.** Changes the agent finds in Outlook, changes the AI

@@ -88,7 +88,9 @@ a link. It changes nothing: in the app each finding becomes a change request for
 and on WhatsApp, and does not send a second email when the server already did.
 
 The morning report reads the two latest EstateMaster exports in the exports folder and emails EstateMaster's own figures,
-the change since the previous export and the hurdle check.
+the change since the previous export and the hurdle check, plus **checks on the export** (outputs that do not reconcile, unit
+slips, inputs at zero or out of range, sensitivity tables not refreshed, unexplained jumps) and **the assumption changes the
+emails of the last 24 hours propose** (not yet in the export).
 
 | Variable | Purpose |
 |---|---|

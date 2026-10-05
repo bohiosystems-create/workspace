@@ -112,5 +112,7 @@ def build(mode):
 
 
 if __name__ == "__main__":
+    import subprocess, sys
+    subprocess.run([sys.executable, str(ROOT / "tools/sync_emcheck.py")], check=True)
     for m in OPTIONS:
         build(m)
