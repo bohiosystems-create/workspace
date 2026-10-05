@@ -257,6 +257,17 @@ body.chatopen .chat-fab{display:none}
 .kchart .kd-hrow{font-size:12px}.kchart .kd-ring-v{font-size:18px}.kchart table.t{font-size:12px}
 .calc{display:inline-block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:#fff;background:var(--alert);padding:1px 6px;margin-left:4px;vertical-align:middle;border-radius:3px;cursor:help}
 .calcnote{margin-top:8px;font-size:11.5px;color:var(--ink2);border-top:1px dashed var(--hair);padding-top:6px}
+.fig{font-weight:700;cursor:pointer;border-bottom:2px solid;color:var(--ink);white-space:nowrap}.fig:hover{background:rgba(46,46,47,.07)}
+.fig-em{border-color:#1f8a5a}.fig-est{border-color:var(--orange)}.fig-calc{border-color:var(--alert)}
+.tag{display:inline-block;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:#fff;padding:1px 5px;margin:0 2px 0 4px;vertical-align:middle;border-radius:3px;cursor:help;white-space:nowrap;line-height:1.5}
+.tag-em{background:#1f8a5a}.tag-est{background:var(--orange)}.tag-calc{background:var(--alert)}
+.t .fig{white-space:nowrap}
+#figWin{position:fixed;inset:0;background:rgba(46,46,47,.38);z-index:400;display:none;align-items:center;justify-content:center;padding:16px}#figWin.on{display:flex}
+#figWin .fw-card{background:#fff;border-radius:14px;max-width:580px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.28);padding:14px 18px 18px;position:relative;overflow:hidden}
+.fw-head{display:flex;align-items:center;gap:10px;margin:6px 0 8px;flex-wrap:wrap}.fw-head b{font-size:24px;font-family:Montserrat,sans-serif}.fw-head .btn{margin-left:auto}.fw-kind{font-size:12px;color:var(--soft);flex-basis:100%}
+.fw-work{font-size:13px;line-height:1.55;max-height:60vh;overflow:auto;border-top:1px dashed var(--hair);padding-top:8px}.fw-work b{font-weight:700}
+.fw-work .fw-h{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:8px 0 2px}
+.emsens{overflow-x:auto;margin-top:8px}.emsens table td.lo{background:rgba(208,59,59,.14)}.emsens table td.base{outline:2px solid var(--ink);outline-offset:-2px}
 .msg.agent .kchart{min-width:min(100%,360px)}
 /* floating sandbox */
 .sbhead{display:flex;align-items:center;gap:10px}
@@ -664,6 +675,11 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
     </div>
   </div>
 <div id="p-stress" style="margin-top:20px">
+  <div class="card" style="margin-bottom:20px" id="emResCard">
+    <div class="bar"></div><div class="sbhead"><h2>EstateMaster’s own results</h2><span class="tag tag-em" style="font-size:10px">EstateMaster</span></div>
+    <div class="sub">The options and stages exported from EstateMaster and the sensitivity tables saved in the export. Every figure here is EstateMaster’s; nothing on this card is estimated. The tables further down are the agent’s estimates and say so.</div>
+    <div id="emRes"></div>
+  </div>
   <div class="card" style="margin-bottom:20px">
     <div class="bar"></div><div class="sbhead"><h2>Scenario generator: no limit</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="sgTheme" style="border:1px solid var(--faint);border-radius:999px;padding:5px 10px;font-size:12.5px;background:#fff"><option value="mixed">Mixed</option><option value="downturn">Market downturn</option><option value="construction">Construction shock</option><option value="finance">Finance shock</option><option value="timing">Delays</option><option value="tail">Tail events (severe)</option></select><select id="sgN" style="border:1px solid var(--faint);border-radius:999px;padding:5px 10px;font-size:12.5px;background:#fff"><option value="100">100</option><option value="1000" selected>1,000</option><option value="5000">5,000</option></select><button class="btn sm" id="sgGo">Generate</button><button class="btn ghost sm" id="sgVerify">Check worst 5 in EstateMaster</button><button class="btn ghost sm" id="sgReport">Stress report</button><button class="btn ghost sm" id="sgClear">Clear</button></div></div>
@@ -1006,6 +1022,25 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
 const MODE=(()=>{const ok=['full','readonly','analyst'];if(ok.includes(window.BOHIO_MODE))return window.BOHIO_MODE;let q=null;try{q=new URLSearchParams(location.search).get('mode')}catch(e){}return ok.includes(q)?q:'readonly'})();
 const RO=MODE!=='full',MEMKEY='bohioMem'+(RO?'_'+MODE:'');
 let EXPORTS=[],EXN=1,TASKS=[],TKN=1,DRAFT={};
+/* Provenance. Every figure in the chat carries where it came from: em = read from an EstateMaster export, est = the agent's replica estimate,
+   calc = arithmetic by the AI model. Markers in text: ⟦em#id⟧ ⟦est#id⟧ ⟦calc: working⟧. WORK keeps the working behind each figure for the click-through window. */
+let WORK=[],WKN=1;
+function addWork(kind,text,extra){const w={id:WKN++,kind,text,...(extra||{})};WORK.push(w);if(WORK.length>600)WORK=WORK.slice(-600);return w.id}
+const TAGK={em:'EstateMaster',est:'Agent estimate',calc:'AI calc'},TAGKIND={em:'read from the EstateMaster export · not calculated by the agent',est:'the agent’s replica estimate · not an EstateMaster figure',calc:'arithmetic by the AI model · not an EstateMaster figure'};
+const pmark=(k,id)=>`⟦${k}#${id}⟧`;
+const attrW=w=>esc(w||'').replace(/"/g,'&quot;').replace(/\n/g,'&#10;');
+function fig(k,text,work){return `<b class="fig fig-${k}" data-k="${k}" data-w="${attrW(work)}">${esc(text)}</b><span class="tag tag-${k}">${TAGK[k]}</span>`}
+function figM(k,text,work,extra){return `${text} ${pmark(k,addWork(k,work,extra))}`}
+const MARK=/((?:SAR\s?)?[-−+]?\d[\d,]*(?:\.\d+)?\s?(?:%|x\b|M\b|bn\b|k\b|pts|pp\b|bps|months?|mo\b|sqm|SAR)?)?\s*⟦(em|est|calc)(?:#(\d+))?(?::\s*([^⟧]*))?⟧/g;
+function figHTML(num,k,id,w){const wk=id&&WORK.find(x=>x.id===+id);const work=w?w.replace(/"/g,'&quot;'):attrW(wk?wk.text:'');return (num?`<b class="fig fig-${k}" data-k="${k}" data-id="${id||''}" data-w="${work}">${num}</b>`:'')+`<span class="tag tag-${k}">${TAGK[k]}</span>`}
+const plainMarks=t=>String(t).replace(MARK,(m,num,k)=>`${num||''} (${TAGK[k]})`);
+const stripMarks=t=>String(t).replace(MARK,(m,num)=>num||'');
+function replicaNote(){const x=typeof latestExport==='function'?latestExport():null;return `Method: the Bohio replica of the EstateMaster model (quarterly cash flow rebuilt from the register: land, hard-cost S-curve, soft costs and contingency, off-plan collections, retail exit at the cap rate, Murabaha facility at LTC; IRR solved on the equity flows). It is an estimate, not an EstateMaster calculation${x?`; EstateMaster’s latest export is ${x.id}`:''}. Ask an analyst to run the scenario in EstateMaster for its own figure.`}
+function openFigWin(el){let w=$('#figWin');if(!w){w=document.createElement('div');w.id='figWin';w.innerHTML='<div class="fw-card"><div class="bar"></div><div class="fw-head"><b id="fwNum"></b><span id="fwTag"></span><button class="btn ghost sm" id="fwClose">Close</button><span class="fw-kind" id="fwKind"></span></div><div class="fw-work" id="fwBody"></div></div>';document.body.appendChild(w)}
+  const k=el.dataset.k||'calc',id=el.dataset.id,wk=id&&WORK.find(x=>x.id===+id);let text=el.dataset.w||(wk&&wk.text)||'';
+  if(!text)text=k==='em'?'EstateMaster’s own figure, read from the latest export by row label.':k==='est'?replicaNote():'Worked out by the AI model from the figures in this answer. It did not state its working: treat it as unverified and check it in EstateMaster before it goes into a decision.';
+  $('#fwNum').textContent=el.textContent;$('#fwTag').innerHTML=`<span class="tag tag-${k}" style="font-size:10px">${TAGK[k]}</span>`;$('#fwKind').textContent=TAGKIND[k];
+  $('#fwBody').innerHTML='<div class="fw-h">How this figure was worked out</div>'+esc(text).replace(/\n/g,'<br>');w.classList.add('on')}
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -1148,6 +1183,7 @@ function intent(text){
   if(/^(no|cancel|reject)\b/.test(t))return{k:'cancel'};
   if(/^undo( (the|that|last))?( report)?( (change|edit|design))?$/.test(t)&&RHIST[RSEL]&&RHIST[RSEL].length)return{k:'undoreport'};
   if(/pending approvals?|what needs (my )?approval|approval queue|change (log|history)|audit (log|trail)/.test(t))return{k:'approvals'};
+  if(/\b(estatemaster|estate master|\bem\b)\b.*\b(sensitiv\w*|results?|figures?|options?|stages?|exports?|own)\b|\b(sensitiv\w*|options?|stages?)\b.*\b(estatemaster|estate master)\b/.test(t)&&!/\b(report|pack|deck|upload|check|verify|confirm|run)\b/.test(t)&&!/(generate|create|design)/.test(t))return /sensitiv/.test(t)?{k:'emsens',q:t}:{k:'emresults'};
   if(/\bwhy\b|where did|source of|who (said|changed|asked)|what changed/.test(t))return{k:'why',v:varsIn(t)};
   if(/\bextract\b|pull (the )?(data|numbers)|export (the )?(model|data)/.test(t)&&!/\breport\b/.test(t))return{k:'extract'};
   if(/suggest(ions?)? (assumptions?|changes?|updates?)|suggest what|recommend(ed)? (assumption|changes?)|review (the |our )?assumptions|what (assumptions )?should (we|i) (change|update)|assumption review/.test(t))return{k:'suggest'};
@@ -1183,7 +1219,9 @@ function intent(text){
   if(/explor|monte|simulat|infinite|autonom|keep (going|testing|running)|thousand/.test(t))return{k:'explore'};
   if(/stress|downside|worst|severe/.test(t))return{k:'stress'};
   if(/sensitiv|heat|grid|tornado|versus| vs /.test(t)){const v=varsIn(t);return{k:'sens',v}}
+  if(/^(propose|raise|submit)( it| that| this| the estimate| the scenario| as a change request)?[.!]?$/.test(t.trim()))return{k:'proposelast'};
   const mods=parseMods(t);
+  if(Object.keys(mods).length&&(/\?\s*$/.test(t)||/^(what would|what happens|what does|how much|how would|how does|would|estimate)\b/.test(t.trim())))return{k:'estimate',mods};
   if(Object.keys(mods).length&&/what if|set|change|assume|suppose|make|raise|cut|increase|decrease|drop|reduce|lower|test|by|to|\d/.test(t))return{k:'mod',mods};
   if(/kpi|status|irr|return|where are we|summary|profit|how (is|are)/.test(t))return{k:'status'};
   return{k:'help'};
@@ -1213,6 +1251,7 @@ async function handle(text,ch,role,forced){
         `<b>Proposed ${cr.id}:</b> ${esc(opsDesc(ops))}<br>${crIRR(cr,{lev:1,b:1,ifa:1})}. Nothing has been written to EstateMaster yet.<div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm" data-apr="${cr.id}">Approve</button><button class="btn ghost sm" data-rej="${cr.id}">Reject</button></div>`);
       return out}
   }
+  if(['estimate','emresults','emsens','proposelast'].includes(it.k)){const pv=provHandle(it,out,done,web,ch,role);if(pv)return pv}
   if(RO){const ro=roHandle(it,text,ch,role,out,done,web);if(ro)return ro}
   switch(it.k){
   case 'xline':{
@@ -1284,15 +1323,18 @@ async function handle(text,ch,role,forced){
     const before=run(S);const nd={...S,...it.mods};const after=run(nd);
     out.steps=['Create sandbox copy of Al Narjis feasibility',...writeSteps(it.mods),'Recalculate and read outputs',calib];
     out.fx=()=>{Object.assign(S,it.mods);Object.keys(it.mods).forEach(k=>delete SRC[k]);Object.keys(S).forEach(k=>{if(!S[k])delete S[k]});changelog.push(`${ch==='web'?'Workspace':'WhatsApp'}: ${scenName(it.mods)}`);renderAll(true)};
-    done(`*Scenario: ${scenName(it.mods)}*\nLevered IRR ${fP(before.irr)} → *${fP(after.irr)}*\nProfit on cost ${fP(before.poc)} → *${fP(after.poc)}*\nNet profit ${fM(before.profit)} → *${fM(after.profit)}*\nThis ${verdict(after)}.`);
+    {const w=addWork('est',estWork(scenName(it.mods),it.mods,before,after)),w0=addWork('est',estWork('current working copy',{},before,before));
+    done(`*Scenario: ${scenName(it.mods)}* (agent estimate)\nLevered IRR ${fP(before.irr)} ${pmark('est',w0)} → *${fP(after.irr)}* ${pmark('est',w)}\nProfit on cost ${fP(before.poc)} ${pmark('est',w0)} → *${fP(after.poc)}* ${pmark('est',w)}\nNet profit ${fM(before.profit)} ${pmark('est',w0)} → *${fM(after.profit)}* ${pmark('est',w)}\nThis ${verdict(after)} on the estimate; check it in EstateMaster for its own figure.`);
+    out.html=mdLite(out.plain)}
     break}
   case 'stress':{
     out.steps=[`Load stress library (${STRESS.length+1} scenarios incl. market-aligned)`,'Pull market medians and FAR limit for market-aligned case','Run each scenario on replica engine','Score against IRR and profit-on-cost hurdles',calib];
     const res=computeStress();const fails=res.filter(x=>!x.pass);const worst=res.slice().sort((a,b)=>a.r.poc-b.r.poc)[0];
     out.fx=()=>{stressRes=res;computeTornado();computeHeadroom();renderStress()};
     out.link=['stress','Open stress tests'];
-    done(`*Stress test complete: ${res.length} scenarios*\n${res.length-fails.length} pass, ${fails.length} fail.\nWorst: ${worst.name}, IRR ${fP(worst.r.irr)}, profit ${fM(worst.r.profit)}.\n${fails.length?'Breaches: '+fails.map(f=>f.name).join('; ')+'.':'No hurdle breaches.'}`,
-     `<b>Stress test complete: ${res.length} scenarios</b><br>${res.length-fails.length} pass, ${fails.length} fail. Worst case <b>${esc(worst.name)}</b>: IRR ${fP(worst.r.irr)}, net profit ${fM(worst.r.profit)}.`+miniTable(res));
+    {const b0=run(S),ww=addWork('est',estWork(worst.name,worst.d,b0,worst.r));
+    done(`*Stress test complete: ${res.length} scenarios* (agent estimates)\n${res.length-fails.length} pass, ${fails.length} fail.\nWorst: ${worst.name}, IRR ${fP(worst.r.irr)} ${pmark('est',ww)}, profit ${fM(worst.r.profit)} ${pmark('est',ww)}.\n${res.map(x=>`${x.name}: IRR ${fP(x.r.irr)} ${pmark('est',addWork('est',estWork(x.name,x.d,b0,x.r)))}, profit on cost ${fP(x.r.poc)}, net profit ${fM(x.r.profit)}, ${x.pass?'pass':'fail'}`).join('\n')}\n${fails.length?'Breaches: '+fails.map(f=>f.name).join('; ')+'.':'No hurdle breaches.'}`,
+     `<b>Stress test complete: ${res.length} scenarios</b> <span class="tag tag-est">Agent estimate</span><br>${res.length-fails.length} pass, ${fails.length} fail. Worst case <b>${esc(worst.name)}</b>: IRR ${fig('est',fP(worst.r.irr),estWork(worst.name,worst.d,b0,worst.r))}, net profit ${fig('est',fM(worst.r.profit),estWork(worst.name,worst.d,b0,worst.r))}.`+miniTable(res))}
     break}
   case 'sens':{
     let [a,b]=it.v||[];a=a||'price';b=(b&&b!==a)?b:(a==='cost'?'price':'cost');
@@ -1488,7 +1530,7 @@ async function handle(text,ch,role,forced){
   }}
   return out;
 }
-function miniTable(res){return '<table><tr><th>Scenario</th><th>IRR</th><th>Profit</th><th></th></tr>'+res.map(x=>`<tr><td>${esc(x.name)}</td><td>${fP(x.r.irr)}</td><td>${fM(x.r.profit)}</td><td><span class="pill ${x.pass?'p':'f'}">${x.pass?'pass':'fail'}</span></td></tr>`).join('')+'</table><a class="go" data-tab="stress">Open stress tests →</a>'}
+function miniTable(res){const b=run(S);return '<table><tr><th>Scenario</th><th>IRR</th><th>Profit</th><th></th></tr>'+res.map(x=>{const w=estWork(x.name,x.d,b,x.r);return`<tr><td>${esc(x.name)}</td><td>${fig('est',fP(x.r.irr),w)}</td><td>${fig('est',fM(x.r.profit),w)}</td><td><span class="pill ${x.pass?'p':'f'}">${x.pass?'pass':'fail'}</span></td></tr>`}).join('')+'</table><div class="calcnote"><span class="tag tag-est">Agent estimate</span> = the agent’s replica, not EstateMaster. Click a figure for its working.</div><a class="go" data-tab="stress">Open stress tests →</a>'}
 const CHIPS=['Chart the cash flow by year','Plot the stress tests as bars','Which past project overran its budget the most, and by how much?','What if sale price drops 10% and cost rises 15%?','Suggest assumption changes'];
 
 /* ================= MARKET DATA (dummy dataset, see market-data.xlsx) ================= */
@@ -2581,20 +2623,26 @@ const MODE_INFO={
   prompt:'Deployment: Option 3, analyst in the loop. You cannot run EstateMaster. Approved changes are written to the control workbook; an analyst presses Refresh Values and Export in EstateMaster, then EstateMaster’s figures come from that export (get_status). Never give a figure for a change as if it were a result: say EstateMaster will calculate it once refreshed.'}
 };
 const MI=()=>MODE_INFO[MODE]||MODE_INFO.readonly;
-const latestExport=(proj=PROJ.id)=>EXPORTS.filter(x=>x.proj===proj).slice(-1)[0]||null;
-const firstExport=(proj=PROJ.id)=>EXPORTS.find(x=>x.proj===proj)||null;
+/* Options and stages: each export says which stored Option it is (none = base). The base is the option named like a base case, else the first one exported; the KPIs, status and reports follow the base; the other options are scenarios run in EstateMaster. */
+const isBaseName=o=>!o||/^(base|live|current|approved|main|master|as is)/i.test(String(o).trim());
+const optOf=x=>x&&x.opt?x.opt:'Base';
+const optKey=x=>isBaseName(x&&x.opt)?'Base':String(x.opt).trim().toLowerCase();
+function baseOpt(proj=PROJ.id){const xs=EXPORTS.filter(x=>x.proj===proj);const b=xs.find(x=>isBaseName(x.opt));return b?'Base':(xs[0]?optKey(xs[0]):'Base')}
+const latestExport=(proj=PROJ.id)=>{const b=baseOpt(proj);return EXPORTS.filter(x=>x.proj===proj&&optKey(x)===b).slice(-1)[0]||null};
+const firstExport=(proj=PROJ.id)=>{const b=baseOpt(proj);return EXPORTS.find(x=>x.proj===proj&&optKey(x)===b)||null};
+function optionExports(proj=PROJ.id){const b=baseOpt(proj),m={};EXPORTS.filter(x=>x.proj===proj&&optKey(x)!==b).forEach(x=>{m[optKey(x)]=x});return Object.values(m)}
 const openTasks=(proj)=>TASKS.filter(t=>t.status==='open'&&(!proj||t.proj===proj));
 function simOut(){const r=run(S),n=v=>+(+v).toFixed(2);return{levered_irr:n(bad(r.irr)*100),unlevered_irr:n(bad(r.uirr)*100),profit_on_cost:n(r.poc*100),net_profit:Math.round(r.profit),total_cost:Math.round(r.tc),gross_revenue:Math.round(r.rev),equity_multiple:n(r.em),peak_debt:Math.round(r.peak)}}
-function addExport(src,note,out,file,cr){
-  const x={id:'EX-'+String(EXN++).padStart(3,'0'),proj:PROJ.id,at:new Date().toISOString(),src,note,file:file||'',cr:cr||'',out,sig:wcSig()};
+function addExport(src,note,out,file,cr,extra){
+  const x={id:'EX-'+String(EXN++).padStart(3,'0'),proj:PROJ.id,at:new Date().toISOString(),src,note,file:file||'',cr:cr||'',out,sig:wcSig(),opt:(extra&&extra.opt)||'',sens:(extra&&extra.sens)||[],sheets:(extra&&extra.sheets)||[]};
   EXPORTS.push(x);if(EXPORTS.length>500)EXPORTS=EXPORTS.slice(-500);syncEMLast(true);
-  logEvent({kind:'export',actor:src==='file'?`${USERS.web} (${WS_ROLE})`:'Analyst (simulated)',channel:'EstateMaster export',detail:`${x.id} read${file?' from '+file:''}: ${note}${Number.isFinite(out.levered_irr)?` · levered IRR ${out.levered_irr.toFixed(2)}%`:''}${src==='file'?'':' (simulated export: demo stand-in for EstateMaster)'}`,cr:cr||''});
+  logEvent({kind:'export',actor:src==='file'?`${USERS.web} (${WS_ROLE})`:'Analyst (simulated)',channel:'EstateMaster export',detail:`${x.id} read${file?' from '+file:''}${x.opt?` · option “${x.opt}”`:''}${x.sens.length?` · ${x.sens.length} sensitivity table${x.sens.length>1?'s':''}`:''}: ${note}${Number.isFinite(out.levered_irr)?` · levered IRR ${out.levered_irr.toFixed(2)}%`:''}${src==='file'?'':' (simulated export: demo stand-in for EstateMaster)'}`,cr:cr||''});
   return x}
 function syncEMLast(force){const x=latestExport();if(!x){if(EMLAST&&EMLAST.proj===PROJ.id&&EMLAST.kind==='export')EMLAST=null;return}
   if(force||!EMLAST||EMLAST.ref!==x.id)EMLAST={out:x.out,ref:x.id,sim:x.src!=='file',kind:'export',sig:x.sig,proj:x.proj,at:x.at}}
 /* Read EstateMaster's figures from an Office Links export (any sheet), by row label */
 const EXLAB=[['levered_irr',/(equity|levered|geared)\s*irr|irr\s*\((equity|levered|geared)/i],['unlevered_irr',/(unlevered|ungeared|project)\s*irr|irr\s*\((unlevered|ungeared|project)/i],['profit_on_cost',/(profit|margin)\s*on\s*(cost|development)|development\s*margin/i],['net_profit',/(net|development)\s*profit/i],['total_cost',/total\s*(development\s*)?costs?\b/i],['gross_revenue',/(gross|total)\s*(revenue|realisation|realization|sales)/i],['equity_multiple',/equity\s*multiple/i],['peak_debt',/peak\s*(debt|funding|loan)/i]];
-function parseExport(wb){
+function parseExport(wb,fileName){
   const out={},found={};
   for(const name of wb.SheetNames||[]){const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true});
     for(const row of rows){if(!row)continue;
@@ -2607,9 +2655,43 @@ function parseExport(wb){
           out[k]=+n.toFixed(4);found[k]=`${name} / ${c.trim()}`;break}}}}
   if(!('levered_irr' in out)&&!('unlevered_irr' in out)){
     for(const name of wb.SheetNames||[]){for(const row of XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true})){if(!row)continue;const i=row.findIndex(c=>typeof c==='string'&&/\bIRR\b/i.test(c)&&c.length<60);if(i<0)continue;const v=row.slice(i+1).find(x=>typeof x==='number');if(v==null)continue;out.levered_irr=+(Math.abs(v)<1?v*100:v).toFixed(4);found.levered_irr=`${name} / ${row[i].trim()} (taken as the levered IRR: check)`;break}if('levered_irr' in out)break}}
-  return{out,found}}
+  const sens=[];for(const name of wb.SheetNames||[]){const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true});let r=parseSens(rows,name);if(!r.length&&/sensitiv/i.test(name)){const T=[];rows.forEach((row,i)=>(row||[]).forEach((c,j)=>{(T[j]=T[j]||[])[i]=c}));r=parseSens(T,name)}sens.push(...r)}
+  return{out,found,opt:detectOpt(wb,fileName),sens,sheets:(wb.SheetNames||[]).slice(0,40)}}
+/* Which stored Option / Stage the export is: a cell such as "Option: Downside" on the first sheets, else the file name ("… - Downside.xlsx", "… (Downside).xlsx"). Empty = the base. */
+function detectOpt(wb,fileName){
+  for(const name of (wb.SheetNames||[]).slice(0,4)){const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true}).slice(0,80);
+    for(const row of rows){if(!row)continue;for(let i=0;i<row.length;i++){const c=row[i];if(typeof c!=='string')continue;const t=c.trim();
+      let m=t.match(/^(?:stored\s+)?(?:option|stage|scenario)(?:\s*(?:name|description|\/\s*stage))?\s*[:\-–]\s*(.{1,60})$/i);if(m)return m[1].trim();
+      if(/^(?:stored\s+)?(?:option|stage|scenario)(?:\s*(?:name|description|\/\s*stage))?\s*:?$/i.test(t)){const v=row.slice(i+1).find(x=>(typeof x==='string'&&x.trim())||typeof x==='number');if(v!=null)return String(v).trim().slice(0,60)}}}}
+  const f=String(fileName||'').replace(/\.[^.]+$/,'');const m=f.match(/\(([^)]{1,60})\)\s*$/)||f.match(/\s[-–]\s([^-–]{1,60})$/);return m?m[1].trim():''}
+/* EstateMaster's saved sensitivity tables (1-way: a row of shifts then one row per metric; 2-way: a row of shifts and a column of shifts around a grid). */
+const SHIFT=c=>{if(typeof c==='number')return Number.isInteger(c)?(Math.abs(c)<=60?c:null):(Math.abs(c)<=1&&Math.abs(c)>=.005?+(c*100).toFixed(2):null);if(typeof c==='string'){const t=c.trim();const m=t.match(/^([+\-−]?\d{1,2}(?:\.\d+)?)\s*%$/);if(m)return +m[1].replace('−','-');if(/^base(\s*case)?$/i.test(t))return 0}return null};
+const SENSMET=m=>/irr/i.test(m)?(/unlev|ungear|project/i.test(m)?'uirr':'irr'):/margin|on cost/i.test(m)?'poc':/npv/i.test(m)?'npv':/profit/i.test(m)?'profit':'other';
+function parseSens(rows,sheet){
+  const res=[];let i=0;
+  const numOf=v=>typeof v==='number'?v:(typeof v==='string'&&/^\s*-?[\d,.]+\s*%?\s*$/.test(v)&&v.trim()?parseFloat(v.replace(/[,%\s]/g,'')):null);
+  while(i<rows.length){const row=rows[i]||[];
+    let run_=[];for(let j=0;j<row.length;j++){if(SHIFT(row[j])!=null&&!(typeof row[j]==='number'&&row[j]>1&&!Number.isInteger(row[j]))){if(run_.length&&j!==run_[run_.length-1]+1){if(run_.length>=3)break;run_=[]}run_.push(j)}}
+    const shifts=run_.map(j=>SHIFT(row[j]));
+    if(run_.length>=3&&shifts.includes(0)&&shifts.every((v,k)=>!k||v>shifts[k-1])&&!row.slice(run_[run_.length-1]+1).some(c=>typeof c==='number')){
+      let title=row.slice(0,run_[0]).find(c=>typeof c==='string'&&c.trim()&&SHIFT(c)==null)||'';
+      for(let k=i-1;k>=Math.max(0,i-4)&&!title;k--){const t=(rows[k]||[]).find(c=>typeof c==='string'&&c.trim()&&SHIFT(c)==null);if(t)title=t}
+      title=String(title).replace(/sensitivity( analysis| table)?/i,'').replace(/\b(one|two|three|1|2|3)[- ]way\b/i,'').replace(/^[\s:–-]+|[\s:–-]+$/g,'').trim();
+      const one=[],grid=[],ys=[];let k=i+1;
+      for(;k<rows.length;k++){const r=rows[k]||[];if(!r.some(c=>c!==''&&c!=null))break;
+        const vals=run_.map(j=>numOf(r[j]));if(vals.filter(v=>v!=null).length<2)break;
+        const lead=r.slice(0,run_[0]).filter(c=>c!==''&&c!=null);const lab=lead.find(c=>typeof c==='string'&&SHIFT(c)==null);const ysh=lead.map(SHIFT).find(v=>v!=null);
+        if(lab)one.push({metric:String(lab).trim(),values:vals});else if(ysh!=null){ys.push(ysh);grid.push(vals)}else break}
+      const norm=(key,vals)=>vals.map(v=>v==null?null:(['irr','uirr','poc'].includes(key)&&Math.abs(v)<1?+(v*100).toFixed(4):+v));
+      if(grid.length>=2){const mm=title.match(/(equity irr|levered irr|geared irr|project irr|unlevered irr|development margin|margin on cost|profit on cost|npv|net profit|irr)/i);const metric=mm?mm[1]:'Levered IRR',mk=SENSMET(metric);
+        const rest=title.replace(mm?mm[0]:'','').replace(/[()]/g,' ').replace(/^[\s:–-]+|[\s:–-]+$/g,'').trim();const pr=rest.match(/^(.*?)\s+(?:vs\.?|v\.|\/|×|x|and|&|by)\s+(.*)$/i);
+        res.push({kind:'2way',x:pr?pr[1].trim():(rest||'X'),y:pr?pr[2].trim():'Y',metric,mk,xs:shifts,ys,grid:grid.map(r=>norm(mk,r)),sheet})}
+      else for(const o of one){const mk=SENSMET(o.metric);res.push({kind:'1way',v:title||'assumption',metric:o.metric,mk,shifts,values:norm(mk,o.values),sheet})}
+      i=Math.max(k,i+1)}
+    else i++}
+  return res}
 async function readExportFile(f){
-  await loadXLSX();const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});const p=parseExport(wb);
+  await loadXLSX();const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});const p=parseExport(wb,f.name);
   if(!Object.keys(p.out).length)throw new Error(`No EstateMaster returns found in ${f.name}. Export the Summary / returns sheet too (Office Links → Excel).`);
   return p}
 /* Tasks for the analyst */
@@ -2656,12 +2738,61 @@ async function completeTask(id,file){
     logEvent({kind:'stress',actor:'Analyst (simulated)',channel:'EstateMaster export',detail:`${t.id} done: ${t.scen.length} stress scenarios run in EstateMaster on a copy (model unchanged): `+t.scen.map(g=>`${g.id} ${GEN.em[g.id].irr.toFixed(2)}%`).join(', ')+' (simulated export: demo stand-in for EstateMaster)'});
     renderGen();renderEMTab();saveMem();toast(`${t.id}: EstateMaster results read for ${t.scen.length} scenarios`);return}
   crs.forEach(applyCRNow);
-  const x=addExport(parsed?'file':'sim',`${t.id} ${taskTitle(t).toLowerCase()} (${crs.map(c=>c.id).join(', ')||'no change requests'})`,parsed?parsed.out:simOut(),file&&file.name,crs.map(c=>c.id).join(', '));
+  const x=addExport(parsed?'file':'sim',`${t.id} ${taskTitle(t).toLowerCase()} (${crs.map(c=>c.id).join(', ')||'no change requests'})`,parsed?parsed.out:simOut(),file&&file.name,crs.map(c=>c.id).join(', '),parsed||undefined);
   if(parsed)x.found=parsed.found;
   crs.forEach(c=>{c.em={status:'done',kind:'task',task:t.id,export:x.id,out:{levered_irr:x.out.levered_irr},sim:!parsed,file:file&&file.name}});
   t.status='done';t.done={at:new Date().toISOString(),by:parsed?`${USERS.web} (${WS_ROLE})`:'Analyst (simulated)',export:x.id};
   renderAll(true);renderEMTab();renderApprBadge();saveMem();toast(`${t.id} done · ${x.id}: levered IRR ${Number.isFinite(x.out.levered_irr)?x.out.levered_irr.toFixed(2)+'%':'not in export'}`)}
-async function uploadExport(file){try{const p=await readExportFile(file);const x=addExport('file','export uploaded',p.out,file.name);x.found=p.found;renderAll(true);renderEMTab();saveMem();toast(`${x.id} read from ${file.name}`)}catch(e){toast(e.message)}}
+async function uploadExport(file){try{const p=await readExportFile(file);const x=addExport('file',p.opt&&!isBaseName(p.opt)?`option “${p.opt}” exported`:'export uploaded',p.out,file.name,'',p);x.found=p.found;renderAll(true);renderEMTab();saveMem();toast(`${x.id} read from ${file.name}${p.opt?` (option ${p.opt})`:''}${p.sens.length?` · ${p.sens.length} EstateMaster sensitivity table${p.sens.length>1?'s':''}`:''}`)}catch(e){toast(e.message)}}
+/* Figures with their origin: EstateMaster's own figures (em), the agent's replica estimates (est). Used by the chat in every mode. */
+let LASTEST=null;
+function emFigs(x){const o=x.out,when=new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}),w=k=>`EstateMaster’s own figure: export ${x.id}${x.file?' ('+x.file+')':''}, ${when}${x.found&&x.found[k]?', read from sheet / row “'+x.found[k]+'”':''}. Option: ${optOf(x)}. Not calculated by the agent.`;
+  const m={};for(const [k,l,u] of EXROWS){if(!Number.isFinite(o[k]))continue;m[k]={label:l,text:u==='%'?o[k].toFixed(2)+'%':u==='x'?o[k].toFixed(2)+'x':fM(o[k]),mark:pmark('em',addWork('em',w(k),{value:o[k],k,x:x.id}))}}return m}
+/* A what-if that lands exactly on a cell of a saved EstateMaster sensitivity table: EstateMaster's figure, not an estimate */
+function emSensLookup(x,mods){const ks=Object.keys(mods).filter(k=>mods[k]);if(!ks.length||ks.length>2)return null;
+  const match=(k,name)=>VARS[k]&&(VARS[k].syn.test(name)||new RegExp(VARS[k].label.split(' ')[0],'i').test(name));
+  const fv=(t,v)=>['irr','uirr','poc'].includes(t.mk)?v.toFixed(2)+'%':Math.abs(v)>=1e5?fM(v):(+v).toLocaleString('en-GB',{maximumFractionDigits:2});
+  const when=new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}),res=[];
+  for(const t of x.sens||[]){
+    if(t.kind==='1way'&&ks.length===1&&match(ks[0],t.v)){const i=t.shifts.findIndex(sh=>Math.abs(sh-mods[ks[0]])<1e-6);if(i<0||t.values[i]==null)continue;const where=`${t.v} ${sgn(t.shifts[i],0)}%, sheet “${t.sheet}”`;
+      res.push({metric:t.metric,text:fv(t,t.values[i]),where,mark:pmark('em',addWork('em',`EstateMaster’s own sensitivity figure: ${t.metric} at ${where} of export ${x.id}${x.file?' ('+x.file+')':''}, ${when}. Calculated by EstateMaster, not by the agent.`,{value:t.values[i]}))})}
+    if(t.kind==='2way'&&ks.length===2){const kx=ks.find(k=>match(k,t.x)),ky=ks.find(k=>k!==kx&&match(k,t.y));if(!kx||!ky)continue;const ci=t.xs.findIndex(sh=>Math.abs(sh-mods[kx])<1e-6),ri=t.ys.findIndex(sh=>Math.abs(sh-mods[ky])<1e-6);if(ci<0||ri<0||t.grid[ri][ci]==null)continue;
+      const where=`${t.x} ${sgn(t.xs[ci],0)}% and ${t.y} ${sgn(t.ys[ri],0)}%, sheet “${t.sheet}”`;res.push({metric:t.metric,text:fv(t,t.grid[ri][ci]),where,mark:pmark('em',addWork('em',`EstateMaster’s own sensitivity figure: ${t.metric} at ${where} of export ${x.id}${x.file?' ('+x.file+')':''}, ${when}. Calculated by EstateMaster, not by the agent.`,{value:t.grid[ri][ci]}))})}}
+  return res.length?res:null}
+function provHandle(it,out,done,web,ch,role){
+  const x=latestExport(),when=xx=>new Date(xx.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+  if(it.k==='proposelast'){if(!LASTEST){done('There is no estimate to propose yet. Ask a what-if first, e.g. “what if sale price drops 10%?”.');return out}
+    const mods=LASTEST;LASTEST=null;return handle('',ch,role,{k:'mod',mods})}
+  if(it.k==='estimate'){const mods=it.mods||{};if(!Object.keys(mods).length){done('Tell me the shocks to estimate, e.g. “what if sale price drops 10% and cost rises 15%?”.');return out}
+    const b=run(S),a=run(merge(S,mods)),dI=(bad(a.irr)-bad(b.irr))*100,dP=(a.poc-b.poc)*100,em=x?emFigs(x):{};LASTEST={...mods};
+    const hit=x?emSensLookup(x,mods):null;
+    if(hit){out.steps=[`Read EstateMaster’s saved sensitivity table in ${x.id}`,'The scenario matches a cell exactly: EstateMaster’s own figure, no estimate needed'];out.link=['scen','Open EstateMaster’s results'];
+      const plain=`*${scenName(mods)}: EstateMaster has this one* (sensitivity table in ${x.id})\n${hit.map(h=>`${h.metric} ${h.text} ${h.mark}`).join('\n')}\nRead from EstateMaster’s own sensitivity table (${hit[0].where}); nothing was estimated. Say “propose it” to raise a change request if you want it applied.`;
+      done(plain,mdLite(plain)+`<div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm" data-q="propose it">Propose as a change request</button></div>`);return out}
+    const wTxt=estWork(scenName(mods),mods,b,a),w=addWork('est',wTxt),w0=addWork('est',estWork('current working copy',{},b,b));
+    const cal=(k,v,d,fmt)=>em[k]?`${fmt(x.out[k]+d)} ${pmark('est',addWork('est',`Calibrated estimate: EstateMaster’s ${em[k].label} ${em[k].text} (${x.id}) ${sgn(d,2)} = ${fmt(x.out[k]+d)}.\n`+wTxt))}`:`${fmt(v)} ${pmark('est',w)}`;
+    const baseS=k=>em[k]?`${em[k].text} ${em[k].mark}`:null;
+    out.steps=['Read EstateMaster’s base figures from the latest export'+(x?` (${x.id})`:' (none yet)'),`Run the shocks on the agent’s replica: ${scenName(mods)}`,'Label every figure: EstateMaster, agent estimate or AI calc'];out.link=['scen','Open scenarios & stress'];
+    const plain=`*Estimate: ${scenName(mods)}* (agent’s replica, not EstateMaster)\nLevered IRR ${baseS('levered_irr')||fP(b.irr)+' '+pmark('est',w0)} → *${cal('levered_irr',a.irr*100,dI,v=>v.toFixed(1)+'%')}* (${sgn(dI,1)} pts ${pmark('est',w)})\nProfit on cost ${baseS('profit_on_cost')||fP(b.poc)+' '+pmark('est',w0)} → *${cal('profit_on_cost',a.poc*100,dP,v=>v.toFixed(1)+'%')}*\nNet profit ${baseS('net_profit')||fM(b.profit)+' '+pmark('est',w0)} → *${cal('net_profit',a.profit,a.profit-b.profit,fM)}*\nEquity multiple ${fX(a.em)} ${pmark('est',w)} · peak debt ${fM(a.peak)} ${pmark('est',w)}\nOn the estimate this ${verdict(a)} (hurdles: IRR ${fP(HURDLE.irr)}, profit on cost ${fP(HURDLE.poc)}). EstateMaster has not calculated this scenario${x?'':' and there is no export yet'}: say “propose it” to raise a change request for a person to approve${RO?' and an analyst to run in EstateMaster':''}.`;
+    done(plain,mdLite(plain)+`<div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm" data-q="propose it">Propose as a change request</button></div>`);return out}
+  if(it.k==='emresults'){if(!x){done('No EstateMaster export yet. Upload one on the EstateMaster tab, or save it in the SharePoint Exports folder.');out.link=['em','Open EstateMaster exports'];return out}
+    const em=emFigs(x),os=optionExports();out.steps=[`Read export ${x.id}`+(os.length?` and ${os.length} option export${os.length>1?'s':''}`:''),'Every figure labelled EstateMaster'];out.link=['scen','Open EstateMaster’s results'];
+    const lines=Object.values(em).map(f=>`${f.label} ${f.text} ${f.mark}`);
+    const opts=os.map(o=>{const e=emFigs(o);return `${optOf(o)} (${o.id}, ${when(o)}): `+Object.values(e).slice(0,4).map(f=>`${f.label} ${f.text} ${f.mark}`).join(', ')});
+    const plain=`*EstateMaster’s figures* (export ${x.id}${x.file?', '+x.file:''}, ${when(x)}, option ${optOf(x)})\n${lines.join('\n')||'No return figures found in the export.'}${opts.length?`\n*Options run in EstateMaster:*\n${opts.join('\n')}`:'\nNo other options exported yet.'}\n${x.sens.length?`${x.sens.length} sensitivity table${x.sens.length>1?'s':''} saved in the export: ask “EstateMaster sensitivity on sale price” or open the Scenarios tab.`:'No sensitivity tables in the export.'}`;
+    done(plain,mdLite(plain));return out}
+  if(it.k==='emsens'){if(!x){done('No EstateMaster export yet, so no EstateMaster sensitivity tables. Upload an export that includes the Sensitivity sheet.');out.link=['em','Open EstateMaster exports'];return out}
+    const q=String(it.q||'').toLowerCase(),words=q.replace(/estate ?master|sensitiv\w*|table|on|for|the|of|show|me|what|is|are|em/g,' ').split(/\s+/).filter(w=>w.length>2);
+    let ts=x.sens||[];if(words.length){const f=ts.filter(t=>words.some(w=>new RegExp(w,'i').test((t.kind==='1way'?t.v:t.x+' '+t.y)+' '+t.metric)));if(f.length)ts=f}
+    out.steps=[`Read the sensitivity tables saved in ${x.id}`,'Every figure labelled EstateMaster'];out.link=['scen','Open EstateMaster’s results'];
+    if(!ts.length){const plain=`No sensitivity tables in EstateMaster’s export ${x.id}. Include the Sensitivity sheet in the Excel export and they are read here. I can estimate the sensitivity with the replica instead (labelled as an estimate): ask “what if …?”.`;done(plain);return out}
+    const fv=(t,v)=>v==null?'—':['irr','uirr','poc'].includes(t.mk)?v.toFixed(2)+'%':Math.abs(v)>=1e5?fM(v):(+v).toLocaleString('en-GB',{maximumFractionDigits:2});
+    const sw=(t,where)=>`EstateMaster’s own sensitivity figure: ${t.metric} at ${where}, from the “${t.sheet}” sheet of export ${x.id}${x.file?' ('+x.file+')':''}, ${when(x)}. Calculated by EstateMaster, not by the agent.`;
+    const lines=ts.slice(0,8).map(t=>t.kind==='1way'?`${t.v} · ${t.metric} (1-way): `+t.shifts.map((sh,i)=>`${sgn(sh,0)}% → ${fv(t,t.values[i])} ${t.values[i]==null?'':pmark('em',addWork('em',sw(t,`${t.v} ${sgn(sh,0)}%`),{value:t.values[i]}))}`).join('; ')
+      :`${t.x} × ${t.y} · ${t.metric} (2-way, rows = ${t.y}): `+t.grid.map((row,ri)=>`${sgn(t.ys[ri],0)}%: `+row.map((v,ci)=>`${sgn(t.xs[ci],0)}% → ${fv(t,v)} ${v==null?'':pmark('em',addWork('em',sw(t,`${t.x} ${sgn(t.xs[ci],0)}% and ${t.y} ${sgn(t.ys[ri],0)}%`),{value:v}))}`).join(', ')).join(' | '));
+    const plain=`*EstateMaster sensitivity tables* (export ${x.id}, ${when(x)})\n${lines.join('\n')}\nThese are EstateMaster’s own figures. Values between the cells are not in the export: anything interpolated is an AI calc, not EstateMaster’s.`;
+    done(plain,mdLite(plain));return out}
+  return null}
 /* Downloads for the analyst */
 async function taskSheet(id){
   const t=TASKS.find(x=>x.id===id);if(!t)return;try{await loadXLSX()}catch(e){toast(e.message);return}
@@ -2758,7 +2889,7 @@ function renderEMTab(){
   $('#tkList').innerHTML=(open.length?open.map(taskCard).join(''):'<div class="sub">No open tasks. Approved change requests appear here.</div>')+(done.length?'<h3 style="margin:14px 0 6px;font-size:14px">Done</h3>'+done.slice(0,30).map(taskCard).join(''):'');
   const xs=EXPORTS.filter(x=>x.proj===PROJ.id);
   $('#exSub').textContent=xs.length?`${xs.length} export${xs.length>1?'s':''} for ${PROJ.name}. The latest is the source of every figure the app shows as EstateMaster’s.`:'No exports yet for '+PROJ.name+'.';
-  $('#exT').innerHTML='<tr><th>Export</th><th>When</th><th>Source</th><th class="n">Levered IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th></tr>'+xs.slice().reverse().slice(0,40).map(x=>`<tr><td><b>${x.id}</b>${x.cr?`<br><span style="color:var(--soft);font-size:11px">${esc(x.cr)}</span>`:''}</td><td style="font-size:12px">${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</td><td style="font-size:12px">${x.src==='file'?esc(x.file):x.src==='initial'?'starting export (simulated)':'simulated export'}</td><td class="n">${exFmt(x.out.levered_irr,'%')}</td><td class="n">${exFmt(x.out.profit_on_cost,'%')}</td><td class="n">${exFmt(x.out.net_profit,'M')}</td></tr>`).join('');
+  $('#exT').innerHTML='<tr><th>Export</th><th>Option / stage</th><th>When</th><th>Source</th><th class="n">Levered IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th></tr>'+xs.slice().reverse().slice(0,40).map(x=>`<tr><td><b>${x.id}</b>${x.cr?`<br><span style="color:var(--soft);font-size:11px">${esc(x.cr)}</span>`:''}</td><td style="font-size:12px">${esc(optOf(x))}${optKey(x)===baseOpt()?' <span class="pill">base</span>':''}${x.sens&&x.sens.length?`<br><span style="color:var(--soft);font-size:11px">${x.sens.length} sensitivity table${x.sens.length>1?'s':''}</span>`:''}</td><td style="font-size:12px">${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</td><td style="font-size:12px">${x.src==='file'?esc(x.file):x.src==='initial'?'starting export (simulated)':'simulated export'}</td><td class="n">${exFmt(x.out.levered_irr,'%')}</td><td class="n">${exFmt(x.out.profit_on_cost,'%')}</td><td class="n">${exFmt(x.out.net_profit,'M')}</td></tr>`).join('');
   const opt=xs.map(x=>`<option value="${x.id}">${x.id} · ${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</option>`).join('');
   const a=xs.find(x=>x.id===EXSEL[0])||xs[0],b=xs.find(x=>x.id===EXSEL[1])||xs[xs.length-1];
   $('#exA').innerHTML=opt;$('#exB').innerHTML=opt;if(a)$('#exA').value=a.id;if(b)$('#exB').value=b.id;
@@ -2771,7 +2902,7 @@ function roInit(){
   const arch=$('#set_arch .card')||$('#p-arch .card');if(arch)arch.innerHTML=`<div class="bar"></div><h2>${esc(MI().name)}</h2><div class="sub">EstateMaster is the trusted layer: every figure shown as EstateMaster’s comes from its own export. The agent never runs or writes to EstateMaster.</div><div class="rec">${MI().how.map(([h,s],i)=>`<div class="it"><div class="num">${i+1}</div><div><b>${esc(h)}</b><span>${esc(s)}</span></div></div>`).join('')}</div>${modeCanHTML()}`;
   $('#modeH').textContent='What this option can and can’t do';$('#modeCan').innerHTML=modeCanHTML();
   $('#etoggle').style.display='none';$('#etoggle').insertAdjacentHTML('afterend','<span class="sub" style="margin:0">The autonomous explorer needs the agent to run EstateMaster, which this option does not do. The grid is the agent’s estimate, for designing a sensitivity run only.</span>');
-  const sg=$('#p-stress > .grid');if(sg)sg.style.display='none';
+  document.querySelectorAll('#p-stress > .grid .card > .sub').forEach(e=>{if(/Agent’s estimates on the current sandbox/.test(e.textContent))e.innerHTML='Hurdles: levered IRR ≥ <span id="hIRR"></span> and profit on cost ≥ <span id="hPOC"></span>. <span class="tag tag-est" style="margin-left:0">Agent estimate</span> every figure in this table is the agent’s replica estimate, not EstateMaster’s (EstateMaster’s own results are in the card above). Click a figure for its working; hand a scenario to an analyst for EstateMaster’s figure.'});
   $('#sgVerify').textContent='Hand the 5 worst to an analyst';
   const mt=$('#p-model .card > .sub:nth-of-type(2)');document.querySelectorAll('#p-model .card .sub').forEach(e=>{if(/Changes go to the sandbox copy/.test(e.textContent))e.textContent='Edit any line (or ask the agent). Each edit becomes a change request; EstateMaster changes once it is approved and '+(MODE==='analyst'?'the analyst refreshes it.':'an analyst enters it.')});
   if(MODE==='readonly'){$('#cwDown').style.display='none';$('#cwConn').style.display='none'}
@@ -3114,13 +3245,39 @@ function computeHeadroomData(){
 }
 const hd=(k,d)=>d==null?'not reached':Number.isNaN(d)?'already breached':fD(k,d);
 function computeHeadroom(){headRes=computeHeadroomData()}
+/* The working behind one replica estimate, shown when the figure is clicked */
+function estWork(name,d,b,a){const x=latestExport(),o=x?x.out:{};const sh=Object.keys(d||{}).filter(k=>d[k]).map(k=>`${VARS[k].label} ${fD(k,d[k])} (${VARS[k].fmt(apply(S)[k])} → ${VARS[k].fmt(apply(merge(S,d))[k])})`).join('; ')||'no shocks (current working copy)';
+  const dI=(bad(a.irr)-bad(b.irr))*100;
+  return `Agent estimate for “${name}”.\nShocks: ${sh}.\nReplica base case: levered IRR ${fP(b.irr)}, profit on cost ${fP(b.poc)}, net profit ${fM(b.profit)}.\nWith the shocks: levered IRR ${fP(a.irr)} (${sgn(dI,1)} pts), profit on cost ${fP(a.poc)}, net profit ${fM(a.profit)}, equity multiple ${fX(a.em)}, peak debt ${fM(a.peak)}.${Number.isFinite(o.levered_irr)?`\nEstateMaster base (${x.id}): levered IRR ${o.levered_irr.toFixed(2)}%; calibrated estimate = ${o.levered_irr.toFixed(2)}% ${sgn(dI,1)} pts = ${(o.levered_irr+dI).toFixed(1)}%.`:'\nNo EstateMaster export to calibrate against yet.'}\n${replicaNote()}`}
+function renderEMResults(){const el=$('#emRes');if(!el)return;const x=latestExport(),os=optionExports();
+  if(!x){el.innerHTML='<div class="sub">No EstateMaster export yet. Upload one on the EstateMaster tab (or save it in the SharePoint Exports folder): the stored options and the sensitivity tables in it appear here.</div>';return}
+  const when=xx=>new Date(xx.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+  const wx=(xx,k)=>`EstateMaster’s own figure: export ${xx.id}${xx.file?' ('+xx.file+')':''}, ${when(xx)}${xx.found&&xx.found[k]?', read from sheet / row “'+xx.found[k]+'”':''}. Option: ${optOf(xx)}. Not calculated by the agent.`;
+  const emv=(xx,k,u)=>{const v=xx.out[k];return !Number.isFinite(v)?'<span style="color:var(--soft)">not in export</span>':fig('em',u==='%'?v.toFixed(2)+'%':u==='x'?v.toFixed(2)+'x':fM(v),wx(xx,k))};
+  const ok=o=>Number.isFinite(o.levered_irr)?`<span class="pill ${o.levered_irr/100>=HURDLE.irr&&(!Number.isFinite(o.profit_on_cost)||o.profit_on_cost/100>=HURDLE.poc)?'p':'f'}">${o.levered_irr/100>=HURDLE.irr&&(!Number.isFinite(o.profit_on_cost)||o.profit_on_cost/100>=HURDLE.poc)?'pass':'fail'}</span>`:'';
+  const dl=o=>Number.isFinite(o.levered_irr)&&Number.isFinite(x.out.levered_irr)?fig('em',sgn(o.levered_irr-x.out.levered_irr,2)+' pts',`Difference between two EstateMaster figures: ${o.levered_irr.toFixed(2)}% (this option) − ${x.out.levered_irr.toFixed(2)}% (base, ${x.id}). Both read from EstateMaster exports; the subtraction is the only arithmetic.`):'–';
+  let h=`<div class="sub" style="margin-bottom:6px">Base: <b>${esc(optOf(x))}</b> · export ${x.id}${x.file?' · '+esc(x.file):''} · ${when(x)}${os.length?` · ${os.length} other option${os.length>1?'s':''} exported`:' · no other options exported yet (export each stored Option / Stage as its own file and they appear here as scenarios run in EstateMaster)'}</div>`;
+  h+=`<div style="overflow-x:auto"><table class="t"><tr><th>Option / stage</th><th>Export</th><th class="n">Levered IRR</th><th class="n">Δ vs base</th><th class="n">Profit on cost</th><th class="n">Net profit</th><th class="n">Peak debt</th><th></th></tr>`+
+    [x].concat(os).map(o=>`<tr><td><b>${esc(optOf(o))}</b>${o===x?' <span class="pill">base</span>':''}</td><td style="font-size:12px">${o.id} · ${when(o)}</td><td class="n">${emv(o,'levered_irr','%')}</td><td class="n">${o===x?'–':dl(o.out)}</td><td class="n">${emv(o,'profit_on_cost','%')}</td><td class="n">${emv(o,'net_profit','M')}</td><td class="n">${emv(o,'peak_debt','M')}</td><td>${ok(o.out)}</td></tr>`).join('')+'</table></div>';
+  const sens=x.sens||[];
+  if(!sens.length)h+=`<div class="sub" style="margin-top:10px">No sensitivity tables in ${x.id}. Include EstateMaster’s Sensitivity sheet (1-way and 2-way tables) in the Excel export and its own sensitivities appear here. Until then the sensitivity and stress tables below are the agent’s estimates.</div>`;
+  else{h+=`<h3 class="serif" style="font-size:16px;margin:14px 0 2px">EstateMaster sensitivity tables <span class="tag tag-em">EstateMaster</span></h3><div class="sub">${sens.length} table${sens.length>1?'s':''} saved in ${x.id}${x.file?' ('+esc(x.file)+')':''}, as EstateMaster calculated them.</div>`;
+    const fv=(t,v)=>v==null?'—':['irr','uirr','poc'].includes(t.mk)?v.toFixed(2)+'%':Math.abs(v)>=1e5?fM(v):(+v).toLocaleString('en-GB',{maximumFractionDigits:2});
+    const low=(t,v)=>v!=null&&((t.mk==='irr'&&v/100<HURDLE.irr)||(t.mk==='poc'&&v/100<HURDLE.poc));
+    const sw=(t,where,v)=>`EstateMaster’s own sensitivity figure: ${t.metric} at ${where}, from the “${t.sheet}” sheet of export ${x.id}${x.file?' ('+x.file+')':''}, ${when(x)}. Calculated by EstateMaster, not by the agent.`;
+    for(const t of sens){
+      if(t.kind==='1way')h+=`<div class="emsens"><div style="font-size:12.5px;margin:8px 0 2px"><b>${esc(t.v)}</b> · ${esc(t.metric)} <span style="color:var(--soft)">(1-way, sheet ${esc(t.sheet)})</span></div><table class="t"><tr><th>${esc(t.v)}</th>${t.shifts.map(sh=>`<th class="n">${sgn(sh,0)}%</th>`).join('')}</tr><tr><td>${esc(t.metric)}</td>${t.values.map((v,i)=>`<td class="n ${low(t,v)?'lo':''} ${t.shifts[i]===0?'base':''}">${v==null?'—':fig('em',fv(t,v),sw(t,`${t.v} ${sgn(t.shifts[i],0)}%`,v))}</td>`).join('')}</tr></table></div>`;
+      else h+=`<div class="emsens"><div style="font-size:12.5px;margin:8px 0 2px"><b>${esc(t.x)}</b> × <b>${esc(t.y)}</b> · ${esc(t.metric)} <span style="color:var(--soft)">(2-way, sheet ${esc(t.sheet)})</span></div><table class="t"><tr><th>${esc(t.y)} ↓ · ${esc(t.x)} →</th>${t.xs.map(sh=>`<th class="n">${sgn(sh,0)}%</th>`).join('')}</tr>${t.grid.map((row,ri)=>`<tr><td><b>${sgn(t.ys[ri],0)}%</b></td>${row.map((v,ci)=>`<td class="n ${low(t,v)?'lo':''} ${t.xs[ci]===0&&t.ys[ri]===0?'base':''}">${v==null?'—':fig('em',fv(t,v),sw(t,`${t.x} ${sgn(t.xs[ci],0)}% and ${t.y} ${sgn(t.ys[ri],0)}%`,v))}</td>`).join('')}</tr>`).join('')}</table></div>`}}
+  el.innerHTML=h}
 function renderStress(){
   $('#hIRR').textContent=fP(HURDLE.irr);$('#hPOC').textContent=fP(HURDLE.poc);
+  try{renderEMResults()}catch(e){console.warn(e)}
   const b=run(S);
   const rows=stressRes||computeStress();
+  const bw=estWork(Object.keys(S).length?'Sandbox scenario':'Base case',{},b,b);
   $('#stressT').innerHTML='<tr><th>Scenario</th><th class="n">IRR</th><th class="n">Δ IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th><th></th></tr>'+
-    `<tr><td><b>${Object.keys(S).length?'Sandbox scenario':'Base case'}</b></td><td class="n">${fP(b.irr)}</td><td class="n">–</td><td class="n">${fP(b.poc)}</td><td class="n">${fM(b.profit)}</td><td><span class="pill ${passes(b)?'p':'f'}">${passes(b)?'pass':'fail'}</span></td></tr>`+
-    rows.map(x=>`<tr><td>${esc(x.name)}</td><td class="n">${fP(x.r.irr)}</td><td class="n ${bad(x.r.irr)<bad(b.irr)?'dn':'up'}">${Number.isNaN(x.r.irr)?'n/m':sgn((bad(x.r.irr)-bad(b.irr))*100,1)+' pts'}</td><td class="n">${fP(x.r.poc)}</td><td class="n">${fM(x.r.profit)}</td><td><span class="pill ${x.pass?'p':'f'}">${x.pass?'pass':'fail'}</span></td></tr>`).join('');
+    `<tr><td><b>${Object.keys(S).length?'Sandbox scenario':'Base case'}</b> <span class="tag tag-est">Agent estimate</span></td><td class="n">${fig('est',fP(b.irr),bw)}</td><td class="n">–</td><td class="n">${fig('est',fP(b.poc),bw)}</td><td class="n">${fig('est',fM(b.profit),bw)}</td><td><span class="pill ${passes(b)?'p':'f'}">${passes(b)?'pass':'fail'}</span></td></tr>`+
+    rows.map(x=>{const w=estWork(x.name,x.d,b,x.r);return`<tr><td>${esc(x.name)}</td><td class="n">${fig('est',fP(x.r.irr),w)}</td><td class="n ${bad(x.r.irr)<bad(b.irr)?'dn':'up'}">${Number.isNaN(x.r.irr)?'n/m':fig('est',sgn((bad(x.r.irr)-bad(b.irr))*100,1)+' pts',w)}</td><td class="n">${fig('est',fP(x.r.poc),w)}</td><td class="n">${fig('est',fM(x.r.profit),w)}</td><td><span class="pill ${x.pass?'p':'f'}">${x.pass?'pass':'fail'}</span></td></tr>`}).join('');
   if(!tornRes)computeTornado();
   const mx=Math.max(...tornRes.map(t=>Math.max(Math.abs(t.lo),Math.abs(t.hi))),.01);
   $('#tornado').innerHTML=tornRes.map(t=>{
@@ -4240,6 +4397,9 @@ const TOOLS=[
  {name:'build_report',description:'Build a report from the latest EstateMaster extract. kind is a report id: ic, monthly, lender, investor, compare, stress (generated scenarios and EstateMaster results), or the id/name of a custom report created with create_report.',p:{kind:{type:'string'}}},
  {name:'create_report',description:'Create a new report on the spot from a description: the report designer (Claude Fable 5.1) picks the sections, slide types and tone for the audience; figures always come from EstateMaster and the data library. Pass the user’s words in description; blocks are optional hints.',p:{name:{type:'string'},audience:{type:'string'},description:{type:'string'},schedule:{type:'string',enum:['On request','Weekly','Monthly · 3rd working day','Quarterly']},blocks:{type:'array',items:{type:'string',enum:BLOCK_KEYS}},narrative:{type:'boolean'}},req:['name','blocks']},
  {name:'design_report',description:'Change an existing report in natural language: who it is for, what it shows (blocks to add, remove or reorder), the slide type of each part (table, list, bar, column or line chart, donut, waterfall, gauges), slide limit, dividers, narrative. Pass the user\'s request as instruction. Figures always stay EstateMaster\'s.',p:{report:{type:'string',description:'Report id (ic, monthly, lender, investor, compare, stress) or a custom report name'},instruction:{type:'string'}},req:['report','instruction']},
+ {name:'estimate_scenario',description:'The agent’s own estimate of a what-if or stress scenario on the Bohio replica of the EstateMaster model (NOT EstateMaster’s figure). Use it for any what-if, stress test, downside or sensitivity question where EstateMaster has no saved figure (check estatemaster_sensitivity first). Returns base figures (EstateMaster’s where an export exists, marked ⟦em#n⟧) and the estimate (marked ⟦est#n⟧) with the working behind it. Nothing changes; no change request is raised. Shocks: percentage changes for price, cost, rent, land, area; percentage points for cap, rate, ltc; months for delay.',p:{price:{type:'number',description:'sale price change in %'},cost:{type:'number',description:'construction cost change in %'},rent:{type:'number',description:'retail rent change in %'},land:{type:'number',description:'land cost change in %'},area:{type:'number',description:'buildable area change in %'},cap:{type:'number',description:'exit cap rate change in percentage points'},rate:{type:'number',description:'interest rate change in percentage points'},ltc:{type:'number',description:'leverage (LTC) change in percentage points'},delay:{type:'number',description:'delay in months'},name:{type:'string'}}},
+ {name:'estatemaster_results',description:'EstateMaster’s own figures: the latest export of the base option (levered and unlevered IRR, profit on cost, net profit, total cost, revenue, equity multiple, peak debt), every other stored Option / Stage exported from EstateMaster (scenarios EstateMaster itself calculated) and how many sensitivity tables the export holds. Every figure comes back with its ⟦em#n⟧ marker: copy the markers into your answer.',p:{}},
+ {name:'estatemaster_sensitivity',description:'EstateMaster’s own saved sensitivity tables (1-way and 2-way) read from the export: the metric at each shift of an assumption, as EstateMaster calculated them. Use this BEFORE estimating a sensitivity or stress yourself; if the export has no table for it, fall back to estimate_scenario and say the figure is an estimate. Figures come back with ⟦em#n⟧ markers to copy.',p:{query:{type:'string',description:'assumption and/or metric words, e.g. "sale price IRR", "cost vs price"'}}},
  {name:'make_chart',description:'Draw a chart in the chat for the user. Use get_series first whenever the data exists in the model (cash flow, facility, stress tests, costs, sources and uses, past projects, funds, macro, scenarios, covenants, spend, collections): never retype those numbers. For derived figures (ratios, differences, averages you computed), pass them and say so in source. type: columns (optionally with target as a second series), bars (with benchmark), line, donut, waterfall (totals = indexes of total steps), stacked, gauges (values are % of target), table.',p:{type:{type:'string',enum:['columns','bars','line','donut','waterfall','stacked','gauges','table']},title:{type:'string'},subtitle:{type:'string'},unit:{type:'string',description:'e.g. %, SAR M, x, months'},labels:{type:'array',items:{type:'string'}},values:{type:'array',items:{type:'number'}},target:{type:'array',items:{type:'number'},description:'optional second series (columns) or target per gauge'},series_label:{type:'string'},target_label:{type:'string'},benchmark:{type:'number'},benchmark_label:{type:'string'},totals:{type:'array',items:{type:'integer'}},decimals:{type:'integer'},source:{type:'string',description:'Where every value came from: the tool/series name, the EstateMaster export, or "worked out by the AI from …"'}},req:['type','title','labels','values','source']},
  {name:'get_series',description:'Draw one of the model’s own series as a chart, with the figures from the model data, the EstateMaster export or the data library (no retyping). Returns the chart and its values. series: cashflow_annual, facility, stress_table, stress_generated, cost_breakdown, capital_stack, ic_summary (profit bridge), kpis (returns vs hurdles), tornado_top, scenario_compare, valuation, fund_summary, past_projects, delivery_record, cost_benchmarks, sales_velocity, portfolio_exposure, fund_portfolio, fund_performance, fund_distributions_history, macro_context, cost_inflation, scenario_library, covenant_history, stress_history, cost_curve, collections_history. kind (optional) converts the chart: columns, bars, line, donut, table.',p:{series:{type:'string'},kind:{type:'string',enum:['columns','bars','line','donut','table']}},req:['series']},
  {name:'query_data',description:'Read the data library (dummy data in the demo; KINAN’s SQL Server, fund administrator and market feed in production): past_projects (budget vs final cost, schedule, velocity, planned vs realised returns), funds (size, calls, distributions, NAV, net IRR, DPI/TVPI, holdings, covenants), macro (monthly SAIBOR, CPI, construction cost, steel, cement, mortgage, price and rent indices, REIT yield, Brent since 2019), scenarios (library with historical analogues, run on this model), covenants (quarterly tests), stress_runs (past stress tests), actuals (monthly spend, sales, collections, drawdowns), benchmarks (SAR/sqm by element and asset type). filter narrows rows by words.',p:{dataset:{type:'string',enum:['past_projects','funds','macro','scenarios','covenants','stress_runs','actuals','benchmarks']},filter:{type:'string'}},req:['dataset']},
@@ -4283,6 +4443,9 @@ function toolIntent0(name,a){
     case 'create_report':return{k:'newreport',text:[a.name?`Report: ${a.name}.`:'',a.audience?`For ${a.audience}.`:'',a.description||'',(a.blocks||[]).length?'Sections: '+a.blocks.filter(b=>BLOCKS[b]).map(b=>BLOCKS[b].name).join(', ')+'.':'',a.narrative?'With an AI narrative.':''].filter(Boolean).join(' '),def:{name:a.name,aud:a.audience||'',sched:a.schedule||'On request',blocks:(a.blocks||[]).filter(b=>BLOCKS[b]),narr:!!a.narrative}};
     case 'design_report':return{k:'editreport',rk:RPTS[a.report]?a.report:(Object.entries(RPTS).find(([k,v])=>v.name.toLowerCase()===String(a.report||'').toLowerCase())||[RSEL])[0],text:String(a.instruction||'')};
     case 'query_data':return{k:'dsquery',ds:a.dataset,q:a.filter||''};
+    case 'estimate_scenario':{const mods={};for(const k of KEYS){const v=+a[k];if(a[k]!=null&&Number.isFinite(v)&&v)mods[k]=k==='delay'?Math.max(0,Math.round(v)):v}return{k:'estimate',mods}}
+    case 'estatemaster_results':return{k:'emresults'};
+    case 'estatemaster_sensitivity':return{k:'emsens',q:String(a.query||'')};
     case 'make_chart':return{k:'chart',spec:a};
     case 'get_series':return{k:'chart',block:BLOCKS[a.series]?a.series:'kpis',kind:CHART_TYPES[String(a.kind||'').toLowerCase()]||null};
     case 'extract_from_estatemaster':return{k:'extract'};
@@ -4314,7 +4477,9 @@ function sysPrompt(ch,role){
 Connections: EstateMaster through the Bohio runner. EstateMaster is the trusted source of every figure. Tool figures are the agent’s ESTIMATES unless the tool says they come from EstateMaster: always call them estimates, and use check_in_estatemaster (or the EstateMaster results on change requests) for figures a decision will rest on; where the two differ, EstateMaster’s figure stands. You change only the sandbox working copy; the base case is read-only, SQL Server for actuals and sales, a market dataset of comparable sales, leases and plot zoning (dummy demo data), and the project's Outlook folder (dummy demo inbox).
 
 Rules:
-${RO?'- '+MI().prompt+'\n':''}- Get every number from a tool. Never invent figures, comps, emails or regulations. You MAY work out simple derived figures from tool figures (differences, ratios, averages, growth, per-sqm values) when the user asks, but every such figure must be followed by the marker ⟦calc⟧ right after the number (e.g. "14.2% ⟦calc⟧"), so the reader sees it was worked out by you and is not an EstateMaster figure. Figures returned by tools keep their own labels (EstateMaster export, or the agent’s estimate).
+${RO?'- '+MI().prompt+'\n':''}- Get every number from a tool. Never invent figures, comps, emails or regulations.
+- Every output figure you write carries its origin, as a marker right after the number. Three kinds: EstateMaster’s own figures keep the marker the tool returned (e.g. "18.4% ⟦em#3⟧"); the agent’s replica estimates keep theirs (e.g. "12.1% ⟦est#7⟧"); anything you work out yourself (differences, ratios, averages, growth, per-sqm values, interpolation between sensitivity cells, totals across options) gets ⟦calc: working⟧ with the formula and the inputs, e.g. "6.3 pts ⟦calc: 18.4% (EstateMaster, EX-003) − 12.1% (agent estimate)⟧". Copy tool markers exactly as given and never invent or drop one; an unlabelled figure is a mistake. Never present an estimate or your own arithmetic as EstateMaster’s. The shocks the user asked for and the assumptions you quote as inputs need no marker.
+- Analytical questions, what-ifs, stress tests, sensitivities, headroom, downside cases: call estatemaster_sensitivity first (EstateMaster’s own saved tables and stored options); where EstateMaster has no figure, call estimate_scenario (the agent’s replica: clearly an estimate) and say an analyst can run it in EstateMaster. estatemaster_results gives EstateMaster’s base figures and the options it exported. Reason over the figures freely, but keep every figure labelled.
 - Charts: use get_series for anything the model already has; make_chart for comparisons or derived figures, with source saying where the values came from.
 - Call as many tools as the request needs, then answer. Changes you make stay in the sandbox.
 - You can suggest assumptions and assumption changes (suggest_assumptions: market, actuals, sales, cost library, zoning; Outlook is another source). Suggestions become change requests.
@@ -4403,7 +4568,7 @@ async function llmTurn(text,ch,role,onStep,tier='smart'){
         }
         msgs.push(...toolResults(p,r.calls,outs));final=r.text;
       }
-      if(!final)final=last?last.plain:'Done.';
+      if(!final)final=last?last.plain:'Done.';if(ch==='wa')final=plainMarks(final);
       hist.push({role:'user',content:text},{role:'assistant',content:final});
       return{final,last,prov:p,model,tools:n,charts};
     }catch(e){lastErr=e;if(started)throw e;await onStep(`${mName(p,model)} unavailable (${String(e.message).slice(0,70)}) · failing over`)}
@@ -4415,7 +4580,7 @@ async function llmTurn(text,ch,role,onStep,tier='smart'){
 const ROUTESTATS={calc:0,data:0,api:0,calls:0,fallback:0};
 const ASK=/\b(what is|what's|what are|what was|what were|how much|how many|how far|how long|average|mean|total|sum|ratio|per sqm|per unit|difference|gap|growth|trend|which (project|fund|scenario|assumption|district|year|month)|biggest|largest|smallest|lowest|highest|best|worst|rank|top \d|bottom \d|most|least|percent of|share of|times|multiple)\b/;
 const REASON=/\b(why|should|recommend\w*|advice|advise|explain|compare|summari[sz]e|draft|write|memo|what do you think|opinions?|risks?|concerns?|assess|evaluate|interpret|story|narrative|analy[sz]e|pros|cons|implications?|negotiat\w*|how would|what would|worth|thoughts|tell me about|walk me through|trade-?offs?)\b/;
-const SRCNAME={suggest:'market, actuals, sales, cost library, zoning',napkinmodel:'approvals',newmodel:'templates, zoning and market data',approvals:'approvals and change memory',newreport:'report builder',extract:'EstateMaster extract',market:'market dataset',zoning:'zoning rules',email:'Outlook (Microsoft Graph)',why:'changelog + email sources',report:'EstateMaster outputs',files:'attached Excel',align:'market dataset'};
+const SRCNAME={emresults:'EstateMaster export',emsens:'EstateMaster export (sensitivity sheet)',suggest:'market, actuals, sales, cost library, zoning',napkinmodel:'approvals',newmodel:'templates, zoning and market data',approvals:'approvals and change memory',newreport:'report builder',extract:'EstateMaster extract',market:'market dataset',zoning:'zoning rules',email:'Outlook (Microsoft Graph)',why:'changelog + email sources',report:'EstateMaster outputs',files:'attached Excel',align:'market dataset'};
 function route(text){
   const it=intent(text),t=text.toLowerCase();
   if(it.k==='approve'||it.k==='cancel')return{lane:'calc',it,why:'Approvals are handled by fixed rules, never by AI.'};
@@ -4428,6 +4593,10 @@ function route(text){
   if(it.k==='chart')return{lane:'data',it,why:'Draws the chart from the model’s own series (no AI needed); the AI agent uses the same chart tool for anything else.'};
   if(it.k==='schedule'||it.k==='sendreport')return{lane:'data',it,why:'Scheduling and sending reports are fixed actions: no AI needed.'};
   if(it.k==='report'&&!/memo|draft|write|board paper/.test(t))return{lane:'data',it,post:'narrative',tier:'deep',why:'Numbers come from the EstateMaster extract; the narrative model drafts the commentary.'};
+  if(it.k==='proposelast')return{lane:'calc',it,why:'Turns the last estimate into a change request for approval; no AI.'};
+  if(apiOn()&&(it.k==='estimate'||((ASK.test(t)||REASON.test(t)||/\?\s*$/.test(t))&&['emresults','emsens','stress','sens','reverse'].includes(it.k)))&&!/\b(chart|graph|plot)\b/.test(t))return{lane:'api',it,tier:'deep',why:'An analytical question: the AI reasons over EstateMaster’s own figures (estatemaster_results, estatemaster_sensitivity) and the agent’s replica estimates (estimate_scenario); every figure is labelled EstateMaster, agent estimate or AI calc.'};
+  if(it.k==='estimate')return{lane:'calc',it,why:'What-if estimate on the agent’s replica, labelled as an estimate; nothing changes and no AI is needed.'};
+  if(it.k==='emresults'||it.k==='emsens')return{lane:'data',it,why:'Reads EstateMaster’s own export (figures, options, sensitivity tables); no AI needed.'};
   if(apiOn()&&ASK.test(t)&&['help','dsquery','status','market','approvals','why'].includes(it.k)&&!/\b(chart|graph|plot)\b/.test(t))return{lane:'api',it,tier:'deep',why:'A question on the data that needs reasoning: the AI agent reads the tools and marks every figure it works out itself.'};
   if(REASON.test(t)&&it.k!=='promote')return{lane:'api',it,tier:/memo|draft|write|narrative/.test(t)?'deep':FILES.length&&/excel|spreadsheet|workbook|sheet|file/.test(t)?'excel':'smart',why:'Needs judgement or language: an AI agent plans and calls EstateMaster and data tools.'};
   switch(it.k){
@@ -4450,6 +4619,7 @@ function route(text){
 function badgeHTML(res){
   const r=res.r;
   if(res.kind==='api')return`<span class="rt rt-api" title="${esc(r.why)}">✦ AI · ${esc(mName(res.prov,res.model))}${res.tools?` · ${res.tools} tool call${res.tools>1?'s':''}`:''}</span>`;
+  if(r.lane==='calc'&&r.it.k==='estimate')return`<span class="rt rt-calc" title="${esc(r.why)}">⚙ Agent estimate · replica, not EstateMaster · no AI</span>`;
   if(r.lane==='calc')return`<span class="rt rt-calc" title="${esc(r.why)}">⚙ ${RO?'Rules engine':'EstateMaster calculation'} · no AI</span>`;
   if(res.noapi||r.fallback)return`<span class="rt rt-data" title="${esc(r.why)}">✦ AI route · ${r.fallback?'AI unavailable':'no AI connected'} · answered by rules</span>`;
   return`<span class="rt rt-data" title="${esc(r.why)}">▦ Data query · ${esc(SRCNAME[r.it.k]||'workspace')}${res.post&&res.post.text?(r.post==='narrative'?' + AI narrative':' + AI commentary'):''}</span>`;
@@ -4480,7 +4650,7 @@ async function execute(text,ch,role,onStep){
       catch(err){ROUTESTATS.fallback++;r.fallback=err.message;await onStep(`AI unavailable (${String(err.message).slice(0,80)}) · answering with rules`)}
     }else r.noapi=true;
   }
-  const out=await handle(text,ch,role,r.it);
+  const out=await handle(text,ch,role,r.it);if(ch==='wa')out.plain=plainMarks(out.plain);
   for(const st of out.steps)await onStep(st);
   out.fx();
   let post=null;
@@ -4499,12 +4669,17 @@ function renderRouter(){
   const mt=t=>{if(t==='none')return'–';const all=(AI.models[t]&&AI.models[t].length?AI.models[t]:CHAINS[t].m);return all.map(([p,m],i)=>`${i?'<span style="color:var(--soft)">then </span>':''}${esc(mName(p,m))}${avail(p)?'':' <span style="color:var(--soft)">(not connected)</span>'}`).join('<br>')};
   const rows=[RO?['Change requests, tasks, exports, scenario design','⚙ Rules engine (EstateMaster calculates via the analyst)','none']:['Assumption changes, stress tests, sensitivities, headroom, explorer, capital structure','⚙ EstateMaster calculation','none'],
    ['Market benchmarking','▦ Data query + commentary','fast'],['Zoning checks, Outlook, "why did X change"','▦ Data query','none'],
-   ['Every report (IC, monthly, lender, investor, comparison)','▦ EstateMaster extract + narrative','deep'],['Extract from EstateMaster','▦ Runner extract','none'],['Questions on the data that need reasoning (totals, ratios, comparisons)','✦ AI agent with tools · figures it works out are marked “AI calc”','deep'],['Charts in the chat (model series)','▦ Chart from the model data','none'],['Charts in the chat (comparisons, derived figures)','✦ AI agent · make_chart with sources','smart'],['Report design, new reports, narration scripts','✦ Report designer','report'],['Open questions, advice, multi-step requests','✦ AI agent with tools','smart'],['Questions about attached Excel files','✦ AI agent with tools','excel'],['Approvals','⚙ Fixed rules (never AI)','none']];
+   ['Every report (IC, monthly, lender, investor, comparison)','▦ EstateMaster extract + narrative','deep'],['Extract from EstateMaster','▦ Runner extract','none'],['Questions on the data that need reasoning (totals, ratios, comparisons)','✦ AI agent with tools · figures it works out are marked “AI calc”','deep'],['What-ifs, stress tests, sensitivities as questions','✦ AI agent · EstateMaster’s saved sensitivities and options first, then the replica estimate · every figure labelled EstateMaster / agent estimate / AI calc, click for the working','deep'],['EstateMaster’s own results, options, sensitivity tables','▦ Read from the export · no AI','none'],['Charts in the chat (model series)','▦ Chart from the model data','none'],['Charts in the chat (comparisons, derived figures)','✦ AI agent · make_chart with sources','smart'],['Report design, new reports, narration scripts','✦ Report designer','report'],['Open questions, advice, multi-step requests','✦ AI agent with tools','smart'],['Questions about attached Excel files','✦ AI agent with tools','excel'],['Approvals','⚙ Fixed rules (never AI)','none']];
   const tbl='<tr><th>Request</th><th>Route</th><th>Model (primary, then failover)</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${mt(r[2])}</td></tr>`).join('');
   if($('#rtTable'))$('#rtTable').innerHTML=tbl;if($('#rtRules'))$('#rtRules').innerHTML=tbl;
 }
-const mdLite=t=>esc(t).replace(/\s*⟦calc⟧/g,' <span class="calc" title="Worked out by the AI from tool figures. Not an EstateMaster figure.">AI calc</span>').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g,'$1<b>$2</b>').replace(/^#{1,4}\s*(.+)$/gm,'<b>$1</b>').replace(/^[-•]\s+/gm,'• ').replace(/\n/g,'<br>');
+const mdLite=t=>esc(t).replace(MARK,(m,num,k,id,w)=>figHTML(num||'',k,id,w)).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g,'$1<b>$2</b>').replace(/^#{1,4}\s*(.+)$/gm,'<b>$1</b>').replace(/^[-•]\s+/gm,'• ').replace(/\n/g,'<br>');
 
+/* Legend under an answer with labelled figures, and a warning when an AI answer quotes figures without saying where they came from */
+function provNote(text){const ks=new Set((text.match(/⟦(em|est|calc)/g)||[]).map(m=>m.slice(1)));
+  if(!ks.size){const nums=(stripMarks(text).match(/(?:SAR\s?)?\d[\d,]*(?:\.\d+)?\s?(?:%|x\b|M\b|bn\b|pts|bps)/g)||[]);return nums.length?'<div class="calcnote">⚠ The figures in this answer carry no label, so none of them is EstateMaster’s: treat them as the AI’s own and check them in EstateMaster before they go into a decision.</div>':''}
+  const L={em:'read from the EstateMaster export, not calculated by the agent',est:'the agent’s replica estimate, not an EstateMaster figure',calc:'arithmetic by the AI model, not an EstateMaster figure'};
+  return `<div class="calcnote">Click a bold figure for its working. ${['em','est','calc'].filter(k=>ks.has(k)).map(k=>`<span class="tag tag-${k}" style="margin-left:0">${TAGK[k]}</span> ${L[k]}`).join(' · ')}</div>`}
 let busy=false;
 async function webAsk(text){
   if(!text.trim()||busy)return;busy=true;
@@ -4517,11 +4692,11 @@ async function webAsk(text){
     let html='';
     if(res.kind==='api'){
       const last=res.last,charts=(res.charts||[]).map(c=>chartCard(c.slide,{source:c.source})).join(''),rich=charts||(last&&/<table/.test(last.html)?`<div style="margin-top:8px">${last.html.replace(/<div class="chips">[\s\S]*?<\/div>/,'')}</div>`:'');
-      html+=mdLite(res.final)+rich+(last&&last.link&&!/data-tab/.test(rich)?`<br><a class="go" data-tab="${last.link[0]}">${last.link[1]} →</a>`:'')+(/⟦calc⟧/.test(res.final)?'<div class="calcnote">◆ <b>AI calc</b> = worked out by the model from the tool figures. Not from EstateMaster: check it there before it goes into a decision.</div>':'');
+      html+=mdLite(res.final)+rich+(last&&last.link&&!/data-tab/.test(rich)?`<br><a class="go" data-tab="${last.link[0]}">${last.link[1]} →</a>`:'')+provNote(res.final);
     }else{
       const o=res.out;
       if(res.noapi&&res.r.it.k==='help')html+='<span style="color:var(--soft)">This needs an AI model and none is connected, so here is what the rules engine can do.</span><br>';
-      html+=o.html+(o.link&&!/data-tab/.test(o.html)?`<br><a class="go" data-tab="${o.link[0]}">${o.link[1]} →</a>`:'');
+      html+=o.html+(o.link&&!/data-tab/.test(o.html)?`<br><a class="go" data-tab="${o.link[0]}">${o.link[1]} →</a>`:'')+(/⟦(em|est|calc)/.test(o.plain)&&!/calcnote/.test(o.html)?provNote(o.plain):'');
       if(res.post)html+=res.post.err?`<div class="post"><span class="dn">AI commentary unavailable: ${esc(res.post.err)}</span></div>`:`<div class="post"><div class="llm">✦ ${esc(mName(res.post.prov,res.post.model))}</div>${mdLite(res.post.text)}${res.post.note?`<br><span style="color:var(--soft)">${res.post.note}</span>`:''}</div>`;
     }
     html+=`<div class="kmeta">${badgeHTML(res)}</div>`;m.querySelector('.body').innerHTML=html;chartCardAnimate(m);
@@ -4688,7 +4863,7 @@ document.addEventListener('pointermove',e=>{const t=e.target.closest&&e.target.c
   let el=live;if(!el||el.parentElement!==box){if(el)el.remove();el=document.createElement('div');el.className='kd-tip ktip-live';if(getComputedStyle(box).position==='static')box.style.position='relative';box.appendChild(el)}
   const r=box.getBoundingClientRect();el.innerHTML=`<div class="kd-tip-t">${esc(d.t)}</div>${d.r.map(([v,l])=>`<div class="kd-tip-r"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}`;el.style.left=Math.min(Math.max(e.clientX-r.left+14,0),Math.max(0,box.clientWidth-230))+'px';el.style.top=Math.max(0,e.clientY-r.top-74)+'px'});
 document.addEventListener('pointerleave',()=>{const l=document.querySelector('.ktip-live');if(l)l.remove()},true);
-document.addEventListener('click',e=>{const x=e.target.closest('[data-xport]');if(x){exportChart(x.dataset.xport);return}const g=e.target.closest('#engBtn');if(g){openSettings('ai');return}const dk=e.target.closest('#dockFab');if(dk){toggleDock(true);return}const cc=e.target.closest('#chatClose');if(cc){toggleDock(false);return}const cf=e.target.closest('#chatFull');if(cf){DOCK.full=!DOCK.full;renderDock();return}const sc=e.target.closest('#setClose');if(sc){closeSettings();return}const nav=e.target.closest('#setModal [data-set]');if(nav){openSettings(nav.dataset.set)}});
+document.addEventListener('click',e=>{const fg=e.target.closest('.fig');if(fg){openFigWin(fg);return}if(e.target.id==='figWin'||e.target.closest('#fwClose')){$('#figWin').classList.remove('on');return}const pq=e.target.closest('.msg [data-q]:not(.chip)');if(pq){webAsk(pq.dataset.q);return}const x=e.target.closest('[data-xport]');if(x){exportChart(x.dataset.xport);return}const g=e.target.closest('#engBtn');if(g){openSettings('ai');return}const dk=e.target.closest('#dockFab');if(dk){toggleDock(true);return}const cc=e.target.closest('#chatClose');if(cc){toggleDock(false);return}const cf=e.target.closest('#chatFull');if(cf){DOCK.full=!DOCK.full;renderDock();return}const sc=e.target.closest('#setClose');if(sc){closeSettings();return}const nav=e.target.closest('#setModal [data-set]');if(nav){openSettings(nav.dataset.set)}});
 /* ================= WHATSAPP UI (channel kept for alerts; no tab) ================= */
 const WQ=['Status','Check emails','Suggest changes','Pending approvals','Check vs market','Stress test','What if price -10%','Build IC report','Promote scenario'];
 const tm=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
@@ -4809,7 +4984,7 @@ $('#aiTestBtn').onclick=async()=>{
 };
 
 /* ================= INIT ================= */
-addMsg('agent',RO?`<b>Hello.</b> I work on EstateMaster’s figures for <b>Al Narjis Mixed-Use</b> (${MI().name}). I answer from EstateMaster’s exports, pick up assumption changes from Outlook, check them against market data and zoning, design stress tests and draft reports. I never write to EstateMaster: ${MODE==='analyst'?'approved changes go into the control workbook and an analyst refreshes EstateMaster.':'an analyst applies approved changes.'} There are <b>${pendingCRs().length} change requests</b> waiting for approval. Ask for any chart (“chart the cash flow by year”) and export it with ↗. Figures I work out myself are marked <span class="calc">AI calc</span>; everything else is EstateMaster’s or the model’s.`:'<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, pick up assumption changes from Outlook, check them against market data and zoning, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
+addMsg('agent',RO?`<b>Hello.</b> I work on EstateMaster’s figures for <b>Al Narjis Mixed-Use</b> (${MI().name}). I answer from EstateMaster’s exports, pick up assumption changes from Outlook, check them against market data and zoning, design stress tests and draft reports. I never write to EstateMaster: ${MODE==='analyst'?'approved changes go into the control workbook and an analyst refreshes EstateMaster.':'an analyst applies approved changes.'} There are <b>${pendingCRs().length} change requests</b> waiting for approval. Ask for any chart (“chart the cash flow by year”) and export it with ↗. Every figure says where it comes from: <span class="tag tag-em" style="margin-left:0">EstateMaster</span> read from the export, <span class="tag tag-est" style="margin-left:0">Agent estimate</span> my replica, <span class="tag tag-calc" style="margin-left:0">AI calc</span> my own arithmetic; click any bold figure for its working.`:'<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, pick up assumption changes from Outlook, check them against market data and zoning, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
 wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
 wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
 const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',channel:'System',detail:'Demo started: working copy BHO_SBX opened from the approved EstateMaster base case'});scanEmails('07:00',true,true)}else logEvent({kind:'session',actor:'System',channel:'System',detail:`Session resumed: ${LOG.length} entries and ${APQ.length} change requests restored from memory`});

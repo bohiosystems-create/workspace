@@ -65,8 +65,16 @@ Test locally with `vercel dev` (it reads a local `.env`).
 - **Tabs:** Overview, Approvals, EstateMaster (Options 2 and 3), Model data, Market check, Scenarios & stress (sensitivity
   grids, the explorer, the scenario generator, the stress library, tornado, headroom) and Reports.
 - **Chat drawer**, the same design as the Kinan marketing agent: the orange **Ask** button (bottom right, with the number of change requests waiting) opens it on any tab; charcoal head with Close and full screen; it stays open while you move between tabs. It answers from EstateMaster's figures and the data library,
-  and reasons on them through the AI when a question needs it (totals, ratios, comparisons, "which project…"): every figure
-  the model works out itself is marked **AI calc** and a note says it is not an EstateMaster figure. Ask for any chart
+  and reasons on them through the AI when a question needs it (totals, ratios, comparisons, what-ifs, stress tests,
+  sensitivities, "which project…"). **Every figure says where it comes from**, as a tag after the number: **EstateMaster**
+  (read from the export, with the export id, sheet and row), **Agent estimate** (the Bohio replica of the model, never
+  presented as EstateMaster's) or **AI calc** (arithmetic by the AI model, with the formula it used). Every tagged figure is
+  bold and clickable: a small window shows how it was worked out (the shocks applied, the replica's base and result, the
+  calibration to EstateMaster's base, the method; or the export, sheet and row it was read from; or the AI's own formula).
+  Analytical questions go first to EstateMaster's saved sensitivity tables and stored options (`estatemaster_sensitivity`,
+  `estatemaster_results`); a what-if that lands on a saved cell is answered with EstateMaster's own figure; otherwise the
+  replica estimates it (`estimate_scenario`) and says so. An AI answer that quotes figures without a label gets a warning.
+  "Propose it" turns an estimate into a change request for approval. Ask for any chart
   ("chart the cash flow by year", "plot the stress tests", "show the profit bridge", "graph SAIBOR", "… as a donut / bars /
   line / table"): the rules engine draws it from the model's own series; the AI agent uses `get_series` for anything the
   model has and `make_chart` for comparisons and derived figures, naming the source of every value. Charts are the same 3D
@@ -88,6 +96,8 @@ Every request is routed automatically; the badge on each answer shows the route.
 | Questions about attached Excel files | AI agent with tools | OpenAI gpt-5 → Claude Sonnet 5.5 |
 | Report design ("for the board, as tables, max 6 slides") | Report designer | Claude Fable 5.1 → Claude Opus 5.5 → OpenAI gpt-5 |
 | Questions on the data that need reasoning (totals, ratios, comparisons) | AI agent with tools; figures it works out are marked “AI calc” | Claude Opus 5.5 → OpenAI gpt-5 |
+| What-ifs, stress tests and sensitivities asked as questions | AI agent: EstateMaster's saved sensitivities and options first, then the replica estimate; every figure tagged EstateMaster / Agent estimate / AI calc, click for the working | Claude Opus 5.5 → OpenAI gpt-5 |
+| EstateMaster's own results, options, sensitivity tables | Read from the export; no AI | none |
 | Charts in the chat | Model series (no AI) · comparisons and derived figures through the AI agent's make_chart, with sources | — / Claude Sonnet 5.5 → gpt-5 |
 | Approvals | Fixed rules, never AI | none |
 
@@ -115,6 +125,15 @@ All data in the demo, including actuals and covenant thresholds, is dummy data.
 Option 2's capabilities in one page: `docs/OPTION2_capabilities.md`.
 
 ## EstateMaster is the trusted layer
+
+**Exports carry their stored Option / Stage and EstateMaster's own sensitivity tables.** The export reader (`parseExport`)
+reads the returns by row label on any sheet (`.xlsx`, `.xlsm`, `.xls`, `.csv`), the option name from the Intro sheet
+("Option / Stage: Downside") or the file name ("… - Downside.xlsx", "… (Downside).xlsx"), and the 1-way and 2-way
+sensitivity tables on the Sensitivity sheet (a row of shifts such as −20% … +20%, then one row per metric, or a grid with
+shifts down the side). The base option (named like a base case, else the first exported) drives the KPIs, status and
+reports; every other option is listed on the Scenarios tab as a scenario EstateMaster itself calculated, with Δ vs base.
+The saved sensitivity tables are shown there as EstateMaster's own figures (coral below the hurdle), and the chat uses
+them before estimating anything. The morning report on the server follows the base option too.
 
 Every figure the app computes itself (live returns, stress tests, sensitivities, the explorer, the napkin) is labelled
 as the agent's **estimate**. EstateMaster's own figures come only from the runner's export, are labelled

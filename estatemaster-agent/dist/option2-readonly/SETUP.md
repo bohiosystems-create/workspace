@@ -40,6 +40,8 @@ Without it the demo uses a dummy inbox.
 4. Analyst: open the model, enter the values, recalculate, export, press **Upload export** on the task.
 5. The returns tiles now show EstateMaster's new figures. Use **Compare exports** to see what moved.
 
+**Options and sensitivities.** Export each stored Option / Stage as its own file (EstateMaster: export all Options/Stages as separate files): the agent reads the option name from the Intro sheet or the file name ("… - Downside.xlsx") and lists them on the Scenarios tab as scenarios EstateMaster calculated; the base case keeps driving the KPIs and reports. Include the Sensitivity sheet in the export and its 1-way / 2-way tables appear as EstateMaster's own sensitivities, used by the chat before anything is estimated.
+
 **What the reader looks for in the export** (by row label, any sheet): Equity/Levered IRR, Project/Unlevered IRR, Profit on cost or Development margin, Net profit, Total development cost, Gross revenue, Equity multiple, Peak debt. If a label is missing the tile shows "not in export". Percentages can be 0.187 or 18.7%.
 
 ## Reports and ▶ Play

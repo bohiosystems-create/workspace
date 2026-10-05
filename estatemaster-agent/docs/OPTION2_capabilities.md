@@ -5,7 +5,8 @@ loaded; everything else is labelled as the agent's estimate. Nothing changes wit
 
 ## 0. Layout
 - Tabs: Overview, Approvals, EstateMaster, Model data, Market check, Scenarios & stress, Reports. Outlook, voice, AI routing and the architecture notes sit under the ⚙ Settings gear.
-- The chat (orange Ask button, bottom right; same drawer as the marketing agent): answers from EstateMaster's figures and the data library; reasons on them through the AI when needed, marking every figure it works out itself as "AI calc" (not an EstateMaster figure).
+- The chat (orange Ask button, bottom right; same drawer as the marketing agent): answers from EstateMaster's figures and the data library and reasons on them through the AI (what-ifs, stress tests, sensitivities, comparisons, totals). Every figure carries its origin: **EstateMaster** (read from the export), **Agent estimate** (the replica, never passed off as EstateMaster's) or **AI calc** (the AI's arithmetic). Each tagged figure is bold and clickable: a window shows how it was worked out. Unlabelled figures in an AI answer are flagged.
+- EstateMaster's own results: the stored Options / Stages exported from EstateMaster are listed as scenarios it calculated, and the 1-way / 2-way sensitivity tables saved in the export are read and shown as EstateMaster's figures; a what-if that matches a saved cell is answered with EstateMaster's figure, not an estimate.
 - Any chart on request in the chat (3D KINAN charts, hover tips, ↗ export): from the model's own series, or built by the AI with the source of every value stated.
 
 ## 1. Answer from EstateMaster's figures

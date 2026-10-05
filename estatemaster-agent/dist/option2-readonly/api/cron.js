@@ -95,11 +95,16 @@ async function reportJob(token, now, dry, appUrl) {
   if (!days.includes(today)) return { job: 'report', skipped: `not a report day (${today})` };
   const folder = env('EXPORTS_FOLDER'); if (!folder) return { job: 'report', skipped: 'EXPORTS_FOLDER is not set' };
   const j = await G.graph(token, `${folder}:/children?$select=name,lastModifiedDateTime,id,file&$orderby=lastModifiedDateTime desc&$top=50`);
-  const files = (j.value || []).filter(f => f.file && /\.(xlsx|xlsm|xls|csv)$/i.test(f.name)).sort((a, b) => b.lastModifiedDateTime.localeCompare(a.lastModifiedDateTime)).slice(0, 2);
-  if (!files.length) return { job: 'report', skipped: 'no export in the folder yet' };
+  // One file per stored Option / Stage may be in the folder ("… - Downside.xlsx", "… (Downside).xlsx"): the morning report follows the base, i.e. files with no option in the name or one named like a base case.
+  const optOf = n => { const f = String(n).replace(/\.[^.]+$/, ''); const m = f.match(/\(([^)]{1,60})\)\s*$/) || f.match(/\s[-–]\s([^-–]{1,60})$/); return m ? m[1].trim() : ''; };
+  const isBase = o => !o || /^(base|live|current|approved|main|master|as is)/i.test(o);
+  const all = (j.value || []).filter(f => f.file && /\.(xlsx|xlsm|xls|csv)$/i.test(f.name)).sort((a, b) => b.lastModifiedDateTime.localeCompare(a.lastModifiedDateTime));
+  const files = all.filter(f => isBase(optOf(f.name))).slice(0, 2);
+  if (!files.length) return { job: 'report', skipped: all.length ? `only option exports in the folder (${all.slice(0, 5).map(f => optOf(f.name)).join(', ')}); no base export` : 'no export in the folder yet' };
   const base = folder.replace(/\/root:.*$/, '');
   const read = async f => ({ name: f.name, at: f.lastModifiedDateTime, out: readExport(await G.graphBytes(token, `${base}/items/${f.id}/content`)) });
   const [b, a] = await Promise.all(files.map(read));
+  const options = all.filter(f => !isBase(optOf(f.name))).slice(0, 10).map(f => ({ option: optOf(f.name), file: f.name, at: f.lastModifiedDateTime }));
   if (!Object.keys(b.out).length) return { job: 'report', skipped: `no EstateMaster returns found in ${b.name}` };
   const hurdle = +(env('HURDLE_IRR') || 18);
   const ok = Number.isFinite(b.out.levered_irr) ? b.out.levered_irr >= hurdle : null;
