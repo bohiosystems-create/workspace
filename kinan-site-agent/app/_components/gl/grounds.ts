@@ -10,6 +10,7 @@
  * Everything repeated is one InstancedMesh (or one merged mesh per material), so all of this is ~40 draw calls.
  */
 import * as THREE from "three";
+import { KINAN } from "@/lib/brand";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { PLAN, SHAPES } from "@/lib/siteplan";
 import type { SiteState } from "@/lib/scene/progress4d";
@@ -31,11 +32,11 @@ function signTex(kind: "speed" | "stop" | "noentry" | "ppe" | "assembly" | "slow
   g.clearRect(0, 0, 128, 128);
   const circ = (fill: string, ring?: string) => { g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.fillStyle = fill; g.fill(); if (ring) { g.lineWidth = 12; g.strokeStyle = ring; g.stroke(); } };
   g.textAlign = "center"; g.textBaseline = "middle";
-  if (kind === "speed") { circ("#ffffff", "#d03b3b"); g.fillStyle = "#111"; g.font = "800 54px Montserrat, Arial"; g.fillText("15", 64, 68); }
+  if (kind === "speed") { circ("#ffffff", "#d03b3b"); g.fillStyle = "#111"; g.font = `800 54px ${KINAN.font}`; g.fillText("15", 64, 68); }
   if (kind === "noentry") { circ("#d03b3b"); g.fillStyle = "#fff"; g.fillRect(24, 54, 80, 20); }
   if (kind === "ppe") { circ("#1f5fd1"); g.fillStyle = "#fff"; g.beginPath(); g.arc(64, 64, 26, Math.PI, 0); g.fill(); g.fillRect(30, 62, 68, 8); }
-  if (kind === "stop") { g.beginPath(); for (let i = 0; i < 8; i++) { const a = Math.PI / 8 + (i * Math.PI) / 4; g.lineTo(64 + 60 * Math.cos(a), 64 + 60 * Math.sin(a)); } g.closePath(); g.fillStyle = "#d03b3b"; g.fill(); g.fillStyle = "#fff"; g.font = "800 34px Montserrat, Arial"; g.fillText("STOP", 64, 66); }
-  if (kind === "slow") { g.beginPath(); g.moveTo(64, 8); g.lineTo(122, 116); g.lineTo(6, 116); g.closePath(); g.fillStyle = "#fff"; g.fill(); g.lineWidth = 10; g.strokeStyle = "#d03b3b"; g.stroke(); g.fillStyle = "#111"; g.font = "800 24px Montserrat, Arial"; g.fillText("SLOW", 64, 88); }
+  if (kind === "stop") { g.beginPath(); for (let i = 0; i < 8; i++) { const a = Math.PI / 8 + (i * Math.PI) / 4; g.lineTo(64 + 60 * Math.cos(a), 64 + 60 * Math.sin(a)); } g.closePath(); g.fillStyle = "#d03b3b"; g.fill(); g.fillStyle = "#fff"; g.font = `800 34px ${KINAN.font}`; g.fillText("STOP", 64, 66); }
+  if (kind === "slow") { g.beginPath(); g.moveTo(64, 8); g.lineTo(122, 116); g.lineTo(6, 116); g.closePath(); g.fillStyle = "#fff"; g.fill(); g.lineWidth = 10; g.strokeStyle = "#d03b3b"; g.stroke(); g.fillStyle = "#111"; g.font = `800 24px ${KINAN.font}`; g.fillText("SLOW", 64, 88); }
   if (kind === "assembly") { g.fillStyle = "#1f8a4c"; g.fillRect(4, 4, 120, 120); g.fillStyle = "#fff"; for (const [x, y] of [[40, 44], [88, 44], [40, 92], [88, 92]]) { g.beginPath(); g.arc(x, y, 10, 0, Math.PI * 2); g.fill(); } g.fillRect(56, 56, 16, 16); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }

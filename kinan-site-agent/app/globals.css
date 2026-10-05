@@ -1,9 +1,9 @@
 /* Kinan design language (shared with the marketing assistant): charcoal header band with the white logo and the
    orange chevron, white panels on a soft faceted page texture, orange uppercase headings with the chevron notch,
    taupe caps labels over big charcoal numbers, orange primary actions, charcoal secondary, square geometry.
-   Montserrat stands in for Kinan's Greta Arabic. A matching dark theme follows the device (toggle in the header). */
+   Kinan's typeface (Greta Arabic / Greta Sans) is embedded as "Kinan" when its files are in brand/fonts; Fira Sans + IBM Plex Sans Arabic stand in. A matching dark theme follows the device (toggle in the header). */
 :root{
-  --font:"Montserrat","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --font:"Kinan","Fira Sans","IBM Plex Sans Arabic","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
   --chrome:#2e2e2f; --chrome-ink:#ffffff; --chrome-soft:rgba(255,255,255,.14); --chrome-line:rgba(255,255,255,.32);
   --accent:#f15a22; --accent-strong:#d94a16; --accent-ink:#ffffff; --accent-soft:#fde3d8; --accent-line:#f5b89a;
   --bg:#f4f4f4; --veil:rgba(244,244,244,.74); --card:#ffffff; --card-2:#f7f6f3; --ink:#2e2e2f; --ink-2:#4a4a4c; --mute:#6f6f6f; --taupe:#51473d;

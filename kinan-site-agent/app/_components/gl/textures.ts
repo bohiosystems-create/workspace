@@ -92,7 +92,7 @@ export function drawGround(o: GroundOpts) {
   for (let x = 180; x < 1440; x += 220) { arrow(x, 558, 0); arrow(x + 110, 571, Math.PI); }
   g.fillStyle = P.line;
   for (const [x, y, w, h] of [[871, 545, 28, 1.6], [871, 581, 28, 1.6], [430, 581, 26, 1.6], [1140, 581, 26, 1.6]]) g.fillRect(x, y, w, h);
-  g.font = "800 9px Montserrat, sans-serif"; g.textAlign = "center";
+  g.font = `800 9px ${KINAN.font}`; g.textAlign = "center";
   for (const [x, y, r] of [[300, 562, 0], [700, 562, 0], [1000, 568, Math.PI], [1300, 568, Math.PI], [885, 300, -Math.PI / 2]]) { g.save(); g.translate(x, y); g.rotate(r); g.fillText("SLOW", 0, 3); g.restore(); }
   for (const [x, y] of [[443, 586], [1153, 586]]) { for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(x - 9 + i * 6, y); g.lineTo(x - 6 + i * 6, y + 4); g.lineTo(x - 3 + i * 6, y); g.closePath(); g.fill(); } }
   g.save(); g.beginPath(); g.rect(871, 548, 28, 32); g.clip(); g.strokeStyle = "#f2c200"; g.lineWidth = 1.2; g.strokeRect(871.5, 548.5, 27, 31); for (let k = -40; k < 40; k += 5) { g.beginPath(); g.moveTo(871 + k, 548); g.lineTo(871 + k + 32, 580); g.stroke(); g.beginPath(); g.moveTo(899 - k, 548); g.lineTo(899 - k - 32, 580); g.stroke(); } g.restore();
@@ -103,14 +103,14 @@ export function drawGround(o: GroundOpts) {
   for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(20,20,20,${0.05 + R() * 0.08})`; g.beginPath(); g.ellipse(130 + R() * 1330, 552 + R() * 24, 2 + R() * 4, 1 + R() * 2, R() * 3, 0, Math.PI * 2); g.fill(); }
   for (const s of SHAPES) if (s.t === "rect" && s.cls.includes("tmp yard")) { g.strokeStyle = o.night ? "rgba(0,0,0,.3)" : "rgba(80,60,35,.18)"; g.lineWidth = 1.6; for (let i = 0; i < 4; i++) { g.beginPath(); const y0 = s.y! + R() * s.h!; g.moveTo(s.x!, y0); g.bezierCurveTo(s.x! + s.w! * 0.3, y0 + (R() - 0.5) * 30, s.x! + s.w! * 0.7, y0 + (R() - 0.5) * 30, s.x! + s.w!, y0 + (R() - 0.5) * 20); g.stroke(); } }
   // HSE muster points, first aid: painted circles
-  for (const s of SHAPES) if (s.t === "circle" && s.cls === "hse-pt") { g.fillStyle = "#3f9a5a"; g.beginPath(); g.arc(s.cx!, s.cy!, s.r! * 1.4, 0, Math.PI * 2); g.fill(); g.fillStyle = "#fff"; g.font = `700 ${s.r! * 1.3}px Montserrat, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; const lbl = SHAPES.find((q) => q.t === "text" && q.cls === "lbl-h" && Math.abs(q.x! - s.cx!) < 1 && Math.abs(q.y! - 3 - s.cy!) < 1); g.fillText(lbl?.text ?? "", s.cx!, s.cy! + 0.5); }
+  for (const s of SHAPES) if (s.t === "circle" && s.cls === "hse-pt") { g.fillStyle = "#3f9a5a"; g.beginPath(); g.arc(s.cx!, s.cy!, s.r! * 1.4, 0, Math.PI * 2); g.fill(); g.fillStyle = "#fff"; g.font = `700 ${s.r! * 1.3}px ${KINAN.font}`; g.textAlign = "center"; g.textBaseline = "middle"; const lbl = SHAPES.find((q) => q.t === "text" && q.cls === "lbl-h" && Math.abs(q.x! - s.cx!) < 1 && Math.abs(q.y! - 3 - s.cy!) < 1); g.fillText(lbl?.text ?? "", s.cx!, s.cy! + 0.5); }
   // crane radius rings
   if (o.layers.cranes) for (const s of SHAPES) if (s.t === "circle" && s.cls === "crane-r") { g.strokeStyle = "rgba(241,90,34,.55)"; g.setLineDash([8, 5]); g.lineWidth = 1.2; g.beginPath(); g.arc(s.cx!, s.cy!, s.r!, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); }
   // optional layers drawn on the ground: grid and underground utilities
   if (o.layers.grid) {
     g.strokeStyle = "#d0543a"; g.lineWidth = 0.7; g.setLineDash([10, 3, 2, 3]);
     for (const s of SHAPES) if (s.layer === "grid" && s.t === "line") { g.beginPath(); s.pts!.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); }
-    g.setLineDash([]); g.fillStyle = "#d0543a"; g.font = "700 9px Montserrat, sans-serif"; g.textAlign = "center";
+    g.setLineDash([]); g.fillStyle = "#d0543a"; g.font = `700 9px ${KINAN.font}`; g.textAlign = "center";
     for (const s of SHAPES) if (s.layer === "grid" && s.t === "text") g.fillText(s.text!, s.x!, s.y!);
   }
   if (o.layers.utilities) {
@@ -119,9 +119,9 @@ export function drawGround(o: GroundOpts) {
   }
   // zone and road names, large and quiet
   g.fillStyle = o.night ? "rgba(255,255,255,.28)" : "rgba(46,46,47,.38)"; g.textAlign = "left";
-  g.font = "700 14px Montserrat, sans-serif";
+  g.font = `700 14px ${KINAN.font}`;
   for (const s of SHAPES) if (s.t === "text" && s.cls === "lbl-zone") g.fillText(s.text!.split("").join(" "), s.x!, s.y!);
-  g.fillStyle = o.night ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.85)"; g.font = "600 9px Montserrat, sans-serif"; g.textAlign = "center";
+  g.fillStyle = o.night ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.85)"; g.font = `600 9px ${KINAN.font}`; g.textAlign = "center";
   for (const s of SHAPES) if (s.t === "text" && s.cls === "lbl-road") g.fillText(s.text!, s.x!, s.y! + 1);
   g.restore();
   return tex(c, { aniso: 8 });
@@ -203,9 +203,9 @@ export function hoarding() {
   g.fillStyle = KINAN.orange; g.fillRect(0, 116, 1024, 12);
   const lw = drawArt(g, LOGO, 40, 26, 64, "#ffffff");
   g.fillStyle = "rgba(255,255,255,.35)"; g.fillRect(40 + lw + 26, 30, 2, 58);
-  g.fillStyle = "#ffffff"; g.font = "700 30px Montserrat, sans-serif"; g.textBaseline = "middle";
+  g.fillStyle = "#ffffff"; g.font = `700 30px ${KINAN.font}`; g.textBaseline = "middle";
   g.fillText("KINAN HEIGHTS", 40 + lw + 52, 50);
-  g.fillStyle = "rgba(255,255,255,.7)"; g.font = "600 17px Montserrat, sans-serif";
+  g.fillStyle = "rgba(255,255,255,.7)"; g.font = `600 17px ${KINAN.font}`;
   g.fillText("L I V E   T H E   P L A C E", 40 + lw + 52, 82);
   for (let i = 0; i < 3; i++) drawArt(g, CHEVRON, 840 + i * 50, 24, 70, i === 2 ? KINAN.orange : `rgba(241,90,34,${0.35 + i * 0.25})`);
   for (let x = 0; x < 1024; x += 256) { g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect(x, 0, 2, 116); }

@@ -13,7 +13,7 @@ const res = await build({
   tsconfig: root + "tsconfig.json",
 });
 const js = res.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
-const css = fs.readFileSync(root + "app/globals.css", "utf8");
+const css = fs.readFileSync(root + "app/brand-fonts.css", "utf8") + fs.readFileSync(root + "app/globals.css", "utf8");
 const icon = "data:image/svg+xml," + encodeURIComponent(fs.readFileSync(root + "public/icon.svg", "utf8"));
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">

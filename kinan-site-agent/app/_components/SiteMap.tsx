@@ -1,4 +1,5 @@
 "use client";
+import { KINAN } from "@/lib/brand";
 import { forwardRef, lazy, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { LAYER_DEFS, PLAN, SHAPES, gpsToPlan, type Layer, type Shape } from "@/lib/siteplan";
 import type { Location, Note } from "@/lib/types";
@@ -42,7 +43,7 @@ function textWidth(text: string, cls: string, px: number) {
   if (w100 === undefined) {
     measureCtx ??= typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
     const ls = SPACING[cls.split(" ")[0]] ?? 0;
-    if (measureCtx) { measureCtx.font = `${BOLD.test(cls) ? 700 : cls.includes("lbl-road") ? 600 : 400} 100px Montserrat, "Segoe UI", system-ui, sans-serif`; w100 = measureCtx.measureText(text).width + text.length * ls * 100; }
+    if (measureCtx) { measureCtx.font = `${BOLD.test(cls) ? 700 : cls.includes("lbl-road") ? 600 : 400} 100px ${KINAN.font}`; w100 = measureCtx.measureText(text).width + text.length * ls * 100; }
     else w100 = text.length * 62;
     widthCache.set(key, w100);
   }

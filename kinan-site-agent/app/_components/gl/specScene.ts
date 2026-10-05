@@ -9,6 +9,7 @@
  * World units are metres: x east from the site's west edge, z south from its north edge, y up.
  */
 import * as THREE from "three";
+import { KINAN } from "@/lib/brand";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { specAt, type BuildingState, type ProjectModelSpec, type SpecBuilding } from "@/lib/model3d/spec";
@@ -102,9 +103,9 @@ function drawSpecGround(spec: ProjectModelSpec, o: { night: boolean; size: numbe
     g.strokeStyle = "rgba(241,90,34,.5)"; g.setLineDash([4, 2.5]); g.lineWidth = 0.55; g.beginPath(); g.arc(cr.x, cr.z, cr.radius, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
   }
   // names
-  g.fillStyle = P.text; g.font = "700 6px Montserrat, sans-serif"; g.textAlign = "left";
+  g.fillStyle = P.text; g.font = `700 6px ${KINAN.font}`; g.textAlign = "left";
   for (const z of spec.zones) if (z.w > 18) g.fillText(z.name.toUpperCase().slice(0, 28), z.x + 1.5, z.z + 6.5, z.w - 3);
-  g.fillStyle = o.night ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.85)"; g.font = "600 3.4px Montserrat, sans-serif"; g.textAlign = "center";
+  g.fillStyle = o.night ? "rgba(255,255,255,.55)" : "rgba(255,255,255,.85)"; g.font = `600 3.4px ${KINAN.font}`; g.textAlign = "center";
   for (const r of spec.roads) { const [a, b] = r.points; const ang = Math.atan2(b[1] - a[1], b[0] - a[0]); g.save(); g.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); g.rotate(Math.abs(ang) > Math.PI / 2 ? ang + Math.PI : ang); g.fillText(r.name, 0, 1.1); g.restore(); }
   g.restore();
   return tex(c, { aniso: 8 });
