@@ -25,7 +25,7 @@ Al Narjis Mixed-Use project. All data is dummy data.
 | `api/scan.js` | Live Outlook (Microsoft Graph) reader with AI extraction of assumption changes. |
 | `api/mail.js` | Sends the agent's emails (scheduled reports, alerts) from the project mailbox; internal recipients only. |
 | `api/cron.js` | Server jobs (Vercel Cron): email scan with alerts at 07:00 and 15:00 Riyadh, morning EstateMaster report. |
-| `api/voice.js` | ElevenLabs text-to-speech for ▶ Play and the report's Read mode; audio cached, key never in the browser. |
+| `api/voice.js` | ElevenLabs text-to-speech for ▶ Play and the report's Read mode, with character timestamps (the spoken figure lights up), the account's voice list, English and Arabic; audio cached, key never in the browser. |
 | `api/runner.js` | Proxy from the agent to the EstateMaster runner; the runner token stays on the server. |
 | `runner/` | The EstateMaster runner for the Windows VM (not deployed to Vercel). |
 | `setup/` | Copilot setup agent instructions, the KINAN control workbook template and its generator (not deployed). |
@@ -95,6 +95,8 @@ debt under stress), fund investor report (calls, distributions, LP and KINAN ret
 a scenario comparison. Each exports to PDF, Excel and HTML, can be scheduled after the nightly extract,
 and can carry an AI-drafted narrative. "Full extract (Excel)" downloads the raw extract.
 All data in the demo, including actuals and covenant thresholds, is dummy data.
+
+Option 2's capabilities in one page: `docs/OPTION2_capabilities.md`.
 
 ## EstateMaster is the trusted layer
 
@@ -166,14 +168,40 @@ project. Previous projects and plots are dummy data.
 
 ## Report builder
 
-Users can create new report types from the agent settings or the Reports tab: pick blocks from the
+Users can create new report types in one sentence (report designer, above) or from the builder: pick blocks from the
 library (returns, model, project controls, cash flow and funding, investors, risk, market and
 compliance, governance), order them, set audience, schedule and delivery, or describe the report and
 let the AI design it. Eight new report types are included as starting points.
 
+## Narration (▶ Play) and voice
+
+▶ Play speaks a **script written for the ear**, not the slide text: what each figure means for the audience, with
+transitions. Claude Fable 5.1 writes it from the deck's figures when an AI key is set (then Opus 5.5, then gpt-5);
+otherwise a built-in writer phrases the same figures. Every number spoken is on the slide. The script is hidden (CC
+shows it); while a sentence is spoken the figure it is about glows and the rest of the slide steps back, timed from
+ElevenLabs' character timestamps (browser voice: word boundaries). **🎙 Voice** picks any voice from the ElevenLabs
+account, with samples, and switches the narration to **Arabic**. PowerPoint notes carry the script.
+Setup and voice choice: `docs/VOICE_elevenlabs.md`.
+
+## Data library (dummy data)
+
+Reports and the agent can draw on more than the model: 14 previous projects (budget vs final cost by element,
+programme, sales velocity and pricing, planned vs realised returns, lessons), 5 funds (size, calls, distributions,
+NAV, net IRR, DPI/TVPI, holdings, LTV/DSCR), monthly macro series since 2019 (SAIBOR, CPI, construction cost index,
+steel, cement, mortgage rate, price and rent indices, REIT yield, Brent), a scenario library with historical analogues
+run on the model, covenant test history, past stress runs, the project's monthly actuals and cost benchmarks by asset
+type. 15 report blocks use it (track record, benchmarks, velocity, exposure, fund portfolio and performance,
+distributions, macro context, cost inflation, scenario library, covenants, stress history, spend curve, collections),
+three built-in reports are built on it (scenario and stress pack, track record and benchmarks, fund portfolio update),
+and the agent answers from it ("past projects in Hittin", "fund performance", tool `query_data`). Generated,
+deterministic, clearly labelled dummy data; in production each table maps to SQL Server, the fund administrator and
+the market feed.
+
 ## Report designer (change a report by talking to it)
 
-Reports tab → **Report designer** chat (or the main agent chat). Say who the report is for, what it should show and
+Reports tab → **Report designer** chat (or the main agent chat). Ask for a **new report in one sentence** ("create a
+treasury stress report for the CFO: scenario library, covenants and the macro picture") and it is designed, created and
+built on the spot; or say who an existing report is for, what it should show and
 which slides to use, e.g. *"for the board, returns and capital structure, stress tests as a table, max 6 slides, no
 change log"* or *"for the lender: facility and covenants as tables"*. It changes the open report: audience, purpose,
 tone, parts and their order, slide type per part (table, list, bar, column or line chart, donut, waterfall, stacked

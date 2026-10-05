@@ -1,0 +1,43 @@
+# Option 2 · Read-only agent on EstateMaster — what it can do
+
+The agent never writes to EstateMaster. Every figure it presents as EstateMaster's comes from an export an analyst
+loaded; everything else is labelled as the agent's estimate. Nothing changes without a person approving it.
+
+## 1. Answer from EstateMaster's figures
+- Headline figures (levered and unlevered IRR, profit on cost, net profit, equity multiple, peak debt, total cost, revenue) from the latest export, with the export id and time.
+- Status, verdict against the hurdles, what changed since the last export, who decided it and on what evidence (change memory).
+- Any assumption line of the register and any model line, by name or id; search across lines.
+
+## 2. Estimate, never decide
+- "What if" on any assumption (price, cost, rent, land, cap rate, rate, delay, leverage, model lines): an instant estimate from the replica, labelled as such, then a change request for a person to approve. Approved changes become analyst tasks; EstateMaster's own figure arrives with the next export.
+- Stress library, generated scenarios (hundreds or thousands, never the same twice), sensitivity grids, tornado, headroom before the hurdle breaks, capital structure and fund waterfall: all estimates, with the worst cases handed to an analyst to run in EstateMaster.
+- Napkin feasibility for a new plot, detailed into a register with benchmarks; a new model from a previous project's structure (creation in EstateMaster needs approval).
+
+## 3. Watch the inbox and the market
+- Outlook folder scanned twice a day (07:00 and 15:00 Riyadh) on the server, plus on request: anything that reads like a change to an assumption becomes a proposal for approval, with the quote and sender.
+- Email alerts to the internal team when a scan finds a potential change (internal addresses only).
+- Market check against transactions, rental evidence and the plot's zoning; suggestions raised as change requests.
+
+## 4. Reports
+- Nine built-in reports (IC pack, monthly, lender, investor, scenario comparison, stress test, scenario and stress pack, track record and benchmarks, fund portfolio update) and any number of custom ones.
+- **Report designer**: say who a report is for, what it should show and which slides to use; or ask for a new report in one sentence and it is designed, created and built on the spot (Claude Fable 5.1, then Opus 5.5, then GPT-5; rules engine with no AI).
+- Block library of 50+ sections: returns, model, project controls, cash flow and funding, investors, risk, market and compliance, governance, track record. Figures only from EstateMaster's export and the data library.
+- Output: KINAN document (HTML, print/PDF), **▶ Play** presentation with narration and the figure under discussion lit up, PowerPoint with native charts and the script in the speaker notes, Excel.
+- Narration: a spoken script written for the ear (not the slide text), in English or Arabic, ElevenLabs voice chosen from the account; browser voice as fallback.
+- Schedules (daily, weekly, monthly, quarterly) delivered by email, WhatsApp link or SharePoint folder; delivery log.
+
+## 5. Data library (dummy in the demo; connections in production)
+- Previous projects: budget vs final cost by element, programme plan vs actual, sales velocity and pricing, planned vs realised returns, lessons.
+- Funds: size, calls, distributions, NAV, net IRR, DPI/TVPI, holdings, LTV/DSCR, concentration.
+- Macro series since 2019: SAIBOR, CPI, construction cost index, steel, cement, mortgage rate, price and rent indices, REIT yield, Brent.
+- Scenario library with historical analogues (rate cycle 2022–23, materials spike, pandemic launch, cost overruns, slow absorption, exit at 2020 yields, deleveraging, combined downturn, upsides), run on this model.
+- Covenant test history, past stress runs, the project's monthly actuals (spend vs budget, commitments, units sold, collections, drawdowns), cost benchmarks by asset type.
+- The agent answers questions from it ("past projects in Hittin", "fund performance") and every report block can use it.
+
+## 6. Governance
+- Approvals by named people only; the agent cannot approve, write to EstateMaster or send to external addresses.
+- Change memory for every change, proposal, approval, report run and design edit; self-test and diagnostics page.
+- AI routing by task with no engine choice: Claude Sonnet 5.5 / Opus 5.5 / Fable 5.1 and OpenAI gpt-5 / gpt-5-mini; no Haiku. Keys stay on the server.
+
+## Not in this option
+- Writing to EstateMaster, running it, or reading it without an analyst's export (Option 3 adds the control workbook; Option 1 adds the runner).

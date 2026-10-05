@@ -58,6 +58,16 @@ Every figure shown as EstateMaster's comes from an export; charts built on the a
 come only from EstateMaster. Uses Claude Fable 5.1 (then Opus 5.5, then gpt-5) when an AI key is set in Vercel;
 otherwise a rules engine.
 
+
+**Narration:** ▶ Play speaks a hidden script written for the audience (Claude Fable 5.1 when an AI key is set), and the
+figure being spoken about lights up on the slide. **🎙 Voice** in the player picks any ElevenLabs voice from your account
+and switches to Arabic. Voice setup and choice: `docs/VOICE_elevenlabs.md` (`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`,
+`ELEVENLABS_MODEL`).
+
+**New reports on the spot:** in the Report designer chat or the agent chat, "create a … report for … with …" designs,
+creates and builds it (API model first, rules engine without AI). Reports can use the **data library** (past projects,
+funds, macro series, scenario library with historical analogues, covenants, actuals; dummy data in the demo).
+
 ## Scheduled reports and email alerts
 **In the app.** Reports → **Schedule** on any report: daily (Sun–Thu), weekly, monthly or quarterly at a Riyadh time, delivered by
 email (internal addresses only), WhatsApp link or SharePoint folder. The app runs a report when it falls due and, if it was

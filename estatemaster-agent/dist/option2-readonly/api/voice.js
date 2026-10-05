@@ -1,13 +1,17 @@
 // Narration for ▶ Play and the report's read-aloud mode with ElevenLabs text-to-speech. The API key stays on the
 // server; without ELEVENLABS_API_KEY the page uses the browser's own voice.
 //   ELEVENLABS_API_KEY    required to enable it
-//   ELEVENLABS_VOICE_ID   voice (default: a stock multilingual voice)
-//   ELEVENLABS_MODEL      default eleven_multilingual_v2
+//   ELEVENLABS_VOICE_ID   default voice (the page can pick another from the account's voices)
+//   ELEVENLABS_MODEL      default eleven_multilingual_v2 (English and Arabic); eleven_v3 for the most expressive delivery
+//   ELEVENLABS_SETTINGS   optional JSON to override voice_settings, e.g. {"stability":0.4,"style":0.3}
 //   DEMO_PASSWORD         optional; if set, callers must send it as the x-demo-pass header (same as /api/llm)
-// Audio is cached in memory by text, so replaying a report does not spend credits again.
+// POST {text, timestamps, previous_text, next_text, voice, lang}: with timestamps the reply is JSON
+// {audio_base64, alignment} (character start times, used to light up the figure being spoken about); otherwise MP3.
+// GET ?list=1 lists the account's voices (name, labels, sample) for the voice menu. Audio is cached in memory by text.
 const DEFAULT_VOICE = '21m00Tcm4TlvDq8ikWAM';
-const MAX_CHARS = 1000;
+const MAX_CHARS = 1500;
 const cache = new Map();
+let voicesCache = null, voicesAt = 0;
 
 function send(res, status, obj) {
   res.statusCode = status;
@@ -22,39 +26,73 @@ async function readBody(req) {
   const raw = Buffer.concat(chunks).toString('utf8');
   return raw ? JSON.parse(raw) : {};
 }
+// Settings that read naturally: lower stability lets the voice move with the sentence; v3 only takes 0 / 0.5 / 1.
+function settingsFor(model) {
+  const base = /eleven_v3/.test(model)
+    ? { stability: 0.5, similarity_boost: 0.8, use_speaker_boost: true }
+    : { stability: 0.4, similarity_boost: 0.8, style: 0.3, use_speaker_boost: true };
+  try { return { ...base, ...JSON.parse(process.env.ELEVENLABS_SETTINGS || '{}') }; } catch { return base; }
+}
+function authorised(req) {
+  if (process.env.DEMO_PASSWORD && req.headers['x-demo-pass'] !== process.env.DEMO_PASSWORD) return 'Access code missing or wrong.';
+  const origin = req.headers.origin, host = req.headers.host;
+  if (origin && host) { try { if (new URL(origin).host !== host) return 'Forbidden'; } catch { return 'Forbidden'; } }
+  return null;
+}
 
 module.exports = async function handler(req, res) {
   const key = process.env.ELEVENLABS_API_KEY;
   const model = process.env.ELEVENLABS_MODEL || 'eleven_multilingual_v2';
-  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, passwordRequired: !!process.env.DEMO_PASSWORD });
+  const defaultVoice = process.env.ELEVENLABS_VOICE_ID || DEFAULT_VOICE;
+  const url = new URL(req.url || '/', 'http://x');
+  if (req.method === 'GET' && url.searchParams.get('list')) {
+    if (!key) return send(res, 200, { voices: [], voice: '', model });
+    const bad = authorised(req); if (bad) return send(res, 401, { error: bad });
+    if (voicesCache && Date.now() - voicesAt < 10 * 60 * 1000) return send(res, 200, { voices: voicesCache, voice: defaultVoice, model });
+    try {
+      const r = await fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': key } });
+      if (!r.ok) return send(res, 502, { error: `ElevenLabs voices failed (${r.status})` });
+      const j = await r.json();
+      voicesCache = (j.voices || []).map((v) => ({ id: v.voice_id, name: v.name, labels: v.labels || {}, preview: v.preview_url || '', category: v.category || '' }));
+      voicesAt = Date.now();
+      return send(res, 200, { voices: voicesCache, voice: defaultVoice, model });
+    } catch (e) { return send(res, 502, { error: 'ElevenLabs unreachable: ' + (e && e.message) }); }
+  }
+  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', passwordRequired: !!process.env.DEMO_PASSWORD });
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
   if (!key) return send(res, 501, { error: 'Voice is not configured (set ELEVENLABS_API_KEY).' });
-  if (process.env.DEMO_PASSWORD && req.headers['x-demo-pass'] !== process.env.DEMO_PASSWORD) return send(res, 401, { error: 'Access code missing or wrong.' });
-  // Only the app itself may spend voice credits.
-  const origin = req.headers.origin, host = req.headers.host;
-  if (origin && host) { try { if (new URL(origin).host !== host) return send(res, 403, { error: 'Forbidden' }); } catch { return send(res, 403, { error: 'Forbidden' }); } }
+  const bad = authorised(req); if (bad) return send(res, bad === 'Forbidden' ? 403 : 401, { error: bad });
   let body;
   try { body = await readBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
   const text = String((body && body.text) || '').replace(/\s+/g, ' ').trim().slice(0, MAX_CHARS);
   if (!text) return send(res, 400, { error: 'Nothing to say.' });
-  const voice = process.env.ELEVENLABS_VOICE_ID || DEFAULT_VOICE;
-  const ck = `${voice}|${model}|${text}`;
-  let buf = cache.get(ck);
-  if (!buf) {
+  const withTs = !!(body && body.timestamps);
+  const voice = body && /^[A-Za-z0-9]{10,40}$/.test(String(body.voice || '')) ? String(body.voice) : defaultVoice;
+  const ck = `${voice}|${model}|${withTs ? 1 : 0}|${text}`;
+  let out = cache.get(ck);
+  if (!out) {
+    const payload = { text, model_id: model, voice_settings: settingsFor(model) };
+    // previous/next text keep the prosody continuous from one slide to the next
+    if (body.previous_text) payload.previous_text = String(body.previous_text).slice(0, 400);
+    if (body.next_text) payload.next_text = String(body.next_text).slice(0, 400);
+    // flash / turbo models accept a language hint; the multilingual models detect the language from the text
+    if (/flash|turbo/.test(model) && (body.lang === 'ar' || body.lang === 'en')) payload.language_code = body.lang;
+    const ep = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}${withTs ? '/with-timestamps' : ''}?output_format=mp3_44100_128`;
     try {
-      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}?output_format=mp3_44100_128`, {
-        method: 'POST',
-        headers: { 'xi-api-key': key, 'content-type': 'application/json', accept: 'audio/mpeg' },
-        body: JSON.stringify({ text, model_id: model, voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.15, use_speaker_boost: true } }),
-      });
+      const r = await fetch(ep, { method: 'POST', headers: { 'xi-api-key': key, 'content-type': 'application/json', accept: withTs ? 'application/json' : 'audio/mpeg' }, body: JSON.stringify(payload) });
       if (!r.ok) return send(res, 502, { error: `ElevenLabs request failed (${r.status}): ${(await r.text()).slice(0, 200)}` });
-      buf = Buffer.from(await r.arrayBuffer());
+      if (withTs) {
+        const j = await r.json();
+        const al = j.alignment || j.normalized_alignment || {};
+        out = { json: JSON.stringify({ audio_base64: j.audio_base64, mime: 'audio/mpeg', alignment: { characters: al.characters || [], character_start_times_seconds: al.character_start_times_seconds || [] } }) };
+      } else out = { buf: Buffer.from(await r.arrayBuffer()) };
     } catch (e) { return send(res, 502, { error: 'ElevenLabs unreachable: ' + (e && e.message) }); }
     if (cache.size > 300) cache.delete(cache.keys().next().value);
-    cache.set(ck, buf);
+    cache.set(ck, out);
   }
   res.statusCode = 200;
-  res.setHeader('content-type', 'audio/mpeg');
   res.setHeader('cache-control', 'private, max-age=86400');
-  res.end(buf);
+  if (out.json) { res.setHeader('content-type', 'application/json'); return res.end(out.json); }
+  res.setHeader('content-type', 'audio/mpeg');
+  res.end(out.buf);
 };
