@@ -5,7 +5,7 @@ loaded; everything else is labelled as the agent's estimate. Nothing changes wit
 
 ## 0. Layout
 - Tabs: Overview, Approvals, EstateMaster, Model data, Market check, Scenarios & stress, Reports. Outlook, voice, AI routing and the architecture notes sit under the ⚙ Settings gear.
-- A chat dock on the right of every tab: answers from EstateMaster's figures and the data library; reasons on them through the AI when needed, marking every figure it works out itself as "AI calc" (not an EstateMaster figure).
+- The chat (orange Ask button, bottom right; same drawer as the marketing agent): answers from EstateMaster's figures and the data library; reasons on them through the AI when needed, marking every figure it works out itself as "AI calc" (not an EstateMaster figure).
 - Any chart on request in the chat (3D KINAN charts, hover tips, ↗ export): from the model's own series, or built by the AI with the source of every value stated.
 
 ## 1. Answer from EstateMaster's figures

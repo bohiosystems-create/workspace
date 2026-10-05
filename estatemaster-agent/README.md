@@ -64,7 +64,7 @@ Test locally with `vercel dev` (it reads a local `.env`).
 
 - **Tabs:** Overview, Approvals, EstateMaster (Options 2 and 3), Model data, Market check, Scenarios & stress (sensitivity
   grids, the explorer, the scenario generator, the stress library, tornado, headroom) and Reports.
-- **Chat dock** on the right of every tab (💬 Chat toggles it). It answers from EstateMaster's figures and the data library,
+- **Chat drawer**, the same design as the Kinan marketing agent: the orange **Ask** button (bottom right, with the number of change requests waiting) opens it on any tab; charcoal head with Close and full screen; it stays open while you move between tabs. It answers from EstateMaster's figures and the data library,
   and reasons on them through the AI when a question needs it (totals, ratios, comparisons, "which project…"): every figure
   the model works out itself is marked **AI calc** and a note says it is not an EstateMaster figure. Ask for any chart
   ("chart the cash flow by year", "plot the stress tests", "show the profit bridge", "graph SAIBOR", "… as a donut / bars /
