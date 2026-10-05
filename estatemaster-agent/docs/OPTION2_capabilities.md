@@ -3,6 +3,11 @@
 The agent never writes to EstateMaster. Every figure it presents as EstateMaster's comes from an export an analyst
 loaded; everything else is labelled as the agent's estimate. Nothing changes without a person approving it.
 
+## 0. Layout
+- Tabs: Overview, Approvals, EstateMaster, Model data, Market check, Scenarios & stress, Reports. Outlook, voice, AI routing and the architecture notes sit under the ⚙ Settings gear.
+- A chat dock on the right of every tab: answers from EstateMaster's figures and the data library; reasons on them through the AI when needed, marking every figure it works out itself as "AI calc" (not an EstateMaster figure).
+- Any chart on request in the chat (3D KINAN charts, hover tips, ↗ export): from the model's own series, or built by the AI with the source of every value stated.
+
 ## 1. Answer from EstateMaster's figures
 - Headline figures (levered and unlevered IRR, profit on cost, net profit, equity multiple, peak debt, total cost, revenue) from the latest export, with the export id and time.
 - Status, verdict against the hurdles, what changed since the last export, who decided it and on what evidence (change memory).
@@ -11,7 +16,7 @@ loaded; everything else is labelled as the agent's estimate. Nothing changes wit
 ## 2. Estimate, never decide
 - "What if" on any assumption (price, cost, rent, land, cap rate, rate, delay, leverage, model lines): an instant estimate from the replica, labelled as such, then a change request for a person to approve. Approved changes become analyst tasks; EstateMaster's own figure arrives with the next export.
 - Stress library, generated scenarios (hundreds or thousands, never the same twice), sensitivity grids, tornado, headroom before the hurdle breaks, capital structure and fund waterfall: all estimates, with the worst cases handed to an analyst to run in EstateMaster.
-- Napkin feasibility for a new plot, detailed into a register with benchmarks; a new model from a previous project's structure (creation in EstateMaster needs approval).
+- A new model from a previous project's structure (creation in EstateMaster needs approval).
 
 ## 3. Watch the inbox and the market
 - Outlook folder scanned twice a day (07:00 and 15:00 Riyadh) on the server, plus on request: anything that reads like a change to an assumption becomes a proposal for approval, with the quote and sender.

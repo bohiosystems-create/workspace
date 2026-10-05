@@ -30,7 +30,7 @@ Without it the demo uses a dummy inbox.
 1. Entra ID → App registrations → New. Add **Microsoft Graph → Mail.Read, Mail.Send and Files.Read.All (application)** and grant admin consent.
 2. Create a client secret.
 3. Add to Vercel: `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `OUTLOOK_MAILBOX` (e.g. al-narjis@kinan.com), `OUTLOOK_FOLDER` (folder name, default Inbox). An AI key is also required.
-4. Redeploy. The Outlook tab shows "Live mailbox". Scans run at 07:00 and 15:00 Riyadh (on the server, see below).
+4. Redeploy. Settings (⚙) → Outlook shows "Live mailbox". Scans run at 07:00 and 15:00 Riyadh (on the server, see below).
 5. Recommended: restrict the app to that one mailbox with an Exchange application access policy.
 
 ## 4. Daily use (the analyst's one minute)

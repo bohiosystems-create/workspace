@@ -20,7 +20,7 @@ Al Narjis Mixed-Use project. All data is dummy data.
 
 | Path | What it is |
 |---|---|
-| `index.html` | The whole demo (model, agent, market data, Outlook inbox, WhatsApp mock-up, IC report). The dummy dataset and the Excel file are embedded. |
+| `index.html` | The whole demo (model, chat dock, market data, Outlook integration in Settings, scenarios and stress, reports). The dummy dataset and the Excel file are embedded. |
 | `api/llm.js` | Vercel serverless function that proxies to Claude or OpenAI, so API keys stay on the server. |
 | `api/scan.js` | Live Outlook (Microsoft Graph) reader with AI extraction of assumption changes. |
 | `api/mail.js` | Sends the agent's emails (scheduled reports, alerts) from the project mailbox; internal recipients only. |
@@ -60,6 +60,20 @@ Al Narjis Mixed-Use project. All data is dummy data.
 
 Test locally with `vercel dev` (it reads a local `.env`).
 
+## Layout: tabs, chat dock, settings
+
+- **Tabs:** Overview, Approvals, EstateMaster (Options 2 and 3), Model data, Market check, Scenarios & stress (sensitivity
+  grids, the explorer, the scenario generator, the stress library, tornado, headroom) and Reports.
+- **Chat dock** on the right of every tab (💬 Chat toggles it). It answers from EstateMaster's figures and the data library,
+  and reasons on them through the AI when a question needs it (totals, ratios, comparisons, "which project…"): every figure
+  the model works out itself is marked **AI calc** and a note says it is not an EstateMaster figure. Ask for any chart
+  ("chart the cash flow by year", "plot the stress tests", "show the profit bridge", "graph SAIBOR", "… as a donut / bars /
+  line / table"): the rules engine draws it from the model's own series; the AI agent uses `get_series` for anything the
+  model has and `make_chart` for comparisons and derived figures, naming the source of every value. Charts are the same 3D
+  KINAN charts as the decks, with hover tips (name and value) and an ↗ export (PNG; HTML for bar charts).
+- **Settings (⚙, top right):** AI connections and routing, Outlook (folder, scan now, alert recipients: the twice-daily scans
+  keep running), Voice, Architecture. Chart hover tips also work on the report document.
+
 ## Task routing (no engine choice)
 
 Every request is routed automatically; the badge on each answer shows the route.
@@ -73,6 +87,8 @@ Every request is routed automatically; the badge on each answer shows the route.
 | Open questions, advice, multi-step requests | AI agent with tools | Claude Sonnet 5.5 → OpenAI gpt-5 |
 | Questions about attached Excel files | AI agent with tools | OpenAI gpt-5 → Claude Sonnet 5.5 |
 | Report design ("for the board, as tables, max 6 slides") | Report designer | Claude Fable 5.1 → Claude Opus 5.5 → OpenAI gpt-5 |
+| Questions on the data that need reasoning (totals, ratios, comparisons) | AI agent with tools; figures it works out are marked “AI calc” | Claude Opus 5.5 → OpenAI gpt-5 |
+| Charts in the chat | Model series (no AI) · comparisons and derived figures through the AI agent's make_chart, with sources | — / Claude Sonnet 5.5 → gpt-5 |
 | Approvals | Fixed rules, never AI | none |
 
 AI never does the financial maths: the agent calls tools, and the tools return calculated numbers.
