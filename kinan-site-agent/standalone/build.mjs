@@ -19,9 +19,9 @@ const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1c1c1e"><meta name="apple-mobile-web-app-capable" content="yes">
-<title>Kinan Site Agent</title><link rel="icon" href="${icon}">
+<title>Kinan Onsite Agent</title><link rel="icon" href="${icon}">
 <style>${css}</style></head>
-<body><div id="root"><div class="boot">Kinan Site Agent</div></div>
+<body><div id="root"><div class="boot">Kinan Onsite Agent</div></div>
 <script>${js}</script></body></html>`;
 fs.writeFileSync(root + "kinan-site-agent.html", html);
 console.log("wrote kinan-site-agent.html", (html.length / 1024).toFixed(0) + " KB");
@@ -39,9 +39,9 @@ html,body,#root{height:100%}
 .tabs{height:var(--tab);padding-bottom:0}
 .viewer header{padding-top:8px}
 .composer{padding-bottom:10px}`;
-  const page = `<title>Kinan Site Agent</title>
+  const page = `<title>Kinan Onsite Agent</title>
 <style>${css}${fit}</style>
-<div id="root"><div class="boot">Kinan Site Agent</div></div>
+<div id="root"><div class="boot">Kinan Onsite Agent</div></div>
 <script>${js}</script>
 `;
   fs.writeFileSync(out, page);

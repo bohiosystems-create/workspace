@@ -1,4 +1,4 @@
-# Kinan Site Agent — Vercel Setup Guide
+# Kinan Onsite Agent — Vercel Setup Guide
 
 A step-by-step guide that takes the zip to a live app on Vercel, with WhatsApp, the AI providers and (optionally) the purchasing system connected.
 
@@ -16,7 +16,7 @@ A step-by-step guide that takes the zip to a live app on Vercel, with WhatsApp, 
 2. Create a new **private** GitHub repository and push the *contents* of that folder:
    ```bash
    cd kinan-site-agent
-   git init && git add -A && git commit -m "Kinan Site Agent"
+   git init && git add -A && git commit -m "Kinan Onsite Agent"
    git branch -M main
    git remote add origin https://github.com/<you>/kinan-site-agent.git
    git push -u origin main

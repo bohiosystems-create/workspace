@@ -1,6 +1,6 @@
 {
-  "name": "Kinan Site Agent",
-  "short_name": "Site Agent",
+  "name": "Kinan Onsite Agent",
+  "short_name": "Onsite Agent",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#2e2e2f",

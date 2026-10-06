@@ -1,6 +1,6 @@
-# Kinan Site Agent — Setup Guide
+# Kinan Onsite Agent — Setup Guide
 
-This guide takes you from zero to a working site agent that a development manager can use **on site, from a phone**, through:
+This guide takes you from zero to a working onsite agent that a development manager can use **on site, from a phone**, through:
 
 - the **web app**: site map, drawings, documents, notes and project data (no chat screen), and
 - **WhatsApp**: the AI agent. Text, voice notes, photos, PDFs and shared location.
@@ -35,7 +35,7 @@ The agent answers from the project's documents, programme, procurement, safety a
  Phone (browser)            Phone (WhatsApp)
       │ HTTPS                     │  Meta WhatsApp Cloud API
       ▼                           ▼
- ┌───────────────────────── Kinan Site Agent (Next.js server) ─────────────────────────┐
+ ┌───────────────────────── Kinan Onsite Agent (Next.js server) ─────────────────────────┐
  │  Web UI: Site map · Agent · Project · Docs        /api/whatsapp  (webhook)           │
  │                                                                                      │
  │  Agent core ── 26 tools ──► documents · drawing register · programme · regulations   │

@@ -1,4 +1,4 @@
-# Kinan Site Agent
+# Kinan Onsite Agent
 
 A phone-first AI agent for a development manager walking the construction site. It answers from the project's drawings, documents, programme, procurement, safety rules and regulations, leaves notes in the right place, and pins documents to exact spots on a detailed site map. It works **in the browser** and **on WhatsApp**.
 

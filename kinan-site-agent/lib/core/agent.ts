@@ -20,7 +20,7 @@ export function systemPrompt(repo: Repo, c: AgentContext): string {
   const db = repo.db;
   const focusDoc = c.focus?.docId ? db.docs.find((x) => x.id === c.focus!.docId) : undefined;
   const wa = c.channel === "whatsapp";
-  return `You are the Site Agent for ${db.project.name} (${db.project.client}), a mixed-use development in Riyadh. You help the Development Manager and site team while they walk the construction site.
+  return `You are the Onsite Agent for ${db.project.name} (${db.project.client}), a mixed-use development in Riyadh. You help the Development Manager and site team while they walk the construction site.
 
 You can reach: the document library (drawings, design basis reports, specifications, RFIs, inspections, method statements, minutes), the drawing register (~800 sheets, current revisions), the construction programme (~600 activities, baseline vs forecast, critical path), the regulations/compliance register, safety requirements/permits/incidents, procurement (packages, purchase orders, deliveries, stock, material requests — synced from the purchasing system), quality NCRs, and the project directory.
 

@@ -68,7 +68,7 @@ Pre-pour checklist signed by QA, MEP, PT and consultant before any slab pour.`, 
     `28 procurement packages; long-lead: façade (16 wks), lifts (26 wks), chillers (22 wks), BMU (30 wks), LV switchgear (18 wks), transformers (30 wks).
 Approval: MR → procurement → technical approval (MAS) → commercial approval → PO in ERP. Dev Manager approval for packages > SAR 10M or any VO.
 Required-on-site dates derived from the programme (need date = activity start − 7 days). Weekly long-lead tracker in progress meeting.
-ERP: POs and GRNs live in the purchasing system; the site agent reads PO/delivery status from it (sync) and raises draft material requests.`, ["procurement", "long lead", "approval", "packages", "ERP"], "Procurement Manager", 230),
+ERP: POs and GRNs live in the purchasing system; the onsite agent reads PO/delivery status from it (sync) and raises draft material requests.`, ["procurement", "long lead", "approval", "packages", "ERP"], "Procurement Manager", 230),
   d("Traffic Management Plan rev 3", "Method Statement", "CIV", "3", "g2", "Gate usage, routes, delivery booking, speed limits.",
     `Gate 1: personnel & visitors only. Gate 2: materials & heavy vehicles (booked slots, 24 h notice). Gate 3: emergency access only.
 One-way anti-clockwise perimeter ring road, 15 km/h. Main haul road E-W two-way with banksmen at crossings.

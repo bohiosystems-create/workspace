@@ -24,7 +24,7 @@ export function signatureOk(raw: string, header: string | null): boolean {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-const HELP = `*Kinan Site Agent* — ask anything about the project, e.g.
+const HELP = `*Kinan Onsite Agent* — ask anything about the project, e.g.
 • _Slab thickness on Tower A level 12?_
 • _What's late on Tower A?_ / _Look-ahead next 2 weeks_
 • _Deliveries today_ / _Status of PO-4500123_
@@ -71,7 +71,7 @@ async function handleMessage(c: WaConfig, m: any, profileName: string) {
   const acl = allowed(from);
   if (!acl.ok) {
     console.warn(`[whatsapp] rejected message from unlisted number ${from}`);
-    await sendText(c, from, "This number isn't authorised for the Kinan Site Agent. Ask the project admin to add you.");
+    await sendText(c, from, "This number isn't authorised for the Kinan Onsite Agent. Ask the project admin to add you.");
     return;
   }
   const s = await loadSession(from, acl.name || profileName || "Site user");

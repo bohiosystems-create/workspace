@@ -99,7 +99,7 @@ export default function Home() {
   const viewerDoc = viewerId ? docs.find((d) => d.id === viewerId) : undefined;
 
   if (!state) {
-    return <div className="boot"><Logo height={46} /><span>{error || "Site Agent"}</span><Mark /></div>;
+    return <div className="boot"><Logo height={46} /><span>{error || "Onsite Agent"}</span><Mark /></div>;
   }
 
   return (
@@ -109,7 +109,7 @@ export default function Home() {
       <header className="top">
         <button className="brand" onClick={() => setScreen("home")} aria-label="All projects">
           {LOGO ? <img className="logo-img" src={LOGO} alt={state.project.client} /> : <Logo />}
-          <span className="brand-sub">AI agent · site &amp; projects</span>
+          <span className="brand-sub">AI onsite agent · site &amp; projects</span>
         </button>
         <div className="hbtns">
           <button className="avatar" onClick={() => { setMeOpen((o) => !o); setNameDraft(author); }} aria-label={`${author}: name and display settings`} aria-expanded={meOpen} title="Your name and display">{initials}</button>

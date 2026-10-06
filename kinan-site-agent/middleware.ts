@@ -15,7 +15,7 @@ export function middleware(req: NextRequest) {
       if (pw === pass && (!process.env.APP_USER || user === process.env.APP_USER)) return NextResponse.next();
     } catch { /* fall through */ }
   }
-  return new NextResponse("Authentication required", { status: 401, headers: { "WWW-Authenticate": 'Basic realm="Kinan Site Agent"' } });
+  return new NextResponse("Authentication required", { status: 401, headers: { "WWW-Authenticate": 'Basic realm="Kinan Onsite Agent"' } });
 }
 
 export const config = {

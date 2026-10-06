@@ -107,8 +107,8 @@ const regs: R[] = [
     requirement: "Accessible routes from drop-off to all entrances, ramps ≤ 1:12, accessible parking bays near lifts, accessible WCs per floor in public areas.",
     applies: ["podium", "club-e", "hotel-c", "basement"], status: "Compliant", owner: "Design Manager", nextReview: "2027-01-31" },
   { code: "Saudi Data & AI Authority — PDPL", title: "Personal Data Protection Law (site systems)", authority: "SDAIA", topic: "Data",
-    requirement: "Worker biometric attendance, CCTV and the site agent/WhatsApp logs contain personal data: lawful basis, retention limits, access control, cross-border transfer assessment for cloud AI providers.",
-    applies: ["site", "systems"], status: "Action Required", evidence: "DPIA for AI site agent to be completed before production use", owner: "IT / Data Protection Officer", nextReview: "2026-10-31" },
+    requirement: "Worker biometric attendance, CCTV and the onsite agent/WhatsApp logs contain personal data: lawful basis, retention limits, access control, cross-border transfer assessment for cloud AI providers.",
+    applies: ["site", "systems"], status: "Action Required", evidence: "DPIA for AI onsite agent to be completed before production use", owner: "IT / Data Protection Officer", nextReview: "2026-10-31" },
 ];
 
 export const REGULATIONS: Regulation[] = regs.map((r, i) => ({ id: `REG-${String(i + 1).padStart(3, "0")}`, ...r }));

@@ -67,7 +67,7 @@ export function attachProcurement(r: Repo) {
   };
   r.createRequisition = async (mr: MaterialRequest) => {
     const adapter = adapterFromEnv();
-    if (!adapter?.pushRequisition) return { message: "Recorded in the site agent; procurement team notified via the MR list (no requisition API configured)." };
+    if (!adapter?.pushRequisition) return { message: "Recorded in the onsite agent; procurement team notified via the MR list (no requisition API configured)." };
     return adapter.pushRequisition(mr);
   };
 }

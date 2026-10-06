@@ -1,6 +1,6 @@
 import type { Delivery, MaterialRequest, PurchaseOrder } from "../../types";
 
-/** A purchasing system the site agent can read POs/deliveries from and push material requests to. */
+/** A purchasing system the onsite agent can read POs/deliveries from and push material requests to. */
 export interface ProcurementAdapter {
   name: string;
   /** Pull the current POs (and deliveries if the system exposes them). */

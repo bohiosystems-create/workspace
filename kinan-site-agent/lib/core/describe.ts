@@ -11,7 +11,7 @@ export async function describeUpload(cfg: LlmConfig, bytes: Uint8Array, mime: st
   if (mime !== "application/pdf" && !/^image\/(jpeg|png|gif|webp)$/.test(mime)) return null;
   try {
     const { out, route } = await routeAndRun(cfg, {
-      system: "You index construction project documents for a site agent. Reply with JSON only.",
+      system: "You index construction project documents for a onsite agent. Reply with JSON only.",
       history: [{ role: "user", content: `File name: "${name}". Return ONLY JSON: {"title": string, "category": one of ${JSON.stringify(CATEGORIES)}, "discipline": "ARC"|"STR"|"MEP"|"CIV"|"HSE"|"QA"|null, "revision": string|null, "summary": "<=200 chars", "text": "faithful transcription of the key content: titles/sheet numbers, revisions, notes, dimensions, levels, grid references, specifications, status, dates, names. Max ~3500 chars. For a site photo describe what is visible and any visible defects or safety issues."}` }],
       attachments: [{ mime, base64: toBase64(bytes), name }],
       tools: [], exec: async () => "", maxTurns: 1, maxTokens: 2500,

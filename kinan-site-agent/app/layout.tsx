@@ -3,10 +3,10 @@ import "./brand-fonts.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Kinan Site Agent",
+  title: "Kinan Onsite Agent",
   description: "Project documents, drawings, programme, procurement and a detailed site map, with an AI agent, on site.",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Site Agent", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Onsite Agent", statusBarStyle: "black-translucent" },
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, maximumScale: 1, viewportFit: "cover", themeColor: "#2e2e2f" };
