@@ -54,3 +54,9 @@
 4. Watch any slide: each figure, bar, chart segment, row or bullet glows at the moment the voice names it (timed from ElevenLabs' character timestamps); what has been discussed stays readable, the rest steps back.
    The voice hears "riyals" as `ELEVENLABS_RIYAL`; the captions keep the written word.
 5. Audio is cached per text and voice, so replaying a deck does not spend credits again.
+
+## Questions during ▶ Play (aligned with the marketing agent)
+- While a question is spoken, the words appear live (ElevenLabs real-time Scribe, `scribe_v2_realtime`, with a single-use key from `POST /api/voice {token:true}`; the browser's own recognition if that cannot start). The final text is ElevenLabs' file transcription.
+- A question being typed or spoken holds the deck at the end of the slide (never mid-slide); closing the box or pressing Play carries on.
+- Answers run on the quick tier (Claude Sonnet 5.5, GPT-5 failover) and end by checking they landed; the deck then waits six seconds for a follow-up, and otherwise says a short varied line ("Right, let's move on.") and carries on.
+- One failed ElevenLabs request reads that slide in the browser voice and tries ElevenLabs again on the next; three in a row switch over. The reason is shown in the player. `GET /api/voice?check=1` reports the account (key valid, characters used this month).

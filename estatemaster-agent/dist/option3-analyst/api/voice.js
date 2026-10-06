@@ -7,6 +7,7 @@
 //   ELEVENLABS_STABILITY 0–1 (0.4), ELEVENLABS_SIMILARITY 0–1 (0.8), ELEVENLABS_STYLE 0–1 (0.35), ELEVENLABS_SPEED 0.7–1.2
 //                        (optional): the same settings as the other Bohio demo apps. ELEVENLABS_SETTINGS (JSON) still overrides.
 //   DEMO_PASSWORD         optional; if set, callers must send it as the x-demo-pass header (same as /api/llm)
+// POST {token:true}: a single-use key for real-time Scribe (live words while a question is spoken). GET ?check=1: the account.
 // POST {transcribe:true, audio_base64, mime, lang}: a question spoken into ▶ Play, as words ({text}; ELEVENLABS_STT_MODEL, default scribe_v1).
 // POST {text, timestamps, previous_text, next_text, voice, lang}: with timestamps the reply is JSON
 // {audio_base64, alignment} (character start times, used to light up the figure being spoken about); otherwise MP3.
@@ -66,12 +67,35 @@ module.exports = async function handler(req, res) {
       return send(res, 200, { voices: voicesCache, voice: defaultVoice, voiceAr: defaultVoiceAr, model });
     } catch (e) { return send(res, 502, { error: 'ElevenLabs unreachable: ' + (e && e.message) }); }
   }
+  // GET ?check=1: whether the key works and the characters used this month (why the voice may have stopped)
+  if (req.method === 'GET' && url.searchParams.get('check')) {
+    if (!key) return send(res, 200, { ok: false, error: 'ELEVENLABS_API_KEY is not set.' });
+    const bad = authorised(req); if (bad) return send(res, 401, { error: bad });
+    try {
+      const r = await fetch('https://api.elevenlabs.io/v1/user/subscription', { headers: { 'xi-api-key': key } });
+      if (!r.ok) return send(res, 200, { ok: false, error: `ElevenLabs (${r.status}): ${(await r.text()).slice(0, 200)}` });
+      const j = await r.json();
+      const used = Number(j.character_count) || 0, limit = Number(j.character_limit) || 0;
+      return send(res, 200, { ok: limit === 0 || used < limit, tier: j.tier, used, limit, resets: j.next_character_count_reset_unix ? new Date(j.next_character_count_reset_unix * 1000).toISOString() : null,
+        ...(limit && used >= limit ? { error: `Monthly characters used up (${used.toLocaleString('en-GB')} of ${limit.toLocaleString('en-GB')}).` } : {}) });
+    } catch (e) { return send(res, 200, { ok: false, error: String(e && e.message || e) }); }
+  }
   if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', voiceAr: key ? defaultVoiceAr : '', riyal: process.env.ELEVENLABS_RIYAL || 'ree-yaals', passwordRequired: !!DEMO_CODE() });
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
   if (!key) return send(res, 501, { error: 'Voice is not configured (set ELEVENLABS_API_KEY).' });
   const bad = authorised(req); if (bad) return send(res, bad === 'Forbidden' ? 403 : 401, { error: bad });
   let body;
   try { body = await readBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
+  // A single-use key (15 minutes) for ElevenLabs real-time transcription: the page streams the microphone to Scribe and
+  // shows the words live while a question is spoken, without ever seeing the API key.
+  if (body && body.token) {
+    try {
+      const r = await fetch('https://api.elevenlabs.io/v1/single-use-token/realtime_scribe', { method: 'POST', headers: { 'xi-api-key': key } });
+      if (!r.ok) return send(res, 502, { error: `ElevenLabs (${r.status}): ${(await r.text()).slice(0, 200)}` });
+      const j = await r.json();
+      return send(res, 200, { token: j.token });
+    } catch (e) { return send(res, 502, { error: 'ElevenLabs unreachable: ' + (e && e.message) }); }
+  }
   // A question spoken into ▶ Play: ElevenLabs speech-to-text (Scribe) → { text }
   if (body && body.transcribe) {
     const b64 = String(body.audio_base64 || '');
