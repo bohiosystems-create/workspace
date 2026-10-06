@@ -4,7 +4,9 @@ The agent never writes to EstateMaster. Every figure it presents as EstateMaster
 loaded; everything else is labelled as the agent's estimate. Nothing changes without a person approving it.
 
 ## 0. Layout
-- Tabs: Overview, Approvals, EstateMaster, Model data, Market check, Scenarios & stress, Reports. Outlook, voice, AI routing and the architecture notes sit under the ⚙ Settings gear.
+- Projects menu on the left edge (shows when the cursor reaches it); **+** creates a project from an EstateMaster export.
+- Tabs: Overview, Approvals, EstateMaster, Assumptions, Scenarios & stress, Reports. Integrations, market data, Outlook, voice, AI routing and the architecture notes sit under the ⚙ Settings gear.
+- Assumptions: every input with its market position; test any change with Claude and OpenAI calculating independently, checking each other and resolving differences. Every result is an AI calc, bold and clickable for both workings.
 - The chat (orange Ask button, bottom right; same drawer as the marketing agent): answers from EstateMaster's figures and the data library and reasons on them through the AI (what-ifs, stress tests, sensitivities, comparisons, totals). Every figure carries its origin: **EstateMaster** (read from the export), **Agent estimate** (the replica, never passed off as EstateMaster's) or **AI calc** (the AI's arithmetic). Each tagged figure is bold and clickable: a window shows how it was worked out. Unlabelled figures in an AI answer are flagged.
 - EstateMaster's own results: the stored Options / Stages exported from EstateMaster are listed as scenarios it calculated, and the 1-way / 2-way sensitivity tables saved in the export are read and shown as EstateMaster's figures; a what-if that matches a saved cell is answered with EstateMaster's figure, not an estimate.
 - Any chart on request in the chat (3D KINAN charts, hover tips, ↗ export): from the model's own series, or built by the AI with the source of every value stated.
@@ -32,7 +34,8 @@ loaded; everything else is labelled as the agent's estimate. Nothing changes wit
 - Block library of 50+ sections: returns, model, project controls, cash flow and funding, investors, risk, market and compliance, governance, track record. Figures only from EstateMaster's export and the data library.
 - Output: KINAN document (HTML, print/PDF), **▶ Play** presentation with narration and the figure under discussion lit up, PowerPoint with native charts and the script in the speaker notes, Excel.
 - Narration: a spoken script written for the ear (not the slide text), in English or Arabic, ElevenLabs voice chosen from the account; browser voice as fallback.
-- Schedules (daily, weekly, monthly, quarterly) delivered by email, WhatsApp link or SharePoint folder; delivery log.
+- Daily report, scheduled on the server (time, timezone, days, internal recipients, English / Arabic) with delivery check, preview, snapshot, PDF and history: EstateMaster's figures, checks on the export, assumptions changing in Outlook, assumptions vs market.
+- Other schedules (daily, weekly, monthly, quarterly) delivered by email, WhatsApp link or SharePoint folder; delivery log.
 
 ## 5. Data library (dummy in the demo; connections in production)
 - Previous projects: budget vs final cost by element, programme plan vs actual, sales velocity and pricing, planned vs realised returns, lessons.

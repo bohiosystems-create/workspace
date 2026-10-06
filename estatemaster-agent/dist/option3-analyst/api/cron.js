@@ -17,6 +17,7 @@
 // plus the Graph and AI variables in api/_lib/graph.js.
 const G = require('./_lib/graph');
 const EM = require('./_lib/emcheck');
+const SCHED = require('./_lib/sched');
 const { env } = G;
 const SLOTS = [4, 12]; // UTC hours of the two scans (07:00 and 15:00 Riyadh)
 const OR = '#f15a22', CH = '#2e2e2f', SOFT = '#6f6f6f', TAUPE = '#51473d', LINE = '#e3e2df';
@@ -87,53 +88,98 @@ const ROWS = [['levered_irr', 'Levered IRR', '%'], ['unlevered_irr', 'Unlevered 
 const fmt = (v, u) => !Number.isFinite(v) ? '—' : u === '%' ? v.toFixed(2) + '%' : u === 'x' ? v.toFixed(2) + 'x' : 'SAR ' + Math.round(v / 1e6).toLocaleString('en-GB') + 'M';
 const dlt = (a, b, u) => !Number.isFinite(a) || !Number.isFinite(b) || Math.abs(b - a) < 1e-9 ? '–' : u === '%' ? `${b > a ? '+' : '−'}${Math.abs(b - a).toFixed(2)} pts` : u === 'x' ? `${b > a ? '+' : '−'}${Math.abs(b - a).toFixed(2)}x` : `${b > a ? '+' : '−'}${Math.round(Math.abs(b - a) / 1e6)}M`;
 
-async function reportJob(token, now, dry, appUrl) {
-  const days = (env('REPORT_DAYS') || 'sun,mon,tue,wed,thu').toLowerCase().split(',').map(s => s.trim().slice(0, 3));
-  const today = now.toLocaleDateString('en-US', { timeZone: 'Asia/Riyadh', weekday: 'short' }).toLowerCase().slice(0, 3);
-  if (!days.includes(today)) return { job: 'report', skipped: `not a report day (${today})` };
-  const folder = env('EXPORTS_FOLDER'); if (!folder) return { job: 'report', skipped: 'EXPORTS_FOLDER is not set' };
+/* Arabic version of the daily report: fixed labels from this table, the sentences the checks produce through the AI (numbers kept). */
+const AR = { 'Daily EstateMaster report': 'تقرير إستيت ماستر اليومي', 'Levered IRR': 'معدل العائد الداخلي على حقوق الملكية', 'Unlevered IRR': 'معدل العائد الداخلي للمشروع', 'Profit on cost': 'الربح إلى التكلفة', 'Net profit': 'صافي الربح', 'Total development cost': 'إجمالي تكلفة التطوير', 'Gross revenue': 'إجمالي الإيرادات', 'Equity multiple': 'مضاعف حقوق الملكية', 'Peak debt': 'ذروة الدين',
+  Output: 'المخرج', Previous: 'السابق', Latest: 'الأحدث', Change: 'التغير', 'Checks on the export': 'فحوصات ملف التصدير', 'Likely error': 'خطأ محتمل', Check: 'للمراجعة', Note: 'ملاحظة', 'Assumptions possibly changing (Outlook, last 24 hours)': 'افتراضات قد تتغير (أوتلوك، آخر 24 ساعة)', Assumption: 'الافتراض', Proposed: 'المقترح', From: 'المرسل', Quote: 'النص', 'Conf.': 'الثقة',
+  'Assumptions vs market': 'الافتراضات مقارنة بالسوق', Model: 'النموذج', Market: 'السوق', Position: 'الموقع', within: 'ضمن النطاق', above: 'أعلى من النطاق', below: 'أدنى من النطاق', aggressive: 'متفائل', conservative: 'متحفظ',
+  Rent: 'الإيجار', 'Sale price': 'سعر البيع', 'Exit cap rate / yield': 'معدل الرسملة عند التخارج', 'Construction cost': 'تكلفة البناء', 'Land price': 'سعر الأرض', Contingency: 'الاحتياطي', 'Finance rate': 'معدل التمويل', 'Sales commission': 'عمولة البيع' };
+async function translateAr(texts) {
+  const list = [...new Set(texts.filter(Boolean))]; if (!list.length || !G.aiConfigured()) return {};
+  try { const j = G.jsonOf(await G.ai('Translate each English string to Modern Standard Arabic for a real estate investment report. Keep every number, unit, percentage, currency code, file name and id exactly as written. Return JSON only: {"t":[...]} in the same order.', JSON.stringify(list), 4000)); const out = {}; (j.t || []).forEach((t, i) => { if (list[i] && t) out[list[i]] = t; }); return out; } catch { return {}; }
+}
+/* Everything the daily report needs, read once: the two latest base exports, other options, checks, Outlook findings, market position. */
+async function dailyData(token, now) {
+  const folder = env('EXPORTS_FOLDER'); if (!folder) return { skipped: 'EXPORTS_FOLDER is not set' };
   const j = await G.graph(token, `${folder}:/children?$select=name,lastModifiedDateTime,id,file&$orderby=lastModifiedDateTime desc&$top=50`);
-  // One file per stored Option / Stage may be in the folder ("… - Downside.xlsx", "… (Downside).xlsx"): the morning report follows the base, i.e. files with no option in the name or one named like a base case.
+  // One file per stored Option / Stage may be in the folder ("… - Downside.xlsx", "… (Downside).xlsx"): the report follows the base, i.e. files with no option in the name or one named like a base case.
   const optOf = n => { const f = String(n).replace(/\.[^.]+$/, ''); const m = f.match(/\(([^)]{1,60})\)\s*$/) || f.match(/\s[-–]\s([^-–]{1,60})$/); return m ? m[1].trim() : ''; };
   const isBase = o => !o || /^(base|live|current|approved|main|master|as is)/i.test(o);
   const all = (j.value || []).filter(f => f.file && /\.(xlsx|xlsm|xls|csv)$/i.test(f.name)).sort((a, b) => b.lastModifiedDateTime.localeCompare(a.lastModifiedDateTime));
   const files = all.filter(f => isBase(optOf(f.name))).slice(0, 2);
-  if (!files.length) return { job: 'report', skipped: all.length ? `only option exports in the folder (${all.slice(0, 5).map(f => optOf(f.name)).join(', ')}); no base export` : 'no export in the folder yet' };
+  if (!files.length) return { skipped: all.length ? `only option exports in the folder (${all.slice(0, 5).map(f => optOf(f.name)).join(', ')}); no base export` : 'no export in the folder yet' };
   const base = folder.replace(/\/root:.*$/, '');
   const read = async f => ({ name: f.name, at: f.lastModifiedDateTime, ...readExport(await G.graphBytes(token, `${base}/items/${f.id}/content`), f.name) });
   const [b, a] = await Promise.all(files.map(read));
   const options = all.filter(f => !isBase(optOf(f.name))).slice(0, 10).map(f => ({ option: optOf(f.name), file: f.name, at: f.lastModifiedDateTime }));
-  if (!Object.keys(b.out).length) return { job: 'report', skipped: `no EstateMaster returns found in ${b.name}` };
+  if (!Object.keys(b.out).length) return { skipped: `no EstateMaster returns found in ${b.name}` };
   const hurdle = +(env('HURDLE_IRR') || 18);
-  const ok = Number.isFinite(b.out.levered_irr) ? b.out.levered_irr >= hurdle : null;
-  // checks on the export (the same emChecks the app runs) and the assumption changes sensed in Outlook over the last day
   const checks = EM.emChecks({ out: b.out, inputs: b.inputs, sens: b.sens, at: b.at, file: b.name }, a ? { out: a.out, file: a.name } : null, { now: now.toISOString(), hurdle }).filter(c => c.code !== 'hurdle');
   let flags = { msgs: [], findings: [], note: '' };
   if (G.aiConfigured()) { try { flags = await scanFindings(token, new Date(now.getTime() - 864e5).toISOString()); } catch (e) { flags.note = e.message; } } else flags.note = 'no AI key: emails not read';
-  const lvl = { error: ['Likely error', '#d03b3b'], warn: ['Check', OR], note: ['Note', SOFT] };
-  const checksHtml = `<h3 style="margin:22px 0 6px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:${TAUPE}">Checks on the export</h3>` + (checks.length
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${checks.map(c => `<tr>${td(`<span style="display:inline-block;background:${lvl[c.level][1]};color:#fff;font-size:9px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:2px 6px;border-radius:3px;white-space:nowrap">${lvl[c.level][0]}</span>`, ';width:90px')}${td(esc(c.text))}</tr>`).join('')}</table><p style="margin:8px 0 0;color:${SOFT};font-size:12px">${checks.filter(c => c.level !== 'note').length} to look at. These are checks for a person; nothing was changed.</p>`
-    : `<p style="margin:0;color:${SOFT}">Outputs reconcile, units look right, the sensitivity tables match the Summary and the inputs are in range. Nothing to look at.</p>`);
-  const flagsHtml = `<h3 style="margin:22px 0 6px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:${TAUPE}">Assumptions possibly changing (Outlook, last 24 hours)</h3>` + (flags.findings.length
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${th('Assumption')}${th('Proposed')}${th('From')}${th('Quote')}${th('Conf.')}</tr>${findingRows(flags.findings)}</table><p style="margin:8px 0 0;color:${SOFT};font-size:12px">${flags.findings.length} possible change${flags.findings.length > 1 ? 's' : ''} in ${flags.msgs.length} email${flags.msgs.length > 1 ? 's' : ''}. Each one becomes a change request in the app; nothing changes until a person approves it. The export above does not include them yet.</p>`
-    : `<p style="margin:0;color:${SOFT}">${flags.note ? esc(flags.note) : `No assumption change sensed in the ${flags.msgs.length} email${flags.msgs.length === 1 ? '' : 's'} of the last 24 hours.`}</p>`);
-  const stats = ROWS.slice(0, 4).map(([k, l, u]) => `<td width="25%" style="padding:10px 8px 10px 0;border-top:2px solid ${OR};vertical-align:top"><div style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:${TAUPE};font-weight:700">${l}</div><div style="font-size:24px;font-weight:700;margin-top:6px;color:${k === 'levered_irr' && ok === false ? '#d03b3b' : k === 'levered_irr' && ok ? '#1f8a4c' : CH}">${fmt(b.out[k], u)}</div>${a ? `<div style="font-size:11px;color:${SOFT}">${dlt(a.out[k], b.out[k], u)} vs previous</div>` : ''}</td>`).join('');
-  const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:18px"><tr>${th('Output')}${a ? th('Previous') : ''}${th('Latest')}${a ? th('Change') : ''}</tr>${ROWS.map(([k, l, u]) => `<tr>${td(l)}${a ? td(fmt(a.out[k], u), ';text-align:right') : ''}${td(`<b>${fmt(b.out[k], u)}</b>`, ';text-align:right')}${a ? td(dlt(a.out[k], b.out[k], u), ';text-align:right') : ''}</tr>`).join('')}</table>`;
-  const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${stats}</tr></table>
-<p style="margin:16px 0 0">${ok == null ? 'The latest export has no levered IRR.' : ok ? `Levered IRR is above the ${hurdle}% hurdle.` : `<b style="color:#d03b3b">Levered IRR is below the ${hurdle}% hurdle.</b>`}</p>${table}
-${checksHtml}${flagsHtml}
-<p style="margin:16px 0 0;color:${SOFT};font-size:12px">Every figure is EstateMaster's own, read from ${esc(b.name)} (${esc(riyadh(b.at))}${b.opt ? ', option ' + esc(b.opt) : ''})${a ? ` and compared with ${esc(a.name)} (${esc(riyadh(a.at))})` : ''}${options.length ? `. Other options in the folder: ${options.map(o => esc(o.option)).join(', ')}` : ''}. Open the agent for the full report and ▶ Play.</p>`;
-  const html = frame('Morning EstateMaster report', env('PROJECT_NAME') || 'Al Narjis Mixed-Use', riyadh(now.toISOString()), body, appUrl);
-  const to = G.checkRecipients(env('REPORT_TO').split(','));
-  const out = { job: 'report', latest: b.name, previous: a ? a.name : null, figures: b.out, checks, flags: flags.findings.map(f => ({ assumption: f.assumption, new_value: f.new_value, from: f.msg.from })), options, subject: `KINAN · EstateMaster report · ${env('PROJECT_NAME') || 'Al Narjis Mixed-Use'} · ${now.toLocaleDateString('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short' })}`, sent: false };
-  if (to.bad.length) out.rejected = to.bad;
-  if (dry) { out.preview = html; return out; }
-  if (!to.ok.length) { out.note = 'REPORT_TO is not set (or has no internal address): report not sent'; return out; }
-  await G.sendMail(token, { to: to.ok, subject: out.subject, html }); out.sent = true; out.to = to.ok; return out;
+  const market = EM.marketVsInputs(b.inputs, b.meta);
+  return { b, a, options, hurdle, checks, flags, market, project: env('PROJECT_NAME') || (b.meta && b.meta.title) || 'Al Narjis Mixed-Use' };
 }
-
+async function dailyHtml(d, now, appUrl, lang) {
+  const { b, a, options, hurdle, checks, flags, market } = d, ar = lang === 'ar';
+  const tr = ar ? await translateAr([...checks.map(c => c.text), ...market.rows.map(r => r.item), flags.note]) : {};
+  const T = t => ar ? (AR[t] || tr[t] || t) : t, X = t => ar ? (tr[t] || t) : t;
+  const ok = Number.isFinite(b.out.levered_irr) ? b.out.levered_irr >= hurdle : null;
+  const h3 = t => `<h3 style="margin:22px 0 6px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:${TAUPE}">${esc(T(t))}</h3>`;
+  const lvl = { error: ['Likely error', '#d03b3b'], warn: ['Check', OR], note: ['Note', SOFT] };
+  const pill = (t, c) => `<span style="display:inline-block;background:${c};color:#fff;font-size:9px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:2px 6px;border-radius:3px;white-space:nowrap">${esc(t)}</span>`;
+  const stats = ROWS.slice(0, 4).map(([k, l, u]) => `<td width="25%" style="padding:10px 8px 10px 0;border-top:2px solid ${OR};vertical-align:top"><div style="font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:${TAUPE};font-weight:700">${esc(T(l))}</div><div style="font-size:24px;font-weight:700;margin-top:6px;color:${k === 'levered_irr' && ok === false ? '#d03b3b' : CH}">${fmt(b.out[k], u)}</div>${a ? `<div style="font-size:11px;color:${SOFT};margin-top:2px">${dlt(a.out[k], b.out[k], u)}</div>` : ''}</td>`).join('');
+  const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:18px"><tr>${th(T('Output'))}${a ? th(T('Previous')) : ''}${th(T('Latest'))}${a ? th(T('Change')) : ''}</tr>${ROWS.map(([k, l, u]) => `<tr>${td(esc(T(l)))}${a ? td(fmt(a.out[k], u), ';text-align:right') : ''}${td(`<b>${fmt(b.out[k], u)}</b>`, ';text-align:right')}${a ? td(dlt(a.out[k], b.out[k], u), ';text-align:right') : ''}</tr>`).join('')}</table>`;
+  const checksHtml = h3('Checks on the export') + (checks.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${checks.map(c => `<tr>${td(pill(T(lvl[c.level][0]), lvl[c.level][1]), ';width:90px')}${td(esc(X(c.text)))}</tr>`).join('')}</table><p style="margin:8px 0 0;color:${SOFT};font-size:12px">${ar ? `${checks.filter(c => c.level !== 'note').length} للمراجعة. فحوصات لشخص يراجعها؛ لم يتغير شيء.` : `${checks.filter(c => c.level !== 'note').length} to look at. These are checks for a person; nothing was changed.`}</p>`
+    : `<p style="margin:0;color:${SOFT}">${ar ? 'المخرجات متطابقة والوحدات سليمة والمدخلات ضمن النطاق. لا شيء للمراجعة.' : 'Outputs reconcile, units look right, the sensitivity tables match the Summary and the inputs are in range. Nothing to look at.'}</p>`);
+  const flagsHtml = h3('Assumptions possibly changing (Outlook, last 24 hours)') + (flags.findings.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${th(T('Assumption'))}${th(T('Proposed'))}${th(T('From'))}${th(T('Quote'))}${th(T('Conf.'))}</tr>${findingRows(flags.findings)}</table><p style="margin:8px 0 0;color:${SOFT};font-size:12px">${ar ? `${flags.findings.length} تغيير محتمل. يصبح كل منها طلب تغيير في التطبيق؛ لا يتغير شيء قبل موافقة شخص. ملف التصدير أعلاه لا يتضمنها بعد.` : `${flags.findings.length} possible change${flags.findings.length > 1 ? 's' : ''} in ${flags.msgs.length} email${flags.msgs.length > 1 ? 's' : ''}. Each one becomes a change request in the app; nothing changes until a person approves it. The export above does not include them yet.`}</p>`
+    : `<p style="margin:0;color:${SOFT}">${flags.note ? esc(X(flags.note)) : ar ? 'لم يُرصد أي تغيير في الافتراضات في رسائل آخر 24 ساعة.' : `No assumption change sensed in the ${flags.msgs.length} email${flags.msgs.length === 1 ? '' : 's'} of the last 24 hours.`}</p>`);
+  const stc = r => r.status === 'within' ? '#1f8a5a' : r.aggressive ? '#d03b3b' : OR;
+  const marketHtml = h3('Assumptions vs market') + (market.rows.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${th(T('Assumption'))}${th(T('Model'))}${th(T('Market'))}${th(T('Position'))}</tr>${market.rows.map(r => `<tr>${td(`<b>${esc(T(r.item))}</b><br><span style="color:${SOFT};font-size:11px">${esc(r.input)} · ${esc(r.sheet)}</span>`)}${td(esc(r.model))}${td(esc(r.market), `;color:${SOFT}`)}${td(pill(T(r.status) + (r.status !== 'within' ? ' · ' + T(r.aggressive ? 'aggressive' : 'conservative') : ''), stc(r)))}</tr>`).join('')}</table><p style="margin:8px 0 0;color:${SOFT};font-size:12px">${esc(market.bench)} · ${ar ? 'بيانات سوق تجريبية' : 'demo market data (transactions, rentals and cost feeds in production)'}${market.fx ? ' · ' + esc(market.fx) : ''}.</p>`
+    : `<p style="margin:0;color:${SOFT}">${ar ? 'لا توجد افتراضات في ملف التصدير يمكن مقارنتها بالسوق (أضيفوا ورقة المدخلات).' : 'No assumption in the export the market data covers (include the Input sheet in the export).'}</p>`);
+  const hurdleLine = ok == null ? (ar ? 'لا يتضمن ملف التصدير معدل العائد على حقوق الملكية.' : 'The latest export has no levered IRR.') : ok ? (ar ? `معدل العائد أعلى من الحد ${hurdle}%.` : `Levered IRR is above the ${hurdle}% hurdle.`) : `<b style="color:#d03b3b">${ar ? `معدل العائد أدنى من الحد ${hurdle}%.` : `Levered IRR is below the ${hurdle}% hurdle.`}</b>`;
+  const foot = ar ? `كل الأرقام من إستيت ماستر، مقروءة من ${esc(b.name)} (${esc(riyadh(b.at))}).` : `Every figure is EstateMaster's own, read from ${esc(b.name)} (${esc(riyadh(b.at))}${b.opt ? ', option ' + esc(b.opt) : ''})${a ? ` and compared with ${esc(a.name)} (${esc(riyadh(a.at))})` : ''}${options.length ? `. Other options in the folder: ${options.map(o => esc(o.option)).join(', ')}` : ''}. Market positions and checks are the agent's. Open the agent for the full report and ▶ Play.`;
+  const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${stats}</tr></table><p style="margin:16px 0 0">${hurdleLine}</p>${table}${checksHtml}${flagsHtml}${marketHtml}<p style="margin:16px 0 0;color:${SOFT};font-size:12px">${foot}</p>`;
+  let html = frame(T('Daily EstateMaster report'), d.project, riyadh(now.toISOString()), body, appUrl);
+  if (ar) html = html.replace('<html>', '<html dir="rtl" lang="ar">');
+  return html;
+}
+/* The daily report. opts: to (addresses), langs (['en','ar']), force (send whatever the day). Without opts it keeps the env-driven behaviour (REPORT_TO, REPORT_DAYS). */
+async function reportJob(token, now, dry, appUrl, opts = {}) {
+  if (!opts.force) {
+    const days = (env('REPORT_DAYS') || 'sun,mon,tue,wed,thu').toLowerCase().split(',').map(s => s.trim().slice(0, 3));
+    const today = now.toLocaleDateString('en-US', { timeZone: 'Asia/Riyadh', weekday: 'short' }).toLowerCase().slice(0, 3);
+    if (!days.includes(today)) return { job: 'report', skipped: `not a report day (${today})` };
+  }
+  const d = await dailyData(token, now);
+  if (d.skipped) return { job: 'report', skipped: d.skipped };
+  const { b, a, checks, flags, market, options } = d;
+  const langs = (opts.langs && opts.langs.length ? opts.langs : ['en']).filter(l => l === 'en' || l === 'ar');
+  const to = G.checkRecipients(opts.to ? [].concat(opts.to).join(',').split(/[,;\s]+/) : env('REPORT_TO').split(','));
+  const day = now.toLocaleDateString('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short' });
+  const out = { job: 'report', latest: b.name, previous: a ? a.name : null, figures: b.out, checks, flags: flags.findings.map(f => ({ assumption: f.assumption, new_value: f.new_value, from: f.msg.from })), market: market.rows, options, project: d.project, subject: `KINAN · EstateMaster report · ${d.project} · ${day}`, sent: false, langs };
+  if (to.bad.length) out.rejected = to.bad;
+  const htmls = {}; for (const l of langs) htmls[l] = await dailyHtml(d, now, appUrl, l);
+  if (dry) { out.preview = htmls[langs[0]]; if (langs.length > 1) out.previews = htmls; return out; }
+  if (!to.ok.length) { out.note = 'REPORT_TO is not set (or has no internal address): report not sent'; return out; }
+  for (const l of langs) await G.sendMail(token, { to: to.ok, subject: l === 'ar' ? `كنان · تقرير إستيت ماستر · ${d.project} · ${day}` : out.subject, html: htmls[l] });
+  out.sent = true; out.to = to.ok; return out;
+}
+/* Every 15 minutes (vercel.json): the two scans at 07:00 and 15:00 Riyadh, and the daily report when the saved schedule says so. */
+async function tickJob(token, now, dry, appUrl) {
+  const res = [];
+  if (SLOTS.includes(now.getUTCHours()) && now.getUTCMinutes() < 15) res.push(G.aiConfigured() ? await scanJob(token, now, dry, appUrl) : { job: 'scan', skipped: 'no AI key' });
+  const st = await SCHED.load(token);
+  if (!SCHED.due(st.schedule, now, st.log)) { res.push({ job: 'report', skipped: 'not due', next: SCHED.nextRun(st.schedule, now) }); return res; }
+  const r = await reportJob(token, now, dry, appUrl, { to: st.schedule.recipients, langs: st.schedule.languages, force: true });
+  res.push(r);
+  if (!dry) await SCHED.record(token, st, { kind: 'scheduled', status: r.sent ? 'sent' : r.skipped ? 'skipped' : 'failed', note: r.skipped || r.note || '', to: r.to || [], langs: r.langs || [], latest: r.latest || '' }, now);
+  return res;
+}
 const status = () => ({ scan: { enabled: G.graphConfigured() && G.aiConfigured() && !!env('ALERT_TO'), times: ['07:00', '15:00'], tz: 'Asia/Riyadh', alertTo: env('ALERT_TO') ? env('ALERT_TO').split(',').length + ' recipient(s)' : null },
-  report: { enabled: G.graphConfigured() && !!env('EXPORTS_FOLDER') && !!env('REPORT_TO'), time: '07:00', days: env('REPORT_DAYS') || 'sun,mon,tue,wed,thu' }, secret: !!env('CRON_SECRET') });
+  report: { enabled: G.graphConfigured() && !!env('EXPORTS_FOLDER') && !!env('REPORT_TO'), time: env('REPORT_TIME') || '07:00', days: env('REPORT_DAYS') || 'sun,mon,tue,wed,thu' }, secret: !!env('CRON_SECRET') });
 
 module.exports = async function handler(req, res) {
   const u = new URL(req.url, 'http://x'), run = (u.searchParams.get('run') || '').split(',').filter(Boolean);
@@ -150,6 +196,7 @@ module.exports = async function handler(req, res) {
       try {
         if (j === 'scan') { if (!G.aiConfigured()) results.push({ job: 'scan', skipped: 'no AI key' }); else results.push(await scanJob(token, now, dry, appUrl)); }
         else if (j === 'report') results.push(await reportJob(token, now, dry, appUrl));
+        else if (j === 'tick') results.push(...await tickJob(token, now, dry, appUrl));
       } catch (e) { results.push({ job: j, error: e.message }); }
     }
   } catch (e) { return G.send(res, 502, { error: e.message }); }
@@ -157,3 +204,5 @@ module.exports = async function handler(req, res) {
 };
 module.exports.windowFor = windowFor;
 module.exports.readExport = readExport;
+module.exports.reportJob = reportJob;
+module.exports.dailyData = dailyData;

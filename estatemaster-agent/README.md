@@ -62,8 +62,27 @@ Test locally with `vercel dev` (it reads a local `.env`).
 
 ## Layout: tabs, chat dock, settings
 
-- **Tabs:** Overview, Approvals, EstateMaster (Options 2 and 3), Model data, Market check, Scenarios & stress (sensitivity
-  grids, the explorer, the scenario generator, the stress library, tornado, headroom) and Reports.
+- **Projects menu (left edge):** hidden until the cursor reaches the left edge of the screen; lists the projects with
+  their latest export, IRR and open checks. **+** creates a project from an EstateMaster export: choose the file (Office
+  Links → Excel, or the Summary and Input sheets pasted as values), the agent reads the title, asset type, currency,
+  figures, assumptions and sensitivity tables, and opens the project. A project made from an export has no replica model:
+  its figures are EstateMaster's, and every what-if goes to the cross-checked AI test below.
+- **Tabs:** Overview, Approvals, EstateMaster (Options 2 and 3), Assumptions, Scenarios & stress (sensitivity
+  grids, the explorer, the scenario generator, the stress library, tornado, headroom) and Reports. The integration
+  cards are gone from the pages: integrations and feeds are listed under ⚙ Settings → Integrations, and the market
+  check moved to ⚙ Settings → Market data (it also runs in the daily report).
+- **Assumptions:** every assumption of the project (EstateMaster's inputs from the export, or the approved register),
+  with its position against the market. Type a new value next to any of them (or describe a change) and press **Run
+  cross-checked test**: Claude Fable 5.1 and OpenAI gpt-5 each calculate the effect from EstateMaster's figures, compare;
+  where they differ each reviews the other's working and corrects itself, and if they still differ Claude decides with a
+  stated reason. The table shows EstateMaster's current figure (green), each model's figure and the result (red **AI
+  calc**, bold, clickable: both workings and how the difference was resolved). Routed on the `calc` tier.
+- **Reports → Daily report** (same layout as the marketing agent): schedule (on/off, time, timezone, days, internal
+  recipients, English and/or Arabic, Save), delivery check (Send test now), Run (Preview today's report, Run snapshot,
+  Download PDF) and History (sent / generated, ▶ and View). The daily report holds EstateMaster's figures, the checks
+  on the export, the assumptions possibly changing in Outlook over the last 24 hours and the assumptions vs market. The
+  schedule is saved on the server (`/api/schedule`, a JSON file next to the exports) and the 15-minute server tick sends
+  it, with or without the app open.
 - **Chat drawer**, the same design as the Kinan marketing agent: the orange **Ask** button (bottom right, with the number of change requests waiting) opens it on any tab; charcoal head with Close and full screen; it stays open while you move between tabs. It answers from EstateMaster's figures and the data library,
   and reasons on them through the AI when a question needs it (totals, ratios, comparisons, what-ifs, stress tests,
   sensitivities, "which project…"). **Every figure says where it comes from**, as a tag after the number: **EstateMaster**
@@ -79,7 +98,7 @@ Test locally with `vercel dev` (it reads a local `.env`).
   line / table"): the rules engine draws it from the model's own series; the AI agent uses `get_series` for anything the
   model has and `make_chart` for comparisons and derived figures, naming the source of every value. Charts are the same 3D
   KINAN charts as the decks, with hover tips (name and value) and an ↗ export (PNG; HTML for bar charts).
-- **Settings (⚙, top right):** AI connections and routing, Outlook (folder, scan now, alert recipients: the twice-daily scans
+- **Settings (⚙, top right):** AI connections and routing, Integrations, Market data, Outlook (folder, scan now, alert recipients: the twice-daily scans
   keep running), Voice, Architecture. Chart hover tips also work on the report document.
 
 ## Task routing (no engine choice)

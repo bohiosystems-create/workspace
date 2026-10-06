@@ -15,6 +15,9 @@
     },
     "api/cron.js": {
       "maxDuration": 60
+    },
+    "api/schedule.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
@@ -34,12 +37,8 @@
   ],
   "crons": [
     {
-      "path": "/api/cron?run=scan,report",
-      "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/cron?run=scan",
-      "schedule": "0 12 * * *"
+      "path": "/api/cron?run=tick",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

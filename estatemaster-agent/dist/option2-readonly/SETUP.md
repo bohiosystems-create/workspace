@@ -102,7 +102,8 @@ emails of the last 24 hours propose** (not yet in the export).
 | `MAIL_ALLOWED_DOMAINS` | Optional; default is the mailbox's own domain. Emails to any other domain are refused |
 | `APP_URL` | Optional link in the emails (default: this deployment) |
 
-Microsoft Entra app permissions (application, admin consent): **Mail.Read**, **Mail.Send**, **Files.Read.All**. Restrict the
+Microsoft Entra app permissions (application, admin consent): **Mail.Read**, **Mail.Send**, **Files.ReadWrite.All** (read the exports; write the daily report's schedule file `_bohio-agent-schedule.json` in the exports folder; with Files.Read.All only, the schedule falls back to the Vercel variables `REPORT_TIME`, `REPORT_DAYS`, `REPORT_TO`, `REPORT_LANGS`).
+The server tick runs every 15 minutes (`vercel.json`: `/api/cron?run=tick`, Vercel Pro): the email scans at 07:00 and 15:00 Riyadh and the daily report at the time saved on the Reports tab. Restrict the
 app to the project mailbox with an Exchange application access policy.
 
 Test without waiting: `curl -H "Authorization: Bearer $CRON_SECRET" "https://<your-app>/api/cron?run=scan,report&dry=1"`

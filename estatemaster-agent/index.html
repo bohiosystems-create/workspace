@@ -267,6 +267,46 @@ body.chatopen .chat-fab{display:none}
 .fw-head{display:flex;align-items:center;gap:10px;margin:6px 0 8px;flex-wrap:wrap}.fw-head b{font-size:24px;font-family:Montserrat,sans-serif}.fw-head .btn{margin-left:auto}.fw-kind{font-size:12px;color:var(--soft);flex-basis:100%}
 .fw-work{font-size:13px;line-height:1.55;max-height:60vh;overflow:auto;border-top:1px dashed var(--hair);padding-top:8px}.fw-work b{font-weight:700}
 .fw-work .fw-h{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:8px 0 2px}
+.conn{display:none!important}#projSel{display:none!important}
+#projRail{position:fixed;left:0;top:0;bottom:0;z-index:300;pointer-events:none}
+#projRail .pr-hot{position:absolute;left:0;top:0;bottom:0;width:14px;pointer-events:auto;cursor:pointer}
+#projRail .pr-hot:after{content:'';position:absolute;left:0;top:50%;width:4px;height:72px;margin-top:-36px;background:var(--orange);border-radius:0 3px 3px 0;opacity:.6}
+#projRail .pr-panel{position:absolute;left:0;top:0;bottom:0;width:300px;background:#2e2e2f;color:#fff;transform:translateX(-102%);transition:transform .22s ease;pointer-events:auto;box-shadow:8px 0 32px rgba(0,0,0,.28);display:flex;flex-direction:column}
+#projRail.open .pr-panel{transform:none}
+.pr-head{display:flex;align-items:center;justify-content:space-between;padding:24px 20px 14px;font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700}
+.pr-head i{color:var(--orange);font-style:normal;margin-right:8px}
+.pr-add{width:34px;height:34px;border-radius:50%;background:var(--orange);color:#fff;border:0;font-size:22px;line-height:1;cursor:pointer;font-family:inherit}
+.pr-add:hover{background:#d94a16}
+.pr-list{overflow:auto;flex:1;padding:0 10px 20px}
+.pr-item{padding:12px 12px 12px 14px;border-left:3px solid transparent;cursor:pointer;border-radius:0 6px 6px 0;margin-bottom:4px}
+.pr-item:hover{background:rgba(255,255,255,.06)}.pr-item.on{border-left-color:var(--orange);background:rgba(255,255,255,.09)}
+.pr-item b{display:block;font-size:13.5px;font-weight:600}.pr-item small{display:block;color:#bdbdbd;font-size:11.5px;margin-top:3px;line-height:1.45}
+.pr-item .pr-irr{color:#fff;font-weight:700}.pr-item .pr-warn{color:#f6a27f}
+.pr-foot{padding:14px 20px;color:#9a9a9a;font-size:11px;line-height:1.5;border-top:1px solid rgba(255,255,255,.08)}
+body.xproj .rep-only{display:none!important}
+.np-drop{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;border:2px dashed var(--faint);padding:26px;margin:14px 0;cursor:pointer;text-align:center;border-radius:8px}
+.np-drop:hover,.np-drop.over{border-color:var(--orange);background:rgba(241,90,34,.05)}.np-drop b{font-size:14px}.np-drop span{font-size:12px;color:var(--soft)}
+.np-info{font-size:12.5px;line-height:1.6;margin:6px 0 12px}
+.dr-badge{display:inline-block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;padding:3px 8px;border:1.5px solid #1f8a5a;color:#1f8a5a;background:rgba(31,138,90,.08)}
+.dr-badge.off{border-color:var(--soft);color:var(--soft);background:none}.dr-badge.bad{border-color:var(--alert);color:var(--alert);background:rgba(208,59,59,.06)}
+.dr-row{display:grid;grid-template-columns:170px minmax(0,1fr);gap:14px}
+#drGrid .f{display:flex;flex-direction:column;gap:7px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;color:var(--ink);margin-top:14px}
+#drGrid .f input,#drGrid .f select{font:inherit;font-size:14px;letter-spacing:0;text-transform:none;font-weight:400;padding:11px 14px;border:1px solid var(--faint);background:#fff;width:100%;box-sizing:border-box;border-radius:0}
+.dr-days{display:flex;gap:6px;flex-wrap:wrap}.dr-days button{font:inherit;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:8px 12px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer}
+.dr-days button.on{background:var(--orange);border-color:var(--orange);color:#fff}
+.dr-check{display:flex;gap:8px;align-items:center;font-size:13.5px;margin:12px 0}
+.dr-lang{display:flex;gap:16px;align-items:center;font-size:13px;margin:10px 0 14px;color:var(--ink2)}
+.dr-checks{display:flex;flex-direction:column;gap:7px;margin-top:10px;font-size:13px}.dr-checks div{display:flex;gap:8px}.dr-checks .ok{color:#1f8a5a;font-weight:700}.dr-checks .no{color:var(--alert);font-weight:700}.dr-checks .soft{color:var(--soft)}
+.dr-h{font-size:11px;letter-spacing:.28em;text-transform:uppercase;margin:22px 0 8px;display:flex;align-items:center;gap:10px}.dr-h:before{content:'';width:22px;height:2px;background:var(--orange)}
+.dr-hist{display:flex;flex-direction:column}.dr-hrow{display:grid;grid-template-columns:110px auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--hair);font-size:13px}
+.dr-hrow .when{color:var(--soft);font-size:12px}.dr-hrow .who small{display:block;color:var(--soft);font-size:11.5px}
+.dr-pill{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:3px 7px;border:1.5px solid var(--faint);color:var(--soft);white-space:nowrap}.dr-pill.sent{border-color:#1f8a5a;color:#1f8a5a}.dr-pill.failed{border-color:var(--alert);color:var(--alert)}
+.dr-acts{display:flex;gap:6px}.dr-acts button{font:inherit;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:6px 10px;border:1.5px solid var(--ink);background:#fff;cursor:pointer}
+#drModal .card{max-width:860px;width:96vw;height:88vh;display:flex;flex-direction:column}#drFrame{flex:1;width:100%;border:1px solid var(--hair);background:#f4f4f4}
+.int-row{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr) auto;gap:12px;padding:12px 0;border-top:1px solid var(--hair);font-size:13px;align-items:start}.int-row b{display:block}.int-row small{color:var(--soft);font-size:12px}
+.at-chip{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;padding:5px 10px;border:1.5px solid var(--ink);margin:0 6px 6px 0}.at-chip button{border:0;background:none;cursor:pointer;font-size:14px;line-height:1;color:var(--soft)}
+#asmT td input{width:110px;font-size:12px;padding:4px 6px}#asmT .n{white-space:nowrap}
+.at-tab td,.at-tab th{font-size:12.5px}.at-ok{color:#1f8a5a;font-weight:700}.at-rec{color:var(--orange);font-weight:700}.at-arb{color:var(--alert);font-weight:700}
 .chk{display:flex;flex-direction:column;gap:6px;margin-top:6px}.chk-row{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.45}.chk-row .pill{flex:none;margin-top:1px}.pill.w{background:#fbe3d6;color:#9c3a12}
 .emsens{overflow-x:auto;margin-top:8px}.emsens table td.lo{background:rgba(208,59,59,.14)}.emsens table td.base{outline:2px solid var(--ink);outline-offset:-2px}
 .msg.agent .kchart{min-width:min(100%,360px)}
@@ -706,6 +746,31 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
 
 <!-- REPORT -->
 <section class="pane" id="p-report">
+  <div class="grid g2" id="drGrid" style="margin-bottom:20px">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="card">
+        <div class="bar"></div><div class="sbhead"><h2>Daily report · schedule</h2><span class="dr-badge" id="drOn">ON</span></div>
+        <div class="sub" id="drNext" style="margin-top:4px"></div>
+        <label class="dr-check"><input type="checkbox" id="drEnabled"> Send the daily report automatically</label>
+        <div class="dr-row"><div class="f">Time<input type="time" id="drTime"></div><div class="f">Timezone<select id="drTz"><option>Asia/Riyadh</option><option>Asia/Dubai</option><option>Europe/London</option><option>Australia/Sydney</option><option>UTC</option></select></div></div>
+        <div class="f">Days<div class="dr-days" id="drDays"></div></div>
+        <div class="f" style="margin-top:10px">Recipients (internal only)<input id="drTo" placeholder="name@company.com, …"></div>
+        <div class="sub" id="drAllowed" style="margin:2px 0 0;font-size:12px"></div>
+        <div class="dr-lang">Language: <label><input type="checkbox" id="drEn"> English</label><label><input type="checkbox" id="drAr"> العربية</label></div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn" id="drSave">Save schedule</button><span class="sub" id="drMsg" style="margin:0"></span></div>
+      </div>
+      <div class="card">
+        <div class="bar"></div><div class="sbhead"><h2>Delivery check</h2><span class="dr-badge" id="drReady"></span><button class="btn sm" id="drTest" style="margin-left:auto">Send test now</button></div>
+        <div class="dr-checks" id="drCheck"></div><div class="sub" id="drChangedBy" style="margin:10px 0 0;font-size:12px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="bar"></div><h2>Run</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px"><button class="btn ghost" id="drPreview">Preview today’s report</button><button class="btn" id="drSnap">Run snapshot</button><button class="btn ghost" id="drPdf">Download PDF</button></div>
+      <div class="sub" id="drAbout" style="margin-top:12px"></div>
+      <h3 class="dr-h">History</h3><div class="dr-hist" id="drHist"></div>
+    </div>
+  </div>
   <div class="grid" style="grid-template-columns:350px minmax(0,1fr)" id="rpgrid">
     <div style="display:flex;flex-direction:column;gap:20px">
       <div class="card">
@@ -785,6 +850,21 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
 
 <!-- MODEL DATA -->
 <section class="pane" id="p-model">
+  <div class="card" id="asmCard" style="margin-bottom:20px">
+    <div class="bar"></div><div class="sbhead"><h2>Assumptions</h2><input id="asmQ" placeholder="Search assumptions" style="max-width:260px;font-size:13px;padding:6px 12px;border:1px solid var(--faint);border-radius:999px"></div>
+    <div class="sub" id="asmSub"></div>
+    <div class="grid" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:22px;margin-top:6px">
+      <div style="overflow:auto;max-height:620px"><table class="t" id="asmT"></table></div>
+      <div>
+        <h3 class="dr-h" style="margin-top:0">Test with AI</h3>
+        <div class="sub" id="atAbout"></div>
+        <div id="atQ" style="margin:8px 0"></div>
+        <div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap"><input id="atFree" placeholder="or describe it, e.g. rent −10% and a 6-month delay" style="flex:1;min-width:0"><button class="btn ghost sm" id="atAdd">Add</button></div>
+        <button class="btn" id="atRun">Run cross-checked test</button>
+        <div class="steps" id="atSteps" style="margin-top:10px"></div><div id="atRes"></div>
+      </div>
+    </div>
+  </div>
   <div class="card">
     <div class="bar"></div><div class="sbhead"><h2>Model data: every assumption</h2><button class="btn sm" id="nmOpen">New model from template</button><button class="btn ghost sm" id="cwDown" title="The KINAN control workbook with this model’s current values">Control workbook</button><button class="btn sm" id="cwConn" title="Connect a control workbook prepared with the Copilot setup agent">Connect control workbook</button><input type="file" id="cwFile" accept=".xlsx,.xlsm,.xls" hidden><input id="regQ" placeholder="Search assumptions" style="border:1px solid var(--faint);border-radius:999px;padding:7px 14px;font-size:13px;min-width:0;width:220px"></div>
     <div class="sub" style="margin-top:4px" id="regSub"></div><div id="cwRes"></div>
@@ -1000,7 +1080,7 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
   </div>
   <div class="row" style="justify-content:space-between;align-items:center"><span id="rbMsg" style="font-size:12.5px"></span><span style="display:flex;gap:8px"><button class="btn ghost" id="rbDel" style="border-color:var(--alert);color:var(--alert)">Delete</button><button class="btn ghost" id="rbCancel">Cancel</button><button class="btn" id="rbSave">Save report</button></span></div>
 </div></div>
-<div class="modal" id="setModal"><div class="card set kset"><div class="bar"></div><div class="kset-head"><h2>Settings</h2><button class="btn ghost sm" id="setClose">Close</button></div><div class="kset-nav"><button data-set="ai" class="on">AI &amp; routing</button><button data-set="outlook">Outlook</button><button data-set="voice">Voice</button><button data-set="arch">Architecture</button></div><div class="kset-body"><div class="kset-sec on" id="set_ai"></div><div class="kset-sec" id="set_outlook"></div><div class="kset-sec" id="set_voice"><h2>Narration voice</h2><div class="sub">▶ Play narrates each deck with ElevenLabs (English or Arabic) and lights up every figure as it is spoken.</div><div class="note" id="voiceStat"></div><div class="sub" id="voiceChoice"></div><div class="note">Server settings (Vercel): ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, ELEVENLABS_VOICE_ID_AR, ELEVENLABS_MODEL, ELEVENLABS_STABILITY / SIMILARITY / STYLE / SPEED, ELEVENLABS_RIYAL.</div></div><div class="kset-sec" id="set_arch"></div></div></div></div>
+<div class="modal" id="setModal"><div class="card set kset"><div class="bar"></div><div class="kset-head"><h2>Settings</h2><button class="btn ghost sm" id="setClose">Close</button></div><div class="kset-nav"><button data-set="ai" class="on">AI &amp; routing</button><button data-set="outlook">Outlook</button><button data-set="voice">Voice</button><button data-set="integrations">Integrations</button><button data-set="market">Market data</button><button data-set="arch">Architecture</button></div><div class="kset-body"><div class="kset-sec on" id="set_ai"></div><div class="kset-sec" id="set_outlook"></div><div class="kset-sec" id="set_voice"><h2>Narration voice</h2><div class="sub">▶ Play narrates each deck with ElevenLabs (English or Arabic) and lights up every figure as it is spoken.</div><div class="note" id="voiceStat"></div><div class="sub" id="voiceChoice"></div><div class="note">Server settings (Vercel): ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, ELEVENLABS_VOICE_ID_AR, ELEVENLABS_MODEL, ELEVENLABS_STABILITY / SIMILARITY / STYLE / SPEED, ELEVENLABS_RIYAL.</div></div><div class="kset-sec" id="set_integrations"></div><div class="kset-sec" id="set_market"></div><div class="kset-sec" id="set_arch"></div></div></div></div>
 <div class="modal" id="aiModal" hidden><div class="card set"><div class="bar"></div><h2>AI connections</h2>
   <div class="sub" style="margin:0">Nobody picks an engine. The router sends each request to EstateMaster, a data query or an AI model, and picks the model by task. Connect one or both providers; if one fails, the other takes over.</div>
   <div class="note" id="aiProxy" style="margin:10px 0 0"></div>
@@ -1128,7 +1208,8 @@ let hx='price',hy='cost',hmetric='irr',hn=9;
 let changelog=[];
 /* ================= FORMAT ================= */
 const fP=v=>Number.isNaN(v)?'n/m':(v*100).toFixed(1)+'%';
-const fM=v=>(v/1e6>=0?'':'−')+'SAR '+Math.abs(v/1e6).toFixed(0)+'M';
+const CCY=()=>(typeof PROJ!=='undefined'&&PROJ&&PROJ.currency)||'SAR';
+const fM=v=>(v/1e6>=0?'':'−')+CCY()+' '+Math.abs(v/1e6).toFixed(0)+'M';
 const fX=v=>v.toFixed(2)+'x';
 const sgn=(v,dp=0)=>(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(dp);
 function fD(k,d){const v=VARS[k];if(k==='delay')return '+'+Math.round(d)+' mo';return v.kind==='pct'?sgn(d,0)+'%':sgn(d,2).replace(/\.?0+$/,'')+(k==='ltc'?'pp':'pp')}
@@ -1221,9 +1302,11 @@ function intent(text){
   if(/stress|downside|worst|severe/.test(t))return{k:'stress'};
   if(/sensitiv|heat|grid|tornado|versus| vs /.test(t)){const v=varsIn(t);return{k:'sens',v}}
   if(/^(propose|raise|submit)( it| that| this| the estimate| the scenario| as a change request)?[.!]?$/.test(t.trim()))return{k:'proposelast'};
+  if(/^(please\s+)?(test|cross[- ]?check)\b(?!.*\b(the model|stress|export|mistakes?)\b)/.test(t.trim())&&/\d|assumption/.test(t))return{k:'aitest',text:text.trim()};
   if(/\b(check|review|audit|validate|sanity|verify)\b.*\b(export|inputs?|estatemaster|estate master|model|figures?)\b|\b(mistakes?|errors?|typos?|slips?|anything wrong|inconsisten\w*|reconcil\w*)\b/.test(t)&&!/\b(in|with|on|through)\s+(estatemaster|estate master|em)\b.*\b(worst|scenario)/.test(t)&&!/report|pack|deck|email|outlook/.test(t))return{k:'emchecks'};
   if(/\b(assumptions?|changes?)\b.*\b(changing|coming|proposed|sensed|flagged|pending)\b|\b(email|outlook)\b.*\b(flags?|findings?|proposals?|changes?)\b|\bwhat (is|are) (changing|coming)\b/.test(t)&&!/scan|read|check (the )?(outlook|inbox|mail)|apply/.test(t))return{k:'emailflags'};
   const mods=parseMods(t);
+  if(Object.keys(mods).length&&PROJ.fromExport)return{k:'aitest',changes:[text.trim().replace(/^(what if|what happens if|suppose|assume)\s+/i,'').replace(/\?+\s*$/,'')]};
   if(Object.keys(mods).length&&(/\?\s*$/.test(t)||/^(what would|what happens|what does|how much|how would|how does|would|estimate)\b/.test(t.trim())))return{k:'estimate',mods};
   if(Object.keys(mods).length&&/what if|set|change|assume|suppose|make|raise|cut|increase|decrease|drop|reduce|lower|test|by|to|\d/.test(t))return{k:'mod',mods};
   if(/kpi|status|irr|return|where are we|summary|profit|how (is|are)/.test(t))return{k:'status'};
@@ -1233,7 +1316,7 @@ function intent(text){
 /* ================= AGENT CORE (shared by web + WhatsApp) ================= */
 let pending=null;
 function statusText(){
-  if(RO)return statusRO();
+  if(RO||PROJ.fromExport)return statusRO();
   const r=run(S);
   return{r,line:`Estimate (agent’s model): Levered IRR ${fP(r.irr)} · profit on cost ${fP(r.poc)} · net profit ${fM(r.profit)} · equity multiple ${fX(r.em)}`+(emFresh()?`\nEstateMaster (${EMLAST.ref}${EMLAST.sim?', simulated':''}): levered IRR ${EMLAST.out.levered_irr.toFixed(2)}% for this exact working copy. EstateMaster’s figure is the one to use.`:`\nEstateMaster has not calculated this working copy yet: say “check in EstateMaster” for its figure.`)}
 }
@@ -1254,7 +1337,7 @@ async function handle(text,ch,role,forced){
         `<b>Proposed ${cr.id}:</b> ${esc(opsDesc(ops))}<br>${crIRR(cr,{lev:1,b:1,ifa:1})}. Nothing has been written to EstateMaster yet.<div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm" data-apr="${cr.id}">Approve</button><button class="btn ghost sm" data-rej="${cr.id}">Reject</button></div>`);
       return out}
   }
-  if(['estimate','emresults','emsens','proposelast','emchecks','emailflags'].includes(it.k)){const pv=provHandle(it,out,done,web,ch,role);if(pv)return pv}
+  if(['estimate','emresults','emsens','proposelast','emchecks','emailflags','aitest'].includes(it.k)){const pv=await provHandle(it,out,done,web,ch,role);if(pv)return pv}
   if(RO){const ro=roHandle(it,text,ch,role,out,done,web);if(ro)return ro}
   switch(it.k){
   case 'xline':{
@@ -1747,12 +1830,12 @@ setInterval(()=>{const n=riyadhNow(),h=n.getHours(),m=n.getMinutes();if(SCAN_TIM
 /* ================= PERSISTENCE (demo memory in this browser) ================= */
 // The browser keeps the latest LOG_KEEP memory entries (export them any time); production keeps everything in SQL Server.
 const LOG_KEEP=10000;let MEMWARN=false;
-function saveMem(){try{localStorage.setItem(MEMKEY,JSON.stringify({v:1,DLV:{OUTBOX:OUTBOX.map((o,i)=>i<8?o:{...o,html:null}),OBN,NOTIFS,NTN,RUNS:RUNS.map((r,i)=>i<3?r:{...r,html:null}),RUNN,ALERT,SCHED},RO:RO?{EXPORTS,EXN,TASKS,TKN,DRAFT}:undefined,EMLAST,narjisXL:PROJECTS.narjis.xl||null,narjisNA:PROJECTS.narjis.na||null,narjisCW:PROJECTS.narjis.cwFile||null,X:XV,GEN:{seed:GEN.seed,seq:GEN.seq,n:GEN.n,fail:GEN.fail,bins:GEN.bins,worst:GEN.worst.slice(0,100),custom:GEN.custom,em:GEN.em},proj:PROJ.id,projects:Object.fromEntries(Object.entries(PROJECTS).filter(([k])=>k!=='narjis').map(([k,v])=>[k,{...v,saved:undefined}])),LOG,LOGN,APQ,CRN,SCAN,EM:{applied:EM.applied,proposed:EM.proposed},state:{S,FIX,FT,LV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))}))}catch(e){if(!MEMWARN){MEMWARN=true;try{toast('Browser storage is full: new changes are not being saved in this browser. Export the change memory (Approvals tab).')}catch(_){}}}}
+function saveMem(){try{localStorage.setItem(MEMKEY,JSON.stringify({v:1,DLV:{OUTBOX:OUTBOX.map((o,i)=>i<8?o:{...o,html:null}),OBN,NOTIFS,NTN,RUNS:RUNS.map((r,i)=>i<3?r:{...r,html:null}),RUNN,ALERT,SCHED},RO:{EXPORTS,EXN,TASKS,TKN,DRAFT},EMLAST,narjisXL:PROJECTS.narjis.xl||null,narjisNA:PROJECTS.narjis.na||null,narjisCW:PROJECTS.narjis.cwFile||null,X:XV,GEN:{seed:GEN.seed,seq:GEN.seq,n:GEN.n,fail:GEN.fail,bins:GEN.bins,worst:GEN.worst.slice(0,100),custom:GEN.custom,em:GEN.em},proj:PROJ.id,projects:Object.fromEntries(Object.entries(PROJECTS).filter(([k])=>k!=='narjis').map(([k,v])=>[k,{...v,saved:undefined}])),LOG,LOGN,APQ,CRN,SCAN,EM:{applied:EM.applied,proposed:EM.proposed},state:{S,FIX,FT,LV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))}))}catch(e){if(!MEMWARN){MEMWARN=true;try{toast('Browser storage is full: new changes are not being saved in this browser. Export the change memory (Approvals tab).')}catch(_){}}}}
 function loadMem(){try{const m=JSON.parse(localStorage.getItem(MEMKEY)||'null');if(!m||m.v!==1)return false;
   for(const [k,v] of Object.entries(m.projects||{}))PROJECTS[k]=v;if(m.proj&&PROJECTS[m.proj]&&m.proj!=='narjis')loadModelCore(PROJECTS[m.proj]);
   LOG=m.LOG||[];LOGN=m.LOGN||LOG.length+1;APQ=m.APQ||[];CRN=m.CRN||101;Object.assign(SCAN,m.SCAN||{});Object.assign(EM.applied,m.EM.applied||{});Object.assign(EM.proposed,m.EM.proposed||{});
   S=m.state.S||{};Object.assign(FIX,m.state.FIX||{});Object.assign(FT,m.state.FT||{});LV=m.state.LV||{};
-  if(m.narjisXL)PROJECTS.narjis.xl=m.narjisXL;if(m.narjisNA)PROJECTS.narjis.na=m.narjisNA;if(m.narjisCW)PROJECTS.narjis.cwFile=m.narjisCW;EMLAST=m.EMLAST||null;XV=m.X||{};if(m.DLV){OUTBOX=m.DLV.OUTBOX||[];OBN=m.DLV.OBN||1;NOTIFS=m.DLV.NOTIFS||[];NTN=m.DLV.NTN||1;RUNS=m.DLV.RUNS||[];RUNN=m.DLV.RUNN||1;Object.assign(ALERT,m.DLV.ALERT||{});for(const [k,v] of Object.entries(m.DLV.SCHED||{}))SCHED[k]=Object.assign(SCHED[k]||{},v)}if(RO&&m.RO){EXPORTS=m.RO.EXPORTS||[];EXN=m.RO.EXN||1;TASKS=m.RO.TASKS||[];TKN=m.RO.TKN||1;DRAFT=m.RO.DRAFT||{}}XMAP=null;if(m.GEN)Object.assign(GEN,m.GEN,{busy:false});
+  if(m.narjisXL)PROJECTS.narjis.xl=m.narjisXL;if(m.narjisNA)PROJECTS.narjis.na=m.narjisNA;if(m.narjisCW)PROJECTS.narjis.cwFile=m.narjisCW;EMLAST=m.EMLAST||null;XV=m.X||{};if(m.DLV){OUTBOX=m.DLV.OUTBOX||[];OBN=m.DLV.OBN||1;NOTIFS=m.DLV.NOTIFS||[];NTN=m.DLV.NTN||1;RUNS=m.DLV.RUNS||[];RUNN=m.DLV.RUNN||1;Object.assign(ALERT,m.DLV.ALERT||{});for(const [k,v] of Object.entries(m.DLV.SCHED||{}))SCHED[k]=Object.assign(SCHED[k]||{},v)}if(m.RO){EXPORTS=m.RO.EXPORTS||[];EXN=m.RO.EXN||1;TASKS=m.RO.TASKS||[];TKN=m.RO.TKN||1;DRAFT=m.RO.DRAFT||{}}XMAP=null;if(m.GEN)Object.assign(GEN,m.GEN,{busy:false});
   for(const [k,v] of Object.entries(m.SRC||{})){const e=DATA.emails.find(x=>x.id===v.eid);if(e)SRC[k]={e,quote:v.quote}}return true}catch(e){return false}}
 function clearMem(){try{localStorage.removeItem(MEMKEY)}catch(e){}location.reload()}
 
@@ -1897,7 +1980,7 @@ const SOLD={u1:{size:75,sold:.18,px:13850},u2:{size:120,sold:.12,px:13380},u3:{s
 let RSEL='ic';
 const NARRS={};
 const narrBlock=id=>{const n=NARRS[id];return n&&n.key===narrKey()?`<h3>Narrative (AI draft)</h3>${n.text.split(/\n+/).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join('')}<p class="meta" style="margin-top:4px">Drafted by ${esc(mName(n.prov,n.model))} from the EstateMaster extract. Every figure is calculated, not generated.</p>`:''};
-const fS=v=>(v<0?'−':'')+'SAR '+(Math.abs(v)/1e6).toFixed(1)+'M';
+const fS=v=>(v<0?'−':'')+CCY()+' '+(Math.abs(v)/1e6).toFixed(1)+'M';
 const T=(head,rows,num=[])=>`<table class="t"><tr>${head.map((h,i)=>`<th${i&&num!==false?' class="n"':''}>${h}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map((c,i)=>`<td${i&&num!==false?' class="n"':''}>${c}</td>`).join('')}</tr>`).join('')}</table>`;
 const lineage=(x,extra='')=>`<div class="lineage">Figures: ${emFresh()?`EstateMaster column from EstateMaster’s export (${esc(EMLAST.ref)}, ${new Date(EMLAST.at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}${EMLAST.sim?', simulated runner':''}); `:''}all other figures are the agent’s estimates (extract ${x.id}, ${x.at.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}), not EstateMaster figures${emFresh()?'':'; EstateMaster has not calculated this working copy'}${extra} · generated by Bohio Agent · demo data</div>`;
 const scenLine=()=>{const parts=[],seen={};for(const l of detailDiffs()){if(l.agg&&AGG[l.agg].drv&&!grpLines(l.agg).some(x=>x.id in LV)){if(!seen[l.agg]){seen[l.agg]=1;const k=AGG[l.agg].drv;parts.push(VARS[k].label.toLowerCase()+' '+fD(k,S[k]||0))}continue}parts.push(l.label.toLowerCase()+' '+fmtLine(l,lineVal(l.id)))}
@@ -1957,6 +2040,9 @@ const BLOCKS={
  market_check:{g:'Market and compliance',name:'Assumptions vs market',src:'market',fn:()=>T(['Assumption','Model','Market / rule',''],marketCheck().map(r=>[r.label,r.model,r.bench+(r.pos?' · '+r.pos:''),r.st[0]==='p'?r.st[1]:`<b style="color:${r.st[0]==='f'?'#d03b3b':'#2e2e2f'}">${r.st[1]}</b>`]),false)},
  comps_summary:{g:'Market and compliance',name:'Comparable evidence',src:'market',fn:()=>{const m=mk();return T(['Evidence','Records','P25','Median','P75'],[['Residential sales (SAR/sqm)',m.nP,Math.round(m.P.p25).toLocaleString(),Math.round(m.P.p50).toLocaleString(),Math.round(m.P.p75).toLocaleString()],['Retail leases (SAR/sqm/yr)',m.nR,Math.round(m.R.p25).toLocaleString(),Math.round(m.R.p50).toLocaleString(),Math.round(m.R.p75).toLocaleString()]])+`<p class="meta">${SCOPES[MK.scope]}, last ${MK.per} months (dummy dataset).</p>`}},
  zoning:{g:'Market and compliance',name:'Zoning compliance',src:'market',fn:()=>T(['Rule','Limit','Scheme',''],marketCheck().slice(2).map(r=>[r.label,r.bench,r.model,r.st[0]==='p'?'compliant':'<b style="color:#d03b3b">breach</b>']),false)},
+ market_vs:{g:'Market',name:'Assumptions vs market',fn:()=>{const x=latestExport();
+   if(x&&x.inputs&&x.inputs.length){const m=marketVsInputs(x.inputs,x.meta||{});return m.rows.length?T(['Assumption','Model','Market','Position'],m.rows.map(r=>[`<b>${esc(r.item)}</b><br><span style="color:#777;font-size:11px">${esc(r.input)} · ${esc(r.sheet)}</span>`,esc(r.model),esc(r.market),r.status==='within'?'within':`<b style="color:${r.aggressive?'#d03b3b':'#f15a22'}">${r.status} · ${r.aggressive?'aggressive':'conservative'}</b>`]),false)+`<p class="meta">${esc(m.bench)} · demo market data (transactions, rentals and cost feeds in production)${m.fx?' · '+esc(m.fx):''}. Positions are the agent’s; the model figures are EstateMaster’s inputs.</p>`:'<p>No assumption in the export the market data covers (include the Input sheet).</p>'}
+   const c=marketCheck();return T(['Assumption','Model','Market / rule','Position',''],c.map(r=>[esc(r.label),esc(r.model),esc(r.bench),esc(r.pos),r.st[0]==='p'?'within':`<b style="color:#d03b3b">${esc(r.st[1])}</b>`]),false)+'<p class="meta">Comparable sales, rental evidence and zoning rules (demo market data).</p>'}},
  export_checks:{g:'Governance',name:'Checks on the EstateMaster export',fn:()=>{const x=latestExport();if(!x)return'<p>No EstateMaster export yet.</p>';const ck=exportChecks(x);return`<p class="meta">${esc(x.id)}${x.file?' · '+esc(x.file):''} · ${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}: outputs reconciled, units, sensitivity tables refreshed, inputs in range and against the approved register, jumps since the previous export.</p>`+(ck.length?T(['Level','Finding'],ck.map(c=>[c.level==='error'?'<b style="color:#d03b3b">Likely error</b>':c.level==='warn'?'Check':'Note',esc(c.text)]),false):'<p>No issues found.</p>')}},
  email_flags:{g:'Governance',name:'Assumption changes sensed in Outlook',fn:()=>{const f=emailFlags();return f.length?T(['Request','Change','From','Quote','Status'],f.map(e=>[e.id,esc(e.text),esc(e.from),esc(e.quote),e.status==='pending'?'<b>waiting for approval</b>':esc(e.status)]),false)+'<p class="meta">Each one is a change request; nothing changes until a person approves it.</p>':'<p>Nothing sensed in the emails scanned so far.</p>'}},
  flags:{g:'Governance',name:'Flags',fn:()=>{const f=[...marketCheck().filter(c=>c.st[0]!=='p').map(c=>`${c.label}: ${c.st[1]}`),...(stressRes||computeStress()).filter(s=>!s.pass).map(s=>`Stress fail: ${s.name}`),...pendingCRs().map(c=>`Awaiting approval: ${c.id} ${opsDesc(c.ops)}`)];return`<p>${f.length?f.map(esc).join('<br>'):'None.'}</p>`}},
@@ -2106,7 +2192,8 @@ function reportShell_plain(id,def){
 /* built-in reports; custom ones are added by the report builder */
 const RPTS={
   ic:{name:'Investment Committee pack',aud:'Investment committee',sched:'On request',builtin:true,blocks:['ic_summary','kpis','capital_stack','market_check','stress_table','headroom','email_sources','export_checks','changelog']},
-  monthly:{name:'Monthly project report',aud:'KINAN management',sched:'Monthly · 3rd working day',builtin:true,blocks:['kpis','cost_budget','sales_progress','cashflow_next4','flags','export_checks','email_flags']},
+  daily:{name:'Daily EstateMaster report',aud:'Investment team',sched:'Daily (see the schedule above)',builtin:true,blocks:['kpis','export_checks','email_flags','market_vs']},
+  monthly:{name:'Monthly project report',aud:'KINAN management',sched:'Monthly · 3rd working day',builtin:true,blocks:['kpis','cost_budget','sales_progress','cashflow_next4','flags','export_checks','email_flags','market_vs']},
   lender:{name:'Lender report',aud:'Murabaha lender',sched:'Quarterly',builtin:true,blocks:['facility','covenants','drawdowns','debt_stress']},
   investor:{name:'Fund investor report',aud:'Fund LPs and KINAN',sched:'Quarterly',builtin:true,blocks:['fund_summary','fund_terms','fund_distributions','fund_stress']},
   compare:{name:'Scenario comparison',aud:'Investment team',sched:'On request',builtin:true,blocks:['scenario_compare']},
@@ -2579,7 +2666,7 @@ function trustText(){
   if(EMLAST&&EMLAST.proj===PROJ.id)return{cls:'warn',html:`These are the agent’s estimates. EstateMaster last calculated an earlier version (${esc(EMLAST.ref)}, ${t}: ${EMLAST.out.levered_irr.toFixed(2)}%). <button class="btn sm" id="trCheck">Check in EstateMaster</button>`};
   return{cls:'warn',html:`These are the agent’s estimates, not EstateMaster’s figures. <button class="btn sm" id="trCheck">Check in EstateMaster</button>`};
 }
-function renderTrust(){if(RO)return;const e=$('#emTrust');if(!e)return;const t=trustText();e.className='trust '+t.cls;e.innerHTML=t.html}
+function renderTrust(){if(RO||PROJ.fromExport)return;const e=$('#emTrust');if(!e)return;const t=trustText();e.className='trust '+t.cls;e.innerHTML=t.html}
 /* Run the current working copy in EstateMaster on the scratch copy: EstateMaster's figures, nothing in the model changes */
 async function checkWorkingCopy(){
   if(RO){toast('This option cannot run EstateMaster: upload a new export on the EstateMaster tab');return}
@@ -2646,7 +2733,7 @@ function optionExports(proj=PROJ.id){const b=baseOpt(proj),m={};EXPORTS.filter(x
 const openTasks=(proj)=>TASKS.filter(t=>t.status==='open'&&(!proj||t.proj===proj));
 function simOut(){const r=run(S),n=v=>+(+v).toFixed(2);return{levered_irr:n(bad(r.irr)*100),unlevered_irr:n(bad(r.uirr)*100),profit_on_cost:n(r.poc*100),net_profit:Math.round(r.profit),total_cost:Math.round(r.tc),gross_revenue:Math.round(r.rev),equity_multiple:n(r.em),peak_debt:Math.round(r.peak)}}
 function addExport(src,note,out,file,cr,extra){
-  const x={id:'EX-'+String(EXN++).padStart(3,'0'),proj:PROJ.id,at:new Date().toISOString(),src,note,file:file||'',cr:cr||'',out,sig:wcSig(),opt:(extra&&extra.opt)||'',sens:(extra&&extra.sens)||[],inputs:(extra&&extra.inputs)||[],sheets:(extra&&extra.sheets)||[]};
+  const x={id:'EX-'+String(EXN++).padStart(3,'0'),proj:PROJ.id,at:new Date().toISOString(),src,note,file:file||'',cr:cr||'',out,sig:wcSig(),opt:(extra&&extra.opt)||'',sens:(extra&&extra.sens)||[],inputs:(extra&&extra.inputs)||[],meta:(extra&&extra.meta)||null,sheets:(extra&&extra.sheets)||[]};
   EXPORTS.push(x);if(EXPORTS.length>500)EXPORTS=EXPORTS.slice(-500);syncEMLast(true);
   logEvent({kind:'export',actor:src==='file'?`${USERS.web} (${WS_ROLE})`:'Analyst (simulated)',channel:'EstateMaster export',detail:`${x.id} read${file?' from '+file:''}${x.opt?` · option “${x.opt}”`:''}${x.sens.length?` · ${x.sens.length} sensitivity table${x.sens.length>1?'s':''}`:''}: ${note}${Number.isFinite(out.levered_irr)?` · levered IRR ${out.levered_irr.toFixed(2)}%`:''}${src==='file'?'':' (simulated export: demo stand-in for EstateMaster)'}`,cr:cr||''});
   return x}
@@ -2668,20 +2755,25 @@ function parseExport(wb,fileName){
   if(!('levered_irr' in out)&&!('unlevered_irr' in out)){
     for(const name of wb.SheetNames||[]){for(const row of XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true})){if(!row)continue;const i=row.findIndex(c=>typeof c==='string'&&/\bIRR\b/i.test(c)&&c.length<60);if(i<0)continue;const v=row.slice(i+1).find(x=>typeof x==='number');if(v==null)continue;out.levered_irr=+(Math.abs(v)<1?v*100:v).toFixed(4);found.levered_irr=`${name} / ${row[i].trim()} (taken as the levered IRR: check)`;break}if('levered_irr' in out)break}}
   const sens=[];for(const name of wb.SheetNames||[]){const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true});let r=parseSens(rows,name);if(!r.length&&/sensitiv/i.test(name)){const T=[];rows.forEach((row,i)=>(row||[]).forEach((c,j)=>{(T[j]=T[j]||[])[i]=c}));r=parseSens(T,name)}sens.push(...r)}
-  const inputs=parseInputs((wb.SheetNames||[]).map(name=>({name,rows:XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true})})));
-  return{out,found,opt:detectOpt(wb,fileName),sens,inputs,sheets:(wb.SheetNames||[]).slice(0,40)}}
+  const shs=(wb.SheetNames||[]).map(name=>({name,rows:XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true}),frows:XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:false})}));
+  const inputs=parseInputs(shs),meta=detectMeta(shs,fileName);
+  return{out,found,opt:detectOpt(wb,fileName),sens,inputs,meta,sheets:(wb.SheetNames||[]).slice(0,40)}}
 /*EMCHECK-SYNC-START*/
 const ROWS=[['levered_irr','Levered IRR','%'],['unlevered_irr','Unlevered IRR','%'],['profit_on_cost','Profit on cost','%'],['net_profit','Net profit','M'],['total_cost','Total development cost','M'],['gross_revenue','Gross revenue','M'],['equity_multiple','Equity multiple','x'],['peak_debt','Peak debt','M']];
 const LAB=EXLAB;
 const numOf=v=>typeof v==='number'?v:(typeof v==='string'&&/^\s*-?[\d,.]+\s*%?\s*$/.test(v)&&v.trim()?parseFloat(v.replace(/[,%\s]/g,'')):null);
 function parseInputs(sheets) {
-  const want = sheets.filter(s => /input|assumption|intro|summary|setup|financ|loan/i.test(s.name)); const use = want.length ? want : sheets; const out = [];
-  for (const s of use) for (const row of s.rows) {
-    if (!row || out.length >= 600) continue; const i = row.findIndex(c => typeof c === 'string' && c.trim().length > 2 && c.length <= 70); if (i < 0) continue;
-    const lab = row[i].trim(); if (LAB.some(([, re]) => re.test(lab))) continue; const v = row.slice(i + 1, i + 6).map(numOf).find(x => x != null && Number.isFinite(x)); if (v == null) continue;
-    const unitCell = row.slice(i + 1, i + 6).find(c => typeof c === 'string' && /%|sar|sqm|month|year|p\.a\./i.test(c) && c.length < 30);
-    out.push({ label: lab, value: v, sheet: s.name, unit: unitCell ? unitCell.trim() : '' });
-  }
+  const want = sheets.filter(s => /input|assumption|intro|summary|setup|financ|loan/i.test(s.name)); const use = want.length ? want : sheets; const out = [], seen = new Set();
+  for (const s of use) s.rows.forEach((row, ri) => {
+    if (!row || out.length >= 600) return; const i = row.findIndex(c => typeof c === 'string' && c.trim().length > 2 && c.length <= 70 && /[a-z]/i.test(c)); if (i < 0) return;
+    const lab = row[i].trim(); if (LAB.some(([, re]) => re.test(lab))) return;
+    const fr = (s.frows && s.frows[ri]) || [];
+    const cells = []; for (let j = i + 1; j < Math.min(row.length, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; cells.push({ v: n, t, pct: /%\s*$/.test(t.trim()) }); }
+    if (!cells.length) return;
+    const unitCell = row.slice(i + 1, i + 9).find(c => typeof c === 'string' && /%|sar|aud|usd|sqm|m2|month|year|annum|p\.a\./i.test(c) && c.length < 30);
+    const key = s.name + '|' + lab; if (seen.has(key)) return; seen.add(key);
+    out.push({ label: lab, value: cells[0].pct ? +(cells[0].v * 100).toFixed(6) : cells[0].v, text: cells[0].t || String(cells[0].v), pct: cells[0].pct, vals: cells.map(c => c.pct ? c.v * 100 : c.v).slice(0, 6), sheet: s.name, unit: cells[0].pct ? '%' : (unitCell ? unitCell.trim() : '') });
+  });
   return out;
 }
 /*EMCHECKS-START*/
@@ -2731,6 +2823,74 @@ function emChecks(x, prev, opt) {
   if (x.at && opt.now) { const days = (new Date(opt.now) - new Date(x.at)) / 864e5; if (days > 7) add('note', 'stale', `The latest export is ${Math.floor(days)} days old.`); }
   if (opt.hurdle && fin(o.levered_irr) && o.levered_irr < opt.hurdle) add('note', 'hurdle', `Levered IRR ${P(o.levered_irr)} is below the ${opt.hurdle}% hurdle.`);
   const order = { error: 0, warn: 1, note: 2 }; return res.sort((a, b) => order[a.level] - order[b.level]);
+}
+/* What the export is: title, asset type, currency, site area and GFA (from the Intro / Summary cells). */
+function detectMeta(sheets, fileName) {
+  const meta = { title: '', type: '', currency: '', site: null, gfa: null }, cur = {};
+  const after = (row, i) => row.slice(i + 1).find(x => (typeof x === 'string' && x.trim()) || typeof x === 'number');
+  for (const s of sheets.slice(0, 5)) for (const row of s.rows.slice(0, 160)) {
+    if (!row) continue;
+    for (let i = 0; i < row.length; i++) {
+      const c = row[i]; if (typeof c !== 'string') continue; const t = c.trim();
+      for (const m of t.matchAll(/\b(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD)\b/g)) cur[m[1]] = (cur[m[1]] || 0) + 1;
+      if (!meta.title && /^(cash flow title|project name|project title|title)\s*:?$/i.test(t)) { const v = after(row, i); if (typeof v === 'string') meta.title = v.trim().slice(0, 80); }
+      if (!meta.type && /^(type|property type|asset type|land use)\s*:?$/i.test(t)) { const v = after(row, i); if (typeof v === 'string') meta.type = v.trim(); }
+      if (!meta.type) { const m = t.match(/^type\s*:\s*(.+)$/i); if (m) meta.type = m[1].trim(); }
+      if (meta.site == null && /^site area\s*:?$/i.test(t)) { const v = row.slice(i + 1).map(numOf).find(x => x != null && x > 0); if (v) meta.site = v; }
+      if (meta.gfa == null && /^(project size \(b\)|gross floor area|gfa)\s*:?$/i.test(t)) { const v = row.slice(i + 1).map(numOf).find(x => x != null && x > 1); if (v) meta.gfa = v; }
+    }
+  }
+  if (!meta.type) { const all = sheets.slice(0, 3).flatMap(s => s.rows.slice(0, 80).flat()).filter(c => typeof c === 'string').join(' '); const m = all.match(/\b(industrial|logistics|warehouse|residential|retail|office|hotel|hospitality|mixed[- ]use|build to rent)\b/i); if (m) meta.type = m[1]; }
+  meta.currency = Object.entries(cur).sort((a, b) => b[1] - a[1]).map(e => e[0])[0] || 'SAR';
+  if (!meta.title) { const first = (sheets[0] && sheets[0].rows.flat().find(c => typeof c === 'string' && c.trim().length > 4 && !/argus|estatemaster|summary|licensed/i.test(c))) || ''; meta.title = String(first).trim().slice(0, 80) || String(fileName || '').replace(/\.[^.]+$/, ''); }
+  return meta;
+}
+/* Market benchmarks by asset type (SAR, Riyadh; demo data: in production the transactions, rentals and cost feeds). [low, median, high] */
+const BENCH = {
+  industrial: { name: 'Industrial / logistics, Riyadh', rent: [150, 230, 320], cap: [7, 7.75, 8.5], build: [1800, 2300, 2800], land: [600, 950, 1500] },
+  residential: { name: 'Residential for sale, Riyadh', sale: [9000, 12500, 16000], rent: [700, 950, 1300], build: [3500, 4400, 5500], land: [2500, 4000, 6000] },
+  retail: { name: 'Retail, Riyadh', rent: [1800, 2400, 3200], cap: [7.25, 8, 8.75], build: [4500, 5500, 6500], land: [3000, 4500, 7000] },
+  office: { name: 'Office, Riyadh', rent: [1200, 1650, 2200], cap: [7, 7.75, 8.5], build: [5000, 6200, 7500], land: [3000, 5000, 8000] },
+  hotel: { name: 'Hotel, Riyadh', cap: [7.5, 8.5, 9.5], build: [8000, 10000, 12000], land: [3000, 5000, 8000] },
+  mixed: { name: 'Mixed-use, Riyadh', sale: [9000, 12500, 16000], rent: [1800, 2400, 3200], cap: [7.25, 8, 8.75], build: [4000, 5000, 6200], land: [3000, 4500, 7000] },
+  common: { contingency: [5, 7.5, 10], interest: [6.5, 7.5, 8.5], commission: [1.5, 2.5, 3.5], devfee: [2, 3, 4] },
+};
+const FX = { SAR: 1, AUD: 2.45, USD: 3.75, AED: 1.02, EUR: 4.05, GBP: 4.75, NZD: 2.25, QAR: 1.03, KWD: 12.2 };
+const benchType = t => { t = String(t || '').toLowerCase(); return /industr|logist|warehouse/.test(t) ? 'industrial' : /resid|apartment|villa|build to rent/.test(t) ? 'residential' : /retail|mall|shop/.test(t) ? 'retail' : /office/.test(t) ? 'office' : /hotel|hospitality/.test(t) ? 'hotel' : /mixed/.test(t) ? 'mixed' : ''; };
+/* The export's assumptions against the market: each input the benchmarks cover, with its position and whether it looks aggressive. */
+function marketVsInputs(inputs, meta) {
+  meta = meta || {}; const ty = benchType(meta.type) || 'mixed', B = { ...BENCH.common, ...BENCH[ty] }, ccy = FX[meta.currency] ? meta.currency : 'SAR', fx = FX[ccy];
+  const items = [
+    { k: 'rent', name: 'Rent', re: /\brent(al)?\b/i, not: /free|review|escalat|vacan|period|incentive|turnover cost|letting|ground rent|% of/i, unit: '/sqm/yr', perArea: true, revenue: true, lo: 15, hi: 20000 },
+    { k: 'sale', name: 'Sale price', re: /(sale|selling) price|price per|sales rate|\basp\b|sale value/i, not: /land|purchase|%|commission/i, unit: '/sqm', perArea: true, revenue: true, lo: 300, hi: 200000 },
+    { k: 'cap', name: 'Exit cap rate / yield', re: /cap(itali[sz]ation)?\s*rate|exit yield|terminal yield|\byield\b/i, not: /on cost|return/i, pct: true, aggressiveBelow: true, lo: 2, hi: 20 },
+    { k: 'build', name: 'Construction cost', re: /construction cost|build(ing)? cost|hard cost|construction rate/i, not: /contingen|escalat|%/i, unit: '/sqm GFA', perArea: true, cost: true, lo: 200, hi: 60000, total: 'gfa' },
+    { k: 'land', name: 'Land price', re: /land (purchase )?(price|cost|value)/i, not: /%|tax|duty|deposit|payment/i, unit: '/sqm site', perArea: true, cost: true, lo: 50, hi: 100000, total: 'site' },
+    { k: 'contingency', name: 'Contingency', re: /contingen/i, not: /amount/i, pct: true, aggressiveBelow: true, lo: 0.01, hi: 40 },
+    { k: 'interest', name: 'Finance rate', re: /interest rate|profit rate|finance rate|loan rate|\binterest\b/i, not: /fee|received|margin over|spread|deposit/i, pct: true, aggressiveBelow: true, lo: 0.5, hi: 25 },
+    { k: 'commission', name: 'Sales commission', re: /commission/i, not: /pre-?sale/i, pct: true, aggressiveBelow: true, lo: 0.1, hi: 10 },
+  ];
+  const rows = [];
+  for (const it of items) {
+    const b = B[it.k]; if (!b) continue;
+    const cand = (inputs || []).filter(i => it.re.test(i.label) && !(it.not && it.not.test(i.label)));
+    let pick = null, val = null, how = '';
+    for (const i of cand) {
+      for (const v0 of (i.vals && i.vals.length ? i.vals : [i.value])) {
+        let v = v0; if (it.pct) { if (Math.abs(v) <= 1 && !i.pct) v *= 100; if (v >= it.lo && v <= it.hi) { pick = i; val = v; break; } continue; }
+        if (v >= it.lo && v <= it.hi) { pick = i; val = v; how = ''; break; }
+        if (it.total && meta[it.total] && v > it.hi) { const per = v / meta[it.total]; if (per >= it.lo && per <= it.hi) { pick = i; val = per; how = ` (total ${v.toLocaleString('en-GB')} ÷ ${meta[it.total].toLocaleString('en-GB')} sqm ${it.total === 'gfa' ? 'GFA' : 'site'})`; break; } }
+      }
+      if (pick) break;
+    }
+    if (!pick) continue;
+    const sar = it.pct ? val : val * fx, [lo, med, hi] = b, st = sar < lo ? 'below' : sar > hi ? 'above' : 'within';
+    const aggressive = !!(st !== 'within' && ((it.revenue && st === 'above') || (it.cost && st === 'below') || (it.aggressiveBelow && st === 'below')));
+    const f = v => it.pct ? v.toFixed(2).replace(/\.?0+$/, '') + '%' : Math.round(v).toLocaleString('en-GB');
+    rows.push({ k: it.k, item: it.name, input: pick.label, sheet: pick.sheet, model: it.pct ? f(val) : `${ccy} ${f(val)}${it.unit}${ccy !== 'SAR' ? ` (SAR ${f(sar)})` : ''}${how}`, market: it.pct ? `${f(lo)}–${f(hi)} (median ${f(med)})` : `SAR ${f(lo)}–${f(hi)}${it.unit} (median ${f(med)})`, status: st, aggressive,
+      text: `${it.name}: ${it.pct ? f(val) : `${ccy} ${f(val)}${it.unit}${ccy !== 'SAR' ? ` = SAR ${f(sar)}` : ''}`} vs market ${it.pct ? '' : 'SAR '}${f(lo)}–${f(hi)} (median ${f(med)}): ${st === 'within' ? 'within the range' : st + ' the range' + (aggressive ? ', aggressive' : ', conservative')}.` });
+  }
+  return { type: ty, bench: BENCH[ty].name, currency: ccy, fx: ccy !== 'SAR' ? `${ccy} converted at ${fx} SAR (fixed demo rate)` : '', rows };
 }
 /*EMCHECKS-END*/
 /*EMCHECK-SYNC-END*/
@@ -2838,7 +2998,10 @@ function emSensLookup(x,mods){const ks=Object.keys(mods).filter(k=>mods[k]);if(!
   return res.length?res:null}
 /* Assumption changes sensed in Outlook: the change requests the scans raised (pending, approved, rejected) with the quote */
 function emailFlags(){return APQ.filter(c=>c.kind==='email'&&c.proj===PROJ.id).slice(-25).reverse().map(c=>{const src=(c.ops||[]).map(o=>o.src).find(Boolean);const e=src&&DATA.emails.find(x=>x.id===src.eid);return{id:c.id,text:opsDesc(c.ops),quote:src?src.quote:'',from:e?e.from.split(' · ')[0]:(c.title||'').split(' · ').pop(),status:c.status,at:c.at}})}
-function provHandle(it,out,done,web,ch,role){
+async function provHandle(it,out,done,web,ch,role){
+  if(it.k==='aitest'){const chs=(it.changes&&it.changes.length?it.changes:[String(it.text||'').replace(/^(please\s+)?(test|cross[- ]?check)\s+(the\s+)?(assumptions?\s*:?\s*)?/i,'')]).map(t=>({text:String(t).trim()})).filter(c=>c.text);
+    out.link=['model','Open assumptions'];if(!chs.length){done('Tell me what to test, e.g. “test rent −10% and a 6-month delay”.');return out}
+    try{const r=await aiCrossCheck(chs,async st=>{out.steps.push(st)});done(testPlain(r),testHTML(r))}catch(e){done(e.message)}return out}
   const x=latestExport(),when=xx=>new Date(xx.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
   if(it.k==='proposelast'){if(!LASTEST){done('There is no estimate to propose yet. Ask a what-if first, e.g. “what if sale price drops 10%?”.');return out}
     const mods=LASTEST;LASTEST=null;return handle('',ch,role,{k:'mod',mods})}
@@ -2879,6 +3042,122 @@ function provHandle(it,out,done,web,ch,role){
     const plain=`*EstateMaster sensitivity tables* (export ${x.id}, ${when(x)})\n${lines.join('\n')}\nThese are EstateMaster’s own figures. Values between the cells are not in the export: anything interpolated is an AI calc, not EstateMaster’s.`;
     done(plain,mdLite(plain));return out}
   return null}
+/* ===== Assumption tests: Claude and OpenAI each calculate from EstateMaster's figures, check each other and resolve any difference ===== */
+const MET={levered_irr:['Levered IRR','%'],unlevered_irr:['Unlevered IRR','%'],profit_on_cost:['Profit on cost','%'],net_profit:['Net profit','M'],total_cost:['Total development cost','M'],gross_revenue:['Gross revenue','M'],peak_debt:['Peak debt','M']};
+const fMet=(k,v)=>!Number.isFinite(v)?'—':MET[k]&&MET[k][1]==='%'?v.toFixed(2)+'%':fM(v);
+function calcPair(){const c=chain('calc'),cl=c.find(x=>x.p==='anthropic'),op=c.find(x=>x.p==='openai');return[cl,op].filter(Boolean)}
+function calcContext(x){const L=[];const o=x?x.out:{};
+  L.push(`Project: ${PROJ.name}${PROJ.type?' ('+PROJ.type+')':''}. Currency: ${CCY()}.`);
+  if(x)L.push(`EstateMaster export ${x.id}${x.file?' ('+x.file+')':''}${x.opt?', option '+x.opt:''}, read ${new Date(x.at).toISOString().slice(0,16)}.`);
+  L.push('EstateMaster outputs (trusted): '+EXROWS.filter(([k])=>Number.isFinite(o[k])).map(([k,l,u])=>`${k} (${l}) = ${u==='%'?o[k]+'%':o[k]}`).join('; ')+'.');
+  const ins=(x&&x.inputs&&x.inputs.length)?x.inputs.slice(0,160).map(i=>`${i.label} = ${i.text||i.value}${i.unit&&i.unit!=='%'?' '+i.unit:''} [${i.sheet}]`):REG.map(l=>{let v=NaN;try{v=lineVal(l.id)}catch(e){}return`${l.label} (${l.g}) = ${Number.isFinite(v)?fmtLine(l,v):'—'}`});
+  L.push('Inputs:\n'+ins.join('\n'));
+  if(x&&x.meta&&(x.meta.gfa||x.meta.site))L.push(`Areas: ${x.meta.gfa?'GFA '+x.meta.gfa+' sqm':''} ${x.meta.site?'site '+x.meta.site+' sqm':''}`);
+  for(const t of (x&&x.sens)||[])L.push(t.kind==='1way'?`EstateMaster sensitivity (1-way) ${t.v} → ${t.metric}: `+t.shifts.map((sh,i)=>`${sh}%: ${t.values[i]}`).join(', '):`EstateMaster sensitivity (2-way) ${t.metric}, columns ${t.x} ${t.xs.join('/')}%, rows ${t.y}: `+t.grid.map((r,i)=>`${t.ys[i]}%: ${r.join('/')}`).join(' | '));
+  return L.join('\n')}
+const CALC_SYS=`You are a senior real estate development finance analyst. An ARGUS EstateMaster feasibility model (the trusted model) produced the outputs and inputs below. You cannot run EstateMaster: estimate, step by step, the effect of the stated assumption changes on its outputs, the way an analyst would by hand (revenue and cost effects on net profit and profit on cost; timing, leverage and finance effects on the IRRs; use EstateMaster's sensitivity tables where they apply, interpolating between cells). Use only the figures given and state every assumption you make.
+Return JSON only: {"method":"one short paragraph","results":[{"metric":"levered_irr|unlevered_irr|profit_on_cost|net_profit|total_cost|gross_revenue|peak_debt","base":number,"value":number,"working":"the calculation for this figure, with the numbers"}],"caveats":"short"}
+Always include levered_irr, profit_on_cost and net_profit. Percentages in percent (18.4 means 18.4%). Money in full currency units.`;
+const jsonFrom=t=>{const m=String(t||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('no JSON in the answer');return JSON.parse(m[0])};
+const agreeOn=(k,a,b)=>MET[k]&&MET[k][1]==='%'?Math.abs(a-b)<=0.5:Math.abs(a-b)<=0.02*Math.max(Math.abs(a),Math.abs(b),1);
+function diffs(A,B){const ka=Object.fromEntries((A.results||[]).map(r=>[r.metric,r])),kb=Object.fromEntries((B.results||[]).map(r=>[r.metric,r]));return Object.keys(MET).filter(k=>ka[k]&&kb[k]&&Number.isFinite(+ka[k].value)&&Number.isFinite(+kb[k].value)).map(k=>({k,a:+ka[k].value,b:+kb[k].value,ra:ka[k],rb:kb[k],ok:agreeOn(k,+ka[k].value,+kb[k].value)}))}
+async function aiCrossCheck(changes,onStep=async()=>{}){
+  const pair=calcPair();if(!pair.length)throw new Error('Testing assumptions needs Claude and OpenAI connected (Settings → AI & routing).');
+  const x=latestExport(),o=x?x.out:{},ctx=calcContext(x),chg=changes.map(c=>'- '+(c.text||`${c.label}: from ${c.from} to ${c.to}`)).join('\n');
+  const user=`${ctx}\n\nChanges to test:\n${chg}`,name=q=>mName(q.p,q.model);
+  const ask=async(q,sys,msg)=>jsonFrom((await callOne(q.p,q.model,sys,[{role:'user',content:msg}],false,{max:6000,task:'calc'})).text);
+  await onStep(`${pair.map(name).join(' and ')} calculate independently`);
+  const r1=await Promise.allSettled(pair.map(q=>ask(q,CALC_SYS,user)));const ok1=r1.map((r,i)=>r.status==='fulfilled'?{q:pair[i],j:r.value}:null).filter(Boolean);
+  if(!ok1.length)throw new Error('Neither model returned a calculation: '+r1.map(r=>r.reason&&r.reason.message).filter(Boolean).join('; '));
+  const res={changes,x,rounds:[ok1.map(a=>({who:name(a.q),j:a.j}))],metrics:[],mode:ok1.length===2?'cross':'single',models:ok1.map(a=>name(a.q))};
+  if(ok1.length===1){await onStep(`Only ${name(ok1[0].q)} answered: not cross-checked`);res.metrics=(ok1[0].j.results||[]).filter(r=>MET[r.metric]&&Number.isFinite(+r.value)).map(r=>({k:r.metric,value:+r.value,a:+r.value,b:NaN,status:'single',wa:r.working||'',wb:''}));res.method=ok1[0].j.method;return finishTest(res)}
+  let [A,B]=ok1;let d=diffs(A.j,B.j);
+  await onStep(`Compare: ${d.filter(z=>z.ok).length} of ${d.length} figures agree`);
+  let rec=null,arb=null;
+  if(d.some(z=>!z.ok)){
+    const off=d.filter(z=>!z.ok).map(z=>MET[z.k][0]).join(', ');await onStep(`Differences in ${off}: each model reviews the other’s working`);
+    const rev=(me,other)=>`${user}\n\nYour calculation:\n${JSON.stringify(me.j)}\n\nAnother analyst (${name(other.q)}) calculated independently:\n${JSON.stringify(other.j)}\n\nCompare the two step by step. Find exactly where they diverge and which is right. Correct your figures if you were wrong, keep them if you were right. Return the same JSON plus "difference": "where and why the two differ, and who is right".`;
+    const r2=await Promise.allSettled([ask(A.q,CALC_SYS,rev(A,B)),ask(B.q,CALC_SYS,rev(B,A))]);
+    const A2=r2[0].status==='fulfilled'?{q:A.q,j:r2[0].value}:A,B2=r2[1].status==='fulfilled'?{q:B.q,j:r2[1].value}:B;res.rounds.push([{who:name(A.q),j:A2.j},{who:name(B.q),j:B2.j}]);
+    rec={a:A2.j.difference||'',b:B2.j.difference||''};const d2=diffs(A2.j,B2.j);
+    await onStep(`After review: ${d2.filter(z=>z.ok).length} of ${d2.length} figures agree`);
+    if(d2.some(z=>!z.ok)){const arbQ=pair.find(q=>q.p==='anthropic')||pair[0];await onStep(`Still apart: ${name(arbQ)} weighs both workings and decides`);
+      try{arb=await ask(arbQ,`You arbitrate between two analysts' calculations of the same EstateMaster what-if. For each metric where they still differ, decide which working is right (or give the corrected figure) and say why in one sentence. Return JSON only: {"results":[{"metric":"…","value":number,"why":"…"}]}`,`${user}\n\nAnalyst 1 (${name(A.q)}):\n${JSON.stringify(A2.j)}\n\nAnalyst 2 (${name(B.q)}):\n${JSON.stringify(B2.j)}`)}catch(e){arb=null}}
+    A=A2;B=B2;d=d2}
+  const arbK=Object.fromEntries(((arb&&arb.results)||[]).map(r=>[r.metric,r]));
+  res.metrics=d.map(z=>z.ok?{k:z.k,value:(z.a+z.b)/2,a:z.a,b:z.b,status:rec?'reconciled':'agree',wa:z.ra.working||'',wb:z.rb.working||''}:{k:z.k,value:arbK[z.k]&&Number.isFinite(+arbK[z.k].value)?+arbK[z.k].value:(z.a+z.b)/2,a:z.a,b:z.b,status:'arbitrated',why:arbK[z.k]?arbK[z.k].why:'no arbitration: the average is shown',wa:z.ra.working||'',wb:z.rb.working||''});
+  res.method=A.j.method;res.rec=rec;res.names=[name(A.q),name(B.q)];return finishTest(res)}
+function finishTest(res){const x=res.x,o=x?x.out:{},chg=res.changes.map(c=>c.text||`${c.label}: ${c.from} → ${c.to}`).join('; '),[na,nb]=res.names||res.models.concat(['']);
+  res.metrics.forEach(m=>{const base=o[m.k];
+    m.work=addWork('calc',`Change tested: ${chg}.\nEstateMaster now: ${fMet(m.k,base)}${x?` (export ${x.id}${x.file?', '+x.file:''})`:''}.\n\n${na}: ${fMet(m.k,m.a)}\n${m.wa}\n${m.status!=='single'?`\n${nb}: ${fMet(m.k,m.b)}\n${m.wb}\n`:''}\n${m.status==='agree'?`The two agree within ${MET[m.k][1]==='%'?'0.5 pts':'2%'}: the result is their average, ${fMet(m.k,m.value)}.`:m.status==='reconciled'?`They differed at first; each reviewed the other’s working.\n${na}: ${res.rec.a}\n${nb}: ${res.rec.b}\nAfter the review they agree: the result is their average, ${fMet(m.k,m.value)}.`:m.status==='arbitrated'?`They still differed after reviewing each other (${fMet(m.k,m.a)} vs ${fMet(m.k,m.b)}). ${na}: ${res.rec?res.rec.a:''}\n${nb}: ${res.rec?res.rec.b:''}\nDecision: ${m.why}. Result ${fMet(m.k,m.value)}.`:'Only one model answered: this figure is not cross-checked.'}\n\nNot an EstateMaster figure: an analyst can run the change in EstateMaster for its own.`,{value:m.value})});
+  logEvent({kind:'aitest',actor:'Bohio agent',channel:'Assumptions',detail:`AI test (${res.mode==='cross'?(res.names||[]).join(' × '):res.models[0]+', not cross-checked'}): ${chg} → `+res.metrics.map(m=>`${MET[m.k][0]} ${fMet(m.k,m.value)} (${m.status})`).join(', ')});
+  return res}
+function testHTML(res){const x=res.x,o=x?x.out:{},[na,nb]=res.names||res.models.concat(['']);
+  const st={agree:['✓ agree','at-ok'],reconciled:['✓ reconciled','at-rec'],arbitrated:['arbitrated','at-arb'],single:['not cross-checked','at-arb']};
+  const emw=k=>`EstateMaster’s own figure: export ${x?x.id:''}${x&&x.file?' ('+x.file+')':''}. Not calculated by the agent.`;
+  return `<div style="font-size:12.5px;margin:10px 0 4px"><b>${esc(res.changes.map(c=>c.text||`${c.label} → ${c.to}`).join(' · '))}</b></div><div style="overflow-x:auto"><table class="t at-tab"><tr><th>Output</th><th class="n">EstateMaster now</th><th class="n">${esc(na||'')}</th>${res.mode==='cross'?`<th class="n">${esc(nb||'')}</th>`:''}<th class="n">Result</th><th></th></tr>`+
+    res.metrics.map(m=>`<tr><td>${MET[m.k][0]}</td><td class="n">${Number.isFinite(o[m.k])?fig('em',fMet(m.k,o[m.k]),emw(m.k)):'—'}</td><td class="n">${fMet(m.k,m.a)}</td>${res.mode==='cross'?`<td class="n">${fMet(m.k,m.b)}</td>`:''}<td class="n">${figHTML(esc(fMet(m.k,m.value)),'calc',m.work)}</td><td><span class="${st[m.status][1]}">${st[m.status][0]}</span></td></tr>`).join('')+'</table></div>'+
+    (res.method?`<div class="sub" style="margin-top:8px"><b>Method:</b> ${esc(res.method)}</div>`:'')+`<div class="calcnote"><span class="tag tag-calc" style="margin-left:0">AI calc</span> every result is worked out by the AI (${esc(res.mode==='cross'?`${na} and ${nb}, cross-checked`:`${na} only, not cross-checked`)}), not by EstateMaster. Click a result for both workings and how they were reconciled. <span class="tag tag-em" style="margin-left:0">EstateMaster</span> read from the export.</div>`}
+function testPlain(res){const o=res.x?res.x.out:{};return `*AI test: ${res.changes.map(c=>c.text||`${c.label} → ${c.to}`).join('; ')}* (${res.mode==='cross'?(res.names||[]).join(' × ')+', cross-checked':res.models[0]+', not cross-checked'})\n`+res.metrics.map(m=>`${MET[m.k][0]}: ${Number.isFinite(o[m.k])?fMet(m.k,o[m.k])+' '+pmark('em',addWork('em',`EstateMaster’s own figure: export ${res.x.id}. Not calculated by the agent.`))+' → ':''}${fMet(m.k,m.value)} ${pmark('calc',m.work)} (${m.status==='agree'?'both models agree':m.status==='reconciled'?'agreed after reviewing each other':m.status==='arbitrated'?'still apart: arbitrated':'one model only'})`).join('\n')+'\nNot EstateMaster figures: an analyst can run the change in EstateMaster for its own.'}
+/* Assumptions tab */
+let TESTQ=[];
+/* An input as EstateMaster shows it: its own formatting when the export kept it, else thousands separators; fractions of rates as % */
+function asmFmt(i){const t=String(i.text||'').trim(),one=v=>{const pc=!i.pct&&Math.abs(v)<=1&&v!==0&&/contingen|rate|interest|margin|yield|commission|escalat|vat|tax|fee|ltc|ltv|share|%/i.test(i.label+' '+(i.unit||''));return pc?(v*100).toLocaleString('en-GB',{maximumFractionDigits:2})+'%':v.toLocaleString('en-GB',{maximumFractionDigits:Math.abs(v)<10?4:2})};
+  if(i.pct)return(+i.value).toLocaleString('en-GB',{maximumFractionDigits:2})+'%';if(t&&/[,%]|[a-z]/i.test(t))return t;const vs=(i.vals&&i.vals.length?i.vals:[i.value]).slice(0,3);return vs.map(one).join(' · ')}
+function asmRows(){const x=latestExport();
+  if(x&&x.inputs&&x.inputs.length)return{src:'export',x,rows:x.inputs.map((i,n)=>({id:'i'+n,label:i.label,text:asmFmt(i),unit:i.unit&&i.unit!=='%'&&!asmFmt(i).includes(i.unit)?i.unit:'',sheet:i.sheet,value:i.value}))};
+  return{src:'register',x,rows:REG.map(l=>{let v=NaN;try{v=lineVal(l.id)}catch(e){}return{id:l.id,label:l.label,text:Number.isFinite(v)?fmtLine(l,v):'—',unit:'',sheet:l.g,value:v}})}}
+function renderAssumptions(){const el=$('#asmT');if(!el)return;const A=asmRows(),q=($('#asmQ').value||'').toLowerCase(),x=A.x;
+  const mkt=x&&x.inputs&&x.inputs.length?marketVsInputs(x.inputs,x.meta||{}):{rows:[]},byIn=Object.fromEntries(mkt.rows.map(r=>[r.input,r]));
+  const rows=A.rows.filter(r=>!q||(r.label+' '+r.sheet).toLowerCase().includes(q)).slice(0,400);
+  $('#asmSub').innerHTML=A.src==='export'?`${A.rows.length} assumptions read from EstateMaster export <b>${esc(x.id)}</b>${x.file?' · '+esc(x.file):''}. Values are EstateMaster’s inputs; add any of them to a test on the right.`:`The approved assumption register (${A.rows.length} lines). Upload an export with the Input sheet to list EstateMaster’s own inputs.`;
+  el.innerHTML='<tr><th>Assumption</th><th class="n">Value</th><th>vs market</th><th>Test a new value</th></tr>'+rows.map(r=>{const m=byIn[r.label];return`<tr><td>${esc(r.label)}<br><span style="color:var(--soft);font-size:11px">${esc(r.sheet)}</span></td><td class="n">${A.src==='export'?fig('em',r.text+(r.unit?' '+r.unit:''),`EstateMaster input “${r.label}” on sheet ${r.sheet} of export ${x.id}${x.file?' ('+x.file+')':''}. Read from EstateMaster, not calculated by the agent.`):esc(r.text)}</td><td>${m?`<span class="pill ${m.status==='within'?'p':m.aggressive?'f':'w'}" title="${esc(m.text)}">${m.status}${m.status!=='within'?(m.aggressive?' · aggressive':' · conservative'):''}</span>`:''}</td><td style="white-space:nowrap"><input data-atv="${r.id}" placeholder="e.g. −10% or ${esc(r.text)}"><button class="btn ghost sm" data-ata="${r.id}" style="margin-left:4px">+</button></td></tr>`}).join('');
+  const pair=calcPair();$('#atAbout').innerHTML=pair.length===2?`${esc(pair.map(q=>mName(q.p,q.model)).join(' and '))} each calculate the effect from EstateMaster’s figures, then check each other’s working and resolve any difference. Every result is an <span class="tag tag-calc" style="margin-left:0">AI calc</span>: click it for both workings.`:pair.length?`Only ${esc(mName(pair[0].p,pair[0].model))} is connected: results will not be cross-checked. Connect both Claude and OpenAI in Settings → AI & routing.`:'Connect Claude and OpenAI in Settings → AI & routing to test assumptions.';
+  $('#atQ').innerHTML=TESTQ.length?TESTQ.map((c,i)=>`<span class="at-chip">${esc(c.text||`${c.label}: ${c.from} → ${c.to}`)}<button data-atx="${i}" title="Remove">×</button></span>`).join(''):'<span class="sub" style="margin:0">No change yet: type a new value next to an assumption and press +.</span>';
+  $('#atRun').disabled=!TESTQ.length}
+async function runAssumptionTest(){if(!TESTQ.length)return;const box=$('#atSteps');box.innerHTML='';$('#atRes').innerHTML='';$('#atRun').disabled=true;
+  const step=async t=>{box.insertAdjacentHTML('beforeend',`<div class="st done"><i></i><span>${esc(t)}</span></div>`)};
+  try{const r=await aiCrossCheck(TESTQ.slice(),step);$('#atRes').innerHTML=testHTML(r);TESTQ=[];renderAssumptions();saveMem()}
+  catch(e){$('#atRes').innerHTML=`<div class="calcnote">${esc(e.message)}</div>`}finally{$('#atRun').disabled=!TESTQ.length}}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-ata]');if(a){const A=asmRows(),r=A.rows.find(z=>z.id===a.dataset.ata),inp=$(`[data-atv="${a.dataset.ata}"]`);const v=(inp&&inp.value||'').trim();if(!r)return;if(!v){toast('Type the new value first');inp&&inp.focus();return}TESTQ.push({label:r.label,from:r.text+(r.unit?' '+r.unit:''),to:v});inp.value='';renderAssumptions();return}
+  const xx=e.target.closest('[data-atx]');if(xx){TESTQ.splice(+xx.dataset.atx,1);renderAssumptions();return}
+  if(e.target.id==='atAdd'){const v=($('#atFree').value||'').trim();if(v){TESTQ.push({text:v});$('#atFree').value='';renderAssumptions()}return}
+  if(e.target.id==='atRun'){runAssumptionTest();return}});
+document.addEventListener('input',e=>{if(e.target.id==='asmQ')renderAssumptions()});
+/* Projects: the left menu, hidden until the cursor reaches the left edge; + creates a project from an EstateMaster export */
+function renderProjRail(){let r=$('#projRail');if(!r){document.body.insertAdjacentHTML('beforeend',`<div id="projRail"><div class="pr-hot" title="Projects"></div><div class="pr-panel"><div class="pr-head"><span><i>❯</i>Projects</span><button class="pr-add" id="prAdd" title="New project from an EstateMaster export">+</button></div><div class="pr-list" id="prList"></div><div class="pr-foot">Each project reads EstateMaster’s figures and assumptions from its exports. Nothing is written to EstateMaster.</div></div></div>`);r=$('#projRail');
+    r.addEventListener('mouseenter',()=>r.classList.add('open'));r.addEventListener('mouseleave',()=>{if(!$('#npModal')||!$('#npModal').classList.contains('on'))r.classList.remove('open')});r.querySelector('.pr-hot').addEventListener('click',()=>r.classList.toggle('open'))}
+  $('#prList').innerHTML=Object.values(PROJECTS).map(p=>{const x=latestExport(p.id),ck=x?(()=>{const z=PROJ;try{return emChecks(x,null,{}).filter(c=>c.level!=='note').length}catch(e){return 0}})():0;
+    return`<div class="pr-item ${p.id===PROJ.id?'on':''}" data-proj="${p.id}"><b>${esc(p.name)}</b><small>${p.fromExport?esc((p.type||'EstateMaster export')+(p.currency&&p.currency!=='SAR'?' · '+p.currency:'')):esc(p.district||'')}${x&&Number.isFinite(x.out.levered_irr)?` · <span class="pr-irr">${x.out.levered_irr.toFixed(1)}%</span> IRR`:''}${x?` · ${esc(x.id)}`:''}${ck?` · <span class="pr-warn">${ck} check${ck>1?'s':''}</span>`:''}</small></div>`}).join('')}
+document.addEventListener('click',e=>{const p=e.target.closest('[data-proj]');if(p){switchProject(p.dataset.proj);renderProjRail();return}if(e.target.id==='prAdd'){openNewProject();return}if(e.target.id==='npClose'||e.target.id==='npModal'){$('#npModal').classList.remove('on');$('#projRail')&&$('#projRail').classList.remove('open');return}if(e.target.id==='npCreate'){createFromPending();return}});
+let NPPEND=null;
+function openNewProject(){let m=$('#npModal');if(!m){document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="npModal" style="z-index:400"><div class="card" style="max-width:540px;width:94vw"><div class="bar"></div><div class="sbhead"><h2>New project</h2><button class="btn ghost sm" id="npClose">Close</button></div><div class="sub">Upload an EstateMaster export: Office Links → Excel, or the Summary and Input sheets pasted as values into one workbook. The agent reads the project’s figures and assumptions from it. Nothing is written to EstateMaster.</div><label class="np-drop" id="npDrop"><input type="file" id="npFile" accept=".xlsx,.xlsm,.xls,.csv" hidden><b>Choose the EstateMaster export</b><span id="npFileName">or drop it here</span></label><div class="f">Project name<input id="npName" placeholder="taken from the export"></div><div class="np-info" id="npInfo"></div><button class="btn" id="npCreate" disabled>Create project</button></div></div>`);m=$('#npModal');
+    const dz=$('#npDrop');dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});dz.addEventListener('dragleave',()=>dz.classList.remove('over'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f)pickNewProjectFile(f)});
+    $('#npFile').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)pickNewProjectFile(f)})}
+  NPPEND=null;$('#npName').value='';$('#npInfo').innerHTML='';$('#npFileName').textContent='or drop it here';$('#npCreate').disabled=true;m.classList.add('on')}
+async function pickNewProjectFile(f){$('#npFileName').textContent=f.name;$('#npInfo').textContent='Reading…';
+  try{const p=await readExportFile(f);NPPEND={p,file:f.name};const o=p.out,mt=p.meta||{};$('#npName').value=$('#npName').value||mt.title||f.name.replace(/\.[^.]+$/,'');
+    $('#npInfo').innerHTML=`<b>${esc(mt.title||f.name)}</b>${mt.type?' · '+esc(mt.type):''}${mt.currency?' · '+esc(mt.currency):''}<br>${EXROWS.filter(([k])=>Number.isFinite(o[k])).map(([k,l,u])=>`${l} <b>${u==='%'?o[k].toFixed(2)+'%':u==='x'?o[k].toFixed(2)+'x':(o[k]/1e6).toFixed(1)+'M'}</b>`).join(' · ')||'No return figures found'}<br>${p.inputs.length} assumptions · ${p.sens.length} sensitivity table${p.sens.length===1?'':'s'} · sheets: ${esc(p.sheets.join(', '))}`;$('#npCreate').disabled=false}
+  catch(e){NPPEND=null;$('#npInfo').innerHTML=`<span style="color:var(--alert)">${esc(e.message)}</span>`;$('#npCreate').disabled=true}}
+function createFromPending(){if(!NPPEND)return;const pr=newProjectFromExport(NPPEND.p,NPPEND.file,$('#npName').value);NPPEND=null;$('#npModal').classList.remove('on');$('#projRail')&&$('#projRail').classList.remove('open');return pr}
+function newProjectFromExport(p,fileName,name){const mt=p.meta||{},nm=String(name||mt.title||fileName.replace(/\.[^.]+$/,'')).trim().slice(0,60)||'New project';
+  const id='x'+Date.now().toString(36),n=PROJECTS.narjis;
+  PROJECTS[id]={id,name:nm,district:mt.type||'EstateMaster export',plot:n.plot,comps:[],regBase:{...n.regBase},areas:{...n.areas},template:null,fromExport:true,type:mt.type||'',currency:mt.currency||'SAR',file:fileName,created:new Date().toISOString()};
+  switchProject(id,true);
+  const x=addExport('file','first export: project created from it',p.out,fileName,'',p);x.found=p.found;
+  logEvent({kind:'project',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Project “${nm}” created from the EstateMaster export ${fileName} (${x.id}: ${p.inputs.length} assumptions, ${p.sens.length} sensitivity tables)`});
+  renderProjectUI();renderAll(true);if(typeof renderEMTab==='function')renderEMTab();renderAssumptions();saveMem();showTab('agent');toast(`Project “${nm}” created from ${fileName}`);return PROJECTS[id]}
+/* Settings → Integrations */
+function renderIntegrations(){const el=$('#set_integrations');if(!el)return;const x=latestExport(),when=x?new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'';
+  const pill=(t,c)=>`<span class="pill ${c}">${t}</span>`;
+  const rows=[['EstateMaster exports',x?`Latest for ${esc(PROJ.name)}: ${esc(x.id)}${x.file?' · '+esc(x.file):''} · ${when}`:'No export yet for this project',CRONCFG.report&&CRONCFG.report.enabled?'SharePoint exports folder read by the server every morning; uploads in the app too':'Upload on the EstateMaster tab or with + in the Projects menu (left edge)',x&&x.src==='file'?pill('live','p'):pill('demo','s')],
+    ['Outlook · Microsoft Graph',MAIL.configured?`Live · ${esc(MAIL.mailbox)} · folder “${esc(MAIL.folder)}” · read-only`:'Demo inbox (simulated)','Emails that propose an assumption change become change requests; scans at 07:00 and 15:00',MAIL.configured?pill('live','p'):pill('demo','s')],
+    ['Market data','Comparable sales, rental evidence and zoning rules (3 feeds) plus cost and yield benchmarks by asset type','Demo data; in production the transaction, rental and cost feeds. Used in the daily report and Settings → Market data',pill('demo','s')],
+    ['SQL Server','Actuals, sales and collections','Simulated in the demo',pill('demo','s')],
+    ['AI',provs().map(p=>PROV[p].name).join(' + ')||'Not connected','Routing by task; assumption tests use Claude and OpenAI checking each other',provs().length===2?pill('live','p'):provs().length?pill('partial','s'):pill('off','f')],
+    ['Email delivery',MAILCFG.configured?`Live from ${esc(MAILCFG.from)}`:'Simulated outbox','Internal recipients only',MAILCFG.configured?pill('live','p'):pill('demo','s')],
+    ['Voice (ElevenLabs)','Narration for ▶ Play','Settings → Voice',pill('see Voice','s')]];
+  el.innerHTML='<h2>Integrations and feeds</h2><div class="sub">What the agent reads and where it sends. Nothing writes to EstateMaster.</div>'+rows.map(r=>`<div class="int-row"><div><b>${r[0]}</b></div><div>${r[1]}<br><small>${r[2]}</small></div><div>${r[3]}</div></div>`).join('')}
 /* Downloads for the analyst */
 async function taskSheet(id){
   const t=TASKS.find(x=>x.id===id);if(!t)return;try{await loadXLSX()}catch(e){toast(e.message);return}
@@ -3055,6 +3334,7 @@ function switchProject(id,quiet){
   resetE();LASTX=null;renderProjectUI();if(!quiet){logEvent({kind:'project',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Switched to project ${p.name}`});renderAll(true);toast('Project: '+p.name)}
 }
 function renderProjectUI(){
+  document.body.classList.toggle('xproj',!!PROJ.fromExport);try{renderProjRail()}catch(e){}
   $('#projSel').innerHTML=Object.values(PROJECTS).map(p=>`<option value="${p.id}" ${p.id===PROJ.id?'selected':''}>${esc(p.name)}</option>`).join('');
   const o=$('#mkScope').options;o[0].text=PROJ.district+' only';o[1].text=PROJ.district+' + adjacent';
   $('#ibTitle').textContent='Outlook · '+PROJ.name;$('#ibFolder').textContent=`Read-only · folder "${PROJ.name}" · context for assumption changes`;
@@ -4205,6 +4485,54 @@ async function alertChanges(crs,at){
     await deliverEmail({to:ALERT.to,subject:`KINAN · ${crs.length} possible assumption change${crs.length>1?'s':''} · ${PROJ.name}`,html:emailFrame('Assumption alert',`${crs.length} possible change${crs.length>1?'s':''} in Outlook`,`${PROJ.name} · scan of ${at} (Riyadh)`,body),kind:'alert',ref:crs.map(c=>c.id).join(', ')})}
   else if(ALERT.email&&server)logEvent({kind:'email',actor:'Bohio agent',channel:'Email (Outlook)',detail:`Alert for ${crs.map(c=>c.id).join(', ')}: emailed by the scheduled server scan (07:00 / 15:00), not again by the app`});
   if(ALERT.wa){try{wBubble('bot',`🔔 <b>Possible assumption change${crs.length>1?'s':''}</b> (scan ${esc(at)})\n${crs.map(c=>`• ${c.id}: ${esc(opsDesc(c.ops))}`).join('\n')}\nReply <b>APPROVE ${crs[0].id}</b> or <b>REJECT ${crs[0].id}</b>. Nothing changes until approved.`)}catch(e){}}}
+/* The daily report: schedule, delivery check, run, history. Saved on the server (/api/schedule) when Microsoft 365 is connected, else in this browser. */
+const DAYS3=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let DAILY={enabled:true,time:'07:00',timezone:'Asia/Riyadh',days:[0,1,2,3,4],recipients:'',languages:['en']},DAILYSRV=null,DAILYLOG=[],DRLAST='';
+try{const d=JSON.parse(localStorage.getItem('bohioDaily')||'null');if(d){Object.assign(DAILY,d.s||{});DAILYLOG=d.log||[]}}catch(e){}
+const saveDailyLocal=()=>{try{localStorage.setItem('bohioDaily',JSON.stringify({s:DAILY,log:DAILYLOG.slice(0,30).map((r,i)=>i<5?r:{...r,html:null})}))}catch(e){}};
+async function dailyApi(body){const r=await fetch('/api/schedule',body?{method:'POST',headers:{'content-type':'application/json',...(AI.pass?{'x-demo-pass':AI.pass}:{})},body:JSON.stringify(body)}:{});if(!/json/.test(r.headers.get('content-type')||''))throw new Error('no server');const j=await r.json();if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j}
+async function loadDaily(){try{const j=await dailyApi();DAILYSRV=j.configured?j:null;if(DAILYSRV)Object.assign(DAILY,j.schedule)}catch(e){DAILYSRV=null}renderDaily()}
+function dailyNext(){const s=DAILY;if(!s.enabled||!s.days.length)return'';const now=new Date();for(let i=0;i<9;i++){const d=new Date(now.getTime()+i*864e5);const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:s.timezone,weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).map(x=>[x.type,x.value]));const dow=DAYS3.indexOf(p.weekday);if(!s.days.includes(dow))continue;if(i===0&&(+p.hour*60+ +p.minute)>=(+s.time.slice(0,2)*60+ +s.time.slice(3)))continue;return d.toLocaleDateString('en-GB',{timeZone:s.timezone,weekday:'short',day:'numeric',month:'short'})+' '+s.time}return''}
+function dailyChecks(){if(DAILYSRV)return{list:DAILYSRV.check,ready:DAILYSRV.ready};const to=String(DAILY.recipients||'').split(/[,;\s]+/).filter(Boolean);
+  const list=[{ok:to.length>0,label:to.length?'Recipients: '+to.join(', '):'Recipients: none set'},{ok:!!DAILY.enabled,label:DAILY.enabled?'Daily sending is on':'Daily sending is off'},{ok:!!MAILCFG.configured,soft:true,label:MAILCFG.configured?`Sent from ${MAILCFG.from}`:'Microsoft 365 is not connected here: the report is built in the app and kept in the history (simulated email)'},{ok:!!latestExport(),label:latestExport()?`EstateMaster export ${latestExport().id} available`:'No EstateMaster export yet'}];
+  return{list,ready:list.filter(c=>!c.soft).every(c=>c.ok)}}
+function renderDaily(){if(!$('#drGrid'))return;const s=DAILY;
+  $('#drOn').textContent=s.enabled?'On':'Off';$('#drOn').className='dr-badge'+(s.enabled?'':' off');
+  const nx=DAILYSRV&&DAILYSRV.next?DAILYSRV.next.label:dailyNext();$('#drNext').innerHTML=s.enabled&&nx?`Next report: <b>${esc(nx)}</b> (${esc(s.timezone)}) · ${DAILYSRV?'sent by the server, with or without the app open':'saved in this browser (connect Microsoft 365 for server delivery)'}`:'Paused: nothing is sent automatically.';
+  $('#drEnabled').checked=!!s.enabled;$('#drTime').value=s.time;if(![...$('#drTz').options].some(o=>o.value===s.timezone))$('#drTz').insertAdjacentHTML('afterbegin',`<option>${esc(s.timezone)}</option>`);$('#drTz').value=s.timezone;
+  $('#drDays').innerHTML=DAYS3.map((d,i)=>`<button data-drday="${i}" class="${s.days.includes(i)?'on':''}">${d}</button>`).join('');
+  if(document.activeElement!==$('#drTo'))$('#drTo').value=s.recipients||'';
+  const al=DAILYSRV?DAILYSRV.allowed:{domains:MAILCFG.domains||[],people:[]};$('#drAllowed').textContent=(al.domains||[]).length||(al.people||[]).length?'Allowed: '+[...(al.domains||[]).map(d=>'@'+d),...(al.people||[])].join(', '):'Internal addresses only.';
+  $('#drEn').checked=s.languages.includes('en');$('#drAr').checked=s.languages.includes('ar');
+  const c=dailyChecks();$('#drReady').textContent=c.ready?'Ready — you’ll receive it':'Not ready';$('#drReady').className='dr-badge'+(c.ready?'':' bad');
+  $('#drCheck').innerHTML=c.list.map(x=>`<div><span class="${x.ok?'ok':x.soft?'soft':'no'}">${x.ok?'✓':x.soft?'·':'✗'}</span><span>${esc(x.label)}${x.detail?` <span style="color:var(--soft)">(${esc(x.detail)})</span>`:''}</span></div>`).join('');
+  $('#drChangedBy').textContent=s.updatedBy?`Last changed by ${s.updatedBy} · ${new Date(s.updatedAt).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}`:'';
+  $('#drAbout').innerHTML=`The daily report: <b>EstateMaster’s figures</b> from the latest export, <b>checks on the export</b> (inputs and outputs), <b>assumptions possibly changing</b> in Outlook over the last 24 hours, and <b>assumptions vs market</b>. Preview builds it now without sending; Run snapshot builds it and keeps it below; Send test now emails it to the recipients.${DAILYSRV?' Scheduler: the server checks every 15 minutes.':''}`;
+  const hist=(DAILYSRV?DAILYSRV.history:[]).map(r=>({...r,srv:true})).concat(DAILYLOG).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,12);
+  $('#drHist').innerHTML=hist.length?hist.map((r,i)=>{const lang=(r.langs||[]).map(l=>l==='ar'?'العربية':'English').join(' + ')||'English',kind={scheduled:'Scheduled',test:'Test',manual:'Manual'}[r.kind]||'Manual',old=x=>x&&latestExport()&&x!==(latestExport().file||'')&&r.latest;
+    return`<div class="dr-hrow"><span class="when">${new Date(r.at).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span><span><span class="dr-pill ${r.status==='sent'?'sent':r.status==='failed'?'failed':''}">${esc(r.status||'generated')}</span>${old(r.latest)?' <span class="dr-pill">older data</span>':''}</span><span class="who">${kind} · ${lang}${(r.to||[]).length?`<small>${esc(r.to.join(', '))}</small>`:''}${r.note?`<small>${esc(r.note)}</small>`:''}</span><span class="dr-acts"><button data-drplay="${i}" title="Play the daily report">▶</button><button data-drview="${i}">View</button></span></div>`}).join(''):'<div class="sub">Nothing yet. Preview or Run snapshot to build today’s report.</div>';
+  DAILY._hist=hist}
+function dailyLocalHtml(){if(!LASTX)LASTX=snapshot();return reportStandalone('daily')}
+async function dailyBuild(kind){$('#drMsg').textContent='Building…';try{
+    if(DAILYSRV){const j=await dailyApi({action:kind==='preview'?'preview':kind==='test'?'test':'snapshot'});if(j.skipped)throw new Error(j.skipped);DAILYSRV.history=j.history||DAILYSRV.history;if(j.html)DRLAST=j.html;
+      $('#drMsg').textContent=kind==='test'?(j.sent?`Sent to ${j.to.join(', ')}`:j.note||'Not sent'):kind==='snapshot'?'Snapshot saved below':'';renderDaily();return j.html||DRLAST}
+    const html=dailyLocalHtml();DRLAST=html;
+    if(kind!=='preview'){let st='generated';if(kind==='test'){const r=await runReport('daily','now',DAILY.recipients||ALERT.to);st=r&&r.status==='sent'?'sent':'generated'}DAILYLOG.unshift({at:new Date().toISOString(),kind:kind==='test'?'test':'manual',status:st,langs:DAILY.languages,to:kind==='test'?String(DAILY.recipients||'').split(/[,;\s]+/).filter(Boolean):[],latest:(latestExport()||{}).file||'',html});saveDailyLocal()}
+    $('#drMsg').textContent=kind==='test'?(MAILCFG.configured?'Sent':'Built and kept in the outbox (email simulated here)'):kind==='snapshot'?'Snapshot saved below':'';renderDaily();return html}
+  catch(e){$('#drMsg').textContent=e.message;return''}}
+function dailyShow(html,print){let m=$('#drModal');if(!m){document.body.insertAdjacentHTML('beforeend','<div class="modal" id="drModal" style="z-index:400"><div class="card"><div class="bar"></div><div class="sbhead"><h2>Today’s report</h2><div style="display:flex;gap:8px;margin-left:auto"><button class="btn ghost sm" id="drModalPdf">Download PDF</button><button class="btn ghost sm" id="drModalClose">Close</button></div></div><iframe id="drFrame" title="Daily report"></iframe></div></div>');m=$('#drModal')}
+  const fr=$('#drFrame');fr.srcdoc=html;m.classList.add('on');if(print)fr.onload=()=>{try{fr.contentWindow.focus();fr.contentWindow.print()}catch(e){}fr.onload=null}}
+async function saveDaily(){const s={enabled:$('#drEnabled').checked,time:$('#drTime').value,timezone:$('#drTz').value,days:DAILY.days.slice(),recipients:$('#drTo').value.trim(),languages:[$('#drEn').checked?'en':null,$('#drAr').checked?'ar':null].filter(Boolean)};
+  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)){$('#drMsg').textContent='Time must be HH:MM.';return}if(!s.days.length){$('#drMsg').textContent='Pick at least one day.';return}if(!s.languages.length){$('#drMsg').textContent='Pick at least one language.';return}
+  const bad=s.recipients.split(/[,;\s]+/).filter(Boolean).find(a=>!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a));if(bad){$('#drMsg').textContent='Not a valid address: '+bad;return}
+  try{if(DAILYSRV){const j=await dailyApi({action:'save',schedule:s,by:`${USERS.web} (${WS_ROLE})`});DAILYSRV={...DAILYSRV,...j};Object.assign(DAILY,j.schedule)}else{Object.assign(DAILY,s,{updatedBy:`${USERS.web} (${WS_ROLE})`,updatedAt:new Date().toISOString()});saveDailyLocal()}
+    logEvent({kind:'schedule',actor:`${USERS.web} (${WS_ROLE})`,channel:'Reports',detail:`Daily report ${s.enabled?`at ${s.time} (${s.timezone}) on ${s.days.map(d=>DAYS3[d]).join(', ')} to ${s.recipients||'nobody'}`:'paused'}`});$('#drMsg').textContent='Saved';renderDaily()}
+  catch(e){$('#drMsg').textContent=e.message}}
+document.addEventListener('click',async e=>{const d=e.target.closest('[data-drday]');if(d){const i=+d.dataset.drday;DAILY.days=DAILY.days.includes(i)?DAILY.days.filter(x=>x!==i):DAILY.days.concat(i).sort();renderDaily();return}
+  const id=e.target.id;if(id==='drSave'){saveDaily();return}if(id==='drPreview'){const h=await dailyBuild('preview');if(h)dailyShow(h);return}if(id==='drSnap'){await dailyBuild('snapshot');return}if(id==='drTest'){await dailyBuild('test');return}
+  if(id==='drPdf'){const h=DRLAST||await dailyBuild('preview');if(h)dailyShow(h,true);return}if(id==='drModalClose'||id==='drModal'){$('#drModal').classList.remove('on');return}if(id==='drModalPdf'){try{$('#drFrame').contentWindow.print()}catch(_){}return}
+  const v=e.target.closest('[data-drview]');if(v){const r=(DAILY._hist||[])[+v.dataset.drview];const h=r&&r.html||DRLAST||await dailyBuild('preview');if(h)dailyShow(h);return}
+  const pl=e.target.closest('[data-drplay]');if(pl){RSEL='daily';renderReport();const b=$('#rplay');if(b)b.click();return}});
 /* Reports tab: schedules, delivery status, run history, outbox */
 function renderDelivery(){
   const box=$('#dlvStat');if(!box)return;
@@ -4401,7 +4729,7 @@ function rdReply(r){const n=RPTS[r.k].name;
 
 /* ================= WEB UI ================= */
 function renderKPIs(flash){
-  if(RO)return renderKPIsRO(flash);
+  if(RO||PROJ.fromExport)return renderKPIsRO(flash);
   const r=run(S),b=baseRes,ch=Object.keys(S).length;
   const items=[['Levered IRR',fP(r.irr),bad(r.irr)-bad(b.irr),1,bad(r.irr)<HURDLE.irr,'pts',100],['Profit on cost',fP(r.poc),r.poc-b.poc,1,r.poc<HURDLE.poc,'pts',100],['Net profit',fM(r.profit),r.profit-b.profit,1,r.profit<0,'M',1e-6],['Equity multiple',fX(r.em),r.em-b.em,1,r.em<1.5,'x',1],['Peak debt',fM(r.peak),r.peak-b.peak,-1,false,'M',1e-6]];
   $('#kpis').innerHTML=items.map(([l,v,d,s,badF,u,m])=>{const dd=d*m;return`<div class="kpi ${badF?'bad':''} ${flash?'flash':''}"><div class="l">${l}</div><div class="v">${v}</div><div class="dl">${!ch||Math.abs(dd)<.005?'base':`<span class="${dd*s<0?'dn':'up'}">${sgn(dd,u==='x'?2:(u==='M'?0:1))}${u==='pts'?' pts':u==='M'?'M':'x'}</span> vs base`}</div></div>`}).join('');
@@ -4437,7 +4765,8 @@ const CHAINS={
   smart:{label:'Agent with tools',m:[['anthropic','claude-sonnet-5-5'],['openai','gpt-5']]},
   deep:{label:'IC narrative, memos',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
   excel:{label:'Excel questions',m:[['openai','gpt-5'],['anthropic','claude-sonnet-5-5']]},
-  report:{label:'Report design',m:[['anthropic','claude-fable-5-1'],['anthropic','claude-opus-5-5'],['openai','gpt-5']]}
+  report:{label:'Report design',m:[['anthropic','claude-fable-5-1'],['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
+  calc:{label:'Assumption tests (Claude and OpenAI check each other)',m:[['anthropic','claude-fable-5-1'],['openai','gpt-5']]}
 };
 const AI={keys:{anthropic:'',openai:''},pass:'',remember:false,models:{}};
 const PROXY={anthropic:false,openai:false,pass:false,checked:false};
@@ -4486,6 +4815,7 @@ const TOOLS=[
  {name:'create_report',description:'Create a new report on the spot from a description: the report designer (Claude Fable 5.1) picks the sections, slide types and tone for the audience; figures always come from EstateMaster and the data library. Pass the user’s words in description; blocks are optional hints.',p:{name:{type:'string'},audience:{type:'string'},description:{type:'string'},schedule:{type:'string',enum:['On request','Weekly','Monthly · 3rd working day','Quarterly']},blocks:{type:'array',items:{type:'string',enum:BLOCK_KEYS}},narrative:{type:'boolean'}},req:['name','blocks']},
  {name:'design_report',description:'Change an existing report in natural language: who it is for, what it shows (blocks to add, remove or reorder), the slide type of each part (table, list, bar, column or line chart, donut, waterfall, gauges), slide limit, dividers, narrative. Pass the user\'s request as instruction. Figures always stay EstateMaster\'s.',p:{report:{type:'string',description:'Report id (ic, monthly, lender, investor, compare, stress) or a custom report name'},instruction:{type:'string'}},req:['report','instruction']},
  {name:'estimate_scenario',description:'The agent’s own estimate of a what-if or stress scenario on the Bohio replica of the EstateMaster model (NOT EstateMaster’s figure). Use it for any what-if, stress test, downside or sensitivity question where EstateMaster has no saved figure (check estatemaster_sensitivity first). Returns base figures (EstateMaster’s where an export exists, marked ⟦em#n⟧) and the estimate (marked ⟦est#n⟧) with the working behind it. Nothing changes; no change request is raised. Shocks: percentage changes for price, cost, rent, land, area; percentage points for cap, rate, ltc; months for delay.',p:{price:{type:'number',description:'sale price change in %'},cost:{type:'number',description:'construction cost change in %'},rent:{type:'number',description:'retail rent change in %'},land:{type:'number',description:'land cost change in %'},area:{type:'number',description:'buildable area change in %'},cap:{type:'number',description:'exit cap rate change in percentage points'},rate:{type:'number',description:'interest rate change in percentage points'},ltc:{type:'number',description:'leverage (LTC) change in percentage points'},delay:{type:'number',description:'delay in months'},name:{type:'string'}}},
+ {name:'test_assumptions',description:'Test changes to the model’s assumptions with a cross-checked AI calculation: Claude and OpenAI each estimate the effect from EstateMaster’s figures, check each other’s working and resolve any difference. Use it for what-ifs on a project made from an EstateMaster export (no replica) and whenever the user asks to test or cross-check assumptions. Each change is a short sentence, e.g. "rent −10%", "construction cost to 2,100 per sqm", "6-month delay". Results come back marked ⟦calc#n⟧ (and EstateMaster’s current figures ⟦em#n⟧): copy the markers.',p:{changes:{type:'array',items:{type:'string'}}},req:['changes']},
  {name:'check_estatemaster_export',description:'Checks the latest EstateMaster export for likely mistakes, especially in the inputs: outputs that do not reconcile (profit on cost vs net profit / total cost, revenue − cost vs profit), unit slips (thousands vs SAR), peak debt above cost, negative leverage, implausible ranges, sensitivity tables not refreshed after a change, inputs at zero or out of range, inputs that differ from the approved register, jumps since the previous export with no approved change behind them, a stale export. Returns the list with a level (error, check, note). Changes nothing.',p:{}},
  {name:'email_assumption_flags',description:'The assumption changes sensed in Outlook (the change requests the email scans raised: assumption, proposed value, sender, quote, approval status). Use it when asked what is changing or what the emails propose.',p:{}},
  {name:'estatemaster_results',description:'EstateMaster’s own figures: the latest export of the base option (levered and unlevered IRR, profit on cost, net profit, total cost, revenue, equity multiple, peak debt), every other stored Option / Stage exported from EstateMaster (scenarios EstateMaster itself calculated) and how many sensitivity tables the export holds. Every figure comes back with its ⟦em#n⟧ marker: copy the markers into your answer.',p:{}},
@@ -4536,6 +4866,7 @@ function toolIntent0(name,a){
     case 'estimate_scenario':{const mods={};for(const k of KEYS){const v=+a[k];if(a[k]!=null&&Number.isFinite(v)&&v)mods[k]=k==='delay'?Math.max(0,Math.round(v)):v}return{k:'estimate',mods}}
     case 'estatemaster_results':return{k:'emresults'};
     case 'check_estatemaster_export':return{k:'emchecks'};
+    case 'test_assumptions':return{k:'aitest',changes:(a.changes||[]).map(String)};
     case 'email_assumption_flags':return{k:'emailflags'};
     case 'estatemaster_sensitivity':return{k:'emsens',q:String(a.query||'')};
     case 'make_chart':return{k:'chart',spec:a};
@@ -4569,7 +4900,7 @@ function sysPrompt(ch,role){
 Connections: EstateMaster through the Bohio runner. EstateMaster is the trusted source of every figure. Tool figures are the agent’s ESTIMATES unless the tool says they come from EstateMaster: always call them estimates, and use check_in_estatemaster (or the EstateMaster results on change requests) for figures a decision will rest on; where the two differ, EstateMaster’s figure stands. You change only the sandbox working copy; the base case is read-only, SQL Server for actuals and sales, a market dataset of comparable sales, leases and plot zoning (dummy demo data), and the project's Outlook folder (dummy demo inbox).
 
 Rules:
-${RO?'- '+MI().prompt+'\n':''}- Get every number from a tool. Never invent figures, comps, emails or regulations.
+${RO?'- '+MI().prompt+'\n':''}${PROJ.fromExport?`- This project (${PROJ.name}) was created from an EstateMaster export: its figures and assumptions are EstateMaster’s (estatemaster_results, check_estatemaster_export). There is no replica model for it: for any what-if or assumption change use test_assumptions (Claude and OpenAI cross-check), never estimate_scenario.\n`:''}- Get every number from a tool. Never invent figures, comps, emails or regulations.
 - Every output figure you write carries its origin, as a marker right after the number. Three kinds: EstateMaster’s own figures keep the marker the tool returned (e.g. "18.4% ⟦em#3⟧"); the agent’s replica estimates keep theirs (e.g. "12.1% ⟦est#7⟧"); anything you work out yourself (differences, ratios, averages, growth, per-sqm values, interpolation between sensitivity cells, totals across options) gets ⟦calc: working⟧ with the formula and the inputs, e.g. "6.3 pts ⟦calc: 18.4% (EstateMaster, EX-003) − 12.1% (agent estimate)⟧". Copy tool markers exactly as given and never invent or drop one; an unlabelled figure is a mistake. Never present an estimate or your own arithmetic as EstateMaster’s. The shocks the user asked for and the assumptions you quote as inputs need no marker.
 - Analytical questions, what-ifs, stress tests, sensitivities, headroom, downside cases: call estatemaster_sensitivity first (EstateMaster’s own saved tables and stored options); where EstateMaster has no figure, call estimate_scenario (the agent’s replica: clearly an estimate) and say an analyst can run it in EstateMaster. estatemaster_results gives EstateMaster’s base figures and the options it exported. Reason over the figures freely, but keep every figure labelled.
 - Charts: use get_series for anything the model already has; make_chart for comparisons or derived figures, with source saying where the values came from.
@@ -4605,23 +4936,23 @@ async function post(url,headers,body){
   if(!res.ok)throw new Error(j.error&&(j.error.message||j.error)||('HTTP '+res.status));
   return j;
 }
-async function send(p,payload){
-  if(!AI.keys[p])return post('/api/llm',AI.pass?{'x-demo-pass':AI.pass}:{},{provider:p,payload});
+async function send(p,payload,task){
+  if(!AI.keys[p])return post('/api/llm',AI.pass?{'x-demo-pass':AI.pass}:{},{provider:p,payload,task});
   if(p==='anthropic')return post(PROV[p].base,{'x-api-key':AI.keys[p],'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},payload);
   return post(PROV[p].base,{authorization:'Bearer '+AI.keys[p]},payload);
 }
-async function callOne(p,model,system,msgs,withTools){
+async function callOne(p,model,system,msgs,withTools,opt={}){
   ROUTESTATS.calls++;
   if(p==='anthropic'){
-    const body={model,max_tokens:1500,system,messages:msgs};
+    const body={model,max_tokens:opt.max||1500,system,messages:msgs};
     if(withTools)body.tools=TOOLS.map(t=>({name:t.name,description:t.description,input_schema:{type:'object',properties:t.p,required:t.req||[]}}));
-    const j=await send(p,body);
+    const j=await send(p,body,opt.task);
     return{p,model,raw:{role:'assistant',content:j.content},text:(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim(),
       calls:(j.content||[]).filter(b=>b.type==='tool_use').map(b=>({id:b.id,name:b.name,args:b.input||{}}))};
   }
-  const body={model,max_completion_tokens:1500,messages:[{role:'system',content:system},...msgs]};
+  const body={model,max_completion_tokens:opt.max||1500,messages:[{role:'system',content:system},...msgs]};
   if(withTools)body.tools=TOOLS.map(t=>({type:'function',function:{name:t.name,description:t.description,parameters:{type:'object',properties:t.p,required:t.req||[]}}}));
-  const j=await send(p,body);
+  const j=await send(p,body,opt.task);
   const m=j.choices&&j.choices[0]&&j.choices[0].message||{};
   return{p,model,raw:m,text:(m.content||'').trim(),calls:(m.tool_calls||[]).map(c=>{let a={};try{a=JSON.parse(c.function.arguments||'{}')}catch(e){}return{id:c.id,name:c.function.name,args:a}})};
 }
@@ -4672,7 +5003,7 @@ async function llmTurn(text,ch,role,onStep,tier='smart'){
 const ROUTESTATS={calc:0,data:0,api:0,calls:0,fallback:0};
 const ASK=/\b(what is|what's|what are|what was|what were|how much|how many|how far|how long|average|mean|total|sum|ratio|per sqm|per unit|difference|gap|growth|trend|which (project|fund|scenario|assumption|district|year|month)|biggest|largest|smallest|lowest|highest|best|worst|rank|top \d|bottom \d|most|least|percent of|share of|times|multiple)\b/;
 const REASON=/\b(why|should|recommend\w*|advice|advise|explain|compare|summari[sz]e|draft|write|memo|what do you think|opinions?|risks?|concerns?|assess|evaluate|interpret|story|narrative|analy[sz]e|pros|cons|implications?|negotiat\w*|how would|what would|worth|thoughts|tell me about|walk me through|trade-?offs?)\b/;
-const SRCNAME={emchecks:'export checks',emailflags:'Outlook change requests',emresults:'EstateMaster export',emsens:'EstateMaster export (sensitivity sheet)',suggest:'market, actuals, sales, cost library, zoning',napkinmodel:'approvals',newmodel:'templates, zoning and market data',approvals:'approvals and change memory',newreport:'report builder',extract:'EstateMaster extract',market:'market dataset',zoning:'zoning rules',email:'Outlook (Microsoft Graph)',why:'changelog + email sources',report:'EstateMaster outputs',files:'attached Excel',align:'market dataset'};
+const SRCNAME={aitest:'cross-checked AI calculation',emchecks:'export checks',emailflags:'Outlook change requests',emresults:'EstateMaster export',emsens:'EstateMaster export (sensitivity sheet)',suggest:'market, actuals, sales, cost library, zoning',napkinmodel:'approvals',newmodel:'templates, zoning and market data',approvals:'approvals and change memory',newreport:'report builder',extract:'EstateMaster extract',market:'market dataset',zoning:'zoning rules',email:'Outlook (Microsoft Graph)',why:'changelog + email sources',report:'EstateMaster outputs',files:'attached Excel',align:'market dataset'};
 function route(text){
   const it=intent(text),t=text.toLowerCase();
   if(it.k==='approve'||it.k==='cancel')return{lane:'calc',it,why:'Approvals are handled by fixed rules, never by AI.'};
@@ -4689,6 +5020,7 @@ function route(text){
   if(apiOn()&&(it.k==='estimate'||((ASK.test(t)||REASON.test(t)||/\?\s*$/.test(t))&&['emresults','emsens','stress','sens','reverse'].includes(it.k)))&&!/\b(chart|graph|plot)\b/.test(t))return{lane:'api',it,tier:'deep',why:'An analytical question: the AI reasons over EstateMaster’s own figures (estatemaster_results, estatemaster_sensitivity) and the agent’s replica estimates (estimate_scenario); every figure is labelled EstateMaster, agent estimate or AI calc.'};
   if(it.k==='estimate')return{lane:'calc',it,why:'What-if estimate on the agent’s replica, labelled as an estimate; nothing changes and no AI is needed.'};
   if(it.k==='emresults'||it.k==='emsens')return{lane:'data',it,why:'Reads EstateMaster’s own export (figures, options, sensitivity tables); no AI needed.'};
+  if(it.k==='aitest')return{lane:'data',it,why:'Cross-checked AI calculation: Claude and OpenAI each calculate from EstateMaster’s figures, check each other and resolve differences; every result is an AI calc.'};
   if(it.k==='emchecks')return{lane:'data',it,why:'Rules check of the export: reconciliation, units, ranges, register, sensitivity refresh, jumps; no AI.'};
   if(it.k==='emailflags')return{lane:'data',it,why:'Reads the change requests raised from Outlook; no AI.'};
   if(apiOn()&&ASK.test(t)&&['help','dsquery','status','market','approvals','why'].includes(it.k)&&!/\b(chart|graph|plot)\b/.test(t))return{lane:'api',it,tier:'deep',why:'A question on the data that needs reasoning: the AI agent reads the tools and marks every figure it works out itself.'};
@@ -4713,6 +5045,7 @@ function route(text){
 function badgeHTML(res){
   const r=res.r;
   if(res.kind==='api')return`<span class="rt rt-api" title="${esc(r.why)}">✦ AI · ${esc(mName(res.prov,res.model))}${res.tools?` · ${res.tools} tool call${res.tools>1?'s':''}`:''}</span>`;
+  if(r.it&&r.it.k==='aitest'){const pr=calcPair();return`<span class="rt rt-api" title="${esc(r.why)}">✦ AI · ${esc(pr.map(q=>mName(q.p,q.model)).join(' × ')||'not connected')} · cross-checked</span>`}
   if(r.lane==='calc'&&r.it.k==='estimate')return`<span class="rt rt-calc" title="${esc(r.why)}">⚙ Agent estimate · replica, not EstateMaster · no AI</span>`;
   if(r.lane==='calc')return`<span class="rt rt-calc" title="${esc(r.why)}">⚙ ${RO?'Rules engine':'EstateMaster calculation'} · no AI</span>`;
   if(res.noapi||r.fallback)return`<span class="rt rt-data" title="${esc(r.why)}">✦ AI route · ${r.fallback?'AI unavailable':'no AI connected'} · answered by rules</span>`;
@@ -4763,7 +5096,7 @@ function renderRouter(){
   const mt=t=>{if(t==='none')return'–';const all=(AI.models[t]&&AI.models[t].length?AI.models[t]:CHAINS[t].m);return all.map(([p,m],i)=>`${i?'<span style="color:var(--soft)">then </span>':''}${esc(mName(p,m))}${avail(p)?'':' <span style="color:var(--soft)">(not connected)</span>'}`).join('<br>')};
   const rows=[RO?['Change requests, tasks, exports, scenario design','⚙ Rules engine (EstateMaster calculates via the analyst)','none']:['Assumption changes, stress tests, sensitivities, headroom, explorer, capital structure','⚙ EstateMaster calculation','none'],
    ['Market benchmarking','▦ Data query + commentary','fast'],['Zoning checks, Outlook, "why did X change"','▦ Data query','none'],
-   ['Every report (IC, monthly, lender, investor, comparison)','▦ EstateMaster extract + narrative','deep'],['Extract from EstateMaster','▦ Runner extract','none'],['Questions on the data that need reasoning (totals, ratios, comparisons)','✦ AI agent with tools · figures it works out are marked “AI calc”','deep'],['What-ifs, stress tests, sensitivities as questions','✦ AI agent · EstateMaster’s saved sensitivities and options first, then the replica estimate · every figure labelled EstateMaster / agent estimate / AI calc, click for the working','deep'],['EstateMaster’s own results, options, sensitivity tables','▦ Read from the export · no AI','none'],['Checks on the export (mistakes in inputs and outputs), assumptions changing in Outlook','▦ Rules checks · also in the 07:00 morning report','none'],['Charts in the chat (model series)','▦ Chart from the model data','none'],['Charts in the chat (comparisons, derived figures)','✦ AI agent · make_chart with sources','smart'],['Report design, new reports, narration scripts','✦ Report designer','report'],['Open questions, advice, multi-step requests','✦ AI agent with tools','smart'],['Questions about attached Excel files','✦ AI agent with tools','excel'],['Approvals','⚙ Fixed rules (never AI)','none']];
+   ['Every report (IC, monthly, lender, investor, comparison)','▦ EstateMaster extract + narrative','deep'],['Extract from EstateMaster','▦ Runner extract','none'],['Questions on the data that need reasoning (totals, ratios, comparisons)','✦ AI agent with tools · figures it works out are marked “AI calc”','deep'],['What-ifs, stress tests, sensitivities as questions','✦ AI agent · EstateMaster’s saved sensitivities and options first, then the replica estimate · every figure labelled EstateMaster / agent estimate / AI calc, click for the working','deep'],['EstateMaster’s own results, options, sensitivity tables','▦ Read from the export · no AI','none'],['Checks on the export (mistakes in inputs and outputs), assumptions changing in Outlook','▦ Rules checks · also in the daily report','none'],['Assumption tests (Assumptions tab, “test …”, what-ifs on a project made from an export)','✦ Claude and OpenAI calculate independently, check each other, resolve differences · every result is an AI calc, click for both workings','calc'],['Charts in the chat (model series)','▦ Chart from the model data','none'],['Charts in the chat (comparisons, derived figures)','✦ AI agent · make_chart with sources','smart'],['Report design, new reports, narration scripts','✦ Report designer','report'],['Open questions, advice, multi-step requests','✦ AI agent with tools','smart'],['Questions about attached Excel files','✦ AI agent with tools','excel'],['Approvals','⚙ Fixed rules (never AI)','none']];
   const tbl='<tr><th>Request</th><th>Route</th><th>Model (primary, then failover)</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${mt(r[2])}</td></tr>`).join('');
   if($('#rtTable'))$('#rtTable').innerHTML=tbl;if($('#rtRules'))$('#rtRules').innerHTML=tbl;
 }
@@ -4831,11 +5164,11 @@ function openModal_unused(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S
 })();
 
 /* tabs */
-const TABS=[['agent','Overview'],['appr','Approvals'],...(RO?[['em','EstateMaster']]:[]),['model','Model data'],['market','Market check'],['scen','Scenarios & stress'],['report','Reports']];
+const TABS=[['agent','Overview'],['appr','Approvals'],...(RO?[['em','EstateMaster']]:[]),['model','Assumptions'],['scen','Scenarios & stress'],['report','Reports']];
 const TAB_ALIAS={explore:'scen',stress:'scen',napkin:'agent',wa:'agent'};
 const TAB_INTRO={scen:'Sensitivity grids, the autonomous explorer, the scenario generator, the stress library, tornado and headroom: all the agent’s estimates, with the worst cases checked in EstateMaster.',agent:'Ask the agent on the right, in plain language. Every return comes from EstateMaster; anything that would change the model goes to Approvals first, with a person’s name on it.',napkin:'From a napkin sketch to a first-pass model, then to a change request to set it up in EstateMaster.',appr:'Every change waits here for a person. Nothing reaches EstateMaster without a name on it, and every decision is kept in the change memory.',em:'Analyst tasks and EstateMaster exports. The latest export is the only source of the figures shown as EstateMaster’s.',model:'Every assumption in the model: the core register, model lines without limit and the elemental cost plan.',inbox:'The project folder in Outlook, read twice a day. Assumption changes become proposals for approval.',market:'Assumptions against transactions, rents and the zoning rules for the plot.',explore:'Two-way sensitivity grids and the autonomous explorer. Grid figures are the agent’s estimates.',stress:'Stress scenarios without limit. The most severe are checked in EstateMaster.',report:'IC pack, monthly and custom reports, built from the latest EstateMaster figures.',wa:'The same agent on WhatsApp, with roles and approvals.',arch:'How the agent connects to EstateMaster, Outlook, market data and AI, and what it can and can’t do.'};
 function kTitle(id){const t=TABS.find(x=>x[0]===id);const e=$('#kTitle span');if(e)e.textContent=t?(id==='agent'?'AI agent on EstateMaster':t[1]):'';const n=$('#kIntro');if(n)n.textContent=TAB_INTRO[id]||''}
-function showTab(id){if(id==='inbox'||id==='arch'){openSettings(id==='inbox'?'outlook':'arch');return}id=TAB_ALIAS[id]||id;if(id==='scen'){renderHeat();renderGen()}kTitle(id);$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report'){renderReportList();renderExtract();renderReport()}if(id==='model'){renderRegister();renderElemental();renderXLines()}if(id==='stress')renderGen();if(id==='napkin'){fillNapkinForm();runNapkin()}if(id==='explore')renderHeat();if(id==='market')renderMarket();if(id==='inbox'){renderInbox();renderDelivery()}if(id==='report')renderDelivery();if(id==='appr')renderApprovals();if(id==='em')renderEMTab();window.scrollTo({top:0,behavior:'smooth'})}
+function showTab(id){if(id==='inbox'||id==='arch'||id==='market'){openSettings(id==='inbox'?'outlook':id);return}id=TAB_ALIAS[id]||id;if(id==='scen'){renderHeat();renderGen()}kTitle(id);$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report'){renderReportList();renderExtract();renderReport();renderDaily()}if(id==='model'){renderAssumptions();if(!PROJ.fromExport){renderRegister();renderElemental();renderXLines()}}if(id==='stress')renderGen();if(id==='napkin'){fillNapkinForm();runNapkin()}if(id==='explore')renderHeat();if(id==='market')renderMarket();if(id==='inbox'){renderInbox();renderDelivery()}if(id==='report')renderDelivery();if(id==='appr')renderApprovals();if(id==='em')renderEMTab();window.scrollTo({top:0,behavior:'smooth'})}
 $('#tabs').innerHTML=TABS.map(([id,l])=>`<div class="tab ${id==='agent'?'on':''}" data-t="${id}">${l}</div>`).join('');
 $$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));kTitle('agent');
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
@@ -4905,9 +5238,9 @@ try{DOCK.open=localStorage.getItem('bohioDock')==='open'}catch(e){}
 function renderDock(){document.body.classList.toggle('chatopen',DOCK.open);document.body.classList.toggle('nodock',!DOCK.open);const d=$('#kdock');if(d)d.classList.toggle('full',DOCK.full);const n=$('#fabN');if(n){const c=(typeof pendingCRs==='function'?pendingCRs():[]).length;n.textContent=c;n.classList.toggle('hot',c>0)}}
 function toggleDock(force){DOCK.open=typeof force==='boolean'?force:!DOCK.open;try{localStorage.setItem('bohioDock',DOCK.open?'open':'closed')}catch(e){}renderDock();if(DOCK.open){const a=$('#ask');if(a)a.focus()}}
 /* ---- settings ---- */
-const SET_SECS={ai:'AI & routing',outlook:'Outlook',voice:'Voice',arch:'Architecture'};
+const SET_SECS={ai:'AI & routing',outlook:'Outlook',voice:'Voice',integrations:'Integrations',market:'Market data',arch:'Architecture'};
 function openSettings(sec){sec=SET_SECS[sec]?sec:'ai';$$('#setModal [data-set]').forEach(b=>b.classList.toggle('on',b.dataset.set===sec));$$('#setModal .kset-sec').forEach(s=>s.classList.toggle('on',s.id==='set_'+sec));
-  if(sec==='ai'&&typeof fillAI==='function')fillAI();if(sec==='outlook'){renderInbox();if(typeof renderDelivery==='function')renderDelivery()}if(sec==='voice')renderVoiceSettings();$('#setModal').classList.add('on')}
+  if(sec==='ai'&&typeof fillAI==='function')fillAI();if(sec==='outlook'){renderInbox();if(typeof renderDelivery==='function')renderDelivery()}if(sec==='voice')renderVoiceSettings();if(sec==='integrations')renderIntegrations();if(sec==='market')renderMarket();$('#setModal').classList.add('on')}
 function closeSettings(){$('#setModal').classList.remove('on')}
 async function renderVoiceSettings(){const m=await kVoiceCheck();const el=$('#voiceStat');if(!el)return;
   el.innerHTML=m==='eleven'?`<b>ElevenLabs connected</b> · model ${esc(KVOICE.model||'eleven_multilingual_v2')}<br>English voice ${esc(KVOICE.current||'default')} · Arabic voice ${esc(KVOICE.currentAr||KVOICE.current||'default')}<br>Riyals are spoken as “${esc(KVOICE.riyal||'ree-yaals')}”.`
@@ -5034,7 +5367,7 @@ function readAI(){
   AI.keys={anthropic:$('#aiKeyA').value.trim(),openai:$('#aiKeyO').value.trim()};AI.pass=$('#aiPass').value.trim();AI.remember=$('#aiRemember').checked;
   AI.models={};$('#aiModels').value.split('\n').forEach(l=>{const m=l.match(/^\s*(fast|smart|deep|excel)\s*=\s*(.+)$/);if(!m)return;const list=m[2].split(',').map(x=>x.trim().match(/^(anthropic|openai):(\S+)$/)).filter(Boolean).map(x=>[x[1],x[2]]);if(list.length)AI.models[m[1]]=list});
 }
-(function(){const ai=$('#aiModal .card.set');if(ai){[...ai.children].forEach(c=>$('#set_ai').appendChild(c))}const ib=$('#p-inbox');if(ib){[...ib.children].forEach(c=>$('#set_outlook').appendChild(c))}const ar=$('#p-arch');if(ar){[...ar.children].forEach(c=>$('#set_arch').appendChild(c))}renderDock()})();
+(function(){const ai=$('#aiModal .card.set');if(ai){[...ai.children].forEach(c=>$('#set_ai').appendChild(c))}const ib=$('#p-inbox');if(ib){[...ib.children].forEach(c=>$('#set_outlook').appendChild(c))}const ar=$('#p-arch');if(ar){[...ar.children].forEach(c=>$('#set_arch').appendChild(c))}const mk=$('#p-market');if(mk){$('#set_market').insertAdjacentHTML('beforeend','<h2>Market data</h2><div class="sub">Assumptions against comparable transactions, rental evidence and the plot’s zoning. The same check runs in the daily report.</div>');[...mk.children].forEach(c=>$('#set_market').appendChild(c))}renderDock()})();
 $('#apSuggest').onclick=()=>{const r=runSuggestions('on request');toast(r.length?`${r.length} suggested change${r.length>1?'s':''} raised for approval`:'No new suggestions: assumptions are in line')};
 $('#setDiag').onclick=()=>{closeSettings();showDiagnostics()};$('#dbgClose').onclick=()=>$('#dbgModal').classList.remove('on');
 $('#dbgCopy').onclick=()=>{const t=(window.__diag||[]).map(x=>`${x.info?'INFO':x.ok?'PASS':'FAIL'}  ${x.name}  ${x.detail}`).join('\n');try{navigator.clipboard.writeText(t);toast('Diagnostics copied')}catch(e){download('diagnostics.txt',t,'text/plain')}};
@@ -5084,7 +5417,8 @@ wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+
 const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',channel:'System',detail:'Demo started: working copy BHO_SBX opened from the approved EstateMaster base case'});scanEmails('07:00',true,true)}else logEvent({kind:'session',actor:'System',channel:'System',detail:`Session resumed: ${LOG.length} entries and ${APQ.length} change requests restored from memory`});
 if(RO)roInit();
 $('#alTo').value=ALERT.to;$('#alEmail').checked=ALERT.email;$('#alWa').checked=ALERT.wa;
-renderProjectUI();syncHeatSel();resetE();renderAll(false);renderBell();mailCheck().then(()=>schedTick(true));renderEng();checkProxy();checkRunner();renderRunnerNote();renderApprBadge();
+(function(){const lab=['#csStack','#sbCard','#heat','#etoggle','#stressT','#sgT'];lab.forEach(q=>{const e=$(q);const c=e&&(e.closest('.card')||e);if(c)c.classList.add('rep-only')});const hg=$('#heat')&&$('#heat').closest('.grid');if(hg)hg.classList.add('rep-only');const sg=$('#p-stress > .grid');if(sg)sg.classList.add('rep-only');$$('#p-model > .card,#p-model > .grid').forEach(c=>{if(c.id!=='asmCard')c.classList.add('rep-only')});const dg=$('#dlvStat')&&$('#dlvStat').closest('.grid');if(dg){const det=document.createElement('details');det.style.marginTop='20px';det.innerHTML='<summary style="cursor:pointer;font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:700">Other report schedules, run history and outbox</summary>';dg.before(det);det.appendChild(dg)}})();
+renderProjectUI();syncHeatSel();resetE();renderAll(false);loadDaily();renderBell();mailCheck().then(()=>schedTick(true));renderEng();checkProxy();checkRunner();renderRunnerNote();renderApprBadge();
 if(/[?&#]debug\b/.test(location.href))setTimeout(showDiagnostics,300);
 </script>
 </body>

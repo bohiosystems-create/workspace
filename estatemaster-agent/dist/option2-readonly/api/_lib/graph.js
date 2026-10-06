@@ -99,6 +99,10 @@ async function ai(system, user, maxTokens = 2000) {
   const j = await r.json(); if (!r.ok) throw new Error('OpenAI: ' + ((j.error && j.error.message) || r.status));
   return ((j.choices || [])[0] || {}).message?.content || '';
 }
+async function graphPut(token, path, body, type = 'application/json') {
+  const r = await fetch(gbase() + path, { method: 'PUT', headers: { authorization: 'Bearer ' + token, 'content-type': type }, body });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error('Graph ' + r.status + ': ' + ((j.error && j.error.message) || 'write refused')); return j;
+}
 const jsonOf = t => { const m = String(t || '').match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : {}; };
 
-module.exports = { accessCode, env, send, readBody, graphConfigured, aiConfigured, graphToken, graph, graphBytes, folderId, readMessages, allowedDomains, checkRecipients, sendMail, ai, jsonOf };
+module.exports = { accessCode, env, send, readBody, graphConfigured, aiConfigured, graphToken, graph, graphBytes, graphPut, folderId, readMessages, allowedDomains, checkRecipients, sendMail, ai, jsonOf };

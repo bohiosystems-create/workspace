@@ -49,7 +49,8 @@ module.exports = async function handler(req, res) {
 
   // Cap output size so a public demo can't be used for long generations.
   const p = { ...payload };
-  const cap = task === 'report' ? REPORT_MAX_TOKENS : MAX_TOKENS;
+  // Assumption tests (task: 'calc') return a full working from each model: allow more room (GPT-5 counts its reasoning too).
+  const cap = task === 'report' ? REPORT_MAX_TOKENS : task === 'calc' ? 8000 : MAX_TOKENS;
   if (provider === 'anthropic') p.max_tokens = Math.min(+p.max_tokens || cap, cap);
   else { p.max_completion_tokens = Math.min(+p.max_completion_tokens || cap, cap); delete p.max_tokens; }
   delete p.stream;

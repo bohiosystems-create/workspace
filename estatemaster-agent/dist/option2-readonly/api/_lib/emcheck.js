@@ -40,13 +40,17 @@ function parseSens(rows, sheet) {
 }
 /* Input rows: a label and a number, from the input-like sheets (else every sheet), the outputs excluded. */
 function parseInputs(sheets) {
-  const want = sheets.filter(s => /input|assumption|intro|summary|setup|financ|loan/i.test(s.name)); const use = want.length ? want : sheets; const out = [];
-  for (const s of use) for (const row of s.rows) {
-    if (!row || out.length >= 600) continue; const i = row.findIndex(c => typeof c === 'string' && c.trim().length > 2 && c.length <= 70); if (i < 0) continue;
-    const lab = row[i].trim(); if (LAB.some(([, re]) => re.test(lab))) continue; const v = row.slice(i + 1, i + 6).map(numOf).find(x => x != null && Number.isFinite(x)); if (v == null) continue;
-    const unitCell = row.slice(i + 1, i + 6).find(c => typeof c === 'string' && /%|sar|sqm|month|year|p\.a\./i.test(c) && c.length < 30);
-    out.push({ label: lab, value: v, sheet: s.name, unit: unitCell ? unitCell.trim() : '' });
-  }
+  const want = sheets.filter(s => /input|assumption|intro|summary|setup|financ|loan/i.test(s.name)); const use = want.length ? want : sheets; const out = [], seen = new Set();
+  for (const s of use) s.rows.forEach((row, ri) => {
+    if (!row || out.length >= 600) return; const i = row.findIndex(c => typeof c === 'string' && c.trim().length > 2 && c.length <= 70 && /[a-z]/i.test(c)); if (i < 0) return;
+    const lab = row[i].trim(); if (LAB.some(([, re]) => re.test(lab))) return;
+    const fr = (s.frows && s.frows[ri]) || [];
+    const cells = []; for (let j = i + 1; j < Math.min(row.length, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; cells.push({ v: n, t, pct: /%\s*$/.test(t.trim()) }); }
+    if (!cells.length) return;
+    const unitCell = row.slice(i + 1, i + 9).find(c => typeof c === 'string' && /%|sar|aud|usd|sqm|m2|month|year|annum|p\.a\./i.test(c) && c.length < 30);
+    const key = s.name + '|' + lab; if (seen.has(key)) return; seen.add(key);
+    out.push({ label: lab, value: cells[0].pct ? +(cells[0].v * 100).toFixed(6) : cells[0].v, text: cells[0].t || String(cells[0].v), pct: cells[0].pct, vals: cells.map(c => c.pct ? c.v * 100 : c.v).slice(0, 6), sheet: s.name, unit: cells[0].pct ? '%' : (unitCell ? unitCell.trim() : '') });
+  });
   return out;
 }
 function detectOpt(sheets, fileName) {
@@ -62,7 +66,7 @@ function detectOpt(sheets, fileName) {
 }
 /* Everything the app and the server read from one workbook. */
 function parseWorkbook(wb, XLSX, fileName) {
-  const sheets = (wb.SheetNames || []).map(name => ({ name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true }) }));
+  const sheets = (wb.SheetNames || []).map(name => ({ name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true }), frows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false }) }));
   const out = {}, found = {};
   for (const s of sheets) for (const row of s.rows) {
     if (!row) continue;
@@ -78,7 +82,7 @@ function parseWorkbook(wb, XLSX, fileName) {
     }
   }
   const sens = []; for (const s of sheets) { let r = parseSens(s.rows, s.name); if (!r.length && /sensitiv/i.test(s.name)) { const T = []; s.rows.forEach((row, i) => (row || []).forEach((c, j) => { (T[j] = T[j] || [])[i] = c; })); r = parseSens(T, s.name); } sens.push(...r); }
-  return { out, found, sens, inputs: parseInputs(sheets), opt: detectOpt(sheets, fileName), sheets: sheets.map(s => s.name).slice(0, 40) };
+  return { out, found, sens, inputs: parseInputs(sheets), opt: detectOpt(sheets, fileName), meta: detectMeta(sheets, fileName), sheets: sheets.map(s => s.name).slice(0, 40) };
 }
 
 /* ---- checks (kept identical in the app) ---- */
@@ -130,5 +134,73 @@ function emChecks(x, prev, opt) {
   if (opt.hurdle && fin(o.levered_irr) && o.levered_irr < opt.hurdle) add('note', 'hurdle', `Levered IRR ${P(o.levered_irr)} is below the ${opt.hurdle}% hurdle.`);
   const order = { error: 0, warn: 1, note: 2 }; return res.sort((a, b) => order[a.level] - order[b.level]);
 }
+/* What the export is: title, asset type, currency, site area and GFA (from the Intro / Summary cells). */
+function detectMeta(sheets, fileName) {
+  const meta = { title: '', type: '', currency: '', site: null, gfa: null }, cur = {};
+  const after = (row, i) => row.slice(i + 1).find(x => (typeof x === 'string' && x.trim()) || typeof x === 'number');
+  for (const s of sheets.slice(0, 5)) for (const row of s.rows.slice(0, 160)) {
+    if (!row) continue;
+    for (let i = 0; i < row.length; i++) {
+      const c = row[i]; if (typeof c !== 'string') continue; const t = c.trim();
+      for (const m of t.matchAll(/\b(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD)\b/g)) cur[m[1]] = (cur[m[1]] || 0) + 1;
+      if (!meta.title && /^(cash flow title|project name|project title|title)\s*:?$/i.test(t)) { const v = after(row, i); if (typeof v === 'string') meta.title = v.trim().slice(0, 80); }
+      if (!meta.type && /^(type|property type|asset type|land use)\s*:?$/i.test(t)) { const v = after(row, i); if (typeof v === 'string') meta.type = v.trim(); }
+      if (!meta.type) { const m = t.match(/^type\s*:\s*(.+)$/i); if (m) meta.type = m[1].trim(); }
+      if (meta.site == null && /^site area\s*:?$/i.test(t)) { const v = row.slice(i + 1).map(numOf).find(x => x != null && x > 0); if (v) meta.site = v; }
+      if (meta.gfa == null && /^(project size \(b\)|gross floor area|gfa)\s*:?$/i.test(t)) { const v = row.slice(i + 1).map(numOf).find(x => x != null && x > 1); if (v) meta.gfa = v; }
+    }
+  }
+  if (!meta.type) { const all = sheets.slice(0, 3).flatMap(s => s.rows.slice(0, 80).flat()).filter(c => typeof c === 'string').join(' '); const m = all.match(/\b(industrial|logistics|warehouse|residential|retail|office|hotel|hospitality|mixed[- ]use|build to rent)\b/i); if (m) meta.type = m[1]; }
+  meta.currency = Object.entries(cur).sort((a, b) => b[1] - a[1]).map(e => e[0])[0] || 'SAR';
+  if (!meta.title) { const first = (sheets[0] && sheets[0].rows.flat().find(c => typeof c === 'string' && c.trim().length > 4 && !/argus|estatemaster|summary|licensed/i.test(c))) || ''; meta.title = String(first).trim().slice(0, 80) || String(fileName || '').replace(/\.[^.]+$/, ''); }
+  return meta;
+}
+/* Market benchmarks by asset type (SAR, Riyadh; demo data: in production the transactions, rentals and cost feeds). [low, median, high] */
+const BENCH = {
+  industrial: { name: 'Industrial / logistics, Riyadh', rent: [150, 230, 320], cap: [7, 7.75, 8.5], build: [1800, 2300, 2800], land: [600, 950, 1500] },
+  residential: { name: 'Residential for sale, Riyadh', sale: [9000, 12500, 16000], rent: [700, 950, 1300], build: [3500, 4400, 5500], land: [2500, 4000, 6000] },
+  retail: { name: 'Retail, Riyadh', rent: [1800, 2400, 3200], cap: [7.25, 8, 8.75], build: [4500, 5500, 6500], land: [3000, 4500, 7000] },
+  office: { name: 'Office, Riyadh', rent: [1200, 1650, 2200], cap: [7, 7.75, 8.5], build: [5000, 6200, 7500], land: [3000, 5000, 8000] },
+  hotel: { name: 'Hotel, Riyadh', cap: [7.5, 8.5, 9.5], build: [8000, 10000, 12000], land: [3000, 5000, 8000] },
+  mixed: { name: 'Mixed-use, Riyadh', sale: [9000, 12500, 16000], rent: [1800, 2400, 3200], cap: [7.25, 8, 8.75], build: [4000, 5000, 6200], land: [3000, 4500, 7000] },
+  common: { contingency: [5, 7.5, 10], interest: [6.5, 7.5, 8.5], commission: [1.5, 2.5, 3.5], devfee: [2, 3, 4] },
+};
+const FX = { SAR: 1, AUD: 2.45, USD: 3.75, AED: 1.02, EUR: 4.05, GBP: 4.75, NZD: 2.25, QAR: 1.03, KWD: 12.2 };
+const benchType = t => { t = String(t || '').toLowerCase(); return /industr|logist|warehouse/.test(t) ? 'industrial' : /resid|apartment|villa|build to rent/.test(t) ? 'residential' : /retail|mall|shop/.test(t) ? 'retail' : /office/.test(t) ? 'office' : /hotel|hospitality/.test(t) ? 'hotel' : /mixed/.test(t) ? 'mixed' : ''; };
+/* The export's assumptions against the market: each input the benchmarks cover, with its position and whether it looks aggressive. */
+function marketVsInputs(inputs, meta) {
+  meta = meta || {}; const ty = benchType(meta.type) || 'mixed', B = { ...BENCH.common, ...BENCH[ty] }, ccy = FX[meta.currency] ? meta.currency : 'SAR', fx = FX[ccy];
+  const items = [
+    { k: 'rent', name: 'Rent', re: /\brent(al)?\b/i, not: /free|review|escalat|vacan|period|incentive|turnover cost|letting|ground rent|% of/i, unit: '/sqm/yr', perArea: true, revenue: true, lo: 15, hi: 20000 },
+    { k: 'sale', name: 'Sale price', re: /(sale|selling) price|price per|sales rate|\basp\b|sale value/i, not: /land|purchase|%|commission/i, unit: '/sqm', perArea: true, revenue: true, lo: 300, hi: 200000 },
+    { k: 'cap', name: 'Exit cap rate / yield', re: /cap(itali[sz]ation)?\s*rate|exit yield|terminal yield|\byield\b/i, not: /on cost|return/i, pct: true, aggressiveBelow: true, lo: 2, hi: 20 },
+    { k: 'build', name: 'Construction cost', re: /construction cost|build(ing)? cost|hard cost|construction rate/i, not: /contingen|escalat|%/i, unit: '/sqm GFA', perArea: true, cost: true, lo: 200, hi: 60000, total: 'gfa' },
+    { k: 'land', name: 'Land price', re: /land (purchase )?(price|cost|value)/i, not: /%|tax|duty|deposit|payment/i, unit: '/sqm site', perArea: true, cost: true, lo: 50, hi: 100000, total: 'site' },
+    { k: 'contingency', name: 'Contingency', re: /contingen/i, not: /amount/i, pct: true, aggressiveBelow: true, lo: 0.01, hi: 40 },
+    { k: 'interest', name: 'Finance rate', re: /interest rate|profit rate|finance rate|loan rate|\binterest\b/i, not: /fee|received|margin over|spread|deposit/i, pct: true, aggressiveBelow: true, lo: 0.5, hi: 25 },
+    { k: 'commission', name: 'Sales commission', re: /commission/i, not: /pre-?sale/i, pct: true, aggressiveBelow: true, lo: 0.1, hi: 10 },
+  ];
+  const rows = [];
+  for (const it of items) {
+    const b = B[it.k]; if (!b) continue;
+    const cand = (inputs || []).filter(i => it.re.test(i.label) && !(it.not && it.not.test(i.label)));
+    let pick = null, val = null, how = '';
+    for (const i of cand) {
+      for (const v0 of (i.vals && i.vals.length ? i.vals : [i.value])) {
+        let v = v0; if (it.pct) { if (Math.abs(v) <= 1 && !i.pct) v *= 100; if (v >= it.lo && v <= it.hi) { pick = i; val = v; break; } continue; }
+        if (v >= it.lo && v <= it.hi) { pick = i; val = v; how = ''; break; }
+        if (it.total && meta[it.total] && v > it.hi) { const per = v / meta[it.total]; if (per >= it.lo && per <= it.hi) { pick = i; val = per; how = ` (total ${v.toLocaleString('en-GB')} ÷ ${meta[it.total].toLocaleString('en-GB')} sqm ${it.total === 'gfa' ? 'GFA' : 'site'})`; break; } }
+      }
+      if (pick) break;
+    }
+    if (!pick) continue;
+    const sar = it.pct ? val : val * fx, [lo, med, hi] = b, st = sar < lo ? 'below' : sar > hi ? 'above' : 'within';
+    const aggressive = !!(st !== 'within' && ((it.revenue && st === 'above') || (it.cost && st === 'below') || (it.aggressiveBelow && st === 'below')));
+    const f = v => it.pct ? v.toFixed(2).replace(/\.?0+$/, '') + '%' : Math.round(v).toLocaleString('en-GB');
+    rows.push({ k: it.k, item: it.name, input: pick.label, sheet: pick.sheet, model: it.pct ? f(val) : `${ccy} ${f(val)}${it.unit}${ccy !== 'SAR' ? ` (SAR ${f(sar)})` : ''}${how}`, market: it.pct ? `${f(lo)}–${f(hi)} (median ${f(med)})` : `SAR ${f(lo)}–${f(hi)}${it.unit} (median ${f(med)})`, status: st, aggressive,
+      text: `${it.name}: ${it.pct ? f(val) : `${ccy} ${f(val)}${it.unit}${ccy !== 'SAR' ? ` = SAR ${f(sar)}` : ''}`} vs market ${it.pct ? '' : 'SAR '}${f(lo)}–${f(hi)} (median ${f(med)}): ${st === 'within' ? 'within the range' : st + ' the range' + (aggressive ? ', aggressive' : ', conservative')}.` });
+  }
+  return { type: ty, bench: BENCH[ty].name, currency: ccy, fx: ccy !== 'SAR' ? `${ccy} converted at ${fx} SAR (fixed demo rate)` : '', rows };
+}
 /*EMCHECKS-END*/
-module.exports = { parseWorkbook, parseSens, parseInputs, detectOpt, emChecks, LAB, ROWS };
+module.exports = { parseWorkbook, parseSens, parseInputs, detectOpt, detectMeta, emChecks, marketVsInputs, BENCH, FX, LAB, ROWS };
