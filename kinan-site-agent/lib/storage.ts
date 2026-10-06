@@ -4,8 +4,9 @@ import path from "node:path";
 /**
  * Object storage behind the app. Three backends:
  *   fs    — a folder on disk (local dev, Docker, VM). Default.
- *   blob  — Vercel Blob, private access (set BLOB_READ_WRITE_TOKEN; added automatically
- *           when you connect a Blob store to the Vercel project).
+ *   blob  — Vercel Blob, private access. Connecting a Blob store to the Vercel project adds either
+ *           BLOB_READ_WRITE_TOKEN (classic stores) or BLOB_STORE_ID (newer stores, which authenticate with the
+ *           deployment's OIDC token); the SDK reads whichever is present.
  *   tmp   — /tmp on Vercel when no Blob store is connected. Works, but data is lost
  *           whenever the function instance is recycled — demo only.
  * Reads return an ETag so callers can skip downloading unchanged objects; writes
@@ -106,7 +107,7 @@ function blobStore(prefix: string): Store {
 const g = globalThis as unknown as { __kinanStore?: Store };
 export function store(): Store {
   if (!g.__kinanStore) {
-    if (process.env.BLOB_READ_WRITE_TOKEN) g.__kinanStore = blobStore((process.env.BLOB_PREFIX ?? "kinan/").replace(/^\/+/, ""));
+    if (process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID) g.__kinanStore = blobStore((process.env.BLOB_PREFIX ?? "kinan/").replace(/^\/+/, ""));
     else if (process.env.VERCEL && !process.env.KINAN_DATA_DIR) g.__kinanStore = fsStore("/tmp/kinan-data", "tmp");
     else g.__kinanStore = fsStore(process.env.KINAN_DATA_DIR || path.join(process.cwd(), "data"), "fs");
   }
