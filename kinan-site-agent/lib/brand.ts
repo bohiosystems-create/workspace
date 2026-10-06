@@ -2,8 +2,8 @@
 // kinan.com.sa — charcoal header band with the white logo and the orange chevron, white pages on a soft faceted
 // texture, orange uppercase headings, taupe caps labels over big charcoal numbers, orange primary actions.
 // Typeface: Kinan's collateral is set in Greta Arabic / Greta Sans (Typotheque, licensed separately). When the
-// licensed files are in brand/fonts/ they are embedded as the "Kinan" family; otherwise Fira Sans (a humanist sans
-// of the same colour and proportions) and IBM Plex Sans Arabic stand in.
+// licensed files are in brand/fonts/ they are embedded as the "Kinan" family; otherwise Montserrat and IBM Plex Sans
+// Arabic stand in, the same as in the other Kinan agents (marketing director, EstateMaster).
 import { BRAND_FONT, CHEVRON, LOGO, TEXTURE } from "./brand-assets";
 
 export const KINAN = {
@@ -20,7 +20,7 @@ export const KINAN = {
   alert: "#d03b3b",
   tagline: "LIVE THE PLACE",
   /** the UI font stack (also used for canvas text so the 2D sheet, the 3D ground and the HUD match the UI) */
-  font: '"Kinan","Fira Sans","IBM Plex Sans Arabic","Segoe UI",system-ui,-apple-system,Roboto,sans-serif',
+  font: '"Kinan",Montserrat,"IBM Plex Sans Arabic","Segoe UI",system-ui,-apple-system,Roboto,sans-serif',
   fontAr: '"Kinan","IBM Plex Sans Arabic","Noto Sans Arabic","Segoe UI",system-ui,sans-serif',
   brandFont: BRAND_FONT,
   site: "www.kinan.com.sa",

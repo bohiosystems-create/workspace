@@ -40,19 +40,22 @@ export default function Home() {
   const [, setGps] = useState<{ x: number; y: number; locationId?: string } | null>(null);
   const [search, setSearch] = useState("");
   const [nameDraft, setNameDraft] = useState<string | null>(null);
-  // Theme: Auto follows the device; Light / Dark pin it (like the Dark Mode switch on kinan.com.sa).
-  const [theme, setTheme] = useState<"auto" | "light" | "dark">("auto");
+  // Theme: Light by default, like the other Kinan agents; Dark, or Auto to follow the device.
+  const [theme, setTheme] = useState<"auto" | "light" | "dark">("light");
   const [meOpen, setMeOpen] = useState(false);
   useEffect(() => {
     let saved: string | null = null;
     try { saved = localStorage.getItem("kinan.theme"); } catch { /* storage blocked */ }
-    if (saved === "dark" || saved === "light") { document.documentElement.dataset.theme = saved; setTheme(saved); }
+    // Light by default (as the other Kinan agents); Dark or Auto only when chosen.
+    const t = saved === "dark" || saved === "auto" ? saved : "light";
+    if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+    setTheme(t);
     // Kinan's faceted page texture behind the app (brand/kinan-texture.jpg, embedded at build time).
     if (TEXTURE) document.documentElement.style.setProperty("--texture", `url("${TEXTURE}")`);
   }, []);
   const pickTheme = (t: "auto" | "light" | "dark") => {
     if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
-    try { if (t === "auto") localStorage.removeItem("kinan.theme"); else localStorage.setItem("kinan.theme", t); } catch { /* storage blocked */ }
+    try { localStorage.setItem("kinan.theme", t); } catch { /* storage blocked */ }
     setTheme(t);
   };
   const initials = author.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
@@ -101,16 +104,26 @@ export default function Home() {
 
   return (
     <div className="app">
+      {/* Kinan header, as in the other Kinan agents: charcoal band, white logo, product line in spaced caps,
+          a square settings button and the orange chevron; the tab bar sits underneath on white. */}
       <header className="top">
         <button className="brand" onClick={() => setScreen("home")} aria-label="All projects">
           {LOGO ? <img className="logo-img" src={LOGO} alt={state.project.client} /> : <Logo />}
-          <div><b>Site Agent</b><em>{screen === "site" ? `${state.project.name} · ${state.project.code}` : screen === "new" ? "New project" : gen ? gen.result.spec.name : "All projects"}</em></div>
+          <span className="brand-sub">AI agent · site &amp; projects</span>
         </button>
         <div className="hbtns">
-          <button className="avatar" onClick={() => { setMeOpen((o) => !o); setNameDraft(author); }} aria-label={`${author}: name and display settings`} aria-expanded={meOpen}>{initials}</button>
+          <button className="avatar" onClick={() => { setMeOpen((o) => !o); setNameDraft(author); }} aria-label={`${author}: name and display settings`} aria-expanded={meOpen} title="Your name and display">{initials}</button>
           <span className="chev" aria-hidden="true"><Mark /></span>
         </div>
       </header>
+      <nav className="tabs" aria-label="Sections">
+        <button className={screen === "home" ? "on" : ""} onClick={() => setScreen("home")}>Projects</button>
+        {screen === "site" && ([["map", "Site map"], ["project", "Programme & data"], ["docs", "Documents"]] as const).map(([id, label]) => (
+          <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project") setProjKey((k) => k + 1); }}>{label}</button>
+        ))}
+        {screen === "new" && <button className="on">New project</button>}
+        {gen && <button className="on">{gen.result.spec.name}</button>}
+      </nav>
       {meOpen && (
         <div className="me" role="dialog" aria-label="Your settings">
           <form onSubmit={(e) => { e.preventDefault(); if (nameDraft?.trim()) setAuthor(nameDraft.trim()); setMeOpen(false); }}>
@@ -184,12 +197,6 @@ export default function Home() {
   
         </main>
   
-        <nav className="tabs">
-          <button className="tab-home" onClick={() => setScreen("home")}><Icon name="grid" />Projects</button>
-          {([["map", "map", "Site map"], ["project", "chart", "Project"], ["docs", "folder", "Docs"]] as const).map(([id, ico, label]) => (
-            <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project") setProjKey((k) => k + 1); }}><Icon name={ico} />{label}</button>
-          ))}
-        </nav>
       </>)}
 
       {error && <div className="toast">{error}</div>}

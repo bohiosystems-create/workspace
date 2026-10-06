@@ -1,13 +1,13 @@
 /* Kinan design language (shared with the marketing assistant): charcoal header band with the white logo and the
    orange chevron, white panels on a soft faceted page texture, orange uppercase headings with the chevron notch,
    taupe caps labels over big charcoal numbers, orange primary actions, charcoal secondary, square geometry.
-   Kinan's typeface (Greta Arabic / Greta Sans) is embedded as "Kinan" when its files are in brand/fonts; Fira Sans + IBM Plex Sans Arabic stand in. A matching dark theme follows the device (toggle in the header). */
+   Kinan's typeface (Greta Arabic / Greta Sans) is embedded as "Kinan" when its files are in brand/fonts; Montserrat + IBM Plex Sans Arabic stand in, as in the other Kinan agents. A matching dark theme follows the device (toggle in the header). */
 :root{
-  --font:"Kinan","Fira Sans","IBM Plex Sans Arabic","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --font:"Kinan",Montserrat,"IBM Plex Sans Arabic","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
   --chrome:#2e2e2f; --chrome-ink:#ffffff; --chrome-soft:rgba(255,255,255,.14); --chrome-line:rgba(255,255,255,.32);
-  --accent:#f15a22; --accent-strong:#d94a16; --accent-ink:#ffffff; --accent-soft:#fde3d8; --accent-line:#f5b89a;
-  --bg:#f4f4f4; --veil:rgba(244,244,244,.74); --card:#ffffff; --card-2:#f7f6f3; --ink:#2e2e2f; --ink-2:#4a4a4c; --mute:#6f6f6f; --taupe:#51473d;
-  --line:#e3e2df; --line-2:#cfceca; --hair:rgba(46,46,47,.14);
+  --accent:#f15a22; --accent-strong:#d94a16; --accent-ink:#ffffff; --accent-soft:#fff1ea; --accent-line:#f5b89a;
+  --bg:#f4f4f4; --veil:rgba(244,244,244,.62); --card:#ffffff; --card-2:#f7f6f3; --ink:#2e2e2f; --ink-2:rgba(46,46,47,.8); --mute:rgba(46,46,47,.62); --taupe:#51473d;
+  --line:#e3e2df; --line-2:#cfceca; --hair:rgba(46,46,47,.13);
   --scrim:rgba(46,46,47,.55); --shadow:rgba(46,46,47,.16);
   --red:#d03b3b; --red-soft:#fbe6e6; --red-ink:#9f2727;
   --green:#1f8a4c; --green-soft:#e4f3ea; --green-ink:#176a3a;
@@ -618,3 +618,75 @@ main.main-solo{display:flex;flex-direction:column}
 .drop-ico{width:52px;height:52px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 30%,transparent)}
 .drop-ico svg{width:26px;height:26px;stroke-width:2.2}
 .linkish{border:0;background:none;padding:0;color:var(--accent-strong);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+
+/* =====================================================================================================
+   Kinan agents family: the same frame as the marketing director and the EstateMaster agents
+   (bohio-demos/kinan-marketing, kinan-estatemaster) — 66px charcoal band with the product line in spaced
+   caps, a white tab bar with an orange underline, orange uppercase page titles behind the chevron,
+   square white panels with an orange top rule, taupe caps labels behind an orange dash, square buttons.
+   ===================================================================================================== */
+:root{--top:66px;--r:0px}
+body,html{letter-spacing:0}
+/* header band */
+.top{padding:0 28px;padding-top:env(safe-area-inset-top);gap:18px}
+.top .brand{gap:18px}
+.brand .logo,.brand .logo-img{height:34px}
+.brand-sub{font-size:9px;font-weight:500;letter-spacing:.3em;text-transform:uppercase;color:rgba(255,255,255,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbtns{gap:14px}
+.avatar{width:36px;height:36px;border-radius:0;border:1px solid rgba(255,255,255,.35);background:transparent;color:#ffffff;font-size:11px;font-weight:600;letter-spacing:.06em}
+.avatar:hover,.avatar[aria-expanded="true"]{border-color:var(--accent);background:rgba(241,90,34,.15)}
+.top .chev .mark{width:19px;height:30px}
+/* tab bar under the band, on every screen and at every width */
+.tabs{order:0;height:auto;padding:0 28px;flex:none;display:flex;flex-direction:row;justify-content:flex-start;gap:2px;background:var(--card);border-top:0;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;z-index:2}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:none;position:relative;height:auto;flex-direction:row;padding:16px 14px 14px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);white-space:nowrap;gap:0;background:none;box-shadow:none}
+.tabs button::after{content:"";position:absolute;left:14px;right:14px;bottom:0;height:3px;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.tabs button:hover{color:var(--ink)}
+.tabs button:hover::after{transform:scaleX(.5)}
+.tabs button.on{color:var(--ink);background:none;box-shadow:none}
+.tabs button.on::after{transform:scaleX(1)}
+.tabs button svg{display:none}
+@media (min-width:900px){
+  .app{display:flex;flex-direction:column;grid-template-columns:none;grid-template-areas:none}
+  .tabs{grid-area:auto;flex-direction:row;padding:0 28px;border-right:0;border-bottom:1px solid var(--line);gap:2px;justify-content:flex-start}
+  .tabs button{flex:none;height:auto;gap:0}
+  .tabs button.on{box-shadow:none;background:none}
+  main.main-solo{grid-area:auto;grid-column:auto;grid-row:auto}
+}
+@media (max-width:599px){.top,.tabs{padding-left:16px;padding-right:16px}.brand-sub{display:none}.tabs button{padding:15px 11px 13px}.tabs button::after{left:11px;right:11px}}
+/* page titles: orange, uppercase, behind the chevron */
+.home-head h1,.studio-head h2{color:var(--accent);font-size:26px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;line-height:1.15;display:flex;align-items:center;gap:14px;margin:6px 0 0}
+.home-head h1::before,.studio-head h2::before{content:"";flex:none;width:15px;height:23px;background:var(--accent);clip-path:polygon(0 0,45% 0,100% 50%,45% 100%,0 100%,55% 50%)}
+.home-head p,.studio-head p{font-size:13px;color:var(--mute);line-height:1.6;max-width:72ch;margin-top:8px}
+.studio-ico{display:none}
+@media (max-width:599px){.home-head h1,.studio-head h2{font-size:21px}}
+/* labels: taupe caps behind an orange dash */
+.studio-l,.me-l,.studio-sheet h4{display:flex;align-items:center;gap:10px;color:var(--taupe);font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase}
+.studio-l::before,.me-l::before,.studio-sheet h4::before{content:"";width:18px;height:2px;background:var(--accent);flex:none}
+/* panels and cards: white, hairline, orange top rule, soft shadow, square */
+.studio-card,.pcard{border:1px solid var(--hair);border-top:3px solid var(--accent);border-radius:0;box-shadow:0 1px 2px rgba(46,46,47,.04),0 8px 24px rgba(46,46,47,.05)}
+.pcard.site{border-top-color:var(--accent)}
+.pcard.site .pband{color:var(--green-ink)}
+.pcard b{font-weight:600}
+.pcard.new{border:1.5px dashed var(--accent-line);border-top:1.5px dashed var(--accent-line);box-shadow:none}
+.pcard:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(46,46,47,.12)}
+.pplus{border-radius:0}
+.pband i,.pcard .pmeta{letter-spacing:.14em}
+.pcard .pmeta{letter-spacing:0}
+/* buttons: square, caps, letter-spaced; orange primary, charcoal outline secondary */
+.studio-go,.studio-back,.studio-add,.mini,.me-done,.pdel,.pdel-ask button,.x,.chip,.seg button,.seg3 button,.kinds button{border-radius:0}
+.studio-go{font-size:11px;letter-spacing:.2em;font-weight:700;box-shadow:none}
+.studio-go:hover:not(:disabled){background:var(--accent-strong);box-shadow:0 6px 18px rgba(241,90,34,.28)}
+.mini{font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;border-color:var(--ink);padding:7px 11px}
+.mini:hover{background:var(--ink);color:var(--card)}
+/* the map's pin button: the square orange call to action of the other agents */
+.fab{border-radius:0;box-shadow:0 10px 30px rgba(241,90,34,.35)}
+@media (min-width:600px){.fab{border-radius:0;height:50px;padding:0 22px;font-size:10px;letter-spacing:.3em}}
+.home-fab{border-radius:0}
+.drop-ico{border-radius:0}
+.studio-drop,.studio-ok,.studio-err,.studio-demo,.studio-doc,.studio-pre,.studio-kpis div,.studio-tablewrap,.k,.ph,.conf{border-radius:0}
+
+/* section titles inside panels: taupe caps behind an orange dash, as the other agents' panel labels */
+.panel h3{display:flex;align-items:center;gap:10px;font-size:10px;font-weight:600;letter-spacing:.2em;color:var(--taupe)}
+.panel h3::before{content:"";width:18px;height:2px;background:var(--accent);flex:none}
+.panel{border:1px solid var(--hair);border-top:3px solid var(--accent);box-shadow:0 1px 2px rgba(46,46,47,.04),0 8px 24px rgba(46,46,47,.05)}

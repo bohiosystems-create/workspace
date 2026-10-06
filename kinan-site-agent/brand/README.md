@@ -18,5 +18,5 @@ not shipped here. To use it in the app, copy the licensed files into `brand/font
 `GretaArabic-Regular.ttf`) and run `npm run brand`. They are embedded under one family name, `Kinan`, and the whole
 UI (plus the 2D sheet and the 3D ground labels) switches to it. The files stay out of git (`brand/fonts/.gitignore`).
 
-Without them, **Fira Sans** (a humanist sans of the same colour and proportions as Greta Sans) and **IBM Plex Sans
-Arabic** stand in, loaded from Google Fonts.
+Without them, **Montserrat** and **IBM Plex Sans Arabic** stand in, loaded from Google Fonts — the same as the other
+Kinan agents (marketing director, EstateMaster), so all the demos look alike.

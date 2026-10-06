@@ -23,7 +23,7 @@ const texture = tex ? `data:image/jpeg;base64,${tex.toString("base64")}` : "";
 // Kinan's own typeface (Greta Arabic / Greta Sans from Typotheque, licensed separately): drop the licensed files into
 // brand/fonts/ and they are embedded as @font-face under one family name, "Kinan"; the weight and style come from the
 // file name (Light, Regular/Book, Medium, SemiBold/Demi, Bold, Black/Heavy; Italic/Oblique). Without them the UI uses
-// the stand-ins listed in globals.css (Fira Sans + IBM Plex Sans Arabic from Google Fonts).
+// the stand-ins listed in globals.css (Montserrat + IBM Plex Sans Arabic from Google Fonts).
 const fontDir = path.join(root, "brand", "fonts");
 const fontFiles = fs.existsSync(fontDir) ? fs.readdirSync(fontDir).filter((f) => /\.(woff2|woff|ttf|otf)$/i.test(f)).sort() : [];
 const weightOf = (n) => /black|heavy|extrabold|ultrabold/i.test(n) ? 800 : /semibold|demibold|demi/i.test(n) ? 600 : /bold/i.test(n) ? 700 : /medium/i.test(n) ? 500 : /light/i.test(n) ? 300 : /thin|hairline/i.test(n) ? 200 : 400;
