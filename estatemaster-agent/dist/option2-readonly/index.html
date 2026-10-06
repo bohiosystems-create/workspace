@@ -3267,7 +3267,7 @@ function renderEMTab(){
   $('#exDiff').innerHTML=a&&b?'<tr><th>Output</th><th class="n">'+a.id+'</th><th class="n">'+b.id+'</th><th class="n">Change</th></tr>'+EXROWS.map(([k,l,u])=>{const A=a.out[k],B=b.out[k],dd=Number.isFinite(A)&&Number.isFinite(B)?B-A:NaN;return`<tr><td>${l}</td><td class="n">${exFmt(A,u)}</td><td class="n">${exFmt(B,u)}</td><td class="n">${!Number.isFinite(dd)?'—':Math.abs(dd)<1e-9?'–':u==='%'?sgn(dd,2)+' pts':u==='x'?sgn(dd,2)+'x':sgn(dd/1e6,0)+'M'}</td></tr>`}).join(''):'';
   const fr=b&&b.found?`<div class="sub" style="margin-top:6px">Read from ${esc(b.file)}: ${Object.entries(b.found).map(([k,v])=>esc(v)).join('; ')}</div>`:'';$('#exFound').innerHTML=fr}
 function roInit(){
-  document.title='KINAN · '+MI().name;
+  document.title='KINAN · AI agent · financial modelling';
 
   $('.cn.dk b').textContent=MODE==='analyst'?'EstateMaster · control workbook':'EstateMaster · exports';$('#emStrip').textContent=MI().strip;
   const arch=$('#set_arch .card')||$('#p-arch .card');if(arch)arch.innerHTML=`<div class="bar"></div><h2>${esc(MI().name)}</h2><div class="sub">EstateMaster is the trusted layer: every figure shown as EstateMaster’s comes from its own export. The agent never runs or writes to EstateMaster.</div><div class="rec">${MI().how.map(([h,s],i)=>`<div class="it"><div class="num">${i+1}</div><div><b>${esc(h)}</b><span>${esc(s)}</span></div></div>`).join('')}</div>${modeCanHTML()}`;
@@ -5168,13 +5168,13 @@ function openModal_unused(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S
 })();
 
 /* tabs */
-const TABS=[['agent','Overview'],['appr','Approvals'],...(RO?[['em','Financial modelling']]:[]),['model','Assumptions'],['scen','Scenarios & stress'],['report','Reports']];
-const TAB_ALIAS={explore:'scen',stress:'scen',napkin:'agent',wa:'agent'};
+const TABS=[['appr','Approvals'],...(RO?[['em','Financial modelling']]:[]),['model','Assumptions'],['scen','Scenarios & stress'],['report','Reports']];
+const TAB_ALIAS={explore:'scen',stress:'scen',napkin:'report',wa:'report',agent:'report'};
 const TAB_INTRO={scen:'Sensitivity grids, the autonomous explorer, the scenario generator, the stress library, tornado and headroom: all the agent’s estimates, with the worst cases checked in EstateMaster.',agent:'Ask the agent on the right, in plain language. Every return comes from EstateMaster; anything that would change the model goes to Approvals first, with a person’s name on it.',napkin:'From a napkin sketch to a first-pass model, then to a change request to set it up in EstateMaster.',appr:'Every change waits here for a person. Nothing reaches EstateMaster without a name on it, and every decision is kept in the change memory.',em:'Analyst tasks and EstateMaster exports. The latest export is the only source of the figures shown as EstateMaster’s.',model:'Every assumption of the project with its position against the market, and the cross-checked AI test: Claude and OpenAI calculate a change independently and check each other.',inbox:'The project folder in Outlook, read twice a day. Assumption changes become proposals for approval.',market:'Assumptions against transactions, rents and the zoning rules for the plot.',explore:'Two-way sensitivity grids and the autonomous explorer. Grid figures are the agent’s estimates.',stress:'Stress scenarios without limit. The most severe are checked in EstateMaster.',report:'IC pack, monthly and custom reports, built from the latest EstateMaster figures.',wa:'The same agent on WhatsApp, with roles and approvals.',arch:'How the agent connects to EstateMaster, Outlook, market data and AI, and what it can and can’t do.'};
 function kTitle(id){const t=TABS.find(x=>x[0]===id);const e=$('#kTitle span');if(e)e.textContent=t?(id==='agent'?'AI agent · financial modelling':t[1]):'';const n=$('#kIntro');if(n)n.textContent=TAB_INTRO[id]||''}
 function showTab(id){if(id==='inbox'||id==='arch'||id==='market'){openSettings(id==='inbox'?'outlook':id);return}id=TAB_ALIAS[id]||id;if(id==='scen'){renderHeat();renderGen()}kTitle(id);$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report'){renderReportList();renderExtract();renderReport();renderDaily()}if(id==='model'){renderAssumptions();if(!PROJ.fromExport){renderRegister();renderElemental();renderXLines()}}if(id==='stress')renderGen();if(id==='napkin'){fillNapkinForm();runNapkin()}if(id==='explore')renderHeat();if(id==='market')renderMarket();if(id==='inbox'){renderInbox();renderDelivery()}if(id==='report')renderDelivery();if(id==='appr')renderApprovals();if(id==='em')renderEMTab();window.scrollTo({top:0,behavior:'smooth'})}
-$('#tabs').innerHTML=TABS.map(([id,l])=>`<div class="tab ${id==='agent'?'on':''}" data-t="${id}">${l}</div>`).join('');
-$$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));kTitle('agent');
+$('#tabs').innerHTML=TABS.map(([id,l])=>`<div class="tab ${id==='report'?'on':''}" data-t="${id}">${l}</div>`).join('');
+$$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));kTitle('report');$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-report'));
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
 
 /* market controls */
@@ -5422,7 +5422,7 @@ const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',c
 if(RO)roInit();
 $('#alTo').value=ALERT.to;$('#alEmail').checked=ALERT.email;$('#alWa').checked=ALERT.wa;
 (function(){const lab=['#csStack','#sbCard','#heat','#etoggle','#stressT','#sgT'];lab.forEach(q=>{const e=$(q);const c=e&&(e.closest('.card')||e);if(c)c.classList.add('rep-only')});const hg=$('#heat')&&$('#heat').closest('.grid');if(hg)hg.classList.add('rep-only');const sg=$('#p-stress > .grid');if(sg)sg.classList.add('rep-only');$$('#p-model > .card,#p-model > .grid').forEach(c=>{if(c.id!=='asmCard')c.classList.add('rep-only')});const dg=$('#dlvStat')&&$('#dlvStat').closest('.grid');if(dg){const det=document.createElement('details');det.style.marginTop='20px';det.innerHTML='<summary style="cursor:pointer;font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:700">Other report schedules, run history and outbox</summary>';dg.before(det);det.appendChild(dg)}})();
-renderProjectUI();syncHeatSel();resetE();renderAll(false);loadDaily();renderBell();mailCheck().then(()=>schedTick(true));renderEng();checkProxy();checkRunner();renderRunnerNote();renderApprBadge();
+renderProjectUI();syncHeatSel();resetE();renderAll(false);loadDaily();showTab('report');renderBell();mailCheck().then(()=>schedTick(true));renderEng();checkProxy();checkRunner();renderRunnerNote();renderApprBadge();
 if(/[?&#]debug\b/.test(location.href))setTimeout(showDiagnostics,300);
 </script>
 </body>
