@@ -7,6 +7,7 @@
 //   ELEVENLABS_STABILITY 0–1 (0.4), ELEVENLABS_SIMILARITY 0–1 (0.8), ELEVENLABS_STYLE 0–1 (0.35), ELEVENLABS_SPEED 0.7–1.2
 //                        (optional): the same settings as the other Bohio demo apps. ELEVENLABS_SETTINGS (JSON) still overrides.
 //   DEMO_PASSWORD         optional; if set, callers must send it as the x-demo-pass header (same as /api/llm)
+// POST {transcribe:true, audio_base64, mime, lang}: a question spoken into ▶ Play, as words ({text}; ELEVENLABS_STT_MODEL, default scribe_v1).
 // POST {text, timestamps, previous_text, next_text, voice, lang}: with timestamps the reply is JSON
 // {audio_base64, alignment} (character start times, used to light up the figure being spoken about); otherwise MP3.
 // GET ?list=1 lists the account's voices (name, labels, sample) for the voice menu. Audio is cached in memory by text.
@@ -71,6 +72,24 @@ module.exports = async function handler(req, res) {
   const bad = authorised(req); if (bad) return send(res, bad === 'Forbidden' ? 403 : 401, { error: bad });
   let body;
   try { body = await readBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
+  // A question spoken into ▶ Play: ElevenLabs speech-to-text (Scribe) → { text }
+  if (body && body.transcribe) {
+    const b64 = String(body.audio_base64 || '');
+    if (b64.length < 1300) return send(res, 400, { error: 'No audio.' });
+    if (b64.length > 5600000) return send(res, 413, { error: 'Recording too long.' });
+    const mime = /^audio\/[\w.+-]+(;[\w=.-]+)?$/.test(String(body.mime || '')) ? body.mime : 'audio/webm';
+    const form = new FormData();
+    form.append('model_id', process.env.ELEVENLABS_STT_MODEL || 'scribe_v1');
+    form.append('language_code', body.lang === 'ar' ? 'ara' : 'eng');
+    form.append('tag_audio_events', 'false');
+    form.append('file', new Blob([Buffer.from(b64, 'base64')], { type: mime }), /mp4/.test(mime) ? 'question.mp4' : /ogg/.test(mime) ? 'question.ogg' : 'question.webm');
+    try {
+      const r = await fetch('https://api.elevenlabs.io/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': key }, body: form });
+      if (!r.ok) return send(res, 502, { error: `ElevenLabs transcription failed (${r.status}): ${(await r.text()).slice(0, 200)}` });
+      const j = await r.json();
+      return send(res, 200, { text: String(j.text || '').replace(/\s+/g, ' ').trim() });
+    } catch (e) { return send(res, 502, { error: 'ElevenLabs unreachable: ' + (e && e.message) }); }
+  }
   const text = String((body && body.text) || '').replace(/\s+/g, ' ').trim().slice(0, MAX_CHARS);
   if (!text) return send(res, 400, { error: 'Nothing to say.' });
   const withTs = !!(body && body.timestamps);

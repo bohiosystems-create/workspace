@@ -41,16 +41,25 @@ function parseSens(rows, sheet) {
 /* Input rows: a label and a number, from the input-like sheets (else every sheet), the outputs excluded. */
 function parseInputs(sheets) {
   const want = sheets.filter(s => /input|assumption|intro|summary|setup|financ|loan/i.test(s.name)); const use = want.length ? want : sheets; const out = [], seen = new Set();
-  for (const s of use) s.rows.forEach((row, ri) => {
-    if (!row || out.length >= 600) return; const i = row.findIndex(c => typeof c === 'string' && c.trim().length > 2 && c.length <= 70 && /[a-z]/i.test(c)); if (i < 0) return;
+  for (const s of use) { let section = ''; s.rows.forEach((row, ri) => {
+    if (!row || out.length >= 800) return;
+    // a section heading: text only, in capitals or ending with a colon ("LAND PURCHASE & ACQUISITION COSTS")
+    const txt = row.filter(c => c !== '' && c != null); if (txt.length && txt.length <= 2 && txt.every(c => typeof c === 'string') && /^[^a-z]{5,70}$/.test(String(txt[0]).trim()) && /[A-Z]/.test(txt[0])) { section = String(txt[0]).trim().replace(/\s+/g, ' '); return; }
+    const i = row.findIndex(c => typeof c === 'string' && c.trim().length > 2 && c.length <= 70 && /[a-z]/i.test(c)); if (i < 0) return;
     const lab = row[i].trim(); if (LAB.some(([, re]) => re.test(lab))) return;
     const fr = (s.frows && s.frows[ri]) || [];
-    const cells = []; for (let j = i + 1; j < Math.min(row.length, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; cells.push({ v: n, t, pct: /%\s*$/.test(t.trim()) }); }
-    if (!cells.length) return;
+    const cells = []; for (let j = i + 1; j < Math.min(row.length, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; const pc = /%\s*$/.test(t.trim()) || (typeof row[j] === 'string' && /%\s*$/.test(row[j])); cells.push({ v: pc && typeof row[j] === 'number' ? n * 100 : n, t, pct: pc }); }
+    if (!cells.length) {
+      // a text or date input on an input sheet ("Date of First Period: Oct-26", "Add GST on Land Price? Y") is part of the full list too
+      if (!/input|assumption/i.test(s.name)) return;
+      const tv = row.slice(i + 1, i + 6).map((c, j) => String(fr[i + 1 + j] == null ? (c == null ? '' : c) : fr[i + 1 + j]).trim()).find(t => t && t.length <= 40 && t !== '-');
+      const key0 = s.name + '|' + lab; if (!tv || seen.has(key0)) return; seen.add(key0);
+      out.push({ label: lab, value: null, text: tv, pct: false, vals: [], sheet: s.name, section, unit: '' }); return;
+    }
     const unitCell = row.slice(i + 1, i + 9).find(c => typeof c === 'string' && /%|sar|aud|usd|sqm|m2|month|year|annum|p\.a\./i.test(c) && c.length < 30);
     const key = s.name + '|' + lab; if (seen.has(key)) return; seen.add(key);
-    out.push({ label: lab, value: cells[0].pct ? +(cells[0].v * 100).toFixed(6) : cells[0].v, text: cells[0].t || String(cells[0].v), pct: cells[0].pct, vals: cells.map(c => c.pct ? c.v * 100 : c.v).slice(0, 6), sheet: s.name, unit: cells[0].pct ? '%' : (unitCell ? unitCell.trim() : '') });
-  });
+    out.push({ label: lab, value: +cells[0].v.toFixed(6), text: cells[0].t || String(cells[0].v), pct: cells[0].pct, vals: cells.map(c => c.v).slice(0, 6), sheet: s.name, section, unit: cells[0].pct ? '%' : (unitCell ? unitCell.trim() : '') });
+  }); }
   return out;
 }
 function detectOpt(sheets, fileName) {
@@ -112,6 +121,7 @@ function emChecks(x, prev, opt) {
   }
   const nm = i => i.label.toLowerCase(), pct = i => i.value <= 1 && i.value >= -1 && /%|rate|margin|contingen|escalat|commission|vat|tax|ltc|ltv|share/i.test(i.label + ' ' + i.unit) ? i.value * 100 : i.value;
   for (const i of x.inputs || []) {
+    if (!fin(i.value)) continue; // text inputs (names, Y/N, dates) have nothing to range-check
     const l = nm(i), v = pct(i);
     if (/contingen|escalat|commission|selling cost|sales cost|interest|profit rate|cap(italisation)? rate|exit yield|land (cost|price|value)|construction cost/.test(l) && i.value === 0) add('warn', 'input-zero', `Input “${i.label}” is 0 on sheet ${i.sheet}: left blank?`);
     if (/interest|profit rate|saibor|finance rate|loan rate/.test(l) && !/fee|margin over|spread/.test(l) && v !== 0 && (v < 2 || v > 15)) add('warn', 'input-range', `Input “${i.label}” = ${v}% p.a. is outside 2–15%.`);
@@ -122,7 +132,7 @@ function emChecks(x, prev, opt) {
     if (/delay|duration|span|months/.test(l) && /month/.test(l + ' ' + i.unit) && (i.value < 0 || i.value > 120)) add('warn', 'input-range', `Input “${i.label}” = ${i.value} months is outside 0–120.`);
   }
   if (opt.register) for (const i of x.inputs || []) {
-    const r = opt.register.find(rg => rg.match(i.label)); if (!r || !fin(r.value) || r.value === 0) continue;
+    if (!fin(i.value)) continue; const r = opt.register.find(rg => rg.match(i.label)); if (!r || !fin(r.value) || r.value === 0) continue;
     const ratios = [1, 1e3, 1e6, 1e-3, 1e-6, 100, 0.01].map(f => Math.abs(i.value * f / r.value - 1)); const d = Math.min(...ratios);
     if (d > 0.02 && d < 100) add('warn', 'register', `Input “${i.label}” reads ${i.value.toLocaleString('en-GB')} in the export but the approved register has ${r.label} = ${r.text}: an unapproved change or a typing slip.`);
   }

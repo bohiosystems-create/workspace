@@ -8,6 +8,17 @@
   rest of the slide steps back. Timing comes from ElevenLabs' character timestamps.
 - **🎙 Voice** in the player: pick any voice from your ElevenLabs account (with a sample) and switch the narration to
   **Arabic** (Modern Standard Arabic script, same figures). The choice is kept on that browser.
+- The script follows the marketing agent's rules: a presenter talking to the committee, not reading the slide; lead with
+  what changed since the previous export; one idea and at most one or two figures a sentence; 30 to 70 words a slide
+  (cover, dividers and closing one line); figures quoted exactly as printed; British English for the British voice
+  (spelling and idiom, applied to every spoken line too); dates said as a person says them ("the fifth of October", this
+  year left out). The AI marks each phrase with the item it is about ([[ref]]), so bullets and chart parts light up even
+  when paraphrased. The first slide opens with "Good morning / afternoon / evening" from the viewer's clock.
+- **🎤 Ask** during ▶ Play: tap, speak, tap again (15 s at most), or type. With ElevenLabs the recording is transcribed
+  on the server (speech-to-text, `ELEVENLABS_STT_MODEL`, default `scribe_v1`); without it the browser's own speech
+  recognition, or typing. The presenter finishes the slide, says "One moment, let me think about your question." if the
+  answer is not ready, answers aloud (Claude Opus 5.5, then GPT-5; figures only from the report, anything it works out is
+  tagged AI calc on screen and clickable), then hands back and carries on.
 - The PowerPoint download carries the script in the speaker notes.
 
 ## Vercel settings
