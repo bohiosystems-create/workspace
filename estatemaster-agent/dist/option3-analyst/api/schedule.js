@@ -17,7 +17,7 @@ async function state(token) {
   const rec = G.checkRecipients(String(s.recipients || '').split(/[,;\s]+/).filter(Boolean));
   const people = env('REPORTS_ALLOWED_RECIPIENTS').split(',').map(x => x.trim()).filter(Boolean);
   let folderOk = false, folderNote = 'EXPORTS_FOLDER is not set';
-  if (token && env('EXPORTS_FOLDER')) { try { const j = await G.graph(token, `${env('EXPORTS_FOLDER')}:/children?$select=name,file&$top=50`); const n = (j.value || []).filter(f => f.file && /\.(xlsx|xlsm|xls|csv)$/i.test(f.name)).length; folderOk = true; folderNote = `${n} export${n === 1 ? '' : 's'} in the folder`; } catch (e) { folderNote = e.message; } }
+  if (token && env('EXPORTS_FOLDER')) { try { const j = await G.graph(token, `${env('EXPORTS_FOLDER')}:/children?$select=name,file&$top=50`); const all = j.value || [], n = all.filter(f => f.file && /\.(xlsx|xlsm|xls|csv)$/i.test(f.name)).length; folderOk = true; folderNote = n ? `${n} export${n === 1 ? '' : 's'} in the folder` : all.length ? `no Excel export in the folder (it holds: ${all.slice(0, 6).map(f => f.name + (f.file ? '' : '/')).join(', ')}${all.length > 6 ? '…' : ''}; exports must be .xlsx, .xlsm, .xls or .csv files directly in the folder, not in a subfolder)` : 'the folder is empty: save the EstateMaster export (Office Links → Excel) into it'; } catch (e) { folderNote = e.message; } }
   const last = st.log.find(r => r.status === 'sent');
   const check = [
     { k: 'recipients', ok: rec.ok.length > 0 && !rec.bad.length, label: rec.ok.length ? `Recipients: ${rec.ok.join(', ')}` : 'Recipients: none set', detail: rec.bad.length ? `not allowed: ${rec.bad.join(', ')}` : '' },
