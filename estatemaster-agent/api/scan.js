@@ -32,10 +32,10 @@ function shortlist(register, msgs, max = 300) {
 }
 
 async function extract(messages, register, project) {
-  const system = `You read project emails for a real estate development and find proposed changes to the financial model's assumptions.
-Return JSON only: {"results":[{"message_id":string,"changes":[{"line":string,"value":number,"quote":string,"confidence":number}]}]}.
-Rules: "line" must be one of the register ids below. "value" is the new absolute value in that line's unit. "quote" is the exact sentence fragment from the email that supports it.
-Only include changes the email clearly states or proposes; ignore anything else (return an empty list for that message). Confidence 0-1.
+  const system = `You read project emails for a real estate development and find proposed changes to the financial model's assumptions, including requests for approval that would change one if granted: a discount or incentive on a number of units (convert it to the blended change of the sale price line, e.g. 5% off 24 of 180 units is about 0.7% off the average price), rent-free periods or lower rents (effective rent over the term), variation orders and revised quotes (cost lines), fee or commission changes, programme delays, revised financing terms, a valuer's yield, a landowner's revised price.
+Return JSON only: {"results":[{"message_id":string,"reason":string,"changes":[{"line":string,"value":number,"quote":string,"confidence":number}]}]}.
+Rules: "line" must be one of the register ids below. "value" is the new absolute value in that line's unit. "quote" is the exact sentence fragment from the email that supports it. "reason" is the reason the email gives for the change, in one sentence (why it is asked for or has happened).
+Only include changes the email clearly states, proposes or asks approval for; ignore anything else (return an empty list for that message). Confidence 0-1.
 Project: ${project || 'unknown'}. Register (id | label | unit | current value):
 ${register.map(l => `${l.id} | ${l.label} | ${l.unit} | ${l.current}`).join('\n')}`;
   const user = messages.map(m => `message_id: ${m.id}\nfrom: ${m.from}\ndate: ${m.date}\nsubject: ${m.subject}\n---\n${m.body}`).join('\n\n=====\n\n');
@@ -52,7 +52,7 @@ ${register.map(l => `${l.id} | ${l.label} | ${l.unit} | ${l.current}`).join('\n'
     text = ((j.choices || [])[0] || {}).message?.content || '';
   }
   const m = text.match(/\{[\s\S]*\}/); if (!m) return {};
-  const out = {}; for (const r of (JSON.parse(m[0]).results || [])) out[r.message_id] = r.changes || []; return out;
+  const out = {}; for (const r of (JSON.parse(m[0]).results || [])) { out[r.message_id] = r.changes || []; out[r.message_id].reason = String(r.reason || '').slice(0, 300); } return out;
 }
 
 module.exports = async function handler(req, res) {
@@ -69,7 +69,7 @@ module.exports = async function handler(req, res) {
     const short = shortlist(register, msgs);
     const found = msgs.length ? await extract(msgs, short, body.project) : {};
     const ids = new Set(short.map(l => l.id));
-    const messages = msgs.map(m => ({ ...m, changes: (found[m.id] || []).filter(c => ids.has(c.line) && Number.isFinite(+c.value)).map(c => ({ line: c.line, value: +c.value, quote: String(c.quote || '').slice(0, 300), conf: Math.max(0, Math.min(1, +c.confidence || 0.5)) })) }));
+    const messages = msgs.map(m => ({ ...m, why: (found[m.id] && found[m.id].reason) || '', changes: (found[m.id] || []).filter(c => ids.has(c.line) && Number.isFinite(+c.value)).map(c => ({ line: c.line, value: +c.value, quote: String(c.quote || '').slice(0, 300), conf: Math.max(0, Math.min(1, +c.confidence || 0.5)) })) }));
     return send(res, 200, { mailbox: mb, folder: env('OUTLOOK_FOLDER') || 'Inbox', since, scannedAt: new Date().toISOString(), messages });
   } catch (e) { return send(res, 502, { error: e.message }); }
 };

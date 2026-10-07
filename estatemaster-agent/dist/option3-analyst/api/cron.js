@@ -54,16 +54,40 @@ const td = (t, x = '') => `<td style="padding:9px 8px;border-top:1px solid ${LIN
 async function scanFindings(token, since) {
   const msgs = await G.readMessages(token, since);
   if (!msgs.length) return { msgs, findings: [] };
-  const system = `You read emails for a real estate development project and find any email that proposes or reports a change to an assumption of its financial model (sale prices, rents, construction costs and their elements, fees, contingency, timing and delays, areas, financing terms such as interest rate, margin, loan to cost, facility limits, equity terms, exit yields).
-Return JSON only: {"findings":[{"message_id":string,"assumption":string,"new_value":string,"previous_value":string|null,"quote":string,"confidence":number}]}.
-"quote" is the exact text that supports it. Include an item only if the email states or proposes a change; ignore everything else. Confidence 0-1. Project: ${env('PROJECT_NAME') || 'Al Narjis Mixed-Use'}.`;
+  const system = `You read emails for a real estate development project and find any email that proposes, reports or asks approval for a change to an assumption of its financial model (sale prices, rents, construction costs and their elements, fees and commissions, contingency, timing and delays, areas, financing terms such as interest rate, margin, loan to cost, facility limits, equity terms, exit yields, land price). Requests for approval count: a discount or incentive on a number of units (state the blended effect on the average sale price, e.g. 5% off 24 of 180 units is about 0.7% off the average price), a rent-free period or a lower rent (effective rent over the term), a variation order or revised quote, a revised term sheet, a valuer's yield, a landowner's revised price.
+Return JSON only: {"findings":[{"message_id":string,"assumption":string,"new_value":string,"previous_value":string|null,"change":"the change as a modelling input, e.g. average sale price −0.7%","reason":"why it is asked for or has happened, in one sentence","quote":string,"confidence":number}]}.
+"quote" is the exact text that supports it. Include an item only if the email states, proposes or asks approval for a change; ignore everything else. Confidence 0-1. Project: ${env('PROJECT_NAME') || 'Al Narjis Mixed-Use'}.`;
   const user = msgs.map(m => `message_id: ${m.id}\nfrom: ${m.from}\ndate: ${m.date}\nsubject: ${m.subject}\n---\n${m.body}`).join('\n\n=====\n\n');
   const j = G.jsonOf(await G.ai(system, user));
   const byId = Object.fromEntries(msgs.map(m => [m.id, m]));
   const findings = (j.findings || []).filter(f => byId[f.message_id] && f.assumption).map(f => ({ ...f, msg: byId[f.message_id], confidence: Math.max(0, Math.min(1, +f.confidence || 0.5)) }));
   return { msgs, findings };
 }
-const findingRows = findings => findings.map(f => `<tr>${td(`<b>${esc(f.assumption)}</b>`)}${td(`${f.previous_value ? esc(f.previous_value) + ' → ' : ''}<b style="color:${OR}">${esc(f.new_value)}</b>`)}${td(`${esc(f.msg.from)}<br><span style="color:${SOFT};font-size:12px">${esc(f.msg.subject)} · ${esc(riyadh(f.msg.date))}</span>`)}${td(`<span style="color:${SOFT}">“${esc(f.quote)}”</span>`)}${td(`${Math.round(f.confidence * 100)}%`, ';text-align:right')}</tr>`).join('');
+const IMP = [['levered_irr', 'Levered IRR', '%'], ['profit_on_cost', 'Profit on cost', '%'], ['net_profit', 'Net profit', 'M']];
+const fmtImp = (v, u) => !Number.isFinite(v) ? '—' : u === '%' ? v.toFixed(2) + '%' : (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : Math.round(v).toLocaleString('en-GB'));
+const findingRows = findings => findings.map(f => `<tr>${td(`<b>${esc(f.assumption)}</b>${f.change ? `<br><span style="color:${SOFT};font-size:12px">${esc(f.change)}</span>` : ''}`)}${td(`${f.previous_value ? esc(f.previous_value) + ' → ' : ''}<b style="color:${OR}">${esc(f.new_value)}</b>`)}${td(`${esc(f.msg.from)}<br><span style="color:${SOFT};font-size:12px">${esc(f.msg.subject)} · ${esc(riyadh(f.msg.date))}</span>`)}${td(`${f.reason ? esc(f.reason) + '<br>' : ''}<span style="color:${SOFT}">“${esc(f.quote)}”</span>`)}${td(f.impact ? IMP.map(([k, l, u]) => `${l}: ${fmtImp(f.impact.base[k], u)} → <b>${fmtImp(f.impact[k], u)}</b>${k === 'levered_irr' && f.impact.hurdle != null && f.impact[k] < f.impact.hurdle ? ` <span style="color:#d03b3b;font-weight:700">below hurdle</span>` : ''}`).join('<br>') + `<br><span style="color:${SOFT};font-size:11px">${esc(f.impact.working || '')}</span>` : `<span style="color:${SOFT}">${esc(f.impactNote || 'not estimated')}</span>`)}</tr>`).join('');
+/* The impact of each finding on the key outputs, estimated from EstateMaster's figures by every AI provider configured
+   (Claude and OpenAI when both keys are set: each calculates independently, the report shows the average and says
+   whether they agree). An estimate, never EstateMaster's own figure, and the email says so. */
+async function estimateImpacts(b, findings, hurdle) {
+  const provs = G.aiProviders(); if (!provs.length || !findings.length) return;
+  const o = b.out, ins = (b.inputs || []).slice(0, 120).map(i => `${i.label} = ${i.text || i.value}${i.unit && i.unit !== '%' ? ' ' + i.unit : ''}`).join('\n');
+  const sens = (b.sens || []).map(t => t.kind === '1way' ? `Sensitivity (1-way) ${t.v} → ${t.metric}: ` + t.shifts.map((sh, i) => `${sh}%: ${t.values[i]}`).join(', ') : `Sensitivity (2-way) ${t.metric}, columns ${t.x} ${t.xs.join('/')}%, rows ${t.y}: ` + t.grid.map((r, i) => `${t.ys[i]}%: ${r.join('/')}`).join(' | ')).join('\n');
+  const system = `You are a senior real estate development finance analyst. An ARGUS EstateMaster feasibility model (the trusted model) produced the outputs and inputs below. You cannot run EstateMaster: estimate, step by step, the effect of each proposed change on its outputs, the way an analyst would by hand (revenue and cost effects on net profit and profit on cost; timing, leverage and finance effects on the IRR; use the sensitivity tables where they apply, interpolating). Use only the figures given.
+Return JSON only: {"impacts":[{"message_id":string,"levered_irr":number,"profit_on_cost":number,"net_profit":number,"working":"one or two sentences with the numbers"}]} with one entry per change. Percentages in percent (18.4 means 18.4%); money in full currency units.`;
+  const user = `EstateMaster outputs (export ${b.name}): ${Object.entries(o).filter(([, v]) => Number.isFinite(v)).map(([k, v]) => `${k} = ${v}`).join('; ')}\nInputs:\n${ins}\n${sens}\n\nProposed changes:\n${findings.map(f => `- message_id ${f.msg.id}: ${f.assumption}: ${f.previous_value ? f.previous_value + ' → ' : ''}${f.new_value}${f.change ? ' (' + f.change + ')' : ''}`).join('\n')}`;
+  const res = await Promise.allSettled(provs.map(p => G.ai(system, user, 4000, p).then(t => ({ p, j: G.jsonOf(t) }))));
+  const ok = res.filter(r => r.status === 'fulfilled').map(r => r.value);
+  const names = { anthropic: 'Claude', openai: 'OpenAI' };
+  for (const f of findings) {
+    const got = ok.map(r => ({ p: r.p, i: (r.j.impacts || []).find(x => String(x.message_id) === String(f.msg.id)) })).filter(x => x.i);
+    if (!got.length) { f.impactNote = ok.length ? 'the AI returned no estimate for this change' : 'AI estimate failed: ' + res.map(r => r.reason && r.reason.message).filter(Boolean).join('; '); continue; }
+    const avg = k => { const vs = got.map(g => +g.i[k]).filter(Number.isFinite); return vs.length ? vs.reduce((a, c) => a + c, 0) / vs.length : NaN; };
+    const agree = got.length < 2 ? null : IMP.every(([k, , u]) => { const vs = got.map(g => +g.i[k]); return u === '%' ? Math.abs(vs[0] - vs[1]) <= 0.5 : Math.abs(vs[0] - vs[1]) <= 0.02 * Math.max(Math.abs(vs[0]), Math.abs(vs[1]), 1); });
+    f.impact = { base: { levered_irr: o.levered_irr, profit_on_cost: o.profit_on_cost, net_profit: o.net_profit }, hurdle, levered_irr: avg('levered_irr'), profit_on_cost: avg('profit_on_cost'), net_profit: avg('net_profit'),
+      working: `${got.map(g => names[g.p]).join(' and ')}${got.length > 1 ? (agree ? ' agree (average shown)' : ' differ: ' + got.map(g => `${names[g.p]} IRR ${fmtImp(+g.i.levered_irr, '%')}`).join(', ') + ' (average shown, check in EstateMaster)') : ' only, not cross-checked'}. ${(got[0].i.working || '').slice(0, 260)}` };
+  }
+}
 async function scanJob(token, now, dry, appUrl) {
   const w = windowFor(now), { msgs, findings } = await scanFindings(token, w.since);
   if (!msgs.length) return { job: 'scan', window: w, messages: 0, findings: 0, sent: false };
@@ -116,7 +140,7 @@ async function dailyData(token, now) {
   const hurdle = +(env('HURDLE_IRR') || 18);
   const checks = EM.emChecks({ out: b.out, inputs: b.inputs, sens: b.sens, at: b.at, file: b.name }, a ? { out: a.out, file: a.name } : null, { now: now.toISOString(), hurdle }).filter(c => c.code !== 'hurdle');
   let flags = { msgs: [], findings: [], note: '' };
-  if (G.aiConfigured()) { try { flags = await scanFindings(token, new Date(now.getTime() - 864e5).toISOString()); } catch (e) { flags.note = e.message; } } else flags.note = 'no AI key: emails not read';
+  if (G.aiConfigured()) { try { flags = await scanFindings(token, new Date(now.getTime() - 864e5).toISOString()); await estimateImpacts(b, flags.findings, hurdle); } catch (e) { flags.note = e.message; } } else flags.note = 'no AI key: emails not read';
   const market = EM.marketVsInputs(b.inputs, b.meta);
   return { b, a, options, hurdle, checks, flags, market, project: env('PROJECT_NAME') || (b.meta && b.meta.title) || 'Al Narjis Mixed-Use' };
 }
@@ -133,8 +157,8 @@ async function dailyHtml(d, now, appUrl, lang) {
   const checksHtml = h3('Checks on the export') + (checks.length
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${checks.map(c => `<tr>${td(pill(T(lvl[c.level][0]), lvl[c.level][1]), ';width:90px')}${td(esc(X(c.text)))}</tr>`).join('')}</table><p style="margin:8px 0 0;color:${SOFT};font-size:12px">${ar ? `${checks.filter(c => c.level !== 'note').length} للمراجعة. فحوصات لشخص يراجعها؛ لم يتغير شيء.` : `${checks.filter(c => c.level !== 'note').length} to look at. These are checks for a person; nothing was changed.`}</p>`
     : `<p style="margin:0;color:${SOFT}">${ar ? 'المخرجات متطابقة والوحدات سليمة والمدخلات ضمن النطاق. لا شيء للمراجعة.' : 'Outputs reconcile, units look right, the sensitivity tables match the Summary and the inputs are in range. Nothing to look at.'}</p>`);
-  const flagsHtml = h3('Assumptions possibly changing (Outlook, last 24 hours)') + (flags.findings.length
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${th(T('Assumption'))}${th(T('Proposed'))}${th(T('From'))}${th(T('Quote'))}${th(T('Conf.'))}</tr>${findingRows(flags.findings)}</table><p style="margin:8px 0 0;color:${SOFT};font-size:12px">${ar ? `${flags.findings.length} تغيير محتمل. يصبح كل منها طلب تغيير في التطبيق؛ لا يتغير شيء قبل موافقة شخص. ملف التصدير أعلاه لا يتضمنها بعد.` : `${flags.findings.length} possible change${flags.findings.length > 1 ? 's' : ''} in ${flags.msgs.length} email${flags.msgs.length > 1 ? 's' : ''}. Each one becomes a change request in the app; nothing changes until a person approves it. The export above does not include them yet.`}</p>`
+  const flagsHtml = h3('Assumption changes and approvals asked for in emails (last 24 hours)') + (flags.findings.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${th(T('Assumption'))}${th(T('Proposed'))}${th(T('From'))}${th(T('Why'))}${th(T('Impact if applied (AI estimate)'))}</tr>${findingRows(flags.findings)}</table><p style="margin:8px 0 0;color:${SOFT};font-size:12px">${ar ? `${flags.findings.length} تغيير محتمل. يصبح كل منها طلب تغيير في التطبيق؛ لا يتغير شيء قبل موافقة شخص. ملف التصدير أعلاه لا يتضمنها بعد.` : `${flags.findings.length} possible change${flags.findings.length > 1 ? 's' : ''} in ${flags.msgs.length} email${flags.msgs.length > 1 ? 's' : ''}. The impact is the AI’s estimate from EstateMaster’s figures, not EstateMaster’s own. Each one becomes a change request in the app; nothing changes until a person approves it. The export above does not include them yet.`}</p>`
     : `<p style="margin:0;color:${SOFT}">${flags.note ? esc(X(flags.note)) : ar ? 'لم يُرصد أي تغيير في الافتراضات في رسائل آخر 24 ساعة.' : `No assumption change sensed in the ${flags.msgs.length} email${flags.msgs.length === 1 ? '' : 's'} of the last 24 hours.`}</p>`);
   const stc = r => r.status === 'within' ? '#1f8a5a' : r.aggressive ? '#d03b3b' : OR;
   const marketHtml = h3('Assumptions vs market') + (market.rows.length

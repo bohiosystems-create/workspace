@@ -50,7 +50,7 @@ Al Narjis Mixed-Use project. All data is dummy data.
    | `DEMO_PASSWORD` | Optional but recommended: an access code people must enter before the demo can call the AI (stops strangers spending your credits) |
    | `ANTHROPIC_URL`, `OPENAI_URL` | Optional: a corporate gateway instead of the public endpoints |
    | `RUNNER_URL`, `RUNNER_TOKEN` | The EstateMaster runner (tunnel URL and shared token). Without them approved changes run on the demo's stand-in model |
-   | `CRON_SECRET`, `ALERT_TO`, `REPORT_TO`, `EXPORTS_FOLDER` | Twice-daily email scan (findings in the Daily feed; `ALERT_TO` optional) and the morning EstateMaster report (see the setup guides) |
+   | `CRON_SECRET`, `ALERT_TO`, `REPORT_TO`, `EXPORTS_FOLDER` | Twice-daily email scan (findings in the Daily feed with the reason and the AI-modelled impact; `ALERT_TO` optional) and the morning EstateMaster report (see the setup guides) |
    | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_VOICE_ID_AR` | ElevenLabs narration (English voice, Arabic voice) for ▶ Play and Read (key stays on the server; without it the browser's voice is used) |
    | `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` | Optional: if the runner tunnel sits behind Cloudflare Access |
 

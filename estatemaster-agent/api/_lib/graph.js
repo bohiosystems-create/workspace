@@ -104,8 +104,9 @@ async function sendMail(token, { to, subject, html, attachments = [] }) {
   return { from: mb, to, draft };
 }
 
-async function ai(system, user, maxTokens = 2000) {
-  if (env('ANTHROPIC_API_KEY')) {
+const aiProviders = () => ['anthropic', 'openai'].filter(p => env(p === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'));
+async function ai(system, user, maxTokens = 2000, provider) {
+  if (provider ? provider === 'anthropic' : env('ANTHROPIC_API_KEY')) {
     const r = await fetch(env('ANTHROPIC_URL') || 'https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env('ANTHROPIC_API_KEY'), 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: env('EXTRACT_MODEL') || 'claude-sonnet-5-5', max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }) });
     const j = await r.json(); if (!r.ok) throw new Error('Claude: ' + ((j.error && j.error.message) || r.status));
@@ -123,4 +124,4 @@ async function graphPut(token, path, body, type = 'application/json') {
 }
 const jsonOf = t => { const m = String(t || '').match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : {}; };
 
-module.exports = { accessCode, env, send, readBody, graphConfigured, aiConfigured, graphToken, graph, graphBytes, graphPut, folderId, readMessages, allowedDomains, checkRecipients, sendMail, ai, jsonOf };
+module.exports = { accessCode, env, send, readBody, graphConfigured, aiConfigured, aiProviders, graphToken, graph, graphBytes, graphPut, folderId, readMessages, allowedDomains, checkRecipients, sendMail, ai, jsonOf };
