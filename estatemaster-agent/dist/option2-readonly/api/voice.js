@@ -9,13 +9,79 @@
 //   DEMO_PASSWORD         optional; if set, callers must send it as the x-demo-pass header (same as /api/llm)
 // POST {token:true}: a single-use key for real-time Scribe (live words while a question is spoken). GET ?check=1: the account.
 // POST {transcribe:true, audio_base64, mime, lang}: a question spoken into ▶ Play, as words ({text}; ELEVENLABS_STT_MODEL, default scribe_v1).
-// POST {text, timestamps, previous_text, next_text, voice, lang}: with timestamps the reply is JSON
+// POST {text, timestamps, previous_text, next_text, voice, lang, pauses}: pauses are the character positions where a
+// point starts (a short breath there). The text is spoken with SAR as a word and figures of 100+ in words; the
+// alignment comes back per character of the text sent. with timestamps the reply is JSON
 // {audio_base64, alignment} (character start times, used to light up the figure being spoken about); otherwise MP3.
 // GET ?list=1 lists the account's voices (name, labels, sample) for the voice menu. Audio is cached in memory by text.
 const DEFAULT_VOICE = '21m00Tcm4TlvDq8ikWAM';
 const MAX_CHARS = 1500;
 const cache = new Map();
 let voicesCache = null, voicesAt = 0;
+
+
+// ------------------------------------------------------------------ what the voice is actually given (as in the KINAN
+// marketing agent): "SAR" said as a word, figures of 100 and more in words ("one hundred and thirty-five point six"),
+// "/sqm" as "per square metre", and a short breath before each point the presenter moves on to. A character map takes
+// the timings back to the text the page sent, so captions and highlights stay on the right word.
+const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+function under1000(n) { const h = Math.floor(n / 100), r = n % 100; const rest = r < 20 ? (r ? ONES[r] : '') : `${TENS[Math.floor(r / 10)]}${r % 10 ? `-${ONES[r % 10]}` : ''}`; return h ? `${ONES[h]} hundred${rest ? ` and ${rest}` : ''}` : rest || 'zero'; }
+function intWords(n) {
+  if (n === 0) return 'zero';
+  const parts = [];
+  for (const [v, w] of [[1e9, 'billion'], [1e6, 'million'], [1e3, 'thousand']]) if (n >= v) { parts.push(`${under1000(Math.floor(n / v))} ${w}`); n %= v; }
+  if (n) parts.push(parts.length && n < 100 ? `and ${under1000(n)}` : under1000(n));
+  return parts.join(' ');
+}
+const numWords = (raw) => { const [i, d] = raw.replace(/,/g, '').split('.'); return `${intWords(Number(i))}${d && /[1-9]/.test(d) ? ` point ${d.replace(/0+$/, '').split('').map((c) => ONES[Number(c)]).join(' ')}` : ''}`; };
+function englishForm(text) {
+  const rx = /\bS A R\b|\bSAR\b|\/sqm\b|(?<![\d.,])\d{1,2}\.0+(?![\d])|(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d,])|(?<![\d.,])\d{3,}(?:\.\d+)?(?![\d,])/g;
+  let out = '', last = 0; const map = new Array(text.length);
+  for (const m of text.matchAll(rx)) {
+    const at = m.index || 0, tok = m[0];
+    for (let i = last; i < at; i++) { map[i] = out.length; out += text[i]; }
+    let say;
+    if (tok === 'SAR' || tok === 'S A R') say = 'Sar';
+    else if (tok === '/sqm') say = ' per square metre';
+    else { const n = Number(tok.replace(/,/g, '')); say = /^(19|20)\d\d$/.test(tok) ? tok : n >= 100 ? numWords(tok) : tok.replace(/\.0+$/, ''); }
+    for (let i = at; i < at + tok.length; i++) map[i] = out.length;
+    out += say; last = at + tok.length;
+  }
+  for (let i = last; i < text.length; i++) { map[i] = out.length; out += text[i]; }
+  return { out, map };
+}
+const BREAK = '<break time="0.6s" />';
+function withPauses(f, n, pauses) {
+  const cuts = Array.from(new Set(pauses.filter((p) => p > 0 && p < n).map((p) => f.map[p]))).sort((x, y) => x - y);
+  if (!cuts.length) return f;
+  let out = '', last = 0;
+  for (const c of cuts) { out += f.out.slice(last, c) + ` ${BREAK} `; last = c; }
+  out += f.out.slice(last);
+  const ins = BREAK.length + 2;
+  return { out, map: f.map.map((o) => o + ins * cuts.filter((c) => c <= o).length) };
+}
+function speechForm(text, lang, pauses) { const base = lang === 'ar' ? { out: text, map: Array.from(text, (_, i) => i) } : englishForm(text); return withPauses(base, text.length, pauses || []); }
+function tagless(spoken) {
+  let text = ''; const idx = new Array(spoken.length); const rx = /<break[^>]*\/>/g; let last = 0;
+  for (const m of spoken.matchAll(rx)) { const at = m.index || 0; for (let i = last; i < at; i++) { idx[i] = text.length; text += spoken[i]; } for (let i = at; i < at + m[0].length; i++) idx[i] = text.length; last = at + m[0].length; }
+  for (let i = last; i < spoken.length; i++) { idx[i] = text.length; text += spoken[i]; }
+  return { text, idx };
+}
+/* one start time per character of `text`, even when ElevenLabs reports the characters a little differently */
+function alignStarts(text, chars, starts) {
+  if (!chars.length || chars.length !== starts.length) return [];
+  if (chars.length === text.length && chars.every((c, i) => c === text[i])) return starts;
+  const out = []; let j = 0, last = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (/\s/.test(text[i])) { if (j < chars.length && /\s/.test(chars[j])) { last = starts[j]; j++; } out.push(last); continue; }
+    let k = -1;
+    for (let d = 0; d < 6 && j + d < chars.length; d++) if (chars[j + d] === text[i]) { k = j + d; break; }
+    if (k >= 0) { last = starts[k]; j = k + 1; } else if (j < chars.length) { last = starts[j]; j++; }
+    out.push(last);
+  }
+  return out;
+}
 
 function send(res, status, obj) {
   res.statusCode = status;
@@ -80,7 +146,7 @@ module.exports = async function handler(req, res) {
         ...(limit && used >= limit ? { error: `Monthly characters used up (${used.toLocaleString('en-GB')} of ${limit.toLocaleString('en-GB')}).` } : {}) });
     } catch (e) { return send(res, 200, { ok: false, error: String(e && e.message || e) }); }
   }
-  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', voiceAr: key ? defaultVoiceAr : '', riyal: process.env.ELEVENLABS_RIYAL || 'ree-yaals', passwordRequired: !!DEMO_CODE() });
+  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', voiceAr: key ? defaultVoiceAr : '', passwordRequired: !!DEMO_CODE() });
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
   if (!key) return send(res, 501, { error: 'Voice is not configured (set ELEVENLABS_API_KEY).' });
   const bad = authorised(req); if (bad) return send(res, bad === 'Forbidden' ? 403 : 401, { error: bad });
@@ -117,24 +183,47 @@ module.exports = async function handler(req, res) {
   const text = String((body && body.text) || '').replace(/\s+/g, ' ').trim().slice(0, MAX_CHARS);
   if (!text) return send(res, 400, { error: 'Nothing to say.' });
   const withTs = !!(body && body.timestamps);
-  const voice = body && /^[A-Za-z0-9]{10,40}$/.test(String(body.voice || '')) ? String(body.voice) : (body && body.lang === 'ar' ? defaultVoiceAr : defaultVoice);
-  const ck = `${voice}|${model}|${withTs ? 1 : 0}|${text}`;
+  const lang = body && body.lang === 'ar' ? 'ar' : 'en';
+  const pauses = Array.isArray(body && body.pauses) ? body.pauses.map(Number).filter((n) => Number.isFinite(n)).slice(0, 40) : [];
+  const voice = body && /^[A-Za-z0-9]{10,40}$/.test(String(body.voice || '')) ? String(body.voice) : (lang === 'ar' ? defaultVoiceAr : defaultVoice);
+  const form = speechForm(text, lang, pauses);
+  let spoken = form.out.slice(0, MAX_CHARS + 600);
+  const ck = `${voice}|${model}|${withTs ? 1 : 0}|${spoken}|${text}`;
   let out = cache.get(ck);
   if (!out) {
-    const payload = { text, model_id: model, voice_settings: settingsFor(model) };
-    // previous/next text keep the prosody continuous from one slide to the next
-    if (body.previous_text) payload.previous_text = String(body.previous_text).slice(0, 400);
-    if (body.next_text) payload.next_text = String(body.next_text).slice(0, 400);
-    // flash / turbo models accept a language hint; the multilingual models detect the language from the text
-    if (/flash|turbo/.test(model) && (body.lang === 'ar' || body.lang === 'en')) payload.language_code = body.lang;
+    const settings = settingsFor(model);
+    const payloadFor = (t) => {
+      const payload = { text: t, model_id: model, voice_settings: settings };
+      // previous/next text keep the prosody continuous from one slide to the next
+      if (body.previous_text) payload.previous_text = String(body.previous_text).slice(0, 400);
+      if (body.next_text) payload.next_text = String(body.next_text).slice(0, 400);
+      // flash / turbo models accept a language hint; the multilingual models detect the language from the text
+      if (/flash|turbo/.test(model)) payload.language_code = lang;
+      return JSON.stringify(payload);
+    };
     const ep = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}${withTs ? '/with-timestamps' : ''}?output_format=mp3_44100_128`;
+    const call = (t) => fetch(ep, { method: 'POST', headers: { 'xi-api-key': key, 'content-type': 'application/json', accept: withTs ? 'application/json' : 'audio/mpeg' }, body: payloadFor(t) });
     try {
-      const r = await fetch(ep, { method: 'POST', headers: { 'xi-api-key': key, 'content-type': 'application/json', accept: withTs ? 'application/json' : 'audio/mpeg' }, body: JSON.stringify(payload) });
+      let r = await call(spoken);
+      // a model that does not take <break> tags: the same text without the pauses (timings still map back)
+      if (!r.ok && r.status === 400 && spoken.includes('<break')) {
+        const tl = tagless(spoken), prev = form.out;
+        spoken = tl.text; form.map = form.map.map((o) => tagless(prev).idx[o] ?? o); form.out = spoken;
+        r = await call(spoken);
+      }
       if (!r.ok) return send(res, 502, { error: `ElevenLabs request failed (${r.status}): ${(await r.text()).slice(0, 200)}` });
       if (withTs) {
         const j = await r.json();
         const al = j.alignment || j.normalized_alignment || {};
-        out = { json: JSON.stringify({ audio_base64: j.audio_base64, mime: 'audio/mpeg', alignment: { characters: al.characters || [], character_start_times_seconds: al.character_start_times_seconds || [] } }) };
+        const chars = Array.isArray(al.characters) ? al.characters : [], starts = Array.isArray(al.character_start_times_seconds) ? al.character_start_times_seconds : [];
+        // ElevenLabs may or may not echo the <break> tags in its alignment: align against whichever form it used
+        const echoed = chars.join('').includes('<break');
+        const plain = echoed ? { text: spoken, idx: Array.from(spoken, (_, i) => i) } : tagless(spoken);
+        const aligned = alignStarts(plain.text, chars, starts);
+        const onSpoken = aligned.length ? Array.from(spoken, (_, i) => aligned[Math.min(aligned.length - 1, plain.idx[i])]) : [];
+        // back to the text the page sent: each character takes the time of what stands for it in the spoken text
+        const back = onSpoken.length ? Array.from(text, (_, i) => onSpoken[Math.min(onSpoken.length - 1, form.map[i] ?? 0)]) : [];
+        out = { json: JSON.stringify({ audio_base64: j.audio_base64, mime: 'audio/mpeg', alignment: { characters: back.length ? Array.from(text) : [], character_start_times_seconds: back } }) };
       } else out = { buf: Buffer.from(await r.arrayBuffer()) };
     } catch (e) { return send(res, 502, { error: 'ElevenLabs unreachable: ' + (e && e.message) }); }
     if (cache.size > 300) cache.delete(cache.keys().next().value);

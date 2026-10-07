@@ -35,7 +35,7 @@ Without it the demo uses a dummy inbox.
 
 ## 4. Daily use (the analyst's one minute)
 1. **Get the first export.** In EstateMaster open the model → Office Links → Excel → export the Summary / returns sheet. On the **EstateMaster** tab press **Upload export**.
-2. Someone asks the agent for a change (or Outlook raises one). It appears under **Approvals** with no return figure.
+2. Someone asks the agent for a change (or Outlook raises one). It appears under **Daily feed** with no return figure.
 3. A person approves it. It becomes a task on the **EstateMaster** tab with the exact values to enter.
 4. Analyst: open the model, enter the values, recalculate, export, press **Upload export** on the task.
 5. The returns tiles now show EstateMaster's new figures. Use **Compare exports** to see what moved.
@@ -95,7 +95,7 @@ emails of the last 24 hours propose** (not yet in the export).
 | Variable | Purpose |
 |---|---|
 | `CRON_SECRET` | Any long random string. Vercel sends it to the jobs; calls without it are refused |
-| `ALERT_TO` | Who gets assumption alerts (comma-separated, internal addresses) |
+| `ALERT_TO` | Optional. Assumption changes proposed in emails show in the app's **Daily feed**; set this only if someone should also get an alert email |
 | `REPORT_TO` | Who gets the morning report |
 | `REPORT_DAYS` | Optional, default `sun,mon,tue,wed,thu` |
 | `EXPORTS_FOLDER` | Graph path of the folder where the analyst saves exports, e.g. `/sites/{site-id}/drive/root:/Bohio/Exports` |

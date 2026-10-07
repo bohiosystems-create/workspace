@@ -2,13 +2,14 @@
 //   07:00 Riyadh  ?run=scan,report   email scan + the morning EstateMaster report
 //   15:00 Riyadh  ?run=scan          email scan
 // scan    reads the Outlook folder since the previous scheduled scan, asks the AI whether any email proposes a change
-//         to an assumption, and emails ALERT_TO when it senses one. It changes nothing: in the app each finding
-//         becomes a change request a person must approve.
+//         to an assumption. The findings show in the app's Daily feed as change requests a person must approve (the
+//         app scans the same folder when it opens); ALERT_TO, if set, also gets an email. It changes nothing.
 // report  reads the two latest EstateMaster exports from the exports folder (Option 2 and 3: the analyst saves each
 //         Office Links export there) and emails REPORT_TO a KINAN-style report of EstateMaster's own figures.
 // Environment variables:
 //   CRON_SECRET          Vercel sends it as "Authorization: Bearer <secret>"; requests without it are refused
-//   ALERT_TO             who gets assumption-change alerts (comma list, internal addresses)
+//   ALERT_TO             optional: also email assumption-change alerts (comma list, internal addresses); unset, they
+//                        appear only in the app's Daily feed
 //   REPORT_TO            who gets the morning report (comma list, internal addresses); REPORT_DAYS default sun,mon,tue,wed,thu
 //   EXPORTS_FOLDER       Graph path of the exports folder, e.g. /sites/{site-id}/drive/root:/Bohio/Exports
 //                        or /users/analyst@kinan.com.sa/drive/root:/Bohio/Exports  (needs Files.Read.All)
@@ -70,7 +71,7 @@ async function scanJob(token, now, dry, appUrl) {
   if (!findings.length) return out;
   const to = G.checkRecipients(env('ALERT_TO').split(','));
   if (to.bad.length) out.rejected = to.bad;
-  if (!to.ok.length) { out.note = 'ALERT_TO is not set (or has no internal address): no alert sent'; return out; }
+  if (!to.ok.length) { out.note = 'No alert email (ALERT_TO not set): the findings show in the Daily feed'; return out; }
   const rows = findingRows(findings);
   const body = `<p style="margin:0 0 14px">The ${riyadh(w.slot).split(',').pop().trim()} scan read <b>${msgs.length}</b> new message${msgs.length > 1 ? 's' : ''} in the project folder and sensed <b>${findings.length}</b> possible assumption change${findings.length > 1 ? 's' : ''}:</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${th('Assumption')}${th('Proposed')}${th('From')}${th('Quote')}${th('Conf.')}</tr>${rows}</table>
@@ -178,7 +179,7 @@ async function tickJob(token, now, dry, appUrl) {
   if (!dry) await SCHED.record(token, st, { kind: 'scheduled', status: r.sent ? 'sent' : r.skipped ? 'skipped' : 'failed', note: r.skipped || r.note || '', to: r.to || [], langs: r.langs || [], latest: r.latest || '' }, now);
   return res;
 }
-const status = () => ({ scan: { enabled: G.graphConfigured() && G.aiConfigured() && !!env('ALERT_TO'), times: ['07:00', '15:00'], tz: 'Asia/Riyadh', alertTo: env('ALERT_TO') ? env('ALERT_TO').split(',').length + ' recipient(s)' : null },
+const status = () => ({ scan: { enabled: G.graphConfigured() && G.aiConfigured(), times: ['07:00', '15:00'], tz: 'Asia/Riyadh', alertTo: env('ALERT_TO') ? env('ALERT_TO').split(',').length + ' recipient(s)' : null },
   report: { enabled: G.graphConfigured() && !!env('EXPORTS_FOLDER') && !!env('REPORT_TO'), time: env('REPORT_TIME') || '07:00', days: env('REPORT_DAYS') || 'sun,mon,tue,wed,thu' }, secret: !!env('CRON_SECRET') });
 
 module.exports = async function handler(req, res) {

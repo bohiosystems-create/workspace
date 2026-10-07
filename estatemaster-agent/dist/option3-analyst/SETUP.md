@@ -83,7 +83,7 @@ the change since the previous export and the hurdle check.
 | Variable | Purpose |
 |---|---|
 | `CRON_SECRET` | Any long random string. Vercel sends it to the jobs; calls without it are refused |
-| `ALERT_TO` | Who gets assumption alerts (comma-separated, internal addresses) |
+| `ALERT_TO` | Optional. Assumption changes proposed in emails show in the app's **Daily feed**; set this only if someone should also get an alert email |
 | `REPORT_TO` | Who gets the morning report |
 | `REPORT_DAYS` | Optional, default `sun,mon,tue,wed,thu` |
 | `EXPORTS_FOLDER` | Graph path of the folder where the analyst saves exports, e.g. `/sites/{site-id}/drive/root:/Bohio/Exports` |

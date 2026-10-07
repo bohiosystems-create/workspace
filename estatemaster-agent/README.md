@@ -50,7 +50,7 @@ Al Narjis Mixed-Use project. All data is dummy data.
    | `DEMO_PASSWORD` | Optional but recommended: an access code people must enter before the demo can call the AI (stops strangers spending your credits) |
    | `ANTHROPIC_URL`, `OPENAI_URL` | Optional: a corporate gateway instead of the public endpoints |
    | `RUNNER_URL`, `RUNNER_TOKEN` | The EstateMaster runner (tunnel URL and shared token). Without them approved changes run on the demo's stand-in model |
-   | `CRON_SECRET`, `ALERT_TO`, `REPORT_TO`, `EXPORTS_FOLDER` | Twice-daily email scan with alerts and the morning EstateMaster report (see the setup guides) |
+   | `CRON_SECRET`, `ALERT_TO`, `REPORT_TO`, `EXPORTS_FOLDER` | Twice-daily email scan (findings in the Daily feed; `ALERT_TO` optional) and the morning EstateMaster report (see the setup guides) |
    | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_VOICE_ID_AR` | ElevenLabs narration (English voice, Arabic voice) for ▶ Play and Read (key stays on the server; without it the browser's voice is used) |
    | `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET` | Optional: if the runner tunnel sits behind Cloudflare Access |
 
@@ -67,7 +67,7 @@ Test locally with `vercel dev` (it reads a local `.env`).
   Links → Excel, or the Summary and Input sheets pasted as values), the agent reads the title, asset type, currency,
   figures, assumptions and sensitivity tables, and opens the project. A project made from an export has no replica model:
   its figures are EstateMaster's, and every what-if goes to the cross-checked AI test below.
-- **Tabs:** Overview, Approvals, EstateMaster (Options 2 and 3), Assumptions, Scenarios & stress (sensitivity
+- **Tabs:** Reports, Daily feed, Financial modelling (Options 2 and 3), Assumptions, Scenarios & stress (sensitivity
   grids, the explorer, the scenario generator, the stress library, tornado, headroom) and Reports. The integration
   cards are gone from the pages: integrations and feeds are listed under ⚙ Settings → Integrations, and the market
   check moved to ⚙ Settings → Market data (it also runs in the daily report).
@@ -221,7 +221,7 @@ requests the scans raised, with sender, quote and approval status.
 
 - **Nothing reaches EstateMaster without a person.** Changes the agent finds in Outlook, changes the AI
   proposes, new models and promotion to the live model all become change requests (CR-xxx) in the
-  Approvals tab, approvable there, in chat or on WhatsApp ("APPROVE CR-103"). Promotion needs an
+  Daily feed tab, approvable there, in chat or on WhatsApp ("APPROVE CR-103"). Promotion needs an
   Investment Director. Changes a person makes directly are their own decision and are logged.
 - **Outlook is scanned twice a day** (07:00 and 15:00 Riyadh, on the server even with the app closed) and on request; when a scan senses a possible assumption change the alert list is told by email, WhatsApp and the bell; each
   assumption change found in an email becomes a proposal with the quote it came from.
@@ -317,7 +317,7 @@ confirmed in your trial and with Altus. See docs/Bohio_EstateMaster_Agent_Setup_
 
 ## Suggestions and diagnostics
 
-- "Suggest changes" (Approvals tab, chat or WhatsApp) reviews assumptions against market comps,
+- "Suggest changes" (Daily feed tab, chat or WhatsApp) reviews assumptions against market comps,
   SQL Server actuals, achieved sales, the cost library, zoning and risk policy; it also runs on
   every Outlook scan. Each suggestion is a change request.
 - Router → Run diagnostics (or open the page with `#debug`) runs 21 self-tests and shows the AI and runner connections.

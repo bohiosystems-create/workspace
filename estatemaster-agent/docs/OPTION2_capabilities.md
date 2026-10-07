@@ -5,7 +5,7 @@ loaded; everything else is labelled as the agent's estimate. Nothing changes wit
 
 ## 0. Layout
 - Projects menu on the left edge (shows when the cursor reaches it); **+** creates a project from an EstateMaster export.
-- Tabs: Overview, Approvals, EstateMaster, Assumptions, Scenarios & stress, Reports. Integrations, market data, Outlook, voice, AI routing and the architecture notes sit under the ⚙ Settings gear.
+- Tabs: Reports, Daily feed, Financial modelling, Assumptions, Scenarios & stress, Reports. Integrations, market data, Outlook, voice, AI routing and the architecture notes sit under the ⚙ Settings gear.
 - Assumptions: every input with its market position; test any change with Claude and OpenAI calculating independently, checking each other and resolving differences. Every result is an AI calc, bold and clickable for both workings.
 - The chat (orange Ask button, bottom right; same drawer as the marketing agent): answers from EstateMaster's figures and the data library and reasons on them through the AI (what-ifs, stress tests, sensitivities, comparisons, totals). Every figure carries its origin: **EstateMaster** (read from the export), **Agent estimate** (the replica, never passed off as EstateMaster's) or **AI calc** (the AI's arithmetic). Each tagged figure is bold and clickable: a window shows how it was worked out. Unlabelled figures in an AI answer are flagged.
 - EstateMaster's own results: the stored Options / Stages exported from EstateMaster are listed as scenarios it calculated, and the 1-way / 2-way sensitivity tables saved in the export are read and shown as EstateMaster's figures; a what-if that matches a saved cell is answered with EstateMaster's figure, not an estimate.
