@@ -465,22 +465,23 @@ header.kband .eng i{background:#bcbec0}header.kband .eng.live i{background:var(-
 .ktitle{margin:34px 0 6px;display:flex;align-items:center;gap:14px;color:var(--orange);font-size:26px;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
 .ktitle svg{height:22px;width:auto}
 .kintro{font-size:12.5px;line-height:1.75;color:var(--soft);max-width:760px;margin:0 0 24px}
-/* the kinan-marketing demo's proportions */
-.wrap{max-width:1453px;padding-left:24px;padding-right:24px}
-header.kband{height:84px;margin:0 -24px;padding:0 24px;gap:26px}
-header.kband .klogo svg{height:44px}.ksub{font-size:10.5px;letter-spacing:.34em}
-header.kband #engBtn{margin-left:auto}header.kband .kchev svg{height:40px}
-.tabs{margin:0 -24px;padding:0 6px}
-.tab{font-size:13px;letter-spacing:.16em;padding:22px 18px 18px}.tab::after{left:18px;right:18px}
-.ktitle{margin:48px 0 14px;font-size:34px;gap:16px}.ktitle svg{height:28px}
-.kintro{font-size:15.5px;line-height:1.75;max-width:900px;margin:0 0 38px}
-.pane .grid{gap:24px}.pane .g2,#drGrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-.card{padding:28px 28px}
-@media(max-width:1100px){.pane .g2,#drGrid{grid-template-columns:1fr}}
-@media(max-width:700px){header.kband{height:auto}.tabs{margin:0 -16px;padding:0 4px}.tab{font-size:11px;padding:16px 10px 14px}.ktitle{font-size:26px;margin-top:30px}.kintro{font-size:13.5px}}
+/* the kinan-marketing demo's proportions, measured from its stylesheet: 1180px column with 28px sides, 66px band,
+   42px nav strip, 26px title, 13px intro (720px wide), 22px box padding, 18px gaps */
+.wrap{max-width:1180px;padding:0 28px 80px}
+header.kband{height:66px;margin:0 -28px;padding:0 28px;gap:18px}
+header.kband .klogo svg{height:34px}.ksub{font-size:9px;letter-spacing:.3em;color:rgba(255,255,255,.72);flex:1}
+header.kband #engBtn{margin-left:auto}header.kband .kchev svg{height:30px}
+.tabs{margin:0 -28px;padding:0 28px}
+.tab{font-size:11px;line-height:12px;letter-spacing:.1em;font-weight:600;padding:16px 14px 14px}.tab::after{left:14px;right:14px}
+.ktitle{margin:37px 0 0;font-size:26px;font-weight:600;line-height:1.15;gap:14px}.ktitle svg{height:23px}
+.kintro{font-size:13px;line-height:1.7;max-width:720px;margin:10px 0 24px}
+.pane .grid{gap:18px}.pane .g2,#drGrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.card{padding:22px 22px 20px}
+@media(max-width:900px){.pane .g2,#drGrid{grid-template-columns:1fr}}
+@media(max-width:700px){.wrap{padding:0 16px 60px}header.kband{height:auto;margin:0 -16px;padding:0 16px}.tabs{margin:0 -16px 24px;padding:0 4px}.ktitle{font-size:22px}}
 /* boxes */
 .card,.cn{background:#fff;border:1px solid var(--hair);border-top:3px solid var(--orange);border-radius:0;box-shadow:var(--shadow)}
-.card{padding:22px 24px;animation:kUp .55s cubic-bezier(.2,.8,.2,1) both}
+.card{padding:22px 22px 20px;animation:kUp .55s cubic-bezier(.2,.8,.2,1) both}
 @keyframes kUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .card>.bar,.bar{display:none}
 .card h2,.card .sbhead h2{display:flex;align-items:center;gap:12px;font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700;color:var(--ink);margin-bottom:8px}
