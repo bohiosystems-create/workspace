@@ -4,6 +4,7 @@
  * agents' Reports (schedule, run, history, delivery check). Reports go to internal addresses only.
  */
 import { useCallback, useEffect, useState } from "react";
+import { runtime } from "./runtime";
 
 type Lang = "en" | "ar";
 interface Meta { id: string; createdAt: string; date: string; kind: "DAILY" | "SNAPSHOT"; trigger: "SCHEDULED" | "MANUAL"; lang: Lang; title: string; status: "GENERATED" | "SENT" | "FAILED"; delivery: "mock" | "send" | null; recipients: string; error: string | null; projects: number }
@@ -125,7 +126,7 @@ export default function Reports({ author }: { author: string }) {
       {view && (
         <section className="rep-view" aria-label="Report">
           <div className="rep-vh"><b>{view.title}</b>
-            <button className="mini" onClick={() => { const u = URL.createObjectURL(new Blob([view.html], { type: "text/html" })); const a = document.createElement("a"); a.href = u; a.download = `${view.title.replace(/[^\w؀-ۿ -]+/g, "").trim()}.html`; a.click(); setTimeout(() => URL.revokeObjectURL(u), 4000); }}>Download</button>
+            {runtime.mode !== "standalone" && <button className="mini" onClick={() => { const u = URL.createObjectURL(new Blob([view.html], { type: "text/html" })); const a = document.createElement("a"); a.href = u; a.download = `${view.title.replace(/[^\w؀-ۿ -]+/g, "").trim()}.html`; a.click(); setTimeout(() => URL.revokeObjectURL(u), 4000); }}>Download</button>}
             <button className="x" onClick={() => setView(null)} aria-label="Close report">✕</button>
           </div>
           <iframe title={view.title} srcDoc={view.html} sandbox="" />
