@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./brand-fonts.css";
 import "./globals.css";
+import KinanSplash from "./_components/KinanSplash";
 
 export const metadata: Metadata = {
   title: "Kinan Onsite Agent",
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" />
         <script dangerouslySetInnerHTML={{ __html: THEME }} />
       </head>
-      <body>{children}</body>
+      <body><KinanSplash />{children}</body>
     </html>
   );
 }

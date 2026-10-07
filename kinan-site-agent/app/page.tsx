@@ -114,7 +114,7 @@ export default function Home() {
   const viewerDoc = viewerId ? docs.find((d) => d.id === viewerId) : undefined;
 
   if (!state) {
-    return <div className="boot"><Logo height={46} /><span>{error || "Onsite Agent"}</span><Mark /></div>;
+    return <div className="boot" data-kloading={error ? undefined : ""}><Logo height={46} /><span>{error || "Onsite Agent"}</span><Mark /></div>;
   }
 
   return (
