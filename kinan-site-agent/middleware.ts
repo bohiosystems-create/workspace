@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Password-protects the web app and its API when APP_PASSWORD is set.
  * Machine endpoints authenticate themselves and are excluded:
- *   /api/whatsapp (Meta signature), /api/integrations/* and /api/import (bearer secrets).
+ *   /api/whatsapp (Meta signature), /api/integrations/*, /api/import and /api/reports/run (bearer secrets).
  */
 export function middleware(req: NextRequest) {
   const pass = process.env.APP_PASSWORD;
@@ -19,5 +19,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/whatsapp|api/integrations|api/import|_next/static|_next/image|icon.svg|manifest.webmanifest).*)"],
+  matcher: ["/((?!api/whatsapp|api/integrations|api/import|api/reports/run|_next/static|_next/image|icon.svg|manifest.webmanifest).*)"],
 };

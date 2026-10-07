@@ -174,6 +174,19 @@ Details for each system are in **SETUP.md §7**.
 
 ---
 
+## Step 6b — Daily report e-mail (optional)
+
+The **Daily report** page (top bar) sends one e-mail a day with the status of every active project. Until Outlook is live it runs in *mock* mode: reports are built and kept in the history, and "sent" is shown as *Simulated*.
+
+1. **Scheduler.** Set `REPORTS_CRON_KEY` (a long random value) and `CRON_SECRET` (another, or the same). `vercel.json` already asks Vercel Cron to call `/api/reports/run` every minute; the report goes once per local day, at or after the time set in the app. Every-minute crons need a Pro team; on Hobby use `"0 4 * * *"` (04:00 UTC = 07:00 Riyadh) or any outside scheduler with `x-api-key: $REPORTS_CRON_KEY`.
+2. **Outlook.** In Microsoft Entra, register an app, add the **Mail.Send** *application* permission and grant admin consent, and create a client secret. Set `OUTLOOK_MODE=live`, `OUTLOOK_SENDER` (the mailbox it sends from), `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`. To stop the app sending as any mailbox, scope it with an Exchange *ApplicationAccessPolicy* to the sender mailbox.
+3. **Who may receive it.** Internal only: by default the sender's domain. Add domains with `REPORTS_ALLOWED_DOMAINS`, or single addresses with `REPORTS_ALLOWED_RECIPIENTS`.
+4. Redeploy, open **Daily report**, set time, days, recipients and languages, **Save schedule**, then **Send test now**. The *Delivery check* card lists anything still missing.
+
+**Bohio demos:** `/api/reports/run` must stay outside the sign-in gate — it is in the `OPEN` list of `middleware.ts`.
+
+---
+
 ## Step 7 — Recommended Vercel settings
 
 | Setting | Where | Recommendation |
@@ -209,6 +222,7 @@ Details for each system are in **SETUP.md §7**.
 - [ ] Test-only variables **not** set: `WHATSAPP_SKIP_SIGNATURE`, `WHATSAPP_ALLOW_ALL`, `WHATSAPP_TEST_SYNC`, `WHATSAPP_GRAPH_BASE`
 - [ ] Data-protection assessment done: questions, documents and voice notes are processed by Anthropic and OpenAI outside KSA
 - [ ] Demo data replaced with real project data
+- [ ] Daily report: `REPORTS_CRON_KEY` + `CRON_SECRET` set, Outlook live, recipients saved, *Delivery check* shows **Ready**
 
 ---
 

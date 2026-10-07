@@ -22,6 +22,7 @@ The agent answers from the project's documents, programme, procurement, safety a
 6. [Connect WhatsApp](#6-connect-whatsapp)
 7. [Connect the purchasing system](#7-connect-the-purchasing-system)
 8. [Load your real project data](#8-load-your-real-project-data)
+8b. [Daily report e-mail](#8b-daily-report-e-mail)
 9. [Security & compliance checklist](#9-security--compliance-checklist)
 10. [Using it on site](#10-using-it-on-site)
 11. [Troubleshooting](#11-troubleshooting)
@@ -389,6 +390,19 @@ Columns: `Sheet, Title, Discipline, Location, Revision, Status, Issued, Reason`.
 
 ---
 
+## 8b. Daily report e-mail
+
+**Daily report** (top bar) e-mails the status of every active project once a day: Kinan Heights from its live data, and every project generated from documents (they are synced from the browser to the server for this). The report is computed from the data, with no AI, and takes no action. It has the same rules and structure as the other Kinan agents' reports:
+
+- **Schedule:** on/off, time (HH:MM), timezone, days, recipients, languages (English and/or Arabic, one e-mail each). Saved in the app's storage (`reports/schedule.json`).
+- **Internal only:** each recipient must be on `REPORTS_ALLOWED_DOMAINS` (default: the domain of `OUTLOOK_SENDER`) or be listed in `REPORTS_ALLOWED_RECIPIENTS`. The list is checked when the schedule is saved and again at every send.
+- **Trigger:** `GET`/`POST /api/reports/run` with `x-api-key: $REPORTS_CRON_KEY` or `Authorization: Bearer …` (Vercel Cron's `CRON_SECRET` also works). Call it as often as you like: the report goes once per local day, at or after the set time, on scheduled days; a missed slot is sent at the next call that day. A lock stops two calls sending twice. Without `REPORTS_CRON_KEY` the endpoint is disabled; *Preview*, *Run snapshot* and *Send test now* still work.
+- **Content:** a summary of all active projects, then for each: progress vs plan, SPI, completion forecast vs baseline, **the critical path** (late now, at risk, in progress, starting in 14 days, and later work already forecast late), milestones in the next 60 days, procurement packages behind their need date and delayed deliveries, safety figures and open incidents, and site notes from the last 24 hours. *Since the last report* lines say what changed.
+- **Delivery:** Outlook through Microsoft Graph (`lib/outlook.ts`). `OUTLOOK_MODE=mock` (default) sends nothing and labels the report *Simulated*; `OUTLOOK_MODE=live` needs an Entra app with **Mail.Send** (application permission, admin consent): `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `OUTLOOK_SENDER`. The e-mail body is mail-client-safe HTML; the full report is attached as an HTML file.
+- **History and delivery check:** every preview, snapshot and send is kept (last 200). The *Delivery check* card lists what is still missing before the e-mail can reach an inbox.
+
+Own server (Docker): call the endpoint from cron, e.g. `* * * * * curl -fsS -H "x-api-key: $REPORTS_CRON_KEY" https://site.example.com/api/reports/run`.
+
 ## 9. Security & compliance checklist
 
 - [ ] **HTTPS only**; `APP_PASSWORD` set, long and random. For company SSO, put the app behind your identity proxy (Azure App Proxy, Cloudflare Access, Okta). The machine endpoints `/api/whatsapp`, `/api/integrations/*` and `/api/import` authenticate themselves.
@@ -468,6 +482,12 @@ Columns: `Sheet, Title, Discipline, Location, Revision, Status, Issued, Reason`.
 | `WHATSAPP_TOKEN` | — | System User permanent token |
 | `WHATSAPP_PHONE_NUMBER_ID` | — | Sending number id |
 | `WHATSAPP_APP_SECRET` | — | Webhook signature check (required in production) |
+| `REPORTS_CRON_KEY` | — | Enables `/api/reports/run` for the daily report (§8b) |
+| `CRON_SECRET` | — | Vercel Cron's bearer secret, accepted by the cron endpoints |
+| `REPORTS_ALLOWED_DOMAINS` / `REPORTS_ALLOWED_RECIPIENTS` | sender's domain / — | Who may receive the daily report |
+| `OUTLOOK_MODE` | `mock` | `live` sends the daily report through Microsoft Graph |
+| `OUTLOOK_SENDER` | — | Mailbox the report is sent from |
+| `MS_TENANT_ID` / `MS_CLIENT_ID` / `MS_CLIENT_SECRET` | — | Entra app registration with Mail.Send |
 | `WHATSAPP_VERIFY_TOKEN` | — | Webhook verification handshake |
 | `WHATSAPP_ALLOWED_NUMBERS` | — | `9665…:Name,…` allow-list |
 | `WHATSAPP_GRAPH_VERSION` | `v23.0` | Graph API version |

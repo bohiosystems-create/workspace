@@ -9,6 +9,8 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState, type DragEvent } 
 import { mockDocs, MOCK_PROJECT } from "@/lib/model3d/mock";
 import { collectFromDrop, collectFromList, mimeOf, type Collected } from "@/lib/model3d/collect";
 import type { GenProject, GenResult } from "@/lib/model3d/store";
+import type { SpecActivity } from "@/lib/model3d/spec";
+import { specCritical } from "@/lib/critical";
 import { Icon } from "./icons";
 
 const ModelViewer = lazy(() => import("./ModelViewer"));
@@ -183,6 +185,8 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
 }
 
 // ==================================================================== a generated project
+/** "Tower 1 — piling" unless the activity name already starts with the building's name. */
+const actLabel = (b: string, name: string) => (name.toLowerCase().startsWith(b.toLowerCase()) ? name : `${b} — ${name}`);
 export function ProjectView({ project, onBack }: { project: GenProject; onBack: () => void }) {
   const res = project.result, spec = res.spec;
   const [details, setDetails] = useState(false);
@@ -191,23 +195,38 @@ export function ProjectView({ project, onBack }: { project: GenProject; onBack: 
     buildings: spec.buildings.length, floors: spec.buildings.reduce((a, b) => a + b.floors, 0),
     gfa: spec.buildings.reduce((a, b) => a + b.w * b.d * b.floors * 0.85, 0), acts: spec.schedule.activities.length,
   }), [spec]);
+  const [showCp, setShowCp] = useState(false);
+  const cp = useMemo(() => specCritical(spec), [spec]);
+  const critOf = (a: SpecActivity) => cp.items.find((x) => x.a === a);
   const selB = spec.buildings.find((b) => b.id === sel);
+  const selBc = cp.buildings.find((b) => b.id === sel);
   const selActs = sel ? spec.schedule.activities.filter((a) => a.building === sel).sort((a, b) => a.start.localeCompare(b.start)) : [];
   return (
     <div className="studio studio-model">
       <Suspense fallback={<div className="studio-empty"><p>Loading 3D…</p></div>}>
-        <ModelViewer spec={spec} selectedId={sel} onSelect={(id) => { setSel(id); if (id) setDetails(false); }} />
+        <ModelViewer spec={spec} selectedId={sel} onSelect={(id) => { setSel(id); if (id) { setDetails(false); setShowCp(false); } }} />
       </Suspense>
       <div className="studio-bar">
         <button className="x back" onClick={onBack} aria-label="Back to projects"><Icon name="back" /></button>
         <div className="studio-title"><b>{spec.name}</b><em>{ENGINE_NAME[res.engine] ?? res.engine}{res.model && res.model.toLowerCase() !== (ENGINE_NAME[res.engine] ?? "").toLowerCase() ? ` · ${res.model}` : ""} · {spec.buildings.length} buildings · {project.docs.length || "?"} documents</em></div>
-        <button className="mini" onClick={() => { setDetails((d) => !d); setSel(undefined); }} aria-expanded={details}>{details ? "Hide" : "What it read"}</button>
+        <button className={"mini" + (showCp ? " on" : "")} onClick={() => { setShowCp((d) => !d); setDetails(false); setSel(undefined); }} aria-expanded={showCp}>Critical path</button>
+        <button className="mini" onClick={() => { setDetails((d) => !d); setSel(undefined); setShowCp(false); }} aria-expanded={details}>{details ? "Hide" : "What it read"}</button>
       </div>
       {selB && (
         <div className="studio-sheet small">
           <div className="studio-sh"><div><b>{selB.name}</b><em>{selB.id} · {USE_LABEL[selB.use]} · {selB.floors} floors × {selB.storeyHeight} m{selB.basements ? ` · ${selB.basements} basement${selB.basements > 1 ? "s" : ""}` : ""}</em></div><button className="x" onClick={() => setSel(undefined)} aria-label="Close">✕</button></div>
           <p className="studio-src">Footprint {selB.w} × {selB.d} m at E {selB.x} m, {selB.z} m from the north boundary{selB.source ? <> · from <i>{selB.source}</i></> : null}{selB.confidence ? <span className={"conf " + selB.confidence}>{selB.confidence}</span> : null}</p>
-          <ul className="studio-acts">{selActs.map((a, i) => <li key={i}><span className={"ph " + a.phase}>{a.phase}</span><span className="an">{a.name ?? a.phase}</span><span className="ad">{nice(a.start)} – {nice(a.finish)}</span></li>)}</ul>
+          {selBc && <p className={"studio-cp" + (selBc.critical ? " on" : "")}>{selBc.critical ? "On the critical path: this building finishes last, so a delay to its marked activities moves completion." : `${selBc.float} days of float: it finishes ${nice(selBc.finish)}, before the project's ${nice(cp.finish)}.`}</p>}
+          <ul className="studio-acts">{selActs.map((a, i) => { const c = critOf(a); return <li key={i} className={c?.critical ? "crit" : ""}><span className={"ph " + a.phase}>{a.phase}</span><span className="an">{c?.critical && <span className="ctag">Critical</span>}{a.name ?? a.phase}</span><span className="ad">{nice(a.start)} – {nice(a.finish)}{c && !c.critical ? ` · ${c.float} d float` : ""}</span></li>; })}</ul>
+        </div>
+      )}
+      {showCp && (
+        <div className="studio-sheet">
+          <div className="studio-sh"><div><b>Critical path</b><em>Completion {nice(cp.finish)} · {cp.path.length} critical activities · read from the programme dates</em></div><button className="x" onClick={() => setShowCp(false)} aria-label="Close">✕</button></div>
+          <p className="studio-src">The documents give dates but no logic links, so the path is taken from the dates: phases follow one another within each building, and the building that finishes last drives completion. A day lost on a critical activity moves the completion date.</p>
+          <ul className="studio-acts">{cp.path.map((x, i) => <li key={i} className="crit" onClick={() => { setSel(x.a.building); setShowCp(false); }}><span className={"ph " + x.a.phase}>{x.a.phase}</span><span className="an">{actLabel(spec.buildings.find((b) => b.id === x.a.building)?.name ?? x.a.building, x.a.name ?? x.a.phase)}</span><span className="ad">{nice(x.a.start)} – {nice(x.a.finish)}</span></li>)}</ul>
+          <h4>Float by building</h4>
+          <ul className="studio-list">{cp.buildings.filter((b) => b.finish).sort((p, q) => p.float - q.float).map((b) => <li key={b.id}><b>{b.name}</b> {b.critical ? "critical — finishes last" : `${b.float} days of float (finishes ${nice(b.finish)})`}</li>)}</ul>
         </div>
       )}
       {details && (

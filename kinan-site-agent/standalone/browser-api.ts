@@ -14,6 +14,20 @@ import type { Repo } from "../lib/core/tools";
 import { runtime } from "../app/_components/runtime";
 import { SYSTEM, extractModel, promptFor, type ExtractDoc } from "../lib/model3d/extract";
 import { normalizeSpec } from "../lib/model3d/spec";
+import { loadProjects } from "../lib/model3d/store";
+import { reports } from "../lib/reports/engine";
+
+// Daily reports in this page: kept in IndexedDB; e-mail is always simulated (no Outlook here).
+let rep: ReturnType<typeof reports> | null = null;
+const pageReports = () => (rep ??= reports({
+  get: async <T,>(k: string) => ((await get<T>("rep:" + k)) ?? null),
+  put: (k, v) => put("rep:" + k, JSON.parse(JSON.stringify(v))),
+  lock: async (_n, fn) => fn(),
+  db: async () => repo.db,
+  projects: async () => loadProjects(),
+  send: async () => ({ delivery: "mock", providerRef: `mock-${Date.now().toString(36)}` }),
+  env: { mode: "mock", creds: false, sender: "onsite@kinan.com.sa", senderSet: false, cron: false, allowedRecipients: "" },
+}));
 
 // ---------------------------------------------------------------- Claude inside the artifact (the `sample` capability)
 type Sampler = { json: (input: string, o?: { modelTier?: string }) => Promise<unknown> };
@@ -142,6 +156,12 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
     } else if (engine === "anthropic" || engine === "openai" || engine === "gemini") return json({ error: "Only the offline parser (and Claude, when this page runs on claude.ai) is available in the standalone page" }, 400);
     const out = await extractModel({}, docs, "offline");
     return json({ ...out, tried: [...tried, ...out.tried], ms: Date.now() - t0, route: sm ? "Claude did not return a usable model, so the offline parser took over" : "no AI engine available in this page" });
+  }
+  if (p === "/api/reports") {
+    try {
+      if (method === "GET") { const id = url.searchParams.get("id"); return json(id ? await pageReports().getReport(id) : await pageReports().state(url.searchParams.get("lang") === "ar" ? "ar" : "en")); }
+      return json(await pageReports().action(JSON.parse(String(init?.body ?? "{}"))));
+    } catch (e) { return json({ error: (e as Error)?.message ?? "Failed." }, 400); }
   }
   return json({ error: "Not available in the standalone version" }, 404);
 }

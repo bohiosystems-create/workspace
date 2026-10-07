@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { Db, Location, ProjectData } from "@/lib/types";
 import * as P from "@/lib/core/project";
 import { progressByLocation, sCurve } from "@/lib/core/progress";
+import { critState, expectedPct, isCritical, liveCritical, slipOf } from "@/lib/critical";
+import type { Activity } from "@/lib/types";
 import { pathOf } from "./site";
 import { C, Columns3D, Curve, Donut3D, Gauge, Kpi, Panel, Ring, Timeline } from "./Charts";
 
@@ -43,14 +45,41 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
     const res = f === "next2" ? null : P.scheduleQuery(db, { query: q, late: f === "late", critical: f === "critical", status, limit: 60 });
     const la = f === "next2" ? P.lookahead(db, { weeks: 2 }) : null;
     const list = la ? [...(la.milestones ?? []), ...(la.starting ?? [])] : res?.activities ?? [];
+    const cp = liveCritical(db), d0 = data.meta.dataDate;
+    const groups: [string, string, Activity[]][] = [
+      ["late", "Late — completion moves with these", cp.late],
+      ["risk", "At risk — behind their own dates", cp.atRisk],
+      ["ok", "In progress, on time", cp.inProgress.filter((a) => critState(a, d0) === "ok")],
+      ["next", "Starting in the next 14 days", cp.next],
+      ["slipped", "Later — already forecast late", cp.slipped.slice(0, 5)],
+    ];
     body = (
       <>
         <div className="kpis">
           <Kpi value={s.progressPercent} decimals={1} suffix="%" label="Complete" sub={`baseline plan ${s.plannedPercent}%`} bad={s.progressPercent < s.plannedPercent - 2} />
           <Kpi value={s.spi} decimals={2} label="SPI" sub={s.spi < 0.95 ? "behind schedule" : "on schedule"} bad={s.spi < 0.95} />
-          <Kpi value={s.criticalLate} label="Critical late" sub="activities past baseline" bad={s.criticalLate > 0} />
+          <Kpi value={cp.late.length} label="Critical late now" sub={`${cp.slipped.length} later critical forecast late`} bad={cp.late.length > 0} />
           <Kpi text={s.practicalCompletion?.forecast ?? "—"} label="Completion" sub={`baseline ${s.practicalCompletion?.baseline ?? "—"}`} />
         </div>
+        <Panel title="Critical path" sub="Zero-float activities: a day lost on any of them moves practical completion" aside={<span className={"cp-count" + (cp.late.length ? " bad" : "")}>{cp.remaining.length}<em>left</em></span>}>
+          {cp.completion && <div className="cp-sum"><span className="cp-l">Practical completion</span><b>{cp.completion.forecast}</b><em>baseline {cp.completion.baseline}</em><Slip d={cp.completion.slip} /></div>}
+          {groups.filter(([, , xs]) => xs.length).map(([k, label, xs]) => (
+            <div key={k} className="cp-group">
+              <div className={"cp-h " + k}>{label}<i>{k === "slipped" ? cp.slipped.length : xs.length}</i></div>
+              <ul className="rows">
+                {xs.slice(0, 8).map((a) => (
+                  <li key={a.id} className={"crit " + critState(a, d0)}>
+                    <span className="t"><b>{a.name}</b><em>{a.id} · {a.contractor} · <Loc id={a.locationId} /> · {a.start} → {a.finish}</em>
+                      <em className="cp-f">{a.status === "in_progress" ? `${a.percent}% done · dates call for ${expectedPct(a, d0)}%` : a.status === "not_started" ? `starts ${a.start}` : ""}{` · float ${a.totalFloat} d`}</em>
+                      {a.status === "in_progress" && <i className="bar"><i style={{ width: `${a.percent}%` }} /></i>}</span>
+                    <Slip d={slipOf(a)} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          {!cp.remaining.length && <p>No critical activities left.</p>}
+        </Panel>
         <Panel title="Progress" sub={`Earned vs baseline at data date ${data.meta.dataDate}`}>
           <div className="side">
             <Ring pct={s.progressPercent} plan={s.plannedPercent} />
@@ -68,11 +97,11 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
         </Panel>
         <div className="lbl">Activities <span className="dd">data date {data.meta.dataDate}</span></div>
         {search("Search activities: slab, façade, L14, TA-…")}
-        {chips([["progress", "In progress"], ["late", "Late"], ["critical", "Critical"], ["next2", "Next 2 weeks"]])}
+        {chips([["progress", "In progress"], ["late", "Late"], ["critical", "Critical path"], ["next2", "Next 2 weeks"]])}
         <ul className="rows">
           {list.slice(0, 60).map((a) => (
-            <li key={a.id}>
-              <span className="t"><b>{a.name}</b><em>{a.id} · {a.start} → {a.finish} · {a.percent}%{a.critical ? " · critical" : ""}</em>
+            <li key={a.id} className={isCritical({ critical: a.critical, totalFloat: a.float }) ? "crit" : ""}>
+              <span className="t"><b>{isCritical({ critical: a.critical, totalFloat: a.float }) && <span className="ctag">Critical</span>}{a.name}</b><em>{a.id} · {a.start} → {a.finish} · {a.percent}% · float {a.float} d</em>
                 <i className="bar"><i style={{ width: `${a.percent}%` }} /></i></span>
               <Slip d={a.slipDays} />
             </li>

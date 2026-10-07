@@ -9,6 +9,7 @@ import DocViewer from "./_components/DocViewer";
 import DocsTab from "./_components/DocsTab";
 import ProjectTab from "./_components/ProjectTab";
 import { NewProject, ProjectHome, ProjectView } from "./_components/Projects";
+import Reports from "./_components/Reports";
 import { loadProjects, saveProjects, type GenProject } from "@/lib/model3d/store";
 import { useAuthor, useSite } from "./_components/site";
 import { Icon, Logo, Mark } from "./_components/icons";
@@ -18,8 +19,9 @@ import { TEXTURE } from "@/lib/brand";
 const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
 
 type Tab = "map" | "project" | "docs";
-/** home = project list · site = the live Kinan Heights app · new = create from documents · p:<id> = a generated project */
-type Screen = "home" | "site" | "new" | `p:${string}`;
+/** home = project list · site = the live Kinan Heights app · new = create from documents · p:<id> = a generated project
+ *  · reports = the scheduled daily status e-mail */
+type Screen = "home" | "site" | "new" | "reports" | `p:${string}`;
 
 export default function Home() {
   const { state, error, refresh } = useSite();
@@ -28,9 +30,22 @@ export default function Home() {
   const [screen, setScreenRaw] = useState<Screen>("home");
   const [projects, setProjects] = useState<GenProject[]>([]);
   const [storeErr, setStoreErr] = useState("");
-  useEffect(() => { setProjects(loadProjects()); }, []);
+  // Generated projects live on this device and are synced to the server, so the daily report covers them too.
+  const sync = useCallback(async (list: GenProject[], deleted: string[] = []) => {
+    try {
+      const r = await fetch("/api/projects", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ projects: list, deleted }) });
+      if (!r.ok) return;
+      const j = (await r.json()) as { projects?: GenProject[] };
+      if (Array.isArray(j.projects)) { setProjects(j.projects); saveProjects(j.projects); }
+    } catch { /* offline or standalone: the device copy stays */ }
+  }, []);
+  useEffect(() => { const local = loadProjects(); setProjects(local); sync(local); }, [sync]);
   const setScreen = (s: Screen) => { setScreenRaw(s); setMeOpen(false); window.scrollTo?.(0, 0); };
-  const putProjects = (list: GenProject[]) => { setProjects(list); setStoreErr(saveProjects(list) ? "" : "This browser would not save the project list (storage full or blocked). It stays until you close the page."); };
+  const putProjects = (list: GenProject[], deleted: string[] = []) => {
+    setProjects(list);
+    setStoreErr(saveProjects(list) ? "" : "This browser would not save the project list (storage full or blocked). It stays until you close the page.");
+    sync(list, deleted);
+  };
   const genId = screen.startsWith("p:") ? screen.slice(2) : null;
   const gen = genId ? projects.find((p) => p.id === genId) : undefined;
   const [selId, setSelId] = useState<string | undefined>();
@@ -123,6 +138,7 @@ export default function Home() {
         ))}
         {screen === "new" && <button className="on">New project</button>}
         {gen && <button className="on">{gen.result.spec.name}</button>}
+        <button className={"tab-end" + (screen === "reports" ? " on" : "")} onClick={() => setScreen("reports")}>Daily report</button>
       </nav>
       {meOpen && (
         <div className="me" role="dialog" aria-label="Your settings">
@@ -147,11 +163,12 @@ export default function Home() {
             <ProjectHome
               site={{ name: state.project.name, code: state.project.code, client: state.project.client }} projects={projects}
               onOpenSite={() => setScreen("site")} onOpen={(id) => setScreen(`p:${id}`)} onNew={() => setScreen("new")}
-              onDelete={(id) => putProjects(projects.filter((p) => p.id !== id))}
+              onDelete={(id) => putProjects(projects.filter((p) => p.id !== id), [id])}
             />
           )}
           {screen === "new" && <NewProject onCancel={() => setScreen("home")} onCreated={(p) => { putProjects([p, ...projects]); setScreen(`p:${p.id}`); }} />}
           {gen && <ProjectView key={gen.id} project={gen} onBack={() => setScreen("home")} />}
+          {screen === "reports" && <Reports author={author} />}
           {genId && !gen && <div className="studio-empty"><p>That project is no longer on this device.</p></div>}
         </main>
       )}
