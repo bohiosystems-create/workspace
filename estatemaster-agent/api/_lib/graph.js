@@ -31,11 +31,28 @@ async function graphToken() {
   const j = await r.json(); if (!r.ok) throw new Error('Microsoft sign-in failed: ' + (j.error_description || j.error || r.status)); return j.access_token;
 }
 const gbase = () => (env('GRAPH_BASE') || 'https://graph.microsoft.com') + '/v1.0';
+/* A SharePoint path written with the site's address ("/sites/{host}:/sites/{name}:/drive/root:/Folder") cannot be extended
+   with ":/content" or "/items/…": Graph reads "root:" as a segment. The site is resolved to its id once, and the path
+   becomes "/sites/{id}/drive/root:/Folder", which Graph accepts everywhere. */
+const siteIds = new Map();
+async function norm(token, path) {
+  const m = String(path).match(/^\/sites\/([^:/]+):(\/sites\/[^:]+):(\/.*)?$/);
+  if (!m) return path;
+  const key = m[1] + m[2];
+  if (!siteIds.has(key)) {
+    const r = await fetch(gbase() + `/sites/${m[1]}:${m[2]}?$select=id`, { headers: { authorization: 'Bearer ' + token } });
+    const j = await r.json().catch(() => ({})); if (!r.ok || !j.id) throw new Error('Graph ' + r.status + ': the SharePoint site ' + m[1] + m[2] + ' was not found (check EXPORTS_FOLDER)');
+    siteIds.set(key, j.id);
+  }
+  return `/sites/${siteIds.get(key)}${m[3] || ''}`;
+}
 async function graph(token, path) {
+  path = await norm(token, path);
   const r = await fetch(gbase() + path, { headers: { authorization: 'Bearer ' + token, prefer: 'outlook.body-content-type="text"' } });
   const j = await r.json(); if (!r.ok) throw new Error('Graph ' + r.status + ': ' + ((j.error && j.error.message) || '')); return j;
 }
 async function graphBytes(token, path) {
+  path = await norm(token, path);
   const r = await fetch(gbase() + path, { headers: { authorization: 'Bearer ' + token } });
   if (!r.ok) throw new Error('Graph ' + r.status + ' reading a file');
   return Buffer.from(await r.arrayBuffer());
@@ -100,6 +117,7 @@ async function ai(system, user, maxTokens = 2000) {
   return ((j.choices || [])[0] || {}).message?.content || '';
 }
 async function graphPut(token, path, body, type = 'application/json') {
+  path = await norm(token, path);
   const r = await fetch(gbase() + path, { method: 'PUT', headers: { authorization: 'Bearer ' + token, 'content-type': type }, body });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error('Graph ' + r.status + ': ' + ((j.error && j.error.message) || 'write refused')); return j;
 }
