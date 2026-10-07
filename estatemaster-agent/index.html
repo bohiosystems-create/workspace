@@ -4296,7 +4296,8 @@ function openDeck(deck){
   document.body.appendChild(root);document.body.style.overflow='hidden';
   const tts='speechSynthesis' in window?window.speechSynthesis:null;
   KP={deck,root,i:-1,playing:true,voice:true,cc:true,timer:null,tick:null,started:0,dur:8000,raf:[],px:0,py:0,script:kScriptFor(deck,RPTS[RSEL]),figs:null};deck.script=KP.script;KVPREV='';
-  kVoiceCheck().then(m=>{if(!KP)return;const b=root.querySelector('[data-act=voice]');root.querySelectorAll('[data-act=ask]').forEach(x=>x.style.display=m==='eleven'?'':'none');if(m==='none'){KP.voice=false;b.style.display='none'}else kVoiceBtn(b);if(m==='eleven'&&KP.deck.slides[KP.i+1]&&!KP.script.pending)kVoiceClip(kTrackText(KP.script.segs[KP.i+1]||[{t:KP.deck.slides[KP.i+1].say}]));if(m==='eleven'&&KP.i>=0&&KP.playing)kStartTimer()});
+  if(KP.script.pending)KP.script.pending.then(()=>{if(KP)kPreload(KP.i)});
+  kVoiceCheck().then(m=>{if(!KP)return;const b=root.querySelector('[data-act=voice]');root.querySelectorAll('[data-act=ask]').forEach(x=>x.style.display=m==='eleven'?'':'none');if(m==='none'){KP.voice=false;b.style.display='none'}else kVoiceBtn(b);if(m==='eleven')kPreload(KP.i);if(m==='eleven'&&KP.i>=0&&KP.playing)kStartTimer()});
   root.addEventListener('pointermove',e=>{if(!KP)return;KP.px=(e.clientX/innerWidth-.5);KP.py=(e.clientY/innerHeight-.5);root.style.setProperty('--kd-px',KP.px.toFixed(3));root.style.setProperty('--kd-py',KP.py.toFixed(3))});
   root.querySelector('.kd-toplogo').innerHTML=klogo(34,KD.CH);root.querySelector('.kd-topchev').innerHTML=kchev(34);
   root.insertAdjacentHTML('beforeend',`<div class="kd-qa" hidden><div class="kd-qa-st"></div><div class="kd-qa-q"></div><div class="kd-qa-a"></div><form class="kd-qa-form"><button class="kd-btn kd-askbtn" type="button" data-act="ask" title="Ask by voice" style="display:none">🎤</button><input placeholder="${kLang()==='ar'?'اكتبوا سؤالكم…':'Type your question…'}" aria-label="Question"><button class="kd-btn kd-primary" type="submit">${kLang()==='ar'?'اسأل':'Ask'}</button><button class="kd-btn" type="button" data-act="qaclose" aria-label="Close">✕</button></form></div>`);
@@ -4338,9 +4339,13 @@ function kGo(n){if(!KP)return;const {deck,root}=KP,to=Math.max(0,Math.min(deck.s
   setTimeout(()=>{if(!KP||KP.i!==to)return;el.classList.remove('kd-hold');kAnimate(el)},420);
   root.querySelector('.kd-footline b').textContent=to+1;root.querySelectorAll('.kd-seg span').forEach((sp,k)=>{sp.style.width=k<to?'100%':'0%'});
   const segs=kSlideSegs(to);KP.segs=segs;kCaption('');KP.dur=Math.min(26000,Math.max(7500,(kSegText(segs).split(/\s+/).length/2.5)*1000+3000));
-  if(KVOICE.mode==='eleven'&&KP.voice&&deck.slides[to+1]&&!KP.script.pending){const tn=kTrack(KP.script.segs[to+1]||[{t:deck.slides[to+1].say,f:null}],null);kVoiceClip(tn.text,'',tn.off.slice(1))}
+  kPreload(to);
   if(KP.qa&&KP.qa.pending&&KP.qa.state==='waiting'){KP.playing=false;kTakeQuestion(to,false);return}
   if(KP.playing)kStartTimer()}
+/* the voices of the next two slides are fetched ahead, so a slide starts speaking as soon as it turns (same text and
+   pauses as when it plays, so the clip is reused); the AI script's arrival triggers it too */
+function kPreload(from){if(!KP||!KP.voice||KVOICE.mode!=='eleven'||KP.script.pending)return;
+  for(const n of [from+1,from+2]){if(!KP.deck.slides[n])continue;const tn=kTrack(kSlideSegs(n),null);kVoiceClip(tn.text,'',tn.off.slice(1))}}
 function kAnimate(el){
   el.querySelectorAll('[data-count]').forEach(e=>{const v=+e.dataset.count,dec=+e.dataset.dec,pre=e.dataset.pre,suf=e.dataset.suf,t0=performance.now()+(+e.dataset.delay||0),ms=1400;
     const tick=now=>{const p=Math.min(1,Math.max(0,(now-t0)/ms)),x=v*(1-Math.pow(1-p,4));e.textContent=pre+(v<0&&x>0?'−':'')+kfmt(Math.abs(p>=1?v:x),dec)+suf;if(p<1)KP.raf.push(requestAnimationFrame(tick))};e.textContent=pre+kfmt(0,dec)+suf;KP.raf.push(requestAnimationFrame(tick))});
@@ -4353,7 +4358,7 @@ function kStartTimer(){if(!KP)return;clearTimeout(KP.timer);kStopVoice();const {
   const next=()=>{if(done||!KP||KP.i!==i)return;done=true;if(KP.qa&&KP.qa.pending){kTakeQuestion(i,true);return}if(kComposing()){kHold(i,true);return}if(i<deck.slides.length-1)kGo(i+1);else{KP.playing=false;KP.root.querySelector('[data-act=pause]').textContent='▶ Replay';}};
   const after=()=>{if(done||!KP||KP.i!==i)return;KP.timer=setTimeout(next,Math.max(900,minShow-(Date.now()-t0)))};
   KP.rawSegs=KP.script.segs[i];const segs=KP.segs||[{t:s.say,f:null}],tr=kTrack(segs,KP.figs),onEv=e=>{if(!KP||KP.i!==i)return;if(e.node){kFocus(KP.el,e.node);return}const g=segs[e.k];if(!g)return;if(KP.cc)kCaption(g.t);if(!tr.ev.some(x=>x.node&&x.at>=tr.off[e.k]&&(e.k+1>=tr.off.length||x.at<tr.off[e.k+1])))kFocus(KP.el,null)};
-  const go=async()=>{if(KP.script.pending){await Promise.race([KP.script.pending,new Promise(r=>setTimeout(r,12000))]);if(!KP||KP.i!==i||done)return;const fresh=KP.script.segs[i];if(fresh&&fresh!==KP.rawSegs){KP.rawSegs=fresh;KP.segs=kSlideSegs(i);return kStartTimer()}}
+  const go=async()=>{if(KP.script.pending&&!KP.scriptWaited){KP.scriptWaited=true;await Promise.race([KP.script.pending,new Promise(r=>setTimeout(r,6000))]);if(!KP||KP.i!==i||done)return;const fresh=KP.script.segs[i];if(fresh&&fresh!==KP.rawSegs){KP.rawSegs=fresh;KP.segs=kSlideSegs(i);return kStartTimer()}}
     if(KP.voice&&KVOICE.mode&&KVOICE.mode!=='none'){KP.timer=setTimeout(next,Math.max(KP.dur,45000));const next_=deck.slides[i+1]?kTrackText(KP.script.segs[i+1]||[{t:deck.slides[i+1].say}]):'';kSpeakTrack(tr,onEv,next_).then(spoke=>{if(!KP||KP.i!==i||done)return;clearTimeout(KP.timer);if(spoke)after();else KP.timer=setTimeout(next,Math.max(900,KP.dur-(Date.now()-t0)))});return}
     KP.pace=kPaceTrack(tr,onEv,KP.dur-1500);KP.timer=setTimeout(next,KP.dur)};
   KP.next=next;if(KP.pace){KP.pace();KP.pace=null}go()}
