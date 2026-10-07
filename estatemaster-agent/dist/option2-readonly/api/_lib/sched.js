@@ -13,11 +13,11 @@ async function load(token) {
   if (path && token) { try { saved = JSON.parse((await G.graphBytes(token, `${path}:/content`)).toString('utf8')); } catch (e) { if (!/404/.test(e.message)) err = e.message; } }
   const schedule = { ...defaults(), ...((saved && saved.schedule) || {}) };
   if (!schedule.languages || !schedule.languages.length) schedule.languages = ['en'];
-  return { schedule, log: (saved && saved.log) || [], stored: !!saved, path, err };
+  return { schedule, log: (saved && saved.log) || [], feed: (saved && saved.feed) || null, stored: !!saved, path, err };
 }
 async function save(token, st) {
   const path = filePath(); if (!path) throw new Error('EXPORTS_FOLDER is not set, so there is nowhere to keep the schedule. Set it in Vercel.');
-  try { await G.graphPut(token, `${path}:/content`, JSON.stringify({ schedule: st.schedule, log: (st.log || []).slice(0, 40) }, null, 1)); }
+  try { await G.graphPut(token, `${path}:/content`, JSON.stringify({ schedule: st.schedule, log: (st.log || []).slice(0, 40), feed: st.feed || null }, null, 1)); }
   catch (e) { throw new Error(/40[13]/.test(e.message) ? 'The server cannot write the schedule file: add Files.ReadWrite.All (application) to the Entra app and grant admin consent. Until then the Vercel variables REPORT_TIME, REPORT_DAYS and REPORT_TO apply.' : e.message); }
 }
 function parts(now, tz) {

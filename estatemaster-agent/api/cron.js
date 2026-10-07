@@ -55,7 +55,7 @@ async function scanFindings(token, since) {
   const msgs = await G.readMessages(token, since);
   if (!msgs.length) return { msgs, findings: [] };
   const system = `You read emails for a real estate development project and find any email that proposes, reports or asks approval for a change to an assumption of its financial model (sale prices, rents, construction costs and their elements, fees and commissions, contingency, timing and delays, areas, financing terms such as interest rate, margin, loan to cost, facility limits, equity terms, exit yields, land price). Requests for approval count: a discount or incentive on a number of units (state the blended effect on the average sale price, e.g. 5% off 24 of 180 units is about 0.7% off the average price), a rent-free period or a lower rent (effective rent over the term), a variation order or revised quote, a revised term sheet, a valuer's yield, a landowner's revised price.
-Return JSON only: {"findings":[{"message_id":string,"assumption":string,"new_value":string,"previous_value":string|null,"change":"the change as a modelling input, e.g. average sale price −0.7%","reason":"why it is asked for or has happened, in one sentence","quote":string,"confidence":number}]}.
+Return JSON only: {"findings":[{"message_id":string,"assumption":string,"new_value":string,"previous_value":string|null,"change":"the change as a modelling input, e.g. average sale price −0.7%","reason":"why it is asked for or has happened, in one sentence","approval":true if the email asks KINAN to approve or decide something,"deadline":"the date or time by which a decision is needed, if the email gives one, else null","quote":string,"confidence":number}]}.
 "quote" is the exact text that supports it. Include an item only if the email states, proposes or asks approval for a change; ignore everything else. Confidence 0-1. Project: ${env('PROJECT_NAME') || 'Al Narjis Mixed-Use'}.`;
   const user = msgs.map(m => `message_id: ${m.id}\nfrom: ${m.from}\ndate: ${m.date}\nsubject: ${m.subject}\n---\n${m.body}`).join('\n\n=====\n\n');
   const j = G.jsonOf(await G.ai(system, user));
@@ -123,6 +123,27 @@ async function translateAr(texts) {
   try { const j = G.jsonOf(await G.ai('Translate each English string to Modern Standard Arabic for a real estate investment report. Keep every number, unit, percentage, currency code, file name and id exactly as written. Return JSON only: {"t":[...]} in the same order.', JSON.stringify(list), 4000)); const out = {}; (j.t || []).forEach((t, i) => { if (list[i] && t) out[list[i]] = t; }); return out; } catch { return {}; }
 }
 /* Everything the daily report needs, read once: the two latest base exports, other options, checks, Outlook findings, market position. */
+/* What the report needs to say first: the open decisions in the app's Daily feed (sent by the app, with the AI's impact),
+   the emails of the last 24 hours that ask for a decision or would take the IRR under the hurdle, and likely errors in the export. */
+function urgentItems(d) {
+  const out = [], feed = d.feed && d.feed.items ? d.feed.items : [], subj = new Set(feed.map(i => i.title.toLowerCase()));
+  for (const i of feed) out.push({ src: 'feed', title: i.title, change: i.change, why: i.why, from: i.from, impact: i.impact, below: i.impact.some(m => m.below), approval: true, id: i.id });
+  for (const f of (d.flags && d.flags.findings) || []) {
+    const below = f.impact && Number.isFinite(f.impact.levered_irr) && f.impact.levered_irr < d.hurdle;
+    if (!(f.approval || below)) continue;
+    if ([...subj].some(t => t.includes(String(f.msg.subject || '').toLowerCase().slice(0, 40)))) continue;
+    out.push({ src: 'email', title: f.msg.subject, change: f.change || `${f.assumption}: ${f.previous_value ? f.previous_value + ' → ' : ''}${f.new_value}`, why: f.reason || '', from: f.msg.from, deadline: f.deadline || '', below, approval: !!f.approval,
+      impact: f.impact ? IMP.map(([k, l, u]) => ({ k, label: l, base: fmtImp(f.impact.base[k], u), value: fmtImp(f.impact[k], u), below: k === 'levered_irr' && f.impact[k] < d.hurdle })) : [] });
+  }
+  for (const c of (d.checks || []).filter(c => c.level === 'error')) out.push({ src: 'check', title: c.text, change: '', why: 'Likely error in the latest EstateMaster export', impact: [], below: false });
+  return out.sort((a, b) => (b.below - a.below) || (b.approval - a.approval));
+}
+function urgentHtml(d, ar) {
+  const items = urgentItems(d);
+  const h = `<h3 style="margin:0 0 8px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#d03b3b">${ar ? 'للعلم اليوم' : 'To know today'}</h3>`;
+  if (!items.length) return h + `<p style="margin:0 0 6px;color:${SOFT}">${ar ? 'لا قرارات معلقة ولا أخطاء مرجحة.' : 'No decision waiting and no likely error.'}${d.feed ? '' : (ar ? '' : ' (The app has not shared its Daily feed yet: open the agent once and it does.)')}</p>`;
+  return h + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:2px solid #d03b3b">` + items.slice(0, 12).map(i => `<tr>${td(`${i.below ? `<span style="display:inline-block;background:#d03b3b;color:#fff;font-size:9px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:2px 6px;border-radius:3px">${ar ? 'دون الحد' : 'below hurdle'}</span> ` : ''}${i.src === 'check' ? `<span style="display:inline-block;background:#d03b3b;color:#fff;font-size:9px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:2px 6px;border-radius:3px">${ar ? 'خطأ مرجح' : 'likely error'}</span> ` : i.approval ? `<span style="display:inline-block;background:${OR};color:#fff;font-size:9px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:2px 6px;border-radius:3px">${ar ? 'قرار مطلوب' : 'decision needed'}</span> ` : ''}<b>${esc(i.title)}</b>${i.id ? ` <span style="color:${SOFT}">${esc(i.id)}</span>` : ''}${i.change ? `<br>${esc(i.change)}` : ''}${i.why ? `<br><span style="color:${SOFT};font-size:12px">${ar ? 'السبب: ' : 'Why: '}${esc(i.why)}</span>` : ''}${i.from ? `<br><span style="color:${SOFT};font-size:12px">${esc(i.from)}${i.deadline ? ' · ' + (ar ? 'المهلة: ' : 'by ') + esc(i.deadline) : ''}</span>` : ''}`)}${td(i.impact && i.impact.length ? i.impact.map(m => `${esc(m.label)}: ${esc(m.base)} → <b style="color:${m.below ? '#d03b3b' : CH}">${esc(m.value)}</b>`).join('<br>') + `<br><span style="color:${SOFT};font-size:11px">${ar ? 'تقدير الذكاء الاصطناعي، ليس رقم إستيت ماستر' : 'AI estimate, not EstateMaster’s figure'}</span>` : '', ';width:42%')}</tr>`).join('') + `</table><p style="margin:6px 0 16px;color:${SOFT};font-size:12px">${ar ? 'كل بند ينتظر قرار شخص في التطبيق؛ لا يتغير شيء قبل الموافقة.' : `Each item waits for a person’s decision in the agent (Daily feed); nothing changes until it is approved.${d.feed ? ` Daily feed as shared by the app at ${esc(riyadh(d.feed.at))}.` : ''}`}</p>`;
+}
 async function dailyData(token, now) {
   const folder = env('EXPORTS_FOLDER'); if (!folder) return { skipped: 'EXPORTS_FOLDER is not set' };
   const j = await G.graph(token, `${folder}:/children?$select=name,lastModifiedDateTime,id,file&$orderby=lastModifiedDateTime desc&$top=50`);
@@ -131,7 +152,7 @@ async function dailyData(token, now) {
   const isBase = o => !o || /^(base|live|current|approved|main|master|as is)/i.test(o);
   const all = (j.value || []).filter(f => f.file && /\.(xlsx|xlsm|xls|csv)$/i.test(f.name)).sort((a, b) => b.lastModifiedDateTime.localeCompare(a.lastModifiedDateTime));
   const files = all.filter(f => isBase(optOf(f.name))).slice(0, 2);
-  if (!files.length) return { skipped: all.length ? `only option exports in the folder (${all.slice(0, 5).map(f => optOf(f.name)).join(', ')}); no base export` : 'no export in the folder yet' };
+  if (!files.length) return { noExport: all.length ? `only option exports in the folder (${all.slice(0, 5).map(f => optOf(f.name)).join(', ')}); no base export` : 'no EstateMaster export in the exports folder yet: upload one in the agent (Financial modelling → Upload export) and it is copied there' };
   const base = folder.replace(/\/root:.*$/, '');
   const read = async f => ({ name: f.name, at: f.lastModifiedDateTime, ...readExport(await G.graphBytes(token, `${base}/items/${f.id}/content`), f.name) });
   const [b, a] = await Promise.all(files.map(read));
@@ -166,7 +187,7 @@ async function dailyHtml(d, now, appUrl, lang) {
     : `<p style="margin:0;color:${SOFT}">${ar ? 'لا توجد افتراضات في ملف التصدير يمكن مقارنتها بالسوق (أضيفوا ورقة المدخلات).' : 'No assumption in the export the market data covers (include the Input sheet in the export).'}</p>`);
   const hurdleLine = ok == null ? (ar ? 'لا يتضمن ملف التصدير معدل العائد على حقوق الملكية.' : 'The latest export has no levered IRR.') : ok ? (ar ? `معدل العائد أعلى من الحد ${hurdle}%.` : `Levered IRR is above the ${hurdle}% hurdle.`) : `<b style="color:#d03b3b">${ar ? `معدل العائد أدنى من الحد ${hurdle}%.` : `Levered IRR is below the ${hurdle}% hurdle.`}</b>`;
   const foot = ar ? `كل الأرقام من إستيت ماستر، مقروءة من ${esc(b.name)} (${esc(riyadh(b.at))}).` : `Every figure is EstateMaster's own, read from ${esc(b.name)} (${esc(riyadh(b.at))}${b.opt ? ', option ' + esc(b.opt) : ''})${a ? ` and compared with ${esc(a.name)} (${esc(riyadh(a.at))})` : ''}${options.length ? `. Other options in the folder: ${options.map(o => esc(o.option)).join(', ')}` : ''}. Market positions and checks are the agent's. Open the agent for the full report and ▶ Play.`;
-  const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${stats}</tr></table><p style="margin:16px 0 0">${hurdleLine}</p>${table}${checksHtml}${flagsHtml}${marketHtml}<p style="margin:16px 0 0;color:${SOFT};font-size:12px">${foot}</p>`;
+  const body = urgentHtml(d, ar) + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${stats}</tr></table><p style="margin:16px 0 0">${hurdleLine}</p>${table}${checksHtml}${flagsHtml}${marketHtml}<p style="margin:16px 0 0;color:${SOFT};font-size:12px">${foot}</p>`;
   let html = frame(T('Daily EstateMaster report'), d.project, riyadh(now.toISOString()), body, appUrl);
   if (ar) html = html.replace('<html>', '<html dir="rtl" lang="ar">');
   return html;
@@ -178,8 +199,28 @@ async function reportJob(token, now, dry, appUrl, opts = {}) {
     const today = now.toLocaleDateString('en-US', { timeZone: 'Asia/Riyadh', weekday: 'short' }).toLowerCase().slice(0, 3);
     if (!days.includes(today)) return { job: 'report', skipped: `not a report day (${today})` };
   }
-  const d = await dailyData(token, now);
+  const st0 = await SCHED.load(token).catch(() => ({ feed: null }));
+  let d = await dailyData(token, now);
   if (d.skipped) return { job: 'report', skipped: d.skipped };
+  // No export in the folder: the report still goes out with what has to be known today (the Daily feed and the emails)
+  if (d.noExport) {
+    let flags = { msgs: [], findings: [], note: '' };
+    if (G.aiConfigured()) { try { flags = await scanFindings(token, new Date(now.getTime() - 864e5).toISOString()); } catch (e) { flags.note = e.message; } }
+    const hurdle = +(env('HURDLE_IRR') || 18), project = env('PROJECT_NAME') || (st0.feed && st0.feed.project) || 'Al Narjis Mixed-Use';
+    const dd = { feed: st0.feed, flags, checks: [], hurdle, project };
+    const langs = (opts.langs && opts.langs.length ? opts.langs : ['en']).filter(l => l === 'en' || l === 'ar');
+    const to = G.checkRecipients(opts.to ? [].concat(opts.to).join(',').split(/[,;\s]+/) : env('REPORT_TO').split(','));
+    const day = now.toLocaleDateString('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short' });
+    const body = l => urgentHtml(dd, l === 'ar') + (flags.findings.length ? `<h3 style="margin:22px 0 6px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:${TAUPE}">Assumption changes and approvals asked for in emails (last 24 hours)</h3><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${th('Assumption')}${th('Proposed')}${th('From')}${th('Why')}${th('Impact if applied (AI estimate)')}</tr>${findingRows(flags.findings)}</table>` : '') + `<p style="margin:16px 0 0;color:#d03b3b;font-size:13px"><b>No EstateMaster figures today:</b> ${esc(d.noExport)}.</p>`;
+    const htmls = {}; for (const l of langs) htmls[l] = frame(l === 'ar' ? 'التقرير اليومي' : 'Daily EstateMaster report', project, riyadh(now.toISOString()), body(l), appUrl).replace(l === 'ar' ? '<html>' : '\u0000', '<html dir="rtl" lang="ar">');
+    const out = { job: 'report', latest: null, note: d.noExport, project, subject: `KINAN · Daily report · ${project} · ${day}`, sent: false, langs, flags: flags.findings.map(f => ({ assumption: f.assumption, new_value: f.new_value, from: f.msg.from })) };
+    if (to.bad.length) out.rejected = to.bad;
+    if (dry) { out.preview = htmls[langs[0]]; return out; }
+    if (!to.ok.length) { out.note = 'REPORT_TO is not set (or has no internal address): report not sent'; return out; }
+    for (const l of langs) await G.sendMail(token, { to: to.ok, subject: out.subject, html: htmls[l] });
+    out.sent = true; out.to = to.ok; return out;
+  }
+  d.feed = st0.feed;
   const { b, a, checks, flags, market, options } = d;
   const langs = (opts.langs && opts.langs.length ? opts.langs : ['en']).filter(l => l === 'en' || l === 'ar');
   const to = G.checkRecipients(opts.to ? [].concat(opts.to).join(',').split(/[,;\s]+/) : env('REPORT_TO').split(','));

@@ -3,6 +3,8 @@
 //   GET                 → { schedule, next, stored, allowed, check, ready, history }
 //   POST {action:'save', schedule:{enabled,time,timezone,days,recipients,languages}, by}
 //   POST {action:'preview'|'test'|'snapshot'}
+//   POST {action:'export', name, data (base64)}  an export uploaded in the app, copied into EXPORTS_FOLDER for the server's report
+//   POST {action:'feed', items:[…]}               the Daily feed's open items (with the AI's impact), for the report's "To know today"
 // The schedule itself lives in a JSON file next to the exports (see api/_lib/sched.js); the 15-minute tick in api/cron.js sends it.
 const G = require('./_lib/graph');
 const SCHED = require('./_lib/sched');
@@ -57,6 +59,21 @@ module.exports = async function handler(req, res) {
       st.schedule = { enabled: !!s.enabled, time, timezone: s.timezone, days, recipients: list.join(', '), languages, updatedBy: String(b.by || '').slice(0, 60), updatedAt: now.toISOString() };
       await SCHED.save(token, st);
       return G.send(res, 200, { saved: true, ...(await state(token)) });
+    }
+    if (b.action === 'export') {
+      const name = String(b.name || '').replace(/[\\/:*?"<>|#%]+/g, '_').trim().slice(0, 120), data = String(b.data || '');
+      if (!/\.(xlsx|xlsm|xls|csv)$/i.test(name)) throw new Error('Only Excel or CSV exports are copied to the exports folder.');
+      if (!data || data.length > 5.5e6) throw new Error('The export is empty or larger than 4 MB.');
+      if (!env('EXPORTS_FOLDER')) throw new Error('EXPORTS_FOLDER is not set in Vercel.');
+      try { await G.graphPut(token, `${env('EXPORTS_FOLDER')}/${encodeURIComponent(name)}:/content`, Buffer.from(data, 'base64'), 'application/octet-stream'); }
+      catch (e) { throw new Error(/40[13]/.test(e.message) ? 'The server cannot write to the exports folder: add Files.ReadWrite.All (application) to the Entra app and grant admin consent.' : e.message); }
+      return G.send(res, 200, { stored: true, name, ...(await state(token)) });
+    }
+    if (b.action === 'feed') {
+      const st = await SCHED.load(token);
+      st.feed = { at: now.toISOString(), project: String(b.project || '').slice(0, 80), items: (Array.isArray(b.items) ? b.items : []).slice(0, 25).map(i => ({ id: String(i.id || '').slice(0, 20), kind: String(i.kind || '').slice(0, 20), title: String(i.title || '').slice(0, 200), change: String(i.change || '').slice(0, 300), why: String(i.why || '').slice(0, 300), from: String(i.from || '').slice(0, 80), at: String(i.at || '').slice(0, 30), impact: Array.isArray(i.impact) ? i.impact.slice(0, 3).map(m => ({ k: String(m.k || '').slice(0, 20), label: String(m.label || '').slice(0, 40), base: String(m.base || '').slice(0, 30), value: String(m.value || '').slice(0, 30), below: !!m.below })) : [], by: String(i.by || '').slice(0, 80), urgent: !!i.urgent })) };
+      await SCHED.save(token, st);
+      return G.send(res, 200, { stored: true, items: st.feed.items.length });
     }
     if (b.action === 'preview' || b.action === 'snapshot' || b.action === 'test') {
       const st = await SCHED.load(token), s = st.schedule;
