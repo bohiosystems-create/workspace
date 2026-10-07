@@ -5,7 +5,7 @@ loaded; everything else is labelled as the agent's estimate. Nothing changes wit
 
 ## 0. Layout
 - Projects menu on the left edge (shows when the cursor reaches it); **+** creates a project from an EstateMaster export.
-- Tabs: Reports, Daily feed, Financial modelling, Assumptions, Scenarios & stress, Reports. Integrations, market data, Outlook, voice, AI routing and the architecture notes sit under the ⚙ Settings gear.
+- Tabs: Reports, Assumptions, Daily feed, Financial modelling, Market data, Assumptions, Scenarios & stress, Reports. Integrations, market data, Outlook, voice, AI routing and the architecture notes sit under the ⚙ Settings gear.
 - Assumptions: every input with its market position; test any change with Claude and OpenAI calculating independently, checking each other and resolving differences. Every result is an AI calc, bold and clickable for both workings.
 - The chat (orange Ask button, bottom right; same drawer as the marketing agent): answers from EstateMaster's figures and the data library and reasons on them through the AI (what-ifs, stress tests, sensitivities, comparisons, totals). Every figure carries its origin: **EstateMaster** (read from the export), **Agent estimate** (the replica, never passed off as EstateMaster's) or **AI calc** (the AI's arithmetic). Each tagged figure is bold and clickable: a window shows how it was worked out. Unlabelled figures in an AI answer are flagged.
 - EstateMaster's own results: the stored Options / Stages exported from EstateMaster are listed as scenarios it calculated, and the 1-way / 2-way sensitivity tables saved in the export are read and shown as EstateMaster's figures; a what-if that matches a saved cell is answered with EstateMaster's figure, not an estimate.
@@ -52,3 +52,9 @@ loaded; everything else is labelled as the agent's estimate. Nothing changes wit
 
 ## Not in this option
 - Writing to EstateMaster, running it, or reading it without an analyst's export (Option 3 adds the control workbook; Option 1 adds the runner).
+
+## Added
+- **Sensitivity table** (Scenarios & stress): a text box by each axis; the agent pins down the exact assumption from plain words (and asks when unsure), then Claude and OpenAI calculate every cell from EstateMaster's figures and check each other (cells are AI calcs, clickable for both workings; the base cell is EstateMaster's; EstateMaster's own saved table is used when the export has it). Also from the chat: "sensitivity of the IRR to construction cost and sale price".
+- **Daily feed**: the effect of every proposed change (email proposals, suggestions) is worked out live by Claude and OpenAI (cross-checked) and shown on the card with a follow-up box into the chat; the daily report lists the IRR if approved. EstateMaster's own figure comes once an analyst applies the change.
+- **Upload a model** (+ in the Projects menu): the chat opens on it right away with EstateMaster's figures and questions to start from; the agent reads every input of the export (`export_assumptions`).
+- **Market data** page: transactions, rentals, demographics, regulations and FARs by plot (mock data), each downloadable as Excel.

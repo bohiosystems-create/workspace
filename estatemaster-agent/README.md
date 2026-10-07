@@ -67,8 +67,8 @@ Test locally with `vercel dev` (it reads a local `.env`).
   Links → Excel, or the Summary and Input sheets pasted as values), the agent reads the title, asset type, currency,
   figures, assumptions and sensitivity tables, and opens the project. A project made from an export has no replica model:
   its figures are EstateMaster's, and every what-if goes to the cross-checked AI test below.
-- **Tabs:** Reports, Daily feed, Financial modelling (Options 2 and 3), Assumptions, Scenarios & stress (sensitivity
-  grids, the explorer, the scenario generator, the stress library, tornado, headroom) and Reports. The integration
+- **Tabs:** Reports, Assumptions, Daily feed, Financial modelling (Options 2 and 3), Market data, Assumptions, Scenarios & stress (sensitivity
+  table (plain-language axes, cross-checked AI cells), the scenario generator, the stress library, tornado, headroom) and Reports. The integration
   cards are gone from the pages: integrations and feeds are listed under ⚙ Settings → Integrations, and the market
   check moved to ⚙ Settings → Market data (it also runs in the daily report).
 - **Assumptions:** every assumption of the project (EstateMaster's inputs from the export, or the approved register),
@@ -107,7 +107,7 @@ Every request is routed automatically; the badge on each answer shows the route.
 
 | Request | Route | AI model (primary → failover) |
 |---|---|---|
-| Assumption changes, stress tests, sensitivities, headroom, explorer, capital structure | EstateMaster calculation | none |
+| Assumption changes, stress tests, sensitivities, headroom, capital structure | EstateMaster calculation | none |
 | Zoning checks, Outlook, "why did X change" | Data query | none |
 | Market benchmarking | Data query + commentary | OpenAI gpt-5-mini → Claude Sonnet 5.5 |
 | IC report narrative, memos | EstateMaster numbers + narrative | Claude Opus 5.5 → OpenAI gpt-5 |
@@ -154,7 +154,7 @@ reports; every other option is listed on the Scenarios tab as a scenario EstateM
 The saved sensitivity tables are shown there as EstateMaster's own figures (coral below the hurdle), and the chat uses
 them before estimating anything. The morning report on the server follows the base option too.
 
-Every figure the app computes itself (live returns, stress tests, sensitivities, the explorer, the napkin) is labelled
+Every figure the app computes itself (live returns, stress tests, sensitivities, the napkin) is labelled
 as the agent's **estimate**. EstateMaster's own figures come only from the runner's export, are labelled
 **EstateMaster**, and are tied to the exact working copy they were calculated for: change anything and the figure is
 shown as out of date. "Check in EstateMaster" (Agent tab, chat, or the agent's `check_in_estatemaster` tool) runs the
