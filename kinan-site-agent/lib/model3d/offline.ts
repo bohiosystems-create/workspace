@@ -112,22 +112,35 @@ export function parseOffline(docs: InDoc[]): { raw: Record<string, unknown>; log
 
   // ---- programme: activity → building (by ID prefix or name) and phase (by keywords)
   const acts: Record<string, string>[] = [];
-  let pStart = "", pFinish = "";
+  let pStart = "", pFinish = "", baselineFinish = "";
   if (prog) {
-    const h = prog.head, iId = col(h, "activity id", /^id$/i), iN = col(h, "activity name", "description", "task"), iS = col(h, "start"), iF = col(h, "finish", "end");
+    // current (actual / forecast) dates first; baseline columns ("BL Start", "Baseline Finish") read separately
+    const h = prog.head, cur = (k: RegExp) => h.findIndex((x) => k.test(x) && !/\b(bl|baseline|planned)\b/i.test(x)), bl = (k: RegExp) => h.findIndex((x) => k.test(x) && /\b(bl|baseline)\b/i.test(x));
+    const iId = col(h, "activity id", /^id$/i), iN = col(h, "activity name", "description", "task"), iS = cur(/start/i), iF = cur(/finish|end/i);
+    const iBS = bl(/start/i), iBF = bl(/finish|end/i), iTF = col(h, "total float", /^float$/i), iCr = col(h, /^critical$/i), iPc = col(h, "% complete", "percent complete", /^progress/i);
+    let blMax = "";
     let mapped = 0;
     for (const r of prog.rows) {
       const id = r[iId] ?? "", name = r[iN] ?? "", s = parseDate(r[iS] ?? ""), f = parseDate(r[iF] ?? "");
       if (!s || !f) continue;
       if (!pStart || s < pStart) pStart = s; if (!pFinish || f > pFinish) pFinish = f;
+      const blf = iBF >= 0 ? parseDate(r[iBF] ?? "") : ""; if (blf && blf > blMax) blMax = blf;
       const ph = phaseOf(name); if (!ph) continue;
       const pre = id.split(/[-_ ]/)[0];
       const b = bs.find((x) => x.id === pre) ?? bs.find((x) => name.toLowerCase().includes(String(x.name).toLowerCase()));
       if (!b) continue;
-      acts.push({ id, building: b.id, phase: ph, name, start: s, finish: f, source: `${prog.doc.name} · ${id}` }); mapped++;
+      const a: Record<string, unknown> = { id, building: b.id, phase: ph, name, start: s, finish: f, source: `${prog.doc.name} · ${id}` };
+      const bls = iBS >= 0 ? parseDate(r[iBS] ?? "") : "", blf2 = iBF >= 0 ? parseDate(r[iBF] ?? "") : "";
+      if (bls && blf2) { a.baselineStart = bls; a.baselineFinish = blf2; }
+      if (iTF >= 0 && (r[iTF] ?? "").trim() !== "" && Number.isFinite(n(r[iTF]))) a.float = n(r[iTF]);
+      if (iCr >= 0 && (r[iCr] ?? "").trim()) a.critical = /^(y|yes|true|1)$/i.test(r[iCr].trim());
+      if (iPc >= 0 && Number.isFinite(n(r[iPc]))) a.progress = n(r[iPc]);
+      acts.push(a as Record<string, string>); mapped++;
     }
     const ddp = /data date\s*([0-9A-Za-z-]+)/i.exec(prog.doc.text);
-    sources.push({ file: prog.doc.name, used: `${mapped} activities mapped to buildings and phases` });
+    if (blMax) baselineFinish = blMax;
+    const logic = acts.filter((a) => (a as Record<string, unknown>).float !== undefined).length;
+    sources.push({ file: prog.doc.name, used: `${mapped} activities mapped to buildings and phases${logic ? `; total float, critical flags${iPc >= 0 ? ", % complete" : ""}${iBF >= 0 ? " and baseline dates" : ""} read for ${logic}` : ""}` });
     log.push({ step: "Programme", detail: `${mapped} activities from ${prog.doc.name}${ddp ? ` (data date ${ddp[1]})` : ""}` });
   }
 
@@ -167,7 +180,7 @@ export function parseOffline(docs: InDoc[]): { raw: Record<string, unknown>; log
   const name = /^#\s*(.+?)\s*[—–-]\s*(?:project brief|brief)/im.exec(all)?.[1] ?? /project[:\s]+([A-Z][\w\s]+?)(?:\s*[—–-]|\n)/.exec(all)?.[1] ?? "Generated project";
   const location = /\*\*Location:\*\*\s*([^·\n]+)/.exec(all)?.[1]?.trim();
   return {
-    raw: { name, location, site: { width, depth }, roads, zones, gates, cranes, buildings: bs, schedule: { start: pStart, finish: pFinish, dataDate: dataDate || pStart, activities: acts }, assumptions, sources },
+    raw: { name, location, site: { width, depth }, roads, zones, gates, cranes, buildings: bs, schedule: { start: pStart, finish: pFinish, dataDate: dataDate || pStart, ...(baselineFinish ? { baselineFinish } : {}), activities: acts }, assumptions, sources },
     log,
   };
 }

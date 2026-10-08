@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "build:html": "node scripts/brand.mjs && node standalone/build.mjs",
     "brand": "node scripts/brand.mjs",
-    "prebuild": "node scripts/brand.mjs"
+    "prebuild": "node scripts/brand.mjs",
+    "demo-pack": "node scripts/demo-pack.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
@@ -33,5 +34,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "allowScripts": {
+    "esbuild": true
   }
 }

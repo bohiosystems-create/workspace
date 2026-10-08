@@ -1,0 +1,88 @@
+# Primavera P6 export — Kinan Bay Residences — Layout "Update UP-15" — Baseline BL-02 — Data Date 01-Oct-26
+# Start / Finish = actual (A) or forecast; BL = baseline BL-02; Total Float in calendar days against the contract completion (BL-02 practical completion)
+Activity ID,Activity Name,WBS,Original Duration,Remaining Duration,Start,Finish,BL Start,BL Finish,Total Float,Critical,Predecessors,Activity % Complete
+KB-M-000,"Notice to Proceed",KB.0,0,0,01-Jul-25 A,01-Jul-25 A,01-Jul-25,01-Jul-25,,No,"",100%
+KB-EN-010,"Site mobilisation, hoarding & enabling works",KB.0.1,45,0,01-Jul-25 A,14-Aug-25 A,01-Jul-25,14-Aug-25,,No,"KB-M-000 FS",100%
+T1-SUB-10,"Bay Tower 1 — piling, excavation & raft",KB.1.1,184,0,01-Aug-25 A,31-Jan-26 A,01-Aug-25,31-Jan-26,,No,"KB-EN-010 SS+31",100%
+T1-STR-20,"Bay Tower 1 — superstructure L1–L34",KB.1.2,410,160,01-Feb-26 A,09-Mar-27,01-Feb-26,17-Mar-27,90,No,"T1-SUB-10 FS",61%
+T1-FAC-30,"Bay Tower 1 — unitised curtain wall",KB.1.3,337,277,01-Aug-26 A,04-Jul-27,01-Aug-26,03-Jul-27,302,No,"T1-STR-20 SS+181; T1-STR-20 FF+108",18%
+T1-FIT-40,"Bay Tower 1 — MEP, fit-out & finishes",KB.1.4,458,458,01-Nov-26,01-Feb-28,01-Nov-26,01-Feb-28,90,No,"T1-STR-20 SS+273; T1-STR-20 FF+321",0%
+T1-HO-50,"Bay Tower 1 — testing, commissioning & handover",KB.1.5,91,91,02-Feb-28,02-May-28,02-Feb-28,02-May-28,90,No,"T1-FAC-30 FS; T1-FIT-40 FS; KB-M-500 FS",0%
+T2-SUB-10,"Bay Tower 2 — piling, excavation & raft",KB.2.1,168,0,01-Sep-25 A,15-Feb-26 A,01-Sep-25,15-Feb-26,,No,"KB-EN-010 SS+62",100%
+T2-STR-20,"Bay Tower 2 — superstructure L1–L28",KB.2.2,350,123,16-Feb-26 A,31-Jan-27,16-Feb-26,31-Jan-27,151,No,"T2-SUB-10 FS",65%
+T2-FAC-30,"Bay Tower 2 — unitised curtain wall",KB.2.3,318,271,04-Jul-26 A,28-Jun-27,04-Jul-26,17-May-27,307,No,"T2-STR-20 SS+138; T2-STR-20 FF+106",15%
+T2-FIT-40,"Bay Tower 2 — MEP, fit-out & finishes",KB.2.4,427,427,01-Oct-26,01-Dec-27,01-Oct-26,01-Dec-27,151,No,"T2-STR-20 SS+227; T2-STR-20 FF+304",0%
+T2-HO-50,"Bay Tower 2 — testing, commissioning & handover",KB.2.5,92,92,02-Dec-27,02-Mar-28,02-Dec-27,02-Mar-28,151,No,"T2-FAC-30 FS; T2-FIT-40 FS; KB-M-500 FS",0%
+H1-SUB-10,"Waterfront Hotel — piling, excavation & raft",KB.3.1,183,0,01-Nov-25 A,02-May-26 A,01-Nov-25,02-May-26,,No,"KB-EN-010 SS+123",100%
+H1-STR-20,"Waterfront Hotel — superstructure L1–L16",KB.3.2,304,177,03-May-26 A,26-Mar-27,03-May-26,02-Mar-27,-24,Yes,"H1-SUB-10 FS",42%
+H1-FAC-30,"Waterfront Hotel — unitised curtain wall",KB.3.3,304,304,25-Oct-26,24-Aug-27,01-Oct-26,31-Jul-27,252,No,"H1-STR-20 SS+151; H1-STR-20 FF+151",0%
+H1-FIT-40,"Waterfront Hotel — MEP, fit-out & finishes",KB.3.4,488,488,25-Jan-27,26-May-28,01-Jan-27,02-May-28,-24,Yes,"H1-STR-20 SS+243; H1-STR-20 FF+427",0%
+H1-HO-50,"Waterfront Hotel — testing, commissioning & handover",KB.3.5,90,90,27-May-28,24-Aug-28,03-May-28,31-Jul-28,-24,Yes,"H1-FAC-30 FS; H1-FIT-40 FS; KB-M-500 FS",0%
+P1-SUB-10,"Bay Retail Podium — piling, excavation & raft",KB.4.1,200,0,15-Aug-25 A,02-Mar-26 A,15-Aug-25,02-Mar-26,,No,"KB-EN-010 SS+45",100%
+P1-STR-20,"Bay Retail Podium — superstructure L1–L3",KB.4.2,212,0,03-Mar-26 A,30-Sep-26 A,03-Mar-26,30-Sep-26,,No,"P1-SUB-10 FS",100%
+P1-FAC-30,"Bay Retail Podium — cladding & glazing",KB.4.3,245,184,01-Aug-26 A,02-Apr-27,01-Aug-26,02-Apr-27,216,No,"P1-STR-20 SS+151; P1-STR-20 FF+184",25%
+P1-FIT-40,"Bay Retail Podium — MEP, fit-out & finishes",KB.4.4,488,488,01-Nov-26,02-Mar-28,01-Nov-26,02-Mar-28,59,No,"P1-STR-20 SS+243; P1-STR-20 FF+519",0%
+P1-HO-50,"Bay Retail Podium — testing, commissioning & handover",KB.4.5,92,92,03-Mar-28,02-Jun-28,03-Mar-28,02-Jun-28,59,No,"P1-FAC-30 FS; P1-FIT-40 FS; KB-M-500 FS",0%
+MS-SUB-10,"Multi-Storey Car Park — piling, excavation & raft",KB.5.1,106,0,01-Feb-26 A,17-May-26 A,01-Feb-26,17-May-26,,No,"KB-EN-010 SS+215",100%
+MS-STR-20,"Multi-Storey Car Park — superstructure L1–L6",KB.5.2,197,62,18-May-26 A,01-Dec-26,18-May-26,30-Nov-26,393,No,"MS-SUB-10 FS",69%
+MS-FAC-30,"Multi-Storey Car Park — cladding & glazing",KB.5.3,153,153,02-Oct-26,03-Mar-27,01-Oct-26,02-Mar-27,485,No,"MS-STR-20 SS+136; MS-STR-20 FF+92",0%
+MS-FIT-40,"Multi-Storey Car Park — MEP, fit-out & finishes",KB.5.4,153,153,02-Jan-27,03-Jun-27,01-Jan-27,02-Jun-27,393,No,"MS-STR-20 SS+228; MS-STR-20 FF+184",0%
+MS-HO-50,"Multi-Storey Car Park — testing, commissioning & handover",KB.5.5,31,31,04-Jun-27,04-Jul-27,03-Jun-27,03-Jul-27,393,No,"MS-FAC-30 FS; MS-FIT-40 FS; KB-M-500 FS",0%
+SC-SUB-10,"Community School — piling, excavation & raft",KB.6.1,90,0,03-Jun-26 A,31-Aug-26 A,03-Jun-26,31-Aug-26,,No,"KB-EN-010 SS+337",100%
+SC-STR-20,"Community School — superstructure L1–L3",KB.6.2,183,154,01-Sep-26 A,03-Mar-27,01-Sep-26,02-Mar-27,211,No,"SC-SUB-10 FS",16%
+SC-FAC-30,"Community School — cladding & glazing",KB.6.3,153,153,02-Jan-27,03-Jun-27,01-Jan-27,02-Jun-27,363,No,"SC-STR-20 SS+122; SC-STR-20 FF+92",0%
+SC-FIT-40,"Community School — MEP, fit-out & finishes",KB.6.4,213,213,04-Apr-27,02-Nov-27,03-Apr-27,01-Nov-27,211,No,"SC-STR-20 SS+214; SC-STR-20 FF+244",0%
+SC-HO-50,"Community School — testing, commissioning & handover",KB.6.5,61,61,03-Nov-27,02-Jan-28,02-Nov-27,01-Jan-28,211,No,"SC-FAC-30 FS; SC-FIT-40 FS; KB-M-500 FS",0%
+MQ-SUB-10,"Bay Mosque — piling, excavation & raft",KB.7.1,74,0,04-Jul-26 A,15-Sep-26 A,04-Jul-26,15-Sep-26,,No,"KB-EN-010 SS+368",100%
+MQ-STR-20,"Bay Mosque — superstructure frame & dome",KB.7.2,199,184,16-Sep-26 A,02-Apr-27,16-Sep-26,02-Apr-27,228,No,"MQ-SUB-10 FS",8%
+MQ-FAC-30,"Bay Mosque — cladding & glazing",KB.7.3,153,153,01-Feb-27,03-Jul-27,01-Feb-27,03-Jul-27,349,No,"MQ-STR-20 SS+138; MQ-STR-20 FF+92",0%
+MQ-FIT-40,"Bay Mosque — MEP, fit-out & finishes",KB.7.4,183,183,03-May-27,01-Nov-27,03-May-27,01-Nov-27,228,No,"MQ-STR-20 SS+229; MQ-STR-20 FF+213",0%
+MQ-HO-50,"Bay Mosque — testing, commissioning & handover",KB.7.5,45,45,02-Nov-27,16-Dec-27,02-Nov-27,16-Dec-27,228,No,"MQ-FAC-30 FS; MQ-FIT-40 FS; KB-M-500 FS",0%
+UT-SUB-10,"Substation & Utility Building — piling, excavation & raft",KB.8.1,61,0,03-Apr-26 A,02-Jun-26 A,03-Apr-26,02-Jun-26,,No,"KB-EN-010 SS+276",100%
+UT-STR-20,"Substation & Utility Building — superstructure frame & dome",KB.8.2,90,0,03-Jun-26 A,31-Aug-26 A,03-Jun-26,31-Aug-26,,No,"UT-SUB-10 FS",100%
+UT-FAC-30,"Substation & Utility Building — cladding & glazing",KB.8.3,92,32,01-Aug-26 A,01-Nov-26,01-Aug-26,31-Oct-26,517,No,"UT-STR-20 SS+59; UT-STR-20 FF+61",66%
+UT-FIT-40,"Substation & Utility Building — MEP, fit-out & finishes",KB.8.4,153,123,01-Sep-26 A,31-Jan-27,01-Sep-26,31-Jan-27,426,No,"UT-STR-20 SS+90; UT-STR-20 FF+153",20%
+UT-HO-50,"Substation & Utility Building — testing, commissioning & handover",KB.8.5,15,15,01-Feb-27,15-Feb-27,01-Feb-27,15-Feb-27,426,No,"UT-FAC-30 FS; UT-FIT-40 FS",0%
+TH01-SUB-10,"Townhouse 1 — piling, excavation & raft",KB.9.1,31,0,03-May-26 A,02-Jun-26 A,03-May-26,02-Jun-26,,No,"KB-EN-010 SS+306",100%
+TH01-STR-20,"Townhouse 1 — superstructure L1–L3",KB.9.2,75,0,03-Jun-26 A,16-Aug-26 A,03-Jun-26,16-Aug-26,,No,"TH01-SUB-10 FS",100%
+TH01-FAC-30,"Townhouse 1 — cladding & glazing",KB.9.3,46,0,01-Aug-26 A,15-Sep-26 A,01-Aug-26,15-Sep-26,,No,"TH01-STR-20 SS+59; TH01-STR-20 FF+30",100%
+TH01-FIT-40,"Townhouse 1 — MEP, fit-out & finishes",KB.9.4,91,61,31-Aug-26 A,30-Nov-26,31-Aug-26,29-Nov-26,589,No,"TH01-STR-20 SS+89; TH01-STR-20 FF+105",34%
+TH01-HO-50,"Townhouse 1 — testing, commissioning & handover",KB.9.5,20,20,01-Dec-26,20-Dec-26,30-Nov-26,19-Dec-26,589,No,"TH01-FAC-30 FS; TH01-FIT-40 FS",0%
+TH02-SUB-10,"Townhouse 2 — piling, excavation & raft",KB.10.1,31,0,24-May-26 A,23-Jun-26 A,24-May-26,23-Jun-26,,No,"KB-EN-010 SS+327",100%
+TH02-STR-20,"Townhouse 2 — superstructure L1–L3",KB.10.2,75,0,24-Jun-26 A,06-Sep-26 A,24-Jun-26,06-Sep-26,,No,"TH02-SUB-10 FS",100%
+TH02-FAC-30,"Townhouse 2 — cladding & glazing",KB.10.3,46,6,22-Aug-26 A,06-Oct-26,22-Aug-26,06-Oct-26,644,No,"TH02-STR-20 SS+59; TH02-STR-20 FF+30",87%
+TH02-FIT-40,"Townhouse 2 — MEP, fit-out & finishes",KB.10.4,91,81,21-Sep-26 A,20-Dec-26,21-Sep-26,20-Dec-26,569,No,"TH02-STR-20 SS+89; TH02-STR-20 FF+105",11%
+TH02-HO-50,"Townhouse 2 — testing, commissioning & handover",KB.10.5,20,20,21-Dec-26,09-Jan-27,21-Dec-26,09-Jan-27,569,No,"TH02-FAC-30 FS; TH02-FIT-40 FS",0%
+TH03-SUB-10,"Townhouse 3 — piling, excavation & raft",KB.11.1,31,0,14-Jun-26 A,14-Jul-26 A,14-Jun-26,14-Jul-26,,No,"KB-EN-010 SS+348",100%
+TH03-STR-20,"Townhouse 3 — superstructure L1–L3",KB.11.2,75,0,15-Jul-26 A,27-Sep-26 A,15-Jul-26,27-Sep-26,,No,"TH03-SUB-10 FS",100%
+TH03-FAC-30,"Townhouse 3 — cladding & glazing",KB.11.3,46,28,12-Sep-26 A,28-Oct-26,12-Sep-26,27-Oct-26,622,No,"TH03-STR-20 SS+59; TH03-STR-20 FF+30",41%
+TH03-FIT-40,"Townhouse 3 — MEP, fit-out & finishes",KB.11.4,91,91,12-Oct-26,10-Jan-27,12-Oct-26,10-Jan-27,548,No,"TH03-STR-20 SS+89; TH03-STR-20 FF+105",0%
+TH03-HO-50,"Townhouse 3 — testing, commissioning & handover",KB.11.5,20,20,11-Jan-27,30-Jan-27,11-Jan-27,30-Jan-27,548,No,"TH03-FAC-30 FS; TH03-FIT-40 FS",0%
+TH04-SUB-10,"Townhouse 4 — piling, excavation & raft",KB.12.1,31,0,05-Jul-26 A,04-Aug-26 A,05-Jul-26,04-Aug-26,,No,"KB-EN-010 SS+369",100%
+TH04-STR-20,"Townhouse 4 — superstructure L1–L3",KB.12.2,75,18,05-Aug-26 A,18-Oct-26,05-Aug-26,18-Oct-26,527,No,"TH04-SUB-10 FS",76%
+TH04-FAC-30,"Townhouse 4 — cladding & glazing",KB.12.3,46,46,03-Oct-26,17-Nov-26,03-Oct-26,17-Nov-26,602,No,"TH04-STR-20 SS+59; TH04-STR-20 FF+30",0%
+TH04-FIT-40,"Townhouse 4 — MEP, fit-out & finishes",KB.12.4,91,91,02-Nov-26,31-Jan-27,02-Nov-26,31-Jan-27,527,No,"TH04-STR-20 SS+89; TH04-STR-20 FF+105",0%
+TH04-HO-50,"Townhouse 4 — testing, commissioning & handover",KB.12.5,20,20,01-Feb-27,20-Feb-27,01-Feb-27,20-Feb-27,527,No,"TH04-FAC-30 FS; TH04-FIT-40 FS",0%
+TH05-SUB-10,"Townhouse 5 — piling, excavation & raft",KB.13.1,31,0,26-Jul-26 A,25-Aug-26 A,26-Jul-26,25-Aug-26,,No,"KB-EN-010 SS+390",100%
+TH05-STR-20,"Townhouse 5 — superstructure L1–L3",KB.13.2,75,39,26-Aug-26 A,08-Nov-26,26-Aug-26,08-Nov-26,506,No,"TH05-SUB-10 FS",48%
+TH05-FAC-30,"Townhouse 5 — cladding & glazing",KB.13.3,46,46,24-Oct-26,08-Dec-26,24-Oct-26,08-Dec-26,581,No,"TH05-STR-20 SS+59; TH05-STR-20 FF+30",0%
+TH05-FIT-40,"Townhouse 5 — MEP, fit-out & finishes",KB.13.4,91,91,23-Nov-26,21-Feb-27,23-Nov-26,21-Feb-27,506,No,"TH05-STR-20 SS+89; TH05-STR-20 FF+105",0%
+TH05-HO-50,"Townhouse 5 — testing, commissioning & handover",KB.13.5,20,20,22-Feb-27,13-Mar-27,22-Feb-27,13-Mar-27,506,No,"TH05-FAC-30 FS; TH05-FIT-40 FS",0%
+TH06-SUB-10,"Townhouse 6 — piling, excavation & raft",KB.14.1,31,0,16-Aug-26 A,15-Sep-26 A,16-Aug-26,15-Sep-26,,No,"KB-EN-010 SS+411",100%
+TH06-STR-20,"Townhouse 6 — superstructure L1–L3",KB.14.2,75,60,16-Sep-26 A,29-Nov-26,16-Sep-26,29-Nov-26,485,No,"TH06-SUB-10 FS",20%
+TH06-FAC-30,"Townhouse 6 — cladding & glazing",KB.14.3,46,46,14-Nov-26,29-Dec-26,14-Nov-26,29-Dec-26,560,No,"TH06-STR-20 SS+59; TH06-STR-20 FF+30",0%
+TH06-FIT-40,"Townhouse 6 — MEP, fit-out & finishes",KB.14.4,91,91,14-Dec-26,14-Mar-27,14-Dec-26,14-Mar-27,485,No,"TH06-STR-20 SS+89; TH06-STR-20 FF+105",0%
+TH06-HO-50,"Townhouse 6 — testing, commissioning & handover",KB.14.5,20,20,15-Mar-27,03-Apr-27,15-Mar-27,03-Apr-27,485,No,"TH06-FAC-30 FS; TH06-FIT-40 FS",0%
+TH07-SUB-10,"Townhouse 7 — piling, excavation & raft",KB.15.1,31,6,06-Sep-26 A,06-Oct-26,06-Sep-26,06-Oct-26,464,No,"KB-EN-010 SS+432",81%
+TH07-STR-20,"Townhouse 7 — superstructure L1–L3",KB.15.2,75,75,07-Oct-26,20-Dec-26,07-Oct-26,20-Dec-26,464,No,"TH07-SUB-10 FS",0%
+TH07-FAC-30,"Townhouse 7 — cladding & glazing",KB.15.3,46,46,05-Dec-26,19-Jan-27,05-Dec-26,19-Jan-27,539,No,"TH07-STR-20 SS+59; TH07-STR-20 FF+30",0%
+TH07-FIT-40,"Townhouse 7 — MEP, fit-out & finishes",KB.15.4,91,91,04-Jan-27,04-Apr-27,04-Jan-27,04-Apr-27,464,No,"TH07-STR-20 SS+89; TH07-STR-20 FF+105",0%
+TH07-HO-50,"Townhouse 7 — testing, commissioning & handover",KB.15.5,20,20,05-Apr-27,24-Apr-27,05-Apr-27,24-Apr-27,464,No,"TH07-FAC-30 FS; TH07-FIT-40 FS",0%
+TH08-SUB-10,"Townhouse 8 — piling, excavation & raft",KB.16.1,31,27,27-Sep-26 A,27-Oct-26,27-Sep-26,27-Oct-26,443,No,"KB-EN-010 SS+453",13%
+TH08-STR-20,"Townhouse 8 — superstructure L1–L3",KB.16.2,75,75,28-Oct-26,10-Jan-27,28-Oct-26,10-Jan-27,443,No,"TH08-SUB-10 FS",0%
+TH08-FAC-30,"Townhouse 8 — cladding & glazing",KB.16.3,46,46,26-Dec-26,09-Feb-27,26-Dec-26,09-Feb-27,518,No,"TH08-STR-20 SS+59; TH08-STR-20 FF+30",0%
+TH08-FIT-40,"Townhouse 8 — MEP, fit-out & finishes",KB.16.4,91,91,25-Jan-27,25-Apr-27,25-Jan-27,25-Apr-27,443,No,"TH08-STR-20 SS+89; TH08-STR-20 FF+105",0%
+TH08-HO-50,"Townhouse 8 — testing, commissioning & handover",KB.16.5,20,20,26-Apr-27,15-May-27,26-Apr-27,15-May-27,443,No,"TH08-FAC-30 FS; TH08-FIT-40 FS",0%
+KB-M-500,"Permanent power — SEC energisation of the substation",KB.8,0,0,02-Mar-27,02-Mar-27,02-Mar-27,02-Mar-27,426,No,"UT-HO-50 FS+14",0%
+KB-IN-900,"External works, roads & landscaping",KB.9,240,240,03-May-27,28-Dec-27,03-May-27,28-Dec-27,216,No,"P1-FAC-30 FS+30",0%
+KB-M-990,"Practical completion — Kinan Bay Residences",KB.9,0,0,25-Aug-28,25-Aug-28,01-Aug-28,01-Aug-28,-24,Yes,"T1-HO-50 FS; T2-HO-50 FS; H1-HO-50 FS; P1-HO-50 FS; MS-HO-50 FS; SC-HO-50 FS; MQ-HO-50 FS; UT-HO-50 FS; TH01-HO-50 FS; TH02-HO-50 FS; TH03-HO-50 FS; TH04-HO-50 FS; TH05-HO-50 FS; TH06-HO-50 FS; TH07-HO-50 FS; TH08-HO-50 FS; KB-IN-900 FS",0%

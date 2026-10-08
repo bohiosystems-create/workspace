@@ -60,6 +60,7 @@ Rules:
 - floors = storeys above ground; storeyHeight = typical floor-to-floor; basements = levels below ground.
 - Map every programme activity that belongs to a building to ONE phase: substructure (piling, excavation, raft, basement), structure (frame, slabs, core), facade (curtain wall, cladding, glazing), fitout (MEP, finishes, fit-out), handover (T&C, commissioning, handover). Dates as YYYY-MM-DD (P6 dates like 01-Sep-26 mean 2026-09-01).
 - schedule.dataDate is the programme's data date (or the reporting date in the brief).
+- start / finish are the CURRENT dates (actual or forecast). If the programme also has baseline dates, % complete, total float or a critical flag, copy them onto each activity (baselineStart, baselineFinish, progress, float, critical) exactly as given, and set schedule.baselineFinish to the baseline / contract completion date.
 - For each building set "source" to the document(s) and row used, and "confidence" (high when read directly, medium when combined, low when inferred).
 - Put anything you inferred rather than read in "assumptions". List the documents you used in "sources".
 - Use only the documents. Do not invent buildings.`;

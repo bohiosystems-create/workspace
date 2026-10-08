@@ -11,7 +11,7 @@
 import type { Db } from "../types";
 import type { GenProject } from "../model3d/store";
 import * as P from "../core/project";
-import { critState, expectedPct, liveCritical, slipOf, specCritical, specPlannedPct } from "../critical";
+import { critState, expectedPct, liveCritical, slipOf, specCritical, specEarnedPct, specPlannedPct, specSlip, specState } from "../critical";
 import { KINAN } from "../brand";
 
 export type Lang = "en" | "ar";
@@ -141,32 +141,63 @@ export function buildReport(o: BuildIn): Built {
   const active = o.projects.filter((p) => p.result?.spec?.schedule && p.result.spec.schedule.finish >= o.date);
   for (const p of active) {
     const spec = p.result.spec, dd = spec.schedule.dataDate || o.date;
-    const pc = specCritical(spec), planned = specPlannedPct(spec, dd);
+    const pc = specCritical(spec), planned = specPlannedPct(spec, dd), earned = specEarnedPct(spec);
+    const logic = pc.source === "programme";
     const to14 = addDays(dd, 14);
-    const now = pc.path.filter((x) => x.a.start <= dd && x.a.finish >= dd);
-    const startSoon = pc.path.filter((x) => x.a.start > dd && x.a.start <= to14);
-    const finishSoon = pc.path.filter((x) => x.a.finish >= dd && x.a.finish <= to14);
+    const open = pc.path.filter((x) => specState(x.a, dd) !== "done");
+    const now = open.filter((x) => x.a.start <= dd && x.a.finish >= dd);
+    const startSoon = open.filter((x) => x.a.start > dd && x.a.start <= to14);
+    const finishSoon = open.filter((x) => x.a.finish >= dd && x.a.finish <= to14);
+    const late = open.filter((x) => specState(x.a, dd) === "late"), risk = open.filter((x) => specState(x.a, dd) === "risk");
+    const carried = open.filter((x) => specState(x.a, dd) === "slipped");
     const crit = pc.buildings.filter((b) => b.critical).map((b) => b.name);
     const bName = (id: string) => spec.buildings.find((b) => b.id === id)?.name ?? id;
     const label = (a: { building: string; name?: string; phase: string }) => { const b = bName(a.building), n = a.name ?? a.phase; return n.toLowerCase().startsWith(b.toLowerCase()) ? n : `${b} — ${n}`; };
-    metrics.projects[p.id] = { name: spec.name, progress: planned, planned, critLate: 0, critRisk: 0, completion: pc.finish, slip: 0 };
-    summary.push([`<b>${esc(spec.name)}</b><br><span style="color:${C.soft};font-size:11px">${T("from documents", "من المستندات")}</span>`, `<span style="color:${C.soft}">${T("plan", "مخطط")}</span> ${planned}%`, "—", dt(pc.finish, l), `${now.length} ${T("live", "جارية")}`, pill(T("Planned", "مخطط"), C.taupe)]);
-    marks.push(C.taupe);
-    body.push(projectBand(spec.name, `${spec.location ?? ""}${spec.client ? ` · ${spec.client}` : ""} · ${spec.buildings.length} ${T("buildings", "مبانٍ")} · ${T("data date", "تاريخ البيانات")} ${dt(dd, l)}`, T("Planned", "مخطط"), C.taupe));
-    body.push(kpis([
+    const tracked = earned !== null;
+    const st: [string, string] = !tracked ? [T("Planned", "مخطط"), C.taupe]
+      : pc.slip > 0 || late.length ? [T("Behind", "متأخر"), C.red] : risk.length || (earned ?? 0) < planned - 3 ? [T("Watch", "متابعة"), C.amber] : [T("On track", "على المسار"), C.green];
+    const prog = earned ?? planned;
+    metrics.projects[p.id] = { name: spec.name, progress: prog, planned, critLate: late.length, critRisk: risk.length, completion: pc.finish, slip: pc.slip };
+    summary.push([`<b>${esc(spec.name)}</b><br><span style="color:${C.soft};font-size:11px">${T("from documents", "من المستندات")}</span>`,
+      tracked ? `${earned}% <span style="color:${C.soft}">/ ${planned}%</span>` : `<span style="color:${C.soft}">${T("plan", "مخطط")}</span> ${planned}%`,
+      tracked && planned ? (earned! / planned).toFixed(2) : "—",
+      `${dt(pc.finish, l)}${pc.baselineFinish ? `<br><span style="color:${pc.slip > 0 ? C.red : C.soft}">${days(pc.slip, l)}</span>` : ""}`,
+      tracked ? `<b style="color:${late.length ? C.red : C.ink}">${late.length}</b> / ${risk.length}` : `${now.length} ${T("live", "جارية")}`, pill(st[0], st[1])]);
+    marks.push(st[1]);
+    body.push(projectBand(spec.name, `${spec.location ?? ""}${spec.client ? ` · ${spec.client}` : ""} · ${spec.buildings.length} ${T("buildings", "مبانٍ")} · ${T("data date", "تاريخ البيانات")} ${dt(dd, l)}`, st[0], st[1]));
+    body.push(kpis(tracked ? [
+      { label: T("Complete", "الإنجاز"), value: `${earned}%`, sub: T(`plan ${planned}%`, `المخطط ${planned}%`), bad: earned! < planned - 2 },
+      { label: "SPI", value: planned ? (earned! / planned).toFixed(2) : "—", sub: planned && earned! / planned < 0.95 ? T("behind schedule", "متأخر عن الجدول") : T("on schedule", "حسب الجدول"), bad: !!planned && earned! / planned < 0.95 },
+      { label: T("Completion", "الإنجاز النهائي"), value: dt(pc.finish, l), sub: pc.baselineFinish ? `${T("baseline", "الأساس")} ${dt(pc.baselineFinish, l)}` : "", bad: pc.slip > 0 },
+      { label: T("Critical late now", "حرجة متأخرة الآن"), value: String(late.length), sub: T(`${risk.length} at risk · ${carried.length} later`, `${risk.length} معرّضة · ${carried.length} لاحقة`), bad: late.length > 0 },
+    ] : [
       { label: T("Planned complete", "الإنجاز المخطط"), value: `${planned}%`, sub: T("at the data date", "في تاريخ البيانات") },
       { label: T("Completion", "الإنجاز النهائي"), value: dt(pc.finish, l), sub: T(`started ${dt(spec.schedule.start, l)}`, `البدء ${dt(spec.schedule.start, l)}`) },
       { label: T("Critical now", "حرجة الآن"), value: String(now.length), sub: T(`${startSoon.length} start in 14 days`, `${startSoon.length} تبدأ خلال 14 يوماً`) },
     ]));
-    body.push(h2(T("Critical path", "المسار الحرج"), T(`${crit.join(", ") || "—"} finish${crit.length === 1 ? "es" : ""} last and drive${crit.length === 1 ? "s" : ""} completion. Taken from the programme dates (the documents have no logic links).`, `${crit.join("، ") || "—"} ينتهي أخيراً ويحدد موعد الإنجاز. مأخوذ من تواريخ البرنامج (لا تتضمن المستندات علاقات منطقية).`)));
-    const rows = [...now, ...startSoon.filter((x) => !now.includes(x))].slice(0, 8);
-    if (rows.length) body.push(table([T("Activity", "النشاط"), T("Start", "البدء"), T("Finish", "الإنهاء")],
+    const since = sinceLines(l, o.prev, p.id, metrics.projects[p.id]);
+    if (tracked && since.length) { body.push(h2(T("Since the last report", "منذ التقرير السابق"), o.prev ? dt(o.prev.date, l) : undefined)); body.push(bullets(since)); }
+    body.push(h2(T("Critical path", "المسار الحرج"), logic
+      ? T(`${open.length} critical activities left — total float and critical flags from the programme; ${crit.join(", ") || "—"} drive${crit.length === 1 ? "s" : ""} completion.`, `${open.length} نشاطاً حرجاً متبقياً — الفائض الكلي والأنشطة الحرجة من البرنامج؛ ${crit.join("، ") || "—"} يحدد موعد الإنجاز.`)
+      : T(`${crit.join(", ") || "—"} finish${crit.length === 1 ? "es" : ""} last and drive${crit.length === 1 ? "s" : ""} completion. Taken from the programme dates (the documents have no logic links).`, `${crit.join("، ") || "—"} ينتهي أخيراً ويحدد موعد الإنجاز. مأخوذ من تواريخ البرنامج (لا تتضمن المستندات علاقات منطقية).`)));
+    const rows = [...late, ...risk, ...now.filter((x) => !late.includes(x) && !risk.includes(x)), ...startSoon.filter((x) => !now.includes(x))].slice(0, 8);
+    const stColor = (x: typeof rows[number]) => { const k = specState(x.a, dd); return k === "late" ? C.red : k === "risk" ? C.amber : C.or; };
+    if (rows.length && tracked) body.push(table([T("Activity", "النشاط"), T("Forecast finish", "الإنهاء المتوقع"), T("Progress", "التقدم"), T("Variance", "الفرق")],
+      rows.map((x) => [`${critTag(l)}<b>${esc(label(x.a))}</b><br><span style="color:${C.soft};font-size:11px">${esc(x.a.id ?? "")}${x.float ? ` · ${T("float", "الفائض")} ${x.float} ${T("d", "يوم")}` : ""}${specState(x.a, dd) === "risk" ? ` · <span style="color:${C.amber}">${T("at risk", "معرّض للتأخر")}</span>` : ""}</span>`,
+        dt(x.a.finish, l), x.a.start > dd ? T(`starts ${dt(x.a.start, l)}`, `يبدأ ${dt(x.a.start, l)}`) : `${x.a.progress ?? 0}%`,
+        `<span style="color:${specSlip(x.a) > 0 ? C.red : C.green};font-weight:700">${days(specSlip(x.a), l)}</span>`]), ["l", "r", "r", "r"], l, rows.map(stColor)));
+    else if (rows.length) body.push(table([T("Activity", "النشاط"), T("Start", "البدء"), T("Finish", "الإنهاء")],
       rows.map((x) => [`${critTag(l)}<b>${esc(label(x.a))}</b>${x.a.start > dd ? ` <span style="color:${C.soft}">(${T("starts soon", "يبدأ قريباً")})</span>` : ""}`, dt(x.a.start, l), dt(x.a.finish, l)]), ["l", "r", "r"], l, rows.map(() => C.or)));
     else body.push(para(T("No critical activity is running or starting in the next 14 days.", "لا يوجد نشاط حرج جارٍ أو يبدأ خلال 14 يوماً.")));
     if (finishSoon.length) body.push(para(`<b>${T("Critical finishes in the next 14 days:", "أنشطة حرجة تنتهي خلال 14 يوماً:")}</b> ${finishSoon.map((x) => `${esc(label(x.a))} (${dt(x.a.finish, l)})`).join(" · ")}`));
-    const tight = pc.buildings.filter((b) => !b.critical && b.finish && b.float <= 30);
+    if (carried.length) body.push(para(`<b>${T(`Delay carried forward — ${carried.length} later critical activities already forecast late:`, `تأخير منقول — ${carried.length} أنشطة حرجة لاحقة متوقع تأخرها:`)}</b> ${carried.slice(0, 4).map((x) => `${esc(label(x.a))} <span style="color:${C.red};font-weight:700">${days(specSlip(x.a), l)}</span>`).join(" · ")}`));
+    const slipped = spec.schedule.activities.filter((a) => !pc.path.some((x) => x.a === a) && specState(a, dd) === "late" && specSlip(a) >= 3).sort((x, y) => specSlip(y) - specSlip(x)).slice(0, 3);
+    if (slipped.length) body.push(para(`${T("Late but with float (completion not affected yet):", "متأخرة لكن لديها فائض (لا تؤثر على الإنجاز بعد):")} ${slipped.map((a) => `${esc(label(a))} <span style="color:${C.amber};font-weight:700">${days(specSlip(a), l)}</span>${(() => { const f = pc.items.find((x) => x.a === a)?.float; return f !== undefined ? ` (${T("float", "الفائض")} ${f} ${T("d", "يوم")})` : ""; })()}`).join(" · ")}`));
+    const tight = pc.buildings.filter((b) => !b.critical && b.finish && b.float <= 60);
     if (tight.length) body.push(para(`${T("Little float left:", "فائض قليل:")} ${tight.map((b) => `${esc(b.name)} (${b.float} ${T("d", "يوم")})`).join(" · ")}`));
-    text.push(`${spec.name} — ${T("planned", "مخطط")} ${planned}%, ${T("completion", "الإنجاز")} ${pc.finish}`, `  ${T("Critical path", "المسار الحرج")}: ${crit.join(", ")} · ${now.length} ${T("running", "جارية")}, ${startSoon.length} ${T("starting in 14 days", "تبدأ خلال 14 يوماً")}`, "");
+    text.push(`${spec.name} — ${st[0]} · ${tracked ? `${earned}% (${T("plan", "المخطط")} ${planned}%)` : `${T("planned", "مخطط")} ${planned}%`}, ${T("completion", "الإنجاز")} ${pc.finish}${pc.baselineFinish ? ` (${T("baseline", "الأساس")} ${pc.baselineFinish}, ${days(pc.slip, l)})` : ""}`,
+      `  ${T("Critical path", "المسار الحرج")}: ${crit.join(", ")} · ${late.length} ${T("late", "متأخرة")}, ${risk.length} ${T("at risk", "معرّضة")}, ${now.length} ${T("running", "جارية")}`,
+      ...late.slice(0, 4).map((x) => `   ! ${x.a.id ?? ""} ${label(x.a)} — ${days(specSlip(x.a), l)}`), "");
   }
 
   // ---------------- assemble

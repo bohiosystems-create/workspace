@@ -1,6 +1,6 @@
-# Kinan Bay Residences — Project Brief (KB-PM-001, Rev C)
+# Kinan Bay Residences — Project Brief (KB-PM-001, Rev D)
 
-**Client:** Kinan Bay Development Co. (fictional — demo dataset)  ·  **Location:** North Corniche, Jeddah  ·  **Data date for reporting:** 1 May 2027
+**Client:** Kinan Bay Development Co. (fictional — demo dataset)  ·  **Location:** North Corniche, Jeddah  ·  **Data date for reporting:** 1 October 2026
 
 ## Site
 A rectangular waterfront plot of **360 m east–west by 260 m north–south** (9.36 ha). The Corniche is to the west, the sea to the north-west.
@@ -19,7 +19,7 @@ Mixed-use waterfront community of 16 buildings, ~162,000 m² GFA:
 Footprints, levels and exact setting-out are in the Area Schedule (KB-AR-SCH-001) and the Setting-Out schedule (KB-SV-SO-001).
 
 ## Programme
-Notice to proceed 1 February 2026; practical completion **30 June 2029** (Waterfront Hotel opening). The baseline programme is the P6 export KB-PL-PRG-001.
+Notice to proceed 1 July 2025; contract practical completion **1 August 2028** (Waterfront Hotel opening). The programme is the P6 update KB-PL-PRG-001 against baseline BL-02; the critical path and current forecast are explained in the programme narrative KB-PL-NAR-001.
 
 ## Construction logistics
 See KB-LG-001: perimeter loop road, central boulevard, two gates, three tower cranes, laydown and contractor's compound.

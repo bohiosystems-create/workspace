@@ -10,7 +10,7 @@ import { mockDocs, MOCK_PROJECT } from "@/lib/model3d/mock";
 import { collectFromDrop, collectFromList, mimeOf, type Collected } from "@/lib/model3d/collect";
 import type { GenProject, GenResult } from "@/lib/model3d/store";
 import type { SpecActivity } from "@/lib/model3d/spec";
-import { specCritical } from "@/lib/critical";
+import { specCritical, specSlip } from "@/lib/critical";
 import { Icon } from "./icons";
 
 const ModelViewer = lazy(() => import("./ModelViewer"));
@@ -111,7 +111,7 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
   };
   const pick = async (list: FileList | null) => { if (!list?.length) return; setReading(true); try { take(await collectFromList(list)); } catch (e) { setErr(`Could not read the files: ${e instanceof Error ? e.message : e}`); } finally { setReading(false); } };
   const drop = async (e: DragEvent) => { e.preventDefault(); setOver(false); setReading(true); try { take(await collectFromDrop(e.dataTransfer)); } catch (er) { setErr(`Could not read the dropped items: ${er instanceof Error ? er.message : er}`); } finally { setReading(false); } };
-  const loadDemo = () => { setDocs(mockDocs().map((d) => ({ name: d.name, size: new Blob([d.text]).size, text: d.text, demo: true }))); setNote(`${MOCK_PROJECT.name} demo pack: 7 documents`); setErr(""); };
+  const loadDemo = () => { setDocs(mockDocs().map((d) => ({ name: d.name, size: new Blob([d.text]).size, text: d.text, demo: true }))); setNote(`${MOCK_PROJECT.name} demo pack: ${mockDocs().length} documents`); setErr(""); };
   const preview = async (d: Doc) => {
     if (peek === d.name) { setPeek(null); return; }
     setPeek(d.name);
@@ -156,7 +156,7 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
           <input ref={folder} type="file" multiple hidden onClick={(e) => e.stopPropagation()} {...{ webkitdirectory: "", directory: "" }} onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
         </div>
         {note && <p className="studio-ok">{note}</p>}
-        {!docs.length && <button className="studio-demo" onClick={loadDemo}><b>No documents to hand? Load the demo pack</b><em>{MOCK_PROJECT.name}, {MOCK_PROJECT.location} · 7 mock documents · 16 buildings · P6 programme</em></button>}
+        {!docs.length && <button className="studio-demo" onClick={loadDemo}><b>No documents to hand? Load the demo pack</b><em>{MOCK_PROJECT.name}, {MOCK_PROJECT.location} · 8 mock documents · 16 buildings · P6 programme with logic</em></button>}
         {docs.length > 0 && (
           <>
             <div className="studio-sum"><b>{docs.length}</b> document{docs.length === 1 ? "" : "s"} · {kb(total)}{total > MAX_BYTES && <i> · over the 4 MB limit</i>}<button className="mini" onClick={() => { setDocs([]); setNote(""); }}>Clear</button></div>
@@ -187,6 +187,11 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
 // ==================================================================== a generated project
 /** "Tower 1 — piling" unless the activity name already starts with the building's name. */
 const actLabel = (b: string, name: string) => (name.toLowerCase().startsWith(b.toLowerCase()) ? name : `${b} — ${name}`);
+/** " · 42% · +24 d · float −24 d" — what the programme says about an activity. */
+const actMeta = (a: SpecActivity, float: number, showFloat: boolean) => {
+  const slip = specSlip(a);
+  return `${a.progress !== undefined ? ` · ${a.progress}%` : ""}${a.baselineFinish && slip ? ` · ${slip > 0 ? "+" : ""}${slip} d vs baseline` : ""}${showFloat && (a.progress ?? 0) < 100 ? ` · float ${float} d` : ""}`;
+};
 export function ProjectView({ project, onBack }: { project: GenProject; onBack: () => void }) {
   const res = project.result, spec = res.spec;
   const [details, setDetails] = useState(false);
@@ -217,16 +222,18 @@ export function ProjectView({ project, onBack }: { project: GenProject; onBack: 
           <div className="studio-sh"><div><b>{selB.name}</b><em>{selB.id} · {USE_LABEL[selB.use]} · {selB.floors} floors × {selB.storeyHeight} m{selB.basements ? ` · ${selB.basements} basement${selB.basements > 1 ? "s" : ""}` : ""}</em></div><button className="x" onClick={() => setSel(undefined)} aria-label="Close">✕</button></div>
           <p className="studio-src">Footprint {selB.w} × {selB.d} m at E {selB.x} m, {selB.z} m from the north boundary{selB.source ? <> · from <i>{selB.source}</i></> : null}{selB.confidence ? <span className={"conf " + selB.confidence}>{selB.confidence}</span> : null}</p>
           {selBc && <p className={"studio-cp" + (selBc.critical ? " on" : "")}>{selBc.critical ? "On the critical path: this building finishes last, so a delay to its marked activities moves completion." : `${selBc.float} days of float: it finishes ${nice(selBc.finish)}, before the project's ${nice(cp.finish)}.`}</p>}
-          <ul className="studio-acts">{selActs.map((a, i) => { const c = critOf(a); return <li key={i} className={c?.critical ? "crit" : ""}><span className={"ph " + a.phase}>{a.phase}</span><span className="an">{c?.critical && <span className="ctag">Critical</span>}{a.name ?? a.phase}</span><span className="ad">{nice(a.start)} – {nice(a.finish)}{c && !c.critical ? ` · ${c.float} d float` : ""}</span></li>; })}</ul>
+          <ul className="studio-acts">{selActs.map((a, i) => { const c = critOf(a); return <li key={i} className={c?.critical ? "crit" : ""}><span className={"ph " + a.phase}>{a.phase}</span><span className="an">{c?.critical && <span className="ctag">Critical</span>}{a.name ?? a.phase}</span><span className="ad">{nice(a.start)} – {nice(a.finish)}{c ? actMeta(a, c.float, cp.source === "programme" || !c.critical) : ""}</span></li>; })}</ul>
         </div>
       )}
       {showCp && (
         <div className="studio-sheet">
-          <div className="studio-sh"><div><b>Critical path</b><em>Completion {nice(cp.finish)} · {cp.path.length} critical activities · read from the programme dates</em></div><button className="x" onClick={() => setShowCp(false)} aria-label="Close">✕</button></div>
-          <p className="studio-src">The documents give dates but no logic links, so the path is taken from the dates: phases follow one another within each building, and the building that finishes last drives completion. A day lost on a critical activity moves the completion date.</p>
-          <ul className="studio-acts">{cp.path.map((x, i) => <li key={i} className="crit" onClick={() => { setSel(x.a.building); setShowCp(false); }}><span className={"ph " + x.a.phase}>{x.a.phase}</span><span className="an">{actLabel(spec.buildings.find((b) => b.id === x.a.building)?.name ?? x.a.building, x.a.name ?? x.a.phase)}</span><span className="ad">{nice(x.a.start)} – {nice(x.a.finish)}</span></li>)}</ul>
+          <div className="studio-sh"><div><b>Critical path</b><em>Completion {nice(cp.finish)}{cp.baselineFinish ? ` · baseline ${nice(cp.baselineFinish)}${cp.slip > 0 ? ` · ${cp.slip} days late` : cp.slip < 0 ? ` · ${-cp.slip} days early` : " · on time"}` : ""} · {cp.path.length} critical activities left</em></div><button className="x" onClick={() => setShowCp(false)} aria-label="Close">✕</button></div>
+          <p className="studio-src">{cp.source === "programme"
+            ? "Total float and critical flags as given in the programme: a critical activity has no float, so a day lost on it moves the completion date. Negative float means the path is already behind the contract date."
+            : "The documents give dates but no logic links, so the path is taken from the dates: phases follow one another within each building, and the building that finishes last drives completion. A day lost on a critical activity moves the completion date."}</p>
+          <ul className="studio-acts">{cp.path.map((x, i) => <li key={i} className="crit" onClick={() => { setSel(x.a.building); setShowCp(false); }}><span className={"ph " + x.a.phase}>{x.a.phase}</span><span className="an">{actLabel(spec.buildings.find((b) => b.id === x.a.building)?.name ?? x.a.building, x.a.name ?? x.a.phase)}</span><span className="ad">{nice(x.a.start)} – {nice(x.a.finish)}{actMeta(x.a, x.float, cp.source === "programme")}</span></li>)}</ul>
           <h4>Float by building</h4>
-          <ul className="studio-list">{cp.buildings.filter((b) => b.finish).sort((p, q) => p.float - q.float).map((b) => <li key={b.id}><b>{b.name}</b> {b.critical ? "critical — finishes last" : `${b.float} days of float (finishes ${nice(b.finish)})`}</li>)}</ul>
+          <ul className="studio-list">{cp.buildings.filter((b) => b.finish).sort((p, q) => p.float - q.float).map((b) => <li key={b.id}><b>{b.name}</b> {b.critical ? (cp.source === "programme" ? `critical — float ${b.float} days` : "critical — finishes last") : `${b.float} days of float (finishes ${nice(b.finish)})`}</li>)}</ul>
         </div>
       )}
       {details && (

@@ -17,7 +17,11 @@ export interface SpecBuilding {
   /** where this came from, e.g. "KB-AR-SCH-001 Area Schedule.csv row T1" */
   source?: string; confidence?: "high" | "medium" | "low";
 }
-export interface SpecActivity { id?: string; building: string; phase: Phase; name?: string; start: string; finish: string; source?: string }
+export interface SpecActivity {
+  id?: string; building: string; phase: Phase; name?: string; start: string; finish: string; source?: string;
+  /** when the programme gives them: baseline dates, % complete at the data date, total float (days) and its critical flag */
+  baselineStart?: string; baselineFinish?: string; progress?: number; float?: number; critical?: boolean;
+}
 export interface ProjectModelSpec {
   name: string; location?: string; client?: string;
   site: { width: number; depth: number };
@@ -26,7 +30,7 @@ export interface ProjectModelSpec {
   gates: { name: string; x: number; z: number }[];
   cranes: { id: string; x: number; z: number; radius: number; building?: string }[];
   buildings: SpecBuilding[];
-  schedule: { start: string; finish: string; dataDate: string; activities: SpecActivity[] };
+  schedule: { start: string; finish: string; dataDate: string; baselineFinish?: string; activities: SpecActivity[] };
   assumptions: string[];
   sources: { file: string; used: string }[];
 }
@@ -54,7 +58,10 @@ export const SPEC_SCHEMA = {
       start: { type: "string", description: "YYYY-MM-DD" }, finish: { type: "string" }, dataDate: { type: "string" },
       activities: { type: "array", items: { type: "object", required: ["building", "phase", "start", "finish"], properties: {
         id: { type: "string" }, building: { type: "string", description: "building id" }, name: { type: "string" },
-        phase: { type: "string", enum: ["substructure", "structure", "facade", "fitout", "handover"] }, start: { type: "string" }, finish: { type: "string" }, source: { type: "string" } } } } } },
+        phase: { type: "string", enum: ["substructure", "structure", "facade", "fitout", "handover"] }, start: { type: "string", description: "actual or forecast start" }, finish: { type: "string", description: "actual or forecast finish" }, source: { type: "string" },
+        baselineStart: { type: "string", description: "baseline start, if the programme has one" }, baselineFinish: { type: "string", description: "baseline finish, if the programme has one" },
+        progress: { type: "number", description: "% complete at the data date, if given" }, float: { type: "number", description: "total float in days, if given (negative = behind)" }, critical: { type: "boolean", description: "critical flag, if given" } } } },
+      baselineFinish: { type: "string", description: "baseline / contract completion date, if given" } } },
     assumptions: { type: "array", items: { type: "string" }, description: "anything inferred rather than read from a document" },
     sources: { type: "array", items: { type: "object", required: ["file", "used"], properties: { file: { type: "string" }, used: { type: "string" } } } },
   },
@@ -93,7 +100,12 @@ export function normalizeSpec(raw: unknown): { spec: ProjectModelSpec; warnings:
   for (const a of Array.isArray(r.schedule?.activities) ? r.schedule.activities : []) {
     const b = findB(String(a?.building ?? "")); const s = iso(a?.start), f = iso(a?.finish);
     if (!b || !s || !f || !PHASES.includes(a?.phase)) continue;
-    acts.push({ id: a?.id ? String(a.id) : undefined, building: b, phase: a.phase, name: a?.name ? String(a.name).slice(0, 120) : undefined, start: s <= f ? s : f, finish: s <= f ? f : s, source: a?.source ? String(a.source) : undefined });
+    const bs = iso(a?.baselineStart), bf = iso(a?.baselineFinish), pr = num(a?.progress, NaN), fl = num(a?.float, NaN);
+    acts.push({ id: a?.id ? String(a.id) : undefined, building: b, phase: a.phase, name: a?.name ? String(a.name).slice(0, 120) : undefined, start: s <= f ? s : f, finish: s <= f ? f : s, source: a?.source ? String(a.source) : undefined,
+      ...(bs && bf ? { baselineStart: bs <= bf ? bs : bf, baselineFinish: bs <= bf ? bf : bs } : {}),
+      ...(Number.isFinite(pr) ? { progress: clamp(Math.round(pr), 0, 100) } : {}),
+      ...(Number.isFinite(fl) ? { float: Math.round(fl) } : {}),
+      ...(typeof a?.critical === "boolean" ? { critical: a.critical } : /^(y|yes|true|1)$/i.test(String(a?.critical ?? "")) ? { critical: true } : {}) });
   }
   // buildings without any activity get an assumed programme so they still appear in 4D
   const all = acts.flatMap((a) => [a.start, a.finish]).sort();
@@ -119,7 +131,7 @@ export function normalizeSpec(raw: unknown): { spec: ProjectModelSpec; warnings:
   return {
     spec: {
       name: String(r.name ?? "Generated project").slice(0, 80), location: r.location ? String(r.location) : undefined, client: r.client ? String(r.client) : undefined,
-      site, roads, zones, gates, cranes, buildings, schedule: { start, finish, dataDate, activities: acts },
+      site, roads, zones, gates, cranes, buildings, schedule: { start, finish, dataDate, ...(iso(r.schedule?.baselineFinish) ? { baselineFinish: iso(r.schedule.baselineFinish) } : {}), activities: acts },
       assumptions: (Array.isArray(r.assumptions) ? r.assumptions : []).map(String).slice(0, 30),
       sources: (Array.isArray(r.sources) ? r.sources : []).map((s: any) => ({ file: String(s?.file ?? ""), used: String(s?.used ?? "") })).slice(0, 30),
     },
