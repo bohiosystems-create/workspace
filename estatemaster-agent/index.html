@@ -306,6 +306,14 @@ body.xproj .rep-only{display:none!important}
 #drGrid .f input,#drGrid .f select{font:inherit;font-size:14px;letter-spacing:0;text-transform:none;font-weight:400;padding:11px 14px;border:1px solid var(--faint);background:#fff;width:100%;box-sizing:border-box;border-radius:0}
 .dr-days{display:flex;gap:6px;flex-wrap:wrap}.dr-days button{font:inherit;font-size:11px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;padding:8px 12px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer}
 .dr-days button.on{background:var(--orange);border-color:var(--orange);color:#fff}
+.rcp{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:46px;padding:7px 9px;border:1px solid var(--faint);background:#fff;cursor:text;font-size:14px;letter-spacing:0;text-transform:none;font-weight:400;box-sizing:border-box;width:100%}
+.rcp:focus-within{border-color:var(--orange)}
+.rcp-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 4px 4px 10px;background:#fff1ea;border:1px solid rgba(241,90,34,.35);color:var(--ink);font-size:13px;line-height:1.3;max-width:100%;overflow-wrap:anywhere}
+.rcp-chip.bad{background:transparent;border-color:#d03b3b;color:#d03b3b}
+.rcp-chip button{border:0;background:none;color:inherit;font:inherit;font-size:16px;line-height:1;padding:0 4px;cursor:pointer;opacity:.7}.rcp-chip button:hover{opacity:1}
+.rcp input.rcp-in{flex:1 1 180px;min-width:140px;width:auto;border:0!important;outline:none;background:transparent;box-shadow:none;padding:5px 2px!important;font:inherit;color:inherit}
+.rcp-offer{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.rcp-offer button{border:1px dashed var(--faint);background:none;color:var(--ink);font:inherit;font-size:12px;letter-spacing:0;text-transform:none;font-weight:400;padding:3px 9px;cursor:pointer}.rcp-offer button:hover{border-color:var(--orange);color:var(--orange)}
 .dr-check{display:flex;gap:8px;align-items:center;font-size:13.5px;margin:12px 0}
 .dr-lang{display:flex;gap:16px;align-items:center;font-size:13px;margin:10px 0 14px;color:var(--ink2)}
 .dr-checks{display:flex;flex-direction:column;gap:7px;margin-top:10px;font-size:13px}.dr-checks div{display:flex;gap:8px}.dr-checks .ok{color:#1f8a5a;font-weight:700}.dr-checks .no{color:var(--alert);font-weight:700}.dr-checks .soft{color:var(--soft)}
@@ -716,7 +724,7 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
   <div class="card" style="margin-top:20px"><div class="bar"></div><div class="sbhead"><h2>Assumption alerts</h2><button class="btn sm" id="alSave">Save</button></div>
     <div class="sub" id="alStat"></div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
-      <label class="f" style="flex:1 1 320px;display:flex;flex-direction:column;gap:4px;font-size:12.5px">Alert recipients (internal addresses, comma-separated)<input type="text" id="alTo" style="border:1px solid var(--faint);padding:8px 10px;font-size:13px"></label>
+      <label class="f" style="flex:1 1 320px;display:flex;flex-direction:column;gap:4px;font-size:12.5px">Alert recipients (internal addresses)<input type="text" id="alTo" style="border:1px solid var(--faint);padding:8px 10px;font-size:13px"></label>
       <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="alEmail"> Email</label>
       <label style="font-size:13px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="alWa"> WhatsApp</label>
     </div></div>
@@ -4912,6 +4920,22 @@ async function alertChanges(crs,at){
   if(ALERT.wa){try{wBubble('bot',`🔔 <b>Possible assumption change${crs.length>1?'s':''}</b> (scan ${esc(at)})\n${crs.map(c=>`• ${c.id}: ${esc(opsDesc(c.ops))}`).join('\n')}\nReply <b>APPROVE ${crs[0].id}</b> or <b>REJECT ${crs[0].id}</b>. Nothing changes until approved.`)}catch(e){}}}
 /* The daily report: schedule, delivery check, run, history. Saved on the server (/api/schedule) when Microsoft 365 is connected, else in this browser. */
 const DAYS3=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+/* Several recipients: the input keeps a comma-separated value; it shows one chip per address (× removes), type or paste and press Enter, comma or space. Allowed people not on the list are one-click "+" buttons. */
+function chipify(el,allowed){if(!el||el._rcp)return;const RE=/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/,split=v=>String(v||'').split(/[,;\s]+/).map(x=>x.trim().toLowerCase()).filter(Boolean);
+  const box=document.createElement('div');box.className='rcp';const offer=document.createElement('div');offer.className='rcp-offer';const inp=document.createElement('input');inp.className='rcp-in';inp.placeholder='Add an address, press Enter';inp.setAttribute('aria-label','Add a recipient');
+  el.style.display='none';el.after(box,offer);box.append(inp);const D=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
+  const list=()=>[...new Set(split(D.get.call(el)))];
+  const set=a=>{D.set.call(el,a.join(', '));draw();el.dispatchEvent(new Event('input',{bubbles:true}))};
+  const why=a=>{if(!RE.test(a))return'not a valid address';const al=(allowed&&allowed())||{},n=(al.people||[]).map(x=>x.toLowerCase()),d=(al.domains||[]).map(x=>x.toLowerCase());return(n.length||d.length)&&!n.includes(a)&&!d.includes(a.split('@')[1]||'')?'not allowed':''};
+  const add=v=>{const m=split(v);inp.value='';if(m.length)set([...new Set([...list(),...m])])};
+  function draw(){box.querySelectorAll('.rcp-chip').forEach(c=>c.remove());const l=list();l.forEach(a=>{const w=why(a),c=document.createElement('span');c.className='rcp-chip'+(w?' bad':'');c.title=w||a;c.textContent=a+(w?' · '+w:'');const x=document.createElement('button');x.type='button';x.textContent='×';x.setAttribute('aria-label','Remove '+a);x.onclick=e=>{e.stopPropagation();set(list().filter(y=>y!==a))};c.append(x);box.insertBefore(c,inp)});
+    inp.placeholder=l.length?'':'Add an address, press Enter';const al=(allowed&&allowed())||{};offer.innerHTML='';(al.people||[]).map(x=>x.toLowerCase()).filter(a=>!l.includes(a)).forEach(a=>{const b=document.createElement('button');b.type='button';b.textContent='+ '+a;b.onclick=()=>add(a);offer.append(b)})}
+  Object.defineProperty(el,'value',{configurable:true,get(){return D.get.call(el)},set(v){D.set.call(el,v);draw()}});
+  box.onclick=()=>inp.focus();inp.oninput=()=>{if(/[,;\s]$/.test(inp.value))add(inp.value)};
+  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();add(inp.value)}else if(e.key==='Backspace'&&!inp.value){const l=list();if(l.length)set(l.slice(0,-1))}};
+  inp.onpaste=e=>{const t=(e.clipboardData||window.clipboardData).getData('text');if(/[,;\s]/.test(t.trim())){e.preventDefault();add(inp.value+' '+t)}};inp.onblur=()=>add(inp.value);
+  el._rcp=draw;draw()}
+const rcpAllowed=()=>DAILYSRV?DAILYSRV.allowed:{domains:MAILCFG.domains||[],people:[]};
 let DAILY={enabled:true,time:'07:00',timezone:'Asia/Riyadh',days:[0,1,2,3,4],recipients:'',languages:['en']},DAILYSRV=null,DAILYLOG=[],DRLAST='';
 try{const d=JSON.parse(localStorage.getItem('bohioDaily')||'null');if(d){Object.assign(DAILY,d.s||{});DAILYLOG=d.log||[]}}catch(e){}
 const saveDailyLocal=()=>{try{localStorage.setItem('bohioDaily',JSON.stringify({s:DAILY,log:DAILYLOG.slice(0,30).map((r,i)=>i<5?r:{...r,html:null})}))}catch(e){}};
@@ -4926,8 +4950,8 @@ function renderDaily(){if(!$('#drGrid'))return;const s=DAILY;
   const nx=DAILYSRV&&DAILYSRV.next?DAILYSRV.next.label:dailyNext();$('#drNext').innerHTML=s.enabled&&nx?`Next report: <b>${esc(nx)}</b> (${esc(s.timezone)}) · ${DAILYSRV?'sent by the server, with or without the app open':'saved in this browser (connect Microsoft 365 for server delivery)'}`:'Paused: nothing is sent automatically.';
   $('#drEnabled').checked=!!s.enabled;$('#drTime').value=s.time;if(![...$('#drTz').options].some(o=>o.value===s.timezone))$('#drTz').insertAdjacentHTML('afterbegin',`<option>${esc(s.timezone)}</option>`);$('#drTz').value=s.timezone;
   $('#drDays').innerHTML=DAYS3.map((d,i)=>`<button data-drday="${i}" class="${s.days.includes(i)?'on':''}">${d}</button>`).join('');
-  if(document.activeElement!==$('#drTo'))$('#drTo').value=s.recipients||'';
-  const al=DAILYSRV?DAILYSRV.allowed:{domains:MAILCFG.domains||[],people:[]};$('#drAllowed').textContent=(al.domains||[]).length||(al.people||[]).length?'Allowed: '+[...(al.domains||[]).map(d=>'@'+d),...(al.people||[])].join(', '):'Internal addresses only.';
+  $('#drTo').value=s.recipients||'';
+  const al=DAILYSRV?DAILYSRV.allowed:{domains:MAILCFG.domains||[],people:[]};chipify($('#drTo'),rcpAllowed);$('#drTo')._rcp();$('#drAllowed').textContent=(al.domains||[]).length||(al.people||[]).length?'Allowed: '+[...(al.domains||[]).map(d=>'@'+d),...(al.people||[])].join(', '):'Internal addresses only.';
   $('#drEn').checked=s.languages.includes('en');$('#drAr').checked=s.languages.includes('ar');
   const c=dailyChecks();$('#drReady').textContent=c.ready?'Ready — you’ll receive it':'Not ready';$('#drReady').className='dr-badge'+(c.ready?'':' bad');
   $('#drCheck').innerHTML=c.list.map(x=>`<div><span class="${x.ok?'ok':x.soft?'soft':'no'}">${x.ok?'✓':x.soft?'·':'✗'}</span><span>${esc(x.label)}${x.detail?` <span style="color:var(--soft)">(${esc(x.detail)})</span>`:''}</span></div>`).join('');
@@ -5636,7 +5660,7 @@ $('#viewClose').onclick=()=>{$('#viewModal').classList.remove('on');$('#viewFram
 ['schCad','schDow','schDom','schTime','schCh','schOn'].forEach(i=>$('#'+i).addEventListener(i==='schDom'||i==='schTime'?'input':'change',schFields));
 $('#schSave').onclick=saveSched;$('#schCancel').onclick=()=>$('#schModal').classList.remove('on');
 $('#schTest').onclick=()=>{const k=SCHED_EDIT,s=schedOf(k),ch0=s.ch,to0=s.to;s.ch=$('#schCh').value;s.to=$('#schTo').value.trim()||to0;runReport(k,'now').then(r=>{s.ch=ch0;s.to=to0;$('#schMsg').innerHTML=`<span class="${r.status==='failed'?'warn':''}">Test ${r.status==='sent'?'sent':r.status==='failed'?'not sent: '+esc(r.error||''):'delivered (simulated: see the Outbox)'}.</span>`})};
-$('#alTo').value=ALERT.to;$('#alEmail').checked=ALERT.email;$('#alWa').checked=ALERT.wa;
+chipify($('#alTo'),rcpAllowed);$('#alTo').value=ALERT.to;$('#alEmail').checked=ALERT.email;$('#alWa').checked=ALERT.wa;
 $('#alSave').onclick=()=>{const to=$('#alTo').value.trim();if(to&&!/^[^\s@]+@[^\s@]+\.[^\s@]+(\s*[;,]\s*[^\s@]+@[^\s@]+\.[^\s@]+)*$/.test(to)){toast('Enter email addresses separated by commas');return}Object.assign(ALERT,{to,email:$('#alEmail').checked,wa:$('#alWa').checked});logEvent({kind:'settings',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Assumption alerts: ${[ALERT.email&&'email',ALERT.wa&&'WhatsApp'].filter(Boolean).join(' + ')||'bell only'} to ${ALERT.to||'nobody'}`});renderDelivery();saveMem();toast('Alert settings saved')};
 $('#rread').onclick=()=>KR?kReadStop():kReadStart();
 $('#rpptx').onclick=async()=>{const b=$('#rpptx');b.disabled=true;b.textContent='Preparing…';try{const n=await deckToPptx(buildDeck(RSEL));toast('PowerPoint downloaded: '+n)}catch(e){toast('PowerPoint: '+e.message)}b.disabled=false;b.textContent='PowerPoint'};
@@ -5849,7 +5873,7 @@ wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
 wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
 const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',channel:'System',detail:'Demo started: working copy BHO_SBX opened from the approved EstateMaster base case'});scanEmails('07:00',true,true)}else logEvent({kind:'session',actor:'System',channel:'System',detail:`Session resumed: ${LOG.length} entries and ${APQ.length} change requests restored from memory`});
 if(RO)roInit();
-$('#alTo').value=ALERT.to;$('#alEmail').checked=ALERT.email;$('#alWa').checked=ALERT.wa;
+chipify($('#alTo'),rcpAllowed);$('#alTo').value=ALERT.to;$('#alEmail').checked=ALERT.email;$('#alWa').checked=ALERT.wa;
 if(!RO&&$('#tkCard'))$('#tkCard').remove();
 (function(){const lab=['#csStack','#sbCard','#stressT','#sgT'];lab.forEach(q=>{const e=$(q);const c=e&&(e.closest('.card')||e);if(c)c.classList.add('rep-only')});const sg=$('#p-stress > .grid');if(sg)sg.classList.add('rep-only');$$('#p-model > .card,#p-model > .grid').forEach(c=>{if(c.id!=='asmCard')c.classList.add('rep-only')});const dg=$('#dlvStat')&&$('#dlvStat').closest('.grid');if(dg){const det=document.createElement('details');det.style.marginTop='20px';det.innerHTML='<summary style="cursor:pointer;font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:700">Other report schedules, run history and outbox</summary>';dg.before(det);det.appendChild(dg)}})();
 renderProjectUI();syncHeatSel();resetE();renderAll(false);loadDaily();showTab('report');renderBell();mailCheck().then(()=>schedTick(true));renderEng();checkProxy();checkRunner();renderRunnerNote();renderApprBadge();
