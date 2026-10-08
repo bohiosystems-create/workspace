@@ -3040,9 +3040,23 @@ async function completeTask(id,file){if(file)pushExportToServer(file.name,file);
 /* the server's 07:00 report reads the exports folder: every export uploaded here is copied there too (Files.ReadWrite.All) */
 async function pushExportToServer(name,data){if(!DAILYSRV)return;try{const buf=data instanceof ArrayBuffer?data:await data.arrayBuffer();if(buf.byteLength>4e6)return;
   const b64=await new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>ok(String(fr.result).split(',')[1]||'');fr.onerror=no;fr.readAsDataURL(new Blob([buf]))});
-  const j=await dailyApi({action:'export',name,data:b64});if(j.error)throw new Error(j.error);if(j.check)DAILYSRV=Object.assign(DAILYSRV||{},j);toast(`${name} copied to the exports folder: the daily email reads it`);renderDaily();
+  const j=await dailyApi({action:'export',name,data:b64});if(j.error)throw new Error(j.error);EXPORTS.filter(x=>x.file===name).forEach(x=>{x.synced=new Date().toISOString()});saveMem();if(j.check)DAILYSRV=Object.assign(DAILYSRV||{},j);toast(`${name} copied to the exports folder: the daily email reads it`);renderDaily();
   logEvent({kind:'export',actor:'Bohio agent',channel:'SharePoint',detail:`${name} copied to the exports folder for the server’s daily report`})}
   catch(e){toast('Not copied to the exports folder: '+e.message)}}
+/* the exports the app already holds (uploaded before the copy existed, or the demo's): rebuilt as a workbook the server reads
+   exactly as the original (EstateMaster's figures by row label, the Input sheet), sent once per model */
+async function syncExportsToServer(){if(!DAILYSRV)return;try{await loadXLSX()}catch(e){return}
+  const L={levered_irr:'Equity IRR',unlevered_irr:'Project IRR',profit_on_cost:'Development Margin (on cost)',net_profit:'Net Development Profit',total_cost:'Total Development Cost',gross_revenue:'Total Revenue',equity_multiple:'Equity Multiple',peak_debt:'Peak Debt'},U={levered_irr:'%',unlevered_irr:'%',profit_on_cost:'%',equity_multiple:'x'};
+  let n=0;for(const p of Object.values(PROJECTS)){const x=latestExport(p.id);if(!x||x.synced||!Object.keys(x.out||{}).length)continue;
+    const wb=XLSX.utils.book_new(),pn=(p.name||'Model').replace(/[\\/:*?"<>|#%]+/g,' ').trim();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([[pn],[`EstateMaster export ${x.id}${x.file?' ('+x.file+')':''}, ${new Date(x.at).toISOString().slice(0,16)}`]].concat(Object.keys(L).filter(k=>Number.isFinite(x.out[k])).map(k=>[L[k],null,U[k]||(p.currency||'SAR'),x.out[k]]))),'Summary');
+    if(x.inputs&&x.inputs.length){const rows=[['MAIN INPUTS']];let sec='';for(const i of x.inputs){if(i.section&&i.section!==sec){sec=i.section;rows.push([sec])}rows.push([i.label,i.text||i.value,i.unit||''])}XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Input')}
+    const d=new Date(x.at),stamp=`${d.toISOString().slice(0,10)}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`,name=`${pn} ${stamp}.xlsx`;
+    try{const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});const b64=await new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>ok(String(fr.result).split(',')[1]||'');fr.onerror=no;fr.readAsDataURL(new Blob([buf]))});
+      const j=await dailyApi({action:'export',name,data:b64});if(j.error)throw new Error(j.error);x.synced=new Date().toISOString();n++;
+      logEvent({kind:'export',actor:'Bohio agent',channel:'SharePoint',detail:`${p.name}: export ${x.id} sent to the exports folder as ${name} for the daily email`})}
+    catch(e){toast('Export not sent to the exports folder: '+e.message);break}}
+  if(n){saveMem();toast(`${n} model${n>1?'s':''} sent to the exports folder: the daily email now has their figures`);try{const j=await dailyApi();if(j.configured){DAILYSRV=j;renderDaily()}}catch(e){}}}
 /* the Daily feed's open items, with the AI's impact, shared with the server for the report's "To know today" */
 let FEEDT=null,FEEDSIG='';
 function pushFeedSoon(){try{if(!DAILYSRV)return}catch(e){return}clearTimeout(FEEDT);FEEDT=setTimeout(pushFeed,2500)}
@@ -4903,7 +4917,7 @@ let DAILY={enabled:true,time:'07:00',timezone:'Asia/Riyadh',days:[0,1,2,3,4],rec
 try{const d=JSON.parse(localStorage.getItem('bohioDaily')||'null');if(d){Object.assign(DAILY,d.s||{});DAILYLOG=d.log||[]}}catch(e){}
 const saveDailyLocal=()=>{try{localStorage.setItem('bohioDaily',JSON.stringify({s:DAILY,log:DAILYLOG.slice(0,30).map((r,i)=>i<5?r:{...r,html:null})}))}catch(e){}};
 async function dailyApi(body){const r=await fetch('/api/schedule',body?{method:'POST',headers:{'content-type':'application/json',...(AI.pass?{'x-demo-pass':AI.pass}:{})},body:JSON.stringify(body)}:{});if(!/json/.test(r.headers.get('content-type')||''))throw new Error('no server');const j=await r.json();if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j}
-async function loadDaily(){try{const j=await dailyApi();DAILYSRV=j.configured?j:null;if(DAILYSRV)Object.assign(DAILY,j.schedule)}catch(e){DAILYSRV=null}renderDaily();pushFeedSoon()}
+async function loadDaily(){try{const j=await dailyApi();DAILYSRV=j.configured?j:null;if(DAILYSRV)Object.assign(DAILY,j.schedule)}catch(e){DAILYSRV=null}renderDaily();pushFeedSoon();setTimeout(()=>{syncExportsToServer()},1200)}
 function dailyNext(){const s=DAILY;if(!s.enabled||!s.days.length)return'';const now=new Date();for(let i=0;i<9;i++){const d=new Date(now.getTime()+i*864e5);const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:s.timezone,weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).map(x=>[x.type,x.value]));const dow=DAYS3.indexOf(p.weekday);if(!s.days.includes(dow))continue;if(i===0&&(+p.hour*60+ +p.minute)>=(+s.time.slice(0,2)*60+ +s.time.slice(3)))continue;return d.toLocaleDateString('en-GB',{timeZone:s.timezone,weekday:'short',day:'numeric',month:'short'})+' '+s.time}return''}
 function dailyChecks(){if(DAILYSRV)return{list:DAILYSRV.check,ready:DAILYSRV.ready};const to=String(DAILY.recipients||'').split(/[,;\s]+/).filter(Boolean);
   const list=[{ok:to.length>0,label:to.length?'Recipients: '+to.join(', '):'Recipients: none set'},{ok:!!DAILY.enabled,label:DAILY.enabled?'Daily sending is on':'Daily sending is off'},{ok:!!MAILCFG.configured,soft:true,label:MAILCFG.configured?`Sent from ${MAILCFG.from}`:'Microsoft 365 is not connected here: the report is built in the app and kept in the history (simulated email)'},{ok:!!latestExport(),label:latestExport()?`EstateMaster export ${latestExport().id} available`:'No EstateMaster export yet'}];
