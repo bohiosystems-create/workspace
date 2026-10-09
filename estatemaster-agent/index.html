@@ -314,6 +314,30 @@ body.xproj .rep-only{display:none!important}
 .rcp input.rcp-in{flex:1 1 180px;min-width:140px;width:auto;border:0!important;outline:none;background:transparent;box-shadow:none;padding:5px 2px!important;font:inherit;color:inherit}
 .rcp-offer{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .rcp-offer button{border:1px dashed var(--faint);background:none;color:var(--ink);font:inherit;font-size:12px;letter-spacing:0;text-transform:none;font-weight:400;padding:3px 9px;cursor:pointer}.rcp-offer button:hover{border-color:var(--orange);color:var(--orange)}
+
+.hm-tip{position:fixed;z-index:500;max-width:320px;padding:10px 12px;background:#2e2e2f;color:#fff;font-size:12px;line-height:1.45;white-space:pre-line;border-radius:4px;box-shadow:0 10px 30px rgba(46,46,47,.3);pointer-events:none;display:none}
+.as-scale{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--soft);margin-top:8px}.as-scale i{display:inline-block;flex:0 0 160px;height:10px;border-radius:2px}
+.calcby{margin-top:6px;color:var(--soft);font-size:11.5px}.calcby i{font-style:italic}
+.hm .c{cursor:pointer;transition:transform .12s,box-shadow .12s}.hm .c:hover{transform:scale(1.07);box-shadow:0 6px 18px rgba(46,46,47,.25);z-index:2;position:relative}
+.sb-row{cursor:default}.sb-row:hover{background:rgba(241,90,34,.05)}
+/* EstateMaster sensitivity heat maps */
+.hm{margin:14px 0 4px}.hm-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;margin-bottom:6px}.hm-note{color:var(--soft);font-size:11.5px}
+.hm-t{border-collapse:separate;border-spacing:3px;font-size:12.5px}.hm-t th{font-weight:600;color:var(--ink2);padding:2px 6px;white-space:nowrap}.hm-x{text-align:center;font-size:11px;letter-spacing:.08em;text-transform:uppercase}.hm-y{text-align:left;font-size:12px}
+.hm-t td.hmc{padding:0}.hm-c{min-width:66px;padding:9px 6px;text-align:center;border-radius:4px;color:var(--ink);font-variant-numeric:tabular-nums;transition:transform .15s}.hm-c:hover{transform:scale(1.06)}.hm-c.base{box-shadow:0 0 0 2px var(--orange),0 0 0 4px #fff;font-weight:700}
+.hm-c .fig{cursor:pointer;font-weight:600}.fig.fq{text-decoration:underline dotted rgba(46,46,47,.4);text-underline-offset:3px}
+.hm-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--soft);margin-top:8px}.hm-leg i{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-2px;margin-right:5px}
+.sf-model{margin:10px 0 16px}.sf-title{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:14px}
+.sf-risks{margin-top:10px;display:flex;flex-direction:column;gap:8px}.sf-risk{display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:start;padding:8px 10px;border-left:3px solid var(--faint);background:rgba(46,46,47,.03)}.sf-risk.high{border-left-color:#d03b3b;background:rgba(208,59,59,.05)}.sf-risk.medium{border-left-color:var(--orange)}
+.chk-cell{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:rgba(46,46,47,.06);padding:1px 6px;border-radius:3px;white-space:nowrap}
+.tab-car{font-size:9px;margin-left:2px;opacity:.7}#emMenu{position:fixed;z-index:300;display:none;min-width:240px;background:#fff;border:1px solid var(--hair);box-shadow:0 14px 40px rgba(46,46,47,.18);padding:6px}#emMenu.on{display:block}.emm-it{display:flex;flex-direction:column;gap:1px;padding:9px 12px;cursor:pointer}.emm-it b{font-size:12px;letter-spacing:.08em;text-transform:uppercase}.emm-it span{font-size:12px;color:var(--soft)}.emm-it:hover{background:rgba(241,90,34,.08)}.emm-it:hover b{color:var(--orange)}
+.card-hi{box-shadow:0 0 0 3px var(--orange)!important;transition:box-shadow .3s}
+/* stress scenarios as bars */
+.sb-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.sbars{display:flex;flex-direction:column;gap:6px;font-size:13px}.sb-axisrow{border-top:0!important;padding:0!important}.sb-axis{position:relative;height:20px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft)}.sb-axis span{position:absolute;bottom:0;transform:translateX(-50%);white-space:nowrap}.sb-axis span i{display:block;width:1px;height:6px;background:var(--ink);margin:0 auto 1px}
+.sb-row{display:grid;grid-template-columns:minmax(100px,1fr) minmax(110px,2fr) 54px 66px 48px 76px;gap:8px;align-items:center;padding:4px 0;border-top:1px solid rgba(46,46,47,.06)}.sb-row.isbase{border-top:0}.sb-name{font-size:12.5px;line-height:1.3}.sb-row.isbase .sb-name{font-weight:700}
+.sb-track{position:relative;height:22px;background:rgba(46,46,47,.05);border-radius:3px;overflow:visible}.sb-bar{position:absolute;left:0;top:0;height:100%;border-radius:3px;background:linear-gradient(90deg,rgba(31,138,76,.55),#1f8a4c);transition:width .5s cubic-bezier(.2,.8,.2,1)}.sb-row.bad .sb-bar{background:linear-gradient(90deg,rgba(208,59,59,.5),#d03b3b)}.sb-row.isbase .sb-bar{background:linear-gradient(90deg,rgba(46,46,47,.5),var(--ink))}.sb-row.isbase.bad .sb-bar{background:linear-gradient(90deg,rgba(208,59,59,.5),#d03b3b)}
+.sb-hur{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.8;z-index:1}.sb-val{font-weight:700;font-size:12.5px;white-space:nowrap}.sb-pill{display:flex;flex-wrap:wrap;gap:3px}.sb-pill .pill{font-size:10px;padding:1px 6px}.sb-d{font-size:12px;text-align:right}.sb-d.dn{color:#d03b3b}.sb-d.up{color:#1f8a4c}.sb-poc{font-size:12.5px;text-align:right;line-height:1.1}.sb-poc small{display:block;font-size:9px;color:var(--soft);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+@media(max-width:700px){.sb-row{grid-template-columns:90px 1fr 48px 58px 44px 60px;gap:5px;font-size:12px}}
 .dr-check{display:flex;gap:8px;align-items:center;font-size:13.5px;margin:12px 0}
 .dr-lang{display:flex;gap:16px;align-items:center;font-size:13px;margin:10px 0 14px;color:var(--ink2)}
 .dr-checks{display:flex;flex-direction:column;gap:7px;margin-top:10px;font-size:13px}.dr-checks div{display:flex;gap:8px}.dr-checks .ok{color:#1f8a5a;font-weight:700}.dr-checks .no{color:var(--alert);font-weight:700}.dr-checks .soft{color:var(--soft)}
@@ -699,6 +723,8 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
         <div class="mkbox" style="margin-top:0">Nothing reaches EstateMaster until a person approves it. Assumption changes proposed in the project’s emails, and changes the agent proposes itself, wait here. Promotion to the live model needs an Investment Director. Changes a person makes directly are their own decision and are logged.</div>
         <div class="ib" id="apList"></div>
       </div>
+      <div class="card" id="stressFeed"><div class="bar"></div><div class="sbhead" style="flex-wrap:wrap"><h2>Stress tests run before the daily report</h2><button class="btn sm" id="sfRun">Run now</button></div>
+        <div class="sub" id="sfSub" style="margin-top:4px"></div><div id="sfBody"></div></div>
       <div class="card" id="tkCard"><div class="bar"></div><h2>For the analyst · approved changes to apply in EstateMaster</h2><div class="sub" id="tkSub"></div><div class="ib" id="tkList"></div></div>
       <div class="card"><div class="bar"></div><h2>Decided</h2><div class="ib" id="apDone" style="max-height:520px;overflow:auto"></div></div>
     </div>
@@ -762,7 +788,7 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
       <div class="bar"></div><h2>Stress scenarios</h2>
       <div class="sub">Hurdles: levered IRR ≥ <span id="hIRR"></span> and profit on cost ≥ <span id="hPOC"></span>. Agent’s estimates on the current sandbox; check any scenario in EstateMaster for its own figure.</div>
       <div style="margin-bottom:12px"><button class="btn" id="runStress">Run all stress tests</button></div>
-      <table class="t" id="stressT"></table>
+      <div id="stressT"></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:20px">
       <div class="card"><div class="bar"></div><h2>Every assumption</h2><div class="sub">Each line of the EstateMaster register moved on its own. Ranked by effect on levered IRR.</div><div id="ftorn" style="max-height:420px;overflow:auto"></div></div>
@@ -1133,6 +1159,7 @@ function addWork(kind,text,extra){const w={id:WKN++,kind,text,...(extra||{})};WO
 const TAGK={em:'Financial model',est:'Agent estimate',calc:'AI calc'},TAGKIND={em:'read from the EstateMaster export · not calculated by the agent',est:'the agent’s replica estimate · not an EstateMaster figure',calc:'arithmetic by the AI model · not an EstateMaster figure'};
 const pmark=(k,id)=>`⟦${k}#${id}⟧`;
 const attrW=w=>esc(w||'').replace(/"/g,'&quot;').replace(/\n/g,'&#10;');
+function figq(k,text,work){return `<b class="fig fig-${k} fq" data-k="${k}" data-w="${attrW(work)}">${esc(text)}</b>`}
 function fig(k,text,work){return `<b class="fig fig-${k}" data-k="${k}" data-w="${attrW(work)}">${esc(text)}</b><span class="tag tag-${k}">${TAGK[k]}</span>`}
 function figM(k,text,work,extra){return `${text} ${pmark(k,addWork(k,work,extra))}`}
 const MARK=/((?:SAR\s?)?[-−+]?\d[\d,]*(?:\.\d+)?\s?(?:%|x\b|M\b|bn\b|k\b|points?|pts|pp\b|bps|percent|times|months?|years?|mo\b|sqm|(?:million|billion|thousand)(?: riyals| SAR)?|riyals|SAR)?)?\s*⟦(em|est|calc)(?:#(\d+))?(?::\s*([^⟧]*))?⟧/g;
@@ -1910,6 +1937,7 @@ function renderApprovals(){
   const ai=p.filter(c=>c.ai).length;$('#apSub').textContent=`${p.length} pending${p.length?` · effect worked out by the AI for ${ai} of them`:''} · ${d.length} decided · signed in as ${WS_ROLE}`;crEffectsKick();
   $('#apList').innerHTML=p.length?p.map(crCard).join(''):'<div class="sub">Nothing in today’s feed: no email has proposed an assumption change since the last scan.</div>';
   $('#apDone').innerHTML=d.length?d.map(crCard).join(''):'<div class="sub">No decisions yet.</div>';
+  try{renderStressFeed()}catch(e){console.warn(e)}
   const q=logQ.toLowerCase(),rows=LOG.slice().reverse().filter(l=>!q||(l.detail+' '+l.actor+' '+l.cr+' '+l.kind).toLowerCase().includes(q));
   $('#logSub').textContent=`${LOG.length} entries kept since ${LOG[0]?new Date(LOG[0].at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'now'} · stored in this browser (demo); in production in SQL Server`;
   $('#logT').innerHTML='<tr><th>When</th><th>Who</th><th>Type</th><th>What</th><th class="n">IRR after</th></tr>'+rows.slice(0,300).map(l=>`<tr><td style="font-size:11.5px">${new Date(l.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</td><td style="font-size:12px">${esc(l.actor)}<br><span style="color:var(--soft)">${esc(l.channel)}</span></td><td><span class="pill ${l.kind==='approved'||l.kind==='promoted'?'p':l.kind==='rejected'?'f':'s'}">${esc(l.kind)}</span></td><td>${esc(l.detail)}</td><td class="n">${l.irr==null?'–':fP(l.irr)}</td></tr>`).join('');
@@ -2783,12 +2811,12 @@ function exportChecks(x){if(!x)return[];const xs=EXPORTS.filter(e=>e.proj===x.pr
   const approvedBetween=!!prev&&LOG.some(e=>e.kind==='approved'&&e.at>prev.at&&e.at<=x.at);
   return emChecks(x,prev,{now:new Date().toISOString(),hurdle:HURDLE.irr*100,register:x.src==='file'&&!PROJ.fromExport?register:null,approvedBetween})}
 const CHK_LEVEL={error:['Likely error','f'],warn:['Check','w'],note:['Note','']};
-function checksHTML(list,empty){if(!list.length)return`<div class="sub">${empty||'No issues found.'}</div>`;return '<div class="chk">'+list.map(c=>`<div class="chk-row"><span class="pill ${CHK_LEVEL[c.level][1]}">${CHK_LEVEL[c.level][0]}</span><span>${esc(c.text)}</span></div>`).join('')+'</div>'}
+function checksHTML(list,empty){if(!list.length)return`<div class="sub">${empty||'No issues found.'}</div>`;return '<div class="chk">'+list.map(c=>`<div class="chk-row"><span class="pill ${CHK_LEVEL[c.level][1]}">${CHK_LEVEL[c.level][0]}</span><span>${esc(c.text)}${c.cell?` <b class="chk-cell" title="The cell in the Excel export">${esc(c.cell)}</b>`:''}</span></div>`).join('')+'</div>'}
 function optionExports(proj=PROJ.id){const b=baseOpt(proj),m={};EXPORTS.filter(x=>x.proj===proj&&optKey(x)!==b).forEach(x=>{m[optKey(x)]=x});return Object.values(m)}
 const openTasks=(proj)=>TASKS.filter(t=>t.status==='open'&&(!proj||t.proj===proj));
 function simOut(){const r=run(S),n=v=>+(+v).toFixed(2);return{levered_irr:n(bad(r.irr)*100),unlevered_irr:n(bad(r.uirr)*100),profit_on_cost:n(r.poc*100),net_profit:Math.round(r.profit),total_cost:Math.round(r.tc),gross_revenue:Math.round(r.rev),equity_multiple:n(r.em),peak_debt:Math.round(r.peak)}}
 function addExport(src,note,out,file,cr,extra){
-  const x={id:'EX-'+String(EXN++).padStart(3,'0'),proj:PROJ.id,at:new Date().toISOString(),src,note,file:file||'',cr:cr||'',out,sig:wcSig(),opt:(extra&&extra.opt)||'',sens:(extra&&extra.sens)||[],inputs:(extra&&extra.inputs)||[],meta:(extra&&extra.meta)||null,sheets:(extra&&extra.sheets)||[]};
+  const x={id:'EX-'+String(EXN++).padStart(3,'0'),proj:PROJ.id,at:new Date().toISOString(),src,note,file:file||'',cr:cr||'',out,sig:wcSig(),opt:(extra&&extra.opt)||'',sens:(extra&&extra.sens)||[],inputs:(extra&&extra.inputs)||[],cells:(extra&&extra.cells)||{},meta:(extra&&extra.meta)||null,sheets:(extra&&extra.sheets)||[]};
   EXPORTS.push(x);if(EXPORTS.length>500)EXPORTS=EXPORTS.slice(-500);syncEMLast(true);
   logEvent({kind:'export',actor:src==='file'?`${USERS.web} (${WS_ROLE})`:'Analyst (simulated)',channel:'EstateMaster export',detail:`${x.id} read${file?' from '+file:''}${x.opt?` · option “${x.opt}”`:''}${x.sens.length?` · ${x.sens.length} sensitivity table${x.sens.length>1?'s':''}`:''}: ${note}${Number.isFinite(out.levered_irr)?` · levered IRR ${out.levered_irr.toFixed(2)}%`:''}${src==='file'?'':' (simulated export: demo stand-in for EstateMaster)'}`,cr:cr||''});
   return x}
@@ -2796,23 +2824,24 @@ function syncEMLast(force){const x=latestExport();if(!x){if(EMLAST&&EMLAST.proj=
   if(force||!EMLAST||EMLAST.ref!==x.id)EMLAST={out:x.out,ref:x.id,sim:x.src!=='file',kind:'export',sig:x.sig,proj:x.proj,at:x.at}}
 /* Read EstateMaster's figures from an Office Links export (any sheet), by row label */
 const EXLAB=[['levered_irr',/(equity|levered|geared)\s*irr|irr\s*\((equity|levered|geared)/i],['unlevered_irr',/(unlevered|ungeared|project)\s*irr|irr\s*\((unlevered|ungeared|project)/i],['profit_on_cost',/(profit|margin)\s*on\s*(cost|development)|development\s*margin/i],['net_profit',/(net|development)\s*profit/i],['total_cost',/total\s*(development\s*)?costs?\b/i],['gross_revenue',/(gross|total)\s*(revenue|realisation|realization|sales)/i],['equity_multiple',/equity\s*multiple/i],['peak_debt',/peak\s*(debt|funding|loan)/i]];
+const A1=(sheet,col,row)=>{let c='',n=col+1;while(n>0){c=String.fromCharCode(64+((n-1)%26+1))+c;n=Math.floor((n-1)/26)}return `${sheet}!${c}${row+1}`};
 function parseExport(wb,fileName){
   const out={},found={};
-  for(const name of wb.SheetNames||[]){const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true});
-    for(const row of rows){if(!row)continue;
+  const cells={};for(const name of wb.SheetNames||[]){const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true});
+    for(let ri=0;ri<rows.length;ri++){const row=rows[ri];if(!row)continue;
       for(let i=0;i<row.length;i++){const c=row[i];if(typeof c!=='string'||c.length>80)continue;
         for(const [k,re] of EXLAB){if(k in out||!re.test(c))continue;
           if(k==='levered_irr'&&/unlevered|ungeared/i.test(c))continue;
           const v=row.slice(i+1).find(x=>typeof x==='number'||(typeof x==='string'&&/^\s*-?[\d,.]+\s*%?\s*$/.test(x)&&x.trim()));if(v==null)continue;
           let n=typeof v==='number'?v:parseFloat(v.replace(/[,%\s]/g,''));if(!Number.isFinite(n))continue;
           if(/irr|profit_on_cost/.test(k)&&Math.abs(n)<1&&!(typeof v==='string'&&/%/.test(v)))n*=100;
-          out[k]=+n.toFixed(4);found[k]=`${name} / ${c.trim()}`;break}}}}
+          out[k]=+n.toFixed(4);found[k]=`${name} / ${c.trim()}`;cells[k]=A1(name,i+1+row.slice(i+1).indexOf(v),ri);break}}}}
   if(!('levered_irr' in out)&&!('unlevered_irr' in out)){
     for(const name of wb.SheetNames||[]){for(const row of XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true})){if(!row)continue;const i=row.findIndex(c=>typeof c==='string'&&/\bIRR\b/i.test(c)&&c.length<60);if(i<0)continue;const v=row.slice(i+1).find(x=>typeof x==='number');if(v==null)continue;out.levered_irr=+(Math.abs(v)<1?v*100:v).toFixed(4);found.levered_irr=`${name} / ${row[i].trim()} (taken as the levered IRR: check)`;break}if('levered_irr' in out)break}}
   const sens=[];for(const name of wb.SheetNames||[]){const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true});let r=parseSens(rows,name);if(!r.length&&/sensitiv/i.test(name)){const T=[];rows.forEach((row,i)=>(row||[]).forEach((c,j)=>{(T[j]=T[j]||[])[i]=c}));r=parseSens(T,name)}sens.push(...r)}
   const shs=(wb.SheetNames||[]).map(name=>({name,rows:XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true}),frows:XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:false})}));
   const inputs=parseInputs(shs),meta=detectMeta(shs,fileName);
-  return{out,found,opt:detectOpt(wb,fileName),sens,inputs,meta,sheets:(wb.SheetNames||[]).slice(0,40)}}
+  return{out,found,cells,opt:detectOpt(wb,fileName),sens,inputs,meta,sheets:(wb.SheetNames||[]).slice(0,40)}}
 /*EMCHECK-SYNC-START*/
 const ROWS=[['levered_irr','Levered IRR','%'],['unlevered_irr','Unlevered IRR','%'],['profit_on_cost','Profit on cost','%'],['net_profit','Net profit','M'],['total_cost','Total development cost','M'],['gross_revenue','Gross revenue','M'],['equity_multiple','Equity multiple','x'],['peak_debt','Peak debt','M']];
 const LAB=EXLAB;
@@ -2826,17 +2855,18 @@ function parseInputs(sheets) {
     const i = row.findIndex(c => typeof c === 'string' && c.trim().length > 2 && c.length <= 70 && /[a-z]/i.test(c)); if (i < 0) return;
     const lab = row[i].trim(); if (LAB.some(([, re]) => re.test(lab))) return;
     const fr = (s.frows && s.frows[ri]) || [];
-    const cells = []; for (let j = i + 1; j < Math.min(row.length, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; const pc = /%\s*$/.test(t.trim()) || (typeof row[j] === 'string' && /%\s*$/.test(row[j])); cells.push({ v: pc && typeof row[j] === 'number' ? n * 100 : n, t, pct: pc }); }
+    const cells = []; for (let j = i + 1; j < Math.min(row.length, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; const pc = /%\s*$/.test(t.trim()) || (typeof row[j] === 'string' && /%\s*$/.test(row[j])); cells.push({ v: pc && typeof row[j] === 'number' ? n * 100 : n, t, pct: pc, j }); }
     if (!cells.length) {
       // a text or date input on an input sheet ("Date of First Period: Oct-26", "Add GST on Land Price? Y") is part of the full list too
       if (!/input|assumption/i.test(s.name)) return;
       const tv = row.slice(i + 1, i + 6).map((c, j) => String(fr[i + 1 + j] == null ? (c == null ? '' : c) : fr[i + 1 + j]).trim()).find(t => t && t.length <= 40 && t !== '-');
       const key0 = s.name + '|' + lab; if (!tv || seen.has(key0)) return; seen.add(key0);
-      out.push({ label: lab, value: null, text: tv, pct: false, vals: [], sheet: s.name, section, unit: '' }); return;
+      const tj = row.slice(i + 1, i + 6).findIndex((c, j) => String(fr[i + 1 + j] == null ? (c == null ? '' : c) : fr[i + 1 + j]).trim() === tv);
+      out.push({ label: lab, value: null, text: tv, pct: false, vals: [], sheet: s.name, section, unit: '', cell: A1(s.name, i + 1 + Math.max(0, tj), ri) }); return;
     }
     const unitCell = row.slice(i + 1, i + 9).find(c => typeof c === 'string' && /%|sar|aud|usd|sqm|m2|month|year|annum|p\.a\./i.test(c) && c.length < 30);
     const key = s.name + '|' + lab; if (seen.has(key)) return; seen.add(key);
-    out.push({ label: lab, value: +cells[0].v.toFixed(6), text: cells[0].t || String(cells[0].v), pct: cells[0].pct, vals: cells.map(c => c.v).slice(0, 6), sheet: s.name, section, unit: cells[0].pct ? '%' : (unitCell ? unitCell.trim() : '') });
+    out.push({ label: lab, value: +cells[0].v.toFixed(6), text: cells[0].t || String(cells[0].v), pct: cells[0].pct, vals: cells.map(c => c.v).slice(0, 6), sheet: s.name, section, unit: cells[0].pct ? '%' : (unitCell ? unitCell.trim() : ''), cell: A1(s.name, cells[0].j, ri) });
   }); }
   return out;
 }
@@ -2845,18 +2875,18 @@ function parseInputs(sheets) {
    implausible inputs, jumps since the previous export with no approved change behind them, a stale export.
    x = {out, inputs, sens, at, file}; prev = the previous export of the same option; opt = {now, hurdle, register, approvedBetween}. */
 function emChecks(x, prev, opt) {
-  opt = opt || {}; const o = x.out || {}, p = prev && prev.out || {}, res = [], add = (level, code, text) => res.push({ level, code, text });
+  opt = opt || {}; const o = x.out || {}, p = prev && prev.out || {}, res = [], C = x.cells || {}, at = (...ks) => ks.map(k => C[k]).filter(Boolean).join(', '), add = (level, code, text, cell) => res.push({ level, code, text, cell: cell || '' });
   const fin = v => typeof v === 'number' && Number.isFinite(v), M = v => 'SAR ' + (Math.abs(v) / 1e6).toLocaleString('en-GB', { maximumFractionDigits: 1 }) + 'M', P = v => v.toFixed(2) + '%';
   for (const k of ['levered_irr', 'profit_on_cost', 'net_profit', 'total_cost']) if (!fin(o[k])) add('note', 'missing', `${ROWS.find(r => r[0] === k)[1]} is not in the export (no row with that label): include the Summary sheet.`);
-  for (const k of ['total_cost', 'gross_revenue', 'net_profit', 'peak_debt']) if (fin(o[k]) && o[k] !== 0 && Math.abs(o[k]) < 5e6) add('warn', 'units', `${ROWS.find(r => r[0] === k)[1]} reads ${o[k].toLocaleString('en-GB')}: that looks like thousands or millions rather than full SAR (unit setting in the export?).`);
-  if (fin(o.net_profit) && fin(o.total_cost) && fin(o.profit_on_cost) && o.total_cost > 0) { const calc = o.net_profit / o.total_cost * 100; if (Math.abs(calc - o.profit_on_cost) > 1.5) add('error', 'reconcile', `Profit on cost ${P(o.profit_on_cost)} does not reconcile with net profit / total cost (${P(calc)}): one of the three rows is wrong or from a different option.`); }
-  if (fin(o.gross_revenue) && fin(o.total_cost) && fin(o.net_profit) && o.gross_revenue > 0 && Math.abs(o.gross_revenue - o.total_cost - o.net_profit) > 0.03 * o.gross_revenue) add('warn', 'reconcile', `Revenue ${M(o.gross_revenue)} − total cost ${M(o.total_cost)} = ${M(o.gross_revenue - o.total_cost)}, but net profit reads ${M(o.net_profit)}: check tax, land or finance lines are counted once.`);
-  if (fin(o.peak_debt) && fin(o.total_cost) && o.peak_debt > o.total_cost) add('error', 'debt', `Peak debt ${M(o.peak_debt)} is above total development cost ${M(o.total_cost)}: facility or drawdown inputs look wrong.`);
-  if (fin(o.levered_irr) && fin(o.unlevered_irr) && fin(o.net_profit) && o.net_profit > 0 && (!fin(o.peak_debt) || o.peak_debt > 0) && o.levered_irr < o.unlevered_irr - 0.2) add('warn', 'leverage', `Levered IRR ${P(o.levered_irr)} is below the unlevered IRR ${P(o.unlevered_irr)} on a profitable scheme: the facility costs more than it earns (profit rate, fees or drawdown timing?).`);
-  if (fin(o.levered_irr) && (o.levered_irr > 60 || o.levered_irr < -20)) add('warn', 'range', `Levered IRR ${P(o.levered_irr)} is outside the plausible range: check the timing inputs (dates, spans) and the equity injection.`);
-  if (fin(o.profit_on_cost) && o.profit_on_cost > 80) add('warn', 'range', `Profit on cost ${P(o.profit_on_cost)} is implausibly high: a cost section may be missing.`);
-  if (fin(o.profit_on_cost) && fin(o.net_profit) && (o.profit_on_cost < 0) !== (o.net_profit < 0)) add('error', 'sign', `Profit on cost ${P(o.profit_on_cost)} and net profit ${M(o.net_profit)} have different signs.`);
-  if (fin(o.equity_multiple) && (o.equity_multiple < 0.2 || o.equity_multiple > 6)) add('warn', 'range', `Equity multiple ${o.equity_multiple.toFixed(2)}x is outside the plausible range.`);
+  for (const k of ['total_cost', 'gross_revenue', 'net_profit', 'peak_debt']) if (fin(o[k]) && o[k] !== 0 && Math.abs(o[k]) < 5e6) add('warn', 'units', `${ROWS.find(r => r[0] === k)[1]} reads ${o[k].toLocaleString('en-GB')}: that looks like thousands or millions rather than full SAR (unit setting in the export?).`, at(k));
+  if (fin(o.net_profit) && fin(o.total_cost) && fin(o.profit_on_cost) && o.total_cost > 0) { const calc = o.net_profit / o.total_cost * 100; if (Math.abs(calc - o.profit_on_cost) > 1.5) add('error', 'reconcile', `Profit on cost ${P(o.profit_on_cost)} does not reconcile with net profit / total cost (${P(calc)}): one of the three rows is wrong or from a different option.`, at('profit_on_cost', 'net_profit', 'total_cost')); }
+  if (fin(o.gross_revenue) && fin(o.total_cost) && fin(o.net_profit) && o.gross_revenue > 0 && Math.abs(o.gross_revenue - o.total_cost - o.net_profit) > 0.03 * o.gross_revenue) add('warn', 'reconcile', `Revenue ${M(o.gross_revenue)} − total cost ${M(o.total_cost)} = ${M(o.gross_revenue - o.total_cost)}, but net profit reads ${M(o.net_profit)}: check tax, land or finance lines are counted once.`, at('gross_revenue', 'total_cost', 'net_profit'));
+  if (fin(o.peak_debt) && fin(o.total_cost) && o.peak_debt > o.total_cost) add('error', 'debt', `Peak debt ${M(o.peak_debt)} is above total development cost ${M(o.total_cost)}: facility or drawdown inputs look wrong.`, at('peak_debt', 'total_cost'));
+  if (fin(o.levered_irr) && fin(o.unlevered_irr) && fin(o.net_profit) && o.net_profit > 0 && (!fin(o.peak_debt) || o.peak_debt > 0) && o.levered_irr < o.unlevered_irr - 0.2) add('warn', 'leverage', `Levered IRR ${P(o.levered_irr)} is below the unlevered IRR ${P(o.unlevered_irr)} on a profitable scheme: the facility costs more than it earns (profit rate, fees or drawdown timing?).`, at('levered_irr', 'unlevered_irr'));
+  if (fin(o.levered_irr) && (o.levered_irr > 60 || o.levered_irr < -20)) add('warn', 'range', `Levered IRR ${P(o.levered_irr)} is outside the plausible range: check the timing inputs (dates, spans) and the equity injection.`, at('levered_irr'));
+  if (fin(o.profit_on_cost) && o.profit_on_cost > 80) add('warn', 'range', `Profit on cost ${P(o.profit_on_cost)} is implausibly high: a cost section may be missing.`, at('profit_on_cost'));
+  if (fin(o.profit_on_cost) && fin(o.net_profit) && (o.profit_on_cost < 0) !== (o.net_profit < 0)) add('error', 'sign', `Profit on cost ${P(o.profit_on_cost)} and net profit ${M(o.net_profit)} have different signs.`, at('profit_on_cost', 'net_profit'));
+  if (fin(o.equity_multiple) && (o.equity_multiple < 0.2 || o.equity_multiple > 6)) add('warn', 'range', `Equity multiple ${o.equity_multiple.toFixed(2)}x is outside the plausible range.`, at('equity_multiple'));
   for (const t of x.sens || []) {
     const key = t.mk === 'irr' ? 'levered_irr' : t.mk === 'uirr' ? 'unlevered_irr' : t.mk === 'poc' ? 'profit_on_cost' : null; if (!key || !fin(o[key])) continue;
     const base = t.kind === '1way' ? t.values[t.shifts.indexOf(0)] : (t.grid[t.ys.indexOf(0)] || [])[t.xs.indexOf(0)];
@@ -2868,21 +2898,21 @@ function emChecks(x, prev, opt) {
   for (const i of x.inputs || []) {
     if (!fin(i.value)) continue; // text inputs (names, Y/N, dates) have nothing to range-check
     const l = nm(i), v = pct(i);
-    if (/contingen|escalat|commission|selling cost|sales cost|interest|profit rate|cap(italisation)? rate|exit yield|land (cost|price|value)|construction cost/.test(l) && i.value === 0) add('warn', 'input-zero', `Input “${i.label}” is 0 on sheet ${i.sheet}: left blank?`);
-    if (/interest|profit rate|saibor|finance rate|loan rate/.test(l) && !/fee|margin over|spread/.test(l) && v !== 0 && (v < 2 || v > 15)) add('warn', 'input-range', `Input “${i.label}” = ${v}% p.a. is outside 2–15%.`);
-    if (/cap(italisation)? rate|exit yield|terminal yield/.test(l) && v !== 0 && (v < 4 || v > 12)) add('warn', 'input-range', `Input “${i.label}” = ${v}% is outside 4–12%.`);
-    if (/contingen/.test(l) && v > 15) add('warn', 'input-range', `Input “${i.label}” = ${v}%: contingency above 15%.`);
-    if (/\bvat\b|value added tax/.test(l) && v !== 0 && Math.abs(v - 15) > 0.01) add('note', 'input-range', `Input “${i.label}” = ${v}%: Saudi VAT is 15%.`);
-    if (/%|rate|margin|share/.test(l + ' ' + i.unit) && !/sar|sqm|month|year/i.test(i.unit) && Math.abs(v) > 100 && !/escalat/.test(l)) add('error', 'input-range', `Input “${i.label}” = ${i.value}: a percentage above 100%.`);
-    if (/delay|duration|span|months/.test(l) && /month/.test(l + ' ' + i.unit) && (i.value < 0 || i.value > 120)) add('warn', 'input-range', `Input “${i.label}” = ${i.value} months is outside 0–120.`);
+    if (/contingen|escalat|commission|selling cost|sales cost|interest|profit rate|cap(italisation)? rate|exit yield|land (cost|price|value)|construction cost/.test(l) && i.value === 0) add('warn', 'input-zero', `Input “${i.label}” is 0 on sheet ${i.sheet}: left blank?`, i.cell);
+    if (/interest|profit rate|saibor|finance rate|loan rate/.test(l) && !/fee|margin over|spread/.test(l) && v !== 0 && (v < 2 || v > 15)) add('warn', 'input-range', `Input “${i.label}” = ${v}% p.a. is outside 2–15%.`, i.cell);
+    if (/cap(italisation)? rate|exit yield|terminal yield/.test(l) && v !== 0 && (v < 4 || v > 12)) add('warn', 'input-range', `Input “${i.label}” = ${v}% is outside 4–12%.`, i.cell);
+    if (/contingen/.test(l) && v > 15) add('warn', 'input-range', `Input “${i.label}” = ${v}%: contingency above 15%.`, i.cell);
+    if (/\bvat\b|value added tax/.test(l) && v !== 0 && Math.abs(v - 15) > 0.01) add('note', 'input-range', `Input “${i.label}” = ${v}%: Saudi VAT is 15%.`, i.cell);
+    if (/%|rate|margin|share/.test(l + ' ' + i.unit) && !/sar|sqm|month|year/i.test(i.unit) && Math.abs(v) > 100 && !/escalat/.test(l)) add('error', 'input-range', `Input “${i.label}” = ${i.value}: a percentage above 100%.`, i.cell);
+    if (/delay|duration|span|months/.test(l) && /month/.test(l + ' ' + i.unit) && (i.value < 0 || i.value > 120)) add('warn', 'input-range', `Input “${i.label}” = ${i.value} months is outside 0–120.`, i.cell);
   }
   if (opt.register) for (const i of x.inputs || []) {
     if (!fin(i.value)) continue; const r = opt.register.find(rg => rg.match(i.label)); if (!r || !fin(r.value) || r.value === 0) continue;
     const ratios = [1, 1e3, 1e6, 1e-3, 1e-6, 100, 0.01].map(f => Math.abs(i.value * f / r.value - 1)); const d = Math.min(...ratios);
-    if (d > 0.02 && d < 100) add('warn', 'register', `Input “${i.label}” reads ${i.value.toLocaleString('en-GB')} in the export but the approved register has ${r.label} = ${r.text}: an unapproved change or a typing slip.`);
+    if (d > 0.02 && d < 100) add('warn', 'register', `Input “${i.label}” reads ${i.value.toLocaleString('en-GB')} in the export but the approved register has ${r.label} = ${r.text}: an unapproved change or a typing slip.`, i.cell);
   }
   if (prev && p) {
-    const hop = (k, lim, u) => { if (!fin(o[k]) || !fin(p[k])) return; const d = u === 'pts' ? o[k] - p[k] : (o[k] - p[k]) / Math.abs(p[k] || 1) * 100; if (Math.abs(d) > lim) add(opt.approvedBetween ? 'note' : 'warn', 'jump', `${ROWS.find(r => r[0] === k)[1]} moved ${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}${u === 'pts' ? ' pts' : '%'} since the previous export${prev.file ? ' (' + prev.file + ')' : ''}${opt.approvedBetween ? ', with approved changes in between' : ' and no approved change in between: a typing slip or an unapproved change?'}`); };
+    const hop = (k, lim, u) => { if (!fin(o[k]) || !fin(p[k])) return; const d = u === 'pts' ? o[k] - p[k] : (o[k] - p[k]) / Math.abs(p[k] || 1) * 100; if (Math.abs(d) > lim) add(opt.approvedBetween ? 'note' : 'warn', 'jump', `${ROWS.find(r => r[0] === k)[1]} moved ${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(1)}${u === 'pts' ? ' pts' : '%'} since the previous export${prev.file ? ' (' + prev.file + ')' : ''}${opt.approvedBetween ? ', with approved changes in between' : ' and no approved change in between: a typing slip or an unapproved change?'}`, at(k)); };
     hop('levered_irr', 3, 'pts'); hop('profit_on_cost', 3, 'pts'); hop('total_cost', 10, '%'); hop('gross_revenue', 10, '%'); hop('peak_debt', 25, '%');
   }
   if (x.at && opt.now) { const days = (new Date(opt.now) - new Date(x.at)) / 864e5; if (days > 7) add('note', 'stale', `The latest export is ${Math.floor(days)} days old.`); }
@@ -2975,7 +3005,7 @@ function parseSens(rows,sheet){
   while(i<rows.length){const row=rows[i]||[];
     let run_=[];for(let j=0;j<row.length;j++){if(SHIFT(row[j])!=null&&!(typeof row[j]==='number'&&row[j]>1&&!Number.isInteger(row[j]))){if(run_.length&&j!==run_[run_.length-1]+1){if(run_.length>=3)break;run_=[]}run_.push(j)}}
     const shifts=run_.map(j=>SHIFT(row[j]));
-    if(run_.length>=3&&shifts.includes(0)&&shifts.every((v,k)=>!k||v>shifts[k-1])&&!row.slice(run_[run_.length-1]+1).some(c=>typeof c==='number')){
+    if(run_.length>=3&&shifts.includes(0)&&shifts.some(v=>v<0)&&shifts.some(v=>v>0)&&shifts.every((v,k)=>!k||v>shifts[k-1])&&!row.slice(run_[run_.length-1]+1).some(c=>typeof c==='number')){
       let title=row.slice(0,run_[0]).find(c=>typeof c==='string'&&c.trim()&&SHIFT(c)==null)||'';
       for(let k=i-1;k>=Math.max(0,i-4)&&!title;k--){const t=(rows[k]||[]).find(c=>typeof c==='string'&&c.trim()&&SHIFT(c)==null);if(t)title=t}
       title=String(title).replace(/sensitivity( analysis| table)?/i,'').replace(/\b(one|two|three|1|2|3)[- ]way\b/i,'').replace(/^[\s:–-]+|[\s:–-]+$/g,'').trim();
@@ -2983,7 +3013,7 @@ function parseSens(rows,sheet){
       for(;k<rows.length;k++){const r=rows[k]||[];if(!r.some(c=>c!==''&&c!=null))break;
         const vals=run_.map(j=>numOf(r[j]));if(vals.filter(v=>v!=null).length<2)break;
         const lead=r.slice(0,run_[0]).filter(c=>c!==''&&c!=null);const lab=lead.find(c=>typeof c==='string'&&SHIFT(c)==null);const ysh=lead.map(SHIFT).find(v=>v!=null);
-        if(lab)one.push({metric:String(lab).trim(),values:vals});else if(ysh!=null){ys.push(ysh);grid.push(vals)}else break}
+        if(lab&&/[a-z]{3}/i.test(lab)&&!/^\s*\//.test(lab))one.push({metric:String(lab).trim(),values:vals});else if(ysh!=null){ys.push(ysh);grid.push(vals)}else break}
       const norm=(key,vals)=>vals.map(v=>v==null?null:(['irr','uirr','poc'].includes(key)&&Math.abs(v)<1?+(v*100).toFixed(4):+v));
       if(grid.length>=2){const mm=title.match(/(equity irr|levered irr|geared irr|project irr|unlevered irr|development margin|margin on cost|profit on cost|npv|net profit|irr)/i);const metric=mm?mm[1]:'Levered IRR',mk=SENSMET(metric);
         const rest=title.replace(mm?mm[0]:'','').replace(/[()]/g,' ').replace(/^[\s:–-]+|[\s:–-]+$/g,'').trim();const pr=rest.match(/^(.*?)\s+(?:vs\.?|v\.|\/|×|x|and|&|by)\s+(.*)$/i);
@@ -3315,21 +3345,40 @@ function asEmTable(X,Y,mk){const x=latestExport();if(!x||!x.sens)return null;con
   const t=x.sens.find(t=>t.kind==='2way'&&t.mk===AS_MK[mk]&&((hit(t.x,X.assumption)&&hit(t.y,Y.assumption))||(hit(t.x,Y.assumption)&&hit(t.y,X.assumption))));if(!t)return null;
   const flip=!(hit(t.x,X.assumption)&&hit(t.y,Y.assumption));return{table:t,flip,xid:x.id,xfile:x.file||''}}
 function asCellStyle(v,mk,base){const h=mk==='levered_irr'?HURDLE.irr*100:mk==='profit_on_cost'?HURDLE.poc*100:(base==null?0:base);const spread=MET[mk][1]==='%'?10:Math.max(1,Math.abs(base||1))*.5;const t=Math.max(-1,Math.min(1,(v-h)/spread));
-  if(t<0){const a=.18+(-t)*.7;return`background:rgba(208,59,59,${a});color:${a>.55?'#fff':'#2e2e2f'}`}const a=.06+t*.72;return`background:rgba(46,46,47,${a});color:${a>.42?'#fff':'#2e2e2f'}`}
+  return asScale(t)}
+/* t in [-1,1]: deep red (−1) → red → coral → amber (0, at the hurdle) → light green → green → deep green (+1) */
+function asScale(t){const stops=[[-1,[163,29,29]],[-.6,[208,59,59]],[-.3,[232,120,96]],[-.08,[243,188,120]],[0,[246,214,140]],[.08,[214,222,140]],[.3,[150,200,120]],[.6,[64,160,90]],[1,[20,110,60]]];
+  let a=stops[0],b=stops[stops.length-1];for(let i=0;i<stops.length-1;i++)if(t>=stops[i][0]&&t<=stops[i+1][0]){a=stops[i];b=stops[i+1];break}
+  const f=b[0]===a[0]?0:(t-a[0])/(b[0]-a[0]),c=a[1].map((v,i)=>Math.round(v+(b[1][i]-v)*f)),lum=(c[0]*299+c[1]*587+c[2]*114)/1000;
+  return`background:rgb(${c.join(',')});color:${lum<150?'#fff':'#2e2e2f'}`}
+/* hover card for a heat-map cell: what the cell is, against the hurdle and the base, how it was worked out */
+function asTip(r,i,k){const {X,Y,mk}=r,v=r.grid[i][k],st=r.status[i][k],u=MET[mk][1],h=mk==='levered_irr'?HURDLE.irr*100:mk==='profit_on_cost'?HURDLE.poc*100:null,[na,nb]=r.names;
+  const vs=(a,b,what)=>!Number.isFinite(a)||!Number.isFinite(b)?'':`${a-b>=0?'+':''}${u==='%'?(a-b).toFixed(2)+' pts':fMet(mk,a-b)} vs ${what}`;
+  const lines=[`${X.assumption}: ${asShift(X,X.shifts[k])}`,`${Y.assumption}: ${asShift(Y,Y.shifts[i])}`,'',`${MET[mk][0]}: ${fMet(mk,v)}`];
+  if(h!=null)lines.push(`${vs(v,h,'the hurdle '+fMet(mk,h))}${v>=h?' · clears it':' · below it'}`);if(r.base!=null&&st!=='em')lines.push(vs(v,r.base,'EstateMaster’s base'));
+  lines.push('',st==='em'?'EstateMaster’s own base figure (from the export)':st==='agree'?`${na} and ${nb} agree: average shown`:st==='reconciled'?`${na} and ${nb} agreed after reviewing each other`:st==='apart'?`${na} and ${nb} still differ: average shown, treat with care`:st==='odd'?'Breaks the trend of its row or column: check in EstateMaster':`${na} only: not cross-checked`,'Click for the full working');
+  return lines.join('\n')}
+let HMTIP=null;
+document.addEventListener('mouseover',e=>{const c=e.target.closest('.hm .c[data-tip], .hm-c[data-tip], .sb-row[data-tip]');if(!c){if(HMTIP){HMTIP.remove();HMTIP=null}return}
+  if(!HMTIP){HMTIP=document.createElement('div');HMTIP.className='hm-tip';document.body.appendChild(HMTIP)}HMTIP.textContent=c.dataset.tip;HMTIP.style.display='block'});
+document.addEventListener('mousemove',e=>{if(!HMTIP||HMTIP.style.display==='none')return;const w=HMTIP.offsetWidth,hh=HMTIP.offsetHeight;let x=e.clientX+16,y=e.clientY+16;if(x+w>innerWidth-8)x=e.clientX-w-12;if(y+hh>innerHeight-8)y=e.clientY-hh-12;HMTIP.style.left=x+'px';HMTIP.style.top=y+'px'});
+document.addEventListener('mouseout',e=>{if(HMTIP&&e.target.closest&&e.target.closest('.hm .c[data-tip], .hm-c[data-tip], .sb-row[data-tip]')&&!(e.relatedTarget&&e.relatedTarget.closest&&e.relatedTarget.closest('.hm .c[data-tip], .hm-c[data-tip], .sb-row[data-tip]'))){HMTIP.style.display='none'}});
 function asCellWork(r,i,k){const {X,Y,mk}=r,v=r.grid[i][k],st=r.status[i][k],[na,nb]=r.names;const at=`${MET[mk][0]} with ${X.assumption} ${asShift(X,X.shifts[k])} and ${Y.assumption} ${asShift(Y,Y.shifts[i])}: ${fMet(mk,v)}.`;
   if(st==='em')return`${at}\n\nEstateMaster’s own base figure, read from export ${r.xid}${r.xfile?' ('+r.xfile+')':''}. Not calculated by the agent.`;
   const oddNote=st==='odd'?'\n\nCHECK: this cell breaks the trend of its row or column (the metric should move one way as the driver moves): treat it with care and run it in EstateMaster.':'';
   const a=r.a.grid[i][k],b=r.b?r.b.grid[i][k]:NaN;
   return`${at}${oddNote}\n\n${na}: ${fMet(mk,a)}${r.b?`\n${nb}: ${fMet(mk,b)}`:''}\n${st==='agree'||st==='odd'?`The two agree within ${MET[mk][1]==='%'?'0.5 pts':'2%'}: the cell is their average.`:st==='reconciled'?`They differed at first; each reviewed the other’s table.\n${na}: ${r.rec.a}\n${nb}: ${r.rec.b}\nAfter the review they agree: the cell is their average.`:st==='apart'?`They still differ after reviewing each other: the average is shown, treat this cell with care.\n${na}: ${r.rec?r.rec.a:''}\n${nb}: ${r.rec?r.rec.b:''}`:'Only one model answered: this cell is not cross-checked.'}\n\nMethod (${na}): ${r.method}\n\nNot an EstateMaster figure: an analyst can run this case in EstateMaster for its own.`}
 function asGridHTML(r){const {X,Y,mk}=r,n=X.shifts.length;let h=`<div class="hm" style="grid-template-columns:72px repeat(${n},1fr)"><div class="h"></div>`+X.shifts.map(v=>`<div class="h">${esc(asShift(X,v))}</div>`).join('');
-  Y.shifts.forEach((yv,i)=>{h+=`<div class="h">${esc(asShift(Y,yv))}</div>`;X.shifts.forEach((xv,k)=>{const v=r.grid[i][k],st=r.status[i][k];h+=`<div class="c ${st==='em'?'base':''} ${st==='apart'||st==='odd'?'apart':''}" style="${asCellStyle(v,mk,r.base)}" title="${esc(X.assumption)} ${esc(asShift(X,xv))} · ${esc(Y.assumption)} ${esc(asShift(Y,yv))}"><b class="fig fig-${st==='em'?'em':'calc'}" data-k="${st==='em'?'em':'calc'}" data-w="${attrW(asCellWork(r,i,k))}">${esc(fMet(mk,v))}</b></div>`})});
+  Y.shifts.forEach((yv,i)=>{h+=`<div class="h">${esc(asShift(Y,yv))}</div>`;X.shifts.forEach((xv,k)=>{const v=r.grid[i][k],st=r.status[i][k];h+=`<div class="c ${st==='em'?'base':''} ${st==='apart'||st==='odd'?'apart':''}" style="${asCellStyle(v,mk,r.base)}" data-tip="${esc(asTip(r,i,k))}"><b class="fig fig-${st==='em'?'em':'calc'}" data-k="${st==='em'?'em':'calc'}" data-w="${attrW(asCellWork(r,i,k))}">${esc(fMet(mk,v))}</b></div>`})});
   return h+'</div>'}
 function asEmGridHTML(r){const t=r.em.table,xs=r.em.flip?t.ys:t.xs,ys=r.em.flip?t.xs:t.ys,cell=(i,k)=>r.em.flip?t.grid[k][i]:t.grid[i][k],mk=r.mk,o=(latestExport()||{}).out||{},base=Number.isFinite(o[mk])?o[mk]:null;
   let h=`<div class="hm" style="grid-template-columns:72px repeat(${xs.length},1fr)"><div class="h"></div>`+xs.map(v=>`<div class="h">${v>0?'+':''}${v}%</div>`).join('');
-  ys.forEach((yv,i)=>{h+=`<div class="h">${yv>0?'+':''}${yv}%</div>`;xs.forEach((xv,k)=>{const v=cell(i,k);h+=`<div class="c ${xv===0&&yv===0?'base':''}" style="${v==null?'':asCellStyle(v,mk,base)}"><b class="fig fig-em" data-k="em" data-w="${attrW(`${t.metric} with ${t.x} ${xv>0?'+':''}${xv}% and ${t.y} ${yv>0?'+':''}${yv}%: ${v==null?'—':fMet(mk,v)}.\n\nEstateMaster’s own sensitivity table (sheet ${t.sheet}) from export ${r.em.xid}${r.em.xfile?' ('+r.em.xfile+')':''}. Not calculated by the agent.`)}">${v==null?'—':esc(fMet(mk,v))}</b></div>`})});
+  ys.forEach((yv,i)=>{h+=`<div class="h">${yv>0?'+':''}${yv}%</div>`;xs.forEach((xv,k)=>{const v=cell(i,k);h+=`<div class="c ${xv===0&&yv===0?'base':''}" style="${v==null?'':asCellStyle(v,mk,base)}" data-tip="${esc(`${t.x}: ${xv>0?'+':''}${xv}%\n${t.y}: ${yv>0?'+':''}${yv}%\n\n${t.metric}: ${v==null?'—':fMet(mk,v)}${v!=null&&(mk==='levered_irr'||mk==='profit_on_cost')?`\n${(v-(mk==='levered_irr'?HURDLE.irr:HURDLE.poc)*100>=0?'+':'')+(v-(mk==='levered_irr'?HURDLE.irr:HURDLE.poc)*100).toFixed(2)} pts vs the hurdle`:''}\n\nEstateMaster’s own figure (export ${r.em.xid})\nClick for its source`)}"><b class="fig fig-em" data-k="em" data-w="${attrW(`${t.metric} with ${t.x} ${xv>0?'+':''}${xv}% and ${t.y} ${yv>0?'+':''}${yv}%: ${v==null?'—':fMet(mk,v)}.\n\nEstateMaster’s own sensitivity table (sheet ${t.sheet}) from export ${r.em.xid}${r.em.xfile?' ('+r.em.xfile+')':''}. Not calculated by the agent.`)}">${v==null?'—':esc(fMet(mk,v))}</b></div>`})});
   return h+'</div>'}
-function asHTML(r){if(r.em){const t=r.em.table;return`<div style="font-size:12.5px;margin:6px 0 4px"><b>${esc(MET[r.mk][0])}</b> · X ${esc(r.em.flip?t.y:t.x)} · Y ${esc(r.em.flip?t.x:t.y)}</div>`+asEmGridHTML(r)+`<div class="calcnote"><span class="tag tag-em" style="margin-left:0">Financial model</span> EstateMaster’s own sensitivity table, read from export ${esc(r.em.xid)}: nothing here is estimated. Coral is below the hurdle (levered IRR ${fP(HURDLE.irr)}, profit on cost ${fP(HURDLE.poc)}). Click a cell for its source.</div>`}
-  return`<div style="font-size:12.5px;margin:6px 0 4px"><b>${esc(MET[r.mk][0])}</b> · X ${esc(r.X.assumption)} · Y ${esc(r.Y.assumption)}</div>`+asGridHTML(r)+`<div class="calcnote"><span class="tag tag-calc" style="margin-left:0">AI calc</span> every cell is worked out by ${esc(r.names.join(' and '))}${r.mode==='cross'?', cross-checked':' only, not cross-checked'}; every row and column is then checked for a consistent trend${(r.odd||r.status.some(row=>row.includes('apart')))?' (an amber frame marks a cell the two still disagree on or that breaks the trend: click it)':''}, from EstateMaster’s figures${r.base!=null?`; the outlined cell is EstateMaster’s own base figure <span class="tag tag-em" style="margin-left:0">Financial model</span>`:''}. Coral is below the hurdle. Click any cell for both workings.${r.cells?`<br><b>Where it breaks:</b> ${esc(r.cells)}`:''}${r.method?`<br><b>Method:</b> ${esc(r.method)}`:''}</div>`}
+function asHTML(r){if(r.em){const t=r.em.table;return`<div style="font-size:12.5px;margin:6px 0 4px"><b>${esc(MET[r.mk][0])}</b> · X ${esc(r.em.flip?t.y:t.x)} · Y ${esc(r.em.flip?t.x:t.y)}</div>`+asEmGridHTML(r)+asScaleLegend(r.mk)+`<div class="calcnote"><span class="tag tag-em" style="margin-left:0">Financial model</span> EstateMaster’s own sensitivity table: nothing here is estimated. Hover a cell for the detail, click it for its source.<div class="calcby"><i>Figures from EstateMaster, export ${esc(r.em.xid)}${r.em.xfile?' ('+esc(r.em.xfile)+')':''}.</i></div></div>`}
+  return`<div style="font-size:12.5px;margin:6px 0 4px"><b>${esc(MET[r.mk][0])}</b> · X ${esc(r.X.assumption)} · Y ${esc(r.Y.assumption)}</div>`+asGridHTML(r)+asScaleLegend(r.mk)+`<div class="calcnote"><span class="tag tag-calc" style="margin-left:0">AI calc</span> AI estimates from EstateMaster’s figures${r.base!=null?`; the outlined cell is EstateMaster’s own base figure <span class="tag tag-em" style="margin-left:0">Financial model</span>`:''}. Hover a cell for the detail, click it for the full working.${(r.odd||r.status.some(row=>row.includes('apart')))?' An amber frame marks a cell the two models still disagree on or that breaks the trend.':''}${r.cells?`<br><b>Where it breaks:</b> ${esc(r.cells)}`:''}${r.method?`<br><b>Method:</b> ${esc(r.method)}`:''}<div class="calcby"><i>Worked out by ${esc(r.names.join(' and '))}${r.mode==='cross'?', cross-checked, then every row and column checked for a consistent trend':' only, not cross-checked'}${r.checker&&r.checker.model?`; checked by ${esc(r.checker.model)}`:''}.</i></div></div>`}
+function asScaleLegend(mk){const h=mk==='levered_irr'?`hurdle ${fP(HURDLE.irr)}`:mk==='profit_on_cost'?`hurdle ${fP(HURDLE.poc)}`:'EstateMaster’s base';
+  return`<div class="as-scale"><span>well below ${h}</span><i style="background:linear-gradient(90deg,rgb(163,29,29),rgb(208,59,59),rgb(232,120,96),rgb(246,214,140),rgb(150,200,120),rgb(64,160,90),rgb(20,110,60))"></i><span>well above</span></div>`}
 function asPlain(r){if(r.em){const t=r.em.table;return`*Sensitivity: ${MET[r.mk][0]}, ${t.x} × ${t.y}* (EstateMaster’s own table, export ${r.em.xid})\n`+t.ys.map((yv,i)=>`${t.y} ${yv>0?'+':''}${yv}%: `+t.xs.map((xv,k)=>`${xv>0?'+':''}${xv}% → ${t.grid[i][k]==null?'—':fMet(r.mk,t.grid[i][k])+' '+pmark('em',addWork('em',`EstateMaster’s own sensitivity table, export ${r.em.xid}.`))}`).join(' · ')).join('\n')}
   return`*Sensitivity: ${MET[r.mk][0]}, X ${r.X.assumption} × Y ${r.Y.assumption}* (${r.names.join(' × ')}${r.mode==='cross'?', cross-checked':', not cross-checked'})\n`+r.Y.shifts.map((yv,i)=>`${r.Y.assumption} ${asShift(r.Y,yv)}: `+r.X.shifts.map((xv,k)=>`${asShift(r.X,xv)} → ${fMet(r.mk,r.grid[i][k])} ${pmark(r.status[i][k]==='em'?'em':'calc',addWork(r.status[i][k]==='em'?'em':'calc',asCellWork(r,i,k)))}`).join(' · ')).join('\n')+'\nNot EstateMaster figures (except the outlined base cell): an analyst can run any cell in EstateMaster for its own.'}
 function renderAiSens(){const g=$('#asGrid');if(!g)return;if(!AS.res){g.innerHTML='<div class="sub" style="margin:0">Describe the two assumptions and press Generate.</div>';return}g.innerHTML=asHTML(AS.res)}
@@ -3936,18 +3985,34 @@ function renderEMResults(){const el=$('#emRes');if(!el)return;const x=latestExpo
     const low=(t,v)=>v!=null&&((t.mk==='irr'&&v/100<HURDLE.irr)||(t.mk==='poc'&&v/100<HURDLE.poc));
     const sw=(t,where,v)=>`EstateMaster’s own sensitivity figure: ${t.metric} at ${where}, from the “${t.sheet}” sheet of export ${x.id}${x.file?' ('+x.file+')':''}, ${when(x)}. Calculated by EstateMaster, not by the agent.`;
     for(const t of sens){
-      if(t.kind==='1way')h+=`<div class="emsens"><div style="font-size:12.5px;margin:8px 0 2px"><b>${esc(t.v)}</b> · ${esc(t.metric)} <span style="color:var(--soft)">(1-way, sheet ${esc(t.sheet)})</span></div><table class="t"><tr><th>${esc(t.v)}</th>${t.shifts.map(sh=>`<th class="n">${sgn(sh,0)}%</th>`).join('')}</tr><tr><td>${esc(t.metric)}</td>${t.values.map((v,i)=>`<td class="n ${low(t,v)?'lo':''} ${t.shifts[i]===0?'base':''}">${v==null?'—':fig('em',fv(t,v),sw(t,`${t.v} ${sgn(t.shifts[i],0)}%`,v))}</td>`).join('')}</tr></table></div>`;
-      else h+=`<div class="emsens"><div style="font-size:12.5px;margin:8px 0 2px"><b>${esc(t.x)}</b> × <b>${esc(t.y)}</b> · ${esc(t.metric)} <span style="color:var(--soft)">(2-way, sheet ${esc(t.sheet)})</span></div><table class="t"><tr><th>${esc(t.y)} ↓ · ${esc(t.x)} →</th>${t.xs.map(sh=>`<th class="n">${sgn(sh,0)}%</th>`).join('')}</tr>${t.grid.map((row,ri)=>`<tr><td><b>${sgn(t.ys[ri],0)}%</b></td>${row.map((v,ci)=>`<td class="n ${low(t,v)?'lo':''} ${t.xs[ci]===0&&t.ys[ri]===0?'base':''}">${v==null?'—':fig('em',fv(t,v),sw(t,`${t.x} ${sgn(t.xs[ci],0)}% and ${t.y} ${sgn(t.ys[ri],0)}%`,v))}</td>`).join('')}</tr>`).join('')}</table></div>`}}
+      const base1=t.kind==='1way'?t.values[t.shifts.indexOf(0)]:(t.grid[t.ys.indexOf(0)]||[])[t.xs.indexOf(0)];
+      const hur=t.mk==='irr'||t.mk==='uirr'?HURDLE.irr*100:t.mk==='poc'?HURDLE.poc*100:null;
+      const tip=(v,where)=>`${where.replace(' and ','\n')}\n\n${t.metric}: ${fv(t,v)}${hur!=null?`\n${(v-hur>=0?'+':'')+(v-hur).toFixed(2)} pts vs the hurdle ${hur.toFixed(0)}%${v>=hur?' · clears it':' · below it'}`:Number.isFinite(base1)&&base1?`\n${(v-base1>=0?'+':'')+fv(t,v-base1)} vs the base cell`:''}\n\nEstateMaster’s own figure (export ${x.id})\nClick for its source`;
+      const cell=(v,isBase,where)=>v==null?'<td class="hmc"><div class="hm-c" style="background:rgba(46,46,47,.04);color:var(--soft)">—</div></td>':`<td class="hmc"><div class="hm-c ${isBase?'base':''}" style="${hmColor(t,v,base1)}" data-tip="${esc(tip(v,where))}">${figq('em',fv(t,v),sw(t,where,v))}</div></td>`;
+      const head=t.kind==='1way'?`<b>${esc(t.v)}</b> → ${esc(t.metric)}`:`<b>${esc(t.x)}</b> × <b>${esc(t.y)}</b> → ${esc(t.metric)}`;
+      h+=`<div class="emsens hm"><div class="hm-head"><span>${head}</span><span class="tag tag-em" style="margin-left:0">Financial model</span><span class="hm-note">${t.kind==='1way'?'1-way':'2-way'} · sheet ${esc(t.sheet)} · click a cell for its source</span></div><div style="overflow-x:auto"><table class="hm-t">`;
+      if(t.kind==='1way')h+=`<tr><th class="hm-y"></th>${t.shifts.map(sh=>`<th class="hm-x">${sh===0?'base':sgn(sh,0)+'%'}</th>`).join('')}</tr><tr><th class="hm-y">${esc(t.metric)}</th>${t.values.map((v,i)=>cell(v,t.shifts[i]===0,`${t.v} ${sgn(t.shifts[i],0)}%`)).join('')}</tr>`;
+      else h+=`<tr><th class="hm-y">${esc(t.y)} ↓ · ${esc(t.x)} →</th>${t.xs.map(sh=>`<th class="hm-x">${sh===0?'base':sgn(sh,0)+'%'}</th>`).join('')}</tr>${t.grid.map((row,ri)=>`<tr><th class="hm-y">${t.ys[ri]===0?'base':sgn(t.ys[ri],0)+'%'}</th>${row.map((v,ci)=>cell(v,t.xs[ci]===0&&t.ys[ri]===0,`${t.x} ${sgn(t.xs[ci],0)}% and ${t.y} ${sgn(t.ys[ri],0)}%`)).join('')}</tr>`).join('')}`;
+      h+=`</table></div>${hmLegend(t)}</div>`}}
   el.innerHTML=h}
+/* heat-map colour: hurdle metrics (IRR, profit on cost) red below the hurdle and green above, deeper the further away; other metrics against the base cell */
+function hmColor(t,v,base){let d,span;if(t.mk==='irr'||t.mk==='uirr'){d=v-HURDLE.irr*100;span=8}else if(t.mk==='poc'){d=v-HURDLE.poc*100;span=8}else{if(!Number.isFinite(base)||!base)return'background:rgba(46,46,47,.05)';d=(v-base)/Math.abs(base);span=.3}
+  return asScale(Math.max(-1,Math.min(1,d/span)))}
+function hmLegend(t){const hur=t.mk==='irr'||t.mk==='uirr'?`hurdle ${fP(HURDLE.irr)}`:t.mk==='poc'?`hurdle ${fP(HURDLE.poc)}`:'the base cell';return`<div class="as-scale"><span>well below ${hur}</span><i style="background:linear-gradient(90deg,rgb(163,29,29),rgb(208,59,59),rgb(232,120,96),rgb(246,214,140),rgb(150,200,120),rgb(64,160,90),rgb(20,110,60))"></i><span>well above</span><span style="margin-left:10px"><b style="display:inline-block;width:12px;height:12px;border:2px solid var(--orange);vertical-align:-2px;margin-right:4px"></b>base case</span></div><div class="calcby"><i>Figures from EstateMaster, export ${esc(latestExport().id)}${latestExport().file?' ('+esc(latestExport().file)+')':''}: hover a cell for the detail.</i></div>`}
+/* stress scenarios as bars against the hurdle: one row per scenario, every figure clickable for its working */
+function stressBarsHTML(rows,hur,tag,lo,hi){const span=Math.max(hi-lo,1);const pos=v=>Math.max(0,Math.min(100,(v-lo)/span*100));
+  return`<div class="sbars"><div class="sb-row sb-axisrow"><div></div><div class="sb-axis"><span style="left:${pos(hur).toFixed(1)}%"><i></i>hurdle ${hur.toFixed(0)}%</span></div><div></div><div></div><div></div><div></div></div>`+rows.map(r=>{const ok=r.pass,v=r.irr;const w=Number.isFinite(v)?pos(v):0;
+    const tip=`${r.name}\n\nLevered IRR: ${Number.isFinite(v)?v.toFixed(2)+'%':'n/m'}${Number.isFinite(v)?` (${(v-hur>=0?'+':'')+(v-hur).toFixed(2)} pts vs the hurdle ${hur.toFixed(0)}%)`:''}${Number.isFinite(r.d)?`\n${sgn(r.d,2)} pts vs the base`:''}${Number.isFinite(r.poc)?`\nProfit on cost: ${r.poc.toFixed(2)}%`:''}\n${ok?'Passes':'Fails'} the hurdles\n\n${tag==='calc'?'AI estimate from EstateMaster’s figures':tag==='est'?'Agent’s replica estimate':'EstateMaster’s own figure'}\nClick a figure for its working`;
+    return`<div class="sb-row ${ok?'ok':'bad'} ${r.base?'isbase':''}" data-tip="${esc(tip)}"><div class="sb-name">${esc(r.name)}${r.base?' <span class="pill">base</span>':''}</div><div class="sb-track"><i class="sb-hur" style="left:${pos(hur).toFixed(1)}%"></i><div class="sb-bar" style="width:${w.toFixed(1)}%;${Number.isFinite(v)?asScale(Math.max(-1,Math.min(1,(v-hur)/8))).replace(/color:[^;]*$/,''):''}"></div></div><div class="sb-val">${Number.isFinite(v)?figq(tag,v.toFixed(1)+'%',r.work):'n/m'}</div><div class="sb-d ${r.d<0?'dn':'up'}">${r.base||!Number.isFinite(r.d)?'':figq(tag,sgn(r.d,1)+' pts',r.work)}</div><div class="sb-poc">${Number.isFinite(r.poc)?figq(tag,r.poc.toFixed(1)+'%',r.work):'—'}<small>PoC</small></div><div class="sb-pill"><span class="pill ${ok?'p':'f'}">${ok?'pass':'fail'}</span>${r.agree===false?'<span class="pill s" title="Claude and OpenAI differ: check in EstateMaster">differ</span>':''}</div></div>`}).join('')+'</div>'}
 function renderStress(){
   $('#hIRR').textContent=fP(HURDLE.irr);$('#hPOC').textContent=fP(HURDLE.poc);
   try{renderEMResults()}catch(e){console.warn(e)}
   const b=run(S);
   const rows=stressRes||computeStress();
   const bw=estWork(Object.keys(S).length?'Sandbox scenario':'Base case',{},b,b);
-  $('#stressT').innerHTML='<tr><th>Scenario</th><th class="n">IRR</th><th class="n">Δ IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th><th></th></tr>'+
-    `<tr><td><b>${Object.keys(S).length?'Sandbox scenario':'Base case'}</b> <span class="tag tag-est">Agent estimate</span></td><td class="n">${fig('est',fP(b.irr),bw)}</td><td class="n">–</td><td class="n">${fig('est',fP(b.poc),bw)}</td><td class="n">${fig('est',fM(b.profit),bw)}</td><td><span class="pill ${passes(b)?'p':'f'}">${passes(b)?'pass':'fail'}</span></td></tr>`+
-    rows.map(x=>{const w=estWork(x.name,x.d,b,x.r);return`<tr><td>${esc(x.name)}</td><td class="n">${fig('est',fP(x.r.irr),w)}</td><td class="n ${bad(x.r.irr)<bad(b.irr)?'dn':'up'}">${Number.isNaN(x.r.irr)?'n/m':fig('est',sgn((bad(x.r.irr)-bad(b.irr))*100,1)+' pts',w)}</td><td class="n">${fig('est',fP(x.r.poc),w)}</td><td class="n">${fig('est',fM(x.r.profit),w)}</td><td><span class="pill ${x.pass?'p':'f'}">${x.pass?'pass':'fail'}</span></td></tr>`}).join('');
+  {const hur=HURDLE.irr*100,list=[{name:Object.keys(S).length?'Sandbox scenario':'Base case',base:true,irr:bad(b.irr)*100,poc:b.poc*100,d:NaN,pass:passes(b),work:bw}].concat(rows.map(x=>({name:x.name,irr:bad(x.r.irr)*100,poc:x.r.poc*100,d:(bad(x.r.irr)-bad(b.irr))*100,pass:x.pass,work:estWork(x.name,x.d,b,x.r)})));
+    const vs=list.map(r=>r.irr).filter(Number.isFinite),lo=Math.min(0,...vs,hur-5),hi=Math.max(...vs,hur+5)+4;
+    $('#stressT').innerHTML=`<div class="sb-head"><span class="tag tag-est" style="margin-left:0">Agent estimate</span><span class="sub" style="margin:0">Levered IRR under each scenario, against the hurdle. ${rows.filter(x=>!x.pass).length} of ${rows.length} scenarios fail.</span></div>`+stressBarsHTML(list,hur,'est',lo,hi)}
   if(!tornRes)computeTornado();
   const mx=Math.max(...tornRes.map(t=>Math.max(Math.abs(t.lo),Math.abs(t.hi))),.01);
   $('#tornado').innerHTML=tornRes.map(t=>{
@@ -4001,8 +4066,8 @@ function renderReport(){$('#rpTitle').textContent=RPTS[RSEL].name;$('#report').i
 /* ▶ Play is ready the moment it is pressed: the spoken script is written while the report is built, and the first slides' voice is made from it */
 let KPREP=null;
 function kPrepareSoon(id){clearTimeout(KPREP);KPREP=setTimeout(()=>kPrepare(id).catch(()=>{}),700)}
-async function kPrepare(id){if(!apiOn()||!RPTS[id])return;await kRiskAI().catch(()=>null);if(RSEL!==id)return;const deck=buildDeck(id),S=kScriptFor(deck,RPTS[id]);if(S.pending)await S.pending;if(!S.ai||RSEL!==id)return;
-  if(await kVoiceCheck()!=='eleven')return;for(const n of [0,1]){if(!deck.slides[n])continue;const tn=kTrack(kSegsOf(deck,S,n),null);await kVoiceClip(tn.text,'',tn.off.slice(1))}}
+async function kPrepare(id){if(!apiOn()||!RPTS[id]||KP)return;const lang=kLang();await kRiskAI().catch(()=>null);if(RSEL!==id||KP||kLang()!==lang)return;const deck=buildDeck(id),S=kScriptFor(deck,RPTS[id]);if(S.pending)await S.pending;if(!S.ai||RSEL!==id||KP||kLang()!==lang)return;
+  if(await kVoiceCheck()!=='eleven'||KP||kLang()!==lang)return;for(const n of [0,1]){if(!deck.slides[n])continue;const tn=kTrack(kSegsOf(deck,S,n),null);await kVoiceClip(tn.text,'',tn.off.slice(1))}}
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 function csv(){const xs=axis(hx,hn),ys=axis(hy,hn);let c=`${VARS[hy].label} \\ ${VARS[hx].label},`+xs.join(',')+'\n';ys.forEach(y=>{c+=y+','+xs.map(x=>{const r=run({...S,[hx]:x,[hy]:y});return Number.isNaN(r.irr)?'':(r.irr*100).toFixed(2)}).join(',')+'\n'});return c}
 
@@ -4279,7 +4344,7 @@ function kScriptSlideAr(s,ctx){const seg=[],say=(t,f)=>{t=kPlain(t);if(t)seg.pus
     case 'hbars':{const v=s.values||[],L=s.labels||[],b=s.bench;if(!v.length){say(s.title);break}
       if(b!=null&&/stress|scenario|generated/i.test(s.kicker)){const fail=v.filter(x=>x<b).length,worst=v.indexOf(Math.min(...v)),best=v.indexOf(Math.max(...v));say(`${s.title}: ${fail?`${fail} من ${v.length} تقع تحت الحد الأدنى ${kAr.n(b,0)} بالمئة`:`كل السيناريوهات الـ${v.length} فوق الحد الأدنى ${kAr.n(b,0)} بالمئة`}.`);say(`الأضعف هو ${L[worst]} عند ${kUnitAr(v[worst],s.unit,1)}.`,L[worst]);if(best!==worst)say(`والأكثر صموداً ${L[best]} عند ${kUnitAr(v[best],s.unit,1)}.`,L[best])}
       else{const top=v.map((x,i)=>i).sort((a,c)=>v[c]-v[a]);say(`${s.title}.`);top.slice(0,3).forEach((i,k)=>say(`${k===0?'الأكبر هو':k===1?'ثم':'و'} ${L[i]}، ${kUnitAr(v[i],s.unit,1)}.`,L[i]))}break}
-    case 'list':{const it=(s.items||[]).slice(0,5);say(`${s.title}.`);it.forEach((x,i)=>say(`${['أولاً، ','ثانياً، ','ثالثاً، ','رابعاً، ','وأخيراً، '][i]||''}${x.text}${x.sub&&i<2?`: ${x.sub}`:''}.`,x.text));break}
+    case 'list':{const it=(s.items||[]).slice(0,5);const AK={'Since the last report':'ما تغيّر منذ التقرير السابق','New risks':'المخاطر الجديدة وما نوصي به','Flags':'التنبيهات','Headroom':'هامش الأمان','Approvals':'الموافقات المعلقة','To know today':'ما يجب معرفته اليوم','From the emails':'تغييرات مقترحة في الرسائل','Change memory':'سجل التغييرات','Market and regulations':'الافتراضات مقابل السوق','Checks on the exports':'فحوصات التصدير'};say(`${/[؀-ۿ]/.test(s.title)?s.title:(AK[String(s.kicker||'').split(' ·')[0]]||s.title)}.`);it.forEach((x,i)=>say(`${['أولاً، ','ثانياً، ','ثالثاً، ','رابعاً، ','وأخيراً، '][i]||''}${x.text}${x.sub&&i<2?`: ${x.sub}`:''}.`,x.text));break}
     case 'table':{const rows=(s.rows||[]).slice(0,4),head=s.head||[];say(`${s.title}.`);rows.forEach(r=>say(`${kPlain(r[0])}: ${r.slice(1).map((c,j)=>`${head[j+1]?head[j+1]+' ':''}${kPlain(c)}`).join('، ')}.`,r[0]));break}
     case 'bridge':{const st=s.steps||[];say('والآن الجسر من الإيراد إلى الربح.');st.forEach((x,i)=>{const v=Math.abs(x.v);if(x.total&&i===0)say(`نبدأ من إيراد إجمالي قدره ${kAr.m(v)}.`,x.label);else if(x.total)say(`ويتبقى صافي ربح قدره ${kAr.m(x.v)}${x.v<0?'، أي خسارة':''}.`,x.label);else say(`${i===1?'نطرح ':'ثم '}${x.label}، ${kAr.m(v)}.`,x.label)});break}
     case 'tower':{const cs=s.columns||[];say('مصادر التمويل واستخداماته جنباً إلى جنب.');cs.forEach(c=>{const tot=c.segs.reduce((a,g)=>a+g.v,0),big=c.segs.slice().sort((a,b)=>b.v-a.v)[0];if(big)say(`${c.label}: ${kAr.m(tot)} إجمالاً، أكبرها ${big.label} بـ${kAr.m(big.v)}.`,big.label)});break}
@@ -5000,7 +5065,31 @@ function dailyNext(){const s=DAILY;if(!s.enabled||!s.days.length)return'';const 
 function dailyChecks(){if(DAILYSRV)return{list:DAILYSRV.check,ready:DAILYSRV.ready};const to=String(DAILY.recipients||'').split(/[,;\s]+/).filter(Boolean);
   const list=[{ok:to.length>0,label:to.length?'Recipients: '+to.join(', '):'Recipients: none set'},{ok:!!DAILY.enabled,label:DAILY.enabled?'Daily sending is on':'Daily sending is off'},{ok:!!MAILCFG.configured,soft:true,label:MAILCFG.configured?`Sent from ${MAILCFG.from}`:'Microsoft 365 is not connected here: the report is built in the app and kept in the history (simulated email)'},{ok:!!latestExport(),label:latestExport()?`EstateMaster export ${latestExport().id} available`:'No EstateMaster export yet'}];
   return{list,ready:list.filter(c=>!c.soft).every(c=>c.ok)}}
-function renderDaily(){if(!$('#drGrid'))return;const s=DAILY;
+
+/* ---- Stress tests before the daily report. The server runs the standard scenarios on every model's latest export before
+   the 07:00 report: Claude and OpenAI each estimate them from EstateMaster's figures and its own sensitivity tables
+   (cross-checked), then the reasoning model (Opus; GPT-5 as fallback) names the risks and recommends a decision. Without
+   the server, the agent's own estimates for the model on screen and the local risk review stand in. ---- */
+function renderStressFeed(){const el=$('#sfBody');if(!el)return;const srv=DAILYSRV&&DAILYSRV.stress,hur=HURDLE.irr*100;
+  const riskRows=(risks,by)=>risks&&risks.length?`<div class="sf-risks">${risks.map(z=>`<div class="sf-risk ${z.severity}"><span class="pill ${z.severity==='high'?'f':z.severity==='medium'?'s':''}">${esc(z.severity)}</span><div><b>${esc(z.title)}</b><div class="sub" style="margin:2px 0 0">${esc(z.evidence||'')}</div><div style="font-size:12.5px;margin-top:3px"><b>Recommended:</b> ${esc(z.recommendation||'')}</div></div></div>`).join('')}<div class="sub" style="margin:6px 0 0;font-size:11.5px">Risk review by ${esc(by||'the reasoning model')} <span class="tag tag-calc" style="margin-left:4px">AI calc</span></div></div>`:'';
+  if(srv&&srv.models&&srv.models.length){$('#sfSub').innerHTML=`Run by the server at ${new Date(srv.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})} on ${srv.models.length} model${srv.models.length>1?'s':''}, before the daily report. Estimates by ${esc(srv.models[0].by||'Claude and OpenAI')}, cross-checked; EstateMaster’s own figure for any scenario comes once an analyst runs it.`;
+    el.innerHTML=srv.models.map(m=>{const sc=(m.scenarios||[]).map(r=>({name:r.name,irr:+r.levered_irr,poc:+r.profit_on_cost,d:Number.isFinite(+r.levered_irr)&&Number.isFinite(+m.base_irr)?+r.levered_irr-+m.base_irr:NaN,pass:!!r.pass,agree:r.agree,work:`${r.name} on ${m.name} (${m.file||'latest export'}): EstateMaster base levered IRR ${fMet('levered_irr',+m.base_irr)}.\n${r.working||''}\n${r.agree===false?'Claude and OpenAI differ: the average is shown; check in EstateMaster.':r.agree?'Claude and OpenAI agree.':'One model only: not cross-checked.'}\nAI estimate, not an EstateMaster figure.`}));
+      if(Number.isFinite(+m.base_irr))sc.unshift({name:'Base (EstateMaster)',base:true,irr:+m.base_irr,poc:+m.base_poc,pass:+m.base_irr>=hur,work:`EstateMaster’s own levered IRR from ${m.file||'the latest export'}.`});
+      const vs=sc.map(r=>r.irr).filter(Number.isFinite),lo=Math.min(0,...vs,hur-5),hi=Math.max(...vs,hur+5)+4;
+      return`<div class="sf-model"><div class="sf-title"><b>${esc(m.name)}</b><span class="tag tag-calc">AI calc</span><span class="sub" style="margin:0">${sc.filter(r=>!r.base&&!r.pass).length} of ${sc.filter(r=>!r.base).length} scenarios under the hurdle${m.note?' · '+esc(m.note):''}</span></div>${sc.length>1?stressBarsHTML(sc,hur,'calc',lo,hi):`<div class="sub">${esc(m.note||'No estimate returned.')}</div>`}${riskRows(m.risks,m.reviewer)}</div>`}).join('');return}
+  const rows=stressRes||computeStress(),b=run(S),bw=estWork('Base case',{},b,b);
+  $('#sfSub').innerHTML=DAILYSRV?'The server has not run the morning stress tests yet (press Run now, or they run before the next daily report). Shown instead: the agent’s own estimates for the model on screen.':'In production the server runs these on every model before the daily report. Shown here: the agent’s own estimates for the model on screen, and the risk review when AI is connected.';
+  const list=[{name:'Base case',base:true,irr:bad(b.irr)*100,poc:b.poc*100,pass:passes(b),work:bw}].concat(rows.map(x=>({name:x.name,irr:bad(x.r.irr)*100,poc:x.r.poc*100,d:(bad(x.r.irr)-bad(b.irr))*100,pass:x.pass,work:estWork(x.name,x.d,b,x.r)})));
+  const vs=list.map(r=>r.irr).filter(Number.isFinite),lo=Math.min(0,...vs,hur-5),hi=Math.max(...vs,hur+5)+4;
+  const ai=typeof RISKAI!=='undefined'&&RISKAI&&RISKAI.risks?RISKAI:null;
+  el.innerHTML=`<div class="sf-model"><div class="sf-title"><b>${esc(PROJ.name)}</b><span class="tag tag-est">Agent estimate</span><span class="sub" style="margin:0">${rows.filter(x=>!x.pass).length} of ${rows.length} scenarios under the hurdle</span></div>${stressBarsHTML(list,hur,'est',lo,hi)}${riskRows(ai&&ai.risks,ai&&ai.model)}</div>`}
+async function runStressFeed(){const b=$('#sfRun');b.disabled=true;b.textContent='Running…';
+  try{if(DAILYSRV){const j=await dailyApi({action:'stress'});if(j.error)throw new Error(j.error);DAILYSRV.stress=j.stress;toast('Stress tests run on the server for every model')}
+    else{stressRes=computeStress();if(apiOn()){await kRiskAI();toast('Stress tests run; risks reviewed by the reasoning model')}else toast('Stress tests run (agent estimates); connect AI for the risk review')}
+    logEvent({kind:'stress',actor:'Bohio agent',channel:'Daily feed',detail:`Stress tests run before the daily report${DAILYSRV?' (server, all models)':' ('+PROJ.name+')'}`});renderStressFeed();saveMem()}
+  catch(e){toast('Stress run failed: '+e.message)}finally{b.disabled=false;b.textContent='Run now'}}
+document.addEventListener('click',e=>{if(e.target.id==='sfRun')runStressFeed()});
+function renderDaily(){try{renderStressFeed()}catch(e){}if(!$('#drGrid'))return;const s=DAILY;
   $('#drOn').textContent=s.enabled?'On':'Off';$('#drOn').className='dr-badge'+(s.enabled?'':' off');
   const nx=DAILYSRV&&DAILYSRV.next?DAILYSRV.next.label:dailyNext();$('#drNext').innerHTML=s.enabled&&nx?`Next report: <b>${esc(nx)}</b> (${esc(s.timezone)}) · ${DAILYSRV?'sent by the server, with or without the app open':'saved in this browser (connect Microsoft 365 for server delivery)'}`:'Paused: nothing is sent automatically.';
   $('#drEnabled').checked=!!s.enabled;$('#drTime').value=s.time;if(![...$('#drTz').options].some(o=>o.value===s.timezone))$('#drTz').insertAdjacentHTML('afterbegin',`<option>${esc(s.timezone)}</option>`);$('#drTz').value=s.timezone;
@@ -5671,14 +5760,22 @@ function openModal_unused(){$('#mbody').innerHTML=`Scenario: <b>${esc(scenName(S
 
 /* tabs */
 const GTABS=[['report','Reports'],['appr','Daily feed']];
-const MTABS=[...(RO?[['em','Financial modelling']]:[]),['model','Assumptions'],['mktdata','Market data'],['scen','Scenarios & stress']];
+const MTABS=[...(RO?[['em','Financial modelling']]:[]),['model','Assumptions'],['scen','Scenarios & stress'],['mktdata','Market data']];
 const TABS=GTABS.concat(MTABS);
 const TAB_ALIAS={explore:'scen',stress:'scen',napkin:'report',wa:'report',agent:'report'};
 const TAB_INTRO={mktdata:'The market evidence the agent checks assumptions against: transactions, rentals, demographics, regulations and plot FARs. Mock data in the demo (in production the transaction, rental and statistics feeds); each table downloads as an Excel file.',scen:'The sensitivity table: say in plain words what to stress on each axis, the agent pins down the assumption and Claude and OpenAI calculate every cell and check each other. Below it the scenario generator, the stress library, tornado and headroom: the agent’s estimates, with the worst cases checked in EstateMaster.',agent:'Ask the agent on the right, in plain language. Every return comes from EstateMaster; anything that would change the model goes to Approvals first, with a person’s name on it.',napkin:'From a napkin sketch to a first-pass model, then to a change request to set it up in EstateMaster.',appr:'What came in today: assumption changes proposed in Outlook (scanned at 07:00 and 15:00 Riyadh and whenever the app opens) and the agent’s own suggestions. Each one waits here for a person; nothing reaches EstateMaster without a name on it, and every decision is kept in the change memory.',em:'This model’s EstateMaster exports, every assumption read from them, the checks on the latest export and the comparison between exports. The latest export is the only source of the figures shown as EstateMaster’s.',model:'Every assumption of the project with its position against the market, and the cross-checked AI test: Claude and OpenAI calculate a change independently and check each other.',inbox:'The project folder in Outlook, read twice a day. Assumption changes become proposals for approval.',market:'Assumptions against transactions, rents and the zoning rules for the plot.',explore:'Two-way sensitivity grids and the autonomous explorer. Grid figures are the agent’s estimates.',stress:'Stress scenarios without limit. The most severe are checked in EstateMaster.',report:'IC pack, monthly and custom reports, built from the latest EstateMaster figures.',wa:'The same agent on WhatsApp, with roles and approvals.',arch:'How the agent connects to EstateMaster, Outlook, market data and AI, and what it can and can’t do.'};
 function kTitle(id){const t=TABS.find(x=>x[0]===id);const e=$('#kTitle span');if(e)e.textContent=t?(id==='agent'?'AI agent · financial modelling':GTABS.some(([g])=>g===id)?t[1]+' · all models':t[1]):'';const n=$('#kIntro');if(n)n.textContent=TAB_INTRO[id]||''}
 function showTab(id){if(id==='inbox'||id==='arch'||id==='market'){openSettings(id==='inbox'?'outlook':id);return}id=TAB_ALIAS[id]||id;document.body.classList.toggle('gpage',GTABS.some(([g])=>g===id));setTimeout(()=>{try{renderProjRail()}catch(e){}},0);if(id==='scen'){renderGen();renderAiSens()}if(id==='mktdata')renderMktData();kTitle(id);$$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===id));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+id));if(id==='report'){renderReportList();renderExtract();renderReport();renderDaily()}if(id==='model'){renderAssumptions();if(!PROJ.fromExport){renderRegister();renderElemental();renderXLines()}}if(id==='stress')renderGen();if(id==='napkin'){fillNapkinForm();runNapkin()}if(id==='market')renderMarket();if(id==='inbox'){renderInbox();renderDelivery()}if(id==='report')renderDelivery();if(id==='appr')renderApprovals();if(id==='em')renderEMTab();window.scrollTo({top:0,behavior:'smooth'})}
 $('#tabs').innerHTML=`<div class="tab-model" id="tabModel" title="Financial models: the left menu"></div>`+MTABS.map(([id,l])=>`<div class="tab" data-t="${id}">${l}</div>`).join('')+GTABS.map(([id,l])=>`<div class="tab gtab-hidden" data-t="${id}">${l}</div>`).join('');
-$$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));kTitle('report');$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-report'));
+$$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));
+/* Financial modelling: the tab opens a menu to the four cards of the page */
+{const em=$('.tab[data-t="em"]');if(em){em.innerHTML='Financial modelling <span class="tab-car">▾</span>';const EMM=[['Upload','EstateMaster exports','exUp'],['Checks','Checks on the latest export','exChecks'],['Assumptions','Model assumptions','maT'],['Compare','Compare exports','exDiff']];
+  const menu=document.createElement('div');menu.id='emMenu';menu.innerHTML=EMM.map(([l,sub,id])=>`<div class="emm-it" data-emgo="${id}"><b>${l}</b><span>${sub}</span></div>`).join('');document.body.appendChild(menu);
+  const place=()=>{const r=em.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(r.left,innerWidth-menu.offsetWidth-8))+'px';menu.style.top=(r.bottom+2)+'px'};
+  em.onclick=e=>{e.stopPropagation();showTab('em');menu.classList.toggle('on');if(menu.classList.contains('on'))place()};
+  menu.onclick=e=>{const it=e.target.closest('[data-emgo]');if(!it)return;menu.classList.remove('on');showTab('em');const card=$('#'+it.dataset.emgo)&&$('#'+it.dataset.emgo).closest('.card');if(card){card.scrollIntoView({behavior:'smooth',block:'start'});card.classList.add('card-hi');setTimeout(()=>card.classList.remove('card-hi'),1600)}};
+  document.addEventListener('click',e=>{if(!e.target.closest('#emMenu'))menu.classList.remove('on')});addEventListener('resize',()=>{if(menu.classList.contains('on'))place()});addEventListener('scroll',()=>menu.classList.remove('on'),true)}}
+kTitle('report');$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-report'));
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
 
 /* market controls */

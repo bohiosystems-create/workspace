@@ -105,15 +105,15 @@ async function sendMail(token, { to, subject, html, attachments = [] }) {
 }
 
 const aiProviders = () => ['anthropic', 'openai'].filter(p => env(p === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'));
-async function ai(system, user, maxTokens = 2000, provider) {
+async function ai(system, user, maxTokens = 2000, provider, model) {
   if (provider ? provider === 'anthropic' : env('ANTHROPIC_API_KEY')) {
     const r = await fetch(env('ANTHROPIC_URL') || 'https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env('ANTHROPIC_API_KEY'), 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: env('EXTRACT_MODEL') || 'claude-sonnet-5-5', max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }) });
+      body: JSON.stringify({ model: model || env('EXTRACT_MODEL') || 'claude-sonnet-5-5', max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }) });
     const j = await r.json(); if (!r.ok) throw new Error('Claude: ' + ((j.error && j.error.message) || r.status));
     return (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   }
   const r = await fetch(env('OPENAI_URL') || 'https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + env('OPENAI_API_KEY') },
-    body: JSON.stringify({ model: env('EXTRACT_MODEL') || 'gpt-5', max_completion_tokens: maxTokens, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
+    body: JSON.stringify({ model: model || env('EXTRACT_MODEL') || 'gpt-5', max_completion_tokens: maxTokens, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
   const j = await r.json(); if (!r.ok) throw new Error('OpenAI: ' + ((j.error && j.error.message) || r.status));
   return ((j.choices || [])[0] || {}).message?.content || '';
 }
