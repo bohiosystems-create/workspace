@@ -1123,7 +1123,7 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
 <script>
 /* Deployment option. A build sets window.BOHIO_MODE (Option 2 'readonly', Option 3 'analyst') and that wins; the source
    page also takes ?mode=full|readonly|analyst. 'full' is the runner build (the runner operates EstateMaster). */
-const MODE=(()=>{const ok=['full','readonly','analyst'];if(ok.includes(window.BOHIO_MODE))return window.BOHIO_MODE;let q=null;try{q=new URLSearchParams(location.search).get('mode')}catch(e){}return ok.includes(q)?q:'readonly'})();
+const MODE=(()=>{const ok=['full','readonly','analyst','api'];if(ok.includes(window.BOHIO_MODE))return window.BOHIO_MODE;let q=null;try{q=new URLSearchParams(location.search).get('mode')}catch(e){}return ok.includes(q)?q:'readonly'})();
 const RO=MODE!=='full',MEMKEY='bohioMem'+(RO?'_'+MODE:'');
 let EXPORTS=[],EXN=1,TASKS=[],TKN=1,DRAFT={};
 /* Provenance. Every figure in the chat carries where it came from: em = read from an EstateMaster export, est = the agent's replica estimate,
@@ -2767,8 +2767,105 @@ const MODE_INFO={
   can:['Everything in Option 2','Write approved values into the control workbook EstateMaster is linked to','Batch every approved change into one refresh task for the analyst','Prepare stress scenarios as control-workbook value sets','Set up a new model from a KINAN template and a filled control workbook'],
   cant:['Press buttons in EstateMaster: an analyst refreshes and exports','Run unattended (nights, weekends): results wait for the analyst','Change inputs that are not linked to the control workbook (they become manual steps in the task)','Promote to the live model by itself'],
   prompt:'Deployment: Option 3, analyst in the loop. You cannot run EstateMaster. Approved changes are written to the control workbook; an analyst presses Refresh Values and Export in EstateMaster, then EstateMaster’s figures come from that export (get_status). Never give a figure for a change as if it were a result: say EstateMaster will calculate it once refreshed.'}
+
+ ,api:{name:'EstateMaster API option',strip:'EstateMaster API (simulated): the agent reads EstateMaster’s inputs and figures through its API · after a person approves, it writes the change through the API, EstateMaster recalculates and the agent reads the figures back · SQL Server for actuals (demo: simulated)',
+  task:'Write the approved changes to EstateMaster (API)',
+  how:[['Read','The agent reads every input and output of the model from EstateMaster’s API: no exports to upload. A sync runs on open and after every change.'],
+   ['Analyse and propose','The agent answers questions, checks assumptions against market data, Outlook and actuals, designs stress scenarios and drafts reports. Every change it suggests becomes a change request.'],
+   ['Approve','A person approves or rejects each change request. Nothing is written to EstateMaster before that. The likely effect is worked out by Claude and OpenAI (cross-checked, marked as AI calc) while it waits.'],
+   ['Write through the API','Once approved, the agent writes the values to EstateMaster through the API and asks it to recalculate. EstateMaster does the calculation, as it does today.'],
+   ['Read back','The agent reads EstateMaster’s recalculated figures through the API, shows them and logs them against the change request. Every call is in the API log.']],
+  can:['Read every input and output through the EstateMaster API, with no exports','Answer questions, compare versions and explain what changed','Check assumptions against market data, zoning, Outlook and actuals','Propose changes as change requests; a person approves each one','Write approved changes through the API and read EstateMaster’s recalculated figures back in seconds','Run stress scenarios in EstateMaster on a sandbox copy through the API','Keep a log of every API call, change, approval and result'],
+  cant:['Write anything to EstateMaster before a person approves it','Calculate the official figures: EstateMaster does, through the API','Change the live model outside an approved change request','Use endpoints the EstateMaster API does not offer (in this demo the API is simulated)'],
+  prompt:'Deployment: EstateMaster API option. EstateMaster is reached through its API (simulated in this demo). EstateMaster’s figures come from the latest API read (get_status). Tools that change assumptions only raise change requests; once a person approves, the agent writes the change through the API, EstateMaster recalculates and its figures are read back. Never give a figure for a change as if it were a result: say EstateMaster will calculate it once approved.'}
 };
 const MI=()=>MODE_INFO[MODE]||MODE_INFO.readonly;
+/* EstateMaster API option. EstateMaster is reached through an API (simulated in this demo: calls are logged with their
+   request and response, and the responses come from the demo's stand-in for EstateMaster, the same one behind
+   "simulated export" in Option 2). The agent reads through the API at any time; it writes only an approved change
+   request (PATCH inputs → POST calculate → GET outputs), so nothing reaches EstateMaster before a person approves it. */
+const EMAPI={base:'https://estatemaster.kinan.sa/api/v1',log:[],n:1,busy:{}};
+const apiModel=(proj=PROJ.id)=>`/models/${proj}`;
+const apiWait=ms=>new Promise(r=>setTimeout(r,ms));
+function apiInputs(){return REG.filter(l=>!l.comp||l.comp==='all'||(PROJ.comps||[]).includes(l.comp)).map(l=>{let v=NaN;try{v=lineVal(l.id)}catch(e){}return Number.isFinite(v)?{label:l.label,value:v,text:fmtLine(l,v),unit:l.unit,section:l.g,sheet:'API'}:null}).filter(Boolean)}
+async function apiCall(method,path,req,res,ms){ms=ms||Math.round(220+Math.random()*520);const t0=new Date().toISOString();await apiWait(ms);
+  const body=typeof res==='function'?res():res,e={id:EMAPI.n++,at:t0,method,path,status:method==='POST'&&/\/models$/.test(path)?201:200,ms,req:req||null,res:body};
+  EMAPI.log.unshift(e);if(EMAPI.log.length>80)EMAPI.log.length=80;renderApiLog();return e}
+async function apiRun(id){const t=TASKS.find(x=>x.id===id);if(!t||t.status!=='open'||EMAPI.busy[id])return;
+  if(t.proj!==PROJ.id){toast(`${t.id} belongs to ${PROJECTS[t.proj]?PROJECTS[t.proj].name:'another project'}: switch project first`);return}
+  EMAPI.busy[id]=true;renderEMTab();renderApprovals();const m=apiModel(t.proj),crs=t.crs.map(c=>APQ.find(x=>x.id===c)).filter(Boolean),ids=crs.map(c=>c.id);
+  const strip=v=>String(v).replace(/<[^>]+>/g,'');
+  try{
+    if(t.kind==='stress'){
+      await apiCall('POST',`${m}/sandbox`,{from:'live',reason:t.id},{sandbox:`${t.proj}-sbx-${t.id}`,copyOf:'live'});
+      await apiCall('POST',`${m}/sandbox/scenarios`,{scenarios:t.scen.map(g=>({id:g.id,name:g.name}))},{accepted:t.scen.length,status:'calculated'},900);
+      if(t.proj!==PROJ.id)throw new Error('project switched');
+      await completeTask(t.id,null,{api:true});
+      await apiCall('GET',`${m}/sandbox/results`,null,()=>({results:t.scen.map(g=>({id:g.id,levered_irr:GEN.em[g.id]&&GEN.em[g.id].irr})),liveModelChanged:false}))}
+    else{
+      if(t.kind==='newmodel'){const d=crs[0]&&crs[0].def;await apiCall('POST','/models',{name:d&&d.name,template:d&&TEMPLATES[d.template].name,changeRequest:ids[0]},{id:t.proj,status:'created'})}
+      const changes=crs.flatMap(c=>(c.rows||[]).map(r=>({changeRequest:c.id,input:strip(r[0]),from:strip(r[1]),to:strip(r[2])})));
+      await apiCall('PATCH',`${m}/inputs`,{changeRequests:ids,approvedBy:[...new Set(crs.map(c=>c.decidedBy).filter(Boolean))],changes},{accepted:changes.length||ids.length,status:'pending recalculation'});
+      await apiCall('POST',`${m}/calculate`,{},{status:'completed',engine:'ARGUS EstateMaster'},1100);
+      if(t.proj!==PROJ.id)throw new Error('project switched');
+      await completeTask(t.id,null,{api:true});
+      const x=latestExport(t.proj);await apiCall('GET',`${m}/outputs`,null,{version:x&&x.id,outputs:x&&x.out})}
+    logEvent({kind:'export',actor:'EstateMaster API (simulated)',channel:'EstateMaster API',detail:`${t.id}: ${t.kind==='stress'?'stress scenarios run on a sandbox copy':'approved change written'} through the API${ids.length?' ('+ids.join(', ')+')':''}; EstateMaster recalculated and its figures were read back`,cr:ids[0]})}
+  catch(e){toast(`${t.id}: the EstateMaster API call stopped (${e.message}). Press “Run through the API” to retry.`)}
+  finally{delete EMAPI.busy[id];renderEMTab();renderApprovals();renderApiLog();saveMem()}}
+async function apiSync(quiet){const m=apiModel(),btn=$('#apiSync');if(btn){btn.disabled=true;btn.textContent='Syncing…'}
+  try{await apiCall('GET','/models',null,{models:Object.values(PROJECTS).map(p=>({id:p.id,name:p.name}))});
+    const out=simOut(),x=latestExport(),same=x&&EXROWS.every(([k])=>!Number.isFinite(out[k])||Math.abs((x.out[k]??NaN)-out[k])<1e-6);
+    await apiCall('GET',`${m}/outputs`,null,{version:same?x.id:'new',outputs:out});
+    if(!same){addExport('api','read through the EstateMaster API (sync)',out,'','',{inputs:apiInputs()});renderAll(true)}
+    else if(x&&!(x.inputs||[]).length){await apiCall('GET',`${m}/inputs`,null,()=>({inputs:apiInputs().length}));x.inputs=apiInputs()}
+    if(!quiet)toast(same?'EstateMaster API: up to date':'EstateMaster API: new figures read');EMAPI.last=new Date().toISOString()}
+  finally{if(btn){btn.disabled=false;btn.textContent='Sync now'}renderApiLog();renderEMTab();saveMem()}}
+function renderApiLog(){const el=$('#apiLog');if(!el)return;const x=latestExport();
+  $('#apiSub').innerHTML=`<b>Connected (simulated)</b> · ${esc(EMAPI.base)} · model <b>${esc(apiModel())}</b>${x?` · latest figures ${esc(x.id)}`:''}. Reads at any time; writes only an approved change request, then EstateMaster recalculates and the figures are read back.`;
+  el.innerHTML=EMAPI.log.length?'<tr><th>When</th><th>Call</th><th class="n">Status</th><th class="n">ms</th></tr>'+EMAPI.log.slice(0,40).map(e=>`<tr data-apil="${e.id}" style="cursor:pointer"><td style="font-size:12px;white-space:nowrap">${new Date(e.at).toLocaleTimeString('en-GB')}</td><td style="font-size:12px"><b>${e.method}</b> <code>${esc(e.path)}</code></td><td class="n">${e.status}</td><td class="n">${e.ms}</td></tr>`+(EMAPI.open===e.id?`<tr><td colspan="4"><pre style="white-space:pre-wrap;font-size:11.5px;margin:0;max-height:260px;overflow:auto">${e.req?'Request\n'+esc(JSON.stringify(e.req,null,2))+'\n\n':''}Response\n${esc(JSON.stringify(e.res,null,2))}</pre></td></tr>`:'')).join(''):'<tr><td class="sub">No calls yet.</td></tr>'}
+/* wording: the shared Option 2 copy speaks of analysts and exports; in this option the API does that step */
+const AXR=[[/I never write to EstateMaster: an analyst applies approved changes\./g,'I write to EstateMaster only through its API, after a person approves.'],
+ [/an analyst can run (it|the change|this case|any cell) in EstateMaster for its own/g,'once approved, the agent runs $1 in EstateMaster through the API for its own'],
+ [/Ask an analyst to run the scenario in EstateMaster for its own figure/g,'Approve it and the agent runs it in EstateMaster through the API for its own figure'],
+ [/say an analyst can run it in EstateMaster/g,'say EstateMaster can run it through the API once a person approves'],
+ [/until an analyst runs the change in EstateMaster/g,'until EstateMaster has run the change through the API (after approval)'],
+ [/EstateMaster’s own (figure|IRR) comes once an analyst applies (it|the change)/g,'EstateMaster’s own $1 comes back through the API once the change is approved'],
+ [/calculated by EstateMaster once an analyst applies it/g,'calculated by EstateMaster once approved (through the API)'],
+ [/once approved, an analyst enters (it|them) in EstateMaster and uploads (the|a) new export/g,'once approved, the agent writes $1 to EstateMaster through the API and reads back EstateMaster’s recalculated figures'],
+ [/after an analyst enters it/g,'after a person approves it and the agent writes it through the API'],
+ [/EstateMaster changes only after a person approves and an analyst applies them/g,'EstateMaster changes only after a person approves them; the agent then writes them through the API'],
+ [/Approved changes are applied in EstateMaster by an analyst/g,'Approved changes are written to EstateMaster through the API'],
+ [/an analyst runs each on a copy of the model and uploads the export/g,'EstateMaster runs each on a sandbox copy through the API'],
+ [/EstateMaster’s figures appear once an analyst runs them/g,'EstateMaster’s figures appear once it runs them through the API'],
+ [/hand a scenario to an analyst for EstateMaster’s figure/g,'run a scenario in EstateMaster through the API for its figure'],
+ [/to create the analyst task/g,'to run them through the API'],[/Hand the 5 worst to an analyst/g,'Run the 5 worst in EstateMaster (API)'],
+ [/handed to an analyst to run in EstateMaster on a copy/g,'sent to EstateMaster through the API to run on a sandbox copy'],
+ [/scenarios for an analyst to run in EstateMaster/g,'scenarios running in EstateMaster through the API'],
+ [/and an analyst to run in EstateMaster/g,'and EstateMaster to run through the API'],
+ [/an analyst copies/g,'the agent, through the API, copies'],[/an analyst applies approved changes/g,'approved changes are written through the EstateMaster API'],
+ [/an analyst enters it in EstateMaster/g,'the agent writes it to EstateMaster through the API'],[/an analyst enters it\./g,'the agent writes it through the API.'],
+ [/For the analyst · approved changes to apply in EstateMaster/g,'EstateMaster API · approved changes written'],[/listed under “For the analyst” below/g,'each call is in the API log on the Financial model tab'],
+ [/approved changes are entered by an analyst/g,'approved changes are written through the EstateMaster API'],[/applied by an analyst/g,'written through the EstateMaster API'],
+ [/waiting for an analyst/g,'waiting for the EstateMaster API'],[/[Tt]ask (T-\d+) for an analyst/g,'API job $1'],[/for an analyst/g,'via the EstateMaster API'],
+ [/(\d+) analyst tasks? open: approved changes not yet in EstateMaster/g,'$1 API job(s) running: approved changes not yet in EstateMaster'],[/analyst task/g,'API job'],
+ [/figures update once the new export is read/g,'figures update once EstateMaster returns them'],[/\(simulated export\)/g,'(simulated API)'],
+ [/upload one on the EstateMaster tab/g,'press Sync now on the Financial model tab'],[/The agent never runs or writes to EstateMaster\./g,'The agent writes to EstateMaster only through its API, after a person approves.'],
+ [/every figure shown as EstateMaster’s comes from its own export/g,'every figure shown as EstateMaster’s is read from EstateMaster through its API'],
+ [/This model’s EstateMaster exports, every assumption read from them, the checks on the latest export and the comparison between exports\. The latest export is the only source of the figures shown as EstateMaster’s\./g,'The EstateMaster API and its call log, every version of the model read through it, every assumption, the checks on the latest version and the comparison between versions. The latest API read is the only source of the figures shown as EstateMaster’s.'],
+ [/All figures from EstateMaster’s exports \(simulated exports in this demo\)/g,'All figures read from EstateMaster through its API (simulated in this demo)']];
+function ax(s){if(MODE!=='api'||typeof s!=='string')return s;for(const[a,b]of AXR)s=s.replace(a,b);return s}
+function axNode(n){if(n.nodeType===3){if(/analyst|export/i.test(n.nodeValue)){const v=ax(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}return}
+  if(n.nodeType!==1||n.tagName==='SCRIPT'||n.tagName==='STYLE'||n.tagName==='TEXTAREA'||n.tagName==='INPUT')return;
+  const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT);let t;while((t=w.nextNode()))axNode(t)}
+function apiInit(){
+  const em=$('#p-em .grid > div');if(em&&!$('#apiCard'))em.insertAdjacentHTML('afterbegin',`<div class="card" id="apiCard"><div class="bar"></div><div class="sbhead"><h2>EstateMaster API</h2><span class="pill s">simulated</span><button class="btn sm" id="apiSync" style="margin-left:auto">Sync now</button></div><div class="sub" id="apiSub"></div><div class="sub" style="margin:6px 0 0;font-size:12px">Click a call for its request and response.</div><div class="scroll" style="max-height:340px;overflow:auto"><table class="t" id="apiLog"></table></div></div>`);
+  const h=$('#exUp')&&$('#exUp').closest('.card').querySelector('h2');if(h)h.textContent='EstateMaster versions';
+  document.addEventListener('click',e=>{const a=e.target.closest('[data-tapi]'),l=e.target.closest('[data-apil]');if(a)apiRun(a.dataset.tapi);if(e.target.id==='apiSync')apiSync(false);if(l){const id=+l.dataset.apil;EMAPI.open=EMAPI.open===id?null:id;renderApiLog()}});
+  axNode(document.body);document.title=document.title;
+  new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData')axNode(m.target);else m.addedNodes.forEach(axNode)}}).observe(document.body,{childList:true,subtree:true,characterData:true});
+  renderApiLog()}
+
 /* Options and stages: each export says which stored Option it is (none = base). The base is the option named like a base case, else the first one exported; the KPIs, status and reports follow the base; the other options are scenarios run in EstateMaster. */
 const isBaseName=o=>!o||/^(base|live|current|approved|main|master|as is)/i.test(String(o).trim());
 const optOf=x=>x&&x.opt?x.opt:'Base';
@@ -2998,6 +3095,9 @@ async function readExportFile(f){
 /* Tasks for the analyst */
 function stepsFor(t){
   const f=slug()+'.emdf',crs=t.crs.map(id=>APQ.find(c=>c.id===id)).filter(Boolean);
+  if(MODE==='api'){const m=apiModel(t.proj);if(t.kind==='stress')return[`POST ${m}/sandbox: copy of the live model`,`POST ${m}/sandbox/scenarios: ${t.scen.length} scenario${t.scen.length>1?'s':''}`,'GET …/results: EstateMaster’s IRR for each','The live model is not changed'];
+    if(t.kind==='newmodel')return[`POST /models: new model from the KINAN ${crs[0]&&crs[0].def?TEMPLATES[crs[0].def.template].name:''} template`,`PATCH ${m}/inputs: the approved values`,`POST ${m}/calculate`,`GET ${m}/outputs: EstateMaster’s figures`];
+    return[`PATCH ${m}/inputs: ${crs.reduce((n,c)=>n+(c.rows||[]).length,0)||crs.length} approved value${crs.length>1?'s':''} (${crs.map(c=>c.id).join(', ')})`,`POST ${m}/calculate: EstateMaster recalculates`,`GET ${m}/outputs: EstateMaster’s recalculated figures read back`]}
   const manual=MODE==='analyst'?crs.flatMap(c=>c.ops.filter(o=>o.t==='xline'&&XBY(o.id)&&!XBY(o.id).linked).map(o=>`${XBY(o.id).label} → ${fmtX(XBY(o.id),o.v)} (not linked to the workbook: type it in)`)):[];
   if(t.kind==='newmodel'){const c=crs[0],d=c&&c.def;return MODE==='analyst'?[`Copy the KINAN ${d?TEMPLATES[d.template].name:''} master template and save it as ${slug()}.emdf`,`Download the control workbook below (the agent filled it) and save it to SharePoint as ${slug()}_control.xlsx`,'Links to Excel Files → Change Source to that workbook, then Refresh Values','Recalculate, export (Office Links → Excel) and upload the export here']
     :[`Copy the ${d?TEMPLATES[d.template].name:''} model and save it as ${slug()}.emdf`,`Enter the ${d?REG.filter(l=>l.comp==='all'||d.comps.includes(l.comp)).length:''} values listed in the downloaded sheet`,'Recalculate, export (Office Links → Excel) and upload the export here']}
@@ -3010,7 +3110,7 @@ function addTask(kind,cr,extra={}){
   if(t){if(cr)t.crs.push(cr.id)}
   else{t={id:'T-'+String(TKN++).padStart(3,'0'),kind,proj:PROJ.id,crs:cr?[cr.id]:[],at:new Date().toISOString(),status:'open',...extra};TASKS.push(t)}
   if(cr)cr.em={status:'task',task:t.id,kind:'task'};return t}
-function taskTitle(t){return t.kind==='newmodel'?'Set up the new model in EstateMaster':t.kind==='stress'?`Run ${t.scen.length} stress scenario${t.scen.length>1?'s':''} in EstateMaster`:MI().task}
+function taskTitle(t){if(MODE==='api')return t.kind==='newmodel'?'Create the model in EstateMaster (API)':t.kind==='stress'?`Run ${t.scen.length} stress scenario${t.scen.length>1?'s':''} in EstateMaster (API, sandbox copy)`:MI().task;return t.kind==='newmodel'?'Set up the new model in EstateMaster':t.kind==='stress'?`Run ${t.scen.length} stress scenario${t.scen.length>1?'s':''} in EstateMaster`:MI().task}
 function applyCRNow(cr){applyOpsRaw(cr.ops);
   cr.ops.forEach(o=>{if(o.src){const e=DATA.emails.find(x=>x.id===o.src.eid);const k=o.t==='line'?drvOfLine(o.id):Object.keys(o.mods||{})[0];if(e&&k)SRC[k]={e,quote:o.src.quote};if(e)EM.applied[e.id]=true}else{const k=o.t==='line'?drvOfLine(o.id):o.t==='mods'?Object.keys(o.mods)[0]:null;if(k)delete SRC[k]}})}
 function approveAsTask(cr,ch,role){
@@ -3023,26 +3123,27 @@ function approveAsTask(cr,ch,role){
   else if(cr.kind==='connect'){PROJ.na=cr.na||[];PROJ.cwFile=cr.file;if(cr.xdefs)mergeXDefs(cr.xdefs);
     if(cr.ops.length){t=addTask('refresh',cr);detail=`${cr.id} approved: control workbook ${cr.file} connected; ${cr.ops.length} value(s) differ from EstateMaster, so task ${t.id} asks an analyst to Refresh Values and export`}
     else{cr.em={status:'done',kind:'task',note:'no change'};detail=`${cr.id} approved: control workbook ${cr.file} connected to ${PROJ.name} (values already match EstateMaster)`}}
+  else if(MODE==='api'){t=addTask('api',cr);detail=`${cr.id} approved: job ${t.id} writes it to EstateMaster through the API, then reads EstateMaster’s recalculated figures back`}
   else{t=addTask(MODE==='analyst'?'refresh':'apply',cr);
     detail=MODE==='analyst'?`${cr.id} approved: written to the control workbook. Task ${t.id}: an analyst presses Refresh Values and Export in EstateMaster`:`${cr.id} approved: task ${t.id} for an analyst to enter it in EstateMaster and upload the export. Nothing in EstateMaster has changed yet`}
   logEvent({kind:'approved',actor:who,channel:chn,detail,cr:cr.id});
-  if(t)toast(`${cr.id} approved · task ${t.id} for an analyst`);
-  renderApprBadge();renderApprovals();renderInbox();renderEMTab();renderKPIs(false);saveMem();return{cr,who,task:t}}
-async function completeTask(id,file){if(file)pushExportToServer(file.name,file);
+  if(t)toast(MODE==='api'?`${cr.id} approved · writing to EstateMaster through the API (${t.id})`:`${cr.id} approved · task ${t.id} for an analyst`);
+  renderApprBadge();renderApprovals();renderInbox();renderEMTab();renderKPIs(false);saveMem();if(MODE==='api'&&t)apiRun(t.id);return{cr,who,task:t}}
+async function completeTask(id,file,opt={}){if(file)pushExportToServer(file.name,file);
   const t=TASKS.find(x=>x.id===id);if(!t||t.status!=='open')return;
   if(t.proj!==PROJ.id){toast(`${t.id} belongs to ${PROJECTS[t.proj]?PROJECTS[t.proj].name:'another project'}: switch project first`);return}
   let parsed=null;
   if(file&&t.kind!=='stress'){try{parsed=await readExportFile(file)}catch(e){toast(e.message);return}}
   const crs=t.crs.map(c=>APQ.find(x=>x.id===c)).filter(Boolean);
   if(t.kind==='stress'){for(const g of t.scen)GEN.em[g.id]={status:'done',sim:true,irr:+(bad(g.irr)*100).toFixed(2),task:t.id};
-    t.status='done';t.done={at:new Date().toISOString(),by:'Analyst'+(file?'':' (simulated)')};
-    logEvent({kind:'stress',actor:'Analyst (simulated)',channel:'EstateMaster export',detail:`${t.id} done: ${t.scen.length} stress scenarios run in EstateMaster on a copy (model unchanged): `+t.scen.map(g=>`${g.id} ${GEN.em[g.id].irr.toFixed(2)}%`).join(', ')+' (simulated export: demo stand-in for EstateMaster)'});
+    t.status='done';t.done={at:new Date().toISOString(),by:opt.api?'EstateMaster API (simulated)':'Analyst'+(file?'':' (simulated)')};
+    logEvent({kind:'stress',actor:opt.api?'EstateMaster API (simulated)':'Analyst (simulated)',channel:'EstateMaster export',detail:`${t.id} done: ${t.scen.length} stress scenarios run in EstateMaster on a copy (model unchanged): `+t.scen.map(g=>`${g.id} ${GEN.em[g.id].irr.toFixed(2)}%`).join(', ')+' (simulated export: demo stand-in for EstateMaster)'});
     renderGen();renderEMTab();saveMem();toast(`${t.id}: EstateMaster results read for ${t.scen.length} scenarios`);return}
   crs.forEach(applyCRNow);
-  const x=addExport(parsed?'file':'sim',`${t.id} ${taskTitle(t).toLowerCase()} (${crs.map(c=>c.id).join(', ')||'no change requests'})`,parsed?parsed.out:simOut(),file&&file.name,crs.map(c=>c.id).join(', '),parsed||undefined);
+  const x=addExport(parsed?'file':opt.api?'api':'sim',`${t.id} ${taskTitle(t).toLowerCase()} (${crs.map(c=>c.id).join(', ')||'no change requests'})`,parsed?parsed.out:opt.out||simOut(),file&&file.name,crs.map(c=>c.id).join(', '),parsed||(opt.api?{inputs:apiInputs()}:undefined));
   if(parsed)x.found=parsed.found;
   crs.forEach(c=>{c.em={status:'done',kind:'task',task:t.id,export:x.id,out:{levered_irr:x.out.levered_irr},sim:!parsed,file:file&&file.name}});
-  t.status='done';t.done={at:new Date().toISOString(),by:parsed?`${USERS.web} (${WS_ROLE})`:'Analyst (simulated)',export:x.id};
+  t.status='done';t.done={at:new Date().toISOString(),by:parsed?`${USERS.web} (${WS_ROLE})`:opt.api?'EstateMaster API (simulated)':'Analyst (simulated)',export:x.id};
   renderAll(true);renderEMTab();renderApprBadge();saveMem();toast(`${t.id} done · ${x.id}: levered IRR ${Number.isFinite(x.out.levered_irr)?x.out.levered_irr.toFixed(2)+'%':'not in export'}`)}
 /* the server's 07:00 report reads the exports folder: every export uploaded here is copied there too (Files.ReadWrite.All) */
 async function pushExportToServer(name,data){if(!DAILYSRV)return;try{const buf=data instanceof ArrayBuffer?data:await data.arrayBuffer();if(buf.byteLength>4e6)return;
@@ -3440,14 +3541,14 @@ function askAboutExport(pr,x){const o=x.out||{};toggleDock(true);
 /* Settings → Integrations */
 function renderIntegrations(){const el=$('#set_integrations');if(!el)return;const x=latestExport(),when=x?new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'';
   const pill=(t,c)=>`<span class="pill ${c}">${t}</span>`;
-  const rows=[['EstateMaster exports',x?`Latest for ${esc(PROJ.name)}: ${esc(x.id)}${x.file?' · '+esc(x.file):''} · ${when}`:'No export yet for this project',CRONCFG.report&&CRONCFG.report.enabled?'SharePoint exports folder read by the server every morning; uploads in the app too':'Upload on the EstateMaster tab or with + in the Projects menu (left edge)',x&&x.src==='file'?pill('live','p'):pill('demo','s')],
+  const rows=[MODE==='api'?['EstateMaster API',`${EMAPI.base} · model ${esc(apiModel())}${x?` · last read ${esc(x.id)} · ${when}`:''}`,'Reads inputs and outputs; writes only approved change requests, then reads the recalculated figures back. Every call is in the API log (EstateMaster tab)',pill('simulated','s')]:['EstateMaster exports',x?`Latest for ${esc(PROJ.name)}: ${esc(x.id)}${x.file?' · '+esc(x.file):''} · ${when}`:'No export yet for this project',CRONCFG.report&&CRONCFG.report.enabled?'SharePoint exports folder read by the server every morning; uploads in the app too':'Upload on the EstateMaster tab or with + in the Projects menu (left edge)',x&&x.src==='file'?pill('live','p'):pill('demo','s')],
     ['Outlook · Microsoft Graph',MAIL.configured?`Live · ${esc(MAIL.mailbox)} · folder “${esc(MAIL.folder)}” · read-only`:'Demo inbox (simulated)','Emails that propose an assumption change become change requests; scans at 07:00 and 15:00',MAIL.configured?pill('live','p'):pill('demo','s')],
     ['Market data','Comparable sales, rental evidence and zoning rules (3 feeds) plus cost and yield benchmarks by asset type','Demo data; in production the transaction, rental and cost feeds. Used in the daily report and Settings → Market data',pill('demo','s')],
     ['SQL Server','Actuals, sales and collections','Simulated in the demo',pill('demo','s')],
     ['AI',provs().map(p=>PROV[p].name).join(' + ')||'Not connected','Routing by task; assumption tests use Claude and OpenAI checking each other',provs().length===2?pill('live','p'):provs().length?pill('partial','s'):pill('off','f')],
     ['Email delivery',MAILCFG.configured?`Live from ${esc(MAILCFG.from)}`:'Simulated outbox','Internal recipients only',MAILCFG.configured?pill('live','p'):pill('demo','s')],
     ['Voice (ElevenLabs)','Narration for ▶ Play','Settings → Voice',pill('see Voice','s')]];
-  el.innerHTML='<h2>Integrations and feeds</h2><div class="sub">What the agent reads and where it sends. Nothing writes to EstateMaster.</div>'+rows.map(r=>`<div class="int-row"><div><b>${r[0]}</b></div><div>${r[1]}<br><small>${r[2]}</small></div><div>${r[3]}</div></div>`).join('')}
+  el.innerHTML='<h2>Integrations and feeds</h2><div class="sub">What the agent reads and where it sends. '+(MODE==='api'?'Only approved change requests are written to EstateMaster, through its API.':'Nothing writes to EstateMaster.')+'</div>'+rows.map(r=>`<div class="int-row"><div><b>${r[0]}</b></div><div>${r[1]}<br><small>${r[2]}</small></div><div>${r[3]}</div></div>`).join('')}
 /* Downloads for the analyst */
 async function taskSheet(id){
   const t=TASKS.find(x=>x.id===id);if(!t)return;try{await loadXLSX()}catch(e){toast(e.message);return}
@@ -3465,7 +3566,7 @@ function roStressTask(list){
   list=list.filter(g=>!(GEN.em[g.id]&&GEN.em[g.id].status==='done'));if(!list.length){toast('Those scenarios already have EstateMaster figures');return null}
   const t=addTask('stress',null,{scen:list.map(g=>({id:g.id,name:g.name,d:g.d,x:g.x,irr:g.irr}))});list.forEach(g=>GEN.em[g.id]={status:'needs_person',task:t.id});
   logEvent({kind:'stress',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`${t.id}: ${list.length} stress scenarios handed to an analyst to run in EstateMaster on a copy (${list.map(g=>g.id).join(', ')})`});
-  renderGen();renderEMTab();saveMem();return t}
+  renderGen();renderEMTab();saveMem();if(MODE==='api')apiRun(t.id);return t}
 function proposeDraft(){const n=Object.keys(DRAFT).length;if(!n)return;const ops=[{t:'mods',mods:{...DRAFT}}];
   const cr=raiseCR('manual',`${USERS.web} (${WS_ROLE})`,'Sandbox draft: '+scenName(DRAFT),ops,{channel:'Workspace'});DRAFT={};renderAsm();renderApprovals();saveMem();toast(`${cr.id} raised for approval`);return cr}
 function proposeLine(id,v){const l=REGBY[id],cr=raiseCR('manual',`${USERS.web} (${WS_ROLE})`,`${l.label} → ${fmtLine(l,v)}`,[{t:'line',id,v}],{channel:'Model data'});renderApprovals();renderRegister();toast(`${cr.id} raised: ${l.label} → ${fmtLine(l,v)}. EstateMaster changes once approved and applied.`);return cr}
@@ -3501,7 +3602,7 @@ function renderKPIsRO(flash){
   const v=(k,fmt)=>Number.isFinite(o[k])?fmt(o[k]):'—',d=(k,m=1)=>Number.isFinite(o[k])&&Number.isFinite(b[k])&&x!==f?(o[k]-b[k])*m:0;
   const items=[['Levered IRR',v('levered_irr',a=>a.toFixed(1)+'%'),d('levered_irr'),1,Number.isFinite(o.levered_irr)&&o.levered_irr/100<HURDLE.irr,'pts'],['Profit on cost',v('profit_on_cost',a=>a.toFixed(1)+'%'),d('profit_on_cost'),1,Number.isFinite(o.profit_on_cost)&&o.profit_on_cost/100<HURDLE.poc,'pts'],['Net profit',v('net_profit',fM),d('net_profit',1e-6),1,o.net_profit<0,'M'],['Equity multiple',v('equity_multiple',fX),d('equity_multiple'),1,false,'x'],['Peak debt',v('peak_debt',fM),d('peak_debt',1e-6),-1,false,'M']];
   $('#kpis').innerHTML=items.map(([l,val,dd,s,badF,u])=>`<div class="kpi ${badF?'bad':''} ${flash?'flash':''}"><div class="l">${l}</div><div class="v">${val}</div><div class="dl">${val==='—'?'not in export':Math.abs(dd)<.005?(f&&x!==f?'no change':'first export'):`<span class="${dd*s<0?'dn':'up'}">${sgn(dd,u==='x'?2:(u==='M'?0:1))}${u==='pts'?' pts':u==='M'?'M':'x'}</span> vs ${f.id}`}</div></div>`).join('');
-  $('#kpiSub').textContent=x?`EstateMaster export ${x.id} · ${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})} · ${x.src==='file'?'read from '+x.file:'simulated export (demo stand-in for EstateMaster)'}`:'No EstateMaster export yet';
+  $('#kpiSub').textContent=x?`EstateMaster export ${x.id} · ${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})} · ${x.src==='file'?'read from '+x.file:x.src==='api'?'read through the EstateMaster API (simulated)':'simulated export (demo stand-in for EstateMaster)'}`:'No EstateMaster export yet';
   const tag=$('#kpiTag');if(tag)tag.textContent='from EstateMaster’s export';
   const e=$('#emTrust');if(e){e.className='trust '+(x&&!n?'ok':'warn');
     const ck=x?exportChecks(x).filter(c=>c.level!=='note'):[];
@@ -3528,7 +3629,7 @@ function renderGenRO(){
 function emLineRO(c){const m=c.em;if(!m)return'';const t=m.task&&TASKS.find(x=>x.id===m.task);
   if(m.status==='done')return`<div style="font-size:12.5px;margin:4px 0;padding:6px 8px;background:rgba(46,46,47,.04);border-radius:8px"><b>EstateMaster:</b> ${m.note?'connected, no change needed':`applied by an analyst (${m.task}) · export ${m.export}${m.out&&Number.isFinite(m.out.levered_irr)?` · levered IRR <b>${m.out.levered_irr.toFixed(2)}%</b>`:''}${m.sim?' (simulated export)':m.file?' · '+esc(m.file):''}`}</div>`;
   return`<div style="font-size:12.5px;margin:4px 0;padding:6px 8px;background:rgba(46,46,47,.04);border-radius:8px"><b>EstateMaster:</b> not changed yet · waiting for an analyst (${m.task})${t?taskButtons(t):''}</div>`}
-function taskButtons(t){return`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn ghost sm" data-twb="${t.id}">${MODE==='analyst'&&t.kind!=='stress'?'Download control workbook':'Download analyst sheet'}</button><button class="btn ghost sm" data-tup="${t.id}">Upload export</button><button class="btn sm" data-tdone="${t.id}">Mark done (simulated export)</button></div>`}
+function taskButtons(t){if(MODE==='api')return`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn sm" data-tapi="${t.id}"${EMAPI.busy[t.id]?' disabled':''}>${EMAPI.busy[t.id]?'Calling the API…':'Run through the API'}</button><button class="btn ghost sm" data-twb="${t.id}">Download change sheet</button></div>`;return`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn ghost sm" data-twb="${t.id}">${MODE==='analyst'&&t.kind!=='stress'?'Download control workbook':'Download analyst sheet'}</button><button class="btn ghost sm" data-tup="${t.id}">Upload export</button><button class="btn sm" data-tdone="${t.id}">Mark done (simulated export)</button></div>`}
 function taskCard(t){const crs=t.crs.map(id=>APQ.find(c=>c.id===id)).filter(Boolean),pn=PROJECTS[t.proj]?PROJECTS[t.proj].name:t.proj;
   return`<div class="em ${t.status==='open'?'on':''}" style="cursor:default"><div class="top"><span>${t.id} · ${t.status==='open'?'for an analyst':'done'} · ${esc(pn)}</span><span>${new Date(t.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span></div>
    <div class="sj">${esc(taskTitle(t))}${crs.length?` · ${crs.map(c=>c.id).join(', ')}`:''}</div>
@@ -3558,7 +3659,7 @@ function renderEMTab(){
   $('#exSub').textContent=xs.length?`${xs.length} export${xs.length>1?'s':''} for ${PROJ.name}. The latest is the source of every figure the app shows as EstateMaster’s.`:'No exports yet for '+PROJ.name+'.';
   try{renderModelAssumptions()}catch(e){}
   {const lx=latestExport(),ck=lx?exportChecks(lx):[],n=ck.filter(c=>c.level!=='note').length;if($('#exChkSub'))$('#exChkSub').textContent=lx?`${lx.id}${lx.file?' · '+lx.file:''} · outputs reconciled, units, sensitivity tables refreshed, inputs in range and against the approved register, jumps since the previous export. ${n?n+' to look at.':'Nothing to look at.'} The same checks run in the 07:00 morning report.`:'No export yet.';if($('#exChecks'))$('#exChecks').innerHTML=lx?checksHTML(ck,'No issues found in this export.'):''}
-  $('#exT').innerHTML='<tr><th>Export</th><th>Option / stage</th><th>When</th><th>Source</th><th class="n">Levered IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th></tr>'+xs.slice().reverse().slice(0,40).map(x=>`<tr><td><b>${x.id}</b>${x.cr?`<br><span style="color:var(--soft);font-size:11px">${esc(x.cr)}</span>`:''}</td><td style="font-size:12px">${esc(optOf(x))}${optKey(x)===baseOpt()?' <span class="pill">base</span>':''}${x.sens&&x.sens.length?`<br><span style="color:var(--soft);font-size:11px">${x.sens.length} sensitivity table${x.sens.length>1?'s':''}</span>`:''}</td><td style="font-size:12px">${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</td><td style="font-size:12px">${x.src==='file'?esc(x.file):x.src==='initial'?'starting export (simulated)':'simulated export'}</td><td class="n">${exFmt(x.out.levered_irr,'%')}</td><td class="n">${exFmt(x.out.profit_on_cost,'%')}</td><td class="n">${exFmt(x.out.net_profit,'M')}</td></tr>`).join('');
+  $('#exT').innerHTML='<tr><th>Export</th><th>Option / stage</th><th>When</th><th>Source</th><th class="n">Levered IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th></tr>'+xs.slice().reverse().slice(0,40).map(x=>`<tr><td><b>${x.id}</b>${x.cr?`<br><span style="color:var(--soft);font-size:11px">${esc(x.cr)}</span>`:''}</td><td style="font-size:12px">${esc(optOf(x))}${optKey(x)===baseOpt()?' <span class="pill">base</span>':''}${x.sens&&x.sens.length?`<br><span style="color:var(--soft);font-size:11px">${x.sens.length} sensitivity table${x.sens.length>1?'s':''}</span>`:''}</td><td style="font-size:12px">${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</td><td style="font-size:12px">${x.src==='file'?esc(x.file):x.src==='api'?'EstateMaster API (simulated)':x.src==='initial'?'starting export (simulated)':'simulated export'}</td><td class="n">${exFmt(x.out.levered_irr,'%')}</td><td class="n">${exFmt(x.out.profit_on_cost,'%')}</td><td class="n">${exFmt(x.out.net_profit,'M')}</td></tr>`).join('');
   const opt=xs.map(x=>`<option value="${x.id}">${x.id} · ${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</option>`).join('');
   const a=xs.find(x=>x.id===EXSEL[0])||xs[0],b=xs.find(x=>x.id===EXSEL[1])||xs[xs.length-1];
   $('#exA').innerHTML=opt;$('#exB').innerHTML=opt;if(a)$('#exA').value=a.id;if(b)$('#exB').value=b.id;
@@ -3567,16 +3668,18 @@ function renderEMTab(){
 function roInit(){
   document.title='KINAN · AI agent · financial modelling';
 
-  $('.cn.dk b').textContent=MODE==='analyst'?'EstateMaster · control workbook':'EstateMaster · exports';$('#emStrip').textContent=MI().strip;
+  $('.cn.dk b').textContent=MODE==='analyst'?'EstateMaster · control workbook':MODE==='api'?'EstateMaster · API':'EstateMaster · exports';$('#emStrip').textContent=MI().strip;
   const arch=$('#set_arch .card')||$('#p-arch .card');if(arch)arch.innerHTML=`<div class="bar"></div><h2>${esc(MI().name)}</h2><div class="sub">EstateMaster is the trusted layer: every figure shown as EstateMaster’s comes from its own export. The agent never runs or writes to EstateMaster.</div><div class="rec">${MI().how.map(([h,s],i)=>`<div class="it"><div class="num">${i+1}</div><div><b>${esc(h)}</b><span>${esc(s)}</span></div></div>`).join('')}</div>${modeCanHTML()}`;
 
   document.querySelectorAll('#p-stress > .grid .card > .sub').forEach(e=>{if(/Agent’s estimates on the current sandbox/.test(e.textContent))e.innerHTML='Hurdles: levered IRR ≥ <span id="hIRR"></span> and profit on cost ≥ <span id="hPOC"></span>. <span class="tag tag-est" style="margin-left:0">Agent estimate</span> every figure in this table is the agent’s replica estimate, not EstateMaster’s (EstateMaster’s own results are in the card above). Click a figure for its working; hand a scenario to an analyst for EstateMaster’s figure.'});
   $('#sgVerify').textContent='Hand the 5 worst to an analyst';
   const mt=$('#p-model .card > .sub:nth-of-type(2)');document.querySelectorAll('#p-model .card .sub').forEach(e=>{if(/Changes go to the sandbox copy/.test(e.textContent))e.textContent='Edit any line (or ask the agent). Each edit becomes a change request; EstateMaster changes once it is approved and '+(MODE==='analyst'?'the analyst refreshes it.':'an analyst enters it.')});
-  if(MODE==='readonly'){$('#cwDown').style.display='none';$('#cwConn').style.display='none'}
+  if(MODE==='readonly'||MODE==='api'){$('#cwDown').style.display='none';$('#cwConn').style.display='none'}
+  if(MODE==='api')apiInit();
   const ap=$('#p-appr .mkbox');if(ap)ap.textContent=`Nothing reaches EstateMaster until a person approves it, and then ${MODE==='analyst'?'the agent writes the control workbook and an analyst refreshes EstateMaster':'an analyst enters it in EstateMaster'} (listed under “For the analyst” below). The likely effect of each change is worked out by Claude and OpenAI (cross-checked, marked as AI calc); EstateMaster’s own figure comes once an analyst applies it.`;
   $('#csSub').textContent='Agent’s estimate of the fund waterfall on the current inputs, for discussion only: not an EstateMaster figure.';
-  if(!latestExport())addExport('initial','starting export of the approved model',simOut());
+  if(!latestExport())MODE==='api'?addExport('api','first read of the approved model through the EstateMaster API',simOut(),'','',{inputs:apiInputs()}):addExport('initial','starting export of the approved model',simOut());
+  if(MODE==='api')setTimeout(()=>apiSync(true),900);
 }
 function modeCanHTML(){return`<div class="grid g2" style="gap:12px;margin-top:12px"><div><b>Can</b><ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.55">${MI().can.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div><div><b>Can’t</b><ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.55">${MI().cant.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div></div>`}
 if(RO){
@@ -3996,7 +4099,12 @@ function reportHTML(){
   <p>${changelog.length?changelog.map(esc).join('<br>'):'No changes: base case as held in EstateMaster.'}</p>
   <div class="lineage">Data lineage · run ${id} · EstateMaster via SQL Server · market data: ${mk().nP} sales, ${mk().nR} leases, zone ${SITE.code} (dummy) · Outlook: ${Object.keys(EM.applied).length} emails cited · engine: calibrated replica, reconciled to EstateMaster · illustrative demo data · generated by Bohio Agent</div>`;
 }
-function renderReport(){$('#rpTitle').textContent=RPTS[RSEL].name;$('#report').innerHTML=RPTS[RSEL].fn()}
+function renderReport(){$('#rpTitle').textContent=RPTS[RSEL].name;$('#report').innerHTML=RPTS[RSEL].fn();kPrepareSoon(RSEL)}
+/* ▶ Play is ready the moment it is pressed: the spoken script is written while the report is built, and the first slides' voice is made from it */
+let KPREP=null;
+function kPrepareSoon(id){clearTimeout(KPREP);KPREP=setTimeout(()=>kPrepare(id).catch(()=>{}),700)}
+async function kPrepare(id){if(!apiOn()||!RPTS[id])return;const deck=buildDeck(id),S=kScriptFor(deck,RPTS[id]);if(S.pending)await S.pending;if(!S.ai||RSEL!==id)return;
+  if(await kVoiceCheck()!=='eleven')return;for(const n of [0,1]){if(!deck.slides[n])continue;const tn=kTrack(kSegsOf(deck,S,n),null);await kVoiceClip(tn.text,'',tn.off.slice(1))}}
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 function csv(){const xs=axis(hx,hn),ys=axis(hy,hn);let c=`${VARS[hy].label} \\ ${VARS[hx].label},`+xs.join(',')+'\n';ys.forEach(y=>{c+=y+','+xs.map(x=>{const r=run({...S,[hx]:x,[hy]:y});return Number.isNaN(r.irr)?'':(r.irr*100).toFixed(2)}).join(',')+'\n'});return c}
 
@@ -4151,7 +4259,7 @@ async function kVoiceCheck(){if(KVOICE.checked)return KVOICE.mode;KVOICE.checked
 let KAUDIO=null;
 function kStopVoice(){if(KAUDIO){KAUDIO.pause();KAUDIO=null}if(window.speechSynthesis)speechSynthesis.cancel()}
 async function kSay(text,dur){kStopVoice();text=kSpeech(text);if(KVOICE.mode==='eleven'){const url=await kVoiceUrl(text);if(url){return new Promise(ok=>{const a=new Audio(url);KAUDIO=a;a.onended=()=>{if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>ok(false);a.play().catch(()=>ok(false))})}}
-  if(KVOICE.mode!=='none'&&window.speechSynthesis){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(String(text).slice(0,600));u.lang='en-GB';const v=speechSynthesis.getVoices().find(x=>/^en/i.test(x.lang));if(v)u.voice=v;u.rate=1;u.onend=()=>ok(true);u.onerror=()=>ok(false);speechSynthesis.speak(u)})}
+  if(KVOICE.mode!=='none'&&window.speechSynthesis){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(String(text).slice(0,600));u.lang='en-US';const v=speechSynthesis.getVoices().find(x=>/^en/i.test(x.lang));if(v)u.voice=v;u.rate=1;u.onend=()=>ok(true);u.onerror=()=>ok(false);speechSynthesis.speak(u)})}
   return new Promise(ok=>setTimeout(()=>ok(false),dur||0))}
 /* ================= NARRATION: a spoken script, not the slide text, with the figure under discussion lit up =================
    ▶ Play speaks from a script written for the ear: what each figure means for the audience, with transitions, never the
@@ -4160,7 +4268,7 @@ async function kSay(text,dur){kStopVoice();text=kSpeech(text);if(KVOICE.mode==='
    character timestamps (browser voice: word boundaries; no voice: pacing by word count).
    The script writer: Claude Fable 5.1 (then Opus 5.5, then GPT-5) writes it from the deck's figures when an AI key is
    connected; otherwise a built-in writer phrases the same figures. Every number spoken is one on the slide. */
-const KS_CACHE=new Map();
+const KS_CACHE=new Map(),KS_DONE=new Map();
 const kSpk={pct:v=>`${kfmt(v,1).replace(/\.0$/,'')} percent`,m:v=>`${kfmt(kM(v),0)} million riyals`,mM:v=>`${kfmt(v,0)} million riyals`,x:v=>`${kfmt(v,2)} times`,n:(v,d=1)=>kfmt(v,d).replace(/\.0$/,'')};
 const kUnitSpk=(v,unit,d)=>{unit=String(unit||'').trim();if(unit==='%')return kSpk.pct(v);if(/SAR M/i.test(unit))return kSpk.mM(v);if(/pts/.test(unit))return `${kSpk.n(v,d)} points`;if(/% of target/.test(unit))return `${kSpk.n(v,0)} percent of target`;return unit?`${kSpk.n(v,d)} ${unit}`:kSpk.n(v,d)};
 const kPlain=t=>String(t==null?'':t).replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
@@ -4273,7 +4381,7 @@ How it should sound (the listener hears it once, so every sentence must land)
 - Bad (reads the slide): "Levered IRR: 18.4%, hurdle 18%; profit on cost 14.2%, hurdle 15%; peak debt SAR 280M."
 - Good (talks to the committee): "[[0]]The equity return is 18.4%, just above our 18% hurdle, so the scheme still works. [[1]]The margin is the weak spot: at 14.2% profit on cost it sits under the 15% we ask for. I'd look at the construction budget before we commit more."
 - Figures that are the agent's estimates or AI calculations (the slide says so) are never EstateMaster's: say so in a word ("on our estimate").`;
-const KS_BRIT=`- British English, always: the voice is a British presenter and an American word sounds wrong in that voice. British spelling (analyse, optimise, prioritise, organisation, programme, centre, colour, behaviour, metre, licence as a noun), British vocabulary and idiom ("at the weekend", "got" not "gotten", "different from" not "different than", "Monday to Friday" not "Monday through Friday"), British dates (the fifth of October, never October fifth), and British understatement: calm and plain, no hype ("awesome", "super", "huge win", "reach out", "circle back", "touch base", "going forward" are out).`;
+const KS_US=`- American English, always: the voice is an American presenter and a British word sounds wrong in that voice. American spelling (analyze, optimize, prioritize, organization, program, center, color, behavior, meter, license), American vocabulary and idiom ("on the weekend", "Monday through Friday", "should we" not "shall we", no "whilst", "amongst", "fortnight", "brilliant" or "cheers"), American dates (October fifth, never the fifth of October). Professional and calm: no hype ("awesome", "super", "huge win", "reach out", "circle back", "touch base", "going forward" are out).`;
 const KS_AR=`- Write in clear, natural Modern Standard Arabic as a Saudi presenter would speak it; Western digits (0-9); amounts exactly as printed. Keep project and fund names as written.`;
 function kScriptSystem(deck,def,n){const ar=kLang()==='ar';return `You are the KINAN AI agent on ARGUS EstateMaster, presenting "${deck.title}" aloud to ${def&&def.aud||'the investment committee'} while the slides play on screen. KINAN is a Saudi real estate developer; every return figure comes from EstateMaster. Write the spoken script: exactly one entry per slide, ${n} in all, in the slides' order.
 
@@ -4283,6 +4391,11 @@ What changed (every report is compared with the last export)
 - Lead with the change, not the level. Where a slide carries "changedSinceLastExport", start from it: what moved, by how much, from what to what, and why it matters, then the level if it helps. "The equity return is down 0.7 points since the last export, to 18.4%" beats "The equity return is 18.4%".
 - No change is news too: say it plainly ("the margin is still at 14.2%, no better than last week") and say what it means.
 - If it is the first export, say once, briefly, that there is nothing to compare with yet.
+
+A conversation, not a recital
+- Sound like a colleague walking the committee through the deck in a meeting: natural spoken English, contractions, the occasional "you'll see", "what stands out here", "here's the thing", "so what does that mean for us". Professional throughout: no jokes, no slang, no hype.
+- No repetition, ever. Each slide adds something new. Never repeat a figure, a point or a phrase from an earlier slide: if you need it again, refer back in a few words ("the margin gap I mentioned"). Never restate the slide title. Vary how entries start: no two slides open the same way, and do not open with "This slide", "Here we see", "Looking at" or "Moving on".
+- Bridges are short and varied, and only where they help the story.
 
 Slide by slide
 - Cover: one welcoming line that frames the report in a few words.
@@ -4297,14 +4410,14 @@ Rules
 - Use only the facts given. Do not invent numbers, names, causes or outcomes.
 - Whenever you mention a figure, quote it EXACTLY as it is printed on the slide (same digits, units and format, e.g. "SAR 130M", "18.4%", "1.54x"); whenever you name an item, use its printed label or title word for word, because the screen highlights what you name. A title that ends in "…" is cut short: use the full wording from the slide's other text instead.
 - The screen highlights the item you are talking about. Each slide lists its items with a number (ref). Right before the words about an item, put its marker [[ref]], e.g. "[[2]]Construction is the biggest cost at SAR 310M." Mark every item you talk about, in the order you talk about them, and put each marker exactly where that item's own words begin: a sentence about two items gets two markers, one before each. Use [[-]] when you move on to a general remark. Markers are not spoken; slides without items get none.
-- Say dates as a person would: "Monday, the fifth of October", "the thirtieth of May" (never "5 October 2026"); leave out the year when it is this year. Month names in full.
+- Say dates as an American presenter would: "Monday, October fifth", "May thirtieth" (never "5 October 2026" or "the fifth of October"); leave out the year when it is this year. Month names in full.
 - Do not greet ("good morning") and do not say the time of day: the player adds the right greeting when the report is played.
 - Plain text only: no markdown, no bullets, no emojis, no stage directions, no headings.
-${ar?KS_AR:KS_BRIT}
+${ar?KS_AR:KS_US}
 Then call write_narration once with all ${n} slides.`}
 /* the script with its [[ref]] markers turned into segments: each marker starts a segment about that item */
 function kCueSegs(raw,labels){const parts=String(raw||'').replace(/\s+/g,' ').trim().split(/\s*\[\[\s*(\d+|-)\s*\]\]\s*/);const segs=[];let f=null;
-  for(let k=0;k<parts.length;k++){if(k%2===1){f=parts[k]==='-'?null:(labels[+parts[k]]||null);continue}const t=kPlain(parts[k]);if(t)segs.push({t:kLang()==='ar'?t:kBrit(t),f:k===0?null:f})}
+  for(let k=0;k<parts.length;k++){if(k%2===1){f=parts[k]==='-'?null:(labels[+parts[k]]||null);continue}const t=kPlain(parts[k]);if(t)segs.push({t:kLang()==='ar'?t:kAm(t),f:k===0?null:f})}
   return segs}
 async function kScriptAI(deck,def){const key=JSON.stringify(kDeckBrief(deck))+'|'+(def&&def.aud||'')+'|'+kLang();if(KS_CACHE.has(key))return KS_CACHE.get(key);
   const tool=kScriptTool(deck),brief=kDeckBrief(deck);
@@ -4318,18 +4431,20 @@ async function kScriptAI(deck,def){const key=JSON.stringify(kDeckBrief(deck))+'|
         const j=AI.keys[p]?await post(PROV[p].base,{authorization:'Bearer '+AI.keys[p]},body):await post('/api/llm',AI.pass?{'x-demo-pass':AI.pass}:{},{provider:p,task:'report',payload:body});const c=(((j.choices||[])[0]||{}).message||{}).tool_calls;if(!c||!c[0])throw new Error('no script');input=JSON.parse(c[0].function.arguments||'{}')}
       const out=deck.slides.map(()=>null);(input.slides||[]).forEach((sl,n)=>{const i=Number.isInteger(sl.i)?sl.i:n,s=deck.slides[i];if(!s||typeof sl.say!=='string')return;const plain=sl.say.replace(/\[\[[^\]]*\]\]/g,'').trim();if(plain.length<8||plain.length>800)return;
         const segs=kCueSegs(sl.say,kFigLabels(s));if(segs.length)out[i]=segs});
-      if(out.filter(Boolean).length<Math.ceil(deck.slides.length/2))throw new Error('incomplete script');const r={script:out,model:mName(p,model)};KS_CACHE.set(key,r);return r}
+      if(out.filter(Boolean).length<Math.ceil(deck.slides.length/2))throw new Error('incomplete script');const r={script:out,model:mName(p,model)};KS_CACHE.set(key,r);KS_DONE.set(key,r);return r}
     catch(e){ROUTESTATS.fallback++;continue}}return null})();
   KS_CACHE.set(key,p);p.then(r=>{if(!r)KS_CACHE.delete(key)});return p}
 /* the script for a deck: AI when connected (arrives in the background; slides not yet shown pick it up), built-in otherwise */
-function kScriptFor(deck,def){const built=kScriptDeck(deck,def).map(sg=>kLang()==='ar'?sg:sg.map(g=>({...g,t:kBrit(g.t)})));const S={segs:built,model:null,ai:false};
+function kScriptFor(deck,def){const built=kScriptDeck(deck,def).map(sg=>kLang()==='ar'?sg:sg.map(g=>({...g,t:kAm(g.t)})));const S={segs:built,model:null,ai:false};
+  const ready=KS_DONE.get(JSON.stringify(kDeckBrief(deck))+'|'+(def&&def.aud||'')+'|'+kLang());if(ready&&!deck.noAI){S.segs=built.map((b,i)=>ready.script[i]||b);S.model=ready.model;S.ai=true;return S}
   if(apiOn()&&!deck.noAI){S.pending=kScriptAI(deck,def).then(r=>{if(r){S.segs=built.map((b,i)=>r.script[i]||b);S.model=r.model;S.ai=true}S.pending=null;return S}).catch(()=>{S.pending=null;return S})}
   return S}
 const kSegText=segs=>segs.map(g=>g.t).join(' ');
 const KGREET=/^\s*(?:good\s+(?:morning|afternoon|evening)|صباح\s+الخير|مساء\s+الخير)[\s,.!،]*/i;
 function kGreeting(){const h=new Date().getHours();return kLang()==='ar'?(h<12?'صباح الخير.':'مساء الخير.'):(h<12?'Good morning.':h<17?'Good afternoon.':'Good evening.')}
 /* the segments for a slide; the first slide opens with the greeting for the time it is played */
-function kSlideSegs(i){const s=KP.deck.slides[i],segs=(KP.script.segs[i]||[{t:s.say,f:null}]).map(g=>({...g}));if(i!==0||s.kind!=='cover')return segs;
+function kSlideSegs(i){return kSegsOf(KP.deck,KP.script,i)}
+function kSegsOf(deck,script,i){const s=deck.slides[i],segs=(script.segs[i]||[{t:s.say,f:null}]).map(g=>({...g}));if(i!==0||s.kind!=='cover')return segs;
   if(segs[0])segs[0].t=segs[0].t.replace(KGREET,'');return[{t:kGreeting(),f:null}].concat(segs.filter(g=>g.t))}
 /* ---- speaking a script: resolves when done; onSeg(k) fires as each segment starts ---- */
 let KVPREV='';
@@ -4351,37 +4466,37 @@ async function kSpeakSegs(segs,onSeg,next){kStopVoice();const text=kSegText(segs
   if(KVOICE.mode==='eleven'){const clip=await kVoiceClip(text,next);if(clip){KVPREV=text;const times=kSegTimes(clip,segs);return new Promise(ok=>{const a=new Audio(clip.url);KAUDIO=a;let k=0,raf=0;fire(0);
       const tick=()=>{if(KAUDIO!==a)return;const t=a.currentTime;if(times){while(k<segs.length-1&&t>=times[k+1]-0.05){k++;fire(k)}}else{const total=a.duration||0;if(total){const w=kSegOffsets(segs);while(k<segs.length-1&&t>=total*w[k+1]/text.length){k++;fire(k)}}}raf=requestAnimationFrame(tick)};raf=requestAnimationFrame(tick);
       a.onended=()=>{cancelAnimationFrame(raf);if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>{cancelAnimationFrame(raf);ok(false)};a.play().catch(()=>{cancelAnimationFrame(raf);ok(false)})})}}
-  if(KVOICE.mode!=='none'&&window.speechSynthesis){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(text.slice(0,1400));const L=kLang();u.lang=L==='ar'?'ar-SA':'en-GB';const v=speechSynthesis.getVoices().find(x=>new RegExp('^'+L,'i').test(x.lang));if(v)u.voice=v;u.rate=1;const off=kSegOffsets(segs);let k=0,bounded=false;fire(0);
+  if(KVOICE.mode!=='none'&&window.speechSynthesis){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(text.slice(0,1400));const L=kLang();u.lang=L==='ar'?'ar-SA':'en-US';const v=speechSynthesis.getVoices().find(x=>new RegExp('^'+L,'i').test(x.lang));if(v)u.voice=v;u.rate=1;const off=kSegOffsets(segs);let k=0,bounded=false;fire(0);
       u.onboundary=e=>{bounded=true;while(k<segs.length-1&&e.charIndex>=off[k+1]){k++;fire(k)}};
       const fallback=kPaceSegs(segs,j=>{if(!bounded&&j>k){k=j;fire(k)}});u.onend=()=>{fallback();ok(true)};u.onerror=()=>{fallback();ok(false)};speechSynthesis.speak(u)})}
   return new Promise(ok=>{fire(0);const stop=kPaceSegs(segs,fire);const total=Math.max(2500,text.split(/\s+/).length/2.6*1000);setTimeout(()=>{stop();ok(false)},total)})}
 /* pacing by word count when there are no timestamps; returns a cancel function */
 function kPaceSegs(segs,fire){const timers=[];let t=0;segs.forEach((g,k)=>{if(k)timers.push(setTimeout(()=>fire(k),t));t+=Math.max(1200,g.t.split(/\s+/).length/2.6*1000)});return()=>timers.forEach(clearTimeout)}
 /* ---- what the voice actually says: currency and symbols spelled for the ear, "riyal" with the stress on the a ---- */
-const KBRIT=[[/\b(anal|optim|priorit|real|util|organ|minim|maxim|recogn|summar|special|categor|emphas|standard|capital|final|author|monet|incentiv|normal|visual|central|stabil|custom|personal|mobil|apolog|critic)iz(e|es|ed|ing|ation|ations)\b/gi,'$1is$2'],[/\banalyz(e|es|ed|ing)\b/gi,'analys$1'],
-  [/\b(behavi|col|fav|hon|harb|lab|neighb|flav|hum|rum|vig|savi|endeav)or(s|ed|ing|ite|ites|al|able)?\b/gi,'$1our$2'],[/\b(cent|met|lit|theat|fib)er(s)?\b/gi,'$1re$2'],[/\bprogram(s)?\b(?! (?:code|file|files))/gi,'programme$1'],[/\bcatalog(s)?\b/gi,'catalogue$1'],
-  [/\b(travel|cancel|model|label|fuel|signal|channel|total)ed\b/gi,'$1led'],[/\b(travel|cancel|model|label|fuel|signal|channel)ing\b/gi,'$1ling'],[/\bdefense\b/gi,'defence'],[/\bfulfill(s|ment)?\b/gi,'fulfil$1'],
-  [/\bgotten\b/gi,'got'],[/\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) through (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/g,'$1 to $2'],[/\bon the weekend\b/gi,'at the weekend'],[/\bdifferent than\b/gi,'different from'],
+const KAM=[[/\b(anal|optim|priorit|real|util|organ|minim|maxim|recogn|summar|special|categor|emphas|standard|capital|final|author|monet|incentiv|normal|visual|central|stabil|custom|personal|mobil|apolog|critic)is(e|es|ed|ing|ation|ations)\b/gi,'$1iz$2'],[/\banalys(e|es|ed|ing)\b/gi,'analyz$1'],
+  [/\b(behavi|col|fav|hon|harb|lab|neighb|flav|hum|rum|vig|savi|endeav)our(s|ed|ing|ite|ites|al|able)?\b/gi,'$1or$2'],[/\b(cent|met|lit|theat|fib)re(s|d)?\b/gi,'$1er$2'],[/\bprogrammes?\b/gi,m=>/s$/i.test(m)?'programs':'program'],[/\bcatalogue(s)?\b/gi,'catalog$1'],
+  [/\b(travel|cancel|model|label|fuel|signal|channel|total)l(ed|ing)\b/gi,'$1$2'],[/\bdefence\b/gi,'defense'],[/\blicence\b/gi,'license'],[/\bfulfil(s|ment)?\b/gi,'fulfill$1'],[/\bwhilst\b/gi,'while'],[/\bamongst\b/gi,'among'],[/\blearnt\b/gi,'learned'],[/\bspelt\b/gi,'spelled'],
+  [/\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) to (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/g,'$1 through $2'],[/\bat the weekend\b/gi,'on the weekend'],[/\bshall we\b/gi,'should we'],[/\bshall I\b/g,'should I'],[/\bfortnight\b/gi,'two weeks'],
   [/\breach(?:ing)? out to\b/gi,'contact'],[/\bcircle back\b/gi,'come back'],[/\btouch base\b/gi,'check in'],[/\bgoing forward\b/gi,'from now on'],[/\bawesome\b/gi,'excellent'],[/\bsuper (important|useful|clear)\b/gi,'very $1'],[/\bhuge win\b/gi,'real gain'],[/\bASAP\b/g,'as soon as possible']];
-function kBrit(t){for(const [rx,to] of KBRIT)t=t.replace(rx,(m,...g)=>{const out=to.replace(/\$(\d)/g,(_,k)=>(typeof g[k-1]==='string'?g[k-1]:''));return m[0]===m[0].toUpperCase()&&out[0]?out[0].toUpperCase()+out.slice(1):out});return t}
+function kAm(t){for(const [rx,to] of KAM)t=t.replace(rx,typeof to==='function'?to:(m,...g)=>{const out=to.replace(/\$(\d)/g,(_,k)=>(typeof g[k-1]==='string'?g[k-1]:''));return m[0]===m[0].toUpperCase()&&out[0]?out[0].toUpperCase()+out.slice(1):out});return t}
 const KMON='January|February|March|April|May|June|July|August|September|October|November|December',KORD=['','first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth','eleventh','twelfth','thirteenth','fourteenth','fifteenth','sixteenth','seventeenth','eighteenth','nineteenth','twentieth'];
 const kOrd=n=>n>=1&&n<=20?KORD[n]:n>=21&&n<=29?'twenty-'+KORD[n-20]:n===30?'thirtieth':n===31?'thirty-first':String(n);
 const KABBR={Jan:'January',Feb:'February',Mar:'March',Apr:'April',Jun:'June',Jul:'July',Aug:'August',Sep:'September',Sept:'September',Oct:'October',Nov:'November',Dec:'December'};
-/* dates the way a presenter says them ("the fifth of October"; this year left out), and symbols a voice cannot say */
+/* dates the way an American presenter says them ("October fifth"; this year left out), and symbols a voice cannot say */
 function kSpeakDates(t){const yr=String(new Date().getFullYear()),M=KMON.split('|');
-  return t.replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g,(m,d,mo,y)=>+mo>=1&&+mo<=12&&+d>=1&&+d<=31?`the ${kOrd(+d)} of ${M[+mo-1]}${y!==yr?', '+y:''}`:m)
+  return t.replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g,(m,d,mo,y)=>+mo>=1&&+mo<=12&&+d>=1&&+d<=31?`${M[+mo-1]} ${kOrd(+d)}${y!==yr?', '+y:''}`:m)
     .replace(/\b(\d{1,2})(?:st|nd|rd|th)\b/g,(m,d)=>+d>=1&&+d<=31?kOrd(+d):m)
     .replace(/\b(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\b(?:\.(?=\s+[a-z\d]))?/g,(m,a)=>KABBR[a])
     .replace(new RegExp(`\\b(${KMON})\\s*[–—-]\\s*(${KMON})\\b`,'g'),'$1 to $2')
-    .replace(new RegExp(`\\b(\\d{1,2}) (${KMON})(?: (\\d{4}))?\\b`,'g'),(m,d,mo,y)=>`the ${kOrd(+d)} of ${mo}${y&&y!==yr?', '+y:''}`)
-    .replace(new RegExp(`\\b(${KMON}) (\\d{1,2})\\b(?![\\d%]|[.,]\\d|\\s*(?:million|thousand|billion|percent|M\\b|K\\b))(?:, (\\d{4}))?`,'g'),(m,mo,d,y)=>`${mo} the ${kOrd(+d)}${y&&y!==yr?', '+y:''}`)
+    .replace(new RegExp(`\\b(\\d{1,2}) (${KMON})(?: (\\d{4}))?\\b`,'g'),(m,d,mo,y)=>`${mo} ${kOrd(+d)}${y&&y!==yr?', '+y:''}`)
+    .replace(new RegExp(`\\b(${KMON}) (\\d{1,2})\\b(?![\\d%]|[.,]\\d|\\s*(?:million|thousand|billion|percent|M\\b|K\\b))(?:, (\\d{4}))?`,'g'),(m,mo,d,y)=>`${mo} ${kOrd(+d)}${y&&y!==yr?', '+y:''}`)
     .replace(new RegExp(`\\b(${KMON}) ${yr}\\b`,'g'),'$1')
     .replace(/(?<![\d.])(\d[\d,]*)\.0+(?![\d])/g,'$1').replace(/(?<![\d.])(\d[\d,]*\.\d*[1-9])0+(?![\d])/g,'$1')
     .replace(/(\d+(?:\.\d+)?)\s?×/g,'$1 times').replace(/(\d)\s?[–—]\s?(\d)/g,'$1 to $2').replace(/\bvs\.?(?=\s)/g,'versus').replace(/\bYTD\b/g,'year to date').replace(/\bpts\b/g,'points').replace(/\bIRR\b/g,'I R R')
     .replace(/\s*[—–]\s*/g,', ').replace(/\s*·\s*/g,', ').replace(/\s*→\s*/g,' to ').replace(/\s*←\s*/g,' from ').replace(/~\s?(?=\d)/g,'about ').replace(/\s&\s/g,' and ').replace(/≥\s?/g,'at least ').replace(/≤\s?/g,'at most ')
     .replace(/[“”„]/g,'').replace(/\s*,\s*,/g,',').replace(/\s+([,.;:!?])/g,'$1').replace(/\s{2,}/g,' ')}
 function kSpeech(t){t=String(t==null?'':t).replace(/\s+/g,' ').trim();if(!t||kLang()==='ar')return t;
-  t=kSpeakDates(kBrit(t));
+  t=kSpeakDates(kAm(t));
   const U={m:'million',mn:'million',b:'billion',bn:'billion',k:'thousand'};
   return t.replace(/(^|[\s(])−(?=\d)/g,'$1minus ').replace(/−/g,'-').replace(/\bSAR\s?(-?\d[\d,]*(?:\.\d+)?)\s?(mn|bn|[MKBmkb])\b/g,(m,n,u)=>`${n} ${U[u.toLowerCase()]} SAR`).replace(/\bSAR\s?(-?\d[\d,]*(?:\.\d+)?)\b/g,'$1 SAR')
     .replace(/\b(\d[\d,]*(?:\.\d+)?)\s?([MKB])?\s*(million|thousand|billion)?\s+(?:Saudi\s+)?riyals?\b/gi,(m,n,u,w)=>`${n}${u?' '+U[u.toLowerCase()]:w?' '+w:''} SAR`).replace(/\b(?:Saudi\s+)?riyals?\b/gi,'SAR')
@@ -4443,7 +4558,6 @@ function openDeck(deck){
   KP={deck,root,i:-1,playing:true,voice:true,cc:true,timer:null,tick:null,started:0,dur:8000,raf:[],px:0,py:0,script:kScriptFor(deck,RPTS[RSEL]),figs:null};deck.script=KP.script;KVPREV='';
   if(KP.script.pending)KP.script.pending.then(()=>{if(KP)kPreload(KP.i)});
   kVoiceCheck().then(m=>{if(!KP)return;const b=root.querySelector('[data-act=voice]');root.querySelectorAll('[data-act=ask]').forEach(x=>x.style.display=m==='eleven'?'':'none');if(m==='none'){KP.voice=false;b.style.display='none'}else kVoiceBtn(b);if(m==='eleven')kPreload(KP.i);if(m==='eleven'&&KP.i>=0&&KP.playing)kStartTimer()});
-  root.addEventListener('pointermove',e=>{if(!KP)return;KP.px=(e.clientX/innerWidth-.5);KP.py=(e.clientY/innerHeight-.5);root.style.setProperty('--kd-px',KP.px.toFixed(3));root.style.setProperty('--kd-py',KP.py.toFixed(3))});
   root.querySelector('.kd-toplogo').innerHTML=klogo(34,KD.CH);root.querySelector('.kd-topchev').innerHTML=kchev(34);
   root.insertAdjacentHTML('beforeend',`<div class="kd-qa" hidden><div class="kd-qa-st"></div><div class="kd-qa-q"></div><div class="kd-qa-a"></div><form class="kd-qa-form"><button class="kd-btn kd-askbtn" type="button" data-act="ask" title="Ask by voice" style="display:none">🎤</button><input placeholder="${kLang()==='ar'?'اكتبوا سؤالكم…':'Type your question…'}" aria-label="Question"><button class="kd-btn kd-primary" type="submit">${kLang()==='ar'?'اسأل':'Ask'}</button><button class="kd-btn" type="button" data-act="qaclose" aria-label="Close">✕</button></form></div>`);
   root.insertAdjacentHTML('beforeend','<div class="kd-vnote" hidden><span class="kd-vnote-tag">ElevenLabs</span><span class="kd-vnote-t"></span></div>');kVoiceNote();
@@ -4495,7 +4609,6 @@ function kAnimate(el){
   el.querySelectorAll('[data-count]').forEach(e=>{const v=+e.dataset.count,dec=+e.dataset.dec,pre=e.dataset.pre,suf=e.dataset.suf,t0=performance.now()+(+e.dataset.delay||0),ms=1400;
     const tick=now=>{const p=Math.min(1,Math.max(0,(now-t0)/ms)),x=v*(1-Math.pow(1-p,4));e.textContent=pre+(v<0&&x>0?'−':'')+kfmt(Math.abs(p>=1?v:x),dec)+suf;if(p<1)KP.raf.push(requestAnimationFrame(tick))};e.textContent=pre+kfmt(0,dec)+suf;KP.raf.push(requestAnimationFrame(tick))});
   const path=el.querySelector('.kd-tracer-path'),dot=el.querySelector('.kd-tracer');if(path&&dot){const t0=performance.now()+300,ms=1800;const tick=now=>{const k=Math.min(1,Math.max(0,(now-t0)/ms)),e_=1-Math.pow(1-k,3),pt=path.getPointAtLength(path.getTotalLength()*e_);dot.setAttribute('transform',`translate(${pt.x},${pt.y})`);dot.style.opacity=k>0?'1':'0';if(k<1)KP.raf.push(requestAnimationFrame(tick))};KP.raf.push(requestAnimationFrame(tick))}
-  el.querySelectorAll('.kd-stat,.kd-kpi').forEach(c=>{c.classList.add('kd-tilt');c.onpointermove=e=>{const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;c.style.transform=`perspective(700px) rotateX(${(-y*8).toFixed(2)}deg) rotateY(${(x*10).toFixed(2)}deg) translateZ(6px)`};c.onpointerleave=()=>{c.style.transform=''}});
   el.querySelectorAll('[data-leg]').forEach(l=>{l.onpointerenter=()=>{el.querySelectorAll('.kd-dseg').forEach(p=>p.style.opacity=p.dataset.seg===l.dataset.leg?'1':'.32');l.classList.add('on')};l.onpointerleave=()=>{el.querySelectorAll('.kd-dseg').forEach(p=>p.style.opacity='1');l.classList.remove('on')}})}
 function kChunks(say){const parts=String(say).split(/(?<=[.;!?])\s+/).map(x=>x.trim()).filter(Boolean),out=[];for(const p of parts){if(out.length&&(out[out.length-1]+' '+p).length<120)out[out.length-1]+=' '+p;else out.push(p)}return out.length?out:['']}
 function kCaption(say){if(!KP)return;clearTimeout(KP.ccTimer);const box=KP.root.querySelector('.kd-cc');if(!say){box.innerHTML='';return}const parts=kChunks(say);let k=0;const show=()=>{if(!KP)return;const sp=document.createElement('span');sp.textContent=parts[k];box.innerHTML='';box.appendChild(sp);if(k<parts.length-1){k++;KP.ccTimer=setTimeout(show,Math.max(1800,(parts[k-1].split(/\s+/).length/2.5)*1000))}};clearTimeout(KP.ccTimer);show()}
@@ -4516,7 +4629,7 @@ if(!KP){document.addEventListener('click',e=>{if(KP&&KP.playing&&KP.root.querySe
 const KLINES={
   bridge:{en:['One moment, let me think about your question.','Give me a second to look into that.','Good question. Let me pull that together.','Bear with me a moment while I check.','Let me think that through for you.'],
     ar:['لحظة من فضلكم، دعوني أفكر في سؤالكم.','امنحوني ثانية لأتحقق من ذلك.','سؤال جيد، دعوني أجمع الإجابة.','لحظة من فضلكم بينما أتحقق.','دعوني أفكر في ذلك.']},
-  moveOn:{en:["Right, let's move on.","Good. Let's carry on.","Then let's keep going.",'Fine, on to the next point.',"Let's pick up where we were.",'Right, back to the report.'],
+  moveOn:{en:["Okay, let's move on.","Good. Let's keep going.","Then let's continue.",'All right, on to the next point.',"Let's pick up where we left off.",'Okay, back to the report.'],
     ar:['حسناً، لننتقل.','جيد، لنتابع.','إذن لنكمل.','حسناً، إلى النقطة التالية.','لنعد إلى حيث كنا.','حسناً، نعود إلى التقرير.']}};
 let KLINE_TURN=0;
 function kStock(kind){const xs=KLINES[kind][kLang()==='ar'?'ar':'en'],day=Math.floor(Date.now()/864e5);return xs[(day*7+KLINE_TURN++)%xs.length]}
@@ -4531,14 +4644,14 @@ Answering
 - Then three to five spoken sentences, 110 words at most. Answer first, in plain words; then the reasoning; then what it means or what you would do.
 - Reason, don't just quote. You know development finance: use the report's figures as evidence and explain the why behind them (construction costs, sales pace, financing terms, exit yields, timing), why a recommendation makes sense and what the trade-off is, what would change your mind. Connect facts from different slides. Where you are inferring, say so in a word ("my reading is", "most likely"), and say what you would check in EstateMaster to be sure.
 - Figures: quote only the figures that appear in the report below, exactly as written; never invent a number. If you work a figure out yourself (a difference, a ratio, a share), put the marker ⟦calc: your working⟧ right after it, e.g. "0.4 points ⟦calc: 18.4% − 18%⟧": it is shown as an AI calculation, never as an EstateMaster figure. If the report has nothing on the subject, say so briefly, give your best professional view, and say where in the app the detail lives (Assumptions, Scenarios & stress, Financial modelling or Reports).
-- End by checking it landed, in one short, natural question: whether that answers it and whether there is anything else. Vary the wording every time — never the same sentence twice in a row, never just "Back to the slides". Examples of the range: "Does that answer your question, or is there anything else you'd like to know?", "Is that clear? Anything else before we move on?", "Does that make sense? Happy to go deeper on any of it.", "Has that covered it, or shall I unpack any part?"
-- Plain text only: no markdown, no bullets, no stage directions, no greeting. Say dates as a person would ("the fifth of October"); month names in full.
-${lang==='ar'?KS_AR:KS_BRIT}`;
+- End by checking it landed, in one short, natural question: whether that answers it and whether there is anything else. Vary the wording every time — never the same sentence twice in a row, never just "Back to the slides". Examples of the range: "Does that answer your question, or is there anything else you'd like to know?", "Is that clear? Anything else before we move on?", "Does that make sense? Happy to go deeper on any of it.", "Did that cover it, or should I unpack any part of it?"
+- Plain text only: no markdown, no bullets, no stage directions, no greeting. Say dates the American way ("October fifth"); month names in full.
+${lang==='ar'?KS_AR:KS_US}`;
 async function kAnswer(q){const lang=kLang();if(!apiOn())return lang==='ar'?'لا أستطيع الإجابة عن الأسئلة من دون ربط الذكاء الاصطناعي؛ تجدون التفاصيل في صفحات التطبيق. لنتابع العرض.':"I can't take questions without an AI connection set up; the detail is in the app's pages. Let's carry on.";
   const brief=kDeckBrief(KP.deck),facts=KP.deck.slides.map((s,k)=>`${k===KP.i?'>> ':''}Slide ${k+1} (${s.kind}${brief[k].title?': '+brief[k].title:''}): ${kSegText(KP.script.segs[k]||[{t:s.say}])}${brief[k].values?' | figures: '+brief[k].values.join('; '):''}`).join('\n');
   const msgs=[];for(const h of KP.qa.history.slice(-3)){msgs.push({role:'user',content:h.q});msgs.push({role:'assistant',content:h.a})}
   msgs.push({role:'user',content:`(Variation seed for your wording: ${Math.floor(Math.random()*1000)}.)\nReport: ${KP.deck.title}\nProject: ${PROJ.name}\nThe presentation so far (">>" marks the slide on screen):\n${facts}\n\nQuestion: ${q}`});
-  for(const {p,model} of chain('answer')){try{ROUTESTATS.calls++;const r=await callOne(p,model,KA_SYSTEM(lang),msgs,false,{max:4000,task:'answer'});const t=String(r.text||'').replace(/\s+/g,' ').trim();if(t.length>4)return(lang==='ar'?t:kBrit(t)).slice(0,950)}catch(e){continue}}
+  for(const {p,model} of chain('answer')){try{ROUTESTATS.calls++;const r=await callOne(p,model,KA_SYSTEM(lang),msgs,false,{max:4000,task:'answer'});const t=String(r.text||'').replace(/\s+/g,' ').trim();if(t.length>4)return(lang==='ar'?t:kAm(t)).slice(0,950)}catch(e){continue}}
   return lang==='ar'?'لم أستطع الإجابة عن ذلك الآن. لنتابع.':"I couldn't get an answer to that just now. Let's carry on."}
 function kQaRender(){if(!KP)return;const Q=KP.qa,box=KP.root.querySelector('.kd-qa'),ar=kLang()==='ar';if(!box)return;box.hidden=false;box.dir=ar?'rtl':'ltr';
   const st={recording:ar?'● أستمع… اضغطوا مرة أخرى للإنهاء':'● Listening… tap 🎤 again when you have finished',transcribing:ar?'أكتب سؤالكم…':'Writing down your question…',waiting:'',thinking:ar?'أفكر…':'Thinking…',speaking:'',follow:ar?'سؤال آخر؟ اكتبوه أو اضغطوا على الميكروفون.':'Any other question? Type it or tap the microphone.',moveon:'',done:''}[Q.state||'done']||'';
@@ -4586,7 +4699,7 @@ async function kLiveWords(setDraft,still){
       conn.on(E.PARTIAL_TRANSCRIPT,d=>setDraft(done+' '+(d&&d.text||'')));conn.on(E.COMMITTED_TRANSCRIPT,d=>{done=(done+' '+(d&&d.text||'')).trim();setDraft(done)});
       return{stop:()=>{try{conn.close()}catch(e){}}}}}catch(e){}
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR||!still())return null;
-  try{const r=new SR();r.lang=kLang()==='ar'?'ar-SA':'en-GB';r.interimResults=true;r.continuous=true;r.onresult=e=>{let t='';for(let k=0;k<e.results.length;k++)t+=e.results[k][0].transcript;setDraft(t)};r.onerror=()=>{};r.start();return{stop:()=>{try{r.stop()}catch(e){}}}}catch(e){return null}}
+  try{const r=new SR();r.lang=kLang()==='ar'?'ar-SA':'en-US';r.interimResults=true;r.continuous=true;r.onresult=e=>{let t='';for(let k=0;k<e.results.length;k++)t+=e.results[k][0].transcript;setDraft(t)};r.onerror=()=>{};r.start();return{stop:()=>{try{r.stop()}catch(e){}}}}catch(e){return null}}
 async function kAskTap(){if(!KP)return;const Q=KP.qa;
   if(Q.state==='recording'&&Q.rec){try{Q.rec.stop()}catch(e){}return}if(Q.pending||Q.state==='thinking'||Q.state==='speaking')return;Q.note='';
   const ar=kLang()==='ar',open=note=>{Q.state=null;Q.note=note||'';kQaRender();const i=KP.root.querySelector('.kd-qa-form input');if(i)i.focus()};
@@ -4601,7 +4714,7 @@ async function kAskTap(){if(!KP)return;const Q=KP.qa;
         const r=await fetch('/api/voice',{method:'POST',headers:{'content-type':'application/json',...KVOICE.pass()},body:JSON.stringify({transcribe:true,audio_base64:b64,mime:blob.type,lang:kLang()})});const j=await r.json().catch(()=>({}));const text=String(r.ok&&j.text||'').trim()||draft;if(!text)throw new Error(j.error||'nothing heard');Q.state=null;if(inp)inp.value='';kAskQ(text)}
       catch(e){if(inp)inp.value='';open(ar?'لم ألتقط ذلك. حاولوا مرة أخرى أو اكتبوا السؤال.':'I didn’t catch that: try again, or type the question.')}};
     Q.rec=mr;mr.start();Q.state='recording';kQaRender();return}
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(SR){const r=new SR();r.lang=kLang()==='ar'?'ar-SA':'en-GB';r.interimResults=true;r.maxAlternatives=1;Q.rec=r;Q.state='recording';kQaRender();const inp=KP.root.querySelector('.kd-qa-form input');
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(SR){const r=new SR();r.lang=kLang()==='ar'?'ar-SA':'en-US';r.interimResults=true;r.maxAlternatives=1;Q.rec=r;Q.state='recording';kQaRender();const inp=KP.root.querySelector('.kd-qa-form input');
     r.onresult=e=>{let t='';for(let k=0;k<e.results.length;k++)t+=e.results[k][0].transcript;t=t.replace(/\s+/g,' ').trim();if(inp&&Q.state==='recording')inp.value=t;if(!e.results[e.results.length-1].isFinal)return;Q.rec=null;Q.state=null;if(inp)inp.value='';if(t)kAskQ(t);else open()};r.onerror=()=>{Q.rec=null;open(ar?'لم ألتقط ذلك. اكتبوا السؤال.':'I didn’t catch that: type the question.')};r.onend=()=>{if(Q.state==='recording'){Q.rec=null;Q.state=null;kQaRender()}};try{r.start()}catch(e){open()}return}
   open()}
 
@@ -4767,7 +4880,7 @@ const KD_CSS=`
 .kd-sub{color:#6f6f6f;font-size:clamp(13px,1.2vw,17px);margin-top:10px}
 .kd-muted{color:#6f6f6f;font-size:clamp(12px,1.02vw,15px)}.kd-label{font-size:clamp(14px,1.3vw,19px);font-weight:500}.kd-foot{color:#6f6f6f;font-size:clamp(12px,1.02vw,15px);margin-top:24px}
 .kd-num-t{font-variant-numeric:tabular-nums}
-.kd-hgrid{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:clamp(24px,4vw,64px);align-items:start}
+.kd-hgrid>*{min-width:0}.kd-h2,.kd-points li span{overflow-wrap:anywhere}.kd-hgrid{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:clamp(24px,4vw,64px);align-items:start}
 .kd-stats{border-top:2px solid #f15a22}.kd-stat{padding:12px 0 10px;border-bottom:1px solid rgba(46,46,47,.16)}
 .kd-stat-l{font-size:clamp(10px,.85vw,12px);letter-spacing:.14em;text-transform:uppercase;color:#51473d;font-weight:600}
 .kd-stat-row{display:flex;align-items:center;gap:14px;margin-top:4px}
@@ -5344,7 +5457,8 @@ function toolIntent0(name,a){
   }
   return{k:'help'};
 }
-function sysPrompt(ch,role){
+function sysPrompt(ch,role){return ax(sysPrompt0(ch,role))}
+function sysPrompt0(ch,role){
   const r=run(S);
   const asm=KEYS.map(k=>`- ${k} (${VARS[k].label}): base ${VARS[k].fmt(BASE[k])}, now ${VARS[k].fmt(apply(S)[k])}${S[k]?` (${fD(k,S[k])} vs base${SRC[k]?', source: email from '+SRC[k].e.from:''})`:''}`).join('\n');
   return `You are the Bohio agent. You sit on top of ARGUS EstateMaster for KINAN's ${PROJ.name} project in ${PROJ.district}, Riyadh (${PROJ.comps.map(c=>c==='res'?'residential for sale':'retail held for income').join(' plus ')}; all figures in SAR). Other projects: ${Object.values(PROJECTS).filter(p=>p!==PROJ).map(p=>p.name).join(', ')||'none'}. Templates for new models: ${Object.values(TEMPLATES).map(t=>t.name+' ('+t.type+')').join('; ')}.
@@ -5868,7 +5982,7 @@ $('#aiTestBtn').onclick=async()=>{
 };
 
 /* ================= INIT ================= */
-addMsg('agent',RO?`<b>Hello.</b> I work on EstateMaster’s figures for <b>Al Narjis Mixed-Use</b> (${MI().name}). I answer from EstateMaster’s exports, pick up assumption changes from Outlook, check them against market data and zoning, design stress tests and draft reports. I never write to EstateMaster: ${MODE==='analyst'?'approved changes go into the control workbook and an analyst refreshes EstateMaster.':'an analyst applies approved changes.'} There are <b>${pendingCRs().length} change requests</b> waiting for approval. Ask for any chart (“chart the cash flow by year”) and export it with ↗. Every figure says where it comes from: <span class="tag tag-em" style="margin-left:0">EstateMaster</span> read from the export, <span class="tag tag-est" style="margin-left:0">Agent estimate</span> my replica, <span class="tag tag-calc" style="margin-left:0">AI calc</span> my own arithmetic; click any bold figure for its working.`:'<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, pick up assumption changes from Outlook, check them against market data and zoning, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
+addMsg('agent',RO?`<b>Hello.</b> I work on EstateMaster’s figures for <b>Al Narjis Mixed-Use</b> (${MI().name}). I answer from EstateMaster’s exports, pick up assumption changes from Outlook, check them against market data and zoning, design stress tests and draft reports. ${MODE==='api'?'I read EstateMaster through its API and write to it only after a person approves a change; EstateMaster then recalculates and I read its figures back.':'I never write to EstateMaster: '+(MODE==='analyst'?'approved changes go into the control workbook and an analyst refreshes EstateMaster.':'an analyst applies approved changes.')} There are <b>${pendingCRs().length} change requests</b> waiting for approval. Ask for any chart (“chart the cash flow by year”) and export it with ↗. Every figure says where it comes from: <span class="tag tag-em" style="margin-left:0">EstateMaster</span> read from the export, <span class="tag tag-est" style="margin-left:0">Agent estimate</span> my replica, <span class="tag tag-calc" style="margin-left:0">AI calc</span> my own arithmetic; click any bold figure for its working.`:'<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, pick up assumption changes from Outlook, check them against market data and zoning, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
 wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
 wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
 const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',channel:'System',detail:'Demo started: working copy BHO_SBX opened from the approved EstateMaster base case'});scanEmails('07:00',true,true)}else logEvent({kind:'session',actor:'System',channel:'System',detail:`Session resumed: ${LOG.length} entries and ${APQ.length} change requests restored from memory`});

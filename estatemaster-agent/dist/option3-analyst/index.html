@@ -1124,7 +1124,7 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
 <script>
 /* Deployment option. A build sets window.BOHIO_MODE (Option 2 'readonly', Option 3 'analyst') and that wins; the source
    page also takes ?mode=full|readonly|analyst. 'full' is the runner build (the runner operates EstateMaster). */
-const MODE=(()=>{const ok=['full','readonly','analyst'];if(ok.includes(window.BOHIO_MODE))return window.BOHIO_MODE;let q=null;try{q=new URLSearchParams(location.search).get('mode')}catch(e){}return ok.includes(q)?q:'readonly'})();
+const MODE=(()=>{const ok=['full','readonly','analyst','api'];if(ok.includes(window.BOHIO_MODE))return window.BOHIO_MODE;let q=null;try{q=new URLSearchParams(location.search).get('mode')}catch(e){}return ok.includes(q)?q:'readonly'})();
 const RO=MODE!=='full',MEMKEY='bohioMem'+(RO?'_'+MODE:'');
 let EXPORTS=[],EXN=1,TASKS=[],TKN=1,DRAFT={};
 /* Provenance. Every figure in the chat carries where it came from: em = read from an EstateMaster export, est = the agent's replica estimate,
@@ -2768,8 +2768,105 @@ const MODE_INFO={
   can:['Everything in Option 2','Write approved values into the control workbook EstateMaster is linked to','Batch every approved change into one refresh task for the analyst','Prepare stress scenarios as control-workbook value sets','Set up a new model from a KINAN template and a filled control workbook'],
   cant:['Press buttons in EstateMaster: an analyst refreshes and exports','Run unattended (nights, weekends): results wait for the analyst','Change inputs that are not linked to the control workbook (they become manual steps in the task)','Promote to the live model by itself'],
   prompt:'Deployment: Option 3, analyst in the loop. You cannot run EstateMaster. Approved changes are written to the control workbook; an analyst presses Refresh Values and Export in EstateMaster, then EstateMaster’s figures come from that export (get_status). Never give a figure for a change as if it were a result: say EstateMaster will calculate it once refreshed.'}
+
+ ,api:{name:'EstateMaster API option',strip:'EstateMaster API (simulated): the agent reads EstateMaster’s inputs and figures through its API · after a person approves, it writes the change through the API, EstateMaster recalculates and the agent reads the figures back · SQL Server for actuals (demo: simulated)',
+  task:'Write the approved changes to EstateMaster (API)',
+  how:[['Read','The agent reads every input and output of the model from EstateMaster’s API: no exports to upload. A sync runs on open and after every change.'],
+   ['Analyse and propose','The agent answers questions, checks assumptions against market data, Outlook and actuals, designs stress scenarios and drafts reports. Every change it suggests becomes a change request.'],
+   ['Approve','A person approves or rejects each change request. Nothing is written to EstateMaster before that. The likely effect is worked out by Claude and OpenAI (cross-checked, marked as AI calc) while it waits.'],
+   ['Write through the API','Once approved, the agent writes the values to EstateMaster through the API and asks it to recalculate. EstateMaster does the calculation, as it does today.'],
+   ['Read back','The agent reads EstateMaster’s recalculated figures through the API, shows them and logs them against the change request. Every call is in the API log.']],
+  can:['Read every input and output through the EstateMaster API, with no exports','Answer questions, compare versions and explain what changed','Check assumptions against market data, zoning, Outlook and actuals','Propose changes as change requests; a person approves each one','Write approved changes through the API and read EstateMaster’s recalculated figures back in seconds','Run stress scenarios in EstateMaster on a sandbox copy through the API','Keep a log of every API call, change, approval and result'],
+  cant:['Write anything to EstateMaster before a person approves it','Calculate the official figures: EstateMaster does, through the API','Change the live model outside an approved change request','Use endpoints the EstateMaster API does not offer (in this demo the API is simulated)'],
+  prompt:'Deployment: EstateMaster API option. EstateMaster is reached through its API (simulated in this demo). EstateMaster’s figures come from the latest API read (get_status). Tools that change assumptions only raise change requests; once a person approves, the agent writes the change through the API, EstateMaster recalculates and its figures are read back. Never give a figure for a change as if it were a result: say EstateMaster will calculate it once approved.'}
 };
 const MI=()=>MODE_INFO[MODE]||MODE_INFO.readonly;
+/* EstateMaster API option. EstateMaster is reached through an API (simulated in this demo: calls are logged with their
+   request and response, and the responses come from the demo's stand-in for EstateMaster, the same one behind
+   "simulated export" in Option 2). The agent reads through the API at any time; it writes only an approved change
+   request (PATCH inputs → POST calculate → GET outputs), so nothing reaches EstateMaster before a person approves it. */
+const EMAPI={base:'https://estatemaster.kinan.sa/api/v1',log:[],n:1,busy:{}};
+const apiModel=(proj=PROJ.id)=>`/models/${proj}`;
+const apiWait=ms=>new Promise(r=>setTimeout(r,ms));
+function apiInputs(){return REG.filter(l=>!l.comp||l.comp==='all'||(PROJ.comps||[]).includes(l.comp)).map(l=>{let v=NaN;try{v=lineVal(l.id)}catch(e){}return Number.isFinite(v)?{label:l.label,value:v,text:fmtLine(l,v),unit:l.unit,section:l.g,sheet:'API'}:null}).filter(Boolean)}
+async function apiCall(method,path,req,res,ms){ms=ms||Math.round(220+Math.random()*520);const t0=new Date().toISOString();await apiWait(ms);
+  const body=typeof res==='function'?res():res,e={id:EMAPI.n++,at:t0,method,path,status:method==='POST'&&/\/models$/.test(path)?201:200,ms,req:req||null,res:body};
+  EMAPI.log.unshift(e);if(EMAPI.log.length>80)EMAPI.log.length=80;renderApiLog();return e}
+async function apiRun(id){const t=TASKS.find(x=>x.id===id);if(!t||t.status!=='open'||EMAPI.busy[id])return;
+  if(t.proj!==PROJ.id){toast(`${t.id} belongs to ${PROJECTS[t.proj]?PROJECTS[t.proj].name:'another project'}: switch project first`);return}
+  EMAPI.busy[id]=true;renderEMTab();renderApprovals();const m=apiModel(t.proj),crs=t.crs.map(c=>APQ.find(x=>x.id===c)).filter(Boolean),ids=crs.map(c=>c.id);
+  const strip=v=>String(v).replace(/<[^>]+>/g,'');
+  try{
+    if(t.kind==='stress'){
+      await apiCall('POST',`${m}/sandbox`,{from:'live',reason:t.id},{sandbox:`${t.proj}-sbx-${t.id}`,copyOf:'live'});
+      await apiCall('POST',`${m}/sandbox/scenarios`,{scenarios:t.scen.map(g=>({id:g.id,name:g.name}))},{accepted:t.scen.length,status:'calculated'},900);
+      if(t.proj!==PROJ.id)throw new Error('project switched');
+      await completeTask(t.id,null,{api:true});
+      await apiCall('GET',`${m}/sandbox/results`,null,()=>({results:t.scen.map(g=>({id:g.id,levered_irr:GEN.em[g.id]&&GEN.em[g.id].irr})),liveModelChanged:false}))}
+    else{
+      if(t.kind==='newmodel'){const d=crs[0]&&crs[0].def;await apiCall('POST','/models',{name:d&&d.name,template:d&&TEMPLATES[d.template].name,changeRequest:ids[0]},{id:t.proj,status:'created'})}
+      const changes=crs.flatMap(c=>(c.rows||[]).map(r=>({changeRequest:c.id,input:strip(r[0]),from:strip(r[1]),to:strip(r[2])})));
+      await apiCall('PATCH',`${m}/inputs`,{changeRequests:ids,approvedBy:[...new Set(crs.map(c=>c.decidedBy).filter(Boolean))],changes},{accepted:changes.length||ids.length,status:'pending recalculation'});
+      await apiCall('POST',`${m}/calculate`,{},{status:'completed',engine:'ARGUS EstateMaster'},1100);
+      if(t.proj!==PROJ.id)throw new Error('project switched');
+      await completeTask(t.id,null,{api:true});
+      const x=latestExport(t.proj);await apiCall('GET',`${m}/outputs`,null,{version:x&&x.id,outputs:x&&x.out})}
+    logEvent({kind:'export',actor:'EstateMaster API (simulated)',channel:'EstateMaster API',detail:`${t.id}: ${t.kind==='stress'?'stress scenarios run on a sandbox copy':'approved change written'} through the API${ids.length?' ('+ids.join(', ')+')':''}; EstateMaster recalculated and its figures were read back`,cr:ids[0]})}
+  catch(e){toast(`${t.id}: the EstateMaster API call stopped (${e.message}). Press “Run through the API” to retry.`)}
+  finally{delete EMAPI.busy[id];renderEMTab();renderApprovals();renderApiLog();saveMem()}}
+async function apiSync(quiet){const m=apiModel(),btn=$('#apiSync');if(btn){btn.disabled=true;btn.textContent='Syncing…'}
+  try{await apiCall('GET','/models',null,{models:Object.values(PROJECTS).map(p=>({id:p.id,name:p.name}))});
+    const out=simOut(),x=latestExport(),same=x&&EXROWS.every(([k])=>!Number.isFinite(out[k])||Math.abs((x.out[k]??NaN)-out[k])<1e-6);
+    await apiCall('GET',`${m}/outputs`,null,{version:same?x.id:'new',outputs:out});
+    if(!same){addExport('api','read through the EstateMaster API (sync)',out,'','',{inputs:apiInputs()});renderAll(true)}
+    else if(x&&!(x.inputs||[]).length){await apiCall('GET',`${m}/inputs`,null,()=>({inputs:apiInputs().length}));x.inputs=apiInputs()}
+    if(!quiet)toast(same?'EstateMaster API: up to date':'EstateMaster API: new figures read');EMAPI.last=new Date().toISOString()}
+  finally{if(btn){btn.disabled=false;btn.textContent='Sync now'}renderApiLog();renderEMTab();saveMem()}}
+function renderApiLog(){const el=$('#apiLog');if(!el)return;const x=latestExport();
+  $('#apiSub').innerHTML=`<b>Connected (simulated)</b> · ${esc(EMAPI.base)} · model <b>${esc(apiModel())}</b>${x?` · latest figures ${esc(x.id)}`:''}. Reads at any time; writes only an approved change request, then EstateMaster recalculates and the figures are read back.`;
+  el.innerHTML=EMAPI.log.length?'<tr><th>When</th><th>Call</th><th class="n">Status</th><th class="n">ms</th></tr>'+EMAPI.log.slice(0,40).map(e=>`<tr data-apil="${e.id}" style="cursor:pointer"><td style="font-size:12px;white-space:nowrap">${new Date(e.at).toLocaleTimeString('en-GB')}</td><td style="font-size:12px"><b>${e.method}</b> <code>${esc(e.path)}</code></td><td class="n">${e.status}</td><td class="n">${e.ms}</td></tr>`+(EMAPI.open===e.id?`<tr><td colspan="4"><pre style="white-space:pre-wrap;font-size:11.5px;margin:0;max-height:260px;overflow:auto">${e.req?'Request\n'+esc(JSON.stringify(e.req,null,2))+'\n\n':''}Response\n${esc(JSON.stringify(e.res,null,2))}</pre></td></tr>`:'')).join(''):'<tr><td class="sub">No calls yet.</td></tr>'}
+/* wording: the shared Option 2 copy speaks of analysts and exports; in this option the API does that step */
+const AXR=[[/I never write to EstateMaster: an analyst applies approved changes\./g,'I write to EstateMaster only through its API, after a person approves.'],
+ [/an analyst can run (it|the change|this case|any cell) in EstateMaster for its own/g,'once approved, the agent runs $1 in EstateMaster through the API for its own'],
+ [/Ask an analyst to run the scenario in EstateMaster for its own figure/g,'Approve it and the agent runs it in EstateMaster through the API for its own figure'],
+ [/say an analyst can run it in EstateMaster/g,'say EstateMaster can run it through the API once a person approves'],
+ [/until an analyst runs the change in EstateMaster/g,'until EstateMaster has run the change through the API (after approval)'],
+ [/EstateMaster’s own (figure|IRR) comes once an analyst applies (it|the change)/g,'EstateMaster’s own $1 comes back through the API once the change is approved'],
+ [/calculated by EstateMaster once an analyst applies it/g,'calculated by EstateMaster once approved (through the API)'],
+ [/once approved, an analyst enters (it|them) in EstateMaster and uploads (the|a) new export/g,'once approved, the agent writes $1 to EstateMaster through the API and reads back EstateMaster’s recalculated figures'],
+ [/after an analyst enters it/g,'after a person approves it and the agent writes it through the API'],
+ [/EstateMaster changes only after a person approves and an analyst applies them/g,'EstateMaster changes only after a person approves them; the agent then writes them through the API'],
+ [/Approved changes are applied in EstateMaster by an analyst/g,'Approved changes are written to EstateMaster through the API'],
+ [/an analyst runs each on a copy of the model and uploads the export/g,'EstateMaster runs each on a sandbox copy through the API'],
+ [/EstateMaster’s figures appear once an analyst runs them/g,'EstateMaster’s figures appear once it runs them through the API'],
+ [/hand a scenario to an analyst for EstateMaster’s figure/g,'run a scenario in EstateMaster through the API for its figure'],
+ [/to create the analyst task/g,'to run them through the API'],[/Hand the 5 worst to an analyst/g,'Run the 5 worst in EstateMaster (API)'],
+ [/handed to an analyst to run in EstateMaster on a copy/g,'sent to EstateMaster through the API to run on a sandbox copy'],
+ [/scenarios for an analyst to run in EstateMaster/g,'scenarios running in EstateMaster through the API'],
+ [/and an analyst to run in EstateMaster/g,'and EstateMaster to run through the API'],
+ [/an analyst copies/g,'the agent, through the API, copies'],[/an analyst applies approved changes/g,'approved changes are written through the EstateMaster API'],
+ [/an analyst enters it in EstateMaster/g,'the agent writes it to EstateMaster through the API'],[/an analyst enters it\./g,'the agent writes it through the API.'],
+ [/For the analyst · approved changes to apply in EstateMaster/g,'EstateMaster API · approved changes written'],[/listed under “For the analyst” below/g,'each call is in the API log on the Financial model tab'],
+ [/approved changes are entered by an analyst/g,'approved changes are written through the EstateMaster API'],[/applied by an analyst/g,'written through the EstateMaster API'],
+ [/waiting for an analyst/g,'waiting for the EstateMaster API'],[/[Tt]ask (T-\d+) for an analyst/g,'API job $1'],[/for an analyst/g,'via the EstateMaster API'],
+ [/(\d+) analyst tasks? open: approved changes not yet in EstateMaster/g,'$1 API job(s) running: approved changes not yet in EstateMaster'],[/analyst task/g,'API job'],
+ [/figures update once the new export is read/g,'figures update once EstateMaster returns them'],[/\(simulated export\)/g,'(simulated API)'],
+ [/upload one on the EstateMaster tab/g,'press Sync now on the Financial model tab'],[/The agent never runs or writes to EstateMaster\./g,'The agent writes to EstateMaster only through its API, after a person approves.'],
+ [/every figure shown as EstateMaster’s comes from its own export/g,'every figure shown as EstateMaster’s is read from EstateMaster through its API'],
+ [/This model’s EstateMaster exports, every assumption read from them, the checks on the latest export and the comparison between exports\. The latest export is the only source of the figures shown as EstateMaster’s\./g,'The EstateMaster API and its call log, every version of the model read through it, every assumption, the checks on the latest version and the comparison between versions. The latest API read is the only source of the figures shown as EstateMaster’s.'],
+ [/All figures from EstateMaster’s exports \(simulated exports in this demo\)/g,'All figures read from EstateMaster through its API (simulated in this demo)']];
+function ax(s){if(MODE!=='api'||typeof s!=='string')return s;for(const[a,b]of AXR)s=s.replace(a,b);return s}
+function axNode(n){if(n.nodeType===3){if(/analyst|export/i.test(n.nodeValue)){const v=ax(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}return}
+  if(n.nodeType!==1||n.tagName==='SCRIPT'||n.tagName==='STYLE'||n.tagName==='TEXTAREA'||n.tagName==='INPUT')return;
+  const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT);let t;while((t=w.nextNode()))axNode(t)}
+function apiInit(){
+  const em=$('#p-em .grid > div');if(em&&!$('#apiCard'))em.insertAdjacentHTML('afterbegin',`<div class="card" id="apiCard"><div class="bar"></div><div class="sbhead"><h2>EstateMaster API</h2><span class="pill s">simulated</span><button class="btn sm" id="apiSync" style="margin-left:auto">Sync now</button></div><div class="sub" id="apiSub"></div><div class="sub" style="margin:6px 0 0;font-size:12px">Click a call for its request and response.</div><div class="scroll" style="max-height:340px;overflow:auto"><table class="t" id="apiLog"></table></div></div>`);
+  const h=$('#exUp')&&$('#exUp').closest('.card').querySelector('h2');if(h)h.textContent='EstateMaster versions';
+  document.addEventListener('click',e=>{const a=e.target.closest('[data-tapi]'),l=e.target.closest('[data-apil]');if(a)apiRun(a.dataset.tapi);if(e.target.id==='apiSync')apiSync(false);if(l){const id=+l.dataset.apil;EMAPI.open=EMAPI.open===id?null:id;renderApiLog()}});
+  axNode(document.body);document.title=document.title;
+  new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData')axNode(m.target);else m.addedNodes.forEach(axNode)}}).observe(document.body,{childList:true,subtree:true,characterData:true});
+  renderApiLog()}
+
 /* Options and stages: each export says which stored Option it is (none = base). The base is the option named like a base case, else the first one exported; the KPIs, status and reports follow the base; the other options are scenarios run in EstateMaster. */
 const isBaseName=o=>!o||/^(base|live|current|approved|main|master|as is)/i.test(String(o).trim());
 const optOf=x=>x&&x.opt?x.opt:'Base';
@@ -2999,6 +3096,9 @@ async function readExportFile(f){
 /* Tasks for the analyst */
 function stepsFor(t){
   const f=slug()+'.emdf',crs=t.crs.map(id=>APQ.find(c=>c.id===id)).filter(Boolean);
+  if(MODE==='api'){const m=apiModel(t.proj);if(t.kind==='stress')return[`POST ${m}/sandbox: copy of the live model`,`POST ${m}/sandbox/scenarios: ${t.scen.length} scenario${t.scen.length>1?'s':''}`,'GET …/results: EstateMaster’s IRR for each','The live model is not changed'];
+    if(t.kind==='newmodel')return[`POST /models: new model from the KINAN ${crs[0]&&crs[0].def?TEMPLATES[crs[0].def.template].name:''} template`,`PATCH ${m}/inputs: the approved values`,`POST ${m}/calculate`,`GET ${m}/outputs: EstateMaster’s figures`];
+    return[`PATCH ${m}/inputs: ${crs.reduce((n,c)=>n+(c.rows||[]).length,0)||crs.length} approved value${crs.length>1?'s':''} (${crs.map(c=>c.id).join(', ')})`,`POST ${m}/calculate: EstateMaster recalculates`,`GET ${m}/outputs: EstateMaster’s recalculated figures read back`]}
   const manual=MODE==='analyst'?crs.flatMap(c=>c.ops.filter(o=>o.t==='xline'&&XBY(o.id)&&!XBY(o.id).linked).map(o=>`${XBY(o.id).label} → ${fmtX(XBY(o.id),o.v)} (not linked to the workbook: type it in)`)):[];
   if(t.kind==='newmodel'){const c=crs[0],d=c&&c.def;return MODE==='analyst'?[`Copy the KINAN ${d?TEMPLATES[d.template].name:''} master template and save it as ${slug()}.emdf`,`Download the control workbook below (the agent filled it) and save it to SharePoint as ${slug()}_control.xlsx`,'Links to Excel Files → Change Source to that workbook, then Refresh Values','Recalculate, export (Office Links → Excel) and upload the export here']
     :[`Copy the ${d?TEMPLATES[d.template].name:''} model and save it as ${slug()}.emdf`,`Enter the ${d?REG.filter(l=>l.comp==='all'||d.comps.includes(l.comp)).length:''} values listed in the downloaded sheet`,'Recalculate, export (Office Links → Excel) and upload the export here']}
@@ -3011,7 +3111,7 @@ function addTask(kind,cr,extra={}){
   if(t){if(cr)t.crs.push(cr.id)}
   else{t={id:'T-'+String(TKN++).padStart(3,'0'),kind,proj:PROJ.id,crs:cr?[cr.id]:[],at:new Date().toISOString(),status:'open',...extra};TASKS.push(t)}
   if(cr)cr.em={status:'task',task:t.id,kind:'task'};return t}
-function taskTitle(t){return t.kind==='newmodel'?'Set up the new model in EstateMaster':t.kind==='stress'?`Run ${t.scen.length} stress scenario${t.scen.length>1?'s':''} in EstateMaster`:MI().task}
+function taskTitle(t){if(MODE==='api')return t.kind==='newmodel'?'Create the model in EstateMaster (API)':t.kind==='stress'?`Run ${t.scen.length} stress scenario${t.scen.length>1?'s':''} in EstateMaster (API, sandbox copy)`:MI().task;return t.kind==='newmodel'?'Set up the new model in EstateMaster':t.kind==='stress'?`Run ${t.scen.length} stress scenario${t.scen.length>1?'s':''} in EstateMaster`:MI().task}
 function applyCRNow(cr){applyOpsRaw(cr.ops);
   cr.ops.forEach(o=>{if(o.src){const e=DATA.emails.find(x=>x.id===o.src.eid);const k=o.t==='line'?drvOfLine(o.id):Object.keys(o.mods||{})[0];if(e&&k)SRC[k]={e,quote:o.src.quote};if(e)EM.applied[e.id]=true}else{const k=o.t==='line'?drvOfLine(o.id):o.t==='mods'?Object.keys(o.mods)[0]:null;if(k)delete SRC[k]}})}
 function approveAsTask(cr,ch,role){
@@ -3024,26 +3124,27 @@ function approveAsTask(cr,ch,role){
   else if(cr.kind==='connect'){PROJ.na=cr.na||[];PROJ.cwFile=cr.file;if(cr.xdefs)mergeXDefs(cr.xdefs);
     if(cr.ops.length){t=addTask('refresh',cr);detail=`${cr.id} approved: control workbook ${cr.file} connected; ${cr.ops.length} value(s) differ from EstateMaster, so task ${t.id} asks an analyst to Refresh Values and export`}
     else{cr.em={status:'done',kind:'task',note:'no change'};detail=`${cr.id} approved: control workbook ${cr.file} connected to ${PROJ.name} (values already match EstateMaster)`}}
+  else if(MODE==='api'){t=addTask('api',cr);detail=`${cr.id} approved: job ${t.id} writes it to EstateMaster through the API, then reads EstateMaster’s recalculated figures back`}
   else{t=addTask(MODE==='analyst'?'refresh':'apply',cr);
     detail=MODE==='analyst'?`${cr.id} approved: written to the control workbook. Task ${t.id}: an analyst presses Refresh Values and Export in EstateMaster`:`${cr.id} approved: task ${t.id} for an analyst to enter it in EstateMaster and upload the export. Nothing in EstateMaster has changed yet`}
   logEvent({kind:'approved',actor:who,channel:chn,detail,cr:cr.id});
-  if(t)toast(`${cr.id} approved · task ${t.id} for an analyst`);
-  renderApprBadge();renderApprovals();renderInbox();renderEMTab();renderKPIs(false);saveMem();return{cr,who,task:t}}
-async function completeTask(id,file){if(file)pushExportToServer(file.name,file);
+  if(t)toast(MODE==='api'?`${cr.id} approved · writing to EstateMaster through the API (${t.id})`:`${cr.id} approved · task ${t.id} for an analyst`);
+  renderApprBadge();renderApprovals();renderInbox();renderEMTab();renderKPIs(false);saveMem();if(MODE==='api'&&t)apiRun(t.id);return{cr,who,task:t}}
+async function completeTask(id,file,opt={}){if(file)pushExportToServer(file.name,file);
   const t=TASKS.find(x=>x.id===id);if(!t||t.status!=='open')return;
   if(t.proj!==PROJ.id){toast(`${t.id} belongs to ${PROJECTS[t.proj]?PROJECTS[t.proj].name:'another project'}: switch project first`);return}
   let parsed=null;
   if(file&&t.kind!=='stress'){try{parsed=await readExportFile(file)}catch(e){toast(e.message);return}}
   const crs=t.crs.map(c=>APQ.find(x=>x.id===c)).filter(Boolean);
   if(t.kind==='stress'){for(const g of t.scen)GEN.em[g.id]={status:'done',sim:true,irr:+(bad(g.irr)*100).toFixed(2),task:t.id};
-    t.status='done';t.done={at:new Date().toISOString(),by:'Analyst'+(file?'':' (simulated)')};
-    logEvent({kind:'stress',actor:'Analyst (simulated)',channel:'EstateMaster export',detail:`${t.id} done: ${t.scen.length} stress scenarios run in EstateMaster on a copy (model unchanged): `+t.scen.map(g=>`${g.id} ${GEN.em[g.id].irr.toFixed(2)}%`).join(', ')+' (simulated export: demo stand-in for EstateMaster)'});
+    t.status='done';t.done={at:new Date().toISOString(),by:opt.api?'EstateMaster API (simulated)':'Analyst'+(file?'':' (simulated)')};
+    logEvent({kind:'stress',actor:opt.api?'EstateMaster API (simulated)':'Analyst (simulated)',channel:'EstateMaster export',detail:`${t.id} done: ${t.scen.length} stress scenarios run in EstateMaster on a copy (model unchanged): `+t.scen.map(g=>`${g.id} ${GEN.em[g.id].irr.toFixed(2)}%`).join(', ')+' (simulated export: demo stand-in for EstateMaster)'});
     renderGen();renderEMTab();saveMem();toast(`${t.id}: EstateMaster results read for ${t.scen.length} scenarios`);return}
   crs.forEach(applyCRNow);
-  const x=addExport(parsed?'file':'sim',`${t.id} ${taskTitle(t).toLowerCase()} (${crs.map(c=>c.id).join(', ')||'no change requests'})`,parsed?parsed.out:simOut(),file&&file.name,crs.map(c=>c.id).join(', '),parsed||undefined);
+  const x=addExport(parsed?'file':opt.api?'api':'sim',`${t.id} ${taskTitle(t).toLowerCase()} (${crs.map(c=>c.id).join(', ')||'no change requests'})`,parsed?parsed.out:opt.out||simOut(),file&&file.name,crs.map(c=>c.id).join(', '),parsed||(opt.api?{inputs:apiInputs()}:undefined));
   if(parsed)x.found=parsed.found;
   crs.forEach(c=>{c.em={status:'done',kind:'task',task:t.id,export:x.id,out:{levered_irr:x.out.levered_irr},sim:!parsed,file:file&&file.name}});
-  t.status='done';t.done={at:new Date().toISOString(),by:parsed?`${USERS.web} (${WS_ROLE})`:'Analyst (simulated)',export:x.id};
+  t.status='done';t.done={at:new Date().toISOString(),by:parsed?`${USERS.web} (${WS_ROLE})`:opt.api?'EstateMaster API (simulated)':'Analyst (simulated)',export:x.id};
   renderAll(true);renderEMTab();renderApprBadge();saveMem();toast(`${t.id} done · ${x.id}: levered IRR ${Number.isFinite(x.out.levered_irr)?x.out.levered_irr.toFixed(2)+'%':'not in export'}`)}
 /* the server's 07:00 report reads the exports folder: every export uploaded here is copied there too (Files.ReadWrite.All) */
 async function pushExportToServer(name,data){if(!DAILYSRV)return;try{const buf=data instanceof ArrayBuffer?data:await data.arrayBuffer();if(buf.byteLength>4e6)return;
@@ -3441,14 +3542,14 @@ function askAboutExport(pr,x){const o=x.out||{};toggleDock(true);
 /* Settings → Integrations */
 function renderIntegrations(){const el=$('#set_integrations');if(!el)return;const x=latestExport(),when=x?new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'';
   const pill=(t,c)=>`<span class="pill ${c}">${t}</span>`;
-  const rows=[['EstateMaster exports',x?`Latest for ${esc(PROJ.name)}: ${esc(x.id)}${x.file?' · '+esc(x.file):''} · ${when}`:'No export yet for this project',CRONCFG.report&&CRONCFG.report.enabled?'SharePoint exports folder read by the server every morning; uploads in the app too':'Upload on the EstateMaster tab or with + in the Projects menu (left edge)',x&&x.src==='file'?pill('live','p'):pill('demo','s')],
+  const rows=[MODE==='api'?['EstateMaster API',`${EMAPI.base} · model ${esc(apiModel())}${x?` · last read ${esc(x.id)} · ${when}`:''}`,'Reads inputs and outputs; writes only approved change requests, then reads the recalculated figures back. Every call is in the API log (EstateMaster tab)',pill('simulated','s')]:['EstateMaster exports',x?`Latest for ${esc(PROJ.name)}: ${esc(x.id)}${x.file?' · '+esc(x.file):''} · ${when}`:'No export yet for this project',CRONCFG.report&&CRONCFG.report.enabled?'SharePoint exports folder read by the server every morning; uploads in the app too':'Upload on the EstateMaster tab or with + in the Projects menu (left edge)',x&&x.src==='file'?pill('live','p'):pill('demo','s')],
     ['Outlook · Microsoft Graph',MAIL.configured?`Live · ${esc(MAIL.mailbox)} · folder “${esc(MAIL.folder)}” · read-only`:'Demo inbox (simulated)','Emails that propose an assumption change become change requests; scans at 07:00 and 15:00',MAIL.configured?pill('live','p'):pill('demo','s')],
     ['Market data','Comparable sales, rental evidence and zoning rules (3 feeds) plus cost and yield benchmarks by asset type','Demo data; in production the transaction, rental and cost feeds. Used in the daily report and Settings → Market data',pill('demo','s')],
     ['SQL Server','Actuals, sales and collections','Simulated in the demo',pill('demo','s')],
     ['AI',provs().map(p=>PROV[p].name).join(' + ')||'Not connected','Routing by task; assumption tests use Claude and OpenAI checking each other',provs().length===2?pill('live','p'):provs().length?pill('partial','s'):pill('off','f')],
     ['Email delivery',MAILCFG.configured?`Live from ${esc(MAILCFG.from)}`:'Simulated outbox','Internal recipients only',MAILCFG.configured?pill('live','p'):pill('demo','s')],
     ['Voice (ElevenLabs)','Narration for ▶ Play','Settings → Voice',pill('see Voice','s')]];
-  el.innerHTML='<h2>Integrations and feeds</h2><div class="sub">What the agent reads and where it sends. Nothing writes to EstateMaster.</div>'+rows.map(r=>`<div class="int-row"><div><b>${r[0]}</b></div><div>${r[1]}<br><small>${r[2]}</small></div><div>${r[3]}</div></div>`).join('')}
+  el.innerHTML='<h2>Integrations and feeds</h2><div class="sub">What the agent reads and where it sends. '+(MODE==='api'?'Only approved change requests are written to EstateMaster, through its API.':'Nothing writes to EstateMaster.')+'</div>'+rows.map(r=>`<div class="int-row"><div><b>${r[0]}</b></div><div>${r[1]}<br><small>${r[2]}</small></div><div>${r[3]}</div></div>`).join('')}
 /* Downloads for the analyst */
 async function taskSheet(id){
   const t=TASKS.find(x=>x.id===id);if(!t)return;try{await loadXLSX()}catch(e){toast(e.message);return}
@@ -3466,7 +3567,7 @@ function roStressTask(list){
   list=list.filter(g=>!(GEN.em[g.id]&&GEN.em[g.id].status==='done'));if(!list.length){toast('Those scenarios already have EstateMaster figures');return null}
   const t=addTask('stress',null,{scen:list.map(g=>({id:g.id,name:g.name,d:g.d,x:g.x,irr:g.irr}))});list.forEach(g=>GEN.em[g.id]={status:'needs_person',task:t.id});
   logEvent({kind:'stress',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`${t.id}: ${list.length} stress scenarios handed to an analyst to run in EstateMaster on a copy (${list.map(g=>g.id).join(', ')})`});
-  renderGen();renderEMTab();saveMem();return t}
+  renderGen();renderEMTab();saveMem();if(MODE==='api')apiRun(t.id);return t}
 function proposeDraft(){const n=Object.keys(DRAFT).length;if(!n)return;const ops=[{t:'mods',mods:{...DRAFT}}];
   const cr=raiseCR('manual',`${USERS.web} (${WS_ROLE})`,'Sandbox draft: '+scenName(DRAFT),ops,{channel:'Workspace'});DRAFT={};renderAsm();renderApprovals();saveMem();toast(`${cr.id} raised for approval`);return cr}
 function proposeLine(id,v){const l=REGBY[id],cr=raiseCR('manual',`${USERS.web} (${WS_ROLE})`,`${l.label} → ${fmtLine(l,v)}`,[{t:'line',id,v}],{channel:'Model data'});renderApprovals();renderRegister();toast(`${cr.id} raised: ${l.label} → ${fmtLine(l,v)}. EstateMaster changes once approved and applied.`);return cr}
@@ -3502,7 +3603,7 @@ function renderKPIsRO(flash){
   const v=(k,fmt)=>Number.isFinite(o[k])?fmt(o[k]):'—',d=(k,m=1)=>Number.isFinite(o[k])&&Number.isFinite(b[k])&&x!==f?(o[k]-b[k])*m:0;
   const items=[['Levered IRR',v('levered_irr',a=>a.toFixed(1)+'%'),d('levered_irr'),1,Number.isFinite(o.levered_irr)&&o.levered_irr/100<HURDLE.irr,'pts'],['Profit on cost',v('profit_on_cost',a=>a.toFixed(1)+'%'),d('profit_on_cost'),1,Number.isFinite(o.profit_on_cost)&&o.profit_on_cost/100<HURDLE.poc,'pts'],['Net profit',v('net_profit',fM),d('net_profit',1e-6),1,o.net_profit<0,'M'],['Equity multiple',v('equity_multiple',fX),d('equity_multiple'),1,false,'x'],['Peak debt',v('peak_debt',fM),d('peak_debt',1e-6),-1,false,'M']];
   $('#kpis').innerHTML=items.map(([l,val,dd,s,badF,u])=>`<div class="kpi ${badF?'bad':''} ${flash?'flash':''}"><div class="l">${l}</div><div class="v">${val}</div><div class="dl">${val==='—'?'not in export':Math.abs(dd)<.005?(f&&x!==f?'no change':'first export'):`<span class="${dd*s<0?'dn':'up'}">${sgn(dd,u==='x'?2:(u==='M'?0:1))}${u==='pts'?' pts':u==='M'?'M':'x'}</span> vs ${f.id}`}</div></div>`).join('');
-  $('#kpiSub').textContent=x?`EstateMaster export ${x.id} · ${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})} · ${x.src==='file'?'read from '+x.file:'simulated export (demo stand-in for EstateMaster)'}`:'No EstateMaster export yet';
+  $('#kpiSub').textContent=x?`EstateMaster export ${x.id} · ${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})} · ${x.src==='file'?'read from '+x.file:x.src==='api'?'read through the EstateMaster API (simulated)':'simulated export (demo stand-in for EstateMaster)'}`:'No EstateMaster export yet';
   const tag=$('#kpiTag');if(tag)tag.textContent='from EstateMaster’s export';
   const e=$('#emTrust');if(e){e.className='trust '+(x&&!n?'ok':'warn');
     const ck=x?exportChecks(x).filter(c=>c.level!=='note'):[];
@@ -3529,7 +3630,7 @@ function renderGenRO(){
 function emLineRO(c){const m=c.em;if(!m)return'';const t=m.task&&TASKS.find(x=>x.id===m.task);
   if(m.status==='done')return`<div style="font-size:12.5px;margin:4px 0;padding:6px 8px;background:rgba(46,46,47,.04);border-radius:8px"><b>EstateMaster:</b> ${m.note?'connected, no change needed':`applied by an analyst (${m.task}) · export ${m.export}${m.out&&Number.isFinite(m.out.levered_irr)?` · levered IRR <b>${m.out.levered_irr.toFixed(2)}%</b>`:''}${m.sim?' (simulated export)':m.file?' · '+esc(m.file):''}`}</div>`;
   return`<div style="font-size:12.5px;margin:4px 0;padding:6px 8px;background:rgba(46,46,47,.04);border-radius:8px"><b>EstateMaster:</b> not changed yet · waiting for an analyst (${m.task})${t?taskButtons(t):''}</div>`}
-function taskButtons(t){return`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn ghost sm" data-twb="${t.id}">${MODE==='analyst'&&t.kind!=='stress'?'Download control workbook':'Download analyst sheet'}</button><button class="btn ghost sm" data-tup="${t.id}">Upload export</button><button class="btn sm" data-tdone="${t.id}">Mark done (simulated export)</button></div>`}
+function taskButtons(t){if(MODE==='api')return`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn sm" data-tapi="${t.id}"${EMAPI.busy[t.id]?' disabled':''}>${EMAPI.busy[t.id]?'Calling the API…':'Run through the API'}</button><button class="btn ghost sm" data-twb="${t.id}">Download change sheet</button></div>`;return`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn ghost sm" data-twb="${t.id}">${MODE==='analyst'&&t.kind!=='stress'?'Download control workbook':'Download analyst sheet'}</button><button class="btn ghost sm" data-tup="${t.id}">Upload export</button><button class="btn sm" data-tdone="${t.id}">Mark done (simulated export)</button></div>`}
 function taskCard(t){const crs=t.crs.map(id=>APQ.find(c=>c.id===id)).filter(Boolean),pn=PROJECTS[t.proj]?PROJECTS[t.proj].name:t.proj;
   return`<div class="em ${t.status==='open'?'on':''}" style="cursor:default"><div class="top"><span>${t.id} · ${t.status==='open'?'for an analyst':'done'} · ${esc(pn)}</span><span>${new Date(t.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span></div>
    <div class="sj">${esc(taskTitle(t))}${crs.length?` · ${crs.map(c=>c.id).join(', ')}`:''}</div>
@@ -3559,7 +3660,7 @@ function renderEMTab(){
   $('#exSub').textContent=xs.length?`${xs.length} export${xs.length>1?'s':''} for ${PROJ.name}. The latest is the source of every figure the app shows as EstateMaster’s.`:'No exports yet for '+PROJ.name+'.';
   try{renderModelAssumptions()}catch(e){}
   {const lx=latestExport(),ck=lx?exportChecks(lx):[],n=ck.filter(c=>c.level!=='note').length;if($('#exChkSub'))$('#exChkSub').textContent=lx?`${lx.id}${lx.file?' · '+lx.file:''} · outputs reconciled, units, sensitivity tables refreshed, inputs in range and against the approved register, jumps since the previous export. ${n?n+' to look at.':'Nothing to look at.'} The same checks run in the 07:00 morning report.`:'No export yet.';if($('#exChecks'))$('#exChecks').innerHTML=lx?checksHTML(ck,'No issues found in this export.'):''}
-  $('#exT').innerHTML='<tr><th>Export</th><th>Option / stage</th><th>When</th><th>Source</th><th class="n">Levered IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th></tr>'+xs.slice().reverse().slice(0,40).map(x=>`<tr><td><b>${x.id}</b>${x.cr?`<br><span style="color:var(--soft);font-size:11px">${esc(x.cr)}</span>`:''}</td><td style="font-size:12px">${esc(optOf(x))}${optKey(x)===baseOpt()?' <span class="pill">base</span>':''}${x.sens&&x.sens.length?`<br><span style="color:var(--soft);font-size:11px">${x.sens.length} sensitivity table${x.sens.length>1?'s':''}</span>`:''}</td><td style="font-size:12px">${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</td><td style="font-size:12px">${x.src==='file'?esc(x.file):x.src==='initial'?'starting export (simulated)':'simulated export'}</td><td class="n">${exFmt(x.out.levered_irr,'%')}</td><td class="n">${exFmt(x.out.profit_on_cost,'%')}</td><td class="n">${exFmt(x.out.net_profit,'M')}</td></tr>`).join('');
+  $('#exT').innerHTML='<tr><th>Export</th><th>Option / stage</th><th>When</th><th>Source</th><th class="n">Levered IRR</th><th class="n">Profit on cost</th><th class="n">Net profit</th></tr>'+xs.slice().reverse().slice(0,40).map(x=>`<tr><td><b>${x.id}</b>${x.cr?`<br><span style="color:var(--soft);font-size:11px">${esc(x.cr)}</span>`:''}</td><td style="font-size:12px">${esc(optOf(x))}${optKey(x)===baseOpt()?' <span class="pill">base</span>':''}${x.sens&&x.sens.length?`<br><span style="color:var(--soft);font-size:11px">${x.sens.length} sensitivity table${x.sens.length>1?'s':''}</span>`:''}</td><td style="font-size:12px">${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</td><td style="font-size:12px">${x.src==='file'?esc(x.file):x.src==='api'?'EstateMaster API (simulated)':x.src==='initial'?'starting export (simulated)':'simulated export'}</td><td class="n">${exFmt(x.out.levered_irr,'%')}</td><td class="n">${exFmt(x.out.profit_on_cost,'%')}</td><td class="n">${exFmt(x.out.net_profit,'M')}</td></tr>`).join('');
   const opt=xs.map(x=>`<option value="${x.id}">${x.id} · ${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</option>`).join('');
   const a=xs.find(x=>x.id===EXSEL[0])||xs[0],b=xs.find(x=>x.id===EXSEL[1])||xs[xs.length-1];
   $('#exA').innerHTML=opt;$('#exB').innerHTML=opt;if(a)$('#exA').value=a.id;if(b)$('#exB').value=b.id;
@@ -3568,16 +3669,18 @@ function renderEMTab(){
 function roInit(){
   document.title='KINAN · AI agent · financial modelling';
 
-  $('.cn.dk b').textContent=MODE==='analyst'?'EstateMaster · control workbook':'EstateMaster · exports';$('#emStrip').textContent=MI().strip;
+  $('.cn.dk b').textContent=MODE==='analyst'?'EstateMaster · control workbook':MODE==='api'?'EstateMaster · API':'EstateMaster · exports';$('#emStrip').textContent=MI().strip;
   const arch=$('#set_arch .card')||$('#p-arch .card');if(arch)arch.innerHTML=`<div class="bar"></div><h2>${esc(MI().name)}</h2><div class="sub">EstateMaster is the trusted layer: every figure shown as EstateMaster’s comes from its own export. The agent never runs or writes to EstateMaster.</div><div class="rec">${MI().how.map(([h,s],i)=>`<div class="it"><div class="num">${i+1}</div><div><b>${esc(h)}</b><span>${esc(s)}</span></div></div>`).join('')}</div>${modeCanHTML()}`;
 
   document.querySelectorAll('#p-stress > .grid .card > .sub').forEach(e=>{if(/Agent’s estimates on the current sandbox/.test(e.textContent))e.innerHTML='Hurdles: levered IRR ≥ <span id="hIRR"></span> and profit on cost ≥ <span id="hPOC"></span>. <span class="tag tag-est" style="margin-left:0">Agent estimate</span> every figure in this table is the agent’s replica estimate, not EstateMaster’s (EstateMaster’s own results are in the card above). Click a figure for its working; hand a scenario to an analyst for EstateMaster’s figure.'});
   $('#sgVerify').textContent='Hand the 5 worst to an analyst';
   const mt=$('#p-model .card > .sub:nth-of-type(2)');document.querySelectorAll('#p-model .card .sub').forEach(e=>{if(/Changes go to the sandbox copy/.test(e.textContent))e.textContent='Edit any line (or ask the agent). Each edit becomes a change request; EstateMaster changes once it is approved and '+(MODE==='analyst'?'the analyst refreshes it.':'an analyst enters it.')});
-  if(MODE==='readonly'){$('#cwDown').style.display='none';$('#cwConn').style.display='none'}
+  if(MODE==='readonly'||MODE==='api'){$('#cwDown').style.display='none';$('#cwConn').style.display='none'}
+  if(MODE==='api')apiInit();
   const ap=$('#p-appr .mkbox');if(ap)ap.textContent=`Nothing reaches EstateMaster until a person approves it, and then ${MODE==='analyst'?'the agent writes the control workbook and an analyst refreshes EstateMaster':'an analyst enters it in EstateMaster'} (listed under “For the analyst” below). The likely effect of each change is worked out by Claude and OpenAI (cross-checked, marked as AI calc); EstateMaster’s own figure comes once an analyst applies it.`;
   $('#csSub').textContent='Agent’s estimate of the fund waterfall on the current inputs, for discussion only: not an EstateMaster figure.';
-  if(!latestExport())addExport('initial','starting export of the approved model',simOut());
+  if(!latestExport())MODE==='api'?addExport('api','first read of the approved model through the EstateMaster API',simOut(),'','',{inputs:apiInputs()}):addExport('initial','starting export of the approved model',simOut());
+  if(MODE==='api')setTimeout(()=>apiSync(true),900);
 }
 function modeCanHTML(){return`<div class="grid g2" style="gap:12px;margin-top:12px"><div><b>Can</b><ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.55">${MI().can.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div><div><b>Can’t</b><ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.55">${MI().cant.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div></div>`}
 if(RO){
@@ -5345,7 +5448,8 @@ function toolIntent0(name,a){
   }
   return{k:'help'};
 }
-function sysPrompt(ch,role){
+function sysPrompt(ch,role){return ax(sysPrompt0(ch,role))}
+function sysPrompt0(ch,role){
   const r=run(S);
   const asm=KEYS.map(k=>`- ${k} (${VARS[k].label}): base ${VARS[k].fmt(BASE[k])}, now ${VARS[k].fmt(apply(S)[k])}${S[k]?` (${fD(k,S[k])} vs base${SRC[k]?', source: email from '+SRC[k].e.from:''})`:''}`).join('\n');
   return `You are the Bohio agent. You sit on top of ARGUS EstateMaster for KINAN's ${PROJ.name} project in ${PROJ.district}, Riyadh (${PROJ.comps.map(c=>c==='res'?'residential for sale':'retail held for income').join(' plus ')}; all figures in SAR). Other projects: ${Object.values(PROJECTS).filter(p=>p!==PROJ).map(p=>p.name).join(', ')||'none'}. Templates for new models: ${Object.values(TEMPLATES).map(t=>t.name+' ('+t.type+')').join('; ')}.
@@ -5869,7 +5973,7 @@ $('#aiTestBtn').onclick=async()=>{
 };
 
 /* ================= INIT ================= */
-addMsg('agent',RO?`<b>Hello.</b> I work on EstateMaster’s figures for <b>Al Narjis Mixed-Use</b> (${MI().name}). I answer from EstateMaster’s exports, pick up assumption changes from Outlook, check them against market data and zoning, design stress tests and draft reports. I never write to EstateMaster: ${MODE==='analyst'?'approved changes go into the control workbook and an analyst refreshes EstateMaster.':'an analyst applies approved changes.'} There are <b>${pendingCRs().length} change requests</b> waiting for approval. Ask for any chart (“chart the cash flow by year”) and export it with ↗. Every figure says where it comes from: <span class="tag tag-em" style="margin-left:0">EstateMaster</span> read from the export, <span class="tag tag-est" style="margin-left:0">Agent estimate</span> my replica, <span class="tag tag-calc" style="margin-left:0">AI calc</span> my own arithmetic; click any bold figure for its working.`:'<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, pick up assumption changes from Outlook, check them against market data and zoning, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
+addMsg('agent',RO?`<b>Hello.</b> I work on EstateMaster’s figures for <b>Al Narjis Mixed-Use</b> (${MI().name}). I answer from EstateMaster’s exports, pick up assumption changes from Outlook, check them against market data and zoning, design stress tests and draft reports. ${MODE==='api'?'I read EstateMaster through its API and write to it only after a person approves a change; EstateMaster then recalculates and I read its figures back.':'I never write to EstateMaster: '+(MODE==='analyst'?'approved changes go into the control workbook and an analyst refreshes EstateMaster.':'an analyst applies approved changes.')} There are <b>${pendingCRs().length} change requests</b> waiting for approval. Ask for any chart (“chart the cash flow by year”) and export it with ↗. Every figure says where it comes from: <span class="tag tag-em" style="margin-left:0">EstateMaster</span> read from the export, <span class="tag tag-est" style="margin-left:0">Agent estimate</span> my replica, <span class="tag tag-calc" style="margin-left:0">AI calc</span> my own arithmetic; click any bold figure for its working.`:'<b>Hello.</b> I sit on top of EstateMaster for <b>Al Narjis Mixed-Use</b>. I can change assumptions in a sandbox, pick up assumption changes from Outlook, check them against market data and zoning, stress test, run unlimited sensitivities and build the IC pack. The same agent answers on WhatsApp.<div class="chips" style="margin-top:8px">'+CHIPS.slice(0,3).map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('')+'</div>');
 wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
 wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
 const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',channel:'System',detail:'Demo started: working copy BHO_SBX opened from the approved EstateMaster base case'});scanEmails('07:00',true,true)}else logEvent({kind:'session',actor:'System',channel:'System',detail:`Session resumed: ${LOG.length} entries and ${APQ.length} change requests restored from memory`});

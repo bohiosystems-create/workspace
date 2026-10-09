@@ -1,0 +1,126 @@
+# Setup guide · Option 2: Read-only agent
+
+**What it is:** the agent reads EstateMaster exports and never writes to EstateMaster. Approved changes become tasks; an analyst types them into EstateMaster and uploads the new export.
+
+**Who does what:** IT or you (steps 1–3, about 30 minutes) · analyst (step 4, about 1 minute per change).
+
+## 1. What you need
+- A Vercel account (free is fine for a demo).
+- An Anthropic and/or OpenAI API key (optional: without one, the rules engine still works; AI commentary is off).
+- Optional, for live Outlook: a Microsoft Entra ID app (see step 3).
+- An analyst with EstateMaster and Excel.
+
+## 2. Deploy
+1. Unzip `bohio-option2-readonly.zip`.
+2. In a terminal, inside the folder: `npm i -g vercel`, then `vercel`, then `vercel --prod`.
+   (Or push the folder to GitHub and import it at vercel.com/new: framework *Other*, no build command.)
+3. In Vercel → Settings → Environment Variables add:
+
+| Variable | Why |
+|---|---|
+| `ANTHROPIC_API_KEY` | Claude |
+| `OPENAI_API_KEY` | OpenAI |
+| `DEMO_PASSWORD` | Recommended: an access code before anyone can spend your AI credits |
+| `ELEVENLABS_API_KEY` | Optional: ElevenLabs voice for ▶ Play and Read (add `ELEVENLABS_VOICE_ID` for the English voice and `ELEVENLABS_VOICE_ID_AR` for the Arabic voice) |
+
+4. Redeploy. Open the site: the top bar should say **Option 2 · Read-only agent**.
+
+## 3. Live Outlook (optional)
+Without it the demo uses a dummy inbox.
+1. Entra ID → App registrations → New. Add **Microsoft Graph → Mail.Read, Mail.Send and Files.Read.All (application)** and grant admin consent.
+2. Create a client secret.
+3. Add to Vercel: `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `OUTLOOK_MAILBOX` (e.g. al-narjis@kinan.com), `OUTLOOK_FOLDER` (folder name, default Inbox). An AI key is also required.
+4. Redeploy. Settings (⚙) → Outlook shows "Live mailbox". Scans run at 07:00 and 15:00 Riyadh (on the server, see below).
+5. Recommended: restrict the app to that one mailbox with an Exchange application access policy.
+
+## 4. Daily use (the analyst's one minute)
+1. **Get the first export.** In EstateMaster open the model → Office Links → Excel → export the Summary / returns sheet. On the **EstateMaster** tab press **Upload export**.
+2. Someone asks the agent for a change (or Outlook raises one). It appears under **Daily feed** with no return figure.
+3. A person approves it. It becomes a task on the **EstateMaster** tab with the exact values to enter.
+4. Analyst: open the model, enter the values, recalculate, export, press **Upload export** on the task.
+5. The returns tiles now show EstateMaster's new figures. Use **Compare exports** to see what moved.
+
+**Options and sensitivities.** Export each stored Option / Stage as its own file (EstateMaster: export all Options/Stages as separate files): the agent reads the option name from the Intro sheet or the file name ("… - Downside.xlsx") and lists them on the Scenarios tab as scenarios EstateMaster calculated; the base case keeps driving the KPIs and reports. Include the Sensitivity sheet in the export and its 1-way / 2-way tables appear as EstateMaster's own sensitivities, used by the chat before anything is estimated.
+
+**What the reader looks for in the export** (by row label, any sheet): Equity/Levered IRR, Project/Unlevered IRR, Profit on cost or Development margin, Net profit, Total development cost, Gross revenue, Equity multiple, Peak debt. If a label is missing the tile shows "not in export". Percentages can be 0.187 or 18.7%.
+
+## Reports and ▶ Play
+Reports → pick a report → **▶ Play** runs it as a full-screen presentation in KINAN's style (cover, dividers, headline
+figures, gauges, cost and funding donuts, cash flow by year, stress bars against the hurdle, headroom, market check,
+closing page), with captions and narration; ← → move, Space pauses, F is fullscreen, Esc closes. **🔊 Read** plays the report document itself,
+section by section, with the same narration. Narration uses ElevenLabs when `ELEVENLABS_API_KEY` is set in Vercel (optional
+`ELEVENLABS_VOICE_ID`, and `ELEVENLABS_VOICE_ID_AR` for Arabic), otherwise the browser's own voice.
+**PowerPoint** downloads the same deck with native, editable charts and the narration in the speaker notes.
+**HTML** and **Print / PDF** give the report document (logo band, orange cover, charts, closing page).
+Every figure shown as EstateMaster's comes from an export; charts built on the agent's model say "agent's estimate".
+
+
+**Report designer:** Reports tab → *Report designer* chat. Say who the report is for, what to show and which slides
+(*"for the board, stress tests as a table, max 6 slides"*). It lists the changes, with ▶ Play and Undo. Figures still
+come only from EstateMaster. Uses Claude Fable 5.1 (then Opus 5.5, then gpt-5) when an AI key is set in Vercel;
+otherwise a rules engine.
+
+
+**Narration:** ▶ Play speaks a hidden script written for the audience (Claude Fable 5.1 when an AI key is set), and the
+figure being spoken about lights up on the slide. **🎙 Voice** in the player picks any ElevenLabs voice from your account
+and switches to Arabic. Voice setup and choice: `docs/VOICE_elevenlabs.md` (`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`,
+`ELEVENLABS_VOICE_ID_AR`, `ELEVENLABS_MODEL`).
+
+**New reports on the spot:** in the Report designer chat or the agent chat, "create a … report for … with …" designs,
+creates and builds it (API model first, rules engine without AI). Reports can use the **data library** (past projects,
+funds, macro series, scenario library with historical analogues, covenants, actuals; dummy data in the demo).
+
+## Scheduled reports and email alerts
+**In the app.** Reports → **Schedule** on any report: daily (Sun–Thu), weekly, monthly or quarterly at a Riyadh time, delivered by
+email (internal addresses only), WhatsApp link or SharePoint folder. The app runs a report when it falls due and, if it was
+closed at that time, sends one catch-up run when it next opens. **Run now** and **Send a test now** send immediately. Every run
+is in **Run history** and every email in the **Outbox** (open it to see exactly what was sent). The chat also works:
+"schedule the lender report every Monday at 9am to cfo@kinan.com.sa", "email the IC pack to board@kinan.com.sa",
+"stop the monthly report".
+
+**On the server (runs with the app closed).** Two Vercel cron jobs (already in `vercel.json`):
+- 07:00 Riyadh: email scan + the morning EstateMaster report (Sun–Thu by default)
+- 15:00 Riyadh: email scan
+
+Each scan reads the project folder since the previous scan. When an email proposes or reports a change to any assumption
+(prices, costs, fees, timing, financing terms, yields), the agent emails the alert list with the quote, the proposed value and
+a link. It changes nothing: in the app each finding becomes a change request for approval. The app also shows it on the bell
+and on WhatsApp, and does not send a second email when the server already did.
+
+The morning report reads the two latest EstateMaster exports in the exports folder and emails EstateMaster's own figures,
+the change since the previous export and the hurdle check, plus **checks on the export** (outputs that do not reconcile, unit
+slips, inputs at zero or out of range, sensitivity tables not refreshed, unexplained jumps) and **the assumption changes the
+emails of the last 24 hours propose** (not yet in the export).
+
+| Variable | Purpose |
+|---|---|
+| `CRON_SECRET` | Any long random string. Vercel sends it to the jobs; calls without it are refused |
+| `ALERT_TO` | Optional. Assumption changes proposed in emails show in the app's **Daily feed**; set this only if someone should also get an alert email |
+| `REPORT_TO` | Who gets the morning report |
+| `REPORT_DAYS` | Optional, default `sun,mon,tue,wed,thu` |
+| `EXPORTS_FOLDER` | Graph path of the folder where the analyst saves exports, e.g. `/sites/{site-id}/drive/root:/Bohio/Exports` |
+| `MAIL_ALLOWED_DOMAINS` | Optional; default is the mailbox's own domain. Emails to any other domain are refused |
+| `APP_URL` | Optional link in the emails (default: this deployment) |
+
+Microsoft Entra app permissions (application, admin consent): **Mail.Read**, **Mail.Send**, **Files.ReadWrite.All** (read the exports; write the daily report's schedule file `_bohio-agent-schedule.json` in the exports folder; with Files.Read.All only, the schedule falls back to the Vercel variables `REPORT_TIME`, `REPORT_DAYS`, `REPORT_TO`, `REPORT_LANGS`).
+The server tick runs every 15 minutes (`vercel.json`: `/api/cron?run=tick`, Vercel Pro): the email scans at 07:00 and 15:00 Riyadh and the daily report at the time saved on the Reports tab. Restrict the
+app to the project mailbox with an Exchange application access policy.
+
+Test without waiting: `curl -H "Authorization: Bearer $CRON_SECRET" "https://<your-app>/api/cron?run=scan,report&dry=1"`
+returns what would be sent without sending it. Vercel's Hobby plan runs each cron once a day and may fire within the hour;
+the two jobs together give the two daily scans, and each scan covers the time since the previous one, so a late run misses
+nothing.
+
+## 5. Test it (5 minutes)
+- [ ] Tab bar shows Option 2; strip says "Read-only".
+- [ ] Ask "what if sale price drops 10%": a change request, no IRR.
+- [ ] Approve it: a task appears, tiles unchanged.
+- [ ] Upload a real export: tiles show its figures; the export is listed with its file name.
+- [ ] Ask "status": the answer quotes the export id.
+
+## 6. Limits to tell KINAN
+- The agent cannot calculate the effect of a change or run scenarios; EstateMaster does, after the analyst.
+- Figures are as old as the last export.
+- Demo memory is stored in the browser; production keeps it in SQL Server.
+- The demo takes uploads; watching a SharePoint folder for exports is a production step, not built in the demo.
+- "Mark done (simulated export)" is a demo shortcut and is labelled simulated.
