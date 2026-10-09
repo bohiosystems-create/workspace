@@ -4,6 +4,7 @@
 //   POST {action:'save', schedule:{enabled,time,timezone,days,recipients,languages}, by}
 //   POST {action:'preview'|'test'|'snapshot'}
 //   POST {action:'export', name, data (base64)}  an export uploaded in the app, copied into EXPORTS_FOLDER for the server's report
+//   POST {action:'stress'}                       run the standard stress tests on every model now (as before the daily report)
 //   POST {action:'feed', items:[…]}               the Daily feed's open items (with the AI's impact), for the report's "To know today"
 // The schedule itself lives in a JSON file next to the exports (see api/_lib/sched.js); the 15-minute tick in api/cron.js sends it.
 const G = require('./_lib/graph');
@@ -33,7 +34,7 @@ async function state(token) {
     { k: 'ai', ok: G.aiConfigured(), soft: true, label: G.aiConfigured() ? 'AI connected (Outlook findings, Arabic)' : 'No AI key: Outlook findings and Arabic are skipped' },
   ];
   if (last) check.push({ k: 'last', ok: true, soft: true, label: `Last delivered ${last.at.slice(0, 16).replace('T', ' ')} UTC to ${(last.to || []).join(', ')}` });
-  return { schedule: s, next: SCHED.nextRun(s), stored: st.stored, allowed: { domains: G.allowedDomains(), people }, check, ready: check.filter(c => !c.soft).every(c => c.ok), history: st.log, now: new Date().toISOString() };
+  return { schedule: s, next: SCHED.nextRun(s), stored: st.stored, stress: st.stress || null, allowed: { domains: G.allowedDomains(), people }, check, ready: check.filter(c => !c.soft).every(c => c.ok), history: st.log, now: new Date().toISOString() };
 }
 
 module.exports = async function handler(req, res) {
@@ -75,12 +76,19 @@ module.exports = async function handler(req, res) {
       await SCHED.save(token, st);
       return G.send(res, 200, { stored: true, items: st.feed.items.length });
     }
+    if (b.action === 'stress') {
+      // the standard stress tests on every model in the exports folder, as the server runs them before the daily report
+      const d = await cron.dailyData(token, now, { stressOnly: true });
+      if (d.skipped || d.noExport) throw new Error(d.skipped || d.noExport);
+      const st = await SCHED.load(token); st.stress = { at: now.toISOString(), models: d.stress || [] }; await SCHED.save(token, st);
+      return G.send(res, 200, { stress: st.stress });
+    }
     if (b.action === 'preview' || b.action === 'snapshot' || b.action === 'test') {
       const st = await SCHED.load(token), s = st.schedule;
       const r = await cron.reportJob(token, now, b.action !== 'test', appUrl, { to: s.recipients, langs: b.action === 'test' ? s.languages : [b.lang === 'ar' ? 'ar' : (s.languages[0] || 'en')], force: true });
       if (r.skipped) return G.send(res, 200, { skipped: r.skipped });
       if (b.action !== 'preview') await SCHED.record(token, st, { kind: b.action === 'test' ? 'test' : 'manual', status: r.sent ? 'sent' : 'generated', note: r.note || '', to: r.to || [], langs: r.langs || [], latest: r.latest || '' }, now);
-      return G.send(res, 200, { html: r.preview || '', previews: r.previews, sent: !!r.sent, to: r.to || [], note: r.note || '', rejected: r.rejected || [], latest: r.latest, checks: r.checks, market: r.market, flags: r.flags, history: (await SCHED.load(token)).log });
+      return G.send(res, 200, { html: r.preview || '', previews: r.previews, sent: !!r.sent, to: r.to || [], note: r.note || '', rejected: r.rejected || [], latest: r.latest, checks: r.checks, market: r.market, flags: r.flags, stress: r.stress, history: (await SCHED.load(token)).log });
     }
     return G.send(res, 400, { error: 'Unknown action' });
   } catch (e) { return G.send(res, 400, { error: e.message }); }
