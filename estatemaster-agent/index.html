@@ -4103,7 +4103,7 @@ function renderReport(){$('#rpTitle').textContent=RPTS[RSEL].name;$('#report').i
 /* ▶ Play is ready the moment it is pressed: the spoken script is written while the report is built, and the first slides' voice is made from it */
 let KPREP=null;
 function kPrepareSoon(id){clearTimeout(KPREP);KPREP=setTimeout(()=>kPrepare(id).catch(()=>{}),700)}
-async function kPrepare(id){if(!apiOn()||!RPTS[id])return;const deck=buildDeck(id),S=kScriptFor(deck,RPTS[id]);if(S.pending)await S.pending;if(!S.ai||RSEL!==id)return;
+async function kPrepare(id){if(!apiOn()||!RPTS[id])return;await kRiskAI().catch(()=>null);if(RSEL!==id)return;const deck=buildDeck(id),S=kScriptFor(deck,RPTS[id]);if(S.pending)await S.pending;if(!S.ai||RSEL!==id)return;
   if(await kVoiceCheck()!=='eleven')return;for(const n of [0,1]){if(!deck.slides[n])continue;const tn=kTrack(kSegsOf(deck,S,n),null);await kVoiceClip(tn.text,'',tn.off.slice(1))}}
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 function csv(){const xs=axis(hx,hn),ys=axis(hy,hn);let c=`${VARS[hy].label} \\ ${VARS[hx].label},`+xs.join(',')+'\n';ys.forEach(y=>{c+=y+','+xs.map(x=>{const r=run({...S,[hx]:x,[hy]:y});return Number.isNaN(r.irr)?'':(r.irr*100).toFixed(2)}).join(',')+'\n'});return c}
@@ -4198,6 +4198,7 @@ function buildDeck(id,o={}){
   const pts=[`${okI&&okP?'Clears both hurdles':!okI&&!okP?'Misses both hurdles':!okI?'Misses the IRR hurdle':'Misses the profit-on-cost hurdle'} (IRR ≥ ${hI.toFixed(0)}%, profit on cost ≥ ${hP.toFixed(0)}%).`,`Peak debt ${fM(F.peak)} on total cost ${fM(F.tc)}; gross revenue ${fM(F.rev)}.`];
   if(!RO){const h=(headRes||computeHeadroomData()).filter(x=>x.k!=='ltc'&&x.irrD!=null&&!Number.isNaN(x.irrD)).sort((a,c)=>Math.abs(a.irrD)/(VARS[a.k].kind==='pct'?1:5)-Math.abs(c.irrD)/(VARS[c.k].kind==='pct'?1:5))[0];if(h)pts.push(`Tightest assumption: ${VARS[h.k].label.toLowerCase()}, the IRR hurdle breaks at ${hd(h.k,h.irrD)}.`)}
   sl.push({kind:'headline',kicker:`Headline figures · ${F.src}`,headline:okI&&okP?`${PROJ.name} clears the hurdles`:`${PROJ.name} needs work before committee`,kpis:[{label:'Levered IRR',value:F.irr,decimals:1,suffix:'%',tone:okI?'good':'bad',ring:Math.min(100,F.irr/hI*100),sub:`hurdle ${hI.toFixed(0)}%`},{label:'Profit on cost',value:F.poc,decimals:1,suffix:'%',tone:okP?'good':'bad',ring:Math.min(100,F.poc/hP*100),sub:`hurdle ${hP.toFixed(0)}%`},{label:'Net profit',value:kM(F.profit),prefix:'SAR ',suffix:'M',tone:F.profit<0?'bad':'neutral',spark:(()=>{let c=0;return r.cf.inf.map((v,t)=>c+=Math.abs(v)-Math.abs(r.cf.cost[t]))})()},{label:'Equity multiple',value:F.em,decimals:2,suffix:'x',tone:F.em<1.5?'warn':'neutral'}],points:pts,say:`Levered IRR ${F.irr.toFixed(1)} percent against a hurdle of ${hI.toFixed(0)}; profit on cost ${F.poc.toFixed(1)} percent; net profit ${fM(F.profit)}; equity multiple ${(+F.em).toFixed(2)} times. ${pts[0]}`});
+  if(!o.doc&&!o.only)sl.push(...kNewsSlides());
   const bd=r.bd,bridge={kind:'bridge',kicker:'Profit bridge'+estK,title:'From gross revenue to net profit',sub:'SAR M · each step deducted from the revenue line',steps:[{label:'Gross revenue',v:r.rev,total:true},{label:'Land',v:-bd.land},{label:'Construction',v:-bd.hard},{label:'Soft & contingency',v:-(bd.soft+bd.cont)},{label:'Sales, exit, delay',v:-(bd.salesCost+bd.exitCost+bd.delay)},{label:'Finance',v:-r.interest},{label:'Net profit',v:r.profit,total:true}],say:`From gross revenue of ${fM(r.rev)}: land ${fM(bd.land)}, construction ${fM(bd.hard)}, soft costs and contingency ${fM(bd.soft+bd.cont)}, finance ${fM(r.interest)}, leaving a net profit of ${fM(r.profit)}.`};
   const g=blocks.map(b=>BLOCKS[b]&&BLOCKS[b].g),groups=[...new Set(g.filter(Boolean))];let n=0;
   const yr=[...new Set(r.cf.cost.map((_,t)=>yearOf(t)))],sum=(a,y)=>a.reduce((s_,v,t)=>s_+(yearOf(t)===y?Math.abs(v):0),0);
@@ -4234,6 +4235,44 @@ function buildDeck(id,o={}){
   sl.push({kind:'closing',kicker:'KINAN',title:KD.tagline,sub:F.fromEM?`Figures from ${F.src} · ${PROJ.name}`:`Agent’s estimates; EstateMaster is the source of truth · ${PROJ.name}`,say:`${def.name}, ${PROJ.name}. Thank you.`});
   return{title:`${def.name} — ${PROJ.name}`,slides:trimDeck(sl,def.opts||{},o.doc)}}
 
+
+/* ---- What changed since the last report, and the risks it raises: the first slides after the headline, so the
+   presenter leads with them. Changes: decisions waiting in the daily feed (assumption changes read in Outlook emails,
+   the agent's suggestions, other change requests) and decisions taken since. Risks: the evidence (checks on the
+   exports, market and zoning flags, failing stress tests, changes that would take the IRR under the hurdle) is
+   reviewed by the reasoning chain ('deep': Opus, GPT-5 as fallback), which names each risk and recommends a decision.
+   Until it answers, the risks slide lists the evidence by rule. ---- */
+function kSinceWhen(){const x=latestExport(),xs=x?EXPORTS.filter(e=>e.proj===x.proj&&optKey(e)===optKey(x)):[],p=xs.length>1?xs[xs.length-2]:null;return p?p.at:new Date(Date.now()-7*864e5).toISOString()}
+function kChanges(){const since=kSinceWhen(),hur=HURDLE.irr*100,out=[];
+  const irrOf=c=>{const m=c.ai&&c.ai.metrics&&c.ai.metrics.find(q=>q.k==='levered_irr');return m?m.value:null};
+  const pend=pendingCRs().slice().sort((a,c)=>(c.kind==='email')-(a.kind==='email')||((irrOf(a)??99)-(irrOf(c)??99)));
+  for(const c of pend){const v=irrOf(c),pn=c.proj&&PROJECTS[c.proj]?PROJECTS[c.proj].name:PROJ.name,src=c.kind==='email'?'Assumption change from Outlook':c.kind==='agent'||c.kind==='suggestion'?'Agent suggestion':'Change request';
+    out.push({cat:src,text:`${src}: ${stripTags(opsDesc(c.ops)).slice(0,90)}`,sub:`${pn} · waiting for a decision${c.why?' · '+c.why.slice(0,90):''}${v!=null?` · levered IRR if approved ${fMet('levered_irr',v)} (AI estimate)`:''}`,tone:v!=null&&v<hur?'bad':'warn',tag:'decide',at:c.at})}
+  LOG.filter(e=>(e.kind==='approved'||e.kind==='rejected')&&e.at>since).slice(-3).reverse().forEach(e=>out.push({cat:'Decided',text:`Decided: ${stripTags(e.detail).slice(0,100)}`,sub:`${e.actor} · ${new Date(e.at).toLocaleDateString('en-GB',{day:'numeric',month:'long'})}`,tone:e.kind==='approved'?'good':null,tag:e.kind,at:e.at}));
+  return out}
+function kRiskEvidence(){const ev=[],hur=HURDLE.irr*100;
+  for(const pr of Object.values(PROJECTS)){const x=latestExport(pr.id);if(!x)continue;let ck=[];try{ck=exportChecks(x).filter(c=>c.level!=='note')}catch(e){}ck.forEach(c=>ev.push({src:'Check on the export',model:pr.name,text:c.text.slice(0,160),level:c.level==='error'?'high':'medium'}))}
+  try{marketCheck().filter(x=>x.st[0]!=='p').forEach(x=>ev.push({src:'Market and zoning',model:PROJ.name,text:stripTags(x.plain||x.label).slice(0,160),level:x.st[0]==='f'?'high':'medium'}))}catch(e){}
+  try{(stressRes||computeStress()).filter(x=>!x.pass).slice(0,4).forEach(x=>ev.push({src:'Stress test (agent estimate)',model:PROJ.name,text:`${x.name}: levered IRR ${(bad(x.r.irr)*100).toFixed(1)}% against the ${hur.toFixed(0)}% hurdle`,level:'medium'}))}catch(e){}
+  pendingCRs().forEach(c=>{const m=c.ai&&c.ai.metrics&&c.ai.metrics.find(q=>q.k==='levered_irr');if(m&&m.value<hur)ev.push({src:c.kind==='email'?'Outlook email':'Change request',model:c.proj&&PROJECTS[c.proj]?PROJECTS[c.proj].name:PROJ.name,text:`${stripTags(opsDesc(c.ops)).slice(0,100)} would take the levered IRR to ${fMet('levered_irr',m.value)} (AI estimate)${c.why?'; reason given: '+c.why.slice(0,80):''}`,level:'high'})});
+  return ev.slice(0,14)}
+let RISKAI=null;const RISK_SYS=`You are the chief risk officer of KINAN, a Saudi real estate developer, reviewing the evidence the AI agent on ARGUS EstateMaster collected before a report is presented. EstateMaster is the trusted source of every return figure.
+Reason it through like a senior development-finance professional: group evidence that has the same cause, judge what could actually hurt the returns, the funding or the approvals, and how soon. Then recommend the decision a committee should take for each risk.
+Return JSON only: {"risks":[{"title":"short name of the risk (max 8 words)","evidence":"the one fact from the evidence that shows it, figures quoted exactly","severity":"high|medium|low","recommendation":"the decision you recommend, one sentence, starting with a verb"}]}
+At most 5 risks, most severe first. Use only the evidence given: never invent figures, causes or names. American English, plain and professional.`;
+const kRiskKey=ev=>JSON.stringify(ev.map(e=>e.text));
+async function kRiskAI(){const ev=kRiskEvidence(),key=kRiskKey(ev);if(!ev.length){RISKAI={key,risks:[],model:''};return RISKAI}if(RISKAI&&RISKAI.key===key)return RISKAI;if(!apiOn())return null;
+  const x=latestExport(),o=x?x.out:{};const user=`Project on screen: ${PROJ.name}. EstateMaster (latest export${x?' '+x.id:''}): levered IRR ${Number.isFinite(o.levered_irr)?o.levered_irr.toFixed(2)+'%':'n/a'}, profit on cost ${Number.isFinite(o.profit_on_cost)?o.profit_on_cost.toFixed(2)+'%':'n/a'}. Hurdles: levered IRR ${(HURDLE.irr*100).toFixed(0)}%, profit on cost ${(HURDLE.poc*100).toFixed(0)}%.\n\nEvidence:\n`+ev.map((e,i)=>`${i+1}. [${e.src} · ${e.model} · ${e.level}] ${e.text}`).join('\n');
+  for(const {p,model} of chain('deep')){try{ROUTESTATS.calls++;const r=await callOne(p,model,RISK_SYS,[{role:'user',content:user}],false,{max:3000,task:'risk'});const j=jsonFrom(r.text);
+      const risks=(j.risks||[]).filter(z=>z&&z.title&&z.recommendation).slice(0,5).map(z=>({title:String(z.title).slice(0,80),evidence:String(z.evidence||'').slice(0,180),severity:/high|medium|low/.test(z.severity)?z.severity:'medium',recommendation:String(z.recommendation).slice(0,200)}));
+      RISKAI={key,risks,model:mName(p,model),at:new Date().toISOString()};logEvent({kind:'risk',actor:'Bohio agent',channel:'Reports',detail:`Risk review (${RISKAI.model}): ${risks.map(z=>z.title).join('; ')||'no material risk'}`});return RISKAI}
+    catch(e){ROUTESTATS.fallback++;continue}}return null}
+function kNewsSlides(){const out=[],ch=kChanges(),since=new Date(kSinceWhen()).toLocaleDateString('en-GB',{day:'numeric',month:'long'});
+  if(ch.length)out.push({kind:'list',kicker:'Since the last report',title:`${ch.length} thing${ch.length>1?'s':''} changed since ${since}`,items:ch.slice(0,6).map(({text,sub,tone,tag})=>({text,sub,tone,tag})),say:`Since ${since}: ${ch.slice(0,3).map(c=>c.text).join('. ')}.`});
+  const ev=kRiskEvidence(),ai=RISKAI&&RISKAI.key===kRiskKey(ev)?RISKAI:null;
+  if(ai&&ai.risks.length)out.push({kind:'list',kicker:`New risks · AI review (${ai.model})`,title:`${ai.risks.length} risk${ai.risks.length>1?'s':''} to decide on`,items:ai.risks.map(z=>({text:z.title,sub:`${z.evidence} · Recommended: ${z.recommendation}`,tone:z.severity==='high'?'bad':z.severity==='medium'?'warn':null,tag:z.severity})),say:ai.risks.map(z=>`${z.title}. ${z.recommendation}`).join(' ')});
+  else if(ev.length)out.push({kind:'list',kicker:'New risks · from the checks',title:`${ev.length} warning sign${ev.length>1?'s':''} to look at`,items:ev.slice(0,6).map(e=>({text:e.text,sub:`${e.src} · ${e.model}`,tone:e.level==='high'?'bad':'warn',tag:e.level})),say:ev.slice(0,3).map(e=>e.text).join('. ')+'.'});
+  return out}
 /* ---- the report document (the Reports tab, the HTML download and print) ---- */
 function reportDoc(id){
   const def=RPTS[id]||RPTS.ic,x=LASTX||snapshot(),F=kFigures(),deck=buildDeck(id,{doc:true}),date=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
@@ -4396,6 +4435,11 @@ A conversation, not a recital
 - Sound like a colleague walking the committee through the deck in a meeting: natural spoken English, contractions, the occasional "you'll see", "what stands out here", "here's the thing", "so what does that mean for us". Professional throughout: no jokes, no slang, no hype.
 - No repetition, ever. Each slide adds something new. Never repeat a figure, a point or a phrase from an earlier slide: if you need it again, refer back in a few words ("the margin gap I mentioned"). Never restate the slide title. Vary how entries start: no two slides open the same way, and do not open with "This slide", "Here we see", "Looking at" or "Moving on".
 - Bridges are short and varied, and only where they help the story.
+
+Lead with what changed
+- The listener wants to know what is new before anything else. On the headline slide, open with the single most important change since the last report, then the returns.
+- The slides "Since the last report" and "New risks" come right after the headline: give them the most care. For each change: what it is, where it came from (an Outlook email, the agent's suggestion, a decision taken) and what it would do to the returns. For each risk: the evidence in one figure, then the decision you recommend, said plainly ("I'd hold the discount until the sales pace recovers").
+- Later slides do not repeat these points: refer back in a few words if needed.
 
 Slide by slide
 - Cover: one welcoming line that frames the report in a few words.
@@ -5325,7 +5369,7 @@ const PROV={
 const CHAINS={
   fast:{label:'Commentary',m:[['openai','gpt-5-mini'],['anthropic','claude-sonnet-5-5']]},
   smart:{label:'Agent with tools',m:[['anthropic','claude-sonnet-5-5'],['openai','gpt-5']]},
-  deep:{label:'IC narrative, memos',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
+  deep:{label:'IC narrative, memos, risk review and recommendations',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
   check:{label:'Independent checker of AI calculations (audits the working, does not recalculate)',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
   excel:{label:'Excel questions',m:[['openai','gpt-5'],['anthropic','claude-sonnet-5-5']]},
   report:{label:'Report design',m:[['anthropic','claude-fable-5-1'],['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
