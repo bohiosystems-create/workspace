@@ -18,7 +18,6 @@ DIST = ROOT / "dist"
 OPTIONS = {
     "readonly": ("option2-readonly", "Option 2 · Read-only agent"),
     "analyst": ("option3-analyst", "Option 3 · Analyst in the loop"),
-    "api": ("option-api", "EstateMaster API option"),
 }
 
 README = {
@@ -59,25 +58,6 @@ to the workbook (they become manual steps in the task) · promote to the live mo
 2. Approve it → a refresh task on the **EstateMaster** tab. **Download control workbook** gives the workbook
    with the approved values.
 3. Press **Mark done (simulated export)**, or **Upload export** with a real Office Links export.
-""",
-"api": """# Bohio agent on EstateMaster · EstateMaster API option (demo)
-
-Same app as Option 2, but EstateMaster is reached through an API (simulated in this demo). The agent reads
-every input and output through the API, with no exports to upload. After a person approves a change request, it
-writes the values through the API (PATCH inputs), EstateMaster recalculates (POST calculate) and the agent reads
-EstateMaster's figures back (GET outputs). Nothing is written before approval. Every call is logged with its
-request and response on the Financial modelling tab.
-
-**Can:** everything in Option 2 · read through the API at any time · write approved changes and read the
-recalculated figures back in seconds · run stress scenarios on a sandbox copy through the API.
-
-**Can't:** write before a person approves · calculate the official figures (EstateMaster does) · use endpoints
-the real EstateMaster API does not offer (the API here is simulated).
-
-## Try it
-1. Ask "what if sale price drops 10%" → a change request, no figure.
-2. Approve it in the Daily feed → the agent writes it through the API and EstateMaster's new figures appear.
-3. Open Financial modelling → EstateMaster API for the call log (click a call for its request and response).
 """,
 }
 DEPLOY = """
@@ -120,7 +100,7 @@ def build(mode):
         shutil.copy(ROOT / "runner" / "register_map.csv", out / "setup" / "register_map.csv")
         (out / ".vercelignore").write_text("setup/\n")
         readme += "\n`setup/`: control workbook template, Copilot setup instructions and the checker (`py setup/control_check.py <file>`); not deployed.\n"
-    shutil.copy(ROOT / "docs" / f"SETUP_{ {'readonly': 'option2_readonly', 'analyst': 'option3_analyst', 'api': 'option2_readonly'}[mode] }.md", out / "SETUP.md")
+    shutil.copy(ROOT / "docs" / f"SETUP_{'option2_readonly' if mode == 'readonly' else 'option3_analyst'}.md", out / "SETUP.md")
     readme += "\nSee `SETUP.md` for the step-by-step setup guide.\n"
     (out / "README.md").write_text(readme, encoding="utf-8")
     z = DIST / f"bohio-{folder}.zip"
