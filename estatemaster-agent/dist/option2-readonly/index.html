@@ -1235,7 +1235,7 @@ function figSchematic(text,k,num){const lines=String(text||'').split('\n').map(l
   if(!h&&!notes.length)h=esc(text).replace(/\n/g,'<br>');
   const note=notes.filter(n=>!/^Not an EstateMaster figure/i.test(n)).map(esc).join(' ');if(note)h+=`<div class="fw-note">${note}</div>`;
   const by=models.map(m=>m.name).filter((x,i,a)=>a.indexOf(x)===i);const checker=checks.map(c=>(c.who.match(/\(([^)]*)\)/)||[])[1]).filter(Boolean)[0];
-  h+=`<div class="fw-by"><i>${k==='em'?'Figure from EstateMaster’s own export.':k==='est'?'The agent’s replica estimate, not an EstateMaster figure.':by.length?`Worked out by ${esc(by.join(' and '))}${checker?', checked by '+esc(checker):''}. Not an EstateMaster figure.`:'Worked out by the AI model. Not an EstateMaster figure.'}</i></div>`;
+  h+=`<div class="fw-by"><i>${k==='em'?`Figure from EstateMaster’s own export${(text.match(/export (EX-\d+(?: \([^)]*\))?)/)||[])[1]?' '+(text.match(/export (EX-\d+(?: \([^)]*\))?)/)||[])[1]:''}. Not calculated by the agent.`:k==='est'?'The agent’s replica estimate, not an EstateMaster figure.':by.length?`Worked out by ${esc(by.join(' and '))}${checker?', checked by '+esc(checker):''}. Not an EstateMaster figure.`:'Worked out by the AI model. Not an EstateMaster figure.'}</i></div>`;
   return h}
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
