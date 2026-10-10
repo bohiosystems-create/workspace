@@ -44,7 +44,7 @@ rep(":'simulated export (demo stand-in for EstateMaster)'}", ":x.src==='api'?'re
 rep(":'EstateMaster · exports';", ":MODE==='api'?'EstateMaster · API':'EstateMaster · exports';")
 rep("if(MODE==='readonly'){$('#cwDown').style.display='none';$('#cwConn').style.display='none'}", "if(MODE==='readonly'||MODE==='api'){$('#cwDown').style.display='none';$('#cwConn').style.display='none'}\n  if(MODE==='api')apiInit();")
 rep("if(!latestExport())addExport('initial','starting export of the approved model',simOut());", "if(!latestExport())MODE==='api'?addExport('api','first read of the approved model through the EstateMaster API',simOut(),'','',{inputs:apiInputs()}):addExport('initial','starting export of the approved model',simOut());\n  if(MODE==='api')setTimeout(()=>apiSync(true),900);")
-rep("  const rows=[['EstateMaster exports',x?", "  const rows=[" + B['integration'] + "['EstateMaster exports',x?")
+rep("  const rows=[['EstateMaster · Excel export (documented integration)',x?", "  const rows=[" + B['integration'] + "['EstateMaster · Excel export (documented integration)',x?")
 rep("'<h2>Integrations and feeds</h2><div class=\"sub\">What the agent reads and where it sends. Nothing writes to EstateMaster.</div>'", "'<h2>Integrations and feeds</h2><div class=\"sub\">What the agent reads and where it sends. '+(MODE==='api'?'Only approved change requests are written to EstateMaster, through its API.':'Nothing writes to EstateMaster.')+'</div>'")
 rep("function sysPrompt(ch,role){", "function sysPrompt(ch,role){return ax(sysPrompt0(ch,role))}\nfunction sysPrompt0(ch,role){")
 # the daily feed card title and the modelling page copy follow the API wording through ax()/axNode()

@@ -62,3 +62,17 @@ loaded; everything else is labelled as the agent's estimate. Nothing changes wit
 - **Across all models**: the Daily feed lists open decisions of every financial model (each card names its model; the effect is costed on that model's own export; approving opens that model). The daily report (app and the 07:00 email) opens with "To know today" across models, then a table of every model (latest IRR, profit on cost, net profit, change since the last export, checks); email changes are tagged with the model they concern and costed on its export. The server groups the exports folder by model (file name without option, version or date suffix).
 - **Daily email without SharePoint work**: every export uploaded in the app is copied into the exports folder automatically (Files.ReadWrite.All), and the app shares its Daily feed with the server. With no export in the folder the email still goes, with "To know today".
 - **Checks on the AI's own calculations** (assumption tests, Daily feed effects, the sensitivity table, the server's impact estimates): three layers after the two calculators agree. (1) Free checks: profit on cost must reconcile with net profit / total cost (calibrated on EstateMaster's own base), an adverse change must not improve the returns, bounds, leverage sign. (2) EstateMaster's own sensitivity tables as the benchmark where one covers the change (interpolated between its cells). (3) An independent checker model (a third model, not one of the calculators) that audits both workings for a wrong base, unit slips, sign errors, double counting, timing on the IRR and misuse of the tables, without recalculating. A figure that fails a check is marked ⚠ flagged wherever it appears, and its working lists every check. Sensitivity-table cells that break the trend of their row or column get an amber frame.
+
+## Integration basis (Altus Group, October 2026)
+
+ARGUS EstateMaster publishes no API. Its documented integrations are Microsoft Excel, Word and SQL Server, plus
+Salesforce, Propertybase, Xero, QuickBooks and MYOB for business systems; anything else is bespoke consulting work
+scoped per client. The agent is built on the two that matter for modelling:
+
+| Integration | Status | Use |
+| --- | --- | --- |
+| Excel (Office Links export, Links to Excel Files) | Documented, used today | Option 2 reads exports; Option 3 writes the control workbook EstateMaster links to |
+| SQL Server publish | Documented, production read path | The agent reads every model's inputs and outputs each morning, no upload (simulated in the demos) |
+| Word | Documented, not needed | Reports leave the agent as email, PDF and PowerPoint |
+| Salesforce, Propertybase, Xero, QuickBooks, MYOB | Documented business systems | Not modelling; Xero or QuickBooks could feed real actuals later |
+| API | None published | The bespoke-integration demo shows what an Altus-built integration would add: write approved inputs, recalculate, read back |

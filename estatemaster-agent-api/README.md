@@ -1,6 +1,6 @@
-# Bohio agent on EstateMaster · EstateMaster API option (demo)
+# Bohio agent on EstateMaster · Bespoke integration option (simulated API, demo)
 
-Same app as Option 2, but EstateMaster is reached through an API (simulated in this demo). The agent reads
+Same app as Option 2, but EstateMaster is reached through an API, simulated in this demo. ARGUS EstateMaster publishes no API (Altus Group: Excel, Word, SQL Server, Salesforce, Propertybase, Xero, QuickBooks and MYOB are the documented integrations; anything else is bespoke consulting work). The reads here map to the documented SQL Server publish; the writes and the recalculation are the requirements list for an Altus-built integration. The agent reads
 every input and output through the API, with no exports to upload. After a person approves a change request, it
 writes the values through the API (PATCH inputs), EstateMaster recalculates (POST calculate) and the agent reads
 EstateMaster's figures back (GET outputs). Nothing is written before approval. Every call is logged with its
