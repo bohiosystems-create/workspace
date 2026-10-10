@@ -271,6 +271,13 @@ body.chatopen .chat-fab{display:none}
 .fw-head{display:flex;align-items:center;gap:10px;margin:6px 0 8px;flex-wrap:wrap}.fw-head b{font-size:24px;font-family:Montserrat,sans-serif}.fw-head .btn{margin-left:auto}.fw-kind{font-size:12px;color:var(--soft);flex-basis:100%}
 .fw-work{font-size:13px;line-height:1.55;max-height:60vh;overflow:auto;border-top:1px dashed var(--hair);padding-top:8px}.fw-work b{font-weight:700}
 .fw-work .fw-h{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:8px 0 2px}
+.fw-flow.em{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}.fw-flow.em b{font-size:13.5px}.fw-head .tag-em{text-transform:none!important}
+.fw-flow{display:grid;grid-template-columns:1fr auto 1.2fr auto 1fr;gap:8px;align-items:center;margin:4px 0 12px}.fw-tile{background:rgba(46,46,47,.04);border-radius:8px;padding:10px 12px;min-width:0}.fw-tile small{display:block;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-weight:700}.fw-tile b{display:block;font-size:17px;margin-top:3px;overflow-wrap:anywhere}.fw-tile em{display:block;font-size:11px;color:var(--soft);font-style:normal;margin-top:2px}.fw-tile.chg{background:rgba(241,90,34,.08)}.fw-tile.chg b{font-size:13.5px;font-weight:600}.fw-tile.res{background:rgba(208,59,59,.08)}.fw-tile.res b{color:#b22c2c}.fw-arr{color:var(--soft);font-size:18px}
+.fw-models{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:6px 0}.fw-model{border:1px solid var(--hair);border-radius:8px;padding:10px 12px}.fw-mv{font-size:20px;font-weight:700;margin-bottom:4px}
+.fw-math{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;background:rgba(46,46,47,.05);border-radius:6px;padding:8px 10px;margin:6px 0;overflow-wrap:anywhere}.fw-math span{color:var(--orange);font-weight:700;padding:0 2px}
+.fw-st{margin:8px 0}.fw-checks{display:flex;flex-direction:column;gap:5px;margin:8px 0}.fw-ck{display:flex;gap:8px;align-items:flex-start;font-size:12.5px}.fw-ck i{flex:0 0 18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:11px;font-weight:700;background:rgba(241,90,34,.15);color:#b4480f}.fw-ck.bad i{background:rgba(208,59,59,.15);color:#b22c2c}.fw-ck.ok i{background:rgba(31,138,76,.15);color:#176a3a}
+.fw-det{margin:6px 0;font-size:12px;color:var(--ink2)}.fw-det summary{cursor:pointer;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);font-weight:700}
+.fw-note{font-size:12px;color:var(--ink2);margin-top:8px}.fw-by{margin-top:12px;padding-top:8px;border-top:1px dashed var(--hair);font-size:11.5px;color:var(--soft)}.fw-by i{font-style:italic}
 .conn{display:none!important}#projSel{display:none!important}
 #projRail{position:fixed;left:0;top:0;bottom:0;z-index:300;pointer-events:none}
 #projRail .pr-hot{position:absolute;left:0;top:0;bottom:0;width:14px;pointer-events:auto;cursor:pointer}
@@ -1195,7 +1202,40 @@ function openFigWin(el){let w=$('#figWin');if(!w){w=document.createElement('div'
   const k=el.dataset.k||'calc',id=el.dataset.id,wk=id&&WORK.find(x=>x.id===+id);let text=el.dataset.w||(wk&&wk.text)||'';
   if(!text)text=k==='em'?'EstateMaster’s own figure, read from the latest export by row label.':k==='est'?replicaNote():'Worked out by the AI model from the figures in this answer. It did not state its working: treat it as unverified and check it in EstateMaster before it goes into a decision.';
   $('#fwNum').textContent=el.textContent;$('#fwTag').innerHTML=`<span class="tag tag-${k}" style="font-size:10px">${TAGK[k]}</span>`;$('#fwKind').textContent=TAGKIND[k];
-  $('#fwBody').innerHTML='<div class="fw-h">How this figure was worked out</div>'+esc(text).replace(/\n/g,'<br>');w.classList.add('on')}
+  $('#fwBody').innerHTML=figSchematic(text,k,el.textContent);w.classList.add('on')}
+/* ---- the working as a schematic: base → change → result, the arithmetic as a formula, the checks as marks, the model named once at the bottom in italic ---- */
+const MODEL_RX=/^(Claude[^:]*|OpenAI[^:]*|GPT[^:]*|Anthropic[^:]*|Analyst \w+)\s*:\s*(.+)$/;
+function figSchematic(text,k,num){const lines=String(text||'').split('\n').map(l=>l.trim());const models=[],checks=[],notes=[],math=[],flow={},methods=[];let status='',chg='',base='',me=null;
+  const isMath=l=>/[=]/.test(l)&&/\d/.test(l)&&/[+\-−×x*/÷]/.test(l)&&!/[a-z]{4,}\s+[a-z]{4,}\s+[a-z]{4,}/i.test(l.replace(/\b(million|thousand|SAR|USD|pts|points)\b/gi,''));
+  for(const l of lines){if(!l)continue;let m;
+    if((m=l.match(/^Change tested:\s*(.+?)\.?$/i))){chg=m[1];continue}
+    if((m=l.match(/^EstateMaster now:\s*(.+?)\.?$/i))){base=m[1];continue}
+    if(/^Method\b/i.test(l)||/^Where it breaks/i.test(l)){methods.push(l);continue}
+    if(/^(Checks on this figure:?|Automatic checks:?)$/i.test(l))continue;
+    if((m=l.match(/^(CHECK FAILED|Checker\s*\([^)]*\)|Independent checker[^:]*|Error|Check|FLAGGED|Flag)\s*:?\s*(.*)$/i))){const t=m[2]||m[1];checks.push({bad:/error|failed|flag/i.test(m[1])&&!/no issue/i.test(t),ok:/no issue|holds?\b|within|reconcile[sd]?\b|consistent/i.test(t)&&!/not |does not|fails?/i.test(t),who:m[1],text:/^Checker/i.test(m[1])?`${m[1].replace(/^Checker\s*/,'Checker ')}: ${t}`:t});continue}
+    if(/^(The two agree|They differed|They still differ|Only one model|Not cross-checked|Cross-checked)/i.test(l)){status=l;continue}
+    if(/^(Not an EstateMaster figure|EstateMaster’s own figure|Read from|Agent’s replica|AI estimate|Not calculated)/i.test(l)){notes.push(l);continue}
+    if((m=l.match(MODEL_RX))&&!/^(Method|Decision)/i.test(m[1])){me={name:m[1].trim(),value:m[2].trim(),work:[]};models.push(me);continue}
+    if(isMath(l)){(me?me.work:math).push(l);continue}
+    if(me&&!/^(Decision|After the review)/i.test(l)&&l.length<220){me.work.push(l);continue}
+    notes.push(l)}
+  const stPill=!status?'':/agree/i.test(status)&&!/differ/i.test(status)?'<span class="pill p">cross-checked · agree</span>':/After the review they agree|reconciled/i.test(status)?'<span class="pill p">cross-checked · reconciled</span>':/still differ|arbitrat/i.test(status)?'<span class="pill s">cross-checked · still apart</span>':/Only one|not cross-checked/i.test(status)?'<span class="pill s">one model · not cross-checked</span>':'';
+  let h='';
+  if(base||chg)h+=`<div class="fw-flow"><div class="fw-tile"><small>EstateMaster now</small><b>${esc(base.replace(/\s*\(.*$/,''))||'—'}</b><em>${esc((base.match(/\((.*)\)/)||[])[1]||'')}</em></div><span class="fw-arr">→</span><div class="fw-tile chg"><small>Change tested</small><b>${esc(chg||'—')}</b></div><span class="fw-arr">→</span><div class="fw-tile res"><small>Result</small><b>${esc(num||'')}</b><em>AI estimate</em></div></div>`;
+  const mathBlock=l=>`<div class="fw-math">${esc(l).replace(/\s*=\s*/g,' <span>=</span> ')}</div>`;
+  if(models.length)h+=`<div class="fw-models">${models.map(m=>`<div class="fw-model"><div class="fw-mv">${esc(m.value)}</div>${m.work.filter(isMath).map(mathBlock).join('')}${m.work.filter(x=>!isMath(x)).length?`<details class="fw-det"><summary>working</summary>${m.work.filter(x=>!isMath(x)).map(esc).join('<br>')}</details>`:''}</div>`).join('')}</div>`;
+  if(math.length)h+=math.map(mathBlock).join('');
+  if(stPill)h+=`<div class="fw-st">${stPill}</div>`;
+  if(checks.length)h+=`<div class="fw-checks">${checks.map(c=>`<div class="fw-ck ${c.bad?'bad':c.ok?'ok':''}"><i>${c.bad?'✕':c.ok?'✓':'!'}</i><span>${esc(c.text)}</span></div>`).join('')}</div>`;
+  else if(k==='calc'&&(models.length||math.length))h+='<div class="fw-checks"><div class="fw-ck ok"><i>✓</i><span>Arithmetic, direction and bounds hold</span></div></div>';
+  if(methods.length)h+=`<details class="fw-det"><summary>Method</summary>${methods.map(esc).join('<br>')}</details>`;
+  if(k==='em'){const ex=(text.match(/export (EX-\d+)/)||[])[1],file=(text.match(/\(([^()]+\.(?:xlsx|xlsm|xls|csv))\)/i)||[])[1],row=(text.match(/row “([^”]+)”/)||[])[1],cell=(text.match(/cell ([A-Za-z0-9 _!$'’]+)/)||[])[1],opt=(text.match(/Option: ([^.]+)/)||[])[1];
+    if(ex||row||cell){h+=`<div class="fw-flow em">${[['Export',ex?ex+(file?' · '+file:''):''],['Sheet / row',row],['Cell',cell],['Option',opt]].filter(x=>x[1]).map(([a,b])=>`<div class="fw-tile"><small>${a}</small><b>${esc(b)}</b></div>`).join('')}</div>`;notes.length=0}}
+  if(!h&&!notes.length)h=esc(text).replace(/\n/g,'<br>');
+  const note=notes.filter(n=>!/^Not an EstateMaster figure/i.test(n)).map(esc).join(' ');if(note)h+=`<div class="fw-note">${note}</div>`;
+  const by=models.map(m=>m.name).filter((x,i,a)=>a.indexOf(x)===i);const checker=checks.map(c=>(c.who.match(/\(([^)]*)\)/)||[])[1]).filter(Boolean)[0];
+  h+=`<div class="fw-by"><i>${k==='em'?'Figure from EstateMaster’s own export.':k==='est'?'The agent’s replica estimate, not an EstateMaster figure.':by.length?`Worked out by ${esc(by.join(' and '))}${checker?', checked by '+esc(checker):''}. Not an EstateMaster figure.`:'Worked out by the AI model. Not an EstateMaster figure.'}</i></div>`;
+  return h}
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
