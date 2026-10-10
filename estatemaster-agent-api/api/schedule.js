@@ -15,8 +15,9 @@ const cron = require('./cron');
 function sameOrigin(req) { const o = req.headers.origin, h = req.headers.host; if (!o || !h) return true; try { return new URL(o).host === h; } catch { return false; } }
 const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 
-async function state(token) {
-  const st = await SCHED.load(token), s = st.schedule;
+// fresh: the store just written (SharePoint can return the previous copy for a moment after a write)
+async function state(token, fresh) {
+  const st = fresh ? { ...fresh, stored: true } : await SCHED.load(token), s = st.schedule;
   const rec = G.checkRecipients(String(s.recipients || '').split(/[,;\s]+/).filter(Boolean));
   const people = env('REPORTS_ALLOWED_RECIPIENTS').split(',').map(x => x.trim()).filter(Boolean);
   let folderOk = false, folderNote = 'EXPORTS_FOLDER is not set';
@@ -59,7 +60,7 @@ module.exports = async function handler(req, res) {
       const st = await SCHED.load(token);
       st.schedule = { enabled: !!s.enabled, time, timezone: s.timezone, days, recipients: list.join(', '), languages, updatedBy: String(b.by || '').slice(0, 60), updatedAt: now.toISOString() };
       await SCHED.save(token, st);
-      return G.send(res, 200, { saved: true, ...(await state(token)) });
+      return G.send(res, 200, { saved: true, ...(await state(token, st)) });
     }
     if (b.action === 'export') {
       const name = String(b.name || '').replace(/[\\/:*?"<>|#%]+/g, '_').trim().slice(0, 120), data = String(b.data || '');

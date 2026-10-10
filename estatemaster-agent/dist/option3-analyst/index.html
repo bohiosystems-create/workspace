@@ -5202,7 +5202,7 @@ async function runStressFeed(){const b=$('#sfRun');b.disabled=true;b.textContent
 document.addEventListener('click',e=>{if(e.target.id==='sfRun')runStressFeed()});
 function renderDaily(){try{renderStressFeed()}catch(e){}if(!$('#drGrid'))return;const s=DAILY;
   $('#drOn').textContent=s.enabled?'On':'Off';$('#drOn').className='dr-badge'+(s.enabled?'':' off');
-  const nx=DAILYSRV&&DAILYSRV.next?DAILYSRV.next.label:dailyNext();$('#drNext').innerHTML=s.enabled&&nx?`Next report: <b>${esc(nx)}</b> (${esc(s.timezone)}) · ${DAILYSRV?'sent by the server, with or without the app open':'saved in this browser (connect Microsoft 365 for server delivery)'}`:'Paused: nothing is sent automatically.';
+  const srvNext=DAILYSRV&&DAILYSRV.next&&DAILYSRV.schedule&&DAILYSRV.schedule.time===s.time&&DAILYSRV.schedule.timezone===s.timezone&&String(DAILYSRV.schedule.days)===String(s.days)&&!!DAILYSRV.schedule.enabled===!!s.enabled;const nx=srvNext?DAILYSRV.next.label:dailyNext();$('#drNext').innerHTML=s.enabled&&nx?`Next report: <b>${esc(nx)}</b> (${esc(s.timezone)}) · ${DAILYSRV?'sent by the server, with or without the app open':'saved in this browser (connect Microsoft 365 for server delivery)'}`:'Paused: nothing is sent automatically.';
   $('#drEnabled').checked=!!s.enabled;$('#drTime').value=s.time;if(![...$('#drTz').options].some(o=>o.value===s.timezone))$('#drTz').insertAdjacentHTML('afterbegin',`<option>${esc(s.timezone)}</option>`);$('#drTz').value=s.timezone;
   $('#drDays').innerHTML=DAYS3.map((d,i)=>`<button data-drday="${i}" class="${s.days.includes(i)?'on':''}">${d}</button>`).join('');
   $('#drTo').value=s.recipients||'';
