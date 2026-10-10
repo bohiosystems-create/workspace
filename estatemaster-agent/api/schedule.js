@@ -35,7 +35,7 @@ async function state(token, fresh) {
     { k: 'ai', ok: G.aiConfigured(), soft: true, label: G.aiConfigured() ? 'AI connected (Outlook findings, Arabic)' : 'No AI key: Outlook findings and Arabic are skipped' },
   ];
   if (last) check.push({ k: 'last', ok: true, soft: true, label: `Last delivered ${last.at.slice(0, 16).replace('T', ' ')} UTC to ${(last.to || []).join(', ')}` });
-  return { schedule: s, next: SCHED.nextRun(s), stored: st.stored, stress: st.stress || null, allowed: { domains: G.allowedDomains(), people }, check, ready: check.filter(c => !c.soft).every(c => c.ok), history: st.log, now: new Date().toISOString() };
+  return { schedule: s, next: SCHED.nextRun(s), stored: st.stored, stress: st.stress || null, daily: st.daily || null, allowed: { domains: G.allowedDomains(), people }, check, ready: check.filter(c => !c.soft).every(c => c.ok), history: st.log, now: new Date().toISOString() };
 }
 
 module.exports = async function handler(req, res) {
@@ -89,7 +89,7 @@ module.exports = async function handler(req, res) {
       const r = await cron.reportJob(token, now, b.action !== 'test', appUrl, { to: s.recipients, langs: b.action === 'test' ? s.languages : [b.lang === 'ar' ? 'ar' : (s.languages[0] || 'en')], force: true });
       if (r.skipped) return G.send(res, 200, { skipped: r.skipped });
       if (b.action !== 'preview') await SCHED.record(token, st, { kind: b.action === 'test' ? 'test' : 'manual', status: r.sent ? 'sent' : 'generated', note: r.note || '', to: r.to || [], langs: r.langs || [], latest: r.latest || '' }, now);
-      return G.send(res, 200, { html: r.preview || '', previews: r.previews, sent: !!r.sent, to: r.to || [], note: r.note || '', rejected: r.rejected || [], latest: r.latest, checks: r.checks, market: r.market, flags: r.flags, stress: r.stress, history: (await SCHED.load(token)).log });
+      return G.send(res, 200, { html: r.preview || '', previews: r.previews, sent: !!r.sent, to: r.to || [], note: r.note || '', rejected: r.rejected || [], latest: r.latest, checks: r.checks, market: r.market, flags: r.flags, stress: r.stress, daily: r.daily || null, history: (await SCHED.load(token)).log });
     }
     return G.send(res, 400, { error: 'Unknown action' });
   } catch (e) { return G.send(res, 400, { error: e.message }); }

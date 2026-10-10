@@ -155,7 +155,7 @@ function detectMeta(sheets, fileName) {
     if (!row) continue;
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string') continue; const t = c.trim();
-      for (const m of t.matchAll(/\b(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD)\b/g)) cur[m[1]] = (cur[m[1]] || 0) + 1;
+      for (const m of t.matchAll(/\b(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD)\b/g)) { const c = m[1] === 'AUD' ? 'USD' : m[1]; cur[c] = (cur[c] || 0) + 1; }
       if (!meta.title && /^(cash flow title|project name|project title|title)\s*:?$/i.test(t)) { const v = after(row, i); if (typeof v === 'string') meta.title = v.trim().slice(0, 80); }
       if (!meta.type && /^(type|property type|asset type|land use)\s*:?$/i.test(t)) { const v = after(row, i); if (typeof v === 'string') meta.type = v.trim(); }
       if (!meta.type) { const m = t.match(/^type\s*:\s*(.+)$/i); if (m) meta.type = m[1].trim(); }

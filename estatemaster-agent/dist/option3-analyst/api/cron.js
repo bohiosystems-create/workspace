@@ -274,6 +274,12 @@ async function dailyHtml(d, now, appUrl, lang) {
   return html;
 }
 /* The daily report. opts: to (addresses), langs (['en','ar']), force (send whatever the day). Without opts it keeps the env-driven behaviour (REPORT_TO, REPORT_DAYS). */
+/* Today's report in both languages, kept with the schedule so the app can show either at once (the Arabic is not built on demand) */
+async function keepDaily(token, st, now, htmls, latest) {
+  if (!st || !st.schedule) return;
+  st.daily = { at: now.toISOString(), latest: latest || '', html: htmls };
+  try { await SCHED.save(token, st); } catch { /* without write permission the copy is not kept */ }
+}
 async function reportJob(token, now, dry, appUrl, opts = {}) {
   if (!opts.force) {
     const days = (env('REPORT_DAYS') || 'sun,mon,tue,wed,thu').toLowerCase().split(',').map(s => s.trim().slice(0, 3));
@@ -293,10 +299,11 @@ async function reportJob(token, now, dry, appUrl, opts = {}) {
     const to = G.checkRecipients(opts.to ? [].concat(opts.to).join(',').split(/[,;\s]+/) : env('REPORT_TO').split(','));
     const day = now.toLocaleDateString('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short' });
     const body = l => urgentHtml(dd, l === 'ar') + (flags.findings.length ? `<h3 style="margin:22px 0 6px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:${TAUPE}">Assumption changes and approvals asked for in emails (last 24 hours)</h3><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>${th('Assumption')}${th('Proposed')}${th('From')}${th('Why')}${th('Impact if applied (AI estimate)')}</tr>${findingRows(flags.findings)}</table>` : '') + `<p style="margin:16px 0 0;color:#d03b3b;font-size:13px"><b>No EstateMaster figures today:</b> ${esc(d.noExport)}.</p>`;
-    const htmls = {}; for (const l of langs) htmls[l] = frame(l === 'ar' ? 'التقرير اليومي' : 'Daily EstateMaster report', project, riyadh(now.toISOString()), body(l), appUrl).replace(l === 'ar' ? '<html>' : '\u0000', '<html dir="rtl" lang="ar">');
+    const htmls = {}; for (const l of ['en', 'ar']) htmls[l] = frame(l === 'ar' ? 'التقرير اليومي' : 'Daily EstateMaster report', project, riyadh(now.toISOString()), body(l), appUrl).replace(l === 'ar' ? '<html>' : '\u0000', '<html dir="rtl" lang="ar">');
+    await keepDaily(token, st0, now, htmls, null);
     const out = { job: 'report', latest: null, note: d.noExport, project, subject: `KINAN · Daily report · ${project} · ${day}`, sent: false, langs, flags: flags.findings.map(f => ({ assumption: f.assumption, new_value: f.new_value, from: f.msg.from })) };
     if (to.bad.length) out.rejected = to.bad;
-    if (dry) { out.preview = htmls[langs[0]]; return out; }
+    if (dry) { out.preview = htmls[langs[0]]; out.previews = htmls; out.daily = st0.daily || null; return out; }
     if (!to.ok.length) { out.note = 'REPORT_TO is not set (or has no internal address): report not sent'; return out; }
     for (const l of langs) await G.sendMail(token, { to: to.ok, subject: out.subject, html: htmls[l] });
     out.sent = true; out.to = to.ok; return out;
@@ -309,8 +316,9 @@ async function reportJob(token, now, dry, appUrl, opts = {}) {
   const day = now.toLocaleDateString('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short' });
   const out = { job: 'report', latest: b.name, previous: a ? a.name : null, figures: b.out, checks, flags: flags.findings.map(f => ({ assumption: f.assumption, new_value: f.new_value, from: f.msg.from })), market: market.rows, options, stress: d.stress, project: d.project, subject: `KINAN · EstateMaster report · ${d.project} · ${day}`, sent: false, langs };
   if (to.bad.length) out.rejected = to.bad;
-  const htmls = {}; for (const l of langs) htmls[l] = await dailyHtml(d, now, appUrl, l);
-  if (dry) { out.preview = htmls[langs[0]]; if (langs.length > 1) out.previews = htmls; return out; }
+  const htmls = {}; for (const l of ['en', 'ar']) { try { htmls[l] = await dailyHtml(d, now, appUrl, l); } catch (e) { if (langs.includes(l)) throw e; } }
+  await keepDaily(token, st0, now, htmls, b.name);
+  if (dry) { out.preview = htmls[langs[0]]; out.previews = htmls; out.daily = st0.daily || null; return out; }
   if (!to.ok.length) { out.note = 'REPORT_TO is not set (or has no internal address): report not sent'; return out; }
   for (const l of langs) await G.sendMail(token, { to: to.ok, subject: l === 'ar' ? `كنان · تقرير إستيت ماستر · ${d.project} · ${day}` : out.subject, html: htmls[l] });
   out.sent = true; out.to = to.ok; return out;
