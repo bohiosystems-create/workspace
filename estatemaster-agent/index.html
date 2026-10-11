@@ -256,7 +256,7 @@ body.chatopen .chat-fab{display:none}
 .kchart .kd-chart{margin:0}.kchart .kd-kicker{display:none}.kchart .kd-h2{font-size:14px;margin-top:0;letter-spacing:0;white-space:normal}.kchart .kd-mask{display:inline;overflow:visible}.kchart .kd-rise{display:inline}.kchart .kd-sub{font-size:11.5px}.kchart .kd-svgnum{font-size:26px}.kchart .kd-svglab{font-size:20px}
 .kchart .kd-hrow{font-size:12px}.kchart .kd-ring-v{font-size:18px}.kchart table.t{font-size:12px}
 .calc{display:inline-block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:#fff;background:var(--alert);padding:1px 6px;margin-left:4px;vertical-align:middle;border-radius:3px;cursor:help}
-.as-x{display:flex;gap:10px;align-items:center;margin:12px 0 10px}.as-x input,.as-y input{font:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--faint);border-radius:0;background:#fff;min-width:0}.as-x input{flex:1}.as-axl{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--taupe);font-weight:700;white-space:nowrap}.as-body{display:grid;grid-template-columns:190px minmax(0,1fr);gap:14px;align-items:center}.as-y{display:flex;flex-direction:column;gap:8px}.as-grid{min-height:120px}.as-grid .hm .c{aspect-ratio:1.9;border-radius:0}.as-grid .hm .c .fig{cursor:pointer;border-bottom:0;color:inherit}.as-grid .hm .c.apart{box-shadow:inset 0 0 0 2px #b7791f}.as-timer{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink2)}.as-timer b{font-variant-numeric:tabular-nums;font-size:13px}.as-timer.done{color:var(--soft)}.as-ask{margin:10px 0;padding:10px 12px;border-left:3px solid var(--orange);background:#fafafa;font-size:12.5px}.as-ask form input{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--faint)}@media(max-width:800px){.as-body{grid-template-columns:1fr}}
+.as-x{display:flex;gap:10px;align-items:center;margin:12px 0 10px}.as-x input,.as-y input{font:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--faint);border-radius:0;background:#fff;min-width:0}.as-x input{flex:1}.as-axl{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--taupe);font-weight:700;white-space:nowrap}.as-body{display:grid;grid-template-columns:190px minmax(0,1fr);gap:14px;align-items:center}.as-y{display:flex;flex-direction:column;gap:8px}.as-grid{min-height:120px}.as-grid .hm .c{aspect-ratio:1.9;border-radius:0}.as-grid .hm .c .fig{cursor:pointer;border-bottom:0;color:inherit}.as-grid .hm .c.apart{box-shadow:inset 0 0 0 2px #b7791f}.as-ask{margin:10px 0;padding:10px 12px;border-left:3px solid var(--orange);background:#fafafa;font-size:12.5px}.as-ask form input{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--faint)}@media(max-width:800px){.as-body{grid-template-columns:1fr}}
 .qchip{display:inline-block;border:1px solid var(--hair);background:#fff;font-size:12px;padding:6px 11px;margin:0 6px 6px 0;cursor:pointer}.qchip:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
 .cr-ll{display:block;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--taupe);font-weight:700;margin-bottom:4px}
 .cr-lead,.cr-why{display:grid;grid-template-columns:86px minmax(0,1fr);gap:12px;align-items:start;padding:10px 0;border-bottom:1px solid rgba(46,46,47,.08);font-size:13.5px;line-height:1.55}.cr-lead .cr-ll,.cr-why .cr-ll{margin:3px 0 0}
@@ -272,6 +272,26 @@ body.chatopen .chat-fab{display:none}
 .tag{display:inline-block;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:#fff;padding:1px 5px;margin:0 2px 0 4px;vertical-align:middle;border-radius:3px;cursor:help;white-space:nowrap;line-height:1.5}
 .tag-em{background:#1f8a5a;text-transform:none;font-size:8px;letter-spacing:.03em;padding:1px 4px}.tag-calc{font-size:8px}.tag-est{background:var(--orange)}.tag-calc{background:var(--alert)}
 .t .fig{white-space:nowrap}
+#figWin .fw-card{max-width:780px}
+.fw-hint{font-size:11.5px;color:var(--soft);margin:2px 0 8px;display:flex;align-items:center;gap:6px}
+.fw-calc{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.fw-row{display:grid;grid-template-columns:minmax(110px,max-content) minmax(0,1fr) auto auto;gap:4px 12px;align-items:baseline;padding:9px 12px;background:rgba(46,46,47,.035);border-radius:8px}
+.fw-row.note{display:block;background:none;padding:2px 12px;font-size:12.5px;color:var(--ink2)}
+.fw-rnote{grid-column:1/-1;font-size:12px;color:var(--soft)}
+.fw-rl{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--taupe);font-weight:700}
+.fw-rx{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;color:var(--ink2);overflow-wrap:anywhere}
+.fw-ro{color:var(--orange);font-weight:700;font-size:15px}
+.fw-rr{font-size:18px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fw-n{border-bottom:1px dotted rgba(46,46,47,.45);cursor:help;border-radius:3px;padding:0 1px;transition:background .12s}
+.fw-n:hover,.fw-n.hl{background:rgba(241,90,34,.15);border-bottom-color:var(--orange)}
+#fwTip{position:fixed;z-index:450;max-width:300px;background:#2e2e2f;color:#fff;font-size:12.5px;line-height:1.45;padding:9px 12px;border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,.28);pointer-events:none;display:none}
+#fwTip b{display:block;color:#f15a22;font-size:16px;margin-bottom:2px}#fwTip em{display:block;font-style:normal;color:#bdbdbf;font-size:10.5px;margin-top:5px}
+@media(max-width:620px){.fw-row{grid-template-columns:minmax(0,1fr) auto auto}.fw-rl{grid-column:1/-1}}
+.as-run{display:flex;align-items:center;gap:10px;margin:10px 0 4px;padding:9px 12px;background:#fafafa;border:1px solid var(--hair);font-size:12.5px}
+.as-run b{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;min-width:44px}
+.as-run .as-now{flex:1;min-width:0;color:var(--ink2)}.as-run .as-est{color:var(--soft);font-size:11.5px;white-space:nowrap}
+.as-bar{height:3px;background:var(--hair);margin:0 0 6px;overflow:hidden}.as-bar i{display:block;height:100%;width:0;background:var(--orange);transition:width .4s}
+.st.now span{color:var(--ink);font-weight:600}
 #figWin{position:fixed;inset:0;background:rgba(46,46,47,.38);z-index:400;display:none;align-items:center;justify-content:center;padding:16px}#figWin.on{display:flex}
 #figWin .fw-card{background:#fff;border-radius:14px;max-width:580px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.28);padding:14px 18px 18px;position:relative;overflow:hidden}
 .fw-head{display:flex;align-items:center;gap:10px;margin:6px 0 8px;flex-wrap:wrap}.fw-head b{font-size:24px;font-family:Montserrat,sans-serif}.fw-head .btn{margin-left:auto}.fw-kind{font-size:12px;color:var(--soft);flex-basis:100%}
@@ -280,7 +300,7 @@ body.chatopen .chat-fab{display:none}
 .fw-flow.em{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}.fw-flow.em b{font-size:13.5px}.fw-head .tag-em{text-transform:none!important}
 .fw-flow{display:grid;grid-template-columns:1fr auto 1.2fr auto 1fr;gap:8px;align-items:center;margin:4px 0 12px}.fw-tile{background:rgba(46,46,47,.04);border-radius:8px;padding:10px 12px;min-width:0}.fw-tile small{display:block;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-weight:700}.fw-tile b{display:block;font-size:17px;margin-top:3px;overflow-wrap:anywhere}.fw-tile em{display:block;font-size:11px;color:var(--soft);font-style:normal;margin-top:2px}.fw-tile.chg{background:rgba(241,90,34,.08)}.fw-tile.chg b{font-size:13.5px;font-weight:600}.fw-tile.res{background:rgba(208,59,59,.08)}.fw-tile.res b{color:#b22c2c}.fw-arr{color:var(--soft);font-size:18px}
 .fw-models{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:6px 0}.fw-model{border:1px solid var(--hair);border-radius:8px;padding:10px 12px}.fw-mv{font-size:20px;font-weight:700;margin-bottom:4px}
-.fw-math{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;background:rgba(46,46,47,.05);border-radius:6px;padding:8px 10px;margin:6px 0;overflow-wrap:anywhere;line-height:1.9}.fw-math span{color:var(--orange);font-weight:700;padding:0 2px}.fw-n{font-style:normal;background:#fff;border:1px solid rgba(46,46,47,.18);border-radius:4px;padding:1px 5px;cursor:help;transition:background .12s,border-color .12s}.fw-n:hover{border-color:var(--orange);background:rgba(241,90,34,.08)}.fw-n.em{border-color:rgba(31,138,90,.5);background:rgba(31,138,90,.07)}.fw-n.ai{border-color:rgba(208,59,59,.35)}.as-hsrc{color:var(--soft)}
+.fw-math{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;background:rgba(46,46,47,.05);border-radius:6px;padding:8px 10px;margin:6px 0;overflow-wrap:anywhere;line-height:1.9}.fw-math span{color:var(--orange);font-weight:700;padding:0 2px}.fw-n.em{border-color:rgba(31,138,90,.5);background:rgba(31,138,90,.07)}.fw-n.ai{border-color:rgba(208,59,59,.35)}.as-hsrc{color:var(--soft)}
 .fw-st{margin:8px 0}.fw-checks{display:flex;flex-direction:column;gap:5px;margin:8px 0}.fw-ck{display:flex;gap:8px;align-items:flex-start;font-size:12.5px}.fw-ck i{flex:0 0 18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:11px;font-weight:700;background:rgba(241,90,34,.15);color:#b4480f}.fw-ck.bad i{background:rgba(208,59,59,.15);color:#b22c2c}.fw-ck.ok i{background:rgba(31,138,76,.15);color:#176a3a}
 .fw-det{margin:6px 0;font-size:12px;color:var(--ink2)}.fw-det summary{cursor:pointer;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);font-weight:700}
 .fw-note{font-size:12px;color:var(--ink2);margin-top:8px}.fw-by{margin-top:12px;padding-top:8px;border-top:1px dashed var(--hair);font-size:11.5px;color:var(--soft)}.fw-by i{font-style:italic}
@@ -343,8 +363,9 @@ body.xproj .rep-only{display:none!important}
 .sf-model{margin:10px 0 16px}.sf-title{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:14px}
 .sf-risks{margin-top:10px;display:flex;flex-direction:column;gap:8px}.sf-risk{display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:start;padding:8px 10px;border-left:3px solid var(--faint);background:rgba(46,46,47,.03)}.sf-risk.high{border-left-color:#d03b3b;background:rgba(208,59,59,.05)}.sf-risk.medium{border-left-color:var(--orange)}
 .chk-cell{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:rgba(46,46,47,.06);padding:1px 6px;border-radius:3px;white-space:nowrap}
-.tab-car{font-size:9px;margin-left:2px;opacity:.7}#emMenu{position:fixed;z-index:300;display:none;min-width:240px;background:#fff;border:1px solid var(--hair);box-shadow:0 14px 40px rgba(46,46,47,.18);padding:6px}#emMenu.on{display:block}.emm-it{display:flex;flex-direction:column;gap:1px;padding:9px 12px;cursor:pointer}.emm-it b{font-size:12px;letter-spacing:.08em;text-transform:uppercase}.emm-it span{font-size:12px;color:var(--soft)}.emm-it:hover{background:rgba(241,90,34,.08)}.emm-it:hover b{color:var(--orange)}
+.tab-car{font-size:9px;margin-left:2px;opacity:.7}#emMenu .emm-it.on{background:var(--orange-soft)}#emMenu .emm-it.on b{color:var(--orange)}#emMenu{position:fixed;z-index:300;display:none;min-width:240px;background:#fff;border:1px solid var(--hair);box-shadow:0 14px 40px rgba(46,46,47,.18);padding:6px}#emMenu.on{display:block}.emm-it{display:flex;flex-direction:column;gap:1px;padding:9px 12px;cursor:pointer}.emm-it b{font-size:12px;letter-spacing:.08em;text-transform:uppercase}.emm-it span{font-size:12px;color:var(--soft)}.emm-it:hover{background:rgba(241,90,34,.08)}.emm-it:hover b{color:var(--orange)}
 .card-hi{box-shadow:0 0 0 3px var(--orange)!important;transition:box-shadow .3s}
+#p-em .emsec{display:none}#p-em .emsec.on{display:block}#p-em .emsec>.card{max-width:none}
 /* stress scenarios as bars */
 .sb-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .sbars{display:flex;flex-direction:column;gap:6px;font-size:13px}.sb-axisrow{border-top:0!important;padding:0!important}.sb-axis{position:relative;height:20px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft)}.sb-axis span{position:absolute;bottom:0;transform:translateX(-50%);white-space:nowrap}.sb-axis span i{display:block;width:1px;height:6px;background:var(--ink);margin:0 auto 1px}
@@ -751,17 +772,18 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
 <!-- APPROVALS -->
 <!-- FINANCIAL MODELLING (Options 2 and 3): exports, the model's assumptions, checks -->
 <section class="pane" id="p-em">
-  <div class="grid g2">
-    <div style="display:flex;flex-direction:column;gap:20px">
-      <div class="card"><div class="bar"></div><div class="sbhead"><h2>EstateMaster exports</h2><button class="btn sm" id="exUp" title="An Office Links → Excel export of the model">Upload export</button><input type="file" id="exFile" accept=".xlsx,.xlsm,.xls,.csv" hidden></div>
+  <div class="emsec" data-emsec="upload">
+<div class="card"><div class="bar"></div><div class="sbhead"><h2>EstateMaster exports</h2><button class="btn sm" id="exUp" title="An Office Links → Excel export of the model">Upload export</button><input type="file" id="exFile" accept=".xlsx,.xlsm,.xls,.csv" hidden></div>
         <div class="sub" id="exSub"></div><div style="overflow-x:auto"><table class="t" id="exT"></table></div></div>
-      <div class="card"><div class="bar"></div><div class="sbhead"><h2>Model assumptions</h2><input id="maQ" placeholder="Search" style="max-width:200px;font-size:13px;padding:6px 12px;border:1px solid var(--faint);border-radius:999px"><button class="btn ghost sm" id="maXls">Download (Excel)</button></div><div class="sub" id="maSub"></div><div style="overflow:auto;max-height:520px"><table class="t" id="maT"></table></div></div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:20px">
-      <div class="card"><div class="bar"></div><h2>Checks on the latest export</h2><div class="sub" id="exChkSub"></div><div id="exChecks"></div></div>
-      <div class="card"><div class="bar"></div><h2>Compare side by side</h2><div class="sub">Two exports of this model, or this model against another: EstateMaster’s figures, then every assumption that differs.</div><div class="cmp-pick"><select id="exA"></select><span class="cmp-vs">vs</span><select id="exB"></select></div><div id="exDiff" style="margin-top:10px"></div><div id="exFound"></div></div>
-
-    </div>
+  </div>
+  <div class="emsec" data-emsec="assumptions">
+<div class="card"><div class="bar"></div><div class="sbhead"><h2>Model assumptions</h2><input id="maQ" placeholder="Search" style="max-width:200px;font-size:13px;padding:6px 12px;border:1px solid var(--faint);border-radius:999px"><button class="btn ghost sm" id="maXls">Download (Excel)</button></div><div class="sub" id="maSub"></div><div style="overflow:auto;max-height:72vh"><table class="t" id="maT"></table></div></div>
+  </div>
+  <div class="emsec" data-emsec="checks">
+<div class="card"><div class="bar"></div><h2>Checks on the latest export</h2><div class="sub" id="exChkSub"></div><div id="exChecks"></div></div>
+  </div>
+  <div class="emsec" data-emsec="compare">
+<div class="card"><div class="bar"></div><h2>Compare side by side</h2><div class="sub">Two exports of this model, or this model against another: EstateMaster’s figures, then every assumption that differs.</div><div class="cmp-pick"><select id="exA"></select><span class="cmp-vs">vs</span><select id="exB"></select></div><div id="exDiff" style="margin-top:10px"></div><div id="exFound"></div></div>
   </div>
 </section>
 
@@ -1210,20 +1232,43 @@ function openFigWin(el){let w=$('#figWin');if(!w){w=document.createElement('div'
   const k=el.dataset.k||'calc',id=el.dataset.id,wk=id&&WORK.find(x=>x.id===+id);let text=el.dataset.w||(wk&&wk.text)||'';
   if(!text)text=k==='em'?'EstateMaster’s own figure, read from the latest export by row label.':k==='est'?replicaNote():'Worked out by the AI model from the figures in this answer. It did not state its working: treat it as unverified and check it in EstateMaster before it goes into a decision.';
   $('#fwNum').textContent=el.textContent;$('#fwTag').innerHTML=`<span class="tag tag-${k}" style="font-size:10px">${TAGK[k]}</span>`;$('#fwKind').textContent=TAGKIND[k];
-  $('#fwBody').innerHTML=figSchematic(text,k,el.textContent);w.classList.add('on');figExplainNumbers(text,k)}
+  $('#fwBody').innerHTML=figSchematic(text,k,el.textContent);w.classList.add('on');fwExplain(text,k,el.textContent)}
 /* ---- what each number in a working refers to: EstateMaster's own figures are matched first; the rest is explained by the fast AI route once per working ---- */
-const FIGX=new Map();
-function figNumMeaning(n){const x=latestExport(),o=x?x.out:{};const num=parseFloat(String(n).replace(/[,%]/g,''));if(!Number.isFinite(num))return'';
-  const near=(a,b)=>Math.abs(a-b)<=Math.max(.006,Math.abs(b)*.0015);
-  for(const [k,l,u] of EXROWS){const v=o[k];if(!Number.isFinite(v))continue;if(u==='M'){if(near(num,v/1e6)||near(num,v))return`${l}: EstateMaster’s figure (export ${x.id})`}else if(near(num,v))return`${l}: EstateMaster’s figure (export ${x.id})`}
-  const hf=hurdleFor();if(near(num,hf.v))return`The IRR hurdle (${hf.em?'EstateMaster’s target':'KINAN policy'})`;
-  for(const i of (x&&x.inputs)||[]){if(Number.isFinite(i.value)&&near(num,i.value))return`Input “${i.label}” in the export`}return''}
-function figExplainNumbers(text,k){const w=$('#figWin');if(!w)return;const els=[...w.querySelectorAll('.fw-n')];if(!els.length)return;
-  const seen=new Set();els.forEach(e=>{const m=figNumMeaning(e.dataset.n);e.dataset.tip=m||(apiOn()?'Explaining…':'Worked out by the AI from the figures above');if(m)e.classList.add('em');seen.add(e.dataset.n)});
-  if(!apiOn())return;const key=k+'|'+text;const go=FIGX.get(key)||(async()=>{const sys='You explain the numbers in a short real-estate development finance calculation. For each number listed, say in at most 10 words what it is and where it comes from (an EstateMaster figure, the change being tested, or a step of the arithmetic). Return JSON only: {"numbers":[{"n":"<number exactly as listed>","what":"..."}]}';
-      const user=`Working:\n${text}\n\nNumbers to explain: ${[...seen].join(' | ')}`;for(const {p,model} of chain('fast')){try{ROUTESTATS.calls++;const r=await callOne(p,model,sys,[{role:'user',content:user}],false,{max:1200,task:'answer'});const j=jsonFrom(r.text);const map={};(j.numbers||[]).forEach(z=>{if(z&&z.n)map[String(z.n).trim()]=String(z.what||'').slice(0,120)});return map}catch(e){continue}}return{}})();
-  FIGX.set(key,go);go.then(map=>{if(!document.body.contains(w)||!w.classList.contains('on'))return;w.querySelectorAll('.fw-n').forEach(e=>{if(e.classList.contains('em'))return;const m=map[e.dataset.n]||map[e.dataset.n.replace(/\s/g,'')];e.dataset.tip=m||'Part of the AI’s arithmetic (no further detail given)';if(m)e.classList.add('ai')})})}
-/* ---- the working as a schematic: base → change → result, the arithmetic as a formula, the checks as marks, the model named once at the bottom in italic ---- */
+/* ---- the arithmetic as a ladder of steps (what · how · = result); every number can be hovered for what it is.
+   Meanings: the step a number comes from (instant), then the AI's explanation of each number (one fast call, cached). ---- */
+const FWN=/(?<![\w.])\d[\d,]*(?:\.\d+)?(?:\s?(?:%|M\b|bn\b|k\b|x\b|yrs?\b|years?\b|months?\b|qtrs?\b|pts\b|bps\b))?/g;
+function fwNums(s,cls){s=String(s==null?'':s);let o='',i=0;for(const m of s.matchAll(FWN)){o+=esc(s.slice(i,m.index))+`<span class="fw-n${cls?' '+cls:''}" data-n="${esc(m[0])}">${esc(m[0])}</span>`;i=m.index+m[0].length}return o+esc(s.slice(i))}
+function fwCalc(l){const steps=String(l).split(/;\s+|\.\s+(?=[A-Z(])/).map(x=>x.trim().replace(/\.$/,'')).filter(Boolean);
+  return`<div class="fw-calc">${steps.map(st=>{let note='',c=st;const a=st.lastIndexOf('→');if(a>=0){note=st.slice(0,a).trim().replace(/,$/,'');c=st.slice(a+1).trim()}
+    const parts=c.split(/\s*(=|≈)\s*/);if(parts.length<3)return`<div class="fw-row note">${fwNums(st)}</div>`;
+    let label='',r=parts;if(/[a-z]{2}/i.test(parts[0])&&!/^[\d(]/.test(parts[0].trim())){label=parts[0];r=parts.slice(2)}
+    const res=r[r.length-1],op=r.length>1?r[r.length-2]:'=',expr=r.slice(0,-2).join(' ');
+    return`<div class="fw-row" data-label="${esc(label)}">${note?`<div class="fw-rnote">${fwNums(note)}</div>`:''}<span class="fw-rl">${esc(label)}</span><span class="fw-rx">${fwNums(expr)}</span><span class="fw-ro">${expr?esc(op):''}</span><span class="fw-rr">${fwNums(res,'res')}</span></div>`}).join('')}</div>`}
+const FWX=new Map();const fwVal=t=>{const v=parseFloat(String(t).replace(/,/g,''));return Number.isFinite(v)?v:NaN};
+function fwLocal(body,num){const ns=[...body.querySelectorAll('.fw-n')],res=[];
+  ns.forEach((n,i)=>{n.dataset.i=i;const row=n.closest('.fw-row'),lab=row&&row.dataset.label;let m='';
+    if(n.classList.contains('res'))m=lab?`Result of this step: ${lab}`:'Result of this step';
+    else{const v=fwVal(n.dataset.n),prev=res.find(x=>Math.abs(x.v-v)<1e-9*Math.max(1,Math.abs(v))&&x.el.compareDocumentPosition(n)&Node.DOCUMENT_POSITION_FOLLOWING);
+      if(prev)m=`${prev.lab||'An earlier step'} — worked out above`;else if(fwVal(num)===v)m='The figure itself'}
+    if(n.classList.contains('res'))res.push({v:fwVal(n.dataset.n),lab,el:n});n.dataset.m=m})}
+async function fwExplain(text,k,num){const body=$('#fwBody');if(!body)return;fwLocal(body,num);const ns=[...body.querySelectorAll('.fw-n')];if(!ns.length)return;
+  const hint=document.createElement('div');hint.className='fw-hint';body.prepend(hint);
+  const key=k+'|'+text,apply=a=>{(a||[]).forEach(x=>{const n=ns[+x.i];if(n&&x.meaning)n.dataset.m=String(x.meaning).slice(0,220),n.dataset.ai='1'})};
+  if(FWX.has(key)){apply(FWX.get(key));hint.textContent='Hover any number to see what it is.';return}
+  if(typeof apiOn!=='function'||!apiOn()){hint.textContent='Hover any number to see which step it comes from (connect AI in Settings for a full explanation of every number).';return}
+  hint.innerHTML='<span class="spin"></span> Hover any number to see what it is · the AI is explaining each figure…';
+  const list=ns.map((n,i)=>`${i}: "${n.dataset.n}" in “${(n.closest('.fw-row,.fw-row.note,details,div')||n).textContent.trim().slice(0,160)}”`).join('\n');
+  try{const r=await complete('You explain the working behind a real-estate development appraisal figure (EstateMaster model: equity, land, construction, sales, Murabaha debt, IRR, profit on cost) to a development manager. Reply with JSON only.',
+      `Figure: ${num} (${TAGKIND[k]||k})\nProject: ${typeof PROJ!=='undefined'?PROJ.name:''}\nWorking:\n${text}\n\nNumbers in the working (index: number in context):\n${list}\n\nFor every index, say in at most 18 plain words what the number is and where it comes from (an EstateMaster input or export figure, the change being tested, a result of an earlier step, a constant such as 1 in a formula, a unit conversion). Return {"n":[{"i":0,"meaning":"…"}]}.`,'fast');
+    const t=r.text||'',j=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1));FWX.set(key,j.n||[]);apply(j.n);hint.textContent='Hover any number to see what it is · explained by '+(typeof mName==='function'?mName(r.p,r.model):'the AI')+'.'}
+  catch(e){hint.textContent='Hover any number to see which step it comes from (the AI explanation is unavailable: '+String(e.message||e).slice(0,80)+').'}}
+function fwTip(n){let t=$('#fwTip');if(!t){t=document.createElement('div');t.id='fwTip';document.body.appendChild(t)}if(!n){t.style.display='none';document.querySelectorAll('.fw-n.hl').forEach(x=>x.classList.remove('hl'));return}
+  const v=fwVal(n.dataset.n);document.querySelectorAll('#fwBody .fw-n').forEach(x=>x.classList.toggle('hl',x!==n&&fwVal(x.dataset.n)===v));
+  t.innerHTML=`<b>${esc(n.dataset.n)}</b>${esc(n.dataset.m||'The AI is still explaining this number…')}${n.dataset.ai?'<em>explained by the AI · not an EstateMaster figure</em>':''}`;t.style.display='block';
+  const r=n.getBoundingClientRect(),w=t.offsetWidth,h=t.offsetHeight;t.style.left=Math.max(8,Math.min(innerWidth-w-8,r.left+r.width/2-w/2))+'px';t.style.top=(r.top-h-10<8?r.bottom+10:r.top-h-10)+'px'}
+document.addEventListener('mouseover',e=>{const n=e.target.closest&&e.target.closest('#fwBody .fw-n');if(n)fwTip(n);else if(e.target.closest&&e.target.closest('#figWin'))fwTip(null)});
+document.addEventListener('click',e=>{const n=e.target.closest&&e.target.closest('#fwBody .fw-n');if(n)fwTip(n);else if($('#fwTip'))fwTip(null)},true);
+/* ---- the working as a schematic: base → change → result, the arithmetic as a ladder of steps, the checks ---- */
 const MODEL_RX=/^(Claude[^:]*|OpenAI[^:]*|GPT[^:]*|Anthropic[^:]*|Analyst \w+)\s*:\s*(.+)$/;
 function figSchematic(text,k,num){const lines=String(text||'').split('\n').map(l=>l.trim());const models=[],checks=[],notes=[],math=[],flow={},methods=[];let status='',chg='',base='',me=null;
   const isMath=l=>/[=]/.test(l)&&/\d/.test(l)&&/[+\-−×x*/÷]/.test(l)&&!/[a-z]{4,}\s+[a-z]{4,}\s+[a-z]{4,}/i.test(l.replace(/\b(million|thousand|SAR|USD|pts|points)\b/gi,''));
@@ -1242,8 +1287,8 @@ function figSchematic(text,k,num){const lines=String(text||'').split('\n').map(l
   const stPill=!status?'':/agree/i.test(status)&&!/differ/i.test(status)?'<span class="pill p">cross-checked · agree</span>':/After the review they agree|reconciled/i.test(status)?'<span class="pill p">cross-checked · reconciled</span>':/still differ|arbitrat/i.test(status)?'<span class="pill s">cross-checked · still apart</span>':/Only one|not cross-checked/i.test(status)?'<span class="pill s">one model · not cross-checked</span>':'';
   let h='';
   if(base||chg)h+=`<div class="fw-flow"><div class="fw-tile"><small>EstateMaster now</small><b>${esc(base.replace(/\s*\(.*$/,''))||'—'}</b><em>${esc((base.match(/\((.*)\)/)||[])[1]||'')}</em></div><span class="fw-arr">→</span><div class="fw-tile chg"><small>Change tested</small><b>${esc(chg||'—')}</b></div><span class="fw-arr">→</span><div class="fw-tile res"><small>Result</small><b>${esc(num||'')}</b><em>AI estimate</em></div></div>`;
-  const mathBlock=l=>`<div class="fw-math">${esc(l).replace(/\s*=\s*/g,' <span>=</span> ').replace(/(?<![A-Za-z0-9-])(-?\d[\d,]*(?:\.\d+)?\s?(?:%|[MKBmkb]\b)?)/g,m=>`<em class="fw-n" data-n="${esc(m.trim())}" data-tip="Explaining…">${m}</em>`)}</div>`;
-  if(models.length)h+=`<div class="fw-models">${models.map(m=>`<div class="fw-model"><div class="fw-mv">${esc(m.value)}</div>${m.work.filter(isMath).map(mathBlock).join('')}${m.work.filter(x=>!isMath(x)).length?`<details class="fw-det"><summary>working</summary>${m.work.filter(x=>!isMath(x)).map(esc).join('<br>')}</details>`:''}</div>`).join('')}</div>`;
+  const mathBlock=l=>fwCalc(l);
+  if(models.length)h+=`<div class="fw-models">${models.map(m=>`<div class="fw-model"><div class="fw-mv">${esc(m.value)}</div>${m.work.filter(isMath).map(mathBlock).join('')}${m.work.filter(x=>!isMath(x)).length?`<details class="fw-det"><summary>working</summary>${m.work.filter(x=>!isMath(x)).map(x=>fwNums(x)).join('<br>')}</details>`:''}</div>`).join('')}</div>`;
   if(math.length)h+=math.map(mathBlock).join('');
   if(stPill)h+=`<div class="fw-st">${stPill}</div>`;
   if(checks.length)h+=`<div class="fw-checks">${checks.map(c=>`<div class="fw-ck ${c.bad?'bad':c.ok?'ok':''}"><i>${c.bad?'✕':c.ok?'✓':'!'}</i><span>${esc(c.text)}</span></div>`).join('')}</div>`;
@@ -2033,7 +2078,7 @@ function crCard(c){
 const FEED_OPEN=new Set();let FEED_FILTER='all';
 function crChangeTiles(c){const rows=c.rows||[];if(!rows.length)return c.ops&&c.ops.length?`<div class="cr-note">${esc(stripTags(opsDesc(c.ops)))}</div>`:'';
   return`<div class="cr-chg">${rows.map(([l,f,t])=>`<div class="cr-tile"><small>${esc(stripTags(String(l)))}</small><div class="cr-vals"><span class="cr-now"><em>now</em>${stripTags(String(f))||'—'}</span><span class="cr-arr">→</span><span class="cr-new"><em>proposed</em>${stripTags(String(t))}</span></div></div>`).join('')}</div>`}
-function crKind(c){return c.kind==='email'?'From email':c.kind==='agent'||c.kind==='suggestion'?'Agent suggestion':c.kind==='newmodel'?'New model':c.kind==='manual'?'Manual change':c.kind==='connect'?'Model connection':'Promotion'}
+function crKind(c){return c.kind==='email'?'From email':c.kind==='suggestion'&&c.source==='Market data'?'Market data':c.kind==='agent'||c.kind==='suggestion'?'Agent suggestion':c.kind==='newmodel'?'New model':c.kind==='manual'?'Manual change':c.kind==='connect'?'Model connection':'Promotion'}
 function crAsk(c){if(c.kind==='newmodel'&&c.def)return`Create the model “${c.def.name}” in EstateMaster`;if(c.kind==='connect')return`Connect the control workbook ${c.file||''}`;if(c.kind==='promotion')return'Promote the sandbox scenario to the live model';
   const rows=(c.rows||[]).map(r=>`${stripTags(String(r[0]))}: ${stripTags(String(r[1]))} → ${stripTags(String(r[2]))}`);return rows.length?rows.join('; '):stripTags(opsDesc(c.ops))}
 function crFrom(c,short){let by=String(c.by||'').replace(/\s*\(.*\)$/,'');if(c.kind==='email'){const src=(c.ops||[]).map(o=>o.src).find(Boolean),e=src&&DATA.emails.find(x=>x.id===src.eid),parts=String(c.title||'').split(' · ');by=e?e.from.split(' · ')[0].replace(/\s*<.*$/,''):(parts.length>1?parts[parts.length-1]:by);const subj=c.subject||(e&&e.subject)||parts[0];return short?`${by} · “${subj}”`:`proposed by ${by} in the email “${subj}”`}if(c.kind==='agent'||c.kind==='suggestion')return short?`the agent${c.source?' · '+c.source:''}`:`suggested by the agent${c.source?' ('+c.source+')':''}`;return short?by:`raised by ${by}`}
@@ -2969,6 +3014,7 @@ function simOut(){const r=run(S),n=v=>+(+v).toFixed(2);return{levered_irr:n(bad(
 function addExport(src,note,out,file,cr,extra){
   const x={id:'EX-'+String(EXN++).padStart(3,'0'),proj:PROJ.id,at:new Date().toISOString(),src,note,file:file||'',cr:cr||'',out,sig:wcSig(),opt:(extra&&extra.opt)||'',sens:(extra&&extra.sens)||[],inputs:(extra&&extra.inputs)||[],cells:(extra&&extra.cells)||{},meta:(extra&&extra.meta)||null,sheets:(extra&&extra.sheets)||[]};
   EXPORTS.push(x);if(EXPORTS.length>500)EXPORTS=EXPORTS.slice(-500);syncEMLast(true);
+  if(src==='file')setTimeout(()=>{try{runSuggestions('after '+x.id,true,'Market data')}catch(e){}},0);
   logEvent({kind:'export',actor:src==='file'?`${USERS.web} (${WS_ROLE})`:'Analyst (simulated)',channel:'EstateMaster export',detail:`${x.id} read${file?' from '+file:''}${x.opt?` · option “${x.opt}”`:''}${x.sens.length?` · ${x.sens.length} sensitivity table${x.sens.length>1?'s':''}`:''}: ${note}${Number.isFinite(out.levered_irr)?` · levered IRR ${out.levered_irr.toFixed(2)}%`:''}${src==='file'?'':' (simulated export: demo stand-in for EstateMaster)'}`,cr:cr||''});
   return x}
 function syncEMLast(force){const x=latestExport();if(!x){if(EMLAST&&EMLAST.proj===PROJ.id&&EMLAST.kind==='export')EMLAST=null;return}
@@ -3510,7 +3556,7 @@ function asTip(r,i,k){const {X,Y,mk}=r,v=r.grid[i][k],st=r.status[i][k],u=MET[mk
   if(h!=null)lines.push(`${vs(v,h,(ah!=null?'this row’s target ':'the hurdle ')+fMet(mk,h))}${v>=h?' · clears it':' · below it'}`+(ah!=null?'':` (${hurdleFor().em?'EstateMaster’s target':'KINAN policy'})`));if(r.base!=null&&st!=='em')lines.push(vs(v,r.base,'EstateMaster’s base'));
   lines.push('',st==='em'?'EstateMaster’s own base figure (from the export)':st==='agree'?`${na} and ${nb} agree: average shown`:st==='reconciled'?`${na} and ${nb} agreed after reviewing each other`:st==='apart'?`${na} and ${nb} still differ: average shown, treat with care`:st==='odd'?'Breaks the trend of its row or column: check in EstateMaster':`${na} only: not cross-checked`,'Click for the full working');
   return lines.join('\n')}
-let HMTIP=null;const TIPSEL='.hm .c[data-tip], .hm-c[data-tip], .sb-row[data-tip], .fw-n[data-tip]';
+let HMTIP=null;const TIPSEL='.hm .c[data-tip], .hm-c[data-tip], .sb-row[data-tip]';
 document.addEventListener('mouseover',e=>{const c=e.target.closest(TIPSEL);if(!c){if(HMTIP){HMTIP.remove();HMTIP=null}return}
   if(!HMTIP){HMTIP=document.createElement('div');HMTIP.className='hm-tip';document.body.appendChild(HMTIP)}HMTIP.textContent=c.dataset.tip;HMTIP.style.display='block'});
 document.addEventListener('mousemove',e=>{if(!HMTIP||HMTIP.style.display==='none')return;const w=HMTIP.offsetWidth,hh=HMTIP.offsetHeight;let x=e.clientX+16,y=e.clientY+16;if(x+w>innerWidth-8)x=e.clientX-w-12;if(y+hh>innerHeight-8)y=e.clientY-hh-12;HMTIP.style.left=x+'px';HMTIP.style.top=y+'px'});
@@ -3536,19 +3582,24 @@ function asPlain(r){if(r.em){const t=r.em.table;return`*Sensitivity: ${MET[r.mk]
 function renderAiSens(){const g=$('#asGrid');if(!g)return;if(!AS.res){g.innerHTML='<div class="sub" style="margin:0">Describe the two assumptions and press Generate.</div>';return}g.innerHTML=asHTML(AS.res)}
 async function asGenerate(){if(AS.busy)return;const tx=($('#asX').value||'').trim(),ty=($('#asY').value||'').trim();if(!tx||!ty){toast('Write what to stress by each axis');return}
   if(!apiOn()){$('#asStat').textContent='Connect Claude and OpenAI in Settings → AI & routing to generate the table.';return}
-  AS.busy=true;$('#asGo').disabled=true;const steps=$('#asSteps');steps.innerHTML='';$('#asQ').innerHTML='';AS.t0=Date.now();AS.cur='Starting';
-  const tick=()=>{const el=$('#asStat');if(!el)return;const t=Math.round((Date.now()-AS.t0)/1000);el.innerHTML=`<span class="as-timer"><span class="spin"></span><b>${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}</b> Generating the table · ${esc(AS.cur)}</span>`};tick();AS.tm=setInterval(tick,1000);
-  const step=async t=>{AS.cur=t;steps.insertAdjacentHTML('beforeend',`<div class="st done"><i></i><span>${esc(t)}</span></div>`)};
+  AS.busy=true;$('#asGo').disabled=true;const steps=$('#asSteps');steps.innerHTML='';$('#asQ').innerHTML='';$('#asStat').textContent='';
+  // a running clock and the current step while the table loads; the estimate comes from how long recent tables took
+  let past=[];try{past=JSON.parse(localStorage.getItem('bohioAsSecs')||'[]')}catch(e){}const est=past.length?Math.round(past.reduce((a,b)=>a+b,0)/past.length):0,t0=Date.now(),mmss=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  steps.insertAdjacentHTML('beforebegin','<div class="as-run" id="asRun"><span class="spin"></span><b id="asClock">0:00</b><span class="as-now" id="asNow">Starting…</span><span class="as-est" id="asEst"></span></div><div class="as-bar" id="asBar"><i></i></div>');
+  const tick=()=>{const s=Math.floor((Date.now()-t0)/1000);if($('#asClock'))$('#asClock').textContent=mmss(s);if($('#asEst'))$('#asEst').textContent=est?(s<est?`usually about ${mmss(est)}`:'taking a little longer than usual'):'';const b=$('#asBar i');if(b)b.style.width=(est?Math.min(95,s/est*100):Math.min(90,100*(1-Math.exp(-s/40))))+'%'};tick();const clock=setInterval(tick,250);
+  const stopClock=(msg,keep)=>{clearInterval(clock);const s=Math.round((Date.now()-t0)/1000);$('#asRun')&&$('#asRun').remove();$('#asBar')&&$('#asBar').remove();steps.querySelectorAll('.st.now').forEach(x=>{x.classList.remove('now');x.classList.add('done')});if(msg)$('#asStat').textContent=msg.replace('{t}',mmss(s));if(keep&&s>2){past=[...past,s].slice(-5);try{localStorage.setItem('bohioAsSecs',JSON.stringify(past))}catch(e){}}};
+  const step=async t=>{steps.querySelectorAll('.st.now').forEach(x=>{x.classList.remove('now');x.classList.add('done')});steps.insertAdjacentHTML('beforeend',`<div class="st now"><i></i><span>${esc(t)}</span></div>`);if($('#asNow'))$('#asNow').textContent=t};
+  let outcome='';
   try{if(AS.txt.x!==tx){AS.thread.x=[];AS.x=null;AS.txt.x=tx}if(AS.txt.y!==ty){AS.thread.y=[];AS.y=null;AS.txt.y=ty}
     const n=+$('#asN').value,mk=$('#asMetric').value,need=[['x',tx],['y',ty]].filter(([a])=>!AS[a]);
     if(need.length){await step('Pinning down the assumptions');const pins=await Promise.all(need.map(([a,t])=>asPinpoint(a,t)));const qs=[];
       need.forEach(([a],i)=>{const j=pins[i];if(j.sure===false&&j.question)qs.push([a,j]);else AS[a]=asPin(j,n)});
       if(qs.length){AS.pendQ=Object.fromEntries(qs.map(([a,j])=>[a,j.question]));$('#asQ').innerHTML=qs.map(([a,j])=>`<div class="as-ask" data-asax="${a}"><b>${a.toUpperCase()} axis · ${esc(j.question)}</b><div class="chips" style="margin:6px 0">${(j.options||[]).map(o=>`<span class="chip" data-asopt="${esc(o)}">${esc(o)}</span>`).join('')}</div><form class="as-ansf" style="display:flex;gap:6px"><input placeholder="or answer in your own words" style="flex:1"><button class="btn ghost sm">Answer</button></form></div>`).join('');
-        await step('The agent needs an answer before it calculates');return}}
+        await step('The agent needs an answer before it calculates');outcome='wait';return}}
     await step(`X: ${AS.x.assumption} (${AS.x.shifts.map(v=>asShift(AS.x,v)).join(' · ')}) · Y: ${AS.y.assumption} (${AS.y.shifts.map(v=>asShift(AS.y,v)).join(' · ')})`);
-    const em=asEmTable(AS.x,AS.y,mk);if(em){await step('EstateMaster’s export holds this table: its own figures are shown');AS.res={em,mk};renderAiSens();return}
-    AS.res=await aiSensGrid(AS.x,AS.y,mk,step);renderAiSens();saveMem()}
-  catch(e){clearInterval(AS.tm);$('#asStat').textContent=e.message}finally{clearInterval(AS.tm);AS.busy=false;$('#asGo').disabled=false;if(!$('#asStat').textContent.trim()||/Generating the table/.test($('#asStat').textContent)){const t=Math.round((Date.now()-AS.t0)/1000);$('#asStat').innerHTML=AS.res?`<span class="as-timer done">Generated in ${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}</span>`:''}}}
+    const em=asEmTable(AS.x,AS.y,mk);if(em){await step('EstateMaster’s export holds this table: its own figures are shown');AS.res={em,mk};renderAiSens();outcome='em';return}
+    AS.res=await aiSensGrid(AS.x,AS.y,mk,step);renderAiSens();saveMem();outcome='done'}
+  catch(e){outcome='err';stopClock(e.message)}finally{if(outcome==='done')stopClock('Generated in {t}.',true);else if(outcome==='wait')stopClock('Waiting for your answer · {t} so far.');else if(outcome==='em')stopClock('Read from EstateMaster in {t}.');else if(outcome!=='err')stopClock('');AS.busy=false;$('#asGo').disabled=false}}
 function asAnswer(axis,answer){const q=AS.pendQ[axis]||'';AS.thread[axis].push({q,a:answer});delete AS.pendQ[axis];AS[axis]=null;asGenerate()}
 
 /* ================= the Daily feed: the effect of every proposed change, worked out live by the AI ================= */
@@ -4042,8 +4093,23 @@ function parseNapkin(t){
 }
 
 /* ================= ASSUMPTION SUGGESTIONS (email is one source among several) ================= */
-function suggestionCandidates(){
+/* Market data recommendations for a model read from an EstateMaster export: every input the market feed covers (rent,
+   sale price, cap rate, build cost, land, contingency, finance rate, commission) that sits outside the P25–P75 range
+   becomes a suggested change to the market median. Raised into the Daily feed; nothing is applied until approved. */
+function marketSuggestions(){
+  const x=latestExport();if(!x||!x.inputs||!x.inputs.length)return[];
+  const m=marketVsInputs(x.inputs,x.meta||{}),out=[];
+  for(const r of m.rows){if(r.status==='within'||!Number.isFinite(r.med))continue;
+    const to=r.pct?+r.med.toFixed(2):+(r.med/r.fx).toFixed(r.med/r.fx<100?2:0),id='xin:'+r.input,unit=r.pct?'%':`${r.ccy}${r.unit}`;
+    const fmt=v=>r.pct?`${v}%`:`${r.ccy} ${Number(v).toLocaleString('en-GB')}${r.unit}`;
+    out.push({key:'mkt:'+r.k,source:'Market data',title:`${r.item} ${r.status} the market range — ${r.aggressive?'optimistic':'conservative'}`,
+      ops:[{t:'xline',id,v:to,def:{id,label:r.input,unit,base:r.val,g:r.sheet||'Input'}}],
+      rows:[[`${r.input} <span style="color:var(--soft);font-size:11px">${r.sheet||'Input'}</span>`,r.model,fmt(to)]],
+      why:`${r.text} Benchmark: ${m.bench}, P25–P75 ${r.market}${m.fx?' · '+m.fx:''}. Suggested: ${r.input} to the market median, ${fmt(to)}${r.aggressive?' — the model is on the optimistic side of the evidence':' — the model is more cautious than the evidence'}.`})}
+  return out}
+function suggestionCandidates(only){
   const c=[],m=mk(),p=apply(S);
+  c.push(...marketSuggestions());if(only)return c.filter(s=>s.source===only);
   if(PROJ.comps.includes('res')&&m.nP>=5){const pr=prank(m.Pv,p.price);if(pr>=.9||pr<=.1)c.push({key:'mkt-price',source:'Market data',title:'Sale price outside the comps range',ops:[{t:'mods',mods:{price:+((m.P.p50/BASE.price-1)*100).toFixed(1)}}],why:pr>=.5?`The model’s sale price of SAR ${Math.round(p.price).toLocaleString()}/sqm is higher than ${Math.round(pr*100)}% of the ${m.nP} comparable sales recorded in ${SCOPES[MK.scope]} over the last ${MK.per} months. The market median is SAR ${Math.round(m.P.p50).toLocaleString()}/sqm, so the agent proposes moving the model to the median.`:`The model’s sale price of SAR ${Math.round(p.price).toLocaleString()}/sqm is lower than ${Math.round((1-pr)*100)}% of the ${m.nP} comparable sales recorded in ${SCOPES[MK.scope]} over the last ${MK.per} months. The market median is SAR ${Math.round(m.P.p50).toLocaleString()}/sqm, so the agent proposes moving the model to the median.`})}
   if(PROJ.comps.includes('ret')&&m.nR>=5){const pr=prank(m.Rv,p.rent);if(pr>=.9||pr<=.1)c.push({key:'mkt-rent',source:'Market data',title:'Retail rent outside the leases range',ops:[{t:'mods',mods:{rent:+((m.R.p50/BASE.rent-1)*100).toFixed(1)}}],why:pr>=.5?`The model’s retail rent of SAR ${Math.round(p.rent).toLocaleString()}/sqm is higher than ${Math.round(pr*100)}% of the ${m.nR} comparable leases. The market median is SAR ${Math.round(m.R.p50).toLocaleString()}/sqm, so the agent proposes moving the model to the median.`:`The model’s retail rent of SAR ${Math.round(p.rent).toLocaleString()}/sqm is lower than ${Math.round((1-pr)*100)}% of the ${m.nR} comparable leases. The market median is SAR ${Math.round(m.R.p50).toLocaleString()}/sqm, so the agent proposes moving the model to the median.`})}
   if(PROJ.id==='narjis'){
@@ -4059,13 +4125,13 @@ function suggestionCandidates(){
   if(FIX.cont<.05&&PROJ.id==='narjis')c.push({key:'cont',source:'Risk policy',title:'Contingency below 5% while construction is under 25% complete',ops:[{t:'line',id:'ct',v:5}],why:`Contingency ${(FIX.cont*100).toFixed(1)}% with construction ${(REG.filter(l=>l.agg==='cost').reduce((a,l)=>a+ACT[l.id].prog*l.base,0)/REG.filter(l=>l.agg==='cost').reduce((a,l)=>a+l.base,0)*100).toFixed(0)}% complete.`});
   return c;
 }
-function runSuggestions(label,quiet){
+function runSuggestions(label,quiet,only){
   const raised=[];
-  for(const s_ of suggestionCandidates()){
+  for(const s_ of suggestionCandidates(only)){
     const sig=PROJ.id+'|'+s_.key+'|'+JSON.stringify(s_.ops);
     if(APQ.some(c=>c.sig===sig))continue;   // never re-raise the same suggestion
     const same=JSON.stringify(s_.ops);if(APQ.some(c=>c.status==='pending'&&JSON.stringify(c.ops.map(o=>{const{src,...r}=o;return r}))===same))continue;   // already proposed from another source
-    raised.push(raiseCR('suggestion',`Bohio agent (assumption review${label?' '+label:''})`,s_.title,s_.ops,{channel:'Assumption review',why:s_.why,source:s_.source,sig}));
+    raised.push(raiseCR('suggestion',`Bohio agent (assumption review${label?' '+label:''})`,s_.title,s_.ops,{channel:'Assumption review',why:s_.why,source:s_.source,sig,...(s_.rows?{rows:s_.rows}:{})}));
   }
   if(raised.length||!quiet)logEvent({kind:'review',actor:'Bohio agent',channel:'Assumption review',detail:`Assumption review${label?' '+label:''}: ${raised.length} suggestion${raised.length===1?'':'s'} raised${raised.length?' ('+raised.map(c=>c.id).join(', ')+')':''}`});
   renderApprovals();return raised;
@@ -6007,11 +6073,15 @@ function showTab(id){if(id==='inbox'||id==='arch'||id==='market'){openSettings(i
 $('#tabs').innerHTML=`<div class="tab-model" id="tabModel" title="Financial models: the left menu"></div>`+MTABS.map(([id,l])=>`<div class="tab" data-t="${id}">${l}</div>`).join('')+GTABS.map(([id,l])=>`<div class="tab gtab-hidden" data-t="${id}">${l}</div>`).join('');
 $$('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.t));
 /* Financial modelling: the tab opens a menu to the four cards of the page */
-{const em=$('.tab[data-t="em"]');if(em){em.innerHTML='Financial modelling <span class="tab-car">▾</span>';const EMM=[['Upload','EstateMaster exports','exUp'],['Checks','Checks on the latest export','exChecks'],['Assumptions','Model assumptions','maT'],['Compare','Compare exports','exDiff'],['What-if','Test assumptions: what-if and the AI sensitivity table','@model']];
+{const em=$('.tab[data-t="em"]');if(em){em.innerHTML='Financial modelling <span class="tab-car">▾</span>';const EMM=[['Upload','EstateMaster exports','upload'],['Checks','Checks on the latest export','checks'],['Assumptions','Model assumptions','assumptions'],['Compare','Compare exports','compare']];
+  // one section at a time, across the full page; the menu picks it and the tab reopens the last one
+  window.emSection=id=>{let k=id;try{k=k||localStorage.getItem('bohioEmSec')||'upload'}catch(e){k=k||'upload'}if(!EMM.some(x=>x[2]===k))k='upload';$$('#p-em .emsec').forEach(d=>d.classList.toggle('on',d.dataset.emsec===k));try{localStorage.setItem('bohioEmSec',k)}catch(e){}$$('#emMenu .emm-it').forEach(d=>d.classList.toggle('on',d.dataset.emgo===k));return k};
   const menu=document.createElement('div');menu.id='emMenu';menu.innerHTML=EMM.map(([l,sub,id])=>`<div class="emm-it" data-emgo="${id}"><b>${l}</b><span>${sub}</span></div>`).join('');document.body.appendChild(menu);
   const place=()=>{const r=em.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(r.left,innerWidth-menu.offsetWidth-8))+'px';menu.style.top=(r.bottom+2)+'px'};
-  em.onclick=e=>{e.stopPropagation();showTab('em');menu.classList.toggle('on');if(menu.classList.contains('on'))place()};
-  menu.onclick=e=>{const it=e.target.closest('[data-emgo]');if(!it)return;menu.classList.remove('on');if(it.dataset.emgo[0]==='@'){showTab(it.dataset.emgo.slice(1));return}showTab('em');const card=$('#'+it.dataset.emgo)&&$('#'+it.dataset.emgo).closest('.card');if(card){card.scrollIntoView({behavior:'smooth',block:'start'});card.classList.add('card-hi');setTimeout(()=>card.classList.remove('card-hi'),1600)}};
+  em.onclick=e=>{e.stopPropagation();emSection();showTab('em');menu.classList.toggle('on');if(menu.classList.contains('on'))place()};
+  menu.onclick=e=>{const it=e.target.closest('[data-emgo]');if(!it)return;menu.classList.remove('on');emSection(it.dataset.emgo);showTab('em');window.scrollTo({top:0,behavior:'smooth'})};
+  emSection();
+  setTimeout(()=>{try{runSuggestions('on opening',true,'Market data')}catch(e){}},1200);
   document.addEventListener('click',e=>{if(!e.target.closest('#emMenu'))menu.classList.remove('on')});addEventListener('resize',()=>{if(menu.classList.contains('on'))place()});addEventListener('scroll',()=>{if(!menu.classList.contains('on'))return;const r=em.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)menu.classList.remove('on');else place()},true)}}
 kTitle('report');$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-report'));
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
