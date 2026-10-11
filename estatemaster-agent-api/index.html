@@ -215,6 +215,8 @@ body.chatopen .kdock{display:flex}
 .kdock .inputrow .btn{padding:9px 16px;font-size:9px;letter-spacing:.2em}
 .kdock .xhint{padding:0 16px 10px;font-size:10.5px}
 .msg{border-radius:2px;font-size:12px;line-height:1.6;padding:11px 13px;animation:kUp .3s ease both}
+#hurBar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:0 0 14px;padding:12px 18px;background:#fff;border:1px solid var(--hair);border-left:3px solid var(--orange);font-size:13px}#hurBar .hb-q{flex:1;min-width:260px;line-height:1.5}#hurBar .hb-f{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#hurBar input{width:72px;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--faint)}#hurBar .hb-ai{flex-basis:100%;font-size:12.5px;color:var(--ink2)}#hurBar .hb-ai:empty{display:none}
+.msg.divider{align-self:center;background:none;border:0;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--soft);padding:4px 0;max-width:none}#msgs.swap{animation:chatSwap .35s ease}@keyframes chatSwap{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .msg.agent{background:#f6f5f3;border:0;border-left:3px solid var(--orange);max-width:100%}
 .msg.user{background:var(--ink);color:#fff;max-width:88%}
 .kmeta{margin-top:6px;font-size:9px;color:var(--soft)}
@@ -256,7 +258,7 @@ body.chatopen .chat-fab{display:none}
 .kchart .kd-chart{margin:0}.kchart .kd-kicker{display:none}.kchart .kd-h2{font-size:14px;margin-top:0;letter-spacing:0;white-space:normal}.kchart .kd-mask{display:inline;overflow:visible}.kchart .kd-rise{display:inline}.kchart .kd-sub{font-size:11.5px}.kchart .kd-svgnum{font-size:26px}.kchart .kd-svglab{font-size:20px}
 .kchart .kd-hrow{font-size:12px}.kchart .kd-ring-v{font-size:18px}.kchart table.t{font-size:12px}
 .calc{display:inline-block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:#fff;background:var(--alert);padding:1px 6px;margin-left:4px;vertical-align:middle;border-radius:3px;cursor:help}
-.as-x{display:flex;gap:10px;align-items:center;margin:12px 0 10px}.as-x input,.as-y input{font:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--faint);border-radius:0;background:#fff;min-width:0}.as-x input{flex:1}.as-axl{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--taupe);font-weight:700;white-space:nowrap}.as-body{display:grid;grid-template-columns:190px minmax(0,1fr);gap:14px;align-items:center}.as-y{display:flex;flex-direction:column;gap:8px}.as-grid{min-height:120px}.as-grid .hm .c{aspect-ratio:1.9;border-radius:0}.as-grid .hm .c .fig{cursor:pointer;border-bottom:0;color:inherit}.as-grid .hm .c.apart{box-shadow:inset 0 0 0 2px #b7791f}.as-ask{margin:10px 0;padding:10px 12px;border-left:3px solid var(--orange);background:#fafafa;font-size:12.5px}.as-ask form input{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--faint)}@media(max-width:800px){.as-body{grid-template-columns:1fr}}
+.as-x{display:flex;gap:10px;align-items:center;margin:12px 0 10px}.as-x input,.as-y input{font:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--faint);border-radius:0;background:#fff;min-width:0}.as-x input{flex:1}.as-axl{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--taupe);font-weight:700;white-space:nowrap}.as-axes{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 12px;align-items:center;margin:12px 0 10px}.as-axes .as-x{margin:0}.as-axes .as-axl{min-width:64px}.as-go{grid-row:1/3;align-self:stretch;display:flex}.as-go .btn{height:100%}.as-body{display:block}.as-y{display:flex;flex-direction:column;gap:8px}.as-grid{min-height:120px}.as-grid .hm .c{aspect-ratio:1.9;border-radius:0}.as-grid .hm .c .fig{cursor:pointer;border-bottom:0;color:inherit}.as-grid .hm .c.apart{box-shadow:inset 0 0 0 2px #b7791f}.as-ask{margin:10px 0;padding:10px 12px;border-left:3px solid var(--orange);background:#fafafa;font-size:12.5px}.as-ask form input{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--faint)}@media(max-width:800px){.as-axes{grid-template-columns:1fr}.as-go{grid-row:auto}}
 .qchip{display:inline-block;border:1px solid var(--hair);background:#fff;font-size:12px;padding:6px 11px;margin:0 6px 6px 0;cursor:pointer}.qchip:hover{background:var(--ink);color:#fff;border-color:var(--ink)}
 .cr-ll{display:block;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--taupe);font-weight:700;margin-bottom:4px}
 .cr-lead,.cr-why{display:grid;grid-template-columns:86px minmax(0,1fr);gap:12px;align-items:start;padding:10px 0;border-bottom:1px solid rgba(46,46,47,.08);font-size:13.5px;line-height:1.55}.cr-lead .cr-ll,.cr-why .cr-ll{margin:3px 0 0}
@@ -349,7 +351,8 @@ body.xproj .rep-only{display:none!important}
 .rcp-offer{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .rcp-offer button{border:1px dashed var(--faint);background:none;color:var(--ink);font:inherit;font-size:12px;letter-spacing:0;text-transform:none;font-weight:400;padding:3px 9px;cursor:pointer}.rcp-offer button:hover{border-color:var(--orange);color:var(--orange)}
 
-.hm-tip{position:fixed;z-index:500;max-width:320px;padding:10px 12px;background:#2e2e2f;color:#fff;font-size:12px;line-height:1.45;white-space:pre-line;border-radius:4px;box-shadow:0 10px 30px rgba(46,46,47,.3);pointer-events:none;display:none}
+.hm-tip{position:fixed;z-index:500;max-width:340px;padding:8px;background:#fff;color:var(--ink);font-size:12.5px;line-height:1.45;border:1px solid var(--hair);border-radius:8px;box-shadow:0 14px 40px rgba(46,46,47,.22);pointer-events:none;display:none}
+.hm-tip .tt{padding:8px 10px;background:rgba(46,46,47,.045);border-radius:6px}.hm-tip .tt+.tt{margin-top:6px}.hm-tip .tt div{display:flex;justify-content:space-between;gap:14px}.hm-tip .tt span{color:var(--ink2)}.hm-tip .tt b{font-weight:700;white-space:nowrap}.hm-tip .tt.note{background:none;padding:4px 10px 0;font-size:11.5px;color:var(--soft)}.hm-tip .tt.note b{font-weight:600;color:var(--ink2);white-space:normal}
 .as-scale{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--soft);margin-top:8px}.as-scale i{display:inline-block;flex:0 0 160px;height:10px;border-radius:2px}
 .calcby{margin-top:6px;color:var(--soft);font-size:11.5px}.calcby i{font-style:italic}
 .hm .c{cursor:pointer;transition:transform .12s,box-shadow .12s}.hm .c:hover{transform:scale(1.07);box-shadow:0 6px 18px rgba(46,46,47,.25);z-index:2;position:relative}
@@ -826,8 +829,8 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
   <div class="card" id="aiSensCard" style="margin-bottom:20px">
     <div class="bar"></div><div class="sbhead"><h2>Sensitivity table</h2><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px"><label>Metric <select id="asMetric"></select></label><label>Grid <select id="asN"><option>5</option><option selected>7</option><option>9</option></select></label></div></div>
     <div class="sub">Write in plain words what to stress on each axis. The agent pins down the exact assumption of the model (and asks if it is unsure), then Claude and OpenAI each calculate every cell from EstateMaster’s figures and check each other’s working. Where EstateMaster’s export already holds the same table, EstateMaster’s own figures are shown instead.</div>
-    <div class="as-x"><span class="as-axl">X axis →</span><input id="asX" placeholder="e.g. construction cost, from −20% to +20%"><button class="btn" id="asGo">Generate</button></div>
-    <div class="as-body"><div class="as-y"><span class="as-axl">Y axis ↑</span><input id="asY" placeholder="e.g. the sale price of the villas"></div><div id="asGrid" class="as-grid"><div class="sub" style="margin:0">Describe the two assumptions and press Generate.</div></div></div>
+    <div class="as-axes"><div class="as-x"><span class="as-axl">X axis →</span><input id="asX" placeholder="e.g. construction cost, from −20% to +20%"></div><div class="as-x as-yrow"><span class="as-axl">Y axis ↑</span><input id="asY" placeholder="e.g. the sale price of the villas"></div><div class="as-go"><button class="btn" id="asGo">Generate</button></div></div>
+    <div class="as-body"><div id="asGrid" class="as-grid"><div class="sub" style="margin:0">Describe the two assumptions and press Generate.</div></div></div>
     <div id="asQ"></div>
     <div class="steps" id="asSteps" style="margin-top:8px"></div><div class="sub" id="asStat" style="margin:4px 0 0"></div>
   </div>
@@ -1314,9 +1317,34 @@ const HURDLE={irr:.18,poc:.15};const POLICY_IRR=.18;
 /* The IRR hurdle a figure is judged against. 1) EstateMaster's own target for the model, when its export carries one
    (Project Discount Rate (target IRR), target IRR, hurdle rate); 2) otherwise KINAN's policy hurdle. The source is shown next to every scale. */
 const TARGET_RX=/target\s*(?:irr|dev(?:eloper)?'?s?\s*(?:irr|return))|project discount rate|discount rate\s*\(target|hurdle rate|required (?:irr|return)/i;
+/* A real EstateMaster sensitivity table: an output as the metric (IRR, margin, profit, NPV, value…), shifts below and above the base, values that move. */
+const SENS_OUT_RX=/irr|margin|profit|npv|net present|value|return|yield|multiple|dscr|revenue|cost|equity|residual|surplus/i;
+function sensOK(t){if(!t||!t.metric)return false;const m=String(t.metric),lab=String(t.kind==='1way'?t.v:t.x+' '+t.y);
+  if(!/[a-z]{3}/i.test(m)||/^\s*\//.test(m)||/^\s*\//.test(lab)||!SENS_OUT_RX.test(m))return false;
+  const sh=t.kind==='1way'?t.shifts:t.xs;if(!Array.isArray(sh)||sh.length<3||!sh.some(v=>v<0)||!sh.some(v=>v>0))return false;
+  const vals=(t.kind==='1way'?t.values:(t.grid||[]).flat()).filter(Number.isFinite);return vals.length>=3&&new Set(vals.map(v=>+v.toFixed(4))).size>1}
+let HURDLES={};   // per project: the hurdle a person confirmed when the export carries no target IRR ({v, by, at, how})
 function hurdleFor(proj){proj=proj||PROJ.id;const x=latestExport(proj);const i=x&&(x.inputs||[]).find(i=>TARGET_RX.test(i.label)&&Number.isFinite(i.value));
   if(i){let v=i.value;if(v>0&&v<1)v*=100;if(v>=3&&v<=40)return{v:+v.toFixed(2),src:`${i.label} in ${x.id}${x.file?' ('+x.file+')':''}: EstateMaster’s own target`,label:i.label,em:true}}
-  return{v:POLICY_IRR*100,src:'KINAN policy hurdle (no target IRR in the export)',label:'KINAN policy',em:false}}
+  const h=HURDLES[proj];if(h&&Number.isFinite(h.v))return{v:+h.v,src:`${h.v}% confirmed by ${h.by||'you'}${h.how==='ai'?' from the AI’s suggestion':''} (no target IRR in the export)`,label:'Confirmed hurdle',em:false,user:true};
+  return{v:POLICY_IRR*100,src:'KINAN policy hurdle, not yet confirmed for this model (no target IRR in the export)',label:'KINAN policy · unconfirmed',em:false,ask:true}}
+function setHurdle(v,how,proj){v=+v;if(!Number.isFinite(v)||v<=0||v>60)return false;HURDLES[proj||PROJ.id]={v:+v.toFixed(2),by:USERS.web,at:new Date().toISOString(),how:how||'typed'};try{saveMem()}catch(e){}try{renderHurdleBar();renderAll()}catch(e){}try{pushFeedSoon()}catch(e){}return true}
+/* The AI works a hurdle out from the model itself (Claude and OpenAI independently, then reconciled): cost of equity, finance rate, risk, stage. */
+async function aiHurdle(proj){proj=proj||PROJ.id;const x=latestExport(proj),p=PROJECTS[proj]||PROJ,pair=calcPair();if(!pair.length)throw new Error('Connect Claude and OpenAI in Settings → AI & routing');
+  const ins=((x&&x.inputs)||[]).filter(i=>/rate|discount|interest|saibor|margin|ltc|ltv|leverage|equity|debt|contingency|escalat|inflation|yield|cap/i.test(i.label)).slice(0,40).map(i=>`${i.label} = ${i.text||i.value}`).join('\n');
+  const sys='You are a real estate investment committee adviser in Saudi Arabia. Reply with JSON only: {"hurdle":<number, levered IRR hurdle in %>,"reasoning":"<at most 60 words: cost of equity, finance rate, project risk, stage>"}.';
+  const user=`Project: ${p.name} (${(p.comps||[]).map(c=>c==='res'?'residential for sale':'retail held for income').join(' + ')||p.type||'development'}), ${p.district||''}, Riyadh.\nEstateMaster export ${x?x.id:'none'}: levered IRR ${x&&Number.isFinite(x.out.levered_irr)?x.out.levered_irr.toFixed(2)+'%':'n/a'}, profit on cost ${x&&Number.isFinite(x.out.profit_on_cost)?x.out.profit_on_cost.toFixed(2)+'%':'n/a'}.\nRelevant inputs:\n${ins||'(none)'}\nKINAN's policy hurdle for comparable projects is 18%. What levered IRR hurdle should this model be judged against?`;
+  const got=await Promise.all(pair.map(async q=>{try{const r=await callOne(q.p,q.model,sys,[{role:'user',content:user}],false,{max:600,task:'calc'});const j=jsonFrom(r.text);return{name:mName(q.p,q.model),v:+j.hurdle,why:String(j.reasoning||'')}}catch(e){return{name:mName(q.p,q.model),err:e.message}}}));
+  const ok=got.filter(g=>Number.isFinite(g.v)&&g.v>0&&g.v<60);if(!ok.length)throw new Error(got.map(g=>g.err).filter(Boolean).join('; ')||'no answer');
+  const v=+(ok.reduce((a,g)=>a+g.v,0)/ok.length).toFixed(1),apart=ok.length>1&&Math.abs(ok[0].v-ok[1].v)>1.5;
+  return{v,models:ok,apart,text:ok.map(g=>`${g.name}: ${g.v}% — ${g.why}`).join(' · ')+(apart?` · they differ by ${Math.abs(ok[0].v-ok[1].v).toFixed(1)} pts, the mid-point is proposed`:ok.length>1?' · the two agree':'')}}
+/* The hurdle bar: shown under the top menu whenever the current model's hurdle is not confirmed; it asks, and can ask the AI. */
+function renderHurdleBar(){let bar=$('#hurBar');const hf=hurdleFor();if(!hf.ask){if(bar)bar.remove();return}
+  if(!bar){bar=document.createElement('div');bar.id='hurBar';const tabs=$('#tabs');(tabs&&tabs.parentNode?tabs.parentNode:document.body).insertBefore(bar,tabs?tabs.nextSibling:null)}
+  if(bar.dataset.proj===PROJ.id&&bar.dataset.st==='asked')return;bar.dataset.proj=PROJ.id;bar.dataset.st='asked';
+  bar.innerHTML=`<span class="hb-q"><b>What hurdle should ${esc(PROJ.name)} be judged against?</b> The export carries no target IRR, so the ${POLICY_IRR*100}% KINAN policy value is used until you confirm one.</span><form class="hb-f"><input id="hurIn" type="number" step="0.1" min="1" max="60" value="${POLICY_IRR*100}"><span>% levered IRR</span><button class="btn sm" type="submit">Use this</button><button class="btn ghost sm" type="button" id="hurAI" ${apiOn()?'':'disabled title="Connect Claude and OpenAI in Settings"'}>Let the AI work it out</button></form><div class="hb-ai" id="hurAIout"></div>`;
+  bar.querySelector('.hb-f').onsubmit=e=>{e.preventDefault();if(setHurdle($('#hurIn').value,'typed'))toast(`Hurdle ${HURDLES[PROJ.id].v}% confirmed for ${PROJ.name}`)};
+  $('#hurAI').onclick=async()=>{const out=$('#hurAIout');out.innerHTML='<span class="spin"></span> Claude and OpenAI are working the hurdle out from the model…';try{const r=await aiHurdle();out.innerHTML=`<b>${r.v}%</b> suggested <span class="tag tag-calc">AI</span> · ${esc(r.text)} <button class="btn sm" id="hurUseAI">Use ${r.v}%</button>`;$('#hurUseAI').onclick=()=>{if(setHurdle(r.v,'ai'))toast(`Hurdle ${r.v}% confirmed for ${PROJ.name}`)};$('#hurIn').value=r.v}catch(e){out.innerHTML=`<span class="dn">${esc(e.message)}</span>`}}}
 const HUR=proj=>hurdleFor(proj).v;
 const VARS={
   area:{label:'Buildable area',kind:'pct',lo:-20,hi:10,step:.5,syn:/buildable|\bgfa\b|built.?up|\bbua\b|massing/,adv:-1,fmt:v=>Math.round(FIX.gfa*v/100).toLocaleString()+' sqm GFA'},
@@ -1496,7 +1524,7 @@ function intent(text){
   const whatif=/\b(what (happens|would happen|would it|does it|is the (effect|impact))|what if|suppose|assume|assuming|if (we|the|i|you|our|they)\b)/.test(t)&&/[+\-−]?\d+(?:\.\d+)?\s*(%|pp\b|bps?\b|per ?cent|months?\b|weeks?\b|sar\b|usd\b|m\b|million)/.test(t)&&!/\b(report|pack|deck|chart|graph|plot)\b/.test(t);
   const whatifText=()=>text.trim().replace(/^(what (happens|would happen) if|what if|suppose|assume|assuming)\s+(that\s+)?(in this (model|project)\s+)?/i,'').replace(/\?+\s*$/,'');
   if(Object.keys(mods).length&&PROJ.fromExport)return{k:'aitest',changes:[whatifText()]};
-  if(whatif&&!Object.keys(mods).length&&apiOn())return{k:'aitest',changes:[whatifText()]};
+  if(whatif&&!Object.keys(mods).length)return{k:'aitest',changes:[whatifText()]};   // a what-if in free words is never a status readout: the AI cross-check, or a clear 'connect the AI' answer
   if(Object.keys(mods).length&&(/\?\s*$/.test(t)||/^(what would|what happens|what does|how much|how would|how does|would|estimate)\b/.test(t.trim())))return{k:'estimate',mods};
   if(Object.keys(mods).length&&/what if|set|change|assume|suppose|make|raise|cut|increase|decrease|drop|reduce|lower|test|by|to|\d/.test(t))return{k:'mod',mods};
   if(/kpi|status|irr|return|where are we|summary|profit|how (is|are)/.test(t))return{k:'status'};
@@ -1531,6 +1559,7 @@ async function handle(text,ch,role,forced){
     if(['stress','stressgen','stressverify','reverse','explore','mod','line','xline','align','capital','reset','promote','napkin','detail','extract'].includes(it.k)){const chg=it.mods?scenName(it.mods):it.k==='line'&&REGBY[it.id]?`${REGBY[it.id].label} to ${it.v}`:'';
       if(chg)it={k:'aitest',changes:[chg]};else{out.link=['model','Open assumptions'];done(`${PROJ.name} was created from an EstateMaster export, so the agent has no replica model for it: it does not estimate stress tests, sensitivities or headroom itself. Use EstateMaster’s own sensitivity tables (“EstateMaster sensitivity on …”, Scenarios tab) or test a change with the cross-checked AI calculation: “test rent −10% and a 6-month delay”, or the Assumptions tab.`);return out}}}
   if(['estimate','emresults','emsens','proposelast','emchecks','emailflags','aitest','xasm'].includes(it.k)){const pv=await provHandle(it,out,done,web,ch,role);if(pv)return pv}
+  if(it.k==='note'){done(String(it.text||''));return out}
   if(RO){const ro=roHandle(it,text,ch,role,out,done,web);if(ro)return ro}
   switch(it.k){
   case 'xline':{
@@ -2040,12 +2069,12 @@ setInterval(()=>{const n=riyadhNow(),h=n.getHours(),m=n.getMinutes();if(SCAN_TIM
 /* ================= PERSISTENCE (demo memory in this browser) ================= */
 // The browser keeps the latest LOG_KEEP memory entries (export them any time); production keeps everything in SQL Server.
 const LOG_KEEP=10000;let MEMWARN=false;
-function saveMem(){try{localStorage.setItem(MEMKEY,JSON.stringify({v:1,deleted:DELETED,DLV:{OUTBOX:OUTBOX.map((o,i)=>i<8?o:{...o,html:null}),OBN,NOTIFS,NTN,RUNS:RUNS.map((r,i)=>i<3?r:{...r,html:null}),RUNN,ALERT,SCHED},RO:{EXPORTS,EXN,TASKS,TKN,DRAFT},EMLAST,narjisXL:PROJECTS.narjis.xl||null,narjisNA:PROJECTS.narjis.na||null,narjisCW:PROJECTS.narjis.cwFile||null,X:XV,GEN:{seed:GEN.seed,seq:GEN.seq,n:GEN.n,fail:GEN.fail,bins:GEN.bins,worst:GEN.worst.slice(0,100),custom:GEN.custom,em:GEN.em},proj:PROJ.id,projects:Object.fromEntries(Object.entries(PROJECTS).filter(([k])=>k!=='narjis').map(([k,v])=>[k,{...v,saved:undefined}])),LOG,LOGN,APQ,CRN,SCAN,EM:{applied:EM.applied,proposed:EM.proposed},state:{S,FIX,FT,LV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))}))}catch(e){if(!MEMWARN){MEMWARN=true;try{toast('Browser storage is full: new changes are not being saved in this browser. Export the change memory (Approvals tab).')}catch(_){}}}}
-function loadMem(){try{const m=JSON.parse(localStorage.getItem(MEMKEY)||'null');if(!m||m.v!==1)return false;
+function saveMem(){try{localStorage.setItem(MEMKEY,JSON.stringify({v:1,HURDLES,deleted:DELETED,DLV:{OUTBOX:OUTBOX.map((o,i)=>i<8?o:{...o,html:null}),OBN,NOTIFS,NTN,RUNS:RUNS.map((r,i)=>i<3?r:{...r,html:null}),RUNN,ALERT,SCHED},RO:{EXPORTS,EXN,TASKS,TKN,DRAFT},EMLAST,narjisXL:PROJECTS.narjis.xl||null,narjisNA:PROJECTS.narjis.na||null,narjisCW:PROJECTS.narjis.cwFile||null,X:XV,GEN:{seed:GEN.seed,seq:GEN.seq,n:GEN.n,fail:GEN.fail,bins:GEN.bins,worst:GEN.worst.slice(0,100),custom:GEN.custom,em:GEN.em},proj:PROJ.id,projects:Object.fromEntries(Object.entries(PROJECTS).filter(([k])=>k!=='narjis').map(([k,v])=>[k,{...v,saved:undefined}])),LOG,LOGN,APQ,CRN,SCAN,EM:{applied:EM.applied,proposed:EM.proposed},state:{S,FIX,FT,LV},SRC:Object.fromEntries(Object.entries(SRC).map(([k,v])=>[k,{eid:v.e.id,quote:v.quote}]))}))}catch(e){if(!MEMWARN){MEMWARN=true;try{toast('Browser storage is full: new changes are not being saved in this browser. Export the change memory (Approvals tab).')}catch(_){}}}}
+function loadMem(){try{const m=JSON.parse(localStorage.getItem(MEMKEY)||'null');if(!m||m.v!==1)return false;if(m.HURDLES&&typeof m.HURDLES==='object')HURDLES=m.HURDLES;
   for(const [k,v] of Object.entries(m.projects||{})){if(v&&v.currency==='AUD')v.currency='USD';PROJECTS[k]=v}DELETED=(m.deleted||[]).filter(id=>Object.keys(PROJECTS).length>1&&PROJECTS[id]);DELETED.forEach(id=>{delete PROJECTS[id]});if(m.proj&&!PROJECTS[m.proj])m.proj=Object.keys(PROJECTS)[0];if(m.proj&&PROJECTS[m.proj]&&m.proj!=='narjis')loadModelCore(PROJECTS[m.proj]);
   LOG=m.LOG||[];LOGN=m.LOGN||LOG.length+1;APQ=m.APQ||[];CRN=m.CRN||101;Object.assign(SCAN,m.SCAN||{});Object.assign(EM.applied,m.EM.applied||{});Object.assign(EM.proposed,m.EM.proposed||{});
   S=m.state.S||{};Object.assign(FIX,m.state.FIX||{});Object.assign(FT,m.state.FT||{});LV=m.state.LV||{};
-  if(m.narjisXL)PROJECTS.narjis.xl=m.narjisXL;if(m.narjisNA)PROJECTS.narjis.na=m.narjisNA;if(m.narjisCW)PROJECTS.narjis.cwFile=m.narjisCW;EMLAST=m.EMLAST||null;XV=m.X||{};if(m.DLV){OUTBOX=m.DLV.OUTBOX||[];OBN=m.DLV.OBN||1;NOTIFS=m.DLV.NOTIFS||[];NTN=m.DLV.NTN||1;RUNS=m.DLV.RUNS||[];RUNN=m.DLV.RUNN||1;Object.assign(ALERT,m.DLV.ALERT||{});for(const [k,v] of Object.entries(m.DLV.SCHED||{}))SCHED[k]=Object.assign(SCHED[k]||{},v)}if(m.RO){EXPORTS=m.RO.EXPORTS||[];EXN=m.RO.EXN||1;TASKS=m.RO.TASKS||[];TKN=m.RO.TKN||1;DRAFT=m.RO.DRAFT||{}}XMAP=null;if(m.GEN)Object.assign(GEN,m.GEN,{busy:false});
+  if(m.narjisXL)PROJECTS.narjis.xl=m.narjisXL;if(m.narjisNA)PROJECTS.narjis.na=m.narjisNA;if(m.narjisCW)PROJECTS.narjis.cwFile=m.narjisCW;EMLAST=m.EMLAST||null;XV=m.X||{};if(m.DLV){OUTBOX=m.DLV.OUTBOX||[];OBN=m.DLV.OBN||1;NOTIFS=m.DLV.NOTIFS||[];NTN=m.DLV.NTN||1;RUNS=m.DLV.RUNS||[];RUNN=m.DLV.RUNN||1;Object.assign(ALERT,m.DLV.ALERT||{});for(const [k,v] of Object.entries(m.DLV.SCHED||{}))SCHED[k]=Object.assign(SCHED[k]||{},v)}if(m.RO){EXPORTS=(m.RO.EXPORTS||[]).map(x=>({...x,sens:(x.sens||[]).filter(sensOK)}));EXN=m.RO.EXN||1;TASKS=m.RO.TASKS||[];TKN=m.RO.TKN||1;DRAFT=m.RO.DRAFT||{}}XMAP=null;if(m.GEN)Object.assign(GEN,m.GEN,{busy:false});
   for(const [k,v] of Object.entries(m.SRC||{})){const e=DATA.emails.find(x=>x.id===v.eid);if(e)SRC[k]={e,quote:v.quote}}return true}catch(e){return false}}
 function clearMem(){try{localStorage.removeItem(MEMKEY)}catch(e){}location.reload()}
 
@@ -3401,7 +3430,7 @@ function pushFeedSoon(){try{if(!DAILYSRV)return}catch(e){return}clearTimeout(FEE
 async function pushFeed(){if(!DAILYSRV)return;const x=latestExport(),o=x?x.out:{};
   const items=pendingCRs().slice(0,25).map(c=>{const pr=c.proj&&PROJECTS[c.proj]?PROJECTS[c.proj].name:'';return{id:c.id,kind:c.kind,title:stripTags(c.title)+(pr&&c.proj!==PROJ.id?' · '+pr:''),change:stripTags(opsDesc(c.ops)),why:c.why||'',from:c.from||c.by||'',at:c.at,
     impact:c.ai?c.ai.metrics.filter(m=>['levered_irr','profit_on_cost','net_profit'].includes(m.k)).map(m=>({k:m.k,label:MET[m.k][0],base:Number.isFinite(m.base)?fMet(m.k,m.base):'—',value:fMet(m.k,m.value),below:(m.k==='levered_irr'&&m.value<HUR())||(m.k==='profit_on_cost'&&m.value<HURDLE.poc*100)})):[]}});
-  const sig=JSON.stringify(items);if(sig===FEEDSIG)return;try{const j=await dailyApi({action:'feed',project:PROJ.name,items});if(!j.error)FEEDSIG=sig}catch(e){}}
+  const sig=JSON.stringify(items);if(sig===FEEDSIG)return;try{const hf=hurdleFor();const j=await dailyApi({action:'feed',project:PROJ.name,items,hurdle:hf.em||hf.user?hf.v:null});if(!j.error)FEEDSIG=sig}catch(e){}}
 async function uploadExport(file){try{const p=await readExportFile(file);pushExportToServer(file.name,file);const x=addExport('file',p.opt&&!isBaseName(p.opt)?`option “${p.opt}” exported`:'export uploaded',p.out,file.name,'',p);x.found=p.found;renderAll(true);renderEMTab();saveMem();toast(`${x.id} read from ${file.name}${p.opt?` (option ${p.opt})`:''}${p.sens.length?` · ${p.sens.length} EstateMaster sensitivity table${p.sens.length>1?'s':''}`:''}`)}catch(e){toast(e.message)}}
 /* Figures with their origin: EstateMaster's own figures (em), the agent's replica estimates (est). Used by the chat in every mode. */
 let LASTEST=null;
@@ -3659,9 +3688,11 @@ function asTip(r,i,k){const {X,Y,mk}=r,v=r.grid[i][k],st=r.status[i][k],u=MET[mk
   if(h!=null)lines.push(`${vs(v,h,(ah!=null?'this row’s target ':'the hurdle ')+fMet(mk,h))}${v>=h?' · clears it':' · below it'}`+(ah!=null?'':` (${hurdleFor().em?'EstateMaster’s target':'KINAN policy'})`));if(r.base!=null&&st!=='em')lines.push(vs(v,r.base,'EstateMaster’s base'));
   lines.push('',st==='em'?'EstateMaster’s own base figure (from the export)':st==='agree'?`${na} and ${nb} agree: average shown`:st==='reconciled'?`${na} and ${nb} agreed after reviewing each other`:st==='apart'?`${na} and ${nb} still differ: average shown, treat with care`:st==='odd'?'Breaks the trend of its row or column: check in EstateMaster':`${na} only: not cross-checked`,'Click for the full working');
   return lines.join('\n')}
+function tipHTML(t){const blocks=String(t||'').split(/\n\s*\n/).filter(b=>b.trim());return blocks.map((b,bi)=>{const lines=b.split('\n').filter(Boolean);const note=bi===blocks.length-1&&blocks.length>1&&!lines.some(l=>/:\s/.test(l));
+  return`<div class="tt ${note?'note':''}">${lines.map(l=>{const m=l.match(/^(.{1,70}?):\s(.+)$/);return m?`<div><span>${esc(m[1])}</span><b>${esc(m[2])}</b></div>`:`<div><b>${esc(l)}</b></div>`}).join('')}</div>`}).join('')}
 let HMTIP=null;const TIPSEL='.hm .c[data-tip], .hm-c[data-tip], .sb-row[data-tip]';
 document.addEventListener('mouseover',e=>{const c=e.target.closest(TIPSEL);if(!c){if(HMTIP){HMTIP.remove();HMTIP=null}return}
-  if(!HMTIP){HMTIP=document.createElement('div');HMTIP.className='hm-tip';document.body.appendChild(HMTIP)}HMTIP.textContent=c.dataset.tip;HMTIP.style.display='block'});
+  if(!HMTIP){HMTIP=document.createElement('div');HMTIP.className='hm-tip';document.body.appendChild(HMTIP)}HMTIP.innerHTML=tipHTML(c.dataset.tip);HMTIP.style.display='block'});
 document.addEventListener('mousemove',e=>{if(!HMTIP||HMTIP.style.display==='none')return;const w=HMTIP.offsetWidth,hh=HMTIP.offsetHeight;let x=e.clientX+16,y=e.clientY+16;if(x+w>innerWidth-8)x=e.clientX-w-12;if(y+hh>innerHeight-8)y=e.clientY-hh-12;HMTIP.style.left=x+'px';HMTIP.style.top=y+'px'});
 document.addEventListener('mouseout',e=>{if(HMTIP&&e.target.closest&&e.target.closest(TIPSEL)&&!(e.relatedTarget&&e.relatedTarget.closest&&e.relatedTarget.closest(TIPSEL))){HMTIP.style.display='none'}});
 function asCellWork(r,i,k){const {X,Y,mk}=r,v=r.grid[i][k],st=r.status[i][k],[na,nb]=r.names;const at=`${MET[mk][0]} with ${X.assumption} ${asShift(X,X.shifts[k])} and ${Y.assumption} ${asShift(Y,Y.shifts[i])}: ${fMet(mk,v)}.`;
@@ -3767,7 +3798,7 @@ function deleteProject(id){const p=PROJECTS[id];if(!p)return;if(Object.keys(PROJ
   m.dataset.id=id;m.dataset.name=p.name;$('#delName').textContent=p.name;$('#delSub').textContent=`“${p.name}”: its exports, change requests and analyst tasks in this demo are removed. EstateMaster itself is not touched. This cannot be undone.`;$('#delInput').value='';$('#delYes').disabled=true;m.classList.add('on');setTimeout(()=>$('#delInput').focus(),50)}
 function deleteProjectNow(id){const p=PROJECTS[id];if(!p||Object.keys(PROJECTS).length<=1)return;
   EXPORTS=EXPORTS.filter(x=>x.proj!==id);TASKS=TASKS.filter(t=>t.proj!==id);for(let i=APQ.length-1;i>=0;i--)if(APQ[i].proj===id)APQ.splice(i,1);
-  delete PROJECTS[id];if(!DELETED.includes(id))DELETED.push(id);delete CHATLOG[id];try{localStorage.setItem('em_chats',JSON.stringify(CHATLOG))}catch(e){}
+  delete PROJECTS[id];if(!DELETED.includes(id))DELETED.push(id);delete CHATLOG[id];try{localStorage.setItem('em_chats2',JSON.stringify(CHATLOG))}catch(e){}
   logEvent({kind:'project',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Model “${p.name}” deleted from the agent (EstateMaster not touched)`});
   if(PROJ.id===id)switchProject(Object.keys(PROJECTS)[0],true);
   renderAll(true);renderProjRail();renderApprBadge();try{renderEMTab()}catch(e){}saveMem();toast(`“${p.name}” deleted`)}
@@ -4033,9 +4064,9 @@ function switchProject(id,quiet){
   XV=p.saved&&p.saved.X?{...p.saved.X}:{};XMAP=null;
   if(p.saved){S={...p.saved.S};LV={...p.saved.LV};Object.assign(FIX,p.saved.F);Object.assign(FT,p.saved.T);for(const [k,v] of Object.entries(p.saved.SRC||{})){const e=DATA.emails.find(x=>x.id===v.eid);if(e)SRC[k]={e,quote:v.quote}}}
   resetE();LASTX=null;renderProjectUI();if(!quiet){logEvent({kind:'project',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Switched to project ${p.name}`});renderAll(true);toast('Project: '+p.name)}
-  try{$('#msgs').innerHTML='';if(!chatRestore(id))addMsg('agent',hello())}catch(e){}
+  try{chatOpen(id)}catch(e){}
 }
-function renderProjectUI(){
+function renderProjectUI(){try{renderHurdleBar()}catch(e){}
   document.body.classList.toggle('xproj',!!PROJ.fromExport);try{renderProjRail()}catch(e){}
   $('#projSel').innerHTML=Object.values(PROJECTS).map(p=>`<option value="${p.id}" ${p.id===PROJ.id?'selected':''}>${esc(p.name)}</option>`).join('');
   const o=$('#mkScope').options;o[0].text=PROJ.district+' only';o[1].text=PROJ.district+' + adjacent';
@@ -4251,7 +4282,7 @@ function selfTest(){
   safe('Line edits flow up and down',()=>{restoreState({S:{},F:{...FIX0},T:{...FT0},L:{}});setLineRaw('c4',REGBY.c4.base*1.1);const up=apply(S).cost;S={cost:8};const sum=CLINES.reduce((a,L)=>a+lineVal(L),0);restoreState(z);ok('Line edits flow up and down',Math.abs(up-(BASE.cost+REGBY.c4.base*.1))<1&&Math.abs(sum-BASE.cost*1.08)<1,`MEP +10% → cost ${Math.round(up)}; cost +8% → lines sum ${Math.round(sum)}`)});
   safe('Napkin reproduces the model',()=>{if(PROJ.id!=='narjis'){ok('Napkin reproduces the model',true,'skipped (not the Al Narjis project)');return}const d=napkinDef({plot:'NRJ-0417',gfa:62000,resMix:30000/42000*100,price:13500,rent:2400,allin:5200*1.17,land:160,cap:7.5,ltc:55});ok('Napkin reproduces the model',Math.abs(d.preview.irr-baseRes.irr)<.0005,`napkin ${fP(d.preview.irr)} vs model ${fP(baseRes.irr)}`)});
   safe('Waterfall conserves cash',()=>{const r=run({}),w=waterfall(r),a=w.L.reduce((x,y)=>x+y,0)+w.G.reduce((x,y)=>x+y,0)+w.fees,b=r.eq.reduce((x,y)=>x+y,0);ok('Waterfall conserves cash',Math.abs(a-b)<1e3,`LP + KINAN + fees ${fM(a)} = equity flows ${fM(b)}`)});
-  safe('Router sends maths to EstateMaster, not AI',()=>{const cases=[['what if construction cost rises 8%','calc'],['increase MEP by 10%','calc'],['stress test the model','calc'],['check assumptions against market data','data'],['monthly report','data'],['approve CR-101','calc'],['should we approve this deal?','api'],['napkin: HTN-0077, build 6,100 all-in','calc'],['suggest assumption changes','data']];const bad_=cases.filter(([q,l])=>route(q).lane!==l);ok('Router sends maths to EstateMaster, not AI',!bad_.length,bad_.length?'mismatch: '+bad_.map(x=>x[0]+' → '+route(x[0]).lane).join('; '):`${cases.length} phrases routed as expected`)});
+  safe('Router sends maths to EstateMaster, not AI',()=>{const ai=ALL_AI&&apiOn();const cases=[['what if construction cost rises 8%',ai?'api':'calc'],['increase MEP by 10%',ai?'api':'calc'],['stress test the model',ai?'api':'calc'],['check assumptions against market data',ai?'api':'data'],['monthly report',ai?'api':'data'],['approve CR-101','calc'],['should we approve this deal?','api'],['napkin: HTN-0077, build 6,100 all-in',ai?'api':'calc'],['suggest assumption changes',ai?'api':'data']];const bad_=cases.filter(([q,l])=>route(q).lane!==l);ok('Router sends maths to EstateMaster, not AI',!bad_.length,bad_.length?'mismatch: '+bad_.map(x=>x[0]+' → '+route(x[0]).lane).join('; '):`${cases.length} phrases routed as expected`)});
   safe('AI can only propose changes',()=>{const before=JSON.stringify(S);const it={k:'mod',mods:{cost:5},byAI:'AI · test'};handle('', 'web','Investment Director',it);const cr=APQ[APQ.length-1];ok('AI can only propose changes',JSON.stringify(S)===before&&cr&&cr.kind==='agent'&&cr.status==='pending',`sandbox unchanged, ${cr&&cr.id} pending`)});
   safe('Promotion needs an Investment Director',()=>ok('Promotion needs an Investment Director',!canApprove({kind:'promotion'},'Analyst')&&canApprove({kind:'promotion'},'Investment Director')&&canApprove({kind:'email'},'Analyst')));
   safe('Email extraction produces valid changes',()=>{const es=DATA.emails.filter(e=>e.change),bad_=es.filter(e=>!opsForEmail(e).every(o=>o.t==='mods'?Object.keys(o.mods).every(k=>VARS[k]):REGBY[o.id]));ok('Email extraction produces valid changes',!bad_.length,`${es.length} emails with changes, ${DATA.emails.length-es.length} ignored`)});
@@ -5751,9 +5782,10 @@ function renderCS(){
 function renderAll(flash){fullTorn=null;if($('#p-model').classList.contains('on'))try{renderAssumptions()}catch(e){}try{renderProjRail()}catch(e){}if($('#p-model').classList.contains('on')){renderRegister();renderElemental();renderXLines()}renderKPIs(flash);renderCS();renderAsm();stressRes=null;tornRes=null;headRes=null;renderStress();renderFullTornado();renderHeat();renderMarket();renderInbox();renderApprovals();saveMem();if($('#p-report').classList.contains('on'))renderReport()}
 
 /* one chat per project: the log is kept per project id and swapped when the project changes (survives a reload) */
-const CHATLOG=(()=>{try{return JSON.parse(localStorage.getItem('em_chats')||'{}')}catch(e){return{}}})();
-function chatSave(id){const el=$('#msgs');if(!el)return;CHATLOG[id||PROJ.id]=el.innerHTML.slice(-150000);try{localStorage.setItem('em_chats',JSON.stringify(CHATLOG))}catch(e){}}
-function chatRestore(id){const h=CHATLOG[id||PROJ.id],el=$('#msgs');if(!h||!el)return false;el.innerHTML=h;el.querySelectorAll('.kthink').forEach(e=>e.remove());el.scrollTop=1e9;return true}
+const CHATLOG=(()=>{try{return JSON.parse(localStorage.getItem('em_chats2')||'{}')}catch(e){return{}}})();
+function chatSave(id){const el=$('#msgs');if(!el)return;CHATLOG[id||PROJ.id]=el.innerHTML.slice(-150000);try{localStorage.setItem('em_chats2',JSON.stringify(CHATLOG))}catch(e){}}
+function chatRestore(id){const h=CHATLOG[id||PROJ.id],el=$('#msgs');if(!el)return false;el.innerHTML='';if(!h)return false;el.innerHTML=h;el.querySelectorAll('.kthink').forEach(e=>e.remove());el.scrollTop=1e9;return true}
+function chatOpen(id){const el=$('#msgs');if(!el)return;el.classList.remove('swap');void el.offsetWidth;el.classList.add('swap');if(!chatRestore(id)){el.innerHTML=`<div class="msg divider">Chat · ${esc(PROJECTS[id||PROJ.id]?PROJECTS[id||PROJ.id].name:PROJ.name)}</div>`;addMsg('agent',hello())}}
 function addMsg(who,html){const m=document.createElement('div');m.className='msg '+who;m.innerHTML=who==='agent'?`<div class="steps"></div><div class="body">${html||''}</div>`:esc(html);$('#msgs').appendChild(m);$('#msgs').scrollTop=1e9;return m}
 /* ================= AI ENGINE (built-in · Claude · OpenAI) ================= */
 /* AI providers: chosen by the router, not by the user */
@@ -5831,7 +5863,8 @@ const TOOLS=[
  {name:'list_model_assumptions',description:'List every assumption line in the EstateMaster register with id, section, unit, base and current value.',p:{}},
  {name:'set_model_assumption',description:'Set one line of the EstateMaster assumption register (any line, e.g. MEP services, contingency, SAIBOR, 2-bed price) to an absolute value in its own unit.',p:{id:{type:'string',enum:REG.map(l=>l.id)},value:{type:'number'}},req:['id','value']},
  {name:'capital_structure',description:'Capital stack and distribution waterfall: Murabaha debt, fund LP units and KINAN co-invest; project, equity, LP net and sponsor IRRs.',p:{}},
- {name:'set_fund_terms',description:'Change fund terms in the sandbox. Values in percent: lp_share (LP share of equity), pref (preferred return p.a.), promote (sponsor promote above pref), mgmt_fee (p.a. on LP capital).',p:{lp_share:{type:'number'},pref:{type:'number'},promote:{type:'number'},mgmt_fee:{type:'number'}}},
+ {name:'set_hurdle',description:'Record the levered IRR hurdle this model is judged against (percent), after the user has confirmed it in the chat. Only when the export carries no target IRR; it is a reporting setting, not a change to EstateMaster.',p:{hurdle:{type:'number'},how:{type:'string',description:'"user" when the user named it, "ai" when the user accepted your suggestion'}}},
+{name:'set_fund_terms',description:'Change fund terms in the sandbox. Values in percent: lp_share (LP share of equity), pref (preferred return p.a.), promote (sponsor promote above pref), mgmt_fee (p.a. on LP capital).',p:{lp_share:{type:'number'},pref:{type:'number'},promote:{type:'number'},mgmt_fee:{type:'number'}}},
  {name:'list_excel_files',description:'List Excel workbooks the user attached, with sheets, sizes and header rows.',p:{}},
  {name:'read_excel',description:'Read cells from an attached workbook as CSV. range is A1 notation (e.g. "A1:H40"); omit to read from the top. Output is capped at 150 rows.',p:{file:{type:'string'},sheet:{type:'string'},range:{type:'string'}},req:['file']},
  {name:'suggest_assumptions',description:'Review assumptions against market comps, SQL Server actuals, achieved sales, the cost library, zoning and risk policy, and raise suggested changes for human approval.',p:{}},
@@ -5891,6 +5924,7 @@ function toolIntent0(name,a){
     case 'napkin_to_model':return NKDEF&&!NKDEF.err?{k:'napkinmodel'}:{k:'detail'};
     case 'create_model':return{k:'newmodel',o:{tpl:TEMPLATES[a.template]?a.template:'narjis',plot:a.plot,name:a.name||'',fill:a.fill||'market',land:a.land_price_m}};
     case 'capital_structure':return{k:'capital',mods:{}};
+    case 'set_hurdle':{const hf=hurdleFor();if(hf.em)return{k:'note',text:`The export carries its own target (${hf.src}); it cannot be overridden.`};return setHurdle(a.hurdle,a.how==='ai'?'ai':'typed')?{k:'note',text:`Hurdle ${HURDLES[PROJ.id].v}% confirmed for ${PROJ.name}.`}:{k:'note',text:'That hurdle is not a sensible percentage.'}}
     case 'set_fund_terms':{const m={};if(a.lp_share!=null)m.lp=+a.lp_share;if(a.pref!=null)m.pref=+a.pref;if(a.promote!=null)m.promote=+a.promote;if(a.mgmt_fee!=null)m.fee=+a.mgmt_fee;return{k:'capital',mods:m}}
     case 'list_excel_files':return{k:'files'};
     case 'read_excel':return{k:'xlread',a};
@@ -5902,6 +5936,7 @@ function sysPrompt0(ch,role){
   const r=run(S);
   const asm=KEYS.map(k=>`- ${k} (${VARS[k].label}): base ${VARS[k].fmt(BASE[k])}, now ${VARS[k].fmt(apply(S)[k])}${S[k]?` (${fD(k,S[k])} vs base${SRC[k]?', source: email from '+SRC[k].e.from:''})`:''}`).join('\n');
   return `You are the Bohio agent. You sit on top of ARGUS EstateMaster for KINAN's ${PROJ.name} project in ${PROJ.district}, Riyadh (${PROJ.comps.map(c=>c==='res'?'residential for sale':'retail held for income').join(' plus ')}; all figures in SAR). Other projects: ${Object.values(PROJECTS).filter(p=>p!==PROJ).map(p=>p.name).join(', ')||'none'}. Templates for new models: ${Object.values(TEMPLATES).map(t=>t.name+' ('+t.type+')').join('; ')}.
+Hurdle: ${(h=>h.em?`${h.v}% levered IRR, EstateMaster’s own target (${h.label})`:h.user?`${h.v}% levered IRR, confirmed by the user`:`NOT CONFIRMED: the export carries no target IRR, so ${h.v}% (KINAN policy) is assumed. Before any verdict against the hurdle, ask the user what hurdle to use; offer to work one out from the model (cost of equity, finance rate, project risk) if they want, and record their answer with set_hurdle.`)(hurdleFor())}.
 Connections: EstateMaster through the Bohio runner. EstateMaster is the trusted source of every figure. Tool figures are the agent’s ESTIMATES unless the tool says they come from EstateMaster: always call them estimates, and use check_in_estatemaster (or the EstateMaster results on change requests) for figures a decision will rest on; where the two differ, EstateMaster’s figure stands. You change only the sandbox working copy; the base case is read-only, SQL Server for actuals and sales, a market dataset of comparable sales, leases and plot zoning (dummy demo data), and the project's Outlook folder (dummy demo inbox).
 
 Rules:
@@ -6009,9 +6044,12 @@ const ROUTESTATS={calc:0,data:0,api:0,calls:0,fallback:0};
 const ASK=/\b(what is|what's|what are|what was|what were|how much|how many|how far|how long|average|mean|total|sum|ratio|per sqm|per unit|difference|gap|growth|trend|which (project|fund|scenario|assumption|district|year|month)|biggest|largest|smallest|lowest|highest|best|worst|rank|top \d|bottom \d|most|least|percent of|share of|times|multiple)\b/;
 const REASON=/\b(why|should|recommend\w*|advice|advise|explain|compare|summari[sz]e|draft|write|memo|what do you think|opinions?|risks?|concerns?|assess|evaluate|interpret|story|narrative|analy[sz]e|pros|cons|implications?|negotiat\w*|how would|what would|worth|thoughts|tell me about|walk me through|trade-?offs?)\b/;
 const SRCNAME={aitest:'cross-checked AI calculation',emchecks:'export checks',emailflags:'Outlook change requests',emresults:'EstateMaster export',emsens:'EstateMaster export (sensitivity sheet)',suggest:'market, actuals, sales, cost library, zoning',napkinmodel:'approvals',newmodel:'templates, zoning and market data',approvals:'approvals and change memory',newreport:'report builder',extract:'EstateMaster extract',market:'market dataset',zoning:'zoning rules',email:'Outlook (Microsoft Graph)',why:'changelog + email sources',report:'EstateMaster outputs',files:'attached Excel',align:'market dataset'};
+const ALL_AI=true;   // every chat question goes to the AI agent; the rules engine stays as its tools and as the fallback when no AI is connected
+function aiTier(t){return REASON.test(t)||ASK.test(t)||/memo|draft|write|narrative|report|pack|deck|board paper|risk|recommend|should|why|explain|assess|evaluate|what happens|what if|suppose|drop|rise|fall|increase|decrease|hurdle/.test(t)?'deep':FILES.length&&/excel|spreadsheet|workbook|sheet|file/.test(t)?'excel':'smart'}
 function route(text){
   const it=intent(text),t=text.toLowerCase();
   if(it.k==='approve'||it.k==='cancel')return{lane:'calc',it,why:'Approvals are handled by fixed rules, never by AI.'};
+  if(ALL_AI&&apiOn())return{lane:'api',it,tier:aiTier(t),why:'Every question goes through the AI agent: it reads EstateMaster’s own figures through its tools, reasons over them and labels every figure it works out itself.'};
   if(it.k==='why')return{lane:'data',it,why:'A lookup in the changelog and email sources; no AI needed.'};
   if(it.k==='suggest')return{lane:'data',it,why:'Checks assumptions against market data, actuals, sales, the cost library and zoning; each suggestion needs approval.'};
   if(it.k==='newreport')return{lane:'data',it,why:'Creates a report template from the block library.'};
@@ -6434,7 +6472,7 @@ $('#aiTestBtn').onclick=async()=>{
 };
 
 /* ================= INIT ================= */
-const hello=()=>`<b>Hello.</b> I work on EstateMaster’s figures for <b>${esc(PROJ.name)}</b> project, how can I help you?`;if(!chatRestore())addMsg('agent',hello());
+const hello=()=>`<b>Hello.</b> I work on EstateMaster’s figures for <b>${esc(PROJ.name)}</b> project, how can I help you?`;chatOpen();
 wBubble('bot','<i>Number verified: Fatima A. · role <b>Analyst</b></i>');
 wBubble('bot','Good morning. Al Narjis base case: levered IRR '+fP(baseRes.irr)+', profit on cost '+fP(baseRes.poc)+'. Ask me anything or tap a shortcut below.');
 const restored=loadMem();if(!restored){logEvent({kind:'session',actor:'System',channel:'System',detail:'Demo started: working copy BHO_SBX opened from the approved EstateMaster base case'});scanEmails('07:00',true,true)}else logEvent({kind:'session',actor:'System',channel:'System',detail:`Session resumed: ${LOG.length} entries and ${APQ.length} change requests restored from memory`});

@@ -113,8 +113,9 @@ const REASON = () => [['anthropic', env('REASON_MODEL') || 'claude-opus-5-5'], [
 /* The hurdle a model is judged against: the export's own target IRR (Target IRR / Project Discount Rate / hurdle rate input) when it
    carries one, else the KINAN policy hurdle (HURDLE_IRR, default 18). Same rule as the app. */
 const TARGET_RX = /target\s*(?:irr|dev(?:eloper)?'?s?\s*(?:irr|return))|project discount rate|discount rate\s*\(target|hurdle rate|required (?:irr|return)/i;
+let FEED_HURDLE = null;   // the hurdle a person confirmed in the app (sent with the Daily feed items) when the export has no target
 function hurdleOf(b) {
-  const policy = +(env('HURDLE_IRR') || 18);
+  const policy = Number.isFinite(FEED_HURDLE) && FEED_HURDLE ? FEED_HURDLE : +(env('HURDLE_IRR') || 18);
   const i = b && (b.inputs || []).find(x => TARGET_RX.test(String(x.label || '')) && Number.isFinite(+x.value));
   if (!i) return policy;
   let v = +i.value; if (v > 0 && v < 1) v *= 100;
@@ -297,6 +298,7 @@ async function reportJob(token, now, dry, appUrl, opts = {}) {
     if (!days.includes(today)) return { job: 'report', skipped: `not a report day (${today})` };
   }
   const st0 = await SCHED.load(token).catch(() => ({ feed: null }));
+  FEED_HURDLE = st0.feed && Number.isFinite(+st0.feed.hurdle) ? +st0.feed.hurdle : null;
   let d = await dailyData(token, now);
   if (d.skipped) return { job: 'report', skipped: d.skipped };
   // No export in the folder: the report still goes out with what has to be known today (the Daily feed and the emails)
