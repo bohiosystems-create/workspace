@@ -1449,7 +1449,7 @@ function intent(text){
   const mods=parseMods(t);
   const whatif=/\b(what (happens|would happen|would it|does it|is the (effect|impact))|what if|suppose|assume|assuming|if (we|the|i|you|our|they)\b)/.test(t)&&/[+\-−]?\d+(?:\.\d+)?\s*(%|pp\b|bps?\b|per ?cent|months?\b|weeks?\b|sar\b|usd\b|m\b|million)/.test(t)&&!/\b(report|pack|deck|chart|graph|plot)\b/.test(t);
   const whatifText=()=>text.trim().replace(/^(what (happens|would happen) if|what if|suppose|assume|assuming)\s+(that\s+)?(in this (model|project)\s+)?/i,'').replace(/\?+\s*$/,'');
-  if((Object.keys(mods).length||whatif)&&(PROJ.fromExport||RO))return{k:'aitest',changes:[whatifText()]};
+  if(Object.keys(mods).length&&PROJ.fromExport)return{k:'aitest',changes:[whatifText()]};
   if(whatif&&!Object.keys(mods).length&&apiOn())return{k:'aitest',changes:[whatifText()]};
   if(Object.keys(mods).length&&(/\?\s*$/.test(t)||/^(what would|what happens|what does|how much|how would|how does|would|estimate)\b/.test(t.trim())))return{k:'estimate',mods};
   if(Object.keys(mods).length&&/what if|set|change|assume|suppose|make|raise|cut|increase|decrease|drop|reduce|lower|test|by|to|\d/.test(t))return{k:'mod',mods};

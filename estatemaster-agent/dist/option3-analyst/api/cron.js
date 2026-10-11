@@ -110,6 +110,16 @@ const STRESS = [
   { name: 'Severe combined', d: 'sale prices −20%, construction cost +20%, 12-month delay, cap rate +150 bps, rates +200 bps' }];
 const prettyModel = m => String(m).replace(/^claude-(\w+)-(\d+)-(\d+)$/, (x, a, b, c) => `Claude ${a[0].toUpperCase()}${a.slice(1)} ${b}.${c}`).replace(/^gpt-(\S+)$/, 'OpenAI GPT-$1');
 const REASON = () => [['anthropic', env('REASON_MODEL') || 'claude-opus-5-5'], ['openai', env('REASON_MODEL_OPENAI') || 'gpt-5']].filter(([p]) => G.aiProviders().includes(p));
+/* The hurdle a model is judged against: the export's own target IRR (Target IRR / Project Discount Rate / hurdle rate input) when it
+   carries one, else the KINAN policy hurdle (HURDLE_IRR, default 18). Same rule as the app. */
+const TARGET_RX = /target\s*(?:irr|dev(?:eloper)?'?s?\s*(?:irr|return))|project discount rate|discount rate\s*\(target|hurdle rate|required (?:irr|return)/i;
+function hurdleOf(b) {
+  const policy = +(env('HURDLE_IRR') || 18);
+  const i = b && (b.inputs || []).find(x => TARGET_RX.test(String(x.label || '')) && Number.isFinite(+x.value));
+  if (!i) return policy;
+  let v = +i.value; if (v > 0 && v < 1) v *= 100;
+  return v >= 3 && v <= 40 ? +v.toFixed(2) : policy;
+}
 async function stressRun(b, hurdle, checks = []) {
   const provs = G.aiProviders(); if (!provs.length) return null;
   const o = b.out, ins = (b.inputs || []).slice(0, 120).map(i => `${i.label} = ${i.text || i.value}${i.unit && i.unit !== '%' ? ' ' + i.unit : ''}`).join('\n');
@@ -226,12 +236,12 @@ async function dailyData(token, now, o = {}) {
   const otherModels = (await Promise.all(others.map(async ([k, fs]) => { try { const [ob, oa] = await Promise.all(fs.slice(0, 2).map(read)); if (!Object.keys(ob.out).length) return null; return { key: k, b: ob, a: oa || null }; } catch { return null; } }))).filter(Boolean);
   const options = all.filter(f => !isBase(optOf(f.name))).slice(0, 10).map(f => ({ option: optOf(f.name), file: f.name, at: f.lastModifiedDateTime }));
   if (!Object.keys(b.out).length) return { skipped: `no EstateMaster returns found in ${b.name}` };
-  const hurdle = +(env('HURDLE_IRR') || 18);
+  const hurdle = hurdleOf(b);
   const checks = EM.emChecks({ out: b.out, inputs: b.inputs, sens: b.sens, cells: b.cells, at: b.at, file: b.name }, a ? { out: a.out, file: a.name } : null, { now: now.toISOString(), hurdle }).filter(c => c.code !== 'hurdle');
   let flags = { msgs: [], findings: [], note: '' };
   const nameOf = x => (x.meta && x.meta.title) || x.name.replace(/\.[^.]+$/, '');
   const models = [{ key: keyOf(b.name), b, a: a || null }].concat(otherModels).map(m => ({ ...m, name: nameOf(m.b), checks: EM.emChecks({ out: m.b.out, inputs: m.b.inputs, sens: m.b.sens, cells: m.b.cells, at: m.b.at, file: m.b.name }, m.a ? { out: m.a.out, file: m.a.name } : null, { now: now.toISOString(), hurdle }).filter(c => c.code !== 'hurdle') }));
-  if (G.aiConfigured() && !o.noStress) { await Promise.all(models.slice(0, 3).map(async m => { try { m.stress = await stressRun(m.b, hurdle, m.checks); } catch (e) { m.stress = { note: e.message, scenarios: [], risks: [] }; } })); }
+  if (G.aiConfigured() && !o.noStress) { await Promise.all(models.slice(0, 3).map(async m => { try { m.stress = await stressRun(m.b, hurdleOf(m.b), m.checks); } catch (e) { m.stress = { note: e.message, scenarios: [], risks: [] }; } })); }
   if (G.aiConfigured() && !o.stressOnly) { try {
     flags = await scanFindings(token, new Date(now.getTime() - 864e5).toISOString(), models.map(m => m.name));
     // each change is costed on the export of the model it concerns (the most recent model when the email does not say)
