@@ -36,6 +36,17 @@ export async function sendText(c: WaConfig, to: string, text: string, replyTo?: 
   for (const [i, body] of chunks(text).entries())
     await post(c, { to, type: "text", text: { body, preview_url: false }, ...(i === 0 && replyTo ? { context: { message_id: replyTo } } : {}) });
 }
+/** An interactive list: a button that opens up to 10 tappable rows. Titles ≤ 24 chars, descriptions ≤ 72. */
+export async function sendList(c: WaConfig, to: string, o: { header?: string; body: string; footer?: string; button: string; section: string; rows: { id: string; title: string; description?: string }[] }) {
+  const cut = (t: string, n: number) => (t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t);
+  await post(c, { to, type: "interactive", interactive: {
+    type: "list",
+    ...(o.header ? { header: { type: "text", text: cut(o.header, 60) } } : {}),
+    body: { text: cut(o.body, 1024) },
+    ...(o.footer ? { footer: { text: cut(o.footer, 60) } } : {}),
+    action: { button: cut(o.button, 20), sections: [{ title: cut(o.section, 24), rows: o.rows.slice(0, 10).map((r) => ({ id: r.id.slice(0, 200), title: cut(r.title, 24), ...(r.description ? { description: cut(r.description, 72) } : {}) })) }] },
+  } });
+}
 export async function markRead(c: WaConfig, messageId: string) {
   await post(c, { status: "read", message_id: messageId }).catch(() => undefined);
 }

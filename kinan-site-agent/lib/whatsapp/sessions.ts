@@ -10,6 +10,12 @@ export interface WaSession {
   pending?: { key: string; mime: string; filename: string; caption: string; at: string };
   seen: string[];
   lastSeen: string;
+  /** The project this conversation is about ("kinan-heights" or a generated project's id), chosen from the list. */
+  projectId?: string;
+  /** A question sent before a project was chosen: answered as soon as one is. */
+  queued?: string;
+  /** Set when this message starts a new conversation (first ever, or after a long silence). */
+  fresh?: boolean;
 }
 
 // One storage object per sender, so concurrent conversations never overwrite each other.
@@ -20,12 +26,15 @@ export async function loadSession(waId: string, name: string): Promise<WaSession
   const s: WaSession = r?.value ?? { name, history: [], seen: [], lastSeen: new Date().toISOString() };
   s.seen ??= [];
   s.name = name || s.name;
+  // a new conversation: first message ever, or nothing for 12 hours — ask which project again
+  s.fresh = !r || Date.now() - Date.parse(s.lastSeen) > 12 * 3600_000;
   s.lastSeen = new Date().toISOString();
   // "Here" from GPS/text expires after 3 h — people move around site.
   if (s.here && Date.now() - Date.parse(s.here.at) > 3 * 3600_000) s.here = undefined;
   return s;
 }
 export async function saveSession(waId: string, s: WaSession) {
+  delete s.fresh;
   s.seen = s.seen.slice(-200);
   s.history = s.history.slice(-24);
   await writeJson(key(waId), s);

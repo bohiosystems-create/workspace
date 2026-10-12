@@ -10,7 +10,9 @@ import { transcribe } from "../core/llm/openai";
 import { toBase64 } from "../core/tools";
 import { serverLlm } from "../llmConfig";
 import { getRepo, newId, readBytes, readUpload, removeKey, saveUpload, writeBytes } from "../store";
-import { getMedia, markRead, sendDocument, sendImage, sendText, uploadMedia, waConfig, type WaConfig } from "./graph";
+import { getMedia, markRead, sendDocument, sendImage, sendList, sendText, uploadMedia, waConfig, type WaConfig } from "./graph";
+import { readGenerated } from "../generated";
+import { runSpecAgent } from "../core/specAgent";
 import { allowed, firstTime, loadSession, saveSession, type WaSession } from "./sessions";
 import { planSvg, svgToPng } from "./render";
 
@@ -37,7 +39,7 @@ const HELP = `*Kinan Onsite Agent* — ask anything about the project, e.g.
 📍 Share your *location* and I'll know where you are.
 📷 Send a *photo or PDF* — I file it to where you are (or caption it "upload to Tower A L12"). Add a question in the caption to get it analysed.
 🎙 Voice notes work too.
-Commands: *help*, *where am I*, *here <place>*, *reset*`;
+Commands: *projects* (switch project), *help*, *where am I*, *here <place>*, *reset*`;
 
 // Serialise processing per sender so replies stay in order.
 const queues = new Map<string, Promise<void>>();
@@ -66,6 +68,43 @@ export function handleWebhook(body: any): Promise<void>[] {
   return jobs;
 }
 
+// ---------------------------------------------------------------- which project the conversation is about
+const LIVE = "kinan-heights";
+interface ProjectChoice { id: string; title: string; description: string }
+async function projectChoices(): Promise<ProjectChoice[]> {
+  const db = (await getRepo()).db;
+  const live: ProjectChoice = { id: LIVE, title: db.project.name, description: `Live site · ${db.project.code} · programme, procurement, safety, documents` };
+  const gen = (await readGenerated()).projects.slice(0, 9).map((p) => {
+    const sp = p.result.spec;
+    return { id: p.id, title: sp.name, description: `${sp.buildings.length} buildings · ${sp.schedule.start.slice(0, 7)} → ${sp.schedule.finish.slice(0, 7)}${sp.location ? ` · ${sp.location}` : ""}` };
+  });
+  return [live, ...gen];
+}
+async function projectName(id?: string) { return id ? (await projectChoices()).find((p) => p.id === id)?.title : undefined; }
+
+/** "Which project do you want to talk about?" as a tappable list (numbered text if the list can't be sent). */
+async function askProject(c: WaConfig, from: string, s: WaSession, intro?: string) {
+  const list = await projectChoices();
+  const cur = await projectName(s.projectId);
+  const body = `${intro ? intro + "\n\n" : ""}Which project do you want to talk about?${cur ? `\nNow: *${cur}*` : ""}`;
+  try {
+    await sendList(c, from, { header: "Kinan Onsite Agent", body, footer: "Type *projects* any time to switch", button: "Choose project", section: "Projects", rows: list.map((p) => ({ id: `proj:${p.id}`, title: p.title, description: p.description })) });
+  } catch (e) {
+    console.warn("[whatsapp] list message failed, sending text", e);
+    await sendText(c, from, `${body}\n\n${list.map((p, i) => `*${i + 1}.* ${p.title} — ${p.description}`).join("\n")}\n\nReply with the number.`);
+  }
+}
+async function pickProject(c: WaConfig, from: string, s: WaSession, id: string, msgId?: string) {
+  const list = await projectChoices();
+  const p = list.find((x) => x.id === id);
+  if (!p) return askProject(c, from, s, "That project is no longer available.");
+  if (s.projectId !== p.id) { s.history = []; s.focusDocId = undefined; }
+  s.projectId = p.id;
+  const q = s.queued; s.queued = undefined;
+  await sendText(c, from, `✅ *${p.title}*. ${q ? "Answering your question…" : p.id === LIVE ? "Ask anything about the site — type *help* for examples." : "Ask about its buildings, programme, critical path and progress."}`);
+  if (q) await ask(c, from, s, q, undefined, msgId);
+}
+
 async function handleMessage(c: WaConfig, m: any, profileName: string) {
   const from: string = m.from;
   const acl = allowed(from);
@@ -84,7 +123,12 @@ async function handleMessage(c: WaConfig, m: any, profileName: string) {
       case "audio": await onAudio(c, from, s, m); break;
       case "image": case "document": await onMedia(c, from, s, m); break;
       case "location": await onLocation(c, from, s, m.location); break;
-      case "interactive": await onText(c, from, s, String(m.interactive?.button_reply?.title ?? m.interactive?.list_reply?.title ?? ""), m.id); break;
+      case "interactive": {
+        const id = String(m.interactive?.list_reply?.id ?? m.interactive?.button_reply?.id ?? "");
+        if (id.startsWith("proj:")) await pickProject(c, from, s, id.slice(5), m.id);
+        else await onText(c, from, s, String(m.interactive?.button_reply?.title ?? m.interactive?.list_reply?.title ?? ""), m.id);
+        break;
+      }
       default: await sendText(c, from, "I can read text, voice notes, photos, PDFs and shared locations. Type *help* for examples.");
     }
   } catch (e) {
@@ -100,7 +144,19 @@ async function onText(c: WaConfig, from: string, s: WaSession, text: string, msg
   const lt = t.toLowerCase();
   const db = (await getRepo()).db;
   if (!t) return;
-  if (/^(help|menu|\?|start|hi|hello|salam|السلام عليكم)$/i.test(t)) return sendText(c, from, HELP);
+  if (/^(help|\?)$/i.test(t)) return sendText(c, from, HELP);
+  // opening the chat: a greeting, "projects", or the first message of a new conversation → choose the project
+  if (/^(menu|start|hi|hello|hey|salam|السلام عليكم|مرحبا|projects?|switch( project)?|change project)[.!]?$/i.test(t)) { s.queued = undefined; return askProject(c, from, s); }
+  if (!s.projectId || s.fresh) {
+    // a reply to the numbered fallback list
+    const list = await projectChoices();
+    const n = Number(t);
+    if (!s.projectId && Number.isInteger(n) && n >= 1 && n <= list.length) return pickProject(c, from, s, list[n - 1].id, msgId);
+    const byName = list.find((p) => p.title.toLowerCase() === lt);
+    if (byName) return pickProject(c, from, s, byName.id, msgId);
+    s.queued = t; s.projectId = undefined;
+    return askProject(c, from, s, `Hi ${s.name.split(" ")[0]} 👋`);
+  }
   if (/^(reset|clear|new chat)$/i.test(t)) { if (s.pending) await removeKey(s.pending.key); s.history = []; s.focusDocId = undefined; s.pending = undefined; return sendText(c, from, "Conversation cleared."); }
   if (/^where am i\??$/i.test(t)) return sendText(c, from, s.here ? `📍 ${locationPath(db, s.here.locationId)} (from ${s.here.source}, ${new Date(s.here.at).toISOString().slice(11, 16)} UTC)` : "I don't know yet — share your location 📍 or type *here Tower A L12*.");
   // "here Tower A L12" / "I'm at gate 2" — short statements only, never questions.
@@ -134,6 +190,15 @@ async function onText(c: WaConfig, from: string, s: WaSession, text: string, msg
 
 async function ask(c: WaConfig, from: string, s: WaSession, text: string, attachment?: { mime: string; bytes: Uint8Array; name: string }, msgId?: string) {
   s.history.push({ role: "user", content: text });
+  if (s.projectId && s.projectId !== LIVE) {
+    // a project created from documents: answered from its model spec
+    const gp = (await readGenerated()).projects.find((p) => p.id === s.projectId);
+    if (!gp) { s.history.pop(); s.projectId = undefined; s.queued = text; return askProject(c, from, s, "That project is no longer available."); }
+    const out = await runSpecAgent(gp.result.spec, s.history.slice(-16), { author: s.name, channel: "whatsapp", deadline: Date.now() + Math.min(agentBudgetMs(), process.env.VERCEL ? 38_000 : 110_000) }, serverLlm());
+    s.history.push({ role: "assistant", content: out.reply });
+    s.history = s.history.slice(-24);
+    return sendText(c, from, out.reply, msgId);
+  }
   const out = await runAgent(s.history.slice(-16), {
     author: s.name, channel: "whatsapp",
     // Leave time inside the function limit to render and send images afterwards.
@@ -185,6 +250,7 @@ async function onAudio(c: WaConfig, from: string, s: WaSession, m: any) {
 }
 
 async function onLocation(c: WaConfig, from: string, s: WaSession, loc: { latitude: number; longitude: number; name?: string }) {
+  if (s.projectId && s.projectId !== LIVE) return sendText(c, from, `Locations work on ${(await getRepo()).db.project.name}'s site plan. Type *projects* and choose it first.`);
   const db = (await getRepo()).db;
   const p = gpsToPlan(Number(loc.latitude), Number(loc.longitude));
   if (p.x < -100 || p.y < -100 || p.x > PLAN.w + 100 || p.y > PLAN.h + 100)
@@ -200,6 +266,7 @@ async function onLocation(c: WaConfig, from: string, s: WaSession, loc: { latitu
 }
 
 async function onMedia(c: WaConfig, from: string, s: WaSession, m: any) {
+  if (s.projectId && s.projectId !== LIVE) return sendText(c, from, `Photos and PDFs are filed on ${(await getRepo()).db.project.name}'s site plan. Type *projects* and choose it to file this one.`);
   const media = m.type === "image" ? m.image : m.document;
   const caption = String(media?.caption ?? "").trim();
   const { bytes, mime } = await getMedia(c, media.id);
