@@ -138,7 +138,7 @@ export function createSpecScene(renderer: THREE.WebGLRenderer, spec: ProjectMode
   scene.environment = envTex;
 
   const skyMat = new THREE.MeshBasicMaterial({ map: sky(night), side: THREE.BackSide, fog: false, depthWrite: false });
-  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(Math.max(1600, extent * 4), 32, 16), skyMat); skyDome.position.set(cx, 0, cz); scene.add(skyDome);
+  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(Math.max(1600, extent * 4), 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), skyMat); skyDome.position.set(cx, -2, cz); scene.add(skyDome);
   scene.fog = new THREE.Fog(0xe9dcc4, extent * 1.6, extent * 5 + 800);
   scene.background = new THREE.Color(0xe9dcc4);
   const sunDisc = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow(), color: 0xfff3d0, transparent: true, depthWrite: false, fog: false }));
@@ -158,7 +158,7 @@ export function createSpecScene(renderer: THREE.WebGLRenderer, spec: ProjectMode
   const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.95 });
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(EW, ED).rotateX(-Math.PI / 2), groundMat);
   ground.position.set(cx, 0, cz); ground.receiveShadow = true; scene.add(ground);
-  const desert = new THREE.Mesh(new THREE.PlaneGeometry(extent * 14, extent * 14).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xd2bd98, roughness: 1 }));
+  const desert = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(1600, extent * 4) * 1.3, Math.max(1600, extent * 4) * 1.3).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xd2bd98, roughness: 1 }));
   desert.position.set(cx, -0.45, cz); desert.receiveShadow = true; scene.add(desert);
   const kerb = new THREE.Mesh(walls(EW, ED, 0.45, 4, 0.45), new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.9 }));
   kerb.position.set(cx, -0.45, cz); scene.add(kerb);

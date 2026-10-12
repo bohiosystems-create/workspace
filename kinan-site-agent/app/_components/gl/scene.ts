@@ -265,9 +265,9 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
   const envTex = pm.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environment = envTex;
 
-  // sky, fog, light
+  // sky (upper hemisphere, horizon in the fog colour), fog, light — the desert stays inside the dome so nothing fogged shows against open sky
   const skyMat = new THREE.MeshBasicMaterial({ map: sky(night), side: THREE.BackSide, fog: false, depthWrite: false });
-  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(2300, 32, 16), skyMat); skyDome.position.set(400, 0, 250); scene.add(skyDome);
+  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(2300, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), skyMat); skyDome.position.set(400, -2, 250); scene.add(skyDome);
   scene.fog = new THREE.Fog(0xe9dcc4, 700, 2100);
   scene.background = new THREE.Color(0xe9dcc4);
   // sun disc
@@ -294,7 +294,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
   shape.holes.push(new THREE.Path([V(B.x, B.z), V(B.x, B.z + B.d), V(B.x + B.w, B.z + B.d), V(B.x + B.w, B.z)]));
   const uvByWorld = (geo: THREE.BufferGeometry) => { const p = geo.attributes.position, uv = new Float32Array(p.count * 2); for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) / (PLAN.w * M); uv[i * 2 + 1] = 1 - p.getZ(i) / (PLAN.h * M); } geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2)); return geo; };
   const groundGeo = uvByWorld(new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2));
-  const dShape = new THREE.Shape([V(-3000, -3000), V(3800, -3000), V(3800, 3500), V(-3000, 3500)]);
+  const dShape = new THREE.Shape([V(-1200, -1350), V(2000, -1350), V(2000, 1850), V(-1200, 1850)]);
   dShape.holes.push(new THREE.Path([V(B.x, B.z), V(B.x, B.z + B.d), V(B.x + B.w, B.z + B.d), V(B.x + B.w, B.z)]));
   const desert = new THREE.Mesh(new THREE.ShapeGeometry(dShape).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xd2bd98, roughness: 1 }));
   desert.position.y = -0.45; desert.receiveShadow = true; scene.add(desert);

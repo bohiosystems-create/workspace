@@ -231,11 +231,13 @@ export function cabin() {
   return tex(c, { repeat: true });
 }
 /** Sky dome gradient (day or night). */
+/** Sky for the upper hemisphere of the dome (v = 0 at the zenith, 1 at the horizon). The bottom stop is the scene's
+ *  fog colour, so the fogged ground meets the sky without a visible edge — otherwise the far desert reads as a hill. */
 export function sky(night: boolean) {
   const { c, g } = canvas(4, 256);
   const grd = g.createLinearGradient(0, 0, 0, 256);
-  if (night) { grd.addColorStop(0, "#05070d"); grd.addColorStop(0.55, "#121a2c"); grd.addColorStop(0.8, "#2a2a3a"); grd.addColorStop(1, "#3b3029"); }
-  else { grd.addColorStop(0, "#5f8fc4"); grd.addColorStop(0.5, "#a8c6e0"); grd.addColorStop(0.82, "#efe3cc"); grd.addColorStop(1, "#f3d9b0"); }
+  if (night) { grd.addColorStop(0, "#05070d"); grd.addColorStop(0.5, "#121a2c"); grd.addColorStop(0.85, "#1a1e2c"); grd.addColorStop(1, "#161a26"); }
+  else { grd.addColorStop(0, "#5f8fc4"); grd.addColorStop(0.45, "#a8c6e0"); grd.addColorStop(0.8, "#e4dccb"); grd.addColorStop(1, "#e9dcc4"); }
   g.fillStyle = grd; g.fillRect(0, 0, 4, 256);
   return tex(c);
 }
