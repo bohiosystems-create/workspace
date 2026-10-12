@@ -1,6 +1,7 @@
 import type { Db, Doc, MaterialRequest, Note, UiAction } from "../types";
 import { descendantIds, locationById, locationPath, resolveLocation, searchDocs } from "./query";
 import * as P from "./project";
+import { searchEmails, type InboxState } from "./emails";
 
 /** Storage the tools run against — implemented by the server (fs) and the browser (IndexedDB). */
 export interface Repo {
@@ -11,6 +12,8 @@ export interface Repo {
   createRequisition?(mr: MaterialRequest): Promise<{ externalRef?: string; message?: string }>;
   /** Refresh procurement data from the purchasing system if stale (best effort). */
   syncProcurement?(): Promise<void>;
+  /** The project's Outlook inbox: emails from contractors (synced when stale). */
+  emails?(force?: boolean): Promise<InboxState>;
 }
 
 export interface Attachment { mime: string; base64: string; name?: string }
@@ -65,6 +68,8 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "stock_levels", description: "Material stock on site (yards, silos, stores) and items below minimum.", input_schema: obj({ query: str(), low: bool() }) },
   { name: "create_material_request", description: "Raise a material request (MR) from site. Creates a request for the procurement team and pushes it to the purchasing system if connected. It does NOT commit spend. Confirm item, quantity, unit, need-by date and place with the user if any is missing.", input_schema: obj({ item: str(), qty: num(), unit: str(), needed_by: str("YYYY-MM-DD"), location: LOC, notes: str() }, ["item", "qty", "unit", "needed_by"]) },
   { name: "ncrs", description: "Non-conformance reports (quality): filter by status, place, keyword.", input_schema: obj({ status: str(), location: LOC, query: str() }) },
+  { name: "contractor_emails", description: "Emails from contractors and consultants in the project's Outlook inbox (project updates, delays, RFIs, HSE reports, inspections). Search by keywords, sender/company and date window; newest first. Use it for anything a contractor may have written about: delays, revised dates, requests, confirmations.", input_schema: obj({ query: str("keywords, e.g. 'façade delay', 'L13 pour', 'SEC inspection', 'PO-4500136'"), from: str("sender name, address or company, e.g. 'Skyline', 'Al-Bunyan'"), since: str("YYYY-MM-DD"), until: str("YYYY-MM-DD"), limit: num() }) },
+  { name: "get_email", description: "Read one email in full (body text, sender, date, attachment names). Call before quoting an email.", input_schema: obj({ id: str() }, ["id"]) },
   { name: "find_contact", description: "Find the right person/company/phone for a role, trade or area (e.g. 'lifting supervisor', 'façade', 'HSE').", input_schema: obj({ query: str() }, ["query"]) },
 ];
 
@@ -213,6 +218,16 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
       }
       case "ncrs": return J(P.ncrQuery(db, input));
       case "find_contact": return J(P.contactsQuery(db, input));
+      case "contractor_emails": case "get_email": {
+        if (!repo.emails) return J({ error: "No inbox is connected." });
+        const inbox = await repo.emails();
+        const status = { mailbox: inbox.mailbox, mode: inbox.mode, lastSync: inbox.lastSync, ...(inbox.error ? { syncError: inbox.error } : {}) };
+        if (name === "get_email") {
+          const e = inbox.emails.find((x) => x.id === String(input.id));
+          return J(e ? { ...e, received: e.received.slice(0, 16).replace("T", " ") } : { error: `No email ${input.id}`, ...status });
+        }
+        return J({ ...status, ...searchEmails(inbox.emails, { query: input.query, from: input.from, since: input.since, until: input.until, limit: input.limit }) });
+      }
       default: return J({ error: `Unknown tool ${name}` });
     }
   } catch (e) {

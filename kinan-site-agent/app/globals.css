@@ -848,3 +848,28 @@ body,html{letter-spacing:0}
 }
 @media (prefers-reduced-motion:no-preference){.chat-drawer{animation:kPop .3s cubic-bezier(.2,.8,.2,1) both}.chat-fab{animation:kPop .5s cubic-bezier(.34,1.56,.64,1) .3s both}}
 @keyframes kDot{0%,100%{opacity:.25}50%{opacity:1}}
+
+/* ---------- contractor emails (Outlook inbox) ---------- */
+.projbody>section.panel.mail-status{grid-column:1/-1}
+.panel header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.mail-err{background:var(--red-soft);color:var(--red-ink);font-size:12px;padding:8px 10px;border-left:3px solid var(--red)}
+.mail-cos{display:flex;flex-wrap:wrap;gap:6px}.mail-cos .chip b{margin-left:4px;font-variant-numeric:tabular-nums}
+.mail-note{font-size:11.5px;color:var(--mute)}.mail-note em{font-style:normal;color:var(--ink)}
+.mail-list li{padding:0}
+.mail-row{display:flex;width:100%;gap:10px;align-items:flex-start;justify-content:space-between;text-align:left;background:none;border:0;padding:11px 12px;color:inherit;font:inherit;cursor:pointer}
+.mail-body{white-space:pre-wrap;font-size:13px;line-height:1.6;padding:2px 14px 14px;color:var(--ink);border-top:1px solid var(--hair)}
+.mail-att{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:12px;color:var(--mute)}
+.mail-body a{display:inline-block;margin-top:10px;color:var(--accent);font-size:12px;font-weight:600}
+
+/* ---------- critical path across the full page width, its groups side by side; the charts two to a row below ---------- */
+.cp-groups{display:grid;grid-template-columns:1fr;gap:14px;align-items:start}
+@media (min-width:900px){
+  .projbody>section.panel.cp-panel{grid-column:1/-1}
+  .cp-groups{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .cp-panel .cp-sum{max-width:560px}
+  .projbody:has(>section.cp-panel)>section.panel:not(.cp-panel){grid-column:auto}
+}
+@media (min-width:1280px){
+  .projbody:has(>section.cp-panel)>section.panel:not(.cp-panel){grid-column:span 3}
+}
+.rows.mail-list li{flex-direction:column;align-items:stretch;gap:0}

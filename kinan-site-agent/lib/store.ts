@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { Db, Doc } from "./types";
 import { seedDb } from "./seed";
 import type { Repo } from "./core/tools";
+import { getInbox } from "./inbox";
 import { attachProcurement } from "./integrations/procurement";
 import { ConflictError, dec, enc, store } from "./storage";
 import { merge3 } from "./merge";
@@ -26,6 +27,7 @@ function makeRepo(db: Db, etag: string, base: string): Loaded {
   const L: Loaded = { etag, base, repo: { db, save: async () => undefined, loadFile: (d) => readUpload(d) } };
   L.repo.save = () => saveLoaded(L);
   attachProcurement(L.repo);
+  L.repo.emails = (force) => getInbox(force);
   return L;
 }
 

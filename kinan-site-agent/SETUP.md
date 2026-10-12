@@ -279,6 +279,8 @@ The name after `:` is recorded as the author of notes and uploads made from that
 | "Where is TC1?" | Sends a cropped map image with the place highlighted |
 | `note: …` / `issue: …` / `instruction: …` | Logs it against your place or the last document |
 | "Order 20 t rebar Ø16 for Tower A L14 by 10 Oct" | Raises a material request (pushed to the purchasing system if connected) |
+| Opening the chat (first message, *hi*, or after 12 h of silence) | Sends **"Which project do you want to talk about?"** as a tappable list: Kinan Heights plus every project created from documents. A question sent before choosing is answered straight after the tap. Projects created from documents are answered from their buildings and programme |
+| `projects` | Shows the project list again to switch |
 | `help` · `where am I` · `here Tower A L12` · `reset` | Commands |
 
 ---
@@ -407,6 +409,25 @@ Columns: `Sheet, Title, Discipline, Location, Revision, Status, Issued, Reason`.
 - **History and delivery check:** every preview, snapshot and send is kept (last 200). The *Delivery check* card lists what is still missing before the e-mail can reach an inbox.
 
 Own server (Docker): call the endpoint from cron, e.g. `* * * * * curl -fsS -H "x-api-key: $REPORTS_CRON_KEY" https://site.example.com/api/reports/run`.
+
+## 8c. Contractor emails (Outlook inbox)
+
+The agent reads the contractors' emails on project updates from a project mailbox in Outlook (Microsoft 365), so a question like *"any delays from the façade contractor?"* is answered from what Skyline actually wrote, with sender and date. The same mail is listed in the app under **Project schedule → Emails**. It is **read-only**: the app never sends, moves, flags or deletes mail in that mailbox.
+
+Until it is connected, a **demo inbox** with emails from the project's contractors is shown (`OUTLOOK_INBOX_MODE` unset).
+
+1. **Mailbox.** Use a shared mailbox the contractors write to (e.g. `projectupdates@yourcompany.com`), or forward/CC their updates to it. Setting up an Outlook rule that copies contractor mail into it works too.
+2. **Permission.** In Microsoft Entra, on the same app as the daily report (*Kinan Onsite AI Agent*), add the Microsoft Graph **application** permission **Mail.Read** and click **Grant admin consent**. No new secret is needed.
+3. **Limit it to that mailbox** (strongly recommended — Mail.Read alone can read every mailbox in the tenant). In Exchange Online PowerShell, put the inbox mailbox (and the report sender) in a mail-enabled security group and run:
+   `New-ApplicationAccessPolicy -AppId <MS_CLIENT_ID> -PolicyScopeGroupId <group@yourcompany.com> -AccessRight RestrictAccess -Description "Kinan Onsite Agent"`
+4. **Variables** (then Redeploy):
+   - `OUTLOOK_INBOX_MODE=live`
+   - `OUTLOOK_INBOX=projectupdates@yourcompany.com` (default: `OUTLOOK_SENDER`)
+   - optional `OUTLOOK_INBOX_FOLDER` (default `Inbox`; a folder name or id)
+   - optional `OUTLOOK_INBOX_DOMAINS=albunyan.com,skyline-facade.com` — keep only mail from these contractor domains
+5. Open **Project schedule → Emails** and press **Sync now**. If Outlook refuses, the reason is shown there (e.g. *Mail.Read not granted*).
+
+How it syncs: mail from the last 60 days on the first sync, then only new mail; refreshed at most every 5 minutes, when the agent or the Emails page needs it. The newest 400 emails are kept in the app's storage (`inbox/emails.json`), with attachment names (not their contents).
 
 ## 9. Security & compliance checklist
 

@@ -10,6 +10,7 @@ import { buildProjectData } from "../lib/data";
 import { renderDrawing } from "../lib/drawings";
 import { describeUpload } from "../lib/core/describe";
 import { configFrom } from "../lib/core/llm/router";
+import { demoEmails } from "../lib/core/emails";
 import { AiUnavailable, runAgent as coreAgent } from "../lib/core/agent";
 import type { Repo } from "../lib/core/tools";
 import { runtime } from "../app/_components/runtime";
@@ -71,6 +72,8 @@ export async function boot() {
     db,
     save: () => { clearTimeout(saveT); saveT = setTimeout(() => put("db", JSON.parse(JSON.stringify(repo.db))), 120); },
     loadFile: async (d: Doc) => { const f = files.get(d.id); return f ? new Uint8Array(await f.arrayBuffer()) : null; },
+    // the standalone build has no mailbox: the demo inbox
+    emails: async () => ({ mode: "demo" as const, mailbox: "projectupdates@kinan.example", lastSync: null, error: null, emails: demoEmails() }),
   };
   runtime.mode = "standalone";
   runtime.fileUrl = (doc) => {
@@ -99,6 +102,7 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
     return json({ project: db.project, locations: db.locations, docs: db.docs.map(({ text: _t, ...d }) => d), notes: db.notes, dataDate: db.data.meta.dataDate, agentMode: "offline", providers: [] });
   }
   if (p === "/api/project") return json(db.data);
+  if (p === "/api/inbox") return json(await repo.emails!());
   if (p === "/api/chat" && method === "POST") {
     // the chat answers only through the AI API, with the keys set on this device
     const b = (await body().catch(() => ({}))) as { messages?: { role: "user" | "assistant"; content: string }[]; author?: string; focus?: { docId?: string; locationId?: string } };

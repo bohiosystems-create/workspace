@@ -192,6 +192,15 @@ The **Daily report** page (top bar) sends one e-mail a day with the status of ev
 
 ---
 
+## Step 6c — Contractor emails from Outlook (optional)
+
+The agent can read contractors' emails on project updates from a project mailbox (read-only). Until this is set, a demo inbox is used.
+
+1. In Microsoft Entra → **App registrations** → *Kinan Onsite AI Agent* → **API permissions** → **Add a permission** → Microsoft Graph → **Application permissions** → **Mail.Read** → **Grant admin consent**.
+2. Recommended: restrict the app to the project mailbox with an Exchange *ApplicationAccessPolicy* (SETUP.md §8c).
+3. In Vercel, add `OUTLOOK_INBOX_MODE=live` and `OUTLOOK_INBOX=<the project mailbox>`; optionally `OUTLOOK_INBOX_DOMAINS` (contractor domains to keep) and `OUTLOOK_INBOX_FOLDER`. **Redeploy.**
+4. Open **Project schedule → Emails** → **Sync now**. Then ask the agent, e.g. *"what did the façade contractor say about batch 4?"*
+
 ## Step 7 — Recommended Vercel settings
 
 | Setting | Where | Recommendation |

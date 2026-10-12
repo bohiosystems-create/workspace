@@ -49,8 +49,8 @@ export function Kpi({ value, text, label, sub, bad, decimals = 0, prefix = "", s
   );
 }
 
-export function Panel({ title, sub, children, aside }: { title: string; sub?: string; children: ReactNode; aside?: ReactNode }) {
-  return <section className="panel"><header><div><h3>{title}</h3>{sub && <p>{sub}</p>}</div>{aside}</header>{children}</section>;
+export function Panel({ title, sub, children, aside, className }: { title: string; sub?: string; children: ReactNode; aside?: ReactNode; className?: string }) {
+  return <section className={"panel" + (className ? " " + className : "")}><header><div><h3>{title}</h3>{sub && <p>{sub}</p>}</div>{aside}</header>{children}</section>;
 }
 
 // ------------------------------------------------------------------ progress ring

@@ -6,9 +6,10 @@ import { progressByLocation, sCurve } from "@/lib/core/progress";
 import { critState, expectedPct, isCritical, liveCritical, slipOf } from "@/lib/critical";
 import type { Activity } from "@/lib/types";
 import { pathOf } from "./site";
+import Emails from "./Emails";
 import { C, Columns3D, Curve, Donut3D, Gauge, Kpi, Panel, Ring, Timeline } from "./Charts";
 
-type Section = "programme" | "procurement" | "safety" | "regs" | "drawings" | "team";
+type Section = "programme" | "procurement" | "safety" | "regs" | "drawings" | "emails" | "team";
 interface Props { locations: Location[]; refreshKey: number; onSelectLocation: (id: string) => void; onOpenDoc: (id: string) => void }
 
 const sar = (n: number) => (n >= 1e6 ? `SAR ${(n / 1e6).toFixed(1)}M` : `SAR ${Math.round(n).toLocaleString("en")}`);
@@ -61,8 +62,9 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
           <Kpi value={cp.late.length} label="Critical late now" sub={`${cp.slipped.length} later critical forecast late`} bad={cp.late.length > 0} />
           <Kpi text={s.practicalCompletion?.forecast ?? "—"} label="Completion" sub={`baseline ${s.practicalCompletion?.baseline ?? "—"}`} />
         </div>
-        <Panel title="Critical path" sub="Zero-float activities: a day lost on any of them moves practical completion" aside={<span className={"cp-count" + (cp.late.length ? " bad" : "")}>{cp.remaining.length}<em>left</em></span>}>
+        <Panel className="cp-panel" title="Critical path" sub="Zero-float activities: a day lost on any of them moves practical completion" aside={<span className={"cp-count" + (cp.late.length ? " bad" : "")}>{cp.remaining.length}<em>left</em></span>}>
           {cp.completion && <div className="cp-sum"><span className="cp-l">Practical completion</span><b>{cp.completion.forecast}</b><em>baseline {cp.completion.baseline}</em><Slip d={cp.completion.slip} /></div>}
+          <div className="cp-groups">
           {groups.filter(([, , xs]) => xs.length).map(([k, label, xs]) => (
             <div key={k} className="cp-group">
               <div className={"cp-h " + k}>{label}<i>{k === "slipped" ? cp.slipped.length : xs.length}</i></div>
@@ -78,6 +80,7 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
               </ul>
             </div>
           ))}
+          </div>
           {!cp.remaining.length && <p>No critical activities left.</p>}
         </Panel>
         <Panel title="Progress" sub={`Earned vs baseline at data date ${data.meta.dataDate}`}>
@@ -206,6 +209,8 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
         <ul className="rows">{(r.sheets ?? []).map((s) => <li key={s.sheet}><span className="t"><b>{s.sheet}</b><em>{s.title}</em><em>Rev {s.rev} · {s.issued} · {s.lastChange}</em></span><span className={"st " + s.status.toLowerCase().replace(/ /g, "")}>{s.status}</span>{s.openableDocId && <button className="mini ask" onClick={() => onOpenDoc(s.openableDocId!)}>Open</button>}</li>)}</ul>
       </>
     );
+  } else if (sec === "emails") {
+    body = <Emails />;
   } else {
     const r = P.contactsQuery(db, { query: q });
     body = (
@@ -219,7 +224,7 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
   return (
     <div className="proj">
       <div className="ptabs">
-        {([["programme", "Programme"], ["procurement", "Procurement"], ["safety", "Safety"], ["regs", "Regulations"], ["drawings", "Drawings"], ["team", "Team"]] as const).map(([k, l]) => (
+        {([["programme", "Programme"], ["procurement", "Procurement"], ["safety", "Safety"], ["regs", "Regulations"], ["drawings", "Drawings"], ["emails", "Emails"], ["team", "Team"]] as const).map(([k, l]) => (
           <button key={k} className={sec === k ? "on" : ""} onClick={() => setSec(k)}>{l}</button>
         ))}
       </div>
