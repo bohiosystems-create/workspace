@@ -134,7 +134,7 @@ export default function Home() {
       </header>
       <nav className="tabs" aria-label="Sections">
         <button className={screen === "home" ? "on" : ""} onClick={() => setScreen("home")}>Projects</button>
-        {screen === "site" && ([["map", "Site map"], ["project", "Programme & data"], ["docs", "Documents"]] as const).map(([id, label]) => (
+        {screen === "site" && ([["map", "Site map"], ["project", "Project schedule"], ["docs", "Documents"]] as const).map(([id, label]) => (
           <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project") setProjKey((k) => k + 1); }}>{label}</button>
         ))}
         {screen === "new" && <button className="on">New project</button>}
