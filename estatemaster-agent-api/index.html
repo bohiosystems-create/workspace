@@ -217,6 +217,10 @@ body.chatopen .kdock{display:flex}
 .msg{border-radius:2px;font-size:12px;line-height:1.6;padding:11px 13px;animation:kUp .3s ease both}
 #hurBar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:0 0 14px;padding:12px 18px;background:#fff;border:1px solid var(--hair);border-left:3px solid var(--orange);font-size:13px}#hurBar .hb-q{flex:1;min-width:260px;line-height:1.5}#hurBar .hb-f{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#hurBar input{width:72px;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--faint)}#hurBar .hb-ai{flex-basis:100%;font-size:12.5px;color:var(--ink2)}#hurBar .hb-ai:empty{display:none}
 .tpl-new{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;min-height:260px;border:2px dashed rgba(241,90,34,.45);background:#fff;cursor:pointer;font:inherit;color:var(--ink);padding:20px}.tpl-new:hover{background:var(--orange-soft);border-color:var(--orange)}.tpl-new .tpl-plus{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:var(--orange);color:#fff;font-size:34px;line-height:1;font-weight:300}.tpl-new b{font-size:15px}.tpl-new span:last-child{font-size:12.5px;color:var(--soft);max-width:240px}
+#fwBody [data-fx]{cursor:pointer;transition:box-shadow .15s,transform .15s}#fwBody [data-fx]:hover{box-shadow:inset 0 0 0 2px rgba(241,90,34,.35)}#fwBody [data-fx].fx-on{box-shadow:inset 0 0 0 2px var(--orange)}
+.fw-fx{display:none;margin:10px 0 12px;padding:12px 14px;background:#fff;border:1px solid var(--hair);border-top:3px solid var(--orange);border-radius:8px}.fw-fx.on{display:block}.fx-h{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--taupe);font-weight:700;margin-bottom:8px}
+.fx-row{display:grid;grid-template-columns:22px minmax(90px,max-content) minmax(0,1fr) auto auto;gap:4px 10px;align-items:baseline;padding:7px 0;border-top:1px solid rgba(46,46,47,.07)}.fx-row:first-of-type{border-top:0}.fx-n{font-size:11px;color:var(--soft)}.fx-l{font-size:12px;color:var(--ink2)}.fx-f{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;background:rgba(46,46,47,.045);padding:3px 8px;border-radius:4px;overflow-wrap:anywhere}.fx-eq{color:var(--orange);font-weight:700}.fx-r{font-size:15px;white-space:nowrap}.fx-by{margin-top:8px;font-size:11.5px;color:var(--soft)}
+@media(max-width:620px){.fx-row{grid-template-columns:22px minmax(0,1fr) auto auto}.fx-l{grid-column:2/-1}}
 .msg.divider{align-self:center;background:none;border:0;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--soft);padding:4px 0;max-width:none}#msgs.swap{animation:chatSwap .35s ease}@keyframes chatSwap{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .msg.agent{background:#f6f5f3;border:0;border-left:3px solid var(--orange);max-width:100%}
 .msg.user{background:var(--ink);color:#fff;max-width:88%}
@@ -831,9 +835,9 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
     <div class="bar"></div><div class="sbhead"><h2>Sensitivity table</h2><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px"><label>Metric <select id="asMetric"></select></label><label>Grid <select id="asN"><option>5</option><option selected>7</option><option>9</option></select></label></div></div>
     <div class="sub">Write in plain words what to stress on each axis. The agent pins down the exact assumption of the model (and asks if it is unsure), then Claude and OpenAI each calculate every cell from EstateMaster’s figures and check each other’s working. Where EstateMaster’s export already holds the same table, EstateMaster’s own figures are shown instead.</div>
     <div class="as-axes"><div class="as-x"><span class="as-axl">X axis →</span><input id="asX" placeholder="e.g. construction cost, from −20% to +20%"></div><div class="as-x as-yrow"><span class="as-axl">Y axis ↑</span><input id="asY" placeholder="e.g. the sale price of the villas"></div><div class="as-go"><button class="btn" id="asGo">Generate</button></div></div>
-    <div class="as-body"><div id="asGrid" class="as-grid"><div class="sub" style="margin:0">Describe the two assumptions and press Generate.</div></div></div>
     <div id="asQ"></div>
-    <div class="steps" id="asSteps" style="margin-top:8px"></div><div class="sub" id="asStat" style="margin:4px 0 0"></div>
+    <div class="steps" id="asSteps" style="margin:4px 0 0"></div><div class="sub" id="asStat" style="margin:4px 0 8px"></div>
+    <div class="as-body"><div id="asGrid" class="as-grid"><div class="sub" style="margin:0">Describe the two assumptions and press Generate.</div></div></div>
   </div>
 <div id="p-stress" style="margin-top:20px">
   <div class="card" style="margin-bottom:20px" id="emResCard">
@@ -1237,7 +1241,28 @@ function openFigWin(el){let w=$('#figWin');if(!w){w=document.createElement('div'
   const k=el.dataset.k||'calc',id=el.dataset.id,wk=id&&WORK.find(x=>x.id===+id);let text=el.dataset.w||(wk&&wk.text)||'';
   if(!text)text=k==='em'?'EstateMaster’s own figure, read from the latest export by row label.':k==='est'?replicaNote():'Worked out by the AI model from the figures in this answer. It did not state its working: treat it as unverified and check it in EstateMaster before it goes into a decision.';
   $('#fwNum').textContent=el.textContent;$('#fwTag').innerHTML=`<span class="tag tag-${k}" style="font-size:10px">${TAGK[k]}</span>`;$('#fwKind').textContent=TAGKIND[k];
+  FWCUR={text,k,num:el.textContent,chg:(text.match(/^Change tested:\s*(.+?)\.?$/im)||[])[1]||'',base:(text.match(/^EstateMaster now:\s*(.+?)\.?$/im)||[])[1]||''};
   $('#fwBody').innerHTML=figSchematic(text,k,el.textContent);w.classList.add('on');fwExplain(text,k,el.textContent)}
+/* ---- click a box of the schematic: the real formulas behind it, numbers substituted (from the working; written out by the AI when the working is in prose) ---- */
+const FWF=new Map();let FWCUR=null;
+function fwLocalSteps(text){const L=String(text||'').split('\n').map(l=>l.trim()).filter(l=>/=/.test(l)&&/\d/.test(l));return L.map(l=>{const c=l.replace(/^[^:]{0,40}:\s*/,'');const i=c.lastIndexOf('=');return{role:/base|estatemaster now|export/i.test(l)?'base':/change|shift|×\s*\(1|\bnew\b|−\s*\d+%|\+\s*\d+%/i.test(l)?'change':'result',label:(l.match(/^([^:=]{2,40}):/)||[])[1]||'',formula:c.slice(0,i).trim(),result:c.slice(i+1).trim()}}).filter(s=>s.formula&&s.result)}
+async function fwFormulas(){const cur=FWCUR;if(!cur)return[];const key=cur.k+'|'+cur.text;if(FWF.has(key))return FWF.get(key);
+  let steps=fwLocalSteps(cur.text);
+  if(apiOn()){try{const r=await complete('You turn the working behind a real-estate appraisal figure (EstateMaster model) into the explicit formulas used, step by step, every number substituted, in the order of the calculation. Do not invent steps the working does not support; where the working only states a result, write the formula it implies. Return JSON only: {"steps":[{"role":"base|change|result","label":"what the step works out, max 6 words","formula":"the expression with numbers, e.g. 13,500 × (1 − 15%)","result":"the value with unit"}]}. role base = figures read from EstateMaster; change = how the tested change is applied to an input; result = every step from there to the final figure.',
+      `Figure: ${cur.num}\nChange tested: ${cur.chg||'(see working)'}\nEstateMaster now: ${cur.base||'(see working)'}\nWorking:\n${cur.text}`,'smart',{max:4000,task:'answer'});
+    const t=r.text||'';let j;try{j=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1))}catch(e){j=null}
+    if(j&&Array.isArray(j.steps)&&j.steps.length){steps=j.steps.filter(x=>x&&x.formula).map(x=>({role:['base','change','result'].includes(x.role)?x.role:'result',label:String(x.label||''),formula:String(x.formula),result:String(x.result||''),ai:mName(r.p,r.model)}))}}catch(e){}}
+  FWF.set(key,steps);return steps}
+async function fwShowFx(tile){const box=$('#fwFx')||(()=>{const d=document.createElement('div');d.className='fw-fx';d.id='fwFx';const f=$('#fwBody .fw-flow');(f||$('#fwBody').firstChild).after(d);return d})();const role=tile.dataset.fx;
+  $$('#fwBody [data-fx]').forEach(x=>x.classList.toggle('fx-on',x===tile));
+  if(box.dataset.role===role&&box.classList.contains('on')){box.classList.remove('on');tile.classList.remove('fx-on');box.dataset.role='';return}
+  box.dataset.role=role;box.classList.add('on');box.innerHTML='<div class="fw-hint"><span class="spin"></span> Writing out the formulas…</div>';
+  const all=await fwFormulas(),pick=role==='result'?all:all.filter(x=>x.role===role),cur=FWCUR||{};
+  let rows=pick;if(!rows.length&&role==='base'&&cur.base)rows=[{label:'EstateMaster’s figure',formula:`read from the export (${(cur.base.match(/\((.*)\)/)||[])[1]||'latest export'})`,result:cur.base.replace(/\s*\(.*$/,'')}];
+  if(!rows.length&&role==='change'&&cur.chg)rows=[{label:'Change applied',formula:cur.chg.replace(/^(.*?)\s*([+−-]\s*\d[\d.]*)\s*%$/,(m,a,b)=>`${a} × (1 ${b.replace('-','−').replace(/\s/g,'')[0]} ${b.replace(/[+−-]\s*/,'')}%)`),result:'new input'}];
+  if(!box.classList.contains('on')||box.dataset.role!==role)return;
+  box.innerHTML=rows.length?`<div class="fx-h">${role==='base'?'Where EstateMaster’s figure comes from':role==='change'?'How the change is applied':'Every step to the result'}</div>`+rows.map((x,i)=>`<div class="fx-row"><span class="fx-n">${i+1}</span><span class="fx-l">${esc(x.label||'')}</span><code class="fx-f">${fwNums(x.formula)}</code><span class="fx-eq">=</span><b class="fx-r">${fwNums(x.result)}</b></div>`).join('')+`<div class="fx-by"><i>${rows[0].ai?'Formulas written out by '+esc(rows[0].ai)+' from the working above. Not EstateMaster figures, except the base.':'Formulas as stated in the working.'}</i></div>`:'<div class="fw-hint">The working gives no formula for this step.</div>'}
+document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('#fwBody [data-fx]');if(!t||e.target.closest('summary, .fw-n, details[open] *'))return;fwShowFx(t)});
 /* ---- what each number in a working refers to: EstateMaster's own figures are matched first; the rest is explained by the fast AI route once per working ---- */
 /* ---- the arithmetic as a ladder of steps (what · how · = result); every number can be hovered for what it is.
    Meanings: the step a number comes from (instant), then the AI's explanation of each number (one fast call, cached). ---- */
@@ -1264,8 +1289,8 @@ async function fwExplain(text,k,num){const body=$('#fwBody');if(!body)return;fwL
   hint.innerHTML='<span class="spin"></span> Hover any number to see what it is · the AI is explaining each figure…';
   const list=ns.map((n,i)=>`${i}: "${n.dataset.n}" in “${(n.closest('.fw-row,.fw-row.note,details,div')||n).textContent.trim().slice(0,160)}”`).join('\n');
   try{const r=await complete('You explain the working behind a real-estate development appraisal figure (EstateMaster model: equity, land, construction, sales, Murabaha debt, IRR, profit on cost) to a development manager. Reply with JSON only.',
-      `Figure: ${num} (${TAGKIND[k]||k})\nProject: ${typeof PROJ!=='undefined'?PROJ.name:''}\nWorking:\n${text}\n\nNumbers in the working (index: number in context):\n${list}\n\nFor every index, say in at most 18 plain words what the number is and where it comes from (an EstateMaster input or export figure, the change being tested, a result of an earlier step, a constant such as 1 in a formula, a unit conversion). Return {"n":[{"i":0,"meaning":"…"}]}.`,'fast');
-    const t=r.text||'',j=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1));FWX.set(key,j.n||[]);apply(j.n);hint.textContent='Hover any number to see what it is · explained by '+(typeof mName==='function'?mName(r.p,r.model):'the AI')+'.'}
+      `Figure: ${num} (${TAGKIND[k]||k})\nProject: ${typeof PROJ!=='undefined'?PROJ.name:''}\nWorking:\n${text}\n\nNumbers in the working (index: number in context):\n${list}\n\nFor every index, say in at most 18 plain words what the number is and where it comes from (an EstateMaster input or export figure, the change being tested, a result of an earlier step, a constant such as 1 in a formula, a unit conversion). Return JSON only: {"n":[{"i":0,"meaning":"…"}]}.`,'fast',{max:4000,task:'answer'});
+    const t=r.text||'',j=jsonLoose(t);FWX.set(key,j.n||[]);apply(j.n);hint.textContent='Hover any number to see what it is · explained by '+(typeof mName==='function'?mName(r.p,r.model):'the AI')+'.'}
   catch(e){hint.textContent='Hover any number to see which step it comes from (the AI explanation is unavailable: '+String(e.message||e).slice(0,80)+').'}}
 function fwTip(n){let t=$('#fwTip');if(!t){t=document.createElement('div');t.id='fwTip';document.body.appendChild(t)}if(!n){t.style.display='none';document.querySelectorAll('.fw-n.hl').forEach(x=>x.classList.remove('hl'));return}
   const v=fwVal(n.dataset.n);document.querySelectorAll('#fwBody .fw-n').forEach(x=>x.classList.toggle('hl',x!==n&&fwVal(x.dataset.n)===v));
@@ -1291,9 +1316,9 @@ function figSchematic(text,k,num){const lines=String(text||'').split('\n').map(l
     notes.push(l)}
   const stPill=!status?'':/agree/i.test(status)&&!/differ/i.test(status)?'<span class="pill p">cross-checked · agree</span>':/After the review they agree|reconciled/i.test(status)?'<span class="pill p">cross-checked · reconciled</span>':/still differ|arbitrat/i.test(status)?'<span class="pill s">cross-checked · still apart</span>':/Only one|not cross-checked/i.test(status)?'<span class="pill s">one model · not cross-checked</span>':'';
   let h='';
-  if(base||chg)h+=`<div class="fw-flow"><div class="fw-tile"><small>EstateMaster now</small><b>${esc(base.replace(/\s*\(.*$/,''))||'—'}</b><em>${esc((base.match(/\((.*)\)/)||[])[1]||'')}</em></div><span class="fw-arr">→</span><div class="fw-tile chg"><small>Change tested</small><b>${esc(chg||'—')}</b></div><span class="fw-arr">→</span><div class="fw-tile res"><small>Result</small><b>${esc(num||'')}</b><em>AI estimate</em></div></div>`;
+  if(base||chg)h+=`<div class="fw-flow"><div class="fw-tile" data-fx="base" title="Click for the formula"><small>EstateMaster now</small><b>${esc(base.replace(/\s*\(.*$/,''))||'—'}</b><em>${esc((base.match(/\((.*)\)/)||[])[1]||'')}</em></div><span class="fw-arr">→</span><div class="fw-tile chg" data-fx="change" title="Click for the formula"><small>Change tested</small><b>${esc(chg||'—')}</b></div><span class="fw-arr">→</span><div class="fw-tile res" data-fx="result" title="Click for the formulas"><small>Result</small><b>${esc(num||'')}</b><em>AI estimate</em></div></div><div class="fw-fx" id="fwFx"></div>`;
   const mathBlock=l=>fwCalc(l);
-  if(models.length)h+=`<div class="fw-models">${models.map(m=>`<div class="fw-model"><div class="fw-mv">${esc(m.value)}</div>${m.work.filter(isMath).map(mathBlock).join('')}${m.work.filter(x=>!isMath(x)).length?`<details class="fw-det"><summary>working</summary>${m.work.filter(x=>!isMath(x)).map(x=>fwNums(x)).join('<br>')}</details>`:''}</div>`).join('')}</div>`;
+  if(models.length)h+=`<div class="fw-models">${models.map(m=>`<div class="fw-model" data-fx="result" data-who="${esc(m.name)}" title="Click for the formulas"><div class="fw-mv">${esc(m.value)}</div>${m.work.filter(isMath).map(mathBlock).join('')}${m.work.filter(x=>!isMath(x)).length?`<details class="fw-det"><summary>working</summary>${m.work.filter(x=>!isMath(x)).map(x=>fwNums(x)).join('<br>')}</details>`:''}</div>`).join('')}</div>`;
   if(math.length)h+=math.map(mathBlock).join('');
   if(stPill)h+=`<div class="fw-st">${stPill}</div>`;
   if(checks.length)h+=`<div class="fw-checks">${checks.map(c=>`<div class="fw-ck ${c.bad?'bad':c.ok?'ok':''}"><i>${c.bad?'✕':c.ok?'✓':'!'}</i><span>${esc(c.text)}</span></div>`).join('')}</div>`;
@@ -1561,6 +1586,13 @@ async function handle(text,ch,role,forced){
       if(chg)it={k:'aitest',changes:[chg]};else{out.link=['model','Open assumptions'];done(`${PROJ.name} was created from an EstateMaster export, so the agent has no replica model for it: it does not estimate stress tests, sensitivities or headroom itself. Use EstateMaster’s own sensitivity tables (“EstateMaster sensitivity on …”, Scenarios tab) or test a change with the cross-checked AI calculation: “test rent −10% and a 6-month delay”, or the Assumptions tab.`);return out}}}
   if(['estimate','emresults','emsens','proposelast','emchecks','emailflags','aitest','xasm'].includes(it.k)){const pv=await provHandle(it,out,done,web,ch,role);if(pv)return pv}
   if(it.k==='note'){done(String(it.text||''));return out}
+  if(it.k==='fx'){try{const r=await fxRate(it.from,it.to);done(`*Exchange rate ${r.from}→${r.to}: ${r.rate}* (1 ${r.from} = ${r.rate} ${r.to}; 1 ${r.to} = ${(1/r.rate).toFixed(4)} ${r.from})\nSource: ${r.source}${r.url?' · '+r.url:''} · as of ${r.date}${r.cached?' (fetched earlier today)':''}.\nConverted figures are the agent's arithmetic, not EstateMaster's: mark each ⟦calc: amount × ${r.rate} (${r.source}, ${r.date})⟧.`)}catch(e){done(`No live rate for ${it.from}→${it.to}: ${e.message}. Ask the user which rate to use and name it as their rate.`)}return out}
+  if(it.k==='dailyregen'){out.steps=['Server · rebuilding the daily report in English and Arabic'];out.link=['report','Open the Daily report'];
+    try{if(!DAILYSRV)throw new Error('the server scheduler is not configured on this deployment (SharePoint/Outlook connection)');const j=await dailyApi({action:'preview'});if(!j||j.error)throw new Error((j&&j.error)||'no answer');
+      DAILYSRV.daily=j.daily&&j.daily.html?j.daily:{at:new Date().toISOString(),html:j.previews};DRLAST=j.previews;out.fx=()=>{RSEL='daily';try{renderReportList();renderReport()}catch(e){}};
+      const n=j.stress&&j.stress.models?j.stress.models.length:0;done(`Daily report regenerated on the server (${new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}, English and Arabic${n?`, stress run on ${n} model${n>1?'s':''}`:''}). It is on the Reports page; say "play the daily report" to present it or "send the daily report" to email it.`)}
+    catch(e){done(`The daily report could not be regenerated: ${e.message}`)}return out}
+  if(it.k==='play'){const k=it.kind;out.link=['report','Open reports'];out.fx=()=>{RSEL=k;try{renderReportList();renderReport()}catch(e){}try{openDeck(buildDeck(k))}catch(e){toast(e.message)}};done(`Opening ▶ Play for “${RPTS[k]?RPTS[k].name:k}”.`);return out}
   if(RO){const ro=roHandle(it,text,ch,role,out,done,web);if(ro)return ro}
   switch(it.k){
   case 'xline':{
@@ -3513,6 +3545,24 @@ function calcContext(x){const L=[];const o=x?x.out:{};const PR=x&&x.proj&&PROJEC
 const CALC_SYS=`You are a senior real estate development finance analyst. An ARGUS EstateMaster feasibility model (the trusted model) produced the outputs and inputs below. You cannot run EstateMaster: estimate, step by step, the effect of the stated assumption changes on its outputs, the way an analyst would by hand (revenue and cost effects on net profit and profit on cost; timing, leverage and finance effects on the IRRs; use EstateMaster's sensitivity tables where they apply, interpolating between cells). Use only the figures given and state every assumption you make.
 Return JSON only: {"method":"one short paragraph","results":[{"metric":"levered_irr|unlevered_irr|profit_on_cost|net_profit|total_cost|gross_revenue|peak_debt","base":number,"value":number,"working":"the calculation for this figure, with the numbers"}],"caveats":"short"}
 Always include levered_irr, profit_on_cost and net_profit. Percentages in percent (18.4 means 18.4%). Money in full currency units.`;
+function jsonLoose(t){t=String(t||'');try{return JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1))}catch(e){}
+  const items=[...t.matchAll(/\{\s*"i"\s*:\s*(\d+)\s*,\s*"meaning"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/g)].map(m=>({i:+m[1],meaning:m[2].replace(/\\"/g,'"')}));if(items.length)return{n:items};throw new Error('the AI answer was cut short')}
+/* A live exchange rate with its source: SAR/USD is the SAMA peg; other pairs are looked up online by Claude's web search (OpenAI's answer as a fallback, source named by the model). Cached for the day. */
+const FXC=(()=>{try{return JSON.parse(localStorage.getItem('em_fx')||'{}')}catch(e){return{}}})();
+async function fxRate(from,to){from=String(from||'').toUpperCase();to=String(to||'').toUpperCase();if(!/^[A-Z]{3}$/.test(from)||!/^[A-Z]{3}$/.test(to))throw new Error('give two ISO currency codes');
+  const today=new Date().toISOString().slice(0,10);if(from===to)return{from,to,rate:1,source:'same currency',date:today};
+  const peg={'SAR|USD':3.75,'USD|SAR':1/3.75,'AED|USD':3.6725,'USD|AED':1/3.6725};if(peg[from+'|'+to])return{from,to,rate:+peg[from+'|'+to].toFixed(6),source:from==='SAR'||to==='SAR'?'SAMA fixed peg (SAR 3.75 per USD)':'CBUAE fixed peg (AED 3.6725 per USD)',date:today};
+  const key=from+'|'+to;if(FXC[key]&&FXC[key].date===today)return{...FXC[key],cached:true};
+  if(!apiOn())throw new Error('no AI connected to look the rate up');
+  const sys='You find today\'s exchange rate from a reputable online source (a central bank, the ECB, XE, Reuters, Bloomberg or a major bank). Reply with JSON only: {"rate":<number, units of the second currency per 1 unit of the first>,"date":"YYYY-MM-DD","source":"name of the source","url":"page url"}. If you cannot find a source, reply {"error":"why"}.';
+  const user=`Exchange rate ${from}→${to} (how many ${to} for 1 ${from}) today, with the source.`;const errs=[];
+  for(const q of chain('smart')){try{ROUTESTATS.calls++;let j;
+      if(q.p==='anthropic'){const body={model:q.model,max_tokens:1200,system:sys,messages:[{role:'user',content:user}],tools:[{type:'web_search_20260209',name:'web_search',max_uses:3}]};const r=await send('anthropic',body,'answer');if(r.error)throw new Error(r.error.message||JSON.stringify(r.error));j=jsonFrom((r.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n'))}
+      else{const r=await callOne(q.p,q.model,sys,[{role:'user',content:user}],false,{max:1200,task:'answer'});j=jsonFrom(r.text)}
+      if(j.error)throw new Error(j.error);const rate=+j.rate;if(!Number.isFinite(rate)||rate<=0)throw new Error('no rate in the answer');if(!j.source)throw new Error('the answer names no source');
+      const out={from,to,rate:+rate.toFixed(6),source:String(j.source).slice(0,120)+' (found by '+mName(q.p,q.model)+')',url:String(j.url||'').slice(0,200),date:String(j.date||today).slice(0,10)};FXC[key]=out;try{localStorage.setItem('em_fx',JSON.stringify(FXC))}catch(e){}return out}
+    catch(e){errs.push(mName(q.p,q.model)+': '+provErr(e.message))}}
+  throw new Error(errs.join('; '))}
 function provErr(msg){const m=String(msg||'');return /credit balance is too low|billing|insufficient_quota|exceeded your current quota/i.test(m)?(/anthropic/i.test(m)?'Claude is out of API credit (Anthropic billing: add credit in the Claude Console)':'OpenAI is out of API credit (OpenAI billing)'):m}
 const jsonFrom=t=>{const m=String(t||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('no JSON in the answer');return JSON.parse(m[0])};
 const agreeOn=(k,a,b)=>MET[k]&&MET[k][1]==='%'?Math.abs(a-b)<=0.5:Math.abs(a-b)<=0.02*Math.max(Math.abs(a),Math.abs(b),1);
@@ -3582,16 +3632,21 @@ const CHECK_SYS=`You are the independent checker of a financial calculation made
 Return JSON only: {"verdicts":[{"metric":"levered_irr|unlevered_irr|profit_on_cost|net_profit|total_cost|gross_revenue|peak_debt","ok":true|false,"issue":"one sentence, empty when ok","severity":"error|warn"}],"summary":"one or two sentences"}`;
 async function checkerAgent(res,det){const x=res.x,ctx=calcContext(x),chg=res.changes.map(c=>'- '+(c.text||`${c.label}: from ${c.from} to ${c.to}`)).join('\n');
   const rounds=res.rounds||[];const last=rounds[rounds.length-1]||[];const user=`${ctx}\n\nChanges tested:\n${chg}\n\n${last.map(r=>`Analyst ${r.who}:\n${JSON.stringify(r.j)}`).join('\n\n')}\n\nResult adopted: ${res.metrics.map(m=>`${m.k} = ${m.value} (${m.status})`).join('; ')}\nAutomatic checks: ${det.findings.length?det.findings.map(f=>f.text).join('; '):'none failed'}${det.bench.length?'\nEstateMaster sensitivity benchmark: '+det.bench.map(b=>`${b.k} ≈ ${b.value} at ${b.shift}% (${b.table})`).join('; '):''}`;
-  const used=new Set((res.names||res.models||[]));let err;
-  for(const {p,model} of chain('check').concat(chain('deep'))){const nm=mName(p,model);if(used.has(nm))continue;try{ROUTESTATS.calls++;const r=await callOne(p,model,CHECK_SYS,[{role:'user',content:user}],false,{max:3000,task:'calc'});const j=jsonFrom(r.text);return{model:nm,verdicts:(j.verdicts||[]).filter(v=>v&&v.metric),summary:String(j.summary||'').slice(0,400)}}catch(e){err=e;ROUTESTATS.fallback++}}
-  for(const {p,model} of chain('check')){try{ROUTESTATS.calls++;const r=await callOne(p,model,CHECK_SYS,[{role:'user',content:user}],false,{max:3000,task:'calc'});const j=jsonFrom(r.text);return{model:mName(p,model)+' (also a calculator here)',verdicts:(j.verdicts||[]).filter(v=>v&&v.metric),summary:String(j.summary||'').slice(0,400)}}catch(e){err=e}}
-  throw err||new Error('no checker model available')}
+  // The checker panel: every model of the check chain audits at once. A model that also calculated is used only if nothing else is available.
+  const used=new Set((res.names||res.models||[])),all=chain('check'),seen=new Set(),pick=all.filter(q=>{const k=q.p+'|'+q.model;if(seen.has(k))return false;seen.add(k);return true}),panel=pick;   // every checker model audits, including one that also calculated (it is marked as such)
+  const one=async q=>{ROUTESTATS.calls++;const r=await callOne(q.p,q.model,CHECK_SYS,[{role:'user',content:user}],false,{max:4000,task:'calc'});const j=jsonFrom(r.text);return{model:mName(q.p,q.model)+(used.has(mName(q.p,q.model))?' (also a calculator here)':''),verdicts:(j.verdicts||[]).filter(v=>v&&v.metric),summary:String(j.summary||'').slice(0,400)}};
+  const got=await Promise.allSettled(panel.map(one)),ok=got.filter(g=>g.status==='fulfilled').map(g=>g.value),failed=got.map((g,k)=>g.status==='rejected'?`${mName(panel[k].p,panel[k].model)}: ${provErr(g.reason&&g.reason.message)}`:'').filter(Boolean);
+  if(!ok.length)throw new Error(failed.join('; ')||'no checker model available');
+  // one verdict per metric: an issue when any checker raises one (an error outranks a warning), naming every checker that raised it
+  const mets=[...new Set(ok.flatMap(c=>c.verdicts.map(v=>v.metric)))],verdicts=mets.map(mk=>{const bad=ok.flatMap(c=>c.verdicts.filter(v=>v.metric===mk&&v.ok===false).map(v=>({...v,by:c.model})));
+    if(!bad.length)return{metric:mk,ok:true,issue:'',severity:''};const top=bad.find(v=>v.severity==='error')||bad[0];return{metric:mk,ok:false,severity:bad.some(v=>v.severity==='error')?'error':'warn',issue:bad.map(v=>`${v.by}: ${v.issue||'issue raised'}`).join(' · '),by:bad.map(v=>v.by)}});
+  return{model:ok.map(c=>c.model).join(', '),panel:ok,failed,verdicts,summary:ok.map(c=>`${c.model}: ${c.summary}`).join(' · ').slice(0,1200)}}
 async function calcVerify(res,onStep=async()=>{}){const det=calcChecks(res);res.checks=det;
   await onStep(`Checks on the result: ${det.findings.length?det.findings.length+' finding'+(det.findings.length>1?'s':''):'arithmetic, direction and bounds hold'}${det.bench.length?' · benchmarked against EstateMaster’s own sensitivity table':''}`);
-  try{const ck=await checkerAgent(res,det);res.checker=ck;const bad=ck.verdicts.filter(v=>v.ok===false);await onStep(`Independent checker (${ck.model}): ${bad.length?bad.length+' issue'+(bad.length>1?'s':'')+' raised':'no issue found'}`)}
+  try{const ck=await checkerAgent(res,det);res.checker=ck;const bad=ck.verdicts.filter(v=>v.ok===false);await onStep(`Checker panel (${ck.model}${ck.failed&&ck.failed.length?'; unavailable: '+ck.failed.join('; '):''}): ${bad.length?bad.length+' issue'+(bad.length>1?'s':'')+' raised':'no issue found'}`)}
   catch(e){res.checker={model:'',error:e.message,verdicts:[],summary:''};await onStep('Independent checker not available: '+e.message)}
   for(const m of res.metrics){const fs=det.findings.filter(f=>f.k===m.k),v=(res.checker.verdicts||[]).find(z=>z.metric===m.k&&z.ok===false);
-    m.checks=fs.map(f=>`${f.level==='error'?'Error':'Check'}: ${f.text}`);if(v)m.checks.push(`Checker (${res.checker.model}): ${v.issue||'issue raised'}`);const b=det.bench.find(z=>z.k===m.k);if(b)m.bench=b;
+    m.checks=fs.map(f=>`${f.level==='error'?'Error':'Check'}: ${f.text}`);if(v)m.checks.push(`Checker panel (${(v.by||[res.checker.model]).join(', ')}): ${v.issue||'issue raised'}`);const b=det.bench.find(z=>z.k===m.k);if(b)m.bench=b;
     m.flag=fs.some(f=>f.level==='error')||!!(v&&v.severity!=='warn');m.warn=!m.flag&&(fs.length>0||!!v)}}
 function finishTest(res){const x=res.x,o=x?x.out:{},chg=res.changes.map(c=>c.text||`${c.label}: ${c.from} → ${c.to}`).join('; '),[na,nb]=res.names||res.models.concat(['']);
   res.metrics.forEach(m=>{const base=o[m.k];
@@ -5255,7 +5310,7 @@ const KD_CSS=`
 .kd-seg:hover::before{background:rgba(46,46,47,.3)}.kd-seg span{position:absolute;left:0;top:5px;height:4px;border-radius:2px;background:#f15a22;width:0}
 .kd-stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:clamp(10px,2.4vh,30px) clamp(18px,6vw,100px);overflow:hidden}
 .kd-stack{position:relative;z-index:2;display:grid;width:100%;max-width:1280px;max-height:100%;perspective:1400px;transform:translate(calc(var(--kd-px,0)*8px),calc(var(--kd-py,0)*6px));transition:transform .6s cubic-bezier(.2,.8,.2,1)}
-.kd-slide{grid-area:1/1;min-width:0;overflow-y:auto;overflow-x:hidden;max-height:calc(100vh - 190px);padding:6px 4px 14px;scrollbar-width:none}
+.kd-slide{grid-area:1/1;min-width:0;overflow-y:auto;overflow-x:hidden;max-height:calc(100vh - 190px);padding:8px 14px 14px;scrollbar-width:none}
 .kd-enter{animation:kdReveal 1s cubic-bezier(.2,.8,.2,1) both}.kd-exit{animation:kdExit .45s ease forwards;pointer-events:none}
 .kd-hold *{animation-play-state:paused!important}
 .kd-wipe{position:absolute;inset:-10% 0;z-index:3;pointer-events:none;overflow:hidden}
@@ -5269,7 +5324,7 @@ const KD_CSS=`
 .kd-slide.kd-dimmed [data-fig]:not(.kd-focus){opacity:.4}
 .kd-slide.kd-dimmed [data-fig].kd-seen:not(.kd-focus){opacity:.78}
 .kd-slide .kd-focus{opacity:1!important;filter:drop-shadow(0 0 12px rgba(241,90,34,.55))}
-.kd-slide div.kd-focus,.kd-slide li.kd-focus{transform:scale(1.025);transform-origin:left center;box-shadow:0 0 0 2px #f15a22,0 18px 40px rgba(46,46,47,.18);border-radius:8px;background:rgba(255,255,255,.92);z-index:2;position:relative;padding-left:8px;margin-left:-8px}
+.kd-slide div.kd-focus,.kd-slide li.kd-focus{transform:scale(1.02);transform-origin:left center;box-shadow:0 0 0 2px #f15a22,0 18px 40px rgba(46,46,47,.18);border-radius:8px;background:rgba(255,255,255,.92);z-index:2;position:relative;padding-left:8px;padding-right:8px;margin-left:-8px;margin-right:-8px}
 .kd-slide li.kd-focus{padding-left:6px}
 .kd-slide .kd-li.kd-focus,.kd-slide .kd-hrow.kd-focus{transform:none}
 .kd-slide tr.kd-focus td{background:rgba(241,90,34,.14);font-weight:600}
@@ -5800,7 +5855,7 @@ const CHAINS={
   fast:{label:'Commentary',m:[['openai','gpt-5-mini'],['anthropic','claude-sonnet-5-5']]},
   smart:{label:'Agent with tools',m:[['anthropic','claude-sonnet-5-5'],['openai','gpt-5']]},
   deep:{label:'IC narrative, memos, risk review and recommendations',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
-  check:{label:'Independent checker of AI calculations (audits the working, does not recalculate)',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
+  check:{label:'Checker panel: every model here audits each AI calculation independently (does not recalculate); any error raised by one is shown, with who raised it',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5'],['openai','o3']]},
   excel:{label:'Excel questions',m:[['openai','gpt-5'],['anthropic','claude-sonnet-5-5']]},
   report:{label:'Report design',m:[['anthropic','claude-fable-5-1'],['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
   answer:{label:'Questions during ▶ Play (quick, ready by the end of the slide)',m:[['anthropic','claude-sonnet-5-5'],['openai','gpt-5']]},
@@ -5860,7 +5915,10 @@ const TOOLS=[
  {name:'estatemaster_sensitivity',description:'EstateMaster’s own saved sensitivity tables (1-way and 2-way) read from the export: the metric at each shift of an assumption, as EstateMaster calculated them. Use this BEFORE estimating a sensitivity or stress yourself; if the export has no table for it, fall back to estimate_scenario and say the figure is an estimate. Figures come back with ⟦em#n⟧ markers to copy.',p:{query:{type:'string',description:'assumption and/or metric words, e.g. "sale price IRR", "cost vs price"'}}},
  {name:'make_chart',description:'Draw a chart in the chat for the user. Use get_series first whenever the data exists in the model (cash flow, facility, stress tests, costs, sources and uses, past projects, funds, macro, scenarios, covenants, spend, collections): never retype those numbers. For derived figures (ratios, differences, averages you computed), pass them and say so in source. type: columns (optionally with target as a second series), bars (with benchmark), line, donut, waterfall (totals = indexes of total steps), stacked, gauges (values are % of target), table.',p:{type:{type:'string',enum:['columns','bars','line','donut','waterfall','stacked','gauges','table']},title:{type:'string'},subtitle:{type:'string'},unit:{type:'string',description:'e.g. %, SAR M, x, months'},labels:{type:'array',items:{type:'string'}},values:{type:'array',items:{type:'number'}},target:{type:'array',items:{type:'number'},description:'optional second series (columns) or target per gauge'},series_label:{type:'string'},target_label:{type:'string'},benchmark:{type:'number'},benchmark_label:{type:'string'},totals:{type:'array',items:{type:'integer'}},decimals:{type:'integer'},source:{type:'string',description:'Where every value came from: the tool/series name, the EstateMaster export, or "worked out by the AI from …"'}},req:['type','title','labels','values','source']},
  {name:'get_series',description:'Draw one of the model’s own series as a chart, with the figures from the model data, the EstateMaster export or the data library (no retyping). Returns the chart and its values. series: cashflow_annual, facility, stress_table, stress_generated, cost_breakdown, capital_stack, ic_summary (profit bridge), kpis (returns vs hurdles), tornado_top, scenario_compare, valuation, fund_summary, past_projects, delivery_record, cost_benchmarks, sales_velocity, portfolio_exposure, fund_portfolio, fund_performance, fund_distributions_history, macro_context, cost_inflation, scenario_library, covenant_history, stress_history, cost_curve, collections_history. kind (optional) converts the chart: columns, bars, line, donut, table.',p:{series:{type:'string'},kind:{type:'string',enum:['columns','bars','line','donut','table']}},req:['series']},
- {name:'query_data',description:'Read the data library (dummy data in the demo; KINAN’s SQL Server, fund administrator and market feed in production): past_projects (budget vs final cost, schedule, velocity, planned vs realised returns), funds (size, calls, distributions, NAV, net IRR, DPI/TVPI, holdings, covenants), macro (monthly SAIBOR, CPI, construction cost, steel, cement, mortgage, price and rent indices, REIT yield, Brent since 2019), scenarios (library with historical analogues, run on this model), covenants (quarterly tests), stress_runs (past stress tests), actuals (monthly spend, sales, collections, drawdowns), benchmarks (SAR/sqm by element and asset type). filter narrows rows by words.',p:{dataset:{type:'string',enum:['past_projects','funds','macro','scenarios','covenants','stress_runs','actuals','benchmarks']},filter:{type:'string'}},req:['dataset']},
+ {name:'exchange_rate',description:'A live exchange rate between two currencies, with its source and date, for converting figures. SAR/USD is the SAMA peg (3.75). Other pairs are looked up online through the AI (web search) and the source is named. Converted figures are your own arithmetic: mark each as ⟦calc: amount × rate (source, date)⟧.',p:{from:{type:'string',description:'ISO code, e.g. SAR'},to:{type:'string',description:'ISO code, e.g. USD'}},req:['from','to']},
+{name:'regenerate_daily_report',description:'Rebuild the Daily report (the emailed "Daily report · all models": every model, what changed, checks, stress run, risks) on the server now, in English and Arabic, and refresh the Reports page. Use when the user wants the daily report regenerated, refreshed or rerun; to change its design use design_report with report "daily"; to send it use send_report.',p:{}},
+{name:'play_report',description:'Open ▶ Play mode for a report: the slides are presented with the voice. report is a report id (daily, ic, monthly, lender, investor, compare, stress) or a custom report name.',p:{report:{type:'string'}},req:['report']},
+{name:'query_data',description:'Read the data library (dummy data in the demo; KINAN’s SQL Server, fund administrator and market feed in production): past_projects (budget vs final cost, schedule, velocity, planned vs realised returns), funds (size, calls, distributions, NAV, net IRR, DPI/TVPI, holdings, covenants), macro (monthly SAIBOR, CPI, construction cost, steel, cement, mortgage, price and rent indices, REIT yield, Brent since 2019), scenarios (library with historical analogues, run on this model), covenants (quarterly tests), stress_runs (past stress tests), actuals (monthly spend, sales, collections, drawdowns), benchmarks (SAR/sqm by element and asset type). filter narrows rows by words.',p:{dataset:{type:'string',enum:['past_projects','funds','macro','scenarios','covenants','stress_runs','actuals','benchmarks']},filter:{type:'string'}},req:['dataset']},
  {name:'extract_from_estatemaster',description:'Run a fresh extract of every assumption and output from EstateMaster into the reporting store.',p:{}},
  {name:'list_model_assumptions',description:'List every assumption line in the EstateMaster register with id, section, unit, base and current value.',p:{}},
  {name:'set_model_assumption',description:'Set one line of the EstateMaster assumption register (any line, e.g. MEP services, contingency, SAIBOR, 2-bed price) to an absolute value in its own unit.',p:{id:{type:'string',enum:REG.map(l=>l.id)},value:{type:'number'}},req:['id','value']},
@@ -5901,6 +5959,9 @@ function toolIntent0(name,a){
     case 'create_report':return{k:'newreport',text:[a.name?`Report: ${a.name}.`:'',a.audience?`For ${a.audience}.`:'',a.description||'',(a.blocks||[]).length?'Sections: '+a.blocks.filter(b=>BLOCKS[b]).map(b=>BLOCKS[b].name).join(', ')+'.':'',a.narrative?'With an AI narrative.':''].filter(Boolean).join(' '),def:{name:a.name,aud:a.audience||'',sched:a.schedule||'On request',blocks:(a.blocks||[]).filter(b=>BLOCKS[b]),narr:!!a.narrative}};
     case 'design_report':return{k:'editreport',rk:RPTS[a.report]?a.report:(Object.entries(RPTS).find(([k,v])=>v.name.toLowerCase()===String(a.report||'').toLowerCase())||[RSEL])[0],text:String(a.instruction||'')};
     case 'query_data':return{k:'dsquery',ds:a.dataset,q:a.filter||''};
+    case 'exchange_rate':return{k:'fx',from:String(a.from||'').toUpperCase().slice(0,3),to:String(a.to||'').toUpperCase().slice(0,3)};
+    case 'regenerate_daily_report':return{k:'dailyregen'};
+    case 'play_report':{const k=RPTS[a.report]?a.report:(Object.entries(RPTS).find(([k,v])=>v.name.toLowerCase()===String(a.report||'').toLowerCase()||v.name.toLowerCase().startsWith(String(a.report||'').toLowerCase().split(' ')[0]+' '))||['daily'])[0];return{k:'play',kind:k}}
     case 'estimate_scenario':{const mods={};for(const k of KEYS){const v=+a[k];if(a[k]!=null&&Number.isFinite(v)&&v)mods[k]=k==='delay'?Math.max(0,Math.round(v)):v}if(PROJ.fromExport)return{k:'aitest',changes:[a.name||scenName(mods)]};return{k:'estimate',mods}}
     case 'estatemaster_results':return{k:'emresults'};
     case 'check_estatemaster_export':return{k:'emchecks'};
@@ -5939,6 +6000,9 @@ function sysPrompt0(ch,role){
   const asm=KEYS.map(k=>`- ${k} (${VARS[k].label}): base ${VARS[k].fmt(BASE[k])}, now ${VARS[k].fmt(apply(S)[k])}${S[k]?` (${fD(k,S[k])} vs base${SRC[k]?', source: email from '+SRC[k].e.from:''})`:''}`).join('\n');
   return `You are the Bohio agent. You sit on top of ARGUS EstateMaster for KINAN's ${PROJ.name} project in ${PROJ.district}, Riyadh (${PROJ.comps.map(c=>c==='res'?'residential for sale':'retail held for income').join(' plus ')}; all figures in SAR). Other projects: ${Object.values(PROJECTS).filter(p=>p!==PROJ).map(p=>p.name).join(', ')||'none'}. Templates for new models: ${Object.values(TEMPLATES).map(t=>t.name+' ('+t.type+')').join('; ')}.
 Hurdle: ${(h=>h.em?`${h.v}% levered IRR, EstateMaster’s own target (${h.label})`:h.user?`${h.v}% levered IRR, confirmed by the user`:`NOT CONFIRMED: the export carries no target IRR, so ${h.v}% (KINAN policy) is assumed. Before any verdict against the hurdle, ask the user what hurdle to use; offer to work one out from the model (cost of equity, finance rate, project risk) if they want, and record their answer with set_hurdle.`)(hurdleFor())}.
+Reports: "the daily report" is the Daily report · all models (id daily), the emailed morning report; regenerate it with regenerate_daily_report, change it with design_report (report "daily"), send it with send_report, present it with play_report. "Play mode" / "present it" = play_report.
+Currency: convert figures yourself with exchange_rate (never refuse): state the rate, its source and date, and mark every converted figure as your own arithmetic ⟦calc: …⟧.
+Placement: the table, heat map or chart a tool produced is shown in the chat directly UNDER your answer, followed by a link to its page: say "below", never "above".
 Conversation: the earlier messages of this project's chat are included, including answers that failed or came from the rules engine. "Try again", "redo", "and with X?" refer to the last request: repeat or extend it, never say there is no earlier request when one is in the conversation.
 Connections: EstateMaster through the Bohio runner. EstateMaster is the trusted source of every figure. Tool figures are the agent’s ESTIMATES unless the tool says they come from EstateMaster: always call them estimates, and use check_in_estatemaster (or the EstateMaster results on change requests) for figures a decision will rest on; where the two differ, EstateMaster’s figure stands. You change only the sandbox working copy; the base case is read-only, SQL Server for actuals and sales, a market dataset of comparable sales, leases and plot zoning (dummy demo data), and the project's Outlook folder (dummy demo inbox).
 
@@ -6001,8 +6065,8 @@ async function callOne(p,model,system,msgs,withTools,opt={}){
   return{p,model,raw:m,text:(m.content||'').trim(),calls:(m.tool_calls||[]).map(c=>{let a={};try{a=JSON.parse(c.function.arguments||'{}')}catch(e){}return{id:c.id,name:c.function.name,args:a}})};
 }
 /* one-shot completion with provider failover (commentary, narratives, tests) */
-async function complete(system,user,tier){
-  let err;for(const {p,model} of chain(tier)){try{return await callOne(p,model,system,[{role:'user',content:user}],false)}catch(e){err=e}}
+async function complete(system,user,tier,opt){
+  let err;for(const {p,model} of chain(tier)){try{return await callOne(p,model,system,[{role:'user',content:user}],false,opt||{})}catch(e){err=e}}
   throw err||new Error('No AI provider connected');
 }
 async function checkProxy(){
@@ -6169,7 +6233,7 @@ async function webAsk(text){
     let res;try{res=await execute(text,'web','Investment Director',onStep)}finally{clearInterval(tick);th.remove()}if(prev)prev.classList.add('done');
     let html='';
     if(res.kind==='api'){
-      const last=res.last,charts=(res.charts||[]).map(c=>chartCard(c.slide,{source:c.source})).join(''),rich=charts||(last&&/<table/.test(last.html)?`<div style="margin-top:8px">${last.html.replace(/<div class="chips">[\s\S]*?<\/div>/,'')}</div>`:'');
+      const last=res.last,charts=(res.charts||[]).map(c=>chartCard(c.slide,{source:c.source})).join(''),rich=charts||(last&&/<table|class="hm|class="hm-t/.test(last.html)?`<div style="margin-top:8px">${last.html.replace(/<div class="chips">[\s\S]*?<\/div>/,'')}</div>`:'');
       html+=mdLite(res.final)+rich+(last&&last.link&&!/data-tab/.test(rich)?`<br><a class="go" data-tab="${last.link[0]}">${last.link[1]} →</a>`:'')+provNote(res.final);
     }else{
       const o=res.out;
@@ -6185,7 +6249,8 @@ async function webAsk(text){
 $('#send').onclick=()=>webAsk($('#ask').value);
 $('#ask').onkeydown=e=>{if(e.key==='Enter')webAsk(e.target.value)};
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-tab]');if(t){showTab(t.dataset.tab)}
+  const t=e.target.closest('[data-tab]');if(t){const inChat=!!t.closest('#kdock, #msgs');if(inChat&&DOCK.full){DOCK.full=false;renderDock()}showTab(t.dataset.tab);
+    if(inChat){const card={scen:'#aiSensCard',em:'#p-em',appr:'#apList',report:'#p-report'}[t.dataset.tab];setTimeout(()=>{const c=card&&$(card);if(c){c.scrollIntoView({behavior:'smooth',block:'start'});const k=c.closest('.card')||c;k.classList.add('card-hi');setTimeout(()=>k.classList.remove('card-hi'),1600)}},120)}}
   const q=e.target.closest('[data-q]');if(q)webAsk(q.dataset.q);
 });
 $('#chips').innerHTML=CHIPS.map(c=>`<span class="chip" data-q="${esc(c)}">${esc(c)}</span>`).join('');

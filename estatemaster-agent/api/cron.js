@@ -121,6 +121,8 @@ function hurdleOf(b) {
   let v = +i.value; if (v > 0 && v < 1) v *= 100;
   return v >= 3 && v <= 40 ? +v.toFixed(2) : policy;
 }
+/* A phase with a time budget: the report goes out on time with whatever finished. */
+const within = (ms, p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('time budget reached')), ms))]);
 async function stressRun(b, hurdle, checks = []) {
   const provs = G.aiProviders(); if (!provs.length) return null;
   const o = b.out, ins = (b.inputs || []).slice(0, 120).map(i => `${i.label} = ${i.text || i.value}${i.unit && i.unit !== '%' ? ' ' + i.unit : ''}`).join('\n');
@@ -242,12 +244,12 @@ async function dailyData(token, now, o = {}) {
   let flags = { msgs: [], findings: [], note: '' };
   const nameOf = x => (x.meta && x.meta.title) || x.name.replace(/\.[^.]+$/, '');
   const models = [{ key: keyOf(b.name), b, a: a || null }].concat(otherModels).map(m => ({ ...m, name: nameOf(m.b), checks: EM.emChecks({ out: m.b.out, inputs: m.b.inputs, sens: m.b.sens, cells: m.b.cells, at: m.b.at, file: m.b.name }, m.a ? { out: m.a.out, file: m.a.name } : null, { now: now.toISOString(), hurdle }).filter(c => c.code !== 'hurdle') }));
-  if (G.aiConfigured() && !o.noStress) { await Promise.all(models.slice(0, 3).map(async m => { try { m.stress = await stressRun(m.b, hurdleOf(m.b), m.checks); } catch (e) { m.stress = { note: e.message, scenarios: [], risks: [] }; } })); }
+  if (G.aiConfigured() && !o.noStress) { await within(+(env('STRESS_BUDGET_MS') || 360000), Promise.all(models.slice(0, 3).map(async m => { try { m.stress = await stressRun(m.b, hurdleOf(m.b), m.checks); } catch (e) { m.stress = { note: e.message, scenarios: [], risks: [] }; } }))).catch(() => {}); models.forEach(m => { if (!m.stress) m.stress = { note: 'stress run cut short to keep the report on time', scenarios: [], risks: [] }; }); }
   if (G.aiConfigured() && !o.stressOnly) { try {
-    flags = await scanFindings(token, new Date(now.getTime() - 864e5).toISOString(), models.map(m => m.name));
+    flags = await within(+(env('SCAN_BUDGET_MS') || 180000), scanFindings(token, new Date(now.getTime() - 864e5).toISOString(), models.map(m => m.name)));
     // each change is costed on the export of the model it concerns (the most recent model when the email does not say)
     const pick = f => models.find(m => f.model && m.name.toLowerCase() === String(f.model).toLowerCase()) || models.find(m => f.model && (m.name.toLowerCase().includes(String(f.model).toLowerCase()) || String(f.model).toLowerCase().includes(m.name.toLowerCase()))) || models[0];
-    for (const m of models) { const fs = flags.findings.filter(f => pick(f) === m); fs.forEach(f => { f.modelName = m.name; }); if (fs.length) await estimateImpacts(m.b, fs, hurdle); }
+    for (const m of models) { const fs = flags.findings.filter(f => pick(f) === m); fs.forEach(f => { f.modelName = m.name; }); if (fs.length) await within(180000, estimateImpacts(m.b, fs, hurdle)).catch(e => { flags.note = 'impacts not worked out in time: ' + e.message; }); }
   } catch (e) { flags.note = e.message; } } else flags.note = 'no AI key: emails not read';
   const market = EM.marketVsInputs(b.inputs, b.meta);
   const stress = models.filter(m => m.stress).map(m => ({ name: m.name, file: m.b.name, base_irr: m.b.out.levered_irr, base_poc: m.b.out.profit_on_cost, ...m.stress }));
@@ -341,7 +343,7 @@ async function tickJob(token, now, dry, appUrl) {
   if (SLOTS.includes(now.getUTCHours()) && now.getUTCMinutes() < 15) res.push(G.aiConfigured() ? await scanJob(token, now, dry, appUrl) : { job: 'scan', skipped: 'no AI key' });
   const st = await SCHED.load(token);
   if (!SCHED.due(st.schedule, now, st.log)) { res.push({ job: 'report', skipped: 'not due', next: SCHED.nextRun(st.schedule, now) }); return res; }
-  const r = await reportJob(token, now, dry, appUrl, { to: st.schedule.recipients, langs: st.schedule.languages, force: true });
+  let r; try { r = await reportJob(token, now, dry, appUrl, { to: st.schedule.recipients, langs: st.schedule.languages, force: true }); } catch (e) { r = { job: 'report', error: e.message, note: e.message }; }
   res.push(r);
   if (!dry) await SCHED.record(token, st, { kind: 'scheduled', status: r.sent ? 'sent' : r.skipped ? 'skipped' : 'failed', note: r.skipped || r.note || '', to: r.to || [], langs: r.langs || [], latest: r.latest || '' }, now);
   return res;

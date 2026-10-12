@@ -105,14 +105,24 @@ async function sendMail(token, { to, subject, html, attachments = [] }) {
 }
 
 const aiProviders = () => ['anthropic', 'openai'].filter(p => env(p === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'));
+/* One AI call. No provider named: Claude first, OpenAI if Claude fails (e.g. out of credit). Every call is bounded so a slow model cannot use up the function's time. */
 async function ai(system, user, maxTokens = 2000, provider, model) {
-  if (provider ? provider === 'anthropic' : env('ANTHROPIC_API_KEY')) {
-    const r = await fetch(env('ANTHROPIC_URL') || 'https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': env('ANTHROPIC_API_KEY'), 'anthropic-version': '2023-06-01' },
+  if (!provider) {
+    const order = [env('ANTHROPIC_API_KEY') && 'anthropic', env('OPENAI_API_KEY') && 'openai'].filter(Boolean); let err;
+    for (const p of order) { try { return await ai1(system, user, maxTokens, p, model && ((p === 'anthropic') === /claude/i.test(model)) ? model : undefined); } catch (e) { err = e; } }
+    throw err || new Error('No AI key configured');
+  }
+  return ai1(system, user, maxTokens, provider, model);
+}
+async function ai1(system, user, maxTokens, provider, model) {
+  const signal = AbortSignal.timeout(+(env('AI_TIMEOUT_MS') || 90000));
+  if (provider === 'anthropic') {
+    const r = await fetch(env('ANTHROPIC_URL') || 'https://api.anthropic.com/v1/messages', { method: 'POST', signal, headers: { 'content-type': 'application/json', 'x-api-key': env('ANTHROPIC_API_KEY'), 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: model || env('EXTRACT_MODEL') || 'claude-sonnet-5-5', max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }) });
     const j = await r.json(); if (!r.ok) throw new Error('Claude: ' + ((j.error && j.error.message) || r.status));
     return (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   }
-  const r = await fetch(env('OPENAI_URL') || 'https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + env('OPENAI_API_KEY') },
+  const r = await fetch(env('OPENAI_URL') || 'https://api.openai.com/v1/chat/completions', { method: 'POST', signal, headers: { 'content-type': 'application/json', authorization: 'Bearer ' + env('OPENAI_API_KEY') },
     body: JSON.stringify({ model: model || env('EXTRACT_MODEL') || 'gpt-5', max_completion_tokens: maxTokens, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
   const j = await r.json(); if (!r.ok) throw new Error('OpenAI: ' + ((j.error && j.error.message) || r.status));
   return ((j.choices || [])[0] || {}).message?.content || '';

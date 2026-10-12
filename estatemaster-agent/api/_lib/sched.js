@@ -27,8 +27,11 @@ function parts(now, tz) {
 /* Due when today is a report day, the local time is within 15 minutes after the set time (the tick runs every 15) and nothing was sent today. */
 function due(s, now, log = []) {
   if (!s.enabled) return false; const p = parts(now, s.timezone); if (!s.days.includes(p.dow)) return false;
-  const [h, m] = s.time.split(':').map(Number), d = p.h * 60 + p.m - (h * 60 + m); if (d < 0 || d >= 15) return false;
-  return !log.some(r => r.kind === 'scheduled' && r.date === p.date && r.status === 'sent');
+  // Catch-up: from the set time until 3 hours after it, every tick retries until one run is sent (at most 3 attempts a day),
+  // so a missed tick or a run that failed or timed out does not lose the day's report.
+  const [h, m] = s.time.split(':').map(Number), d = p.h * 60 + p.m - (h * 60 + m); if (d < 0 || d >= 180) return false;
+  const today = log.filter(r => r.kind === 'scheduled' && r.date === p.date);
+  return !today.some(r => r.status === 'sent') && today.length < 3;
 }
 function nextRun(s, now = new Date()) {
   if (!s.enabled || !s.days.length) return null;

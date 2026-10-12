@@ -2,10 +2,10 @@
   "cleanUrls": true,
   "functions": {
     "api/llm.js": {
-      "maxDuration": 300
+      "maxDuration": 800
     },
     "api/scan.js": {
-      "maxDuration": 60
+      "maxDuration": 800
     },
     "api/runner.js": {
       "maxDuration": 30
@@ -17,10 +17,10 @@
       "maxDuration": 30
     },
     "api/cron.js": {
-      "maxDuration": 60
+      "maxDuration": 800
     },
     "api/schedule.js": {
-      "maxDuration": 60
+      "maxDuration": 800
     }
   },
   "headers": [
