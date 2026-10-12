@@ -5225,7 +5225,7 @@ function kStartTimer(){if(!KP)return;clearTimeout(KP.timer);kStopVoice();const {
     KP.timer=setTimeout(next,Math.max(QWIN,minShow-(Date.now()-t0)))};
   KP.rawSegs=KP.script.segs[i];const segs=KP.segs||[{t:s.say,f:null}],tr=kTrack(segs,KP.figs),onEv=e=>{if(!KP||KP.i!==i)return;if(e.node){kFocus(KP.el,e.node);return}const g=segs[e.k];if(!g)return;if(KP.cc)kCaption(g.t);if(!tr.ev.some(x=>x.node&&x.at>=tr.off[e.k]&&(e.k+1>=tr.off.length||x.at<tr.off[e.k+1])))kFocus(KP.el,null)};
   const go=async()=>{
-    if(KP.voice&&KVOICE.mode&&KVOICE.mode!=='none'){KP.timer=setTimeout(next,Math.max(KP.dur*2,120000));const next_=deck.slides[i+1]?kTrackText(KP.script.segs[i+1]||[{t:deck.slides[i+1].say}]):'';KP.speaking=true;kSpeakTrack(tr,onEv,next_).then(spoke=>{if(KP&&KP.i===i)KP.speaking=false;if(!KP||KP.i!==i||done||spoke==='superseded')return;clearTimeout(KP.timer);if(spoke)after();else KP.timer=setTimeout(next,Math.max(900,KP.dur-(Date.now()-t0)))});return}
+    if(KP.voice&&KVOICE.mode&&KVOICE.mode!=='none'){KP.timer=setTimeout(next,Math.max(KP.dur*2,120000));const next_=deck.slides[i+1]?kTrackText(KP.script.segs[i+1]||[{t:deck.slides[i+1].say}]):'';KP.speaking=true;kSpeakTrack(tr,onEv,next_).catch(()=>false).then(spoke=>{if(KP&&KP.i===i)KP.speaking=false;if(!KP||KP.i!==i||done||spoke==='superseded')return;clearTimeout(KP.timer);if(spoke)after();else KP.timer=setTimeout(next,Math.max(900,KP.dur-(Date.now()-t0)))});return}
     KP.pace=kPaceTrack(tr,onEv,KP.dur-1500);KP.timer=setTimeout(next,KP.dur)};
   KP.next=next;kQCueEl();if(KP.pace){KP.pace();KP.pace=null}go()}
 if(!KP){document.addEventListener('click',e=>{if(KP&&KP.playing&&KP.root.querySelector('[data-act=pause]').dataset.st==='replay'&&e.target.closest('[data-act=pause]')){kGo(0)}})}
