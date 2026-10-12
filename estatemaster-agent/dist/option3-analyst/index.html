@@ -3411,6 +3411,7 @@ function calcContext(x){const L=[];const o=x?x.out:{};const PR=x&&x.proj&&PROJEC
 const CALC_SYS=`You are a senior real estate development finance analyst. An ARGUS EstateMaster feasibility model (the trusted model) produced the outputs and inputs below. You cannot run EstateMaster: estimate, step by step, the effect of the stated assumption changes on its outputs, the way an analyst would by hand (revenue and cost effects on net profit and profit on cost; timing, leverage and finance effects on the IRRs; use EstateMaster's sensitivity tables where they apply, interpolating between cells). Use only the figures given and state every assumption you make.
 Return JSON only: {"method":"one short paragraph","results":[{"metric":"levered_irr|unlevered_irr|profit_on_cost|net_profit|total_cost|gross_revenue|peak_debt","base":number,"value":number,"working":"the calculation for this figure, with the numbers"}],"caveats":"short"}
 Always include levered_irr, profit_on_cost and net_profit. Percentages in percent (18.4 means 18.4%). Money in full currency units.`;
+function provErr(msg){const m=String(msg||'');return /credit balance is too low|billing|insufficient_quota|exceeded your current quota/i.test(m)?(/anthropic/i.test(m)?'Claude is out of API credit (Anthropic billing: add credit in the Claude Console)':'OpenAI is out of API credit (OpenAI billing)'):m}
 const jsonFrom=t=>{const m=String(t||'').match(/\{[\s\S]*\}/);if(!m)throw new Error('no JSON in the answer');return JSON.parse(m[0])};
 const agreeOn=(k,a,b)=>MET[k]&&MET[k][1]==='%'?Math.abs(a-b)<=0.5:Math.abs(a-b)<=0.02*Math.max(Math.abs(a),Math.abs(b),1);
 function diffs(A,B){const ka=Object.fromEntries((A.results||[]).map(r=>[r.metric,r])),kb=Object.fromEntries((B.results||[]).map(r=>[r.metric,r]));return Object.keys(MET).filter(k=>ka[k]&&kb[k]&&Number.isFinite(+ka[k].value)&&Number.isFinite(+kb[k].value)).map(k=>({k,a:+ka[k].value,b:+kb[k].value,ra:ka[k],rb:kb[k],ok:agreeOn(k,+ka[k].value,+kb[k].value)}))}
@@ -3421,7 +3422,7 @@ async function aiCrossCheck(changes,onStep=async()=>{},proj){
   const ask=async(q,sys,msg)=>jsonFrom((await callOne(q.p,q.model,sys,[{role:'user',content:msg}],false,{max:6000,task:'calc'})).text);
   await onStep(`${pair.map(name).join(' and ')} calculate independently`);
   const r1=await Promise.allSettled(pair.map(q=>ask(q,CALC_SYS,user)));const ok1=r1.map((r,i)=>r.status==='fulfilled'?{q:pair[i],j:r.value}:null).filter(Boolean);
-  if(!ok1.length)throw new Error('Neither model returned a calculation: '+r1.map(r=>r.reason&&r.reason.message).filter(Boolean).join('; '));
+  if(!ok1.length)throw new Error('Neither model returned a calculation: '+r1.map(r=>r.reason&&provErr(r.reason.message)).filter(Boolean).join('; '));
   const res={changes,x,rounds:[ok1.map(a=>({who:name(a.q),j:a.j}))],metrics:[],mode:ok1.length===2?'cross':'single',models:ok1.map(a=>name(a.q))};
   if(ok1.length===1){await onStep(`Only ${name(ok1[0].q)} answered: not cross-checked`);res.metrics=(ok1[0].j.results||[]).filter(r=>MET[r.metric]&&Number.isFinite(+r.value)).map(r=>({k:r.metric,value:+r.value,a:+r.value,b:NaN,status:'single',wa:r.working||'',wb:''}));res.method=ok1[0].j.method;await calcVerify(res,onStep);return finishTest(res)}
   let [A,B]=ok1;let d=diffs(A.j,B.j);
@@ -3545,7 +3546,7 @@ async function aiSensGrid(X,Y,mk,onStep=async()=>{}){const pair=calcPair();if(!p
     if(!Array.isArray(g)||g.length!==Y.shifts.length||g.some(r=>!Array.isArray(r)||r.length!==X.shifts.length||r.some(v=>!Number.isFinite(+v))))throw new Error(`${name(q)} returned a table of the wrong shape`);j.grid=g.map(r=>r.map(Number));return j};
   await onStep(`${pair.map(name).join(' and ')} calculate the ${Y.shifts.length}×${X.shifts.length} table independently`);
   const r1=await Promise.allSettled(pair.map(q=>ask(q,user)));const ok=r1.map((r,i)=>r.status==='fulfilled'?{q:pair[i],j:r.value}:null).filter(Boolean);
-  if(!ok.length)throw new Error('Neither model returned a table: '+r1.map(r=>r.reason&&r.reason.message).filter(Boolean).join('; '));
+  if(!ok.length)throw new Error('Neither model returned a table: '+r1.map(r=>r.reason&&provErr(r.reason.message)).filter(Boolean).join('; '));
   const res={X,Y,mk,xid:x?x.id:'',xfile:x?x.file||'':'',names:ok.map(a=>name(a.q)),mode:ok.length===2?'cross':'single',rec:null};
   const cmp=(A,B)=>{let n=0,t=0;const bad=[];A.j.grid.forEach((r,i)=>r.forEach((v,k)=>{t++;if(agreeOn(mk,v,B.j.grid[i][k]))n++;else bad.push([i,k])}));return{n,t,bad}};
   if(ok.length===2){let [A,B]=ok;let d=cmp(A,B);await onStep(`Compare: ${d.n} of ${d.t} cells agree`);
@@ -3697,7 +3698,7 @@ function deleteProject(id){const p=PROJECTS[id];if(!p)return;if(Object.keys(PROJ
   m.dataset.id=id;m.dataset.name=p.name;$('#delName').textContent=p.name;$('#delSub').textContent=`“${p.name}”: its exports, change requests and analyst tasks in this demo are removed. EstateMaster itself is not touched. This cannot be undone.`;$('#delInput').value='';$('#delYes').disabled=true;m.classList.add('on');setTimeout(()=>$('#delInput').focus(),50)}
 function deleteProjectNow(id){const p=PROJECTS[id];if(!p||Object.keys(PROJECTS).length<=1)return;
   EXPORTS=EXPORTS.filter(x=>x.proj!==id);TASKS=TASKS.filter(t=>t.proj!==id);for(let i=APQ.length-1;i>=0;i--)if(APQ[i].proj===id)APQ.splice(i,1);
-  delete PROJECTS[id];if(!DELETED.includes(id))DELETED.push(id);delete CHATLOG[id];try{localStorage.setItem('em_chats2',JSON.stringify(CHATLOG))}catch(e){}
+  delete PROJECTS[id];if(!DELETED.includes(id))DELETED.push(id);delete CHATLOG[id];delete CHATMEM[id];try{localStorage.setItem('em_chatmem',JSON.stringify(CHATMEM))}catch(e){}try{localStorage.setItem('em_chats2',JSON.stringify(CHATLOG))}catch(e){}
   logEvent({kind:'project',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Model “${p.name}” deleted from the agent (EstateMaster not touched)`});
   if(PROJ.id===id)switchProject(Object.keys(PROJECTS)[0],true);
   renderAll(true);renderProjRail();renderApprBadge();try{renderEMTab()}catch(e){}saveMem();toast(`“${p.name}” deleted`)}
@@ -5833,6 +5834,7 @@ function sysPrompt(ch,role){
   const asm=KEYS.map(k=>`- ${k} (${VARS[k].label}): base ${VARS[k].fmt(BASE[k])}, now ${VARS[k].fmt(apply(S)[k])}${S[k]?` (${fD(k,S[k])} vs base${SRC[k]?', source: email from '+SRC[k].e.from:''})`:''}`).join('\n');
   return `You are the Bohio agent. You sit on top of ARGUS EstateMaster for KINAN's ${PROJ.name} project in ${PROJ.district}, Riyadh (${PROJ.comps.map(c=>c==='res'?'residential for sale':'retail held for income').join(' plus ')}; all figures in SAR). Other projects: ${Object.values(PROJECTS).filter(p=>p!==PROJ).map(p=>p.name).join(', ')||'none'}. Templates for new models: ${Object.values(TEMPLATES).map(t=>t.name+' ('+t.type+')').join('; ')}.
 Hurdle: ${(h=>h.em?`${h.v}% levered IRR, EstateMaster’s own target (${h.label})`:h.user?`${h.v}% levered IRR, confirmed by the user`:`NOT CONFIRMED: the export carries no target IRR, so ${h.v}% (KINAN policy) is assumed. Before any verdict against the hurdle, ask the user what hurdle to use; offer to work one out from the model (cost of equity, finance rate, project risk) if they want, and record their answer with set_hurdle.`)(hurdleFor())}.
+Conversation: the earlier messages of this project's chat are included, including answers that failed or came from the rules engine. "Try again", "redo", "and with X?" refer to the last request: repeat or extend it, never say there is no earlier request when one is in the conversation.
 Connections: EstateMaster through the Bohio runner. EstateMaster is the trusted source of every figure. Tool figures are the agent’s ESTIMATES unless the tool says they come from EstateMaster: always call them estimates, and use check_in_estatemaster (or the EstateMaster results on change requests) for figures a decision will rest on; where the two differ, EstateMaster’s figure stands. You change only the sandbox working copy; the base case is read-only, SQL Server for actuals and sales, a market dataset of comparable sales, leases and plot zoning (dummy demo data), and the project's Outlook folder (dummy demo inbox).
 
 Rules:
@@ -5887,6 +5889,7 @@ async function callOne(p,model,system,msgs,withTools,opt={}){
       calls:(j.content||[]).filter(b=>b.type==='tool_use').map(b=>({id:b.id,name:b.name,args:b.input||{}}))};
   }
   const body={model,max_completion_tokens:opt.max||1500,messages:[{role:'system',content:system},...msgs]};
+  if(!withTools&&/\bJSON\b/.test(system))body.response_format={type:'json_object'};
   if(withTools)body.tools=TOOLS.map(t=>({type:'function',function:{name:t.name,description:t.description,parameters:{type:'object',properties:t.p,required:t.req||[]}}}));
   const j=await send(p,body,opt.task);
   const m=j.choices&&j.choices[0]&&j.choices[0].message||{};
@@ -5909,10 +5912,14 @@ const toolResults=(p,calls,outs)=>p==='anthropic'
   ?[{role:'user',content:calls.map((c,i)=>({type:'tool_result',tool_use_id:c.id,content:outs[i]}))}]
   :calls.map((c,i)=>({role:'tool',tool_call_id:c.id,content:outs[i]}));
 const HIST={web:[],wa:[]};
+/* The conversation the AI sees: one per project, every exchange the user saw (AI answers, rules answers and errors alike), kept across reloads. */
+const CHATMEM=(()=>{try{return JSON.parse(localStorage.getItem('em_chatmem')||'{}')}catch(e){return{}}})();
+function chatMem(id){id=id||PROJ.id;return CHATMEM[id]||(CHATMEM[id]=[])}
+function chatRemember(user,answer){const h=chatMem();h.push({role:'user',content:String(user).slice(0,4000)},{role:'assistant',content:String(answer||'(no answer)').slice(0,6000)});if(h.length>40)h.splice(0,h.length-40);try{localStorage.setItem('em_chatmem',JSON.stringify(CHATMEM))}catch(e){}}
 async function llmTurn(text,ch,role,onStep,tier='smart'){
-  const hist=HIST[ch];let lastErr;
+  const hist=ch==='web'?chatMem():HIST[ch];let lastErr;
   for(const {p,model} of chain(tier)){
-    const msgs=[...hist.slice(-12),{role:'user',content:text}];let last=null,final='',started=false,n=0;const charts=[];
+    const msgs=[...hist.slice(-20),{role:'user',content:text}];let last=null,final='',started=false,n=0;const charts=[];
     try{
       for(let i=0;i<6;i++){
         await onStep(`AI · ${mName(p,model)} · ${i?'continuing':'planning'}`);
@@ -5928,9 +5935,9 @@ async function llmTurn(text,ch,role,onStep,tier='smart'){
         msgs.push(...toolResults(p,r.calls,outs));final=r.text;
       }
       if(!final)final=last?last.plain:'Done.';if(ch==='wa')final=plainMarks(final);
-      hist.push({role:'user',content:text},{role:'assistant',content:final});
+      if(ch!=='web')hist.push({role:'user',content:text},{role:'assistant',content:final});
       return{final,last,prov:p,model,tools:n,charts};
-    }catch(e){lastErr=e;if(started)throw e;await onStep(`${mName(p,model)} unavailable (${String(e.message).slice(0,70)}) · failing over`)}
+    }catch(e){lastErr=e;if(started)throw e;await onStep(`${mName(p,model)} unavailable (${provErr(e.message).slice(0,80)}) · failing over`)}
   }
   throw lastErr||new Error('No AI provider connected');
 }
@@ -6013,7 +6020,7 @@ async function execute(text,ch,role,onStep){
   if(r.lane==='api'){
     if(apiOn()){
       try{const x=await llmTurn(text,ch,role,onStep,r.tier);renderRouter();return{r,kind:'api',...x}}
-      catch(err){ROUTESTATS.fallback++;r.fallback=err.message;await onStep(`AI unavailable (${String(err.message).slice(0,80)}) · answering with rules`)}
+      catch(err){ROUTESTATS.fallback++;r.fallback=provErr(err.message);await onStep(`AI unavailable (${String(r.fallback).slice(0,90)}) · answering with rules`)}
     }else r.noapi=true;
   }
   const out=await handle(text,ch,role,r.it);if(ch==='wa')out.plain=plainMarks(out.plain);
@@ -6067,6 +6074,7 @@ async function webAsk(text){
     }
     html+=`<div class="kmeta">${badgeHTML(res)}</div>`;m.querySelector('.body').innerHTML=html;chartCardAnimate(m);
   }catch(err){m.querySelector('.body').innerHTML=`<span class="dn">${esc(err.message)}</span>`}
+  try{const b=m.querySelector('.body');chatRemember(text,b?b.innerText.replace(/\n{3,}/g,'\n\n').trim():'')}catch(e){}
   $('#msgs').scrollTop=1e9;busy=false;try{chatSave()}catch(e){}
 }
 $('#send').onclick=()=>webAsk($('#ask').value);
