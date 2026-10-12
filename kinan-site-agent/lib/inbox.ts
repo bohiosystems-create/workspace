@@ -12,7 +12,7 @@
  */
 import { CONTACTS } from "./data/people";
 import { demoEmails, plainText, type Email, type InboxState } from "./core/emails";
-import { readJson, writeJson } from "./store";
+import { getRepo, readJson, writeJson } from "./store";
 
 const KEY = "inbox/emails.json";
 const FRESH_MS = 5 * 60_000;
@@ -88,7 +88,7 @@ async function attachmentNames(token: string, id: string): Promise<string[]> {
 /** The inbox, synced from Outlook when stale (or when `force`). Never throws: errors are kept on the state. */
 export async function getInbox(force = false): Promise<InboxState> {
   const mode = inboxMode(), mailbox = inboxMailbox();
-  if (mode === "demo") return { mode, mailbox, lastSync: null, error: null, emails: demoEmails() };
+  if (mode === "demo") return { mode, mailbox, lastSync: null, error: null, emails: demoEmails((await getRepo()).db.data).filter((e) => e.received <= new Date().toISOString()) };
   const cur = (await readJson<InboxState>(KEY))?.value;
   const base: InboxState = cur && cur.mode === "live" && cur.mailbox === mailbox ? cur : { mode, mailbox, lastSync: null, error: null, emails: [] };
   if (!force && base.lastSync && Date.now() - Date.parse(base.lastSync) < FRESH_MS) return base;

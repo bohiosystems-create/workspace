@@ -161,7 +161,7 @@ export interface Ncr { id: string; title: string; locationId: string; raised: st
 export interface Contact { name: string; role: string; company: string; phone: string; email: string; area?: string }
 
 export interface ProjectData {
-  meta: { dataDate: string; disclaimer: string; currency: string; contractValue: number; startDate: string; completionDate: string };
+  meta: { dataDate: string; disclaimer: string; currency: string; contractValue: number; startDate: string; completionDate: string; /** true once a real programme is imported: the data no longer follows the calendar */ fixed?: boolean };
   schedule: Activity[];
   register: DrawingSheet[];
   regulations: Regulation[];

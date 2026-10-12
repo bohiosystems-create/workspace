@@ -1,3 +1,4 @@
+import type { ProjectData } from "../types";
 /**
  * Contractor emails: the shape the agent reads, the search over them, and the demo inbox. IO-free, so it runs on the
  * server (lib/inbox.ts reads the Outlook mailbox through Microsoft Graph) and in the standalone build (demo inbox).
@@ -52,7 +53,73 @@ const D = (day: number, hm: string) => { const d = new Date(Date.UTC(2026, 9, 1 
 const m = (id: string, received: string, fromName: string, from: string, company: string, subject: string, text: string, attachments: string[] = [], importance: Email["importance"] = "normal"): Email =>
   ({ id: `demo-${id}`, received, from, fromName, company, to: ["projectupdates@kinan.example"], subject, text, attachments, importance, conversationId: `c-${id}` });
 
-export function demoEmails(): Email[] {
+/** The demo inbox: the emails of the base week, plus what the contractors write each day as the programme moves on
+ *  (slabs poured, façade zones done, delayed loads, the weekly HSE report) — so every day has new mail. */
+export function demoEmails(data?: ProjectData): Email[] {
+  return [...baseEmails(), ...(data ? dailyEmails(data) : [])].sort((a, b) => b.received.localeCompare(a.received));
+}
+
+const dayAdd = (iso: string, n: number) => new Date(Date.parse(iso.slice(0, 10) + "T00:00:00Z") + n * 86_400_000).toISOString().slice(0, 10);
+const nice = (iso: string) => new Date(iso.slice(0, 10) + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+/** Mail generated from the programme and procurement for the 14 days up to the data date (after the base week). */
+function dailyEmails(data: ProjectData): Email[] {
+  const d0 = data.meta.dataDate, from = dayAdd(d0, -13), base = "2026-10-02", out: Email[] = [];
+  const inWindow = (d: string) => d >= from && d <= d0 && d >= base;
+  const towers: Record<string, { cm: [string, string]; name: string }> = {
+    TA: { cm: ["Karim Mansour", "k.mansour@albunyan.example"], name: "Tower A" }, TB: { cm: ["Karim Mansour", "k.mansour@albunyan.example"], name: "Tower B" },
+    HC: { cm: ["Yousef Darwish", "y.darwish@albunyan.example"], name: "Hotel C" },
+  };
+  for (const a of data.schedule) {
+    const t = /^(TA|TB|HC)-STR-L(\d+)$/.exec(a.id);
+    if (t && inWindow(a.finish)) {
+      const tw = towers[t[1]], lv = Number(t[2]), next = data.schedule.find((x) => x.id === `${t[1]}-STR-L${lv + 1}`);
+      const late = Math.round((Date.parse(a.finish) - Date.parse(a.baselineFinish)) / 86_400_000);
+      out.push(m(`str-${a.id}`, `${a.finish}T17:${String(10 + (lv % 40)).padStart(2, "0")}:00Z`, tw.cm[0], tw.cm[1], "Al-Bunyan Contracting", `${tw.name} L${lv} slab poured`,
+        `Hi all,\n\n${tw.name} level ${lv} slab was poured today (${a.id}). Pour started 04:30 and finished 13:10; cubes taken, curing compound applied, PT stressing planned in 7 days.${late > 0 ? `\n\nWe are ${late} day${late > 1 ? "s" : ""} behind the baseline on this level.` : ""}\n\n${next ? `Next: L${lv + 1} — columns and core walls start ${nice(next.start)}, pour planned ${nice(next.finish)}.` : "This was the roof slab — topping out."}\n\n${tw.cm[0]}\nAl-Bunyan Contracting`));
+    }
+    const f = /^(TA|TB|HC)-FAC-Z(\d+)$/.exec(a.id);
+    if (f && inWindow(a.finish)) out.push(m(`fac-${a.id}`, `${a.finish}T15:20:00Z`, "Daniel Lee", "daniel.lee@skyline-facade.example", "Skyline Façade Systems", `${towers[f[1]].name} façade zone ${f[2]} installed`,
+      `Dear Kinan team,\n\nAll unitised panels of ${a.name.replace(/^.*?façade/, "façade")} are installed and sealed. Water test booked for ${nice(dayAdd(a.finish, 2))}; the cradle moves up to the next zone tomorrow.\n\nDaniel Lee\nSkyline Façade Systems`));
+    if (a.milestone && inWindow(a.finish)) out.push(m(`ms-${a.id}`, `${a.finish}T12:00:00Z`, "Ahmed Saleh", "a.saleh@albunyan.example", "Al-Bunyan Contracting", `Milestone reached: ${a.name}`,
+      `Dear Kinan,\n\nWe confirm the milestone "${a.name}" (${a.id}) is achieved today${a.finish > a.baselineFinish ? `, ${Math.round((Date.parse(a.finish) - Date.parse(a.baselineFinish)) / 86_400_000)} days after the baseline date` : ""}. Supporting records will follow with the monthly report.\n\nAhmed Saleh\nProject Manager, Al-Bunyan Contracting`, [], "high"));
+  }
+  // delayed loads: the procurement manager warns the day before
+  const sup = new Map(data.procurement.suppliers.map((x) => [x.id, x.name]));
+  for (const dl of data.procurement.deliveries.filter((x) => x.status === "Delayed")) {
+    const sent = dayAdd(d0, -1 - (Number(dl.id.replace(/\D/g, "")) % 3));
+    if (!inWindow(sent)) continue;
+    const po = data.procurement.pos.find((p) => p.po === dl.po);
+    out.push(m(`dl-${dl.id}-${sent}`, `${sent}T10:05:00Z`, "Ibrahim Al-Zahrani", "i.alzahrani@albunyan.example", "Al-Bunyan Contracting", `Delayed load — ${dl.items.split(",")[0]} (${dl.po})`,
+      `Team,\n\n${po ? sup.get(po.supplierId) ?? "The supplier" : "The supplier"} advises the load of ${dl.items} on ${dl.po} will not arrive on ${nice(dl.date)} as booked.${dl.remarks ? ` ${dl.remarks}.` : ""} Gate 2 slot released; we will rebook when the supplier confirms dispatch.\n\nIbrahim Al-Zahrani\nProcurement Manager`, [], "high"));
+  }
+  // the main contractor's daily site report, every evening (18:30 Riyadh)
+  const pct = (a: { start: string; finish: string }, d: string) => (a.finish <= d ? 100 : a.start > d ? 0 : Math.min(99, Math.max(1, Math.round(((Date.parse(d) - Date.parse(a.start)) / Math.max(86_400_000, Date.parse(a.finish) - Date.parse(a.start))) * 100))));
+  const st0 = data.safety.stats as Record<string, number>;
+  for (let i = 0; i < 14; i++) {
+    const d = dayAdd(d0, -i), prev = dayAdd(d, -1);
+    if (!inWindow(d)) continue;
+    const live = data.schedule.filter((a) => !a.milestone && a.start <= d && a.finish > d);
+    const moved = live.filter((a) => a.start <= prev).map((a) => ({ a, p0: pct(a, prev), p1: pct(a, d) })).filter((x) => x.p1 > x.p0).sort((x, y) => Number(y.a.critical) - Number(x.a.critical) || (y.p1 - y.p0) - (x.p1 - x.p0)).slice(0, 5);
+    const fin = data.schedule.filter((a) => !a.milestone && a.finish === d);
+    const recv = data.procurement.deliveries.filter((x) => x.date === d && (x.status === "Received" || x.status === "Rejected"));
+    const next = data.schedule.filter((a) => /-STR-L\d+$/.test(a.id) && a.finish === dayAdd(d, 1));
+    const crew = Math.round((st0.workforceToday || 2200) * (0.94 + ((i * 37) % 11) / 100));
+    out.push(m(`dsr-${d}`, `${d}T15:30:00Z`, "Peter Novak", "p.novak@albunyan.example", "Al-Bunyan Contracting", `Daily site report — ${nice(d)}`,
+      `Daily site report, ${nice(d)}.\n\n• Manpower on site: ${crew}\n• Activities in progress: ${live.length}${fin.length ? `\n• Completed today: ${fin.slice(0, 4).map((a) => a.name).join("; ")}${fin.length > 4 ? ` (+${fin.length - 4})` : ""}` : ""}\n• Deliveries received: ${recv.length}${recv.some((x) => x.status === "Rejected") ? ` (${recv.filter((x) => x.status === "Rejected").length} rejected)` : ""}\n\nProgress today:\n${moved.map((x) => `• ${x.a.name}: ${x.p0}% → ${x.p1}%`).join("\n") || "• no measurable change"}${next.length ? `\n\nTomorrow: ${next.map((a) => a.name.split(" — ")[0] + " slab pour").join(", ")}.` : ""}\n\nPeter Novak\nPlanning Manager, Al-Bunyan Contracting`, [`DSR_${d}.pdf`]));
+  }
+  // weekly HSE report every Sunday
+  for (let i = 0; i < 14; i++) {
+    const d = dayAdd(d0, -i);
+    if (!inWindow(d) || new Date(d + "T12:00:00Z").getUTCDay() !== 0) continue;
+    const st = data.safety.stats as Record<string, number>;
+    const wk = Math.ceil((Date.parse(d) - Date.parse("2026-01-01")) / (7 * 86_400_000));
+    out.push(m(`hse-${d}`, `${d}T07:40:00Z`, "Sanjay Menon", "s.menon@albunyan.example", "Al-Bunyan Contracting", `Weekly HSE report — week ${wk}`,
+      `Week ${wk} summary:\n• LTI-free days: ${st.ltiFreeDays}\n• Workforce today: ${st.workforceToday}\n• Near misses this week: ${2 + (wk % 4)}\n• Live permits: ${data.safety.permits.filter((p) => p.status === "Active").length}\n• Heat stress: midday work ban observed; no cases this week\n\nFull report attached.`, [`HSE_Weekly_Report_W${wk}.pdf`]));
+  }
+  return out;
+}
+
+function baseEmails(): Email[] {
   return [
     m("01", D(0, "05:42"), "Daniel Lee", "daniel.lee@skyline-facade.example", "Skyline Façade Systems", "PKG-06 Tower A unitised panels — batch 4 delay (PO-4500136)",
       "Dear Kinan team,\n\nFurther to our call, the float-glass supplier has advised a further delay on the low-iron glass for batch 4 of the Tower A unitised panels (types A1 and A2 corner).\n\nRevised dates:\n• Batch 4 ex-works: 14 Oct 2026 (was 26 Sep)\n• Delivery to site, Gate 2: 25 Oct 2026 (was 7 Oct)\n\nThis is an 18-day slip against PO-4500136. Zone 4 (L13–L16) installation would start on 27 Oct instead of 9 Oct. We are looking at air-freighting 40 panels to keep the south elevation going and will confirm the cost by Sunday.\n\nRegards,\nDaniel Lee\nFaçade Package Manager, Skyline Façade Systems",

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { Db, Doc } from "./types";
 import { seedDb } from "./seed";
+import { rollToToday } from "./data";
 import type { Repo } from "./core/tools";
 import { getInbox } from "./inbox";
 import { attachProcurement } from "./integrations/procurement";
@@ -12,6 +13,13 @@ const DB_KEY = "db.json";
 /** A loaded copy of the database plus what we need to save it safely. */
 interface Loaded { repo: Repo; etag: string; base: string }
 const g = globalThis as unknown as { __kinan?: Loaded; __kinanSaving?: Promise<unknown> };
+
+/** The demo data follows the calendar: on a new day, move it to today (lib/data rollToToday) and save. */
+async function roll(repo: Repo): Promise<Repo> {
+  const fresh = repo.db.data ? rollToToday(repo.db.data) : null;
+  if (fresh) { repo.db.data = fresh; await repo.save(); }
+  return repo;
+}
 
 function migrate(db: Db): boolean {
   if (db.data) return false;
@@ -66,7 +74,7 @@ export async function getRepo(): Promise<Repo> {
   const st = store();
   const cur = g.__kinan;
   const r = await st.read(DB_KEY, cur?.etag);
-  if (r === "unchanged" && cur) return cur.repo;
+  if (r === "unchanged" && cur) return roll(cur.repo);
   if (r && r !== "unchanged") {
     const text = dec(r.bytes);
     try {
@@ -74,7 +82,7 @@ export async function getRepo(): Promise<Repo> {
       const L = makeRepo(db, r.etag, text);
       g.__kinan = L;
       if (migrate(db)) await L.repo.save();
-      return L.repo;
+      return roll(L.repo);
     } catch (e) {
       if (!(e instanceof SyntaxError)) throw e;
       await st.write(`db.corrupt-${Date.now()}.json`, r.bytes, "application/json");

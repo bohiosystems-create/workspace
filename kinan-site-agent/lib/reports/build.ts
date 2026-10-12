@@ -13,6 +13,7 @@ import type { GenProject } from "../model3d/store";
 import * as P from "../core/project";
 import { critState, expectedPct, liveCritical, slipOf, specCritical, specEarnedPct, specPlannedPct, specSlip, specState } from "../critical";
 import { KINAN } from "../brand";
+import type { Email } from "../core/emails";
 
 export type Lang = "en" | "ar";
 export const tx = (l: Lang, en: string, ar: string) => (l === "ar" ? ar : en);
@@ -37,7 +38,21 @@ function pill(text: string, color: string) {
 }
 const critTag = (l: Lang) => `<span style="display:inline-block;background:${C.or};color:#ffffff;font-size:9px;font-weight:800;letter-spacing:.12em;padding:1px 5px;margin-${l === "ar" ? "left" : "right"}:6px">${tx(l, "CRITICAL", "حرج")}</span>`;
 function h2(text: string, sub?: string) {
-  return `<tr><td style="padding:22px 28px 6px"><div style="font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:${C.or}">&#8212;&nbsp;${esc(text)}</div>${sub ? `<div style="font-size:12px;color:${C.soft};margin-top:3px">${esc(sub)}</div>` : ""}</td></tr>`;
+  return `<tr><td style="padding:24px 28px 6px"><div style="font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:${C.or}"><span style="font-size:16px">&#8250;</span>&nbsp; ${esc(text)}</div>${sub ? `<div style="font-size:12px;color:${C.soft};margin-top:3px">${esc(sub)}</div>` : ""}</td></tr>`;
+}
+/** "To know today": the red-ruled box the other Kinan agents open with. */
+function knowBox(title: string, items: { tag: string; color: string; html: string }[], empty: string) {
+  const rows = items.length ? items.map((i) => `<tr><td valign="top" style="padding:8px 10px;border-top:1px solid ${C.line};width:92px"><span style="display:inline-block;background:${i.color};color:#ffffff;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;white-space:nowrap">${esc(i.tag)}</span></td><td style="padding:8px 10px;border-top:1px solid ${C.line};font-size:13px;line-height:1.5;color:${C.ink}">${i.html}</td></tr>`).join("")
+    : `<tr><td style="padding:10px;font-size:13px;color:${C.soft}">${esc(empty)}</td></tr>`;
+  return `<tr><td style="padding:22px 28px 4px"><div style="font-size:11px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:${C.red};padding-bottom:8px">${esc(title)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:2px solid ${C.red}">${rows}</table></td></tr>`;
+}
+/** A day-by-day block: label column + lines. */
+function dayBlock(groups: { label: string; lines: string[] }[]) {
+  const g = groups.filter((x) => x.lines.length);
+  if (!g.length) return "";
+  return `<tr><td style="padding:4px 28px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;line-height:1.5">${g.map((x) =>
+    `<tr><td valign="top" style="padding:8px 10px 8px 0;border-bottom:1px solid ${C.line};width:130px;font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${C.taupe}">${esc(x.label)}</td><td style="padding:6px 0;border-bottom:1px solid ${C.line};color:${C.ink}">${x.lines.map((t) => `<div style="padding:2px 0">${t}</div>`).join("")}</td></tr>`).join("")}</table></td></tr>`;
 }
 function kpis(cells: { label: string; value: string; sub?: string; bad?: boolean }[]) {
   const w = Math.floor(100 / cells.length);
@@ -57,7 +72,9 @@ const projectBand = (name: string, meta: string, status: string, color: string) 
   `<tr><td style="padding:26px 28px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:${C.ink}"><tr><td style="padding:12px 14px;border-top:3px solid ${C.or}"><div style="font-size:16px;font-weight:700;color:#ffffff;letter-spacing:.02em">${esc(name)}</div><div style="font-size:11px;color:#c9c9cb;padding-top:2px">${esc(meta)}</div></td><td align="right" style="padding:12px 14px;border-top:3px solid ${C.or}"><span style="display:inline-block;background:${color};color:#ffffff;font-size:10px;font-weight:800;letter-spacing:.12em;padding:4px 8px;text-transform:uppercase">${esc(status)}</span></td></tr></table></td></tr>`;
 
 // ------------------------------------------------------------ the report
-export interface BuildIn { lang: Lang; date: string; kind: "DAILY" | "SNAPSHOT"; at: Date; timezone: string; db: Db; projects: GenProject[]; prev: { metrics: Metrics; date: string } | null }
+export interface BuildIn { lang: Lang; date: string; kind: "DAILY" | "SNAPSHOT"; at: Date; timezone: string; db: Db; projects: GenProject[]; prev: { metrics: Metrics; date: string } | null;
+  /** contractor emails from the project inbox; the app's address for "Open the app"; the mailbox it is sent from */
+  emails?: Email[]; appUrl?: string | null; sender?: string }
 export interface Built { title: string; html: string; text: string; metrics: Metrics; active: number }
 
 export function buildReport(o: BuildIn): Built {
@@ -65,6 +82,8 @@ export function buildReport(o: BuildIn): Built {
   const T = (en: string, ar: string) => tx(l, en, ar);
   const metrics: Metrics = { projects: {} };
   const body: string[] = [], text: string[] = [], summary: string[][] = [], marks: (string | null)[] = [];
+  const know: { tag: string; color: string; html: string }[] = [], headline: string[] = [];
+  const isCrit = (a: { critical: boolean; totalFloat: number }) => a.critical || a.totalFloat <= 0;
   const time = new Intl.DateTimeFormat("en-GB", { timeZone: o.timezone, hour: "2-digit", minute: "2-digit", hour12: false }).format(o.at);
 
   // ---------------- Kinan Heights (live data)
@@ -84,6 +103,72 @@ export function buildReport(o: BuildIn): Built {
   ]));
   const since = sinceLines(l, o.prev, "site", metrics.projects.site);
   if (since.length) { body.push(h2(T("Since the last brief", "منذ الموجز السابق"), o.prev ? dt(o.prev.date, l) : undefined)); body.push(bullets(since)); }
+
+  // ---- what happened since the last brief (default: the last 24 hours) and what comes in the next 48 hours
+  const from = o.prev && o.prev.date < d0 ? o.prev.date : addDays(d0, -1);
+  const inWin = (x: string) => x.slice(0, 10) > from && x.slice(0, 10) <= d0;
+  const fromAt = new Date(Date.parse(from + "T00:00:00Z") + DAY).toISOString(), sinceAt = o.prev && o.prev.date < d0 ? fromAt : new Date(o.at.getTime() - DAY).toISOString();
+  const sched = db.data.schedule;
+  const done = sched.filter((a) => !a.milestone && inWin(a.finish)), started = sched.filter((a) => !a.milestone && inWin(a.start) && a.finish > d0);
+  const msDone = sched.filter((a) => a.milestone && inWin(a.finish));
+  const slabs = done.filter((a) => /-STR-L\d+$/.test(a.id));
+  const delAll = db.data.procurement.deliveries;
+  const received = delAll.filter((x) => inWin(x.date) && (x.status === "Received" || x.status === "Rejected"));
+  const mails = (o.emails ?? []).filter((e) => e.received >= sinceAt && e.received <= o.at.toISOString()).sort((a, b) => b.received.localeCompare(a.received));
+  const filed = db.docs.filter((x) => x.uploadedAt && x.uploadedAt >= sinceAt);
+  const incid = db.data.safety.incidents.filter((x) => inWin(x.date));
+  const notesNew = db.notes.filter((n) => n.createdAt >= sinceAt);
+  // linear % complete on a date, as the programme is read (the same rule as the data)
+  const pctAt = (a: { start: string; finish: string }, d: string) => (a.finish <= d ? 100 : a.start > d ? 0 : Math.min(99, Math.max(1, Math.round(((Date.parse(d) - Date.parse(a.start)) / Math.max(DAY, Date.parse(a.finish) - Date.parse(a.start))) * 100))));
+  const progressed = sched.filter((a) => !a.milestone && a.start <= from && a.finish > d0).map((a) => ({ a, p0: pctAt(a, from), p1: pctAt(a, d0) })).filter((x) => x.p1 > x.p0)
+    .sort((x, y) => Number(isCrit(y.a)) - Number(isCrit(x.a)) || (y.p1 - y.p0) - (x.p1 - x.p0));
+  const act = (a: { name: string; id: string; finish: string; baselineFinish: string }) => `<b>${esc(a.name)}</b> <span style="color:${C.soft}">${esc(a.id)}</span>${slipOf(a as never) > 0 ? ` <span style="color:${C.red};font-weight:700">${days(slipOf(a as never), l)}</span>` : ""}`;
+  const mailLine = (e: Email) => `<b>${esc(e.subject)}</b> — ${esc(e.fromName)}, ${esc(e.company)} <span style="color:${C.soft}">${esc(e.received.slice(11, 16))}</span><br><span style="color:${C.soft}">${esc(e.text.replace(/\s+/g, " ").slice(0, 170))}…</span>`;
+  const winLabel = o.prev && o.prev.date < addDays(d0, -1) ? T(`Since the last brief (${dt(addDays(from, 1), l)} – ${dt(d0, l)})`, `منذ الموجز السابق (${dt(addDays(from, 1), l)} – ${dt(d0, l)})`) : T("In the last 24 hours", "خلال آخر 24 ساعة");
+  body.push(h2(winLabel, T(`${done.length} activities finished · ${progressed.length} progressed · ${started.length} started · ${received.length} deliveries · ${mails.length} contractor emails · ${notesNew.length} site notes`, `${done.length} نشاطاً انتهى · ${progressed.length} تقدّم · ${started.length} بدأ · ${received.length} توريدات · ${mails.length} رسائل من المقاولين · ${notesNew.length} ملاحظات`)));
+  const happened = dayBlock([
+    { label: T("Milestones", "المعالم"), lines: msDone.map((a) => `◆ ${act(a)}`) },
+    { label: T("Finished", "انتهى"), lines: [...slabs, ...done.filter((a) => !slabs.includes(a))].slice(0, 10).map(act).concat(done.length > 10 ? [`<span style="color:${C.soft}">+${done.length - 10} ${T("more", "أخرى")}</span>`] : []) },
+    { label: T("Progressed", "تقدّم"), lines: progressed.slice(0, 8).map((x) => `${isCrit(x.a) ? critTag(l) : ""}${esc(x.a.name)} <span style="color:${C.soft}">${x.p0}% → </span><b>${x.p1}%</b>`).concat(progressed.length > 8 ? [`<span style="color:${C.soft}">+${progressed.length - 8} ${T("more activities moved on", "أنشطة أخرى تقدمت")}</span>`] : []) },
+    { label: T("Started", "بدأ"), lines: started.slice(0, 8).map((a) => `${act(a)} <span style="color:${C.soft}">→ ${dt(a.finish, l)}</span>`).concat(started.length > 8 ? [`<span style="color:${C.soft}">+${started.length - 8} ${T("more", "أخرى")}</span>`] : []) },
+    { label: T("Deliveries", "التوريدات"), lines: received.slice(0, 8).map((x) => `${x.status === "Rejected" ? pill(T("rejected", "مرفوض"), C.red) + " " : ""}${esc(x.items)} <span style="color:${C.soft}">${esc(x.po)} · ${esc(x.gate)}${x.grn ? ` · ${esc(x.grn)}` : ""}</span>`) },
+    { label: T("Contractor emails", "رسائل المقاولين"), lines: mails.slice(0, 6).map(mailLine) },
+    { label: T("Site notes", "ملاحظات الموقع"), lines: notesNew.slice(0, 6).map((n) => `${n.kind !== "note" ? pill(n.kind === "issue" ? T("issue", "مسألة") : T("instruction", "تعليمات"), n.kind === "issue" ? C.red : C.amber) + " " : ""}${esc(n.text.slice(0, 200))} <span style="color:${C.soft}">— ${esc(n.author)}</span>`) },
+    { label: T("Documents filed", "مستندات مُودعة"), lines: filed.slice(0, 6).map((x) => `${esc(x.title)} <span style="color:${C.soft}">${esc(x.category)} · ${esc(x.uploadedBy ?? "")}</span>`) },
+    { label: T("Incidents", "الحوادث"), lines: incid.map((x) => `<b>${esc(x.type)}</b> — ${esc(x.description)}`) },
+  ]);
+  body.push(happened || para(T("Nothing was recorded on site in this period.", "لم يُسجل شيء في الموقع خلال هذه الفترة.")));
+
+  const to2 = addDays(d0, 2), soon = (x: string) => x > d0 && x <= to2;
+  const startNext = sched.filter((a) => !a.milestone && soon(a.start)), finishNext = sched.filter((a) => !a.milestone && soon(a.finish) && a.start <= d0);
+  const delNext = delAll.filter((x) => soon(x.date) || (x.date === d0 && x.status !== "Received" && x.status !== "Rejected"));
+  const permExp = db.data.safety.permits.filter((x) => x.status === "Active" && x.validTo.slice(0, 10) >= d0 && x.validTo.slice(0, 10) <= to2);
+  body.push(h2(T("Next 48 hours", "الثماني والأربعون ساعة القادمة"), `${dt(addDays(d0, 1), l)} – ${dt(to2, l)}`));
+  body.push(dayBlock([
+    { label: T("Due to finish", "ينتهي"), lines: finishNext.slice(0, 8).map((a) => `${isCrit(a) ? critTag(l) : ""}${esc(a.name)} <span style="color:${C.soft}">${dt(a.finish, l)}</span>`) },
+    { label: T("Starting", "يبدأ"), lines: startNext.slice(0, 8).map((a) => `${isCrit(a) ? critTag(l) : ""}${esc(a.name)} <span style="color:${C.soft}">${dt(a.start, l)}</span>`) },
+    { label: T("Deliveries booked", "توريدات محجوزة"), lines: delNext.slice(0, 8).map((x) => `${x.status === "Delayed" ? pill(T("delayed", "متأخر"), C.red) + " " : ""}${esc(x.items)} <span style="color:${C.soft}">${dt(x.date, l)} ${esc(x.slot)} · ${esc(x.gate)}</span>`) },
+    { label: T("Permits expiring", "تصاريح تنتهي"), lines: permExp.map((x) => `${esc(x.type)} — ${esc(x.description)} <span style="color:${C.soft}">${dt(x.validTo, l)}</span>`) },
+  ]) || para(T("Nothing booked for the next two days.", "لا شيء محجوز لليومين القادمين.")));
+
+  // ---- "To know today" (shown at the top of the brief)
+  const urgentMail = mails.filter((e) => e.importance === "high" || /delay|postpon|approv|urgent|request|reject|stop|hold/i.test(e.subject + " " + e.text.slice(0, 400)));
+  know.push(
+    ...cp.late.map((a) => ({ tag: T("Critical late", "حرج متأخر"), color: C.red, html: `<b>${esc(a.name)}</b> — ${T("forecast", "متوقع")} ${dt(a.finish, l)} <b style="color:${C.red}">${days(slipOf(a), l)}</b><br><span style="color:${C.soft}">${esc(a.contractor)} · ${T("completion moves with it", "يتأخر الإنجاز معه")}</span>` })),
+    ...delAll.filter((x) => x.status === "Delayed" && x.date >= d0 && x.date <= addDays(d0, 7)).slice(0, 4).map((x) => ({ tag: T("Delayed load", "توريد متأخر"), color: C.red, html: `<b>${esc(x.items)}</b> — ${T("booked", "محجوز")} ${dt(x.date, l)}, ${esc(x.po)}${x.remarks ? `<br><span style="color:${C.soft}">${esc(x.remarks)}</span>` : ""}` })),
+    ...urgentMail.slice(0, 4).map((e) => ({ tag: T("Email", "رسالة"), color: C.amber, html: `<b>${esc(e.subject)}</b> — ${esc(e.fromName)}, ${esc(e.company)}<br><span style="color:${C.soft}">${esc(e.text.replace(/\s+/g, " ").slice(0, 160))}…</span>` })),
+    ...cp.atRisk.slice(0, 3).map((a) => ({ tag: T("At risk", "معرّض"), color: C.amber, html: `<b>${esc(a.name)}</b> — ${a.percent}% ${T("done, the dates call for", "منجز، والتواريخ تتطلب")} ${expectedPct(a, d0)}%` })),
+    ...db.data.safety.incidents.filter((x) => x.status === "Open" && x.date >= addDays(d0, -3)).slice(0, 3).map((x) => ({ tag: T("Incident", "حادث"), color: C.red, html: `<b>${esc(x.type)}</b> — ${esc(x.description)} <span style="color:${C.soft}">${dt(x.date, l)}</span>` })),
+    ...cp.next.filter((a) => a.start <= addDays(d0, 2)).slice(0, 3).map((a) => ({ tag: T("Critical start", "بدء حرج"), color: C.or, html: `<b>${esc(a.name)}</b> ${T("starts", "يبدأ")} ${dt(a.start, l)} — ${esc(a.contractor)}` })),
+  );
+  headline.push(
+    slabs.length ? T(`${slabs.length} slab${slabs.length > 1 ? "s" : ""} poured (${slabs.map((a) => a.name.split(" — ")[0]).join(", ")})`, `صُبّت ${slabs.length} بلاطات (${slabs.map((a) => a.name.split(" — ")[0]).join("، ")})`)
+      : done.length ? T(`${done.length} activit${done.length > 1 ? "ies" : "y"} finished`, `انتهى ${done.length} نشاطاً`) : T(`work moved on in ${progressed.length} activities`, `تقدّم العمل في ${progressed.length} نشاطاً`),
+    cp.late.length ? T(`${cp.late.length} critical activit${cp.late.length > 1 ? "ies" : "y"} late, completion ${days(comp?.slip ?? 0, l)}`, `${cp.late.length} أنشطة حرجة متأخرة، الإنجاز ${days(comp?.slip ?? 0, l)}`) : T("no critical activity late", "لا نشاط حرجاً متأخراً"),
+    T(`${delNext.length} deliveries in the next 48 hours${delNext.some((x) => x.status === "Delayed") ? `, ${delNext.filter((x) => x.status === "Delayed").length} delayed` : ""}`, `${delNext.length} توريدات خلال 48 ساعة`),
+    T(`${mails.length} contractor email${mails.length === 1 ? "" : "s"}`, `${mails.length} رسائل من المقاولين`),
+  );
+  text.push(`${winLabel}: ${done.length} finished, ${started.length} started, ${received.length} deliveries, ${mails.length} emails`, ...slabs.map((a) => `  · ${a.name}`), "");
 
   body.push(h2(T("Critical path", "المسار الحرج"), T(`${cp.remaining.length} critical activities left — zero float: a day lost on any of them moves completion`, `${cp.remaining.length} نشاطاً حرجاً متبقياً — بلا فائض: أي يوم تأخير فيها يؤخر الإنجاز النهائي`)));
   const critRows = [...cp.late, ...cp.atRisk, ...cp.inProgress.filter((a) => critState(a, d0) === "ok")].slice(0, 12);
@@ -125,12 +210,6 @@ export function buildReport(o: BuildIn): Built {
     { label: T("Open incidents", "حوادث مفتوحة"), value: String(h.openIncidents.length), bad: h.openIncidents.length > 0 },
   ]));
   if (h.openIncidents.length) body.push(bullets(h.openIncidents.slice(0, 4).map((i) => `<b>${esc(i.type)}</b> — ${esc(i.description)} (${dt(i.date, l)})`)));
-
-  const dayAgo = new Date(o.at.getTime() - DAY).toISOString();
-  const fresh = db.notes.filter((n) => n.createdAt >= dayAgo).slice(0, 8);
-  const openIssues = db.notes.filter((n) => n.kind !== "note" && n.status === "open");
-  body.push(h2(T("From site — last 24 hours", "من الموقع — آخر 24 ساعة"), T(`${fresh.length} new notes · ${openIssues.length} open issues and instructions`, `${fresh.length} ملاحظات جديدة · ${openIssues.length} مسائل وتعليمات مفتوحة`)));
-  body.push(fresh.length ? bullets(fresh.map((n) => `${n.kind !== "note" ? pill(n.kind === "issue" ? T("issue", "مسألة") : T("instruction", "تعليمات"), n.kind === "issue" ? C.red : C.amber) + " " : ""}${esc(n.text.slice(0, 220))} <span style="color:${C.soft}">— ${esc(n.author)}</span>`)) : para(T("No notes logged on site since the last brief.", "لم تُسجل ملاحظات في الموقع منذ الموجز السابق.")));
 
   text.push(`${db.project.name} — ${liveStatus[0]}`, `  ${T("Complete", "الإنجاز")} ${s.progressPercent}% (${T("plan", "المخطط")} ${s.plannedPercent}%), SPI ${s.spi.toFixed(2)}`,
     comp ? `  ${T("Completion", "الإنجاز النهائي")} ${comp.forecast} (${T("baseline", "الأساس")} ${comp.baseline}, ${days(comp.slip, l)})` : "",
@@ -206,23 +285,28 @@ export function buildReport(o: BuildIn): Built {
   const title = `${heading} — ${dt(o.date, l)}${o.kind === "SNAPSHOT" ? ` ${time}` : ""}`;
   const portfolio = table([T("Project", "المشروع"), T("Progress / plan", "التقدم / المخطط"), "SPI", T("Completion", "الإنجاز"), T("Critical late / risk", "حرجة متأخرة / معرّضة"), T("Status", "الحالة")],
     summary, ["l", "r", "r", "r", "r", "r"], l, marks);
-  const dir = l === "ar" ? "rtl" : "ltr", font = l === "ar" ? FONT_AR : FONT;
+  const dir = l === "ar" ? "rtl" : "ltr", font = l === "ar" ? FONT_AR : FONT, end = l === "ar" ? "left" : "right";
+  const weekday = new Date(o.date + "T12:00:00Z").toLocaleDateString(l === "ar" ? "ar-SA-u-ca-gregory" : "en-GB", { weekday: "long", timeZone: "UTC" });
   const html = `<!doctype html><html lang="${l}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
 <body style="margin:0;padding:0;background:${C.page}">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.page}"><tr><td align="center" style="padding:16px 8px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.page}"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="640" cellpadding="0" cellspacing="0" dir="${dir}" style="width:100%;max-width:640px;background:#ffffff;font-family:${font};color:${C.ink};border-collapse:collapse">
-<tr><td style="background:${C.ink};padding:16px 28px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td style="font-size:20px;font-weight:800;letter-spacing:.32em;color:#ffffff">KINAN</td>
-<td align="${l === "ar" ? "left" : "right"}" style="font-size:9px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#c9c9cb">${T("AI onsite agent · site &amp; projects", "الوكيل الميداني · المواقع والمشاريع")}</td></tr></table></td></tr>
-<tr><td style="height:3px;background:${C.or};font-size:0;line-height:0">&nbsp;</td></tr>
-<tr><td style="padding:24px 28px 4px"><div style="font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:${C.or}">${l === "ar" ? "&#8249;" : "&#8250;"}&nbsp;${esc(heading)}</div>
-<div style="font-size:24px;font-weight:700;padding-top:4px">${dt(o.date, l)}</div>
-<div style="font-size:12px;color:${C.soft};padding-top:4px">${T(`${nActive} active project${nActive > 1 ? "s" : ""} · ${o.kind === "SNAPSHOT" ? "snapshot taken" : "prepared"} ${time} (${o.timezone})`, `${nActive} مشاريع نشطة · ${o.kind === "SNAPSHOT" ? "التُقطت" : "أُعد"} ${time} (${o.timezone})`)}</div></td></tr>
+<tr><td style="background:${C.ink};padding:18px 28px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="font-size:12px;font-weight:800;letter-spacing:.32em;color:#ffffff">KINAN <span style="color:${C.or}">&#8250;</span></td>
+<td align="${end}" style="font-size:9px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#cfcfcf">${T("AI onsite agent · site &amp; projects", "الوكيل الميداني · المواقع والمشاريع")}</td></tr></table></td></tr>
+<tr><td style="background:${C.or};padding:30px 28px;color:#ffffff">
+<div style="font-size:11px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;opacity:.92">${esc(heading)}</div>
+<div style="font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding-top:6px;line-height:1.2">${esc(weekday)} ${dt(o.date, l)}${o.kind === "SNAPSHOT" ? ` · ${time}` : ""}</div>
+<div style="font-size:12px;padding-top:6px;opacity:.92">${T(`${nActive} active project${nActive > 1 ? "s" : ""} · ${o.kind === "SNAPSHOT" ? "snapshot taken" : "prepared"} ${time} (${o.timezone}) · data to ${dt(db.data.meta.dataDate, l)}`, `${nActive} مشاريع نشطة · ${o.kind === "SNAPSHOT" ? "التُقطت" : "أُعد"} ${time} (${o.timezone}) · البيانات حتى ${dt(db.data.meta.dataDate, l)}`)}</div></td></tr>
+${headline.length ? `<tr><td style="padding:22px 28px 0;font-size:15px;line-height:1.55;color:${C.ink}"><b>${T("Today in one line:", "اليوم في سطر:")}</b> ${headline.map(esc).join(" · ")}.</td></tr>` : ""}
+${knowBox(T("To know today", "للعلم اليوم"), know.slice(0, 12), T("Nothing late on the critical path, no delayed load, no email asking for a decision and no open incident.", "لا تأخير على المسار الحرج ولا توريد متأخر ولا رسالة تطلب قراراً ولا حادث مفتوح."))}
 ${h2(T("All active projects", "جميع المشاريع النشطة"))}
 ${portfolio}
 ${body.join("\n")}
-<tr><td style="padding:28px 28px 22px"><div style="border-top:1px solid ${C.line};padding-top:12px;font-size:11px;color:${C.soft};line-height:1.5">${T("Prepared by the Kinan Onsite Agent from the project programme, procurement, safety and site notes. Critical = zero float: a delay to it delays completion. This brief takes no action.", "أعده الوكيل الميداني لكنان من برنامج المشروع والمشتريات والسلامة وملاحظات الموقع. الحرج = بلا فائض: أي تأخير فيه يؤخر الإنجاز. لا يتخذ هذا الموجز أي إجراء.")}</div>
-<div style="font-size:10px;font-weight:700;letter-spacing:.3em;color:${C.or};padding-top:8px">${KINAN.tagline}</div></td></tr>
+${o.appUrl ? `<tr><td style="padding:26px 28px 6px"><a href="${esc(o.appUrl)}" style="display:inline-block;background:${C.or};color:#ffffff;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;padding:12px 20px">${T("Open the Onsite Agent", "افتح الوكيل الميداني")}</a></td></tr>` : ""}
+<tr><td style="padding:22px 28px 22px"><div style="border-top:1px solid ${C.line};padding-top:12px;font-size:11px;color:${C.soft};line-height:1.5">${T("Prepared by the Kinan Onsite Agent from the project programme, procurement, safety, site notes and the contractors' emails. Critical = zero float: a delay to it delays completion.", "أعده الوكيل الميداني لكنان من برنامج المشروع والمشتريات والسلامة وملاحظات الموقع ورسائل المقاولين. الحرج = بلا فائض: أي تأخير فيه يؤخر الإنجاز.")}</div></td></tr>
+<tr><td style="background:${C.ink};padding:16px 28px;color:#bbbbbb;font-size:11px;line-height:1.5">${T(`This brief takes no action: nothing changes in the programme, orders or permits until a person does it. Sent by the Kinan Onsite Agent${o.sender ? ` from ${esc(o.sender)}` : ""}.`, `لا يتخذ هذا الموجز أي إجراء: لا يتغير شيء في البرنامج أو الطلبات أو التصاريح ما لم يقم به شخص. أرسله الوكيل الميداني لكنان${o.sender ? ` من ${esc(o.sender)}` : ""}.`)}
+<div style="padding-top:8px"><span style="color:${C.or};font-weight:700;letter-spacing:.3em">${KINAN.tagline}</span> &nbsp; <span style="color:#ffffff">www.kinan.com.sa</span></div></td></tr>
 </table></td></tr></table></body></html>`;
   return { title, html, text: [title, "", ...text.filter((x) => x !== undefined)].join("\n"), metrics, active: nActive };
 }

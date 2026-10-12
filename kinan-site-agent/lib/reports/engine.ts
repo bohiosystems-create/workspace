@@ -14,6 +14,7 @@
 //           an HTML attachment. The report takes no action.
 //
 // Storage-agnostic: the server passes Vercel Blob / disk (lib/reports/server.ts); the standalone page passes IndexedDB.
+import type { Email } from "../core/emails";
 import type { Db } from "../types";
 import type { GenProject } from "../model3d/store";
 import type { MailToSend, SendResult } from "../outlook";
@@ -27,6 +28,8 @@ export interface ReportsIO {
   lock<T>(name: string, fn: () => Promise<T>): Promise<T | null>;
   db(): Promise<Db>;
   projects(): Promise<GenProject[]>;
+  /** Contractor emails from the project inbox (for "In the last 24 hours" and "To know today"). */
+  emails?(): Promise<Email[]>;
   send(mail: MailToSend): Promise<SendResult>;
   env: { mode: "mock" | "live"; creds: boolean; sender: string; senderSet: boolean; cron: boolean; allowedDomains?: string; allowedRecipients?: string; appUrl?: string | null };
   now?: () => Date;
@@ -51,7 +54,7 @@ export function reports(io: ReportsIO) {
   async function ensureSchedule(): Promise<Schedule> {
     const s = await io.get<Schedule>(K.schedule);
     if (s) return s;
-    const d: Schedule = { enabled: true, time: "07:30", timezone: "Asia/Riyadh", days: "0,1,2,3,4", recipients: io.env.sender, languages: "en", updatedAt: now().toISOString() };
+    const d: Schedule = { enabled: true, time: "07:30", timezone: "Asia/Riyadh", days: "0,1,2,3,4,5,6", recipients: io.env.sender, languages: "en", updatedAt: now().toISOString() };
     await io.put(K.schedule, d);
     return d;
   }
@@ -100,7 +103,8 @@ export function reports(io: ReportsIO) {
 
   async function build(trigger: ReportMeta["trigger"], kind: ReportMeta["kind"], date: string, lang: Lang): Promise<ReportFull> {
     const s = await ensureSchedule(), at = now(), t0 = Date.now();
-    const r = buildReport({ lang, date, kind, at, timezone: s.timezone, db: await io.db(), projects: await io.projects(), prev: await lastIssued(lang, date) });
+    const r = buildReport({ lang, date, kind, at, timezone: s.timezone, db: await io.db(), projects: await io.projects(), prev: await lastIssued(lang, date),
+      emails: io.emails ? await io.emails().catch(() => []) : [], appUrl: io.env.appUrl ?? null, sender: io.env.sender });
     const full: ReportFull = { id: rid(), createdAt: at.toISOString(), date, kind, trigger, lang, title: r.title, status: "GENERATED", delivery: null, recipients: "", error: null, sentAt: null, projects: r.active,
       html: r.html, text: r.text, metrics: { ...r.metrics, buildSec: Math.round((Date.now() - t0) / 1000) } };
     await io.put(K.one(full.id), full);

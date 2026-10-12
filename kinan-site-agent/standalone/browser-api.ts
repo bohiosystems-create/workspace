@@ -6,7 +6,7 @@
 import type { Db, Doc, Note } from "../lib/types";
 import { CATEGORIES } from "../lib/types";
 import { seedDb } from "../lib/seed";
-import { buildProjectData } from "../lib/data";
+import { buildProjectData, rollToToday } from "../lib/data";
 import { renderDrawing } from "../lib/drawings";
 import { describeUpload } from "../lib/core/describe";
 import { configFrom } from "../lib/core/llm/router";
@@ -27,6 +27,7 @@ const pageReports = () => (rep ??= reports({
   lock: async (_n, fn) => fn(),
   db: async () => repo.db,
   projects: async () => loadProjects(),
+  emails: async () => demoEmails(repo.db.data),
   send: async () => ({ delivery: "mock", providerRef: `mock-${Date.now().toString(36)}` }),
   env: { mode: "mock", creds: false, sender: "onsite@kinan.com.sa", senderSet: false, cron: false, allowedRecipients: "" },
 }));
@@ -67,13 +68,14 @@ export async function boot() {
   let db = await get<Db>("db");
   if (!db) db = seedDb();
   if (!db.data) db.data = buildProjectData();
+  { const fresh = rollToToday(db.data); if (fresh) db.data = fresh; } // the demo data follows the calendar
   for (const d of db.docs) if (!d.generated) { const f = await get<Blob>("file:" + d.id); if (f) files.set(d.id, f); }
   repo = {
     db,
     save: () => { clearTimeout(saveT); saveT = setTimeout(() => put("db", JSON.parse(JSON.stringify(repo.db))), 120); },
     loadFile: async (d: Doc) => { const f = files.get(d.id); return f ? new Uint8Array(await f.arrayBuffer()) : null; },
     // the standalone build has no mailbox: the demo inbox
-    emails: async () => ({ mode: "demo" as const, mailbox: "projectupdates@kinan.example", lastSync: null, error: null, emails: demoEmails() }),
+    emails: async () => ({ mode: "demo" as const, mailbox: "projectupdates@kinan.example", lastSync: null, error: null, emails: demoEmails(repo.db.data) }),
   };
   runtime.mode = "standalone";
   runtime.fileUrl = (doc) => {

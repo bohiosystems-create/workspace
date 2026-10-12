@@ -41,6 +41,7 @@ export function importSchedule(db: Db, csv: string, dataDate?: string): { import
   if (out.length) {
     db.data.schedule = out;
     db.data.meta.dataDate = dataDate ?? new Date().toISOString().slice(0, 10);
+    db.data.meta.fixed = true; // a real programme: stop moving the demo data with the calendar
   }
   return { imported: out.length, skipped, unmappedLocations: unmapped };
 }

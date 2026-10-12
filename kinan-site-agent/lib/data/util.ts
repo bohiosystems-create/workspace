@@ -1,5 +1,23 @@
 /** Deterministic helpers so the demo dataset is identical on every run. */
+/** The date the demo dataset was written for (its base). The data itself follows the calendar: see currentDataDate. */
 export const DATA_DATE = "2026-10-01";
+/** Last day the demo programme runs to (a month after practical completion). */
+export const DATA_DATE_MAX = "2028-07-31";
+
+/** Today in Riyadh (YYYY-MM-DD). */
+export const todayRiyadh = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Riyadh" });
+/**
+ * The demo's data date. Like the other Kinan agents, the sample data follows the calendar so the app and the daily
+ * brief always look current: the data date is today (Riyadh), from the base date up to a month after completion.
+ * The programme keeps its own dates, so every day some work finishes, starts and slips as the programme says.
+ *   DATA_DATE_FIXED=2026-10-01  freezes it (any date).
+ */
+export function currentDataDate(): string {
+  const fixed = typeof process !== "undefined" ? process.env?.DATA_DATE_FIXED : undefined;
+  if (fixed && /^\d{4}-\d{2}-\d{2}$/.test(fixed)) return fixed;
+  const t = todayRiyadh();
+  return t < DATA_DATE ? DATA_DATE : t > DATA_DATE_MAX ? DATA_DATE_MAX : t;
+}
 
 export function rng(seed: number) {
   let a = seed >>> 0;
