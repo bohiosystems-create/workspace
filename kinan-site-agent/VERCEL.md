@@ -131,6 +131,11 @@ Add the five `WHATSAPP_*` variables from Step 3, then **Redeploy**.
 > If verification fails: open `https://<project>.vercel.app/api/whatsapp?hub.mode=subscribe&hub.verify_token=<your token>&hub.challenge=ok`. It should print `ok`. If you see a Vercel login page, turn off Deployment Protection for production (Step 7).
 
 ### 5.5 Test
+> **Two things Meta's new screens don't do for you — without them no message reaches the bot (grey ticks, no reply):**
+> 1. **Publish the app** (App settings → Basic: privacy policy URL, data deletion URL, category → **Publish**). An unpublished app only receives the dashboard's test webhooks.
+> 2. **Link the WhatsApp account to the app.** In Graph API Explorer (app selected, token with `whatsapp_business_management`) run `GET <WABA_ID>/subscribed_apps`; if your app isn't listed, `POST <WABA_ID>/subscribed_apps` → `{"success": true}`. Meta often links only its own "WA DevX Webhook Events" app.
+> The bot marks every message it handles as read: grey ticks = the app never received it.
+
 1. **API Setup → To**: add your mobile as a test recipient and confirm the code.
 2. Send **`help`** to the test number. You should get the command list.
 3. Try these:

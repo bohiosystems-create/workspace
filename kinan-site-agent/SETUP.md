@@ -246,6 +246,11 @@ WHATSAPP_ALLOWED_NUMBERS=9665XXXXXXXX:Development Manager,9665YYYYYYYY:HSE Manag
 The name after `:` is recorded as the author of notes and uploads made from that phone.
 
 ### 6.5 Test with the test number
+> **Two things Meta's new screens don't do for you — without them no message reaches the bot (grey ticks, no reply):**
+> 1. **Publish the app** (App settings → Basic: privacy policy URL, data deletion URL, category → **Publish**). An unpublished app only receives the dashboard's test webhooks.
+> 2. **Link the WhatsApp account to the app.** In Graph API Explorer (app selected, token with `whatsapp_business_management`) run `GET <WABA_ID>/subscribed_apps`; if your app isn't listed, `POST <WABA_ID>/subscribed_apps` → `{"success": true}`. Meta often links only its own "WA DevX Webhook Events" app.
+> The bot marks every message it handles as read: grey ticks = the app never received it.
+
 1. **API Setup → To**: add your own mobile as a test recipient (up to 5) and confirm the code.
 2. From your phone, send **`help`** to the test number. You should get the command list within a few seconds.
 3. Try: `What's late on Tower A?` · a **voice note** · a **photo** · **share location** · `Show me the Tower A L12 slab drawing`.
@@ -454,6 +459,7 @@ Own server (Docker): call the endpoint from cron, e.g. `* * * * * curl -fsS -H "
 | Oracle returns 0 POs | Check `ORACLE_PO_QUERY` and the user's procurement business-unit access. Test the URL in a browser. |
 | Uploads fail on large files | Own server: raise the proxy body limit (Caddyfile has 50 MB). Vercel: connect a Blob store — without it Vercel caps uploads at 4.5 MB. |
 | Yellow "Demo storage" banner on Vercel | No Blob store connected (§5 A2). Connect it and redeploy. |
+| WhatsApp: grey ticks, no reply | The app isn't published, or the WhatsApp account isn't linked to the app — see the note in §6.5 (`POST <WABA_ID>/subscribed_apps`). |
 | Vercel: webhooks get 401 / HTML login page | Deployment Protection is on for production — turn it off for production (keep `APP_PASSWORD`). |
 | Vercel: answer cut short "ran out of time" | Ask narrower questions, or on Pro raise `maxDuration` + `AGENT_DEADLINE_MS`. |
 | Vercel: Blob errors mentioning access | Recreate the Blob store with **Private** access. |
