@@ -146,12 +146,13 @@ module.exports = async function handler(req, res) {
         ...(limit && used >= limit ? { error: `Monthly characters used up (${used.toLocaleString('en-GB')} of ${limit.toLocaleString('en-GB')}).` } : {}) });
     } catch (e) { return send(res, 200, { ok: false, error: String(e && e.message || e) }); }
   }
-  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', voiceAr: key ? defaultVoiceAr : '', passwordRequired: !!DEMO_CODE() });
+  const openaiKey = process.env.OPENAI_API_KEY || '';
+  if (req.method === 'GET') return send(res, 200, { enabled: !!key, provider: key ? 'elevenlabs' : 'browser', model, voice: key ? defaultVoice : '', voiceAr: key ? defaultVoiceAr : '', stt: key ? (openaiKey ? 'elevenlabs+openai' : 'elevenlabs') : (openaiKey ? 'openai' : ''), passwordRequired: !!DEMO_CODE() });
   if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
-  if (!key) return send(res, 501, { error: 'Voice is not configured (set ELEVENLABS_API_KEY).' });
   const bad = authorised(req); if (bad) return send(res, bad === 'Forbidden' ? 403 : 401, { error: bad });
   let body;
   try { body = await readBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
+  if (!key && !(body && body.transcribe)) return send(res, 501, { error: 'Voice is not configured (set ELEVENLABS_API_KEY).' });
   // A single-use key (15 minutes) for ElevenLabs real-time transcription: the page streams the microphone to Scribe and
   // shows the words live while a question is spoken, without ever seeing the API key.
   if (body && body.token) {
@@ -173,12 +174,31 @@ module.exports = async function handler(req, res) {
     form.append('language_code', body.lang === 'ar' ? 'ara' : 'eng');
     form.append('tag_audio_events', 'false');
     form.append('file', new Blob([Buffer.from(b64, 'base64')], { type: mime }), /mp4/.test(mime) ? 'question.mp4' : /ogg/.test(mime) ? 'question.ogg' : 'question.webm');
+    // OpenAI transcription (gpt-4o-transcribe) when ElevenLabs is not set or fails: a vocabulary hint keeps "IRR",
+    // "EstateMaster", "levered", "hurdle" from turning into other words.
+    const viaOpenAI = async (why) => {
+      if (!openaiKey) return send(res, 502, { error: why || 'No transcription service configured (ELEVENLABS_API_KEY or OPENAI_API_KEY).' });
+      const f = new FormData();
+      f.append('model', process.env.OPENAI_STT_MODEL || 'gpt-4o-transcribe');
+      f.append('language', body.lang === 'ar' ? 'ar' : 'en');
+      f.append('prompt', body.lang === 'ar' ? 'سؤال في عرض لجنة الاستثمار عن نموذج EstateMaster: IRR، معدل العائد الداخلي، هامش الربح، التكلفة، الإيراد، الديون، العقبة، سعر البيع، الإيجار، كنان.' : 'A question asked during an investment committee presentation about an ARGUS EstateMaster feasibility model: IRR, levered IRR, unlevered IRR, hurdle rate, profit on cost, net profit, total development cost, revenue, peak debt, equity multiple, sale price per sqm, rent, GFA, FAR, contingency, Murabaha, SAIBOR, KINAN, Riyadh, Al Narjis, sensitivity, stress test, EstateMaster.');
+      f.append('file', new Blob([Buffer.from(b64, 'base64')], { type: mime }), /mp4/.test(mime) ? 'question.mp4' : /ogg/.test(mime) ? 'question.ogg' : 'question.webm');
+      try {
+        const r = await fetch((process.env.OPENAI_URL || 'https://api.openai.com/v1/chat/completions').replace(/\/chat\/completions.*$/, '') + '/audio/transcriptions', { method: 'POST', headers: { authorization: 'Bearer ' + openaiKey }, body: f });
+        if (!r.ok) return send(res, 502, { error: `${why ? why + ' · ' : ''}OpenAI transcription failed (${r.status}): ${(await r.text()).slice(0, 200)}` });
+        const j = await r.json();
+        return send(res, 200, { text: String(j.text || '').replace(/\s+/g, ' ').trim(), by: 'openai' });
+      } catch (e) { return send(res, 502, { error: 'OpenAI unreachable: ' + (e && e.message) }); }
+    };
+    if (!key) return viaOpenAI();
     try {
       const r = await fetch('https://api.elevenlabs.io/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': key }, body: form });
-      if (!r.ok) return send(res, 502, { error: `ElevenLabs transcription failed (${r.status}): ${(await r.text()).slice(0, 200)}` });
+      if (!r.ok) return viaOpenAI(`ElevenLabs transcription failed (${r.status})`);
       const j = await r.json();
-      return send(res, 200, { text: String(j.text || '').replace(/\s+/g, ' ').trim() });
-    } catch (e) { return send(res, 502, { error: 'ElevenLabs unreachable: ' + (e && e.message) }); }
+      const text = String(j.text || '').replace(/\s+/g, ' ').trim();
+      if (!text) return viaOpenAI('ElevenLabs heard nothing');
+      return send(res, 200, { text, by: 'elevenlabs' });
+    } catch (e) { return viaOpenAI('ElevenLabs unreachable: ' + (e && e.message)); }
   }
   const text = String((body && body.text) || '').replace(/\s+/g, ' ').trim().slice(0, MAX_CHARS);
   if (!text) return send(res, 400, { error: 'Nothing to say.' });
