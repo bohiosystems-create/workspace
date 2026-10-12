@@ -216,6 +216,7 @@ body.chatopen .kdock{display:flex}
 .kdock .xhint{padding:0 16px 10px;font-size:10.5px}
 .msg{border-radius:2px;font-size:12px;line-height:1.6;padding:11px 13px;animation:kUp .3s ease both}
 #hurBar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:0 0 14px;padding:12px 18px;background:#fff;border:1px solid var(--hair);border-left:3px solid var(--orange);font-size:13px}#hurBar .hb-q{flex:1;min-width:260px;line-height:1.5}#hurBar .hb-f{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#hurBar input{width:72px;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--faint)}#hurBar .hb-ai{flex-basis:100%;font-size:12.5px;color:var(--ink2)}#hurBar .hb-ai:empty{display:none}
+.tpl-new{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;min-height:260px;border:2px dashed rgba(241,90,34,.45);background:#fff;cursor:pointer;font:inherit;color:var(--ink);padding:20px}.tpl-new:hover{background:var(--orange-soft);border-color:var(--orange)}.tpl-new .tpl-plus{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:var(--orange);color:#fff;font-size:34px;line-height:1;font-weight:300}.tpl-new b{font-size:15px}.tpl-new span:last-child{font-size:12.5px;color:var(--soft);max-width:240px}
 .msg.divider{align-self:center;background:none;border:0;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--soft);padding:4px 0;max-width:none}#msgs.swap{animation:chatSwap .35s ease}@keyframes chatSwap{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .msg.agent{background:#f6f5f3;border:0;border-left:3px solid var(--orange);max-width:100%}
 .msg.user{background:var(--ink);color:#fff;max-width:88%}
@@ -906,7 +907,7 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
         <div class="src" style="margin-top:12px"><div><b>Extracted:</b> assumption register, KPIs, quarterly cash flow, cost and revenue reports, funding schedule, fund waterfall.</div><div><b>Joined with:</b> SQL Server actuals (cost to date, commitments, sales) and the market dataset.</div></div>
       </div>
       <div class="card">
-        <div class="bar"></div><div class="sbhead"><h2>Report templates</h2><button class="btn sm" id="rbNew">+ New report</button></div>
+        <div class="bar"></div><div class="sbhead"><h2>Report templates</h2><button class="btn sm" id="rbNew">+ Build custom report</button></div>
         <div class="sub">Scheduled reports run after the nightly extract and are delivered on the chosen channel.</div>
         <div class="ib" id="rpList"></div>
       </div>
@@ -2537,10 +2538,10 @@ function openTemplates(){let m=$('#tplModal');if(!m){m=document.createElement('d
     m.addEventListener('click',e=>{const b=e.target.closest('[data-tpl]');if(!b)return;const k=b.dataset.tpl,act=b.dataset.act;m.classList.remove('on');RSEL=k;renderReportList();renderReport();
       if(act==='play')openDeck(buildDeck(k));else if(act==='use'){const d=$(`[data-rbe="${k}"]`);if(d)d.click()}else showTab('report')})}
   const names=b=>BLOCKS[b]?BLOCKS[b].name:b;
-  $('#tplGrid').innerHTML=Object.entries(RPTS).filter(([k,v])=>v.builtin).map(([k,v])=>{let deck={slides:[]};try{deck=buildDeck(k)}catch(e){}
+  $('#tplGrid').innerHTML=`<button class="tpl tpl-new" id="tplCustom" type="button"><span class="tpl-plus">+</span><b>Build custom report</b><span>Start blank: pick the sections, or describe the report and the agent designs it.</span></button>`+Object.entries(RPTS).filter(([k,v])=>v.builtin).map(([k,v])=>{let deck={slides:[]};try{deck=buildDeck(k)}catch(e){}
     return`<div class="tpl"><div class="tpl-thumb">${tplThumb(deck)}</div><div class="tpl-body"><div class="tpl-aud">${esc(v.aud||'')}${v.email?' · emailed':''}</div><h3>${esc(v.name)}</h3><p>${esc(v.purpose||'')}</p><div class="tpl-secs">${deck.slides.length?deck.slides.length+' slides · ':''}${v.blocks.map(names).slice(0,6).map(esc).join(' · ')}${v.blocks.length>6?' · …':''}</div><div class="tpl-act"><button class="btn sm" data-tpl="${k}" data-act="use">Use template</button><button class="btn ghost sm" data-tpl="${k}" data-act="play" title="Play" aria-label="Play">▶</button><button class="btn ghost sm" data-tpl="${k}" data-act="open">Open</button></div></div></div>`}).join('');
   m.classList.add('on')}
-document.addEventListener('click',e=>{if(e.target.id==='rpPlus')openTemplates()});
+document.addEventListener('click',e=>{if(e.target.id==='rpPlus')openTemplates();const c=e.target.closest&&e.target.closest('#tplCustom');if(c){$('#tplModal').classList.remove('on');openBuilder()}});
 function renderReportList(){
   $('#rpList').innerHTML=Object.entries(RPTS).map(([k,v])=>`<div class="em ${k===RSEL?'on':''}" data-rp="${k}"><div class="top"><span>${esc(v.aud||'')}</span><span>${esc(schedOf(k).on?schedLabel(schedOf(k)):'On request')}</span></div><div class="sj">${esc(v.name)}${v.builtin?'':' <span class="xtag ok" style="font-size:10px">custom</span>'}</div>
     <div class="x" style="align-items:center"><span style="font-size:12px;flex:1 1 100%">${schedOf(k).on?`⏱ <b>${esc(schedLabel(schedOf(k)))}</b> · ${esc(schedOf(k).ch)} · next ${fmtWhen(schedOf(k).next)}`:'<span style="color:var(--soft)">On request</span>'}</span><button class="btn ghost sm" data-sched="${k}">Schedule</button>
