@@ -29,7 +29,7 @@ npm run dev                  # http://localhost:3000
 
 `npm run build:html` produces `kinan-site-agent.html`: the same app as one file, with no server (map, documents, notes, project data). New projects there use the offline parser, or Claude when the page is opened as a claude.ai artifact.
 
-The AI agent has no chat screen in the web app. It is used **only through WhatsApp**.
+The AI agent answers in two places: the **chat in the web app** ("Ask the agent", or "Ask AI" on the site map) and **WhatsApp**. The in-app chat answers only through the AI API (Claude or OpenAI) — it has no keyword fallback, so it needs `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`; WhatsApp keeps an offline fallback for poor signal on site.
 
 ## Look and feel
 

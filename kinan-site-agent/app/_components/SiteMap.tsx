@@ -244,6 +244,8 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
 
       {/* Thumb zone: the view switch and camera controls sit bottom-right; zoom buttons only for mouse users. */}
       <div className={"mapctl" + (mode === "3d" ? " is3d" : "")}>
+        {/* the AI chat lives in the control column on the map, so it never covers the map or the timeline */}
+        <button className="mapask" onClick={() => window.dispatchEvent(new Event("open-chat"))} aria-label="Ask the Onsite Agent (AI)" title="Ask the Onsite Agent"><Icon name="chat" /><span>Ask AI</span></button>
         <div className="seg2" role="group" aria-label="Map view">
           <button className={mode === "2d" ? "on" : ""} aria-pressed={mode === "2d"} onClick={() => setView("2d")}>2D</button>
           <button className={mode === "3d" ? "on" : ""} aria-pressed={mode === "3d"} onClick={() => setView("3d")} disabled={dropMode}>3D</button>

@@ -10,6 +10,7 @@ import { buildProjectData } from "../lib/data";
 import { renderDrawing } from "../lib/drawings";
 import { describeUpload } from "../lib/core/describe";
 import { configFrom } from "../lib/core/llm/router";
+import { AiUnavailable, runAgent as coreAgent } from "../lib/core/agent";
 import type { Repo } from "../lib/core/tools";
 import { runtime } from "../app/_components/runtime";
 import { SYSTEM, extractModel, promptFor, type ExtractDoc } from "../lib/model3d/extract";
@@ -98,6 +99,12 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
     return json({ project: db.project, locations: db.locations, docs: db.docs.map(({ text: _t, ...d }) => d), notes: db.notes, dataDate: db.data.meta.dataDate, agentMode: "offline", providers: [] });
   }
   if (p === "/api/project") return json(db.data);
+  if (p === "/api/chat" && method === "POST") {
+    // the chat answers only through the AI API, with the keys set on this device
+    const b = (await body().catch(() => ({}))) as { messages?: { role: "user" | "assistant"; content: string }[]; author?: string; focus?: { docId?: string; locationId?: string } };
+    try { const r = await coreAgent(repo, (b.messages ?? []).slice(-20), { author: b.author || "Site team", channel: "web", focus: b.focus, aiOnly: true, deadline: Date.now() + 90_000 }, llm()); return json(r); }
+    catch (e) { return json({ error: e instanceof AiUnavailable ? e.message.replace("set ANTHROPIC_API_KEY or OPENAI_API_KEY", "add a Claude or OpenAI key in settings") : "The AI service did not answer. Try again in a moment." }, 503); }
+  }
   if (p === "/api/notes") {
     const b = await body();
     if (method === "PATCH") { const n = db.notes.find((x) => x.id === b.id); if (!n) return json({ error: "Not found" }, 404); n.status = b.status === "closed" ? "closed" : "open"; repo.save(); return json({ note: n }); }

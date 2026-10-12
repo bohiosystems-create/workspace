@@ -94,7 +94,7 @@ Optional for **new projects from documents** (home page → +): `GEMINI_API_KEY`
 2. Open `https://<project>.vercel.app/api/llm` and check:
    - `"providers"` shows `anthropic: true` and/or `openai: true`
    - `"storage": "blob"`
-3. The app shows the site map, project data and documents. There is no chat screen: the AI agent is used through WhatsApp (Step 5).
+3. The app shows the site map, project data, documents and the AI chat ("Ask the agent"; "Ask AI" on the map). The chat answers only through the AI API, using the `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` already set. The same agent also answers on WhatsApp (Step 5).
 4. Add it to your home screen: Safari → Share → *Add to Home Screen* (iOS), or Chrome → ⋮ → *Add to Home screen* (Android). Allow **location** and **microphone** when asked.
 
 ---

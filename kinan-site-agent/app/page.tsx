@@ -10,6 +10,7 @@ import DocsTab from "./_components/DocsTab";
 import ProjectTab from "./_components/ProjectTab";
 import { NewProject, ProjectHome, ProjectView } from "./_components/Projects";
 import Reports from "./_components/Reports";
+import Chat from "./_components/Chat";
 import { loadProjects, saveProjects, type GenProject } from "@/lib/model3d/store";
 import { useAuthor, useSite } from "./_components/site";
 import { Icon, Logo, Mark } from "./_components/icons";
@@ -217,6 +218,11 @@ export default function Home() {
       </>)}
 
       {error && <div className="toast">{error}</div>}
+
+      {/* the AI chat, on every screen; tool actions open the document or show the place on the map */}
+      <Chat author={author} place={screen === "site" ? tab : screen.startsWith("p:") ? "project" : screen}
+        focus={{ docId: viewerId, locationId: selId }}
+        onAction={(a) => { if (a.type === "open_doc") { setScreen("site"); setViewerId(a.docId); } else if (a.type === "focus_location") { setScreen("site"); selectLocation(a.locationId); } }} />
 
       {viewerDoc && (
         <DocViewer

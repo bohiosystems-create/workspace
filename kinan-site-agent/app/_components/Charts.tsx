@@ -120,7 +120,7 @@ export function Columns3D({ rows, unit = "", decimals = 0, max: max0, height = 1
                 <path d={b.side} fill={shade(c, 0.62)} /><path d={b.top} fill={shade(c, 1.4)} /><path d={b.front} fill={`url(#${id}${i})`} />
               </g>}
               {r.target != null && <line className="kc-fade" x1={x(i) - bw / 2 - 6} x2={x(i) + bw / 2 + 6} y1={y(r.target)} y2={y(r.target)} stroke={C.or} strokeWidth="2" strokeDasharray="5 4" style={d(600 + i * 70)} />}
-              <text className="kc-fade" x={x(i) + DEPTH.dx / 2} y={Math.min(y(r.value) + DEPTH.dy, r.target != null ? y(r.target) : 9e9) - 7} textAnchor="middle" fontSize="12" fontWeight="700" fill={c === C.inkHex ? "var(--ink)" : c} style={{ fontVariantNumeric: "tabular-nums", ...d(700 + i * 70) }}>{fmt(r.value, decimals)}{unit}</text>
+              <text className="kc-fade" x={x(i) + DEPTH.dx / 2} y={Math.min(y(r.value) + DEPTH.dy, r.target != null ? y(r.target) : 9e9) - 7} textAnchor="middle" fontSize="12" fontWeight="700" fill={r.value === 0 ? C.mute : c === C.inkHex ? "var(--ink)" : c} fillOpacity={r.value === 0 ? 0.55 : 1} style={{ fontVariantNumeric: "tabular-nums", ...d(700 + i * 70) }}>{fmt(r.value, decimals)}{unit}</text>
               <text x={x(i)} y={H + 16} textAnchor="middle" fontSize="10.5" fill={C.mute}>{r.label}</text>
               {r.sub && <text x={x(i)} y={H + 27} textAnchor="middle" fontSize="9" fill={C.mute}>{r.sub}</text>}
             </g>
@@ -140,16 +140,18 @@ export function Donut3D({ segs, centre, centreSub }: { segs: { label: string; va
   const p = pie3d(angles, { cx: 92, cy: 66, r: 72, inner: 40, tilt: 0.58, depth: 16 });
   return (
     <div className="donut">
-      <svg viewBox="0 0 184 130" width="184" height="130" aria-hidden="true">
+      <svg viewBox="0 0 184 130" aria-hidden="true">
         {p.inner.map((w, i) => <path key={`i${i}`} className="kc-fade" d={w.d} fill={shade(segs[w.i].color, 0.55)} style={d(400)} />)}
         {p.outer.map((w, i) => <path key={`o${i}`} className="kc-fade" d={w.d} fill={shade(segs[w.i].color, 0.72)} style={d(400)} />)}
         {p.tops.map((t, i) => segs[i].value > 0 && <path key={`t${i}`} className="kc-pop" d={t} fill={segs[i].color} stroke="var(--card)" strokeWidth="1" style={d(60 + i * 90)} />)}
-        {centre && <text x="92" y="64" textAnchor="middle" className="donut-c">{centre}</text>}
-        {centreSub && <text x="92" y="77" textAnchor="middle" className="donut-s">{centreSub}</text>}
       </svg>
+      <div className="donut-r">
+      {/* the total sits above the legend: inside a tilted 3D ring the inner wall would cut across it */}
+      {centre && <div className="donut-t"><b>{centre}</b>{centreSub && <em>{centreSub}</em>}</div>}
       <ul className="donut-l">
         {segs.filter((s) => s.value > 0).map((s, i) => <li key={i} className="kc-fade" style={d(300 + i * 60)}><i style={{ background: s.color }} /><span>{s.label}</span><b>{fmt(s.value)}</b></li>)}
       </ul>
+      </div>
     </div>
   );
 }

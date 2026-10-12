@@ -2,7 +2,7 @@
 
 This guide takes you from zero to a working onsite agent that a development manager can use **on site, from a phone**, through:
 
-- the **web app**: site map, drawings, documents, notes and project data (no chat screen), and
+- the **web app**: site map, drawings, documents, notes, project data and an AI chat (answers only through the AI API — set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`), and
 - **WhatsApp**: the AI agent. Text, voice notes, photos, PDFs and shared location.
 
 The AI agent is reached **only through WhatsApp**. The web app is for browsing the map and documents and leaving notes.

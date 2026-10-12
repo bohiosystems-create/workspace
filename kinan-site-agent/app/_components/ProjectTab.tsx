@@ -167,7 +167,7 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
           </div>
         </Panel>
         <Panel title="Incidents by type" sub="Year to date, all severities">
-          <Columns3D rows={["Near Miss", "First Aid", "Medical Treatment", "Property Damage", "Environmental", "Unsafe Condition"].map((t) => ({ label: t.split(" ")[0], sub: t.split(" ")[1], value: byType.get(t) ?? 0, color: t === "Medical Treatment" ? C.crit : t === "Near Miss" ? C.warn : undefined }))} height={130} />
+          <Columns3D rows={["Near Miss", "First Aid", "Medical Treatment", "Property Damage", "Environmental", "Unsafe Condition"].map((t) => ({ label: t === "Environmental" ? "Environ." : t.split(" ")[0], sub: t === "Environmental" ? "mental" : t.split(" ")[1], value: byType.get(t) ?? 0, color: t === "Medical Treatment" ? C.crit : t === "Near Miss" ? C.warn : undefined }))} height={130} />
         </Panel>
         {chips([["permits", "Active permits"], ["rules", "Requirements"], ["incidents", "Incidents"], ["ppe", "PPE matrix"]])}
         {(f === "" || f === "permits") && <ul className="rows">{h.activePermits.map((p) => <li key={p.id}><span className="t"><b>{p.type}</b><em>{p.id} · {p.location} · until {p.validTo}</em><em className="note">{p.description}</em></span></li>)}</ul>}

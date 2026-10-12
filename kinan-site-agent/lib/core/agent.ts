@@ -13,6 +13,13 @@ export interface AgentContext {
   attachments?: Attachment[];
   /** Absolute deadline (ms since epoch) for the whole answer. */
   deadline?: number;
+  /** Answer only through the AI API: no keyword fallback when no provider is set or every provider fails
+   *  (the in-app chat; WhatsApp keeps the offline fallback for poor signal on site). */
+  aiOnly?: boolean;
+}
+/** Thrown when an AI-only answer cannot be produced: no provider configured, or every provider failed. */
+export class AiUnavailable extends Error {
+  constructor(message: string, public failed?: RouteInfo["fallbackFrom"]) { super(message); }
 }
 export interface AgentReply { reply: string; actions: UiAction[]; route: RouteInfo }
 
@@ -47,7 +54,10 @@ Current context:
 export async function runAgent(repo: Repo, history: ChatTurn[], ctx: AgentContext, cfg: LlmConfig): Promise<AgentReply> {
   const toolCtx: ToolCtx = { author: ctx.author, actions: [], focus: { ...ctx.focus }, channel: ctx.channel ?? "web" };
   if (!toolCtx.focus?.locationId && ctx.here) toolCtx.focus = { ...toolCtx.focus, locationId: ctx.here.locationId };
-  if (!availableProviders(cfg).length) return offlineAgent(repo, history, toolCtx);
+  if (!availableProviders(cfg).length) {
+    if (ctx.aiOnly) throw new AiUnavailable("No AI provider is configured — set ANTHROPIC_API_KEY or OPENAI_API_KEY.");
+    return offlineAgent(repo, history, toolCtx);
+  }
   try {
     const { out, route } = await routeAndRun(cfg, {
       system: systemPrompt(repo, ctx),
@@ -60,6 +70,7 @@ export async function runAgent(repo: Repo, history: ChatTurn[], ctx: AgentContex
     });
     return { reply: out.text || "Done.", actions: toolCtx.actions, route };
   } catch (e) {
+    if (ctx.aiOnly) { const failed = (e as { failed?: RouteInfo["fallbackFrom"] }).failed; throw new AiUnavailable(`The AI service did not answer (${failed?.map((f) => f.provider).join(", ") || (e as Error).message || "error"}). Try again in a moment.`, failed); }
     // Every provider failed: answer what we can offline so the user isn't stuck on site.
     const off = await offlineAgent(repo, history, toolCtx);
     const failed = (e as { failed?: RouteInfo["fallbackFrom"] }).failed;
