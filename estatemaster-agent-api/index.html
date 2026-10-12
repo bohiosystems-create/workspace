@@ -327,7 +327,8 @@ body.chatopen .chat-fab{display:none}
 body.gpage .tabs .tab.on{color:var(--soft)!important}body.gpage .tabs .tab.on::after{transform:scaleX(0)}
 .pr-nav{padding:6px 10px 10px;border-bottom:1px solid rgba(255,255,255,.08)}
 .pr-nav-i{display:flex;justify-content:space-between;align-items:center;padding:11px 12px 11px 14px;border-left:3px solid transparent;cursor:pointer;font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;border-radius:0 6px 6px 0}
-.pr-nav-i:hover{background:rgba(255,255,255,.06)}.pr-nav-i.on{border-left-color:var(--orange);background:rgba(255,255,255,.09)}
+.pr-nav-i:hover{background:rgba(255,255,255,.06)}.pr-nav-w{position:relative}.pr-car{font-style:normal;font-size:10px;opacity:.6;margin-left:6px}.pr-subnav{display:none;flex-direction:column;background:rgba(255,255,255,.05);border-left:3px solid rgba(241,90,34,.5)}.pr-nav-w:hover .pr-subnav,.pr-subnav:hover{display:flex}.pr-nav-s{padding:9px 12px 9px 28px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;color:rgba(255,255,255,.85)}.pr-nav-s:hover{background:rgba(255,255,255,.08);color:#fff}
+.rp-win .card{max-width:min(760px,94vw);width:100%;max-height:90vh;overflow:auto}#rtModal .card{max-width:min(1000px,94vw)}#rtModal .ib{max-height:70vh;overflow:auto}.pr-nav-i.on{border-left-color:var(--orange);background:rgba(255,255,255,.09)}
 .pr-nav-i b{background:var(--orange);color:#fff;border-radius:999px;padding:0 7px;font-size:10px;letter-spacing:0;line-height:18px}
 .pr-sub{padding:16px 20px 6px;font-size:10px;letter-spacing:.3em;text-transform:uppercase;font-weight:700;color:#9a9a9a;display:flex;justify-content:space-between;align-items:center}
 .pr-head{display:flex;align-items:center;justify-content:space-between;padding:24px 20px 14px;font-size:11px;letter-spacing:.3em;text-transform:uppercase;font-weight:700}
@@ -900,28 +901,7 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
       <h3 class="dr-h">History</h3><div class="dr-hist" id="drHist"></div>
     </div>
   </div>
-  <div class="grid" style="grid-template-columns:350px minmax(0,1fr)" id="rpgrid">
-    <div style="display:flex;flex-direction:column;gap:20px">
-      <div class="card">
-        <div class="bar"></div><h2>Report designer</h2>
-        <div class="sub">Tell it who the report is for, what to show and which slides to use. It changes the report you have open; figures still come only from EstateMaster.</div>
-        <div class="msgs" id="rdMsgs" style="height:300px;min-height:0"></div>
-        <div id="rdChips" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0"></div>
-        <div style="display:flex;gap:8px"><input id="rdAsk" placeholder="e.g. for the board, max 6 slides, cash flow as a line chart" style="flex:1;min-width:0"><button class="btn sm" id="rdSend">Send</button></div>
-      </div>
-      <div class="card">
-        <div class="bar"></div><h2>EstateMaster extract</h2>
-        <div class="sub">The runner pulls every assumption and output out of EstateMaster; every report is built from the latest extract.</div>
-        <div class="list"><div id="xStat"></div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn sm" id="xRun">Extract now</button><button class="btn ghost sm" id="xXls">Full extract (Excel)</button></div>
-        <div class="src" style="margin-top:12px"><div><b>Extracted:</b> assumption register, KPIs, quarterly cash flow, cost and revenue reports, funding schedule, fund waterfall.</div><div><b>Joined with:</b> SQL Server actuals (cost to date, commitments, sales) and the market dataset.</div></div>
-      </div>
-      <div class="card">
-        <div class="bar"></div><div class="sbhead"><h2>Report templates</h2><button class="btn sm" id="rbNew">+ Build custom report</button></div>
-        <div class="sub">Scheduled reports run after the nightly extract and are delivered on the chosen channel.</div>
-        <div class="ib" id="rpList"></div>
-      </div>
-    </div>
+  <div id="rpgrid">
     <div>
       <div class="card" style="margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <button class="rp-plus" id="rpPlus" title="New report from a template" aria-label="New report from a template">+</button><div><h2 style="margin:0" id="rpTitle">Investment Committee pack</h2><div class="sub" style="margin:0">Numbers from the EstateMaster extract; narrative optional (AI).</div></div><div class="rp-langs" id="rpLang" role="group" aria-label="Language"><button class="btn sm on" data-rplang="en" aria-pressed="true">English</button><button class="btn ghost sm" data-rplang="ar" aria-pressed="false">العربية</button></div><span id="rpLangNote" class="sub" style="margin:0;display:none"></span>
@@ -939,6 +919,14 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
       <div class="card"><div class="bar"></div><h2>Outbox</h2><div class="sub">Every email the agent sends: scheduled reports and assumption alerts.</div><div style="overflow-x:auto"><table class="t" id="dlvOut"></table></div></div>
     </div>
   </div>
+  <div class="modal rp-win" id="rdModal"><div class="card"><div class="bar"></div><div class="sbhead"><h2>Report designer</h2><button class="btn ghost sm btn-x" data-rpwinclose title="Close" aria-label="Close" style="margin-left:auto">×</button></div>
+        <div class="sub">Tell it who the report is for, what to show and which slides to use. It changes the report you have open; figures still come only from EstateMaster.</div>
+        <div class="msgs" id="rdMsgs" style="height:300px;min-height:0"></div>
+        <div id="rdChips" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0"></div>
+        <div style="display:flex;gap:8px"><input id="rdAsk" placeholder="e.g. for the board, max 6 slides, cash flow as a line chart" style="flex:1;min-width:0"><button class="btn sm" id="rdSend">Send</button></div></div></div>
+  <div class="modal rp-win" id="rtModal"><div class="card"><div class="bar"></div><div class="sbhead"><h2>Report templates</h2><button class="btn sm" id="rbNew">+ Build custom report</button><button class="btn ghost sm btn-x" data-rpwinclose title="Close" aria-label="Close" style="margin-left:auto">×</button></div>
+        <div class="sub">Scheduled reports run after the nightly extract and are delivered on the chosen channel. Click a template to open it.</div>
+        <div class="ib" id="rpList"></div></div></div>
 </section>
 
 <!-- NAPKIN -->
@@ -2620,7 +2608,7 @@ async function designWithAI(){
 
 function renderExtract(){
   const x=LASTX;if(!x)return;
-  $('#xStat').innerHTML=`<b>${x.id}</b> · ${x.at.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}<br>${REG.length} assumptions · all KPIs · ${x.r.cf.cost.length} quarterly periods of cash flow, funding and fund distributions · cost report`;
+  if($('#xStat'))$('#xStat').innerHTML=`<b>${x.id}</b> · ${x.at.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}<br>${REG.length} assumptions · all KPIs · ${x.r.cf.cost.length} quarterly periods of cash flow, funding and fund distributions · cost report`;
 }
 async function doExtract(onStep){
   const st=['EM runner · open model copy BHO_SBX','EM runner · refresh live-link and recalculate','EM runner · read assumption register ('+REG.length+' lines)','EM runner · read outputs, quarterly cash flow, cost and revenue reports','SQL Server · store extract and reconcile totals with EstateMaster report'];
@@ -3874,12 +3862,15 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){const m=$('#prMenu'
 function renderProjRail(){let r=$('#projRail');if(!r){document.body.insertAdjacentHTML('beforeend',`<div id="projRail"><div class="pr-hot" title="Projects"></div><div class="pr-panel"><div class="pr-head"><span><i>❯</i>KINAN agent</span></div><div class="pr-nav" id="prNav"></div><div class="pr-sub"><span>Financial models</span><button class="pr-add" id="prAdd" title="Upload a financial model (EstateMaster export or any Excel model)">+</button></div><div class="pr-list" id="prList"></div><div class="pr-foot">Reports and the Daily feed cover every model. Each model’s own pages are in the top menu. Nothing is written to EstateMaster.</div></div></div>`);r=$('#projRail');
     r.addEventListener('mouseenter',()=>r.classList.add('open'));r.addEventListener('mouseleave',()=>{if(!$('#npModal')||!$('#npModal').classList.contains('on'))r.classList.remove('open')});r.querySelector('.pr-hot').addEventListener('click',()=>r.classList.toggle('open'))}
   const onG=GTABS.some(([id])=>$('#p-'+id)&&$('#p-'+id).classList.contains('on')),np=pendingCRs().length;
-  $('#prNav').innerHTML=GTABS.map(([id,l])=>`<div class="pr-nav-i ${$('#p-'+id)&&$('#p-'+id).classList.contains('on')?'on':''}" data-gtab="${id}"><span>${l}</span>${id==='appr'&&np?`<b>${np}</b>`:''}</div>`).join('');
+  $('#prNav').innerHTML=GTABS.map(([id,l])=>`<div class="pr-nav-w"><div class="pr-nav-i ${$('#p-'+id)&&$('#p-'+id).classList.contains('on')?'on':''}" data-gtab="${id}"><span>${l}</span>${id==='appr'&&np?`<b>${np}</b>`:''}${id==='report'?'<i class="pr-car">▸</i>':''}</div>${id==='report'?`<div class="pr-subnav"><div class="pr-nav-s" data-gtab="report">All reports</div><div class="pr-nav-s" data-rpwin="rdModal">Report designer</div><div class="pr-nav-s" data-rpwin="rtModal">Report templates</div></div>`:''}</div>`).join('');
   $('#prList').innerHTML=Object.values(PROJECTS).map(p=>{const x=latestExport(p.id),ck=x?(()=>{const z=PROJ;try{return emChecks(x,null,{}).filter(c=>c.level!=='note').length}catch(e){return 0}})():0;
     const nPend=pendingCRs().filter(c=>c.proj===p.id).length;
     return`<div class="pr-item ${p.id===PROJ.id&&!onG?'on':''}" data-proj="${p.id}" title="Right-click to delete this model from the agent"><b>${esc(p.name)}</b><small>${p.fromExport?esc((p.type||'EstateMaster export')+(p.currency&&p.currency!=='SAR'?' · '+p.currency:'')):esc(p.district||'')}${x&&Number.isFinite(x.out.levered_irr)?` · <span class="pr-irr">${x.out.levered_irr.toFixed(1)}%</span> IRR`:''}${x?` · ${esc(x.id)}`:''}${ck?` · <span class="pr-warn">${ck} check${ck>1?'s':''}</span>`:''}${nPend?` · <span class="pr-warn">${nPend} to decide</span>`:''}</small></div>`}).join('');
   const tm=$('#tabModel');if(tm)tm.innerHTML=`${esc(PROJ.name)}`}
-document.addEventListener('click',e=>{const g=e.target.closest('[data-gtab]');if(g){showTab(g.dataset.gtab);$('#projRail')&&$('#projRail').classList.remove('open');return}if(e.target.closest('#tabModel')){const r=$('#projRail');if(r)r.classList.add('open');return}
+function openRpWin(id){showTab('report');$$('.rp-win.on').forEach(m=>m.classList.remove('on'));const m=$('#'+id);if(!m)return;m.classList.add('on');if(id==='rtModal')renderReportList();if(id==='rdModal'){const a=$('#rdAsk');if(a)a.focus()}}
+document.addEventListener('click',e=>{const w=e.target.closest('[data-rpwin]');if(w){openRpWin(w.dataset.rpwin);$('#projRail')&&$('#projRail').classList.remove('open');return}
+  if(e.target.closest('[data-rpwinclose]')||(e.target.classList&&e.target.classList.contains('rp-win'))){$$('.rp-win.on').forEach(m=>m.classList.remove('on'));return}
+  const g=e.target.closest('[data-gtab]');if(g){showTab(g.dataset.gtab);$('#projRail')&&$('#projRail').classList.remove('open');return}if(e.target.closest('#tabModel')){const r=$('#projRail');if(r)r.classList.add('open');return}
   const p=e.target.closest('[data-proj]');if(p){switchProject(p.dataset.proj);const on=$('.tab.on');if(!on||GTABS.some(([id])=>id===on.dataset.t))showTab(MTABS[0][0]);renderProjRail();$('#projRail')&&$('#projRail').classList.remove('open');return}if(e.target.id==='prAdd'){openNewProject();return}if(e.target.id==='npClose'||e.target.id==='npModal'){$('#npModal').classList.remove('on');$('#projRail')&&$('#projRail').classList.remove('open');return}if(e.target.id==='npCreate'){createFromPending();return}});
 let NPPEND=null;
 function openNewProject(){let m=$('#npModal');if(!m){document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="npModal" style="z-index:400"><div class="card" style="max-width:540px;width:94vw"><div class="bar"></div><div class="sbhead"><h2>New project</h2><button class="btn ghost sm btn-x" id="npClose" title="Close" aria-label="Close">×</button></div><div class="sub">Upload an Excel model. An EstateMaster export (Office Links → Excel, or the Summary and Input sheets pasted as values) becomes a project with EstateMaster’s figures and assumptions; any other workbook is read sheet by sheet and you can ask the agent about it right away. Nothing is written to EstateMaster.</div><label class="np-drop" id="npDrop"><input type="file" id="npFile" accept=".xlsx,.xlsm,.xls,.csv" hidden><b>Choose the EstateMaster export</b><span id="npFileName">or drop it here</span></label><div class="f">Project name<input id="npName" placeholder="taken from the export"></div><div class="np-info" id="npInfo"></div><button class="btn" id="npCreate" disabled>Create project</button></div></div>`);m=$('#npModal');
@@ -6434,9 +6425,9 @@ $('#runStress').onclick=()=>{stressRes=computeStress();computeTornado();computeH
 $('#rgen').onclick=renderReport;
 $('#rnarr').onclick=async()=>{if(!apiOn()){toast('No AI connected: open the Router button to connect Claude or OpenAI');return}$('#rnarr').textContent='Drafting…';try{await postProcess('narrative',null,'deep','web');toast('Narrative drafted from EstateMaster outputs')}catch(e){toast('AI error: '+e.message)}$('#rnarr').textContent='Draft narrative (AI)'};$('#rprint').onclick=()=>{renderReport();window.print()};
 $('#rhtml').onclick=()=>download(`${slug()}_${RPTS[RSEL].name.replace(/\W+/g,'_')}.html`,reportStandalone(RSEL),'text/html');
-$('#rxls').onclick=exportReportXlsx;$('#xXls').onclick=exportExtractXlsx;
-$('#xRun').onclick=async()=>{$('#xRun').textContent='Extracting…';await doExtract(async st=>{$('#xStat').textContent=st;await sleep(260)});$('#xRun').textContent='Extract now';toast('Extract '+LASTX.id+' stored · reports refreshed')};
-document.addEventListener('click',e=>{const r=e.target.closest('[data-rp]');if(r&&!e.target.closest('input,select,[data-rbe],[data-play]')){RSEL=r.dataset.rp;renderReportList();renderReport()}const pl=e.target.closest('[data-play]');if(pl){RSEL=pl.dataset.play;renderReportList();renderReport();openDeck(buildDeck(RSEL))}});
+$('#rxls').onclick=exportReportXlsx;if($('#xXls'))$('#xXls').onclick=exportExtractXlsx;
+if($('#xRun'))$('#xRun').onclick=async()=>{$('#xRun').textContent='Extracting…';await doExtract(async st=>{$('#xStat').textContent=st;await sleep(260)});$('#xRun').textContent='Extract now';toast('Extract '+LASTX.id+' stored · reports refreshed')};
+document.addEventListener('click',e=>{if(e.target.closest('[data-rbe]')&&e.target.closest('#rtModal'))$('#rtModal').classList.remove('on');const r=e.target.closest('[data-rp]');if(r&&!e.target.closest('input,select,[data-rbe],[data-play]')){const inWin=!!r.closest('#rtModal');RSEL=r.dataset.rp;renderReportList();renderReport();if(inWin){$('#rtModal').classList.remove('on');try{$('#report').scrollIntoView({behavior:'smooth',block:'start'})}catch(x){}}}const pl=e.target.closest('[data-play]');if(pl){$$('.rp-win.on').forEach(m=>m.classList.remove('on'));RSEL=pl.dataset.play;renderReportList();renderReport();openDeck(buildDeck(RSEL))}});
 $('#rplay').onclick=()=>{renderReport();openDeck(buildDeck(RSEL))};
 document.addEventListener('click',e=>{const sc=e.target.closest('[data-sched]'),rn=e.target.closest('[data-runnow]'),rv=e.target.closest('[data-runview]'),ov=e.target.closest('[data-obview]'),nt=e.target.closest('[data-nid]');
   if(sc){e.stopPropagation();openSched(sc.dataset.sched)}
