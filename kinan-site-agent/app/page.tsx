@@ -138,7 +138,7 @@ export default function Home() {
         ))}
         {screen === "new" && <button className="on">New project</button>}
         {gen && <button className="on">{gen.result.spec.name}</button>}
-        <button className={"tab-end" + (screen === "reports" ? " on" : "")} onClick={() => setScreen("reports")}>Daily report</button>
+        <button className={screen === "reports" ? "on" : ""} onClick={() => setScreen("reports")}>Reports</button>
       </nav>
       {meOpen && (
         <div className="me" role="dialog" aria-label="Your settings">

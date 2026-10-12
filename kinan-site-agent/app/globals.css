@@ -672,6 +672,11 @@ body,html{letter-spacing:0}
   .tabs button.on{box-shadow:none;background:none}
   main.main-solo{grid-area:auto;grid-column:auto;grid-row:auto}
 }
+/* same frame as the Kinan marketing agent: band and menu content in a centred 1180 px column on wide screens */
+.top,.tabs{padding-left:max(28px,calc((100% - 1180px) / 2 + 28px));padding-right:max(28px,calc((100% - 1180px) / 2 + 28px))}
+.tabs{background:#ffffff;border-bottom-color:rgba(46,46,47,.13)}
+:root[data-theme="dark"] .tabs{background:var(--card);border-bottom-color:var(--line)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tabs{background:var(--card);border-bottom-color:var(--line)}}
 @media (max-width:599px){.top,.tabs{padding-left:16px;padding-right:16px}.brand-sub{display:none}.tabs button{padding:15px 11px 13px}.tabs button::after{left:11px;right:11px}}
 /* page titles: orange, uppercase, behind the chevron */
 .home-head h1,.studio-head h2{color:var(--accent);font-size:26px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;line-height:1.15;display:flex;align-items:center;gap:14px;margin:6px 0 0}
@@ -732,7 +737,6 @@ body,html{letter-spacing:0}
 .studio-cp.on{border-left-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
 
 /* ---------------------------------------------------------------- daily report */
-.tabs button.tab-end{margin-left:auto}
 .main-solo>.reports{flex:1;min-height:0}
 .reports{max-width:1180px;width:100%;margin:0 auto}
 .rep-msg{border-left:3px solid var(--green);background:var(--card);padding:10px 12px;font-size:13px;color:var(--ink)}

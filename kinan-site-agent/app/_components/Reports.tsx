@@ -1,6 +1,6 @@
 "use client";
 /**
- * Daily report: the scheduled e-mail with the status of every active project — the same page as the other Kinan
+ * Reports: the scheduled daily e-mail with the status of every active project — the same page as the other Kinan
  * agents' Reports (schedule, run, history, delivery check). Reports go to internal addresses only.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -56,7 +56,7 @@ export default function Reports({ author }: { author: string }) {
     finally { setBusy(null); }
   };
 
-  if (!data || !form) return <div className="home reports"><div className="home-head"><div><h1>Daily report</h1><p>{msg?.text ?? "Loading…"}</p></div></div></div>;
+  if (!data || !form) return <div className="home reports"><div className="home-head"><div><h1>Reports</h1><p>{msg?.text ?? "Loading…"}</p></div></div></div>;
   const set = (p: Partial<Form>) => setForm({ ...form, ...p });
   const dirty = JSON.stringify(form) !== JSON.stringify({ enabled: data.schedule.enabled, time: data.schedule.time, timezone: data.schedule.timezone, days: data.schedule.days, recipients: data.schedule.recipients, languages: data.schedule.languages });
   const allowed = [...data.allowedDomains.map((d) => `@${d}`), ...data.allowedRecipients].join(", ");
@@ -64,7 +64,7 @@ export default function Reports({ author }: { author: string }) {
   return (
     <div className="home reports">
       <div className="home-head">
-        <div><h1>Daily report</h1><p>One e-mail each morning with the status of all {data.active} active project{data.active > 1 ? "s" : ""}: progress, the critical path, milestones, procurement, safety and what was logged on site.</p></div>
+        <div><h1>Reports</h1><p>One e-mail each morning with the status of all {data.active} active project{data.active > 1 ? "s" : ""}: progress, the critical path, milestones, procurement, safety and what was logged on site.</p></div>
       </div>
       {msg && <div className={"rep-msg" + (msg.bad ? " bad" : "")} role="status">{msg.text}</div>}
 
