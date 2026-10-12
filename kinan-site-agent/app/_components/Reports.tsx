@@ -1,8 +1,8 @@
 "use client";
 /**
- * Reports: the scheduled daily e-mail with the status of every active project. Same page as the Kinan marketing
+ * Briefs: the scheduled daily e-mail with the status of every active project. Same page as the Kinan marketing
  * agent's Reports — Schedule (with the Delivery check) on the left, Run and History on the right, the open report
- * underneath. Reports go to internal addresses only and take no action.
+ * underneath. Briefs go to internal addresses only and take no action.
  */
 import { useCallback, useEffect, useState } from "react";
 import { runtime } from "./runtime";
@@ -43,7 +43,7 @@ export default function Reports({ author }: { author: string }) {
     fetch(`/api/reports?lang=${lang}`, { cache: "no-store" }).then((r) => r.json()).then((s: State) => {
       if (s.error) { setMsg({ text: s.error, bad: true }); return; }
       take(s, !!form);
-    }).catch(() => setMsg({ text: "Could not load the reports.", bad: true }));
+    }).catch(() => setMsg({ text: "Could not load the briefs.", bad: true }));
   }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const act = async (action: string, extra: Record<string, unknown> = {}, as: Lang = lang) => {
@@ -60,8 +60,8 @@ export default function Reports({ author }: { author: string }) {
   };
 
   const head = (
-    <div className="home-head"><div><h1>Reports</h1>
-      <p>Every scheduled morning the agent writes one report on all {data ? `${data.active} ` : ""}active projects — progress against plan, the critical path, milestones, procurement, safety and what was logged on site — and e-mails it to you. Reports go to internal addresses only and take no action.</p>
+    <div className="home-head"><div><h1>Briefs</h1>
+      <p>Every scheduled morning the agent writes one brief on all {data ? `${data.active} ` : ""}active projects — progress against plan, the critical path, milestones, procurement, safety and what was logged on site — and e-mails it to you. Briefs go to internal addresses only and take no action.</p>
     </div></div>
   );
   if (!data || !form) return <div className="home reports rpt">{head}<p className="muted">{msg?.text ?? "Loading…"}</p></div>;
@@ -81,9 +81,9 @@ export default function Reports({ author }: { author: string }) {
             <div className="rpt-label">Schedule</div>
             <span className={"pill " + (data.schedule.enabled ? "healthy" : "hold")}>{data.schedule.enabled ? "On" : "Paused"}</span>
             <span className="grow" />
-            {data.next && <span className="muted">Next report: <b>{day(data.next.date)} {data.next.time}</b>{data.next.overdue ? " · due now" : ""}</span>}
+            {data.next && <span className="muted">Next brief: <b>{day(data.next.date)} {data.next.time}</b>{data.next.overdue ? " · due now" : ""}</span>}
           </div>
-          <label className="rpt-check"><input type="checkbox" checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />Send the daily report automatically</label>
+          <label className="rpt-check"><input type="checkbox" checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />Send the daily brief automatically</label>
           <div className="rpt-fields">
             <div className="field" style={{ width: 110 }}><label>Time</label><input className="in" type="time" value={form.time} onChange={(e) => set({ time: e.target.value })} /></div>
             <div className="field" style={{ width: 190 }}><label>Timezone</label>
@@ -110,7 +110,7 @@ export default function Reports({ author }: { author: string }) {
               <div className="rpt-label">Delivery check</div>
               <span className={"pill " + (data.delivery.ready ? "healthy" : "hold")}>{data.delivery.ready ? "Ready — you'll receive it" : "Not ready yet"}</span>
               <span className="grow" />
-              <button className="btn sm" disabled={!!busy || !data.schedule.recipients} title="Builds today's report and e-mails it to the saved recipients now. The scheduled send still runs." onClick={() => act("SEND_NOW")}>{busy === "SEND_NOW" ? "Sending…" : "Send test now"}</button>
+              <button className="btn sm" disabled={!!busy || !data.schedule.recipients} title="Builds today's brief and e-mails it to the saved recipients now. The scheduled send still runs." onClick={() => act("SEND_NOW")}>{busy === "SEND_NOW" ? "Sending…" : "Send test now"}</button>
             </div>
             {data.delivery.items.map((it) => (
               <div key={it.label} className="rpt-item"><span aria-hidden="true" className={it.ok ? "ok" : "no"}>{it.ok ? "✓" : "!"}</span><span className="grow">{it.label}{it.fix && <span className="muted"> — {it.fix}</span>}</span></div>
@@ -123,18 +123,18 @@ export default function Reports({ author }: { author: string }) {
         <section className="rpt-panel">
           <div className="rpt-label">Run</div>
           <div className="rpt-actions">
-            <button className="btn ghost" disabled={!!busy} onClick={() => act("PREVIEW")}>{busy === "PREVIEW" ? "Preparing report…" : "Preview today's report"}</button>
+            <button className="btn ghost" disabled={!!busy} onClick={() => act("PREVIEW")}>{busy === "PREVIEW" ? "Preparing brief…" : "Preview today's brief"}</button>
             <button className="btn" disabled={!!busy} onClick={() => act("SNAPSHOT")}>{busy === "SNAPSHOT" ? "Building snapshot…" : "Run snapshot"}</button>
           </div>
           <div className="muted rpt-info">
-            {data.outlook === "mock" ? "Outlook is simulated: sends are recorded, not delivered. Set OUTLOOK_MODE=live to e-mail the report." : "Reports are e-mailed from Outlook."}<br />
+            {data.outlook === "mock" ? "Outlook is simulated: sends are recorded, not delivered. Set OUTLOOK_MODE=live to e-mail the brief." : "Briefs are e-mailed from Outlook."}<br />
             Run snapshot saves the status right now in the history below — it is not e-mailed.<br />
-            {data.cronConfigured ? "Scheduler endpoint is enabled: /api/reports/run is called every minute." : "To e-mail the report on schedule, set REPORTS_CRON_KEY and call /api/reports/run every minute (any scheduler)."}<br />
+            {data.cronConfigured ? "Scheduler endpoint is enabled: /api/reports/run is called every minute." : "To e-mail the brief on schedule, set REPORTS_CRON_KEY and call /api/reports/run every minute (any scheduler)."}<br />
             Local time now: <b>{data.local.date} {data.local.hhmm}</b> ({data.schedule.timezone})
           </div>
 
           <div className="rpt-label" style={{ marginTop: 16 }}>History</div>
-          {data.reports.length === 0 && <div className="muted">No reports yet.</div>}
+          {data.reports.length === 0 && <div className="muted">No briefs yet.</div>}
           <div className="rpt-hist">
             {data.reports.map((r) => (
               <div className={"logrow" + (view?.id === r.id ? " on" : "")} key={r.id}>
@@ -152,7 +152,7 @@ export default function Reports({ author }: { author: string }) {
       </div>
 
       {view && (
-        <section className="rpt-panel rpt-view" id="rpt-view" aria-label="Report">
+        <section className="rpt-panel rpt-view" id="rpt-view" aria-label="Brief">
           <div className="rpt-h">
             <div className="rpt-label">{view.title}</div>
             <div className="rpt-seg" role="group" aria-label="Language">

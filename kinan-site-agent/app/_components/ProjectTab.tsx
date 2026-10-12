@@ -25,8 +25,10 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
   const [sec, setSec] = useState<Section>("programme");
   const [q, setQ] = useState("");
   const [f, setF] = useState("");
+  // a filter set by clicking a chart (a package status, a delivery day, a permit or incident type, a building)
+  const [pick, setPick] = useState<{ kind: string; value: string; label: string } | null>(null);
   useEffect(() => { fetch("/api/project", { cache: "no-store" }).then((r) => r.json()).then(setData).catch(() => setData(null)); }, [refreshKey]);
-  useEffect(() => { setQ(""); setF(""); }, [sec]);
+  useEffect(() => { setQ(""); setF(""); setPick(null); }, [sec]);
   const db = useMemo(() => (data ? ({ locations, data, docs: [], notes: [], project: { name: "", client: "", code: "" } } as Db) : null), [data, locations]);
   const curve = useMemo(() => (db ? sCurve(db) : []), [db]);
   const byBuilding = useMemo(() => (db ? progressByLocation(db, Object.keys(BUILDING_NAMES)) : []), [db]);
@@ -36,6 +38,13 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
   const chips = (opts: [string, string][]) => (
     <div className="chips scroll">{opts.map(([v, l]) => <button key={v} className={"chip" + (f === v ? " hot" : "")} onClick={() => setF(f === v ? "" : v)}>{l}</button>)}</div>
   );
+  const pickOn = (kind: string, value: string, label: string, view?: string) => {
+    if (pick?.kind === kind && pick.value === value) { setPick(null); return; }
+    setPick({ kind, value, label }); if (view !== undefined) setF(view);
+    requestAnimationFrame(() => document.querySelector(".projbody .chartpick")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  };
+  const picked = (kind: string) => (pick?.kind === kind ? pick.value : null);
+  const pickBar = (kinds: string[]) => pick && kinds.includes(pick.kind) ? <div className="chartpick">Filtered by chart: <button onClick={() => setPick(null)} aria-label={`Clear filter ${pick.label}`}><b>{pick.label}</b> ✕</button></div> : null;
   const search = (ph: string) => <input className="search" type="search" placeholder={ph} value={q} onChange={(e) => setQ(e.target.value)} />;
 
   let body: React.JSX.Element;
@@ -43,7 +52,8 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
     const s = P.scheduleSummary(db);
     // Default view (no filter, no search) = work in progress now.
     const status = f === "progress" || (!f && !q) ? "in_progress" : undefined;
-    const res = f === "next2" ? null : P.scheduleQuery(db, { query: q, late: f === "late", critical: f === "critical", status, limit: 60 });
+    const bld = picked("building");
+    const res = f === "next2" ? null : P.scheduleQuery(db, { query: q, late: f === "late", critical: f === "critical", status: bld ? undefined : status, location: bld ?? undefined, limit: 60 });
     const la = f === "next2" ? P.lookahead(db, { weeks: 2 }) : null;
     const list = la ? [...(la.milestones ?? []), ...(la.starting ?? [])] : res?.activities ?? [];
     const cp = liveCritical(db), d0 = data.meta.dataDate;
@@ -93,14 +103,15 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
           <Curve points={curve} />
         </Panel>
         <Panel title="Progress by building" sub="Earned % per building; the orange mark is the baseline plan">
-          <Columns3D unit="%" max={100} targetLabel="Baseline plan" rows={byBuilding.map((b) => ({ label: BUILDING_NAMES[b.id], value: Math.round(b.earned), target: b.planned, color: b.earned < b.planned - 3 ? C.crit : undefined, sub: b.late ? `${b.late} late` : undefined }))} />
+          <Columns3D unit="%" max={100} targetLabel="Baseline plan" selected={byBuilding.findIndex((b) => b.id === picked("building"))} onPick={(i) => pickOn("building", byBuilding[i].id, BUILDING_NAMES[byBuilding[i].id], f === "next2" ? "" : f)} rows={byBuilding.map((b) => ({ label: BUILDING_NAMES[b.id], value: Math.round(b.earned), target: b.planned, color: b.earned < b.planned - 3 ? C.crit : undefined, sub: b.late ? `${b.late} late` : undefined }))} />
         </Panel>
         <Panel title="Milestones" sub="Baseline ◇ to forecast ●, next six">
-          <Timeline items={s.upcomingMilestones.slice(0, 6)} today={data.meta.dataDate} />
+          <Timeline items={s.upcomingMilestones.slice(0, 6)} today={data.meta.dataDate} onPick={(id) => { setPick(null); setF(""); setQ(id); requestAnimationFrame(() => document.querySelector(".projbody .search")?.scrollIntoView({ behavior: "smooth", block: "center" })); }} />
         </Panel>
         <div className="lbl">Activities <span className="dd">data date {data.meta.dataDate}</span></div>
         {search("Search activities: slab, façade, L14, TA-…")}
         {chips([["progress", "In progress"], ["late", "Late"], ["critical", "Critical path"], ["next2", "Next 2 weeks"]])}
+        {pickBar(["building"])}
         <ul className="rows">
           {list.slice(0, 60).map((a) => (
             <li key={a.id} className={isCritical({ critical: a.critical, totalFloat: a.float }) ? "crit" : ""}>
@@ -133,16 +144,18 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
           <Kpi value={low} label="Stock below min" sub="items to reorder" bad={low > 0} />
         </div>
         <Panel title="Packages by status" sub={`Source: ${data.procurement.source}${data.procurement.lastSync ? ` · synced ${data.procurement.lastSync.slice(0, 16).replace("T", " ")}` : ""}`}>
-          <Donut3D centre={String(pk.length)} centreSub="packages" segs={Object.keys(PKG_COLORS).map((k) => ({ label: k, value: byStatus.get(k) ?? 0, color: PKG_COLORS[k] }))} />
+          <Donut3D centre={String(pk.length)} centreSub="packages" selected={picked("pkg")} onPick={(st) => pickOn("pkg", st, `${st} packages`, "packages")} segs={Object.keys(PKG_COLORS).map((k) => ({ label: k, value: byStatus.get(k) ?? 0, color: PKG_COLORS[k] }))} />
         </Panel>
         <Panel title="Deliveries · next 14 days" sub="Trucks booked per day through Gate 2; red = a delayed load that day">
-          <Columns3D rows={days.map((d) => { const xs = all14.filter((x) => x.date === d); return { label: d.slice(8), sub: new Date(d).toLocaleDateString("en-GB", { weekday: "short" }).slice(0, 2), value: xs.length, color: xs.some((x) => x.status === "Delayed") ? C.crit : undefined }; })} height={120} />
+          <Columns3D selected={days.indexOf(picked("day") ?? "")} onPick={(i) => pickOn("day", days[i], `Deliveries ${new Date(days[i]).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`, "deliveries")}
+            rows={days.map((d) => { const xs = all14.filter((x) => x.date === d); return { label: d.slice(8), sub: new Date(d).toLocaleDateString("en-GB", { weekday: "short" }).slice(0, 2), value: xs.length, color: xs.some((x) => x.status === "Delayed") ? C.crit : undefined, tip: xs.length ? xs.slice(0, 3).map((x) => x.items.split(",")[0]).join(" · ") + (xs.length > 3 ? ` +${xs.length - 3}` : "") + (xs.some((x) => x.status === "Delayed") ? " — delayed load" : "") : "no deliveries" }; })} height={120} />
         </Panel>
-        <div className="chips scroll">{([["deliveries", "Deliveries"], ["risk", "Packages at risk"], ["packages", "All packages"], ["pos", "Purchase orders"], ["mr", "Material requests"], ["stock", "Stock"]] as const).map(([v, l]) => <button key={v} className={"chip" + (view === v ? " hot" : "")} onClick={() => setF(v)}>{l}</button>)}</div>
+        <div className="chips scroll">{([["deliveries", "Deliveries"], ["risk", "Packages at risk"], ["packages", "All packages"], ["pos", "Purchase orders"], ["mr", "Material requests"], ["stock", "Stock"]] as const).map(([v, l]) => <button key={v} className={"chip" + (view === v ? " hot" : "")} onClick={() => { setF(v); setPick(null); }}>{l}</button>)}</div>
+        {pickBar(["pkg", "day"])}
         {(view === "pos" || view === "packages" || view === "deliveries") && search(view === "pos" ? "PO number, supplier, item…" : "Search…")}
         <ul className="rows">
-          {view === "deliveries" && (dl.deliveries ?? []).map((d) => <li key={d.id}><span className="t"><b>{d.date} {d.slot} — {d.items}</b><em>{d.supplier} · {d.po} · {d.gate} → <Loc id={d.locationId} /> · {d.vehicle}{d.remarks ? ` · ${d.remarks}` : ""}</em></span><span className={"st " + d.status.toLowerCase().replace(" ", "")}>{d.status}</span></li>)}
-          {(view === "risk" || view === "packages") && P.packagesQuery(db, { atRisk: view === "risk", query: q }).packages.map((p) => <li key={p.id}><span className="t"><b>{p.id} {p.name}</b><em>{p.supplier || "—"} · {p.status} · need {p.requiredOnSite} · forecast {p.forecastOnSite} · {sar(p.committed)} / {sar(p.budget)}</em><em className="note">{p.notes}</em></span>{p.floatDays < 0 ? <span className="slip late">{p.floatDays} d</span> : <span className="slip ok">ok</span>}</li>)}
+          {view === "deliveries" && (dl.deliveries ?? []).filter((d) => !picked("day") || d.date === picked("day")).map((d) => <li key={d.id}><span className="t"><b>{d.date} {d.slot} — {d.items}</b><em>{d.supplier} · {d.po} · {d.gate} → <Loc id={d.locationId} /> · {d.vehicle}{d.remarks ? ` · ${d.remarks}` : ""}</em></span><span className={"st " + d.status.toLowerCase().replace(" ", "")}>{d.status}</span></li>)}
+          {(view === "risk" || view === "packages") && P.packagesQuery(db, { atRisk: view === "risk", query: q, status: picked("pkg") ?? undefined }).packages.map((p) => <li key={p.id}><span className="t"><b>{p.id} {p.name}</b><em>{p.supplier || "—"} · {p.status} · need {p.requiredOnSite} · forecast {p.forecastOnSite} · {sar(p.committed)} / {sar(p.budget)}</em><em className="note">{p.notes}</em></span>{p.floatDays < 0 ? <span className="slip late">{p.floatDays} d</span> : <span className="slip ok">ok</span>}</li>)}
           {view === "pos" && P.poQuery(db, { query: q, limit: 60 }).purchaseOrders.map((p) => <li key={p.po}><span className="t"><b>{p.po} — {p.supplier}</b><em>{p.date} · {p.package} · {sar(p.value)}</em><em className="note">{p.items}</em></span><span className={"st " + p.status.toLowerCase().replace(/ /g, "")}>{p.status}</span></li>)}
           {view === "mr" && P.requestsQuery(db, {}).requests.map((m) => <li key={m.id}><span className="t"><b>{m.id} {m.item}</b><em>{m.qty} {m.unit} · need {m.neededBy} · <Loc id={m.locationId} /> · {m.requestedBy}{m.externalRef ? ` · ${m.externalRef}` : ""}</em></span><span className="st">{m.status}</span></li>)}
           {view === "stock" && P.stockQuery(db, {}).stock.map((s) => <li key={s.item + s.locationId}><span className="t"><b>{s.item}</b><em>{s.qty.toLocaleString("en")} {s.unit} (min {s.min.toLocaleString("en")}) · <Loc id={s.locationId} /></em></span>{s.belowMinimum ? <span className="slip late">low</span> : <span className="slip ok">ok</span>}</li>)}
@@ -155,6 +168,7 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
     const reqs = data.safety.requirements.filter((r) => !q || `${r.topic} ${r.requirement} ${r.appliesTo.join(" ")}`.toLowerCase().includes(q.toLowerCase()));
     const byType = count(data.safety.incidents, (i) => i.type);
     const permitTypes = [...count(h.activePermits, (p) => p.type).entries()];
+    const INC = ["Near Miss", "First Aid", "Medical Treatment", "Property Damage", "Environmental", "Unsafe Condition"];
     body = (
       <>
         <div className="kpis">
@@ -166,16 +180,17 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
         <Panel title="Safety performance" sub="Total recordable incident rate and the permits live now">
           <div className="side">
             <Gauge value={Number(st.trir)} min={0} max={2} decimals={2} label="TRIR" bands={[{ to: 0.5, color: C.good, name: "Excellent" }, { to: 1, color: C.warn, name: "Watch" }, { to: 2, color: C.crit, name: "High" }]} />
-            <Donut3D centre={String(h.activePermits.length)} centreSub="permits" segs={permitTypes.map(([k, v], i) => ({ label: k, value: v, color: PERMIT_COLORS[i % PERMIT_COLORS.length] }))} />
+            <Donut3D centre={String(h.activePermits.length)} centreSub="permits" selected={picked("permit")} onPick={(t) => pickOn("permit", t, t, "permits")} segs={permitTypes.map(([k, v], i) => ({ label: k, value: v, color: PERMIT_COLORS[i % PERMIT_COLORS.length] }))} />
           </div>
         </Panel>
         <Panel title="Incidents by type" sub="Year to date, all severities">
-          <Columns3D rows={["Near Miss", "First Aid", "Medical Treatment", "Property Damage", "Environmental", "Unsafe Condition"].map((t) => ({ label: t === "Environmental" ? "Environ." : t.split(" ")[0], sub: t === "Environmental" ? "mental" : t.split(" ")[1], value: byType.get(t) ?? 0, color: t === "Medical Treatment" ? C.crit : t === "Near Miss" ? C.warn : undefined }))} height={130} />
+          <Columns3D selected={INC.indexOf(picked("incident") ?? "")} onPick={(i) => pickOn("incident", INC[i], `${INC[i]} incidents`, "incidents")} rows={INC.map((t) => ({ label: t === "Environmental" ? "Environ." : t.split(" ")[0], sub: t === "Environmental" ? "mental" : t.split(" ")[1], value: byType.get(t) ?? 0, color: t === "Medical Treatment" ? C.crit : t === "Near Miss" ? C.warn : undefined }))} height={130} />
         </Panel>
         {chips([["permits", "Active permits"], ["rules", "Requirements"], ["incidents", "Incidents"], ["ppe", "PPE matrix"]])}
-        {(f === "" || f === "permits") && <ul className="rows">{h.activePermits.map((p) => <li key={p.id}><span className="t"><b>{p.type}</b><em>{p.id} · {p.location} · until {p.validTo}</em><em className="note">{p.description}</em></span></li>)}</ul>}
+        {pickBar(["permit", "incident"])}
+        {(f === "" || f === "permits") && <ul className="rows">{h.activePermits.filter((p) => !picked("permit") || p.type === picked("permit")).map((p) => <li key={p.id}><span className="t"><b>{p.type}</b><em>{p.id} · {p.location} · until {p.validTo}</em><em className="note">{p.description}</em></span></li>)}</ul>}
         {f === "rules" && <>{search("Search: hot work, edge, crane, heat…")}<ul className="rows">{reqs.map((r) => <li key={r.id}><span className="t"><b>{r.critical ? "⚠ " : ""}{r.topic}</b><em className="note">{r.requirement}</em><em>{r.permit ? `Permit: ${r.permit} · ` : ""}PPE: {r.ppe.join(", ")} · {r.source}</em></span></li>)}</ul></>}
-        {f === "incidents" && <ul className="rows">{data.safety.incidents.map((i) => <li key={i.id}><span className="t"><b>{i.type}: {i.description}</b><em>{i.id} · {i.date} · <Loc id={i.locationId} /> · {i.status}</em><em className="note">Root cause: {i.rootCause}. Action: {i.actions}</em></span></li>)}</ul>}
+        {f === "incidents" && <ul className="rows">{data.safety.incidents.filter((i) => !picked("incident") || i.type === picked("incident")).map((i) => <li key={i.id}><span className="t"><b>{i.type}: {i.description}</b><em>{i.id} · {i.date} · <Loc id={i.locationId} /> · {i.status}</em><em className="note">Root cause: {i.rootCause}. Action: {i.actions}</em></span></li>)}</ul>}
         {f === "ppe" && <ul className="rows">{Object.entries(data.safety.ppeMatrix).map(([k, v]) => <li key={k}><span className="t"><b>{k}</b><em className="note">{v.join(" · ")}</em></span></li>)}</ul>}
       </>
     );
@@ -187,7 +202,7 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
       <>
         <div className="disclaimer">{data.meta.disclaimer}</div>
         <Panel title="Compliance" sub="Regulatory items by status">
-          <Donut3D centre={String(all.length)} centreSub="items" segs={[["Compliant", C.good], ["In Progress", C.warn], ["Action Required", C.crit]].map(([k, c]) => ({ label: k, value: byStatus.get(k) ?? 0, color: c }))} />
+          <Donut3D centre={String(all.length)} centreSub="items" selected={f || null} onPick={(st) => setF(f === st ? "" : st)} segs={[["Compliant", C.good], ["In Progress", C.warn], ["Action Required", C.crit]].map(([k, c]) => ({ label: k, value: byStatus.get(k) ?? 0, color: c }))} />
         </Panel>
         {search("Search: SBC 801, Civil Defense, heat, permit…")}
         {chips([["Action Required", "Action required"], ["In Progress", "In progress"], ["Compliant", "Compliant"]])}
@@ -198,10 +213,11 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
     const r = P.registerQuery(db, { query: q, discipline: f || undefined, limit: 80 });
     const all = data.register;
     const byDisc = count(all, (s) => s.discipline);
+    const discs = [...byDisc.entries()].sort((a, b) => b[1] - a[1]);
     body = (
       <>
         <Panel title="Drawing register" sub={`${all.length} sheets by discipline; red = sheets under review or rejected`}>
-          <Columns3D rows={[...byDisc.entries()].sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ label: k, value: v, sub: `${all.filter((s) => s.discipline === k && /review|rejected/i.test(s.status)).length} open`, color: all.some((s) => s.discipline === k && /rejected/i.test(s.status)) ? C.crit : undefined }))} height={130} />
+          <Columns3D selected={discs.findIndex(([k]) => k === f)} onPick={(i) => setF(f === discs[i][0] ? "" : discs[i][0])} rows={discs.map(([k, v]) => ({ label: k, value: v, sub: `${all.filter((s) => s.discipline === k && /review|rejected/i.test(s.status)).length} open`, color: all.some((s) => s.discipline === k && /rejected/i.test(s.status)) ? C.crit : undefined }))} height={130} />
         </Panel>
         {search("Sheet no. or title: TA-STR L14, façade, roof…")}
         {chips([["ARC", "ARC"], ["STR", "STR"], ["MEP", "MEP"], ["FIRE", "FIRE"], ["FAC", "Façade"], ["CIV", "CIV"]])}

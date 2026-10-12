@@ -83,7 +83,7 @@ export function buildReport(o: BuildIn): Built {
     { label: T("Critical late now", "حرجة متأخرة الآن"), value: String(cp.late.length), sub: T(`${cp.atRisk.length} at risk · ${cp.slipped.length} later`, `${cp.atRisk.length} معرّضة · ${cp.slipped.length} لاحقة`), bad: cp.late.length > 0 },
   ]));
   const since = sinceLines(l, o.prev, "site", metrics.projects.site);
-  if (since.length) { body.push(h2(T("Since the last report", "منذ التقرير السابق"), o.prev ? dt(o.prev.date, l) : undefined)); body.push(bullets(since)); }
+  if (since.length) { body.push(h2(T("Since the last brief", "منذ الموجز السابق"), o.prev ? dt(o.prev.date, l) : undefined)); body.push(bullets(since)); }
 
   body.push(h2(T("Critical path", "المسار الحرج"), T(`${cp.remaining.length} critical activities left — zero float: a day lost on any of them moves completion`, `${cp.remaining.length} نشاطاً حرجاً متبقياً — بلا فائض: أي يوم تأخير فيها يؤخر الإنجاز النهائي`)));
   const critRows = [...cp.late, ...cp.atRisk, ...cp.inProgress.filter((a) => critState(a, d0) === "ok")].slice(0, 12);
@@ -130,7 +130,7 @@ export function buildReport(o: BuildIn): Built {
   const fresh = db.notes.filter((n) => n.createdAt >= dayAgo).slice(0, 8);
   const openIssues = db.notes.filter((n) => n.kind !== "note" && n.status === "open");
   body.push(h2(T("From site — last 24 hours", "من الموقع — آخر 24 ساعة"), T(`${fresh.length} new notes · ${openIssues.length} open issues and instructions`, `${fresh.length} ملاحظات جديدة · ${openIssues.length} مسائل وتعليمات مفتوحة`)));
-  body.push(fresh.length ? bullets(fresh.map((n) => `${n.kind !== "note" ? pill(n.kind === "issue" ? T("issue", "مسألة") : T("instruction", "تعليمات"), n.kind === "issue" ? C.red : C.amber) + " " : ""}${esc(n.text.slice(0, 220))} <span style="color:${C.soft}">— ${esc(n.author)}</span>`)) : para(T("No notes logged on site since the last report.", "لم تُسجل ملاحظات في الموقع منذ التقرير السابق.")));
+  body.push(fresh.length ? bullets(fresh.map((n) => `${n.kind !== "note" ? pill(n.kind === "issue" ? T("issue", "مسألة") : T("instruction", "تعليمات"), n.kind === "issue" ? C.red : C.amber) + " " : ""}${esc(n.text.slice(0, 220))} <span style="color:${C.soft}">— ${esc(n.author)}</span>`)) : para(T("No notes logged on site since the last brief.", "لم تُسجل ملاحظات في الموقع منذ الموجز السابق.")));
 
   text.push(`${db.project.name} — ${liveStatus[0]}`, `  ${T("Complete", "الإنجاز")} ${s.progressPercent}% (${T("plan", "المخطط")} ${s.plannedPercent}%), SPI ${s.spi.toFixed(2)}`,
     comp ? `  ${T("Completion", "الإنجاز النهائي")} ${comp.forecast} (${T("baseline", "الأساس")} ${comp.baseline}, ${days(comp.slip, l)})` : "",
@@ -176,7 +176,7 @@ export function buildReport(o: BuildIn): Built {
       { label: T("Critical now", "حرجة الآن"), value: String(now.length), sub: T(`${startSoon.length} start in 14 days`, `${startSoon.length} تبدأ خلال 14 يوماً`) },
     ]));
     const since = sinceLines(l, o.prev, p.id, metrics.projects[p.id]);
-    if (tracked && since.length) { body.push(h2(T("Since the last report", "منذ التقرير السابق"), o.prev ? dt(o.prev.date, l) : undefined)); body.push(bullets(since)); }
+    if (tracked && since.length) { body.push(h2(T("Since the last brief", "منذ الموجز السابق"), o.prev ? dt(o.prev.date, l) : undefined)); body.push(bullets(since)); }
     body.push(h2(T("Critical path", "المسار الحرج"), logic
       ? T(`${open.length} critical activities left — total float and critical flags from the programme; ${crit.join(", ") || "—"} drive${crit.length === 1 ? "s" : ""} completion.`, `${open.length} نشاطاً حرجاً متبقياً — الفائض الكلي والأنشطة الحرجة من البرنامج؛ ${crit.join("، ") || "—"} يحدد موعد الإنجاز.`)
       : T(`${crit.join(", ") || "—"} finish${crit.length === 1 ? "es" : ""} last and drive${crit.length === 1 ? "s" : ""} completion. Taken from the programme dates (the documents have no logic links).`, `${crit.join("، ") || "—"} ينتهي أخيراً ويحدد موعد الإنجاز. مأخوذ من تواريخ البرنامج (لا تتضمن المستندات علاقات منطقية).`)));
@@ -202,7 +202,7 @@ export function buildReport(o: BuildIn): Built {
 
   // ---------------- assemble
   const nActive = 1 + active.length;
-  const heading = o.kind === "SNAPSHOT" ? T("Live snapshot", "لقطة فورية") : T("Daily site status", "الحالة اليومية للمواقع");
+  const heading = o.kind === "SNAPSHOT" ? T("Live snapshot", "لقطة فورية") : T("Daily site brief", "الموجز اليومي للمواقع");
   const title = `${heading} — ${dt(o.date, l)}${o.kind === "SNAPSHOT" ? ` ${time}` : ""}`;
   const portfolio = table([T("Project", "المشروع"), T("Progress / plan", "التقدم / المخطط"), "SPI", T("Completion", "الإنجاز"), T("Critical late / risk", "حرجة متأخرة / معرّضة"), T("Status", "الحالة")],
     summary, ["l", "r", "r", "r", "r", "r"], l, marks);
@@ -221,7 +221,7 @@ export function buildReport(o: BuildIn): Built {
 ${h2(T("All active projects", "جميع المشاريع النشطة"))}
 ${portfolio}
 ${body.join("\n")}
-<tr><td style="padding:28px 28px 22px"><div style="border-top:1px solid ${C.line};padding-top:12px;font-size:11px;color:${C.soft};line-height:1.5">${T("Prepared by the Kinan Onsite Agent from the project programme, procurement, safety and site notes. Critical = zero float: a delay to it delays completion. This report takes no action.", "أعده الوكيل الميداني لكنان من برنامج المشروع والمشتريات والسلامة وملاحظات الموقع. الحرج = بلا فائض: أي تأخير فيه يؤخر الإنجاز. لا يتخذ هذا التقرير أي إجراء.")}</div>
+<tr><td style="padding:28px 28px 22px"><div style="border-top:1px solid ${C.line};padding-top:12px;font-size:11px;color:${C.soft};line-height:1.5">${T("Prepared by the Kinan Onsite Agent from the project programme, procurement, safety and site notes. Critical = zero float: a delay to it delays completion. This brief takes no action.", "أعده الوكيل الميداني لكنان من برنامج المشروع والمشتريات والسلامة وملاحظات الموقع. الحرج = بلا فائض: أي تأخير فيه يؤخر الإنجاز. لا يتخذ هذا الموجز أي إجراء.")}</div>
 <div style="font-size:10px;font-weight:700;letter-spacing:.3em;color:${C.or};padding-top:8px">${KINAN.tagline}</div></td></tr>
 </table></td></tr></table></body></html>`;
   return { title, html, text: [title, "", ...text.filter((x) => x !== undefined)].join("\n"), metrics, active: nActive };

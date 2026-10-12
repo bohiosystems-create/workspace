@@ -76,7 +76,7 @@ export function reports(io: ReportsIO) {
     const bad = recipients.find((r) => !EMAIL_RE.test(r));
     if (bad) throw new Error(T(`Not a valid address: ${bad}`, `عنوان غير صالح: ${bad}`));
     const outside = recipients.find((r) => !recipientAllowed(r));
-    if (outside) { const ok = [...allowedDomains().map((d) => `@${d}`), ...allowedRecipients()].join(", "); throw new Error(T(`${outside} is not an allowed recipient (${ok}). Reports go to internal addresses only.`, `${outside} ليس من المستلمين المسموح بهم (${ok}). تُرسل التقارير إلى عناوين داخلية فقط.`)); }
+    if (outside) { const ok = [...allowedDomains().map((d) => `@${d}`), ...allowedRecipients()].join(", "); throw new Error(T(`${outside} is not an allowed recipient (${ok}). Briefs go to internal addresses only.`, `${outside} ليس من المستلمين المسموح بهم (${ok}). تُرسل الموجزات إلى عناوين داخلية فقط.`)); }
     await io.put(K.schedule, { enabled: !!b.enabled, time, timezone, days: days.join(","), recipients: recipients.join(", "), languages: langs.join(","), updatedBy: by.trim().slice(0, 60) || undefined, updatedAt: now().toISOString() } satisfies Schedule);
   }
 
@@ -172,10 +172,10 @@ export function reports(io: ReportsIO) {
     const items: { ok: boolean; label: string; fix?: string }[] = [
       { ok: rcpt.length > 0 && !blocked.length, label: rcpt.length ? T(`Recipients: ${rcpt.join(", ")}`, `المستلمون: ${rcpt.join("، ")}`) : T("No recipients", "لا مستلمين"),
         fix: blocked.length ? T(`Not allowed: ${blocked.join(", ")}`, `غير مسموح: ${blocked.join("، ")}`) : rcpt.length ? undefined : T("Add your address and save the schedule.", "أضيفوا عنوانكم واحفظوا الجدول.") },
-      { ok: s.enabled, label: s.enabled ? T("Daily sending is on", "الإرسال اليومي مفعّل") : T("Daily sending is paused", "الإرسال اليومي متوقف"), fix: s.enabled ? undefined : T("Tick “Send the daily report automatically” and save.", "فعّلوا «إرسال التقرير اليومي تلقائياً» واحفظوا.") },
+      { ok: s.enabled, label: s.enabled ? T("Daily sending is on", "الإرسال اليومي مفعّل") : T("Daily sending is paused", "الإرسال اليومي متوقف"), fix: s.enabled ? undefined : T("Tick “Send the daily brief automatically” and save.", "فعّلوا «إرسال الموجز اليومي تلقائياً» واحفظوا.") },
       { ok: live, label: live ? T("Outlook is live", "Outlook مفعّل") : T("Outlook is simulated — nothing is e-mailed", "Outlook تجريبي — لا يُرسل شيء"), fix: live ? undefined : T("Set OUTLOOK_MODE=live.", "اضبطوا OUTLOOK_MODE=live.") },
       { ok: e.creds, label: e.creds ? T("Microsoft 365 app credentials set", "بيانات تطبيق Microsoft 365 مضبوطة") : T("Microsoft 365 app credentials missing", "بيانات تطبيق Microsoft 365 ناقصة"), fix: e.creds ? undefined : T("Set MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET (app with Mail.Send).", "اضبطوا MS_TENANT_ID وMS_CLIENT_ID وMS_CLIENT_SECRET (تطبيق بصلاحية Mail.Send).") },
-      { ok: e.senderSet, label: T(`Sent from ${e.sender}`, `يُرسل من ${e.sender}`), fix: e.senderSet ? undefined : T("Set OUTLOOK_SENDER to the mailbox that sends the report.", "اضبطوا OUTLOOK_SENDER على صندوق البريد المرسِل.") },
+      { ok: e.senderSet, label: T(`Sent from ${e.sender}`, `يُرسل من ${e.sender}`), fix: e.senderSet ? undefined : T("Set OUTLOOK_SENDER to the mailbox that sends the brief.", "اضبطوا OUTLOOK_SENDER على صندوق البريد المرسِل.") },
       { ok: e.cron, label: e.cron ? T("Scheduler endpoint enabled", "نقطة الجدولة مفعّلة") : T("No scheduler yet", "لا جدولة بعد"), fix: e.cron ? undefined : T("Set REPORTS_CRON_KEY (and CRON_SECRET for Vercel Cron) — /api/reports/run is then called every minute.", "اضبطوا REPORTS_CRON_KEY (وCRON_SECRET لـ Vercel Cron) — ثم يُستدعى المسار ‎/api/reports/run كل دقيقة.") },
       { ok: !!lastOk && !failNewer, label: failNewer ? T(`Last send failed: ${lastFail!.error ?? ""}`, `فشل آخر إرسال: ${lastFail!.error ?? ""}`) : lastOk ? T(`Last delivered ${lastOk.createdAt.slice(0, 16).replace("T", " ")} UTC to ${lastOk.recipients}`, `آخر تسليم ${lastOk.createdAt.slice(0, 16).replace("T", " ")} UTC إلى ${lastOk.recipients}`) : T("Not delivered yet", "لم يُسلَّم بعد"),
         fix: lastOk && !failNewer ? undefined : T("Press “Send test now” and check your inbox (and spam folder).", "اضغطوا «إرسال تجريبي الآن» وتحققوا من بريدكم (ومجلد الرسائل غير المرغوبة).") },
@@ -202,7 +202,7 @@ export function reports(io: ReportsIO) {
 
   async function getReport(id: string) {
     const r = await io.get<ReportFull>(K.one(id));
-    if (!r) throw new Error("Report not found.");
+    if (!r) throw new Error("Brief not found.");
     return { id: r.id, title: r.title, html: r.html, text: r.text, date: r.date, lang: r.lang, status: r.status, kind: r.kind };
   }
 
@@ -219,13 +219,13 @@ export function reports(io: ReportsIO) {
         const failed = rows.filter((r) => r.status === "FAILED");
         message = failed.length ? tx(l, `Not sent: ${failed[0].error}`, `لم يُرسل: ${failed[0].error}`)
           : rows[0]?.delivery === "mock" ? tx(l, `Simulated only — Outlook isn't live, so nothing reached ${rows[0].recipients}. See the delivery check.`, `إرسال تجريبي فقط — Outlook غير مفعّل، فلم يصل شيء إلى ${rows[0].recipients}. راجعوا فحص التسليم.`)
-          : tx(l, `Sent to ${rows[0]?.recipients} (${rows.length} report${rows.length > 1 ? "s" : ""}). Check the inbox — and the spam folder the first time.`, `أُرسل إلى ${rows[0]?.recipients} (${rows.length}). تحققوا من البريد الوارد — ومن مجلد الرسائل غير المرغوبة في المرة الأولى.`);
+          : tx(l, `Sent to ${rows[0]?.recipients} (${rows.length} brief${rows.length > 1 ? "s" : ""}). Check the inbox — and the spam folder the first time.`, `أُرسل إلى ${rows[0]?.recipients} (${rows.length}). تحققوا من البريد الوارد — ومن مجلد الرسائل غير المرغوبة في المرة الأولى.`);
         break;
       }
       case "RUN": {
         const r = await runSchedule();
-        const REASON: Record<string, string> = { paused: tx(l, "the schedule is paused", "الجدول متوقف"), "not a scheduled day": tx(l, "today is not a scheduled day", "اليوم ليس من أيام الجدول"), "already sent today": tx(l, "today's report was already sent", "أُرسل تقرير اليوم بالفعل") };
-        message = r.ran ? tx(l, "Due — today's report was generated and sent.", "حان الموعد — أُعدّ تقرير اليوم وأُرسل.")
+        const REASON: Record<string, string> = { paused: tx(l, "the schedule is paused", "الجدول متوقف"), "not a scheduled day": tx(l, "today is not a scheduled day", "اليوم ليس من أيام الجدول"), "already sent today": tx(l, "today's brief was already sent", "أُرسل موجز اليوم بالفعل") };
+        message = r.ran ? tx(l, "Due — today's brief was generated and sent.", "حان الموعد — أُعدّ موجز اليوم وأُرسل.")
           : tx(l, `Not due: ${REASON[r.reason] ?? r.reason} (local time ${r.local.hhmm}).`, `لم يحن الموعد: ${REASON[r.reason] ?? r.reason.replace("not before", "ليس قبل")} (التوقيت المحلي ${r.local.hhmm}).`);
         openId = r.ran && r.byLang ? (r.byLang.find((x) => x.lang === l) ?? r.byLang[0])?.id ?? null : null;
         break;
