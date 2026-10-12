@@ -77,6 +77,7 @@ function detectOpt(sheets, fileName) {
   const f = String(fileName || '').replace(/\.[^.]+$/, ''); const m = f.match(/\(([^)]{1,60})\)\s*$/) || f.match(/\s[-–]\s([^-–]{1,60})$/); return m ? m[1].trim() : '';
 }
 /* Everything the app and the server read from one workbook. */
+const EX_SKIP=(k,c)=>/irr|profit_on_cost|equity_multiple/.test(k)?/target|hurdle|required|minimum|\bmin\b|benchmark|threshold|cost of (equity|capital)|discount rate/i.test(c):/net_profit|total_cost|gross_revenue|peak_debt/.test(k)?/\bper\b|\/\s*(sqm|m2|m²|sq\s?m|sq\s?ft|unit|bed|key)|\bpsm\b|\bpsf\b|\barea\b|\bunits?\b|%|ratio|\brate\b|yield|margin|count|number of|\b(nla|gfa|gla|nsa|bua)\b|\bsqm\b|\bm2\b/i.test(c):false;
 function parseWorkbook(wb, XLSX, fileName) {
   const sheets = (wb.SheetNames || []).map(name => ({ name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true }), frows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false }) }));
   const out = {}, found = {}, cells = {};
@@ -85,7 +86,7 @@ function parseWorkbook(wb, XLSX, fileName) {
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string' || c.length > 80) continue;
       for (const [k, re] of LAB) {
-        if (k in out || !re.test(c)) continue; if (k === 'levered_irr' && /unlevered|ungeared/i.test(c)) continue;
+        if (k in out || !re.test(c)) continue; if (k === 'levered_irr' && /unlevered|ungeared/i.test(c)) continue; if (EX_SKIP(k, c)) continue;
         const v = row.slice(i + 1).find(x => typeof x === 'number' || (typeof x === 'string' && /^\s*-?[\d,.]+\s*%?\s*$/.test(x) && x.trim())); if (v == null) continue;
         let n = typeof v === 'number' ? v : parseFloat(v.replace(/[,%\s]/g, '')); if (!Number.isFinite(n)) continue;
         if (/irr|profit_on_cost/.test(k) && Math.abs(n) < 1 && !(typeof v === 'string' && /%/.test(v))) n *= 100;
