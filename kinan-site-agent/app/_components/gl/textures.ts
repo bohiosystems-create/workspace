@@ -56,9 +56,9 @@ export function drawGround(o: GroundOpts) {
     if (s.cls.includes("tmp yard")) { g.fillStyle = P.yard; rect(s); g.strokeStyle = "rgba(0,0,0,.18)"; g.setLineDash([4, 3]); g.lineWidth = 1; g.strokeRect(s.x!, s.y!, s.w!, s.h!); g.setLineDash([]); }
     if (s.cls.includes("tmp camp") || s.cls.includes("tmp office") || s.cls.includes("tmp batch") || s.cls.includes("tmp waste")) { g.fillStyle = P.gravel; rect(s); }
   }
-  // roads: base course, then asphalt once the wearing course is down
+  // roads: a graded haul track, the base course once it is laid, then asphalt once the wearing course is down
   for (const s of SHAPES) if (s.t === "rect" && s.cls === "road") { g.fillStyle = P.kerb; g.fillRect(s.x! - 1.2, s.y! - 1.2, s.w! + 2.4, s.h! + 2.4); }
-  for (const s of SHAPES) if (s.t === "rect" && s.cls === "road") { g.fillStyle = o.roads > 0.99 ? P.asphalt : P.base; rect(s); }
+  for (const s of SHAPES) if (s.t === "rect" && s.cls === "road") { g.fillStyle = o.roads > 0.99 ? P.asphalt : o.roads >= 0.5 ? P.base : P.gravel; rect(s); }
   g.strokeStyle = P.line; g.lineWidth = 1; g.setLineDash([8, 7]);
   for (const s of SHAPES) if (s.t === "line" && s.cls === "cl") { g.beginPath(); s.pts!.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); }
   g.setLineDash([]);

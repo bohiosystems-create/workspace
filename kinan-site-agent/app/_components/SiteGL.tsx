@@ -9,7 +9,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { BUILDINGS, PLAN, type Layer } from "@/lib/siteplan";
-import { indexSchedule, siteAt, type SiteState } from "@/lib/scene/progress4d";
+import { eventsAround, indexSchedule, siteAt, type SiteState } from "@/lib/scene/progress4d";
 import type { ProjectData } from "@/lib/types";
 import { createSiteScene, type SiteSceneApi } from "./gl/scene";
 import { attachGestures } from "./gl/gestures";
@@ -63,6 +63,8 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
   const [date, setDate] = useState<string | null>(null);
   const cur = date ?? today;
   const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState<1 | 2 | 4>(1);
+  const speedRef = useRef(1); speedRef.current = speed;
   const [hint, setHint] = useState(false);
   const coarse = typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
   const site = useMemo<SiteState | null>(() => (ix ? siteAt(ix, cur) : null), [ix, cur]);
@@ -165,10 +167,10 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
       // battery: halve the frame rate when nothing is being touched, played or flown
       if (now - touched > 3000 && !playRef.current.playing && !R.current?.fly && now - last < 31) return;
       last = now;
-      // timeline playback: ~25 s for the whole programme
+      // timeline playback: ~60 s for the whole programme at 1× (every slab cycle is visible), 2× and 4× to skim
       const P = playRef.current;
       if (P.playing) {
-        P.ms += dt * ((t1 - t0) / 25);
+        P.ms += dt * ((t1 - t0) / 60) * speedRef.current;
         if (P.ms >= t1) { P.ms = t1; P.playing = false; setPlaying(false); }
         const d = iso(P.ms);
         setDate((x) => (x === d ? x : d));
@@ -281,10 +283,14 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
   const tense = cur === today ? "Today" : cur < today ? "As built" : "Forecast";
   const marks = useMemo(() => {
     if (!project) return [];
-    const ids: [string, string][] = [["TB-M10", "Tower B tops out"], ["HC-M10", "Hotel C tops out"], ["TA-M10", "Tower A tops out"], ["M-990", "Completion"]];
+    const ids: [string, string][] = [["M-000", "Notice to proceed"], ["SB-010", "Basement excavated"], ["EN-040", "TC1/TC2 erected"], ["SB-200", "Ground slab"], ["PD-STR", "Podium structure"], ["EN-041", "TC3 erected"], ["TB-M10", "Tower B tops out"], ["HC-M10", "Hotel C tops out"], ["TA-M10", "Tower A tops out"], ["IN-071", "Roads surfaced"], ["M-990", "Completion"]];
     return ids.map(([id, label]) => { const a = project.schedule.find((x) => x.id === id); return a ? { label, at: (Date.parse(a.finish + "T00:00:00Z") - t0) / (t1 - t0) } : null; }).filter(Boolean) as { label: string; at: number }[];
   }, [project, t0, t1]);
   const todayAt = (Date.parse(today + "T00:00:00Z") - t0) / (t1 - t0);
+  // what is happening on site around the date, and the numbers behind the model
+  const events = useMemo(() => (ix ? eventsAround(ix, cur, playing ? 6 : 3, 3) : []), [ix, cur, playing]);
+  const cranesUp = site ? Object.values(site.cranes).filter((c) => c.up && c.erect >= 0.8 && c.down < 0.3).length : 0;
+  const fmt = (n: number) => n.toLocaleString("en-GB");
 
   if (!supported || failed) return <Site3D ref={handle} layers={layers} selectedId={selectedId} pins={pins} gps={gps} onSelect={onSelect} />;
 
@@ -330,7 +336,21 @@ const SiteGL = forwardRef<Site3DHandle, Props>(function SiteGL({ layers, selecte
           </div>
         </div>
         {cur !== today && <button className="tl4d-today-btn" onClick={backToToday}>Today</button>}
+        <button className="tl4d-speed" onClick={() => setSpeed(speed === 1 ? 2 : speed === 2 ? 4 : 1)} aria-label="Playback speed" title="Playback speed">{speed}×</button>
       </div>
+      {site && site.mobilised > 0 && (
+        <div className={"tl4d-live" + (playing ? " playing" : "")} aria-live="polite">
+          <div className="tl4d-stats">
+            <span><b>{fmt(site.manpower)}</b><em>on site</em></span>
+            <span><b>{site.planned.toFixed(0)}%</b><em>programme</em></span>
+            <span><b>{site.levelsCast}</b><em>levels cast</em></span>
+            <span><b>{fmt(Math.round(site.concrete / 100) * 100)}</b><em>m³ concrete</em></span>
+            <span><b>{cranesUp}</b><em>cranes up</em></span>
+            <span><b>{site.activeCount}</b><em>activities</em></span>
+          </div>
+          {events.length > 0 && <ul className="tl4d-ticker">{events.map((e) => <li key={e.id + e.kind} className={e.kind}><i>{e.kind === "milestone" ? "◆" : e.kind === "finish" ? "✓" : "▶"}</i><span>{e.name}</span><em>{nice(e.date)}</em></li>)}</ul>}
+        </div>
+      )}
     </div>
   );
 });

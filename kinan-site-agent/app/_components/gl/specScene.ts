@@ -9,6 +9,7 @@
  * World units are metres: x east from the site's west edge, z south from its north edge, y up.
  */
 import * as THREE from "three";
+import { basicStruct, basicVilla } from "@/lib/scene/progress4d";
 import { KINAN } from "@/lib/brand";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -254,9 +255,9 @@ export function createSpecScene(renderer: THREE.WebGLRenderer, spec: ProjectMode
     const r = { x: b.x, z: b.z, w: b.w, d: b.d }, kind = kindOf(b);
     let mdl: Built;
     if (kind === "villa") {
-      mdl = villaModel(m, b.id, r, { built: Math.min(s.built, 3), active: s.active, enclosed: s.glazed >= b.floors - 0.01, finished: s.fitted >= b.floors, handedOver: s.handedOver }, night);
+      mdl = villaModel(m, b.id, r, basicVilla({ built: Math.min(s.built, 3), active: s.active, enclosed: s.glazed >= b.floors - 0.01, finished: s.fitted >= b.floors, handedOver: s.handedOver }), night);
     } else {
-      mdl = towerModel(m, b.id, r, b.floors, { built: s.built, active: s.active, glazed: s.glazed, fitted: s.fitted, topped: s.topped }, b.storeyHeight, { podium: kind === "podium", club: kind === "club" });
+      mdl = towerModel(m, b.id, r, b.floors, basicStruct({ built: s.built, active: s.active, glazed: s.glazed, fitted: s.fitted, topped: s.topped }, b.floors), b.storeyHeight, { podium: kind === "podium", club: kind === "club" });
       if (b.use === "mosque" && s.topped) {
         // dome and minaret
         const top = b.floors * b.storeyHeight, rr = Math.min(b.w, b.d) * 0.28;

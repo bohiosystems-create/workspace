@@ -11,7 +11,7 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { BUILDINGS, PLAN, SHAPES, VILLAS, type Layer } from "@/lib/siteplan";
-import { structKey, type SiteState, type StructState, type VillaState } from "@/lib/scene/progress4d";
+import { phaseOf, phaseT, structKey, type SiteState, type StructState, type VillaState } from "@/lib/scene/progress4d";
 import { M, concrete, drawGround, glow, rng, sky } from "./textures";
 import { ORANGE, STOREY, W, at, box, materials, mergeStatic, perim, rectOf, shadow, tag, walls, type Mats } from "./common";
 import { constructionKit, createDetails, roofKit, type Deck } from "./details";
@@ -29,82 +29,185 @@ for (const s of SHAPES) if (s.layer === "cranes" && s.t === "circle" && s.cls ==
 // ------------------------------------------------------------------ structures
 export interface Built { group: THREE.Group; top: number; pulse: THREE.MeshStandardMaterial[] }
 
-export function towerModel(m: Mats, id: string, r: { x: number; z: number; w: number; d: number }, floors: number, s: StructState, storey = STOREY, opts: { podium?: boolean; club?: boolean; raft?: boolean } = {}): Built {
+export function towerModel(m: Mats, id: string, r: { x: number; z: number; w: number; d: number }, floors: number, s: StructState, storey = STOREY, opts: { podium?: boolean; club?: boolean; raft?: boolean; night?: boolean } = {}): Built {
   const g = new THREE.Group();
   const inset = opts.podium ? 0.6 : opts.club ? 1 : Math.min(r.w, r.d) * 0.08;
   const w = r.w - inset * 2, d = r.d - inset * 2, cx = r.x + r.w / 2, cz = r.z + r.d / 2;
   g.position.set(cx, 0, cz);
   const pulse: THREE.MeshStandardMaterial[] = [];
   const top = s.built * storey;
-  const glazed = Math.min(Math.floor(s.glazed + 1e-6), s.built), fitted = Math.min(s.fitted, glazed);
-  // raft / ground slab
-  if (opts.raft !== false) g.add(at(new THREE.Mesh(box(w + 4, 0.8, d + 4, 8, 8), m.concrete), 0, 0.4, 0));
-  // slabs (instanced)
-  if (s.built > 0) {
-    const slab = new THREE.InstancedMesh(box(w, 0.35, d, 8, 8), m.concrete, s.built);
-    const mx = new THREE.Matrix4();
-    for (let i = 0; i < s.built; i++) slab.setMatrixAt(i, mx.makeTranslation(0, (i + 1) * storey - 0.175, 0));
-    g.add(slab);
-  }
-  // columns on exposed floors (above the curtain wall)
-  const exposed = s.built - glazed;
-  if (exposed > 0) {
+  const tower = !opts.podium && !opts.club;
+  const started = s.built > 0 || s.active > 0;
+  const ph = phaseOf(s.active), pt = phaseT(s.active);
+  // the floors the façade covers: every finished zone, plus the zone going in panel by panel below
+  const glazed = Math.min(s.facadeZone ? s.facadeZone.from - 1 : Math.floor(s.glazed + 1e-6), s.built), fitted = Math.min(s.fitted, glazed);
+  const colGrid = () => {
     const nx = Math.max(3, Math.round(w / 9)), nz = Math.max(3, Math.round(d / 9));
     const pos: [number, number][] = [];
     for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) if (i === 0 || j === 0 || i === nx - 1 || j === nz - 1 || (i % 2 === 0 && j % 2 === 0)) pos.push([-w / 2 + 0.6 + (i * (w - 1.2)) / (nx - 1), -d / 2 + 0.6 + (j * (d - 1.2)) / (nz - 1)]);
+    return pos;
+  };
+  const mx = new THREE.Matrix4();
+
+  // ---- before the frame: the piling rig working across the footprint, then the raft poured in one sweep
+  if (!started && opts.raft !== false) {
+    const rh = tower ? 3 : 0.8;
+    if (s.piles > 0) {
+      const nx = Math.max(3, Math.round(w / 5.5)), nz = Math.max(3, Math.round(d / 5.5)), total = nx * nz, done = Math.floor(total * s.piles + 1e-6);
+      if (done > 0) {
+        const im = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.62, 0.62, 1.1, 10), m.pile, done);
+        let n = 0; for (let j = 0; j < nz && n < done; j++) for (let i = 0; i < nx && n < done; i++) im.setMatrixAt(n++, mx.makeTranslation(-w / 2 + 2 + (i * (w - 4)) / (nx - 1), 0.55, -d / 2 + 2 + (j * (d - 4)) / (nz - 1)));
+        g.add(im);
+      }
+      if (s.piles < 1 && s.raft <= 0) {
+        // the rig at the next pile: tracked base, 28 m mast, auger
+        const i = done % nx, j = Math.floor(done / nx), px = -w / 2 + 2 + (i * (w - 4)) / (nx - 1), pz = -d / 2 + 2 + (j * (d - 4)) / (nz - 1);
+        const rig = new THREE.Group(); rig.position.set(px + 3.5, 0, pz); g.add(rig);
+        for (const z of [-1.6, 1.6]) rig.add(at(new THREE.Mesh(box(6, 1.1, 1), m.dark), 0, 0.55, z));
+        rig.add(at(new THREE.Mesh(box(5, 2.2, 3), m.yellow), -0.4, 2.2, 0));
+        rig.add(at(new THREE.Mesh(box(1.4, 28, 1.4, 1.4, 1.4), m.lattice), -3.5, 15, 0));
+        rig.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 9, 10), m.dark), -3.5, 5, 0));
+        rig.add(at(new THREE.Mesh(new THREE.ConeGeometry(2.2, 1.6, 10), new THREE.MeshStandardMaterial({ color: 0x8a6a48, roughness: 1 })), -3.5 + 4, 0.8, 2.6)); // spoil
+      }
+    }
+    if (s.raft > 0) {
+      const W2 = w + 4, D2 = d + 4;
+      if (s.raft < 1) { const edge = new THREE.Mesh(walls(W2, D2, rh, 6, rh), m.formwork.clone()); g.add(edge); pulse.push(edge.material as THREE.MeshStandardMaterial); }
+      g.add(at(new THREE.Mesh(box(W2 - 0.2, 0.4, D2 - 0.2, 6, 6), m.deck), 0, rh - 0.5, 0)); // rebar cage
+      const done = Math.max(0.5, W2 * s.raft);
+      g.add(at(new THREE.Mesh(box(done, rh - 0.08, D2 - 0.3, 8, 8), s.raft < 1 ? m.wet : m.concrete), -W2 / 2 + done / 2, (rh - 0.08) / 2, 0));
+      if (s.raft < 1) {
+        // the pump's boom over the pour front
+        const bx = -W2 / 2 + done, boom = new THREE.Group(); boom.position.set(bx, 0, D2 / 2 + 7); g.add(boom);
+        boom.add(at(new THREE.Mesh(box(9, 1.2, 2.5), m.dark), 0, 0.9, 0)); boom.add(at(new THREE.Mesh(box(2.4, 2.4, 2.4), m.steel), 4, 2.2, 0));
+        const arm = at(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 22, 8), m.steel), 0, 9, -6); arm.rotation.x = 0.9; boom.add(arm);
+        boom.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 6, 6), m.dark), 0, 6, -14));
+      }
+    }
+  } else if (opts.raft !== false) g.add(at(new THREE.Mesh(box(w + 4, 0.8, d + 4, 8, 8), m.concrete), 0, 0.4, 0));
+
+  // ---- cast slabs (instanced); the one just stripped is lighter for a while
+  if (s.built > 0) {
+    const slab = new THREE.InstancedMesh(box(w, 0.35, d, 8, 8), m.concrete, s.built);
+    for (let i = 0; i < s.built; i++) slab.setMatrixAt(i, mx.makeTranslation(0, (i + 1) * storey - 0.175, 0));
+    g.add(slab);
+  }
+  // ---- columns on exposed floors (above the curtain wall)
+  const exposed = s.built - glazed;
+  const pos = colGrid();
+  if (exposed > 0) {
     const col = new THREE.InstancedMesh(box(0.9, storey - 0.35, 0.9), m.concrete, pos.length * exposed);
-    const mx = new THREE.Matrix4(); let n = 0;
+    let n = 0;
     for (let f = glazed; f < s.built; f++) for (const [x, z] of pos) col.setMatrixAt(n++, mx.makeTranslation(x, f * storey + (storey - 0.35) / 2, z));
     g.add(col);
   }
-  // curtain wall: fitted floors (lit at night) and the rest of the glazed floors
-  const skin = opts.podium ? m.stone : m.glass;
-  if (fitted > 0) g.add(at(new THREE.Mesh(walls(w + 0.6, d + 0.6, fitted * storey, 9, storey * 4), opts.podium ? m.stone : m.glassLit), 0, 0, 0));
-  if (glazed > fitted) g.add(at(new THREE.Mesh(walls(w + 0.6, d + 0.6, (glazed - fitted) * storey, 9, storey * 4), skin), 0, fitted * storey, 0));
-  if (glazed > 0) g.add(at(new THREE.Mesh(box(w + 0.6, 0.12, d + 0.6), m.slabEdge), 0, glazed * storey + 0.06, 0));
+  // ---- blockwork partitions and MEP on the open floors behind the edge protection (seen where the façade isn't on yet)
+  if (s.blk > fitted && s.blk > glazed) {
+    const from = Math.max(fitted, glazed), n = Math.min(s.built, s.blk) - from;
+    if (n > 0) { const pw = new THREE.InstancedMesh(box(w * 0.42, storey - 0.4, 0.25, 4, 4), m.block, n * 3); let k = 0; for (let f = from; f < from + n; f++) for (const [x, z] of [[-w * 0.22, -d * 0.18], [w * 0.2, 0], [-w * 0.1, d * 0.22]] as const) pw.setMatrixAt(k++, mx.makeTranslation(x, f * storey + (storey - 0.4) / 2 + 0.1, z)); g.add(pw); }
+  }
+  // ---- curtain wall in bands: fitted floors (lit at night), floors in MEP first fix (work lights at night), the rest
+  const skin = opts.podium ? m.stone : m.glass, skinLit = opts.podium ? m.stone : m.glassLit, skinWork = opts.podium ? m.stone : m.glassWork;
+  if (glazed > 0) {
+    const bands: [number, number, THREE.Material][] = [];
+    const mepFrom = Math.min(glazed, Math.max(fitted, s.mep)), mepTo = Math.min(glazed, s.mep + s.mepActive);
+    if (fitted > 0) bands.push([0, fitted, skinLit]);
+    if (mepFrom > fitted) bands.push([fitted, mepFrom, skin]);
+    if (mepTo > mepFrom) bands.push([mepFrom, mepTo, skinWork]);
+    if (glazed > Math.max(mepTo, fitted)) bands.push([Math.max(mepTo, fitted), glazed, skin]);
+    for (const [a, b, mat] of bands) if (b > a) g.add(at(new THREE.Mesh(walls(w + 0.6, d + 0.6, (b - a) * storey, 9, storey * 4), mat), 0, a * storey, 0));
+    g.add(at(new THREE.Mesh(box(w + 0.6, 0.12, d + 0.6), m.slabEdge), 0, glazed * storey + 0.06, 0));
+  }
+  // ---- the façade zone going in: unitised panels landed one by one round each level, from the bottom
+  if (s.facadeZone && tower) {
+    const z = s.facadeZone, levels = Math.min(z.to, s.built) - z.from + 1;
+    if (levels > 0) {
+      const PW = w + 0.6, PD = d + 0.6, per = Math.max(8, Math.round((2 * (PW + PD)) / 1.5)), total = levels * per, n = Math.floor(total * z.f);
+      if (n > 0) {
+        const im = new THREE.InstancedMesh(box(1.42, storey - 0.06, 0.1), m.glass, n);
+        const q = new THREE.Quaternion(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+        for (let k = 0; k < n; k++) {
+          const lv = z.from - 1 + Math.floor(k / per), tt = ((k % per) + 0.5) / per, [x, zz] = perim(PW, PD, tt);
+          const sPer = tt * 2 * (PW + PD), side = sPer < PW ? 0 : sPer < PW + PD ? 1 : sPer < 2 * PW + PD ? 2 : 3;
+          q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), side % 2 ? Math.PI / 2 : 0); v.set(x, lv * storey + storey / 2, zz);
+          im.setMatrixAt(k, mx.compose(v, q, one));
+        }
+        g.add(im);
+        // the next panel on its way up on the monorail hoist, and the installers' cradle
+        const k = n, lv = z.from - 1 + Math.floor(k / per), tt = ((k % per) + 0.5) / per, [x, zz] = perim(PW + 2.2, PD + 2.2, tt);
+        g.add(at(new THREE.Mesh(box(1.42, storey - 0.06, 0.1), m.glass), x, lv * storey + storey * 0.3, zz));
+        g.add(at(new THREE.Mesh(box(2.4, 0.9, 1.2), m.steel), x, lv * storey + 0.6, zz));
+      }
+    }
+  }
   if (opts.podium && glazed > 0) {
     // retail shopfronts: a glass band round the ground floor
     g.add(at(new THREE.Mesh(box(w + 0.8, storey * 0.72, d + 0.8, 9, storey * 4), m.glassLit), 0, storey * 0.36 + 0.2, 0));
   }
-  // core + jump-form (towers only)
-  if (!opts.podium && !opts.club && floors > 5) {
+  // ---- core + jump-form (towers only): the core runs two levels ahead of the slabs
+  if (tower && floors > 5 && started) {
     const cw = Math.min(w * 0.3, 26), cd = Math.min(d * 0.34, 28);
-    const coreTop = Math.min(floors * storey + storey, top + (s.topped ? storey : storey * 2));
-    if (coreTop > 1) g.add(at(new THREE.Mesh(box(cw, coreTop, cd, 6, 6), m.core), 0, coreTop / 2, 0));
-    if (!s.topped && s.built > 0) {
+    const coreTop = Math.max(0.6, Math.min(floors * storey + storey, s.core * storey));
+    g.add(at(new THREE.Mesh(box(cw, coreTop, cd, 6, 6), m.core), 0, coreTop / 2, 0));
+    if (!s.topped) {
       const jf = at(new THREE.Mesh(box(cw + 2.4, storey * 1.2, cd + 2.4, 4, 4), m.formwork), 0, coreTop + storey * 0.6 - 0.4, 0);
       g.add(jf);
+      // the core's own placing boom and the hoist cage on the jump-form platform
+      g.add(at(new THREE.Mesh(box(cw + 4, 0.25, cd + 4), m.ply), 0, coreTop + storey * 1.2 - 0.3, 0));
+      g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 12, 8).rotateZ(Math.PI / 2), m.steel), -cw * 0.25, coreTop + storey * 1.2 + 3, cd * 0.2));
     }
   }
-  // the deck being cast: rebar mat + edge formwork, pulsing orange
+  // ---- the level being cast: columns rise, falsework and soffit go in, rebar and PT ducts, the pour sweeps across, cure and strip
   if (s.active > 0 && s.built < floors) {
-    const y = top + storey - 0.2;
-    const deck = new THREE.Mesh(box(w, 0.3, d, 6, 6), m.deck.clone());
-    at(deck, 0, y, 0); g.add(deck); pulse.push(deck.material as THREE.MeshStandardMaterial);
-    const edge = new THREE.Mesh(walls(w + 0.4, d + 0.4, 0.9, 6, 0.9), m.formwork.clone());
-    at(edge, 0, y - 0.1, 0); g.add(edge); pulse.push(edge.material as THREE.MeshStandardMaterial);
+    const y0 = top, deckY = top + storey - 0.2, nx = Math.max(2, Math.floor(w / 2.4)), nz = Math.max(2, Math.floor(d / 2.4)), ph2 = storey - 0.62;
+    const sweep = (f: number) => Math.max(0.4, w * f);
+    // columns and walls of this storey
+    const colH = ph === "columns" ? Math.max(0.25, (storey - 0.35) * pt) : storey - 0.35;
+    const col = new THREE.InstancedMesh(box(0.9, colH, 0.9), ph === "columns" ? m.cured : m.concrete, pos.length);
+    pos.forEach(([x, z], i) => col.setMatrixAt(i, mx.makeTranslation(x, y0 + colH / 2, z))); g.add(col);
+    if (ph === "columns") { const fw = new THREE.InstancedMesh(box(1.3, colH + 0.3, 1.3), m.formwork, Math.ceil(pos.length * (1 - pt))); let k = 0; for (const [x, z] of pos.slice(Math.floor(pos.length * pt))) fw.setMatrixAt(k++, mx.makeTranslation(x, y0 + colH / 2, z)); g.add(fw); }
+    if (ph !== "columns") {
+      // falsework props (stripped progressively during cure) and the plywood soffit sweeping across
+      const keep = ph === "cure" ? Math.max(1, Math.round(nx * nz * (1 - pt * 0.8))) : nx * nz;
+      const props = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.06, 0.06, ph2, 6).translate(0, ph2 / 2, 0), m.steel, keep);
+      let n = 0; for (let i = 0; i < nx && n < keep; i++) for (let j = 0; j < nz && n < keep; j++) props.setMatrixAt(n++, mx.makeTranslation(-w / 2 + 1.2 + i * ((w - 2.4) / (nx - 1)), y0, -d / 2 + 1.2 + j * ((d - 2.4) / (nz - 1))));
+      g.add(props);
+      const sw = sweep(ph === "formwork" ? pt : 1);
+      g.add(at(new THREE.Mesh(box(sw, 0.08, d), m.ply), -w / 2 + sw / 2, deckY - 0.44, 0));
+      if (ph === "formwork" && pt < 1) for (let i = 0; i < 5; i++) g.add(at(new THREE.Mesh(box(2.4, 0.5, 1.2), m.ply), -w / 2 + sw + 2 + i * 3, deckY - 0.2, -d / 2 + 1 + (i % 2) * (d - 2)));
+    }
+    if (ph === "rebar" || ph === "pour" || ph === "cure") {
+      const rw = sweep(ph === "rebar" ? pt : 1);
+      const deck = new THREE.Mesh(box(rw, 0.3, d, 6, 6), m.deck.clone()); at(deck, -w / 2 + rw / 2, deckY, 0); g.add(deck); pulse.push(deck.material as THREE.MeshStandardMaterial);
+      // PT ducts laid across the mat
+      const ducts = Math.floor((rw / 2.4) * (ph === "rebar" ? pt : 1));
+      if (ducts > 0) { const im = new THREE.InstancedMesh(box(0.07, 0.07, d * 0.96), m.dark, ducts); for (let i = 0; i < ducts; i++) im.setMatrixAt(i, mx.makeTranslation(-w / 2 + 1.2 + i * 2.4, deckY + 0.2, 0)); g.add(im); }
+    }
+    if (ph !== "columns" && ph !== "cure") { const edge = new THREE.Mesh(walls(w + 0.4, d + 0.4, 0.9, 6, 0.9), m.formwork.clone()); at(edge, 0, deckY - 0.1, 0); g.add(edge); pulse.push(edge.material as THREE.MeshStandardMaterial); }
+    if (ph === "pour") { const pw = sweep(pt); g.add(at(new THREE.Mesh(box(pw, 0.36, d - 0.1, 6, 6), m.wet), -w / 2 + pw / 2, deckY + 0.05, 0)); }
+    if (ph === "cure") { g.add(at(new THREE.Mesh(box(w, 0.35, d, 8, 8), m.cured), 0, deckY + 0.02, 0)); }
   }
-  // branded climbing screen round the top three storeys while the frame goes up
-  if (!opts.podium && !opts.club && !s.topped && s.built >= 3) {
+  // ---- branded climbing screen round the top three storeys while the frame goes up
+  if (tower && !s.topped && s.built >= 3) {
     const h = storey * 3;
-    g.add(at(new THREE.Mesh(walls(w + 2.4, d + 2.4, h, h * 2, h), m.screen), 0, top - storey * 2 + 0.3, 0));
+    g.add(at(new THREE.Mesh(walls(w + 2.4, d + 2.4, h, h * 2, h), m.screen), 0, top - storey * 2 + 0.3 + (ph === "cure" ? storey * pt : 0), 0));
   }
-  // roof: parapet, plant and BMU track once topped out
+  // ---- roof: parapet when topped; plant, BMU and lift motor room as their activities run
   if (s.topped && s.built > 0) {
     g.add(at(new THREE.Mesh(walls(w + 0.8, d + 0.8, 1.4, 6, 1.4), m.slabEdge), 0, top + 0.12, 0));
-    if (!opts.podium) {
-      if (floors > 10) g.add(at(new THREE.Mesh(box(w * 0.7, 0.6, 0.6), m.dark), 0, top + 2.2, d * 0.38));
-    }
+    if (tower && floors > 10) g.add(at(new THREE.Mesh(box(w * 0.7, 0.6, 0.6), m.dark), 0, top + 2.2, d * 0.38));
+    if (tower && s.lifts > 0.55) g.add(at(new THREE.Mesh(box(Math.min(w * 0.3, 24), 3.2, Math.min(d * 0.34, 26), 6, 3.2), m.render), 0, top + 1.6, 0));
+    if (tower && s.roof > 0.2 && s.roof < 1) { for (let i = 0; i < 3; i++) g.add(at(new THREE.Mesh(box(3.2, 0.9, 2.2), m.ply), -w * 0.3 + i * 4, top + 0.6, d * 0.25)); }
   }
-  // podium atrium: steel grid, then glass
-  if (opts.podium && s.built >= 4) {
+  // ---- podium atrium: steel grid, then glass
+  if (opts.podium && s.built >= 4 && s.roof > 0.2) {
     const sk = new THREE.Mesh(box(w * 0.34, 1.2, d * 0.42, 4, 4), s.glazed >= 3.9 ? m.skylight : m.lattice);
     g.add(at(sk, 0, top + 0.6, 0));
   }
-  // edge protection, falsework, the pour and the pump; rooftop equipment once topped out
+  // ---- edge protection, the pour's plant; rooftop equipment once the roof works start
   { const kit = constructionKit(m, { w, d, storey, built: s.built, glazed, floors, active: s.active, topped: s.topped, podium: !!opts.podium, id }); g.add(kit.group); pulse.push(...kit.pulse); }
-  if (s.topped && s.built > 0) g.add(roofKit(m, id, w, d, top));
-  // ghost of the finished massing above what is built
+  if (s.topped && s.built > 0 && s.roof > 0.25) g.add(roofKit(m, id, w, d, top));
+  // ---- ghost of the finished massing above what is built
   if (s.built < floors) {
     const h = (floors - s.built) * storey;
     const ghost = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)), m.ghost);
@@ -122,9 +225,10 @@ export function villaModel(m: Mats, id: string, r: { x: number; z: number; w: nu
   const w = r.w * 0.82, d = r.d * 0.62, cx = r.x + r.w / 2, cz = r.z + r.d * 0.42;
   g.position.set(cx, 0, cz);
   g.add(at(new THREE.Mesh(box(w + 3, 0.5, d + 3), m.concrete), 0, 0.25, 0));
-  const skin = v.finished ? (v.handedOver && night ? m.renderLit : m.render) : v.enclosed ? m.block : null;
+  // blockwork rises floor by floor with the MEP & blockwork activity, render follows with the finishes
+  const skinFor = (f: number) => (v.finished || f < v.fin * 2 ? (v.handedOver && night ? m.renderLit : m.render) : v.enclosed || f < v.mep * 2 ? m.block : null);
   for (let f = 0; f < v.built; f++) {
-    const fw = f === 1 ? w * 0.72 : w, fx = f === 1 ? -w * 0.14 : 0;
+    const fw = f === 1 ? w * 0.72 : w, fx = f === 1 ? -w * 0.14 : 0, skin = skinFor(f);
     g.add(at(new THREE.Mesh(box(fw, 0.3, d), m.concrete), fx, (f + 1) * STOREY, 0));
     if (skin) g.add(at(new THREE.Mesh(box(fw - 0.4, STOREY - 0.3, d - 0.4), skin), fx, f * STOREY + STOREY / 2 + 0.1, 0));
     else for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1]] as const) g.add(at(new THREE.Mesh(box(0.5, STOREY - 0.3, 0.5), m.concrete), fx + (x * (fw - 1)) / 2, f * STOREY + STOREY / 2, (z * (d - 1)) / 2));
@@ -181,6 +285,17 @@ export function craneModel(m: Mats, id: string, pos?: { x: number; z: number; r:
   const rand = rng((id.charCodeAt(2) || id.charCodeAt(id.length - 1) || 7) * 97);
   const ang = rand() * Math.PI * 2;
   return { id, root: tag(root, id) as THREE.Group, mast, slew, trolley, cable, hook, light, h: 0, r: R, ang, target: ang, tr: R * 0.5, trTarget: R * 0.6, cab: 8, cabTarget: 8, phase: "slew", wait: 0, rand, floors: 0, up: false };
+}
+/** A mobile crane (carrier, outriggers, telescopic boom) that stands by a tower crane while it is erected or dismantled. */
+export function mobileCrane(m: Mats): THREE.Group {
+  const g = new THREE.Group();
+  g.add(at(new THREE.Mesh(box(11, 1.3, 2.8), m.yellow), 0, 1.1, 0));
+  g.add(at(new THREE.Mesh(box(2.6, 2.2, 2.6), m.white), 4.2, 2.6, 0));
+  for (const x of [-3.5, 3.5]) for (const z of [-2.4, 2.4]) g.add(at(new THREE.Mesh(box(0.5, 0.5, 2), m.dark), x, 0.5, z));
+  for (const x of [-3.8, -1.8, 1.8, 3.8]) for (const z of [-1.4, 1.4]) g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.5, 10).rotateX(Math.PI / 2), m.dark), x, 0.6, z));
+  g.add(at(new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 1, 12), m.dark), -1.5, 2.2, 0));
+  const boom = at(new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.6, 46, 8), m.yellow), -1.5, 2.6 + 20, 0); boom.rotation.z = -0.55; boom.position.x = -1.5 + 12; g.add(boom);
+  return shadow(mergeStatic(g), true, false);
 }
 export function setCraneHeight(c: Crane, h: number) {
   if (Math.abs(c.h - h) < 0.01) return;
@@ -311,6 +426,16 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
   const pitFloor = new THREE.Mesh(new THREE.PlaneGeometry(B.w, B.d).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xa48a66, roughness: 1 }));
   at(pitFloor, B.x + B.w / 2, -14.5, B.z + B.d / 2); pit.add(pitFloor);
   const basSlabs = new THREE.InstancedMesh(box(B.w - 0.4, 0.4, B.d - 0.4, 8, 8), m.concrete, 3); at(basSlabs, B.x + B.w / 2, 0, B.z + B.d / 2); pit.add(basSlabs);
+  // secant-pile heads round the pit as the shoring wall is bored, the haul ramp into the pit, dewatering pumps, dumpers
+  const shoringHeads = (() => { const P = 2 * (B.w + B.d), n = Math.floor(P / 1.3); const im = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.55, 0.55, 0.5, 8), m.pile, n); const mx = new THREE.Matrix4(); for (let i = 0; i < n; i++) { const [x, z] = perim(B.w + 1.2, B.d + 1.2, i / n); im.setMatrixAt(i, mx.makeTranslation(B.x + B.w / 2 + x, 0.25, B.z + B.d / 2 + z)); } im.userData.total = n; im.count = 0; im.visible = false; scene.add(im); return im; })();
+  const ramp = new THREE.Mesh(box(B.w * 0.3, 14.5, 9).translate(0, -7.25, 0), new THREE.MeshStandardMaterial({ color: 0xb49a74, roughness: 1 }));
+  { const pp = ramp.geometry.attributes.position; for (let i = 0; i < pp.count; i++) if (pp.getY(i) > -1) pp.setX(i, pp.getX(i) + B.w * 0.3); ramp.geometry.computeVertexNormals(); } // sheared: a slope from the pit floor up to the ground
+  at(ramp, B.x + B.w * 0.18, 0, B.z + B.d - 6); ramp.visible = false; pit.add(ramp);
+  const pumps = new THREE.Group(); pit.add(pumps); pumps.visible = false;
+  for (let i = 0; i < 3; i++) { const x = B.x + 6 + i * (B.w - 12) / 2, z = B.z + 4; pumps.add(at(new THREE.Mesh(box(1.6, 1.1, 1.2), new THREE.MeshStandardMaterial({ color: 0x2f6db5, roughness: 0.6 })), x, 0.55, z)); pumps.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 15, 6), m.dark), x, 7.5, z - 1)); }
+  const dumperGroup = new THREE.Group(); pit.add(dumperGroup); dumperGroup.visible = false;
+  const dumpers: Truck[] = [];
+  { const pts: [number, number][] = [[B.x + 10, B.z + 10], [B.x + 10, B.z + B.d - 14], [B.x + B.w - 10, B.z + B.d - 14], [B.x + B.w - 10, B.z + 10]].map(([x, z]) => [x / M, z / M]); const path = pathOf(pts, true); for (let i = 0; i < 3; i++) { const g = truckModel(m, 2); const t: Truck = { g, path, s: (path.len * i) / 3, speed: 5 + i }; dumpers.push(t); dumperGroup.add(g); placeTruck(t); } }
   shadow(pit, false, true);
 
   // hoarding round the plot, branded
@@ -390,6 +515,8 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
   const built: Record<string, Built & { key: string }> = {};
   const cranes = Object.keys(CRANE_AT).map((id) => craneModel(m, id));
   const craneGroup = new THREE.Group(); cranes.forEach((c) => craneGroup.add(c.root)); scene.add(craneGroup);
+  const mobiles: Record<string, THREE.Group> = {};
+  for (const c of cranes) { const mc = mobileCrane(m); mc.position.set(c.root.position.x + 14, 0, c.root.position.z + 9); mc.rotation.y = 0.4; mc.visible = false; mobiles[c.id] = mc; craneGroup.add(mc); }
   const hoists = new THREE.Group(); scene.add(hoists);
   const hoistCages: { cage: THREE.Mesh; top: number; ph: number }[] = [];
   const trucks: Truck[] = [];
@@ -416,7 +543,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
       if (built[b.id]?.key === key) continue;
       if (built[b.id]) { structs.remove(built[b.id].group); disposeTree(built[b.id].group); }
       const r = footprint(b.id)!;
-      const mdl = b.id === "podium" ? towerModel(m, b.id, r, 4, st, PODIUM_STOREY, { podium: true, raft: s.groundSlab }) : b.id === "club-e" ? towerModel(m, b.id, r, 3, st, 4.6, { club: true }) : towerModel(m, b.id, r, b.floors, st);
+      const mdl = b.id === "podium" ? towerModel(m, b.id, r, 4, st, PODIUM_STOREY, { podium: true, raft: s.groundSlab, night }) : b.id === "club-e" ? towerModel(m, b.id, r, 3, st, 4.6, { club: true }) : towerModel(m, b.id, r, b.floors, st);
       // the work zone / finished landscaping at the building's foot (not while it stands in the open pit)
       if (!inPit) mdl.group.add(aroundKit(m, b.id, b.id === "podium" ? "podium" : b.id === "club-e" ? "club" : "tower", r, { built: st.built, floors: b.id === "podium" ? 4 : b.id === "club-e" ? 3 : b.floors, glazed: st.glazed, fitted: st.fitted, topped: st.topped, active: st.active }, b.id === "podium" ? PODIUM_STOREY : b.id === "club-e" ? 4.6 : STOREY));
       built[b.id] = { ...mdl, key }; structs.add(mdl.group);
@@ -443,9 +570,12 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     // cranes
     for (const c of cranes) {
       const cs = s.cranes[c.id]; c.up = !!cs?.up; c.root.visible = c.up && layers.cranes;
+      const mob = mobiles[c.id]; mob.visible = layers.cranes && !!cs && ((cs.erect > 0 && cs.erect < 1) || (cs.down > 0 && cs.down < 1));
       if (!cs?.up) continue;
-      const h = cs.erect < 1 ? Math.max(8, 60 * cs.erect) : Math.max(40, cs.floors * STOREY + 10);
-      setCraneHeight(c, h); c.slew.visible = cs.erect >= 1;
+      // erection: base, then mast sections, then the slew unit and jib; climbing with the frame; dismantled in reverse
+      const full = Math.max(40, cs.floors * STOREY + 10);
+      const h = cs.erect < 1 ? Math.max(6, Math.min(full, 60) * Math.min(1, cs.erect / 0.8)) : cs.down > 0 ? Math.max(6, full * (1 - Math.max(0, (cs.down - 0.3) / 0.7))) : full;
+      setCraneHeight(c, h); c.slew.visible = cs.erect >= 0.8 && cs.down < 0.3;
       // ties to the building every ten floors
       c.root.children.filter((o) => o.userData.tie).forEach((o) => c.root.remove(o));
       const tw = s.struct[CRANE_AT[c.id].tower]; const fp = footprint(CRANE_AT[c.id].tower);
@@ -474,21 +604,28 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
       else g.visible = s.temp.offices > 0.3;
     }
     for (const g of services.children) { const f = s.services[g.userData.svc as string] ?? 1; g.visible = f > 0.05; g.scale.y = Math.max(0.05, Math.min(1, f * 1.4)); }
-    truckGroup.visible = s.mobilised > 0.5;
-    hoard.visible = s.mobilised > 0.2;
+    truckGroup.visible = s.mobilised > 0.5 && !s.handedOver;
+    { const n = 1 + Math.round(s.manpower / 180); trucks.forEach((t, i) => { t.g.visible = i < n; }); }
+    hoard.visible = s.mobilised > 0.2 && !s.handedOver;
+    // palms are planted as the landscaping runs; the pit's shoring wall, ramp, dumpers and pumps
+    { const n = s.landscape >= 1 ? trees.length : Math.round(trees.length * s.landscape); trunks.count = n; crowns.count = n; }
+    shoringHeads.count = Math.round(shoringHeads.userData.total * Math.min(1, s.shoring)); shoringHeads.visible = s.shoring > 0 && !s.groundSlab;
+    ramp.visible = open && s.excavation > 0.15; ramp.scale.y = Math.max(0.05, -pitFloor.position.y / 14.5);
+    pumps.visible = open && s.excavation > 0.4 && s.basementLevels < 2; pumps.position.y = pitFloor.position.y;
+    dumperGroup.visible = open && s.excavation < 1; dumperGroup.position.y = pitFloor.position.y;
     const decks: Deck[] = [];
     for (const b of BUILDINGS) { const st = s.struct[b.id]; if (!st || st.active <= 0 || st.built >= b.floors) continue; const r = footprint(b.id)!, sy = b.id === "podium" ? PODIUM_STOREY : b.id === "club-e" ? 4.6 : STOREY; decks.push({ id: b.id, x: r.x + r.w / 2, z: r.z + r.d / 2, w: r.w * 0.84, d: r.d * 0.84, y: st.built * sy + sy - 0.05 + (open && ["tower-a", "tower-b", "podium"].includes(b.id) ? pitFloor.position.y + 3.6 * s.basementLevels : 0) }); }
     details.setState(s, { pitDepth: pitFloor.position.y, pitOpen: open, decks, topOf });
     grounds.setState(s);
     // ground: redraw only when the road surface or landscaping changes state
-    const gk = `${s.roads > 0.99}|${Math.round(s.landscape * 5)}`;
+    const gk = `${s.roads > 0.99 ? 2 : s.roadsBase > 0.5 ? 1 : 0}|${Math.round(s.landscape * 5)}`;
     if (groundKey !== gk) { groundKey = gk; redrawGround(); }
     setSelected(selId);
   }
   let groundKey = "";
   function redrawGround() {
     const old = groundTex;
-    groundTex = drawGround({ layers, night, roads: state?.roads ?? 0, landscape: state?.landscape ?? 0, size: opts.textureSize });
+    groundTex = drawGround({ layers, night, roads: !state ? 0 : state.roads > 0.99 ? 1 : state.roadsBase > 0.5 ? 0.5 : 0, landscape: state?.landscape ?? 0, size: opts.textureSize });
     groundMat.map = groundTex; groundMat.needsUpdate = true; old.dispose();
   }
 
@@ -503,6 +640,7 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     scene.environmentIntensity = n ? 0.25 : 0.7;
     m.glassLit.emissiveIntensity = n ? 0.95 : 0;
     m.renderLit.emissiveIntensity = n ? 0.55 : 0;
+    m.glassWork.emissiveIntensity = n ? 0.4 : 0; m.worklight.emissiveIntensity = n ? 0.9 : 0;
     (desert.material as THREE.MeshStandardMaterial).color.set(n ? 0x2f2a22 : 0xd2bd98);
     m.ghost.color.set(n ? 0xffffff : 0x2e2e2f); m.ghostFill.color.set(n ? 0xffffff : 0x2e2e2f);
     lights.children.forEach((c) => { if (c.userData.flood) c.visible = n; });
@@ -552,7 +690,8 @@ export function createSiteScene(renderer: THREE.WebGLRenderer, opts: { textureSi
     for (const c of cranes) { c.light.visible = !night || Math.sin(time * 4 + c.r) > 0; if (c.up && c.slew.visible && animate) stepCrane(c, dt, time, (x, z) => groundAt(x, z)); else if (c.up) { c.slew.rotation.y = c.ang; c.trolley.position.x = c.tr; c.cable.scale.y = c.cab; c.cable.position.y = 0.6 - c.cab / 2; c.hook.position.y = 0.6 - c.cab; } }
     if (animate) {
       for (const h of hoistCages) h.cage.position.y = 2 + (h.top - 4) * (0.5 - 0.5 * Math.cos(time * 0.18 + h.ph));
-      for (const t of trucks) { t.s += t.speed * dt; placeTruck(t); if (t.drum) t.drum.rotation.x += dt * 2.4; }
+      for (const t of trucks) if (t.g.visible) { t.s += t.speed * dt; placeTruck(t); if (t.drum) t.drum.rotation.x += dt * 2.4; }
+      if (dumperGroup.visible) for (const t of dumpers) { t.s += t.speed * dt; placeTruck(t); }
     }
   }
   function groundAt(x: number, z: number) {

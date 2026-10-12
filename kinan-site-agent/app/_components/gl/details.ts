@@ -145,10 +145,12 @@ export function createDetails(m: Mats): DetailsApi {
   const deckWorkers = workers.length; // the rest live on the active decks
   for (let i = workers.length; i < N; i++) workers.push(mk("deck", new V3(), new V3(), i % 4));
   let decks: Deck[] = [];
+  let crowd = N; // how many of the workers are on site today (from the programme's manpower)
   const face = new THREE.Vector3();
   const placeWorkers = (time: number, dt: number, animate: boolean) => {
     for (let i = 0; i < N; i++) {
       const wk = workers[i];
+      if (i >= crowd && (i % 5 !== 0 || i >= crowd * 2)) { place(bodies, i, 0, -50, 0); place(hats, i, 0, -50, 0); continue; }
       let x = 0, y = 0, z = 0, ry = wk.phase;
       if (wk.kind === "walk") {
         if (animate) { wk.s += (wk.speed * wk.dir * dt) / wk.a.distanceTo(wk.b); if (wk.s > 1 || wk.s < 0) { wk.dir *= -1; wk.s = Math.max(0, Math.min(1, wk.s)); } }
@@ -202,13 +204,14 @@ export function createDetails(m: Mats): DetailsApi {
   let night = false;
   function setState(s: SiteState, ctx: DetailsCtx) {
     decks = ctx.decks;
+    crowd = Math.max(0, Math.min(N, Math.round(s.manpower / 9)));
     excavator.visible = ctx.pitOpen && s.excavation < 1;
     if (excavator.visible) { excavator.position.set(390 * M + 40, ctx.pitDepth, 330 * M + 30); }
     trench.visible = s.services.substation > 0.1 && s.roads < 0.5 && (s.date >= "2026-03-01" && s.date <= "2026-11-30");
-    furniture.visible = s.temp.offices > 0.3;
-    for (const im of statics.children) im.visible = s.mobilised > 0.3;
+    furniture.visible = s.temp.offices > 0.3 && !s.handedOver;
+    for (const im of statics.children) im.visible = s.mobilised > 0.3 && !s.handedOver;
     cars.body.visible = cars.cab.visible = true;
-    bodies.visible = hats.visible = s.mobilised > 0.5 && !(s.date > "2028-07-31");
+    bodies.visible = hats.visible = s.mobilised > 0.5 && !s.handedOver;
   }
   function setNight(n: boolean) { night = n; lamps.visible = n; }
   function tick(dt: number, time: number, animate: boolean) {
@@ -265,12 +268,7 @@ export function constructionKit(m: Mats, o: { w: number; d: number; storey: numb
   }
   if (active > 0 && built < floors) {
     const top = built * storey, deckY = top + storey - 0.2;
-    // falsework props and the plywood soffit under the deck being cast
-    const nx = Math.max(2, Math.floor(w / 2.4)), nz = Math.max(2, Math.floor(d / 2.4)), h = storey - 0.62;
-    const props = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.06, 0.06, h, 6).translate(0, h / 2, 0), m.steel, nx * nz);
-    let n = 0; for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) place(props, n++, -w / 2 + 1.2 + i * ((w - 2.4) / (nx - 1)), top, -d / 2 + 1.2 + j * ((d - 2.4) / (nz - 1)));
-    g.add(props); g.add(at(new THREE.Mesh(box(w, 0.08, d), m.ply), 0, deckY - 0.44, 0));
-    // rebar stacks, a concrete skip and workers' huts on the deck
+    // rebar stacks and a concrete skip on the deck (the deck itself — falsework, soffit, mat, pour — is drawn by towerModel)
     const R = rng(o.id.length * 13 + built);
     for (let i = 0; i < 6; i++) { const b = at(new THREE.Mesh(box(6, 0.3, 0.7), m.rust), -w * 0.35 + R() * w * 0.7, deckY + 0.3, -d * 0.35 + R() * d * 0.7); b.rotation.y = R() < 0.5 ? 0 : Math.PI / 2; g.add(b); }
     // placing boom on the deck (tall buildings) or a pump truck at the base

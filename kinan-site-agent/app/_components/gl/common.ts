@@ -53,6 +53,10 @@ export interface Mats {
   cabin: THREE.MeshStandardMaterial; hoard: THREE.MeshStandardMaterial; fence: THREE.MeshStandardMaterial; scaffold: THREE.MeshStandardMaterial; paving: THREE.MeshStandardMaterial; yellow: THREE.MeshStandardMaterial; ghost: THREE.LineDashedMaterial; ghostFill: THREE.MeshBasicMaterial;
   white: THREE.MeshStandardMaterial; dark: THREE.MeshStandardMaterial; skylight: THREE.MeshStandardMaterial; palm: THREE.MeshStandardMaterial; trunk: THREE.MeshStandardMaterial;
   aviation: THREE.MeshBasicMaterial; rust: THREE.MeshStandardMaterial; ply: THREE.MeshStandardMaterial; sel: THREE.LineBasicMaterial;
+  /** wet concrete being poured; a cured slab just stripped; work lights on a floor in MEP first fix (night); a pile head */
+  wet: THREE.MeshStandardMaterial; cured: THREE.MeshStandardMaterial; worklight: THREE.MeshStandardMaterial; pile: THREE.MeshStandardMaterial;
+  /** curtain wall on a floor in MEP first fix: cold work lights behind the glass at night */
+  glassWork: THREE.MeshStandardMaterial;
 }
 export function materials(): Mats {
   const cw = curtainWall(false), cwl = curtainWall(true);
@@ -92,6 +96,11 @@ export function materials(): Mats {
     rust: S({ color: 0x8a4a2a, roughness: 0.9, metalness: 0.2 }),
     ply: S({ color: 0xc89a55, roughness: 0.85 }),
     sel: new THREE.LineBasicMaterial({ color: ORANGE, transparent: true, opacity: 0.95, depthTest: false }),
+    wet: S({ color: 0x5e6066, roughness: 0.25, metalness: 0.05, envMapIntensity: 1.2 }),
+    cured: S({ color: 0xb9b7b0, roughness: 0.95 }),
+    worklight: S({ color: 0x8fa8d0, emissive: 0x9fc0ff, emissiveIntensity: 0, transparent: true, opacity: 0.55, depthWrite: false }),
+    pile: S({ map: conc2, roughness: 0.98 }),
+    glassWork: S({ map: cw.map, emissiveMap: cwl.emissive, emissive: 0xa9c4ff, emissiveIntensity: 0, roughness: 0.18, metalness: 0.55, envMapIntensity: 1.25 }),
   };
 }
 
