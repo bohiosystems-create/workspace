@@ -838,7 +838,7 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
 
 <section class="pane" id="p-scen">
   <div class="card" id="aiSensCard" style="margin-bottom:20px">
-    <div class="bar"></div><div class="sbhead"><h2>Sensitivity table</h2><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px"><label>Metric <select id="asMetric"></select></label><label>Grid <select id="asN"><option>5</option><option selected>7</option><option>9</option></select></label></div></div>
+    <div class="bar"></div><div class="sbhead"><h2>Sensitivity table</h2><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px"><select id="asMetric" hidden aria-hidden="true"></select><label>Grid <input id="asN" type="number" min="3" max="15" step="2" value="7" title="Cells per axis (odd number, 3 to 15)" style="width:58px;font:inherit;font-size:12.5px;padding:5px 8px;border:1px solid var(--faint);background:#fff"></label></div></div>
     <div class="sub">Write in plain words what to stress on each axis. The agent pins down the exact assumption of the model (and asks if it is unsure), then Claude and OpenAI each calculate every cell from EstateMaster’s figures and check each other’s working. Where EstateMaster’s export already holds the same table, EstateMaster’s own figures are shown instead.</div>
     <div class="as-axes"><div class="as-x"><span class="as-axl">X axis →</span><input id="asX" placeholder="e.g. construction cost, from −20% to +20%"></div><div class="as-x as-yrow"><span class="as-axl">Y axis ↑</span><input id="asY" placeholder="e.g. the sale price of the villas"></div><div class="as-go"><button class="btn" id="asGo">Generate</button></div></div>
     <div id="asQ"></div>
@@ -1689,7 +1689,7 @@ async function handle(text,ch,role,forced){
     out.steps=['Pin down the two assumptions'];out.link=['scen','Open the sensitivity table'];
     try{AS.thread={x:[],y:[]};AS.x=AS.y=null;AS.txt={x:tx,y:ty};const [px,py]=await Promise.all([asPinpoint('x',tx),asPinpoint('y',ty)]);
       if(px.sure===false||py.sure===false){out.fx=()=>{$('#asX').value=tx;$('#asY').value=ty;asGenerate()};done(`Before I calculate, one thing: ${[px,py].filter(j=>j.sure===false).map(j=>j.question).join(' ')} Answer on the Scenarios & stress tab, under the axis boxes.`);break}
-      AS.x=asPin(px,+$('#asN').value);AS.y=asPin(py,+$('#asN').value);const em=asEmTable(AS.x,AS.y,mk);let r;
+      AS.x=asPin(px,asGridN());AS.y=asPin(py,asGridN());const em=asEmTable(AS.x,AS.y,mk);let r;
       if(em){r={em,mk};out.steps.push('EstateMaster’s export holds this table')}else r=await aiSensGrid(AS.x,AS.y,mk,async st=>{out.steps.push(st)});
       AS.res=r;out.fx=()=>{$('#asX').value=tx;$('#asY').value=ty;$('#asMetric').value=mk;renderAiSens()};done(asPlain(r),asHTML(r))}
     catch(e){done(e.message)}
@@ -3687,7 +3687,7 @@ async function asGenerate(){if(AS.busy)return;const tx=($('#asX').value||'').tri
   const step=async t=>{steps.querySelectorAll('.st.now').forEach(x=>{x.classList.remove('now');x.classList.add('done')});steps.insertAdjacentHTML('beforeend',`<div class="st now"><i></i><span>${esc(t)}</span></div>`);if($('#asNow'))$('#asNow').textContent=t};
   let outcome='';
   try{if(AS.txt.x!==tx){AS.thread.x=[];AS.x=null;AS.txt.x=tx}if(AS.txt.y!==ty){AS.thread.y=[];AS.y=null;AS.txt.y=ty}
-    const n=+$('#asN').value,mk=$('#asMetric').value,need=[['x',tx],['y',ty]].filter(([a])=>!AS[a]);
+    const n=asGridN(),mk=$('#asMetric').value,need=[['x',tx],['y',ty]].filter(([a])=>!AS[a]);
     if(need.length){await step('Pinning down the assumptions');const pins=await Promise.all(need.map(([a,t])=>asPinpoint(a,t)));const qs=[];
       need.forEach(([a],i)=>{const j=pins[i];if(j.sure===false&&j.question)qs.push([a,j]);else AS[a]=asPin(j,n)});
       if(qs.length){AS.pendQ=Object.fromEntries(qs.map(([a,j])=>[a,j.question]));$('#asQ').innerHTML=qs.map(([a,j])=>`<div class="as-ask" data-asax="${a}"><b>${a.toUpperCase()} axis · ${esc(j.question)}</b><div class="chips" style="margin:6px 0">${(j.options||[]).map(o=>`<span class="chip" data-asopt="${esc(o)}">${esc(o)}</span>`).join('')}</div><form class="as-ansf" style="display:flex;gap:6px"><input placeholder="or answer in your own words" style="flex:1"><button class="btn ghost sm">Answer</button></form></div>`).join('');
@@ -6319,7 +6319,8 @@ $('#mkAsk').addEventListener('click',()=>showTab('agent'));
 /* explorer + heat + stress controls */
 Object.keys(MET).forEach(k=>$('#asMetric').add(new Option(MET[k][0],k)));
 $('#asGo').onclick=()=>asGenerate();[$('#asX'),$('#asY')].forEach(i=>i.onkeydown=e=>{if(e.key==='Enter')asGenerate()});
-$('#asMetric').onchange=()=>{if(AS.x&&AS.y)asGenerate()};$('#asN').onchange=()=>{if(AS.x&&AS.y){AS.x=AS.y=null;asGenerate()}};
+$('#asMetric').onchange=()=>{if(AS.x&&AS.y)asGenerate()};function asGridN(){const el=$('#asN');let n=Math.round(+el.value)||7;n=Math.max(3,Math.min(15,n));if(n%2===0)n+=n<15?1:-1;if(String(n)!==el.value)el.value=n;return n}
+$('#asN').onchange=()=>{asGridN();if(AS.x&&AS.y){AS.x=AS.y=null;asGenerate()}};
 document.addEventListener('click',e=>{const o=e.target.closest('[data-asopt]');if(o){asAnswer(o.closest('[data-asax]').dataset.asax,o.dataset.asopt)}});
 document.addEventListener('submit',e=>{const f=e.target.closest('.as-ansf');if(f){e.preventDefault();const v=f.querySelector('input').value.trim();if(v)asAnswer(f.closest('[data-asax]').dataset.asax,v)}
   const q=e.target.closest('[data-crq]');if(q){e.preventDefault();const v=q.querySelector('input').value.trim();if(v){q.querySelector('input').value='';crFollowUp(q.dataset.crq,v)}}});
