@@ -4478,15 +4478,23 @@ const RP_TR_SYS='You translate the text of a real estate investment report from 
 async function rpArabicBuild(id){const key=rpKeyFor(id);const have=RPAR.get(key);if(have&&have.html)return have;if(have&&have.then)return have;if(!apiOn())return null;
   const p=(async()=>{const src=$('#report');if(!src||RSEL!==id||src.classList.contains('rtl'))return null;const clone=src.cloneNode(true);
     const walker=document.createTreeWalker(clone,NodeFilter.SHOW_TEXT);const nodes=[];let n;while((n=walker.nextNode())){const t=n.nodeValue;if(!t||!/[A-Za-z]{2,}/.test(t))continue;const pe=n.parentElement;if(pe&&pe.closest('script,style,[data-notr]'))continue;nodes.push(n)}
-    const uniq=[...new Set(nodes.map(n=>n.nodeValue.trim()).filter(t=>t&&t.length<=600))].slice(0,500),map={};
-    for(let i=0;i<uniq.length;i+=50){const batch=uniq.slice(i,i+50);try{const r=await complete(RP_TR_SYS,JSON.stringify(batch),'smart',{max:8000,task:'answer'});const j=jsonLoose(r.text);(j.t||[]).forEach((tr,k)=>{if(batch[k]&&tr&&typeof tr==='string')map[batch[k]]=tr})}catch(e){}}
-    if(!Object.keys(map).length)return null;
+    const uniq=[...new Set(nodes.map(n=>n.nodeValue.trim()).filter(t=>t&&t.length<=600))].slice(0,400),map={},errs=[];
+    // batches translated in parallel on the fast route (a few seconds, not minutes); the note shows the progress
+    const batches=[];for(let i=0;i<uniq.length;i+=60)batches.push(uniq.slice(i,i+60));let done=0;RPAR_PROG[key]=`0/${batches.length}`;rpLangNote(id);
+    await Promise.all(batches.map(async batch=>{try{const r=await complete(RP_TR_SYS,JSON.stringify(batch),'fast',{max:7000,task:'answer'});const j=jsonLoose(r.text);(j.t||[]).forEach((tr,k)=>{if(batch[k]&&tr&&typeof tr==='string')map[batch[k]]=tr})}catch(e){errs.push(provErr(e.message))}finally{done++;RPAR_PROG[key]=`${done}/${batches.length}`;rpLangNote(id)}}));
+    delete RPAR_PROG[key];
+    if(!Object.keys(map).length){RPAR.set(key,{err:errs[0]||'the AI returned no translation'});return null}
     nodes.forEach(n=>{const k=n.nodeValue.trim();if(map[k])n.nodeValue=n.nodeValue.replace(k,map[k])});
     const v={html:clone.innerHTML,at:new Date().toISOString(),n:Object.keys(map).length};RPAR.set(key,v);
     try{const keep=[...RPAR.entries()].filter(([,x])=>x&&x.html).slice(-6);localStorage.setItem('em_rpar',JSON.stringify(Object.fromEntries(keep)))}catch(e){}
     return v})();
-  RPAR.set(key,p);p.then(v=>{if(!v)RPAR.delete(key);if(RSEL===id&&RPLANG==='ar')rpLangUI()}).catch(()=>RPAR.delete(key));return p}
+  RPAR.set(key,p);p.then(v=>{if(!v&&!(RPAR.get(key)||{}).err)RPAR.delete(key);if(RSEL===id&&RPLANG==='ar')rpLangUI()}).catch(e=>{RPAR.set(key,{err:provErr(e.message)});if(RSEL===id&&RPLANG==='ar')rpLangUI()});return p}
+const RPAR_PROG={};
 function rpArabicReady(id){const v=RPAR.get(rpKeyFor(id));return v&&v.html?v:null}
+function rpLangNote(id){const note=$('#rpLangNote');if(!note||RSEL!==id||RPLANG!=='ar')return;const key=rpKeyFor(id),v=RPAR.get(key),pr=RPAR_PROG[key];note.style.display='';
+  if(v&&v.err)note.innerHTML=`<span class="dn">The Arabic version could not be built: ${esc(v.err)}</span> <a class="go" data-rpretry>Try again</a>`;
+  else note.innerHTML=`<span class="spin"></span> Translating the report into Arabic${pr?' · '+pr:''}… it stays ready once built.`}
+document.addEventListener('click',e=>{if(!e.target.closest('[data-rpretry]'))return;RPAR.delete(rpKeyFor(RSEL));rpLangUI()});
 function rpLangUI(){const t=$('#rpLang');if(!t)return;const daily=RSEL==='daily',note=$('#rpLangNote');
   t.querySelectorAll('[data-rplang]').forEach(b=>{const on=b.dataset.rplang===RPLANG;b.classList.toggle('on',on);b.classList.toggle('ghost',!on);b.setAttribute('aria-pressed',on?'true':'false')});
   const ar=RPLANG==='ar',fr=$('#reportAr'),doc=$('#report');if(note)note.style.display='none';
@@ -4497,8 +4505,8 @@ function rpLangUI(){const t=$('#rpLang');if(!t)return;const daily=RSEL==='daily'
   if(!ar){if(doc.classList.contains('rtl')){doc.classList.remove('rtl');doc.innerHTML=RPTS[RSEL].fn();kDocAnimate()}return}
   const v=rpArabicReady(RSEL);
   if(v){if(!doc.classList.contains('rtl')||doc.dataset.arKey!==rpKeyFor(RSEL)){doc.innerHTML=v.html;doc.classList.add('rtl');doc.dataset.arKey=rpKeyFor(RSEL);kDocAnimate()}return}
-  if(note){note.style.display='';note.innerHTML=apiOn()?'<span class="spin"></span> Building the Arabic version… it stays ready once built.':'Arabic needs the AI connected (Settings → AI & routing).'}
-  if(apiOn())rpArabicBuild(RSEL)}
+  if(!apiOn()){if(note){note.style.display='';note.textContent='Arabic needs the AI connected (Settings → AI & routing).'}return}
+  rpLangNote(RSEL);const cur=RPAR.get(rpKeyFor(RSEL));if(!cur||!(cur.err))rpArabicBuild(RSEL)}
 function rpArabicHtml(){const d=DAILYSRV&&DAILYSRV.daily;return d&&d.html&&d.html.ar&&String(d.at).slice(0,10)===new Date().toISOString().slice(0,10)?d.html.ar:''}
 let RP_FETCH=null;
 function rpFetchDaily(){RP_FETCH=dailyApi({action:'preview'}).then(j=>{if(j&&j.previews){DAILYSRV.daily=j.daily&&j.daily.html?j.daily:{at:new Date().toISOString(),html:j.previews};DRLAST=j.previews}}).catch(()=>{}).finally(()=>{RP_FETCH=null;rpLangUI()})}
@@ -4509,10 +4517,28 @@ function kPrepareSoon(id){clearTimeout(KPREP);KPREP=setTimeout(()=>kPrepare(id).
 async function kPrepare(id){if(!RPTS[id]||KP)return;const lang=kLang();await kRiskAI().catch(()=>null);if(RSEL!==id||KP||kLang()!==lang)return;const deck=buildDeck(id),S=kScriptFor(deck,RPTS[id]);
   const clips=async S_=>{if(await kVoiceCheck()!=='eleven'||KP||kLang()!==lang)return;for(const n of [0,1]){if(!deck.slides[n])continue;const tn=kTrack(kSegsOf(deck,S_,n),null);await kVoiceClip(tn.text,'',tn.off.slice(1))}};
   await clips(S);if(S.pending){await S.pending;if(RSEL!==id||KP||kLang()!==lang)return;if(S.ai)await clips(S)}
-  if(apiOn()&&!deck.noAI)kScriptAI(deck,RPTS[id],lang==='ar'?'en':'ar').catch(()=>null)}
+  if(apiOn()&&!deck.noAI){if(lang==='ar')kScriptAI(deck.en||deck,RPTS[id],'en').catch(()=>null);else kDeckAr(deck).then(d=>d&&kScriptAI(d,RPTS[id],'ar')).catch(()=>null)}}
+/* ---- the deck in Arabic: slide titles, subtitles, labels, points and captions translated by the AI once per deck (cached),
+   numbers, codes and names untouched; the Arabic narration script is written from this deck so its cues match the Arabic labels. ---- */
+const KDAR=new Map();try{for(const [k,v] of Object.entries(JSON.parse(localStorage.getItem('em_dkar')||'{}')))KDAR.set(k,v)}catch(e){}
+const KD_SKIP=new Set(['kind','id','fig','f','unit','tone','tones','k','img','color','icon','say','prefix','suffix','decimals','value','values','xs','ys','grid','shifts','status','ref','rid','seg','pre','suf','src','file','date','lang','script','noAI']);
+function kDeckKey(deck){return JSON.stringify(kDeckBrief(deck)).slice(0,20000)+'|'+deck.slides.length}
+function kDeckStrings(deck){const out=new Set();const walk=(v,key)=>{if(typeof v==='string'){if(!KD_SKIP.has(key)&&/[A-Za-z]{2,}/.test(v)&&v.length<=400)out.add(v)}else if(Array.isArray(v))v.forEach(x=>walk(x,key));else if(v&&typeof v==='object')for(const [k,x] of Object.entries(v)){if(k==='script'||k==='segs')continue;walk(x,k)}};walk(deck.slides,'slides');return[...out]}
+function kDeckApply(deck,map){const conv=(v,key)=>{if(typeof v==='string')return!KD_SKIP.has(key)&&map[v]?map[v]:v;if(Array.isArray(v))return v.map(x=>conv(x,key));if(v&&typeof v==='object'){const o={};for(const [k,x] of Object.entries(v)){if(k==='script')continue;o[k]=conv(x,k)}return o}return v};
+  const d={...deck,slides:conv(deck.slides,'slides'),lang:'ar',en:deck.en||deck};return d}
+function kDeckArReady(deck){const v=KDAR.get(kDeckKey(deck.en||deck));return v&&v.map?kDeckApply(deck.en||deck,v.map):null}
+async function kDeckAr(deck){deck=deck.en||deck;const key=kDeckKey(deck);const have=KDAR.get(key);if(have&&have.map)return kDeckApply(deck,have.map);if(have&&have.then)return have;if(!apiOn())return null;
+  const p=(async()=>{const strs=kDeckStrings(deck).slice(0,400),map={};const batches=[];for(let i=0;i<strs.length;i+=60)batches.push(strs.slice(i,i+60));
+    await Promise.all(batches.map(async batch=>{try{const r=await complete(RP_TR_SYS,JSON.stringify(batch),'fast',{max:7000,task:'answer'});const j=jsonLoose(r.text);(j.t||[]).forEach((tr,k)=>{if(batch[k]&&tr&&typeof tr==='string')map[batch[k]]=tr})}catch(e){}}));
+    if(!Object.keys(map).length)return null;KDAR.set(key,{map,at:new Date().toISOString()});
+    try{const keep=[...KDAR.entries()].filter(([,x])=>x&&x.map).slice(-4);localStorage.setItem('em_dkar',JSON.stringify(Object.fromEntries(keep)))}catch(e){}
+    return kDeckApply(deck,map)})();
+  KDAR.set(key,p);p.then(v=>{if(!v)KDAR.delete(key)}).catch(()=>KDAR.delete(key));return p}
+/* the deck to show for the current language: Arabic when ready, else English while it builds (the slide swaps when it arrives) */
+function kDeckForLang(deck,lang){if(lang!=='ar')return deck.en||deck;const ar=kDeckArReady(deck);if(ar)return ar;if(apiOn()){kDeckAr(deck).then(d=>{if(d&&KP&&kLang()==='ar'&&(KP.deck.en||KP.deck)===(deck.en||deck)){KP.deck=d;KP.script=kScriptFor(d,RPTS[RSEL]);d.script=KP.script;KP.root.classList.add('kd-rtl');const i=KP.i;KP.i=-1;kGo(i)}}).catch(()=>{})}return deck.en||deck}
 /* switch the narration language inside ▶ Play: the other language's script was written in the background, so the slide restarts at once */
 function kSwitchLang(lang){try{localStorage.setItem('bohioVoiceLang',lang)}catch(err){}RPLANG=lang;KVOICE.cache.clear();KS_CACHE.clear();
-  if(KP){KP.script=kScriptFor(KP.deck,RPTS[RSEL]);KP.deck.script=KP.script;const cc=KP.root.querySelector('.kd-cc');if(cc)cc.dir=lang==='ar'?'rtl':'ltr';KP.root.querySelectorAll('[data-act=lang]').forEach(b=>{b.textContent=lang==='ar'?'EN':'ع';b.title=lang==='ar'?'Narration in English':'التعليق الصوتي بالعربية'});const i=KP.i;KP.i=-1;kGo(i)}
+  if(KP){KP.deck=kDeckForLang(KP.deck,lang);KP.root.classList.toggle('kd-rtl',lang==='ar'&&KP.deck.lang==='ar');KP.script=kScriptFor(KP.deck,RPTS[RSEL]);KP.deck.script=KP.script;const cc=KP.root.querySelector('.kd-cc');if(cc)cc.dir=lang==='ar'?'rtl':'ltr';KP.root.querySelectorAll('[data-act=lang]').forEach(b=>{b.textContent=lang==='ar'?'EN':'ع';b.title=lang==='ar'?'Narration in English':'التعليق الصوتي بالعربية'});const i=KP.i;KP.i=-1;kGo(i)}
   toast(lang==='ar'?'التعليق الصوتي بالعربية':'Narration in English')}
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 function csv(){const xs=axis(hx,hn),ys=axis(hy,hn);let c=`${VARS[hy].label} \\ ${VARS[hx].label},`+xs.join(',')+'\n';ys.forEach(y=>{c+=y+','+xs.map(x=>{const r=run({...S,[hx]:x,[hy]:y});return Number.isNaN(r.irr)?'':(r.irr*100).toFixed(2)}).join(',')+'\n'});return c}
@@ -4925,7 +4951,7 @@ function kSegTimes(clip,segs){if(!clip||!clip.starts||clip.starts.length<10)retu
   for(const o of off){const want=text[o];while(j<ch.length&&(ch[j]!==want||j<o*0.6))j++;if(j>=ch.length){out.push(null);continue}out.push(st[j]);j++}
   return out.map((t,i)=>t==null?(i?out[i-1]:0):t)}
 async function kSpeakSegs(segs,onSeg,next){kStopVoice();const tok=KVTOK;const text=kSegText(segs);if(!text)return false;const fire=k=>{try{onSeg&&onSeg(k)}catch(e){}};
-  if(KVOICE.mode==='eleven'){const clip=await kVoiceClip(text,next);if(tok!==KVTOK)return false;if(clip){KVPREV=text;const times=kSegTimes(clip,segs);return new Promise(ok=>{const a=kAudio(clip.url);KAUDIO=a;let k=0,raf=0;fire(0);
+  if(KVOICE.mode==='eleven'){const clip=await kVoiceClip(text,next);if(tok!==KVTOK)return 'superseded';if(clip){KVPREV=text;const times=kSegTimes(clip,segs);return new Promise(ok=>{const a=kAudio(clip.url);KAUDIO=a;let k=0,raf=0;fire(0);
       const tick=()=>{if(KAUDIO!==a)return;const t=a.currentTime;if(times){while(k<segs.length-1&&t>=times[k+1]-0.05){k++;fire(k)}}else{const total=a.duration||0;if(total){const w=kSegOffsets(segs);while(k<segs.length-1&&t>=total*w[k+1]/text.length){k++;fire(k)}}}raf=requestAnimationFrame(tick)};raf=requestAnimationFrame(tick);
       a.onended=()=>{cancelAnimationFrame(raf);if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>{cancelAnimationFrame(raf);ok(false)};a.play().catch(()=>{cancelAnimationFrame(raf);ok(false)})})}}
   if(kBrowserVoice()){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(text.slice(0,1400));const L=kLang();u.lang=L==='ar'?'ar-SA':'en-US';const v=speechSynthesis.getVoices().find(x=>new RegExp('^'+L,'i').test(x.lang));if(v)u.voice=v;u.rate=1;const off=kSegOffsets(segs);let k=0,bounded=false;fire(0);
@@ -4988,7 +5014,7 @@ function kTrack(segs,figs){const sp=segs.map(g=>kSpeech(g.t)),text=sp.join(' '),
 function kPaceTrack(tr,on,ms){let ei=0;const t0=performance.now(),total=ms||Math.max(2500,tr.text.split(/\s+/).length/2.6*1000);const adv=pos=>{while(ei<tr.ev.length&&tr.ev[ei].at<=pos)on(tr.ev[ei++])};adv(0);
   const iv=setInterval(()=>adv((performance.now()-t0)/total*tr.len),120);return()=>clearInterval(iv)}
 async function kSpeakTrack(tr,on,next){kStopVoice();const tok=KVTOK;if(!tr.text)return false;let ei=0;const adv=pos=>{while(ei<tr.ev.length&&tr.ev[ei].at<=pos){try{on(tr.ev[ei])}catch(e){}ei++}};
-  if(KVOICE.mode==='eleven'){const clip=await kVoiceClip(tr.text,next,tr.off.slice(1));if(tok!==KVTOK)return false;if(clip){KVPREV=tr.text;const st=clip.starts||[],exact=st.length===tr.len;
+  if(KVOICE.mode==='eleven'){const clip=await kVoiceClip(tr.text,next,tr.off.slice(1));if(tok!==KVTOK)return 'superseded';if(clip){KVPREV=tr.text;const st=clip.starts||[],exact=st.length===tr.len;
       const posAt=(t,dur)=>{if(st.length>10){let lo=0,hi=st.length-1;while(lo<hi){const mid=(lo+hi+1)>>1;if(st[mid]<=t)lo=mid;else hi=mid-1}return exact?lo:lo*tr.len/st.length}return dur?t/dur*tr.len:0};
       return new Promise(ok=>{const a=kAudio(clip.url);KAUDIO=a;let raf=0;adv(0);
         const tick=()=>{if(KAUDIO!==a)return;adv(posAt(a.currentTime+0.08,a.duration));raf=requestAnimationFrame(tick)};raf=requestAnimationFrame(tick);
@@ -5013,10 +5039,11 @@ async function kVoiceMenu(btn){const root=KP&&KP.root;if(!root)return;let m=root
     const pv=e.target.closest('[data-vprev]');if(pv){kStopVoice();const a=kAudio(pv.dataset.vprev);KAUDIO=a;a.play().catch(()=>toast('Sample could not play'))}}}
 let KP=null;
 function openDeck(deck){
-  closeDeck();const slides=deck.slides;const root=document.createElement('div');root.className='kd-root';root.setAttribute('role','dialog');root.setAttribute('aria-label',deck.title);
+  closeDeck();deck=kDeckForLang(deck,kLang());const slides=deck.slides;const root=document.createElement('div');root.className='kd-root';root.setAttribute('role','dialog');root.setAttribute('aria-label',deck.title);
   root.innerHTML=`<div class="kd-bg" aria-hidden="true"><span class="kd-tex"></span><div class="kd-fullbg"></div><div class="kd-ambient"><i class="a"></i><i class="b"></i><i class="c"></i><span class="kd-grid"></span><span class="kd-grain"></span></div></div><div class="kd-top"><span class="kd-toplogo"></span><div class="kd-timeline">${slides.map((s,k)=>`<button class="kd-seg" data-go="${k}" title="${k+1}. ${esc(kTitleOf(s))}"><span></span></button>`).join('')}</div><span class="kd-topchev"></span><button class="kd-btn kd-icon" data-act="close" aria-label="Close">✕</button></div><div class="kd-stage"><button class="kd-edge start" data-act="prev" aria-label="Back"></button><button class="kd-edge end" data-act="next" aria-label="Next"></button><div class="kd-footline"><b>1</b><span>|</span>KINAN<span>|</span>${esc(deck.title.split('—')[0].trim())}</div><div class="kd-wipe" style="display:none"><span></span><span></span></div><div class="kd-stack"></div></div><div class="kd-cc" dir="${kLang()==='ar'?'rtl':'ltr'}"><span></span></div><div class="kd-controls"><button class="kd-btn" data-act="prev">← Back</button><button class="kd-btn kd-primary kd-pp" data-act="pause" data-st="pause" title="Pause" aria-label="Pause">❚❚</button><button class="kd-btn" data-act="next">Next →</button><button class="kd-btn" data-act="voice" title="Voice on" aria-label="Voice on">🔊</button><button class="kd-btn" data-act="lang" title="${kLang()==='ar'?'Narration in English':'التعليق الصوتي بالعربية'}" aria-label="Language">${kLang()==='ar'?'EN':'ع'}</button><button class="kd-btn" data-act="asktype" title="Ask the presenter a question…">💬 Ask</button><button class="kd-btn kd-askbtn" data-act="ask" title="Ask by voice" style="display:none">🎤</button><button class="kd-btn" data-act="cc" aria-pressed="true" title="Captions">CC</button><button class="kd-btn" data-act="vmenu" title="Choose the ElevenLabs voice">🎙 Voice</button><button class="kd-btn" data-act="full" aria-label="Fullscreen">⛶</button><button class="kd-btn" data-act="pptx" title="Download as PowerPoint">⬇ PowerPoint</button></div>`;
   document.body.appendChild(root);document.body.style.overflow='hidden';
   const tts='speechSynthesis' in window?window.speechSynthesis:null;
+  root.classList.toggle('kd-rtl',deck.lang==='ar');
   KP={deck,root,i:-1,playing:true,voice:true,cc:true,timer:null,tick:null,started:0,dur:8000,raf:[],px:0,py:0,script:kScriptFor(deck,RPTS[RSEL]),figs:null};deck.script=KP.script;KVPREV='';
   if(KP.script.pending)KP.script.pending.then(()=>{if(KP)kPreload(KP.i)});
   kVoiceCheck().then(m=>{if(!KP)return;const b=root.querySelector('[data-act=voice]');root.querySelectorAll('[data-act=ask]').forEach(x=>x.style.display=m==='eleven'?'':'none');if(m==='none'){KP.voice=false;b.style.display='none'}else kVoiceBtn(b);if(m==='eleven')kPreload(KP.i);if(m==='eleven'&&KP.i>=0&&KP.playing)kStartTimer()});
@@ -5052,7 +5079,7 @@ function kGo(n){if(!KP)return;const {deck,root}=KP,to=Math.max(0,Math.min(deck.s
   if(KP.qa&&(KP.qa.hold!=null||KP.qa.state==='follow'||KP.qa.state==='moveon')){const Q=KP.qa;Q.seq++;clearTimeout(Q.follow);Q.follow=null;Q.hold=null;Q.state=null;Q.note='';const bx=root.querySelector('.kd-qa');if(bx)bx.hidden=true}
   KP.i=to;KP.started=Date.now();KP.paused=null;
   root.querySelectorAll('[data-act=prev]').forEach(b=>b.disabled=to===0);root.querySelectorAll('[data-act=next]').forEach(b=>b.disabled=to===deck.slides.length-1);
-  const bg=s.kind==='cover'?'orange':s.kind==='divider'||s.kind==='closing'?'dark':null;root.className='kd-root'+(bg?' kd-on-'+bg:'');
+  const bg=s.kind==='cover'?'orange':s.kind==='divider'||s.kind==='closing'?'dark':null;root.className='kd-root'+(bg?' kd-on-'+bg:'')+(deck.lang==='ar'?' kd-rtl':'');
   root.querySelector('.kd-toplogo').innerHTML=klogo(34,bg?'#fff':KD.CH);root.querySelector('.kd-topchev').innerHTML=s.kind==='cover'?'':kchev(34,bg?'#fff':KD.OR);
   const fb=root.querySelector('.kd-fullbg');fb.className='kd-fullbg'+(bg?' kd-fb-'+bg+(s.kind==='closing'?' kd-fb-closing':''):'');fb.innerHTML=bg?`<span class="kd-fb-tex"></span>${s.kind==='divider'?'<span class="kd-fb-band a"></span><span class="kd-fb-band b"></span>':s.kind==='cover'?'<span class="kd-fb-band w1"></span><span class="kd-fb-band w2"></span>':''}`:'';
   const stack=root.querySelector('.kd-stack'),old=stack.querySelector('.kd-enter');
@@ -5081,7 +5108,7 @@ function kStartTimer(){if(!KP)return;clearTimeout(KP.timer);kStopVoice();const {
   const after=()=>{if(done||!KP||KP.i!==i)return;KP.timer=setTimeout(next,Math.max(900,minShow-(Date.now()-t0)))};
   KP.rawSegs=KP.script.segs[i];const segs=KP.segs||[{t:s.say,f:null}],tr=kTrack(segs,KP.figs),onEv=e=>{if(!KP||KP.i!==i)return;if(e.node){kFocus(KP.el,e.node);return}const g=segs[e.k];if(!g)return;if(KP.cc)kCaption(g.t);if(!tr.ev.some(x=>x.node&&x.at>=tr.off[e.k]&&(e.k+1>=tr.off.length||x.at<tr.off[e.k+1])))kFocus(KP.el,null)};
   const go=async()=>{
-    if(KP.voice&&KVOICE.mode&&KVOICE.mode!=='none'){KP.timer=setTimeout(next,Math.max(KP.dur,45000));const next_=deck.slides[i+1]?kTrackText(KP.script.segs[i+1]||[{t:deck.slides[i+1].say}]):'';kSpeakTrack(tr,onEv,next_).then(spoke=>{if(!KP||KP.i!==i||done)return;clearTimeout(KP.timer);if(spoke)after();else KP.timer=setTimeout(next,Math.max(900,KP.dur-(Date.now()-t0)))});return}
+    if(KP.voice&&KVOICE.mode&&KVOICE.mode!=='none'){KP.timer=setTimeout(next,Math.max(KP.dur,45000));const next_=deck.slides[i+1]?kTrackText(KP.script.segs[i+1]||[{t:deck.slides[i+1].say}]):'';kSpeakTrack(tr,onEv,next_).then(spoke=>{if(!KP||KP.i!==i||done||spoke==='superseded')return;clearTimeout(KP.timer);if(spoke)after();else KP.timer=setTimeout(next,Math.max(900,KP.dur-(Date.now()-t0)))});return}
     KP.pace=kPaceTrack(tr,onEv,KP.dur-1500);KP.timer=setTimeout(next,KP.dur)};
   KP.next=next;if(KP.pace){KP.pace();KP.pace=null}go()}
 if(!KP){document.addEventListener('click',e=>{if(KP&&KP.playing&&KP.root.querySelector('[data-act=pause]').dataset.st==='replay'&&e.target.closest('[data-act=pause]')){kGo(0)}})}
@@ -5314,6 +5341,7 @@ const KD_CSS=`
 .kd-vm-pick b{font-size:13px}.kd-vm-pick span{font-size:11px;color:#6f6f6f}
 .kd-vm-play{border:1px solid rgba(46,46,47,.2);background:#fff;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:11px}.kd-vm-play:hover{border-color:#f15a22;color:#f15a22}
 .kd-cc{position:relative;text-align:center;padding:0 12vw 6px;min-height:30px}
+.kd-rtl .kd-slide{direction:rtl;text-align:right}.kd-rtl .kd-slide svg,.kd-rtl .kd-slide .kd-chart,.kd-rtl .kd-slide .kd-stats{direction:ltr}.kd-rtl .kd-slide .kd-h2,.kd-rtl .kd-slide .kd-kicker,.kd-rtl .kd-slide .kd-sub{text-align:right}.kd-rtl .kd-li{flex-direction:row-reverse;text-align:right}.kd-rtl .kd-hrow{direction:rtl}
 .kd-cc span{display:inline-block;max-width:980px;background:#2e2e2f;color:#fff;font-size:clamp(12px,1.1vw,15px);line-height:1.5;padding:6px 14px;border-radius:6px;animation:kdFade .45s ease .3s both}
 .kd-on-orange .kd-cc span,.kd-on-dark .kd-cc span{background:rgba(255,255,255,.94);color:#2e2e2f}
 .kd-controls{position:relative;display:flex;justify-content:center;gap:10px;padding:8px 12px 20px;flex-wrap:wrap}
