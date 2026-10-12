@@ -122,7 +122,7 @@ function hurdleOf(b) {
   return v >= 3 && v <= 40 ? +v.toFixed(2) : policy;
 }
 /* A phase with a time budget: the report goes out on time with whatever finished. */
-const within = (ms, p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('time budget reached')), ms))]);
+const within = (ms, p) => { let t; const cap = new Promise((_, rej) => { t = setTimeout(() => rej(new Error('time budget reached')), ms); }); return Promise.race([p, cap]).finally(() => clearTimeout(t)); };
 async function stressRun(b, hurdle, checks = []) {
   const provs = G.aiProviders(); if (!provs.length) return null;
   const o = b.out, ins = (b.inputs || []).slice(0, 120).map(i => `${i.label} = ${i.text || i.value}${i.unit && i.unit !== '%' ? ' ' + i.unit : ''}`).join('\n');
