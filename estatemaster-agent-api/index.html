@@ -5234,9 +5234,16 @@ async function kSpeakTrack(tr,on,next){kStopVoice();const tok=KVTOK;if(!tr.text)
         const tick=()=>{if(KAUDIO!==a)return;adv(posAt(a.currentTime+0.08,a.duration));raf=requestAnimationFrame(tick)};raf=requestAnimationFrame(tick);
         a._kResume=()=>{KAUDIO=a;KALL.add(a);cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);a.play().catch(()=>{cancelAnimationFrame(raf);ok(false)})};
         a.onended=()=>{cancelAnimationFrame(raf);adv(tr.len);if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>{cancelAnimationFrame(raf);ok(false)};a.play().catch(()=>{cancelAnimationFrame(raf);ok(false)})})}}
-  if(kBrowserVoice()){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(tr.text.slice(0,1400));const L=kLang();u.lang=L==='ar'?'ar-SA':'en-GB';const v=speechSynthesis.getVoices().find(x=>new RegExp('^'+L,'i').test(x.lang));if(v)u.voice=v;u.rate=1;let bounded=false;adv(0);
-      u.onboundary=e=>{bounded=true;adv(e.charIndex+(e.charLength||1))};const stop=kPaceTrack(tr,ev_=>{if(!bounded)adv(ev_.at)});
-      u.onend=()=>{stop();adv(tr.len);ok(true)};u.onerror=()=>{stop();ok(false)};speechSynthesis.speak(u)})}
+  if(kBrowserVoice()){const L=kLang(),v=speechSynthesis.getVoices().find(x=>new RegExp('^'+L,'i').test(x.lang));const text=tr.text.slice(0,2400);
+    // sentences of at most ~180 characters, spoken one after the other: Chrome stops a single long utterance after ~15 s without saying so
+    const parts=[];let cur='';for(const sn of text.split(/(?<=[.!?؟。])\s+/)){if((cur+' '+sn).trim().length>180&&cur){parts.push(cur.trim());cur=sn}else cur=(cur+' '+sn).trim()}if(cur)parts.push(cur.trim());
+    let off=0,bounded=false;adv(0);const stop=kPaceTrack(tr,ev_=>{if(!bounded)adv(ev_.at)});
+    for(const part of parts){if(tok!==KVTOK){stop();return 'superseded'}const base=text.indexOf(part,off);if(base>=0)off=base+part.length;
+      const good=await new Promise(ok=>{const u=new SpeechSynthesisUtterance(part);u.lang=L==='ar'?'ar-SA':'en-GB';if(v)u.voice=v;u.rate=1;let ended=false;const fin=g=>{if(ended)return;ended=true;clearTimeout(guard);ok(g)};
+        u.onboundary=e=>{bounded=true;adv((base>=0?base:0)+e.charIndex+(e.charLength||1))};u.onend=()=>fin(true);u.onerror=()=>fin(false);
+        const guard=setTimeout(()=>fin(false),Math.max(8000,part.length/9*1000));speechSynthesis.speak(u)});
+      if(!good){stop();return false}}
+    stop();adv(tr.len);return true}
   return new Promise(ok=>{const total=Math.max(2500,tr.text.split(/\s+/).length/2.6*1000),stop=kPaceTrack(tr,on,total);setTimeout(()=>{stop();ok(false)},total)})}
 /* ---- the voice menu: pick an ElevenLabs voice from the account, hear a sample ---- */
 async function kVoiceList(){if(KVOICE.list)return KVOICE.list;try{const r=await fetch('/api/voice?list=1',{headers:KVOICE.pass()});if(!r.ok)return[];const j=await r.json();KVOICE.list=j.voices||[];KVOICE.current=j.voice||'';KVOICE.currentAr=j.voiceAr||KVOICE.current;return KVOICE.list}catch(e){return[]}}
@@ -5290,7 +5297,7 @@ function kResumeSlide(){if(!KP)return;const p=KP.paused;KP.paused=null;
   kStartTimer()}
 function kGo(n){if(!KP)return;const {deck,root}=KP,to=Math.max(0,Math.min(deck.slides.length-1,n));if(to===KP.i)return;const s=deck.slides[to],prev=KP.i;
   clearTimeout(KP.timer);KP.raf.forEach(cancelAnimationFrame);KP.raf=[];kStopVoice();
-  if(KP.qa&&(KP.qa.hold!=null||KP.qa.state==='follow'||KP.qa.state==='moveon')){const Q=KP.qa;Q.seq++;clearTimeout(Q.follow);Q.follow=null;Q.hold=null;Q.state=null;Q.note='';const bx=root.querySelector('.kd-qa');if(bx)bx.hidden=true}
+  if(KP.qa){const Q=KP.qa;Q.seq++;clearTimeout(Q.follow);Q.follow=null;Q.hold=null;if(Q.state!=='recording'&&Q.state!=='transcribing')Q.state=null;Q.note='';if(!Q.pending&&!Q.state){Q.cur=null;const bx=root.querySelector('.kd-qa');if(bx)bx.hidden=true;const inp=root.querySelector('.kd-qa-form input');if(inp)inp.value=''}}
   KP.i=to;KP.started=Date.now();KP.paused=null;
   root.querySelectorAll('[data-act=prev]').forEach(b=>b.disabled=to===0);root.querySelectorAll('[data-act=next]').forEach(b=>b.disabled=to===deck.slides.length-1);
   const bg=s.kind==='cover'?'orange':s.kind==='divider'||s.kind==='closing'?'dark':null;root.className='kd-root'+(bg?' kd-on-'+bg:'')+(deck.lang==='ar'?' kd-rtl':'');
@@ -5318,12 +5325,12 @@ function kAnimate(el){const RAF=KP?KP.raf:(el._raf||(el._raf=[]));
 function kChunks(say){const parts=String(say).split(/(?<=[.;!?])\s+/).map(x=>x.trim()).filter(Boolean),out=[];for(const p of parts){if(out.length&&(out[out.length-1]+' '+p).length<120)out[out.length-1]+=' '+p;else out.push(p)}return out.length?out:['']}
 function kCaption(say){if(!KP)return;clearTimeout(KP.ccTimer);const box=KP.root.querySelector('.kd-cc');if(!say){box.innerHTML='';return}const parts=kChunks(say);let k=0;const show=()=>{if(!KP)return;const sp=document.createElement('span');sp.textContent=parts[k];box.innerHTML='';box.appendChild(sp);if(k<parts.length-1){k++;KP.ccTimer=setTimeout(show,Math.max(1800,(parts[k-1].split(/\s+/).length/2.5)*1000))}};clearTimeout(KP.ccTimer);show()}
 function kStartTimer(){if(!KP)return;clearTimeout(KP.timer);kStopVoice();const {deck}=KP,i=KP.i,s=deck.slides[i],t0=Date.now(),minShow=4500;let done=false;
-  const next=()=>{if(done||!KP||KP.i!==i)return;done=true;if(KP.qa&&KP.qa.pending){kTakeQuestion(i,true);return}if(kComposing()){kHold(i,true);return}if(i<deck.slides.length-1)kGo(i+1);else{KP.playing=false;kSetPlay(KP.root.querySelector('[data-act=pause]'),'replay');}};
+  const next=()=>{if(done||!KP||KP.i!==i)return;if(KP.speaking&&Date.now()-t0<240000){KP.timer=setTimeout(next,1000);return}done=true;if(KP.qa&&KP.qa.pending){kTakeQuestion(i,true);return}if(kComposing()){kHold(i,true);return}if(i<deck.slides.length-1)kGo(i+1);else{KP.playing=false;kSetPlay(KP.root.querySelector('[data-act=pause]'),'replay');}};
   const QWIN=4000;const after=()=>{if(done||!KP||KP.i!==i)return;const cue=KP.root.querySelector('.kd-qcue');if(cue&&!(KP.qa&&(KP.qa.pending||kComposing()))){cue.textContent=kLang()==='ar'?'سؤال؟ اضغطوا الميكروفون أو اكتبوا':'A question? Tap the mic or type';cue.classList.add('on');setTimeout(()=>cue.classList.remove('on'),QWIN+400)}
     KP.timer=setTimeout(next,Math.max(QWIN,minShow-(Date.now()-t0)))};
   KP.rawSegs=KP.script.segs[i];const segs=KP.segs||[{t:s.say,f:null}],tr=kTrack(segs,KP.figs),onEv=e=>{if(!KP||KP.i!==i)return;if(e.node){kFocus(KP.el,e.node);return}const g=segs[e.k];if(!g)return;if(KP.cc)kCaption(g.t);if(!tr.ev.some(x=>x.node&&x.at>=tr.off[e.k]&&(e.k+1>=tr.off.length||x.at<tr.off[e.k+1])))kFocus(KP.el,null)};
   const go=async()=>{
-    if(KP.voice&&KVOICE.mode&&KVOICE.mode!=='none'){KP.timer=setTimeout(next,Math.max(KP.dur,45000));const next_=deck.slides[i+1]?kTrackText(KP.script.segs[i+1]||[{t:deck.slides[i+1].say}]):'';kSpeakTrack(tr,onEv,next_).then(spoke=>{if(!KP||KP.i!==i||done||spoke==='superseded')return;clearTimeout(KP.timer);if(spoke)after();else KP.timer=setTimeout(next,Math.max(900,KP.dur-(Date.now()-t0)))});return}
+    if(KP.voice&&KVOICE.mode&&KVOICE.mode!=='none'){KP.timer=setTimeout(next,Math.max(KP.dur*2,120000));const next_=deck.slides[i+1]?kTrackText(KP.script.segs[i+1]||[{t:deck.slides[i+1].say}]):'';KP.speaking=true;kSpeakTrack(tr,onEv,next_).then(spoke=>{if(KP&&KP.i===i)KP.speaking=false;if(!KP||KP.i!==i||done||spoke==='superseded')return;clearTimeout(KP.timer);if(spoke)after();else KP.timer=setTimeout(next,Math.max(900,KP.dur-(Date.now()-t0)))});return}
     KP.pace=kPaceTrack(tr,onEv,KP.dur-1500);KP.timer=setTimeout(next,KP.dur)};
   KP.next=next;kQCueEl();if(KP.pace){KP.pace();KP.pace=null}go()}
 if(!KP){document.addEventListener('click',e=>{if(KP&&KP.playing&&KP.root.querySelector('[data-act=pause]').dataset.st==='replay'&&e.target.closest('[data-act=pause]')){kGo(0)}})}
