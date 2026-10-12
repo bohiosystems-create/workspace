@@ -389,7 +389,9 @@ body.xproj .rep-only{display:none!important}
 
 .dr-langs{display:flex;gap:4px;margin-left:12px}.dr-langs .btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .btn-x{min-width:36px;padding-left:10px!important;padding-right:10px!important;font-size:18px!important;line-height:1!important;letter-spacing:0!important;text-transform:none!important}.btn-play,.kd-pp{min-width:44px;letter-spacing:0!important;font-size:15px!important;text-transform:none!important}
-.rp-lang{display:flex;gap:4px;margin-left:6px}.rp-lang .btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.rp-langs{display:inline-flex;border:1px solid var(--hair);margin-left:6px}.rp-langs .btn{border:0;border-radius:0;padding:5px 10px;font-size:9px;letter-spacing:.12em}.rp-langs .btn.on{background:var(--ink);color:#fff}
+.rp-tools{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}.rp-tools .btn{padding:6px 10px;font-size:8.5px;letter-spacing:.14em}.rp-tools #rplay{background:var(--orange);border-color:var(--orange);color:#fff;font-size:12px;padding:5px 12px}.rp-tools #rplay:hover{background:#d84d19}
+#report.rtl{direction:rtl;text-align:right}#report.rtl table{direction:rtl}#report.rtl .k-chart svg{direction:ltr}
 .k-wait .kd-in,.k-wait .kd-spring,.k-wait .kd-fade,.k-wait .kd-pop,.k-wait .kd-gx,.k-wait .kd-rise,.k-wait .kd-ring,.k-wait .kd-draw,.k-wait .kd-bar,.k-wait [style*=animation]{animation-play-state:paused!important}.k-wait .kd-num-t{opacity:.001}
 .rp-plus{width:44px;height:44px;border-radius:50%;border:0;background:var(--orange);color:#fff;font-size:28px;line-height:1;cursor:pointer;flex:0 0 auto;box-shadow:0 8px 20px rgba(241,90,34,.3);transition:transform .15s}.rp-plus:hover{transform:scale(1.08)}
 #tplModal .card.tpl-card{width:min(1180px,96vw);max-width:min(1180px,96vw);max-height:92vh;overflow:auto}.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:18px;margin-top:14px}
@@ -921,9 +923,9 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
     </div>
     <div>
       <div class="card" style="margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <button class="rp-plus" id="rpPlus" title="New report from a template" aria-label="New report from a template">+</button><div><h2 style="margin:0" id="rpTitle">Investment Committee pack</h2><div class="sub" style="margin:0">Numbers from the EstateMaster extract; narrative optional (AI).</div></div><div class="rp-lang" id="rpLang" style="display:none"><button class="btn ghost sm on" data-rplang="en">English</button><button class="btn ghost sm" data-rplang="ar">العربية</button></div>
-        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-play" id="rplay" title="Play as a presentation" aria-label="Play as a presentation">▶</button><button class="btn ghost" id="rread" title="Read the report aloud, section by section">🔊 Read</button><button class="btn ghost" id="rpptx" title="Download as PowerPoint with native charts">PowerPoint</button><button class="btn ghost" id="rgen">Regenerate</button><button class="btn ghost" id="rnarr">Draft narrative (AI)</button><button class="btn ghost" id="rprint">Print / PDF</button><button class="btn ghost" id="rxls">Excel</button><button class="btn ghost" id="rhtml">HTML</button>
+        <button class="rp-plus" id="rpPlus" title="New report from a template" aria-label="New report from a template">+</button><div><h2 style="margin:0" id="rpTitle">Investment Committee pack</h2><div class="sub" style="margin:0">Numbers from the EstateMaster extract; narrative optional (AI).</div></div><div class="rp-langs" id="rpLang" role="group" aria-label="Language"><button class="btn sm on" data-rplang="en" aria-pressed="true">English</button><button class="btn ghost sm" data-rplang="ar" aria-pressed="false">العربية</button></div><span id="rpLangNote" class="sub" style="margin:0;display:none"></span>
+        <div class="rp-tools">
+          <button class="btn" id="rplay" title="Play as a presentation" aria-label="Play as a presentation">▶</button><button class="btn ghost" id="rread" title="Read the report aloud, section by section">🔊 Read</button><button class="btn ghost" id="rgen">Regenerate</button><button class="btn ghost" id="rnarr">Draft narrative (AI)</button><button class="btn ghost" id="rprint">Download PDF</button><button class="btn ghost" id="rhtml">Download HTML</button><button class="btn ghost" id="rpptx" title="Download as PowerPoint with native charts">Download PowerPoint</button><button class="btn ghost" id="rxls">Excel</button>
         </div>
       </div>
       <div class="report" id="report"></div><iframe id="reportAr" title="التقرير اليومي" style="display:none;width:100%;min-height:80vh;border:0;background:#fff"></iframe>
@@ -4458,7 +4460,9 @@ function reportHTML(){
   <p>${changelog.length?changelog.map(esc).join('<br>'):'No changes: base case as held in EstateMaster.'}</p>
   <div class="lineage">Data lineage · run ${id} · EstateMaster via SQL Server · market data: ${mk().nP} sales, ${mk().nR} leases, zone ${SITE.code} (dummy) · Outlook: ${Object.keys(EM.applied).length} emails cited · engine: calibrated replica, reconciled to EstateMaster · illustrative demo data · generated by Bohio Agent</div>`;
 }
-function renderReport(){$('#rpTitle').textContent=RPTS[RSEL].name;$('#report').innerHTML=RPTS[RSEL].fn();kDocAnimate();rpLangUI();kPrepareSoon(RSEL)}
+function renderReport(){$('#rpTitle').textContent=RPTS[RSEL].name;const doc=$('#report');doc.classList.remove('rtl');doc.innerHTML=RPTS[RSEL].fn();kDocAnimate();try{RPLANG=localStorage.getItem('bohioVoiceLang')==='ar'?'ar':'en'}catch(e){}rpLangUI();kPrepareSoon(RSEL);
+  if(RSEL!=='daily'&&apiOn()&&!rpArabicReady(RSEL)){clearTimeout(RPARTM);RPARTM=setTimeout(()=>{if(RSEL!=='daily')rpArabicBuild(RSEL).catch(()=>{})},1200)}}
+let RPARTM=null;
 /* ---- the report's charts come alive as they scroll into view (the same entrances as ▶ Play: bars grow, rings draw, numbers count up) ---- */
 let KDOC_IO=null;
 function kDocAnimate(){const doc=$('#report');if(!doc)return;if(!KDOC_IO)KDOC_IO=new IntersectionObserver(es=>{for(const e of es){if(!e.isIntersecting)continue;const el=e.target;KDOC_IO.unobserve(el);el.classList.remove('k-wait');try{kAnimate(el)}catch(x){}}},{threshold:.25});
@@ -4466,15 +4470,40 @@ function kDocAnimate(){const doc=$('#report');if(!doc)return;if(!KDOC_IO)KDOC_IO
 addEventListener('beforeprint',()=>$$('.k-wait').forEach(el=>{el.classList.remove('k-wait');try{kAnimate(el)}catch(x){}}));
 /* ---- the daily report in both languages: the server builds English and Arabic together, so the switch is instant ---- */
 let RPLANG='en';
-function rpLangUI(){const t=$('#rpLang');if(!t)return;const daily=RSEL==='daily';t.style.display=daily?'':'none';if(!daily){RPLANG='en'}
-  t.querySelectorAll('[data-rplang]').forEach(b=>b.classList.toggle('on',b.dataset.rplang===RPLANG));
-  const ar=RPLANG==='ar'&&daily,fr=$('#reportAr');$('#report').style.display=ar?'none':'';fr.style.display=ar?'':'none';
-  if(daily&&DAILYSRV&&!rpArabicHtml()&&!RP_FETCH)rpFetchDaily();
-  if(ar){const h=rpArabicHtml();if(h){if(fr.dataset.at!==(DAILYSRV.daily.at||'x')){fr.srcdoc=h;fr.dataset.at=DAILYSRV.daily.at||'x'}}else fr.srcdoc=`<p style="font-family:Montserrat,sans-serif;padding:24px;color:#6f6f6f">${DAILYSRV?'Building today’s Arabic report…':'The Arabic report is built by the server each morning (Microsoft 365 needed); not available in this browser-only demo.'}</p>`}}
+/* Arabic versions of the client-built reports: the English document's text is translated by the AI once per report and export
+   (cached, built in the background as soon as the English report is on screen), so the toggle swaps at once. The daily report's
+   Arabic comes pre-built from the server. Figures, codes and names are never changed by the translation. */
+const RPAR=new Map();try{for(const [k,v] of Object.entries(JSON.parse(localStorage.getItem('em_rpar')||'{}')))RPAR.set(k,v)}catch(e){}
+function rpKeyFor(id){const x=latestExport();return id+'|'+PROJ.id+'|'+(x?x.id+'|'+x.at:'')+'|'+((RPTS[id]&&RPTS[id].blocks)||[]).join(',')+'|'+(RPTS[id]&&RPTS[id].aud||'')}
+const RP_TR_SYS='You translate the text of a real estate investment report from English into formal Arabic (Modern Standard Arabic as used in Saudi Arabia). Keep every number, percentage, currency code (SAR, USD), date, ID (EX-003, CR-101), product name (EstateMaster, KINAN, Murabaha) and person name unchanged. Return JSON only: {"t":["…"]} with exactly one translation per input string, same order and count.';
+async function rpArabicBuild(id){const key=rpKeyFor(id);const have=RPAR.get(key);if(have&&have.html)return have;if(have&&have.then)return have;if(!apiOn())return null;
+  const p=(async()=>{const src=$('#report');if(!src||RSEL!==id||src.classList.contains('rtl'))return null;const clone=src.cloneNode(true);
+    const walker=document.createTreeWalker(clone,NodeFilter.SHOW_TEXT);const nodes=[];let n;while((n=walker.nextNode())){const t=n.nodeValue;if(!t||!/[A-Za-z]{2,}/.test(t))continue;const pe=n.parentElement;if(pe&&pe.closest('script,style,[data-notr]'))continue;nodes.push(n)}
+    const uniq=[...new Set(nodes.map(n=>n.nodeValue.trim()).filter(t=>t&&t.length<=600))].slice(0,500),map={};
+    for(let i=0;i<uniq.length;i+=50){const batch=uniq.slice(i,i+50);try{const r=await complete(RP_TR_SYS,JSON.stringify(batch),'smart',{max:8000,task:'answer'});const j=jsonLoose(r.text);(j.t||[]).forEach((tr,k)=>{if(batch[k]&&tr&&typeof tr==='string')map[batch[k]]=tr})}catch(e){}}
+    if(!Object.keys(map).length)return null;
+    nodes.forEach(n=>{const k=n.nodeValue.trim();if(map[k])n.nodeValue=n.nodeValue.replace(k,map[k])});
+    const v={html:clone.innerHTML,at:new Date().toISOString(),n:Object.keys(map).length};RPAR.set(key,v);
+    try{const keep=[...RPAR.entries()].filter(([,x])=>x&&x.html).slice(-6);localStorage.setItem('em_rpar',JSON.stringify(Object.fromEntries(keep)))}catch(e){}
+    return v})();
+  RPAR.set(key,p);p.then(v=>{if(!v)RPAR.delete(key);if(RSEL===id&&RPLANG==='ar')rpLangUI()}).catch(()=>RPAR.delete(key));return p}
+function rpArabicReady(id){const v=RPAR.get(rpKeyFor(id));return v&&v.html?v:null}
+function rpLangUI(){const t=$('#rpLang');if(!t)return;const daily=RSEL==='daily',note=$('#rpLangNote');
+  t.querySelectorAll('[data-rplang]').forEach(b=>{const on=b.dataset.rplang===RPLANG;b.classList.toggle('on',on);b.classList.toggle('ghost',!on);b.setAttribute('aria-pressed',on?'true':'false')});
+  const ar=RPLANG==='ar',fr=$('#reportAr'),doc=$('#report');if(note)note.style.display='none';
+  if(daily){doc.style.display=ar?'none':'';fr.style.display=ar?'':'none';doc.classList.remove('rtl');
+    if(DAILYSRV&&!rpArabicHtml()&&!RP_FETCH)rpFetchDaily();
+    if(ar){const h=rpArabicHtml();if(h){if(fr.dataset.at!==(DAILYSRV.daily.at||'x')){fr.srcdoc=h;fr.dataset.at=DAILYSRV.daily.at||'x'}}else fr.srcdoc=`<p style="font-family:Montserrat,sans-serif;padding:24px;color:#6f6f6f">${DAILYSRV?'Building today’s Arabic report…':'The Arabic report is built by the server each morning (Microsoft 365 needed); not available in this browser-only demo.'}</p>`}return}
+  fr.style.display='none';doc.style.display='';
+  if(!ar){if(doc.classList.contains('rtl')){doc.classList.remove('rtl');doc.innerHTML=RPTS[RSEL].fn();kDocAnimate()}return}
+  const v=rpArabicReady(RSEL);
+  if(v){if(!doc.classList.contains('rtl')||doc.dataset.arKey!==rpKeyFor(RSEL)){doc.innerHTML=v.html;doc.classList.add('rtl');doc.dataset.arKey=rpKeyFor(RSEL);kDocAnimate()}return}
+  if(note){note.style.display='';note.innerHTML=apiOn()?'<span class="spin"></span> Building the Arabic version… it stays ready once built.':'Arabic needs the AI connected (Settings → AI & routing).'}
+  if(apiOn())rpArabicBuild(RSEL)}
 function rpArabicHtml(){const d=DAILYSRV&&DAILYSRV.daily;return d&&d.html&&d.html.ar&&String(d.at).slice(0,10)===new Date().toISOString().slice(0,10)?d.html.ar:''}
 let RP_FETCH=null;
 function rpFetchDaily(){RP_FETCH=dailyApi({action:'preview'}).then(j=>{if(j&&j.previews){DAILYSRV.daily=j.daily&&j.daily.html?j.daily:{at:new Date().toISOString(),html:j.previews};DRLAST=j.previews}}).catch(()=>{}).finally(()=>{RP_FETCH=null;rpLangUI()})}
-document.addEventListener('click',e=>{const b=e.target.closest('[data-rplang]');if(!b)return;RPLANG=b.dataset.rplang;rpLangUI()});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-rplang]');if(!b)return;RPLANG=b.dataset.rplang;try{localStorage.setItem('bohioVoiceLang',RPLANG)}catch(err){}KS_CACHE.clear();rpLangUI();kPrepareSoon(RSEL)});
 /* ▶ Play is ready the moment it is pressed: the spoken script is written while the report is built, and the first slides' voice is made from it */
 let KPREP=null;
 function kPrepareSoon(id){clearTimeout(KPREP);KPREP=setTimeout(()=>kPrepare(id).catch(()=>{}),700)}
@@ -4482,6 +4511,10 @@ async function kPrepare(id){if(!RPTS[id]||KP)return;const lang=kLang();await kRi
   const clips=async S_=>{if(await kVoiceCheck()!=='eleven'||KP||kLang()!==lang)return;for(const n of [0,1]){if(!deck.slides[n])continue;const tn=kTrack(kSegsOf(deck,S_,n),null);await kVoiceClip(tn.text,'',tn.off.slice(1))}};
   await clips(S);if(S.pending){await S.pending;if(RSEL!==id||KP||kLang()!==lang)return;if(S.ai)await clips(S)}
   if(apiOn()&&!deck.noAI)kScriptAI(deck,RPTS[id],lang==='ar'?'en':'ar').catch(()=>null)}
+/* switch the narration language inside ▶ Play: the other language's script was written in the background, so the slide restarts at once */
+function kSwitchLang(lang){try{localStorage.setItem('bohioVoiceLang',lang)}catch(err){}RPLANG=lang;KVOICE.cache.clear();KS_CACHE.clear();
+  if(KP){KP.script=kScriptFor(KP.deck,RPTS[RSEL]);KP.deck.script=KP.script;const cc=KP.root.querySelector('.kd-cc');if(cc)cc.dir=lang==='ar'?'rtl':'ltr';KP.root.querySelectorAll('[data-act=lang]').forEach(b=>{b.textContent=lang==='ar'?'EN':'ع';b.title=lang==='ar'?'Narration in English':'التعليق الصوتي بالعربية'});const i=KP.i;KP.i=-1;kGo(i)}
+  toast(lang==='ar'?'التعليق الصوتي بالعربية':'Narration in English')}
 function download(name,content,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
 function csv(){const xs=axis(hx,hn),ys=axis(hy,hn);let c=`${VARS[hy].label} \\ ${VARS[hx].label},`+xs.join(',')+'\n';ys.forEach(y=>{c+=y+','+xs.map(x=>{const r=run({...S,[hx]:x,[hy]:y});return Number.isNaN(r.irr)?'':(r.irr*100).toFixed(2)}).join(',')+'\n'});return c}
 
@@ -4677,10 +4710,14 @@ const KVOICE={mode:null,checked:false,cache:new Map(),pass:()=>AI.pass?{'x-demo-
 async function kVoiceCheck(){if(KVOICE.checked)return KVOICE.mode;KVOICE.checked=true;KVOICE.mode='speechSynthesis' in window?'browser':'none';
   if(/^https?:/.test(location.protocol)){try{const r=await fetch('/api/voice');if(r.ok){const j=await r.json();if(j.enabled)KVOICE.mode='eleven';KVOICE.model=j.model||'';KVOICE.current=j.voice||'';if(j.riyal)KVOICE.riyal=j.riyal}}catch(e){}}return KVOICE.mode}
 /* speak text; resolves when it ends (or at once when there is no voice). onStart gets the Audio for pause/stop. */
-let KAUDIO=null;
-function kStopVoice(){if(KAUDIO){KAUDIO.pause();KAUDIO=null}if(window.speechSynthesis)speechSynthesis.cancel()}
-async function kSay(text,dur){kStopVoice();text=kSpeech(text);if(KVOICE.mode==='eleven'){const url=await kVoiceUrl(text);if(url){return new Promise(ok=>{const a=new Audio(url);KAUDIO=a;a.onended=()=>{if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>ok(false);a.play().catch(()=>ok(false))})}}
-  if(KVOICE.mode!=='none'&&window.speechSynthesis){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(String(text).slice(0,600));u.lang='en-US';const v=speechSynthesis.getVoices().find(x=>/^en/i.test(x.lang));if(v)u.voice=v;u.rate=1;u.onend=()=>ok(true);u.onerror=()=>ok(false);speechSynthesis.speak(u)})}
+let KAUDIO=null,KVTOK=0;const KALL=new Set();
+/* every Audio the deck makes is tracked, so stop and pause silence all of them (never two voices at once) */
+function kAudio(url){const a=new Audio(url);KALL.add(a);a.addEventListener('ended',()=>KALL.delete(a));return a}
+function kStopVoice(){KVTOK++;KALL.forEach(a=>{try{a.pause()}catch(e){}});KALL.clear();KAUDIO=null;if(window.speechSynthesis)speechSynthesis.cancel()}
+/* with ElevenLabs on, the browser voice is never used: a clip that fails is skipped (the slide is paced in silence) */
+const kBrowserVoice=()=>KVOICE.mode==='browser'&&!!window.speechSynthesis;
+async function kSay(text,dur){kStopVoice();const tok=KVTOK;text=kSpeech(text);if(KVOICE.mode==='eleven'){const url=await kVoiceUrl(text);if(tok!==KVTOK)return false;if(url){return new Promise(ok=>{const a=kAudio(url);KAUDIO=a;a.onended=()=>{if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>ok(false);a.play().catch(()=>ok(false))})}}
+  if(kBrowserVoice()){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(String(text).slice(0,600));u.lang='en-US';const v=speechSynthesis.getVoices().find(x=>/^en/i.test(x.lang));if(v)u.voice=v;u.rate=1;u.onend=()=>ok(true);u.onerror=()=>ok(false);speechSynthesis.speak(u)})}
   return new Promise(ok=>setTimeout(()=>ok(false),dur||0))}
 /* ================= NARRATION: a spoken script, not the slide text, with the figure under discussion lit up =================
    ▶ Play speaks from a script written for the ear: what each figure means for the audience, with transitions, never the
@@ -4880,7 +4917,7 @@ async function kVoiceClip(text,next,pauses){const t=String(text).replace(/\s+/g,
   const body={text:t,timestamps:true,lang:kLang()};if(pauses.length)body.pauses=pauses;if(KVPREV)body.previous_text=KVPREV.slice(-300);if(next)body.next_text=String(next).slice(0,300);const vid=kVoiceId();if(vid)body.voice=vid;
   const p=fetch('/api/voice',{method:'POST',headers:{'content-type':'application/json',...KVOICE.pass()},body:JSON.stringify(body)}).then(async r=>{if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||'voice failed');const ct=r.headers.get('content-type')||'';
     if(/json/.test(ct)){const j=await r.json();const bin=atob(j.audio_base64||'');const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);const al=j.alignment||{};return{url:URL.createObjectURL(new Blob([u8],{type:j.mime||'audio/mpeg'})),chars:al.characters||al.chars||[],starts:al.character_start_times_seconds||al.starts||[]}}
-    return{url:URL.createObjectURL(await r.blob()),chars:[],starts:[]}}).then(c=>{KVOICE.fails=0;if(KVOICE.err){KVOICE.err=null;kVoiceNote()}return c}).catch(e=>{KVOICE.cache.delete(key);KVOICE.fails=(KVOICE.fails||0)+1;KVOICE.err=String(e&&e.message||e).slice(0,240);if(KVOICE.fails>=3)KVOICE.mode='speechSynthesis' in window?'browser':'none';kVoiceNote();return null});
+    return{url:URL.createObjectURL(await r.blob()),chars:[],starts:[]}}).then(c=>{KVOICE.fails=0;if(KVOICE.err){KVOICE.err=null;kVoiceNote()}return c}).catch(e=>{KVOICE.cache.delete(key);KVOICE.fails=(KVOICE.fails||0)+1;KVOICE.err=String(e&&e.message||e).slice(0,240);kVoiceNote();return null});
   KVOICE.cache.set(key,p);return p}
 async function kVoiceUrl(text){const c=await kVoiceClip(text);return c&&c.url||null}
 function kSegOffsets(segs){const off=[];let n=0;segs.forEach((g,i)=>{off.push(n);n+=g.t.length+(i<segs.length-1?1:0)});return off}
@@ -4888,11 +4925,11 @@ function kSegOffsets(segs){const off=[];let n=0;segs.forEach((g,i)=>{off.push(n)
 function kSegTimes(clip,segs){if(!clip||!clip.starts||clip.starts.length<10)return null;const text=kSegText(segs),off=kSegOffsets(segs),ch=clip.chars,st=clip.starts;let j=0;const out=[];
   for(const o of off){const want=text[o];while(j<ch.length&&(ch[j]!==want||j<o*0.6))j++;if(j>=ch.length){out.push(null);continue}out.push(st[j]);j++}
   return out.map((t,i)=>t==null?(i?out[i-1]:0):t)}
-async function kSpeakSegs(segs,onSeg,next){kStopVoice();const text=kSegText(segs);if(!text)return false;const fire=k=>{try{onSeg&&onSeg(k)}catch(e){}};
-  if(KVOICE.mode==='eleven'){const clip=await kVoiceClip(text,next);if(clip){KVPREV=text;const times=kSegTimes(clip,segs);return new Promise(ok=>{const a=new Audio(clip.url);KAUDIO=a;let k=0,raf=0;fire(0);
+async function kSpeakSegs(segs,onSeg,next){kStopVoice();const tok=KVTOK;const text=kSegText(segs);if(!text)return false;const fire=k=>{try{onSeg&&onSeg(k)}catch(e){}};
+  if(KVOICE.mode==='eleven'){const clip=await kVoiceClip(text,next);if(tok!==KVTOK)return false;if(clip){KVPREV=text;const times=kSegTimes(clip,segs);return new Promise(ok=>{const a=kAudio(clip.url);KAUDIO=a;let k=0,raf=0;fire(0);
       const tick=()=>{if(KAUDIO!==a)return;const t=a.currentTime;if(times){while(k<segs.length-1&&t>=times[k+1]-0.05){k++;fire(k)}}else{const total=a.duration||0;if(total){const w=kSegOffsets(segs);while(k<segs.length-1&&t>=total*w[k+1]/text.length){k++;fire(k)}}}raf=requestAnimationFrame(tick)};raf=requestAnimationFrame(tick);
       a.onended=()=>{cancelAnimationFrame(raf);if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>{cancelAnimationFrame(raf);ok(false)};a.play().catch(()=>{cancelAnimationFrame(raf);ok(false)})})}}
-  if(KVOICE.mode!=='none'&&window.speechSynthesis){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(text.slice(0,1400));const L=kLang();u.lang=L==='ar'?'ar-SA':'en-US';const v=speechSynthesis.getVoices().find(x=>new RegExp('^'+L,'i').test(x.lang));if(v)u.voice=v;u.rate=1;const off=kSegOffsets(segs);let k=0,bounded=false;fire(0);
+  if(kBrowserVoice()){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(text.slice(0,1400));const L=kLang();u.lang=L==='ar'?'ar-SA':'en-US';const v=speechSynthesis.getVoices().find(x=>new RegExp('^'+L,'i').test(x.lang));if(v)u.voice=v;u.rate=1;const off=kSegOffsets(segs);let k=0,bounded=false;fire(0);
       u.onboundary=e=>{bounded=true;while(k<segs.length-1&&e.charIndex>=off[k+1]){k++;fire(k)}};
       const fallback=kPaceSegs(segs,j=>{if(!bounded&&j>k){k=j;fire(k)}});u.onend=()=>{fallback();ok(true)};u.onerror=()=>{fallback();ok(false)};speechSynthesis.speak(u)})}
   return new Promise(ok=>{fire(0);const stop=kPaceSegs(segs,fire);const total=Math.max(2500,text.split(/\s+/).length/2.6*1000);setTimeout(()=>{stop();ok(false)},total)})}
@@ -4951,14 +4988,14 @@ function kTrack(segs,figs){const sp=segs.map(g=>kSpeech(g.t)),text=sp.join(' '),
 /* play a track: ElevenLabs timestamps, browser word boundaries, or pacing; on(e) gets {k} (sentence) and {node} (figure) */
 function kPaceTrack(tr,on,ms){let ei=0;const t0=performance.now(),total=ms||Math.max(2500,tr.text.split(/\s+/).length/2.6*1000);const adv=pos=>{while(ei<tr.ev.length&&tr.ev[ei].at<=pos)on(tr.ev[ei++])};adv(0);
   const iv=setInterval(()=>adv((performance.now()-t0)/total*tr.len),120);return()=>clearInterval(iv)}
-async function kSpeakTrack(tr,on,next){kStopVoice();if(!tr.text)return false;let ei=0;const adv=pos=>{while(ei<tr.ev.length&&tr.ev[ei].at<=pos){try{on(tr.ev[ei])}catch(e){}ei++}};
-  if(KVOICE.mode==='eleven'){const clip=await kVoiceClip(tr.text,next,tr.off.slice(1));if(clip){KVPREV=tr.text;const st=clip.starts||[],exact=st.length===tr.len;
+async function kSpeakTrack(tr,on,next){kStopVoice();const tok=KVTOK;if(!tr.text)return false;let ei=0;const adv=pos=>{while(ei<tr.ev.length&&tr.ev[ei].at<=pos){try{on(tr.ev[ei])}catch(e){}ei++}};
+  if(KVOICE.mode==='eleven'){const clip=await kVoiceClip(tr.text,next,tr.off.slice(1));if(tok!==KVTOK)return false;if(clip){KVPREV=tr.text;const st=clip.starts||[],exact=st.length===tr.len;
       const posAt=(t,dur)=>{if(st.length>10){let lo=0,hi=st.length-1;while(lo<hi){const mid=(lo+hi+1)>>1;if(st[mid]<=t)lo=mid;else hi=mid-1}return exact?lo:lo*tr.len/st.length}return dur?t/dur*tr.len:0};
-      return new Promise(ok=>{const a=new Audio(clip.url);KAUDIO=a;let raf=0;adv(0);
+      return new Promise(ok=>{const a=kAudio(clip.url);KAUDIO=a;let raf=0;adv(0);
         const tick=()=>{if(KAUDIO!==a)return;adv(posAt(a.currentTime+0.08,a.duration));raf=requestAnimationFrame(tick)};raf=requestAnimationFrame(tick);
-        a._kResume=()=>{KAUDIO=a;cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);a.play().catch(()=>{cancelAnimationFrame(raf);ok(false)})};
+        a._kResume=()=>{KAUDIO=a;KALL.add(a);cancelAnimationFrame(raf);raf=requestAnimationFrame(tick);a.play().catch(()=>{cancelAnimationFrame(raf);ok(false)})};
         a.onended=()=>{cancelAnimationFrame(raf);adv(tr.len);if(KAUDIO===a)KAUDIO=null;ok(true)};a.onerror=()=>{cancelAnimationFrame(raf);ok(false)};a.play().catch(()=>{cancelAnimationFrame(raf);ok(false)})})}}
-  if(KVOICE.mode!=='none'&&window.speechSynthesis){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(tr.text.slice(0,1400));const L=kLang();u.lang=L==='ar'?'ar-SA':'en-GB';const v=speechSynthesis.getVoices().find(x=>new RegExp('^'+L,'i').test(x.lang));if(v)u.voice=v;u.rate=1;let bounded=false;adv(0);
+  if(kBrowserVoice()){return new Promise(ok=>{const u=new SpeechSynthesisUtterance(tr.text.slice(0,1400));const L=kLang();u.lang=L==='ar'?'ar-SA':'en-GB';const v=speechSynthesis.getVoices().find(x=>new RegExp('^'+L,'i').test(x.lang));if(v)u.voice=v;u.rate=1;let bounded=false;adv(0);
       u.onboundary=e=>{bounded=true;adv(e.charIndex+(e.charLength||1))};const stop=kPaceTrack(tr,ev_=>{if(!bounded)adv(ev_.at)});
       u.onend=()=>{stop();adv(tr.len);ok(true)};u.onerror=()=>{stop();ok(false)};speechSynthesis.speak(u)})}
   return new Promise(ok=>{const total=Math.max(2500,tr.text.split(/\s+/).length/2.6*1000),stop=kPaceTrack(tr,on,total);setTimeout(()=>{stop();ok(false)},total)})}
@@ -4974,11 +5011,11 @@ async function kVoiceMenu(btn){const root=KP&&KP.root;if(!root)return;let m=root
   m.innerHTML=`<div class="kd-vm-h">Voice <span class="kd-muted" style="font-weight:400;text-transform:none;letter-spacing:0">· ${esc(KVOICE.model||'')}</span></div>`+langRow+(L==='ar'?`<div class="kd-muted" style="padding:0 10px 6px;font-size:11px;max-width:320px">النص العربي يُكتب بالفصحى ويُقرأ بالصوت المختار (النماذج متعددة اللغات تنطق العربية). الأصوات الموسومة بالعربية في الأعلى.</div>`:'')+sorted.slice(0,40).map(v=>`<div class="kd-vm-row${v.id===cur?' on':''}" data-vid="${esc(v.id)}"><button class="kd-vm-pick" data-vpick="${esc(v.id)}" data-vname="${esc(v.name)}"><b>${esc(v.name)}</b><span>${esc([v.labels&&v.labels.accent,v.labels&&v.labels.gender,v.labels&&v.labels.age,v.labels&&v.labels.use_case].filter(Boolean).join(' · '))}</span></button>${v.preview?`<button class="kd-vm-play" data-vprev="${esc(v.preview)}" aria-label="Sample">▶</button>`:''}</div>`).join('')+`<div class="kd-muted" style="padding:8px 10px;font-size:11px;max-width:320px">Pick one, then the next slide speaks with it. English and Arabic keep separate choices on this browser; set ELEVENLABS_VOICE_ID and ELEVENLABS_VOICE_ID_AR in Vercel to make them the defaults for everyone.</div>`;
   m.onclick=e=>{const lg=e.target.closest('[data-vlang]');if(lg){try{localStorage.setItem('bohioVoiceLang',lg.dataset.vlang)}catch(err){}KVOICE.cache.clear();KS_CACHE.clear();if(KP){KP.script=kScriptFor(KP.deck,RPTS[RSEL]);KP.deck.script=KP.script;KP.root.querySelector('.kd-cc').dir=lg.dataset.vlang==='ar'?'rtl':'ltr';const i=KP.i;KP.i=-1;kGo(i)}m.remove();toast(lg.dataset.vlang==='ar'?'التعليق الصوتي بالعربية':'Narration in English');return}
     const pk=e.target.closest('[data-vpick]');if(pk){try{localStorage.setItem(kVoiceKey(),JSON.stringify({id:pk.dataset.vpick,name:pk.dataset.vname}))}catch(err){}KVOICE.cache.clear();m.querySelectorAll('.kd-vm-row').forEach(r=>r.classList.toggle('on',r.dataset.vid===pk.dataset.vpick));btn.textContent='🎙 '+pk.dataset.vname;toast('Voice: '+pk.dataset.vname);return}
-    const pv=e.target.closest('[data-vprev]');if(pv){kStopVoice();const a=new Audio(pv.dataset.vprev);KAUDIO=a;a.play().catch(()=>toast('Sample could not play'))}}}
+    const pv=e.target.closest('[data-vprev]');if(pv){kStopVoice();const a=kAudio(pv.dataset.vprev);KAUDIO=a;a.play().catch(()=>toast('Sample could not play'))}}}
 let KP=null;
 function openDeck(deck){
   closeDeck();const slides=deck.slides;const root=document.createElement('div');root.className='kd-root';root.setAttribute('role','dialog');root.setAttribute('aria-label',deck.title);
-  root.innerHTML=`<div class="kd-bg" aria-hidden="true"><span class="kd-tex"></span><div class="kd-fullbg"></div><div class="kd-ambient"><i class="a"></i><i class="b"></i><i class="c"></i><span class="kd-grid"></span><span class="kd-grain"></span></div></div><div class="kd-top"><span class="kd-toplogo"></span><div class="kd-timeline">${slides.map((s,k)=>`<button class="kd-seg" data-go="${k}" title="${k+1}. ${esc(kTitleOf(s))}"><span></span></button>`).join('')}</div><span class="kd-topchev"></span><button class="kd-btn kd-icon" data-act="close" aria-label="Close">✕</button></div><div class="kd-stage"><button class="kd-edge start" data-act="prev" aria-label="Back"></button><button class="kd-edge end" data-act="next" aria-label="Next"></button><div class="kd-footline"><b>1</b><span>|</span>KINAN<span>|</span>${esc(deck.title.split('—')[0].trim())}</div><div class="kd-wipe" style="display:none"><span></span><span></span></div><div class="kd-stack"></div></div><div class="kd-cc" dir="${kLang()==='ar'?'rtl':'ltr'}"><span></span></div><div class="kd-controls"><button class="kd-btn" data-act="prev">← Back</button><button class="kd-btn kd-primary kd-pp" data-act="pause" data-st="pause" title="Pause" aria-label="Pause">❚❚</button><button class="kd-btn" data-act="next">Next →</button><button class="kd-btn" data-act="voice" title="Voice on" aria-label="Voice on">🔊</button><button class="kd-btn" data-act="asktype" title="Ask the presenter a question…">💬 Ask</button><button class="kd-btn kd-askbtn" data-act="ask" title="Ask by voice" style="display:none">🎤</button><button class="kd-btn" data-act="cc" aria-pressed="true" title="Captions">CC</button><button class="kd-btn" data-act="vmenu" title="Choose the ElevenLabs voice">🎙 Voice</button><button class="kd-btn" data-act="full" aria-label="Fullscreen">⛶</button><button class="kd-btn" data-act="pptx" title="Download as PowerPoint">⬇ PowerPoint</button></div>`;
+  root.innerHTML=`<div class="kd-bg" aria-hidden="true"><span class="kd-tex"></span><div class="kd-fullbg"></div><div class="kd-ambient"><i class="a"></i><i class="b"></i><i class="c"></i><span class="kd-grid"></span><span class="kd-grain"></span></div></div><div class="kd-top"><span class="kd-toplogo"></span><div class="kd-timeline">${slides.map((s,k)=>`<button class="kd-seg" data-go="${k}" title="${k+1}. ${esc(kTitleOf(s))}"><span></span></button>`).join('')}</div><span class="kd-topchev"></span><button class="kd-btn kd-icon" data-act="close" aria-label="Close">✕</button></div><div class="kd-stage"><button class="kd-edge start" data-act="prev" aria-label="Back"></button><button class="kd-edge end" data-act="next" aria-label="Next"></button><div class="kd-footline"><b>1</b><span>|</span>KINAN<span>|</span>${esc(deck.title.split('—')[0].trim())}</div><div class="kd-wipe" style="display:none"><span></span><span></span></div><div class="kd-stack"></div></div><div class="kd-cc" dir="${kLang()==='ar'?'rtl':'ltr'}"><span></span></div><div class="kd-controls"><button class="kd-btn" data-act="prev">← Back</button><button class="kd-btn kd-primary kd-pp" data-act="pause" data-st="pause" title="Pause" aria-label="Pause">❚❚</button><button class="kd-btn" data-act="next">Next →</button><button class="kd-btn" data-act="voice" title="Voice on" aria-label="Voice on">🔊</button><button class="kd-btn" data-act="lang" title="${kLang()==='ar'?'Narration in English':'التعليق الصوتي بالعربية'}" aria-label="Language">${kLang()==='ar'?'EN':'ع'}</button><button class="kd-btn" data-act="asktype" title="Ask the presenter a question…">💬 Ask</button><button class="kd-btn kd-askbtn" data-act="ask" title="Ask by voice" style="display:none">🎤</button><button class="kd-btn" data-act="cc" aria-pressed="true" title="Captions">CC</button><button class="kd-btn" data-act="vmenu" title="Choose the ElevenLabs voice">🎙 Voice</button><button class="kd-btn" data-act="full" aria-label="Fullscreen">⛶</button><button class="kd-btn" data-act="pptx" title="Download as PowerPoint">⬇ PowerPoint</button></div>`;
   document.body.appendChild(root);document.body.style.overflow='hidden';
   const tts='speechSynthesis' in window?window.speechSynthesis:null;
   KP={deck,root,i:-1,playing:true,voice:true,cc:true,timer:null,tick:null,started:0,dur:8000,raf:[],px:0,py:0,script:kScriptFor(deck,RPTS[RSEL]),figs:null};deck.script=KP.script;KVPREV='';
@@ -4991,6 +5028,7 @@ function openDeck(deck){
   root.querySelector('.kd-qa-form').addEventListener('submit',e=>{e.preventDefault();const inp=e.target.querySelector('input');const q=inp.value.trim();inp.value='';if(q)kAskQ(q)});
   root.addEventListener('click',e=>{const a=e.target.closest('[data-act]'),g=e.target.closest('[data-go]');if(g){kGo(+g.dataset.go);return}if(!a)return;const act=a.dataset.act;
     if(act==='ask'){kAskTap();return}if(act==='asktype'){if(KP.qa.state==='thinking'||KP.qa.state==='speaking')return;const bx=KP.root.querySelector('.kd-qa');if(!bx.hidden&&!KP.qa.state&&!KP.qa.pending&&KP.qa.hold==null){bx.hidden=true;return}KP.qa.note='';kQaRender();const inp=bx.querySelector('.kd-qa-form input');if(inp)inp.focus();return}if(act==='qaclose'){const Q=KP.qa;if(Q.hold!=null||Q.state==='follow'||Q.state==='moveon'){kCarry(Q.hold!=null?Q.hold:KP.i);return}if(!Q.state&&!Q.pending){const inp=KP.root.querySelector('.kd-qa-form input');if(inp)inp.value='';KP.root.querySelector('.kd-qa').hidden=true}return}
+    if(act==='lang'){kSwitchLang(kLang()==='ar'?'en':'ar');return}
     if(act==='close')closeDeck();else if(act==='prev')kGo(KP.i-1);else if(act==='next')kGo(KP.i+1);else if(act==='pause'){if(a.dataset.st==='replay'){KP.playing=true;kSetPlay(a,'pause');kGo(0)}else kPause()}else if(act==='voice'){KP.voice=!KP.voice;kVoiceBtn(a);KP.started=Date.now();kStartTimer()}else if(act==='vmenu'){kVoiceMenu(a)}else if(act==='cc'){KP.cc=!KP.cc;a.setAttribute('aria-pressed',KP.cc);root.querySelector('.kd-cc').style.visibility=KP.cc?'':'hidden';if(KP.cc&&KP.segs){const f=KP.el&&KP.el.querySelector('.kd-focus');const g=KP.segs.find(x=>f&&x.f&&KP.figs.find(x.f)===f)||KP.segs[0];kCaption(g.t)}}else if(act==='full'){document.fullscreenElement?document.exitFullscreen():root.requestFullscreen&&root.requestFullscreen()}else if(act==='pptx'){a.disabled=true;a.textContent='Preparing…';deckToPptx(deck).then(()=>{a.disabled=false;a.textContent='⬇ PowerPoint'}).catch(err=>{a.disabled=false;a.textContent='⬇ PowerPoint';toast('PowerPoint: '+err.message)})}});
   root.addEventListener('pointermove',e=>{const t=e.target.closest('[data-tip]');const tip=root.querySelector('.kd-tip');if(!t){if(tip)tip.remove();return}let d;try{d=JSON.parse(t.dataset.tip)}catch(err){return}const box=t.closest('.kd-chart')||t.closest('.kd-slide');if(!box)return;const r=box.getBoundingClientRect();let el=tip;if(!el){el=document.createElement('div');el.className='kd-tip';box.style.position='relative';box.appendChild(el)}else if(el.parentElement!==box){el.remove();box.appendChild(el)}el.innerHTML=`<div class="kd-tip-t">${esc(d.t)}</div>${d.r.map(([v,l])=>`<div class="kd-tip-r"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}`;el.style.left=Math.min(Math.max(e.clientX-r.left+14,0),box.clientWidth-220)+'px';el.style.top=Math.max(0,e.clientY-r.top-70)+'px'});
   root.addEventListener('pointerleave',()=>{const tip=root.querySelector('.kd-tip');if(tip)tip.remove()});
@@ -5003,7 +5041,7 @@ function closeDeck(){if(!KP)return;try{if(KP.qa&&KP.qa.rec)KP.qa.rec.stop()}catc
 function kPause(){if(!KP)return;const Q=KP.qa;if(Q&&(Q.hold!=null||Q.state==='follow'||Q.state==='moveon')){kCarry(Q.hold!=null?Q.hold:KP.i);return}
   if(Q&&Q.state==='speaking'){if(KAUDIO){if(KAUDIO.paused){KAUDIO.play().catch(()=>{});Q.qPaused=false}else{KAUDIO.pause();Q.qPaused=true}}else if(window.speechSynthesis){if(Q.qPaused){speechSynthesis.resume();Q.qPaused=false}else{speechSynthesis.pause();Q.qPaused=true}}kPauseLabel();return}
   if(Q&&Q.state==='thinking')return;KP.playing=!KP.playing;
-  if(KP.playing){KP.started=Date.now();kResumeSlide()}else{clearTimeout(KP.timer);if(KAUDIO&&KAUDIO._kResume&&!KAUDIO.ended){KP.paused={i:KP.i,a:KAUDIO};KAUDIO.pause();KAUDIO=null;if(window.speechSynthesis)speechSynthesis.cancel()}else kStopVoice();if(KP.pace){KP.pace();KP.pace=null}}kPauseLabel()}
+  if(KP.playing){KP.started=Date.now();kResumeSlide()}else{clearTimeout(KP.timer);if(KAUDIO&&KAUDIO._kResume&&!KAUDIO.ended){const keep=KAUDIO;KP.paused={i:KP.i,a:keep};kStopVoice();KP.paused.a=keep}else kStopVoice();if(KP.pace){KP.pace();KP.pace=null}}kPauseLabel()}
 const KPP={play:['▶','Play'],pause:['❚❚','Pause'],replay:['↻','Replay']};function kSetPlay(b,st){if(!b)return;b.dataset.st=st;b.textContent=KPP[st][0];b.title=KPP[st][1];b.setAttribute('aria-label',KPP[st][1])}
 function kPauseLabel(){if(!KP)return;const b=KP.root.querySelector('[data-act=pause]'),Q=KP.qa||{};if(!b)return;b.disabled=Q.state==='thinking';if(b.dataset.st==='replay'&&!KP.playing)return;kSetPlay(b,Q.state==='speaking'?(Q.qPaused?'play':'pause'):KP.playing?'pause':'play')}
 /* carry on with the slide on screen: ElevenLabs picks up where the voice stopped; otherwise the slide starts again */
@@ -5326,7 +5364,7 @@ const KD_CSS=`
 .kd-svgnum{font:600 26px Montserrat,'Segoe UI',Arial,sans-serif;font-variant-numeric:tabular-nums}.kd-svglab{font:500 21px Montserrat,'Segoe UI',Arial,sans-serif;letter-spacing:.06em}
 .kd-legend{display:flex;align-items:center;gap:14px;padding:11px 10px;border-bottom:1px solid rgba(46,46,47,.09);font-size:clamp(14px,1.3vw,18px);border-radius:4px;transition:background .2s;cursor:default}
 .kd-legend.on{background:rgba(241,90,34,.08)}.kd-legend i{width:14px;height:14px;display:inline-block;flex:none;border-radius:3px}
-.kd-dseg{cursor:pointer;transition:opacity .25s,transform .25s}.kd-dseg:hover{transform:translateY(-8px)}
+.kd-dseg{cursor:pointer;transition:opacity .25s,filter .25s;will-change:opacity}.kd-dseg:hover{filter:brightness(1.1) saturate(1.1)}
 .kd-hrow{--kd-lab:clamp(130px,18vw,240px);display:flex;align-items:center;gap:16px;margin-bottom:16px}
 .kd-hlabel{width:var(--kd-lab);font-size:clamp(13px,1.25vw,17px)}
 .kd-htrack{flex:1;height:18px;background:rgba(46,46,47,.07);position:relative;border-radius:3px;overflow:visible;margin-top:8px}
