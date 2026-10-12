@@ -84,8 +84,12 @@ Return JSON only: {"impacts":[{"message_id":string,"levered_irr":number,"profit_
     if (!got.length) { f.impactNote = ok.length ? 'the AI returned no estimate for this change' : 'AI estimate failed: ' + res.map(r => r.reason && r.reason.message).filter(Boolean).join('; '); continue; }
     const avg = k => { const vs = got.map(g => +g.i[k]).filter(Number.isFinite); return vs.length ? vs.reduce((a, c) => a + c, 0) / vs.length : NaN; };
     const agree = got.length < 2 ? null : IMP.every(([k, , u]) => { const vs = got.map(g => +g.i[k]); return u === '%' ? Math.abs(vs[0] - vs[1]) <= 0.5 : Math.abs(vs[0] - vs[1]) <= 0.02 * Math.max(Math.abs(vs[0]), Math.abs(vs[1]), 1); });
-    f.impact = { base: { levered_irr: o.levered_irr, profit_on_cost: o.profit_on_cost, net_profit: o.net_profit }, hurdle, levered_irr: avg('levered_irr'), profit_on_cost: avg('profit_on_cost'), net_profit: avg('net_profit'),
-      working: `${got.map(g => names[g.p]).join(' and ')}${got.length > 1 ? (agree ? ' agree (average shown)' : ' differ: ' + got.map(g => `${names[g.p]} IRR ${fmtImp(+g.i.levered_irr, '%')}`).join(', ') + ' (average shown, check in EstateMaster)') : ' only, not cross-checked'}. ${(got[0].i.working || '').slice(0, 260)}` };
+    let arbNote = '';
+    if (agree === false && got.length > 1) { const arb = await arbitrate('proposed assumption change', user, [{ id: String(f.msg.id), change: `${f.assumption}: ${f.new_value}`, a: { by: names[got[0].p], levered_irr: +got[0].i.levered_irr, working: String(got[0].i.working || '').slice(0, 300) }, b: { by: names[got[1].p], levered_irr: +got[1].i.levered_irr, working: String(got[1].i.working || '').slice(0, 300) } }]); const a = arb[String(f.msg.id)];
+      if (a) { f.arbitrated = { levered_irr: +a.levered_irr, profit_on_cost: Number.isFinite(+a.profit_on_cost) ? +a.profit_on_cost : NaN, net_profit: Number.isFinite(+a.net_profit) ? +a.net_profit : NaN }; arbNote = ` (${names[G.aiProviders().includes('anthropic') ? 'anthropic' : G.aiProviders()[0]]} arbitrated from both workings: ${String(a.why || '').slice(0, 160)}; check in EstateMaster)`; } }
+    const pick = k => f.arbitrated && Number.isFinite(f.arbitrated[k]) ? f.arbitrated[k] : avg(k);
+    f.impact = { base: { levered_irr: o.levered_irr, profit_on_cost: o.profit_on_cost, net_profit: o.net_profit }, hurdle, levered_irr: pick('levered_irr'), profit_on_cost: pick('profit_on_cost'), net_profit: pick('net_profit'), agree, arbitrated: !!f.arbitrated,
+      working: `${got.map(g => names[g.p]).join(' and ')}${got.length > 1 ? (agree ? ' agree (average shown)' : ' differ: ' + got.map(g => `${names[g.p]} IRR ${fmtImp(+g.i.levered_irr, '%')}`).join(', ') + (arbNote || ' (average shown, check in EstateMaster)')) : ' only, not cross-checked'}. ${(got[0].i.working || '').slice(0, 260)}` };
     // checks on the estimate: bounds, arithmetic (calibrated on EstateMaster's own base) and direction
     const chk = [], im = f.impact, fin = Number.isFinite;
     if (fin(im.levered_irr) && !(im.levered_irr > -95 && im.levered_irr < 100)) chk.push('IRR outside any plausible range');
@@ -123,6 +127,13 @@ function hurdleOf(b) {
 }
 /* A phase with a time budget: the report goes out on time with whatever finished. */
 const within = (ms, p) => { let t; const cap = new Promise((_, rej) => { t = setTimeout(() => rej(new Error('time budget reached')), ms); }); return Promise.race([p, cap]).finally(() => clearTimeout(t)); };
+// Figures the two models still disagree on are arbitrated from both workings by the first provider (never a silent average).
+async function arbitrate(what, context, disputes) {
+  const provs = G.aiProviders(); if (!provs.length || !disputes.length) return {};
+  const p = provs.includes('anthropic') ? 'anthropic' : provs[0];
+  const system = `You arbitrate between two analysts' estimates of the same ${what} on an ARGUS EstateMaster model. For each listed item decide which figure is right, or give the corrected figure, from the two workings and the EstateMaster figures. Return JSON only: {"items":[{"id":string,"levered_irr":number,"profit_on_cost":number|null,"net_profit":number|null,"why":"one short sentence"}]}. Percentages in percent; money in full currency units.`;
+  try { const j = G.jsonOf(await G.ai(system, `${context}\n\nItems in dispute:\n${JSON.stringify(disputes)}`, 3000, p)); const out = {}; for (const it of (j.items || [])) if (it && it.id != null && Number.isFinite(+it.levered_irr)) out[String(it.id)] = it; return out; } catch { return {}; }
+}
 async function stressRun(b, hurdle, checks = []) {
   const provs = G.aiProviders(); if (!provs.length) return null;
   const o = b.out, ins = (b.inputs || []).slice(0, 120).map(i => `${i.label} = ${i.text || i.value}${i.unit && i.unit !== '%' ? ' ' + i.unit : ''}`).join('\n');
@@ -141,6 +152,12 @@ Return JSON only: {"scenarios":[{"name":string,"levered_irr":number,"profit_on_c
     return { name: s.name, levered_irr: +irr.toFixed(2), profit_on_cost: Number.isFinite(poc) ? +poc.toFixed(2) : null, net_profit: Number.isFinite(avg('net_profit')) ? Math.round(avg('net_profit')) : null, pass: irr >= hurdle && (!Number.isFinite(poc) || poc >= +(env('HURDLE_POC') || 15)), agree, flag: !adverse,
       working: `${got.map(g => `${names[g.p]} ${(+g.i.levered_irr).toFixed(2)}%`).join(', ')}${got.length > 1 ? (agree ? ' (agree, average shown)' : ' (differ: average shown, check in EstateMaster)') : ' (one model only)'}. ${String(got[0].i.working || '').slice(0, 240)}${!adverse ? ' CHECK FAILED: the IRR improves under an adverse scenario; do not rely on it.' : ''}` };
   });
+  const disputed = scenarios.filter(x => x.agree === false);
+  if (disputed.length && ok.length > 1) {
+    const ds = disputed.map(x => { const g = ok.map(r => ({ p: r.p, i: (r.j.scenarios || []).find(z => String(z.name).toLowerCase().trim() === x.name.toLowerCase()) })).filter(z => z.i); return { id: x.name, a: { by: names[g[0].p], levered_irr: +g[0].i.levered_irr, working: String(g[0].i.working || '').slice(0, 300) }, b: g[1] ? { by: names[g[1].p], levered_irr: +g[1].i.levered_irr, working: String(g[1].i.working || '').slice(0, 300) } : null }; });
+    const arb = await arbitrate('stress scenario', user, ds);
+    for (const x of disputed) { const a = arb[x.name]; if (!a) continue; x.levered_irr = +(+a.levered_irr).toFixed(2); if (Number.isFinite(+a.profit_on_cost)) x.profit_on_cost = +(+a.profit_on_cost).toFixed(2); if (Number.isFinite(+a.net_profit)) x.net_profit = Math.round(+a.net_profit); x.pass = x.levered_irr >= hurdle && (!Number.isFinite(x.profit_on_cost) || x.profit_on_cost >= +(env('HURDLE_POC') || 15)); x.arbitrated = true; x.working = x.working.replace(' (differ: average shown, check in EstateMaster)', ` (differ: ${names[G.aiProviders().includes('anthropic') ? 'anthropic' : G.aiProviders()[0]]} arbitrated from both workings: ${String(a.why || '').slice(0, 160)}; check in EstateMaster)`); }
+  }
   const out = { by: ok.map(r => names[r.p]).join(' and ') || 'no model', scenarios, risks: [], reviewer: '' };
   const fails = scenarios.filter(x => x.pass === false), ev = [];
   fails.forEach(x => ev.push(`Stress test (AI estimate): ${x.name} → levered IRR ${x.levered_irr}% against the ${hurdle}% hurdle${x.agree === false ? ' (Claude and OpenAI differ)' : ''}`));
