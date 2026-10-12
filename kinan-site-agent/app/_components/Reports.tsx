@@ -1,10 +1,12 @@
 "use client";
 /**
- * Reports: the scheduled daily e-mail with the status of every active project — the same page as the other Kinan
- * agents' Reports (schedule, run, history, delivery check). Reports go to internal addresses only.
+ * Reports: the scheduled daily e-mail with the status of every active project. Same page as the Kinan marketing
+ * agent's Reports — Schedule (with the Delivery check) on the left, Run and History on the right, the open report
+ * underneath. Reports go to internal addresses only and take no action.
  */
 import { useCallback, useEffect, useState } from "react";
 import { runtime } from "./runtime";
+import RecipientsInput from "./RecipientsInput";
 
 type Lang = "en" | "ar";
 interface Meta { id: string; createdAt: string; date: string; kind: "DAILY" | "SNAPSHOT"; trigger: "SCHEDULED" | "MANUAL"; lang: Lang; title: string; status: "GENERATED" | "SENT" | "FAILED"; delivery: "mock" | "send" | null; recipients: string; error: string | null; projects: number }
@@ -17,8 +19,9 @@ interface State {
 }
 interface Form { enabled: boolean; time: string; timezone: string; days: number[]; recipients: string; languages: string[] }
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const STATUS: Record<string, string> = { SENT: "ok", GENERATED: "hold", FAILED: "bad" };
-const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const PILL: Record<string, string> = { SENT: "healthy", GENERATED: "hold", FAILED: "watch" };
+const dm = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+const day = (d: string) => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
 export default function Reports({ author }: { author: string }) {
   const [data, setData] = useState<State | null>(null);
@@ -26,7 +29,7 @@ export default function Reports({ author }: { author: string }) {
   const [lang, setLang] = useState<Lang>("en");
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
-  const [view, setView] = useState<{ id: string; title: string; html: string } | null>(null);
+  const [view, setView] = useState<{ id: string; title: string; html: string; lang: Lang } | null>(null);
 
   const take = useCallback((s: State, keepForm = false) => {
     setData(s);
@@ -34,7 +37,7 @@ export default function Reports({ author }: { author: string }) {
   }, []);
   const open = useCallback(async (id: string) => {
     const r = await fetch(`/api/reports?id=${encodeURIComponent(id)}`, { cache: "no-store" }).then((x) => x.json());
-    if (!r.error) setView({ id, title: r.title, html: r.html });
+    if (!r.error) { setView({ id, title: r.title, html: r.html, lang: r.lang === "ar" ? "ar" : "en" }); requestAnimationFrame(() => document.getElementById("rpt-view")?.scrollIntoView({ behavior: "smooth", block: "start" })); }
   }, []);
   useEffect(() => {
     fetch(`/api/reports?lang=${lang}`, { cache: "no-store" }).then((r) => r.json()).then((s: State) => {
@@ -43,10 +46,10 @@ export default function Reports({ author }: { author: string }) {
     }).catch(() => setMsg({ text: "Could not load the reports.", bad: true }));
   }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const act = async (action: string, extra: Record<string, unknown> = {}) => {
+  const act = async (action: string, extra: Record<string, unknown> = {}, as: Lang = lang) => {
     setBusy(action); setMsg(null);
     try {
-      const r = await fetch("/api/reports", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, lang, by: author, ...extra }) });
+      const r = await fetch("/api/reports", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, lang: as, by: author, ...extra }) });
       const s = (await r.json()) as State;
       if (!r.ok || s.error) { setMsg({ text: s.error ?? "Failed.", bad: true }); return; }
       take(s, action !== "SAVE_SCHEDULE");
@@ -56,78 +59,109 @@ export default function Reports({ author }: { author: string }) {
     finally { setBusy(null); }
   };
 
-  if (!data || !form) return <div className="home reports"><div className="home-head"><div><h1>Reports</h1><p>{msg?.text ?? "Loading…"}</p></div></div></div>;
+  const head = (
+    <div className="home-head"><div><h1>Reports</h1>
+      <p>Every scheduled morning the agent writes one report on all {data ? `${data.active} ` : ""}active projects — progress against plan, the critical path, milestones, procurement, safety and what was logged on site — and e-mails it to you. Reports go to internal addresses only and take no action.</p>
+    </div></div>
+  );
+  if (!data || !form) return <div className="home reports rpt">{head}<p className="muted">{msg?.text ?? "Loading…"}</p></div>;
   const set = (p: Partial<Form>) => setForm({ ...form, ...p });
-  const dirty = JSON.stringify(form) !== JSON.stringify({ enabled: data.schedule.enabled, time: data.schedule.time, timezone: data.schedule.timezone, days: data.schedule.days, recipients: data.schedule.recipients, languages: data.schedule.languages });
-  const allowed = [...data.allowedDomains.map((d) => `@${d}`), ...data.allowedRecipients].join(", ");
+  const toggleDay = (i: number) => set({ days: form.days.includes(i) ? form.days.filter((x) => x !== i) : [...form.days, i].sort() });
+  const toggleLang = (k: string) => set({ languages: form.languages.includes(k) ? form.languages.filter((x) => x !== k) : [...form.languages, k] });
+  const allowed = [...data.allowedDomains.map((d) => `@${d}`), ...data.allowedRecipients].join(", ") || "—";
 
   return (
-    <div className="home reports">
-      <div className="home-head">
-        <div><h1>Reports</h1><p>One e-mail each morning with the status of all {data.active} active project{data.active > 1 ? "s" : ""}: progress, the critical path, milestones, procurement, safety and what was logged on site.</p></div>
-      </div>
-      {msg && <div className={"rep-msg" + (msg.bad ? " bad" : "")} role="status">{msg.text}</div>}
+    <div className="home reports rpt">
+      {head}
+      {msg && <div className={msg.bad ? "rpt-err" : "rpt-alert"} role="status">{msg.text}</div>}
 
-      <div className="rep-grid">
-        <section className="studio-card rep-card">
-          <div className="rep-h"><span className="studio-l">Daily report · schedule</span><span className={"rep-badge " + (data.schedule.enabled ? "ok" : "off")}>{data.schedule.enabled ? "On" : "Paused"}</span></div>
-          <label className="rep-check"><input type="checkbox" checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} /> Send the daily report automatically</label>
-          <div className="rep-row">
-            <label className="rep-f">Time<input type="time" value={form.time} onChange={(e) => set({ time: e.target.value })} /></label>
-            <label className="rep-f">Timezone<select value={form.timezone} onChange={(e) => set({ timezone: e.target.value })}>{data.timezones.map((t) => <option key={t}>{t}</option>)}</select></label>
+      <div className="rpt-row">
+        <section className="rpt-panel">
+          <div className="rpt-h">
+            <div className="rpt-label">Schedule</div>
+            <span className={"pill " + (data.schedule.enabled ? "healthy" : "hold")}>{data.schedule.enabled ? "On" : "Paused"}</span>
+            <span className="grow" />
+            {data.next && <span className="muted">Next report: <b>{day(data.next.date)} {data.next.time}</b>{data.next.overdue ? " · due now" : ""}</span>}
           </div>
-          <div className="rep-f">Days
-            <div className="rep-days">{DAYS.map((d, i) => <button key={d} type="button" className={form.days.includes(i) ? "on" : ""} aria-pressed={form.days.includes(i)} onClick={() => set({ days: form.days.includes(i) ? form.days.filter((x) => x !== i) : [...form.days, i].sort() })}>{d}</button>)}</div>
+          <label className="rpt-check"><input type="checkbox" checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} />Send the daily report automatically</label>
+          <div className="rpt-fields">
+            <div className="field" style={{ width: 110 }}><label>Time</label><input className="in" type="time" value={form.time} onChange={(e) => set({ time: e.target.value })} /></div>
+            <div className="field" style={{ width: 190 }}><label>Timezone</label>
+              <select className="in" value={form.timezone} onChange={(e) => set({ timezone: e.target.value })}>{data.timezones.map((z) => <option key={z} value={z}>{z}</option>)}</select>
+            </div>
           </div>
-          <label className="rep-f">Recipients <em>internal only{allowed ? ` — ${allowed}` : ""}</em>
-            <textarea rows={2} value={form.recipients} onChange={(e) => set({ recipients: e.target.value })} placeholder="name@company.com, …" />
-          </label>
-          <div className="rep-f">Languages <em>one e-mail per language</em>
-            <div className="rep-langs">{([["en", "English"], ["ar", "العربية"]] as const).map(([k, l]) => <label key={k} className="rep-check"><input type="checkbox" checked={form.languages.includes(k)} onChange={(e) => set({ languages: e.target.checked ? [...form.languages, k] : form.languages.filter((x) => x !== k) })} /> {l}</label>)}</div>
+          <div className="field"><label>Days</label>
+            <div className="rpt-days">{DAYS.map((n, i) => <button key={n} type="button" className={"btn sm" + (form.days.includes(i) ? "" : " ghost")} aria-pressed={form.days.includes(i)} onClick={() => toggleDay(i)}>{n}</button>)}</div>
           </div>
-          <div className="rep-act">
-            <button className="primary" disabled={!!busy || !dirty} onClick={() => act("SAVE_SCHEDULE", { schedule: { ...form, days: form.days.join(","), languages: form.languages.join(",") } })}>{busy === "SAVE_SCHEDULE" ? "Saving…" : "Save schedule"}</button>
+          <div className="field"><label>Recipients (internal only)</label>
+            <RecipientsInput value={form.recipients} onChange={(v) => set({ recipients: v })} allowedDomains={data.allowedDomains} allowedRecipients={data.allowedRecipients} />
+            <div className="muted small">Allowed: {allowed}</div>
           </div>
-          <p className="rep-note">{data.next ? (data.next.overdue ? `Today's slot has passed — the next scheduler check sends it (local time ${data.local.hhmm}).` : `Next report ${data.next.date === data.local.date ? "today" : data.next.date} at ${data.next.time} (${data.schedule.timezone}).`) : "Paused — no report will be sent."}{data.schedule.updatedBy ? ` Last changed by ${data.schedule.updatedBy}, ${when(data.schedule.updatedAt)}.` : ""}</p>
+          <div className="rpt-langs-pick">
+            <span className="muted">Language:</span>
+            {([["en", "English"], ["ar", "العربية"]] as const).map(([k, n]) => <label key={k} className="rpt-check"><input type="checkbox" checked={form.languages.includes(k)} onChange={() => toggleLang(k)} />{n}</label>)}
+          </div>
+          <div className="rpt-actions">
+            <button className="btn" disabled={busy === "SAVE_SCHEDULE"} onClick={() => act("SAVE_SCHEDULE", { schedule: { ...form, days: form.days.join(","), languages: form.languages.join(",") } })}>{busy === "SAVE_SCHEDULE" ? "Saving…" : "Save schedule"}</button>
+          </div>
+
+          <div className="rpt-deliv">
+            <div className="rpt-h">
+              <div className="rpt-label">Delivery check</div>
+              <span className={"pill " + (data.delivery.ready ? "healthy" : "hold")}>{data.delivery.ready ? "Ready — you'll receive it" : "Not ready yet"}</span>
+              <span className="grow" />
+              <button className="btn sm" disabled={!!busy || !data.schedule.recipients} title="Builds today's report and e-mails it to the saved recipients now. The scheduled send still runs." onClick={() => act("SEND_NOW")}>{busy === "SEND_NOW" ? "Sending…" : "Send test now"}</button>
+            </div>
+            {data.delivery.items.map((it) => (
+              <div key={it.label} className="rpt-item"><span aria-hidden="true" className={it.ok ? "ok" : "no"}>{it.ok ? "✓" : "!"}</span><span className="grow">{it.label}{it.fix && <span className="muted"> — {it.fix}</span>}</span></div>
+            ))}
+            {data.delivery.notes.map((n) => <div key={n} className="muted small">{n}</div>)}
+          </div>
+          {data.schedule.updatedBy && <div className="muted small">Last changed by {data.schedule.updatedBy} · {dm(data.schedule.updatedAt)}</div>}
         </section>
 
-        <section className="studio-card rep-card">
-          <div className="rep-h"><span className="studio-l">Run</span>
-            <div className="seg3 rep-lang" role="group" aria-label="Report language">{(["en", "ar"] as const).map((l) => <button key={l} className={lang === l ? "on" : ""} aria-pressed={lang === l} onClick={() => setLang(l)}>{l === "en" ? "EN" : "ع"}</button>)}</div>
+        <section className="rpt-panel">
+          <div className="rpt-label">Run</div>
+          <div className="rpt-actions">
+            <button className="btn ghost" disabled={!!busy} onClick={() => act("PREVIEW")}>{busy === "PREVIEW" ? "Preparing report…" : "Preview today's report"}</button>
+            <button className="btn" disabled={!!busy} onClick={() => act("SNAPSHOT")}>{busy === "SNAPSHOT" ? "Building snapshot…" : "Run snapshot"}</button>
           </div>
-          <button className="rep-btn" disabled={!!busy} onClick={() => act("PREVIEW")}><b>{busy === "PREVIEW" ? "Preparing…" : "Preview today's report"}</b><em>Exactly what the recipients get — not e-mailed</em></button>
-          <button className="rep-btn" disabled={!!busy} onClick={() => act("SNAPSHOT")}><b>{busy === "SNAPSHOT" ? "Taking snapshot…" : "Run snapshot"}</b><em>The status right now, saved in the history — not e-mailed</em></button>
-          <button className="rep-btn" disabled={!!busy} onClick={() => act("RUN")}><b>{busy === "RUN" ? "Checking…" : "Run the schedule now"}</b><em>Sends today's report if it is due and hasn't gone yet</em></button>
-        </section>
+          <div className="muted rpt-info">
+            {data.outlook === "mock" ? "Outlook is simulated: sends are recorded, not delivered. Set OUTLOOK_MODE=live to e-mail the report." : "Reports are e-mailed from Outlook."}<br />
+            Run snapshot saves the status right now in the history below — it is not e-mailed.<br />
+            {data.cronConfigured ? "Scheduler endpoint is enabled: /api/reports/run is called every minute." : "To e-mail the report on schedule, set REPORTS_CRON_KEY and call /api/reports/run every minute (any scheduler)."}<br />
+            Local time now: <b>{data.local.date} {data.local.hhmm}</b> ({data.schedule.timezone})
+          </div>
 
-        <section className="studio-card rep-card">
-          <div className="rep-h"><span className="studio-l">Delivery check</span><span className={"rep-badge " + (data.delivery.ready ? "ok" : "bad")}>{data.delivery.ready ? "Ready" : "Not ready"}</span></div>
-          <ul className="rep-checks">{data.delivery.items.map((i) => <li key={i.label} className={i.ok ? "ok" : "bad"}><span aria-hidden="true">{i.ok ? "✓" : "✕"}</span><div><b>{i.label}</b>{i.fix && <em>{i.fix}</em>}</div></li>)}</ul>
-          {data.delivery.notes.map((n) => <p key={n} className="rep-note">{n}</p>)}
-          <button className="studio-add" disabled={!!busy} onClick={() => act("SEND_NOW")}>{busy === "SEND_NOW" ? "Sending…" : "Send test now"}</button>
-          <p className="rep-note">Sends today's report to the recipients above, in each scheduled language{data.outlook === "mock" ? " — simulated while Outlook isn't live" : ""}.</p>
-        </section>
-
-        <section className="studio-card rep-card rep-hist">
-          <div className="rep-h"><span className="studio-l">History</span><span className="rep-count">{data.reports.length}</span></div>
-          {data.reports.length ? (
-            <ul className="rep-list">{data.reports.map((r) => (
-              <li key={r.id} className={view?.id === r.id ? "on" : ""}>
-                <button onClick={() => open(r.id)}>
-                  <span className="t"><b>{r.title}</b><em>{when(r.createdAt)} · {r.kind === "SNAPSHOT" ? "snapshot" : r.trigger === "SCHEDULED" ? "scheduled" : "manual"} · {r.lang.toUpperCase()} · {r.projects} project{r.projects > 1 ? "s" : ""}{r.recipients ? ` · ${r.delivery === "mock" ? "simulated to" : "to"} ${r.recipients}` : ""}</em>{r.error && <em className="err">{r.error}</em>}</span>
-                  <span className={"rep-st " + (STATUS[r.status] ?? "")}>{r.status === "GENERATED" ? (r.kind === "SNAPSHOT" ? "Snapshot" : "Preview") : r.status === "SENT" ? (r.delivery === "mock" ? "Simulated" : "Sent") : "Failed"}</span>
-                </button>
-              </li>
-            ))}</ul>
-          ) : <p className="rep-note">No reports yet — preview today's report to see one.</p>}
+          <div className="rpt-label" style={{ marginTop: 16 }}>History</div>
+          {data.reports.length === 0 && <div className="muted">No reports yet.</div>}
+          <div className="rpt-hist">
+            {data.reports.map((r) => (
+              <div className={"logrow" + (view?.id === r.id ? " on" : "")} key={r.id}>
+                <div className="lt">{dm(r.createdAt)}</div>
+                <span className={"pill " + (PILL[r.status] ?? "hold")}>{r.status === "GENERATED" ? (r.kind === "SNAPSHOT" ? "Snapshot" : "Preview") : r.status === "SENT" ? (r.delivery === "mock" ? "Simulated" : "Sent") : "Failed"}</span>
+                <div className="grow">
+                  {r.kind === "SNAPSHOT" ? <b>Live snapshot</b> : r.trigger === "SCHEDULED" ? "Scheduled" : "Manual"} · {r.lang === "ar" ? "العربية" : "English"} · {r.projects} project{r.projects > 1 ? "s" : ""}{r.delivery === "mock" ? " · simulated" : ""}
+                  {(r.recipients || r.error) && <div className="muted small">{r.recipients}{r.error ? ` · ${r.error}` : ""}</div>}
+                </div>
+                <button className="btn ghost xs" onClick={() => open(r.id)}>View</button>
+              </div>
+            ))}
+          </div>
         </section>
       </div>
 
       {view && (
-        <section className="rep-view" aria-label="Report">
-          <div className="rep-vh"><b>{view.title}</b>
-            {runtime.mode !== "standalone" && <button className="mini" onClick={() => { const u = URL.createObjectURL(new Blob([view.html], { type: "text/html" })); const a = document.createElement("a"); a.href = u; a.download = `${view.title.replace(/[^\w؀-ۿ -]+/g, "").trim()}.html`; a.click(); setTimeout(() => URL.revokeObjectURL(u), 4000); }}>Download</button>}
-            <button className="x" onClick={() => setView(null)} aria-label="Close report">✕</button>
+        <section className="rpt-panel rpt-view" id="rpt-view" aria-label="Report">
+          <div className="rpt-h">
+            <div className="rpt-label">{view.title}</div>
+            <div className="rpt-seg" role="group" aria-label="Language">
+              {(["en", "ar"] as const).map((k) => <button key={k} type="button" className={"btn xs" + (view.lang === k ? "" : " ghost")} aria-pressed={view.lang === k} disabled={view.lang !== k && !!busy}
+                onClick={() => { if (view.lang !== k) { setLang(k); act("PREVIEW", {}, k); } }}>{k === "en" ? "English" : "العربية"}</button>)}
+            </div>
+            <span className="grow" />
+            {runtime.mode !== "standalone" && <button className="btn ghost xs" onClick={() => { const u = URL.createObjectURL(new Blob([view.html], { type: "text/html" })); const a = document.createElement("a"); a.href = u; a.download = `${view.title.replace(/[^\w؀-ۿ -]+/g, "").trim()}.html`; a.click(); setTimeout(() => URL.revokeObjectURL(u), 4000); }}>Download HTML</button>}
+            <button className="btn ghost xs" onClick={() => setView(null)}>Close</button>
           </div>
           <iframe title={view.title} srcDoc={view.html} sandbox="" />
         </section>
