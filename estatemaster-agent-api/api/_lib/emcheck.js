@@ -101,7 +101,7 @@ function parseWorkbook(wb, XLSX, fileName) {
     }
   }
   const sens = []; for (const s of sheets) { let r = parseSens(s.rows, s.name); if (!r.length && /sensitiv/i.test(s.name)) { const T = []; s.rows.forEach((row, i) => (row || []).forEach((c, j) => { (T[j] = T[j] || [])[i] = c; })); r = parseSens(T, s.name); } sens.push(...r); }
-  return { out, found, cells, sens, inputs: parseInputs(sheets), opt: detectOpt(sheets, fileName), meta: detectMeta(sheets, fileName), sheets: sheets.map(s => s.name).slice(0, 40) };
+  return { out, found, cells, sens, inputs: parseInputs(sheets), opt: detectOpt(sheets, fileName), meta: detectMeta(sheets, fileName), sheets: sheets.map(s => s.name).slice(0, 40), cf: parseCashFlow(sheets) };
 }
 
 /* ---- checks (kept identical in the app) ---- */
@@ -229,5 +229,106 @@ function marketVsInputs(inputs, meta) {
   }
   return { type: ty, bench: BENCH[ty].name, currency: ccy, fx: ccy !== 'SAR' ? `${ccy} converted at ${fx} SAR (fixed demo rate)` : '', rows };
 }
+/* ===== EstateMaster's own cash flow: the IRR engine =====
+   1. read the cash-flow sheet (period columns, every line); 2. prove the base: the IRRs recomputed from its flows must match EstateMaster's
+   own reported IRRs; 3. a change is applied to the lines on their real timeline (revenue and what moves with it, construction and what moves
+   with it, land, a delay shifts revenue) and the funding is re-run period by period with the structure that reproduces EstateMaster's equity
+   flows. Nothing is assumed: what cannot be proved from the export is reported as missing, never filled in. */
+function cfIsDateSerial(v) { return typeof v === 'number' && v > 20000 && v < 80000; }
+const CF_MON = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+function cfTextDate(v) { if (typeof v !== 'string') return null; const t = v.trim(); let m = t.match(/^([A-Za-z]{3})[a-z]*[-\s']+(\d{2}|\d{4})$/); if (m && m[1].toLowerCase() in CF_MON) { const y = +m[2] < 100 ? 2000 + +m[2] : +m[2]; return y * 12 + CF_MON[m[1].toLowerCase()]; } m = t.match(/^Q([1-4])[-\s']*(\d{2}|\d{4})$/i); if (m) { const y = +m[2] < 100 ? 2000 + +m[2] : +m[2]; return y * 12 + (+m[1] - 1) * 3; } return null; }
+function parseCashFlow(sheets) {
+  const order = sheets.slice().sort((a, b) => (/cash ?flow|\bcf\b|monthly|quarterly/i.test(b.name) ? 1 : 0) - (/cash ?flow|\bcf\b|monthly|quarterly/i.test(a.name) ? 1 : 0));
+  for (const s of order) {
+    const rows = s.rows || []; let best = null;
+    for (let ri = 0; ri < Math.min(rows.length, 40); ri++) { const row = rows[ri] || []; const cols = []; const keys = [];
+      for (let c = 0; c < row.length; c++) { const v = row[c]; let k = null; if (cfIsDateSerial(v)) { const d = new Date(Math.round((v - 25569) * 864e5)); k = d.getUTCFullYear() * 12 + d.getUTCMonth(); } else k = cfTextDate(v); if (k != null) { cols.push(c); keys.push(k); } }
+      if (cols.length < 6) continue; const steps = keys.slice(1).map((k, i) => k - keys[i]); const st = steps.sort((a, b) => a - b)[Math.floor(steps.length / 2)];
+      const okSteps = keys.slice(1).every((k, i) => k - keys[i] === st) && [1, 3, 6, 12].includes(st); if (!okSteps) continue;
+      if (!best || cols.length > best.cols.length) best = { ri, cols, keys, freq: 12 / st };
+    }
+    if (!best) continue;
+    const lines = []; const c0 = best.cols[0];
+    for (let ri = best.ri + 1; ri < rows.length && lines.length < 400; ri++) { const row = rows[ri] || []; const lab = row.slice(0, c0).filter(v => typeof v === 'string' && v.trim()).map(v => v.trim()).join(' · '); if (!lab) continue;
+      const v = best.cols.map(c => { const x = row[c]; return typeof x === 'number' && Number.isFinite(x) ? Math.round(x * 100) / 100 : (typeof x === 'string' && /^\s*-?[\d,.]+\s*$/.test(x) ? +x.replace(/,/g, '') : 0); });
+      if (v.some(x => x !== 0)) lines.push({ label: lab, v, row: ri }); }
+    if (lines.length >= 3) return { sheet: s.name, freq: best.freq, start: best.keys[0], n: best.cols.length, lines };
+  }
+  return null;
+}
+function cfIRR(fl, ppy) { const f = r => { let s = 0; for (let t = 0; t < fl.length; t++) s += fl[t] / Math.pow(1 + r, t); return s; }; if (!fl.some(v => v < 0) || !fl.some(v => v > 0)) return { comp: NaN, nom: NaN };
+  let lo = -0.99, hi = 1, flo = f(lo), fhi = f(hi); if (flo * fhi > 0) { hi = 5; fhi = f(hi); if (flo * fhi > 0) return { comp: NaN, nom: NaN }; }
+  for (let i = 0; i < 300; i++) { const m = (lo + hi) / 2, fm = f(m); if (flo * fm <= 0) hi = m; else { lo = m; flo = fm; } } const r = (lo + hi) / 2; return { comp: (Math.pow(1 + r, ppy) - 1) * 100, nom: r * ppy * 100 }; }
+const CFRX = { netU: /net (project )?cash ?flow (before|excl\.?|excluding|pre)[- ]?(funding|finance|financing|interest)|^project (net )?cash ?flow|ungeared cash|unlevered cash|net development cash|^net cash ?flow$/i,
+  netE: /cash ?flow (to|after) (equity|funding|finance)|equity (net )?cash ?flow|geared cash|levered cash|net cash ?flow to (equity|investor|developer)/i,
+  eqIn: /equity (contribution|injection|drawdown|funding|in)\b|^equity$/i, draw: /(loan|debt|facility|senior).*(drawdown|draw)|drawdown/i, rep: /(loan|debt|facility|senior).*(repay)|repayment/i, int: /interest/i,
+  total: /^(total|sub-?total|cumulative|net)\b|cumulative|balance/i, rev: /revenue|sales|settlement|deposit|\brent|income|proceeds|gdv|disposal/i, notRev: /cost|commission|agent|marketing|\btax|fee|interest|vat/i,
+  land: /\bland\b|acquisition|stamp duty|transfer (duty|tax)|purchase price/i, cons: /construction|build(ing)? cost|hard cost|infrastructure|civil|\bmep\b|fit[- ]?out|substructure|superstructure|externals?|preliminar/i };
+function cfAdd(a, b, k = 1) { const n = Math.max(a.length, b.length), o = Array(n).fill(0); for (let t = 0; t < n; t++) o[t] = (a[t] || 0) + k * (b[t] || 0); return o; }
+function cfSum(a) { return a.reduce((s, v) => s + v, 0); }
+function cfFund(u, p) { // equity first (up to E0) then debt with capitalised interest at r per period, repaid from positive flows; or pro-rata at share `ltc`
+  let used = 0, bal = 0, peak = 0, int = 0; const eq = [];
+  for (let t = 0; t < u.length; t++) { const i = bal * p.r; bal += i; int += i; const cf = u[t];
+    if (cf < 0) { let need = -cf, e; if (p.mode === 'prorata') e = need * (1 - p.ltc); else e = Math.min(need, Math.max(0, p.E0 - used)); used += e; need -= e; bal += need; eq.push(-e); }
+    else { const r = Math.min(bal, cf); bal -= r; eq.push(cf - r); }
+    if (bal > peak) peak = bal; }
+  if (bal > 1) eq[eq.length - 1] -= bal; return { eq, peak, int };
+}
+function cfModel(x) {
+  const cf = x && x.cf, o = (x && x.out) || {}, R = { ok: false, need: [], notes: [] }; if (!cf) { R.need.push('cashflow'); return R; }
+  const ppy = cf.freq, L = cf.lines, find = rx => L.filter(l => rx.test(l.label) && !/cumulative/i.test(l.label));
+  const conv = (fl) => { const r = cfIRR(fl, ppy); return r; };
+  // unlevered base: the net-before-funding line, or rebuilt from the component lines
+  const isFund = l => CFRX.eqIn.test(l.label) || CFRX.draw.test(l.label) || CFRX.rep.test(l.label) || CFRX.int.test(l.label) || CFRX.netE.test(l.label);
+  const comps = L.filter(l => !CFRX.total.test(l.label) && !isFund(l));
+  const sgn = l => { const tot = cfSum(l.v); const rev = CFRX.rev.test(l.label) && !CFRX.notRev.test(l.label); return rev ? (tot >= 0 ? 1 : -1) : (tot >= 0 ? -1 : 1); }; // revenue in, costs out, whatever the sheet's sign convention
+  let u = null, uSrc = '';
+  const netU = find(CFRX.netU).find(l => !CFRX.netE.test(l.label));
+  const rebuilt = comps.reduce((a, l) => cfAdd(a, l.v, sgn(l)), Array(cf.n).fill(0));
+  if (netU) { u = netU.v.slice(); uSrc = netU.label; const err = Math.max(...u.map((v, t) => Math.abs(v - rebuilt[t]))) / Math.max(1, ...u.map(Math.abs)); R.rebuildErr = err; }
+  else if (comps.length >= 2) { u = rebuilt; uSrc = 'rebuilt from ' + comps.length + ' lines'; }
+  if (!u) { R.need.push('net cash flow before funding'); return R; }
+  // which IRR convention EstateMaster uses (compound or nominal), proved on the unlevered or levered base
+  const ui = conv(u); R.base = { uirr: ui }; let convK = null;
+  if (Number.isFinite(o.unlevered_irr)) { const dc = Math.abs(ui.comp - o.unlevered_irr), dn = Math.abs(ui.nom - o.unlevered_irr); if (Math.min(dc, dn) <= 0.05) convK = dc <= dn ? 'comp' : 'nom'; R.uCheck = { em: o.unlevered_irr, calc: convK ? ui[convK] : ui.comp, ok: !!convK }; }
+  // levered: the equity line, and the funding structure that reproduces it
+  const netE = find(CFRX.netE)[0]; const eqIn = find(CFRX.eqIn)[0];
+  let E = netE ? netE.v.slice() : null;
+  const ei = E ? conv(E) : null; if (E && Number.isFinite(o.levered_irr)) { const dc = Math.abs(ei.comp - o.levered_irr), dn = Math.abs(ei.nom - o.levered_irr); const k = Math.min(dc, dn) <= 0.05 ? (dc <= dn ? 'comp' : 'nom') : null; if (!convK) convK = k; R.lCheck = { em: o.levered_irr, calc: k ? ei[k] : ei.comp, ok: !!k }; }
+  if (!convK) { R.need.push(Number.isFinite(o.unlevered_irr) || Number.isFinite(o.levered_irr) ? 'cash flow that reproduces EstateMaster’s IRR' : 'EstateMaster’s reported IRR'); R.notes.push(`IRR recomputed from the cash flow: unlevered ${ui.comp.toFixed(2)}%${ei ? ', levered ' + ei.comp.toFixed(2) + '%' : ''}; EstateMaster reports ${Number.isFinite(o.unlevered_irr) ? 'unlevered ' + o.unlevered_irr + '%' : ''}${Number.isFinite(o.levered_irr) ? ' levered ' + o.levered_irr + '%' : ''}`); return R; }
+  R.conv = convK; R.ppy = ppy;
+  // the funding structure: equity first or pro-rata, the period rate; fitted so the simulated equity flows match EstateMaster's
+  let fund = null;
+  if (E) { const tgt = E, scale = Math.max(1, ...tgt.map(Math.abs)); const negE = -cfSum(tgt.filter(v => v < 0)); const E0s = [eqIn ? Math.abs(cfSum(eqIn.v)) : null, negE].filter(v => v > 0);
+    const intL = find(CFRX.int)[0]; const err = p => { const s = cfFund(u, p).eq; return Math.max(...tgt.map((v, t) => Math.abs(v - (s[t] || 0)))) / scale; };
+    const fitR = base => { let lo = 0, hi = 0.05; for (let i = 0; i < 80; i++) { const a = lo + (hi - lo) / 3, b = hi - (hi - lo) / 3; if (err({ ...base, r: a }) < err({ ...base, r: b })) hi = b; else lo = a; } return (lo + hi) / 2; };
+    const cands = []; for (const E0 of E0s) { const p = { mode: 'equity', E0 }; p.r = fitR(p); cands.push({ ...p, e: err(p) }); }
+    const drawT = cfSum((find(CFRX.draw)[0] || { v: [] }).v), costT = -cfSum(u.filter(v => v < 0)); if (drawT > 0 && costT > 0) { const p = { mode: 'prorata', ltc: Math.min(0.95, drawT / costT) }; p.r = fitR(p); cands.push({ ...p, e: err(p) }); }
+    cands.sort((a, b) => a.e - b.e); const best = cands[0];
+    if (best) { const s = cfFund(u, best), si = conv(s.eq)[convK]; R.fundFit = { ...best, irr: si, err: best.e }; if (best.e <= 0.002 && Math.abs(si - o.levered_irr) <= 0.05) fund = best; }
+    if (!fund) R.need.push('funding structure that reproduces EstateMaster’s equity cash flow');
+  } else if (Number.isFinite(o.levered_irr)) R.need.push('the equity cash flow line (net cash flow to equity)');
+  // what moves with what: revenue-linked lines (selling costs) and construction-linked lines (fees, contingency), proved by a constant ratio period by period
+  const revL = comps.filter(l => CFRX.rev.test(l.label) && !CFRX.notRev.test(l.label)), consL = comps.filter(l => CFRX.cons.test(l.label) && !CFRX.rev.test(l.label)), landL = comps.filter(l => CFRX.land.test(l.label) && !CFRX.cons.test(l.label) && !CFRX.rev.test(l.label));
+  const flow = ls => ls.reduce((a, l) => cfAdd(a, l.v, sgn(l)), Array(cf.n).fill(0));
+  const linked = (base, l) => { const idx = base.map((v, t) => Math.abs(v) > 1 ? t : -1).filter(t => t >= 0); if (idx.length < 2) return false; const rs = idx.map(t => l.v[t] / base[t]); const m = rs.reduce((a, b) => a + b, 0) / rs.length; if (!Number.isFinite(m) || Math.abs(m) < 1e-6) return false; const cv = Math.sqrt(rs.reduce((a, r) => a + (r - m) * (r - m), 0) / rs.length) / Math.abs(m); const out = l.v.every((v, t) => Math.abs(base[t]) > 1 || Math.abs(v) < 1); return cv < 0.005 && out; };
+  const revBase = flow(revL).map(Math.abs), consBase = flow(consL).map(Math.abs);
+  const others = comps.filter(l => !revL.includes(l) && !consL.includes(l) && !landL.includes(l));
+  const revLinked = others.filter(l => linked(revBase, l)), consLinked = others.filter(l => !revLinked.includes(l) && linked(consBase, l));
+  R.lines = { revenue: revL.map(l => l.label), construction: consL.map(l => l.label), land: landL.map(l => l.label), withRevenue: revLinked.map(l => l.label), withConstruction: consLinked.map(l => l.label), other: others.filter(l => !revLinked.includes(l) && !consLinked.includes(l)).map(l => l.label) };
+  const rentL = revL.filter(l => /\brent|lease|leasing|tenan|income/i.test(l.label));
+  R.flows = { rev: flow(revL.concat(revLinked)), cons: flow(consL.concat(consLinked)), land: flow(landL), rent: flow(rentL) };
+  R.exitLine = L.some(l => /exit|terminal|capital value|investment sale|disposal|en bloc/i.test(l.label));
+  R.u = u; R.uSrc = uSrc; R.fund = fund; R.E = E; R.cf = cf; R.ok = true; R.levOk = !!fund;
+  return R;
+}
+function cfRun(M, d) { // d: {price, cost, land, delay (months), rate (pts)} → exact recomputation on the cash flow
+  if (!M || !M.ok) return null; const conv = M.conv; let u = M.u.slice(); const k = (d.price || 0) / 100;
+  if (d.price) u = cfAdd(u, M.flows.rev, k); if (d.cost) u = cfAdd(u, M.flows.cons, (d.cost || 0) / 100); if (d.land) u = cfAdd(u, M.flows.land, (d.land || 0) / 100); if (d.rent && M.flows.rent) u = cfAdd(u, M.flows.rent, (d.rent || 0) / 100);
+  if (d.delay) { const sh = Math.round(d.delay * M.ppy / 12); if (sh > 0) { const rv = cfAdd(M.flows.rev, M.flows.rev, k); u = cfAdd(u, rv, -1); const moved = Array(sh).fill(0).concat(rv); u = cfAdd(u, moved, 1); } }
+  const out = { uirr: cfIRR(u, M.ppy)[conv], profitU: cfSum(u) };
+  if (M.fund) { const p = { ...M.fund, r: M.fund.r + (d.rate || 0) / 100 / M.ppy }; const f = cfFund(u, p), f0 = cfFund(M.u, M.fund); out.lirr = cfIRR(f.eq, M.ppy)[conv]; out.peak = f.peak; out.int = f.int; out.dInt = f.int - f0.int; }
+  return out;
+}
 /*EMCHECKS-END*/
-module.exports = { parseWorkbook, parseSens, parseInputs, detectOpt, detectMeta, emChecks, marketVsInputs, BENCH, FX, LAB, ROWS };
+module.exports = { parseCashFlow, cfModel, cfRun, cfIRR, cfFund, parseWorkbook, parseSens, parseInputs, detectOpt, detectMeta, emChecks, marketVsInputs, BENCH, FX, LAB, ROWS };
