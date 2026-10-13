@@ -719,6 +719,43 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
   .ktitle{font-size:20px;margin-top:22px}
 }
 @media(max-width:700px){header.kband,.tabs{margin:0 -16px}.tabs{padding:0 16px}.inputrow input{min-width:0}.inputrow .btn{padding:10px 12px;letter-spacing:.12em}}
+/* ================= rounded corners everywhere (cards, controls, tables, chat, menus, report, play mode) ================= */
+:root{--rc:14px;--rc-sm:10px;--rc-xs:7px}
+.card,.card.rep-only,#aiSensCard,#emResCard,#asmCard,.feed-item,.kchart,.report,.k-cover,.k-head,.k-close,.verdict,.cr-chg .cr-tile,.cr-ai,.sf-model,.sf-risk,.xl-prev,.fw-card,.disp-win .card,.modal .card,.as-run,.cmp-add-in,.cmp-q,.as-ask,.calcnote,.chk-row,.k-sec,.k-chart,.emsec .card,.dr-card{border-radius:var(--rc)!important}
+.card,.feed-item,.kchart,.report,.k-cover,.xl-prev,.modal .card{overflow:hidden}
+.btn,button.btn,.btn.ghost,.btn.sm,.k-gear,#engBtn,.chart-fab,#dockFab,.fi-rej,.kchart-x,.xl-tab,.tab-btn{border-radius:var(--rc-sm)!important}
+input,select,textarea,.rcp,.rcp-in,#ask,#asX,#asY,#asN,#asmQ,#regQ,#xlQ,.xl-fbar .xl-addr,.xl-fbar .xl-fx{border-radius:var(--rc-sm)!important}
+input.regin,.xl-grid input{border-radius:var(--rc-xs)!important}
+input[type=checkbox],input[type=radio]{border-radius:4px!important}
+input[type=radio]{border-radius:50%!important}
+.pill,.tag,.chip,.qchip,.dr-badge,.fi-irr,.fi-kind,.at-chip,.disp-badge,.k-chip,.kd-chip,.pr-subnav .pr-nav-s{border-radius:999px!important}
+.tag{border-radius:6px!important}
+/* tables: rounded header and frame */
+table.t{border-collapse:separate!important;border-spacing:0}
+table.t tr:first-child>th:first-child,table.t thead tr:first-child>th:first-child{border-top-left-radius:var(--rc-sm)}
+table.t tr:first-child>th:last-child,table.t thead tr:first-child>th:last-child{border-top-right-radius:var(--rc-sm)}
+table.t tr:last-child>td:first-child{border-bottom-left-radius:var(--rc-sm)}table.t tr:last-child>td:last-child{border-bottom-right-radius:var(--rc-sm)}
+/* heat map and sensitivity cells */
+.hm .c,.hm-c,.hm .h{border-radius:var(--rc-xs)!important}
+.hm .c.base{border-radius:var(--rc-xs)!important}
+/* left menu */
+.pr-panel{border-radius:0 18px 18px 0}.pr-item,.pr-item.on,.pr-nav-i,.pr-nav-i.on,.pr-subnav,#prMenu,.pr-menu{border-radius:var(--rc-sm)!important}
+/* chat */
+.kdock{border-radius:18px!important;overflow:hidden}.kdock.full{border-radius:0!important}
+.chat-head{border-radius:0}.msg,.msg.agent,.msg.user{border-radius:14px!important}.msg .bul,.msg .calc-audit{border-radius:12px!important}
+.chips .chip,.chips .qchip,#chips .chip{border-radius:999px!important}
+.files .file,.files>*{border-radius:var(--rc-sm)!important}
+#hmTip,.hm-tip,.hm-tip .tt{border-radius:12px!important}
+.toast,#toast{border-radius:12px!important}
+/* hurdle bar, feed rows, compare */
+.cmp-row,.cmp-bar,.cmp-bar i,.cmp-verdict,.cmp-add{border-radius:var(--rc-sm)}
+.au-read,.fw-xl,.fw-xl-f code,.fw-xl-ref{border-radius:var(--rc-sm)}
+/* play mode */
+.kd-qa{border-radius:16px!important}.kd-cc>*,.kd-caption,.kd-cc span{border-radius:12px}.kd-vmenu{border-radius:14px!important}.kd-qcue{border-radius:999px!important}.kd-table{border-collapse:separate!important;border-spacing:0;border-radius:12px;overflow:hidden}
+.kd-stat,.kd-card,.kd-legend,.kd-hfill,.kd-htrack{border-radius:8px}
+.dr-days button,.dr-days button.on,.rp-langs,.rp-langs>*,.rp-tools,.rp-tools>*{border-radius:var(--rc-sm)!important}
+.sb-bar i,.sb-track i,.sf-bar i,.st-bar i,[class*=bar]>i{border-radius:4px}
+table.t tr{border-radius:0}table.t tr>td:first-child{border-top-left-radius:0}
 </style>
 </head>
 <body>
@@ -3567,7 +3604,7 @@ async function provHandle(it,out,done,web,ch,role){
   return null}
 /* ===== Assumption tests: Claude and OpenAI each calculate from EstateMaster's figures, check each other and resolve any difference ===== */
 const MET={levered_irr:['Levered IRR','%'],unlevered_irr:['Unlevered IRR','%'],profit_on_cost:['Profit on cost','%'],net_profit:['Net profit','M'],total_cost:['Total development cost','M'],gross_revenue:['Gross revenue','M'],peak_debt:['Peak debt','M']};
-const fMet=(k,v)=>!Number.isFinite(v)?'—':MET[k]&&MET[k][1]==='%'?v.toFixed(2)+'%':fM(v);
+const fMet=(k,v)=>!Number.isFinite(v)?'—':MET[k]&&MET[k][1]==='%'?v.toFixed(2)+'%':MET[k]&&MET[k][1]==='x'?v.toFixed(2)+'x':MET[k]&&MET[k][1]==='n'?(+v.toFixed(2)).toLocaleString('en-GB')+(MET[k][2]?' '+MET[k][2]:''):fM(v);
 function calcPair(){const c=chain('calc'),cl=c.find(x=>x.p==='anthropic'),op=c.find(x=>x.p==='openai');return[cl,op].filter(Boolean)}
 function calcContext(x){const L=[];const o=x?x.out:{};const PR=x&&x.proj&&PROJECTS[x.proj]?PROJECTS[x.proj]:PROJ;
   L.push(`Project: ${PR.name}${PR.type?' ('+PR.type+')':''}. Currency: ${PR.currency||CCY()}.`);
@@ -3735,12 +3772,45 @@ function asInputsList(){const x=latestExport();if(x&&x.inputs&&x.inputs.length)r
 const AS_PIN=`You pin down which single assumption of a real estate development model (ARGUS EstateMaster) a user means, from their plain words, and the shifts to test. Choose only from the assumptions listed. Return JSON only:
 {"assumption":"the exact label from the list","kind":"pct|pts|months|abs","unit":"% | pts | months | the assumption's unit","shifts":[five or seven numbers, ascending, including 0, e.g. -20,-10,0,10,20],"sure":true|false,"question":"one short question when not sure: which of the listed assumptions they mean, or what range","options":["2 to 4 short answers"],"note":"one short line on your reading"}
 Rules: kind pct is a percentage change of the assumption's value; pts is percentage points (rates, yields, margins, shares); months for timing and delays. Use the range the user wrote when they gave one; otherwise a sensible one (prices and costs ±20%, rates ±2 points, delays 0 to 12 months). If the words could mean more than one listed assumption (e.g. "price" when villa and apartment prices are both listed), set sure=false and ask, with the candidates as options. Never invent an assumption that is not listed. An output of the model (IRR, project IRR, profit, margin, NPV, equity multiple) is not an assumption: set sure=false and ask which listed assumption to stress, with the likely drivers as options.`;
+/* ================= metrics the model does not list (ROI, cash-on-cash, yield on cost, NPV…): defined by Claude and OpenAI
+   independently, each as a formula over EstateMaster's own outputs; the app evaluates both formulas itself, so the base value
+   is exact and the two definitions are compared on numbers, not words. Any disagreement goes to the user and the pop-up. ================= */
+let CUSTOMM={};try{CUSTOMM=JSON.parse(localStorage.getItem('em_custm')||'{}')||{}}catch(e){CUSTOMM={}}
+function regCustom(c){MET[c.key]=[c.label,c.unit==='%'?'%':c.unit==='x'?'x':c.unit==='M'||c.unit==='SAR'?'M':'n',c.unit==='years'?'years':''];CUSTOMM[c.key]=c;try{localStorage.setItem('em_custm',JSON.stringify(CUSTOMM))}catch(e){}const sel=$('#asMetric');if(sel&&![...sel.options].some(o=>o.value===c.key))sel.add(new Option(c.label,c.key))}
+Object.values(CUSTOMM).forEach(c=>{try{MET[c.key]=[c.label,c.unit==='%'?'%':c.unit==='x'?'x':c.unit==='M'||c.unit==='SAR'?'M':'n',c.unit==='years'?'years':'']}catch(e){}});
+const CUSTOM_RX=/\b(roi|roe|roce|npv|dscr|ltv|ltc)\b|return on (investment|equity|capital|cost)|cash[- ]on[- ]cash|yield on cost|development yield|net present value|payback|debt service|margin on (revenue|gdv|sales)|profit margin|gross margin|equity yield|stabili[sz]ed yield|break[- ]?even/i;
+const OUTKEYS=['levered_irr','unlevered_irr','profit_on_cost','net_profit','total_cost','gross_revenue','peak_debt','equity_multiple'];
+function evalMetric(formula,o){const f=String(formula||'').trim();if(!f||!/^[\sa-z_0-9.+\-*/()]+$/i.test(f))return NaN;const ids=f.match(/[a-z_][a-z_0-9]*/gi)||[];if(!ids.length||ids.some(id=>!OUTKEYS.includes(id)||!Number.isFinite(o[id])))return NaN;
+  try{const v=Function(...OUTKEYS,`"use strict";return (${f});`)(...OUTKEYS.map(k=>Number.isFinite(o[k])?o[k]:NaN));return Number.isFinite(v)?v:NaN}catch(e){return NaN}}
+const DEF_SYS=`You define a financial metric a user names for a real estate development model (ARGUS EstateMaster), so that it can be calculated exactly from EstateMaster's own outputs. You get the outputs EstateMaster calculated (with their keys) and the model's inputs.
+Return JSON only: {"sure":true|false,"question":"one short question when the name is ambiguous (e.g. ROI on total cost or on equity)","options":["2 to 4 short answers"],"label":"metric name, max 4 words","unit":"%|x|M|years|number","better":"hi|lo","formula":"an arithmetic expression using ONLY these keys: levered_irr, unlevered_irr, profit_on_cost, net_profit, total_cost, gross_revenue, peak_debt, equity_multiple (percentages are in percent, money in full currency units), e.g. net_profit / total_cost * 100","definition":"one sentence in plain words, naming the convention","note":"say if it equals an output already listed (e.g. ROI on total cost equals profit on cost)"}
+Rules: use the standard real estate development definition; if more than one standard definition exists and the user's words do not settle it, set sure=false and ask, with the definitions as options. If the metric cannot be written from these outputs (it needs a figure not listed), set sure=false and say which figure is missing. Never invent an output.`;
+async function defineMetric(text,thread){const pair=calcPair();if(!pair.length)throw new Error('Connect Claude and OpenAI in Settings → AI & routing');const x=latestExport(),o=x?x.out:{};
+  const user=`${calcContext(x)}\n\nOutput keys available, with EstateMaster's values: ${OUTKEYS.filter(k=>Number.isFinite(o[k])).map(k=>`${k} = ${o[k]}`).join('; ')}\n\nThe user wants this metric: "${text}"${thread&&thread.length?'\n\nAnswers to your questions so far:\n'+thread.map(t=>`Q: ${t.q}\nA: ${t.a}`).join('\n')+'\nWith these answers, decide (sure=true unless something essential is missing).':''}`;
+  const got=await Promise.allSettled(pair.map(async q=>{ROUTESTATS.calls++;const r=await callOne(q.p,q.model,DEF_SYS,[{role:'user',content:user}],false,{max:1500,task:'calc'});const j=jsonFrom(r.text);j.model=mName(q.p,q.model);j.base=evalMetric(j.formula,o);return j}));
+  const ok=got.filter(g=>g.status==='fulfilled').map(g=>g.value);if(!ok.length)throw new Error(got.map(g=>g.reason&&provErr(g.reason.message)).filter(Boolean).join('; ')||'no definition returned');
+  const ask=ok.find(j=>j.sure===false&&j.question);if(ask)return{question:ask.question,options:(ask.options||[]).slice(0,4),by:ask.model};
+  const good=ok.filter(j=>Number.isFinite(j.base));if(!good.length)return{question:`Neither model could write “${text}” from EstateMaster’s outputs${ok[0].note?' ('+String(ok[0].note).slice(0,120)+')':''}. How should it be calculated?`,options:['Net profit ÷ total development cost','Net profit ÷ peak equity','Levered IRR'],by:ok.map(j=>j.model).join(' and ')};
+  const tol=(a,b,u)=>Math.abs(a-b)<=Math.max(u==='%'?0.05:0,0.005*Math.max(Math.abs(a),Math.abs(b)));
+  if(good.length>1&&!tol(good[0].base,good[1].base,good[0].unit)){const opts=good.map(j=>`${j.definition||j.formula}`.slice(0,110));
+    flagDispute({where:'Sensitivity table',what:`definition of “${text}”`,kind:'disagree',items:good.map(j=>({label:j.label||text,a:`${j.model}: ${j.formula}`,b:null,how:`${j.definition||''} · base ${j.unit==='%'?(+j.base).toFixed(2)+'%':(+j.base).toLocaleString('en-GB',{maximumFractionDigits:2})}`})),note:'The two models define the metric differently: you choose which definition the table uses.',link:['scen','Open the table']});
+    return{question:`Claude and OpenAI define “${text}” differently. Which definition should the table use?`,options:opts,choices:Object.fromEntries(good.map((j,i)=>[opts[i],j]))}}
+  const j=good[0];if(good.length<2)flagDispute({where:'Sensitivity table',what:`definition of “${text}”`,kind:'single',items:[{label:j.label||text,a:`${j.model}: ${j.formula}`,b:null,how:'only one model defined it · not cross-checked'}]});
+  return{def:j,by:ok.map(z=>z.model)}}
+function adoptCustom(text,j){const key='cm_'+String(j.label||text).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,30);const o=(latestExport()||{}).out||{};
+  const c={key,label:String(j.label||text).slice(0,40),unit:['%','x','M','years','number'].includes(j.unit)?j.unit:'number',better:j.better==='lo'?'lo':'hi',formula:String(j.formula),definition:String(j.definition||''),note:String(j.note||''),base:evalMetric(j.formula,o),by:j.model||'',xid:(latestExport()||{}).id||''};regCustom(c);return c}
 /* an axis must stress an assumption of the model; an output (IRR, profit…) named on an axis becomes what the table shows */
 function asOutputOf(t){t=String(t||'').toLowerCase().trim();if(!t)return null;const isOut=/^(the\s+)?((project|unlevered|ungeared|equity|levered|geared)\s+)?irr$|^(net|development)\s+profit$|^profit(\s+on\s+cost)?$|^(development\s+)?margin$|^equity\s+multiple$|^peak\s+debt$|^returns?$/.test(t.replace(/\s+/g,' '));if(!isOut)return null;
   return /project|unlevered|ungeared/.test(t)?'unlevered_irr':/irr|return/.test(t)?'levered_irr':/on cost|margin/.test(t)?'profit_on_cost':/multiple/.test(t)?'equity_multiple':/peak/.test(t)?'peak_debt':'net_profit'}
 function asLabels(){return asInputsList().map(e=>String(e).split(' = ')[0].replace(/\s*\[[^\]]*\]\s*$/,'').replace(/\s*\([^)]*\)\s*$/,'').trim()).filter(Boolean)}
 function asMatchLabel(lab){const L=asLabels(),t=String(lab||'').toLowerCase().trim();if(!t)return null;return L.find(l=>l.toLowerCase()===t)||L.find(l=>l.toLowerCase().includes(t)||t.includes(l.toLowerCase()))||null}
-function asCandidates(skip){const L=asLabels().filter(l=>!skip||l.toLowerCase()!==String(skip).toLowerCase()),pick=[];for(const re of [/sale|selling|price/i,/construction|hard cost|build/i,/rent/i,/land/i,/interest|finance rate|saibor|profit rate/i,/yield|cap rate/i,/delay|duration|month/i,/contingen/i]){const l=L.find(x=>re.test(x)&&!pick.includes(x));if(l)pick.push(l);if(pick.length>=4)break}return pick.length?pick:L.slice(0,4)}
+/* proposals the agent makes for an axis must make sense: never the assumption already on the other axis, only assumptions the model lists, drivers of the metric first */
+function asSaneOptions(axis,opts){const other=axis==='x'?AS.y:AS.x,otherTxt=(axis==='x'?AS.txt.y:AS.txt.x)||'',skip=[other&&other.assumption,otherTxt].filter(Boolean).map(x=>String(x).toLowerCase().trim());
+  const same=(a,b)=>{a=String(a).toLowerCase().trim();b=String(b).toLowerCase().trim();return a===b||(a.length>3&&b.length>3&&(a.includes(b)||b.includes(a)))};
+  const labels=asLabels();let out=[];for(const o of (opts||[])){const t=String(o).trim();if(!t||skip.some(k=>same(t,k)))continue;const m=labels.length?asMatchLabel(t):t;if(!m||out.some(z=>same(z,m)))continue;out.push(labels.length?m:t)}
+  if(out.length<2)for(const c of asCandidates(skip[0])){if(skip.some(k=>same(c,k))||out.some(z=>same(z,c)))continue;out.push(c);if(out.length>=4)break}
+  return out.slice(0,4)}
+function asCandidates(skip){const L=asLabels().filter(l=>!skip||l.toLowerCase()!==String(skip).toLowerCase()),pick=[];const mk=($('#asMetric')&&$('#asMetric').value)||'levered_irr';const order=/irr|multiple|peak_debt/.test(mk)?[/sale|selling|price/i,/construction|hard cost|build/i,/interest|finance rate|saibor|profit rate/i,/delay|duration|month|timing|programme/i,/land/i,/rent/i,/yield|cap rate/i,/contingen/i]:[/sale|selling|price/i,/construction|hard cost|build/i,/land/i,/rent/i,/yield|cap rate/i,/contingen/i,/interest|finance rate|saibor|profit rate/i,/delay|duration|month/i];for(const re of order){const l=L.find(x=>re.test(x)&&!pick.includes(x));if(l)pick.push(l);if(pick.length>=4)break}return pick.length?pick:L.slice(0,4)}
 async function asPinpoint(axis,text){const th=AS.thread[axis]||[];const user=`Assumptions in the model:\n${asInputsList().join('\n')}\n\nThe user wrote for the ${axis.toUpperCase()} axis: "${text}"${th.length?'\n\nAnswers to your questions so far:\n'+th.map(t=>`Q: ${t.q}\nA: ${t.a}`).join('\n')+'\nWith these answers, decide (sure=true unless something essential is still missing).':''}`;
   let err;for(const {p,model} of chain('smart')){try{ROUTESTATS.calls++;const r=await callOne(p,model,AS_PIN,[{role:'user',content:user}],false,{max:1500,task:'answer'});const j=jsonFrom(r.text);if(!j.assumption&&!j.question)throw new Error('no assumption');j.model=mName(p,model);return j}catch(e){err=e;ROUTESTATS.fallback++}}
   throw err||new Error('No AI provider connected: Settings → AI & routing')}
@@ -3753,7 +3823,8 @@ Return JSON only: {"method":"one short paragraph on how the cells were derived a
 async function aiSensGrid(X,Y,mk,onStep=async()=>{}){const pair=calcPair();if(!pair.length)throw new Error('The sensitivity table needs Claude and OpenAI connected (Settings → AI & routing).');
   const x=latestExport(),o=x?x.out:{},ctx=calcContext(x),name=q=>mName(q.p,q.model);
   const axisTxt=(A,n)=>`${n} axis (${n==='X'?'columns':'rows'}): ${A.assumption}, shifts ${A.shifts.map(v=>asShift(A,v)).join(', ')} (${A.kind==='pct'?'percentage change of the assumption':A.kind==='pts'?'percentage points added':A.kind==='months'?'months added':'absolute change'})`;
-  const user=`${ctx}\n\n${axisTxt(X,'X')}\n${axisTxt(Y,'Y')}\nMetric: ${MET[mk][0]} (${mk}). Return a grid of ${Y.shifts.length} rows × ${X.shifts.length} columns.`;
+  const cm=CUSTOMM[mk];const anchor=cm?evalMetric(cm.formula,o):o[mk];
+  const user=`${ctx}\n\n${axisTxt(X,'X')}\n${axisTxt(Y,'Y')}\nMetric: ${MET[mk][0]} (${mk}).${cm?` Definition: ${cm.definition}. Formula over EstateMaster's outputs: ${cm.formula}. At the base (both shifts 0) it equals exactly ${anchor} (computed from EstateMaster's own outputs). For every cell, first estimate the outputs the formula uses, then apply the formula.`:''} Return a grid of ${Y.shifts.length} rows × ${X.shifts.length} columns.`;
   const ask=async(q,msg)=>{const j=jsonFrom((await callOne(q.p,q.model,AS_CALC(mk),[{role:'user',content:msg}],false,{max:8000,task:'calc'})).text);const g=j.grid;
     if(!Array.isArray(g)||g.length!==Y.shifts.length||g.some(r=>!Array.isArray(r)||r.length!==X.shifts.length||r.some(v=>!Number.isFinite(+v))))throw new Error(`${name(q)} returned a table of the wrong shape`);j.grid=g.map(r=>r.map(Number));return j};
   await onStep(`${pair.map(name).join(' and ')} calculate the ${Y.shifts.length}×${X.shifts.length} table independently`);
@@ -3774,7 +3845,10 @@ async function aiSensGrid(X,Y,mk,onStep=async()=>{}){const pair=calcPair();if(!p
         res.arb={};for(const c of (arb.cells||[])){const i=+c.row,k=+c.col;if(!Number.isFinite(+c.value)||!res.grid[i]||res.grid[i][k]===undefined||!d.bad.some(([bi,bk])=>bi===i&&bk===k))continue;res.grid[i][k]=+c.value;res.status[i][k]='arbitrated';res.arb[i+':'+k]=String(c.why||'')}}catch(e){}
       res.disputes=d.bad.map(([i,k])=>({label:`${asShift(Y,Y.shifts[i])} × ${asShift(X,X.shifts[k])}`,a:fMet(mk,A.j.grid[i][k]),b:fMet(mk,B.j.grid[i][k]),an:name(A.q),bn:name(B.q),how:res.status[i][k]==='arbitrated'?`arbitrated → ${fMet(mk,res.grid[i][k])}${res.arb&&res.arb[i+':'+k]?' · '+res.arb[i+':'+k]:''}`:`no arbitration · average ${fMet(mk,res.grid[i][k])}`}))}}
   else{res.a=ok[0].j;res.grid=ok[0].j.grid.map(r=>r.slice());res.status=res.grid.map(r=>r.map(()=>'single'))}
-  const bi=Y.shifts.indexOf(0),bk=X.shifts.indexOf(0);res.base=Number.isFinite(o[mk])?o[mk]:null;if(res.base!=null&&bi>=0&&bk>=0){res.grid[bi][bk]=res.base;res.status[bi][bk]='em'}
+  const bi=Y.shifts.indexOf(0),bk=X.shifts.indexOf(0);res.base=Number.isFinite(anchor)?anchor:null;if(cm)res.custom=cm;
+  // every model's base cell must equal EstateMaster's figure (or the value computed exactly from its outputs)
+  if(res.base!=null&&bi>=0&&bk>=0){const tolB=MET[mk][1]==='%'?0.25:0.01*Math.max(1,Math.abs(res.base));const offB=[[res.names[0],res.a&&res.a.grid],[res.names[1],res.b&&res.b.grid]].filter(([n,g])=>n&&g&&Number.isFinite(g[bi][bk])&&Math.abs(g[bi][bk]-res.base)>tolB);
+    if(offB.length){res.baseOff=offB.map(([n,g])=>({n,v:g[bi][bk]}));flagDispute({where:'Sensitivity table',what:`base cell of ${MET[mk][0]}`,kind:'check',items:offB.map(([n,g])=>({label:'base cell (both shifts 0)',a:`${n}: ${fMet(mk,g[bi][bk])}`,b:null,how:`should equal ${fMet(mk,res.base)} ${cm?'computed from EstateMaster’s outputs':'(EstateMaster’s own figure)'}: the whole table from this model is offset · the base cell is replaced with the exact value`})),link:['scen','Open the table']})}}if(res.base!=null&&bi>=0&&bk>=0){res.grid[bi][bk]=res.base;res.status[bi][bk]='em'}
   res.method=res.a.method||'';res.cells=res.a.cells||'';
   // checks on the table: for a percentage shock of a revenue or cost driver the metric should move one way along each axis
   res.odd=0;const dir=A=>chgDirection(A.assumption+' +10%');const dx=X.kind==='pct'?dir(X):null,dy=Y.kind==='pct'?dir(Y):null;
@@ -3849,7 +3923,10 @@ async function asGenerate(){if(AS.busy)return;const tx=($('#asX').value||'').tri
   try{if(AS.txt.x!==tx){AS.thread.x=[];AS.x=null;AS.txt.x=tx}if(AS.txt.y!==ty){AS.thread.y=[];AS.y=null;AS.txt.y=ty}
     const n=asGridN(),need0=[['x',tx],['y',ty]].filter(([a])=>!AS[a]);
     // an output named on an axis: it becomes the table's metric, and the axis needs a real assumption
-    const outQ=[];for(const [a,t] of need0){const om=asOutputOf(t);if(om){$('#asMetric').value=om;outQ.push([a,{question:`“${t}” is a result of the model, not an assumption. The table will show ${MET[om][0].toLowerCase()} in every cell. Which assumption should the ${a.toUpperCase()} axis stress?`,options:asCandidates(a==='x'?(AS.y&&AS.y.assumption):(AS.x&&AS.x.assumption)),out:true}])}}
+    const outQ=[];for(const [a,t] of need0){if(!asOutputOf(t)&&CUSTOM_RX.test(t)&&!asMatchLabel(t)){await step(`Defining “${t}”: Claude and OpenAI each write it as a formula over EstateMaster’s outputs`);const d=await defineMetric(t,AS.defThread&&AS.defThread[a]);
+        if(d.question){AS.pendDef=AS.pendDef||{};AS.pendDef[a]={text:t,choices:d.choices||null};outQ.push([a,{question:`${t}: ${d.question}`,options:d.options,choices:true}]);continue}
+        const c=adoptCustom(t,d.def);await step(`${c.label} = ${c.formula} · ${c.definition}${Number.isFinite(c.base)?` · base ${fMet(c.key,c.base)} from EstateMaster’s outputs`:''}`);$('#asMetric').value=c.key;outQ.push([a,{question:`“${t}” is a result of the model, not an assumption. The table will show ${c.label} (${c.definition||c.formula}) in every cell. Which assumption should the ${a.toUpperCase()} axis stress?`,options:asCandidates(a==='x'?(AS.y&&AS.y.assumption):(AS.x&&AS.x.assumption)),out:true}]);continue}
+      const om=asOutputOf(t);if(om){$('#asMetric').value=om;outQ.push([a,{question:`“${t}” is a result of the model, not an assumption. The table will show ${MET[om][0].toLowerCase()} in every cell. Which assumption should the ${a.toUpperCase()} axis stress?`,options:asCandidates(a==='x'?(AS.y&&AS.y.assumption):(AS.x&&AS.x.assumption)),out:true}])}}
     const mk=$('#asMetric').value,need=need0.filter(([a])=>!outQ.some(q=>q[0]===a));
     if(need.length||outQ.length){await step('Pinning down the assumptions');const pins=await Promise.all(need.map(([a,t])=>asPinpoint(a,t)));const qs=outQ.slice();
       need.forEach(([a,t],i)=>{const j=pins[i];if(j.sure===false&&j.question){qs.push([a,j]);return}
@@ -3857,13 +3934,16 @@ async function asGenerate(){if(AS.busy)return;const tx=($('#asX').value||'').tri
         if(!lab){qs.push([a,{question:om?`“${j.assumption}” is a result of the model, not an assumption. Which assumption should the ${a.toUpperCase()} axis stress?`:`I could not find “${j.assumption||t}” among the model’s assumptions. Which one do you mean for the ${a.toUpperCase()} axis?`,options:(j.options&&j.options.length?j.options:asCandidates()).slice(0,4),out:true}]);return}
         if(lab.toLowerCase()!==String(j.assumption).toLowerCase()&&!asLabels().some(l=>l.toLowerCase()===String(j.assumption).toLowerCase()))j.assumption=lab;AS[a]=asPin(j,n)});
       if(!qs.length&&AS.x&&AS.y&&AS.x.assumption.toLowerCase()===AS.y.assumption.toLowerCase()){AS.y=null;qs.push(['y',{question:`Both axes stress ${AS.x.assumption}. Which other assumption should the Y axis stress?`,options:asCandidates(AS.x.assumption),out:true}])}
-      if(qs.length){AS.pendQ=Object.fromEntries(qs.map(([a,j])=>[a,j.question]));AS.pendOut=Object.fromEntries(qs.filter(([,j])=>j.out).map(([a])=>[a,true]));$('#asQ').innerHTML=qs.map(([a,j])=>`<div class="as-ask" data-asax="${a}"><b>${a.toUpperCase()} axis · ${esc(j.question)}</b><div class="chips" style="margin:6px 0">${(j.options||[]).map(o=>`<span class="chip" data-asopt="${esc(o)}">${esc(o)}</span>`).join('')}</div><form class="as-ansf" style="display:flex;gap:6px"><input placeholder="or answer in your own words" style="flex:1"><button class="btn ghost sm">Answer</button></form></div>`).join('');
+      if(qs.length){AS.pendQ=Object.fromEntries(qs.map(([a,j])=>[a,j.question]));AS.pendOut=Object.fromEntries(qs.filter(([,j])=>j.out).map(([a])=>[a,true]));$('#asQ').innerHTML=qs.map(([a,j])=>`<div class="as-ask" data-asax="${a}"><b>${a.toUpperCase()} axis · ${esc(j.question)}</b><div class="chips" style="margin:6px 0">${(j.choices?(j.options||[]):asSaneOptions(a,j.options)).map(o=>`<span class="chip" data-asopt="${esc(o)}">${esc(o)}</span>`).join('')}</div><form class="as-ansf" style="display:flex;gap:6px"><input placeholder="or answer in your own words" style="flex:1"><button class="btn ghost sm">Answer</button></form></div>`).join('');
         await step('The agent needs an answer before it calculates');outcome='wait';return}}
     await step(`X: ${AS.x.assumption} (${AS.x.shifts.map(v=>asShift(AS.x,v)).join(' · ')}) · Y: ${AS.y.assumption} (${AS.y.shifts.map(v=>asShift(AS.y,v)).join(' · ')})`);
     const em=asEmTable(AS.x,AS.y,mk);if(em){await step('EstateMaster’s export holds this table: its own figures are shown');AS.res={em,mk};renderAiSens();outcome='em';return}
     AS.res=await aiSensGrid(AS.x,AS.y,mk,step);renderAiSens();saveMem();outcome='done'}
   catch(e){outcome='err';stopClock(e.message)}finally{if(outcome==='done')stopClock('Generated in {t}.',true);else if(outcome==='wait')stopClock('Waiting for your answer · {t} so far.');else if(outcome==='em')stopClock('Read from EstateMaster in {t}.');else if(outcome!=='err')stopClock('');AS.busy=false;$('#asGo').disabled=false}}
-function asAnswer(axis,answer){const q=AS.pendQ[axis]||'';delete AS.pendQ[axis];AS[axis]=null;if(AS.pendOut&&AS.pendOut[axis]){delete AS.pendOut[axis];const el=$('#as'+axis.toUpperCase());if(el)el.value=answer;AS.txt[axis]=answer;AS.thread[axis]=[]}else AS.thread[axis].push({q,a:answer});asGenerate()}
+function asAnswer(axis,answer){const q=AS.pendQ[axis]||'';delete AS.pendQ[axis];AS[axis]=null;
+  if(AS.pendDef&&AS.pendDef[axis]){const pd=AS.pendDef[axis];delete AS.pendDef[axis];const pick=pd.choices&&pd.choices[answer];if(pick){const c=adoptCustom(pd.text,pick);$('#asMetric').value=c.key;AS.pendQ[axis]=`“${pd.text}” is a result of the model, not an assumption. The table will show ${c.label} in every cell. Which assumption should the ${axis.toUpperCase()} axis stress?`;AS.pendOut=AS.pendOut||{};AS.pendOut[axis]=true;
+      $('#asQ').innerHTML=`<div class="as-ask" data-asax="${axis}"><b>${axis.toUpperCase()} axis · ${esc(AS.pendQ[axis])}</b><div class="chips" style="margin:6px 0">${asCandidates().map(o=>`<span class="chip" data-asopt="${esc(o)}">${esc(o)}</span>`).join('')}</div><form class="as-ansf" style="display:flex;gap:6px"><input placeholder="or answer in your own words" style="flex:1"><button class="btn ghost sm">Answer</button></form></div>`;return}
+    AS.defThread=AS.defThread||{};(AS.defThread[axis]=AS.defThread[axis]||[]).push({q,a:answer});asGenerate();return}if(AS.pendOut&&AS.pendOut[axis]){delete AS.pendOut[axis];const el=$('#as'+axis.toUpperCase());if(el)el.value=answer;AS.txt[axis]=answer;AS.thread[axis]=[]}else AS.thread[axis].push({q,a:answer});asGenerate()}
 
 /* ================= the Daily feed: the effect of every proposed change, worked out live by the AI ================= */
 const CRBUSY=new Set();let CRQ=[],CRRUN=0;
