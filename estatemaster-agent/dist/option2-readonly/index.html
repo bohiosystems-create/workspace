@@ -5444,7 +5444,9 @@ function reportStandalone(id){const tex=getComputedStyle(document.documentElemen
 
 /* ---- ▶ Play ---- */
 const KVOICE={mode:null,checked:false,cache:new Map(),pass:()=>AI.pass?{'x-demo-pass':AI.pass}:{}};
-async function kVoiceCheck(){if(KVOICE.checked)return KVOICE.mode;KVOICE.checked=true;KVOICE.mode='speechSynthesis' in window?'browser':'none';
+// one shared check: a second caller waits for the answer instead of reading the browser-voice placeholder while the server is still answering
+function kVoiceCheck(){if(KVOICE.checking)return KVOICE.checking;if(KVOICE.checked)return Promise.resolve(KVOICE.mode);return KVOICE.checking=kVoiceCheck0()}
+async function kVoiceCheck0(){KVOICE.checked=true;const m0='speechSynthesis' in window?'browser':'none';if(!KVOICE.mode)KVOICE.mode=m0;
   if(/^https?:/.test(location.protocol)){try{const r=await fetch('/api/voice');if(r.ok){const j=await r.json();if(j.enabled)KVOICE.mode='eleven';KVOICE.stt=j.stt||'';KVOICE.model=j.model||'';KVOICE.current=j.voice||'';if(j.riyal)KVOICE.riyal=j.riyal}}catch(e){}}return KVOICE.mode}
 /* speak text; resolves when it ends (or at once when there is no voice). onStart gets the Audio for pause/stop. */
 let KAUDIO=null,KVTOK=0;const KALL=new Set();
@@ -5744,7 +5746,7 @@ function kTrack(segs,figs){const sp=segs.map(g=>kSpeech(g.t)),text=sp.join(' '),
 /* play a track: ElevenLabs timestamps, browser word boundaries, or pacing; on(e) gets {k} (sentence) and {node} (figure) */
 function kPaceTrack(tr,on,ms){let ei=0;const t0=performance.now(),total=ms||Math.max(2500,tr.text.split(/\s+/).length/2.6*1000);const adv=pos=>{while(ei<tr.ev.length&&tr.ev[ei].at<=pos)on(tr.ev[ei++])};adv(0);
   const iv=setInterval(()=>adv((performance.now()-t0)/total*tr.len),120);return()=>clearInterval(iv)}
-async function kSpeakTrack(tr,on,next){kStopVoice();const tok=KVTOK;if(!tr.text)return false;let ei=0;const adv=pos=>{while(ei<tr.ev.length&&tr.ev[ei].at<=pos){try{on(tr.ev[ei])}catch(e){}ei++}};
+async function kSpeakTrack(tr,on,next){kStopVoice();const tok=KVTOK;if(!tr.text)return false;await kVoiceCheck();if(tok!==KVTOK)return 'superseded';let ei=0;const adv=pos=>{while(ei<tr.ev.length&&tr.ev[ei].at<=pos){try{on(tr.ev[ei])}catch(e){}ei++}};
   if(KVOICE.mode==='eleven'){let clip=await kVoiceClip(tr.text,next,tr.off.slice(1));if(tok!==KVTOK)return 'superseded';
     // a clip prepared in advance can come back empty (prepared before the voice settings loaded): ask once more, fresh, before falling back
     if(!clip&&KVOICE.mode==='eleven'){clip=await kVoiceClip(tr.text,next,tr.off.slice(1));if(tok!==KVTOK)return 'superseded'}if(clip){KVPREV=tr.text;const st=clip.starts||[],exact=st.length===tr.len;
