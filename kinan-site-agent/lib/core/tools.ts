@@ -2,6 +2,7 @@ import type { Db, Doc, MaterialRequest, Note, UiAction } from "../types";
 import { descendantIds, locationById, locationPath, resolveLocation, searchDocs } from "./query";
 import * as P from "./project";
 import { searchEmails, type InboxState } from "./emails";
+import { findActivity, recordUpdate, updatesFor } from "./updates";
 
 /** Storage the tools run against — implemented by the server (fs) and the browser (IndexedDB). */
 export interface Repo {
@@ -56,6 +57,7 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "schedule_query", description: "Query the construction programme (P6-style activities with baseline vs forecast). Filter by place, keywords, status, date window, critical or late (slip > 3 days).", input_schema: obj({ location: LOC, query: str("e.g. 'slab', 'façade', 'lift', activity id"), status: str(undefined, { enum: ["completed", "in_progress", "not_started"] }), from: str("YYYY-MM-DD"), to: str("YYYY-MM-DD"), critical: bool(), late: bool(), trade: str(), limit: num() }) },
   { name: "lookahead", description: "Look-ahead programme from the data date: activities starting/finishing, milestones, critical work and deliveries in the next N weeks (default 2).", input_schema: obj({ weeks: num(), location: LOC }) },
   { name: "schedule_summary", description: "Overall programme health: % complete vs planned, SPI, upcoming milestones with variance, biggest slippages, completion forecast.", input_schema: obj({}) },
+  { name: "update_activity", description: "Record progress reported from site on a programme activity: mark it completed, set % complete, or report it pending/blocked. Updates the project schedule immediately. Attach evidence photos/PDFs already filed (document ids, e.g. from a WhatsApp photo). Pass the activity id when known, else describe it (e.g. 'Tower A L14 columns core walls PT slab'); if several activities match, the tool returns candidates — ask the user which one. Never invent progress the user didn't report.", input_schema: obj({ activity: str("activity id (e.g. TA-STR-L14) or a description"), state: str(undefined, { enum: ["completed", "in_progress", "pending"] }), percent: num("0-100, for in_progress (or the real % when pending)"), note: str("what the user reported, cleaned up"), evidence_doc_ids: { type: "array", items: { type: "string" }, description: "documents filed as evidence" } }, ["activity", "state"]) },
   { name: "get_activity", description: "Full detail of one activity incl. predecessors/successors and procurement needs.", input_schema: obj({ id: str() }, ["id"]) },
   { name: "drawing_register", description: "Drawing register (≈800 sheets): current revision, status (IFC/IFA/Under Review/As-Built), revision history. Filter by place, discipline (ARC/STR/HVAC/PLB/ELE/FIRE/CIV/FAC/LAN or MEP), sheet number, status.", input_schema: obj({ location: LOC, discipline: str(), sheet: str(), status: str(), query: str(), limit: num() }) },
   { name: "search_regulations", description: "Project compliance register: Saudi Building Code (SBC), Civil Defense, MHRSD labour/heat rules, MOMRAH permits, GACA, SEC/NWC, NCEC environment, etc., as applied to this project, with compliance status.", input_schema: obj({ query: str(), topic: str(), location: LOC, status: str() }) },
@@ -185,7 +187,21 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
       case "schedule_query": return J(P.scheduleQuery(db, input));
       case "lookahead": return J(P.lookahead(db, input));
       case "schedule_summary": return J(P.scheduleSummary(db));
-      case "get_activity": return J(P.getActivity(db, String(input.id ?? "")));
+      case "get_activity": { const r = P.getActivity(db, String(input.id ?? "")); return J("error" in r ? r : { ...r, siteUpdates: updatesFor(db, r.id) }); }
+      case "update_activity": {
+        const state = String(input.state ?? "");
+        if (!["completed", "in_progress", "pending"].includes(state)) return J({ error: "state must be completed, in_progress or pending" });
+        const f = findActivity(db, String(input.activity ?? ""));
+        if (!f.activity)
+          return J({ error: f.candidates.length ? "Several activities match — ask the user which one, then call again with its id." : `No activity matches "${input.activity}".`, candidates: f.candidates.map((a) => ({ id: a.id, name: a.name, location: locationPath(db, a.locationId), status: a.status, percent: a.percent })) });
+        const ev: string[] = Array.isArray(input.evidence_doc_ids) ? input.evidence_doc_ids.map(String).filter((id: string) => db.docs.some((d) => d.id === id)) : [];
+        const pct = input.percent === undefined || input.percent === null || input.percent === "" ? undefined : Number(input.percent);
+        const a = f.activity;
+        const u = recordUpdate(db, a, { id: `U-${Date.now().toString(36)}`, state: state as "completed" | "in_progress" | "pending", percent: Number.isFinite(pct) ? pct : undefined, note: input.note ? String(input.note) : undefined, evidence: ev, by: ctx.author, channel: ctx.channel === "whatsapp" ? "whatsapp" : "web" });
+        await addNoteTo(repo, { text: `Progress: ${a.id} ${a.name} — ${state === "completed" ? "completed" : state === "pending" ? "pending" : `${a.percent}% complete`}${u.note ? `. ${u.note}` : ""}${ev.length ? ` (${ev.length} evidence file${ev.length > 1 ? "s" : ""})` : ""}`, locationId: a.locationId, docId: ev[0], kind: state === "pending" ? "issue" : "note", author: ctx.author, via: "agent" });
+        await repo.save();
+        return J({ updated: { id: a.id, name: a.name, location: locationPath(db, a.locationId), was: u.before, now: { status: a.status, percent: a.percent, start: a.start, finish: a.finish, baselineFinish: a.baselineFinish, critical: a.critical }, evidence: ev.length } });
+      }
       case "drawing_register": return J(P.registerQuery(db, input));
       case "search_regulations": return J(P.regulationsQuery(db, input));
       case "safety_requirements": return J(P.safetyFor(db, input));

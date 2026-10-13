@@ -6,10 +6,10 @@ import { describeUpload } from "../ingest";
 import { renderDrawing } from "../drawings";
 import { gpsToPlan, PLAN } from "../siteplan";
 import { locationPath, resolveLocation } from "../core/query";
-import { transcribe } from "../core/llm/openai";
+import { speechToText } from "../core/stt";
 import { toBase64 } from "../core/tools";
 import { serverLlm } from "../llmConfig";
-import { getRepo, newId, readBytes, readUpload, removeKey, saveUpload, writeBytes } from "../store";
+import { getRepo, newId, readBytes, readUpload, removeKey, saveUpload, writeBytes, writeJson } from "../store";
 import { getMedia, markRead, sendDocument, sendImage, sendList, sendText, uploadMedia, waConfig, type WaConfig } from "./graph";
 import { readGenerated } from "../generated";
 import { runSpecAgent } from "../core/specAgent";
@@ -37,8 +37,9 @@ const HELP = `*Kinan Onsite Agent* — ask anything about the project, e.g.
 • _Order 20 t rebar Ø16 for Tower A L14 by 10 Oct_
 
 📍 Share your *location* and I'll know where you are.
-📷 Send a *photo or PDF* — I file it to where you are (or caption it "upload to Tower A L12"). Add a question in the caption to get it analysed.
-🎙 Voice notes work too.
+✅ Report progress: _Tower A L14 slab — done_ / _L31 façade zone 4 at 60%_ / _lift 2 pending_. The project schedule is updated straight away.
+📷 Send a *photo or PDF* as evidence — caption it with the task (_L14 slab done_) or tell me afterwards. It's filed to the activity's place. Put a question in the caption to get it analysed instead.
+🎙 Voice notes work for everything above.
 Commands: *projects* (switch project), *help*, *where am I*, *here <place>*, *reset*`;
 
 // Serialise processing per sender so replies stay in order.
@@ -105,18 +106,35 @@ async function pickProject(c: WaConfig, from: string, s: WaSession, id: string, 
   if (q) await ask(c, from, s, q, undefined, msgId);
 }
 
+/** Last WhatsApp activity, readable at /api/whatsapp/health — so a silent failure (expired token, storage) can be seen. */
+async function noteStatus(ok: boolean, what: string, err?: unknown) {
+  const msg = err instanceof Error ? err.message : err ? String(err) : undefined;
+  if (!ok) console.error("[whatsapp]", what, err);
+  await writeJson("whatsapp/status.json", { at: new Date().toISOString(), ok, what, ...(msg ? { error: msg.slice(0, 400) } : {}) }).catch(() => undefined);
+}
+
 async function handleMessage(c: WaConfig, m: any, profileName: string) {
+  try {
+    if (await handleMessageInner(c, m, profileName)) await noteStatus(true, `message ${m.type}`);
+  } catch (e) {
+    // anything outside the reply path (session storage, read receipt, the token itself): record it, try to tell the sender
+    await noteStatus(false, `message ${m.type}`, e);
+    await sendText(c, m.from, `Sorry — I couldn't process that message (${e instanceof Error ? e.message.slice(0, 160) : "error"}). Please send it again.`).catch(() => undefined);
+  }
+}
+
+async function handleMessageInner(c: WaConfig, m: any, profileName: string): Promise<boolean> {
   const from: string = m.from;
   const acl = allowed(from);
   if (!acl.ok) {
     console.warn(`[whatsapp] rejected message from unlisted number ${from}`);
     await sendText(c, from, "This number isn't authorised for the Kinan Onsite Agent. Ask the project admin to add you.");
-    return;
+    return true;
   }
   const s = await loadSession(from, acl.name || profileName || "Site user");
-  if (!firstTime(s, m.id)) return; // duplicate delivery
+  if (!firstTime(s, m.id)) return true; // duplicate delivery
   await saveSession(from, s);      // record the id early so a retry on another instance is skipped
-  await markRead(c, m.id);
+  await markRead(c, m.id).catch((e) => console.warn("[whatsapp] read receipt failed", e)); // never block the reply on it
   try {
     switch (m.type) {
       case "text": await onText(c, from, s, String(m.text?.body ?? ""), m.id); break;
@@ -132,11 +150,13 @@ async function handleMessage(c: WaConfig, m: any, profileName: string) {
       default: await sendText(c, from, "I can read text, voice notes, photos, PDFs and shared locations. Type *help* for examples.");
     }
   } catch (e) {
-    console.error("[whatsapp] handler error", e);
+    await noteStatus(false, `handling ${m.type}`, e);
     await sendText(c, from, `Sorry — something went wrong: ${e instanceof Error ? e.message.slice(0, 200) : "error"}`).catch(() => undefined);
+    return false;
   } finally {
     await saveSession(from, s).catch((e) => console.error("[whatsapp] session save", e));
   }
+  return true;
 }
 
 async function onText(c: WaConfig, from: string, s: WaSession, text: string, msgId?: string) {
@@ -166,6 +186,20 @@ async function onText(c: WaConfig, from: string, s: WaSession, text: string, msg
     if (!l) return sendText(c, from, `I couldn't find "${hm[1]}" on the site plan.`);
     s.here = { locationId: l.id, at: new Date().toISOString(), source: "text" };
     return sendText(c, from, `📍 Got it — ${locationPath(db, l.id)}. Questions and photos will default to this place.`);
+  }
+  // Photos just filed: the next message says what they're evidence of (or where they belong)
+  if (s.evidence && Date.now() - Date.parse(s.evidence.at) > 30 * 60_000) s.evidence = undefined;
+  if (s.evidence && !s.pending) {
+    const placeOnly = t.split(/\s+/).length <= 5 && !/[?]|\b(done|complete|completed|finished|pending|started|progress|%|blocked|waiting)\b/i.test(t) && !/^(what|why|how|when|who|is|are|any|show|where)\b/i.test(t);
+    const l = placeOnly ? resolveLocation(db, t.replace(/^(upload|file|save|attach|put|move)( it| them)?( to| at| in| on)?\s*/i, "")) : undefined;
+    if (l) {
+      const repo = await getRepo();
+      for (const id of s.evidence.docIds) { const d = repo.db.docs.find((x) => x.id === id); if (d) d.locationId = l.id; }
+      await repo.save();
+      const n = s.evidence.docIds.length;
+      return sendText(c, from, `📍 Moved ${n > 1 ? `${n} files` : "it"} to ${locationPath(db, l.id)}. If ${n > 1 ? "they show" : "it shows"} a task done or pending, just tell me which.`);
+    }
+    return askWithEvidence(c, from, s, t, msgId);
   }
   // A filing instruction for a photo/PDF we're holding: an explicit command, or a short reply that is just a place.
   if (s.pending && Date.now() - Date.parse(s.pending.at) > 30 * 60_000) { await removeKey(s.pending.key); s.pending = undefined; }
@@ -239,10 +273,18 @@ async function sendDoc(c: WaConfig, to: string, d: Doc) {
   return sendDocument(c, to, await uploadMedia(c, bytes, d.mime, d.filename), d.filename, cap);
 }
 
+/** Ask the agent with the photos just filed attached as evidence; clear them once an update used them. */
+async function askWithEvidence(c: WaConfig, from: string, s: WaSession, text: string, msgId?: string) {
+  const ev = s.evidence!;
+  await ask(c, from, s, `${text}\n\n[Evidence: ${ev.docIds.length} photo/file(s) just sent on WhatsApp and filed as documents ${ev.docIds.join(", ")}. If this message reports progress or a pending item on an activity, call update_activity with evidence_doc_ids=${JSON.stringify(ev.docIds)}.]`, undefined, msgId);
+  const used = ((await getRepo()).db.data.updates ?? []).some((u) => u.evidence.some((id) => ev.docIds.includes(id)));
+  if (used) s.evidence = undefined;
+}
+
 async function onAudio(c: WaConfig, from: string, s: WaSession, m: any) {
   const { bytes, mime } = await getMedia(c, m.audio.id);
   let text: string;
-  try { text = await transcribe(serverLlm(), bytes, mime, mime.includes("ogg") ? "voice.ogg" : "voice.m4a"); }
+  try { text = (await speechToText(serverLlm(), bytes, mime, mime.includes("ogg") ? "voice.ogg" : mime.includes("mpeg") ? "voice.mp3" : "voice.m4a")).text; }
   catch (e) { return sendText(c, from, `🎙 I couldn't transcribe that: ${e instanceof Error ? e.message : e}`); }
   if (!text) return sendText(c, from, "🎙 I couldn't hear anything in that voice note.");
   await sendText(c, from, `🎙 _“${text}”_`);
@@ -271,45 +313,63 @@ async function onMedia(c: WaConfig, from: string, s: WaSession, m: any) {
   const caption = String(media?.caption ?? "").trim();
   const { bytes, mime } = await getMedia(c, media.id);
   const filename = String(media.filename ?? (mime === "application/pdf" ? "document.pdf" : `photo-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "")}.jpg`));
-  if (s.pending) await removeKey(s.pending.key); // only one held file at a time
-  const key = `whatsapp/inbox/${m.id.replace(/\W/g, "")}`;
-  await writeBytes(key, bytes, mime);
-  s.pending = { key, mime, filename, caption, at: new Date().toISOString() };
-
   const db = (await getRepo()).db;
+
+  // A question in the caption: analyse it first, file on request
   const isQuestion = /\?|^(what|why|is |are |check|analy|review|explain|does|can you)/i.test(caption);
   if (isQuestion && (mime === "application/pdf" || /^image\/(jpeg|png|webp|gif)$/.test(mime))) {
+    if (s.pending) await removeKey(s.pending.key); // only one held file at a time
+    const key = `whatsapp/inbox/${m.id.replace(/\W/g, "")}`;
+    await writeBytes(key, bytes, mime);
+    s.pending = { key, mime, filename, caption, at: new Date().toISOString() };
     await ask(c, from, s, `${caption}\n\n(Attached ${mime === "application/pdf" ? "PDF" : "photo"}: ${filename}.)`, { mime, bytes, name: filename }, m.id);
     return sendText(c, from, "Want me to file it? Reply *save* (to your current place) or *upload to <place>*.");
   }
+
+  // Otherwise it's a record from site: file it now (caption place, else where you are, else the site), then link it as evidence
+  const filingOnly = /^(upload|file|save|attach|put)\b/i.test(caption);
   const target = caption.replace(/^(upload|file|save|attach|put)( it)?( to| at| in| on)?\s*/i, "");
-  const l = (target && resolveLocation(db, target)) || (s.here ? db.locations.find((x) => x.id === s.here!.locationId) : undefined);
-  if (l) return fileMedia(c, from, s, l.id);
-  return sendText(c, from, "Where should I file this? Reply with a place (e.g. *Tower A L12*, *Laydown 2*), share your 📍 location, or *cancel*.");
+  const placeL = target && (filingOnly || target.split(/\s+/).length <= 5) ? resolveLocation(db, target) : undefined;
+  const locationId = placeL?.id ?? s.here?.locationId ?? "site";
+  const doc = await fileBytes(s, { bytes, mime, filename, caption: filingOnly || placeL ? "" : caption }, locationId);
+  const fresh = s.evidence && Date.now() - Date.parse(s.evidence.at) < 10 * 60_000;
+  s.evidence = { docIds: [...(fresh ? s.evidence!.docIds : []), doc.id].slice(-10), at: new Date().toISOString() };
+
+  if (caption && !filingOnly && !placeL) return askWithEvidence(c, from, s, caption, m.id); // "L14 slab done", "façade zone 4 pending"
+  const n = s.evidence.docIds.length;
+  if (fresh && n > 1) return sendText(c, from, `📷 ${n} files received.`, m.id); // an album: one prompt is enough
+  return sendText(c, from, `✅ Filed *${doc.title}* to ${locationPath(db, locationId)}.\nIs it evidence for a task? Tell me (text or 🎙 voice note) which one and whether it's *done*, at a *%* or *pending* — e.g. _Tower A L14 slab done_ — and I'll update the schedule.`, m.id);
+}
+
+/** Store a file in the document library (AI title/summary when available). */
+async function fileBytes(s: WaSession, f: { bytes: Uint8Array; mime: string; filename: string; caption: string }, locationId: string): Promise<Doc> {
+  const ai = await describeUpload(Buffer.from(f.bytes), f.mime, f.filename).catch(() => null);
+  const caption = f.caption.replace(/^(upload|file|save|attach|put)( it)?( to| at| in| on)?\s*\S.*$/i, "").trim();
+  const doc: Doc = {
+    id: newId("d"),
+    title: ai?.title || (caption ? caption.slice(0, 80) : f.filename.replace(/\.[^.]+$/, "")),
+    category: ai?.category && CATEGORIES.includes(ai.category) ? ai.category : f.mime.startsWith("image/") ? "Photo" : "Other",
+    discipline: ai?.discipline, revision: ai?.revision, locationId,
+    filename: f.filename, mime: f.mime, size: f.bytes.length,
+    summary: [caption, ai?.summary].filter(Boolean).join(" — ").slice(0, 300), text: ai?.text ?? caption,
+    tags: ["whatsapp"], uploadedAt: new Date().toISOString(), uploadedBy: s.name,
+  };
+  const repo = await getRepo();
+  await saveUpload(doc.id, f.bytes, f.mime);
+  repo.db.docs.unshift(doc);
+  await repo.save();
+  s.focusDocId = doc.id;
+  return doc;
 }
 
 async function fileMedia(c: WaConfig, from: string, s: WaSession, locationId: string) {
   const p = s.pending!;
   const bytes = await readBytes(p.key);
   if (!bytes) { s.pending = undefined; return sendText(c, from, "Sorry — I lost that file. Please send it again."); }
-  const ai = await describeUpload(Buffer.from(bytes), p.mime, p.filename);
-  const caption = p.caption.replace(/^(upload|file|save|attach|put)( it)?( to| at| in| on)?\s*\S.*$/i, "").trim();
-  const doc: Doc = {
-    id: newId("d"),
-    title: ai?.title || (caption ? caption.slice(0, 80) : p.filename.replace(/\.[^.]+$/, "")),
-    category: ai?.category && CATEGORIES.includes(ai.category) ? ai.category : p.mime.startsWith("image/") ? "Photo" : "Other",
-    discipline: ai?.discipline, revision: ai?.revision, locationId,
-    filename: p.filename, mime: p.mime, size: bytes.length,
-    summary: [caption, ai?.summary].filter(Boolean).join(" — ").slice(0, 300), text: ai?.text ?? caption,
-    tags: ["whatsapp"], uploadedAt: new Date().toISOString(), uploadedBy: s.name,
-  };
-  const repo = await getRepo();
-  await saveUpload(doc.id, bytes, p.mime);
-  repo.db.docs.unshift(doc);
-  await repo.save();
+  const doc = await fileBytes(s, { bytes, mime: p.mime, filename: p.filename, caption: p.caption }, locationId);
   await removeKey(p.key);
   s.pending = undefined;
-  s.focusDocId = doc.id;
-  const db = repo.db;
-  await sendText(c, from, `✅ Filed *${doc.title}* (${doc.category}) to ${locationPath(db, locationId)}.${ai?.summary ? `\n${ai.summary}` : ""}\nIt's now on the site map and searchable. Say _note: …_ to add a note to it.`);
+  s.evidence = { docIds: [doc.id], at: new Date().toISOString() };
+  const db = (await getRepo()).db;
+  await sendText(c, from, `✅ Filed *${doc.title}* (${doc.category}) to ${locationPath(db, locationId)}.${doc.summary ? `\n${doc.summary}` : ""}\nIt's on the site map and searchable. If it's evidence for a task, tell me which one and whether it's done or pending.`);
 }

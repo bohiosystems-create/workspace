@@ -270,9 +270,11 @@ The name after `:` is recorded as the author of notes and uploads made from that
 | You send | It does |
 |---|---|
 | Text question | Routes to the right model, uses the project tools, replies in WhatsApp formatting |
-| 🎙 Voice note | Transcribes (OpenAI), echoes what it heard, answers |
+| 🎙 Voice note | Transcribes it (ElevenLabs Scribe when `ELEVENLABS_API_KEY` is set, else OpenAI Whisper), echoes what it heard, then treats it exactly like a typed message (questions, progress updates, notes) |
+| "Tower A L14 slab — mark as completed" · "L15 at 50%" · "façade zone 4 pending, glass missing" | **Updates the project schedule**: finds the activity (asks which one if several match), sets it done / % / pending, logs a note, and confirms what changed against the baseline. Shown under *Project schedule → Site updates* and in the next daily brief. Updates are kept when the demo data rolls to the next day |
 | 📍 Shared location | Converts GPS → site plan, replies with a "you are here" map image, remembers your place for 3 h |
-| 📷 Photo / 📄 PDF (no caption) | Files it to your current place; Claude/OpenAI indexes it (title, type, summary, searchable text) |
+| 📷 Photo / 📄 PDF with a progress caption ("L14 slab done") | Files it and records it as **evidence** on that activity: the file moves to the activity's place, is tagged to it, and is linked from the update |
+| 📷 Photo / 📄 PDF (no caption) | Files it (your current place, else the site) and asks what it's evidence of — reply in text or a 🎙 voice note ("that's façade zone 4, still pending") and the photo(s) are linked to that update. Several photos in a row count as one set |
 | Photo with caption "upload to Tower A L12" | Files it there |
 | Photo with a **question** caption ("is this crack structural?") | Answers using the image, then offers to file it (reply **save** or a place name) |
 | "Show me the L12 slab drawing" | Sends the drawing as an image (or the PDF) |
@@ -475,7 +477,8 @@ How it syncs: mail from the last 60 days on the first sync, then only new mail; 
 | Webhook verify fails in Meta | URL must be public **HTTPS**; `WHATSAPP_VERIFY_TOKEN` must match exactly; check `https://<domain>/api/whatsapp?hub.mode=subscribe&hub.verify_token=<token>&hub.challenge=ok` returns `ok`. |
 | WhatsApp messages get no reply | Is the `messages` field subscribed? Is the sender in `WHATSAPP_ALLOWED_NUMBERS` (no `+`)? Is the token still valid (use a System User token)? Is the app secret correct (a wrong one gives 401 in the logs)? |
 | Replies stop after a day | You used the temporary 24 h token. Create the permanent token (§6.2). |
-| Voice notes: "need OPENAI_API_KEY" | Transcription uses OpenAI. Add a key. |
+| Voice notes: "need ELEVENLABS_API_KEY" | Add `ELEVENLABS_API_KEY` (ElevenLabs → Developers → API keys; needs Speech to Text access) or `OPENAI_API_KEY`. |
+| WhatsApp stops replying (no blue ticks) | Open `/api/whatsapp/health` while signed in: it checks the access token with Meta and shows the last message handled and its error. An expired token means you used the 24-hour token — create the permanent one (§6.2). |
 | Map/drawing images on WhatsApp have no text | Install fonts (`fonts-dejavu-core`). The Docker image already includes them. |
 | SAP: 401 / 403 | Check user, password and `sap-client`. A `CSRF token validation failed` error on PR creation means a proxy is stripping cookies. Allow `set-cookie` through. |
 | SAP PR rejected "field … is required" | Add the field to `SAP_PR_DEFAULTS`. The MR is kept as *Draft* in the agent. |
@@ -496,6 +499,7 @@ How it syncs: mail from the last 60 days on the first sync, then only new mail; 
 |---|---|---|
 | `APP_PASSWORD` / `APP_USER` | — | Browser login for the web app and API |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | — | AI providers (one or both) |
+| `ELEVENLABS_API_KEY` | — | Voice-note transcription with ElevenLabs Scribe (`ELEVENLABS_STT_MODEL`, default `scribe_v1`; `ELEVENLABS_STT_LANGUAGE` `en`/`ar` to force). Falls back to OpenAI Whisper |
 | `LLM_MODE` | `auto` | `auto` / `anthropic` / `openai` (preferred provider) |
 | `LLM_FALLBACK` | `true` | Switch provider on failure |
 | `LLM_ROUTE_FAST` / `_MAIN` / `_DEEP` | see §4.2 | Ordered `provider:model` lists per tier |

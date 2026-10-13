@@ -108,6 +108,26 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
         <Panel title="Milestones" sub="Baseline ◇ to forecast ●, next six">
           <Timeline items={s.upcomingMilestones.slice(0, 6)} today={data.meta.dataDate} onPick={(id) => { setPick(null); setF(""); setQ(id); requestAnimationFrame(() => document.querySelector(".projbody .search")?.scrollIntoView({ behavior: "smooth", block: "center" })); }} />
         </Panel>
+        {!!data.updates?.length && (
+          <>
+            <div className="lbl">Site updates <span className="dd">reported from site · WhatsApp, voice notes, photos</span></div>
+            <ul className="rows supd">
+              {data.updates.slice(0, 8).map((u) => {
+                const a = data.schedule.find((x) => x.id === u.activityId);
+                return (
+                  <li key={u.id}>
+                    <span className="t"><b>{a?.name ?? u.activityId}</b>
+                      <em>{u.activityId} · {u.by} · {u.channel === "whatsapp" ? "WhatsApp" : u.channel} · {u.at.slice(0, 16).replace("T", " ")} UTC · was {u.before.status === "completed" ? "complete" : `${u.before.percent}%`}</em>
+                      {u.note && <span className="supd-note">“{u.note}”</span>}
+                      {!!u.evidence.length && <span className="supd-ev">{u.evidence.map((id, i) => <button key={id} onClick={() => onOpenDoc(id)}>📷 Evidence {u.evidence.length > 1 ? i + 1 : ""}</button>)}</span>}
+                    </span>
+                    <span className={"st supd-" + u.state}>{u.state === "completed" ? "Done" : u.state === "pending" ? "Pending" : `${a?.percent ?? u.percent}%`}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
         <div className="lbl">Activities <span className="dd">data date {data.meta.dataDate}</span></div>
         {search("Search activities: slab, façade, L14, TA-…")}
         {chips([["progress", "In progress"], ["late", "Late"], ["critical", "Critical path"], ["next2", "Next 2 weeks"]])}
@@ -115,7 +135,7 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
         <ul className="rows">
           {list.slice(0, 60).map((a) => (
             <li key={a.id} className={isCritical({ critical: a.critical, totalFloat: a.float }) ? "crit" : ""}>
-              <span className="t"><b>{isCritical({ critical: a.critical, totalFloat: a.float }) && <span className="ctag">Critical</span>}{a.name}</b><em>{a.id} · {a.start} → {a.finish} · {a.percent}% · float {a.float} d</em>
+              <span className="t"><b>{isCritical({ critical: a.critical, totalFloat: a.float }) && <span className="ctag">Critical</span>}{a.name}</b><em>{a.id} · {a.start} → {a.finish} · {a.percent}% · float {a.float} d{data.updates?.some((u) => u.activityId === a.id) ? " · reported from site" : ""}</em>
                 <i className="bar"><i style={{ width: `${a.percent}%` }} /></i></span>
               <Slip d={a.slipDays} />
             </li>

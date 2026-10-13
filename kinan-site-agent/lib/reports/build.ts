@@ -117,7 +117,8 @@ export function buildReport(o: BuildIn): Built {
   const mails = (o.emails ?? []).filter((e) => e.received >= sinceAt && e.received <= o.at.toISOString()).sort((a, b) => b.received.localeCompare(a.received));
   const filed = db.docs.filter((x) => x.uploadedAt && x.uploadedAt >= sinceAt);
   const incid = db.data.safety.incidents.filter((x) => inWin(x.date));
-  const notesNew = db.notes.filter((n) => n.createdAt >= sinceAt);
+  const notesNew = db.notes.filter((n) => n.createdAt >= sinceAt && !n.text.startsWith("Progress: "));
+  const siteUpd = (db.data.updates ?? []).filter((u) => u.at >= sinceAt);
   // linear % complete on a date, as the programme is read (the same rule as the data)
   const pctAt = (a: { start: string; finish: string }, d: string) => (a.finish <= d ? 100 : a.start > d ? 0 : Math.min(99, Math.max(1, Math.round(((Date.parse(d) - Date.parse(a.start)) / Math.max(DAY, Date.parse(a.finish) - Date.parse(a.start))) * 100))));
   const progressed = sched.filter((a) => !a.milestone && a.start <= from && a.finish > d0).map((a) => ({ a, p0: pctAt(a, from), p1: pctAt(a, d0) })).filter((x) => x.p1 > x.p0)
@@ -133,6 +134,7 @@ export function buildReport(o: BuildIn): Built {
     { label: T("Started", "بدأ"), lines: started.slice(0, 8).map((a) => `${act(a)} <span style="color:${C.soft}">→ ${dt(a.finish, l)}</span>`).concat(started.length > 8 ? [`<span style="color:${C.soft}">+${started.length - 8} ${T("more", "أخرى")}</span>`] : []) },
     { label: T("Deliveries", "التوريدات"), lines: received.slice(0, 8).map((x) => `${x.status === "Rejected" ? pill(T("rejected", "مرفوض"), C.red) + " " : ""}${esc(x.items)} <span style="color:${C.soft}">${esc(x.po)} · ${esc(x.gate)}${x.grn ? ` · ${esc(x.grn)}` : ""}</span>`) },
     { label: T("Contractor emails", "رسائل المقاولين"), lines: mails.slice(0, 6).map(mailLine) },
+    { label: T("Reported from site", "تحديثات من الموقع"), lines: siteUpd.slice(0, 8).map((u) => { const a = db.data.schedule.find((x) => x.id === u.activityId); return `${pill(u.state === "completed" ? T("done", "منجز") : u.state === "pending" ? T("pending", "معلّق") : `${a?.percent ?? u.percent ?? ""}%`, u.state === "pending" ? C.red : u.state === "completed" ? C.green : C.amber)} ${esc(a?.name ?? u.activityId)} <span style="color:${C.soft}">— ${esc(u.by)}${u.channel === "whatsapp" ? " · WhatsApp" : ""}${u.evidence.length ? ` · ${u.evidence.length} ${T("photo(s)", "صورة")}` : ""}</span>`; }) },
     { label: T("Site notes", "ملاحظات الموقع"), lines: notesNew.slice(0, 6).map((n) => `${n.kind !== "note" ? pill(n.kind === "issue" ? T("issue", "مسألة") : T("instruction", "تعليمات"), n.kind === "issue" ? C.red : C.amber) + " " : ""}${esc(n.text.slice(0, 200))} <span style="color:${C.soft}">— ${esc(n.author)}</span>`) },
     { label: T("Documents filed", "مستندات مُودعة"), lines: filed.slice(0, 6).map((x) => `${esc(x.title)} <span style="color:${C.soft}">${esc(x.category)} · ${esc(x.uploadedBy ?? "")}</span>`) },
     { label: T("Incidents", "الحوادث"), lines: incid.map((x) => `<b>${esc(x.type)}</b> — ${esc(x.description)}`) },

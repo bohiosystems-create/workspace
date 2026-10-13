@@ -990,3 +990,12 @@ input[type=checkbox]{border-radius:4px!important}input[type=radio]{border-radius
 .chat-drawer.full{border-radius:0!important}
 .sheet{border-radius:var(--rc) var(--rc) 0 0!important;overflow:hidden}
 @media (min-width:600px){.sheet{border-radius:var(--rc) 0 0 var(--rc)!important}}
+
+/* site progress updates (WhatsApp / voice / photo evidence) */
+.supd li{align-items:flex-start}
+.supd-note{display:block;font-size:12px;color:var(--ink-2);margin-top:4px;font-style:italic}
+.supd-ev{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.supd-ev button{border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);font:inherit;font-size:11px;font-weight:600;padding:3px 10px;cursor:pointer;border-radius:999px}
+.st.supd-completed{border-color:var(--green,#2e8b57);color:var(--green-ink,#1f6b40)}
+.st.supd-pending{border-color:var(--red);color:var(--red)}
+.st.supd-in_progress{border-color:var(--accent);color:var(--accent-strong,var(--accent))}

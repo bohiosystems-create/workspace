@@ -57,7 +57,8 @@ Project → **Settings → Environment Variables**. Add each one for **Productio
 |---|---|---|
 | `APP_PASSWORD` | a long random password | you choose. This is the login for the web app. |
 | `ANTHROPIC_API_KEY` | `sk-ant-…` | https://platform.claude.com/settings/keys |
-| `OPENAI_API_KEY` | `sk-…` | https://platform.openai.com/api-keys (also needed for WhatsApp voice notes) |
+| `OPENAI_API_KEY` | `sk-…` | https://platform.openai.com/api-keys (also transcribes WhatsApp voice notes if ElevenLabs isn't set) |
+| `ELEVENLABS_API_KEY` | `sk_…` | Optional. https://elevenlabs.io/app/settings/api-keys — transcribes WhatsApp voice notes (Arabic and English) with ElevenLabs Scribe. Optional `ELEVENLABS_STT_LANGUAGE` = `en` or `ar` to force a language |
 
 One AI key is enough. With both, you get routing and automatic fallback between them.
 
@@ -250,7 +251,7 @@ The agent can read contractors' emails on project updates from a project mailbox
 | Agent answers "offline" | No AI key, or both providers failing. Check `/api/llm`, and Vercel → Logs for the error. |
 | `HTTP 404 … model` in logs | A model name was retired. Set `LLM_ROUTE_*` to current model names. |
 | WhatsApp webhook won't verify | Verify token mismatch, or Deployment Protection is on for production |
-| No replies on WhatsApp | `messages` field not subscribed; sender not in `WHATSAPP_ALLOWED_NUMBERS`; expired temporary token; wrong app secret (401 in logs) |
-| Voice notes not understood | Add `OPENAI_API_KEY` (transcription) |
+| No replies on WhatsApp | Open `https://<your-domain>/api/whatsapp/health` (signed in): it tests the token with Meta and shows the last error. Common causes: `messages` field not subscribed; sender not in `WHATSAPP_ALLOWED_NUMBERS`; expired temporary token; wrong app secret (401 in logs) |
+| Voice notes not understood | Add `ELEVENLABS_API_KEY` (or `OPENAI_API_KEY`) |
 | "Ran out of time" replies | Ask narrower questions, or raise limits on a Pro plan (Step 7) |
 | Blob errors mentioning access | Recreate the Blob store with **Private** access and reconnect it |

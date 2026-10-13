@@ -169,6 +169,27 @@ export interface ProjectData {
   procurement: { suppliers: Supplier[]; packages: ProcurementPackage[]; pos: PurchaseOrder[]; deliveries: Delivery[]; requests: MaterialRequest[]; stock: StockItem[]; lastSync?: string; source: string };
   quality: { ncrs: Ncr[] };
   contacts: Contact[];
+  /** Progress reported from site (WhatsApp, voice notes, the app). Kept across the daily roll and applied on top of the programme. */
+  updates?: ProgressUpdate[];
+}
+
+/** One progress report on an activity, with the photos sent as evidence. */
+export interface ProgressUpdate {
+  id: string;
+  activityId: string;
+  /** when it was reported (ISO) and the project day it applies to (YYYY-MM-DD) */
+  at: string;
+  date: string;
+  by: string;
+  channel: "whatsapp" | "web" | "voice";
+  /** "completed", "in_progress" (with percent), "pending" (evidence of work still open / blocked) */
+  state: "completed" | "in_progress" | "pending";
+  percent?: number;
+  note?: string;
+  /** document ids of the photos/PDFs filed as evidence */
+  evidence: string[];
+  /** what the activity looked like before this update, for the record */
+  before: { status: Activity["status"]; percent: number; start: string; finish: string };
 }
 
 export type UiAction =
