@@ -187,6 +187,21 @@ Return JSON only: {"scenarios":[{"name":string,"levered_irr":number,"profit_on_c
     for (const x of disputed) { const a = arb[x.name]; if (!a || !Number.isFinite(+a.levered_irr)) continue; x.levered_irr = +(+a.levered_irr).toFixed(2); if (Number.isFinite(+a.profit_on_cost)) x.profit_on_cost = +(+a.profit_on_cost).toFixed(2); if (Number.isFinite(+a.net_profit)) x.net_profit = Math.round(+a.net_profit); x.pass = x.levered_irr >= hurdle && (!Number.isFinite(x.profit_on_cost) || x.profit_on_cost >= +(env('HURDLE_POC') || 15)); x.arbitrated = true; x.working = x.working.replace(' (differ: average shown, check in EstateMaster)', ` (differ: ${names[G.aiProviders().includes('anthropic') ? 'anthropic' : G.aiProviders()[0]]} arbitrated from both workings: ${String(a.why || '').slice(0, 160)}; check in EstateMaster)`); }
   }
   stressChecks(scenarios, o, hurdle);
+  // self-correction: scenarios that failed a check go back to both models with the failures; a recalculation that passes replaces them
+  const bad = scenarios.filter(x => x.checks && x.checks.length);
+  if (bad.length && ok.length) {
+    const fixUser = `${user}\n\nYour previous estimates failed these exact checks run by the server:\n${bad.map(x => `- ${x.name}: ${x.checks.join('; ')}`).join('\n')}\n\nRecalculate ONLY these scenarios, fixing every failure (start from EstateMaster's base, every scenario is adverse, the severe case cannot beat the milder combined case, full currency units). Same JSON format.`;
+    const re = await Promise.allSettled(ok.map(r => G.ai(system, fixUser, 4000, r.p).then(t => ({ p: r.p, j: G.jsonOf(t) }))));
+    const ok2 = re.filter(r => r.status === 'fulfilled').map(r => r.value);
+    for (const x of bad) {
+      const g = ok2.map(r => (r.j.scenarios || []).find(z => String(z.name).toLowerCase().trim() === x.name.toLowerCase())).filter(z => z && Number.isFinite(+z.levered_irr)); if (!g.length) continue;
+      const av = k => { const v = g.map(z => +z[k]).filter(Number.isFinite); return v.length ? v.reduce((a, c) => a + c, 0) / v.length : NaN; };
+      const cand = { ...x, levered_irr: +av('levered_irr').toFixed(2), profit_on_cost: Number.isFinite(av('profit_on_cost')) ? +av('profit_on_cost').toFixed(2) : x.profit_on_cost, net_profit: Number.isFinite(av('net_profit')) ? Math.round(av('net_profit')) : x.net_profit, checks: [], flag: false, working: String(x.working || '').replace(/ CHECK FAILED:[^]*$/, '') };
+      const trial = scenarios.map(z => z === x ? cand : z); stressChecks(trial, o, hurdle);
+      if ((cand.checks || []).length < x.checks.length) { cand.corrected = true; cand.working += ` Corrected after failed checks (${x.checks.join('; ')}): recalculated by ${g.length > 1 ? 'both models' : 'one model'}.`; cand.pass = cand.levered_irr >= hurdle && (!Number.isFinite(cand.profit_on_cost) || cand.profit_on_cost >= +(env('HURDLE_POC') || 15)); scenarios[scenarios.indexOf(x)] = cand; }
+    }
+    scenarios.forEach(z => { z.checks = []; z.flag = false; }); stressChecks(scenarios, o, hurdle);
+  }
   const out = { by: ok.map(r => names[r.p]).join(' and ') || 'no model', scenarios, risks: [], reviewer: '' };
   const fails = scenarios.filter(x => x.pass === false), ev = [];
   fails.forEach(x => ev.push(`Stress test (AI estimate): ${x.name} → levered IRR ${x.levered_irr}% against the ${hurdle}% hurdle${x.agree === false ? ' (Claude and OpenAI differ)' : ''}`));
