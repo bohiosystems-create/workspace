@@ -20,6 +20,7 @@ import type { GenProject } from "../model3d/store";
 import type { MailToSend, SendResult } from "../outlook";
 import { buildReport, tx, type Lang, type Metrics } from "./build";
 import { deckScript, speakDates, type Deck, type DeckSlide } from "../deck/deck";
+import { kinanLogoText } from "../deck/brand";
 
 export type { Lang };
 export interface ReportsIO {
@@ -277,7 +278,12 @@ export function nextRun(s: { enabled: boolean; time: string; timezone: string; d
 /** The brief as e-mailed: mail clients cannot run the player, so the embedded deck is dropped and a "▶ Play" button at the
  *  top opens the brief in the app, ready to play as a narrated presentation (the marketing agent's playButton). */
 export function mailBody(html: string, play: { url: string; lang: Lang } | null) {
-  const out = html.replace(/<script\b[\s\S]*?<\/script>/gi, "");
+  // as the marketing agent's e-mail: mail clients block data: images and strip inline SVG, so the logo becomes the
+  // "كنان / kinan" text lockup and the chevrons become the plain › glyph
+  const out = html.replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<img src="data:[^"]*" alt="Kinan" height="(\d+)"[^>]*>/g, (_, h) => kinanLogoText(Number(h), "#2e2e2f"))
+    .replace(/<svg\b[^>]*aria-label="Kinan"[^>]*style="display:block;width:\d+px;height:(\d+)px"[^>]*>[\s\S]*?<\/svg>/g, (m, h) => kinanLogoText(Number(h), /fill="#fff(?:fff)?"/i.test(m) ? "#fff" : "#2e2e2f"))
+    .replace(/<svg\b[^>]*aria-hidden="true"[\s\S]*?<\/svg>/g, '<span style="color:#f15a22;font-weight:700;font-size:30px;line-height:1">&#8250;</span>');
   if (!play) return out;
   const ar = play.lang === "ar", ff = ar ? "'IBM Plex Sans Arabic',Tahoma,Arial,sans-serif" : "Montserrat,'Segoe UI',Arial,sans-serif";
   const label = ar ? "▶&nbsp; شغّل الموجز كعرض تقديمي" : "▶&nbsp; Play this brief as a presentation";

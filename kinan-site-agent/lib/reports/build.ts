@@ -14,6 +14,7 @@ import * as P from "../core/project";
 import { critState, expectedPct, liveCritical, slipOf, specCritical, specEarnedPct, specPlannedPct, specSlip, specState } from "../critical";
 import { KINAN } from "../brand";
 import type { Email } from "../core/emails";
+import { chevron, kinanLogoHtml, kinanLogoSrc } from "../deck/brand";
 import type { DeckSlide, Kpi, Tone } from "../deck/deck";
 import { short } from "../deck/deck";
 import { progressByLocation, sCurve } from "../core/progress";
@@ -401,14 +402,19 @@ export function buildReport(o: BuildIn): Built {
   const portfolio = table([T("Project", "المشروع"), T("Progress / plan", "التقدم / المخطط"), "SPI", T("Completion", "الإنجاز"), T("Critical late / risk", "حرجة متأخرة / معرّضة"), T("Status", "الحالة")],
     summary, ["l", "r", "r", "r", "r", "r"], l, marks);
   const dir = l === "ar" ? "rtl" : "ltr", font = l === "ar" ? FONT_AR : FONT, end = l === "ar" ? "left" : "right";
+  // The Kinan logo exactly as the marketing and financial-modelling reports draw it: the real vector, charcoal on the
+  // white header (an <img> data URI, as the e-mail needs) and white in the charcoal footer; the e-mail swaps both for the
+  // text lockup that every mail client shows (engine.ts mailBody).
+  const logoImg = (h: number, white: boolean) => (kinanLogoSrc && !white ? `<img src="${kinanLogoSrc}" alt="Kinan" height="${h}" style="display:block;height:${h}px;width:auto;border:0">` : kinanLogoHtml(h, white ? "#fff" : C.ink));
   const weekday = new Date(o.date + "T12:00:00Z").toLocaleDateString(l === "ar" ? "ar-SA-u-ca-gregory" : "en-GB", { weekday: "long", timeZone: "UTC" });
   const html = `<!doctype html><html lang="${l}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
 <body style="margin:0;padding:0;background:${C.page}">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.page}"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="640" cellpadding="0" cellspacing="0" dir="${dir}" style="width:100%;max-width:640px;background:#ffffff;font-family:${font};color:${C.ink};border-collapse:separate;border-spacing:0;border-radius:22px;overflow:hidden">
-<tr><td style="background:${C.ink};padding:18px 28px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td style="font-size:12px;font-weight:800;letter-spacing:.32em;color:#ffffff">KINAN <span style="color:${C.or}">&#8250;</span></td>
-<td align="${end}" style="font-size:9px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#cfcfcf">${T("AI onsite agent · site &amp; projects", "الوكيل الميداني · المواقع والمشاريع")}</td></tr></table></td></tr>
+<tr><td style="background:#ffffff;padding:22px 26px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="width:1%">${logoImg(40, false)}</td>
+<td align="${end}" style="padding:0 10px;font-size:9px;font-weight:600;letter-spacing:${l === "ar" ? "0" : ".3em"};text-transform:uppercase;color:#808285">${T("AI onsite agent · site &amp; projects", "الوكيل الميداني · المواقع والمشاريع")}</td>
+<td style="width:1%;text-align:${end}">${chevron(dir, 38)}</td></tr></table></td></tr>
 <tr><td style="background:${C.or};padding:30px 28px;color:#ffffff">
 <div style="font-size:11px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;opacity:.92">${esc(heading)}</div>
 <div style="font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding-top:6px;line-height:1.2">${esc(weekday)} ${dt(o.date, l)}${o.kind === "SNAPSHOT" ? ` · ${time}` : ""}</div>
@@ -420,7 +426,8 @@ ${portfolio}
 ${body.join("\n")}
 ${o.appUrl ? `<tr><td style="padding:26px 28px 6px"><a href="${esc(o.appUrl)}" style="display:inline-block;border-radius:14px;background:${C.or};color:#ffffff;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;padding:12px 20px">${T("Open the Onsite Agent", "افتح الوكيل الميداني")}</a></td></tr>` : ""}
 <tr><td style="padding:22px 28px 22px"><div style="border-top:1px solid ${C.line};padding-top:12px;font-size:11px;color:${C.soft};line-height:1.5">${T("Prepared by the Kinan Onsite Agent from the project programme, procurement, safety, site notes and the contractors' emails. Critical = zero float: a delay to it delays completion.", "أعده الوكيل الميداني لكنان من برنامج المشروع والمشتريات والسلامة وملاحظات الموقع ورسائل المقاولين. الحرج = بلا فائض: أي تأخير فيه يؤخر الإنجاز.")}</div></td></tr>
-<tr><td style="background:${C.ink};padding:16px 28px;color:#bbbbbb;font-size:11px;line-height:1.5">${T(`This brief takes no action: nothing changes in the programme, orders or permits until a person does it. Sent by the Kinan Onsite Agent${o.sender ? ` from ${esc(o.sender)}` : ""}.`, `لا يتخذ هذا الموجز أي إجراء: لا يتغير شيء في البرنامج أو الطلبات أو التصاريح ما لم يقم به شخص. أرسله الوكيل الميداني لكنان${o.sender ? ` من ${esc(o.sender)}` : ""}.`)}
+<tr><td style="background:${C.ink};padding:34px 28px 10px" align="center"><div style="display:inline-block">${logoImg(56, true)}</div></td></tr>
+<tr><td style="background:${C.ink};padding:10px 28px 22px;color:#bbbbbb;font-size:11px;line-height:1.5;text-align:center">${T(`This brief takes no action: nothing changes in the programme, orders or permits until a person does it. Sent by the Kinan Onsite Agent${o.sender ? ` from ${esc(o.sender)}` : ""}.`, `لا يتخذ هذا الموجز أي إجراء: لا يتغير شيء في البرنامج أو الطلبات أو التصاريح ما لم يقم به شخص. أرسله الوكيل الميداني لكنان${o.sender ? ` من ${esc(o.sender)}` : ""}.`)}
 <div style="padding-top:8px"><span style="color:${C.or};font-weight:700;letter-spacing:.3em">${KINAN.tagline}</span> &nbsp; <span style="color:#ffffff">www.kinan.com.sa</span></div></td></tr>
 </table></td></tr></table></body></html>`;
   slides.push({ kind: "closing", kicker: "", title: KINAN.tagline, sub: T("Approvals happen in the app — this brief takes no action.", "الاعتمادات تتم داخل التطبيق — لا يتخذ هذا الموجز أي إجراء."), say: T("End of the brief.", "انتهى الموجز.") });

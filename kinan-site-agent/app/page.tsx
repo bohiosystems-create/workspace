@@ -126,7 +126,7 @@ export default function Home() {
           a square settings button and the orange chevron; the tab bar sits underneath on white. */}
       <header className="top">
         <button className="brand" onClick={() => setScreen("home")} aria-label="All projects">
-          {LOGO ? <img className="logo-img" src={LOGO} alt={state.project.client} /> : <Logo />}
+          {LOGO ? <img className="logo-img" src={LOGO} alt={state.project.client} /> : <Logo height={34} />}
           <span className="brand-sub">AI onsite agent · site &amp; projects</span>
         </button>
         <div className="hbtns">
