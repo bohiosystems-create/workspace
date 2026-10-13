@@ -112,19 +112,28 @@ export function Gauge({ value, min, max, bands, label, decimals = 2, size = 150 
 
 // ------------------------------------------------------------------ 3D columns
 type ColRow = { label: string; value: number; target?: number; color?: string; sub?: string; tip?: string };
-export function Columns3D({ rows, unit = "", decimals = 0, max: max0, height = 170, targetLabel, onPick, selected }: {
+export function Columns3D({ rows, unit = "", decimals = 0, max: max0, height = 170, targetLabel, onPick, selected, pickOn = "click", pickHint }: {
   rows: ColRow[]; unit?: string; decimals?: number; max?: number; height?: number; targetLabel?: string;
   /** click / tap a column (e.g. to filter the list below); `selected` keeps it highlighted */
   onPick?: (i: number) => void; selected?: number | null;
+  /** "dblclick": a double-click (double-tap on touch) opens it; a single click only shows the tooltip */
+  pickOn?: "click" | "dblclick"; pickHint?: string;
 }) {
   const [hot, setHot] = useState<number | null>(null);
+  const lastTap = useRef<{ i: number; at: number } | null>(null);
   const t = useTip();
   const focus = hot ?? selected ?? null;
   const id = useRef(nid()).current, n = rows.length, W = 360, H = height, top = 30, pad = 10;
   const max = max0 ?? Math.max(...rows.map((r) => Math.max(r.value, r.target ?? 0)), 0.0001) * 1.15;
   const slot = (W - pad * 2 - DEPTH.dx) / Math.max(1, n), bw = Math.min(52, slot * 0.58);
   const x = (i: number) => pad + slot * (i + 0.5), y = (v: number) => H - ((H - top) * v) / max;
-  const tipFor = (r: ColRow) => <><b>{r.label}{r.sub ? ` ${r.sub}` : ""}</b><span>{fmt(r.value, decimals)}{unit}{r.target != null ? ` · plan ${fmt(r.target, decimals)}${unit}` : ""}</span>{r.tip && <em>{r.tip}</em>}{onPick && <i>Click to filter</i>}</>;
+  const tipFor = (r: ColRow) => <><b>{r.label}{r.sub ? ` ${r.sub}` : ""}</b><span>{fmt(r.value, decimals)}{unit}{r.target != null ? ` · plan ${fmt(r.target, decimals)}${unit}` : ""}</span>{r.tip && <em>{r.tip}</em>}{onPick && <i>{pickHint ?? (pickOn === "dblclick" ? "Double-click to open" : "Click to filter")}</i>}</>;
+  // touch screens rarely send dblclick: two taps on the same column within 400 ms count as one
+  const tap = (i: number, e: React.PointerEvent) => {
+    if (pickOn !== "dblclick" || e.pointerType !== "touch") return;
+    const now = Date.now(), l = lastTap.current;
+    if (l && l.i === i && now - l.at < 400) { lastTap.current = null; onPick?.(i); } else lastTap.current = { i, at: now };
+  };
   return (
     <div className={"kc" + (onPick ? " pick" : "")} ref={t.ref} onMouseLeave={() => { setHot(null); t.hide(); }}>
       <svg viewBox={`0 0 ${W} ${H + 30}`} style={{ direction: "ltr" }} aria-hidden="true">
@@ -135,7 +144,7 @@ export function Columns3D({ rows, unit = "", decimals = 0, max: max0, height = 1
         {rows.map((r, i) => {
           const c = r.color ?? C.inkHex, b = box(x(i) - bw / 2, y(r.value), bw, H - y(r.value));
           return (
-            <g key={i} className={"kc-col" + (focus != null && focus !== i ? " dim" : "") + (selected === i ? " sel" : "")}>
+            <g key={i} className={"kc-col" + (focus != null && focus !== i ? " dim" : "") + (selected === i ? " kc-on" : "")}>
               {r.value > 0 && <g className="kc-gy" style={d(80 + i * 70)}>
                 <path d={b.side} fill={shade(c, 0.62)} /><path d={b.top} fill={shade(c, 1.4)} /><path d={b.front} fill={`url(#${id}${i})`} />
               </g>}
@@ -144,7 +153,8 @@ export function Columns3D({ rows, unit = "", decimals = 0, max: max0, height = 1
               <text x={x(i)} y={H + 16} textAnchor="middle" fontSize="10.5" fill={C.mute}>{r.label}</text>
               {r.sub && <text x={x(i)} y={H + 27} textAnchor="middle" fontSize="9" fill={C.mute}>{r.sub}</text>}
               <rect className="kc-hit" x={x(i) - slot / 2} y={0} width={slot} height={H + 30} fill="transparent"
-                onMouseMove={(e) => { setHot(i); t.show(e, tipFor(r)); }} onClick={(e) => { t.show(e, tipFor(r)); onPick?.(i); }} />
+                onMouseMove={(e) => { setHot(i); t.show(e, tipFor(r)); }} onClick={(e) => { t.show(e, tipFor(r)); if (pickOn === "click") onPick?.(i); }}
+                onDoubleClick={() => { if (pickOn === "dblclick") onPick?.(i); }} onPointerUp={(e) => tap(i, e)} />
             </g>
           );
         })}

@@ -940,7 +940,8 @@ body,html{letter-spacing:0}
 .donut{position:relative}
 .kc-hit{cursor:default}.kc.pick .kc-hit,.donut.pick .kc-slice,.donut.pick .donut-l li{cursor:pointer}
 .kc-col{transition:opacity .2s}.kc-col.dim{opacity:.32}
-.kc-col.sel text:first-of-type{text-decoration:underline}
+.kc-col.kc-on text:first-of-type{text-decoration:underline}
+.kc-hit{outline:none;-webkit-tap-highlight-color:transparent}
 .donut-l li{padding:2px 4px;margin:0 -4px;transition:background .15s,opacity .2s}
 .donut.pick .donut-l li:hover,.donut-l li.on{background:var(--accent-soft)}
 .chartpick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
@@ -1014,3 +1015,4 @@ input[type=checkbox]{border-radius:4px!important}input[type=radio]{border-radius
 .pread .why{color:var(--mute)}
 .pread i{font-style:normal;font-weight:600}.pread .conf-high{color:var(--green-ink,#1f6b40)}.pread .conf-medium{color:#b56f00}.pread .conf-low{color:var(--mute)}
 .pread-bad{color:var(--red)}.pread-warn{color:#b56f00}
+.projbody .srcline{scroll-margin-top:calc(var(--top) + 110px)}

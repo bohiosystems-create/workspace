@@ -267,11 +267,12 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
     body = (
       <>
         <Panel title="Drawing register" sub={`${all.length} sheets by discipline; red = sheets under review or rejected`}>
-          <Columns3D selected={discs.findIndex(([k]) => k === f)} onPick={(i) => setF(f === discs[i][0] ? "" : discs[i][0])} rows={discs.map(([k, v]) => ({ label: k, value: v, sub: `${all.filter((s) => s.discipline === k && /review|rejected/i.test(s.status)).length} open`, color: all.some((s) => s.discipline === k && /rejected/i.test(s.status)) ? C.crit : undefined }))} height={130} />
+          <Columns3D selected={discs.findIndex(([k]) => k === f)} pickOn="dblclick" pickHint="Double-click to see the drawings"
+            onPick={(i) => { setQ(""); setF(discs[i][0]); requestAnimationFrame(() => document.querySelector(".projbody .srcline")?.scrollIntoView({ behavior: "smooth", block: "start" })); }} rows={discs.map(([k, v]) => ({ label: k, value: v, sub: `${all.filter((s) => s.discipline === k && /review|rejected/i.test(s.status)).length} open`, color: all.some((s) => s.discipline === k && /rejected/i.test(s.status)) ? C.crit : undefined }))} height={130} />
         </Panel>
         {search("Sheet no. or title: TA-STR L14, façade, roof…")}
         {chips([["ARC", "ARC"], ["STR", "STR"], ["MEP", "MEP"], ["FIRE", "FIRE"], ["FAC", "Façade"], ["CIV", "CIV"]])}
-        <div className="srcline">{r.count ?? 0} sheets{(r.count ?? 0) > 80 ? " — showing 80, refine the search" : ""}</div>
+        <div className="srcline">{f ? <b>{f} · </b> : null}{r.count ?? 0} sheets{(r.count ?? 0) > 80 ? " — showing 80, refine the search" : ""}</div>
         <ul className="rows">{(r.sheets ?? []).map((s) => <li key={s.sheet}><span className="t"><b>{s.sheet}</b><em>{s.title}</em><em>Rev {s.rev} · {s.issued} · {s.lastChange}</em></span><span className={"st " + s.status.toLowerCase().replace(/ /g, "")}>{s.status}</span>{s.openableDocId && <button className="mini ask" onClick={() => onOpenDoc(s.openableDocId!)}>Open</button>}</li>)}</ul>
       </>
     );
