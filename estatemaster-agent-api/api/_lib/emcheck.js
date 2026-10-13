@@ -110,7 +110,7 @@ function parseWorkbook(wb, XLSX, fileName) {
    EstateMaster lays inputs out in side-by-side blocks (label · value · unit · label · value · unit on one row): a label only takes the numbers
    and the unit between it and the next label on the row, never a figure from the neighbouring block. */
 function emRows(XLSX, ws, raw) { if (!ws || !ws['!ref']) return []; const r = XLSX.utils.decode_range(ws['!ref']); r.s.r = 0; r.s.c = 0; return XLSX.utils.sheet_to_json(ws, { header: 1, raw: raw !== false, range: r, blankrows: true }); }
-const EM_UNIT_RX = /^\s*(%|sar|aud|usd|aed|eur|gbp|nzd|qar|kwd|\$|sqm|sq\.?\s?m|sq\.?\s?ft|m2|m²|gfa|nla|gla|nsa|bua|months?|years?|yrs?|days?|weeks?|quarters?|p\.?\s?a\.?|pa|per\b.{0,24}|units?\b.{0,16}|(sar|aud|usd|aed|eur|gbp)\s*\/.{0,24}|[a-z]{2,4}\s*\/\s*[a-z²]{1,8}.{0,16}|[a-z]{1,2})\s*$/i;
+const EM_UNIT_RX = /^\s*(%\s*[a-z.\s\/]{0,12}|sar|aud|usd|aed|eur|gbp|nzd|qar|kwd|\$|sqm|sq\.?\s?m|sq\.?\s?ft|m2|m²|gfa|nla|gla|nsa|bua|months?|years?|yrs?|days?|weeks?|quarters?|p\.?\s?a\.?|pa|per\b.{0,24}|units?\b.{0,16}|(sar|aud|usd|aed|eur|gbp)\s*\/.{0,24}|[a-z]{2,4}\s*\/\s*[a-z²]{1,8}.{0,16}|[a-z]{1,2})\s*$/i;
 const emIsLabel = c => typeof c === 'string' && c.trim().length > 2 && /[a-z]/i.test(c) && !EM_UNIT_RX.test(c) && !/^\s*-?[\d,.]+\s*%?\s*$/.test(c) && !/^\s*(true|false|yes|no|y|n|n\/a|-)\s*$/i.test(c) && !/^\s*([a-z]{3}[- ]\d{2,4}|\d{1,2}[- ][a-z]{3}[- ]\d{2,4}|\d+\/\d+\/\d+)\s*$/i.test(c);   // a date typed as text is a value
 function emNextLabel(row, i) { for (let j = i + 1; j < row.length; j++) if (emIsLabel(row[j])) return j; return row.length; }
 /* Likely mistakes in an EstateMaster export: unit slips, outputs that do not reconcile, sensitivity tables not refreshed,

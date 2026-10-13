@@ -1568,7 +1568,7 @@ let changelog=[];
 /* ================= FORMAT ================= */
 const fP=v=>Number.isNaN(v)?'n/m':(v*100).toFixed(1)+'%';
 const CCY=()=>(typeof PROJ!=='undefined'&&PROJ&&PROJ.currency)||'SAR';
-const fM=v=>(v/1e6>=0?'':'−')+CCY()+' '+Math.abs(v/1e6).toFixed(0)+'M';
+const fM=v=>{const a=Math.abs(v/1e6);return (v/1e6>=0?'':'−')+CCY()+' '+(a>=10?a.toFixed(0):a>=1?a.toFixed(1):a.toFixed(2))+'M'};   // small amounts keep their decimals (SAR 0.45M, not SAR 0M)
 const fX=v=>v.toFixed(2)+'x';
 const sgn=(v,dp=0)=>(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(dp);
 function fD(k,d){const v=VARS[k];if(k==='delay')return '+'+Math.round(d)+' mo';return v.kind==='pct'?sgn(d,0)+'%':sgn(d,2).replace(/\.?0+$/,'')+(k==='ltc'?'pp':'pp')}
@@ -1582,25 +1582,34 @@ function writeSteps(d){const s=[];for(const k in d){if(d[k])s.push(wr(`${VARS[k]
 const calib='Replica check vs EstateMaster outputs: within tolerance (demo)';
 
 /* ================= INTENT PARSING ================= */
+/* "from A to B" (or "A → B", "A to B"): the change is worked out from the two values (thousands separators and M/k suffixes understood) */
+const NUMRX='(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)\\s*(%|bps|bp|m\\b|mn|million|k\\b|bn|months?|mo\\b)?';
+function numVal(n,u){let v=parseFloat(String(n).replace(/,/g,''));u=(u||'').toLowerCase();if(u==='k')v*=1e3;return v}
+function parseFromTo(t){const out={},used=[];for(const k of SYNORDER){const v=VARS[k];const re=new RegExp('('+v.syn.source+')[^\\d]{0,40}?(?:from\\s+)?(?:sar\\s*|usd\\s*|aud\\s*)?'+NUMRX+'[^\\d]{0,22}?(?:\\bto\\b|→|->)\\s*(?:sar\\s*|usd\\s*|aud\\s*)?'+NUMRX,'i');const m=t.match(re);if(!m)continue;const st=m.index+m[0].search(/\S/);if(used.some(([x,y])=>st>=x&&st<y))continue;   // "cost" inside "land cost 90M to 103.5M" is the land, not construction
+    const a=numVal(m[2],m[3]),b=numVal(m[4],m[5]),bp=/^bp/i.test(m[3]||'')||/^bp/i.test(m[5]||'');if(!Number.isFinite(a)||!Number.isFinite(b)||a===b&&!bp)continue;let d;
+    if(k==='delay')d=b-a;else if(v.kind==='pct'){if(a===0)continue;d=(b/a-1)*100}else d=bp?(b-a)/100:b-a;
+    out[k]=Math.max(v.lo*3,Math.min(v.hi*3,k==='delay'?Math.max(0,Math.round(d)):+d.toFixed(4)));used.push([m.index,m.index+m[0].length]);t=t.replace(m[0],' ')}out.__rest=t;return out}
 function parseMods(t){
-  const mods={},NEG=/drop|cut|fall|fell|reduc|lower|down|decreas|less|shrink|declin|slash/,POS=/rais|increas|\bup\b|higher|rise|more|overrun|grow|jump|climb/;
+  const ft=parseFromTo(String(t||''));t=ft.__rest;delete ft.__rest;
+  const mods={...ft},NEG=/drop|cut|fall|fell|reduc|lower|down|decreas|less|shrink|declin|slash/,POS=/rais|increas|\bup\b|higher|rise|more|overrun|grow|jump|climb/;
   for(const k of SYNORDER){
-    const v=VARS[k];
-    const re=new RegExp('('+v.syn.source+')([^\\d+\\-−]{0,24}?)([+\\-−]?\\d+(?:\\.\\d+)?)\\s*(%|pp|bps|bp|months?|mo\\b|m\\b)?','i');
+    const v=VARS[k];if(k in ft)continue;
+    const re=new RegExp('('+v.syn.source+')([^\\d+\\-−]{0,24}?)([+\\-−]?\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|[+\\-−]?\\d+(?:\\.\\d+)?)\\s*(%|pp|bps|bp|months?|mo\\b|m\\b)?','i');
     const m=t.match(re);if(!m)continue;
     const gap=m[2],before=t.slice(Math.max(0,m.index-14),m.index),ctx=before+' '+gap;
     const to=/\b(to|at|=)\b/.test(gap),explicit=/^[+\-−]/.test(m[3]);
-    let num=parseFloat(m[3].replace('−','-')),unit=(m[4]||'').toLowerCase(),d;
+    let num=parseFloat(m[3].replace('−','-').replace(/,/g,'')),unit=(m[4]||'').toLowerCase(),d;
     if(unit.startsWith('bp'))num/=100;
-    if(to&&!explicit){d=v.kind==='pct'?(num>=200?(num/BASE[k]-1)*100:num):num-BASE[k]}
+    if(to&&!explicit){const bse=BASE[k];d=v.kind==='pct'?(unit!=='%'&&Number.isFinite(bse)&&bse>0&&num>=bse*0.3&&num<=bse*3?(num/bse-1)*100:num):num-bse}   // "down to 12,150": an absolute target, judged against the model's own base value
     else if(explicit)d=num;
     else if(NEG.test(ctx)&&!POS.test(ctx))d=-Math.abs(num);
     else if(POS.test(ctx))d=Math.abs(num);
     else d=num;
     if(k==='delay')d=Math.max(0,Math.round(d));
-    mods[k]=Math.max(v.lo*3,Math.min(v.hi*3,d));
+    mods[k]=+Math.max(v.lo*3,Math.min(v.hi*3,d)).toFixed(4);
     t=t.replace(m[0],' ');
   }
+  if(!('delay' in mods)){const m=t.match(/(\d+(?:\.\d+)?)\s*-?\s*(?:months?|mo)\b[^\d]{0,12}?(?:delay|slip|late|overrun)/i);if(m)mods.delay=Math.max(0,Math.min(VARS.delay.hi*3,Math.round(+m[1])))}   // "a 12-month delay"
   return mods;
 }
 function parseFT(t){const o={},g=(re)=>{const m=t.match(re);return m?parseFloat(m[1]):null};
@@ -3227,7 +3236,7 @@ async function apiRun(id){const t=TASKS.find(x=>x.id===id);if(!t||t.status!=='op
   finally{delete EMAPI.busy[id];renderEMTab();renderApprovals();renderApiLog();saveMem()}}
 async function apiSync(quiet){const m=apiModel(),btn=$('#apiSync');if(btn){btn.disabled=true;btn.textContent='Syncing…'}
   try{await apiCall('GET','/models',null,{models:Object.values(PROJECTS).map(p=>({id:p.id,name:p.name}))});
-    const out=simOut(),x=latestExport(),same=x&&EXROWS.every(([k])=>!Number.isFinite(out[k])||Math.abs((x.out[k]??NaN)-out[k])<1e-6);
+    const out=simOut(),x=latestExport();if(quiet&&x&&x.src==='file'){/* an export the user just uploaded is the model: a background sync never stacks a simulated read on top of it */return}const same=x&&EXROWS.every(([k])=>!Number.isFinite(out[k])||Math.abs((x.out[k]??NaN)-out[k])<1e-6);
     await apiCall('GET',`${m}/outputs`,null,{version:same?x.id:'new',outputs:out});
     if(!same){addExport('api','read through the EstateMaster API (sync)',out,'','',{inputs:apiInputs()});renderAll(true)}
     else if(x&&!(x.inputs||[]).length){await apiCall('GET',`${m}/inputs`,null,()=>({inputs:apiInputs().length}));x.inputs=apiInputs()}
@@ -3377,7 +3386,7 @@ function parseInputs(sheets) {
    EstateMaster lays inputs out in side-by-side blocks (label · value · unit · label · value · unit on one row): a label only takes the numbers
    and the unit between it and the next label on the row, never a figure from the neighbouring block. */
 function emRows(XLSX, ws, raw) { if (!ws || !ws['!ref']) return []; const r = XLSX.utils.decode_range(ws['!ref']); r.s.r = 0; r.s.c = 0; return XLSX.utils.sheet_to_json(ws, { header: 1, raw: raw !== false, range: r, blankrows: true }); }
-const EM_UNIT_RX = /^\s*(%|sar|aud|usd|aed|eur|gbp|nzd|qar|kwd|\$|sqm|sq\.?\s?m|sq\.?\s?ft|m2|m²|gfa|nla|gla|nsa|bua|months?|years?|yrs?|days?|weeks?|quarters?|p\.?\s?a\.?|pa|per\b.{0,24}|units?\b.{0,16}|(sar|aud|usd|aed|eur|gbp)\s*\/.{0,24}|[a-z]{2,4}\s*\/\s*[a-z²]{1,8}.{0,16}|[a-z]{1,2})\s*$/i;
+const EM_UNIT_RX = /^\s*(%\s*[a-z.\s\/]{0,12}|sar|aud|usd|aed|eur|gbp|nzd|qar|kwd|\$|sqm|sq\.?\s?m|sq\.?\s?ft|m2|m²|gfa|nla|gla|nsa|bua|months?|years?|yrs?|days?|weeks?|quarters?|p\.?\s?a\.?|pa|per\b.{0,24}|units?\b.{0,16}|(sar|aud|usd|aed|eur|gbp)\s*\/.{0,24}|[a-z]{2,4}\s*\/\s*[a-z²]{1,8}.{0,16}|[a-z]{1,2})\s*$/i;
 const emIsLabel = c => typeof c === 'string' && c.trim().length > 2 && /[a-z]/i.test(c) && !EM_UNIT_RX.test(c) && !/^\s*-?[\d,.]+\s*%?\s*$/.test(c) && !/^\s*(true|false|yes|no|y|n|n\/a|-)\s*$/i.test(c) && !/^\s*([a-z]{3}[- ]\d{2,4}|\d{1,2}[- ][a-z]{3}[- ]\d{2,4}|\d+\/\d+\/\d+)\s*$/i.test(c);   // a date typed as text is a value
 function emNextLabel(row, i) { for (let j = i + 1; j < row.length; j++) if (emIsLabel(row[j])) return j; return row.length; }
 /* Likely mistakes in an EstateMaster export: unit slips, outputs that do not reconcile, sensitivity tables not refreshed,
@@ -3899,6 +3908,8 @@ function calcChecks(res){const o=res.x?res.x.out:{},M=Object.fromEntries(res.met
   for(const k of ['net_profit','total_cost','gross_revenue','peak_debt']){if(!fin(M[k])||!fin(o[k])||o[k]===0||M[k]===0)continue;const r=Math.abs(M[k]/o[k]);if(r>200||r<1/200)F.push({k,level:'error',text:`${MET[k][0]} ${fMet(k,M[k])} is ${r<1?'about '+Math.round(1/r).toLocaleString('en-GB')+' times smaller':'about '+Math.round(r).toLocaleString('en-GB')+' times larger'} than EstateMaster's ${fMet(k,o[k])}: a unit slip (millions or thousands instead of full amounts)`})}
   // an implausible swing: a single change of 25% or less should not move the levered IRR by more than 15 points
   {const pcts=res.changes.map(c=>{const m=chgText(c).match(/([−+-]?\s?\d+(?:\.\d+)?)\s?%/);return m?Math.abs(parseFloat(m[1].replace('−','-').replace(/\s/g,''))):NaN});if(res.changes.length===1&&fin(pcts[0])&&pcts[0]<=25&&fin(M.levered_irr)&&fin(o.levered_irr)&&Math.abs(M.levered_irr-o.levered_irr)>15)F.push({k:'levered_irr',level:'warn',text:`a ${pcts[0]}% change moves the levered IRR by ${Math.abs(M.levered_irr-o.levered_irr).toFixed(1)} points: unusually large, check the working`})}
+  // a change stated without a percentage (rent-free months, a re-pricing, a new term) moving the IRR by more than 6 points is unusual too
+  if(res.changes.length===1&&!fin((res.changes.map(c=>{const m=chgText(c).match(/([−+-]?\s?\d+(?:\.\d+)?)\s?%/);return m?1:NaN}))[0])&&fin(M.levered_irr)&&fin(o.levered_irr)&&Math.abs(M.levered_irr-o.levered_irr)>6)F.push({k:'levered_irr',level:'warn',text:`this single change moves the levered IRR by ${Math.abs(M.levered_irr-o.levered_irr).toFixed(1)} points: unusually large for one assumption, check the working`})
   // arithmetic, calibrated on EstateMaster's own base (its definition of profit on cost may differ: only checked when the base reconciles)
   if([o.net_profit,o.total_cost,o.profit_on_cost].every(fin)&&Math.abs(o.net_profit/o.total_cost*100-o.profit_on_cost)<=1.5&&fin(M.net_profit)&&fin(M.profit_on_cost)){const tc=fin(M.total_cost)?M.total_cost:o.total_cost,p2=M.net_profit/tc*100;if(Math.abs(p2-M.profit_on_cost)>1.5)F.push({k:'profit_on_cost',level:'error',text:`profit on cost ${fMet('profit_on_cost',M.profit_on_cost)} does not reconcile with net profit / total cost = ${p2.toFixed(2)}%`})}
   if([o.gross_revenue,o.total_cost,o.net_profit].every(fin)&&Math.abs(o.gross_revenue-o.total_cost-o.net_profit)<=0.03*o.gross_revenue&&fin(M.gross_revenue)&&fin(M.total_cost)&&fin(M.net_profit)&&Math.abs(M.gross_revenue-M.total_cost-M.net_profit)>0.03*M.gross_revenue)F.push({k:'net_profit',level:'warn',text:`net profit ${fMet('net_profit',M.net_profit)} does not reconcile with revenue − cost = ${fMet('net_profit',M.gross_revenue-M.total_cost)}`});
@@ -3920,6 +3931,13 @@ function calcChecks(res){const o=res.x?res.x.out:{},M=Object.fromEntries(res.met
       if(s0<Math.min(...shifts)||s0>Math.max(...shifts))continue;let i=0;while(i<shifts.length-1&&shifts[i+1]<s0)i++;const a=shifts[i],b=shifts[Math.min(i+1,shifts.length-1)],va=vals[i],vb=vals[Math.min(i+1,shifts.length-1)];if(va==null||vb==null)continue;const v=b===a?va:va+(vb-va)*(s0-a)/(b-a);
       const k=tb.mk==='irr'?'levered_irr':tb.mk==='poc'?'profit_on_cost':'net_profit';B.push({k,value:v,table:`${tb.v} → ${tb.metric}, sheet ${tb.sheet}`,shift:s0});
       if(fin(M[k])){const off=MET[k][1]==='%'?Math.abs(M[k]-v)>1.0:Math.abs(M[k]-v)>0.05*Math.abs(v);if(off)F.push({k,level:'warn',text:`EstateMaster’s own sensitivity table (${tb.v} → ${tb.metric}) points to ${fMet(k,v)} at ${s0>0?'+':''}${s0}%; the AI’s ${fMet(k,M[k])} is well off it`})}}}}
+  // the agent's own cash-flow replica as a deterministic benchmark (projects with a calibrated replica only): the change run through the
+  // replica, its effect added to EstateMaster's base. Independent of every language model; far from it → the AI figure is checked.
+  try{const pr=res.x&&PROJECTS[res.x.proj];if(pr&&!pr.fromExport&&res.x.proj===PROJ.id&&fin(o.levered_irr)){const mods=parseMods(res.changes.map(c=>chgText(c)).join(' and '));const ks=Object.keys(mods||{}).filter(k=>VARS[k]&&Number.isFinite(mods[k])&&mods[k]!==0);
+    if(ks.length&&ks.length>=res.changes.length){const d=Object.fromEntries(ks.map(k=>[k,Math.max(VARS[k].lo,Math.min(VARS[k].hi,mods[k]))])),rb=run({}),rc=run(d);
+      const est={levered_irr:fin(rc.irr)&&fin(rb.irr)?o.levered_irr+(rc.irr-rb.irr)*100:NaN,profit_on_cost:fin(o.profit_on_cost)?o.profit_on_cost+(rc.poc-rb.poc)*100:NaN};
+      for(const k of ['levered_irr','profit_on_cost']){if(!fin(est[k]))continue;B.push({k,value:est[k],table:`the agent’s cash-flow replica (${shockName(d)}), its effect added to EstateMaster’s base`,shift:0,replica:true});
+        if(fin(M[k])){const dE=Math.abs(est[k]-o[k]),tol=Math.max(2,0.4*dE);if(Math.abs(M[k]-est[k])>tol)F.push({k,level:'warn',code:'replica',text:`the agent’s own cash-flow replica puts ${MET[k][0].toLowerCase()} at about ${fMet(k,est[k])} for this change; the AI’s ${fMet(k,M[k])} is ${Math.abs(M[k]-est[k]).toFixed(1)} pts away from it`})}}}}}catch(e){}
   return{findings:F,bench:B}}
 const CHECK_SYS=`You are the independent checker of a financial calculation made by two analysts on an ARGUS EstateMaster feasibility model. You do not recalculate from scratch: you audit their workings against the EstateMaster figures and the changes tested, looking for (1) a wrong base figure, (2) unit slips (thousands vs units, % vs fraction, per sqm vs total), (3) sign or direction errors (an adverse change must not improve the returns), (4) double counting or a missing effect (financing and timing on the IRR, the cost side on profit), (5) misuse of EstateMaster's sensitivity tables (wrong axis, bad interpolation), (6) internal consistency (profit on cost = net profit / total cost; levered vs unlevered IRR). Be strict, but flag only what you can point to in the working.
 Return JSON only: {"verdicts":[{"metric":"levered_irr|unlevered_irr|profit_on_cost|net_profit|total_cost|gross_revenue|peak_debt","ok":true|false,"issue":"one sentence, empty when ok","severity":"error|warn"}],"summary":"one or two sentences"}`;
@@ -3949,7 +3967,7 @@ function finishTest(res){const x=res.x,o=x?x.out:{},chg=res.changes.map(c=>c.tex
       if(m.flag||m.warn){(m.checks||[]).forEach(c=>items.push({...base,label:MET[m.k][0]+' · check',how:c}))}}
     if(items.length)flagDispute({where:'AI test',what:chg.slice(0,120),kind:res.metrics.some(m=>m.status==='arbitrated'||m.flag)?'disagree':res.mode!=='cross'?'single':res.metrics.some(m=>m.warn)?'check':'doubt',items,note:res.rec?`${na}: ${res.rec.a||''} · ${nb}: ${res.rec.b||''}`.slice(0,400):'',link:['model','Open assumptions']})}catch(e){}
   res.metrics.forEach(m=>{const base=o[m.k];
-    m.work=addWork('calc',`Change tested: ${chg}.\nEstateMaster now: ${fMet(m.k,base)}${x?` (export ${x.id}${x.file?', '+x.file:''})`:''}.\n\n${na}: ${fMet(m.k,m.a)}\n${m.wa}\n${m.status!=='single'?`\n${nb}: ${fMet(m.k,m.b)}\n${m.wb}\n`:''}\n${m.status==='agree'?`The two agree within ${MET[m.k][1]==='%'?'0.5 pts':'2%'}: the result is their average, ${fMet(m.k,m.value)}.`:m.status==='reconciled'?`They differed at first; each reviewed the other’s working.\n${na}: ${res.rec.a}\n${nb}: ${res.rec.b}\nAfter the review they agree: the result is their average, ${fMet(m.k,m.value)}.`:m.status==='arbitrated'?`They still differed after reviewing each other (${fMet(m.k,m.a)} vs ${fMet(m.k,m.b)}). ${na}: ${res.rec?res.rec.a:''}\n${nb}: ${res.rec?res.rec.b:''}\nDecision: ${m.why}. Result ${fMet(m.k,m.value)}.`:'Only one model answered: this figure is not cross-checked.'}\n\nChecks on this figure:\n${(m.checks&&m.checks.length?m.checks:['Arithmetic, direction and bounds hold.']).join('\n')}${m.bench?`\nEstateMaster’s own sensitivity table (${m.bench.table}) at ${m.bench.shift>0?'+':''}${m.bench.shift}%: ${fMet(m.k,m.bench.value)}, interpolated between its cells.`:''}${res.checker&&res.checker.model?`\nIndependent checker: ${res.checker.model}${res.checker.summary?' — '+res.checker.summary:''}`:res.checker&&res.checker.error?`\nIndependent checker not available (${res.checker.error}).`:''}${m.flag?'\nFLAGGED: do not rely on this figure until an analyst runs the change in EstateMaster.':''}\n\nNot an EstateMaster figure: an analyst can run the change in EstateMaster for its own.`,{value:m.value})});
+    m.work=addWork('calc',`Change tested: ${chg}.\nEstateMaster now: ${fMet(m.k,base)}${x?` (export ${x.id}${x.file?', '+x.file:''})`:''}.\n\n${na}: ${fMet(m.k,m.a)}\n${m.wa}\n${m.status!=='single'?`\n${nb}: ${fMet(m.k,m.b)}\n${m.wb}\n`:''}\n${m.status==='agree'?`The two agree within ${MET[m.k][1]==='%'?'0.5 pts':'2%'}: the result is their average, ${fMet(m.k,m.value)}.`:m.status==='reconciled'?`They differed at first; each reviewed the other’s working.\n${na}: ${res.rec.a}\n${nb}: ${res.rec.b}\nAfter the review they agree: the result is their average, ${fMet(m.k,m.value)}.`:m.status==='arbitrated'?`They still differed after reviewing each other (${fMet(m.k,m.a)} vs ${fMet(m.k,m.b)}). ${na}: ${res.rec?res.rec.a:''}\n${nb}: ${res.rec?res.rec.b:''}\nDecision: ${m.why}. Result ${fMet(m.k,m.value)}.`:'Only one model answered: this figure is not cross-checked.'}\n\nChecks on this figure:\n${(m.checks&&m.checks.length?m.checks:['Arithmetic, direction and bounds hold.']).join('\n')}${m.bench?(m.bench.replica?`\nBenchmark from ${m.bench.table}: ${fMet(m.k,m.bench.value)}.`:`\nEstateMaster’s own sensitivity table (${m.bench.table}) at ${m.bench.shift>0?'+':''}${m.bench.shift}%: ${fMet(m.k,m.bench.value)}, interpolated between its cells.`):''}${res.checker&&res.checker.model?`\nIndependent checker: ${res.checker.model}${res.checker.summary?' — '+res.checker.summary:''}`:res.checker&&res.checker.error?`\nIndependent checker not available (${res.checker.error}).`:''}${m.flag?'\nFLAGGED: do not rely on this figure until an analyst runs the change in EstateMaster.':''}\n\nNot an EstateMaster figure: an analyst can run the change in EstateMaster for its own.`,{value:m.value})});
   logEvent({kind:'aitest',actor:'Bohio agent',channel:'Assumptions',detail:`AI test (${res.mode==='cross'?(res.names||[]).join(' × '):res.models[0]+', not cross-checked'}): ${chg} → `+res.metrics.map(m=>`${MET[m.k][0]} ${fMet(m.k,m.value)} (${m.status})`).join(', ')});
   return res}
 function testHTML(res){const x=res.x,o=x?x.out:{},[na,nb]=res.names||res.models.concat(['']);
