@@ -158,6 +158,12 @@ function stressChecks(scenarios, o, hurdle) {
     if (fin(x.profit_on_cost) && fin(x.net_profit) && Math.sign(x.profit_on_cost) !== Math.sign(x.net_profit) && Math.abs(x.profit_on_cost) > 0.5) c.push('profit on cost and net profit have opposite signs');
     x.checks = (x.checks || []).concat(c);
   }
+  // exact profit arithmetic on EstateMaster's own revenue and cost: a sale price shock moves revenue only; a construction shock moves the cost outside land (and finance)
+  const R = fin(o.gross_revenue) ? o.gross_revenue : (fin(o.net_profit) && fin(o.total_cost) ? o.total_cost + o.net_profit : NaN), C = o.total_cost, P = o.net_profit;
+  if (fin(R) && fin(C) && fin(P) && C > 0) {
+    const sp = by('Sale price −15%'); if (sp && fin(sp.profit_on_cost)) { const e = (P - 0.15 * R) / C * 100; if (Math.abs(sp.profit_on_cost - e) > 1) sp.checks = (sp.checks || []).concat([`profit on cost should be (net profit − 15% of revenue) ÷ cost = ${e.toFixed(2)}%, not ${sp.profit_on_cost}%`]); }
+    const cc = by('Construction cost +20%'); if (cc && fin(cc.profit_on_cost)) { const hi = P / C * 100, lo = (P - 0.2 * C) / (1.2 * C) * 100; if (cc.profit_on_cost > hi + 0.1 || cc.profit_on_cost < lo - 1) cc.checks = (cc.checks || []).concat([`profit on cost must sit between ${lo.toFixed(2)}% (every cost +20%) and ${hi.toFixed(2)}% (no change); ${cc.profit_on_cost}% is outside`]); }
+  }
   const mild = by('Combined downside'), sev = by('Severe combined');
   if (mild && sev && fin(mild.levered_irr) && fin(sev.levered_irr) && sev.levered_irr > mild.levered_irr + 0.1) sev.checks = (sev.checks || []).concat([`the severe case (${sev.levered_irr}%) shows a higher IRR than the milder combined downside (${mild.levered_irr}%)`]);
   for (const x of scenarios) { if (!x.checks || !x.checks.length) continue; x.flag = true; x.working = String(x.working || '').replace(/ CHECK FAILED:[^]*$/, '') + ` CHECK FAILED: ${x.checks.join('; ')}; do not rely on this estimate.`; }

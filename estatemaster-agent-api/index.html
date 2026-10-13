@@ -3754,7 +3754,8 @@ async function auditExport(x,again,open){if(!x)return;if(x.audit&&x.audit.status
     a.status='done';a.took=Math.round((Date.now()-a.t0)/1000);a.at=new Date().toISOString();
     const nb=a.ai.items.filter(z=>z.kind==='bug').length,nr=a.ai.items.length-nb,ne=a.checks.filter(c=>c.level==='error').length;
     logEvent({kind:'audit',actor:'Bohio agent',channel:'Financial modelling',detail:`Model debug of ${x.id}${x.file?' ('+x.file+')':''} in ${auMmss(a.took)}: ${ne} likely error${ne===1?'':'s'} from the checks, ${nb} bug${nb===1?'':'s'} and ${nr} risk${nr===1?'':'s'} from ${a.ai.by||'the checks only'}${a.ai.dismissed&&a.ai.dismissed.length?`, ${a.ai.dismissed.length} dismissed after cross-checking`:''}.`});
-    toast(`Model debug of ${x.id} done in ${auMmss(a.took)}: ${ne+nb} likely bug${ne+nb===1?'':'s'}, ${nr} risk${nr===1?'':'s'}.`)}
+    toast(`Model debug of ${x.id} done in ${auMmss(a.took)}: ${ne+nb} likely bug${ne+nb===1?'':'s'}, ${nr} risk${nr===1?'':'s'}.`);
+    try{if(x.src==='file')askLayout(x)}catch(e){}}
   catch(e){a.status='failed';a.err=provErr(e.message);a.took=Math.round((Date.now()-a.t0)/1000);auStep(a,'Stopped: '+a.err)}
   finally{try{saveMem()}catch(e){}renderAuditUI();auTick()}}
 /* The debug window: opens on its own when a model is uploaded, shows every step of the agents' debugging live, then the results */
@@ -3866,7 +3867,7 @@ function calcContext(x){const L=[];const o=x?x.out:{};const PR=x&&x.proj&&PROJEC
   L.push(`Project: ${PR.name}${PR.type?' ('+PR.type+')':''}. Currency: ${PR.currency||CCY()}.`);
   {const hf=hurdleFor(PR.id);L.push(`Hurdles this model is judged against: levered IRR ${hf.v}% (${hf.em?'EstateMaster’s own target in the export':hf.user?'confirmed by the user':'KINAN policy value, not yet confirmed by the user'}); profit on cost ${(HURDLE.poc*100).toFixed(0)}%. Use these hurdles; never say that no hurdle is stated and never substitute another one.`)}
   if(x)L.push(`EstateMaster export ${x.id}${x.file?' ('+x.file+')':''}${x.opt?', option '+x.opt:''}, read ${new Date(x.at).toISOString().slice(0,16)}.`);
-  if(x&&[o.net_profit,o.total_cost,o.profit_on_cost].every(Number.isFinite)&&o.total_cost>0&&Math.abs(o.net_profit/o.total_cost*100-o.profit_on_cost)>1.5)L.push(`WARNING: in this export profit on cost (${o.profit_on_cost}%) does not equal net profit ÷ total cost (${(o.net_profit/o.total_cost*100).toFixed(2)}%): one output was read from the wrong cell. Say so in the answer and do not build on the inconsistent figure.`);
+  if(x&&!(x.userOk&&x.userOk.poc)&&[o.net_profit,o.total_cost,o.profit_on_cost].every(Number.isFinite)&&o.total_cost>0&&Math.abs(o.net_profit/o.total_cost*100-o.profit_on_cost)>1.5)L.push(`WARNING: in this export profit on cost (${o.profit_on_cost}%) does not equal net profit ÷ total cost (${(o.net_profit/o.total_cost*100).toFixed(2)}%): one output was read from the wrong cell. Say so in the answer and do not build on the inconsistent figure.`);
   if(x&&[o.gross_revenue,o.total_cost,o.net_profit].every(Number.isFinite)&&o.gross_revenue>0&&Math.abs(o.gross_revenue-o.total_cost-o.net_profit)>0.03*o.gross_revenue)L.push(`WARNING: in this export revenue − total cost (${Math.round(o.gross_revenue-o.total_cost)}) does not equal net profit (${o.net_profit}): one output was read from the wrong cell. Say so and do not build on it.`);
   L.push('EstateMaster outputs (trusted): '+EXROWS.filter(([k])=>Number.isFinite(o[k])).map(([k,l,u])=>`${k} (${l}) = ${u==='%'?o[k]+'%':o[k]}`).join('; ')+'.');
   const ins=(x&&x.inputs&&x.inputs.length)?x.inputs.slice(0,160).map(i=>`${i.label} = ${i.text||i.value}${i.unit&&i.unit!=='%'?' '+i.unit:''} [${i.sheet}]`):REG.map(l=>{let v=NaN;try{v=lineVal(l.id)}catch(e){}return`${l.label} (${l.g}) = ${Number.isFinite(v)?fmtLine(l,v):'—'}`});
@@ -3946,6 +3947,36 @@ function chgDirection(t){t=String(t||'').toLowerCase();const rev=/(price|rent|sa
   if(/delay|rent[- ]?free|discount|incentive|overrun|variation/.test(t)&&!neg)return 'adverse';
   if(rev&&!cost)return neg?'adverse':pos?'favourable':null;if(cost&&!rev)return pos?'adverse':neg?'favourable':null;
   if(ADV_WORDS.test(t)&&!FAV_WORDS.test(t))return 'adverse';if(FAV_WORDS.test(t)&&!ADV_WORDS.test(t))return 'favourable';return null}
+/* A cash flow built from any export's own figures (land up front, construction spread over the build period, sales at completion,
+   debt at the export's peak-debt ratio and finance rate), with the build period calibrated so that it reproduces EstateMaster's own IRR.
+   Profit and profit on cost are pure arithmetic on the export's revenue and cost; the IRR effect comes from the calibrated cash flow.
+   If it cannot reproduce EstateMaster's IRR, no IRR benchmark is given (nothing is invented). */
+const GENC={};
+function genInputs(x){const o=x.out||{},ins=x.inputs||[],f=re=>{const i=ins.find(i=>re.test(i.label)&&Number.isFinite(i.value)&&i.value>0);return i?i.value:NaN};
+  const C=o.total_cost,R=Number.isFinite(o.gross_revenue)?o.gross_revenue:(Number.isFinite(o.net_profit)&&Number.isFinite(C)?C+o.net_profit:NaN),P=Number.isFinite(o.net_profit)?o.net_profit:R-C;
+  let land=f(/land (purchase |acquisition )?(price|cost|value)/i);if(!(land>0&&land<C*0.9))land=0.15*C;
+  let rate=f(/interest|finance rate|profit rate|loan.*rate|saibor/i);if(Number.isFinite(rate)&&rate<1)rate*=100;if(!(rate>0.5&&rate<25))rate=7;
+  const ltc=Number.isFinite(o.peak_debt)&&C>0?Math.max(0,Math.min(0.85,o.peak_debt/C)):0;let rq=f(/sales? (period|duration)|absorption|sell[- ]?out/i);rq=Number.isFinite(rq)?Math.max(1,Math.min(16,Math.round(rq/3))):2;
+  return{C,R,P,land,rate,ltc,rq}}
+function genCF(g,N,ch){ch=ch||{};let fin0=0;for(let it=0;it<4;it++){const r=genCF1(g,N,{},fin0);if(!Number.isFinite(r.int)||Math.abs(r.int-fin0)<1)break;fin0=Math.min(r.int,(g.C-g.land)*0.6)}return genCF1(g,N,ch,fin0)}
+/* fin0: the finance cost inside EstateMaster's total cost at the base (taken out of the construction spend, so it is not counted twice) */
+function genCF1(g,N,ch,fin0){const land=g.land*(1+(ch.land||0)/100),cons=(g.C-g.land-(fin0||0))*(1+(ch.cost||0)/100)*(1+(ch.area||0)/100),R=g.R*(1+(ch.price||0)/100)*(1+(ch.area||0)/100),rate=(g.rate+(ch.rate||0))/100/4,ltc=Math.max(0,Math.min(0.9,g.ltc+(ch.ltc||0)/100)),dq=(ch.delay||0)/3;
+  const n=Math.max(1,N),end=n+dq,T=Math.ceil(end)+g.rq+3,cost=Array(T).fill(0),inf=Array(T).fill(0);cost[0]+=land;
+  for(let t=0;t<Math.ceil(n);t++){const w=Math.min(1,n-t);cost[1+t]+=cons*w/n}
+  for(let k=0;k<g.rq;k++){const at=end+1+k,i=Math.floor(at),fr=at-i;inf[i]+=R/g.rq*(1-fr);if(i+1<T)inf[i+1]+=R/g.rq*fr}
+  let bal=0,int=0;const eq=[],un=[];for(let t=0;t<T;t++){const i=bal*rate;bal+=i;int+=i;const draw=cost[t]*ltc;bal+=draw;const rep=Math.min(bal,inf[t]);bal-=rep;eq.push(-(cost[t]-draw)+(inf[t]-rep));un.push(inf[t]-cost[t])}if(bal>1)eq[T-1]-=bal;
+  return{lirr:irrOf(eq)*100,uirr:irrOf(un)*100,int}}
+function genCalib(x){if(GENC[x.id])return GENC[x.id];const o=x.out||{},g=genInputs(x);let out={ok:false,g};
+  if(!(g.C>0&&g.R>0)){GENC[x.id]=out;return out}const tgtU=o.unlevered_irr,tgtL=o.levered_irr,useU=Number.isFinite(tgtU),tgt=useU?tgtU:tgtL;if(!Number.isFinite(tgt)){GENC[x.id]={...out,poc:true};return GENC[x.id]}
+  const f=N=>{const r=genCF(g,N);return(useU?r.uirr:r.lirr)-tgt};let lo=1,hi=80;const flo=f(lo),fhi=f(hi);
+  if(!(Number.isFinite(flo)&&Number.isFinite(fhi))||flo<0||fhi>0){GENC[x.id]={...out,poc:true,why:`no build period reproduces EstateMaster’s ${useU?'unlevered':'levered'} IRR ${tgt}%`};return GENC[x.id]}
+  for(let i=0;i<70;i++){const m=(lo+hi)/2;if(f(m)>0)lo=m;else hi=m}const N=(lo+hi)/2,b=genCF(g,N);let fin=0;for(let it=0;it<4;it++){const r=genCF1(g,N,{},fin);if(Math.abs(r.int-fin)<1)break;fin=Math.min(r.int,(g.C-g.land)*0.6)}
+  GENC[x.id]=out={ok:Math.abs((useU?b.uirr:b.lirr)-tgt)<0.05,g,N,base:b,fin,on:useU?'unlevered':'levered',poc:true};return out}
+function genBench(x,d){const o=x.out||{},c=genCalib(x),g=c.g,res={};if(!(g.C>0&&g.R>0))return res;
+  const dR=g.R*((1+(d.price||0)/100)*(1+(d.area||0)/100)-1),dC=g.land*(d.land||0)/100+(g.C-g.land-(c.fin||0))*((1+(d.cost||0)/100)*(1+(d.area||0)/100)-1),P2=g.P+dR-dC,C2=g.C+dC;
+  if(Number.isFinite(o.net_profit))res.net_profit=o.net_profit+(dR-dC);if(Number.isFinite(o.profit_on_cost)&&C2>0)res.profit_on_cost=o.profit_on_cost+(P2/C2-g.P/g.C)*100;
+  if(c.ok){const r=genCF(g,c.N,d);if(Number.isFinite(o.levered_irr)&&Number.isFinite(r.lirr))res.levered_irr=o.levered_irr+(r.lirr-c.base.lirr);if(Number.isFinite(o.unlevered_irr)&&Number.isFinite(r.uirr))res.unlevered_irr=o.unlevered_irr+(r.uirr-c.base.uirr)}
+  res.method=`a cash flow built from export ${x.id}’s own figures${c.ok?` (build period ${(c.N*3).toFixed(0)} months, calibrated to reproduce EstateMaster’s ${c.on} IRR)`:' (profit arithmetic only: no build period reproduces EstateMaster’s IRR)'}`;return res}
 function chgText(c){const t=c.text||`${c.label}: from ${c.from} to ${c.to}`;if(c.text)return t;const num=v=>{const m=String(v==null?'':v).replace(/,/g,'').match(/[−-]?\d+(?:\.\d+)?/);return m?parseFloat(m[0].replace('−','-')):NaN};const a=num(c.from),b=num(c.to);
   if(!Number.isFinite(a)||!Number.isFinite(b)||a===b)return t;const pctUnit=/%/.test(String(c.from)+String(c.to))||/rate|yield|cap|margin|ltc|ltv|contingen|share|occupancy|escalat|inflation|irr/i.test(c.label||'');
   return pctUnit?`${t} (${b>a?'+':'−'}${Math.abs(b-a).toFixed(2).replace(/\.?0+$/,'')} pts, ${b>a?'higher':'lower'})`:a!==0?`${t} (${b>a?'+':'−'}${Math.abs((b-a)/a*100).toFixed(1).replace(/\.0$/,'')}%, ${b>a?'higher':'lower'})`:t}
@@ -3988,7 +4019,11 @@ function calcChecks(res){const o=res.x?res.x.out:{},M=Object.fromEntries(res.met
       if(fin(M[k])){const off=MET[k][1]==='%'?Math.abs(M[k]-v)>1.0:Math.abs(M[k]-v)>0.05*Math.abs(v);if(off)F.push({k,level:'warn',text:`EstateMaster’s own sensitivity table (${tb.v} → ${tb.metric}) points to ${fMet(k,v)} at ${s0>0?'+':''}${s0}%; the AI’s ${fMet(k,M[k])} is well off it`})}}}}
   // the agent's own cash-flow replica as a deterministic benchmark (projects with a calibrated replica only): the change run through the
   // replica, its effect added to EstateMaster's base. Independent of every language model; far from it → the AI figure is checked.
-  try{const pr=res.x&&PROJECTS[res.x.proj];if(pr&&!pr.fromExport&&res.x.proj===PROJ.id&&fin(o.levered_irr)){const mods=parseMods(res.changes.map(c=>chgText(c)).join(' and '));const ks=Object.keys(mods||{}).filter(k=>VARS[k]&&Number.isFinite(mods[k])&&mods[k]!==0);
+  try{const pr=res.x&&PROJECTS[res.x.proj];if(pr&&(pr.fromExport||res.x.proj!==PROJ.id||res.x.src==='file')){const mods=parseMods(res.changes.map(c=>chgText(c)).join(' and '));const ks=Object.keys(mods||{}).filter(k=>['price','rent','cost','land','area','rate','delay','ltc'].includes(k)&&Number.isFinite(mods[k])&&mods[k]!==0);
+      if(ks.length&&ks.length>=res.changes.length){const d=Object.fromEntries(ks.map(k=>[k==='rent'?'price':k,mods[k]])),gb=genBench(res.x,d);
+        for(const k of ['levered_irr','unlevered_irr','profit_on_cost','net_profit']){if(!fin(gb[k]))continue;B.push({k,value:gb[k],table:gb.method,shift:0,replica:true});
+          if(fin(M[k])){const pct=MET[k][1]==='%',dE=Math.abs(gb[k]-o[k]),tol=pct?Math.max(k==='profit_on_cost'?1:2,0.4*dE):Math.max(0.02*Math.abs(o[k]),0.25*dE);if(Math.abs(M[k]-gb[k])>tol)F.push({k,level:'warn',code:'replica',text:`${gb.method} puts ${MET[k][0].toLowerCase()} at about ${fMet(k,gb[k])} for this change; the AI’s ${fMet(k,M[k])} is well away from it`})}}}}
+    else if(pr&&!pr.fromExport&&res.x.proj===PROJ.id&&fin(o.levered_irr)){const mods=parseMods(res.changes.map(c=>chgText(c)).join(' and '));const ks=Object.keys(mods||{}).filter(k=>VARS[k]&&Number.isFinite(mods[k])&&mods[k]!==0);
     if(ks.length&&ks.length>=res.changes.length){const d=Object.fromEntries(ks.map(k=>[k,Math.max(VARS[k].lo,Math.min(VARS[k].hi,mods[k]))])),rb=run({}),rc=run(d);
       const est={levered_irr:fin(rc.irr)&&fin(rb.irr)?o.levered_irr+(rc.irr-rb.irr)*100:NaN,profit_on_cost:fin(o.profit_on_cost)?o.profit_on_cost+(rc.poc-rb.poc)*100:NaN};
       for(const k of ['levered_irr','profit_on_cost']){if(!fin(est[k]))continue;B.push({k,value:est[k],table:`the agent’s cash-flow replica (${shockName(d)}), its effect added to EstateMaster’s base`,shift:0,replica:true});
@@ -6964,10 +6999,44 @@ function provNote(text){const ks=new Set((text.match(/⟦(em|est|calc)/g)||[]).m
   if(!ks.size){const nums=(stripMarks(text).match(/(?:SAR\s?)?\d[\d,]*(?:\.\d+)?\s?(?:%|x\b|M\b|bn\b|pts|bps)/g)||[]);return nums.length?'<div class="calcnote">⚠ The figures in this answer carry no label, so none of them is EstateMaster’s: treat them as the AI’s own and check them in EstateMaster before they go into a decision.</div>':''}
   const L={em:'read from the EstateMaster export, not calculated by the agent',est:'the agent’s replica estimate, not an EstateMaster figure',calc:'arithmetic by the AI model, not an EstateMaster figure'};
   return `<div class="calcnote">Click a bold figure for its working. ${['em','est','calc'].filter(k=>ks.has(k)).map(k=>`<span class="tag tag-${k}" style="margin-left:0">${TAGK[k]}</span> ${L[k]}`).join(' · ')}</div>`}
+/* ---- Unusual workbook layouts: the agent asks in the main chat. The answer (a cell, a value, or which figure is right) is applied to the export and the checks run again. ---- */
+let CLARIFY=null;
+function layoutQuestions(x){const o=x.out||{},Q=[],fin=Number.isFinite,uk=x.userOk||{};
+  for(const [k,l] of EXROWS.filter(([k])=>['levered_irr','profit_on_cost','net_profit','total_cost','gross_revenue'].includes(k)))if(!fin(o[k])&&!uk['miss:'+k])Q.push({id:'miss:'+k,k,q:`I could not find **${l}** in ${x.file||x.id}. Which cell holds it (e.g. Summary!C14), or what is the value?`});
+  if([o.net_profit,o.total_cost,o.profit_on_cost].every(fin)&&o.total_cost>0&&!uk.poc){const c=o.net_profit/o.total_cost*100;if(Math.abs(c-o.profit_on_cost)>1.5)Q.push({id:'poc',k:'profit_on_cost',calc:c,q:`Profit on cost reads **${o.profit_on_cost.toFixed(2)}%** (${x.cells&&x.cells.profit_on_cost||'cell unknown'}), but net profit ÷ total cost is **${c.toFixed(2)}%**. Which is right?`,opts:[`Use ${c.toFixed(2)}% (net profit ÷ total cost)`,`Keep ${o.profit_on_cost.toFixed(2)}% (EstateMaster’s own basis)`,`Net profit or total cost is in another cell`]})}
+  if([o.gross_revenue,o.total_cost,o.net_profit].every(fin)&&o.gross_revenue>0&&!uk.rev&&Math.abs(o.gross_revenue-o.total_cost-o.net_profit)>0.03*o.gross_revenue)Q.push({id:'rev',k:'gross_revenue',q:`Revenue ${fM(o.gross_revenue)} − total cost ${fM(o.total_cost)} = ${fM(o.gross_revenue-o.total_cost)}, but net profit reads ${fM(o.net_profit)}. Is one of the three read from the wrong cell? Type the right cell or value, or say they are right (e.g. tax or a cost outside the total).`,opts:['They are right as read','Revenue is in another cell','Net profit is in another cell']});
+  const a=x.audit&&x.audit.ai;if(a&&a.readOk===false&&!uk.read)Q.push({id:'read',q:`The review agents think part of the workbook was misread: ${a.note||''} Tell me the cell of any figure that is wrong, or say the reading is right.`,opts:['The reading is right']});
+  if((x.inputs||[]).length<3&&!uk.inputs)Q.push({id:'inputs',q:`I read only ${(x.inputs||[]).length} input assumption${(x.inputs||[]).length===1?'':'s'} from ${x.file||x.id}. Which sheet holds the inputs, or should I go on with the outputs only?`,opts:['Go on with the outputs only']});
+  return Q.slice(0,4)}
+function askLayout(x){const qs=layoutQuestions(x);if(!qs.length)return false;CLARIFY={xid:x.id,qs};try{toggleDock(true)}catch(e){}
+  addMsg('agent',`<p><b>Before I rely on ${esc(x.file||x.id)}, I need you to confirm a few things</b>: its layout is not the usual EstateMaster one, and these figures do not settle on their own.</p>${qs.map((q,i)=>`<div class="bul"><b>${i+1}.</b> ${mdLite(q.q)}${q.opts?`<div class="chips" style="margin:6px 0 0">${q.opts.map(o=>`<span class="qchip" data-clq="${q.id}" data-cla="${esc(o)}">${esc(o)}</span>`).join('')}</div>`:''}</div>`).join('')}<div class="sub" style="margin:6px 0 0">Answer here in your own words (a cell such as Summary!C14, a value, or which figure is right). Until then, figures built on these are flagged.</div>`);
+  logEvent({kind:'audit',actor:'Bohio agent',channel:'Chat',detail:`Asked to clarify ${qs.length} point${qs.length>1?'s':''} on ${x.id}${x.file?' ('+x.file+')':''}`});try{chatSave&&chatSave()}catch(e){}return true}
+async function cellValue(x,ref){const m=String(ref).match(/^'?([^'!]+)'?!\$?([A-Z]{1,3})\$?(\d+)$/i);if(!m)return NaN;const g=WBCACHE[x.id]||await wbLoad(x.id);if(!g)return NaN;const sh=g.sheets.find(z=>z.name.toLowerCase()===m[1].trim().toLowerCase());if(!sh)return NaN;
+  let c=0;for(const ch of m[2].toUpperCase())c=c*26+(ch.charCodeAt(0)-64);const it=sh.cells.find(z=>z[0]===+m[3]-1&&z[1]===c-1);if(!it)return NaN;const t=String(it[2]).replace(/[,\s]/g,''),v=parseFloat(t.replace('%',''));return Number.isFinite(v)?v:NaN}
+async function answerLayout(text){const x=EXPORTS.find(z=>z.id===CLARIFY.xid);if(!x){CLARIFY=null;return null}const t=String(text).trim(),lo=t.toLowerCase(),done=[],fin=Number.isFinite;x.userOk=x.userOk||{};
+  const open=CLARIFY.qs.filter(q=>!x.userOk[q.id]);const metricOf=s=>{s=s.toLowerCase();return /levered|equity irr/.test(s)&&!/unlev/.test(s)?'levered_irr':/unlev|project irr/.test(s)?'unlevered_irr':/on cost|margin/.test(s)?'profit_on_cost':/net profit|profit/.test(s)?'net_profit':/total (development )?cost|\bcost\b/.test(s)?'total_cost':/revenue|gdv|sales/.test(s)?'gross_revenue':/peak debt/.test(s)?'peak_debt':null};
+  const setK=(k,v,src)=>{if(!k||!fin(v))return;if(/irr|on_cost/.test(k)&&Math.abs(v)<1&&!/%/.test(src))v*=100;x.out[k]=+v.toFixed(4);x.found=x.found||{};x.found[k]=`confirmed by ${USERS.web}: ${src}`;if(/!/.test(src))(x.cells=x.cells||{})[k]=src;done.push(`${MET[k]?MET[k][0]:k} = ${fMet(k,x.out[k])} (${src})`)};
+  // chips and plain confirmations
+  if(/use .*net profit ÷ total cost/i.test(t)){const q=open.find(q=>q.id==='poc');if(q){setK('profit_on_cost',q.calc,'net profit ÷ total cost');x.userOk.poc=1}}
+  if(/^keep .*estatemaster/i.test(t)){x.userOk.poc=1;done.push('profit on cost kept on EstateMaster’s own basis')}
+  if(/they are right|reading is right|right as read|go on with the outputs only|^skip|^ignore/i.test(lo)){open.forEach(q=>{if(q.id==='rev'||q.id==='read'||q.id==='inputs'||(/skip|ignore/.test(lo)))x.userOk[q.id]=1});done.push('confirmed as read')}
+  // cells: "net profit is Summary!C12", "C12 on Summary", values: "net profit 137,994,090"
+  for(const m of t.matchAll(/(?:'([^']+)'|([A-Za-z][\w.]*))!\$?([A-Za-z]{1,3})\$?(\d+)/g)){const before=t.slice(0,m.index).split(/[,;]|\band\b/).pop();const k=metricOf(before)||(open.length===1?open[0].k:null);const ref=`${(m[1]||m[2]).trim()}!${m[3].toUpperCase()}${m[4]}`;const v=await cellValue(x,ref);if(k&&fin(v)){setK(k,v,ref);x.userOk['miss:'+k]=1}else if(k)done.push(`${ref} has no number I can read`)}
+  if(!done.length){const m=t.match(/(-?\d[\d,]*(?:\.\d+)?)\s*(%|m\b|mn|million|bn)?/i);const k=metricOf(t)||(open.length===1?open[0].k:null);if(m&&k){let v=parseFloat(m[1].replace(/,/g,''));const u=(m[2]||'').toLowerCase();if(/^m|million/.test(u)&&!/irr|on_cost/.test(k))v*=1e6;if(u==='bn')v*=1e9;setK(k,v,'typed in the chat');x.userOk['miss:'+k]=1;if(k==='profit_on_cost')x.userOk.poc=1}}
+  // free words: the AI maps the answer onto the questions (never invents a figure: only cells it names or values typed)
+  if(!done.length&&apiOn()){try{const r=await complete(`You map a user's answer to an agent's questions about how an Excel financial model was read. Reply with JSON only: {"answers":[{"id":"question id","cell":"Sheet!A1 or empty","value":number or null,"confirm":true|false}],"not_an_answer":true|false}. Use only cells and values the user wrote.`,`Questions:\n${open.map(q=>`${q.id}: ${q.q.replace(/\*/g,'')}`).join('\n')}\n\nAnswer: ${t}`,'fast');const j=jsonFrom(r.text);
+      if(j.not_an_answer)return null;for(const a of (j.answers||[])){const q=open.find(z=>z.id===a.id);if(!q)continue;if(a.confirm){x.userOk[q.id]=1;done.push(`point ${q.id} confirmed`)}if(a.cell&&q.k){const v=await cellValue(x,a.cell);if(fin(v)){setK(q.k,v,a.cell);x.userOk[q.id]=1}}else if(fin(+a.value)&&a.value!==null&&q.k){setK(q.k,+a.value,'typed in the chat');x.userOk[q.id]=1}}}catch(e){}}
+  if(!done.length)return null;
+  delete GENC[x.id];const left=layoutQuestions(x);CLARIFY=left.length?{xid:x.id,qs:left}:null;try{saveMem();renderAll();renderEMTab()}catch(e){}
+  logEvent({kind:'export',actor:`${USERS.web} (${WS_ROLE})`,channel:'Chat',detail:`${x.id} clarified: ${done.join('; ')}`});
+  const ck=exportChecks(x).filter(c=>c.level==='error');
+  return `<p><b>Thank you, applied to ${esc(x.id)}:</b></p>${done.map(d=>`<div class="bul">${esc(d)}</div>`).join('')}<p>${ck.length?`Still ${ck.length} check${ck.length>1?'s':''} failing: ${esc(ck.map(c=>c.text).join(' · ').slice(0,300))}`:'The exact checks now pass on these figures.'}${left.length?` ${left.length} point${left.length>1?'s':''} still open: ${left.map(q=>esc(q.q.replace(/\*/g,'').slice(0,90))).join(' · ')}`:''}</p>`}
+document.addEventListener('click',e=>{const c=e.target.closest('[data-cla]');if(c&&CLARIFY){webAsk(c.dataset.cla)}});
 let busy=false;
 async function webAsk(text){
   if(!text.trim()||busy)return;busy=true;
   addMsg('user',text);$('#ask').value='';
+  if(CLARIFY){try{const r=await answerLayout(text);if(r){addMsg('agent',r);busy=false;try{chatSave&&chatSave()}catch(e){}return}}catch(e){}}
   const m=addMsg('agent','');const box=m.querySelector('.steps');let prev=null;
   const onStep=async st=>{if(prev)prev.classList.add('done');const e=document.createElement('div');e.className='st';e.innerHTML=`<i></i><span>${esc(st)}</span>`;box.appendChild(e);prev=e;$('#msgs').scrollTop=1e9;await sleep(170)};
   try{
