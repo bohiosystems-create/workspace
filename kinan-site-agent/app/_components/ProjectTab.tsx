@@ -9,7 +9,7 @@ import { pathOf } from "./site";
 import Emails from "./Emails";
 import { C, Columns3D, Curve, Donut3D, Gauge, Kpi, Panel, Ring, Timeline } from "./Charts";
 
-type Section = "programme" | "procurement" | "safety" | "regs" | "drawings" | "emails" | "team";
+type Section = "programme" | "procurement" | "safety" | "regs" | "drawings" | "emails";
 interface Props { locations: Location[]; refreshKey: number; onSelectLocation: (id: string) => void; onOpenDoc: (id: string) => void }
 
 const sar = (n: number) => (n >= 1e6 ? `SAR ${(n / 1e6).toFixed(1)}M` : `SAR ${Math.round(n).toLocaleString("en")}`);
@@ -275,22 +275,14 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
         <ul className="rows">{(r.sheets ?? []).map((s) => <li key={s.sheet}><span className="t"><b>{s.sheet}</b><em>{s.title}</em><em>Rev {s.rev} · {s.issued} · {s.lastChange}</em></span><span className={"st " + s.status.toLowerCase().replace(/ /g, "")}>{s.status}</span>{s.openableDocId && <button className="mini ask" onClick={() => onOpenDoc(s.openableDocId!)}>Open</button>}</li>)}</ul>
       </>
     );
-  } else if (sec === "emails") {
-    body = <Emails />;
   } else {
-    const r = P.contactsQuery(db, { query: q });
-    body = (
-      <>
-        {search("Role, name, company: lifting, HSE, façade…")}
-        <ul className="rows">{(q ? r.contacts : data.contacts).map((c) => <li key={c.name + c.role}><span className="t"><b>{c.name}</b><em>{c.role} · {c.company}{c.area ? ` · ${c.area}` : ""}</em></span><a className="mini call" href={`tel:${c.phone.replace(/\s/g, "")}`}>📞 {c.phone}</a></li>)}</ul>
-      </>
-    );
+    body = <Emails />;
   }
 
   return (
     <div className="proj">
       <div className="ptabs">
-        {([["programme", "Programme"], ["procurement", "Procurement"], ["safety", "Safety"], ["regs", "Regulations"], ["drawings", "Drawings"], ["emails", "Emails"], ["team", "Team"]] as const).map(([k, l]) => (
+        {([["programme", "Programme"], ["procurement", "Procurement"], ["safety", "Safety"], ["regs", "Regulations"], ["drawings", "Drawings"], ["emails", "Emails"]] as const).map(([k, l]) => (
           <button key={k} className={sec === k ? "on" : ""} onClick={() => setSec(k)}>{l}</button>
         ))}
       </div>
