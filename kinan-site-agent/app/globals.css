@@ -946,3 +946,47 @@ body,html{letter-spacing:0}
 .chartpick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
 .chartpick button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);font:inherit;font-size:12px;padding:4px 8px 4px 10px;cursor:pointer}
 .chartpick button b{font-weight:700}
+
+/* ── Rounded corners: the same corner system as the Kinan financial-modelling apps ──
+   --rc cards and panels · --rc-sm buttons and fields · --rc-xs small tiles · 999px pills.
+   Where the browser supports corner-shape the corners become squircles (a little larger, same feel). */
+:root{--rc:22px;--rc-sm:14px;--rc-xs:9px}
+@supports (corner-shape: squircle){
+  :root{--rc:28px;--rc-sm:18px;--rc-xs:11px}
+  *,*::before,*::after{corner-shape:squircle}
+  .chip,.st,.slip,.rep-badge,.badge,.kc-chip,.rpt .pill,.k,.ph,.conf,.rcp-chip,.chartpick button,.avatar,.gl-gps,.gl-pin i,
+  .tl4d-play,.spin,.dot,.kdots i,.studio-steps li::before,input[type=radio],.pplus,.drop-ico{corner-shape:round}
+}
+/* cards and panels */
+.panel,.pcard,.studio-card,.rpt-panel,.kpis>div,.kpi,.layers,.me,.chat-drawer,.tl4d,.modal-card,.studio-drop,.studio-demo,
+.studio-doc,.studio-pre,.studio-tablewrap,.studio-ok,.studio-err,.mapsearch ul,.rpt-view iframe,.rpt-view .rpt-frame{border-radius:var(--rc)!important}
+.chat-drawer,.layers,.me{overflow:hidden}
+.kpis>div,.kpi,.studio-kpis div{border-radius:var(--rc-sm)!important}
+/* list rows and small boxes */
+.rows li,.notes li,.doclist button,.rep-list button,.rep-btn,.placechip,.pendingpin,.disclaimer,.rpt-alert,.rpt-item,
+.studio-ico,.doclist .ico,.scaletxt,.banner,.toast,.gl-label{border-radius:var(--rc-xs)!important}
+/* buttons */
+button.x,.primary,.mini,.me-done,.pdel,.pdel-ask button,.kinds button,.seg button,.seg3 button,.row button,.big,.studio-add,
+.studio-go,.studio-back,.rep-days button,.rpt .btn,.rpt .btn.ghost,.rpt .btn.sm,.rpt .btn.xs,.mapctl>button,.layerbtn,
+.chat-input button,.mapsearch li button,.who,.tl4d-today-btn,.tl4d-speed button,.rcp-offer button,.fab,.home-fab{border-radius:var(--rc-sm)!important}
+.chat-fab{border-radius:18px!important}
+.chat-sugg button,.chat-head button,.kretry{border-radius:var(--rc-sm)!important}
+.seg2{border-radius:var(--rc-sm);overflow:hidden}.seg2 button{border-radius:0!important}
+/* fields */
+input,select,textarea,.search,.rcp,.rpt .in,.mapsearch input,.whoedit input,.me input,.row input,.chips select,
+.chat-input textarea,.rep-f input,.rep-f select,.rep-f textarea{border-radius:var(--rc-sm)!important}
+input[type=checkbox]{border-radius:4px!important}input[type=radio]{border-radius:50%!important}
+.rcp input{border-radius:0!important}
+/* pills and tags */
+.chip,.st,.slip,.rep-badge,.badge,.kc-chip,.rpt .pill,.rcp-chip,.chartpick button{border-radius:999px!important}
+.k,.ph,.conf{border-radius:6px!important}
+/* chat, tooltips, small round marks */
+.kmsg{border-radius:14px!important}
+.ktip{border-radius:12px!important}
+.chat-head{border-radius:0}
+.avatar,.pplus,.drop-ico{border-radius:50%!important}
+.kc-legend i,.donut-l i{border-radius:3px!important}
+/* edge-to-edge surfaces stay square where they meet the screen edge */
+.chat-drawer.full{border-radius:0!important}
+.sheet{border-radius:var(--rc) var(--rc) 0 0!important;overflow:hidden}
+@media (min-width:600px){.sheet{border-radius:var(--rc) 0 0 var(--rc)!important}}
