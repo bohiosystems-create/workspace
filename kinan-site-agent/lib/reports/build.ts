@@ -14,6 +14,9 @@ import * as P from "../core/project";
 import { critState, expectedPct, liveCritical, slipOf, specCritical, specEarnedPct, specPlannedPct, specSlip, specState } from "../critical";
 import { KINAN } from "../brand";
 import type { Email } from "../core/emails";
+import type { DeckSlide, Kpi, Tone } from "../deck/deck";
+import { short } from "../deck/deck";
+import { progressByLocation, sCurve } from "../core/progress";
 
 export type Lang = "en" | "ar";
 export const tx = (l: Lang, en: string, ar: string) => (l === "ar" ? ar : en);
@@ -34,18 +37,18 @@ const FONT_AR = "'IBM Plex Sans Arabic',Tahoma,Arial,sans-serif";
 
 // ------------------------------------------------------------ building blocks (table-based, inline styles)
 function pill(text: string, color: string) {
-  return `<span style="display:inline-block;border:1px solid ${color};color:${color};font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;white-space:nowrap">${esc(text)}</span>`;
+  return `<span style="display:inline-block;border:1px solid ${color};color:${color};font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;white-space:nowrap;border-radius:999px">${esc(text)}</span>`;
 }
-const critTag = (l: Lang) => `<span style="display:inline-block;background:${C.or};color:#ffffff;font-size:9px;font-weight:800;letter-spacing:.12em;padding:1px 5px;margin-${l === "ar" ? "left" : "right"}:6px">${tx(l, "CRITICAL", "حرج")}</span>`;
+const critTag = (l: Lang) => `<span style="display:inline-block;background:${C.or};color:#ffffff;font-size:9px;font-weight:800;letter-spacing:.12em;padding:1px 7px;border-radius:999px;margin-${l === "ar" ? "left" : "right"}:6px">${tx(l, "CRITICAL", "حرج")}</span>`;
 function h2(text: string, sub?: string) {
   return `<tr><td style="padding:24px 28px 6px"><div style="font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:${C.or}"><span style="font-size:16px">&#8250;</span>&nbsp; ${esc(text)}</div>${sub ? `<div style="font-size:12px;color:${C.soft};margin-top:3px">${esc(sub)}</div>` : ""}</td></tr>`;
 }
 /** "To know today": the red-ruled box the other Kinan agents open with. */
 function knowBox(title: string, items: { tag: string; color: string; html: string }[], empty: string) {
-  const rows = items.length ? items.map((i) => `<tr><td valign="top" style="padding:8px 10px;border-top:1px solid ${C.line};width:92px"><span style="display:inline-block;background:${i.color};color:#ffffff;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;white-space:nowrap">${esc(i.tag)}</span></td><td style="padding:8px 10px;border-top:1px solid ${C.line};font-size:13px;line-height:1.5;color:${C.ink}">${i.html}</td></tr>`).join("")
+  const rows = items.length ? items.map((i) => `<tr><td valign="top" style="padding:8px 10px;border-top:1px solid ${C.line};width:92px"><span style="display:inline-block;background:${i.color};color:#ffffff;border-radius:999px;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;white-space:nowrap">${esc(i.tag)}</span></td><td style="padding:8px 10px;border-top:1px solid ${C.line};font-size:13px;line-height:1.5;color:${C.ink}">${i.html}</td></tr>`).join("")
     : `<tr><td style="padding:10px;font-size:13px;color:${C.soft}">${esc(empty)}</td></tr>`;
   return `<tr><td style="padding:22px 28px 4px"><div style="font-size:11px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:${C.red};padding-bottom:8px">${esc(title)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:2px solid ${C.red}">${rows}</table></td></tr>`;
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;border:2px solid ${C.red};border-radius:14px;overflow:hidden">${rows}</table></td></tr>`;
 }
 /** A day-by-day block: label column + lines. */
 function dayBlock(groups: { label: string; lines: string[] }[]) {
@@ -69,13 +72,15 @@ ${rows.map((r, k) => `<tr>${r.map((c, i) => `<td align="${side(i)}" valign="top"
 const para = (html: string) => `<tr><td style="padding:4px 28px;font-size:13px;line-height:1.55;color:${C.ink}">${html}</td></tr>`;
 const bullets = (items: string[]) => `<tr><td style="padding:2px 28px 4px"><table role="presentation" cellpadding="0" cellspacing="0" style="font-size:13px;line-height:1.5;color:${C.ink}">${items.map((x) => `<tr><td valign="top" style="color:${C.or};padding:0 8px 0 0">&#9656;</td><td style="padding:1px 0">${x}</td></tr>`).join("")}</table></td></tr>`;
 const projectBand = (name: string, meta: string, status: string, color: string) =>
-  `<tr><td style="padding:26px 28px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background:${C.ink}"><tr><td style="padding:12px 14px;border-top:3px solid ${C.or}"><div style="font-size:16px;font-weight:700;color:#ffffff;letter-spacing:.02em">${esc(name)}</div><div style="font-size:11px;color:#c9c9cb;padding-top:2px">${esc(meta)}</div></td><td align="right" style="padding:12px 14px;border-top:3px solid ${C.or}"><span style="display:inline-block;background:${color};color:#ffffff;font-size:10px;font-weight:800;letter-spacing:.12em;padding:4px 8px;text-transform:uppercase">${esc(status)}</span></td></tr></table></td></tr>`;
+  `<tr><td style="padding:26px 28px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;background:${C.ink};border-radius:14px;overflow:hidden"><tr><td style="padding:12px 14px;border-top:3px solid ${C.or}"><div style="font-size:16px;font-weight:700;color:#ffffff;letter-spacing:.02em">${esc(name)}</div><div style="font-size:11px;color:#c9c9cb;padding-top:2px">${esc(meta)}</div></td><td align="right" style="padding:12px 14px;border-top:3px solid ${C.or}"><span style="display:inline-block;background:${color};color:#ffffff;font-size:10px;font-weight:800;letter-spacing:.12em;padding:4px 8px;text-transform:uppercase">${esc(status)}</span></td></tr></table></td></tr>`;
 
 // ------------------------------------------------------------ the report
 export interface BuildIn { lang: Lang; date: string; kind: "DAILY" | "SNAPSHOT"; at: Date; timezone: string; db: Db; projects: GenProject[]; prev: { metrics: Metrics; date: string } | null;
   /** contractor emails from the project inbox; the app's address for "Open the app"; the mailbox it is sent from */
   emails?: Email[]; appUrl?: string | null; sender?: string }
-export interface Built { title: string; html: string; text: string; metrics: Metrics; active: number }
+export interface Built { title: string; html: string; text: string; metrics: Metrics; active: number;
+  /** the same brief as presentation slides for ▶ Play (narrated by lib/deck/narration.ts before it is stored) */
+  slides: DeckSlide[] }
 
 export function buildReport(o: BuildIn): Built {
   const { lang: l, db } = o;
@@ -218,6 +223,110 @@ export function buildReport(o: BuildIn): Built {
     `  ${T("Critical path", "المسار الحرج")}: ${cp.late.length} ${T("late", "متأخرة")}, ${cp.atRisk.length} ${T("at risk", "معرّضة")}, ${cp.remaining.length} ${T("left", "متبقية")}`,
     ...cp.late.slice(0, 6).map((a) => `   ! ${a.id} ${a.name} — ${days(slipOf(a), l)}`), "");
 
+
+  // ---------------- the same brief as a presentation (▶ Play): the marketing agent's deck, built from the figures above
+  const plain = (h: string) => h.replace(/<br\s*\/?>/g, ". ").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#8250;/g, "›").replace(/\s+/g, " ").replace(/\.\s*\./g, ".").trim();
+  const cap = (x: string) => (x ? x[0].toUpperCase() + x.slice(1) : x);
+  const tone = (bad: boolean, warn = false): Tone => (bad ? "bad" : warn ? "warn" : "good");
+  const slides: DeckSlide[] = [];
+  const weekdayD = new Date(o.date + "T12:00:00Z").toLocaleDateString(l === "ar" ? "ar-SA-u-ca-gregory" : "en-GB", { weekday: "long", timeZone: "UTC" });
+  const heading0 = o.kind === "SNAPSHOT" ? T("Live snapshot", "لقطة فورية") : T("Daily site brief", "الموجز اليومي للمواقع");
+  const sinceTxt = since.map(plain);
+  slides.push({ kind: "cover", kicker: T("KINAN · AI Onsite Agent", "كنان · الوكيل الميداني الذكي"), title: heading0, sub: `${weekdayD} ${dt(o.date, l)} · ${db.project.name} · ${T("data date", "تاريخ البيانات")} ${dt(d0, l)}`, say: `${heading0}, ${weekdayD} ${dt(o.date, l)}.` });
+  // the brief: the four figures the manager checks every morning, and what to know today
+  const k: Kpi[] = [
+    { label: T("Complete", "الإنجاز"), value: s.progressPercent, decimals: 1, suffix: "%", sub: T(`plan ${s.plannedPercent}%`, `المخطط ${s.plannedPercent}%`), tone: tone(s.progressPercent < s.plannedPercent - 2, s.progressPercent < s.plannedPercent), ring: s.progressPercent },
+    { label: "SPI", value: s.spi, decimals: 2, sub: s.spi < 0.95 ? T("behind schedule", "متأخر عن الجدول") : T("on schedule", "حسب الجدول"), tone: tone(s.spi < 0.95, s.spi < 0.99) },
+    { label: T("Critical late now", "حرجة متأخرة الآن"), value: cp.late.length, sub: T(`${cp.atRisk.length} at risk · ${cp.slipped.length} later`, `${cp.atRisk.length} معرّضة · ${cp.slipped.length} لاحقة`), tone: tone(cp.late.length > 0, cp.atRisk.length > 0) },
+    { label: T("Completion", "الإنجاز النهائي"), value: comp?.slip ?? 0, suffix: T(" d", " يوم"), prefix: (comp?.slip ?? 0) > 0 ? "+" : "", sub: comp ? `${T("forecast", "متوقع")} ${dt(comp.forecast, l)}` : "", tone: tone((comp?.slip ?? 0) > 0) },
+  ];
+  const knowPts = know.slice(0, 4).map((x) => short(`${x.tag}: ${plain(x.html)}`, 150));
+  const line1 = cap(headline.slice(0, 2).join(", "));
+  slides.push({ kind: "headline", kicker: T("Today in one line", "اليوم في سطر"), headline: line1, kpis: k, points: knowPts.length ? knowPts : [T("Nothing late on the critical path, no delayed load and no open incident.", "لا تأخير في المسار الحرج ولا توريد متأخر ولا حادث مفتوح.")],
+    since: sinceTxt, say: [line1 + ".", ...knowPts].join(" ") });
+
+  // programme
+  slides.push({ kind: "divider", kicker: T("Programme", "البرنامج الزمني"), title: T("Programme", "البرنامج الزمني"), sub: T("Progress against the baseline and the critical path", "التقدم مقابل خط الأساس والمسار الحرج"), n: 1, of: 4, say: T("First, the programme.", "أولاً، البرنامج الزمني.") });
+  const critAll = db.data.schedule.filter((a) => isCrit(a) && !a.milestone), critDone = critAll.filter((a) => a.status === "completed").length;
+  const pkAll = db.data.procurement.packages, pkLate = P.packagesQuery(db, { atRisk: true }).packages.length;
+  const dlWeek = P.deliveriesQuery(db, { from: d0, to: addDays(d0, 7) }).deliveries ?? [], dlLate = dlWeek.filter((x) => x.status === "Delayed").length;
+  slides.push({ kind: "gauges", kicker: T("Programme health", "صحة البرنامج"), title: T("Where the project stands today", "أين يقف المشروع اليوم"), items: [
+    { label: T("Progress against plan", "التقدم مقابل المخطط"), pct: Math.round((s.progressPercent / Math.max(1, s.plannedPercent)) * 100), actual: `${s.progressPercent}%`, target: `${s.plannedPercent}%`, note: s.progressPercent < s.plannedPercent ? T(`${Math.round((s.plannedPercent - s.progressPercent) * 10) / 10} points behind`, `متأخر ${Math.round((s.plannedPercent - s.progressPercent) * 10) / 10} نقطة`) : T("ahead of plan", "متقدم على المخطط") },
+    { label: T("Critical work on time", "أعمال حرجة في الموعد"), pct: Math.round(((cp.remaining.length - cp.late.length - cp.slipped.length) / Math.max(1, cp.remaining.length)) * 100), actual: String(cp.remaining.length - cp.late.length - cp.slipped.length), target: String(cp.remaining.length), note: T(`${cp.late.length + cp.slipped.length} forecast late · ${critDone} done`, `${cp.late.length + cp.slipped.length} متوقع تأخرها · ${critDone} منجزة`) },
+    { label: T("Packages on time", "حزم في الموعد"), pct: Math.round(((pkAll.length - pkLate) / Math.max(1, pkAll.length)) * 100), actual: String(pkAll.length - pkLate), target: String(pkAll.length), note: T(`${pkLate} behind their need date`, `${pkLate} متأخرة عن موعد الحاجة`) },
+    { label: T("Deliveries on time · 7 days", "توريدات في الموعد · 7 أيام"), pct: Math.round(((dlWeek.length - dlLate) / Math.max(1, dlWeek.length)) * 100), actual: String(dlWeek.length - dlLate), target: String(dlWeek.length), note: T(`${dlLate} delayed`, `${dlLate} متأخرة`) },
+  ], foot: comp ? T(`Practical completion forecast ${dt(comp.forecast, l)} — baseline ${dt(comp.baseline, l)}`, `الإنجاز العملي المتوقع ${dt(comp.forecast, l)} — الأساس ${dt(comp.baseline, l)}`) : undefined,
+    say: T(`Progress is ${s.progressPercent}% against a plan of ${s.plannedPercent}%. ${critDone} of ${critAll.length} critical activities are done.`, `التقدم ${s.progressPercent}% مقابل مخطط ${s.plannedPercent}%. أُنجز ${critDone} من ${critAll.length} نشاطاً حرجاً.`) });
+  const BLD: [string, string, string][] = [["tower-a", "Tower A", "البرج A"], ["tower-b", "Tower B", "البرج B"], ["podium", "Podium", "المنصة"], ["hotel-c", "Hotel C", "الفندق C"], ["club-e", "Club E", "النادي E"], ["villas-d", "Villas D", "الفلل D"]];
+  const byB = progressByLocation(db, BLD.map((b) => b[0]));
+  slides.push({ kind: "columns", kicker: T("Programme", "البرنامج الزمني"), title: T("Progress by building", "التقدم حسب المبنى"), sub: T("Earned % against the baseline plan (dashed)", "النسبة المكتسبة مقابل خط الأساس (المتقطع)"),
+    labels: BLD.map((b) => T(b[1], b[2])), values: byB.map((b) => b.earned), target: byB.map((b) => b.planned), unit: "%", decimals: 1, latest: false,
+    say: byB.map((b, i) => `${T(BLD[i][1], BLD[i][2])} ${b.earned}% ${T("against", "مقابل")} ${b.planned}%`).join(". ") + "." });
+  const sc = sCurve(db).filter((p) => p.actual != null).slice(-12);
+  if (sc.length >= 3) slides.push({ kind: "line", kicker: T("Programme", "البرنامج الزمني"), title: T("Earned progress, month by month", "التقدم المكتسب شهراً بشهر"), sub: T("Cumulative % complete", "نسبة الإنجاز التراكمية"),
+    labels: sc.map((p) => dt(p.date, l).replace(/^\d+ /, "")), values: sc.map((p) => p.actual as number), unit: "%",
+    say: T(`Earned progress has climbed from ${sc[0].actual}% to ${sc[sc.length - 1].actual}% over the last ${sc.length} months.`, `ارتفع التقدم المكتسب من ${sc[0].actual}% إلى ${sc[sc.length - 1].actual}% خلال آخر ${sc.length} أشهر.`) });
+  const lateCrit = [...cp.late, ...cp.slipped].filter((a) => slipOf(a) > 0).sort((x, y) => slipOf(y) - slipOf(x)).slice(0, 6);
+  if (lateCrit.length) slides.push({ kind: "hbars", kicker: T("Critical path", "المسار الحرج"), title: T("Critical activities forecast late", "أنشطة حرجة متوقع تأخرها"), sub: T("Days past the baseline finish — each one moves practical completion", "أيام بعد الإنهاء الأساسي — كل منها يؤخر الإنجاز العملي"),
+    labels: lateCrit.map((a) => short(a.name, 48)), values: lateCrit.map((a) => slipOf(a)), unit: T(" d", " يوم"), bench: null, decimals: 0, higherIsWorse: true,
+    say: lateCrit.slice(0, 3).map((a) => `${a.name} ${T("is", "متأخر")} ${slipOf(a)} ${T("days late", "يوماً")}`).join(". ") + "." });
+  const critRows2 = [...cp.late, ...cp.atRisk, ...cp.inProgress.filter((a) => critState(a, d0) === "ok")].slice(0, 6);
+  if (critRows2.length) slides.push({ kind: "list", kicker: T("Critical path", "المسار الحرج"), title: T("Critical work in progress", "أعمال حرجة قيد التنفيذ"), items: critRows2.map((a) => {
+    const st2 = critState(a, d0);
+    return { text: a.name, sub: `${a.contractor} · ${T("forecast", "متوقع")} ${dt(a.finish, l)} · ${a.percent}% ${T("of", "من")} ${expectedPct(a, d0)}% ${T("due", "مطلوب")}`, tone: st2 === "late" ? "bad" as Tone : st2 === "risk" ? "warn" as Tone : "good" as Tone, tag: st2 === "late" ? days(slipOf(a), l) : st2 === "risk" ? T("at risk", "معرّض") : T("on time", "في الموعد") };
+  }), say: critRows2.slice(0, 3).map((a) => `${a.name}: ${a.percent}%`).join(". ") + "." });
+
+  // last 24 hours and next 48 hours
+  slides.push({ kind: "divider", kicker: T("On site", "في الموقع"), title: T("The last 24 hours", "آخر 24 ساعة"), sub: `${dt(addDays(from, 1), l)} – ${dt(d0, l)}`, n: 2, of: 4, say: T("Now, what happened on site.", "والآن، ما جرى في الموقع.") });
+  const happenedItems: { text: string; sub?: string; tone?: Tone; tag?: string }[] = [
+    ...msDone.map((a) => ({ text: a.name, sub: T("milestone reached", "تحقق المعلم"), tone: "good" as Tone, tag: T("milestone", "معلم") })),
+    ...siteUpd.map((u) => { const a = db.data.schedule.find((x) => x.id === u.activityId); return { text: a?.name ?? u.activityId, sub: `${T("reported by", "أبلغ")} ${u.by}${u.evidence.length ? ` · ${u.evidence.length} ${T("photo(s)", "صورة")}` : ""}`, tone: u.state === "pending" ? "warn" as Tone : "good" as Tone, tag: u.state === "completed" ? T("done", "منجز") : u.state === "pending" ? T("pending", "معلّق") : `${a?.percent ?? u.percent ?? ""}%` }; }),
+    ...[...slabs, ...done.filter((a) => !slabs.includes(a))].slice(0, 5).map((a) => ({ text: a.name, sub: `${a.contractor} · ${days(slipOf(a), l)}`, tone: slipOf(a) > 0 ? "warn" as Tone : "good" as Tone, tag: T("finished", "انتهى") })),
+    ...progressed.slice(0, 3).map((x) => ({ text: x.a.name, sub: `${x.p0}% → ${x.p1}%`, tone: "neutral" as Tone, tag: T("progressed", "تقدّم") })),
+    ...received.slice(0, 3).map((x) => ({ text: x.items, sub: `${x.po} · ${x.gate}`, tone: x.status === "Rejected" ? "bad" as Tone : "good" as Tone, tag: x.status === "Rejected" ? T("rejected", "مرفوض") : T("delivered", "استُلم") })),
+    ...incid.map((x) => ({ text: x.type, sub: short(x.description, 90), tone: "bad" as Tone, tag: T("incident", "حادث") })),
+  ];
+  slides.push({ kind: "list", kicker: T("The last 24 hours", "آخر 24 ساعة"), title: T(`${done.length} finished · ${progressed.length} progressed · ${received.length} deliveries`, `${done.length} انتهى · ${progressed.length} تقدّم · ${received.length} توريدات`),
+    items: happenedItems.length ? happenedItems.slice(0, 8) : [{ text: T("Nothing was recorded on site in this period.", "لم يُسجل شيء في الموقع خلال هذه الفترة."), tone: "neutral" }],
+    say: happenedItems.slice(0, 4).map((x) => `${x.tag}: ${x.text}`).join(". ") + "." });
+  if (mails.length) slides.push({ kind: "list", kicker: T("Contractor emails", "رسائل المقاولين"), title: T(`${mails.length} email${mails.length === 1 ? "" : "s"} from contractors`, `${mails.length} رسائل من المقاولين`),
+    items: mails.slice(0, 6).map((e) => ({ text: e.subject, sub: `${e.fromName}, ${e.company} · ${short(e.text.replace(/\s+/g, " "), 90)}`, tone: urgentMail.includes(e) ? "warn" as Tone : "neutral" as Tone, tag: e.received.slice(11, 16) })),
+    say: mails.slice(0, 3).map((e) => `${e.fromName} ${T("of", "من")} ${e.company}: ${e.subject}`).join(". ") + "." });
+  const nextItems: { text: string; sub?: string; tone?: Tone; tag?: string }[] = [
+    ...finishNext.slice(0, 3).map((a) => ({ text: a.name, sub: `${a.contractor} · ${dt(a.finish, l)}`, tone: isCrit(a) ? "warn" as Tone : "neutral" as Tone, tag: T("finishes", "ينتهي") })),
+    ...startNext.slice(0, 3).map((a) => ({ text: a.name, sub: `${a.contractor} · ${dt(a.start, l)}`, tone: isCrit(a) ? "warn" as Tone : "neutral" as Tone, tag: T("starts", "يبدأ") })),
+    ...delNext.slice(0, 3).map((x) => ({ text: x.items, sub: `${dt(x.date, l)} ${x.slot} · ${x.gate}`, tone: x.status === "Delayed" ? "bad" as Tone : "neutral" as Tone, tag: x.status === "Delayed" ? T("delayed", "متأخر") : T("delivery", "توريد") })),
+    ...permExp.slice(0, 2).map((x) => ({ text: `${x.type} — ${x.description}`, sub: dt(x.validTo, l), tone: "warn" as Tone, tag: T("permit", "تصريح") })),
+  ];
+  slides.push({ kind: "list", kicker: T("Next 48 hours", "الثماني والأربعون ساعة القادمة"), title: `${dt(addDays(d0, 1), l)} – ${dt(to2, l)}`,
+    items: nextItems.length ? nextItems.slice(0, 8) : [{ text: T("Nothing booked for the next two days.", "لا شيء محجوز لليومين القادمين."), tone: "neutral" }],
+    say: nextItems.slice(0, 4).map((x) => `${x.tag}: ${x.text}`).join(". ") + "." });
+
+  // supply chain
+  slides.push({ kind: "divider", kicker: T("Supply", "التوريد"), title: T("Procurement", "المشتريات"), sub: T(`${pk.length} packages behind their need date · ${delayed.length} delayed deliveries this week`, `${pk.length} حزم متأخرة · ${delayed.length} توريدات متأخرة هذا الأسبوع`), n: 3, of: 4, say: T("Next, the supply chain.", "بعد ذلك، سلسلة التوريد.") });
+  const byStatus = new Map<string, number>(); for (const p of pkAll) byStatus.set(p.status, (byStatus.get(p.status) ?? 0) + 1);
+  const stE = [...byStatus.entries()].sort((a, b) => b[1] - a[1]);
+  slides.push({ kind: "donut", kicker: T("Procurement", "المشتريات"), title: T("Packages by status", "الحزم حسب الحالة"), sub: T(`${pkAll.length} procurement packages`, `${pkAll.length} حزمة مشتريات`), labels: stE.map((e) => e[0]), values: stE.map((e) => e[1]), unit: T("packages", "حزم"), decimals: 0,
+    say: stE.slice(0, 3).map((e) => `${e[1]} ${e[0]}`).join(", ") + "." });
+  const procList = [
+    ...pk.map((p) => ({ text: `${p.id} ${p.name}`, sub: `${T("needed", "مطلوب")} ${dt(p.requiredOnSite, l)} · ${T("forecast", "متوقع")} ${dt(p.forecastOnSite, l)}`, tone: "bad" as Tone, tag: `${p.floatDays} ${T("d", "يوم")}` })),
+    ...delayed.slice(0, 3).map((d) => ({ text: d.items, sub: `${d.supplier} · ${dt(d.date, l)}${d.remarks ? ` · ${short(d.remarks, 60)}` : ""}`, tone: "bad" as Tone, tag: T("delayed", "متأخر") })),
+  ];
+  if (procList.length) slides.push({ kind: "list", kicker: T("Procurement", "المشتريات"), title: T("Supply risks to the programme", "مخاطر التوريد على البرنامج"), items: procList.slice(0, 8), say: procList.slice(0, 3).map((x) => x.text).join(". ") + "." });
+
+  // safety and milestones
+  slides.push({ kind: "divider", kicker: T("Safety", "السلامة"), title: T("Safety & milestones", "السلامة والمعالم"), sub: T("People first — then the dates the client sees", "الناس أولاً — ثم التواريخ التي يراها العميل"), n: 4, of: 4, say: T("Finally, safety and the milestones ahead.", "أخيراً، السلامة والمعالم القادمة.") });
+  slides.push({ kind: "headline", kicker: T("Safety", "السلامة"), headline: h.openIncidents.length ? T(`${h.openIncidents.length} open incident${h.openIncidents.length > 1 ? "s" : ""} on site`, `${h.openIncidents.length} حوادث مفتوحة في الموقع`) : T(`${st.ltiFreeDays} days without a lost-time injury`, `${st.ltiFreeDays} يوماً دون إصابة مضيعة للوقت`),
+    kpis: [
+      { label: T("LTI-free days", "أيام بلا إصابات"), value: Number(st.ltiFreeDays) || 0, tone: "good" },
+      { label: "TRIR", value: Number(st.trir) || 0, decimals: 2, tone: tone(Number(st.trir) >= 1) },
+      { label: T("Workforce today", "القوى العاملة اليوم"), value: Number(st.workforceToday) || 0, tone: "neutral" },
+      { label: T("Open incidents", "حوادث مفتوحة"), value: h.openIncidents.length, tone: tone(h.openIncidents.length > 0) },
+    ], points: h.openIncidents.slice(0, 3).map((i) => short(`${i.type}: ${i.description} (${dt(i.date, l)})`, 150)),
+    say: T(`${st.ltiFreeDays} days without a lost-time injury, ${st.workforceToday} people on site today.`, `${st.ltiFreeDays} يوماً دون إصابة مضيعة، و${st.workforceToday} عاملاً في الموقع اليوم.`) });
+  if (ms.length) slides.push({ kind: "list", kicker: T("Milestones", "المعالم"), title: T("The next 60 days", "الستون يوماً القادمة"), items: ms.map((m) => ({ text: m.name, sub: `${T("forecast", "متوقع")} ${dt(m.forecast, l)} · ${T("baseline", "الأساس")} ${dt(m.baseline, l)}`, tone: m.varianceDays > 0 ? "bad" as Tone : "good" as Tone, tag: days(m.varianceDays, l) })),
+    say: ms.slice(0, 3).map((m) => `${m.name}, ${dt(m.forecast, l)}`).join(". ") + "." });
+
   // ---------------- generated projects (from uploaded documents)
   const active = o.projects.filter((p) => p.result?.spec?.schedule && p.result.spec.schedule.finish >= o.date);
   for (const p of active) {
@@ -279,6 +388,10 @@ export function buildReport(o: BuildIn): Built {
     text.push(`${spec.name} — ${st[0]} · ${tracked ? `${earned}% (${T("plan", "المخطط")} ${planned}%)` : `${T("planned", "مخطط")} ${planned}%`}, ${T("completion", "الإنجاز")} ${pc.finish}${pc.baselineFinish ? ` (${T("baseline", "الأساس")} ${pc.baselineFinish}, ${days(pc.slip, l)})` : ""}`,
       `  ${T("Critical path", "المسار الحرج")}: ${crit.join(", ")} · ${late.length} ${T("late", "متأخرة")}, ${risk.length} ${T("at risk", "معرّضة")}, ${now.length} ${T("running", "جارية")}`,
       ...late.slice(0, 4).map((x) => `   ! ${x.a.id ?? ""} ${label(x.a)} — ${days(specSlip(x.a), l)}`), "");
+    slides.push({ kind: "list", kicker: spec.name, title: T(`${st[0]} · ${tracked ? `${earned}% of ${planned}% planned` : `planned ${planned}%`} · completion ${dt(pc.finish, l)}`, `${st[0]} · ${tracked ? `${earned}% من ${planned}%` : `مخطط ${planned}%`} · الإنجاز ${dt(pc.finish, l)}`),
+      items: rows.length ? rows.slice(0, 6).map((x) => { const k2 = specState(x.a, dd); return { text: label(x.a), sub: `${dt(x.a.start, l)} → ${dt(x.a.finish, l)}`, tone: k2 === "late" ? "bad" as Tone : k2 === "risk" ? "warn" as Tone : "neutral" as Tone, tag: tracked ? days(specSlip(x.a), l) : x.a.start > dd ? T("starts", "يبدأ") : T("running", "جارٍ") }; })
+        : [{ text: T("No critical activity is running or starting in the next 14 days.", "لا يوجد نشاط حرج جارٍ أو يبدأ خلال 14 يوماً."), tone: "neutral" as Tone }],
+      say: T(`${spec.name}: ${crit.join(", ") || "the programme"} drive${crit.length === 1 ? "s" : ""} completion, forecast ${dt(pc.finish, l)}.`, `${spec.name}: ${crit.join("، ") || "البرنامج"} يحدد الإنجاز، المتوقع ${dt(pc.finish, l)}.`) });
   }
 
   // ---------------- assemble
@@ -292,7 +405,7 @@ export function buildReport(o: BuildIn): Built {
   const html = `<!doctype html><html lang="${l}" dir="${dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
 <body style="margin:0;padding:0;background:${C.page}">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.page}"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" width="640" cellpadding="0" cellspacing="0" dir="${dir}" style="width:100%;max-width:640px;background:#ffffff;font-family:${font};color:${C.ink};border-collapse:collapse">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" dir="${dir}" style="width:100%;max-width:640px;background:#ffffff;font-family:${font};color:${C.ink};border-collapse:separate;border-spacing:0;border-radius:22px;overflow:hidden">
 <tr><td style="background:${C.ink};padding:18px 28px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
 <td style="font-size:12px;font-weight:800;letter-spacing:.32em;color:#ffffff">KINAN <span style="color:${C.or}">&#8250;</span></td>
 <td align="${end}" style="font-size:9px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#cfcfcf">${T("AI onsite agent · site &amp; projects", "الوكيل الميداني · المواقع والمشاريع")}</td></tr></table></td></tr>
@@ -305,12 +418,13 @@ ${knowBox(T("To know today", "للعلم اليوم"), know.slice(0, 12), T("Not
 ${h2(T("All active projects", "جميع المشاريع النشطة"))}
 ${portfolio}
 ${body.join("\n")}
-${o.appUrl ? `<tr><td style="padding:26px 28px 6px"><a href="${esc(o.appUrl)}" style="display:inline-block;background:${C.or};color:#ffffff;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;padding:12px 20px">${T("Open the Onsite Agent", "افتح الوكيل الميداني")}</a></td></tr>` : ""}
+${o.appUrl ? `<tr><td style="padding:26px 28px 6px"><a href="${esc(o.appUrl)}" style="display:inline-block;border-radius:14px;background:${C.or};color:#ffffff;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;padding:12px 20px">${T("Open the Onsite Agent", "افتح الوكيل الميداني")}</a></td></tr>` : ""}
 <tr><td style="padding:22px 28px 22px"><div style="border-top:1px solid ${C.line};padding-top:12px;font-size:11px;color:${C.soft};line-height:1.5">${T("Prepared by the Kinan Onsite Agent from the project programme, procurement, safety, site notes and the contractors' emails. Critical = zero float: a delay to it delays completion.", "أعده الوكيل الميداني لكنان من برنامج المشروع والمشتريات والسلامة وملاحظات الموقع ورسائل المقاولين. الحرج = بلا فائض: أي تأخير فيه يؤخر الإنجاز.")}</div></td></tr>
 <tr><td style="background:${C.ink};padding:16px 28px;color:#bbbbbb;font-size:11px;line-height:1.5">${T(`This brief takes no action: nothing changes in the programme, orders or permits until a person does it. Sent by the Kinan Onsite Agent${o.sender ? ` from ${esc(o.sender)}` : ""}.`, `لا يتخذ هذا الموجز أي إجراء: لا يتغير شيء في البرنامج أو الطلبات أو التصاريح ما لم يقم به شخص. أرسله الوكيل الميداني لكنان${o.sender ? ` من ${esc(o.sender)}` : ""}.`)}
 <div style="padding-top:8px"><span style="color:${C.or};font-weight:700;letter-spacing:.3em">${KINAN.tagline}</span> &nbsp; <span style="color:#ffffff">www.kinan.com.sa</span></div></td></tr>
 </table></td></tr></table></body></html>`;
-  return { title, html, text: [title, "", ...text.filter((x) => x !== undefined)].join("\n"), metrics, active: nActive };
+  slides.push({ kind: "closing", kicker: "", title: KINAN.tagline, sub: T("Approvals happen in the app — this brief takes no action.", "الاعتمادات تتم داخل التطبيق — لا يتخذ هذا الموجز أي إجراء."), say: T("End of the brief.", "انتهى الموجز.") });
+  return { title, html, text: [title, "", ...text.filter((x) => x !== undefined)].join("\n"), metrics, active: nActive, slides };
 }
 
 function sinceLines(l: Lang, prev: { metrics: Metrics; date: string } | null, id: string, m: ProjMetrics) {

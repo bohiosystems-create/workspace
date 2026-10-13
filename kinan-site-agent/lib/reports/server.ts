@@ -4,6 +4,7 @@ import { deliverMail, outlookCredsSet, outlookMode, outlookSender } from "../out
 import { readGenerated } from "../generated";
 import { reports } from "./engine";
 import { getInbox } from "../inbox";
+import { narrateDeck } from "../deck/narration";
 
 /** Reports on the server: records in the app's storage (Vercel Blob or disk), mail through Outlook. */
 export const serverReports = () => reports({
@@ -26,6 +27,8 @@ export const serverReports = () => reports({
   projects: async () => (await readGenerated()).projects,
   emails: async () => (await getInbox()).emails,
   send: deliverMail,
+  // ▶ Play: the AI writes the presenter's script (same rules as the marketing agent)
+  narrate: (deck, o) => narrateDeck(deck, { timeoutMs: o.timeoutMs }),
   env: {
     mode: outlookMode(), creds: outlookCredsSet(), sender: outlookSender(), senderSet: !!process.env.OUTLOOK_SENDER,
     cron: !!process.env.REPORTS_CRON_KEY, allowedDomains: process.env.REPORTS_ALLOWED_DOMAINS, allowedRecipients: process.env.REPORTS_ALLOWED_RECIPIENTS,

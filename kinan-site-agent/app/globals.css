@@ -1016,3 +1016,8 @@ input[type=checkbox]{border-radius:4px!important}input[type=radio]{border-radius
 .pread i{font-style:normal;font-weight:600}.pread .conf-high{color:var(--green-ink,#1f6b40)}.pread .conf-medium{color:#b56f00}.pread .conf-low{color:var(--mute)}
 .pread-bad{color:var(--red)}.pread-warn{color:#b56f00}
 .projbody .srcline{scroll-margin-top:calc(var(--top) + 110px)}
+
+/* ▶ Play prompt (arriving from the e-mail's Play button) — the marketing agent's */
+.rpt-playprompt{position:fixed;inset:0;z-index:999;background:rgba(46,46,47,.72);display:grid;place-items:center;padding:20px}
+.rpt-playprompt>div{background:var(--card);padding:28px 30px;text-align:center;max-width:420px;border-radius:var(--rc,22px);display:flex;flex-direction:column;gap:14px;align-items:center}
+.rpt .btn.rpt-playbig{padding:14px 28px;font-size:22px;line-height:1}

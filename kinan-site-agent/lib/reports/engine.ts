@@ -19,6 +19,7 @@ import type { Db } from "../types";
 import type { GenProject } from "../model3d/store";
 import type { MailToSend, SendResult } from "../outlook";
 import { buildReport, tx, type Lang, type Metrics } from "./build";
+import { deckScript, speakDates, type Deck, type DeckSlide } from "../deck/deck";
 
 export type { Lang };
 export interface ReportsIO {
@@ -31,6 +32,8 @@ export interface ReportsIO {
   /** Contractor emails from the project inbox (for "In the last 24 hours" and "To know today"). */
   emails?(): Promise<Email[]>;
   send(mail: MailToSend): Promise<SendResult>;
+  /** The presenter's script for ▶ Play (server: lib/deck/narration.ts with the AI). Without it, the slides' own text is spoken. */
+  narrate?(deck: Deck, opts: { timeoutMs?: number }): Promise<Deck>;
   env: { mode: "mock" | "live"; creds: boolean; sender: string; senderSet: boolean; cron: boolean; allowedDomains?: string; allowedRecipients?: string; appUrl?: string | null };
   now?: () => Date;
 }
@@ -105,8 +108,13 @@ export function reports(io: ReportsIO) {
     const s = await ensureSchedule(), at = now(), t0 = Date.now();
     const r = buildReport({ lang, date, kind, at, timezone: s.timezone, db: await io.db(), projects: await io.projects(), prev: await lastIssued(lang, date),
       emails: io.emails ? await io.emails().catch(() => []) : [], appUrl: io.env.appUrl ?? null, sender: io.env.sender });
+    // ▶ Play: the brief as narrated slides, embedded in the stored HTML (the e-mail drops it, see mailBody).
+    const deck0: Deck = { lang, title: r.title, slides: r.slides };
+    const spokenOnly = (d: Deck): Deck => ({ ...d, slides: d.slides.map((x) => ({ ...x, say: speakDates(x.since?.length && !x.ytd ? `${x.since[0]} ${x.say}` : x.say, d.lang) }) as DeckSlide) });
+    const deck = io.narrate ? await io.narrate(deck0, { timeoutMs: trigger === "SCHEDULED" ? 45_000 : 50_000 }).catch(() => spokenOnly(deck0)) : spokenOnly(deck0);
+    const html = r.html.replace(/<\/body>/i, `${deckScript(deck)}</body>`);
     const full: ReportFull = { id: rid(), createdAt: at.toISOString(), date, kind, trigger, lang, title: r.title, status: "GENERATED", delivery: null, recipients: "", error: null, sentAt: null, projects: r.active,
-      html: r.html, text: r.text, metrics: { ...r.metrics, buildSec: Math.round((Date.now() - t0) / 1000) } };
+      html, text: r.text, metrics: { ...r.metrics, buildSec: Math.round((Date.now() - t0) / 1000) } };
     await io.put(K.one(full.id), full);
     const { html: _h, text: _t, metrics: _m, ...meta } = full;
     await addToIndex(meta);
@@ -122,8 +130,9 @@ export function reports(io: ReportsIO) {
     else if (blocked.length) { status = "FAILED"; error = tx(l, `Not an allowed recipient: ${blocked.join(", ")}.`, `ليس من المستلمين المسموح بهم: ${blocked.join("، ")}.`); }
     else {
       try {
-        const res = await io.send({ to: recipients[0], cc: recipients.slice(1), subject: `Kinan · ${r.title}`, body: r.html,
-          attachments: [{ name: `Kinan-site-status-${r.date}-${l}.html`, contentType: "text/html", content: r.html }] });
+        const body = mailBody(r.html, io.env.appUrl ? { url: `${io.env.appUrl.replace(/\/+$/, "")}/?brief=${encodeURIComponent(r.id)}&play=1`, lang: l } : null);
+        const res = await io.send({ to: recipients[0], cc: recipients.slice(1), subject: `Kinan · ${r.title}`, body,
+          attachments: [{ name: `Kinan-site-status-${r.date}-${l}.html`, contentType: "text/html", content: body }] });
         delivery = res.delivery; sentAt = now().toISOString();
       } catch (e) { status = "FAILED"; error = String((e as Error)?.message ?? e).slice(0, 300); }
     }
@@ -263,4 +272,19 @@ export function nextRun(s: { enabled: boolean; time: string; timezone: string; d
     return { date: ln.date, time: s.time, overdue: false };
   }
   return null;
+}
+
+/** The brief as e-mailed: mail clients cannot run the player, so the embedded deck is dropped and a "▶ Play" button at the
+ *  top opens the brief in the app, ready to play as a narrated presentation (the marketing agent's playButton). */
+export function mailBody(html: string, play: { url: string; lang: Lang } | null) {
+  const out = html.replace(/<script\b[\s\S]*?<\/script>/gi, "");
+  if (!play) return out;
+  const ar = play.lang === "ar", ff = ar ? "'IBM Plex Sans Arabic',Tahoma,Arial,sans-serif" : "Montserrat,'Segoe UI',Arial,sans-serif";
+  const label = ar ? "▶&nbsp; شغّل الموجز كعرض تقديمي" : "▶&nbsp; Play this brief as a presentation";
+  const sub = ar ? "عرض مع تعليق صوتي — يفتح في التطبيق" : "Narrated slides — opens in the app";
+  const btn = `<tr><td align="center" style="padding:18px 26px 6px"><table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td bgcolor="#f15a22" style="background:#f15a22;border-radius:14px">`
+    + `<a href="${play.url}" target="_blank" style="display:inline-block;padding:14px 30px;font-family:${ff};font-size:14px;font-weight:700;letter-spacing:${ar ? "0" : ".08em"};color:#ffffff;text-decoration:none">${label}</a>`
+    + `</td></tr></table><div style="font-family:${ff};font-size:11px;color:#808285;margin-top:8px">${sub}</div></td></tr>`;
+  // right after the orange title band
+  return out.replace(/(<tr><td style="background:#f15a22;padding:30px 28px;color:#ffffff">[\s\S]*?<\/td><\/tr>)/i, `$1${btn}`);
 }

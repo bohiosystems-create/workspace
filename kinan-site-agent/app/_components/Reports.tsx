@@ -7,6 +7,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { runtime } from "./runtime";
 import RecipientsInput from "./RecipientsInput";
+import dynamic from "next/dynamic";
+// the player (and its charts) load only when a brief is played
+const ReportPlayer = dynamic(() => import("./deck/ReportPlayer"), { ssr: false });
 
 type Lang = "en" | "ar";
 interface Meta { id: string; createdAt: string; date: string; kind: "DAILY" | "SNAPSHOT"; trigger: "SCHEDULED" | "MANUAL"; lang: Lang; title: string; status: "GENERATED" | "SENT" | "FAILED"; delivery: "mock" | "send" | null; recipients: string; error: string | null; projects: number }
@@ -30,15 +33,25 @@ export default function Reports({ author }: { author: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [view, setView] = useState<{ id: string; title: string; html: string; lang: Lang } | null>(null);
+  const [playing, setPlaying] = useState<string | null>(null); // brief HTML shown as a presentation
+  const [playPrompt, setPlayPrompt] = useState(false); // arrived from the e-mail's ▶ Play button: one tap starts it (browsers need a tap for sound)
 
   const take = useCallback((s: State, keepForm = false) => {
     setData(s);
     if (!keepForm) setForm({ enabled: s.schedule.enabled, time: s.schedule.time, timezone: s.schedule.timezone, days: s.schedule.days, recipients: s.schedule.recipients, languages: s.schedule.languages });
   }, []);
-  const open = useCallback(async (id: string) => {
+  const open = useCallback(async (id: string, play = false) => {
     const r = await fetch(`/api/reports?id=${encodeURIComponent(id)}`, { cache: "no-store" }).then((x) => x.json());
+    if (!r.error && play) setPlaying(r.html);
     if (!r.error) { setView({ id, title: r.title, html: r.html, lang: r.lang === "ar" ? "ar" : "en" }); requestAnimationFrame(() => document.getElementById("rpt-view")?.scrollIntoView({ behavior: "smooth", block: "start" })); }
   }, []);
+  // From the e-mail: /?brief=<id>&play=1 opens that brief, ready to play.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search), id = q.get("brief");
+    if (!id) return;
+    open(id).then(() => { if (q.get("play")) setPlayPrompt(true); });
+    history.replaceState(null, "", window.location.pathname);
+  }, [open]);
   useEffect(() => {
     fetch(`/api/reports?lang=${lang}`, { cache: "no-store" }).then((r) => r.json()).then((s: State) => {
       if (s.error) { setMsg({ text: s.error, bad: true }); return; }
@@ -144,6 +157,7 @@ export default function Reports({ author }: { author: string }) {
                   {r.kind === "SNAPSHOT" ? <b>Live snapshot</b> : r.trigger === "SCHEDULED" ? "Scheduled" : "Manual"} · {r.lang === "ar" ? "العربية" : "English"} · {r.projects} project{r.projects > 1 ? "s" : ""}{r.delivery === "mock" ? " · simulated" : ""}
                   {(r.recipients || r.error) && <div className="muted small">{r.recipients}{r.error ? ` · ${r.error}` : ""}</div>}
                 </div>
+                <button className="btn ghost xs" title="Play as a presentation" aria-label="Play as a presentation" onClick={() => open(r.id, true)}>▶</button>
                 <button className="btn ghost xs" onClick={() => open(r.id)}>View</button>
               </div>
             ))}
@@ -160,12 +174,23 @@ export default function Reports({ author }: { author: string }) {
                 onClick={() => { if (view.lang !== k) { setLang(k); act("PREVIEW", {}, k); } }}>{k === "en" ? "English" : "العربية"}</button>)}
             </div>
             <span className="grow" />
+            <button className="btn xs" onClick={() => setPlaying(view.html)} title="Play as a presentation" aria-label="Play as a presentation">▶ Play</button>
             {runtime.mode !== "standalone" && <button className="btn ghost xs" onClick={() => { const u = URL.createObjectURL(new Blob([view.html], { type: "text/html" })); const a = document.createElement("a"); a.href = u; a.download = `${view.title.replace(/[^\w؀-ۿ -]+/g, "").trim()}.html`; a.click(); setTimeout(() => URL.revokeObjectURL(u), 4000); }}>Download HTML</button>}
             <button className="btn ghost xs" onClick={() => setView(null)}>Close</button>
           </div>
           <iframe title={view.title} srcDoc={view.html} sandbox="" />
         </section>
       )}
+      {playPrompt && view && (
+        <div role="dialog" aria-label="Play" className="rpt-playprompt" onClick={() => setPlayPrompt(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <div className="rpt-label">{view.title}</div>
+            <button className="btn rpt-playbig" onClick={() => { setPlayPrompt(false); setPlaying(view.html); }} title="Play as a presentation" aria-label="Play as a presentation">▶</button>
+            <div><button className="btn ghost xs" onClick={() => setPlayPrompt(false)}>Read it instead</button></div>
+          </div>
+        </div>
+      )}
+      {playing && <ReportPlayer html={playing} onClose={() => setPlaying(null)} />}
     </div>
   );
 }

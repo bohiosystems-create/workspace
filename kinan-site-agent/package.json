@@ -13,10 +13,12 @@
     "demo-pack": "node scripts/demo-pack.mjs"
   },
   "dependencies": {
+    "@elevenlabs/client": "^1.27.0",
     "@resvg/resvg-js": "^2.6.2",
     "@vercel/blob": "^2.8.0",
     "fflate": "^0.8.3",
     "next": "^15.5.27",
+    "pptxgenjs": "^4.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "three": "^0.186.1"

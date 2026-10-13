@@ -29,6 +29,8 @@ export default function Home() {
   const [author, setAuthor] = useAuthor();
   const [tab, setTab] = useState<Tab>("map");
   const [screen, setScreenRaw] = useState<Screen>("home");
+  // a brief link from the e-mail (/?brief=<id>&play=1) opens the Briefs page
+  useEffect(() => { if (new URLSearchParams(window.location.search).has("brief")) setScreenRaw("reports"); }, []);
   const [projects, setProjects] = useState<GenProject[]>([]);
   const [storeErr, setStoreErr] = useState("");
   // Generated projects live on this device and are synced to the server, so the daily report covers them too.

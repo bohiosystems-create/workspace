@@ -58,7 +58,8 @@ Project → **Settings → Environment Variables**. Add each one for **Productio
 | `APP_PASSWORD` | a long random password | you choose. This is the login for the web app. |
 | `ANTHROPIC_API_KEY` | `sk-ant-…` | https://platform.claude.com/settings/keys |
 | `OPENAI_API_KEY` | `sk-…` | https://platform.openai.com/api-keys (also transcribes WhatsApp voice notes if ElevenLabs isn't set) |
-| `ELEVENLABS_API_KEY` | `sk_…` | Optional. https://elevenlabs.io/app/settings/api-keys — transcribes WhatsApp voice notes (Arabic and English) with ElevenLabs Scribe. Optional `ELEVENLABS_STT_LANGUAGE` = `en` or `ar` to force a language |
+| `ELEVENLABS_API_KEY` | `sk_…` | Optional. https://elevenlabs.io/app/settings/api-keys — transcribes WhatsApp voice notes (Arabic and English) with ElevenLabs Scribe, and narrates the briefs' ▶ Play presentation. Optional `ELEVENLABS_STT_LANGUAGE` = `en` or `ar` to force a language |
+| `ELEVENLABS_VOICE_ID` / `ELEVENLABS_VOICE_ID_AR` | voice ids | Optional. The English and Arabic presenter voices for ▶ Play (also read as `ELEVENLABS_VOICE` / `ELEVENLABS_VOICE_AR`). Same as the marketing agent: `ELEVENLABS_MODEL` (default `eleven_multilingual_v2`), `ELEVENLABS_STABILITY`, `ELEVENLABS_SIMILARITY`, `ELEVENLABS_STYLE`, `ELEVENLABS_SPEED` |
 
 One AI key is enough. With both, you get routing and automatic fallback between them.
 

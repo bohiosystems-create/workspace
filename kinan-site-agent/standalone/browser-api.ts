@@ -104,6 +104,14 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
     return json({ project: db.project, locations: db.locations, docs: db.docs.map(({ text: _t, ...d }) => d), notes: db.notes, dataDate: db.data.meta.dataDate, agentMode: "offline", providers: [] });
   }
   if (p === "/api/project") return json(db.data);
+  // ▶ Play in the standalone page: no server, so the player speaks with the browser's own voice and live words come from
+  // the browser's speech recognition; questions get a short honest line.
+  if (p === "/api/voice") return method === "GET" ? json({ enabled: false, provider: "browser", model: null }) : json({ error: "Voice is not configured." }, 501);
+  if (p.startsWith("/api/transcribe")) return json({ error: "Voice is not configured." }, 501);
+  if (p === "/api/deck-ask" && method === "POST") {
+    const b = (await body().catch(() => ({}))) as { lang?: string };
+    return json({ answer: b.lang === "ar" ? "لا أستطيع الإجابة عن الأسئلة في هذه النسخة المستقلة؛ تجدون التفاصيل في صفحات التطبيق. لنتابع العرض." : "I can't take questions in this standalone page; the detail is in the app's pages. Let's carry on." });
+  }
   if (p === "/api/inbox") return json(await repo.emails!());
   if (p === "/api/chat" && method === "POST") {
     // the chat answers only through the AI API, with the keys set on this device
