@@ -41,6 +41,27 @@ export interface Doc {
   fileKey?: string;
   /** Seeded documents render a generated drawing instead of a stored file. */
   generated?: { kind: string; label: string };
+  /** What an uploaded site photo shows, read by the AI when it was filed. */
+  photo?: PhotoReading;
+}
+
+/** The AI's reading of a site photo: what it shows, how far the work has got, which activity it matches, what's wrong. */
+export interface PhotoReading {
+  /** one or two plain sentences: what is in the picture */
+  scene: string;
+  /** the work visible (e.g. "PT slab — tendons laid, rebar top mat fixed, not yet poured") */
+  work?: string;
+  trade?: string;
+  /** where it looks like it was taken, as read from the photo (signs, grid marks, level numbers, views) */
+  where?: string;
+  /** that place matched to the site plan, when it could be */
+  locationId?: string;
+  /** the programme activity it most likely shows, with the state the photo suggests */
+  activity?: { id: string; name: string; state: "completed" | "in_progress" | "pending"; percent?: number; confidence: "high" | "medium" | "low"; why: string };
+  safety: string[];
+  quality: string[];
+  via?: string;
+  at: string;
 }
 
 export interface Note {

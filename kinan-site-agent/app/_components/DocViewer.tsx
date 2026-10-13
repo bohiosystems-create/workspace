@@ -27,7 +27,7 @@ export default function DocViewer({ doc, locations, notes, onClose, onAddNote, o
   const [mark, setMark] = useState(false);
   const [pending, setPending] = useState<{ x: number; y: number } | null>(null);
   const [hi, setHi] = useState<string | null>(null);
-  const [panel, setPanel] = useState(false);
+  const [panel, setPanel] = useState(() => Boolean(doc.photo)); // photos open on what the AI read in them
   const docNotes = useMemo(() => notes.filter((n) => n.docId === doc.id), [notes, doc.id]);
 
   useEffect(() => {
@@ -107,8 +107,19 @@ export default function DocViewer({ doc, locations, notes, onClose, onAddNote, o
 
       <div className={"dock" + (panel ? " open" : "")}>
         <button className="dockhead" onClick={() => setPanel((p) => !p)}>
-          <span>Notes ({docNotes.length}) · {doc.summary ? doc.summary.slice(0, 70) : "no summary"}</span><span>{panel ? "▾" : "▴"}</span>
+          <span>{doc.photo ? "Photo reading & notes" : "Notes"} ({docNotes.length}) · {doc.summary ? doc.summary.slice(0, 70) : "no summary"}</span><span>{panel ? "▾" : "▴"}</span>
         </button>
+        {panel && doc.photo && (
+          <div className="pread">
+            <div className="pread-h">What the photo shows <em>AI reading{doc.photo.via ? ` · ${doc.photo.via.split("/")[0]}` : ""}</em></div>
+            <p>{doc.photo.scene}</p>
+            {doc.photo.work && <p><b>Work:</b> {doc.photo.work}</p>}
+            {doc.photo.where && <p><b>Where:</b> {doc.photo.where}</p>}
+            {doc.photo.activity && <p><b>Activity:</b> {doc.photo.activity.name} ({doc.photo.activity.id}) · {doc.photo.activity.state === "completed" ? "done" : doc.photo.activity.state === "pending" ? "pending" : doc.photo.activity.percent !== undefined ? `≈${doc.photo.activity.percent}%` : "in progress"} · <i className={"conf-" + doc.photo.activity.confidence}>{doc.photo.activity.confidence} confidence</i>{doc.photo.activity.why ? <span className="why"> — {doc.photo.activity.why}</span> : null}</p>}
+            {!!doc.photo.safety.length && <p className="pread-bad"><b>Safety:</b> {doc.photo.safety.join("; ")}</p>}
+            {!!doc.photo.quality.length && <p className="pread-warn"><b>Quality:</b> {doc.photo.quality.join("; ")}</p>}
+          </div>
+        )}
         {panel && (
           <ul className="notes">
             {docNotes.length === 0 && <li className="empty">No notes on this document yet.</li>}

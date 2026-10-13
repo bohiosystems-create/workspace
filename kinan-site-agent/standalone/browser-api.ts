@@ -133,7 +133,7 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
     const mime = file.type || (/\.pdf$/i.test(file.name) ? "application/pdf" : "application/octet-stream");
     const s = (k: string) => { const v = String(fd.get(k) ?? "").trim(); return v || undefined; };
     let text = /\.(txt|md|csv|json)$/i.test(file.name) ? (await file.text()).slice(0, 20000) : "";
-    const ai = await describeUpload(llm(), bytes, mime, file.name);
+    const ai = await describeUpload(llm(), bytes, mime, file.name, { db, hint: s("title") ?? s("summary"), locationId });
     let category = (s("category") ?? ai?.category) as Doc["category"] | undefined;
     if (!category || !CATEGORIES.includes(category)) category = mime.startsWith("image/") ? "Photo" : "Other";
     text ||= ai?.text ?? "";
@@ -142,6 +142,7 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
       id: rid("d"), title: s("title") ?? ai?.title ?? file.name.replace(/\.[^.]+$/, ""), category, discipline: ai?.discipline, revision: s("revision") ?? ai?.revision,
       locationId, pin: fd.get("x") !== null && Number.isFinite(x) && Number.isFinite(y) ? { x, y } : undefined,
       filename: file.name, mime, size: bytes.length, summary: s("summary") ?? ai?.summary ?? "", text, tags: [], uploadedAt: new Date().toISOString(), uploadedBy: s("author") ?? "Dev Manager",
+      ...(ai?.photo ? { photo: ai.photo } : {}),
     };
     files.set(doc.id, file); await put("file:" + doc.id, file);
     db.docs.unshift(doc); repo.save();

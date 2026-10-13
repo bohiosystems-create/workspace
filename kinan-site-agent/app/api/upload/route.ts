@@ -19,7 +19,7 @@ async function register(meta: Meta, file: { name: string; mime: string; bytes: U
   let title = str(meta.title), category = str(meta.category) as Category | undefined, revision = str(meta.revision);
   let summary = str(meta.summary) ?? "", discipline: string | undefined;
   let text = file.bytes && TEXTY.test(file.name) ? new TextDecoder().decode(file.bytes).slice(0, 20000) : "";
-  const ai = file.bytes ? await describeUpload(Buffer.from(file.bytes), file.mime, file.name) : null;
+  const ai = file.bytes ? await describeUpload(Buffer.from(file.bytes), file.mime, file.name, { db: repo.db, hint: [str(meta.title), str(meta.summary)].filter(Boolean).join(". ") || undefined, locationId: meta.locationId }) : null;
   if (ai) { title ??= ai.title; category ??= ai.category; discipline = ai.discipline; revision ??= ai.revision; summary ||= ai.summary; text ||= ai.text; }
   if (!category || !CATEGORIES.includes(category)) category = file.mime.startsWith("image/") ? "Photo" : "Other";
   const doc: Doc = {
@@ -28,6 +28,7 @@ async function register(meta: Meta, file: { name: string; mime: string; bytes: U
     filename: file.name, mime: file.mime, size: file.size, summary, text, fileKey: file.fileKey,
     tags: (str(meta.tags) ?? "").split(",").map((t) => t.trim()).filter(Boolean),
     uploadedAt: new Date().toISOString(), uploadedBy: str(meta.author) ?? "Dev Manager",
+    ...(ai?.photo ? { photo: ai.photo } : {}),
   };
   if (file.bytes && !file.fileKey) await saveUpload(doc.id, file.bytes, file.mime);
   repo.db.docs.unshift(doc);

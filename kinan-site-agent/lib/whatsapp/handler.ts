@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { Doc, UiAction } from "../types";
+import type { Db, Doc, UiAction } from "../types";
 import { CATEGORIES } from "../types";
 import { agentBudgetMs, runAgent } from "../agent";
 import { describeUpload } from "../ingest";
@@ -7,7 +7,7 @@ import { renderDrawing } from "../drawings";
 import { gpsToPlan, PLAN } from "../siteplan";
 import { locationPath, resolveLocation } from "../core/query";
 import { speechToText } from "../core/stt";
-import { toBase64 } from "../core/tools";
+import { runTool, toBase64 } from "../core/tools";
 import { serverLlm } from "../llmConfig";
 import { getRepo, newId, readBytes, readUpload, removeKey, saveUpload, writeBytes, writeJson } from "../store";
 import { getMedia, markRead, sendDocument, sendImage, sendList, sendText, uploadMedia, waConfig, type WaConfig } from "./graph";
@@ -190,6 +190,26 @@ async function onText(c: WaConfig, from: string, s: WaSession, text: string, msg
   // Photos just filed: the next message says what they're evidence of (or where they belong)
   if (s.evidence && Date.now() - Date.parse(s.evidence.at) > 30 * 60_000) s.evidence = undefined;
   if (s.evidence && !s.pending) {
+    const sug = s.evidence.suggest;
+    const yes = /^(yes|yep|yeah|y|ok|okay|correct|confirm|right|exactly|نعم|صح|تمام)[.!]?$/i.test(t);
+    const st = /^(done|completed?|finished)[.!]?$/i.test(t) ? "completed" : /^(pending|blocked|not done)[.!]?$/i.test(t) ? "pending" : /^\d{1,3}\s*%$/.test(t) ? "in_progress" : null;
+    if (sug && (yes || st)) {
+      const pct = st === "in_progress" ? Number(t.replace(/\D/g, "")) : st ? undefined : sug.percent;
+      const r = await runTool(await getRepo(), "update_activity", { activity: sug.activityId, state: st ?? sug.state, percent: pct, note: `Confirmed from a WhatsApp photo${st ? ` (${t})` : ""}`, evidence_doc_ids: s.evidence.docIds },
+        { author: s.name, actions: [], channel: "whatsapp", focus: {} });
+      const j = JSON.parse(typeof r === "string" ? r : String((r[0] as { text?: string }).text ?? "{}"));
+      if (j.error) return sendText(c, from, `Couldn't update it: ${j.error}`);
+      s.evidence = undefined;
+      const u = j.updated, slip = Math.round((Date.parse(u.now.finish) - Date.parse(u.now.baselineFinish)) / 86400000);
+      return sendText(c, from, `✅ *${u.name}* (${u.id}) → ${u.now.status === "completed" ? "completed" : `${u.now.percent}%`}${u.now.status === "completed" ? `, finished ${u.now.finish}` : `, forecast finish ${u.now.finish}`} (${slip > 0 ? `${slip} d after` : slip < 0 ? `${-slip} d before` : "on"} baseline). ${u.evidence} photo${u.evidence === 1 ? "" : "s"} attached as evidence.`, msgId);
+    }
+    if (/^log (the )?safety( issue)?[.!]?$/i.test(t)) {
+      const repo = await getRepo();
+      const ds = s.evidence.docIds.map((id) => repo.db.docs.find((d) => d.id === id)).filter((d) => d?.photo?.safety.length);
+      if (!ds.length) return sendText(c, from, "The photo reader didn't flag a safety issue in those photos. Describe it and I'll log it, e.g. _issue: no edge protection L31 east_.");
+      for (const d of ds) await runTool(repo, "add_note", { text: `Safety (from photo): ${d!.photo!.safety.join("; ")}`, kind: "issue", document_id: d!.id }, { author: s.name, actions: [], channel: "whatsapp", focus: { locationId: d!.locationId } });
+      return sendText(c, from, `⚠️ Logged ${ds.length > 1 ? `${ds.length} safety issues` : "the safety issue"} at ${locationPath(repo.db, ds[0]!.locationId)}. It shows in the open issues and the next daily brief.`);
+    }
     const placeOnly = t.split(/\s+/).length <= 5 && !/[?]|\b(done|complete|completed|finished|pending|started|progress|%|blocked|waiting)\b/i.test(t) && !/^(what|why|how|when|who|is|are|any|show|where)\b/i.test(t);
     const l = placeOnly ? resolveLocation(db, t.replace(/^(upload|file|save|attach|put|move)( it| them)?( to| at| in| on)?\s*/i, "")) : undefined;
     if (l) {
@@ -276,7 +296,9 @@ async function sendDoc(c: WaConfig, to: string, d: Doc) {
 /** Ask the agent with the photos just filed attached as evidence; clear them once an update used them. */
 async function askWithEvidence(c: WaConfig, from: string, s: WaSession, text: string, msgId?: string) {
   const ev = s.evidence!;
-  await ask(c, from, s, `${text}\n\n[Evidence: ${ev.docIds.length} photo/file(s) just sent on WhatsApp and filed as documents ${ev.docIds.join(", ")}. If this message reports progress or a pending item on an activity, call update_activity with evidence_doc_ids=${JSON.stringify(ev.docIds)}.]`, undefined, msgId);
+  const docs = (await getRepo()).db.docs;
+  const readings = ev.docIds.map((id) => docs.find((d) => d.id === id)).filter((d) => d?.photo).map((d) => `${d!.id}: ${d!.text.replace(/\n/g, " · ")}`);
+  await ask(c, from, s, `${text}\n\n[Evidence: ${ev.docIds.length} photo/file(s) just sent on WhatsApp and filed as documents ${ev.docIds.join(", ")}. If this message reports progress or a pending item on an activity, call update_activity with evidence_doc_ids=${JSON.stringify(ev.docIds)}.${readings.length ? ` What the photo reader saw — ${readings.join(" | ")}. If that contradicts what the user says (e.g. "done" but the photo shows work still open), record what the user reported and point out the difference in one line.` : ""}]`, undefined, msgId);
   const used = ((await getRepo()).db.data.updates ?? []).some((u) => u.evidence.some((id) => ev.docIds.includes(id)));
   if (used) s.evidence = undefined;
 }
@@ -337,13 +359,41 @@ async function onMedia(c: WaConfig, from: string, s: WaSession, m: any) {
 
   if (caption && !filingOnly && !placeL) return askWithEvidence(c, from, s, caption, m.id); // "L14 slab done", "façade zone 4 pending"
   const n = s.evidence.docIds.length;
-  if (fresh && n > 1) return sendText(c, from, `📷 ${n} files received.`, m.id); // an album: one prompt is enough
-  return sendText(c, from, `✅ Filed *${doc.title}* to ${locationPath(db, locationId)}.\nIs it evidence for a task? Tell me (text or 🎙 voice note) which one and whether it's *done*, at a *%* or *pending* — e.g. _Tower A L14 slab done_ — and I'll update the schedule.`, m.id);
+  const sug = doc.photo?.activity;
+  if (!fresh || !s.evidence.suggest) s.evidence.suggest = sug ? { activityId: sug.id, state: sug.state, percent: sug.percent } : undefined;
+  if (fresh && n > 1) // an album: a line per photo, one question
+    return sendText(c, from, `📷 ${n}. ${doc.photo ? doc.photo.scene : doc.title}${sug ? ` _(→ ${sug.id})_` : ""}`, m.id);
+  return sendText(c, from, photoReply((await getRepo()).db, doc), m.id);
+}
+
+/** What the agent read in a photo, and the question that turns it into a schedule update. */
+function photoReply(db: Db, doc: Doc): string {
+  const p = doc.photo;
+  const filed = `Filed to ${locationPath(db, doc.locationId)}.`;
+  if (!p) return `✅ *${doc.title}* — ${filed}\nIs it evidence for a task? Tell me (text or 🎙 voice note) which one and whether it's *done*, at a *%* or *pending* — e.g. _Tower A L14 slab done_ — and I'll update the schedule.`;
+  const lines = [`📷 *${doc.title}*`, p.scene];
+  if (p.work) lines.push(`🔧 ${p.work}`);
+  if (p.where) lines.push(`📍 ${p.where}${p.locationId ? ` → ${locationPath(db, p.locationId)}` : ""}`);
+  if (p.safety.length) lines.push(`⚠️ *Safety:* ${p.safety.join("; ")}`);
+  if (p.quality.length) lines.push(`🔍 *Quality:* ${p.quality.join("; ")}`);
+  lines.push(`_${filed}_`, "");
+  const a = p.activity;
+  if (a) {
+    const st = a.state === "completed" ? "done" : a.state === "pending" ? "pending" : a.percent !== undefined ? `about ${a.percent}%` : "in progress";
+    lines.push(`Looks like *${a.name}* (${a.id}) — ${st} (${a.confidence} confidence${a.why ? `: ${a.why}` : ""}).`);
+    lines.push(`Reply *yes* to record it in the schedule with this photo as evidence, or *done* / *pending* / a *%*, or tell me the right task.`);
+  } else {
+    lines.push("Which task is it evidence for? Tell me (text or 🎙 voice note) and whether it's *done*, at a *%* or *pending*.");
+  }
+  if (p.safety.length) lines.push("Say *log safety* to record the safety issue for the site team.");
+  return lines.join("\n");
 }
 
 /** Store a file in the document library (AI title/summary when available). */
 async function fileBytes(s: WaSession, f: { bytes: Uint8Array; mime: string; filename: string; caption: string }, locationId: string): Promise<Doc> {
-  const ai = await describeUpload(Buffer.from(f.bytes), f.mime, f.filename).catch(() => null);
+  const ai = await describeUpload(Buffer.from(f.bytes), f.mime, f.filename, { db: (await getRepo()).db, hint: f.caption || undefined, locationId }).catch(() => null);
+  // nowhere better known: file it where the photo itself shows it was taken
+  if (locationId === "site" && ai?.photo?.locationId) locationId = ai.photo.locationId;
   const caption = f.caption.replace(/^(upload|file|save|attach|put)( it)?( to| at| in| on)?\s*\S.*$/i, "").trim();
   const doc: Doc = {
     id: newId("d"),
@@ -353,6 +403,7 @@ async function fileBytes(s: WaSession, f: { bytes: Uint8Array; mime: string; fil
     filename: f.filename, mime: f.mime, size: f.bytes.length,
     summary: [caption, ai?.summary].filter(Boolean).join(" — ").slice(0, 300), text: ai?.text ?? caption,
     tags: ["whatsapp"], uploadedAt: new Date().toISOString(), uploadedBy: s.name,
+    ...(ai?.photo ? { photo: ai.photo } : {}),
   };
   const repo = await getRepo();
   await saveUpload(doc.id, f.bytes, f.mime);

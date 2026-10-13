@@ -1005,3 +1005,12 @@ input[type=checkbox]{border-radius:4px!important}input[type=radio]{border-radius
 .done-tick{display:inline-grid;place-items:center;width:18px;height:18px;margin-right:8px;border-radius:50%;background:var(--green-soft,#e6f4ec);color:var(--green-ink,#1f6b40);font-size:11px;font-weight:800;vertical-align:1px}
 .done-more{align-self:center;margin:4px auto 0;display:block}
 @supports (corner-shape: squircle){.done-tick{corner-shape:round}}
+
+/* AI reading of a site photo (document viewer) */
+.pread{margin:8px 12px 0;padding:10px 12px;background:var(--card-2,var(--card));border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:var(--rc-xs,9px);font-size:12.5px;line-height:1.5;display:flex;flex-direction:column;gap:3px}
+.pread p{margin:0}
+.pread-h{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);display:flex;justify-content:space-between;gap:8px}
+.pread-h em{font-style:normal;letter-spacing:.04em;text-transform:none;font-weight:500;color:var(--mute)}
+.pread .why{color:var(--mute)}
+.pread i{font-style:normal;font-weight:600}.pread .conf-high{color:var(--green-ink,#1f6b40)}.pread .conf-medium{color:#b56f00}.pread .conf-low{color:var(--mute)}
+.pread-bad{color:var(--red)}.pread-warn{color:#b56f00}
