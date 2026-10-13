@@ -262,7 +262,7 @@ function cfIRR(fl, ppy) { const f = r => { let s = 0; for (let t = 0; t < fl.len
 const CFRX = { netU: /net (project )?cash ?flow (before|excl\.?|excluding|pre)[- ]?(funding|finance|financing|interest)|^project (net )?cash ?flow|ungeared cash|unlevered cash|net development cash|^net cash ?flow$/i,
   netE: /cash ?flow (to|after) (equity|funding|finance)|equity (net )?cash ?flow|geared cash|levered cash|net cash ?flow to (equity|investor|developer)/i,
   eqIn: /equity (contribution|injection|drawdown|funding|in)\b|^equity$/i, draw: /(loan|debt|facility|senior).*(drawdown|draw)|drawdown/i, rep: /(loan|debt|facility|senior).*(repay)|repayment/i, int: /interest/i,
-  total: /^(total|sub-?total|cumulative|net)\b|cumulative|balance/i, rev: /revenue|sales|settlement|deposit|\brent|income|proceeds|gdv|disposal/i, notRev: /cost|commission|agent|marketing|\btax|fee|interest|vat/i,
+  total: /^(total|sub-?total|cumulative|net)\b|cumulative|balance/i, rev: /revenue|sales|settlement|deposit|\brent|income|proceeds|gdv|disposal|sale of|exit (value|sale|proceeds)|\(exit\)|capital value|en bloc/i, notRev: /cost|commission|agent|marketing|\btax|fee|interest|vat/i,
   land: /\bland\b|acquisition|stamp duty|transfer (duty|tax)|purchase price/i, cons: /construction|build(ing)? cost|hard cost|infrastructure|civil|\bmep\b|fit[- ]?out|substructure|superstructure|externals?|preliminar/i };
 function cfAdd(a, b, k = 1) { const n = Math.max(a.length, b.length), o = Array(n).fill(0); for (let t = 0; t < n; t++) o[t] = (a[t] || 0) + k * (b[t] || 0); return o; }
 function cfSum(a) { return a.reduce((s, v) => s + v, 0); }
@@ -318,16 +318,23 @@ function cfModel(x) {
   R.lines = { revenue: revL.map(l => l.label), construction: consL.map(l => l.label), land: landL.map(l => l.label), withRevenue: revLinked.map(l => l.label), withConstruction: consLinked.map(l => l.label), other: others.filter(l => !revLinked.includes(l) && !consLinked.includes(l)).map(l => l.label) };
   const rentL = revL.filter(l => /\brent|lease|leasing|tenan|income/i.test(l.label));
   R.flows = { rev: flow(revL.concat(revLinked)), cons: flow(consL.concat(consLinked)), land: flow(landL), rent: flow(rentL) };
-  R.exitLine = L.some(l => /exit|terminal|capital value|investment sale|disposal|en bloc/i.test(l.label));
+  const exitRx = /exit|terminal|capital value|investment sale|disposal|en bloc|sale of (the )?investment/i, exitL = revL.filter(l => exitRx.test(l.label));
+  R.exitLine = exitL.length > 0; R.flows.exit = flow(exitL);
+  // rent: the rent lines (never the exit) and what moves with rent (operating costs as a share of it); an exit value is capitalised rent, so a rent change moves it too
+  const rentOnly = rentL.filter(l => !exitRx.test(l.label)), rentBase = flow(rentOnly).map(Math.abs), rentLinked = others.filter(l => linked(rentBase, l));
+  R.flows.rent = flow(rentOnly.concat(rentLinked)); R.lines.withRent = rentLinked.map(l => l.label); R.lines.exit = exitL.map(l => l.label);
   R.u = u; R.uSrc = uSrc; R.fund = fund; R.E = E; R.cf = cf; R.ok = true; R.levOk = !!fund;
   return R;
 }
 function cfRun(M, d) { // d: {price, cost, land, delay (months), rate (pts)} → exact recomputation on the cash flow
   if (!M || !M.ok) return null; const conv = M.conv; let u = M.u.slice(); const k = (d.price || 0) / 100;
-  if (d.price) u = cfAdd(u, M.flows.rev, k); if (d.cost) u = cfAdd(u, M.flows.cons, (d.cost || 0) / 100); if (d.land) u = cfAdd(u, M.flows.land, (d.land || 0) / 100); if (d.rent && M.flows.rent) u = cfAdd(u, M.flows.rent, (d.rent || 0) / 100);
+  // shocks on the same lines compound (a rent cut and a softer cap rate both move the exit: × (1 + rent) × cap ÷ (cap + Δ))
+  const revF = 1 + k, rentF = 1 + (d.rent || 0) / 100, capF = d.cap && d.capBase > 0 ? d.capBase / (d.capBase + d.cap) : 1;
+  if (d.price) u = cfAdd(u, M.flows.rev, k); if (d.cost) u = cfAdd(u, M.flows.cons, (d.cost || 0) / 100); if (d.land) u = cfAdd(u, M.flows.land, (d.land || 0) / 100); if (d.rent && M.flows.rent) u = cfAdd(u, M.flows.rent, revF * (rentF - 1));
+  if ((d.rent || capF !== 1) && M.flows.exit) u = cfAdd(u, M.flows.exit, revF * (rentF * capF - 1));   // exit value = rent ÷ cap rate
   if (d.delay) { const sh = Math.round(d.delay * M.ppy / 12); if (sh > 0) { const rv = cfAdd(M.flows.rev, M.flows.rev, k); u = cfAdd(u, rv, -1); const moved = Array(sh).fill(0).concat(rv); u = cfAdd(u, moved, 1); } }
   const out = { uirr: cfIRR(u, M.ppy)[conv], profitU: cfSum(u) };
-  if (M.fund) { const p = { ...M.fund, r: M.fund.r + (d.rate || 0) / 100 / M.ppy }; const f = cfFund(u, p), f0 = cfFund(M.u, M.fund); out.lirr = cfIRR(f.eq, M.ppy)[conv]; out.peak = f.peak; out.int = f.int; out.dInt = f.int - f0.int; }
+  if (M.fund) { const p = { ...M.fund, r: M.fund.r + (d.rate || 0) / 100 / M.ppy }; const f = cfFund(u, p), f0 = cfFund(M.u, M.fund); out.lirr = cfIRR(f.eq, M.ppy)[conv]; out.peak = f.peak; out.int = f.int; out.dInt = f.int - f0.int; const pos = f.eq.filter(v => v > 0).reduce((a, v) => a + v, 0), neg = -f.eq.filter(v => v < 0).reduce((a, v) => a + v, 0); out.em = neg > 0 ? pos / neg : NaN; }
   return out;
 }
 /*EMCHECKS-END*/

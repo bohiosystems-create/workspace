@@ -69,7 +69,24 @@ const findingRows = findings => findings.map(f => `<tr>${td(`<b>${esc(f.assumpti
 /* The impact of each finding on the key outputs, estimated from EstateMaster's figures by every AI provider configured
    (Claude and OpenAI when both keys are set: each calculates independently, the report shows the average and says
    whether they agree). An estimate, never EstateMaster's own figure, and the email says so. */
+// A proposed change computed exactly on EstateMaster's own cash flow when its driver is one the cash flow holds: { levered_irr, profit_on_cost, net_profit } or null
+function exactImpact(b, f) {
+  const M = EM.cfModel(b); if (!M || !M.ok || !M.levOk) return null; const o = b.out || {}, fin = Number.isFinite, lab = String(f.assumption || '').toLowerCase();
+  const num = v => { const m = String(v == null ? '' : v).replace(/,/g, '').match(/-?\d+(?:\.\d+)?/); return m ? parseFloat(m[0]) : NaN; }, a = num(f.previous_value), z = num(f.new_value); if (!fin(a) || !fin(z) || a === z) return null;
+  let d = null; if (/\brent/.test(lab)) d = { rent: (z / a - 1) * 100 }; else if (/interest|finance rate|profit rate|saibor/.test(lab)) d = { rate: z - a }; else if (/delay|programme|months/.test(lab)) d = { delay: z - a };
+  else if (/\bland\b/.test(lab)) d = { land: (z / a - 1) * 100 }; else if (/construction|build|hard cost/.test(lab)) d = { cost: (z / a - 1) * 100 }; else if (/sale price|selling price|\bprice|gdv/.test(lab)) d = { price: (z / a - 1) * 100 };
+  if (!d || (d.rent && !(M.flows.rent && M.flows.rent.some(v => v)))) return null;
+  const r = EM.cfRun(M, d), r0 = EM.cfRun(M, {}); if (!r) return null; const dU = r.profitU - r0.profitU, dI = r.int - r0.int, dCost = Math.abs(M.flows.cons.reduce((s, v) => s + v, 0)) * (d.cost || 0) / 100 + Math.abs(M.flows.land.reduce((s, v) => s + v, 0)) * (d.land || 0) / 100;
+  const np = fin(o.net_profit) ? o.net_profit + dU - dI : NaN, tc = fin(o.total_cost) ? o.total_cost + dCost + dI : NaN, poc0 = fin(o.net_profit) && fin(o.total_cost) && o.total_cost > 0 ? o.net_profit / o.total_cost * 100 : NaN;
+  return { d, levered_irr: fin(r.lirr) ? (fin(o.levered_irr) ? o.levered_irr + (r.lirr - r0.lirr) : r.lirr) : null, noIrr: !fin(r.lirr), net_profit: fin(np) ? np : NaN, profit_on_cost: fin(np) && fin(tc) && tc > 0 ? (fin(o.profit_on_cost) && fin(poc0) ? o.profit_on_cost + (np / tc * 100 - poc0) : np / tc * 100) : NaN };
+}
 async function estimateImpacts(b, findings, hurdle) {
+  // exact first: every change the model's own cash flow can compute is computed, never estimated
+  const rest = [];
+  for (const f of findings) { const e = exactImpact(b, f); if (!e) { rest.push(f); continue; } const o = b.out || {};
+    f.impact = { base: { levered_irr: o.levered_irr, profit_on_cost: o.profit_on_cost, net_profit: o.net_profit }, hurdle, levered_irr: e.levered_irr, profit_on_cost: e.profit_on_cost, net_profit: e.net_profit, agree: null, exact: true, flag: false,
+      working: e.noIrr ? 'Exact, on EstateMaster’s own cash flow: with this change the equity never gets back what it put in, so no IRR exists.' : 'Exact: computed on EstateMaster’s own cash flow (its base IRR reproduced), the funding re-run period by period. Not an estimate.' }; }
+  findings = rest;
   const provs = G.aiProviders(); if (!provs.length || !findings.length) return;
   const o = b.out, ins = (b.inputs || []).slice(0, 120).map(i => `${i.label} = ${i.text || i.value}${i.unit && i.unit !== '%' ? ' ' + i.unit : ''}`).join('\n');
   const sens = (b.sens || []).map(t => t.kind === '1way' ? `Sensitivity (1-way) ${t.v} → ${t.metric}: ` + t.shifts.map((sh, i) => `${sh}%: ${t.values[i]}`).join(', ') : `Sensitivity (2-way) ${t.metric}, columns ${t.x} ${t.xs.join('/')}%, rows ${t.y}: ` + t.grid.map((r, i) => `${t.ys[i]}%: ${r.join('/')}`).join(' | ')).join('\n');
