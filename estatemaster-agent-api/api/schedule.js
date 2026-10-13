@@ -4,6 +4,7 @@
 //   POST {action:'save', schedule:{enabled,time,timezone,days,recipients,languages}, by}
 //   POST {action:'preview'|'test'|'snapshot'}
 //   POST {action:'export', name, data (base64)}  an export uploaded in the app, copied into EXPORTS_FOLDER for the server's report
+//   POST {action:'workbook', file}              the original workbook of a model in EXPORTS_FOLDER (base64), for the app's workbook view
 //   POST {action:'stress'}                       run the standard stress tests on every model now (as before the daily report)
 //   POST {action:'feed', items:[…]}               the Daily feed's open items (with the AI's impact), for the report's "To know today"
 // The schedule itself lives in a JSON file next to the exports (see api/_lib/sched.js); the 15-minute tick in api/cron.js sends it.
@@ -70,6 +71,17 @@ module.exports = async function handler(req, res) {
       try { await G.graphPut(token, `${env('EXPORTS_FOLDER')}/${encodeURIComponent(name)}:/content`, Buffer.from(data, 'base64'), 'application/octet-stream'); }
       catch (e) { throw new Error(/40[13]/.test(e.message) ? 'The server cannot write to the exports folder: add Files.ReadWrite.All (application) to the Entra app and grant admin consent.' : e.message); }
       return G.send(res, 200, { stored: true, name, ...(await state(token)) });
+    }
+    // the original workbook of a model in the exports folder, so the app shows its real sheets, cells and formulas in any browser
+    if (b.action === 'workbook') {
+      const folder = env('EXPORTS_FOLDER'); if (!folder) throw new Error('EXPORTS_FOLDER is not set in Vercel.');
+      const name = String(b.file || '').trim(); if (!name) throw new Error('Name the workbook.');
+      const j = await G.graph(token, `${folder}:/children?$select=name,id,size,lastModifiedDateTime,file&$top=200`);
+      const f = (j.value || []).find(x => x.file && x.name === name) || (j.value || []).find(x => x.file && x.name.toLowerCase() === name.toLowerCase());
+      if (!f) return G.send(res, 404, { error: `${name} is no longer in the exports folder.` });
+      if (f.size > 4e6) return G.send(res, 413, { error: `${name} is ${(f.size / 1e6).toFixed(1)} MB: too large to show in the browser (4 MB at most).` });
+      const buf = await G.graphBytes(token, `${folder.replace(/\/root:.*$/, '')}/items/${f.id}/content`);
+      return G.send(res, 200, { name: f.name, at: f.lastModifiedDateTime, size: f.size, data: Buffer.from(buf).toString('base64') });
     }
     if (b.action === 'models') {
       return G.send(res, 200, await cron.listModels(token));

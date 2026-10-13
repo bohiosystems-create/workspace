@@ -47,21 +47,27 @@ function parseInputs(sheets) {
     if (!row || out.length >= 800) return;
     // a section heading: text only, in capitals or ending with a colon ("LAND PURCHASE & ACQUISITION COSTS")
     const txt = row.filter(c => c !== '' && c != null); if (txt.length && txt.length <= 2 && txt.every(c => typeof c === 'string') && /^[^a-z]{5,70}$/.test(String(txt[0]).trim()) && /[A-Z]/.test(txt[0])) { section = String(txt[0]).trim().replace(/\s+/g, ' '); return; }
-    const i = row.findIndex(c => typeof c === 'string' && c.trim().length > 2 && c.length <= 70 && /[a-z]/i.test(c)); if (i < 0) return;
-    const lab = row[i].trim(); if (LAB.some(([, re]) => re.test(lab))) return;
     const fr = (s.frows && s.frows[ri]) || [];
-    const cells = []; for (let j = i + 1; j < Math.min(row.length, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; const pc = /%\s*$/.test(t.trim()) || (typeof row[j] === 'string' && /%\s*$/.test(row[j])); cells.push({ v: pc && typeof row[j] === 'number' ? n * 100 : n, t, pct: pc, j }); }
-    if (!cells.length) {
-      // a text or date input on an input sheet ("Date of First Period: Oct-26", "Add GST on Land Price? Y") is part of the full list too
-      if (!/input|assumption/i.test(s.name)) return;
-      const tv = row.slice(i + 1, i + 6).map((c, j) => String(fr[i + 1 + j] == null ? (c == null ? '' : c) : fr[i + 1 + j]).trim()).find(t => t && t.length <= 40 && t !== '-');
-      const key0 = s.name + '|' + lab; if (!tv || seen.has(key0)) return; seen.add(key0);
-      const tj = row.slice(i + 1, i + 6).findIndex((c, j) => String(fr[i + 1 + j] == null ? (c == null ? '' : c) : fr[i + 1 + j]).trim() === tv);
-      out.push({ label: lab, value: null, text: tv, pct: false, vals: [], sheet: s.name, section, unit: '', cell: A1(s.name, i + 1 + Math.max(0, tj), ri) }); return;
+    let i = row.findIndex(c => emIsLabel(c) && c.length <= 70);
+    while (i >= 0 && i < row.length) {
+      let end = emNextLabel(row, i); const lab = String(row[i]).trim(), key = s.name + '|' + lab;
+      const next = () => { const k = row.slice(end).findIndex(c => emIsLabel(c) && c.length <= 70); i = k < 0 ? -1 : end + k; };
+      if (lab.length > 70 || LAB.some(([, re]) => re.test(lab))) { next(); continue; }
+      const cells = []; for (let j = i + 1; j < Math.min(end, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; const pc = /%\s*$/.test(t.trim()) || (typeof row[j] === 'string' && /%\s*$/.test(row[j])); cells.push({ v: pc && typeof row[j] === 'number' ? n * 100 : n, t, pct: pc, j }); }
+      if (!cells.length) {
+        // a text, date or yes/no input on an input sheet ("Date of First Period: Oct-26", "Add GST on Land Price? Y", "Cash Flow Title: Build to Hold")
+        if (/input|assumption/i.test(s.name) && !seen.has(key)) {
+          let tj = -1; for (let j = i + 1; j < Math.min(end, i + 6); j++) { const t = String(fr[j] == null ? (row[j] == null ? '' : row[j]) : fr[j]).trim(); if (t && t.length <= 40 && t !== '-') { tj = j; break; } }
+          // a long text value (a title) reads as a label: taken as the value when nothing else sits between the two
+          if (tj < 0 && end < row.length && end <= i + 3 && String(row[end]).length <= 60 && emNextLabel(row, end) === row.length && !row.slice(end + 1).some(c => numOf(c) != null)) { tj = end; end = row.length; }
+          if (tj >= 0) { seen.add(key); out.push({ label: lab, value: null, text: String(fr[tj] == null ? row[tj] : fr[tj]).trim(), pct: false, vals: [], sheet: s.name, section, unit: '', cell: A1(s.name, tj, ri) }); }
+        }
+        next(); continue;
+      }
+      const unitCell = row.slice(i + 1, end).find(c => typeof c === 'string' && EM_UNIT_RX.test(c) && c.trim().length < 30 && !/^\s*[a-z]{1,2}\s*$/i.test(c));
+      if (!seen.has(key)) { seen.add(key); out.push({ label: lab, value: +cells[0].v.toFixed(6), text: cells[0].t || String(cells[0].v), pct: cells[0].pct, vals: cells.map(c => c.v).slice(0, 6), sheet: s.name, section, unit: cells[0].pct ? '%' : (unitCell ? unitCell.trim() : ''), cell: A1(s.name, cells[0].j, ri) }); }
+      next();
     }
-    const unitCell = row.slice(i + 1, i + 9).find(c => typeof c === 'string' && /%|sar|aud|usd|sqm|m2|month|year|annum|p\.a\./i.test(c) && c.length < 30);
-    const key = s.name + '|' + lab; if (seen.has(key)) return; seen.add(key);
-    out.push({ label: lab, value: +cells[0].v.toFixed(6), text: cells[0].t || String(cells[0].v), pct: cells[0].pct, vals: cells.map(c => c.v).slice(0, 6), sheet: s.name, section, unit: cells[0].pct ? '%' : (unitCell ? unitCell.trim() : ''), cell: A1(s.name, cells[0].j, ri) });
   }); }
   return out;
 }
@@ -79,7 +85,7 @@ function detectOpt(sheets, fileName) {
 /* Everything the app and the server read from one workbook. */
 const EX_SKIP=(k,c)=>/irr|profit_on_cost|equity_multiple/.test(k)?/target|hurdle|required|minimum|\bmin\b|benchmark|threshold|cost of (equity|capital)|discount rate/i.test(c):/net_profit|total_cost|gross_revenue|peak_debt/.test(k)?/\bper\b|\/\s*(sqm|m2|m²|sq\s?m|sq\s?ft|unit|bed|key)|\bpsm\b|\bpsf\b|\barea\b|\bunits?\b|%|ratio|\brate\b|yield|margin|count|number of|\b(nla|gfa|gla|nsa|bua)\b|\bsqm\b|\bm2\b/i.test(c):false;
 function parseWorkbook(wb, XLSX, fileName) {
-  const sheets = (wb.SheetNames || []).map(name => ({ name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true }), frows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false }) }));
+  const sheets = (wb.SheetNames || []).map(name => ({ name, rows: emRows(XLSX, wb.Sheets[name], true), frows: emRows(XLSX, wb.Sheets[name], false) }));
   const out = {}, found = {}, cells = {};
   for (const s of sheets) for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri];
     if (!row) continue;
@@ -87,10 +93,10 @@ function parseWorkbook(wb, XLSX, fileName) {
       const c = row[i]; if (typeof c !== 'string' || c.length > 80) continue;
       for (const [k, re] of LAB) {
         if (k in out || !re.test(c)) continue; if (k === 'levered_irr' && /unlevered|ungeared/i.test(c)) continue; if (EX_SKIP(k, c)) continue;
-        const v = row.slice(i + 1).find(x => typeof x === 'number' || (typeof x === 'string' && /^\s*-?[\d,.]+\s*%?\s*$/.test(x) && x.trim())); if (v == null) continue;
+        const seg = row.slice(i + 1, emNextLabel(row, i)), v = seg.find(x => typeof x === 'number' || (typeof x === 'string' && /^\s*-?[\d,.]+\s*%?\s*$/.test(x) && x.trim())); if (v == null) continue;
         let n = typeof v === 'number' ? v : parseFloat(v.replace(/[,%\s]/g, '')); if (!Number.isFinite(n)) continue;
         if (/irr|profit_on_cost/.test(k) && Math.abs(n) < 1 && !(typeof v === 'string' && /%/.test(v))) n *= 100;
-        out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}`; cells[k] = A1(s.name, i + 1 + row.slice(i + 1).indexOf(v), ri); break;
+        out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}`; cells[k] = A1(s.name, i + 1 + seg.indexOf(v), ri); break;
       }
     }
   }
@@ -100,6 +106,13 @@ function parseWorkbook(wb, XLSX, fileName) {
 
 /* ---- checks (kept identical in the app) ---- */
 /*EMCHECKS-START*/
+/* Reading a sheet: always from A1 (sheet_to_json starts at the first used cell, which shifted every "original cell" address), blank rows kept.
+   EstateMaster lays inputs out in side-by-side blocks (label · value · unit · label · value · unit on one row): a label only takes the numbers
+   and the unit between it and the next label on the row, never a figure from the neighbouring block. */
+function emRows(XLSX, ws, raw) { if (!ws || !ws['!ref']) return []; const r = XLSX.utils.decode_range(ws['!ref']); r.s.r = 0; r.s.c = 0; return XLSX.utils.sheet_to_json(ws, { header: 1, raw: raw !== false, range: r, blankrows: true }); }
+const EM_UNIT_RX = /^\s*(%|sar|aud|usd|aed|eur|gbp|nzd|qar|kwd|\$|sqm|sq\.?\s?m|sq\.?\s?ft|m2|m²|gfa|nla|gla|nsa|bua|months?|years?|yrs?|days?|weeks?|quarters?|p\.?\s?a\.?|pa|per\b.{0,24}|units?\b.{0,16}|(sar|aud|usd|aed|eur|gbp)\s*\/.{0,24}|[a-z]{2,4}\s*\/\s*[a-z²]{1,8}.{0,16}|[a-z]{1,2})\s*$/i;
+const emIsLabel = c => typeof c === 'string' && c.trim().length > 2 && /[a-z]/i.test(c) && !EM_UNIT_RX.test(c) && !/^\s*-?[\d,.]+\s*%?\s*$/.test(c) && !/^\s*(true|false|yes|no|y|n|n\/a|-)\s*$/i.test(c) && !/^\s*([a-z]{3}[- ]\d{2,4}|\d{1,2}[- ][a-z]{3}[- ]\d{2,4}|\d+\/\d+\/\d+)\s*$/i.test(c);   // a date typed as text is a value
+function emNextLabel(row, i) { for (let j = i + 1; j < row.length; j++) if (emIsLabel(row[j])) return j; return row.length; }
 /* Likely mistakes in an EstateMaster export: unit slips, outputs that do not reconcile, sensitivity tables not refreshed,
    implausible inputs, jumps since the previous export with no approved change behind them, a stale export.
    x = {out, inputs, sens, at, file}; prev = the previous export of the same option; opt = {now, hurdle, register, approvedBetween}. */
