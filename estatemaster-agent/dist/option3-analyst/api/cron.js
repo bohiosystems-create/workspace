@@ -240,7 +240,7 @@ async function dailyData(token, now, o = {}) {
   const folder = env('EXPORTS_FOLDER'); if (!folder) return { skipped: 'EXPORTS_FOLDER is not set' };
   const j = await G.graph(token, `${folder}:/children?$select=name,lastModifiedDateTime,id,file&$orderby=lastModifiedDateTime desc&$top=50`);
   // One file per stored Option / Stage may be in the folder ("… - Downside.xlsx", "… (Downside).xlsx"): the report follows the base, i.e. files with no option in the name or one named like a base case.
-  const optOf = n => { const f = String(n).replace(/\.[^.]+$/, ''); const m = f.match(/\(([^)]{1,60})\)\s*$/) || f.match(/\s[-–]\s([^-–]{1,60})$/); return m ? m[1].trim() : ''; };
+  const optOf = n => { const f = String(n).replace(/\.[^.]+$/, ''); const m = f.match(/\(([^)]{1,60})\)\s*$/) || f.match(/\s[-–]\s([^-–]{1,60})$/); const o = m ? m[1].trim() : ''; return o && /^(?:base|downside|upside|option|scenario|stage|phase|case|sensitivity|stress|alt|alternative|plan\s?[a-z0-9]|worst|best|bull|bear|high|low|mid|conservative|aggressive)\b/i.test(o) ? o : ''; };
   const isBase = o => !o || /^(base|live|current|approved|main|master|as is)/i.test(o);
   const all = (j.value || []).filter(f => f.file && /\.(xlsx|xlsm|xls|csv)$/i.test(f.name)).sort((a, b) => b.lastModifiedDateTime.localeCompare(a.lastModifiedDateTime));
   // one financial model per file name (version and date suffixes ignored): "DF_CS046 v2.xlsx" and "DF_CS046.xlsx" are the same model
@@ -390,6 +390,22 @@ module.exports = async function handler(req, res) {
   } catch (e) { return G.send(res, 502, { error: e.message }); }
   return G.send(res, 200, { at: now.toISOString(), dry, results });
 };
+// Every financial model in the exports folder, its latest base export read (outputs, inputs, cells, sensitivity tables):
+// the app loads these on start, so a model uploaded in one browser is there in any other browser too.
+async function listModels(token) {
+  const folder = env('EXPORTS_FOLDER'); if (!folder) return { models: [], note: 'EXPORTS_FOLDER is not set' };
+  const j = await G.graph(token, `${folder}:/children?$select=name,lastModifiedDateTime,id,file&$orderby=lastModifiedDateTime desc&$top=100`);
+  const optOf = n => { const f = String(n).replace(/\.[^.]+$/, ''); const m = f.match(/\(([^)]{1,60})\)\s*$/) || f.match(/\s[-–]\s([^-–]{1,60})$/); const o = m ? m[1].trim() : ''; return o && /^(?:base|downside|upside|option|scenario|stage|phase|case|sensitivity|stress|alt|alternative|plan\s?[a-z0-9]|worst|best|bull|bear|high|low|mid|conservative|aggressive)\b/i.test(o) ? o : ''; };
+  const isBase = o => !o || /^(base|live|current|approved|main|master|as is)/i.test(o);
+  const keyOf = n => { let k = String(n).replace(/\.[^.]+$/, ''); const o = optOf(n); if (o) k = k.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s[-–]\s[^-–]*$/, ''); for (let i = 0; i < 4; i++) k = k.replace(/[\s_-]*(v\d+|rev\s?\d+|\d{4}[-_.]\d{2}[-_.]\d{2}|final|copy|\(\d+\))$/i, '').replace(/[\s_-]+(\d{3,8}|export|exported|em)$/i, ''); return k.trim().toLowerCase(); };
+  const all = (j.value || []).filter(f => f.file && /\.(xlsx|xlsm|xls|csv)$/i.test(f.name) && isBase(optOf(f.name))).sort((a, b) => b.lastModifiedDateTime.localeCompare(a.lastModifiedDateTime));
+  const latest = new Map(); for (const f of all) { const k = keyOf(f.name); if (!latest.has(k)) latest.set(k, f); }
+  const base = folder.replace(/\/root:.*$/, ''), max = Math.max(1, +(env('MAX_MODELS') || 40));
+  const models = (await Promise.all([...latest.entries()].slice(0, max).map(async ([key, f]) => { try { const x = readExport(await G.graphBytes(token, `${base}/items/${f.id}/content`), f.name); if (!x || !x.out || !Object.keys(x.out).length) return null;
+      return { key, file: f.name, at: f.lastModifiedDateTime, name: (x.meta && x.meta.title) || f.name.replace(/\.[^.]+$/, ''), out: x.out, found: x.found || {}, cells: x.cells || {}, inputs: (x.inputs || []).slice(0, 800), sens: x.sens || [], meta: x.meta || null, sheets: x.sheets || [], opt: x.opt || '' }; } catch { return null; } }))).filter(Boolean);
+  return { models };
+}
+module.exports.listModels = listModels;
 module.exports.windowFor = windowFor;
 module.exports.readExport = readExport;
 module.exports.reportJob = reportJob;

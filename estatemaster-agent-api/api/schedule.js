@@ -71,6 +71,9 @@ module.exports = async function handler(req, res) {
       catch (e) { throw new Error(/40[13]/.test(e.message) ? 'The server cannot write to the exports folder: add Files.ReadWrite.All (application) to the Entra app and grant admin consent.' : e.message); }
       return G.send(res, 200, { stored: true, name, ...(await state(token)) });
     }
+    if (b.action === 'models') {
+      return G.send(res, 200, await cron.listModels(token));
+    }
     if (b.action === 'feed') {
       const st = await SCHED.load(token);
       st.feed = { at: now.toISOString(), project: String(b.project || '').slice(0, 80), hurdle: Number.isFinite(+b.hurdle) && +b.hurdle > 0 && +b.hurdle < 60 ? +(+b.hurdle).toFixed(2) : null, items: (Array.isArray(b.items) ? b.items : []).slice(0, 25).map(i => ({ id: String(i.id || '').slice(0, 20), kind: String(i.kind || '').slice(0, 20), title: String(i.title || '').slice(0, 200), change: String(i.change || '').slice(0, 300), why: String(i.why || '').slice(0, 300), from: String(i.from || '').slice(0, 80), at: String(i.at || '').slice(0, 30), impact: Array.isArray(i.impact) ? i.impact.slice(0, 3).map(m => ({ k: String(m.k || '').slice(0, 20), label: String(m.label || '').slice(0, 40), base: String(m.base || '').slice(0, 30), value: String(m.value || '').slice(0, 30), below: !!m.below })) : [], by: String(i.by || '').slice(0, 80), urgent: !!i.urgent })) };
