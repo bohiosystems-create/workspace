@@ -723,7 +723,18 @@ input[type=range]::-moz-range-thumb{background:var(--orange);border-radius:0}
 }
 @media(max-width:700px){header.kband,.tabs{margin:0 -16px}.tabs{padding:0 16px}.inputrow input{min-width:0}.inputrow .btn{padding:10px 12px;letter-spacing:.12em}}
 /* ================= rounded corners everywhere (cards, controls, tables, chat, menus, report, play mode) ================= */
-:root{--rc:14px;--rc-sm:10px;--rc-xs:7px}
+:root{--rc:22px;--rc-sm:14px;--rc-xs:9px}
+/* every button and floating panel, before the specific rules below */
+button:not(.chip):not(.qchip):not(.fig),.btn,[role=button],#emMenu,.emm-it,#prMenu,.k-gear,#engBtn,#dockFab,.chat-fab,.tab-menu,.dropdown,.popover,.menu,.toast,#toast,#hurAsk,#hurBar,.hb-f input{border-radius:var(--rc-sm)!important}
+#emMenu,#prMenu,.kd-vmenu,.disp-win .card,.modal .card,.xl-win .xl-top{border-radius:var(--rc)!important;overflow:hidden}
+#emMenu{padding:8px!important}.emm-it{border-radius:var(--rc-sm)!important;margin:2px 0}
+#dockFab,.chat-fab{border-radius:18px!important}
+/* squircle corners where the browser supports them (the curve is a superellipse, so the radius is a little larger) */
+@supports (corner-shape: squircle){
+  :root{--rc:28px;--rc-sm:18px;--rc-xs:11px}
+  *,*::before,*::after{corner-shape:squircle}
+  .pill,.tag,.chip,.qchip,.dr-badge,.fi-irr,.at-chip,.disp-badge,.kd-btn,.kd-chip,.kd-qcue,.fi-kind,.pr-subnav .pr-nav-s,input[type=radio],.dot,.spin{corner-shape:round}
+}
 .card,.card.rep-only,#aiSensCard,#emResCard,#asmCard,.feed-item,.kchart,.report,.k-cover,.k-head,.k-close,.verdict,.cr-chg .cr-tile,.cr-ai,.sf-model,.sf-risk,.xl-prev,.fw-card,.disp-win .card,.modal .card,.as-run,.cmp-add-in,.cmp-q,.as-ask,.calcnote,.chk-row,.k-sec,.k-chart,.emsec .card,.dr-card{border-radius:var(--rc)!important}
 .card,.feed-item,.kchart,.report,.k-cover,.xl-prev,.modal .card{overflow:hidden}
 .btn,button.btn,.btn.ghost,.btn.sm,.k-gear,#engBtn,.chart-fab,#dockFab,.fi-rej,.kchart-x,.xl-tab,.tab-btn{border-radius:var(--rc-sm)!important}
@@ -3474,11 +3485,40 @@ function wbSheetMap(sh){const m=new Map();for(const it of sh.cells)m.set(it[0]*1
 function wbTableHTML(sh,r0,r1,opts={}){const m=opts.map||wbSheetMap(sh),cols=Math.min(sh.cols,opts.cols||sh.cols),showf=!!opts.showf;let h='';if(r0===0)h+=`<tr><th class="rn"></th>${Array.from({length:cols},(_,c)=>`<th${sh.widths&&sh.widths[c]?` style="min-width:${sh.widths[c]}px;max-width:${sh.widths[c]}px"`:''}>${colA(c)}</th>`).join('')}</tr>`;
   for(let r=r0;r<Math.min(r1,sh.rows);r++){let row=`<td class="rn">${r+1}</td>`;for(let c=0;c<cols;c++){const it=m.get(r*100000+c);if(!it){row+='<td></td>';continue}const txt=showf&&it[3]?it[3]:it[2];row+=`<td class="${it[3]?'f ':''}${it[4]?'n':'lab'}" data-a="${colA(c)}${r+1}" title="${esc(it[3]||it[2])}">${esc(txt)}</td>`}h+=`<tr>${row}</tr>`}return h}
 function wbPreviewHTML(x,grid){const sh=grid.sheets[0];if(!sh)return'';const st=grid.stats;return`<div class="xl-prev" data-xlopen="${x.id}" title="Open the workbook full page"><div class="xl-ph"><span><b>${esc(x.file||x.id)}</b> · ${st.sheets} sheet${st.sheets===1?'':'s'} · ${st.cells.toLocaleString('en-GB')} cells · <span style="color:#0b3d91">${st.formulas.toLocaleString('en-GB')} formulas</span></span><span class="sub" style="margin:0">Preview of “${esc(sh.name)}” · click to open full page</span></div><div class="xl-pg"><table class="xl-grid">${wbTableHTML(sh,0,12,{cols:Math.min(sh.cols,9)})}</table></div><button class="btn sm xl-open" data-xlopen="${x.id}">Open the workbook ↗</button></div>`}
-async function renderWbPreview(){const el=$('#exWb');if(!el)return;const x=EXPORTS.filter(z=>z.proj===PROJ.id&&z.wb).slice(-1)[0];if(!x){el.innerHTML=EXPORTS.some(z=>z.proj===PROJ.id&&z.src==='file')?'':'<div class="sub" style="margin:6px 0">Upload an export to see the workbook here, cell by cell with its formulas.</div>';return}
+/* no workbook stored in this browser: an Excel-like reproduction built from what the agent holds (the export's outputs and
+   every input with its original cell; for the demo model the agent's own cash flow with live formulas). Clearly a reproduction. */
+function wbSynth(x){const sheets=[];const fmtN=(v,pct)=>!Number.isFinite(v)?'':pct?(+v).toFixed(2)+'%':(Math.abs(v)>=1000?Math.round(v).toLocaleString('en-GB'):(+(+v).toFixed(4)).toLocaleString('en-GB'));
+  const mk=(name,rows,widths)=>{const cells=[];let cols=0;rows.forEach((row,r)=>{(row||[]).forEach((c,k)=>{if(c==null||c==='')return;cols=Math.max(cols,k+1);if(typeof c==='object')cells.push([r,k,String(c.w??''),c.f||'',c.n?1:0]);else cells.push([r,k,String(c),'',typeof c==='number'?1:0])})});sheets.push({name,rows:rows.length,cols,cells,widths:widths||[]})};
+  const o=x?x.out||{}:{},A=c=>({w:c}),N=(v,pct,f)=>({w:fmtN(v,pct),f:f||'',n:1});
+  // Summary: EstateMaster's outputs and two check formulas
+  const S=[[`Summary · ${x?`reproduced by the agent from export ${x.id}${x.file?' ('+x.file+')':''}`:'the agent’s replica model'} · not the original workbook`],[],['Output','Value','Unit','Source cell in the export']];const at={};
+  const keys=x?EXROWS.filter(([k])=>Number.isFinite(o[k])):[];
+  if(x){keys.forEach(([k,l,u])=>{at[k]=S.length+1;S.push([l,N(o[k],u==='%'),u==='%'?'%':u==='x'?'x':CCY(),x.cells&&x.cells[k]||''])})}
+  let cf=null;if(!x||x.src!=='file'){try{const r=run(S0());cf=r}catch(e){cf=null}}
+  if(!x&&cf){[['gross_revenue','Revenue (net of selling and exit costs)',cf.rev],['total_cost','Total development cost',cf.tc],['net_profit','Net profit',cf.profit],['profit_on_cost','Profit on cost',cf.poc*100],['levered_irr','Levered IRR',bad(cf.irr)*100]].forEach(([k,l,v])=>{at[k]=S.length+1;o[k]=v;S.push([l,N(v,/irr|on_cost/.test(k)),/irr|on_cost/.test(k)?'%':CCY(),'replica'])})}
+  S.push([]);S.push(['Checks','','','']);
+  if(at.net_profit&&at.total_cost){const v=o.net_profit/o.total_cost*100;S.push(['Net profit ÷ total cost (= profit on cost?)',N(v,true,`=B${at.net_profit}/B${at.total_cost}*100`),'%',at.profit_on_cost?`EstateMaster says ${fmtN(o.profit_on_cost,true)}`:''])}
+  if(at.gross_revenue&&at.total_cost&&at.net_profit){const v=o.gross_revenue-o.total_cost-o.net_profit;S.push(['Revenue − total cost − net profit (should be ≈ 0)',N(v,false,`=B${at.gross_revenue}-B${at.total_cost}-B${at.net_profit}`),CCY(),''])}
+  mk('Summary',S);
+  // Input: every assumption, with its section and original cell
+  const ins=x&&x.inputs||[];if(ins.length){const I=[['Assumption','Value','Unit','Section','Original cell']];let sec='';ins.forEach(i=>{if(i.section&&i.section!==sec){sec=i.section;I.push([sec.toUpperCase()])}I.push([i.label,Number.isFinite(i.value)?N(i.value,i.pct):A(i.text||''),i.unit||'',i.section||'',i.cell||''])});mk('Input',I)}
+  // Cash flow (the agent's replica): annual lines with live formulas
+  if(cf&&cf.cf){const yrs=[...new Set(cf.cf.cost.map((_,t)=>yearOf(t)))],sg=(a,y)=>a.reduce((s_,v,t)=>s_+(yearOf(t)===y?v:0),0),col=k=>colA(k);const C=[['Cash flow · the agent’s replica (SAR) · annual',...yrs.map(String),'Total'],
+      ['Development costs',...yrs.map(y=>N(-Math.abs(sg(cf.cf.cost,y)))),N(-Math.abs(cf.cf.cost.reduce((a,b)=>a+b,0)),false,`=SUM(B2:${col(yrs.length)}2)`)],
+      ['Revenue (net)',...yrs.map(y=>N(sg(cf.cf.inf,y))),N(cf.cf.inf.reduce((a,b)=>a+b,0),false,`=SUM(B3:${col(yrs.length)}3)`)],
+      ['Net cash flow',...yrs.map((y,k)=>N(sg(cf.cf.inf,y)-Math.abs(sg(cf.cf.cost,y)),false,`=${col(k+1)}3+${col(k+1)}2`)),N(cf.cf.inf.reduce((a,b)=>a+b,0)-cf.cf.cost.reduce((a,b)=>a+b,0),false,`=SUM(B4:${col(yrs.length)}4)`)]];
+    let cum=0;C.push(['Cumulative',...yrs.map((y,k)=>{cum+=sg(cf.cf.inf,y)-Math.abs(sg(cf.cf.cost,y));return N(cum,false,k?`=${col(k)}5+${col(k+1)}4`:`=B4`)})]);
+    C.push(['Murabaha drawdown',...yrs.map(y=>N(sg(cf.cf.draw,y)))]);C.push(['Repayment',...yrs.map(y=>N(-Math.abs(sg(cf.cf.rep,y))))]);C.push(['Equity flow',...yrs.map(y=>N(sg(cf.cf.eq,y)))]);mk('Cash flow',C)}
+  let cells=0,formulas=0;sheets.forEach(sh=>{cells+=sh.cells.length;formulas+=sh.cells.filter(c=>c[3]).length});return{sheets,stats:{sheets:sheets.length,cells,formulas,cut:false},synth:true}}
+function S0(){return S}
+async function renderWbPreview(){const el=$('#exWb');if(!el)return;const x=EXPORTS.filter(z=>z.proj===PROJ.id&&z.wb).slice(-1)[0];
+  if(!x){const lx=latestExport(PROJ.id);const key='synth:'+(lx?lx.id:'replica:'+PROJ.id);let g=null;try{g=wbSynth(lx)}catch(e){g=null}if(!g||!g.sheets.length){el.innerHTML='<div class="sub" style="margin:6px 0">Upload an export to see the workbook here, cell by cell with its formulas.</div>';return}
+    WBCACHE[key]=g;const fake={id:key,file:lx?(lx.file||lx.id):'replica model'};el.innerHTML=wbPreviewHTML(fake,g).replace('click to open full page','agent’s reproduction · click to open')+`<div class="sub" style="margin:4px 0 8px">${lx&&lx.src==='file'?'This export was uploaded before the workbook was kept in this browser, so':'No original workbook is held for this model, so'} this is the agent’s reproduction from the figures it has (outputs, every input with its original cell${!lx||lx.src!=='file'?', and its own cash flow':''}). <a href="#" data-wbup="1">Upload the workbook</a> to see the original cells and formulas.</div>`;return}
   const g=await wbLoad(x.id);el.innerHTML=g?wbPreviewHTML(x,g):`<div class="sub" style="margin:6px 0">${x.id}: the workbook was read in another browser; upload it again to see the cells here.</div>`}
 const XL={id:null,grid:null,sheet:0,map:null,rendered:0,showf:false};
-async function openWorkbook(id){const x=EXPORTS.find(z=>z.id===id);if(!x)return;const g=await wbLoad(id);if(!g){toast('The workbook is not in this browser: upload the export again.');return}XL.id=id;XL.grid=g;XL.sheet=0;XL.showf=$('#xlShowF').checked;
+async function openWorkbook(id){const x=EXPORTS.find(z=>z.id===id)||(/^synth:/.test(id)?{id,file:'Agent’s reproduction',proj:PROJ.id,at:new Date().toISOString()}:null);if(!x)return;const g=/^synth:/.test(id)?WBCACHE[id]:await wbLoad(id);if(!g){toast('The workbook is not in this browser: upload the export again.');return}XL.id=id;XL.grid=g;XL.sheet=0;XL.showf=$('#xlShowF').checked;
   $('#xlTitle').textContent=x.file||id;$('#xlSub').textContent=`${id} · ${PROJECTS[x.proj]?PROJECTS[x.proj].name:''} · read ${new Date(x.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}`;$('#xlStats').textContent=`${g.stats.sheets} sheets · ${g.stats.cells.toLocaleString('en-GB')} cells · ${g.stats.formulas.toLocaleString('en-GB')} formulas${g.stats.cut?' · very large sheets are cut at '+WB_MAX_ROWS+' rows':''}`;
+  {const fn=$('#xlFootNote');if(fn)fn.textContent=g.synth?'The agent’s reproduction, not the original workbook: EstateMaster’s outputs and inputs as read from the export (original cells named), plus check formulas; for the demo model, the agent’s own cash flow with its formulas. Upload the workbook to see EstateMaster’s own cells.':'Read from the uploaded export, cell by cell, exactly as Excel stores it. Values are the ones EstateMaster calculated; nothing is recalculated here.'}
   $('#xlWin').classList.add('on');document.body.style.overflow='hidden';xlSheet(0)}
 function xlSheet(i){XL.sheet=i;const sh=XL.grid.sheets[i];XL.map=wbSheetMap(sh);$('#xlTabs').innerHTML=XL.grid.sheets.map((s,k)=>`<span class="xl-tab ${k===i?'on':''}" data-xlsheet="${k}">${esc(s.name)}</span>`).join('');
   const body=$('#xlBody');body.innerHTML=`<table class="xl-grid ${XL.showf?'showf':''}" id="xvT"></table>`;XL.rendered=0;body.scrollTop=0;xlMore();$('#xlAddr').textContent='A1';xlPick('A1')}
@@ -3486,7 +3526,7 @@ function xlMore(){const sh=XL.grid.sheets[XL.sheet];if(XL.rendered>=sh.rows)retu
 function xlPick(a){$$('#xvT td.sel').forEach(c=>c.classList.remove('sel'));const td=$(`#xvT td[data-a="${a}"]`);if(td)td.classList.add('sel');const m=a.match(/^([A-Z]+)(\d+)$/);let it=null;if(m){let c=0;for(const ch of m[1])c=c*26+(ch.charCodeAt(0)-64);it=XL.map.get((+m[2]-1)*100000+(c-1))}
   $('#xlAddr').textContent=a;const fx=$('#xlFx');fx.textContent=it?(it[3]||it[2]):'';fx.classList.toggle('isf',!!(it&&it[3]));$('#xlFxLab').textContent=it&&it[3]?`fx · value ${it[2]}`:'fx'}
 function closeWorkbook(){$('#xlWin').classList.remove('on');document.body.style.overflow=''}
-document.addEventListener('click',e=>{const o=e.target.closest('[data-xlopen]');if(o){openWorkbook(o.dataset.xlopen);return}if(e.target.id==='xlClose'){closeWorkbook();return}const t=e.target.closest('[data-xlsheet]');if(t){xlSheet(+t.dataset.xlsheet);return}const td=e.target.closest('#xvT td[data-a]');if(td)xlPick(td.dataset.a)});
+document.addEventListener('click',e=>{const up=e.target.closest('[data-wbup]');if(up){e.preventDefault();const f=$('#exFile');if(f)f.click();return}const o=e.target.closest('[data-xlopen]');if(o){openWorkbook(o.dataset.xlopen);return}if(e.target.id==='xlClose'){closeWorkbook();return}const t=e.target.closest('[data-xlsheet]');if(t){xlSheet(+t.dataset.xlsheet);return}const td=e.target.closest('#xvT td[data-a]');if(td)xlPick(td.dataset.a)});
 document.addEventListener('change',e=>{if(e.target.id==='xlShowF'){XL.showf=e.target.checked;if(XL.grid)xlSheet(XL.sheet)}});
 document.addEventListener('scroll',e=>{if(e.target.id==='xlBody'){const b=e.target;if(b.scrollTop+b.clientHeight>b.scrollHeight-600)xlMore()}},true);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#xlWin')&&$('#xlWin').classList.contains('on'))closeWorkbook()});
@@ -4061,7 +4101,7 @@ function newProjectFromExport(p,fileName,name){const mt=p.meta||{},nm=String(nam
   const id='x'+Date.now().toString(36),n=PROJECTS.narjis;
   PROJECTS[id]={id,name:nm,district:mt.type||'EstateMaster export',plot:n.plot,comps:[],regBase:{...n.regBase},areas:{...n.areas},template:null,fromExport:true,type:mt.type||'',currency:mt.currency||'SAR',file:fileName,created:new Date().toISOString()};
   switchProject(id,true);
-  const x=addExport('file','first export: project created from it',p.out,fileName,'',p);x.found=p.found;
+  const x=addExport('file','first export: project created from it',p.out,fileName,'',p);x.found=p.found;if(p.grid){x.wb=p.grid.stats;WBCACHE[x.id]=p.grid;wbSave(x.id,p.grid)}
   logEvent({kind:'project',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Project “${nm}” created from the EstateMaster export ${fileName} (${x.id}: ${p.inputs.length} assumptions, ${p.sens.length} sensitivity tables)`});
   renderProjectUI();renderAll(true);if(typeof renderEMTab==='function')renderEMTab();renderAssumptions();saveMem();showTab(RO?'em':'model');toast(`Project “${nm}” created from ${fileName}`);askAboutExport(PROJECTS[id],x);return PROJECTS[id]}
 /* the model is loaded: the chat opens on it with EstateMaster's headline figures and questions to start from */
@@ -6930,6 +6970,6 @@ if(!RO&&$('#tkCard'))$('#tkCard').remove();
 renderProjectUI();syncHeatSel();resetE();renderAll(false);loadDaily();showTab('appr');renderBell();mailCheck().then(()=>schedTick(true));renderEng();checkProxy();checkRunner();renderRunnerNote();renderApprBadge();
 if(/[?&#]debug\b/.test(location.href))setTimeout(showDiagnostics,300);
 </script>
-  <div class="xl-win" id="xlWin" role="dialog" aria-label="Workbook"><div class="xl-top"><h2 id="xlTitle">Workbook</h2><span class="sub" id="xlSub"></span><label style="font-size:12px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="xlShowF"> Show formulas in the cells</label><button class="btn ghost sm btn-x" id="xlClose" title="Close" aria-label="Close">×</button></div><div class="xl-tabs" id="xlTabs"></div><div class="xl-fbar"><span class="xl-addr" id="xlAddr">A1</span><span id="xlFxLab" style="color:var(--soft)">fx</span><span class="xl-fx" id="xlFx"></span></div><div class="xl-body" id="xlBody"></div><div class="xl-foot"><span><i class="xl-key"></i>cell with a formula: click it to read the formula in the bar above</span><span id="xlStats"></span><span>Read from the uploaded export, cell by cell, exactly as Excel stores it. Values are the ones EstateMaster calculated; nothing is recalculated here.</span></div></div>
+  <div class="xl-win" id="xlWin" role="dialog" aria-label="Workbook"><div class="xl-top"><h2 id="xlTitle">Workbook</h2><span class="sub" id="xlSub"></span><label style="font-size:12px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="xlShowF"> Show formulas in the cells</label><button class="btn ghost sm btn-x" id="xlClose" title="Close" aria-label="Close">×</button></div><div class="xl-tabs" id="xlTabs"></div><div class="xl-fbar"><span class="xl-addr" id="xlAddr">A1</span><span id="xlFxLab" style="color:var(--soft)">fx</span><span class="xl-fx" id="xlFx"></span></div><div class="xl-body" id="xlBody"></div><div class="xl-foot"><span><i class="xl-key"></i>cell with a formula: click it to read the formula in the bar above</span><span id="xlStats"></span><span id="xlFootNote">Read from the uploaded export, cell by cell, exactly as Excel stores it. Values are the ones EstateMaster calculated; nothing is recalculated here.</span></div></div>
 </body>
 </html>
