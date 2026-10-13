@@ -1021,3 +1021,7 @@ input[type=checkbox]{border-radius:4px!important}input[type=radio]{border-radius
 .rpt-playprompt{position:fixed;inset:0;z-index:999;background:rgba(46,46,47,.72);display:grid;place-items:center;padding:20px}
 .rpt-playprompt>div{background:var(--card);padding:28px 30px;text-align:center;max-width:420px;border-radius:var(--rc,22px);display:flex;flex-direction:column;gap:14px;align-items:center}
 .rpt .btn.rpt-playbig{padding:14px 28px;font-size:22px;line-height:1}
+
+/* Studio: upload a ready-made 4D model */
+.studio-4d{display:flex;flex-direction:column;align-items:flex-start;gap:10px}.studio-4d p{margin:0;font-size:13px;line-height:1.5;color:var(--ink-2)}
+.studio-clock{margin:4px 0 0;font-size:13px;color:var(--ink-2);display:flex;gap:10px;align-items:baseline}.studio-clock b{font-size:22px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;min-width:56px}

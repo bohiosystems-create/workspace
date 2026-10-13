@@ -4,7 +4,7 @@
  */
 import type { ProjectModelSpec } from "./spec";
 
-export type EngineId = "anthropic" | "openai" | "gemini" | "offline";
+export type EngineId = "anthropic" | "openai" | "gemini" | "offline" | "file";
 export interface GenResult { spec: ProjectModelSpec; warnings: string[]; engine: EngineId; model: string; ms: number; log: { step: string; detail: string }[]; tried: { engine: string; error: string }[]; route?: string }
 export interface GenProject { id: string; createdAt: string; docs: string[]; result: GenResult }
 

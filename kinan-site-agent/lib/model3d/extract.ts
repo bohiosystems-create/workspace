@@ -63,7 +63,19 @@ Rules:
 - start / finish are the CURRENT dates (actual or forecast). If the programme also has baseline dates, % complete, total float or a critical flag, copy them onto each activity (baselineStart, baselineFinish, progress, float, critical) exactly as given, and set schedule.baselineFinish to the baseline / contract completion date.
 - For each building set "source" to the document(s) and row used, and "confidence" (high when read directly, medium when combined, low when inferred).
 - Put anything you inferred rather than read in "assumptions". List the documents you used in "sources".
-- Use only the documents. Do not invent buildings.`;
+- Use only the documents. Do not invent buildings.
+
+Reading DESIGNS (drawings, PDFs, images) when there is no schedule to read from:
+- Site / master plan: every building outline is a footprint. Measure it with the scale bar or the written scale (1:500, 1:1000 — at A1 unless the title block says otherwise) or the dimension strings; take the site boundary for site.width / site.depth and north from the north arrow (rotate so north is up before measuring). Roads, gates, laydown and cranes come from the plan's labels.
+- Elevations and sections: count the storeys above ground (floors) and below (basements); storeyHeight = floor-to-floor from the level marks (FFL/SSL, e.g. +3.40, +6.80) — the difference between consecutive levels; a tower's overall height ÷ floors when only that is given.
+- Floor plans and title blocks: building names, uses (apartments → residential, keys → hotel, shops → retail, bays → parking), drawing numbers and revisions for "source".
+- Renders and photos: use them only to confirm massing (count floors, see podiums); never measure from a perspective view.
+- When the designs give no programme, write a realistic one and say so in "assumptions": substructure 3–6 months (longer with basements), structure about 7–10 days per floor for towers (3–4 weeks per floor for low-rise), façade starting when the frame is a third of the way up and ending 2–3 months after topping out, fit-out from about mid-frame to 6–9 months after topping out, handover 1–3 months; stagger the buildings sensibly and set dataDate to today.
+- Mark everything measured from a drawing "medium" confidence and everything inferred "low".
+
+Reading an IFC model (BIM, given as an "IFC DIGEST" of its STEP entities):
+- IfcBuilding = a building (Name, LongName); its IfcBuildingStorey entries (Elevation, Name) give floors and storeyHeight (storeys with elevation ≥ 0 are above ground, below 0 are basements); IfcSpace and IfcQuantityArea/Length give areas and dimensions; IfcLocalPlacement / IfcCartesianPoint give positions in the model's units (IfcSIUnit: MILLI → divide by 1000).
+- The 4D schedule: IfcWorkSchedule, IfcTask (Name, PredefinedType: CONSTRUCTION, DEMOLITION, …) with IfcTaskTime (ScheduleStart / ScheduleFinish, ActualStart / ActualFinish, Completion as % , TotalFloat, IsCritical), linked to buildings or storeys by IfcRelAssignsToProduct and to each other by IfcRelSequence. Map each task to its building and phase and copy its dates, progress, float and critical flag.`;
 
 const TEXT_LIMIT = 220_000;
 export function promptFor(docs: ExtractDoc[]): string {
@@ -125,10 +137,11 @@ async function viaGemini(c: NonNullable<Model3dConfig["gemini"]>, docs: ExtractD
 }
 
 /** Run the chosen engine (or the first that works, for "auto") and normalise the result. */
-export async function extractModel(cfg: Model3dConfig, docs: ExtractDoc[], engine: Engine, opts: { deadline?: number; route?: string } = {}): Promise<ExtractResult> {
+export async function extractModel(cfg: Model3dConfig, docs: ExtractDoc[], engine: Engine, opts: { deadline?: number; route?: string; /** read with an AI engine every time: no offline fallback */ aiOnly?: boolean } = {}): Promise<ExtractResult> {
   const t0 = Date.now(), tried: { engine: string; error: string }[] = [];
   const routed = engine === "auto" ? routeFor(cfg, docs, opts.route) : { order: [engine], reason: `${engine} requested` };
-  const order = routed.order;
+  const order = opts.aiOnly ? routed.order.filter((e) => e !== "offline") : routed.order;
+  if (!order.length) throw new LlmError("No AI engine is configured — set ANTHROPIC_API_KEY (or OPENAI_API_KEY / GEMINI_API_KEY) so the documents can be read.");
   // the offline reading of the text documents, used to cross-check AI answers
   let baseline = 0;
   try { const txt = docs.filter((d) => d.text).map((d) => ({ name: d.name, text: d.text! })); if (txt.length) baseline = normalizeSpec(parseOffline(txt).raw).spec.buildings.length; } catch { /* no baseline */ }
@@ -154,5 +167,5 @@ export async function extractModel(cfg: Model3dConfig, docs: ExtractDoc[], engin
       if (engine !== "auto") throw new LlmError(msg);
     }
   }
-  throw new LlmError("no engine produced a model");
+  throw new LlmError(tried.length ? `The AI could not read the documents: ${tried.map((t) => `${t.engine} — ${t.error}`).join("; ")}` : "no engine produced a model");
 }

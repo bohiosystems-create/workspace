@@ -22,6 +22,21 @@ import { aroundKit, type AroundEnv, type Kind } from "./around";
 type Rect = { x: number; z: number; w: number; d: number };
 export const MARGIN = 70;
 
+// ------------------------------------------------------------------ architecture
+// A project made from documents must never look like Kinan Heights (whose towers use the shared materials as they are).
+// Each one gets its own architectural language, chosen from what it is: a waterfront scheme (bay, marina, corniche,
+// Jeddah…) reads coastal — aqua glass, white balcony slabs on every floor, white frame crowns, the sea along its north
+// edge — and other schemes take one of two styles picked from the project's name, so a project always looks the same.
+export type ArchStyle = { id: "coastal" | "sandstone" | "graphite"; glass: number; stone: number; trim: number; render: number; balconies: boolean; fins: boolean; crown: "frame" | "setback" | "blade"; sea: boolean; desert: number };
+export function styleOf(spec: ProjectModelSpec): ArchStyle {
+  const txt = `${spec.name} ${spec.location ?? ""}`.toLowerCase();
+  if (/\b(bay|marina|corniche|waterfront|beach|sea|harbour|harbor|jeddah|lagoon|coast|island)\b/.test(txt))
+    return { id: "coastal", glass: 0x9fe3da, stone: 0xf1e7d6, trim: 0xfbfaf6, render: 0xf3eee4, balconies: true, fins: false, crown: "frame", sea: true, desert: 0xe2cfa8 };
+  let h = 0; for (const c of spec.name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h % 2 ? { id: "sandstone", glass: 0xe2c398, stone: 0xd9bf94, trim: 0xcfb084, render: 0xe8d6b8, balconies: false, fins: true, crown: "setback", sea: false, desert: 0xd2bd98 }
+    : { id: "graphite", glass: 0x8f9ba3, stone: 0x6f7378, trim: 0x3a3d42, render: 0xd4d4d0, balconies: true, fins: false, crown: "blade", sea: false, desert: 0xd2bd98 };
+}
+
 export interface SpecSceneApi {
   scene: THREE.Scene; sun: THREE.DirectionalLight;
   setDate(date: string): Record<string, BuildingState>; setNight(n: boolean): void; setSelected(id?: string): void;
@@ -132,6 +147,12 @@ function placeTruck(t: Truck) {
 export function createSpecScene(renderer: THREE.WebGLRenderer, spec: ProjectModelSpec, opts: { textureSize: number; night: boolean }): SpecSceneApi {
   const scene = new THREE.Scene();
   const m = materials();
+  const arch = styleOf(spec);
+  // the project's own materials (Kinan Heights keeps the shared ones)
+  for (const g of [m.glass, m.glassLit, m.glassWork]) g.color.set(arch.glass);
+  m.stone.color.set(arch.stone); m.slabEdge.color.set(arch.trim); m.render.color.set(arch.render); m.renderLit.color.set(arch.render);
+  const trimMat = new THREE.MeshStandardMaterial({ color: arch.trim, roughness: 0.55 });
+  const railMat = new THREE.MeshStandardMaterial({ color: 0xbfe6ea, roughness: 0.08, metalness: 0.2, transparent: true, opacity: 0.45, envMapIntensity: 1.3 });
   let night = opts.night;
   const S = spec.site, cx = S.width / 2, cz = S.depth / 2, extent = Math.max(S.width, S.depth);
   const pm = new THREE.PMREMGenerator(renderer);
@@ -159,8 +180,19 @@ export function createSpecScene(renderer: THREE.WebGLRenderer, spec: ProjectMode
   const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.95 });
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(EW, ED).rotateX(-Math.PI / 2), groundMat);
   ground.position.set(cx, 0, cz); ground.receiveShadow = true; scene.add(ground);
-  const desert = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(1600, extent * 4) * 1.3, Math.max(1600, extent * 4) * 1.3).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xd2bd98, roughness: 1 }));
+  const desert = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(1600, extent * 4) * 1.3, Math.max(1600, extent * 4) * 1.3).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: arch.desert, roughness: 1 }));
   desert.position.set(cx, -0.45, cz); desert.receiveShadow = true; scene.add(desert);
+  // a waterfront scheme: the sea beyond a beach along the north edge
+  const seaMat = new THREE.MeshStandardMaterial({ color: 0x2f8fb3, roughness: 0.12, metalness: 0.15, envMapIntensity: 1.5 });
+  if (arch.sea) {
+    const SW = Math.max(1600, extent * 4) * 1.3, depth = SW / 2;
+    const beach = new THREE.Mesh(new THREE.PlaneGeometry(SW, 46).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xead9b4, roughness: 1 }));
+    beach.position.set(cx, -0.4, -MARGIN - 23); beach.receiveShadow = true; scene.add(beach);
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(SW, depth).rotateX(-Math.PI / 2), seaMat);
+    sea.position.set(cx, -0.35, -MARGIN - 46 - depth / 2); scene.add(sea);
+    const surf = new THREE.Mesh(new THREE.PlaneGeometry(SW, 3).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, transparent: true, opacity: 0.7 }));
+    surf.position.set(cx, -0.33, -MARGIN - 47.5); scene.add(surf);
+  }
   const kerb = new THREE.Mesh(walls(EW, ED, 0.45, 4, 0.45), new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.9 }));
   kerb.position.set(cx, -0.45, cz); scene.add(kerb);
 
@@ -258,6 +290,7 @@ export function createSpecScene(renderer: THREE.WebGLRenderer, spec: ProjectMode
       mdl = villaModel(m, b.id, r, basicVilla({ built: Math.min(s.built, 3), active: s.active, enclosed: s.glazed >= b.floors - 0.01, finished: s.fitted >= b.floors, handedOver: s.handedOver }), night);
     } else {
       mdl = towerModel(m, b.id, r, b.floors, basicStruct({ built: s.built, active: s.active, glazed: s.glazed, fitted: s.fitted, topped: s.topped }, b.floors), b.storeyHeight, { podium: kind === "podium", club: kind === "club" });
+      if (kind === "tower") mdl.group.add(architecture(b, s));
       if (b.use === "mosque" && s.topped) {
         // dome and minaret
         const top = b.floors * b.storeyHeight, rr = Math.min(b.w, b.d) * 0.28;
@@ -268,6 +301,52 @@ export function createSpecScene(renderer: THREE.WebGLRenderer, spec: ProjectMode
     }
     if (s.started || s.built > 0) mdl.group.add(aroundKit(m, b.id, kind, r, { built: s.built, floors: b.floors, glazed: s.glazed, fitted: s.fitted, topped: s.topped, active: s.active }, kind === "villa" ? 3.6 : b.storeyHeight, b.id.length * 7 + Math.round(b.x), env));
     return mdl;
+  }
+
+  /** The project's own façade language on a tower: balcony slabs with glass balustrades, stone fins, and its crown. */
+  function architecture(b: SpecBuilding, s: BuildingState): THREE.Group {
+    const g = new THREE.Group(), H = b.storeyHeight, inset = Math.min(b.w, b.d) * 0.08, w = b.w - inset * 2, d = b.d - inset * 2;
+    const done = Math.floor(Math.min(s.glazed, s.built) + 1e-6), mx = new THREE.Matrix4();
+    const living = b.use === "residential" || b.use === "hotel";
+    if (arch.balconies && living && done > 1) {
+      // every finished floor above the lobby: deep slabs on the two long faces, glass balustrades
+      const long = w >= d, L = (long ? w : d) * 0.9, P = 1.9, n = (done - 1) * 2;
+      const slab = new THREE.InstancedMesh(box(long ? L : P, 0.24, long ? P : L), trimMat, n);
+      const rail = new THREE.InstancedMesh(box(long ? L : 0.06, 1.05, long ? 0.06 : L), railMat, n);
+      let k = 0;
+      for (let f = 1; f < done; f++) for (const sgn of [-1, 1]) {
+        const ox = long ? 0 : sgn * (w / 2 + P / 2 + 0.3), oz = long ? sgn * (d / 2 + P / 2 + 0.3) : 0, y = f * H - 0.12;
+        slab.setMatrixAt(k, mx.makeTranslation(ox, y, oz));
+        rail.setMatrixAt(k++, mx.makeTranslation(long ? 0 : ox + sgn * (P / 2 - 0.05), y + 0.64, long ? oz + sgn * (P / 2 - 0.05) : 0));
+      }
+      slab.castShadow = true; g.add(slab, rail);
+    }
+    if (arch.fins && done > 0) {
+      // full-height stone fins every 3.2 m round the glazed floors
+      const per = (side: number) => Math.max(2, Math.round(side / 3.2)), hH = done * H, pts: [number, number, boolean][] = [];
+      for (let i = 0; i <= per(w); i++) { const x = -w / 2 + (i * w) / per(w); pts.push([x, -d / 2 - 0.55, false], [x, d / 2 + 0.55, false]); }
+      for (let i = 1; i < per(d); i++) { const z = -d / 2 + (i * d) / per(d); pts.push([-w / 2 - 0.55, z, true], [w / 2 + 0.55, z, true]); }
+      const fin = new THREE.InstancedMesh(box(0.42, hH, 1.1), m.stone, pts.length), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
+      pts.forEach(([x, z, side], i) => { q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), side ? Math.PI / 2 : 0); fin.setMatrixAt(i, mx.compose(new THREE.Vector3(x, hH / 2, z), q, one)); });
+      fin.castShadow = true; g.add(fin);
+    }
+    if (s.topped && done >= b.floors - 0.01) {
+      const top = b.floors * H;
+      if (arch.crown === "frame") {
+        // an open white portal frame two storeys high, the coastal towers' signature
+        const fh = H * 2.4, t = 1.1;
+        for (const [x, z] of [[-w / 2, -d / 2], [w / 2, -d / 2], [-w / 2, d / 2], [w / 2, d / 2]]) g.add(shadow(at(new THREE.Mesh(box(t, fh, t), trimMat), x, top + fh / 2, z)));
+        g.add(shadow(at(new THREE.Mesh(box(w + t, t, t), trimMat), 0, top + fh, -d / 2)), shadow(at(new THREE.Mesh(box(w + t, t, t), trimMat), 0, top + fh, d / 2)));
+        g.add(shadow(at(new THREE.Mesh(box(t, t, d + t), trimMat), -w / 2, top + fh, 0)), shadow(at(new THREE.Mesh(box(t, t, d + t), trimMat), w / 2, top + fh, 0)));
+        g.add(at(new THREE.Mesh(box(w * 0.5, H * 0.9, d * 0.5), m.glass), 0, top + H * 0.45, 0)); // sky lounge
+      } else if (arch.crown === "setback") {
+        g.add(shadow(at(new THREE.Mesh(box(w * 0.72, H * 1.6, d * 0.72), m.stone), 0, top + H * 0.8, 0)));
+        g.add(shadow(at(new THREE.Mesh(box(w * 0.46, H * 1.2, d * 0.46), m.glass), 0, top + H * 2.2, 0)));
+      } else {
+        g.add(shadow(at(new THREE.Mesh(box(w * 0.18, H * 4, d + 1.2), trimMat), w * 0.32, top + H * 2, 0))); // a dark blade rising past the roof
+      }
+    }
+    return tag(g, b.id);
   }
 
   function setDate(d: string) {
@@ -333,7 +412,8 @@ export function createSpecScene(renderer: THREE.WebGLRenderer, spec: ProjectMode
     sun.intensity = n ? 0.55 : 3.2; sun.color.set(n ? 0x9fb2ff : 0xfff0d8);
     scene.environmentIntensity = n ? 0.25 : 0.7;
     m.glassLit.emissiveIntensity = n ? 0.95 : 0; m.renderLit.emissiveIntensity = n ? 0.55 : 0;
-    (desert.material as THREE.MeshStandardMaterial).color.set(n ? 0x2f2a22 : 0xd2bd98);
+    (desert.material as THREE.MeshStandardMaterial).color.set(n ? 0x2f2a22 : arch.desert);
+    seaMat.color.set(n ? 0x0d2a3a : 0x2f8fb3);
     m.ghost.color.set(n ? 0xffffff : 0x2e2e2f); m.ghostFill.color.set(n ? 0xffffff : 0x2e2e2f);
     lampSprites.visible = n;
     groundKey = "";

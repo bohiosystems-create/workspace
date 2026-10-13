@@ -10,6 +10,7 @@ import { mockDocs, MOCK_PROJECT } from "@/lib/model3d/mock";
 import { collectFromDrop, collectFromList, mimeOf, type Collected } from "@/lib/model3d/collect";
 import type { GenProject, GenResult } from "@/lib/model3d/store";
 import type { SpecActivity } from "@/lib/model3d/spec";
+import { exportFourD, ifcDigest, importFourD, IFC_EXT } from "@/lib/model3d/fourd";
 import { specCritical, specSlip } from "@/lib/critical";
 import { Icon } from "./icons";
 
@@ -17,7 +18,7 @@ const ModelViewer = lazy(() => import("./ModelViewer"));
 
 interface Doc { name: string; size: number; file?: File; text?: string; demo?: boolean }
 
-const ENGINE_NAME: Record<string, string> = { anthropic: "Claude", openai: "OpenAI", gemini: "Gemini", offline: "Offline parser" };
+const ENGINE_NAME: Record<string, string> = { anthropic: "Claude", openai: "OpenAI", gemini: "Gemini", offline: "Offline parser", file: "4D file" };
 const USE_LABEL: Record<string, string> = { residential: "Residential", office: "Office", hotel: "Hotel", retail: "Retail", townhouse: "Townhouse", amenity: "Amenity", parking: "Parking", school: "School", mosque: "Mosque", utility: "Utility" };
 const STEPS = ["Routing to the best engine for these documents", "Reading the documents", "Matching the area schedule to the setting-out", "Reading the programme", "Placing roads, gates and cranes", "Building the 3D model"];
 const MAX_FILES = 20, MAX_BYTES = 4_000_000;
@@ -82,11 +83,38 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState(false);
   const [step, setStep] = useState(0);
+  // the clock while the AI reads the documents
+  const [t0, setT0] = useState(0), [now, setNow] = useState(0);
+  useEffect(() => { if (!busy) return; const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, [busy]);
+  const clock = (ms: number) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
   const [peek, setPeek] = useState<string | null>(null);
   const [over, setOver] = useState(false);
-  const files = useRef<HTMLInputElement>(null), folder = useRef<HTMLInputElement>(null);
+  const files = useRef<HTMLInputElement>(null), folder = useRef<HTMLInputElement>(null), model4d = useRef<HTMLInputElement>(null);
+  // an IFC model is cut down to its buildings, storeys and 4D schedule before it is sent (see lib/model3d/fourd.ts)
+  const digestIfc = async (c: Collected): Promise<Collected> => ({ ...c, files: await Promise.all(c.files.map(async (f) => {
+    if (!IFC_EXT.test(f.name)) return f;
+    const d = ifcDigest(await f.text());
+    return new File([d.text], f.name, { type: "text/plain" });
+  })) });
+  /** A ready-made 4D model: a Kinan 4D file / 4D JSON opens straight away; an IFC model is added for the AI to read. */
+  const load4d = async (list: FileList | null) => {
+    const f = list?.[0]; if (!f) return;
+    setErr("");
+    try {
+      if (IFC_EXT.test(f.name)) {
+        const d = ifcDigest(await f.text());
+        take({ files: [new File([d.text], f.name, { type: "text/plain" })], skipped: [], fromZip: 0, fromFolder: 0 });
+        setNote(`${f.name}: IFC model read — ${d.storeys} storeys, ${d.tasks} 4D tasks, ${d.kept} of ${d.total} entities kept (geometry left out). Add drawings or the programme if you have them, then Create project: the AI builds the 4D from it.`);
+        return;
+      }
+      const { spec, warnings, kind } = importFourD(await f.text(), f.name);
+      onCreated({ id: `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, createdAt: new Date().toISOString(), docs: [f.name],
+        result: { spec, warnings, engine: "file", model: kind, ms: 0, tried: [], route: "uploaded 4D model — no AI needed",
+          log: [{ step: "Import", detail: `${f.name}: ${spec.buildings.length} buildings, ${spec.schedule.activities.length} activities, programme ${spec.schedule.start} – ${spec.schedule.finish}` }] } });
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
+  };
   const folderOk = useMemo(() => typeof document !== "undefined" && "webkitdirectory" in document.createElement("input"), []);
 
   useEffect(() => { if (!busy) return; setStep(0); const t = setInterval(() => setStep((s) => Math.min(STEPS.length - 1, s + 1)), 2600); return () => clearInterval(t); }, [busy]);
@@ -109,8 +137,8 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
     if (c.skipped.length) parts.push(`skipped ${c.skipped.length} unsupported: ${c.skipped.slice(0, 3).map((s) => s.split("/").pop()).join(", ")}${c.skipped.length > 3 ? "…" : ""}`);
     setNote(parts.join(" · ")); setErr("");
   };
-  const pick = async (list: FileList | null) => { if (!list?.length) return; setReading(true); try { take(await collectFromList(list)); } catch (e) { setErr(`Could not read the files: ${e instanceof Error ? e.message : e}`); } finally { setReading(false); } };
-  const drop = async (e: DragEvent) => { e.preventDefault(); setOver(false); setReading(true); try { take(await collectFromDrop(e.dataTransfer)); } catch (er) { setErr(`Could not read the dropped items: ${er instanceof Error ? er.message : er}`); } finally { setReading(false); } };
+  const pick = async (list: FileList | null) => { if (!list?.length) return; setReading(true); try { take(await digestIfc(await collectFromList(list))); } catch (e) { setErr(`Could not read the files: ${e instanceof Error ? e.message : e}`); } finally { setReading(false); } };
+  const drop = async (e: DragEvent) => { e.preventDefault(); setOver(false); setReading(true); try { take(await digestIfc(await collectFromDrop(e.dataTransfer))); } catch (er) { setErr(`Could not read the dropped items: ${er instanceof Error ? er.message : er}`); } finally { setReading(false); } };
   const loadDemo = () => { setDocs(mockDocs().map((d) => ({ name: d.name, size: new Blob([d.text]).size, text: d.text, demo: true }))); setNote(`${MOCK_PROJECT.name} demo pack: ${mockDocs().length} documents`); setErr(""); };
   const preview = async (d: Doc) => {
     if (peek === d.name) { setPeek(null); return; }
@@ -122,7 +150,7 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
   const generate = async () => {
     if (!docs.length || busy) return;
     if (total > MAX_BYTES) { setErr(`The documents add up to ${kb(total)}; the limit per project is 4 MB. Remove the largest PDFs or images.`); return; }
-    setBusy(true); setErr("");
+    setBusy(true); setErr(""); setT0(Date.now()); setNow(Date.now());
     try {
       const fd = new FormData();
       for (const d of docs) fd.append("files", d.file ?? new File([d.text ?? ""], d.name, { type: mimeOf(d.name) }));
@@ -151,8 +179,8 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
           <span className="drop-ico"><Icon name="upload" /></span>
           <b>{reading ? "Reading…" : over ? "Drop to add" : "Upload documents"}</b>
           <span>Drop files, folders or .zip archives here, or tap to choose. Zips are unpacked automatically{folderOk ? <>; <button type="button" className="linkish" onClick={(e) => { e.stopPropagation(); folder.current?.click(); }}>pick a whole folder</button></> : null}.</span>
-          <em>Area schedule, setting-out, P6 / MS Project export (CSV), logistics plan, brief, PDFs, plan images · up to 20 documents, 4 MB</em>
-          <input ref={files} type="file" multiple hidden onClick={(e) => e.stopPropagation()} accept=".csv,.tsv,.txt,.md,.json,.xml,.xer,.pdf,.png,.jpg,.jpeg,.webp,.zip,application/zip" onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
+          <em>Designs (site plans, elevations, sections as PDF or images), area schedule, setting-out, P6 / MS Project export, IFC model, logistics plan, brief · up to 20 documents, 4 MB</em>
+          <input ref={files} type="file" multiple hidden onClick={(e) => e.stopPropagation()} accept=".csv,.tsv,.txt,.md,.json,.xml,.xer,.ifc,.pdf,.png,.jpg,.jpeg,.webp,.zip,application/zip" onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
           <input ref={folder} type="file" multiple hidden onClick={(e) => e.stopPropagation()} {...{ webkitdirectory: "", directory: "" }} onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
         </div>
         {note && <p className="studio-ok">{note}</p>}
@@ -177,8 +205,18 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
         )}
       </div>
 
+      <div className="studio-card">
+        <div className="studio-l">Or · Upload a 4D model</div>
+        <div className="studio-4d">
+          <p>Already have the model? Open a <b>Kinan 4D file</b> (<i>.kinan4d</i>, exported from any project here) or 4D JSON straight away, or an <b>IFC</b> model with its 4D schedule (IfcTask) — the AI reads its buildings, storeys and tasks into the 4D.</p>
+          <button className="studio-add" onClick={() => model4d.current?.click()}><Icon name="upload" />Upload 4D model</button>
+          <input ref={model4d} type="file" hidden accept=".kinan4d,.json,.ifc,application/json" onChange={(e) => { load4d(e.target.files); e.target.value = ""; }} />
+        </div>
+      </div>
+
       {err && <div className="studio-err">{err}</div>}
-      <button className="studio-go" disabled={!docs.length || busy || reading} onClick={generate}>{busy ? "Building the model…" : "Create project"}</button>
+      <button className="studio-go" disabled={!docs.length || busy || reading} onClick={generate}>{busy ? `Reading the documents with AI… ${clock(now - t0)}` : "Create project"}</button>
+      {busy && <p className="studio-clock" role="timer" aria-live="off"><b>{clock(now - t0)}</b> The AI is reading every document — {docs.length} file{docs.length === 1 ? "" : "s"}, {kb(total)}. Packs with drawings take a minute or two.</p>}
       {busy && <ol className="studio-steps">{STEPS.map((s, i) => <li key={s} className={i < step ? "done" : i === step ? "now" : ""}>{s}</li>)}</ol>}
     </div>
   );
@@ -213,9 +251,13 @@ export function ProjectView({ project, onBack }: { project: GenProject; onBack: 
       </Suspense>
       <div className="studio-bar">
         <button className="x back" onClick={onBack} aria-label="Back to projects"><Icon name="back" /></button>
-        <div className="studio-title"><b>{spec.name}</b><em>{ENGINE_NAME[res.engine] ?? res.engine}{res.model && res.model.toLowerCase() !== (ENGINE_NAME[res.engine] ?? "").toLowerCase() ? ` · ${res.model}` : ""} · {spec.buildings.length} buildings · {project.docs.length || "?"} documents</em></div>
+        <div className="studio-title"><b>{spec.name}</b><em>{ENGINE_NAME[res.engine] ?? res.engine}{res.model && res.model.toLowerCase() !== (ENGINE_NAME[res.engine] ?? "").toLowerCase() ? ` · ${res.model}` : ""}{res.engine !== "file" && res.ms > 0 ? ` · read in ${res.ms >= 60000 ? `${Math.floor(res.ms / 60000)} min ${Math.round((res.ms % 60000) / 1000)} s` : `${Math.round(res.ms / 1000)} s`}` : ""} · {spec.buildings.length} buildings · {project.docs.length || "?"} documents</em></div>
         <button className={"mini" + (showCp ? " on" : "")} onClick={() => { setShowCp((d) => !d); setDetails(false); setSel(undefined); }} aria-expanded={showCp}>Critical path</button>
         <button className="mini" onClick={() => { setDetails((d) => !d); setSel(undefined); setShowCp(false); }} aria-expanded={details}>{details ? "Hide" : "What it read"}</button>
+        <button className="mini" title="Download this model as a Kinan 4D file, to open it again here or on another device" onClick={() => {
+          const u = URL.createObjectURL(new Blob([exportFourD(spec)], { type: "application/json" })), a = document.createElement("a");
+          a.href = u; a.download = `${spec.name.replace(/[^\w\u0600-\u06ff -]+/g, "").trim() || "project"}.kinan4d`; a.click(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+        }}>Export 4D</button>
       </div>
       {selB && (
         <div className="studio-sheet small">

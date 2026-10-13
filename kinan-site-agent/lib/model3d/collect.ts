@@ -5,8 +5,8 @@
  */
 import { unzipSync } from "fflate";
 
-export const SUPPORTED = /\.(csv|tsv|txt|md|json|xml|xer|pdf|png|jpe?g|webp)$/i;
-const MIME: Record<string, string> = { csv: "text/csv", tsv: "text/tab-separated-values", txt: "text/plain", md: "text/markdown", json: "application/json", xml: "application/xml", xer: "text/plain", pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp" };
+export const SUPPORTED = /\.(csv|tsv|txt|md|json|xml|xer|ifc|kinan4d|pdf|png|jpe?g|webp)$/i;
+const MIME: Record<string, string> = { csv: "text/csv", tsv: "text/tab-separated-values", txt: "text/plain", md: "text/markdown", json: "application/json", xml: "application/xml", xer: "text/plain", ifc: "text/plain", kinan4d: "application/json", pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp" };
 export const mimeOf = (name: string) => MIME[name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
 const base = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const junk = (p: string) => /(^|[\\/])__MACOSX([\\/]|$)/.test(p) || base(p).startsWith(".") || /^(thumbs\.db|desktop\.ini)$/i.test(base(p));

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractModel, model3dConfig, type Engine, type ExtractDoc } from "@/lib/model3d/extract";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// Every pack is read by the AI (no offline shortcut): a large pack of drawings can take a few minutes.
+export const maxDuration = 300;
 
-const TEXT = /\.(csv|tsv|txt|md|json|xml|xer|html?)$/i;
+const TEXT = /\.(csv|tsv|txt|md|json|xml|xer|ifc|html?)$/i;
 const MAX_FILES = 20, MAX_BYTES = 4_000_000; // Vercel's request limit is 4.5 MB
 
 /** Which engines are available (keys configured). Never returns keys. */
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     else if (mime === "application/pdf" || mime.startsWith("image/")) docs.push({ name: f.name, mime, base64: buf.toString("base64") });
   }
   try {
-    const out = await extractModel(model3dConfig(process.env as Record<string, string | undefined>), docs, engine, { deadline: Date.now() + 55_000, route: process.env.MODEL3D_ROUTE });
+    const out = await extractModel(model3dConfig(process.env as Record<string, string | undefined>), docs, engine, { deadline: Date.now() + 285_000, route: process.env.MODEL3D_ROUTE, aiOnly: engine !== "offline" });
     return NextResponse.json(out);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 502 });
