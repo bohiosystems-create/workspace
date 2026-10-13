@@ -27,6 +27,7 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
   const [f, setF] = useState("");
   // a filter set by clicking a chart (a package status, a delivery day, a permit or incident type, a building)
   const [pick, setPick] = useState<{ kind: string; value: string; label: string } | null>(null);
+  const [doneN, setDoneN] = useState(20);
   useEffect(() => { fetch("/api/project", { cache: "no-store" }).then((r) => r.json()).then(setData).catch(() => setData(null)); }, [refreshKey]);
   useEffect(() => { setQ(""); setF(""); setPick(null); }, [sec]);
   const db = useMemo(() => (data ? ({ locations, data, docs: [], notes: [], project: { name: "", client: "", code: "" } } as Db) : null), [data, locations]);
@@ -142,6 +143,35 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
           ))}
           {!list.length && <li className="empty">No activities match.</li>}
         </ul>
+        {(() => {
+          // completed work, newest first — follows the search box and the building picked on the chart
+          const tq = q.trim().toLowerCase();
+          const bIds = bld ? new Set((P.scheduleQuery(db, { location: bld, status: "completed", limit: 5000 }).activities ?? []).map((a) => a.id)) : null;
+          const done = data.schedule.filter((a) => a.status === "completed" && (!tq || `${a.id} ${a.name}`.toLowerCase().includes(tq)) && (!bIds || bIds.has(a.id)))
+            .sort((x, y) => y.finish.localeCompare(x.finish) || x.id.localeCompare(y.id));
+          const onTime = done.filter((a) => slipOf(a) <= 0).length;
+          return (
+            <>
+              <div className="lbl">Completed <span className="dd">{done.length} activities · {done.length ? Math.round((onTime / done.length) * 100) : 0}% finished on or before baseline</span></div>
+              <ul className="rows done-list">
+                {done.slice(0, doneN).map((a) => {
+                  const u = data.updates?.find((x) => x.activityId === a.id && x.state === "completed");
+                  return (
+                    <li key={a.id}>
+                      <span className="t"><b><span className="done-tick" aria-hidden>✓</span>{a.name}</b>
+                        <em>{a.id} · {a.contractor} · finished {a.finish} · baseline {a.baselineFinish}{u ? ` · reported by ${u.by}` : ""}</em>
+                        {!!u?.evidence.length && <span className="supd-ev">{u.evidence.map((id, i) => <button key={id} onClick={() => onOpenDoc(id)}>📷 Evidence {u.evidence.length > 1 ? i + 1 : ""}</button>)}</span>}
+                      </span>
+                      <Slip d={slipOf(a)} />
+                    </li>
+                  );
+                })}
+                {!done.length && <li className="empty">No completed activities match.</li>}
+              </ul>
+              {done.length > doneN && <button className="mini done-more" onClick={() => setDoneN(doneN + 40)}>Show {Math.min(40, done.length - doneN)} more of {done.length - doneN}</button>}
+            </>
+          );
+        })()}
       </>
     );
   } else if (sec === "procurement") {
