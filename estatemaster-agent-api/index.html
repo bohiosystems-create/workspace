@@ -571,6 +571,9 @@ body.xproj .rep-only{display:none!important}
 .disp-win .card{max-width:760px;width:min(760px,94vw);max-height:86vh;overflow:auto;border-top:4px solid #d03b3b}.disp-item{padding:10px 0 12px;border-bottom:1px solid var(--hair)}.disp-item:last-of-type{border-bottom:0}.disp-h{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px;font-size:13.5px}.disp-t{font-size:12.5px}.disp-t td,.disp-t th{padding:6px 8px}
 .disp-badge{position:fixed;left:16px;bottom:16px;z-index:99;background:#d03b3b;color:#fff;border:0;border-radius:999px;padding:8px 14px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(208,59,59,.35)}
 .msg .calc-audit{margin:8px 0 0;padding:8px 10px;border-radius:10px;border:1px solid var(--hair);background:#fff;font-size:12.5px}.msg .calc-audit.bad{border-color:#d03b3b;background:rgba(208,59,59,.05)}.msg .calc-audit b.who{font-weight:700}
+.ma-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}@media(max-width:1100px){.ma-grid{grid-template-columns:1fr}}
+.ma-test{position:sticky;top:12px;border:1px solid var(--hair);border-radius:14px;padding:14px;background:#fff}.ma-test-h{font-weight:700;font-size:14px}.ma-test textarea{width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--faint);border-radius:10px;resize:vertical}
+.ma-out{margin-top:12px;font-size:13px;line-height:1.5}.ma-out .ttl{font-size:13px;margin:10px 0 4px}.ma-out .bul{padding:6px 10px;margin:4px 0}.ma-rev{margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--hair);font-size:12.5px}.ma-rev.bad{border-color:#d03b3b;background:rgba(208,59,59,.05)}
 .modal{position:fixed;inset:0;background:rgba(46,46,47,.45);display:none;align-items:center;justify-content:center;z-index:100}
 .modal.on{display:flex}
 /* Excel-like reproduction of the uploaded workbook: preview card and full-page viewer */
@@ -857,7 +860,11 @@ table.t tr{border-radius:0}table.t tr>td:first-child{border-top-left-radius:0}
         <div class="sub" id="exSub"></div><div id="exAudit"></div><div id="exWb"></div><div style="overflow-x:auto"><table class="t" id="exT"></table></div></div>
   </div>
   <div class="emsec" data-emsec="assumptions">
-<div class="card"><div class="bar"></div><div class="sbhead"><h2>Model assumptions</h2><input id="maQ" placeholder="Search" style="max-width:200px;font-size:13px;padding:6px 12px;border:1px solid var(--faint);border-radius:999px"><button class="btn ghost sm" id="maXls">Download (Excel)</button></div><div class="sub" id="maSub"></div><div style="overflow:auto;max-height:72vh"><table class="t" id="maT"></table></div></div>
+<div class="card"><div class="bar"></div><div class="sbhead"><h2>Model assumptions</h2><input id="maQ" placeholder="Search" style="max-width:200px;font-size:13px;padding:6px 12px;border:1px solid var(--faint);border-radius:999px"><button class="btn ghost sm" id="maXls">Download (Excel)</button></div><div class="sub" id="maSub"></div><div class="ma-grid"><div style="overflow:auto;max-height:72vh;min-width:0"><table class="t" id="maT"></table></div>
+<aside class="ma-test" id="maTest"><div class="ma-test-h">Test a change</div><div class="sub" style="margin:2px 0 8px">Describe it in plain words. Claude and OpenAI work out the effect from EstateMaster’s figures and check each other; one explains the impact and the risks, the other reviews that explanation.</div>
+<textarea id="maTxt" rows="3" placeholder="e.g. land cost up 15% · construction cost +8% and a 6-month delay · exit yield 50 bps higher"></textarea>
+<div class="chips" style="margin:6px 0 8px"><span class="chip" data-mae="Land cost +15%">Land cost +15%</span><span class="chip" data-mae="Construction cost +10%">Construction cost +10%</span><span class="chip" data-mae="Sale price −10%">Sale price −10%</span><span class="chip" data-mae="6-month delay">6-month delay</span></div>
+<button class="btn sm" id="maGo">Test the change</button><div id="maOut"></div></aside></div></div>
   </div>
   <div class="emsec" data-emsec="checks">
 <div class="card"><div class="bar"></div><h2>Checks on the latest export</h2><div class="sub" id="exChkSub"></div><div id="exChecks"></div></div>
@@ -6551,6 +6558,35 @@ async function calcAudit(m,res){const marks=[];let k=0;String(res.final).replace
       flagDispute({where:'Chat',what:String(res.final).replace(/[*⟦⟧#]/g,'').slice(0,100),kind:'disagree',items:bad.map(z=>{const mk=marks.find(q=>q.i===+z.i);return{label:mk?mk.figure:'figure '+z.i,a:mk?mk.figure:'',b:z.value||'?',an:mName(res.prov,res.model),bn:mName(other.p,other.model),how:String(z.issue||'')}})})}
     try{chatSave&&chatSave()}catch(e){}$('#msgs').scrollTop=1e9}
   catch(e){box.innerHTML=`<span class="sub">The second-model check could not run: ${esc(provErr(e.message))}</span>`}}
+/* ================= Model assumptions → "Test a change": cross-checked figures, then impact and risks in plain words, reviewed by the other model ================= */
+const MA_NARR_SYS=`You are a senior real estate development finance analyst at KINAN. A change to an ARGUS EstateMaster model has been tested: you get EstateMaster's base figures and the cross-checked estimate of the outputs after the change. Explain it to an investment manager in plain words.
+Write exactly these sections, each a bold title line (**Title**) followed by 2 to 4 bullet lines ("- "): **What changes**, **Impact on the returns** (only the figures given, with their direction and size, against the hurdle), **Risks** (what this change exposes the project to: funding, covenants, timing, market, execution, concentration), **What to do** (concrete next steps, including checking the figures in EstateMaster).
+Rules: use only the figures given; never invent a figure; when the two models disagreed, say so; keep it under 220 words; state that the figures are AI estimates, not EstateMaster's.`;
+const MA_REV_SYS=`You review an analyst's plain-words explanation of a tested change to an ARGUS EstateMaster model. You get the figures (EstateMaster's base and the cross-checked estimates) and the explanation. Check that every figure in the text matches the figures given, that directions (up/down, above/below the hurdle) are right, and that no risk or claim contradicts the figures or is unsupported. Reply with JSON only: {"ok":true|false,"issues":[{"text":"the phrase","problem":"max 20 words"}]}. Rounding within 0.1 pts or 1% is fine.`;
+let MABUSY=false;
+async function maTest(text){if(MABUSY)return;text=String(text||'').trim();if(!text){toast('Describe the change first');return}const out=$('#maOut'),go=$('#maGo');if(!out)return;
+  if(!calcPair().length){out.innerHTML='<div class="calcnote">Connect Claude and OpenAI in Settings → AI & routing to test changes.</div>';return}
+  if(hurdleFor().ask){out.innerHTML=hurdleAskHTML();hurdleAskWire(()=>maTest(text));return}
+  MABUSY=true;go.disabled=true;const t0=Date.now(),mmss=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  out.innerHTML=`<div class="as-run" style="margin:10px 0 4px"><span class="spin"></span><b id="maClock">0:00</b><span class="as-now" id="maNow">Starting…</span></div><div class="steps" id="maSteps"></div>`;
+  const clock=setInterval(()=>{const c=$('#maClock');if(c)c.textContent=mmss(Math.floor((Date.now()-t0)/1000))},250);
+  const step=async st=>{const b=$('#maSteps');if(b)b.insertAdjacentHTML('beforeend',`<div class="st done"><i></i><span>${esc(st)}</span></div>`);const n=$('#maNow');if(n)n.textContent=st};
+  try{const res=await aiCrossCheck([{text}],step);const x=res.x,o=x?x.out:{},hur=HUR(),[na,nb]=res.names||res.models.concat(['']);
+    const figs=res.metrics.map(m=>`${MET[m.k][0]}: EstateMaster ${fMet(m.k,o[m.k])} → estimate ${fMet(m.k,m.value)} (${m.status==='agree'?'both models agree':m.status==='reconciled'?'agreed after review':m.status==='arbitrated'?'still apart: '+fMet(m.k,m.a)+' vs '+fMet(m.k,m.b)+', arbitrated':'one model only'})${m.flag?' · a check failed: '+(m.checks||[]).join('; '):''}`).join('\n');
+    const ctx=`Change tested: ${text}\nHurdle: levered IRR ${hur}% (${hurdleFor().src||''}); profit on cost ${(HURDLE.poc*100).toFixed(0)}%.\nFigures:\n${figs}\nMethod (${na}): ${String(res.method||'').slice(0,400)}`;
+    const pair=calcPair(),writer=pair.find(q=>q.p==='anthropic')||pair[0],reviewer=pair.find(q=>q!==writer)||null;
+    await step(`${mName(writer.p,writer.model)} writes the impact and risks`);const nr=await callOne(writer.p,writer.model,MA_NARR_SYS,[{role:'user',content:`${calcContext(x)}\n\n${ctx}`}],false,{max:1800,task:'answer'});const narr=String(nr.text||'').trim();
+    let rev=null;if(reviewer){await step(`${mName(reviewer.p,reviewer.model)} reviews the explanation against the figures`);try{rev=jsonFrom((await callOne(reviewer.p,reviewer.model,MA_REV_SYS,[{role:'user',content:`${ctx}\n\nExplanation:\n${narr}`}],false,{max:1500,task:'calc'})).text)}catch(e){rev={error:provErr(e.message)}}}
+    const bad=rev&&Array.isArray(rev.issues)?rev.issues.filter(z=>z&&z.problem):[];
+    if(bad.length)flagDispute({where:'Model assumptions',what:`explanation of “${text.slice(0,80)}”`,kind:'disagree',items:bad.slice(0,8).map(z=>({label:String(z.text||'').slice(0,80),a:mName(writer.p,writer.model),b:mName(reviewer.p,reviewer.model),an:'Written by',bn:'Reviewed by',how:String(z.problem)})),link:['em','Open Financial modelling']});
+    clearInterval(clock);const took=mmss(Math.round((Date.now()-t0)/1000));
+    out.innerHTML=`<div class="ma-out"><div class="sub" style="margin:8px 0 0">${esc(text)} · tested in ${took}</div>${testHTML(res)}<div style="margin-top:10px">${mdLite(narr)}</div>
+      <div class="ma-rev ${bad.length?'bad':''}">${!reviewer?'Only one model connected: the explanation was not reviewed.':rev&&rev.error?`The review could not run: ${esc(rev.error)}`:bad.length?`<b>${esc(mName(reviewer.p,reviewer.model))} found ${bad.length} issue${bad.length>1?'s':''} in the explanation:</b><ul style="margin:4px 0 0 18px">${bad.map(z=>`<li>“${esc(String(z.text||'').slice(0,90))}” · ${esc(String(z.problem))}</li>`).join('')}</ul>`:`✓ ${esc(mName(reviewer.p,reviewer.model))} reviewed the explanation: it matches the figures.`}</div>
+      <div class="sub" style="margin:6px 0 0">AI estimates from EstateMaster’s figures, not EstateMaster’s own. Check them in EstateMaster before a decision.</div></div>`}
+  catch(e){clearInterval(clock);out.innerHTML=`<div class="calcnote">${esc(provErr(e.message))}</div>`}
+  finally{clearInterval(clock);MABUSY=false;go.disabled=false}}
+document.addEventListener('click',e=>{if(e.target.id==='maGo'){maTest($('#maTxt').value);return}const c=e.target.closest('[data-mae]');if(c){$('#maTxt').value=c.dataset.mae;$('#maTxt').focus()}});
+document.addEventListener('keydown',e=>{if(e.target&&e.target.id==='maTxt'&&e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();maTest(e.target.value)}});
 /* ================= TASK ROUTER ================= */
 const ROUTESTATS={calc:0,data:0,api:0,calls:0,fallback:0};
 const ASK=/\b(what is|what's|what are|what was|what were|how much|how many|how far|how long|average|mean|total|sum|ratio|per sqm|per unit|difference|gap|growth|trend|which (project|fund|scenario|assumption|district|year|month)|biggest|largest|smallest|lowest|highest|best|worst|rank|top \d|bottom \d|most|least|percent of|share of|times|multiple)\b/;
