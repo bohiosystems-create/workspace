@@ -14,10 +14,15 @@ const DB_KEY = "db.json";
 interface Loaded { repo: Repo; etag: string; base: string }
 const g = globalThis as unknown as { __kinan?: Loaded; __kinanSaving?: Promise<unknown> };
 
-/** The demo data follows the calendar: on a new day, move it to today (lib/data rollToToday) and save. */
+/**
+ * The demo data follows the calendar: on a new day each instance moves its copy to today in memory
+ * (lib/data rollToToday). It is not saved for this — the rolled data is derived, the same on every instance, and
+ * goes to storage with the next real change (a note, an upload). Saving it on every first request of the day made
+ * all instances write the whole database at once and conflict.
+ */
 async function roll(repo: Repo): Promise<Repo> {
   const fresh = repo.db.data ? rollToToday(repo.db.data) : null;
-  if (fresh) { repo.db.data = fresh; await repo.save(); }
+  if (fresh) repo.db.data = fresh;
   return repo;
 }
 
@@ -43,10 +48,12 @@ function makeRepo(db: Db, etag: string, base: string): Loaded {
 async function saveLoaded(L: Loaded): Promise<void> {
   const run = async () => {
     const st = store();
+    let force = false;
     for (let attempt = 0; attempt < 4; attempt++) {
       const json = JSON.stringify(L.repo.db);
       try {
-        const { etag } = await st.write(DB_KEY, enc(json), "application/json", L.etag || null);
+        // force: no precondition (undefined) — only when the stored copy is known to be our base
+        const { etag } = await st.write(DB_KEY, enc(json), "application/json", force ? undefined : L.etag || null);
         L.etag = etag; L.base = json;
         g.__kinan = L;
         return;
@@ -54,6 +61,8 @@ async function saveLoaded(L: Loaded): Promise<void> {
         if (!(e instanceof ConflictError)) throw e;
         const latest = await st.read(DB_KEY);
         if (!latest || latest === "unchanged") { L.etag = ""; continue; }
+        // Nobody else changed it (the stored copy is still our base): the precondition failure is spurious — write over it.
+        if (dec(latest.bytes) === L.base) { force = true; continue; }
         const theirs = JSON.parse(dec(latest.bytes)) as Db;
         const merged = merge3(JSON.parse(L.base), L.repo.db, theirs) as Db;
         Object.assign(L.repo.db, merged);
