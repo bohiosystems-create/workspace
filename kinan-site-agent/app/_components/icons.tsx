@@ -58,5 +58,5 @@ export function Logo({ className = "logo", color = "#ffffff", height = 30 }: { c
 
 export const CATEGORY_ICON: Record<string, string> = {
   Drawing: "drawing", Specification: "spec", RFI: "rfi", Inspection: "check", "Method Statement": "tool", Permit: "badge",
-  HSE: "helmet", Submittal: "box", Minutes: "notes", "Snag List": "wrench", Variation: "coins", Photo: "photo", Other: "file",
+  HSE: "helmet", Submittal: "box", Minutes: "notes", "Snag List": "wrench", Variation: "coins", NCR: "badge", Report: "notes", "Delivery Note": "box", Photo: "photo", Other: "file",
 };

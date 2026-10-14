@@ -10,7 +10,10 @@ import { serverLlm } from "./llmConfig";
 import { availableProviders, routeAndRun } from "./core/llm/router";
 import { synthesize, voiceAccount, voiceEnabled } from "./deck/voice";
 import { sttProvider } from "./core/stt";
-import { waConfig } from "./whatsapp/graph";
+import { sendText, waConfig } from "./whatsapp/graph";
+import { extractModel, model3dConfig, type ExtractDoc } from "./model3d/extract";
+import fs from "node:fs";
+import path from "node:path";
 import { outlookCredsSet, outlookMode, outlookSender } from "./outlook";
 import { serverReports } from "./reports/server";
 import { readGenerated } from "./generated";
@@ -117,6 +120,9 @@ export async function readiness(deep = false): Promise<Readiness> {
   const db = (await getRepo()).db, gen = await readGenerated().catch(() => ({ projects: [] as unknown[] }));
   const seedNotes = seedDb().notes.length;
   const userDocs = db.docs.filter((d) => !d.id.startsWith("d_seed")).length, pins = db.locations.filter((l) => l.type === "pin").length, upd = db.data.updates?.length ?? 0, userNotes = Math.max(0, db.notes.length - seedNotes);
+  const sample = (gen.projects as { docs?: string[]; result?: { engine?: string; model?: string; ms?: number }; createdAt?: string }[]).find((p) => p.docs?.some((d) => d.startsWith("MW-PM-001")));
+  push(sample ? { id: "sample", label: "Sample project (Kinan Marina Walk)", status: "ok", detail: `Generated ${String(sample.createdAt ?? "").slice(0, 16).replace("T", " ")} by ${sample.result?.engine ?? "?"}${sample.result?.model ? ` · ${sample.result.model}` : ""}${sample.result?.ms ? ` in ${Math.round(sample.result.ms / 1000)} s` : ""} — open it from Projects.` }
+    : { id: "sample", label: "Sample project (Kinan Marina Walk)", status: "warn", detail: "Not generated yet on this deployment.", fix: "Use 'Generate the sample project' below: a real AI read of the 12-document pack, 1–3 minutes, so you show a finished project instead of waiting live." });
   push({ id: "data", label: "Site data", status: "ok", detail: `Data date ${db.data.meta.dataDate}${db.data.meta.fixed ? " (fixed: a real programme was imported)" : " (follows the calendar)"} · ${db.data.schedule.length} activities · ${gen.projects.length} generated project${gen.projects.length === 1 ? "" : "s"} on the server.` });
   push(userDocs || userNotes || pins || upd ? { id: "clean", label: "Test traces", status: "warn", detail: `${userDocs} uploaded file${userDocs === 1 ? "" : "s"}, ${userNotes} note${userNotes === 1 ? "" : "s"}, ${pins} dropped pin${pins === 1 ? "" : "s"}, ${upd} site update${upd === 1 ? "" : "s"} on top of the seeded site.`, fix: "Keep them if they are part of the story (e.g. the L14 slab you marked done). Otherwise 'Reset demo data' below." }
     : { id: "clean", label: "Test traces", status: "ok", detail: "The site is as seeded." });
@@ -138,4 +144,44 @@ export async function resetDemoData() {
   Object.assign(repo.db, fresh);
   await repo.save();
   return { docs: repo.db.docs.length, notes: repo.db.notes.length, dataDate: repo.db.data.meta.dataDate };
+}
+
+// ---------------------------------------------------------------------------------------------------- rehearsal actions
+const SAMPLE_DIR = path.join(process.cwd(), "public", "samples", "kinan-marina-walk");
+/** Read the Kinan Marina Walk sample pack with the AI (the same route a client's pack takes) and return the project to keep. */
+export async function sampleProject() {
+  const names = fs.readdirSync(SAMPLE_DIR).filter((n) => /\.(csv|md|txt)$/i.test(n) && !/^README/i.test(n)).sort();
+  if (!names.length) throw new Error("The sample pack is missing from public/samples.");
+  const docs: ExtractDoc[] = names.map((n) => ({ name: n, mime: n.endsWith(".csv") ? "text/csv" : "text/markdown", text: fs.readFileSync(path.join(SAMPLE_DIR, n), "utf8") }));
+  const result = await extractModel(model3dConfig(process.env as Record<string, string | undefined>), docs, "auto", { deadline: Date.now() + 280_000, route: process.env.MODEL3D_ROUTE, aiOnly: true });
+  // the brief names the project; if the engine left the name out, fill it from the pack so the card is not "Generated project"
+  if (!result.spec.name || /^generated project$/i.test(result.spec.name)) result.spec.name = "Kinan Marina Walk";
+  result.spec.location ||= "Corniche, Al Khobar"; result.spec.client ||= "Kinan Marina Development Co. (demo)";
+  return { docs: names, result };
+}
+
+/** One outbound WhatsApp text to the first allowed number: proves token, phone number and recipient together. */
+export async function waTestMessage() {
+  const c = waConfig();
+  if (!c) throw new Error("WhatsApp is not connected (WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID).");
+  const first = (process.env.WHATSAPP_ALLOWED_NUMBERS ?? "").split(",").map((x) => x.trim()).filter(Boolean)[0];
+  if (!first) throw new Error("No allowed number to send to (WHATSAPP_ALLOWED_NUMBERS).");
+  const [num, ...rest] = first.split(":"); const to = num.replace(/[^\d]/g, ""), who = rest.join(":").trim();
+  const when = new Date().toISOString().slice(11, 16);
+  try {
+    await sendText(c, to, `Kinan Onsite Agent — system check at ${when} UTC: this number can receive messages. Reply "hi" to start.`);
+    return { to: `${to.slice(0, 3)}…${to.slice(-3)}${who ? ` (${who})` : ""}` };
+  } catch (e) {
+    const m = String((e as Error)?.message ?? e);
+    const hint = /131030|not in allowed list|recipient/i.test(m) ? " The phone is not a test recipient in Meta's app dashboard (WhatsApp → API Setup → To)." : /131047|re-engagement|24/i.test(m) ? " No open conversation: send 'hi' from the phone first, then try again." : "";
+    throw new Error(`Meta refused the message: ${m.slice(0, 200)}.${hint}`);
+  }
+}
+
+/** A short line in each voice, as base64 mp3, so the voices can be heard before the meeting. */
+export async function voiceSample(lang: "en" | "ar") {
+  if (!voiceEnabled()) throw new Error("ELEVENLABS_API_KEY is not set.");
+  const text = lang === "ar" ? "صباح الخير. هذا هو المقدّم العربي لموجز الموقع اليومي من كنان." : "Good morning. This is the Kinan presenter for the daily site brief.";
+  const s = await synthesize(text, lang);
+  return { lang, audio: s.audio };
 }

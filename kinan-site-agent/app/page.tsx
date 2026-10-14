@@ -177,7 +177,7 @@ export default function Home() {
           {screen === "new" && <NewProject onCancel={() => setScreen("home")} onCreated={(p) => { putProjects([p, ...projects]); setScreen(`p:${p.id}`); }} />}
           {gen && <ProjectView key={gen.id} project={gen} onBack={() => setScreen("home")} />}
           {screen === "reports" && <Reports author={author} />}
-          {screen === "ready" && <Readiness onBack={() => setScreen("home")} onReset={refresh} />}
+          {screen === "ready" && <Readiness onBack={() => setScreen("home")} onReset={refresh} onProject={(p) => putProjects([p, ...projects])} />}
           {genId && !gen && <div className="studio-empty"><p>That project is no longer on this device.</p></div>}
         </main>
       )}

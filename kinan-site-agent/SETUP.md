@@ -472,6 +472,8 @@ How it syncs: mail from the last 60 days on the first sync, then only new mail; 
 
 ---
 
+**Rehearse for real** (same screen): **Generate the sample project** reads the Kinan Marina Walk pack with the AI on the server (1–3 minutes) and saves it to the Projects page, so the "AI reads a document pack" story is shown on a finished project; the check line *Sample project* then says which engine built it and how long it took. **Send a WhatsApp test** sends one message to the first number in `WHATSAPP_ALLOWED_NUMBERS`: if it arrives, token, phone number and recipient all work (on Meta's test number the phone must be a test recipient, and outside a 24-hour conversation window Meta may refuse it: send "hi" from the phone first). **▶ English voice / الصوت العربي** play one line in each ElevenLabs voice so you hear the presenter before the meeting.
+
 ### 10.1 Sample material for testing
 
 Two packs of fictional documents ship with the app under `public/samples/` (served at `/samples/…`; regenerate with `node scripts/samples.mjs`):

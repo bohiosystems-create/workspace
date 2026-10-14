@@ -16,7 +16,7 @@ export interface Location {
 
 export const CATEGORIES = [
   "Drawing", "Specification", "RFI", "Inspection", "Method Statement", "Permit",
-  "HSE", "Submittal", "Minutes", "Snag List", "Variation", "Photo", "Other",
+  "HSE", "Submittal", "Minutes", "Snag List", "Variation", "NCR", "Report", "Delivery Note", "Photo", "Other",
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
