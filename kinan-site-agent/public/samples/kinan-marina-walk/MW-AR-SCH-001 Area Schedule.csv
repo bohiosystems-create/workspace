@@ -1,0 +1,21 @@
+Building Ref,Building Name,Use,Storeys Above Ground,Basement Levels,Floor-to-Floor (m),Footprint E-W (m),Footprint N-S (m),GFA (m2),Units / Keys,Overall Height (m)
+MT1,Marina Tower 1,Residential,40,3,3.40,44,44,64800,286 apartments,142.0
+MT2,Marina Tower 2,Residential,36,3,3.40,42,42,54200,248 apartments,128.4
+OF1,Marina Office Tower,Office,22,2,3.90,52,36,38600,"31,000 m² NLA",91.8
+HB1,Boutique Hotel,Hotel,12,1,3.50,70,28,21400,148 keys,48.0
+RP1,Marina Retail Promenade,Retail,2,1,5.60,220,32,13900,38 units + 14 F&B,12.7
+CC1,Conference & Cultural Centre,Cultural,3,0,5.00,90,60,14200,"1,200-seat hall",16.5
+CP1,Marina Car Park,Parking,5,0,3.00,80,50,19600,780 bays,16.5
+CL1,Marina Club & Spa,Leisure,2,0,4.20,48,36,3100,members' club,9.9
+MQ1,Marina Mosque,Mosque,1,0,7.00,34,34,1150,800 worshippers,8.5
+UT1,Substation & Chiller Plant,Utility,1,0,5.00,28,18,500,"2 × 3 MVA · 3,600 TR",6.5
+V01,Waterfront Villa 1,Villa,3,0,3.30,15,20,720,1 home,11.4
+V02,Waterfront Villa 2,Villa,3,0,3.30,15,20,720,1 home,11.4
+V03,Waterfront Villa 3,Villa,3,0,3.30,15,20,720,1 home,11.4
+V04,Waterfront Villa 4,Villa,3,0,3.30,15,20,720,1 home,11.4
+V05,Waterfront Villa 5,Villa,3,0,3.30,15,20,720,1 home,11.4
+V06,Waterfront Villa 6,Villa,3,0,3.30,15,20,720,1 home,11.4
+V07,Waterfront Villa 7,Villa,3,0,3.30,15,20,720,1 home,11.4
+V08,Waterfront Villa 8,Villa,3,0,3.30,15,20,720,1 home,11.4
+V09,Waterfront Villa 9,Villa,3,0,3.30,15,20,720,1 home,11.4
+V10,Waterfront Villa 10,Villa,3,0,3.30,15,20,720,1 home,11.4

@@ -15,10 +15,10 @@ const SCRIPT: [string, string][] = [
   ["Open on the phone", "Projects → Kinan Heights. The site map: pins are documents and issues; tap Tower A, then 3D to show the model being built day by day (▶ on the timeline)."],
   ["WhatsApp", "From an allowed phone: 'hi' → pick Kinan Heights → 'what's late on the critical path?' Then a photo of a slab with the caption 'Tower A L15 slab at 60%' → it is filed as evidence and the schedule moves. Then a voice note."],
   ["Project schedule", "Show the critical path, the Site updates list (the WhatsApp update you just sent is there, with the photo), then Procurement → packages at risk."],
-  ["Documents", "Open a drawing, leave a note by voice (microphone), and show the photo you sent with its AI reading."],
+  ["Documents", "Open a drawing, leave a note by voice (microphone), and show the photo you sent with its AI reading. Upload one of the sample site documents (RFI-0163) and ask what the engineer answered."],
   ["Ask the agent", "'Which deliveries are delayed this week and what do they block?' — answered from the data with the source named."],
   ["Briefs → ▶ Play", "Play today's brief (prepare it below first). Switch to العربية and play again. Ask the presenter a question by voice mid-way."],
-  ["New project", "Open a project you generated earlier from a document pack (generate it before the meeting, not live), play its 4D, show What it read."],
+  ["New project", "Open a project you generated earlier from a document pack (generate it before the meeting, not live — the Kinan Marina Walk sample pack takes 1–3 minutes), play its 4D, show What it read."],
 ];
 
 export default function Readiness({ onBack, onReset }: { onBack: () => void; onReset: () => void }) {

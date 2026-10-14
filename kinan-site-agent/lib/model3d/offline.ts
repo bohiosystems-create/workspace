@@ -37,7 +37,7 @@ const col = (head: string[], ...keys: (string | RegExp)[]) => head.findIndex((h)
 const n = (s: string | undefined) => { const v = parseFloat(String(s ?? "").replace(/[^\d.\-]/g, "")); return Number.isFinite(v) ? v : NaN; };
 const usageOf = (s: string): Use => {
   const t = s.toLowerCase();
-  return /town|villa/.test(t) ? "townhouse" : /hotel/.test(t) ? "hotel" : /retail|mall|podium|shop/.test(t) ? "retail" : /office|commercial/.test(t) ? "office" : /park|car|mscp/.test(t) ? "parking" : /school|education/.test(t) ? "school" : /mosque|masjid/.test(t) ? "mosque" : /util|substation|plant|tank|stp/.test(t) ? "utility" : /club|amenit|gym|community/.test(t) ? "amenity" : "residential";
+  return /town|villa/.test(t) ? "townhouse" : /hotel/.test(t) ? "hotel" : /retail|mall|podium|shop/.test(t) ? "retail" : /office|commercial/.test(t) ? "office" : /park|car|mscp/.test(t) ? "parking" : /school|education|cultur|conference|theatre|hall/.test(t) ? "school" : /mosque|masjid/.test(t) ? "mosque" : /util|substation|plant|tank|stp/.test(t) ? "utility" : /club|amenit|gym|community/.test(t) ? "amenity" : "residential";
 };
 const phaseOf = (s: string): Phase | null => {
   const t = s.toLowerCase();
@@ -67,9 +67,11 @@ export function parseOffline(docs: InDoc[]): { raw: Record<string, unknown>; log
   // ---- classify CSV tables by their columns
   type Tab = { doc: InDoc; head: string[]; rows: string[][] };
   const tabs: Tab[] = docs.filter((d) => /\.(csv|tsv|txt)$/i.test(d.name) || d.text.split("\n")[1]?.split(",").length > 3).map((d) => { const r = parseCsv(d.text); return { doc: d, head: (r[0] ?? []).map((h) => h.trim()), rows: r.slice(1) }; }).filter((t) => t.head.length > 2);
-  const area = tabs.find((t) => col(t.head, "storey", "floors", "levels above") >= 0 && col(t.head, "building", "block", "ref") >= 0);
-  const so = tabs.find((t) => col(t.head, "easting", /^x$/i) >= 0 && col(t.head, "northing", /^y$/i) >= 0);
-  const prog = tabs.find((t) => col(t.head, "start") >= 0 && col(t.head, "finish", "end") >= 0 && col(t.head, "activity name", "description", "task") >= 0);
+  // a real table (a .csv, many rows) beats a prose paragraph that happens to contain commas and the right words
+  const best = (pred: (t: Tab) => boolean) => tabs.filter(pred).sort((a, b) => Number(/\.(csv|tsv)$/i.test(b.doc.name)) - Number(/\.(csv|tsv)$/i.test(a.doc.name)) || b.rows.length - a.rows.length)[0];
+  const area = best((t) => col(t.head, "storey", "floors", "levels above") >= 0 && col(t.head, "building", "block", "ref") >= 0);
+  const so = best((t) => col(t.head, "easting", /^x$/i) >= 0 && col(t.head, "northing", /^y$/i) >= 0);
+  const prog = best((t) => col(t.head, "start") >= 0 && col(t.head, "finish", "end") >= 0 && col(t.head, "activity name", "description", "task") >= 0);
 
   // ---- buildings from the area schedule
   const bs: Record<string, any>[] = [];

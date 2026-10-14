@@ -1,0 +1,9 @@
+# Delivery note DN-00231 — Najd Steel Supply to Kinan Heights — against PO-4500123 (PKG-01 Reinforcement steel), call-off batch 6
+# Delivered 13-Oct-26 22:40, slot 22:00–00:00, Gate 2, unloaded at the rebar yard. Vehicle: flatbed 3-axle, plate 7412 RKA. Received by: Hassan Nouri (Logistics). GRN: GRN-27418
+Line,Item,Grade,Diameter (mm),Length (m),Bundles,Weight (t),Heat No,Mill Certificate,Condition
+1,Rebar Grade 60,ASTM A615 Gr 60,16,12,24,38.4,H-26-4471,MC-4471-A,OK
+2,Rebar Grade 60,ASTM A615 Gr 60,20,12,18,42.6,H-26-4472,MC-4472-A,OK
+3,Rebar Grade 60,ASTM A615 Gr 60,25,12,12,44.1,H-26-4480,MC-4480-A,OK
+4,Rebar Grade 60,ASTM A615 Gr 60,12,12,10,10.6,H-26-4466,MC-4466-A,"2 bundles surface rust, accepted (light)"
+5,Rebar Grade 60,ASTM A615 Gr 60,32,12,6,28.9,H-26-4483,MC-4483-A,OK
+# Total 164.6 t. Short delivery: 8 bundles Ø10 (12.5 t) not loaded — to follow on batch 7, 20-Oct-26. Tested samples: 3 per diameter sent to the site lab (tensile, bend).

@@ -24,13 +24,16 @@ function shortlist(c: PhotoContext) {
 /** Index an uploaded PDF / photo with whichever provider the router picks (PDFs prefer Anthropic). */
 export async function describeUpload(cfg: LlmConfig, bytes: Uint8Array, mime: string, name: string, ctx?: PhotoContext): Promise<Described | null> {
   if (!availableProviders(cfg).length || bytes.length > 4.5 * 1024 * 1024) return null;
-  if (mime !== "application/pdf" && !/^image\/(jpeg|png|gif|webp)$/.test(mime)) return null;
+  const texty = /\.(txt|md|csv|tsv|json|log)$/i.test(name) || /^text\//.test(mime);
+  if (!texty && mime !== "application/pdf" && !/^image\/(jpeg|png|gif|webp)$/.test(mime)) return null;
   if (ctx && mime.startsWith("image/")) return readPhoto(cfg, bytes, mime, name, ctx);
+  // text documents (RFIs, reports, minutes, CSV logs…) are read inline; binaries are attached
+  const text = texty ? new TextDecoder().decode(bytes).slice(0, 60_000) : "";
   try {
     const { out, route } = await routeAndRun(cfg, {
       system: "You index construction project documents for a onsite agent. Reply with JSON only.",
-      history: [{ role: "user", content: `File name: "${name}". Return ONLY JSON: {"title": string, "category": one of ${JSON.stringify(CATEGORIES)}, "discipline": "ARC"|"STR"|"MEP"|"CIV"|"HSE"|"QA"|null, "revision": string|null, "summary": "<=200 chars", "text": "faithful transcription of the key content: titles/sheet numbers, revisions, notes, dimensions, levels, grid references, specifications, status, dates, names. Max ~3500 chars. For a site photo describe what is visible and any visible defects or safety issues."}` }],
-      attachments: [{ mime, base64: toBase64(bytes), name }],
+      history: [{ role: "user", content: `File name: "${name}".${text ? `\n\nDOCUMENT:\n${text}\n\n` : " "}Return ONLY JSON: {"title": string, "category": one of ${JSON.stringify(CATEGORIES)}, "discipline": "ARC"|"STR"|"MEP"|"CIV"|"HSE"|"QA"|null, "revision": string|null, "summary": "<=200 chars", "text": "faithful transcription of the key content: titles/sheet numbers, revisions, notes, dimensions, levels, grid references, specifications, status, dates, names. Max ~3500 chars. For a site photo describe what is visible and any visible defects or safety issues."}` }],
+      attachments: texty ? [] : [{ mime, base64: toBase64(bytes), name }],
       tools: [], exec: async () => "", maxTurns: 1, maxTokens: 2500,
     }, { tier: "main", reason: "document indexing", hasPdf: mime === "application/pdf" });
     const raw = out.text;
@@ -39,7 +42,7 @@ export async function describeUpload(cfg: LlmConfig, bytes: Uint8Array, mime: st
       title: j.title || undefined,
       category: CATEGORIES.includes(j.category) ? j.category : undefined,
       discipline: j.discipline || undefined, revision: j.revision || undefined,
-      summary: String(j.summary ?? "").slice(0, 300), text: String(j.text ?? "").slice(0, 6000),
+      summary: String(j.summary ?? "").slice(0, 300), text: (text || String(j.text ?? "")).slice(0, 20_000),
       via: `${route.provider}/${route.model}`,
     };
   } catch {

@@ -1,0 +1,15 @@
+Package,Description,Trade,Supplier,Budget (SAR),Committed (SAR),Status,Lead Time (weeks),Need-by Activity,Need-by Date,Forecast Delivery,Slip (days),Notes
+MW-PKG-01,Reinforcement steel (all buildings),Structure,Najd Steel Supply,118000000,104200000,Delivering,4,MT1-STR-20,2026-08-16,ongoing call-offs,0,480 t per batch; mill certificates per heat
+MW-PKG-02,Ready-mix top-up to batching plant,Structure,Qimma Concrete Products,64000000,58900000,Delivering,1,MT1-STR-20,2026-08-16,ongoing,0,Night pours over 400 m³ May–Sep
+MW-PKG-03,Post-tensioning materials & specialist,Structure,PT-Tech Post-Tensioning,17200000,16800000,Delivering,6,MT1-STR-20,2026-08-16,ongoing,0,
+MW-PKG-04,Structural steel — Office Tower frame,Structure,Sharq Steel Fabricators,86000000,84100000,Fabricating,14,OF1-STR-20,2026-09-01,2026-11-20,0,First 4 floors in the yard; erection from L1 Nov
+MW-PKG-05,Unitised curtain wall — Marina Towers 1 & 2,Façade,Skyline Façade Systems,236000000,231500000,Manufacturing,18,MT1-FAC-30,2027-02-01,2027-01-12,-20,Batch 1 of 120 units; PMU passed 22 Sep
+MW-PKG-06,Unitised curtain wall — Office Tower,Façade,Skyline Façade Systems,98000000,96200000,Design,18,OF1-FAC-30,2027-02-08,2027-02-01,-7,Shop drawings 70 % approved
+MW-PKG-07,Promenade & cultural centre glazing,Façade,Desert Glass Industries,42000000,39800000,Sample rejected,12,RP1-FAC-30,2027-01-27,2027-02-15,19,Glass colour sample MS-RP1-014 rejected 6 Oct; second supplier being prequalified
+MW-PKG-08,"Lifts — towers, office, hotel (34 no.)",Lifts,Vertex Lifts Arabia,92000000,90600000,Manufacturing,28,MT1-FIT-40,2027-05-01,2027-04-10,-21,
+MW-PKG-09,"District cooling plant — 3 × 1,200 TR chillers",MEP,Coolwave HVAC Trading,41000000,40200000,Manufacturing,24,UT1-FIT-40,2026-11-15,2026-12-05,20,Factory test moved to 10 Nov; interim chillers hired
+MW-PKG-10,Transformers & RMUs (2 × 3 MVA),Electrical,Transformers Arabia (demo),9800000,9600000,Delivered,20,UT1-FIT-40,2026-11-15,2026-10-02,-44,"On site, in the substation"
+MW-PKG-11,LV/HV cables,Electrical,Riyadh Cable Co. (demo),33000000,21700000,Delivering,8,MT1-FIT-40,2027-05-01,ongoing,0,
+MW-PKG-12,"Marine fenders, pontoons & mooring",Marine,Gulf Marine Works,27000000,27000000,Delivering,16,MW-MAR-030,2027-03-31,2027-02-20,-39,
+MW-PKG-13,Hotel FF&E,Fit-out,Diwan Interiors,38000000,0,Tender,22,HB1-FIT-40,2028-01-15,,0,Tender returns 30 Nov 2026
+MW-PKG-14,Landscape & marina walk hard landscape,Landscape,Wahat Landscaping,56000000,0,Tender,10,MW-LS-600,2027-09-01,,0,

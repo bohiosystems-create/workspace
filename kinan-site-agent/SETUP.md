@@ -472,6 +472,13 @@ How it syncs: mail from the last 60 days on the first sync, then only new mail; 
 
 ---
 
+### 10.1 Sample material for testing
+
+Two packs of fictional documents ship with the app under `public/samples/` (served at `/samples/…`; regenerate with `node scripts/samples.mjs`):
+
+- **`kinan-marina-walk-pack.zip`** — a complete project pack for **New project**: project brief, area schedule, setting-out coordinates, a P6 programme export (UP-11, 100 activities with baseline, float, logic and progress), programme narrative, site logistics plan, structural design basis, geotechnical summary, drawing register, procurement log and risk register. Twenty buildings on a 420 × 300 m site in Al Khobar; the critical path runs through the Office Tower (−24 days). The link is on the New project sheet. The AI reads it in about 1–3 minutes.
+- **`kinan-heights-site-docs.zip`** — twelve site documents for the live project, dated to the data date and tied to its real activities, people, NCRs, RFIs, purchase orders and locations: RFI-0163 (trimmer bars, Tower A L14), NCR-0089 (column cover), method statement MS-STR-014 (PT stressing), inspection request ITR-0412, weekly progress report 41, delivery note DN-00231 (PO-4500123), permit to work PTW-2026-1187, safety observation OBS-0338, progress meeting minutes 38, change notice CN-031 (VO-023), material submittal MS-0271 and cube results CC-1407. The README in the zip says where to upload each one and what to ask the agent afterwards; **KH-WA-TEST** is a WhatsApp script (text updates, voice notes in English and Arabic, photo captions, a document with a caption) with the expected behaviour. The link is on the Attach document sheet.
+
 ## 11. Troubleshooting
 
 | Symptom | Fix |

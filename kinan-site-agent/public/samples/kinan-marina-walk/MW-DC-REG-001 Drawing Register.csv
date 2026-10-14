@@ -1,0 +1,21 @@
+Drawing No,Title,Discipline,Building,Rev,Status,Issued
+MW-A-001,Master Plan & Site Layout,ARC,Site,F,IFC,2026-05-14
+MW-A-010,Setting-Out Plan,ARC,Site,D,IFC,2026-05-14
+MW-A-101,Marina Tower 1 — Typical Floor Plan L5–L30,ARC,MT1,C,IFC,2026-06-02
+MW-A-102,Marina Tower 1 — Building Sections,ARC,MT1,C,IFC,2026-06-02
+MW-A-201,Marina Tower 2 — Typical Floor Plan L5–L28,ARC,MT2,B,IFC,2026-06-20
+MW-A-301,Marina Office Tower — Typical Floor Plan,ARC,OF1,B,IFC,2026-07-08
+MW-A-401,Boutique Hotel — Floor Plans L1–L12,ARC,HB1,A,IFC,2026-08-01
+MW-A-501,Retail Promenade — Ground & First Floor Plans,ARC,RP1,D,IFC,2026-04-28
+MW-A-510,Retail Promenade — Façade Elevations & Glass Schedule,ARC,RP1,E,IFC (glass under resubmission),2026-09-30
+MW-A-601,Conference & Cultural Centre — Plans,ARC,CC1,B,IFC,2026-08-15
+MW-A-701,Marina Car Park — Typical Level,ARC,CP1,A,IFC,2026-09-01
+MW-A-801,Waterfront Villas — Type V1 Plans & Elevations,ARC,V01–V10,B,Tender,2026-09-15
+MW-S-001,Foundation Layout — Towers & Shared Basement,STR,MT1/MT2,D,IFC,2026-01-10
+MW-S-101,Marina Tower 1 — Typical PT Slab Layout,STR,MT1,C,IFC,2026-06-02
+MW-S-301,Marina Office Tower — Raft Plan & Details (revised),STR,OF1,E,IFC (RFI-OF1-021),2026-08-25
+MW-S-302,Marina Office Tower — Composite Floor Framing,STR,OF1,B,IFC,2026-07-08
+MW-M-001,Site Utilities & District Cooling Network,MEP,Site,C,IFC,2026-03-30
+MW-M-101,Marina Tower 1 — MEP Coordination L5–L30,MEP,MT1,B,IFC,2026-06-25
+MW-C-001,Marine Works — Quay Wall & Dredging,CIV,Site,C,As-built,2026-07-15
+MW-L-001,Logistics Plan Rev C,CIV,Site,C,Current,2026-09-01

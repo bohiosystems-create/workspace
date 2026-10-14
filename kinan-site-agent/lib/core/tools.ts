@@ -108,7 +108,10 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
         let locationId: string | undefined;
         if (input.location) { const l = resolveLocation(db, String(input.location)); if (!l) return J({ error: `No place matches "${input.location}".` }); locationId = l.id; }
         const found = searchDocs(db, { query: input.query, category: input.category, locationId, discipline: input.discipline });
-        return J({ count: found.length, documents: found.map((d) => docBrief(db, d)) });
+        // a short window of the document text around the first query term, so the answer can be quoted without a second call
+        const words = String(input.query ?? "").toLowerCase().split(/[^a-z0-9\u0600-\u06ff-]+/).filter((w) => w.length > 2);
+        const excerpt = (t?: string) => { if (!t) return undefined; const low = t.toLowerCase(); let i = -1; for (const w of words) { i = low.indexOf(w); if (i >= 0) break; } if (i < 0) i = 0; const a = Math.max(0, i - 120); return `${a ? "…" : ""}${t.slice(a, a + 360).replace(/\s+/g, " ")}${a + 360 < t.length ? "…" : ""}`; };
+        return J({ count: found.length, documents: found.map((d) => ({ ...docBrief(db, d), excerpt: excerpt(d.text) })) });
       }
       case "get_document": {
         const d = db.docs.find((x) => x.id === input.id);

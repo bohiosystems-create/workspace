@@ -184,6 +184,7 @@ export function NewProject({ onCancel, onCreated }: { onCancel: () => void; onCr
           <input ref={folder} type="file" multiple hidden onClick={(e) => e.stopPropagation()} {...{ webkitdirectory: "", directory: "" }} onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
         </div>
         {note && <p className="studio-ok">{note}</p>}
+        {!docs.length && <p className="studio-sample">Test material: <a href="/samples/kinan-marina-walk-pack.zip" download>Kinan Marina Walk sample pack</a> (zip, 12 documents: brief, area schedule, setting-out, P6 programme, logistics, geotech, procurement, risks) — download it, then drop it here.</p>}
         {!docs.length && <button className="studio-demo" onClick={loadDemo}><b>No documents to hand? Load the demo pack</b><em>{MOCK_PROJECT.name}, {MOCK_PROJECT.location} · 8 mock documents · 16 buildings · P6 programme with logic</em></button>}
         {docs.length > 0 && (
           <>

@@ -94,6 +94,7 @@ export default function UploadSheet({ locations, locationId, pin, author, direct
         </div>
         <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => pick(e.target.files?.[0])} />
         <input ref={fileRef} data-testid="file" type="file" accept=".pdf,image/*,.txt,.md,.csv,.dwg,.dxf,.docx,.xlsx" hidden onChange={(e) => pick(e.target.files?.[0])} />
+        {!file && <p className="studio-sample">Test material: <a href="/samples/kinan-heights-site-docs.zip" download>sample site documents</a> (RFI, NCR, method statement, inspection request, weekly report, delivery note, permit, minutes…).</p>}
         {file && <div className="filechip">✔ {file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB</div>}
 
         <label>Title<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Auto-filled from the file" /></label>

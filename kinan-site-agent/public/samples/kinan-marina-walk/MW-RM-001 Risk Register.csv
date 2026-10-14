@@ -1,0 +1,9 @@
+ID,Risk,Cause,Effect,Likelihood (1-5),Impact (1-5),Score,Owner,Response,Status,Review
+R-01,Office Tower critical path late,Raft redesign after soft clay lens (RFI-OF1-021),−24 days to Phase 1 completion; LDs SAR 420k/day,4,5,20,Rashid Al-Amri,"Second formwork set, 7-day cycle from L4, steel erection two floors ahead",Open,2026-10-28
+R-02,Promenade façade glass colour,Sample MS-RP1-014 rejected,Façade start +12 days; possible supplier change,3,3,9,Hala Mubarak,Resubmission 28 Oct; prequalify second supplier,Open,2026-10-28
+R-03,Crane TC2 overlap with hotel plot,Shared crane zoning,Hotel frame start delayed if zoning not agreed,3,3,9,Peter Okafor,"Anti-collision system, lifting plan by 15 Nov",Open,2026-11-15
+R-04,Summer concreting quality,Ambient over 40 °C,Thermal cracking of rafts and slabs,3,4,12,QA/QC Manager,"Night pours, chilled water, 60 % GGBS for rafts",Mitigated,2027-04-01
+R-05,Marina water quality,Dredging plume,Environmental permit condition 7 breach; stop-work,2,4,8,Lars Henriksen,"Silt curtains, monthly monitoring (all within limits)",Closed,2026-07-15
+R-06,District cooling late,Chiller factory test slipped,Fit-out commissioning delayed,3,3,9,MEP Manager,Interim chillers hired for first fix testing,Open,2026-11-10
+R-07,Hotel smoke-control approval,Civil defence review pending,Hotel fit-out start at risk,2,4,8,Authorities Manager,Fire engineer meeting 20 Oct,Open,2026-10-20
+R-08,Labour availability (Hajj / Ramadan 2027),Seasonal reduction,Productivity −20 % for 6 weeks,4,2,8,Rashid Al-Amri,Camp expansion +600 beds; advance bookings,Open,2027-01-15

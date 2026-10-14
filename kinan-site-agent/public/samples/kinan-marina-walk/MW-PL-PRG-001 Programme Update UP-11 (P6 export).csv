@@ -1,0 +1,111 @@
+# Primavera P6 export — Kinan Marina Walk — Layout "Update UP-11" — Baseline BL-01 — Data Date 14-Oct-26
+# Start / Finish = actual (A) or forecast; BL = baseline BL-01; Total Float in calendar days against the contract completion (BL-01 practical completion 15-Dec-28)
+Activity ID,Activity Name,WBS,Original Duration,Remaining Duration,Start,Finish,BL Start,BL Finish,Total Float,Critical,Predecessors,Activity % Complete
+MW-M-000,Notice to Proceed,MW.0,0,0,01-Nov-25 A,01-Nov-25 A,01-Nov-25,01-Nov-25,-24,Yes,,100%
+MW-EN-010,"Site mobilisation, hoarding, offices & enabling works",MW.0.1,60,0,01-Nov-25 A,30-Dec-25 A,01-Nov-25,30-Dec-25,-24,Yes,MW-M-000 FS,100%
+MW-MAR-020,Marina basin — sheet-pile quay wall & dredging (north edge),MW.0.2,212,0,01-Dec-25 A,30-Jun-26 A,01-Dec-25,30-Jun-26,-24,Yes,MW-EN-010 SS+30,100%
+MW-MAR-030,Breakwater & promenade deck (marine works),MW.0.3,365,168,01-Apr-26 A,31-Mar-27,01-Apr-26,31-Mar-27,95,No,MW-MAR-020 SS+120,54%
+MW-INF-040,"Primary infrastructure — roads, drainage, utility corridor",MW.0.4,487,258,01-Mar-26 A,30-Jun-27,01-Mar-26,30-Jun-27,140,No,MW-EN-010 FS,47%
+MT1-SUB-10,"Marina Tower 1 — piling, excavation & raft",MW.1.1,213,0,15-Jan-26 A,15-Aug-26 A,15-Jan-26,15-Aug-26,89,No,MW-EN-010 SS+74,100%
+MT1-STR-20,Marina Tower 1 — superstructure L1–L40 (+B3–B1),MW.1.2,472,326,16-Aug-26 A,30-Nov-27,16-Aug-26,30-Nov-27,50,No,MT1-SUB-10 FS,31%
+MT1-FAC-30,Marina Tower 1 — unitised curtain wall,MW.1.3,393,393,01-Feb-27,28-Feb-28,01-Feb-27,28-Feb-28,42,No,"MT1-STR-20 SS+169, MT1-STR-20 FF+90",0%
+MT1-FIT-40,"Marina Tower 1 — MEP, fit-out & finishes",MW.1.4,519,519,01-May-27,30-Sep-28,01-May-27,30-Sep-28,24,No,"MT1-STR-20 SS+258, MT1-STR-20 FF+305",0%
+MT1-HO-50,"Marina Tower 1 — testing, commissioning & handover",MW.1.5,76,76,01-Oct-28,15-Dec-28,01-Oct-28,15-Dec-28,18,No,"MT1-FAC-30 FS, MT1-FIT-40 FS, MW-M-500 FS",0%
+MT2-SUB-10,"Marina Tower 2 — piling, excavation & raft",MW.2.1,208,0,15-Feb-26 A,10-Sep-26 A,15-Feb-26,10-Sep-26,87,No,MW-EN-010 SS+105,100%
+MT2-STR-20,Marina Tower 2 — superstructure L1–L36 (+B3–B1),MW.2.2,416,383,11-Sep-26 A,31-Oct-27,11-Sep-26,31-Oct-27,52,No,MT2-SUB-10 FS,8%
+MT2-FAC-30,Marina Tower 2 — unitised curtain wall,MW.2.3,337,337,01-Mar-27,31-Jan-28,01-Mar-27,31-Jan-28,45,No,"MT2-STR-20 SS+171, MT2-STR-20 FF+92",0%
+MT2-FIT-40,"Marina Tower 2 — MEP, fit-out & finishes",MW.2.4,458,458,01-Jun-27,31-Aug-28,01-Jun-27,31-Aug-28,27,No,"MT2-STR-20 SS+263, MT2-STR-20 FF+305",0%
+MT2-HO-50,"Marina Tower 2 — testing, commissioning & handover",MW.2.5,76,76,01-Sep-28,15-Nov-28,01-Sep-28,15-Nov-28,21,No,"MT2-FAC-30 FS, MT2-FIT-40 FS, MW-M-500 FS",0%
+OF1-SUB-10,"Marina Office Tower — piling, excavation & raft",MW.3.1,184,0,01-Mar-26 A,31-Aug-26 A,01-Mar-26,31-Aug-26,-24,Yes,MW-EN-010 SS+119,100%
+OF1-STR-20,Marina Office Tower — superstructure L1–L22 (+B2–B1),MW.3.2,342,294,01-Sep-26 A,08-Aug-27,01-Sep-26,15-Jul-27,-24,Yes,OF1-SUB-10 FS,14%
+OF1-FAC-30,Marina Office Tower — unitised curtain wall,MW.3.3,290,290,08-Feb-27,24-Nov-27,15-Jan-27,31-Oct-27,-24,Yes,"OF1-STR-20 SS+136, OF1-STR-20 FF+108",0%
+OF1-FIT-40,"Marina Office Tower — MEP, fit-out & finishes",MW.3.4,366,366,25-Apr-27,24-Apr-28,01-Apr-27,31-Mar-28,-24,Yes,"OF1-STR-20 SS+212, OF1-STR-20 FF+260",0%
+OF1-HO-50,"Marina Office Tower — testing, commissioning & handover",MW.3.5,61,61,25-Apr-28,24-Jun-28,01-Apr-28,31-May-28,-24,Yes,"OF1-FAC-30 FS, OF1-FIT-40 FS, MW-M-500 FS",0%
+HB1-SUB-10,"Boutique Hotel — piling, excavation & raft",MW.4.1,153,0,01-May-26 A,30-Sep-26 A,01-May-26,30-Sep-26,85,No,MW-EN-010 SS+180,100%
+HB1-STR-20,Boutique Hotel — superstructure L1–L12 (+B1–B1),MW.4.2,273,259,01-Oct-26 A,30-Jun-27,01-Oct-26,30-Jun-27,63,No,HB1-SUB-10 FS,5%
+HB1-FAC-30,Boutique Hotel — unitised curtain wall,MW.4.3,229,229,01-Mar-27,15-Oct-27,01-Mar-27,15-Oct-27,54,No,"HB1-STR-20 SS+151, HB1-STR-20 FF+107",0%
+HB1-FIT-40,"Boutique Hotel — MEP, fit-out & finishes",MW.4.4,396,396,01-Jun-27,30-Jun-28,01-Jun-27,30-Jun-28,32,No,"HB1-STR-20 SS+243, HB1-STR-20 FF+366",0%
+HB1-HO-50,"Boutique Hotel — testing, commissioning & handover",MW.4.5,92,92,01-Jul-28,30-Sep-28,01-Jul-28,30-Sep-28,24,No,"HB1-FAC-30 FS, HB1-FIT-40 FS, MW-M-500 FS",0%
+RP1-SUB-10,"Marina Retail Promenade — piling, excavation & raft",MW.5.1,181,0,01-Feb-26 A,31-Jul-26 A,01-Feb-26,31-Jul-26,90,No,MW-EN-010 SS+91,100%
+RP1-STR-20,Marina Retail Promenade — superstructure L1–L2 (+B1–B1),MW.5.2,212,13,01-Aug-26 A,28-Feb-27,01-Aug-26,28-Feb-27,73,No,RP1-SUB-10 FS,94%
+RP1-FAC-30,Marina Retail Promenade — cladding & glazing,MW.5.3,198,182,27-Jan-27 A,12-Aug-27,15-Jan-27,31-Jul-27,59,No,"RP1-STR-20 SS+167, RP1-STR-20 FF+153",8%
+RP1-FIT-40,"Marina Retail Promenade — MEP, fit-out & finishes",MW.5.4,396,396,07-Apr-27,06-May-28,01-Apr-27,30-Apr-28,37,No,"RP1-STR-20 SS+243, RP1-STR-20 FF+427",0%
+RP1-HO-50,"Marina Retail Promenade — testing, commissioning & handover",MW.5.5,61,61,01-May-28,30-Jun-28,01-May-28,30-Jun-28,32,No,"RP1-FAC-30 FS, RP1-FIT-40 FS, MW-M-500 FS",0%
+CC1-SUB-10,"Conference & Cultural Centre — piling, excavation & raft",MW.6.1,153,110,01-Sep-26 A,31-Jan-27,01-Sep-26,31-Jan-27,75,No,MW-EN-010 SS+303,28%
+CC1-STR-20,Conference & Cultural Centre — superstructure L1–L3,MW.6.2,273,273,01-Feb-27,31-Oct-27,01-Feb-27,31-Oct-27,52,No,CC1-SUB-10 FS,0%
+CC1-FAC-30,Conference & Cultural Centre — cladding & glazing,MW.6.3,184,184,01-Aug-27,31-Jan-28,01-Aug-27,31-Jan-28,45,No,"CC1-STR-20 SS+181, CC1-STR-20 FF+92",0%
+CC1-FIT-40,"Conference & Cultural Centre — MEP, fit-out & finishes",MW.6.4,305,305,01-Nov-27,31-Aug-28,01-Nov-27,31-Aug-28,27,No,"CC1-STR-20 SS+273, CC1-STR-20 FF+305",0%
+CC1-HO-50,"Conference & Cultural Centre — testing, commissioning & handover",MW.6.5,61,61,01-Sep-28,31-Oct-28,01-Sep-28,31-Oct-28,22,No,"CC1-FAC-30 FS, CC1-FIT-40 FS, MW-M-500 FS",0%
+CP1-SUB-10,"Marina Car Park — piling, excavation & raft",MW.7.1,92,79,01-Oct-26 A,31-Dec-26,01-Oct-26,31-Dec-26,78,No,MW-EN-010 SS+333,14%
+CP1-STR-20,Marina Car Park — superstructure L1–L5,MW.7.2,212,212,01-Jan-27,31-Jul-27,01-Jan-27,31-Jul-27,60,No,CP1-SUB-10 FS,0%
+CP1-FAC-30,Marina Car Park — cladding & glazing,MW.7.3,122,122,01-Jun-27,30-Sep-27,01-Jun-27,30-Sep-27,55,No,"CP1-STR-20 SS+151, CP1-STR-20 FF+61",0%
+CP1-FIT-40,"Marina Car Park — MEP, fit-out & finishes",MW.7.4,153,153,01-Aug-27,31-Dec-27,01-Aug-27,31-Dec-27,47,No,"CP1-STR-20 SS+212, CP1-STR-20 FF+153",0%
+CP1-HO-50,"Marina Car Park — testing, commissioning & handover",MW.7.5,31,31,01-Jan-28,31-Jan-28,01-Jan-28,31-Jan-28,45,No,"CP1-FAC-30 FS, CP1-FIT-40 FS",0%
+CL1-SUB-10,"Marina Club & Spa — piling, excavation & raft",MW.8.1,74,74,01-Jan-27,15-Mar-27,01-Jan-27,15-Mar-27,71,No,MW-EN-010 SS+425,0%
+CL1-STR-20,Marina Club & Spa — superstructure L1–L2,MW.8.2,169,169,16-Mar-27,31-Aug-27,16-Mar-27,31-Aug-27,57,No,CL1-SUB-10 FS,0%
+CL1-FAC-30,Marina Club & Spa — cladding & glazing,MW.8.3,153,153,01-Jul-27,30-Nov-27,01-Jul-27,30-Nov-27,50,No,"CL1-STR-20 SS+107, CL1-STR-20 FF+91",0%
+CL1-FIT-40,"Marina Club & Spa — MEP, fit-out & finishes",MW.8.4,213,213,01-Oct-27,30-Apr-28,01-Oct-27,30-Apr-28,37,No,"CL1-STR-20 SS+199, CL1-STR-20 FF+243",0%
+CL1-HO-50,"Marina Club & Spa — testing, commissioning & handover",MW.8.5,46,46,01-May-28,15-Jun-28,01-May-28,15-Jun-28,33,No,"CL1-FAC-30 FS, CL1-FIT-40 FS",0%
+MQ1-SUB-10,"Marina Mosque — piling, excavation & raft",MW.9.1,76,76,01-Mar-27,15-May-27,01-Mar-27,15-May-27,66,No,MW-EN-010 SS+484,0%
+MQ1-STR-20,Marina Mosque — superstructure frame & roof,MW.9.2,214,214,16-May-27,15-Dec-27,16-May-27,15-Dec-27,49,No,MQ1-SUB-10 FS,0%
+MQ1-FAC-30,Marina Mosque — cladding & glazing,MW.9.3,183,183,01-Oct-27,31-Mar-28,01-Oct-27,31-Mar-28,40,No,"MQ1-STR-20 SS+138, MQ1-STR-20 FF+107",0%
+MQ1-FIT-40,"Marina Mosque — MEP, fit-out & finishes",MW.9.4,213,213,01-Jan-28,31-Jul-28,01-Jan-28,31-Jul-28,29,No,"MQ1-STR-20 SS+230, MQ1-STR-20 FF+229",0%
+MQ1-HO-50,"Marina Mosque — testing, commissioning & handover",MW.9.5,46,46,01-Aug-28,15-Sep-28,01-Aug-28,15-Sep-28,26,No,"MQ1-FAC-30 FS, MQ1-FIT-40 FS",0%
+UT1-SUB-10,"Substation & Chiller Plant — piling, excavation & raft",MW.10.1,61,0,01-Jun-26 A,31-Jul-26 A,01-Jun-26,31-Jul-26,90,No,MW-EN-010 SS+211,100%
+UT1-STR-20,Substation & Chiller Plant — superstructure frame & roof,MW.10.2,107,33,01-Aug-26 A,15-Nov-26,01-Aug-26,15-Nov-26,81,No,UT1-SUB-10 FS,69%
+UT1-FAC-30,Substation & Chiller Plant — cladding & glazing,MW.10.3,78,78,15-Oct-26,31-Dec-26,15-Oct-26,31-Dec-26,78,No,"UT1-STR-20 SS+75, UT1-STR-20 FF+46",0%
+UT1-FIT-40,"Substation & Chiller Plant — MEP, fit-out & finishes",MW.10.4,167,167,15-Nov-26,30-Apr-27,15-Nov-26,30-Apr-27,68,No,"UT1-STR-20 SS+106, UT1-STR-20 FF+166",0%
+UT1-HO-50,"Substation & Chiller Plant — testing, commissioning & handover",MW.10.5,31,31,01-May-27,31-May-27,01-May-27,31-May-27,65,No,"UT1-FAC-30 FS, UT1-FIT-40 FS",0%
+V01-SUB-10,"Waterfront Villa 1 — piling, excavation & raft",MW.11.1,29,29,10-Jan-27,07-Feb-27,10-Jan-27,07-Feb-27,61,No,MW-EN-010 SS+434,0%
+V01-STR-20,Waterfront Villa 1 — superstructure L1–L3,MW.11.2,72,72,08-Feb-27,20-Apr-27,08-Feb-27,20-Apr-27,61,No,V01-SUB-10 FS,0%
+V01-FAC-30,Waterfront Villa 1 — cladding & glazing,MW.11.3,46,46,05-Apr-27,20-May-27,05-Apr-27,20-May-27,61,No,"V01-STR-20 SS+56, V01-STR-20 FF+30",0%
+V01-FIT-40,"Waterfront Villa 1 — MEP, fit-out & finishes",MW.11.4,91,91,05-May-27,03-Aug-27,05-May-27,03-Aug-27,61,No,"V01-STR-20 SS+86, V01-STR-20 FF+105",0%
+V01-HO-50,"Waterfront Villa 1 — testing, commissioning & handover",MW.11.5,17,17,04-Aug-27,20-Aug-27,04-Aug-27,20-Aug-27,61,No,"V01-FAC-30 FS, V01-FIT-40 FS",0%
+V02-SUB-10,"Waterfront Villa 2 — piling, excavation & raft",MW.12.1,29,29,28-Jan-27,25-Feb-27,28-Jan-27,25-Feb-27,61,No,MW-EN-010 SS+452,0%
+V02-STR-20,Waterfront Villa 2 — superstructure L1–L3,MW.12.2,72,72,26-Feb-27,08-May-27,26-Feb-27,08-May-27,61,No,V02-SUB-10 FS,0%
+V02-FAC-30,Waterfront Villa 2 — cladding & glazing,MW.12.3,46,46,23-Apr-27,07-Jun-27,23-Apr-27,07-Jun-27,61,No,"V02-STR-20 SS+56, V02-STR-20 FF+30",0%
+V02-FIT-40,"Waterfront Villa 2 — MEP, fit-out & finishes",MW.12.4,91,91,23-May-27,21-Aug-27,23-May-27,21-Aug-27,61,No,"V02-STR-20 SS+86, V02-STR-20 FF+105",0%
+V02-HO-50,"Waterfront Villa 2 — testing, commissioning & handover",MW.12.5,17,17,22-Aug-27,07-Sep-27,22-Aug-27,07-Sep-27,61,No,"V02-FAC-30 FS, V02-FIT-40 FS",0%
+V03-SUB-10,"Waterfront Villa 3 — piling, excavation & raft",MW.13.1,29,29,15-Feb-27,15-Mar-27,15-Feb-27,15-Mar-27,61,No,MW-EN-010 SS+470,0%
+V03-STR-20,Waterfront Villa 3 — superstructure L1–L3,MW.13.2,72,72,16-Mar-27,26-May-27,16-Mar-27,26-May-27,61,No,V03-SUB-10 FS,0%
+V03-FAC-30,Waterfront Villa 3 — cladding & glazing,MW.13.3,46,46,11-May-27,25-Jun-27,11-May-27,25-Jun-27,61,No,"V03-STR-20 SS+56, V03-STR-20 FF+30",0%
+V03-FIT-40,"Waterfront Villa 3 — MEP, fit-out & finishes",MW.13.4,91,91,10-Jun-27,08-Sep-27,10-Jun-27,08-Sep-27,61,No,"V03-STR-20 SS+86, V03-STR-20 FF+105",0%
+V03-HO-50,"Waterfront Villa 3 — testing, commissioning & handover",MW.13.5,17,17,09-Sep-27,25-Sep-27,09-Sep-27,25-Sep-27,61,No,"V03-FAC-30 FS, V03-FIT-40 FS",0%
+V04-SUB-10,"Waterfront Villa 4 — piling, excavation & raft",MW.14.1,29,29,05-Mar-27,02-Apr-27,05-Mar-27,02-Apr-27,61,No,MW-EN-010 SS+488,0%
+V04-STR-20,Waterfront Villa 4 — superstructure L1–L3,MW.14.2,72,72,03-Apr-27,13-Jun-27,03-Apr-27,13-Jun-27,61,No,V04-SUB-10 FS,0%
+V04-FAC-30,Waterfront Villa 4 — cladding & glazing,MW.14.3,46,46,29-May-27,13-Jul-27,29-May-27,13-Jul-27,61,No,"V04-STR-20 SS+56, V04-STR-20 FF+30",0%
+V04-FIT-40,"Waterfront Villa 4 — MEP, fit-out & finishes",MW.14.4,91,91,28-Jun-27,26-Sep-27,28-Jun-27,26-Sep-27,61,No,"V04-STR-20 SS+86, V04-STR-20 FF+105",0%
+V04-HO-50,"Waterfront Villa 4 — testing, commissioning & handover",MW.14.5,17,17,27-Sep-27,13-Oct-27,27-Sep-27,13-Oct-27,61,No,"V04-FAC-30 FS, V04-FIT-40 FS",0%
+V05-SUB-10,"Waterfront Villa 5 — piling, excavation & raft",MW.15.1,29,29,23-Mar-27,20-Apr-27,23-Mar-27,20-Apr-27,61,No,MW-EN-010 SS+506,0%
+V05-STR-20,Waterfront Villa 5 — superstructure L1–L3,MW.15.2,72,72,21-Apr-27,01-Jul-27,21-Apr-27,01-Jul-27,61,No,V05-SUB-10 FS,0%
+V05-FAC-30,Waterfront Villa 5 — cladding & glazing,MW.15.3,46,46,16-Jun-27,31-Jul-27,16-Jun-27,31-Jul-27,61,No,"V05-STR-20 SS+56, V05-STR-20 FF+30",0%
+V05-FIT-40,"Waterfront Villa 5 — MEP, fit-out & finishes",MW.15.4,91,91,16-Jul-27,14-Oct-27,16-Jul-27,14-Oct-27,61,No,"V05-STR-20 SS+86, V05-STR-20 FF+105",0%
+V05-HO-50,"Waterfront Villa 5 — testing, commissioning & handover",MW.15.5,17,17,15-Oct-27,31-Oct-27,15-Oct-27,31-Oct-27,61,No,"V05-FAC-30 FS, V05-FIT-40 FS",0%
+V06-SUB-10,"Waterfront Villa 6 — piling, excavation & raft",MW.16.1,29,29,10-Apr-27,08-May-27,10-Apr-27,08-May-27,61,No,MW-EN-010 SS+524,0%
+V06-STR-20,Waterfront Villa 6 — superstructure L1–L3,MW.16.2,72,72,09-May-27,19-Jul-27,09-May-27,19-Jul-27,61,No,V06-SUB-10 FS,0%
+V06-FAC-30,Waterfront Villa 6 — cladding & glazing,MW.16.3,46,46,04-Jul-27,18-Aug-27,04-Jul-27,18-Aug-27,61,No,"V06-STR-20 SS+56, V06-STR-20 FF+30",0%
+V06-FIT-40,"Waterfront Villa 6 — MEP, fit-out & finishes",MW.16.4,91,91,03-Aug-27,01-Nov-27,03-Aug-27,01-Nov-27,61,No,"V06-STR-20 SS+86, V06-STR-20 FF+105",0%
+V06-HO-50,"Waterfront Villa 6 — testing, commissioning & handover",MW.16.5,17,17,02-Nov-27,18-Nov-27,02-Nov-27,18-Nov-27,61,No,"V06-FAC-30 FS, V06-FIT-40 FS",0%
+V07-SUB-10,"Waterfront Villa 7 — piling, excavation & raft",MW.17.1,29,29,28-Apr-27,26-May-27,28-Apr-27,26-May-27,61,No,MW-EN-010 SS+542,0%
+V07-STR-20,Waterfront Villa 7 — superstructure L1–L3,MW.17.2,72,72,27-May-27,06-Aug-27,27-May-27,06-Aug-27,61,No,V07-SUB-10 FS,0%
+V07-FAC-30,Waterfront Villa 7 — cladding & glazing,MW.17.3,46,46,22-Jul-27,05-Sep-27,22-Jul-27,05-Sep-27,61,No,"V07-STR-20 SS+56, V07-STR-20 FF+30",0%
+V07-FIT-40,"Waterfront Villa 7 — MEP, fit-out & finishes",MW.17.4,91,91,21-Aug-27,19-Nov-27,21-Aug-27,19-Nov-27,61,No,"V07-STR-20 SS+86, V07-STR-20 FF+105",0%
+V07-HO-50,"Waterfront Villa 7 — testing, commissioning & handover",MW.17.5,17,17,20-Nov-27,06-Dec-27,20-Nov-27,06-Dec-27,61,No,"V07-FAC-30 FS, V07-FIT-40 FS",0%
+V08-SUB-10,"Waterfront Villa 8 — piling, excavation & raft",MW.18.1,29,29,16-May-27,13-Jun-27,16-May-27,13-Jun-27,61,No,MW-EN-010 SS+560,0%
+V08-STR-20,Waterfront Villa 8 — superstructure L1–L3,MW.18.2,72,72,14-Jun-27,24-Aug-27,14-Jun-27,24-Aug-27,61,No,V08-SUB-10 FS,0%
+V08-FAC-30,Waterfront Villa 8 — cladding & glazing,MW.18.3,46,46,09-Aug-27,23-Sep-27,09-Aug-27,23-Sep-27,61,No,"V08-STR-20 SS+56, V08-STR-20 FF+30",0%
+V08-FIT-40,"Waterfront Villa 8 — MEP, fit-out & finishes",MW.18.4,91,91,08-Sep-27,07-Dec-27,08-Sep-27,07-Dec-27,61,No,"V08-STR-20 SS+86, V08-STR-20 FF+105",0%
+V08-HO-50,"Waterfront Villa 8 — testing, commissioning & handover",MW.18.5,17,17,08-Dec-27,24-Dec-27,08-Dec-27,24-Dec-27,61,No,"V08-FAC-30 FS, V08-FIT-40 FS",0%
+V09-SUB-10,"Waterfront Villa 9 — piling, excavation & raft",MW.19.1,29,29,03-Jun-27,01-Jul-27,03-Jun-27,01-Jul-27,61,No,MW-EN-010 SS+578,0%
+V09-STR-20,Waterfront Villa 9 — superstructure L1–L3,MW.19.2,72,72,02-Jul-27,11-Sep-27,02-Jul-27,11-Sep-27,61,No,V09-SUB-10 FS,0%
+V09-FAC-30,Waterfront Villa 9 — cladding & glazing,MW.19.3,46,46,27-Aug-27,11-Oct-27,27-Aug-27,11-Oct-27,61,No,"V09-STR-20 SS+56, V09-STR-20 FF+30",0%
+V09-FIT-40,"Waterfront Villa 9 — MEP, fit-out & finishes",MW.19.4,91,91,26-Sep-27,25-Dec-27,26-Sep-27,25-Dec-27,61,No,"V09-STR-20 SS+86, V09-STR-20 FF+105",0%
+V09-HO-50,"Waterfront Villa 9 — testing, commissioning & handover",MW.19.5,17,17,26-Dec-27,11-Jan-28,26-Dec-27,11-Jan-28,61,No,"V09-FAC-30 FS, V09-FIT-40 FS",0%
+V10-SUB-10,"Waterfront Villa 10 — piling, excavation & raft",MW.20.1,29,29,21-Jun-27,19-Jul-27,21-Jun-27,19-Jul-27,61,No,MW-EN-010 SS+596,0%
+V10-STR-20,Waterfront Villa 10 — superstructure L1–L3,MW.20.2,72,72,20-Jul-27,29-Sep-27,20-Jul-27,29-Sep-27,61,No,V10-SUB-10 FS,0%
+V10-FAC-30,Waterfront Villa 10 — cladding & glazing,MW.20.3,46,46,14-Sep-27,29-Oct-27,14-Sep-27,29-Oct-27,61,No,"V10-STR-20 SS+56, V10-STR-20 FF+30",0%
+V10-FIT-40,"Waterfront Villa 10 — MEP, fit-out & finishes",MW.20.4,91,91,14-Oct-27,12-Jan-28,14-Oct-27,12-Jan-28,61,No,"V10-STR-20 SS+86, V10-STR-20 FF+105",0%
+V10-HO-50,"Waterfront Villa 10 — testing, commissioning & handover",MW.20.5,17,17,13-Jan-28,29-Jan-28,13-Jan-28,29-Jan-28,61,No,"V10-FAC-30 FS, V10-FIT-40 FS",0%
+MW-M-500,Permanent power — SEC energisation of the substation,MW.21,0,0,14-Jun-27,14-Jun-27,14-Jun-27,14-Jun-27,160,No,UT1-HO-50 FS+14,0%
+MW-LS-600,"Landscape, marina walk & public realm",MW.22,396,396,01-Sep-27,30-Sep-28,01-Sep-27,30-Sep-28,60,No,"MW-MAR-030 FS, RP1-FAC-30 FS",0%
+MW-M-900,"Practical completion — Phase 1 (towers, office, promenade, hotel)",MW.23,0,0,15-Dec-28,15-Dec-28,15-Dec-28,15-Dec-28,-24,Yes,"MT1-HO-50 FS, MT2-HO-50 FS, OF1-HO-50 FS, HB1-HO-50 FS, RP1-HO-50 FS",0%
