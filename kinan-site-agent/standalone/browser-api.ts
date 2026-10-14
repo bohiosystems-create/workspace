@@ -104,6 +104,9 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
     return json({ project: db.project, locations: db.locations, docs: db.docs.map(({ text: _t, ...d }) => d), notes: db.notes, dataDate: db.data.meta.dataDate, agentMode: "offline", providers: [] });
   }
   if (p === "/api/project") return json(db.data);
+  if (p === "/api/ready") return method === "GET"
+    ? json({ at: new Date().toISOString(), deep: false, standalone: true, checks: [{ id: "standalone", label: "Standalone page", status: "warn", detail: "No server: AI keys and voices come from this device's settings; WhatsApp, e-mail and the scheduler are not available here." }], score: { ok: 0, warn: 1, fail: 0, total: 1 } })
+    : json({ error: "Not available in the standalone page." }, 400);
   // ▶ Play in the standalone page: no server, so the player speaks with the browser's own voice and live words come from
   // the browser's speech recognition; questions get a short honest line.
   if (p === "/api/voice") return method === "GET" ? json({ enabled: false, provider: "browser", model: null }) : json({ error: "Voice is not configured." }, 501);

@@ -10,6 +10,7 @@ import DocsTab from "./_components/DocsTab";
 import ProjectTab from "./_components/ProjectTab";
 import { NewProject, ProjectHome, ProjectView } from "./_components/Projects";
 import Reports from "./_components/Reports";
+import Readiness from "./_components/Readiness";
 import Chat from "./_components/Chat";
 import { loadProjects, saveProjects, type GenProject } from "@/lib/model3d/store";
 import { useAuthor, useSite } from "./_components/site";
@@ -22,7 +23,7 @@ const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
 type Tab = "map" | "project" | "docs";
 /** home = project list · site = the live Kinan Heights app · new = create from documents · p:<id> = a generated project
  *  · reports = the scheduled daily status e-mail */
-type Screen = "home" | "site" | "new" | "reports" | `p:${string}`;
+type Screen = "home" | "site" | "new" | "reports" | "ready" | `p:${string}`;
 /** A tab label: the full wording on the desktop tab row, a short one under the icon on the phone's bottom bar. */
 const Tl = ({ full, short }: { full: string; short: string }) => <><span className="tl">{full}</span><span className="ts">{short}</span></>;
 
@@ -156,6 +157,8 @@ export default function Home() {
           <div className="seg3" role="group" aria-label="Appearance">
             {(["auto", "light", "dark"] as const).map((t) => <button key={t} className={theme === t ? "on" : ""} aria-pressed={theme === t} onClick={() => pickTheme(t)}><Icon name={t === "auto" ? "contrast" : t === "light" ? "sun" : "moon"} />{t === "auto" ? "Auto" : t === "light" ? "Light" : "Dark"}</button>)}
           </div>
+          <div className="me-l">Before a demo</div>
+          <button className="mini me-check" onClick={() => { setMeOpen(false); setScreen("ready"); }}>System check · prepare the brief · reset data</button>
           <button className="me-done" onClick={() => setMeOpen(false)}>Done</button>
         </div>
       )}
@@ -174,6 +177,7 @@ export default function Home() {
           {screen === "new" && <NewProject onCancel={() => setScreen("home")} onCreated={(p) => { putProjects([p, ...projects]); setScreen(`p:${p.id}`); }} />}
           {gen && <ProjectView key={gen.id} project={gen} onBack={() => setScreen("home")} />}
           {screen === "reports" && <Reports author={author} />}
+          {screen === "ready" && <Readiness onBack={() => setScreen("home")} onReset={refresh} />}
           {genId && !gen && <div className="studio-empty"><p>That project is no longer on this device.</p></div>}
         </main>
       )}
