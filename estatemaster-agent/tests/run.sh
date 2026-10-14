@@ -26,7 +26,7 @@ ANALYST="t_feed t_play t_voice t_deck t_narr t_tapvoice t_turn t_turn55 t_bvoice
 API_SET="t_em t_feed t_xmodel t_dbgempty t_dbgwin t_roa t_check t_shell t_menu t_chat t_tools t_api t_bridge t_gate t_fix14 t_a11y"
 if [ "$MODE" = quick ]; then
   echo "== browser tests (quick)"
-  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
+  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y t_report; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
   for t in t_feed t_play t_deck t_btns; do run "$t analyst" node "$t.mjs" "$AN" analyst; done
   for t in t_em t_api t_fix14 t_a11y; do run "$t api" node "$t.mjs" "$AP" api; done
 else

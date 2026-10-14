@@ -10,6 +10,7 @@ dist/*.zip               one zip per option
 Each build locks its option (window.BOHIO_MODE), has no runner function; its runner code is never called.
 The source index.html still opens any option with ?mode=full|readonly|analyst.
 """
+import hashlib
 import json, re, shutil, zipfile
 from pathlib import Path
 
@@ -79,10 +80,11 @@ def build(mode):
     (out / "api").mkdir(parents=True)
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     assert html.count("\n<script>\n") == 1
-    html = html.replace("\n<script>\n", f"\n<script>window.BOHIO_MODE='{mode}';</script>\n<script>\n", 1)
+    build_id = hashlib.sha256(html.encode("utf-8")).hexdigest()[:8]  # the same source always gives the same build id
+    html = html.replace("\n<script>\n", f"\n<script>window.BOHIO_MODE='{mode}';window.BOHIO_BUILD='{build_id}';</script>\n<script>\n", 1)
     html = re.sub(r"<title>.*?</title>", "<title>KINAN · AI agent · financial modelling</title>", html, count=1, flags=re.S)
     (out / "index.html").write_text(html, encoding="utf-8")
-    for f in ("llm.js", "scan.js", "voice.js", "mail.js", "cron.js", "schedule.js"):
+    for f in ("llm.js", "scan.js", "voice.js", "mail.js", "cron.js", "schedule.js", "log.js", "health.js"):
         shutil.copy(ROOT / "api" / f, out / "api" / f)
     shutil.copytree(ROOT / "api" / "_lib", out / "api" / "_lib")
     vj = json.loads((ROOT / "vercel.json").read_text())

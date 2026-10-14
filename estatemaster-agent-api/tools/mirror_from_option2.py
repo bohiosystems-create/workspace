@@ -17,7 +17,9 @@ def rep(old, new, n=1):
     global s
     assert s.count(old) == n, (s.count(old), old[:90]); s = s.replace(old, new)
 assert s.count("\n<script>\n") == 1
-s = s.replace("\n<script>\n", "\n<script>window.BOHIO_MODE='api';</script>\n<script>\n", 1)
+import hashlib
+build_id = hashlib.sha256(s.encode('utf-8')).hexdigest()[:8]  # same id as the read-only and analyst builds of this source
+s = s.replace("\n<script>\n", f"\n<script>window.BOHIO_MODE='api';window.BOHIO_BUILD='{build_id}';</script>\n<script>\n", 1)
 s = re.sub(r"<title>.*?</title>", "<title>KINAN · AI agent · financial modelling</title>", s, count=1, flags=re.S)
 rep("const ok=['full','readonly','analyst'];", "const ok=['full','readonly','analyst','api'];")
 anchor = "Never give a figure for a change as if it were a result: say EstateMaster will calculate it once refreshed.'}"
@@ -49,7 +51,7 @@ rep("'<h2>Integrations and feeds</h2><div class=\"sub\">What the agent reads and
 rep("function sysPrompt(ch,role){", "function sysPrompt(ch,role){return ax(sysPrompt0(ch,role))}\nfunction sysPrompt0(ch,role){")
 # the daily feed card title and the modelling page copy follow the API wording through ax()/axNode()
 (HERE / 'index.html').write_text(s, encoding='utf-8')
-for f in ('llm.js', 'scan.js', 'voice.js', 'mail.js', 'cron.js', 'schedule.js'):
+for f in ('llm.js', 'scan.js', 'voice.js', 'mail.js', 'cron.js', 'schedule.js', 'log.js', 'health.js'):
     shutil.copy(SRC / 'api' / f, HERE / 'api' / f)
 shutil.rmtree(HERE / 'api/_lib', ignore_errors=True); shutil.copytree(SRC / 'api/_lib', HERE / 'api/_lib')
 vj = json.loads((SRC / 'vercel.json').read_text()); vj['functions'].pop('api/runner.js', None)

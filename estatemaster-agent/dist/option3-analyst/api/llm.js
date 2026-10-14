@@ -9,6 +9,18 @@ const UPSTREAM = {
   openai: () => process.env.OPENAI_URL || 'https://api.openai.com/v1/chat/completions',
 };
 const MAX_TOKENS = 2000;
+// Cost and abuse guard (best effort, per server instance): requests per caller per 10 minutes.
+const RATE = { max: +(process.env.LLM_RATE_MAX || 400), windowMs: 10 * 60 * 1000 }, HITS = new Map();
+function limited(req) {
+  const ip = String(req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || '?').split(',')[0].trim();
+  const now = Date.now(), h = (HITS.get(ip) || []).filter((t) => now - t < RATE.windowMs);
+  h.push(now); HITS.set(ip, h); if (HITS.size > 5000) HITS.clear();
+  return h.length > RATE.max;
+}
+// Models the app may call: current Claude and OpenAI families only, never Haiku.
+const MODEL_OK = (provider, m) => typeof m === 'string' && !/haiku/i.test(m) && (provider === 'anthropic' ? /^claude-/i.test(m) : /^(gpt-|o\d)/i.test(m));
+// Answer before the platform's 800 s limit, so the page gets a clear error instead of a dropped connection.
+const UPSTREAM_TIMEOUT_MS = 780 * 1000;
 // Report design (task: 'report') returns a full report spec through a tool call: allow more room.
 const REPORT_MAX_TOKENS = 12000;
 // Beta headers the page may ask for; anything else is dropped.
@@ -46,6 +58,8 @@ module.exports = async function handler(req, res) {
   if (!UPSTREAM[provider]) return send(res, 400, { error: 'Unknown provider' });
   if (!has[provider]) return send(res, 400, { error: `No server key for ${provider}. Set ${provider === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'} in Vercel.` });
   if (!payload || typeof payload !== 'object' || !Array.isArray(payload.messages)) return send(res, 400, { error: 'Missing payload' });
+  if (!MODEL_OK(provider, payload.model)) return send(res, 400, { error: `Model not allowed: ${String(payload.model).slice(0, 60)}` });
+  if (limited(req)) return send(res, 429, { error: 'Too many AI requests from this browser in the last 10 minutes (rate limit). Retry in a few minutes.' });
 
   // Cap output size so a public demo can't be used for long generations.
   const p = { ...payload };
@@ -64,13 +78,13 @@ module.exports = async function handler(req, res) {
   else headers.authorization = `Bearer ${process.env.OPENAI_API_KEY}`;
 
   try {
-    const r = await fetch(UPSTREAM[provider](), { method: 'POST', headers, body: JSON.stringify(p) });
+    const r = await fetch(UPSTREAM[provider](), { method: 'POST', headers, body: JSON.stringify(p), signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
     const text = await r.text();
     res.statusCode = r.status;
     res.setHeader('content-type', 'application/json');
     res.setHeader('cache-control', 'no-store');
     res.end(text);
   } catch (e) {
-    send(res, 502, { error: 'Upstream request failed: ' + e.message });
+    send(res, e && e.name === 'TimeoutError' ? 504 : 502, { error: (e && e.name === 'TimeoutError' ? 'The AI provider did not answer in time' : 'Upstream request failed: ' + e.message) });
   }
 };
