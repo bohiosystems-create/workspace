@@ -1,6 +1,6 @@
 // A model synced from the exports folder shows its ORIGINAL workbook (fetched from the server), not the agent's reproduction.
 import {chromium} from 'playwright';import fs from 'fs';
-const sp=new URL('./fixtures/',import.meta.url).pathname;
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1400,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
 await p.route('https://fonts.googleapis.com/**',r=>r.fulfill({status:200,contentType:'text/css',body:''}));

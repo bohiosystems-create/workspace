@@ -1,5 +1,5 @@
 import {chromium} from 'playwright';
-const sp=new URL('./fixtures/',import.meta.url).pathname;
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1300,height:900}});
 await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2500);
 await p.hover('#projRail .pr-hot');await p.waitForTimeout(400);await p.hover('#prNav .pr-nav-i[data-gtab="report"]');await p.waitForTimeout(400);

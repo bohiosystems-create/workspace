@@ -3,7 +3,7 @@
 import {chromium} from 'playwright';
 import fs from 'fs';
 import {createRequire} from 'module';const require=createRequire(import.meta.url);
-const sp=new URL('./fixtures/',import.meta.url).pathname;
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const XLSX=require(sp+'package/xlsx.js');
 const base=process.argv[2]||'http://localhost:4090/?mode=readonly',tag=process.argv[3]||'ro';
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const ctx=await b.newContext({viewport:{width:1600,height:1000},acceptDownloads:true});const p=await ctx.newPage();

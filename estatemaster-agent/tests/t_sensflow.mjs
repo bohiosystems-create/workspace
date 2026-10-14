@@ -1,5 +1,5 @@
 import {chromium} from 'playwright';import fs from 'fs';
-const sp=new URL('./fixtures/',import.meta.url).pathname;
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1400,height:950}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
 await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2500);

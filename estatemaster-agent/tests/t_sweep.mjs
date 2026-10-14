@@ -1,5 +1,5 @@
 import {chromium} from 'playwright';import fs from 'fs';
-const sp=new URL('./fixtures/',import.meta.url).pathname;
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const [URL,NAME,W]=[process.argv[2],process.argv[3],+(process.argv[4]||1400)];
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:W,height:900}});
 const errs=[],cons=[];p.on('pageerror',e=>errs.push(e.message.slice(0,160)));p.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource|net::|404|favicon|api\//.test(m.text()))cons.push(m.text().slice(0,160))});p.on('dialog',d=>d.dismiss());

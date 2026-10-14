@@ -1,7 +1,7 @@
 // ▶ Play with ElevenLabs (mocked /api/voice), the ambient scene, the bridge and tower slides, read-aloud mode.
 import {chromium} from 'playwright';
 import fs from 'fs';
-const sp=new URL('./fixtures/',import.meta.url).pathname;
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const base=process.argv[2]||'http://localhost:4090/?mode=full',tag=process.argv[3]||'full';
 // a 0.4 s silent WAV so the Audio element really plays and ends
 const sr=8000,n=sr*0.4|0,wav=Buffer.alloc(44+n);wav.write('RIFF',0);wav.writeUInt32LE(36+n,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(sr,24);wav.writeUInt32LE(sr,28);wav.writeUInt16LE(1,32);wav.writeUInt16LE(8,34);wav.write('data',36);wav.writeUInt32LE(n,40);wav.fill(128,44);

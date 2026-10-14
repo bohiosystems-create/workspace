@@ -1,5 +1,5 @@
 import {chromium} from 'playwright';import fs from 'fs';
-const sp=new URL('./fixtures/',import.meta.url).pathname;
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const URL=process.argv[2]||'http://localhost:4090/?mode=api';
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1500,height:1000}});
 const errs=[];p.on('pageerror',e=>errs.push(e.message));

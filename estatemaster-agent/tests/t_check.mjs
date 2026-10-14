@@ -1,7 +1,7 @@
 // Checks on the AI's own calculations: arithmetic, direction, EstateMaster's sensitivity table as the benchmark, and the
 // independent checker; flagged figures say so on the Assumptions tab and in the Daily feed.
 import {chromium} from 'playwright';import fs from 'fs';
-const sp=new URL('./fixtures/',import.meta.url).pathname;
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const base=process.argv[2]||'http://localhost:4090/?mode=readonly',tag=process.argv[3]||'ro';
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1500,height:1000}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 const R=[];const ck=(n,ok,d)=>R.push([ok?'PASS':'FAIL',n,String(d??'').slice(0,300)]);let MODE='bad',models=[];

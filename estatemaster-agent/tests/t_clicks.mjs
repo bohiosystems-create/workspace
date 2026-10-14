@@ -1,6 +1,6 @@
 // Click every safe button on every page and catch any error a customer would trigger.
 import {chromium} from 'playwright';import fs from 'fs';
-const sp=new URL('./fixtures/',import.meta.url).pathname;const URL=process.argv[2]||'http://localhost:4090/?mode=readonly',tag=process.argv[3]||'ro';
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;const URL=process.argv[2]||'http://localhost:4090/?mode=readonly',tag=process.argv[3]||'ro';
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1440,height:900},acceptDownloads:true});const errs=[];p.on('pageerror',e=>errs.push(e.message.slice(0,200)));p.on('dialog',d=>d.dismiss().catch(()=>{}));
 await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));await p.route('https://fonts.googleapis.com/**',r=>r.fulfill({status:200,contentType:'text/css',body:''}));
 await p.route('**/api/**',r=>r.fulfill({status:200,contentType:'application/json',body:'{}'}));

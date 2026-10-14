@@ -1,7 +1,7 @@
 // Shell: tabs, settings gear, chat dock on every tab, charts in the chat (rules + AI tool), AI-calc labelling, hover tips.
 import {chromium} from 'playwright';
 import fs from 'fs';
-const sp=new URL('./fixtures/',import.meta.url).pathname;
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const base=process.argv[2]||'http://localhost:4090/?mode=readonly',tag=process.argv[3]||'ro';
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const ctx=await b.newContext({viewport:{width:1600,height:1000},acceptDownloads:true});const p=await ctx.newPage();
 const errs=[];p.on('pageerror',e=>errs.push(e.message));let llmOn=false;const llmReq=[];

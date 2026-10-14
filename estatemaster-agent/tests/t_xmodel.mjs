@@ -1,7 +1,7 @@
 // Cross-model: Reports and the Daily feed in the left menu, model pages in the top menu; the feed and the daily report
 // cover every model; a change of another model is costed on that model's export and approving it opens that model.
 import {chromium} from 'playwright';import fs from 'fs';import {createRequire} from 'module';const require=createRequire(import.meta.url);
-const sp=new URL('./fixtures/',import.meta.url).pathname;const XLSX=require(sp+'package/xlsx.js');
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;const XLSX=require(sp+'package/xlsx.js');
 const base=process.argv[2]||'http://localhost:4090/?mode=readonly',tag=process.argv[3]||'ro';
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1600,height:1000}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 const R=[];const ck=(n,ok,d)=>R.push([ok?'PASS':'FAIL',n,String(d??'').slice(0,260)]);let calcs=[];

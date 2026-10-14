@@ -1,6 +1,6 @@
 // The sensitivity table is computed exactly on EstateMaster's cash flow: every cell against the independent reference.
 import {chromium} from 'playwright';import fs from 'fs';import {createRequire} from 'module';
-const require=createRequire(import.meta.url);const sp=new URL('./fixtures/',import.meta.url).pathname;const {model}=require(sp+'cfref/refmodel.cjs');
+const require=createRequire(import.meta.url);const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;const {model}=require(sp+'cfref/refmodel.cjs');
 const P={land:90e6,cons:420e6,gdv:760e6,consStart:3,consM:28,rate:8,equity:180e6},xs=[-10,0,10],ys=[-10,0,10];const truth=ys.map(y=>xs.map(x=>model(P,{price:x,cost:y}).lirr)),truthD=ys.map(y=>[0,3,6].map(m=>model(P,{price:y,delay:m}).lirr));
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1500,height:950}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));

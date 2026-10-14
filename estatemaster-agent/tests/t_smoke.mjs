@@ -1,6 +1,6 @@
 // Customer-readiness sweep: every page of a build at three widths; errors, leaked raw values, overflow, empty panels.
 import {chromium} from 'playwright';import fs from 'fs';
-const sp=new URL('./fixtures/',import.meta.url).pathname;const URL=process.argv[2]||'http://localhost:4090/?mode=readonly',tag=process.argv[3]||'ro';
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;const URL=process.argv[2]||'http://localhost:4090/?mode=readonly',tag=process.argv[3]||'ro';
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const issues=[];
 for(const [w,h] of [[1440,900],[1100,800],[390,844]]){const p=await b.newPage({viewport:{width:w,height:h}});const errs=[],cons=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error'&&!/favicon|net::ERR|Failed to load resource|ERR_CONNECTION/.test(m.text()))cons.push(m.text().slice(0,160))});
   await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));await p.route('https://fonts.googleapis.com/**',r=>r.fulfill({status:200,contentType:'text/css',body:''}));

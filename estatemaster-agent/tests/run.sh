@@ -7,8 +7,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"; APP="$(dirname "$HERE")"; API="$(dirname "$APP")/estatemaster-agent-api"
 MODE="${1:-quick}"; FAILS=0; LOG="${TEST_LOG:-$HERE/last-run.log}"; : > "$LOG"
-sum(){ local out="$1"; local p; p=$(printf '%s\n' "$out" | grep -c '^PASS'); if printf '%s\n' "$out" | grep -q '^FAIL'; then FAILS=$((FAILS+1)); echo "$p pass FAIL: $(printf '%s\n' "$out" | grep '^FAIL' | cut -c1-160 | tr '\n' ';')"; elif ! printf '%s\n' "$out" | grep -qE '^(PASS|FAIL)'; then if printf '%s\n' "$out" | grep -qiE 'NO ISSUES|0 with errors|0 layout/function issues'; then echo "clean"; else FAILS=$((FAILS+1)); echo "CRASH: $(printf '%s\n' "$out" | grep -v '^\s*$' | tail -2 | tr '\n' ' ' | cut -c1-200)"; fi; else echo "$p pass"; fi; }
-run(){ local name="$1"; shift; local out; out=$(timeout 480 "$@" 2>&1); echo "$name: $(sum "$out")" | tee -a "$LOG"; printf '%s\n' "$out" >> "$LOG.full"; }
+sum(){ local out="$1"; local p; p=$(printf '%s\n' "$out" | grep -c '^PASS'); if printf '%s\n' "$out" | grep -q '^FAIL'; then echo "$p pass FAIL: $(printf '%s\n' "$out" | grep '^FAIL' | cut -c1-160 | tr '\n' ';')"; elif ! printf '%s\n' "$out" | grep -qE '^(PASS|FAIL)'; then if printf '%s\n' "$out" | grep -qiE 'NO ISSUES|0 with errors|0 layout/function issues'; then echo "clean"; else echo "CRASH: $(printf '%s\n' "$out" | grep -v '^\s*$' | tail -2 | tr '\n' ' ' | cut -c1-200)"; fi; else echo "$p pass"; fi; }
+run(){ local name="$1"; shift; local out line; out=$(timeout 480 "$@" 2>&1); line="$name: $(sum "$out")"; case "$line" in *FAIL:*|*CRASH:*) FAILS=$((FAILS+1));; esac; echo "$line" | tee -a "$LOG"; printf '== %s\n%s\n' "$name" "$out" >> "$LOG.full"; }
 
 cd "$HERE"
 echo "== server tests"
