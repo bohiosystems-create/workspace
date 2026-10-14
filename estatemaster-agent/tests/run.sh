@@ -23,12 +23,12 @@ for i in $(seq 1 30); do curl -s -o /dev/null localhost:4090/ && curl -s -o /dev
 RO="http://localhost:4090/?mode=readonly"; AN="http://localhost:4090/?mode=analyst"; AP="http://localhost:4091/"
 
 ANALYST="t_feed t_play t_voice t_deck t_narr t_tapvoice t_turn t_turn55 t_bvoice t_cues t_resume t_qwin t_lag t_lag2 t_stt t_btns"
-API_SET="t_em t_feed t_xmodel t_dbgempty t_dbgwin t_roa t_check t_shell t_menu t_chat t_tools t_api t_bridge t_gate t_fix14"
+API_SET="t_em t_feed t_xmodel t_dbgempty t_dbgwin t_roa t_check t_shell t_menu t_chat t_tools t_api t_bridge t_gate t_fix14 t_a11y"
 if [ "$MODE" = quick ]; then
   echo "== browser tests (quick)"
-  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
+  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
   for t in t_feed t_play t_deck t_btns; do run "$t analyst" node "$t.mjs" "$AN" analyst; done
-  for t in t_em t_api t_fix14; do run "$t api" node "$t.mjs" "$AP" api; done
+  for t in t_em t_api t_fix14 t_a11y; do run "$t api" node "$t.mjs" "$AP" api; done
 else
   echo "== browser tests (full)"
   for f in t_*.mjs; do t="${f%.mjs}"; case " $ANALYST " in *" $t "*) run "$t analyst" node "$f" "$AN" analyst;; *) run "$t readonly" node "$f" "$RO" readonly;; esac; done
