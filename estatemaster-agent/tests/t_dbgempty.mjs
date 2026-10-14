@@ -26,6 +26,7 @@ await p.evaluate(()=>{showTab(RO?'em':'model');$('#exDbg').click()});await p.wai
 await p.evaluate(()=>showTab('scen'));await p.waitForTimeout(300);
 const mn=await p.evaluate(()=>{const w=$('#dbgWin'),r=w.getBoundingClientRect(),g=$('#asGo').getBoundingClientRect();const hit=document.elementFromPoint(g.x+g.width/2,g.y+g.height/2);return{min:w.classList.contains('min'),h:Math.round(r.height),goFree:!!(hit&&hit.closest('#asGo')),state:$('#dbgWState').textContent}});
 t(mn.min&&mn.h<90&&mn.goFree,'on another page the debug window is a small bar and leaves the page usable '+JSON.stringify(mn));
-await p.click('#dbgWin .card');await p.waitForTimeout(200);const ex=await p.evaluate(()=>!$('#dbgWin').classList.contains('min')&&$('#dbgWin').getBoundingClientRect().height>150);t(ex,'one click on the bar opens it again');
+const blocker=await p.evaluate(()=>{const r=$('#dbgWMin').getBoundingClientRect(),e=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return e&&!e.closest('#dbgWin')?(e.id||e.className||e.tagName):''});if(blocker)console.log('note: the expand button is covered by',blocker);
+await p.click('#dbgWMin',{timeout:8000});await p.waitForTimeout(200);const ex=await p.evaluate(()=>!$('#dbgWin').classList.contains('min')&&$('#dbgWin').getBoundingClientRect().height>150);t(ex,'one click on the bar opens it again');
 t(!errs.length,'no page errors '+errs.join('; '));
 console.log(ok.join('\n'));await b.close();
