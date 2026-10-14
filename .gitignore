@@ -15,3 +15,4 @@ estatemaster-agent/tests/node_modules/
 estatemaster-agent/tests/last-run.log*
 estatemaster-agent/tests/fixtures/dl_*
 estatemaster-agent/tests/package*.json
+estatemaster-agent/tools/node/node_modules/
