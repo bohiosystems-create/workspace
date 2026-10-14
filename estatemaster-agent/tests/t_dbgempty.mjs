@@ -21,5 +21,11 @@ s=await txt();t(/EX-T2/.test(s)&&/Done in/.test(s),'export replaced by sync: win
 // 4. close then reopen via button
 await p.evaluate(()=>{$('#dbgDone').click()});const off=await p.evaluate(()=>!$('#dbgWin').classList.contains('on'));
 await p.evaluate(()=>$('#exDbg').click());s=await txt();t(off&&/EX-T2/.test(s),'close and reopen with the button');
+// 5. leaving Financial modelling makes the window a small bar (it never covers another page); one click opens it again
+await p.evaluate(()=>{showTab(RO?'em':'model');$('#exDbg').click()});await p.waitForTimeout(200);
+await p.evaluate(()=>showTab('scen'));await p.waitForTimeout(300);
+const mn=await p.evaluate(()=>{const w=$('#dbgWin'),r=w.getBoundingClientRect(),g=$('#asGo').getBoundingClientRect();const hit=document.elementFromPoint(g.x+g.width/2,g.y+g.height/2);return{min:w.classList.contains('min'),h:Math.round(r.height),goFree:!!(hit&&hit.closest('#asGo')),state:$('#dbgWState').textContent}});
+t(mn.min&&mn.h<90&&mn.goFree,'on another page the debug window is a small bar and leaves the page usable '+JSON.stringify(mn));
+await p.click('#dbgWin .card');await p.waitForTimeout(200);const ex=await p.evaluate(()=>!$('#dbgWin').classList.contains('min')&&$('#dbgWin').getBoundingClientRect().height>150);t(ex,'one click on the bar opens it again');
 t(!errs.length,'no page errors '+errs.join('; '));
 console.log(ok.join('\n'));await b.close();

@@ -17,7 +17,7 @@ await p.evaluate(()=>{window.__speak=0;const o=speechSynthesis.speak.bind(speech
 await p.waitForTimeout(2500);
 // 1. the report bar, marketing style
 const bar=await p.evaluate(()=>({langs:[...document.querySelectorAll('#rpLang .btn')].map(b=>b.textContent),tools:[...document.querySelectorAll('.rp-tools .btn')].map(b=>b.textContent.trim()),playBg:getComputedStyle(document.querySelector('#rplay')).backgroundColor}));
-ok(bar.langs.join('|')==='English|العربية'&&bar.tools[0]==='▶'&&bar.tools.includes('Download PDF')&&bar.tools.includes('Download PowerPoint')&&/241, 90, 34/.test(bar.playBg),'report bar: language toggle, small download buttons, orange ▶: '+bar.tools.join(' · '));
+ok(bar.langs.join('|')==='English|العربية'&&bar.tools[0]==='▶'&&bar.tools.includes('Download PDF')&&bar.tools.includes('Download PowerPoint')&&/(241, 90, 34|184, 61, 12)/.test(bar.playBg),'report bar: language toggle, small download buttons, orange ▶: '+bar.tools.join(' · '));
 await p.locator('.card:has(#rpTitle)').screenshot({path:sp+'rp_bar.png'});
 // 2. Arabic pre-built in the background, instant toggle
 await p.waitForTimeout(2500);

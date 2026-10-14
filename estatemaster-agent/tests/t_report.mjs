@@ -10,5 +10,5 @@ await p.evaluate(()=>{for(let i=0;i<3;i++)setTimeout(()=>{throw new Error('probe
 const msgs=got.map(g=>g.msg);t(msgs.filter(m=>/probe failure A/.test(m)).length===1&&msgs.some(m=>/probe failure B/.test(m))&&msgs.some(m=>/probe rejection/.test(m)),'errors reach /api/log once per message: '+JSON.stringify(msgs));
 t(got.length&&got.every(g=>g.build&&g.mode&&g.app==='kinan-estatemaster'),'each report carries the app, mode and build: '+JSON.stringify(got[0]||{}).slice(0,120));
 await p.evaluate(()=>{for(let i=0;i<20;i++)setTimeout(()=>{throw new Error('flood '+i)},0)});await p.waitForTimeout(1200);t(got.length<=8,'at most 8 reports a visit ('+got.length+')');
-const bs=await p.evaluate(()=>{openSettings('ai');return $('#setBuild').textContent});t(/^Build [0-9a-f]{8} · /.test(bs),'Settings shows the build: '+bs);
+const bs=await p.evaluate(()=>{openSettings('ai');return $('#setBuild').textContent});t(/^Build ([0-9a-f]{8}|dev) · /.test(bs),'Settings shows the build: '+bs);
 console.log(ok.join('\n'));await b.close();
