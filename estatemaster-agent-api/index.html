@@ -1971,7 +1971,9 @@ async function handle(text,ch,role,forced){
   case 'why':{
     const ks=(it.v&&it.v.length?it.v:Object.keys(S));
     out.steps=['Search change memory and email sources'];out.link=['appr','Open change history'];
-    if(!ks.length){done(`Nothing differs from the base case. Change memory holds ${LOG.length} entries.`);break}
+    if(!ks.length){const x=latestExport(PROJ.id),o=x&&x.out||{},h=HUR(),irr=o.levered_irr,poc=o.profit_on_cost;
+      const vs=Number.isFinite(irr)&&Number.isFinite(h)?` — ${irr>=h?'above':'below'} the ${fP(h/100).replace(/\.0+%$/,'%')} hurdle by ${Math.abs(irr-h).toFixed(2)} pts`:'';
+      done(`No assumption differs from EstateMaster’s own model, so these are EstateMaster’s figures${x?` (export ${x.id})`:''}: levered IRR ${Number.isFinite(irr)?fMet('levered_irr',irr)+' '+pmark('em',addWork('em',`EstateMaster’s own figure, export ${x&&x.id}.`)):'not in the export'}${vs}${Number.isFinite(poc)?`; profit on cost ${fMet('profit_on_cost',poc)} ${pmark('em',addWork('em',`EstateMaster’s own figure, export ${x&&x.id}.`))}`:''}.${!apiOn()||(window.AIDOWN&&Date.now()-window.AIDOWN<120000)?' The AI service is not reachable right now, so I can’t explain the drivers in depth: ask again when it is back, or ask a what-if (“what if sale price drops 10%?”), which I compute exactly without it.':''} Change memory holds ${LOG.length} entries.`);break}
     done(ks.map(k=>{const s_=SRC[k],d=S[k]||0,lab=VARS[k].label.toLowerCase();
       const hist=LOG.filter(l=>l.detail.toLowerCase().includes(lab)||(REG.filter(r=>(r.agg?AGG[r.agg].drv:r.drv)===k).some(r=>l.detail.toLowerCase().includes(r.label.toLowerCase())))).slice(-3);
       let t=d?`*${VARS[k].label}: ${levelTxt(k,0)} → ${levelTxt(k,d)}*`:`*${VARS[k].label}* is at base (${levelTxt(k,0)}).`;
@@ -2285,7 +2287,7 @@ function feedRow(c){const irr=c.ai&&c.ai.metrics&&c.ai.metrics.find(m=>m.k==='le
   const x0=latestExport(c.proj||PROJ.id),base=x0&&Number.isFinite(x0.out.levered_irr)?x0.out.levered_irr:null;
   const sum=[crFrom(c,true),pn,c.why?c.why.slice(0,90):''].filter(Boolean).join(' · ');
   const emOut=c.em&&c.em.status==='done'&&c.em.out&&Number.isFinite(c.em.out.levered_irr)?c.em.out.levered_irr:null;
-  const chip=emOut!=null?`<span class="fi-irr em" title="EstateMaster’s own figure after the change, ${MODE==='api'?'written and recalculated through the API':'applied by an analyst'}${c.em.export?' · export '+c.em.export:''}">EstateMaster IRR ${fMet('levered_irr',emOut)}${MODE==='api'?' · written via API':''}</span>`:c.em&&c.em.status!=='done'&&MODE==='api'?'<span class="fi-irr soft"><span class="spin"></span> writing to EstateMaster…</span>':irr?`<span class="fi-irr ${below?'bad':''}" title="Levered IRR ${ROA?'with this change':'if approved'}, AI estimate${base!=null?' (now '+fMet('levered_irr',base)+')':''}">IRR ${base!=null?fMet('levered_irr',base).replace('%','')+' → ':''}${fMet('levered_irr',irr.value)}${below?' · below hurdle':''}</span>`:c.status==='pending'&&apiOn()?'<span class="fi-irr soft">estimating…</span>':'';
+  const chip=emOut!=null?`<span class="fi-irr em" title="EstateMaster’s own figure after the change, ${MODE==='api'?'written and recalculated through the API':'applied by an analyst'}${c.em.export?' · export '+c.em.export:''}">EstateMaster IRR ${fMet('levered_irr',emOut)}${MODE==='api'?' · written via API':''}</span>`:c.em&&c.em.status!=='done'&&MODE==='api'?'<span class="fi-irr soft"><span class="spin"></span> writing to EstateMaster…</span>':irr?`<span class="fi-irr ${below?'bad':''}" title="Levered IRR ${ROA?'with this change':'if approved'}, AI estimate${base!=null?' (now '+fMet('levered_irr',base)+')':''}">IRR ${base!=null?fMet('levered_irr',base).replace('%','')+' → ':''}${fMet('levered_irr',irr.value)}${below?' · below hurdle':''}</span>`:c.status==='pending'&&c.aiErr?`<span class="fi-irr soft" title="${esc(aiErrText(c.aiErr))}">not estimated · <button class="lnk" data-crre="${c.id}" style="border:0;background:none;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit">retry</button></span>`:c.status==='pending'&&apiOn()&&(CRBUSY.has(c.id)||crNeedsAI(c))?'<span class="fi-irr soft">estimating…</span>':'';
   return`<div class="feed-item ${open?'open':''} ${c.status}" data-fi="${c.id}"><div class="fi-row"><span class="fi-kind k-${c.kind}"><i></i>${crKind(c)}</span><div class="fi-main"><b>${esc(crAsk(c))}</b><span class="fi-sum">${esc(sum)}</span></div><span class="fi-meta">${chip}${ROA?'':c.status==='pending'?`<button class="btn sm" data-apr="${c.id}">Approve</button><button class="fi-rej" data-rej="${c.id}">Reject</button>`:`<span class="pill ${c.status==='approved'?'p':'f'}">${c.status}</span>`}<small>${new Date(c.at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</small></span><span class="fi-car" aria-hidden="true"></span></div><div class="fi-body">${crCard(c)}</div></div>`}
 document.addEventListener('click',e=>{const f=e.target.closest('[data-ff]');if(f){FEED_FILTER=f.dataset.ff;$$('#feedFilters .qchip').forEach(x=>x.classList.toggle('on',x.dataset.ff===FEED_FILTER));feedFilter();return}
   const row=e.target.closest('.fi-row');if(!row||e.target.closest('button,a,select,input,.fig'))return;const it=row.closest('.feed-item'),id=it.dataset.fi;it.classList.toggle('open');it.classList.contains('open')?FEED_OPEN.add(id):FEED_OPEN.delete(id)});
@@ -3872,7 +3874,11 @@ async function auditExport(x,again,open){if(!x)return;if(x.audit&&x.audit.status
     logEvent({kind:'audit',actor:'Bohio agent',channel:'Financial modelling',detail:`Model debug of ${x.id}${x.file?' ('+x.file+')':''} in ${auMmss(a.took)}: ${ne} likely error${ne===1?'':'s'} from the checks, ${nb} bug${nb===1?'':'s'} and ${nr} risk${nr===1?'':'s'} from ${a.ai.by||'the checks only'}${a.ai.dismissed&&a.ai.dismissed.length?`, ${a.ai.dismissed.length} dismissed after cross-checking`:''}.`});
     toast(`Model debug of ${x.id} done in ${auMmss(a.took)}: ${ne+nb} likely bug${ne+nb===1?'':'s'}, ${nr} risk${nr===1?'':'s'}.`);
     try{if(x.src==='file')askLayout(x)}catch(e){}}
-  catch(e){a.status='failed';a.err=provErr(e.message);a.took=Math.round((Date.now()-a.t0)/1000);auStep(a,'Stopped: '+a.err)}
+  catch(e){a.took=Math.round((Date.now()-a.t0)/1000);const why=aiErrText(provErr(e.message));
+    // the exact checks (reading, reconciliation, the IRR proof) are finished before any AI call: an AI failure keeps them and says only the AI review is missing
+    if(a.read&&a.checks){a.status='done';a.at=new Date().toISOString();a.aiFailed=true;a.ai={items:[],dismissed:[],by:'',mode:'none',note:`AI review not run: ${why} The exact checks above are complete.`};auStep(a,'AI review not run: '+why);
+      try{const ne=a.checks.filter(c=>c.level==='error').length;toast(`Model debug of ${x.id}: exact checks done (${ne} likely error${ne===1?'':'s'}); the AI review could not run. Use “Debug again” to retry it.`)}catch(_){}}
+    else{a.status='failed';a.err=why;auStep(a,'Stopped: '+a.err)}}
   finally{try{saveMem()}catch(e){}renderAuditUI();auTick()}}
 /* The debug window: opens on its own when a model is uploaded, shows every step of the agents' debugging live, then the results */
 let DBGX=null,DBGO=null;
@@ -4471,18 +4477,30 @@ function asAnswer(axis,answer){const q=AS.pendQ[axis]||'';delete AS.pendQ[axis];
 const CRBUSY=new Set();let CRQ=[],CRRUN=0;
 const stripTags=s=>String(s==null?'':s).replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
 function crChanges(c){return(c.rows||[]).map(([l,f,t])=>({label:stripTags(l),from:stripTags(f),to:stripTags(t)})).filter(z=>z.label&&z.to)}
+function aiErrText(m){m=[...new Set(String(m||'').split(/;\s*/).map(x=>x.trim()).filter(Boolean))].join('; ');
+  if(/failed to fetch|networkerror|internetdisconnected|load failed/i.test(m))return'The AI service could not be reached (no connection). Nothing is lost: retry when the connection is back.';
+  if(/timed? ?out|aborted|timeout/i.test(m))return'The AI service did not answer in time. Retry in a moment.';
+  if(/\b(401|403)\b|unauthori|forbidden|password|api key|no server key/i.test(m))return'The AI service refused the request: check the API keys in Settings → AI & routing ('+m.slice(0,80)+').';
+  if(/\b(429)\b|rate|overloaded|529/i.test(m))return'The AI service is busy (rate limit). Retry in a minute.';
+  if(/\b5\d\d\b|upstream|internal server/i.test(m))return'The AI service had an error ('+m.slice(0,60)+'). Retry in a moment.';
+  if(/json/i.test(m))return'The AI answered in an unexpected format. Retry; if it repeats, switch model in Settings → AI & routing.';
+  return m.slice(0,160)||'The AI service failed.'}
 function crNeedsAI(c){return c.status==='pending'&&(c.proj===PROJ.id||(c.proj&&PROJECTS[c.proj]&&latestExport(c.proj)))&&['email','suggestion','agent','manual'].includes(c.kind)&&crChanges(c).length>0&&!c.ai&&!c.aiErr&&!CRBUSY.has(c.id)}
 function crEffectsKick(list){if(!calcPair().length)return;for(const c of(list||pendingCRs()))if(crNeedsAI(c)&&!CRQ.includes(c)){CRQ.push(c);CRBUSY.add(c.id)}crPump()}
+// when the connection comes back, the estimates that failed for lack of it are worked out again on their own
+window.addEventListener('online',()=>{try{const re=pendingCRs().filter(c=>c.aiErr&&/failed to fetch|networkerror|internetdisconnected|load failed|timed out/i.test(c.aiErr));re.forEach(c=>delete c.aiErr);if(re.length){crEffectsKick(re);toast(`Back online: working out ${re.length} change${re.length===1?'':'s'} again`)}}catch(e){}});
 function crPump(){while(CRRUN<2&&CRQ.length){const c=CRQ.shift();CRRUN++;crEffect(c).finally(()=>{CRRUN--;crPump()})}}
 async function crEffect(c){c.aiStep='';renderCrAI(c);
   try{const r=await aiCrossCheck(crChanges(c),async st=>{c.aiStep=st;renderCrAI(c)},c.proj||PROJ.id);
     c.ai={at:new Date().toISOString(),xid:r.x?r.x.id:'',names:r.names||r.models,mode:r.mode,method:String(r.method||'').slice(0,600),checker:r.checker&&r.checker.model||'',metrics:r.metrics.map(m=>{const w=WORK.find(x=>x.id===m.work);return{k:m.k,value:m.value,base:r.x&&Number.isFinite(r.x.out[m.k])?r.x.out[m.k]:NaN,status:m.status,flag:!!m.flag,warn:!!m.warn,wt:w?w.text:''}})};delete c.aiErr;
     const irr=c.ai.metrics.find(m=>m.k==='levered_irr');if(irr&&Number.isFinite(irr.value)&&irr.value<HUR())notify({kind:'change',title:`${c.id}: levered IRR below the hurdle if approved`,detail:`AI estimate ${fMet('levered_irr',irr.value)} (${c.ai.names.join(' and ')}) · ${opsDesc(c.ops)}`,link:'appr'})}
-  catch(e){c.aiErr=e.message}
+  catch(e){c.aiErr=e.message;
+    // the service is down (time-out, no connection, server error): the queued changes would each wait for the same failure, so they are marked now with the same reason and a retry
+    if(/timed out|failed to fetch|networkerror|internetdisconnected|load failed|\b5\d\d\b|upstream|overloaded/i.test(e.message)){while(CRQ.length){const q=CRQ.shift();q.aiErr=e.message;CRBUSY.delete(q.id);try{renderCrAI(q)}catch(_){}}}}
   finally{CRBUSY.delete(c.id);delete c.aiStep;renderCrAI(c);saveMem();pushFeedSoon();const ap=$('#apSub');if(ap&&$('#p-appr').classList.contains('on'))renderApprovals()}}
 function crAIhtml(c){if(!['email','suggestion','agent','manual'].includes(c.kind)||!crChanges(c).length)return'';const pair=calcPair();
   if(CRBUSY.has(c.id))return`<div class="cr-ai"><span class="spin"></span> Working out the effect with ${esc(pair.map(q=>mName(q.p,q.model)).join(' and '))}…${c.aiStep?` <span style="color:var(--soft)">${esc(c.aiStep)}</span>`:''}</div>`;
-  if(c.aiErr)return`<div class="cr-ai"><span class="tag tag-calc" style="margin-left:0">AI</span> the effect could not be worked out: ${esc(c.aiErr)} <button class="btn ghost sm" data-crre="${c.id}">Retry</button></div>`;
+  if(c.aiErr)return`<div class="cr-ai"><span class="tag tag-calc" style="margin-left:0">AI</span> the effect could not be worked out: ${esc(aiErrText(c.aiErr))} <button class="btn ghost sm" data-crre="${c.id}">Retry</button></div>`;
   const a=c.ai;if(!a)return c.status==='pending'?`<div class="cr-ai" style="color:var(--soft)">${pair.length?'Effect if approved: queued for the AI calculation…':'Connect Claude and OpenAI (Settings → AI & routing) and the effect of this change is worked out here automatically.'}</div>`:'';
   const hur=HUR(c.proj),kpi=m=>{const has=Number.isFinite(m.base),d=has?m.value-m.base:NaN,pct=MET[m.k][1]==='%',bad=(m.k==='levered_irr'&&m.value<hur)||(m.k==='profit_on_cost'&&m.value<HURDLE.poc*100),good=has&&d>0,dtxt=has?`${d>0?'+':d<0?'−':''}${pct?Math.abs(d).toFixed(2)+' pts':fMet(m.k,Math.abs(d)).replace(/^[−-]/,'')}`:'';
     return`<div class="cr-kpi ${bad?'bad':''}"><small>${MET[m.k][0]}${m.k==='levered_irr'?` <i title="${esc(hurdleFor(c.proj).src)}">hurdle ${hur}%</i>`:''}</small><div class="cr-kv">${has?`<span class="cr-k0">${fig('em',fMet(m.k,m.base),`EstateMaster’s own figure (export ${a.xid}). Not calculated by the agent.`)}</span><span class="cr-arr">→</span>`:''}<span class="cr-k1">${figHTML(esc(fMet(m.k,m.value)),'calc','',attrW(m.wt))}</span></div><div class="cr-kd ${good?'up':has&&d<0?'dn':''}">${has?dtxt:'no base figure in the export'}${bad?' · <b>below hurdle</b>':''}${m.flag?' · ⚠ failed a check':m.warn?' · check the working':''}</div></div>`};
@@ -6980,8 +6998,11 @@ Underwriting expertise you apply (explain, critique and ask for missing inputs; 
 - Mixed-use: component-by-component underwriting, shared infrastructure and cost allocation, phasing, blended vs component returns, and which components are sold versus held.
 This project's model covers: ${PROJ.comps.map(c=>c==='res'?'residential for sale':'retail for hold').join(' and ')}. If asked about hotel, office or other components, say they are not in this EstateMaster model yet, explain how you would underwrite them, and list the inputs needed.`;
 }
+const POST_LIMIT=()=>window.POST_LIMIT_MS||180000;   // an AI call that hangs ends with a clear error instead of a spinner that never stops
 async function post(url,headers,body){
-  const res=await fetch(url,{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
+  const ac=new AbortController(),lim=body&&body.task==='report'?Math.max(POST_LIMIT(),420000):POST_LIMIT(),tm=setTimeout(()=>ac.abort(),lim);let res;
+  try{res=await fetch(url,{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body),signal:ac.signal})}
+  catch(e){if(e&&e.name==='AbortError')throw new Error(`timed out after ${Math.round(lim/1000)} s`);throw e}finally{clearTimeout(tm)}
   const j=await res.json().catch(()=>({}));
   if(!res.ok)throw new Error(j.error&&(j.error.message||j.error)||('HTTP '+res.status));
   return j;
@@ -7184,7 +7205,7 @@ async function execute(text,ch,role,onStep){
   if(r.lane==='api'){
     if(apiOn()){
       try{const x=await llmTurn(text,ch,role,onStep,r.tier);renderRouter();return{r,kind:'api',...x}}
-      catch(err){ROUTESTATS.fallback++;r.fallback=provErr(err.message);await onStep(`AI unavailable (${String(r.fallback).slice(0,90)}) · answering with rules`)}
+      catch(err){ROUTESTATS.fallback++;window.AIDOWN=Date.now();r.fallback=provErr(err.message);await onStep(`AI unavailable (${String(r.fallback).slice(0,90)}) · answering with rules`)}
     }else r.noapi=true;
   }
   const out=await handle(text,ch,role,r.it);if(ch==='wa')out.plain=plainMarks(out.plain);
