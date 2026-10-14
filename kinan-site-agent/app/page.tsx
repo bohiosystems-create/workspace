@@ -23,6 +23,8 @@ type Tab = "map" | "project" | "docs";
 /** home = project list · site = the live Kinan Heights app · new = create from documents · p:<id> = a generated project
  *  · reports = the scheduled daily status e-mail */
 type Screen = "home" | "site" | "new" | "reports" | `p:${string}`;
+/** A tab label: the full wording on the desktop tab row, a short one under the icon on the phone's bottom bar. */
+const Tl = ({ full, short }: { full: string; short: string }) => <><span className="tl">{full}</span><span className="ts">{short}</span></>;
 
 export default function Home() {
   const { state, error, refresh } = useSite();
@@ -135,13 +137,13 @@ export default function Home() {
         </div>
       </header>
       <nav className="tabs" aria-label="Sections">
-        <button className={screen === "home" ? "on" : ""} onClick={() => setScreen("home")}>Projects</button>
-        {screen === "site" && ([["map", "Site map"], ["project", "Project schedule"], ["docs", "Documents"]] as const).map(([id, label]) => (
-          <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project") setProjKey((k) => k + 1); }}>{label}</button>
+        <button className={screen === "home" ? "on" : ""} onClick={() => setScreen("home")}><Icon name="grid" /><Tl full="Projects" short="Projects" /></button>
+        {screen === "site" && ([["map", "Site map", "Map", "map"], ["project", "Project schedule", "Schedule", "chart"], ["docs", "Documents", "Docs", "folder"]] as const).map(([id, label, short, icon]) => (
+          <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project") setProjKey((k) => k + 1); }}><Icon name={icon} /><Tl full={label} short={short} /></button>
         ))}
-        {screen === "new" && <button className="on">New project</button>}
-        {gen && <button className="on">{gen.result.spec.name}</button>}
-        <button className={screen === "reports" ? "on" : ""} onClick={() => setScreen("reports")}>Briefs</button>
+        {screen === "new" && <button className="on"><Icon name="plus" /><Tl full="New project" short="New" /></button>}
+        {gen && <button className="on"><Icon name="cube" /><Tl full={gen.result.spec.name} short={gen.result.spec.name.replace(/^Kinan\s+/i, "")} /></button>}
+        <button className={screen === "reports" ? "on" : ""} onClick={() => setScreen("reports")}><Icon name="notes" /><Tl full="Briefs" short="Briefs" /></button>
       </nav>
       {meOpen && (
         <div className="me" role="dialog" aria-label="Your settings">

@@ -6,6 +6,7 @@
  * keyword fallback here; when the AI service can't answer, the chat says so and the question can be sent again.
  */
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "./icons";
 import type { RouteInfo, UiAction } from "@/lib/types";
 
 type Msg = { role: "user" | "assistant"; content: string; route?: RouteInfo; error?: boolean };
@@ -80,7 +81,7 @@ export default function Chat({ author, focus, place, onAction }: Props) {
 
   // on the site map the button sits in the map's control column (SiteMap), elsewhere it floats bottom-right
   if (!open) return place === "map" ? null : (
-    <button className="chat-fab" onClick={() => setOpen(true)} aria-label="Ask the Onsite Agent">Ask the agent</button>
+    <button className="chat-fab" onClick={() => setOpen(true)} aria-label="Ask the Onsite Agent"><Icon name="chat" /><span className="cfl">Ask the agent</span></button>
   );
   return (
     <div className={"chat-drawer" + (full ? " full" : "")} role="dialog" aria-label="Onsite Agent chat">

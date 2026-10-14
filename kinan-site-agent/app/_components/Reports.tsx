@@ -4,7 +4,7 @@
  * agent's Reports — Schedule (with the Delivery check) on the left, Run and History on the right, the open report
  * underneath. Briefs go to internal addresses only and take no action.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { runtime } from "./runtime";
 import RecipientsInput from "./RecipientsInput";
 import dynamic from "next/dynamic";
@@ -34,7 +34,15 @@ export default function Reports({ author }: { author: string }) {
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [view, setView] = useState<{ id: string; title: string; html: string; lang: Lang } | null>(null);
   const [playing, setPlaying] = useState<string | null>(null); // brief HTML shown as a presentation
-  const [playPrompt, setPlayPrompt] = useState(false); // arrived from the e-mail's ▶ Play button: one tap starts it (browsers need a tap for sound)
+  const [playPrompt, setPlayPrompt] = useState(false);
+  // the brief is e-mail HTML laid out at 640 px: narrower than that (phones) the frame is scaled to fit, not cropped
+  const frame = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = frame.current; if (!el) return;
+    const fit = () => el.style.setProperty("--rs", String(Math.min(1, el.clientWidth / 680)));
+    fit(); const ro = new ResizeObserver(fit); ro.observe(el);
+    return () => ro.disconnect();
+  }, [view?.id]); // arrived from the e-mail's ▶ Play button: one tap starts it (browsers need a tap for sound)
 
   const take = useCallback((s: State, keepForm = false) => {
     setData(s);
@@ -178,7 +186,7 @@ export default function Reports({ author }: { author: string }) {
             {runtime.mode !== "standalone" && <button className="btn ghost xs" onClick={() => { const u = URL.createObjectURL(new Blob([view.html], { type: "text/html" })); const a = document.createElement("a"); a.href = u; a.download = `${view.title.replace(/[^\w؀-ۿ -]+/g, "").trim()}.html`; a.click(); setTimeout(() => URL.revokeObjectURL(u), 4000); }}>Download HTML</button>}
             <button className="btn ghost xs" onClick={() => setView(null)}>Close</button>
           </div>
-          <iframe title={view.title} srcDoc={view.html} sandbox="" />
+          <div className="rpt-frame" ref={frame}><iframe title={view.title} srcDoc={view.html} sandbox="" /></div>
         </section>
       )}
       {playPrompt && view && (
