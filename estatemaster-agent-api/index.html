@@ -3878,7 +3878,7 @@ async function auditExport(x,again,open){if(!x)return;if(x.audit&&x.audit.status
 let DBGX=null,DBGO=null;
 /* the export the window shows: the one asked for; if a server sync replaced it, the same file's new copy (it takes the debug over); else the open project's latest debugged, else latest, model */
 function dbgTarget(){let x=EXPORTS.find(z=>z.id===DBGX);if(x){if(!x.audit&&DBGO&&DBGO!==x&&DBGO.audit&&DBGO.id===x.id)x.audit=DBGO.audit;return x}
-  if(DBGO&&DBGO.file){x=EXPORTS.filter(z=>z.file&&fileKey(z.file)===fileKey(DBGO.file)).slice(-1)[0];if(x){if(!x.audit&&DBGO.audit)x.audit=DBGO.audit;DBGX=x.id;DBGO=x;return x}}
+  if(DBGO&&DBGO.file){x=EXPORTS.filter(z=>z.file===DBGO.file).slice(-1)[0]||EXPORTS.filter(z=>z.file&&fileKey(z.file)===fileKey(DBGO.file)).slice(-1)[0];if(x){if(!x.audit&&DBGO.audit)x.audit=DBGO.audit;DBGX=x.id;DBGO=x;return x}}
   const mine=EXPORTS.filter(z=>z.proj===PROJ.id&&z.src==='file');x=mine.filter(z=>z.audit).slice(-1)[0]||mine.slice(-1)[0]||EXPORTS.filter(z=>z.proj===PROJ.id).slice(-1)[0]||null;if(x){DBGX=x.id;DBGO=x}return x}
 function openDbgWin(id){DBGX=id;DBGO=EXPORTS.find(z=>z.id===id)||null;let w=$('#dbgWin');if(!w){document.body.insertAdjacentHTML('beforeend',`<div class="dbg-win" id="dbgWin"><div class="card"><div class="bar"></div><div class="sbhead"><h2>Model debug</h2><button class="btn ghost sm btn-x" id="dbgClose" title="Close" aria-label="Close">×</button></div><div id="dbgBody"></div></div></div>`);w=$('#dbgWin')}
   w.classList.add('on');renderDbgWin()}
