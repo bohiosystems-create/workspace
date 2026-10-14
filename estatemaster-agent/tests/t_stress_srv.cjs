@@ -16,5 +16,5 @@ ok(calls.filter(c=>c.kind==='risk')[0].p==='anthropic'&&calls.filter(c=>c.kind==
 ok(r.reviewer==='OpenAI GPT-5'&&r.risks.length===1,'falls back to GPT-5 when Opus fails: '+r.reviewer);
 const d={hurdle:18,stress:[{name:'Al Narjis',file:b.name,base_irr:26.83,base_poc:23.26,...r}],checks:[],feed:null,flags:{findings:[]}};
 const u=cron.urgentItems(d);ok(u.length===1&&u[0].src==='stress'&&/Re-tender/.test(u[0].why),'high risk in To know today');
-const h=cron.stressHtml(d,false);ok(/Stress tests run before this report/.test(h)&&/Construction cost \+20%/.test(h)&&/font-style:italic/.test(h)&&/Re-tender/.test(h),'email section with bars, risks and italic note');
+const h=cron.stressHtml(d,false);ok(/Stress tests run before this report/.test(h)&&/Construction cost \+20%/.test(h)&&/dark line in each bar is the hurdle/.test(h)&&/Re-tender/.test(h),'email section with bars against the hurdle, risks and the note');
 console.log(`${pass} pass, ${fail} fail`)})();

@@ -55,7 +55,7 @@ const call = (h, { method = 'GET', url = '/', headers = {}, body } = {}) => new 
   r = await call(sch, { method: 'POST', headers: { origin: 'https://agent.example' }, body: { action: 'preview' } });
   const pv = r.body.html || '';
   ck('preview: EstateMaster figures, checks, Outlook (exit yield 7.25%), assumptions vs market (cap 5.75% below → aggressive, USD converted), nothing sent', /Daily EstateMaster report/.test(pv) && /12\.32%/.test(pv) && /Checks on the export/.test(pv) && /Exit yield/.test(pv) && /Assumptions vs market/.test(pv) && /5\.75%/.test(pv) && /below · aggressive/.test(pv) && /USD converted at 3\.75 SAR/.test(pv) && !sent.length, (r.body.market || []).map(x => x.text).join(' | ').slice(0, 260));
-  ck('preview: the email change carries why it is asked for and the modelled impact (AI estimate, IRR → 11.40% below hurdle)', /Why<\/th>/.test(pv) && /Impact if applied/.test(pv) && /11\.40%/.test(pv) && /softer exit yield/.test(pv), (pv.match(/Impact[\s\S]{0,400}/) || [''])[0].replace(/<[^>]+>/g, ' ').slice(0, 300));
+  ck('preview: the email change carries why it is asked for and the modelled impact (AI estimate, IRR → 11.40% below hurdle)', /In the email/.test(pv) && /Levered IRR/.test(pv) && /11\.40%/.test(pv) && /softer exit yield/.test(pv), (pv.match(/Impact[\s\S]{0,400}/) || [''])[0].replace(/<[^>]+>/g, ' ').slice(0, 300));
   // tick: 07:35 Riyadh on Wednesday → due → sends English and Arabic
   r = await call(cron, { url: '/api/cron?run=tick&now=2026-10-07T04:35:00Z', headers: { authorization: 'Bearer sek' } });
   const rp = r.body.results.find(x => x.job === 'report');

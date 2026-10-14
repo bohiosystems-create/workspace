@@ -89,12 +89,14 @@ function checkRecipients(list) {
 }
 /* Send an HTML email from the agent's mailbox (Graph sendMail; needs Mail.Send). */
 async function sendMail(token, { to, subject, html, attachments = [] }) {
+  // images embedded in the page (the KINAN logo) travel as inline attachments: every mail client shows those
+  { const r = require('./mailui').inlineImages(html); html = r.html; attachments = r.attachments.concat(attachments); }
   const mb = env('OUTLOOK_MAILBOX'), draft = env('OUTLOOK_DELIVERY') === 'draft';
   const name = env('OUTLOOK_SENDER_NAME'), cc = env('OUTLOOK_CC').split(',').map(x => x.trim()).filter(Boolean);
   const message = { subject, body: { contentType: 'HTML', content: html }, toRecipients: to.map(a => ({ emailAddress: { address: a } })),
     ...(cc.length ? { ccRecipients: cc.map(a => ({ emailAddress: { address: a } })) } : {}),
     ...(name ? { from: { emailAddress: { address: mb, name } } } : {}),
-    attachments: attachments.map(a => ({ '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.contentType || 'application/octet-stream', contentBytes: a.base64 })) };
+    attachments: attachments.map(a => ({ '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.contentType || 'application/octet-stream', contentBytes: a.base64, ...(a.inline ? { isInline: true, contentId: a.contentId } : {}) })) };
   // OUTLOOK_DELIVERY=draft: the email waits in the mailbox's Drafts for a person to send (needs Mail.ReadWrite)
   const r = await fetch(`${gbase()}/users/${encodeURIComponent(mb)}/${draft ? 'messages' : 'sendMail'}`, {
     method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },

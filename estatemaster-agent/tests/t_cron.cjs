@@ -52,7 +52,7 @@ const call = (h, { method = 'GET', url = '/', headers = {}, body } = {}) => new 
   ck('report reads the two latest exports and emails EstateMaster figures', rp.sent && rp.latest === 'DF_CS046_export_0410.xlsx' && rp.previous === 'DF_CS046_export_0310.xlsx' && rp.figures.levered_irr === 22.4 && rp.to.join() === 'ic@kinan.com.sa', JSON.stringify({ ...rp, preview: undefined }).slice(0, 240));
   const rep = sent[1].message.body.content;
   ck('report email: headline figures, change vs previous, hurdle line, source files', /22\.40%/.test(rep) && /−1\.40 pts/.test(rep) && /above the 18% hurdle/.test(rep) && /DF_CS046_export_0410\.xlsx/.test(rep), (rep.match(/−1\.40 pts|above the 18% hurdle/g) || []).join(','));
-  ck('report: checks section says nothing to look at on a clean export, Outlook section flags the interest-rate change of the last 24h', /Checks on the export/.test(rep) && /Nothing to look at/.test(rep) && /Assumption changes and approvals asked for in emails/.test(rep) && /Loan 1 interest rate/.test(rep) && /8\.0% p\.a\./.test(rep) && /does not include them yet/.test(rep) && rp.flags.length === 1 && rp.checks.length === 0, JSON.stringify({ checks: rp.checks, flags: rp.flags }));
+  ck('report: checks section says nothing to look at on a clean export, Outlook section flags the interest-rate change of the last 24h', /Checks on the export/.test(rep) && /Outputs reconcile/.test(rep) && /Assumption changes and approvals asked for in emails/.test(rep) && /Loan 1 interest rate/.test(rep) && /8\.0% p\.a\./.test(rep) && /does not include them yet/.test(rep) && rp.flags.length === 1 && rp.checks.length === 0, JSON.stringify({ checks: rp.checks, flags: rp.flags }));
   // a bad export: unit slip, margin that does not reconcile, peak debt above cost, zero contingency, 22% interest, negative leverage
   badExport = true; sent = []; r = await call(cron, { url: '/api/cron?run=report&dry=1&now=2026-10-06T04:05:00Z', headers: { authorization: 'Bearer sek' } }); badExport = false;
   const bad = r.body.results[0];
@@ -62,7 +62,7 @@ const call = (h, { method = 'GET', url = '/', headers = {}, body } = {}) => new 
   ck('no report on a non-report day', /not a report day \(fri\)/.test(r.body.results.find(x => x.job === 'report').skipped), JSON.stringify(r.body.results.map(x => x.skipped || x.sent)));
   // dry run: preview, nothing sent
   sent = []; r = await call(cron, { url: '/api/cron?run=scan&dry=1&now=2026-10-05T12:05:00Z', headers: { authorization: 'Bearer sek' } });
-  ck('dry run returns the preview and sends nothing', !sent.length && /<html>/.test(r.body.results[0].preview), sent.length);
+  ck('dry run returns the preview and sends nothing', !sent.length && /<html[ >]/.test(r.body.results[0].preview), sent.length);
   // nobody to alert
   process.env.ALERT_TO = ''; sent = []; r = await call(cron, { url: '/api/cron?run=scan&now=2026-10-05T12:05:00Z', headers: { authorization: 'Bearer sek' } });
   ck('no ALERT_TO: findings kept, no email', r.body.results[0].findings === 1 && !sent.length && /ALERT_TO/.test(r.body.results[0].note), r.body.results[0].note); process.env.ALERT_TO = 'matteo@kinan.com.sa';
