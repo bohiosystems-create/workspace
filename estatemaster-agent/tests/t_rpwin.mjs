@@ -1,0 +1,24 @@
+import {chromium} from 'playwright';
+const sp=new URL('./fixtures/',import.meta.url).pathname;
+const base=process.argv[2]||'http://localhost:4090/?mode=readonly';
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1500,height:950}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+const ok=(c,n)=>console.log((c?'PASS ':'FAIL ')+n);
+await p.goto(base);await p.evaluate(()=>localStorage.clear());await p.reload();await p.waitForTimeout(1400);
+await p.evaluate(()=>showTab('report'));await p.waitForTimeout(400);
+ok(await p.evaluate(()=>!document.querySelector('#p-report #xRun')&&![...document.querySelectorAll('#p-report h2')].some(h=>/EstateMaster extract/.test(h.textContent))),'the EstateMaster extract card is gone');
+const w=await p.evaluate(()=>({grid:getComputedStyle($('#rpgrid')).gridTemplateColumns,rep:$('#report').getBoundingClientRect().width,page:$('#p-report').getBoundingClientRect().width}));
+ok(w.rep>=880&&w.grid==='none','the report has the page to itself (no left column): '+JSON.stringify(w));
+await p.evaluate(()=>{$('#projRail').classList.add('open')});await p.hover('#prNav .pr-nav-i[data-gtab="report"]');await p.waitForTimeout(300);
+const sub=await p.evaluate(()=>[...document.querySelectorAll('#prNav .pr-subnav .pr-nav-s')].filter(e=>e.offsetParent!==null).map(e=>e.textContent));
+ok(sub.join('|')==='All reports|Report designer|Report templates','hovering Reports in the left menu shows the dropdown: '+sub.join(' · '));
+await p.screenshot({path:sp+'rail_reports.png',clip:{x:0,y:0,width:420,height:420}});
+await p.click('#prNav [data-rpwin="rdModal"]');await p.waitForTimeout(300);
+ok(await p.evaluate(()=>$('#rdModal').classList.contains('on')&&!!document.querySelector('#rdModal #rdAsk')&&$('#p-report').classList.contains('on')),'Report designer opens as its own window on the Reports page');
+await p.evaluate(()=>{$('#projRail').classList.add('open')});await p.hover('#prNav .pr-nav-i[data-gtab="report"]');await p.click('#prNav [data-rpwin="rtModal"]');await p.waitForTimeout(300);
+ok(await p.evaluate(()=>$('#rtModal').classList.contains('on')&&!$('#rdModal').classList.contains('on')&&document.querySelectorAll('#rtModal [data-rp]').length>=5),'Report templates opens as its own window (the designer closes)');
+await p.locator('#rtModal .card').screenshot({path:sp+'rt_win.png'});
+await p.click('#rtModal [data-rp="lender"]');await p.waitForTimeout(500);
+{const d=await p.evaluate(()=>({sel:RSEL,on:$('#rtModal').classList.contains('on'),t:$('#rpTitle').textContent}));ok(d.sel==='lender'&&!d.on&&/Lender/.test(d.t),'choosing a template opens that report and closes the window: '+JSON.stringify(d))}
+await p.evaluate(()=>openRpWin('rtModal'));await p.waitForTimeout(200);await p.click('#rtModal [data-rpwinclose]');await p.waitForTimeout(200);
+ok(await p.evaluate(()=>!$('#rtModal').classList.contains('on')),'× closes the window');
+console.log('errs',errs);await b.close();

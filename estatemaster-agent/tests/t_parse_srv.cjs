@@ -1,0 +1,3 @@
+const XLSX=require(__dirname+'/fixtures/package/xlsx.js');const EM=require(__dirname+'/../api/_lib/emcheck.js');
+const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Summary'],['Target Equity IRR',null,'%',0.18],['Total cost per sqm GFA',null,'SAR',9200],['Total sales area',null,'sqm',41000],['Equity IRR',null,'%',0.1375],['Total Development Cost',null,'SAR',556800000],['Total Revenue',null,'SAR',686300000]]),'Summary');
+const o=EM.parseWorkbook(wb,XLSX,'m.xlsx').out;const ok=o.levered_irr===13.75&&o.total_cost===556800000&&o.gross_revenue===686300000;console.log(ok?'PASS':'FAIL','server reader',JSON.stringify(o));

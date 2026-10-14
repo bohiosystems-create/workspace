@@ -1,0 +1,40 @@
+import {chromium} from 'playwright';import fs from 'fs';
+const sp=new URL('./fixtures/',import.meta.url).pathname;
+const URL=process.argv[2]||'http://localhost:4090/?mode=api';
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1500,height:1000}});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
+await p.goto(URL);await p.waitForTimeout(3500);
+let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
+ok(await p.evaluate(()=>MODE)==='api','mode api');
+ok(await p.evaluate(()=>EMAPI.log.length>=2),'sync calls logged on open: '+await p.evaluate(()=>EMAPI.log.map(e=>e.method+' '+e.path).join(' | ')));
+ok(await p.evaluate(()=>latestExport().src==='api'&&latestExport().inputs.length>5),'first read via API with inputs');
+const body=await p.evaluate(()=>document.body.innerText);
+ok(!/an analyst/i.test(body),'no "an analyst" wording visible: '+(body.match(/.{40}an analyst.{40}/i)||[''])[0]);
+ok(await p.evaluate(()=>document.querySelector('.cn.dk b').textContent)==='EstateMaster · API','chip says EstateMaster · API');
+// raise and approve a change
+const irr0=await p.evaluate(()=>latestExport().out.levered_irr);
+const cr=await p.evaluate(()=>{const c=raiseCR('manual','Test','What-if',[{t:'mods',mods:{price:-0.1}}],{channel:'Workspace'});return c.id});
+ok(await p.evaluate(()=>EMAPI.log.filter(e=>e.method==='PATCH').length)===0,'nothing written before approval');
+await p.evaluate(id=>approveAsTask(APQ.find(c=>c.id===id),'web','Investment Director'),cr);
+await p.waitForTimeout(4500);
+const st=await p.evaluate(id=>{const c=APQ.find(x=>x.id===id);const t=TASKS.find(x=>x.crs.includes(id));return{em:c.em,t:t&&t.status,calls:EMAPI.log.map(e=>e.method+' '+e.path).reverse().join(' | '),x:latestExport().id,src:latestExport().src,irr:latestExport().out.levered_irr}},cr);
+console.log(JSON.stringify(st));
+ok(st.t==='done'&&st.em.status==='done'&&st.src==='api','approved change written and read back');
+ok(/PATCH .*inputs.*POST .*calculate.*GET .*outputs/.test(st.calls),'PATCH → calculate → GET outputs in order');
+ok(st.irr!==irr0,'figures changed after write ('+irr0+' → '+st.irr+')');
+// stress via API
+await p.evaluate(()=>showTab('stress'));await p.waitForTimeout(500);
+await p.click('#sgGo');await p.waitForTimeout(4000);
+await p.waitForTimeout(2500);
+const hasGen=await p.evaluate(()=>GEN.worst&&GEN.worst.length);
+if(hasGen){await p.evaluate(()=>roStressTask(GEN.worst.slice(0,3)));await p.waitForTimeout(3500);
+  ok(await p.evaluate(()=>TASKS.filter(t=>t.kind==='stress').every(t=>t.status==='done')),'stress run via API sandbox');}
+else console.log('SKIP stress (no scenarios generated)');
+await p.evaluate(()=>showTab('em'));await p.waitForTimeout(600);
+await p.locator('[data-apil]').first().click();await p.waitForTimeout(300);
+ok(await p.locator('#apiLog pre').count()===1,'call detail opens');
+await p.screenshot({path:sp+'api_em.png'});
+await p.evaluate(()=>showTab('appr'));await p.waitForTimeout(600);await p.screenshot({path:sp+'api_appr.png'});
+const body2=await p.evaluate(()=>document.body.innerText);ok(!/an analyst/i.test(body2),'no analyst wording after flows: '+(body2.match(/.{50}an analyst.{30}/i)||[''])[0]);
+console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

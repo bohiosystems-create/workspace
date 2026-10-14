@@ -1,0 +1,33 @@
+import {chromium} from 'playwright';
+const sp=new URL('./fixtures/',import.meta.url).pathname;
+const base=process.argv[2]||'http://localhost:4090/?mode=readonly';
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1500,height:950}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+const ok=(c,n)=>console.log((c?'PASS ':'FAIL ')+n);let llm=[];
+await p.route('**/api/llm',r=>{if(r.request().method()==='GET')return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({providers:{anthropic:true,openai:true}})});
+  const j=JSON.parse(r.request().postData());llm.push(j);const P=j.payload,sys=P.system||((P.messages[0]||{}).role==='system'?P.messages[0].content:''),msgs=JSON.stringify(P.messages);
+  const reply=text=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(j.provider==='openai'?{choices:[{message:{content:text}}]}:{model:P.model,content:[{type:'text',text}]})});
+  if(/comparison metric/.test(sys)){if(/cost per sqm/.test(msgs)&&!/Answers to your questions/.test(msgs))return reply(JSON.stringify({sure:false,question:'Which cost: construction cost only, or total development cost?',options:['Construction cost','Total development cost']}));
+    const d=j.provider==='openai'?0.3:0;return reply(JSON.stringify({sure:true,label:'Total cost per sqm GFA',unit:'SAR',better:'lo',formula:'total development cost ÷ GFA',a:{value:8983+d,working:'Total cost: 557,000,000 ÷ 62,000 = 8,983'},b:{value:4521+d,working:'Total cost: 95,000,000 ÷ 21,000 = 4,521'}}))}
+  return reply('ok')});
+await p.goto(base);await p.evaluate(()=>localStorage.clear());await p.reload();await p.waitForTimeout(1500);
+await p.evaluate(()=>{PROJECTS.t2={...PROJECTS[PROJ.id],id:'t2',name:'Test Tower',xl:undefined};const x=latestExport();EXPORTS.push({...x,id:'EX-900',proj:'t2',at:new Date().toISOString(),out:{...x.out,levered_irr:12.32,total_cost:95e6}});showTab('em');emSection('compare');renderEMTab();$('#exB').value='EX-900';$('#exB').dispatchEvent(new Event('change'))});
+await p.waitForTimeout(500);
+ok(await p.locator('#exDiff .cmp-plus').count()===2,'a + button by each model title');
+await p.click('#exDiff .cmp-plus[data-cmpadd="b"]');await p.waitForTimeout(200);
+ok(await p.locator('#cmpAdd.on #cmpTxt').count()===1,'the + opens the plain-words box');
+await p.fill('#cmpTxt','cost per sqm');await p.press('#cmpTxt','Enter');await p.waitForTimeout(1500);
+ok(/Which cost/.test(await p.evaluate(()=>$('#cmpAdd').innerText))&&await p.locator('#cmpAdd [data-cmpopt]').count()===2,'the AI asks when the request is ambiguous, with options');
+await p.locator('#cmpAdd [data-cmpopt="Total development cost"]').click();await p.waitForTimeout(1500);
+const row=await p.evaluate(()=>{const r=document.querySelector('#exDiff .cmp-row.custom');return r?r.innerText.replace(/\n/g,' | '):''});
+ok(/Total cost per sqm GFA/.test(row)&&/AI/.test(row)&&/SAR 8,983/.test(row)&&/SAR 4,521/.test(row)&&/−4,462/.test(row),'the metric joins the comparison as an AI row with both values: '+row.slice(0,120));
+const both=llm.filter(j=>/comparison metric/.test(j.payload.system||(j.payload.messages[0]||{}).content||'')).map(j=>j.provider);
+ok(both.includes('anthropic')&&both.includes('openai'),'Claude and OpenAI both calculated it');
+await p.locator('#exDiff .cmp-row.custom .fig').first().click();await p.waitForTimeout(500);
+{const t=await p.evaluate(()=>$('#figWin').classList.contains('on')?$('#fwBody').textContent:'');console.log('FW',JSON.stringify(t.slice(0,400)));ok(/557,000,000 ÷ 62,000/.test(t)&&/agree/i.test(t),'clicking the figure shows the working of both models')}
+await p.click('#fwClose');
+await p.locator('#exDiff').screenshot({path:sp+'cmp_metric.png'});
+await p.reload();await p.waitForTimeout(1500);await p.evaluate(()=>{PROJECTS.t2={...PROJECTS[PROJ.id],id:'t2',name:'Test Tower',xl:undefined};showTab('em');emSection('compare');renderEMTab();$('#exB').value='EX-900';$('#exB').dispatchEvent(new Event('change'))});await p.waitForTimeout(400);
+ok(await p.locator('#exDiff .cmp-row.custom').count()===1,'the metric survives a reload');
+await p.click('#exDiff .cmp-row.custom [data-cmpdel]');await p.waitForTimeout(300);
+ok(await p.locator('#exDiff .cmp-row.custom').count()===0,'× removes it');
+console.log('errs',errs);await b.close();

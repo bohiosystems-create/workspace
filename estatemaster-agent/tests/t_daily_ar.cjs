@@ -1,0 +1,13 @@
+const SCHED=require(__dirname+'/../api/_lib/sched.js');const G=require(__dirname+'/../api/_lib/graph.js');
+process.env.EXPORTS_FOLDER='/drives/x/root:/exports';process.env.MAIL_ALLOWED_DOMAINS='jeddahsicon.com';process.env.ANTHROPIC_API_KEY='k';
+let disk={schedule:{enabled:true,time:'07:00',timezone:'Asia/Riyadh',days:[0,1,2,3,4],recipients:'mb@jeddahsicon.com',languages:['en']},log:[]};
+SCHED.load=async()=>({...JSON.parse(JSON.stringify(disk)),stored:true,path:'p',err:''});SCHED.save=async(t,st)=>{disk={schedule:st.schedule,log:st.log||[],feed:st.feed||null,stress:st.stress||null,daily:st.daily||null}};
+G.graphConfigured=()=>true;G.readBody=async r=>r.body;G.graphToken=async()=>'tok';G.graph=async()=>({value:[]});G.aiProviders=()=>['anthropic'];G.ai=async(sys,user)=>/JSON/.test(sys)?'{"findings":[],"translations":{}}':'[]';G.readMessages=async()=>[];
+const handler=require(__dirname+'/../api/schedule.js');
+const call=(method,b)=>new Promise(ok=>{const req={method,headers:{host:'x'},body:b};const res={statusCode:0,headers:{},setHeader(k,v){this.headers[k]=v},end(t){ok({status:this.statusCode,j:JSON.parse(t||'{}')})},status(c){this.statusCode=c;return this},json(o){ok({status:this.statusCode,j:o})}};handler(req,res)});
+(async()=>{let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
+ const r=await call('POST',{action:'preview'});const j=r.j;
+ ok(j.previews&&j.previews.en&&j.previews.ar&&/dir="rtl"/.test(j.previews.ar)&&!/dir="rtl"/.test(j.previews.en),'preview returns English and Arabic'+(j.error?' · '+j.error:''));
+ ok(disk.daily&&disk.daily.html&&disk.daily.html.ar&&disk.daily.at,'both languages kept with the schedule');
+ const g=await call('GET');ok(g.j.daily&&g.j.daily.html&&g.j.daily.html.ar,'GET state carries today\'s report in both languages');
+ console.log(`${pass} pass, ${fail} fail`)})();

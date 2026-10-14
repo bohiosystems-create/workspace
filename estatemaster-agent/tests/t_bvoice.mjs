@@ -1,0 +1,12 @@
+import {chromium} from 'playwright';
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1300,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2000);
+let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
+const r=await p.evaluate(async()=>{window.__spoken=[];const SS={speak(u){__spoken.push(u.text);setTimeout(()=>{u.onend&&u.onend()},u.text.length*12)},cancel(){},getVoices:()=>[{lang:'en-GB',name:'x'}],speaking:false,pending:false,paused:false};Object.defineProperty(window,'speechSynthesis',{value:SS,configurable:true});window.SpeechSynthesisUtterance=function(t){this.text=t};
+  KVOICE.mode='browser';KVOICE.checked=true;
+  const text=Array.from({length:6},(_,i)=>`Sentence number ${i+1} explains the levered return, the margin on cost and the peak debt of the project in plain words so the committee can follow.`).join(' ');
+  const t0=Date.now();const res=await kSpeakTrack(kTrack([{t:text,f:null}],null),()=>{},'');return{res,parts:__spoken.length,maxLen:Math.max(...__spoken.map(s=>s.length)),ms:Date.now()-t0,chars:text.length}});
+ok(r.res===true,'browser voice reports done only after every part: '+JSON.stringify(r));
+ok(r.parts>=4&&r.maxLen<=190,'long text split into short utterances ('+r.parts+' parts, longest '+r.maxLen+' chars)');
+ok(r.ms>=r.chars*12*0.9,'waited for all parts ('+r.ms+' ms for '+r.chars+' chars)');
+console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

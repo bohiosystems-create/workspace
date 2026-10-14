@@ -1,0 +1,4 @@
+const X=require(__dirname+'/fixtures/package/dist/xlsx.full.min.js'),EM=require(__dirname+'/../api/_lib/emcheck.js'),fs=require('fs');const T=JSON.parse(fs.readFileSync(__dirname+'/fixtures/cfref/hold_truth.json'));let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log((c?'PASS':'FAIL')+' | '+m)};
+const x=EM.parseWorkbook(X.read(fs.readFileSync(__dirname+'/fixtures/cfref/hold_export.xlsx'),{type:'buffer'}),X,'hold.xlsx'),M=EM.cfModel(x);ok(M.ok&&M.levOk&&M.exitLine,'build-to-hold model proved (exit line found): '+JSON.stringify(M.lines));
+for(const [k,t] of Object.entries(T)){const d={...t.d};if(d.cap)d.capBase=7;const r=EM.cfRun(M,d);ok(Math.abs(r.lirr-t.lirr)<0.01&&Math.abs(r.uirr-t.uirr)<0.01,`${k} ${JSON.stringify(t.d)}: levered ${r.lirr.toFixed(3)}% vs truth ${t.lirr.toFixed(3)}%, unlevered ${r.uirr.toFixed(3)}% vs ${t.uirr.toFixed(3)}%`)}
+console.log(`t_cfhold: ${pass} pass, ${fail} fail`);

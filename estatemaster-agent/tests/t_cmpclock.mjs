@@ -1,0 +1,14 @@
+import {chromium} from 'playwright';
+const sp=new URL('./fixtures/',import.meta.url).pathname;
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1300,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2500);
+let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
+await p.evaluate(()=>{PROJECTS.t2={...PROJECTS[PROJ.id],id:'t2',name:'Test Tower',xl:undefined};const x=latestExport();EXPORTS.push({...x,id:'EX-900',proj:'t2',at:new Date().toISOString(),out:{...x.out,levered_irr:12.32}});showTab('em');emSection('compare');renderEMTab();$('#exB').value='EX-900';$('#exB').dispatchEvent(new Event('change'));
+  window.cmpPin=()=>new Promise(r=>setTimeout(()=>r({label:'Test metric',unit:'x',better:'hi',formula:'a/b',va:1,vb:2,wa:[],wb:[],names:{},mode:'agree'}),2600));
+  cmpAddUI(true);});
+await p.fill('#cmpTxt','profit per unit');await p.locator('#cmpAdd form.cmp-ask button').click();await p.waitForTimeout(1300);
+ok(await p.locator('#cmpClock').count()===1,'clock shown while working');
+const c1=await p.locator('#cmpClock').textContent();await p.waitForTimeout(1100);const c2=await p.locator('#cmpClock').textContent();ok(c1!==c2&&/^\d:\d\d$/.test(c2),`clock runs (${c1} → ${c2})`);
+await p.locator('#cmpAdd').screenshot({path:sp+'cmp_clock.png'});
+await p.waitForTimeout(1200);ok(await p.locator('#cmpClock').count()===0,'clock gone when done');ok(/Metric added in \d:\d\d/.test(await p.locator('body').textContent()),'toast shows elapsed time');
+console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();
