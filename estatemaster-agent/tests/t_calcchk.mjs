@@ -1,0 +1,18 @@
+import {chromium} from 'playwright';
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2000);
+let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
+const run=(changes,metrics,rounds)=>p.evaluate(([changes,metrics,rounds])=>{const x={id:'EX-T',out:{levered_irr:13.75,unlevered_irr:12.97,profit_on_cost:23.26,net_profit:129.5e6,total_cost:556.8e6,gross_revenue:686.3e6,peak_debt:136e6},sens:[]};return calcChecks({x,changes,metrics,rounds}).findings.map(f=>f.k+':'+f.level+':'+f.text)},[changes,metrics,rounds]);
+let f=await run([{text:'sale price −10%'}],[{k:'levered_irr',value:11.2},{k:'net_profit',value:61},{k:'profit_on_cost',value:11}],[[{who:'Claude',j:{results:[{metric:'levered_irr',base:13.75,value:11.2}]}}]]);
+ok(f.some(t=>/net_profit:error:.*unit slip/.test(t)),'net profit returned in millions is caught as a unit slip');
+f=await run([{text:'sale price −10%'}],[{k:'levered_irr',value:11.2}],[[{who:'OpenAI',j:{results:[{metric:'levered_irr',base:18,value:11.2}]}}]]);
+ok(f.some(t=>/levered_irr:error:.*wrong base/.test(t)),'an analyst working from the wrong base IRR is caught');
+f=await run([{text:'sale price −10%'}],[{k:'levered_irr',value:15.1}],[[]]);
+ok(f.some(t=>/improves .* adverse/.test(t)),'an adverse change that improves the IRR is caught');
+f=await run([{text:'construction cost +5%'}],[{k:'levered_irr',value:-4}],[[]]);
+ok(f.some(t=>/unusually large/.test(t)),'an implausible 17.8-point swing from a 5% change is flagged');
+f=await run([{text:'sale price −10%'}],[{k:'levered_irr',value:11.2},{k:'net_profit',value:61e6},{k:'total_cost',value:556.8e6},{k:'profit_on_cost',value:20}],[[{who:'Claude',j:{results:[{metric:'levered_irr',base:13.75,value:11.2}]}}]]);
+ok(f.some(t=>/does not reconcile with net profit/.test(t)),'profit on cost that does not equal net profit / cost is caught');
+f=await run([{text:'sale price −10%'}],[{k:'levered_irr',value:11.2},{k:'net_profit',value:61e6},{k:'total_cost',value:556.8e6},{k:'profit_on_cost',value:10.96}],[[{who:'Claude',j:{results:[{metric:'levered_irr',base:13.75,value:11.2},{metric:'net_profit',base:129.5e6,value:61e6}]}}]]);
+ok(f.length===0,'a clean, consistent answer raises nothing: '+JSON.stringify(f));
+console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

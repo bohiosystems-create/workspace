@@ -1,0 +1,18 @@
+import {chromium} from 'playwright';import fs from 'fs';
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1300,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
+await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2500);
+let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
+await p.evaluate(()=>toggleDock(true));await p.waitForTimeout(300);
+const vis=()=>p.evaluate(()=>getComputedStyle($('#chips')).display!=='none');
+const lastHas=()=>p.evaluate(()=>!!$('#msgs').querySelector('.msg:last-child .qchip,.msg:last-child .chip'));
+ok((await vis())!==(await lastHas()),'at open: chip row shown only when the last message has no suggestions');
+await p.evaluate(()=>askAboutExport(PROJ,latestExport()));await p.waitForTimeout(200);
+ok(!(await vis()),'after the loaded-model message with its own questions, the chip row is hidden');
+await p.screenshot({path:sp+'chips_once.png',clip:{x:800,y:120,width:500,height:780}});
+await p.evaluate(()=>addMsg('user','hello'));await p.evaluate(()=>addMsg('agent','Hi.'));await p.waitForTimeout(100);
+ok(await vis(),'after a plain answer the chip row is back');
+await p.evaluate(()=>askAboutExport(PROJ,latestExport()));await p.evaluate(()=>{chatSave&&chatSave();chatRestore(PROJ.id)});await p.waitForTimeout(100);
+ok(!(await vis()),'restored chat keeps the rule');
+console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

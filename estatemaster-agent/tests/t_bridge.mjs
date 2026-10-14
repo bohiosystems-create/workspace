@@ -1,0 +1,11 @@
+import {chromium} from 'playwright';
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2500);
+let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
+const r=await p.evaluate(()=>{const br=kSeriesSlide('ic_summary'),tw=kSeriesSlide('capital_stack'),dn=kSeriesSlide('cost_breakdown');const rr=run(S);
+  const steps=br.steps.filter(s=>!s.total).reduce((a,s)=>a+s.v,0);return{top:br.steps[0].v,steps,net:br.steps[br.steps.length-1].v,profit:rr.profit,tc:rr.tc,uses:tw.columns[0].segs.reduce((a,g)=>a+g.v,0),donut:dn.values.reduce((a,v)=>a+v,0)*1e6,src:tw.columns[1].segs.reduce((a,g)=>a+g.v,0)}});
+ok(Math.abs(r.top+r.steps-r.net)<1&&Math.abs(r.net-r.profit)<1,`bridge adds up: ${(r.top/1e6).toFixed(1)} + steps ${(r.steps/1e6).toFixed(1)} = ${(r.net/1e6).toFixed(1)} (profit ${(r.profit/1e6).toFixed(1)})`);
+ok(Math.abs(r.uses-r.tc)<1,`sources and uses: uses ${(r.uses/1e6).toFixed(1)} equal total cost ${(r.tc/1e6).toFixed(1)}`);
+ok(Math.abs(r.src-r.uses)<1e6,`sources balance uses (${(r.src/1e6).toFixed(1)})`);
+ok(Math.abs(r.donut-r.tc)<1.5e6,`cost donut totals the same total cost (${(r.donut/1e6).toFixed(1)} vs ${(r.tc/1e6).toFixed(1)})`);
+console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

@@ -1,0 +1,17 @@
+{
+  "mixed": {
+    "name": "KINAN master template: mixed use (residential for sale + retail for hold)",
+    "emdf": "C:\\Bohio\\Templates\\KINAN_mixed.emdf",
+    "control_workbook": "C:\\Bohio\\Templates\\KINAN_mixed_control.xlsx"
+  },
+  "resi": {
+    "name": "KINAN master template: residential for sale",
+    "emdf": "C:\\Bohio\\Templates\\KINAN_resi.emdf",
+    "control_workbook": "C:\\Bohio\\Templates\\KINAN_resi_control.xlsx"
+  },
+  "retail": {
+    "name": "KINAN master template: retail for hold",
+    "emdf": "C:\\Bohio\\Templates\\KINAN_retail.emdf",
+    "control_workbook": "C:\\Bohio\\Templates\\KINAN_retail_control.xlsx"
+  }
+}

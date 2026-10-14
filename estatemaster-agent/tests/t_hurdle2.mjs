@@ -1,0 +1,18 @@
+import {chromium} from 'playwright';import fs from 'fs';
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1300,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
+await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2500);
+let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
+ok(await p.locator('#hurBar').count()===0,'no standing hurdle bar');
+await p.evaluate(()=>{AI.keys.anthropic='sk-test';showTab('scen');$('#asX').value='sale price −10% to +10%';$('#asY').value='cost −10% to +10%'});
+await p.evaluate(()=>asGenerate());await p.waitForTimeout(300);
+ok(await p.locator('#asQ #hurAsk').count()===1&&/What hurdle should/.test(await p.locator('#asQ').textContent()),'the sensitivity table asks for the hurdle first, inline');
+ok(await p.evaluate(()=>!AS.busy),'generation waits for the answer');
+await p.fill('#hurIn','17');await p.locator('#hurAsk form button[type=submit]').click();await p.waitForTimeout(300);
+ok(await p.evaluate(()=>HURDLES[PROJ.id]&&HURDLES[PROJ.id].v===17),'typed hurdle recorded');
+ok(await p.locator('#hurAsk').count()===0,'question gone once answered');
+const cover=await p.evaluate(()=>buildDeck('ic',{doc:true,raw:true}).slides[0]);
+ok(cover.kicker&&!new RegExp(cover.kicker,'i').test(cover.sub)&&!/Investment committee/i.test(cover.sub),'cover carries the pack name once: '+cover.sub);
+ok(/Professional yet conversational/.test(await p.evaluate(()=>KS_TONE)),'script tone rule in place');
+console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

@@ -1,0 +1,57 @@
+name: EstateMaster agent tests
+
+on:
+  push:
+    paths:
+      - 'estatemaster-agent/**'
+      - 'estatemaster-agent-api/**'
+      - '.github/workflows/estatemaster-tests.yml'
+  pull_request:
+    paths:
+      - 'estatemaster-agent/**'
+      - 'estatemaster-agent-api/**'
+  schedule:
+    - cron: '17 1 * * *'   # every night (01:17 UTC): the full suite on all three builds
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'quick (default), full, or server'
+        default: quick
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build check (the dist builds and the mock-API mirror must match their sources)
+        run: |
+          cd estatemaster-agent && python3 tools/build_options.py && cd ../estatemaster-agent-api && python3 tools/mirror_from_option2.py && cd ..
+          git diff --exit-code --stat -- estatemaster-agent/dist estatemaster-agent-api/index.html estatemaster-agent/index.html || { echo "::error::dist or mirror out of date: run the build tools and commit"; exit 1; }
+      - name: Syntax check (inline scripts and serverless functions)
+        run: |
+          for f in estatemaster-agent/index.html estatemaster-agent/dist/option2-readonly/index.html estatemaster-agent/dist/option3-analyst/index.html estatemaster-agent-api/index.html; do
+            python3 -c "import re,sys;s=open('$f').read();open('/tmp/chk.js','w').write('\n'.join(re.findall(r'<script>([\s\S]*?)</script>',s)))" && node --check /tmp/chk.js || exit 1; done
+          for f in estatemaster-agent/api/*.js estatemaster-agent/api/_lib/*.js estatemaster-agent-api/api/*.js estatemaster-agent-api/api/_lib/*.js; do node --check "$f" || exit 1; done
+      - name: Deploy build check (the page splits into cached assets that still parse)
+        run: |
+          npm ci --prefix estatemaster-agent/tools/node --no-audit --no-fund
+          for b in estatemaster-agent/dist/option2-readonly estatemaster-agent/dist/option3-analyst estatemaster-agent-api; do
+            out=$(mktemp -d); python3 estatemaster-agent/tools/split_assets.py $b/index.html $out && for f in $out/assets/*.js; do node --check $f || exit 1; done; done
+      - name: Install Playwright
+        run: |
+          cd estatemaster-agent/tests && npm init -y >/dev/null && npm i playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium
+      - name: Run tests
+        run: cd estatemaster-agent/tests && bash run.sh "${{ github.event_name == 'schedule' && 'full' || github.event.inputs.mode || 'quick' }}"
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            estatemaster-agent/tests/last-run.log
+            estatemaster-agent/tests/last-run.log.full
+          if-no-files-found: ignore

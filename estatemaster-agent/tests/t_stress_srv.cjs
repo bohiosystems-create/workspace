@@ -1,0 +1,20 @@
+const G=require(__dirname+'/../api/_lib/graph.js');
+process.env.ANTHROPIC_API_KEY='x';process.env.OPENAI_API_KEY='y';
+const calls=[];
+G.ai=async(sys,user,max,p,model)=>{calls.push({p,model,kind:/chief risk officer/.test(sys)?'risk':'stress'});
+  if(/chief risk officer/.test(sys)){if(p==='anthropic')throw new Error('opus down');return JSON.stringify({risks:[{title:'Cost overrun breaks the hurdle',evidence:'Construction cost +20% → levered IRR 10.1%',severity:'high',recommendation:'Re-tender the main contract before committing.'}]})}
+  const off=p==='anthropic'?0:0.3;return JSON.stringify({scenarios:[{name:'Sale price −15%',levered_irr:14.5+off,profit_on_cost:12,net_profit:9e7,working:'w'},{name:'Construction cost +20%',levered_irr:10.1+off,profit_on_cost:9,net_profit:7e7,working:'w'},{name:'12-month delay',levered_irr:19.2+off,profit_on_cost:22,net_profit:1.2e8,working:'w'},{name:'Interest rate +300 bps',levered_irr:17.4+off*5,profit_on_cost:21,net_profit:1.1e8,working:'w'}]})};
+const cron=require(__dirname+'/../api/cron.js');
+(async()=>{let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
+const b={name:'DF_CS046.xlsx',out:{levered_irr:26.83,profit_on_cost:23.26,net_profit:1.3e8,total_cost:5.57e8},inputs:[{label:'Sale price',value:13500,text:'13,500',unit:'SAR/sqm'}],sens:[],meta:{title:'Al Narjis'}};
+const r=await cron.stressRun(b,18,[{level:'warn',text:'FAR 3.10 vs max 3.0'}]);
+ok(r.scenarios.length===8,'8 scenarios listed ('+r.scenarios.filter(x=>x.note).length+' without estimate)');
+const cc=r.scenarios.find(x=>x.name==='Construction cost +20%');ok(cc&&!cc.pass&&Math.abs(cc.levered_irr-10.25)<0.01&&cc.agree===true,'cross-checked average, fails hurdle: '+JSON.stringify(cc));
+const ir=r.scenarios.find(x=>x.name==='Interest rate +300 bps');ok(ir.agree===false,'1.5 pts apart flagged as differ');
+ok(r.by==='Claude and OpenAI','both providers estimated');
+ok(calls.filter(c=>c.kind==='risk')[0].p==='anthropic'&&calls.filter(c=>c.kind==='risk')[0].model==='claude-opus-5-5','risk review goes to Opus first');
+ok(r.reviewer==='OpenAI GPT-5'&&r.risks.length===1,'falls back to GPT-5 when Opus fails: '+r.reviewer);
+const d={hurdle:18,stress:[{name:'Al Narjis',file:b.name,base_irr:26.83,base_poc:23.26,...r}],checks:[],feed:null,flags:{findings:[]}};
+const u=cron.urgentItems(d);ok(u.length===1&&u[0].src==='stress'&&/Re-tender/.test(u[0].why),'high risk in To know today');
+const h=cron.stressHtml(d,false);ok(/Stress tests run before this report/.test(h)&&/Construction cost \+20%/.test(h)&&/dark line in each bar is the hurdle/.test(h)&&/Re-tender/.test(h),'email section with bars against the hurdle, risks and the note');
+console.log(`${pass} pass, ${fail} fail`)})();

@@ -1,0 +1,21 @@
+import {chromium} from 'playwright';
+const base=process.argv[2]||'http://localhost:4090/?mode=readonly';
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1500,height:950}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+const ok=(c,n)=>console.log((c?'PASS ':'FAIL ')+n);let llm=[],fail=true;
+await p.route('**/api/voice*',r=>r.fulfill({status:200,contentType:'application/json',body:'{"enabled":false}'}));
+await p.route('**/api/llm',r=>{if(r.request().method()==='GET')return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({providers:{anthropic:true,openai:true}})});
+  const j=JSON.parse(r.request().postData());llm.push(j);const P=j.payload,sys=P.system||((P.messages[0]||{}).role==='system'?P.messages[0].content:'');
+  if(/translate the text of a real estate investment report/.test(sys)){if(fail)return r.fulfill({status:400,contentType:'application/json',body:JSON.stringify({type:'error',error:{type:'invalid_request_error',message:'Your credit balance is too low to access the Anthropic API.'}})});
+    const batch=JSON.parse(P.messages[P.messages.length-1].content);return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(j.provider==='openai'?{choices:[{message:{content:JSON.stringify({t:batch.map(t=>'ع '+t)})}}]}:{content:[{type:'text',text:JSON.stringify({t:batch.map(t=>'ع '+t)})}]})})}
+  return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(j.provider==='openai'?{choices:[{message:{content:'ok'}}]}:{content:[{type:'text',text:'ok'}]})})});
+await p.goto(base);await p.evaluate(()=>{localStorage.clear()});await p.reload();await p.waitForTimeout(1500);
+await p.evaluate(()=>{showTab('report');RSEL='ic';renderReportList();renderReport()});await p.waitForTimeout(3000);
+await p.click('[data-rplang="ar"]');await p.waitForTimeout(1500);
+const n1=await p.evaluate(()=>$('#rpLangNote').innerText);
+ok(/could not be built/.test(n1)&&/out of API credit|credit/.test(n1)&&/Try again/.test(n1),'when every AI call fails the toggle says why, with Try again: '+n1.slice(0,120));
+fail=false;await p.click('[data-rpretry]');await p.waitForTimeout(2500);
+const ar=await p.evaluate(()=>({rtl:$('#report').classList.contains('rtl'),txt:$('#report').textContent.slice(0,60),note:$('#rpLangNote').style.display}));
+ok(ar.rtl&&/ع /.test(ar.txt)&&ar.note==='none','Try again builds it and the Arabic report shows');
+const tr=llm.filter(j=>/translate the text/.test(j.payload.system||(j.payload.messages[0]||{}).content||''));
+ok(tr.length>=2&&tr.every(j=>/mini|sonnet/.test(j.payload.model)),'translation runs on the fast route in parallel batches ('+tr.length+' calls, '+[...new Set(tr.map(j=>j.payload.model))].join('/')+')');
+console.log('errs',errs);await b.close();

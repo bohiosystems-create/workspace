@@ -1,0 +1,14 @@
+import {chromium} from 'playwright';
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1300,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2500);
+let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
+const sl=await p.evaluate(()=>kSeriesSlide('cashflow_annual','table'));
+ok(sl.kind==='table'&&/^Line item/.test(sl.head[0])&&sl.head.slice(1).every(h=>/^20\d\d$/.test(h)),'years across the top: '+sl.head.join(' | '));
+ok(sl.rows.length===7&&sl.rows[0][0]==='Development costs'&&sl.rows[6][0]==='Cumulative','line items down: '+sl.rows.map(r=>r[0]).join(', '));
+ok(/no cash flow by line item and year/.test(sl.note)&&/agent’s estimate/.test(sl.note),'says the export has no line-item cash flow: '+sl.note.slice(0,120));
+await p.evaluate(()=>{toggleDock(true);addMsg('agent',chartCard(kSeriesSlide('cashflow_annual','table'),{source:'agent’s estimate on the model data'}))});await p.waitForTimeout(500);
+const txt=await p.locator('#msgs .kchart').last().textContent();ok(/Cumulative/.test(txt)&&/no cash flow by line item/.test(txt),'card shows the table and the note');
+await p.locator('#msgs .kchart').last().screenshot({path:sp+'cf_sheet.png'});
+const col=await p.evaluate(()=>kSeriesSlide('cashflow_annual','columns'));ok(col.kind==='columns','chart form unchanged');
+console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

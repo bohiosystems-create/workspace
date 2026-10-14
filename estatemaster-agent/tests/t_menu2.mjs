@@ -1,0 +1,10 @@
+import {chromium} from 'playwright';import fs from 'fs';
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1300,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
+await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2500);
+const tabs=await p.evaluate(()=>[...document.querySelectorAll('#tabs .tab:not(.gtab-hidden)')].map(t=>t.textContent.trim()));console.log(tabs.join(' | '));
+console.log(tabs.length===3&&!tabs.some(t=>/^Assumptions$/.test(t))?'PASS no Assumptions tab':'FAIL tabs');
+await p.click('.tab[data-t="em"]');await p.waitForTimeout(200);await p.click('#emMenu [data-emgo="@model"]');await p.waitForTimeout(400);
+const r=await p.evaluate(()=>({pane:document.querySelector('.pane.on').id,em:document.querySelector('.tab[data-t=em]').classList.contains('on')}));console.log(r.pane==='p-model'&&r.em?'PASS what-if opens the assumptions page under Financial modelling':'FAIL '+JSON.stringify(r));
+console.log('errors',errs);await b.close();

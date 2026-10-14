@@ -1,0 +1,10 @@
+const XLSX=require(__dirname+'/fixtures/package/xlsx.js');const EM=require(__dirname+'/../api/_lib/emcheck.js');
+const wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Summary'],['Equity IRR',null,'%',12.32],['Development Margin (on cost)',null,'%',1.09],['Net Development Profit',null,'SAR',138e6],['Total Development Cost',null,'SAR',95.1e6],['Total Revenue',null,'SAR',204.3e6]]),'Summary');
+XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['MAIN INPUTS'],['Construction Contingency',0,'%'],['Interest Rate',null,0.25,'%']]),'Input');
+const r=EM.parseWorkbook(wb,XLSX,'t.xlsx');
+console.log('cells',JSON.stringify(r.cells));console.log('input cells',r.inputs.map(i=>i.label+' '+i.cell).join(' | '));
+const ck=EM.emChecks({out:r.out,inputs:r.inputs,sens:r.sens,cells:r.cells},null,{hurdle:18});
+ck.forEach(c=>console.log(c.level,'|',c.text.slice(0,60),'|',c.cell));
+const ok=r.cells.profit_on_cost==='Summary!D3'&&ck.some(c=>c.code==='reconcile'&&/Summary!D3, Summary!D4, Summary!D5/.test(c.cell))&&ck.some(c=>c.code==='input-zero'&&c.cell==='Input!B2');
+console.log(ok?'PASS cells':'FAIL cells');

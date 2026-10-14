@@ -1,0 +1,9 @@
+name,label,scale
+levered_irr,Project IRR,1
+unlevered_irr,Project IRR (Unlevered),1
+profit_on_cost,Development Margin,1
+net_profit,Net Development Profit,1
+total_cost,Total Costs,1
+gross_revenue,Total Revenue,1
+peak_debt,Peak Debt,1
+equity_multiple,Equity Multiple,1

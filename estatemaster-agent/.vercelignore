@@ -1,0 +1,8 @@
+data/
+*.py
+runner/
+docs/
+setup/
+trial/
+dist/
+tools/
