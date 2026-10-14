@@ -65,7 +65,7 @@ ck('a what-if that matches a saved EstateMaster sensitivity cell answers with Es
 h=await ask('what if sale price drops 10% and construction cost rises 10%?');
 ck('two shocks matching the 2-way grid (price −10% column, cost +10% row): EstateMaster’s 11.10%',/11\.10%/.test(h)&&/fig-em/.test(h)&&!/fig-est/.test(h),h.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,200));
 h=await ask('propose it');
-if(/readonly|analyst/.test(base))ck('"propose it" turns the estimate into a change request for approval',/CR-\d+/.test(h)&&(await ev(()=>APQ.length))>+s0.split('|')[1],h.replace(/<[^>]+>/g,' ').slice(0,160));
+if(/readonly|analyst/.test(base)||(await ev(()=>MODE))==='api')ck('"propose it" turns the estimate into a change request for approval (a person approves before anything is written)',/CR-\d+/.test(h)&&(await ev(()=>APQ.length))>+s0.split('|')[1],h.replace(/<[^>]+>/g,' ').slice(0,160));
 else ck('"propose it" applies the scenario to the sandbox (full option)',/Scenario:/.test(h)&&(await ev(()=>JSON.stringify(S)))!==s0.split('|')[0],h.replace(/<[^>]+>/g,' ').slice(0,160));
 h=await ask('show me the estatemaster results');
 ck('EstateMaster results: base figures and the Downside option, every figure tagged EstateMaster, none estimated',/EstateMaster’s figures/.test(h)&&/Downside/.test(h)&&(h.match(/fig-em/g)||[]).length>=8&&!/fig-est/.test(h),h.replace(/<[^>]+>/g,' ').slice(0,200));
