@@ -20,3 +20,4 @@ estatemaster-agent/tests/fixtures/*.png
 estatemaster-agent/tests/fixtures/shot_*
 estatemaster-agent/tests/fixtures/*.pptx
 estatemaster-agent/tests/fixtures/*.pdf
+estatemaster-agent/tests/*.png
