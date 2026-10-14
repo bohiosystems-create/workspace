@@ -38,7 +38,7 @@ export function useVoiceInput(opts: { lang: "en" | "ar"; onFinal: (text: string)
       conn.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (d: any) => { done = `${done} ${d?.text ?? ""}`.trim(); setDraft(done); });
       return conn;
     };
-    let rt: any = null;
+    const rt: any = null;
     startRealtime().then((c) => { if (!c) { startBrowser(); return; } if (rec.current) rec.current.rt = c; else { try { c.close(); } catch { /* */ } } }).catch(() => startBrowser());
     // Live words, fallback: the browser's own recognition (display only).
     const SR = typeof window !== "undefined" ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) : null;

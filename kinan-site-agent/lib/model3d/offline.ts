@@ -35,7 +35,7 @@ export function parseDate(s: string): string {
 }
 const col = (head: string[], ...keys: (string | RegExp)[]) => head.findIndex((h) => keys.some((k) => (typeof k === "string" ? h.toLowerCase().includes(k) : k.test(h))));
 const n = (s: string | undefined) => { const v = parseFloat(String(s ?? "").replace(/[^\d.\-]/g, "")); return Number.isFinite(v) ? v : NaN; };
-const useOf = (s: string): Use => {
+const usageOf = (s: string): Use => {
   const t = s.toLowerCase();
   return /town|villa/.test(t) ? "townhouse" : /hotel/.test(t) ? "hotel" : /retail|mall|podium|shop/.test(t) ? "retail" : /office|commercial/.test(t) ? "office" : /park|car|mscp/.test(t) ? "parking" : /school|education/.test(t) ? "school" : /mosque|masjid/.test(t) ? "mosque" : /util|substation|plant|tank|stp/.test(t) ? "utility" : /club|amenit|gym|community/.test(t) ? "amenity" : "residential";
 };
@@ -77,7 +77,7 @@ export function parseOffline(docs: InDoc[]): { raw: Record<string, unknown>; log
     const h = area.head, iRef = col(h, "ref", "id", "code"), iName = col(h, "name"), iUse = col(h, "use", "type"), iF = col(h, "storeys", "floors", "levels above"), iB = col(h, "basement"), iFtf = col(h, "floor-to-floor", "storey height", "ftf"), iW = col(h, "e-w", "width", "length"), iD = col(h, "n-s", "depth");
     for (const r of area.rows) {
       const id = (r[iRef] ?? r[0]).trim(); if (!id) continue;
-      const use = useOf(`${r[iUse] ?? ""} ${r[iName] ?? ""}`);
+      const use = usageOf(`${r[iUse] ?? ""} ${r[iName] ?? ""}`);
       bs.push({ id, name: r[iName] || id, use, floors: Math.max(1, Math.round(n(r[iF]) || 1)), basements: n(r[iB]) || 0, storeyHeight: n(r[iFtf]) || undefined, w: n(r[iW]) || undefined, d: n(r[iD]) || undefined, source: `${area.doc.name} · ${id}`, confidence: "high" });
     }
     sources.push({ file: area.doc.name, used: `${bs.length} buildings: use, storeys, floor-to-floor, footprint` });

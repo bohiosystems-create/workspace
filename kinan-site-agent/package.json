@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "build:html": "node scripts/brand.mjs && node standalone/build.mjs",
     "brand": "node scripts/brand.mjs",
     "prebuild": "node scripts/brand.mjs",
@@ -24,11 +25,14 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@types/node": "^20.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",
     "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.27",
     "typescript": "^5.5.0"
   },
   "overrides": {

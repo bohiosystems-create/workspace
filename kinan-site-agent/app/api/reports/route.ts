@@ -3,7 +3,8 @@ import { serverReports } from "@/lib/reports/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// a preview builds the brief and its presenter script (AI narration, up to 50 s)
+export const maxDuration = 120;
 
 // GET  /api/reports?lang=ar          -> schedule, next run, delivery check, report history
 // GET  /api/reports?id=<id>          -> one report (title, html, text)

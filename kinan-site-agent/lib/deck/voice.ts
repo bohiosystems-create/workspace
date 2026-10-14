@@ -11,6 +11,7 @@
 // Audio comes back with the start time of every character (ElevenLabs "with-timestamps"), so the player can show
 // which figure is being spoken. Cached in memory by text, so replaying a report does not spend credits again.
 const DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM";
+const API = () => (process.env.ELEVENLABS_BASE_URL || "https://api.elevenlabs.io").replace(/\/$/, "");
 const MAX_CHARS = 1000;
 
 export type Speech = { audio: string /* base64 mp3 */; chars: string[]; starts: number[] /* seconds, one per char */ };
@@ -141,7 +142,7 @@ export async function synthesize(text: string, lang: "en" | "ar", pauses: number
   if (hit) return hit;
 
   const headers = { "xi-api-key": key, "Content-Type": "application/json" };
-  const base = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}`;
+  const base = `${API()}/v1/text-to-speech/${encodeURIComponent(voice)}`;
   const bodyOf = (t: string) => JSON.stringify({ text: t, model_id: model, voice_settings: settings });
   let out: Speech;
   // Timed version first (audio + when each character is spoken); plain audio if that is not available.
@@ -190,7 +191,7 @@ export async function transcribe(audio: Blob, lang: "en" | "ar", filename = "que
   form.append("language_code", lang === "ar" ? "ara" : "eng");
   form.append("tag_audio_events", "false");
   form.append("file", audio, filename);
-  const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", { method: "POST", headers: { "xi-api-key": key }, body: form });
+  const res = await fetch(`${API()}/v1/speech-to-text`, { method: "POST", headers: { "xi-api-key": key }, body: form });
   if (!res.ok) throw new Error(`ElevenLabs transcription failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
   const j = await res.json();
   return String(j.text ?? "").replace(/\s+/g, " ").trim();
@@ -201,7 +202,7 @@ export async function voiceAccount(): Promise<{ ok: boolean; tier?: string; used
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) return { ok: false, error: "ELEVENLABS_API_KEY is not set." };
   try {
-    const r = await fetch("https://api.elevenlabs.io/v1/user/subscription", { headers: { "xi-api-key": key } });
+    const r = await fetch(`${API()}/v1/user/subscription`, { headers: { "xi-api-key": key } });
     if (!r.ok) return { ok: false, error: `ElevenLabs (${r.status}): ${(await r.text()).slice(0, 200)}` };
     const j = await r.json();
     const used = Number(j.character_count) || 0, limit = Number(j.character_limit) || 0;

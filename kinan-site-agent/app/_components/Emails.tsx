@@ -33,7 +33,7 @@ export default function Emails() {
           {inbox.mode === "live" && <button className="mini" disabled={busy} onClick={() => load(true)}>{busy ? "Syncing…" : "Sync now"}</button>}</header>
         {inbox.error && <div className="mail-err">{inbox.error}</div>}
         <div className="mail-cos">{byCompany.map(([c, n]) => <button key={c} className={"chip" + (q === c.toLowerCase() ? " hot" : "")} onClick={() => setQ(q === c.toLowerCase() ? "" : c.toLowerCase())}>{c} <b>{n}</b></button>)}</div>
-        <p className="mail-note">The AI agent reads these when you ask, e.g. <em>"any delays from the façade contractor?"</em></p>
+        <p className="mail-note">The AI agent reads these when you ask, e.g. <em>&quot;any delays from the façade contractor?&quot;</em></p>
       </section>
       <input className="search" type="search" placeholder="Search emails: delay, pour, inspection, PO-4500136…" value={q} onChange={(e) => setQ(e.target.value)} />
       <ul className="rows mail-list">

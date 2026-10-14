@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-export default {
+const nextConfig = {
   // Native PNG renderer used for WhatsApp images — load from node_modules at runtime.
   serverExternalPackages: ["@resvg/resvg-js", "@vercel/blob"],
   // Ship the bundled fonts with the serverless functions that render images.
@@ -16,3 +16,5 @@ export default {
     return config;
   },
 };
+
+export default nextConfig;

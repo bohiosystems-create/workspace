@@ -15,7 +15,7 @@
 import * as THREE from "three";
 import { BUILDINGS, SHAPES, VILLAS } from "@/lib/siteplan";
 import { M, rng } from "./textures";
-import { ORANGE, W, at, box, mergeStatic, shadow, walls, type Mats } from "./common";
+import { ORANGE, W, box, mergeStatic, shadow, walls, type Mats } from "./common";
 
 type Rect = { x: number; z: number; w: number; d: number };
 const ROADS: Rect[] = SHAPES.filter((s) => s.t === "rect" && (s.cls === "road" || s.cls === "public-road")).map((s) => W(s));

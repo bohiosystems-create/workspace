@@ -252,7 +252,7 @@ function Gauges({ s }: { s: Extract<DeckSlide, { kind: "gauges" }> }) {
     <div>
       <Kicker>{s.kicker}</Kicker>
       <Rise text={s.title} d={100} className="kd-h2 kd-or" />
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(4, s.items.length)}, minmax(0, 1fr))`, gap: 28, marginTop: 30 }}>
+      <div className="kd-ggrid" style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(4, s.items.length)}, minmax(0, 1fr))`, gap: 28, marginTop: 30 }}>
         {s.items.map((x, i) => (
           <In key={i} d={250 + i * 200} style={{ textAlign: "center" }}>
             <div className={`kd-gauge${lit(act, i)}`}>
@@ -332,7 +332,7 @@ function Columns({ s }: { s: Extract<DeckSlide, { kind: "columns" }> }) {
 }
 function Donut({ s }: { s: Extract<DeckSlide, { kind: "donut" }> }) {
   const [hi, setHi] = useState<number | null>(null);
-  const total = s.values.reduce((a, b) => a + b, 0) || 1, R = 118, c = 2 * Math.PI * R, gap = 3;
+  const total = s.values.reduce((a, b) => a + b, 0) || 1, R = 118, c = 2 * Math.PI * R;
   let acc = 0;
   const segs = s.values.map((v, i) => { const len = (v / total) * c, start = acc; acc += len; const mid = ((start + len / 2) / c) * 2 * Math.PI - Math.PI / 2; return { i, v, len, start, mid }; });
   const act = useSpoken(s.values.map((v, i) => [s.labels[i], v, Math.round((v / total) * 100) + "%"]));
@@ -849,7 +849,7 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
   useEffect(() => {
     if (asking !== "waiting" || holdRef.current == null || holdRef.current >= say.length || pos < holdRef.current) return; // the end of the slide is taken when its voice ends
     holdRef.current = null; resumeAt.current = pos; setPlaying(false); setAsking("thinking"); setAskSeq((n) => n + 1);
-  }, [pos, asking]);
+  }, [pos, asking, say.length]);
   // Answer: the bridge line, then the answer (spoken with ElevenLabs or the browser voice, or shown as captions), then on with the slide.
   useEffect(() => {
     if (!askSeq || !pendingRef.current) return;
@@ -1252,6 +1252,7 @@ g.kd-dim { filter: opacity(.42) saturate(.5); }
 .kd-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: kdDraw 1.6s cubic-bezier(.4,0,.2,1) .3s forwards; }
 .kd-gx { transform-box: fill-box; transform-origin: left center; transform: scaleX(0); animation: kdGrowX 1s ${EASE} forwards; }
 .kd-arc { animation: kdArc 1.1s ${EASE} forwards; }
+@media (max-width: 600px) { .kd-ggrid { grid-template-columns: 1fr 1fr !important; gap: 18px !important; } }
 @media (max-width: 900px) { .kd-igrid { grid-template-columns: 1fr 1fr !important; } .kd-orbit { height: 70vh; } .kd-node { width: 110px; } .kd-core { width: 120px; height: 120px; } }
 @keyframes kdUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
 @keyframes kdRiseW { to { transform: none; } }

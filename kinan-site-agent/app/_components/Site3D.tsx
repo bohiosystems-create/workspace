@@ -81,7 +81,7 @@ const Site3D = forwardRef<Site3DHandle, Props>(function Site3D({ layers, selecte
   }, [pz.size.w, pz.size.h, rot]);
 
   // --- rotation (quarter turns) and the isometric projection ---
-  const Wr = rot % 2 ? PLAN.h : PLAN.w, Hr = rot % 2 ? PLAN.w : PLAN.h;
+  const Hr = rot % 2 ? PLAN.w : PLAN.h;
   const ox = Hr * COS, oy = TOP;
   const R = (x: number, y: number): [number, number] => rot === 0 ? [x, y] : rot === 1 ? [PLAN.h - y, x] : rot === 2 ? [PLAN.w - x, PLAN.h - y] : [y, PLAN.w - x];
   const RR = (r: Rect): Rect => {

@@ -94,7 +94,7 @@ function layoutLabels(texts: { s: Shape; i: number }[], k: number, z: number, pi
   return out;
 }
 
-function renderShape(s: Shape, i: number, k: number, sel: string | undefined, lay: Map<number, Placed>, si: number) {
+function renderShape(s: Shape, i: string, k: number, sel: string | undefined, lay: Map<number, Placed>, si: number) {
   if (s.t === "text") {
     const p = lay.get(si); if (!p) return null;
     return <text key={i} x={s.x} y={s.y! + p.dy} className={s.cls} style={{ fontSize: fontPx(s) / k, strokeWidth: 3 / k }} textAnchor="middle">{p.text}</text>;
@@ -212,7 +212,7 @@ const SiteMap = forwardRef<MapHandle, Props>(function SiteMap({ locations, docs,
           <g transform={`translate(${view.x} ${view.y}) scale(${k})`}>
             <rect x={-2000} y={-2000} width={PLAN.w + 4000} height={PLAN.h + 4000} className="ground" />
             {order.flatMap((ly) => layers[ly] || ly === "base"
-              ? visible.filter((s) => s.layer === ly).map((s, i) => renderShape(s, ly.length * 1000 + i, k, selLoc, lay, SHAPE_INDEX.get(s)!))
+              ? visible.filter((s) => s.layer === ly).map((s, i) => renderShape(s, `${ly}-${i}`, k, selLoc, lay, SHAPE_INDEX.get(s)!))
               : [])}
             {/* document / issue pins */}
             <g>

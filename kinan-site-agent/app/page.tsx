@@ -80,8 +80,8 @@ export default function Home() {
   const [projKey, setProjKey] = useState(0);
   const mapRef = useRef<MapHandle>(null);
 
-  const locs = state?.locations ?? [];
-  const docs = state?.docs ?? [];
+  const locs = useMemo(() => state?.locations ?? [], [state?.locations]);
+  const docs = useMemo(() => state?.docs ?? [], [state?.docs]);
   const notes = state?.notes ?? [];
 
   const selectLocation = useCallback((id: string) => {

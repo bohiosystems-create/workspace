@@ -142,7 +142,6 @@ export function createDetails(m: Mats): DetailsApi {
   for (let i = 0; i < 8; i++) workers.push(mk("walk", new V3(885 * M, 0, 540 * M), new V3(885 * M, 0, 130 * M)));
   for (const loc of ["rebar-yard", "laydown-1", "laydown-2", "laydown-3", "batching", "site-office"]) { const r = rectOf(loc); if (!r) continue; const qq = W(r); for (let i = 0; i < 7; i++) { const p = new V3(qq.x + 3 + R() * (qq.w - 6), 0, qq.z + 3 + R() * (qq.d - 6)); workers.push(mk("stand", p, p)); } }
   for (let i = 0; i < 6; i++) { const p = new V3(600 * M - 6 + i * 2.5, 0, 934 * M - 6); workers.push(mk("stand", p, p)); }
-  const deckWorkers = workers.length; // the rest live on the active decks
   for (let i = workers.length; i < N; i++) workers.push(mk("deck", new V3(), new V3(), i % 4));
   let decks: Deck[] = [];
   let crowd = N; // how many of the workers are on site today (from the programme's manpower)

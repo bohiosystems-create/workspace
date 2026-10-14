@@ -5,7 +5,7 @@
 import type { Deck, DeckSlide } from "@/lib/deck/deck";
 import { kinanLogoHtml } from "@/lib/deck/brand";
 
-const OR = "F15A22", INK = "2E2E2F", TAUPE = "51473D", SOFT = "6F6F6F", GREY = "BCBEC0", TRACK = "EFEEEC", GOOD = "1F8A4C", BAD = "D03B3B", WARN = "D99400";
+const OR = "F15A22", INK = "2E2E2F", TAUPE = "51473D", SOFT = "6F6F6F", TRACK = "EFEEEC", GOOD = "1F8A4C", BAD = "D03B3B", WARN = "D99400";
 const SERIES = ["F15A22", "2A78D6", "1BAF7A", "EDA100", "E87BA4", "4A3AA7", "008300", "E34948"];
 const W = 13.333, H = 7.5;
 
