@@ -1,0 +1,63 @@
+{
+"file": "MODELS/office_k.xlsx",
+"reads": [
+"'Pro Forma'!C8",
+"'Pro Forma'!C7",
+"'Pro Forma'!C6"
+],
+"keys": [
+"levered_irr",
+"profit_on_cost",
+"net_profit"
+],
+"scale": {
+"net_profit": 1000
+},
+"scenarios": [
+{
+"name": "sale price -10%",
+"sets": [
+[
+"'Pro Forma'!C16",
+612
+]
+]
+},
+{
+"name": "hard cost +15%",
+"sets": [
+[
+"'Pro Forma'!C13",
+368
+]
+]
+},
+{
+"name": "loan to cost +5 pts",
+"sets": [
+[
+"'Pro Forma'!C19",
+65
+]
+]
+},
+{
+"name": "hold +6 months",
+"sets": [
+[
+"'Pro Forma'!C18",
+36
+]
+]
+},
+{
+"name": "soft costs to 11,000",
+"sets": [
+[
+"'Pro Forma'!C15",
+11000
+]
+]
+}
+]
+}

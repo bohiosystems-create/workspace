@@ -3351,7 +3351,7 @@ function parseInputs(sheets) {
       let end = emNextLabel(row, i); const lab = String(row[i]).trim(), key = s.name + '|' + lab + (anyF ? '|' + ri : '');
       const next = () => { const k = row.slice(end).findIndex(c => emIsLabel(c) && c.length <= 70); i = k < 0 ? -1 : end + k; };
       if (lab.length > 70 || LAB.some(([, re]) => re.test(lab))) { next(); continue; }
-      const blk = anyF ? blockOf(s, ri, i) : null; const cells = []; for (let j = i + 1; j < Math.min(end, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; if (anyF && isF(s, ri, j)) continue; if (anyF && /^\s*(month|year|period|quarter|week|day|yr|qtr)\s*\d+\s*$/i.test(String(fr[j] == null ? '' : fr[j]))) continue; /* a period counter ("Month 7") is a row index, not an assumption */ const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; const pc = /%\s*$/.test(t.trim()) || (typeof row[j] === 'string' && /%\s*$/.test(row[j])); cells.push({ v: pc && typeof row[j] === 'number' ? n * 100 : n, t, pct: pc, fmt: emFmt(t, pc), j, h: anyF ? headOf(s, ri, j, blk ? blk.r : 0) : '' }); }
+      const blk = anyF ? blockOf(s, ri, i) : null; const cells = []; for (let j = i + 1; j < Math.min(end, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; if (anyF && isF(s, ri, j)) continue; if (anyF && /^\s*(month|year|period|quarter|week|day|yr|qtr)\s*\d+\s*$/i.test(String(fr[j] == null ? '' : fr[j]))) continue; /* a period counter ("Month 7") is a row index, not an assumption */ const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; const pc = /%\s*$/.test(t.trim()) || /^\s*[-(]?[$£€]?\s*[\d,.]+\s*%/.test(t) || (typeof row[j] === 'string' && /%\s*$/.test(row[j])); cells.push({ v: pc && typeof row[j] === 'number' ? n * 100 : n, t, pct: pc, fmt: emFmt(t, pc), j, h: anyF ? headOf(s, ri, j, blk ? blk.r : 0) : '' }); }
       if (!cells.length) {
         // a text, date or yes/no input on an input sheet ("Date of First Period: Oct-26", "Add GST on Land Price? Y", "Cash Flow Title: Build to Hold")
         if (/input|assumption/i.test(s.name) && !seen.has(key)) {
@@ -3884,13 +3884,14 @@ function xcWorker(){
   function A(ref){const i=ref.lastIndexOf('!');const s=ref.slice(0,i).replace(/^'|'$/g,'').replace(/''/g,"'");const p=XL.utils.decode_cell(ref.slice(i+1).replace(/\$/g,''));const id=hf.getSheetId(s);if(id===undefined)throw new Error('no sheet '+s);return{sheet:id,row:p.r,col:p.c}}
   const nm=a=>{const s=hf.getSheetName(a.sheet);return(/[^A-Za-z0-9_]/.test(s)?"'"+s+"'":s)+'!'+XL.utils.encode_cell({r:a.row,c:a.col})};
   const val=a=>{const v=hf.getCellValue(a);return v&&typeof v==='object'&&v.type?{err:v.value||v.type}:raw(v)};
-  function load(buf,refs){const wb=XL.read(buf,{type:'array',cellFormula:true});const sheets={};cached={};dirty=new Map();let nf=0;FROZEN={TODAY:null,NOW:null};
+  let FMT={};
+  function load(buf,refs){const wb=XL.read(buf,{type:'array',cellFormula:true,cellNF:true});const sheets={};cached={};dirty=new Map();let nf=0;FMT={};FROZEN={TODAY:null,NOW:null};
     for(const n of wb.SheetNames){const ws=wb.Sheets[n];for(const k in ws){if(k[0]==='!')continue;const c=ws[k];if(!c||!c.f||typeof c.v!=='number')continue;if(/^\s*TODAY\(\)\s*$/i.test(c.f)&&FROZEN.TODAY==null)FROZEN.TODAY=c.v;if(/^\s*NOW\(\)\s*$/i.test(c.f)&&FROZEN.NOW==null)FROZEN.NOW=c.v}}
     if(FROZEN.TODAY==null&&FROZEN.NOW!=null)FROZEN.TODAY=Math.floor(FROZEN.NOW);if(FROZEN.NOW==null&&FROZEN.TODAY!=null)FROZEN.NOW=FROZEN.TODAY;
     for(const n of wb.SheetNames){const ws=wb.Sheets[n];const ks=Object.keys(ws).filter(k=>k[0]!=='!');let mr=-1,mc=-1;const cs=[];
       for(const k of ks){const c=ws[k];if(!c||(c.v==null&&!c.f))continue;const p=XL.utils.decode_cell(k);cs.push([p,c]);if(p.r>mr)mr=p.r;if(p.c>mc)mc=p.c}
       const rows=[];for(let r=0;r<=mr;r++)rows.push(new Array(mc+1).fill(null));
-      for(const [p,c] of cs){if(c.f){rows[p.r][p.c]='='+fixF(c.f);nf++;cached[n+'!'+XL.utils.encode_cell(p)]=c.v}else rows[p.r][p.c]=c.t==='n'||c.t==='b'?c.v:c.t==='e'?null:(typeof c.v==='string'&&/^[=+\-@]/.test(c.v)?"'"+c.v:c.v==null?null:String(c.v))}
+      for(const [p,c] of cs){if(c.z&&c.z!=='General')FMT[n+'!'+XL.utils.encode_cell(p)]=String(c.z);if(c.f){rows[p.r][p.c]='='+fixF(c.f);nf++;cached[n+'!'+XL.utils.encode_cell(p)]=c.v}else rows[p.r][p.c]=c.t==='n'||c.t==='b'?c.v:c.t==='e'?null:(typeof c.v==='string'&&/^[=+\-@]/.test(c.v)?"'"+c.v:c.v==null?null:String(c.v))}
       sheets[n]=rows}
     hf=H.buildFromSheets(sheets,{licenseKey:'gpl-v3',useArrayArithmetic:true,leapYear1900:true,nullDate:{year:1899,month:12,day:31},evaluateNullToZero:true});
     // the engine is trusted only when it reproduces Excel's own stored results
@@ -3900,8 +3901,9 @@ function xcWorker(){
     return{tot,match:ok,bad,outBad,formulas:nf,sheets:Object.keys(sheets).length,frozen:FROZEN.TODAY}}
   function restore(keep){const back=[...dirty.entries()].filter(([k])=>!keep||!keep.has(k));if(!back.length)return;hf.batch(()=>{for(const [k,v] of back){hf.setCellContents(A(k),[[v]]);dirty.delete(k)}})}
   // the run of typed numbers an input stands for: the anchor and the constants to its right on the same row (one per year, say), up to a formula or text
-  function series(ref){const a=A(ref),out=[nm(a)];let gap=0;for(let c=a.col+1;c<a.col+80&&gap<3;c++){const b={sheet:a.sheet,row:a.row,col:c},s=hf.getCellSerialized(b);
-      if(s===null||s===undefined||s===''){gap++;continue}if(typeof s==='number'){out.push(nm(b));gap=0;continue}break}return out}
+  const fmtOf=a=>FMT[hf.getSheetName(a.sheet)+'!'+XL.utils.encode_cell({r:a.row,c:a.col})]||'General';
+  function series(ref){const a=A(ref),out=[nm(a)],f0=fmtOf(a);let gap=0;for(let c=a.col+1;c<a.col+80&&gap<3;c++){const b={sheet:a.sheet,row:a.row,col:c},s=hf.getCellSerialized(b);
+      if(s===null||s===undefined||s===''){gap++;continue}if(typeof s==='number'&&fmtOf(b)===f0){out.push(nm(b));gap=0;continue}break}return out}   // the same driver keeps the same number format: a 'Year 1' counter next to a rate is not part of it
   // the other rows of a returns table: same column, up and down while the cells hold numbers; each with its row label and column heading
   function table(ref){const a=A(ref),lab=r=>{for(let c=a.col-1;c>=0;c--){const v=hf.getCellValue({sheet:a.sheet,row:r,col:c});if(typeof v==='string'&&v.trim()&&isNaN(+v))return v.trim()}return''};
     let head='';for(let r=a.row-1;r>=Math.max(0,a.row-12);r--){const v=hf.getCellValue({sheet:a.sheet,row:r,col:a.col});if(typeof v==='string'&&v.trim()){head=v.trim();break}}
@@ -3911,6 +3913,7 @@ function xcWorker(){
       if(m.op==='load'){boot(m.urls);r=load(m.buf,m.refs)}
       else if(m.op==='get'){r=m.refs.map(k=>dirty.has(k)?raw(dirty.get(k)):val(A(k)))}
       else if(m.op==='series'){r=series(m.ref)}
+      else if(m.op==='fmt'){r=m.refs.map(k=>{try{return fmtOf(A(k))}catch(e){return'General'}})}
       else if(m.op==='typed'){r=m.refs.map(k=>{try{return typeof hf.getCellSerialized(A(k))==='number'}catch(e){return false}})}
       else if(m.op==='region'){const a=A(m.ref),rows=[];const lab=r=>{for(let c=a.col-1;c>=0;c--){const v=hf.getCellValue({sheet:a.sheet,row:r,col:c});if(typeof v==='string'&&v.trim()&&isNaN(+v))return v.trim().slice(0,50)}return''};
         for(let r=Math.max(0,a.row-(m.up||8));r<=a.row+(m.down||8);r++){const cells=[];for(let c=Math.max(0,a.col-2);c<a.col+(m.cols||40)&&cells.length<30;c++){const s=hf.getCellSerialized({sheet:a.sheet,row:r,col:c});if(s===null||s===undefined||s==='')continue;const v=typeof s==='number'?s:String(s).slice(0,40);cells.push([nm({sheet:a.sheet,row:r,col:c}),v])}if(cells.length)rows.push({row:r+1,label:lab(r),cells})}r=rows}
@@ -3960,11 +3963,20 @@ function xcShiftVals(inp,cur,kind,s){const pc=xcPctIn(inp);return cur.map(v=>{if
 const XC_STOP=/^(the|a|an|of|in|on|at|to|by|for|per|and|or|if|what|would|happen|happens|should|be|is|are|with|its|it|this|that|model|assumption|assumptions|change|changes|value|rate|cost|price|total|from|than|about|say|let|set|move|moves|make)$/;
 const xcWords=t=>String(t||'').toLowerCase().replace(/\([^)]*\)/g,' ').replace(/[£$€]|\b(sar|usd|gbp|eur|aed|sqm|sqft|psf|pa|p\.a\.|m2|months?|years?|yrs?|units?|keys?|rooms?)\b/g,' ').split(/[^a-z&0-9]+/).map(w=>w.replace(/s$/,'')).filter(w=>w.length>1&&!XC_STOP.test(w));
 function xcFindLabel(x,text){let t=String(text||'').replace(/[+\-−–]?\s*\d[\d,.]*\s*(%|bps?|pts?|points?|pp|months?|mo)?/gi,' ').replace(XC_NEG,' ').replace(XC_POS,' ').replace(/\b(what if|what happens if|suppose|assume|assuming|by|to|of its value|of it|points?|pts|bps)\b/gi,' ').replace(/\s+/g,' ').trim();
-  let lab=t?asMatchLabel(t):null;if(lab)return lab;const W=new Set(xcWords(t));if(!W.size)return null;const L=asLabels();let best=null,bs=0,tie=false;
-  for(const l of L){const lw=[...new Set(xcWords(l))];if(!lw.length)continue;const hit=lw.filter(w=>W.has(w)).length;if(!hit)continue;const sc=hit/lw.length+hit*0.01;if(sc>bs+1e-9){best=l;bs=sc;tie=false}else if(Math.abs(sc-bs)<1e-9)tie=true}
-  return best&&!tie&&bs>=0.5?best:null}
-function xcParse(x,c){const cells=xcCellsIn(c.text);const t=String(c.text||chgText(c)||'').replace(/\s*\[cells?:[^\]]+\]/i,'');const P=xcParse0(x,{...c,text:c.text?t:c.text});if(cells&&P&&P.inp)P.cells=cells;return P}
-function xcParse0(x,c){const t=String(c.text||chgText(c)||'');let lab=c.label?(asMatchLabel(c.label)||xcFindLabel(x,c.label)):null;if(!lab)lab=xcFindLabel(x,t);if(!lab)return{why:'which assumption'};
+  const L=asLabels(),F=t?acroForms(t.toLowerCase()):[];let lab=t?(L.find(l=>F.includes(l.toLowerCase()))||L.find(l=>acroForms(l).some(z=>F.includes(z)))):null;if(lab)return lab;const W=new Set(xcWords(t));if(!W.size)return null;let best=null,bs=0,tie=false;
+  // every word the user wrote must be in the label (a label word they did not write is fine): fewest extra words wins
+  const Wn=[...W].filter(w=>!/^\d+$/.test(w));if(!Wn.length)return null;
+  // the figures in the sentence that are the change itself (−10%, +50 bps, to 30,000, 6 months) are not part of the name
+  const named=String(text||'').replace(/[+\-−–]\s*\$?\d[\d,.]*\s*(%|bps?|pts?|points?|pp|months?|mo|years?)?|\b(to|by)\s+\$?\d[\d,.]*\s*(%|bps?|pts?|points?|pp|months?|mo|years?)?|\$?\d[\d,.]*\s*(%|bps?|bp|pts?|points?|pp|months?|mo)(?![a-z])/gi,' ');
+  const cand=[];for(const i of (x&&x.inputs||[]))if(i.label&&!cand.some(c=>c.l===i.label&&c.p===(i.parent||'')))cand.push({l:i.label,p:i.parent||''});if(!cand.length)L.forEach(l=>cand.push({l,p:''}));
+  for(const {l,p} of cand){const nums=l.replace(/\([^)]*\)/g,' ').replace(/\$?0{3}s\b/gi,' ').match(/\d+(?:\.\d+)?/g)||[];   /* units in brackets ($000s, sqm) are not figures */if(nums.some(n=>!new RegExp('(^|[^\\d.])'+n.replace('.','\\.')+'(?![\\d])').test(named)))continue;   // a label carrying a figure the user did not write (“10% of Hard Costs”) is another line
+    const lw=new Set(xcWords(l+' '+p).filter(w=>!/^\d+$/.test(w)));if(!lw.size)continue;if(!Wn.every(w=>lw.has(w)))continue;if(best===l)continue;const sc=1-(lw.size-Wn.length)/(lw.size+1)*0.5;if(sc>bs+1e-9){best=l;bs=sc;tie=false}else if(Math.abs(sc-bs)<1e-9)tie=true}
+  return best&&!tie?best:null}
+function xcParse(x,c){const cells=xcCellsIn(c.text);const t=String(c.text||chgText(c)||'').replace(/\s*\[cells?:[^\]]+\]/i,'');const P=xcParse0(x,{...c,text:c.text?t:c.text});if(cells&&P&&P.inp)P.cells=cells;
+  if(cells&&P&&!P.inp&&P.why==='which assumption'){const said=t.replace(/\s*[+\-−–]?\s*\d[\d,.]*\s*(%|bps?|pts?|months?)?.*$/i,'').trim();const f0=(x.inputs||[]).find(i=>i.cell===cells[0]);const own=f0&&cells.length>1?{...f0,label:said||f0.label,parent:''}:f0||{label:t.replace(/\s*[+\-−–]?\s*\d[\d,.]*\s*(%|bps?|pts?|months?)?.*$/i,'').trim()||'the cells you named',cell:cells[0],value:NaN,pct:false};
+    const Q=xcParse0({...x,inputs:[{...own,label:'__CELLS__'}]},{text:t.replace(/^.*?(?=[+\-−–]?\s*\d)/,'__CELLS__ ')});if(Q&&Q.inp&&!Q.why)return{...Q,inp:{...own},label:own.label,cells}}
+  return P}
+function xcParse0(x,c){const t=String(c.text||chgText(c)||'');let lab=c.label?(asLabels().find(l=>l.toLowerCase()===String(c.label).toLowerCase().trim())||xcFindLabel(x,c.label)):null;if(!lab)lab=xcFindLabel(x,t);if(!lab)return{why:'which assumption'};
   const inp=xcInputOf(x,lab,t);if(!inp)return{why:'which line',label:lab,options:(x.inputs||[]).filter(i=>i.label===lab).map(i=>(i.parent?i.parent+' › ':'')+i.label)};
   const num=s=>parseFloat(String(s).replace(/[,\s]/g,'').replace(/[−–]/g,'-'));
   if(c.label&&c.to!=null){const b=num(String(c.to).match(/[−–-]?\s*\d[\d,]*(?:\.\d+)?/)||NaN);if(Number.isFinite(b))return{inp,kind:'to',s:b,label:lab}}
@@ -3972,7 +3984,7 @@ function xcParse0(x,c){const t=String(c.text||chgText(c)||'');let lab=c.label?(a
   const sg=(m)=>{let v=num(m[1]);if(!/^[+\-−–]/.test(m[1].trim())&&neg&&!pos)v=-Math.abs(v);return v};
   let m=t.match(/([+\-−–]?\s*\d+(?:\.\d+)?)\s*(?:bps|bp|basis points?)\b/i);if(m)return{inp,kind:'pts',s:sg(m)/100,label:lab};
   m=t.match(/([+\-−–]?\s*\d+(?:\.\d+)?)\s*(?:pts?|pp|percentage points?|points?)\b/i);if(m)return{inp,kind:'pts',s:sg(m),label:lab};
-  m=t.match(/\bto\s+\$?\s*([+\-−–]?\d[\d,]*(?:\.\d+)?)\s*(%?)/i);if(m)return{inp,kind:'to',s:num(m[1]),label:lab};
+  m=t.match(/\bto\s+\$?\s*([+\-−–]?\d[\d,]*(?:\.\d+)?)\s*(%?)/i);if(m){let v=num(m[1]);if(m[2]&&!xcPctIn(inp)&&Math.abs(inp.value)<=1.5&&Math.abs(v)>1.5)return{inp:{...inp,pct:true,value:inp.value*100},kind:'to',s:v,label:lab};return{inp,kind:'to',s:v,label:lab}}
   m=t.match(/([+\-−–]?\s*\d+(?:\.\d+)?)\s*%/);if(m){const v=sg(m);if(xcPctIn(inp))return{why:'pct of pct',inp,label:lab,s:v};return{inp,kind:'pct',s:v,label:lab}}
   m=t.match(/([+\-−–]?\s*\d+(?:\.\d+)?)\s*months?\b/i);if(m)return{inp,kind:'months',s:sg(m),label:lab};
   m=t.match(/(?:by\s+)?([+\-−–]\s*\$?\d[\d,]*(?:\.\d+)?)/);if(m)return{inp,kind:'abs',s:num(m[1].replace('$','')),label:lab};
@@ -3985,7 +3997,7 @@ const xcFmtX=(r,v)=>{if(!Number.isFinite(v))return'—';const h=(r.head||'')+' '
 // the app's figures (percent as 15.78, money as is) from a cell's raw value
 const xcMet=(k,v)=>!Number.isFinite(v)?NaN:(MET[k]&&MET[k][1]==='%')?v*100:v;
 function xcFactor(x,k,baseRaw){const o=(x&&x.out||{})[k],d=MET[k]&&MET[k][1]==='%'?100:1;if(!Number.isFinite(o)||!Number.isFinite(baseRaw)||!baseRaw||!o)return d;const f=o/baseRaw,a=Math.abs(f);
-  for(const m of [1,100,1000,1e6,1e9,0.01,0.001,1e-6]){if(Math.abs(a-m)<=1e-6*m)return f<0?-m:m}return d}
+  let best=null,be=1;for(const m of [1,100,1000,1e6,1e9,0.01,0.001,1e-6]){const e=Math.abs(a-m)/m;if(e<be){be=e;best=m}}return best&&be<=2e-3?(f<0?-best:best):d}
 /* the AI reads every change sentence against the model's own list of assumptions; the rule-based reading is cross-checked
    against it. Agreement → go. Disagreement, or an AI reading that is unsure → the user is asked, never guessed for. */
 const XC_READ_SYS=`You read a sentence describing changes to a financial model's assumptions. You get the model's assumptions (label, cell, current value, whether it is a percentage). Return JSON only: {"changes":[{"label":"exact label from the list","kind":"pct|pts|abs|to|months","value":number,"sure":true|false,"note":"max 12 words"}],"question":"only when something cannot be read for sure: one short question, max 25 words"}.
@@ -4034,9 +4046,11 @@ async function xcTest(changes0,onStep,proj){const x=latestExport(proj||PROJ.id);
   const bad=plans.find(z=>!z.p.inp||z.p.why);
   if(bad){const p=bad.p,q=p.why==='pct of pct'?{question:`${p.label} is a percentage (${asmFmt(p.inp)}). Do you mean ${Math.abs(p.s)} points (${asmFmt(p.inp)} → ${(p.inp.value+p.s).toFixed(2).replace(/\.?0+$/,'')}%) or ${Math.abs(p.s)}% of it (${asmFmt(p.inp)} → ${(p.inp.value*(1+p.s/100)).toFixed(2).replace(/\.?0+$/,'')}%)?`,options:[`${p.label} ${p.s>0?'+':'−'}${Math.abs(p.s)} pts`,`${p.label} ${p.s>0?'+':'−'}${Math.abs(p.s)}% of its value`]}
       :p.why==='which line'?{question:`“${p.label}” appears on more than one line of the model. Which one?`,options:p.options.slice(0,4)}
+      :p.why==='which assumption'?(()=>{const W=new Set(xcWords(String(bad.c.text||'').replace(/[+\-−–]?\s*\d[\d,.]*\s*(%|bps?|pts?|months?)?/gi,' ')));const near=(x.inputs||[]).filter(i=>i.cell&&xcWords(i.label+' '+(i.parent||'')+' '+(i.section||'')).some(w=>W.has(w))).slice(0,8);
+        return{question:`No single line of the model is called “${String(bad.c.text||'').replace(/\s*[+\-−–]?\s*\d[\d,.]*\s*(%|bps?|pts?|months?)?.*$/i,'').trim()}”.${near.length?` Closest lines: ${near.map(i=>`${i.parent?i.parent+' › ':''}${i.label} (${i.cell})`).join('; ')}.`:''} Which line, or which cells together? You can answer e.g. “${String(bad.c.text||'').trim()} [cells: Sheet!A1, Sheet!A2]”.`,options:[]}})()
       :p.why==='which way'?{question:`Should ${p.label} go up or down?`,options:[`${p.label} up`,`${p.label} down`]}:p.why==='how much'?{question:`How much should ${p.label} change? For example “${p.label} −10%” or “${p.label} to ${'…'}”.`,options:[]}:null;
     return q?{ask:q}:null}
-  const sets=[],desc=[];for(const z of plans){const p=z.p;let refs=p.cells&&p.cells.length?p.cells:await xcQ(()=>xcCall({op:'series',ref:p.inp.cell}));
+  const sets=[],desc=[];for(const z of plans){const p=z.p;{const [fm]=await xcQ(()=>xcCall({op:'fmt',refs:[p.inp.cell]}));const q=fm.replace(/"[^"]*"/g,'');if(/bps|bp\b|basis/i.test(fm)&&!/%/.test(q)){p.bpsCell=true;if(p.kind==='pts')p.s=p.s*100;p.kind=p.kind==='pts'?'abs':p.kind}else if(/%/.test(q)&&!xcPctIn(p.inp)){p.inp={...p.inp,pct:true,value:p.inp.value*100}}}let refs=p.cells&&p.cells.length?p.cells:await xcQ(()=>xcCall({op:'series',ref:p.inp.cell}));
     if(p.cells&&p.cells.length){const ty=await xcQ(()=>xcCall({op:'typed',refs}));const bad=refs.filter((r,i)=>!ty[i]);if(bad.length)return{ask:{question:`${bad.join(', ')} ${bad.length>1?'are not typed numbers':'is not a typed number'} (a formula or text): only typed inputs can be changed. Which cells?`,options:[]}}}
     else if(calcPair().length){let prop=null;try{prop=await xcAiCells(x,p,refs)}catch(e){await onStep('The AI could not review the cells ('+aiErrText(provErr(e.message)).slice(0,60)+'): the row found by the rules is used')}
       if(prop&&(prop.add.length||prop.drop.length)){const sent=String(z.c.text||chgText(z.c)).replace(/\s*\[cells?:[^\]]+\]/i,'').trim();const full=refs.filter(r=>!prop.drop.includes(r)).concat(prop.add);

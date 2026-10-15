@@ -1,0 +1,221 @@
+{
+"file": "MODELS/hotel_us.xlsx",
+"reads": [
+"Summary!H6",
+"Summary!H5",
+"Summary!G6"
+],
+"keys": [
+"levered_irr",
+"unlevered_irr",
+"net_profit"
+],
+"scenarios": [
+{
+"name": "ADR drops 10%",
+"sets": [
+[
+"OpCashFlow!H12",
+112.5
+]
+]
+},
+{
+"name": "ADR up 5%",
+"sets": [
+[
+"OpCashFlow!H12",
+131.25
+]
+]
+},
+{
+"name": "occupancy -5 pts",
+"sets": [
+[
+"OpCashFlow!J11",
+0.63
+],
+[
+"OpCashFlow!L11",
+0.63
+],
+[
+"OpCashFlow!N11",
+0.63
+],
+[
+"OpCashFlow!P11",
+0.63
+],
+[
+"OpCashFlow!R11",
+0.63
+],
+[
+"OpCashFlow!T11",
+0.63
+],
+[
+"OpCashFlow!V11",
+0.63
+],
+[
+"OpCashFlow!X11",
+0.63
+],
+[
+"OpCashFlow!Z11",
+0.63
+],
+[
+"OpCashFlow!AB11",
+0.63
+]
+]
+},
+{
+"name": "exit cap rate +50 bps",
+"sets": [
+[
+"Summary!C25",
+0.055
+]
+]
+},
+{
+"name": "hold period to 7 years",
+"sets": [
+[
+"Summary!C20",
+7
+]
+]
+},
+{
+"name": "senior debt interest rate +100 bps",
+"sets": [
+[
+"Summary!C54",
+350
+]
+]
+},
+{
+"name": "management fee to 4%",
+"sets": [
+[
+"OpCashFlow!G79",
+0.04
+]
+]
+},
+{
+"name": "hard costs +10%",
+"sets": [
+[
+"Budget!Y11",
+2200000.0
+],
+[
+"Budget!Y12",
+3300000.0000000005
+],
+[
+"Budget!Y13",
+6600000.000000001
+],
+[
+"Budget!Y14",
+6600000.000000001
+],
+[
+"Budget!Y15",
+8800000.0
+],
+[
+"Budget!Y16",
+11000000.0
+]
+]
+},
+{
+"name": "what if ADR drops 10% and occupancy falls 5 pts?",
+"sets": [
+[
+"OpCashFlow!H12",
+112.5
+],
+[
+"OpCashFlow!J11",
+0.63
+],
+[
+"OpCashFlow!L11",
+0.63
+],
+[
+"OpCashFlow!N11",
+0.63
+],
+[
+"OpCashFlow!P11",
+0.63
+],
+[
+"OpCashFlow!R11",
+0.63
+],
+[
+"OpCashFlow!T11",
+0.63
+],
+[
+"OpCashFlow!V11",
+0.63
+],
+[
+"OpCashFlow!X11",
+0.63
+],
+[
+"OpCashFlow!Z11",
+0.63
+],
+[
+"OpCashFlow!AB11",
+0.63
+]
+]
+},
+{
+"name": "hard costs +10% [cells: Budget!Y11, Budget!Y12, Budget!Y13, Budget!Y14, Budget!Y15, Budget!Y16]",
+"sets": [
+[
+"Budget!Y11",
+2200000.0
+],
+[
+"Budget!Y12",
+3300000.0000000005
+],
+[
+"Budget!Y13",
+6600000.000000001
+],
+[
+"Budget!Y14",
+6600000.000000001
+],
+[
+"Budget!Y15",
+8800000.0
+],
+[
+"Budget!Y16",
+11000000.0
+]
+]
+}
+]
+}

@@ -1,0 +1,93 @@
+{
+"file": "MODELS/resi_uk.xlsx",
+"reads": [
+"Returns!D9",
+"Returns!D8",
+"Returns!D7",
+"Returns!D6"
+],
+"keys": [
+"levered_irr",
+"unlevered_irr",
+"profit_on_cost",
+"net_profit"
+],
+"scenarios": [
+{
+"name": "sales price 10% lower",
+"sets": [
+[
+"Assumptions!D9",
+7650
+]
+]
+},
+{
+"name": "build cost +10%",
+"sets": [
+[
+"Assumptions!D13",
+3080
+]
+]
+},
+{
+"name": "interest rate +100 bps",
+"sets": [
+[
+"Assumptions!D19",
+0.085
+]
+]
+},
+{
+"name": "loan to cost -10 pts",
+"sets": [
+[
+"Assumptions!D18",
+0.55
+]
+]
+},
+{
+"name": "build period +6 months",
+"sets": [
+[
+"Assumptions!D16",
+30
+]
+]
+},
+{
+"name": "land cost to 30,000,000",
+"sets": [
+[
+"Assumptions!D12",
+30000000
+]
+]
+},
+{
+"name": "professional fees to 12%",
+"sets": [
+[
+"Assumptions!D14",
+0.12
+]
+]
+},
+{
+"name": "what if sales price drops 5% and build cost rises 10%?",
+"sets": [
+[
+"Assumptions!D9",
+8075
+],
+[
+"Assumptions!D13",
+3080
+]
+]
+}
+]
+}
