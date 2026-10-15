@@ -7,15 +7,15 @@ let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m
 const tabs=await p.evaluate(()=>[...document.querySelectorAll('#tabs .tab:not(.gtab-hidden)')].map(t=>t.textContent.trim()));
 ok(tabs[tabs.length-1]==='Market data','market data last: '+tabs.join(' | '));
 await p.click('.tab[data-t="em"]');await p.waitForTimeout(300);
-ok(await p.evaluate(()=>document.querySelector('#emMenu').classList.contains('on')&&document.querySelectorAll('#emMenu .emm-it').length===4),'menu opens with 4 items (Upload, Checks, Assumptions, Compare)');
-await p.click('#emMenu [data-emgo="checks"]');await p.waitForTimeout(900);
-ok(await p.evaluate(()=>{const sec=document.querySelector('#p-em .emsec[data-emsec=checks]');return sec.classList.contains('on')&&[...document.querySelectorAll('#p-em .emsec.on')].length===1&&!document.querySelector('#emMenu').classList.contains('on')}),'Checks item shows only the checks section and closes the menu');
+ok(await p.evaluate(()=>document.querySelector('#emMenu').classList.contains('on')&&[...document.querySelectorAll('#emMenu .emm-it b')].map(e=>e.textContent).join('|')==='Upload|Assumptions|Compare'),'menu opens with 3 items (Upload, Assumptions, Compare): the Checks page is gone');
+await p.evaluate(()=>{document.querySelector('#emMenu').classList.remove('on')});
+ok(await p.evaluate(()=>{try{localStorage.setItem('bohioEmSec','checks')}catch(e){}return emSection()==='upload'&&!document.querySelector('#emMenu [data-emgo="checks"]')}),'an old link to the Checks page lands on Upload');
 // checks with cells: upload a workbook with a reconcile error and a zero input
 await p.evaluate(async()=>{await loadXLSX();const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Summary'],['Equity IRR',null,'%',12.32],['Development Margin (on cost)',null,'%',1.09],['Net Development Profit',null,'SAR',138e6],['Total Development Cost',null,'SAR',95.1e6]]),'Summary');XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['MAIN INPUTS'],['Construction Contingency',0,'%']]),'Input');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});await uploadExport(new File([buf],'cells test.xlsx'))});
 await p.waitForTimeout(800);
 const cells=await p.evaluate(()=>[...document.querySelectorAll('#exChecks .chk-cell')].map(e=>e.textContent));
 ok(cells.includes('Summary!D3, Summary!D4, Summary!D5')&&cells.includes('Input!B2'),'checks show the Excel cells in bold: '+cells.join(' ; '));
-await p.locator('#exChecks').screenshot({path:sp+'checks_cells.png'});
+
 // stress bars: no overlap between value and bar
 await p.evaluate(()=>showTab('scen'));await p.waitForTimeout(500);
 const ov=await p.evaluate(()=>{const rows=[...document.querySelectorAll('#stressT .sb-row:not(.sb-axisrow)')];return rows.map(r=>{const t=r.querySelector('.sb-track').getBoundingClientRect(),v=r.querySelector('.sb-val').getBoundingClientRect(),pc=r.querySelector('.sb-poc').getBoundingClientRect();return v.left>=t.right-1&&pc.height<40})});

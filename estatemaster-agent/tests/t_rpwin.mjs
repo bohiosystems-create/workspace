@@ -10,15 +10,21 @@ const w=await p.evaluate(()=>({grid:getComputedStyle($('#rpgrid')).gridTemplateC
 ok(w.rep>=880&&w.grid==='none','the report has the page to itself (no left column): '+JSON.stringify(w));
 await p.evaluate(()=>{$('#projRail').classList.add('open')});await p.hover('#prNav .pr-nav-i[data-gtab="report"]');await p.waitForTimeout(300);
 const sub=await p.evaluate(()=>[...document.querySelectorAll('#prNav .pr-subnav .pr-nav-s')].filter(e=>e.offsetParent!==null).map(e=>e.textContent));
-ok(sub.join('|')==='All reports|Report designer|Report templates','hovering Reports in the left menu shows the dropdown: '+sub.join(' · '));
+ok(sub.join('|')==='All reports|Report templates','hovering Reports in the left menu shows the dropdown: '+sub.join(' · '));
 await p.screenshot({path:sp+'rail_reports.png',clip:{x:0,y:0,width:420,height:420}});
-await p.click('#prNav [data-rpwin="rdModal"]');await p.waitForTimeout(300);
-ok(await p.evaluate(()=>$('#rdModal').classList.contains('on')&&!!document.querySelector('#rdModal #rdAsk')&&$('#p-report').classList.contains('on')),'Report designer opens as its own window on the Reports page');
+// the report designer is the chat itself on the Reports page: its own thread, separate from the model's chat
+const dk=await p.evaluate(()=>{toggleDock(true);const h=$('#kdock .chat-head').textContent,ms=$('#msgs').innerText;showTab('em');const h2=$('#kdock .chat-head').textContent,ms2=$('#msgs').innerText;showTab('report');return{h,ms:ms.slice(0,200),h2,ms2:ms2.slice(0,120),back:$('#msgs').innerText.slice(0,120)}});
+ok(/Report designer/.test(dk.h)&&/Report designer/.test(dk.ms)&&/AI agent/.test(dk.h2)&&!/Report designer\./.test(dk.ms2)&&/Report designer/.test(dk.back),'on the Reports page the chat is the report designer, with its own thread: '+JSON.stringify(dk).slice(0,300));
 await p.evaluate(()=>{$('#projRail').classList.add('open')});await p.hover('#prNav .pr-nav-i[data-gtab="report"]');await p.click('#prNav [data-rpwin="rtModal"]');await p.waitForTimeout(300);
-ok(await p.evaluate(()=>$('#rtModal').classList.contains('on')&&!$('#rdModal').classList.contains('on')&&document.querySelectorAll('#rtModal [data-rp]').length>=5),'Report templates opens as its own window (the designer closes)');
+ok(await p.evaluate(()=>$('#rtModal').classList.contains('on')&&document.querySelectorAll('#rtModal [data-rp]').length>=5),'Report templates opens as its own window');
+await p.click('#rtModal [data-rp="lender"] .sj');await p.waitForTimeout(500);
+const pv=await p.evaluate(()=>({list:$('#rpList').hidden,prev:!$('#rtPrev').hidden,title:$('#rtPrev .rt-pt b')&&$('#rtPrev .rt-pt b').textContent,len:$('#rtDoc')?$('#rtDoc').innerText.length:0,deck:!!document.querySelector('.kd-root'),sel:RSEL}));
+ok(pv.list&&pv.prev&&pv.title==='Lender report'&&pv.len>200&&!pv.deck&&pv.sel!=='lender','a template click shows an example of the report (no Play mode, nothing generated yet): '+JSON.stringify(pv));
+await p.click('#rtGen');await p.waitForTimeout(500);
+const gn=await p.evaluate(()=>({sel:RSEL,open:$('#rtModal').classList.contains('on'),t:$('#rpTitle').textContent}));
+ok(gn.sel==='lender'&&!gn.open&&gn.t==='Lender report','Generate makes it the report on the page: '+JSON.stringify(gn));
+await p.evaluate(()=>openRpWin('rtModal'));
 await p.locator('#rtModal .card').screenshot({path:sp+'rt_win.png'});
-await p.click('#rtModal [data-rp="lender"]');await p.waitForTimeout(500);
-{const d=await p.evaluate(()=>({sel:RSEL,on:$('#rtModal').classList.contains('on'),t:$('#rpTitle').textContent}));ok(d.sel==='lender'&&!d.on&&/Lender/.test(d.t),'choosing a template opens that report and closes the window: '+JSON.stringify(d))}
 await p.evaluate(()=>openRpWin('rtModal'));await p.waitForTimeout(200);await p.click('#rtModal [data-rpwinclose]');await p.waitForTimeout(200);
 ok(await p.evaluate(()=>!$('#rtModal').classList.contains('on')),'× closes the window');
 console.log('errs',errs);await b.close();

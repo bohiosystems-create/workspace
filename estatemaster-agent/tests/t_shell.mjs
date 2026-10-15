@@ -54,7 +54,7 @@ ck('hover on a report chart shows name and value',/\d/.test(tipR)&&!/no /.test(t
 ck('gauges carry hover data too',await ev(()=>!!buildDeck('ic').slides.find(s=>s.kind==='gauges')&&/data-tip/.test(kGauges(buildDeck('ic').slides.find(s=>s.kind==='gauges')))),'');
 await p.screenshot({path:`${sp}shell_${tag}_chart.png`});
 // export
-await p.evaluate(()=>showTab('report'));const [dl]=await Promise.all([p.waitForEvent('download',{timeout:15000}),ev(()=>document.querySelector('#msgs .kchart [data-xport]').click())]);
+const [dl]=await Promise.all([p.waitForEvent('download',{timeout:15000}),ev(()=>document.querySelector('#msgs .kchart [data-xport]').click())]);
 ck('export arrow downloads the chart',/\.(png|html)$/.test(dl.suggestedFilename()),dl.suggestedFilename());
 // AI: reasoning labelled, chart tool
 llmOn=true;await p.reload();await p.waitForTimeout(1200);await p.evaluate(()=>toggleDock(true));ck('AI on',await ev(()=>apiOn()),'');
