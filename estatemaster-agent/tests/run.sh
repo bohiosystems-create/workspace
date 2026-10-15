@@ -28,7 +28,7 @@ API_ONLY="t_api"   # tests of the mock-API build only
 API_SET="t_em t_feed t_xmodel t_dbgempty t_dbgwin t_roa t_check t_shell t_menu t_chat t_tools t_api t_bridge t_fix14 t_a11y t_report"
 if [ "$MODE" = quick ]; then
   echo "== browser tests (quick)"
-  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y t_report t_hotelup t_talk t_syscheck t_chathist t_adr t_xcalc t_xcreview; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
+  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y t_report t_hotelup t_talk t_syscheck t_chathist t_adr t_xcalc t_xcreview t_xcmodel2; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
   for t in t_feed t_play t_deck t_btns; do run "$t analyst" node "$t.mjs" "$AN" analyst; done
   for t in t_em t_api t_fix14 t_a11y; do run "$t api" node "$t.mjs" "$AP" api; done
 else

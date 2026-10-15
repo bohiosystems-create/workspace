@@ -279,7 +279,7 @@ function detectMeta(sheets, fileName) {
   meta.ccyFrom = meta.currency ? ev[meta.currency] + (meta.currency === 'USD' && usLoc ? `; US location “${usLoc.slice(0, 40)}”` : '') : '';
   if (!meta.source) meta.source = 'excel';
   if (usLoc) { meta.country = 'US'; meta.place = usLoc.trim().slice(0, 60); }
-  if (!meta.title) { const first = (sheets[0] && sheets[0].rows.flat().find(c => typeof c === 'string' && c.trim().length > 4 && !/argus|estatemaster|summary|licensed/i.test(c) && !/^\s*(project|title|scheme|development|option|stage|date|type|site|location|inputs?|assumptions?|model|cash ?flow)\s*:?\s*$/i.test(c))) || ''; meta.title = String(first).trim().slice(0, 80) || String(fileName || '').replace(/\.[^.]+$/, ''); }
+  if (!meta.title) { const first = (sheets[0] && sheets[0].rows.flat().find(c => typeof c === 'string' && c.trim().length > 4 && !/argus|estatemaster|summary|licensed/i.test(c) && !/^\s*(project|title|scheme|development|option|stage|date|type|site|location|inputs?|assumptions?|model|cash ?flow)\s*:?\s*$/i.test(c))) || ''; meta.title = String(first).trim().replace(/\s*[·•|:\-–—]\s*(returns?|summary|outputs?|results?|dashboard|overview|key figures)\s*$/i, '').trim().slice(0, 80) || String(fileName || '').replace(/\.[^.]+$/, ''); }   // a heading like “Riverside · returns” names the scheme, not its sheet
   return meta;
 }
 /* Market benchmarks by asset type (SAR, Riyadh; demo data: in production the transactions, rentals and cost feeds). [low, median, high] */

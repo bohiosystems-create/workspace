@@ -40,6 +40,12 @@ expect('No currency stated', read(book({ Sheet1: [['Model'], ['Total Development
   t(!bad.length, 'amounts are never read as percentages: ' + (bad.map(c => c.text).join(' ; ') || 'no false % check'));
   const f = l => r.inputs.find(i => i.label === l) || {}; t(f('Contingency').fmt === 'num' && f('Contingency rate').fmt === 'pct' && f('Interest Rate').fmt === 'bps' && f('Debt Pre-Interest Reserve').fmt === 'money', 'cell formats read: ' + ['Contingency', 'Contingency rate', 'Interest Rate', 'Debt Pre-Interest Reserve'].map(l => l + '=' + f(l).fmt).join(', ')); }
 // I. a real third-party hotel model (US, Excel, not EstateMaster): headline table, USD, the cash flow reproduces both IRRs
+{ const r = read(XLSX.read(fs.readFileSync(__dirname + '/fixtures/models/resi_uk.xlsx'), { cellFormula: true, cellNF: true }), 'resi_uk.xlsx');
+  expect('UK residential model', r, { currency: 'GBP', levered_irr: 25.1318, unlevered_irr: 17.6421, profit_on_cost: 27.4942, net_profit: 18696930.4194, total_cost: 68003069.5806, gross_revenue: 86700000, peak_debt: 44694843.287 });
+  t(r.meta.title === 'RIVERSIDE GARDENS', 'resi: the title drops the “· returns” suffix: ' + r.meta.title);
+  t(r.cells.levered_irr === 'Returns!D9' && r.cells.profit_on_cost === 'Returns!D7', 'resi: output cells named');
+  const pi = r.inputs.find(i => i.label === 'Interest rate'), bi = r.inputs.find(i => /Build cost/.test(i.label));
+  t(pi && pi.pct && pi.value === 7.5 && pi.cell === 'Assumptions!D19' && bi && bi.value === 2800 && bi.cell === 'Assumptions!D13', 'resi: a fraction-typed rate reads as 7.5% with its cell; a money input with its cell'); }
 { const r = read(XLSX.read(fs.readFileSync(__dirname + '/fixtures/models/hotel_us.xlsx')), 'HOTEL DEVELOPMENT MODEL.xlsx');
   expect('Hotel model', r, { currency: 'USD', levered_irr: 24.0536, unlevered_irr: 15.782, equity_multiple: 3.8721, total_cost: 52146981.835, gross_revenue: null });
   t(r.meta.source === 'excel', 'hotel: labelled as an Excel model, not an EstateMaster export');
