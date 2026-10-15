@@ -60,7 +60,7 @@ ck('export arrow downloads the chart',/\.(png|html)$/.test(dl.suggestedFilename(
 llmOn=true;await p.reload();await p.waitForTimeout(1200);await p.evaluate(()=>toggleDock(true));ck('AI on',await ev(()=>apiOn()),'');
 const rt=await ev(()=>route('which past project overran its budget the most, and by how much?'));ck('data question with reasoning routes to the AI, deep tier',rt.lane==='api'&&rt.tier==='deep',JSON.stringify([rt.lane,rt.tier]));
 h=await ask('which past project overran its budget the most, and by how much?',3000);
-ck('AI answer: figures it worked out carry the AI badge and the note',(h.match(/fig-calc/g)||[]).length>=2&&/calcnote/.test(h)&&/not an EstateMaster figure|Not from EstateMaster/i.test(h),h.replace(/<[^>]+>/g,' ').slice(0,200));
+ck('AI answer: figures it worked out carry the AI badge and the note',(h.match(/fig-calc/g)||[]).length>=2&&/calcnote/.test(h)&&/not an? (EstateMaster|the model|model) figure|Not from (EstateMaster|the model)/i.test(h),h.replace(/<[^>]+>/g,' ').slice(0,200));
 ck('system prompt carries the ⟦calc⟧ rule and chart tools',llmReq.some(r=>/⟦calc: working⟧/.test(r.payload.system)&&r.payload.tools.some(t=>t.name==='make_chart')&&r.payload.tools.some(t=>t.name==='get_series')),'');
 h=await ask('compare the cost overrun of the three worst projects in a chart',3000);
 const ttl=await ev(()=>($('#msgs .msg.agent:last-child .kchart .kd-h2')||{}).textContent||'');ck('AI make_chart: chart card drawn, flagged as AI-worked-out figures, exportable',/kchart/.test(h)&&/worked out by the AI/i.test(h)&&/Cost overrun by project/.test(ttl)&&/data-xport/.test(h)&&/kd-spring/.test(h),ttl+' | '+h.replace(/<[^>]+>/g,' ').slice(0,120));

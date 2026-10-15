@@ -3,7 +3,7 @@ import {chromium} from 'playwright';
 import fs from 'fs';
 const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const base=process.argv[2]||'http://localhost:4090/?mode=readonly',tag=process.argv[3]||'ro';
-const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const ctx=await b.newContext({viewport:{width:1600,height:1000}});const p=await ctx.newPage();
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const ctx=await b.newContext({viewport:{width:1600,height:1000}});const p=await ctx.newPage();await p.addInitScript(()=>{window.KEEP_EM_NAME=true});   // this test checks the logic with the internal wording; the on-screen name rule is checked in t_hotelup
 const errs=[];p.on('pageerror',e=>errs.push(e.message));let llmOn=false;const llmReq=[];let replyText='';
 await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
 await p.route('https://fonts.googleapis.com/**',r=>r.fulfill({status:200,contentType:'text/css',body:''}));

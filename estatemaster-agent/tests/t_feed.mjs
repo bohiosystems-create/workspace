@@ -5,8 +5,8 @@ const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined
 await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
 await p.goto(URL);await p.waitForTimeout(2500);
 let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
-const hello=await p.evaluate(()=>(document.body.textContent.match(/Hello\. I work on EstateMaster’s figures for [^?]+\?/)||[''])[0]);
-ok(/Hello\. I work on EstateMaster’s figures for .+ project, how can I help you\?/.test(hello)&&hello.includes(await p.evaluate(()=>PROJ.name)),'welcome names the project: '+hello.slice(0,110));
+const hello=await p.evaluate(()=>(document.body.textContent.match(/Hello\. I work on (?:EstateMaster|the model)’s figures for [^?]+\?/)||[''])[0]);
+ok(/Hello\. I work on (?:EstateMaster|the model)’s figures for .+ project, how can I help you\?/.test(hello)&&hello.includes(await p.evaluate(()=>PROJ.name)),'welcome names the project: '+hello.slice(0,110));
 await p.evaluate(()=>{raiseCR('manual','Sales team','Discount 5% on 20 units',[{t:'mods',mods:{price:-5}}],{channel:'Workspace',why:'slow sales in Q3'});showTab('appr')});await p.waitForTimeout(600);
 ok(await p.locator('#apList .feed-item').count()>=1&&await p.locator('#p-appr .mkbox').count()===0,'feed rows, no explanatory box');
 ok(await p.evaluate(()=>!document.querySelector('#p-appr #logT')&&!!document.querySelector('#setModal #logT')),'change memory moved to Settings');

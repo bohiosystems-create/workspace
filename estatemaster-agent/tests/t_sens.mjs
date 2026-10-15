@@ -83,7 +83,7 @@ const wbm=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wbm,XLSX.utils.aoa_
 XLSX.utils.book_append_sheet(wbm,XLSX.utils.aoa_to_sheet([['Year',2026,2027,2028],['Spend',-60000000,-90000000,-20000000],['Sales',0,120000000,240000000]]),'Cash flow');const fxm=sp+'t_sens_model.xlsx';XLSX.writeFile(wbm,fxm);
 await ev(()=>{toggleDock(false);openNewProject()});await p.setInputFiles('#npFile',fxm);await p.waitForTimeout(900);
 const npi=await ev(()=>({info:$('#npInfo').textContent,btn:$('#npCreate').textContent,dis:$('#npCreate').disabled}));
-ck('a workbook that is not an export: read sheet by sheet and offered as an Excel model to ask about',/Not an EstateMaster export/.test(npi.info)&&/Inputs \(6 rows\)/.test(npi.info)&&/Cash flow/.test(npi.info)&&npi.btn==='Load and ask'&&!npi.dis,JSON.stringify(npi).slice(0,240));
+ck('a workbook that is not an export: read sheet by sheet and offered as an Excel model to ask about',/Not an? (EstateMaster|model) export/.test(npi.info)&&/Inputs \(6 rows\)/.test(npi.info)&&/Cash flow/.test(npi.info)&&npi.btn==='Load and ask'&&!npi.dis,JSON.stringify(npi).slice(0,240));
 const nProj=await ev(()=>Object.keys(PROJECTS).length);await p.click('#npCreate');await p.waitForTimeout(800);
 const lm=await ev(()=>({open:document.body.classList.contains('chatopen'),last:[...document.querySelectorAll('#msgs .msg.agent .body')].map(m=>m.innerHTML).pop()||'',files:FILES.map(f=>f.name),n:Object.keys(PROJECTS).length}));
 ck('the chat opens on the model right away: sheets listed, questions to start from, no project created',lm.open&&/t_sens_model\.xlsx/.test(lm.last)&&/Cash flow/.test(lm.last)&&(lm.last.match(/qchip/g)||[]).length>=4&&lm.files.includes('t_sens_model.xlsx')&&lm.n===nProj,lm.last.replace(/<[^>]+>/g,' ').slice(0,200));

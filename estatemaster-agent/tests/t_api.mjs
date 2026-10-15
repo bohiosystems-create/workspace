@@ -11,7 +11,7 @@ ok(await p.evaluate(()=>EMAPI.log.length>=2),'sync calls logged on open: '+await
 ok(await p.evaluate(()=>latestExport().src==='api'&&latestExport().inputs.length>5),'first read via API with inputs');
 const body=await p.evaluate(()=>document.body.innerText);
 ok(!/an analyst/i.test(body),'no "an analyst" wording visible: '+(body.match(/.{40}an analyst.{40}/i)||[''])[0]);
-ok(await p.evaluate(()=>document.querySelector('.cn.dk b').textContent)==='EstateMaster · API','chip says EstateMaster · API');
+ok(await p.evaluate(()=>document.querySelector('.cn.dk b').textContent).match(/^(EstateMaster|Model) · API$/),'chip says Model · API');
 // raise and approve a change
 const irr0=await p.evaluate(()=>latestExport().out.levered_irr);
 const cr=await p.evaluate(()=>{const c=raiseCR('manual','Test','What-if',[{t:'mods',mods:{price:-0.1}}],{channel:'Workspace'});return c.id});
