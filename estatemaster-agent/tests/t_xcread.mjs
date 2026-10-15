@@ -7,7 +7,7 @@ const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined
 await cx.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
 await cx.route(/hyperformula/,r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/hyperformula.full.min.js')}));
 await cx.route('https://fonts.googleapis.com/**',r=>r.fulfill({status:200,contentType:'text/css',body:''}));
-let MODE='agree',seen=[];
+let MODE='agree',seen=[],cellsSeen=[];
 await p.route('**/api/llm',r=>{if(r.request().method()==='GET')return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({providers:{anthropic:true,openai:true}})});
   const j=JSON.parse(r.request().postData());const sys=j.payload.system||(j.payload.messages[0]&&j.payload.messages[0].role==='system'?j.payload.messages[0].content:'');const user=JSON.stringify(j.payload.messages);
   const reply=text=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(j.provider==='openai'?{choices:[{message:{content:text}}]}:{model:j.payload.model,content:[{type:'text',text}]})});
@@ -18,6 +18,7 @@ await p.route('**/api/llm',r=>{if(r.request().method()==='GET')return r.fulfill(
     if(/room rate/.test(sent))return reply(JSON.stringify({changes:[{label:'ADR',kind:'pct',value:-10,sure:true,note:'room rate = ADR, a tenth = 10%'}]}));
     if(/occupancy/.test(sent))return reply(JSON.stringify({changes:[{label:'Occupancy',kind:'pts',value:-5,sure:true}]}));
     return reply(JSON.stringify({changes:[{label:'ADR',kind:'pct',value:-10,sure:true}]}))}
+  if(/decide which typed input cells/.test(sys)){cellsSeen.push(user.slice(0,200));if(MODE==='cells')return reply(JSON.stringify({complete:false,add:['OpCashFlow!H23','OpCashFlow!J12'],drop:[],why:'the F&B rate per occupied room is typed on its own row'}));return reply(JSON.stringify({complete:true,add:[],drop:[],why:'later years grow from H12 by formula'}))}
   if(/audit an exact recalculation/.test(sys))return reply(JSON.stringify({verdict:'agree',why:'right cell',results:[{metric:'levered_irr',value:18.9}]}));
   reply('{}')});
 await p.goto(process.argv[2]||'http://localhost:4090/?mode=readonly');await p.evaluate(()=>localStorage.clear());await p.reload();await p.waitForTimeout(1500);
@@ -32,5 +33,11 @@ MODE='agree';r=await run(r.ask.options[0]);t(r.desc&&/125 → 112\.5/.test(r.des
 MODE='unsure';r=await run('ADR 10%');t(r.ask&&/up or down/.test(r.ask.question)&&/Claude|OpenAI|gpt/i.test(r.ask.question),'the AI is unsure: its question is put to the user, signed: '+(r.ask&&r.ask.question));
 MODE='agree';r=await run('bring the room rate down by a tenth');t(r.desc&&/125 → 112\.5/.test(r.desc[0])&&r.steps.some(s=>/reads it as ADR −10%/.test(s)),'the rules cannot read it, the AI can: goes ahead and says so: '+JSON.stringify(r.steps.filter(s=>/reads it/.test(s))));
 MODE='down';r=await run('ADR drops 10%');t(r.desc&&/125 → 112\.5/.test(r.desc[0])&&r.steps.some(s=>/could not read the sentence/.test(s)),'AI down: the rule-based reading is used and the fallback is said');
+// the cells a change touches: the AI sees the rows around the picked cells (typed numbers vs formulas) and confirms or proposes more
+t(cellsSeen.length>0&&/Cells the rules picked: OpCashFlow!H12/.test(cellsSeen[0])&&/Rows around them/.test(cellsSeen[0]),'the AI was shown the picked cells and the rows around them: '+cellsSeen[0].slice(0,120));
+MODE='agree';r=await run('ADR drops 10%');t(r.steps.some(s=>/confirms the cells to change: OpCashFlow!H12/.test(s)),'when the AI agrees the set is complete, it says so and the recalculation goes ahead');
+MODE='cells';r=await run('ADR drops 10%');t(r.ask&&/proposes also changing OpCashFlow!H23/.test(r.ask.question)&&!/J12/.test(r.ask.question)&&/Which cells should change/.test(r.ask.question)&&r.ask.options.length===2&&/\[cells: OpCashFlow!H12, OpCashFlow!H23\]/.test(r.ask.options[0])&&/\[cells: OpCashFlow!H12\]/.test(r.ask.options[1]),'the AI proposes an extra typed cell (a formula cell it named is dropped): the user is asked with both sets: '+(r.ask&&r.ask.question)+' '+JSON.stringify(r.ask&&r.ask.options));
+MODE='agree';r=await run(r.ask.options[0]);t(r.desc&&/\(2 cells\)/.test(r.desc[0])&&/125 → 112\.5/.test(r.desc[0]),'picking the fuller set changes exactly those cells: '+(r.desc&&r.desc[0]));
+r=await run('ADR drops 10% [cells: OpCashFlow!J12]');t(r.ask&&/not a typed number/.test(r.ask.question),'a formula cell named by hand is refused: '+(r.ask&&r.ask.question));
 MODE='agree';const cr=await ev(async()=>{const r=await aiCrossCheck([{text:'ADR drops 10%'}],async()=>{});return{v:+r.metrics.find(m=>m.k==='levered_irr').value.toFixed(2),xc:r.xc}});t(cr.xc&&cr.v===18.84,'end to end through the cross-check: exact 18.84%');
 t(!errs.length,'no page errors '+errs.join(';'));console.log(ok.join('\n'));await b.close();

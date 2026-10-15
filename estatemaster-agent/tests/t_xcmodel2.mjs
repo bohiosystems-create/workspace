@@ -45,6 +45,10 @@ const qs=await ev(()=>layoutQuestions(latestExport()).map(q=>q.id));t(!qs.includ
 await ev(()=>openNewProject());await p.setInputFiles('#npFile',sp+'v2_export.xlsx');await p.waitForTimeout(1200);await p.click('#npCreate');await p.waitForTimeout(2500);
 const e2=await ev(async()=>{const x=latestExport();const e=await xcEngine(x);const r=await xcTest([{text:'sale price -10%'}],async()=>{});return{ok:e&&e.ok,tot:e&&e.tot,can:xcCan(x),r}});
 t(e2&&!e2.ok&&e2.tot===0&&!e2.can&&e2.r===null,'values-only export: engine not trusted, xcTest null, no error: '+JSON.stringify(e2).slice(0,120));
+const nc=await ev(async()=>{try{await aiCrossCheck([{text:'sale price -10%'}],async()=>{});return{ok:true}}catch(e){return{msg:e.message,nc:!!e.notComputed}}});
+t(nc.nc&&/^Not computed/.test(nc.msg)&&/values only, no formulas/.test(nc.msg)&&/I do not estimate/.test(nc.msg),'a values-only export is never estimated: '+nc.msg);
+const ns=await ev(async()=>{try{await aiSensGrid({assumption:'sale price',kind:'pct',shifts:[-10,0,10]},{assumption:'construction cost',kind:'pct',shifts:[-10,0,10]},'levered_irr',async()=>{});return{ok:true}}catch(e){return{msg:e.message}}});
+t(/^Not computed/.test(ns.msg||''),'nor is a sensitivity table: '+(ns.msg||'').slice(0,80));
 // a third model: a US pro forma in $000s with percentages typed as whole numbers; the reader shows full dollars, the recalculation follows the same scale
 await ev(()=>openNewProject());await p.setInputFiles('#npFile',sp+'models/office_k.xlsx');await p.waitForTimeout(1200);await p.click('#npCreate');await p.waitForTimeout(2500);
 const k=await ev(async()=>{const x=latestExport();const e=await xcEngine(x);const a=await xcTest([{text:'sale price -10%'}],async()=>{});const b=await xcTest([{text:'loan to cost +5 pts'}],async()=>{});const c=await xcTest([{text:'hold +6 months'}],async()=>{});const g=await xcSolve('sale price','profit_on_cost',30,async()=>{});

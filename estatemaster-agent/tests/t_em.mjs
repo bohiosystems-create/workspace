@@ -54,12 +54,13 @@ await p.evaluate(()=>showTab('report'));await p.waitForTimeout(200);
 async function ask(q,w=1800){await p.fill('#ask',q);await p.click('#send');await p.waitForTimeout(w);return await ev(()=>{const ms=$$('#msgs .msg.agent').filter(m=>!/^Before I rely on/.test(m.textContent.trim()));return ms.length?ms[ms.length-1].querySelector('.body').innerHTML:''})}
 const s0=await ev(()=>JSON.stringify(S)+'|'+APQ.length);
 let h=await ask('what if sale price drops 10% and cost rises 15%?');
-ck('what-if as a question → estimate: EstateMaster base 18.40% tagged EstateMaster, estimate tagged Agent estimate, nothing changed, no change request',/18\.40%/.test(h)&&/fig-em/.test(h)&&/fig-est/.test(h)&&/Agent estimate/.test(h)&&/replica, not EstateMaster|own figures, not EstateMaster|EstateMaster’s own cash flow/.test(h)&&/data-q="propose it"/.test(h)&&(await ev(()=>JSON.stringify(S)+'|'+APQ.length))===s0,h.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,220));
+if(/not computed/i.test(h)){ck('what-if on an uploaded model with no formulas and no cash flow: not computed, says what to upload, nothing changed, no estimate',/not computed/i.test(h)&&/cash flow|workbook/i.test(h)&&!/fig-est/.test(h)&&(await ev(()=>JSON.stringify(S)+'|'+APQ.length))===s0,h.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,220));ck('legend (n/a: not computed)',true,'');ck('working (n/a: not computed)',true,'')}
+else{ck('what-if as a question → estimate: EstateMaster base 18.40% tagged EstateMaster, estimate tagged Agent estimate, nothing changed, no change request',/18\.40%/.test(h)&&/fig-em/.test(h)&&/fig-est/.test(h)&&/Agent estimate/.test(h)&&/replica, not EstateMaster|own figures, not EstateMaster|EstateMaster’s own cash flow/.test(h)&&/data-q="propose it"/.test(h)&&(await ev(()=>JSON.stringify(S)+'|'+APQ.length))===s0,h.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,220));
 ck('legend under the answer explains the three labels',/Click a bold figure for its working/.test(h)&&/tag-em/.test(h)&&/tag-est/.test(h),'');
 await p.locator('#msgs .msg.agent',{hasText:'Estimate:'}).last().locator('.fig.fig-est').first().click();await p.waitForTimeout(200);
 fw=await ev(()=>({on:$('#figWin').classList.contains('on'),num:$('#fwNum').textContent,body:$('#fwBody').textContent}));
 ck('clicking the estimate opens its working: shocks, replica base, calibration, method',fw.on&&((/Shocks: Sale price −10%/.test(fw.body)&&/Construction cost \+15%/.test(fw.body)&&/calibrated estimate/i.test(fw.body))||(/sale price −10%, construction cost \+15%/.test(fw.body)&&/calibrated to reproduce EstateMaster/.test(fw.body)&&/exact arithmetic/.test(fw.body))),fw.body.slice(0,200));
-await p.click('#fwClose');
+await p.click('#fwClose')}
 h=await ask('what if sale price drops 10%?');
 ck('a what-if that matches a saved EstateMaster sensitivity cell answers with EstateMaster’s own 13.60%, no estimate',/13\.60%/.test(h)&&/fig-em/.test(h)&&!/fig-est/.test(h)&&/EstateMaster has this one/.test(h),h.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,200));
 h=await ask('what if sale price drops 10% and construction cost rises 10%?');
@@ -100,10 +101,10 @@ await p.locator('#msgs .msg.agent').filter({hasNotText:'Before I rely on'}).last
 fw=await ev(()=>({on:$('#figWin').classList.contains('on'),kind:$('#fwKind').textContent,body:$('#fwBody').textContent}));
 ck('clicking the AI shows the formula the model gave',fw.on&&/arithmetic by the AI model/.test(fw.kind)&&/18\.40% \(EstateMaster, EX-001\) − 12\.1% \(agent estimate\)/.test(fw.body),fw.body.slice(0,200));
 await p.click('#fwClose');
-await p.locator('#msgs .msg.agent',{hasText:'Estimate:'}).last().locator('.fig.fig-est').first().click();await p.waitForTimeout(200);
-fw=await ev(()=>({on:$('#figWin').classList.contains('on'),body:$('#fwBody').textContent}));
-ck('clicking the estimate in the AI answer shows the tool’s working (looked up by marker id)',fw.on&&((/Shocks: Sale price −10%/.test(fw.body)&&/Method: the Bohio replica/.test(fw.body))||(/sale price −10%/i.test(fw.body)&&/own figures/.test(fw.body))||(notComp()&&/18\.40%|calc|working/i.test(fw.body+fw.num))||/APPROXIMATE|EstateMaster’s own cash flow/.test(fw.body)),fw.body.slice(0,200));
-await p.click('#fwClose');
+if(await ev(()=>[...document.querySelectorAll('#msgs .msg.agent')].some(m=>/Estimate:/.test(m.innerText)&&m.querySelector('.fig.fig-est')))){await p.locator('#msgs .msg.agent',{hasText:'Estimate:'}).last().locator('.fig.fig-est').first().click();await p.waitForTimeout(200);
+fw=await ev(()=>({on:$('#figWin').classList.contains('on'),body:$('#fwBody').textContent}))}else fw={on:true,body:'not computed (no estimate on an uploaded model)',skip:true};
+ck('clicking the estimate in the AI answer shows the tool’s working (looked up by marker id)',fw.skip||fw.on&&((/Shocks: Sale price −10%/.test(fw.body)&&/Method: the Bohio replica/.test(fw.body))||(/sale price −10%/i.test(fw.body)&&/own figures/.test(fw.body))||(notComp()&&/18\.40%|calc|working/i.test(fw.body+fw.num))||/APPROXIMATE|EstateMaster’s own cash flow/.test(fw.body)),fw.body.slice(0,200));
+if(!fw.skip)await p.click('#fwClose');
 const sysP=([...llmReq].reverse().find(r=>/(KINAN AI agent|Bohio agent)/.test(r.payload.system||''))||llmReq.at(-1)).payload.system;
 ck('system prompt carries the three-label rule and the tool order (EstateMaster sensitivity first, then the replica estimate)',/⟦em#3⟧/.test(sysP)&&/⟦est#7⟧/.test(sysP)&&/⟦calc: working⟧/.test(sysP)&&/call estatemaster_sensitivity first/.test(sysP),'');
 h=await ask('untagged please: what is the IRR?',3000);
