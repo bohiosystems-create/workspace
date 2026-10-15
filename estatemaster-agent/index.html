@@ -3978,12 +3978,38 @@ const xcFmtX=(r,v)=>{if(!Number.isFinite(v))return'—';const h=(r.head||'')+' '
 const xcMet=(k,v)=>!Number.isFinite(v)?NaN:(MET[k]&&MET[k][1]==='%')?v*100:v;
 function xcFactor(x,k,baseRaw){const o=(x&&x.out||{})[k],d=MET[k]&&MET[k][1]==='%'?100:1;if(!Number.isFinite(o)||!Number.isFinite(baseRaw)||!baseRaw||!o)return d;const f=o/baseRaw,a=Math.abs(f);
   for(const m of [1,100,1000,1e6,1e9,0.01,0.001,1e-6]){if(Math.abs(a-m)<=1e-6*m)return f<0?-m:m}return d}
-const xcSplit=t=>String(t||'').replace(/^.*?\bwhat (?:if|happens if|would happen if)\b\s*/i,'').replace(/[?]+\s*$/,'').split(/\s*(?:\band\b|&|;|,(?=\s*[a-z]))\s*/i).map(z=>z.trim()).filter(z=>/\d/.test(z));
+/* the AI reads every change sentence against the model's own list of assumptions; the rule-based reading is cross-checked
+   against it. Agreement → go. Disagreement, or an AI reading that is unsure → the user is asked, never guessed for. */
+const XC_READ_SYS=`You read a sentence describing changes to a financial model's assumptions. You get the model's assumptions (label, cell, current value, whether it is a percentage). Return JSON only: {"changes":[{"label":"exact label from the list","kind":"pct|pts|abs|to|months","value":number,"sure":true|false,"note":"max 12 words"}],"question":"only when something cannot be read for sure: one short question, max 25 words"}.
+kind: pct = relative change in % of the current value (value is the %, negative for a fall); pts = percentage points added to a percentage assumption (bps ÷ 100, negative for a fall); abs = units added (negative for a fall); to = a new value (the number given, in the cell's own units: a percentage as 12.5 for 12.5%); months = months added. "drops / lower / falls / cut / down / reduce" mean negative; "rises / higher / up / increase / more" mean positive. A bare "%" on a percentage assumption (e.g. "occupancy -5%") is ambiguous between pts and pct: set sure=false and ask. A sentence giving both directions, no size, or a label that matches no assumption: sure=false with a question. Never invent a size or a label.`;
+async function xcAiRead(x,text){const q=chain('fast').find(z=>z.p==='anthropic')||chain('fast')[0]||calcPair()[0];if(!q)return null;
+  const list=(x.inputs||[]).filter(i=>i.cell).slice(0,160).map(i=>`${i.parent?i.parent+' › ':''}${i.label} | ${i.cell} | ${asmFmt(i)}${i.unit&&i.unit!=='%'?' '+i.unit:''} | ${xcPctIn(i)?'percentage':'number'}`).join('\n');
+  const r=await Promise.race([callOne(q.p,q.model,XC_READ_SYS,[{role:'user',content:`Assumptions:\n${list}\n\nSentence: ${text}`}],false,{max:600,task:'calc',think:false}),new Promise((_,no)=>setTimeout(()=>no(new Error('timed out')),20000))]);
+  const j=jsonFrom(r.text);j.by=mName(q.p,q.model);return j}
+// the two readings of one change side by side: same cell, same kind, same size → agree
+function xcSame(x,p,a){if(!p||!p.inp||!a)return false;const lab=asMatchLabel(a.label)||xcFindLabel(x,a.label);const inp=lab?xcInputOf(x,lab,a.label):null;if(!inp||inp.cell!==p.inp.cell)return false;
+  let k=a.kind,v=+a.value;if(!Number.isFinite(v))return false;if(k==='abs'&&p.kind==='pts'&&xcPctIn(p.inp))k='pts';if(k==='pts'&&p.kind==='abs'&&!xcPctIn(p.inp))k='abs';
+  if(k!==p.kind)return false;return Math.abs(v-p.s)<=1e-6*Math.max(1,Math.abs(p.s))}
+const xcSay=(x,p)=>{const i=p.inp,f=v=>xcPctIn(i)?(+v.toFixed(2)).toString().replace(/\.?0+$/,'')+'%':(+v.toFixed(4)).toLocaleString();const nv=xcShiftVals(i,[xcCellV(i,i.value)],p.kind,p.s)[0];return `${p.label} ${p.kind==='to'?'to':p.kind==='pct'?(p.s>0?'+':'−')+Math.abs(p.s)+'%':p.kind==='pts'?(p.s>0?'+':'−')+Math.abs(p.s)+' pts':p.kind==='months'?(p.s>0?'+':'−')+Math.abs(p.s)+' months':(p.s>0?'+':'−')+Math.abs(p.s)} (${asmFmt(i)} → ${f(xcPctIn(i)?nv*100:nv)})`};
+const xcSplit=t=>String(t||'').replace(/\s*\([^()]*→[^()]*\)/g,'').replace(/^.*?\bwhat (?:if|happens if|would happen if)\b\s*/i,'').replace(/[?]+\s*$/,'').split(/\s*(?:\band\b|&|;|,(?=\s*[a-z]))\s*/i).map(z=>z.trim()).filter(z=>/\d/.test(z));
 async function xcTest(changes0,onStep,proj){const x=latestExport(proj||PROJ.id);if(!x||x.src!=='file')return null;const changes=changes0.flatMap(c=>c.text&&!c.label?(xcSplit(c.text).length?xcSplit(c.text).map(text=>({text})):[c]):[c]);
   const info=XC.id===x.id&&XC.ready?await XC.ready:null;const fresh=!info;
   if(fresh)await onStep('Loading the workbook’s own formulas (once per model, a few seconds)');const eng=info||await xcEngine(x);
   if(!eng||!eng.ok){if(eng&&eng.why==='nofile')await onStep('The original workbook is not in this browser: upload it once and every change is recalculated exactly, like Excel');else if(eng&&eng.tot)await onStep(`The formula engine reproduced only ${eng.pct}% of the workbook’s own results: not trusted, the AI estimates instead`);return null}
-  const plans=changes.map(c=>({c,p:xcParse(x,c)}));const bad=plans.find(z=>!z.p.inp||z.p.why);
+  const plans=changes.map(c=>({c,p:xcParse(x,c)}));
+  // the AI reads the same sentence; where it can read it for sure, the two readings must agree, else the user decides
+  if(calcPair().length&&changes.some(c=>c.text)){let ai=null;try{ai=await xcAiRead(x,changes0.map(c=>c.text||chgText(c)).join('; '))}catch(e){await onStep('The AI could not read the sentence ('+aiErrText(provErr(e.message)).slice(0,60)+'): the rule-based reading is used')}
+    if(ai){const ac=Array.isArray(ai.changes)?ai.changes:[];
+      if(ai.question&&ac.some(c=>c&&c.sure===false)||(!ac.length&&ai.question))return{ask:{question:`${ai.by}: ${String(ai.question).trim()}`,options:[]}};
+      const sure=ac.filter(c=>c&&c.sure!==false);
+      for(const z of plans){const ok=z.p.inp&&!z.p.why;const m=sure.find(c=>xcSame(x,z.p,c));
+        if(ok&&m)continue;
+        if(ok&&!m){const alt=sure.find(c=>{const lab=asMatchLabel(c.label)||xcFindLabel(x,c.label);const inp=lab?xcInputOf(x,lab,c.label):null;return inp&&inp.cell===z.p.inp.cell});const altP=alt?{...z.p,kind:['pct','pts','abs','to','months'].includes(alt.kind)?alt.kind:z.p.kind,s:+alt.value}:null;
+          const mine=xcSay(x,z.p),theirs=altP&&Number.isFinite(altP.s)?xcSay(x,altP):(sure.map(c=>`${c.label} ${c.kind} ${c.value}`).join('; ')||'something else');
+          return{ask:{question:`Two readings of “${z.c.text||chgText(z.c)}”: ${mine}, or ${theirs} (${ai.by}). Which one?`,options:[mine,theirs].filter((v,i,a)=>a.indexOf(v)===i)}}}
+        if(!ok&&sure.length===1&&plans.length===1){const c=sure[0],lab=asMatchLabel(c.label)||xcFindLabel(x,c.label),inp=lab?xcInputOf(x,lab,c.label):null;const k=['pct','pts','abs','to','months'].includes(c.kind)?c.kind:null;
+          if(inp&&k&&Number.isFinite(+c.value)&&!(k==='pct'&&xcPctIn(inp))){z.p={inp,kind:k,s:+c.value,label:lab,by:ai.by};await onStep(`${ai.by} reads it as ${xcSay(x,z.p)}`)}}}}}
+  const bad=plans.find(z=>!z.p.inp||z.p.why);
   if(bad){const p=bad.p,q=p.why==='pct of pct'?{question:`${p.label} is a percentage (${asmFmt(p.inp)}). Do you mean ${Math.abs(p.s)} points (${asmFmt(p.inp)} → ${(p.inp.value+p.s).toFixed(2).replace(/\.?0+$/,'')}%) or ${Math.abs(p.s)}% of it (${asmFmt(p.inp)} → ${(p.inp.value*(1+p.s/100)).toFixed(2).replace(/\.?0+$/,'')}%)?`,options:[`${p.label} ${p.s>0?'+':'−'}${Math.abs(p.s)} pts`,`${p.label} ${p.s>0?'+':'−'}${Math.abs(p.s)}% of its value`]}
       :p.why==='which line'?{question:`“${p.label}” appears on more than one line of the model. Which one?`,options:p.options.slice(0,4)}
       :p.why==='which way'?{question:`Should ${p.label} go up or down?`,options:[`${p.label} up`,`${p.label} down`]}:p.why==='how much'?{question:`How much should ${p.label} change? For example “${p.label} −10%” or “${p.label} to ${'…'}”.`,options:[]}:null;
