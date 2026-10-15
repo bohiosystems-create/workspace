@@ -149,12 +149,13 @@ const STRESS = [
   { name: 'Severe combined', d: 'sale prices −20%, construction cost +20%, 12-month delay, cap rate +150 bps, rates +200 bps' }];
 const prettyModel = m => String(m).replace(/^claude-(\w+)-(\d+)-(\d+)$/, (x, a, b, c) => `Claude ${a[0].toUpperCase()}${a.slice(1)} ${b}.${c}`).replace(/^gpt-(\S+)$/, 'OpenAI GPT-$1');
 const REASON = () => [['anthropic', env('REASON_MODEL') || 'claude-opus-5-5'], ['openai', env('REASON_MODEL_OPENAI') || 'gpt-5']].filter(([p]) => G.aiProviders().includes(p));
-/* The hurdle a model is judged against: the export's own target IRR (Target IRR / Project Discount Rate / hurdle rate input) when it
-   carries one, else the KINAN policy hurdle (HURDLE_IRR, default 18). Same rule as the app. */
+/* The hurdle a model is judged against: the export's own target IRR (Target IRR / Project Discount Rate / hurdle rate input), else the
+   hurdle a person confirmed in the app, else HURDLE_IRR when an administrator set it. Otherwise there is none (NaN): nothing is judged
+   against a hurdle and the AI is told not to assume one. Same rule as the app. */
 const TARGET_RX = /target\s*(?:irr|dev(?:eloper)?'?s?\s*(?:irr|return))|project discount rate|discount rate\s*\(target|hurdle rate|required (?:irr|return)/i;
 let FEED_HURDLE = null;   // the hurdle a person confirmed in the app (sent with the Daily feed items) when the export has no target
 function hurdleOf(b) {
-  const policy = Number.isFinite(FEED_HURDLE) && FEED_HURDLE ? FEED_HURDLE : +(env('HURDLE_IRR') || 18);
+  const policy = Number.isFinite(FEED_HURDLE) && FEED_HURDLE ? FEED_HURDLE : (env('HURDLE_IRR') ? +env('HURDLE_IRR') : NaN);
   const i = b && (b.inputs || []).find(x => TARGET_RX.test(String(x.label || '')) && Number.isFinite(+x.value));
   if (!i) return policy;
   let v = +i.value; if (v > 0 && v < 1) v *= 100;
@@ -205,7 +206,7 @@ function exactStress(b, hurdle) {
     if (!fin(r.lirr)) { const np = fin(o.net_profit) ? o.net_profit + (r.profitU - r0.profitU) - (r.int - r0.int) : NaN; map[s.name] = { levered_irr: null, noIrr: true, net_profit: fin(np) ? Math.round(np) : null, profit_on_cost: null, pass: false, exact: true, note: `no IRR: the equity never gets back what it put in${fin(np) ? ` (net result ${(np / 1e6).toFixed(1)}M)` : ''}`, working: 'Exact, on EstateMaster’s own cash flow: the equity cash flow never turns positive overall, so no IRR exists. Not an estimate.' }; continue; }
     const lirr = fin(o.levered_irr) ? o.levered_irr + (r.lirr - r0.lirr) : r.lirr, dU = r.profitU - r0.profitU, dI = r.int - r0.int, dCost = Math.abs(M.flows.cons.reduce((a, v) => a + v, 0)) * (d.cost || 0) / 100 + Math.abs(M.flows.land.reduce((a, v) => a + v, 0)) * (d.land || 0) / 100;
     const np = fin(o.net_profit) ? o.net_profit + dU - dI : NaN, tc = fin(o.total_cost) ? o.total_cost + dCost + dI : NaN, poc = fin(np) && fin(tc) && tc > 0 ? (fin(o.profit_on_cost) && fin(poc0) ? o.profit_on_cost + (np / tc * 100 - poc0) : np / tc * 100) : NaN;
-    map[s.name] = { levered_irr: +lirr.toFixed(2), profit_on_cost: fin(poc) ? +poc.toFixed(2) : null, net_profit: fin(np) ? Math.round(np) : null, pass: lirr >= hurdle && (!fin(poc) || poc >= +(env('HURDLE_POC') || 15)), exact: true, agree: null,
+    map[s.name] = { levered_irr: +lirr.toFixed(2), profit_on_cost: fin(poc) ? +poc.toFixed(2) : null, net_profit: fin(np) ? Math.round(np) : null, pass: !fin(hurdle) && !env('HURDLE_POC') ? null : (!fin(hurdle) || lirr >= hurdle) && (!fin(poc) || !env('HURDLE_POC') || poc >= +env('HURDLE_POC')), exact: true, agree: null,
       working: `Exact: computed on EstateMaster’s own cash flow (sheet ${M.cf.sheet}, ${M.cf.n} periods, base IRR reproduced), the funding re-run period by period${notes.length ? ' (' + notes.join('; ') + ')' : ''}. Not an estimate.` }; }
   return { M, map };
 }
@@ -225,14 +226,14 @@ Return JSON only: {"scenarios":[{"name":string,"levered_irr":number,"profit_on_c
     const avg = k => { const vs = got.map(g => +g.i[k]).filter(Number.isFinite); return vs.length ? vs.reduce((a, c) => a + c, 0) / vs.length : NaN; };
     const irr = avg('levered_irr'), poc = avg('profit_on_cost'), close = (k, u) => { const a = +got[0].i[k], c = +got[1].i[k]; if (!Number.isFinite(a) || !Number.isFinite(c)) return true; return u === '%' ? Math.abs(a - c) <= 0.5 : Math.abs(a - c) <= 0.02 * Math.max(Math.abs(a), Math.abs(c), 1); };
     const agree = got.length < 2 ? null : close('levered_irr', '%') && close('profit_on_cost', '%') && close('net_profit', 'M');   // the two must agree on every figure, not only the IRR
-    return { name: s.name, levered_irr: +irr.toFixed(2), profit_on_cost: Number.isFinite(poc) ? +poc.toFixed(2) : null, net_profit: Number.isFinite(avg('net_profit')) ? Math.round(avg('net_profit')) : null, pass: irr >= hurdle && (!Number.isFinite(poc) || poc >= +(env('HURDLE_POC') || 15)), agree,
+    return { name: s.name, levered_irr: +irr.toFixed(2), profit_on_cost: Number.isFinite(poc) ? +poc.toFixed(2) : null, net_profit: Number.isFinite(avg('net_profit')) ? Math.round(avg('net_profit')) : null, pass: !Number.isFinite(hurdle) && !env('HURDLE_POC') ? null : (!Number.isFinite(hurdle) || irr >= hurdle) && (!Number.isFinite(poc) || !env('HURDLE_POC') || poc >= +env('HURDLE_POC')), agree,
       working: `${got.map(g => `${names[g.p]} ${(+g.i.levered_irr).toFixed(2)}%`).join(', ')}${got.length > 1 ? (agree ? ' (agree, average shown)' : ' (differ: average shown, check in EstateMaster)') : ' (one model only)'}. ${String(got[0].i.working || '').slice(0, 240)}` };
   });
   const disputed = scenarios.filter(x => x.agree === false);
   if (disputed.length && ok.length > 1) {
     const ds = disputed.map(x => { const g = ok.map(r => ({ p: r.p, i: (r.j.scenarios || []).find(z => String(z.name).toLowerCase().trim() === x.name.toLowerCase()) })).filter(z => z.i); return { id: x.name, a: { by: names[g[0].p], levered_irr: +g[0].i.levered_irr, working: String(g[0].i.working || '').slice(0, 300) }, b: g[1] ? { by: names[g[1].p], levered_irr: +g[1].i.levered_irr, working: String(g[1].i.working || '').slice(0, 300) } : null }; });
     const arb = await arbitrate('stress scenario', user, ds);
-    for (const x of disputed) { const a = arb[x.name]; if (!a || !Number.isFinite(+a.levered_irr)) continue; x.levered_irr = +(+a.levered_irr).toFixed(2); if (Number.isFinite(+a.profit_on_cost)) x.profit_on_cost = +(+a.profit_on_cost).toFixed(2); if (Number.isFinite(+a.net_profit)) x.net_profit = Math.round(+a.net_profit); x.pass = x.levered_irr >= hurdle && (!Number.isFinite(x.profit_on_cost) || x.profit_on_cost >= +(env('HURDLE_POC') || 15)); x.arbitrated = true; x.working = x.working.replace(' (differ: average shown, check in EstateMaster)', ` (differ: ${names[G.aiProviders().includes('anthropic') ? 'anthropic' : G.aiProviders()[0]]} arbitrated from both workings: ${String(a.why || '').slice(0, 160)}; check in EstateMaster)`); }
+    for (const x of disputed) { const a = arb[x.name]; if (!a || !Number.isFinite(+a.levered_irr)) continue; x.levered_irr = +(+a.levered_irr).toFixed(2); if (Number.isFinite(+a.profit_on_cost)) x.profit_on_cost = +(+a.profit_on_cost).toFixed(2); if (Number.isFinite(+a.net_profit)) x.net_profit = Math.round(+a.net_profit); x.pass = !Number.isFinite(hurdle) && !env('HURDLE_POC') ? null : (!Number.isFinite(hurdle) || x.levered_irr >= hurdle) && (!Number.isFinite(x.profit_on_cost) || !env('HURDLE_POC') || x.profit_on_cost >= +env('HURDLE_POC')); x.arbitrated = true; x.working = x.working.replace(' (differ: average shown, check in EstateMaster)', ` (differ: ${names[G.aiProviders().includes('anthropic') ? 'anthropic' : G.aiProviders()[0]]} arbitrated from both workings: ${String(a.why || '').slice(0, 160)}; check in EstateMaster)`); }
   }
   for (let i = 0; i < scenarios.length; i++) { const e = EX.map[scenarios[i].name]; if (!e) continue; if (e.na) { scenarios[i] = { name: scenarios[i].name, note: e.note }; continue; } if (e.noIrr) { scenarios[i] = { name: scenarios[i].name, ...e }; continue; } const ai = scenarios[i]; scenarios[i] = { name: ai.name, ...e, ai_levered_irr: Number.isFinite(ai.levered_irr) ? ai.levered_irr : null }; if (Number.isFinite(ai.levered_irr) && Math.abs(ai.levered_irr - e.levered_irr) > 0.5) scenarios[i].working += ` The AI had estimated ${ai.levered_irr}%: the exact figure is shown.`; }
   stressChecks(scenarios, o, hurdle);
@@ -247,19 +248,19 @@ Return JSON only: {"scenarios":[{"name":string,"levered_irr":number,"profit_on_c
       const av = k => { const v = g.map(z => +z[k]).filter(Number.isFinite); return v.length ? v.reduce((a, c) => a + c, 0) / v.length : NaN; };
       const cand = { ...x, levered_irr: +av('levered_irr').toFixed(2), profit_on_cost: Number.isFinite(av('profit_on_cost')) ? +av('profit_on_cost').toFixed(2) : x.profit_on_cost, net_profit: Number.isFinite(av('net_profit')) ? Math.round(av('net_profit')) : x.net_profit, checks: [], flag: false, working: String(x.working || '').replace(/ CHECK FAILED:[^]*$/, '') };
       const trial = scenarios.map(z => z === x ? cand : z); stressChecks(trial, o, hurdle);
-      if ((cand.checks || []).length < x.checks.length) { cand.corrected = true; cand.working += ` Corrected after failed checks (${x.checks.join('; ')}): recalculated by ${g.length > 1 ? 'both models' : 'one model'}.`; cand.pass = cand.levered_irr >= hurdle && (!Number.isFinite(cand.profit_on_cost) || cand.profit_on_cost >= +(env('HURDLE_POC') || 15)); scenarios[scenarios.indexOf(x)] = cand; }
+      if ((cand.checks || []).length < x.checks.length) { cand.corrected = true; cand.working += ` Corrected after failed checks (${x.checks.join('; ')}): recalculated by ${g.length > 1 ? 'both models' : 'one model'}.`; cand.pass = !Number.isFinite(hurdle) && !env('HURDLE_POC') ? null : (!Number.isFinite(hurdle) || cand.levered_irr >= hurdle) && (!Number.isFinite(cand.profit_on_cost) || !env('HURDLE_POC') || cand.profit_on_cost >= +env('HURDLE_POC')); scenarios[scenarios.indexOf(x)] = cand; }
     }
     scenarios.forEach(z => { z.checks = []; z.flag = false; }); stressChecks(scenarios, o, hurdle);
   }
   const out = { by: ok.map(r => names[r.p]).join(' and ') || 'no model', scenarios, risks: [], reviewer: '' };
   const fails = scenarios.filter(x => x.pass === false), ev = [];
-  fails.forEach(x => ev.push(`Stress test (AI estimate): ${x.name} → levered IRR ${x.levered_irr}% against the ${hurdle}% hurdle${x.agree === false ? ' (Claude and OpenAI differ)' : ''}`));
+  fails.forEach(x => ev.push(`Stress test (AI estimate): ${x.name} → levered IRR ${x.levered_irr}% ${Number.isFinite(hurdle) ? ` against the ${hurdle}% hurdle` : ''}${x.agree === false ? ' (Claude and OpenAI differ)' : ''}`));
   checks.filter(c => c.level !== 'note').slice(0, 6).forEach(c => ev.push(`Check on the export (${c.level}): ${c.text}`));
   if (!ev.length) return out;
   const rsys = `You are the chief risk officer of KINAN, a Saudi real estate developer, reviewing what the AI agent on ARGUS EstateMaster found before the daily report. EstateMaster is the trusted source of every return figure; the stress results are AI estimates.
 Reason like a senior development-finance professional: group evidence with the same cause, judge what could actually hurt the returns, the funding or the approvals, and how soon; then recommend the decision a committee should take for each risk.
 Return JSON only: {"risks":[{"title":"short name (max 8 words)","evidence":"the one fact that shows it, figures quoted exactly","severity":"high|medium|low","recommendation":"one sentence starting with a verb"}]}. At most 4 risks, most severe first. Use only the evidence given; never invent figures. American English, plain and professional.`;
-  const ruser = `Model: ${(b.meta && b.meta.title) || b.name}. EstateMaster base: levered IRR ${Number.isFinite(o.levered_irr) ? o.levered_irr.toFixed(2) + '%' : 'n/a'}, profit on cost ${Number.isFinite(o.profit_on_cost) ? o.profit_on_cost.toFixed(2) + '%' : 'n/a'}. Hurdles: IRR ${hurdle}%, profit on cost ${env('HURDLE_POC') || 15}%.\n\nEvidence:\n${ev.map((t, i) => `${i + 1}. ${t}`).join('\n')}`;
+  const ruser = `Model: ${(b.meta && b.meta.title) || b.name}. EstateMaster base: levered IRR ${Number.isFinite(o.levered_irr) ? o.levered_irr.toFixed(2) + '%' : 'n/a'}, profit on cost ${Number.isFinite(o.profit_on_cost) ? o.profit_on_cost.toFixed(2) + '%' : 'n/a'}. ${Number.isFinite(hurdle) || env('HURDLE_POC') ? `Hurdles: ${[Number.isFinite(hurdle) ? 'IRR ' + hurdle + '%' : '', env('HURDLE_POC') ? 'profit on cost ' + env('HURDLE_POC') + '%' : ''].filter(Boolean).join(', ')}. Use only these.` : 'No hurdle has been set for this model: do not compare any figure against a hurdle and do not assume one.'}\n\nEvidence:\n${ev.map((t, i) => `${i + 1}. ${t}`).join('\n')}`;
   for (const [p, model] of REASON()) { try { const j = G.jsonOf(await G.ai(rsys, ruser, 3000, p, model)); out.risks = (j.risks || []).filter(z => z && z.title && z.recommendation).slice(0, 4).map(z => ({ title: String(z.title).slice(0, 80), evidence: String(z.evidence || '').slice(0, 180), severity: /high|medium|low/.test(z.severity) ? z.severity : 'medium', recommendation: String(z.recommendation).slice(0, 200) })); out.reviewer = prettyModel(model); break; } catch (e) { out.reviewNote = e.message; } }
   return out;
 }
@@ -267,7 +268,7 @@ function stressHtml(d, ar) {
   const ms = (d.stress || []).filter(m => m && m.scenarios && m.scenarios.length); if (!ms.length) return '';
   const blocks = ms.map((m, n) => {
     const hm = Number.isFinite(m.hurdle) ? m.hurdle : d.hurdle, sc = m.scenarios, vals = sc.map(x => x.levered_irr).filter(Number.isFinite);
-    const max = Math.max(hm * 1.5, ...vals, 10) * 1.08, nf = sc.filter(x => x.pass === false).length, nt = sc.filter(x => x.pass != null).length;
+    const max = Math.max(Number.isFinite(hm) ? hm * 1.5 : 0, ...vals, 10) * 1.08, nf = sc.filter(x => x.pass === false).length, nt = sc.filter(x => x.pass != null).length;
     // one block per scenario: name and figure on a line, a full-width bar with the hurdle marked, profit on cost under it (reads the same on a phone)
     const rows = sc.map(x => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid ${UI.C.line}"><tr><td style="padding:11px 0 4px;font-family:${UI.FONT}">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="top" style="font-size:13.5px;font-weight:700;color:${UI.C.ink}">${esc(x.name)}${x.exact ? ' ' + UI.pill(ar ? 'دقيق' : 'exact', 'green') : ''}${x.agree === false ? ` <span style="color:${UI.C.soft};font-size:11px;font-weight:400">${x.arbitrated ? (ar ? 'تم التحكيم' : 'arbitrated') : (ar ? 'النموذجان مختلفان' : 'models differ')}</span>` : ''}</td>
@@ -278,7 +279,7 @@ ${x.note ? '' : `<div style="margin:8px 0 6px">${UI.bar(x.levered_irr, hm, x.pas
     const risks = (m.risks || []).map(z => UI.item({ ar, tone: z.severity === 'high' ? 'red' : z.severity === 'medium' ? 'orange' : 'grey', tags: [[z.severity, z.severity === 'high' ? 'red' : z.severity === 'medium' ? 'orange' : 'grey']],
       title: UI.clip(UI.tidyNums(z.title), 140), detail: UI.clip(UI.tidyNums(z.evidence), 320), reco: UI.clip(z.recommendation, 280), recoLabel: ar ? 'التوصية' : 'Recommended' })).join('');
     return `<div style="${n ? `border-top:1px solid ${UI.C.line};padding-top:16px;margin-top:6px;` : ''}font-size:15px;font-weight:700">${esc(m.name)}</div>
-<div style="font-size:12px;color:${UI.C.soft};margin:3px 0 12px">${UI.pill(`${nf} / ${nt} ${ar ? 'دون الحد' : 'under the hurdle'}`, nf ? 'red' : 'green')} &nbsp;${ar ? 'الحد' : 'Hurdle'} ${hm}% · ${esc(m.by)}${m.reviewer ? `${ar ? '، مراجعة المخاطر: ' : ' · risks reviewed by '}${esc(m.reviewer)}` : ''}</div>`
+<div style="font-size:12px;color:${UI.C.soft};margin:3px 0 12px">${Number.isFinite(hm) ? `${UI.pill(`${nf} / ${nt} ${ar ? 'دون الحد' : 'under the hurdle'}`, nf ? 'red' : 'green')} &nbsp;${ar ? 'الحد' : 'Hurdle'} ${hm}% · ` : `${ar ? 'لا يوجد حد محدد' : 'No hurdle set'} · `}${esc(m.by)}${m.reviewer ? `${ar ? '، مراجعة المخاطر: ' : ' · risks reviewed by '}${esc(m.reviewer)}` : ''}</div>`
       + `<div style="border-top:2px solid ${UI.C.ink}">${rows}</div>`
       + (risks ? `<div style="margin-top:14px">${risks}</div>` : '');
   }).join('');
@@ -390,7 +391,7 @@ async function dailyHtml(d, now, appUrl, lang) {
   const { b, a, options, hurdle, checks, flags, market } = d, ar = lang === 'ar';
   const tr = ar ? await translateAr([...checks.map(c => c.text), ...market.rows.map(r => r.item), flags.note]) : {};
   const T = t => ar ? (AR[t] || tr[t] || t) : t, X = t => ar ? (tr[t] || t) : t;
-  const ok = Number.isFinite(b.out.levered_irr) ? b.out.levered_irr >= hurdle : null;
+  const ok = Number.isFinite(b.out.levered_irr) && Number.isFinite(hurdle) ? b.out.levered_irr >= hurdle : null;
   const lvl = { error: [T('Likely error'), 'red'], warn: [T('Check'), 'orange'], note: [T('Note'), 'grey'] };
   const models = d.models || [], urg = urgentItems(d);
   // headline tiles for the most recent model: the change since the previous export in a coloured chip
@@ -445,7 +446,7 @@ async function reportJob(token, now, dry, appUrl, opts = {}) {
   if (d.noExport) {
     let flags = { msgs: [], findings: [], note: '' };
     if (G.aiConfigured()) { try { flags = await scanFindings(token, new Date(now.getTime() - 864e5).toISOString()); } catch (e) { flags.note = e.message; } }
-    const hurdle = +(env('HURDLE_IRR') || 18), project = env('PROJECT_NAME') || (st0.feed && st0.feed.project) || 'Al Narjis Mixed-Use';
+    const hurdle = env('HURDLE_IRR') ? +env('HURDLE_IRR') : (Number.isFinite(FEED_HURDLE) && FEED_HURDLE ? FEED_HURDLE : NaN), project = env('PROJECT_NAME') || (st0.feed && st0.feed.project) || 'Al Narjis Mixed-Use';
     const dd = { feed: st0.feed, flags, checks: [], hurdle, project };
     const langs = (opts.langs && opts.langs.length ? opts.langs : ['en']).filter(l => l === 'en' || l === 'ar');
     const to = G.checkRecipients(opts.to ? [].concat(opts.to).join(',').split(/[,;\s]+/) : env('REPORT_TO').split(','));

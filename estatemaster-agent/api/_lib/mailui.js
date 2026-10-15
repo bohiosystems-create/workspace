@@ -67,8 +67,9 @@ ${o.meta ? `<div style="font-size:11.5px;color:${C.soft};margin-top:8px">${o.met
 
 /* a horizontal bar against the hurdle (table cells, so Outlook draws it too) */
 function bar(v, hurdle, ok, max) {
-  max = max || Math.max(hurdle * 1.6, 30); const w = Math.max(2, Math.min(100, Math.round(Math.max(0, v) / max * 100))), hp = Math.min(98, Math.round(hurdle / max * 100));
-  const fill = ok ? C.green : C.red;
+  const H = Number.isFinite(hurdle) ? hurdle : null; max = max || Math.max(H ? H * 1.6 : 0, 30); const w = Math.max(2, Math.min(100, Math.round(Math.max(0, v) / max * 100))), hp = H == null ? null : Math.min(98, Math.round(H / max * 100));   /* no hurdle set: no mark */
+  const fill = ok == null ? C.ink : ok ? C.green : C.red;
+  if (hp == null) return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="height:12px"><tr><td width="${w}%" style="background:${fill};height:12px;font-size:0;border-radius:6px 0 0 6px">&nbsp;</td><td style="background:#efedea;height:12px;font-size:0;border-radius:0 6px 6px 0">&nbsp;</td></tr></table>`;
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="height:12px"><tr>
 <td width="${Math.min(w, hp)}%" style="background:${fill};height:12px;font-size:0;border-radius:6px 0 0 6px">&nbsp;</td>
 ${w < hp ? `<td width="${hp - w}%" style="background:#efedea;height:12px;font-size:0">&nbsp;</td><td width="2" style="width:2px;background:${C.ink};font-size:0">&nbsp;</td><td style="background:#efedea;height:12px;font-size:0;border-radius:0 6px 6px 0">&nbsp;</td>`
