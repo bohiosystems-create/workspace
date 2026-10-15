@@ -56,6 +56,6 @@ const k=await ev(async()=>{const x=latestExport();const e=await xcEngine(x);cons
 t(k.ok&&k.match===k.tot,'$000s model: engine reproduces every result');
 t(k.a.gross_revenue&&k.a.gross_revenue[0]===100640000&&k.a.gross_revenue[1]===90576000&&k.a.net_profit[1]===21076000,'$000s model: figures stay in full dollars after the change: '+JSON.stringify(k.a.gross_revenue)+' '+JSON.stringify(k.a.net_profit));
 t(k.a.profit_on_cost&&Math.abs(k.a.profit_on_cost[0]-44.81)<0.01&&Math.abs(k.a.profit_on_cost[1]-30.32)<0.01,'a percentage typed as a whole number (44.8) is not multiplied by 100: '+JSON.stringify(k.a.profit_on_cost));
-t(/680 → 612/.test(k.ad)&&/60 → 65/.test(k.bd)&&/30 → 36/.test(k.cd),'cells set: '+[k.ad,k.bd,k.cd].join(' | '));
+t(/680 → 612/.test(k.ad)&&/60%? → 65%?/.test(k.bd)&&/30 → 36/.test(k.cd),'cells set: '+[k.ad,k.bd,k.cd].join(' | '));
 t(k.g.got!=null&&Math.abs(k.g.got-30)<0.01,'goal seek on the $000s model: sale price '+k.g.to+' for profit on cost 30% ('+k.g.got+'%) '+(k.g.why||''));
 t(!errs.length,'no page errors '+errs.join(';'));console.log(ok.join('\n'));await b.close();

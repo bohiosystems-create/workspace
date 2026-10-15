@@ -1,0 +1,42 @@
+{
+"file": "MODELS/office_k.xlsx",
+"reads": [
+"'Pro Forma'!C8",
+"'Pro Forma'!C7",
+"'Pro Forma'!C6"
+],
+"keys": [
+"levered_irr",
+"profit_on_cost",
+"net_profit"
+],
+"scenarios": [
+{
+"name": "sale price 5% higher",
+"sets": [
+[
+"'Pro Forma'!C16",
+714
+]
+]
+},
+{
+"name": "LTC 70%",
+"sets": [
+[
+"'Pro Forma'!C19",
+70
+]
+]
+},
+{
+"name": "soft costs +$500k",
+"sets": [
+[
+"'Pro Forma'!C15",
+10000
+]
+]
+}
+]
+}

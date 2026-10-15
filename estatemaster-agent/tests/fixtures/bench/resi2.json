@@ -1,0 +1,53 @@
+{
+"file": "MODELS/resi_uk.xlsx",
+"reads": [
+"Returns!D9",
+"Returns!D8",
+"Returns!D7",
+"Returns!D6"
+],
+"keys": [
+"levered_irr",
+"unlevered_irr",
+"profit_on_cost",
+"net_profit"
+],
+"scenarios": [
+{
+"name": "sales price at \u00a38,000 per sqm",
+"sets": [
+[
+"Assumptions!D9",
+8000
+]
+]
+},
+{
+"name": "push the build out by 3 months",
+"sets": [
+[
+"Assumptions!D16",
+27
+]
+]
+},
+{
+"name": "raise contingency by 2 points",
+"sets": [
+[
+"Assumptions!D15",
+0.07
+]
+]
+},
+{
+"name": "rates down 50bps",
+"sets": [
+[
+"Assumptions!D19",
+0.07
+]
+]
+}
+]
+}

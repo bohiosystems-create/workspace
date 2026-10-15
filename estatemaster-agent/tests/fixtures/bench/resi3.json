@@ -1,0 +1,45 @@
+{
+"file": "MODELS/resi_uk.xlsx",
+"reads": [
+"Returns!D9",
+"Returns!D8",
+"Returns!D7",
+"Returns!D6"
+],
+"keys": [
+"levered_irr",
+"unlevered_irr",
+"profit_on_cost",
+"net_profit"
+],
+"scenarios": [
+{
+"name": "build cost \u00a33,000 per sqm",
+"sets": [
+[
+"Assumptions!D13",
+3000
+]
+]
+},
+{
+"name": "sales period 18 months",
+"sets": [
+[
+"Assumptions!D10",
+18
+]
+]
+},
+{
+"name": "GDV down 5%",
+"sets": [
+[
+"Assumptions!D9",
+8075
+]
+],
+"ambiguous": true
+}
+]
+}

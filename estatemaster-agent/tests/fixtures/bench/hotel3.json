@@ -1,0 +1,87 @@
+{
+"file": "MODELS/hotel_us.xlsx",
+"reads": [
+"Summary!H6",
+"Summary!H5",
+"Summary!G6"
+],
+"keys": [
+"levered_irr",
+"unlevered_irr",
+"net_profit"
+],
+"scenarios": [
+{
+"name": "ADR of $140",
+"sets": [
+[
+"OpCashFlow!H12",
+140
+]
+]
+},
+{
+"name": "exit cap rate down 25 bps",
+"sets": [
+[
+"Summary!C25",
+0.0475
+]
+]
+},
+{
+"name": "occupancy improves by 2 points",
+"sets": [
+[
+"OpCashFlow!J11",
+0.7
+],
+[
+"OpCashFlow!L11",
+0.7
+],
+[
+"OpCashFlow!N11",
+0.7
+],
+[
+"OpCashFlow!P11",
+0.7
+],
+[
+"OpCashFlow!R11",
+0.7
+],
+[
+"OpCashFlow!T11",
+0.7
+],
+[
+"OpCashFlow!V11",
+0.7
+],
+[
+"OpCashFlow!X11",
+0.7
+],
+[
+"OpCashFlow!Z11",
+0.7
+],
+[
+"OpCashFlow!AB11",
+0.7
+]
+]
+},
+{
+"name": "insurance up 50%",
+"sets": [
+[
+"OpCashFlow!H83",
+37500
+]
+]
+}
+]
+}

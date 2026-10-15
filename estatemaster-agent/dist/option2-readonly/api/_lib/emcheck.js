@@ -65,14 +65,15 @@ function parseInputs(sheets) {
     const fr = (s.frows && s.frows[ri]) || [];
     let i = row.findIndex(c => emIsLabel(c) && c.length <= 70);
     while (i >= 0 && i < row.length) {
-      let end = emNextLabel(row, i); const lab = String(row[i]).trim(), key = s.name + '|' + lab + (anyF ? '|' + ri : '');
+      let end = emNextLabel(row, i); if (end === i + 1 && end < row.length && /^\s*(date|dates|text|y\/n|yes\/no|dd\/mm\/yy(yy)?)\s*$/i.test(String(row[end]))) end = emNextLabel(row, end);   /* a units column saying “date” is not the next label */
+      const lab = String(row[i]).trim(), key = s.name + '|' + lab + (anyF ? '|' + ri : '');
       const next = () => { const k = row.slice(end).findIndex(c => emIsLabel(c) && c.length <= 70); i = k < 0 ? -1 : end + k; };
       if (lab.length > 70 || LAB.some(([, re]) => re.test(lab))) { next(); continue; }
       const blk = anyF ? blockOf(s, ri, i) : null; const cells = []; for (let j = i + 1; j < Math.min(end, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; if (anyF && isF(s, ri, j)) continue; if (anyF && /^\s*(month|year|period|quarter|week|day|yr|qtr)\s*\d+\s*$/i.test(String(fr[j] == null ? '' : fr[j]))) continue; /* a period counter ("Month 7") is a row index, not an assumption */ const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; const pc = /%\s*$/.test(t.trim()) || /^\s*[-(]?[$£€]?\s*[\d,.]+\s*%/.test(t) || (typeof row[j] === 'string' && /%\s*$/.test(row[j])); cells.push({ v: pc && typeof row[j] === 'number' ? n * 100 : n, t, pct: pc, fmt: emFmt(t, pc), j, h: anyF ? headOf(s, ri, j, blk ? blk.r : 0) : '' }); }
       if (!cells.length) {
         // a text, date or yes/no input on an input sheet ("Date of First Period: Oct-26", "Add GST on Land Price? Y", "Cash Flow Title: Build to Hold")
         if (/input|assumption/i.test(s.name) && !seen.has(key)) {
-          let tj = -1; for (let j = i + 1; j < Math.min(end, i + 6); j++) { if (anyF && isF(s, ri, j)) continue; const t = String(fr[j] == null ? (row[j] == null ? '' : row[j]) : fr[j]).trim(); if (t && t.length <= 40 && t !== '-') { tj = j; break; } }
+          let tj = -1; for (let j = i + 1; j < Math.min(end, i + 6); j++) { if (anyF && isF(s, ri, j)) continue; const t = String(fr[j] == null ? (row[j] == null ? '' : row[j]) : fr[j]).trim(); if (/^\s*(date|dates|text|y\/n|yes\/no|dd\/mm\/yy(yy)?)\s*$/i.test(t)) continue; /* the units column, not the value */ if (t && t.length <= 40 && t !== '-') { tj = j; break; } }
           // a long text value (a title) reads as a label: taken as the value when nothing else sits between the two
           if (tj < 0 && end < row.length && end <= i + 3 && String(row[end]).length <= 60 && emNextLabel(row, end) === row.length && !row.slice(end + 1).some(c => numOf(c) != null)) { tj = end; end = row.length; }
           if (tj >= 0) { seen.add(key); out.push({ label: lab, value: null, text: String(fr[tj] == null ? row[tj] : fr[tj]).trim(), pct: false, vals: [], sheet: s.name, section, unit: '', cell: A1(s.name, tj, ri) }); }
@@ -187,7 +188,7 @@ function emHeadline(sheets) {
         if (r0 === ri && emSeriesCol(s.rows, ri, j0)) continue;   // year 1 of a revenue line is not the gross revenue
         let n = typeof v === 'number' ? v : parseFloat(v.replace(/[,%\s]/g, '')); if (!Number.isFinite(n)) continue;
         const w = String(((s.frows || [])[r0] || [])[j0] == null ? '' : s.frows[r0][j0]).trim();
-        if (/irr|profit_on_cost/.test(k) && Math.abs(n) < 1.5 && (/%\s*$/.test(w) || (Math.abs(n) < 1 && !(typeof v === 'string' && /%/.test(v))))) n *= 100;
+        if (/irr|profit_on_cost/.test(k) && ((/%\s*$/.test(w) && Math.abs(n) < 50 && typeof v === 'number') || (Math.abs(n) < 1.5 && (/%\s*$/.test(w) || (Math.abs(n) < 1 && !(typeof v === 'string' && /%/.test(v))))))) n *= 100;   /* a %-formatted cell holds a fraction whatever its size: 2.14 shown “214.0%” is 214% */
         let note = ''; if (/net_profit|total_cost|gross_revenue|peak_debt/.test(k) && Math.abs(n) < 1e6) { const u = emUnitScale(s, r0, j0, c); if (u) { n *= u.k; note = ` × ${u.k === 1e6 ? '1,000,000' : '1,000'} (${u.from})`; } }
         out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); break;
       }

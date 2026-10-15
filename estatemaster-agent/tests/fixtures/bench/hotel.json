@@ -137,7 +137,8 @@
 "Budget!Y16",
 11000000.0
 ]
-]
+],
+"ambiguous": true
 },
 {
 "name": "what if ADR drops 10% and occupancy falls 5 pts?",

@@ -1,0 +1,42 @@
+{
+"file": "MODELS/office_k.xlsx",
+"reads": [
+"'Pro Forma'!C8",
+"'Pro Forma'!C7",
+"'Pro Forma'!C6"
+],
+"keys": [
+"levered_irr",
+"profit_on_cost",
+"net_profit"
+],
+"scenarios": [
+{
+"name": "hard cost 10% lower",
+"sets": [
+[
+"'Pro Forma'!C13",
+288
+]
+]
+},
+{
+"name": "hold period 24 months",
+"sets": [
+[
+"'Pro Forma'!C18",
+24
+]
+]
+},
+{
+"name": "rentable area +5%",
+"sets": [
+[
+"'Pro Forma'!C14",
+157500
+]
+]
+}
+]
+}

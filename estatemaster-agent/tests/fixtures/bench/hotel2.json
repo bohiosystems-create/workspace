@@ -1,0 +1,141 @@
+{
+"file": "MODELS/hotel_us.xlsx",
+"reads": [
+"Summary!H6",
+"Summary!H5",
+"Summary!G6"
+],
+"keys": [
+"levered_irr",
+"unlevered_irr",
+"net_profit"
+],
+"scenarios": [
+{
+"name": "occupancy at 60% every year",
+"sets": [
+[
+"OpCashFlow!J11",
+0.6
+],
+[
+"OpCashFlow!L11",
+0.6
+],
+[
+"OpCashFlow!N11",
+0.6
+],
+[
+"OpCashFlow!P11",
+0.6
+],
+[
+"OpCashFlow!R11",
+0.6
+],
+[
+"OpCashFlow!T11",
+0.6
+],
+[
+"OpCashFlow!V11",
+0.6
+],
+[
+"OpCashFlow!X11",
+0.6
+],
+[
+"OpCashFlow!Z11",
+0.6
+],
+[
+"OpCashFlow!AB11",
+0.6
+]
+]
+},
+{
+"name": "cut the ADR by $10",
+"sets": [
+[
+"OpCashFlow!H12",
+115
+]
+]
+},
+{
+"name": "exit cap 5.75%",
+"sets": [
+[
+"Summary!C25",
+0.0575
+]
+]
+},
+{
+"name": "ADR growth +1 pt",
+"sets": [
+[
+"OpCashFlow!J13",
+0.060000000000000005
+],
+[
+"OpCashFlow!L13",
+0.060000000000000005
+],
+[
+"OpCashFlow!N13",
+0.04
+],
+[
+"OpCashFlow!P13",
+0.04
+],
+[
+"OpCashFlow!R13",
+0.04
+],
+[
+"OpCashFlow!T13",
+0.04
+],
+[
+"OpCashFlow!V13",
+0.04
+],
+[
+"OpCashFlow!X13",
+0.04
+],
+[
+"OpCashFlow!Z13",
+0.04
+],
+[
+"OpCashFlow!AB13",
+0.04
+]
+]
+},
+{
+"name": "property taxes double",
+"sets": [
+[
+"OpCashFlow!H82",
+100000
+]
+]
+},
+{
+"name": "sale expenses to 2%",
+"sets": [
+[
+"Summary!C27",
+0.02
+]
+]
+}
+]
+}

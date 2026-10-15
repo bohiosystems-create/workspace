@@ -1,0 +1,62 @@
+{
+"file": "MODELS/waha_sar.xlsx",
+"reads": [
+"Results!B7",
+"Results!B6",
+"Results!B5",
+"Results!B4"
+],
+"keys": [
+"levered_irr",
+"unlevered_irr",
+"profit_on_cost",
+"net_profit"
+],
+"scenarios": [
+{
+"name": "retail rents 10% lower",
+"sets": [
+[
+"Inputs!C14",
+1620
+]
+]
+},
+{
+"name": "opex up 5 points",
+"sets": [
+[
+"Inputs!C18",
+25
+]
+]
+},
+{
+"name": "build period 3 years",
+"sets": [
+[
+"Inputs!C6",
+3
+]
+]
+},
+{
+"name": "residential construction cost +5%",
+"sets": [
+[
+"Inputs!C11",
+4410
+]
+]
+},
+{
+"name": "hold 2 years longer",
+"sets": [
+[
+"Inputs!C7",
+7
+]
+]
+}
+]
+}

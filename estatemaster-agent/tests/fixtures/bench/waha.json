@@ -1,0 +1,112 @@
+{
+"file": "MODELS/waha_sar.xlsx",
+"reads": [
+"Results!B7",
+"Results!B6",
+"Results!B5",
+"Results!B4"
+],
+"keys": [
+"levered_irr",
+"unlevered_irr",
+"profit_on_cost",
+"net_profit"
+],
+"scenarios": [
+{
+"name": "residential rent +5%",
+"sets": [
+[
+"Inputs!C10",
+1155
+]
+]
+},
+{
+"name": "phase 2 construction cost +10%",
+"sets": [
+[
+"Inputs!C15",
+5500
+]
+]
+},
+{
+"name": "construction cost +10%",
+"sets": [
+[
+"Inputs!C11",
+4620
+],
+[
+"Inputs!C15",
+5500
+]
+],
+"ambiguous": true
+},
+{
+"name": "exit yield +25 bps",
+"sets": [
+[
+"Inputs!C20",
+7.75
+]
+]
+},
+{
+"name": "vacancy to 10%",
+"sets": [
+[
+"Inputs!C17",
+10
+]
+]
+},
+{
+"name": "rent growth +1 pt",
+"sets": [
+[
+"Inputs!C19",
+4
+]
+]
+},
+{
+"name": "interest rate down 50 bps",
+"sets": [
+[
+"Inputs!C23",
+6.0
+]
+]
+},
+{
+"name": "start date delayed 6 months",
+"sets": [
+[
+"Inputs!C4",
+"2026-07-01 00:00:00"
+]
+]
+},
+{
+"name": "land 10% cheaper",
+"sets": [
+[
+"Inputs!C5",
+54000000
+]
+]
+},
+{
+"name": "LTC 60%",
+"sets": [
+[
+"Inputs!C22",
+60
+]
+]
+}
+]
+}
