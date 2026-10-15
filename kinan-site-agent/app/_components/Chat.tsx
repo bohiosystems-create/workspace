@@ -8,8 +8,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
 import type { RouteInfo, UiAction } from "@/lib/types";
+import type { LayoutView } from "@/lib/reports/layout";
+import { ReportLayoutCard } from "./ReportLayoutCard";
 
-type Msg = { role: "user" | "assistant"; content: string; route?: RouteInfo; error?: boolean };
+type Msg = { role: "user" | "assistant"; content: string; route?: RouteInfo; error?: boolean; layout?: LayoutView };
 interface Props {
   author: string;
   focus?: { docId?: string; locationId?: string };
@@ -71,8 +73,9 @@ export default function Chat({ author, focus, place, onAction }: Props) {
       });
       const d = (await r.json().catch(() => ({}))) as { reply?: string; actions?: UiAction[]; route?: RouteInfo; error?: string };
       if (!r.ok || d.error || !d.reply) throw new Error(d.error || "The AI service did not answer. Try again in a moment.");
-      setMsgs([...next, { role: "assistant", content: d.reply, route: d.route }]);
-      for (const a of d.actions ?? []) onAction(a);
+      const card = (d.actions ?? []).filter((a): a is Extract<UiAction, { type: "brief_layout" }> => a.type === "brief_layout").pop();
+      setMsgs([...next, { role: "assistant", content: d.reply, route: d.route, ...(card ? { layout: card.view } : {}) }]);
+      for (const a of d.actions ?? []) if (a.type !== "brief_layout") onAction(a);
     } catch (e) {
       setMsgs([...next, { role: "assistant", content: (e as Error).message || "Network error — try again.", error: true }]);
     } finally { setBusy(false); }
@@ -103,6 +106,7 @@ export default function Chat({ author, focus, place, onAction }: Props) {
         {msgs.map((m, i) => (
           <div key={i} className={"kmsg " + (m.role === "user" ? "user" : "bot") + (m.error ? " err" : "")}>
             {m.role === "assistant" ? <Rich text={m.content} /> : m.content}
+            {m.layout && <ReportLayoutCard view={m.layout} onPreview={() => { window.location.href = "/?brief=preview"; }} />}
             {m.route && <div className="kmeta">{who(m.route)}</div>}
             {m.error && <button className="kretry" onClick={() => retry(i)} disabled={busy}>Ask again</button>}
           </div>

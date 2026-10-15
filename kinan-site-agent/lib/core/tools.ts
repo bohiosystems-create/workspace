@@ -23,6 +23,13 @@ export interface ToolCtx {
   actions: UiAction[];
   focus?: { docId?: string; locationId?: string };
   channel?: "web" | "whatsapp";
+  /** The daily brief's layout (lib/reports/layout.ts), when the host provides the reports engine. */
+  reports?: BriefLayoutApi;
+}
+export interface BriefLayoutApi {
+  view(lang: "en" | "ar"): Promise<import("../reports/layout").LayoutView>;
+  change(ops: import("../reports/layout").Op[], lang: "en" | "ar", by: string): Promise<{ view: import("../reports/layout").LayoutView; done: string[]; notes: string[]; message: string }>;
+  undo(lang: "en" | "ar"): Promise<{ ok: boolean; message: string; view: import("../reports/layout").LayoutView }>;
 }
 
 export type Block = { type: string; [k: string]: unknown };
@@ -73,6 +80,9 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "contractor_emails", description: "Emails from contractors and consultants in the project's Outlook inbox (project updates, delays, RFIs, HSE reports, inspections). Search by keywords, sender/company and date window; newest first. Use it for anything a contractor may have written about: delays, revised dates, requests, confirmations.", input_schema: obj({ query: str("keywords, e.g. 'façade delay', 'L13 pour', 'SEC inspection', 'PO-4500136'"), from: str("sender name, address or company, e.g. 'Skyline', 'Al-Bunyan'"), since: str("YYYY-MM-DD"), until: str("YYYY-MM-DD"), limit: num() }) },
   { name: "get_email", description: "Read one email in full (body text, sender, date, attachment names). Call before quoting an email.", input_schema: obj({ id: str() }, ["id"]) },
   { name: "find_contact", description: "Find the right person/company/phone for a role, trade or area (e.g. 'lifting supervisor', 'façade', 'HSE').", input_schema: obj({ query: str() }, ["query"]) },
+  { name: "get_brief_layout", description: "The daily brief's current layout: sections in order (on/off), item limit, project focus, notes. Use when asked what is in the daily brief / report.", input_schema: obj({ lang: str("en | ar") }) },
+  { name: "change_brief_layout", description: "Change the daily brief (the scheduled morning e-mail and ▶ Play): hide/show/move a section, limit lists to N items, focus on one project, add or clear a note, undo the last change, or reset to the standard brief. Sections: headline (always first), since, today, next48, critical, milestones, procurement, safety, projects. Use for 'remove the procurement section', 'move safety to the top', 'only Kinan Heights', 'top 3 items', 'add a note to the brief: …', 'undo'.",
+    input_schema: obj({ ops: { type: "array", items: obj({ op: str("hide | show | move | limit | focus | add_note | clear_notes | reset"), section: str("for hide/show/move"), to: str("move: top | bottom | before | after"), ref: str("move before/after: the other section"), n: { type: "number", description: "limit: 1–10, or omit to lift the limit" }, project: str("focus: project name, or omit for all projects"), text: str("add_note: the note") }, ["op"]) }, undo: { type: "boolean", description: "true: undo the last change instead" }, lang: str("en | ar") }) },
 ];
 
 const MAX = 14_000;
@@ -246,6 +256,21 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
           return J(e ? { ...e, received: e.received.slice(0, 16).replace("T", " ") } : { error: `No email ${input.id}`, ...status });
         }
         return J({ ...status, ...searchEmails(inbox.emails, { query: input.query, from: input.from, since: input.since, until: input.until, limit: input.limit }) });
+      }
+      case "get_brief_layout": {
+        if (!ctx.reports) return J({ error: "The brief layout is not available here." });
+        const view = await ctx.reports.view(input.lang === "ar" ? "ar" : "en");
+        ctx.actions.push({ type: "brief_layout", view });
+        return J({ layout: view, note: "Shown to the user as a card; summarise in one line." });
+      }
+      case "change_brief_layout": {
+        if (!ctx.reports) return J({ error: "The brief layout cannot be changed here." });
+        const lang = input.lang === "ar" ? "ar" : "en";
+        if (input.undo) { const u = await ctx.reports.undo(lang); ctx.actions.push({ type: "brief_layout", view: u.view, message: u.message }); return J({ ok: u.ok, message: u.message, layout: u.view }); }
+        const ops = (Array.isArray(input.ops) ? input.ops : []).map((o: Record<string, unknown>) => ({ ...o, n: o.n === undefined ? null : Number(o.n), project: o.project === undefined || o.project === "" ? null : String(o.project) }));
+        const r = await ctx.reports.change(ops as never, lang, ctx.author);
+        ctx.actions.push({ type: "brief_layout", view: r.view, message: r.message });
+        return J({ changed: r.done, notes: r.notes, layout: r.view, note: "Applies from the next brief (Preview today's brief to see it). Shown to the user as a card; confirm in one line." });
       }
       default: return J({ error: `Unknown tool ${name}` });
     }

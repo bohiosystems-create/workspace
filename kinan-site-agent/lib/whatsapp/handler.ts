@@ -274,7 +274,7 @@ async function deliverActions(c: WaConfig, from: string, s: WaSession, actions: 
     if (a.type === "open_doc") {
       const d = db.docs.find((x) => x.id === a.docId);
       if (d) { s.focusDocId = d.id; await sendDoc(c, from, d); }
-    } else {
+    } else if (a.type === "focus_location") {
       const png = await svgToPng(planSvg(db, a.locationId, locationPath(db, a.locationId)), 1600);
       if (png) await sendImage(c, from, await uploadMedia(c, png, "image/png", "site-map.png"), `📍 ${locationPath(db, a.locationId)}`);
     }

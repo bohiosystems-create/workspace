@@ -18,6 +18,7 @@ import { chevron, kinanLogoHtml, kinanLogoSrc } from "../deck/brand";
 import type { DeckSlide, Kpi, Tone } from "../deck/deck";
 import { short } from "../deck/deck";
 import { progressByLocation, sCurve } from "../core/progress";
+import { cleanLayout, mentions, type Layout, type SectionId } from "./layout";
 
 export type Lang = "en" | "ar";
 export const tx = (l: Lang, en: string, ar: string) => (l === "ar" ? ar : en);
@@ -71,14 +72,17 @@ ${rows.map((r, k) => `<tr>${r.map((c, i) => `<td align="${side(i)}" valign="top"
 </table></td></tr>`;
 }
 const para = (html: string) => `<tr><td style="padding:4px 28px;font-size:13px;line-height:1.55;color:${C.ink}">${html}</td></tr>`;
-const bullets = (items: string[]) => `<tr><td style="padding:2px 28px 4px"><table role="presentation" cellpadding="0" cellspacing="0" style="font-size:13px;line-height:1.5;color:${C.ink}">${items.map((x) => `<tr><td valign="top" style="color:${C.or};padding:0 8px 0 0">&#9656;</td><td style="padding:1px 0">${x}</td></tr>`).join("")}</table></td></tr>`;
+let LIMIT = 0; // the layout's "top N items": lists are cut to it while a brief is built
+const bullets = (items0: string[]) => { const items = LIMIT ? items0.slice(0, LIMIT) : items0; return `<tr><td style="padding:2px 28px 4px"><table role="presentation" cellpadding="0" cellspacing="0" style="font-size:13px;line-height:1.5;color:${C.ink}">${items.map((x) => `<tr><td valign="top" style="color:${C.or};padding:0 8px 0 0">&#9656;</td><td style="padding:1px 0">${x}</td></tr>`).join("")}</table></td></tr>`; };
 const projectBand = (name: string, meta: string, status: string, color: string) =>
   `<tr><td style="padding:26px 28px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;background:${C.ink};border-radius:14px;overflow:hidden"><tr><td style="padding:12px 14px;border-top:3px solid ${C.or}"><div style="font-size:16px;font-weight:700;color:#ffffff;letter-spacing:.02em">${esc(name)}</div><div style="font-size:11px;color:#c9c9cb;padding-top:2px">${esc(meta)}</div></td><td align="right" style="padding:12px 14px;border-top:3px solid ${C.or}"><span style="display:inline-block;background:${color};color:#ffffff;font-size:10px;font-weight:800;letter-spacing:.12em;padding:4px 8px;text-transform:uppercase">${esc(status)}</span></td></tr></table></td></tr>`;
 
 // ------------------------------------------------------------ the report
 export interface BuildIn { lang: Lang; date: string; kind: "DAILY" | "SNAPSHOT"; at: Date; timezone: string; db: Db; projects: GenProject[]; prev: { metrics: Metrics; date: string } | null;
   /** contractor emails from the project inbox; the app's address for "Open the app"; the mailbox it is sent from */
-  emails?: Email[]; appUrl?: string | null; sender?: string }
+  emails?: Email[]; appUrl?: string | null; sender?: string;
+  /** the brief's layout (sections on/off and in order, item limit, project focus, notes) — layout.ts */
+  layout?: Layout | null }
 export interface Built { title: string; html: string; text: string; metrics: Metrics; active: number;
   /** the same brief as presentation slides for ▶ Play (narrated by lib/deck/narration.ts before it is stored) */
   slides: DeckSlide[] }
@@ -87,7 +91,17 @@ export function buildReport(o: BuildIn): Built {
   const { lang: l, db } = o;
   const T = (en: string, ar: string) => tx(l, en, ar);
   const metrics: Metrics = { projects: {} };
-  const body: string[] = [], text: string[] = [], summary: string[][] = [], marks: (string | null)[] = [];
+  const layout: Layout = cleanLayout(o.layout), focus = layout.focus;
+  const wanted = (name: string) => !focus || mentions(name, focus);
+  LIMIT = layout.maxItems ?? 0;
+  // Every body row belongs to a section (layout.ts): the layout orders and hides sections when the brief is assembled.
+  const parts = new Map<string, string[]>(); let cur: string = "site";
+  const sec = (id: SectionId) => { cur = id; };
+  const siteOn = wanted(db.project.name);
+  const SITE_SECS: SectionId[] = ["since", "today", "next48", "critical", "milestones", "procurement", "safety"];
+  const body = { push: (...x: string[]) => { (parts.get(cur) ?? parts.set(cur, []).get(cur)!).push(...x); },
+    join: (sep: string) => layout.order.filter((id) => !layout.hidden.includes(id) && (siteOn || !SITE_SECS.includes(id))).flatMap((id) => [...(id === "headline" && siteOn ? parts.get("site") ?? [] : []), ...(parts.get(id) ?? [])]).join(sep) };
+  const text: string[] = [], summary: string[][] = [], marks: (string | null)[] = [];
   const know: { tag: string; color: string; html: string }[] = [], headline: string[] = [];
   const isCrit = (a: { critical: boolean; totalFloat: number }) => a.critical || a.totalFloat <= 0;
   const time = new Intl.DateTimeFormat("en-GB", { timeZone: o.timezone, hour: "2-digit", minute: "2-digit", hour12: false }).format(o.at);
@@ -97,8 +111,8 @@ export function buildReport(o: BuildIn): Built {
   const comp = cp.completion;
   const liveStatus = (comp && comp.slip > 0) || cp.late.length ? [T("Behind", "متأخر"), C.red] : cp.atRisk.length || s.spi < 0.97 ? [T("Watch", "متابعة"), C.amber] : [T("On track", "على المسار"), C.green];
   metrics.projects.site = { name: db.project.name, progress: s.progressPercent, planned: s.plannedPercent, critLate: cp.late.length, critRisk: cp.atRisk.length, completion: comp?.forecast ?? "", slip: comp?.slip ?? 0 };
-  summary.push([`<b>${esc(db.project.name)}</b>`, `${s.progressPercent}% <span style="color:${C.soft}">/ ${s.plannedPercent}%</span>`, String(s.spi.toFixed(2)), `${comp ? dt(comp.forecast, l) : "—"}<br><span style="color:${comp && comp.slip > 0 ? C.red : C.soft}">${comp ? days(comp.slip, l) : ""}</span>`, `<b style="color:${cp.late.length ? C.red : C.ink}">${cp.late.length}</b> / ${cp.atRisk.length}`, pill(liveStatus[0], liveStatus[1])]);
-  marks.push(liveStatus[1]);
+  if (siteOn) summary.push([`<b>${esc(db.project.name)}</b>`, `${s.progressPercent}% <span style="color:${C.soft}">/ ${s.plannedPercent}%</span>`, String(s.spi.toFixed(2)), `${comp ? dt(comp.forecast, l) : "—"}<br><span style="color:${comp && comp.slip > 0 ? C.red : C.soft}">${comp ? days(comp.slip, l) : ""}</span>`, `<b style="color:${cp.late.length ? C.red : C.ink}">${cp.late.length}</b> / ${cp.atRisk.length}`, pill(liveStatus[0], liveStatus[1])]);
+  if (siteOn) marks.push(liveStatus[1]);
 
   body.push(projectBand(db.project.name, `${db.project.client} · ${db.project.code} · ${T("data date", "تاريخ البيانات")} ${dt(d0, l)}`, liveStatus[0], liveStatus[1]));
   body.push(kpis([
@@ -108,7 +122,8 @@ export function buildReport(o: BuildIn): Built {
     { label: T("Critical late now", "حرجة متأخرة الآن"), value: String(cp.late.length), sub: T(`${cp.atRisk.length} at risk · ${cp.slipped.length} later`, `${cp.atRisk.length} معرّضة · ${cp.slipped.length} لاحقة`), bad: cp.late.length > 0 },
   ]));
   const since = sinceLines(l, o.prev, "site", metrics.projects.site);
-  if (since.length) { body.push(h2(T("Since the last brief", "منذ الموجز السابق"), o.prev ? dt(o.prev.date, l) : undefined)); body.push(bullets(since)); }
+  sec("since"); if (since.length) { body.push(h2(T("Since the last brief", "منذ الموجز السابق"), o.prev ? dt(o.prev.date, l) : undefined)); body.push(bullets(since)); }
+  sec("today");
 
   // ---- what happened since the last brief (default: the last 24 hours) and what comes in the next 48 hours
   const from = o.prev && o.prev.date < d0 ? o.prev.date : addDays(d0, -1);
@@ -151,7 +166,7 @@ export function buildReport(o: BuildIn): Built {
   const startNext = sched.filter((a) => !a.milestone && soon(a.start)), finishNext = sched.filter((a) => !a.milestone && soon(a.finish) && a.start <= d0);
   const delNext = delAll.filter((x) => soon(x.date) || (x.date === d0 && x.status !== "Received" && x.status !== "Rejected"));
   const permExp = db.data.safety.permits.filter((x) => x.status === "Active" && x.validTo.slice(0, 10) >= d0 && x.validTo.slice(0, 10) <= to2);
-  body.push(h2(T("Next 48 hours", "الثماني والأربعون ساعة القادمة"), `${dt(addDays(d0, 1), l)} – ${dt(to2, l)}`));
+  sec("next48"); body.push(h2(T("Next 48 hours", "الثماني والأربعون ساعة القادمة"), `${dt(addDays(d0, 1), l)} – ${dt(to2, l)}`));
   body.push(dayBlock([
     { label: T("Due to finish", "ينتهي"), lines: finishNext.slice(0, 8).map((a) => `${isCrit(a) ? critTag(l) : ""}${esc(a.name)} <span style="color:${C.soft}">${dt(a.finish, l)}</span>`) },
     { label: T("Starting", "يبدأ"), lines: startNext.slice(0, 8).map((a) => `${isCrit(a) ? critTag(l) : ""}${esc(a.name)} <span style="color:${C.soft}">${dt(a.start, l)}</span>`) },
@@ -178,7 +193,7 @@ export function buildReport(o: BuildIn): Built {
   );
   text.push(`${winLabel}: ${done.length} finished, ${started.length} started, ${received.length} deliveries, ${mails.length} emails`, ...slabs.map((a) => `  · ${a.name}`), "");
 
-  body.push(h2(T("Critical path", "المسار الحرج"), T(`${cp.remaining.length} critical activities left — zero float: a day lost on any of them moves completion`, `${cp.remaining.length} نشاطاً حرجاً متبقياً — بلا فائض: أي يوم تأخير فيها يؤخر الإنجاز النهائي`)));
+  sec("critical"); body.push(h2(T("Critical path", "المسار الحرج"), T(`${cp.remaining.length} critical activities left — zero float: a day lost on any of them moves completion`, `${cp.remaining.length} نشاطاً حرجاً متبقياً — بلا فائض: أي يوم تأخير فيها يؤخر الإنجاز النهائي`)));
   const critRows = [...cp.late, ...cp.atRisk, ...cp.inProgress.filter((a) => critState(a, d0) === "ok")].slice(0, 12);
   if (critRows.length) {
     body.push(table([T("Activity", "النشاط"), T("Forecast finish", "الإنهاء المتوقع"), T("Progress", "التقدم"), T("Variance", "الفرق")],
@@ -194,7 +209,7 @@ export function buildReport(o: BuildIn): Built {
 
   const ms = s.upcomingMilestones.filter((m) => m.forecast <= addDays(d0, 60)).slice(0, 5);
   if (ms.length) {
-    body.push(h2(T("Milestones — next 60 days", "المعالم — الستون يوماً القادمة")));
+    sec("milestones"); body.push(h2(T("Milestones — next 60 days", "المعالم — الستون يوماً القادمة")));
     body.push(table([T("Milestone", "المعلم"), T("Forecast", "المتوقع"), T("Baseline", "الأساس"), T("Variance", "الفرق")],
       ms.map((m) => [esc(m.name), dt(m.forecast, l), dt(m.baseline, l), `<span style="color:${m.varianceDays > 0 ? C.red : C.green};font-weight:700">${days(m.varianceDays, l)}</span>`]), ["l", "r", "r", "r"], l));
   }
@@ -202,7 +217,7 @@ export function buildReport(o: BuildIn): Built {
   const pk = P.packagesQuery(db, { atRisk: true }).packages.slice(0, 5);
   const dl = (P.deliveriesQuery(db, { from: d0, to: addDays(d0, 7) }).deliveries ?? []);
   const delayed = dl.filter((d) => d.status === "Delayed");
-  body.push(h2(T("Procurement", "المشتريات"), T(`${pk.length} packages behind their need date · ${dl.length} deliveries in the next 7 days, ${delayed.length} delayed`, `${pk.length} حزم متأخرة عن موعد الحاجة · ${dl.length} توريدات خلال 7 أيام، ${delayed.length} متأخرة`)));
+  sec("procurement"); body.push(h2(T("Procurement", "المشتريات"), T(`${pk.length} packages behind their need date · ${dl.length} deliveries in the next 7 days, ${delayed.length} delayed`, `${pk.length} حزم متأخرة عن موعد الحاجة · ${dl.length} توريدات خلال 7 أيام، ${delayed.length} متأخرة`)));
   const procItems = [
     ...pk.map((p) => `<b>${esc(p.id)} ${esc(p.name)}</b> — ${T("needed", "مطلوب")} ${dt(p.requiredOnSite, l)}, ${T("forecast", "متوقع")} ${dt(p.forecastOnSite, l)} <span style="color:${C.red};font-weight:700">(${p.floatDays} ${T("d", "يوم")})</span>`),
     ...delayed.slice(0, 4).map((d) => `${T("Delayed delivery", "توريد متأخر")}: ${esc(d.items)} — ${esc(d.supplier)}, ${dt(d.date, l)}${d.remarks ? ` · ${esc(d.remarks)}` : ""}`),
@@ -210,7 +225,7 @@ export function buildReport(o: BuildIn): Built {
   body.push(procItems.length ? bullets(procItems) : para(T("Nothing at risk.", "لا شيء معرّض للخطر.")));
 
   const h = P.hseOverview(db), st = h.stats as Record<string, number | string>;
-  body.push(h2(T("Safety", "السلامة")));
+  sec("safety"); body.push(h2(T("Safety", "السلامة")));
   body.push(kpis([
     { label: T("LTI-free days", "أيام بلا إصابات مضيعة"), value: String(st.ltiFreeDays ?? "—") },
     { label: "TRIR", value: String(st.trir ?? "—"), bad: Number(st.trir) >= 1 },
@@ -329,7 +344,8 @@ export function buildReport(o: BuildIn): Built {
     say: ms.slice(0, 3).map((m) => `${m.name}, ${dt(m.forecast, l)}`).join(". ") + "." });
 
   // ---------------- generated projects (from uploaded documents)
-  const active = o.projects.filter((p) => p.result?.spec?.schedule && p.result.spec.schedule.finish >= o.date);
+  const active = o.projects.filter((p) => p.result?.spec?.schedule && p.result.spec.schedule.finish >= o.date && wanted(p.result.spec.name));
+  sec("projects");
   for (const p of active) {
     const spec = p.result.spec, dd = spec.schedule.dataDate || o.date;
     const pc = specCritical(spec), planned = specPlannedPct(spec, dd), earned = specEarnedPct(spec);
@@ -420,6 +436,7 @@ export function buildReport(o: BuildIn): Built {
 <div style="font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding-top:6px;line-height:1.2">${esc(weekday)} ${dt(o.date, l)}${o.kind === "SNAPSHOT" ? ` · ${time}` : ""}</div>
 <div style="font-size:12px;padding-top:6px;opacity:.92">${T(`${nActive} active project${nActive > 1 ? "s" : ""} · ${o.kind === "SNAPSHOT" ? "snapshot taken" : "prepared"} ${time} (${o.timezone}) · data to ${dt(db.data.meta.dataDate, l)}`, `${nActive} مشاريع نشطة · ${o.kind === "SNAPSHOT" ? "التُقطت" : "أُعد"} ${time} (${o.timezone}) · البيانات حتى ${dt(db.data.meta.dataDate, l)}`)}</div></td></tr>
 ${headline.length ? `<tr><td style="padding:22px 28px 0;font-size:15px;line-height:1.55;color:${C.ink}"><b>${T("Today in one line:", "اليوم في سطر:")}</b> ${headline.map(esc).join(" · ")}.</td></tr>` : ""}
+${layout.notes.length ? knowBox(T("Notes from the Development Manager", "ملاحظات مدير التطوير"), layout.notes.map((n) => ({ tag: T("note", "ملاحظة"), color: C.or, html: esc(n.text) })), "") : ""}
 ${knowBox(T("To know today", "للعلم اليوم"), know.slice(0, 12), T("Nothing late on the critical path, no delayed load, no email asking for a decision and no open incident.", "لا تأخير على المسار الحرج ولا توريد متأخر ولا رسالة تطلب قراراً ولا حادث مفتوح."))}
 ${h2(T("All active projects", "جميع المشاريع النشطة"))}
 ${portfolio}
@@ -430,6 +447,15 @@ ${o.appUrl ? `<tr><td style="padding:26px 28px 6px"><a href="${esc(o.appUrl)}" s
 <tr><td style="background:${C.ink};padding:10px 28px 22px;color:#bbbbbb;font-size:11px;line-height:1.5;text-align:center">${T(`This brief takes no action: nothing changes in the programme, orders or permits until a person does it. Sent by the Kinan Onsite Agent${o.sender ? ` from ${esc(o.sender)}` : ""}.`, `لا يتخذ هذا الموجز أي إجراء: لا يتغير شيء في البرنامج أو الطلبات أو التصاريح ما لم يقم به شخص. أرسله الوكيل الميداني لكنان${o.sender ? ` من ${esc(o.sender)}` : ""}.`)}
 <div style="padding-top:8px"><span style="color:${C.or};font-weight:700;letter-spacing:.3em">${KINAN.tagline}</span> &nbsp; <span style="color:#ffffff">www.kinan.com.sa</span></div></td></tr>
 </table></td></tr></table></body></html>`;
+  // ▶ Play follows the layout too: slides are grouped by section and kept in the layout's order (cover first, closing last).
+  const KICK: [string, SectionId][] = [[T("Today in one line", "اليوم في سطر"), "headline"], [T("Programme health", "صحة البرنامج"), "critical"], [T("Programme", "البرنامج الزمني"), "critical"], [T("Critical path", "المسار الحرج"), "critical"],
+    [T("On site", "في الموقع"), "today"], [T("The last 24 hours", "آخر 24 ساعة"), "today"], [T("Contractor emails", "رسائل المقاولين"), "today"], [T("Next 48 hours", "الثماني والأربعون ساعة القادمة"), "next48"],
+    [T("Supply", "التوريد"), "procurement"], [T("Procurement", "المشتريات"), "procurement"], [T("Safety", "السلامة"), "safety"], [T("Milestones", "المعالم"), "milestones"]];
+  const secOf = (x: DeckSlide): SectionId | "cover" => (x.kind === "cover" ? "cover" : KICK.find(([k]) => k === x.kicker)?.[1] ?? "projects");
+  const shown = (id: SectionId) => !layout.hidden.includes(id) && (siteOn || !SITE_SECS.includes(id));
+  const ordered = [...slides.filter((x) => secOf(x) === "cover"), ...layout.order.filter(shown).flatMap((id) => slides.filter((x) => secOf(x) === id))];
+  slides.length = 0; slides.push(...ordered);
+  LIMIT = 0;
   slides.push({ kind: "closing", kicker: "", title: KINAN.tagline, sub: T("Approvals happen in the app — this brief takes no action.", "الاعتمادات تتم داخل التطبيق — لا يتخذ هذا الموجز أي إجراء."), say: T("End of the brief.", "انتهى الموجز.") });
   return { title, html, text: [title, "", ...text.filter((x) => x !== undefined)].join("\n"), metrics, active: nActive, slides };
 }

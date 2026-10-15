@@ -688,6 +688,11 @@ const LINES = {
     en: ["One moment, let me think about your question.", "Give me a second to look into that.", "Good question. Let me pull that together.", "Bear with me a moment while I check.", "Let me think that through for you."],
     ar: ["لحظة من فضلكم، دعوني أفكر في سؤالكم.", "امنحوني ثانية لأتحقق من ذلك.", "سؤال جيد، دعوني أجمع الإجابة.", "لحظة من فضلكم بينما أتحقق.", "دعوني أفكر في ذلك."],
   },
+  // the answer is taking long: the presenter carries on with the brief and comes back to it
+  carryOn: {
+    en: ["I'll carry on while I work that out, and come back to it in a moment.", "Let me keep going while I look into that; I'll come back to it.", "I'll keep the brief moving while I check that, and answer in a moment."],
+    ar: ["سأتابع بينما أعمل على ذلك، وأعود إليه بعد قليل.", "دعوني أكمل بينما أتحقق من ذلك؛ سأعود إليه.", "سأواصل الموجز بينما أتحقق من ذلك، وأجيب بعد لحظة."],
+  },
   // after an answer, when no further question comes
   moveOn: {
     en: ["Right, let's move on.", "Good. Let's carry on.", "Then let's keep going.", "Fine, on to the next point.", "Let's pick up where we were.", "Right, back to the report."],
@@ -769,7 +774,7 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
     tts?.cancel(); audio.current?.pause();
     if (asking === "speaking" || asking === "thinking") stopAnswer();
     setLeaving(i); setTimeout(() => setLeaving(null), 520); setWipe((w) => w + 1);
-    setI(to); setStarted(Date.now()); setPos(-1); resumeAt.current = 0; setAwaitQ(false); setFollowUp(false); if (followTimer.current) clearTimeout(followTimer.current);
+    setI(to); setStarted(Date.now()); setPos(-1); resumeAt.current = 0; setAwaitQ(false); setQDeadline(null); setFollowUp(false); if (followTimer.current) clearTimeout(followTimer.current);
     // A question waiting for the end of the slide is taken straight away when the manager moves on.
     if (holdRef.current != null) { holdRef.current = null; setPlaying(false); setAsking("thinking"); setAskSeq((n) => n + 1); }
   };
@@ -797,6 +802,15 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
   const [qPaused, setQPaused] = useState(false);
   // A question being written or spoken holds the presentation at the end of the slide (never mid-slide).
   const [awaitQ, setAwaitQ] = useState(false);
+  // The window for questions at the end of every slide: 0 (none), seconds, or "hold" (until ▶ / Next). Remembered on this device.
+  const [qPause, setQPauseRaw] = useState<number | "hold">(() => { try { const v = localStorage.getItem("kinan.deck.qpause"); return v === "hold" ? "hold" : v == null ? 8 : Number(v) || 0; } catch { return 8; } });
+  const qPauseRef = useRef<number | "hold">(qPause); qPauseRef.current = qPause;
+  const setQPause = (v: number | "hold") => { setQPauseRaw(v); try { localStorage.setItem("kinan.deck.qpause", String(v)); } catch { /* storage off */ } };
+  const [qDeadline, setQDeadline] = useState<number | null>(null); // when the question window closes by itself
+  const posRef = useRef(-1); posRef.current = pos;
+  const deferredRef = useRef(false); // a slow answer is being worked out in the background while the brief carries on
+  const followRecRef = useRef(false); // the microphone was opened by the presenter after an answer ("does that answer it?")
+  const moveOnRef = useRef<(() => void) | null>(null); // "no further question" — set while the follow-up window is open
   const [followUp, setFollowUp] = useState(false); // the few seconds after an answer, for a follow-up question
   const [moveOnText, setMoveOnText] = useState<string | null>(null); // the line said when no further question comes
   const followTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -804,9 +818,18 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
   // ---- asking by voice (app/_components/useVoiceInput.ts): the words appear live while you speak; ElevenLabs gives the
   // final text, which is asked straight away.
   const [micNote, setMicNote] = useState<string | null>(null);
+  const ACK = /^\s*(yes|yeah|yep|yup|ok|okay|sure|fine|good|great|perfect|clear|understood|got it|that(?:'s| is| was) (?:clear|fine|all|it|good|enough|helpful)|thanks?(?: you)?(?: very much)?|no|nope|no,? (?:thanks|thank you|that(?:'s| is) (?:all|fine|it))|nothing(?: else| more)?|carry on|move on|go on|continue|next|نعم|أجل|ايوه|أيوه|تمام|واضح|شكرا|شكراً|لا|لا شكرا|كمل|أكمل|تابع|استمر|ممتاز|جيد)[.!؟?\s]*$/i;
   const voiceIn = useVoiceInput({ lang, maxMs: 20000,
-    onFinal: (text) => { setMicNote(null); setQText(text); ask(text); },
-    onError: (why) => { setMicNote(why === "mic" ? t("The microphone is not available — allow it in the browser, or type the question.") : t("I didn't catch that — try again, or type the question.")); setAskOpen(true); } });
+    onFinal: (text) => {
+      setMicNote(null);
+      // After an answer the presenter asked whether that covered it: "yes" / "thanks" / "no, carry on" is not a question.
+      if (followRecRef.current) { followRecRef.current = false; if (ACK.test(text) || text.trim().split(/\s+/).length <= 2) { setQText(""); moveOnRef.current?.(); return; } }
+      setQText(text); ask(text);
+    },
+    onError: (why) => {
+      if (followRecRef.current) { followRecRef.current = false; moveOnRef.current?.(); return; } // nothing said after the answer: on we go
+      setMicNote(why === "mic" ? t("The microphone is not available — allow it in the browser, or type the question.") : t("I didn't catch that — try again, or type the question.")); setAskOpen(true);
+    } });
   const rec = voiceIn.state;
   const startRecording = () => { if (rec !== "off" || asking) return; setMicNote(null); setAskOpen(true); voiceIn.start(); };
   const stopRecording = () => voiceIn.stop();
@@ -827,11 +850,22 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
   };
   const resumeAt = useRef(0); // browser voice: where to pick the text up again
   /** Leave the hold: no question after all — on to the next slide. */
-  const carryOn = () => { setAwaitQ(false); setAskOpen(false); setQText(""); resumeAt.current = 0; if (i < slides.length - 1) go(i + 1); setPlaying(true); setStarted(Date.now()); };
+  const carryOn = () => { setAwaitQ(false); setAskOpen(false); setQText(""); setQDeadline(null); resumeAt.current = 0; if (i < slides.length - 1) go(i + 1); setPlaying(true); setStarted(Date.now()); };
+  // The question window counts down only while nobody is typing or speaking; at zero the brief carries on.
+  useEffect(() => {
+    if (!awaitQ || qDeadline == null) return;
+    const id = setInterval(() => {
+      if (asking) return;
+      if (composingRef.current) { setQDeadline((d) => (d == null ? d : Math.max(d, Date.now() + 4000))); return; } // give a started question time
+      if (Date.now() >= qDeadline) { clearInterval(id); carryOn(); }
+    }, 250);
+    return () => clearInterval(id);
+  }, [awaitQ, qDeadline, asking]); // eslint-disable-line react-hooks/exhaustive-deps
   const ask = (q: string) => {
     const question = q.replace(/\s+/g, " ").trim();
     if (!question || asking) return;
-    setAwaitQ(false); setFollowUp(false); if (followTimer.current) clearTimeout(followTimer.current);
+    setAwaitQ(false); setFollowUp(false); setQDeadline(null); if (followTimer.current) clearTimeout(followTimer.current);
+    if (rec !== "off") followRecRef.current = false;
     const history = qa?.history ?? [];
     const answer = fetch("/api/deck-ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, lang, slide: i, title: deck.title, history, slides: slides.map((x) => ({ kind: x.kind, title: slideTitle(x), say: x.say })) }) })
       .then(async (r) => { const j = await r.json(); if (!r.ok || !j?.answer) throw new Error(j?.error || "no answer"); return String(j.answer); })
@@ -859,9 +893,12 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
       if (!live) return; live = false; if (follow) clearInterval(follow); answerRef.current = null; setQPaused(false); setAsking(null); setAPos(-1); setStarted(Date.now());
       // The presenter has just asked whether that was clear: leave a moment for a follow-up before carrying on.
       setAskOpen(true); setQText(""); setFollowUp(true);
-      followTimer.current = setTimeout(async () => {
-        setFollowUp(false);
-        if (composingRef.current) { setAwaitQ(true); return; } // a follow-up is being written or spoken: wait for it, as at the end of a slide
+      // The presenter just asked whether that answered it: the microphone opens by itself for the reply. Silence, "yes" or
+      // "thanks" moves on; anything else is the next question. The recording stops after 8 s if nothing was said.
+      if (voice.mode === "eleven" && voiceOn && voiceIn.state === "off") { followRecRef.current = true; voiceIn.start(); setTimeout(() => { if (followRecRef.current && voiceIn.state === "recording" && !voiceIn.live) voiceIn.stop(); }, 8000); }
+      const moveOn = async () => {
+        setFollowUp(false); moveOnRef.current = null;
+        if (composingRef.current && !followRecRef.current) { setAwaitQ(true); return; } // a follow-up is being written or spoken: wait for it, as at the end of a slide
         setAskOpen(false);
         const carry = () => {
           if (composingRef.current) { setAwaitQ(true); return; } // they started a question while the line was said
@@ -877,7 +914,9 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
         }
         if (voiceOn && tts) { const u = new SpeechSynthesisUtterance(text); u.lang = lang === "ar" ? "ar-SA" : "en-GB"; const end = () => { setMoveOnText(null); carry(); }; u.onend = end; u.onerror = end; tts.speak(u); return; }
         setTimeout(() => { setMoveOnText(null); carry(); }, 1200);
-      }, 6000);
+      };
+      moveOnRef.current = moveOn;
+      followTimer.current = setTimeout(() => { if (followRecRef.current) return; /* the microphone decides */ moveOn(); }, 9000);
     };
     const playClip = (c: Clip | null, onEnd: () => void) => {
       if (!c) { onEnd(); return; }
@@ -898,7 +937,27 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
     };
     (async () => {
       // The answer names the question's subject itself; the bridge line is only for when it is still on its way.
-      if (bridge && !ready()) playClip(await bridge, async () => speakAnswer(await answer)); else speakAnswer(await answer);
+      if (bridge && !ready()) playClip(await bridge, async () => {
+        if (ready()) { speakAnswer(await answer); return; }
+        // Still not ready after the bridge line: wait a few seconds more, then carry on with the brief and come back to it.
+        const slow = await Promise.race([answer.then(() => false), new Promise<boolean>((r) => setTimeout(() => r(true), 4000))]);
+        if (!live) return;
+        if (!slow) { speakAnswer(await answer); return; }
+        const text = line("carryOn", lang);
+        setQa((x) => (x ? { ...x, a: text } : x)); setMoveOnText(text);
+        const resume = () => {
+          if (!live) return; live = false; if (follow) clearInterval(follow); answerRef.current = null;
+          setMoveOnText(null); deferredRef.current = true; setAsking("waiting"); setAPos(-1); setPlaying(true); setStarted(Date.now());
+          answer.then(() => {
+            if (!deferredRef.current) return; deferredRef.current = false;
+            // The answer is in: pause at the end of the sentence being said (or the end of the slide) and give it.
+            const p = posRef.current, m = p >= 0 ? say.indexOf(". ", p) : -1;
+            pendingRef.current = { answer, bridge: null, ready: () => true };
+            holdRef.current = m >= 0 ? Math.min(say.length, m + 1) : say.length;
+          });
+        };
+        playClip(await elevenAudio(text, lang), resume);
+      }); else speakAnswer(await answer);
     })();
     return () => { live = false; if (follow) clearInterval(follow); clip?.pause(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -916,6 +975,8 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
       if (holdRef.current != null) { holdRef.current = null; resumeAt.current = say.length; setPlaying(false); setAsking("thinking"); setAskSeq((n) => n + 1); return; }
       // A question is being written or spoken: the slide is over, so wait for it here rather than move on.
       if (composingRef.current) { resumeAt.current = say.length; setPlaying(false); setAwaitQ(true); return; }
+      // Time for a question before the next slide (the manager's setting: a few seconds, or hold until ▶ / Next).
+      if (qPauseRef.current !== 0 && i < slides.length - 1 && asking !== "waiting") { resumeAt.current = say.length; setPlaying(false); setAwaitQ(true); setAskOpen(true); setQDeadline(qPauseRef.current === "hold" ? null : Date.now() + qPauseRef.current * 1000); return; }
       if (i < slides.length - 1) go(i + 1); else setPlaying(false);
     };
     const t0 = Date.now(), minShow = 4500;
@@ -1022,7 +1083,7 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
       </div>
       {voiceNote && <div className="kd-q" dir="ltr" title={voiceNote}><span className="kd-q-tag" style={{ background: "#b7791f" }}>ElevenLabs</span>{voiceNote.slice(0, 160)}</div>}
       {followUp && !asking && !awaitQ && <div className="kd-q"><span className="kd-q-tag">{t("Question")}</span>{t("Any other question? Type it or tap the microphone.")}</div>}
-      {awaitQ && !asking && <div className="kd-q"><span className="kd-q-tag">{t("Question")}</span>{t("Paused for your question — send it, or close the box to carry on.")}</div>}
+      {awaitQ && !asking && <div className="kd-q"><span className="kd-q-tag">{t("Question")}</span>{qDeadline != null ? `${t("Any question? Type it or tap the microphone.")} ${t("Carrying on in")} ${Math.max(0, Math.ceil((qDeadline - tick) / 1000))} ${t("s")} — ${t("or press Next.")}` : t("Paused for your question — send it, or press ▶ / Next to carry on.")}</div>}
       {qa && asking && <div className="kd-q" dir="auto"><span className="kd-q-tag">{t("Question")}</span>{qa.q}{asking === "thinking" && <span className="kd-q-wait"> · {t("thinking…")}</span>}</div>}
       {moveOnText ? <div className="kd-cc"><span>{moveOnText}</span></div> : asking === "speaking" && qa?.a ? <Caption key={`qa${qa.history.length}`} text={qa.a} playing={!qPaused} pos={aPos} /> : captions && <Caption key={`cc${i}`} text={say} playing={playing} pos={pos} />}
       {askOpen && (
@@ -1040,6 +1101,7 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
         {voice.mode !== "none" && <button className="kd-btn" onClick={() => { setVoiceOn(!voiceOn); setStarted(Date.now()); }} aria-pressed={voiceOn} aria-label={voiceOn ? t("Voice on") : t("Voice off")} title={voiceOn ? t("Voice on") : t("Voice off")}>{voiceOn ? "🔊" : "🔇"}</button>}
         <button className="kd-btn" onClick={() => setAskOpen((o) => !o)} aria-pressed={askOpen} disabled={!!asking} title={t("Ask the presenter a question…")}>💬 {t("Ask")}</button>
         {voice.mode === "eleven" && <button className={`kd-btn kd-mic${rec === "recording" ? " on" : ""}`} onClick={() => (rec === "recording" ? stopRecording() : startRecording())} disabled={rec === "transcribing" || !!asking} title={t("Ask by voice")} aria-pressed={rec === "recording"}>{rec === "recording" ? `■ ${t("Stop and send")}` : rec === "transcribing" ? "…" : "🎤"}</button>}
+        <button className="kd-btn" onClick={() => setQPause(qPause === 0 ? 8 : qPause === 8 ? 15 : qPause === 15 ? "hold" : 0)} title={t("Time for questions after each slide")} aria-label={t("Time for questions after each slide")}>⏱ {qPause === "hold" ? t("Hold") : qPause === 0 ? t("No pause") : `${qPause} ${t("s")}`}</button>
         <button className="kd-btn" onClick={() => setCaptions(!captions)} aria-pressed={captions}>CC</button>
         <button className="kd-btn" onClick={full} aria-label="Fullscreen">⛶</button>
         <button className="kd-btn" disabled={pptBusy} onClick={async () => {

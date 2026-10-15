@@ -21,6 +21,7 @@ import type { MailToSend, SendResult } from "../outlook";
 import { buildReport, tx, type Lang, type Metrics } from "./build";
 import { deckScript, speakDates, type Deck, type DeckSlide } from "../deck/deck";
 import { kinanLogoText } from "../deck/brand";
+import { applyOps, cleanLayout, layoutView, type Layout, type LayoutChange, type LayoutState, type Op } from "./layout";
 
 export type { Lang };
 export interface ReportsIO {
@@ -44,7 +45,7 @@ export type Status = "GENERATED" | "SENT" | "FAILED";
 export interface ReportMeta { id: string; createdAt: string; date: string; kind: "DAILY" | "SNAPSHOT"; trigger: "SCHEDULED" | "MANUAL"; lang: Lang; title: string; status: Status; delivery: "mock" | "send" | null; recipients: string; error: string | null; sentAt: string | null; projects: number }
 interface ReportFull extends ReportMeta { html: string; text: string; metrics: Metrics }
 
-const K = { schedule: "reports/schedule.json", index: "reports/index.json", one: (id: string) => `reports/r/${id}.json` };
+const K = { schedule: "reports/schedule.json", index: "reports/index.json", one: (id: string) => `reports/r/${id}.json`, layout: "reports/layout.json", layoutLog: "reports/layout-log.json" };
 const DAY = 86_400_000;
 export const TIMEZONES = ["Asia/Riyadh", "Asia/Dubai", "Asia/Qatar", "Africa/Cairo", "Europe/London", "UTC"];
 const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
@@ -105,10 +106,42 @@ export function reports(io: ReportsIO) {
     return full ? { metrics: full.metrics, date: full.date } : null;
   }
 
+  // ---- the brief's layout (changed from the chat; see layout.ts), with a change log for undo
+  const getLayout = async (): Promise<Layout> => cleanLayout(await io.get<Layout>(K.layout));
+  const layoutLog = async (): Promise<(LayoutChange & { before: Layout; after: Layout })[]> => (await io.get<(LayoutChange & { before: Layout; after: Layout })[]>(K.layoutLog)) ?? [];
+  async function projectNames() { const db = await io.db(); return [db.project.name, ...(await io.projects()).map((p) => p.result.spec.name)]; }
+  async function layoutChange(ops: Op[], lang: Lang, by: string, source = "chat") {
+    const before = await getLayout();
+    const r = applyOps(before, ops, lang, await projectNames());
+    if (r.done.length) {
+      await io.put(K.layout, r.layout);
+      const log = await layoutLog();
+      log.unshift({ id: rid(), at: now().toISOString(), summary: r.done.join(" · "), by: by || null, source, undone: false, before, after: r.layout });
+      await io.put(K.layoutLog, log.slice(0, 40));
+    }
+    return { ...r, view: layoutView(r.layout, lang), message: r.done.length ? tx(lang, `Brief changed: ${r.done.join("; ")}.`, `تغيّر الموجز: ${r.done.join("؛ ")}.`) : r.notes.join(" ") };
+  }
+  async function layoutUndo(lang: Lang) {
+    const log = await layoutLog(), last = log.find((x) => !x.undone && x.source !== "undo");
+    if (!last) return { ok: false, message: tx(lang, "There is no brief change to undo.", "لا يوجد تعديل على الموجز للتراجع عنه."), view: layoutView(await getLayout(), lang) };
+    await io.put(K.layout, cleanLayout(last.before)); last.undone = true; await io.put(K.layoutLog, log);
+    return { ok: true, message: tx(lang, `Undone: ${last.summary}.`, `تم التراجع عن: ${last.summary}.`), view: layoutView(cleanLayout(last.before), lang) };
+  }
+  async function layoutState(lang: Lang, message?: string): Promise<LayoutState> {
+    const log = await layoutLog();
+    return { view: layoutView(await getLayout(), lang), history: log.slice(0, 12).map(({ id, at, summary, by, source, undone }) => ({ id, at, summary, by, source, undone })), ...(message ? { message } : {}) };
+  }
+  async function layoutAction(b: Record<string, unknown>) {
+    const lang: Lang = b.lang === "ar" ? "ar" : "en";
+    if (b.action === "UNDO") { const u = await layoutUndo(lang); return layoutState(lang, u.message); }
+    if (b.action === "RESET") { const r = await layoutChange([{ op: "reset" }], lang, String(b.by ?? ""), "briefs page"); return layoutState(lang, r.done.join("; ") || undefined); }
+    throw new Error("Unknown action.");
+  }
+
   async function build(trigger: ReportMeta["trigger"], kind: ReportMeta["kind"], date: string, lang: Lang): Promise<ReportFull> {
     const s = await ensureSchedule(), at = now(), t0 = Date.now();
     const r = buildReport({ lang, date, kind, at, timezone: s.timezone, db: await io.db(), projects: await io.projects(), prev: await lastIssued(lang, date),
-      emails: io.emails ? await io.emails().catch(() => []) : [], appUrl: io.env.appUrl ?? null, sender: io.env.sender });
+      emails: io.emails ? await io.emails().catch(() => []) : [], appUrl: io.env.appUrl ?? null, sender: io.env.sender, layout: await getLayout() });
     // ▶ Play: the brief as narrated slides, embedded in the stored HTML (the e-mail drops it, see mailBody).
     const deck0: Deck = { lang, title: r.title, slides: r.slides };
     const spokenOnly = (d: Deck): Deck => ({ ...d, slides: d.slides.map((x) => ({ ...x, say: speakDates(x.since?.length && !x.ytd ? `${x.since[0]} ${x.say}` : x.say, d.lang) }) as DeckSlide) });
@@ -217,7 +250,8 @@ export function reports(io: ReportsIO) {
   async function getReport(id: string) {
     const r = await io.get<ReportFull>(K.one(id));
     if (!r) throw new Error("Brief not found.");
-    return { id: r.id, title: r.title, html: r.html, text: r.text, date: r.date, lang: r.lang, status: r.status, kind: r.kind };
+    const other = (await index()).find((x) => x.lang !== r.lang && x.date === r.date && x.kind === r.kind);
+    return { id: r.id, title: r.title, html: r.html, text: r.text, date: r.date, lang: r.lang, status: r.status, kind: r.kind, other: other ? { id: other.id, lang: other.lang } : null };
   }
 
   async function action(b: Record<string, unknown>) {
@@ -227,6 +261,13 @@ export function reports(io: ReportsIO) {
       case "SAVE_SCHEDULE": await saveSchedule((b.schedule ?? {}) as Record<string, unknown>, String(b.by ?? ""), l); message = tx(l, "Schedule saved.", "حُفظ الجدول."); break;
       case "SNAPSHOT": openId = await runSnapshot(l); message = tx(l, "Live snapshot ready — saved in the history, not e-mailed.", "اللقطة الفورية جاهزة — حُفظت في السجل ولم تُرسل بالبريد."); break;
       case "PREVIEW": openId = (await runNow(false, l))[0]?.id ?? null; break;
+      // The same brief in the other language: the one already built for that date and kind, else built now.
+      case "OPEN_IN_LANG": {
+        const to: Lang = b.to === "ar" ? "ar" : "en", cur = (await index()).find((r) => r.id === String(b.id ?? ""));
+        const twin = cur ? (await index()).find((r) => r.lang === to && r.date === cur.date && r.kind === cur.kind) : null;
+        openId = twin?.id ?? (await build("MANUAL", cur?.kind ?? "DAILY", cur?.date ?? localNow((await ensureSchedule()).timezone, now()).date, to)).id;
+        break;
+      }
       case "SEND_NOW": {
         const rows = await runNow(true, l);
         openId = (rows.find((x) => x.lang === l) ?? rows[0])?.id ?? null;
@@ -249,7 +290,7 @@ export function reports(io: ReportsIO) {
     return { ...(await state(l)), message, openId };
   }
 
-  return { state, getReport, action, runSchedule };
+  return { state, getReport, action, runSchedule, getLayout, layoutChange, layoutUndo, layoutState, layoutAction };
 }
 
 /** Local date / time / weekday in a timezone. */

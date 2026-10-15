@@ -215,7 +215,9 @@ export interface ProgressUpdate {
 
 export type UiAction =
   | { type: "open_doc"; docId: string }
-  | { type: "focus_location"; locationId: string };
+  | { type: "focus_location"; locationId: string }
+  /** the daily brief's layout after a change from the chat (rendered as a card) */
+  | { type: "brief_layout"; view: import("./reports/layout").LayoutView; message?: string };
 
 /** Which model answered, and why — shown under each agent reply. */
 export interface RouteInfo {

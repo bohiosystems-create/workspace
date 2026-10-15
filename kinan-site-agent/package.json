@@ -18,6 +18,8 @@
     "@resvg/resvg-js": "^2.6.2",
     "@vercel/blob": "^2.8.0",
     "fflate": "^0.8.3",
+    "html2canvas-pro": "^2.5.0",
+    "jspdf": "^4.2.1",
     "next": "^15.5.27",
     "pptxgenjs": "^4.0.1",
     "react": "^19.3.0",

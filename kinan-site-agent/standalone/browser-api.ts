@@ -119,7 +119,7 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
   if (p === "/api/chat" && method === "POST") {
     // the chat answers only through the AI API, with the keys set on this device
     const b = (await body().catch(() => ({}))) as { messages?: { role: "user" | "assistant"; content: string }[]; author?: string; focus?: { docId?: string; locationId?: string } };
-    try { const r = await coreAgent(repo, (b.messages ?? []).slice(-20), { author: b.author || "Site team", channel: "web", focus: b.focus, aiOnly: true, deadline: Date.now() + 90_000 }, llm()); return json(r); }
+    try { const r = await coreAgent(repo, (b.messages ?? []).slice(-20), { author: b.author || "Site team", channel: "web", focus: b.focus, aiOnly: true, deadline: Date.now() + 90_000, reports: { view: async (l) => (await pageReports().layoutState(l)).view, change: (ops, l, by) => pageReports().layoutChange(ops, l, by, "chat"), undo: (l) => pageReports().layoutUndo(l) } }, llm()); return json(r); }
     catch (e) { return json({ error: e instanceof AiUnavailable ? e.message.replace("set ANTHROPIC_API_KEY or OPENAI_API_KEY", "add a Claude or OpenAI key in settings") : "The AI service did not answer. Try again in a moment." }, 503); }
   }
   if (p === "/api/notes") {
@@ -181,6 +181,10 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
     } else if (engine === "anthropic" || engine === "openai" || engine === "gemini") return json({ error: "Only the offline parser (and Claude, when this page runs on claude.ai) is available in the standalone page" }, 400);
     const out = await extractModel({}, docs, "offline");
     return json({ ...out, tried: [...tried, ...out.tried], ms: Date.now() - t0, route: sm ? "Claude did not return a usable model, so the offline parser took over" : "no AI engine available in this page" });
+  }
+  if (p === "/api/reports/layout") {
+    try { return json(method === "GET" ? await pageReports().layoutState(url.searchParams.get("lang") === "ar" ? "ar" : "en") : await pageReports().layoutAction(JSON.parse(String(init?.body ?? "{}")))); }
+    catch (e) { return json({ error: (e as Error)?.message ?? "Failed." }, 400); }
   }
   if (p === "/api/reports") {
     try {

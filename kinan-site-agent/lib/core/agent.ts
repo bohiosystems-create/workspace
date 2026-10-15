@@ -16,6 +16,8 @@ export interface AgentContext {
   /** Answer only through the AI API: no keyword fallback when no provider is set or every provider fails
    *  (the in-app chat; WhatsApp keeps the offline fallback for poor signal on site). */
   aiOnly?: boolean;
+  /** the daily brief's layout, when the host has the reports engine (server and standalone page) */
+  reports?: ToolCtx["reports"];
 }
 /** Thrown when an AI-only answer cannot be produced: no provider configured, or every provider failed. */
 export class AiUnavailable extends Error {
@@ -55,7 +57,7 @@ Current context:
 }
 
 export async function runAgent(repo: Repo, history: ChatTurn[], ctx: AgentContext, cfg: LlmConfig): Promise<AgentReply> {
-  const toolCtx: ToolCtx = { author: ctx.author, actions: [], focus: { ...ctx.focus }, channel: ctx.channel ?? "web" };
+  const toolCtx: ToolCtx = { author: ctx.author, actions: [], focus: { ...ctx.focus }, channel: ctx.channel ?? "web", reports: ctx.reports };
   if (!toolCtx.focus?.locationId && ctx.here) toolCtx.focus = { ...toolCtx.focus, locationId: ctx.here.locationId };
   if (!availableProviders(cfg).length) {
     if (ctx.aiOnly) throw new AiUnavailable("No AI provider is configured — set ANTHROPIC_API_KEY or OPENAI_API_KEY.");

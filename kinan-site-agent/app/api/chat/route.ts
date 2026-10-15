@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { runAgent } from "@/lib/agent";
 import { AiUnavailable } from "@/lib/core/agent";
 import type { ChatTurn } from "@/lib/core/llm/types";
+import { serverReports } from "@/lib/reports/server";
+import type { BriefLayoutApi } from "@/lib/core/tools";
+
+const briefLayout = (): BriefLayoutApi => { const r = serverReports(); return { view: async (l) => (await r.layoutState(l)).view, change: (ops, l, by) => r.layoutChange(ops, l, by, "chat"), undo: (l) => r.layoutUndo(l) }; };
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,7 +23,7 @@ export async function POST(req: NextRequest) {
     .slice(-20).map((m) => ({ role: m.role as "user" | "assistant", content: m.content.slice(0, 4000) }));
   if (!history.length || history[history.length - 1].role !== "user") return NextResponse.json({ error: "Ask a question." }, { status: 400 });
   try {
-    const r = await runAgent(history, { author: (body.author || "Site team").slice(0, 60), channel: "web", focus: body.focus, aiOnly: true });
+    const r = await runAgent(history, { author: (body.author || "Site team").slice(0, 60), channel: "web", focus: body.focus, aiOnly: true, reports: briefLayout() });
     return NextResponse.json(r);
   } catch (e) {
     const msg = e instanceof AiUnavailable ? e.message : "The AI service did not answer. Try again in a moment.";

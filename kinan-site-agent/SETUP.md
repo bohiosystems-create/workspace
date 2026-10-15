@@ -416,6 +416,14 @@ Columns: `Sheet, Title, Discipline, Location, Revision, Status, Issued, Reason`.
 
 Own server (Docker): call the endpoint from cron, e.g. `* * * * * curl -fsS -H "x-api-key: $REPORTS_CRON_KEY" https://site.example.com/api/reports/run`.
 
+### 8b.1 The Briefs page, the brief's layout and ▶ Play
+
+The Briefs page is the marketing agent's Reports page: Schedule and the Delivery check on the left, Run and History on the right, the latest brief opening by itself underneath with its English / العربية switch (the same brief in the other language opens if it exists, else it is built), **Download PDF / HTML / PowerPoint**, and ▶ Play. Every long job shows a working panel with a running clock, the steps it goes through and how long it took last time on that device. Briefs built for an earlier date carry an **Older data** pill.
+
+**Brief layout.** The icon next to the title shows what the brief contains — sections in order, hidden ones, the item limit, the project focus and notes — with the change log, Undo and Reset. It is changed from the agent's chat, exactly as in the marketing agent: "remove the procurement section from the brief", "move safety to the top", "only Kinan Heights", "top 3 items", "add a note to the brief: client visit on Thursday", "undo", "back to the standard brief". The agent shows the new layout as a card; it applies from the next brief (e-mail, in-app view and ▶ Play alike). Sections: headline (always first), since the last brief, the last 24 hours, next 48 hours, critical path, milestones, procurement, safety, generated projects. Stored with the briefs (`reports/layout.json` and its log).
+
+**▶ Play questions.** After every slide the presenter leaves a **question window** (⏱ in the controls: no pause, 8 s, 15 s, or hold until ▶ / Next; remembered on the device): the question box opens with the microphone, the countdown stops while a question is being typed or spoken, and the brief carries on by itself when nothing comes. When an answer takes long, the presenter says "I'll carry on while I work that out", keeps going, and gives the answer at the end of the sentence being said when it arrives. After an answer the presenter asks whether that covered it and **opens the microphone by itself**: silence, "yes" or "thanks" moves on; anything else is the next question.
+
 ## 8c. Contractor emails (Outlook inbox)
 
 The agent reads the contractors' emails on project updates from a project mailbox in Outlook (Microsoft 365), so a question like *"any delays from the façade contractor?"* is answered from what Skyline actually wrote, with sender and date. The same mail is listed in the app under **Project schedule → Emails**. It is **read-only**: the app never sends, moves, flags or deletes mail in that mailbox.
