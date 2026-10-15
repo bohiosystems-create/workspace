@@ -12,7 +12,7 @@ await p.evaluate(()=>askAboutExport(PROJ,latestExport()));await p.waitForTimeout
 ok(!(await vis()),'after the loaded-model message with its own questions, the chip row is hidden');
 await p.screenshot({path:sp+'chips_once.png',clip:{x:800,y:120,width:500,height:780}});
 await p.evaluate(()=>addMsg('user','hello'));await p.evaluate(()=>addMsg('agent','Hi.'));await p.waitForTimeout(100);
-ok(await vis(),'after a plain answer the chip row is back');
+ok(!(await vis()),'after the first question the suggestions stay away');
 await p.evaluate(()=>askAboutExport(PROJ,latestExport()));await p.evaluate(()=>{chatSave&&chatSave();chatRestore(PROJ.id)});await p.waitForTimeout(100);
 ok(!(await vis()),'restored chat keeps the rule');
 console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

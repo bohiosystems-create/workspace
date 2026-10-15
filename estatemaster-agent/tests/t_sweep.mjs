@@ -34,7 +34,7 @@ for(const k of ['daily','ic']){await p.evaluate(k=>{const d=buildDeck(k);d.noAI=
 await p.evaluate(()=>{renderProjRail();document.querySelector('#projRail').classList.add('open')});await p.locator('#projRail [data-proj]').first().click({button:'right'});await p.waitForTimeout(150);await p.click('#prMenu [data-prm="delete"]');await p.waitForTimeout(200);
 if(!(await p.evaluate(()=>document.querySelector('#delModal')&&document.querySelector('#delModal').classList.contains('on')))&&await p.evaluate(()=>Object.keys(PROJECTS).length>1))note('delete','typed-confirmation modal did not open');await p.evaluate(()=>{const m=document.querySelector('#delModal');if(m)m.classList.remove('on')});
 // chat
-const hello=await p.evaluate(()=>(document.body.textContent.match(/Hello\. I work on EstateMaster’s figures for [^?]+\?/)||[''])[0]);if(!hello)note('chat','welcome line missing');
+const hello=await p.evaluate(()=>(document.body.textContent.match(/Hello\. I work on (?:EstateMaster|the model)’s figures for [^?]+\?/)||[''])[0]);if(!hello)note('chat','welcome line missing');
 const self=await p.evaluate(()=>{try{return selfTest?selfTest().filter(x=>!x.ok).map(x=>x.name||x.label):[]}catch(e){return['selfTest threw: '+e.message]}});self.forEach(x=>note('selfTest',x));
 console.log(`== ${NAME} @${W}px: ${issues.length} layout/function issues, ${errs.length} page errors, ${cons.length} console errors`);
 [...new Set(issues)].slice(0,40).forEach(x=>console.log('  ISSUE',x));[...new Set(errs)].forEach(x=>console.log('  PAGEERROR',x));[...new Set(cons)].slice(0,10).forEach(x=>console.log('  CONSOLE',x));

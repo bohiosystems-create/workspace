@@ -12,6 +12,6 @@ const r=await p.evaluate(async()=>{AI.keys={anthropic:'k',openai:'k'};const call
   try{callOne=window.callOne}catch(e){}
   const ev=kRiskEvidence();const res=await kRiskAI();const d=buildDeck('ic');return{ev:ev.length,calls,model:res&&res.model,slide:d.slides.find(s=>/New risks/.test(s.kicker||''))}});
 console.log(JSON.stringify({ev:r.ev,calls:r.calls,model:r.model,kicker:r.slide&&r.slide.kicker,items:r.slide&&r.slide.items}));
-ok(r.ev===0||(r.calls[0]==='claude-opus-5-5'),'risk review goes to Opus first (deep chain)');
+ok(r.ev===0||/^claude-(fable|opus)/.test(r.calls[0]),'risk review goes to the strongest Claude first (deep chain): '+r.calls[0]);
 ok(r.ev===0||/AI review/.test(r.slide.kicker),'AI risks on the slide with recommendations');
 console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

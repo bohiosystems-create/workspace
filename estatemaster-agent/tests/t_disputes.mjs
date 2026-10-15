@@ -17,7 +17,7 @@ await p.evaluate(()=>{window.callOne=async(pr,model,sys,msgs)=>{const u=msgs[msg
     const v=pr==='anthropic'?{levered_irr:11.2,profit_on_cost:18,net_profit:100e6}:{levered_irr:14.9,profit_on_cost:18,net_profit:100e6};
     return{text:JSON.stringify({method:'m',results:Object.entries(v).map(([k,x])=>({metric:k,base:k==='levered_irr'?13.75:k==='profit_on_cost'?23.26:129.5e6,value:x,working:'w'})),difference:'we differ on timing'})}}});
 await p.evaluate(()=>aiCrossCheck([{label:'Sale price',from:'13,500',to:'−10%'}]));let r=await popup();
-ok(r.on&&/Agents disagree/.test(r.title)&&/Levered IRR/.test(r.body)&&/11\.20%/.test(r.body)&&/14\.90%/.test(r.body)&&/still apart after review/.test(r.body),'what-if: pop-up with both values and the arbitration: '+r.title);
+ok(r.on&&/The two AIs disagree/.test(r.title)&&/Levered IRR/.test(r.body)&&/11\.20%/.test(r.body)&&/14\.90%/.test(r.body)&&/difference of 3\.7 pts|decided by/.test(r.body),'what-if: pop-up with both values and the arbitration: '+r.title);
 await dismiss();
 // 2. sensitivity table: one cell apart → arbitration → pop-up names the cell
 await p.evaluate(()=>{window.callOne=async(pr,model,sys,msgs)=>{if(/arbitrate/i.test(sys))return{text:JSON.stringify({cells:[{row:0,col:0,value:9.9,why:'Claude kept the finance cost constant'}]})};
@@ -37,7 +37,7 @@ const h=await p.evaluate(async()=>(await aiHurdle()).apart);r=await popup();ok(h
 await dismiss();
 // 5. model review on upload: a finding raised by one model only is a doubt
 await p.evaluate(()=>{window.callOne=async(pr,model,sys)=>{if(/senior financial-modelling reviewer/.test(sys)){const items=[{kind:'bug',severity:'high',title:'Peak debt above cost',evidence:'e',cell:'',recommendation:'r'}];if(pr==='openai')items.push({kind:'risk',severity:'medium',title:'Exit yield too tight',evidence:'e',cell:'',recommendation:'r'});return{text:JSON.stringify({read_ok:true,read_note:'',items})}}return{text:'{}'}}});
-await p.evaluate(async()=>{const x=latestExport();x.audit=null;await auditExport(x,true)});r=await popup();ok(r.on&&/Doubt raised/.test(r.title)&&/Exit yield too tight/.test(r.body)&&/raised by .* only/.test(r.body)&&!/Peak debt above cost/.test(r.body),'model review: the one-model finding is a doubt, the shared one is not');
+await p.evaluate(async()=>{const x=latestExport();x.audit=null;await auditExport(x,true)});r=await popup();ok(r.on&&/A doubt was raised/.test(r.title)&&/Exit yield too tight/.test(r.body)&&/raised by .* only/.test(r.body)&&!/Peak debt above cost/.test(r.body),'model review: the one-model finding is a doubt, the shared one is not');
 await dismiss();
 // 6. chat answer: a second model checks the figures the first worked out
 await p.evaluate(()=>{window.callOne=async(pr,model,sys,msgs,withTools)=>{if(/audit the arithmetic/i.test(sys))return{text:JSON.stringify({items:[{i:1,ok:false,value:'SAR 116M',issue:'10% of 686M is 68.6M, not 50M'}]})};return{calls:[],text:'Net profit would fall to SAR 100M ⟦calc: 129.5M − 10% × 686.3M⟧.',raw:null}};toggleDock(true)});

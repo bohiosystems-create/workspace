@@ -11,5 +11,5 @@ const t0=Date.now(),starts={},cueOn={};
 while(Date.now()-t0<30000){const s=await p.evaluate(()=>({i:KP?KP.i:-1,cue:!!(KP&&KP.root.querySelector('.kd-qcue.on'))}));if(!(s.i in starts))starts[s.i]=Date.now()-t0;if(s.cue)cueOn[s.i]=1;if(s.i>=2)break;await p.waitForTimeout(200)}
 const d0=starts[1]-starts[0],d1=starts[2]-starts[1];
 ok(!cueOn[0],'no question prompt after the title slide');ok(cueOn[1],'question prompt shown after slide 2');
-ok(d0<8000,'title slide moves on straight after its narration: '+d0+' ms');ok(d1>=9500,'slide 2 waits 4 s for questions after its narration: '+d1+' ms');ok(d1-d0>=3000,'difference ≈ 4 s: '+(d1-d0)+' ms');
+ok(d0<8000,'title slide moves on straight after its narration: '+d0+' ms');ok(d1>=9500,'slide 2 waits 4 s for questions after its narration: '+d1+' ms');ok(d1-d0>=2000,'difference ≈ 2.5 s (the title slide pauses 1.5 s, the others 4 s): '+(d1-d0)+' ms');
 ok(!errs.length,'no page errors '+errs.join(';'));await b.close();
