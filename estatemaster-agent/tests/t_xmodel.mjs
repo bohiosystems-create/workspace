@@ -25,9 +25,9 @@ ck('the top menu follows the selected model',await ev(()=>$('#tabModel').textCon
 // a change proposed on Al Rabie Court, then back to Al Narjis
 const cid=await ev(()=>raiseCR('manual','Sales (test)','Approval needed: 3% discount on 10 villas',[{t:'mods',mods:{price:-1}}],{channel:'Workspace',why:'10 villas unsold'}).id);
 await ev(()=>switchProject('narjis'));await ev(()=>showTab('appr'));await p.waitForTimeout(5000);
-const fd=await ev(id=>{const cards=[...document.querySelectorAll('#apList .em')];const c=cards.find(x=>x.textContent.includes(id));return{n:cards.length,models:[...new Set(cards.map(x=>(x.querySelector('.top b')||{}).textContent))],c:c?{model:(c.querySelector('.top b')||{}).textContent,eff:/Effect if approved/.test(c.textContent)}:null}},cid);
-ck('Daily feed across models: the cards name their model; the other model’s change is costed too',fd.models.length>=2&&fd.c&&RN.test(fd.c.model)&&fd.c.eff,JSON.stringify(fd));
-ck('the other model’s change is costed on that model’s own export (its name and figures in the AI’s context)',calcs.some(m=>RN.test(m)&&/24\.1/.test(m)),calcs.length+' calc calls');
+const fd=await ev(id=>{const cards=[...document.querySelectorAll('#apList .em')];const c=cards.find(x=>x.textContent.includes(id));return{n:cards.length,models:[...new Set(cards.map(x=>(x.querySelector('.top b')||{}).textContent))],c:c?{model:(c.querySelector('.top b')||{}).textContent,eff:/Effect if approved/.test(c.textContent),nc:/not computed/i.test(c.textContent)&&/upload|cash flow|workbook/i.test(c.textContent)}:null}},cid);
+ck('Daily feed across models: the cards name their model; the other model’s change is costed on its own workbook, or says it is not computed and what to upload (values-only export: never estimated)',fd.models.length>=2&&fd.c&&RN.test(fd.c.model)&&(fd.c.eff||fd.c.nc),JSON.stringify(fd));
+ck('no AI estimate was asked for the other model’s change (its export has no formulas and no cash flow)',!calcs.some(m=>RN.test(m)&&/24\.1/.test(m)&&/Changes to test/.test(m)),calcs.length+' calc calls');
 ck('Daily feed is open with no model tab highlighted; left menu marks Daily feed',await ev(()=>document.body.classList.contains('gpage')&&$('#prNav .pr-nav-i.on')&&/Daily feed/.test($('#prNav .pr-nav-i.on').textContent)),'');
 // the daily report covers every model
 const rep=await ev(()=>({m:BLOCKS.models_today.fn(),f:BLOCKS.feed_today.fn(),blocks:RPTS.daily.blocks.join()}));

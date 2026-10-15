@@ -4995,7 +4995,7 @@ function asAnswer(axis,answer){const q=AS.pendQ[axis]||'';delete AS.pendQ[axis];
 const CRBUSY=new Set();let CRQ=[],CRRUN=0;
 const stripTags=s=>String(s==null?'':s).replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
 function crChanges(c){return(c.rows||[]).map(([l,f,t])=>({label:stripTags(l),from:stripTags(f),to:stripTags(t)})).filter(z=>z.label&&z.to)}
-function aiErrText(m){m=[...new Set(String(m||'').split(/;\s*/).map(x=>x.trim()).filter(Boolean))].join('; ');
+function aiErrText(m){if(/^Not computed/.test(String(m||'')))return String(m).slice(0,400);m=[...new Set(String(m||'').split(/;\s*/).map(x=>x.trim()).filter(Boolean))].join('; ');
   if(/failed to fetch|networkerror|internetdisconnected|load failed/i.test(m))return'The AI service could not be reached (no connection). Nothing is lost: retry when the connection is back.';
   if(/timed? ?out|aborted|timeout/i.test(m))return'The AI service did not answer in time. Retry in a moment.';
   if(/\b(401|403)\b|unauthori|forbidden|password|api key|no server key/i.test(m))return'The AI service refused the request: check the API keys in Settings → AI & routing ('+m.slice(0,80)+').';
@@ -5018,6 +5018,7 @@ async function crEffect(c){c.aiStep='';renderCrAI(c);
   finally{CRBUSY.delete(c.id);delete c.aiStep;renderCrAI(c);saveMem();pushFeedSoon();const ap=$('#apSub');if(ap&&$('#p-appr').classList.contains('on'))renderApprovals()}}
 function crAIhtml(c){if(!['email','suggestion','agent','manual'].includes(c.kind)||!crChanges(c).length)return'';const pair=calcPair();
   if(CRBUSY.has(c.id))return`<div class="cr-ai"><span class="spin"></span> Working out the effect with ${esc(pair.map(q=>mName(q.p,q.model)).join(' and '))}…${c.aiStep?` <span style="color:var(--soft)">${esc(c.aiStep)}</span>`:''}</div>`;
+  if(c.aiErr&&/^Not computed/.test(c.aiErr))return`<div class="cr-ai"><b>Effect not computed.</b> ${esc(String(c.aiErr).replace(/^Not computed:\s*/,''))} <button class="btn ghost sm" data-crre="${c.id}">Retry after uploading</button></div>`;
   if(c.aiErr)return`<div class="cr-ai"><span class="tag tag-calc" style="margin-left:0" title="Worked out by the Bohio agent (AI)">${BKNOT}</span> the effect could not be worked out: ${esc(aiErrText(c.aiErr))} <button class="btn ghost sm" data-crre="${c.id}">Retry</button></div>`;
   const a=c.ai;if(!a)return c.status==='pending'?`<div class="cr-ai" style="color:var(--soft)">${pair.length?'Effect if approved: queued for the AI calculation…':'Connect Claude and OpenAI (Settings → AI & routing) and the effect of this change is worked out here automatically.'}</div>`:'';
   const hur=HUR(c.proj),kpi=m=>{const has=Number.isFinite(m.base),d=has?m.value-m.base:NaN,pct=MET[m.k][1]==='%',bad=(m.k==='levered_irr'&&m.value<hur)||(m.k==='profit_on_cost'&&m.value<HURDLE.poc*100),good=has&&d>0,dtxt=has?`${d>0?'+':d<0?'−':''}${pct?Math.abs(d).toFixed(2)+' pts':fMet(m.k,Math.abs(d)).replace(/^[−-]/,'')}`:'';
