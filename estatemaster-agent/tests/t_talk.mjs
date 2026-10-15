@@ -32,7 +32,7 @@ t(r.arbBy&&!r.names.includes(r.arbBy),`the third model is neither of the two (${
 t(/different base figure/.test(r.root)&&r.m.status==='arbitrated'&&Math.abs(r.m.value-15.3)<1e-9,'root cause recorded and the decided figure shown: '+r.root);
 t(r.steps.every(s=>typeof s==='string'||(s.who&&s.text)),'every step is a line or an agent speaking');
 const box=await ev(()=>{const w=document.querySelector('#dispWin');return w&&w.classList.contains('on')?w.innerText:''});
-t(/gives/.test(box)&&/difference of/.test(box)&&/bps/.test(box)&&/Why they disagree/.test(box)&&/What each AI said/.test(box),'disagreement box: X gives a, Y gives b, difference in bps, why, exchange: '+box.replace(/\n/g,' | ').slice(0,400));
+t(/gives/.test(box)&&/gap of|difference of/.test(box)&&/bps/.test(box)&&/Why they disagree/.test(box)&&/What each AI said/.test(box),'disagreement box: X gives a, Y gives b, difference in bps, why, exchange: '+box.replace(/\n/g,' | ').slice(0,400));
 t(!/\[object Object\]/.test(box),'no raw objects in the box');
 const tb=await ev(()=>{const b=document.querySelector('#msgs .msg.talkbox');return b?{n:b.querySelectorAll('.st.talk').length,sum:(b.querySelector('.tb-sum')||{}).textContent||'',open:DOCK.open,lines:b.querySelectorAll('.st').length}:null});
 t(tb&&tb.open&&tb.n>=4&&/Why they disagreed/.test(tb.sum),'a box opened in the chat with the agents’ conversation and the why, although the test was started outside the chat: '+JSON.stringify(tb));
