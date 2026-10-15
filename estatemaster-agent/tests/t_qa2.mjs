@@ -29,5 +29,5 @@ await p.screenshot({path:sp+'qa_deferred.png'});
 // 3. the closing line and the box size
 const closeLine=await p.evaluate(()=>{const s=KP.script.segs[KP.deck.slides.length-1];return kSegText(s||[])});ok(/That brings us to the end/.test(closeLine)&&!/Committee Pack/i.test(closeLine),'closing line: '+closeLine.slice(0,60));
 const w=await p.evaluate(()=>KP.root.querySelector('.kd-qa').getBoundingClientRect().width);ok(w>=700,'the box is wider ('+Math.round(w)+'px)');
-ok(await p.evaluate(()=>{let q=null;for(const sc of document.querySelectorAll('script'))if(/QWIN=i===0\?0:4000/.test(sc.textContent))q=true;return !!q}),'the end-of-slide question window is 4 s, none after the title slide');
+ok(await p.evaluate(()=>{let q=null;for(const sc of document.querySelectorAll('script'))if(/QWIN=5000/.test(sc.textContent))q=true;return !!q}),'the end-of-slide question window is 5 s on every slide');
 console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

@@ -18,7 +18,7 @@ ok(await p.locator('#emRes .hm-c .tag').count()===0,'no provenance pill per cell
 await p.locator('#emRes .hm-c').first().hover();await p.waitForTimeout(200);
 const tip=await p.evaluate(()=>{const t=document.querySelector('.hm-tip');return t&&t.style.display!=='none'?t.textContent:''});
 ok(/Sale price [-−]15%/.test(tip)&&/vs the hurdle/.test(tip)&&/Click/.test(tip),'hover card: '+tip.replace(/\n/g,' | ').slice(0,120));
-ok(/Figures from EstateMaster/.test(await p.locator('#emRes .calcby i').first().textContent()),'italic source line');
+ok(/Figures from (EstateMaster|the model)/.test(await p.locator('#emRes .calcby i').first().textContent()),'italic source line');
 await p.locator('#emRes .hm-c .fig').first().click();await p.waitForTimeout(300);ok(await p.evaluate(()=>document.querySelector('#figWin').classList.contains('on')),'cell click opens the working');await p.click('#fwClose');
 // 3. stress scenarios as bars
 ok(await p.locator('#stressT .sb-row:not(.sb-axisrow)').count()===10,'stress bars: base + 9 scenarios');

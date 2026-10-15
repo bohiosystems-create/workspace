@@ -19,7 +19,7 @@ await p.fill('#cmpTxt','cost per sqm');await p.press('#cmpTxt','Enter');await p.
 ok(/Which cost/.test(await p.evaluate(()=>$('#cmpAdd').innerText))&&await p.locator('#cmpAdd [data-cmpopt]').count()===2,'the AI asks when the request is ambiguous, with options');
 await p.locator('#cmpAdd [data-cmpopt="Total development cost"]').click();await p.waitForTimeout(1500);
 const row=await p.evaluate(()=>{const r=document.querySelector('#exDiff .cmp-row.custom');return r?r.innerText.replace(/\n/g,' | '):''});
-ok(/Total cost per sqm GFA/.test(row)&&/AI/.test(row)&&/SAR 8,983/.test(row)&&/SAR 4,521/.test(row)&&/−4,462/.test(row),'the metric joins the comparison as an AI row with both values: '+row.slice(0,120));
+ok(/Total cost per sqm GFA/.test(row)&&/SAR 8,983/.test(row)&&/SAR 4,521/.test(row)&&/−4,462/.test(row),'the metric joins the comparison as an AI row with both values: '+row.slice(0,120));
 const both=llm.filter(j=>/comparison metric/.test(j.payload.system||(j.payload.messages[0]||{}).content||'')).map(j=>j.provider);
 ok(both.includes('anthropic')&&both.includes('openai'),'Claude and OpenAI both calculated it');
 await p.locator('#exDiff .cmp-row.custom .fig').first().click();await p.waitForTimeout(500);

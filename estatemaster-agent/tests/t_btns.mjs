@@ -14,6 +14,6 @@ await p.evaluate(()=>{const d=buildDeck('ic');d.noAI=true;openDeck(d);KP.voice=f
 const st=()=>p.evaluate(()=>{const b=document.querySelector('[data-act=pause]');return b.dataset.st+'|'+b.textContent+'|'+b.title});
 ok(/^pause\|❚❚\|Pause$/.test(await st()),'deck shows ❚❚ while playing');await p.click('[data-act=pause]');await p.waitForTimeout(300);
 ok(/^play\|▶\|Play$/.test(await st()),'click → ▶ when paused');await p.click('[data-act=pause]');await p.waitForTimeout(300);ok(/^pause/.test(await st()),'click → plays again');
-await p.evaluate(()=>{kGo(KP.deck.slides.length-1)});await p.waitForTimeout(12500);
+await p.evaluate(()=>{kGo(KP.deck.slides.length-1)});await p.waitForTimeout(18000);   // the last slide's narration, then the 5 s question pause
 ok(/^replay\|↻\|Replay$/.test(await st()),'end of deck → ↻ replay: '+await st());await p.click('[data-act=pause]');await p.waitForTimeout(500);ok(await p.evaluate(()=>KP.i===0),'↻ restarts from the first slide');
 console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();

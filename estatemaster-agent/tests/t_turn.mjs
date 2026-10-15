@@ -17,6 +17,6 @@ const early=samples.slice(0,10).find(s=>s.i>0);
 ok(!early,'the slide does not turn while its clip is still playing (12 s clip, checked for 10 s): '+JSON.stringify(samples.map(s=>s.i)));
 ok(samples.every(s=>s.playing<=1),'never two clips at once: '+JSON.stringify(samples.map(s=>s.playing)));
 ok(samples.slice(3).every(s=>s.playing===1),'one clip keeps playing through the slide (the restart with the AI script did not silence it)');
-await p.waitForTimeout(6000);
-ok(await p.evaluate(()=>KP&&KP.i>=1),'the slide turns once the clip has ended');
+await p.waitForTimeout(11000);   // the rest of the 12 s clip, then the 5 s question pause
+ok(await p.evaluate(()=>KP&&KP.i>=1),'the slide turns once the clip has ended and the 5 s question pause is over');
 console.log('voice calls',voice,'errs',errs);await p.evaluate(()=>closeDeck());await b.close();
