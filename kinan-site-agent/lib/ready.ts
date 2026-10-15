@@ -14,6 +14,7 @@ import { sendText, waConfig } from "./whatsapp/graph";
 import { clearGuests, joinCode, listGuests } from "./whatsapp/sessions";
 import { extractModel, model3dConfig, type ExtractDoc } from "./model3d/extract";
 import fs from "node:fs";
+import QRCode from "qrcode";
 import path from "node:path";
 import { outlookCredsSet, outlookMode, outlookSender } from "./outlook";
 import { serverReports } from "./reports/server";
@@ -22,7 +23,9 @@ import { seedDb } from "./seed";
 
 export type Status = "ok" | "warn" | "fail";
 export interface Check { id: string; label: string; status: Status; detail: string; fix?: string; ms?: number }
-export interface Readiness { at: string; deep: boolean; checks: Check[]; score: { ok: number; warn: number; fail: number; total: number } }
+export interface Readiness { at: string; deep: boolean; checks: Check[]; score: { ok: number; warn: number; fail: number; total: number };
+  /** "Join on WhatsApp": the agent's number, the join code and a QR (SVG) of the wa.me link that opens a chat with the code typed */
+  join?: { number: string; name: string | null; code: string | null; url: string; qr: string; test: boolean; open: "code" | "all" | "list" } }
 
 const API = () => (process.env.ELEVENLABS_BASE_URL || "https://api.elevenlabs.io").replace(/\/$/, "");
 const timed = async <T,>(ms: number, p: Promise<T>): Promise<T> => Promise.race([p, new Promise<never>((_, no) => setTimeout(() => no(new Error(`no answer within ${Math.round(ms / 1000)} s`)), ms))]);
@@ -87,6 +90,7 @@ export async function readiness(deep = false): Promise<Readiness> {
   push({ id: "stt", label: "Voice notes (WhatsApp)", status: sttProvider() === "elevenlabs" ? "ok" : cfg.openai?.apiKey ? "warn" : "fail", detail: sttProvider() === "elevenlabs" ? "Transcribed by ElevenLabs Scribe (Arabic and English)." : cfg.openai?.apiKey ? "Transcribed by OpenAI Whisper (needs OpenAI credits)." : "No transcription service: voice notes will be refused.", fix: sttProvider() === "elevenlabs" ? undefined : "Set ELEVENLABS_API_KEY." });
 
   // ---- WhatsApp
+  let join: Readiness["join"];
   const c = waConfig();
   if (!c) push({ id: "wa", label: "WhatsApp", status: "warn", detail: "Not connected (WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID unset).", fix: "SETUP.md §6." });
   else {
@@ -96,6 +100,13 @@ export async function readiness(deep = false): Promise<Readiness> {
       if (!r.ok) push({ id: "wa", label: "WhatsApp", status: "fail", detail: `Meta refuses the token (${r.status}): ${j?.error?.message ?? "rejected"}`, fix: "Create a permanent System User token (SETUP.md §6.2), set WHATSAPP_TOKEN, redeploy." });
       else {
         const test = /^\+1 ?555/.test(String(j.display_phone_number ?? ""));
+        const digitsNo = String(j.display_phone_number ?? "").replace(/\D/g, "");
+        if (digitsNo) {
+          const code = joinCode(), open = code ? "code" as const : (process.env.WHATSAPP_ALLOW_ALL ?? "").toLowerCase() === "true" ? "all" as const : "list" as const;
+          const url = `https://wa.me/${digitsNo}?text=${encodeURIComponent(code || "hi")}`;
+          const qr = await QRCode.toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#2e2e2f", light: "#ffffff" } });
+          join = { number: String(j.display_phone_number), name: j.verified_name ?? null, code: code || null, url, qr, test, open };
+        }
         push({ id: "wa", label: "WhatsApp", status: test ? "warn" : "ok", detail: `${j.verified_name ?? ""} ${j.display_phone_number ?? ""}${test ? " — Meta's test number: only numbers added as test recipients in Meta can message it" : ""}`.trim(), fix: test ? "Fine for a demo from your own phone. For the client's phone, add their number as a test recipient in Meta (WhatsApp → API Setup), or go live with a real number (SETUP.md §6.6)." : undefined });
       }
     } catch (e) { push({ id: "wa", label: "WhatsApp", status: "fail", detail: `Meta not reachable: ${err(e)}` }); }
@@ -139,7 +150,7 @@ export async function readiness(deep = false): Promise<Readiness> {
     : { id: "clean", label: "Test traces", status: "ok", detail: "The site is as seeded." });
 
   const score = { ok: checks.filter((x) => x.status === "ok").length, warn: checks.filter((x) => x.status === "warn").length, fail: checks.filter((x) => x.status === "fail").length, total: checks.length };
-  return { at: new Date().toISOString(), deep, checks, score };
+  return { at: new Date().toISOString(), deep, checks, score, ...(join ? { join } : {}) };
 }
 
 /** Today's brief in both languages, narrated (so ▶ Play opens instantly). Returns the report ids. */

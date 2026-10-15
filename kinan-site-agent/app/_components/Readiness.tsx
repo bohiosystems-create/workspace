@@ -5,12 +5,13 @@
  * rehearsal script. Reached from the profile sheet.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Icon } from "./icons";
+import { Icon, Logo } from "./icons";
 import type { GenProject, GenResult } from "@/lib/model3d/store";
 
 type Status = "ok" | "warn" | "fail";
 interface Check { id: string; label: string; status: Status; detail: string; fix?: string; ms?: number }
-interface Readiness { at: string; deep: boolean; checks: Check[]; score: { ok: number; warn: number; fail: number; total: number }; standalone?: boolean; error?: string }
+interface Readiness { at: string; deep: boolean; checks: Check[]; score: { ok: number; warn: number; fail: number; total: number }; standalone?: boolean; error?: string;
+  join?: { number: string; name: string | null; code: string | null; url: string; qr: string; test: boolean; open: "code" | "all" | "list" } }
 
 const SCRIPT: [string, string][] = [
   ["Open on the phone", "Projects → Kinan Heights. The site map: pins are documents and issues; tap Tower A, then 3D to show the model being built day by day (▶ on the timeline)."],
@@ -24,6 +25,8 @@ const SCRIPT: [string, string][] = [
 
 export default function Readiness({ onBack, onReset, onProject }: { onBack: () => void; onReset: () => void; onProject: (p: GenProject) => void }) {
   const [r, setR] = useState<Readiness | null>(null);
+  const [room, setRoom] = useState(false); // the join QR full screen, for the projector
+  useEffect(() => { if (!room) return; const k = (e: KeyboardEvent) => e.key === "Escape" && setRoom(false); window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [room]);
   const [busy, setBusy] = useState<string | null>(null);
   const [t0, setT0] = useState(0); const [now, setNow] = useState(0);
   useEffect(() => { if (busy !== "sample") return; const id = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(id); }, [busy]);
@@ -96,9 +99,43 @@ export default function Readiness({ onBack, onReset, onProject }: { onBack: () =
           <div className="ready-sub">Rehearse for real</div>
           <button className="studio-add" disabled={!!busy || !!r?.standalone} onClick={sample}>{busy === "sample" ? `Reading the Marina Walk pack with AI… ${Math.floor((now - t0) / 1000)} s` : "Generate the sample project (AI, 1–3 min)"}</button>
           <button className="studio-add" disabled={!!busy || !!r?.standalone} onClick={waTest}>{busy === "wa" ? "Sending…" : "Send a WhatsApp test to the first allowed phone"}</button>
-          <span className="ready-voices"><button className="mini" disabled={!!busy || !!r?.standalone} onClick={() => hear("en")}>{busy === "voice-en" ? "…" : "▶ English voice"}</button><button className="mini" disabled={!!busy || !!r?.standalone} onClick={dropGuests}>{busy === "guests" ? "…" : "Remove WhatsApp guests"}</button><button className="mini" disabled={!!busy || !!r?.standalone} onClick={() => hear("ar")}>{busy === "voice-ar" ? "…" : "▶ الصوت العربي"}</button></span>
+          <span className="ready-voices"><button className="mini" disabled={!!busy || !!r?.standalone} onClick={() => hear("en")}>{busy === "voice-en" ? "…" : "▶ English voice"}</button><button className="mini" disabled={!!busy || !!r?.standalone} onClick={() => hear("ar")}>{busy === "voice-ar" ? "…" : "▶ الصوت العربي"}</button><button className="mini" disabled={!!busy || !!r?.standalone} onClick={dropGuests}>{busy === "guests" ? "…" : "Remove WhatsApp guests"}</button></span>
         </div>
       </div>
+      {r?.join && (
+        <section className="ready-join">
+          <div className="rj-qr" aria-label="QR code: chat with the agent on WhatsApp" dangerouslySetInnerHTML={{ __html: r.join.qr }} />
+          <div className="rj-text">
+            <div className="rpt-label">Join on WhatsApp</div>
+            <b className="rj-num">{r.join.number}</b>{r.join.name && <span className="muted"> · {r.join.name}</span>}
+            <p className="muted small">Scanning opens WhatsApp with {r.join.code ? <>the code <b>{r.join.code}</b></> : <>“hi”</>} already typed — people just press send.{" "}
+              {r.join.open === "code" ? "Anyone with the code gets in as a guest." : r.join.open === "all" ? "Anyone can talk to it (WHATSAPP_ALLOW_ALL)." : "Only the allowed numbers get answers — set WHATSAPP_JOIN_CODE to let the room in."}</p>
+            {r.join.test && <p className="rj-warn">This is Meta&rsquo;s test number: only phones registered as test recipients get replies. Connect the real business number before showing this to a room.</p>}
+            <div className="rj-acts">
+              <button className="studio-add" onClick={() => setRoom(true)}>Show full screen for the room</button>
+              <button className="mini" onClick={async () => { const { saveFile } = await import("./deck/saveFile"); await saveFile("kinan-onsite-agent-whatsapp-qr.svg", r.join!.qr, "image/svg+xml"); }}>Download QR</button>
+              <button className="mini" onClick={() => { navigator.clipboard?.writeText(r.join!.url).then(() => setMsg({ text: "Link copied." }), () => setMsg({ text: r.join!.url })); }}>Copy link</button>
+            </div>
+          </div>
+        </section>
+      )}
+      {room && r?.join && (
+        <div className="rj-room" role="dialog" aria-label="Join the Kinan Onsite Agent on WhatsApp" onClick={() => setRoom(false)}>
+          <div className="rj-room-in" onClick={(e) => e.stopPropagation()}>
+            <Logo height={44} color="#ffffff" />
+            <h2>Talk to the Kinan Onsite Agent</h2>
+            <p className="rj-ar" dir="rtl">تحدّثوا مع الوكيل الميداني من كنان</p>
+            <div className="rj-big" dangerouslySetInnerHTML={{ __html: r.join.qr }} />
+            <ol>
+              <li>Scan with your phone camera</li>
+              <li>WhatsApp opens with {r.join.code ? <b>{r.join.code}</b> : <b>hi</b>} typed — press send</li>
+              <li>Pick Kinan Heights and ask anything: “what&rsquo;s late on Tower A?”, a photo, a voice note</li>
+            </ol>
+            <div className="rj-foot">{r.join.number}{r.join.code ? <> · code <b>{r.join.code}</b></> : null}</div>
+            <button className="rj-x" onClick={() => setRoom(false)} aria-label="Close">×</button>
+          </div>
+        </div>
+      )}
       <ul className="ready-list">
         {(r?.checks ?? []).map((c) => (
           <li key={c.id} className={c.status}>
