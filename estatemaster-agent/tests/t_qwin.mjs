@@ -1,4 +1,4 @@
-// Question pause: none after the title slide, 4 s after every other slide (6 s clip per slide).
+// Question pause: 5 s at the end of every slide, title included (6 s clip per slide).
 import {chromium} from 'playwright';
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined,args:['--autoplay-policy=no-user-gesture-required']});const p=await b.newPage({viewport:{width:1500,height:950}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 const ok=(c,n)=>console.log((c?'PASS ':'FAIL ')+n);
@@ -10,6 +10,6 @@ await p.evaluate(()=>{showTab('report');RSEL='ic';renderReportList();renderRepor
 const t0=Date.now(),starts={},cueOn={};
 while(Date.now()-t0<30000){const s=await p.evaluate(()=>({i:KP?KP.i:-1,cue:!!(KP&&KP.root.querySelector('.kd-qcue.on'))}));if(!(s.i in starts))starts[s.i]=Date.now()-t0;if(s.cue)cueOn[s.i]=1;if(s.i>=2)break;await p.waitForTimeout(200)}
 const d0=starts[1]-starts[0],d1=starts[2]-starts[1];
-ok(!cueOn[0],'no question prompt after the title slide');ok(cueOn[1],'question prompt shown after slide 2');
-ok(d0<8000,'title slide moves on straight after its narration: '+d0+' ms');ok(d1>=9500,'slide 2 waits 4 s for questions after its narration: '+d1+' ms');ok(d1-d0>=2000,'difference ≈ 2.5 s (the title slide pauses 1.5 s, the others 4 s): '+(d1-d0)+' ms');
+ok(cueOn[0],'question prompt shown after the title slide');ok(cueOn[1],'question prompt shown after slide 2');
+ok(d0>=10500,'title slide waits 5 s for questions after its 6 s narration: '+d0+' ms');ok(d1>=10500,'slide 2 waits 5 s for questions after its narration: '+d1+' ms');ok(Math.abs(d1-d0)<2500,'the same pause on every slide: '+(d1-d0)+' ms');
 ok(!errs.length,'no page errors '+errs.join(';'));await b.close();
