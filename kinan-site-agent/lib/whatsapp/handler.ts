@@ -13,7 +13,7 @@ import { getRepo, newId, readBytes, readUpload, removeKey, saveUpload, writeByte
 import { getMedia, markRead, sendDocument, sendImage, sendList, sendText, uploadMedia, waConfig, type WaConfig } from "./graph";
 import { readGenerated } from "../generated";
 import { runSpecAgent } from "../core/specAgent";
-import { allowed, firstTime, loadSession, saveSession, type WaSession } from "./sessions";
+import { allowed, firstTime, loadSession, saveSession, type WaSession, admitGuest, guest, isJoin, joinCode } from "./sessions";
 import { planSvg, svgToPng } from "./render";
 
 /** Verify Meta's X-Hub-Signature-256 over the raw body. */
@@ -123,15 +123,29 @@ async function handleMessage(c: WaConfig, m: any, profileName: string) {
   }
 }
 
-async function handleMessageInner(c: WaConfig, m: any, profileName: string): Promise<boolean> {
+async function handleMessageInner(c: WaConfig, m0: any, profileName: string): Promise<boolean> {
+  let m = m0;
   const from: string = m.from;
-  const acl = allowed(from);
+  let acl = allowed(from);
+  let joined = false;
+  if (!acl.ok) {
+    // Guests: the join code shown at a demo lets anyone in for a while (sessions.ts).
+    const g = await guest(from);
+    if (g) acl = { ok: true, name: g.name };
+    else if (m.type === "text" && isJoin(String(m.text?.body ?? ""))) {
+      const ng = await admitGuest(from, `${profileName || "Guest"} (guest)`);
+      acl = { ok: true, name: ng.name }; joined = true;
+    }
+  }
   if (!acl.ok) {
     console.warn(`[whatsapp] rejected message from unlisted number ${from}`);
-    await sendText(c, from, "This number isn't authorised for the Kinan Onsite Agent. Ask the project admin to add you.");
+    await sendText(c, from, joinCode()
+      ? "Welcome to the Kinan Onsite Agent. To start, send the access code shown at the demo."
+      : "This number isn't authorised for the Kinan Onsite Agent. Ask the project admin to add you.");
     return true;
   }
   const s = await loadSession(from, acl.name || profileName || "Site user");
+  if (joined) { s.fresh = true; m = { ...m, text: { body: "hi" } }; } // the code itself starts the conversation: on to the project list
   if (!firstTime(s, m.id)) return true; // duplicate delivery
   await saveSession(from, s);      // record the id early so a retry on another instance is skipped
   await markRead(c, m.id).catch((e) => console.warn("[whatsapp] read receipt failed", e)); // never block the reply on it

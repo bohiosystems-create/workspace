@@ -58,3 +58,31 @@ export function allowed(waId: string): { ok: boolean; name?: string } {
   }
   return { ok: false };
 }
+
+// ---- Guests: anyone who sends the join code (WHATSAPP_JOIN_CODE, shown at a demo) is let in for a while
+// (WHATSAPP_GUEST_HOURS, default 72) without being added to WHATSAPP_ALLOWED_NUMBERS. Kept in one storage object.
+export interface Guest { name: string; joined: string; until: string }
+const GUESTS = "whatsapp/guests.json";
+export const joinCode = () => (process.env.WHATSAPP_JOIN_CODE ?? "").trim();
+const guestHours = () => Math.max(1, Number(process.env.WHATSAPP_GUEST_HOURS) || 72);
+const digits = (x: string) => x.replace(/\D/g, "");
+export async function listGuests(): Promise<Record<string, Guest>> {
+  const all = (await readJson<Record<string, Guest>>(GUESTS))?.value ?? {};
+  const now = Date.now();
+  return Object.fromEntries(Object.entries(all).filter(([, g]) => Date.parse(g.until) > now));
+}
+export async function guest(waId: string): Promise<Guest | null> { return (await listGuests())[digits(waId)] ?? null; }
+/** Does this message carry the join code? Accepts "KINAN", "join KINAN", "code: kinan" — case and spacing ignored. */
+export function isJoin(text: string): boolean {
+  const code = joinCode(); if (!code) return false;
+  const t = text.trim().toLowerCase().replace(/^(join|code|access|انضمام|رمز)\s*:?\s*/i, "").replace(/[\s.!]+/g, "");
+  return t === code.toLowerCase().replace(/\s+/g, "");
+}
+export async function admitGuest(waId: string, name: string): Promise<Guest> {
+  const all = await listGuests();
+  const g: Guest = { name: name || "Guest", joined: new Date().toISOString(), until: new Date(Date.now() + guestHours() * 3600_000).toISOString() };
+  all[digits(waId)] = g;
+  await writeJson(GUESTS, all);
+  return g;
+}
+export async function clearGuests(): Promise<number> { const n = Object.keys(await listGuests()).length; await writeJson(GUESTS, {}); return n; }

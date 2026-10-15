@@ -11,6 +11,7 @@ import { availableProviders, routeAndRun } from "./core/llm/router";
 import { synthesize, voiceAccount, voiceEnabled } from "./deck/voice";
 import { sttProvider } from "./core/stt";
 import { sendText, waConfig } from "./whatsapp/graph";
+import { clearGuests, joinCode, listGuests } from "./whatsapp/sessions";
 import { extractModel, model3dConfig, type ExtractDoc } from "./model3d/extract";
 import fs from "node:fs";
 import path from "node:path";
@@ -100,6 +101,10 @@ export async function readiness(deep = false): Promise<Readiness> {
     } catch (e) { push({ id: "wa", label: "WhatsApp", status: "fail", detail: `Meta not reachable: ${err(e)}` }); }
     const all = (process.env.WHATSAPP_ALLOW_ALL ?? "").toLowerCase() === "true";
     const nums = (process.env.WHATSAPP_ALLOWED_NUMBERS ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+    const code = joinCode(), guests = await listGuests().catch(() => ({}));
+    const gn = Object.values(guests);
+    push(code ? { id: "wa-guests", label: "Guests (join code)", status: "ok", detail: `Anyone who sends “${code}” can use the agent for ${Math.max(1, Number(process.env.WHATSAPP_GUEST_HOURS) || 72)} h. ${gn.length ? `${gn.length} guest${gn.length === 1 ? "" : "s"} now: ${gn.slice(0, 6).map((g) => g.name.replace(/ \(guest\)$/, "")).join(", ")}${gn.length > 6 ? "…" : ""}.` : "No guests yet."}` }
+      : { id: "wa-guests", label: "Guests (join code)", status: "warn", detail: "Off: only the numbers below can use the agent.", fix: "For a demo, set WHATSAPP_JOIN_CODE (e.g. KINAN) in Vercel and redeploy; people send that word to join." });
     push(all ? { id: "wa-numbers", label: "Who can message it", status: "warn", detail: "Anyone (WHATSAPP_ALLOW_ALL=true).", fix: "List the demo phones in WHATSAPP_ALLOWED_NUMBERS instead." }
       : nums.length ? { id: "wa-numbers", label: "Who can message it", status: "ok", detail: nums.map((n) => { const [num, ...rest] = n.split(":"); return `${mask(num)}${rest.length ? ` (${rest.join(":").trim()})` : ""}`; }).join(", ") }
       : { id: "wa-numbers", label: "Who can message it", status: "fail", detail: "No numbers allowed: every message is refused.", fix: "WHATSAPP_ALLOWED_NUMBERS=9665…:Name,9665…:Name" });
@@ -191,3 +196,6 @@ export async function voiceSample(lang: "en" | "ar") {
   const s = await synthesize(text, lang);
   return { lang, audio: s.audio };
 }
+
+/** Remove every guest admitted with the join code (the allowed numbers stay). */
+export async function removeGuests() { return { removed: await clearGuests() }; }

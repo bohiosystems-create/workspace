@@ -45,6 +45,12 @@ export default function Readiness({ onBack, onReset, onProject }: { onBack: () =
     catch (e) { setMsg({ text: (e as Error).message, bad: true }); }
     finally { setBusy(null); }
   };
+  const dropGuests = async () => {
+    setBusy("guests"); setMsg(null);
+    try { const j = (await post({ action: "remove-guests" })) as { removed: number }; setMsg({ text: `${j.removed} guest${j.removed === 1 ? "" : "s"} removed. The join code still works for new people until you change or remove it.` }); await load(); }
+    catch (e) { setMsg({ text: (e as Error).message, bad: true }); }
+    finally { setBusy(null); }
+  };
   const hear = async (lang: "en" | "ar") => {
     setBusy(`voice-${lang}`); setMsg(null);
     try { const j = (await post({ action: "voice-sample", lang })) as { audio: string }; await new Audio(`data:audio/mpeg;base64,${j.audio}`).play(); }
@@ -90,7 +96,7 @@ export default function Readiness({ onBack, onReset, onProject }: { onBack: () =
           <div className="ready-sub">Rehearse for real</div>
           <button className="studio-add" disabled={!!busy || !!r?.standalone} onClick={sample}>{busy === "sample" ? `Reading the Marina Walk pack with AI… ${Math.floor((now - t0) / 1000)} s` : "Generate the sample project (AI, 1–3 min)"}</button>
           <button className="studio-add" disabled={!!busy || !!r?.standalone} onClick={waTest}>{busy === "wa" ? "Sending…" : "Send a WhatsApp test to the first allowed phone"}</button>
-          <span className="ready-voices"><button className="mini" disabled={!!busy || !!r?.standalone} onClick={() => hear("en")}>{busy === "voice-en" ? "…" : "▶ English voice"}</button><button className="mini" disabled={!!busy || !!r?.standalone} onClick={() => hear("ar")}>{busy === "voice-ar" ? "…" : "▶ الصوت العربي"}</button></span>
+          <span className="ready-voices"><button className="mini" disabled={!!busy || !!r?.standalone} onClick={() => hear("en")}>{busy === "voice-en" ? "…" : "▶ English voice"}</button><button className="mini" disabled={!!busy || !!r?.standalone} onClick={dropGuests}>{busy === "guests" ? "…" : "Remove WhatsApp guests"}</button><button className="mini" disabled={!!busy || !!r?.standalone} onClick={() => hear("ar")}>{busy === "voice-ar" ? "…" : "▶ الصوت العربي"}</button></span>
         </div>
       </div>
       <ul className="ready-list">

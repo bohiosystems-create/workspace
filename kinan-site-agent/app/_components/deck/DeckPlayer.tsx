@@ -803,9 +803,10 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
   // A question being written or spoken holds the presentation at the end of the slide (never mid-slide).
   const [awaitQ, setAwaitQ] = useState(false);
   // The window for questions at the end of every slide: 0 (none), seconds, or "hold" (until ▶ / Next). Remembered on this device.
-  const [qPause, setQPauseRaw] = useState<number | "hold">(() => { try { const v = localStorage.getItem("kinan.deck.qpause"); return v === "hold" ? "hold" : v == null ? 8 : Number(v) || 0; } catch { return 8; } });
+  // Default 5 s after every slide (a new storage key, so an earlier 8 s choice does not carry over).
+  const [qPause, setQPauseRaw] = useState<number | "hold">(() => { try { const v = localStorage.getItem("kinan.deck.qpause5"); return v === "hold" ? "hold" : v == null ? 5 : Number(v) || 0; } catch { return 5; } });
   const qPauseRef = useRef<number | "hold">(qPause); qPauseRef.current = qPause;
-  const setQPause = (v: number | "hold") => { setQPauseRaw(v); try { localStorage.setItem("kinan.deck.qpause", String(v)); } catch { /* storage off */ } };
+  const setQPause = (v: number | "hold") => { setQPauseRaw(v); try { localStorage.setItem("kinan.deck.qpause5", String(v)); } catch { /* storage off */ } };
   const [qDeadline, setQDeadline] = useState<number | null>(null); // when the question window closes by itself
   const posRef = useRef(-1); posRef.current = pos;
   const deferredRef = useRef(false); // a slow answer is being worked out in the background while the brief carries on
@@ -1101,7 +1102,7 @@ export function DeckPlayer({ deck, onClose }: { deck: Deck; onClose: () => void 
         {voice.mode !== "none" && <button className="kd-btn" onClick={() => { setVoiceOn(!voiceOn); setStarted(Date.now()); }} aria-pressed={voiceOn} aria-label={voiceOn ? t("Voice on") : t("Voice off")} title={voiceOn ? t("Voice on") : t("Voice off")}>{voiceOn ? "🔊" : "🔇"}</button>}
         <button className="kd-btn" onClick={() => setAskOpen((o) => !o)} aria-pressed={askOpen} disabled={!!asking} title={t("Ask the presenter a question…")}>💬 {t("Ask")}</button>
         {voice.mode === "eleven" && <button className={`kd-btn kd-mic${rec === "recording" ? " on" : ""}`} onClick={() => (rec === "recording" ? stopRecording() : startRecording())} disabled={rec === "transcribing" || !!asking} title={t("Ask by voice")} aria-pressed={rec === "recording"}>{rec === "recording" ? `■ ${t("Stop and send")}` : rec === "transcribing" ? "…" : "🎤"}</button>}
-        <button className="kd-btn" onClick={() => setQPause(qPause === 0 ? 8 : qPause === 8 ? 15 : qPause === 15 ? "hold" : 0)} title={t("Time for questions after each slide")} aria-label={t("Time for questions after each slide")}>⏱ {qPause === "hold" ? t("Hold") : qPause === 0 ? t("No pause") : `${qPause} ${t("s")}`}</button>
+        <button className="kd-btn" onClick={() => setQPause(qPause === 5 ? 10 : qPause === 10 ? "hold" : qPause === "hold" ? 0 : 5)} title={t("Time for questions after each slide")} aria-label={t("Time for questions after each slide")}>⏱ {qPause === "hold" ? t("Hold") : qPause === 0 ? t("No pause") : `${qPause} ${t("s")}`}</button>
         <button className="kd-btn" onClick={() => setCaptions(!captions)} aria-pressed={captions}>CC</button>
         <button className="kd-btn" onClick={full} aria-label="Fullscreen">⛶</button>
         <button className="kd-btn" disabled={pptBusy} onClick={async () => {

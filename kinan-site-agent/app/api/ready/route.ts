@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prepareBriefs, readiness, resetDemoData, sampleProject, voiceSample, waTestMessage } from "@/lib/ready";
+import { prepareBriefs, readiness, removeGuests, resetDemoData, sampleProject, voiceSample, waTestMessage } from "@/lib/ready";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +20,7 @@ export async function POST(req: Request) {
     if (b.action === "reset") return NextResponse.json({ reset: await resetDemoData() });
     if (b.action === "sample-project") return NextResponse.json(await sampleProject());
     if (b.action === "wa-test") return NextResponse.json(await waTestMessage());
+    if (b.action === "remove-guests") return NextResponse.json(await removeGuests());
     if (b.action === "voice-sample") return NextResponse.json(await voiceSample(b.lang === "ar" ? "ar" : "en"));
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   } catch (e: any) { return NextResponse.json({ error: e?.message ?? "Action failed." }, { status: 500 }); }
