@@ -125,7 +125,7 @@ async function ai1(system, user, maxTokens, provider, model) {
     return (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   }
   const r = await fetch(env('OPENAI_URL') || 'https://api.openai.com/v1/chat/completions', { method: 'POST', signal, headers: { 'content-type': 'application/json', authorization: 'Bearer ' + env('OPENAI_API_KEY') },
-    body: JSON.stringify({ model: model || env('EXTRACT_MODEL') || 'gpt-5', max_completion_tokens: maxTokens, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
+    body: JSON.stringify({ model: model || env('EXTRACT_MODEL') || 'gpt-5', max_completion_tokens: Math.max(maxTokens, 12000), messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
   const j = await r.json(); if (!r.ok) throw new Error('OpenAI: ' + ((j.error && j.error.message) || r.status));
   return ((j.choices || [])[0] || {}).message?.content || '';
 }

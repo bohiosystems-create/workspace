@@ -47,7 +47,7 @@ ${register.map(l => `${l.id} | ${l.label} | ${l.unit} | ${l.current}`).join('\n'
     text = (j.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   } else {
     const r = await fetch(env('OPENAI_URL') || 'https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + env('OPENAI_API_KEY') },
-      body: JSON.stringify({ model: env('EXTRACT_MODEL') || 'gpt-5', max_completion_tokens: 2000, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
+      body: JSON.stringify({ model: env('EXTRACT_MODEL') || 'gpt-5', max_completion_tokens: 12000, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
     const j = await r.json(); if (!r.ok) throw new Error('OpenAI: ' + ((j.error && j.error.message) || r.status));
     text = ((j.choices || [])[0] || {}).message?.content || '';
   }

@@ -67,7 +67,8 @@ module.exports = async function handler(req, res) {
   // financial questions, what-ifs, tests and checks run with full reasoning (Claude adaptive thinking, OpenAI high effort): they need the room
   const cap = task === 'report' ? REPORT_MAX_TOKENS : ['calc', 'risk', 'agent', 'check'].includes(task) ? 32000 : task === 'answer' ? 4000 : MAX_TOKENS;
   if (provider === 'anthropic') p.max_tokens = Math.min(+p.max_tokens || cap, cap);
-  else { p.max_completion_tokens = Math.min(+p.max_completion_tokens || cap, cap); delete p.max_tokens; }
+  // OpenAI reasoning models (gpt-5, o-series) count their hidden reasoning in this cap: too small a cap returns an empty answer
+  else { const rc = /^(gpt-5|o\d)/i.test(String(p.model)) ? Math.max(cap, task === 'report' ? cap : 24000) : cap; p.max_completion_tokens = Math.min(+p.max_completion_tokens || rc, rc); delete p.max_tokens; }
   delete p.stream;
 
   const headers = { 'content-type': 'application/json' };
