@@ -57,16 +57,22 @@ export async function readiness(deep = false): Promise<Readiness> {
   // ---- ElevenLabs: key, credits, the two voices, and (deep) a real synthesis in each language
   if (!voiceEnabled()) push({ id: "voice", label: "ElevenLabs", status: "warn", detail: "ELEVENLABS_API_KEY is not set: ▶ Play uses the browser's own voice and WhatsApp voice notes go to OpenAI Whisper.", fix: "Add ELEVENLABS_API_KEY in Vercel and redeploy." });
   else {
-    const acc = await voiceAccount();
+    let acc = await voiceAccount();
+    if (acc.restricted) {
+      // Restricted key: prove it can speak with a two-word line instead of reading the plan.
+      try { const s = await timed(20_000, synthesize("System check.", "en")); acc = s.audio ? { ok: true, restricted: true } : acc; } catch (e) { acc = { ok: false, error: `The key cannot read the plan and speech failed too: ${err(e)}` }; }
+    }
     if (!acc.ok) push({ id: "voice", label: "ElevenLabs", status: "fail", detail: acc.error ?? "The key was refused.", fix: "Check the key in Vercel and the plan's remaining characters." });
-    else {
-      push({ id: "voice", label: "ElevenLabs", status: "ok", detail: `Key accepted${acc.tier ? ` · ${acc.tier}` : ""}${acc.limit ? ` · ${(acc.limit - (acc.used ?? 0)).toLocaleString("en-GB")} of ${acc.limit.toLocaleString("en-GB")} characters left this month` : ""}.` });
+    else if (acc.restricted) push({ id: "voice", label: "ElevenLabs", status: "ok", detail: "Key works for speech (tested with a short line). It is a restricted key, so the plan's remaining characters cannot be shown — give it User → Read in ElevenLabs if you want them here." });
+    if (acc.ok) {
+      if (!acc.restricted) push({ id: "voice", label: "ElevenLabs", status: "ok", detail: `Key accepted${acc.tier ? ` · ${acc.tier}` : ""}${acc.limit ? ` · ${(acc.limit - (acc.used ?? 0)).toLocaleString("en-GB")} of ${acc.limit.toLocaleString("en-GB")} characters left this month` : ""}.` });
       const ids: [string, string | undefined][] = [["English", process.env.ELEVENLABS_VOICE_ID || process.env.ELEVENLABS_VOICE], ["Arabic", process.env.ELEVENLABS_VOICE_ID_AR || process.env.ELEVENLABS_VOICE_AR]];
       for (const [lang, id] of ids) {
         if (!id) { push({ id: `voice-${lang}`, label: `${lang} voice`, status: "warn", detail: `No voice id set: the stock multilingual voice is used.`, fix: `Set ELEVENLABS_VOICE${lang === "Arabic" ? "_AR" : ""} to a voice id from the ElevenLabs voice library.` }); continue; }
         try {
           const r = await timed(10_000, fetch(`${API()}/v1/voices/${encodeURIComponent(id)}`, { headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY! } }));
-          if (!r.ok) push({ id: `voice-${lang}`, label: `${lang} voice`, status: "fail", detail: `Voice ${id} not found on this account (${r.status}).`, fix: "Add the voice to your ElevenLabs library, or set a voice id that is in it." });
+          if ((r.status === 401 || r.status === 403) && /missing_permissions|voices_read/i.test(await r.clone().text())) push({ id: `voice-${lang}`, label: `${lang} voice`, status: "ok", detail: `${id} — set; the restricted key cannot read voice details (Voices → Read), the deep check speaks with it.` });
+          else if (!r.ok) push({ id: `voice-${lang}`, label: `${lang} voice`, status: "fail", detail: `Voice ${id} not found on this account (${r.status}).`, fix: "Add the voice to your ElevenLabs library, or set a voice id that is in it." });
           else { const j = await r.json(); push({ id: `voice-${lang}`, label: `${lang} voice`, status: "ok", detail: `${j.name ?? id}${j.labels?.accent ? ` · ${j.labels.accent}` : ""}${j.labels?.gender ? ` · ${j.labels.gender}` : ""}` }); }
         } catch (e) { push({ id: `voice-${lang}`, label: `${lang} voice`, status: "warn", detail: `Could not read the voice: ${err(e)}` }); }
       }

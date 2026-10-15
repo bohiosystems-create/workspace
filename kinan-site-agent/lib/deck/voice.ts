@@ -198,12 +198,17 @@ export async function transcribe(audio: Blob, lang: "en" | "ar", filename = "que
 }
 
 /** The ElevenLabs account as the app sees it: whether the key works and how many characters are left this month. */
-export async function voiceAccount(): Promise<{ ok: boolean; tier?: string; used?: number; limit?: number; resets?: string | null; error?: string }> {
+export async function voiceAccount(): Promise<{ ok: boolean; tier?: string; used?: number; limit?: number; resets?: string | null; error?: string; /** a restricted key without "User: read": it may still speak */ restricted?: boolean }> {
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) return { ok: false, error: "ELEVENLABS_API_KEY is not set." };
   try {
     const r = await fetch(`${API()}/v1/user/subscription`, { headers: { "xi-api-key": key } });
-    if (!r.ok) return { ok: false, error: `ElevenLabs (${r.status}): ${(await r.text()).slice(0, 200)}` };
+    if (!r.ok) {
+      const body = await r.text();
+      // A restricted API key without the "User: read" permission cannot read the plan; that says nothing about speech.
+      if ((r.status === 401 || r.status === 403) && /missing_permissions|user_read/i.test(body)) return { ok: false, restricted: true, error: "restricted key without User: read" };
+      return { ok: false, error: `ElevenLabs (${r.status}): ${body.slice(0, 200)}` };
+    }
     const j = await r.json();
     const used = Number(j.character_count) || 0, limit = Number(j.character_limit) || 0;
     return { ok: limit === 0 || used < limit, tier: j.tier, used, limit, resets: j.next_character_count_reset_unix ? new Date(j.next_character_count_reset_unix * 1000).toISOString() : null,
