@@ -17,8 +17,8 @@ const dbg=await ev(()=>($('#dbgWBody')||{}).innerText||'');
 t(!/3500000%|NaN|LIKELY ERROR|appears [0-9] times/.test(dbg),'debug: no false contingency %, no NaN, no false likely error: '+dbg.slice(0,600).replace(/\n/g,' | '));
 t(!(await ev(()=>!!document.querySelector('#dbgWBody .steps'))),'debug done: the step log is gone, only results stay');
 // the dock: its orange rule sits inside the rounded corners (no border-top tapering into the radius)
-const dk=await ev(()=>{toggleDock(true);const d=$('#kdock'),cs=getComputedStyle(d),bf=getComputedStyle(d,'::before');return{bt:cs.borderTopWidth,bf:bf.backgroundColor,h:bf.height}});
-t(dk.bt==='0px'&&dk.h==='3px','chat dock: no border-top in the corners, the orange rule is an inner bar '+JSON.stringify(dk));
+const dk=await ev(()=>{toggleDock(true);const d=$('#kdock'),cs=getComputedStyle(d),hd=getComputedStyle($('#kdock .chat-head')),cd=getComputedStyle($('#kdock .card'));return{bt:cs.borderTopWidth,bg:cs.backgroundColor,hb:hd.borderTopWidth,cr:cd.borderTopLeftRadius}});
+t(dk.bt==='0px'&&dk.hb==='3px'&&dk.cr==='0px'&&dk.bg==='rgb(46, 46, 47)','chat dock: one curve at the corner (dark dock, square inner card, the orange rule on the header) '+JSON.stringify(dk));
 // a model with no currency: the chat asks, and the answer sets it
 await ev(()=>{const x=EXPORTS[EXPORTS.length-1];x.meta.currency='';PROJ.currency='';askAboutExport(PROJ,x)});const ask=await ev(()=>!!document.querySelector('#msgs [data-ccy="EUR"]'));t(ask,'no currency in the workbook: the chat asks which one');
 await p.click('#msgs [data-ccy="EUR"] >> nth=-1');await p.waitForTimeout(300);t(await ev(()=>PROJ.currency==='EUR'&&EXPORTS[EXPORTS.length-1].meta.currency==='EUR'),'answer sets the project currency');
