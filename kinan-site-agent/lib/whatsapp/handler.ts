@@ -139,10 +139,20 @@ async function handleMessageInner(c: WaConfig, m0: any, profileName: string): Pr
   }
   if (!acl.ok) {
     console.warn(`[whatsapp] rejected message from unlisted number ${from}`);
-    await sendText(c, from, joinCode()
-      ? "Welcome to the Kinan Onsite Agent. To start, send the access code shown at the demo."
-      : "This number isn't authorised for the Kinan Onsite Agent. Ask the project admin to add you.");
-    return true;
+    await markRead(c, m.id).catch(() => undefined); // the sender sees it arrived
+    const who = `+${from.slice(0, 3)}…${from.slice(-3)}${profileName ? ` (${profileName})` : ""}`;
+    const why = joinCode() ? `not on the allowed list; asked for the join code “${joinCode()}”` : "not on WHATSAPP_ALLOWED_NUMBERS and no WHATSAPP_JOIN_CODE is set";
+    try {
+      await sendText(c, from, joinCode()
+        ? "Welcome to the Kinan Onsite Agent. To start, send the access code shown at the demo."
+        : "This number isn't authorised for the Kinan Onsite Agent. Ask the project admin to add you.");
+      await noteStatus(false, `message from ${who}`, `Refused: ${why}.`);
+    } catch (e) {
+      const em = e instanceof Error ? e.message : String(e);
+      const hint = /131030|recipient phone number not in allowed list/i.test(em) ? " Meta blocked the reply: on the test number this phone must be added as a test recipient (WhatsApp → API Setup → Recipient), or connect the real business number." : "";
+      await noteStatus(false, `message from ${who}`, `Refused (${why}), and the reply could not be sent: ${em.slice(0, 200)}.${hint}`);
+    }
+    return false;
   }
   const s = await loadSession(from, acl.name || profileName || "Site user");
   if (joined) { s.fresh = true; m = { ...m, text: { body: "hi" } }; } // the code itself starts the conversation: on to the project list
