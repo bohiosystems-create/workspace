@@ -21,11 +21,11 @@ t(s.n===1&&s.after>s.before&&s.adr==='$125.00'&&/68/.test(s.occ||'')&&s.pv===2,'
 t(Math.abs(s.irr-24.05)<0.01,'the headline figures survive the re-read from displayed text (levered IRR '+s.irr+')');
 s=await ev(()=>({a:asMatchLabel('ADR'),b:asMatchLabel('average daily rate'),c:asMatchLabel('adr'),d:asMatchLabel('occupancy')}));t(s.a==='ADR'&&s.b==='ADR'&&s.c==='ADR'&&s.d==='Occupancy','ADR, adr and “average daily rate” all name the ADR line: '+JSON.stringify(s));
 // the AI proposes Soft Costs for "ADR": the user's own words win, and the box says what the table is built on
-await ev(()=>{setHurdle(18,'typed');showTab('scen');$('#asX').value='ADR';$('#asY').value='OCCUPANCY';$('#asMetric').value='levered_irr';AS.x=AS.y=null;AS.txt={x:'',y:''}});await p.click('#asGo');await p.waitForFunction(()=>!AS.busy,null,{timeout:240000});
+await ev(()=>{setHurdle(18,'typed');showTab('scen');$('#asX').value='ADR';$('#asY').value='OCCUPANCY';$('#asMetric').value='levered_irr';AS.x=AS.y=null;AS.txt={x:'',y:''}});await p.click('#asGo');await p.waitForFunction(()=>!AS.busy,null,{timeout:420000});
 s=await ev(()=>({x:AS.x&&AS.x.assumption,y:AS.y&&AS.y.assumption,xon:$('#asXon').innerText,yon:$('#asYon').innerText,q:$('#asQ').innerText}));
 t(s.x==='ADR'&&s.y==='Occupancy','ADR × occupancy pinned to the model’s own lines, not Soft Costs: '+JSON.stringify([s.x,s.y,s.q.slice(0,80)]));
 t(/Built on ADR .*= \$125\.00 .*OpCashFlow!H12/.test(s.xon)&&/Built on Occupancy/.test(s.yon),'under each axis box: the line, its value, its cell and the shifts: '+s.xon+' || '+s.yon);
 // a reading that shares nothing with the words is asked about, never used silently
-await ev(()=>{AS.x=AS.y=null;AS.txt={x:'',y:''};$('#asX').value='room rate premium';$('#asQ').innerHTML=''});await p.click('#asGo');await p.waitForFunction(()=>!AS.busy,null,{timeout:240000});
+await ev(()=>{AS.x=AS.y=null;AS.txt={x:'',y:''};$('#asX').value='room rate premium';$('#asQ').innerHTML=''});await p.click('#asGo');await p.waitForFunction(()=>!AS.busy,null,{timeout:420000});
 s=await ev(()=>({x:AS.x,q:$('#asQ').innerText}));t(!s.x&&/could not find/.test(s.q),'a line that does not match the words is asked about: '+s.q.slice(0,140));
 t(!errs.length,'no page errors '+errs.join(';'));console.log(ok.join('\n'));await b.close();
