@@ -1,4 +1,4 @@
-// Rounds 11-12 at the desk, no AI connected (the rules are the fallback): five synthetic models of new kinds (fixtures/models/r11_*.xlsx,
+// Rounds 11-13 at the desk, no AI connected (the rules are the fallback): five synthetic models of new kinds (fixtures/models/r11_*.xlsx,
 // made by fixtures/gen/gen11.py). Guards: the currency the model states (a row of PMT results Excel formatted as "$" does not make a
 // EUR or KWD model dollars; NZ$ is NZD); the model's own figures are read on its uploaded inputs, never on the last what-if the
 // engine holds; "0.58m" on a line in EUR m is 0.58; "what PPA price gets the equity to 12%" is a goal seek, not PPA = 12; a goal-seek
@@ -30,5 +30,11 @@ await up('r12_park_aed');t((await p.evaluate(async()=>(await xcSeries(latestExpo
 r=await ask('weekend occupancy to 85%');t(/78% → 85%/.test(r.txt),'the park model still answers a plain what-if');
 await up('r12_tower_sar');r=await ask("what's the NPV?");t(/Completion date 2029-07/.test(r.txt)&&!/Completion date 47,?300/.test(r.txt),'a date in the results is shown as a date: '+(r.txt.match(/Completion date \S+/)||[''])[0]);
 await up('r12_towns_cad');r=await ask('rank my deals by IRR');t(/project IRR/.test(r.txt)&&/MAPLE RIDGE/.test(r.txt),'ranking by IRR counts the models that only have a project IRR, labelled');
+// round 13: a circular model (interest capitalised, Excel's iteration on) recalculates like Excel; one cell, one key in the engine; AI "to B" on a switch is text
+await up('r13_storage_circular_usd');{const e=await p.evaluate(async()=>{const e=await xcEngine(latestExport());return{ok:e.ok,pct:e.pct,iter:e.iter}});t(e.ok&&e.pct===100&&e.iter>0,'a circular model reproduces 100% of Excel with iteration: '+JSON.stringify(e))}
+r=await ask('hard costs 10% over');t(/9,800,000 → 10,780,000/.test(r.txt)&&/12\.92%|12\.9\d%/.test(r.txt),'a what-if on the circular model is computed: '+(r.txt.match(/Profit on cost[^A-Z]{0,40}/)||[''])[0]);
+await up('desk_office_refurb_gbp');{const o=await p.evaluate(async()=>{await xcTest([{text:'Arden Legal renewal probability to 0%'}],async()=>{});const r=await xcTest([{text:'renewal probability 50% across the board'}],async()=>{});return r&&r.desc&&r.desc[0]});t(/60% → 50%/.test(o||''),'after another what-if, the change starts from the model’s own 60%: '+o)}
+await up('desk_tower_options_sar');t(await p.evaluate(()=>{const z=xcAiPlan(latestExport(),{label:'Selected option (A or B)',kind:'to',value:'B',sure:true},'AI');return !!(z&&z.p.kind==='text'&&z.p.s==='B')}),'an AI reading “to B” on a switch is a text change');
+t(await p.evaluate(()=>{const z=xcAiPlan(latestExport(),{label:'Construction period',kind:'to',value:4,sure:true},'AI');return !!(z&&/Construction period/.test(z.p.inp.label))}),'an AI label without a cell on a model with Option A / B lines still resolves');
 if(errs.length){fail++;console.log('FAIL | page errors: '+errs.join(' | ').slice(0,300))}
 console.log(`\n${pass} pass, ${fail} fail`);await b.close();

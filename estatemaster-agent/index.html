@@ -4018,7 +4018,11 @@ function loadScriptAny(urls,ready,what){return new Promise((ok,no)=>{let i=0;con
 const XC_HF=[VEND('hyperformula-3.5.0.full.min.js'),'https://cdn.jsdelivr.net/npm/hyperformula@3.5.0/dist/hyperformula.full.min.js','https://unpkg.com/hyperformula@3.5.0/dist/hyperformula.full.min.js'];
 const XC_XLSX=[VEND('xlsx-0.18.5.full.min.js'),'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'];
 function xcWorker(){
-  let H=null,hf=null,cached={},dirty=new Map(),XL=null;
+  let H=null,hf=null,cached={},dirty=new Map(),XL=null,ITER=[];
+  /* Excel's iterative calculation for a circular model (interest capitalised into the cost it is charged on): the circular cells hold a value
+     and are recomputed from their own formulas until nothing moves, as Excel does with iteration switched on */
+  function iterate(){if(!ITER.length)return 0;let n=0;for(;n<300;n++){let mx=0;const nv=ITER.map(c=>{let v;try{v=raw(hf.calculateFormula(c.f,c.sid))}catch(e){v=NaN}if(typeof v!=='number'||!isFinite(v))v=0;const cur=raw(hf.getCellValue(c.a));mx=Math.max(mx,Math.abs(v-(typeof cur==='number'?cur:0))/Math.max(1,Math.abs(v)));return v});
+      if(mx<1e-13)break;hf.batch(()=>{ITER.forEach((c,i)=>hf.setCellContents(c.a,[[nv[i]]]))})}return n}
   const raw=x=>x&&typeof x==='object'&&'val' in x?x.val:x;
   function boot(urls){if(H)return;for(const u of [].concat(urls.xlsx)){try{importScripts(u);if(self.XLSX)break}catch(e){}}if(!self.XLSX)throw new Error('the Excel reader could not be loaded');XL=self.XLSX;let err='';for(const u of urls.hf){try{importScripts(u);break}catch(e){err=e.message}}
     if(!self.HyperFormula)throw new Error('the formula engine could not be loaded ('+err+')');H=self.HyperFormula;
@@ -4124,13 +4128,16 @@ function xcWorker(){
     // the formulas were read before the names were known: apply the aliases now
     if(NAMEMAP.re)for(const n of Object.keys(sheets))for(const row of sheets[n])for(let c=0;c<row.length;c++){const v=row[c];if(typeof v==='string'&&v[0]==='=')row[c]=aliasNames(v)}
     try{hf=H.buildFromSheets(sheets,HFC,names)}catch(e){namesSkipped.push('all names ('+String(e.message||e).slice(0,80)+')');hf=H.buildFromSheets(sheets,HFC)}
+    ITER=[];{const cyc=[];for(const k in cached){const i=k.lastIndexOf('!');const sid=hf.getSheetId(k.slice(0,i));if(sid===undefined)continue;const p=XL.utils.decode_cell(k.slice(i+1));const a={sheet:sid,row:p.r,col:p.c};const v=hf.getCellValue(a);
+        if(v&&typeof v==='object'&&v.type==='CYCLE'){const f=hf.getCellFormula(a);if(f)cyc.push({k,sid,a,f,v0:typeof cached[k]==='number'?cached[k]:0})}}
+      if(cyc.length&&cyc.length<=2000){hf.batch(()=>{for(const c of cyc)hf.setCellContents(c.a,[[c.v0]])});ITER=cyc;iterate()}}
     // the engine is trusted only when it reproduces Excel's own stored results
     let tot=0,ok=0;const bad=[];for(const k in cached){const cv=cached[k];if(typeof cv!=='number')continue;tot++;const i=k.lastIndexOf('!');const p=XL.utils.decode_cell(k.slice(i+1));const v=raw(hf.getCellValue({sheet:hf.getSheetId(k.slice(0,i)),row:p.r,col:p.c}));
       if(typeof v==='number'&&Math.abs(v-cv)<=1e-6*Math.max(1,Math.abs(cv)))ok++;else if(bad.length<6)bad.push(k)}
     const outBad=(refs||[]).filter(r=>{try{const v=raw(hf.getCellValue(A(r)));const cv=cached[r];return cv!==undefined&&typeof cv==='number'&&!(typeof v==='number'&&Math.abs(v-cv)<=1e-6*Math.max(1,Math.abs(cv)))}catch(e){return true}});
     let cyc=0;try{for(const r of (refs||[])){const v=hf.getCellValue(A(r));if(v&&typeof v==='object'&&v.type==='CYCLE')cyc++}}catch(e){}
-    return{tot,match:ok,bad,outBad,cycles:cyc,formulas:nf,sheets:Object.keys(sheets).length,frozen:FROZEN.TODAY,names:names.length,namesSkipped}}
-  function restore(keep){const back=[...dirty.entries()].filter(([k])=>!keep||!keep.has(k));if(!back.length)return;hf.batch(()=>{for(const [k,v] of back){hf.setCellContents(A(k),[[v]]);dirty.delete(k)}})}
+    return{tot,match:ok,bad,outBad,cycles:cyc,iter:ITER.length,formulas:nf,sheets:Object.keys(sheets).length,frozen:FROZEN.TODAY,names:names.length,namesSkipped}}
+  function restore(keep){const back=[...dirty.entries()].filter(([k])=>!keep||!keep.has(k));if(!back.length)return;hf.batch(()=>{for(const [k,v] of back){hf.setCellContents(A(k),[[v]]);dirty.delete(k)}});iterate()}
   // the run of typed numbers an input stands for: the anchor and the constants to its right on the same row (one per year, say), up to a formula or text
   const fmtOf=a=>FMT[hf.getSheetName(a.sheet)+'!'+XL.utils.encode_cell({r:a.row,c:a.col})]||'General';
   function series(ref){const a=A(ref),out=[nm(a)],f0=fmtOf(a);let gap=0;
@@ -4162,19 +4169,21 @@ function xcWorker(){
     let head='';for(let r=a.row-1;r>=Math.max(0,a.row-12);r--){const v=hf.getCellValue({sheet:a.sheet,row:r,col:a.col});if(typeof v==='string'&&v.trim()){head=v.trim();break}}
     const rows=[],isN=r=>typeof raw(hf.getCellValue({sheet:a.sheet,row:r,col:a.col}))==='number';let r0=a.row;while(r0>0&&isN(r0-1)&&a.row-r0<12)r0--;
     for(let r=r0;r<r0+14&&isN(r);r++)rows.push({ref:nm({sheet:a.sheet,row:r,col:a.col}),label:lab(r),head});return rows}
-  onmessage=ev=>{const m=ev.data;let r;try{
+  /* one key per cell: 'Rent Roll'!$E$4, Rent Roll!E4 and 'Rent Roll'!e4 are the same cell, so the record of original values never splits */
+  const NK=k=>{const t=String(k).replace(/\$/g,'');const i=t.lastIndexOf('!');if(i<0)return t.toUpperCase();let sh=t.slice(0,i);if(/^'.*'$/.test(sh))sh=sh.slice(1,-1).replace(/''/g,"'");return sh+'!'+t.slice(i+1).toUpperCase()};
+  onmessage=ev=>{const m=ev.data;let r;if(Array.isArray(m.refs))m.refs=m.refs.map(NK);if(m.ref)m.ref=NK(m.ref);if(Array.isArray(m.read))m.read=m.read.map(NK);if(Array.isArray(m.runs))m.runs=m.runs.map(st=>st.map(([k,v])=>[NK(k),v]));try{
       if(m.op==='load'){boot(m.urls);r=load(m.buf,m.refs)}
       else if(m.op==='get'){r=m.refs.map(k=>dirty.has(k)?raw(dirty.get(k)):val(A(k)))}
       else if(m.op==='series'){r=series(m.ref)}
       else if(m.op==='fmt'){r=m.refs.map(k=>{try{return fmtOf(A(k))}catch(e){return'General'}})}
       else if(m.op==='scan'){r=scan(m.max||30)}
-      else if(m.op==='typed'){r=m.refs.map(k=>{try{return typeof hf.getCellSerialized(A(k))==='number'}catch(e){return false}})}
+      else if(m.op==='typed'){const it=new Set(ITER.map(c=>c.k));r=m.refs.map(k=>{try{if(it.has(String(k).replace(/\$/g,'').replace(/^'(.*)'!/,'$1!')))return false;return typeof hf.getCellSerialized(A(k))==='number'}catch(e){return false}})}   /* a circular formula cell held as a value is still a formula */
       else if(m.op==='region'){const a=A(m.ref),rows=[];const lab=r=>{for(let c=a.col-1;c>=0;c--){const v=hf.getCellValue({sheet:a.sheet,row:r,col:c});if(typeof v==='string'&&v.trim()&&isNaN(+v))return v.trim().slice(0,50)}return''};
         for(let r=Math.max(0,a.row-(m.up||8));r<=a.row+(m.down||8);r++){const cells=[];for(let c=Math.max(0,a.col-2);c<a.col+(m.cols||40)&&cells.length<30;c++){const s=hf.getCellSerialized({sheet:a.sheet,row:r,col:c});if(s===null||s===undefined||s==='')continue;const v=typeof s==='number'?s:String(s).slice(0,40);cells.push([nm({sheet:a.sheet,row:r,col:c}),v])}if(cells.length)rows.push({row:r+1,label:lab(r),cells})}r=rows}
       else if(m.op==='table'){r=m.refs.map(table)}
       else if(m.op==='run'){r=[];for(const sets of m.runs){const keep=new Set(sets.map(s=>s[0]));const back=[...dirty.entries()].filter(([k])=>!keep.has(k));
           for(const [k] of sets)if(!dirty.has(k))dirty.set(k,hf.getCellSerialized(A(k)));
-          if(back.length||sets.length)hf.batch(()=>{for(const [k,v] of back){hf.setCellContents(A(k),[[v]])}for(const [k,v] of sets)hf.setCellContents(A(k),[[v]])});back.forEach(([k])=>dirty.delete(k));
+          if(back.length||sets.length){hf.batch(()=>{for(const [k,v] of back){hf.setCellContents(A(k),[[v]])}for(const [k,v] of sets)hf.setCellContents(A(k),[[v]])});iterate()}back.forEach(([k])=>dirty.delete(k));
           r.push(m.read.map(k=>val(A(k))));if(m.progress)postMessage({id:m.id,progress:r.length})}
         if(m.reset)restore()}
       else if(m.op==='reset'){restore();r=true}
@@ -4351,9 +4360,11 @@ kind: pct = relative change in % of the current value (value is the %, negative 
 /* The AI's reading of one change, taken at its word: the cell it names (from the list it was given), checked only by what is certain —
    the cell is one of the model's inputs, a percentage is not set above 100%, an amount is not a thousand times today's, a “pct” on a
    percentage line is the ambiguity it was told to ask about. Anything failing a check goes back to the questions, never to a guess. */
-function xcAiPlan(x,c,by){if(!c)return null;const k=['pct','pts','abs','to','months','text'].includes(c.kind)?c.kind:null;if(!k)return null;if(k==='text'?typeof c.value!=='string'||!c.value.trim():!Number.isFinite(+c.value))return null;
+function xcAiPlan(x,c,by){if(!c)return null;if(c.kind==='to'&&typeof c.value==='string'&&c.value.trim()&&!Number.isFinite(+String(c.value).replace(/[,%$£€]/g,'')))c={...c,kind:'text'};   /* “to B” on a switch is text */const k=['pct','pts','abs','to','months','text'].includes(c.kind)?c.kind:null;if(!k)return null;if(k==='text'?typeof c.value!=='string'||!c.value.trim():!Number.isFinite(+c.value))return null;
   const cellOf=r=>(x.inputs||[]).find(i=>i.cell&&xcRefKey(i.cell)===xcRefKey(r));let inp=c.cell?cellOf(c.cell):null;
-  if(!inp&&c.label){const lab=asMatchLabel(c.label)||xcFindLabel(x,c.label);inp=lab?xcInputOf(x,lab,c.label):null}if(!inp)return null;
+  if(!inp&&c.label){const lab=asMatchLabel(c.label)||xcFindLabel(x,c.label);inp=lab?xcInputOf(x,lab,c.label):null}
+  if(!inp&&c.label){const w=String(c.label).trim().toLowerCase();const sc=(x.inputs||[]).filter(i=>i.cell&&XC_SCEN.test(i.label||'')&&String(i.label).replace(XC_SCEN,'').trim().toLowerCase()===w);inp=sc.find(i=>/\bbase\b/i.test(i.label))||sc[0]||null}   /* “Interest rate” on a model with Base / Downside / Upside lines: one of them, then the live case is picked */
+  if(!inp)return null;
   let cells=null;if(Array.isArray(c.cells)&&c.cells.length>1){const cs=c.cells.map(cellOf);if(cs.some(z=>!z))return null;cells=cs.map(z=>z.cell)}
   const v=k==='text'?c.value.trim():+c.value;if(k==='pct'&&xcPctIn(inp))return null;if(k==='text'&&inp.value!=null)return null;
   if(k==='to'&&xcPctIn(inp)&&Math.abs(v)>100)return null;if(k==='to'&&!xcPctIn(inp)&&Number.isFinite(inp.value)&&inp.value!==0&&v!==0&&(Math.abs(v/inp.value)>=1000||Math.abs(inp.value/v)>=1000))return null;
@@ -8734,9 +8745,13 @@ const mdLite=t=>esc(t).replace(MARK,(m,num,k,id,w)=>figHTML(num||'',k,id,w)).rep
 
 /* Legend under an answer with labelled figures, and a warning when an AI answer quotes figures without saying where they came from */
 function provNote(text){const ks=new Set((text.match(/⟦(em|est|calc|exact|wb)/g)||[]).map(m=>m.slice(1)));
-  if(!ks.size){const nums=(stripMarks(text).match(/(?:SAR\s?)?\d[\d,]*(?:\.\d+)?\s?(?:%|x\b|M\b|bn\b|pts|bps)/g)||[]);return nums.length?'<div class="calcnote">⚠ The figures in this answer carry no label, so none of them is EstateMaster’s: treat them as the AI’s own and check them in EstateMaster before they go into a decision.</div>':''}
+  if(!ks.size){let nums=(stripMarks(text).match(/(?:SAR\s?)?\d[\d,]*(?:\.\d+)?\s?(?:%|x\b|M\b|bn\b|pts|bps)/g)||[]);
+    /* not the AI's own figures: those the user typed, the hurdle, and the model's own results (an IC summary quoting the levered IRR) */
+    {const nv=t=>parseFloat(String(t).replace(/^SAR\s?/,'').replace(/,/g,''));const said=String(window.LASTQ||'');const x=latestExport();const known=[...Object.values((x&&x.out)||{}).filter(Number.isFinite).flatMap(v=>[v,v/1e6]),Number.isFinite(typeof HUR==='function'?HUR():NaN)?HUR():NaN].filter(Number.isFinite);
+      nums=nums.filter(n=>{const v=nv(n);if(!Number.isFinite(v))return false;if(new RegExp('(^|[^\\d.])'+String(v).replace('.','\\.')+'(?![\\d])').test(said))return false;return !known.some(k=>Math.abs(k-v)<=Math.max(0.051,Math.abs(k)*0.0005))})}
+    return nums.length?'<div class="calcnote">⚠ The figures in this answer carry no label, so none of them is EstateMaster’s: treat them as the AI’s own and check them in EstateMaster before they go into a decision.</div>':''}
   const L={em:'read from the EstateMaster export, not calculated by the agent',est:'the agent’s replica estimate, not an EstateMaster figure',exact:'computed exactly on EstateMaster’s own cash flow (its base IRR reproduced first), not an EstateMaster figure',calc:'arithmetic by the AI model, not an EstateMaster figure',wb:'solved exactly on the uploaded workbook’s own formulas, not an AI figure'};
-  return `<div class="calcnote">Click a bold figure for its working. ${['em','exact','est','calc'].filter(k=>ks.has(k)).map(k=>`<span class="tag tag-${k}" style="margin-left:0">${TAGK[k]}</span> ${L[k]}`).join(' · ')}</div>`}
+  return `<div class="calcnote">Click a bold figure for its working. ${['em','exact','wb','est','calc'].filter(k=>ks.has(k)).map(k=>`<span class="tag tag-${k}" style="margin-left:0">${TAGK[k]}</span> ${L[k]}`).join(' · ')}</div>`}
 /* ---- Unusual workbook layouts: the agent asks in the main chat. The answer (a cell, a value, or which figure is right) is applied to the export and the checks run again. ---- */
 let CLARIFY=null;
 function layoutQuestions(x){const o=x.out||{},Q=[],fin=Number.isFinite,uk=x.userOk||{};
