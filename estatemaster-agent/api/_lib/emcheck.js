@@ -68,12 +68,12 @@ function parseInputs(sheets) {
       let end = emNextLabel(row, i); if (end === i + 1 && end < row.length && /^\s*(date|dates|text|y\/n|yes\/no|dd\/mm\/yy(yy)?)\s*$/i.test(String(row[end]))) end = emNextLabel(row, end);   /* a units column saying “date” is not the next label */
       const lab = String(row[i]).trim(), key = s.name + '|' + lab + (anyF ? '|' + ri : '');
       const next = () => { const k = row.slice(end).findIndex(c => emIsLabel(c) && c.length <= 70); i = k < 0 ? -1 : end + k; };
-      if (lab.length > 70 || LAB.some(([, re]) => re.test(lab))) { next(); continue; }
+      if (lab.length > 70 || (!anyF && LAB.some(([, re]) => re.test(lab)))) { next(); continue; }   // in a model with formulas a typed “Total development cost” is an input (its outputs are formulas, skipped below)
       const blk = anyF ? blockOf(s, ri, i) : null; const cells = []; for (let j = i + 1; j < Math.min(end, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; if (anyF && isF(s, ri, j)) continue; if (anyF && /^\s*(month|year|period|quarter|week|day|yr|qtr)\s*\d+\s*$/i.test(String(fr[j] == null ? '' : fr[j]))) continue; /* a period counter ("Month 7") is a row index, not an assumption */ const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; const pc = /%\s*$/.test(t.trim()) || /^\s*[-(]?[$£€]?\s*[\d,.]+\s*%/.test(t) || (typeof row[j] === 'string' && /%\s*$/.test(row[j])); cells.push({ v: pc && typeof row[j] === 'number' ? n * 100 : n, t, pct: pc, fmt: emFmt(t, pc), j, h: anyF ? headOf(s, ri, j, blk ? blk.r : 0) : '' }); }
       if (!cells.length) {
         // a text, date or yes/no input on an input sheet ("Date of First Period: Oct-26", "Add GST on Land Price? Y", "Cash Flow Title: Build to Hold")
-        if (/input|assumption/i.test(s.name) && !seen.has(key)) {
-          let tj = -1; for (let j = i + 1; j < Math.min(end, i + 6); j++) { if (anyF && isF(s, ri, j)) continue; const t = String(fr[j] == null ? (row[j] == null ? '' : row[j]) : fr[j]).trim(); if (/^\s*(date|dates|text|y\/n|yes\/no|dd\/mm\/yy(yy)?)\s*$/i.test(t)) continue; /* the units column, not the value */ if (t && t.length <= 40 && t !== '-') { tj = j; break; } }
+        if ((/input|assumption/i.test(s.name) || /\b(select(ed)?|active|switch|choose|chosen|option|case|scenario)\b/i.test(lab)) && !seen.has(key)) {   // a case or option switch (“Selected option (A or B): A”) on any sheet
+          let tj = -1; for (let j = i + 1; j < Math.min(end, i + 6); j++) { if (anyF && isF(s, ri, j)) continue; const t = String(fr[j] == null ? (row[j] == null ? '' : row[j]) : fr[j]).trim(); if (/^\s*(date|dates|text|y\/n|yes\/no|dd\/mm\/yy(yy)?)\s*$/i.test(t)) continue; /* the units column, not the value */ if (/^\s*(units?|values?|amount|notes?|comments?|source|base|case|description)\s*$/i.test(t)) break; /* a table's header row, not a text input */ if (t && t.length <= 40 && t !== '-') { tj = j; break; } }
           // a long text value (a title) reads as a label: taken as the value when nothing else sits between the two
           if (tj < 0 && end < row.length && end <= i + 3 && String(row[end]).length <= 60 && emNextLabel(row, end) === row.length && !row.slice(end + 1).some(c => numOf(c) != null)) { tj = end; end = row.length; }
           if (tj >= 0) { seen.add(key); out.push({ label: lab, value: null, text: String(fr[tj] == null ? row[tj] : fr[tj]).trim(), pct: false, vals: [], sheet: s.name, section, unit: '', cell: A1(s.name, tj, ri) }); }
@@ -141,7 +141,9 @@ function emCat(label, section) { const t = (label + ' ' + (section || '')).toLow
    and the unit between it and the next label on the row, never a figure from the neighbouring block. */
 function emRows(XLSX, ws, raw) { if (!ws || !ws['!ref']) return []; const r = XLSX.utils.decode_range(ws['!ref']); r.s.r = 0; r.s.c = 0; return XLSX.utils.sheet_to_json(ws, { header: 1, raw: raw !== false, range: r, blankrows: true }); }
 const EM_UNIT_RX = /^\s*(%\s*[a-z.\s\/]{0,12}|sar|aud|usd|aed|eur|gbp|nzd|qar|kwd|\$|sqm|sq\.?\s?m|sq\.?\s?ft|m2|m²|gfa|nla|gla|nsa|bua|months?|years?|yrs?|days?|weeks?|quarters?|p\.?\s?a\.?|pa|per\b.{0,24}|units?\b.{0,16}|(sar|aud|usd|aed|eur|gbp)\s*\/.{0,24}|[a-z]{2,4}\s*\/\s*[a-z²]{1,8}.{0,16}|[a-z]{1,2})\s*$/i;
-const emIsLabel = c => typeof c === 'string' && c.trim().length > 2 && /[a-z]/i.test(c) && !EM_UNIT_RX.test(c) && !/^\s*-?[\d,.]+\s*%?\s*$/.test(c) && !/^\s*(true|false|yes|no|y|n|n\/a|-)\s*$/i.test(c) && !/^\s*([a-z]{3}[- ]\d{2,4}|\d{1,2}[- ][a-z]{3}[- ]\d{2,4}|\d+\/\d+\/\d+)\s*$/i.test(c);   // a date typed as text is a value
+/* units written in lower case in a units column (“beds”, “£/bed/week”, “weeks/yr”): a label is written “Beds” */
+const EM_UNIT2 = /^\s*([£€$]\s*(\/.{0,24})?|(beds?|keys?|homes?|lots?|rooms?|apartments?|doors?|mw|kw|sf|psf|#)(\s*\/.{0,16})?|(weeks?|months?|years?|days?)\s*\/\s*[a-z]{1,6})\s*$/;
+const emIsLabel = c => typeof c === 'string' && c.trim().length > 2 && /[a-z]/i.test(c) && !EM_UNIT_RX.test(c) && !EM_UNIT2.test(c) && !/^\s*-?[\d,.]+\s*%?\s*$/.test(c) && !/^\s*(true|false|yes|no|y|n|n\/a|-)\s*$/i.test(c) && !/^\s*([a-z]{3}[- ]\d{2,4}|\d{1,2}[- ][a-z]{3}[- ]\d{2,4}|\d+\/\d+\/\d+)\s*$/i.test(c);   // a date typed as text is a value
 /* What a number is, from the cell's own Excel number format (the displayed text), never from its label: "5%" a percentage,
    "SOFR +500 bps" basis points, "$4,567,339" money, "2.78x" a multiple, "3,500,000" a plain number. */
 const emFmt = (t, pc) => { t = String(t == null ? '' : t); return pc || /%\s*\)?\s*$/.test(t.trim()) ? 'pct' : /\bbps\b|basis points/i.test(t) ? 'bps' : /[$€£¥﷼]|\b(SAR|USD|AED|EUR|GBP|AUD|QAR|KWD|SR)\b/i.test(t) ? 'money' : /^\s*-?[\d.,]+\s*x\s*$/i.test(t) ? 'x' : 'num'; };
@@ -313,6 +315,11 @@ function detectMeta(sheets, fileName) {
     }
   }
   if (!meta.type) { const all = sheets.slice(0, 3).flatMap(s => s.rows.slice(0, 80).flat()).filter(c => typeof c === 'string').join(' '); const m = all.match(/\b(industrial|logistics|warehouse|residential|retail|office|hotel|hospitality|mixed[- ]use|build to rent)\b/i); if (m) meta.type = m[1]; }
+  // the model's horizon: the last period of each timeline (a row headed Year / Month / Quarter followed by 0,1,2… or 1,2,3…), so a hold or exit
+  // moved past the last column is flagged instead of shown as a result
+  meta.horizon = {}; for (const s of sheets) for (const row of s.rows) { if (!row) continue; const i = row.findIndex(c => typeof c === 'string' && /^\s*(years?|yrs?|months?|quarters?|qtrs?|periods?)\s*$/i.test(c)); if (i < 0) continue;
+    const u = /^\s*m/i.test(row[i]) ? 'month' : /^\s*q/i.test(row[i]) ? 'quarter' : /^\s*p/i.test(row[i]) ? 'period' : 'year'; const ns = row.slice(i + 1).filter(v => typeof v === 'number' && Number.isInteger(v));
+    if (ns.length >= 4 && ns.every((v, k) => k === 0 || v === ns[k - 1] + 1)) meta.horizon[u] = Math.max(meta.horizon[u] || 0, ns[ns.length - 1]); }
   // never a default: no evidence → no currency, and the app asks
   meta.currency = Object.entries(cur).sort((a, b) => b[1] - a[1]).map(e => e[0])[0] || '';
   meta.ccyFrom = meta.currency ? ev[meta.currency] + (meta.currency === 'USD' && usLoc ? `; US location “${usLoc.slice(0, 40)}”` : '') : '';
