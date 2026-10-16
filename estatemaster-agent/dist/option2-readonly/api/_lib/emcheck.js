@@ -3,7 +3,7 @@
 // same emChecks() (copied at build time by tools/sync_emcheck.py) for the EstateMaster tab and the chat.
 // Nothing here changes anything: a check is a sentence for a person to look at.
 // headline labels as developers, banks and EstateMaster write them (UK, US, Gulf), each a whole-phrase match
-const LAB = [['levered_irr', /(equity|levered|geared|investor|lp)\s*(x?irr)\b|\birr\s*(\(|-|–|on|to)\s*(equity|levered|geared)|irr\s*after\s*(finance|debt|funding)|leveraged\s*irr/i], ['unlevered_irr', /(unlevered|ungeared|project|asset|unleveraged)\s*(x?irr)\b|\birr\s*(\(|-|–|on|to)\s*(unlevered|ungeared|project)|irr\s*(before|pre)\s*(finance|debt|funding)/i], ['profit_on_cost', /(profit|margin|return)\s*on\s*(total\s*)?(cost|development)|development\s*margin/i], ['net_profit', /(net|development|developer'?s?|total)\s*profit\b/i], ['total_cost', /total\s*(development|project|scheme)?\s*costs?\b|\btdc\b|total\s*uses\b/i], ['gross_revenue', /(gross|total)\s*(revenue|realisation|realization|sales|development\s*value)|\bgdv\b|gross\s*sales\s*(value|proceeds)/i], ['equity_multiple', /equity\s*multiple|\bmoic\b|multiple\s*on\s*(invested\s*)?(capital|equity)|\bem\s*\(x\)/i], ['peak_debt', /peak\s*(debt|funding|loan|facility)|maximum\s*(debt|loan)\s*(balance|outstanding)?/i]];
+const LAB = [['levered_irr', /(equity|levered|geared|investor|lp)\s*(x?irr)\b|\birr\s*(\(|-|–|on|to)\s*(equity|levered|geared)|irr\s*after\s*(finance|debt|funding)|leveraged\s*irr|\bnet\s+irr\b|\birr\b.{0,20}\b(lps?|limited partners?|investors?)\b/i], ['unlevered_irr', /(unlevered|ungeared|project|asset|unleveraged)\s*(x?irr)\b|\birr\s*(\(|-|–|on|to)\s*(unlevered|ungeared|project)|irr\s*(before|pre)\s*(finance|debt|funding)/i], ['profit_on_cost', /(profit|margin|return)\s*on\s*(total\s*)?(cost|development)|development\s*margin/i], ['net_profit', /(net|development|developer'?s?|total)\s*profit\b/i], ['total_cost', /total\s*(development|project|scheme)?\s*costs?\b|\btdc\b|total\s*uses\b/i], ['gross_revenue', /(gross|total)\s*(revenue|realisation|realization|sales|development\s*value)|\bgdv\b|gross\s*sales\s*(value|proceeds)/i], ['equity_multiple', /equity\s*multiple|\bmoic\b|\btvpi\b|multiple\s*on\s*(invested\s*)?(capital|equity)|\bem\s*\(x\)/i], ['peak_debt', /peak\s*(debt|funding|loan|facility)|maximum\s*(debt|loan)\s*(balance|outstanding)?/i]];
 const ROWS = [['levered_irr', 'Levered IRR', '%'], ['unlevered_irr', 'Unlevered IRR', '%'], ['profit_on_cost', 'Profit on cost', '%'], ['net_profit', 'Net profit', 'M'], ['total_cost', 'Total development cost', 'M'], ['gross_revenue', 'Gross revenue', 'M'], ['equity_multiple', 'Equity multiple', 'x'], ['peak_debt', 'Peak debt', 'M']];
 
 const numOf = v => typeof v === 'number' ? v : (typeof v === 'string' && /^\s*-?[\d,.]+\s*%?\s*$/.test(v) && v.trim() ? parseFloat(v.replace(/[,%\s]/g, '')) : null);
@@ -197,6 +197,9 @@ function emUnitScale(s, ri, j, label) {
 /* The headline figures, the same way in the app and on the server: a returns table first, then each figure by its label, its value to the right of
    the label or, for a heading over its figure, directly below; never the first period of a time series; percentages and scale from the cells' formats. */
 function emHeadline(sheets) {
+  // in a model with formulas a headline figure is a formula's result: a typed number under the same words (an asset's
+  // "exit multiple on equity" in an assumptions table) is an input, never the deal's return
+  const anyF = sheets.some(s => s.ws && Object.keys(s.ws).some(k => k[0] !== '!' && s.ws[k] && s.ws[k].f)), typed = (s, r, j) => { if (!anyF || !s.ws) return false; const z = s.ws[A1('', j, r).slice(1)]; return !!z && !z.f; };
   const mx = emMatrix(sheets), out = { ...mx.out }, found = { ...mx.found }, cells = { ...mx.cells }, later = {}, isNum = x => typeof x === 'number' || (typeof x === 'string' && /^\s*-?[\d,.]+\s*%?\s*$/.test(x) && !!x.trim());
   for (const s of sheets) for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri]; if (!row) continue;
     for (let i = 0; i < row.length; i++) {
@@ -206,7 +209,7 @@ function emHeadline(sheets) {
         // an operating income line (effective or potential gross income, a stabilised year) is not the scheme's gross revenue
         if (k === 'gross_revenue' && /\b(effective|potential|egi|pgi|egr|stabili[sz]ed|in-place|annual|per annum|year\s*1)\b/i.test(c)) continue;
         // an LP's or GP's own figure is kept aside: the scheme's figure, when the model has one, pairs with the scheme's IRR
-        const party = /levered_irr|equity_multiple|net_profit/.test(k) && /^\s*(lp|gp|limited partner|general partner|investor|sponsor|promote)\b/i.test(c);
+        const lpTo = /\b(to|for)\s+(the\s+)?(lps?|limited partners?|investors?)\b|\bnet\s+tvpi\b/i.test(c), party = /levered_irr|equity_multiple|net_profit/.test(k) && (/^\s*(lp|gp|limited partner|general partner|investor|sponsor|promote)\b/i.test(c) || lpTo);
         const end = emNextLabel(row, i), seg = row.slice(i + 1, end); let v = seg.find(isNum), r0 = ri, j0 = i + 1 + seg.indexOf(v), amt = false;
         // a table with several columns (%, per SF, Amount): the figure is the one under "Amount" / "Total"
         if (/net_profit|total_cost|gross_revenue|peak_debt/.test(k) && seg.filter(isNum).length > 1) { for (let r = ri - 1; r >= Math.max(0, ri - 12) && !amt; r--) { const h = s.rows[r] || []; for (let cc = i + 1; cc < end; cc++) if (typeof h[cc] === 'string' && /^\s*(amount|total|total amount|value|\$|usd|sar|eur|gbp|aed)\s*$/i.test(h[cc]) && isNum(row[cc])) { v = row[cc]; j0 = cc; amt = true; break } } }
@@ -216,13 +219,14 @@ function emHeadline(sheets) {
           if (/\b(tier|promote|hurdle|pref(erred)?|catch[- ]?up|target|threshold|minimum|required)\b/i.test(rl) || (/levered_irr|net_profit|equity_multiple/.test(k) && /\b(unlevered|ungeared|unleveraged|project|asset|property)\b/i.test(rl) && !/\blevered\b/i.test(rl.replace(/unlevered/ig, '')))) continue }
         if (v == null) continue;
         if (r0 === ri && !amt && emSeriesCol(s.rows, ri, j0)) continue;   // year 1 of a revenue line is not the gross revenue
+        if (typed(s, r0, j0)) continue;
         let n = typeof v === 'number' ? v : parseFloat(v.replace(/[,%\s]/g, '')); if (!Number.isFinite(n)) continue;
         const w = String(((s.frows || [])[r0] || [])[j0] == null ? '' : s.frows[r0][j0]).trim();
         if (/irr|profit_on_cost/.test(k) && ((/%\s*$/.test(w) && Math.abs(n) < 50 && typeof v === 'number') || (Math.abs(n) < 1.5 && (/%\s*$/.test(w) || (Math.abs(n) < 1 && !(typeof v === 'string' && /%/.test(v))))))) n *= 100;   /* a %-formatted cell holds a fraction whatever its size: 2.14 shown “214.0%” is 214% */
         let note = ''; if (/net_profit|total_cost|gross_revenue|peak_debt/.test(k) && Math.abs(n) < 1e6) { const u = emUnitScale(s, r0, j0, c); if (u) { n *= u.k; note = ` × ${u.k === 1e6 ? '1,000,000' : '1,000'} (${u.from})`; } }
         if (party) { if (!(k in later)) later[k] = { v: +n.toFixed(4), f: `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`, a: A1(s.name, j0, r0) };
           // a partner's own return (LP IRR, GP equity multiple) is kept as its own output, beside the scheme's
-          const pk = (/^\s*(lp|limited)/i.test(c) ? 'lp' : 'gp') + (k === 'equity_multiple' ? '_multiple' : k === 'net_profit' ? '_profit' : '_irr'); if (!(pk in out)) { out[pk] = +n.toFixed(4); found[pk] = `${s.name} / ${c.trim()}`; cells[pk] = A1(s.name, j0, r0) } continue }
+          const pk = (/^\s*(lp|limited|investor)/i.test(c) || lpTo ? 'lp' : 'gp') + (k === 'equity_multiple' ? '_multiple' : k === 'net_profit' ? '_profit' : '_irr'); if (!(pk in out)) { out[pk] = +n.toFixed(4); found[pk] = `${s.name} / ${c.trim()}`; cells[pk] = A1(s.name, j0, r0) } continue }
         out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); break;
       }
     }
