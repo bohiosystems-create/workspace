@@ -3377,7 +3377,7 @@ function syncEMLast(force){const x=latestExport();if(!x){if(EMLAST&&EMLAST.proj=
 /* Read EstateMaster's figures from an Office Links export (any sheet), by row label */
 const EXLAB=[['levered_irr', /(equity|levered|geared|investor|lp)\s*(x?irr)\b|\birr\s*(\(|-|–|on|to)\s*(equity|levered|geared)|irr\s*after\s*(finance|debt|funding)|leveraged\s*irr/i], ['unlevered_irr', /(unlevered|ungeared|project|asset|unleveraged)\s*(x?irr)\b|\birr\s*(\(|-|–|on|to)\s*(unlevered|ungeared|project)|irr\s*(before|pre)\s*(finance|debt|funding)/i], ['profit_on_cost', /(profit|margin|return)\s*on\s*(total\s*)?(cost|development)|development\s*margin/i], ['net_profit', /(net|development|developer'?s?|total)\s*profit\b/i], ['total_cost', /total\s*(development|project|scheme)?\s*costs?\b|\btdc\b|total\s*uses\b/i], ['gross_revenue', /(gross|total)\s*(revenue|realisation|realization|sales|development\s*value)|\bgdv\b|gross\s*sales\s*(value|proceeds)/i], ['equity_multiple', /equity\s*multiple|\bmoic\b|multiple\s*on\s*(invested\s*)?(capital|equity)|\bem\s*\(x\)/i], ['peak_debt', /peak\s*(debt|funding|loan|facility)|maximum\s*(debt|loan)\s*(balance|outstanding)?/i]];
 const A1=(sheet,col,row)=>{let c='',n=col+1;while(n>0){c=String.fromCharCode(64+((n-1)%26+1))+c;n=Math.floor((n-1)/26)}return `${sheet}!${c}${row+1}`};
-const EX_SKIP=(k,c)=>/irr|profit_on_cost|equity_multiple/.test(k)?/target|hurdle|required|minimum|\bmin\b|benchmark|threshold|cost of (equity|capital)|discount rate/i.test(c):/net_profit|total_cost|gross_revenue|peak_debt/.test(k)?/\bper\b|\/\s*(sqm|m2|m²|sq\s?m|sq\s?ft|unit|bed|key)|\bpsm\b|\bpsf\b|\barea\b|\bunits?\b|%|ratio|\brate\b|yield|margin|count|number of|\b(nla|gfa|gla|nsa|bua)\b|\bsqm\b|\bm2\b/i.test(c):false;
+const EX_SKIP=(k,c)=>/irr|profit_on_cost|equity_multiple/.test(k)?/target|hurdle|required|minimum|\bmin\b|benchmark|threshold|cost of (equity|capital)|discount rate|\btier\b|promote|\breq'?d\b/i.test(c):/net_profit|total_cost|gross_revenue|peak_debt/.test(k)?/\bper\b|\/\s*(sqm|m2|m²|sq\s?m|sq\s?ft|unit|bed|key)|\bpsm\b|\bpsf\b|\barea\b|\bunits?\b|%|ratio|\brate\b|yield|margin|count|number of|\b(nla|gfa|gla|nsa|bua)\b|\bsqm\b|\bm2\b/i.test(c):false;
 function parseExport(wb,fileName){
   // the cells' own number formats are read too (frows: the text Excel displays), so "5%", "$4,567,339" and "SOFR +500 bps" are what they say
   const shs=(wb.SheetNames||[]).map(name=>({name,ws:wb.Sheets[name],rows:emRows(XLSX,wb.Sheets[name],true),frows:emRows(XLSX,wb.Sheets[name],false)}));
@@ -3916,13 +3916,11 @@ function xcWorker(){
     if(!self.HyperFormula)throw new Error('the formula engine could not be loaded ('+err+')');H=self.HyperFormula;
     const FP=H.FunctionPlugin,T=H.FunctionArgumentType,CE=H.CellError;
     class P extends FP{
-      xirr(ast,st){return this.runFunction(ast.args,st,this.metadata('XIRR'),(vals,dates,guess)=>{
-        const v0=(vals.data?vals.data.flat():[vals]).map(raw),d0=(dates.data?dates.data.flat():[dates]).map(raw),v=[],d=[];
-        v0.forEach((x,i)=>{if(typeof x==='number'&&typeof d0[i]==='number'){v.push(x);d.push(d0[i])}});
-        if(!v.some(x=>x>0)||!v.some(x=>x<0))return new CE('NUM');
-        const npv=r=>v.reduce((a,x,i)=>a+x/Math.pow(1+r,(d[i]-d[0])/365),0),dn=r=>v.reduce((a,x,i)=>{const t=(d[i]-d[0])/365;return a-t*x/Math.pow(1+r,t+1)},0);
-        let r=guess==null?0.1:guess;for(let k=0;k<100;k++){const f=npv(r),g=dn(r);if(!g)break;const n=r-f/g;if(!isFinite(n))break;if(Math.abs(n-r)<1e-12)return n;r=n<=-0.999999?(r-0.999999)/2:n}
-        let lo=-0.999,hi=100;if(npv(lo)*npv(hi)>0)return new CE('NUM');for(let k=0;k<300;k++){const m=(lo+hi)/2;if(npv(lo)*npv(m)<=0)hi=m;else lo=m}return(lo+hi)/2})}
+      xirr(ast,st){return this.runFunction(ast.args,st,this.metadata('XIRR'),(vals,dates,guess)=>xirrOf((vals.data?vals.data.flat():[vals]).map(raw),(dates.data?dates.data.flat():[dates]).map(raw),guess))}
+      // OFFSET whose shift or size is computed from the model (OFFSET(L97,0,Timing_Month,1,12)): the engine takes only fixed numbers there,
+      // so the call is given the whole row (or column, or sheet) the window can move over, and the window is cut out when it is calculated
+      xoffsum(ast,st){return this.runFunction(ast.args,st,this.metadata('XOFFSUM'),(big,i,j,h,w)=>{const W=offWin(big,i,j,h,w);if(W instanceof CE)return W;let t=0;for(const x of W){const y=raw(x);if(typeof y==='number')t+=y;else if(y&&typeof y==='object'&&y.type)return y}return t})}
+      xoffxirr(ast,st){return this.runFunction(ast.args,st,this.metadata('XOFFXIRR'),(bv,iv,jv,hv,wv,bd,id,jd,hd,wd,guess)=>{const V=offWin(bv,iv,jv,hv,wv),D=offWin(bd,id,jd,hd,wd);if(V instanceof CE)return V;if(D instanceof CE)return D;if(V.length!==D.length)return new CE('NUM');return xirrOf(V.map(raw),D.map(raw),guess)})}
       xindex(ast,st){return this.runFunction(ast.args,st,this.metadata('INDEX'),(rv,row,col)=>{const h=rv.height(),w=rv.width();
         if(col===undefined){if(h===1){col=row;row=1}else col=1}if(row===0&&h===1)row=1;if(col===0&&w===1)col=1;
         if(col<1||row<1)return new CE('VALUE');if(col>w||row>h)return new CE('REF');const x=rv.data[row-1][col-1];return x===undefined?new CE('REF'):x})}
@@ -3936,39 +3934,93 @@ function xcWorker(){
     P.implementedFunctions={RANK:{method:'xrank',parameters:[{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0}]},'RANK.EQ':{method:'xrank',parameters:[{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0}]},
       FORECAST:{method:'xforecast',parameters:[{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.RANGE}]},'FORECAST.LINEAR':{method:'xforecast',parameters:[{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.RANGE}]},XIRR:{method:'xirr',parameters:[{argumentType:T.RANGE},{argumentType:T.RANGE},{argumentType:T.NUMBER,optionalArg:true}]},
       INDEX:{method:'xindex',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER,optionalArg:true}]},
+      XOFFSUM:{method:'xoffsum',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER}]},
+      XOFFXIRR:{method:'xoffxirr',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER,optionalArg:true}]},
       EDATE:{method:'xedate',parameters:[{argumentType:T.NUMBER},{argumentType:T.NUMBER}]}};
-    ['INDEX','EDATE'].forEach(f=>{try{H.unregisterFunction(f)}catch(e){}});H.registerFunctionPlugin(P,{enGB:{XIRR:'XIRR',INDEX:'INDEX',EDATE:'EDATE',RANK:'RANK','RANK.EQ':'RANK.EQ',FORECAST:'FORECAST','FORECAST.LINEAR':'FORECAST.LINEAR'}})}
+    ['INDEX','EDATE'].forEach(f=>{try{H.unregisterFunction(f)}catch(e){}});H.registerFunctionPlugin(P,{enGB:{XOFFSUM:'XOFFSUM',XOFFXIRR:'XOFFXIRR',XIRR:'XIRR',INDEX:'INDEX',EDATE:'EDATE',RANK:'RANK','RANK.EQ':'RANK.EQ',FORECAST:'FORECAST','FORECAST.LINEAR':'FORECAST.LINEAR'}})}
+  function xirrOf(v0,d0,guess){const CE=H.CellError,v=[],d=[];v0.forEach((x,i)=>{if(typeof x==='number'&&typeof d0[i]==='number'){v.push(x);d.push(d0[i])}});
+    if(!v.some(x=>x>0)||!v.some(x=>x<0))return new CE('NUM');
+    const npv=r=>v.reduce((a,x,i)=>a+x/Math.pow(1+r,(d[i]-d[0])/365),0),dn=r=>v.reduce((a,x,i)=>{const t=(d[i]-d[0])/365;return a-t*x/Math.pow(1+r,t+1)},0);
+    let r=guess==null?0.1:guess;for(let k=0;k<100;k++){const f=npv(r),g=dn(r);if(!g)break;const n=r-f/g;if(!isFinite(n))break;if(Math.abs(n-r)<1e-12)return n;r=n<=-0.999999?(r-0.999999)/2:n}
+    let lo=-0.999,hi=100;if(npv(lo)*npv(hi)>0)return new CE('NUM');for(let k=0;k<300;k++){const m=(lo+hi)/2;if(npv(lo)*npv(m)<=0)hi=m;else lo=m}return(lo+hi)/2}
+  // the cells of an OFFSET window inside the range it can move over: (i,j) its top-left within that range (0-based), h×w its size;
+  // a window past the used cells reads empty cells (as Excel does inside the sheet), one before the range is #REF!
+  function offWin(big,i,j,h,w){const CE=H.CellError;i=Math.trunc(raw(i));j=Math.trunc(raw(j));h=Math.trunc(raw(h));w=Math.trunc(raw(w));
+    if(![i,j,h,w].every(Number.isFinite)||i<0||j<0||h<1||w<1||i+h>1048576||j+w>16384)return new CE('REF');const D=big.data||[[big]],out=[];
+    for(let r=i;r<i+h;r++)for(let c=j;c<j+w;c++){const row=D[r];out.push(row&&row[c]!==undefined?row[c]:null)}return out}
   // a function call rewritten from its arguments (balanced parentheses, strings respected): NAME(a,b,...) → fn([a,b,...])
   function rewriteFn(src,name,fn){const re=new RegExp('(^|[^A-Za-z0-9_.])'+name.replace('.','\\.')+'\\(','g');let out='',i=0,m;re.lastIndex=0;
     while((m=re.exec(src))){const st=m.index+m[1].length,open=st+name.length;let d=0,j=open,args=[],a0=open+1,q=false;
       for(;j<src.length;j++){const ch=src[j];if(q){if(ch==='"'){if(src[j+1]==='"'){j++;continue}q=false}continue}if(ch==='"'){q=true;continue}if(ch==='(')d++;else if(ch===')'){d--;if(d===0){args.push(src.slice(a0,j));break}}else if(ch===','&&d===1){args.push(src.slice(a0,j));a0=j+1}}
       if(d!==0)break;out+=src.slice(i,st)+fn(args.map(x=>x.trim()));i=j+1;re.lastIndex=i}
     return out+src.slice(i)}
-  function rewriteAll(f){if(/AVERAGEIFS\(/i.test(f))f=rewriteFn(f,'AVERAGEIFS',a=>`(SUMIFS(${a.join(',')})/COUNTIFS(${a.slice(1).join(',')}))`);
+  let EXT={},CURSH='';
+  const colN=L=>{let n=0;for(const ch of L.toUpperCase())n=n*26+ch.charCodeAt(0)-64;return n},colL=n=>{let s='';while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26)}return s};
+  const qSh=sh=>/[^A-Za-z0-9_]/.test(sh)?"'"+sh.replace(/'/g,"''")+"'":sh,isNum=x=>/^\s*[-+]?\d+(\.\d+)?\s*$/.test(x);
+  // one OFFSET call → the range it can move over plus the (row, column, height, width) of its window inside it, or null when it is not one we can carry
+  function offArgs(a){if(a.length<3||a.length>5)return null;let [ref,rows,cols,h,w]=a.map(x=>x==null?'':String(x).trim());rows=rows||'0';cols=cols||'0';
+    let sh=CURSH,r0,c0,ah=1,aw=1;const m=ref.match(/^(?:('(?:[^']|'')+'|[A-Za-z0-9_.]+)!)?\$?([A-Z]{1,3})\$?(\d+)(?::\$?([A-Z]{1,3})\$?(\d+))?$/);
+    if(m){if(m[1])sh=m[1].replace(/^'|'$/g,'').replace(/''/g,"'");r0=m[3];c0=String(colN(m[2]));if(m[4]){ah=+m[5]-+m[3]+1;aw=colN(m[4])-colN(m[2])+1}}
+    else{const ix=ref.match(/^INDEX\((.+)\)$/i);if(!ix)return null;const p=splitArgs(ix[1]);if(!p||p.length<2||p.length>3)return null;
+      const rm=p[0].trim().match(/^(?:('(?:[^']|'')+'|[A-Za-z0-9_.]+)!)?\$?([A-Z]{1,3})\$?(\d+):\$?([A-Z]{1,3})\$?(\d+)$/);if(!rm)return null;if(rm[1])sh=rm[1].replace(/^'|'$/g,'').replace(/''/g,"'");
+      let ri=p[1].trim(),ci=(p[2]||'1').trim();if(+rm[3]===+rm[5]&&p.length===2){ci=ri;ri='1'}r0=`(${rm[3]}+(${ri})-1)`;c0=`(${colN(rm[2])}+(${ci})-1)`}
+    const E=EXT[sh];if(!E)return null;h=h||String(ah);w=w||String(aw);r0=cfold(r0);c0=cfold(c0);rows=cfold(rows);cols=cfold(cols);h=cfold(h);w=cfold(w);
+    // the band the window can reach: fixed where every part is a number; where the size or shift is computed, from where the window can
+    // start (the anchor, plus the shift when that is fixed: a window moves forward from its anchor) to the used edge of the sheet
+    const rFix=isNum(r0)&&isNum(rows)&&isNum(h),cFix=isNum(c0)&&isNum(cols)&&isNum(w);
+    const rS=isNum(r0)?+r0+(isNum(rows)?+rows:0):1,cS=isNum(c0)?+c0+(isNum(cols)?+cols:0):1;
+    const R1=rFix?+r0+ +rows:Math.max(1,rS),R2=rFix?R1+ +h-1:Math.max(E.r,R1),C1=cFix?+c0+ +cols:Math.max(1,cS),C2=cFix?C1+ +w-1:Math.max(E.c,C1);if(R1<1||C1<1)return null;
+    const big=`${qSh(sh)}!$${colL(C1)}$${R1}:$${colL(C2)}$${R2}`;return[big,`((${r0})+(${rows})-${R1})`,`((${c0})+(${cols})-${C1})`,`(${h})`,`(${w})`]}
+  // fixed arithmetic folded to a number ((141+(1)-1) → 141), so a fixed part is seen as fixed
+  function cfold(x){x=String(x).trim();if(/^[\d+\-*() .]+$/.test(x)&&/\d/.test(x)){try{const v=Function('return ('+x+')')();if(Number.isFinite(v))return String(v)}catch(e){}}return x}
+  function splitArgs(t){const out=[];let d=0,q=false,a=0;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'){if(t[i+1]==='"'){i++;continue}q=false}continue}if(ch==='"'){q=true;continue}
+      if(ch==='('||ch==='{')d++;else if(ch===')'||ch==='}')d--;else if(ch===','&&d===0){out.push(t.slice(a,i));a=i+1}}if(d!==0)return null;out.push(t.slice(a));return out}
+  const offCall=x=>{const m=String(x).trim().match(/^OFFSET\(([\s\S]*)\)$/i);if(!m)return null;const a=splitArgs(m[1]);if(!a)return null;
+    // a fully fixed OFFSET with no empty argument the engine reads itself
+    if(a.length>=3&&a.slice(1).every(z=>isNum(z))&&/^(?:('(?:[^']|'')+'|[A-Za-z0-9_.]+)!)?\$?[A-Z]{1,3}\$?\d+(:\$?[A-Z]{1,3}\$?\d+)?$/.test(a[0].trim()))return null;return offArgs(a)};
+  function rewriteOffset(f){if(!/OFFSET\(/i.test(f))return f;
+    if(/XIRR\(/i.test(f))f=rewriteFn(f,'XIRR',a=>{const v=offCall(a[0]||''),d=offCall(a[1]||'');return v&&d&&a.length<=3?`XOFFXIRR(${v.join(',')},${d.join(',')}${a[2]?','+a[2]:''})`:`XIRR(${a.join(',')})`});
+    if(/SUM\(/i.test(f))f=rewriteFn(f,'SUM',a=>{const o=a.length===1&&offCall(a[0]);return o?`XOFFSUM(${o.join(',')})`:`SUM(${a.join(',')})`});
+    return f}
+  function rewriteAll(f){f=rewriteOffset(f);if(/AVERAGEIFS\(/i.test(f))f=rewriteFn(f,'AVERAGEIFS',a=>`(SUMIFS(${a.join(',')})/COUNTIFS(${a.slice(1).join(',')}))`);
     if(/CONCAT\(/i.test(f))f=rewriteFn(f,'CONCAT',a=>`CONCATENATE(${a.join(',')})`);
     if(/LOOKUP\(/i.test(f)&&!/[HVX]LOOKUP\(/i.test(f))f=rewriteFn(f,'LOOKUP',a=>a.length>=3?`INDEX(${a[2]},MATCH(${a[0]},${a[1]},1))`:`INDEX(${a[1]},MATCH(${a[0]},${a[1]},1))`);
     return f}
   // Excel's formula text, made readable by the engine: TRUE/FALSE as functions, Excel's _xlfn. prefixes dropped, INDEX(array,0) on a vector is the vector, DATEDIF units upper case
   let FROZEN={TODAY:null,NOW:null};
-  function fixF(f){f=rewriteAll(f);if(FROZEN.TODAY!=null)f=f.replace(/\bTODAY\(\)/gi,'('+FROZEN.TODAY+')');if(FROZEN.NOW!=null)f=f.replace(/\bNOW\(\)/gi,'('+FROZEN.NOW+')');return f.split(/("(?:[^"]|"")*")/).map((p,i)=>i%2?p:p.replace(/_xlfn\.|_xlws\./g,'').replace(/(^|[^A-Za-z0-9_.!'$])(TRUE|FALSE)(?![A-Za-z0-9_(])/g,'$1$2()')).join('').replace(/INDEX\((\([^()]*\)),0\)/g,'$1').replace(/DATEDIF\(([^()]*),"(y|m|d|ym|yd|md)"\)/gi,(m,a,u)=>'DATEDIF('+a+',"'+u.toUpperCase()+'")')}
+  // workbook names (Equity_Total, CU? …): Excel accepts characters the engine does not ('?'): those names get a safe alias in every formula
+  let NAMEMAP=null;const safeName=n=>String(n).replace(/[^A-Za-z0-9_.\\]/g,c=>'_x'+c.charCodeAt(0).toString(16)+'_');
+  const okName=n=>/^[A-Za-z_\\][A-Za-z0-9_.]*$/.test(n)&&!/^[A-Za-z]{1,3}\d+$/.test(n)&&!/^R\d*C\d*$/i.test(n);
+  function aliasNames(f){if(!NAMEMAP||!NAMEMAP.re)return f;return f.split(/("(?:[^"]|"")*"|'[^']*'!)/).map((p,i)=>i%2?p:p.replace(NAMEMAP.re,(m,pre,nm)=>pre+(NAMEMAP.to[nm.toUpperCase()]||nm))).join('')}
+  function fixF(f){f=aliasNames(rewriteAll(f));if(FROZEN.TODAY!=null)f=f.replace(/\bTODAY\(\)/gi,'('+FROZEN.TODAY+')');if(FROZEN.NOW!=null)f=f.replace(/\bNOW\(\)/gi,'('+FROZEN.NOW+')');return f.split(/("(?:[^"]|"")*")/).map((p,i)=>i%2?p:p.replace(/_xlfn\.|_xlws\./g,'').replace(/(^|[^A-Za-z0-9_.!'$])(TRUE|FALSE)(?![A-Za-z0-9_(])/g,'$1$2()')).join('').replace(/INDEX\((\([^()]*\)),0\)/g,'$1').replace(/DATEDIF\(([^()]*),"(y|m|d|ym|yd|md)"\)/gi,(m,a,u)=>'DATEDIF('+a+',"'+u.toUpperCase()+'")')}
   function A(ref){const i=ref.lastIndexOf('!');const s=ref.slice(0,i).replace(/^'|'$/g,'').replace(/''/g,"'");const p=XL.utils.decode_cell(ref.slice(i+1).replace(/\$/g,''));const id=hf.getSheetId(s);if(id===undefined)throw new Error('no sheet '+s);return{sheet:id,row:p.r,col:p.c}}
   const nm=a=>{const s=hf.getSheetName(a.sheet);return(/[^A-Za-z0-9_]/.test(s)?"'"+s+"'":s)+'!'+XL.utils.encode_cell({r:a.row,c:a.col})};
   const val=a=>{const v=hf.getCellValue(a);return v&&typeof v==='object'&&v.type?{err:v.value||v.type}:raw(v)};
   let FMT={};
-  function load(buf,refs){const wb=XL.read(buf,{type:'array',cellFormula:true,cellNF:true});const sheets={};cached={};dirty=new Map();let nf=0;FMT={};FROZEN={TODAY:null,NOW:null};
+  function load(buf,refs){NAMEMAP=null;const wb=XL.read(buf,{type:'array',cellFormula:true,cellNF:true});const sheets={};cached={};dirty=new Map();let nf=0;FMT={};FROZEN={TODAY:null,NOW:null};
     for(const n of wb.SheetNames){const ws=wb.Sheets[n];for(const k in ws){if(k[0]==='!')continue;const c=ws[k];if(!c||!c.f||typeof c.v!=='number')continue;if(/^\s*TODAY\(\)\s*$/i.test(c.f)&&FROZEN.TODAY==null)FROZEN.TODAY=c.v;if(/^\s*NOW\(\)\s*$/i.test(c.f)&&FROZEN.NOW==null)FROZEN.NOW=c.v}}
+    EXT={};for(const n of wb.SheetNames){const ws=wb.Sheets[n];if(ws&&ws['!ref']){const R=XL.utils.decode_range(ws['!ref']);EXT[n]={r:R.e.r+1,c:R.e.c+1}}}
     if(FROZEN.TODAY==null&&FROZEN.NOW!=null)FROZEN.TODAY=Math.floor(FROZEN.NOW);if(FROZEN.NOW==null&&FROZEN.TODAY!=null)FROZEN.NOW=FROZEN.TODAY;
-    for(const n of wb.SheetNames){const ws=wb.Sheets[n];const ks=Object.keys(ws).filter(k=>k[0]!=='!');let mr=-1,mc=-1;const cs=[];
+    for(const n of wb.SheetNames){const ws=wb.Sheets[n];CURSH=n;const ks=Object.keys(ws).filter(k=>k[0]!=='!');let mr=-1,mc=-1;const cs=[];
       for(const k of ks){const c=ws[k];if(!c||(c.v==null&&!c.f))continue;const p=XL.utils.decode_cell(k);cs.push([p,c]);if(p.r>mr)mr=p.r;if(p.c>mc)mc=p.c}
       const rows=[];for(let r=0;r<=mr;r++)rows.push(new Array(mc+1).fill(null));
       for(const [p,c] of cs){if(c.z&&c.z!=='General')FMT[n+'!'+XL.utils.encode_cell(p)]=String(c.z);if(c.f){rows[p.r][p.c]='='+fixF(c.f);nf++;cached[n+'!'+XL.utils.encode_cell(p)]=c.v}else rows[p.r][p.c]=c.t==='n'||c.t==='b'?c.v:c.t==='e'?null:(typeof c.v==='string'&&/^[=+\-@]/.test(c.v)?"'"+c.v:c.v==null?null:String(c.v))}
       sheets[n]=rows}
-    hf=H.buildFromSheets(sheets,{licenseKey:'gpl-v3',useArrayArithmetic:true,leapYear1900:true,nullDate:{year:1899,month:12,day:31},evaluateNullToZero:true});
+    const HFC={licenseKey:'gpl-v3',useArrayArithmetic:true,leapYear1900:true,nullDate:{year:1899,month:12,day:31},evaluateNullToZero:true};
+    const names=[],namesSkipped=[];{const N=(wb.Workbook&&wb.Workbook.Names)||[];const to={};
+      for(const d of N){const n=String(d.Name||'');if(!n||/^_xlnm\./i.test(n)||d.Hidden&&/^_/.test(n))continue;const ref=String(d.Ref||'').trim();
+        if(!ref||/#REF!|\[\d+\]/.test(ref)){namesSkipped.push(n+' (broken reference)');continue}
+        const a=okName(n)?n:safeName(n);if(!okName(a)){namesSkipped.push(n);continue}if(a!==n)to[n.toUpperCase()]=a;
+        const sc=d.Sheet!=null&&wb.SheetNames[d.Sheet]!=null?d.Sheet:undefined;names.push({name:a,expression:'='+ref,scope:sc})}
+      const odd=Object.keys(to);NAMEMAP={to,re:odd.length?new RegExp('(^|[^A-Za-z0-9_.!\'$\\\\])('+odd.map(k=>k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')(?![A-Za-z0-9_.(])','gi'):null}}
+    // the formulas were read before the names were known: apply the aliases now
+    if(NAMEMAP.re)for(const n of Object.keys(sheets))for(const row of sheets[n])for(let c=0;c<row.length;c++){const v=row[c];if(typeof v==='string'&&v[0]==='=')row[c]=aliasNames(v)}
+    try{hf=H.buildFromSheets(sheets,HFC,names)}catch(e){namesSkipped.push('all names ('+String(e.message||e).slice(0,80)+')');hf=H.buildFromSheets(sheets,HFC)}
     // the engine is trusted only when it reproduces Excel's own stored results
     let tot=0,ok=0;const bad=[];for(const k in cached){const cv=cached[k];if(typeof cv!=='number')continue;tot++;const i=k.lastIndexOf('!');const p=XL.utils.decode_cell(k.slice(i+1));const v=raw(hf.getCellValue({sheet:hf.getSheetId(k.slice(0,i)),row:p.r,col:p.c}));
       if(typeof v==='number'&&Math.abs(v-cv)<=1e-6*Math.max(1,Math.abs(cv)))ok++;else if(bad.length<6)bad.push(k)}
     const outBad=(refs||[]).filter(r=>{try{const v=raw(hf.getCellValue(A(r)));const cv=cached[r];return cv!==undefined&&typeof cv==='number'&&!(typeof v==='number'&&Math.abs(v-cv)<=1e-6*Math.max(1,Math.abs(cv)))}catch(e){return true}});
-    return{tot,match:ok,bad,outBad,formulas:nf,sheets:Object.keys(sheets).length,frozen:FROZEN.TODAY}}
+    return{tot,match:ok,bad,outBad,formulas:nf,sheets:Object.keys(sheets).length,frozen:FROZEN.TODAY,names:names.length,namesSkipped}}
   function restore(keep){const back=[...dirty.entries()].filter(([k])=>!keep||!keep.has(k));if(!back.length)return;hf.batch(()=>{for(const [k,v] of back){hf.setCellContents(A(k),[[v]]);dirty.delete(k)}})}
   // the run of typed numbers an input stands for: the anchor and the constants to its right on the same row (one per year, say), up to a formula or text
   const fmtOf=a=>FMT[hf.getSheetName(a.sheet)+'!'+XL.utils.encode_cell({r:a.row,c:a.col})]||'General';
