@@ -12,5 +12,6 @@ for p in sys.argv[1:]:
         if k in have:have[k]['value']=v
         else:allr['headers'].append({'key':k,'value':v})
     if not any(h.get('source')=='/assets/(.*)' for h in hs):hs.append({'source':'/assets/(.*)','headers':[{'key':'Cache-Control','value':'public, max-age=31536000, immutable'}]})   # content-hashed names: a new build gets new names
+    if not any(h.get('source')=='/vendor/(.*)' for h in hs):hs.append({'source':'/vendor/(.*)','headers':[{'key':'Cache-Control','value':'public, max-age=31536000, immutable'}]})   # versioned library files (hyperformula-3.5.0…)
     if not any(h.get('source')=='/demo.webm' for h in hs):hs.append({'source':'/demo.webm','headers':[{'key':'Cache-Control','value':'public, max-age=86400'}]})
     json.dump(vj,open(p,'w'),indent=2);open(p,'a').write('\n');print('patched',p)

@@ -11,6 +11,7 @@ for d in kinan-estatemaster kinan-estatemaster-analyst kinan-estatemaster-api; d
   for f in $D/$d/assets/*.js; do node --check $f || { echo "BAD $f"; exit 1; }; done
   cp $W/estatemaster-agent/guides/${GUIDE[$d]}.html $D/$d/guide.html
   cp $W/estatemaster-agent/demo/demo.webm $D/$d/demo.webm
+  mkdir -p $D/$d/vendor && cp $W/estatemaster-agent/vendor/* $D/$d/vendor/   # the formula engine, Excel reader and PowerPoint library, served by the app itself
   for f in cron.js schedule.js voice.js llm.js mail.js scan.js _lib/emcheck.js _lib/graph.js _lib/sched.js; do
     [ -f $D/$d/api/$f ] && [ -f $W/estatemaster-agent/api/$f ] && cp $W/estatemaster-agent/api/$f $D/$d/api/$f; done
   cp $W/estatemaster-agent/api/log.js $W/estatemaster-agent/api/health.js $D/$d/api/

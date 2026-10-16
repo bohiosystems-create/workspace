@@ -41,8 +41,24 @@ async function readBody(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
+// Prompt caching (Claude): the tool list, the system prompt and, in the agent's tool loop, the conversation so far are marked
+// cacheable, so the next call that starts with the same text reuses it instead of reading it again: quicker and about 90%
+// cheaper on that text. The model receives exactly the same request, so answers are unchanged.
+function cacheable(p, task) {
+  const cc = { type: 'ephemeral' };
+  if (Array.isArray(p.tools) && p.tools.length) { const t = p.tools.slice(); t[t.length - 1] = { ...t[t.length - 1], cache_control: cc }; p.tools = t; }
+  if (typeof p.system === 'string' && p.system) p.system = [{ type: 'text', text: p.system, cache_control: cc }];
+  else if (Array.isArray(p.system) && p.system.length) { const s = p.system.slice(); s[s.length - 1] = { ...s[s.length - 1], cache_control: cc }; p.system = s; }
+  if (task === 'agent' && Array.isArray(p.messages) && p.messages.length > 1) {
+    const m = p.messages.slice(), last = { ...m[m.length - 1] };
+    const c = typeof last.content === 'string' ? [{ type: 'text', text: last.content }] : Array.isArray(last.content) ? last.content.slice() : null;
+    if (c && c.length && c[c.length - 1] && ['text', 'tool_result', 'image', 'document'].includes(c[c.length - 1].type)) { c[c.length - 1] = { ...c[c.length - 1], cache_control: cc }; last.content = c; m[m.length - 1] = last; p.messages = m; }
+  }
+  return p;
+}
+
 const DEMO_CODE = () => (process.env.DEMO_SESSION_SECRET ? '' : process.env.DEMO_PASSWORD);
-module.exports = async function handler(req, res) {
+const handler = async function handler(req, res) {
   const has = { anthropic: !!process.env.ANTHROPIC_API_KEY, openai: !!process.env.OPENAI_API_KEY };
 
   // GET: tell the page which providers have a server-side key (never the key itself).
@@ -69,7 +85,10 @@ module.exports = async function handler(req, res) {
   if (provider === 'anthropic') p.max_tokens = Math.min(+p.max_tokens || cap, cap);
   // OpenAI reasoning models (gpt-5, o-series) count their hidden reasoning in this cap: too small a cap returns an empty answer
   else { const rc = /^(gpt-5|o\d)/i.test(String(p.model)) ? Math.max(cap, task === 'report' ? cap : 24000) : cap; p.max_completion_tokens = Math.min(+p.max_completion_tokens || rc, rc); delete p.max_tokens; }
-  delete p.stream;
+  // the chat's answer (task 'agent' or 'answer') may come back as a stream, so its words show as they are written; anything else is one JSON reply
+  const stream = provider === 'anthropic' && p.stream === true && ['agent', 'answer'].includes(task);
+  if (stream) p.stream = true; else delete p.stream;
+  if (provider === 'anthropic') cacheable(p, task);
 
   const headers = { 'content-type': 'application/json' };
   if (provider === 'anthropic') { headers['x-api-key'] = process.env.ANTHROPIC_API_KEY; headers['anthropic-version'] = '2023-06-01';
@@ -81,6 +100,15 @@ module.exports = async function handler(req, res) {
 
   try {
     const r = await fetch(UPSTREAM[provider](), { method: 'POST', headers, body: JSON.stringify(p), signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+    if (stream && r.ok && r.body && /event-stream/i.test(r.headers.get('content-type') || '')) {
+      res.statusCode = 200;
+      res.setHeader('content-type', 'text/event-stream; charset=utf-8');
+      res.setHeader('cache-control', 'no-store');
+      res.setHeader('x-accel-buffering', 'no');
+      try { for await (const chunk of r.body) res.write(chunk); }
+      catch (e) { res.write(`event: error\ndata: ${JSON.stringify({ type: 'error', error: { type: 'proxy_error', message: e && e.name === 'TimeoutError' ? 'The AI provider did not answer in time' : 'The answer stream broke: ' + (e && e.message) } })}\n\n`); }
+      return res.end();
+    }
     const text = await r.text();
     res.statusCode = r.status;
     res.setHeader('content-type', 'application/json');
@@ -90,3 +118,5 @@ module.exports = async function handler(req, res) {
     send(res, e && e.name === 'TimeoutError' ? 504 : 502, { error: (e && e.name === 'TimeoutError' ? 'The AI provider did not answer in time' : 'Upstream request failed: ' + e.message) });
   }
 };
+module.exports = handler;
+module.exports.cacheable = cacheable;
