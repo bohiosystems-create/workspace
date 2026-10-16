@@ -191,8 +191,9 @@ function emMatrix(sheets) {
 /* Amounts stated in thousands or millions ("($000s)", "USD m", "in millions") are scaled to full units: from the label, the column heading or the sheet's title rows. */
 const EM_K = /\(\s*[^)]{0,8}?(000s?|'000s?|’000s?|k)\s*\)|in\s*thousands|\bthousands\b|['’]000s?\b|[$€£]\s*000s?\b|\b(usd|sar|eur|aed|gbp|qar)\s*(000s?|k)\b/i;
 const EM_M = /\(\s*[^)]{0,8}?(m|mm|mn|mio|millions?)\s*\)|in\s*millions|\bmillions?\b|\b(usd|sar|eur|aed|gbp|qar|us\$|\$|€|£)\s*(m|mm|mn)\b/i;
+const EM_CR = /\bcrores?\b|\(\s*[^)]{0,6}?\bcr\.?\s*\)/i, EM_LK = /\blakhs?\b|\blacs?\b/i;   // Indian units: 1 crore = 10 million, 1 lakh = 100,000
 function emUnitScale(s, ri, j, label) {
-  const sc = t => EM_M.test(t) ? 1e6 : EM_K.test(t) ? 1e3 : 0; let k = sc(label || ''); if (k) return { k, from: `“${String(label).trim().slice(0, 40)}”` };
+  const sc = t => EM_CR.test(t) ? 1e7 : EM_LK.test(t) ? 1e5 : EM_M.test(t) ? 1e6 : EM_K.test(t) ? 1e3 : 0; let k = sc(label || ''); if (k) return { k, from: `“${String(label).trim().slice(0, 40)}”` };
   for (let r = ri - 1; r >= Math.max(0, ri - 15); r--) { const h = (s.rows[r] || [])[j]; if (typeof h === 'string' && (k = sc(h))) return { k, from: `column heading “${h.trim().slice(0, 30)}”` }; }
   for (let r = 0; r < Math.min(6, s.rows.length); r++) for (const c of s.rows[r] || []) if (typeof c === 'string' && c.length < 90 && (k = sc(c))) return { k, from: `sheet heading “${c.trim().slice(0, 40)}”` };
   return null;
@@ -307,7 +308,7 @@ function detectMeta(sheets, fileName) {
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string') continue; const t = c.trim();
       for (const m of t.matchAll(/\b(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD|BHD|OMR|JOD|EGP|CHF|JPY|CNY|HKD|SGD|INR|CAD|ZAR|SEK|NOK|DKK|PLN|TRY|MAD)\b/g)) { const c = m[1] === 'AUD' ? 'USD' : m[1]; vote(c, `“${t.slice(0, 40)}”`); }
-      if (/(^|[\s(\-–])(US)?\$\s?\d|^\s*(US)?\$\s*$/.test(t)) vote('USD', `“${t.slice(0, 40)}”`); { const dm = t.match(/(?:^|[^A-Z])(NZ|C|HK|S)\$/); if (dm) vote({ NZ: 'NZD', C: 'CAD', HK: 'HKD', S: 'SGD' }[dm[1]], `“${t.slice(0, 40)}”`); } if (/€/.test(t)) vote('EUR', `“${t.slice(0, 40)}”`); if (/£/.test(t)) vote('GBP', `“${t.slice(0, 40)}”`); if (/﷼|ر\.س|\bSR\s?\d/.test(t)) vote('SAR', `“${t.slice(0, 40)}”`);
+      if (/(^|[\s(\-–])(US)?\$\s?\d|^\s*(US)?\$\s*$/.test(t)) vote('USD', `“${t.slice(0, 40)}”`); { const dm = t.match(/(?:^|[^A-Z])(NZ|C|HK|S)\$/); if (dm) vote({ NZ: 'NZD', C: 'CAD', HK: 'HKD', S: 'SGD' }[dm[1]], `“${t.slice(0, 40)}”`); } if (/€/.test(t)) vote('EUR', `“${t.slice(0, 40)}”`); if (/₹/.test(t)) vote('INR', `“${t.slice(0, 40)}”`); if (/¥/.test(t) && !/\bCNY\b|RMB|元/.test(t)) vote('JPY', `“${t.slice(0, 40)}”`); if (/£/.test(t)) vote('GBP', `“${t.slice(0, 40)}”`); if (/﷼|ر\.س|\bSR\s?\d/.test(t)) vote('SAR', `“${t.slice(0, 40)}”`);
       if (/^(.*,\s*)?(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\s*$/.test(t) && /,/.test(t)) usLoc = t;
       if (/estate\s*master|office\s*links|\bargus\b|cash flow title/i.test(t)) meta.source = 'estatemaster';
       if (!meta.title && /^(cash flow title|project name|project title|project|scheme name|development name|title)\s*:?$/i.test(t)) { const v = after(row, i); if (typeof v === 'string' && v.trim().length > 2) { meta.title = v.trim().slice(0, 80); meta.titleFrom = 'cell'; } }

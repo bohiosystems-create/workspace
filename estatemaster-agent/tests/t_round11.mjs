@@ -1,4 +1,4 @@
-// Rounds 11-13 at the desk, no AI connected (the rules are the fallback): five synthetic models of new kinds (fixtures/models/r11_*.xlsx,
+// Rounds 11-14 at the desk, no AI connected (the rules are the fallback): five synthetic models of new kinds (fixtures/models/r11_*.xlsx,
 // made by fixtures/gen/gen11.py). Guards: the currency the model states (a row of PMT results Excel formatted as "$" does not make a
 // EUR or KWD model dollars; NZ$ is NZD); the model's own figures are read on its uploaded inputs, never on the last what-if the
 // engine holds; "0.58m" on a line in EUR m is 0.58; "what PPA price gets the equity to 12%" is a goal seek, not PPA = 12; a goal-seek
@@ -36,5 +36,10 @@ r=await ask('hard costs 10% over');t(/9,800,000 → 10,780,000/.test(r.txt)&&/12
 await up('desk_office_refurb_gbp');{const o=await p.evaluate(async()=>{await xcTest([{text:'Arden Legal renewal probability to 0%'}],async()=>{});const r=await xcTest([{text:'renewal probability 50% across the board'}],async()=>{});return r&&r.desc&&r.desc[0]});t(/60% → 50%/.test(o||''),'after another what-if, the change starts from the model’s own 60%: '+o)}
 await up('desk_tower_options_sar');t(await p.evaluate(()=>{const z=xcAiPlan(latestExport(),{label:'Selected option (A or B)',kind:'to',value:'B',sure:true},'AI');return !!(z&&z.p.kind==='text'&&z.p.s==='B')}),'an AI reading “to B” on a switch is a text change');
 t(await p.evaluate(()=>{const z=xcAiPlan(latestExport(),{label:'Construction period',kind:'to',value:4,sure:true},'AI');return !!(z&&/Construction period/.test(z.p.inp.label))}),'an AI label without a cell on a model with Option A / B lines still resolves');
+// round 14: a named month is that month; the AI's 12 cells are all changed even where the reader listed 8; ₹ crore read and shown in full rupees
+await up('r14_season_eur');{const o=await p.evaluate(async()=>{const x=latestExport();const one=(await xcSeries(x,{cell:'Seasonality!I4',label:'Occupancy · Aug'})).length;const cells='BCDEFGHIJKLM'.split('').map(c=>'Seasonality!'+c+'4');const st=[];const r=await xcTest([{text:'occupancy +2 pts across the year'}],async s=>st.push(String(s)));return{one,desc:r&&r.desc&&r.desc[0]}});t(o.one===1,'August alone is one cell: '+JSON.stringify(o))}
+t(await p.evaluate(()=>{const x=latestExport();const cells='BCDEFGHIJKLM'.split('').map(c=>'Seasonality!'+c+'4');const xa={...x,inputs:[...x.inputs,...cells.filter(c=>!x.inputs.some(i=>i.cell===c)).map(c=>({label:'Occupancy · '+c,cell:c,value:0.5,pct:true}))]};const z=xcAiPlan(xa,{label:'Occupancy',cell:cells[0],cells,kind:'pts',value:2,sure:true},'AI');return !!(z&&z.p.cells&&z.p.cells.length===12)}),'the AI’s 12 named cells are kept as one change');
+await up('r14_plots_inr');{const c=await p.evaluate(()=>(latestExport().meta||{}).currency);t(c==='INR','₹ crore model reads as INR: '+c)}
+r=await ask('land cost to 210');t(/190 → 210/.test(r.txt)&&!/INR 0\.00M/.test(r.txt),'a what-if on the crore model shows full amounts, not 0.00M: '+(r.txt.match(/Net profit[^A-Z]{0,40}/)||[''])[0]);
 if(errs.length){fail++;console.log('FAIL | page errors: '+errs.join(' | ').slice(0,300))}
 console.log(`\n${pass} pass, ${fail} fail`);await b.close();
