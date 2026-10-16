@@ -51,7 +51,7 @@ function parseInputs(sheets) {
   // the column heading of a value: up its own column through numbers (three blanks at most), never above the block the input sits in, to a text cell on a row that is a heading row (no figures on it)
   const headOf = (s, ri, j, top) => { let gap = 0; for (let r = ri - 1; r >= Math.max(0, ri - 80, top || 0); r--) { const h = (s.rows[r] || [])[j];
     if (h == null || h === '') { if (++gap > 3) return ''; continue; } gap = 0; if (typeof h === 'number') continue;
-    return typeof h === 'string' && h.trim().length < 50 && !(s.rows[r] || []).some(c => typeof c === 'number') ? h.trim() : ''; } return ''; };
+    return typeof h === 'string' && h.trim().length < 50 && !(s.rows[r] || []).slice(Math.max(0, j - 8), j + 3).some(c => typeof c === 'number') ? h.trim() : ''; } return ''; };   // a heading row has no figures near the column (a monthly block further right does not count)
   // the block an input sits in ("MEZZ DEBT", "Construction Financing", "Exit Assumptions"): up its own label column to a label with no figure beside it
   const blockOf = (s, ri, i) => { for (let r = ri - 1; r >= Math.max(3, ri - 30); r--) { const rr = s.rows[r] || [], c = rr[i]; if (!emIsLabel(c)) continue; const t = String(c).trim(); if (t.length > 50) continue;
       const nx = rr.slice(i + 1, i + 4).find(x => x != null && x !== ''); if (typeof nx === 'number' || rr.slice(i + 1, emNextLabel(rr, i)).some(x => typeof x === 'number')) continue; if (typeof nx === 'string' && !/^[^a-z]{4,}$/.test(t)) continue;   // "City, State: Orlando, FL" is a label and its value, not a heading
@@ -81,6 +81,22 @@ function parseInputs(sheets) {
         next(); continue;
       }
       const unitCell = row.slice(i + 1, end).find(c => typeof c === 'string' && EM_UNIT_RX.test(c) && c.trim().length < 30 && !/^\s*[a-z]{1,2}\s*$/i.test(c));
+      // a table (USES · START · END · METHOD · /SF · AMOUNT; SUITE · TENANT · SF · RENT/SF/YR): a text under a column heading is a value of that
+      // column (a method chosen, a tenant's name), not the line's label; and each typed figure under its own heading is its own assumption
+      if (anyF) { const per = h => /^\s*(year|yr|month|mo|quarter|q[1-4]|fy|period|h[12])\b|^\s*(19|20)\d\d\s*$|^\s*\d+\s*$/i.test(h || ''), top = Math.max(0, ri - 40);
+        // up the label's own column, past the other rows' choices ("S-Curve", "Straight-Line"), to the column heading ("METHOD")
+        const hl = (() => { let gap = 0; for (let r = ri - 1; r >= top; r--) { const rr = s.rows[r] || [], h = rr[i]; if (h == null || h === '') { if (++gap > 3) return ''; continue } gap = 0; if (typeof h !== 'string') continue;
+          if (rr.slice(Math.max(0, i - 8), i + 3).some(c => typeof c === 'number')) continue; return h.trim().length < 50 ? h.trim() : '' } return '' })();
+        for (const c of cells) if (!c.h) c.h = headOf(s, ri, c.j, top);
+        let rep = 0; for (let r = Math.max(0, ri - 20); r <= Math.min(s.rows.length - 1, ri + 20); r++) if (r !== ri && (s.rows[r] || [])[i] === row[i]) rep++;
+        const colVal = !!hl && hl !== lab && !per(hl) && (rep >= 2 || /method|status|type|tenant|order|basis|timing|curve|profile|draw|option|source|structure|lender|class/i.test(hl) || /^(see\b|n\/a$|tbd$|\[)/i.test(lab));
+        let kL = -1; for (let k = i - 1; k >= 0; k--) if (emIsLabel(row[k]) && String(row[k]).length <= 70) { kL = k; break; }
+        const own = colVal && kL >= 0 ? String(row[kL]).trim() : '';
+        const heads = cells.map(c => c.h).filter(Boolean), split = cells.length > 1 && heads.length === cells.length && new Set(heads).size === heads.length && !heads.some(per);
+        if ((colVal && own) || split) { const base = own || lab, tc = h => String(h).toLowerCase().replace(/(^|[\s\/(])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+          for (const c of (split ? cells : [cells[0]])) { const L = c.h && !per(c.h) ? `${base} · ${tc(c.h)}` : base, kk = s.name + '|' + L + '|' + ri; if (seen.has(kk)) continue; seen.add(kk); seen.add(key);
+            out.push({ label: L, value: +c.v.toFixed(6), text: (c.t || String(c.v)).trim(), pct: c.pct, fmt: c.fmt, vals: [c.v], cols: [{ h: c.h, t: String(c.t || c.v).trim() }], head: c.h || '', note: base !== lab ? lab : undefined, parent: blk ? blk.t : '', sheet: s.name, section, unit: c.pct ? '%' : (unitCell ? unitCell.trim().replace(/\bAUD\b/g, 'USD') : ''), cell: A1(s.name, c.j, ri) }) }
+          next(); continue } }
       if (!seen.has(key)) { seen.add(key); out.push({ label: lab, value: +cells[0].v.toFixed(6), text: (cells[0].t || String(cells[0].v)).trim(), pct: cells[0].pct, fmt: cells[0].fmt, vals: cells.map(c => c.v).slice(0, 6), cols: anyF ? cells.slice(0, 6).map(c => ({ h: c.h, t: String(c.t || c.v).trim() })) : undefined, head: cells[0].h || '', parent: anyF ? ((li0 => li0 > 0 ? parentOf(s, ri, li0) : '')(row.findIndex(c => emIsLabel(c))) || (blk ? blk.t : '')) : '', sheet: s.name, section, unit: cells[0].pct ? '%' : (unitCell ? unitCell.trim().replace(/\bAUD\b/g, 'USD') : ''), cell: A1(s.name, cells[0].j, ri) }); }   // the demo shows AUD as USD, units included
       next();
     }
@@ -101,7 +117,7 @@ function detectOpt(sheets, fileName) {
   const f = String(fileName || '').replace(/\.[^.]+$/, ''); const m = f.match(/\(([^)]{1,60})\)\s*$/) || f.match(/\s[-–]\s([^-–]{1,60})$/); return m ? m[1].trim() : '';
 }
 /* Everything the app and the server read from one workbook. */
-const EX_SKIP=(k,c)=>/irr|profit_on_cost|equity_multiple/.test(k)?/target|hurdle|required|minimum|\bmin\b|benchmark|threshold|cost of (equity|capital)|discount rate/i.test(c):/net_profit|total_cost|gross_revenue|peak_debt/.test(k)?/\bper\b|\/\s*(sqm|m2|m²|sq\s?m|sq\s?ft|unit|bed|key)|\bpsm\b|\bpsf\b|\barea\b|\bunits?\b|%|ratio|\brate\b|yield|margin|count|number of|\b(nla|gfa|gla|nsa|bua)\b|\bsqm\b|\bm2\b/i.test(c):false;
+const EX_SKIP=(k,c)=>/irr|profit_on_cost|equity_multiple/.test(k)?/target|hurdle|required|minimum|\bmin\b|benchmark|threshold|cost of (equity|capital)|discount rate|\btier\b|promote|\breq'?d\b/i.test(c):/net_profit|total_cost|gross_revenue|peak_debt/.test(k)?/\bper\b|\/\s*(sqm|m2|m²|sq\s?m|sq\s?ft|unit|bed|key)|\bpsm\b|\bpsf\b|\barea\b|\bunits?\b|%|ratio|\brate\b|yield|margin|count|number of|\b(nla|gfa|gla|nsa|bua)\b|\bsqm\b|\bm2\b/i.test(c):false;
 function parseWorkbook(wb, XLSX, fileName) {
   const sheets = (wb.SheetNames || []).map(name => ({ name, ws: wb.Sheets[name], rows: emRows(XLSX, wb.Sheets[name], true), frows: emRows(XLSX, wb.Sheets[name], false) }));
   const { out, found, cells } = emHeadline(sheets);
@@ -130,7 +146,11 @@ const emIsLabel = c => typeof c === 'string' && c.trim().length > 2 && /[a-z]/i.
    "SOFR +500 bps" basis points, "$4,567,339" money, "2.78x" a multiple, "3,500,000" a plain number. */
 const emFmt = (t, pc) => { t = String(t == null ? '' : t); return pc || /%\s*\)?\s*$/.test(t.trim()) ? 'pct' : /\bbps\b|basis points/i.test(t) ? 'bps' : /[$€£¥﷼]|\b(SAR|USD|AED|EUR|GBP|AUD|QAR|KWD|SR)\b/i.test(t) ? 'money' : /^\s*-?[\d.,]+\s*x\s*$/i.test(t) ? 'x' : 'num'; };
 /* A row of period values (a year or month per column) has no single figure: only a column headed "Total" counts. */
-function emSeriesCol(rows, ri, j) { const row = rows[ri] || []; const nums = row.slice(j).filter(c => typeof c === 'number').length; if (nums < 6) return false;
+function emSeriesCol(rows, ri, j) { const row = rows[ri] || []; const nums = row.slice(j).filter(c => typeof c === 'number').length;
+  // fewer than six values is still a series when the columns are headed by periods (year 0 1 2 3, dates, "Year 1", "Q2", "FY25")
+  const per = c => typeof c === 'number' ? (Number.isInteger(c) && c >= 0 && c <= 600) || (c > 20000 && c < 80000) : typeof c === 'string' && /^\s*(year|yr|month|mo|quarter|q[1-4]|fy|period|h[12])\b|^\s*(19|20)\d\d\s*$|^\s*[a-z]{3}[- ]?\d{2,4}\s*$/i.test(c);
+  const headed = () => { for (let k = ri - 1; k >= Math.max(0, ri - 12); k--) { const h = rows[k] || []; let n = 0; for (let c = j; c < Math.min(h.length, j + 12); c++) if (per(h[c])) n++; if (n >= 3) return true } return false };
+  if (nums < 3 || (nums < 6 && !headed())) return false;
   for (let k = ri - 1; k >= Math.max(0, ri - 10); k--) { const h = (rows[k] || [])[j]; if (typeof h === 'string' && /total|sum\b/i.test(h)) return false; } return true; }
 /* A returns table (rows Levered / Unlevered, columns IRR · Profit · MOIC · Cash outflow), as many developer models lay their headline out. */
 function emMatrix(sheets) {
@@ -138,7 +158,7 @@ function emMatrix(sheets) {
   for (const s of sheets) for (let ri = 0; ri < Math.min(s.rows.length, 200); ri++) { const row = s.rows[ri] || [];
     const col = re => row.findIndex(c => typeof c === 'string' && re.test(c.trim()));
     const ci = col(/^(irr|xirr)$/i); if (ci < 0) continue;
-    const cp = col(/^(net\s*)?profit$/i), cm = col(/^(moic|equity multiple|multiple|em)$/i), co = col(/^(cash\s*outflow|equity|investment|total\s*cost|cost)$/i);
+    const cp = col(/^(net\s*)?profit$/i), cm = col(/^(moic|equity multiple|multiple|em|emx|em\s*\(?x\)?|equity\s*multiple\s*\(x\))$/i), co = col(/^(cash\s*outflow|equity|investment|total\s*cost|cost)$/i);
     for (let r = ri + 1; r < Math.min(s.rows.length, ri + 9); r++) { const rr = s.rows[r] || []; let li = -1; for (let j = ci - 1; j >= 0; j--) if (typeof rr[j] === 'string' && rr[j].trim()) { li = j; break; }   // the row's own label: the text nearest the table, not a cell of the block beside it
       if (li < 0) continue; const lab = String(rr[li]).trim(), unl = /\b(unlevered|ungeared|project|asset)\b/i.test(lab), lev = !unl && /\b(levered|geared|equity)\b/i.test(lab); if (!unl && !lev) continue;
       const fr = (s.frows && s.frows[r]) || [], put = (k, j, f) => { if (j < 0 || k in out || typeof rr[j] !== 'number') return; out[k] = +f(rr[j]).toFixed(4); found[k] = `${s.name} / ${lab} · ${String(row[j]).trim()}${fr[j] ? ' (' + String(fr[j]).trim() + ')' : ''}`; cells[k] = A1(s.name, j, r); };
@@ -146,7 +166,8 @@ function emMatrix(sheets) {
       if (unl) { put('unlevered_irr', ci, pc); put('total_cost', co, Math.abs); }
       else { put('levered_irr', ci, pc); put('net_profit', cp, v => v); put('equity_multiple', cm, v => v); }
     }
-    if (Object.keys(out).length) return { out, found, cells };
+    // a summary table may hold only the IRRs: later tables (the full returns table) fill what it leaves out, never what it holds
+    if (['levered_irr', 'net_profit', 'equity_multiple'].every(k => k in out)) return { out, found, cells };
   }
   // the same table the other way round: columns Unlevered / Levered, rows IRR · Profit · MOIC · Cost
   for (const s of sheets) for (let ri = 0; ri < Math.min(s.rows.length, 200); ri++) { const row = s.rows[ri] || [];
@@ -176,24 +197,35 @@ function emUnitScale(s, ri, j, label) {
 /* The headline figures, the same way in the app and on the server: a returns table first, then each figure by its label, its value to the right of
    the label or, for a heading over its figure, directly below; never the first period of a time series; percentages and scale from the cells' formats. */
 function emHeadline(sheets) {
-  const mx = emMatrix(sheets), out = { ...mx.out }, found = { ...mx.found }, cells = { ...mx.cells }, isNum = x => typeof x === 'number' || (typeof x === 'string' && /^\s*-?[\d,.]+\s*%?\s*$/.test(x) && !!x.trim());
+  const mx = emMatrix(sheets), out = { ...mx.out }, found = { ...mx.found }, cells = { ...mx.cells }, later = {}, isNum = x => typeof x === 'number' || (typeof x === 'string' && /^\s*-?[\d,.]+\s*%?\s*$/.test(x) && !!x.trim());
   for (const s of sheets) for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri]; if (!row) continue;
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string' || c.length > 80) continue;
       for (const [k, re] of LAB) {
         if (k in out || !re.test(c)) continue; if (k === 'levered_irr' && /unlevered|ungeared|unleveraged/i.test(c)) continue; if (EX_SKIP(k, c)) continue;
-        const seg = row.slice(i + 1, emNextLabel(row, i)); let v = seg.find(isNum), r0 = ri, j0 = i + 1 + seg.indexOf(v);
+        // an operating income line (effective or potential gross income, a stabilised year) is not the scheme's gross revenue
+        if (k === 'gross_revenue' && /\b(effective|potential|egi|pgi|egr|stabili[sz]ed|in-place|annual|per annum|year\s*1)\b/i.test(c)) continue;
+        // an LP's or GP's own figure is kept aside: the scheme's figure, when the model has one, pairs with the scheme's IRR
+        const party = /levered_irr|equity_multiple|net_profit/.test(k) && /^\s*(lp|gp|limited partner|general partner|investor|sponsor|promote)\b/i.test(c);
+        const end = emNextLabel(row, i), seg = row.slice(i + 1, end); let v = seg.find(isNum), r0 = ri, j0 = i + 1 + seg.indexOf(v), amt = false;
+        // a table with several columns (%, per SF, Amount): the figure is the one under "Amount" / "Total"
+        if (/net_profit|total_cost|gross_revenue|peak_debt/.test(k) && seg.filter(isNum).length > 1) { for (let r = ri - 1; r >= Math.max(0, ri - 12) && !amt; r--) { const h = s.rows[r] || []; for (let cc = i + 1; cc < end; cc++) if (typeof h[cc] === 'string' && /^\s*(amount|total|total amount|value|\$|usd|sar|eur|gbp|aed)\s*$/i.test(h[cc]) && isNum(row[cc])) { v = row[cc]; j0 = cc; amt = true; break } } }
         if (v == null) { for (let r = ri + 1; r <= ri + 2 && r < s.rows.length; r++) { const b = (s.rows[r] || [])[i]; if (isNum(b)) { v = b; r0 = r; j0 = i; break; } if (b != null && b !== '') break; } }   // a heading with its figure underneath
+        // a figure read under a column heading belongs to its row: a tier, hurdle or promote row is an assumption; an unlevered row is not the equity's figure
+        if (v != null && r0 !== ri) { const rr = s.rows[r0] || []; let rl = ''; for (let j = j0 - 1; j >= 0; j--) if (typeof rr[j] === 'string' && rr[j].trim()) { rl = rr[j].trim(); break; }
+          if (/\b(tier|promote|hurdle|pref(erred)?|catch[- ]?up|target|threshold|minimum|required)\b/i.test(rl) || (/levered_irr|net_profit|equity_multiple/.test(k) && /\b(unlevered|ungeared|unleveraged|project|asset|property)\b/i.test(rl) && !/\blevered\b/i.test(rl.replace(/unlevered/ig, '')))) continue }
         if (v == null) continue;
-        if (r0 === ri && emSeriesCol(s.rows, ri, j0)) continue;   // year 1 of a revenue line is not the gross revenue
+        if (r0 === ri && !amt && emSeriesCol(s.rows, ri, j0)) continue;   // year 1 of a revenue line is not the gross revenue
         let n = typeof v === 'number' ? v : parseFloat(v.replace(/[,%\s]/g, '')); if (!Number.isFinite(n)) continue;
         const w = String(((s.frows || [])[r0] || [])[j0] == null ? '' : s.frows[r0][j0]).trim();
         if (/irr|profit_on_cost/.test(k) && ((/%\s*$/.test(w) && Math.abs(n) < 50 && typeof v === 'number') || (Math.abs(n) < 1.5 && (/%\s*$/.test(w) || (Math.abs(n) < 1 && !(typeof v === 'string' && /%/.test(v))))))) n *= 100;   /* a %-formatted cell holds a fraction whatever its size: 2.14 shown “214.0%” is 214% */
         let note = ''; if (/net_profit|total_cost|gross_revenue|peak_debt/.test(k) && Math.abs(n) < 1e6) { const u = emUnitScale(s, r0, j0, c); if (u) { n *= u.k; note = ` × ${u.k === 1e6 ? '1,000,000' : '1,000'} (${u.from})`; } }
+        if (party) { if (!(k in later)) later[k] = { v: +n.toFixed(4), f: `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`, a: A1(s.name, j0, r0) }; continue }
         out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); break;
       }
     }
   }
+  for (const k in later) if (!(k in out)) { out[k] = later[k].v; found[k] = later[k].f; cells[k] = later[k].a }   // only an LP/GP figure in the model: that one
   if (!('levered_irr' in out) && !('unlevered_irr' in out)) for (const s of sheets) { for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri] || []; const i = row.findIndex(c => typeof c === 'string' && /\bIRR\b/i.test(c) && c.length < 60 && !EX_SKIP('levered_irr', c)); if (i < 0) continue; const seg = row.slice(i + 1, emNextLabel(row, i)), v = seg.find(x => typeof x === 'number'); if (v == null) continue;
       out.levered_irr = +(Math.abs(v) < 1 ? v * 100 : v).toFixed(4); found.levered_irr = `${s.name} / ${row[i].trim()} (taken as the levered IRR: check)`; cells.levered_irr = A1(s.name, i + 1 + seg.indexOf(v), ri); break; } if ('levered_irr' in out) break; }
   return { out, found, cells };
@@ -280,7 +312,10 @@ function detectMeta(sheets, fileName) {
   meta.ccyFrom = meta.currency ? ev[meta.currency] + (meta.currency === 'USD' && usLoc ? `; US location “${usLoc.slice(0, 40)}”` : '') : '';
   if (!meta.source) meta.source = 'excel';
   if (usLoc) { meta.country = 'US'; meta.place = usLoc.trim().slice(0, 60); }
-  if (!meta.title) { const first = (sheets[0] && sheets[0].rows.flat().find(c => typeof c === 'string' && c.trim().length > 4 && !/argus|estatemaster|summary|licensed/i.test(c) && !/^\s*(project|title|scheme|development|option|stage|date|type|site|location|inputs?|assumptions?|model|cash ?flow)\s*:?\s*$/i.test(c))) || ''; meta.title = String(first).trim().replace(/\s*[·•|:\-–—]\s*(returns?|summary|outputs?|results?|dashboard|overview|key figures)\s*$/i, '').trim().slice(0, 80) || String(fileName || '').replace(/\.[^.]+$/, ''); }   // a heading like “Riverside · returns” names the scheme, not its sheet
+  if (meta.title && /\[[^\]]*\]/.test(meta.title)) meta.title = '';
+  // the model's own name slot left as the template's placeholder ("[INVESTMENT NAME]"): the file's name, not a section heading further down
+  if (!meta.title) { const f0 = sheets[0] && sheets[0].rows.flat().find(c => typeof c === 'string' && c.trim()); if (f0 && /^\s*\[[^\]]*\]\s*$/.test(f0)) { meta.title = String(fileName || '').replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim().slice(0, 80); meta.titleFrom = 'file'; } }
+  if (!meta.title) { const first = (sheets[0] && sheets[0].rows.flat().find(c => typeof c === 'string' && c.trim().length > 4 && !/\[[^\]]*\]/.test(c) && !/argus|estatemaster|summary|licensed/i.test(c) && !/^\s*(project|title|scheme|development|option|stage|date|type|site|location|inputs?|assumptions?|model|cash ?flow)\s*:?\s*$/i.test(c))) || ''; meta.title = String(first).trim().replace(/\s*[·•|:\-–—]\s*(returns?|summary|outputs?|results?|dashboard|overview|key figures)\s*$/i, '').trim().slice(0, 80) || String(fileName || '').replace(/\.[^.]+$/, ''); }   // a heading like “Riverside · returns” names the scheme, not its sheet
   return meta;
 }
 /* Market benchmarks by asset type (SAR, Riyadh; demo data: in production the transactions, rentals and cost feeds). [low, median, high] */
