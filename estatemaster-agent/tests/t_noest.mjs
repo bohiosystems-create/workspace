@@ -2,7 +2,7 @@
 // rules router (no AI). With the formula engine, every figure must be exact or EstateMaster's own; without it, exact from the
 // model's own cash flow or "not computed". Never a replica estimate, an approximate cash flow or an unlabelled number.
 import {chromium} from 'playwright';import fs from 'fs';
-const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;const base=process.argv[2]||'http://localhost:4090/?mode=readonly';const MODEL=process.argv[3]||'hotel_us.xlsx';
+const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;const base=process.argv[2]||'http://localhost:4090/?mode=readonly';const MODEL=/\.xls[xm]$/i.test(process.argv[3]||'')?process.argv[3]:'hotel_us.xlsx';   // run.sh passes the build name as the third argument
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log((c?'PASS':'FAIL')+' | '+m)};
 async function page(o){const p=await b.newPage({viewport:{width:1400,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
   await p.route(/cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/,r=>r.abort());if(!o.engine)await p.route(/hyperformula/,r=>r.abort());

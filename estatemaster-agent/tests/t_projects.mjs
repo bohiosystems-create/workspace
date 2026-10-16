@@ -1,0 +1,23 @@
+// Portfolio-level questions: every project answered from its own export (rankings, totals, averages, hurdles, counts), never an estimate.
+import {chromium} from 'playwright';
+const sp=new globalThis.URL('./fixtures/models/',import.meta.url).pathname;const base=process.argv[2]||'http://localhost:4090/?mode=readonly';
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log((c?'PASS':'FAIL')+' | '+m)};
+const p=await b.newPage({viewport:{width:1400,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.route(/cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/,r=>r.abort());await p.route('https://fonts.googleapis.com/**',r=>r.fulfill({status:200,contentType:'text/css',body:''}));await p.route('**/api/log',r=>r.fulfill({status:200,body:'{}'}));
+await p.route('**/api/llm',r=>r.request().method()==='GET'?r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({providers:{anthropic:false,openai:false}})}):r.fulfill({status:503,body:'{}'}));
+await p.goto(base);await p.evaluate(()=>localStorage.clear());await p.reload();await p.waitForTimeout(1500);
+const up=async f=>{await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',sp+f);await p.waitForTimeout(2500);await p.click('#npCreate');await p.waitForTimeout(4000)};
+await up('hotel_us.xlsx');await up('resi_uk.xlsx');
+const ask=q=>p.evaluate(async q=>{const rt=route(q);const o=await execute(q,'web','Analyst',async()=>{});return {k:rt.it.k,lane:rt.lane,t:((o.out?o.out.plain:o.final)||'').replace(/\s+/g,' ')}},q);
+let r=await ask('which of my projects has the highest IRR?');ok(r.k==='projects'&&/Highest Levered IRR: /.test(r.t)&&/Ranked: 1\./.test(r.t),'highest IRR ranks every project: '+r.t.slice(0,160));
+ok(!/estimate|replica/i.test(r.t.replace('nothing estimated','')),'no estimate in the portfolio answer');
+r=await ask('how many projects do I have?');ok(r.k==='projects'&&/3 projects in the workspace/.test(r.t),'count: '+r.t.slice(0,120));
+r=await ask('average IRR of my projects');ok(/simple average of 3 projects: \d+\.\d+%/.test(r.t),'average of a rate across all projects: '+r.t.slice(0,160));
+r=await ask('total net profit across all projects');ok(/Net profit, total/.test(r.t)&&/per currency|across/.test(r.t),'totals are per currency, never converted: '+r.t.slice(0,200));
+r=await ask('which projects clear their hurdle?');ok(r.k==='projects'&&(r.t.match(/levered IRR \d/g)||[]).length>=3,'hurdle status per project: '+r.t.slice(0,160));
+r=await ask('which project has the most debt?');ok(r.k==='projects'&&/Peak debt/.test(r.t),'singular “which project”: '+r.t.slice(0,120));
+r=await ask('lowest equity multiple across models');ok(/Lowest Equity multiple/.test(r.t),'lowest multiple: '+r.t.slice(0,120));
+r=await ask('what is the levered IRR?');ok(r.k!=='projects','a single-project question stays on the open project: '+r.k);
+r=await ask('upload a new model');ok(r.k!=='projects','“new model” is not a portfolio question: '+r.k);
+ok(!errs.length,'no page errors: '+errs.join(' | ').slice(0,200));
+console.log(`\n${pass} pass, ${fail} fail`);await b.close();
