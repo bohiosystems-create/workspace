@@ -81,4 +81,11 @@ const lastBody=p=>p.evaluate(()=>{const m=[...document.querySelectorAll('#msgs .
   await p.waitForFunction(()=>Object.values(REVS).some(x=>x.review&&x.review.status==='agree'),null,{timeout:30000}).catch(()=>{});
   const aud=reqs.slice(q0).filter(r=>/You audit an exact recalculation/.test(r.sys));ok(aud.length===2,'two models audited it ('+aud.length+')');
   ok(!errs.length,'no page errors '+errs.join('; '));await p.close()}
+// 5. a follow-up builds on the last tested version, and the answer says so; a fresh what-if starts from the uploaded figures again
+{const {p,errs}=await page({auditMs:300});
+  const r=await p.evaluate(async()=>{const steps=[];const a=await aiCrossCheck([{text:'ADR +10%'}],async()=>{},undefined,{quiet:true});const b=await aiCrossCheck([{text:'and occupancy -5 pts on top of that?'}],async s=>steps.push(typeof s==='string'?s:''),undefined,{quiet:true});const c=await aiCrossCheck([{text:'ADR +10%'}],async()=>{},undefined,{quiet:true});
+    const m=(r,k)=>(r.metrics.find(z=>z.k===k)||{});return{a:m(a,'levered_irr').value,bBase:m(b,'levered_irr').base,b:m(b,'levered_irr').value,bSets:b.sets.length,chainOf:b.chainOf,desc:b.desc[0],aVer:a.ver,cBase:m(c,'levered_irr').base,cVal:m(c,'levered_irr').value,steps:steps.filter(s=>/follow-up/.test(s))}});
+  ok(r.chainOf===r.aVer&&Math.abs(r.bBase-r.a)<1e-9&&/^on top of /.test(r.desc)&&r.bSets>1,'“and occupancy −5 pts on top of that” starts from the ADR +10% version and names it: '+JSON.stringify(r).slice(0,220));
+  ok(Math.abs(r.cBase-r.a)>0.01&&Math.abs(r.cVal-r.a)<1e-9,'a plain what-if afterwards starts from the uploaded figures again');
+  ok(r.steps.length===1,'the step list says it is a follow-up');ok(!errs.length,'no page errors '+errs.join('; '));await p.close()}
 console.log(`${pass} pass, ${fail} fail`);await b.close();
