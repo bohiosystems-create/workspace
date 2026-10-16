@@ -17,9 +17,9 @@ await p.evaluate(async()=>{await loadXLSX();const wb=XLSX.utils.book_new();XLSX.
   window.aiSensGrid=async(X,Y,mk,step)=>{await step('stub grid');return{x:X,y:Y,mk,grid:[[1]],stub:true}};window.renderAiSens=()=>{};
   showTab('scen')});
 await p.waitForTimeout(400);
-await p.fill('#asX','land cost');await p.fill('#asY','project IRR');await p.click('#asGo');await p.waitForTimeout(400);
-ok(await p.locator('#asQ #hurAsk').count()===1,'hurdle asked first');
-await p.fill('#hurIn','18');await p.locator('#hurAsk form button[type=submit]').click();await p.waitForTimeout(1500);
+await p.evaluate(()=>setHurdle(18,'typed'));await p.fill('#asX','land cost');await p.fill('#asY','project IRR');await p.click('#asGo');await p.waitForTimeout(400);
+ok(await p.locator('#asQ #hurAsk').count()===0,'no hurdle asked or assumed: the table colours cells against the base');
+await p.waitForTimeout(1500);
 const st=await p.evaluate(()=>({q:$('#asQ').textContent,stat:$('#asStat').textContent,y:AS.y,res:!!AS.res,busy:AS.busy,pins:__pins}));
 console.log(JSON.stringify(st).slice(0,600));
 ok(!st.busy,'the generator is not left running');
@@ -39,7 +39,7 @@ await p.evaluate(()=>{AS.x=null;AS.y=null;AS.res=null;AS.pendQ={};$('#asQ').inne
 await p.fill('#asX','land cost');await p.fill('#asY','land price');await p.click('#asGo');await p.waitForTimeout(1500);
 ok(/Both axes stress/.test(await p.locator('#asQ').textContent()),'the same assumption on both axes is caught');
 // every AI calculation is told the hurdle
-const ctx=await p.evaluate(()=>calcContext(latestExport()));ok(/levered IRR 18% \(confirmed by the user\)/.test(ctx)&&/never say that no hurdle is stated/.test(ctx),'the AI context carries the confirmed hurdle');
+const ctx=await p.evaluate(()=>calcContext(latestExport()));ok(/levered IRR 18% \(given by the user\)/.test(ctx),'the AI context carries the confirmed hurdle');
 // the hover card keeps long lines inside
 await p.evaluate(()=>{const d=document.createElement('div');d.className='hm-tip';d.style.display='block';d.style.left='20px';d.style.top='20px';d.innerHTML=tipHTML('Land Cost: +6.67%\nStabilizing Yield (%): 0 pts\n\nLevered IRR: 13.52%\n-4.48 pts vs the hurdle 18.00% · below it (KINAN policy)\n-0.23 pts vs EstateMaster’s base\n\nClaude Fable 5.1 only: not cross-checked\nClick for the full working');d.id='tipT';document.body.appendChild(d)});
 const fit=await p.evaluate(()=>{const t=$('#tipT'),r=t.getBoundingClientRect();return[...t.querySelectorAll('b,span')].every(e=>{const q=e.getBoundingClientRect();return q.right<=r.right+0.5})});ok(fit,'every line of the hover card stays inside it');

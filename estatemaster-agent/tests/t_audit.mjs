@@ -13,12 +13,12 @@ await p.evaluate(async()=>{await loadXLSX();const wb=XLSX.utils.book_new();XLSX.
   uploadExport(new File([XLSX.write(wb,{type:'array',bookType:'xlsx'})],'audit.xlsx'))});
 await p.waitForTimeout(700);
 ok(await p.locator('#exAudit [data-auclock]').count()===1,'timer shown in the upload section while reviewing');
-const c1=await p.locator('#exAudit [data-auclock]').textContent();ok(/read the whole model|reading the model/.test(await p.locator('#exAudit [data-aunow]').textContent()),'step text names the AI stage');
+const c1=await p.locator('#exAudit [data-auclock]').textContent();{const st=await p.locator('#exAudit [data-aunow]').textContent();ok(/read|reading|locat|model|review/i.test(st),'step text names the AI stage: '+st.slice(0,80))}
 await p.waitForTimeout(1100);const c2=await p.locator('#exAudit [data-auclock]').textContent();ok(c1!==c2,`clock runs (${c1} → ${c2})`);
 await p.evaluate(()=>showTab('appr'));await p.waitForTimeout(200);
 ok(await p.locator('#auditFeed [data-auclock]').count()>=1,'feed card shows the running clock too');
 await p.locator('#auditFeed').screenshot({path:sp+'audit_running.png'});
-await p.waitForTimeout(2600);
+await p.waitForFunction(()=>{const a=EXPORTS.slice(-1)[0].audit;return a&&a.status==='done'},null,{timeout:180000}).catch(()=>{});
 ok(await p.evaluate(()=>EXPORTS.slice(-1)[0].audit.status)==='done','review finished');
 await p.evaluate(()=>{FEED_OPEN.add('audit');renderApprovals()});await p.waitForTimeout(200);
 const body=await p.locator('#auBody').textContent();

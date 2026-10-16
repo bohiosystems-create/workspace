@@ -16,7 +16,7 @@ const probe=async where=>{const r=await p.evaluate(()=>{const out={over:0,clash:
 const tabs=await p.evaluate(()=>[...document.querySelectorAll('#tabs .tab')].map(t=>t.dataset.t));
 for(const t of tabs){await p.evaluate(t=>showTab(t),t);await p.waitForTimeout(700);await probe('tab '+t)}
 // financial modelling menu
-if(tabs.includes('em')){await p.click('.tab[data-t="em"]');await p.waitForTimeout(200);for(const id of ['upload','checks','assumptions','compare']){if(!(await p.evaluate(()=>document.querySelector('#emMenu').classList.contains('on'))))await p.click('.tab[data-t="em"]');await p.waitForTimeout(200);await p.click(`#emMenu [data-emgo="${id}"]`);await p.waitForTimeout(500)}await probe('Financial modelling menu')}
+if(tabs.includes('em')){await p.click('.tab[data-t="em"]');await p.waitForTimeout(200);for(const id of ['upload','feas','assumptions','compare']){if(!(await p.evaluate(()=>document.querySelector('#emMenu').classList.contains('on'))))await p.click('.tab[data-t="em"]');await p.waitForTimeout(200);await p.click(`#emMenu [data-emgo="${id}"]`);await p.waitForTimeout(500)}await probe('Financial modelling menu')}
 // settings sections
 for(const s of ['ai','outlook','voice','integrations','market','memory','arch']){await p.evaluate(s=>openSettings(s),s);await p.waitForTimeout(400);const bad=await p.evaluate(()=>Math.max(0,document.querySelector('#setModal .card').scrollWidth-document.querySelector('#setModal .card').clientWidth));if(bad>4)note('settings '+s,`content wider than the panel by ${bad}px`)}
 await p.evaluate(()=>document.querySelector('#setClose').click());

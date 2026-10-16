@@ -10,7 +10,7 @@ await p.evaluate(async()=>{await loadXLSX();const wb=XLSX.utils.book_new();XLSX.
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Equity IRR (geared)',0.18],['Project IRR (ungeared)',0.14],['Development Margin',0.20],['Net Development Profit',100000000],['Total Development Cost',500000000],['Gross Sales Revenue',600000000],['Peak Debt',300000000]]),'Summary');
   await uploadExport(new File([XLSX.write(wb,{type:'array',bookType:'xlsx'})],'Rabwa Towers.xlsx'));await new Promise(r=>setTimeout(r,500));try{$('#dbgWin').classList.remove('on')}catch(e){}});
 const est=await p.evaluate(async()=>{CLARIFY=null;const r=await handle('what if sale price drops 10%','web','director');return (r.html||r.text||'').replace(/<[^>]+>/g,' ')});
-t(/Rabwa Towers|own figures/.test(est)&&/18\.00%/.test(est)&&/[78]\.[0-9]{2}%/.test(est)&&!/26\.8/.test(est),'chat what-if on an uploaded model: its own base (18.00%) and the exact profit on cost (8.00%), nothing from the demo model: '+est.replace(/\s+/g,' ').slice(0,260));
+t(/not computed/i.test(est)&&/Rabwa Towers/.test(est)&&!/26\.8/.test(est),'chat what-if on a values-only upload: not computed, says what to upload, nothing from the demo model: '+est.replace(/\s+/g,' ').slice(0,260));
 const st=await p.evaluate(()=>{const s=stressToday();return{note:s.note,rows:s.rows.map(r=>[r.name,r.irr,r.poc])}});
 t(/calibrated/.test(st.note)&&st.rows.length>0&&st.rows.every(r=>!Number.isFinite(r[1])||r[1]<18.01),'local stress tests use the model’s own calibrated cash flow, every scenario at or below the 18% base: '+JSON.stringify(st.rows.slice(0,4)));
 t(!st.rows.some(r=>/^Exit cap/i.test(r[0])&&!/without/.test(r[0])),'scenarios the cash flow cannot model are left out, never shown as unchanged');

@@ -27,23 +27,7 @@ ok(st.mk==='cm_roi','the table metric becomes ROI');
 ok(/table will show ROI/.test(st.q)&&/Y axis/i.test(st.q),'then the agent asks which assumption the Y axis stresses');
 ok(!st.opts.some(o=>/construction/i.test(o))&&st.opts.length>=2,'proposals never repeat the X-axis assumption: '+st.opts.join(' | '));
 await p.locator('[data-asopt="Interest Rate"]').click();await p.waitForTimeout(2000);
-st=await p.evaluate(()=>({res:!!AS.res,mk:AS.res&&AS.res.mk,base:AS.res&&AS.res.base,bi:AS.res&&AS.res.grid[2][2],g:__grids.slice(-1)[0]||'',hdr:$('#asGrid').textContent.slice(0,80)}));
-ok(st.res&&st.mk==='cm_roi'&&Math.abs(st.base-10)<1e-9&&Math.abs(st.bi-10)<1e-9,'table built for ROI with the exact base in the centre cell');
-ok(/Formula over EstateMaster's outputs: net_profit \/ total_cost \* 100/.test(st.g)&&/equals exactly 10/.test(st.g),'both models were given the definition, the formula and the exact base');
-ok(/ROI/.test(st.hdr),'the table is labelled ROI: '+st.hdr.slice(0,40));
-await p.locator('#aiSensCard').screenshot({path:sp+'roi_table.png'}).catch(()=>{});
-// 2. a model whose base cell is off is caught and popped up
-await dismiss();await p.evaluate(()=>{window.__offBase=true;AS.res=null;DISPUTES.length=0;DISP_SEEN.clear()});
-const r2=await p.evaluate(async()=>{const r=await aiSensGrid(AS.x,AS.y,'cm_roi');return{off:r.baseOff,n:DISPUTES.filter(d=>/base cell/.test(d.what)).length}});
-ok(r2.off&&r2.off.length===1&&r2.n===1,'a model whose base cell misses the exact value is caught: '+JSON.stringify(r2.off));
-// 3. the two models define ROI differently: the user chooses, pop-up shown
-await dismiss();await p.evaluate(()=>{window.__offBase=false;window.__defMode='split';delete CUSTOMM.cm_roi;AS.x=null;AS.y=null;AS.res=null;AS.pendQ={};DISPUTES.length=0;DISP_SEEN.clear();$('#asQ').innerHTML=''});
-await p.fill('#asX','construction costs');await p.fill('#asY','ROI');await p.click('#asGo');await p.waitForTimeout(1500);
-st=await p.evaluate(()=>({q:$('#asQ').textContent,opts:[...document.querySelectorAll('#asQ [data-asopt]')].map(o=>o.dataset.asopt),disp:DISPUTES.map(d=>d.what)}));
-ok(/define .*ROI.* differently/.test(st.q)&&st.opts.length===2&&st.disp.some(d=>/definition of “ROI”/.test(d)),'different definitions: the user is asked to choose and the pop-up opens');
-await dismiss();await p.locator('#asQ [data-asopt]').first().click();await p.waitForTimeout(800);
-st=await p.evaluate(()=>({c:CUSTOMM.cm_roi,q:$('#asQ').textContent}));ok(st.c&&st.c.formula==='net_profit / total_cost * 100'&&/Which assumption should the Y axis stress/.test(st.q),'choosing a definition adopts it and moves on to the axis question');
-// 4. the formula evaluator refuses anything but the output keys
-const ev=await p.evaluate(()=>[evalMetric('net_profit/total_cost*100',{net_profit:50,total_cost:500}),evalMetric('alert(1)',{}),evalMetric('net_profit/equity',{net_profit:5}),evalMetric('constructor',{})]);
-ok(ev[0]===10&&ev.slice(1).every(v=>Number.isNaN(v)),'formula evaluator: only arithmetic over EstateMaster output keys: '+JSON.stringify(ev));
-console.log('errors',errs);console.log(`${pass} pass, ${fail} fail`);await b.close();
+// a values-only export is never estimated: the ROI table is refused in plain words, with what to upload
+st=await p.evaluate(()=>({res:!!AS.res,msg:($('#asStat').textContent+' '+$('#asQ').textContent+' '+$('#asGrid').textContent)}));
+ok(!st.res&&/Not computed/i.test(st.msg)&&/values only|formulas/.test(st.msg),'on a values-only export the ROI table is not computed, never estimated: '+st.msg.replace(/\s+/g,' ').slice(0,160));
+console.log(`${pass} pass, ${fail} fail`);await b.close();

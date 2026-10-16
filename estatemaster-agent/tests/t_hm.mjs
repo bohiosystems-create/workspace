@@ -2,7 +2,7 @@ import {chromium} from 'playwright';import fs from 'fs';
 const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1300,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
-await p.goto('http://localhost:4090/?mode=readonly');await p.waitForTimeout(2500);
+await p.goto(process.argv[2]||'http://localhost:4090/?mode=readonly');await p.waitForTimeout(2500);await p.evaluate(()=>setHurdle(18,'typed'));
 let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m)};
 // 1. parser drops the tenant-sheet junk, keeps real tables
 const pr=await p.evaluate(()=>[parseSens([['Code',0,0.01,0.02,0.03],['100',0,0,0.02,0.02]],'Tenant').length,parseSens([['Sale price: Levered IRR',-10,-5,0,5,10],['Levered IRR',14.1,16.2,18.4,20.1,22.0]],'Sensitivity').length]);

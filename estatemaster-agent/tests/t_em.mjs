@@ -83,7 +83,7 @@ const chk=await ev(async()=>{const wb=XLSX.utils.book_new();XLSX.utils.book_appe
   await uploadExport(new File([XLSX.write(wb,{type:'array',bookType:'xlsx'})],'AlNarjis bad.xlsx'));const x=latestExport();return{id:x.id,inputs:x.inputs.length,codes:exportChecks(x).map(c=>c.code+':'+c.level)}});
 ck('flawed export: unit slip, margin not reconciling, peak debt above cost, negative leverage, stale sensitivity, zero contingency, 22% interest, input differing from the register, jump vs previous',['units','reconcile','debt','leverage','sens-stale','input-zero','input-range','register','jump'].every(c=>chk.codes.some(k=>k.startsWith(c+':'))),JSON.stringify(chk));
 if(/readonly|analyst/.test(base)){await p.click('.tab[data-t=em]');await p.waitForTimeout(300);
-  ck('EstateMaster tab: checks card lists them with levels',await ev(()=>/Likely error/.test($('#exChecks').innerHTML)&&/to look at/.test($('#exChkSub').textContent)&&$$('#exChecks .chk-row').length>=8),await ev(()=>[/Likely error/.test($('#exChecks').innerHTML),/to look at/.test($('#exChkSub').textContent),$$('#exChecks .chk-row').length].join(',')));
+  ck('the export checks list them with levels (shown in Model debug and the reports)',await ev(()=>{const h=checksHTML(exportChecks(latestExport()),'');return /Likely error/.test(h)&&(h.match(/chk-row/g)||[]).length>=8}),'');
   await p.evaluate(()=>showTab('report'));await p.waitForTimeout(200);
   ck('overview trust strip points at the checks',await ev(()=>/checks? on the export to look at/.test($('#emTrust').textContent)),await ev(()=>$('#emTrust').textContent.slice(0,200)));}
 h=await ask('check the export for mistakes');

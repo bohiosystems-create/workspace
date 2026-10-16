@@ -7,13 +7,13 @@ let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m
 const tabs=await p.evaluate(()=>[...document.querySelectorAll('#tabs .tab:not(.gtab-hidden)')].map(t=>t.textContent.trim()));
 ok(tabs[tabs.length-1]==='Market data','market data last: '+tabs.join(' | '));
 await p.click('.tab[data-t="em"]');await p.waitForTimeout(300);
-ok(await p.evaluate(()=>document.querySelector('#emMenu').classList.contains('on')&&[...document.querySelectorAll('#emMenu .emm-it b')].map(e=>e.textContent).join('|')==='Upload|Assumptions|Compare'),'menu opens with 3 items (Upload, Assumptions, Compare): the Checks page is gone');
+ok(await p.evaluate(()=>document.querySelector('#emMenu').classList.contains('on')&&[...document.querySelectorAll('#emMenu .emm-it b')].map(e=>e.textContent).join('|')==='Upload|Feasibility|Assumptions|Compare'),'menu: Upload, Feasibility, Assumptions, Compare (Feasibility replaces Checks)');
 await p.evaluate(()=>{document.querySelector('#emMenu').classList.remove('on')});
 ok(await p.evaluate(()=>{try{localStorage.setItem('bohioEmSec','checks')}catch(e){}return emSection()==='upload'&&!document.querySelector('#emMenu [data-emgo="checks"]')}),'an old link to the Checks page lands on Upload');
 // checks with cells: upload a workbook with a reconcile error and a zero input
 await p.evaluate(async()=>{await loadXLSX();const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Summary'],['Equity IRR',null,'%',12.32],['Development Margin (on cost)',null,'%',1.09],['Net Development Profit',null,'SAR',138e6],['Total Development Cost',null,'SAR',95.1e6]]),'Summary');XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['MAIN INPUTS'],['Construction Contingency',0,'%']]),'Input');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});await uploadExport(new File([buf],'cells test.xlsx'))});
 await p.waitForTimeout(800);
-const cells=await p.evaluate(()=>[...document.querySelectorAll('#exChecks .chk-cell')].map(e=>e.textContent));
+const cells=await p.evaluate(()=>{const d=document.createElement('div');d.innerHTML=checksHTML(exportChecks(latestExport()),'');return[...d.querySelectorAll('.chk-cell')].map(e=>e.textContent)});
 ok(cells.includes('Summary!D3, Summary!D4, Summary!D5')&&cells.includes('Input!B2'),'checks show the Excel cells in bold: '+cells.join(' ; '));
 
 // stress bars: no overlap between value and bar
