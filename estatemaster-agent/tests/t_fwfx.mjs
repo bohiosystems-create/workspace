@@ -11,14 +11,16 @@ await p.evaluate(async()=>{await loadXLSX();const wb=XLSX.utils.book_new();
 await p.waitForTimeout(800);
 // a figure read from the export, with its cell: the window shows the Excel formula and the cells it uses
 await p.evaluate(()=>{const x=latestExport();toggleDock(true);addMsg('agent',`Net profit ${figq('em','SAR 130M',`EstateMaster’s own figure: export ${x.id} (model.xlsx), cell ${x.cells.net_profit}. Not calculated by the agent.`)} and sale price ${figq('em','13,500',`EstateMaster input “Sale price” on sheet Input of export ${x.id} (model.xlsx), cell Input!B2. Read from EstateMaster, not calculated by the agent.`)}`)});
-await p.locator('#msgs .fig').first().click();await p.waitForTimeout(600);
-const fw=await p.locator('#figWin .fw-xl').textContent();
-ok(/Excel formula/.test(fw)&&/=D5-D4/.test(fw),'figure window shows the real Excel formula: '+fw.replace(/\s+/g,' ').slice(0,90));
-ok(/D5/.test(fw)&&/687/.test(fw)&&/D4/.test(fw)&&/557/.test(fw),'and the referenced cells with their values');
-await p.locator('#figWin').screenshot({path:sp+'fw_formula.png'});
-await p.click('#fwClose');await p.locator('#msgs .fig').nth(1).click();await p.waitForTimeout(600);
-ok(/Typed value, no formula/.test(await p.locator('#figWin .fw-xl').textContent()),'an input cell is reported as a typed value');
-await p.click('#fwClose');
+await p.locator('#msgs .fig').first().click();await p.waitForTimeout(800);
+// a figure with a known cell opens the workbook at that cell, highlighted, with its Excel formula in the formula bar
+let w=await p.evaluate(()=>({on:$('#xlWin').classList.contains('on'),addr:$('#xlAddr').textContent,fx:$('#xlFx').textContent,isf:$('#xlFx').classList.contains('isf'),find:$('#xlFind').hidden?'':$('#xlFind').innerText,flash:!!$('#xvT td.xl-flash')}));
+ok(w.on&&w.addr==='D3'&&/D5-D4/.test(w.fx)&&w.isf,'the figure opens the workbook at its cell with the real Excel formula: '+JSON.stringify(w));
+ok(w.flash&&/Summary!D3/.test(w.find),'the cell is highlighted and the banner names it: '+w.find);
+await p.locator('#xlWin').screenshot({path:sp+'fw_formula.png'});
+await p.evaluate(()=>closeWorkbook());await p.locator('#msgs .fig').nth(1).click();await p.waitForTimeout(800);
+w=await p.evaluate(()=>({addr:$('#xlAddr').textContent,fx:$('#xlFx').textContent,isf:$('#xlFx').classList.contains('isf')}));
+ok(!w.isf&&/13500/.test(w.fx),'an input cell shows its typed value, no formula: '+JSON.stringify(w));
+await p.evaluate(()=>closeWorkbook());
 // bullets in boxes; no boxed ×
 await p.evaluate(()=>addMsg('agent',mdLite('These are the weak points:\n- **Contingency is thin.** 5% only.\n• Finance inputs unclear.\n· Export missing pieces.\nAsk me more.')));await p.waitForTimeout(100);
 ok(await p.locator('#msgs .msg:last-child .bul').count()===3,'each bullet in its own rounded box');
