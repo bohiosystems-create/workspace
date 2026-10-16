@@ -120,3 +120,5 @@ const handler = async function handler(req, res) {
 };
 module.exports = handler;
 module.exports.cacheable = cacheable;
+// Vercel: let the chat's answer stream to the page as it is written instead of being held until the end
+module.exports.config = { supportsResponseStreaming: true };

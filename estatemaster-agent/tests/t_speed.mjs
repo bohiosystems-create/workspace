@@ -73,4 +73,12 @@ const lastBody=p=>p.evaluate(()=>{const m=[...document.querySelectorAll('#msgs .
   ok(!est.length,'no AI estimate is asked for on an uploaded model ('+est.length+' estimate calls)');
   ok(logs.some(l=>/formula engine/.test(l)),'the engine failure is reported to the server log');
   ok(!errs.length,'no page errors '+errs.join('; '));await p.close()}
+// 4. the agent may pick the estimate tool instead: on an uploaded model it is the same exact recalculation with the same audit
+{const {p,errs,reqs}=await page({auditMs:1500});
+  await p.evaluate(()=>toggleDock(true));const q0=reqs.length;
+  const h=await p.evaluate(async()=>{const o=await handle('','web','Investment Director',{k:'estimate',text:'ADR +10%',mods:{}});return o.html});
+  ok(/OpCashFlow!H12/.test(h)&&/= exact/.test(h)&&/are auditing the recalculation/.test(h),'the estimate tool recalculates exactly and the audit is under way');
+  await p.waitForFunction(()=>Object.values(REVS).some(x=>x.review&&x.review.status==='agree'),null,{timeout:30000}).catch(()=>{});
+  const aud=reqs.slice(q0).filter(r=>/You audit an exact recalculation/.test(r.sys));ok(aud.length===2,'two models audited it ('+aud.length+')');
+  ok(!errs.length,'no page errors '+errs.join('; '));await p.close()}
 console.log(`${pass} pass, ${fail} fail`);await b.close();

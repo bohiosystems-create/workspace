@@ -4628,7 +4628,9 @@ async function provHandle(it,out,done,web,ch,role){
   if(it.k==='proposelast'){if(!LASTEST){done('There is no estimate to propose yet. Ask a what-if first, e.g. “what if sale price drops 10%?”.');return out}
     const mods=LASTEST;LASTEST=null;return handle('',ch,role,{k:'mod',mods})}
   if(it.k==='estimate'){const mods=it.mods||{};{const xq=latestExport();if(xq&&xq.src==='file'){const q=String(it.text||it.q||window.LASTQ||'');if(xcSplit(q).length){try{const r=await xcTest([{text:q}],async st=>{out.steps.push(stepStr(st))},xq.proj);
-      if(r&&r.xc){finishTest(r);out.link=['model','Open assumptions'];done(testPlain(r),testHTML(r));return out}if(r&&r.ask){done(r.ask.question+(r.ask.options&&r.ask.options.length?' Reply with: '+r.ask.options.map(o=>'“'+o+'”').join(' or ')+'.':''));return out}}catch(e){out.steps.push('Workbook recalculation failed: '+e.message)}}}}
+      // the same audit as test_assumptions, whichever tool the agent chose: two models check the cells, units and direction (after the answer in the web chat)
+      if(r&&r.xc){if(calcPair().length){if(ch==='web')xcReviewLater(r);else try{await xcReview(r,async st=>{out.steps.push(stepStr(st))})}catch(e){out.steps.push('The agents could not review the recalculation: '+aiErrText(provErr(e.message)))}}
+        finishTest(r);out.link=['model','Open assumptions'];done(testPlain(r),testHTML(r));return out}if(r&&r.ask){done(r.ask.question+(r.ask.options&&r.ask.options.length?' Reply with: '+r.ask.options.map(o=>'“'+o+'”').join(' or ')+'.':''));return out}}catch(e){out.steps.push('Workbook recalculation failed: '+e.message)}}}}
     if(!Object.keys(mods).length){done('Tell me the shocks to estimate, e.g. “what if sale price drops 10% and cost rises 15%?”.');return out}
     const b=run(S),a=run(merge(S,mods)),dI=(bad(a.irr)-bad(b.irr))*100,dP=(a.poc-b.poc)*100,em=x?emFigs(x):{};LASTEST={...mods};
     const hit=x?emSensLookup(x,mods):null;
@@ -8157,9 +8159,9 @@ async function readSSE(res,onText){const rd=res.body.getReader(),dec=new TextDec
     else if(d.type==='message_delta'){if(d.delta){if(d.delta.stop_reason!==undefined)msg.stop_reason=d.delta.stop_reason;if(d.delta.stop_sequence!==undefined)msg.stop_sequence=d.delta.stop_sequence}if(d.usage)msg.usage={...(msg.usage||{}),...d.usage}}
     else if(d.type==='message_stop')done=true;
     else if(d.type==='error')throw new Error((d.error&&d.error.message)||'the AI answer stream failed')};
-  for(;;){const {value,done:end}=await rd.read();if(value)buf+=dec.decode(value,{stream:true});
+  try{for(;;){const {value,done:end}=await rd.read();if(value)buf+=dec.decode(value,{stream:true});
     let i;while((i=buf.search(/\r?\n\r?\n/))>=0){const chunk=buf.slice(0,i);buf=buf.slice(i).replace(/^\r?\n\r?\n/,'');const data=chunk.split(/\r?\n/).filter(l=>l.startsWith('data:')).map(l=>l.slice(5).replace(/^ /,'')).join('\n');if(data)ev(data)}
-    if(end)break}
+    if(end)break}}finally{try{rd.cancel()}catch(e){}}   // a stream that fails is released, not left open
   if(buf.trim()){const data=buf.split(/\r?\n/).filter(l=>l.startsWith('data:')).map(l=>l.slice(5).replace(/^ /,'')).join('\n');if(data)ev(data)}
   if(!done)throw new Error('the AI answer stream ended early');
   msg.content=msg.content.filter(Boolean);return msg}

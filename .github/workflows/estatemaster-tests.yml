@@ -18,6 +18,12 @@ on:
         description: 'quick (default), full, or server'
         default: quick
 
+# a newer push to the same branch cancels the run still going on the older commit: one result per branch, for the code that is
+# actually there (a cancelled run sends no failure email); the nightly full run is never cancelled
+concurrency:
+  group: estatemaster-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
 jobs:
   tests:
     runs-on: ubuntu-latest
