@@ -9,7 +9,7 @@ await cx.route(/hyperformula/,r=>r.fulfill({status:200,contentType:'application/
 await p.goto(process.argv[2]||'http://localhost:4090/?mode=readonly');await p.evaluate(()=>localStorage.clear());await p.reload();await p.waitForTimeout(1500);
 const ok=[];const t=(c,m)=>ok.push((c?'PASS':'FAIL')+' | '+m);
 await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',sp+'models/resi_uk.xlsx');await p.waitForTimeout(1200);await p.click('#npCreate');await p.waitForTimeout(3000);
-const menu=await p.evaluate(()=>[...document.querySelectorAll('#emMenu .emm-it b')].map(e=>e.textContent).join('|'));t(menu==='Upload|Feasibility|Assumptions|Compare','Financial modelling menu: Feasibility replaces Checks: '+menu);
+const menu=await p.evaluate(()=>[...document.querySelectorAll('#emMenu .emm-it b')].map(e=>e.textContent).join('|'));t(menu==='Upload|Live drivers|Feasibility|Assumptions|Compare','Financial modelling menu: Feasibility replaces Checks: '+menu);
 // simulated AI: the drivers, the study, the check
 await p.evaluate(()=>{AI.keys.anthropic='sk-a';AI.keys.openai='sk-o';window.__calls=[];window.callOne=async(pr,model,sys,msgs)=>{__calls.push([pr,model,sys.slice(0,40)]);const u=msgs[0].content;
   if(/most drive its feasibility/.test(sys))return{text:JSON.stringify({drivers:['Sales price (£/sqm)','Build cost (£/sqm GIA)','Land cost','Interest rate'],land:'Land cost'})};

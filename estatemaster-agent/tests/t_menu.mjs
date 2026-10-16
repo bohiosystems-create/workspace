@@ -7,7 +7,7 @@ let pass=0,fail=0;const ok=(c,m)=>{c?pass++:fail++;console.log(c?'PASS':'FAIL',m
 const tabs=await p.evaluate(()=>[...document.querySelectorAll('#tabs .tab:not(.gtab-hidden)')].map(t=>t.textContent.trim()));
 ok(tabs[tabs.length-1]==='Market data','market data last: '+tabs.join(' | '));
 await p.click('.tab[data-t="em"]');await p.waitForTimeout(300);
-ok(await p.evaluate(()=>document.querySelector('#emMenu').classList.contains('on')&&[...document.querySelectorAll('#emMenu .emm-it b')].map(e=>e.textContent).join('|')==='Upload|Feasibility|Assumptions|Compare'),'menu: Upload, Feasibility, Assumptions, Compare (Feasibility replaces Checks)');
+ok(await p.evaluate(()=>document.querySelector('#emMenu').classList.contains('on')&&[...document.querySelectorAll('#emMenu .emm-it b')].map(e=>e.textContent).join('|')==='Upload|Live drivers|Feasibility|Assumptions|Compare'),'menu: Upload, Live drivers, Feasibility, Assumptions, Compare (Feasibility replaces Checks)');
 await p.evaluate(()=>{document.querySelector('#emMenu').classList.remove('on')});
 ok(await p.evaluate(()=>{try{localStorage.setItem('bohioEmSec','checks')}catch(e){}return emSection()==='upload'&&!document.querySelector('#emMenu [data-emgo="checks"]')}),'an old link to the Checks page lands on Upload');
 // checks with cells: upload a workbook with a reconcile error and a zero input
