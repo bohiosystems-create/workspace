@@ -72,7 +72,8 @@ function parseInputs(sheets) {
       const blk = anyF ? blockOf(s, ri, i) : null; const cells = []; for (let j = i + 1; j < Math.min(end, i + 9); j++) { const n = numOf(row[j]); if (n == null || !Number.isFinite(n)) continue; if (anyF && isF(s, ri, j)) continue; if (anyF && /^\s*(month|year|period|quarter|week|day|yr|qtr)\s*\d+\s*$/i.test(String(fr[j] == null ? '' : fr[j]))) continue; /* a period counter ("Month 7") is a row index, not an assumption */ const t = String(fr[j] == null ? '' : fr[j]); if (/^[a-z]{3}[- ]\d{2,4}$|\d+\/\d+\/\d+/i.test(t.trim())) continue; const pc = /%\s*$/.test(t.trim()) || /^\s*[-(]?[$£€]?\s*[\d,.]+\s*%/.test(t) || (typeof row[j] === 'string' && /%\s*$/.test(row[j])); cells.push({ v: pc && typeof row[j] === 'number' ? n * 100 : n, t, pct: pc, fmt: emFmt(t, pc), j, h: anyF ? headOf(s, ri, j, blk ? blk.r : 0) : '' }); }
       if (!cells.length) {
         // a text, date or yes/no input on an input sheet ("Date of First Period: Oct-26", "Add GST on Land Price? Y", "Cash Flow Title: Build to Hold")
-        if ((/input|assumption/i.test(s.name) || /\b(select(ed)?|active|switch|choose|chosen|option|case|scenario)\b/i.test(lab)) && !seen.has(key)) {   // a case or option switch (“Selected option (A or B): A”) on any sheet
+        const headerRow = row.filter(c => typeof c === 'string' && c.trim()).length >= 3 && !row.some(c => typeof c === 'number');   // “Assumption | Unit | Option A | Option B | Selected”: a table's header, not a text input
+        if (!headerRow && (/input|assumption/i.test(s.name) || /\b(select(ed)?|active|switch|choose|chosen|option|case|scenario)\b/i.test(lab)) && !seen.has(key)) {   // a case or option switch (“Selected option (A or B): A”) on any sheet
           let tj = -1; for (let j = i + 1; j < Math.min(end, i + 6); j++) { if (anyF && isF(s, ri, j)) continue; const t = String(fr[j] == null ? (row[j] == null ? '' : row[j]) : fr[j]).trim(); if (/^\s*(date|dates|text|y\/n|yes\/no|dd\/mm\/yy(yy)?)\s*$/i.test(t)) continue; /* the units column, not the value */ if (/^\s*(units?|values?|amount|notes?|comments?|source|base|case|description)\s*$/i.test(t)) break; /* a table's header row, not a text input */ if (t && t.length <= 40 && t !== '-') { tj = j; break; } }
           // a long text value (a title) reads as a label: taken as the value when nothing else sits between the two
           if (tj < 0 && end < row.length && end <= i + 3 && String(row[end]).length <= 60 && emNextLabel(row, end) === row.length && !row.slice(end + 1).some(c => numOf(c) != null)) { tj = end; end = row.length; }
@@ -303,7 +304,7 @@ function detectMeta(sheets, fileName) {
     if (!row) continue;
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string') continue; const t = c.trim();
-      for (const m of t.matchAll(/\b(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD)\b/g)) { const c = m[1] === 'AUD' ? 'USD' : m[1]; vote(c, `“${t.slice(0, 40)}”`); }
+      for (const m of t.matchAll(/\b(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD|BHD|OMR|JOD|EGP|CHF|JPY|CNY|HKD|SGD|INR|CAD|ZAR|SEK|NOK|DKK|PLN|TRY|MAD)\b/g)) { const c = m[1] === 'AUD' ? 'USD' : m[1]; vote(c, `“${t.slice(0, 40)}”`); }
       if (/(^|[\s(\-–])(US)?\$\s?\d|^\s*(US)?\$\s*$/.test(t)) vote('USD', `“${t.slice(0, 40)}”`); if (/€/.test(t)) vote('EUR', `“${t.slice(0, 40)}”`); if (/£/.test(t)) vote('GBP', `“${t.slice(0, 40)}”`); if (/﷼|ر\.س|\bSR\s?\d/.test(t)) vote('SAR', `“${t.slice(0, 40)}”`);
       if (/^(.*,\s*)?(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\s*$/.test(t) && /,/.test(t)) usLoc = t;
       if (/estate\s*master|office\s*links|\bargus\b|cash flow title/i.test(t)) meta.source = 'estatemaster';
