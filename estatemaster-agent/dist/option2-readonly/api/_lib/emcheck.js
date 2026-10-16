@@ -220,7 +220,9 @@ function emHeadline(sheets) {
         const w = String(((s.frows || [])[r0] || [])[j0] == null ? '' : s.frows[r0][j0]).trim();
         if (/irr|profit_on_cost/.test(k) && ((/%\s*$/.test(w) && Math.abs(n) < 50 && typeof v === 'number') || (Math.abs(n) < 1.5 && (/%\s*$/.test(w) || (Math.abs(n) < 1 && !(typeof v === 'string' && /%/.test(v))))))) n *= 100;   /* a %-formatted cell holds a fraction whatever its size: 2.14 shown “214.0%” is 214% */
         let note = ''; if (/net_profit|total_cost|gross_revenue|peak_debt/.test(k) && Math.abs(n) < 1e6) { const u = emUnitScale(s, r0, j0, c); if (u) { n *= u.k; note = ` × ${u.k === 1e6 ? '1,000,000' : '1,000'} (${u.from})`; } }
-        if (party) { if (!(k in later)) later[k] = { v: +n.toFixed(4), f: `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`, a: A1(s.name, j0, r0) }; continue }
+        if (party) { if (!(k in later)) later[k] = { v: +n.toFixed(4), f: `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`, a: A1(s.name, j0, r0) };
+          // a partner's own return (LP IRR, GP equity multiple) is kept as its own output, beside the scheme's
+          const pk = (/^\s*(lp|limited)/i.test(c) ? 'lp' : 'gp') + (k === 'equity_multiple' ? '_multiple' : k === 'net_profit' ? '_profit' : '_irr'); if (!(pk in out)) { out[pk] = +n.toFixed(4); found[pk] = `${s.name} / ${c.trim()}`; cells[pk] = A1(s.name, j0, r0) } continue }
         out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); break;
       }
     }
