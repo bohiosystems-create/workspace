@@ -297,15 +297,17 @@ function detectMeta(sheets, fileName) {
   const meta = { title: '', type: '', currency: '', site: null, gfa: null, source: '' }, cur = {}, ev = {}; let usLoc = '';
   const vote = (c, e) => { cur[c] = (cur[c] || 0) + 1; if (!ev[c]) ev[c] = e; };
   // the cells' own number formats ("$4,567,339", "SAR 1,000", "€ 5.0") are the strongest evidence of the currency
+  // one vote per row: a row of PMT results that Excel formatted as "$" on its own is one piece of evidence, not twenty
+  const fseen = new Set();
   for (const s of sheets.slice(0, 8)) (s.frows || []).slice(0, 220).forEach((fr, ri) => (fr || []).forEach((w, j) => { if (typeof w !== 'string' || typeof (s.rows[ri] || [])[j] !== 'number') return; const t = w.trim();
-    const c = /^\(?-?\s*(US)?\$/.test(t) ? 'USD' : /€/.test(t) ? 'EUR' : /£/.test(t) ? 'GBP' : /﷼|^SAR\b|\bSAR$|^SR\b/.test(t) ? 'SAR' : /^AED\b|\bAED$/.test(t) ? 'AED' : ''; if (c) vote(c, `${s.name}!${A1('', j, ri).slice(1)} shows “${t.slice(0, 20)}”`); }));
+    const c = /^\(?-?\s*(US)?\$/.test(t) ? 'USD' : /€/.test(t) ? 'EUR' : /£/.test(t) ? 'GBP' : /﷼|^SAR\b|\bSAR$|^SR\b/.test(t) ? 'SAR' : /^AED\b|\bAED$/.test(t) ? 'AED' : ''; if (c && !fseen.has(s.name + '|' + ri + '|' + c)) { fseen.add(s.name + '|' + ri + '|' + c); vote(c, `${s.name}!${A1('', j, ri).slice(1)} shows “${t.slice(0, 20)}”`); } }));
   const after = (row, i) => row.slice(i + 1).find(x => (typeof x === 'string' && x.trim()) || typeof x === 'number');
   for (const s of sheets.slice(0, 5)) for (const row of s.rows.slice(0, 160)) {
     if (!row) continue;
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string') continue; const t = c.trim();
       for (const m of t.matchAll(/\b(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD|BHD|OMR|JOD|EGP|CHF|JPY|CNY|HKD|SGD|INR|CAD|ZAR|SEK|NOK|DKK|PLN|TRY|MAD)\b/g)) { const c = m[1] === 'AUD' ? 'USD' : m[1]; vote(c, `“${t.slice(0, 40)}”`); }
-      if (/(^|[\s(\-–])(US)?\$\s?\d|^\s*(US)?\$\s*$/.test(t)) vote('USD', `“${t.slice(0, 40)}”`); if (/€/.test(t)) vote('EUR', `“${t.slice(0, 40)}”`); if (/£/.test(t)) vote('GBP', `“${t.slice(0, 40)}”`); if (/﷼|ر\.س|\bSR\s?\d/.test(t)) vote('SAR', `“${t.slice(0, 40)}”`);
+      if (/(^|[\s(\-–])(US)?\$\s?\d|^\s*(US)?\$\s*$/.test(t)) vote('USD', `“${t.slice(0, 40)}”`); { const dm = t.match(/(?:^|[^A-Z])(NZ|C|HK|S)\$/); if (dm) vote({ NZ: 'NZD', C: 'CAD', HK: 'HKD', S: 'SGD' }[dm[1]], `“${t.slice(0, 40)}”`); } if (/€/.test(t)) vote('EUR', `“${t.slice(0, 40)}”`); if (/£/.test(t)) vote('GBP', `“${t.slice(0, 40)}”`); if (/﷼|ر\.س|\bSR\s?\d/.test(t)) vote('SAR', `“${t.slice(0, 40)}”`);
       if (/^(.*,\s*)?(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\s*$/.test(t) && /,/.test(t)) usLoc = t;
       if (/estate\s*master|office\s*links|\bargus\b|cash flow title/i.test(t)) meta.source = 'estatemaster';
       if (!meta.title && /^(cash flow title|project name|project title|project|scheme name|development name|title)\s*:?$/i.test(t)) { const v = after(row, i); if (typeof v === 'string' && v.trim().length > 2) { meta.title = v.trim().slice(0, 80); meta.titleFrom = 'cell'; } }
