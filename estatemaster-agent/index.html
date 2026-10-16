@@ -2382,7 +2382,7 @@ function renderInbox(){
    ${cr?`Proposal <b>${cr.id}</b> · ${cr.status}${cr.decidedBy?' by '+esc(cr.decidedBy):''} · ${crIRR(cr,{ifa:1})}`:'Not yet picked up by a scan.'}
    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${cr&&cr.status==='pending'?`<button class="btn sm" data-apr="${cr.id}">Approve ${cr.id}</button><button class="btn ghost sm" data-rej="${cr.id}">Reject</button>`:''}<button class="btn ghost sm" data-tab="appr">Open approvals</button></div>`:'<b>No assumption content.</b> The agent ignores this message.'}</div>`;
 }
-function renderApprBadge(){try{renderDock()}catch(e){}pushFeedSoon();try{renderProjRail()}catch(e){}const n=pendingCRs().length,t=document.querySelector('.tab[data-t=appr]');if(t)t.innerHTML=`Daily feed${n?` <b style="background:var(--alert);color:#fff;border-radius:999px;padding:0 7px;font-size:11px;margin-left:4px">${n}</b>`:''}`}
+function renderApprBadge(){try{renderDock()}catch(e){}pushFeedSoon();try{renderProjRail()}catch(e){}const n=pendingHere().length,t=document.querySelector('.tab[data-t=appr]');if(t)t.innerHTML=`Daily feed${n?` <b style="background:var(--alert);color:#fff;border-radius:999px;padding:0 7px;font-size:11px;margin-left:4px">${n}</b>`:''}`}
 let logQ='';
 function crCard(c){
   return`<div class="em ${c.status==='pending'?'on':''}" style="cursor:default"><div class="top"><span>${c.id} · ${c.kind==='email'?'email proposal':c.kind==='agent'?'AI agent proposal':c.kind==='suggestion'?'suggested change · '+esc(c.source||''):c.kind==='newmodel'?'new model':c.kind==='manual'?'change by a person (model line)':c.kind==='connect'?'model connection · '+(c.check?c.check.filled+'/'+c.check.lines+' values, '+c.check.warnings+' warnings':''):'promotion to live model'}${c.proj&&PROJECTS[c.proj]?' · <b>'+esc(PROJECTS[c.proj].name)+'</b>':''} · raised by ${esc(c.by)}</span><span>${new Date(c.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span></div>
@@ -2413,7 +2413,8 @@ document.addEventListener('click',e=>{const f=e.target.closest('[data-ff]');if(f
 function feedFilter(){$$('#p-appr [data-fg]').forEach(g=>{g.style.display=FEED_FILTER==='all'||g.dataset.fg===FEED_FILTER?'':'none'})}
 function renderApprovals(){
   if(!$('#apList'))return;
-  const p=pendingCRs(),d=APQ.filter(c=>c.status!=='pending').slice().reverse();
+  // this project's change requests only: another project's proposals are not this model's business
+  const mine=c=>!c.proj||c.proj===PROJ.id;const p=pendingHere(),d=APQ.filter(c=>c.status!=='pending'&&mine(c)).slice().reverse();
   const ai=p.filter(c=>c.ai).length;$('#apSub').textContent=ROA?`${p.length} change${p.length===1?'':'s'} to review, each with its impact worked out and checked`:`${p.length} to decide · ${openTasks().length} for the analyst · ${d.length} decided`;crEffectsKick();
   $('#apList').innerHTML=p.length?p.map(feedRow).join(''):'<div class="feed-empty">Nothing to decide.</div>';
   $('#apDone').innerHTML=d.length?'<div class="feed-sep">Decided</div>'+d.slice(0,40).map(feedRow).join(''):'';
