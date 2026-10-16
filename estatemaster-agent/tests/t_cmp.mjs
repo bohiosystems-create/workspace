@@ -13,7 +13,7 @@ ok(await p.locator('#exDiff .cmp-bar i.win').count()>=1,'better side highlighted
 ok(/has the (higher|lower) /.test(await p.locator('#exDiff .cmp-verdict').textContent()),'verdict line');
 const dif=await p.locator('#exDiff .cmp-t tr').count();ok(dif>=2&&/Sale price/.test(await p.locator('#exDiff .cmp-t').textContent()),'assumptions that differ listed: '+(dif-1));
 ok(await p.locator('#exA optgroup').count()>=1,'picker grouped by model');
-await p.locator('#exDiff .cmp-val .fig').first().click();await p.waitForTimeout(200);ok(await p.evaluate(()=>document.querySelector('#figWin').classList.contains('on')),'figure click opens the source');await p.click('#fwClose');
+await p.locator('#exDiff .cmp-val .fig').first().click();await p.waitForTimeout(200);ok(await p.evaluate(()=>(document.querySelector('#figWin')&&document.querySelector('#figWin').classList.contains('on'))||document.querySelector('#xlWin').classList.contains('on')),'figure click opens the source (its cell in the workbook, or the source card)');await p.evaluate(()=>{if($('#xlWin').classList.contains('on'))closeWorkbook();else $('#fwClose').click()});
 await p.locator('#exDiff').screenshot({path:sp+'compare.png'});
 // typed delete confirmation
 await p.evaluate(()=>{PROJECTS.t2={...PROJECTS[PROJ.id],id:'t2',name:'Test Tower',xl:undefined};renderProjRail();document.querySelector('#projRail').classList.add('open')});await p.waitForTimeout(200);

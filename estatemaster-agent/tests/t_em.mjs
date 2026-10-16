@@ -46,9 +46,9 @@ let fw=await ev(()=>({on:$('#figWin').classList.contains('on'),kind:$('#fwKind')
 ck('clicking a stress figure opens the working window: replica method, shocks, calibration to EstateMaster’s 18.40%',fw.on&&/replica estimate/.test(fw.kind)&&/Shocks:/.test(fw.body)&&/Method: the Bohio replica/.test(fw.body)&&/EstateMaster base \(EX-00\d\): levered IRR 18\.40%/.test(fw.body),fw.body.slice(0,200));
 await p.click('#fwClose');await p.waitForTimeout(100);
 await p.click('#emRes .fig.fig-em');await p.waitForTimeout(200);
-fw=await ev(()=>({on:$('#figWin').classList.contains('on'),kind:$('#fwKind').textContent,body:$('#fwBody').textContent}));
-ck('clicking an EstateMaster figure says which export it was read from and that the agent did not calculate it',fw.on&&/read from the EstateMaster export/.test(fw.kind)&&/export EX-00\d \(AlNarjis.xlsx\)/.test(fw.body)&&/Not calculated by the agent/.test(fw.body),fw.body.slice(0,200));
-await p.click('#fwClose');await p.screenshot({path:`${sp}em_${tag}_scen.png`,fullPage:false});
+fw=await ev(()=>({on:$('#figWin')&&$('#figWin').classList.contains('on'),kind:$('#fwKind')?$('#fwKind').textContent:'',body:$('#fwBody')?$('#fwBody').textContent:'',wb:$('#xlWin').classList.contains('on'),find:$('#xlFind')?$('#xlFind').textContent:''}));
+ck('clicking a model figure shows where it comes from: its cell in the workbook, or its export and that the agent did not calculate it',(fw.wb&&/is in .+![A-Z]+\d+/.test(fw.find))||(fw.on&&/read from the EstateMaster export/.test(fw.kind)&&/export EX-00\d \(AlNarjis.xlsx\)/.test(fw.body)&&/Not calculated by the agent/.test(fw.body)),(fw.find||fw.body).slice(0,200));
+await ev(()=>{if($('#xlWin').classList.contains('on'))closeWorkbook();else $('#fwClose').click()});await p.screenshot({path:`${sp}em_${tag}_scen.png`,fullPage:false});
 // chat: rules lane
 await p.evaluate(()=>showTab('report'));await p.waitForTimeout(200);
 async function ask(q,w=1800){await p.fill('#ask',q);await p.click('#send');await p.waitForTimeout(w);return await ev(()=>{const ms=$$('#msgs .msg.agent').filter(m=>!/^Before I rely on/.test(m.textContent.trim()));return ms.length?ms[ms.length-1].querySelector('.body').innerHTML:''})}
