@@ -15,5 +15,8 @@ else:
     anchor = '/* Which stored Option / Stage the export is:'
     assert anchor in html
     html = html.replace(anchor, new + '\n' + anchor, 1)
+# the output patterns too: the app's EXLAB is the server's LAB, word for word (they had drifted apart once)
+lab = re.search(r'const LAB = (\[.*?\]\]);', src).group(1)
+i = html.index('const EXLAB='); j = html.index('\n', i); html = html[:i] + 'const EXLAB=' + lab + ';' + html[j:]
 html_p.write_text(html)
 print('emcheck synced into index.html')
