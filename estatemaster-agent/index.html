@@ -4372,7 +4372,7 @@ function xcAiPlan(x,c,by){if(!c)return null;if(c.kind==='to'&&typeof c.value==='
   const v=k==='text'?c.value.trim():+c.value;if(k==='pct'&&xcPctIn(inp))return null;if(k==='text'&&inp.value!=null)return null;
   if(k==='to'&&xcPctIn(inp)&&Math.abs(v)>100)return null;if(k==='to'&&!xcPctIn(inp)&&Number.isFinite(inp.value)&&inp.value!==0&&v!==0&&(Math.abs(v/inp.value)>=1000||Math.abs(inp.value/v)>=1000))return null;
   const sg=n=>(n>0?'+':'')+n;const rd=k==='pct'?sg(v)+'%':k==='pts'?sg(v)+' pts':k==='months'?sg(v)+' months':k==='abs'?sg(v):'to '+v;   /* readable, so it reads back the same way when the user picks it */
-  return{c:{...c,text:`${inp.label} ${rd}`},p:{inp,kind:k,s:v,label:inp.label,by,cells:cells||undefined}}}
+  return{c:{...c,text:`${inp.label} ${rd}`},p:{inp,kind:k,s:v,label:cells&&c.label?String(c.label).trim():inp.label,by,cells:cells||undefined}}   /* three tenants' cells are named by the AI's own label, not the first tenant's */}
 async function xcAiRead(x,text){const q=chain('fast').find(z=>z.p==='anthropic')||chain('fast')[0]||calcPair()[0];if(!q)return null;
   const list=(x.inputs||[]).filter(i=>i.cell).slice(0,160).map(i=>`${i.parent?i.parent+' › ':''}${i.label} | ${i.cell} | ${asmFmt(i)}${i.unit&&i.unit!=='%'?' '+i.unit:''} | ${xcPctIn(i)?'percentage':'number'}`).join('\n');
   const r=await Promise.race([callOne(q.p,q.model,XC_READ_SYS,[{role:'user',content:`Assumptions:\n${list}\n\nSentence: ${text}`}],false,{max:600,task:'calc',think:false}),new Promise((_,no)=>setTimeout(()=>no(new Error('timed out')),20000))]);
