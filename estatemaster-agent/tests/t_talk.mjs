@@ -6,8 +6,9 @@ const sp=new globalThis.URL('./fixtures/',import.meta.url).pathname;const base=p
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});const p=await b.newPage({viewport:{width:1500,height:950}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(sp+'package/dist/xlsx.full.min.js')}));
 await p.route('https://fonts.googleapis.com/**',r=>r.fulfill({status:200,contentType:'text/css',body:''}));
-let MODE='apart',calls=[];
-await p.route('**/api/llm',r=>{if(r.request().method()==='GET')return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({providers:{anthropic:true,openai:true}})});
+let MODE='apart',calls=[],SLOW=false;
+await p.route('**/api/llm',async r=>{if(r.request().method()==='GET')return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({providers:{anthropic:true,openai:true}})});
+  if(SLOW)await new Promise(z=>setTimeout(z,400));   // models take time: the bubbles must show as each answer lands, not all at the end
   const j=JSON.parse(r.request().postData());const sys=j.payload.system||(j.payload.messages[0]&&j.payload.messages[0].role==='system'?j.payload.messages[0].content:'');const user=JSON.stringify(j.payload.messages);calls.push({m:j.payload.model,p:j.provider,sys:sys.slice(0,60)});
   const reply=text=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(j.provider==='openai'?{choices:[{message:{content:text}}]}:{model:j.payload.model,content:[{type:'text',text}]})});
   if(MODE==='openai-down'&&j.provider==='openai')return r.fulfill({status:400,contentType:'application/json',body:JSON.stringify({error:{message:'You exceeded your current quota, please check your plan and billing details'}})});
@@ -60,8 +61,8 @@ await p.waitForTimeout(400);calls=[];MODE='openai-down';r=await ev(async()=>{con
 t(r.steps.some(s=>/OpenAI.*could not answer: OpenAI is out of API credit.*takes its place/.test(s)),'reason said and a replacement named: '+r.steps.filter(s=>/could not/.test(s)).join(' | '));
 t(r.mode==='cross'&&r.names.length===2&&!/gpt-5$/.test(r.names[1]),'still cross-checked by two models: '+JSON.stringify(r.names));
 // 4. in the chat the exchange streams as bubbles (not after the fact) and folds behind the arrow
-MODE='apart';await ev(()=>{toggleDock(true)});const seen=[];const poll=setInterval(async()=>{try{seen.push(await ev(()=>document.querySelectorAll('#msgs .talkbox .st.talk').length))}catch(e){}},150);
-await ev(()=>webAsk('what if sale price drops 10%'));await p.waitForFunction(()=>!document.querySelector('#msgs .kthink'),null,{timeout:60000}).catch(()=>{});clearInterval(poll);
+MODE='apart';SLOW=true;await ev(()=>{toggleDock(true)});const seen=[];const poll=setInterval(async()=>{try{seen.push(await ev(()=>document.querySelectorAll('#msgs .talkbox .st.talk').length))}catch(e){}},150);
+await ev(()=>webAsk('what if sale price drops 10%'));await p.waitForFunction(()=>!document.querySelector('#msgs .kthink'),null,{timeout:60000}).catch(()=>{});clearInterval(poll);SLOW=false;
 const chat=await ev(()=>{const bx=[...document.querySelectorAll('#msgs .talkbox')].pop();return{talk:bx?bx.querySelectorAll('.st.talk').length:0,boxes:document.querySelectorAll('#msgs .talkbox').length,done:!!(bx&&bx.querySelector('.tb-sum'))}});
 t(chat.talk>=3&&chat.done,'the chat holds one box per test with the agents’ bubbles and the closing line: '+JSON.stringify(chat));const u=seen.filter((v,i,a)=>a.indexOf(v)===i);t(u.length>=3,'they appeared one by one while the agent worked: '+JSON.stringify(u));
 await ev(()=>{const w=document.querySelector('#dispWin');if(w)w.classList.remove('on');const t=[...document.querySelectorAll('#msgs .kt-tog')].pop();if(t)t.click();document.querySelector('#msgs').scrollTop=1e9});await p.waitForTimeout(300);await p.screenshot({path:sp+'../talk.png'});
