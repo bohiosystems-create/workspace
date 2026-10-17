@@ -1,0 +1,8 @@
+{
+  "r18_jv_usd.xlsx": "circular monthly JV: LibreOffice's iteration does not converge on it, so it cannot referee it (checked against an independent Python model in the round tests instead)",
+  "reader_layouts.xlsx": "a reading test with no formulas to recalculate",
+  "resi_bugged.xlsx": "deliberately broken model for the model-review tests",
+  "fn_unverified.xlsx": "uses two functions deliberately left unverified, for the upload check test (t_agents22)",
+  "r23_modern_usd.xlsx": "uses Excel 365 functions (LET, XLOOKUP, FILTER, SEQUENCE) the LibreOffice in CI cannot compute; its stored results were written from an independent Python calculation",
+  "r23_risk_sar.xlsx": "a risk sheet draws RAND(): those results are random in any spreadsheet (the deterministic results are checked in the round tests)"
+}

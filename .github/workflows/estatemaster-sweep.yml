@@ -1,0 +1,45 @@
+name: EstateMaster engine sweep (LibreOffice referee)
+
+# Every test model, its typed inputs moved one at a time and together, recalculated by the app's formula engine and independently
+# by LibreOffice: any result that differs fails the run (and GitHub emails the failure). Catches the engine computing differently
+# from a spreadsheet when inputs move, which the stored results of a workbook cannot show.
+on:
+  schedule:
+    - cron: '37 2 * * *'   # every night (02:37 UTC)
+  push:
+    paths:
+      - 'estatemaster-agent/tools/sweep/**'
+      - 'estatemaster-agent/tests/fixtures/models/**'
+      - '.github/workflows/estatemaster-sweep.yml'
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'space-separated model files (default: all)'
+        default: ''
+
+concurrency:
+  group: estatemaster-sweep-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install LibreOffice and openpyxl
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libreoffice-calc python3-openpyxl >/dev/null
+      - name: Install Playwright
+        run: cd estatemaster-agent/tests && npm init -y >/dev/null && npm i playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium
+      - name: Sweep
+        run: bash estatemaster-agent/tools/sweep/run.sh "$RUNNER_TEMP/sweep" ${{ github.event.inputs.models }}
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sweep-results
+          path: ${{ runner.temp }}/sweep
+          if-no-files-found: ignore
