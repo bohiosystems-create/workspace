@@ -13,6 +13,7 @@ const CASES=[['desk_condo_usd','presales only 35%',{changes:[{label:'Presold bef
  ['desk_student_gbp','occupancy 94%',{changes:[{label:'Occupancy · Downside',cell:'Assumptions!D5',kind:'to',value:94,sure:true}]},'Occupancy · Base: Assumptions!C5 97% → 94%'],   // the AI picked a case column the model does not run on
  ['desk_tower_options_sar','switch to option B',{changes:[{label:'Selected option (A or B)',cell:'Options!C3',kind:'text',value:'B',sure:true}]},'Options!C3 A → B'],
  ['desk_refi_chf','margin 50 bps wider',{changes:[{label:'Credit margin (bps)',cell:'Assumptions!B7',kind:'abs',value:50,sure:true}]},'165 → 215'],
+ ['r17_pbsa_hkd','direct-let occupancy slips 5 points',{changes:[{label:'Direct-let occupancy',cell:'Inputs!B8',kind:'pts',value:-5,sure:true}]},'88% → 83%'],   // “slips” states no direction: the AI's −5 is used, no question
  ['desk_refi_chf','margin 50 bps tighter',{changes:[{label:'Credit margin (bps)',cell:'Assumptions!B7',kind:'abs',value:50,sure:true}]},'ASK']];   // the sentence says which way and the AI moves the line the other way: a certain check, the user decides
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined}),p=await b.newPage();await p.route(/cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/,r=>r.abort());await p.route('https://fonts.googleapis.com/**',r=>r.fulfill({status:200,contentType:'text/css',body:''}));const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.route('**/api/log',r=>r.fulfill({status:200,body:'{}'}));

@@ -48,5 +48,8 @@ await up('r16_wafi_sar');r=await ask('construction to 11 quarters');t(/after the
 await up('r11_solar_eur');await p.waitForTimeout(800);await up('r11_ppp_kwd');await p.waitForTimeout(800);
 r=await ask('which project has the lowest DSCR?');t(/Lowest DSCR: /.test(r.txt)&&/CAMPO SOLAR/.test(r.txt)&&/JAHRA/.test(r.txt),'portfolio “lowest DSCR” from each model’s own results: '+r.txt.slice(0,200));
 r=await ask('total equity across the portfolio');t(/Equity invested/.test(r.txt)&&/not counted/.test(r.txt),'portfolio equity: the models that report it, the rest named: '+r.txt.slice(0,200));
+// round 17: a lender model's own names (Lender IRR, Lender MOIC), not "Levered IRR / Equity multiple"; a percentage cell in the results reads as a percentage
+await up('r17_lender_usd');r=await ask("what's our IRR?");t(/Lender IRR 12\.70%/.test(r.txt)&&!/Levered IRR/.test(r.txt)&&!/\(1\.54x\)/.test(r.txt),'a lender model’s figures under its own names: '+r.txt.slice(0,160));
+await up('r17_pbsa_hkd');r=await ask("what's the going-in yield?");t(/Income secured by nominations 59\.10%/.test(r.txt),'a percentage cell among the results reads as a percentage');
 if(errs.length){fail++;console.log('FAIL | page errors: '+errs.join(' | ').slice(0,300))}
 console.log(`\n${pass} pass, ${fail} fail`);await b.close();
