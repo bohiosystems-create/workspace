@@ -92,9 +92,12 @@ function parseInputs(sheets) {
         let rep = 0; for (let r = Math.max(0, ri - 20); r <= Math.min(s.rows.length - 1, ri + 20); r++) if (r !== ri && (s.rows[r] || [])[i] === row[i]) rep++;
         const colVal = !!hl && hl !== lab && !per(hl) && (rep >= 2 || /method|status|type|tenant|order|basis|timing|curve|profile|draw|option|source|structure|lender|class/i.test(hl) || /^(see\b|n\/a$|tbd$|\[)/i.test(lab));
         let kL = -1; for (let k = i - 1; k >= 0; k--) if (emIsLabel(row[k]) && String(row[k]).length <= 70) { kL = k; break; }
-        const own = colVal && kL >= 0 ? String(row[kL]).trim() : '';
+        // the row's name column (Asset, Country, Deal, Tenant …): "Leipzig Park · Disposal date", not "Germany · Disposal date" (the text just left of the figures)
+        const colHead = k => { for (let r = ri - 1; r >= top; r--) { const rr = s.rows[r] || [], h = rr[k]; if (h == null || h === '') continue; if (typeof h !== 'string') return ''; if (rr.slice(Math.max(0, k - 8), k + 3).some(c => typeof c === 'number')) continue; return h.trim().length < 50 ? h.trim() : ''; } return ''; };   // the column's heading: past the data rows above, to the row with no figures
+        let nameLab = ''; for (let k = 0; k < i; k++) { if (!emIsLabel(row[k]) || String(row[k]).length > 70) continue; const hk = colHead(k); if (hk && /^(name|asset|deal|tenant|property|project|unit|phase|product|country|item|description|scheme|site|fund|entity|lease|loan|tranche|building|hotel|level)s?\b/i.test(hk)) { nameLab = String(row[k]).trim(); break; } }
+        const own = colVal && kL >= 0 ? String(row[kL]).trim() : (nameLab && nameLab !== lab ? nameLab : '');
         const heads = cells.map(c => c.h).filter(Boolean), split = cells.length > 1 && heads.length === cells.length && new Set(heads).size === heads.length && !heads.some(per);
-        if ((colVal && own) || split) { const base = own || lab, tc = h => String(h).toLowerCase().replace(/(^|[\s\/(])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+        if ((colVal && own) || split || (own && cells.length)) { const base = colVal && own && nameLab === '' && /tenant|name|asset|deal|property/i.test(hl) && own !== lab ? `${own} · ${lab}` : own || lab,   /* a floor and its tenant: “Ground · Fenchurch Retail” */ tc = h => String(h).toLowerCase().replace(/(^|[\s\/(])([a-z])/g, (m, a, b) => a + b.toUpperCase());
           for (const c of (split ? cells : [cells[0]])) { const L = c.h && !per(c.h) ? `${base} · ${tc(c.h)}` : base, kk = s.name + '|' + L + '|' + ri; if (seen.has(kk)) continue; seen.add(kk); seen.add(key);
             out.push({ label: L, value: +c.v.toFixed(6), text: (c.t || String(c.v)).trim(), pct: c.pct, fmt: c.fmt, vals: [c.v], cols: [{ h: c.h, t: String(c.t || c.v).trim() }], head: c.h || '', note: base !== lab ? lab : undefined, parent: blk ? blk.t : '', sheet: s.name, section, unit: c.pct ? '%' : (unitCell ? unitCell.trim().replace(/\bAUD\b/g, 'USD') : ''), cell: A1(s.name, c.j, ri) }) }
           next(); continue } }
@@ -104,6 +107,8 @@ function parseInputs(sheets) {
   }); }
   for (const i of out) { i.cat = emCat(i.label, (i.section || '') + ' ' + (i.parent || '')); if (i.cat === 'Development costs' && /op(erating)?\.?\s*(cash|cf)|operat|p\s*&\s*l|income|opex/i.test(i.sheet)) i.cat = 'Revenue & operations'; }   // a cost line on the operating sheet is an operating expense
   if (anyF) { out.forEach((i, k) => { i.section = i.cat; i.ord = k; }); out.sort((a, b) => EM_CATS.indexOf(a.cat) - EM_CATS.indexOf(b.cat) || a.ord - b.ord); out.forEach(i => { delete i.ord; i.typed = true; }); }
+  /* the same label typed on several sheets (Exit cap · Base on four deal sheets, ADR on three hotels): each carries its sheet */
+  { const bySh = {}; for (const o of out) (bySh[o.label] = bySh[o.label] || new Set()).add(o.sheet); for (const o of out) if (bySh[o.label].size > 1 && !new RegExp('\\b' + o.sheet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(o.label + ' ' + (o.parent || ''))) o.label = o.label + ' · ' + o.sheet; }
   return out;
 }
 function detectOpt(sheets, fileName) {
@@ -216,11 +221,14 @@ function emHeadline(sheets) {
   // "exit multiple on equity" in an assumptions table) is an input, never the deal's return
   const anyF = sheets.some(s => s.ws && Object.keys(s.ws).some(k => k[0] !== '!' && s.ws[k] && s.ws[k].f)), typed = (s, r, j) => { if (!anyF || !s.ws) return false; const z = s.ws[A1('', j, r).slice(1)]; return !!z && !z.f; };
   const mx = emMatrix(sheets), out = { ...mx.out }, found = { ...mx.found }, cells = { ...mx.cells }, later = {}, isNum = x => typeof x === 'number' || (typeof x === 'string' && /^\s*-?[\d,.]+\s*%?\s*$/.test(x) && !!x.trim());
-  for (const s of sheets) for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri]; if (!row) continue;
+  // a sheet named for the results (Returns, Summary, Outputs, Dashboard, KPIs) is read first: the fund's LP TVPI there is the headline,
+  // never a deal sheet's own "Deal equity multiple" further on
+  const isSum = s => /return|summary|output|dashboard|result|kpi|headline|overview/i.test(s.name), ordered = [...sheets.filter(isSum), ...sheets.filter(s => !isSum(s))], held = {};
+  for (const s of ordered) for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri]; if (!row) continue;
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string' || c.length > 80) continue;
       for (const [k, re] of LAB) {
-        if (k in out || !re.test(c)) continue; if (k === 'levered_irr' && /unlevered|ungeared|unleveraged/i.test(c)) continue; if (EX_SKIP(k, c)) continue;
+        if (k in out || !re.test(c)) continue; if (held[k] && !isSum(s)) continue; if (k === 'levered_irr' && /unlevered|ungeared|unleveraged/i.test(c)) continue; if (EX_SKIP(k, c)) continue;
         // an operating income line (effective or potential gross income, a stabilised year) is not the scheme's gross revenue
         if (k === 'gross_revenue' && /\b(effective|potential|egi|pgi|egr|stabili[sz]ed|in-place|annual|per annum|year\s*1)\b/i.test(c)) continue;
         // an LP's or GP's own figure is kept aside: the scheme's figure, when the model has one, pairs with the scheme's IRR
@@ -239,7 +247,7 @@ function emHeadline(sheets) {
         const w = String(((s.frows || [])[r0] || [])[j0] == null ? '' : s.frows[r0][j0]).trim();
         if (/irr|profit_on_cost/.test(k) && ((/%\s*$/.test(w) && Math.abs(n) < 50 && typeof v === 'number') || (Math.abs(n) < 1.5 && (/%\s*$/.test(w) || (Math.abs(n) < 1 && !(typeof v === 'string' && /%/.test(v))))))) n *= 100;   /* a %-formatted cell holds a fraction whatever its size: 2.14 shown “214.0%” is 214% */
         let note = ''; if (/net_profit|total_cost|gross_revenue|peak_debt/.test(k) && Math.abs(n) < 1e6) { const u = emUnitScale(s, r0, j0, c); if (u) { n *= u.k; note = ` × ${u.k === 1e6 ? '1,000,000' : '1,000'} (${u.from})`; } }
-        if (party) { if (!(k in later)) later[k] = { v: +n.toFixed(4), f: `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`, a: A1(s.name, j0, r0) };
+        if (party) { if (!(k in later)) later[k] = { v: +n.toFixed(4), f: `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`, a: A1(s.name, j0, r0) }; if (isSum(s)) held[k] = true;
           // a partner's own return (LP IRR, GP equity multiple) is kept as its own output, beside the scheme's
           const pk = (/^\s*(lp|limited|investor)/i.test(c) || lpTo ? 'lp' : 'gp') + (k === 'equity_multiple' ? '_multiple' : k === 'net_profit' ? '_profit' : '_irr'); if (!(pk in out)) { out[pk] = +n.toFixed(4); found[pk] = `${s.name} / ${c.trim()}`; cells[pk] = A1(s.name, j0, r0) } continue }
         out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); break;

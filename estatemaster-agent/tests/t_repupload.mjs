@@ -33,5 +33,10 @@ await up('r18_jv_usd');
   t(L.name==='LP quarterly update'&&/LP/.test(L.aud),'a new report keeps the name and audience said: '+L.name+' / '+L.aud);t(L.lp,'the LP update holds the workbook’s LP IRR and GP promote');
   const rt=await p.evaluate(k=>['email the LP quarterly update to ir@example.com','schedule the LP quarterly update every quarter on the 5th at 9am','play the LP quarterly update'].map(q=>{const i=route(q).it||{};return[i.k,(i.o&&i.o.k)||i.kind]}),L.k);
   t(rt[0][0]==='sendreport'&&rt[1][0]==='schedule'&&rt[2][0]==='play'&&rt.every(z=>z[1]===L.k),'email, schedule and Play act on the custom report by its own name: '+JSON.stringify(rt))}
+// the lender section carries the loan balance by period from the cash flow sheet, as a line, and the report headline uses the model's own name
+await up('r21_ppp_gbp');{const L=await p.evaluate(async()=>{const x=latestExport();await xcCacheMore(x);const r=await designNewReport('New report for the senior lenders: debt, DSCR and LLCR','IM','Workspace');const d=buildDeck(r.k).slides;const ln=d.find(s=>s.kind==='line'&&/Debt balance|Loan balance/i.test(s.title));
+  return{dr:x.debtRow&&x.debtRow.label,ln:ln&&ln.title,n:ln&&ln.values.length,head:(buildDeck('ic').slides.find(s=>s.kind==='gauges')||{items:[]}).items.map(i=>i.label)}});
+  t(/Debt balance/i.test(L.dr||''),'the loan balance row is read from the cash flow sheet: '+L.dr);t(!!L.ln&&L.n>=20,'the lender pack shows the debt balance by period as a line: '+L.ln+' ('+L.n+' periods)');
+  t(L.head.some(h=>/Equity IRR/.test(h)),'the report headline uses the model’s own name for its IRR: '+L.head.join(', '))}
 if(errs.length){fail++;console.log('FAIL | page errors: '+errs.join(' | ').slice(0,300))}
 console.log(`\n${pass} pass, ${fail} fail`);await b.close();

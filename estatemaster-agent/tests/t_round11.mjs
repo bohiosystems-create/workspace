@@ -1,4 +1,4 @@
-// Rounds 11-20 at the desk, no AI connected (the rules are the fallback): five synthetic models of new kinds (fixtures/models/r11_*.xlsx,
+// Rounds 11-21 at the desk, no AI connected (the rules are the fallback): five synthetic models of new kinds (fixtures/models/r11_*.xlsx,
 // made by fixtures/gen/gen11.py). Guards: the currency the model states (a row of PMT results Excel formatted as "$" does not make a
 // EUR or KWD model dollars; NZ$ is NZD); the model's own figures are read on its uploaded inputs, never on the last what-if the
 // engine holds; "0.58m" on a line in EUR m is 0.58; "what PPA price gets the equity to 12%" is a goal seek, not PPA = 12; a goal-seek
@@ -89,5 +89,21 @@ t(await eng('r20_egypt_egp')===100,'XNPV on dates made by EOMONTH: 100% reproduc
 t(await p.evaluate(async()=>{const r=await xcSolve('Discount rate','NPV at the discount rate (EGP)',0,async()=>{},'Inputs!B13');return r.ok&&r.to==='20.94%'&&!/^-/.test(r.gotS)}),'goal seek: the discount rate that makes the NPV zero is the IRR (20.94%)');
 await up('r20_reit_sgd');t(await p.evaluate(async()=>{const r=await xcSolve('Acquisition cap rate','AFFO per unit CAGR (years 1-5)',8,async()=>{},'Inputs!B11');return r.ok&&r.to==='7.10%'}),'a percentage output read by its number format: AFFO CAGR 8% at a 7.10% acquisition cap rate');
 await up('r20_refi_usd');{const m=await p.evaluate(async()=>{const x=latestExport();await xcEngine(x);await xcCacheMore(x);return(x.more||[]).map(r=>r.label+'='+r.v)});t(m.includes('Refinance sized by=LTV')&&m.some(l=>/^Minimum DSCR=/.test(l)),'a text result is read, and is never a column heading: '+m.slice(0,6).join(' | '))}
+// round 21, the CIO's desk: a fund consolidating four deal sheets (headline from the Returns sheet, not a deal's; labels carry the sheet);
+// a timing change that runs the cash flow into the model's last period is flagged; a date input never trips the horizon check; a change that
+// moves nothing says so; table rows named by their name column; portfolio: a hurdle given in the question, a figure the models report
+await up('r21_fundc_usd');{const x=await p.evaluate(()=>{const x=latestExport();return{em:x.out.equity_multiple,lab:(x.inputs||[]).find(i=>i.cell==="'Deal D Hotel'!B10"||i.cell==='Deal D Hotel!B10'),n:(x.inputs||[]).length}});
+  t(Math.abs(x.em-1.6592)<1e-3,'the fund’s headline multiple is its LP TVPI from the Returns sheet (1.66x), not a deal sheet’s 2.15x: '+x.em);t(x.lab&&/Deal D Hotel/.test(x.lab.label),'the same label on four deal sheets carries the sheet: '+(x.lab&&x.lab.label))}
+await stubAI([{label:'Hold (quarters) · Deal C Office',cell:"'Deal C Office'!B9",kind:'to',value:32,sure:true}]);
+{const r2=await p.evaluate(async()=>{const r=await xcTest([{text:'hold the office two more years'}],async()=>{});return r&&r.horizon});t(/runs into the model’s last period/.test(r2||''),'a hold pushed to the edge of the timeline is flagged (the sale falls off): '+String(r2).slice(0,80))}
+await up('r21_eurolog_eur');{const l=await p.evaluate(()=>(latestExport().inputs||[]).filter(i=>/Assets!G3|Countries!C3/.test(i.cell)).map(i=>i.label));t(l.some(z=>/Leipzig Park/.test(z))&&l.some(z=>/^Poland/.test(z)),'table rows named by their name column: '+l.join(' | '))}
+await stubAI([{label:'Disposal date · Leipzig Park',cell:'Assets!G3',kind:'to',value:47118,sure:true}]);
+{const r2=await p.evaluate(async()=>{const r=await xcTest([{text:'sell Leipzig a year earlier'}],async()=>{});return{h:r&&r.horizon,d:r&&r.desc}});t(!r2.h&&/2028-12-31/.test((r2.d||[]).join(' ')),'a date input never trips the horizon check: '+JSON.stringify(r2).slice(0,160))}
+await stubAI([{label:'CPI · Poland',cell:'Countries!D3',kind:'to',value:6,sure:true}]);
+{const r2=await p.evaluate(async()=>{const r=await xcTest([{text:'Polish CPI 6%'}],async()=>{});return r&&r.note});t(/No result moved/.test(r2||''),'a change that moves nothing (the indexation cap binds) says so')}
+await unstub();
+await up('r21_ppp_gbp');r=await ask("what's the LLCR?");t(/Minimum LLCR 2\.05x/.test(r.txt)&&/Case in use Sponsor/.test(r.txt),'a PPP’s LLCR and the case in use are read: '+(r.txt.match(/Minimum LLCR[^;]{0,10}/)||[''])[0]);
+await up('r21_master_sar');r=await ask('which projects miss a 12% hurdle?');t(/Against the 12% hurdle you gave/.test(r.txt)&&/misses 12%/.test(r.txt)&&/demo project\) is left out/.test(r.txt),'portfolio: a hurdle given in the question is used, the demo project left out: '+r.txt.slice(0,160));
+r=await ask('which projects have a cash trap?');t(/Years in cash trap/.test(r.txt)&&/NORTHGATE/.test(r.txt),'portfolio: a figure the models report (cash trap) is answered from their results: '+r.txt.slice(0,120));
 if(errs.length){fail++;console.log('FAIL | page errors: '+errs.join(' | ').slice(0,300))}
 console.log(`\n${pass} pass, ${fail} fail`);await b.close();
