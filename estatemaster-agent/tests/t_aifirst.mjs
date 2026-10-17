@@ -4,7 +4,7 @@ import {chromium} from 'playwright';
 const F=new globalThis.URL('./fixtures/models/',import.meta.url).pathname;const base=process.argv[2]||'http://localhost:4090/?mode=readonly';
 let READ=null;
 const CASES=[['desk_condo_usd','presales only 35%',{changes:[{label:'Presold before construction',cell:'Assumptions!B7',kind:'to',value:35,sure:true}]},'Presold before construction: Assumptions!B7 55% → 35%'],
- ['desk_condo_usd','price the 2BRs at $1,000 a foot',{changes:[{label:'2B · Price Psf',cell:"'Price List'!B4",kind:'to',value:1000,sure:true}]},"→ 1,000"],
+ ['desk_condo_usd','price the 2BRs at $1,000 a foot',{changes:[{label:'2B · Price psf',cell:"'Price List'!B4",kind:'to',value:1000,sure:true}]},"→ 1,000"],
  ['desk_tower_options_sar','murabaha at 7%',{changes:[{label:'Profit rate · Option A',cell:'Options!C17',kind:'to',value:7,sure:true}]},'Profit rate · Option A: Options!C17 6.5% → 7%'],
  ['desk_office_refurb_gbp',"Arden doesn't renew",{changes:[{label:'Arden Legal · Renewal Probability',cell:"'Rent Roll'!E4",kind:'to',value:0,sure:true}]},"Rent Roll'!E4 60% → 0%"],
  ['desk_office_refurb_gbp','ERVs 5% lower',{changes:[{label:'ERV',cell:"'Rent Roll'!F4",cells:["'Rent Roll'!F4","'Rent Roll'!F5","'Rent Roll'!F6","'Rent Roll'!F7","'Rent Roll'!F8"],kind:'pct',value:-5,sure:true}]},'(5 cells) 72 → 68.4'],

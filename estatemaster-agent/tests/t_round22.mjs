@@ -22,7 +22,7 @@ ok(/DPI at the reporting date/.test(r.plain)&&/RVPI at the reporting date/.test(
 ok(/reads it as Reporting date to \(2031-06-30 → 2030-06-30\)/.test(r.steps),'the AI reading of a date is shown as dates',r.steps.slice(0,200));
 r=await test('discounts 5 points tighter',{changes:[{label:'Discount to NAV',cell:'Interests!D2',kind:'pts',value:-5,sure:true,cells:['Interests!D2','Interests!D3']}]});
 ok(/\(12% → 7%\)/.test(r.steps),'a rate typed as a bare fraction reads back right (12% → 7%, not −4.88%)',r.steps.slice(0,200));
-ok(/Discount To NAV/.test(await p.evaluate(()=>(latestExport().inputs||[]).find(i=>i.cell==='Interests!D2').label)),'a table header keeps its acronym (Discount To NAV)');
+ok(/Discount to NAV/.test(await p.evaluate(()=>(latestExport().inputs||[]).find(i=>i.cell==='Interests!D2').label)),'a table header keeps its acronym (Discount to NAV)');
 await up('r22_dc_usd.xlsx');
 r=await test('hold to quarter 40',{changes:[{label:'Exit quarter',cell:'Inputs!B23',kind:'to',value:40,sure:true}]});
 ok(/reaches the model’s last period/.test(r.plain)&&!/returns are understated/.test(r.plain),'the timing warning says only what is certain',r.plain.slice(0,220));

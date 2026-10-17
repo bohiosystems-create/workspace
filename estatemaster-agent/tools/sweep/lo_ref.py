@@ -15,6 +15,14 @@ def apply(src,dst,sets):
     z=zipfile.ZipFile(src);P=sheet_paths(z);by={}
     for ref,v in sets:
         m=re.match(r"^'?(.*?)'?!\$?([A-Z]+)\$?(\d+)$",ref);by.setdefault(P[m.group(1)],[]).append((m.group(2)+m.group(3),v))
+    # TODAY() and NOW() are frozen at the values Excel last stored, as the app's engine does: a sweep run on a later day still
+    # compares like with like
+    fz={}
+    for t in P.values():
+        if t not in z.namelist():continue
+        for m in re.finditer(r'<f\b[^>]*>\s*(TODAY|NOW)\(\)\s*</f>\s*<v>([^<]+)</v>',z.read(t).decode('utf8'),re.I):fz.setdefault(m.group(1).upper(),float(m.group(2)))
+    if 'TODAY' not in fz and 'NOW' in fz:fz['TODAY']=float(int(fz['NOW']))
+    if 'NOW' not in fz and 'TODAY' in fz:fz['NOW']=fz['TODAY']
     zo=zipfile.ZipFile(dst,'w',zipfile.ZIP_DEFLATED)
     for it in z.infolist():
         d=z.read(it.filename)
@@ -24,6 +32,7 @@ def apply(src,dst,sets):
                 rx=re.compile(r'<c\b(?=[^>]*\br="'+a+r'")([^>]*?)(?:/>|>([\s\S]*?)</c>)')
                 m=rx.search(x);assert m,(it.filename,a);assert '<f' not in (m.group(2) or ''),a
                 attrs=re.sub(r'\s+t="[^"]*"','',m.group(1));x=x[:m.start()]+(f'<c{attrs} t="inlineStr"><is><t>{v}</t></is></c>' if isinstance(v,str) else f'<c{attrs}><v>{repr(float(v))}</v></c>')+x[m.end():]
+            for k,v in fz.items():x=re.sub(r'(<f\b[^>]*>[^<]*?)\b'+k+r'\(\)',lambda m,v=v:m.group(1)+'('+repr(v)+')',x,flags=re.I)
             x=re.sub(r'(<c\b[^>]*>)(\s*<f\b[\s\S]*?(?:</f>|/>))\s*<v>[\s\S]*?</v>',r'\1\2',x)
             d=x.encode('utf8')
         zo.writestr(it,d)
