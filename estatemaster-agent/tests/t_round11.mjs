@@ -1,4 +1,4 @@
-// Rounds 11-16 at the desk, no AI connected (the rules are the fallback): five synthetic models of new kinds (fixtures/models/r11_*.xlsx,
+// Rounds 11-18 at the desk, no AI connected (the rules are the fallback): five synthetic models of new kinds (fixtures/models/r11_*.xlsx,
 // made by fixtures/gen/gen11.py). Guards: the currency the model states (a row of PMT results Excel formatted as "$" does not make a
 // EUR or KWD model dollars; NZ$ is NZD); the model's own figures are read on its uploaded inputs, never on the last what-if the
 // engine holds; "0.58m" on a line in EUR m is 0.58; "what PPA price gets the equity to 12%" is a goal seek, not PPA = 12; a goal-seek
@@ -51,5 +51,30 @@ r=await ask('total equity across the portfolio');t(/Equity invested/.test(r.txt)
 // round 17: a lender model's own names (Lender IRR, Lender MOIC), not "Levered IRR / Equity multiple"; a percentage cell in the results reads as a percentage
 await up('r17_lender_usd');r=await ask("what's our IRR?");t(/Lender IRR 12\.70%/.test(r.txt)&&!/Levered IRR/.test(r.txt)&&!/\(1\.54x\)/.test(r.txt),'a lender model’s figures under its own names: '+r.txt.slice(0,160));
 await up('r17_pbsa_hkd');r=await ask("what's the going-in yield?");t(/Income secured by nominations 59\.10%/.test(r.txt),'a percentage cell among the results reads as a percentage');
+// round 18: a monthly circular JV (interest on last month's balance, a fee on its own total) recalculates like Excel; INDIRECT picking a
+// named case; results on a Debt sheet are read and goal-sought (gearing, LLCR); “EUR/PLN exchange rate” is an input, not a unit; a switch
+// whose label lists the cases is not a case line; a figure labelled in PLN on a EUR model is in PLN; a change across three hotel sheets
+const stubAI=reads=>p.evaluate(rd=>{window.__cp0=window.__cp0||calcPair;window.__ar0=window.__ar0||xcAiRead;calcPair=()=>[{p:'anthropic',model:'stand-in'},{p:'openai',model:'stand-in'}];xcAiRead=async()=>({by:'AI',changes:rd})},reads);
+const unstub=()=>p.evaluate(()=>{if(window.__cp0){calcPair=window.__cp0;xcAiRead=window.__ar0}});
+await up('r18_jv_usd');{const e=await p.evaluate(async()=>{const e=await xcEngine(latestExport());return{ok:e.ok,pct:e.pct,iter:e.iter}});t(e.ok&&e.pct===100&&e.iter>1000,'a monthly circular JV reproduces 100% of the workbook: '+JSON.stringify(e))}
+r=await ask('hard costs 8% over');t(/72,000,000 → 77,760,000/.test(r.txt)&&/USD 107\.36M (→ )?USD 114\.54M/.test(r.txt),'a what-if on the circular JV is computed: '+(r.txt.match(/Total development cost[^A-Z]{0,40}/)||[''])[0]);
+r=await ask("what's the GP promote worth?");t(/GP promote \(\$\) USD 8\.17M/.test(r.txt)&&(r.txt.match(/LP equity multiple 1\.81x/g)||[]).length===1,'the GP promote is read from the results, the LP multiple listed once: '+r.txt.slice(0,240));
+await up('r18_indir_gbp');{const e=await p.evaluate(async()=>(await xcEngine(latestExport())).pct);t(e===100,'INDIRECT picking a named case: 100% reproduced ('+e+'%)')}
+t(await p.evaluate(async()=>{const [r]=await xcQ(()=>xcCall({op:'run',runs:[[['Inputs!B3','Low']]],read:['Returns!B3']}));return Math.abs(r[0]-0.0020)<0.0001}),'switching the INDIRECT case to Low recalculates (IRR 0.20%)');
+await up('r18_fx_pln');t(await p.evaluate(()=>(latestExport().inputs||[]).some(i=>i.cell==='Inputs!B9'&&/EUR\/PLN/.test(i.label))),'“EUR/PLN exchange rate” is read as an input');
+r=await ask("what's the profit in euros?");t(/Total cost in PLN PLN 329\.32M/.test(r.txt),'a figure labelled in PLN on a EUR model is in PLN: '+(r.txt.match(/Total cost in PLN [^;]{0,20}/)||[''])[0]);
+t(await p.evaluate(async()=>{const r=await xcSolve('EUR/PLN exchange rate','net_profit',0,async()=>{},'Inputs!B9');return r.ok&&r.to==='3.69'}),'goal seek on the exchange rate for a zero profit: 3.69');
+await up('r18_sculpt_gbp');t(await p.evaluate(async()=>{const r=await xcSolve('Target DSCR','Gearing (loan to price)',65,async()=>{},'Inputs!B10');return r.ok&&r.to==='1.18'&&r.oname==='Gearing (loan to price)'&&r.gotS==='65.00%'}),'goal seek on an output beyond the headline (gearing 65%): DSCR 1.18, never swapped for the IRR');
+r=await ask("what's the LLCR?");t(/LLCR 1\.25x/.test(r.txt),'a Debt sheet’s LLCR is among the model’s figures: '+(r.txt.match(/LLCR[^;]{0,12}/)||['none'])[0]);
+await up('r18_mixed_sar');t(await p.evaluate(()=>!XC_SCEN.test('Active scenario (1 Base, 2 Downside, 3 Upside)')&&!XC_SCEN.test('Case (Base, Low or High)')&&XC_SCEN.test('Exit yield · Downside')),'a switch whose label lists the cases is not a case line');
+await stubAI([{label:'Active scenario (1 Base, 2 Downside, 3 Upside)',cell:'Inputs!B3',kind:'to',value:2,sure:true},{label:'Exit yield · Downside',cell:'Scenarios!C5',kind:'to',value:7.5,sure:true}]);
+{const d=await p.evaluate(async()=>{const r=await xcTest([{text:'downside but keep the base exit yield'}],async()=>{});return r&&r.desc});t(d&&/Scenarios!C5 8\.5% → 7\.5%/.test(d.join(' ')),'“downside but keep the base exit yield” moves the downside’s exit yield, the case being switched to: '+JSON.stringify(d))}
+await stubAI([{label:'Discount rate',cell:'Inputs!B15',kind:'to',value:12,sure:true}]);
+{const r2=await p.evaluate(async()=>{window.LASTQ="what's the NPV at 12%?";const r=await xcTest([{text:"what's the NPV at 12%?"}],async()=>{});return(r.extra||[]).map(e=>e.label)});t(r2.some(l=>/NPV/.test(l)),'the figure the question names (NPV) is among the outputs shown: '+JSON.stringify(r2))}
+await up('r18_hotels_eur');await stubAI([{label:'Occupancy',cell:'Lisbon!B5',cells:['Lisbon!B5','Porto!B5','Madrid!B5'],kind:'pts',value:3,sure:true}]);
+{const d=await p.evaluate(async()=>{const r=await xcTest([{text:'occupancy +3 pts across all three hotels'}],async()=>{});return r&&r.desc});t(d&&/Porto!B5 74% → 77%/.test(d.join(' '))&&/Madrid!B5 80% → 83%/.test(d.join(' ')),'a change across three hotel sheets lists each one: '+JSON.stringify(d))}
+await unstub();
+// a what-if that writes text (“2.0%” into a rate the model keeps as text and reads with VALUE(SUBSTITUTE(…))) stays text: 2%, not 0.02% (LibreOffice: equity multiple 1.5208)
+await up('desk_btr_usd');t(await p.evaluate(async()=>{const x=latestExport();const [a,b]=await xcQ(()=>xcCall({op:'run',runs:[[['Inputs!B16','2.0%']],[]],read:[x.cells.equity_multiple]}));return Math.abs(a[0]-1.520772882)<1e-6&&Math.abs(b[0]-1.6530686908)<1e-6}),'a text what-if stays text in the engine, and the base restores');
 if(errs.length){fail++;console.log('FAIL | page errors: '+errs.join(' | ').slice(0,300))}
 console.log(`\n${pass} pass, ${fail} fail`);await b.close();
