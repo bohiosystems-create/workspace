@@ -123,11 +123,21 @@ function parseWorkbook(wb, XLSX, fileName) {
   const sheets = (wb.SheetNames || []).map(name => ({ name, ws: wb.Sheets[name], rows: emRows(XLSX, wb.Sheets[name], true), frows: emRows(XLSX, wb.Sheets[name], false) }));
   const { out, found, cells } = emHeadline(sheets);
   const sens = []; for (const s of sheets) { let r = parseSens(s.rows, s.name); if (!r.length && /sensitiv/i.test(s.name)) { const T = []; s.rows.forEach((row, i) => (row || []).forEach((c, j) => { (T[j] = T[j] || [])[i] = c; })); r = parseSens(T, s.name); } sens.push(...r); }
-  return { out, found, cells, sens, inputs: parseInputs(sheets), opt: detectOpt(sheets, fileName), meta: detectMeta(sheets, fileName), sheets: sheets.map(s => s.name).slice(0, 40), cf: parseCashFlow(sheets) };
+  const meta = detectMeta(sheets, fileName);
+  emOtherCcy(out, found, cells, meta);
+  return { out, found, cells, sens, inputs: parseInputs(sheets), opt: detectOpt(sheets, fileName), meta, sheets: sheets.map(s => s.name).slice(0, 40), cf: parseCashFlow(sheets) };
 }
 
 /* ---- checks (kept identical in the app) ---- */
 /*EMCHECKS-START*/
+// a money figure whose own label names another currency ("Net profit (USD, hedged)" on a GBP asset) is not the model's headline figure
+// in its currency: it stays among the other results, shown in its own currency
+function emOtherCcy(out, found, cells, meta) {
+  const SYM = { '$': 'USD', '£': 'GBP', '€': 'EUR' }, cur = meta && meta.currency; if (!cur) return;
+  for (const k of ['net_profit', 'total_cost', 'gross_revenue', 'peak_debt', 'lp_profit', 'gp_profit']) { if (!(k in out)) continue;
+    const lab = String(found[k] || '').split(' / ').slice(1).join(' / '), iso = (lab.match(/\b(SAR|USD|EUR|GBP|AED|QAR|KWD|OMR|BHD|EGP|JPY|CNY|INR|PLN|CHF|SEK|NOK|DKK|AUD|NZD|CAD|HKD|SGD|BRL|MXN|ZAR|KRW|TRY|CZK|HUF|RON|ILS|THB|MYR|IDR|PHP)\b/) || [])[1], sym = (lab.match(/\((?:[^)]*?)([$£€])\)/) || [])[1], c2 = iso || (sym && SYM[sym]);
+    if (c2 && c2 !== cur && !(sym === '$' && /^[A-Z]{2,3}D$/.test(cur) && !iso)) { delete out[k]; delete found[k]; delete cells[k]; } } }
+
 /* The group an assumption belongs to, in the order an analyst reads a model: what and when, the land, the costs, the income, the funding, the exit. */
 const EM_CATS = ['Project & timing', 'Land & acquisition', 'Development costs', 'Revenue & operations', 'Financing', 'Exit', 'Other'];
 function emCat(label, section) { const t = (label + ' ' + (section || '')).toLowerCase();
@@ -144,7 +154,8 @@ function emRows(XLSX, ws, raw) { if (!ws || !ws['!ref']) return []; const r = XL
 const EM_UNIT_RX = /^\s*(%\s*[a-z.\s\/]{0,12}|sar|aud|usd|aed|eur|gbp|nzd|qar|kwd|\$|sqm|sq\.?\s?m|sq\.?\s?ft|m2|m²|gfa|nla|gla|nsa|bua|months?|years?|yrs?|days?|weeks?|quarters?|p\.?\s?a\.?|pa|per\b.{0,24}|units?\b.{0,16}|(sar|aud|usd|aed|eur|gbp)\s*\/[a-z²\s\/.]{0,16}|[a-z]{2,4}\s*\/\s*[a-z²]{1,8}[a-z²\s\/.]{0,12}|[a-z]{1,2})\s*$/i;   // “EUR/sqm/yr” is a unit, “EUR/PLN exchange rate” a label
 /* units written in lower case in a units column (“beds”, “£/bed/week”, “weeks/yr”): a label is written “Beds” */
 const EM_UNIT2 = /^\s*([£€$]\s*(\/.{0,24})?|(beds?|keys?|homes?|lots?|rooms?|apartments?|doors?|mw|kw|sf|psf|#)(\s*\/.{0,16})?|(weeks?|months?|years?|days?)\s*\/\s*[a-z]{1,6})\s*$/;
-const emIsLabel = c => typeof c === 'string' && c.trim().length > 2 && /[a-z]/i.test(c) && !EM_UNIT_RX.test(c) && !EM_UNIT2.test(c) && !/^\s*-?[\d,.]+\s*%?\s*$/.test(c) && !/^\s*(true|false|yes|no|y|n|n\/a|-)\s*$/i.test(c) && !/^\s*([a-z]{3}[- ]\d{2,4}|\d{1,2}[- ][a-z]{3}[- ]\d{2,4}|\d+\/\d+\/\d+)\s*$/i.test(c);   // a date typed as text is a value
+const EM_PAIR = /\b(sar|usd|eur|gbp|aed|qar|kwd|omr|bhd|chf|jpy|cny|inr|pln|sek|nok|dkk|aud|nzd|cad|hkd|sgd|brl|zar|try)\s*\/\s*(sar|usd|eur|gbp|aed|qar|kwd|omr|bhd|chf|jpy|cny|inr|pln|sek|nok|dkk|aud|nzd|cad|hkd|sgd|brl|zar|try)\b.*\s[a-z]{3,}/i;   // “GBP/USD drift a year” is a line, not a unit
+const emIsLabel = c => typeof c === 'string' && c.trim().length > 2 && /[a-z]/i.test(c) && (!EM_UNIT_RX.test(c) || EM_PAIR.test(c)) && !EM_UNIT2.test(c) && !/^\s*-?[\d,.]+\s*%?\s*$/.test(c) && !/^\s*(true|false|yes|no|y|n|n\/a|-)\s*$/i.test(c) && !/^\s*([a-z]{3}[- ]\d{2,4}|\d{1,2}[- ][a-z]{3}[- ]\d{2,4}|\d+\/\d+\/\d+)\s*$/i.test(c);   // a date typed as text is a value
 /* What a number is, from the cell's own Excel number format (the displayed text), never from its label: "5%" a percentage,
    "SOFR +500 bps" basis points, "$4,567,339" money, "2.78x" a multiple, "3,500,000" a plain number. */
 const emFmt = (t, pc) => { t = String(t == null ? '' : t); return pc || /%\s*\)?\s*$/.test(t.trim()) ? 'pct' : /\bbps\b|basis points/i.test(t) ? 'bps' : /[$€£¥﷼]|\b(SAR|USD|AED|EUR|GBP|AUD|QAR|KWD|SR)\b/i.test(t) ? 'money' : /^\s*-?[\d.,]+\s*x\s*$/i.test(t) ? 'x' : 'num'; };

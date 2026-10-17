@@ -1,4 +1,4 @@
-// Rounds 11-18 at the desk, no AI connected (the rules are the fallback): five synthetic models of new kinds (fixtures/models/r11_*.xlsx,
+// Rounds 11-20 at the desk, no AI connected (the rules are the fallback): five synthetic models of new kinds (fixtures/models/r11_*.xlsx,
 // made by fixtures/gen/gen11.py). Guards: the currency the model states (a row of PMT results Excel formatted as "$" does not make a
 // EUR or KWD model dollars; NZ$ is NZD); the model's own figures are read on its uploaded inputs, never on the last what-if the
 // engine holds; "0.58m" on a line in EUR m is 0.58; "what PPA price gets the equity to 12%" is a goal seek, not PPA = 12; a goal-seek
@@ -76,5 +76,18 @@ await up('r18_hotels_eur');await stubAI([{label:'Occupancy',cell:'Lisbon!B5',cel
 await unstub();
 // a what-if that writes text (“2.0%” into a rate the model keeps as text and reads with VALUE(SUBSTITUTE(…))) stays text: 2%, not 0.02% (LibreOffice: equity multiple 1.5208)
 await up('desk_btr_usd');t(await p.evaluate(async()=>{const x=latestExport();const [a,b]=await xcQ(()=>xcCall({op:'run',runs:[[['Inputs!B16','2.0%']],[]],read:[x.cells.equity_multiple]}));return Math.abs(a[0]-1.520772882)<1e-6&&Math.abs(b[0]-1.6530686908)<1e-6}),'a text what-if stays text in the engine, and the base restores');
+// rounds 19-20: OFFSET with a shift read from a cell (a capital-call lag); DATEDIF units in lower case around nested functions; XNPV on
+// dates made by EOMONTH; a goal seek on a percentage output by its own number format; a negative input may cross zero in a goal seek;
+// a headline in another currency stays among the other results; a currency pair is a line, not a unit; text results are read
+const eng=async m=>{await up(m);return p.evaluate(async()=>(await xcEngine(latestExport())).pct)};
+t(await eng('r19_fund_eur')===100,'a fund with OFFSET(…,0,-lag) reproduces 100% of the workbook');
+t(await p.evaluate(async()=>{const r=await xcSolve('Gross multiple · Milan offices','LP net IRR',14,async()=>{},'Deals!E2');return r.ok&&r.to==='2.11'}),'goal seek on the LP net IRR (XIRR on dated quarters): Milan at 2.11x');
+t(await eng('r19_tenancy_gbp')===100,'DATEDIF(…,"m") around nested functions: 100% reproduced');
+await up('r19_hedge_gbp');{const x=await p.evaluate(()=>{const x=latestExport();return{np:'net_profit' in (x.cells||{}),drift:(x.inputs||[]).some(i=>/GBP\/USD drift/.test(i.label))}});t(!x.np&&x.drift,'a USD net profit on a GBP asset is not its GBP headline; “GBP/USD drift a year” is an input: '+JSON.stringify(x))}
+t(await p.evaluate(async()=>{const r=await xcSolve('GBP/USD drift a year','Levered IRR (USD, hedged)',6,async()=>{},'Inputs!B13');return r.ok&&parseFloat(r.to)>0}),'a goal seek on a negative input (−1% drift) may cross zero');
+t(await eng('r20_egypt_egp')===100,'XNPV on dates made by EOMONTH: 100% reproduced');
+t(await p.evaluate(async()=>{const r=await xcSolve('Discount rate','NPV at the discount rate (EGP)',0,async()=>{},'Inputs!B13');return r.ok&&r.to==='20.94%'&&!/^-/.test(r.gotS)}),'goal seek: the discount rate that makes the NPV zero is the IRR (20.94%)');
+await up('r20_reit_sgd');t(await p.evaluate(async()=>{const r=await xcSolve('Acquisition cap rate','AFFO per unit CAGR (years 1-5)',8,async()=>{},'Inputs!B11');return r.ok&&r.to==='7.10%'}),'a percentage output read by its number format: AFFO CAGR 8% at a 7.10% acquisition cap rate');
+await up('r20_refi_usd');{const m=await p.evaluate(async()=>{const x=latestExport();await xcEngine(x);await xcCacheMore(x);return(x.more||[]).map(r=>r.label+'='+r.v)});t(m.includes('Refinance sized by=LTV')&&m.some(l=>/^Minimum DSCR=/.test(l)),'a text result is read, and is never a column heading: '+m.slice(0,6).join(' | '))}
 if(errs.length){fail++;console.log('FAIL | page errors: '+errs.join(' | ').slice(0,300))}
 console.log(`\n${pass} pass, ${fail} fail`);await b.close();
