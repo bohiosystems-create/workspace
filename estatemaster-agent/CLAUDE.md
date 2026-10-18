@@ -25,10 +25,11 @@ These rules hold for every change to this app. They come from the product owner 
 - The analyst toolkit (hold vs sell, return bridge, line over time and covenants, timing shifts, two-way grids, optimisation, Monte Carlo, mezzanine / refinance / waterfall / zakat overlays, trace, currency, new lines, fund roll-up) runs on the workbook itself: every figure is an exact recalculation. A result the model cannot give is said so (a year past its last period, an IRR its own IFERROR turns into 0, a currency conversion that moves the returns), never shown as a number. Amounts keep the model's unit (a sheet in SAR '000 holds thousands).
 - Show every cell changed (sheet!cell, old → new) and every output moved, and offer the workbook back as an .xlsx with the change applied.
 - Two models audit the recalculation after the answer. Their disagreement is shown, not hidden.
+- One name, one figure: a headline (levered IRR, unlevered IRR, profit on cost) is the scheme's own figure, never a partner's (an LP net IRR, the sponsor's IRR or profit). An answer that gives a headline name another cell's value is flagged under the answer with both cells.
 - Never assume. If the workbook does not say, ask the user in the chat.
 
 ## 3. Working rules
 
 - EstateMaster is the trusted layer.
 - Test fixtures are synthetic. Never commit client workbooks.
-- Before a push run `bash tests/run.sh quick` on its own (no other suite against the same port), and deploy only after GitHub CI is green on that commit.
+- Before a push run `bash tests/run.sh core` on its own (no other suite against the same port). CI runs the quick suite on every push and the full suite nightly; deploy only after GitHub CI is green on that commit.

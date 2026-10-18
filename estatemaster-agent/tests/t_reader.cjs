@@ -21,4 +21,14 @@ ok(r.meta && r.meta.title === 'reader layouts', 'the template placeholder is not
 { const ws = XLSX.utils.aoa_to_sheet([['Deal summary'], [''], ["SAR '000 unless stated"], [''], ['', ''], ['Gross development value', 3013489.69], ['Total development cost', 1893865.2], ['Net profit', 1112629.07], ['Profit on cost', 0.5641]]);
   const w2 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w2, ws, 'Summary'); const r2 = E.parseWorkbook(w2, XLSX, 'thousands.xlsx').out;
   ok(Math.round(r2.gross_revenue) === 3013489690 && Math.round(r2.total_cost) === 1893865200 && Math.round(r2.net_profit) === 1112629070, 'every amount on a sheet headed SAR \'000 is in thousands, above a million too: ' + [r2.gross_revenue, r2.total_cost, r2.net_profit].join(', ')) }
+// a 0 typed in a percentage cell shows as "-" (0.0%;(0.0%);-): it is still a percentage, so a goal seek moves it in points, not by a share of zero
+{ const ws = XLSX.utils.aoa_to_sheet([['Assumptions'], ['Price adjustment vs base', 0], ['Exit cap rate', 0.08]]); ws.B2.z = '0.0%;\\(0.0%\\);\\-'; ws.B3.z = '0.00%';
+  const w3 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w3, ws, 'Assumptions'); const I3 = E.parseWorkbook(w3, XLSX, 'zero_pct.xlsx').inputs || [];
+  const z = I3.find(i => /price adjustment/i.test(i.label)); ok(z && z.pct === true, 'a zero in a % cell is a percentage input: ' + JSON.stringify(z && { pct: z.pct, text: z.text })) }
+// a fund's summary: "Fund gross IRR (levered, pre-promote)" is the levered IRR (pre-promote is not a promote tier); the LP net IRR is the LPs' own figure
+{ const ws = XLSX.utils.aoa_to_sheet([['Deal summary'], ['', '', '', 'Partner returns'], ['Project unlevered IRR', 0.1601, '', 'Fund gross IRR (levered, pre-promote)', 0.1522], ['Project profit (unlevered)', 1112629, '', 'LP net IRR (after all fees & promote)', 0.1316], ['', '', '', 'Kinan total profit incl. development fee', 379116]]);
+  ['B3','E3','E4'].forEach(a => ws[a].z = '0.0%'); const w4 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w4, ws, 'Summary'); const r4 = E.parseWorkbook(w4, XLSX, 'fund.xlsx');
+  ok(r4.cells.levered_irr === 'Summary!E3' && Math.abs(r4.out.levered_irr - 15.22) < 1e-6, 'the fund gross (pre-promote) IRR is the levered IRR, not the LP net IRR: ' + r4.cells.levered_irr + ' ' + r4.out.levered_irr);
+  ok(r4.cells.lp_irr === 'Summary!E4' && Math.abs(r4.out.lp_irr - 13.16) < 1e-6, 'the LP net IRR is kept as the LPs\' own figure: ' + r4.cells.lp_irr);
+  ok(r4.cells.net_profit === 'Summary!B4', 'net profit is the project profit, not the sponsor\'s: ' + r4.cells.net_profit) }
 console.log(`${pass} pass, ${fail} fail`); process.exit(fail ? 1 : 0);
