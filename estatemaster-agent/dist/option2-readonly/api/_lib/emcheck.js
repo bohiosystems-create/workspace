@@ -218,8 +218,8 @@ function emMatrix(sheets) {
   return { out, found, cells };
 }
 /* Amounts stated in thousands or millions ("($000s)", "USD m", "in millions") are scaled to full units: from the label, the column heading or the sheet's title rows. */
-const EM_K = /\(\s*[^)]{0,8}?(000s?|'000s?|’000s?|k)\s*\)|in\s*thousands|\bthousands\b|['’]000s?\b|[$€£]\s*000s?\b|\b(usd|sar|eur|aed|gbp|qar)\s*(000s?|k)\b/i;
-const EM_M = /\(\s*[^)]{0,8}?(m|mm|mn|mio|millions?)\s*\)|in\s*millions|\bmillions?\b|\b(usd|sar|eur|aed|gbp|qar|us\$|\$|€|£)\s*(m|mm|mn)\b/i;
+const EM_K = /\(\s*[^)]{0,8}?(000s?|'000s?|’000s?|k)\s*\)|\bk(chf|eur|usd|gbp|sar|aed|qar|kwd|jpy|inr|sgd|hkd)\b|in\s*thousands|\bthousands\b|['’]000s?\b|[$€£]\s*000s?\b|\b(usd|sar|eur|aed|gbp|qar)\s*(000s?|k)\b/i;
+const EM_M = /\(\s*[^)]{0,8}?(m|mm|mn|mio|millions?)\s*\)|\bm(chf|eur|usd|gbp|sar|aed)\b|in\s*millions|\bmillions?\b|\b(usd|sar|eur|aed|gbp|qar|us\$|\$|€|£)\s*(m|mm|mn)\b/i;
 const EM_CR = /\bcrores?\b|\(\s*[^)]{0,6}?\bcr\.?\s*\)/i, EM_LK = /\blakhs?\b|\blacs?\b/i;   // Indian units: 1 crore = 10 million, 1 lakh = 100,000
 function emUnitScale(s, ri, j, label) {
   const sc = t => EM_CR.test(t) ? 1e7 : EM_LK.test(t) ? 1e5 : EM_M.test(t) ? 1e6 : EM_K.test(t) ? 1e3 : 0; let k = sc(label || ''); if (k) return { k, from: `“${String(label).trim().slice(0, 40)}”` };
@@ -306,7 +306,7 @@ function emChecks(x, prev, opt) {
     const l = nm(i), v = pct(i), isP = v != null;
     if (/contingen|escalat|commission|selling cost|sales cost|interest|profit rate|cap(italisation)? rate|exit yield|land (cost|price|value)|construction cost/.test(l) && i.value === 0) add('warn', 'input-zero', `Input “${i.label}” is 0 on sheet ${i.sheet}: left blank?`, i.cell);
     if (isP && /interest|profit rate|finance rate|loan rate/.test(l) && !/fee|margin over|spread|reserve|pre-interest|sofr|libor|saibor|eibor|curve|base rate|index/.test(l) && v !== 0 && (v < 2 || v > 15)) add('warn', 'input-range', `Input “${i.label}” = ${v}% p.a. is outside 2–15%.`, i.cell);
-    if (isP && /cap(italisation)? rate|exit yield|terminal yield/.test(l) && v !== 0 && (v < 4 || v > 12)) add('warn', 'input-range', `Input “${i.label}” = ${v}% is outside 4–12%.`, i.cell);
+    if (isP && /cap(italisation)? rate|exit yield|terminal yield/.test(l) && v !== 0 && (v < 2.5 || v > 12)) add('warn', 'input-range', `Input “${i.label}” = ${v}% is outside 2.5–12%.`, i.cell);   // prime Zurich, Tokyo and Munich yields sit near 3%
     if (isP && /contingen/.test(l) && v > 15) add('warn', 'input-range', `Input “${i.label}” = ${v}%: contingency above 15%.`, i.cell);
     if (isP && /\bvat\b|value added tax/.test(l) && v !== 0 && Math.abs(v - 15) > 0.01) add('note', 'input-range', `Input “${i.label}” = ${v}%: Saudi VAT is 15%.`, i.cell);
     if (isP && (i.pct || i.fmt === 'pct' || /%/.test(i.unit || '')) && Math.abs(v) > 100 && !/escalat/.test(l)) add('error', 'input-range', `Input “${i.label}” = ${i.value}: a percentage above 100%.`, i.cell);
@@ -339,7 +339,7 @@ function detectMeta(sheets, fileName) {
     if (!row) continue;
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string') continue; const t = c.trim();
-      for (const m of t.matchAll(/\b(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD|BHD|OMR|JOD|EGP|CHF|JPY|CNY|HKD|SGD|INR|CAD|ZAR|SEK|NOK|DKK|PLN|TRY|MAD|BRL|MXN|CLP|COP|KRW|TWD|THB|MYR|IDR|PHP|KES|NGN|ILS|CZK|HUF|RON)\b/g)) { const c = m[1] === 'AUD' ? 'USD' : m[1]; vote(c, `“${t.slice(0, 40)}”`); }
+      for (const m of t.matchAll(/(?:\b|(?<=\b(?:k|m|mn|bn)))(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD|BHD|OMR|JOD|EGP|CHF|JPY|CNY|HKD|SGD|INR|CAD|ZAR|SEK|NOK|DKK|PLN|TRY|MAD|BRL|MXN|CLP|COP|KRW|TWD|THB|MYR|IDR|PHP|KES|NGN|ILS|CZK|HUF|RON)\b/g)) { const c = m[1] === 'AUD' ? 'USD' : m[1]; vote(c, `“${t.slice(0, 40)}”`); }
       if (/(^|[\s(\-–])(US)?\$\s?\d|^\s*(US)?\$\s*$/.test(t)) vote('USD', `“${t.slice(0, 40)}”`); { const dm = t.match(/(?:^|[^A-Z])(NZ|C|HK|S|R)\$/); if (dm) vote({ NZ: 'NZD', C: 'CAD', HK: 'HKD', S: 'SGD', R: 'BRL' }[dm[1]], `“${t.slice(0, 40)}”`); } if (/€/.test(t)) vote('EUR', `“${t.slice(0, 40)}”`); if (/₹/.test(t)) vote('INR', `“${t.slice(0, 40)}”`); if (/¥/.test(t) && !/\bCNY\b|RMB|元/.test(t)) vote('JPY', `“${t.slice(0, 40)}”`); if (/£/.test(t)) vote('GBP', `“${t.slice(0, 40)}”`); if (/﷼|ر\.س|\bSR\s?\d/.test(t)) vote('SAR', `“${t.slice(0, 40)}”`);
       if (/^(.*,\s*)?(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\s*$/.test(t) && /,/.test(t)) usLoc = t;
       if (/estate\s*master|office\s*links|\bargus\b|cash flow title/i.test(t)) meta.source = 'estatemaster';
@@ -383,6 +383,7 @@ const benchType = t => { t = String(t || '').toLowerCase(); return /industr|logi
 function marketVsInputs(inputs, meta) {
   meta = meta || {}; const ty = benchType(meta.type) || 'mixed', B = { ...BENCH.common, ...BENCH[ty] }, ccy = FX[meta.currency] ? meta.currency : '', fx = FX[ccy] || 0;
   // the benchmarks are Riyadh's: a model of a project elsewhere is not compared with them
+  if (!meta.country && meta.currency && !['SAR', 'USD'].includes(meta.currency)) return { type: ty, bench: BENCH[ty].name, currency: ccy, fx: '', rows: [], away: `The model is in ${meta.currency} with no Saudi location: the Riyadh market benchmarks do not apply.` };   // a Zurich office in CHF is not compared with Riyadh (USD is pegged and common in Saudi models: it is converted)
   if (meta.country && meta.country !== 'SA') return { type: ty, bench: BENCH[ty].name, currency: ccy, fx: '', rows: [], away: `The model is of a project outside Saudi Arabia (${meta.place || meta.country}): the Riyadh market benchmarks do not apply.` };
   const items = [
     { k: 'rent', name: 'Rent', re: /\brent(al)?\b/i, not: /free|review|escalat|vacan|period|incentive|turnover cost|letting|ground rent|% of/i, unit: '/sqm/yr', perArea: true, revenue: true, lo: 15, hi: 20000 },
