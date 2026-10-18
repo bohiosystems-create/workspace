@@ -7,7 +7,7 @@ const here=path.dirname(new URL(import.meta.url).pathname),fx=path.resolve(here,
 const {chromium}=createRequire(path.resolve(here,'../../tests/package.json'))('playwright');
 const [,,url,outDir,...only]=process.argv;fs.mkdirSync(outDir,{recursive:true});
 const skip=JSON.parse(fs.readFileSync(path.join(here,'skip.json'),'utf8'));
-const models=(only.length?only:fs.readdirSync(fx).filter(f=>/\.xlsx?m?$/.test(f))).filter(m=>!skip[m]);
+const models=(only.length?only:fs.readdirSync(fx).filter(f=>/\.xlsx?m?$/.test(f))).filter(m=>typeof skip[m]!=='string');   // a model named with a reason is skipped; one with {ignore} is swept, those results left out
 const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});
 for(const model of models){const p=await b.newPage();
   await p.route(/cdn\.jsdelivr|unpkg|cdnjs/,r=>r.abort());   // the engine's libraries come from vendor/

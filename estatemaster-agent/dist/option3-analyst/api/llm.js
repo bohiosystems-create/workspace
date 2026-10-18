@@ -8,9 +8,9 @@ const UPSTREAM = {
   anthropic: () => process.env.ANTHROPIC_URL || 'https://api.anthropic.com/v1/messages',
   openai: () => process.env.OPENAI_URL || 'https://api.openai.com/v1/chat/completions',
 };
-const MAX_TOKENS = 2000;
+const MAX_TOKENS = 6000;   // a reading cut off at its cap is a failed reading: room for a full JSON answer
 // Cost and abuse guard (best effort, per server instance): requests per caller per 10 minutes.
-const RATE = { max: +(process.env.LLM_RATE_MAX || 400), windowMs: 10 * 60 * 1000 }, HITS = new Map();
+const RATE = { max: +(process.env.LLM_RATE_MAX || 1500), windowMs: 10 * 60 * 1000 }, HITS = new Map();   // a CIO session with two reviewers and a third model per answer makes several hundred calls
 function limited(req) {
   const ip = String(req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || '?').split(',')[0].trim();
   const now = Date.now(), h = (HITS.get(ip) || []).filter((t) => now - t < RATE.windowMs);

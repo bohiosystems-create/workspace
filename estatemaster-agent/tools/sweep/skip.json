@@ -5,5 +5,12 @@
   "fn_unverified.xlsx": "uses two functions deliberately left unverified, for the upload check test (t_agents22)",
   "r23_modern_usd.xlsx": "uses Excel 365 functions (LET, XLOOKUP, FILTER, SEQUENCE) the LibreOffice in CI cannot compute; its stored results were written from an independent Python calculation",
   "r23_risk_sar.xlsx": "a risk sheet draws RAND(): those results are random in any spreadsheet (the deterministic results are checked in the round tests)",
-  "r24_lab_usd.xlsx": "an Excel table with LET, which the LibreOffice in CI cannot compute; its stored results were written from an independent Python calculation"
+  "r24_lab_usd.xlsx": "an Excel table with LET, which the LibreOffice in CI cannot compute; its stored results were written from an independent Python calculation",
+  "r26_breaker_aed.xlsx": "circular construction loan with a circuit breaker: LibreOffice's iteration stops short of the fixed point (a repayment of 0 where its own formula gives 92,110), so it cannot referee it; its stored results were written from an independent Python calculation, which the app matches",
+  "named_offset.xlsx": {
+    "ignore": [
+      "more:Check"
+    ],
+    "why": "the Check cell reads a defined name with a question mark (Show?), which Excel allows and LibreOffice does not parse; every other result is swept"
+  }
 }

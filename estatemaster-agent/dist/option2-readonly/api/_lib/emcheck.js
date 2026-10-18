@@ -132,7 +132,7 @@ function parseWorkbook(wb, XLSX, fileName) {
   const { out, found, cells } = emHeadline(sheets);
   const sens = []; for (const s of sheets) { let r = parseSens(s.rows, s.name); if (!r.length && /sensitiv/i.test(s.name)) { const T = []; s.rows.forEach((row, i) => (row || []).forEach((c, j) => { (T[j] = T[j] || [])[i] = c; })); r = parseSens(T, s.name); } sens.push(...r); }
   const meta = detectMeta(sheets, fileName);
-  emOtherCcy(out, found, cells, meta);
+  emPreferCcy(sheets, out, found, cells, meta); emOtherCcy(out, found, cells, meta);
   return { out, found, cells, sens, inputs: parseInputs(sheets), opt: detectOpt(sheets, fileName), meta, sheets: sheets.map(s => s.name).slice(0, 40), cf: parseCashFlow(sheets) };
 }
 
@@ -140,6 +140,16 @@ function parseWorkbook(wb, XLSX, fileName) {
 /*EMCHECKS-START*/
 // a money figure whose own label names another currency ("Net profit (USD, hedged)" on a GBP asset) is not the model's headline figure
 // in its currency: it stays among the other results, shown in its own currency
+// a model reporting in two currencies (a EUR asset in a USD fund: “Levered IRR (EUR)”, “Levered IRR (USD)”): each headline is the
+// line in the model's own currency when the model has one, read again with the other currency's lines set aside
+function emPreferCcy(sheets, out, found, cells, meta) {
+  const cur = meta && meta.currency, ISO = /\b(SAR|USD|EUR|GBP|AED|QAR|KWD|OMR|BHD|EGP|JPY|CNY|INR|PLN|CHF|SEK|NOK|DKK|AUD|NZD|CAD|HKD|SGD|BRL|MXN|ZAR|KRW|TRY|CZK|HUF|RON|ILS|THB|MYR|IDR|PHP)\b/g; if (!cur) return;
+  const other = l => { const c = String(l || '').match(ISO) || []; return c.length && !c.includes(cur); };
+  if (!Object.keys(found).some(k => other(String(found[k]).split(' / ').slice(1).join(' / ')))) return;
+  const mine = sheets.some(s => s.rows.some(r => (r || []).some(c => typeof c === 'string' && c.length < 80 && new RegExp('\\b' + cur + '\\b').test(c) && /irr|profit|return|cost|revenue|debt/i.test(c)))); if (!mine) return;
+  const keep = sheets.map(s => ({ ...s, rows: s.rows.map(r => (r || []).some(c => typeof c === 'string' && c.length < 80 && other(c)) ? [] : r), frows: (s.frows || []).map((r, i) => (s.rows[i] || []).some(c => typeof c === 'string' && c.length < 80 && other(c)) ? [] : r) }));
+  const h = emHeadline(keep);
+  for (const k of Object.keys(h.out)) if (!(k in out) || other(String(found[k]).split(' / ').slice(1).join(' / '))) { out[k] = h.out[k]; found[k] = h.found[k]; cells[k] = h.cells[k]; } }
 function emOtherCcy(out, found, cells, meta) {
   const SYM = { '$': 'USD', '£': 'GBP', '€': 'EUR' }, cur = meta && meta.currency; if (!cur) return;
   for (const k of ['net_profit', 'total_cost', 'gross_revenue', 'peak_debt', 'lp_profit', 'gp_profit']) { if (!(k in out)) continue;
