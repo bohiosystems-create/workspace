@@ -18,7 +18,7 @@ for(const model of models){const p=await b.newPage();
       await xcCacheMore(x);const C=x.cells||{};const keys=Object.keys(C).filter(k=>C[k]),reads=keys.map(k=>C[k]);
       for(const m of (x.more||[]))if(typeof m.v==='number'&&!reads.includes(m.ref)&&reads.length<60){keys.push('more:'+m.label);reads.push(m.ref)}
       // typed inputs, spread over the model's sheets: every k-th one, at most 10
-      const ins=(x.inputs||[]).filter(i=>i.cell&&Number.isFinite(i.value)&&i.value!==0&&!i.isDate);const typed=[];
+      const ins=(x.inputs||[]).filter(i=>i.cell&&Number.isFinite(i.value)&&i.value!==0&&!i.isDate&&!i.fconst&&!i.fscale);   /* a number inside a formula is moved by rewriting the formula: tested in t_round30, not here */const typed=[];
       for(const i of ins){const [t]=await xcQ(()=>xcCall({op:'typed',refs:[i.cell]}));if(!t)continue;const [v]=await xcQ(()=>xcCall({op:'get',refs:[i.cell]}));if(typeof v==='number'&&v!==0)typed.push({label:i.label,cell:i.cell,v})}
       const st=Math.max(1,Math.floor(typed.length/10)),pick=typed.filter((_,j)=>j%st===0).slice(0,10);
       const sc=[{name:'base',sets:[]}];for(const q of pick){sc.push({name:q.label+' +10%',sets:[[q.cell,q.v*1.1]]});sc.push({name:q.label+' −15%',sets:[[q.cell,q.v*0.85]]})}
