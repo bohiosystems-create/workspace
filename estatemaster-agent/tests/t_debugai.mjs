@@ -65,7 +65,7 @@ await ev(()=>setHurdle(16,'typed'));const hs=await ev(()=>({v:HUR(),line:hurLine
 // the discrepancy window for a review finding: who said what in sentences, no figures invented from model names, a plain summary written by Claude
 await ev(()=>{DISPUTES.length=0;flagDispute({where:'Model review',what:'test',kind:'doubt',key:'t-claim',items:[{label:'Missing promote for 15% hurdle',claim:true,raised:'OpenAI gpt-5',evidence:'The export lists Hurdle=10%/Promote 15%',said:[{by:'Claude Fable 5.1',verdict:'uncertain',reason:'The export lists Hurdle=10%/Promote 15%, Hurdle=12%/Promote 20% and a bare Hurdle=15%, but a third promote cell may simply not have been read, so the export cannot settle whether the tier is blank or not.'},{by:'Claude Opus 5.5',third:true,verdict:'uncertain',reason:'Cannot be confirmed from what was read.'}]}],note:''});showDispute(DISPUTES[DISPUTES.length-1],true)});
 await p.waitForFunction(()=>/Written by/.test(($('#dispBody')||{}).innerText||''),null,{timeout:20000}).catch(()=>{});
-const DW=await ev(()=>$('#dispBody').innerText);
+const DW=await ev(()=>{$('#dispBody').querySelectorAll('details.disp-raw').forEach(d=>d.open=true);return $('#dispBody').innerText});
 t(!/a difference of/.test(DW)&&!/gives OpenAI|gives Claude/.test(DW),'no “difference” computed from model names');
 t(/Raised by OpenAI gpt-5/.test(DW)&&/Claude Fable 5\.1 cannot tell from the workbook/.test(DW)&&/third reviewer/.test(DW),'who said what, in plain sentences');
 t(/One reviewer thinks/.test(DW)&&/Written by Claude/.test(DW),'a plain-English summary written by Claude heads the item');

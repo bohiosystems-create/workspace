@@ -19,7 +19,9 @@ These rules hold for every change to this app. They come from the product owner 
 ## 2. Financial modelling works like Claude for Excel
 
 - Read the actual workbook: inputs, formulas, outputs, labels, units and formats.
-- Change only typed input cells. Recalculate the whole workbook exactly with the formula engine (HyperFormula worker). Never estimate a figure on an uploaded model: it is exact, or it is reported as "not computed" with the reason.
+- Change only typed input cells, or the assumption a formula carries: a number written inside a simple formula (Construction Costs =Units*190: the 190) is an input, moved by rewriting that number with the formula kept; a formula line the user names as a lever is moved by a factor on its own formula. Never answer "not computed" while a lever exists. Recalculate the whole workbook exactly with the formula engine (HyperFormula worker). Never estimate a figure on an uploaded model: it is exact, or it is reported as "not computed" with the reason.
+- A workbook saved without recalculating (its stored results lag its own typed inputs, proven by a simple formula that gives another result on the file's own inputs) is recalculated on its inputs, and the user is told, with that cell, and asked if the inputs are not the ones meant.
+- Extending the cash flow ("by N years") changes the workbook itself, as Excel would: new periods after the last on every timeline sheet, each line's formula carried on, totals, IRR/NPV ranges, names, charts and the input curves read by period stretched to the new end, then an exact recalculation; the extended workbook becomes the project's model (shown on the platform's sheets and downloadable). Numbers typed in the last period, an exit in the last period (or a hold-period input) and an unlabelled period length are asked with clickable answers, never assumed.
 - Show every cell changed (sheet!cell, old → new) and every output moved, and offer the workbook back as an .xlsx with the change applied.
 - Two models audit the recalculation after the answer. Their disagreement is shown, not hidden.
 - Never assume. If the workbook does not say, ask the user in the chat.

@@ -61,7 +61,7 @@ const lastBody=p=>p.evaluate(()=>{const m=[...document.querySelectorAll('#msgs .
   await p.evaluate(()=>toggleDock(true));await p.evaluate(()=>webAsk('What if ADR goes up 10%?'));
   await p.waitForFunction(()=>!!document.querySelector('#msgs .xc-rev-q'),null,{timeout:30000}).catch(()=>{});
   const s=await p.evaluate(()=>({q:!!document.querySelector('#msgs .xc-rev-q'),txt:(document.querySelector('#msgs .xc-rev-q')||{}).innerText||'',d:(typeof DISPUTES!=='undefined'?DISPUTES:[]).filter(d=>d.where==='Exact recalculation').length}));
-  ok(s.q&&/Questioned/.test(s.txt)&&/label row/.test(s.txt),'a flawed verdict replaces the note, in red: '+s.txt.slice(0,120));
+  ok(s.q&&/Questioned/.test(s.txt)&&/Discrepancies/.test(s.txt),'a flawed verdict replaces the note, in red, pointing to the plain summary in Discrepancies: '+s.txt.slice(0,120));
   ok(s.d>=1,'and goes to Disputes');ok(!errs.length,'no page errors '+errs.join('; '));await p.close()}
 
 // 3. no formula engine at all: the uploaded model's what-if is not computed; no AI estimate is asked for; the failure is reported

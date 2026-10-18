@@ -32,7 +32,7 @@ t(r.steps.some(s=>typeof s==='string'&&/more than 5 bps.*third model/.test(s)),'
 t(r.arbBy&&!r.names.includes(r.arbBy),`the third model is neither of the two (${r.arbBy} vs ${r.names})`);
 t(/different base figure/.test(r.root)&&r.m.status==='arbitrated'&&Math.abs(r.m.value-15.3)<1e-9,'root cause recorded and the decided figure shown: '+r.root);
 t(r.steps.every(s=>typeof s==='string'||(s.who&&s.text)),'every step is a line or an agent speaking');
-const box=await ev(()=>{const w=document.querySelector('#dispWin');return w&&w.classList.contains('on')?w.innerText:''});
+const box=await ev(()=>{const w=document.querySelector('#dispWin');if(w)w.querySelectorAll('details.disp-raw').forEach(d=>d.open=true);return w&&w.classList.contains('on')?w.innerText:''});
 t(/gives/.test(box)&&/gap of|difference of/.test(box)&&/bps/.test(box)&&/Why they disagree/.test(box)&&/What each AI said/.test(box),'disagreement box: X gives a, Y gives b, difference in bps, why, exchange: '+box.replace(/\n/g,' | ').slice(0,400));
 t(!/\[object Object\]/.test(box),'no raw objects in the box');
 const tb=await ev(()=>{const b=document.querySelector('#msgs .msg.talkbox');return b?{n:b.querySelectorAll('.st.talk').length,sum:(b.querySelector('.tb-sum')||{}).textContent||'',open:DOCK.open,lines:b.querySelectorAll('.st').length}:null});
@@ -51,7 +51,7 @@ t(Math.abs(r.b-(13.3+r.base-24.83))<1e-6&&r.st==='agree','started from 24.83 ins
 await p.waitForTimeout(400);MODE='concede';r=await ev(async()=>{const steps=[];const res=await aiCrossCheck([{text:'sale price −10%'}],async s=>steps.push(s));const m=res.metrics.find(m=>m.k==='levered_irr');return{st:m.status,verdict:m.verdict,v:res.verdict.levered_irr,talk:steps.filter(s=>s&&s.who).map(s=>s.who+': '+s.text.slice(0,90)),heads:steps.filter(s=>s&&s.who).map(s=>s.who+' | '+s.result)}});
 t(r.st==='reconciled'&&r.v&&r.v.who==='A'&&/Claude Fable 5\.1 was right/.test(r.verdict)&&/exit cap/.test(r.verdict),'who was right is worked out from who moved: '+r.verdict);
 t(r.talk.some(s=>/^OpenAI gpt-5: Claude Fable 5\.1 was right: the model’s exit cap is 5%/.test(s))&&r.talk.some(s=>/^Verdict: the model’s exit cap/.test(s)),'who was right leads each line, then the verdict: '+JSON.stringify(r.talk.slice(-3)));
-const heads=r.heads;r=await ev(()=>{const w=document.querySelector('#dispWin');return w&&w.classList.contains('on')?w.innerText:''});
+const heads=r.heads;r=await ev(()=>{const w=document.querySelector('#dispWin');if(w)w.querySelectorAll('details.disp-raw').forEach(d=>d.open=true);return w&&w.classList.contains('on')?w.innerText:''});
 t(/Claude Fable 5\.1 was right/.test(r),'the disagreement box names who was right');t(heads.some(h=>/^Verdict \| Levered IRR: Claude Fable 5\.1 was right$/.test(h))&&heads.some(h=>/^OpenAI gpt-5 \| Levered IRR 15\.30%/.test(h)),'final results are the bold line of each bubble: '+JSON.stringify(heads.slice(-3)));
 // in the 'apart' case both keep their figure, so the third model rules and the verdict comes from it
 await p.waitForTimeout(400);MODE='apart';r=await ev(async()=>{const res=await aiCrossCheck([{text:'sale price −10%'}],async()=>{});return{v:res.verdict.levered_irr,verdict:res.metrics.find(m=>m.k==='levered_irr').verdict}});
