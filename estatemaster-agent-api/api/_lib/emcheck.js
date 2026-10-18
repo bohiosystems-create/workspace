@@ -236,7 +236,7 @@ function emHeadline(sheets) {
   const mx = emMatrix(sheets), out = { ...mx.out }, found = { ...mx.found }, cells = { ...mx.cells }, later = {}, isNum = x => typeof x === 'number' || (typeof x === 'string' && /^\s*-?[\d,.]+\s*%?\s*$/.test(x) && !!x.trim());
   // a sheet named for the results (Returns, Summary, Outputs, Dashboard, KPIs) is read first: the fund's LP TVPI there is the headline,
   // never a deal sheet's own "Deal equity multiple" further on
-  const isSum = s => /return|summary|output|dashboard|result|kpi|headline|overview/i.test(s.name), ordered = [...sheets.filter(isSum), ...sheets.filter(s => !isSum(s))], held = {};
+  const isSum = s => /return|summary|output|dashboard|result|kpi|headline|overview/i.test(s.name), ordered = [...sheets.filter(isSum), ...sheets.filter(s => !isSum(s))], held = {}, shU = {}, rawAt = {};   // a sheet whose heading states thousands holds every amount on it in thousands, the large ones too
   for (const s of ordered) for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri]; if (!row) continue;
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string' || c.length > 80) continue;
@@ -259,15 +259,16 @@ function emHeadline(sheets) {
         let n = typeof v === 'number' ? v : parseFloat(v.replace(/[,%\s]/g, '')); if (!Number.isFinite(n)) continue;
         const w = String(((s.frows || [])[r0] || [])[j0] == null ? '' : s.frows[r0][j0]).trim();
         if (/irr|profit_on_cost/.test(k) && ((/%\s*$/.test(w) && Math.abs(n) < 50 && typeof v === 'number') || (Math.abs(n) < 1.5 && (/%\s*$/.test(w) || (Math.abs(n) < 1 && !(typeof v === 'string' && /%/.test(v))))))) n *= 100;   /* a %-formatted cell holds a fraction whatever its size: 2.14 shown “214.0%” is 214% */
-        let note = ''; if (/net_profit|total_cost|gross_revenue|peak_debt/.test(k) && Math.abs(n) < 1e6) { const u = emUnitScale(s, r0, j0, c); if (u) { n *= u.k; note = ` × ${u.k === 1e6 ? '1,000,000' : '1,000'} (${u.from})`; } }
+        let note = ''; if (/net_profit|total_cost|gross_revenue|peak_debt/.test(k) && Math.abs(n) < 1e6) { const u = emUnitScale(s, r0, j0, c); if (u) { n *= u.k; note = ` × ${u.k === 1e6 ? '1,000,000' : '1,000'} (${u.from})`; if (/^sheet heading/.test(u.from)) shU[s.name] = u; } }
         if (party) { if (!(k in later)) later[k] = { v: +n.toFixed(4), f: `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`, a: A1(s.name, j0, r0) }; if (isSum(s)) held[k] = true;
           // a partner's own return (LP IRR, GP equity multiple) is kept as its own output, beside the scheme's
           const pk = (/^\s*(lp|limited|investor)/i.test(c) || lpTo ? 'lp' : 'gp') + (k === 'equity_multiple' ? '_multiple' : k === 'net_profit' ? '_profit' : '_irr'); if (!(pk in out)) { out[pk] = +n.toFixed(4); found[pk] = `${s.name} / ${c.trim()}`; cells[pk] = A1(s.name, j0, r0) } continue }
-        out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); break;
+        out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); if (!note && /net_profit|total_cost|gross_revenue|peak_debt/.test(k)) rawAt[k] = s; break;
       }
     }
   }
-  for (const k in later) if (!(k in out)) { out[k] = later[k].v; found[k] = later[k].f; cells[k] = later[k].a }   // only an LP/GP figure in the model: that one
+  for (const k in later) if (!(k in out)) { out[k] = later[k].v; found[k] = later[k].f; cells[k] = later[k].a }
+  for (const k in rawAt) { const sh = rawAt[k], u = shU[sh.name] || emUnitScale(sh, 0, 0, ''); if (u && /^sheet heading/.test(u.from) && k in out) { out[k] = +(out[k] * u.k).toFixed(4); found[k] += ` × ${u.k === 1e6 ? '1,000,000' : '1,000'} (${u.from})` } }   // only an LP/GP figure in the model: that one
   if (!('levered_irr' in out) && !('unlevered_irr' in out)) for (const s of sheets) { for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri] || []; const i = row.findIndex(c => typeof c === 'string' && /\bIRR\b/i.test(c) && c.length < 60 && !EX_SKIP('levered_irr', c)); if (i < 0) continue; const seg = row.slice(i + 1, emNextLabel(row, i)), v = seg.find(x => typeof x === 'number'); if (v == null) continue;
       out.levered_irr = +(Math.abs(v) < 1 ? v * 100 : v).toFixed(4); found.levered_irr = `${s.name} / ${row[i].trim()} (taken as the levered IRR: check)`; cells.levered_irr = A1(s.name, i + 1 + seg.indexOf(v), ri); break; } if ('levered_irr' in out) break; }
   return { out, found, cells };

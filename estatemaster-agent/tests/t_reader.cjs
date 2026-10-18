@@ -17,4 +17,8 @@ ok(lab('Marketing · Amount') && lab('Construction Costs · Amount'), 'every lin
 ok(!I.some(i => /^(straight-line|s-curve)$/i.test(i.label)), 'no assumption is labelled by a method chosen in its column: ' + I.filter(i => /straight|curve/i.test(i.label)).map(i => i.label).join(', '));
 ok(lab('Acme Ltd · Rent/Sf/Yr') && lab('Acme Ltd · Rent/Sf/Yr').cell === 'U!H30' && lab('Acme Ltd · Rent Growth %'), 'a rent roll: each tenant\'s rent per SF and growth are their own assumptions');
 ok(r.meta && r.meta.title === 'reader layouts', 'the template placeholder is not the project\'s name: "' + (r.meta && r.meta.title) + '"');
+// a summary in thousands stated once at the top ("SAR '000 unless stated"): the large amounts are in thousands too, not only those under a million
+{ const ws = XLSX.utils.aoa_to_sheet([['Deal summary'], [''], ["SAR '000 unless stated"], [''], ['', ''], ['Gross development value', 3013489.69], ['Total development cost', 1893865.2], ['Net profit', 1112629.07], ['Profit on cost', 0.5641]]);
+  const w2 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w2, ws, 'Summary'); const r2 = E.parseWorkbook(w2, XLSX, 'thousands.xlsx').out;
+  ok(Math.round(r2.gross_revenue) === 3013489690 && Math.round(r2.total_cost) === 1893865200 && Math.round(r2.net_profit) === 1112629070, 'every amount on a sheet headed SAR \'000 is in thousands, above a million too: ' + [r2.gross_revenue, r2.total_cost, r2.net_profit].join(', ')) }
 console.log(`${pass} pass, ${fail} fail`); process.exit(fail ? 1 : 0);

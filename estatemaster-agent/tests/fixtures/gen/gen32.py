@@ -10,7 +10,7 @@ from openpyxl.utils import get_column_letter as L
 kind,out=sys.argv[1],sys.argv[2]
 wb=openpyxl.Workbook()
 if kind=='hold':
-    i=wb.active;i.title='Inputs'
+    i=wb.active;i.title='Inputs';i['A1']='OAKWOOD RETAIL PARK (USD)'
     for r,(l,v) in enumerate([('Year 1 rent',1000000),('Rent growth',0.03),('Operating costs (share of rent)',0.30),('Purchase price',12000000),('Exit cap rate',0.065),('Hold period (years)',10),('Discount rate',0.08)],2):
         i.cell(r,1,l);i.cell(r,2,v)
     c=wb.create_sheet('Cash Flow');c['A1']='OAKWOOD RETAIL PARK – ANNUAL CASH FLOW (USD)'
