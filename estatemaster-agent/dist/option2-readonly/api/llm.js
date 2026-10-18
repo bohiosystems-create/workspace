@@ -25,6 +25,8 @@ const UPSTREAM_TIMEOUT_MS = 780 * 1000;
 const REPORT_MAX_TOKENS = 12000;
 // Beta headers the page may ask for; anything else is dropped.
 const BETAS = ['server-side-fallback-2026-07-01'];
+// Upstream statuses worth one more try: rate limit, overload, gateway errors.
+const RETRY_STATUS = [429, 500, 502, 503, 504, 529], RETRY_MS = [1000, 3000];
 
 function send(res, status, obj) {
   res.statusCode = status;
@@ -99,7 +101,14 @@ const handler = async function handler(req, res) {
   else headers.authorization = `Bearer ${process.env.OPENAI_API_KEY}`;
 
   try {
-    const r = await fetch(UPSTREAM[provider](), { method: 'POST', headers, body: JSON.stringify(p), signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+    // An overloaded or briefly failing provider is asked again here (twice, with back-off) before the page sees an error.
+    let r;
+    for (let k = 0; ; k++) {
+      try { r = await fetch(UPSTREAM[provider](), { method: 'POST', headers, body: JSON.stringify(p), signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) }); }
+      catch (e) { if (k < 2 && e && e.name !== 'TimeoutError' && e.name !== 'AbortError') { await new Promise((ok) => setTimeout(ok, RETRY_MS[k])); continue; } throw e; }
+      if (k < 2 && RETRY_STATUS.includes(r.status)) { const ra = +((r.headers && r.headers.get && r.headers.get('retry-after')) || 0); await new Promise((ok) => setTimeout(ok, Math.min(8000, ra > 0 ? ra * 1000 : RETRY_MS[k]))); continue; }
+      break;
+    }
     if (stream && r.ok && r.body && /event-stream/i.test(r.headers.get('content-type') || '')) {
       res.statusCode = 200;
       res.setHeader('content-type', 'text/event-stream; charset=utf-8');

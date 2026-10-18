@@ -4639,26 +4639,40 @@ kind: pct = relative change in % of the current value (value is the %, negative 
 /* The AI's reading of one change, taken at its word: the cell it names (from the list it was given), checked only by what is certain —
    the cell is one of the model's inputs, a percentage is not set above 100%, an amount is not a thousand times today's, a “pct” on a
    percentage line is the ambiguity it was told to ask about. Anything failing a check goes back to the questions, never to a guess. */
-function xcAiPlan(x,c,by){if(!c)return null;if(c.kind==='to'&&typeof c.value==='string'&&c.value.trim()&&!Number.isFinite(+String(c.value).replace(/[,%$£€]/g,'')))c={...c,kind:'text'};   /* “to B” on a switch is text */const k=['pct','pts','abs','to','months','text'].includes(c.kind)?c.kind:null;if(!k)return null;if(k==='text'?typeof c.value!=='string'||!c.value.trim():!Number.isFinite(+c.value))return null;
+const xcNo=why=>{window.XC_WHY=why;return null};
+function xcAiPlan(x,c,by){if(!c)return null;if(c.kind==='to'&&typeof c.value==='string'&&c.value.trim()&&!Number.isFinite(+String(c.value).replace(/[,%$£€]/g,'')))c={...c,kind:'text'};   /* “to B” on a switch is text */const k=['pct','pts','abs','to','months','text'].includes(c.kind)?c.kind:null;if(!k)return xcNo('kind must be pct, pts, abs, to, months or text');if(k==='text'?typeof c.value!=='string'||!c.value.trim():!Number.isFinite(+c.value))return xcNo(k==='text'?'a text change needs the text value':'the value is not a number');
   const cellOf=r=>(x.inputs||[]).find(i=>i.cell&&xcRefKey(i.cell)===xcRefKey(r));let inp=c.cell?cellOf(c.cell):null;
   if(!inp&&c.label){const lab=asMatchLabel(c.label)||xcFindLabel(x,c.label);inp=lab?xcInputOf(x,lab,c.label):null}
   if(!inp&&c.label){const w=String(c.label).trim().toLowerCase();const sc=(x.inputs||[]).filter(i=>i.cell&&XC_SCEN.test(i.label||'')&&String(i.label).replace(XC_SCEN,'').trim().toLowerCase()===w);inp=sc.find(i=>/\bbase\b/i.test(i.label))||sc[0]||null}   /* “Interest rate” on a model with Base / Downside / Upside lines: one of them, then the live case is picked */
-  if(!inp)return null;
+  if(!inp)return xcNo(`${c.cell||c.label} is not one of the typed input cells listed (a formula, an output or a missing cell)`);
   /* a certain fact: the cell the AI names carries its own label; when it shares no word with the label the AI gives (“Management fee”
      at a cell labelled “Land”), the AI is reading another model's cell: not used, the user is asked */
   if(c.cell&&c.label&&inp.label){const W=t=>(String(t).toLowerCase().match(/[a-z\u0600-\u06ff]{3,}/g)||[]).filter(w=>!/^(the|and|for|per|year|month|share|rate|total|cost|value|sar|usd|eur|gbp|aed)$/.test(w)).map(w=>w.slice(0,4));
-    const a=W(c.label),b=new Set(W(inp.label+' '+(inp.parent||'')+' '+(inp.head||'')));if(a.length&&b.size&&!a.some(w=>b.has(w))){ruleHit('xcAiPlan',`the AI's label “${String(c.label).slice(0,40)}” does not match ${inp.cell} “${String(inp.label).slice(0,40)}”`);return null}}
-  let cells=null;if(Array.isArray(c.cells)&&c.cells.length>1){const cs=c.cells.map(cellOf);if(cs.some(z=>!z))return null;cells=cs.map(z=>z.cell)}
-  let v=k==='text'?c.value.trim():+c.value;if(k==='to'&&!xcPctIn(inp)&&Number.isFinite(inp.value)&&inp.value!==0&&Math.abs(inp.value)<1&&!Number.isInteger(inp.value)&&Math.abs(v)>1&&Math.abs(v)<=100)v=v/100;   /* the cell holds 0.08: “12%” is 0.12 */if(k==='pct'&&xcPctIn(inp)&&!(c.sure&&Math.abs(v)<=500))return null;   /* a relative change to a percentage line the AI is sure of (“twice as negative”) is its reading */if(k==='text'&&inp.value!=null)return null;
+    const a=W(c.label),b=new Set(W(inp.label+' '+(inp.parent||'')+' '+(inp.head||'')));if(a.length&&b.size&&!a.some(w=>b.has(w))){ruleHit('xcAiPlan',`the AI's label “${String(c.label).slice(0,40)}” does not match ${inp.cell} “${String(inp.label).slice(0,40)}”`);return xcNo(`${inp.cell} is labelled “${String(inp.label).slice(0,60)}”, not “${String(c.label).slice(0,60)}”: give the cell of the line you mean`)}}
+  let cells=null;if(Array.isArray(c.cells)&&c.cells.length>1){const cs=c.cells.map(cellOf);if(cs.some(z=>!z))return xcNo('one of the cells under cells is not a typed input listed');cells=cs.map(z=>z.cell)}
+  let v=k==='text'?c.value.trim():+c.value;if(k==='to'&&!xcPctIn(inp)&&Number.isFinite(inp.value)&&inp.value!==0&&Math.abs(inp.value)<1&&!Number.isInteger(inp.value)&&Math.abs(v)>1&&Math.abs(v)<=100)v=v/100;   /* the cell holds 0.08: “12%” is 0.12 */if(k==='pct'&&xcPctIn(inp)&&!(c.sure&&Math.abs(v)<=500))return xcNo(`${inp.label} is a percentage: use pts (points) or to (the new level), or say which you mean`);   /* a relative change to a percentage line the AI is sure of (“twice as negative”) is its reading */if(k==='text'&&inp.value!=null)return xcNo(`${inp.cell} holds a number: kind text is only for a text switch`);
   if(k==='to'&&!xcPctIn(inp)&&Number.isFinite(inp.value)&&inp.value!==0&&v!==0){const lb=String(inp.label||'');const sc=xcLineScale(lb);
     if(sc&&Math.abs(v/inp.value)>=sc/30&&Math.abs(v/sc/inp.value)<30){v=v/sc;c={...c,scaled:sc}}}   /* the line is in $000s: “$18k” read as 18,000 is 18 on it */
-  if(k==='to'&&xcPctIn(inp)&&Math.abs(v)>100)return null;if(k==='to'&&!xcPctIn(inp)&&Number.isFinite(inp.value)&&inp.value!==0&&v!==0&&(Math.abs(v/inp.value)>=1000||Math.abs(inp.value/v)>=1000))return null;
+  if(k==='to'&&xcPctIn(inp)&&Math.abs(v)>100)return xcNo(`${inp.label} is a percentage: ${v}% is above 100%`);if(k==='to'&&!xcPctIn(inp)&&Number.isFinite(inp.value)&&inp.value!==0&&v!==0&&(Math.abs(v/inp.value)>=1000||Math.abs(inp.value/v)>=1000))return xcNo(`${v} is 1,000 times off ${inp.label}'s current ${asmFmt(inp)}: give the value in the line's own units`);
   const sg=n=>(n>0?'+':'')+n;const rd=k==='pct'?sg(v)+'%':k==='pts'?sg(v)+' pts':k==='months'?sg(v)+' months':k==='abs'?sg(v):'to '+v;   /* readable, so it reads back the same way when the user picks it */
   return{c:{...c,text:`${inp.label} ${rd}`},p:{inp,kind:k,s:v,label:cells&&c.label?String(c.label).trim():inp.label,by,cells:cells||undefined}}   /* three tenants' cells are named by the AI's own label, not the first tenant's */}
-async function xcAiRead(x,text){const cands=[chain('fast').find(z=>z.p==='anthropic'),...chain('fast'),...calcPair()];if(!cands.some(Boolean))return null;
+/* the typed cells the AI names that the reader did not list (a text switch, a price list keyed “2B”): checked in the engine, then usable */
+async function xcAiExtra(x,sure){const extra=[];for(const c of sure.flatMap(c=>c?[c,...(Array.isArray(c.cells)?c.cells.map(r=>({label:(c.label||'')+' · '+r,cell:r})):[])]:[])){if(!c||!c.cell||(x.inputs||[]).some(i=>i.cell&&xcRefKey(i.cell)===xcRefKey(c.cell))||extra.some(e=>xcRefKey(e.cell)===xcRefKey(c.cell)))continue;try{const ref=String(c.cell).trim();const [ty]=await xcQ(()=>xcCall({op:'typed',refs:[ref]}));if(!ty)continue;const [v]=await xcQ(()=>xcCall({op:'get',refs:[ref]}));const [fm]=await xcQ(()=>xcCall({op:'fmt',refs:[ref]}));
+          if(typeof v==='string'&&v.trim()&&typeof c.value==='string'&&c.value.trim()&&!Number.isFinite(+String(c.value).replace(/[,%$£€]/g,'')))extra.push({label:String(c.label||ref).slice(0,80),cell:ref,value:null,text:v,pct:false,sheet:ref.split('!')[0].replace(/^'|'$/g,''),viaAI:true});   /* a typed text switch the AI names (“Scenario: Base” → Downside) */
+          if(typeof v==='number'&&Number.isFinite(v))extra.push({label:String(c.label||ref).slice(0,80),cell:ref,value:v,text:String(v),pct:/%/.test(String(fm||'').replace(/"[^"]*"/g,'')),sheet:ref.split('!')[0].replace(/^'|'$/g,''),viaAI:true})}catch(e){}}   /* a typed number cell the AI names that the reader did not list (a price list keyed “2B”): checked in the engine, then usable */
+        return extra.length?{...x,inputs:[...(x.inputs||[]),...extra]}:x}
+const XC_READ_SCHEMA={type:'object',additionalProperties:false,properties:{changes:{type:'array',items:{type:'object',additionalProperties:false,properties:{label:{type:'string'},cell:{type:'string'},cells:{type:'array',items:{type:'string'}},kind:{type:'string',enum:['pct','pts','abs','to','months','text']},value:{anyOf:[{type:'number'},{type:'string'}]},sure:{type:'boolean'},note:{type:'string'}},required:['label','cell','kind','value','sure']}},question:{type:'string'}},required:['changes']};
+/* the AI's readings that passed, per model and sentence: when no AI answers, the AI's own earlier reading of the same sentence is used, not the rules */
+const xcReadKey=(x,t)=>(x.id||'')+'|'+(x.file||'')+'|'+String(t).toLowerCase().replace(/\s+/g,' ').trim();
+const xcReads=()=>{try{return JSON.parse(localStorage.getItem('bohioReads')||'{}')}catch(e){return{}}};
+const xcReadSave=(k,j)=>{try{const o=xcReads();delete o[k];o[k]={changes:j.changes,by:j.by,at:Date.now()};const ks=Object.keys(o);for(const z of ks.slice(0,Math.max(0,ks.length-300)))delete o[z];localStorage.setItem('bohioReads',JSON.stringify(o))}catch(e){}};
+async function xcAiRead(x,text,fb){const cands=[chain('fast').find(z=>z.p==='anthropic'),...chain('fast'),...calcPair()];if(!cands.some(Boolean))return null;const key=xcReadKey(x,text);
   const list=(x.inputs||[]).filter(i=>i.cell).slice(0,160).map(i=>`${i.parent?i.parent+' › ':''}${i.label} | ${i.cell} | ${asmFmt(i)}${i.unit&&i.unit!=='%'?' '+i.unit:''} | ${xcPctIn(i)?'percentage':'number'}`).join('\n');
-  const r=await callFirst(cands,XC_READ_SYS,[{role:'user',content:`Assumptions:\n${list}\n\nSentence: ${text}`}],false,{max:2000,task:'calc',think:false},45000);
-  const j=jsonFrom(r.text);j.by=mName(r.q.p,r.q.model);return j}
+  const user=`Assumptions:\n${list}\n\nSentence: ${text}`+(fb&&fb.length?`\n\nYour previous reading failed the model's checks:\n${fb.map(z=>'- '+z).join('\n')}\nRead the sentence again: pick each line and its cell exactly as listed, with the value in that line's own units. If it still cannot be read for sure, ask one short question.`:'');
+  const opt={max:2000,task:'calc',think:false,schema:XC_READ_SCHEMA};let r;
+  try{r=await callFirst(cands,XC_READ_SYS,[{role:'user',content:user}],false,opt,45000)}catch(e){const sv=!fb&&xcReads()[key];if(sv&&Array.isArray(sv.changes)&&sv.changes.length){aiFail('saved AI reading used: '+String(e&&e.message||e),'calc');return{changes:sv.changes,by:`${sv.by} (its reading of the same sentence on ${new Date(sv.at).toISOString().slice(0,10)}: no AI answered now)`,saved:true}}throw e}
+  let j;try{j=jsonFrom(r.text)}catch(e){aiFail('not JSON, asked again','calc');const r2=await callFirst([r.q,...cands],XC_READ_SYS,[{role:'user',content:user},{role:'assistant',content:String(r.text||'').trim().slice(0,4000)||'(no answer)'},{role:'user',content:'That reply was not the JSON object asked for. Reply again with the JSON object only.'}],false,opt,45000);j=jsonFrom(r2.text);r=r2}
+  j.by=mName(r.q.p,r.q.model);return j}
 // the two readings of one change side by side: same cell, same kind, same size → agree
 function xcSame(x,p,a){if(!p||!p.inp||!a)return false;const lab=asMatchLabel(a.label)||xcFindLabel(x,a.label);const inp=lab?xcInputOf(x,lab,a.label):null;if(!inp||inp.cell!==p.inp.cell)return false;
   let k=a.kind,v=+a.value;if(!Number.isFinite(v))return false;if(k==='abs'&&p.kind==='pts'&&xcPctIn(p.inp))k='pts';if(k==='pts'&&p.kind==='abs'&&!xcPctIn(p.inp))k='abs';
@@ -4721,16 +4735,22 @@ async function xcTest(changes0,onStep,proj){const x=latestExport(proj||PROJ.id);
   if(!eng||!eng.ok){if(eng&&eng.why==='nofile')await onStep('The original workbook is not in this browser: upload it once and every change is recalculated exactly, like Excel');else if(eng&&eng.tot)await onStep(`The formula engine reproduced only ${eng.pct}% of the workbook’s own results: not trusted, the AI estimates instead`);return null}
   const plans=changes.map(c=>({c,p:xcParse(x,c)}));
   // the AI reads the same sentence; where it can read it for sure, the two readings must agree, else the user decides
-  if(calcPair().length&&changes.some(c=>c.text)){let ai=null;try{ai=await xcAiRead(x,changes0.map(c=>(c.text||chgText(c)).replace(/\s*\[cells?:[^\]]+\]/i,'')).join('; '))}catch(e){await onStep('The AI could not read the sentence ('+aiErrText(provErr(e.message)).slice(0,60)+'): the rule-based reading is used')}
+  if(calcPair().length&&changes.some(c=>c.text)){let ai=null,aiErr=null;const said0=changes0.map(c=>(c.text||chgText(c)).replace(/\s*\[cells?:[^\]]+\]/i,'')).join('; '),uc=changes0.some(c=>/\[cells?:/i.test(c.text||''));try{ai=await xcAiRead(x,said0)}catch(e){aiErr=e}
+    /* AI first, self-corrected: a reading that fails a certain check goes back to the AI with the reason (twice at most), not to the rules */
+    for(let k=0;k<2&&ai&&!uc;k++){const ac=Array.isArray(ai.changes)?ai.changes:[];if(ai.question&&(ac.some(c=>c&&c.sure===false)||!ac.length))break;const sure=ac.filter(c=>c&&c.sure!==false);const fb=[];
+      if(!sure.length)fb.push('no change was returned: name each change in the sentence, or ask one question');else{let xa=x;try{xa=await xcAiExtra(x,sure)}catch(e){}for(const c of sure){window.XC_WHY='';if(!xcAiPlan(xa,c,ai.by))fb.push(`${String(c.label||c.cell||'a change').slice(0,60)}: ${window.XC_WHY||'not usable as given'}`)}}
+      if(!fb.length)break;await onStep(`${ai.by}'s reading failed a check (${fb[0]}): it reads the sentence again`);let a2=null;try{a2=await xcAiRead(x,said0,fb)}catch(e){}if(!a2)break;ai=a2}
+    /* no AI answered (every model, retries and a second pass): the rules decide nothing; their reading is put to the user, who confirms it */
+    if(!ai&&aiErr&&!uc){const key=xcReadKey(x,said0),why=aiErrText(provErr(String(aiErr&&aiErr.message||aiErr))).slice(0,90);window.XC_CONFIRM=window.XC_CONFIRM||new Set();
+      if(!window.XC_CONFIRM.has(key)){const ok=plans.filter(z=>z.p.inp&&!z.p.why);if(ok.length&&ok.length===plans.length){window.XC_CONFIRM.add(key);return{ask:{question:`No AI could read this just now (${why}), so nothing is decided for you. From the model's own labels it reads as ${ok.map(z=>xcSay(x,z.p).replace(/ to \((.+)\)$/,' $1')+' at '+z.p.inp.cell).join('; ')}. Send the same sentence again to run that reading (the AI is tried again first), or say it another way.`,options:[said0]}}}
+        return{ask:{question:`No AI could read this just now (${why}), and the model's own labels do not settle it. Name the line or the cell (for example “${String(((x.inputs||[]).find(i=>i.cell)||{}).label||'Land cost')} +5%”), or try again in a minute.`,options:[]}}}
+      await onStep('No AI could read the sentence: the reading from the model’s own labels is used, as you confirmed')}
     if(ai){const ac=Array.isArray(ai.changes)?ai.changes:[];
       if(ai.question&&ac.some(c=>c&&c.sure===false)||(!ac.length&&ai.question))return{ask:{question:`${ai.by}: ${String(ai.question).trim()}`,options:[]}};
       const sure=ac.filter(c=>c&&c.sure!==false);
       /* AI first: every change it read for sure resolves to a model input and passes the checks → its reading is the one used; a different
          rule-based reading is noted, not asked about. The exact recalculation and the two-model audit then check the cells. */
-      let aiUsed=false;{const extra=[];for(const c of sure.flatMap(c=>c?[c,...(Array.isArray(c.cells)?c.cells.map(r=>({label:(c.label||'')+' · '+r,cell:r})):[])]:[])){if(!c||!c.cell||(x.inputs||[]).some(i=>i.cell&&xcRefKey(i.cell)===xcRefKey(c.cell))||extra.some(e=>xcRefKey(e.cell)===xcRefKey(c.cell)))continue;try{const ref=String(c.cell).trim();const [ty]=await xcQ(()=>xcCall({op:'typed',refs:[ref]}));if(!ty)continue;const [v]=await xcQ(()=>xcCall({op:'get',refs:[ref]}));const [fm]=await xcQ(()=>xcCall({op:'fmt',refs:[ref]}));
-          if(typeof v==='string'&&v.trim()&&typeof c.value==='string'&&c.value.trim()&&!Number.isFinite(+String(c.value).replace(/[,%$£€]/g,'')))extra.push({label:String(c.label||ref).slice(0,80),cell:ref,value:null,text:v,pct:false,sheet:ref.split('!')[0].replace(/^'|'$/g,''),viaAI:true});   /* a typed text switch the AI names (“Scenario: Base” → Downside) */
-          if(typeof v==='number'&&Number.isFinite(v))extra.push({label:String(c.label||ref).slice(0,80),cell:ref,value:v,text:String(v),pct:/%/.test(String(fm||'').replace(/"[^"]*"/g,'')),sheet:ref.split('!')[0].replace(/^'|'$/g,''),viaAI:true})}catch(e){}}   /* a typed number cell the AI names that the reader did not list (a price list keyed “2B”): checked in the engine, then usable */
-        const xa=extra.length?{...x,inputs:[...(x.inputs||[]),...extra]}:x;const ap=sure.map(c=>xcAiPlan(xa,c,ai.by));const userCells=changes0.some(c=>/\[cells?:/i.test(c.text||''));   /* cells the user picked by hand are certain: the AI does not overrule them */if(sure.length&&ap.every(Boolean)&&!userCells){
+      let aiUsed=false;{const xa=await xcAiExtra(x,sure);const ap=sure.map(c=>xcAiPlan(xa,c,ai.by));const userCells=changes0.some(c=>/\[cells?:/i.test(c.text||''));   /* cells the user picked by hand are certain: the AI does not overrule them */if(sure.length&&ap.every(Boolean)&&!userCells){
         /* the case the model will run on after this change: a switch set in the same sentence (“downside but keep the base exit yield”) counts */
         const swSets=ap.filter(z=>!XC_SCEN.test(z.p.inp.label||'')&&z.p.inp.cell&&(z.p.kind==='to'||z.p.kind==='text')).map(z=>[z.p.inp.cell,z.p.kind==='text'?z.p.s:xcPctIn(z.p.inp)&&!xcWholePct(z.p.inp)?z.p.s/100:z.p.s]);
         for(const z of ap){if(!z.p.cells&&XC_SCEN.test(z.p.inp.label||'')){try{const live=await xcScenarioLive(x,String(z.p.inp.label).replace(XC_SCEN,'').trim(),[...(chainOn?chainOn.sets:[]),...swSets]);if(live&&xcRefKey(live.cell)!==xcRefKey(z.p.inp.cell)){await onStep(`${z.p.inp.label} is not the case the model runs on now: ${live.label} is, so that line is changed`);z.p={...z.p,inp:live,label:live.label}}}catch(e){}}}
@@ -4739,7 +4759,7 @@ async function xcTest(changes0,onStep,proj){const x=latestExport(proj||PROJ.id);
         {const said=changes0.map(c=>c.text||'').join(' ').replace(/\b(slip\w*|push\w*|bring\w*|drift\w*)\b/gi,' ');   /* “slips” is later for a date and lower for a rate: not a stated direction */const dirSaid=new RegExp(XC_NEG.source,'i').test(said)||new RegExp(XC_POS.source,'i').test(said)||/(^|\s)[+\-−–]\s*\d/.test(said)||/\b(tighter|wider|narrower|compress\w*|expan\w*)\b/i.test(said);
           const flip=dirSaid&&plans.find(z=>z.p.inp&&!z.p.why&&Number.isFinite(z.p.s)&&z.p.s!==0&&ap.some(a=>xcRefKey(a.p.inp.cell)===xcRefKey(z.p.inp.cell)&&a.p.kind===z.p.kind&&Number.isFinite(a.p.s)&&Math.sign(a.p.s)===-Math.sign(z.p.s)));
           if(flip){const a=ap.find(a=>xcRefKey(a.p.inp.cell)===xcRefKey(flip.p.inp.cell));const mine=xcSay(x,flip.p),theirs=xcSay(x,a.p);return{ask:{question:`Two readings of “${flip.c.text||chgText(flip.c)}”: ${mine}, or ${theirs} (${ai.by}). Which one?`,options:[mine,theirs]}}}}
-        plans.splice(0,plans.length,...ap);aiUsed=true;await onStep(`${ai.by} reads it as ${ap.map(z=>xcSay(x,z.p)).join('; ')}${diff.length?` (the rule-based reading was ${diff.map(z=>xcSay(x,z.p)).join('; ')}: the AI's reading is used, and audited after the recalculation)`:''}`)}}
+        plans.splice(0,plans.length,...ap);aiUsed=true;if(!ai.saved&&!ai.question)xcReadSave(xcReadKey(x,said0),{changes:sure,by:ai.by});await onStep(`${ai.by} reads it as ${ap.map(z=>xcSay(x,z.p)).join('; ')}${diff.length?` (the rule-based reading was ${diff.map(z=>xcSay(x,z.p)).join('; ')}: the AI's reading is used, and audited after the recalculation)`:''}`)}}
       if(!aiUsed)ruleHit('xcTest','the AI reading was not used: the rules named the cells');
       if(!aiUsed)for(const z of plans){const ok=z.p.inp&&!z.p.why;const m=sure.find(c=>xcSame(x,z.p,c));
         if(ok&&m)continue;
@@ -8575,8 +8595,9 @@ ${PROJ.fromExport?`This project is an uploaded workbook, not a full EstateMaster
 ${BLOCK_KEYS.filter(b=>BLOCKS[b]&&!(PROJ.fromExport&&REPLICA_BLOCKS.has(b))&&!saOff(b)).map(b=>`${b} | ${BLOCKS[b].name} | ${BLOCKS[b].g} | ${(blockKinds(k,b).join(', ')||'table, list')}`).join('\n')}
 Slide kinds: ${SLIDE_KINDS.map(x=>`${x} (${SLIDE_NAMES[x]})`).join(', ')}. Tones: ${Object.entries(TONES).map(([a,b])=>`${a} = ${b}`).join('; ')}.`}
 async function designCall(system,user){
-  const tool=designTool();let err;
-  for(const {p,model} of chain('report')){
+  const tool=designTool();let err;const order=aiOrder([...chain('report'),...aiAll()]);
+  for(let pass=0;pass<2;pass++){if(pass){if(!err)break;aiFail('report second pass: '+String(err.message),'report');await new Promise(r=>setTimeout(r,window.AI_PASS_WAIT_MS??6000))}
+  for(const {p,model} of order){
     try{ROUTESTATS.calls++;
       if(p==='anthropic'){const top=/fable|opus-5/.test(model);
         const body={model,max_tokens:12000,system,messages:[{role:'user',content:user}],tools:[{name:tool.name,description:tool.description,input_schema:tool.schema,strict:true}],output_config:{effort:'high'}};
@@ -8590,7 +8611,7 @@ async function designCall(system,user){
       const body={model,max_completion_tokens:12000,messages:[{role:'system',content:system},{role:'user',content:user}],tools:[{type:'function',function:{name:tool.name,description:tool.description,parameters:tool.schema}}],tool_choice:{type:'function',function:{name:tool.name}}};
       const j=AI.keys[p]?await post(PROV[p].base,{authorization:'Bearer '+AI.keys[p]},body):await post('/api/llm',AI.pass?{'x-demo-pass':AI.pass}:{},{provider:p,task:'report',payload:body});
       const m=j.choices&&j.choices[0]&&j.choices[0].message||{},c=(m.tool_calls||[])[0];if(!c)throw new Error('no design returned');return{p,model,input:JSON.parse(c.function.arguments||'{}')}}
-    catch(e){err=e}}
+    catch(e){err=e;window.AIH[p+'|'+model]=Date.now()}}}
   throw err||new Error('No AI provider connected')}
 function specFromAI(input){const sl={};for(const x of input.slides||[])if(x&&x.block&&x.kind)sl[x.block]=x.kind;const o=input.options||{};
   return{name:input.name,aud:input.audience,purpose:input.purpose,tone:TONES[input.tone]?input.tone:'',blocks:input.blocks,slides:sl,opts:{max:o.max_slides??null,dividers:o.dividers!==false,narrative:!!o.narrative,headline:o.headline!==false,closing:o.closing!==false}}}
@@ -8921,10 +8942,19 @@ const aiFail=(why,task)=>{try{const k=String(why||'').replace(/\d{3,}/g,'#').sli
   const body=JSON.stringify({app:'kinan-estatemaster',mode:window.BOHIO_MODE||'source',build:window.BOHIO_BUILD||'dev',msg:'ai-fail: '+k,where:String(task||''),page:location.pathname});
   if(navigator.sendBeacon)navigator.sendBeacon('/api/log',new Blob([body],{type:'application/json'}));else fetch('/api/log',{method:'POST',headers:{'content-type':'application/json'},body,keepalive:true}).catch(()=>{})}catch(e){}};
 const TRANSIENT=/overload|rate.?limit|too many requests|temporarily|timed? ?out|did not answer in time|stream (broke|failed)|network|failed to fetch|load failed|ECONNRESET|socket|HTTP 5\d\d|\b(429|500|502|503|504|529)\b|internal server error|bad gateway|service unavailable/i;
+/* AI health: a model that failed in the last 90 s is tried last, not first; every connected model is the last resort of a reader */
+window.AIH=window.AIH||{};const aiKey=q=>q.p+'|'+q.model;
+const aiOrder=list=>{const now=Date.now(),seen=new Set();return list.filter(Boolean).filter(q=>!seen.has(aiKey(q))&&seen.add(aiKey(q))).map((q,i)=>({q,i,d:now-(window.AIH[aiKey(q)]||0)<90000?1:0})).sort((a,b)=>a.d-b.d||a.i-b.i).map(z=>z.q)};
+const aiAll=()=>{const out=[];for(const t of ['calc','smart','fast','deep','report'])for(const [p,model] of (CHAINS[t]||{m:[]}).m)if(avail(p))out.push({p,model});return out};
+/* the same call on each model in turn, then on all of them once more after a pause (an overload usually clears in seconds) */
+async function aiPasses(cands,fn,task){let err;const list=aiOrder(cands),t0=Date.now(),B=window.AI_BUDGET_MS??120000;   /* two minutes at most, then the user is told */
+  for(let pass=0;pass<2&&list.length;pass++){if(pass){if(/sign-in has expired|Too many AI requests from this browser/i.test(String(err&&err.message)))break;aiFail('second pass: '+String(err&&err.message||err),task);await new Promise(r=>setTimeout(r,window.AI_PASS_WAIT_MS??6000))}
+    for(const q of list){if(err&&Date.now()-t0>B)throw err;try{const r=await fn(q);delete window.AIH[aiKey(q)];return r}catch(e){err=e;window.AIH[aiKey(q)]=Date.now();if(e&&e.streamed||/sign-in has expired/i.test(String(e&&e.message)))throw e}}}
+  throw err||new Error('No AI provider connected')}
 async function post(url,headers,body,onText){let last;
-  for(let k=0;k<3;k++){try{return await post1(url,headers,body,onText)}catch(e){last=e;const m=String(e&&e.message||e);
+  for(let k=0;k<4;k++){try{return await post1(url,headers,body,onText)}catch(e){last=e;const m=String(e&&e.message||e);
     if(!TRANSIENT.test(m)||/Too many AI requests from this browser|sign-in has expired|credit|quota|billing/i.test(m)||(e&&e.streamed)){aiFail(m,body&&body.task);throw e}
-    aiFail('retried: '+m,body&&body.task);await new Promise(r=>setTimeout(r,Math.min(10000,(e&&e.retryAfter)||[1500,4000][k]||4000)))}}
+    if(k===3)break;aiFail('retried: '+m,body&&body.task);await new Promise(r=>setTimeout(r,Math.min(20000,(e&&e.retryAfter)||[1500,4000,9000][k]*(0.8+0.4*Math.random())*(window.AI_BACKOFF??1))))}}
   throw last}
 async function post1(url,headers,body,onText){
   const ac=new AbortController(),lim=window.POST_LIMIT_MS?POST_LIMIT():body&&['report','agent','calc','risk','check'].includes(body.task)?Math.max(POST_LIMIT(),420000):POST_LIMIT(),tm=setTimeout(()=>ac.abort(),lim);let res;
@@ -8966,9 +8996,9 @@ function signedOut(){try{const b=$('#kReady');if(b){b.hidden=false;b.className='
   const d=document.createElement('div');d.id='soBar';d.setAttribute('role','alert');d.style.cssText='position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:9999;background:#2b2b2b;color:#fff;padding:12px 16px;display:flex;gap:14px;align-items:center;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100% - 32px)';
   d.innerHTML=`<span>Your demo sign-in has expired, so the AI cannot answer.</span><a class="btn sm" style="background:var(--orange);color:#fff;text-decoration:none;white-space:nowrap" href="${esc(u.toString())}" target="_top">Sign in again</a><button class="btn ghost sm" style="color:#fff;border-color:#fff" aria-label="Close">×</button>`;
   d.querySelector('button').onclick=()=>d.remove();document.body.appendChild(d)}
-async function send(p,payload,task,onText){
-  if(!AI.keys[p])return post('/api/llm',AI.pass?{'x-demo-pass':AI.pass}:{},{provider:p,payload,task},onText);
-  if(p==='anthropic')return post(PROV[p].base,{'x-api-key':AI.keys[p],'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},payload,onText);
+async function send(p,payload,task,onText,betas){const bt=Array.isArray(betas)&&betas.length?betas:null;
+  if(!AI.keys[p])return post('/api/llm',AI.pass?{'x-demo-pass':AI.pass}:{},{provider:p,payload,task,...(bt?{betas:bt}:{})},onText);
+  if(p==='anthropic')return post(PROV[p].base,{'x-api-key':AI.keys[p],'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true',...(bt?{'anthropic-beta':bt.join(',')}:{})},payload,onText);
   return post(PROV[p].base,{authorization:'Bearer '+AI.keys[p]},payload);
 }
 const deepTask=opt=>opt&&opt.think!==false&&['agent','calc','risk','check'].includes(opt.task);
@@ -8981,8 +9011,12 @@ async function callOne(p,model,system,msgs,withTools,opt={}){
     if(withTools)body.tools=TOOLS.map(t=>({name:t.name,description:t.description,input_schema:{type:'object',properties:t.p,required:t.req||[]}}));
     // the chat's answer streams (its words show as they are written); the message is the same either way
     if(typeof opt.onText==='function'&&['agent','answer'].includes(opt.task))body.stream=true;
-    let j=await send(p,body,opt.task,body.stream?opt.onText:null);
-    if(j&&j.stop_reason==='max_tokens'&&!(j.content||[]).some(b=>b.type==='tool_use'&&b.input&&Object.keys(b.input).length)){aiFail('cut off at max_tokens',opt.task);body.max_tokens=Math.min(32000,body.max_tokens*2);delete body.stream;j=await send(p,body,opt.task,null)}
+    /* a request a model declines is answered by another model on the server (fallbacks), and a reader's answer follows its JSON schema */
+    const fbk=/fable|opus-5/.test(model)&&!window.AI_NOFB;if(fbk)body.fallbacks='default';if(opt.schema&&!(window.AI_NOSCHEMA||{})[model])body.output_config={format:{type:'json_schema',schema:opt.schema}};
+    const go=()=>send(p,body,opt.task,body.stream?opt.onText:null,body.fallbacks?['server-side-fallback-2026-07-01']:null);
+    let j;try{j=await go()}catch(e){const m=String(e&&e.message||e);if(e&&e.status===400&&body.fallbacks&&/fallback/i.test(m)){window.AI_NOFB=1;delete body.fallbacks;j=await go()}else if(e&&e.status===400&&body.output_config&&/output_config|json_schema|schema|format/i.test(m)){(window.AI_NOSCHEMA=window.AI_NOSCHEMA||{})[model]=1;delete body.output_config;j=await go()}else throw e}
+    if(j&&j.stop_reason==='refusal'){aiFail('declined',opt.task);throw new Error('the model declined ('+((j.stop_details&&j.stop_details.category)||'refusal')+')')}
+    if(j&&j.stop_reason==='max_tokens'&&!(j.content||[]).some(b=>b.type==='tool_use'&&b.input&&Object.keys(b.input).length)){aiFail('cut off at max_tokens',opt.task);body.max_tokens=Math.min(32000,body.max_tokens*2);delete body.stream;j=await send(p,body,opt.task,null,body.fallbacks?['server-side-fallback-2026-07-01']:null)}
     return{p,model,raw:{role:'assistant',content:j.content},text:(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim(),
       calls:(j.content||[]).filter(b=>b.type==='tool_use').map(b=>({id:b.id,name:b.name,args:b.input||{}}))};
   }
@@ -8998,12 +9032,10 @@ async function callOne(p,model,system,msgs,withTools,opt={}){
 }
 /* one-shot completion with provider failover (commentary, narratives, tests) */
 /* the same call on each candidate in turn until one answers (a reader that has one model falls to the rules when it fails) */
-async function callFirst(cands,system,msgs,withTools,opt={},ms){let err;const seen=new Set();for(const q of cands.filter(Boolean)){const k=q.p+'|'+q.model;if(seen.has(k))continue;seen.add(k);
-  try{const r=await(ms?Promise.race([callOne(q.p,q.model,system,msgs,withTools,opt),new Promise((_,no)=>setTimeout(()=>no(new Error('timed out')),ms))]):callOne(q.p,q.model,system,msgs,withTools,opt));r.q=q;return r}catch(e){err=e;aiFail('failover: '+String(e&&e.message||e),opt.task)}}
-  throw err||new Error('No AI provider connected')}
+async function callFirst(cands,system,msgs,withTools,opt={},ms){
+  return aiPasses([...cands,...aiAll()],async q=>{try{const r=await(ms?Promise.race([callOne(q.p,q.model,system,msgs,withTools,opt),new Promise((_,no)=>setTimeout(()=>no(new Error('timed out')),ms))]):callOne(q.p,q.model,system,msgs,withTools,opt));r.q=q;return r}catch(e){aiFail('failover: '+String(e&&e.message||e),opt.task);throw e}},opt.task)}
 async function complete(system,user,tier,opt){
-  let err;for(const {p,model} of chain(tier)){try{return await callOne(p,model,system,[{role:'user',content:user}],false,opt||{})}catch(e){err=e}}
-  throw err||new Error('No AI provider connected');
+  return aiPasses([...chain(tier),...aiAll()],q=>callOne(q.p,q.model,system,[{role:'user',content:user}],false,opt||{}),opt&&opt.task);
 }
 async function checkProxy(){
   if(!/^https?:/.test(location.protocol)){PROXY.status='file';return}
@@ -9023,7 +9055,9 @@ function chatMem(id){id=id||chatKey();return CHATMEM[id]||(CHATMEM[id]=[])}
 function chatRemember(user,answer){const h=chatMem();h.push({role:'user',content:String(user).slice(0,4000)},{role:'assistant',content:String(answer||'(no answer)').slice(0,6000)});if(h.length>40)h.splice(0,h.length-40);try{localStorage.setItem('em_chatmem',JSON.stringify(CHATMEM))}catch(e){}}
 async function llmTurn(text,ch,role,onStep,tier='smart'){
   const hist=ch==='web'?chatMem():HIST[ch];let lastErr;const notes=[];const onText=ch==='web'&&typeof window.LIVE_TEXT==='function'?window.LIVE_TEXT:null;
-  for(const {p,model} of chain(tier)){
+  const order=aiOrder([...chain(tier),...aiAll()]);
+  for(let pass=0;pass<2;pass++){if(pass){if(!lastErr||/sign-in has expired|Too many AI requests from this browser/i.test(String(lastErr.message)))break;aiFail('agent second pass: '+String(lastErr.message),'agent');await onStep('Every AI model failed just now: trying them all once more');await new Promise(r=>setTimeout(r,window.AI_PASS_WAIT_MS??6000))}
+  for(const {p,model} of order){
     if(ch==='web')chatHistMigrate();const past=ch==='web'?CHATHIST.filter(c=>c.proj===PROJ.id&&c.id!==($('#msgs')&&$('#msgs').dataset.chatId)&&c.mem&&c.mem.length).sort((a,b)=>(b.last||'').localeCompare(a.last||'')).slice(0,6):[];
     const recall=past.length?[{role:'user',content:`For reference, what was discussed in earlier chats on ${PROJ.name} (use it when the question refers back to them; the figures may have changed since):\n`+past.map(c=>`- ${new Date(c.last||c.at).toISOString().slice(0,10)} · “${c.title}”: ${c.mem.filter(m=>m.role==='assistant').slice(-2).map(m=>String(m.content).replace(/\s+/g,' ').slice(0,300)).join(' … ')}`).join('\n')},{role:'assistant',content:'Noted: I have the earlier chats on this model in mind.'}]:[];
     const msgs=[...recall,...hist.slice(-20),{role:'user',content:text}];let last=null,final='',started=false,n=0;const charts=[],EVID=[];
@@ -9045,8 +9079,13 @@ async function llmTurn(text,ch,role,onStep,tier='smart'){
       if(!final)final=last?last.plain:'Done.';if(ch==='wa')final=plainMarks(final);
       if(ch!=='web')hist.push({role:'user',content:text},{role:'assistant',content:final});
       return{final,last,prov:p,model,tools:n,charts,notes,evid:EVID};
-    }catch(e){lastErr=e;if(started)throw e;notes.push(`${mName(p,model)} unavailable: ${provErr(e.message).slice(0,120)}`);await onStep(`${mName(p,model)} unavailable (${provErr(e.message).slice(0,80)}) · failing over`)}
-  }
+    }catch(e){lastErr=e;window.AIH[p+'|'+model]=Date.now();
+      /* broken half-way through its tool calls: another model writes the answer from the tool results already in hand */
+      if(started){if(e&&e.streamed||!EVID.length)throw e;aiFail('agent finished by another model: '+String(e.message),'agent');await onStep(`${mName(p,model)} stopped half-way (${provErr(e.message).slice(0,80)}): another model writes the answer from the results in hand`);
+        const r2=await aiPasses(order.filter(q=>!(q.p===p&&q.model===model)),q=>callOne(q.p,q.model,sysPrompt(ch,role),[{role:'user',content:`${text}\n\nTool results already gathered for this question:\n${EVID.join('\n\n').slice(0,14000)}\n\nWrite the answer now from these results, in the required format. Do not call tools.`}],false,{max:3000,task:'answer'}).then(r=>({...r,q})),'answer');
+        let fin=r2.text||(last?last.plain:'Done.');if(ch==='wa')fin=plainMarks(fin);if(ch!=='web')hist.push({role:'user',content:text},{role:'assistant',content:fin});return{final:fin,last,prov:r2.q.p,model:r2.q.model,tools:n,charts,notes:[...notes,`${mName(p,model)} stopped half-way; ${mName(r2.q.p,r2.q.model)} wrote the answer`],evid:EVID}}
+      notes.push(`${mName(p,model)} unavailable: ${provErr(e.message).slice(0,120)}`);await onStep(`${mName(p,model)} unavailable (${provErr(e.message).slice(0,80)}) · failing over`)}
+  }}
   throw lastErr||new Error('No AI provider connected');
 }
 

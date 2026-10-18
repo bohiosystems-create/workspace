@@ -4,7 +4,7 @@ These rules hold for every change to this app. They come from the product owner 
 
 ## 1. AI is always primary
 
-- The AI reads the user's words and names the model cells. Rule-based parsing (`xcParse`, `xcFindLabel`, the router regexes) is the fallback for when no AI is connected or the AI cannot read the sentence.
+- The AI reads the user's words and names the model cells. Rule-based parsing (`xcParse`, `xcFindLabel`, the router regexes) is the fallback for when no AI is connected. With an AI connected, the rules only propose a reading for the user to confirm.
 - When the AI names a typed input cell for every change, its reading is used. A different rule-based reading is noted in the steps, never put to the user as a question.
 - Rules may overrule the AI only on certain facts, never on judgement:
   - the cell is not a typed input (a formula, an output, a missing cell);
@@ -12,6 +12,8 @@ These rules hold for every change to this app. They come from the product owner 
   - the sentence states a direction ("drops", "+10%") and the AI moves the same line the other way;
   - the case/scenario cell the AI names is not the one the model runs on (`xcScenarioLive` picks the live one).
 - Do not fix a misreading by adding another phrase rule when the AI path can carry it. Improve the AI prompt (`XC_READ_SYS`), the context it is given, or a certain check instead. New rules must be the no-AI fallback.
+- When the AI's reading fails a certain check, the reason goes back to the AI and it reads again (twice at most); the rules do not take over.
+- When no AI answers at all (every model, the retries and a second pass), the rules decide nothing: the AI's saved reading of the same sentence is used, or the rules' reading is put to the user to confirm.
 - Every new tool or resolver that has to pick a line of a model (goal seek, sensitivity, feasibility drivers, reports) takes the AI's cell first and validates it with the same checks.
 
 ## 2. Financial modelling works like Claude for Excel
