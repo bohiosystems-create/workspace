@@ -472,5 +472,72 @@
    "peak_debt": "Results!C12",
    "equity_multiple": "Results!C13"
   }
+ },
+ "r41_hotel_aed": {
+  "read": [
+   "Returns!C6",
+   "Returns!C7"
+  ],
+  "base": [
+   0.07123,
+   0.075988
+  ],
+  "changes": [
+   [
+    [
+     "Assumptions!C9",
+     850
+    ],
+    [
+     0.0837,
+     0.09738
+    ]
+   ],
+   [
+    [
+     "Assumptions!C10",
+     0.68
+    ],
+    [
+     0.059176,
+     0.05452
+    ]
+   ],
+   [
+    [
+     "Assumptions!C20",
+     12
+    ],
+    [
+     0.06097,
+     0.057696
+    ]
+   ],
+   [
+    [
+     "Assumptions!C19",
+     8
+    ],
+    [
+     0.063674,
+     0.062523
+    ]
+   ],
+   [
+    [
+     "Assumptions!C23",
+     0.075
+    ],
+    [
+     0.07123,
+     0.068366
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Returns!C6",
+   "levered_irr": "Returns!C7",
+   "equity_multiple": "Returns!D7"
+  }
  }
 }
