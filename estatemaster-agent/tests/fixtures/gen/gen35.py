@@ -15,6 +15,7 @@ rows=[('Land',3000000),('Hard costs (total)',12000000),('Construction months',18
  ('Loan to cost',0.6),('Interest rate (a year)',0.07),('LP share of equity',0.9),('Preferred return',0.08),('GP promote above the pref',0.2)]
 for r,(l,v) in enumerate(rows,2):i.cell(r,1,l);i.cell(r,2,v)
 for r in (6,8,9,10,11,12):i.cell(r,2).number_format='0.00%'
+i['C4']='=ROUND(B4,0)';i['C7']='=ROUND(B7,0)'   # month counts are whole months where the timeline reads them
 u=wb.create_sheet('Underwriting');N=1+18+24+1   # month 0 .. exit month
 u['A3']='Month';u['A4']='Month ending'
 lab={6:'Land',7:'Hard costs',8:'NOI',9:'Sale proceeds',10:'Unlevered cash flow',11:'Loan draw',12:'Interest',13:'Loan repayment',14:'Levered cash flow',15:'Loan balance',
@@ -23,16 +24,16 @@ for r,l in lab.items():u.cell(r,1,l)
 for k in range(N):
     c=L(2+k);p=L(1+k);y,m=divmod(k,12);u[f'{c}3']=k;u[f'{c}4']=eom(2026+y,1+m);u[f'{c}4'].number_format='mmm-yy'
     u[f'{c}6']=f'=IF({c}$3=0,-Inputs!$B$2,0)'
-    u[f'{c}7']=f'=IF(AND({c}$3>=1,{c}$3<=Inputs!$B$4),-Inputs!$B$3/Inputs!$B$4,0)'
-    u[f'{c}8']=f'=IF(AND({c}$3>Inputs!$B$4,{c}$3<=Inputs!$B$4+Inputs!$B$7),Inputs!$B$5/12,0)'
-    u[f'{c}9']=f'=IF({c}$3=Inputs!$B$4+Inputs!$B$7+1,Inputs!$B$5/Inputs!$B$6,0)'
+    u[f'{c}7']=f'=IF(AND({c}$3>=1,{c}$3<=Inputs!$C$4),-Inputs!$B$3/Inputs!$C$4,0)'
+    u[f'{c}8']=f'=IF(AND({c}$3>Inputs!$C$4,{c}$3<=Inputs!$C$4+Inputs!$C$7),Inputs!$B$5/12,0)'
+    u[f'{c}9']=f'=IF({c}$3=Inputs!$C$4+Inputs!$C$7+1,Inputs!$B$5/Inputs!$B$6,0)'
     u[f'{c}10']=f'=SUM({c}6:{c}9)'
     u[f'{c}11']=f'=-({c}6+{c}7)*Inputs!$B$8'
     u[f'{c}12']='=0' if k==0 else f'=-{p}15*Inputs!$B$9/12'
-    u[f'{c}13']=f'=IF({c}$3=Inputs!$B$4+Inputs!$B$7+1,-({p}15+{c}11),0)' if k else '=0'
+    u[f'{c}13']=f'=IF({c}$3=Inputs!$C$4+Inputs!$C$7+1,-({p}15+{c}11),0)' if k else '=0'
     u[f'{c}14']=f'={c}10+{c}11+{c}12+{c}13'
     u[f'{c}15']=f'={c}11+{c}13' if k==0 else f'={p}15+{c}11+{c}13'
-    ex=f'Inputs!$B$4+Inputs!$B$7+1';prom=f'IF({c}$3={ex},Inputs!$B$12*MAX(0,SUM($B$14:${L(1+N)}$14))*Inputs!$B$10,0)'   # the GP's promote, paid by the LPs at exit
+    ex=f'Inputs!$C$4+Inputs!$C$7+1';prom=f'IF({c}$3={ex},Inputs!$B$12*MAX(0,SUM($B$14:${L(1+N)}$14))*Inputs!$B$10,0)'   # the GP's promote, paid by the LPs at exit
     u[f'{c}17']=f'={c}14*Inputs!$B$10-{prom}';u[f'{c}18']=f'={c}14*(1-Inputs!$B$10)+{prom}'
 last=L(1+N);R=lambda r:f'Underwriting!$B${r}:${last}${r}';D=f'Underwriting!$B$4:${last}$4'
 s=wb.create_sheet('Summary',0);s['B2']='KEY RETURN METRICS'
