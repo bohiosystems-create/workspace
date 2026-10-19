@@ -3712,7 +3712,7 @@ function emMatrix(sheets) {
     const ci = col(/^(irr|xirr)$/i); if (ci < 0) continue;
     const cp = col(/^(net\s*)?profit$/i), cm = col(/^(moic|equity multiple|multiple|em|emx|em\s*\(?x\)?|equity\s*multiple\s*\(x\))$/i), co = col(/^(cash\s*outflow|equity|investment|total\s*cost|cost)$/i);
     for (let r = ri + 1; r < Math.min(s.rows.length, ri + 9); r++) { const rr = s.rows[r] || []; let li = -1; for (let j = ci - 1; j >= 0; j--) if (typeof rr[j] === 'string' && rr[j].trim()) { li = j; break; }   // the row's own label: the text nearest the table, not a cell of the block beside it
-      if (li < 0) continue; const lab = String(rr[li]).trim(), unl = /\b(unlevered|ungeared|project|asset)\b/i.test(lab), lev = !unl && /\b(levered|geared|equity)\b/i.test(lab); if (!unl && !lev) continue;
+      if (li < 0) continue; const lab = String(rr[li]).trim(), hasLev = /\b(levered|geared|leveraged|equity)\b/i.test(lab.replace(/\bun(levered|geared|leveraged)\b/ig, '')), unl = /\b(unlevered|ungeared|unleveraged)\b/i.test(lab) || (!hasLev && /\b(project|asset)\b/i.test(lab)), lev = !unl && hasLev;   /* "Levered Project Level" is levered */ if (!unl && !lev) continue;
       const fr = (s.frows && s.frows[r]) || [], put = (k, j, f) => { if (j < 0 || k in out || typeof rr[j] !== 'number') return; out[k] = +f(rr[j]).toFixed(4); found[k] = `${s.name} / ${lab} · ${String(row[j]).trim()}${fr[j] ? ' (' + String(fr[j]).trim() + ')' : ''}`; cells[k] = A1(s.name, j, r); };
       const pc = v => Math.abs(v) < 1.5 ? v * 100 : v;
       if (unl) { put('unlevered_irr', ci, pc); put('total_cost', co, Math.abs); }

@@ -31,4 +31,8 @@ ok(r.meta && r.meta.title === 'reader layouts', 'the template placeholder is not
   ok(r4.cells.levered_irr === 'Summary!E3' && Math.abs(r4.out.levered_irr - 15.22) < 1e-6, 'the fund gross (pre-promote) IRR is the levered IRR, not the LP net IRR: ' + r4.cells.levered_irr + ' ' + r4.out.levered_irr);
   ok(r4.cells.lp_irr === 'Summary!E4' && Math.abs(r4.out.lp_irr - 13.16) < 1e-6, 'the LP net IRR is kept as the LPs\' own figure: ' + r4.cells.lp_irr);
   ok(r4.cells.net_profit === 'Summary!B4', 'net profit is the project profit, not the sponsor\'s: ' + r4.cells.net_profit) }
+// a returns table whose rows say "Unlevered Project Level" and "Levered Project Level": the second is levered, though it says "project"
+{ const ws = XLSX.utils.aoa_to_sheet([['Summary'], ['', 'Project Costs', 'Total Profit', 'Equity Multiple', 'IRR'], ['Unlevered Project Level', 51080000, 21816377, 1.441, 0.1689], ['Levered Project Level ', 18525313, 19966913, 2.078, 0.2348]]);
+  ws.E3.z = ws.E4.z = '0.00%'; const w5 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w5, ws, 'Summary'); const r5 = E.parseWorkbook(w5, XLSX, 'lev.xlsx');
+  ok(r5.cells.levered_irr === 'Summary!E4' && Math.abs(r5.out.levered_irr - 23.48) < 1e-6 && r5.cells.unlevered_irr === 'Summary!E3', '"Levered Project Level" is the levered row, "Unlevered Project Level" the unlevered: ' + r5.cells.levered_irr + ' ' + r5.cells.unlevered_irr) }
 console.log(`${pass} pass, ${fail} fail`); process.exit(fail ? 1 : 0);
