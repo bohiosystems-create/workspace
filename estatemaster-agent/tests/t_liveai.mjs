@@ -18,19 +18,26 @@ await p.route('**/api/llm',async r=>{const q=r.request();let body={};try{body=JS
     get statusCode(){return status},set statusCode(s){status=s}};
   try{await llm(req,res)}catch(e){return r.fulfill({status:500,body:String(e.message)})}
   return r.fulfill({status,headers:hd,body:Buffer.concat(chunks)})});
-const errs=[];p.on('pageerror',e=>errs.push(e.message));let pass=0,fail=0;const t=(c,m)=>{console.log((c?'PASS':'FAIL')+' | '+m);c?pass++:fail++};
+const CI=!!process.env.GITHUB_ACTIONS,note=(lvl,m)=>{if(CI)console.log(`::${lvl}::${String(m).replace(/%/g,'%25').replace(/\r/g,'').replace(/\n/g,'%0A').slice(0,900)}`)};   // GitHub shows these as annotations on the run
+const errs=[];p.on('pageerror',e=>errs.push(e.message));let pass=0,fail=0;const t=(c,m)=>{console.log((c?'PASS':'FAIL')+' | '+m);c?pass++:(fail++,note('warning',m))};
 const S={read:[0,0],ask:[0,0]};const pc=v=>(v*100).toFixed(2)+'%';
-for(const [f,g] of Object.entries(G)){if(f[0]==='_'||!g.key)continue;
+try{
+const ONLY=(process.env.LIVEAI_MODELS||'').split(',').filter(Boolean);   // optional: a comma list of model names, for a quick run
+for(const [f,g] of Object.entries(G)){if(f[0]==='_'||!g.key||(ONLY.length&&!ONLY.includes(f)))continue;
   await p.goto(base);await p.evaluate(()=>{localStorage.clear();localStorage.setItem('em_map2','1')});await p.reload();await p.waitForTimeout(1500);
   await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',F+f+'.xlsx');await p.waitForTimeout(2500);await p.click('#npCreate');
   for(let i=0;i<240;i++){await p.waitForTimeout(500);if(await p.evaluate(()=>{const x=latestExport();return !!(x&&x.map)}))break}
   const cells=await p.evaluate(()=>{const x=latestExport();return{c:x.cells,by:x.map&&x.map.by}});
   for(const [k,c] of Object.entries(g.key)){const got=String(cells.c[k]||'').replace(/'/g,'');S.read[1]++;if(got===c)S.read[0]++;t(got===c,`${f}: ${k} read from ${c} (${cells.by}): got ${got||'—'}`)}
   const labs=await p.evaluate(cs=>{const x=latestExport();return cs.map(c=>{const i=(x.inputs||[]).find(i=>i.cell&&String(i.cell).replace(/'/g,'').replace(/\$/g,'')===c);return i?{label:String(i.label).replace(/\s*·.*$/,''),pct:!!i.pct}:null})},g.changes.map(c=>c[0][0]));
-  for(let i=0;i<g.changes.length;i++){const [[cell,v],want]=g.changes[i],L=labs[i];if(!L)continue;const val=L.pct?(+(v*100).toFixed(4))+'%':v.toLocaleString('en-US');
+  for(let i=0;i<g.changes.length;i++){const [[cell,v],wantAll]=g.changes[i],L=labs[i];if(!L)continue;
+    const norm=z=>String(z).replace(/['$]/g,''),ks=Object.fromEntries(Object.entries(g.key).map(([k,c2])=>[norm(c2),k])),want=wantAll.filter((w,j)=>['unlevered_irr','levered_irr'].includes(ks[norm(g.read[j])]));   // only the IRRs the question asks for
+    if(!want.length)continue;const val=L.pct?(+(v*100).toFixed(4))+'%':v.toLocaleString('en-US');
     const q=`If ${L.label.replace(/[:\s]+$/,'')} is ${val}, what are the unlevered and levered IRRs?`;
-    const o=await p.evaluate(async q=>{try{const r=await execute(q,'web','Investment Director',async()=>{});return String(r.out.plain||'')}catch(e){return 'THROW '+e.message}},q);
-    const ok=want.every(w=>o.includes(pc(w)));S.ask[1]++;if(ok)S.ask[0]++;t(ok,`${f}: “${q}” → ${want.map(pc).join(', ')} expected: ${o.replace(/\s+/g,' ').slice(0,220)}`)}}
+    const o=await p.evaluate(async q=>{try{const r=await execute(q,'web','Investment Director',async()=>{});return String((r.out&&r.out.plain)||r.final||'')}catch(e){return 'THROW '+e.message}},q);   // an AI-routed answer is `final`, a rules answer `out.plain`
+    const nums=[...o.replace(/⟦[^⟧]*⟧/g,'').matchAll(/-?\d+(?:\.\d+)?\s*%/g)].map(m=>parseFloat(m[0]));   // every percentage the answer states
+    const ok=want.every(w=>nums.some(n=>Math.abs(n-w*100)<=0.006));S.ask[1]++;if(ok)S.ask[0]++;t(ok,`${f}: “${q}” → ${want.map(pc).join(', ')} expected: ${o.replace(/\s+/g,' ').slice(0,220)}`)}}
+}catch(e){note('error','live-AI run stopped: '+(e&&e.stack||e));console.log('STOPPED | '+(e&&e.stack||e));fail++}
 const rs=S.read[0]/Math.max(1,S.read[1]),as=S.ask[0]/Math.max(1,S.ask[1]);
-console.log(`\nLIVE-AI SCORES: reading ${S.read[0]}/${S.read[1]} (${(rs*100).toFixed(0)}%), questions ${S.ask[0]}/${S.ask[1]} (${(as*100).toFixed(0)}%), bar ${(BAR*100).toFixed(0)}%`);
+note('notice',`reading ${S.read[0]}/${S.read[1]}, questions ${S.ask[0]}/${S.ask[1]}, page errors ${errs.length}`);console.log(`\nLIVE-AI SCORES: reading ${S.read[0]}/${S.read[1]} (${(rs*100).toFixed(0)}%), questions ${S.ask[0]}/${S.ask[1]} (${(as*100).toFixed(0)}%), bar ${(BAR*100).toFixed(0)}%`);
 t(!errs.length,'no page errors: '+errs.join(' | '));await b.close();process.exit(rs>=BAR&&as>=BAR&&!errs.length?0:1);
