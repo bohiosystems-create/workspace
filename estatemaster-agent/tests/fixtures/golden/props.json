@@ -606,5 +606,72 @@
    "levered_irr": "Summary!C7",
    "equity_multiple": "Summary!C8"
   }
+ },
+ "r43_btr_sar": {
+  "read": [
+   "Dashboard!C5",
+   "Dashboard!C6"
+  ],
+  "base": [
+   0.138518,
+   0.233559
+  ],
+  "changes": [
+   [
+    [
+     "Assumptions!E6",
+     5600
+    ],
+    [
+     0.131894,
+     0.216437
+    ]
+   ],
+   [
+    [
+     "Assumptions!C17",
+     0.9
+    ],
+    [
+     0.128288,
+     0.207267
+    ]
+   ],
+   [
+    [
+     "Assumptions!C16",
+     6
+    ],
+    [
+     0.134244,
+     0.217531
+    ]
+   ],
+   [
+    [
+     "Assumptions!C21",
+     0.07
+    ],
+    [
+     0.127852,
+     0.213634
+    ]
+   ],
+   [
+    [
+     "Assumptions!C26",
+     0.07
+    ],
+    [
+     0.138518,
+     0.224779
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Dashboard!C5",
+   "levered_irr": "Dashboard!C6",
+   "equity_multiple": "Dashboard!C8"
+  }
  }
 }
