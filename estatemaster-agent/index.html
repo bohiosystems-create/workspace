@@ -1319,6 +1319,7 @@ input.num-c::-webkit-outer-spin-button,input.num-c::-webkit-inner-spin-button{-w
   <div class="f">OpenAI API key<input type="password" id="aiKeyO" autocomplete="off" spellcheck="false"></div>
   <div class="f" id="aiPassF" style="display:none">Access code<input type="password" id="aiPass" autocomplete="off" spellcheck="false" placeholder="Set by whoever deployed this demo"></div>
   <label style="font-size:12.5px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="aiRemember"> Remember keys in this browser</label>
+  <label style="font-size:12.5px;display:flex;gap:6px;align-items:center"><input type="checkbox" id="mapOn"> Model map at upload (beta): show how each workbook was read, every entry proved on it, and confirm it once</label>
   <details><summary>Routing rules and models</summary><table class="t rtab" id="rtRules" style="margin-top:6px"></table>
     <div class="f">Model overrides (optional, one route per line: route=provider:model, provider:model; routes: fast, smart, deep, excel)<textarea id="aiModels" rows="3" style="border:1px solid var(--faint);border-radius:10px;padding:8px;font:12px ui-monospace,Menlo,monospace" placeholder="fast=openai:gpt-5-mini, anthropic:claude-sonnet-5-5&#10;excel=openai:gpt-5, anthropic:claude-sonnet-5-5"></textarea></div></details>
   <div class="note">Keys pasted here go straight from this browser to the provider; fine for a private demo. On Vercel, keys live on the server instead.</div>
@@ -1859,6 +1860,10 @@ async function handle(text,ch,role,forced){
   let it=forced||intent(text);const web=ch==='web';if(!forced)ruleHit('handle','intent decided by the rules: '+it.k);
   const out={steps:[],plain:'',html:'',attach:null,link:null,fx:()=>{}};
   const done=(plain,html)=>{out.plain=plain;out.html=html||esc(plain).replace(/\*(.+?)\*/g,'<b>$1</b>').replace(/\n/g,'<br>')};
+  if(it.k==='map'){const x=latestExport();if(!x||!x.map){done('The model map is built when a workbook is uploaded with the model map on (Settings).');return out}
+    if(it.mk==='fix'){const k=await mapFix(x,text);if(!k){done('Say which entry and the right cell, for example “levered IRR is Summary!F6”.');return out}const p=(x.map.proof||{})[k==='scenario'||k==='hold'?k:'h:'+k];
+      done(`${p==='ok'?'Proved and applied':'Not proved on the workbook, so not used'}: ${k.replace(/_/g,' ')}. The reading now:`,`<b>${p==='ok'?'Proved and applied':'Not proved on the workbook, so not used'}</b>: ${esc(k.replace(/_/g,' '))}.`+mapCard(x));return out}
+    done(`How ${x.file||x.id} was read`,mapCard(x));return out}
   if(it.byAI&&!PROJ.fromExport&&!['newmodel','napkinmodel','xline'].includes(it.k)){
     const ops=it.k==='mod'?[{t:'mods',mods:it.mods}]:it.k==='line'?[{t:'line',id:it.id,v:it.v}]:it.k==='align'?[{t:'mods',mods:alignDeltas()}]:it.k==='reset'?[{t:'reset'}]:it.k==='capital'&&it.mods&&Object.keys(it.mods).length?[{t:'ft',mods:it.mods}]:null;
     if(ops){let cr;out.steps=['Prepare change request (AI agents cannot write to EstateMaster)','Preview impact on the replica'];
@@ -3554,7 +3559,7 @@ function askReupload0(){const cur=latestExport();const s=staleReads().filter(z=>
   addMsg('agent',`<b>${esc(x.file||x.id)}</b> was read with an older version of the reader, which missed figures in some layouts (returns tables, currency, cell formats). Upload the file again (+ Excel, or Upload on Financial modelling) and I read it with the current one: until then its figures may be incomplete.`)}
 function addExport(src,note,out,file,cr,extra){
   const x={id:'EX-'+String(EXN++).padStart(3,'0'),pv:READER_V,proj:PROJ.id,at:new Date().toISOString(),src,note,file:file||'',cr:cr||'',out,sig:wcSig(),opt:(extra&&extra.opt)||'',sens:(extra&&extra.sens)||[],inputs:(extra&&extra.inputs)||[],cells:(extra&&extra.cells)||{},meta:(extra&&extra.meta)||null,sheets:(extra&&extra.sheets)||[],cf:(extra&&extra.cf)||null};
-  EXPORTS.push(x);if(EXPORTS.length>500)EXPORTS=EXPORTS.slice(-500);syncEMLast(true);if(src==='file')setTimeout(()=>{try{rpOnModelChange(x)}catch(e){}},2500);
+  EXPORTS.push(x);if(EXPORTS.length>500)EXPORTS=EXPORTS.slice(-500);syncEMLast(true);if(src==='file'){setTimeout(()=>{try{rpOnModelChange(x)}catch(e){}},2500);setTimeout(()=>{mapStart(x)},3000)}
   if(extra&&extra.raw){WBCACHE['raw:'+x.id]=extra.raw;wbSave('raw:'+x.id,extra.raw);if(src==='file')setTimeout(()=>{try{if(latestExport()===x)xcEngine(x)}catch(e){}},1500)}
   if(src==='file')setTimeout(()=>{try{runSuggestions('after '+x.id,true,'Market data')}catch(e){}},0);
   logEvent({kind:'export',actor:src==='file'?`${USERS.web} (${WS_ROLE})`:'Analyst (simulated)',channel:'EstateMaster export',detail:`${x.id} read${file?' from '+file:''}${x.opt?` · option “${x.opt}”`:''}${x.sens.length?` · ${x.sens.length} sensitivity table${x.sens.length>1?'s':''}`:''}: ${note}${Number.isFinite(out.levered_irr)?` · levered IRR ${out.levered_irr.toFixed(2)}%`:''}${src==='file'?'':' (simulated export: demo stand-in for EstateMaster)'}`,cr:cr||''});
@@ -6840,13 +6845,13 @@ const a33Per=s=>s.per.map(p=>typeof p==='number'?String(p):String(p));
 /* ---- 1. hold versus sell: every exit year, recalculated ---- */
 const A33HOLD=/\bhold(ing)?\b|fund (term|life)|term of the fund|exit (year|month|quarter|period|date)|exit quarter|sale quarter|sale (year|month|period|date)|(year|month) of (sale|exit)|investment (period|horizon)|disposal (year|month|period|date)|reversion (year|month|date)|analysis period/i;
 /* the input that times the sale: the AI's cell, a hold / sale-month / exit-date input, or a named range for it (Timing_Reversion_Month) */
-async function a33HoldInput(x,cell){const U=XLSX.utils;await loadXLSX();const buf=await xcRaw(x);const wb=XLSX.read(new Uint8Array(buf),{type:'array',cellFormula:true,cellNF:true});
+async function a33HoldInput(x,cell){if(!cell&&MAP_ON()&&x.map&&x.map.hold&&x.map.proof&&x.map.proof.hold==='ok')cell=x.map.hold.cell;   /* the model map's proved hold input */const U=XLSX.utils;await loadXLSX();const buf=await xcRaw(x);const wb=XLSX.read(new Uint8Array(buf),{type:'array',cellFormula:true,cellNF:true});
   const at=ref=>{const m=String(ref).match(/^'?(.*?)'?!\$?([A-Z]+)\$?(\d+)$/);if(!m)return null;const ws=wb.Sheets[m[1]];const z=ws&&ws[m[2]+m[3]];return z?{z,sheet:m[1],addr:m[2]+m[3],ref:`'${m[1].replace(/'/g,"''")}'!${m[2]+m[3]}`}:null};
   const unitTxt=c=>{if(!c||!c.sheet)return'';const p=U.decode_cell(c.addr);let t='';for(let k=p.c+1;k<=p.c+3;k++){const q=wb.Sheets[c.sheet][U.encode_cell({r:p.r,c:k})];if(q&&q.t==='s'){t=String(q.v);break}}return t};
   const kind=(lab,z,ut)=>{let d=false;try{d=!!(z.z&&XLSX.SSF.is_date(z.z))}catch(e){}const L=lab+' '+(ut||'');return d||/\bdate\b/i.test(lab)&&z.v>20000?'date':/month/i.test(L)?'months':/quarter|\bqtrs?\b/i.test(L)?'quarters':'years'};
   const mk=(c,lab)=>({cell:c.ref,label:lab,value:c.z.v,unit:kind(lab,c.z,unitTxt(c))});
   if(cell){const c=at(cell);if(c&&!c.z.f&&c.z.t==='n'){const i=(x.inputs||[]).find(i=>i.cell&&xcRefKey(i.cell)===xcRefKey(cell));return mk(c,i?i.label:cell)}return{ask:`${cell} is not a typed number: which input times the sale?`}}
-  const C=[];for(const i of (x.inputs||[]))if(i.cell&&A33HOLD.test(i.label)){const c=at(i.cell);if(c&&!c.z.f&&c.z.t==='n')C.push(mk(c,i.label))}
+  const C=[];for(const i of (x.inputs||[]))if(i.cell&&A33HOLD.test(i.label)&&!i.pct&&!/discount|rate|fee|cost|price|share|%/i.test(i.label)){   /* “bulk sale discount at fund term” is a rate, not the term */const c=at(i.cell);if(c&&!c.z.f&&c.z.t==='n')C.push(mk(c,i.label))}
   for(const n of ((wb.Workbook||{}).Names||[])){if(!/reversion|hold|sale_?month|exit_?(month|year|date)|disposal/i.test(n.Name||''))continue;const c=at(String(n.Ref||'').replace(/\$/g,''));if(c&&!c.z.f&&c.z.t==='n'&&!C.some(z=>xcRefKey(z.cell)===xcRefKey(c.ref)))C.push(mk(c,String(n.Name).replace(/_/g,' ')))}
   if(!C.length)for(const sh of wb.SheetNames){const ws=wb.Sheets[sh];for(const k in ws){if(k[0]==='!')continue;const z=ws[k];if(!z||z.t!=='s'||!A33HOLD.test(String(z.v))||String(z.v).length>40)continue;const p=U.decode_cell(k);for(let c=p.c+1;c<=p.c+4;c++){const q=ws[U.encode_cell({r:p.r,c})];if(q&&q.t==='n'&&!q.f){C.push(mk({z:q,ref:`'${sh.replace(/'/g,"''")}'!${U.encode_cell({r:p.r,c})}`},String(z.v).trim()));break}if(q&&q.f)break}}}
   if(C.length>1){const named=C.filter(c=>/reversion|^hold/i.test(c.label));if(named.length===1)return named[0];if(new Set(C.map(c=>c.value)).size===1)return C[0];return{ask:`The model has ${C.length} inputs that could time the sale: ${C.slice(0,5).map(i=>`${i.label} (${i.cell.replace(/'/g,'')}, ${i.unit==='date'?'a date':i.value+' '+i.unit})`).join(', ')}. Which one?`}}
@@ -7335,6 +7340,94 @@ async function a33Quarterly(x,a,st){await a33Eng(x);const E=await a33EquityRow(x
 function a33QuarterlyOut(r){const P=v=>Number.isFinite(v)?(v*100).toFixed(2)+'%':'—';const md=`**On quarters the equity IRR is ${P(r.D.B20)}, against ${P(r.D.B21)} on years.**
 - A sheet “${r.name}” with ${r.n} quarters: each year of ${r.E.sheet} split evenly (formulas on the model’s cells), the IRR on quarterly flows annualised.
 - The difference is timing only: money in the year arrives through it rather than all at once.`;return{md,keep:`<div style="margin:8px 0 2px"><button class="btn ghost sm xl-dl" data-xcxdl="${esc(r.x2.id)}">⬇ Excel with the quarterly view</button> <a class="go" data-openwbat="${esc(r.x2.id)}|'${esc(r.name)}'!A1">Open it →</a></div>`}}
+/* ---- The model map: the workbook's structure read once (the AI names it, the rules propose it when no AI answers), every entry proved
+   against the workbook itself, shown to the user on a card and confirmed once. The tools read the map instead of guessing the structure.
+   Behind a switch (Settings, or localStorage em_map2 = 1) until it has been seen on the user's own models. ---- */
+const MAP_ON=()=>{try{return localStorage.getItem('em_map2')==='1'}catch(e){return false}};
+const MAP_SYS=`You map the structure of a real estate financial model laid out as a grid of cells. Each line is "Sheet!A1: displayed text". Return JSON only:
+{"headlines":[{"key":"levered_irr|unlevered_irr|lp_irr|gp_irr|net_profit|total_cost|gross_revenue|profit_on_cost|equity_multiple|lp_multiple|peak_debt","cell":"Sheet!A1","label":"the model's own words","definition":"one line: whose figure it is and on what basis"}],
+ "units":[{"sheet":"Sheet","scale":1,"currency":"ISO code","evidence":"Sheet!A1"}],
+ "scenario":{"switch":"Sheet!A1","names":["Base","Upside","Downside"]},
+ "timeline":{"sheet":"Sheet","period":"month|quarter|year","first":"Sheet!A1","count":0},
+ "cashflows":[{"irr":"a headline key","row":"Sheet!E12:AB12","dates":"Sheet!E5:AB5 when the IRR is an XIRR on dates"}],
+ "hold":{"cell":"Sheet!A1","unit":"months|quarters|years|date"}}
+Rules: levered_irr is the scheme's or the fund's own equity IRR after debt (gross, before any promote); unlevered_irr is the project's IRR before debt; an LP, investor or unitholder net IRR after fees and promote is lp_irr; the sponsor's, GP's or developer's own IRR is gp_irr. "pre-promote" or "before promote" describes a fund gross figure, never a promote tier. net_profit is the project's own profit, never a partner's share. units: the scale each sheet holds its amounts in (1000 when it says '000 or thousands), with the cell that says so. scenario: the cell that selects the case the model runs on (a typed number read by CHOOSE, INDEX or IF), or null. timeline: the row that numbers or dates the periods, its first cell and how many periods. cashflows: for each IRR headline, the row of cash flows its formula reads. hold: the typed input that times the sale or the end of the fund, or null. Leave out what the workbook does not contain; never invent a cell.`;
+const mapCell=s=>{const m=String(s||'').replace(/\$/g,'').match(/^'?([^'!]+)'?!([A-Z]{1,3})(\d+)(?::([A-Z]{1,3})(\d+))?$/i);return m?{sheet:m[1].trim(),c:m[2].toUpperCase(),r:+m[3],c2:m[4]?m[4].toUpperCase():null,r2:m[5]?+m[5]:null,ref:`'${m[1].trim().replace(/'/g,"''")}'!${m[2].toUpperCase()}${m[3]}`}:null};
+const mapDef=(k,label)=>{const L=String(label||'').toLowerCase();if(!/irr|profit|multiple/.test(k))return'';if(/profit/.test(k))return /sponsor|\bgp\b|kinan|developer|promote/.test(L)?'the sponsor’s own':/\blp\b|investor/.test(L)?'LPs’ own':'the project’s';return /pre-?promote|before promote|gross/.test(L)?'fund gross, after debt, before promote':/\blp\b|investor|unitholder|limited partner/.test(L)?'LPs’ own, after fees and promote':/sponsor|\bgp\b|kinan|developer|co-?invest/.test(L)?'the sponsor’s own':/unlevered|project|ungeared/.test(L)?'the project’s, before debt':k==='levered_irr'?'equity, after debt':''};
+/* the rules' reading, from what the app already resolved: the AI's reading replaces each entry it gives, when its proof holds */
+async function mapRules(x){const C=x.cells||{},o=x.out||{},F=x.found||{};const m={by:'rules (no AI answered)',headlines:[],units:[],scenario:null,timeline:null,cashflows:[],hold:null};
+  for(const k of Object.keys(C))if(C[k]&&Number.isFinite(o[k])){const lab=String(F[k]||'').split(' / ').pop().replace(/\s*\(.*$/,'').trim()||k;m.headlines.push({key:k,cell:C[k],label:lab,definition:mapDef(k,lab)})}
+  const sc={...(XC_SHSC[x.id]||{})};for(const k of Object.keys(F)){const n=String(F[k]).match(/× (1,000,000|1,000) \((?:sheet heading|column heading) “([^”]*)/);const sh=C[k]&&String(C[k]).replace(/!.*$/,'').replace(/^'|'$/g,'');if(n&&sh&&!sc[sh])sc[sh]=n[1]==='1,000'?1e3:1e6}
+  for(const sh of Object.keys(sc))if(sh!=='done')m.units.push({sheet:sh,scale:sc[sh],currency:(x.meta&&x.meta.currency)||'',evidence:''});
+  const sw=(x.inputs||[]).find(i=>i.cell&&/\b(active|selected|live)\s+(scenario|case)\b|\bscenario\s*(selector|switch)\b|\bcase\s*selector\b/i.test(i.label)&&Number.isInteger(i.value)&&i.value>=1&&i.value<=9);if(sw)m.scenario={switch:sw.cell,names:[]};
+  for(const k of ['levered_irr','unlevered_irr','lp_irr']){if(!C[k])continue;try{const E=await a33EquityRow({...x,cells:{[k]:C[k]}});if(E&&E.cols&&E.cols.length){const I=E.irr||null,sh=I&&I.src||E.sheet;m.cashflows.push(I&&I.c1?{irr:k,row:`${sh}!${I.c1}${I.row}:${I.xirr?I.cEnd:I.c2}${I.row}`,dates:I.xirr?`${I.dsh}!${I.c1}${I.drow}:${I.cEnd}${I.drow}`:undefined}:{irr:k,row:`${E.sheet}!${xcCol(E.cols[0])}${E.row}:${xcCol(E.cols[E.cols.length-1])}${E.row}`});if(!m.timeline)m.timeline={sheet:E.sheet,period:E.per.length>1&&/^\d{4}-/.test(String(E.per[0]))?({1:'year',4:'quarter',12:'month'})[Math.max(1,Math.round(365/((new Date(E.per[1])-new Date(E.per[0]))/864e5)))]||'':'',first:'',count:E.cols.length}}}catch(e){}}
+  try{const h=await a33HoldInput(x);if(h&&h.cell)m.hold={cell:h.cell,unit:h.unit}}catch(e){}
+  return m}
+const xcCol=c=>{let s='';c++;while(c>0){s=String.fromCharCode(65+(c-1)%26)+s;c=Math.floor((c-1)/26)}return s};
+/* the AI's reading of the whole workbook */
+async function mapAI(x){if(!apiOn())return null;const g=WBCACHE[x.id]||await wbLoad(x.id);if(!g)return null;const j=await a33Ai(MAP_SYS,auDump(g),3000);if(!j||!Array.isArray(j.headlines))return null;j.by=(chain('check')[0]?mName(chain('check')[0].p,chain('check')[0].model):'the AI');return j}
+/* every entry proved on the workbook: a cell holds a number, a cash-flow row reproduces its IRR, the switch moves the results, the hold input
+   moves the results, the timeline and the hold agree, the units make profit on cost reconcile */
+async function mapProve(x,m){await a33Eng(x);const P={};const num=async ref=>{try{const [v]=await xcQ(()=>xcCall({op:'get',refs:[ref]}));return typeof v==='number'&&Number.isFinite(v)?v:null}catch(e){return null}};
+  for(const h of m.headlines||[]){const c=mapCell(h.cell);const v=c?await num(c.ref):null;h.v=v;P['h:'+h.key]=v!=null?'ok':'fail'}
+  const ppy={month:12,quarter:4,year:1}[(m.timeline&&m.timeline.period)||'']||null;
+  for(const cf of m.cashflows||[]){const h=(m.headlines||[]).find(z=>z.key===cf.irr),c=mapCell(cf.row);if(!h||h.v==null||!c||!c.c2){P['cf:'+cf.irr]='fail';continue}
+    const rng=`'${c.sheet.replace(/'/g,"''")}'!${c.c}${c.r}:${c.c2}${c.r2||c.r}`;const tries=ppy?[ppy]:[1,4,12];let ok=false;
+    if(cf.dates){const d=mapCell(cf.dates);if(d&&d.c2){try{const [v]=await xcQ(()=>xcCall({op:'calc',fs:[[`=XIRR(${rng},'${d.sheet.replace(/'/g,"''")}'!${d.c}${d.r}:${d.c2}${d.r2||d.r})`,c.sheet]]}));if(typeof v==='number'&&Math.abs(v-h.v)<5e-5)ok=true}catch(e){}}}   /* a dated cash flow: its XIRR on its own dates */
+    for(const k of tries){try{const [v]=await xcQ(()=>xcCall({op:'calc',fs:[[`=(1+IRR(${rng},${k===1?0.1:0.02}))^${k}-1`,c.sheet]]}));if(typeof v==='number'&&Math.abs(v-h.v)<5e-5){ok=true;if(!ppy&&m.timeline)m.timeline.period={1:'year',4:'quarter',12:'month'}[k];break}}catch(e){}}
+    P['cf:'+cf.irr]=ok?'ok':'fail'}
+  const heads=(m.headlines||[]).filter(h=>h.v!=null&&/irr|profit/.test(h.key)).map(h=>mapCell(h.cell).ref);
+  const moves=async sets=>{if(!heads.length)return false;try{const r=await a33Runs([[],sets],heads);return r[1].some((v,i)=>Math.abs(a33Num(v)-a33Num(r[0][i]))>1e-9)}catch(e){return false}};
+  if(m.scenario&&m.scenario.switch){const c=mapCell(m.scenario.switch),v=c?await num(c.ref):null;const [ty]=c?await xcQ(()=>xcCall({op:'typed',refs:[c.ref]})):[false];
+    m.scenario.live=v;P.scenario=v!=null&&ty&&Number.isInteger(v)&&await moves([[c.ref,v===1?2:1]])?'ok':'fail'}
+  if(m.hold&&m.hold.cell){const c=mapCell(m.hold.cell),v=c?await num(c.ref):null;m.hold.v=v;P.hold=v!=null&&await moves([[c.ref,v-(m.hold.unit==='months'?12:m.hold.unit==='quarters'?4:m.hold.unit==='date'?365:1)]])?'ok':'fail';
+    if(P.hold==='ok'&&m.timeline&&m.timeline.count&&m.hold.unit&&m.hold.unit===m.timeline.period+'s'&&v!==m.timeline.count)m.hold.note=`the hold input (${v}) is shorter than the timeline (${m.timeline.count} ${m.timeline.period}s)`}
+  {const g=k=>(m.headlines||[]).find(h=>h.key===k);const np=g('net_profit'),tc=g('total_cost'),poc=g('profit_on_cost');if(np&&tc&&poc&&np.v&&tc.v&&poc.v!=null){const sc=sh=>((m.units||[]).find(u=>u.sheet===mapCell(sh).sheet)||{}).scale||1;
+      const r=(np.v*sc(np.cell))/(Math.abs(tc.v)*sc(tc.cell)),p=Math.abs(poc.v)<5?poc.v:poc.v/100;P.units=Math.abs(r-p)<0.005?'ok':'fail'}else P.units=(m.units||[]).length?'stated':'none'}
+  m.proof=P;return m}
+/* the AI's reading where its proof holds; else the rules'; an entry neither proves is asked */
+async function mapBuild(x){if(!x||x.src!=='file')return null;try{await a33Eng(x)}catch(e){return null}try{await xcCacheMore(x)}catch(e){}try{await xcOutputs(x)}catch(e){}
+  const R=await mapProve(x,await mapRules(x));let A=null;try{A=await mapAI(x);if(A)A=await mapProve(x,A)}catch(e){A=null}
+  if(!A){x.map={...R,at:new Date().toISOString()};return x.map}
+  const M={by:A.by,at:new Date().toISOString(),headlines:[],units:A.units&&A.units.length?A.units:R.units,scenario:null,timeline:A.timeline||R.timeline,cashflows:[],hold:null,proof:{},from:{}};
+  const keys=[...new Set([...(A.headlines||[]).map(h=>h.key),...R.headlines.map(h=>h.key)])];
+  for(const k of keys){const a=(A.headlines||[]).find(h=>h.key===k),r=R.headlines.find(h=>h.key===k);const aOk=a&&A.proof['h:'+k]==='ok'&&(!(A.cashflows||[]).some(c=>c.irr===k)||A.proof['cf:'+k]==='ok');
+    const pick=aOk?a:r&&R.proof['h:'+k]==='ok'?r:a||r;M.headlines.push(pick);M.from[k]=pick===a?'ai':'rules';M.proof['h:'+k]=(pick===a?A:R).proof['h:'+k];
+    const cf=(pick===a?A:R).cashflows.find(c=>c.irr===k);if(cf){M.cashflows.push(cf);M.proof['cf:'+k]=(pick===a?A:R).proof['cf:'+k]}
+    if(a&&r&&xcRefKey(mapCell(a.cell).ref)!==xcRefKey(mapCell(r.cell).ref)){M.from[k]+=aOk?' (the rules read '+r.cell+')':' (the AI read '+a.cell+', not proved)';
+      const rOk=R.proof['h:'+k]==='ok'&&(!R.cashflows.some(c=>c.irr===k)||R.proof['cf:'+k]==='ok');if(aOk&&rOk){(M.ask=M.ask||{})[k]={ai:a,rules:r};M.proof['h:'+k]='ask'}}}   /* two proved readings of one figure: a question of definition, put to the user */
+  for(const f of ['scenario','hold']){const ok=A[f]&&A.proof[f]==='ok';M[f]=ok?A[f]:R[f]&&R.proof[f]==='ok'?R[f]:A[f]||R[f]||null;M.proof[f]=ok?'ok':R[f]&&R.proof[f]==='ok'?'ok':(M[f]?'fail':'none')}
+  M.proof.units=A.proof.units==='ok'||R.proof.units!=='ok'?A.proof.units:R.proof.units;x.map=M;return M}
+/* the map takes effect: the headline cells and figures, the sheets' units; only entries whose proof holds */
+function mapApply(x){const m=x&&x.map;if(!m||!MAP_ON())return;x.cells=x.cells||{};x.out=x.out||{};
+  for(const h of m.headlines||[]){if(m.proof['h:'+h.key]!=='ok'||h.v==null)continue;const c=mapCell(h.cell);const sc=((m.units||[]).find(u=>u.sheet===c.sheet)||{}).scale||1;
+    x.cells[h.key]=`${c.sheet}!${c.c}${c.r}`;x.out[h.key]=+(/irr|profit_on_cost/.test(h.key)?(Math.abs(h.v)<5?h.v*100:h.v):h.v*sc).toFixed(4);(x.found=x.found||{})[h.key]=`${c.sheet} / ${h.label}${h.definition?' ('+h.definition+')':''} · model map`}
+  const S=XC_SHSC[x.id]=XC_SHSC[x.id]||{};for(const u of m.units||[])if(u.scale>1){S[u.sheet]=u.scale;S.done=1}}
+/* the card: how the model was read, each entry with its proof; confirmed once, saved with the model */
+function mapCard(x){const m=x.map;if(!m)return'';const tick=p=>p==='ask'?'<span style="color:#9a5b00">? your choice</span>':p==='ok'?'<span title="proved on the workbook" style="color:#1a7f37">✓ proved</span>':p==='stated'?'<span style="color:#555">stated in the workbook</span>':p==='none'?'<span style="color:#888">—</span>':'<span style="color:#bd2f2f">⚠ not proved</span>';
+  const nm=k=>MET[k]?MET[k][0]:a33KLab(k);const fv=h=>h.v==null?'—':/irr|profit_on_cost/.test(h.key)?((Math.abs(h.v)<5?h.v*100:h.v).toFixed(2)+'%'):/multiple/.test(h.key)?h.v.toFixed(2)+'x':Math.round(h.v).toLocaleString('en-GB');
+  const rows=[];for(const h of m.headlines||[])rows.push([nm(h.key),`${esc(h.label)}${h.definition?` <span class="sub" style="margin:0">(${esc(h.definition)})</span>`:''}`,esc(h.cell),fv(h),tick(m.proof['h:'+h.key])+((m.cashflows||[]).some(c=>c.irr===h.key)?` · cash flow ${tick(m.proof['cf:'+h.key])}`:'')]);
+  for(const u of m.units||[])rows.push(['Units',`${esc(u.sheet)}: amounts in ${u.currency?esc(u.currency)+' ':''}${u.scale===1000?"'000":u.scale===1e6?'millions':'units'}`,esc(u.evidence||''),'',tick(m.proof.units)]);
+  if(m.scenario)rows.push(['Scenario switch',(m.scenario.names||[]).length?esc(m.scenario.names.join(' / ')):'the case the model runs on',esc(m.scenario.switch),m.scenario.live==null?'':String(m.scenario.live),tick(m.proof.scenario)]);
+  if(m.timeline)rows.push(['Timeline',`${m.timeline.count||'?'} ${esc(m.timeline.period||'period')}s on ${esc(m.timeline.sheet||'')}`,esc(m.timeline.first||''),'',tick(m.proof['cf:levered_irr']||m.proof['cf:lp_irr']||'stated')]);
+  if(m.hold)rows.push(['Hold / exit input',esc(m.hold.unit||''),esc(m.hold.cell),m.hold.v==null?'':String(m.hold.v),tick(m.proof.hold)+(m.hold.note?' · '+esc(m.hold.note):'')]);
+  const askH=Object.entries(m.ask||{}).map(([k,q])=>`<div class="sub" style="margin:4px 0">⚠ <b>${esc(nm(k))}</b>: two cells both hold up on the workbook, so which one you mean is a question of definition. <span class="qchip" data-mapask="${esc(x.id)}|${esc(k)}|${esc(q.ai.cell)}">${esc(q.ai.cell)}: ${esc(q.ai.label)} (${fv({...q.ai,key:k})})</span> <span class="qchip" data-mapask="${esc(x.id)}|${esc(k)}|${esc(q.rules.cell)}">${esc(q.rules.cell)}: ${esc(q.rules.label)} (${fv({...q.rules,key:k})})</span></div>`).join('');
+  const bad=Object.values(m.proof||{}).filter(p=>p==='fail').length;
+  return`<div class="mapcard"><b>How I read ${esc(x.file||x.id)}</b> <span class="sub" style="margin:0">(${esc(m.by)}; each entry proved on the workbook itself)</span>
+<table class="ttab" style="margin:6px 0"><tr><th>Figure</th><th>The model's own reading</th><th>Cell</th><th>Value</th><th>Proof</th></tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table>
+${askH}${bad?`<div class="sub" style="margin:0 0 6px">${bad} entr${bad===1?'y is':'ies are'} not proved: say the right cell (for example “levered IRR is Summary!F6”) and I prove it again.</div>`:''}
+${x.mapOk?'<div class="sub" style="margin:0">Confirmed: every answer on this model uses this reading.</div>':`<div class="chips" style="margin:4px 0 0"><span class="qchip" data-mapok="${esc(x.id)}">This is right</span><span class="qchip" data-mapfix="${esc(x.id)}">Something is wrong</span></div>`}</div>`}
+async function mapStart(x){if(!MAP_ON()||!x||x.src!=='file'||x.map)return;try{const m=await mapBuild(x);if(!m)return;mapApply(x);saveMem();if(PROJ.id===x.proj)addMsg('agent',mapCard(x))}catch(e){try{console.warn('model map',e)}catch(_){}}}
+/* "levered IRR is Summary!F6": a correction to one entry, proved again before it is used */
+async function mapFix(x,text){const m=x&&x.map;if(!m)return null;const t=String(text||'');const cm=t.match(/'[^']+'![A-Z]{1,3}\d+(?::[A-Z]{1,3}\d+)?|\b[A-Za-z][\w.&-]*![A-Z]{1,3}\d+(?::[A-Z]{1,3}\d+)?/);   /* a sheet name with spaces is quoted, as in Excel */if(!cm)return null;const cell=cm[0];
+  const L=t.toLowerCase();const k=/\blp\b/.test(L)&&/irr/.test(L)?'lp_irr':/unlev|project irr/.test(L)?'unlevered_irr':/irr/.test(L)?'levered_irr':/profit on cost/.test(L)?'profit_on_cost':/net profit|profit/.test(L)?'net_profit':/switch|scenario/.test(L)?'scenario':/hold|exit|term/.test(L)?'hold':null;if(!k)return null;
+  if(k==='scenario')m.scenario={...(m.scenario||{}),switch:cell};else if(k==='hold')m.hold={...(m.hold||{}),cell};else{const h=(m.headlines||[]).find(z=>z.key===k);if(h){h.cell=cell;h.label=h.label+' (corrected)'}else m.headlines.push({key:k,cell,label:'corrected',definition:''});m.cashflows=(m.cashflows||[]).filter(c=>c.irr!==k)}
+  await mapProve(x,m);mapApply(x);x.mapOk=false;saveMem();return k}
+document.addEventListener('click',async e=>{const q=e.target.closest('[data-mapask]');if(!q)return;const [xid,k,cell]=q.dataset.mapask.split('|');const x=EXPORTS.find(z=>z.id===xid);if(!x||!x.map)return;
+  const pick=(x.map.ask[k].ai.cell===cell?x.map.ask[k].ai:x.map.ask[k].rules);const i=x.map.headlines.findIndex(h=>h.key===k);x.map.headlines[i]=pick;delete x.map.ask[k];await mapProve(x,x.map);mapApply(x);saveMem();addMsg('agent',`${esc(MET[k]?MET[k][0]:a33KLab(k))} is ${esc(pick.label)} (${esc(cell)}) from now on.`+mapCard(x))});
+document.addEventListener('click',async e=>{const ok=e.target.closest('[data-mapok]'),fx=e.target.closest('[data-mapfix]');if(!ok&&!fx)return;const x=EXPORTS.find(z=>z.id===(ok||fx).dataset[ok?'mapok':'mapfix']);if(!x)return;
+  if(ok){x.mapOk=true;saveMem();addMsg('agent','Confirmed. Every answer on this model uses this reading; say “show how you read the model” to see it again.')}
+  else addMsg('agent','Tell me which entry is wrong and the right cell, for example “levered IRR is Summary!F6” or “the scenario switch is Assumptions!C9”. I prove it on the workbook before using it.')});
 const xlBtn=id=>`<button class="btn ghost sm xl-dl" data-xcdl="${esc(id)}" title="The workbook with this change applied: open it in Excel and it recalculates to the same figures">⬇ Excel with this change</button>`;
 async function mvDownload(id){const v=Object.values(MVERS).flat().find(z=>z.id===id);if(!v||!(v.sets||[]).length){toast('This version has no recorded cell values: test the change again to download it');return}
   const x=EXPORTS.find(z=>z.id===v.ex);if(!x){toast('The workbook of this version is no longer here');return}
@@ -10267,6 +10360,8 @@ async function postProcess(kind,out,tier,ch){
   }
 }
 async function execute(text,ch,role,onStep){
+  if(MAP_ON()){const xm=latestExport();if(xm&&xm.map){const mk=/\b(show|see)\b.{0,40}\b(read|map|reading)\b/i.test(text)?'show':/'?[A-Za-z][\w .&-]*'?![A-Z]{1,3}\d+/.test(text)&&/\b(is|=|should be|use)\b/i.test(text)&&/irr|profit|switch|scenario|hold|exit|term/i.test(text)?'fix':null;   /* the model map's own commands: shown, or one entry corrected */
+    if(mk){const out=await handle(text,ch,role,{k:'map',mk});out.fx();return{r:{lane:'calc',it:{k:'map'},why:'The model map: how the workbook was read, each entry proved on it.'},kind:'rules',out,post:null}}}}
   const r=route(text);ROUTESTATS[r.lane]++;
   if(r.lane==='api'){
     if(apiOn()){
@@ -10701,7 +10796,7 @@ const chat=$('.chat');['dragover','drop'].forEach(ev=>chat.addEventListener(ev,a
 /* AI connections (admin) */
 function fillAI(){if(fillAI.busy)return;fillAI.busy=true;try{openAI()}finally{fillAI.busy=false}}
 function openAI(){
-  $('#aiKeyA').value=AI.keys.anthropic;$('#aiKeyO').value=AI.keys.openai;$('#aiPass').value=AI.pass||'';$('#aiRemember').checked=AI.remember;
+  $('#aiKeyA').value=AI.keys.anthropic;$('#aiKeyO').value=AI.keys.openai;$('#aiPass').value=AI.pass||'';$('#aiRemember').checked=AI.remember;{const mo=$('#mapOn');if(mo)mo.checked=MAP_ON()}
   $('#aiModels').value=Object.entries(AI.models).map(([k,v])=>k+'='+v.map(([p,m])=>p+':'+m).join(', ')).join('\n');$('#aiTest').textContent='';
   const sv=['anthropic','openai'].filter(p=>PROXY[p]);
   const why={file:'This page was opened from a file on your computer, not from your Vercel site, so it cannot reach the server keys. Open your Vercel URL (https://…vercel.app) instead.',notfound:'The server function /api/llm was not found (404). The deployment does not contain the api/ folder: redeploy the unzipped folder bohio-estatemaster-demo so that api/llm.js is at the project root.',nojson:'/api/llm returned a web page instead of data. Usually the api/ folder is missing from the deployment, or Vercel is showing a login page (Deployment Protection).',protected:'Vercel blocked /api/llm (HTTP '+PROXY.code+'): Deployment Protection is on. In Vercel → Settings → Deployment Protection, turn it off for Production or use a public domain.',nokeys:'The server function works, but it sees no ANTHROPIC_API_KEY or OPENAI_API_KEY. Add them under Settings → Environment Variables for the Production environment, then redeploy.',unreachable:'Could not reach /api/llm (network error).'}[PROXY.status]||(PROXY.status&&PROXY.status!=='ok'?`/api/llm answered with an error (${PROXY.status}). Check the function logs in Vercel.`:'');
@@ -10712,7 +10807,7 @@ function openAI(){
   renderRouter();openSettings('ai');
 }
 function readAI(){
-  AI.keys={anthropic:$('#aiKeyA').value.trim(),openai:$('#aiKeyO').value.trim()};AI.pass=$('#aiPass').value.trim();AI.remember=$('#aiRemember').checked;
+  AI.keys={anthropic:$('#aiKeyA').value.trim(),openai:$('#aiKeyO').value.trim()};AI.pass=$('#aiPass').value.trim();AI.remember=$('#aiRemember').checked;{const mo=$('#mapOn');if(mo)try{localStorage.setItem('em_map2',mo.checked?'1':'0')}catch(e){}}
   AI.models={};$('#aiModels').value.split('\n').forEach(l=>{const m=l.match(/^\s*(fast|smart|deep|excel)\s*=\s*(.+)$/);if(!m)return;const list=m[2].split(',').map(x=>x.trim().match(/^(anthropic|openai):(\S+)$/)).filter(Boolean).map(x=>[x[1],x[2]]);if(list.length)AI.models[m[1]]=list});
 }
 (function(){const ai=$('#aiModal .card.set');if(ai){[...ai.children].forEach(c=>$('#set_ai').appendChild(c))}const ib=$('#p-inbox');if(ib){[...ib.children].forEach(c=>$('#set_outlook').appendChild(c))}const ar=$('#p-arch');if(ar){[...ar.children].forEach(c=>$('#set_arch').appendChild(c))}const mk=$('#p-market');if(mk){$('#set_market').insertAdjacentHTML('beforeend','<h2>Market data</h2><div class="sub">Assumptions against market evidence and zoning.</div>');[...mk.children].forEach(c=>$('#set_market').appendChild(c))}renderDock()})();

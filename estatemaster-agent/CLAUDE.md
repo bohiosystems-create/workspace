@@ -26,6 +26,7 @@ These rules hold for every change to this app. They come from the product owner 
 - Show every cell changed (sheet!cell, old → new) and every output moved, and offer the workbook back as an .xlsx with the change applied.
 - Two models audit the recalculation after the answer. Their disagreement is shown, not hidden.
 - One name, one figure: a headline (levered IRR, unlevered IRR, profit on cost) is the scheme's own figure, never a partner's (an LP net IRR, the sponsor's IRR or profit). An answer that gives a headline name another cell's value is flagged under the answer with both cells.
+- The model map (Settings → Model map at upload, beta): the workbook's structure is read once at upload (headline figures with their definitions, units per sheet, scenario switch, timeline, the cash flow behind each IRR, the hold input). The AI's reading is used where its proof on the workbook holds, the rules' otherwise; two proved readings of one figure are a question for the user; every entry is shown on a card and confirmed once; a correction in the chat is proved before it is used. Tools read the map instead of guessing the structure.
 - Never assume. If the workbook does not say, ask the user in the chat.
 
 ## 3. Working rules
