@@ -51,6 +51,7 @@ function parseInputs(sheets) {
   // the column heading of a value: up its own column through numbers (three blanks at most), never above the block the input sits in, to a text cell on a row that is a heading row (no figures on it)
   const headOf = (s, ri, j, top) => { let gap = 0; for (let r = ri - 1; r >= Math.max(0, ri - 80, top || 0); r--) { const h = (s.rows[r] || [])[j];
     if (h == null || h === '') { if (++gap > 3) return ''; continue; } gap = 0; if (typeof h === 'number') continue;
+    { const rw = s.rows[r] || [], ne = rw.filter(c => c != null && c !== ''); if (ne.length === 2 && j > 0 && typeof rw[j - 1] === 'string' && rw[j - 1].trim() && ne[0] === rw[j - 1]) return ''; }   // a label and its text value ("Location | Dubai, Al Barsha"), not a heading
     return typeof h === 'string' && h.trim().length < 50 && !(s.rows[r] || []).slice(Math.max(0, j - 8), j + 3).some(c => typeof c === 'number') ? h.trim() : ''; } return ''; };   // a heading row has no figures near the column (a monthly block further right does not count)
   // the block an input sits in ("MEZZ DEBT", "Construction Financing", "Exit Assumptions"): up its own label column to a label with no figure beside it
   const blockOf = (s, ri, i) => { for (let r = ri - 1; r >= Math.max(3, ri - 30); r--) { const rr = s.rows[r] || [], c = rr[i]; if (!emIsLabel(c)) continue; const t = String(c).trim(); if (t.length > 50) continue;

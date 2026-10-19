@@ -16,8 +16,14 @@ await ctx.route('**/api/llm',async r=>{if(r.request().method()==='GET')return r.
   const reply=t=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(j.provider==='openai'?{choices:[{message:{content:t},finish_reason:'stop'}]}:{model:pl.model,content:[{type:'text',text:t}],stop_reason:'end_turn'})});
   // the AI's money classification, as a careful reader would: amounts are money; rates, shares, counts, periods, dates and areas are not
   if(/amounts of money/.test(sys)){const ids=[...u0.matchAll(/^(g\d+): (.+)$/gm)].filter(m=>{const ex=(m[2].match(/e\.g\. ([-\d., ]+)/)||[])[1]||'';const big=ex.split(',').map(v=>Math.abs(parseFloat(v))).filter(Number.isFinite).some(v=>v>=1000);
-      const moneyWord=/\b(quarterly rent|rent|loan|repayment|equity|price|cost|value|proceeds|capex|capital expenditure|commitments?|land)\b/i.test(m[2])&&!/shown as %|rate|growth|ratio|share|in its formula/i.test(m[2]);
-      return (big||moneyWord)&&!/shown as %|in its formula|calendar|\bdates?\b|period|\bquarters?\b|\bmonths?\b|\byears?\b(?!\s*\d)|beds|units|sq|area|count/i.test(m[2].replace(/\(.*?cells?, e\.g\..*\)$/,''))}).map(m=>m[1]);return reply(JSON.stringify({money:ids}))}
+      const L=m[2].replace(/\s*\([^()]*\bcells?, e\.g\.[^()]*\)\s*$/,''),Lq=L.replace(/(?:\bper\b|\/|\ba\b)\s*(?:leased\s+)?[\w.]+(?:\s*\/\s*\w+)?/gi,' ');   // "per kW a month" is the unit a rent is quoted in, not a count
+      {const fc=m[2].match(/^(.*?) · the ([\d.]+) in its formula (=.*?) \(/);if(fc)return +fc[2]>=10&&new RegExp('×\\s*'+fc[2].replace('.','\\.')+'(?![\\d.])').test(fc[3])&&/\b(rent|price|land)\b/i.test(fc[1])}   // a number written in a formula: "Land = area × 42" is a price; "/4" a count of quarters
+      if(/shown as %/.test(m[2]))return false;if(/[$£€¥]|\b(SAR|USD|EUR|GBP|AED|QAR|CHF|INR|EGP|JPY|KWD|SEK|PLN|BRL|ZAR|SGD|HKD|CAD|NZD)\b/.test(L)&&!/%|\bbps\b/.test(L))return true;   // a currency stated on the line: "Average daily rate (SAR)"
+      if(/%/.test(L)||/\b(rate|growth|ratio|share|yield|margin|multiple|pue|utili[sz]ation|occupancy|probability|escalation|inflation|cap|ltv|ltc|dscr|hurdle|carry|carried|bps)\b/i.test(L))return false;
+      if(/[$£€¥]|\b(SAR|USD|EUR|GBP|AED|QAR|CHF|INR|EGP|JPY|KWD|SEK|PLN|BRL|ZAR|SGD|HKD|CAD|NZD)\b/.test(L))return true;   // a currency stated on the line
+      const unit=(L.match(/\(([^()]*)\)\s*$/)||[])[1]||'',Q=/\b(kw|mw|mwh|sqm|sq\s*ft|sq|sf|gfa|gla|area|beds?|units|keys|count|apartments|calendar|dates?|period|quarters?|months?|days?|years?(?![\s-]*\d)|phase)\b/i;
+      if(/\b(quarterly rent|rent|loan|repayment|equity|price|cost|value|proceeds|capex|capital expenditure|commitments?|land|income|noi|ebitda|insurance|taxes|utilities|staffing|maintenance|shell|fit-out|infrastructure|mep|cooling|contingency)\b/i.test(L))return !Q.test(unit)&&!Q.test(Lq.split('·').pop());   /* "Land Acquisition · Start Month" is a month */   // a money line, unless its own unit is a period, an area or a count: "Rent-free (months)"
+      return big&&!Q.test(Lq)}).map(m=>m[1]);return reply(JSON.stringify({money:ids}))}
   return reply('{}')});return ctx}
 const errs=[];let pass=0,fail=0;const T=out=>(c,m)=>{out.push((c?'PASS':'FAIL')+' | '+m);c?pass++:fail++};
 // the models run on a few pages at once (R36_PAR, default 3); each model's lines are printed together
@@ -27,7 +33,7 @@ async function one(f,g,ctx){const out=[],t=T(out),p=await ctx.newPage();p.on('pa
   for(let i=0;i<40;i++){await p.waitForTimeout(500);if(await p.evaluate(()=>{const x=latestExport();return !!(x&&x.map)}))break}
   const r=await p.evaluate(async g=>{const x=latestExport();await xcEngine(x);const runs=[[],...g.changes.map(c=>[c[0]])];const res=await xcQ(()=>xcCall({op:'run',runs,read:g.read,reset:true}));
     const m=x.map;const cf=(m.cashflows||[]).map(c=>[c.irr,m.proof['cf:'+c.irr]]);const units=[];
-    for(const k of ['net_profit','total_cost','gross_revenue','peak_debt','gp_profit','lp_profit'])if(x.cells[k]&&Number.isFinite(x.out[k])){const [v]=await xcQ(()=>xcCall({op:'get',refs:[x.cells[k]]}));const sh=String(x.cells[k]).replace(/!.*$/,'');const u=((m.units||[]).find(z=>z.sheet===sh)||{}).scale||1;units.push([k,x.out[k],v,u])}
+    for(const k of ['net_profit','total_cost','gross_revenue','peak_debt','gp_profit','lp_profit'])if(x.cells[k]&&Number.isFinite(x.out[k])){const [v]=await xcQ(()=>xcCall({op:'get',refs:[x.cells[k]]}));const sh=String(x.cells[k]).replace(/!.*$/,'');const u=((m.units||[]).find(z=>z.sheet===sh)||{}).scale||xcLineScale(String((x.found||{})[k]||''))||1;   /* or the unit the line states: “Net profit to LPs (EUR m)” */units.push([k,x.out[k],v,u])}
     const mult=[];for(const k of Object.keys(x.cells))if(/multiple/.test(k)&&Number.isFinite(x.out[k])){const [v]=await xcQ(()=>xcCall({op:'get',refs:[x.cells[k]]}));mult.push([k,x.out[k],v])}
     return{res,cf,units,mult,sw:m.scenario?m.proof.scenario:null}},g);
   const close=(a,b2)=>a.every((v,i)=>Math.abs(v-b2[i])<2e-6);
