@@ -1,0 +1,240 @@
+{
+ "_about": "Golden answers from LibreOffice for t_round36: each synthetic model, the cells read, and each change with the values LibreOffice gives after recalculating (fractions).",
+ "r34_fund_sar": {
+  "read": [
+   "Summary!F6",
+   "Summary!F7",
+   "Summary!C10"
+  ],
+  "base": [
+   0.144443,
+   0.130992,
+   0.151612
+  ],
+  "changes": [
+   [
+    [
+     "Assumptions!C18",
+     1980000
+    ],
+    [
+     0.189862,
+     0.168102,
+     0.190001
+    ]
+   ],
+   [
+    [
+     "Assumptions!C12",
+     0.06
+    ],
+    [
+     0.142405,
+     0.129305,
+     0.151612
+    ]
+   ]
+  ],
+  "switch": "Assumptions!C7",
+  "key": {
+   "levered_irr": "Summary!F6",
+   "lp_irr": "Summary!F7",
+   "unlevered_irr": "Summary!C10",
+   "net_profit": "Summary!C8"
+  }
+ },
+ "r33_waha_sar": {
+  "read": [
+   "Returns!B2",
+   "Returns!B3"
+  ],
+  "base": [
+   0.112081,
+   0.153431
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!B4",
+     33000000
+    ],
+    [
+     0.126757,
+     0.177027
+    ]
+   ],
+   [
+    [
+     "Inputs!B10",
+     0.07
+    ],
+    [
+     0.112081,
+     0.145368
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Returns!B2",
+   "levered_irr": "Returns!B3"
+  }
+ },
+ "r32_hold_usd": {
+  "read": [
+   "Summary!B2"
+  ],
+  "base": [
+   0.07218
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!B2",
+     1100000
+    ],
+    [
+     0.085721
+    ]
+   ],
+   [
+    [
+     "Inputs!B6",
+     0.07
+    ],
+    [
+     0.066335
+    ]
+   ]
+  ]
+ },
+ "r32_qtr_eur": {
+  "read": [
+   "Summary!B2"
+  ],
+  "base": [
+   0.399488
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!B2",
+     275000
+    ],
+    [
+     0.452162
+    ]
+   ],
+   [
+    [
+     "Inputs!B6",
+     0.06
+    ],
+    [
+     0.3865
+    ]
+   ]
+  ]
+ },
+ "r32_vert_gbp": {
+  "read": [
+   "Annual!B15"
+  ],
+  "base": [
+   0.006364
+  ],
+  "changes": [
+   [
+    [
+     "Annual!G3",
+     5720
+    ],
+    [
+     0.027709
+    ]
+   ],
+   [
+    [
+     "Annual!G7",
+     9900000
+    ],
+    [
+     -0.014053
+    ]
+   ]
+  ]
+ },
+ "r35_dev_monthly_usd": {
+  "read": [
+   "Summary!S25",
+   "Summary!S26"
+  ],
+  "base": [
+   0.367004,
+   0.63388
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!B5",
+     2310000
+    ],
+    [
+     0.41345,
+     0.711203
+    ]
+   ],
+   [
+    [
+     "Inputs!B9",
+     0.08
+    ],
+    [
+     0.367004,
+     0.621558
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Summary!S25",
+   "levered_irr": "Summary!S26",
+   "lp_irr": "Summary!S21"
+  }
+ },
+ "r35_mixed_partner_usd": {
+  "read": [
+   "Summary!I9",
+   "Summary!I10"
+  ],
+  "base": [
+   0.214968,
+   0.35199
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!B4",
+     41800000
+    ],
+    [
+     0.262024,
+     0.440797
+    ]
+   ],
+   [
+    [
+     "Inputs!B7",
+     0.085
+    ],
+    [
+     0.214968,
+     0.340079
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Summary!I9",
+   "levered_irr": "Summary!I10",
+   "lp_irr": "Summary!I12"
+  }
+ }
+}
