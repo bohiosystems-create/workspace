@@ -539,5 +539,72 @@
    "levered_irr": "Returns!C7",
    "equity_multiple": "Returns!D7"
   }
+ },
+ "r42_office_gbp": {
+  "read": [
+   "Summary!C6",
+   "Summary!C7"
+  ],
+  "base": [
+   0.083122,
+   0.099394
+  ],
+  "changes": [
+   [
+    [
+     "Assumptions!C6",
+     65
+    ],
+    [
+     0.071571,
+     0.080547
+    ]
+   ],
+   [
+    [
+     "Assumptions!C9",
+     0.06
+    ],
+    [
+     0.072118,
+     0.081552
+    ]
+   ],
+   [
+    [
+     "Rent Roll!F8",
+     0.9
+    ],
+    [
+     0.083329,
+     0.099726
+    ]
+   ],
+   [
+    [
+     "Assumptions!C13",
+     0.07
+    ],
+    [
+     0.083122,
+     0.091095
+    ]
+   ],
+   [
+    [
+     "Rent Roll!E8",
+     4
+    ],
+    [
+     0.084104,
+     0.100917
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Summary!C6",
+   "levered_irr": "Summary!C7",
+   "equity_multiple": "Summary!C8"
+  }
  }
 }
