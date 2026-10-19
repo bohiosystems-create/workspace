@@ -1,6 +1,7 @@
 {
- "_about": "Golden answers from LibreOffice for t_round36: each synthetic model, the cells read, and each change with the values LibreOffice gives after recalculating (fractions).",
+ "_about": "Golden answers from LibreOffice for t_round36: each synthetic model, the cells read, and each change with the values LibreOffice gives after recalculating (fractions). Each model names its family (development, fund, acquisition, stnl, mixed-use, data centre, operating; layout: reader layouts only).",
  "r34_fund_sar": {
+  "family": "fund",
   "read": [
    "Summary!F6",
    "Summary!F7",
@@ -44,6 +45,7 @@
   }
  },
  "r33_waha_sar": {
+  "family": "development",
   "read": [
    "Returns!B2",
    "Returns!B3"
@@ -80,6 +82,7 @@
   }
  },
  "r32_hold_usd": {
+  "family": "layout",
   "read": [
    "Summary!B2"
   ],
@@ -108,6 +111,7 @@
   ]
  },
  "r32_qtr_eur": {
+  "family": "layout",
   "read": [
    "Summary!B2"
   ],
@@ -136,6 +140,7 @@
   ]
  },
  "r32_vert_gbp": {
+  "family": "layout",
   "read": [
    "Annual!B15"
   ],
@@ -164,6 +169,7 @@
   ]
  },
  "r35_dev_monthly_usd": {
+  "family": "development",
   "read": [
    "Summary!S25",
    "Summary!S26"
@@ -201,6 +207,7 @@
   }
  },
  "r35_mixed_partner_usd": {
+  "family": "mixed-use",
   "read": [
    "Summary!I9",
    "Summary!I10"
@@ -238,6 +245,7 @@
   }
  },
  "r37_acq_monthly_usd": {
+  "family": "acquisition",
   "read": [
    "AnnualCF & Returns!D23",
    "AnnualCF & Returns!D30"
@@ -294,6 +302,7 @@
   }
  },
  "r38_stnl_usd": {
+  "family": "stnl",
   "read": [
    "Summary!F18",
    "Summary!F19"
@@ -360,6 +369,7 @@
   }
  },
  "r39_fund_waterfall_eur": {
+  "family": "fund",
   "read": [
    "Fund Summary!C6",
    "Fund Summary!C7"
@@ -416,6 +426,7 @@
   }
  },
  "r40_offplan_sar": {
+  "family": "development",
   "read": [
    "Results!C10",
    "Results!C11"
@@ -474,6 +485,7 @@
   }
  },
  "r41_hotel_aed": {
+  "family": "operating",
   "read": [
    "Returns!C6",
    "Returns!C7"
@@ -541,6 +553,7 @@
   }
  },
  "r42_office_gbp": {
+  "family": "acquisition",
   "read": [
    "Summary!C6",
    "Summary!C7"
@@ -608,6 +621,7 @@
   }
  },
  "r43_btr_sar": {
+  "family": "development",
   "read": [
    "Dashboard!C5",
    "Dashboard!C6"
@@ -672,6 +686,630 @@
    "unlevered_irr": "Dashboard!C5",
    "levered_irr": "Dashboard!C6",
    "equity_multiple": "Dashboard!C8"
+  }
+ },
+ "r22_dc_usd": {
+  "family": "data centre",
+  "read": [
+   "Returns!B4",
+   "Returns!B3"
+  ],
+  "base": [
+   0.169087,
+   0.274796
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!B7",
+     125
+    ],
+    [
+     0.181908,
+     0.296867
+    ]
+   ],
+   [
+    [
+     "Inputs!B24",
+     0.0675
+    ],
+    [
+     0.157952,
+     0.256298
+    ]
+   ],
+   [
+    [
+     "Inputs!B17",
+     0.095
+    ],
+    [
+     0.169087,
+     0.273951
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Returns!B4",
+   "levered_irr": "Returns!B3"
+  }
+ },
+ "r18_mixed_sar": {
+  "family": "mixed-use",
+  "read": [
+   "Returns!B3",
+   "Returns!B4"
+  ],
+  "base": [
+   0.156915,
+   0.187899
+  ],
+  "changes": [
+   [
+    [
+     "Scenarios!B2",
+     10000
+    ],
+    [
+     0.162868,
+     0.195866
+    ]
+   ],
+   [
+    [
+     "Scenarios!B5",
+     0.08
+    ],
+    [
+     0.153807,
+     0.184097
+    ]
+   ],
+   [
+    [
+     "Inputs!B13",
+     0.075
+    ],
+    [
+     0.156956,
+     0.185043
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Returns!B3",
+   "levered_irr": "Returns!B4"
+  }
+ },
+ "demo_nakheel_gate": {
+  "family": "mixed-use",
+  "read": [
+   "Dashboard!B7",
+   "Dashboard!B6"
+  ],
+  "base": [
+   0.117644,
+   0.141076
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!C18",
+     6800
+    ],
+    [
+     0.098473,
+     0.107646
+    ]
+   ],
+   [
+    [
+     "Inputs!C24",
+     1650000
+    ],
+    [
+     0.110329,
+     0.128016
+    ]
+   ],
+   [
+    [
+     "Inputs!C11",
+     36
+    ],
+    [
+     0.112378,
+     0.130787
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Dashboard!B7",
+   "levered_irr": "Dashboard!B6"
+  },
+  "ccy": "SAR"
+ },
+ "r19_fund_eur": {
+  "family": "fund",
+  "read": [
+   "Returns!B3",
+   "Returns!B4"
+  ],
+  "base": [
+   0.162281,
+   0.124633
+  ],
+  "changes": [
+   [
+    [
+     "Deals!E2",
+     1.5
+    ],
+    [
+     0.151411,
+     0.113707
+    ]
+   ],
+   [
+    [
+     "Fund!B12",
+     0.25
+    ],
+    [
+     0.162281,
+     0.118568
+    ]
+   ],
+   [
+    [
+     "Fund!B10",
+     0.07
+    ],
+    [
+     0.162281,
+     0.122573
+    ]
+   ]
+  ],
+  "key": {
+   "levered_irr": "Returns!B3",
+   "lp_irr": "Returns!B4"
+  }
+ },
+ "r21_fundc_usd": {
+  "family": "fund",
+  "read": [
+   "Returns!B3",
+   "Returns!B4"
+  ],
+  "base": [
+   0.189232,
+   0.152719
+  ],
+  "changes": [
+   [
+    [
+     "Deal A Logistics!B4",
+     9000000
+    ],
+    [
+     0.196049,
+     0.159382
+    ]
+   ],
+   [
+    [
+     "Fund!B12",
+     0.25
+    ],
+    [
+     0.189232,
+     0.146319
+    ]
+   ],
+   [
+    [
+     "Deal B Resi Dev!B5",
+     250000000
+    ],
+    [
+     0.177533,
+     0.140538
+    ]
+   ]
+  ],
+  "key": {
+   "levered_irr": "Returns!B3",
+   "lp_irr": "Returns!B4"
+  }
+ },
+ "desk_fund_eur": {
+  "family": "fund",
+  "read": [
+   "Fund Returns!B3",
+   "Fund Returns!B4"
+  ],
+  "base": [
+   0.148356,
+   0.118004
+  ],
+  "changes": [
+   [
+    [
+     "Assets!E4",
+     1.4
+    ],
+    [
+     0.14006,
+     0.110803
+    ]
+   ],
+   [
+    [
+     "Fund!B15",
+     0.25
+    ],
+    [
+     0.148356,
+     0.114814
+    ]
+   ]
+  ],
+  "key": {
+   "levered_irr": "Fund Returns!B3",
+   "lp_irr": "Fund Returns!B4"
+  }
+ },
+ "r20_refi_usd": {
+  "family": "acquisition",
+  "read": [
+   "Returns!B3"
+  ],
+  "base": [
+   0.12126
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!B21",
+     0.06
+    ],
+    [
+     0.080253
+    ]
+   ],
+   [
+    [
+     "Inputs!B5",
+     7000000
+    ],
+    [
+     0.159703
+    ]
+   ],
+   [
+    [
+     "Inputs!B8",
+     0.035
+    ],
+    [
+     0.112857
+    ]
+   ]
+  ],
+  "key": {
+   "levered_irr": "Returns!B3"
+  }
+ },
+ "desk_refi_chf": {
+  "family": "acquisition",
+  "read": [
+   "KPIs!B3"
+  ],
+  "base": [
+   0.103092
+  ],
+  "changes": [
+   [
+    [
+     "Assumptions!B11",
+     0.05
+    ],
+    [
+     0.063736
+    ]
+   ],
+   [
+    [
+     "Assumptions!B6",
+     0.015
+    ],
+    [
+     0.095319
+    ]
+   ]
+  ],
+  "key": {
+   "levered_irr": "KPIs!B3"
+  }
+ },
+ "r45_datacenter_usd": {
+  "family": "data centre",
+  "read": [
+   "Underwriting!J5",
+   "Underwriting!J6"
+  ],
+  "base": [
+   0.154177,
+   0.250788
+  ],
+  "changes": [
+   [
+    [
+     "Underwriting!D29",
+     140
+    ],
+    [
+     0.164901,
+     0.275222
+    ]
+   ],
+   [
+    [
+     "Underwriting!C48",
+     0.07
+    ],
+    [
+     0.132722,
+     0.202067
+    ]
+   ],
+   [
+    [
+     "Underwriting!C17",
+     11000
+    ],
+    [
+     0.135427,
+     0.208792
+    ]
+   ],
+   [
+    [
+     "Underwriting!E8",
+     60
+    ],
+    [
+     0.167575,
+     0.276479
+    ]
+   ],
+   [
+    [
+     "Underwriting!E26",
+     0.4
+    ],
+    [
+     0.154177,
+     0.232972
+    ]
+   ],
+   [
+    [
+     "Underwriting!F30",
+     30
+    ],
+    [
+     0.149601,
+     0.239683
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Underwriting!J5",
+   "levered_irr": "Underwriting!J6"
+  }
+ },
+ "r46_stnl_qsr_aed": {
+  "family": "stnl",
+  "read": [
+   "Deal Summary!B9",
+   "Deal Summary!B10"
+  ],
+  "base": [
+   0.065716,
+   0.074187
+  ],
+  "changes": [
+   [
+    [
+     "Assumptions!B3",
+     15000000
+    ],
+    [
+     0.057978,
+     0.055813
+    ]
+   ],
+   [
+    [
+     "Assumptions!B13",
+     0.08
+    ],
+    [
+     0.058478,
+     0.056968
+    ]
+   ],
+   [
+    [
+     "Assumptions!B17",
+     0.07
+    ],
+    [
+     0.065716,
+     0.059829
+    ]
+   ],
+   [
+    [
+     "Assumptions!B9",
+     0.85
+    ],
+    [
+     0.05694,
+     0.053082
+    ]
+   ],
+   [
+    [
+     "Assumptions!B12",
+     12
+    ],
+    [
+     0.069017,
+     0.081004
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Deal Summary!B9",
+   "levered_irr": "Deal Summary!B10"
+  }
+ },
+ "r47_dc_campus_sar": {
+  "family": "data centre",
+  "read": [
+   "Returns!B4",
+   "Returns!C4"
+  ],
+  "base": [
+   0.138177,
+   0.243417
+  ],
+  "changes": [
+   [
+    [
+     "Campus!B9",
+     300
+    ],
+    [
+     0.11986,
+     0.20363
+    ]
+   ],
+   [
+    [
+     "Campus!B19",
+     0.08
+    ],
+    [
+     0.125541,
+     0.218957
+    ]
+   ],
+   [
+    [
+     "Campus!B17",
+     0.08
+    ],
+    [
+     0.138177,
+     0.230563
+    ]
+   ],
+   [
+    [
+     "Campus!E5",
+     45
+    ],
+    [
+     0.129336,
+     0.225086
+    ]
+   ],
+   [
+    [
+     "Campus!B18",
+     28
+    ],
+    [
+     0.143454,
+     0.252514
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Returns!B4",
+   "levered_irr": "Returns!C4"
+  }
+ },
+ "r48_stnl_branch_gbp": {
+  "family": "stnl",
+  "read": [
+   "Summary!B8",
+   "Summary!B9"
+  ],
+  "base": [
+   0.082684,
+   0.098739
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!B4",
+     6500000
+    ],
+    [
+     0.074597,
+     0.084438
+    ]
+   ],
+   [
+    [
+     "Inputs!B13",
+     0.07
+    ],
+    [
+     0.074119,
+     0.083951
+    ]
+   ],
+   [
+    [
+     "Inputs!B9",
+     0.035
+    ],
+    [
+     0.088361,
+     0.108343
+    ]
+   ],
+   [
+    [
+     "Inputs!B17",
+     0.045
+    ],
+    [
+     0.082684,
+     0.093167
+    ]
+   ],
+   [
+    [
+     "Inputs!B12",
+     48
+    ],
+    [
+     0.088824,
+     0.108458
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Summary!B8",
+   "levered_irr": "Summary!B9"
   }
  }
 }

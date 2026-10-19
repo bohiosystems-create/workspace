@@ -30,11 +30,11 @@ API_SET="t_em t_feed t_xmodel t_dbgempty t_dbgwin t_roa t_check t_shell t_menu t
 if [ "$MODE" = core ]; then
   # the pre-push tier (about 10 minutes): the answer path on uploaded workbooks, the newest rounds and the mock-API build; CI runs quick on the push, full nightly
   echo "== browser tests (core)"
-  for t in t_smoke t_em t_xcalc t_accuracy t_speed t_projects t_xldl t_aifirst t_repupload t_round32 t_round33 t_round34 t_round35 t_round36 t_round37; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
+  for t in t_smoke t_em t_xcalc t_accuracy t_speed t_projects t_xldl t_aifirst t_repupload t_round32 t_round33 t_round34 t_round35 t_round36 t_round37 t_round38; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
   for t in t_em; do run "$t api" node "$t.mjs" "$AP" api; done
 elif [ "$MODE" = quick ]; then
   echo "== browser tests (quick)"
-  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y t_report t_hotelup t_talk t_syscheck t_chathist t_adr t_xcalc t_xcreview t_xcmodel2 t_xcread t_accuracy t_debugai t_nohurdle t_voicefail t_rdchat t_versions t_feas t_xldl t_drivers t_speed t_noest t_projects t_desk t_aifirst t_round11 t_repupload t_agents22 t_round22 t_round23 t_round24 t_round25 t_round26 t_round27 t_round28 t_aires t_aistrong t_round29 t_round30 t_round32 t_round33 t_round34 t_round35 t_round36 t_round37; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
+  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y t_report t_hotelup t_talk t_syscheck t_chathist t_adr t_xcalc t_xcreview t_xcmodel2 t_xcread t_accuracy t_debugai t_nohurdle t_voicefail t_rdchat t_versions t_feas t_xldl t_drivers t_speed t_noest t_projects t_desk t_aifirst t_round11 t_repupload t_agents22 t_round22 t_round23 t_round24 t_round25 t_round26 t_round27 t_round28 t_aires t_aistrong t_round29 t_round30 t_round32 t_round33 t_round34 t_round35 t_round36 t_round37 t_round38; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
   for t in t_feed t_play t_deck t_btns; do run "$t analyst" node "$t.mjs" "$AN" analyst; done
   for t in t_em t_api t_fix14 t_a11y; do run "$t api" node "$t.mjs" "$AP" api; done
 else

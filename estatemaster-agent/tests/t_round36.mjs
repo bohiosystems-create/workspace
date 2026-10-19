@@ -7,18 +7,21 @@
 import {chromium} from 'playwright';import fs from 'fs';
 const F=new globalThis.URL('./fixtures/models/',import.meta.url).pathname;const G=JSON.parse(fs.readFileSync(new globalThis.URL('./fixtures/golden/props.json',import.meta.url).pathname,'utf8'));
 const base=process.argv[2]||'http://localhost:4090/?mode=readonly';
-const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined}),p=await (await b.newContext({viewport:{width:1400,height:900}})).newPage();await p.route(/cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/,r=>r.abort());
-await p.route('**/api/log',r=>r.fulfill({status:200,body:'{}'}));let AI=true;   // an AI is connected, as on production (the money lines are read by it)
-await p.route('**/api/llm',async r=>{if(r.request().method()==='GET')return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({providers:AI?{anthropic:true,openai:true}:{}})});if(!AI)return r.fulfill({status:503,body:'{}'});
+const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||undefined});
+// one browser context per worker: each model clears the page's storage
+async function mk(){const ctx=await b.newContext({viewport:{width:1400,height:900}});await ctx.route(/cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com/,r=>r.abort());
+await ctx.route('**/api/log',r=>r.fulfill({status:200,body:'{}'}));let AI=true;   // an AI is connected, as on production (the money lines are read by it)
+await ctx.route('**/api/llm',async r=>{if(r.request().method()==='GET')return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({providers:AI?{anthropic:true,openai:true}:{}})});if(!AI)return r.fulfill({status:503,body:'{}'});
   const j=JSON.parse(r.request().postData()),pl=j.payload,sys=String(pl.system||(pl.messages[0]&&pl.messages[0].role==='system'?pl.messages[0].content:''));const u0=String((pl.messages.find(m=>m.role==='user')||{}).content||'');
   const reply=t=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(j.provider==='openai'?{choices:[{message:{content:t},finish_reason:'stop'}]}:{model:pl.model,content:[{type:'text',text:t}],stop_reason:'end_turn'})});
   // the AI's money classification, as a careful reader would: amounts are money; rates, shares, counts, periods, dates and areas are not
   if(/amounts of money/.test(sys)){const ids=[...u0.matchAll(/^(g\d+): (.+)$/gm)].filter(m=>{const ex=(m[2].match(/e\.g\. ([-\d., ]+)/)||[])[1]||'';const big=ex.split(',').map(v=>Math.abs(parseFloat(v))).filter(Number.isFinite).some(v=>v>=1000);
       const moneyWord=/\b(quarterly rent|rent|loan|repayment|equity|price|cost|value|proceeds|capex|capital expenditure|commitments?|land)\b/i.test(m[2])&&!/shown as %|rate|growth|ratio|share|in its formula/i.test(m[2]);
       return (big||moneyWord)&&!/shown as %|in its formula|calendar|\bdates?\b|period|\bquarters?\b|\bmonths?\b|\byears?\b(?!\s*\d)|beds|units|sq|area|count/i.test(m[2].replace(/\(.*?cells?, e\.g\..*\)$/,''))}).map(m=>m[1]);return reply(JSON.stringify({money:ids}))}
-  return reply('{}')});
-const errs=[];p.on('pageerror',e=>errs.push(e.message));let pass=0,fail=0;const t=(c,m)=>{console.log((c?'PASS':'FAIL')+' | '+m);c?pass++:fail++};
-for(const [f,g] of Object.entries(G)){if(f[0]==='_')continue;
+  return reply('{}')});return ctx}
+const errs=[];let pass=0,fail=0;const T=out=>(c,m)=>{out.push((c?'PASS':'FAIL')+' | '+m);c?pass++:fail++};
+// the models run on a few pages at once (R36_PAR, default 3); each model's lines are printed together
+async function one(f,g,ctx){const out=[],t=T(out),p=await ctx.newPage();p.on('pageerror',e=>errs.push(f+': '+e.message));try{
   await p.goto(base);await p.evaluate(()=>{localStorage.clear();localStorage.setItem('em_map2','1')});await p.reload();await p.waitForTimeout(1200);
   await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',F+f+'.xlsx');await p.waitForTimeout(1800);await p.click('#npCreate');
   for(let i=0;i<40;i++){await p.waitForTimeout(500);if(await p.evaluate(()=>{const x=latestExport();return !!(x&&x.map)}))break}
@@ -36,6 +39,8 @@ for(const [f,g] of Object.entries(G)){if(f[0]==='_')continue;
   t(r.mult.every(([k,o,v])=>typeof v==='number'&&Math.abs(o-v)<=1e-4*Math.max(1,Math.abs(v))),`${f}: every multiple is its cell as it stands, never scaled by a sheet’s unit: ${r.mult.map(([k,o,v])=>`${k} ${o} (cell ${v})`).join(', ')||'no multiple'}`);
   if(g.switch)t(r.sw==='ok',`${f}: the scenario switch moves the results`);
   // a fixed-rate conversion cannot move an IRR
-  const fx=await p.evaluate(async CCY=>{const x=latestExport();try{const r=await a33Fx(x,{from:CCY,to:CCY==='EUR'?'USD':'EUR',rate:0.25,rate_is:'to_per_from'},async()=>{});return r&&r.figs?{same:r.same,n:r.pick.length,drop:(r.dropped||[]).map(g=>g.label),flag:/To be confirmed/.test(a33FxOut(r).md)}:{err:JSON.stringify(r).slice(0,160)}}catch(e){return{err:e.message}}},f.split('_').pop().toUpperCase());
+  const fx=await p.evaluate(async CCY=>{const x=latestExport();try{const r=await a33Fx(x,{from:CCY,to:CCY==='EUR'?'USD':'EUR',rate:0.25,rate_is:'to_per_from'},async()=>{});return r&&r.figs?{same:r.same,n:r.pick.length,drop:(r.dropped||[]).map(g=>g.label),flag:/To be confirmed/.test(a33FxOut(r).md)}:{err:JSON.stringify(r).slice(0,160)}}catch(e){return{err:e.message}}},g.ccy||f.split('_').pop().toUpperCase());
   t(fx.same===true&&fx.n>0&&(!fx.drop.length||fx.flag),`${f}: converting at one fixed rate leaves every IRR unchanged, and any line left out is put to the user (${fx.n||0} money lines converted${fx.drop&&fx.drop.length?'; left as not money: '+fx.drop.join(', '):''})${fx.err?' '+fx.err:''}`)}
-t(!errs.length,'no page errors: '+errs.join(' | '));console.log(`${pass} pass, ${fail} fail`);await b.close();process.exit(fail?1:0);
+  catch(e){t(false,`${f}: stopped: ${e.message.slice(0,200)}`)}await p.close();console.log(out.join('\n'))}
+{const q=Object.entries(G).filter(([f])=>f[0]!=='_');await Promise.all(Array.from({length:+(process.env.R36_PAR||3)},async()=>{const ctx=await mk();while(q.length){const [f,g]=q.shift();await one(f,g,ctx)}}))}
+const t=T([]);t(!errs.length,'no page errors: '+errs.join(' | '));console.log(`${pass} pass, ${fail} fail`);await b.close();process.exit(fail?1:0);

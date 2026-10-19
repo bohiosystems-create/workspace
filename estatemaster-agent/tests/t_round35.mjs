@@ -11,7 +11,7 @@ await p.route('**/api/llm',async r=>{if(r.request().method()==='GET')return r.fu
   const reply=t=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(j.provider==='openai'?{choices:[{message:{content:t},finish_reason:'stop'}]}:{model:pl.model,content:[{type:'text',text:t}],stop_reason:'end_turn'})});
   if(/"headlines":\[/.test(sys))return reply(JSON.stringify(AI));return reply('{}')});
 const errs=[];p.on('pageerror',e=>errs.push(e.message));let pass=0,fail=0;const t=(c,m)=>{console.log((c?'PASS':'FAIL')+' | '+m);c?pass++:fail++};
-const up=async(on=true)=>{await p.goto(base);await p.evaluate(o=>{localStorage.clear();if(o)localStorage.setItem('em_map2','1')},on);await p.reload();await p.waitForTimeout(1500);
+const up=async(on=true)=>{await p.goto(base);await p.evaluate(o=>{localStorage.clear();localStorage.setItem('em_map2',o?'1':'0')},on);await p.reload();await p.waitForTimeout(1500);
   await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',F+'r34_fund_sar.xlsx');await p.waitForTimeout(1800);await p.click('#npCreate');
   for(let i=0;i<40;i++){await p.waitForTimeout(500);if(await p.evaluate(()=>{const x=latestExport();return !!(x&&x.map)}))break}await p.waitForTimeout(500)};
 const st=()=>p.evaluate(()=>{const x=latestExport(),m=x.map;return{has:!!m,by:m&&m.by,lev:x.cells.levered_irr,levv:x.out.levered_irr,lp:x.cells.lp_irr,np:x.cells.net_profit,npv:x.out.net_profit,proof:m&&m.proof,ask:m&&m.ask?Object.keys(m.ask):[],hold:m&&m.hold&&m.hold.cell,sw:m&&m.scenario&&m.scenario.switch,
