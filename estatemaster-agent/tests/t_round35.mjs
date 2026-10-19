@@ -30,7 +30,11 @@ await up();{const s=await st();
   await p.click('[data-mapok]');await p.waitForTimeout(300);t(await p.evaluate(()=>latestExport().mapOk===true),'“This is right” saves the confirmation with the model')}
 // 2. the AI reads the LP net IRR as the levered IRR, on the LP cash flow: both readings prove, so the user is asked; their choice is applied
 AI={...base34,headlines:[H('levered_irr','Summary!F7','LP net IRR (after all fees & promote)','equity'),H('unlevered_irr','Summary!C10','Project unlevered IRR','project'),H('net_profit','Summary!C8','Project profit (unlevered)','project')],cashflows:[{irr:'levered_irr',row:'Cash Flow!E18:AB18'},{irr:'unlevered_irr',row:'Cash Flow!E9:AB9'}]};
-await up();{const s=await st();
+await up();{const s=await st();t(s.lev==='Summary!F6'&&!s.ask.length&&/house definition/.test(s.card),'two proved readings, settled by the house definition (levered IRR = the fund’s gross IRR): '+s.lev)}
+await p.evaluate(()=>localStorage.setItem('em_house',JSON.stringify({levered_irr:'lp'})));await p.evaluate(async()=>{const x=latestExport();delete x.map;await mapStart(x)});{const s=await st();t(s.lev==='Summary!F7','with the house definition set to the LPs’ net IRR, the same two readings settle the other way: '+s.lev)}
+const up2=async()=>{await p.goto(base);await p.evaluate(()=>{localStorage.clear();localStorage.setItem('em_map2','1');localStorage.setItem('em_house',JSON.stringify({levered_irr:'unset'}))});await p.reload();await p.waitForTimeout(1500);
+  await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',F+'r34_fund_sar.xlsx');await p.waitForTimeout(1800);await p.click('#npCreate');for(let i=0;i<40;i++){await p.waitForTimeout(500);if(await p.evaluate(()=>{const x=latestExport();return !!(x&&x.map)}))break}await p.waitForTimeout(500)};
+await up2();{const s=await st();
   t(s.ask.includes('levered_irr')&&s.proof['h:levered_irr']==='ask','two proved readings of the levered IRR: the user is asked, nothing silently picked');
   t(s.lev==='Summary!F6','until the user answers, the figure stays as read: '+s.lev);t(/two cells both hold up/.test(s.card)&&/Summary!F7/.test(s.card)&&/Summary!F6/.test(s.card),'the card shows both cells with their values');
   await p.click('[data-mapask$="|levered_irr|Summary!F6"]');await p.waitForTimeout(800);const s2=await st();t(s2.lev==='Summary!F6'&&!s2.ask.includes('levered_irr')&&s2.proof['h:levered_irr']==='ok','the user’s choice is applied and proved: '+s2.lev)}
