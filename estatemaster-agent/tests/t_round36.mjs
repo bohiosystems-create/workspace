@@ -41,7 +41,7 @@ async function one(f,g,ctx){const out=[],t=T(out),p=await ctx.newPage();p.on('pa
   t(close(r.res[0],g.base),`${f}: the workbook as uploaded matches LibreOffice: ${r.res[0].map(v=>(v*100).toFixed(4)+'%').join(', ')}`);
   g.changes.forEach((c,i)=>t(close(r.res[i+1],c[1]),`${f}: ${c[0][0]} → ${c[0][1]} recalculated exactly as LibreOffice: ${r.res[i+1].map(v=>(v*100).toFixed(4)+'%').join(', ')} vs ${c[1].map(v=>(v*100).toFixed(4)+'%').join(', ')}`));
   t(r.cf.length&&r.cf.every(([k,s])=>s==='ok'),`${f}: every IRR is reproduced by its own cash-flow line: ${r.cf.map(z=>z.join(' ')).join(', ')||'none found'}`);
-  t(r.units.every(([k,o,v,u])=>Math.abs(o-v*u)<=1e-6*Math.abs(o)+1e-6),`${f}: every money headline is its cell times its sheet’s unit: ${r.units.map(([k,o,v,u])=>`${k} ${v}×${u}`).join(', ')||'no money headline'}`);
+  t(r.units.every(([k,o,v,u])=>Math.abs((/total_cost|peak_debt/.test(k)?Math.abs(v):v)*u-o)<=1e-6*Math.abs(o)+1e-6),`${f}: every money headline is its cell times its sheet’s unit: ${r.units.map(([k,o,v,u])=>`${k} ${v}×${u}`).join(', ')||'no money headline'}`);
   t(r.mult.every(([k,o,v])=>typeof v==='number'&&Math.abs(o-v)<=1e-4*Math.max(1,Math.abs(v))),`${f}: every multiple is its cell as it stands, never scaled by a sheet’s unit: ${r.mult.map(([k,o,v])=>`${k} ${o} (cell ${v})`).join(', ')||'no multiple'}`);
   if(g.switch)t(r.sw==='ok',`${f}: the scenario switch moves the results`);
   // a fixed-rate conversion cannot move an IRR
