@@ -3762,8 +3762,12 @@ function emHeadline(sheets) {
   for (const s of ordered) for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri]; if (!row) continue;
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string' || c.length > 80) continue;
+      // a bare "IRR" or "Equity Multiple" is read by the section it sits in: "IRR" under "Unlevered DCF" is the unlevered IRR, and the
+      // unlevered side's multiple is not the equity's
+      const side = /^\s*(x?irr|equity\s*multiple)\s*:?\s*$/i.test(c) ? emSide(s, ri, i) : null; if (side === 'unlevered' && /multiple/i.test(c)) continue;
+      const cl = side && /irr/i.test(c) ? (side === 'unlevered' ? 'Unlevered IRR' : 'Levered IRR') : c;
       for (const [k, re] of LAB) {
-        if (!re.test(c) || (k in out && !(/levered_irr|equity_multiple|net_profit/.test(k) && /^\s*(lp|gp|limited partner|general partner|investor|sponsor)s?\b/i.test(c)))) continue;   /* a partner's own figure is still read after the scheme's */ if (held[k] && !isSum(s)) continue; if (k === 'levered_irr' && /unlevered|ungeared|unleveraged/i.test(c)) continue; if (EX_SKIP(k, c)) continue;
+        if (!re.test(cl) || (k in out && !(/levered_irr|equity_multiple|net_profit/.test(k) && /^\s*(lp|gp|limited partner|general partner|investor|sponsor)s?\b/i.test(c)))) continue;   /* a partner's own figure is still read after the scheme's */ if (held[k] && !isSum(s)) continue; if (k === 'levered_irr' && /unlevered|ungeared|unleveraged/i.test(cl)) continue; if (EX_SKIP(k, c)) continue;
         // an operating income line (effective or potential gross income, a stabilised year) is not the scheme's gross revenue
         if (k === 'gross_revenue' && /\b(effective|potential|egi|pgi|egr|stabili[sz]ed|in-place|annual|per annum|year\s*1)\b/i.test(c)) continue;
         // an LP's or GP's own figure is kept aside: the scheme's figure, when the model has one, pairs with the scheme's IRR
@@ -3785,7 +3789,7 @@ function emHeadline(sheets) {
         if (party) { if (!(k in later)) later[k] = { v: +n.toFixed(4), f: `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`, a: A1(s.name, j0, r0) }; if (isSum(s)) held[k] = true;
           // a partner's own return (LP IRR, GP equity multiple) is kept as its own output, beside the scheme's
           const pk = (/^\s*(lp|limited|investor)/i.test(c) || lpTo ? 'lp' : 'gp') + (k === 'equity_multiple' ? '_multiple' : k === 'net_profit' ? '_profit' : '_irr'); if (!(pk in out)) { out[pk] = +n.toFixed(4); found[pk] = `${s.name} / ${c.trim()}`; cells[pk] = A1(s.name, j0, r0) } continue }
-        out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); if (!note && /net_profit|total_cost|gross_revenue|peak_debt/.test(k)) rawAt[k] = s; break;
+        out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${side ? ' · ' + side + ' section' : ''}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); if (!note && /net_profit|total_cost|gross_revenue|peak_debt/.test(k)) rawAt[k] = s; break;
       }
     }
   }
@@ -3794,6 +3798,13 @@ function emHeadline(sheets) {
   if (!('levered_irr' in out) && !('unlevered_irr' in out)) for (const s of sheets) { for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri] || []; const i = row.findIndex(c => typeof c === 'string' && /\bIRR\b/i.test(c) && c.length < 60 && !EX_SKIP('levered_irr', c)); if (i < 0) continue; const seg = row.slice(i + 1, emNextLabel(row, i)), v = seg.find(x => typeof x === 'number'); if (v == null) continue;
       out.levered_irr = +(Math.abs(v) < 1 ? v * 100 : v).toFixed(4); found.levered_irr = `${s.name} / ${row[i].trim()} (taken as the levered IRR: check)`; cells.levered_irr = A1(s.name, i + 1 + seg.indexOf(v), ri); break; } if ('levered_irr' in out) break; }
   return { out, found, cells };
+}
+/* the side a section heading above a label names: the nearest label with no figure of its own, in the label's column or the one before */
+function emSide(s, ri, i) {
+  for (let r = ri - 1; r >= Math.max(0, ri - 40); r--) { const row = s.rows[r] || [];
+    for (const j of [i, i - 1]) { const h = row[j]; if (typeof h !== 'string' || h.length > 50 || row.slice(j + 1, emNextLabel(row, j)).some(x => typeof x === 'number')) continue;
+      if (/\bun-?le?vered\b|\bungeared\b|\bunleveraged\b/i.test(h)) return 'unlevered'; if (/\blevered\b|\bgeared\b|\bleveraged\b/i.test(h)) return 'levered'; } }
+  return null;
 }
 function emNextLabel(row, i) { for (let j = i + 1; j < row.length; j++) if (emIsLabel(row[j])) return j; return row.length; }
 /* Likely mistakes in an EstateMaster export: unit slips, outputs that do not reconcile, sensitivity tables not refreshed,
@@ -4230,6 +4241,10 @@ function xcWorker(){
         if(k==='NPV'){if(typeof e!=='number')return new CE('VALUE');return V.reduce((a,v,n)=>a+v/Math.pow(1+e,n+1),0)}
         if(k==='IRR')return irrExcel(V,typeof e==='number'?e:0.1);
         return new CE('NAME')})}
+      /* XNPV over OFFSET windows whose length a cell gives (OFFSET(D34,0,0,1,Residual_Month)): the engine's OFFSET takes fixed sizes only */
+      xoffxnpv(ast,st){return this.runFunction(ast.args,st,this.metadata('XOFFXNPV'),(rate,bv,iv,jv,hv,wv,bd,id,jd,hd,wd)=>{const V=offWin(bv,iv,jv,hv,wv),D=offWin(bd,id,jd,hd,wd);if(V instanceof CE)return V;if(D instanceof CE)return D;
+        rate=raw(rate);const Vr=V.map(raw),Dr=D.map(raw);if(typeof rate!=='number'||Vr.length!==Dr.length||!Vr.length)return new CE('NUM');for(const x of [...Vr,...Dr])if(x&&typeof x==='object'&&x.type)return x;
+        const d0=Dr[0];let t=0;for(let i=0;i<Vr.length;i++){if(typeof Vr[i]!=='number'||typeof Dr[i]!=='number')return new CE('VALUE');if(Dr[i]<d0)return new CE('NUM');t+=Vr[i]/Math.pow(1+rate,(Dr[i]-d0)/365)}return t})}
       xoffxirr(ast,st){return this.runFunction(ast.args,st,this.metadata('XOFFXIRR'),(bv,iv,jv,hv,wv,bd,id,jd,hd,wd,guess)=>{const V=offWin(bv,iv,jv,hv,wv),D=offWin(bd,id,jd,hd,wd);if(V instanceof CE)return V;if(D instanceof CE)return D;if(V.length!==D.length)return new CE('NUM');return xirrOf(V.map(raw),D.map(raw),guess)})}
       xindex(ast,st){return this.runFunction(ast.args,st,this.metadata('INDEX'),(rv,row,col)=>{const h=rv.height(),w=rv.width();
         if(row!==undefined)row=Math.trunc(row);if(col!==undefined)col=Math.trunc(col);   // Excel truncates a fractional position (row 5.5 is row 5)
@@ -4257,9 +4272,9 @@ function xcWorker(){
       INDEX:{method:'xindex',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER,optionalArg:true}]},
       XOFFSUM:{method:'xoffsum',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER}]},
       XOFFAGG:{method:'xoffagg',parameters:[{argumentType:T.STRING},{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.SCALAR,optionalArg:true}]},
-      XOFFXIRR:{method:'xoffxirr',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER,optionalArg:true}]},
+      XOFFXNPV:{method:'xoffxnpv',parameters:[{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER}]},XOFFXIRR:{method:'xoffxirr',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER,optionalArg:true}]},
       EDATE:{method:'xedate',parameters:[{argumentType:T.NUMBER},{argumentType:T.NUMBER}]},INT:{method:'xint',parameters:[{argumentType:T.NUMBER}]},IRR:{method:'xirr2',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER,optionalArg:true}]},TEXT:{method:'xtext',parameters:[{argumentType:T.SCALAR},{argumentType:T.STRING}]},VALUE:{method:'xvalue',parameters:[{argumentType:T.SCALAR}]}};
-    ['INDEX','EDATE','XNPV','INT','TEXT','IRR','VALUE'].forEach(f=>{try{H.unregisterFunction(f)}catch(e){}});H.registerFunctionPlugin(P,{enGB:{XNUM:'XNUM',IRR:'IRR',VALUE:'VALUE',XOFFAGG:'XOFFAGG',INT:'INT',TEXT:'TEXT',XOFFSUM:'XOFFSUM',XOFFXIRR:'XOFFXIRR',XIRR:'XIRR',XNPV:'XNPV',INDEX:'INDEX',EDATE:'EDATE',RANK:'RANK','RANK.EQ':'RANK.EQ',FORECAST:'FORECAST','FORECAST.LINEAR':'FORECAST.LINEAR'}})}
+    ['INDEX','EDATE','XNPV','INT','TEXT','IRR','VALUE'].forEach(f=>{try{H.unregisterFunction(f)}catch(e){}});H.registerFunctionPlugin(P,{enGB:{XNUM:'XNUM',IRR:'IRR',VALUE:'VALUE',XOFFAGG:'XOFFAGG',INT:'INT',TEXT:'TEXT',XOFFSUM:'XOFFSUM',XOFFXIRR:'XOFFXIRR',XOFFXNPV:'XOFFXNPV',XIRR:'XIRR',XNPV:'XNPV',INDEX:'INDEX',EDATE:'EDATE',RANK:'RANK','RANK.EQ':'RANK.EQ',FORECAST:'FORECAST','FORECAST.LINEAR':'FORECAST.LINEAR'}})}
   function irrExcel(V,g){const CE=H.CellError;if(!V.some(v=>v>0)||!V.some(v=>v<0))return new CE('NUM');let r=typeof g==='number'?g:0.1;
     for(let k=0;k<20;k++){let f=0,d=0;for(let n=0;n<V.length;n++){const q=Math.pow(1+r,n);f+=V[n]/q;d-=n*V[n]/(q*(1+r))}if(!d||!isFinite(f)||!isFinite(d))return new CE('NUM');const nr=r-f/d;if(!isFinite(nr))return new CE('NUM');if(Math.abs(nr-r)<1e-7)return nr;r=nr}return new CE('NUM')}
   function xirrOf(v0,d0,guess){const CE=H.CellError,v=[],d=[];v0.forEach((x,i)=>{if(typeof x==='number'&&typeof d0[i]==='number'){v.push(x);d.push(d0[i])}});
@@ -4306,6 +4321,7 @@ function xcWorker(){
     if(/XIRR\(/i.test(f))f=rewriteFn(f,'XIRR',a=>{const v=offCall(a[0]||''),d=offCall(a[1]||'');return v&&d&&a.length<=3?`XOFFXIRR(${v.join(',')},${d.join(',')}${a[2]?','+a[2]:''})`:`XIRR(${a.join(',')})`});
     if(/SUM\(/i.test(f))f=rewriteFn(f,'SUM',a=>{const o=a.length===1&&offCall(a[0]);return o?`XOFFSUM(${o.join(',')})`:`SUM(${a.join(',')})`});
     for(const F of ['AVERAGE','MAX','MIN','COUNT'])if(new RegExp('(^|[^A-Za-z0-9_.])'+F+'\\(','i').test(f))f=rewriteFn(f,F,a=>{const o=a.length===1&&offCall(a[0]);return o?`XOFFAGG("${F}",${o.join(',')})`:`${F}(${a.join(',')})`});
+    if(/XNPV\(/i.test(f))f=rewriteFn(f,'XNPV',a=>{const v=a.length===3&&offCall(a[1]),dd=v&&offCall(a[2]);return v&&dd?`XOFFXNPV(${a[0]},${v.join(',')},${dd.join(',')})`:`XNPV(${a.join(',')})`});
     if(/NPV\(/i.test(f))f=rewriteFn(f,'NPV',a=>{const o=a.length===2&&offCall(a[1]);return o?`XOFFAGG("NPV",${o.join(',')},${a[0]})`:`NPV(${a.join(',')})`});
     if(/IRR\(/i.test(f))f=rewriteFn(f,'IRR',a=>{const o=(a.length===1||a.length===2)&&offCall(a[0]);return o?`XOFFAGG("IRR",${o.join(',')}${a[1]?','+a[1]:''})`:`IRR(${a.join(',')})`});
     /* OFFSET(cell, rows, cols) with a shift read from a cell (a capital-call lag: OFFSET(D10,0,-Fund!B9)): the engine's OFFSET takes
@@ -4377,7 +4393,7 @@ function xcWorker(){
     for(const n of wb.SheetNames){const ws=wb.Sheets[n];CURSH=n;const ks=Object.keys(ws).filter(k=>k[0]!=='!');let mr=-1,mc=-1;const cs=[];
       for(const k of ks){const c=ws[k];if(!c||(c.v==null&&!c.f))continue;const p=XL.utils.decode_cell(k);cs.push([p,c]);if(p.r>mr)mr=p.r;if(p.c>mc)mc=p.c}
       const rows=[];for(let r=0;r<=mr;r++)rows.push(new Array(mc+1).fill(null));
-      for(const [p,c] of cs){if(c.z&&c.z!=='General')FMT[n+'!'+XL.utils.encode_cell(p)]=String(c.z);if(c.f){CURROW=p.r;rows[p.r][p.c]='='+fixF(c.f);nf++;cached[n+'!'+XL.utils.encode_cell(p)]=c.v}else rows[p.r][p.c]=c.t==='n'||c.t==='b'?c.v:c.t==='e'?null:(c.v==null?null:"'"+String(c.v))}   /* a text cell stays text, as in Excel: “3.0%” or “Jan-26” typed as text is not turned into a number */
+      for(const [p,c] of cs){if(c.z&&c.z!=='General')FMT[n+'!'+XL.utils.encode_cell(p)]=String(c.z);if(c.f){CURROW=p.r;rows[p.r][p.c]='='+fixF(c.f);nf++;cached[n+'!'+XL.utils.encode_cell(p)]=c.t==='e'?'#ERR':c.v}   /* a stored error is a code (#VALUE! is 15): the engine must give an error there too */else rows[p.r][p.c]=c.t==='n'||c.t==='b'?c.v:c.t==='e'?null:(c.v==null?null:"'"+String(c.v))}   /* a text cell stays text, as in Excel: “3.0%” or “Jan-26” typed as text is not turned into a number */
       sheets[n]=rows}
     const HFC={licenseKey:'gpl-v3',useArrayArithmetic:true,leapYear1900:true,nullDate:{year:1899,month:12,day:31},evaluateNullToZero:true,dateFormats:['DD/MM/YYYY','DD/MM/YY','YYYY-MM-DD','YYYY/MM/DD']};   // dates typed as text: the day-first forms and ISO (2024-03-15), as Excel reads them
     const names=[],namesSkipped=[];{const N=(wb.Workbook&&wb.Workbook.Names)||[];const to={};
@@ -4403,6 +4419,17 @@ function xcWorker(){
       for(const n of Object.keys(sheets))sheets[n].forEach((row,ri)=>{for(let c=0;c<row.length;c++){const v=row[c];if(typeof v==='string'&&v[0]==='='&&/INDIRECT\(/i.test(v)){let nv=ind(v);if(nv!==v){if(/OFFSET\(/.test(nv))nv=rewriteOffset(nv);ORIGF[n+'!'+ri+'!'+c]=v;row[c]=nv}}   /* an OFFSET the rewrite brings in goes through the workbook's own OFFSET rewrite */}})}
     // the formulas were read before the names were known: apply the aliases now
     if(NAMEMAP.re)for(const n of Object.keys(sheets))for(const row of sheets[n])for(let c=0;c<row.length;c++){const v=row[c];if(typeof v==='string'&&v[0]==='=')row[c]=aliasNames(v)}
+    /* Excel: a cell that holds "" used in arithmetic is #VALUE! (the engine reads it as 0). A counter stopped with
+       IF(C38+1>End,"",C38+1) runs on after the end in the engine, and a SUMIF by year counts those periods again. A reference in
+       arithmetic to a cell whose formula can give "" goes through XNUM, which gives Excel's error */
+    {const EMP=new Set(),cix=L=>L.toUpperCase().split('').reduce((a,ch)=>a*26+ch.charCodeAt(0)-64,0)-1;
+      for(const n of Object.keys(sheets))sheets[n].forEach((row,ri)=>{for(let c=0;c<row.length;c++){const v=row[c];if(typeof v==='string'&&v[0]==='='&&/(?:^=|[,(])\s*""\s*(?=[,)]|$)/.test(v))EMP.add(n+'!'+ri+'!'+c)}});
+      if(EMP.size){const R=new RegExp(`(^|[^A-Za-z0-9_.$'!:])(${XREF})(?=\\s*[-+*/^])|([-+*/^]\\s*)(${XREF})`,'g');
+        const hit=(n,r)=>{const m=r.match(/^(?:'((?:[^']|'')+)'!|([A-Za-z0-9_.]+)!)?\$?([A-Za-z]{1,3})\$?(\d+)$/);if(!m)return false;const sh=m[1]!=null?m[1].replace(/''/g,"'"):m[2]!=null?m[2]:n;return EMP.has(sh+'!'+(+m[4]-1)+'!'+cix(m[3]))};
+        for(const n of Object.keys(sheets))for(const row of sheets[n])for(let c=0;c<row.length;c++){const v=row[c];if(typeof v!=='string'||v[0]!=='=')continue;
+          const q=[];let t=v.replace(/"(?:[^"]|"")*"/g,m=>{q.push(m);return'\u0003'+(q.length-1)+'\u0003'});
+          t=t.replace(R,(m,p1,r1,p2,r2)=>{const r=r1||r2,pre=r1?p1:p2;return hit(n,r)&&!/XNUM\($/.test(pre)?pre+`XNUM(${r})`:m});
+          t=t.replace(/\u0003(\d+)\u0003/g,(m,i)=>q[+i]);if(t!==v)row[c]=t}}}
     try{hf=H.buildFromSheets(sheets,HFC,names)}catch(e){namesSkipped.push('all names ('+String(e.message||e).slice(0,80)+')');hf=H.buildFromSheets(sheets,HFC)}
     ITER=[];{const cyc=[];for(const k in cached){const i=k.lastIndexOf('!');const sid=hf.getSheetId(k.slice(0,i));if(sid===undefined)continue;const p=XL.utils.decode_cell(k.slice(i+1));const a={sheet:sid,row:p.r,col:p.c};const v=hf.getCellValue(a);
         if(v&&typeof v==='object'&&v.type==='CYCLE'){const f=hf.getCellFormula(a);if(f)cyc.push({k,sid,a,f,v0:typeof cached[k]==='number'?cached[k]:0})}}
@@ -4415,8 +4442,8 @@ function xcWorker(){
     const VOL=new Set();try{const roots=[];for(const n of Object.keys(sheets))sheets[n].forEach((row,ri)=>row.forEach((v,ci)=>{if(typeof v==='string'&&v[0]==='='&&/(^|[^A-Za-z0-9_.])RAND(BETWEEN|ARRAY)?\(/i.test(v))roots.push({sheet:hf.getSheetId(n),row:ri,col:ci})}));
       const seen=new Set(),q=[...roots];while(q.length&&seen.size<20000){const a=q.shift();if(!a||a.sheet==null)continue;const key=hf.getSheetName(a.sheet)+'!'+XL.utils.encode_cell({r:a.row,c:a.col});if(seen.has(key))continue;seen.add(key);VOL.add(key);
         let deps=[];try{deps=hf.getCellDependents(a)||[]}catch(e){}for(const d of deps){if(d&&d.start&&d.end){for(let r=d.start.row;r<=d.end.row&&q.length<20000;r++)for(let c=d.start.col;c<=d.end.col;c++)q.push({sheet:d.start.sheet,row:r,col:c})}else if(d&&d.row!=null)q.push(d)}}}catch(e){}
-    let tot=0,ok=0;const bad=[],mis=[];for(const k in cached){const cv=cached[k];if(typeof cv!=='number'||VOL.has(k))continue;tot++;const i=k.lastIndexOf('!');const p=XL.utils.decode_cell(k.slice(i+1));const v=raw(hf.getCellValue({sheet:hf.getSheetId(k.slice(0,i)),row:p.r,col:p.c}));
-      if(typeof v==='number'&&Math.abs(v-cv)<=Math.max(1e-6*Math.max(1,Math.abs(cv)),itK.has(k)?1e-9*itS:0))ok++;else{if(bad.length<6)bad.push(k);if(mis.length<20000)mis.push(k)}}
+    let tot=0,ok=0;const bad=[],mis=[];for(const k in cached){const cv=cached[k];if((typeof cv!=='number'&&cv!=='#ERR')||VOL.has(k))continue;tot++;const i=k.lastIndexOf('!');const p=XL.utils.decode_cell(k.slice(i+1));const v=raw(hf.getCellValue({sheet:hf.getSheetId(k.slice(0,i)),row:p.r,col:p.c}));
+      if(cv==='#ERR'?!!(v&&typeof v==='object'&&(v.type||v.err)):typeof v==='number'&&Math.abs(v-cv)<=Math.max(1e-6*Math.max(1,Math.abs(cv)),itK.has(k)?1e-9*itS:0))ok++;else{if(bad.length<6)bad.push(k);if(mis.length<20000)mis.push(k)}}
     /* a workbook saved without recalculating: its stored results lag its own typed inputs. Proof: a simple formula (sums, + − × ÷) whose
        inputs all agree with the file gives another result than the one stored, and every other difference flows from those cells */
     let stale=null;if(mis.length&&ok<tot){try{const MS=new Set(mis);
@@ -7193,8 +7220,11 @@ async function a33Fx(x,a,st){await a33Eng(x);const from=String(a.from||(x.meta&&
   /* every typed number of the workbook, line by line (a schedule typed year by year is one line), plus the numbers written inside formulas */
   await loadXLSX();const buf=await xcRaw(x);const wb=XLSX.read(new Uint8Array(buf),{type:'array',cellFormula:true,cellNF:true});const U=XLSX.utils,G={};
   for(const sh of wb.SheetNames){const ws=wb.Sheets[sh];for(const k in ws){if(k[0]==='!')continue;const z=ws[k];if(!z||z.f||z.t!=='n'||!Number.isFinite(z.v))continue;let dt=false;try{dt=z.z&&XLSX.SSF.is_date(z.z)}catch(e){}if(dt)continue;
-      const pc=U.decode_cell(k);const key=sh+'!'+pc.r;if(!G[key]){let l='';for(let c=pc.c-1;c>=0&&!l;c--){const t=ws[U.encode_cell({r:pc.r,c})];if(t&&t.t==='s'&&/[a-z]{2}/i.test(t.v))l=String(t.v).trim()}G[key]={sheet:sh,label:l||k,cells:[],pct:false}}
-      G[key].cells.push({ref:`'${sh.replace(/'/g,"''")}'!${k}`,v:z.v});if(/%/.test(String(z.z||'')))G[key].pct=true}}
+      /* a line is the cells under one label, in one format: two blocks side by side on a row ("Purchase Price" in the inputs, a CAM growth
+         rate and a leasing cost further along) are separate lines; cells with no label to their left are one line under their column heading */
+      const pc=U.decode_cell(k),pct=/%/.test(String(z.z||''));let l='',lc=-1;for(let c=pc.c-1;c>=0&&!l;c--){const t=ws[U.encode_cell({r:pc.r,c})];if(t&&t.t==='s'&&/[a-z]{2}/i.test(t.v)){l=String(t.v).trim();lc=c}}
+      let key=`${sh}!${pc.r}!${lc}!${pct?1:0}`;if(!l){for(let r=pc.r-1;r>=0&&!l;r--){const t=ws[U.encode_cell({r,c:pc.c})];if(t&&t.t==='s'&&/[a-z]{2}/i.test(t.v))l=String(t.v).trim()+` (column ${U.encode_col(pc.c)})`}key=`${sh}!c${pc.c}!${l}!${pct?1:0}`}
+      if(!G[key])G[key]={sheet:sh,label:l||k,cells:[],pct};G[key].cells.push({ref:`'${sh.replace(/'/g,"''")}'!${k}`,v:z.v})}}
   const groups=Object.values(G).filter(g=>!(g.cells.every(c=>Number.isInteger(c.v)&&c.v>=1900&&c.v<=2200)));for(const i of (x.inputs||[]).filter(i=>i.fconst&&i.cell&&Number.isFinite(i.value)))groups.push({sheet:i.sheet,label:i.label,cells:[{ref:i.cell,v:i.value}],pct:i.pct,fc:true});
   let money=null;if(apiOn()){const sys=`You read a real estate model's typed numbers, line by line, and say which lines are amounts of money in ${from} (prices, rents, costs, fees, budgets, values, cash flows: amounts that change when the currency changes) and which are not (percentages, rates, yields, occupancy, areas, counts, years, months, ratios, multiples, indices, periods). Reply with JSON only: {"money":["<id>",...]}.`;
     const j=await a33Ai(sys,groups.map((g,k)=>`g${k}: ${g.label} (${g.sheet}, ${g.cells.length} cell${g.cells.length>1?'s':''}, e.g. ${g.cells.slice(0,3).map(c=>c.v).join(', ')}${g.pct?', shown as %':''})`).join('\n'),3000);if(j&&Array.isArray(j.money))money=new Set(j.money)}
@@ -7207,8 +7237,18 @@ async function a33Fx(x,a,st){await a33Eng(x);const from=String(a.from||(x.meta&&
     const order=pick.map((g,i)=>({g,i,s:(MW.test(g.label)?1:0)+(Math.max(...g.cells.map(c=>Math.abs(c.v)))>=1e4?1:0)})).sort((p,q)=>p.s-q.s);const t0=Date.now();let cur=pick.slice(),gap=Math.abs(a33Num(b[irrK])-a33Num(af[irrK]));
     for(const o of order){if(Date.now()-t0>45000||gap<1e-7)break;const trial=cur.filter(g=>g!==o.g);const [r]=await a33Runs([trial.flatMap(g=>g.cells.map(c=>[c.ref,+(c.v*rate).toFixed(6)]))],[figs[irrK].ref]);const ng=Math.abs(a33Num(b[irrK])-a33Num(r[0]));if(ng<gap-1e-9){cur=trial;gap=ng;dropped.push(o.g)}}
     if(dropped.length){const sets2=cur.flatMap(g=>g.cells.map(c=>[c.ref,+(c.v*rate).toFixed(6)]));const [b2,a2]=await a33Runs([[],sets2],figs.map(f=>f.ref));sets.length=0;sets.push(...sets2);pick.length=0;pick.push(...cur);af.length=0;af.push(...a2);same=Math.abs(a33Num(b2[irrK])-a33Num(a2[irrK]))<1e-7}}
+  /* the IRR still moves: a money line was not marked (rent per SF, a cost written in a formula). Lines left out are tried one at a time,
+     the ones that bring the IRR back kept; they are used only if the IRR ends exactly where it was, and each is named in the answer */
+  let added=[];if(!same&&irrK>=0&&pick.length){await st('The IRR still moves, so a money line was left out: finding it');const MW2=/price|\brents?\b|cost|\bfees?\b|value|budget|amount|income|revenue|capex|capital|expenditure|expense|opex|maintenance|repair|management|\bcam\b|reimburs|recover|\btax|insurance|payment|proceeds|\bnoi\b|cash|charge|\bland\b|loan|equity|\bsales?\b/i,
+      NOT=/\barea\b|\bsq|\bnra\b|\bgla\b|rentable|\bunits?\b|count|number of|\byears?\b(?!\s*\d)|\bmonths?\b(?!\s*\d)|period|days|\brates?\b|yield|ratio|growth|discount|\bshare|probability|\bdate|\bterm\b|amorti[sz]ation|%|index/i,
+      counter=g=>g.cells.length>2&&g.cells.every((c,i)=>Number.isInteger(c.v)&&(i===0||c.v-g.cells[i-1].v===1));   /* a row of period numbers 0, 1, 2 … */
+    /* a line taken out above (by a coincidence while another was missing) is tried again last */
+    const cand=[...groups.filter(g=>!pick.includes(g)&&!dropped.includes(g)&&(!g.pct||g.fc)&&g.cells.some(c=>c.v!==0)&&!NOT.test(String(g.label).replace(/\s*·.*$/,''))&&!counter(g)).map(g=>({g,s:(MW2.test(g.label)?2:0)+(Math.max(...g.cells.map(c=>Math.abs(c.v)))>=100?1:0)})).filter(o=>o.s>0).sort((p,q)=>q.s-p.s).slice(0,40).map(o=>o.g),...dropped];
+    const t0=Date.now();let cur=pick.slice(),gap0=null;{const [r]=await a33Runs([cur.flatMap(g=>g.cells.map(c=>[c.ref,+(c.v*rate).toFixed(6)]))],[figs[irrK].ref]);gap0=Math.abs(a33Num(b[irrK])-a33Num(r[0]))}let gap=gap0;
+    for(const g of cand){if(Date.now()-t0>45000||gap<1e-7)break;const trial=[...cur,g];const [r]=await a33Runs([trial.flatMap(z=>z.cells.map(c=>[c.ref,+(c.v*rate).toFixed(6)]))],[figs[irrK].ref]);const ng=Math.abs(a33Num(b[irrK])-a33Num(r[0]));if(ng<gap-1e-9){cur=trial;gap=ng;added.push(g)}}
+    if(added.length&&gap<1e-7){const sets2=cur.flatMap(g=>g.cells.map(c=>[c.ref,+(c.v*rate).toFixed(6)]));const [b2,a2]=await a33Runs([[],sets2],figs.map(f=>f.ref));sets.length=0;sets.push(...sets2);pick.length=0;pick.push(...cur);af.length=0;af.push(...a2);same=Math.abs(a33Num(b2[irrK])-a33Num(a2[irrK]))<1e-7;const wasDrop=new Set(dropped);dropped=dropped.filter(g=>!added.includes(g));added=added.filter(g=>!wasDrop.has(g))}else added=[]}
   if(!pick.length)same=false;   /* nothing left converted is not a clean conversion: it is no conversion */const metrics=figs.filter(f=>f.k).map(f=>{const i=figs.indexOf(f);return{k:f.k,base:a33Num(b[i])*(a33Pct(f.k)?100:1),value:a33Num(af[i])*(a33Pct(f.k)?100:1)}});
-  const ver=mvRecord(x,{metrics,sets,desc:[`Model in ${to} at ${rate} per ${from}`]});if(ver)window.LASTVER=ver.id;return{from,to,rate,src,pick,figs,b,af,same,ver,dropped,by:money?'the AI':'their labels (no AI answered)'}}
+  const ver=mvRecord(x,{metrics,sets,desc:[`Model in ${to} at ${rate} per ${from}`]});if(ver)window.LASTVER=ver.id;return{from,to,rate,src,pick,figs,b,af,same,ver,dropped,added,by:money?'the AI':'their labels (no AI answered)'}}
 function a33FxOut(r){const md=`${r.same&&r.dropped&&r.dropped.length?`**⚠ To be confirmed: converting every line read as money moved the returns, so ${r.dropped.length} line${r.dropped.length>1?'s were':' was'} left in ${r.from}: ${r.dropped.slice(0,6).map(g=>g.label).join(', ')}. If ${r.dropped.length>1?'they are':'it is'} money, the model is not fully converted: say so and I convert ${r.dropped.length>1?'them':'it'} and look again.**\n\n`:''}${r.same?`**The model in ${r.to} at ${r.rate} ${r.to} per ${r.from}: ${r.figs.filter(f=>f.kind==='money').slice(0,2).map(f=>`${f.label} ${a33F(f,a33Num(r.af[r.figs.indexOf(f)]),r.to)}`).join(', ')}.**`:`**⚠ Not a clean conversion: at one fixed rate the returns cannot move, but here they do, so some lines of the workbook were not told apart from money correctly (${r.by}). The figures below are the workbook as converted, not the model in ${r.to}: name the lines that are money (or connect the AI) and I convert again.**`}
 | Figure | In ${r.from} | In ${r.to} |
 |---|---|---|
@@ -7216,7 +7256,7 @@ ${r.figs.map((f,i)=>`| ${f.label} | ${a33F(f,a33Num(r.b[i]),r.from)} | ${a33F(f,
 
 **How I got this**
 - ${r.pick.length} money lines (chosen by ${r.by}: ${r.pick.slice(0,6).map(g=>g.label).join(', ')}${r.pick.length>6?'…':''}) multiplied by ${r.rate} (${r.src}); percentages, areas, counts and dates unchanged; the workbook recalculated exactly.
-${r.dropped&&r.dropped.length?`- Left as they are (they are not money: converting them moved the IRR): ${r.dropped.slice(0,6).map(g=>g.label).join(', ')}.\n`:''}- ${r.same?'Check: the IRRs are unchanged, so every money line moved together.':'⚠ The IRR moved: some money line was not converted (a number written inside a formula, or an input the AI did not mark). Name it and I add it.'}
+${r.dropped&&r.dropped.length?`- Left as they are (they are not money: converting them moved the IRR): ${r.dropped.slice(0,6).map(g=>g.label).join(', ')}.\n`:''}${r.added&&r.added.length?`- Also converted, though not read as money at first (left in ${r.from}, they moved the IRR): ${r.added.slice(0,6).map(g=>g.label).join(', ')}.\n`:''}- ${r.same?'Check: the IRRs are unchanged, so every money line moved together.':'⚠ The IRR moved: some money line was not converted (a number written inside a formula, or an input the AI did not mark). Name it and I add it.'}
 - The labels in the workbook still say ${r.from}: the download changes the numbers, not the text.`;return{md}}
 /* ---- 16. the projects combined into a fund ---- */
 async function a33Fund(a,st){const back=PROJ.id;const ids=(a.projects&&a.projects.length?a.projects.map(p=>{const k=String(p).toLowerCase();return Object.keys(PROJECTS).find(id=>id===p||String(PROJECTS[id].name).toLowerCase()===k||String(PROJECTS[id].name).toLowerCase().includes(k))}).filter(Boolean):Object.keys(PROJECTS).filter(id=>EXPORTS.some(e=>e.proj===id&&e.src==='file')));

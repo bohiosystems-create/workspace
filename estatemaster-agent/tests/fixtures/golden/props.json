@@ -236,5 +236,127 @@
    "levered_irr": "Summary!I10",
    "lp_irr": "Summary!I12"
   }
+ },
+ "r37_acq_monthly_usd": {
+  "read": [
+   "AnnualCF & Returns!D23",
+   "AnnualCF & Returns!D30"
+  ],
+  "base": [
+   0.081883,
+   0.104618
+  ],
+  "changes": [
+   [
+    [
+     "Inputs & Monthly CF!D26",
+     19500000
+    ],
+    [
+     0.068665,
+     0.071514
+    ]
+   ],
+   [
+    [
+     "Inputs & Monthly CF!D31",
+     7
+    ],
+    [
+     0.085839,
+     0.113305
+    ]
+   ],
+   [
+    [
+     "Inputs & Monthly CF!D51",
+     0.075
+    ],
+    [
+     0.075757,
+     0.089615
+    ]
+   ],
+   [
+    [
+     "Inputs & Monthly CF!D57",
+     0.07
+    ],
+    [
+     0.081883,
+     0.092475
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "AnnualCF & Returns!D23",
+   "levered_irr": "AnnualCF & Returns!D30"
+  }
+ },
+ "r38_stnl_usd": {
+  "read": [
+   "Summary!F18",
+   "Summary!F19"
+  ],
+  "base": [
+   0.089657,
+   0.123742
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!M31",
+     42
+    ],
+    [
+     0.084971,
+     0.114658
+    ]
+   ],
+   [
+    [
+     "Inputs!M34",
+     0.5
+    ],
+    [
+     0.088083,
+     0.12042
+    ]
+   ],
+   [
+    [
+     "Inputs!E39",
+     0.08
+    ],
+    [
+     0.084712,
+     0.114158
+    ]
+   ],
+   [
+    [
+     "Inputs!M15",
+     0.07
+    ],
+    [
+     0.089657,
+     0.112187
+    ]
+   ],
+   [
+    [
+     "Inputs!M27",
+     120
+    ],
+    [
+     0.090849,
+     0.124809
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Summary!F18",
+   "levered_irr": "Summary!F19"
+  }
  }
 }

@@ -242,8 +242,12 @@ function emHeadline(sheets) {
   for (const s of ordered) for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri]; if (!row) continue;
     for (let i = 0; i < row.length; i++) {
       const c = row[i]; if (typeof c !== 'string' || c.length > 80) continue;
+      // a bare "IRR" or "Equity Multiple" is read by the section it sits in: "IRR" under "Unlevered DCF" is the unlevered IRR, and the
+      // unlevered side's multiple is not the equity's
+      const side = /^\s*(x?irr|equity\s*multiple)\s*:?\s*$/i.test(c) ? emSide(s, ri, i) : null; if (side === 'unlevered' && /multiple/i.test(c)) continue;
+      const cl = side && /irr/i.test(c) ? (side === 'unlevered' ? 'Unlevered IRR' : 'Levered IRR') : c;
       for (const [k, re] of LAB) {
-        if (!re.test(c) || (k in out && !(/levered_irr|equity_multiple|net_profit/.test(k) && /^\s*(lp|gp|limited partner|general partner|investor|sponsor)s?\b/i.test(c)))) continue;   /* a partner's own figure is still read after the scheme's */ if (held[k] && !isSum(s)) continue; if (k === 'levered_irr' && /unlevered|ungeared|unleveraged/i.test(c)) continue; if (EX_SKIP(k, c)) continue;
+        if (!re.test(cl) || (k in out && !(/levered_irr|equity_multiple|net_profit/.test(k) && /^\s*(lp|gp|limited partner|general partner|investor|sponsor)s?\b/i.test(c)))) continue;   /* a partner's own figure is still read after the scheme's */ if (held[k] && !isSum(s)) continue; if (k === 'levered_irr' && /unlevered|ungeared|unleveraged/i.test(cl)) continue; if (EX_SKIP(k, c)) continue;
         // an operating income line (effective or potential gross income, a stabilised year) is not the scheme's gross revenue
         if (k === 'gross_revenue' && /\b(effective|potential|egi|pgi|egr|stabili[sz]ed|in-place|annual|per annum|year\s*1)\b/i.test(c)) continue;
         // an LP's or GP's own figure is kept aside: the scheme's figure, when the model has one, pairs with the scheme's IRR
@@ -265,7 +269,7 @@ function emHeadline(sheets) {
         if (party) { if (!(k in later)) later[k] = { v: +n.toFixed(4), f: `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`, a: A1(s.name, j0, r0) }; if (isSum(s)) held[k] = true;
           // a partner's own return (LP IRR, GP equity multiple) is kept as its own output, beside the scheme's
           const pk = (/^\s*(lp|limited|investor)/i.test(c) || lpTo ? 'lp' : 'gp') + (k === 'equity_multiple' ? '_multiple' : k === 'net_profit' ? '_profit' : '_irr'); if (!(pk in out)) { out[pk] = +n.toFixed(4); found[pk] = `${s.name} / ${c.trim()}`; cells[pk] = A1(s.name, j0, r0) } continue }
-        out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); if (!note && /net_profit|total_cost|gross_revenue|peak_debt/.test(k)) rawAt[k] = s; break;
+        out[k] = +n.toFixed(4); found[k] = `${s.name} / ${c.trim()}${side ? ' · ' + side + ' section' : ''}${w ? ' (' + w + ')' : ''}${note}`; cells[k] = A1(s.name, j0, r0); if (!note && /net_profit|total_cost|gross_revenue|peak_debt/.test(k)) rawAt[k] = s; break;
       }
     }
   }
@@ -274,6 +278,13 @@ function emHeadline(sheets) {
   if (!('levered_irr' in out) && !('unlevered_irr' in out)) for (const s of sheets) { for (let ri = 0; ri < s.rows.length; ri++) { const row = s.rows[ri] || []; const i = row.findIndex(c => typeof c === 'string' && /\bIRR\b/i.test(c) && c.length < 60 && !EX_SKIP('levered_irr', c)); if (i < 0) continue; const seg = row.slice(i + 1, emNextLabel(row, i)), v = seg.find(x => typeof x === 'number'); if (v == null) continue;
       out.levered_irr = +(Math.abs(v) < 1 ? v * 100 : v).toFixed(4); found.levered_irr = `${s.name} / ${row[i].trim()} (taken as the levered IRR: check)`; cells.levered_irr = A1(s.name, i + 1 + seg.indexOf(v), ri); break; } if ('levered_irr' in out) break; }
   return { out, found, cells };
+}
+/* the side a section heading above a label names: the nearest label with no figure of its own, in the label's column or the one before */
+function emSide(s, ri, i) {
+  for (let r = ri - 1; r >= Math.max(0, ri - 40); r--) { const row = s.rows[r] || [];
+    for (const j of [i, i - 1]) { const h = row[j]; if (typeof h !== 'string' || h.length > 50 || row.slice(j + 1, emNextLabel(row, j)).some(x => typeof x === 'number')) continue;
+      if (/\bun-?le?vered\b|\bungeared\b|\bunleveraged\b/i.test(h)) return 'unlevered'; if (/\blevered\b|\bgeared\b|\bleveraged\b/i.test(h)) return 'levered'; } }
+  return null;
 }
 function emNextLabel(row, i) { for (let j = i + 1; j < row.length; j++) if (emIsLabel(row[j])) return j; return row.length; }
 /* Likely mistakes in an EstateMaster export: unit slips, outputs that do not reconcile, sensitivity tables not refreshed,

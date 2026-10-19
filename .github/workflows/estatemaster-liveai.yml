@@ -1,0 +1,34 @@
+name: EstateMaster live-AI evaluation
+
+# Every night, the app with a real AI behind it reads the synthetic models and answers questions about them in plain words; each answer
+# is checked against the figures LibreOffice gives (tests/fixtures/golden/props.json). Skipped when the ANTHROPIC_API_KEY secret is not
+# set. A score below the bar fails the run (and GitHub emails the failure).
+on:
+  schedule:
+    - cron: '17 3 * * *'   # every night (03:17 UTC)
+  workflow_dispatch:
+
+concurrency:
+  group: estatemaster-liveai
+  cancel-in-progress: false
+
+jobs:
+  liveai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        if: env.ANTHROPIC_API_KEY != ''
+        run: cd estatemaster-agent/tests && npm init -y >/dev/null && npm i playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium
+      - name: Evaluate
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then echo "No ANTHROPIC_API_KEY secret: skipped"; exit 0; fi
+          python3 -m http.server 4090 -d estatemaster-agent >/dev/null 2>&1 &
+          for i in $(seq 1 30); do curl -s -o /dev/null localhost:4090/ && break; sleep 0.5; done
+          cd estatemaster-agent/tests && node t_liveai.mjs "http://localhost:4090/?mode=readonly"

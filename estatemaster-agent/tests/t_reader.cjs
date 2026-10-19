@@ -35,4 +35,8 @@ ok(r.meta && r.meta.title === 'reader layouts', 'the template placeholder is not
 { const ws = XLSX.utils.aoa_to_sheet([['Summary'], ['', 'Project Costs', 'Total Profit', 'Equity Multiple', 'IRR'], ['Unlevered Project Level', 51080000, 21816377, 1.441, 0.1689], ['Levered Project Level ', 18525313, 19966913, 2.078, 0.2348]]);
   ws.E3.z = ws.E4.z = '0.00%'; const w5 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w5, ws, 'Summary'); const r5 = E.parseWorkbook(w5, XLSX, 'lev.xlsx');
   ok(r5.cells.levered_irr === 'Summary!E4' && Math.abs(r5.out.levered_irr - 23.48) < 1e-6 && r5.cells.unlevered_irr === 'Summary!E3', '"Levered Project Level" is the levered row, "Unlevered Project Level" the unlevered: ' + r5.cells.levered_irr + ' ' + r5.cells.unlevered_irr) }
+// an acquisition template: two rows labelled just "IRR", one under "Unlevered Return Summary", one under "Levered Return Summary"
+{ const ws = XLSX.utils.aoa_to_sheet([['Returns'], [], ['Unlevered Return Summary'], ['IRR', 0.0819], ['Equity Multiple', 1.397], ['Net Gain (loss)', 7689146], ['Levered Return Summary'], ['IRR', 0.1046], ['Equity Multiple', 1.496]]);
+  ws.B4.z = ws.B8.z = '0.00%'; const w6 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w6, ws, 'Returns'); const r6 = E.parseWorkbook(w6, XLSX, 'acq.xlsx');
+  ok(r6.cells.levered_irr === 'Returns!B8' && r6.cells.unlevered_irr === 'Returns!B4' && r6.cells.equity_multiple === 'Returns!B9', 'a bare "IRR" is read by its section heading; the equity multiple is the levered side\'s: ' + [r6.cells.levered_irr, r6.cells.unlevered_irr, r6.cells.equity_multiple].join(' ')) }
 console.log(`${pass} pass, ${fail} fail`); process.exit(fail ? 1 : 0);
