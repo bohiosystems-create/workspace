@@ -39,4 +39,10 @@ ok(r.meta && r.meta.title === 'reader layouts', 'the template placeholder is not
 { const ws = XLSX.utils.aoa_to_sheet([['Returns'], [], ['Unlevered Return Summary'], ['IRR', 0.0819], ['Equity Multiple', 1.397], ['Net Gain (loss)', 7689146], ['Levered Return Summary'], ['IRR', 0.1046], ['Equity Multiple', 1.496]]);
   ws.B4.z = ws.B8.z = '0.00%'; const w6 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w6, ws, 'Returns'); const r6 = E.parseWorkbook(w6, XLSX, 'acq.xlsx');
   ok(r6.cells.levered_irr === 'Returns!B8' && r6.cells.unlevered_irr === 'Returns!B4' && r6.cells.equity_multiple === 'Returns!B9', 'a bare "IRR" is read by its section heading; the equity multiple is the levered side\'s: ' + [r6.cells.levered_irr, r6.cells.unlevered_irr, r6.cells.equity_multiple].join(' ')) }
+// a fund summary that says just "Gross IRR" and "Net IRR": the gross is the fund's levered IRR, the net the LPs' own figure
+{ const ws = XLSX.utils.aoa_to_sheet([['Fund returns'], ['Gross IRR', 0.1207], ['Net IRR', 0.083], ['TVPI', 1.53]]);
+  ws.B2.z = ws.B3.z = '0.00%'; const w7 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w7, ws, 'Fund Summary'); const r7 = E.parseWorkbook(w7, XLSX, 'fund.xlsx');
+  ok(r7.cells.levered_irr === 'Fund Summary!B2' && r7.cells.lp_irr === 'Fund Summary!B3', '"Gross IRR" is the levered IRR, "Net IRR" the LPs\' figure: ' + r7.cells.levered_irr + ' ' + r7.cells.lp_irr);
+  const w8 = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(w8, XLSX.utils.aoa_to_sheet([['Returns'], ['Net IRR', 0.142]]), 'Returns'); const r8 = E.parseWorkbook(w8, XLSX, 'deal.xlsx');
+  ok(r8.cells.levered_irr === 'Returns!B2', 'a model whose only IRR is "Net IRR" has it as its levered IRR: ' + r8.cells.levered_irr) }
 console.log(`${pass} pass, ${fail} fail`); process.exit(fail ? 1 : 0);

@@ -35,6 +35,10 @@ await up();{const s=await st();
   t(/Units/.test(r.a)&&/600M/.test(r.a),'an answer giving net profit in thousands as SAR is flagged as a units slip: '+r.a.slice(0,120));
   t(/Two figures under one name/.test(r.b)&&/Sponsor/.test(r.b),'an answer giving the sponsor’s profit as net profit is flagged with both cells: '+r.b.slice(0,140));
   t(r.c===''&&r.d==='','the model’s own figure, and a what-if result, are not flagged')}
+{const r=await p.evaluate(()=>{const ev=['Recalculated on the workbook: fund gross IRR 15.02%, LP net IRR 13.61%'];return{a:xcComputedCheck('The fund gross levered IRR moves to 15.02% and the LP net IRR to 13.61%.',ev),b:xcComputedCheck('The levered IRR is 14.44% today.',[]),
+    c:xcComputedCheck('The levered IRR would be roughly 16% under that case.',[]),d:xcComputedCheck('It clears the 12% IRR hurdle.',[])}});
+  t(r.a===''&&r.b===''&&r.d==='','an IRR the tools computed, the model’s own IRR and a stated hurdle are not flagged');
+  t(/Not computed/.test(r.c)&&/16%/.test(r.c),'an IRR no calculation gave (an estimate in the AI’s words) is flagged under the answer: '+r.c.slice(0,120))}
 // 2. the AI reads the LP net IRR as the levered IRR, on the LP cash flow: both readings prove, so the user is asked; their choice is applied
 AI={...base34,headlines:[H('levered_irr','Summary!F7','LP net IRR (after all fees & promote)','equity'),H('unlevered_irr','Summary!C10','Project unlevered IRR','project'),H('net_profit','Summary!C8','Project profit (unlevered)','project')],cashflows:[{irr:'levered_irr',row:'Cash Flow!E18:AB18'},{irr:'unlevered_irr',row:'Cash Flow!E9:AB9'}]};
 await up();{const s=await st();t(s.lev==='Summary!F6'&&!s.ask.length&&/house definition/.test(s.card),'two proved readings, settled by the house definition (levered IRR = the fund’s gross IRR): '+s.lev)}

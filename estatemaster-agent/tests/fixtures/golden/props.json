@@ -358,5 +358,119 @@
    "unlevered_irr": "Summary!F18",
    "levered_irr": "Summary!F19"
   }
+ },
+ "r39_fund_waterfall_eur": {
+  "read": [
+   "Fund Summary!C6",
+   "Fund Summary!C7"
+  ],
+  "base": [
+   0.120658,
+   0.083
+  ],
+  "changes": [
+   [
+    [
+     "Assumptions!F16",
+     1.5
+    ],
+    [
+     0.114007,
+     0.079708
+    ]
+   ],
+   [
+    [
+     "Assumptions!C10",
+     0.07
+    ],
+    [
+     0.120658,
+     0.083
+    ]
+   ],
+   [
+    [
+     "Assumptions!C12",
+     0.25
+    ],
+    [
+     0.120658,
+     0.079706
+    ]
+   ],
+   [
+    [
+     "Assumptions!C6",
+     0.02
+    ],
+    [
+     0.120658,
+     0.079714
+    ]
+   ]
+  ],
+  "key": {
+   "levered_irr": "Fund Summary!C6",
+   "lp_irr": "Fund Summary!C7"
+  }
+ },
+ "r40_offplan_sar": {
+  "read": [
+   "Results!C10",
+   "Results!C11"
+  ],
+  "base": [
+   0.356543,
+   0.359629
+  ],
+  "changes": [
+   [
+    [
+     "Inputs!C5",
+     1300
+    ],
+    [
+     0.215175,
+     0.215516
+    ]
+   ],
+   [
+    [
+     "Inputs!C15",
+     0.065
+    ],
+    [
+     0.356543,
+     0.356074
+    ]
+   ],
+   [
+    [
+     "Inputs!C12",
+     0.2
+    ],
+    [
+     0.385714,
+     0.362368
+    ]
+   ],
+   [
+    [
+     "Inputs!C9",
+     12
+    ],
+    [
+     0.322761,
+     0.299923
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Results!C10",
+   "levered_irr": "Results!C11",
+   "peak_debt": "Results!C12",
+   "equity_multiple": "Results!C13"
+  }
  }
 }

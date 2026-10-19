@@ -27,10 +27,13 @@ These rules hold for every change to this app. They come from the product owner 
 - Two models audit the recalculation after the answer. Their disagreement is shown, not hidden.
 - One name, one figure: a headline (levered IRR, unlevered IRR, profit on cost) is the scheme's own figure, never a partner's (an LP net IRR, the sponsor's IRR or profit). An answer that gives a headline name another cell's value is flagged under the answer with both cells.
 - The model map (Settings → Model map at upload, beta): the workbook's structure is read once at upload (headline figures with their definitions, units per sheet, scenario switch, timeline, the cash flow behind each IRR, the hold input). The AI's reading is used where its proof on the workbook holds, the rules' otherwise; two proved readings of one figure are a question for the user; every entry is shown on a card and confirmed once; a correction in the chat is proved before it is used. Tools read the map instead of guessing the structure.
+- Never an estimate in the AI's own words either: an IRR the answer states must be the model's own figure or one the tools computed for that answer; any other is flagged under the answer as not computed.
+- A currency conversion cannot move an IRR: lines the AI did not mark as money are added back only when the IRR then ends exactly where it was, and each is named.
 - Never assume. If the workbook does not say, ask the user in the chat.
 
 ## 3. Working rules
 
 - EstateMaster is the trusted layer.
 - Test fixtures are synthetic. Never commit client workbooks.
+- Each model family has a synthetic replica with golden answers from LibreOffice (tests/fixtures/golden/props.json, swept by CI). A correction a user makes to a reading is logged (Settings → Corrections) and becomes a test case.
 - Before a push run `bash tests/run.sh core` on its own (no other suite against the same port). CI runs the quick suite on every push and the full suite nightly; deploy only after GitHub CI is green on that commit.

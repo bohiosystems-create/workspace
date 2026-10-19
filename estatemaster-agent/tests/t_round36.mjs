@@ -25,13 +25,15 @@ for(const [f,g] of Object.entries(G)){if(f[0]==='_')continue;
   const r=await p.evaluate(async g=>{const x=latestExport();await xcEngine(x);const runs=[[],...g.changes.map(c=>[c[0]])];const res=await xcQ(()=>xcCall({op:'run',runs,read:g.read,reset:true}));
     const m=x.map;const cf=(m.cashflows||[]).map(c=>[c.irr,m.proof['cf:'+c.irr]]);const units=[];
     for(const k of ['net_profit','total_cost','gross_revenue','peak_debt','gp_profit','lp_profit'])if(x.cells[k]&&Number.isFinite(x.out[k])){const [v]=await xcQ(()=>xcCall({op:'get',refs:[x.cells[k]]}));const sh=String(x.cells[k]).replace(/!.*$/,'');const u=((m.units||[]).find(z=>z.sheet===sh)||{}).scale||1;units.push([k,x.out[k],v,u])}
-    return{res,cf,units,sw:m.scenario?m.proof.scenario:null}},g);
+    const mult=[];for(const k of Object.keys(x.cells))if(/multiple/.test(k)&&Number.isFinite(x.out[k])){const [v]=await xcQ(()=>xcCall({op:'get',refs:[x.cells[k]]}));mult.push([k,x.out[k],v])}
+    return{res,cf,units,mult,sw:m.scenario?m.proof.scenario:null}},g);
   const close=(a,b2)=>a.every((v,i)=>Math.abs(v-b2[i])<2e-6);
   if(g.key){const cells=await p.evaluate(()=>latestExport().cells);const bad=Object.entries(g.key).filter(([k,c])=>String(cells[k]||'').replace(/'/g,'')!==c);t(!bad.length,`${f}: each headline is read from its own cell${bad.length?': '+bad.map(([k,c])=>`${k} want ${c} got ${cells[k]||'—'}`).join(', '):''}`)}
   t(close(r.res[0],g.base),`${f}: the workbook as uploaded matches LibreOffice: ${r.res[0].map(v=>(v*100).toFixed(4)+'%').join(', ')}`);
   g.changes.forEach((c,i)=>t(close(r.res[i+1],c[1]),`${f}: ${c[0][0]} → ${c[0][1]} recalculated exactly as LibreOffice: ${r.res[i+1].map(v=>(v*100).toFixed(4)+'%').join(', ')} vs ${c[1].map(v=>(v*100).toFixed(4)+'%').join(', ')}`));
   t(r.cf.length&&r.cf.every(([k,s])=>s==='ok'),`${f}: every IRR is reproduced by its own cash-flow line: ${r.cf.map(z=>z.join(' ')).join(', ')||'none found'}`);
   t(r.units.every(([k,o,v,u])=>Math.abs(o-v*u)<=1e-6*Math.abs(o)+1e-6),`${f}: every money headline is its cell times its sheet’s unit: ${r.units.map(([k,o,v,u])=>`${k} ${v}×${u}`).join(', ')||'no money headline'}`);
+  t(r.mult.every(([k,o,v])=>typeof v==='number'&&Math.abs(o-v)<=1e-4*Math.max(1,Math.abs(v))),`${f}: every multiple is its cell as it stands, never scaled by a sheet’s unit: ${r.mult.map(([k,o,v])=>`${k} ${o} (cell ${v})`).join(', ')||'no multiple'}`);
   if(g.switch)t(r.sw==='ok',`${f}: the scenario switch moves the results`);
   // a fixed-rate conversion cannot move an IRR
   const fx=await p.evaluate(async CCY=>{const x=latestExport();try{const r=await a33Fx(x,{from:CCY,to:CCY==='EUR'?'USD':'EUR',rate:0.25,rate_is:'to_per_from'},async()=>{});return r&&r.figs?{same:r.same,n:r.pick.length,drop:(r.dropped||[]).map(g=>g.label),flag:/To be confirmed/.test(a33FxOut(r).md)}:{err:JSON.stringify(r).slice(0,160)}}catch(e){return{err:e.message}}},f.split('_').pop().toUpperCase());
