@@ -44,13 +44,15 @@ const up2=async()=>{await p.goto(base);await p.evaluate(()=>{localStorage.clear(
 await up2();{const s=await st();
   t(s.ask.includes('levered_irr')&&s.proof['h:levered_irr']==='ask','two proved readings of the levered IRR: the user is asked, nothing silently picked');
   t(s.lev==='Summary!F6','until the user answers, the figure stays as read: '+s.lev);t(/two cells both hold up/.test(s.card)&&/Summary!F7/.test(s.card)&&/Summary!F6/.test(s.card),'the card shows both cells with their values');
-  await p.click('[data-mapask$="|levered_irr|Summary!F6"]');await p.waitForTimeout(800);const s2=await st();t(s2.lev==='Summary!F6'&&!s2.ask.includes('levered_irr')&&s2.proof['h:levered_irr']==='ok','the user’s choice is applied and proved: '+s2.lev)}
+  await p.click('[data-mapask$="|levered_irr|Summary!F6"]');await p.waitForTimeout(800);const s2=await st();const L2=await p.evaluate(()=>JSON.parse(localStorage.getItem('em_corrections')||'[]'));t(L2.some(e=>e.kind==='asked'&&e.key==='levered_irr'&&e.to==='Summary!F6'),'the user’s answer to a two-reading question is logged too');t(s2.lev==='Summary!F6'&&!s2.ask.includes('levered_irr')&&s2.proof['h:levered_irr']==='ok','the user’s choice is applied and proved: '+s2.lev)}
 // 3. the AI names a cell its cash flow does not reproduce: not proved, so the rules' proved reading is used
 AI={...base34,headlines:[H('levered_irr','Summary!F7','LP net IRR','equity')],cashflows:[{irr:'levered_irr',row:'Cash Flow!E16:AB16'}]};
 await up();{const s=await st();t(s.lev==='Summary!F6'&&!s.ask.length,'an AI reading its own cash flow does not reproduce is not used: '+s.lev)}
 // 4. a correction in the chat is proved before it is used
 {const r=await p.evaluate(async()=>{const o=await execute('levered IRR is Summary!F7','web','IM',async()=>{});const x=latestExport();return{plain:o.out.plain,lev:x.cells.levered_irr,ok:x.mapOk}});
   t(/Proved and applied/.test(r.plain)&&r.lev==='Summary!F7'&&r.ok===false,'“levered IRR is Summary!F7” is proved, applied, and the reading is to be confirmed again: '+r.plain.slice(0,60))}
+{const L=await p.evaluate(()=>JSON.parse(localStorage.getItem('em_corrections')||'[]'));const c=L.find(e=>e.kind==='chat'&&e.key==='levered_irr');
+  t(c&&c.from==='Summary!F6'&&c.to==='Summary!F7'&&c.proved==='ok'&&c.reader>0,'the correction is logged as a test case: the figure, the cell read, the cell given and its proof: '+JSON.stringify(c||{}))}
 {const r=await p.evaluate(async()=>{const o=await execute('show how you read the model','web','IM',async()=>{});return o.out.html});t(/How I read/.test(r),'“show how you read the model” shows the card')}
 // 5. switched off, nothing changes
 AI=null;await up(false);{const s=await st();t(!s.has&&!s.card,'with the switch off, no map is built and no card is shown')}
