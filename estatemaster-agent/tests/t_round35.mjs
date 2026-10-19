@@ -28,6 +28,13 @@ await up();{const s=await st();
   t(s.hold&&/C6/.test(s.hold)&&s.proof.hold==='ok','the fund term is the hold input, proved: '+s.hold);
   t(/How I read r34_fund_sar\.xlsx/.test(s.card)&&/Fund gross IRR/.test(s.card)&&/✓ proved/.test(s.card)&&/This is right/.test(s.card),'the card shows the reading, the proofs and the confirm button');
   await p.click('[data-mapok]');await p.waitForTimeout(300);t(await p.evaluate(()=>latestExport().mapOk===true),'“This is right” saves the confirmation with the model')}
+{const r=await p.evaluate(async()=>{const x=latestExport();const ms=mapSummary(x);const o=await execute('run the downside case','web','IM',async()=>{});return{ms,plain:o.out.plain,names:x.map.scenario.names}});
+  t(/Summary!F6 “Fund gross IRR/.test(r.ms)&&/thousands of SAR/.test(r.ms)&&/scenario switch is .*C7.*3 = Downside/.test(r.ms),'the AI reading questions is given the map: names, units, the switch and its cases');
+  t(/6\.78%/.test(r.plain)&&/C7/.test(r.plain),'“run the downside case” sets the map’s switch to Downside: fund gross IRR 6.78% as LibreOffice: '+r.plain.slice(0,200))}
+{const r=await p.evaluate(async()=>{const x=latestExport();await xcCacheMore(x);return{a:xcHeadCheck('Net profit is SAR 600,000 on this scheme.'),b:xcHeadCheck('Net profit is SAR 63.78M.'),c:xcHeadCheck('Net profit is SAR 600M.'),d:xcHeadCheck('After the change net profit moves to SAR 512.3M.')}});
+  t(/Units/.test(r.a)&&/600M/.test(r.a),'an answer giving net profit in thousands as SAR is flagged as a units slip: '+r.a.slice(0,120));
+  t(/Two figures under one name/.test(r.b)&&/Sponsor/.test(r.b),'an answer giving the sponsor’s profit as net profit is flagged with both cells: '+r.b.slice(0,140));
+  t(r.c===''&&r.d==='','the model’s own figure, and a what-if result, are not flagged')}
 // 2. the AI reads the LP net IRR as the levered IRR, on the LP cash flow: both readings prove, so the user is asked; their choice is applied
 AI={...base34,headlines:[H('levered_irr','Summary!F7','LP net IRR (after all fees & promote)','equity'),H('unlevered_irr','Summary!C10','Project unlevered IRR','project'),H('net_profit','Summary!C8','Project profit (unlevered)','project')],cashflows:[{irr:'levered_irr',row:'Cash Flow!E18:AB18'},{irr:'unlevered_irr',row:'Cash Flow!E9:AB9'}]};
 await up();{const s=await st();t(s.lev==='Summary!F6'&&!s.ask.length&&/house definition/.test(s.card),'two proved readings, settled by the house definition (levered IRR = the fund’s gross IRR): '+s.lev)}
