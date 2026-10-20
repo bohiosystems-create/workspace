@@ -10,7 +10,7 @@ await p.evaluate(async()=>{await loadXLSX();const wb=XLSX.utils.book_new();XLSX.
 await p.waitForTimeout(600);
 const sys=await p.evaluate(()=>sysPrompt('web','Investment Director'));
 ok(/Location: NOT KNOWN/.test(sys)&&/set_location/.test(sys),'system prompt: location unknown, ask and record with set_location');
-ok(/Answer format/.test(sys)&&/\*\*Checked against\*\*/.test(sys)&&/extra cost, the extra revenue/.test(sys),'system prompt: textual answer, bold titles + bullets, estimates of extra cost and revenue, market + regulation check');
+ok(/Answer format/.test(sys)&&/\*\*How I got this:\*\*/.test(sys)&&/goes through the calculate tool first/.test(sys),'system prompt: the answer first with bold figures, options as a table, how it was got, every figure through the calculate tool (never estimated)');
 await p.evaluate(()=>{toggleDock(true);askAboutExport(PROJ,latestExport())});await p.waitForTimeout(200);
 ok(/Where exactly is the project\?/.test(await p.locator('#msgs .msg.agent').last().textContent()),'welcome after upload asks for the location');
 // set_location through the tool handler

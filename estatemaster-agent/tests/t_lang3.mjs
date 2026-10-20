@@ -13,9 +13,9 @@ await p.evaluate(()=>{showTab('report');RSEL='ic';renderReportList();renderRepor
 await p.click('[data-rplang="ar"]');await p.waitForTimeout(1500);
 const n1=await p.evaluate(()=>$('#rpLangNote').innerText);
 ok(/could not be built/.test(n1)&&/out of API credit|credit/.test(n1)&&/Try again/.test(n1),'when every AI call fails the toggle says why, with Try again: '+n1.slice(0,120));
-fail=false;await p.click('[data-rpretry]');await p.waitForTimeout(2500);
+fail=false;const n0=llm.length;await p.click('[data-rpretry]');await p.waitForTimeout(2500);
 const ar=await p.evaluate(()=>({rtl:$('#report').classList.contains('rtl'),txt:$('#report').textContent.slice(0,60),note:$('#rpLangNote').style.display}));
 ok(ar.rtl&&/ع /.test(ar.txt)&&ar.note==='none','Try again builds it and the Arabic report shows');
-const tr=llm.filter(j=>/translate the text/.test(j.payload.system||(j.payload.messages[0]||{}).content||''));
+const tr=llm.slice(n0).filter(j=>/translate the text/.test(j.payload.system||(j.payload.messages[0]||{}).content||''));
 ok(tr.length>=2&&tr.every(j=>/mini|sonnet/.test(j.payload.model)),'translation runs on the fast route in parallel batches ('+tr.length+' calls, '+[...new Set(tr.map(j=>j.payload.model))].join('/')+')');
 console.log('errs',errs);await b.close();

@@ -6198,10 +6198,14 @@ function crEffectsKick(list){if(!calcPair().length&&!xcCan())return;for(const c 
 window.addEventListener('online',()=>{try{const re=pendingCRs().filter(c=>c.aiErr&&/failed to fetch|networkerror|internetdisconnected|load failed|timed out/i.test(c.aiErr));re.forEach(c=>delete c.aiErr);if(re.length){crEffectsKick(re);toast(`Back online: working out ${re.length} change${re.length===1?'':'s'} again`)}}catch(e){}});
 function crPump(){while(CRRUN<2&&CRQ.length){const c=CRQ.shift();CRRUN++;crEffect(c).finally(()=>{CRRUN--;crPump()})}}
 async function crEffect(c){c.aiStep='';renderCrAI(c);
-  try{const r=await aiCrossCheck(crChanges(c),async st=>{c.aiStep=stepStr(st);renderCrAI(c)},c.proj||PROJ.id,{quiet:true});
-    c.ai={at:new Date().toISOString(),xid:r.x?r.x.id:'',names:r.names||r.models,mode:r.mode,method:String(r.method||'').slice(0,600),checker:r.checker&&r.checker.model||'',metrics:r.metrics.map(m=>{const w=WORK.find(x=>x.id===m.work);return{k:m.k,value:m.value,base:r.x&&Number.isFinite(r.x.out[m.k])?r.x.out[m.k]:NaN,status:m.status,flag:!!m.flag,warn:!!m.warn,wt:w?w.text:''}})};delete c.aiErr;
-    const irr=c.ai.metrics.find(m=>m.k==='levered_irr');if(irr&&Number.isFinite(irr.value)&&irr.value<HUR())notify({kind:'change',title:`${c.id}: levered IRR below the hurdle if approved`,detail:`AI estimate ${fMet('levered_irr',irr.value)} (${c.ai.names.join(' and ')}) · ${opsDesc(c.ops)}`,link:'appr'})}
-  catch(e){c.aiErr=e.message;
+  const setAi=r=>{c.ai={at:new Date().toISOString(),xid:r.x?r.x.id:'',names:r.names||r.models,mode:r.mode,method:String(r.method||'').slice(0,600),checker:r.checker&&r.checker.model||'',metrics:r.metrics.map(m=>{const w=WORK.find(x=>x.id===m.work);return{k:m.k,value:m.value,base:r.x&&Number.isFinite(r.x.out[m.k])?r.x.out[m.k]:NaN,status:m.status,flag:!!m.flag,warn:!!m.warn,wt:w?w.text:''}})};delete c.aiErr;
+    const irr=c.ai.metrics.find(m=>m.k==='levered_irr');if(irr&&Number.isFinite(irr.value)&&irr.value<HUR())notify({kind:'change',title:`${c.id}: levered IRR below the hurdle if approved`,detail:`AI estimate ${fMet('levered_irr',irr.value)} (${c.ai.names.join(' and ')}) · ${opsDesc(c.ops)}`,link:'appr'})};
+  /* a background estimate waits on a slow AI, but not on a failing one: once a model has failed in the last 30 s and 10 s have passed, the
+     change says "not estimated · retry" (and the queue behind it the same); an answer that still arrives later is used */
+  const P=aiCrossCheck(crChanges(c),async st=>{c.aiStep=stepStr(st);renderCrAI(c)},c.proj||PROJ.id,{quiet:true});
+  try{const r=await Promise.race([P,new Promise((_,rej)=>{const t0=Date.now(),tick=()=>{const bad=Date.now()-(window.AI_LASTFAIL||0)<30000;if(Date.now()-t0>=(window.CR_LIMIT_MS??10000)&&bad)rej(new Error('The AI service did not answer in time (it is failing just now)'));else setTimeout(tick,1000)};setTimeout(tick,1000)})]);
+    setAi(r)}
+  catch(e){P.then(r=>{if(!c.ai&&c.status==='pending'){setAi(r);renderCrAI(c);saveMem();pushFeedSoon()}}).catch(()=>{});c.aiErr=e.message;
     // the service is down (time-out, no connection, server error): the queued changes would each wait for the same failure, so they are marked now with the same reason and a retry
     if(/timed out|did not answer|no answer|not answer in time|failed to fetch|networkerror|internetdisconnected|load failed|\b5\d\d\b|upstream|overloaded|out of api credit|not connected/i.test(e.message)){while(CRQ.length){const q=CRQ.shift();q.aiErr=e.message;CRBUSY.delete(q.id);try{renderCrAI(q)}catch(_){}}}}
   finally{CRBUSY.delete(c.id);delete c.aiStep;renderCrAI(c);saveMem();pushFeedSoon();const ap=$('#apSub');if(ap&&$('#p-appr').classList.contains('on'))renderApprovals()}}
@@ -9845,7 +9849,7 @@ ${BLOCK_KEYS.filter(b=>BLOCKS[b]&&!(PROJ.fromExport&&REPLICA_BLOCKS.has(b))&&!sa
 Slide kinds: ${SLIDE_KINDS.map(x=>`${x} (${SLIDE_NAMES[x]})`).join(', ')}. Tones: ${Object.entries(TONES).map(([a,b])=>`${a} = ${b}`).join('; ')}.`}
 async function designCall(system,user){
   const tool=designTool();let err;const order=aiOrder([...chain('report'),...aiAll()]);
-  for(let pass=0;pass<2;pass++){if(pass){if(!err)break;aiFail('report second pass: '+String(err.message),'report');await new Promise(r=>setTimeout(r,window.AI_PASS_WAIT_MS??6000))}
+  for(let pass=0;pass<2;pass++){if(pass){if(!err||/credit|billing|quota/i.test(String(err.message)))break;aiFail('report second pass: '+String(err.message),'report');await new Promise(r=>setTimeout(r,window.AI_PASS_WAIT_MS??6000))}
   for(const {p,model} of order){
     try{ROUTESTATS.calls++;
       if(p==='anthropic'){const top=/fable|opus-5/.test(model);
@@ -10215,11 +10219,17 @@ const aiOrder=list=>{const now=Date.now(),seen=new Set();return list.filter(Bool
 const aiAll=()=>{const out=[];for(const t of ['calc','smart','fast','deep','report'])for(const [p,model] of (CHAINS[t]||{m:[]}).m)if(avail(p))out.push({p,model});return out};
 /* the same call on each model in turn, then on all of them once more after a pause (an overload usually clears in seconds) */
 async function aiPasses(cands,fn,task){let err;const list=aiOrder(cands),t0=Date.now(),B=window.AI_BUDGET_MS??120000;   /* two minutes at most, then the user is told */
-  for(let pass=0;pass<2&&list.length;pass++){if(pass){if(/sign-in has expired|Too many AI requests from this browser/i.test(String(err&&err.message)))break;aiFail('second pass: '+String(err&&err.message||err),task);await new Promise(r=>setTimeout(r,window.AI_PASS_WAIT_MS??6000))}
-    for(const q of list){if(err&&Date.now()-t0>B)throw err;try{const r=await fn(q);delete window.AIH[aiKey(q)];return r}catch(e){err=e;window.AIH[aiKey(q)]=Date.now();if(e&&e.streamed||/sign-in has expired/i.test(String(e&&e.message)))throw e}}}
+  for(let pass=0;pass<2&&list.length;pass++){if(pass){if(/sign-in has expired|Too many AI requests from this browser|credit|billing|quota/i.test(String(err&&err.message)))break;aiFail('second pass: '+String(err&&err.message||err),task);await new Promise(r=>setTimeout(r,window.AI_PASS_WAIT_MS??6000))}
+    for(const q of list){if(err&&Date.now()-t0>B)throw err;try{const r=await fn(q);delete window.AIH[aiKey(q)];return r}catch(e){err=e;if(TRANSIENT.test(String(e&&e.message)))window.AIH[aiKey(q)]=Date.now();   /* only a passing failure (overload, time-out) moves a model back; a refusal (credit, key) is the provider's, the same for each of its models */if(e&&e.streamed||/sign-in has expired/i.test(String(e&&e.message)))throw e}}}
   throw err||new Error('No AI provider connected')}
-async function post(url,headers,body,onText){let last;
-  for(let k=0;k<4;k++){try{return await post1(url,headers,body,onText)}catch(e){last=e;const m=String(e&&e.message||e);
+/* a provider whose calls failed three times running within a minute, on at least two different requests (one request failing is that
+   request's problem, several failing is the service down), is treated as down for 20 s: every call to it ends at once with the reason,
+   instead of each waiting out its own retries (one success, or the 20 s, lets calls through again) */
+window.AIBRK=window.AIBRK||{};
+async function post(url,headers,body,onText){let last;const bk=(body&&body.provider)||url,sig=String(body&&body.task||'')+'|'+String(JSON.stringify(body&&(body.payload||body).system||(body&&(body.payload||body).messages||[]).slice(0,1))||'').slice(0,80),B=window.AIBRK[bk]=window.AIBRK[bk]||{f:[],open:0};
+  if(Date.now()<B.open){window.AI_LASTFAIL=Date.now();throw new Error('The AI service is failing just now ('+(B.why||'no answer')+'): retry in a moment')}
+  for(let k=0;k<4;k++){try{const r=await post1(url,headers,body,onText);B.f=[];B.open=0;return r}catch(e){last=e;const m=String(e&&e.message||e);window.AI_LASTFAIL=Date.now();   /* any failed AI request, retried or not: background work stops waiting on a failing service */
+    if(TRANSIENT.test(m)&&!(e&&e.streamed)){const now=Date.now();B.f=B.f.filter(z=>now-z.t<60000);B.f.push({t:now,sig});if(B.f.length>=3&&new Set(B.f.map(z=>z.sig)).size>=2){B.open=now+(window.AI_BREAK_MS??20000);B.why=m.slice(0,60);aiFail('circuit open: '+m,body&&body.task);throw e}}
     if(!TRANSIENT.test(m)||/Too many AI requests from this browser|sign-in has expired|credit|quota|billing/i.test(m)||(e&&e.streamed)){aiFail(m,body&&body.task);throw e}
     if(k===3)break;aiFail('retried: '+m,body&&body.task);await new Promise(r=>setTimeout(r,Math.min(20000,(e&&e.retryAfter)||[1500,4000,9000][k]*(0.8+0.4*Math.random())*(window.AI_BACKOFF??1))))}}
   throw last}
@@ -10323,7 +10333,7 @@ function chatRemember(user,answer){const h=chatMem();h.push({role:'user',content
 async function llmTurn(text,ch,role,onStep,tier='smart'){
   const hist=ch==='web'?chatMem():HIST[ch];let lastErr;const notes=[];const onText=ch==='web'&&typeof window.LIVE_TEXT==='function'?window.LIVE_TEXT:null;
   const order=aiOrder([...chain(tier),...aiAll()]);
-  for(let pass=0;pass<2;pass++){if(pass){if(!lastErr||/sign-in has expired|Too many AI requests from this browser/i.test(String(lastErr.message)))break;aiFail('agent second pass: '+String(lastErr.message),'agent');await onStep('Every AI model failed just now: trying them all once more');await new Promise(r=>setTimeout(r,window.AI_PASS_WAIT_MS??6000))}
+  for(let pass=0;pass<2;pass++){if(pass){if(!lastErr||/sign-in has expired|Too many AI requests from this browser|credit|billing|quota/i.test(String(lastErr.message)))break;aiFail('agent second pass: '+String(lastErr.message),'agent');await onStep('Every AI model failed just now: trying them all once more');await new Promise(r=>setTimeout(r,window.AI_PASS_WAIT_MS??6000))}
   for(const {p,model} of order){
     if(ch==='web')chatHistMigrate();const past=ch==='web'?CHATHIST.filter(c=>c.proj===PROJ.id&&c.id!==($('#msgs')&&$('#msgs').dataset.chatId)&&c.mem&&c.mem.length).sort((a,b)=>(b.last||'').localeCompare(a.last||'')).slice(0,6):[];
     const recall=past.length?[{role:'user',content:`For reference, what was discussed in earlier chats on ${PROJ.name} (use it when the question refers back to them; the figures may have changed since):\n`+past.map(c=>`- ${new Date(c.last||c.at).toISOString().slice(0,10)} · “${c.title}”: ${c.mem.filter(m=>m.role==='assistant').slice(-2).map(m=>String(m.content).replace(/\s+/g,' ').slice(0,300)).join(' … ')}`).join('\n')},{role:'assistant',content:'Noted: I have the earlier chats on this model in mind.'}]:[];
