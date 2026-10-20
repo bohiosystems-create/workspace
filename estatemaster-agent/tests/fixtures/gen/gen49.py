@@ -15,7 +15,7 @@ U['C5'].number_format='0.00%';U['E5'].number_format='0.00"x"';U['I5'].number_for
 U['B13']='Analysis Begin Date';U['E13']=datetime.datetime(2027,3,1);U['E13'].number_format='mmm-yy'
 U['F15']='Sale Month';U['I15']=96;U['B17']='Land Area (SF)';U['E17']=520000;U['B18']='Net Rentable Area (SF)';U['E18']='=E105'
 # ---- uses ----
-U['B25']='USES';U['D25']='START';U['E25']='END';U['F25']='METHOD';U['H25']='/RENTABLE SF';U['I25']='AMOUNT'
+U['B25']='USES';U['B26']='Land Costs';U['B29']='Hard Costs';U['D25']='START';U['E25']='END';U['F25']='METHOD';U['H25']='/RENTABLE SF';U['I25']='AMOUNT'
 uses=((27,'Land Purchase Price',0,0,'Straight-Line',None,9800000),(28,'Closing / Legal Costs',0,0,'Straight-Line',None,'=I27*0.01'),
       (30,'Site Work',2,8,'Straight-Line',None,'=H30*E18'),(31,'Building Shell',4,16,'S-Curve',None,'=H31*E18'),(32,'Tenant Improvements',12,20,'S-Curve',None,'=H32*E18'),
       (33,'Soft Costs',1,20,'Straight-Line',None,'=0.09*SUM(I30:I32)'),(34,'Developer Fee',1,20,'Straight-Line',None,'=0.04*SUM(I27:I33)'),(35,'Contingency',4,20,'S-Curve',None,'=0.05*SUM(I30:I32)'))
