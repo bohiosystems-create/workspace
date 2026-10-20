@@ -1311,5 +1311,88 @@
    "unlevered_irr": "Summary!B8",
    "levered_irr": "Summary!B9"
   }
+ },
+ "r49_retail_dev_usd": {
+  "family": "development",
+  "read": [
+   "Summary!S25",
+   "Summary!S26",
+   "Summary!S21",
+   "Summary!S22"
+  ],
+  "base": [
+   0.119153,
+   0.173268,
+   0.158012,
+   0.270626
+  ],
+  "changes": [
+   [
+    [
+     "Underwriting!H93",
+     18
+    ],
+    [
+     0.105219,
+     0.142336,
+     0.130702,
+     0.221645
+    ]
+   ],
+   [
+    [
+     "Underwriting!E124",
+     0.0775
+    ],
+    [
+     0.107178,
+     0.151372,
+     0.13949,
+     0.231564
+    ]
+   ],
+   [
+    [
+     "Underwriting!E41",
+     0.09
+    ],
+    [
+     0.119153,
+     0.167921,
+     0.153314,
+     0.262212
+    ]
+   ],
+   [
+    [
+     "Underwriting!I15",
+     84
+    ],
+    [
+     0.096206,
+     0.129824,
+     0.121544,
+     0.191623
+    ]
+   ],
+   [
+    [
+     "Underwriting!H31",
+     135
+    ],
+    [
+     0.109249,
+     0.150845,
+     0.138088,
+     0.236073
+    ]
+   ]
+  ],
+  "key": {
+   "unlevered_irr": "Summary!S25",
+   "levered_irr": "Summary!S26",
+   "lp_irr": "Summary!S21",
+   "gp_irr": "Summary!S22"
+  }
  }
 }
