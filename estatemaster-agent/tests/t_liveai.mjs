@@ -22,7 +22,9 @@ const CI=!!process.env.GITHUB_ACTIONS,note=(lvl,m)=>{if(CI)console.log(`::${lvl}
 const errs=[];p.on('pageerror',e=>errs.push(e.message));let pass=0,fail=0;const t=(c,m)=>{console.log((c?'PASS':'FAIL')+' | '+m);c?pass++:(fail++,note('warning',m))};
 const S={read:[0,0],ask:[0,0],cell:[0,0]};const pc=v=>(v*100).toFixed(2)+'%';
 try{
-const ONLY=(process.env.LIVEAI_MODELS||'').split(',').filter(Boolean);   // optional: a comma list of model names, for a quick run
+let ONLY=(process.env.LIVEAI_MODELS||'').split(',').filter(Boolean);   // optional: a comma list of model names, for a quick run
+if(!ONLY.length&&process.env.LIVEAI_PER_FAMILY){const seen=new Set();ONLY=Object.entries(G).filter(([f,g])=>f[0]!=='_'&&g.key&&g.family&&!seen.has(g.family)&&seen.add(g.family)).map(([f])=>f)}   // the nightly run: one model of each family (the full set is run on demand)
+console.log('models: '+(ONLY.length?ONLY.join(', '):'all'));
 for(const [f,g] of Object.entries(G)){if(f[0]==='_'||!g.key||(ONLY.length&&!ONLY.includes(f)))continue;
   await p.goto(base);await p.evaluate(()=>{localStorage.clear();localStorage.setItem('em_map2','1')});await p.reload();await p.waitForTimeout(1500);
   await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',F+f+'.xlsx');await p.waitForTimeout(2500);await p.click('#npCreate');
@@ -41,7 +43,7 @@ for(const [f,g] of Object.entries(G)){if(f[0]==='_'||!g.key||(ONLY.length&&!ONLY
       if(!/-?\d+(?:\.\d+)?\s*%/.test(o.replace(/⟦[^⟧]*⟧/g,''))&&/\?|which|one answer from you|confirm/i.test(o)){S.asked=(S.asked||0)+1;o=await p.evaluate(async q=>{try{const r=await execute(q,'web','Investment Director',async()=>{});return String((r.out&&r.out.plain)||r.final||'')}catch(e){return 'THROW '+e.message}},`Change ${cell} only (the cell the model runs on), to ${val}.`)}
       if(/out of API credit|credit balance is too low|billing/i.test(o))throw new Error('the API key has no credit left (Anthropic billing): add credit in the Claude Console and run again; the scores so far are not a measure of the app');   // an outage is not a wrong answer
       const nums=[...o.replace(/⟦[^⟧]*⟧/g,'').matchAll(/-?\d+(?:\.\d+)?\s*%/g)].map(m=>parseFloat(m[0]));   // every percentage the answer states
-      const ok=want.every(w=>nums.some(n=>Math.abs(n-w*100)<=0.006));S.ask[1]++;if(ok)S.ask[0]++;t(ok,`${f}: “${q}” → ${want.map(pc).join(', ')} expected: ${o.replace(/\s+/g,' ').slice(0,220)}`);
+      const ok=want.every(w=>nums.some(n=>Math.abs(n-w*100)<=0.006))&&!/Not computed/.test(o);   /* the right figure stated but flagged by the app as not computed (an AI's own guess) is not a pass */S.ask[1]++;if(ok)S.ask[0]++;t(ok,`${f}: “${q}” → ${want.map(pc).join(', ')} expected: ${o.replace(/\s+/g,' ').slice(0,220)}`);
       const hit=norm(o).toLowerCase().includes(cellN);S.cell[1]++;if(hit)S.cell[0]++;t(hit,`${f}: “${q}” changes ${cell}: ${hit?'yes':'the answer names another cell or none'}`)}}}
 }catch(e){note('error','live-AI run stopped: '+(e&&e.stack||e));console.log('STOPPED | '+(e&&e.stack||e));fail++}
 const rs=S.read[0]/Math.max(1,S.read[1]),as=S.ask[0]/Math.max(1,S.ask[1]),cs=S.cell[0]/Math.max(1,S.cell[1]);

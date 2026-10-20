@@ -1,12 +1,17 @@
 name: EstateMaster live-AI evaluation
 
-# Every night, the app with a real AI behind it reads the synthetic models and answers questions about them in plain words; each answer
-# is checked against the figures LibreOffice gives (tests/fixtures/golden/props.json). Skipped when the ANTHROPIC_API_KEY secret is not
-# set. A score below the bar fails the run (and GitHub emails the failure).
+# The app with a real AI behind it reads the synthetic models and answers questions about them in plain words; each answer is checked
+# against the figures LibreOffice gives (tests/fixtures/golden/props.json). Every night: one model of each family (about $15-25 of AI
+# calls); run by hand with scope "full" for every model (about $50-100), or a comma list of model names. Skipped when the
+# ANTHROPIC_API_KEY secret is not set. A score below the bar fails the run (and GitHub emails the failure).
 on:
   schedule:
     - cron: '17 3 * * *'   # every night (03:17 UTC)
   workflow_dispatch:
+    inputs:
+      scope:
+        description: 'family (one model of each family), full (every model), or a comma list of model names'
+        default: 'family'
 
 concurrency:
   group: estatemaster-liveai
@@ -15,7 +20,7 @@ concurrency:
 jobs:
   liveai:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 240
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
@@ -31,4 +36,6 @@ jobs:
           if [ -z "$ANTHROPIC_API_KEY" ]; then echo "No ANTHROPIC_API_KEY secret: skipped"; exit 0; fi
           python3 -m http.server 4090 -d estatemaster-agent >/dev/null 2>&1 &
           for i in $(seq 1 30); do curl -s -o /dev/null localhost:4090/ && break; sleep 0.5; done
+          SCOPE="${{ github.event.inputs.scope || 'family' }}"
+          if [ "$SCOPE" = family ]; then export LIVEAI_PER_FAMILY=1; elif [ "$SCOPE" != full ]; then export LIVEAI_MODELS="$SCOPE"; fi
           cd estatemaster-agent/tests && node t_liveai.mjs "http://localhost:4090/?mode=readonly"
