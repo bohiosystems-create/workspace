@@ -163,8 +163,9 @@ function klogo(h=34,c='#fff'){{const W=Math.round(h*2.9);return `<svg xmlns="htt
 try{{for(const [id,d] of Object.entries({{
   jfact:{{name:'Fund fact sheet',aud:'Unit holders',sched:'On request',builtin:true,purpose:'The fund on one page as the annual report shows each property: the figures with their cells, the case, the timeline, the investor returns',blocks:['wb_factsheet','wb_investors','portfolio_allocation']}},
   junit:{{name:'Unit-holder quarterly update',aud:'Unit holders',sched:'Quarterly',builtin:true,purpose:'What changed this quarter: headline figures against the previous export, the fact sheet, the what-ifs tested, the portfolio',blocks:['kpis','kpis_prev','wb_factsheet','wb_whatifs','portfolio_allocation','models_today']}},
-  jlender:{{name:'Lender pack',aud:'Lenders',sched:'On request',builtin:true,purpose:'The facility, cover and covenants from the workbook, the cash flow and the stress cases',blocks:['kpis','wb_debt','cashflow_annual','stress_table','headroom']}}
-}})){{if(!RPTS[id])wireReport(id,d)}}if(typeof renderReportList==='function')renderReportList()}}catch(e){{}}
+  jlender:{{name:'Lender pack',aud:'Lenders',sched:'On request',builtin:true,purpose:'The facility, cover and covenants from the workbook, the cash flow and the stress cases',blocks:['kpis','wb_debt','cashflow_annual','stress_table','headroom']}},
+  jevidence:{{name:'Deal evidence',aud:'Investment committee',sched:'On request',builtin:true,purpose:'The model against its documents: every term the lease, term sheet and valuation state, with the quote, next to the model\u2019s cell; the what-ifs that came from them',blocks:['wb_factsheet','wb_documents','wb_whatifs']}}
+}})){{if(!RPTS[id])wireReport(id,d)}}if(typeof renderReportList==='function')renderReportList();if(typeof renderDocs==='function')renderDocs()}}catch(e){{}}
 function kchev(h=30,c=KD.OR){{return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${{h}}" height="${{h}}" aria-hidden="true" style="display:inline-block;vertical-align:middle;width:${{h}}px;height:${{h}}px"><g fill="none" stroke="${{c}}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">{SAPLING}</g></svg>`}}
 </script>"""
 
@@ -176,6 +177,15 @@ KD = ("const KD={OR:'%s',CH:'%s',INK:'%s',SOFT:'%s',TAUPE:'%s',GREY:'%s',FAINT:'
       % (NAVY, INK, INK, SOFT, SAGE, SAND, NAVY, SAND, SAGE, NAVY, SAND, SAGE, BLUE, NAVY_LIGHT, SAND_LIGHT))
 
 # sentences about the company itself (the rest of the texts carry only the name)
+# Jadwa runs on Excel alone: every EstateMaster phrase becomes the workbook's (longest first, so the specific wins)
+EM_WORDS = [
+    ("EstateMaster\u2019s own figure", "the workbook\u2019s own figure"), ("EstateMaster\u2019s own cash flow", "the workbook\u2019s own cash flow"),
+    ("EstateMaster\u2019s own", "the workbook\u2019s own"), ("EstateMaster\u2019s", "the workbook\u2019s"), ("EstateMaster's", "the workbook's"),
+    ("EstateMaster exports", "workbook versions"), ("EstateMaster export", "workbook version"), ("EstateMaster figures", "the workbook\u2019s figures"),
+    ("EstateMaster figure", "workbook figure"), ("EstateMaster model", "Excel model"), ("EstateMaster outputs", "the workbook\u2019s outputs"),
+    ("AI agent on EstateMaster", "AI agent on the model"), ("ARGUS EstateMaster figures and", "the"), ("EstateMaster is the trusted layer", "the workbook is the trusted layer"),
+    ("from EstateMaster", "from the workbook"), ("No exports yet", "No workbook versions yet"), ("No exports", "No workbook versions"), ("exports yet", "workbook versions yet"), ("by the latest export", "by the latest version"), ("latest export", "latest version"), ("in EstateMaster", "in the workbook"), ("EstateMaster", "the Excel model"),
+]
 SENTENCES = [
     ("KINAN is a Saudi real estate developer", "Jadwa Investment is a Saudi investment management and advisory firm, with real estate funds among its businesses"),
     ("for KINAN, a real estate developer and investor", "for Jadwa Investment, an investment management and advisory firm"),
@@ -188,6 +198,8 @@ def words(s):
     s = s.replace("@kinan.example", "@jadwa.example").replace("cfo@kinan.com.sa", "cfo@jadwa.com").replace("www.kinan.com.sa", "www.jadwa.com")
     s = s.replace("app:'kinan-estatemaster'", "app:'jadwa-estatemaster'")
     s = s.replace("kinan|developer", "kinan|jadwa|developer").replace("kinan.?s ", "(?:kinan|jadwa).?s ")   # the readers' own regexes keep both names
+    for a, b in EM_WORDS:
+        s = s.replace(a, b)
     return s.replace("KINAN", "Jadwa").replace("Kinan", "Jadwa")
 
 
