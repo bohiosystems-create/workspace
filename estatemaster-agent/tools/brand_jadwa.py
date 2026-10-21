@@ -25,6 +25,9 @@ def _shards(op):
     polys=[('0,0 520,0 520,70 160,400 0,400',op),('120,0 680,0 420,400 300,400',op*.6),('640,0 1000,0 1000,260 820,400 700,400',op*.8),('780,0 1000,0 1000,120',op*.5),('0,260 140,400 0,400',op*.7)]
     return ('data:image/svg+xml;utf8,'+('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" preserveAspectRatio="none">'+''.join(f'<polygon points="{pt}" fill="{SAND}" opacity="{o:.2f}"/>' for pt,o in polys)+'</svg>').replace('#','%23').replace('"',"'"))
 SHARDS, SHARDS_LIGHT = _shards(.42), _shards(.1)
+def _sap(colour, op, stroke=4.5):
+    return ('data:image/svg+xml;utf8,' + f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 24 60 76"><g fill="none" stroke="{colour}" stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round" opacity="{op}">{SAPLING}</g></svg>').replace('#', '%23').replace('"', "'")
+SAPLING_SAGE, SAPLING_WHITE, SAPLING_SAND = _sap(SAGE, 1), _sap('#ffffff', .13, 3), _sap(SAND, .35, 3)
 GRID = ('data:image/svg+xml;utf8,' + ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 90"><g stroke="%s" stroke-width=".6" fill="none" opacity=".55"><path d="M0 60 L30 90 M0 40 L50 90 M0 20 L70 90 M20 90 L0 70 M40 90 L0 50 M60 90 L0 30"/><path d="M0 60 L30 30 M0 80 L50 30"/></g></svg>' % SAND).replace('#', '%23').replace('"', "'"))
 MOTIF = ('data:image/svg+xml;utf8,' + (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g fill="none" stroke="{SAND}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" opacity=".55">{SAPLING}</g></svg>')
          .replace('#', '%23').replace('"', "'"))
@@ -103,6 +106,16 @@ input[type=range]::-webkit-slider-thumb{{background:var(--navy)}}input[type=rang
 .kd-root .kd-close-tag .kd-tagline{{font-family:var(--serif);text-transform:none;letter-spacing:0;font-weight:400}}
 .k-cover h1{{font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.1;margin:0 0 10px}}.k-csub{{font-size:14px;opacity:.85}}
 .k-sh{{font-family:var(--sans);font-weight:300;font-size:26px}}.k-chart .kd-h2{{font-size:20px}}.k-chart .kd-sub{{letter-spacing:0;text-transform:none}}
+/* the figures in the same face as the titles: the serif, light, with lining tabular numerals */
+.kd-root .kd-stat-v,.k-stat-v,.kd-root .kd-svgnum,.k-doc .kd-svgnum,.kd-root .kd-ring-v,.k-doc .kd-ring-v,.kd-root .kd-kpi-v,.k-doc .kd-kpi-v,.kd-root .kd-hval,.k-doc .kd-hval,.k-doc .kpi .v,.kd-root .kd-count,.k-doc .kd-stat-v{{font-family:var(--serif);font-weight:400;font-variant-numeric:lining-nums tabular-nums}}
+.kd-root .kd-svglab,.k-doc .kd-svglab{{font-family:var(--sans);font-weight:400;letter-spacing:0}}
+.kd-root .kd-stat-v{{font-size:clamp(30px,3.1vw,46px)}}.k-stat-v{{font-size:32px}}
+/* the mark, used more: on every section heading, as a watermark on the navy pages, on the content slides' corner */
+.k-sh::before{{content:"";display:inline-block;width:22px;height:22px;margin-right:12px;background:url("{SAPLING_SAGE}") center/contain no-repeat;flex:none}}
+.k-cover,.k-close{{background-image:url("{SAPLING_WHITE}"),url("{SHARDS}");background-size:34% auto,100% 100%;background-position:right -4% bottom -18%,center;background-repeat:no-repeat,no-repeat}}
+.k-cover .k-mark{{position:absolute;top:22px;right:26px;z-index:1}}
+.kd-root .kd-fb-orange,.kd-root .kd-fb-dark{{background-image:url("{SAPLING_WHITE}");background-size:30vh auto;background-position:right 4vw bottom -6vh;background-repeat:no-repeat}}
+.kd-root .kd-bg{{background:url("{SAPLING_SAND}") right 3vw bottom 8vh/22vh auto no-repeat,url("{SHARDS_LIGHT}") right top/70% 36vh no-repeat}}
 .kd-root{{background:#fbfaf7 url("{GRID}") left bottom/120px no-repeat}}.kd-root .kd-bg{{background:url("{SHARDS_LIGHT}") right top/70% 36vh no-repeat}}.kd-root .kd-grid,.kd-root .kd-tex{{display:none}}.kd-kicker-w{{color:var(--sand)}}
 .kd-root .kd-on-orange .kd-footline b,.kd-root .kd-on-dark .kd-footline b{{color:var(--sand)}}.kd-footline b{{color:var(--navy)}}
 .k-cover{{background:{NAVY} url("{SHARDS}") center/100% 100% no-repeat;text-align:left;padding:72px 40px 56px;overflow:hidden;min-height:200px}}
@@ -197,8 +210,11 @@ def apply(html):
     # the brand constants and the deck font
     html, n = re.subn(r"const KD=\{OR:'#f15a22'.*?caption:'AI agent on EstateMaster'\};", KD, html, count=1)
     assert n == 1, "KD not found"
-    html = html.replace("Montserrat,'Segoe UI'", "'Nunito Sans','Segoe UI'")   # the deck's and the report's own font lines
-    rcss = CSS[CSS.index("/* ===== decks and reports"):]   # the report theme also goes into the standalone report (its own page, with KD_CSS only)
+    html = html.replace('<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">', FONTS)   # the standalone report's own font link
+    html = html.replace("Montserrat,'Segoe UI'", "'Nunito Sans','Segoe UI'").replace('font-family="Montserrat,Arial"', 'font-family="Playfair Display,Georgia,serif"')
+    html = html.replace('<div class="k-cover">', '<div class="k-cover"><span class="k-mark">' + MARK.replace('width="40" height="40"', 'width="48" height="48"').replace('width:40px;height:40px', 'width:48px;height:48px') + '</span>', 1)   # the deck's and the report's own font lines
+    rcss = (f":root{{--serif:'Playfair Display',Georgia,'Times New Roman',serif;--sans:'Nunito Sans','IBM Plex Sans Arabic',-apple-system,'Segoe UI',Tahoma,sans-serif;--navy:{NAVY};--sand:{SAND};--sage:{SAGE};--soft:{SOFT};--ink:{INK};--jblue:{BLUE}}}"
+            + CSS[CSS.index("/* ===== decks and reports"):])   # the standalone report is its own page: the variables travel with the rules   # the report theme also goes into the standalone report (its own page, with KD_CSS only)
     assert "`" not in rcss and "${" not in rcss
     html, n = re.subn(r"(const KD_CSS=`[^`]*)`", lambda m: m.group(1) + rcss + "`", html, count=1)   # after its own rules, so these win
     assert n == 1, "KD_CSS not found"
