@@ -130,9 +130,12 @@ function klogo(h=34,c='#fff'){{const W=Math.round(h*2.9);return `<svg xmlns="htt
 function kchev(h=30,c=KD.OR){{return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${{h}}" height="${{h}}" aria-hidden="true" style="display:inline-block;vertical-align:middle;width:${{h}}px;height:${{h}}px"><g fill="none" stroke="${{c}}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">{SAPLING}</g></svg>`}}
 </script>"""
 
-KD = ("const KD={OR:'%s',CH:'%s',INK:'%s',SOFT:'%s',TAUPE:'%s',GREY:'%s',FAINT:'rgba(47,51,47,.12)',GOOD:'#2e7d4f',WARN:'#c28a00',CRIT:'#b8382f',"
-      "PAL:['%s','%s','%s','%s','#c9a86a','#4a3aa7'],site:'www.jadwa.com',tagline:'EXPANDING INVESTMENT HORIZONS',caption:'AI agent on EstateMaster'};"
-      % (NAVY, INK, INK, SOFT, SAGE, SAND, NAVY, SAND, SAGE, BLUE))
+# the charts in Jadwa's colours, as the annual report draws them: navy for the figure that stands, sand for what is deducted or to
+# watch, sage for what fails or is neutral, the blue of the site's links fourth; no red, no green, no orange
+NAVY_LIGHT, SAND_LIGHT = '#8fa0d6', '#d6cdbd'
+KD = ("const KD={OR:'%s',CH:'%s',INK:'%s',SOFT:'%s',TAUPE:'%s',GREY:'%s',FAINT:'rgba(47,51,47,.12)',GOOD:'%s',WARN:'%s',CRIT:'%s',"
+      "PAL:['%s','%s','%s','%s','%s','%s'],site:'www.jadwa.com',tagline:'EXPANDING INVESTMENT HORIZONS',caption:'AI agent on EstateMaster'};"
+      % (NAVY, INK, INK, SOFT, SAGE, SAND, NAVY, SAND, SAGE, NAVY, SAND, SAGE, BLUE, NAVY_LIGHT, SAND_LIGHT))
 
 # sentences about the company itself (the rest of the texts carry only the name)
 SENTENCES = [
@@ -176,7 +179,7 @@ def apply(html):
     assert n == 1, "KD_CSS not found"
     html = html.replace('const FONT = "Montserrat,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif";', 'const FONT = "Nunito Sans,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif";', 1)
     # KINAN's colours wherever a stylesheet writes them in full
-    for a, b in (("#f15a22", NAVY), ("rgba(241,90,34", "rgba(11,31,92"), ("#b83d0c", NAVY_DEEP), ("#fff1ea", SAND_SOFT), ("#d94a16", NAVY_DEEP), ("#f5602a", "#102566"), ("#e04f22", NAVY_DEEP), ("#2e2e2f", INK), ("rgba(245,96,42", "rgba(16,37,102"), ("rgba(224,79,34", "rgba(7,21,66"), ("'F15A22'", "'0B1F5C'"), ("'2E2E2F'", "'2F332F'")):   # the PowerPoint export writes its colours without #
+    for a, b in (("#f15a22", NAVY), ("rgba(241,90,34", "rgba(11,31,92"), ("#b83d0c", NAVY_DEEP), ("#fff1ea", SAND_SOFT), ("#d94a16", NAVY_DEEP), ("#f5602a", "#102566"), ("#e04f22", NAVY_DEEP), ("#2e2e2f", INK), ("rgba(245,96,42", "rgba(16,37,102"), ("rgba(224,79,34", "rgba(7,21,66"), ("'F15A22'", "'0B1F5C'"), ("'2E2E2F'", "'2F332F'"), ("#1baf7a", SAGE), ("#e87ba4", NAVY_LIGHT), ("#eda100", SAND), ("#ff7a45", "#2a3f8f"), ("#2a78d6", BLUE), ("#1b7a4f", NAVY), ("#1b7a43", NAVY)):   # the PowerPoint export writes its colours without #
         html = html.replace(a, b)
     html = words(html)
     i = html.rindex("</body>")   # after the app's own script, so the Jadwa klogo/kchev are the ones that stand (a later declaration wins)
