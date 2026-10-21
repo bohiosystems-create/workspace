@@ -1,15 +1,15 @@
-// KINAN email design kit: the app's look (charcoal band with the logo, orange chevron titles, white cards with an orange
+// Jadwa email design kit: the app's look (charcoal band with the logo, orange chevron titles, white cards with an orange
 // top rule, taupe caps labels, big charcoal figures) built from tables and inline styles, so Outlook desktop, Outlook
 // mobile, Apple Mail and Gmail all show it as designed. On phones (≤ 620 px) the tiles stack two by two and tables
 // become cards. The logo travels as an inline attachment (see inlineImages).
 const LOGO = require('./logo');
 
 const C = {
-  ink: '#2e2e2f', taupe: '#51473d', soft: '#6b6b6c', line: '#e8e6e3', bg: '#efeeeb', paper: '#ffffff',
-  or: '#f15a22', orFill: '#b83d0c', orTint: '#fff1ea',
+  ink: '#0b1f5c', taupe: '#878378', soft: '#6b6b6c', line: '#e8e6e3', bg: '#f3f3f1', paper: '#ffffff',
+  or: '#b7a68f', orFill: '#0b1f5c', orTint: '#f1ece3',
   red: '#bd2f2f', redTint: '#fbeeee', green: '#1b7a43', greenTint: '#ecf6f0', amber: '#9a6a00', amberTint: '#fdf5e3',
 };
-const FONT = "Montserrat,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const FONT = "'Nunito Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 /* cut long text at a word, never mid-word, and say so with an ellipsis */
 const clip = (s, n) => { s = String(s ?? '').replace(/\s+/g, ' ').trim(); if (s.length <= n) return s; const c = s.slice(0, n + 1).replace(/\s+\S*$/, ''); return (c.length > n * 0.6 ? c : s.slice(0, n)).replace(/[\s,;:.–-]+$/, '') + '…'; };
@@ -18,7 +18,7 @@ const tidyNums = s => String(s ?? '').replace(/(-?\d{4,})(\.\d+)?(\s?%)?/g, (m, 
 const TONE = { red: [C.red, C.redTint], orange: [C.orFill, C.orTint], green: [C.green, C.greenTint], amber: [C.amber, C.amberTint], grey: [C.soft, '#f3f2f0'], ink: [C.ink, '#f3f2f0'] };
 
 const logoSrc = v => `data:image/png;base64,${LOGO[v === 'ink' ? 'ink' : 'white']}`;
-const logo = (v, h = 30) => `<img src="${logoSrc(v)}" width="${Math.round(h * LOGO.w / LOGO.h)}" height="${h}" alt="KINAN" style="display:block;border:0;outline:none;height:${h}px;width:${Math.round(h * LOGO.w / LOGO.h)}px">`;
+const logo = (v, h = 30) => `<img src="${logoSrc(v)}" width="${Math.round(h * LOGO.w / LOGO.h)}" height="${h}" alt="Jadwa Investment" style="display:block;border:0;outline:none;height:${h}px;width:${Math.round(h * LOGO.w / LOGO.h)}px">`;
 
 const pill = (t, tone = 'orange') => { const [fg, bg] = TONE[tone] || TONE.orange; return `<span style="display:inline-block;background:${bg};color:${fg};border:1px solid ${fg};font-size:9.5px;line-height:14px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;font-family:${FONT}">${esc(t)}</span>`; };
 const label = t => `<div style="font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:${C.taupe};font-weight:700;font-family:${FONT}">${t}</div>`;
@@ -108,7 +108,7 @@ a{color:${C.orFill}}
 <tr><td class="px" style="padding:0 24px">
  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.ink};border-radius:14px 14px 0 0"><tr>
   <td style="padding:18px 22px">${logo('white', 30)}</td>
-  <td align="${ar ? 'left' : 'right'}" style="padding:18px 22px;font-family:${FONT};font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:#bcbec0;font-weight:700">${ar ? 'وكيل الذكاء الاصطناعي · إستيت ماستر' : 'AI agent <span style="color:' + C.or + '">❯</span> EstateMaster'}</td>
+  <td align="${ar ? 'left' : 'right'}" style="padding:18px 22px;font-family:${FONT};font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:#bcbec0;font-weight:700">${ar ? 'وكيل الذكاء الاصطناعي · إستيت ماستر' : 'AI agent <span style="color:' + C.or + '">❯</span> the Excel model'}</td>
  </tr></table>
  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.paper}"><tr><td style="height:4px;background:${C.or};font-size:0;line-height:0">&nbsp;</td></tr><tr><td class="hero" style="padding:28px 26px 24px;font-family:${FONT}">
   ${label(esc(kicker))}
@@ -122,7 +122,7 @@ ${body}
 ${appUrl ? `<tr><td class="px" align="center" style="padding:6px 24px 22px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:${C.orFill};border-radius:999px"><a href="${esc(appUrl)}" style="display:inline-block;padding:14px 30px;font-family:${FONT};font-size:11px;letter-spacing:.24em;text-transform:uppercase;font-weight:700;color:#ffffff;text-decoration:none">${ar ? 'افتح الوكيل' : 'Open the agent'} &nbsp;❯</a></td></tr></table></td></tr>` : ''}
 <tr><td class="px" style="padding:0 24px">
  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.ink};border-radius:14px"><tr><td style="padding:20px 22px;font-family:${FONT}">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="width:70px">${logo('white', 22)}</td><td valign="middle" style="padding-left:14px;font-size:11.5px;line-height:1.55;color:#bcbec0">${ar ? 'لا يتغير شيء في إستيت ماستر قبل موافقة شخص في التطبيق.' : 'Nothing changes in EstateMaster until a person approves it in the agent.'}${from ? `<br><span style="color:#8d8f92">${esc(from)}</span>` : ''}</td></tr></table>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="middle" style="width:70px">${logo('white', 22)}</td><td valign="middle" style="padding-left:14px;font-size:11.5px;line-height:1.55;color:#bcbec0">${ar ? 'لا يتغير شيء في إستيت ماستر قبل موافقة شخص في التطبيق.' : 'Nothing changes in the workbook until a person approves it in the agent.'}${from ? `<br><span style="color:#8d8f92">${esc(from)}</span>` : ''}</td></tr></table>
  </td></tr></table>
 </td></tr>
 </table></td></tr></table></body></html>`;
@@ -132,7 +132,7 @@ ${appUrl ? `<tr><td class="px" align="center" style="padding:6px 24px 22px"><tab
 function inlineImages(html) {
   const atts = [], seen = new Map();
   const out = String(html).replace(/src="data:(image\/(?:png|jpeg|gif));base64,([A-Za-z0-9+/=]+)"/g, (m, type, b64) => {
-    let id = seen.get(b64); if (!id) { id = `kinan${atts.length + 1}@bohio`; seen.set(b64, id); atts.push({ name: `kinan-${atts.length + 1}.${type.split('/')[1]}`, contentType: type, base64: b64, inline: true, contentId: id }); }
+    let id = seen.get(b64); if (!id) { id = `jadwa${atts.length + 1}@bohio`; seen.set(b64, id); atts.push({ name: `jadwa-${atts.length + 1}.${type.split('/')[1]}`, contentType: type, base64: b64, inline: true, contentId: id }); }
     return `src="cid:${id}"`;
   });
   return { html: out, attachments: atts };

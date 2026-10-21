@@ -96,6 +96,9 @@ def build(mode, brand=None):
     for f in ("llm.js", "scan.js", "voice.js", "mail.js", "cron.js", "schedule.js", "log.js", "health.js"):
         shutil.copy(ROOT / "api" / f, out / "api" / f)
     shutil.copytree(ROOT / "api" / "_lib", out / "api" / "_lib")
+    if brand:   # the server's emails in the brand's look, with its logo
+        (out / "api" / "_lib" / "mailui.js").write_text(B.mail_kit((ROOT / "api" / "_lib" / "mailui.js").read_text(encoding="utf-8")), encoding="utf-8")
+        (out / "api" / "_lib" / "logo.js").write_text(B.logo_js(), encoding="utf-8")
     vj = json.loads((ROOT / "vercel.json").read_text())
     vj["functions"].pop("api/runner.js", None)
     (out / "vercel.json").write_text(json.dumps(vj, indent=2) + "\n")

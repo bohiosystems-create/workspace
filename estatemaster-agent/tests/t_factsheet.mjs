@@ -15,6 +15,11 @@ let r=await R();
 ok(/Fact sheet \(from the workbook\)/.test(r.html)&&/Levered IRR/.test(r.html)&&/15\.34%/.test(r.html)&&/Summary!|Returns!|!/.test(r.html),'the fact sheet lists the workbook’s headline figures with their cells',r.html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,300));
 ok(/Timeline|Units on|Case the model runs on/.test(r.html),'the fact sheet carries the map entries (timeline, units, case)',r.html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').match(/Timeline.{0,80}|Units on.{0,80}/)||'none');
 ok(r.donut&&r.donut.labels.length===2,'the demo model and the upload: two shares',JSON.stringify(r.donut&&r.donut.labels));
+// a search (the break-even of every driver) leaves the workbook as it was: a read afterwards gives the uploaded figure
+{const v=await p.evaluate(async()=>{await handle('How far can the construction cost go before we have a loss?','web','Investment Director');const [b3]=await xcQ(()=>xcCall({op:'get',refs:['Returns!B3']}));return b3});
+  ok(Math.abs(v-0.1534307361)<1e-9,'after the break-even search the levered IRR reads 15.34% again (the searched inputs are put back before a read)',v);
+  const it=await p.evaluate(()=>intent('How far can rent fall before the levered IRR drops to 12%?'));
+  ok(it.k==='xsolve'&&it.metric==='levered_irr'&&it.target===12,'without the AI, “how far can rent fall before the levered IRR drops to 12%” is a goal seek on the levered IRR, not the profit break-even',JSON.stringify(it))}
 await up('r34_fund_sar.xlsx');await p.waitForTimeout(2500);r=await R();
 const a=await p.evaluate(()=>portfolioAlloc());
 ok(!a.err&&a.rows.length===3&&Math.abs(a.rows.reduce((t,r)=>t+r.share,0)-100)<1e-9&&a.cy==='SAR','three SAR models: shares of the total cost add to 100%',JSON.stringify(a).slice(0,200));

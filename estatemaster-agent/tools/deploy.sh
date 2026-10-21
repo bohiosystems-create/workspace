@@ -18,7 +18,8 @@ for d in kinan-estatemaster kinan-estatemaster-analyst kinan-estatemaster-api ja
   for f in cron.js schedule.js voice.js llm.js mail.js scan.js _lib/emcheck.js _lib/graph.js _lib/sched.js; do
     [ -f $D/$d/api/$f ] && [ -f $W/estatemaster-agent/api/$f ] && cp $W/estatemaster-agent/api/$f $D/$d/api/$f; done
   cp $W/estatemaster-agent/api/log.js $W/estatemaster-agent/api/health.js $D/$d/api/
-  cp $W/estatemaster-agent/api/_lib/mailui.js $W/estatemaster-agent/api/_lib/logo.js $D/$d/api/_lib/
+  if [ $d = jadwa-estatemaster ]; then cp $W/estatemaster-agent/dist/jadwa-readonly/api/_lib/mailui.js $W/estatemaster-agent/dist/jadwa-readonly/api/_lib/logo.js $D/$d/api/_lib/   # Jadwa's emails in its look
+  else cp $W/estatemaster-agent/api/_lib/mailui.js $W/estatemaster-agent/api/_lib/logo.js $D/$d/api/_lib/; fi
   python3 $T/patch_vercel.py $D/$d/vercel.json >/dev/null
   if [ -n "${ADDIN[$d]}" ]; then IFS='|' read -r br nm sh id <<< "${ADDIN[$d]}"; rm -rf $D/$d/addin && mkdir -p $D/$d/addin/assets && cp $W/estatemaster-agent/addin/taskpane.html $D/$d/addin/ && cp $W/estatemaster-agent/addin/assets/*.png $D/$d/addin/assets/
     sed -e "s#__HOST__#$d.bohiotech.com#g" -e "s#__BRAND__#$br#g" -e "s#__NAME__#$nm#g" -e "s#__SHORT__#$sh#g" -e "s#__ID__#$id#g" $W/estatemaster-agent/addin/manifest.xml > $D/$d/addin/manifest.xml

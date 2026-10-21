@@ -193,7 +193,7 @@ EM_WORDS = [
     ("EstateMaster exports", "workbook versions"), ("EstateMaster export", "workbook version"), ("EstateMaster figures", "the workbook\u2019s figures"),
     ("EstateMaster figure", "workbook figure"), ("EstateMaster model", "Excel model"), ("EstateMaster outputs", "the workbook\u2019s outputs"),
     ("AI agent on EstateMaster", "AI agent on the model"), ("ARGUS EstateMaster figures and", "the"), ("EstateMaster is the trusted layer", "the workbook is the trusted layer"),
-    ("from EstateMaster", "from the workbook"), ("No exports yet", "No workbook versions yet"), ("No exports", "No workbook versions"), ("exports yet", "workbook versions yet"), ("by the latest export", "by the latest version"), ("latest export", "latest version"), ("in EstateMaster", "in the workbook"), ("EstateMaster", "the Excel model"),
+    ("from EstateMaster", "from the workbook"), ("(export ${x.id}", "(version ${x.id}"), (" (export ${x.id})", " (version ${x.id})"), ("option ${optOf(x)})", "case ${optOf(x)})"), ("No return figures found in the export.", "No return figures found in the workbook."), ("No exports yet", "No workbook versions yet"), ("No exports", "No workbook versions"), ("exports yet", "workbook versions yet"), ("by the latest export", "by the latest version"), ("latest export", "latest version"), ("in EstateMaster", "in the workbook"), ("EstateMaster", "the Excel model"),
 ]
 SENTENCES = [
     ("KINAN is a Saudi real estate developer", "Jadwa Investment is a Saudi investment management and advisory firm, with real estate funds among its businesses"),
@@ -244,11 +244,41 @@ def apply(html):
     # KINAN's colours wherever a stylesheet writes them in full
     for a, b in (("#f15a22", NAVY), ("rgba(241,90,34", "rgba(11,31,92"), ("#b83d0c", NAVY_DEEP), ("#fff1ea", SAND_SOFT), ("#d94a16", NAVY_DEEP), ("#f5602a", "#102566"), ("#e04f22", NAVY_DEEP), ("#2e2e2f", INK), ("rgba(245,96,42", "rgba(16,37,102"), ("rgba(224,79,34", "rgba(7,21,66"), ("'F15A22'", "'0B1F5C'"), ("'2E2E2F'", "'2F332F'"), ("#1baf7a", SAGE), ("#e87ba4", NAVY_LIGHT), ("#eda100", SAND), ("#ff7a45", "#2a3f8f"), ("#2a78d6", BLUE), ("#1b7a4f", NAVY), ("#1b7a43", NAVY)):   # the PowerPoint export writes its colours without #
         html = html.replace(a, b)
+    i, j = html.index('/*MAILUI-SYNC-START*/'), html.index('/*MAILUI-SYNC-END*/') + len('/*MAILUI-SYNC-END*/')   # the email preview in Jadwa's look, with its logo
+    html = html[:i] + mail_block((_BR.parents[1] / 'api' / '_lib' / 'mailui.js').read_text(encoding='utf-8')) + html[j:]
     html = words(html)
     i = html.rindex("</body>")   # after the app's own script, so the Jadwa klogo/kchev are the ones that stand (a later declaration wins)
     html = html[:i] + SCRIPT + "\n" + html[i:]
     assert "KINAN" not in html, "KINAN left in the page"
     return html
+
+
+def mail_kit(src):
+    """the email design kit (api/_lib/mailui.js) in Jadwa's look: navy band and actions, sand rules, sage labels, Nunito Sans"""
+    for a, b in (("ink: '#2e2e2f'", f"ink: '{NAVY}'"), ("taupe: '#51473d'", f"taupe: '{SAGE}'"), ("or: '#f15a22'", f"or: '{SAND}'"), ("orFill: '#b83d0c'", f"orFill: '{NAVY}'"),
+                 ("orTint: '#fff1ea'", f"orTint: '{SAND_SOFT}'"), ("bg: '#efeeeb'", f"bg: '{PALE}'"), ("Montserrat,'Segoe UI'", "'Nunito Sans','Segoe UI'"),
+                 ('alt="KINAN"', 'alt="Jadwa Investment"'), ("`kinan${atts.length + 1}@bohio`", "`jadwa${atts.length + 1}@bohio`"), ("`kinan-${atts.length + 1}.", "`jadwa-${atts.length + 1}.")):
+        assert a in src, ("mail kit: " + a)
+        src = src.replace(a, b)
+    return words(src)
+
+
+def logo_js():
+    """the email logo module (api/_lib/logo.js) with Jadwa's official lockup, rendered at 4x (white for the band, sage for white)"""
+    import base64
+    w, h = round(34 * LOGO_AR), 34
+    b64 = {n: base64.b64encode((_BR / f"mail-{n}.png").read_bytes()).decode() for n in ("white", "ink")}
+    return ("// Jadwa's logo for emails: the official lockup (brand/jadwa) rendered to PNG at 4x, white for the navy band, sage for white.\n"
+            f"module.exports = {{\n  white: '{b64['white']}',\n  ink: '{b64['ink']}',\n  w: {w}, h: {h},\n}};\n")
+
+
+def mail_block(mailui_src):
+    """the page's own copy of the email kit (index.html's MAILUI block), rebuilt from the Jadwa kit and logo"""
+    src = mail_kit(mailui_src)
+    lit = re.search(r"module\.exports = (\{[\s\S]*?\});", logo_js()).group(1)
+    src = src.replace("const LOGO = require('./logo');", f"const LOGO = {lit};")
+    exp = re.search(r"module\.exports = (\{[^}]*\});", src)
+    return '/*MAILUI-SYNC-START*/\nconst MAILUI=(()=>{\n' + src[:exp.start()] + f"return {exp.group(1)};" + '\n})();\n/*MAILUI-SYNC-END*/'
 
 
 def guide(html):
