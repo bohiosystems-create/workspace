@@ -3,6 +3,7 @@
 #   core   — the server tests plus the answer-path browser set (about 10 minutes): before every push
 #   quick  — the server tests plus a representative browser set (CI on every push; about 90 minutes locally)
 #   full   — every test, on the read-only, analyst and mock-API builds (about 45 minutes)
+#   jadwa  — the answer-path set on the Jadwa edition (dist/jadwa-readonly), no server tests (CI: its own nightly job)
 #   server — the Node tests only, no browser
 # Needs: node 22, `npm i playwright` (same version as the CI workflow) with chromium installed, python3.
 set -u
@@ -13,8 +14,8 @@ run(){ local name="$1"; shift; local out line; out=$(timeout 480 "$@" 2>&1); lin
   *) echo "$line" | tee -a "$LOG";; esac; printf '== %s\n%s\n' "$name" "$out" >> "$LOG.full"; }
 
 cd "$HERE"
-echo "== server tests"
-for t in t_*.cjs; do run "${t%.cjs}" node "$t"; done
+if [ "$MODE" != jadwa ]; then echo "== server tests"
+for t in t_*.cjs; do run "${t%.cjs}" node "$t"; done; fi
 [ "$MODE" = server ] && { echo "failures: $FAILS"; exit $((FAILS>0)); }
 
 # static servers for the three builds
@@ -26,8 +27,17 @@ RO="http://localhost:4090/?mode=readonly"; AN="http://localhost:4090/?mode=analy
 
 ANALYST="t_feed t_play t_voice t_deck t_narr t_tapvoice t_turn t_turn55 t_bvoice t_cues t_resume t_qwin t_lag t_lag2 t_stt t_btns"
 API_ONLY="t_api"   # tests of the mock-API build only
+JADWA_SET="t_accuracy t_smoke t_round34 t_round37 t_round38 t_docs t_xcalc t_round36 t_projects t_xldl t_round32 t_factsheet t_round33 t_round35 t_aifirst t_repupload"
 API_SET="t_em t_feed t_xmodel t_dbgempty t_dbgwin t_roa t_check t_shell t_menu t_chat t_tools t_api t_bridge t_fix14 t_a11y t_report"
-if [ "$MODE" = core ]; then
+if [ "$MODE" = jadwa ]; then
+  # the Jadwa edition (dist/jadwa-readonly: its own look and words) on the answer path, its documents and its report blocks; the tests that
+  # check EstateMaster's own wording (t_em) or need the add-in folder (t_addin) run on the source only
+  JD=$(mktemp -d); cp -r "$APP/dist/jadwa-readonly/." "$JD"; ln -s "$APP/vendor" "$JD/vendor"; ln -s "$HERE" "$JD/tests"
+  python3 -m http.server 4093 -d "$JD" >/dev/null 2>&1 & S3=$!; trap 'kill $S1 $S2 $S3 2>/dev/null; rm -rf "$JD"' EXIT
+  for i in $(seq 1 30); do curl -s -o /dev/null localhost:4093/ && break; sleep 0.5; done
+  echo "== browser tests (Jadwa edition)"
+  for t in $JADWA_SET; do run "$t jadwa" node "$t.mjs" "http://localhost:4093/?mode=readonly" readonly; done
+elif [ "$MODE" = core ]; then
   # the pre-push tier (about 10 minutes): the answer path on uploaded workbooks, the newest rounds and the mock-API build; CI runs quick on the push, full nightly.
   # Three lanes run side by side (each test has its own browser), balanced by their CI times; t_speed runs alone after them, as it measures timings.
   echo "== browser tests (core)"

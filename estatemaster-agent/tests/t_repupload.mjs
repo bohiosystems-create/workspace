@@ -27,7 +27,7 @@ await up('r18_jv_usd');
 {const L=await p.evaluate(async()=>{const r=await designNewReport('New report for the construction lender: facility, drawdowns, covenant tests and peak debt, all as tables','IM','Workspace');const d=JSON.stringify(buildDeck(r.k).slides),doc=reportDoc(r.k);
   return{aud:RPTS[r.k].aud,skip:(r.skip||[]).join(' '),deck:/Workbook · Debt and cover/.test(d)&&/Peak debt/.test(d)&&/USD 59\.04M/.test(d),doc:/Debt and cover/.test(doc)&&/59\.04/.test(doc)}});
   t(L.deck&&L.doc,'lender pack on an uploaded model: the workbook’s debt figures (peak debt USD 59.04M) stand in for facility and covenants, deck and document');
-  t(/full EstateMaster model/.test(L.skip),'the designer says which sections come from the full EstateMaster model and what shows instead');t(/lender/i.test(L.aud)&&!/murabaha/i.test(L.aud),'a lender on a USD model is not a “Murabaha lender”: '+L.aud)}
+  t(/full EstateMaster model|not a section of this workbook|not in this workbook/.test(L.skip),'the designer says which sections come from the full EstateMaster model and what shows instead');t(/lender/i.test(L.aud)&&!/murabaha/i.test(L.aud),'a lender on a USD model is not a “Murabaha lender”: '+L.aud)}
 {const L=await p.evaluate(async()=>{const r=await designNewReport('Build me an LP quarterly update: our returns vs the LPs, the waterfall and distributions by year, max 8 slides','IM','Workspace');const d=JSON.stringify(buildDeck(r.k).slides)+reportDoc(r.k);
   return{k:r.k,name:RPTS[r.k].name,aud:RPTS[r.k].aud,lp:/LP IRR/.test(d)&&/GP promote/.test(d)}});
   t(L.name==='LP quarterly update'&&/LP/.test(L.aud),'a new report keeps the name and audience said: '+L.name+' / '+L.aud);t(L.lp,'the LP update holds the workbook’s LP IRR and GP promote');

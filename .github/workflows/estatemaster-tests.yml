@@ -11,11 +11,11 @@ on:
       - 'estatemaster-agent/**'
       - 'estatemaster-agent-api/**'
   schedule:
-    - cron: '17 1 * * *'   # every night (01:17 UTC): the full suite on all three builds
+    - cron: '17 1 * * *'   # every night (01:17 UTC): the full suite on all three builds and the Jadwa edition
   workflow_dispatch:
     inputs:
       mode:
-        description: 'quick (default), full, or server'
+        description: 'quick (default), full, server or jadwa'
         default: quick
 
 # a newer push to the same branch cancels the run still going on the older commit: one result per branch, for the code that is
@@ -60,4 +60,30 @@ jobs:
           path: |
             estatemaster-agent/tests/last-run.log
             estatemaster-agent/tests/last-run.log.full
+          if-no-files-found: ignore
+
+  # every night, beside the full suite: the answer-path set on the Jadwa edition (its own look and words), so a change to the
+  # source or to tools/brand_jadwa.py that breaks the client's build is seen the next morning
+  jadwa:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          cd estatemaster-agent/tests && npm init -y >/dev/null && npm i playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium
+      - name: Run the Jadwa edition tests
+        run: cd estatemaster-agent/tests && TEST_LOG="$PWD/jadwa-run.log" bash run.sh jadwa
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jadwa-test-logs
+          path: |
+            estatemaster-agent/tests/jadwa-run.log
+            estatemaster-agent/tests/jadwa-run.log.full
           if-no-files-found: ignore

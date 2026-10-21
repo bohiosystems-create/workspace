@@ -14,7 +14,7 @@ const R=()=>p.evaluate(()=>{RPTS.zz={name:'Fact sheet test',aud:'Investment comm
 let r=await R();
 ok(/Fact sheet \(from the workbook\)/.test(r.html)&&/Levered IRR/.test(r.html)&&/15\.34%/.test(r.html)&&/Summary!|Returns!|!/.test(r.html),'the fact sheet lists the workbook’s headline figures with their cells',r.html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,300));
 ok(/Timeline|Units on|Case the model runs on/.test(r.html),'the fact sheet carries the map entries (timeline, units, case)',r.html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').match(/Timeline.{0,80}|Units on.{0,80}/)||'none');
-ok(r.donut&&r.donut.labels.length===2,'the demo model and the upload: two shares',JSON.stringify(r.donut&&r.donut.labels));
+ok(!r.donut&&/Fewer than two models/.test(r.html),'one uploaded model: no allocation (an uploaded model is compared with the other uploaded models only, never the demo projects)',JSON.stringify(r.donut&&r.donut.labels));
 // a search (the break-even of every driver) leaves the workbook as it was: a read afterwards gives the uploaded figure
 {const v=await p.evaluate(async()=>{await handle('How far can the construction cost go before we have a loss?','web','Investment Director');const [b3]=await xcQ(()=>xcCall({op:'get',refs:['Returns!B3']}));return b3});
   ok(Math.abs(v-0.1534307361)<1e-9,'after the break-even search the levered IRR reads 15.34% again (the searched inputs are put back before a read)',v);
@@ -22,10 +22,12 @@ ok(r.donut&&r.donut.labels.length===2,'the demo model and the upload: two shares
   ok(it.k==='xsolve'&&it.metric==='levered_irr'&&it.target===12,'without the AI, “how far can rent fall before the levered IRR drops to 12%” is a goal seek on the levered IRR, not the profit break-even',JSON.stringify(it))}
 await up('r34_fund_sar.xlsx');await p.waitForTimeout(2500);r=await R();
 const a=await p.evaluate(()=>portfolioAlloc());
-ok(!a.err&&a.rows.length===3&&Math.abs(a.rows.reduce((t,r)=>t+r.share,0)-100)<1e-9&&a.cy==='SAR','three SAR models: shares of the total cost add to 100%',JSON.stringify(a).slice(0,200));
-ok(r.donut&&r.donut.labels.length===3&&/SAR M/.test(r.donut.unit),'the allocation is a donut slide in the deck',JSON.stringify(r.donut).slice(0,200));
+ok(!a.err&&a.rows.length===2&&Math.abs(a.rows.reduce((t,r)=>t+r.share,0)-100)<1e-9&&a.cy==='SAR','two uploaded SAR models: shares of the total cost add to 100%',JSON.stringify(a).slice(0,200));
+ok(r.donut&&r.donut.labels.length===2&&/SAR M/.test(r.donut.unit),'the allocation is a donut slide in the deck',JSON.stringify(r.donut).slice(0,200));
 await up('r32_hold_usd.xlsx');await p.waitForTimeout(2500);r=await R();
-ok(/different currencies \(.*USD.*\)|different currencies \(.*SAR.*\)/.test(r.html)&&!r.donut,'a USD model added: shares not computed, the currencies named',r.html.replace(/<[^>]+>/g,' ').match(/different currencies[^.]*\./)||'none');
+ok(r.donut&&r.donut.labels.length===2&&/no total cost reported: OAKWOOD/.test(r.donut.sub)&&/Not included, as the workbook reports no total cost: OAKWOOD/.test(r.html),'a model with no total cost (the USD hold model) is named as left out, the shares stay on the two that report one',JSON.stringify(r.donut&&r.donut.sub));
+{const m=await p.evaluate(()=>{const q=activeProjects().find(z=>/OAKWOOD/.test(z.name)),x=latestExport(q.id);x.out.total_cost=90e6;const A=portfolioAlloc();delete x.out.total_cost;return A});
+  ok(m.err&&/different currencies \(.*USD.*\)/.test(m.err),'a USD model with a total cost: shares not computed, the currencies named',JSON.stringify(m).slice(0,200))}
 // the downloaded report: the figure note is closed when it opens, a click or a right-click on a figure shows its note
 {const html=await p.evaluate(()=>reportStandalone('zz'));const q=await (await p.context().browser().newContext()).newPage();await q.setContent(html);await q.waitForTimeout(500);
   const st=await q.evaluate(()=>{const d=()=>getComputedStyle(document.getElementById('fw')).display;const a=d();document.querySelector('.fig').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}));const b=d();return{a,b,w:document.getElementById('fwW').textContent,app:!!document.querySelector('.k-evidence')}});

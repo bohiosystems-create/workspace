@@ -99,7 +99,25 @@ input[type=range]::-webkit-slider-thumb{{background:var(--navy)}}input[type=rang
 .report h3{{color:var(--sage)}}.report .rk div{{border-top-color:var(--sand)}}.report .rk b{{font-family:var(--serif);font-weight:500}}.report .verdict{{border-left-color:var(--sand)}}
 #rplay{{background:var(--navy);border-color:var(--navy)}}
 .wh{{background:var(--navy)}}
+/* ===== Jadwa first screen and ask bar ===== */
+#jAsk{{display:flex;gap:8px;margin:14px 0 4px}}#jAsk input{{flex:1;border:1px solid var(--hair);border-radius:999px;padding:11px 18px;font:15px var(--sans);background:#fff;color:var(--ink)}}
+#jAsk input:focus{{outline:2px solid rgba(11,31,92,.25);border-color:var(--navy)}}#jAsk .btn{{border-radius:999px;padding:0 22px}}
+.jh-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:8px}}
+.jh-card{{background:#fff;border:1px solid var(--hair);border-top:3px solid var(--sand);border-radius:10px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:12px}}
+.jh-card.on{{border-top-color:var(--navy)}}.jh-top{{display:flex;justify-content:space-between;gap:10px;align-items:baseline}}
+.jh-card h3{{font-family:var(--serif);font-weight:400;font-size:21px;margin:0;color:var(--ink);letter-spacing:0;text-transform:none}}.jh-src{{font-size:12px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%}}
+.jh-figs{{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}}.jh-figs span{{display:block;font-size:12px;color:var(--soft)}}.jh-figs b{{font-family:var(--serif);font-weight:400;font-size:24px;color:var(--navy)}}
+.jh-meta{{font-size:12.5px;color:var(--soft);line-height:1.5}}.jh-act{{display:flex;gap:8px;margin-top:auto}}.jh-new{{border-style:dashed;border-top-style:solid;background:transparent}}.jh-new p{{color:var(--soft);font-size:13.5px;margin:0}}.jh-none{{color:var(--soft);margin:0}}
+/* ===== calmer pages: sentence case, no spaced capitals ===== */
+.tab{{text-transform:none!important;letter-spacing:0!important;font-size:14px!important;font-weight:600}}
+.card h2,.sbhead h2,.kpi .l,.kv b,th,table.t th{{text-transform:none!important;letter-spacing:.01em!important}}
+.card h2,.sbhead h2{{font-size:15px!important;color:var(--ink)!important}}.card h2::before{{display:none!important}}
+.btn,.f,.f label,.ksub,.k-ready,.pill,.pr-nav-i,.pr-nav-s,.pr-head,.pr-sub,.tab-model,.chat-head,.chat-fab,.kset-nav button,.llm,.rt,.kchart-src,.fw-rl,.fw-h,.fx-h,.as-axl,.cr-ll,.brand small,.msg.divider{{text-transform:none!important;letter-spacing:0!important}}
+.pr-nav-i{{font-size:13.5px!important;font-weight:600!important}}.pr-head,.pr-sub{{font-size:13px!important}}.btn{{font-weight:600}}
+body:not(.jdbg) #dbgWin{{display:none!important}}   /* the model debug is a tool for the analyst: it opens from its button, it does not float over a client demo */
 /* ===== decks and reports: Jadwa's annual report (navy pages with sand shards, light navy headings, navy table bands) ===== */
+.tag,.k-doc .tag{{display:none!important}}.fig,.k-doc .fig{{border-bottom-width:1px!important;border-bottom-style:dotted!important;font-weight:600}}   /* no badge under every figure: the source stays one click away and in the appendix */
+.k-stat-l,.kd-root .kd-stat-l,.k-doc th,.k-doc table.t th{{text-transform:none!important;letter-spacing:.02em!important}}
 .kd-root,.k-doc{{font-family:var(--sans)}}
 .kd-root .kd-fb-orange,.kd-root .kd-fb-dark{{background:{NAVY}}}.kd-fb-tex{{display:none}}
 .kd-root .kd-fb-band{{top:auto;bottom:auto;right:auto;opacity:1;animation-name:jShard}}
@@ -178,6 +196,8 @@ try{{for(const [id,d] of Object.entries({{
 function kchev(h=30,c=KD.OR){{const id='jt'+(window.__jt=(window.__jt||0)+1);return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="{SYM_VB}" width="${{h}}" height="${{h}}" aria-hidden="true" style="display:inline-block;vertical-align:middle;width:${{h}}px;height:${{h}}px"><defs><mask id="${{id}}"><rect width="1051.42" height="1051.43" fill="#fff"/><path fill="#000" transform="{SYM_TR}" d="{SYM_D}"/></mask></defs><rect width="1051.42" height="1051.43" fill="${{c}}" mask="url(#${{id}})"/></svg>`}}
 </script>"""
 
+HOME_JS = '\n/* Jadwa\'s first screen: "Your models", one card per model (its own figures, its versions, its documents) with ask, open and\n   report; and an ask bar on every page. Jadwa works on Excel alone: the daily feed of exports and emails is not its start. */\n(function(){try{\n  const anchor=document.querySelector(\'#p-appr\');if(!anchor)return;\n  const home=document.createElement(\'section\');home.className=\'pane\';home.id=\'p-home\';home.innerHTML=\'<div class="jh-grid" id="jhGrid"></div>\';anchor.parentNode.insertBefore(home,anchor);\n  TABS.unshift([\'home\',\'Your models\']);TAB_INTRO.home=\'Every model in the workspace, from its own workbook. Ask about any of them, open it, or build its report.\';\n  const tabs=document.querySelector(\'#tabs\');if(tabs){const t=document.createElement(\'div\');t.className=\'tab\';t.dataset.t=\'home\';t.textContent=\'Your models\';t.onclick=()=>showTab(\'home\');tabs.insertBefore(t,tabs.querySelector(\'.tab\'))}\n  const bar=document.createElement(\'form\');bar.id=\'jAsk\';bar.setAttribute(\'role\',\'search\');bar.innerHTML=\'<input id="jAskIn" autocomplete="off" aria-label="Ask the agent"><button class="btn" type="submit">Ask</button>\';\n  if(tabs&&tabs.parentNode)tabs.parentNode.insertBefore(bar,tabs.nextSibling);\n  const ph=()=>{const i=document.getElementById(\'jAskIn\');if(i)i.placeholder=\'Ask about \'+(PROJ&&PROJ.name?PROJ.name:\'your models\')+\': “what if the exit cap rate is 7.5%?”, “where does the IRR come from?”\'};\n  bar.addEventListener(\'submit\',e=>{e.preventDefault();const i=document.getElementById(\'jAskIn\'),q=i.value.trim();if(!q)return;i.value=\'\';try{toggleDock(true)}catch(_){}setTimeout(()=>webAsk(q),60)});\n  const fmt=(k,v,cy)=>!Number.isFinite(v)?\'—\':/irr|profit_on_cost/.test(k)?v.toFixed(2)+\'%\':k===\'equity_multiple\'?v.toFixed(2)+\'x\':fMc(v,cy);\n  window.renderHome=function(){const g=document.getElementById(\'jhGrid\');if(!g)return;const ps=activeProjects();\n    const card=p=>{const x=latestExport(p.id),o=(x&&x.out)||{},cy=(x&&x.meta&&x.meta.currency)||p.currency||\'\';const V=(MVERS[p.id]||[]).filter(v=>!v.base&&x&&v.ex===x.id),lv=V[V.length-1],D=(typeof DOCS!==\'undefined\'&&DOCS[p.id])||[];\n      const rows=[[\'levered_irr\',\'Levered IRR\'],[\'unlevered_irr\',\'Unlevered IRR\'],[\'profit_on_cost\',\'Profit on cost\'],[\'net_profit\',\'Net profit\'],[\'equity_multiple\',\'Equity multiple\']].filter(([k])=>Number.isFinite(o[k])).slice(0,4);\n      return \'<article class="jh-card\'+(p.id===PROJ.id?\' on\':\'\')+\'" data-p="\'+esc(p.id)+\'"><div class="jh-top"><h3>\'+esc(p.name)+\'</h3><span class="jh-src">\'+(x?(x.src===\'file\'?esc(x.file||\'workbook\'):\'demo model\'):\'no model yet\')+\'</span></div>\'\n        +\'<div class="jh-figs">\'+(rows.map(([k,l])=>\'<div><span>\'+l+\'</span><b>\'+esc(fmt(k,o[k],cy))+\'</b></div>\').join(\'\')||\'<p class="jh-none">No figures yet: upload the workbook.</p>\')+\'</div>\'\n        +\'<div class="jh-meta">\'+(x?\'Version \'+esc(x.id):\'\')+(V.length?\' · \'+V.length+\' what-if\'+(V.length>1?\'s\':\'\')+\' tested\':\'\')+(D.length?\' · \'+D.length+\' document\'+(D.length>1?\'s\':\'\'):\'\')+(lv?\'<br>Last: \'+esc(String(lv.label).slice(0,90)):\'\')+\'</div>\'\n        +\'<div class="jh-act"><button class="btn" data-jh="ask">Ask</button><button class="btn ghost" data-jh="open">Open</button><button class="btn ghost" data-jh="report">Report</button></div></article>\'};\n    g.innerHTML=ps.map(card).join(\'\')+\'<article class="jh-card jh-new"><h3>Add a model</h3><p>Upload an Excel model: it is read, mapped and recalculated exactly, ready to ask about.</p><div class="jh-act"><button class="btn" data-jh="new">Upload a workbook</button></div></article>\'};\n  document.addEventListener(\'click\',e=>{const b=e.target.closest&&e.target.closest(\'[data-jh]\');if(!b)return;const a=b.dataset.jh,c=b.closest(\'[data-p]\'),id=c&&c.dataset.p;\n    if(a===\'new\'){openNewProject();return}if(id&&id!==PROJ.id)switchProject(id);ph();\n    if(a===\'ask\'){try{toggleDock(true)}catch(_){}setTimeout(()=>{const i=document.getElementById(\'ask\');if(i)i.focus()},120)}else if(a===\'open\')showTab(\'em\');else if(a===\'report\')showTab(\'report\')});\n  const st=showTab;showTab=function(id){const r=st(id);try{ph();if(id===\'home\'){document.body.classList.add(\'gpage\');renderHome()}}catch(_){}return r};\n  const rp=renderProjectUI;renderProjectUI=function(){const r=rp.apply(this,arguments);try{ph();if(document.getElementById(\'p-home\').classList.contains(\'on\'))renderHome()}catch(_){}return r};\n  document.addEventListener(\'click\',e=>{if(e.target.closest&&e.target.closest(\'#exDbg\'))document.body.classList.add(\'jdbg\')},true);\n  ph();showTab(\'home\');\n}catch(e){try{console.warn(\'jadwa home\',e)}catch(_){}}})();\n'
+
 # the charts in Jadwa's colours, as the annual report draws them: navy for the figure that stands, sand for what is deducted or to
 # watch, sage for what fails or is neutral, the blue of the site's links fourth; no red, no green, no orange
 NAVY_LIGHT, SAND_LIGHT = '#8fa0d6', '#d6cdbd'
@@ -188,6 +208,13 @@ KD = ("const KD={OR:'%s',CH:'%s',INK:'%s',SOFT:'%s',TAUPE:'%s',GREY:'%s',FAINT:'
 # sentences about the company itself (the rest of the texts carry only the name)
 # Jadwa runs on Excel alone: every EstateMaster phrase becomes the workbook's (longest first, so the specific wins)
 EM_WORDS = [
+    ("<h2>EstateMaster exports</h2>", "<h2>Workbook versions</h2>"), ("<th>Export</th><th>Option / stage</th>", "<th>Version</th><th>Case</th>"),
+    ("<th>Option / stage</th><th>Export</th>", "<th>Case</th><th>Version</th>"),
+    ("comes from the full EstateMaster model; on this uploaded workbook it shows as", "is not a section of this workbook; it shows as"),
+    ("needs the full EstateMaster model, which this uploaded workbook is not, so it is left out here", "is not in this workbook, so it is left out here"),
+    ("drawn from the full EstateMaster model, which this uploaded workbook is not", "not in this workbook"),
+    ("They come from the full EstateMaster model; ask me", "They are not in this workbook; ask me"),
+    ("This project is an uploaded workbook, not a full EstateMaster model: only", "Only"),
     ("EstateMaster\u2019s own figure", "the workbook\u2019s own figure"), ("EstateMaster\u2019s own cash flow", "the workbook\u2019s own cash flow"),
     ("EstateMaster\u2019s own", "the workbook\u2019s own"), ("EstateMaster\u2019s", "the workbook\u2019s"), ("EstateMaster's", "the workbook's"),
     ("EstateMaster exports", "workbook versions"), ("EstateMaster export", "workbook version"), ("EstateMaster figures", "the workbook\u2019s figures"),
@@ -248,7 +275,7 @@ def apply(html):
     html = html[:i] + mail_block((_BR.parents[1] / 'api' / '_lib' / 'mailui.js').read_text(encoding='utf-8')) + html[j:]
     html = words(html)
     i = html.rindex("</body>")   # after the app's own script, so the Jadwa klogo/kchev are the ones that stand (a later declaration wins)
-    html = html[:i] + SCRIPT + "\n" + html[i:]
+    html = html[:i] + SCRIPT + "\n<script>" + HOME_JS + "</script>\n" + html[i:]
     assert "KINAN" not in html, "KINAN left in the page"
     return html
 
