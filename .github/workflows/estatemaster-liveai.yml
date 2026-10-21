@@ -9,6 +9,9 @@ on:
     - cron: '17 3 * * *'   # every night (03:17 UTC)
   workflow_dispatch:
     inputs:
+      build:
+        description: 'source (the KINAN page) or jadwa (the Jadwa edition in dist/jadwa-readonly)'
+        default: source
       scope:
         description: 'family (one model of each family), full (every model), or a comma list of model names'
         default: 'family'
@@ -34,7 +37,9 @@ jobs:
       - name: Evaluate
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then echo "No ANTHROPIC_API_KEY secret: skipped"; exit 0; fi
-          python3 -m http.server 4090 -d estatemaster-agent >/dev/null 2>&1 &
+          BUILD="${{ github.event.inputs.build || 'source' }}"
+          if [ "$BUILD" = jadwa ]; then ln -sfn ../../vendor estatemaster-agent/dist/jadwa-readonly/vendor; python3 -m http.server 4090 -d estatemaster-agent/dist/jadwa-readonly >/dev/null 2>&1 &
+          else python3 -m http.server 4090 -d estatemaster-agent >/dev/null 2>&1 & fi
           for i in $(seq 1 30); do curl -s -o /dev/null localhost:4090/ && break; sleep 0.5; done
           SCOPE="${{ github.event.inputs.scope || 'family' }}"
           if [ "$SCOPE" = family ]; then export LIVEAI_PER_FAMILY=1; elif [ "$SCOPE" != full ]; then export LIVEAI_MODELS="$SCOPE"; fi

@@ -89,8 +89,20 @@ input[type=range]::-webkit-slider-thumb{{background:var(--navy)}}input[type=rang
 .kd-root .kd-fb-band.a{{right:-6vw;top:-8vh;width:40vw;height:62vh;background:rgba(183,166,143,.42);clip-path:polygon(0 0,100% 0,100% 100%,56% 100%,0 26%)}}
 .kd-root .kd-fb-band.b{{right:14vw;top:-14vh;width:28vw;height:76vh;background:rgba(183,166,143,.22);clip-path:polygon(0 0,100% 0,100% 70%,40% 100%)}}
 @keyframes jShard{{from{{opacity:0;transform:translate(-4%,-6%)}}to{{opacity:1;transform:none}}}}
-.kd-root .kd-div-title{{text-transform:uppercase;font-weight:700;letter-spacing:.02em}}.kd-div-sub{{color:var(--sand);letter-spacing:.2em;text-transform:uppercase;font-size:12px}}
-.kd-root .kd-cover-title{{font-weight:600}}
+/* titles as Jadwa sets them: the cover and the dividers in the site's serif, title case, light; slide and section headings in a light
+   sans, title case, navy; no caption lines, bars or rules above or under them */
+.kd-root .kd-kicker,.kd-root .kd-kbar,.kd-root .kd-rule,.kd-root .kd-sweep,.k-kick,.k-rule{{display:none!important}}
+.kd-root .kd-cover-title,.kd-root .kd-div-title{{font-family:var(--serif);font-weight:400;text-transform:none;letter-spacing:0;line-height:1.1}}
+.kd-root .kd-cover-title{{font-size:clamp(34px,5.4vw,80px);margin:0 0 14px}}.kd-root .kd-div-title{{font-size:clamp(36px,5.6vw,82px);max-width:16ch}}
+.kd-root .kd-div-sub{{color:var(--sand);letter-spacing:.08em;text-transform:none;font-size:clamp(13px,1.2vw,17px);font-weight:400;margin-top:12px}}
+.kd-root .kd-cover-sub{{font-size:clamp(14px,1.3vw,19px);color:rgba(255,255,255,.82)}}
+.kd-root .kd-h2,.k-chart .kd-h2{{font-family:var(--sans);font-weight:300;text-transform:none;letter-spacing:0;color:var(--navy)}}
+.kd-root .kd-h2{{font-size:clamp(26px,3.2vw,46px);line-height:1.15}}.kd-root .kd-h2.kd-or{{color:var(--navy)}}
+.kd-root .kd-sub{{letter-spacing:0;text-transform:none;font-size:clamp(13px,1.1vw,16px);color:var(--soft)}}
+.kd-root .kd-stat-l,.k-stat-l{{letter-spacing:.06em;font-weight:600;font-size:11px;color:var(--soft)}}
+.kd-root .kd-close-tag .kd-tagline{{font-family:var(--serif);text-transform:none;letter-spacing:0;font-weight:400}}
+.k-cover h1{{font-family:var(--serif);font-weight:400;font-size:40px;line-height:1.1;margin:0 0 10px}}.k-csub{{font-size:14px;opacity:.85}}
+.k-sh{{font-family:var(--sans);font-weight:300;font-size:26px}}.k-chart .kd-h2{{font-size:20px}}.k-chart .kd-sub{{letter-spacing:0;text-transform:none}}
 .kd-root{{background:#fbfaf7 url("{GRID}") left bottom/120px no-repeat}}.kd-root .kd-bg{{background:url("{SHARDS_LIGHT}") right top/70% 36vh no-repeat}}.kd-root .kd-grid,.kd-root .kd-tex{{display:none}}.kd-kicker-w{{color:var(--sand)}}
 .kd-root .kd-on-orange .kd-footline b,.kd-root .kd-on-dark .kd-footline b{{color:var(--sand)}}.kd-footline b{{color:var(--navy)}}
 .k-cover{{background:{NAVY} url("{SHARDS}") center/100% 100% no-repeat;text-align:left;padding:72px 40px 56px;overflow:hidden;min-height:200px}}
@@ -102,6 +114,7 @@ input[type=range]::-webkit-slider-thumb{{background:var(--navy)}}input[type=rang
 .k-close{{background:{NAVY} url("{SHARDS}") center/100% 100% no-repeat;position:relative}}.k-tag{{color:var(--sand)}}
 .k-sec{{background:url("{GRID}") left bottom/90px no-repeat,url("{SHARDS_LIGHT}") right top/60% 140px no-repeat}}
 .k-doc{{background:#fbfaf7}}.k-head{{background:#fff}}
+#report.rtl .k-cover{{text-align:right}}#report.rtl .k-rule{{margin-left:auto;margin-right:0}}#report.rtl .k-sh{{flex-direction:row-reverse}}#report.rtl .k-fact td.n{{text-align:left}}
 .report h1{{font-family:var(--sans);font-weight:400}}.report .rk b{{font-family:var(--sans);font-weight:600;color:var(--navy)}}
 """
 
@@ -133,6 +146,12 @@ SPLASH = ('<div id="ksplash" role="status" aria-live="polite" aria-label="Loadin
 SCRIPT = f"""<script>
 window.BOHIO_BRAND='jadwa';
 function klogo(h=34,c='#fff'){{const W=Math.round(h*2.9);return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 290 100" width="${{W}}" height="${{h}}" role="img" aria-label="Jadwa" style="display:block;width:${{W}}px;height:${{h}}px"><g fill="none" stroke="${{c}}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">{SAPLING}</g><text x="108" y="68" font-family="'Playfair Display',Georgia,serif" font-size="58" fill="${{c}}">Jadwa</text></svg>`}}
+/* ready reports in Jadwa's vocabulary: one sentence in the designer, or the list, gives the finished document */
+try{{for(const [id,d] of Object.entries({{
+  jfact:{{name:'Fund fact sheet',aud:'Unit holders',sched:'On request',builtin:true,purpose:'The fund on one page as the annual report shows each property: the figures with their cells, the case, the timeline, the investor returns',blocks:['wb_factsheet','wb_investors','portfolio_allocation']}},
+  junit:{{name:'Unit-holder quarterly update',aud:'Unit holders',sched:'Quarterly',builtin:true,purpose:'What changed this quarter: headline figures against the previous export, the fact sheet, the what-ifs tested, the portfolio',blocks:['kpis','kpis_prev','wb_factsheet','wb_whatifs','portfolio_allocation','models_today']}},
+  jlender:{{name:'Lender pack',aud:'Lenders',sched:'On request',builtin:true,purpose:'The facility, cover and covenants from the workbook, the cash flow and the stress cases',blocks:['kpis','wb_debt','cashflow_annual','stress_table','headroom']}}
+}})){{if(!RPTS[id])wireReport(id,d)}}if(typeof renderReportList==='function')renderReportList()}}catch(e){{}}
 function kchev(h=30,c=KD.OR){{return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${{h}}" height="${{h}}" aria-hidden="true" style="display:inline-block;vertical-align:middle;width:${{h}}px;height:${{h}}px"><g fill="none" stroke="${{c}}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">{SAPLING}</g></svg>`}}
 </script>"""
 
