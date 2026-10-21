@@ -8,29 +8,45 @@ build time (tools/build_options.py), so the KINAN source stays as it is.
 """
 import re
 
-NAVY, NAVY_DEEP, SAND, SAGE, INK, SOFT, BLUE, PALE, SAND_SOFT = '#0b1f5c', '#071542', '#b7a68f', '#7e8273', '#2f332f', '#6b706b', '#5160d2', '#f3f3f1', '#f1ece3'
+NAVY, NAVY_DEEP, SAND, SAGE, INK, SOFT, BLUE, PALE, SAND_SOFT = '#0b1f5c', '#071542', '#b7a68f', '#878378', '#2f332f', '#6b706b', '#5160d2', '#f3f3f1', '#f1ece3'
 
 # the sapling, traced from Jadwa's own mark (jadwa.com: the white mark on the sage square, and the large motif on the sand block):
 # a narrow V, two inner arcs bending down to the centre, two outer arcs sweeping down and running on vertically. In the square the
 # outer arcs run off the bottom edge, as on the site; standing alone they end on a baseline.
 V, INNER, OUTER = 'M43 29 L50 40 L57 29', 'M31 41 C37.4 42.4 42.9 48.8 45.7 55 M69 41 C62.6 42.4 57.1 48.8 54.3 55', 'M27 55 C35.8 58.2 43.7 69.3 44.5 80 M73 55 C64.2 58.2 56.3 69.3 55.5 80'
+import pathlib
+_BR = pathlib.Path(__file__).resolve().parents[1] / "brand" / "jadwa"
+_S = re.search(r'transform="([^"]*)" d="([^"]*)"', (_BR / "symbol.svg").read_text())
+SYM_TR, SYM_D = _S.group(1), _S.group(2)
+LOGO_PATHS = re.search(r'<g fill="#878378">(.*)</g>', (_BR / "logo.svg").read_text(), re.S).group(1)
+SYM_VB, LOGO_VB, LOGO_AR = "0 0 1051.42 1051.43", "26.5 34.9 363.4 105", 363.4 / 105
+def square_svg(px, sq=None, tree="#fff", label=True):
+    """Jadwa's square: the symbol in sage, the tree knocked out and showing `tree` (a backing square in that colour)"""
+    sq = sq or SAGE
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{SYM_VB}" width="{px}" height="{px}"' + (' role="img" aria-label="Jadwa"' if label else ' aria-hidden="true"')
+            + f' style="display:block;width:{px}px;height:{px}px"><rect width="1051.42" height="1051.43" fill="{tree}"/><path fill="{sq}" transform="{SYM_TR}" d="{SYM_D}"/></svg>')
+def tree_svg(colour, opacity=1, mid="jt"):
+    """the tree alone: the square minus the symbol (an SVG mask), so the exact shapes, trunks included"""
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{SYM_VB}"><defs><mask id="{mid}"><rect width="1051.42" height="1051.43" fill="#fff"/><path fill="#000" transform="{SYM_TR}" d="{SYM_D}"/></mask></defs>'
+            f'<rect width="1051.42" height="1051.43" fill="{colour}" opacity="{opacity}" mask="url(#{mid})"/></svg>')
+def data_uri(svg):
+    return "data:image/svg+xml;utf8," + svg.replace("#", "%23").replace('"', "'")
+def lockup_svg(colour, h):
+    """the full logo (Arabic name, Jadwa Investment, the square) in one colour, as Jadwa's own files have it"""
+    w = round(h * LOGO_AR)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{LOGO_VB}" width="{w}" height="{h}" role="img" aria-label="Jadwa Investment" style="display:block;width:{w}px;height:{h}px"><g fill="{colour}">{LOGO_PATHS}</g></svg>')
 SAPLING = f'<path d="{V}"/><path d="{INNER}"/><path d="{OUTER} M44.5 80 L44.5 95 M55.5 80 L55.5 95"/>'
 SAPLING_SQ = f'<path d="{V}"/><path d="{INNER}"/><path d="{OUTER} M44.5 80 L44.5 108 M55.5 80 L55.5 108"/>'
-MARK = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="40" height="40" role="img" aria-label="Jadwa" style="display:block;width:40px;height:40px">'
-        f'<rect width="100" height="100" fill="{SAGE}"/><g fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">{SAPLING_SQ}</g></svg>')
-BIGMARK = MARK.replace('width="40" height="40"', 'width="64" height="64"').replace('width:40px;height:40px', 'width:64px;height:64px')
+MARK = square_svg(40)
 # the layered angular shapes of Jadwa's covers and section pages (the annual report: translucent sand shards overlapping from the
 # corners), drawn as vectors so every report and slide carries them without an image
 def _shards(op):
     polys=[('0,0 520,0 520,70 160,400 0,400',op),('120,0 680,0 420,400 300,400',op*.6),('640,0 1000,0 1000,260 820,400 700,400',op*.8),('780,0 1000,0 1000,120',op*.5),('0,260 140,400 0,400',op*.7)]
     return ('data:image/svg+xml;utf8,'+('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" preserveAspectRatio="none">'+''.join(f'<polygon points="{pt}" fill="{SAND}" opacity="{o:.2f}"/>' for pt,o in polys)+'</svg>').replace('#','%23').replace('"',"'"))
 SHARDS, SHARDS_LIGHT = _shards(.42), _shards(.1)
-def _sap(colour, op, stroke=4.5):
-    return ('data:image/svg+xml;utf8,' + f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 24 60 76"><g fill="none" stroke="{colour}" stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round" opacity="{op}">{SAPLING}</g></svg>').replace('#', '%23').replace('"', "'")
-SAPLING_SAGE, SAPLING_WHITE, SAPLING_SAND = _sap(SAGE, 1), _sap('#ffffff', .13, 3), _sap(SAND, .35, 3)
+SAPLING_SAGE, SAPLING_WHITE, SAPLING_SAND = data_uri(tree_svg(SAGE)), data_uri(tree_svg('#ffffff', .13)), data_uri(tree_svg(SAND, .35))
 GRID = ('data:image/svg+xml;utf8,' + ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 90"><g stroke="%s" stroke-width=".6" fill="none" opacity=".55"><path d="M0 60 L30 90 M0 40 L50 90 M0 20 L70 90 M20 90 L0 70 M40 90 L0 50 M60 90 L0 30"/><path d="M0 60 L30 30 M0 80 L50 30"/></g></svg>' % SAND).replace('#', '%23').replace('"', "'"))
-MOTIF = ('data:image/svg+xml;utf8,' + (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g fill="none" stroke="{SAND}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" opacity=".55">{SAPLING}</g></svg>')
-         .replace('#', '%23').replace('"', "'"))
+MOTIF = data_uri(tree_svg(SAND, .5))
 
 CSS = f"""
 /* ===== Jadwa theme: white band with the sage sapling, serif titles, navy actions, sand rules, pale page with the sapling motif ===== */
@@ -133,32 +149,25 @@ input[type=range]::-webkit-slider-thumb{{background:var(--navy)}}input[type=rang
 
 FONTS = '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Nunito+Sans:wght@300;400;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">'
 
-# the opening, as jadwa.com opens: the sage square with the mark on white in a soft halo, the strokes drawing themselves, then a fade
-# into the app (the page's own timing script decides when: at least 2.6 s, or until the app is ready)
-DRAW_SQ = (f'<path pathLength="100" d="{V}"/><path pathLength="100" d="M31 41 C37.4 42.4 42.9 48.8 45.7 55"/><path pathLength="100" d="M69 41 C62.6 42.4 57.1 48.8 54.3 55"/>'
-           '<path pathLength="100" d="M27 55 C35.8 58.2 43.7 69.3 44.5 80 L44.5 108"/><path pathLength="100" d="M73 55 C64.2 58.2 56.3 69.3 55.5 80 L55.5 108"/>')
-DRAW = (f'<path pathLength="100" d="{V}"/><path pathLength="100" d="M31 41 C37.4 42.4 42.9 48.8 45.7 55"/><path pathLength="100" d="M69 41 C62.6 42.4 57.1 48.8 54.3 55"/>'
-        '<path pathLength="100" d="M27 55 C35.8 58.2 43.7 69.3 44.5 80 L44.5 95"/><path pathLength="100" d="M73 55 C64.2 58.2 56.3 69.3 55.5 80 L55.5 95"/>')
+# the opening: the square appears and the tree grows up from its trunks, then a fade into the app (the page's own timing
+# script decides when: at least 2.6 s, or until the app is ready)
 SPLASH = ('<div id="ksplash" role="status" aria-live="polite" aria-label="Loading Jadwa financial modelling"><style>'
           '#ksplash{position:fixed;inset:0;z-index:2147483000;overflow:hidden;background:#fff;display:grid;place-items:center;transition:opacity .55s ease}'
           '#ksplash.ks-leave{opacity:0;pointer-events:none}'
-          '#ksplash .ks-halo{position:relative;width:min(44vmin,210px);height:min(44vmin,210px);display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,rgba(126,130,115,.14) 0,rgba(126,130,115,.06) 48%,rgba(255,255,255,0) 70%);animation:jHalo 1.4s ease .1s both}'
+          '#ksplash .ks-halo{position:relative;width:min(44vmin,210px);height:min(44vmin,210px);display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,rgba(135,131,120,.14) 0,rgba(135,131,120,.06) 48%,rgba(255,255,255,0) 70%);animation:jHalo 1.4s ease .1s both}'
           '@keyframes jHalo{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}'
-          f'#ksplash .ks-sq{{width:min(26vmin,124px);height:min(26vmin,124px);background:{SAGE};display:grid;place-items:center;overflow:hidden;animation:jSq .9s cubic-bezier(.2,.8,.2,1) .15s both;box-shadow:0 18px 40px rgba(47,51,47,.14)}}'
+          f'#ksplash .ks-sq{{width:min(26vmin,124px);height:min(26vmin,124px);background:{SAGE};overflow:hidden;animation:jSq .9s cubic-bezier(.2,.8,.2,1) .15s both;box-shadow:0 18px 40px rgba(47,51,47,.14)}}'
           '@keyframes jSq{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:none}}'
-          '#ksplash svg{width:100%;height:100%;overflow:visible}'
-          '#ksplash svg path{fill:none;stroke:#fff;stroke-width:4.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:100;stroke-dashoffset:101;animation:jDraw .7s cubic-bezier(.4,0,.2,1) forwards}'
-          '#ksplash svg path:nth-child(1){animation-delay:.45s}#ksplash svg path:nth-child(2),#ksplash svg path:nth-child(3){animation-delay:.8s}#ksplash svg path:nth-child(4),#ksplash svg path:nth-child(5){animation-delay:1.15s}'
-          '@keyframes jDraw{to{stroke-dashoffset:0}}'
-          '@media(prefers-reduced-motion:reduce){#ksplash svg path{animation:none;stroke-dashoffset:0}#ksplash .ks-halo,#ksplash .ks-sq{animation:none}}'
-          '</style><div class="ks-halo"><div class="ks-sq">'
-          f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">{DRAW_SQ}</svg>'
-          '</div></div>')
+          '#ksplash .ks-sq svg{width:100%!important;height:100%!important}'
+          '#ksplash .ks-sq rect{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0);animation:jGrow 1.25s cubic-bezier(.45,0,.2,1) .55s forwards}'
+          '@keyframes jGrow{to{transform:scaleY(1)}}'
+          '@media(prefers-reduced-motion:reduce){#ksplash .ks-sq rect{animation:none;transform:none}#ksplash .ks-halo,#ksplash .ks-sq{animation:none}}'
+          '</style><div class="ks-halo"><div class="ks-sq">' + square_svg(124, label=False) + '</div></div>')
 
 # the app's own vector (decks, reports, emails' preview) and the title mark, redrawn for Jadwa; the header mark re-rendered
 SCRIPT = f"""<script>
 window.BOHIO_BRAND='jadwa';
-function klogo(h=34,c='#fff'){{const W=Math.round(h*2.9);return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 290 100" width="${{W}}" height="${{h}}" role="img" aria-label="Jadwa" style="display:block;width:${{W}}px;height:${{h}}px"><g fill="none" stroke="${{c}}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">{SAPLING}</g><text x="108" y="68" font-family="'Playfair Display',Georgia,serif" font-size="58" fill="${{c}}">Jadwa</text></svg>`}}
+function klogo(h=34,c='#fff'){{const col=/^#?f{{3,6}}$/i.test(String(c).replace('#',''))||/^(#fff|#ffffff|white)$/i.test(c)?'#ffffff':'{SAGE}',W=Math.round(h*{LOGO_AR:.4f});return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="{LOGO_VB}" width="${{W}}" height="${{h}}" role="img" aria-label="Jadwa Investment" style="display:block;width:${{W}}px;height:${{h}}px"><g fill="${{col}}">{LOGO_PATHS}</g></svg>`}}
 /* ready reports in Jadwa's vocabulary: one sentence in the designer, or the list, gives the finished document */
 try{{for(const [id,d] of Object.entries({{
   jfact:{{name:'Fund fact sheet',aud:'Unit holders',sched:'On request',builtin:true,purpose:'The fund on one page as the annual report shows each property: the figures with their cells, the case, the timeline, the investor returns',blocks:['wb_factsheet','wb_investors','portfolio_allocation']}},
@@ -166,7 +175,7 @@ try{{for(const [id,d] of Object.entries({{
   jlender:{{name:'Lender pack',aud:'Lenders',sched:'On request',builtin:true,purpose:'The facility, cover and covenants from the workbook, the cash flow and the stress cases',blocks:['kpis','wb_debt','cashflow_annual','stress_table','headroom']}},
   jevidence:{{name:'Deal evidence',aud:'Investment committee',sched:'On request',builtin:true,purpose:'The model against its documents: every term the lease, term sheet and valuation state, with the quote, next to the model\u2019s cell; the what-ifs that came from them',blocks:['wb_factsheet','wb_documents','wb_whatifs']}}
 }})){{if(!RPTS[id])wireReport(id,d)}}if(typeof renderReportList==='function')renderReportList();if(typeof renderDocs==='function')renderDocs()}}catch(e){{}}
-function kchev(h=30,c=KD.OR){{return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${{h}}" height="${{h}}" aria-hidden="true" style="display:inline-block;vertical-align:middle;width:${{h}}px;height:${{h}}px"><g fill="none" stroke="${{c}}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">{SAPLING}</g></svg>`}}
+function kchev(h=30,c=KD.OR){{const id='jt'+(window.__jt=(window.__jt||0)+1);return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="{SYM_VB}" width="${{h}}" height="${{h}}" aria-hidden="true" style="display:inline-block;vertical-align:middle;width:${{h}}px;height:${{h}}px"><defs><mask id="${{id}}"><rect width="1051.42" height="1051.43" fill="#fff"/><path fill="#000" transform="{SYM_TR}" d="{SYM_D}"/></mask></defs><rect width="1051.42" height="1051.43" fill="${{c}}" mask="url(#${{id}})"/></svg>`}}
 </script>"""
 
 # the charts in Jadwa's colours, as the annual report draws them: navy for the figure that stands, sand for what is deducted or to
@@ -216,9 +225,10 @@ def apply(html):
     assert js, "splash script not found"
     html = html[:m.start()] + "<!--ksplash: Jadwa-->" + SPLASH + "</div>" + js.group(0) + "<!--/ksplash-->" + html[m.end():]
     # the header mark; KINAN's chevron (the band's and the page title's) becomes the sapling in sage
-    html = re.sub(r'<div class="klogo">.*?</div>', lambda _: f'<div class="klogo"><span class="jword" aria-hidden="true"><span class="jar">جدوى للاستثمار</span><span class="jen">Jadwa Investment</span></span>{MARK}</div>', html, count=1, flags=re.S)
-    chev = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="{SAGE}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">{SAPLING}</g></svg>'
-    html = re.sub(r'<svg xmlns="http://www.w3.org/2000/svg" viewBox="935\.84 30\.03 24\.66 38\.05"[^>]*>.*?</svg>', lambda _: chev, html, flags=re.S)
+    html = re.sub(r'<div class="klogo">.*?</div>', lambda _: f'<div class="klogo">{lockup_svg(SAGE, 46)}</div>', html, count=1, flags=re.S)
+    _n = iter(range(1, 999))
+    chev = None
+    html = re.sub(r'<svg xmlns="http://www.w3.org/2000/svg" viewBox="935\.84 30\.03 24\.66 38\.05"[^>]*>.*?</svg>', lambda _: tree_svg(SAGE, 1, f"jtc{next(_n)}"), html, flags=re.S)
     # the brand constants and the deck font
     html, n = re.subn(r"const KD=\{OR:'#f15a22'.*?caption:'AI agent on EstateMaster'\};", KD, html, count=1)
     assert n == 1, "KD not found"

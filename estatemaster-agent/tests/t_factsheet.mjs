@@ -21,5 +21,9 @@ ok(!a.err&&a.rows.length===3&&Math.abs(a.rows.reduce((t,r)=>t+r.share,0)-100)<1e
 ok(r.donut&&r.donut.labels.length===3&&/SAR M/.test(r.donut.unit),'the allocation is a donut slide in the deck',JSON.stringify(r.donut).slice(0,200));
 await up('r32_hold_usd.xlsx');await p.waitForTimeout(2500);r=await R();
 ok(/different currencies \(.*USD.*\)|different currencies \(.*SAR.*\)/.test(r.html)&&!r.donut,'a USD model added: shares not computed, the currencies named',r.html.replace(/<[^>]+>/g,' ').match(/different currencies[^.]*\./)||'none');
+// the downloaded report: the figure note is closed when it opens, a click or a right-click on a figure shows its note
+{const html=await p.evaluate(()=>reportStandalone('zz'));const q=await (await p.context().browser().newContext()).newPage();await q.setContent(html);await q.waitForTimeout(500);
+  const st=await q.evaluate(()=>{const d=()=>getComputedStyle(document.getElementById('fw')).display;const a=d();document.querySelector('.fig').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}));const b=d();return{a,b,w:document.getElementById('fwW').textContent,app:!!document.querySelector('.k-evidence')}});
+  ok(st.a==='none'&&st.b==='flex'&&/read from|Recalculated|replica|AI/.test(st.w)&&st.app,'downloaded report: the note is closed at first, a right-click on a figure opens it; the appendix lists every figure',JSON.stringify(st));await q.close()}
 ok(errs.length===0,'no page errors',errs.join(' | '));
 console.log(`\n${pass} pass, ${fail} fail`);await b.close();process.exit(fail?1:0);
