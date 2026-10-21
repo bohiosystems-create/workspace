@@ -9203,7 +9203,7 @@ let pptxP=null;const loadPptx=()=>pptxP||(pptxP=loadScriptAny([VEND('pptxgen-3.1
 async function kLogoPng(color,height=120){try{const svg=klogo(height,color),w=+(svg.match(/width="(\d+)"/)||[])[1]||height*2;const img=new Image();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);await img.decode();const c=document.createElement('canvas');c.width=w;c.height=height;c.getContext('2d').drawImage(img,0,0,w,height);return{data:c.toDataURL('image/png'),ratio:w/height}}catch(e){return null}}
 async function deckToPptx(deck){
   await loadPptx();const p=new window.PptxGenJS();p.layout='LAYOUT_WIDE';p.title=deck.title;p.company='Jadwa';p.author='Bohio agent on EstateMaster';
-  const OR='F15A22',INK='2E2E2F',TAUPE='51473D',SOFT='6F6F6F',TRACK='EFEEEC',GOOD='1F8A4C',BAD='D03B3B',WARN='D99400',SERIES=['F15A22','2A78D6','1BAF7A','EDA100','E87BA4','4A3AA7'],W=13.333,H=7.5,FONT='Montserrat';
+  const OR='0B1F5C',INK='2F332F',TAUPE='51473D',SOFT='6F6F6F',TRACK='EFEEEC',GOOD='1F8A4C',BAD='D03B3B',WARN='D99400',SERIES=['0B1F5C','2A78D6','1BAF7A','EDA100','E87BA4','4A3AA7'],W=13.333,H=7.5,FONT='Montserrat';
   const [ld,lw]=await Promise.all([kLogoPng('#2f332f'),kLogoPng('#ffffff')]),T=s=>String(s??'').replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim(),total=deck.slides.length;
   const frame=(sl,n,dark)=>{sl.addShape(p.ShapeType.rect,{x:0,y:0,w:W,h:.08,fill:{color:OR},line:{color:OR}});const lg=dark?lw:ld;if(lg)sl.addImage({data:lg.data,x:W-.5-.32*lg.ratio,y:H-.62,w:.32*lg.ratio,h:.32});sl.addText(`${n} / ${total}`,{x:.5,y:H-.6,w:1.1,h:.3,fontFace:FONT,fontSize:9,color:dark?'BBBBBB':SOFT})};
   const kicker=(sl,t)=>sl.addText('›  '+T(t),{x:.6,y:.35,w:W-1.2,h:.4,fontFace:FONT,fontSize:12,bold:true,color:OR,charSpacing:2});

@@ -176,7 +176,7 @@ def apply(html):
     assert n == 1, "KD_CSS not found"
     html = html.replace('const FONT = "Montserrat,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif";', 'const FONT = "Nunito Sans,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif";', 1)
     # KINAN's colours wherever a stylesheet writes them in full
-    for a, b in (("#f15a22", NAVY), ("rgba(241,90,34", "rgba(11,31,92"), ("#b83d0c", NAVY_DEEP), ("#fff1ea", SAND_SOFT), ("#d94a16", NAVY_DEEP), ("#f5602a", "#102566"), ("#e04f22", NAVY_DEEP), ("#2e2e2f", INK), ("rgba(245,96,42", "rgba(16,37,102"), ("rgba(224,79,34", "rgba(7,21,66")):
+    for a, b in (("#f15a22", NAVY), ("rgba(241,90,34", "rgba(11,31,92"), ("#b83d0c", NAVY_DEEP), ("#fff1ea", SAND_SOFT), ("#d94a16", NAVY_DEEP), ("#f5602a", "#102566"), ("#e04f22", NAVY_DEEP), ("#2e2e2f", INK), ("rgba(245,96,42", "rgba(16,37,102"), ("rgba(224,79,34", "rgba(7,21,66"), ("'F15A22'", "'0B1F5C'"), ("'2E2E2F'", "'2F332F'")):   # the PowerPoint export writes its colours without #
         html = html.replace(a, b)
     html = words(html)
     i = html.rindex("</body>")   # after the app's own script, so the Jadwa klogo/kchev are the ones that stand (a later declaration wins)
