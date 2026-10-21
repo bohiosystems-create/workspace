@@ -19,6 +19,12 @@ SAPLING_SQ = f'<path d="{V}"/><path d="{INNER}"/><path d="{OUTER} M44.5 80 L44.5
 MARK = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="40" height="40" role="img" aria-label="Jadwa" style="display:block;width:40px;height:40px">'
         f'<rect width="100" height="100" fill="{SAGE}"/><g fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">{SAPLING_SQ}</g></svg>')
 BIGMARK = MARK.replace('width="40" height="40"', 'width="64" height="64"').replace('width:40px;height:40px', 'width:64px;height:64px')
+# the layered angular shapes of Jadwa's covers and section pages (the annual report: translucent sand shards overlapping from the
+# corners), drawn as vectors so every report and slide carries them without an image
+def _shards(op):
+    polys=[('0,0 520,0 520,70 160,400 0,400',op),('120,0 680,0 420,400 300,400',op*.6),('640,0 1000,0 1000,260 820,400 700,400',op*.8),('780,0 1000,0 1000,120',op*.5),('0,260 140,400 0,400',op*.7)]
+    return ('data:image/svg+xml;utf8,'+('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" preserveAspectRatio="none">'+''.join(f'<polygon points="{pt}" fill="{SAND}" opacity="{o:.2f}"/>' for pt,o in polys)+'</svg>').replace('#','%23').replace('"',"'"))
+SHARDS, SHARDS_LIGHT = _shards(.42), _shards(.1)
 GRID = ('data:image/svg+xml;utf8,' + ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 90"><g stroke="%s" stroke-width=".6" fill="none" opacity=".55"><path d="M0 60 L30 90 M0 40 L50 90 M0 20 L70 90 M20 90 L0 70 M40 90 L0 50 M60 90 L0 30"/><path d="M0 60 L30 30 M0 80 L50 30"/></g></svg>' % SAND).replace('#', '%23').replace('"', "'"))
 MOTIF = ('data:image/svg+xml;utf8,' + (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g fill="none" stroke="{SAND}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" opacity=".55">{SAPLING}</g></svg>')
          .replace('#', '%23').replace('"', "'"))
@@ -84,18 +90,18 @@ input[type=range]::-webkit-slider-thumb{{background:var(--navy)}}input[type=rang
 .kd-root .kd-fb-band.b{{right:14vw;top:-14vh;width:28vw;height:76vh;background:rgba(183,166,143,.22);clip-path:polygon(0 0,100% 0,100% 70%,40% 100%)}}
 @keyframes jShard{{from{{opacity:0;transform:translate(-4%,-6%)}}to{{opacity:1;transform:none}}}}
 .kd-root .kd-div-title{{text-transform:uppercase;font-weight:700;letter-spacing:.02em}}.kd-div-sub{{color:var(--sand);letter-spacing:.2em;text-transform:uppercase;font-size:12px}}
-.kd-root .kd-cover-title{{font-weight:600}}.kd-kicker-w{{color:var(--sand)}}
+.kd-root .kd-cover-title{{font-weight:600}}
+.kd-root{{background:#fbfaf7 url("{GRID}") left bottom/120px no-repeat}}.kd-root .kd-bg{{background:url("{SHARDS_LIGHT}") right top/70% 36vh no-repeat}}.kd-root .kd-grid,.kd-root .kd-tex{{display:none}}.kd-kicker-w{{color:var(--sand)}}
 .kd-root .kd-on-orange .kd-footline b,.kd-root .kd-on-dark .kd-footline b{{color:var(--sand)}}.kd-footline b{{color:var(--navy)}}
-.k-cover{{background:{NAVY};background-image:none;text-align:left;padding:64px 40px 48px;overflow:hidden}}
-.k-cover::before,.k-cover::after{{content:"";position:absolute;top:-30%;right:-6%;width:46%;height:120%;background:rgba(183,166,143,.42);clip-path:polygon(0 0,100% 0,100% 100%,56% 100%,0 26%);pointer-events:none}}
-.k-cover::after{{right:22%;width:30%;background:rgba(183,166,143,.2);clip-path:polygon(0 0,100% 0,100% 70%,40% 100%)}}
+.k-cover{{background:{NAVY} url("{SHARDS}") center/100% 100% no-repeat;text-align:left;padding:72px 40px 56px;overflow:hidden;min-height:200px}}
 .k-cover>*{{position:relative;z-index:1}}.k-kick{{color:var(--sand)}}.k-cover h1{{text-transform:none;font-weight:600;font-size:32px;letter-spacing:0}}.k-rule{{margin-left:0;background:var(--sand)}}
 .k-sh{{font-size:22px;letter-spacing:0;text-transform:none;font-weight:400;color:var(--navy);border-top:1px solid rgba(11,31,92,.35);padding-top:14px;margin-bottom:16px}}.k-sh .k-bar{{display:none}}
 .k-stats{{border-top-color:var(--navy)}}.k-stat-l{{color:var(--soft);letter-spacing:.14em}}.k-stat-v{{font-weight:600}}
 .k-doc table.t th,table.t th{{background:{NAVY};letter-spacing:.06em;font-size:10.5px;text-transform:none;font-weight:600}}
 .k-doc table.t td{{border-top-color:rgba(11,31,92,.14)}}
-.k-close{{background:{NAVY};position:relative;overflow:hidden}}.k-close::before{{content:"";position:absolute;left:-8%;top:-40%;width:44%;height:160%;background:rgba(183,166,143,.4);clip-path:polygon(0 0,100% 0,100% 22%,34% 100%,0 100%)}}.k-close>*{{position:relative}}.k-tag{{color:var(--sand)}}
-.k-sec{{background:url("{GRID}") left bottom/90px no-repeat}}
+.k-close{{background:{NAVY} url("{SHARDS}") center/100% 100% no-repeat;position:relative}}.k-tag{{color:var(--sand)}}
+.k-sec{{background:url("{GRID}") left bottom/90px no-repeat,url("{SHARDS_LIGHT}") right top/60% 140px no-repeat}}
+.k-doc{{background:#fbfaf7}}.k-head{{background:#fff}}
 .report h1{{font-family:var(--sans);font-weight:400}}.report .rk b{{font-family:var(--sans);font-weight:600;color:var(--navy)}}
 """
 
