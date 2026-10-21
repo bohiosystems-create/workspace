@@ -33,10 +33,10 @@ if [ "$MODE" = core ]; then
   echo "== browser tests (core)"
   lane(){ local f="$1"; shift; for t in "$@"; do if [ "$t" = t_em_api ]; then run "t_em api" node t_em.mjs "$AP" api; else run "$t readonly" node "$t.mjs" "$RO" readonly; fi; done > "$f" 2>&1; }
   LD=$(mktemp -d)
-  lane "$LD/a" t_accuracy t_smoke t_round34 t_round37 t_round38 &
-  lane "$LD/b" t_xcalc t_round36 t_projects t_xldl t_round32 &
-  lane "$LD/c" t_round33 t_round35 t_aifirst t_repupload t_em t_em_api &
-  wait
+  lane "$LD/a" t_accuracy t_smoke t_round34 t_round37 t_round38 & L1=$!
+  lane "$LD/b" t_xcalc t_round36 t_projects t_xldl t_round32 & L2=$!
+  lane "$LD/c" t_round33 t_round35 t_aifirst t_repupload t_em t_em_api & L3=$!
+  wait $L1 $L2 $L3   # the lanes only: a bare wait would also wait on the static servers
   cat "$LD/a" "$LD/b" "$LD/c"; FAILS=$((FAILS+$(cat "$LD/a" "$LD/b" "$LD/c" | grep -cE '^t_[a-z0-9_]+ (readonly|api): .*(FAIL:|CRASH:)'))); rm -rf "$LD"
   run "t_speed readonly" node t_speed.mjs "$RO" readonly
 elif [ "$MODE" = quick ]; then

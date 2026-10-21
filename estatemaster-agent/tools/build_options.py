@@ -11,8 +11,9 @@ Each build locks its option (window.BOHIO_MODE), has no runner function; its run
 The source index.html still opens any option with ?mode=full|readonly|analyst.
 """
 import hashlib
-import json, re, shutil, zipfile
+import json, re, shutil, sys, zipfile
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = ROOT / "dist"
@@ -20,6 +21,7 @@ OPTIONS = {
     "readonly": ("option2-readonly", "Option 2 · Read-only agent"),
     "analyst": ("option3-analyst", "Option 3 · Analyst in the loop"),
 }
+BRANDS = {"jadwa": "readonly"}   # a client edition: the read-only option in that client's look (tools/brand_<name>.py), dist/<name>-readonly/
 
 README = {
 "readonly": """# Bohio agent on EstateMaster · Option 2: read-only agent (demo)
@@ -72,8 +74,10 @@ All data is dummy data. Browser memory is kept per option.
 """
 
 
-def build(mode):
+def build(mode, brand=None):
     folder, name = OPTIONS[mode]
+    if brand:
+        folder = f"{brand}-{mode}"
     out = DIST / folder
     if out.exists():
         shutil.rmtree(out)
@@ -83,6 +87,11 @@ def build(mode):
     build_id = hashlib.sha256(html.encode("utf-8")).hexdigest()[:8]  # the same source always gives the same build id
     html = html.replace("\n<script>\n", f"\n<script>window.BOHIO_MODE='{mode}';window.BOHIO_BUILD='{build_id}';</script>\n<script>\n", 1)
     html = re.sub(r"<title>.*?</title>", "<title>KINAN · AI agent · financial modelling</title>", html, count=1, flags=re.S)
+    if brand:
+        import importlib
+        B = importlib.import_module(f"brand_{brand}")
+        html = B.apply(html)
+        (out / "guide.html").write_text(B.guide((ROOT / "guides" / f"{mode}.html").read_text(encoding="utf-8")), encoding="utf-8")
     (out / "index.html").write_text(html, encoding="utf-8")
     for f in ("llm.js", "scan.js", "voice.js", "mail.js", "cron.js", "schedule.js", "log.js", "health.js"):
         shutil.copy(ROOT / "api" / f, out / "api" / f)
@@ -94,6 +103,8 @@ def build(mode):
     (out / "package.json").write_text(json.dumps(pk, indent=2) + "\n")
     shutil.copy(ROOT / "market-data.xlsx", out / "market-data.xlsx")
     readme = README[mode] + DEPLOY
+    if brand:
+        readme = importlib.import_module(f"brand_{brand}").words(readme)
     if mode == "analyst":
         (out / "setup").mkdir()
         for f in ("KINAN_control_workbook_template.xlsx", "copilot_setup_agent.md"):
@@ -119,3 +130,5 @@ if __name__ == "__main__":
     subprocess.run([sys.executable, str(ROOT / "tools/sync_mailui.py")], check=True)
     for m in OPTIONS:
         build(m)
+    for b, m in BRANDS.items():
+        build(m, brand=b)

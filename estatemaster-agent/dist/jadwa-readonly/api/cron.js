@@ -1,0 +1,540 @@
+// Scheduled jobs that run on the server, with or without the app open (Vercel Cron, see vercel.json):
+//   07:00 Riyadh  ?run=scan,report   email scan + the morning EstateMaster report
+//   15:00 Riyadh  ?run=scan          email scan
+// scan    reads the Outlook folder since the previous scheduled scan, asks the AI whether any email proposes a change
+//         to an assumption. The findings show in the app's Daily feed as change requests a person must approve (the
+//         app scans the same folder when it opens); ALERT_TO, if set, also gets an email. It changes nothing.
+// report  reads the two latest EstateMaster exports from the exports folder (Option 2 and 3: the analyst saves each
+//         Office Links export there) and emails REPORT_TO a KINAN-style report of EstateMaster's own figures.
+// Environment variables:
+//   CRON_SECRET          Vercel sends it as "Authorization: Bearer <secret>"; requests without it are refused
+//   ALERT_TO             optional: also email assumption-change alerts (comma list, internal addresses); unset, they
+//                        appear only in the app's Daily feed
+//   REPORT_TO            who gets the morning report (comma list, internal addresses); REPORT_DAYS default sun,mon,tue,wed,thu
+//   EXPORTS_FOLDER       Graph path of the exports folder, e.g. /sites/{site-id}/drive/root:/Bohio/Exports
+//                        or /users/analyst@kinan.com.sa/drive/root:/Bohio/Exports  (needs Files.Read.All)
+//   APP_URL              link in the emails (default: this deployment)
+//   PROJECT_NAME         default "Al Narjis Mixed-Use"
+// plus the Graph and AI variables in api/_lib/graph.js.
+const G = require('./_lib/graph');
+const EM = require('./_lib/emcheck');
+const SCHED = require('./_lib/sched');
+const { env } = G;
+const SLOTS = [4, 12]; // UTC hours of the two scans (07:00 and 15:00 Riyadh)
+const OR = '#f15a22', CH = '#2e2e2f', SOFT = '#6f6f6f', TAUPE = '#51473d', LINE = '#e3e2df';
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/* The scan window: everything since the previous scheduled slot, so two scans a day cover the day once. */
+function windowFor(now = new Date()) {
+  const h = now.getUTCHours(), d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const cur = [...SLOTS].reverse().find(s => h >= s);
+  const slot = cur == null ? new Date(d.getTime() - 864e5 + SLOTS[SLOTS.length - 1] * 36e5) : new Date(d.getTime() + cur * 36e5);
+  const i = SLOTS.indexOf(slot.getUTCHours());
+  const prev = i > 0 ? new Date(slot.getTime() - (SLOTS[i] - SLOTS[i - 1]) * 36e5) : new Date(slot.getTime() - (24 - SLOTS[SLOTS.length - 1] + SLOTS[0]) * 36e5);
+  return { since: prev.toISOString(), slot: slot.toISOString() };
+}
+const riyadh = iso => new Date(iso).toLocaleString('en-GB', { timeZone: 'Asia/Riyadh', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+/* KINAN email frame (api/_lib/mailui.js): the app's look in tables and inline styles, so Outlook, Apple Mail and Gmail show it as designed.
+   body is a list of section rows (UI.section); plain HTML is put in one card. */
+const UI = require('./_lib/mailui');
+function frame(kicker, title, sub, body, appUrl, o = {}) {
+  const rows = /^\s*<tr/.test(body) ? body : UI.section(o.cardTitle || kicker, body);
+  return UI.frame({ kicker, title, sub, body: rows, appUrl, ar: o.ar, summary: o.summary, from: env('OUTLOOK_MAILBOX') ? (o.ar ? `أرسله وكيل كنان من ${env('OUTLOOK_MAILBOX')}` : `Sent by the KINAN agent from ${env('OUTLOOK_MAILBOX')}`) : '' });
+}
+const th = t => `<th align="left" style="font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:${TAUPE};font-weight:700;padding:0 8px 8px;border-bottom:2px solid ${CH}">${t}</th>`;
+const td = (t, x = '') => `<td style="padding:11px 8px;border-bottom:1px solid ${LINE};font-size:13px;line-height:1.45;vertical-align:top${x}">${t}</td>`;
+
+/* The emails since a given time and what they propose (used by the scan and by the morning report). */
+async function scanFindings(token, since, models = []) {
+  const msgs = await G.readMessages(token, since);
+  if (!msgs.length) return { msgs, findings: [] };
+  const system = `You read emails for a real estate development project and find any email that proposes, reports or asks approval for a change to an assumption of its financial model (sale prices, rents, construction costs and their elements, fees and commissions, contingency, timing and delays, areas, financing terms such as interest rate, margin, loan to cost, facility limits, equity terms, exit yields, land price). Requests for approval count: a discount or incentive on a number of units (state the blended effect on the average sale price, e.g. 5% off 24 of 180 units is about 0.7% off the average price), a rent-free period or a lower rent (effective rent over the term), a variation order or revised quote, a revised term sheet, a valuer's yield, a landowner's revised price.
+Return JSON only: {"findings":[{"message_id":string,"assumption":string,"new_value":string,"previous_value":string|null,"change":"the change as a modelling input, e.g. average sale price −0.7%","reason":"why it is asked for or has happened, in one sentence","approval":true if the email asks KINAN to approve or decide something,"model":"which financial model it concerns: one of the model names listed, or null if unclear","deadline":"the date or time by which a decision is needed, if the email gives one, else null","quote":string,"confidence":number}]}.
+"quote" is the exact text that supports it. Include an item only if the email states, proposes or asks approval for a change; ignore everything else. Confidence 0-1. ${models.length ? `Financial models: ${models.join('; ')}.` : `Project: ${env('PROJECT_NAME') || 'Al Narjis Mixed-Use'}.`}`;
+  const user = msgs.map(m => `message_id: ${m.id}\nfrom: ${m.from}\ndate: ${m.date}\nsubject: ${m.subject}\n---\n${m.body}`).join('\n\n=====\n\n');
+  const j = G.jsonOf(await G.ai(system, user));
+  const byId = Object.fromEntries(msgs.map(m => [m.id, m]));
+  const findings = (j.findings || []).filter(f => byId[f.message_id] && f.assumption).map(f => ({ ...f, msg: byId[f.message_id], confidence: Math.max(0, Math.min(1, +f.confidence || 0.5)) }));
+  return { msgs, findings };
+}
+const IMP = [['levered_irr', 'Levered IRR', '%'], ['profit_on_cost', 'Profit on cost', '%'], ['net_profit', 'Net profit', 'M']];
+const fmtImp = (v, u) => !Number.isFinite(v) ? '—' : u === '%' ? v.toFixed(2) + '%' : (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : Math.round(v).toLocaleString('en-GB'));
+const findingRows = findings => findings.map(f => `<tr>${td(`<b>${esc(f.assumption)}</b>${f.modelName ? `<br><span style="color:${OR};font-size:11px;font-weight:700">${esc(f.modelName)}</span>` : ''}${f.change ? `<br><span style="color:${SOFT};font-size:12px">${esc(f.change)}</span>` : ''}`)}${td(`${f.previous_value ? esc(f.previous_value) + ' → ' : ''}<b style="color:${OR}">${esc(f.new_value)}</b>`)}${td(`${esc(f.msg.from)}<br><span style="color:${SOFT};font-size:12px">${esc(f.msg.subject)} · ${esc(riyadh(f.msg.date))}</span>`)}${td(`${f.reason ? esc(f.reason) + '<br>' : ''}<span style="color:${SOFT}">“${esc(f.quote)}”</span>`)}${td(f.impact ? (f.impact.flag ? `<span style="color:#d03b3b;font-weight:700">⚠ check failed</span><br>` : '') + IMP.map(([k, l, u]) => `${l}: ${fmtImp(f.impact.base[k], u)} → <b>${fmtImp(f.impact[k], u)}</b>${k === 'levered_irr' && f.impact.hurdle != null && f.impact[k] < f.impact.hurdle ? ` <span style="color:#d03b3b;font-weight:700">below hurdle</span>` : ''}`).join('<br>') + `<br><span style="color:${SOFT};font-size:11px">${esc(f.impact.working || '')}</span>` : `<span style="color:${SOFT}">${esc(f.impactNote || 'not estimated')}</span>`)}</tr>`).join('');
+/* Assumption changes found in emails, as cards: the change, why, the email's own words, the impact, who sent it */
+const findingCards = (findings, ar) => findings.map(f => {
+  const fh = f.impact && Number.isFinite(f.impact.hurdle) ? f.impact.hurdle : (Number.isFinite(f.hurdle) ? f.hurdle : null);
+  const below = !!(f.impact && fh != null && Number.isFinite(f.impact.levered_irr) && f.impact.levered_irr < fh);
+  const tags = [[f.approval ? (ar ? 'قرار مطلوب' : 'decision needed') : (ar ? 'تغيير مقترح' : 'proposed change'), below ? 'red' : 'orange']];
+  if (below) tags.push([ar ? 'دون الحد' : 'below hurdle', 'red']); if (f.modelName) tags.push([f.modelName, 'ink']);
+  return UI.item({ tone: below ? 'red' : 'orange', ar, tags,
+    title: `${f.assumption}: ${f.previous_value ? f.previous_value + ' → ' : ''}${f.new_value}`,
+    detail: UI.clip(f.reason || f.change || '', 240),
+    reco: f.quote ? `“${UI.clip(f.quote, 260)}”` : '', recoLabel: ar ? 'من الرسالة' : 'In the email',
+    impact: f.impact ? IMP.map(([k, l, u]) => ({ label: l, base: fmtImp(f.impact.base[k], u), value: fmtImp(f.impact[k], u), below: k === 'levered_irr' && fh != null && f.impact[k] < fh })) : [],
+    impactNote: f.impact ? (f.impact.flag ? (ar ? '⚠ فشل التحقق من هذا التقدير: لا يُعتمد عليه. ' : '⚠ A check failed on this estimate: do not rely on it. ') : '') + UI.clip(f.impact.working || (ar ? 'تقدير، ليس رقم إستيت ماستر' : 'Estimate, not EstateMaster’s figure'), 200) : '',
+    meta: `${esc(f.msg.from)} · ${esc(UI.clip(f.msg.subject, 90))} · ${esc(riyadh(f.msg.date))}${f.impact ? '' : ` · <i>${esc(f.impactNote || (ar ? 'لم يُقدَّر الأثر' : 'impact not estimated'))}</i>`}` });
+}).join('');
+/* The impact of each finding on the key outputs, estimated from EstateMaster's figures by every AI provider configured
+   (Claude and OpenAI when both keys are set: each calculates independently, the report shows the average and says
+   whether they agree). An estimate, never EstateMaster's own figure, and the email says so. */
+// A proposed change computed exactly on EstateMaster's own cash flow when its driver is one the cash flow holds: { levered_irr, profit_on_cost, net_profit } or null
+function exactImpact(b, f) {
+  const M = EM.cfModel(b); if (!M || !M.ok || !M.levOk) return null; const o = b.out || {}, fin = Number.isFinite, lab = String(f.assumption || '').toLowerCase();
+  const num = v => { const m = String(v == null ? '' : v).replace(/,/g, '').match(/-?\d+(?:\.\d+)?/); return m ? parseFloat(m[0]) : NaN; }, a = num(f.previous_value), z = num(f.new_value); if (!fin(a) || !fin(z) || a === z) return null;
+  let d = null; if (/\brent/.test(lab)) d = { rent: (z / a - 1) * 100 }; else if (/interest|finance rate|profit rate|saibor/.test(lab)) d = { rate: z - a }; else if (/delay|programme|months/.test(lab)) d = { delay: z - a };
+  else if (/\bland\b/.test(lab)) d = { land: (z / a - 1) * 100 }; else if (/construction|build|hard cost/.test(lab)) d = { cost: (z / a - 1) * 100 }; else if (/sale price|selling price|\bprice|gdv/.test(lab)) d = { price: (z / a - 1) * 100 };
+  if (!d || (d.rent && !(M.flows.rent && M.flows.rent.some(v => v)))) return null;
+  const r = EM.cfRun(M, d), r0 = EM.cfRun(M, {}); if (!r) return null; const dU = r.profitU - r0.profitU, dI = r.int - r0.int, dCost = Math.abs(M.flows.cons.reduce((s, v) => s + v, 0)) * (d.cost || 0) / 100 + Math.abs(M.flows.land.reduce((s, v) => s + v, 0)) * (d.land || 0) / 100;
+  const np = fin(o.net_profit) ? o.net_profit + dU - dI : NaN, tc = fin(o.total_cost) ? o.total_cost + dCost + dI : NaN, poc0 = fin(o.net_profit) && fin(o.total_cost) && o.total_cost > 0 ? o.net_profit / o.total_cost * 100 : NaN;
+  return { d, levered_irr: fin(r.lirr) ? (fin(o.levered_irr) ? o.levered_irr + (r.lirr - r0.lirr) : r.lirr) : null, noIrr: !fin(r.lirr), net_profit: fin(np) ? np : NaN, profit_on_cost: fin(np) && fin(tc) && tc > 0 ? (fin(o.profit_on_cost) && fin(poc0) ? o.profit_on_cost + (np / tc * 100 - poc0) : np / tc * 100) : NaN };
+}
+async function estimateImpacts(b, findings, hurdle) {
+  // exact first: every change the model's own cash flow can compute is computed, never estimated
+  const rest = [];
+  for (const f of findings) { const e = exactImpact(b, f); if (!e) { rest.push(f); continue; } const o = b.out || {};
+    f.impact = { base: { levered_irr: o.levered_irr, profit_on_cost: o.profit_on_cost, net_profit: o.net_profit }, hurdle, levered_irr: e.levered_irr, profit_on_cost: e.profit_on_cost, net_profit: e.net_profit, agree: null, exact: true, flag: false,
+      working: e.noIrr ? 'Exact, on EstateMaster’s own cash flow: with this change the equity never gets back what it put in, so no IRR exists.' : 'Exact: computed on EstateMaster’s own cash flow (its base IRR reproduced), the funding re-run period by period. Not an estimate.' }; }
+  findings = rest;
+  const provs = G.aiProviders(); if (!provs.length || !findings.length) return;
+  const o = b.out, ins = (b.inputs || []).slice(0, 120).map(i => `${i.label} = ${i.text || i.value}${i.unit && i.unit !== '%' ? ' ' + i.unit : ''}`).join('\n');
+  const sens = (b.sens || []).map(t => t.kind === '1way' ? `Sensitivity (1-way) ${t.v} → ${t.metric}: ` + t.shifts.map((sh, i) => `${sh}%: ${t.values[i]}`).join(', ') : `Sensitivity (2-way) ${t.metric}, columns ${t.x} ${t.xs.join('/')}%, rows ${t.y}: ` + t.grid.map((r, i) => `${t.ys[i]}%: ${r.join('/')}`).join(' | ')).join('\n');
+  const system = `You are a senior real estate development finance analyst. An ARGUS EstateMaster feasibility model (the trusted model) produced the outputs and inputs below. You cannot run EstateMaster: estimate, step by step, the effect of each proposed change on its outputs, the way an analyst would by hand (revenue and cost effects on net profit and profit on cost; timing, leverage and finance effects on the IRR; use the sensitivity tables where they apply, interpolating). Use only the figures given.
+Return JSON only: {"impacts":[{"message_id":string,"base_levered_irr":number (the EstateMaster levered IRR you started from),"levered_irr":number,"profit_on_cost":number,"net_profit":number,"working":"one or two sentences with the numbers"}]} with one entry per change. Percentages in percent (18.4 means 18.4%); money in full currency units.`;
+  const user = `EstateMaster outputs (export ${b.name}): ${Object.entries(o).filter(([, v]) => Number.isFinite(v)).map(([k, v]) => `${k} = ${v}`).join('; ')}\nInputs:\n${ins}\n${sens}\n\nProposed changes:\n${findings.map(f => `- message_id ${f.msg.id}: ${f.assumption}: ${f.previous_value ? f.previous_value + ' → ' : ''}${f.new_value}${f.change ? ' (' + f.change + ')' : ''}`).join('\n')}`;
+  const res = await Promise.allSettled(provs.map(p => G.ai(system, user, 4000, p).then(t => ({ p, j: G.jsonOf(t) }))));
+  const ok = res.filter(r => r.status === 'fulfilled').map(r => r.value);
+  const names = { anthropic: 'Claude', openai: 'OpenAI' };
+  for (const f of findings) {
+    const got = ok.map(r => ({ p: r.p, i: (r.j.impacts || []).find(x => String(x.message_id) === String(f.msg.id)) })).filter(x => x.i);
+    if (!got.length) { f.impactNote = ok.length ? 'the AI returned no estimate for this change' : 'AI estimate failed: ' + res.map(r => r.reason && r.reason.message).filter(Boolean).join('; '); continue; }
+    const avg = k => { const vs = got.map(g => +g.i[k]).filter(Number.isFinite); return vs.length ? vs.reduce((a, c) => a + c, 0) / vs.length : NaN; };
+    const agree = got.length < 2 ? null : IMP.every(([k, , u]) => { const vs = got.map(g => +g.i[k]); return u === '%' ? Math.abs(vs[0] - vs[1]) <= 0.5 : Math.abs(vs[0] - vs[1]) <= 0.02 * Math.max(Math.abs(vs[0]), Math.abs(vs[1]), 1); });
+    let arbNote = '';
+    if (agree === false && got.length > 1) { const arb = await arbitrate('proposed assumption change', user, [{ id: String(f.msg.id), change: `${f.assumption}: ${f.new_value}`, a: { by: names[got[0].p], levered_irr: +got[0].i.levered_irr, working: String(got[0].i.working || '').slice(0, 300) }, b: { by: names[got[1].p], levered_irr: +got[1].i.levered_irr, working: String(got[1].i.working || '').slice(0, 300) } }]); const a = arb[String(f.msg.id)];
+      if (a) { f.arbitrated = { levered_irr: +a.levered_irr, profit_on_cost: Number.isFinite(+a.profit_on_cost) ? +a.profit_on_cost : NaN, net_profit: Number.isFinite(+a.net_profit) ? +a.net_profit : NaN }; arbNote = ` (${names[G.aiProviders().includes('anthropic') ? 'anthropic' : G.aiProviders()[0]]} arbitrated from both workings: ${String(a.why || '').slice(0, 160)}; check in EstateMaster)`; } }
+    const pick = k => f.arbitrated && Number.isFinite(f.arbitrated[k]) ? f.arbitrated[k] : avg(k);
+    f.impact = { base: { levered_irr: o.levered_irr, profit_on_cost: o.profit_on_cost, net_profit: o.net_profit }, hurdle, levered_irr: pick('levered_irr'), profit_on_cost: pick('profit_on_cost'), net_profit: pick('net_profit'), agree, arbitrated: !!f.arbitrated,
+      working: `${got.map(g => names[g.p]).join(' and ')}${got.length > 1 ? (agree ? ' agree (average shown)' : ' differ: ' + got.map(g => `${names[g.p]} IRR ${fmtImp(+g.i.levered_irr, '%')}`).join(', ') + (arbNote || ' (average shown, check in EstateMaster)')) : ' only, not cross-checked'}. ${(got[0].i.working || '').slice(0, 260)}` };
+    // checks on the estimate: bounds, arithmetic (calibrated on EstateMaster's own base) and direction
+    const chk = [], im = f.impact, fin = Number.isFinite;
+    if (fin(im.levered_irr) && !(im.levered_irr > -95 && im.levered_irr < 100)) chk.push('IRR outside any plausible range');
+    if ([o.net_profit, o.total_cost, o.profit_on_cost].every(fin) && Math.abs(o.net_profit / o.total_cost * 100 - o.profit_on_cost) <= 1.5 && fin(im.net_profit) && fin(im.profit_on_cost)) { const p2 = im.net_profit / o.total_cost * 100; if (Math.abs(p2 - im.profit_on_cost) > 1.5) chk.push(`profit on cost ${im.profit_on_cost.toFixed(2)}% does not reconcile with net profit / total cost (${p2.toFixed(2)}%)`); }
+    const txt = `${f.assumption} ${f.change || ''} ${f.reason || ''} ${f.quote || ''}`.toLowerCase();
+    const adverse = /(discount|incentive|rent[- ]?free|delay|slip|overrun|variation|softer|cost.*(up|increase|rise|higher)|rate.*(up|increase|rise|higher)|yield.*(up|higher|soft)|(price|rent).*(down|cut|lower|reduc|fall)|land.*(up|increase|higher))/.test(txt);
+    // the direction also from the numbers themselves (a typed "SAR 13,500 → SAR 12,798" carries no words): lower revenue drivers and higher cost, rate, yield or delay hurt
+    const num = v => { const m = String(v == null ? '' : v).replace(/,/g, '').match(/-?\d+(?:\.\d+)?/); return m ? parseFloat(m[0]) : NaN; }, a0 = num(f.previous_value), a1 = num(f.new_value), lab = String(f.assumption || '').toLowerCase();
+    let dirN = null; if (fin(a0) && fin(a1) && a0 !== a1) { const up = a1 > a0; if (/price|rent|revenue|sales|area|gfa|nsa|gla|occupancy|absorption/.test(lab) && !/cost|fee|commission/.test(lab)) dirN = up ? 'fav' : 'adv'; else if (/cost|capex|land|rate|interest|saibor|yield|cap|delay|month|duration|contingen|fee|commission/.test(lab)) dirN = up ? 'adv' : 'fav'; }
+    const adv2 = adverse || dirN === 'adv', fav2 = dirN === 'fav' && !adverse;
+    if (adv2) for (const [k, t] of [['levered_irr', 0.1], ['profit_on_cost', 0.1]]) if (fin(o[k]) && fin(im[k]) && im[k] > o[k] + t) chk.push(`${k === 'levered_irr' ? 'the IRR' : 'profit on cost'} improves although the change is adverse`);
+    if (adv2 && fin(o.net_profit) && fin(im.net_profit) && im.net_profit > o.net_profit * 1.005 + 1) chk.push('net profit improves although the change is adverse');
+    if (fav2) for (const [k, t] of [['levered_irr', 0.1], ['profit_on_cost', 0.1]]) if (fin(o[k]) && fin(im[k]) && im[k] < o[k] - t) chk.push(`${k === 'levered_irr' ? 'the IRR' : 'profit on cost'} falls although the change is favourable`);
+    if (fin(o.net_profit) && fin(im.net_profit) && o.net_profit !== 0 && im.net_profit !== 0 && (Math.abs(im.net_profit / o.net_profit) > 200 || Math.abs(im.net_profit / o.net_profit) < 1 / 200)) chk.push('net profit is off the base by a factor of hundreds: a unit slip');
+    // the two analysts must have started from EstateMaster's own base
+    for (const g of got) { const bi = +g.i.base_levered_irr; if (fin(bi) && fin(o.levered_irr) && Math.abs(bi - o.levered_irr) > 0.25) chk.push(`${names[g.p]} worked from a levered IRR of ${bi}% instead of EstateMaster's ${o.levered_irr}%`); }
+    im.flag = chk.length > 0; if (chk.length) im.working = `CHECK FAILED (${chk.join('; ')}): do not rely on this estimate. ` + im.working;
+  }
+}
+
+/* ---- Stress tests before the daily report. The standard scenarios (the same the app runs) on each model's latest export:
+   Claude and OpenAI each estimate every scenario from EstateMaster's outputs, inputs and its own sensitivity tables
+   (cross-checked: the average when they agree within 0.5 pts, flagged when they do not); then the reasoning model
+   (REASON_MODEL, default Claude Opus 5.5; GPT-5 as fallback) reviews the failing scenarios and the export's checks,
+   names the risks and recommends a decision for each. Everything here is an AI estimate, never an EstateMaster figure. ---- */
+const STRESS = [
+  { name: 'Sale price −15%', d: 'sale prices −15%' }, { name: 'Construction cost +20%', d: 'construction cost +20%' },
+  { name: '12-month delay', d: 'a 12-month delay to the programme' }, { name: 'Interest rate +300 bps', d: 'interest rate +300 bps' },
+  { name: 'Exit cap rate +150 bps', d: 'exit cap rate +150 bps' }, { name: 'Retail rent −20%', d: 'retail rents −20%' },
+  { name: 'Combined downside', d: 'sale prices −10%, construction cost +10%, 6-month delay, cap rate +75 bps, rates +100 bps' },
+  { name: 'Severe combined', d: 'sale prices −20%, construction cost +20%, 12-month delay, cap rate +150 bps, rates +200 bps' }];
+const prettyModel = m => String(m).replace(/^claude-(\w+)-(\d+)-(\d+)$/, (x, a, b, c) => `Claude ${a[0].toUpperCase()}${a.slice(1)} ${b}.${c}`).replace(/^gpt-(\S+)$/, 'OpenAI GPT-$1');
+const REASON = () => [['anthropic', env('REASON_MODEL') || 'claude-opus-5-5'], ['openai', env('REASON_MODEL_OPENAI') || 'gpt-5']].filter(([p]) => G.aiProviders().includes(p));
+/* The hurdle a model is judged against: the export's own target IRR (Target IRR / Project Discount Rate / hurdle rate input), else the
+   hurdle a person confirmed in the app, else HURDLE_IRR when an administrator set it. Otherwise there is none (NaN): nothing is judged
+   against a hurdle and the AI is told not to assume one. Same rule as the app. */
+const TARGET_RX = /target\s*(?:irr|dev(?:eloper)?'?s?\s*(?:irr|return))|project discount rate|discount rate\s*\(target|hurdle rate|required (?:irr|return)/i;
+let FEED_HURDLE = null;   // the hurdle a person confirmed in the app (sent with the Daily feed items) when the export has no target
+function hurdleOf(b) {
+  const policy = Number.isFinite(FEED_HURDLE) && FEED_HURDLE ? FEED_HURDLE : (env('HURDLE_IRR') ? +env('HURDLE_IRR') : NaN);
+  const i = b && (b.inputs || []).find(x => TARGET_RX.test(String(x.label || '')) && Number.isFinite(+x.value));
+  if (!i) return policy;
+  let v = +i.value; if (v > 0 && v < 1) v *= 100;
+  return v >= 3 && v <= 40 ? +v.toFixed(2) : policy;
+}
+/* A phase with a time budget: the report goes out on time with whatever finished. */
+const within = (ms, p) => { let t; const cap = new Promise((_, rej) => { t = setTimeout(() => rej(new Error('time budget reached')), ms); }); return Promise.race([p, cap]).finally(() => clearTimeout(t)); };
+// Figures the two models still disagree on are arbitrated from both workings by the first provider (never a silent average).
+async function arbitrate(what, context, disputes) {
+  const provs = G.aiProviders(); if (!provs.length || !disputes.length) return {};
+  const p = provs.includes('anthropic') ? 'anthropic' : provs[0];
+  const system = `You arbitrate between two analysts' estimates of the same ${what} on an ARGUS EstateMaster model. For each listed item decide which figure is right, or give the corrected figure, from the two workings and the EstateMaster figures. Return JSON only: {"items":[{"id":string,"levered_irr":number,"profit_on_cost":number|null,"net_profit":number|null,"why":"one short sentence"}]}. Percentages in percent; money in full currency units.`;
+  try { const j = G.jsonOf(await G.ai(system, `${context}\n\nItems in dispute:\n${JSON.stringify(disputes)}`, 3000, p)); const out = {}; for (const it of (j.items || [])) if (it && it.id != null && Number.isFinite(+it.levered_irr)) out[String(it.id)] = it; return out; } catch { return {}; }
+}
+/* Checks on the final stress figures (after any arbitration): every scenario is adverse, so no return may improve on EstateMaster's base;
+   the severe case cannot beat the milder combined case; bounds and unit slips. A failed check flags the scenario: never relied on. */
+function stressChecks(scenarios, o, hurdle) {
+  const fin = Number.isFinite, by = n => scenarios.find(x => x.name === n);
+  for (const x of scenarios) {
+    if (!fin(x.levered_irr)) continue; const c = [];
+    if (!(x.levered_irr > -95 && x.levered_irr < 100)) c.push('levered IRR outside any plausible range');
+    if (fin(o.levered_irr) && x.levered_irr > o.levered_irr + 0.1) c.push(`levered IRR ${x.levered_irr}% is above EstateMaster's base ${o.levered_irr}% although the scenario is adverse`);
+    if (fin(o.profit_on_cost) && fin(x.profit_on_cost) && x.profit_on_cost > o.profit_on_cost + 0.1) c.push(`profit on cost ${x.profit_on_cost}% is above the base ${o.profit_on_cost}% although the scenario is adverse`);
+    if (fin(o.net_profit) && fin(x.net_profit) && x.net_profit > o.net_profit + 0.005 * Math.abs(o.net_profit)) c.push('net profit is above the base although the scenario is adverse');
+    if (fin(o.net_profit) && fin(x.net_profit) && o.net_profit !== 0 && Math.abs(x.net_profit / o.net_profit) > 200) c.push('net profit is hundreds of times the base: a unit slip');
+    if (fin(o.net_profit) && fin(x.net_profit) && Math.abs(o.net_profit) > 1e6 && x.net_profit !== 0 && Math.abs(x.net_profit) < Math.abs(o.net_profit) / 200 && Math.abs(x.net_profit) < 1e5) c.push('net profit looks quoted in millions instead of full amounts: a unit slip');
+    if (fin(x.profit_on_cost) && fin(x.net_profit) && Math.sign(x.profit_on_cost) !== Math.sign(x.net_profit) && Math.abs(x.profit_on_cost) > 0.5) c.push('profit on cost and net profit have opposite signs');
+    x.checks = (x.checks || []).concat(c);
+  }
+  // exact profit arithmetic on EstateMaster's own revenue and cost: a sale price shock moves revenue only; a construction shock moves the cost outside land (and finance)
+  const R = fin(o.gross_revenue) ? o.gross_revenue : (fin(o.net_profit) && fin(o.total_cost) ? o.total_cost + o.net_profit : NaN), C = o.total_cost, P = o.net_profit;
+  if (fin(R) && fin(C) && fin(P) && C > 0) {
+    const sp = by('Sale price −15%'); if (sp && fin(sp.profit_on_cost)) { const e = (P - 0.15 * R) / C * 100; if (Math.abs(sp.profit_on_cost - e) > 1) sp.checks = (sp.checks || []).concat([`profit on cost should be (net profit − 15% of revenue) ÷ cost = ${e.toFixed(2)}%, not ${sp.profit_on_cost}%`]); }
+    const cc = by('Construction cost +20%'); if (cc && fin(cc.profit_on_cost)) { const hi = P / C * 100, lo = (P - 0.2 * C) / (1.2 * C) * 100; if (cc.profit_on_cost > hi + 0.1 || cc.profit_on_cost < lo - 1) cc.checks = (cc.checks || []).concat([`profit on cost must sit between ${lo.toFixed(2)}% (every cost +20%) and ${hi.toFixed(2)}% (no change); ${cc.profit_on_cost}% is outside`]); }
+  }
+  const mild = by('Combined downside'), sev = by('Severe combined');
+  if (mild && sev && fin(mild.levered_irr) && fin(sev.levered_irr) && sev.levered_irr > mild.levered_irr + 0.1) sev.checks = (sev.checks || []).concat([`the severe case (${sev.levered_irr}%) shows a higher IRR than the milder combined downside (${mild.levered_irr}%)`]);
+  for (const x of scenarios) { if (!x.checks || !x.checks.length) continue; x.flag = true; x.working = String(x.working || '').replace(/ CHECK FAILED:[^]*$/, '') + ` CHECK FAILED: ${x.checks.join('; ')}; do not rely on this estimate.`; }
+}
+const STRESS_D = { 'Sale price −15%': { price: -15 }, 'Construction cost +20%': { cost: 20 }, '12-month delay': { delay: 12 }, 'Interest rate +300 bps': { rate: 3 }, 'Exit cap rate +150 bps': { cap: 1.5 }, 'Retail rent −20%': { rent: -20 }, 'Combined downside': { price: -10, cost: 10, delay: 6, cap: 0.75, rate: 1 }, 'Severe combined': { price: -20, cost: 20, delay: 12, cap: 1.5, rate: 2 } };
+// Scenarios computed exactly on EstateMaster's own cash flow (when the export carries one that reproduces its IRR): no estimate involved.
+function exactStress(b, hurdle) {
+  const M = EM.cfModel(b); if (!M || !M.ok || !M.levOk) return { M, map: {} }; const o = b.out || {}, r0 = EM.cfRun(M, {}), map = {}, fin = Number.isFinite, poc0 = fin(o.net_profit) && fin(o.total_cost) && o.total_cost > 0 ? o.net_profit / o.total_cost * 100 : NaN;
+  for (const s of STRESS) { const d = { ...(STRESS_D[s.name] || {}) }; const notes = [];
+    if (d.cap) { if (M.exitLine) continue; delete d.cap; notes.push('no exit valuation in this cash flow, so the cap rate does not apply'); }
+    if (d.rent) { if (!(M.flows.rent && M.flows.rent.some(v => v))) { if (Object.keys(d).length === 1) { map[s.name] = { na: true, note: 'no rent lines in this cash flow: not applicable' }; continue; } delete d.rent; notes.push('no rent lines'); } }
+    if (!Object.keys(d).length) continue; const r = EM.cfRun(M, d); if (!r) continue;
+    if (!fin(r.lirr)) { const np = fin(o.net_profit) ? o.net_profit + (r.profitU - r0.profitU) - (r.int - r0.int) : NaN; map[s.name] = { levered_irr: null, noIrr: true, net_profit: fin(np) ? Math.round(np) : null, profit_on_cost: null, pass: false, exact: true, note: `no IRR: the equity never gets back what it put in${fin(np) ? ` (net result ${(np / 1e6).toFixed(1)}M)` : ''}`, working: 'Exact, on EstateMaster’s own cash flow: the equity cash flow never turns positive overall, so no IRR exists. Not an estimate.' }; continue; }
+    const lirr = fin(o.levered_irr) ? o.levered_irr + (r.lirr - r0.lirr) : r.lirr, dU = r.profitU - r0.profitU, dI = r.int - r0.int, dCost = Math.abs(M.flows.cons.reduce((a, v) => a + v, 0)) * (d.cost || 0) / 100 + Math.abs(M.flows.land.reduce((a, v) => a + v, 0)) * (d.land || 0) / 100;
+    const np = fin(o.net_profit) ? o.net_profit + dU - dI : NaN, tc = fin(o.total_cost) ? o.total_cost + dCost + dI : NaN, poc = fin(np) && fin(tc) && tc > 0 ? (fin(o.profit_on_cost) && fin(poc0) ? o.profit_on_cost + (np / tc * 100 - poc0) : np / tc * 100) : NaN;
+    map[s.name] = { levered_irr: +lirr.toFixed(2), profit_on_cost: fin(poc) ? +poc.toFixed(2) : null, net_profit: fin(np) ? Math.round(np) : null, pass: !fin(hurdle) && !env('HURDLE_POC') ? null : (!fin(hurdle) || lirr >= hurdle) && (!fin(poc) || !env('HURDLE_POC') || poc >= +env('HURDLE_POC')), exact: true, agree: null,
+      working: `Exact: computed on EstateMaster’s own cash flow (sheet ${M.cf.sheet}, ${M.cf.n} periods, base IRR reproduced), the funding re-run period by period${notes.length ? ' (' + notes.join('; ') + ')' : ''}. Not an estimate.` }; }
+  return { M, map };
+}
+async function stressRun(b, hurdle, checks = []) {
+  const provs = G.aiProviders(); const EX = exactStress(b, hurdle);
+  if (!provs.length) { if (!Object.keys(EX.map).length) return null; return { by: 'EstateMaster’s own cash flow (exact)', scenarios: STRESS.map(s => EX.map[s.name] ? { name: s.name, ...EX.map[s.name] } : { name: s.name, note: 'not computed: needs an AI estimate (no AI key) or is not in the cash flow' }), risks: [], reviewer: '' }; }
+  const o = b.out, ins = (b.inputs || []).slice(0, 120).map(i => `${i.label} = ${i.text || i.value}${i.unit && i.unit !== '%' ? ' ' + i.unit : ''}`).join('\n');
+  const sens = (b.sens || []).map(t => t.kind === '1way' ? `Sensitivity (1-way) ${t.v} → ${t.metric}: ` + t.shifts.map((sh, i) => `${sh}%: ${t.values[i]}`).join(', ') : `Sensitivity (2-way) ${t.metric}, columns ${t.x} ${t.xs.join('/')}%, rows ${t.y}: ` + t.grid.map((r, i) => `${t.ys[i]}%: ${r.join('/')}`).join(' | ')).join('\n');
+  const system = `You are a senior real estate development finance analyst. An ARGUS EstateMaster feasibility model (the trusted model) produced the outputs and inputs below. You cannot run EstateMaster: estimate, step by step, each stress scenario's effect on its outputs the way an analyst would by hand (revenue and cost effects on net profit and profit on cost; timing, leverage and finance effects on the IRR; use EstateMaster's sensitivity tables where they apply, interpolating). Use only the figures given.
+Return JSON only: {"scenarios":[{"name":string,"levered_irr":number,"profit_on_cost":number,"net_profit":number,"working":"one sentence with the numbers"}]} with one entry per scenario, names exactly as given. Percentages in percent (18.4 means 18.4%); money in full currency units.`;
+  const user = `EstateMaster outputs (export ${b.name}): ${Object.entries(o).filter(([, v]) => Number.isFinite(v)).map(([k, v]) => `${k} = ${v}`).join('; ')}\nInputs:\n${ins}\n${sens}\n\nStress scenarios:\n${STRESS.map(s => `- ${s.name}: ${s.d}`).join('\n')}`;
+  const res = await Promise.allSettled(provs.map(p => G.ai(system, user, 5000, p).then(t => ({ p, j: G.jsonOf(t) }))));
+  const ok = res.filter(r => r.status === 'fulfilled').map(r => r.value), names = { anthropic: 'Claude', openai: 'OpenAI' };
+  const scenarios = STRESS.map(s => {
+    const got = ok.map(r => ({ p: r.p, i: (r.j.scenarios || []).find(x => String(x.name).toLowerCase().trim() === s.name.toLowerCase()) })).filter(x => x.i && Number.isFinite(+x.i.levered_irr));
+    if (!got.length) return { name: s.name, note: ok.length ? 'no estimate returned' : 'AI estimate failed' };
+    const avg = k => { const vs = got.map(g => +g.i[k]).filter(Number.isFinite); return vs.length ? vs.reduce((a, c) => a + c, 0) / vs.length : NaN; };
+    const irr = avg('levered_irr'), poc = avg('profit_on_cost'), close = (k, u) => { const a = +got[0].i[k], c = +got[1].i[k]; if (!Number.isFinite(a) || !Number.isFinite(c)) return true; return u === '%' ? Math.abs(a - c) <= 0.5 : Math.abs(a - c) <= 0.02 * Math.max(Math.abs(a), Math.abs(c), 1); };
+    const agree = got.length < 2 ? null : close('levered_irr', '%') && close('profit_on_cost', '%') && close('net_profit', 'M');   // the two must agree on every figure, not only the IRR
+    return { name: s.name, levered_irr: +irr.toFixed(2), profit_on_cost: Number.isFinite(poc) ? +poc.toFixed(2) : null, net_profit: Number.isFinite(avg('net_profit')) ? Math.round(avg('net_profit')) : null, pass: !Number.isFinite(hurdle) && !env('HURDLE_POC') ? null : (!Number.isFinite(hurdle) || irr >= hurdle) && (!Number.isFinite(poc) || !env('HURDLE_POC') || poc >= +env('HURDLE_POC')), agree,
+      working: `${got.map(g => `${names[g.p]} ${(+g.i.levered_irr).toFixed(2)}%`).join(', ')}${got.length > 1 ? (agree ? ' (agree, average shown)' : ' (differ: average shown, check in EstateMaster)') : ' (one model only)'}. ${String(got[0].i.working || '').slice(0, 240)}` };
+  });
+  const disputed = scenarios.filter(x => x.agree === false);
+  if (disputed.length && ok.length > 1) {
+    const ds = disputed.map(x => { const g = ok.map(r => ({ p: r.p, i: (r.j.scenarios || []).find(z => String(z.name).toLowerCase().trim() === x.name.toLowerCase()) })).filter(z => z.i); return { id: x.name, a: { by: names[g[0].p], levered_irr: +g[0].i.levered_irr, working: String(g[0].i.working || '').slice(0, 300) }, b: g[1] ? { by: names[g[1].p], levered_irr: +g[1].i.levered_irr, working: String(g[1].i.working || '').slice(0, 300) } : null }; });
+    const arb = await arbitrate('stress scenario', user, ds);
+    for (const x of disputed) { const a = arb[x.name]; if (!a || !Number.isFinite(+a.levered_irr)) continue; x.levered_irr = +(+a.levered_irr).toFixed(2); if (Number.isFinite(+a.profit_on_cost)) x.profit_on_cost = +(+a.profit_on_cost).toFixed(2); if (Number.isFinite(+a.net_profit)) x.net_profit = Math.round(+a.net_profit); x.pass = !Number.isFinite(hurdle) && !env('HURDLE_POC') ? null : (!Number.isFinite(hurdle) || x.levered_irr >= hurdle) && (!Number.isFinite(x.profit_on_cost) || !env('HURDLE_POC') || x.profit_on_cost >= +env('HURDLE_POC')); x.arbitrated = true; x.working = x.working.replace(' (differ: average shown, check in EstateMaster)', ` (differ: ${names[G.aiProviders().includes('anthropic') ? 'anthropic' : G.aiProviders()[0]]} arbitrated from both workings: ${String(a.why || '').slice(0, 160)}; check in EstateMaster)`); }
+  }
+  for (let i = 0; i < scenarios.length; i++) { const e = EX.map[scenarios[i].name]; if (!e) continue; if (e.na) { scenarios[i] = { name: scenarios[i].name, note: e.note }; continue; } if (e.noIrr) { scenarios[i] = { name: scenarios[i].name, ...e }; continue; } const ai = scenarios[i]; scenarios[i] = { name: ai.name, ...e, ai_levered_irr: Number.isFinite(ai.levered_irr) ? ai.levered_irr : null }; if (Number.isFinite(ai.levered_irr) && Math.abs(ai.levered_irr - e.levered_irr) > 0.5) scenarios[i].working += ` The AI had estimated ${ai.levered_irr}%: the exact figure is shown.`; }
+  stressChecks(scenarios, o, hurdle);
+  // self-correction: scenarios that failed a check go back to both models with the failures; a recalculation that passes replaces them
+  const bad = scenarios.filter(x => x.checks && x.checks.length && !x.exact);
+  if (bad.length && ok.length) {
+    const fixUser = `${user}\n\nYour previous estimates failed these exact checks run by the server:\n${bad.map(x => `- ${x.name}: ${x.checks.join('; ')}`).join('\n')}\n\nRecalculate ONLY these scenarios, fixing every failure (start from EstateMaster's base, every scenario is adverse, the severe case cannot beat the milder combined case, full currency units). Same JSON format.`;
+    const re = await Promise.allSettled(ok.map(r => G.ai(system, fixUser, 4000, r.p).then(t => ({ p: r.p, j: G.jsonOf(t) }))));
+    const ok2 = re.filter(r => r.status === 'fulfilled').map(r => r.value);
+    for (const x of bad) {
+      const g = ok2.map(r => (r.j.scenarios || []).find(z => String(z.name).toLowerCase().trim() === x.name.toLowerCase())).filter(z => z && Number.isFinite(+z.levered_irr)); if (!g.length) continue;
+      const av = k => { const v = g.map(z => +z[k]).filter(Number.isFinite); return v.length ? v.reduce((a, c) => a + c, 0) / v.length : NaN; };
+      const cand = { ...x, levered_irr: +av('levered_irr').toFixed(2), profit_on_cost: Number.isFinite(av('profit_on_cost')) ? +av('profit_on_cost').toFixed(2) : x.profit_on_cost, net_profit: Number.isFinite(av('net_profit')) ? Math.round(av('net_profit')) : x.net_profit, checks: [], flag: false, working: String(x.working || '').replace(/ CHECK FAILED:[^]*$/, '') };
+      const trial = scenarios.map(z => z === x ? cand : z); stressChecks(trial, o, hurdle);
+      if ((cand.checks || []).length < x.checks.length) { cand.corrected = true; cand.working += ` Corrected after failed checks (${x.checks.join('; ')}): recalculated by ${g.length > 1 ? 'both models' : 'one model'}.`; cand.pass = !Number.isFinite(hurdle) && !env('HURDLE_POC') ? null : (!Number.isFinite(hurdle) || cand.levered_irr >= hurdle) && (!Number.isFinite(cand.profit_on_cost) || !env('HURDLE_POC') || cand.profit_on_cost >= +env('HURDLE_POC')); scenarios[scenarios.indexOf(x)] = cand; }
+    }
+    scenarios.forEach(z => { z.checks = []; z.flag = false; }); stressChecks(scenarios, o, hurdle);
+  }
+  const out = { by: ok.map(r => names[r.p]).join(' and ') || 'no model', scenarios, risks: [], reviewer: '' };
+  const fails = scenarios.filter(x => x.pass === false), ev = [];
+  fails.forEach(x => ev.push(`Stress test (AI estimate): ${x.name} → levered IRR ${x.levered_irr}% ${Number.isFinite(hurdle) ? ` against the ${hurdle}% hurdle` : ''}${x.agree === false ? ' (Claude and OpenAI differ)' : ''}`));
+  checks.filter(c => c.level !== 'note').slice(0, 6).forEach(c => ev.push(`Check on the export (${c.level}): ${c.text}`));
+  if (!ev.length) return out;
+  const rsys = `You are the chief risk officer of KINAN, a Saudi real estate developer, reviewing what the AI agent on ARGUS EstateMaster found before the daily report. EstateMaster is the trusted source of every return figure; the stress results are AI estimates.
+Reason like a senior development-finance professional: group evidence with the same cause, judge what could actually hurt the returns, the funding or the approvals, and how soon; then recommend the decision a committee should take for each risk.
+Return JSON only: {"risks":[{"title":"short name (max 8 words)","evidence":"the one fact that shows it, figures quoted exactly","severity":"high|medium|low","recommendation":"one sentence starting with a verb"}]}. At most 4 risks, most severe first. Use only the evidence given; never invent figures. American English, plain and professional.`;
+  const ruser = `Model: ${(b.meta && b.meta.title) || b.name}. EstateMaster base: levered IRR ${Number.isFinite(o.levered_irr) ? o.levered_irr.toFixed(2) + '%' : 'n/a'}, profit on cost ${Number.isFinite(o.profit_on_cost) ? o.profit_on_cost.toFixed(2) + '%' : 'n/a'}. ${Number.isFinite(hurdle) || env('HURDLE_POC') ? `Hurdles: ${[Number.isFinite(hurdle) ? 'IRR ' + hurdle + '%' : '', env('HURDLE_POC') ? 'profit on cost ' + env('HURDLE_POC') + '%' : ''].filter(Boolean).join(', ')}. Use only these.` : 'No hurdle has been set for this model: do not compare any figure against a hurdle and do not assume one.'}\n\nEvidence:\n${ev.map((t, i) => `${i + 1}. ${t}`).join('\n')}`;
+  for (const [p, model] of REASON()) { try { const j = G.jsonOf(await G.ai(rsys, ruser, 3000, p, model)); out.risks = (j.risks || []).filter(z => z && z.title && z.recommendation).slice(0, 4).map(z => ({ title: String(z.title).slice(0, 80), evidence: String(z.evidence || '').slice(0, 180), severity: /high|medium|low/.test(z.severity) ? z.severity : 'medium', recommendation: String(z.recommendation).slice(0, 200) })); out.reviewer = prettyModel(model); break; } catch (e) { out.reviewNote = e.message; } }
+  return out;
+}
+function stressHtml(d, ar) {
+  const ms = (d.stress || []).filter(m => m && m.scenarios && m.scenarios.length); if (!ms.length) return '';
+  const blocks = ms.map((m, n) => {
+    const hm = Number.isFinite(m.hurdle) ? m.hurdle : d.hurdle, sc = m.scenarios, vals = sc.map(x => x.levered_irr).filter(Number.isFinite);
+    const max = Math.max(Number.isFinite(hm) ? hm * 1.5 : 0, ...vals, 10) * 1.08, nf = sc.filter(x => x.pass === false).length, nt = sc.filter(x => x.pass != null).length;
+    // one block per scenario: name and figure on a line, a full-width bar with the hurdle marked, profit on cost under it (reads the same on a phone)
+    const rows = sc.map(x => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid ${UI.C.line}"><tr><td style="padding:11px 0 4px;font-family:${UI.FONT}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="top" style="font-size:13.5px;font-weight:700;color:${UI.C.ink}">${esc(x.name)}${x.exact ? ' ' + UI.pill(ar ? 'دقيق' : 'exact', 'green') : ''}${x.agree === false ? ` <span style="color:${UI.C.soft};font-size:11px;font-weight:400">${x.arbitrated ? (ar ? 'تم التحكيم' : 'arbitrated') : (ar ? 'النموذجان مختلفان' : 'models differ')}</span>` : ''}</td>
+<td valign="top" align="${ar ? 'left' : 'right'}" style="white-space:nowrap;padding-left:10px">${x.note ? `<span style="color:${UI.C.soft};font-size:12px">${esc(UI.clip(x.note, 80))}</span>` : `<b style="font-size:15px;color:${x.pass ? UI.C.ink : UI.C.red}">${x.levered_irr.toFixed(2)}%</b> ${UI.pill(x.pass ? (ar ? 'يجتاز' : 'pass') : (ar ? 'يخفق' : 'fail'), x.pass ? 'green' : 'red')}`}</td></tr></table>
+${x.note ? '' : `<div style="margin:8px 0 6px">${UI.bar(x.levered_irr, hm, x.pass, max)}</div>`}
+<div style="font-size:11.5px;color:${UI.C.soft}">${ar ? 'الربح على التكلفة' : 'Profit on cost'} ${x.profit_on_cost == null ? '—' : x.profit_on_cost.toFixed(2) + '%'}${x.flag ? ` · <span style="color:${UI.C.red}">⚠ ${ar ? 'فشل التحقق: لا يُعتمد عليه' : 'check failed: do not rely on it'}</span>` : ''}</div>
+</td></tr></table>`).join('');
+    const risks = (m.risks || []).map(z => UI.item({ ar, tone: z.severity === 'high' ? 'red' : z.severity === 'medium' ? 'orange' : 'grey', tags: [[z.severity, z.severity === 'high' ? 'red' : z.severity === 'medium' ? 'orange' : 'grey']],
+      title: UI.clip(UI.tidyNums(z.title), 140), detail: UI.clip(UI.tidyNums(z.evidence), 320), reco: UI.clip(z.recommendation, 280), recoLabel: ar ? 'التوصية' : 'Recommended' })).join('');
+    return `<div style="${n ? `border-top:1px solid ${UI.C.line};padding-top:16px;margin-top:6px;` : ''}font-size:15px;font-weight:700">${esc(m.name)}</div>
+<div style="font-size:12px;color:${UI.C.soft};margin:3px 0 12px">${Number.isFinite(hm) ? `${UI.pill(`${nf} / ${nt} ${ar ? 'دون الحد' : 'under the hurdle'}`, nf ? 'red' : 'green')} &nbsp;${ar ? 'الحد' : 'Hurdle'} ${hm}% · ` : `${ar ? 'لا يوجد حد محدد' : 'No hurdle set'} · `}${esc(m.by)}${m.reviewer ? `${ar ? '، مراجعة المخاطر: ' : ' · risks reviewed by '}${esc(m.reviewer)}` : ''}</div>`
+      + `<div style="border-top:2px solid ${UI.C.ink}">${rows}</div>`
+      + (risks ? `<div style="margin-top:14px">${risks}</div>` : '');
+  }).join('');
+  return UI.section(ar ? 'اختبارات الضغط قبل هذا التقرير' : 'Stress tests run before this report', blocks, { note: ar ? 'تقديرات الذكاء الاصطناعي من أرقام إستيت ماستر وجداول حساسيته (دقيقة حين يتضمن التصدير التدفق النقدي). الخط الداكن في كل شريط هو الحد.' : 'AI estimates from EstateMaster’s figures and its own sensitivity tables, cross-checked between Claude and OpenAI (exact where the export carries EstateMaster’s cash flow). The dark line in each bar is the hurdle; EstateMaster’s own figure for a scenario comes once an analyst runs it.' });
+}
+async function scanJob(token, now, dry, appUrl) {
+  const w = windowFor(now), { msgs, findings } = await scanFindings(token, w.since);
+  if (!msgs.length) return { job: 'scan', window: w, messages: 0, findings: 0, sent: false };
+  const out = { job: 'scan', window: w, messages: msgs.length, findings: findings.length, items: findings.map(f => ({ from: f.msg.from, subject: f.msg.subject, assumption: f.assumption, new_value: f.new_value, quote: f.quote, confidence: f.confidence })), sent: false };
+  if (!findings.length) return out;
+  const to = G.checkRecipients(env('ALERT_TO').split(','));
+  if (to.bad.length) out.rejected = to.bad;
+  if (!to.ok.length) { out.note = 'No alert email (ALERT_TO not set): the findings show in the Daily feed'; return out; }
+  const body = UI.section('Possible assumption changes', findingCards(findings, false) + `<div style="font-size:12px;color:${UI.C.soft};margin-top:4px">Open the agent to review them: each becomes a change request for approval, checked against the model's current value. Nothing has been changed.</div>`,
+    { count: findings.length, note: `The ${riyadh(w.slot).split(',').pop().trim()} scan read <b>${msgs.length}</b> new message${msgs.length > 1 ? 's' : ''} in the project folder.` });
+  const html = frame('Assumption alert', `${findings.length} possible change${findings.length > 1 ? 's' : ''} in Outlook`, `${env('PROJECT_NAME') || 'Al Narjis Mixed-Use'} · scan of ${riyadh(w.slot)}`, body, appUrl,
+    { summary: [{ value: String(findings.length), label: findings.length === 1 ? 'possible change' : 'possible changes' }, { value: String(msgs.length), label: 'emails read' }, { value: String(findings.filter(f => f.approval).length), label: 'ask for a decision' }] });
+  out.subject = `KINAN · ${findings.length} possible assumption change${findings.length > 1 ? 's' : ''} · ${env('PROJECT_NAME') || 'Al Narjis Mixed-Use'}`;
+  if (dry) { out.preview = html; return out; }
+  await G.sendMail(token, { to: to.ok, subject: out.subject, html }); out.sent = true; out.to = to.ok; return out;
+}
+
+/* EstateMaster's figures from an Office Links export, by row label (the same labels the app reads). */
+const LAB = [['levered_irr', /(equity|levered|geared)\s*irr|irr\s*\((equity|levered|geared)/i], ['unlevered_irr', /(unlevered|ungeared|project)\s*irr|irr\s*\((unlevered|ungeared|project)/i], ['profit_on_cost', /(profit|margin)\s*on\s*(cost|development)|development\s*margin/i], ['net_profit', /(net|development)\s*profit/i], ['total_cost', /total\s*(development\s*)?costs?\b/i], ['gross_revenue', /(gross|total)\s*(revenue|realisation|realization|sales)/i], ['equity_multiple', /equity\s*multiple/i], ['peak_debt', /peak\s*(debt|funding|loan)/i]];
+function readExport(buf, name) { const XLSX = require('xlsx'); return EM.parseWorkbook(XLSX.read(buf, { type: 'buffer' }), XLSX, name); }
+const ROWS = [['levered_irr', 'Levered IRR', '%'], ['unlevered_irr', 'Unlevered IRR', '%'], ['profit_on_cost', 'Profit on cost', '%'], ['net_profit', 'Net profit', 'M'], ['total_cost', 'Total development cost', 'M'], ['gross_revenue', 'Gross revenue', 'M'], ['equity_multiple', 'Equity multiple', 'x'], ['peak_debt', 'Peak debt', 'M']];
+const fmt = (v, u) => !Number.isFinite(v) ? '—' : u === '%' ? v.toFixed(2) + '%' : u === 'x' ? v.toFixed(2) + 'x' : 'SAR ' + Math.round(v / 1e6).toLocaleString('en-GB') + 'M';
+const dlt = (a, b, u) => !Number.isFinite(a) || !Number.isFinite(b) || Math.abs(b - a) < 1e-9 ? '–' : u === '%' ? `${b > a ? '+' : '−'}${Math.abs(b - a).toFixed(2)} pts` : u === 'x' ? `${b > a ? '+' : '−'}${Math.abs(b - a).toFixed(2)}x` : `${b > a ? '+' : '−'}${Math.round(Math.abs(b - a) / 1e6)}M`;
+
+/* Arabic version of the daily report: fixed labels from this table, the sentences the checks produce through the AI (numbers kept). */
+const AR = { 'Daily EstateMaster report': 'تقرير إستيت ماستر اليومي', 'Levered IRR': 'معدل العائد الداخلي على حقوق الملكية', 'Unlevered IRR': 'معدل العائد الداخلي للمشروع', 'Profit on cost': 'الربح إلى التكلفة', 'Net profit': 'صافي الربح', 'Total development cost': 'إجمالي تكلفة التطوير', 'Gross revenue': 'إجمالي الإيرادات', 'Equity multiple': 'مضاعف حقوق الملكية', 'Peak debt': 'ذروة الدين',
+  Output: 'المخرج', Previous: 'السابق', Latest: 'الأحدث', Change: 'التغير', 'Checks on the export': 'فحوصات ملف التصدير', 'Likely error': 'خطأ محتمل', Check: 'للمراجعة', Note: 'ملاحظة', 'Assumptions possibly changing (Outlook, last 24 hours)': 'افتراضات قد تتغير (أوتلوك، آخر 24 ساعة)', Assumption: 'الافتراض', Proposed: 'المقترح', From: 'المرسل', Quote: 'النص', 'Conf.': 'الثقة',
+  'Assumptions vs market': 'الافتراضات مقارنة بالسوق', Model: 'النموذج', Market: 'السوق', Position: 'الموقع', within: 'ضمن النطاق', above: 'أعلى من النطاق', below: 'أدنى من النطاق', aggressive: 'متفائل', conservative: 'متحفظ',
+  Rent: 'الإيجار', 'Sale price': 'سعر البيع', 'Exit cap rate / yield': 'معدل الرسملة عند التخارج', 'Construction cost': 'تكلفة البناء', 'Land price': 'سعر الأرض', Contingency: 'الاحتياطي', 'Finance rate': 'معدل التمويل', 'Sales commission': 'عمولة البيع' };
+async function translateAr(texts) {
+  const list = [...new Set(texts.filter(Boolean))]; if (!list.length || !G.aiConfigured()) return {};
+  try { const j = G.jsonOf(await G.ai('Translate each English string to Modern Standard Arabic for a real estate investment report. Keep every number, unit, percentage, currency code, file name and id exactly as written. Return JSON only: {"t":[...]} in the same order.', JSON.stringify(list), 4000)); const out = {}; (j.t || []).forEach((t, i) => { if (list[i] && t) out[list[i]] = t; }); return out; } catch { return {}; }
+}
+/* Everything the daily report needs, read once: the two latest base exports, other options, checks, Outlook findings, market position. */
+/* What the report needs to say first: the open decisions in the app's Daily feed (sent by the app, with the AI's impact),
+   the emails of the last 24 hours that ask for a decision or would take the IRR under the hurdle, and likely errors in the export. */
+function urgentItems(d) {
+  const out = [], feed = d.feed && d.feed.items ? d.feed.items : [], subj = new Set(feed.map(i => i.title.toLowerCase()));
+  for (const i of feed) out.push({ src: 'feed', title: i.title, change: i.change, why: i.why, from: i.from, impact: i.impact, below: i.impact.some(m => m.below), approval: true, id: i.id });
+  for (const f of (d.flags && d.flags.findings) || []) {
+    const fh = Number.isFinite(f.hurdle) ? f.hurdle : d.hurdle, below = f.impact && Number.isFinite(f.impact.levered_irr) && f.impact.levered_irr < fh;
+    if (!(f.approval || below)) continue;
+    if ([...subj].some(t => t.includes(String(f.msg.subject || '').toLowerCase().slice(0, 40)))) continue;
+    out.push({ src: 'email', title: f.msg.subject, change: f.change || `${f.assumption}: ${f.previous_value ? f.previous_value + ' → ' : ''}${f.new_value}`, why: f.reason || '', from: f.msg.from, deadline: f.deadline || '', below, approval: !!f.approval,
+      impact: f.impact ? IMP.map(([k, l, u]) => ({ k, label: l, base: fmtImp(f.impact.base[k], u), value: fmtImp(f.impact[k], u), below: k === 'levered_irr' && f.impact[k] < fh })) : [] });
+  }
+  for (const m of d.stress || []) for (const z of (m.risks || []).filter(z => z.severity === 'high')) out.push({ src: 'stress', title: `${z.title} (${m.name})`, change: z.evidence, why: `Recommended: ${z.recommendation}`, from: `Stress tests before the report · ${m.reviewer || m.by}`, impact: [], below: false, risk: true });
+  for (const c of (d.checks || []).filter(c => c.level === 'error')) out.push({ src: 'check', title: c.text, change: '', why: 'Likely error in the latest EstateMaster export', impact: [], below: false });
+  return out.sort((a, b) => (b.below - a.below) || ((b.risk ? 1 : 0) - (a.risk ? 1 : 0)) || (b.approval - a.approval));
+}
+function urgentHtml(d, ar) {
+  const items = urgentItems(d), t = ar ? 'للعلم اليوم' : 'To know today';
+  if (!items.length) return UI.section(t, `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:${UI.C.greenTint};border-radius:10px;padding:12px 14px;font-size:14px;font-weight:600;color:${UI.C.green}">✓ ${ar ? 'لا قرارات معلقة ولا أخطاء مرجحة.' : 'No decision waiting and no likely error.'}</td></tr></table>${d.feed || ar ? '' : `<div style="font-size:12px;color:${UI.C.soft};margin-top:8px">The app has not shared its Daily feed yet: open the agent once and it does.</div>`}`);
+  const red = i => i.below || i.src === 'stress' || i.src === 'check';
+  const cards = items.slice(0, 12).map(i => {
+    const tags = []; if (i.below) tags.push([ar ? 'دون الحد' : 'below hurdle', 'red']);
+    if (i.src === 'stress') tags.push([ar ? 'خطر' : 'stress risk', 'red']); else if (i.src === 'check') tags.push([ar ? 'خطأ مرجح' : 'likely error', 'red']); else if (i.approval) tags.push([ar ? 'قرار مطلوب' : 'decision needed', 'orange']);
+    const why = String(i.why || ''), reco = /^Recommended:\s*/i.test(why) ? why.replace(/^Recommended:\s*/i, '') : '';
+    return UI.item({ ar, tone: red(i) ? 'red' : 'orange', tags, id: i.id, title: UI.clip(UI.tidyNums(i.title), 150), detail: UI.clip(UI.tidyNums(i.change || ''), 320),
+      reco: reco ? UI.clip(reco, 280) : '', recoLabel: ar ? 'التوصية' : 'Recommended',
+      impact: i.impact || [], impactNote: (i.impact || []).length ? (ar ? 'تقدير الذكاء الاصطناعي، ليس رقم إستيت ماستر' : 'AI estimate, not EstateMaster’s figure') : '',
+      meta: [!reco && why && !String(i.from || '').includes(why) ? esc(UI.clip(why, 220)) : '', i.from ? esc(i.from) : '', i.deadline ? (ar ? 'المهلة: ' : 'by ') + esc(i.deadline) : ''].filter(Boolean).join(' · ') });
+  }).join('');
+  const more = items.length > 12 ? `<div style="font-size:12px;color:${UI.C.soft}">+ ${items.length - 12} ${ar ? 'بنود أخرى في التطبيق' : 'more in the agent'}</div>` : '';
+  return UI.section(t, cards + more + `<div style="font-size:12px;color:${UI.C.soft};margin-top:6px">${ar ? 'كل بند ينتظر قرار شخص في التطبيق؛ لا يتغير شيء قبل الموافقة.' : `Each item waits for a person’s decision in the agent; nothing changes until it is approved.${d.feed ? ` Daily feed as shared by the app at ${esc(riyadh(d.feed.at))}.` : ''}`}</div>`, { tone: items.some(red) ? 'red' : '', count: items.length });
+}
+async function dailyData(token, now, o = {}) {
+  const folder = env('EXPORTS_FOLDER'); if (!folder) return { skipped: 'EXPORTS_FOLDER is not set' };
+  const j = await G.graph(token, `${folder}:/children?$select=name,lastModifiedDateTime,id,file&$orderby=lastModifiedDateTime desc&$top=50`);
+  // One file per stored Option / Stage may be in the folder ("… - Downside.xlsx", "… (Downside).xlsx"): the report follows the base, i.e. files with no option in the name or one named like a base case.
+  const optOf = n => { const f = String(n).replace(/\.[^.]+$/, ''); const m = f.match(/\(([^)]{1,60})\)\s*$/) || f.match(/\s[-–]\s([^-–]{1,60})$/); const o = m ? m[1].trim() : ''; return o && /^(?:base|downside|upside|option|scenario|stage|phase|case|sensitivity|stress|alt|alternative|plan\s?[a-z0-9]|worst|best|bull|bear|high|low|mid|conservative|aggressive)\b/i.test(o) ? o : ''; };
+  const isBase = o => !o || /^(base|live|current|approved|main|master|as is)/i.test(o);
+  const all = (j.value || []).filter(f => f.file && /\.(xlsx|xlsm|xls|csv)$/i.test(f.name)).sort((a, b) => b.lastModifiedDateTime.localeCompare(a.lastModifiedDateTime));
+  // one financial model per file name (version and date suffixes ignored): "DF_CS046 v2.xlsx" and "DF_CS046.xlsx" are the same model
+  const keyOf = n => { let k = String(n).replace(/\.[^.]+$/, ''); const o = optOf(n); if (o) k = k.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s[-–]\s[^-–]*$/, ''); for (let i = 0; i < 4; i++) k = k.replace(/[\s_-]*(v\d+|rev\s?\d+|\d{4}[-_.]\d{2}[-_.]\d{2}|final|copy|\(\d+\))$/i, '').replace(/[\s_-]+(\d{3,8}|export|exported|em)$/i, ''); return k.trim().toLowerCase(); };
+  const groups = new Map(); for (const f of all.filter(f => isBase(optOf(f.name)))) { const k = keyOf(f.name); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(f); }
+  const files = all.filter(f => isBase(optOf(f.name))).slice(0, 2).filter((f, i, xs) => !i || keyOf(f.name) === keyOf(xs[0].name));
+  if (!files.length) return { noExport: all.length ? `only option exports in the folder (${all.slice(0, 5).map(f => optOf(f.name)).join(', ')}); no base export` : 'no EstateMaster export in the exports folder yet: upload one in the agent (Financial modelling → Upload export) and it is copied there' };
+  const base = folder.replace(/\/root:.*$/, '');
+  const read = async f => ({ name: f.name, at: f.lastModifiedDateTime, ...readExport(await G.graphBytes(token, `${base}/items/${f.id}/content`), f.name) });
+  const [b, a] = await Promise.all(files.map(read));
+  // every other model in the folder (up to MAX_MODELS, default 40), each with its latest and previous export
+  const others = [...groups.entries()].filter(([k]) => k !== keyOf(files[0].name)).slice(0, Math.max(1, +(env('MAX_MODELS') || 40) - 1));
+  const otherModels = (await Promise.all(others.map(async ([k, fs]) => { try { const [ob, oa] = await Promise.all(fs.slice(0, 2).map(read)); if (!Object.keys(ob.out).length) return null; return { key: k, b: ob, a: oa || null }; } catch { return null; } }))).filter(Boolean);
+  const options = all.filter(f => !isBase(optOf(f.name))).slice(0, 10).map(f => ({ option: optOf(f.name), file: f.name, at: f.lastModifiedDateTime }));
+  if (!Object.keys(b.out).length) return { skipped: `no EstateMaster returns found in ${b.name}` };
+  const hurdle = hurdleOf(b);
+  const checks = EM.emChecks({ out: b.out, inputs: b.inputs, sens: b.sens, cells: b.cells, at: b.at, file: b.name }, a ? { out: a.out, file: a.name } : null, { now: now.toISOString(), hurdle }).filter(c => c.code !== 'hurdle');
+  let flags = { msgs: [], findings: [], note: '' };
+  const nameOf = x => (x.meta && x.meta.title) || x.name.replace(/\.[^.]+$/, '');
+  const models = [{ key: keyOf(b.name), b, a: a || null }].concat(otherModels).map(m => ({ ...m, name: nameOf(m.b), checks: EM.emChecks({ out: m.b.out, inputs: m.b.inputs, sens: m.b.sens, cells: m.b.cells, at: m.b.at, file: m.b.name }, m.a ? { out: m.a.out, file: m.a.name } : null, { now: now.toISOString(), hurdle: hurdleOf(m.b) }).filter(c => c.code !== 'hurdle'), hurdle: hurdleOf(m.b), market: EM.marketVsInputs(m.b.inputs, m.b.meta) }));
+  if (G.aiConfigured() && !o.noStress) { await within(+(env('STRESS_BUDGET_MS') || 360000), (async () => { const q = models.slice(); await Promise.all(Array.from({ length: Math.min(4, q.length) }, async () => { while (q.length) { const m = q.shift(); try { m.stress = await stressRun(m.b, hurdleOf(m.b), m.checks); } catch (e) { m.stress = { note: e.message, scenarios: [], risks: [] }; } } })); })()).catch(() => {}); models.forEach(m => { if (!m.stress) m.stress = { note: 'stress run cut short to keep the report on time', scenarios: [], risks: [] }; }); }
+  if (G.aiConfigured() && !o.stressOnly) { try {
+    flags = await within(+(env('SCAN_BUDGET_MS') || 180000), scanFindings(token, new Date(now.getTime() - 864e5).toISOString(), models.map(m => m.name)));
+    // each change is costed on the export of the model it concerns (the most recent model when the email does not say)
+    const pick = f => models.find(m => f.model && m.name.toLowerCase() === String(f.model).toLowerCase()) || models.find(m => f.model && (m.name.toLowerCase().includes(String(f.model).toLowerCase()) || String(f.model).toLowerCase().includes(m.name.toLowerCase()))) || models[0];
+    for (const m of models) { const fs = flags.findings.filter(f => pick(f) === m); fs.forEach(f => { f.modelName = m.name; f.hurdle = hurdleOf(m.b); }); if (fs.length) await within(180000, estimateImpacts(m.b, fs, hurdleOf(m.b))).catch(e => { flags.note = 'impacts not worked out in time: ' + e.message; }); }
+  } catch (e) { flags.note = e.message; } } else flags.note = 'no AI key: emails not read';
+  const market = EM.marketVsInputs(b.inputs, b.meta);
+  const stress = models.filter(m => m.stress).map(m => ({ name: m.name, file: m.b.name, base_irr: m.b.out.levered_irr, base_poc: m.b.out.profit_on_cost, ...m.stress }));
+  return { b, a, options, hurdle, checks, flags, market, models, stress, project: models.length > 1 ? `${models.length} financial models` : env('PROJECT_NAME') || (b.meta && b.meta.title) || 'Al Narjis Mixed-Use' };
+}
+async function dailyHtml(d, now, appUrl, lang) {
+  const { b, a, options, hurdle, checks, flags, market } = d, ar = lang === 'ar';
+  const tr = ar ? await translateAr([...checks.map(c => c.text), ...market.rows.map(r => r.item), flags.note]) : {};
+  const T = t => ar ? (AR[t] || tr[t] || t) : t, X = t => ar ? (tr[t] || t) : t;
+  const ok = Number.isFinite(b.out.levered_irr) && Number.isFinite(hurdle) ? b.out.levered_irr >= hurdle : null;
+  const lvl = { error: [T('Likely error'), 'red'], warn: [T('Check'), 'orange'], note: [T('Note'), 'grey'] };
+  const models = d.models || [], urg = urgentItems(d);
+  // headline tiles for the most recent model: the change since the previous export in a coloured chip
+  const kp = ROWS.slice(0, 4).map(([k, l, u]) => { const dv = a && Number.isFinite(a.out[k]) && Number.isFinite(b.out[k]) ? b.out[k] - a.out[k] : null;
+    return { label: T(l), value: fmt(b.out[k], u).replace(/^SAR /, 'SAR '), tone: k === 'levered_irr' && ok === false ? 'red' : '', delta: a ? dlt(a.out[k], b.out[k], u) : '', deltaTone: dv == null || Math.abs(dv) < 1e-9 ? 'grey' : dv > 0 ? 'green' : 'red' }; });
+  const hurdleBox = ok == null ? '' : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 16px"><tr><td style="background:${ok ? UI.C.greenTint : UI.C.redTint};border-radius:10px;padding:11px 14px;font-size:13.5px;font-weight:600;color:${ok ? UI.C.green : UI.C.red}">${ok ? '✓' : '⚠'} ${ar ? (ok ? `معدل العائد أعلى من الحد ${hurdle}%` : `معدل العائد أدنى من الحد ${hurdle}%`) : `Levered IRR ${fmt(b.out.levered_irr, '%')} is ${ok ? 'above' : 'below'} the ${hurdle}% hurdle${Number.isFinite(b.out.levered_irr) ? ` by ${Math.abs(b.out.levered_irr - hurdle).toFixed(2)} pts` : ''}`}</td></tr></table>`;
+  const outputs = UI.table([T('Output'), ...(a ? [T('Previous')] : []), T('Latest'), ...(a ? [T('Change')] : [])], ROWS.map(([k, l, u]) => { const dv = a && Number.isFinite(a.out[k]) && Number.isFinite(b.out[k]) ? b.out[k] - a.out[k] : null; const good = k === 'total_cost' || k === 'peak_debt' ? dv < 0 : dv > 0;
+    return [esc(T(l)), ...(a ? [`<span style="color:${UI.C.soft}">${fmt(a.out[k], u)}</span>`] : []), `<b>${fmt(b.out[k], u)}</b>`, ...(a ? [dv == null || Math.abs(dv) < 1e-9 ? `<span style="color:${UI.C.soft}">–</span>` : `<b style="color:${good ? UI.C.green : UI.C.red}">${dlt(a.out[k], b.out[k], u)}</b>`] : [])]; }), { align: ['left', 'right', 'right', 'right'] });
+  const recent = UI.section(models.length > 1 ? `${ar ? 'أحدث نموذج' : 'Most recent model'} · ${models[0].name}` : (ar ? 'الأرقام الرئيسية' : 'Headline figures'), UI.kpis(kp) + hurdleBox + outputs, { note: `${esc(b.name)} · ${esc(riyadh(b.at))}${a ? ` · ${ar ? 'مقارنة بـ' : 'compared with'} ${esc(a.name)}` : ''}` });
+  const allModels = models.length > 1 ? UI.section(T('All financial models'), UI.table([T('Model'), T('Levered IRR'), T('Profit on cost'), T('Net profit'), T('IRR since last export'), T('Checks')], models.map(m => {
+      const o = m.b.out, pv = m.a && m.a.out, dI = pv && Number.isFinite(o.levered_irr) && Number.isFinite(pv.levered_irr) ? o.levered_irr - pv.levered_irr : null, nck = m.checks.filter(c => c.level !== 'note'), below = Number.isFinite(o.levered_irr) && o.levered_irr < (Number.isFinite(m.hurdle) ? m.hurdle : hurdle);
+      return [`<b>${esc(m.name)}</b><div style="color:${UI.C.soft};font-size:11px;margin-top:2px">${esc(m.b.name)} · ${esc(riyadh(m.b.at))}</div>`, `<b style="color:${below ? UI.C.red : UI.C.ink};white-space:nowrap">${fmtImp(o.levered_irr, '%')}</b>${below ? '<br>' + UI.pill(ar ? 'دون الحد' : 'below hurdle', 'red') : ''}`, fmtImp(o.profit_on_cost, '%'), fmtImp(o.net_profit, 'M'),
+        dI == null ? `<span style="color:${UI.C.soft}">—</span>` : `<b style="color:${dI >= 0 ? UI.C.green : UI.C.red}">${dI >= 0 ? '+' : '−'}${Math.abs(dI).toFixed(2)} pts</b>`, nck.length ? UI.pill(String(nck.length), nck.some(c => c.level === 'error') ? 'red' : 'orange') : UI.pill(ar ? 'لا شيء' : 'none', 'green')];
+    }), { align: ['left', 'right', 'right', 'right', 'right', 'right'], stack: true })
+    + (models.slice(1).some(m => m.checks.some(c => c.level !== 'note')) ? `<div style="margin-top:14px">${UI.table([T('Model'), '', ar ? 'الفحص' : 'Check'], models.slice(1).flatMap(m => m.checks.filter(c => c.level !== 'note').map(c => [`<b>${esc(m.name)}</b>`, UI.pill(lvl[c.level][0], lvl[c.level][1]), esc(UI.clip(UI.tidyNums(X(c.text)), 280)) + (c.cell ? ` <b>${esc(c.cell)}</b>` : '')])), { w: ['28%', '90px', ''] })}</div>` : ''),
+    { note: ar ? 'كل نموذج من آخر ملف تصدير له في المجلد. الأرقام من إستيت ماستر.' : 'Every financial model in the exports folder, from its latest export. The figures are EstateMaster’s; the change since the last export is arithmetic on them.' }) : '';
+  const checksSec = UI.section(T('Checks on the export'), checks.length
+    ? UI.table(['', ar ? 'الفحص' : 'Check'], checks.map(c => [UI.pill(lvl[c.level][0], lvl[c.level][1]), esc(UI.clip(UI.tidyNums(X(c.text)), 320)) + (c.cell ? ` <b>${esc(c.cell)}</b>` : '')]), { w: ['96px', ''] }) + `<div style="font-size:12px;color:${UI.C.soft};margin-top:8px">${ar ? `${checks.filter(c => c.level !== 'note').length} للمراجعة. لم يتغير شيء.` : `${checks.filter(c => c.level !== 'note').length} to look at. Checks for a person to review; nothing was changed.`}</div>`
+    : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:${UI.C.greenTint};border-radius:10px;padding:11px 14px;font-size:13.5px;font-weight:600;color:${UI.C.green}">✓ ${ar ? 'المخرجات متطابقة والوحدات سليمة والمدخلات ضمن النطاق.' : 'Outputs reconcile, units look right, the sensitivity tables match the Summary and the inputs are in range.'}</td></tr></table>`, { count: checks.filter(c => c.level !== 'note').length || null, tone: checks.some(c => c.level === 'error') ? 'red' : '' });
+  const flagsSec = UI.section(T('Assumption changes and approvals asked for in emails (last 24 hours)'), flags.findings.length ? findingCards(flags.findings, ar) + `<div style="font-size:12px;color:${UI.C.soft};margin-top:4px">${ar ? `${flags.findings.length} تغيير محتمل. يصبح كل منها طلب تغيير في التطبيق؛ لا يتغير شيء قبل موافقة شخص. ملف التصدير أعلاه لا يتضمنها بعد.` : `${flags.findings.length} possible change${flags.findings.length > 1 ? 's' : ''} in ${flags.msgs.length} email${flags.msgs.length > 1 ? 's' : ''}. Each becomes a change request in the agent; nothing changes until a person approves it. The export above does not include them yet.`}</div>`
+    : `<div style="font-size:13.5px;color:${UI.C.soft}">${flags.note ? esc(X(flags.note)) : ar ? 'لم يُرصد أي تغيير في الافتراضات في رسائل آخر 24 ساعة.' : `No assumption change in the ${flags.msgs.length} email${flags.msgs.length === 1 ? '' : 's'} of the last 24 hours.`}</div>`, { count: flags.findings.length || null });
+  const mkTable = rows => UI.table([T('Assumption'), T('Model'), T('Market'), T('Position')], rows.map(r => [`<b>${esc(T(r.item))}</b>${r.input ? `<div style="color:${UI.C.soft};font-size:11px;margin-top:2px">${esc(r.input)} · ${esc(r.sheet)}</div>` : ''}`, esc(r.model), `<span style="color:${UI.C.soft}">${esc(r.market)}</span>`, UI.pill(T(r.status) + (r.status !== 'within' ? ' · ' + T(r.aggressive ? 'aggressive' : 'conservative') : ''), r.status === 'within' ? 'green' : r.aggressive ? 'red' : 'orange')]), { w: ['', '', '', '1%'], stack: true });
+  const mk = [[models.length > 1 ? (models[0] || {}).name : '', market]].concat(models.slice(1).filter(m => m.market && m.market.rows && m.market.rows.length).map(m => [m.name, m.market]));
+  const marketSec = UI.section(T('Assumptions vs market'), mk.filter(([, mm]) => mm && mm.rows && mm.rows.length).map(([n, mm], i) => `${n ? `<div style="font-size:14px;font-weight:700;margin:${i ? '16px' : '0'} 0 8px">${esc(n)}</div>` : ''}${mkTable(mm.rows)}${mm.fx || mm.bench ? `<div style="font-size:11.5px;color:${UI.C.soft};margin-top:6px">${[mm.bench ? (ar ? 'المرجع: ' : 'Benchmark: ') + esc(mm.bench) : '', esc(mm.fx || '')].filter(Boolean).join(' · ')}</div>` : ''}`).join('') || `<div style="font-size:13.5px;color:${UI.C.soft}">${ar ? 'لا توجد افتراضات في ملف التصدير يمكن مقارنتها بالسوق (أضيفوا ورقة المدخلات).' : 'No assumption in the export the market data covers (include the Input sheet in the export).'}</div>`);
+  const foot = ar ? `كل الأرقام من إستيت ماستر، مقروءة من ${esc(b.name)} (${esc(riyadh(b.at))}).` : `Every figure is EstateMaster's own, read from ${esc(b.name)} (${esc(riyadh(b.at))}${b.opt ? ', option ' + esc(b.opt) : ''})${a ? ` and compared with ${esc(a.name)} (${esc(riyadh(a.at))})` : ''}${options.length ? `. Other options in the folder: ${options.map(o => esc(o.option)).join(', ')}` : ''}. Market positions, checks and estimates are the agent's. Open the agent for the full report and ▶ Play for the narrated deck.`;
+  const body = urgentHtml(d, ar) + allModels + recent + checksSec + stressHtml(d, ar) + flagsSec + marketSec + `<tr><td class="px" style="padding:0 30px 14px;font-size:11.5px;line-height:1.55;color:${UI.C.soft}">${foot}</td></tr>`;
+  const decisions = urg.filter(i => i.approval).length, alerts = urg.filter(i => i.below || i.src === 'stress' || i.src === 'check').length;
+  const summary = [{ value: String(Math.max(1, models.length)), label: ar ? 'نماذج مالية' : models.length > 1 ? 'financial models' : 'financial model' },
+    { value: String(decisions), label: ar ? 'قرارات معلقة' : 'decisions waiting', tone: decisions ? '' : 'green' },
+    { value: String(alerts), label: ar ? 'تنبيهات' : alerts === 1 ? 'alert' : 'alerts', tone: alerts ? 'red' : 'green' },
+    { value: fmt(b.out.levered_irr, '%'), label: ar ? 'العائد الممول · الأحدث' : 'levered IRR · latest', tone: ok === false ? 'red' : '' }];
+  return frame(T('Daily EstateMaster report'), d.project, riyadh(now.toISOString()), body, appUrl, { ar, summary });
+}
+/* The daily report. opts: to (addresses), langs (['en','ar']), force (send whatever the day). Without opts it keeps the env-driven behaviour (REPORT_TO, REPORT_DAYS). */
+/* Today's report in both languages, kept with the schedule so the app can show either at once (the Arabic is not built on demand) */
+async function keepDaily(token, st, now, htmls, latest) {
+  if (!st || !st.schedule) return;
+  st.daily = { at: now.toISOString(), latest: latest || '', html: htmls };
+  try { await SCHED.save(token, st); } catch { /* without write permission the copy is not kept */ }
+}
+async function reportJob(token, now, dry, appUrl, opts = {}) {
+  if (!opts.force) {
+    const days = (env('REPORT_DAYS') || 'sun,mon,tue,wed,thu').toLowerCase().split(',').map(s => s.trim().slice(0, 3));
+    const today = now.toLocaleDateString('en-US', { timeZone: 'Asia/Riyadh', weekday: 'short' }).toLowerCase().slice(0, 3);
+    if (!days.includes(today)) return { job: 'report', skipped: `not a report day (${today})` };
+  }
+  const st0 = await SCHED.load(token).catch(() => ({ feed: null }));
+  FEED_HURDLE = st0.feed && Number.isFinite(+st0.feed.hurdle) ? +st0.feed.hurdle : null;
+  let d = await dailyData(token, now);
+  if (d.skipped) return { job: 'report', skipped: d.skipped };
+  // No export in the folder: the report still goes out with what has to be known today (the Daily feed and the emails)
+  if (d.noExport) {
+    let flags = { msgs: [], findings: [], note: '' };
+    if (G.aiConfigured()) { try { flags = await scanFindings(token, new Date(now.getTime() - 864e5).toISOString()); } catch (e) { flags.note = e.message; } }
+    const hurdle = env('HURDLE_IRR') ? +env('HURDLE_IRR') : (Number.isFinite(FEED_HURDLE) && FEED_HURDLE ? FEED_HURDLE : NaN), project = env('PROJECT_NAME') || (st0.feed && st0.feed.project) || 'Al Narjis Mixed-Use';
+    const dd = { feed: st0.feed, flags, checks: [], hurdle, project };
+    const langs = (opts.langs && opts.langs.length ? opts.langs : ['en']).filter(l => l === 'en' || l === 'ar');
+    const to = G.checkRecipients(opts.to ? [].concat(opts.to).join(',').split(/[,;\s]+/) : env('REPORT_TO').split(','));
+    const day = now.toLocaleDateString('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short' });
+    const body = l => { const ar = l === 'ar'; return urgentHtml(dd, ar)
+      + (flags.findings.length ? UI.section(ar ? 'تغييرات الافتراضات في الرسائل (آخر 24 ساعة)' : 'Assumption changes and approvals asked for in emails (last 24 hours)', findingCards(flags.findings, ar), { count: flags.findings.length }) : '')
+      + UI.section(ar ? 'أرقام إستيت ماستر' : 'EstateMaster figures', `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:${UI.C.amberTint};border-radius:10px;padding:12px 14px;font-size:13.5px;color:${UI.C.amber}"><b>${ar ? 'لا أرقام من إستيت ماستر اليوم:' : 'No EstateMaster figures today:'}</b> ${esc(d.noExport)}.</td></tr></table>`); };
+    const htmls = {}; for (const l of ['en', 'ar']) htmls[l] = frame(l === 'ar' ? 'التقرير اليومي' : 'Daily EstateMaster report', project, riyadh(now.toISOString()), body(l), appUrl, { ar: l === 'ar' });
+    await keepDaily(token, st0, now, htmls, null);
+    const out = { job: 'report', latest: null, note: d.noExport, project, subject: `KINAN · Daily report · ${project} · ${day}`, sent: false, langs, flags: flags.findings.map(f => ({ assumption: f.assumption, new_value: f.new_value, from: f.msg.from })) };
+    if (to.bad.length) out.rejected = to.bad;
+    if (dry) { out.preview = htmls[langs[0]]; out.previews = htmls; out.daily = st0.daily || null; return out; }
+    if (!to.ok.length) { out.note = 'REPORT_TO is not set (or has no internal address): report not sent'; return out; }
+    for (const l of langs) await G.sendMail(token, { to: to.ok, subject: out.subject, html: htmls[l] });
+    out.sent = true; out.to = to.ok; return out;
+  }
+  d.feed = st0.feed;
+  if (d.stress && d.stress.length) { try { const st = await SCHED.load(token); st.stress = { at: now.toISOString(), models: d.stress }; await SCHED.save(token, st); } catch { /* without write permission the run is not kept */ } }
+  const { b, a, checks, flags, market, options } = d;
+  const langs = (opts.langs && opts.langs.length ? opts.langs : ['en']).filter(l => l === 'en' || l === 'ar');
+  const to = G.checkRecipients(opts.to ? [].concat(opts.to).join(',').split(/[,;\s]+/) : env('REPORT_TO').split(','));
+  const day = now.toLocaleDateString('en-GB', { timeZone: 'Asia/Riyadh', day: 'numeric', month: 'short' });
+  const out = { job: 'report', latest: b.name, previous: a ? a.name : null, figures: b.out, checks, flags: flags.findings.map(f => ({ assumption: f.assumption, new_value: f.new_value, from: f.msg.from })), market: market.rows, options, stress: d.stress, project: d.project, subject: `KINAN · EstateMaster report · ${d.project} · ${day}`, sent: false, langs };
+  if (to.bad.length) out.rejected = to.bad;
+  const htmls = {}; for (const l of ['en', 'ar']) { try { htmls[l] = await dailyHtml(d, now, appUrl, l); } catch (e) { if (langs.includes(l)) throw e; } }
+  await keepDaily(token, st0, now, htmls, b.name);
+  if (dry) { out.preview = htmls[langs[0]]; out.previews = htmls; out.daily = st0.daily || null; return out; }
+  if (!to.ok.length) { out.note = 'REPORT_TO is not set (or has no internal address): report not sent'; return out; }
+  for (const l of langs) await G.sendMail(token, { to: to.ok, subject: l === 'ar' ? `كنان · تقرير إستيت ماستر · ${d.project} · ${day}` : out.subject, html: htmls[l] });
+  out.sent = true; out.to = to.ok; return out;
+}
+/* Every 15 minutes (vercel.json): the two scans at 07:00 and 15:00 Riyadh, and the daily report when the saved schedule says so. */
+async function tickJob(token, now, dry, appUrl) {
+  const res = [];
+  if (SLOTS.includes(now.getUTCHours()) && now.getUTCMinutes() < 15) res.push(G.aiConfigured() ? await scanJob(token, now, dry, appUrl) : { job: 'scan', skipped: 'no AI key' });
+  const st = await SCHED.load(token);
+  if (!SCHED.due(st.schedule, now, st.log)) { res.push({ job: 'report', skipped: 'not due', next: SCHED.nextRun(st.schedule, now) }); return res; }
+  let r; try { r = await reportJob(token, now, dry, appUrl, { to: st.schedule.recipients, langs: st.schedule.languages, force: true }); } catch (e) { r = { job: 'report', error: e.message, note: e.message }; }
+  res.push(r);
+  if (!dry) await SCHED.record(token, st, { kind: 'scheduled', status: r.sent ? 'sent' : r.skipped ? 'skipped' : 'failed', note: r.skipped || r.note || '', to: r.to || [], langs: r.langs || [], latest: r.latest || '' }, now);
+  return res;
+}
+const status = () => ({ scan: { enabled: G.graphConfigured() && G.aiConfigured(), times: ['07:00', '15:00'], tz: 'Asia/Riyadh', alertTo: env('ALERT_TO') ? env('ALERT_TO').split(',').length + ' recipient(s)' : null },
+  report: { enabled: G.graphConfigured() && !!env('EXPORTS_FOLDER') && !!env('REPORT_TO'), time: env('REPORT_TIME') || '07:00', days: env('REPORT_DAYS') || 'sun,mon,tue,wed,thu' }, secret: !!env('CRON_SECRET') });
+
+module.exports = async function handler(req, res) {
+  const u = new URL(req.url, 'http://x'), run = (u.searchParams.get('run') || '').split(',').filter(Boolean);
+  // No job requested: the app asks what is scheduled (no secrets in the answer).
+  if (!run.length) return G.send(res, 200, status());
+  if (!env('CRON_SECRET') || req.headers.authorization !== `Bearer ${env('CRON_SECRET')}`) return G.send(res, 401, { error: 'Scheduled jobs need CRON_SECRET (Vercel sends it automatically).' });
+  if (!G.graphConfigured()) return G.send(res, 501, { error: 'Microsoft Graph is not configured.' });
+  const dry = u.searchParams.get('dry') === '1', now = u.searchParams.get('now') ? new Date(u.searchParams.get('now')) : new Date();
+  const appUrl = env('APP_URL') || (req.headers.host ? `https://${req.headers.host}` : '');
+  const results = [];
+  try {
+    const token = await G.graphToken();
+    for (const j of run) {
+      try {
+        if (j === 'scan') { if (!G.aiConfigured()) results.push({ job: 'scan', skipped: 'no AI key' }); else results.push(await scanJob(token, now, dry, appUrl)); }
+        else if (j === 'report') results.push(await reportJob(token, now, dry, appUrl));
+        else if (j === 'tick') results.push(...await tickJob(token, now, dry, appUrl));
+      } catch (e) { results.push({ job: j, error: e.message }); }
+    }
+  } catch (e) { return G.send(res, 502, { error: e.message }); }
+  return G.send(res, 200, { at: now.toISOString(), dry, results });
+};
+// Every financial model in the exports folder, its latest base export read (outputs, inputs, cells, sensitivity tables):
+// the app loads these on start, so a model uploaded in one browser is there in any other browser too.
+async function listModels(token) {
+  const folder = env('EXPORTS_FOLDER'); if (!folder) return { models: [], note: 'EXPORTS_FOLDER is not set' };
+  const j = await G.graph(token, `${folder}:/children?$select=name,lastModifiedDateTime,id,file&$orderby=lastModifiedDateTime desc&$top=100`);
+  const optOf = n => { const f = String(n).replace(/\.[^.]+$/, ''); const m = f.match(/\(([^)]{1,60})\)\s*$/) || f.match(/\s[-–]\s([^-–]{1,60})$/); const o = m ? m[1].trim() : ''; return o && /^(?:base|downside|upside|option|scenario|stage|phase|case|sensitivity|stress|alt|alternative|plan\s?[a-z0-9]|worst|best|bull|bear|high|low|mid|conservative|aggressive)\b/i.test(o) ? o : ''; };
+  const isBase = o => !o || /^(base|live|current|approved|main|master|as is)/i.test(o);
+  const keyOf = n => { let k = String(n).replace(/\.[^.]+$/, ''); const o = optOf(n); if (o) k = k.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s[-–]\s[^-–]*$/, ''); for (let i = 0; i < 4; i++) k = k.replace(/[\s_-]*(v\d+|rev\s?\d+|\d{4}[-_.]\d{2}[-_.]\d{2}|final|copy|\(\d+\))$/i, '').replace(/[\s_-]+(\d{3,8}|export|exported|em)$/i, ''); return k.trim().toLowerCase(); };
+  const all = (j.value || []).filter(f => f.file && /\.(xlsx|xlsm|xls|csv)$/i.test(f.name) && isBase(optOf(f.name))).sort((a, b) => b.lastModifiedDateTime.localeCompare(a.lastModifiedDateTime));
+  const latest = new Map(); for (const f of all) { const k = keyOf(f.name); if (!latest.has(k)) latest.set(k, f); }
+  const base = folder.replace(/\/root:.*$/, ''), max = Math.max(1, +(env('MAX_MODELS') || 40));
+  const models = (await Promise.all([...latest.entries()].slice(0, max).map(async ([key, f]) => { try { const x = readExport(await G.graphBytes(token, `${base}/items/${f.id}/content`), f.name); if (!x || !x.out || !Object.keys(x.out).length) return null;
+      return { key, file: f.name, at: f.lastModifiedDateTime, name: (x.meta && x.meta.title) || f.name.replace(/\.[^.]+$/, ''), out: x.out, found: x.found || {}, cells: x.cells || {}, inputs: (x.inputs || []).slice(0, 800), sens: x.sens || [], meta: x.meta || null, sheets: x.sheets || [], opt: x.opt || '', cf: x.cf || null }; } catch { return null; } }))).filter(Boolean);
+  return { models };
+}
+module.exports.listModels = listModels;
+module.exports.windowFor = windowFor;
+module.exports.readExport = readExport;
+module.exports.reportJob = reportJob;
+module.exports.dailyData = dailyData;
+module.exports.stressRun = stressRun;
+module.exports.stressHtml = stressHtml;
+module.exports.estimateImpacts = estimateImpacts;
+module.exports.urgentItems = urgentItems;
+module.exports.dailyHtml = dailyHtml;
