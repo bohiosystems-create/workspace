@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI agent · financial modelling</title>
+<!-- The Excel add-in: the agent inside Excel. Excel does the calculation (a what-if is written, Excel recalculates, the outputs are
+     read, and the workbook is put back as it was, proved by its results); the AI only reads the user's words and names the cells.
+     The model can be opened in the workspace (map, documents, reports) in one click. Brand: ?brand=jadwa or ?brand=kinan. -->
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Nunito+Sans:wght@300;400;600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2f332f;--soft:#6b706b;--hair:rgba(47,51,47,.13);--acc:#0b1f5c;--acc2:#b7a68f;--mark:#7e8273;--bg:#fff;--paper:#f7f6f3;--good:#1b7a4f;--warn:#9a5b00;--bad:#b8382f;--title:'Playfair Display',Georgia,serif;--sans:'Nunito Sans','Segoe UI',Tahoma,sans-serif}
+.kinan{--acc:#f15a22;--acc2:#2e2e2f;--mark:#f15a22;--paper:#f6f5f3;--title:Montserrat,'Segoe UI',sans-serif;--sans:Montserrat,'Segoe UI',sans-serif}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.45 var(--sans)}
+header{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--hair)}
+header .t{font-family:var(--title);font-size:17px;line-height:1.1}header .s{font-size:11px;color:var(--soft)}
+main{padding:12px 14px 40px}
+textarea{width:100%;min-height:58px;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;font:inherit;resize:vertical}
+textarea:focus{outline:2px solid color-mix(in srgb,var(--acc) 35%,transparent);border-color:var(--acc)}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+button{font:600 12px var(--sans);border-radius:999px;border:1px solid var(--acc);background:var(--acc);color:#fff;padding:7px 13px;cursor:pointer}
+button.g{background:#fff;color:var(--acc)}button:disabled{opacity:.5;cursor:default}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0}.chips span{border:1px solid var(--hair);border-radius:999px;padding:3px 9px;font-size:11.5px;cursor:pointer;color:var(--soft)}
+.chips span:hover{border-color:var(--acc);color:var(--acc)}
+h3{font-family:var(--title);font-weight:400;font-size:16px;margin:18px 0 6px;color:var(--acc)}
+.card{border:1px solid var(--hair);border-top:3px solid var(--acc2);border-radius:8px;padding:10px 11px;margin-top:10px;background:var(--paper)}
+.card b.big{font-family:var(--title);font-weight:400;font-size:20px;color:var(--acc)}
+table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12px}th{text-align:left;font-weight:600;color:var(--soft);font-size:10.5px;letter-spacing:.04em;padding:4px 4px;border-bottom:1px solid var(--hair)}
+td{padding:5px 4px;border-bottom:1px solid var(--hair);vertical-align:top}td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+a.cell{color:var(--acc);cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--acc);font-size:11px;white-space:nowrap}
+.meta{color:var(--soft);font-size:11px}.ok{color:var(--good)}.wn{color:var(--warn)}.er{color:var(--bad)}
+.up{color:var(--good)}.dn{color:var(--bad)}
+.steps{margin:6px 0 0;padding-left:16px;color:var(--soft);font-size:11.5px}
+.busy{display:inline-block;width:10px;height:10px;border:2px solid var(--hair);border-top-color:var(--acc);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-1px;margin-right:6px}@keyframes sp{to{transform:rotate(360deg)}}
+code{font-size:11px;background:#fff;border:1px solid var(--hair);border-radius:4px;padding:1px 4px;word-break:break-all}
+</style>
+</head>
+<body>
+<header><span id="mark"></span><div><div class="t" id="brandName">AI agent</div><div class="s" id="wbName">Reading the workbook…</div></div></header>
+<main>
+  <textarea id="q" placeholder="Ask about this model, e.g. “what if the exit cap rate is 7.5%?” or “where does the levered IRR come from?”"></textarea>
+  <div class="row"><button id="send">Ask</button><button class="g" id="explain">Explain the selected cell</button><button class="g" id="open">Open in the workspace</button></div>
+  <div class="chips" id="chips"></div>
+  <div id="out"></div>
+  <h3>Headline figures</h3>
+  <div class="meta" id="hsub">Read from the workbook's own cells. Click a cell to go to it.</div>
+  <table id="heads"></table>
+  <p class="meta" style="margin-top:14px">Every figure here is Excel's own: a what-if is written into the workbook, Excel recalculates, the results are read, and the workbook is put back exactly as it was (checked by its results). Nothing is estimated.</p>
+</main>
+<script>
+(function(){
+'use strict';
+var P=new URLSearchParams(location.search),BRAND=(P.get('brand')||'jadwa').toLowerCase();
+var B={jadwa:{name:'Jadwa · AI agent',space:'Jadwa workspace',mark:'<svg viewBox="0 0 100 100" width="34" height="34" aria-hidden="true"><rect width="100" height="100" fill="#7e8273"/><g fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"><path d="M43 29 L50 40 L57 29"/><path d="M31 41 C37.4 42.4 42.9 48.8 45.7 55 M69 41 C62.6 42.4 57.1 48.8 54.3 55"/><path d="M27 55 C35.8 58.2 43.7 69.3 44.5 80 M73 55 C64.2 58.2 56.3 69.3 55.5 80 M44.5 80 L44.5 108 M55.5 80 L55.5 108"/></g></svg>'},
+       kinan:{name:'KINAN · AI agent',space:'KINAN workspace',mark:'<svg viewBox="0 0 24 38" width="20" height="32" aria-hidden="true"><path d="M2 2 L14 19 L2 36 L10 36 L22 19 L10 2 Z" fill="#f15a22"/></svg>'}}[BRAND]||null;
+if(!B)B={name:'AI agent',space:'workspace',mark:''};
+if(BRAND==='kinan')document.documentElement.className='kinan';
+var $=function(s){return document.querySelector(s)};
+$('#brandName').textContent=B.name;$('#mark').innerHTML=B.mark;$('#open').textContent='Open in the '+B.space;
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+
+/* ---------- the workbook as Excel holds it ---------- */
+var M={sheets:[],cells:{},inputs:[],heads:[],name:''};
+function colA(c){var s='';c++;while(c>0){var m=(c-1)%26;s=String.fromCharCode(65+m)+s;c=Math.floor((c-1)/26)}return s}
+function qs(n){return /^[A-Za-z_][A-Za-z0-9_.]*$/.test(n)?n:"'"+n.replace(/'/g,"''")+"'"}
+function ref(sh,r,c){return qs(sh)+'!'+colA(c)+(r+1)}
+function parseAddr(a){var m=String(a).match(/^(?:'((?:[^']|'')+)'|([^!]+))!\$?([A-Z]+)\$?(\d+)/);if(!m)return null;var sh=(m[1]||m[2]).replace(/''/g,"'"),col=0;for(var i=0;i<m[3].length;i++)col=col*26+(m[3].charCodeAt(i)-64);return{sheet:sh,r:+m[4]-1,c:col-1}}
+function key(sh,r,c){return sh+'!'+r+','+c}
+function isPct(nf){return /%/.test(String(nf||''))}
+function fmtV(v,nf,label){if(typeof v!=='number'||!isFinite(v))return v==null||v===''?'—':String(v);
+  if(isPct(nf)||(Math.abs(v)<=1.5&&/\birr\b|on cost|margin|yield|\brate\b|ltv|ltc|growth|\breturn\b|share|occupan/i.test(label||'')&&!/multiple|dscr|cover/i.test(label||'')))return(v*100).toLocaleString('en-US',{maximumFractionDigits:2})+'%';   /* a share the sheet left in General format is still a share */
+  if(/multiple|moic|\bx\b|dscr|icr|cover/i.test(label||'')&&Math.abs(v)<50)return v.toLocaleString('en-US',{maximumFractionDigits:2})+'x';
+  return Math.abs(v)>=1000?Math.round(v).toLocaleString('en-US'):v.toLocaleString('en-US',{maximumFractionDigits:4})}
+function labelOf(sh,r,c){for(var cc=c-1;cc>=0&&cc>=c-8;cc--){var x=M.cells[key(sh,r,cc)];if(x&&typeof x.v==='string'&&x.v.trim()&&!/^[=\d.,%\s-]+$/.test(x.v))return x.v.trim()}
+  for(var rr=r-1;rr>=0&&rr>=r-2;rr--){var y=M.cells[key(sh,rr,c)];if(y&&typeof y.v==='string'&&y.v.trim())return y.v.trim()}return ''}
+var HEAD=/\b(irr|xirr|npv|profit|multiple|moic|dscr|ltv|ltc|yield|return|margin|gdv|value|cost|revenue|equity|debt|noi|cash ?on ?cash|payback)\b/i;
+var HEADRANK=[/levered|equity irr|project irr|\birr\b/i,/profit on cost|margin on cost/i,/net profit|profit/i,/multiple|moic/i,/npv/i,/dscr|ltv|ltc/i,/cost|revenue|gdv|value/i];
+function rankOf(l){for(var i=0;i<HEADRANK.length;i++)if(HEADRANK[i].test(l))return i;return 9}
+async function scan(){await Excel.run(async function(ctx){var wss=ctx.workbook.worksheets;wss.load('items/name');await ctx.sync();
+    var rs=wss.items.map(function(ws){var u=ws.getUsedRange(true);u.load('address,values,formulas,numberFormat,rowIndex,columnIndex');return{ws:ws,u:u}});await ctx.sync();
+    M.sheets=[];M.cells={};rs.forEach(function(o){var u=o.u,sh=o.ws.name;M.sheets.push(sh);for(var i=0;i<u.values.length;i++)for(var j=0;j<u.values[i].length;j++){var v=u.values[i][j],f=u.formulas[i][j];if(v===''&&(f===''||f==null))continue;
+      var r=u.rowIndex+i,c=u.columnIndex+j;M.cells[key(sh,r,c)]={sh:sh,r:r,c:c,v:v,f:typeof f==='string'&&f.charAt(0)==='='?f:'',nf:(u.numberFormat[i]||[])[j]||''}}})});
+  M.inputs=[];M.heads=[];var yrs={};
+  Object.keys(M.cells).forEach(function(k){var x=M.cells[k];if(typeof x.v==='number'&&!x.f&&Number.isInteger(x.v)&&x.v>=1990&&x.v<=2100){var rk=x.sh+'!'+x.r;yrs[rk]=(yrs[rk]||0)+1}});
+  var nums={};Object.keys(M.cells).forEach(function(k){var x=M.cells[k];if(typeof x.v==='number'){var rk=x.sh+'!'+x.r;nums[rk]=(nums[rk]||0)+1}});   /* a row of 4+ numbers is a time series: its cells are lines, not headline figures */
+  Object.keys(M.cells).forEach(function(k){var x=M.cells[k];if(typeof x.v!=='number')return;var lab=labelOf(x.sh,x.r,x.c);if(!lab)return;x.label=lab;
+    if(!x.f){if((yrs[x.sh+'!'+x.r]||0)>=3)return;M.inputs.push(x)}else if(HEAD.test(lab)&&(nums[x.sh+'!'+x.r]||0)<4)M.heads.push(x)});
+  M.heads.sort(function(a,b){var sa=/summ|return|dash|output|kpi/i.test(a.sh)?0:1,sb=/summ|return|dash|output|kpi/i.test(b.sh)?0:1;return sa-sb||rankOf(a.label)-rankOf(b.label)||a.sh.localeCompare(b.sh)||a.r-b.r});
+  var seen={};M.heads=M.heads.filter(function(h){var lk=h.label.toLowerCase();if(seen[lk])return false;seen[lk]=1;return true}).slice(0,12);
+  M.inputs=M.inputs.slice(0,400);
+  try{M.name=String((Office.context.document&&Office.context.document.url)||'').split(/[\\/]/).pop()||'this workbook'}catch(e){M.name='this workbook'}
+  $('#wbName').textContent=M.name+' · '+M.sheets.length+' sheet'+(M.sheets.length===1?'':'s')+' · '+M.inputs.length+' inputs';renderHeads()}
+function cellLink(x){return '<a class="cell" data-go="'+esc(ref(x.sh,x.r,x.c))+'">'+esc(ref(x.sh,x.r,x.c))+'</a>'}
+function renderHeads(){$('#heads').innerHTML=M.heads.length?'<tr><th>Figure</th><th style="text-align:right">Value</th><th></th></tr>'+M.heads.map(function(h){return '<tr><td>'+esc(h.label)+'</td><td class="n"><b>'+esc(fmtV(h.v,h.nf,h.label))+'</b></td><td class="n">'+cellLink(h)+'</td></tr>'}).join(''):'<tr><td class="meta">No headline figure found by its label. Select a cell and press “Explain the selected cell”.</td></tr>';
+  var ch=[],inp=function(re){return M.inputs.filter(function(i){return re.test(i.label)})[0]};var a=inp(/exit cap|cap rate/i),b=inp(/rent|adr|sale price|price/i),c=inp(/construction|build|cost/i);
+  if(a)ch.push('What if the '+a.label.toLowerCase()+' is 0.5 points higher?');if(b)ch.push(b.label+' down 10%');if(c)ch.push(c.label+' up 15%');if(M.heads[0])ch.push('Where does the '+M.heads[0].label.toLowerCase()+' come from?');
+  $('#chips').innerHTML=ch.slice(0,4).map(function(t){return '<span data-q="'+esc(t)+'">'+esc(t)+'</span>'}).join('')}
+async function go(addr){var a=parseAddr(addr);if(!a)return;await Excel.run(async function(ctx){var ws=ctx.workbook.worksheets.getItem(a.sheet);ws.activate();ws.getRange(colA(a.c)+(a.r+1)).select();await ctx.sync()})}
+
+/* ---------- what-if: written, recalculated by Excel, read, put back (proved by the results) ---------- */
+function newValue(inp,kind,val){var v=+inp.v,x=+val,p=isPct(inp.nf);if(!isFinite(x))throw new Error('the value '+val+' is not a number');
+  if(kind==='pct')return v*(1+x/100);if(kind==='pts')return p?v+x/100:v+x;if(kind==='months')return v+x;
+  if(kind==='to'||kind==='abs')return p&&Math.abs(x)>1.5?x/100:x;throw new Error('the change kind '+kind+' is not understood')}
+async function whatIf(chs){var heads=M.heads.slice(),out={before:[],after:[],back:[],cells:[]};
+  await Excel.run(async function(ctx){var app=ctx.workbook.application;var rs=chs.map(function(c){var a=parseAddr(ref(c.inp.sh,c.inp.r,c.inp.c));var r=ctx.workbook.worksheets.getItem(a.sheet).getRange(colA(a.c)+(a.r+1));r.load('formulas,values');return r});
+    var hr=heads.map(function(h){var r=ctx.workbook.worksheets.getItem(h.sh).getRange(colA(h.c)+(h.r+1));r.load('values');return r});await ctx.sync();
+    out.before=hr.map(function(r){return r.values[0][0]});var orig=rs.map(function(r){return r.formulas[0][0]});
+    try{rs.forEach(function(r,i){r.values=[[chs[i].to]]});app.calculate(Excel.CalculationType.full);await ctx.sync();
+      hr.forEach(function(r){r.load('values')});await ctx.sync();out.after=hr.map(function(r){return r.values[0][0]})}
+    finally{rs.forEach(function(r,i){r.formulas=[[orig[i]]]});app.calculate(Excel.CalculationType.full);await ctx.sync();
+      hr.forEach(function(r){r.load('values')});await ctx.sync();out.back=hr.map(function(r){return r.values[0][0]})}});
+  out.restored=out.back.every(function(v,i){return v===out.before[i]||(typeof v==='number'&&Math.abs(v-out.before[i])<=1e-9*Math.max(1,Math.abs(v)))});out.heads=heads;return out}
+async function keep(chs){await Excel.run(async function(ctx){chs.forEach(function(c){var a=parseAddr(ref(c.inp.sh,c.inp.r,c.inp.c));ctx.workbook.worksheets.getItem(a.sheet).getRange(colA(a.c)+(a.r+1)).values=[[c.to]]});ctx.workbook.application.calculate(Excel.CalculationType.full);await ctx.sync()});await scan()}
+function whatIfHTML(chs,r){var rows=r.heads.map(function(h,i){var b=r.before[i],a=r.after[i],d=typeof a==='number'&&typeof b==='number'?a-b:NaN;
+    return '<tr><td>'+esc(h.label)+'</td><td class="n">'+esc(fmtV(b,h.nf,h.label))+'</td><td class="n"><b>'+esc(fmtV(a,h.nf,h.label))+'</b></td><td class="n '+(d>0?'up':d<0?'dn':'')+'">'+(isFinite(d)&&d!==0?(d>0?'▲':'▼'):'')+'</td><td class="n">'+cellLink(h)+'</td></tr>'}).join('');
+  return '<div class="card"><div><b>What-if, recalculated by Excel</b></div><ul class="steps">'+chs.map(function(c){return '<li>'+esc(c.inp.label)+' '+cellLink(c.inp)+': '+esc(fmtV(+c.inp.v,c.inp.nf,c.inp.label))+' → <b>'+esc(fmtV(c.to,c.inp.nf,c.inp.label))+'</b></li>'}).join('')+'</ul>'+
+    '<table><tr><th>Output</th><th style="text-align:right">Now</th><th style="text-align:right">After</th><th></th><th></th></tr>'+rows+'</table>'+
+    '<div class="meta" style="margin-top:6px">'+(r.restored?'<span class="ok">✓ The workbook is back exactly as it was</span> (every output reads its original value again).':'<span class="er">⚠ After putting the inputs back, an output does not read its original value: check the workbook (Undo).</span>')+'</div>'+
+    '<div class="row"><button class="g" data-keep="1">Keep this change in the workbook</button></div></div>'}
+
+/* ---------- explain a cell: its formula, the cells it reads, each with its label ---------- */
+async function explain(addr){var res={};await Excel.run(async function(ctx){var r=addr?(function(){var a=parseAddr(addr);return ctx.workbook.worksheets.getItem(a.sheet).getRange(colA(a.c)+(a.r+1))})():ctx.workbook.getSelectedRange();r.load('address,formulas,values,numberFormat');await ctx.sync();
+    res.address=r.address;res.f=r.formulas[0][0];res.v=r.values[0][0];res.nf=(r.numberFormat[0]||[])[0];var prec=[];
+    if(typeof res.f==='string'&&res.f.charAt(0)==='='&&Office.context.requirements.isSetSupported('ExcelApi','1.12')){try{var p=r.getDirectPrecedents();p.areas.load('items/address');await ctx.sync();p.areas.items.forEach(function(a){String(a.address).split(',').forEach(function(s){prec.push(s.trim())})})}catch(e){prec=null}}
+    res.prec=prec});
+  if(res.prec==null||(!res.prec.length&&res.f&&String(res.f).charAt(0)==='=')){var a0=parseAddr(res.address);res.prec=[];var m,re=/(?:'((?:[^']|'')+)'|([A-Za-z_][\w.]*))?!?\$?([A-Z]{1,3})\$?(\d+)(?::\$?([A-Z]{1,3})\$?(\d+))?/g;var f=String(res.f).replace(/"[^"]*"/g,'');
+    while((m=re.exec(f))){var sh=(m[1]||m[2]||'');if(sh&&!/!/.test(f.slice(m.index,m.index+sh.length+3)))sh='';res.prec.push((sh?qs(sh.replace(/''/g,"'")):qs(a0.sheet))+'!'+m[3]+m[4]+(m[5]?':'+m[5]+m[6]:''))}}
+  var a=parseAddr(res.address),lab=a?labelOf(a.sheet,a.r,a.c):'';
+  var rows=(res.prec||[]).slice(0,24).map(function(p){var q=parseAddr(p),x=q?M.cells[key(q.sheet,q.r,q.c)]:null;var rng=/:/.test(p.split('!')[1]||'');return '<tr><td>'+esc(x&&x.label||(q?labelOf(q.sheet,q.r,q.c):'')||(rng?'range':''))+'</td><td class="n">'+(rng?'':esc(x?fmtV(x.v,x.nf,x.label):''))+'</td><td class="n"><a class="cell" data-go="'+esc(p)+'">'+esc(p)+'</a></td><td class="meta">'+(x?(x.f?'formula':'typed input'):'')+'</td></tr>'}).join('');
+  return '<div class="card"><div><b>'+esc(lab||'This cell')+'</b> <a class="cell" data-go="'+esc(res.address)+'">'+esc(res.address)+'</a></div><div style="margin-top:4px"><b class="big">'+esc(fmtV(res.v,res.nf,lab))+'</b></div>'+
+    (String(res.f).charAt(0)==='='?'<div style="margin-top:6px"><code>'+esc(res.f)+'</code></div><table><tr><th>It reads</th><th style="text-align:right">Value</th><th></th><th></th></tr>'+rows+'</table>':'<div class="meta" style="margin-top:6px">A typed input: no formula behind it.</div>')+'</div>'}
+
+/* ---------- the AI reads the words and names the cells; Excel computes ---------- */
+var SYS='You read a question about a real estate financial model open in Excel. You get its typed inputs (label | cell | value) and its headline outputs (label | cell). Return JSON only: {"intent":"whatif|explain|figure|other","changes":[{"label":"exact label from the inputs list","cell":"that input\'s cell exactly as listed","kind":"pct|pts|to|months","value":number}],"cell":"for explain or figure: the cell exactly as listed","question":"only when something cannot be read for sure: one short question"}. kind: pct = relative change in percent (rent down 10% -> -10); pts = percentage points or units added (cap rate +0.5 points -> 0.5); to = the new value in the line\'s own units (cap rate to 7.5% -> 7.5); months = months added. Pick the line by its meaning, not its wording. Never invent a cell: only cells in the lists.';
+async function ai(text){var inp=M.inputs.slice(0,260).map(function(i){return i.label+' | '+ref(i.sh,i.r,i.c)+' | '+fmtV(+i.v,i.nf,i.label)}).join('\n'),hd=M.heads.map(function(h){return h.label+' | '+ref(h.sh,h.r,h.c)}).join('\n');
+  var body={provider:'anthropic',task:'calc',payload:{model:'claude-opus-5-5',max_tokens:1500,system:SYS,messages:[{role:'user',content:'Inputs:\n'+inp+'\n\nHeadline outputs:\n'+hd+'\n\nQuestion: '+text}]}};
+  var r=await fetch('/api/llm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});if(r.status===401)throw new Error('Sign in to the demo first (open the workspace once), then ask again.');
+  var j=await r.json();if(!r.ok)throw new Error(j&&j.error||('The AI answered HTTP '+r.status));var t=(j.content||[]).map(function(c){return c.text||''}).join('');var m=t.match(/\{[\s\S]*\}/);if(!m)throw new Error('The AI gave no readable answer.');return JSON.parse(m[0])}
+function findInput(cell){var a=parseAddr(cell);if(!a)return null;return M.inputs.filter(function(i){return i.sh===a.sheet&&i.r===a.r&&i.c===a.c})[0]||null}
+async function ask(text){var out=$('#out');out.innerHTML='<div class="card"><span class="busy"></span>Reading “'+esc(text)+'”…</div>';
+  try{var j=await ai(text);
+    if(j.question&&!(j.changes||[]).length&&!j.cell){out.innerHTML='<div class="card">'+esc(j.question)+'</div>';return}
+    if(j.intent==='whatif'&&(j.changes||[]).length){var chs=[],bad=[];j.changes.forEach(function(c){var inp=findInput(c.cell);if(!inp){var x=parseAddr(c.cell),cl=x?M.cells[key(x.sheet,x.r,x.c)]:null;bad.push(c.cell+(cl&&cl.f?' is a formula, not a typed input':' is not one of the model\'s inputs'));return}
+        try{chs.push({inp:inp,to:newValue(inp,c.kind,c.value)})}catch(e){bad.push(e.message)}});
+      if(bad.length||!chs.length){out.innerHTML='<div class="card er">Not computed: '+esc(bad.join('; ')||'no input named')+'.</div>';return}
+      out.innerHTML='<div class="card"><span class="busy"></span>Excel is recalculating…</div>';var r=await whatIf(chs);LAST=chs;out.innerHTML=whatIfHTML(chs,r);return}
+    if((j.intent==='explain'||j.intent==='figure')&&j.cell){out.innerHTML=await explain(j.cell);go(j.cell);return}
+    out.innerHTML='<div class="card">I can run a what-if on the model (Excel recalculates it), explain where a figure comes from, or open the model in the '+esc(B.space)+' for the reports and the documents.</div>'}
+  catch(e){out.innerHTML='<div class="card er">'+esc(e.message)+'</div>'}}
+var LAST=null;
+
+/* ---------- open the model in the workspace: the file goes to the app in an Office dialog ---------- */
+function fileBytes(){return new Promise(function(res,rej){Office.context.document.getFileAsync(Office.FileType.Compressed,{sliceSize:65536},function(r){if(r.status!==Office.AsyncResultStatus.Succeeded)return rej(new Error(r.error&&r.error.message||'the workbook could not be read'));
+  var f=r.value,n=f.sliceCount,parts=[],got=0;var next=function(i){f.getSliceAsync(i,function(s){if(s.status!==Office.AsyncResultStatus.Succeeded){f.closeAsync();return rej(new Error('a slice of the workbook could not be read'))}parts[i]=s.value.data;got++;if(got===n){f.closeAsync();var len=0;parts.forEach(function(p){len+=p.length});var u=new Uint8Array(len),o=0;parts.forEach(function(p){u.set(p,o);o+=p.length});res(u)}else next(i+1)})};next(0)})})}
+function b64(u){var s='';for(var i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)}
+async function openSpace(){var out=$('#out');if(!Office.context.requirements.isSetSupported('DialogApi','1.2')){out.innerHTML='<div class="card er">This version of Excel cannot pass the workbook to the workspace (Dialog API 1.2): open '+esc(location.origin)+' and upload the file.</div>';return}
+  out.innerHTML='<div class="card"><span class="busy"></span>Opening the '+esc(B.space)+' with '+esc(M.name)+'…</div>';var data=b64(await fileBytes()),name=/\.xls[xm]?$/i.test(M.name)?M.name:'workbook.xlsx';
+  Office.context.ui.displayDialogAsync(location.origin+'/?addin=1',{height:90,width:90,displayInIframe:false},function(r){if(r.status!==Office.AsyncResultStatus.Succeeded){out.innerHTML='<div class="card er">The workspace could not open: '+esc(r.error&&r.error.message)+'</div>';return}
+    var d=r.value,CH=30000;d.addEventHandler(Office.EventType.DialogMessageReceived,function(ev){var m=String(ev.message||'');if(m==='ready'){var n=Math.ceil(data.length/CH);for(var i=0;i<n;i++)d.messageChild(JSON.stringify({t:'file',name:name,i:i,n:n,d:data.slice(i*CH,(i+1)*CH)}));out.innerHTML='<div class="card ok">'+esc(M.name)+' is in the '+esc(B.space)+'.</div>'}});})}
+
+/* ---------- wiring ---------- */
+document.addEventListener('click',function(e){var g=e.target.closest&&e.target.closest('[data-go]');if(g){go(g.getAttribute('data-go'));return}var c=e.target.closest&&e.target.closest('[data-q]');if(c){$('#q').value=c.getAttribute('data-q');ask(c.getAttribute('data-q'));return}
+  var k=e.target.closest&&e.target.closest('[data-keep]');if(k&&LAST){k.disabled=true;keep(LAST).then(function(){k.textContent='Kept: the workbook now carries the change (Undo in Excel to revert)'})}});
+$('#send').onclick=function(){var t=$('#q').value.trim();if(t)ask(t)};$('#q').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#send').click()}});
+$('#explain').onclick=async function(){$('#out').innerHTML='<div class="card"><span class="busy"></span>Reading the selected cell…</div>';try{$('#out').innerHTML=await explain(null)}catch(e){$('#out').innerHTML='<div class="card er">'+esc(e.message)+'</div>'}};
+$('#open').onclick=function(){openSpace().catch(function(e){$('#out').innerHTML='<div class="card er">'+esc(e.message)+'</div>'})};
+window.ADDIN={M:M,scan:scan,whatIf:whatIf,explain:explain,ask:ask,newValue:newValue,parseAddr:parseAddr};
+Office.onReady(function(info){if(info&&info.host&&info.host!==Office.HostType.Excel){$('#wbName').textContent='Open this add-in in Excel.';return}scan().catch(function(e){$('#wbName').textContent='The workbook could not be read: '+e.message})});
+})();
+</script>
+</body>
+</html>
