@@ -19,6 +19,7 @@ SAPLING_SQ = f'<path d="{V}"/><path d="{INNER}"/><path d="{OUTER} M44.5 80 L44.5
 MARK = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="40" height="40" role="img" aria-label="Jadwa" style="display:block;width:40px;height:40px">'
         f'<rect width="100" height="100" fill="{SAGE}"/><g fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">{SAPLING_SQ}</g></svg>')
 BIGMARK = MARK.replace('width="40" height="40"', 'width="64" height="64"').replace('width:40px;height:40px', 'width:64px;height:64px')
+GRID = ('data:image/svg+xml;utf8,' + ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 90"><g stroke="%s" stroke-width=".6" fill="none" opacity=".55"><path d="M0 60 L30 90 M0 40 L50 90 M0 20 L70 90 M20 90 L0 70 M40 90 L0 50 M60 90 L0 30"/><path d="M0 60 L30 30 M0 80 L50 30"/></g></svg>' % SAND).replace('#', '%23').replace('"', "'"))
 MOTIF = ('data:image/svg+xml;utf8,' + (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g fill="none" stroke="{SAND}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" opacity=".55">{SAPLING}</g></svg>')
          .replace('#', '%23').replace('"', "'"))
 
@@ -34,7 +35,7 @@ h1,h2,h3,.serif{{font-family:var(--sans);letter-spacing:.02em}}
 /* band */
 header.kband{{background:#fff;color:var(--ink);box-shadow:0 0 0 100vmax #fff;border-bottom:1px solid var(--hair);height:76px;gap:20px}}
 header.kband .klogo{{gap:14px;align-items:center}}header.kband .klogo svg{{height:40px;width:40px}}
-.jword{{font-family:var(--serif);font-size:24px;color:var(--ink);letter-spacing:.01em;line-height:1}}
+.jword{{display:flex;flex-direction:column;align-items:flex-end;gap:2px;line-height:1}}.jword .jar{{font-family:'IBM Plex Sans Arabic',var(--sans);font-size:19px;font-weight:600;color:var(--soft);direction:rtl}}.jword .jen{{font-family:var(--sans);font-size:13.5px;font-weight:400;color:var(--soft);letter-spacing:.01em}}
 .ksub{{color:var(--sage);font-weight:700;letter-spacing:.3em}}
 .ksub select{{color:var(--ink);border-color:rgba(47,51,47,.25)}}.ksub select option{{color:var(--ink)}}
 header.kband .demo-chip{{color:var(--ink);border-color:rgba(47,51,47,.25)}}header.kband .demo-chip b{{color:var(--navy)}}
@@ -73,32 +74,54 @@ input[type=range]::-webkit-slider-thumb{{background:var(--navy)}}input[type=rang
 .report h3{{color:var(--sage)}}.report .rk div{{border-top-color:var(--sand)}}.report .rk b{{font-family:var(--serif);font-weight:500}}.report .verdict{{border-left-color:var(--sand)}}
 #rplay{{background:var(--navy);border-color:var(--navy)}}
 .wh{{background:var(--navy)}}
+/* ===== decks and reports: Jadwa's annual report (navy pages with sand shards, light navy headings, navy table bands) ===== */
+.kd-root,.k-doc{{font-family:var(--sans)}}
+.kd-root .kd-fb-orange,.kd-root .kd-fb-dark{{background:{NAVY}}}.kd-fb-tex{{display:none}}
+.kd-root .kd-fb-band{{top:auto;bottom:auto;right:auto;opacity:1;animation-name:jShard}}
+.kd-root .kd-fb-band.w1{{left:-4vw;top:-6vh;width:38vw;height:58vh;background:rgba(183,166,143,.5);clip-path:polygon(0 0,100% 0,100% 22%,34% 100%,0 100%)}}
+.kd-root .kd-fb-band.w2{{left:10vw;top:-12vh;width:30vw;height:72vh;background:rgba(183,166,143,.28);clip-path:polygon(0 0,100% 0,62% 100%,0 72%)}}
+.kd-root .kd-fb-band.a{{right:-6vw;top:-8vh;width:40vw;height:62vh;background:rgba(183,166,143,.42);clip-path:polygon(0 0,100% 0,100% 100%,56% 100%,0 26%)}}
+.kd-root .kd-fb-band.b{{right:14vw;top:-14vh;width:28vw;height:76vh;background:rgba(183,166,143,.22);clip-path:polygon(0 0,100% 0,100% 70%,40% 100%)}}
+@keyframes jShard{{from{{opacity:0;transform:translate(-4%,-6%)}}to{{opacity:1;transform:none}}}}
+.kd-root .kd-div-title{{text-transform:uppercase;font-weight:700;letter-spacing:.02em}}.kd-div-sub{{color:var(--sand);letter-spacing:.2em;text-transform:uppercase;font-size:12px}}
+.kd-root .kd-cover-title{{font-weight:600}}.kd-kicker-w{{color:var(--sand)}}
+.kd-root .kd-on-orange .kd-footline b,.kd-root .kd-on-dark .kd-footline b{{color:var(--sand)}}.kd-footline b{{color:var(--navy)}}
+.k-cover{{background:{NAVY};background-image:none;text-align:left;padding:64px 40px 48px;overflow:hidden}}
+.k-cover::before,.k-cover::after{{content:"";position:absolute;top:-30%;right:-6%;width:46%;height:120%;background:rgba(183,166,143,.42);clip-path:polygon(0 0,100% 0,100% 100%,56% 100%,0 26%);pointer-events:none}}
+.k-cover::after{{right:22%;width:30%;background:rgba(183,166,143,.2);clip-path:polygon(0 0,100% 0,100% 70%,40% 100%)}}
+.k-cover>*{{position:relative;z-index:1}}.k-kick{{color:var(--sand)}}.k-cover h1{{text-transform:none;font-weight:600;font-size:32px;letter-spacing:0}}.k-rule{{margin-left:0;background:var(--sand)}}
+.k-sh{{font-size:22px;letter-spacing:0;text-transform:none;font-weight:400;color:var(--navy);border-top:1px solid rgba(11,31,92,.35);padding-top:14px;margin-bottom:16px}}.k-sh .k-bar{{display:none}}
+.k-stats{{border-top-color:var(--navy)}}.k-stat-l{{color:var(--soft);letter-spacing:.14em}}.k-stat-v{{font-weight:600}}
+.k-doc table.t th,table.t th{{background:{NAVY};letter-spacing:.06em;font-size:10.5px;text-transform:none;font-weight:600}}
+.k-doc table.t td{{border-top-color:rgba(11,31,92,.14)}}
+.k-close{{background:{NAVY};position:relative;overflow:hidden}}.k-close::before{{content:"";position:absolute;left:-8%;top:-40%;width:44%;height:160%;background:rgba(183,166,143,.4);clip-path:polygon(0 0,100% 0,100% 22%,34% 100%,0 100%)}}.k-close>*{{position:relative}}.k-tag{{color:var(--sand)}}
+.k-sec{{background:url("{GRID}") left bottom/90px no-repeat}}
+.report h1{{font-family:var(--sans);font-weight:400}}.report .rk b{{font-family:var(--sans);font-weight:600;color:var(--navy)}}
 """
 
 FONTS = '<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Nunito+Sans:wght@300;400;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">'
 
-# the opening: on navy, the sapling draws itself stroke by stroke, the wordmark and the tagline fade in, then the panel lifts away
-# with a sand layer behind it to reveal the app (the page's own timing script decides when: at least 2.6 s, or until the app is ready)
+# the opening, as jadwa.com opens: the sage square with the mark on white in a soft halo, the strokes drawing themselves, then a fade
+# into the app (the page's own timing script decides when: at least 2.6 s, or until the app is ready)
+DRAW_SQ = (f'<path pathLength="100" d="{V}"/><path pathLength="100" d="M31 41 C37.4 42.4 42.9 48.8 45.7 55"/><path pathLength="100" d="M69 41 C62.6 42.4 57.1 48.8 54.3 55"/>'
+           '<path pathLength="100" d="M27 55 C35.8 58.2 43.7 69.3 44.5 80 L44.5 108"/><path pathLength="100" d="M73 55 C64.2 58.2 56.3 69.3 55.5 80 L55.5 108"/>')
 DRAW = (f'<path pathLength="100" d="{V}"/><path pathLength="100" d="M31 41 C37.4 42.4 42.9 48.8 45.7 55"/><path pathLength="100" d="M69 41 C62.6 42.4 57.1 48.8 54.3 55"/>'
         '<path pathLength="100" d="M27 55 C35.8 58.2 43.7 69.3 44.5 80 L44.5 95"/><path pathLength="100" d="M73 55 C64.2 58.2 56.3 69.3 55.5 80 L55.5 95"/>')
 SPLASH = ('<div id="ksplash" role="status" aria-live="polite" aria-label="Loading Jadwa financial modelling"><style>'
-          '#ksplash{position:fixed;inset:0;z-index:2147483000;overflow:hidden;font-family:\'Playfair Display\',Georgia,serif;color:#fff;-webkit-font-smoothing:antialiased}'
-          f'#ksplash .ks-sand{{position:absolute;inset:0;background:{SAND};transition:transform 1s cubic-bezier(.7,0,.2,1) .18s}}'
-          f'#ksplash .ks-navy{{position:absolute;inset:0;background:linear-gradient(160deg,#102566,{NAVY} 55%,#07173f);display:grid;place-items:center;transition:transform .95s cubic-bezier(.7,0,.2,1)}}'
-          '#ksplash.ks-leave .ks-navy,#ksplash.ks-leave .ks-sand{transform:translateY(-102%)}'
-          '#ksplash .ks-in{display:flex;flex-direction:column;align-items:center;gap:18px}'
-          '#ksplash svg{width:min(34vmin,170px);height:min(34vmin,170px);overflow:visible}'
-          '#ksplash svg path{fill:none;stroke:#fff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:100;stroke-dashoffset:101;animation:jDraw .75s cubic-bezier(.4,0,.2,1) forwards}'
-          '#ksplash svg path:nth-child(1){animation-delay:.15s}#ksplash svg path:nth-child(2),#ksplash svg path:nth-child(3){animation-delay:.55s}#ksplash svg path:nth-child(4),#ksplash svg path:nth-child(5){animation-delay:.95s}'
+          '#ksplash{position:fixed;inset:0;z-index:2147483000;overflow:hidden;background:#fff;display:grid;place-items:center;transition:opacity .55s ease}'
+          '#ksplash.ks-leave{opacity:0;pointer-events:none}'
+          '#ksplash .ks-halo{position:relative;width:min(44vmin,210px);height:min(44vmin,210px);display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,rgba(126,130,115,.14) 0,rgba(126,130,115,.06) 48%,rgba(255,255,255,0) 70%);animation:jHalo 1.4s ease .1s both}'
+          '@keyframes jHalo{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}'
+          f'#ksplash .ks-sq{{width:min(26vmin,124px);height:min(26vmin,124px);background:{SAGE};display:grid;place-items:center;overflow:hidden;animation:jSq .9s cubic-bezier(.2,.8,.2,1) .15s both;box-shadow:0 18px 40px rgba(47,51,47,.14)}}'
+          '@keyframes jSq{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:none}}'
+          '#ksplash svg{width:100%;height:100%;overflow:visible}'
+          '#ksplash svg path{fill:none;stroke:#fff;stroke-width:4.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:100;stroke-dashoffset:101;animation:jDraw .7s cubic-bezier(.4,0,.2,1) forwards}'
+          '#ksplash svg path:nth-child(1){animation-delay:.45s}#ksplash svg path:nth-child(2),#ksplash svg path:nth-child(3){animation-delay:.8s}#ksplash svg path:nth-child(4),#ksplash svg path:nth-child(5){animation-delay:1.15s}'
           '@keyframes jDraw{to{stroke-dashoffset:0}}'
-          '#ksplash .ks-word{font-size:min(9vmin,46px);letter-spacing:.02em;opacity:0;animation:jUp .8s ease 1.25s forwards}'
-          f'#ksplash .ks-tag{{font-family:\'Nunito Sans\',\'Segoe UI\',sans-serif;font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:{SAND};opacity:0;animation:jUp .8s ease 1.6s forwards}}'
-          '@keyframes jUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}'
-          f'#ksplash .ks-bar{{position:absolute;left:50%;bottom:14vh;width:140px;height:2px;margin-left:-70px;background:rgba(255,255,255,.14);overflow:hidden}}#ksplash .ks-bar span{{display:block;height:100%;width:40%;background:{SAND};animation:jBar 1.3s ease-in-out infinite alternate}}@keyframes jBar{{to{{transform:translateX(150%)}}}}'
-          '@media(prefers-reduced-motion:reduce){#ksplash svg path{animation:none;stroke-dashoffset:0}#ksplash .ks-word,#ksplash .ks-tag{animation:none;opacity:1}#ksplash .ks-navy,#ksplash .ks-sand{transition:opacity .4s}#ksplash.ks-leave .ks-navy,#ksplash.ks-leave .ks-sand{transform:none;opacity:0}}'
-          '</style><div class="ks-sand"></div><div class="ks-navy"><div class="ks-in">'
-          f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">{DRAW}</svg>'
-          '<div class="ks-word">Jadwa</div><div class="ks-tag">Expanding investment horizons</div></div><div class="ks-bar"><span></span></div></div>')
+          '@media(prefers-reduced-motion:reduce){#ksplash svg path{animation:none;stroke-dashoffset:0}#ksplash .ks-halo,#ksplash .ks-sq{animation:none}}'
+          '</style><div class="ks-halo"><div class="ks-sq">'
+          f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">{DRAW_SQ}</svg>'
+          '</div></div>')
 
 # the app's own vector (decks, reports, emails' preview) and the title mark, redrawn for Jadwa; the header mark re-rendered
 SCRIPT = f"""<script>
@@ -140,15 +163,20 @@ def apply(html):
     assert js, "splash script not found"
     html = html[:m.start()] + "<!--ksplash: Jadwa-->" + SPLASH + "</div>" + js.group(0) + "<!--/ksplash-->" + html[m.end():]
     # the header mark; KINAN's chevron (the band's and the page title's) becomes the sapling in sage
-    html = re.sub(r'<div class="klogo">.*?</div>', lambda _: f'<div class="klogo">{MARK}<span class="jword">Jadwa</span></div>', html, count=1, flags=re.S)
+    html = re.sub(r'<div class="klogo">.*?</div>', lambda _: f'<div class="klogo"><span class="jword" aria-hidden="true"><span class="jar">جدوى للاستثمار</span><span class="jen">Jadwa Investment</span></span>{MARK}</div>', html, count=1, flags=re.S)
     chev = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="{SAGE}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">{SAPLING}</g></svg>'
     html = re.sub(r'<svg xmlns="http://www.w3.org/2000/svg" viewBox="935\.84 30\.03 24\.66 38\.05"[^>]*>.*?</svg>', lambda _: chev, html, flags=re.S)
     # the brand constants and the deck font
     html, n = re.subn(r"const KD=\{OR:'#f15a22'.*?caption:'AI agent on EstateMaster'\};", KD, html, count=1)
     assert n == 1, "KD not found"
+    html = html.replace("Montserrat,'Segoe UI'", "'Nunito Sans','Segoe UI'")   # the deck's and the report's own font lines
+    rcss = CSS[CSS.index("/* ===== decks and reports"):]   # the report theme also goes into the standalone report (its own page, with KD_CSS only)
+    assert "`" not in rcss and "${" not in rcss
+    html, n = re.subn(r"(const KD_CSS=`[^`]*)`", lambda m: m.group(1) + rcss + "`", html, count=1)   # after its own rules, so these win
+    assert n == 1, "KD_CSS not found"
     html = html.replace('const FONT = "Montserrat,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif";', 'const FONT = "Nunito Sans,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif";', 1)
     # KINAN's colours wherever a stylesheet writes them in full
-    for a, b in (("#f15a22", NAVY), ("rgba(241,90,34", "rgba(11,31,92"), ("#b83d0c", NAVY_DEEP), ("#fff1ea", SAND_SOFT), ("#d94a16", NAVY_DEEP)):
+    for a, b in (("#f15a22", NAVY), ("rgba(241,90,34", "rgba(11,31,92"), ("#b83d0c", NAVY_DEEP), ("#fff1ea", SAND_SOFT), ("#d94a16", NAVY_DEEP), ("#f5602a", "#102566"), ("#e04f22", NAVY_DEEP), ("#2e2e2f", INK), ("rgba(245,96,42", "rgba(16,37,102"), ("rgba(224,79,34", "rgba(7,21,66")):
         html = html.replace(a, b)
     html = words(html)
     i = html.rindex("</body>")   # after the app's own script, so the Jadwa klogo/kchev are the ones that stand (a later declaration wins)

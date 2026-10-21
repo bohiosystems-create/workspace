@@ -4617,11 +4617,13 @@ async function xcFconst(x){let found=[];try{found=await xcCall({op:'fscan'})||[]
   x.inputs=(x.inputs||[]).filter(i=>!i.fconst);for(const z of got){const pct=z.c<1&&!/\b\w*(sf|sqm|sq_?ft|sq_?m|area|nra|gla|gba|nla|units?|beds?|keys?|rooms?)\w*\s*\*|\*\s*\w*(sf|sqm|sq_?ft|sq_?m|area|nra|gla|gba|nla|units?|beds?|keys?|rooms?)/i.test(String(z.f||''));   /* 0.4 times an area is money per square foot, not 40% */x.inputs.push({label:`${z.label} · the ${pct?(+(z.c*100).toFixed(4))+'%':z.c} in its formula ${String(z.f).replace(/\*/g,'×')}`,cell:z.k,value:z.c,text:String(z.c),pct,sheet:z.k.split('!')[0].replace(/^'|'$/g,''),fconst:true,fml:z.f})}
   x.fconsts=Object.fromEntries(got.map(z=>[xcRefKey(z.k),{lit:String(z.c),f:z.f}]))}
 function xcEngine(x){x=x||latestExport();if(!x||x.src!=='file'||typeof Worker==='undefined')return Promise.resolve(null);if(XC.id===x.id&&XC.ready)return XC.ready;
-  xcStop();XC.id=x.id;const t0=Date.now();
-  XC.ready=(async()=>{const buf=await xcRaw(x);if(!buf){XC.info[x.id]={ok:false,why:'nofile'};return XC.info[x.id]}if(XC.id!==x.id)return null;
-    XC.w=new Worker(URL.createObjectURL(new Blob(['('+xcWorker.toString()+')()'],{type:'text/javascript'})));
-    XC.w.onmessage=e=>{const m=e.data,c=XC.cb[m.id];if(!c)return;if(m.progress!=null){if(c.onProg)try{c.onProg(m.progress)}catch(er){}return}delete XC.cb[m.id];m.error?c.rej(new Error(m.error)):c.res(m.r)};
-    XC.w.onerror=e=>{const msg=(e&&e.message)||'the formula engine stopped';for(const k in XC.cb){XC.cb[k].rej(new Error(msg))}XC.cb={}};
+  const prevW=XC.w,prevCb=XC.cb;XC.w=null;XC.cb={};XC.id=x.id;const t0=Date.now();
+  XC.ready=(async()=>{if(prevW){const t1=Date.now();while(Object.keys(prevCb).length&&Date.now()-t1<20000)await new Promise(r=>setTimeout(r,50));   /* another workbook's calls still running finish first, so a background job (the model map) never breaks the answer in progress */
+      try{prevW.terminate()}catch(e){}for(const k in prevCb){try{prevCb[k].rej(new Error('The formula engine was restarted.'))}catch(e){}}}
+    const buf=await xcRaw(x);if(!buf){XC.info[x.id]={ok:false,why:'nofile'};return XC.info[x.id]}if(XC.id!==x.id)return null;
+    const cb=XC.cb;XC.w=new Worker(URL.createObjectURL(new Blob(['('+xcWorker.toString()+')()'],{type:'text/javascript'})));
+    XC.w.onmessage=e=>{const m=e.data,c=cb[m.id];if(!c)return;if(m.progress!=null){if(c.onProg)try{c.onProg(m.progress)}catch(er){}return}delete cb[m.id];m.error?c.rej(new Error(m.error)):c.res(m.r)};
+    XC.w.onerror=e=>{const msg=(e&&e.message)||'the formula engine stopped';for(const k in cb){try{cb[k].rej(new Error(msg))}catch(er){}delete cb[k]}};
     const r=await xcCall({op:'load',buf,urls:{hf:XC_HF,xlsx:XC_XLSX},refs:Object.values(x.cells||{}).filter(Boolean)});r.ms=Date.now()-t0;r.ok=r.tot>0&&r.match/r.tot>=0.99&&!(r.outBad&&r.outBad.length);if(!r.ok&&r.tot>0&&r.stale&&r.stale.covered&&!(r.unsup&&r.unsup.length)){r.ok=true;r.staleOk=true;try{xcStaleApply(x,r)}catch(e){}}r.pct=r.tot?Math.floor(r.match/r.tot*1000)/10:0;XC.info[x.id]=r;if(r.ok){try{await xcFconst(x)}catch(e){}setTimeout(()=>{xcCacheMore(x).catch(()=>{})},0)}setTimeout(()=>{try{xcFnTell(x)}catch(e){}},0);if(!r.ok)try{window.reportErr&&window.reportErr(`Formula engine not trusted: reproduced ${r.pct}% of ${r.tot} formulas${r.outBad&&r.outBad.length?', outputs off: '+r.outBad.slice(0,3).join(', '):''}`,'formula engine: check')}catch(_){}return r})()
     .catch(e=>{XC.info[x.id]={ok:false,why:'error',err:e.message};XC.ready=null;XC.id=null;try{window.reportErr&&window.reportErr(e,'formula engine: load')}catch(_){}return XC.info[x.id]});
   return XC.ready}
@@ -7476,7 +7478,7 @@ function mapDump(g,budget=110000){const pri=n=>/summary|return|dashboard|output|
 async function mapAI(x){if(!apiOn())return null;const g=WBCACHE[x.id]||await wbLoad(x.id);if(!g)return null;const j=await a33Ai(MAP_SYS,mapDump(g),3000);if(!j||!Array.isArray(j.headlines))return null;j.by=(chain('check')[0]?mName(chain('check')[0].p,chain('check')[0].model):'the AI');return j}
 /* every entry proved on the workbook: a cell holds a number, a cash-flow row reproduces its IRR, the switch moves the results, the hold input
    moves the results, the timeline and the hold agree, the units make profit on cost reconcile */
-async function mapProve(x,m){await a33Eng(x);const P={};const num=async ref=>{try{const [v]=await xcQ(()=>xcCall({op:'get',refs:[ref]}));return typeof v==='number'&&Number.isFinite(v)?v:null}catch(e){return null}};
+async function mapProve(x,m){if(!(await mapTurn(x)))throw new Error('another model is in use');await a33Eng(x);const P={};const num=async ref=>{try{const [v]=await xcQ(()=>xcCall({op:'get',refs:[ref]}));return typeof v==='number'&&Number.isFinite(v)?v:null}catch(e){return null}};
   for(const h of m.headlines||[]){const c=mapCell(h.cell);const v=c?await num(c.ref):null;h.v=v;P['h:'+h.key]=v!=null?'ok':'fail'}
   const ppy={month:12,quarter:4,year:1}[(m.timeline&&m.timeline.period)||'']||null;
   for(const cf of m.cashflows||[]){const h=(m.headlines||[]).find(z=>z.key===cf.irr),c=mapCell(cf.row);if(!h||h.v==null||!c||!c.c2){P['cf:'+cf.irr]='fail';continue}
@@ -7500,7 +7502,8 @@ function mapReproof(x,sets){const m=x&&x.map;if(!m||!MAP_ON()||!m.proof)return[]
     const rng=`${q(c.sheet)}!${c.c}${c.r}:${c.c2}${c.r2||c.r}`;L.push({irr:cf.irr,row:cf.row,f:[cf.ppy===0&&d&&d.c2?`=XIRR(${rng},${q(d.sheet)}!${d.c}${d.r}:${d.c2}${d.r2||d.r})`:`=(1+IRR(${rng},${cf.ppy===1?0.1:0.02}))^${cf.ppy||1}-1`,c.sheet]})}
   return L}
 /* the AI's reading where its proof holds; else the rules'; an entry neither proves is asked */
-async function mapBuild(x){if(!x||x.src!=='file')return null;try{await a33Eng(x)}catch(e){return null}try{await xcCacheMore(x)}catch(e){}try{await xcOutputs(x)}catch(e){}
+async function mapTurn(x){for(let i=0;i<2000;i++){if(latestExport(x.proj)!==x)return false;if(latestExport()===x)return true;await new Promise(r=>setTimeout(r,300))}return false}   /* the map is built in the background: it takes the engine only while its workbook is the one in use */
+async function mapBuild(x){if(!x||x.src!=='file')return null;try{if(!(await mapTurn(x)))return null;await a33Eng(x)}catch(e){return null}try{await xcCacheMore(x)}catch(e){}try{await xcOutputs(x)}catch(e){}
   const R=await mapProve(x,await mapRules(x));let A=null;try{A=await mapAI(x);if(A)A=await mapProve(x,A)}catch(e){A=null}
   if(!A){x.map={...R,at:new Date().toISOString()};return x.map}
   const M={by:A.by,at:new Date().toISOString(),headlines:[],units:A.units&&A.units.length?A.units:R.units,scenario:null,timeline:A.timeline||R.timeline,cashflows:[],hold:null,proof:{},from:{}};
