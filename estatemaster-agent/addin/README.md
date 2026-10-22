@@ -6,7 +6,7 @@ read, the inputs are put back and every output is checked to read its original v
 formula and the cells it reads, reads questions with the AI (which only names cells; a formula cell is refused as a lever), and
 opens the model in the workspace (the workbook is passed to the app in an Office dialog and becomes a project there).
 
-`tools/deploy.sh` publishes it with each app that has one (`kinan-estatemaster`, `jadwa-estatemaster`) at `/addin/`, with the
+`tools/deploy.sh` publishes it with each app that has one (`kinan-estatemaster`, `jadwa`) at `/addin/`, with the
 manifest filled in for that app (`/addin/manifest.xml`).
 
 ## Try it (sideload)
