@@ -17,7 +17,7 @@ for d in kinan-estatemaster kinan-estatemaster-analyst kinan-estatemaster-api ja
   mkdir -p $D/$d/vendor && cp $W/estatemaster-agent/vendor/* $D/$d/vendor/   # the formula engine, Excel reader and PowerPoint library, served by the app itself
   for f in cron.js schedule.js voice.js llm.js mail.js scan.js _lib/emcheck.js _lib/graph.js _lib/sched.js; do
     [ -f $D/$d/api/$f ] && [ -f $W/estatemaster-agent/api/$f ] && cp $W/estatemaster-agent/api/$f $D/$d/api/$f; done
-  cp $W/estatemaster-agent/api/log.js $W/estatemaster-agent/api/health.js $D/$d/api/
+  cp $W/estatemaster-agent/api/log.js $W/estatemaster-agent/api/health.js $W/estatemaster-agent/api/lo.js $D/$d/api/
   if [ $d = jadwa ]; then cp $W/estatemaster-agent/dist/jadwa-readonly/api/_lib/mailui.js $W/estatemaster-agent/dist/jadwa-readonly/api/_lib/logo.js $D/$d/api/_lib/   # Jadwa's emails in its look
   else cp $W/estatemaster-agent/api/_lib/mailui.js $W/estatemaster-agent/api/_lib/logo.js $D/$d/api/_lib/; fi
   python3 $T/patch_vercel.py $D/$d/vercel.json >/dev/null

@@ -21,6 +21,9 @@
     },
     "api/schedule.js": {
       "maxDuration": 800
+    },
+    "api/lo.js": {
+      "maxDuration": 120
     }
   },
   "headers": [

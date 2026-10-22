@@ -4293,6 +4293,40 @@ function xcWorker(){
       /* INT rounds down, as Excel: INT(-1.25) is -2 (the engine's own INT cuts towards zero, -1) */
       xirr2(ast,st){return this.runFunction(ast.args,st,this.metadata('IRR'),(vals,guess)=>{const V=[];for(const x of (vals.data?vals.data.flat():[vals])){const y=raw(x);if(y&&typeof y==='object'&&y.type)return y;if(typeof y==='number')V.push(y)}return irrExcel(V,guess==null?0.1:raw(guess))})}
       xint(ast,st){return this.runFunction(ast.args,st,this.metadata('INT'),x=>Math.floor(raw(x)))}
+      /* ROUND, ROUNDUP and ROUNDDOWN as Excel: the scaled value is read at 15 significant digits first, so ROUND(1.005,2) is 1.01 (binary
+         floating point holds 1.00499999…, which the engine rounded down to 1.00); halves go away from zero */
+      xround(ast,st){return this.runFunction(ast.args,st,this.metadata('ROUND'),(x,d)=>xlRound(x,d,0))}
+      xroundup(ast,st){return this.runFunction(ast.args,st,this.metadata('ROUNDUP'),(x,d)=>xlRound(x,d,1))}
+      xrounddown(ast,st){return this.runFunction(ast.args,st,this.metadata('ROUNDDOWN'),(x,d)=>xlRound(x,d,-1))}
+      /* Excel 365's regular expressions: REGEXTEST, REGEXEXTRACT (first match, or the first match's groups when there is one group) and
+         REGEXREPLACE (all, or the nth occurrence, from the end when negative); case sensitive unless the last argument is 1 */
+      xregextest(ast,st){return this.runFunction(ast.args,st,this.metadata('REGEXTEST'),(t,pat,cs)=>{const re=xlRe(pat,cs,'');return re instanceof CE?re:re.test(String(raw(t)??''))})}
+      xregexextract(ast,st){return this.runFunction(ast.args,st,this.metadata('REGEXEXTRACT'),(t,pat,mode,cs)=>{mode=Math.trunc(mode||0);const re=xlRe(pat,cs,'');if(re instanceof CE)return re;const m=String(raw(t)??'').match(re);if(!m)return new CE('NA');
+        if(mode===0)return m[0];if(mode===2&&m.length===2)return m[1]??'';return new CE('NAME')})}   /* several matches or groups spill into cells: not carried, so the cell is not reproduced and the model is flagged */
+      xregexreplace(ast,st){return this.runFunction(ast.args,st,this.metadata('REGEXREPLACE'),(t,pat,rep,occ,cs)=>{occ=Math.trunc(occ||0);const re=xlRe(pat,cs,'g');if(re instanceof CE)return re;const x=String(raw(t)??''),r=String(raw(rep)??'');
+        if(!occ)return x.replace(re,r);const all=[...x.matchAll(re)];const k=occ>0?occ-1:all.length+occ;if(k<0||k>=all.length)return x;const m=all[k];return x.slice(0,m.index)+m[0].replace(new RegExp(re.source,re.flags.replace('g','')),r)+x.slice(m.index+m[0].length)})}
+      /* COUNTBLANK as Excel: a cell whose formula gives "" is blank too */
+      xcountblank(ast,st){return this.runFunction(ast.args,st,this.metadata('COUNTBLANK'),rv=>(rv.data?rv.data.flat():[rv]).map(raw).filter(v=>v===null||v===undefined||v===''||typeof v==='symbol').length)}
+      /* XMATCH (Excel 365): exact (0), exact or next smaller (-1), exact or next larger (1), wildcards (2); first to last (1) or last to first (-1) */
+      xxmatch(ast,st){return this.runFunction(ast.args,st,this.metadata('XMATCH'),(v,rv,mode,srch)=>{v=raw(v);const A=(rv.data?rv.data.flat():[rv]).map(raw);mode=Math.trunc(mode||0);srch=Math.trunc(srch||1);
+        const cmp=(a,b)=>typeof a==='string'&&typeof b==='string'?a.toLowerCase().localeCompare(b.toLowerCase()):(typeof a===typeof b?(a<b?-1:a>b?1:0):null);
+        const wild=mode===2&&typeof v==='string'?new RegExp('^'+v.replace(/[.+^${}()|[\]\\]/g,'\\$&').replace(/~\*/g,'\u0001').replace(/~\?/g,'\u0002').replace(/\*/g,'.*').replace(/\?/g,'.').replace(/\u0001/g,'\\*').replace(/\u0002/g,'\\?')+'$','i'):null;
+        const order=[...A.keys()];if(srch<0)order.reverse();let best=-1;
+        for(const i of order){const a=A[i];if(a&&typeof a==='object')continue;if(wild?typeof a==='string'&&wild.test(a):cmp(a,v)===0)return i+1;
+          if(mode===-1||mode===1){const c=cmp(a,v);if(c===null)continue;if(mode===-1&&c<0&&(best<0||cmp(a,A[best])>0))best=i;if(mode===1&&c>0&&(best<0||cmp(a,A[best])<0))best=i}}
+        return best>=0?best+1:new CE('NA')})}
+      /* NUMBERVALUE(text, decimal separator, group separator) and FIXED(number, decimals, no commas) as Excel */
+      xnumbervalue(ast,st){return this.runFunction(ast.args,st,this.metadata('NUMBERVALUE'),(t,ds,gs)=>{t=raw(t);if(typeof t==='number')return t;ds=String(ds??'.')[0]||'.';gs=String(gs??',')[0]||',';
+        let x=String(t??'').replace(/\s/g,'');if(!x)return 0;let pc=0;while(x.endsWith('%')){pc++;x=x.slice(0,-1)}x=x.split(gs).join('');if(ds!=='.')x=x.split(ds).join('.');
+        if(!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(x))return new CE('VALUE');return +x/Math.pow(100,pc)})}
+      xfixed(ast,st){return this.runFunction(ast.args,st,this.metadata('FIXED'),(n,d,nc)=>{n=raw(n);d=Math.trunc(d??2);const r=xlRound(n,d,0);if(typeof r!=='number')return r;
+        const t=Math.abs(r).toFixed(Math.max(0,d)),[ip,fp]=t.split('.');const g=nc?ip:ip.replace(/\B(?=(\d{3})+(?!\d))/g,',');return(r<0?'-':'')+g+(fp?'.'+fp:'')})}
+      /* LOOKUP's vector form as Excel: a binary search for the last value not greater than the one sought, over the values of the same
+         type, errors skipped. LOOKUP(2,1/(range="Office"),values) therefore gives the last "Office" row, as in Excel */
+      xlookupv(ast,st){return this.runFunction(ast.args,st,this.metadata('XLOOKUPV'),(v,lv,rv)=>{v=raw(v);const L=(lv.data?lv.data.flat():[lv]).map(raw),Rv=rv?(rv.data?rv.data.flat():[rv]):(lv.data?lv.data.flat():[lv]);
+        const ok=[];L.forEach((a,i)=>{if(a!==null&&a!==undefined&&!(typeof a==='object')&&typeof a===typeof v)ok.push(i)});if(!ok.length)return new CE('NA');
+        const le=(a,b)=>typeof a==='string'?a.toLowerCase()<=b.toLowerCase():a<=b;let lo=0,hi=ok.length-1,ans=-1;while(lo<=hi){const m=(lo+hi)>>1;if(le(L[ok[m]],v)){ans=m;lo=m+1}else hi=m-1}
+        if(ans<0)return new CE('NA');const k=ok[ans];return k<Rv.length?Rv[k]:new CE('NA')})}
       /* TEXT with Excel's own number formats (0.0%, #,##0, mmm-yy …), through the Excel reader's formatter: the engine's TEXT knows few */
       // VALUE as Excel reads text: thousands separators, a currency sign, a trailing %, (brackets) for negatives; dates and times as before
       xvalue(ast,st){return this.runFunction(ast.args,st,this.metadata('VALUE'),v=>{v=raw(v);if(typeof v==='number')return v;if(typeof v==='boolean')return new CE('VALUE');const t=String(v??'').trim();
@@ -4309,8 +4343,18 @@ function xcWorker(){
       XOFFSUM:{method:'xoffsum',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER}]},
       XOFFAGG:{method:'xoffagg',parameters:[{argumentType:T.STRING},{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.SCALAR,optionalArg:true}]},
       XOFFXNPV:{method:'xoffxnpv',parameters:[{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER}]},XOFFXIRR:{method:'xoffxirr',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.RANGE},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER},{argumentType:T.NUMBER,optionalArg:true}]},
-      EDATE:{method:'xedate',parameters:[{argumentType:T.NUMBER},{argumentType:T.NUMBER}]},INT:{method:'xint',parameters:[{argumentType:T.NUMBER}]},IRR:{method:'xirr2',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER,optionalArg:true}]},TEXT:{method:'xtext',parameters:[{argumentType:T.SCALAR},{argumentType:T.STRING}]},VALUE:{method:'xvalue',parameters:[{argumentType:T.SCALAR}]}};
-    ['INDEX','EDATE','XNPV','INT','TEXT','IRR','VALUE'].forEach(f=>{try{H.unregisterFunction(f)}catch(e){}});H.registerFunctionPlugin(P,{enGB:{XNUM:'XNUM',IRR:'IRR',VALUE:'VALUE',XOFFAGG:'XOFFAGG',INT:'INT',TEXT:'TEXT',XOFFSUM:'XOFFSUM',XOFFXIRR:'XOFFXIRR',XOFFXNPV:'XOFFXNPV',XIRR:'XIRR',XNPV:'XNPV',INDEX:'INDEX',EDATE:'EDATE',RANK:'RANK','RANK.EQ':'RANK.EQ',FORECAST:'FORECAST','FORECAST.LINEAR':'FORECAST.LINEAR'}})}
+      EDATE:{method:'xedate',parameters:[{argumentType:T.NUMBER},{argumentType:T.NUMBER}]},INT:{method:'xint',parameters:[{argumentType:T.NUMBER}]},
+      ROUND:{method:'xround',parameters:[{argumentType:T.NUMBER},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0}]},ROUNDUP:{method:'xroundup',parameters:[{argumentType:T.NUMBER},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0}]},ROUNDDOWN:{method:'xrounddown',parameters:[{argumentType:T.NUMBER},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0}]},
+      XMATCH:{method:'xxmatch',parameters:[{argumentType:T.SCALAR},{argumentType:T.RANGE},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0},{argumentType:T.NUMBER,optionalArg:true,defaultValue:1}]},
+      NUMBERVALUE:{method:'xnumbervalue',parameters:[{argumentType:T.SCALAR},{argumentType:T.STRING,optionalArg:true},{argumentType:T.STRING,optionalArg:true}]},FIXED:{method:'xfixed',parameters:[{argumentType:T.NUMBER},{argumentType:T.NUMBER,optionalArg:true,defaultValue:2},{argumentType:T.BOOLEAN,optionalArg:true,defaultValue:false}]},
+      REGEXTEST:{method:'xregextest',parameters:[{argumentType:T.SCALAR},{argumentType:T.STRING},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0}]},
+      REGEXEXTRACT:{method:'xregexextract',parameters:[{argumentType:T.SCALAR},{argumentType:T.STRING},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0}]},
+      REGEXREPLACE:{method:'xregexreplace',parameters:[{argumentType:T.SCALAR},{argumentType:T.STRING},{argumentType:T.SCALAR},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0},{argumentType:T.NUMBER,optionalArg:true,defaultValue:0}]},
+      COUNTBLANK:{method:'xcountblank',parameters:[{argumentType:T.RANGE}]},XLOOKUPV:{method:'xlookupv',parameters:[{argumentType:T.SCALAR},{argumentType:T.RANGE},{argumentType:T.RANGE,optionalArg:true}]},IRR:{method:'xirr2',parameters:[{argumentType:T.RANGE},{argumentType:T.NUMBER,optionalArg:true}]},TEXT:{method:'xtext',parameters:[{argumentType:T.SCALAR},{argumentType:T.STRING}]},VALUE:{method:'xvalue',parameters:[{argumentType:T.SCALAR}]}};
+    ['INDEX','EDATE','XNPV','INT','TEXT','IRR','VALUE','ROUND','ROUNDUP','ROUNDDOWN','COUNTBLANK'].forEach(f=>{try{H.unregisterFunction(f)}catch(e){}});H.registerFunctionPlugin(P,{enGB:{REGEXTEST:'REGEXTEST',REGEXEXTRACT:'REGEXEXTRACT',REGEXREPLACE:'REGEXREPLACE',COUNTBLANK:'COUNTBLANK',ROUND:'ROUND',ROUNDUP:'ROUNDUP',ROUNDDOWN:'ROUNDDOWN',XMATCH:'XMATCH',NUMBERVALUE:'NUMBERVALUE',FIXED:'FIXED',XLOOKUPV:'XLOOKUPV',XNUM:'XNUM',IRR:'IRR',VALUE:'VALUE',XOFFAGG:'XOFFAGG',INT:'INT',TEXT:'TEXT',XOFFSUM:'XOFFSUM',XOFFXIRR:'XOFFXIRR',XOFFXNPV:'XOFFXNPV',XIRR:'XIRR',XNPV:'XNPV',INDEX:'INDEX',EDATE:'EDATE',RANK:'RANK','RANK.EQ':'RANK.EQ',FORECAST:'FORECAST','FORECAST.LINEAR':'FORECAST.LINEAR'}})}
+  function xlRe(p,cs,fl){try{return new RegExp(String(p),fl+(Math.trunc(raw(cs)||0)===1?'i':''))}catch(e){return new H.CellError('VALUE')}}
+  function xlRound(x,d,dir){x=raw(x);d=Math.trunc(raw(d)||0);if(typeof x!=='number'||!isFinite(x))return new H.CellError('VALUE');const p=Math.pow(10,d),s=x<0?-1:1;
+    const y=+(Math.abs(x)*p).toPrecision(15),r=dir===0?Math.floor(y+0.5):dir>0?Math.ceil(y):Math.floor(y);return s*(d>=0?r/p:r*Math.pow(10,-d))}
   function irrExcel(V,g){const CE=H.CellError;if(!V.some(v=>v>0)||!V.some(v=>v<0))return new CE('NUM');let r=typeof g==='number'?g:0.1;
     for(let k=0;k<20;k++){let f=0,d=0;for(let n=0;n<V.length;n++){const q=Math.pow(1+r,n);f+=V[n]/q;d-=n*V[n]/(q*(1+r))}if(!d||!isFinite(f)||!isFinite(d))return new CE('NUM');const nr=r-f/d;if(!isFinite(nr))return new CE('NUM');if(Math.abs(nr-r)<1e-7)return nr;r=nr}return new CE('NUM')}
   function xirrOf(v0,d0,guess){const CE=H.CellError,v=[],d=[];v0.forEach((x,i)=>{if(typeof x==='number'&&typeof d0[i]==='number'){v.push(x);d.push(d0[i])}});
@@ -4329,7 +4373,7 @@ function xcWorker(){
       for(;j<src.length;j++){const ch=src[j];if(q){if(ch==='"'){if(src[j+1]==='"'){j++;continue}q=false}continue}if(ch==='"'){q=true;continue}if(ch==='('||ch==='{')d++;else if(ch==='}')d--;else if(ch===')'){d--;if(d===0){args.push(src.slice(a0,j));break}}else if(ch===','&&d===1){args.push(src.slice(a0,j));a0=j+1}}
       if(d!==0)break;out+=src.slice(i,st)+fn(args.map(x=>x.trim()));i=j+1;re.lastIndex=i}
     return out+src.slice(i)}
-  let EXT={},CURSH='';
+  let EXT={},CURSH='',SHEETORDER=[],DT=[];
   const colN=L=>{let n=0;for(const ch of L.toUpperCase())n=n*26+ch.charCodeAt(0)-64;return n},colL=n=>{let s='';while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26)}return s};
   const qSh=sh=>/[^A-Za-z0-9_]/.test(sh)?"'"+sh.replace(/'/g,"''")+"'":sh,isNum=x=>/^\s*[-+]?\d+(\.\d+)?\s*$/.test(x);
   // one OFFSET call → the range it can move over plus the (row, column, height, width) of its window inside it, or null when it is not one we can carry
@@ -4394,7 +4438,10 @@ function xcWorker(){
     /* DATEDIF's unit in any case, whatever its arguments hold (DATEDIF(MAX(…),EDATE(…),"m")): the engine reads upper case only */
     if(/DATEDIF\(/i.test(f))f=rewriteFn(f,'DATEDIF',a=>`DATEDIF(${a.slice(0,2).join(',')}${a.length>2?','+String(a[2]).replace(/"([a-z]+)"/i,(m,u)=>'"'+u.toUpperCase()+'"'):''})`);if(/AVERAGEIFS\(/i.test(f))f=rewriteFn(f,'AVERAGEIFS',a=>`(SUMIFS(${a.join(',')})/COUNTIFS(${a.slice(1).join(',')}))`);
     if(/CONCAT\(/i.test(f))f=rewriteFn(f,'CONCAT',a=>`CONCATENATE(${a.join(',')})`);
-    if(/LOOKUP\(/i.test(f)&&!/[HVX]LOOKUP\(/i.test(f))f=rewriteFn(f,'LOOKUP',a=>a.length>=3?`INDEX(${a[2]},MATCH(${a[0]},${a[1]},1))`:`INDEX(${a[1]},MATCH(${a[0]},${a[1]},1))`);
+    if(/LOOKUP\(/i.test(f)&&!/[HVX]LOOKUP\(/i.test(f))f=rewriteFn(f,'LOOKUP',a=>a.length>=3?`XLOOKUPV(${a.join(',')})`:`XLOOKUPV(${a[0]},${a[1]})`);
+    /* a 3D reference (SUM(Jan:Dec!B5), the same cell on a run of sheets): each sheet named, in the workbook's own order */
+    if(SHEETORDER.length&&/:[^!]*!/.test(f))f=f.split(/("(?:[^"]|"")*")/).map((p,i)=>i%2?p:p.replace(/(?:'([^'!:]+):([^'!:]+)'|([A-Za-z0-9_.]+):([A-Za-z0-9_.]+))!(\$?[A-Za-z]{1,3}\$?\d+(?::\$?[A-Za-z]{1,3}\$?\d+)?)/g,(m,q1,q2,u1,u2,ref)=>{const a=SHEETORDER.indexOf(q1||u1),b=SHEETORDER.indexOf(q2||u2);if(a<0||b<0)return m;
+      return SHEETORDER.slice(Math.min(a,b),Math.max(a,b)+1).map(n=>(/[^A-Za-z0-9_]/.test(n)?"'"+n.replace(/'/g,"''")+"'":n)+'!'+ref).join(',')})).join('');
     f=truncArgs(f);
     return f}
   // Excel's formula text, made readable by the engine: TRUE/FALSE as functions, Excel's _xlfn. prefixes dropped, INDEX(array,0) on a vector is the vector, DATEDIF units upper case
@@ -4413,12 +4460,31 @@ function xcWorker(){
   function fixF(f){f=aliasNames(rewriteAll(qSheets(f)));if(/IFERROR\(/i.test(f))f=rewriteFn(f,'IFERROR',a=>`IFERROR(${xnumWrap(a[0])}${a.length>1?','+a.slice(1).join(','):''})`);if(/INDEX\(/i.test(f))f=rewriteFn(f,'INDEX',a=>a.length===2&&/^0$/.test(a[1])?`(${a[0]})`:`INDEX(${a.join(',')})`);   /* INDEX(x,0) is all of x: MATCH(TRUE,INDEX(row>=0.85,0),0) */if(FROZEN.TODAY!=null)f=f.replace(/\bTODAY\(\)/gi,'('+FROZEN.TODAY+')');if(FROZEN.NOW!=null)f=f.replace(/\bNOW\(\)/gi,'('+FROZEN.NOW+')');return f.split(/("(?:[^"]|"")*")/).map((p,i)=>i%2?p:p.replace(/_xlfn\.|_xlws\./g,'').replace(/(^|[^A-Za-z0-9_.!'$])(TRUE|FALSE)(?![A-Za-z0-9_(])/g,'$1$2()')).join('').replace(/INDEX\((\([^()]*\)),0\)/g,'$1').replace(/DATEDIF\(([^()]*),"(y|m|d|ym|yd|md)"\)/gi,(m,a,u)=>'DATEDIF('+a+',"'+u.toUpperCase()+'")')}
   function A(ref){const i=ref.lastIndexOf('!');const s=ref.slice(0,i).replace(/^'|'$/g,'').replace(/''/g,"'");const p=XL.utils.decode_cell(ref.slice(i+1).replace(/\$/g,''));const id=hf.getSheetId(s);if(id===undefined)throw new Error('no sheet '+s);return{sheet:id,row:p.r,col:p.c}}
   const nm=a=>{const s=hf.getSheetName(a.sheet);return(/[^A-Za-z0-9_]/.test(s)?"'"+s+"'":s)+'!'+XL.utils.encode_cell({r:a.row,c:a.col})};
-  const val=a=>{const v=hf.getCellValue(a);return v&&typeof v==='object'&&v.type?{err:v.value||v.type}:raw(v)};
+  const val0=a=>{const v=hf.getCellValue(a);return v&&typeof v==='object'&&v.type?{err:v.value||v.type}:raw(v)};
+  /* a cell of an Excel Data Table: its formula (top-left corner for a two-way table, the header row or column for a one-way table)
+     recalculated with the table's input cell(s) set to the cell's row and column values, then every input put back, as Excel does */
+  let DTBUSY=false;function dtCell(a){if(DTBUSY||!DT.length)return undefined;const sn=hf.getSheetName(a.sheet),t=DT.find(z=>z.sh===sn&&a.row>=z.r0&&a.row<=z.r1&&a.col>=z.c0&&a.col<=z.c1);if(!t)return undefined;
+    const at=(r,c)=>({sheet:a.sheet,row:r,col:c}),cell=x=>{const p=XL.utils.decode_cell(String(x).replace(/\$/g,''));return at(p.r,p.c)};let fa,sets;
+    if(t.two){fa=at(t.r0-1,t.c0-1);sets=[[cell(t.in1),val0(at(t.r0-1,a.col))],[cell(t.in2),val0(at(a.row,t.c0-1))]]}
+    else if(t.row){fa=at(a.row,t.c0-1);sets=[[cell(t.in1),val0(at(t.r0-1,a.col))]]}else{fa=at(t.r0-1,a.col);sets=[[cell(t.in1),val0(at(a.row,t.c0-1))]]}
+    DTBUSY=true;const old=sets.map(([c])=>hf.getCellSerialized(c));let v;try{hf.batch(()=>{for(const [c,x] of sets)hf.setCellContents(c,[[x&&typeof x==='object'?null:x]])});iterate();v=val0(fa)}
+    finally{hf.batch(()=>{sets.forEach(([c],i)=>hf.setCellContents(c,[[old[i]]]))});iterate();DTBUSY=false}return v}
+  const val=a=>{const d=DTSET?undefined:dtCell(a);return d!==undefined?d:val0(a)};
+  /* when the model reads a Data Table's cells elsewhere (=F9), the whole table is refreshed into the workbook after a change, so those
+     formulas see Excel's values; the refreshed cells are put back with the rest of the change */
+  let DTSET=false,DTDEP=null;function dtDep(){if(DTDEP!==null)return DTDEP;DTDEP=false;try{for(const t of DT){const sid=hf.getSheetId(t.sh);for(let r=t.r0;r<=t.r1&&!DTDEP;r++)for(let c=t.c0;c<=t.c1&&!DTDEP;c++){
+      for(const d of hf.getCellDependents({sheet:sid,row:r,col:c})||[]){const q=d.start||d;if(!(q.sheet===sid&&q.row>=t.r0&&q.row<=t.r1&&q.col>=t.c0&&q.col<=t.c1)){DTDEP=true;break}}}}}catch(e){DTDEP=true}return DTDEP}
+  function dtRefresh(){if(!DT.length||!dtDep())return;const put=[];for(const t of DT){const sid=hf.getSheetId(t.sh);for(let r=t.r0;r<=t.r1;r++)for(let c=t.c0;c<=t.c1;c++){const a={sheet:sid,row:r,col:c},v=dtCell(a);if(v===undefined)continue;
+      const k=nm(a);if(!dirty.has(k))dirty.set(k,hf.getCellSerialized(a));put.push([a,v&&typeof v==='object'?null:v])}}
+    if(put.length){hf.batch(()=>{for(const [a,v] of put)hf.setCellContents(a,[[v]])});iterate();DTSET=true}}
   let FMT={};
-  function load(buf,refs){NAMEMAP=null;const wb=XL.read(buf,{type:'array',cellFormula:true,cellNF:true,bookFiles:true});TABLES={};
+  function load(buf,refs){NAMEMAP=null;const wb=XL.read(buf,{type:'array',cellFormula:true,cellNF:true,bookFiles:true});TABLES={};SHEETORDER=wb.SheetNames.slice();DT=[];DTDEP=null;DTSET=false;
     try{const F=wb.files||{},txt=k=>{const z=F[k];if(!z)return'';const c=z.content||z._data;return typeof c==='string'?c:new TextDecoder().decode(c instanceof Uint8Array?c:new Uint8Array(c))};
       const wx=txt('xl/workbook.xml'),wr=txt('xl/_rels/workbook.xml.rels'),rid={};for(const m of wr.matchAll(/<Relationship\b[^>]*>/g)){const id=(m[0].match(/Id="([^"]+)"/)||[])[1],t=(m[0].match(/Target="([^"]+)"/)||[])[1];if(id&&t)rid[id]=t.replace(/^\/?(xl\/)?/,'xl/')}
       for(const m of wx.matchAll(/<sheet\b[^>]*>/g)){const nm=((m[0].match(/name="([^"]*)"/)||[])[1]||'').replace(/&amp;/g,'&').replace(/&apos;/g,"'"),id=(m[0].match(/r:id="([^"]+)"/)||[])[1],sp=rid[id];if(!sp)continue;
+        /* Excel's Data Tables (What-If Analysis → Data Table): the table, its input cells and its orientation, refreshed exactly like Excel */
+        for(const d of txt(sp).matchAll(/<f\b([^>]*\bt="dataTable"[^>]*)\/?>/g)){const at=k=>(d[1].match(new RegExp('\\b'+k+'="([^"]*)"'))||[])[1];const ref=at('ref');if(!ref)continue;const Rg=XL.utils.decode_range(ref);
+          DT.push({sh:nm,r0:Rg.s.r,c0:Rg.s.c,r1:Rg.e.r,c1:Rg.e.c,two:at('dt2D')==='1',row:at('dtr')==='1',in1:at('r1'),in2:at('r2')})}
         const rp=sp.replace(/([^/]+)$/,'_rels/$1.rels');for(const t of txt(rp).matchAll(/Target="([^"]*tables\/[^"]+)"/g)){const tp='xl/tables/'+t[1].split('/').pop(),tx=txt(tp);if(!tx)continue;
           const att=k=>(tx.match(new RegExp('<table\\b[^>]*\\b'+k+'="([^"]*)"'))||[])[1],ref=att('ref');if(!ref)continue;const R=XL.utils.decode_range(ref);
           const cols=[...tx.matchAll(/<tableColumn\b[^>]*name="([^"]*)"/g)].map(z=>z[1].replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/_x000a_/gi,' '));
@@ -4449,6 +4515,9 @@ function xcWorker(){
         const typedAt=(n,r)=>{const m=String(r).replace(/\$/g,'').match(/^([A-Za-z]{1,3})(\d+)/);if(!m||!sheets[n])return false;const c=m[1].toUpperCase().split('').reduce((a,ch)=>a*26+ch.charCodeAt(0)-64,0)-1,v=(sheets[n][+m[2]-1]||[])[c];return v!=null&&v!==''&&!(typeof v==='string'&&v[0]==='=')};   /* only a sheet whose cell is typed can be the one picked: no false loops through the cash flow */
         /* an address built as text over one column: INDIRECT("'Cash Flow'!C"&a&":C"&b) is OFFSET('Cash Flow'!$C$1,a-1,0,b-a+1,1) */
         const adr=a.length<2&&x.match(/^"((?:''|[^"])*?!)?\$?([A-Za-z]{1,3})\$?"\s*&\s*(.+?)\s*&\s*":\$?([A-Za-z]{1,3})\$?"\s*&\s*(.+)$/);
+        const one=!adr&&a.length<2&&x.match(/^"((?:''|[^"])*?!)?\$?([A-Za-z]{1,3})\$?"\s*&\s*([^"]+)$/);
+        if(one){const shq=(one[1]||'').replace(/""/g,'"'),shn=shq.replace(/!$/,'').replace(/^'|'$/g,'').replace(/''/g,"'"),rows=shn?Math.max(1,(sheets[shn]||[]).length):Math.max(1,...Object.values(sheets).map(z=>z.length)),C=one[2].toUpperCase();
+          return `INDEX(${shq}$${C}$1:$${C}$${Math.max(rows,1)},(${one[3]})+0/(MOD(${one[3]},1)=0))`}
         if(adr&&adr[2].toUpperCase()===adr[4].toUpperCase()){const sh=(adr[1]||'').replace(/""/g,'"'),C=adr[2].toUpperCase();return `OFFSET(${sh}$${C}$1,(${adr[3]})-1+0/(MOD(${adr[3]},1)=0),0,(${adr[5]})-(${adr[3]})+1+0/(MOD(${adr[5]},1)=0),1)`}   /* a row number with a fraction is no address (Excel: #REF!): an error, never a truncated row */
         if(shp&&wb.SheetNames.length<=60)return wb.SheetNames.filter(n=>typedAt(n,shp[2])).reduceRight((acc,n)=>`IF(UPPER(${shp[1]})="${n.toUpperCase().replace(/"/g,'""')}",'${n.replace(/'/g,"''")}'!${shp[2]},${acc})`,'NA()');
         return G.length&&G.length<=60&&a.length<2?G.reduceRight((acc,n)=>`IF(UPPER(${x})="${n.toUpperCase()}",${n},${acc})`,'NA()'):`INDIRECT(${a.join(',')})`});
@@ -4506,7 +4575,7 @@ function xcWorker(){
     return{tot,match:ok,bad,outBad,stale,cycles:cyc,iter:ITER.length,formulas:nf,sheets:Object.keys(sheets).length,frozen:FROZEN.TODAY,names:names.length,namesSkipped,unsup,fns,vol:[...VOL].slice(0,400)}}
   /* a text value stays text, as typed in Excel: “2.0%” written by a what-if into a cell the model reads with VALUE(SUBSTITUTE(…)) is not the number 0.02 */
   const TXT=v=>typeof v==='string'&&v[0]!=='='&&v[0]!=="'"?"'"+v:v;
-  function restore(keep){const back=[...dirty.entries()].filter(([k])=>!keep||!keep.has(k));if(!back.length)return;hf.batch(()=>{for(const [k,v] of back){hf.setCellContents(A(k),[[v]]);dirty.delete(k)}});iterate()}
+  function restore(keep){DTSET=false;const back=[...dirty.entries()].filter(([k])=>!keep||!keep.has(k));if(!back.length)return;hf.batch(()=>{for(const [k,v] of back){hf.setCellContents(A(k),[[v]]);dirty.delete(k)}});iterate()}
   // the run of typed numbers an input stands for: the anchor and the constants to its right on the same row (one per year, say), up to a formula or text
   const fmtOf=a=>FMT[hf.getSheetName(a.sheet)+'!'+XL.utils.encode_cell({r:a.row,c:a.col})]||'General';
   function series(ref){const a=A(ref),out=[nm(a)],f0=fmtOf(a);let gap=0;
@@ -4582,7 +4651,7 @@ function xcWorker(){
       else if(m.op==='run'){r=[];for(const sets of m.runs){const keep=new Set(sets.map(s=>s[0]));const back=[...dirty.entries()].filter(([k])=>!keep.has(k));
           for(const [k] of sets)if(!dirty.has(k))dirty.set(k,hf.getCellSerialized(A(k)));
           if(back.length||sets.length){hf.batch(()=>{for(const [k,v] of back){hf.setCellContents(A(k),[[v]])}for(const [k,v] of sets)hf.setCellContents(A(k),[[FC[k]&&typeof v==='number'?FC[k].tpl.replace('\u0001',String(+v)):TXT(v)]])});iterate()}back.forEach(([k])=>dirty.delete(k));
-          r.push(m.read.map(k=>val(A(k))).concat((m.fs||[]).map(([f,sh])=>{try{return raw(hf.calculateFormula(f,hf.getSheetId(sh)))}catch(e){return null}})));if(m.progress)postMessage({id:m.id,progress:r.length})}
+          DTSET=false;if(sets.length)dtRefresh();r.push(m.read.map(k=>val(A(k))).concat((m.fs||[]).map(([f,sh])=>{try{return raw(hf.calculateFormula(f,hf.getSheetId(sh)))}catch(e){return null}})));if(m.progress)postMessage({id:m.id,progress:r.length})}
         if(m.reset)restore()}
       /* every formula's result (and each circular cell's), for the workbook written back after an extension */
       else if(m.op==='dump'){restore();const vals={},errs=[];const put=(name,k,v)=>{const D=vals[name]=vals[name]||{};if(v&&typeof v==='object'&&v.type){D[k]=v.value||('#'+v.type);D['!err:'+k]=1;if(errs.length<4000)errs.push(name+'!'+k)}else D[k]=raw(v)};
@@ -4617,7 +4686,24 @@ function xcWorker(){
         r=node(A(m.ref),0)}
       else if(m.op==='reset'){restore();r=true}
       postMessage({id:m.id,r})}catch(e){postMessage({id:m.id,error:String(e&&e.message||e)})}}}
-function xcCall(msg,onProg){return new Promise((res,rej)=>{if(!XC.w)return rej(new Error('engine not started'));const id=++XC.seq;XC.cb[id]={res,rej,onProg};XC.w.postMessage({...msg,id})})}
+/* the second engine: LibreOffice on Bohio's server (/api/lo → LO_URL), for a workbook the browser's engine cannot reproduce exactly. It is used
+   only when it reproduces Excel's own stored results (99%, the bar the browser engine has to clear); it then answers every figure (a read,
+   a what-if, a goal seek's runs), and the browser engine only the structure (labels, formats, which cells are typed). A tool that would
+   read a figure any other way says "not computed" rather than use the browser engine's numbers on that workbook */
+const LO={avail:null,version:'',by:{}};
+async function loAvail(){if(LO.avail!==null)return LO.avail;try{const r=await fetch('/api/lo',{cache:'no-store'});const j=await r.json().catch(()=>({}));LO.avail=!!(r.ok&&j.ok);LO.version=j.version||''}catch(e){LO.avail=false}return LO.avail}
+function loB64(buf){const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)}
+async function loPost(body){const r=await fetch('/api/lo',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok&&!j.need_file)throw new Error(j.error||'the server engine answered '+r.status);return j}
+async function loCall(id,body){const s=LO.by[id];if(!s)throw new Error('the server engine is not set up for this workbook');let j=await loPost({...body,hash:s.hash});
+  if(j.need_file){const buf=await xcRaw({id});if(!buf)throw new Error('the workbook is not in this browser');j=await loPost({...body,file:loB64(buf)})}if(j.error)throw new Error(j.error);return j}
+async function loTry(x,r,buf){try{if(!(await loAvail()))return;const j=await loPost({file:loB64(buf),check:true,read:[]});const c=j.check||{};
+    if(c.tot>0&&c.match/c.tot>=0.99){LO.by[x.id]={hash:j.hash};r.browser={pct:r.pct,unsup:r.unsup,bad:r.bad};r.engine='server';r.tot=c.tot;r.match=c.match;r.pct=Math.floor(c.match/c.tot*1000)/10;r.ok=true}
+    else r.lo={pct:c.tot?Math.floor(c.match/c.tot*1000)/10:0,bad:c.bad}}catch(e){r.lo={err:e.message}}}
+const LO_STRUCT=new Set(['load','fmt','typed','prec','scan','fscan','fconst','findrow','ftext','iterinfo','reset','fscale','cmp']);
+async function loRoute(msg,onProg){const id=XC.id;if(msg.op==='get')return (await loCall(id,{read:msg.refs})).values;
+  if(msg.op==='run'){const out=[];for(const sets of msg.runs||[]){const j=await loCall(id,{sets,read:msg.read});out.push(j.values.concat((msg.fs||[]).map(()=>null)));if(onProg)try{onProg(out.length)}catch(e){}}return out}
+  throw new Error('not computed on this workbook: the browser engine cannot reproduce it, and this tool reads figures only the server engine can give')}
+function xcCall(msg,onProg){if(LO.by[XC.id]&&!LO_STRUCT.has(msg.op))return loRoute(msg,onProg);return new Promise((res,rej)=>{if(!XC.w)return rej(new Error('engine not started'));const id=++XC.seq;XC.cb[id]={res,rej,onProg};XC.w.postMessage({...msg,id})})}
 // the original file of an export: kept in this browser when it was uploaded, else fetched once from the exports folder
 async function xcRaw(x){let b=null;try{b=await wbLoad('raw:'+x.id)}catch(e){}
   if(!b&&x.src==='file'&&x.file&&typeof dailyApi==='function'&&typeof DAILYSRV!=='undefined'&&DAILYSRV){try{const j=await dailyApi({action:'workbook',file:x.file});if(j&&j.data){b=Uint8Array.from(atob(j.data),c=>c.charCodeAt(0)).buffer;wbSave('raw:'+x.id,b);WBCACHE['raw:'+x.id]=b}}catch(e){}}
@@ -4658,7 +4744,7 @@ function xcEngine(x){x=x||latestExport();if(!x||x.src!=='file'||typeof Worker===
     const cb=XC.cb;XC.w=new Worker(URL.createObjectURL(new Blob(['('+xcWorker.toString()+')()'],{type:'text/javascript'})));
     XC.w.onmessage=e=>{const m=e.data,c=cb[m.id];if(!c)return;if(m.progress!=null){if(c.onProg)try{c.onProg(m.progress)}catch(er){}return}delete cb[m.id];m.error?c.rej(new Error(m.error)):c.res(m.r)};
     XC.w.onerror=e=>{const msg=(e&&e.message)||'the formula engine stopped';for(const k in cb){try{cb[k].rej(new Error(msg))}catch(er){}delete cb[k]}};
-    const r=await xcCall({op:'load',buf,urls:{hf:XC_HF,xlsx:XC_XLSX},refs:Object.values(x.cells||{}).filter(Boolean)});r.ms=Date.now()-t0;r.ok=r.tot>0&&r.match/r.tot>=0.99&&!(r.outBad&&r.outBad.length);if(!r.ok&&r.tot>0&&r.stale&&r.stale.covered&&!(r.unsup&&r.unsup.length)){r.ok=true;r.staleOk=true;try{xcStaleApply(x,r)}catch(e){}}r.pct=r.tot?Math.floor(r.match/r.tot*1000)/10:0;XC.info[x.id]=r;if(r.ok){try{await xcFconst(x)}catch(e){}setTimeout(()=>{xcCacheMore(x).catch(()=>{})},0)}setTimeout(()=>{try{xcFnTell(x)}catch(e){}},0);if(!r.ok)try{window.reportErr&&window.reportErr(`Formula engine not trusted: reproduced ${r.pct}% of ${r.tot} formulas${r.outBad&&r.outBad.length?', outputs off: '+r.outBad.slice(0,3).join(', '):''}`,'formula engine: check')}catch(_){}return r})()
+    const r=await xcCall({op:'load',buf,urls:{hf:XC_HF,xlsx:XC_XLSX},refs:Object.values(x.cells||{}).filter(Boolean)});r.ms=Date.now()-t0;r.ok=r.tot>0&&r.match/r.tot>=0.99&&!(r.outBad&&r.outBad.length);if(!r.ok&&r.tot>0&&r.stale&&r.stale.covered&&!(r.unsup&&r.unsup.length)){r.ok=true;r.staleOk=true;try{xcStaleApply(x,r)}catch(e){}}r.pct=r.tot?Math.floor(r.match/r.tot*1000)/10:0;if(!r.ok&&r.tot>0)await loTry(x,r,buf);XC.info[x.id]=r;if(r.ok){try{await xcFconst(x)}catch(e){}setTimeout(()=>{xcCacheMore(x).catch(()=>{})},0)}setTimeout(()=>{try{xcFnTell(x)}catch(e){}},0);if(!r.ok)try{window.reportErr&&window.reportErr(`Formula engine not trusted: reproduced ${r.pct}% of ${r.tot} formulas${r.outBad&&r.outBad.length?', outputs off: '+r.outBad.slice(0,3).join(', '):''}`,'formula engine: check')}catch(_){}return r})()
     .catch(e=>{XC.info[x.id]={ok:false,why:'error',err:e.message};XC.ready=null;XC.id=null;try{window.reportErr&&window.reportErr(e,'formula engine: load')}catch(_){}return XC.info[x.id]});
   return XC.ready}
 // one engine call at a time (a sensitivity table and a chat question never interleave their cell changes)
@@ -4676,6 +4762,7 @@ const xcFnNote=x=>{const c=xcFnCheck(x);if(!c)return'';const L=[];
   if(x&&x.notRepro&&x.notRepro.length)L.push(`Not reproduced exactly by the formula engine, so not shown as a result: ${x.notRepro.slice(0,5).join(', ')}.`);return L.join(' ')};
 /* said once per model, up front: functions the engine lacks (nothing can be recalculated) or has not yet verified against Excel */
 function xcFnTell(x){if(!x||x.fnTold)return;const c=xcFnCheck(x),i=XC.info[x.id];if(!c)return;x.fnTold=1;
+  if(i&&i.ok&&i.engine==='server'){addMsg('agent',`<b>${esc(x.file||x.id)}</b> uses ${esc(((i.browser||{}).unsup||[]).join(', ')||'formulas')} that the engine in this browser cannot run, so its figures are recalculated by ${esc(LO.version||'LibreOffice')} on Bohio’s server, which reproduced ${i.pct}% of Excel’s own results for this workbook. Each answer says which engine computed it.`);return}
   if(i&&!i.ok&&c.unsup.length){addMsg('agent',`<b>${esc(x.file||x.id)}</b> uses Excel function${c.unsup.length>1?'s':''} the formula engine does not have: <b>${esc(c.unsup.join(', '))}</b>${c.unsup.map(f=>i.fns&&i.fns[f]?` (${esc(i.fns[f].at)})`:'').join('')}. What-ifs and goal seeks that need ${c.unsup.length>1?'them':'it'} are not computed: I do not estimate.`);return}
   if(c.un.length&&i&&i.ok)addMsg('agent',`<b>${esc(x.file||x.id)}</b>: ${esc(xcFnNote(x))}`);try{saveMem()}catch(e){}}
 function xcCan(x){x=x||latestExport();if(!x||x.src!=='file'||typeof Worker==='undefined')return false;const i=XC.info[x.id];if(i)return !!i.ok;return !!(WBCACHE['raw:'+x.id]&&x.wb&&x.wb.formulas>0)}   // before the engine has run: only a workbook that holds formulas can be recalculated
@@ -5028,7 +5115,7 @@ async function xcTest(changes0,onStep,proj){const x=latestExport(proj||PROJ.id);
   await onStep(`Recalculating the workbook’s own formulas with ${desc.join('; ')}`);const t0=Date.now();
   const prev=chainOn?chainOn.sets.filter(([r])=>!sets.some(([q])=>q===r)):[];if(chainOn){desc.unshift(`on top of ${chainOn.id} (${chainOn.label})`);await onStep(`A follow-up: applied on top of ${chainOn.id} (${chainOn.label}), not on the uploaded figures`)}
   const rp=mapReproof(x,[...prev,...sets]);const [base]=await xcQ(()=>xcCall({op:'run',runs:[prev],read}));const [now0]=await xcQ(()=>xcCall({op:'run',runs:[[...prev,...sets]],read,fs:rp.map(z=>z.f)}));const now=now0.slice(0,read.length),rpv=now0.slice(read.length);const secs=((Date.now()-t0)/1000).toFixed(1);
-  const method=`the workbook’s ${eng.formulas.toLocaleString()} formulas recalculated in this browser after setting ${desc.join('; ')} (the engine first reproduced ${eng.pct}% of Excel’s own results)`;
+  const method=eng.engine==='server'?`the workbook’s own formulas recalculated by ${LO.version||'LibreOffice'} on Bohio’s server after setting ${desc.join('; ')} (it first reproduced ${eng.pct}% of Excel’s own results; the browser engine could not${eng.browser&&eng.browser.unsup&&eng.browser.unsup.length?', it has no '+eng.browser.unsup.join(', '):''})`:`the workbook’s ${eng.formulas.toLocaleString()} formulas recalculated in this browser after setting ${desc.join('; ')} (the engine first reproduced ${eng.pct}% of Excel’s own results)`;
   const metrics=out.ks.filter(k=>MET[k]).map(k=>{const i=read.indexOf(C[k]);const f=xcFactor(x,k,base[i]);const v=Number.isFinite(now[i])?f*now[i]:NaN;return{k,value:v,a:v,b:NaN,status:'exact',xc:true,wa:'',wb:'',checks:[],flag:false,warn:false,exact:method,base:Number.isFinite(base[i])?f*base[i]:NaN}});
   const extra=out.extra.map((r,j)=>{const i=out.ks.length+j;return{...r,base:base[i],value:now[i]}});
   {const o0=out.ks.length+out.extra.length,mv=(a,b)=>typeof a==='number'&&typeof b==='number'?Math.abs(a-b)>1e-9*Math.max(1,Math.abs(a)):a!==b;
@@ -10892,7 +10979,8 @@ async function sysCheck(deep=false){if(SC.busy)return;SC.busy=true;SC.deep=deep;
   try{
     // the server and the build
     if(!srv)push({id:'srv',label:'Server',s:'warn',d:'Opened from a file: no server, so the AI, voice and mail run only with keys pasted in this browser.'});
-    else try{const j=await timed(8000,fetch('/api/health',{cache:'no-store'}).then(r=>r.json()));const same=!j.build||!window.BOHIO_BUILD||j.build===window.BOHIO_BUILD;push({id:'srv',label:'Server',s:same?'ok':'warn',d:`${location.host} · build ${window.BOHIO_BUILD||'dev'}${j.commit?' · commit '+j.commit:''}${j.region?' · '+j.region:''}${same?'':' · the page and the server are different builds'}`,fix:same?'':'Reload the page (Ctrl+F5).'});SC.health=j}
+    else try{const j=await timed(8000,fetch('/api/health',{cache:'no-store'}).then(r=>r.json()));const same=!j.build||!window.BOHIO_BUILD||j.build===window.BOHIO_BUILD;push({id:'srv',label:'Server',s:same?'ok':'warn',d:`${location.host} · build ${window.BOHIO_BUILD||'dev'}${j.commit?' · commit '+j.commit:''}${j.region?' · '+j.region:''}${same?'':' · the page and the server are different builds'}`,fix:same?'':'Reload the page (Ctrl+F5).'});SC.health=j;
+      if(j.services&&j.services.serverEngine){LO.avail=null;const up=await loAvail();push({id:'lo',label:'Server engine',s:up?'ok':'warn',d:up?`${LO.version||'LibreOffice'} answers: a workbook the browser engine cannot reproduce is recalculated there (only when it reproduces Excel’s own results).`:'Set up but not answering: those workbooks stay “not computed” until it does.',fix:up?'':'Check the service (lo-service/README.md) and LO_URL / LO_TOKEN in Vercel.'})}}
     catch(e){push({id:'srv',label:'Server',s:'fail',d:'The server does not answer: '+err(e),fix:'Check the deployment in Vercel (Redeploy) before the meeting.'})}
     // the demo sign-in: every AI, voice and mail call goes through it
     if(srv)try{const r=await timed(8000,fetch('/api/llm',{cache:'no-store'}));if(r.status===401){try{signedOut()}catch(e){}push({id:'signin',label:'Demo sign-in',s:'fail',d:'Your sign-in at bohiotech.com/demo has expired: the AI, the voice and the mail are refused until you sign in again.',fix:'Press “Sign in again” at the top of the page.'})}else push({id:'signin',label:'Demo sign-in',s:'ok',d:'Signed in.'})}catch(e){}

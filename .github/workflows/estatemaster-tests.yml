@@ -87,3 +87,22 @@ jobs:
             estatemaster-agent/tests/jadwa-run.log
             estatemaster-agent/tests/jadwa-run.log.full
           if-no-files-found: ignore
+
+  # every night: the second formula engine (lo-service, LibreOffice) end to end, on the workbook the browser engine cannot run
+  server-engine:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install LibreOffice and Playwright
+        run: |
+          sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libreoffice-calc-nogui python3-uno
+          cd estatemaster-agent/tests && npm init -y >/dev/null && npm i playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium
+      - name: Run the server engine test
+        run: |
+          cd estatemaster-agent/lo-service && (LO_TOKEN=test PORT=8099 python3 server.py &) && for i in $(seq 1 60); do curl -s localhost:8099/health | grep -q '"ok": true' && break; sleep 1; done
+          cd .. && (python3 -m http.server 4090 >/dev/null 2>&1 &) && sleep 1 && cd tests && LO_TEST_URL=http://localhost:8099 node t_loengine.mjs "http://localhost:4090/?mode=readonly"

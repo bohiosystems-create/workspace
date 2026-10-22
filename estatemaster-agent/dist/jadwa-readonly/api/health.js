@@ -13,6 +13,7 @@ module.exports = async function handler(req, res) {
       voice: on('ELEVENLABS_API_KEY'),
       microsoft365: on('MS_TENANT_ID', 'MS_CLIENT_ID', 'MS_CLIENT_SECRET'),
       sessionGate: on('DEMO_SESSION_SECRET'),
+      serverEngine: on('LO_URL', 'LO_TOKEN'),
     },
   };
   res.statusCode = 200;

@@ -51,7 +51,7 @@ rep("'<h2>Integrations and feeds</h2><div class=\"sub\">What the agent reads and
 rep("function sysPrompt(ch,role){", "function sysPrompt(ch,role){return ax(sysPrompt0(ch,role))}\nfunction sysPrompt0(ch,role){")
 # the daily feed card title and the modelling page copy follow the API wording through ax()/axNode()
 (HERE / 'index.html').write_text(s, encoding='utf-8')
-for f in ('llm.js', 'scan.js', 'voice.js', 'mail.js', 'cron.js', 'schedule.js', 'log.js', 'health.js'):
+for f in ('llm.js', 'scan.js', 'voice.js', 'mail.js', 'cron.js', 'schedule.js', 'log.js', 'health.js', 'lo.js'):
     shutil.copy(SRC / 'api' / f, HERE / 'api' / f)
 shutil.rmtree(HERE / 'api/_lib', ignore_errors=True); shutil.copytree(SRC / 'api/_lib', HERE / 'api/_lib')
 vj = json.loads((SRC / 'vercel.json').read_text()); vj['functions'].pop('api/runner.js', None)

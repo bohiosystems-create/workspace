@@ -93,7 +93,7 @@ def build(mode, brand=None):
         html = B.apply(html)
         (out / "guide.html").write_text(B.guide((ROOT / "guides" / f"{mode}.html").read_text(encoding="utf-8")), encoding="utf-8")
     (out / "index.html").write_text(html, encoding="utf-8")
-    for f in ("llm.js", "scan.js", "voice.js", "mail.js", "cron.js", "schedule.js", "log.js", "health.js"):
+    for f in ("llm.js", "scan.js", "voice.js", "mail.js", "cron.js", "schedule.js", "log.js", "health.js", "lo.js"):
         shutil.copy(ROOT / "api" / f, out / "api" / f)
     shutil.copytree(ROOT / "api" / "_lib", out / "api" / "_lib")
     if brand:   # the server's emails in the brand's look, with its logo
