@@ -60,7 +60,7 @@ for (const f of files) {
     // sample packs: the documents inside are re-written too
     const z = unzipSync(buf), o = {};
     for (const [name, data] of Object.entries(z)) o[renameText(name)] = TEXT.test(name) || /\.(md|csv|txt)$/i.test(name) ? strToU8(transform(strFromU8(data))) : data;
-    fs.writeFileSync(out, zipSync(o, { level: 9 }));
+    fs.writeFileSync(out, zipSync(o, { level: 9, mtime: "2026-01-01T00:00:00Z" })); // a fixed date: the same pack every run
   } else fs.writeFileSync(out, TEXT.test(f) ? transform(buf.toString("utf8")) : buf);
   n++;
 }
