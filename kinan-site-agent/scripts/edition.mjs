@@ -112,6 +112,6 @@ execFileSync(process.execPath, [path.join(dest, "scripts", "brand.mjs")], { cwd:
 
 // any Kinan left (outside embedded images) is a miss: list it
 const left = [];
-const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (["node_modules", ".next", "data"].includes(e.name)) continue; const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (TEXT.test(p)) { const t = fs.readFileSync(p, "utf8").split(/[A-Za-z0-9+/=]{300,}/).join(""); if (/kinan|كنان/i.test(t)) left.push(path.relative(dest, p)); } } };
+const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { if (d === dest && KEEP.has(e.name)) continue; // the destination's own files (the portal's gate) are not ours const p = path.join(d, e.name); if (e.isDirectory()) walk(p); else if (TEXT.test(p)) { const t = fs.readFileSync(p, "utf8").split(/[A-Za-z0-9+/=]{300,}/).join(""); if (/kinan|كنان/i.test(t)) left.push(path.relative(dest, p)); } } };
 walk(dest);
 console.log(`vanilla edition: ${n} files → ${dest}${left.length ? `\nstill mentions Kinan: ${left.join(", ")}` : " (no Kinan left)"}`);
