@@ -50,7 +50,7 @@ t(seen.arb.length===1&&/F\d+\./.test(seen.arb[0]),'the third model decided the d
 await ev(()=>{window._ec=exportChecks;window.exportChecks=x=>window._ec(x).concat([{level:'warn',code:'t-obs',text:'Contingency of 5% looks low for a residential scheme',cell:'Assumptions!D15'}])});
 await ev(()=>auditExport(latestExport(),true,false));await p.waitForFunction(()=>latestExport().audit.status!=='running',null,{timeout:240000}).catch(()=>{});
 const O=await ev(()=>latestExport().audit.checks.filter(c=>c.level!=='note').map(c=>({t:c.text,ai:c.ai})));
-t(O.length===1&&O[0].ai&&O[0].ai.votes.length===2&&O[0].ai.status==='dismissed'&&O[0].ai.arb,'an app observation is a claim to review, not a verdict: the agents split on it, the third model rejected it, so it is dismissed '+JSON.stringify(O[0]&&O[0].ai).slice(0,200));
+const O0=O.find(c=>/Contingency of 5%/.test(c.t));t(O0&&O0.ai&&O0.ai.votes.length===2&&O0.ai.status==='dismissed'&&O0.ai.arb,'an app observation is a claim to review, not a verdict: the agents split on it, the third model rejected it, so it is dismissed '+JSON.stringify(O0&&O0.ai).slice(0,200));   /* the structural audit adds its own observations on this model; the injected one is found among them */
 t(/O0\. App observation: Contingency/.test(seen.arb[seen.arb.length-1]||''),'the disputed observation went to the third model');
 await ev(()=>{openDbgWin(latestExport().id);dbgWMin(false)});await p.waitForTimeout(300);
 const W=await ev(()=>$('#dbgWBody').textContent);
