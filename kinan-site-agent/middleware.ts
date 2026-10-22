@@ -19,5 +19,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/whatsapp|api/integrations|api/import|api/reports/run|_next/static|_next/image|icon.svg|manifest.webmanifest).*)"],
+  matcher: ["/((?!api/whatsapp|api/integrations|api/import|api/reports/run|_next/static|_next/image|icon.svg|manifest.webmanifest|field-sw.js).*)"],
 };

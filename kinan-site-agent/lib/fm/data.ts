@@ -104,6 +104,8 @@ const AIRPORT: Plant = {
 };
 
 export const PLANTS: Plant[] = [ENERGY, WATER, AIRPORT];
+/** A technician's (fictional) mobile number: the same every day, so it can sign in to the field app and WhatsApp. */
+export const techPhone = (plant: number, i: number) => `+96655${plant + 1}${String(i + 1).padStart(2, "0")}${String(1000 + i * 37).slice(-3)}0`;
 export const SECTOR_LABEL: Record<Sector, string> = { energy: "Power & energy", water: "Water desalination", airport: "Airport" };
 const PREFIX: Record<string, string> = { kcps: "E", krsd: "W", kgia: "A" };
 
@@ -176,7 +178,8 @@ export function generate(date: string): FmData {
     }
     // technicians
     P.techs.forEach(([name, role, trades, shift, zone, years], i) => {
-      out.technicians.push({ id: `${fid}:t${i + 1}`, name, facilityId: fid, role, trades, shift, zone, years, phone: `+9665${String(30000000 + Math.floor(S() * 60000000))}`, status: shift === "off" ? "off" : "available" });
+      S(); // (the random draw a phone number once took: keeps the rest of the day's data unchanged)
+      out.technicians.push({ id: `${fid}:t${i + 1}`, name, facilityId: fid, role, trades, shift, zone, years, phone: techPhone(PLANTS.indexOf(P), i), status: shift === "off" ? "off" : "available" });
     });
     // spares
     P.spares.forEach(([part, stock, min, lead, cost, loc], i) => out.spares.push({ id: `${fid}:s${i + 1}`, facilityId: fid, part, stock, min, leadDays: lead, unitCost: cost, location: loc }));

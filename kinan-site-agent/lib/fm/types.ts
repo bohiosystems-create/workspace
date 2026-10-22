@@ -70,17 +70,28 @@ export interface FmData {
 }
 
 /** One change, by a person or by the orchestrator. Re-applied in order on top of the generated day. */
-export type FmEvent = { id: string; at: string; by: string; channel: "web" | "field" | "whatsapp" | "orchestrator" | "voice"; summary: string } & (
+export type FmEvent = {
+  id: string; at: string; by: string; channel: "web" | "field" | "whatsapp" | "orchestrator" | "voice"; summary: string;
+  /** the signed-in person behind it (directory id) and their role, when known — unverified otherwise */
+  byId?: string; role?: string;
+  /** the client's own id for a change sent from the field app's outbox: a retry is recorded once */
+  cid?: string;
+} & (
   | { kind: "wo_create"; wo: WorkOrder }
   | { kind: "wo_update"; woId: string; patch: Partial<Pick<WorkOrder, "status" | "assignee" | "priority" | "due" | "holdReason">> & { note?: string; evidence?: string[]; checklist?: number[]; permitStatus?: "issued" | "closed" } }
   | { kind: "asset_status"; assetId: string; status: AssetStatus; note?: string }
   | { kind: "alarm_ack"; alarmId: string; woId?: string }
   | { kind: "spare_order"; spareId: string; qty: number }
-  | { kind: "action"; actionId: string; decision: "approved" | "rejected" | "auto" }
+  | { kind: "action"; actionId: string; decision: "approved" | "rejected" | "auto"; actionKind?: Action["kind"]; facilityId?: string; reason?: import("../proposals").RejectReason; note?: string; targetTech?: string; cost?: number; risk?: Action["risk"] }
+  | { kind: "policy"; facilityId: string; policy: AutopilotPolicy | null }
   | { kind: "tech_status"; techId: string; status: Technician["status"]; zone?: string }
 );
 
-export interface FmConfig { autopilot: Record<string, boolean> }
+export interface FmConfig { autopilot: Record<string, boolean>; /** what the autopilot may do, signed by a manager, per facility */ policy?: Record<string, AutopilotPolicy> }
+
+/** The autopilot's mandate for one facility: which kinds of proposal it may carry out by itself, up to what risk and
+ *  spend — signed by a manager or director, and logged. Nothing runs by itself without one. */
+export interface AutopilotPolicy { kinds: Action["kind"][]; maxRisk: "low" | "medium"; maxSpend: number; signedBy: string; signedById?: string; role: string; at: string }
 
 /** What the orchestrator proposes, with why. Approved actions become events. */
 export interface Action {
@@ -88,6 +99,8 @@ export interface Action {
   kind: "raise_wo" | "assign" | "reschedule" | "escalate" | "order_spare" | "permit" | "isolate";
   title: string; why: string[];
   risk: "low" | "medium" | "high";
+  /** money it commits (SAR), for approval limits */
+  cost?: number;
   /** low-risk actions run by themselves when autopilot is on */
   auto: boolean;
   effect: FmEvent["kind"];

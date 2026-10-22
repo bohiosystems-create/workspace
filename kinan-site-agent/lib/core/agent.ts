@@ -20,6 +20,10 @@ export interface AgentContext {
   aiOnly?: boolean;
   /** the daily brief's layout, when the host has the reports engine (server and standalone page) */
   reports?: ToolCtx["reports"];
+  /** the person behind the conversation: their role and approval limits apply to decisions */
+  user?: ToolCtx["user"];
+  /** called for every tool the agent uses (the eval runner records them) */
+  onTool?: (name: string, input: unknown, result: string) => void;
 }
 /** Thrown when an AI-only answer cannot be produced: no provider configured, or every provider failed. */
 export class AiUnavailable extends Error {
@@ -49,17 +53,18 @@ Rules:
 - Photos: every uploaded site photo carries an AI reading in its document text (what it shows, the stage of work, the likely activity, safety/quality issues). Use it; when the user asks about a photo in detail, call get_document to look at the image itself. Treat the suggested activity as a suggestion, never as reported progress.
 - Material requests: call create_material_request only when item, quantity, unit and need-by date are known — otherwise ask. Never claim an order was placed; MRs go to procurement for approval.
 - Showing things: call open_document / show_on_map so ${wa ? "the file or map image is sent in the chat" : "the phone displays it"}.
-- You record information; you do not approve, reject or instruct subcontractors on the manager's behalf.
+- Proposals: when an answer shows a problem the site orchestrator acts on (a late package, slipping critical work, expired permits, an overdue NCR, low stock, a material request waiting), check site_proposals and end with the matching proposal: what it would do, why, and its cost. Approve or reject only when the user asks you to — never on your own initiative; the tool applies their approval limits (if they may not, say who can). When they reject without a reason, ask for one in a word (not now, already handled, wrong person, too costly, disagree): the orchestrator learns from it.
+- Apart from approved proposals, you record information; you do not instruct subcontractors on the manager's behalf.
 
 Current context:
-- User: ${c.author}
+- User: ${c.author}${c.user ? ` — signed in as ${c.user.name}, ${c.user.title} (${c.user.role})` : " — not signed in (can't approve proposals)"}
 - Phone position on site: ${c.here ? locationPath(db, c.here.locationId) : "unknown"}
 - Viewing document: ${focusDoc ? `${focusDoc.title} (id ${focusDoc.id}, rev ${focusDoc.revision ?? "-"})` : "none"}
 - Selected place: ${c.focus?.locationId ? locationPath(db, c.focus.locationId) : "none"}`;
 }
 
 export async function runAgent(repo: Repo, history: ChatTurn[], ctx: AgentContext, cfg: LlmConfig): Promise<AgentReply> {
-  const toolCtx: ToolCtx = { author: ctx.author, actions: [], focus: { ...ctx.focus }, channel: ctx.channel ?? "web", reports: ctx.reports, fm: ctx.fm };
+  const toolCtx: ToolCtx = { author: ctx.author, actions: [], focus: { ...ctx.focus }, channel: ctx.channel ?? "web", reports: ctx.reports, fm: ctx.fm, user: ctx.user };
   if (!toolCtx.focus?.locationId && ctx.here) toolCtx.focus = { ...toolCtx.focus, locationId: ctx.here.locationId };
   if (!availableProviders(cfg).length) {
     if (ctx.aiOnly) throw new AiUnavailable("No AI provider is configured — set ANTHROPIC_API_KEY or OPENAI_API_KEY.");
@@ -72,7 +77,11 @@ export async function runAgent(repo: Repo, history: ChatTurn[], ctx: AgentContex
       attachments: ctx.attachments,
       // a facility conversation keeps to the operations tools (and the document library for manuals and photos)
       tools: ctx.fm ? TOOL_DEFS.filter((t) => t.name.startsWith("fm_") || t.name === "search_documents" || t.name === "get_document") : TOOL_DEFS,
-      exec: (name, input) => runTool(repo, name, input as Record<string, any>, toolCtx),
+      exec: async (name, input) => {
+        const r = await runTool(repo, name, input as Record<string, any>, toolCtx);
+        ctx.onTool?.(name, input, typeof r === "string" ? r : JSON.stringify(r).slice(0, 4000));
+        return r;
+      },
       maxTokens: 2000,
       deadline: ctx.deadline,
     });

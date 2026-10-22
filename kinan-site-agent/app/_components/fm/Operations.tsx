@@ -6,12 +6,15 @@
  * Everything reloads by itself when anything changes (WhatsApp, the field app, another user).
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { facilityState, overview } from "@/lib/fm/api";
-import type { Asset, Reading, WorkOrder } from "@/lib/fm/types";
+import type { facilityStateFor, overview } from "@/lib/fm/api";
+import type { Action, Asset, AutopilotPolicy, Reading, WorkOrder } from "@/lib/fm/types";
+import type { Outcomes } from "@/lib/outcomes";
 import { Icon } from "../icons";
+import { Decide } from "../Decide";
+import { OutcomesPanel } from "../Outcomes";
 
 type Overview = ReturnType<typeof overview>;
-type FS = ReturnType<typeof facilityState>;
+type FS = ReturnType<typeof facilityStateFor>;
 type WO = FS["workOrders"][number];
 const SECTOR_ICON: Record<string, string> = { energy: "chart", water: "layers", airport: "map" };
 const fmtN = (n: number, unit: string) => unit === "m³/day" || unit === "pax/day" ? n.toLocaleString("en-US") : String(n);
@@ -62,18 +65,22 @@ export function FacilityCards({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 // ======================================================================== control room
-type Tab = "orchestrator" | "work" | "assets" | "alarms" | "team" | "spares" | "activity";
-export function ControlRoom({ facilityId, author, onBack }: { facilityId: string; author: string; onBack: () => void }) {
+type Tab = "orchestrator" | "work" | "assets" | "alarms" | "team" | "spares" | "activity" | "outcomes";
+export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facilityId: string; author: string; onBack: () => void; onSignIn: () => void }) {
   const [s, setS] = useState<FS | null>(null);
   const [tab, setTab] = useState<Tab>("orchestrator");
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [woOpen, setWoOpen] = useState<string | null>(null);
   const [assetOpen, setAssetOpen] = useState<string | null>(null);
+  const [policyOpen, setPolicyOpen] = useState(false);
+  const [oc, setOc] = useState<Outcomes | null>(null);
   const load = useCallback(() => { fetch(`/api/fm?facility=${facilityId}`, { cache: "no-store" }).then((r) => r.json()).then((j) => { if (j.error) setMsg({ text: j.error, bad: true }); else setS(j); }).catch(() => setMsg({ text: "Could not load the facility.", bad: true })); }, [facilityId]);
   useEffect(load, [load]);
   useLive(load);
-  // Autopilot: while the control room is open, the low-risk proposals run by themselves every 15 s.
+  useEffect(() => { window.addEventListener("kinan:auth", load); return () => window.removeEventListener("kinan:auth", load); }, [load]);
+  useEffect(() => { if (tab === "outcomes") fetch(`/api/today?outcomes=${facilityId}`, { cache: "no-store" }).then((r) => r.json()).then((j) => !j.error && setOc(j)).catch(() => undefined); }, [tab, facilityId, s]);
+  // Autopilot: while the control room is open, what the signed policy allows runs by itself every 15 s.
   useEffect(() => {
     if (!s?.autopilot) return;
     const run = () => post({ action: "tick", facilityId, by: "Orchestrator" }).then((r) => { if (r.message) { setMsg({ text: r.message }); load(); } }).catch(() => undefined);
@@ -90,7 +97,8 @@ export function ControlRoom({ facilityId, author, onBack }: { facilityId: string
   const tag = (id?: string) => s.assets.find((a) => a.id === id)?.tag ?? "";
   const who = (id?: string) => s.technicians.find((t) => t.id === id)?.name ?? "—";
   const open = s.workOrders.filter((w) => w.status !== "done");
-  const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ["work", "Work orders", open.length], ["assets", "Assets"], ["alarms", "Alarms", k.activeAlarms], ["team", "Team"], ["spares", "Spares", k.sparesLow], ["activity", "Activity"]];
+  const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ["work", "Work orders", open.length], ["assets", "Assets"], ["alarms", "Alarms", k.activeAlarms], ["team", "Team"], ["spares", "Spares", k.sparesLow], ["outcomes", "Outcomes"], ["activity", "Activity"]];
+  const mine = s.actions.filter((a) => a.can.ok && a.risk === "low");
   const wo = woOpen ? s.workOrders.find((w) => w.id === woOpen) : undefined;
   const asset = assetOpen ? s.assets.find((a) => a.id === assetOpen) : undefined;
   return (
@@ -114,26 +122,28 @@ export function ControlRoom({ facilityId, author, onBack }: { facilityId: string
 
       {tab === "orchestrator" && (
         <section className="ops-panel">
+          <AutopilotBar s={s} busy={!!busy} onSetUp={() => setPolicyOpen(true)} onPause={(on) => doit("autopilot", { action: "autopilot", on })} />
           <div className="ops-row">
             <div className="rpt-label">The orchestrator proposes</div>
             <span className="grow" />
-            <label className="ops-switch"><input type="checkbox" checked={s.autopilot} onChange={(e) => doit("autopilot", { action: "autopilot", on: e.target.checked })} /><span>Autopilot</span><em>{s.autopilot ? "low-risk actions run by themselves" : "everything waits for approval"}</em></label>
-            {s.actions.some((a) => a.risk === "low") && <button className="mini" disabled={!!busy} onClick={async () => { for (const a of s.actions.filter((x) => x.risk === "low")) { try { await post({ action: "decide", actionId: a.id, decision: "approved", by: author }); } catch { /* changed meanwhile */ } } setMsg({ text: "Approved all low-risk actions." }); load(); }}>Approve all low-risk</button>}
+            {mine.length > 1 && <button className="mini" disabled={!!busy} onClick={async () => { let n = 0; for (const a of mine) { try { await post({ action: "decide", actionId: a.id, decision: "approved", by: author }); n++; } catch { /* changed meanwhile */ } } setMsg({ text: `Approved ${n} low-risk action${n === 1 ? "" : "s"}.` }); load(); }}>Approve all low-risk ({mine.length})</button>}
           </div>
           {s.top.length > 0 && <div className="ops-top"><b>Now:</b> {s.top.slice(0, 4).join(" · ")}</div>}
           {s.actions.length === 0 && <p className="muted">Nothing to propose: every alarm has work, every job has someone on it, stock covers the work.</p>}
           <ul className="ops-actions">
             {s.actions.map((a) => (
               <li key={a.id} className={`risk-${a.risk}`}>
-                <div className="oa-head"><span className={`ops-pill ${a.risk}`}>{a.risk} risk</span><span className="oa-kind">{a.kind.replace("_", " ")}</span>{a.auto && <span className="oa-auto">autopilot can run this</span>}</div>
+                <div className="oa-head"><span className={`ops-pill ${a.risk}`}>{a.risk} risk</span><span className="oa-kind">{s.kindLabels[a.kind]}</span>{a.cost ? <span className="td-cost">SAR {a.cost.toLocaleString("en-US")}</span> : null}{a.byPolicy ? <span className="oa-auto">the autopilot will do this</span> : a.auto && <span className="oa-auto dim">autopilot can run this</span>}</div>
                 <b>{a.title}</b>
                 <ul className="oa-why">{a.why.map((y, i) => <li key={i}>{y}</li>)}</ul>
-                <div className="oa-acts"><button className="studio-add" disabled={!!busy} onClick={() => doit(a.id, { action: "decide", actionId: a.id, decision: "approved" })}>{busy === a.id ? "…" : "Approve"}</button><button className="mini" disabled={!!busy} onClick={() => doit(a.id + "r", { action: "decide", actionId: a.id, decision: "rejected" })}>Reject</button></div>
+                <Decide can={a.can} busy={busy === a.id} onSignIn={onSignIn} onApprove={() => doit(a.id, { action: "decide", actionId: a.id, decision: "approved" })} onReject={(reason) => doit(a.id, { action: "decide", actionId: a.id, decision: "rejected", reason })} />
               </li>
             ))}
           </ul>
         </section>
       )}
+
+      {tab === "outcomes" && (oc ? <OutcomesPanel o={oc} /> : <p className="muted">Loading…</p>)}
 
       {tab === "work" && <WorkList s={s} tag={tag} who={who} onOpen={setWoOpen} />}
 
@@ -186,6 +196,7 @@ export function ControlRoom({ facilityId, author, onBack }: { facilityId: string
         </section>
       )}
 
+      {policyOpen && <PolicySheet s={s} busy={!!busy} onClose={() => setPolicyOpen(false)} onSign={async (policy) => { await doit("policy", { action: "policy", on: true, policy }); setPolicyOpen(false); }} onWithdraw={async () => { await doit("policy", { action: "policy", on: false }); setPolicyOpen(false); }} />}
       {wo && <WoDrawer s={s} wo={wo} tag={tag} onClose={() => setWoOpen(null)} doit={doit} busy={busy} />}
       {asset && <AssetDrawer s={s} asset={asset} onClose={() => setAssetOpen(null)} onWo={(id) => { setAssetOpen(null); setWoOpen(id); }} doit={doit} busy={busy} />}
     </div>
@@ -319,6 +330,55 @@ function AssetDrawer({ s, asset: a, onClose, onWo, doit, busy }: { s: FS; asset:
           <select value={pr} onChange={(e) => setPr(e.target.value as WorkOrder["priority"])}>{(["P1", "P2", "P3", "P4"] as const).map((p) => <option key={p}>{p}</option>)}</select>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What needs doing" /><button className="mini" disabled={!title.trim() || !!busy}>Raise</button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/** The autopilot's state: what it may do, who signed it, and pause / resume / set up. */
+function AutopilotBar({ s, busy, onSetUp, onPause }: { s: FS; busy: boolean; onSetUp: () => void; onPause: (on: boolean) => void }) {
+  const p = s.policy;
+  if (!p) return (
+    <div className="ap-bar off">
+      <span className="grow"><b>Autopilot off</b><em>Nothing runs by itself until a manager signs what it may do: which kinds of action, up to what risk and spend.</em></span>
+      <button className="mini" onClick={onSetUp}>{s.canPolicy.ok ? "Set up autopilot" : "See the policy"}</button>
+    </div>
+  );
+  return (
+    <div className={`ap-bar ${s.autopilot ? "on" : "paused"}`}>
+      <span className="grow"><b>Autopilot {s.autopilot ? "on" : "paused"}</b>
+        <em>{p.kinds.map((k) => s.kindLabels[k]).join(", ")} · up to {p.maxRisk} risk and SAR {p.maxSpend.toLocaleString("en-US")} each · signed by {p.signedBy} ({p.role}) {ago(p.at)}</em></span>
+      {s.autopilot ? (s.canPause.ok && <button className="mini" disabled={busy} onClick={() => onPause(false)}>Pause</button>) : (s.canPolicy.ok && <button className="mini" disabled={busy} onClick={() => onPause(true)}>Resume</button>)}
+      <button className="mini" onClick={onSetUp}>Policy</button>
+    </div>
+  );
+}
+
+/** Sign (or withdraw) the autopilot policy for this facility — managers and directors only. */
+function PolicySheet({ s, busy, onClose, onSign, onWithdraw }: { s: FS; busy: boolean; onClose: () => void; onSign: (p: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend">) => void; onWithdraw: () => void }) {
+  const base = s.policy ?? s.defaultPolicy;
+  const [kinds, setKinds] = useState<Action["kind"][]>(base.kinds);
+  const [maxRisk, setMaxRisk] = useState<"low" | "medium">(base.maxRisk);
+  const [maxSpend, setMaxSpend] = useState(base.maxSpend);
+  const all = Object.keys(s.kindLabels) as Action["kind"][];
+  const can = s.canPolicy;
+  return (
+    <div className="modal" role="dialog" aria-label="Autopilot policy" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-card ops-drawer">
+        <div className="sheet-h"><b>Autopilot policy · {s.facility.name}</b><button className="x" onClick={onClose} aria-label="Close">×</button></div>
+        <p className="small">What the orchestrator may do by itself while the control room is open. Anything outside this waits for a person. Every action it takes is logged with this policy and who signed it.</p>
+        {s.policy && <p className="small muted">Current policy signed by {s.policy.signedBy} ({s.policy.role}), {new Date(s.policy.at).toLocaleString()}.</p>}
+        <div className="rpt-label">It may</div>
+        <ul className="od-check">{all.map((k) => <li key={k}><label><input type="checkbox" disabled={!can.ok} checked={kinds.includes(k)} onChange={(e) => setKinds(e.target.checked ? [...kinds, k] : kinds.filter((x) => x !== k))} />{s.kindLabels[k]}</label></li>)}</ul>
+        <div className="od-grid">
+          <label>Up to risk<select disabled={!can.ok} value={maxRisk} onChange={(e) => setMaxRisk(e.target.value as "low" | "medium")}><option value="low">Low</option><option value="medium">Medium</option></select></label>
+          <label>Up to (SAR per action)<input type="number" min={0} max={250000} step={1000} disabled={!can.ok} value={maxSpend} onChange={(e) => setMaxSpend(Number(e.target.value))} /></label>
+        </div>
+        {!can.ok && <div className="dc-no"><span>{can.why}</span></div>}
+        <div className="oa-acts">
+          <button className="studio-add" disabled={!can.ok || busy || !kinds.length} onClick={() => onSign({ kinds, maxRisk, maxSpend })}>{s.policy ? "Sign the new policy" : "Sign and switch on"}</button>
+          {s.policy && can.ok && <button className="mini" disabled={busy} onClick={onWithdraw}>Withdraw the policy</button>}
+        </div>
       </div>
     </div>
   );

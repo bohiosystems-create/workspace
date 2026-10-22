@@ -45,7 +45,7 @@ export function applyEvent(d: FmData, e: FmEvent) {
     case "alarm_ack": { const a = d.alarms.find((x) => x.id === e.alarmId); if (a) { a.acknowledged = true; if (e.woId) a.woId = e.woId; } break; }
     case "spare_order": { const s = d.spares.find((x) => x.id === e.spareId); if (s) s.onOrder = (s.onOrder ?? 0) + e.qty; break; }
     case "tech_status": { const t = d.technicians.find((x) => x.id === e.techId); if (t) { t.status = e.status; if (e.zone) t.zone = e.zone; } break; }
-    case "action": break; // the decision itself; its effects are their own events
+    case "action": case "policy": break; // the decision itself (its effects are their own events), the autopilot mandate
   }
 }
 const addDays = (iso: string, n: number) => { const x = new Date(iso.slice(0, 10) + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
@@ -66,8 +66,8 @@ export function kpis(d: FmData, facilityId: string, now = Date.now()): Kpis {
   const open = wos.filter(isOpen), done = wos.filter((w) => w.status === "done" && w.started && w.done);
   const crit = assets.filter((a) => a.criticality === "A" && a.status !== "standby");
   const avail = crit.length ? crit.filter((a) => a.status === "running" || a.status === "degraded").length / crit.length : 1;
-  const pms = wos.filter((w) => w.type === "PM" && w.due <= d.date);
-  const pmLate = pms.filter((w) => isOpen(w) && w.due < d.date).length;
+  // planned maintenance on time: the share of assets whose PM is not overdue (no past-due open PM, next PM not passed)
+  const pmLateAssets = new Set([...assets.filter((a) => a.nextPm < d.date).map((a) => a.id), ...wos.filter((w) => w.type === "PM" && isOpen(w) && w.due < d.date).map((w) => w.assetId)]);
   const cm = done.filter((w) => w.type === "CM" || w.type === "Emergency");
   const mttr = done.length ? done.reduce((s, w) => s + (Date.parse(w.done!) - Date.parse(w.started!)) / HOUR, 0) / done.length : 0;
   const failures = Math.max(1, cm.length + open.filter((w) => w.type === "CM" || w.type === "Emergency").length);
@@ -78,7 +78,7 @@ export function kpis(d: FmData, facilityId: string, now = Date.now()): Kpis {
     criticalDown: assets.filter((a) => a.criticality === "A" && a.status === "down").length,
     openWos: open.length, overdueWos: open.filter((w) => isOverdue(w, now)).length,
     slaAtRisk: open.filter((w) => w.type !== "PM" && slaLeft(w, now) >= 0 && slaLeft(w, now) < w.slaHours * 0.3).length,
-    pmCompliance: pms.length ? Math.round(((pms.length - pmLate) / pms.length) * 100) : 100,
+    pmCompliance: assets.length ? Math.round(((assets.length - pmLateAssets.size) / assets.length) * 100) : 100,
     mtbfHours: Math.round((assets.length * 7 * 24) / failures), mttrHours: Math.round(mttr * 10) / 10,
     activeAlarms: alarms.filter((a) => !a.acknowledged).length, criticalAlarms: alarms.filter((a) => !a.acknowledged && (a.severity === "critical" || a.severity === "high")).length,
     techsOnShift: techs.filter((t) => t.status !== "off").length, techsBusy: techs.filter((t) => workload(d, t.id) > 0 || t.status === "on_job").length,
@@ -115,10 +115,10 @@ export function findTech(d: FmData, q: string, facilityId?: string): Technician 
 }
 
 /** The best person for a job: right trade, on shift, nearby, least busy; seniority for urgent work. With the reasons. */
-export function bestTech(d: FmData, w: WorkOrder, extra?: Map<string, number>): { tech?: Technician; why: string[] } {
+export function bestTech(d: FmData, w: WorkOrder, extra?: Map<string, number>, exclude?: Set<string>): { tech?: Technician; why: string[] } {
   const a = d.assets.find((x) => x.id === w.assetId);
   if (!a) return { why: [] };
-  const pool = d.technicians.filter((t) => t.facilityId === w.facilityId && t.shift !== "off" && t.status !== "off");
+  const pool = d.technicians.filter((t) => t.facilityId === w.facilityId && t.shift !== "off" && t.status !== "off" && !exclude?.has(t.id));
   const scored = pool.map((t) => {
     const trade = t.trades.includes(a.trade) ? 10 : t.role.toLowerCase().includes("supervisor") ? 2 : 0;
     const shift = t.shift === "day" ? 3 : 1;

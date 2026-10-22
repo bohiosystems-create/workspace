@@ -105,13 +105,37 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
     return json({ project: db.project, locations: db.locations, docs: db.docs.map(({ text: _t, ...d }) => d), notes: db.notes, dataDate: db.data.meta.dataDate, agentMode: "offline", providers: [] });
   }
   if (p === "/api/project") return json(db.data);
+  // signing in: this page has no WhatsApp, so only the demo list (remembered on this device)
+  const Pp = await import("../lib/auth/people");
+  const me = (() => { try { const ph = localStorage.getItem("kinan.sa.me"); return ph ? Pp.findByPhone(db, ph) ?? null : null; } catch { return null; } })();
+  if (p === "/api/auth") {
+    if (method === "GET") return json({ me: me ? Pp.publicPerson(me) : null, demo: true, whatsapp: false, people: Pp.directory(db, {}).map(Pp.publicPerson) });
+    const b = await body();
+    if (b.op === "logout") { try { localStorage.removeItem("kinan.sa.me"); } catch { /* storage blocked */ } return json({ me: null }); }
+    if (b.op === "demo") { const x = Pp.findById(db, String(b.id)); if (!x) return json({ error: "Unknown person." }, 400); try { localStorage.setItem("kinan.sa.me", x.phone); } catch { /* storage blocked */ } return json({ me: Pp.publicPerson(x) }); }
+    return json({ error: "Sign-in by WhatsApp needs the server. Pick a person from the demo list." }, 400);
+  }
+  if (p === "/api/people") return method === "GET" && me && ["manager", "director", "admin"].includes(me.role) ? json({ people: Pp.directory(db, {}), canEdit: false, roles: Object.entries(Pp.LIMITS).map(([id, l]) => ({ id, label: Pp.ROLE_LABEL[id as keyof typeof Pp.LIMITS], limits: l.label })) }) : json({ error: "Managers and admins only." }, 403);
+  if (p === "/api/approvals" || p === "/api/today") {
+    const A = await import("../lib/approvals");
+    try {
+      if (method === "GET") {
+        if (p === "/api/approvals") return json({ items: A.approvals(db, me) });
+        const O = await import("../lib/outcomes");
+        return json(url.searchParams.has("outcomes") ? O.outcomes(db, url.searchParams.get("outcomes") === "all" ? undefined : url.searchParams.get("outcomes") || undefined) : A.today(db, me));
+      }
+      const r = A.decideApproval(db, await body(), me, "web");
+      repo.save();
+      return json({ ok: true, message: r.message });
+    } catch (e) { return json({ error: (e as Error).message }, 400); }
+  }
   // facility management: the same engine and orchestrator, over this page's own copy of the data
   if (p === "/api/fm") {
     const F = await import("../lib/fm/api");
     try {
-      if (method === "GET") { const q = url.searchParams; return json(q.get("tech") ? F.myDay(db, q.get("tech")!) : q.get("facility") ? F.facilityState(db, q.get("facility")!) : F.overview(db)); }
+      if (method === "GET") { const q = url.searchParams; return json(q.get("tech") ? F.myDay(db, q.get("tech")!) : q.get("facility") ? F.facilityStateFor(db, q.get("facility")!, me) : F.overview(db)); }
       const b = await body();
-      const r = F.act(db, b, String(b.by || "Control room"), b.channel === "field" ? "field" : "web");
+      const r = F.act(db, b, me?.name ?? String(b.by || "Control room"), b.channel === "field" ? "field" : "web", me);
       repo.save();
       return json({ ok: true, message: r.message });
     } catch (e) { return json({ error: (e as Error).message }, 400); }
@@ -131,7 +155,7 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
   if (p === "/api/chat" && method === "POST") {
     // the chat answers only through the AI API, with the keys set on this device
     const b = (await body().catch(() => ({}))) as { messages?: { role: "user" | "assistant"; content: string }[]; author?: string; focus?: { docId?: string; locationId?: string } };
-    try { const r = await coreAgent(repo, (b.messages ?? []).slice(-20), { author: b.author || "Site team", channel: "web", focus: b.focus, aiOnly: true, deadline: Date.now() + 90_000, reports: { view: async (l) => (await pageReports().layoutState(l)).view, change: (ops, l, by) => pageReports().layoutChange(ops, l, by, "chat"), undo: (l) => pageReports().layoutUndo(l) } }, llm()); return json(r); }
+    try { const r = await coreAgent(repo, (b.messages ?? []).slice(-20), { author: me?.name ?? (b.author || "Site team"), user: me, channel: "web", focus: b.focus, aiOnly: true, deadline: Date.now() + 90_000, reports: { view: async (l) => (await pageReports().layoutState(l)).view, change: (ops, l, by) => pageReports().layoutChange(ops, l, by, "chat"), undo: (l) => pageReports().layoutUndo(l) } }, llm()); return json(r); }
     catch (e) { return json({ error: e instanceof AiUnavailable ? e.message.replace("set ANTHROPIC_API_KEY or OPENAI_API_KEY", "add a Claude or OpenAI key in settings") : "The AI service did not answer. Try again in a moment." }, 503); }
   }
   if (p === "/api/notes") {

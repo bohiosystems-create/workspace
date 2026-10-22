@@ -28,6 +28,8 @@ export interface ToolCtx {
   fm?: { facilityId?: string; techId?: string };
   /** The daily brief's layout (lib/reports/layout.ts), when the host provides the reports engine. */
   reports?: BriefLayoutApi;
+  /** the person behind the conversation (signed in, or a known WhatsApp number): their approval limits apply */
+  user?: import("../auth/people").Person | null;
 }
 export interface BriefLayoutApi {
   view(lang: "en" | "ar"): Promise<import("../reports/layout").LayoutView>;
@@ -86,6 +88,8 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "get_brief_layout", description: "The daily brief's current layout: sections in order (on/off), item limit, project focus, notes. Use when asked what is in the daily brief / report.", input_schema: obj({ lang: str("en | ar") }) },
   { name: "change_brief_layout", description: "Change the daily brief (the scheduled morning e-mail and ▶ Play): hide/show/move a section, limit lists to N items, focus on one project, add or clear a note, undo the last change, or reset to the standard brief. Sections: headline (always first), since, today, next48, critical, milestones, procurement, safety, projects. Use for 'remove the procurement section', 'move safety to the top', 'only Kinan Heights', 'top 3 items', 'add a note to the brief: …', 'undo'.",
     input_schema: obj({ ops: { type: "array", items: obj({ op: str("hide | show | move | limit | focus | add_note | clear_notes | reset"), section: str("for hide/show/move"), to: str("move: top | bottom | before | after"), ref: str("move before/after: the other section"), n: { type: "number", description: "limit: 1–10, or omit to lift the limit" }, project: str("focus: project name, or omit for all projects"), text: str("add_note: the note") }, ["op"]) }, undo: { type: "boolean", description: "true: undo the last change instead" }, lang: str("en | ar") }) },
+  { name: "site_proposals", description: "The construction orchestrator: what it proposes for the site right now — expedite late packages, resequence work around a late delivery, night shifts to recover slipping work, material requests to raise or approve, expired permits to close, permits and overdue NCRs to chase — each with its reasons, risk, cost and who carries it out. Or approve / reject one (with the reason: not_now, already_handled, wrong_person, too_costly, disagree). Approving changes the programme/procurement records and leaves the instruction on the site plan. The user's approval limits apply.",
+    input_schema: obj({ kind: str("filter: expedite | resequence | recover | stock_mr | approve_mr | permit_close | permit_chase | ncr_escalate"), approve: str("proposal id"), reject: str("proposal id"), reason: str("for reject: not_now | already_handled | wrong_person | too_costly | disagree") }) },
   // facility management: the operations layer (lib/fm/tools.ts)
   ...(FM_TOOLS as ToolDef[]),
 ];
@@ -120,6 +124,18 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
     if (PROCUREMENT_TOOLS.has(name) && repo.syncProcurement) await repo.syncProcurement().catch(() => undefined);
     switch (name) {
       case "search_project": return J(P.searchProject(db, String(input.query ?? "")));
+      case "site_proposals": {
+        const { siteActions, decideSite } = await import("../site/api");
+        const { canApprove } = await import("../auth/people");
+        if (input.approve || input.reject) {
+          const r = decideSite(db, { actionId: String(input.approve ?? input.reject), decision: input.approve ? "approved" : "rejected", reason: input.reason }, ctx.user, ctx.channel === "whatsapp" ? "whatsapp" : ctx.channel === "field" ? "field" : "web");
+          await repo.save();
+          return J({ ok: true, message: r.message });
+        }
+        const xs = siteActions(db).filter((a) => !input.kind || a.kind === input.kind);
+        return J({ user: ctx.user ? `${ctx.user.name} (${ctx.user.role})` : "not signed in — can't approve", count: xs.length,
+          proposals: xs.map((a) => ({ id: a.id, kind: a.kind, title: a.title, why: a.why, risk: a.risk, cost: a.cost, costNote: a.costNote, owner: a.owner, userMayApprove: canApprove(ctx.user, { domain: "site", risk: a.risk, cost: a.cost }) })) });
+      }
       case "search_documents": {
         let locationId: string | undefined;
         if (input.location) { const l = resolveLocation(db, String(input.location)); if (!l) return J({ error: `No place matches "${input.location}".` }); locationId = l.id; }

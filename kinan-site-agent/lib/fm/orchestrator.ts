@@ -5,10 +5,23 @@
 // AI agent can explain and act on exactly what the control room sees.
 import type { Action, FmData, FmEvent, Priority, WorkOrder } from "./types";
 import { PRIORITY_SLA, bestTech, isOpen, newWoId, slaLeft } from "./engine";
+import { doubtLine } from "../proposals";
+
+/** What the orchestrator has learned from people's decisions (lib/proposals.ts). */
+export interface Learned {
+  /** proposal ids already decided (and still closed) */
+  closed: Set<string>;
+  /** "wrong person": job key (e.g. "assign:WO-W24117") → people not to propose again */
+  exclude?: Map<string, Set<string>>;
+  /** "<facility>|<kind>" → mostly rejected here */
+  doubts?: Map<string, { rejected: number; of: number; reasons: string[] }>;
+}
+export const KIND_LABEL: Record<Action["kind"], string> = { raise_wo: "raise work from an alarm", assign: "assign a job", reschedule: "reschedule overdue work", escalate: "escalate an SLA risk", order_spare: "order spares", permit: "issue a permit", isolate: "change over to standby" };
 
 const PERMIT: Record<string, NonNullable<WorkOrder["permit"]>["type"]> = { electrical: "electrical isolation", transformer: "electrical isolation", breaker: "electrical isolation", ups: "electrical isolation", hrsg: "confined space", gt: "hot work", pbb: "work at height", escalator: "electrical isolation", lift: "electrical isolation" };
 
-export function propose(d: FmData, decided: Set<string>, facilityId?: string, now = Date.now()): Action[] {
+export function propose(d: FmData, learned: Learned, facilityId?: string, now = Date.now()): Action[] {
+  const decided = learned.closed;
   const out: Action[] = [];
   const fac = (id: string) => !facilityId || id === facilityId;
   const asset = (id: string) => d.assets.find((a) => a.id === id)!;
@@ -24,7 +37,7 @@ export function propose(d: FmData, decided: Set<string>, facilityId?: string, no
     const wo: WorkOrder = { id: "", facilityId: a.facilityId, assetId: a.id, type: al.severity === "critical" ? "Emergency" : "CM", priority: pr, status: "open", title: `Investigate: ${al.message.split(":")[0]}`, detail: al.message,
       raised: new Date(now).toISOString(), due: new Date(now + PRIORITY_SLA[pr] * 3600_000).toISOString().slice(0, 10), slaHours: PRIORITY_SLA[pr], source: "orchestrator", raisedBy: "Orchestrator",
       checklist: [{ text: "Make safe and confirm the reading on site", done: false }, { text: "Find the cause", done: false }, { text: "Repair or change over to standby", done: false }, { text: "Return to service and record", done: false }], spares: [], notes: [], evidence: [] };
-    const { tech, why } = bestTech(d, wo, handed);
+    const { tech, why } = bestTech(d, wo, handed, learned.exclude?.get(`raise:${al.id}`));
     const permit = PERMIT[a.class] ?? (a.trade === "electrical" ? "electrical isolation" : undefined);
     push({ id: `raise:${al.id}`, facilityId: a.facilityId, kind: "raise_wo", title: `Raise ${pr} ${wo.type === "Emergency" ? "emergency" : "corrective"} work for ${a.tag}${tech ? ` and give it to ${tech.name}` : ""}`,
       why: [al.message, `${a.name} is criticality ${a.criticality}${a.criticality === "A" ? " — it affects output or safety" : ""}`, `SLA ${PRIORITY_SLA[pr]} h for ${pr}`, ...(tech ? why : []), ...(permit ? [`Needs a ${permit} permit before work starts`] : [])],
@@ -43,7 +56,7 @@ export function propose(d: FmData, decided: Set<string>, facilityId?: string, no
 
   // 3. Open work without anyone on it.
   for (const w of d.workOrders.filter((x) => fac(x.facilityId) && x.status === "open" && !x.assignee)) {
-    const { tech, why } = bestTech(d, w, handed);
+    const { tech, why } = bestTech(d, w, handed, learned.exclude?.get(`assign:${w.id}`));
     if (!tech) continue;
     push({ id: `assign:${w.id}`, facilityId: w.facilityId, kind: w.type === "PM" && w.due < d.date ? "reschedule" : "assign",
       title: w.type === "PM" && w.due < d.date ? `Overdue planned work ${w.id} (${asset(w.assetId).tag}): give it to ${tech.name} today` : `Give ${w.id} (${asset(w.assetId).tag}) to ${tech.name}`,
@@ -69,7 +82,7 @@ export function propose(d: FmData, decided: Set<string>, facilityId?: string, no
     const cost = qty * s.unitCost;
     push({ id: `order:${s.id}:${s.stock + (s.onOrder ?? 0)}`, facilityId: s.facilityId, kind: "order_spare", title: `Order ${qty} × ${s.part} (SAR ${cost.toLocaleString("en-US")})`,
       why: [`In stock ${s.stock}, minimum ${s.min}${s.onOrder ? `, ${s.onOrder} already on order` : ""}`, ...(need ? [`${need} needed by open work`] : []), `Lead time ${s.leadDays} days`],
-      risk: cost > 100000 ? "medium" : "low", auto: cost <= 25000, effect: "spare_order", payload: { spareId: s.id, qty }, targets: { spareId: s.id } });
+      risk: cost > 100000 ? "medium" : "low", cost, auto: cost <= 25000, effect: "spare_order", payload: { spareId: s.id, qty }, targets: { spareId: s.id } });
   }
 
   // 6. Permits: assigned work on electrical / hot / confined / height jobs without a permit yet.
@@ -78,8 +91,11 @@ export function propose(d: FmData, decided: Set<string>, facilityId?: string, no
       why: [`${w.title}`, `No work may start on ${asset(w.assetId).tag} without a ${w.permit!.type} permit`, "Issued to the assigned technician; it shows on the job in the field app"],
       risk: "low", auto: true, effect: "wo_update", payload: { woId: w.id, patch: { note: `Permit issued: ${w.permit!.type}.`, permitStatus: "issued" } }, targets: { woId: w.id } });
   }
+  // what people keep rejecting here: no longer automatic, shown last, with the reason
+  const doubt = (a: Action) => learned.doubts?.get(`${a.facilityId}|${a.kind}`);
+  for (const a of out) { const l = doubt(a); if (l) { a.auto = false; a.why = [...a.why, doubtLine(KIND_LABEL[a.kind], l)]; } }
   const order = { high: 0, medium: 1, low: 2 } as const;
-  return out.sort((x, y) => order[x.risk] - order[y.risk] || x.title.localeCompare(y.title));
+  return out.sort((x, y) => Number(!!doubt(x)) - Number(!!doubt(y)) || order[x.risk] - order[y.risk] || x.title.localeCompare(y.title));
 }
 
 /** The events an approved action produces (plus the decision itself, recorded by the caller). */

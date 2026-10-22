@@ -11,7 +11,8 @@
     "build:html": "node scripts/brand.mjs && node standalone/build.mjs",
     "brand": "node scripts/brand.mjs",
     "prebuild": "node scripts/brand.mjs",
-    "demo-pack": "node scripts/demo-pack.mjs"
+    "demo-pack": "node scripts/demo-pack.mjs",
+    "eval": "tsx scripts/eval.ts"
   },
   "dependencies": {
     "@elevenlabs/client": "^1.27.0",
@@ -37,6 +38,7 @@
     "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.27",
+    "tsx": "^4.23.15",
     "typescript": "^5.5.0"
   },
   "overrides": {

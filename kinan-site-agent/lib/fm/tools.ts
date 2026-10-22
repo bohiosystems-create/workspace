@@ -5,6 +5,7 @@ import type { Repo, ToolCtx } from "../core/tools";
 import { act, actions, facilityState, myDay, overview, topIssues } from "./api";
 import { fmToday, findAsset, isOpen, isOverdue, kpis, slaLeft, workload } from "./engine";
 import type { FmData } from "./types";
+import { canApprove } from "../auth/people";
 
 const obj = (props: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties: props, required });
 const str = (description?: string) => ({ type: "string", ...(description ? { description } : {}) });
@@ -20,7 +21,7 @@ export const FM_TOOLS = [
   { name: "fm_update_work_order", description: "Progress a work order: start it, put it on hold (with the reason), close it (done), reassign it, tick a checklist step (0-based index), add a note, attach photo evidence. Closing corrective work returns the asset to service.",
     input_schema: obj({ wo: str("e.g. WO-W24117"), status: str("in_progress | on_hold | done | assigned"), note: str(), hold_reason: str(), assignee: str(), checklist_step: { type: "number" }, evidence_doc_ids: { type: "array", items: { type: "string" } } }, ["wo"]) },
   { name: "fm_orchestrator", description: "The orchestration layer: list what it proposes for a facility (raise work from alarms, change over to standby, assign people, escalate SLA risks, order spares, issue permits) with the reasons and ids — or approve / reject one, or approve all low-risk ones. Approving executes it.",
-    input_schema: obj({ facility: FAC, approve: str("action id, or 'low_risk' for all low-risk proposals"), reject: str("action id") }) },
+    input_schema: obj({ facility: FAC, approve: str("action id, or 'low_risk' for all low-risk proposals"), reject: str("action id"), reason: str("for reject: not_now | already_handled | wrong_person | too_costly | disagree") }) },
   { name: "fm_team", description: "The team of a facility: who is on shift, where, doing what, and how many open jobs each has.", input_schema: obj({ facility: FAC }) },
   { name: "fm_my_jobs", description: "A technician's own day: their jobs in the order to do them, permits, alarms in their area. Defaults to the person using this agent.", input_schema: obj({ technician: str("name, optional") }) },
   { name: "fm_spares", description: "Spare parts of a facility: stock against minimum, on order, lead time; low_only for those below minimum.", input_schema: obj({ facility: FAC, low_only: { type: "boolean" } }) },
@@ -84,11 +85,11 @@ async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx:
       if (input.approve || input.reject) {
         const ids = input.approve === "low_risk" ? actions(db, d, fid).filter((a) => a.risk === "low").map((a) => a.id) : [String(input.approve ?? input.reject)];
         const done: string[] = [];
-        for (const id of ids) { try { done.push(act(db, { action: "decide", actionId: id, decision: input.reject ? "rejected" : "approved" }, by, channel).message); } catch (e) { done.push((e as Error).message); } }
+        for (const id of ids) { try { done.push(act(db, { action: "decide", actionId: id, decision: input.reject ? "rejected" : "approved", reason: input.reason }, by, channel, ctx.user).message); } catch (e) { done.push((e as Error).message); } }
         await repo.save();
         return J({ done, stillProposed: actions(db, fmToday(db), fid).map((a) => ({ id: a.id, title: a.title, risk: a.risk })) });
       }
-      return J({ facility: fid, proposals: actions(db, d, fid).map((a) => ({ id: a.id, title: a.title, why: a.why, risk: a.risk, autopilotEligible: a.auto })) });
+      return J({ facility: fid, user: ctx.user ? `${ctx.user.name} (${ctx.user.role})` : "not signed in — can't approve", proposals: actions(db, d, fid).map((a) => ({ id: a.id, title: a.title, why: a.why, risk: a.risk, cost: a.cost, autopilotEligible: a.auto, userMayApprove: canApprove(ctx.user, { domain: "fm", facilityId: a.facilityId, risk: a.risk, cost: a.cost }) })) });
     }
     case "fm_team":
       return J(d.technicians.filter((t) => !fid || t.facilityId === fid).map((t) => ({ name: t.name, role: t.role, trades: t.trades, shift: t.shift, zone: t.zone, status: t.status, openJobs: workload(d, t.id) })));
@@ -119,7 +120,7 @@ Rules:
 - When someone reports a problem, raise it with fm_raise_work_order (priority from impact: P1 output/safety, P2 critical system degraded, P3 normal, P4 minor) and say the WO number and SLA. If they say it stopped or tripped, set asset_status down; if it runs badly, degraded.
 - When someone says they started, paused (waiting for parts, permit) or finished a job, update it with fm_update_work_order. Finished corrective work returns the asset to service. Attach photo evidence ids when given.
 - Never let anyone start electrical, hot, confined-space or height work without the permit: check the job's permit and say so plainly.
-- For "what should we do" questions, read fm_orchestrator and explain its proposals and reasons; approve only when the user asks you to.
+- For "what should we do" questions, read fm_orchestrator and explain its proposals and reasons; approve or reject only when the user asks you to. Approval limits apply (the tool says whether this user may approve each one); if not, say who can. When they reject, ask why in one word if they didn't say (not now, already handled, wrong person, too costly, disagree) — the orchestrator learns from it.
 - ${channel === "whatsapp" ? "This is WhatsApp: plain text, short lines, *bold* for tags and WO numbers." : "Answer in 1–3 short sentences first, then the details that matter."}
 - The user is ${author}.`;
 }

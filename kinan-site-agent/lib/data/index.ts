@@ -6,6 +6,7 @@ import { INCIDENTS, PERMITS, PPE_MATRIX, RISKS, SAFETY_REQUIREMENTS, SAFETY_STAT
 import { DELIVERIES, PACKAGES, POS, REQUESTS, STOCK, SUPPLIERS } from "./procurement";
 import { CONTACTS, NCRS } from "./people";
 import { applyUpdates } from "../core/updates";
+import { applyDecisions } from "../site/api";
 import { DATA_DATE, addDays, currentDataDate, daysBetween } from "./util";
 
 /** The demo project data on a date (default: today — the data follows the calendar). */
@@ -74,5 +75,7 @@ export function rollToToday(data: ProjectData, date = currentDataDate()): Projec
   else fresh.procurement.requests.push(...data.procurement.requests.filter((r) => !demoIds.has(r.id)));
   // progress reported from site stays, and still moves the programme
   if (data.updates?.length) { fresh.updates = data.updates; applyUpdates(fresh); }
+  // approved construction proposals stay applied (lib/site)
+  if (data.decisions?.length) { fresh.decisions = data.decisions; applyDecisions(fresh); }
   return fresh;
 }

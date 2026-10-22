@@ -88,6 +88,8 @@ export interface Db {
   fmLog?: import("./fm/types").FmEvent[];
   /** Facility management settings (autopilot per facility). */
   fmConfig?: import("./fm/types").FmConfig;
+  /** People added or changed by an admin (lib/auth/people.ts): role, approval limits, facility. */
+  people?: import("./auth/people").PersonEdit[];
 }
 
 // ---------------------------------------------------------------- project data
@@ -196,6 +198,8 @@ export interface ProjectData {
   contacts: Contact[];
   /** Progress reported from site (WhatsApp, voice notes, the app). Kept across the daily roll and applied on top of the programme. */
   updates?: ProgressUpdate[];
+  /** Decisions on the construction proposals (lib/site), with the changes they made — kept across the daily roll. */
+  decisions?: import("./site/types").SiteDecision[];
 }
 
 /** One progress report on an activity, with the photos sent as evidence. */

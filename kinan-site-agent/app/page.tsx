@@ -13,6 +13,9 @@ import Reports from "./_components/Reports";
 import Readiness from "./_components/Readiness";
 import Chat from "./_components/Chat";
 import { ControlRoom, FacilityCards } from "./_components/fm/Operations";
+import Today from "./_components/Today";
+import People from "./_components/People";
+import { SignInSheet, signOut, useMe } from "./_components/auth";
 import { loadProjects, saveProjects, type GenProject } from "@/lib/model3d/store";
 import { useAuthor, useSite } from "./_components/site";
 import { Icon, Logo, Mark } from "./_components/icons";
@@ -24,15 +27,20 @@ const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
 type Tab = "map" | "project" | "docs";
 /** home = project list · site = the live Kinan Heights app · new = create from documents · p:<id> = a generated project
  *  · reports = the scheduled daily status e-mail */
-type Screen = "home" | "site" | "new" | "reports" | "ready" | `p:${string}` | `fm:${string}`;
+type Screen = "today" | "home" | "site" | "new" | "reports" | "ready" | "people" | `p:${string}` | `fm:${string}`;
 /** A tab label: the full wording on the desktop tab row, a short one under the icon on the phone's bottom bar. */
 const Tl = ({ full, short }: { full: string; short: string }) => <><span className="tl">{full}</span><span className="ts">{short}</span></>;
 
 export default function Home() {
   const { state, error, refresh, live } = useSite();
-  const [author, setAuthor] = useAuthor();
+  const [typedName, setAuthor] = useAuthor();
+  // signed in with a phone number: that person's name, role and approval limits (lib/auth)
+  const { me, auth } = useMe();
+  const author = me?.name ?? typedName;
+  const [signIn, setSignIn] = useState(false);
   const [tab, setTab] = useState<Tab>("map");
-  const [screen, setScreenRaw] = useState<Screen>("home");
+  // the first screen is Today: the day in a few lines and the decisions waiting
+  const [screen, setScreenRaw] = useState<Screen>("today");
   // a brief link from the e-mail (/?brief=<id>&play=1) opens the Briefs page
   useEffect(() => { if (new URLSearchParams(window.location.search).has("brief")) setScreenRaw("reports"); }, []);
   const [projects, setProjects] = useState<GenProject[]>([]);
@@ -81,7 +89,7 @@ export default function Home() {
     try { localStorage.setItem("kinan.theme", t); } catch { /* storage blocked */ }
     setTheme(t);
   };
-  const initials = author.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
+  const initials = author.replace(/\(.*?\)/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
   const [projKey, setProjKey] = useState(0);
   // a change from WhatsApp, the field app or another user: the schedule tab reloads too
   useEffect(() => { const f = () => setProjKey((k) => k + 1); window.addEventListener("kinan:changed", f); return () => window.removeEventListener("kinan:changed", f); }, []);
@@ -137,11 +145,12 @@ export default function Home() {
           <span className="brand-sub">AI onsite agent · site &amp; projects</span>
         </button>
         <div className="hbtns">
-          <button className="avatar" onClick={() => { setMeOpen((o) => !o); setNameDraft(author); }} aria-label={`${author}: name and display settings`} aria-expanded={meOpen} title="Your name and display">{initials}</button>
+          <button className="avatar" onClick={() => { setMeOpen((o) => !o); setNameDraft(typedName); }} aria-label={`${author}: name and display settings`} aria-expanded={meOpen} title="Your name and display">{initials}</button>
           <span className="chev" aria-hidden="true"><Mark /></span>
         </div>
       </header>
       <nav className="tabs" aria-label="Sections">
+        <button className={screen === "today" ? "on" : ""} onClick={() => setScreen("today")}><Icon name="check" /><Tl full="Today" short="Today" /></button>
         <button className={screen === "home" ? "on" : ""} onClick={() => setScreen("home")}><Icon name="grid" /><Tl full="Projects" short="Projects" /></button>
         {screen === "site" && ([["map", "Site map", "Map", "map"], ["project", "Project schedule", "Schedule", "chart"], ["docs", "Documents", "Docs", "folder"]] as const).map(([id, label, short, icon]) => (
           <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project") setProjKey((k) => k + 1); }}><Icon name={icon} /><Tl full={label} short={short} /></button>
@@ -153,11 +162,23 @@ export default function Home() {
       </nav>
       {meOpen && (
         <div className="me" role="dialog" aria-label="Your settings">
-          <form onSubmit={(e) => { e.preventDefault(); if (nameDraft?.trim()) setAuthor(nameDraft.trim()); setMeOpen(false); }}>
-            <label>Your name<span>Shown on the notes and uploads you leave</span>
-              <input id="author-name" value={nameDraft ?? ""} onChange={(e) => setNameDraft(e.target.value)} onBlur={() => { if (nameDraft?.trim()) setAuthor(nameDraft.trim()); }} maxLength={60} autoComplete="name" />
-            </label>
-          </form>
+          {me ? (
+            <div className="me-who"><b>{me.name}</b><span>{me.title} · {me.org}</span><span><span className={`role-pill ${me.role}`}>{me.roleLabel}</span> {me.limits}</span>
+              <div className="me-who-acts">
+                {(me.role === "manager" || me.role === "director" || me.role === "admin") && <button className="mini" onClick={() => setScreen("people")}>People &amp; permissions</button>}
+                <button className="mini" onClick={() => { signOut(); setMeOpen(false); }}>Sign out</button>
+              </div>
+            </div>
+          ) : (<>
+            <div className="me-who"><b>Not signed in</b><span>You can look at everything and report. Sign in with your phone number to approve.</span>
+              <div className="me-who-acts"><button className="studio-add" onClick={() => { setMeOpen(false); setSignIn(true); }}>Sign in</button></div>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); if (nameDraft?.trim()) setAuthor(nameDraft.trim()); setMeOpen(false); }}>
+              <label>Your name<span>Shown on the notes and uploads you leave</span>
+                <input id="author-name" value={nameDraft ?? ""} onChange={(e) => setNameDraft(e.target.value)} onBlur={() => { if (nameDraft?.trim()) setAuthor(nameDraft.trim()); }} maxLength={60} autoComplete="name" />
+              </label>
+            </form>
+          </>)}
           <div className="me-l">Appearance</div>
           <div className="seg3" role="group" aria-label="Appearance">
             {(["auto", "light", "dark"] as const).map((t) => <button key={t} className={theme === t ? "on" : ""} aria-pressed={theme === t} onClick={() => pickTheme(t)}><Icon name={t === "auto" ? "contrast" : t === "light" ? "sun" : "moon"} />{t === "auto" ? "Auto" : t === "light" ? "Light" : "Dark"}</button>)}
@@ -172,6 +193,8 @@ export default function Home() {
 {screen !== "site" && (
         <main className="main-solo">
           {storeErr && <div className="tmpwarn">{storeErr}</div>}
+          {screen === "today" && <Today onSignIn={() => setSignIn(true)} onGo={(g) => setScreen(g === "site" || g === "reports" || g === "home" || g.startsWith("fm:") ? g as Screen : "home")} />}
+          {screen === "people" && <People onBack={() => setScreen("today")} />}
           {screen === "home" && (
             <ProjectHome
               site={{ name: state.project.name, code: state.project.code, client: state.project.client }} projects={projects}
@@ -179,7 +202,7 @@ export default function Home() {
               onDelete={(id) => putProjects(projects.filter((p) => p.id !== id), [id])}
             ><FacilityCards onOpen={(id) => setScreen(`fm:${id}`)} /></ProjectHome>
           )}
-          {fmId && <ControlRoom key={fmId} facilityId={fmId} author={author} onBack={() => setScreen("home")} />}
+          {fmId && <ControlRoom key={fmId} facilityId={fmId} author={author} onBack={() => setScreen("home")} onSignIn={() => setSignIn(true)} />}
           {screen === "new" && <NewProject onCancel={() => setScreen("home")} onCreated={(p) => { putProjects([p, ...projects]); setScreen(`p:${p.id}`); }} />}
           {gen && <ProjectView key={gen.id} project={gen} onBack={() => setScreen("home")} />}
           {screen === "reports" && <Reports author={author} />}
@@ -248,6 +271,8 @@ export default function Home() {
           onShowOnMap={(id) => { setViewerId(undefined); selectLocation(id); }}
         />
       )}
+
+      {signIn && <SignInSheet auth={auth} onClose={() => setSignIn(false)} />}
 
       {upload && (
         <UploadSheet

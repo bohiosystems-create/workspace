@@ -3,22 +3,36 @@
 import type { Db } from "../types";
 import { SECTOR_LABEL } from "./data";
 import { fmToday, findAsset, findTech, isOpen, isOverdue, kpis, newWoId, PRIORITY_SLA, slaLeft, workload } from "./engine";
-import { effects, propose } from "./orchestrator";
-import type { Action, AssetStatus, FmData, FmEvent, Priority, Technician, WorkOrder, WoStatus, WoType } from "./types";
+import { effects, propose, KIND_LABEL, type Learned } from "./orchestrator";
+import type { Action, AssetStatus, AutopilotPolicy, FmData, FmEvent, Priority, Technician, WorkOrder, WoStatus, WoType } from "./types";
+import { closedIds, excludedPeople, learnedDoubts, isReason, type DecisionLike, type RejectReason } from "../proposals";
+import { canApprove, canSetPolicy, type Person } from "../auth/people";
 
 type Channel = FmEvent["channel"];
 type DOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 const evId = () => `ev_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+/** Append a change. A change sent again from the field app's outbox (same cid) is recorded once. */
 export function record(db: Db, ev: DOmit<FmEvent, "id" | "at"> & { at?: string }): FmEvent {
+  if (ev.cid) { const dup = (db.fmLog ?? []).find((x) => x.cid === ev.cid && x.kind === ev.kind); if (dup) return dup; }
   const e = { id: evId(), at: new Date().toISOString(), ...ev } as FmEvent;
   (db.fmLog ??= []).push(e);
   if (db.fmLog.length > 3000) db.fmLog = db.fmLog.slice(-3000);
   return e;
 }
-const decided = (db: Db) => new Set((db.fmLog ?? []).flatMap((e) => (e.kind === "action" ? [e.actionId] : [])));
-export const autopilotOn = (db: Db, facilityId: string) => !!db.fmConfig?.autopilot?.[facilityId];
+/** Every decision on a proposal, in the shape the learning rules read (lib/proposals.ts). */
+export const fmDecisions = (db: Db): DecisionLike[] => (db.fmLog ?? []).flatMap((e) => (e.kind === "action" ? [{ actionId: e.actionId, kind: e.actionKind, scope: e.facilityId, decision: e.decision, reason: e.reason, at: e.at, targetTech: e.targetTech }] : []));
+const learnedFrom = (db: Db): Learned => { const log = fmDecisions(db); return { closed: closedIds(log), exclude: excludedPeople(log), doubts: learnedDoubts(log) }; };
+export const policyOf = (db: Db, facilityId: string): AutopilotPolicy | undefined => db.fmConfig?.policy?.[facilityId];
+/** Autopilot runs only with a signed policy. */
+export const autopilotOn = (db: Db, facilityId: string) => !!db.fmConfig?.autopilot?.[facilityId] && !!policyOf(db, facilityId);
+/** May the autopilot carry out this proposal under the facility's signed policy? */
+export function withinPolicy(db: Db, a: Action): boolean {
+  const p = policyOf(db, a.facilityId);
+  return !!p && a.auto && p.kinds.includes(a.kind) && (a.risk === "low" || (a.risk === "medium" && p.maxRisk === "medium")) && (a.cost ?? 0) <= p.maxSpend;
+}
+export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare"], maxRisk: "low", maxSpend: 25_000 };
 
-export function actions(db: Db, d: FmData, facilityId?: string): Action[] { return propose(d, decided(db), facilityId); }
+export function actions(db: Db, d: FmData, facilityId?: string): Action[] { return propose(d, learnedFrom(db), facilityId); }
 
 /** Summary of every facility (the home page cards, the brief, "how are the plants?"). */
 export function overview(db: Db) {
@@ -47,7 +61,13 @@ export function facilityState(db: Db, facilityId: string) {
   const by = <T extends { facilityId: string }>(xs: T[]) => xs.filter((x) => x.facilityId === facilityId);
   const log = (db.fmLog ?? []).filter((e) => eventFacility(d, e) === facilityId).slice(-40).reverse();
   return { date: d.date, facility: f, sector: SECTOR_LABEL[f.sector], kpis: kpis(d, facilityId), systems: by(d.systems), assets: by(d.assets), technicians: by(d.technicians).map((t) => ({ ...t, load: workload(d, t.id) })),
-    workOrders: by(d.workOrders).map((w) => ({ ...w, slaLeft: Math.round(slaLeft(w) * 10) / 10, overdue: isOverdue(w) })), alarms: by(d.alarms), spares: by(d.spares), actions: actions(db, d, facilityId), autopilot: autopilotOn(db, facilityId), log, top: topIssues(d, facilityId) };
+    workOrders: by(d.workOrders).map((w) => ({ ...w, slaLeft: Math.round(slaLeft(w) * 10) / 10, overdue: isOverdue(w) })), alarms: by(d.alarms), spares: by(d.spares), actions: actions(db, d, facilityId), autopilot: autopilotOn(db, facilityId), policy: policyOf(db, facilityId) ?? null, log, top: topIssues(d, facilityId) };
+}
+/** The control room as this person sees it: may they approve each proposal, and sign the autopilot policy? */
+export function facilityStateFor(db: Db, facilityId: string, user: Person | null | undefined) {
+  const st = facilityState(db, facilityId);
+  return { ...st, actions: st.actions.map((a) => ({ ...a, can: canApprove(user, { domain: "fm", facilityId, risk: a.risk, cost: a.cost }), byPolicy: autopilotOn(db, facilityId) && withinPolicy(db, a) })),
+    canPolicy: canSetPolicy(user, facilityId), canPause: canApprove(user, { domain: "fm", facilityId, risk: "low" }), kindLabels: KIND_LABEL, defaultPolicy: DEFAULT_POLICY };
 }
 function eventFacility(d: FmData, e: FmEvent): string | undefined {
   switch (e.kind) {
@@ -57,7 +77,8 @@ function eventFacility(d: FmData, e: FmEvent): string | undefined {
     case "alarm_ack": return d.alarms.find((a) => a.id === e.alarmId)?.facilityId;
     case "spare_order": return d.spares.find((s) => s.id === e.spareId)?.facilityId;
     case "tech_status": return d.technicians.find((t) => t.id === e.techId)?.facilityId;
-    case "action": return e.actionId.includes(":") ? d.facilities.find((f) => e.summary.includes(f.name) || e.actionId.includes(f.id))?.id : undefined;
+    case "action": return e.facilityId ?? d.facilities.find((f) => e.summary.includes(f.name) || e.actionId.includes(f.id))?.id;
+    case "policy": return e.facilityId;
   }
 }
 
@@ -87,36 +108,72 @@ export function myDay(db: Db, techId: string) {
 
 // ------------------------------------------------------------------ writes
 export interface ActInput {
-  action: "decide" | "autopilot" | "tick" | "wo_create" | "wo_update" | "asset_status" | "alarm_ack" | "tech_status";
-  facilityId?: string; actionId?: string; decision?: "approved" | "rejected"; on?: boolean;
+  action: "decide" | "autopilot" | "policy" | "tick" | "wo_create" | "wo_update" | "asset_status" | "alarm_ack" | "tech_status";
+  facilityId?: string; actionId?: string; decision?: "approved" | "rejected"; reason?: RejectReason; on?: boolean;
+  policy?: Partial<Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend">>;
   asset?: string; title?: string; detail?: string; priority?: Priority; type?: WoType;
   woId?: string; status?: WoStatus; note?: string; assignee?: string; checklist?: number; evidence?: string[]; holdReason?: string;
   assetStatus?: AssetStatus; alarmId?: string; techId?: string; techStatus?: Technician["status"];
+  /** the field app's id for this change (outbox retries are recorded once) */
+  cid?: string;
 }
-export function act(db: Db, b: ActInput, by: string, channel: Channel): { ok: true; message: string; events: FmEvent[] } {
+/** Decide one proposal: approve (it runs) or reject (with the reason, which the orchestrator learns from). */
+function decideOne(db: Db, d: FmData, a: Action, b: { decision?: "approved" | "rejected"; reason?: RejectReason; note?: string }, by: string, channel: Channel, who: { byId?: string; role?: string }, user: Person | null | undefined): FmEvent[] {
+  const ok = b.decision === "approved" ? canApprove(user, { domain: "fm", facilityId: a.facilityId, risk: a.risk, cost: a.cost }) : canApprove(user, { domain: "fm", facilityId: a.facilityId, risk: "low" });
+  if (!ok.ok) throw new Error(`${b.decision === "approved" ? "Can't approve" : "Can't reject"} “${a.title}”: ${ok.why}`);
+  const evs: FmEvent[] = [];
+  if (b.decision === "approved") for (const e of effects(d, a, by, channel)) evs.push(record(db, { ...e, ...who }));
+  const reason = b.decision === "rejected" && isReason(b.reason) ? b.reason : undefined;
+  evs.push(record(db, { by, channel, ...who, kind: "action", actionId: a.id, decision: b.decision === "approved" ? "approved" : "rejected", actionKind: a.kind, facilityId: a.facilityId, risk: a.risk, ...(a.cost ? { cost: a.cost } : {}), ...(a.targets.techId ? { targetTech: a.targets.techId } : {}), ...(reason ? { reason } : {}), ...(b.note ? { note: b.note.slice(0, 200) } : {}),
+    summary: `${b.decision === "approved" ? "approved" : "rejected"}: ${a.title}${reason ? ` (${reason.replace("_", " ")})` : ""}` }));
+  return evs;
+}
+
+export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Person | null): { ok: true; message: string; events: FmEvent[] } {
   const d = fmToday(db);
   const evs: FmEvent[] = [];
-  const add = (e: DOmit<FmEvent, "id" | "at" | "by" | "channel">) => evs.push(record(db, { by, channel, ...e } as DOmit<FmEvent, "id" | "at">));
+  const who = user ? { byId: user.id, role: user.role } : {};
+  const add = (e: DOmit<FmEvent, "id" | "at" | "by" | "channel">) => evs.push(record(db, { by, channel, ...who, ...(b.cid ? { cid: `${b.cid}:${evs.length}` } : {}), ...e } as DOmit<FmEvent, "id" | "at">));
   switch (b.action) {
     case "decide": {
       const a = actions(db, d).find((x) => x.id === b.actionId);
       if (!a) throw new Error("That proposal is no longer open — the situation changed.");
-      if (b.decision === "approved") for (const e of effects(d, a, by, channel)) evs.push(record(db, e));
-      add({ kind: "action", actionId: a.id, decision: b.decision === "approved" ? "approved" : "rejected", summary: `${b.decision === "approved" ? "approved" : "rejected"}: ${a.title}` });
-      return { ok: true, message: b.decision === "approved" ? `Done: ${a.title}.` : `Rejected: ${a.title}.`, events: evs };
+      evs.push(...decideOne(db, d, a, b, by, channel, who, user));
+      return { ok: true, message: b.decision === "approved" ? `Done: ${a.title}.` : `Rejected: ${a.title}. The orchestrator will take that into account.`, events: evs };
+    }
+    case "policy": {
+      // sign (or withdraw) what the autopilot may do here, and switch it on with it
+      if (!b.facilityId) throw new Error("Which facility?");
+      const ok = canSetPolicy(user, b.facilityId);
+      if (!ok.ok) throw new Error(ok.why);
+      if (b.on === false) {
+        db.fmConfig = { ...(db.fmConfig ?? { autopilot: {} }), autopilot: { ...(db.fmConfig?.autopilot ?? {}), [b.facilityId]: false }, policy: Object.fromEntries(Object.entries(db.fmConfig?.policy ?? {}).filter(([k]) => k !== b.facilityId)) };
+        add({ kind: "policy", facilityId: b.facilityId, policy: null, summary: "withdrew the autopilot policy" });
+        return { ok: true, message: "Autopilot policy withdrawn: every proposal waits for approval.", events: evs };
+      }
+      const kinds = (b.policy?.kinds ?? DEFAULT_POLICY.kinds).filter((k) => ["raise_wo", "assign", "reschedule", "escalate", "order_spare", "permit", "isolate"].includes(k));
+      const pol: AutopilotPolicy = { kinds, maxRisk: b.policy?.maxRisk === "medium" ? "medium" : "low", maxSpend: Math.max(0, Math.min(250_000, Number(b.policy?.maxSpend ?? DEFAULT_POLICY.maxSpend) || 0)), signedBy: user!.name, signedById: user!.id, role: user!.role, at: new Date().toISOString() };
+      db.fmConfig = { ...(db.fmConfig ?? { autopilot: {} }), autopilot: { ...(db.fmConfig?.autopilot ?? {}), [b.facilityId]: true }, policy: { ...(db.fmConfig?.policy ?? {}), [b.facilityId]: pol } };
+      add({ kind: "policy", facilityId: b.facilityId, policy: pol, summary: `signed the autopilot policy: ${kinds.length} kinds, ${pol.maxRisk} risk, up to SAR ${pol.maxSpend.toLocaleString("en-US")}` });
+      return { ok: true, message: `Autopilot on under ${user!.name}'s policy.`, events: evs };
     }
     case "autopilot": {
+      // pause / resume under the policy already signed
       if (!b.facilityId) throw new Error("Which facility?");
-      db.fmConfig = { autopilot: { ...(db.fmConfig?.autopilot ?? {}), [b.facilityId]: !!b.on } };
-      return { ok: true, message: b.on ? "Autopilot on: low-risk actions run by themselves; the rest wait for approval." : "Autopilot off: every action waits for approval.", events: [] };
+      if (b.on && !policyOf(db, b.facilityId)) throw new Error("Sign an autopilot policy first: what it may do, up to what risk and spend.");
+      const ok = b.on ? canSetPolicy(user, b.facilityId) : canApprove(user, { domain: "fm", facilityId: b.facilityId, risk: "low" });
+      if (!ok.ok) throw new Error(ok.why);
+      db.fmConfig = { ...(db.fmConfig ?? { autopilot: {} }), autopilot: { ...(db.fmConfig?.autopilot ?? {}), [b.facilityId]: !!b.on } };
+      return { ok: true, message: b.on ? "Autopilot resumed under the signed policy." : "Autopilot paused: every proposal waits for approval.", events: [] };
     }
     case "tick": {
-      // Autopilot: run the low-risk proposals for a facility (called by the control room while it is open).
+      // Autopilot: carry out what the signed policy allows (called while a control room is open).
       if (!b.facilityId || !autopilotOn(db, b.facilityId)) return { ok: true, message: "", events: [] };
+      const pol = policyOf(db, b.facilityId)!;
       let n = 0;
-      for (const a of actions(db, d, b.facilityId).filter((x) => x.auto).slice(0, 6)) {
+      for (const a of actions(db, d, b.facilityId).filter((x) => withinPolicy(db, x)).slice(0, 6)) {
         for (const e of effects(fmToday(db), a, "Orchestrator", "orchestrator")) evs.push(record(db, e));
-        evs.push(record(db, { by: "Orchestrator", channel: "orchestrator", kind: "action", actionId: a.id, decision: "auto", summary: `autopilot: ${a.title}` }));
+        evs.push(record(db, { by: "Orchestrator", channel: "orchestrator", kind: "action", actionId: a.id, decision: "auto", actionKind: a.kind, facilityId: a.facilityId, risk: a.risk, ...(a.cost ? { cost: a.cost } : {}), ...(a.targets.techId ? { targetTech: a.targets.techId } : {}), summary: `autopilot (policy signed by ${pol.signedBy}): ${a.title}` }));
         n++;
       }
       return { ok: true, message: n ? `Autopilot ran ${n} action${n > 1 ? "s" : ""}.` : "", events: evs };
@@ -137,6 +194,8 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel): { ok: tr
       const w = d.workOrders.find((x) => x.id.toLowerCase() === String(b.woId ?? "").toLowerCase());
       if (!w) throw new Error(`No work order ${b.woId}.`);
       const a = d.assets.find((x) => x.id === w.assetId)!;
+      // the field team moves their own jobs (or unassigned ones); anyone may add a note or a photo
+      if (user?.role === "field" && w.assignee && w.assignee !== user.techId && (b.status || b.assignee)) throw new Error(`${w.id} is ${d.technicians.find((t) => t.id === w.assignee)?.name ?? "someone else"}'s job — ask your supervisor to reassign it.`);
       if (b.status === "in_progress" && w.permit && w.permit.status === "required") throw new Error(`${w.id} needs a ${w.permit.type} permit before work starts — it has not been issued yet.`);
       const tech = b.assignee ? findTech(d, b.assignee, w.facilityId) : undefined;
       const patch = { ...(b.status ? { status: b.status } : {}), ...(tech ? { assignee: tech.id } : {}), ...(b.note ? { note: b.note } : {}), ...(b.evidence?.length ? { evidence: b.evidence } : {}), ...(b.checklist !== undefined ? { checklist: [b.checklist] } : {}), ...(b.status === "on_hold" ? { holdReason: b.holdReason || b.note || "On hold" } : {}) };

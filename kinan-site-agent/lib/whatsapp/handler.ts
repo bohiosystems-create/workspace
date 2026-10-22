@@ -13,6 +13,8 @@ import { getRepo, newId, readBytes, readUpload, removeKey, saveUpload, writeByte
 import { getMedia, markRead, sendDocument, sendImage, sendList, sendText, uploadMedia, waConfig, type WaConfig } from "./graph";
 import { readGenerated } from "../generated";
 import { runSpecAgent } from "../core/specAgent";
+import { findByPhone } from "../auth/people";
+import { confirmLogin, isLoginMessage } from "../auth/session";
 import { allowed, firstTime, loadSession, saveSession, type WaSession, admitGuest, guest, isJoin, joinCode } from "./sessions";
 import { planSvg, svgToPng } from "./render";
 
@@ -131,7 +133,20 @@ async function handleMessage(c: WaConfig, m: any, profileName: string) {
 async function handleMessageInner(c: WaConfig, m0: any, profileName: string): Promise<boolean> {
   let m = m0;
   const from: string = m.from;
+  // "LOGIN 123456": signing in to the app with this phone (lib/auth/session.ts) — before the allow list, since the
+  // directory, not the WhatsApp allow list, decides who may sign in
+  const login = m.type === "text" ? isLoginMessage(String(m.text?.body ?? "")) : null;
+  if (login) {
+    await markRead(c, m.id).catch(() => undefined);
+    const p = findByPhone((await getRepo()).db, from);
+    if (!p) { await sendText(c, from, "This number isn't in the Kinan directory, so it can't sign in. Ask an admin to add you (People, in the app)."); return true; }
+    const ok = await confirmLogin(login, from);
+    await sendText(c, from, ok ? `🔐 Signed in as *${p.name}* (${p.title}). Go back to the browser — it opens in a moment.` : "That sign-in code has expired or was already used. Ask for a new one in the app.");
+    return true;
+  }
   let acl = allowed(from);
+  // people in the directory may talk to the agent too
+  if (!acl.ok) { const p = findByPhone((await getRepo()).db, from); if (p) acl = { ok: true, name: p.name }; }
   let joined = false;
   if (!acl.ok) {
     // Guests: the join code shown at a demo lets anyone in for a while (sessions.ts).
@@ -194,6 +209,20 @@ async function onText(c: WaConfig, from: string, s: WaSession, text: string, msg
   const db = (await getRepo()).db;
   if (!t) return;
   if (/^(help|\?)$/i.test(t)) return sendText(c, from, HELP);
+  // a technician in the directory: straight to their own agent at their facility (no list, no "I am …")
+  const me = findByPhone(db, from);
+  const greeting = /^(menu|start|hi|hello|hey|salam|السلام عليكم|مرحبا)[.!]?$/i.test(t);
+  if (me?.techId && me.facilityId && (greeting || !s.projectId || s.fresh)) {
+    const wasNew = s.techId !== me.techId || s.projectId !== `fm:${me.facilityId}`;
+    s.projectId = `fm:${me.facilityId}`; s.techId = me.techId; s.fresh = false; s.queued = undefined;
+    if (wasNew) s.history = [];
+    if (greeting || wasNew) {
+      const { myDay } = await import("../fm/api");
+      await sendText(c, from, `👷 Hello ${me.name.split(" ")[0]} — I'm your agent (${me.title}).\n\n${myDay(db, me.techId).brief}\n\nTell me when you start, pause or finish a job, send photos as evidence, or report a fault.`, msgId);
+      if (greeting) return;
+    }
+    return ask(c, from, s, t, undefined, msgId);
+  }
   // opening the chat: a greeting, "projects", or the first message of a new conversation → choose the project
   if (/^(menu|start|hi|hello|hey|salam|السلام عليكم|مرحبا|projects?|switch( project)?|change project)[.!]?$/i.test(t)) { s.queued = undefined; return askProject(c, from, s); }
   if (!s.projectId || s.fresh) {
@@ -286,9 +315,14 @@ async function ask(c: WaConfig, from: string, s: WaSession, text: string, attach
         return sendText(c, from, `👷 Hello ${t.name.split(" ")[0]} — I'm your agent now (${t.role}).\n\n${myDay((await getRepo()).db, t.id).brief}\n\nTell me when you start, pause or finish a job, send photos as evidence, or report a fault.`, msgId);
       }
     }
+    // a number in the directory is that person: their own agent, without saying who they are
+    const me = findByPhone((await getRepo()).db, from);
+    if (me?.techId && s.techId !== me.techId) { s.techId = me.techId; if (me.facilityId) s.projectId = `fm:${me.facilityId}`; }
     const tech = s.techId ? fmToday((await getRepo()).db).technicians.find((x) => x.id === s.techId) : undefined;
     const out = await runAgent(s.history.slice(-16), {
-      author: tech?.name ?? s.name, channel: "whatsapp", fm: { facilityId, techId: s.techId },
+      author: tech?.name ?? s.name, channel: "whatsapp", fm: { facilityId: s.projectId.slice(3), techId: s.techId },
+      // approvals only for a number the directory knows ("I am …" alone proves nothing)
+      user: me,
       deadline: Date.now() + Math.min(agentBudgetMs(), process.env.VERCEL ? 38_000 : 110_000),
       attachments: attachment ? [{ mime: attachment.mime, base64: toBase64(attachment.bytes), name: attachment.name }] : undefined,
     });
@@ -306,7 +340,7 @@ async function ask(c: WaConfig, from: string, s: WaSession, text: string, attach
     return sendText(c, from, out.reply, msgId);
   }
   const out = await runAgent(s.history.slice(-16), {
-    author: s.name, channel: "whatsapp",
+    author: s.name, channel: "whatsapp", user: findByPhone((await getRepo()).db, from),
     // Leave time inside the function limit to render and send images afterwards.
     deadline: Date.now() + Math.min(agentBudgetMs(), process.env.VERCEL ? 38_000 : 110_000),
     focus: { docId: s.focusDocId, locationId: s.here?.locationId },
