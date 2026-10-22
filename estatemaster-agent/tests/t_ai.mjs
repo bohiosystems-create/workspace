@@ -15,8 +15,8 @@ await p.route('**/api/llm',r=>{if(r.request().method()==='GET')return r.fulfill(
 await p.goto(base);await p.evaluate(()=>localStorage.clear());await p.reload();await p.waitForTimeout(1300);
 // checker panel
 const res=await p.evaluate(async()=>{const r=await aiCrossCheck([{text:'sale price −15%'}],async()=>{});return{model:r.checker&&r.checker.model,panel:r.checker&&r.checker.panel&&r.checker.panel.length,failed:r.checker&&r.checker.failed,issue:(r.checker.verdicts.find(v=>v.metric==='levered_irr')||{}).issue}});
-ok(res.panel===2&&/Claude Opus 5\.5/.test(res.model)&&/gpt-5/i.test(res.model)&&/o3/.test(res.failed.join(' '))&&/gpt-5.*gearing/i.test(res.issue||''),'checker panel: Claude Opus 5.5 and GPT-5 audit together, o3 reported as unavailable, the issue names who raised it: '+JSON.stringify(res));
-{const ms=[...new Set(llm.filter(j=>/independent checker/.test(j.payload.system||(j.payload.messages[0]||{}).content||'')).map(j=>j.payload.model))].sort().join(',');ok(ms==='claude-opus-5-5,gpt-5,o3','three checker models asked in parallel: '+ms)}
+ok(res.panel===2&&/Claude Opus 5\.5/.test(res.model)&&/gpt-5/i.test(res.model)&&!res.failed.length&&/gpt-5.*gearing/i.test(res.issue||''),'checker panel: Claude Opus 5.5 and GPT-5 audit together (two checkers, one per provider), the issue names who raised it: '+JSON.stringify(res));
+{const ms=[...new Set(llm.filter(j=>/independent checker/.test(j.payload.system||(j.payload.messages[0]||{}).content||'')).map(j=>j.payload.model))].sort().join(',');ok(ms==='claude-opus-5-5,gpt-5','two checker models asked in parallel, one per provider: '+ms)}
 // formulas on click
 await p.evaluate(()=>{const w='Change tested: sale price −15%.\nEstateMaster now: 26.83% (export EX-001).\n\nClaude Fable 5.1: 20.0%\nThe price cut flows into revenue and then the IRR.';const b=document.createElement('b');b.className='fig fig-calc';b.dataset.k='calc';b.dataset.w=w;b.textContent='20.0%';document.body.appendChild(b);openFigWin(b)});
 await p.waitForTimeout(600);

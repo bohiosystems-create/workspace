@@ -90,6 +90,9 @@ const handler = async function handler(req, res) {
   // the chat's answer (task 'agent' or 'answer') may come back as a stream, so its words show as they are written; anything else is one JSON reply
   const stream = provider === 'anthropic' && p.stream === true && ['agent', 'answer'].includes(task);
   if (stream) p.stream = true; else delete p.stream;
+  // Opus answers the everyday financial questions, tests and checks in place of Fable: at high reasoning effort (its default is medium),
+  // so the cheaper model does not think less on the questions that carry figures
+  if (provider === 'anthropic' && /opus/i.test(String(p.model)) && ['agent', 'calc', 'check', 'risk'].includes(task) && !(p.output_config && p.output_config.effort)) p.output_config = { ...(p.output_config || {}), effort: 'high' };
   if (provider === 'anthropic') cacheable(p, task);
 
   const headers = { 'content-type': 'application/json' };

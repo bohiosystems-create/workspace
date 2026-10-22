@@ -5142,7 +5142,7 @@ const XC_READ_SCHEMA={type:'object',additionalProperties:false,properties:{chang
 const xcReadKey=(x,t)=>(x.id||'')+'|'+(x.file||'')+'|'+String(t).toLowerCase().replace(/\s+/g,' ').trim();
 const xcReads=()=>{try{return JSON.parse(localStorage.getItem('bohioReads')||'{}')}catch(e){return{}}};
 const xcReadSave=(k,j)=>{try{const o=xcReads();delete o[k];o[k]={changes:j.changes,by:j.by,at:Date.now()};const ks=Object.keys(o);for(const z of ks.slice(0,Math.max(0,ks.length-300)))delete o[z];localStorage.setItem('bohioReads',JSON.stringify(o))}catch(e){}};
-async function xcAiRead(x,text,fb){const cands=[chain('fast').find(z=>z.p==='anthropic'),...chain('fast'),...calcPair()];if(!cands.some(Boolean))return null;const key=xcReadKey(x,text);
+async function xcAiRead(x,text,fb){const cands=[...(fb&&fb.length?[chain('deep').find(z=>z.p==='anthropic')]:[]),chain('fast').find(z=>z.p==='anthropic'),...chain('fast'),...calcPair()];   /* a reading that failed a certain check is read again by the strongest model */if(!cands.some(Boolean))return null;const key=xcReadKey(x,text);
   const list=(x.inputs||[]).filter(i=>i.cell).slice(0,160).map(i=>`${i.parent?i.parent+' › ':''}${i.label} | ${i.cell} | ${asmFmt(i)}${i.unit&&i.unit!=='%'?' '+i.unit:''} | ${xcPctIn(i)?'percentage':'number'}`).join('\n');
   const user=`${mapSummary(x)?mapSummary(x)+'\n\n':''}Assumptions:\n${list}\n\nSentence: ${text}`+(fb&&fb.length?`\n\nYour previous reading failed the model's checks:\n${fb.map(z=>'- '+z).join('\n')}\nRead the sentence again: pick each line and its cell exactly as listed, with the value in that line's own units. If it still cannot be read for sure, ask one short question.`:'');
   const opt={max:2000,task:'calc',think:false,schema:XC_READ_SCHEMA};let r;
@@ -10669,13 +10669,13 @@ const PROV={
 /* Model per task, across both providers: first available entry is primary, the rest are failover */
 const CHAINS={
   fast:{label:'Commentary',m:[['anthropic','claude-sonnet-5-5'],['openai','gpt-5-mini']]},
-  smart:{label:'Agent with tools: every financial question and what-if (full reasoning)',m:[['anthropic','claude-fable-5-1'],['openai','gpt-5']]},
+  smart:{label:'Agent with tools: every financial question and what-if (full reasoning; an answer that fails a check goes to the strongest model)',m:[['anthropic','claude-opus-5-5'],['anthropic','claude-fable-5-1'],['openai','gpt-5']]},
   deep:{label:'IC narrative, memos, risk review and recommendations',m:[['anthropic','claude-fable-5-1'],['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
-  check:{label:'Checker panel: every model here audits each AI calculation independently (does not recalculate); any error raised by one is shown, with who raised it',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5'],['openai','o3']]},
-  excel:{label:'Excel questions',m:[['anthropic','claude-fable-5-1'],['openai','gpt-5']]},
+  check:{label:'Checker panel: every model here audits each AI calculation independently (does not recalculate); any error raised by one is shown, with who raised it',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
+  excel:{label:'Excel questions',m:[['anthropic','claude-opus-5-5'],['anthropic','claude-fable-5-1'],['openai','gpt-5']]},
   report:{label:'Report design',m:[['anthropic','claude-fable-5-1'],['anthropic','claude-opus-5-5'],['openai','gpt-5']]},
   answer:{label:'Questions during ▶ Play (quick, ready by the end of the slide)',m:[['anthropic','claude-sonnet-5-5'],['openai','gpt-5']]},
-  calc:{label:'Assumption tests (Claude and OpenAI check each other)',m:[['anthropic','claude-fable-5-1'],['openai','gpt-5']]}
+  calc:{label:'Assumption tests (Claude and OpenAI check each other)',m:[['anthropic','claude-opus-5-5'],['openai','gpt-5'],['anthropic','claude-fable-5-1']]}
 };
 const AI={keys:{anthropic:'',openai:''},pass:'',remember:false,models:{}};
 const PROXY={anthropic:false,openai:false,pass:false,checked:false};
@@ -11180,7 +11180,12 @@ async function execute(text,ch,role,onStep){
   const r=route(text);ROUTESTATS[r.lane]++;
   if(r.lane==='api'){
     if(apiOn()){
-      window.LASTEVID=null;try{const x=await llmTurn(text,ch,role,onStep,r.tier);try{const hc=xcHeadCheck(x.final);if(hc){x.final+=hc;x.notes=[...(x.notes||[]),'headline figure named for another cell: flagged in the answer']}}catch(e){}try{const nc=xcComputedCheck(x.final,window.LASTEVID);if(nc){x.final+=nc;x.notes=[...(x.notes||[]),'an IRR no calculation gave: flagged in the answer']}}catch(e){}renderRouter();return{r,kind:'api',...x}}
+      window.LASTEVID=null;try{let x=await llmTurn(text,ch,role,onStep,r.tier);
+        /* the everyday model answers first; when the answer fails a certain check (a headline figure taken from another cell, an IRR no
+           calculation gave), the same question goes once to the strongest model, and its answer is used when it passes the checks */
+        try{const flagged=y=>{try{return !!(xcHeadCheck(y.final)||xcComputedCheck(y.final,window.LASTEVID))}catch(e){return false}};
+          if(r.tier!=='deep'&&flagged(x)){await onStep('A check on the answer failed: the question goes to the strongest model');window.LASTEVID=null;const y=await llmTurn(text,ch,role,onStep,'deep');if(!flagged(y))x={...y,notes:[...(y.notes||[]),'answered by the strongest model after a check failed on the first answer']}}}catch(e){}
+        try{const hc=xcHeadCheck(x.final);if(hc){x.final+=hc;x.notes=[...(x.notes||[]),'headline figure named for another cell: flagged in the answer']}}catch(e){}try{const nc=xcComputedCheck(x.final,window.LASTEVID);if(nc){x.final+=nc;x.notes=[...(x.notes||[]),'an IRR no calculation gave: flagged in the answer']}}catch(e){}renderRouter();return{r,kind:'api',...x}}
       catch(err){ROUTESTATS.fallback++;window.AIDOWN=Date.now();r.fallback=provErr(err.message);ruleHit('execute','AI call failed, rules answered: '+r.fallback);await onStep(`AI unavailable (${String(r.fallback).slice(0,90)}) · answering with rules`)}
     }else r.noapi=true;
   }
