@@ -1,0 +1,107 @@
+[page 1]
+AURORA REAL ESTATE FUND I, L.P.
+
+AMENDED AND RESTATED LIMITED PARTNERSHIP AGREEMENT
+
+(synthetic fixture for testing; not a real agreement)
+
+Dated 12 January 2026
+
+Between Aurora Capital Partners GP S.a.r.l. (the General Partner) and the Limited Partners admitted from time to time.
+
+TABLE OF CONTENTS
+1. Definitions .......... page 2
+2. Capital Commitments and Contributions .......... page 3
+3. Management Fee and Fund Expenses .......... page 4
+4. Distributions .......... page 5
+5. Carried Interest and Clawback .......... page 6
+6. Term, Investment Period and Key Person .......... page 7
+7. Miscellaneous .......... page 8
+
+
+[page 2]
+ARTICLE 1. DEFINITIONS
+
+"Commitment" means, for each Partner, the amount it has agreed to contribute to the Partnership as set out in its subscription agreement. The aggregate Commitments are EUR 150,000,000.
+
+"Contributed Capital" means the aggregate capital contributions actually made by a Partner.
+
+"Invested Capital" means, at any time, the Contributed Capital used to acquire Portfolio Investments that have not been disposed of, net of returns of capital.
+
+"Investment Period" means the period from the Initial Closing until the fifth (5th) anniversary of the Initial Closing.
+
+"Preferred Return" means a return of eight per cent (8%) per annum, compounded annually, on the Contributed Capital of the Limited Partners from the date each contribution is made until returned.
+
+"Portfolio Investment" means a real estate asset or interest acquired by the Partnership.
+
+
+[page 3]
+ARTICLE 2. CAPITAL COMMITMENTS AND CONTRIBUTIONS
+
+2.1 Commitments. The aggregate Commitments of all Partners are EUR 150,000,000.
+
+2.2 General Partner commitment. The General Partner shall commit an amount equal to one per cent (1%) of the aggregate Commitments, on the same terms as the Limited Partners.
+
+2.3 Drawdowns. Capital shall be called as needed to fund Portfolio Investments, the Management Fee and Fund Expenses, on not less than ten business days' notice.
+
+2.4 Recycling. Proceeds from Portfolio Investments disposed of within eighteen months of acquisition may be reinvested during the Investment Period, up to the amount of Contributed Capital so returned.
+
+
+[page 4]
+ARTICLE 3. MANAGEMENT FEE AND FUND EXPENSES
+
+3.1 Management Fee. The Partnership shall pay the Manager an annual management fee equal to 1.5% of aggregate Commitments during the Investment Period and, thereafter, 1.25% of Invested Capital, payable quarterly in advance.
+
+3.2 Fee offsets. Transaction, monitoring and directors' fees received by the Manager from Portfolio Investments shall reduce the Management Fee by one hundred per cent (100%) of such amounts.
+
+3.3 Fund Expenses. The Partnership shall bear its operating expenses, provided that ordinary fund expenses shall not exceed EUR 400,000 in any year.
+
+3.4 Organisational expenses. Organisational expenses are borne by the Partnership up to EUR 1,500,000.
+
+
+[page 5]
+ARTICLE 4. DISTRIBUTIONS
+
+4.1 Whole-fund waterfall. Distributable proceeds from all Portfolio Investments shall be aggregated and apportioned among the Partners pro rata to their Commitments, and the Limited Partners' share shall be distributed in the following order of priority:
+
+(a) first, one hundred per cent (100%) to the Limited Partners until they have received cumulative distributions equal to their Contributed Capital;
+
+(b) second, one hundred per cent (100%) to the Limited Partners until they have received the Preferred Return;
+
+(c) third, fifty per cent (50%) to the General Partner and fifty per cent (50%) to the Limited Partners until the General Partner has received twenty per cent (20%) of the cumulative amounts distributed under paragraph (b) and this paragraph (c);
+
+(d) thereafter, eighty per cent (80%) to the Limited Partners and twenty per cent (20%) to the General Partner.
+
+4.2 Timing. Distributions shall be made as soon as practicable after proceeds are received, and at least annually.
+
+
+[page 6]
+ARTICLE 5. CARRIED INTEREST AND CLAWBACK
+
+5.1 Carried interest. Amounts distributed to the General Partner under Article 4.1(c) and (d) constitute the carried interest, equal to twenty per cent (20%) of profits after the Preferred Return.
+
+5.2 Clawback. On the dissolution of the Partnership, if the General Partner has received carried interest in excess of the amount to which it would be entitled had all distributions been made at that time, it shall return the excess, net of taxes paid, to the Partnership for distribution to the Limited Partners.
+
+5.3 Escrow. Twenty per cent (20%) of each carried interest distribution shall be held in escrow until the Preferred Return has been paid in full.
+
+
+[page 7]
+ARTICLE 6. TERM, INVESTMENT PERIOD AND KEY PERSON
+
+6.1 Term. The Partnership shall terminate on the tenth (10th) anniversary of the Initial Closing, subject to two (2) successive one-year extensions at the discretion of the General Partner with the consent of the Advisory Committee.
+
+6.2 Investment Period. No new Portfolio Investment shall be made after the end of the Investment Period, being the fifth anniversary of the Initial Closing, except follow-on investments up to 10% of Commitments.
+
+6.3 Key person. If fewer than two of the Key Persons devote substantially all of their business time to the Partnership, the Investment Period shall be suspended until a replacement is approved by Limited Partners holding a majority of Commitments.
+
+
+[page 8]
+ARTICLE 7. MISCELLANEOUS
+
+7.1 Currency. All amounts are denominated and paid in euro.
+
+7.2 Reports. The General Partner shall deliver audited financial statements within 120 days of each year end and quarterly reports within 60 days of each quarter end.
+
+7.3 Governing law. This Agreement is governed by the laws of the Grand Duchy of Luxembourg.
+
+Executed on 12 January 2026.
