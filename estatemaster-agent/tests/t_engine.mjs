@@ -25,6 +25,9 @@ const load=async(file,id,reads,run)=>p.evaluate(async([bytes,id,reads,run])=>{co
 // 2b. Excel 365's regular expressions
 {const r=await load('fn_sweep.xlsx','SWEEP3',['F!B133','F!B134','F!B135','F!B136','F!B137'],null);
   ok(JSON.stringify(r.v0)===JSON.stringify([true,'2026-03-15','Northstar','1250000','a-b+c']),'REGEXTEST, REGEXEXTRACT (match and group) and REGEXREPLACE (all and the 2nd occurrence) as Excel',r.v0)}
+// 2c. MROUND on a tie, as Excel: 10.35 to the nearest 0.1 is 10.4 (the quotient read as 103.5, not 103.4999…); a half away from zero; signs that differ are an error
+{const v=await p.evaluate(()=>xcQ(()=>xcCall({op:'calc',fs:[['=MROUND(10.35,0.1)','F'],['=MROUND(1.05,0.1)','F'],['=MROUND(-2.5,-1)','F'],['=MROUND(17,5)','F'],['=ISERROR(MROUND(5,-2))','F'],['=MROUND(0.3,0.1)','F']]})));
+  ok(JSON.stringify(v)===JSON.stringify([10.4,1.1,-3,15,true,0.3]),'MROUND as Excel on ties (10.35 → 10.4, 1.05 → 1.1, −2.5 → −3), 17 → 15, a sign mismatch is an error',v)}
 // 3. Excel Data Tables: refreshed with their own inputs after a change, a formula that reads the table sees the new values, all put back after
 {const reads=['Sens!B6','Sens!F9','Sens!G10','Sens!H11','Sens!K10','Sens!B12'];const r=await load('dtable_sens.xlsx','DT',reads,[['Sens!B5',2000]]);
   const close=(a,b)=>Math.abs(a-b)<1e-6*Math.max(1,Math.abs(b));
