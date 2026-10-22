@@ -20,6 +20,7 @@ import { short } from "../deck/deck";
 import { progressByLocation, sCurve } from "../core/progress";
 import { cleanLayout, mentions, type Layout, type SectionId } from "./layout";
 import { overview as fmOverview } from "../fm/api";
+import { HAS_OPERATIONS } from "../edition";
 
 export type Lang = "en" | "ar";
 export const tx = (l: Lang, en: string, ar: string) => (l === "ar" ? ar : en);
@@ -347,7 +348,7 @@ export function buildReport(o: BuildIn): Built {
   // ---------------- generated projects (from uploaded documents)
   const active = o.projects.filter((p) => p.result?.spec?.schedule && p.result.spec.schedule.finish >= o.date && wanted(p.result.spec.name));
   // ---------------- facilities in operation (lib/fm): availability, output, open work, alarms, what the orchestrator proposes
-  const ops = (() => { try { return fmOverview(db); } catch { return null; } })();
+  const ops = HAS_OPERATIONS ? (() => { try { return fmOverview(db); } catch { return null; } })() : null;
   if (ops) {
     sec("facilities");
     body.push(h2(T("Operations — facilities", "التشغيل — المرافق"), T(`${ops.facilities.length} facilities · managed with the AI orchestration layer`, `${ops.facilities.length} مرافق · تُدار عبر طبقة التنسيق الذكية`)));

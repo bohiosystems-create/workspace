@@ -10,6 +10,8 @@ import { KIND_LABEL } from "./fm/orchestrator";
 import { SITE_KIND_LABEL } from "./site/orchestrator";
 import { REJECT_REASONS, type DecisionLike } from "./proposals";
 import { addDays, rng } from "./data/util";
+import { scheduleSummary } from "./core/project";
+import { HAS_OPERATIONS } from "./edition";
 
 /** Assumption: coordination time one acted-on proposal saves (finding the right person, checking stock and permits,
  *  the calls and messages). Shown with the figure; change it here. */
@@ -33,6 +35,24 @@ function demoWeeks(thisWeek: string, facilities: number): WeekRow[] {
       decided: on ? Math.round((22 + 14 * k + r() * 6) * facilities / 3) : 0,
       auto: on ? Math.round((6 + 16 * k + r() * 4) * facilities / 3) : 0 };
   });
+}
+
+export interface Tile { label: string; value: string; sub: string; tone?: "good" | "warn" }
+export interface Chart { title: string; unit: string; better: "low" | "high"; rows: { week: string; demo: boolean; v: number | null }[]; /** said when this week has no figure yet */ empty?: string }
+
+/** The building site, week by week: the demo's history leading to today's live figures (critical activities late,
+ *  NCRs past their close-out date, proposals accepted). */
+function siteWeeks(db: Db, thisWeek: string, accLive: number | null) {
+  const s = scheduleSummary(db), date = db.data.meta.dataDate;
+  const late = s.criticalLate, ncr = db.data.quality.ncrs.filter((n) => n.status === "Open" && n.due && n.due < date).length;
+  const hist = Array.from({ length: 8 }, (_, i) => {
+    const week = addDays(thisWeek, -7 * (8 - i)), on = i >= 4, r = rng(Number(week.replace(/\D/g, "")) % 100000 + 7), k = on ? (i - 3) / 4 : 0;
+    return { week, demo: true,
+      late: Math.round(on ? late * (1.32 - 0.26 * k) + r() * 2 : late * (1.38 + r() * 0.08)),
+      ncr: Math.round(on ? ncr + 5 - 4 * k + r() : ncr + 5 + r() * 2),
+      acc: on ? Math.round(62 + 22 * k + r() * 5) : null };
+  });
+  return [...hist, { week: thisWeek, demo: false, late, ncr, acc: accLive }];
 }
 
 export function outcomes(db: Db, facilityId?: string) {
@@ -84,17 +104,49 @@ export function outcomes(db: Db, facilityId?: string) {
   // the headline compares the four weeks before the orchestrator with the four since (the demo's history)
   const before = weeks.slice(0, 4), after = weeks.slice(4, 8);
   const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
+  const headline = {
+    alarmToAssign: { before: avg(before.map((w) => w.alarmToAssignMin!)), after: avg(after.map((w) => w.alarmToAssignMin!)) },
+    pmOnTime: { before: avg(before.map((w) => w.pmOnTime)), now: live.pmOnTime },
+    acceptance: { first: after[0]?.acceptance ?? null, now: live.acceptance ?? after[3]?.acceptance ?? null },
+  };
+  const saved = { actions: actedAll, minutesEach: MINUTES_SAVED_PER_ACTION, hours: Math.round((actedAll * MINUTES_SAVED_PER_ACTION) / 6) / 10 };
+  const accTile: Tile = { label: "Proposals accepted", value: headline.acceptance.now === null ? "—" : `${headline.acceptance.now}%`, sub: `${headline.acceptance.first !== null ? `${headline.acceptance.first}% in the first week` : ""}${live.decided ? ` · ${live.decided} decided this week` : ""}` };
+  const savedTile: Tile = { label: "Coordination time saved", value: `${saved.hours} h`, sub: `${saved.actions} actions × ${saved.minutesEach} min (assumption)` };
+  // what the panel shows: operations measures for a facility (and Today where the edition has facilities), the
+  // building site's measures otherwise
+  let tiles: Tile[], charts: Chart[];
+  if (facilityId || HAS_OPERATIONS) {
+    tiles = [
+      { label: "Fault → someone on it", value: `${headline.alarmToAssign.after ?? "—"} min`, sub: `was ${headline.alarmToAssign.before} min before the orchestrator${live.alarmToAssignMin !== null ? ` · this week ${live.alarmToAssignMin} min` : ""}`, tone: "good" },
+      { label: "Planned maintenance on time", value: `${headline.pmOnTime.now}%`, sub: `was ${headline.pmOnTime.before}%`, tone: "good" },
+      accTile, savedTile,
+    ];
+    charts = [
+      { title: "Fault → someone assigned (minutes)", unit: " min", better: "low", rows: weeks.map((w) => ({ week: w.week, demo: w.demo, v: w.alarmToAssignMin })), empty: live.alarmToAssignMin === null ? "no fault reported and assigned yet this week" : undefined },
+      { title: "Planned maintenance on time", unit: "%", better: "high", rows: weeks.map((w) => ({ week: w.week, demo: w.demo, v: w.pmOnTime })) },
+      { title: "SLA breaches", unit: "", better: "low", rows: weeks.map((w) => ({ week: w.week, demo: w.demo, v: w.slaBreaches })) },
+    ];
+  } else {
+    const sw = siteWeeks(db, thisWeek, live.acceptance);
+    const b4 = (k: "late" | "ncr") => avg(sw.slice(0, 4).map((w) => w[k]!));
+    tiles = [
+      { label: "Critical activities late", value: String(sw[8].late), sub: `was ${b4("late")} before the orchestrator`, tone: (sw[8].late ?? 0) < (b4("late") ?? 0) ? "good" : "warn" },
+      { label: "NCRs past their close-out", value: String(sw[8].ncr), sub: `was ${b4("ncr")}`, tone: (sw[8].ncr ?? 0) < (b4("ncr") ?? 0) ? "good" : "warn" },
+      { ...accTile, value: `${live.acceptance ?? sw[7].acc}%`, sub: `${sw[4].acc}% in the first week${live.decided ? ` · ${live.decided} decided this week` : ""}` }, savedTile,
+    ];
+    charts = [
+      { title: "Critical activities late", unit: "", better: "low", rows: sw.map((w) => ({ week: w.week, demo: w.demo, v: w.late })) },
+      { title: "NCRs past their close-out date", unit: "", better: "low", rows: sw.map((w) => ({ week: w.week, demo: w.demo, v: w.ncr })) },
+      { title: "Proposals accepted", unit: "%", better: "high", rows: sw.map((w) => ({ week: w.week, demo: w.demo, v: w.acc })), empty: live.acceptance === null ? "nothing decided yet this week" : undefined },
+    ];
+  }
   return {
-    date, thisWeek, weeks, live,
-    headline: {
-      alarmToAssign: { before: avg(before.map((w) => w.alarmToAssignMin!)), after: avg(after.map((w) => w.alarmToAssignMin!)) },
-      pmOnTime: { before: avg(before.map((w) => w.pmOnTime)), now: live.pmOnTime },
-      acceptance: { first: after[0]?.acceptance ?? null, now: live.acceptance ?? after[3]?.acceptance ?? null },
-    },
+    date, thisWeek, weeks, live, tiles, charts,
+    headline,
     decisions: { total: all.length, approved: all.filter((x) => x.decision === "approved").length, rejected: all.filter((x) => x.decision === "rejected").length, auto: all.filter((x) => x.decision === "auto").length,
       byKind: [...kinds.values()].sort((a, b) => b.approved + b.rejected + b.auto - (a.approved + a.rejected + a.auto)), reasons },
-    saved: { actions: actedAll, minutesEach: MINUTES_SAVED_PER_ACTION, hours: Math.round((actedAll * MINUTES_SAVED_PER_ACTION) / 6) / 10 },
-    note: "Weeks before this one are the demo's history (the orchestrator was switched on four weeks ago). This week is live: the decisions made in the app, on WhatsApp and by the autopilot.",
+    saved,
+    note: `Weeks before this one are the demo's history (the orchestrator was switched on four weeks ago). This week is live: the decisions made in the app${HAS_OPERATIONS ? ", on WhatsApp and by the autopilot" : " and on WhatsApp"}.`,
   };
 }
 export type Outcomes = ReturnType<typeof outcomes>;

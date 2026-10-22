@@ -30,6 +30,26 @@ The agent answers from the project's documents, programme, procurement, safety a
 
 ---
 
+## 0. Editions — Kinan and vanilla
+
+One source, two apps (`lib/edition.ts`, set at build time with `NEXT_PUBLIC_EDITION`):
+
+| | **Kinan** (default) | **Vanilla** |
+|---|---|---|
+| Who it is for | Kinan | any client |
+| Brand | Kinan logo, chevron, orange, faceted texture | neutral: a fictional developer, *Meridian*, teal, no texture |
+| Building site, 4D, programme, documents, procurement, permits | ✓ | ✓ |
+| Projects from documents, daily brief and ▶ Play, WhatsApp, Outlook | ✓ | ✓ |
+| Construction proposals, Today, sign-in and approval limits, eval | ✓ | ✓ |
+| Facility operations (power, desalination, airport), autopilot, technicians' field app | — | ✓ |
+| Outcomes on Today | construction: critical activities late, NCRs past close-out, proposals accepted | operations: fault → assigned, planned maintenance on time, SLA breaches |
+
+Work in this source; the Kinan edition is what it builds. The vanilla edition is generated from it:
+`node scripts/edition.mjs vanilla <folder>` copies the app, renames everything Kinan (English and Arabic, including the
+sample packs and the `KINAN_` variables, which become `APP_` — e.g. `APP_ADMINS`, `APP_DATA_DIR`), swaps the colours,
+logo and mark (`editions/vanilla/brand/`) and sets `NEXT_PUBLIC_EDITION=vanilla`. In the demo portal it lives in
+`bohio-demos/site-agent` (https://site-agent.bohiotech.com); regenerate it after every change here.
+
 ## 1. How it fits together
 
 ```
@@ -444,6 +464,8 @@ Until it is connected, a **demo inbox** with emails from the project's contracto
 How it syncs: mail from the last 60 days on the first sync, then only new mail; refreshed at most every 5 minutes, when the agent or the Emails page needs it. The newest 400 emails are kept in the app's storage (`inbox/emails.json`), with attachment names (not their contents).
 
 ## 8d. Operations — facility management with an AI orchestration layer
+
+*Vanilla edition only (§0): the Kinan edition has no facility operations.*
 
 For running large infrastructure once it is built: power and energy, water desalination, airports. Three demo facilities ship with the app (all fictional): **Kinan Coastal Power Station** (1,250 MW combined cycle), **Kinan Red Sea Desalination Plant** (400,000 m³/day SWRO) and **Kinan Gulf International Airport — Terminal 2**. Their day is generated for the calendar like the construction data, so maintenance falls due and readings drift every day; every change people or the orchestrator make is kept as an event and re-applied (`lib/fm`).
 

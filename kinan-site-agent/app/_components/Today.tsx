@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { today as todayFn } from "@/lib/approvals";
 import { Decide } from "./Decide";
+import { HAS_OPERATIONS } from "@/lib/edition";
 import { OutcomesPanel } from "./Outcomes";
 import type { RejectReason } from "@/lib/proposals";
 
@@ -56,13 +57,13 @@ export default function Today({ onGo, onSignIn }: { onGo: (target: string) => vo
     <div className="home today">
       <div className="home-head"><div>
         <h1>{t.me ? `${greet()}, ${first}` : "Today"}</h1>
-        <p>{t.me ? <>{t.me.title} · {t.me.org} · <b>{t.me.roleLabel}</b> — {t.me.limits}.</> : <>The day across the building site and every facility, and the decisions waiting. <button className="linkish" onClick={onSignIn}>Sign in</button> to approve — what you may approve depends on your role.</>}</p>
+        <p>{t.me ? <>{t.me.title} · {t.me.org} · <b>{t.me.roleLabel}</b> — {t.me.limits}.</> : <>The day {HAS_OPERATIONS ? "across the building site and every facility" : "on the building site"}, and the decisions waiting. <button className="linkish" onClick={onSignIn}>Sign in</button> to approve — what you may approve depends on your role.</>}</p>
       </div></div>
 
       <section className="td-day">
         <div className="rpt-label">The day · {t.date}</div>
         <ul>{t.lines.map((l, i) => <li key={i}><button onClick={() => l.go && onGo(l.go)}><span className={`td-dot ${l.tone}`} aria-hidden="true" /><span className="grow">{l.text}</span><span className="td-go" aria-hidden="true">›</span></button></li>)}</ul>
-        <div className="td-acts"><button className="studio-add" onClick={() => onGo("reports")}>Open the full brief</button><button className="mini" onClick={() => onGo("home")}>All projects &amp; facilities</button></div>
+        <div className="td-acts"><button className="studio-add" onClick={() => onGo("reports")}>Open the full brief</button><button className="mini" onClick={() => onGo("home")}>{HAS_OPERATIONS ? <>All projects &amp; facilities</> : "All projects"}</button></div>
       </section>
 
       <section className="td-appr">

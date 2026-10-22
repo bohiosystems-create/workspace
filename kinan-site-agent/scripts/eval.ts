@@ -16,6 +16,7 @@ import { findById } from "../lib/auth/people";
 import { fmToday } from "../lib/fm/engine";
 import type { Db } from "../lib/types";
 import { CASES, type Case } from "../evals/cases";
+import { HAS_OPERATIONS } from "../lib/edition";
 
 const arg = (k: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : undefined; };
 const providerArg = (arg("provider") ?? "auto").toLowerCase();
@@ -71,7 +72,8 @@ async function pool<T, R>(xs: T[], n: number, f: (x: T) => Promise<R>): Promise<
 }
 
 async function main() {
-  const cases = CASES.filter((c) => !only || c.id.startsWith(only));
+  // facility questions only where the edition has facility operations
+  const cases = CASES.filter((c) => (!only || c.id.startsWith(only)) && (HAS_OPERATIONS || !c.fm));
   const have = { anthropic: !!process.env.ANTHROPIC_API_KEY, openai: !!process.env.OPENAI_API_KEY };
   const providers = providerArg === "both" ? (["anthropic", "openai"] as const).filter((p) => have[p]) : [providerArg];
   if (!have.anthropic && !have.openai) { console.error("No AI provider: set ANTHROPIC_API_KEY and/or OPENAI_API_KEY."); process.exit(2); }

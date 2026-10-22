@@ -131,6 +131,7 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
   }
   // facility management: the same engine and orchestrator, over this page's own copy of the data
   if (p === "/api/fm") {
+    if (!(await import("../lib/edition")).HAS_OPERATIONS) return json({ error: "Facility operations are not part of this edition." }, 404);
     const F = await import("../lib/fm/api");
     try {
       if (method === "GET") { const q = url.searchParams; return json(q.get("tech") ? F.myDay(db, q.get("tech")!) : q.get("facility") ? F.facilityStateFor(db, q.get("facility")!, me) : F.overview(db)); }

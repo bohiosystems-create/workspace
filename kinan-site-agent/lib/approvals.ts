@@ -12,6 +12,7 @@ import { fmToday } from "./fm/engine";
 import { scheduleSummary } from "./core/project";
 import type { RejectReason } from "./proposals";
 import { outcomes } from "./outcomes";
+import { HAS_OPERATIONS } from "./edition";
 
 export interface ApprovalItem {
   key: string; domain: "site" | "fm"; scopeId: string; scopeName: string; kind: string; kindLabel: string;
@@ -26,7 +27,7 @@ export function approvals(db: Db, user: Person | null | undefined): ApprovalItem
   for (const a of siteActions(db)) out.push({ key: `site|${a.id}`, domain: "site", scopeId: "kinan-heights", scopeName: db.project.name, kind: a.kind, kindLabel: SITE_KIND_LABEL[a.kind],
     title: a.title, why: a.why, risk: a.risk, ...(a.cost ? { cost: a.cost } : {}), ...(a.costNote ? { costNote: a.costNote } : {}), ...(a.owner ? { owner: a.owner } : {}), can: canApprove(user, { domain: "site", risk: a.risk, cost: a.cost }) });
   const d = fmToday(db);
-  for (const a of actions(db, d)) {
+  for (const a of HAS_OPERATIONS ? actions(db, d) : []) {
     const f = d.facilities.find((x) => x.id === a.facilityId)!;
     out.push({ key: `fm|${a.id}`, domain: "fm", scopeId: f.id, scopeName: f.name, kind: a.kind, kindLabel: KIND_LABEL[a.kind], title: a.title, why: a.why, risk: a.risk, ...(a.cost ? { cost: a.cost } : {}),
       autopilot: autopilotOn(db, a.facilityId) && withinPolicy(db, a), can: canApprove(user, { domain: "fm", facilityId: a.facilityId, risk: a.risk, cost: a.cost }) });
@@ -47,7 +48,7 @@ export function decideApproval(db: Db, b: { key: string; decision: "approved" | 
 /** The first screen: the day in a few lines, the approvals waiting, and the outcomes so far. */
 export function today(db: Db, user: Person | null | undefined) {
   const s = scheduleSummary(db);
-  const fm = overview(db);
+  const fm = HAS_OPERATIONS ? overview(db) : { facilities: [] };
   const list = approvals(db, user);
   const mine = list.filter((x) => x.can.ok && !x.autopilot);
   const lines: { tone: "ok" | "warn" | "bad"; text: string; go?: string }[] = [];

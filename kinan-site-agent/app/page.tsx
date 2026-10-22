@@ -20,6 +20,7 @@ import { loadProjects, saveProjects, type GenProject } from "@/lib/model3d/store
 import { useAuthor, useSite } from "./_components/site";
 import { Icon, Logo, Mark } from "./_components/icons";
 import { TEXTURE } from "@/lib/brand";
+import { HAS_OPERATIONS } from "@/lib/edition";
 
 // Optional official logo (e.g. /brand/kinan-logo.svg placed in public/) — set by Kinan's team.
 const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
@@ -62,7 +63,7 @@ export default function Home() {
     sync(list, deleted);
   };
   const genId = screen.startsWith("p:") ? screen.slice(2) : null;
-  const fmId = screen.startsWith("fm:") ? screen.slice(3) : null;
+  const fmId = HAS_OPERATIONS && screen.startsWith("fm:") ? screen.slice(3) : null;
   const gen = genId ? projects.find((p) => p.id === genId) : undefined;
   const [selId, setSelId] = useState<string | undefined>();
   const [viewerId, setViewerId] = useState<string | undefined>();
@@ -200,7 +201,7 @@ export default function Home() {
               site={{ name: state.project.name, code: state.project.code, client: state.project.client }} projects={projects}
               onOpenSite={() => setScreen("site")} onOpen={(id) => setScreen(`p:${id}`)} onNew={() => setScreen("new")}
               onDelete={(id) => putProjects(projects.filter((p) => p.id !== id), [id])}
-            ><FacilityCards onOpen={(id) => setScreen(`fm:${id}`)} /></ProjectHome>
+            >{HAS_OPERATIONS && <FacilityCards onOpen={(id) => setScreen(`fm:${id}`)} />}</ProjectHome>
           )}
           {fmId && <ControlRoom key={fmId} facilityId={fmId} author={author} onBack={() => setScreen("home")} onSignIn={() => setSignIn(true)} />}
           {screen === "new" && <NewProject onCancel={() => setScreen("home")} onCreated={(p) => { putProjects([p, ...projects]); setScreen(`p:${p.id}`); }} />}

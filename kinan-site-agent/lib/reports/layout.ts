@@ -4,6 +4,7 @@
 // on. Every change is logged with what it replaced, so it can be undone. The layout only shapes what the brief shows:
 // figures still come from the data, and nothing here sends or approves. Storage-agnostic: the engine keeps it.
 import { tx, type Lang } from "./build";
+import { HAS_OPERATIONS } from "../edition";
 
 export const SECTIONS = ["headline", "since", "today", "next48", "critical", "milestones", "procurement", "safety", "projects", "facilities"] as const;
 export type SectionId = (typeof SECTIONS)[number];
@@ -101,7 +102,7 @@ export function applyOps(start: Layout, ops: Op[], lang: Lang, projects: string[
 /** What the brief will contain, for the chat card and the Briefs page. */
 export function layoutView(l: Layout, lang: Lang) {
   return {
-    sections: l.order.map((id) => ({ id, name: sectionName(id, lang), on: !l.hidden.includes(id) })),
+    sections: l.order.filter((id) => HAS_OPERATIONS || id !== "facilities").map((id) => ({ id, name: sectionName(id, lang), on: !l.hidden.includes(id) })),
     maxItems: l.maxItems, focus: l.focus, notes: l.notes.map((n) => n.text),
     custom: JSON.stringify(cleanLayout(l)) !== JSON.stringify(DEFAULT_LAYOUT),
   };

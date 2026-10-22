@@ -14,6 +14,7 @@ import { getMedia, markRead, sendDocument, sendImage, sendList, sendText, upload
 import { readGenerated } from "../generated";
 import { runSpecAgent } from "../core/specAgent";
 import { findByPhone } from "../auth/people";
+import { HAS_OPERATIONS } from "../edition";
 import { confirmLogin, isLoginMessage } from "../auth/session";
 import { allowed, firstTime, loadSession, saveSession, type WaSession, admitGuest, guest, isJoin, joinCode } from "./sessions";
 import { planSvg, svgToPng } from "./render";
@@ -82,6 +83,7 @@ async function projectChoices(): Promise<ProjectChoice[]> {
     return { id: p.id, title: sp.name, description: `${sp.buildings.length} buildings · ${sp.schedule.start.slice(0, 7)} → ${sp.schedule.finish.slice(0, 7)}${sp.location ? ` · ${sp.location}` : ""}` };
   });
   // facilities (lib/fm): the operations agent, personal for whoever says who they are
+  if (!HAS_OPERATIONS) return [live, ...gen].slice(0, 10);
   const { overview } = await import("../fm/api");
   const SHORT: Record<string, string> = { kcps: "Coastal Power Station", krsd: "Red Sea Desalination", kgia: "Gulf Airport T2" };
   const fac = overview(db).facilities.map(({ facility: f, kpis: k }) => ({ id: `fm:${f.id}`, title: SHORT[f.id] ?? f.name.slice(0, 24), description: `Operations · ${k.availability}% available · ${k.openWos} open jobs · ${k.activeAlarms} alarms`.slice(0, 72) }));
@@ -212,7 +214,7 @@ async function onText(c: WaConfig, from: string, s: WaSession, text: string, msg
   // a technician in the directory: straight to their own agent at their facility (no list, no "I am …")
   const me = findByPhone(db, from);
   const greeting = /^(menu|start|hi|hello|hey|salam|السلام عليكم|مرحبا)[.!]?$/i.test(t);
-  if (me?.techId && me.facilityId && (greeting || !s.projectId || s.fresh)) {
+  if (HAS_OPERATIONS && me?.techId && me.facilityId && (greeting || !s.projectId || s.fresh)) {
     const wasNew = s.techId !== me.techId || s.projectId !== `fm:${me.facilityId}`;
     s.projectId = `fm:${me.facilityId}`; s.techId = me.techId; s.fresh = false; s.queued = undefined;
     if (wasNew) s.history = [];

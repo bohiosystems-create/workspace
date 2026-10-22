@@ -28,24 +28,17 @@ function Bars({ title, unit, rows, better }: { title: string; unit: string; rows
   );
 }
 
-const unitNote = (o: Outcomes) => (o.live.alarmToAssignMin === null ? " · no fault reported and assigned yet this week" : "");
-
 export function OutcomesPanel({ o, compact }: { o: Outcomes; compact?: boolean }) {
-  const h = o.headline;
   const acc = (k: { approved: number; rejected: number; auto: number }) => { const t = k.approved + k.rejected + k.auto; return t ? Math.round(((k.approved + k.auto) / t) * 100) : 0; };
+  const empty = o.charts.map((c) => c.empty).filter(Boolean).join(" · ");
   return (
     <section className="ops-panel oc">
       <div className="oc-tiles">
-        <div className="ops-kpi good"><span className="kl">Fault → someone on it</span><b>{h.alarmToAssign.after ?? "—"} min</b><em>was {h.alarmToAssign.before} min before the orchestrator{o.live.alarmToAssignMin !== null ? ` · this week ${o.live.alarmToAssignMin} min` : ""}</em></div>
-        <div className="ops-kpi good"><span className="kl">Planned maintenance on time</span><b>{h.pmOnTime.now}%</b><em>was {h.pmOnTime.before}%</em></div>
-        <div className="ops-kpi"><span className="kl">Proposals accepted</span><b>{h.acceptance.now ?? "—"}%</b><em>{h.acceptance.first !== null ? `${h.acceptance.first}% in the first week` : ""}{o.live.decided ? ` · ${o.live.decided} decided this week` : ""}</em></div>
-        <div className="ops-kpi"><span className="kl">Coordination time saved</span><b>{o.saved.hours} h</b><em>{o.saved.actions} actions × {o.saved.minutesEach} min (assumption)</em></div>
+        {o.tiles.map((t) => <div key={t.label} className={`ops-kpi ${t.tone ?? ""}`}><span className="kl">{t.label}</span><b>{t.value}</b><em>{t.sub}</em></div>)}
       </div>
-      {!compact && <p className="oc-legend"><span className="sw demo" /> earlier weeks: the demo&apos;s history <span className="sw live" /> this week: live from the app{unitNote(o)}</p>}
+      {!compact && <p className="oc-legend"><span className="sw demo" /> earlier weeks: the demo&apos;s history <span className="sw live" /> this week: live from the app{empty ? ` · ${empty}` : ""}</p>}
       {!compact && <div className="oc-charts">
-        <Bars title="Fault → someone assigned (minutes)" unit=" min" better="low" rows={o.weeks.map((w) => ({ week: w.week, demo: w.demo, v: w.alarmToAssignMin }))} />
-        <Bars title="Planned maintenance on time" unit="%" better="high" rows={o.weeks.map((w) => ({ week: w.week, demo: w.demo, v: w.pmOnTime }))} />
-        <Bars title="SLA breaches" unit="" better="low" rows={o.weeks.map((w) => ({ week: w.week, demo: w.demo, v: w.slaBreaches }))} />
+        {o.charts.map((c) => <Bars key={c.title} title={c.title} unit={c.unit} better={c.better} rows={c.rows} />)}
       </div>}
       {!compact && (
         <div className="oc-split">

@@ -7,7 +7,7 @@ const root = new URL("..", import.meta.url).pathname;
 const res = await build({
   entryPoints: [root + "standalone/main.tsx"], bundle: true, write: false, minify: true, format: "iife",
   target: "es2020", jsx: "automatic", platform: "browser", logLevel: "error",
-  define: { "process.env.NODE_ENV": '"production"', "process.env.NEXT_PUBLIC_BRAND_LOGO": '""' },
+  define: { "process.env.NODE_ENV": '"production"', "process.env.NEXT_PUBLIC_BRAND_LOGO": '""', "process.env.NEXT_PUBLIC_EDITION": JSON.stringify(process.env.NEXT_PUBLIC_EDITION === "vanilla" ? "vanilla" : "kinan") },
   // Direct-to-Blob uploads only exist on Vercel deployments; never loaded here.
   external: ["@vercel/blob/client"],
   tsconfig: root + "tsconfig.json",

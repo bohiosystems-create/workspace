@@ -4,6 +4,7 @@
 // the admins named in KINAN_ADMINS. Pure (no Node APIs), so the standalone page uses it too.
 import type { Db } from "../types";
 import { PLANTS, techPhone } from "../fm/data";
+import { HAS_OPERATIONS } from "../edition";
 
 export type Role = "guest" | "field" | "supervisor" | "manager" | "director" | "admin";
 export type Risk = "low" | "medium" | "high";
@@ -67,7 +68,7 @@ export function directory(db: Db, env: Record<string, string | undefined> = type
     const phone = digits(c.phone);
     put({ id: `p_${phone}`, name: c.name, phone, role: siteRole(c.role, c.company), title: c.role, org: c.company, domain: "site", source: "directory" });
   }
-  for (const t of fmTeams()) for (const x of t.techs) {
+  for (const t of HAS_OPERATIONS ? fmTeams() : []) for (const x of t.techs) {
     const phone = digits(x.phone);
     put({ id: `p_${phone}`, name: x.name, phone, role: fmRole(x.role), title: x.role, org: t.facility, domain: "fm", facilityId: t.facilityId, techId: x.id, source: "directory" });
   }

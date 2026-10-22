@@ -1,5 +1,6 @@
 import type { Db, Doc, MaterialRequest, Note, UiAction } from "../types";
 import { FM_TOOLS } from "../fm/tools";
+import { HAS_OPERATIONS } from "../edition";
 import { descendantIds, locationById, locationPath, resolveLocation, searchDocs } from "./query";
 import * as P from "./project";
 import { searchEmails, type InboxState } from "./emails";
@@ -91,7 +92,7 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "site_proposals", description: "The construction orchestrator: what it proposes for the site right now — expedite late packages, resequence work around a late delivery, night shifts to recover slipping work, material requests to raise or approve, expired permits to close, permits and overdue NCRs to chase — each with its reasons, risk, cost and who carries it out. Or approve / reject one (with the reason: not_now, already_handled, wrong_person, too_costly, disagree). Approving changes the programme/procurement records and leaves the instruction on the site plan. The user's approval limits apply.",
     input_schema: obj({ kind: str("filter: expedite | resequence | recover | stock_mr | approve_mr | permit_close | permit_chase | ncr_escalate"), approve: str("proposal id"), reject: str("proposal id"), reason: str("for reject: not_now | already_handled | wrong_person | too_costly | disagree") }) },
   // facility management: the operations layer (lib/fm/tools.ts)
-  ...(FM_TOOLS as ToolDef[]),
+  ...(HAS_OPERATIONS ? (FM_TOOLS as ToolDef[]) : []),
 ];
 
 const MAX = 14_000;

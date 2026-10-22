@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getRepo } from "@/lib/store";
 import { act, facilityStateFor, myDay, overview, type ActInput } from "@/lib/fm/api";
 import { currentUser } from "@/lib/auth/session";
+import { HAS_OPERATIONS } from "@/lib/edition";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic";
 // POST { action, …, by, channel } -> a change (decide, policy, autopilot, tick, wo_create, wo_update, asset_status, alarm_ack, tech_status)
 //   decide / policy / autopilot need a signed-in person with the authority (lib/auth/people.ts)
 export async function GET(req: Request) {
+  if (!HAS_OPERATIONS) return NextResponse.json({ error: "Facility operations are not part of this edition." }, { status: 404 });
   try {
     const q = new URL(req.url).searchParams, db = (await getRepo()).db;
     const body = q.get("tech") ? myDay(db, q.get("tech")!) : q.get("facility") ? facilityStateFor(db, q.get("facility")!, await currentUser(req)) : overview(db);
@@ -20,6 +22,7 @@ export async function GET(req: Request) {
   } catch (e) { return NextResponse.json({ error: (e as Error).message }, { status: 400 }); }
 }
 export async function POST(req: Request) {
+  if (!HAS_OPERATIONS) return NextResponse.json({ error: "Facility operations are not part of this edition." }, { status: 404 });
   try {
     const b = (await req.json()) as ActInput & { by?: string; channel?: "web" | "field" };
     const repo = await getRepo();

@@ -14,6 +14,7 @@ import type { facilityState, myDay } from "@/lib/fm/api";
 import { Logo, Mark } from "../_components/icons";
 import { useVoiceInput } from "../_components/deck/useVoiceInput";
 import { SignInPanel, signOut, useMe, type Me } from "../_components/auth";
+import { HAS_OPERATIONS } from "@/lib/edition";
 import { enqueue, flush, isOffline, loadDay, newCid, pending, saveDay, type OutItem } from "./outbox";
 
 type Day = ReturnType<typeof myDay>;
@@ -23,6 +24,11 @@ const STATUS: [string, string][] = [["available", "Available"], ["on_job", "On a
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 export default function Field() {
+  // the field app belongs to facility operations: in an edition without them it says so
+  if (!HAS_OPERATIONS) return <div className="field"><Header title="Field app" /><main className="fd-main"><p className="fd-lead">{"The technicians' field app is part of facility operations, which this edition doesn't include."}</p><button className="fd-btn" onClick={() => location.assign("/")}>Open the Onsite Agent</button></main></div>;
+  return <FieldApp />;
+}
+function FieldApp() {
   const { me, auth } = useMe();
   const [asTech, setAsTech] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
