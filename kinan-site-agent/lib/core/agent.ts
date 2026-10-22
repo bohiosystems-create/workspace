@@ -7,7 +7,9 @@ import type { ChatTurn, LlmConfig } from "./llm/types";
 
 export interface AgentContext {
   author: string;
-  channel?: "web" | "whatsapp";
+  channel?: "web" | "whatsapp" | "field";
+  /** facility management: answer as the operations agent of this facility, or as this technician's personal agent */
+  fm?: { facilityId?: string; techId?: string };
   focus?: { docId?: string; locationId?: string };
   here?: { locationId: string };
   attachments?: Attachment[];
@@ -57,7 +59,7 @@ Current context:
 }
 
 export async function runAgent(repo: Repo, history: ChatTurn[], ctx: AgentContext, cfg: LlmConfig): Promise<AgentReply> {
-  const toolCtx: ToolCtx = { author: ctx.author, actions: [], focus: { ...ctx.focus }, channel: ctx.channel ?? "web", reports: ctx.reports };
+  const toolCtx: ToolCtx = { author: ctx.author, actions: [], focus: { ...ctx.focus }, channel: ctx.channel ?? "web", reports: ctx.reports, fm: ctx.fm };
   if (!toolCtx.focus?.locationId && ctx.here) toolCtx.focus = { ...toolCtx.focus, locationId: ctx.here.locationId };
   if (!availableProviders(cfg).length) {
     if (ctx.aiOnly) throw new AiUnavailable("No AI provider is configured — set ANTHROPIC_API_KEY or OPENAI_API_KEY.");
@@ -65,10 +67,11 @@ export async function runAgent(repo: Repo, history: ChatTurn[], ctx: AgentContex
   }
   try {
     const { out, route } = await routeAndRun(cfg, {
-      system: systemPrompt(repo, ctx),
+      system: ctx.fm ? (await import("../fm/tools")).fmSystemPrompt(repo.db, ctx.fm, ctx.channel ?? "web", ctx.author) : systemPrompt(repo, ctx),
       history: history.slice(-20),
       attachments: ctx.attachments,
-      tools: TOOL_DEFS,
+      // a facility conversation keeps to the operations tools (and the document library for manuals and photos)
+      tools: ctx.fm ? TOOL_DEFS.filter((t) => t.name.startsWith("fm_") || t.name === "search_documents" || t.name === "get_document") : TOOL_DEFS,
       exec: (name, input) => runTool(repo, name, input as Record<string, any>, toolCtx),
       maxTokens: 2000,
       deadline: ctx.deadline,

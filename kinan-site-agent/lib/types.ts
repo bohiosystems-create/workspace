@@ -84,6 +84,10 @@ export interface Db {
   docs: Doc[];
   notes: Note[];
   data: ProjectData;
+  /** Facility management: every change made by people or the orchestrator (lib/fm), re-applied to the day's data. */
+  fmLog?: import("./fm/types").FmEvent[];
+  /** Facility management settings (autopilot per facility). */
+  fmConfig?: import("./fm/types").FmConfig;
 }
 
 // ---------------------------------------------------------------- project data

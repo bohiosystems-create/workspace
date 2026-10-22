@@ -110,6 +110,9 @@ export async function getRepo(): Promise<Repo> {
   }
 }
 
+/** A cheap change stamp: the stored database's ETag (changes on every save, from any instance or WhatsApp). */
+export async function dbStamp(): Promise<{ v: string; repo: Repo }> { const repo = await getRepo(); return { v: g.__kinan?.etag ?? "", repo }; }
+
 export const newId = (p: string) => `${p}_${crypto.randomBytes(5).toString("hex")}`;
 export const storageKind = () => store().kind;
 

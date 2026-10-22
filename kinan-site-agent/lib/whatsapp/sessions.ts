@@ -16,6 +16,8 @@ export interface WaSession {
   queued?: string;
   /** Photos/PDFs just filed from this chat, waiting to be linked to an activity as evidence (cleared once used, or after 30 min). */
   evidence?: { docIds: string[]; at: string; /** the activity the photo reading suggested — "yes" records it */ suggest?: { activityId: string; state: "completed" | "in_progress" | "pending"; percent?: number } };
+  /** In a facility conversation: the technician this phone belongs to ("I am Ahmed Bakr"), for their personal agent. */
+  techId?: string;
   /** Set when this message starts a new conversation (first ever, or after a long silence). */
   fresh?: boolean;
 }

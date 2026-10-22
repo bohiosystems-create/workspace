@@ -19,6 +19,7 @@ import type { DeckSlide, Kpi, Tone } from "../deck/deck";
 import { short } from "../deck/deck";
 import { progressByLocation, sCurve } from "../core/progress";
 import { cleanLayout, mentions, type Layout, type SectionId } from "./layout";
+import { overview as fmOverview } from "../fm/api";
 
 export type Lang = "en" | "ar";
 export const tx = (l: Lang, en: string, ar: string) => (l === "ar" ? ar : en);
@@ -345,6 +346,20 @@ export function buildReport(o: BuildIn): Built {
 
   // ---------------- generated projects (from uploaded documents)
   const active = o.projects.filter((p) => p.result?.spec?.schedule && p.result.spec.schedule.finish >= o.date && wanted(p.result.spec.name));
+  // ---------------- facilities in operation (lib/fm): availability, output, open work, alarms, what the orchestrator proposes
+  const ops = (() => { try { return fmOverview(db); } catch { return null; } })();
+  if (ops) {
+    sec("facilities");
+    body.push(h2(T("Operations — facilities", "التشغيل — المرافق"), T(`${ops.facilities.length} facilities · managed with the AI orchestration layer`, `${ops.facilities.length} مرافق · تُدار عبر طبقة التنسيق الذكية`)));
+    body.push(table([T("Facility", "المرفق"), T("Available", "الجاهزية"), T("Output", "الإنتاج"), T("Open / late", "مفتوحة / متأخرة"), T("Alarms", "الإنذارات"), T("Proposed", "مقترحة")],
+      ops.facilities.map(({ facility: f, kpis: k, pending }) => [`<b>${esc(f.name)}</b>`, `${k.availability}%`, `${Math.round((k.output.value / k.output.target) * 100)}%`, `${k.openWos} / ${k.overdueWos}`, `${k.activeAlarms}${k.criticalAlarms ? ` <span style="color:${C.red}">(${k.criticalAlarms} high)</span>` : ""}`, String(pending)]),
+      ["l", "r", "r", "r", "r", "r"], l, ops.facilities.map(({ kpis: k }) => (k.criticalDown || k.criticalAlarms ? C.red : k.activeAlarms ? C.amber : C.green))));
+    const tops = ops.facilities.flatMap(({ facility: f, top }) => top.slice(0, 2).map((x) => `<b>${esc(f.name.replace(/^Kinan\s+/, ""))}</b> — ${esc(x)}`));
+    if (tops.length) body.push(bullets(tops));
+    slides.push({ kind: "list", kicker: T("Operations", "التشغيل"), title: T("Facilities in operation", "المرافق قيد التشغيل"),
+      items: ops.facilities.map(({ facility: f, kpis: k, pending, top }) => ({ text: f.name, sub: `${k.availability}% ${T("available", "جاهزية")} · ${Math.round((k.output.value / k.output.target) * 100)}% ${T("of output target", "من هدف الإنتاج")} · ${k.openWos} ${T("open jobs", "مهام مفتوحة")}${top[0] ? ` · ${top[0]}` : ""}`.slice(0, 220), tone: (k.criticalDown || k.criticalAlarms ? "bad" : k.activeAlarms ? "warn" : "good") as Tone, tag: pending ? `${pending} ${T("proposed", "مقترحة")}` : T("clear", "لا شيء") })),
+      say: ops.facilities.map(({ facility: f, kpis: k, top }) => `${f.name}: ${k.availability}% ${T("available", "جاهزية")}${top[0] ? `. ${top[0]}` : ""}.`).join(" ") });
+  }
   sec("projects");
   for (const p of active) {
     const spec = p.result.spec, dd = spec.schedule.dataDate || o.date;
@@ -450,7 +465,7 @@ ${o.appUrl ? `<tr><td style="padding:26px 28px 6px"><a href="${esc(o.appUrl)}" s
   // ▶ Play follows the layout too: slides are grouped by section and kept in the layout's order (cover first, closing last).
   const KICK: [string, SectionId][] = [[T("Today in one line", "اليوم في سطر"), "headline"], [T("Programme health", "صحة البرنامج"), "critical"], [T("Programme", "البرنامج الزمني"), "critical"], [T("Critical path", "المسار الحرج"), "critical"],
     [T("On site", "في الموقع"), "today"], [T("The last 24 hours", "آخر 24 ساعة"), "today"], [T("Contractor emails", "رسائل المقاولين"), "today"], [T("Next 48 hours", "الثماني والأربعون ساعة القادمة"), "next48"],
-    [T("Supply", "التوريد"), "procurement"], [T("Procurement", "المشتريات"), "procurement"], [T("Safety", "السلامة"), "safety"], [T("Milestones", "المعالم"), "milestones"]];
+    [T("Operations", "التشغيل"), "facilities"], [T("Supply", "التوريد"), "procurement"], [T("Procurement", "المشتريات"), "procurement"], [T("Safety", "السلامة"), "safety"], [T("Milestones", "المعالم"), "milestones"]];
   const secOf = (x: DeckSlide): SectionId | "cover" => (x.kind === "cover" ? "cover" : KICK.find(([k]) => k === x.kicker)?.[1] ?? "projects");
   const shown = (id: SectionId) => !layout.hidden.includes(id) && (siteOn || !SITE_SECS.includes(id));
   const ordered = [...slides.filter((x) => secOf(x) === "cover"), ...layout.order.filter(shown).flatMap((id) => slides.filter((x) => secOf(x) === id))];

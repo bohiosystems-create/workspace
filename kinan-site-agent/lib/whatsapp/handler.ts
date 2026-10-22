@@ -79,7 +79,11 @@ async function projectChoices(): Promise<ProjectChoice[]> {
     const sp = p.result.spec;
     return { id: p.id, title: sp.name, description: `${sp.buildings.length} buildings · ${sp.schedule.start.slice(0, 7)} → ${sp.schedule.finish.slice(0, 7)}${sp.location ? ` · ${sp.location}` : ""}` };
   });
-  return [live, ...gen];
+  // facilities (lib/fm): the operations agent, personal for whoever says who they are
+  const { overview } = await import("../fm/api");
+  const SHORT: Record<string, string> = { kcps: "Coastal Power Station", krsd: "Red Sea Desalination", kgia: "Gulf Airport T2" };
+  const fac = overview(db).facilities.map(({ facility: f, kpis: k }) => ({ id: `fm:${f.id}`, title: SHORT[f.id] ?? f.name.slice(0, 24), description: `Operations · ${k.availability}% available · ${k.openWos} open jobs · ${k.activeAlarms} alarms`.slice(0, 72) }));
+  return [live, ...gen, ...fac].slice(0, 10);
 }
 async function projectName(id?: string) { return id ? (await projectChoices()).find((p) => p.id === id)?.title : undefined; }
 
@@ -102,7 +106,8 @@ async function pickProject(c: WaConfig, from: string, s: WaSession, id: string, 
   if (s.projectId !== p.id) { s.history = []; s.focusDocId = undefined; }
   s.projectId = p.id;
   const q = s.queued; s.queued = undefined;
-  await sendText(c, from, `✅ *${p.title}*. ${q ? "Answering your question…" : p.id === LIVE ? "Ask anything about the site — type *help* for examples." : "Ask about its buildings, programme, critical path and progress."}`);
+  if (p.id.startsWith("fm:")) s.techId = undefined;
+  await sendText(c, from, `✅ *${p.title}*. ${q ? "Answering your question…" : p.id === LIVE ? "Ask anything about the site — type *help* for examples." : p.id.startsWith("fm:") ? "I'm the operations agent: report a fault (\"SWP-102 tripped\"), ask what needs attention, or update a job. On the team? Say *I am* and your name, and I'll be your personal agent with your jobs." : "Ask about its buildings, programme, critical path and progress."}`);
   if (q) await ask(c, from, s, q, undefined, msgId);
 }
 
@@ -268,6 +273,29 @@ async function onText(c: WaConfig, from: string, s: WaSession, text: string, msg
 
 async function ask(c: WaConfig, from: string, s: WaSession, text: string, attachment?: { mime: string; bytes: Uint8Array; name: string }, msgId?: string) {
   s.history.push({ role: "user", content: text });
+  if (s.projectId?.startsWith("fm:")) {
+    // facility operations: the operations agent, personal when this phone said who it is
+    const facilityId = s.projectId.slice(3);
+    const { fmToday, findTech } = await import("../fm/engine");
+    const who = /^(i am|i'm|this is|my name is|أنا)\s+(.+)$/i.exec(text.trim());
+    if (who) {
+      const t = findTech(fmToday((await getRepo()).db), who[2], facilityId) ?? findTech(fmToday((await getRepo()).db), who[2]);
+      if (t) {
+        s.techId = t.id; s.history = []; s.projectId = `fm:${t.facilityId}`; // their own facility, whichever was picked
+        const { myDay } = await import("../fm/api");
+        return sendText(c, from, `👷 Hello ${t.name.split(" ")[0]} — I'm your agent now (${t.role}).\n\n${myDay((await getRepo()).db, t.id).brief}\n\nTell me when you start, pause or finish a job, send photos as evidence, or report a fault.`, msgId);
+      }
+    }
+    const tech = s.techId ? fmToday((await getRepo()).db).technicians.find((x) => x.id === s.techId) : undefined;
+    const out = await runAgent(s.history.slice(-16), {
+      author: tech?.name ?? s.name, channel: "whatsapp", fm: { facilityId, techId: s.techId },
+      deadline: Date.now() + Math.min(agentBudgetMs(), process.env.VERCEL ? 38_000 : 110_000),
+      attachments: attachment ? [{ mime: attachment.mime, base64: toBase64(attachment.bytes), name: attachment.name }] : undefined,
+    });
+    s.history.push({ role: "assistant", content: out.reply });
+    s.history = s.history.slice(-24);
+    return sendText(c, from, out.reply, msgId);
+  }
   if (s.projectId && s.projectId !== LIVE) {
     // a project created from documents: answered from its model spec
     const gp = (await readGenerated()).projects.find((p) => p.id === s.projectId);
@@ -354,6 +382,16 @@ async function onLocation(c: WaConfig, from: string, s: WaSession, loc: { latitu
 }
 
 async function onMedia(c: WaConfig, from: string, s: WaSession, m: any) {
+  if (s.projectId?.startsWith("fm:")) {
+    // facility operations: file the photo and let the agent read it and attach it to the job it belongs to
+    const media = m.type === "image" ? m.image : m.document;
+    const caption = String(media?.caption ?? "").trim();
+    const { bytes, mime } = await getMedia(c, media.id);
+    const filename = String(media.filename ?? (mime === "application/pdf" ? "document.pdf" : `photo-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "")}.jpg`));
+    const doc = await fileBytes(s, { bytes, mime, filename, caption }, "site");
+    const prompt = `${caption || "Here is a photo from the job."}\n\n[Photo filed as document ${doc.id}${doc.photo?.scene ? ` — it shows: ${doc.photo.scene}` : ""}. If it belongs to one of the work orders, attach it with evidence_doc_ids=["${doc.id}"].]`;
+    return ask(c, from, s, prompt, /^image\/(jpeg|png|webp|gif)$/.test(mime) || mime === "application/pdf" ? { mime, bytes, name: filename } : undefined, m.id);
+  }
   if (s.projectId && s.projectId !== LIVE) return sendText(c, from, `Photos and PDFs are filed on ${(await getRepo()).db.project.name}'s site plan. Type *projects* and choose it to file this one.`);
   const media = m.type === "image" ? m.image : m.document;
   const caption = String(media?.caption ?? "").trim();

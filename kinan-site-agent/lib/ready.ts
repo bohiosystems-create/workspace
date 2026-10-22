@@ -164,6 +164,7 @@ export async function prepareBriefs(by: string) {
 export async function resetDemoData() {
   const repo = await getRepo(), fresh = seedDb();
   Object.assign(repo.db, fresh);
+  repo.db.fmLog = []; repo.db.fmConfig = { autopilot: {} }; // facilities back to the day's plan too
   await repo.save();
   return { docs: repo.db.docs.length, notes: repo.db.notes.length, dataDate: repo.db.data.meta.dataDate };
 }

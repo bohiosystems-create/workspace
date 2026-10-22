@@ -12,6 +12,7 @@ import { NewProject, ProjectHome, ProjectView } from "./_components/Projects";
 import Reports from "./_components/Reports";
 import Readiness from "./_components/Readiness";
 import Chat from "./_components/Chat";
+import { ControlRoom, FacilityCards } from "./_components/fm/Operations";
 import { loadProjects, saveProjects, type GenProject } from "@/lib/model3d/store";
 import { useAuthor, useSite } from "./_components/site";
 import { Icon, Logo, Mark } from "./_components/icons";
@@ -23,12 +24,12 @@ const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
 type Tab = "map" | "project" | "docs";
 /** home = project list · site = the live Kinan Heights app · new = create from documents · p:<id> = a generated project
  *  · reports = the scheduled daily status e-mail */
-type Screen = "home" | "site" | "new" | "reports" | "ready" | `p:${string}`;
+type Screen = "home" | "site" | "new" | "reports" | "ready" | `p:${string}` | `fm:${string}`;
 /** A tab label: the full wording on the desktop tab row, a short one under the icon on the phone's bottom bar. */
 const Tl = ({ full, short }: { full: string; short: string }) => <><span className="tl">{full}</span><span className="ts">{short}</span></>;
 
 export default function Home() {
-  const { state, error, refresh } = useSite();
+  const { state, error, refresh, live } = useSite();
   const [author, setAuthor] = useAuthor();
   const [tab, setTab] = useState<Tab>("map");
   const [screen, setScreenRaw] = useState<Screen>("home");
@@ -53,6 +54,7 @@ export default function Home() {
     sync(list, deleted);
   };
   const genId = screen.startsWith("p:") ? screen.slice(2) : null;
+  const fmId = screen.startsWith("fm:") ? screen.slice(3) : null;
   const gen = genId ? projects.find((p) => p.id === genId) : undefined;
   const [selId, setSelId] = useState<string | undefined>();
   const [viewerId, setViewerId] = useState<string | undefined>();
@@ -81,6 +83,8 @@ export default function Home() {
   };
   const initials = author.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
   const [projKey, setProjKey] = useState(0);
+  // a change from WhatsApp, the field app or another user: the schedule tab reloads too
+  useEffect(() => { const f = () => setProjKey((k) => k + 1); window.addEventListener("kinan:changed", f); return () => window.removeEventListener("kinan:changed", f); }, []);
   const mapRef = useRef<MapHandle>(null);
 
   const locs = useMemo(() => state?.locations ?? [], [state?.locations]);
@@ -144,6 +148,7 @@ export default function Home() {
         ))}
         {screen === "new" && <button className="on"><Icon name="plus" /><Tl full="New project" short="New" /></button>}
         {gen && <button className="on"><Icon name="cube" /><Tl full={gen.result.spec.name} short={gen.result.spec.name.replace(/^Kinan\s+/i, "")} /></button>}
+        {fmId && <button className="on"><Icon name="layers" /><Tl full="Operations" short="Ops" /></button>}
         <button className={screen === "reports" ? "on" : ""} onClick={() => setScreen("reports")}><Icon name="notes" /><Tl full="Briefs" short="Briefs" /></button>
       </nav>
       {meOpen && (
@@ -172,8 +177,9 @@ export default function Home() {
               site={{ name: state.project.name, code: state.project.code, client: state.project.client }} projects={projects}
               onOpenSite={() => setScreen("site")} onOpen={(id) => setScreen(`p:${id}`)} onNew={() => setScreen("new")}
               onDelete={(id) => putProjects(projects.filter((p) => p.id !== id), [id])}
-            />
+            ><FacilityCards onOpen={(id) => setScreen(`fm:${id}`)} /></ProjectHome>
           )}
+          {fmId && <ControlRoom key={fmId} facilityId={fmId} author={author} onBack={() => setScreen("home")} />}
           {screen === "new" && <NewProject onCancel={() => setScreen("home")} onCreated={(p) => { putProjects([p, ...projects]); setScreen(`p:${p.id}`); }} />}
           {gen && <ProjectView key={gen.id} project={gen} onBack={() => setScreen("home")} />}
           {screen === "reports" && <Reports author={author} />}
@@ -226,9 +232,10 @@ export default function Home() {
       </>)}
 
       {error && <div className="toast">{error}</div>}
+      {live && !error && <div className="toast live" role="status"><span className="live-dot" aria-hidden="true" />{live.via === "whatsapp" ? "WhatsApp · " : live.via === "field" ? "Field app · " : "Updated · "}{live.text}</div>}
 
       {/* the AI chat, on every screen; tool actions open the document or show the place on the map */}
-      <Chat author={author} place={screen === "site" ? tab : screen.startsWith("p:") ? "project" : screen}
+      <Chat author={author} place={screen === "site" ? tab : screen.startsWith("p:") ? "project" : screen} fm={fmId ? { facilityId: fmId } : undefined}
         focus={{ docId: viewerId, locationId: selId }}
         onAction={(a) => { if (a.type === "open_doc") { setScreen("site"); setViewerId(a.docId); } else if (a.type === "focus_location") { setScreen("site"); selectLocation(a.locationId); } }} />
 

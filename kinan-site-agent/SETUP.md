@@ -443,6 +443,25 @@ Until it is connected, a **demo inbox** with emails from the project's contracto
 
 How it syncs: mail from the last 60 days on the first sync, then only new mail; refreshed at most every 5 minutes, when the agent or the Emails page needs it. The newest 400 emails are kept in the app's storage (`inbox/emails.json`), with attachment names (not their contents).
 
+## 8d. Operations — facility management with an AI orchestration layer
+
+For running large infrastructure once it is built: power and energy, water desalination, airports. Three demo facilities ship with the app (all fictional): **Kinan Coastal Power Station** (1,250 MW combined cycle), **Kinan Red Sea Desalination Plant** (400,000 m³/day SWRO) and **Kinan Gulf International Airport — Terminal 2**. Their day is generated for the calendar like the construction data, so maintenance falls due and readings drift every day; every change people or the orchestrator make is kept as an event and re-applied (`lib/fm`).
+
+**Home page → Operations** shows a card per facility. The **control room** for a facility has:
+- **KPIs**: availability of critical assets, output against target (MW, m³/day, passengers), efficiency (heat rate, kWh/m³, on-time departures), open and late work, alarms, planned-maintenance compliance, MTTR / MTBF, people on shift.
+- **Orchestrator**: what it proposes, each with its reasons and risk — raise work from an alarm (with the right person already on it and the permit it needs), change over to a standby machine, assign open work to the best person (trade, specialism, shift, where they are, how busy), re-plan overdue maintenance, escalate work about to breach its SLA, order spares before a job stalls, issue permits. **Approve** or **Reject** each one, or **Approve all low-risk**. With **Autopilot** on, low-risk proposals run by themselves while the control room is open; medium and high risk always wait for a person.
+- **Work orders** (filter, open one to assign, start, hold, close, tick the checklist, add notes; photos from the field show here), **Assets** (live readings against their limits with 14-day trends, condition, maintenance, raise work), **Alarms**, **Team** (each person's status, place and load, with a link to their field app), **Spares**, **Activity** (everything that changed, by whom and from where).
+
+**The field app — `/field`** (a phone page, behind the same password): each technician picks their name once (or opens the link from the Team tab, `/field?tech=<id>`) and gets their **personal agent**: a spoken summary of their day, their jobs in the order to do them, permits (it refuses to start work whose permit is not issued), checklists, readings, **Photo** evidence, **Hold** with the reason, **Done**, **Report a fault**, and **Ask my agent** by typing or voice ("HPP-03 is making noise again", "I finished, seal replaced", "is it safe to start my next job?").
+
+**WhatsApp**: the three facilities are in the project list. Pick one and talk to the operations agent; say **I am** and your name ("I am Ahmed Bakr") and it becomes your personal agent with your jobs, and moves to your facility. Faults reported, jobs updated and photos sent from WhatsApp land in the control room at once.
+
+**The AI agent** (chat in the app, WhatsApp, field app) has the operations tools — overview, assets, one asset in full, work orders, raise and update work, the orchestrator's proposals (and approve them on request), team, a technician's day, spares — so a sentence does what the screens do. The orchestrator itself is deterministic and explainable, so it works and shows its reasons with or without an AI provider.
+
+**Daily brief**: an *Operations — facilities* section and slide (availability, output, open and late work, alarms, proposals, top issues); hide or move it from the chat like any other section.
+
+**Live everywhere**: every open page — the site app, the control room, the field app — checks for changes every 4 seconds while visible and reloads what changed; a toast says what happened and where it came from (WhatsApp, field app, a person). **Reset demo data** in the System check also resets the facilities.
+
 ## 9. Security & compliance checklist
 
 - [ ] **HTTPS only**; `APP_PASSWORD` set, long and random. For company SSO, put the app behind your identity proxy (Azure App Proxy, Cloudflare Access, Okta). The machine endpoints `/api/whatsapp`, `/api/integrations/*` and `/api/import` authenticate themselves.

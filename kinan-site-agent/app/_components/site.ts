@@ -30,7 +30,36 @@ export function useSite() {
     }
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
-  return { state, error, refresh };
+  // Live: every few seconds while the page is visible, ask whether anything changed (WhatsApp, another user, the
+  // field app). When it did, reload and tell the rest of the page (the schedule, facilities) through "kinan:changed".
+  const [live, setLive] = useState<{ at: string; text: string; via?: string } | null>(null);
+  useEffect(() => {
+    let last = "", stop = false, timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      if (stop) return;
+      if (document.visibilityState === "visible") {
+        try {
+          const r = await fetch("/api/state/stamp", { cache: "no-store" });
+          if (r.ok) {
+            const j = (await r.json()) as { v: string; last: { at: string; text: string; via?: string } | null };
+            if (last && j.v && j.v !== last) {
+              await refresh();
+              window.dispatchEvent(new CustomEvent("kinan:changed", { detail: j.last }));
+              if (j.last && Date.now() - Date.parse(j.last.at) < 120_000) setLive(j.last);
+            }
+            if (j.v) last = j.v;
+          }
+        } catch { /* offline: try again next tick */ }
+      }
+      timer = setTimeout(tick, 4000);
+    };
+    tick();
+    const vis = () => { if (document.visibilityState === "visible") { if (timer) clearTimeout(timer); tick(); } };
+    document.addEventListener("visibilitychange", vis);
+    return () => { stop = true; if (timer) clearTimeout(timer); document.removeEventListener("visibilitychange", vis); };
+  }, [refresh]);
+  useEffect(() => { if (!live) return; const id = setTimeout(() => setLive(null), 6000); return () => clearTimeout(id); }, [live]);
+  return { state, error, refresh, live };
 }
 
 export function useAuthor() {

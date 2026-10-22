@@ -1,4 +1,5 @@
 import type { Db, Doc, MaterialRequest, Note, UiAction } from "../types";
+import { FM_TOOLS } from "../fm/tools";
 import { descendantIds, locationById, locationPath, resolveLocation, searchDocs } from "./query";
 import * as P from "./project";
 import { searchEmails, type InboxState } from "./emails";
@@ -22,7 +23,9 @@ export interface ToolCtx {
   author: string;
   actions: UiAction[];
   focus?: { docId?: string; locationId?: string };
-  channel?: "web" | "whatsapp";
+  channel?: "web" | "whatsapp" | "field";
+  /** facility management focus: the facility (control room) and, for a personal field agent, the technician */
+  fm?: { facilityId?: string; techId?: string };
   /** The daily brief's layout (lib/reports/layout.ts), when the host provides the reports engine. */
   reports?: BriefLayoutApi;
 }
@@ -83,6 +86,8 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "get_brief_layout", description: "The daily brief's current layout: sections in order (on/off), item limit, project focus, notes. Use when asked what is in the daily brief / report.", input_schema: obj({ lang: str("en | ar") }) },
   { name: "change_brief_layout", description: "Change the daily brief (the scheduled morning e-mail and ▶ Play): hide/show/move a section, limit lists to N items, focus on one project, add or clear a note, undo the last change, or reset to the standard brief. Sections: headline (always first), since, today, next48, critical, milestones, procurement, safety, projects. Use for 'remove the procurement section', 'move safety to the top', 'only Kinan Heights', 'top 3 items', 'add a note to the brief: …', 'undo'.",
     input_schema: obj({ ops: { type: "array", items: obj({ op: str("hide | show | move | limit | focus | add_note | clear_notes | reset"), section: str("for hide/show/move"), to: str("move: top | bottom | before | after"), ref: str("move before/after: the other section"), n: { type: "number", description: "limit: 1–10, or omit to lift the limit" }, project: str("focus: project name, or omit for all projects"), text: str("add_note: the note") }, ["op"]) }, undo: { type: "boolean", description: "true: undo the last change instead" }, lang: str("en | ar") }) },
+  // facility management: the operations layer (lib/fm/tools.ts)
+  ...(FM_TOOLS as ToolDef[]),
 ];
 
 const MAX = 14_000;
@@ -109,6 +114,7 @@ export async function addNoteTo(repo: Repo, n: Omit<Note, "id" | "createdAt" | "
 const PROCUREMENT_TOOLS = new Set(["purchase_orders", "deliveries", "procurement_packages", "stock_levels"]);
 
 export async function runTool(repo: Repo, name: string, input: Record<string, any>, ctx: ToolCtx): Promise<ToolResult> {
+  if (name.startsWith("fm_")) return (await import("../fm/tools")).runFmTool(repo, name, input, ctx);
   const db = repo.db;
   try {
     if (PROCUREMENT_TOOLS.has(name) && repo.syncProcurement) await repo.syncProcurement().catch(() => undefined);

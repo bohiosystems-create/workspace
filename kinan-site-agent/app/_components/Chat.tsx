@@ -15,11 +15,14 @@ type Msg = { role: "user" | "assistant"; content: string; route?: RouteInfo; err
 interface Props {
   author: string;
   focus?: { docId?: string; locationId?: string };
+  /** facility management: talk to the operations agent of this facility */
+  fm?: { facilityId?: string; techId?: string };
   /** where the user is in the app: on "map" the button is in the map's control column instead */
   place: string;
   onAction: (a: UiAction) => void;
 }
 
+const FM_SUGGESTIONS = ["What needs my attention right now?", "Why is availability below target?", "What does the orchestrator propose, and why?", "Who is free to take a P2 job?"];
 const SUGGESTIONS = [
   "What is late on the critical path?",
   "Which deliveries are delayed this week?",
@@ -38,7 +41,7 @@ function Rich({ text }: { text: string }) {
 }
 const who = (r?: RouteInfo) => r ? `${r.provider === "anthropic" ? "Claude" : r.provider === "openai" ? "OpenAI" : r.provider} · ${r.model}` : "";
 
-export default function Chat({ author, focus, place, onAction }: Props) {
+export default function Chat({ author, focus, place, onAction, fm }: Props) {
   const [open, setOpen] = useState(false);
   const [full, setFull] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -69,7 +72,7 @@ export default function Chat({ author, focus, place, onAction }: Props) {
       const r = await fetch("/api/chat", {
         method: "POST", headers: { "content-type": "application/json" },
         // failed turns are not sent back to the model as context
-        body: JSON.stringify({ messages: next.filter((m) => !m.error).map(({ role, content }) => ({ role, content })), author, focus }),
+        body: JSON.stringify({ messages: next.filter((m) => !m.error).map(({ role, content }) => ({ role, content })), author, focus, ...(fm ? { fm } : {}) }),
       });
       const d = (await r.json().catch(() => ({}))) as { reply?: string; actions?: UiAction[]; route?: RouteInfo; error?: string };
       if (!r.ok || d.error || !d.reply) throw new Error(d.error || "The AI service did not answer. Try again in a moment.");
@@ -98,9 +101,9 @@ export default function Chat({ author, focus, place, onAction }: Props) {
       <div className="chat-log" ref={log} aria-live="polite">
         {msgs.length === 0 && (
           <div className="chat-intro">
-            <p>Ask about Kinan Heights: the programme and critical path, deliveries and packages, permits and safety, drawings and revisions, regulations, or any document on the site.</p>
+            {fm ? <p>Ask the operations agent: what needs attention, why a machine is down, who should take a job, what the orchestrator proposes. Tell it about a fault and it raises the work.</p> : <p>Ask about Kinan Heights: the programme and critical path, deliveries and packages, permits and safety, drawings and revisions, regulations, or any document on the site.</p>}
             <p className="chat-note">Answered by AI from the project data, with the source named.{focus?.locationId || focus?.docId ? " It knows what you have open." : ""}</p>
-            <div className="chat-sugg">{SUGGESTIONS.map((s) => <button key={s} onClick={() => ask(s)}>{s}</button>)}</div>
+            <div className="chat-sugg">{(fm ? FM_SUGGESTIONS : SUGGESTIONS).map((s) => <button key={s} onClick={() => ask(s)}>{s}</button>)}</div>
           </div>
         )}
         {msgs.map((m, i) => (

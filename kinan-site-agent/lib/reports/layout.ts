@@ -5,7 +5,7 @@
 // figures still come from the data, and nothing here sends or approves. Storage-agnostic: the engine keeps it.
 import { tx, type Lang } from "./build";
 
-export const SECTIONS = ["headline", "since", "today", "next48", "critical", "milestones", "procurement", "safety", "projects"] as const;
+export const SECTIONS = ["headline", "since", "today", "next48", "critical", "milestones", "procurement", "safety", "projects", "facilities"] as const;
 export type SectionId = (typeof SECTIONS)[number];
 
 export type Layout = { hidden: SectionId[]; order: SectionId[]; maxItems: number | null; focus: string | null; notes: { text: string; at: string }[] };
@@ -24,7 +24,7 @@ const SECTION_NAME: Record<SectionId, [string, string]> = {
   headline: ["Today in one line & to know today", "اليوم في سطر وللعلم اليوم"], since: ["Since the last brief", "منذ الموجز السابق"],
   today: ["The last 24 hours on site", "آخر 24 ساعة في الموقع"], next48: ["Next 48 hours", "الثماني والأربعون ساعة القادمة"],
   critical: ["Critical path", "المسار الحرج"], milestones: ["Milestones — next 60 days", "المعالم — الستون يوماً القادمة"],
-  procurement: ["Procurement", "المشتريات"], safety: ["Safety", "السلامة"], projects: ["Generated projects", "المشاريع المولّدة"],
+  procurement: ["Procurement", "المشتريات"], safety: ["Safety", "السلامة"], projects: ["Generated projects", "المشاريع المولّدة"], facilities: ["Operations — facilities", "التشغيل — المرافق"],
 };
 export const sectionName = (id: SectionId, l: Lang) => SECTION_NAME[id][l === "ar" ? 1 : 0];
 

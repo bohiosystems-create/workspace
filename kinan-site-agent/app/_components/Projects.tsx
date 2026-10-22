@@ -1,4 +1,5 @@
 "use client";
+import type React from "react";
 /**
  * Home: the project list. Kinan Heights is the live site (map, 4D model, documents, WhatsApp agent); every other
  * project was generated from its documents. "+" starts a new one: drop or pick files, a whole folder or a .zip,
@@ -29,9 +30,11 @@ const isText = (n: string) => /\.(csv|tsv|txt|md|json|xml|xer)$/i.test(n);
 const yearSpan = (a: string, b: string) => `${a.slice(0, 4)}–${b.slice(0, 4)}`;
 
 // ==================================================================== home
-export function ProjectHome({ site, projects, onOpenSite, onOpen, onNew, onDelete }: {
+export function ProjectHome({ site, projects, onOpenSite, onOpen, onNew, onDelete, children }: {
   site: { name: string; code: string; client?: string }; projects: GenProject[];
   onOpenSite: () => void; onOpen: (id: string) => void; onNew: () => void; onDelete: (id: string) => void;
+  /** more sections under the projects (Operations) */
+  children?: React.ReactNode;
 }) {
   const [confirm, setConfirm] = useState<string | null>(null);
   return (
@@ -73,6 +76,7 @@ export function ProjectHome({ site, projects, onOpenSite, onOpen, onNew, onDelet
         })}
       </ul>
       <button className="fab home-fab" onClick={onNew} aria-label="New project"><Icon name="plus" /><span>New project</span></button>
+      {children}
     </div>
   );
 }

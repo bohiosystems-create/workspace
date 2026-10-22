@@ -100,10 +100,22 @@ const rid = (p: string) => `${p}_${Math.random().toString(16).slice(2, 12)}`;
 async function handle(method: string, url: URL, init?: RequestInit): Promise<Response> {
   const db = repo.db, p = url.pathname.replace(/^.*\/api\//, "/api/");
   const body = async () => (typeof init?.body === "string" ? JSON.parse(init.body) : {});
+  if (p === "/api/state/stamp") return json({ v: "standalone", last: null });
   if (p === "/api/state") {
     return json({ project: db.project, locations: db.locations, docs: db.docs.map(({ text: _t, ...d }) => d), notes: db.notes, dataDate: db.data.meta.dataDate, agentMode: "offline", providers: [] });
   }
   if (p === "/api/project") return json(db.data);
+  // facility management: the same engine and orchestrator, over this page's own copy of the data
+  if (p === "/api/fm") {
+    const F = await import("../lib/fm/api");
+    try {
+      if (method === "GET") { const q = url.searchParams; return json(q.get("tech") ? F.myDay(db, q.get("tech")!) : q.get("facility") ? F.facilityState(db, q.get("facility")!) : F.overview(db)); }
+      const b = await body();
+      const r = F.act(db, b, String(b.by || "Control room"), b.channel === "field" ? "field" : "web");
+      repo.save();
+      return json({ ok: true, message: r.message });
+    } catch (e) { return json({ error: (e as Error).message }, 400); }
+  }
   if (p === "/api/ready") return method === "GET"
     ? json({ at: new Date().toISOString(), deep: false, standalone: true, checks: [{ id: "standalone", label: "Standalone page", status: "warn", detail: "No server: AI keys and voices come from this device's settings; WhatsApp, e-mail and the scheduler are not available here." }], score: { ok: 0, warn: 1, fail: 0, total: 1 } })
     : json({ error: "Not available in the standalone page." }, 400);
