@@ -9,3 +9,5 @@ export type Edition = "kinan" | "vanilla";
 export const EDITION: Edition = process.env.NEXT_PUBLIC_EDITION === "vanilla" ? "vanilla" : "kinan";
 /** facility operations: the control rooms, the orchestrator for assets, the field app, the operations agent */
 export const HAS_OPERATIONS = EDITION === "vanilla";
+/** the vanilla edition wears the Bohio website's look (one dark look; no appearance picker) */
+export const BOHIO_LOOK = EDITION === "vanilla";

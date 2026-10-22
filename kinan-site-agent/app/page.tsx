@@ -20,7 +20,7 @@ import { loadProjects, saveProjects, type GenProject } from "@/lib/model3d/store
 import { useAuthor, useSite } from "./_components/site";
 import { Icon, Logo, Mark } from "./_components/icons";
 import { TEXTURE } from "@/lib/brand";
-import { HAS_OPERATIONS } from "@/lib/edition";
+import { BOHIO_LOOK, HAS_OPERATIONS } from "@/lib/edition";
 
 // Optional official logo (e.g. /brand/kinan-logo.svg placed in public/) — set by Kinan's team.
 const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
@@ -180,10 +180,12 @@ export default function Home() {
               </label>
             </form>
           </>)}
-          <div className="me-l">Appearance</div>
-          <div className="seg3" role="group" aria-label="Appearance">
-            {(["auto", "light", "dark"] as const).map((t) => <button key={t} className={theme === t ? "on" : ""} aria-pressed={theme === t} onClick={() => pickTheme(t)}><Icon name={t === "auto" ? "contrast" : t === "light" ? "sun" : "moon"} />{t === "auto" ? "Auto" : t === "light" ? "Light" : "Dark"}</button>)}
-          </div>
+          {!BOHIO_LOOK && <>
+            <div className="me-l">Appearance</div>
+            <div className="seg3" role="group" aria-label="Appearance">
+              {(["auto", "light", "dark"] as const).map((t) => <button key={t} className={theme === t ? "on" : ""} aria-pressed={theme === t} onClick={() => pickTheme(t)}><Icon name={t === "auto" ? "contrast" : t === "light" ? "sun" : "moon"} />{t === "auto" ? "Auto" : t === "light" ? "Light" : "Dark"}</button>)}
+            </div>
+          </>}
           <div className="me-l">Before a demo</div>
           <button className="mini me-check" onClick={() => { setMeOpen(false); setScreen("ready"); }}>System check · prepare the brief · reset data</button>
           <button className="me-done" onClick={() => setMeOpen(false)}>Done</button>

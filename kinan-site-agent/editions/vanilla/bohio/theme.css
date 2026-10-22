@@ -1,0 +1,170 @@
+/* ===================================================================== Bohio theme (vanilla edition)
+   The look of bohiotech.com, as on the marketing agent: deep navy with the faceted backdrop, brushed-metal titles in
+   Dallas Light, Libre Franklin for text, glass panels with hairline borders, pill buttons with a metal fill for the
+   primary action. One look in every theme state (the appearance picker is not shown in this edition). The brief and
+   the ▶ Play deck keep their own paper look. Appended to globals.css by scripts/edition.mjs, which also inlines the
+   font and the backdrop (__DALLAS__, __FACETS__) so the single-file build carries them too. */
+@font-face { font-family: "Dallas Light"; src: url(__DALLAS__) format("woff2"); font-weight: 100 400; font-style: normal; font-display: swap; }
+
+:root, :root[data-theme="light"], :root[data-theme="dark"], :root:not([data-theme="light"]) {
+  --font: "Libre Franklin", Montserrat, "IBM Plex Sans Arabic", "Segoe UI", system-ui, sans-serif;
+  --f-head: "Dallas Light", "Libre Franklin", system-ui, sans-serif;
+  --metal: linear-gradient(173deg, #5d6a76 0%, #93a2ae 9%, #e6eef3 19%, #ffffff 26%, #b6c3cd 33%, #78848f 41%, #454e58 47%, #3b444d 51%, #7d8994 56%, #d3dde4 63%, #ffffff 70%, #aeb9c3 77%, #737e89 86%, #a9b4be 94%, #d8e1e8 100%);
+  --metal-flat: linear-gradient(180deg, #ffffff 0%, #d8e1e8 38%, #9aa8b4 62%, #e9eff3 100%);
+  --chrome: rgba(0, 9, 25, .78); --chrome-ink: #e6e2e2; --chrome-soft: rgba(230, 226, 226, .12); --chrome-line: rgba(230, 226, 226, .3);
+  --accent: #cfd9e3; --accent-strong: #ffffff; --accent-ink: #000919; --accent-soft: rgba(230, 238, 243, .09); --accent-line: rgba(230, 238, 243, .4);
+  --bg: #000919; --veil: rgba(0, 9, 25, 0); --card: rgba(255, 255, 255, .045); --card-2: rgba(255, 255, 255, .07);
+  --ink: #e6e2e2; --ink-2: rgba(230, 226, 226, .8); --mute: rgba(230, 226, 226, .6); --taupe: rgba(230, 226, 226, .74);
+  --line: rgba(230, 226, 226, .14); --line-2: rgba(230, 226, 226, .28); --hair: rgba(230, 226, 226, .16);
+  --scrim: rgba(0, 5, 14, .66); --shadow: rgba(0, 0, 0, .5);
+  --red: #ff7f77; --red-soft: rgba(255, 127, 119, .14); --red-ink: #ffb4ae;
+  --green: #4cc38a; --green-soft: rgba(76, 195, 138, .14); --green-ink: #a7e4c3;
+  --amber: #f0b44c; --amber-soft: rgba(240, 180, 76, .14); --amber-ink: #ffd98f;
+  --blue: #7fb7ff; --blue-soft: rgba(127, 183, 255, .14); --blue-ink: #bcd8ff;
+  --violet: #b69cff; --violet-soft: rgba(182, 156, 255, .14); --neutral-soft: rgba(255, 255, 255, .07);
+  --pin: #e6eef3; --pin-ink: #000919; --pin-edge: #000919;
+  --p-ground: #060f21; --p-paper: #0d1a30; --p-edge: #4d5a6b; --p-road: #2a3647; --p-road-pub: #1b2535; --p-cl: #5c6a7c;
+  --p-ink: #e6eef3; --p-ink-2: #aeb9c4; --p-halo: #060f21; --p-stroke: #93a2ae;
+  --p-res: #243245; --p-ret: #3b3a44; --p-hot: #30334d; --p-ame: #223c3d; --p-villa: #3a3b3a; --p-util: #2a3340; --p-civic: #213d3b; --p-core: #58606b;
+  --p-tmp: #3a3a33; --p-camp: #3d3734; --p-batch: #33373d; --p-yard: #34362f; --p-waste: #2d3a30; --p-cabin: #2c2f36;
+  --p-tree: #2a5a46; --p-garden: #1f4034; --p-water: #1c4b66;
+  --texture: none;
+  color-scheme: dark;
+}
+html { background: #000919; }
+body { background: #000919; color: var(--ink); font-weight: 300; }
+b, strong { font-weight: 600; }
+* { scrollbar-color: rgba(230, 226, 226, .28) transparent; }
+::selection { background: #e6e2e2; color: #000919; }
+::placeholder { color: rgba(230, 226, 226, .42); }
+select option { background: #04101f; color: var(--ink); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline-color: #e6eef3; }
+
+/* The faceted backdrop behind everything. */
+.app, .field, .boot { background-color: #000919; background-image: url(__FACETS__); background-size: cover; background-position: center; background-attachment: fixed; }
+.app { max-width: none; }
+
+/* Header: dark glass band, the Bohio wordmark in brushed metal, the sun mark in silver. */
+.top { background: rgba(0, 9, 25, .78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--hair); box-shadow: none; }
+.brand .logo { display: none; }
+.brand::before, .boot::before, .fd-top::before {
+  content: "BOHIO"; font-family: var(--f-head); font-weight: 300; font-size: 25px; letter-spacing: .14em; line-height: 1; padding-inline-end: .14em;
+  background-image: var(--metal); background-size: 100% 230%; background-position: 50% 32%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .45)); animation: bhSheen 17s cubic-bezier(.42, 0, .3, 1) 1.4s infinite; white-space: nowrap;
+}
+.fd-top .logo { display: none; }
+.fd-top::before { font-size: 20px; }
+@keyframes bhSheen { 0%, 100% { background-position: 50% 14%; } 30% { background-position: 50% 52%; } 62% { background-position: 50% 26%; } 84% { background-position: 50% 58%; } }
+.brand-sub { font-family: var(--f-head); font-weight: 400; letter-spacing: .28em; color: rgba(230, 226, 226, .68); }
+.top .chev .mark path { fill: #cfd9e3; }
+.avatar { background: linear-gradient(180deg, #eef3f6, #b4c0ca); color: #000919; border-color: rgba(255, 255, 255, .55); }
+
+/* Navigation: wide-set Dallas, silver underline. */
+.tabs { background: rgba(0, 9, 25, .5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-color: var(--hair); }
+.tabs button { font-family: var(--f-head); font-weight: 400; letter-spacing: .16em; color: rgba(230, 226, 226, .68); }
+.tabs button:hover { color: var(--ink); }
+.tabs button.on { color: #fff; box-shadow: inset 0 3px #e6eef3; }
+.tabs button::after { background: linear-gradient(90deg, transparent, #e6eef3, transparent); height: 2px; }
+@media (min-width: 900px) { .tabs button.on { box-shadow: none; } }
+
+/* Titles: brushed metal in Dallas Light, no chevron notch; labels: silver dash. */
+.home-head h1, .studio-head h2 {
+  font-family: var(--f-head); font-weight: 300; letter-spacing: .05em; font-size: 30px;
+  background: var(--metal-flat); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .35)); padding-inline-end: .1em;
+}
+.home-head h1::before, .studio-head h2::before { display: none; }
+.home-head p, .studio-head p { color: rgba(230, 226, 226, .68); }
+.rpt-label, .studio-l, .me-l, .studio-sheet h4, .panel h3, .fd-label, .ops-kpi .kl, .kl { color: rgba(230, 226, 226, .74); font-weight: 500; }
+.rpt-label::before, .studio-l::before, .me-l::before, .studio-sheet h4::before, .panel h3::before { background: linear-gradient(90deg, #7f93aa, #e6eef3); }
+.crumb { color: rgba(230, 226, 226, .74); }
+.linkish { color: #e6eef3; }
+
+/* Glass panels. */
+.pcard, .studio-card, .ops-panel, .ops-kpi, .td-day, .ops-actions > li, .fd-card, .fd-job, .me, .modal-card, .sheet, .chat-drawer, .panel, .rows li, .notes li, .doclist button, .rep-list button, .rep-btn, .ops-team > li, .fd-people button, .fd-sheet-in, .tl4d, .ap-bar, .si-code {
+  background: var(--card); border: 1px solid var(--hair); border-top: 1px solid rgba(230, 226, 226, .34);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .32); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: 0;
+}
+.ops-actions > li, .fd-job { border-inline-start-width: 3px; }
+.ops-actions > li.risk-low { border-inline-start-color: var(--green); } .ops-actions > li.risk-medium { border-inline-start-color: var(--amber); } .ops-actions > li.risk-high { border-inline-start-color: var(--red); }
+.pcard:hover { background: var(--card-2); box-shadow: 0 18px 44px rgba(0, 0, 0, .45); border-color: rgba(230, 226, 226, .34); transform: translateY(-3px); }
+.pcard b, .ops-kpi b, .td-title b { color: #f3f1f1; }
+.pcard.new { border: 1px dashed rgba(230, 226, 226, .34); background: rgba(255, 255, 255, .03); } .pcard.new b { color: #e6eef3; }
+.pband { color: #cfd9e3; } .pcard.site .pband { color: var(--green); }
+.ops-kpi.good { border-top-color: var(--green); } .ops-kpi.warn { border-top-color: var(--amber); } .ops-kpi.bad { border-top-color: var(--red); }
+.td-day { border-top: 2px solid #aebdca; }
+.ops-top { background: rgba(240, 180, 76, .1); color: var(--amber-ink); }
+.studio-ok { background: rgba(76, 195, 138, .1); color: var(--green-ink); border-left-color: var(--green); }
+.studio-err, .fd-err { background: rgba(255, 127, 119, .1); color: var(--red-ink); }
+.fd-ok { background: rgba(76, 195, 138, .1); color: var(--green-ink); }
+.fd-net { background: rgba(127, 183, 255, .12); color: var(--blue-ink); } .fd-net.off { background: rgba(240, 180, 76, .12); color: var(--amber-ink); }
+.ops-tabs button { font-family: var(--f-head); font-weight: 400; letter-spacing: .14em; } .ops-tabs button.on { color: #fff; border-bottom-color: #e6eef3; }
+.ops-tabs button i { background: rgba(230, 238, 243, .2); color: #fff; }
+.ops-kpi .spark polyline { stroke: #cfd9e3; }
+.td-cost, .role-pill, .ops-pill { border-color: rgba(230, 226, 226, .34); color: var(--ink); background: transparent; }
+.ops-pill.high { color: var(--red); } .ops-pill.medium { color: var(--amber); } .ops-pill.low { color: var(--green); }
+.role-pill.director, .role-pill.admin { color: #e6eef3; }
+.oc-col.live .oc-bar { background: linear-gradient(180deg, #e6eef3, #7f93aa); }
+.oc-col.demo .oc-bar { background: repeating-linear-gradient(135deg, rgba(230, 226, 226, .28) 0 4px, rgba(230, 226, 226, .1) 4px 7px); }
+.oc-col.demo.after .oc-bar { background: repeating-linear-gradient(135deg, rgba(207, 217, 227, .55) 0 4px, rgba(207, 217, 227, .2) 4px 7px); }
+.oc-col.on { border-left-color: #e6eef3; } .oc-legend .sw.live { background: #cfd9e3; }
+.cond { background: rgba(255, 255, 255, .1); }
+.dc-no { border-top-color: var(--hair); }
+.boot { color: #e6e2e2; } .boot .logo { display: none; } .boot::before { font-size: clamp(40px, 9vw, 96px); margin-bottom: 8px; }
+
+/* Buttons: metal fill for the primary action, outline pill for the rest. */
+.studio-add, .studio-go, .primary, .me-done, .fd-btn, .chat-input button, .tl4d-play, .fab, .home-fab, .pdel-ask button:first-child {
+  background: linear-gradient(180deg, #eef3f6 0%, #b4c0ca 100%); color: #000919; border: 1px solid rgba(255, 255, 255, .55); border-radius: 999px;
+  font-weight: 600; letter-spacing: .12em; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 4px 16px rgba(0, 0, 0, .35);
+}
+.studio-add:hover:not(:disabled), .studio-go:hover:not(:disabled), .primary:hover:not(:disabled), .fd-btn:hover:not(:disabled) { background: linear-gradient(180deg, #ffffff 0%, #cdd7df 100%); border-color: #fff; box-shadow: 0 6px 22px rgba(190, 210, 230, .25); }
+.fab { box-shadow: 0 10px 30px rgba(0, 0, 0, .5); } .fab.cancel { background: transparent; color: var(--ink); border-color: rgba(230, 226, 226, .45); }
+.mini, .chip, .x, .seg button, .seg3 button, .kinds button, .pdel, .fd-btn.fd-ghost, .fd-switch, .kretry, .chat-sugg button, .rep-btn, .tl4d-speed, .mini.on {
+  background: transparent; color: var(--ink); border: 1px solid rgba(230, 226, 226, .45); border-radius: 999px; box-shadow: none;
+}
+.mini:hover, .chip:hover, .seg button:hover, .kinds button:hover, .chat-sugg button:hover { background: rgba(230, 226, 226, .1); color: #fff; border-color: rgba(230, 226, 226, .85); }
+.mini.on, .chip.on, .chip.hot, .seg button.on, .seg3 button.on, .kinds button.on { background: rgba(230, 238, 243, .2); border-color: #e6eef3; color: #fff; }
+.chip i { opacity: .7; }
+.seg3 { border: 0; gap: 6px; } .seg3 button + button { border-left: 1px solid rgba(230, 226, 226, .45); }
+.rep-btn { border-radius: 0; border-left: 3px solid #aebdca; } .rep-list li.on button { border-color: #e6eef3; background: rgba(230, 238, 243, .1); }
+.studio-add:disabled, .primary:disabled, .fd-btn:disabled { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .12); color: var(--mute); box-shadow: none; }
+
+/* Inputs. */
+input, select, textarea, .ops-search, .mapsearch input, .me input, .modal-card input, .modal-card select, .od-grid select, .od-note input, .fd-f input, .fd-f textarea, .fd-f select, .fd-sheet-in textarea, .chat-input textarea, .docs .search, .projbody .search {
+  background: rgba(255, 255, 255, .045); color: var(--ink); border: 1px solid rgba(230, 226, 226, .32); border-radius: 2px; box-shadow: none;
+}
+input:focus, select:focus, textarea:focus, .chat-input textarea:focus { border-color: #e6eef3; box-shadow: 0 0 0 3px rgba(190, 215, 235, .16); }
+.mapsearch ul { background: rgba(3, 12, 28, .96); border-top-color: #e6eef3; }
+.ops-table th { color: rgba(230, 226, 226, .74); border-bottom-color: rgba(230, 226, 226, .32); } .ops-table td { border-bottom-color: var(--hair); }
+
+/* Chat: metal pill, glass drawer. */
+.chat-fab { background: linear-gradient(180deg, #eef3f6, #b4c0ca); color: #000919; border-radius: 999px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .7); font-family: var(--f-head); font-weight: 400; }
+.chat-fab::after { background: #000919; } .chat-fab:hover { box-shadow: 0 14px 36px rgba(160, 190, 220, .3); }
+.chat-drawer { background: rgba(3, 12, 28, .94); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid rgba(230, 226, 226, .34); box-shadow: 0 20px 60px rgba(0, 0, 0, .6); }
+.chat-head { background: rgba(230, 226, 226, .07); color: var(--ink); border-bottom: 1px solid var(--hair); font-family: var(--f-head); font-weight: 400; letter-spacing: .2em; }
+.chat-head .dot { background: #e6eef3; box-shadow: 0 0 0 3px rgba(230, 238, 243, .25); }
+.chat-head button { color: var(--ink); border-color: rgba(230, 226, 226, .35); border-radius: 999px; } .chat-head button:hover { border-color: #e6eef3; background: rgba(230, 238, 243, .1); }
+.kmsg.bot { background: rgba(255, 255, 255, .06); border-left-color: #aebdca; } .kmsg.user { background: rgba(230, 238, 243, .16); color: #fff; }
+.kmsg.err { border-left-color: var(--red); }
+.chat-input { border-top-color: var(--hair); }
+.fd-msgs .user { background: rgba(230, 238, 243, .16); color: #fff; } .fd-msgs .assistant { background: rgba(255, 255, 255, .06); }
+
+/* Settings menu, sheets, toasts, the field app. */
+.me, .modal-card, .sheet { border-top: 1px solid rgba(230, 226, 226, .34); background: rgba(3, 12, 28, .96); }
+.toast.live { background: rgba(3, 12, 28, .94); border: 1px solid rgba(230, 226, 226, .34); color: var(--ink); }
+.toast { background: var(--red); color: #000919; }
+.tmpwarn { background: rgba(240, 180, 76, .12); color: var(--amber-ink); border-color: var(--hair); }
+.fd-top { background: rgba(0, 9, 25, .78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--hair); }
+.fd-nav { background: rgba(0, 9, 25, .8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); } .fd-nav button.on { color: #fff; box-shadow: inset 0 3px 0 #e6eef3; }
+.fd-nav button { font-family: var(--f-head); font-weight: 400; letter-spacing: .14em; }
+.fd-n { background: #e6eef3; color: #000919; } .fd-brief { border-top: 2px solid #aebdca; }
+.fd-job.in_progress { border-inline-start-color: #e6eef3; } .fd-permitbar { background: rgba(255, 127, 119, .14); color: var(--red-ink); } .fd-permitbar.issued { background: rgba(76, 195, 138, .14); color: var(--green-ink); }
+.si-qr { background: #fff; }
+.tl4d-stats { background: rgba(3, 12, 28, .9); }
+
+/* The site plan's labels and the 4D HUD keep their halos readable on navy. */
+.tl text { paint-order: stroke; }
+.pcard.ops .pband, .pcard.ops.water .pband, .pcard.ops.airport .pband { background: rgba(230, 238, 243, .1); color: #e6eef3; padding: 2px 8px; border-radius: 999px; }
+.pcard.ops .pband svg { stroke: #e6eef3; }
+.fd-nav button { font-size: 10.5px; letter-spacing: .08em; }
+.ops-home { margin-top: 26px; }

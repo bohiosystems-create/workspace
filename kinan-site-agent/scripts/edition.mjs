@@ -19,16 +19,16 @@ if (edition !== "vanilla" || !destArg) { console.error("usage: node scripts/edit
 const dest = path.resolve(destArg);
 if (dest === root || dest.startsWith(root + path.sep)) { console.error("The destination must be outside this project."); process.exit(2); }
 
-const NAME = "Meridian", NAME_AR = "ميريديان";
-const COLOURS = [ // Kinan orange → teal, light and dark themes, every notation used in the code
-  ["#f15a22", "#0b7a75"], ["#d94a16", "#09625e"], ["#fff1ea", "#e3f4f3"], ["#fde3d8", "#d4eeec"], ["#f5b89a", "#9fd5d0"],
-  ["#ff6a33", "#3cc7bd"], ["#ff7a45", "#5fd6cd"], ["#1b0d04", "#03201e"], ["#3d2217", "#123532"], ["#7a4126", "#1f5f5a"],
-  ["#d94a15", "#09625e"], ["#ff6a37", "#3cc7bd"], ["255,106,51", "60,199,189"],
-  ["0xf15a22", "0x0b7a75"], ["241,90,34", "11,122,117"], ["241, 90, 34", "11, 122, 117"],
+// The data's fictional developer, and the vendor whose look the app wears (the Bohio website: editions/vanilla/bohio).
+const NAME = "Meridian", NAME_AR = "ميريديان", VENDOR = "Bohio";
+const COLOURS = [ // Kinan orange → steel blue on paper and in the canvas scenes (the app's own screens take the Bohio theme's tokens)
+  ["#f15a22", "#3b5570"], ["#d94a16", "#2c4157"], ["#d94a15", "#2c4157"], ["#fff1ea", "#e8eef4"], ["#fde3d8", "#dde6ee"], ["#f5b89a", "#a9b7c4"],
+  ["#ff6a33", "#cfd9e3"], ["#ff7a45", "#e6eef3"], ["#ff6a37", "#e6eef3"], ["#1b0d04", "#000919"], ["#3d2217", "#1a2634"], ["#7a4126", "#3b5570"],
+  ["0xf15a22", "0x3b5570"], ["241,90,34", "59,85,112"], ["241, 90, 34", "59, 85, 112"], ["255,106,51", "207,217,227"],
 ];
 const RENAME = [ // order matters: specific before general
-  ["kinan-site-agent", "site-agent"], ["www.kinan.com.sa", "www.example.com"], ["kinan.com.sa", "example.com"],
-  ["KINAN_", "APP_"], ["KH-", "MH-"], ["KB-", "MB-"], ["LIVE THE PLACE", "BUILD WITH CERTAINTY"],
+  ["kinan-site-agent", "site-agent"], ["Kinan Onsite Agent", `${VENDOR} Onsite Agent`], ["www.kinan.com.sa", "www.bohiotech.com"], ["kinan.com.sa", "bohiotech.com"],
+  ["KINAN_", "APP_"], ["KH-", "MH-"], ["KB-", "MB-"], ["LIVE THE PLACE", "AUTOMATING WORKFLOWS. FROM INVESTMENT TO OPERATIONS."],
   ["كنان", NAME_AR], ["Kinan", NAME], ["KINAN", NAME.toUpperCase()], ["kinan", NAME.toLowerCase()],
 ];
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -43,7 +43,7 @@ function transform(text) {
   }).join("");
 }
 const TEXT = /\.(ts|tsx|js|mjs|cjs|css|md|json|txt|csv|svg|html|yml|yaml|webmanifest|example)$|(^|\/)(Dockerfile|Caddyfile|\.gitignore|\.dockerignore)$/;
-const SKIP = (f) => f === "kinan-site-agent.html" || f === "middleware.ts" || f.startsWith("editions/") || f.startsWith("brand/whatsapp/") || /texture\.jpg$/.test(f) || f === "kinan-site-agent-vercel.zip";
+const SKIP = (f) => f === "kinan-site-agent.html" || f === "app/_components/KinanSplash.tsx" || f === "middleware.ts" || f.startsWith("editions/") || f.startsWith("brand/whatsapp/") || /texture\.jpg$/.test(f) || f === "kinan-site-agent-vercel.zip";
 
 const files = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], { cwd: root }).toString().split("\0").filter(Boolean).filter((f) => !SKIP(f));
 // keep the destination's own files; remove what came from an earlier run so renamed or deleted files don't linger
@@ -65,7 +65,25 @@ for (const f of files) {
   n++;
 }
 
-// the brand: the vanilla wordmark and mark, no texture; the home-screen icon; the deck's embedded artwork
+// the Bohio look (editions/vanilla/bohio): the theme goes after the app's own styles, with the Dallas Light font and
+// the faceted backdrop inlined (the single-file build carries them too); Libre Franklin comes from Google Fonts
+const bohio = path.join(root, "editions", "vanilla", "bohio");
+const dataUri = (f, mime) => `data:${mime};base64,${fs.readFileSync(path.join(bohio, f)).toString("base64")}`;
+const theme = fs.readFileSync(path.join(bohio, "theme.css"), "utf8").replaceAll("__DALLAS__", dataUri("Dallas-Light.woff2", "font/woff2")).replaceAll("__FACETS__", dataUri("bohio-facets.svg", "image/svg+xml"));
+const gcss = path.join(dest, "app", "globals.css");
+fs.writeFileSync(gcss, `@import url("https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700&display=swap");\n${fs.readFileSync(gcss, "utf8")}\n${theme}`);
+const layout = path.join(dest, "app", "layout.tsx");
+fs.writeFileSync(layout, fs.readFileSync(layout, "utf8").replace("family=Montserrat:", "family=Libre+Franklin:wght@300;400;500;600;700&family=Montserrat:").replace(/themeColor: "#2e2e2f"/, 'themeColor: "#000919"'));
+const splash = path.join(dest, "app", "_components", `${NAME}Splash.tsx`);
+fs.writeFileSync(splash, fs.readFileSync(path.join(bohio, "Splash.tsx"), "utf8"));
+const manifest = path.join(dest, "public", "manifest.webmanifest");
+fs.writeFileSync(manifest, fs.readFileSync(manifest, "utf8").replace(/#2e2e2f/g, "#000919"));
+const sb = path.join(dest, "standalone", "build.mjs");
+fs.writeFileSync(sb, fs.readFileSync(sb, "utf8").replace('theme-color" content="#1c1c1e"', 'theme-color" content="#000919"')
+  // the single-file build is always this edition (esbuild does not read .env files)
+  .replace(/JSON\.stringify\(process\.env\.NEXT_PUBLIC_EDITION === "vanilla" \? "vanilla" : "\w+"\)/, '\'"vanilla"\''));
+
+// the brand: the Bohio wordmark (Dallas Light) and sun mark, no texture; the home-screen icon; the deck's embedded artwork
 const vb = path.join(root, "editions", "vanilla", "brand");
 const logo = fs.readFileSync(path.join(vb, "logo.svg"), "utf8"), mark = fs.readFileSync(path.join(vb, "mark.svg"), "utf8");
 const lc = NAME.toLowerCase();
@@ -76,7 +94,7 @@ for (const dir of ["brand", "public/brand"]) {
 }
 const svgPath = (s) => ({ viewBox: /viewBox="([^"]+)"/.exec(s)[1], d: /\sd="([^"]+)"/.exec(s)[1] });
 const L = svgPath(logo), M = svgPath(mark);
-fs.writeFileSync(path.join(dest, "public", "icon.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#2e2e2f"/><svg x="18" y="14" width="28" height="35" viewBox="${M.viewBox}"><path fill="#3cc7bd" d="${M.d}"/></svg></svg>\n`);
+fs.writeFileSync(path.join(dest, "public", "icon.svg"), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#000919"/><svg x="18" y="14" width="28" height="35" viewBox="${M.viewBox}"><path fill="#cfd9e3" d="${M.d}"/></svg></svg>\n`);
 const pfx = "APP";
 fs.writeFileSync(path.join(dest, "lib", "deck", "brand-logo.ts"), `// Generated by scripts/edition.mjs from editions/vanilla/brand — do not edit.
 export const ${pfx}_LOGO: string | null = ${JSON.stringify("data:image/svg+xml;base64," + Buffer.from(logo.replace("<svg ", '<svg width="270" height="60" ')).toString("base64"))};

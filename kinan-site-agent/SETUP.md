@@ -37,7 +37,7 @@ One source, two apps (`lib/edition.ts`, set at build time with `NEXT_PUBLIC_EDIT
 | | **Kinan** (default) | **Vanilla** |
 |---|---|---|
 | Who it is for | Kinan | any client |
-| Brand | Kinan logo, chevron, orange, faceted texture | neutral: a fictional developer, *Meridian*, teal, no texture |
+| Brand | Kinan logo, chevron, orange, faceted texture | the Bohio website's look (navy, faceted backdrop, brushed-metal titles in Dallas Light, Libre Franklin, glass panels, pill buttons; `editions/vanilla/bohio/`); the data belongs to a fictional developer, *Meridian* |
 | Building site, 4D, programme, documents, procurement, permits | ✓ | ✓ |
 | Projects from documents, daily brief and ▶ Play, WhatsApp, Outlook | ✓ | ✓ |
 | Construction proposals, Today, sign-in and approval limits, eval | ✓ | ✓ |
@@ -46,8 +46,9 @@ One source, two apps (`lib/edition.ts`, set at build time with `NEXT_PUBLIC_EDIT
 
 Work in this source; the Kinan edition is what it builds. The vanilla edition is generated from it:
 `node scripts/edition.mjs vanilla <folder>` copies the app, renames everything Kinan (English and Arabic, including the
-sample packs and the `KINAN_` variables, which become `APP_` — e.g. `APP_ADMINS`, `APP_DATA_DIR`), swaps the colours,
-logo and mark (`editions/vanilla/brand/`) and sets `NEXT_PUBLIC_EDITION=vanilla`. In the demo portal it lives in
+sample packs and the `KINAN_` variables, which become `APP_` — e.g. `APP_ADMINS`, `APP_DATA_DIR`), swaps the paper colours,
+the wordmark and the mark (`editions/vanilla/brand/`), appends the Bohio theme and splash (`editions/vanilla/bohio/`) and sets
+`NEXT_PUBLIC_EDITION=vanilla`. In the demo portal it lives in
 `bohio-demos/site-agent` (https://site-agent.bohiotech.com); regenerate it after every change here.
 
 ## 1. How it fits together
