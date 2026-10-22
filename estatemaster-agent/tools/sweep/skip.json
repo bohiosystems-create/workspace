@@ -12,5 +12,7 @@
       "more:Check"
     ],
     "why": "the Check cell reads a defined name with a question mark (Show?), which Excel allows and LibreOffice does not parse; every other result is swept"
-  }
+  },
+  "fn_sweep.xlsx": "the Excel function sweep for t_engine: it holds FREQUENCY and LAMBDA on purpose, which the browser engine does not have, so it is checked cell by cell in t_engine (121 of 124 against Excel's stored results) rather than swept",
+  "lease_freq.xlsx": "uses FREQUENCY on purpose: the workbook the second engine (LibreOffice, t_loengine) takes over because the browser engine cannot run it"
 }
