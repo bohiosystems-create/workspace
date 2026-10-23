@@ -1,0 +1,13 @@
+{
+ "_note": "Round 41 (synthetic, gen/gen_r41cio.py): LibreOffice on the formula-only workbook as uploaded and with the sale price -10%. [levered IRR, unlevered IRR, net profit]",
+ "palm_base": [
+  0.7501161743405097,
+  0.29391626819743244,
+  23400000.0
+ ],
+ "palm_price_m10": [
+  0.4900996235952912,
+  0.20081480239683913,
+  15600000.0
+ ]
+}
