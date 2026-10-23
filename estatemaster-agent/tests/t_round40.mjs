@@ -14,6 +14,7 @@
 //  - "debug this model" ran only the export checks; the CIO's verdict on a finding had nowhere to go
 //  - a weekly schedule asked for Monday ran on Sunday; a fund roll-up's answer was lost when it switched projects; a report built on an
 //    uploaded workbook described the demo fund; a units note ("All amounts in EUR") became the project's name
+// Changes to a model's structure are Jadwa's only: KINAN relies on EstateMaster, Jadwa on the Excel workbook.
 // The AI is a stand-in (no API credit): it makes the calls a strong model would make; every figure is the workbook's.
 import {chromium} from 'playwright';import fs from 'fs';
 const F=new globalThis.URL('./fixtures/models/',import.meta.url).pathname;const base=process.argv[2]||'http://localhost:4090/?mode=readonly';
@@ -76,6 +77,10 @@ async function open(jadwa){const S={plan:[],read:[],reads:[],audit:null,lastAudi
   a=await ask('Send the IC pack every Monday at 7am.',{plan:[['schedule_report',{report:'ic',cadence:'weekly',day_of_week:'Monday',time:'07:00'}]]});
   ok(/Weekly · Mon 07:00/.test(a.t),'“every Monday” runs on Monday (a day named in words is read, not defaulted to Sunday)',a.t.slice(0,200));
   const fx=await p.evaluate(async()=>{const r=await fxRate('AED','SAR');return r});ok(near(fx.rate,3.75/3.6725,1e-6)&&/CBUAE/.test(fx.source)&&/SAMA/.test(fx.source),'AED→SAR comes from the two central banks’ fixed pegs, with no lookup',fx);
+  // KINAN's models are EstateMaster's: a change to their structure is made there, never written here
+  a=await ask('Extend the cash flow by 2 years and add a refinance in year 4.',{plan:[['extend_cashflow',{years:2}],['add_structure',{structure:'refinance',year:'4',ltv:60,rate:7}]]});
+  const nx=await p.evaluate(()=>EXPORTS.filter(x=>/extended by|refinanc/i.test(x.file||'')).length);
+  ok(/In KINAN a model is changed at its source/.test(a.t)&&/what-if/.test(a.t)&&nx===0,'KINAN does not change a model’s structure (extend, add a sheet): it says the change is made in the source model and offers a what-if',a.t.slice(0,300));
   ok(errs.length===0,'KINAN: no page errors',errs.join(' | '))}
 
 // ================= Jadwa: the Arabic development, its extension, a new line, the debug and the roll-up =================
