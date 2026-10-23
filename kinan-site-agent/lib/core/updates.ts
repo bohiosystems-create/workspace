@@ -69,11 +69,10 @@ export function moveActivity(schedule: Activity[], a: Activity, change: () => vo
 /** The forecast of practical completion (the completion milestone, else the last finish). */
 export const completionDate = (data: ProjectData) => data.schedule.find((a) => a.id === "M-990")?.finish ?? data.schedule.reduce((m, a) => (a.finish > m ? a.finish : m), "");
 
-/** Re-apply every stored update (oldest first). Used after the daily roll rebuilds the programme. */
-export function applyUpdates(data: ProjectData) {
-  if (!data.updates?.length) return;
-  const byId = new Map(data.schedule.map((a) => [a.id, a]));
-  for (const u of [...data.updates].sort((x, y) => x.at.localeCompare(y.at))) { const a = byId.get(u.activityId); if (a) moveActivity(data.schedule, a, () => applyOne(a, u)); }
+/** Re-apply one stored update. Used after the daily roll rebuilds the programme (lib/data: in time order, with the approvals). */
+export function applyUpdate(data: ProjectData, u: ProgressUpdate) {
+  const a = data.schedule.find((x) => x.id === u.activityId);
+  if (a) moveActivity(data.schedule, a, () => applyOne(a, u));
 }
 
 /** Find the activity a site message is about: an exact id, else the best match on name + place. */

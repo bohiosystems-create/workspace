@@ -10,19 +10,20 @@ import { fitJson } from "../core/fit";
 
 const obj = (props: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties: props, required });
 const str = (description?: string) => ({ type: "string", ...(description ? { description } : {}) });
+const oneOf = (values: string[], description?: string) => ({ type: "string", enum: values, ...(description ? { description } : {}) });
 const FAC = str("Facility: 'kcps' (Kinan Coastal Power Station), 'krsd' (Kinan Red Sea Desalination Plant), 'kgia' (Kinan Gulf International Airport T2), or its name. Defaults to the facility in focus.");
 
 export const FM_TOOLS = [
   { name: "fm_overview", description: "Operations overview: every facility (or one) with availability, output vs target, open/overdue work, alarms, PM compliance, MTTR, people on shift, and the top issues.", input_schema: obj({ facility: FAC }) },
-  { name: "fm_assets", description: "Search the asset register of a facility (pumps, turbines, transformers, RO trains, chillers, boarding bridges, escalators…) by tag, name, status (running/standby/degraded/down/maintenance), criticality (A/B/C) or system.", input_schema: obj({ facility: FAC, query: str("tag or words, e.g. 'P-101', 'intake pump', 'chiller'"), status: str(), criticality: str() }) },
+  { name: "fm_assets", description: "Search the asset register of a facility (pumps, turbines, transformers, RO trains, chillers, boarding bridges, escalators…) by tag, name, status (running/standby/degraded/down/maintenance), criticality (A/B/C) or system.", input_schema: obj({ facility: FAC, query: str("tag or words, e.g. 'P-101', 'intake pump', 'chiller'"), status: oneOf(["running", "standby", "degraded", "down", "maintenance"]), criticality: oneOf(["A", "B", "C"]) }) },
   { name: "fm_asset", description: "Everything about one asset: live readings against their limits and 14-day trend, condition, planned maintenance, open and recent work orders, spares.", input_schema: obj({ asset: str("tag or name, e.g. 'SWP-102', 'boarding bridge gate 203'"), facility: FAC }, ["asset"]) },
-  { name: "fm_work_orders", description: "List work orders: filter by facility, status (open/assigned/in_progress/on_hold/done), priority (P1–P4), asset, assignee name, or overdue only.", input_schema: obj({ facility: FAC, status: str(), priority: str(), asset: str(), assignee: str(), overdue: { type: "boolean" } }) },
+  { name: "fm_work_orders", description: "List work orders: filter by facility, status (open/assigned/in_progress/on_hold/done), priority (P1–P4), asset, assignee name, or overdue only.", input_schema: obj({ facility: FAC, status: oneOf(["open", "assigned", "in_progress", "on_hold", "done"]), priority: oneOf(["P1", "P2", "P3", "P4"]), asset: str(), assignee: str(), overdue: { type: "boolean" } }) },
   { name: "fm_raise_work_order", description: "Report a fault or request work on an asset: raises a work order with SLA by priority. Use when someone reports a problem ('pump 2 tripped', 'escalator handrail stopped'). Set asset_status to 'down' or 'degraded' when they say so. Attach photos with evidence_doc_ids.",
-    input_schema: obj({ asset: str(), title: str("short title"), detail: str(), priority: str("P1 (output/safety, 4 h) · P2 (24 h) · P3 (72 h) · P4 (7 days)"), type: str("CM | Emergency | Inspection | PM"), asset_status: str("down | degraded"), assignee: str("technician name, optional"), facility: FAC, evidence_doc_ids: { type: "array", items: { type: "string" } } }, ["asset", "title"]) },
+    input_schema: obj({ asset: str(), title: str("short title"), detail: str(), priority: oneOf(["P1", "P2", "P3", "P4"], "P1 (output/safety, 4 h) · P2 (24 h) · P3 (72 h) · P4 (7 days)"), type: oneOf(["CM", "Emergency", "Inspection", "PM"]), asset_status: oneOf(["down", "degraded"]), assignee: str("technician name, optional"), facility: FAC, evidence_doc_ids: { type: "array", items: { type: "string" } } }, ["asset", "title"]) },
   { name: "fm_update_work_order", description: "Progress a work order: start it, put it on hold (with the reason), close it (done), reassign it, tick a checklist step (0-based index), add a note, attach photo evidence. Closing corrective work returns the asset to service.",
-    input_schema: obj({ wo: str("e.g. WO-W24117"), status: str("in_progress | on_hold | done | assigned"), note: str(), hold_reason: str(), assignee: str(), checklist_step: { type: "number" }, evidence_doc_ids: { type: "array", items: { type: "string" } } }, ["wo"]) },
+    input_schema: obj({ wo: str("e.g. WO-W24117"), status: oneOf(["in_progress", "on_hold", "done", "assigned"]), note: str(), hold_reason: str(), assignee: str(), checklist_step: { type: "integer", description: "0-based", minimum: 0, maximum: 50 }, evidence_doc_ids: { type: "array", items: { type: "string" } } }, ["wo"]) },
   { name: "fm_orchestrator", description: "The orchestration layer: list what it proposes for a facility (raise work from alarms, change over to standby, assign people, escalate SLA risks, order spares, issue permits) with the reasons and ids — or approve / reject one, or approve all low-risk ones. Approving executes it.",
-    input_schema: obj({ facility: FAC, approve: str("action id, or 'low_risk' for all low-risk proposals"), reject: str("action id"), reason: str("for reject: not_now | already_handled | wrong_person | too_costly | disagree") }) },
+    input_schema: obj({ facility: FAC, approve: str("action id, or 'low_risk' for all low-risk proposals"), reject: str("action id"), reason: oneOf(["not_now", "already_handled", "wrong_person", "too_costly", "disagree"], "for reject") }) },
   { name: "fm_team", description: "The team of a facility: who is on shift, where, doing what, and how many open jobs each has.", input_schema: obj({ facility: FAC }) },
   { name: "fm_my_jobs", description: "A technician's own day: their jobs in the order to do them, permits, alarms in their area. Defaults to the person using this agent.", input_schema: obj({ technician: str("name, optional") }) },
   { name: "fm_spares", description: "Spare parts of a facility: stock against minimum, on order, lead time; low_only for those below minimum.", input_schema: obj({ facility: FAC, low_only: { type: "boolean" } }) },
@@ -36,6 +37,7 @@ function facilityOf(d: FmData, q: unknown, ctx: ToolCtx): string | undefined {
 }
 const short = (d: FmData, w: FmData["workOrders"][number]) => ({ id: w.id, asset: d.assets.find((a) => a.id === w.assetId)?.tag, title: w.title, type: w.type, priority: w.priority, status: w.status, assignee: d.technicians.find((t) => t.id === w.assignee)?.name ?? null, due: w.due, slaHoursLeft: Math.round(slaLeft(w)), overdue: isOverdue(w), hold: w.holdReason, permit: w.permit });
 
+/** Called by runTool, after the input has been checked against the tool's schema (lib/core/validate.ts). */
 export async function runFmTool(repo: Repo, name: string, input: Record<string, any>, ctx: ToolCtx): Promise<string> {
   // a tool that cannot do what was asked tells the agent why (no such asset, permit missing…) instead of failing the answer
   try { return await fmTool(repo, name, input, ctx); } catch (e) { return J({ error: (e as Error).message }); }
@@ -83,7 +85,6 @@ async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx:
       return J({ ok: true, message: r.message });
     }
     case "fm_orchestrator": {
-      if (input.reject && input.reason && !["not_now", "already_handled", "wrong_person", "too_costly", "disagree"].includes(String(input.reason))) return J({ error: "Reason must be one of: not_now, already_handled, wrong_person, too_costly, disagree. Ask the user which fits." });
       if (input.approve || input.reject) {
         const ids = input.approve === "low_risk" ? actions(db, d, fid).filter((a) => a.risk === "low").map((a) => a.id) : [String(input.approve ?? input.reject)];
         const done: string[] = [];

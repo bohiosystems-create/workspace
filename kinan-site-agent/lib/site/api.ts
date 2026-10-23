@@ -5,6 +5,7 @@ import { canApprove, type Person } from "../auth/people";
 import { closedIds, isReason, learnedDoubts, type DecisionLike, type RejectReason } from "../proposals";
 import { proposeSite } from "./orchestrator";
 import { completionDate, moveActivity } from "../core/updates";
+import { guard, shot } from "../core/invariants";
 import { daysBetween } from "../data/util";
 import type { SiteAction, SiteDecision, SitePatch } from "./types";
 
@@ -30,10 +31,9 @@ function applyPatch(data: ProjectData, p: SitePatch) {
 }
 const sticky = (p: SitePatch) => p.t === "activity" || p.t === "mr_add" || p.t === "package_note";
 
-/** After the daily roll rebuilds the demo data: approved changes come back (the day-bound ones on their day only). */
-export function applyDecisions(data: ProjectData) {
-  for (const x of [...(data.decisions ?? [])].sort((a, b) => a.at.localeCompare(b.at)))
-    if (x.decision === "approved") for (const p of x.patches) if (sticky(p) || x.date === data.meta.dataDate) applyPatch(data, p);
+/** After the daily roll rebuilds the demo data: an approved change comes back (a day-bound one on its day only). */
+export function applyDecision(data: ProjectData, x: SiteDecision) {
+  if (x.decision === "approved") for (const p of x.patches) if (sticky(p) || x.date === data.meta.dataDate) applyPatch(data, p);
 }
 
 export interface SiteDecideInput { actionId: string; decision: "approved" | "rejected"; reason?: RejectReason; note?: string }
@@ -49,9 +49,10 @@ export function decideSite(db: Db, b: SiteDecideInput, user: Person | null | und
     patches: b.decision === "approved" ? a.patches : [] };
   (db.data.decisions ??= []).push(dec);
   db.data.decisions = db.data.decisions.slice(-1500);
-  const pcBefore = completionDate(db.data);
+  const pcBefore = completionDate(db.data), rules = shot(db.data);
   if (b.decision === "approved") {
     for (const p of a.patches) applyPatch(db.data, p);
+    guard(`approving ${a.id}`, db.data, rules);
     if (a.instruction) {
       const n: Note = { id: `n_${Math.random().toString(16).slice(2, 12)}`, createdAt: at, status: "open", kind: "instruction", author: user!.name, via: "agent",
         text: `${a.instruction}${a.owner ? ` — action: ${a.owner}` : ""} (approved by ${user!.name})`, ...(a.locationId ? { locationId: a.locationId } : {}) };

@@ -5,8 +5,8 @@ import { REGULATIONS } from "./regulations";
 import { INCIDENTS, PERMITS, PPE_MATRIX, RISKS, SAFETY_REQUIREMENTS, SAFETY_STATS } from "./safety";
 import { DELIVERIES, PACKAGES, POS, REQUESTS, STOCK, SUPPLIERS } from "./procurement";
 import { CONTACTS, NCRS } from "./people";
-import { applyUpdates } from "../core/updates";
-import { applyDecisions } from "../site/api";
+import { applyUpdate } from "../core/updates";
+import { applyDecision } from "../site/api";
 import { DATA_DATE, addDays, currentDataDate, daysBetween } from "./util";
 
 /** The demo project data on a date (default: today — the data follows the calendar). */
@@ -73,9 +73,11 @@ export function rollToToday(data: ProjectData, date = currentDataDate()): Projec
   const demoIds = new Set(fresh.procurement.requests.map((r) => r.id));
   if (data.procurement.source !== "demo") fresh.procurement = data.procurement;
   else fresh.procurement.requests.push(...data.procurement.requests.filter((r) => !demoIds.has(r.id)));
-  // progress reported from site stays, and still moves the programme
-  if (data.updates?.length) { fresh.updates = data.updates; applyUpdates(fresh); }
-  // approved construction proposals stay applied (lib/site)
-  if (data.decisions?.length) { fresh.decisions = data.decisions; applyDecisions(fresh); }
+  // progress reported from site and approved construction proposals (lib/site) stay, and still move the programme —
+  // replayed together in the order they happened (a night shift approved, then the work reported done, ends done)
+  if (data.updates?.length) fresh.updates = data.updates;
+  if (data.decisions?.length) fresh.decisions = data.decisions;
+  const replay = [...(fresh.updates ?? []).map((u) => ({ at: u.at, run: () => applyUpdate(fresh, u) })), ...(fresh.decisions ?? []).map((x) => ({ at: x.at, run: () => applyDecision(fresh, x) }))];
+  for (const e of replay.sort((a, b) => a.at.localeCompare(b.at))) e.run();
   return fresh;
 }

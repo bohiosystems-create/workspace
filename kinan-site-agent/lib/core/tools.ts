@@ -2,6 +2,8 @@ import type { Db, Doc, MaterialRequest, Note, UiAction } from "../types";
 import { FM_TOOLS } from "../fm/tools";
 import { HAS_OPERATIONS } from "../edition";
 import { fitJson } from "./fit";
+import { checkInput } from "./validate";
+import { guard, shot } from "./invariants";
 import { descendantIds, locationById, locationPath, resolveLocation, searchDocs } from "./query";
 import * as P from "./project";
 import { searchEmails, type InboxState } from "./emails";
@@ -52,7 +54,10 @@ export function toBase64(bytes: Uint8Array): string {
 
 const obj = (props: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties: props, required });
 const str = (description?: string, extra: Record<string, unknown> = {}) => ({ type: "string", ...(description ? { description } : {}), ...extra });
-const num = (description?: string) => ({ type: "number", ...(description ? { description } : {}) });
+const num = (description?: string, extra: Record<string, unknown> = {}) => ({ type: "number", ...(description ? { description } : {}), ...extra });
+const int = (description: string | undefined, minimum: number, maximum: number) => ({ type: "integer", ...(description ? { description } : {}), minimum, maximum });
+const date = (description = "YYYY-MM-DD") => str(description, { format: "date" });
+const oneOf = (values: string[], description?: string) => str(description, { enum: values });
 const bool = (description?: string) => ({ type: "boolean", ...(description ? { description } : {}) });
 const LOC = str("Place on site, e.g. 'Tower A level 12', 'TC1', 'gate 2', 'batching plant'. Includes sub-locations.");
 
@@ -63,35 +68,35 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "get_document", description: "Read one document in full: metadata, content text and notes. PDFs/photos are attached when the model can read them. Call before quoting a document.", input_schema: obj({ id: str() }, ["id"]) },
   { name: "list_locations", description: "Find places on the site map. Returns ids usable with other tools.", input_schema: obj({ query: str() }) },
   { name: "get_location_overview", description: "Everything about one place: documents, open notes, current & next schedule activities, active permits, open NCRs, upcoming deliveries.", input_schema: obj({ location: LOC }, ["location"]) },
-  { name: "add_note", description: "Leave a note/issue/instruction on a document and/or place. Clean up dictation; do not invent facts. 'this'/'here' = the current focus.", input_schema: obj({ text: str(), document_id: str(), location: LOC, kind: str(undefined, { enum: ["note", "issue", "instruction"] }) }, ["text"]) },
+  { name: "add_note", description: "Leave a note/issue/instruction on a document and/or place. Clean up dictation; do not invent facts. 'this'/'here' = the current focus.", input_schema: obj({ text: str(undefined, { maxLength: 2000 }), document_id: str(), location: LOC, kind: str(undefined, { enum: ["note", "issue", "instruction"] }) }, ["text"]) },
   { name: "list_notes", description: "List notes/issues left by the team, optionally for a document or place, optionally only open ones.", input_schema: obj({ document_id: str(), location: LOC, status: str(undefined, { enum: ["open", "closed"] }) }) },
   { name: "resolve_note", description: "Close (or reopen) a note.", input_schema: obj({ id: str(), status: str(undefined, { enum: ["open", "closed"] }) }, ["id"]) },
   { name: "show_on_map", description: "Show a place on the site map (web: pans the map; WhatsApp: sends a map image).", input_schema: obj({ location: LOC }, ["location"]) },
   { name: "open_document", description: "Open a document/drawing for the user (web: viewer; WhatsApp: sends the file or image).", input_schema: obj({ id: str() }, ["id"]) },
-  { name: "schedule_query", description: "Query the construction programme (P6-style activities with baseline vs forecast). Filter by place, keywords, status, date window, critical or late (slip > 3 days).", input_schema: obj({ location: LOC, query: str("e.g. 'slab', 'façade', 'lift', activity id"), status: str(undefined, { enum: ["completed", "in_progress", "not_started"] }), from: str("YYYY-MM-DD"), to: str("YYYY-MM-DD"), critical: bool(), late: bool(), trade: str(), limit: num() }) },
-  { name: "lookahead", description: "Look-ahead programme from the data date: activities starting/finishing, milestones, critical work and deliveries in the next N weeks (default 2).", input_schema: obj({ weeks: num(), location: LOC }) },
+  { name: "schedule_query", description: "Query the construction programme (P6-style activities with baseline vs forecast). Filter by place, keywords, status, date window, critical or late (slip > 3 days).", input_schema: obj({ location: LOC, query: str("e.g. 'slab', 'façade', 'lift', activity id"), status: str(undefined, { enum: ["completed", "in_progress", "not_started"] }), from: date(), to: date(), critical: bool(), late: bool(), trade: str(), limit: int(undefined, 1, 100) }) },
+  { name: "lookahead", description: "Look-ahead programme from the data date: activities starting/finishing, milestones, critical work and deliveries in the next N weeks (default 2).", input_schema: obj({ weeks: int("1–8", 1, 8), location: LOC }) },
   { name: "schedule_summary", description: "Overall programme health: % complete vs planned, SPI, upcoming milestones with variance, biggest slippages, completion forecast.", input_schema: obj({}) },
-  { name: "update_activity", description: "Record progress reported from site on a programme activity: mark it completed, set % complete, or report it pending/blocked. Updates the project schedule immediately. Attach evidence photos/PDFs already filed (document ids, e.g. from a WhatsApp photo). Pass the activity id when known, else describe it (e.g. 'Tower A L14 columns core walls PT slab'); if several activities match, the tool returns candidates — ask the user which one. Never invent progress the user didn't report.", input_schema: obj({ activity: str("activity id (e.g. TA-STR-L14) or a description"), state: str(undefined, { enum: ["completed", "in_progress", "pending"] }), percent: num("0-100, for in_progress (or the real % when pending)"), note: str("what the user reported, cleaned up"), evidence_doc_ids: { type: "array", items: { type: "string" }, description: "documents filed as evidence" } }, ["activity", "state"]) },
+  { name: "update_activity", description: "Record progress reported from site on a programme activity: mark it completed, set % complete, or report it pending/blocked. Updates the project schedule immediately. Attach evidence photos/PDFs already filed (document ids, e.g. from a WhatsApp photo). Pass the activity id when known, else describe it (e.g. 'Tower A L14 columns core walls PT slab'); if several activities match, the tool returns candidates — ask the user which one. Never invent progress the user didn't report.", input_schema: obj({ activity: str("activity id (e.g. TA-STR-L14) or a description"), state: str(undefined, { enum: ["completed", "in_progress", "pending"] }), percent: num("0-100, for in_progress (or the real % when pending)", { minimum: 0, maximum: 100 }), note: str("what the user reported, cleaned up", { maxLength: 1000 }), evidence_doc_ids: { type: "array", items: { type: "string" }, description: "documents filed as evidence" } }, ["activity", "state"]) },
   { name: "get_activity", description: "Full detail of one activity incl. predecessors/successors and procurement needs.", input_schema: obj({ id: str() }, ["id"]) },
-  { name: "drawing_register", description: "Drawing register (≈800 sheets): current revision, status (IFC/IFA/Under Review/As-Built), revision history. Filter by place, discipline (ARC/STR/HVAC/PLB/ELE/FIRE/CIV/FAC/LAN or MEP), sheet number, status.", input_schema: obj({ location: LOC, discipline: str(), sheet: str(), status: str(), query: str(), limit: num() }) },
-  { name: "search_regulations", description: "Project compliance register: Saudi Building Code (SBC), Civil Defense, MHRSD labour/heat rules, MOMRAH permits, GACA, SEC/NWC, NCEC environment, etc., as applied to this project, with compliance status.", input_schema: obj({ query: str(), topic: str(), location: LOC, status: str() }) },
+  { name: "drawing_register", description: "Drawing register (≈800 sheets): current revision, status (IFC/IFA/Under Review/As-Built), revision history. Filter by place, discipline (ARC/STR/HVAC/PLB/ELE/FIRE/CIV/FAC/LAN or MEP), sheet number, status.", input_schema: obj({ location: LOC, discipline: str(), sheet: str(), status: oneOf(["IFC", "IFA", "Under Review", "For Information", "As-Built"]), query: str(), limit: int(undefined, 1, 100) }) },
+  { name: "search_regulations", description: "Project compliance register: Saudi Building Code (SBC), Civil Defense, MHRSD labour/heat rules, MOMRAH permits, GACA, SEC/NWC, NCEC environment, etc., as applied to this project, with compliance status.", input_schema: obj({ query: str(), topic: str(), location: LOC, status: oneOf(["Compliant", "In Progress", "Action Required", "Not Yet Applicable"]) }) },
   { name: "safety_requirements", description: "Safety requirements for an activity and/or place: HSE rules, PPE, permits required, active permits there, risk assessments, recent incidents.", input_schema: obj({ activity: str("e.g. 'hot work', 'façade installation', 'excavation', 'concrete pour'"), location: LOC, query: str() }) },
   { name: "hse_overview", description: "HSE status: KPIs (LTI-free days, TRIR, manhours), active permits, open/recent incidents, PPE matrix.", input_schema: obj({}) },
-  { name: "permits", description: "List permits-to-work (filter by status Active/Closed/Suspended/Requested, place, type).", input_schema: obj({ status: str(), location: LOC, type: str() }) },
-  { name: "purchase_orders", description: "Purchase orders from the purchasing system (synced): search by keyword/supplier/status/package, or pass po for full detail incl. lines and deliveries.", input_schema: obj({ po: str("e.g. PO-4500123"), query: str(), supplier: str(), status: str(), package: str("e.g. PKG-06") }) },
-  { name: "deliveries", description: "Material deliveries: scheduled/in-transit/delayed/received, by date window (default next 7 days from data date), place, PO or keyword.", input_schema: obj({ from: str(), to: str(), status: str(), location: LOC, po: str(), query: str() }) },
-  { name: "procurement_packages", description: "Procurement packages: status, supplier, budget vs committed, required-on-site vs forecast (at risk when forecast is later).", input_schema: obj({ query: str(), atRisk: bool(), status: str() }) },
+  { name: "permits", description: "List permits-to-work (filter by status Active/Closed/Suspended/Requested, place, type).", input_schema: obj({ status: oneOf(["Active", "Closed", "Suspended", "Requested"]), location: LOC, type: str() }) },
+  { name: "purchase_orders", description: "Purchase orders from the purchasing system (synced): search by keyword/supplier/status/package, or pass po for full detail incl. lines and deliveries.", input_schema: obj({ po: str("e.g. PO-4500123"), query: str(), supplier: str(), status: oneOf(["Open", "Partially Delivered", "Delivered", "Closed", "Cancelled"]), package: str("e.g. PKG-06") }) },
+  { name: "deliveries", description: "Material deliveries: scheduled/in-transit/delayed/received, by date window (default next 7 days from data date), place, PO or keyword.", input_schema: obj({ from: date(), to: date(), status: oneOf(["Scheduled", "In Transit", "Received", "Delayed", "Rejected"]), location: LOC, po: str(), query: str() }) },
+  { name: "procurement_packages", description: "Procurement packages: status, supplier, budget vs committed, required-on-site vs forecast (at risk when forecast is later).", input_schema: obj({ query: str(), atRisk: bool(), status: oneOf(["Planning", "RFQ", "Evaluation", "Awarded", "Manufacturing", "Delivering", "Complete"]) }) },
   { name: "stock_levels", description: "Material stock on site (yards, silos, stores) and items below minimum.", input_schema: obj({ query: str(), low: bool() }) },
-  { name: "create_material_request", description: "Raise a material request (MR) from site. Creates a request for the procurement team and pushes it to the purchasing system if connected. It does NOT commit spend. Confirm item, quantity, unit, need-by date and place with the user if any is missing.", input_schema: obj({ item: str(), qty: num(), unit: str(), needed_by: str("YYYY-MM-DD"), location: LOC, notes: str() }, ["item", "qty", "unit", "needed_by"]) },
-  { name: "ncrs", description: "Non-conformance reports (quality): filter by status, place, keyword.", input_schema: obj({ status: str(), location: LOC, query: str() }) },
-  { name: "contractor_emails", description: "Emails from contractors and consultants in the project's Outlook inbox (project updates, delays, RFIs, HSE reports, inspections). Search by keywords, sender/company and date window; newest first. Use it for anything a contractor may have written about: delays, revised dates, requests, confirmations.", input_schema: obj({ query: str("keywords, e.g. 'façade delay', 'L13 pour', 'SEC inspection', 'PO-4500136'"), from: str("sender name, address or company, e.g. 'Skyline', 'Al-Bunyan'"), since: str("YYYY-MM-DD"), until: str("YYYY-MM-DD"), limit: num() }) },
+  { name: "create_material_request", description: "Raise a material request (MR) from site. Creates a request for the procurement team and pushes it to the purchasing system if connected. It does NOT commit spend. Confirm item, quantity, unit, need-by date and place with the user if any is missing.", input_schema: obj({ item: str(), qty: num(undefined, { exclusiveMinimum: 0 }), unit: str(), needed_by: date("YYYY-MM-DD, today or later"), location: LOC, notes: str(undefined, { maxLength: 1000 }) }, ["item", "qty", "unit", "needed_by"]) },
+  { name: "ncrs", description: "Non-conformance reports (quality): filter by status, place, keyword.", input_schema: obj({ status: oneOf(["Open", "Closed"]), location: LOC, query: str() }) },
+  { name: "contractor_emails", description: "Emails from contractors and consultants in the project's Outlook inbox (project updates, delays, RFIs, HSE reports, inspections). Search by keywords, sender/company and date window; newest first. Use it for anything a contractor may have written about: delays, revised dates, requests, confirmations.", input_schema: obj({ query: str("keywords, e.g. 'façade delay', 'L13 pour', 'SEC inspection', 'PO-4500136'"), from: str("sender name, address or company, e.g. 'Skyline', 'Al-Bunyan'"), since: date(), until: date(), limit: int(undefined, 1, 40) }) },
   { name: "get_email", description: "Read one email in full (body text, sender, date, attachment names). Call before quoting an email.", input_schema: obj({ id: str() }, ["id"]) },
   { name: "find_contact", description: "Find the right person/company/phone for a role, trade or area (e.g. 'lifting supervisor', 'façade', 'HSE').", input_schema: obj({ query: str() }, ["query"]) },
-  { name: "get_brief_layout", description: "The daily brief's current layout: sections in order (on/off), item limit, project focus, notes. Use when asked what is in the daily brief / report.", input_schema: obj({ lang: str("en | ar") }) },
+  { name: "get_brief_layout", description: "The daily brief's current layout: sections in order (on/off), item limit, project focus, notes. Use when asked what is in the daily brief / report.", input_schema: obj({ lang: oneOf(["en", "ar"]) }) },
   { name: "change_brief_layout", description: "Change the daily brief (the scheduled morning e-mail and ▶ Play): hide/show/move a section, limit lists to N items, focus on one project, add or clear a note, undo the last change, or reset to the standard brief. Sections: headline (always first), since, today, next48, critical, milestones, procurement, safety, projects. Use for 'remove the procurement section', 'move safety to the top', 'only Kinan Heights', 'top 3 items', 'add a note to the brief: …', 'undo'.",
-    input_schema: obj({ ops: { type: "array", items: obj({ op: str("hide | show | move | limit | focus | add_note | clear_notes | reset"), section: str("for hide/show/move"), to: str("move: top | bottom | before | after"), ref: str("move before/after: the other section"), n: { type: "number", description: "limit: 1–10, or omit to lift the limit" }, project: str("focus: project name, or omit for all projects"), text: str("add_note: the note") }, ["op"]) }, undo: { type: "boolean", description: "true: undo the last change instead" }, lang: str("en | ar") }) },
+    input_schema: obj({ ops: { type: "array", items: obj({ op: oneOf(["hide", "show", "move", "limit", "focus", "add_note", "clear_notes", "reset"]), section: str("for hide/show/move"), to: str("move: top | bottom | before | after"), ref: str("move before/after: the other section"), n: { type: "integer", description: "limit: 1–10, or omit to lift the limit", minimum: 1, maximum: 10 }, project: str("focus: project name, or omit for all projects"), text: str("add_note: the note", { maxLength: 500 }) }, ["op"]) }, undo: { type: "boolean", description: "true: undo the last change instead" }, lang: oneOf(["en", "ar"]) }) },
   { name: "site_proposals", description: "The construction orchestrator: what it proposes for the site right now — expedite late packages, resequence work around a late delivery, night shifts to recover slipping work, material requests to raise or approve, expired permits to close, permits and overdue NCRs to chase — each with its reasons, risk, cost and who carries it out. Or approve / reject one (with the reason: not_now, already_handled, wrong_person, too_costly, disagree). Approving changes the programme/procurement records and leaves the instruction on the site plan. The user's approval limits apply.",
-    input_schema: obj({ kind: str("filter: expedite | resequence | recover | stock_mr | approve_mr | permit_close | permit_chase | ncr_escalate"), approve: str("proposal id, or 'low_risk' for every low-risk one the user may approve"), reject: str("proposal id"), reason: str("for reject: not_now | already_handled | wrong_person | too_costly | disagree") }) },
+    input_schema: obj({ kind: oneOf(["expedite", "resequence", "recover", "stock_mr", "approve_mr", "permit_close", "permit_chase", "ncr_escalate"], "filter"), approve: str("proposal id, or 'low_risk' for every low-risk one the user may approve"), reject: str("proposal id"), reason: oneOf(["not_now", "already_handled", "wrong_person", "too_costly", "disagree"], "for reject") }) },
   // facility management: the operations layer (lib/fm/tools.ts)
   ...(HAS_OPERATIONS ? (FM_TOOLS as ToolDef[]) : []),
 ];
@@ -119,7 +124,14 @@ export async function addNoteTo(repo: Repo, n: Omit<Note, "id" | "createdAt" | "
 
 const PROCUREMENT_TOOLS = new Set(["purchase_orders", "deliveries", "procurement_packages", "stock_levels"]);
 
-export async function runTool(repo: Repo, name: string, input: Record<string, any>, ctx: ToolCtx): Promise<ToolResult> {
+export async function runTool(repo: Repo, name: string, raw: Record<string, any>, ctx: ToolCtx): Promise<ToolResult> {
+  // every call is checked against the tool's own description first (lib/core/validate.ts): wrong types, values out of
+  // range, unknown states and impossible dates come back as a refusal to take to the user, never as recorded data
+  const def = TOOL_DEFS.find((t) => t.name === name) ?? (FM_TOOLS as ToolDef[]).find((t) => t.name === name);
+  if (!def) return J({ error: `Unknown tool ${name}` });
+  const checked = checkInput(def.input_schema, raw, { today: repo.db.data.meta.dataDate, tool: name });
+  if ("error" in checked) return J(checked);
+  const input = checked.input as Record<string, any>;
   if (name.startsWith("fm_")) return (await import("../fm/tools")).runFmTool(repo, name, input, ctx);
   const db = repo.db;
   try {
@@ -129,9 +141,7 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
       case "site_proposals": {
         const { siteActions, decideSite } = await import("../site/api");
         const { canApprove } = await import("../auth/people");
-        const { isReason, REJECT_REASONS } = await import("../proposals");
         const via = ctx.channel === "whatsapp" ? "whatsapp" : ctx.channel === "field" ? "field" : "web";
-        if (input.reject && input.reason && !isReason(input.reason)) return J({ error: `Reason must be one of: ${Object.keys(REJECT_REASONS).join(", ")}. Ask the user which fits.` });
         if (input.approve === "low_risk") {
           // "approve all the low-risk ones": each within the user's limits; the rest are listed, not approved
           const done: string[] = [], skipped: string[] = [];
@@ -204,7 +214,7 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
         const docId: string | undefined = input.document_id || undefined;
         if (docId && !db.docs.find((d) => d.id === docId)) return J({ error: "Document not found" });
         if (!docId && !locationId) { locationId = ctx.focus?.locationId; if (!locationId) return J({ error: "Specify a document or place — nothing is currently in focus." }); }
-        const n = await addNoteTo(repo, { text, docId, locationId, kind: ["note", "issue", "instruction"].includes(input.kind) ? input.kind : "note", author: ctx.author, via: "agent" });
+        const n = await addNoteTo(repo, { text, docId, locationId, kind: input.kind ?? "note", author: ctx.author, via: "agent" });
         return J({ saved: true, note: noteBrief(db, n) });
       }
       case "list_notes": {
@@ -238,18 +248,17 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
       case "schedule_summary": return J(P.scheduleSummary(db));
       case "get_activity": { const r = P.getActivity(db, String(input.id ?? "")); return J("error" in r ? r : { ...r, siteUpdates: updatesFor(db, r.id) }); }
       case "update_activity": {
-        const state = String(input.state ?? "");
-        if (!["completed", "in_progress", "pending"].includes(state)) return J({ error: "state must be completed, in_progress or pending" });
+        const state = input.state as "completed" | "in_progress" | "pending";
         const f = findActivity(db, String(input.activity ?? ""));
         if (!f.activity)
           return J({ error: f.candidates.length ? "Several activities match — ask the user which one, then call again with its id." : `No activity matches "${input.activity}".`, candidates: f.candidates.map((a) => ({ id: a.id, name: a.name, location: locationPath(db, a.locationId), status: a.status, percent: a.percent })) });
         const ev: string[] = Array.isArray(input.evidence_doc_ids) ? input.evidence_doc_ids.map(String).filter((id: string) => db.docs.some((d) => d.id === id)) : [];
-        const pct = input.percent === undefined || input.percent === null || input.percent === "" ? undefined : Number(input.percent);
-        if (pct !== undefined && (!Number.isFinite(pct) || pct < 0 || pct > 100)) return J({ error: `${input.percent}% isn't a progress figure: give 0–100 (100 = completed). Ask the user what they meant.` });
+        const pct = input.percent as number | undefined; // 0–100, checked at the boundary
         const a = f.activity;
-        const st = (state === "in_progress" && pct === 100 ? "completed" : state) as "completed" | "in_progress" | "pending";
-        const pcBefore = completionDate(db.data);
-        const u = recordUpdate(db, a, { id: `U-${Date.now().toString(36)}`, state: st, percent: Number.isFinite(pct) ? pct : undefined, note: input.note ? String(input.note) : undefined, evidence: ev, by: ctx.author, channel: ctx.channel === "whatsapp" ? "whatsapp" : "web" });
+        const st = state === "in_progress" && pct === 100 ? "completed" : state;
+        const pcBefore = completionDate(db.data), rules = shot(db.data);
+        const u = recordUpdate(db, a, { id: `U-${Date.now().toString(36)}`, state: st, percent: pct, note: input.note ? String(input.note) : undefined, evidence: ev, by: ctx.author, channel: ctx.channel === "whatsapp" ? "whatsapp" : "web" });
+        guard(`progress on ${a.id}`, db.data, rules);
         await addNoteTo(repo, { text: `Progress: ${a.id} ${a.name} — ${state === "completed" ? "completed" : state === "pending" ? "pending" : `${a.percent}% complete`}${u.note ? `. ${u.note}` : ""}${ev.length ? ` (${ev.length} evidence file${ev.length > 1 ? "s" : ""})` : ""}`, locationId: a.locationId, docId: ev[0], kind: state === "pending" ? "issue" : "note", author: ctx.author, via: "agent" });
         await repo.save();
         // work reported ahead of what it depends on is worth a question (a wrong activity, or work out of sequence)
@@ -269,10 +278,7 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
       case "procurement_packages": return J(P.packagesQuery(db, input));
       case "stock_levels": return J(P.stockQuery(db, input));
       case "create_material_request": {
-        const qty = Number(input.qty);
-        if (!input.item || !Number.isFinite(qty) || qty <= 0 || !input.unit || !/^\d{4}-\d{2}-\d{2}$/.test(String(input.needed_by ?? "")))
-          return J({ error: "Need item, positive qty, unit and needed_by (YYYY-MM-DD)." });
-        if (String(input.needed_by) < db.data.meta.dataDate) return J({ error: `needed_by ${input.needed_by} is in the past (today is ${db.data.meta.dataDate}). Ask the user for the date it's needed.` });
+        const qty = input.qty as number; // item, qty > 0, unit and a need-by from today on: checked at the boundary
         let locationId = ctx.focus?.locationId ?? "site";
         if (input.location) { const l = resolveLocation(db, String(input.location)); if (!l) return J({ error: `No place matches "${input.location}".` }); locationId = l.id; }
         const reqs = db.data.procurement.requests;

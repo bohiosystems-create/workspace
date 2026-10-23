@@ -12,7 +12,8 @@
     "brand": "node scripts/brand.mjs",
     "prebuild": "node scripts/brand.mjs",
     "demo-pack": "node scripts/demo-pack.mjs",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "fuzz": "tsx scripts/fuzz.ts"
   },
   "dependencies": {
     "@elevenlabs/client": "^1.27.0",
