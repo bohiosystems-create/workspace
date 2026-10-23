@@ -1,0 +1,2927 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://bohio.systems/schemas/saudi-re-fund-extraction/1.0",
+ "title": "Saudi real estate fund T&Cs extraction",
+ "description": "Language-neutral output of the fund-document agent. Values are normalised (numbers, ISO dates, enums). Every value keeps its evidence in the source language, plus a translation. The validator and engine read this file.",
+ "type": "object",
+ "required": [
+  "schema_version",
+  "document",
+  "fund",
+  "parties",
+  "dates",
+  "capital",
+  "fees",
+  "open_questions"
+ ],
+ "additionalProperties": false,
+ "$defs": {
+  "Source": {
+   "type": "object",
+   "required": [
+    "quote"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "page": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "section": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "Section number/heading as printed, e.g. '9' or 'الرسوم ومقابل الخدمات والعمولات'"
+    },
+    "clause": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "Clause reference, e.g. '9(a)(2)'"
+    },
+    "lang": {
+     "enum": [
+      "ar",
+      "en"
+     ]
+    },
+    "quote": {
+     "type": "string",
+     "description": "Verbatim text from the document, in its original language"
+    },
+    "quote_translation": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "Translation of the quote into the other app language"
+    }
+   }
+  },
+  "Field": {
+   "type": "object",
+   "required": [
+    "status"
+   ],
+   "properties": {
+    "value": {},
+    "unit": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "description": "SAR, pct, sqm, months, years, days, units ..."
+    },
+    "status": {
+     "enum": [
+      "extracted",
+      "derived",
+      "defaulted",
+      "missing",
+      "conflict",
+      "not_applicable"
+     ],
+     "description": "extracted = stated in document; derived = calculated from stated values (explain in note); defaulted = rule/default applied, not from document; missing = should be there but is not; conflict = document says different things (list all in sources)"
+    },
+    "confidence": {
+     "type": [
+      "number",
+      "null"
+     ],
+     "minimum": 0,
+     "maximum": 1
+    },
+    "sources": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Source"
+     }
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   }
+  },
+  "BilingualField": {
+   "allOf": [
+    {
+     "$ref": "#/$defs/Field"
+    }
+   ],
+   "properties": {
+    "value": {
+     "type": [
+      "object",
+      "null"
+     ],
+     "properties": {
+      "ar": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "en": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "additionalProperties": false
+    }
+   }
+  },
+  "HijriDate": {
+   "type": "object",
+   "required": [
+    "y",
+    "m",
+    "d"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "y": {
+     "type": "integer",
+     "minimum": 1300,
+     "maximum": 1600
+    },
+    "m": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 12
+    },
+    "d": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 30
+    }
+   }
+  },
+  "DateValue": {
+   "type": [
+    "object",
+    "null"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "gregorian": {
+     "type": [
+      "string",
+      "null"
+     ],
+     "format": "date",
+     "description": "ISO 8601 YYYY-MM-DD"
+    },
+    "hijri": {
+     "oneOf": [
+      {
+       "$ref": "#/$defs/HijriDate"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "source_calendar": {
+     "enum": [
+      "hijri",
+      "gregorian",
+      "both",
+      null
+     ]
+    },
+    "original_text": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   }
+  },
+  "DateField": {
+   "allOf": [
+    {
+     "$ref": "#/$defs/Field"
+    }
+   ],
+   "properties": {
+    "value": {
+     "$ref": "#/$defs/DateValue"
+    }
+   }
+  },
+  "Party": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "name"
+   ],
+   "properties": {
+    "name": {
+     "$ref": "#/$defs/BilingualField"
+    },
+    "role_note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "cma_license_no": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "is_related_party": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    },
+    "is_independent": {
+     "type": [
+      "boolean",
+      "null"
+     ]
+    }
+   }
+  },
+  "Fee": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "fee_type",
+    "status"
+   ],
+   "properties": {
+    "fee_type": {
+     "enum": [
+      "management",
+      "subscription",
+      "custody",
+      "board",
+      "audit",
+      "financing",
+      "registration_admin",
+      "developer",
+      "property_management",
+      "early_redemption",
+      "valuation",
+      "acquisition",
+      "disposal",
+      "structuring",
+      "shariah",
+      "trustee",
+      "brokerage",
+      "leasing",
+      "other"
+     ],
+     "description": "Canonical type; see data/terms.yaml ids fee_*"
+    },
+    "name_original": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "rate_pct": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "fixed_amount_sar": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "basis": {
+     "enum": [
+      "total_assets",
+      "nav",
+      "subscription_amount",
+      "commitments",
+      "rent_collected",
+      "purchase_price",
+      "sale_price",
+      "development_cost",
+      "gdv",
+      "fixed_amount",
+      "actual_cost",
+      "other",
+      null
+     ]
+    },
+    "frequency": {
+     "enum": [
+      "one_off",
+      "monthly",
+      "quarterly",
+      "semi_annual",
+      "annual",
+      "per_transaction",
+      "per_valuation",
+      "other",
+      null
+     ]
+    },
+    "accrual": {
+     "enum": [
+      "daily",
+      "per_valuation_day",
+      "monthly",
+      "on_event",
+      "none",
+      null
+     ]
+    },
+    "payer": {
+     "enum": [
+      "fund",
+      "unitholder",
+      "manager",
+      "tenant",
+      null
+     ]
+    },
+    "cap_pct": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "cap_amount_sar": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "vat": {
+     "enum": [
+      "exclusive",
+      "inclusive",
+      "exempt",
+      "unspecified"
+     ]
+    },
+    "start_trigger": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "stop_trigger": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "waiver_conditions": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "status": {
+     "enum": [
+      "extracted",
+      "derived",
+      "defaulted",
+      "missing",
+      "conflict",
+      "not_applicable"
+     ]
+    },
+    "confidence": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "sources": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Source"
+     }
+    },
+    "note": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "fixed_amount_aed": {
+     "type": [
+      "number",
+      "null"
+     ]
+    }
+   }
+  },
+  "Tier": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "order": {
+     "type": "integer"
+    },
+    "description": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "threshold_type": {
+     "enum": [
+      "return_of_capital",
+      "pref_return",
+      "irr",
+      "multiple",
+      "catch_up",
+      "split",
+      null
+     ]
+    },
+    "threshold_pct": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "investor_share_pct": {
+     "type": [
+      "number",
+      "null"
+     ]
+    },
+    "manager_share_pct": {
+     "type": [
+      "number",
+      "null"
+     ]
+    }
+   }
+  },
+  "Asset": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "name"
+   ],
+   "properties": {
+    "name": {
+     "$ref": "#/$defs/BilingualField"
+    },
+    "type": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "raw_land",
+        "white_land",
+        "residential",
+        "office",
+        "retail",
+        "hospitality",
+        "industrial_logistics",
+        "healthcare",
+        "education",
+        "mixed_use",
+        "other",
+        null
+       ]
+      }
+     }
+    },
+    "status": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "land",
+        "under_development",
+        "developed_income",
+        "developed_for_sale",
+        null
+       ]
+      }
+     }
+    },
+    "tenure": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "freehold",
+        "usufruct",
+        "leasehold",
+        null
+       ]
+      }
+     }
+    },
+    "usufruct_expiry": {
+     "$ref": "#/$defs/DateField"
+    },
+    "city": {
+     "$ref": "#/$defs/BilingualField"
+    },
+    "district": {
+     "$ref": "#/$defs/BilingualField"
+    },
+    "deed_number": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "land_area_sqm": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "sqm"
+      }
+     }
+    },
+    "gfa_sqm": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "sqm"
+      }
+     }
+    },
+    "gla_sqm": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "sqm"
+      }
+     }
+    },
+    "purchase_price_sar": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "valuations": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "valuer": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "date": {
+        "$ref": "#/$defs/DateValue"
+       },
+       "value_sar": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "method": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "sources": {
+        "type": "array",
+        "items": {
+         "$ref": "#/$defs/Source"
+        }
+       }
+      }
+     }
+    },
+    "annual_rent_sar": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "market_rent_sar": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "occupancy_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "leases": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "tenant": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "annual_rent_sar": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "start": {
+        "$ref": "#/$defs/DateValue"
+       },
+       "end": {
+        "$ref": "#/$defs/DateValue"
+       },
+       "escalation_pct": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "escalation_every_years": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "rent_year_basis": {
+        "enum": [
+         "gregorian",
+         "hijri",
+         null
+        ]
+       },
+       "share_of_fund_income_pct": {
+        "type": [
+         "number",
+         "null"
+        ]
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "properties": {
+  "schema_version": {
+   "const": "1.0"
+  },
+  "document": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "language"
+   ],
+   "properties": {
+    "language": {
+     "enum": [
+      "ar",
+      "en",
+      "bilingual"
+     ]
+    },
+    "prevailing_language": {
+     "enum": [
+      "ar",
+      "en",
+      null
+     ],
+     "description": "Language that prevails on conflict; Saudi T&Cs are prepared in Arabic, which normally prevails."
+    },
+    "title": {
+     "$ref": "#/$defs/BilingualField"
+    },
+    "issue_date": {
+     "$ref": "#/$defs/DateField"
+    },
+    "last_update_date": {
+     "$ref": "#/$defs/DateField"
+    },
+    "pages": {
+     "type": [
+      "integer",
+      "null"
+     ]
+    },
+    "file_name": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "extraction_quality": {
+     "enum": [
+      "good",
+      "degraded_pdf_text",
+      "ocr",
+      "vision",
+      null
+     ]
+    }
+   }
+  },
+  "fund": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "name",
+    "kind"
+   ],
+   "properties": {
+    "name": {
+     "$ref": "#/$defs/BilingualField"
+    },
+    "kind": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "public_reif",
+        "reit_main",
+        "reit_parallel",
+        "private_re_fund",
+        "reit_public",
+        "reit_private",
+        "property_fund_public",
+        "property_fund_exempt",
+        "property_fund_qif",
+        "property_fund_private",
+        "other",
+        null
+       ]
+      }
+     }
+    },
+    "structure": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "closed",
+        "open",
+        null
+       ]
+      }
+     }
+    },
+    "article10_category": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "initial_development_sale",
+        "construction_development_sale",
+        "development_lease_sale",
+        "own_lease_sale",
+        "income_generating",
+        "other",
+        null
+       ]
+      }
+     }
+    },
+    "listing_market": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "main",
+        "parallel",
+        "unlisted",
+        "dfm",
+        "adx",
+        "nasdaq_dubai",
+        null
+       ]
+      }
+     }
+    },
+    "shariah_compliant": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    },
+    "is_spe": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    },
+    "currency": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "risk_classification": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "eligible_investors": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "jurisdiction": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "KSA_CMA",
+        "UAE_ONSHORE",
+        "DIFC",
+        "ADGM",
+        "OTHER",
+        null
+       ]
+      }
+     },
+     "description": "Regulatory regime. KSA_CMA = Saudi Capital Market Authority. UAE_ONSHORE = UAE federal Capital Market Authority (formerly SCA, renamed 1 Jan 2026). DIFC = DFSA. ADGM = FSRA. If absent the validator assumes KSA_CMA for backward compatibility."
+    },
+    "reit_tax_exempt": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     },
+     "description": "Fund claims UAE Corporate Tax exemption as REIT or Qualifying Investment Fund (Cabinet Decision 34/2025)."
+    }
+   }
+  },
+  "parties": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "fund_manager": {
+     "$ref": "#/$defs/Party"
+    },
+    "fund_sub_manager": {
+     "$ref": "#/$defs/Party"
+    },
+    "custodian": {
+     "$ref": "#/$defs/Party"
+    },
+    "sub_custodian": {
+     "$ref": "#/$defs/Party"
+    },
+    "developers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Party"
+     }
+    },
+    "engineering_office": {
+     "$ref": "#/$defs/Party"
+    },
+    "property_managers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Party"
+     }
+    },
+    "valuers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Party"
+     }
+    },
+    "auditor": {
+     "$ref": "#/$defs/Party"
+    },
+    "shariah_board": {
+     "$ref": "#/$defs/Party"
+    },
+    "distributor": {
+     "$ref": "#/$defs/Party"
+    }
+   }
+  },
+  "dates": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "cma_approval_date": {
+     "$ref": "#/$defs/DateField"
+    },
+    "offering_start": {
+     "$ref": "#/$defs/DateField"
+    },
+    "offering_end": {
+     "$ref": "#/$defs/DateField"
+    },
+    "offering_period_days": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "days"
+      }
+     }
+    },
+    "operation_start": {
+     "$ref": "#/$defs/DateField"
+    },
+    "term_years": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "years"
+      }
+     }
+    },
+    "term_calendar": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "gregorian",
+        "hijri",
+        null
+       ]
+      }
+     },
+     "description": "Calendar in which the term is counted, if stated"
+    },
+    "extensions": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "max_count": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "years_each": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "approval": {
+        "enum": [
+         "fund_board",
+         "ordinary_resolution",
+         "special_resolution",
+         "manager_discretion",
+         null
+        ]
+       },
+       "sources": {
+        "type": "array",
+        "items": {
+         "$ref": "#/$defs/Source"
+        }
+       }
+      }
+     }
+    },
+    "maturity_date": {
+     "$ref": "#/$defs/DateField"
+    },
+    "fiscal_year_end": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "description": "MM-DD, e.g. 12-31"
+    },
+    "liquidation_period_months": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "months"
+      }
+     }
+    },
+    "listing_deadline_months": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "months"
+      }
+     },
+     "description": "Deadline to list after first offering/registration (e.g. DFSA public property fund: 36 months)."
+    }
+   }
+  },
+  "capital": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "target_size": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "minimum_size": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "maximum_size": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "unit_nominal_value": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "units_offered": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "units"
+      }
+     }
+    },
+    "minimum_subscription": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      }
+     }
+    },
+    "unit_classes": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "name": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "rights": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "fee_differences": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      }
+     }
+    },
+    "in_kind_contributions": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "contributor": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "asset": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "value_sar": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "units": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "share_of_total_pct": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "lock_up_months": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "sources": {
+        "type": "array",
+        "items": {
+         "$ref": "#/$defs/Source"
+        }
+       }
+      }
+     }
+    },
+    "cash_contributions": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "manager_coinvestment": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "commitments_total": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "capital_calls": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "date": {
+        "$ref": "#/$defs/DateValue"
+       },
+       "pct_of_commitment": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "amount_sar": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "purpose": {
+        "type": [
+         "string",
+         "null"
+        ]
+       }
+      }
+     }
+    },
+    "use_of_proceeds": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "item": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "amount_sar": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "pct": {
+        "type": [
+         "number",
+         "null"
+        ]
+       }
+      }
+     }
+    },
+    "subsequent_offerings": {
+     "type": "array",
+     "items": {
+      "type": "object"
+     }
+    },
+    "minimum_subscription_usd": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "USD"
+      }
+     },
+     "description": "Minimum initial subscription in USD (DIFC/ADGM exempt funds 50,000; ADGM QIF 500,000)."
+    }
+   }
+  },
+  "assets": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "items": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Asset"
+     }
+    },
+    "max_single_tenant_share_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "immovable_property_value_aed": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "AED"
+      }
+     },
+     "description": "Value of immovable property (excluding land) owned or managed; REIT tax exemption needs > AED 100m."
+    },
+    "service_companies_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     },
+     "description": "Share of total assets in real estate service companies (UAE onshore cap 20%)."
+    },
+    "usufruct_pct_net_assets": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     },
+     "description": "Usufruct rights with <30 years remaining, as % of net assets (UAE onshore public REIT cap 25%)."
+    }
+   }
+  },
+  "investment_policy": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "allocation": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "asset_class": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "min_pct": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "max_pct": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "basis": {
+        "enum": [
+         "total_assets",
+         "nav",
+         null
+        ]
+       }
+      }
+     }
+    },
+    "income_producing_min_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "development_max_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "outside_ksa_max_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "white_land_allowed": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    },
+    "geography": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "cash_management": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "income_revenue_min_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     },
+     "description": "Minimum % of revenue from real estate / income-generating real estate (UAE onshore public REIT 90%)."
+    },
+    "development_max_pct_nav": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     },
+     "description": "Development property as % of NAV (DIFC REIT cap 30%)."
+    }
+   }
+  },
+  "development": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "budget": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "gdv": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "enum": [
+        "SAR",
+        "AED",
+        "USD"
+       ]
+      }
+     }
+    },
+    "contingency_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "schedule": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+       "phase": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "start": {
+        "$ref": "#/$defs/DateValue"
+       },
+       "end": {
+        "$ref": "#/$defs/DateValue"
+       },
+       "duration_months": {
+        "type": [
+         "number",
+         "null"
+        ]
+       },
+       "cost_sar": {
+        "type": [
+         "number",
+         "null"
+        ]
+       }
+      }
+     }
+    },
+    "sales_plan": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    }
+   }
+  },
+  "financing": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "max_borrowing_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "borrowing_basis": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "total_assets",
+        "nav",
+        "asset_value",
+        "other",
+        null
+       ]
+      }
+     }
+    },
+    "target_ltv_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "instrument": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "murabaha",
+        "ijara",
+        "tawarruq",
+        "sukuk",
+        "conventional",
+        "other",
+        null
+       ]
+      }
+     }
+    },
+    "benchmark": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "margin_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "all_in_rate_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "tenor_years": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "years"
+      }
+     }
+    },
+    "arrangement_fee_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "security": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    }
+   }
+  },
+  "fees": {
+   "type": "array",
+   "items": {
+    "$ref": "#/$defs/Fee"
+   }
+  },
+  "fees_summary": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "cost_ratio_cap_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "offering_expenses_borne_by_fund": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    }
+   }
+  },
+  "performance_fee": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "exists": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    },
+    "hurdle_rate_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "hurdle_type": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "simple_annual",
+        "compound_annual",
+        "irr",
+        "multiple",
+        "none",
+        null
+       ]
+      }
+     }
+    },
+    "catch_up_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "manager_share_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "waterfall_style": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "whole_of_fund",
+        "deal_by_deal",
+        null
+       ]
+      }
+     }
+    },
+    "tiers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Tier"
+     }
+    },
+    "crystallisation": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "clawback": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    }
+   }
+  },
+  "distributions": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "policy": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "frequency": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "one_off",
+        "monthly",
+        "quarterly",
+        "semi_annual",
+        "annual",
+        "per_transaction",
+        "per_valuation",
+        "other",
+        null
+       ]
+      }
+     }
+    },
+    "min_pct_of_net_profit": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "basis": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "enum": [
+        "net_profit",
+        "rental_income",
+        "sale_proceeds",
+        "cash_available",
+        "other",
+        null
+       ]
+      }
+     }
+    },
+    "first_distribution": {
+     "$ref": "#/$defs/DateField"
+    }
+   }
+  },
+  "valuation": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "valuers_count": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      }
+     }
+    },
+    "frequency_months": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "months"
+      }
+     }
+    },
+    "valuation_dates": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "array",
+        "null"
+       ],
+       "items": {
+        "type": "string"
+       }
+      }
+     },
+     "description": "MM-DD list, e.g. ['06-30','12-31']"
+    },
+    "method": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "nav_method": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "valuer_rotation_years": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "years"
+      }
+     }
+    },
+    "report_validity_months": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "months"
+      }
+     },
+     "description": "How long a valuation report may be relied on (UAE onshore: 3 months)."
+    }
+   }
+  },
+  "governance": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "board_size": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      }
+     }
+    },
+    "independent_directors": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      }
+     }
+    },
+    "ordinary_resolution_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "special_resolution_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    },
+    "meeting_quorum_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     }
+    }
+   }
+  },
+  "exit": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "strategy": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "expected_holding_years": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "years"
+      }
+     }
+    },
+    "in_kind_distribution_allowed": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    }
+   }
+  },
+  "taxes": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "rett": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "vat": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "zakat": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "white_land_fee": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     }
+    },
+    "corporate_tax": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "description": "UAE CT position: standard 9% / QIF exempt / REIT exempt / free zone etc."
+    },
+    "dld_transfer_fee": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "description": "Dubai Land Department transfer fee treatment on acquisitions."
+    },
+    "uae_vat": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "description": "UAE VAT treatment (5%) of leases, sales and fund fees."
+    }
+   }
+  },
+  "open_questions": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "field",
+     "question_en",
+     "question_ar"
+    ],
+    "properties": {
+     "field": {
+      "type": "string"
+     },
+     "question_en": {
+      "type": "string"
+     },
+     "question_ar": {
+      "type": "string"
+     },
+     "blocking": {
+      "type": "boolean",
+      "description": "true if the model cannot run without an answer"
+     }
+    }
+   }
+  },
+  "investors": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "count": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "integer",
+        "null"
+       ]
+      }
+     },
+     "description": "Number of investors in the fund."
+    },
+    "max_single_holder_pct": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "number",
+        "null"
+       ]
+      },
+      "unit": {
+       "const": "pct"
+      }
+     },
+     "description": "Largest single investor (with related parties) as % of ownership/profits."
+    },
+    "max_single_holder_is_government": {
+     "allOf": [
+      {
+       "$ref": "#/$defs/Field"
+      }
+     ],
+     "properties": {
+      "value": {
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     }
+    }
+   }
+  }
+ }
+}

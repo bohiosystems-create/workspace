@@ -1,0 +1,209 @@
+# Calendar dataset for Saudi fund documents: Hijri (Umm al-Qura) and Gregorian, Arabic + English.
+#
+# The exact day-level conversion table is data/ummalqura_months.csv (1356-1500 AH = 1937-2077 CE),
+# generated from the ICU "islamic-umalqura" calendar (tools/build_ummalqura.js). Spot-checked against
+# official documents: 23/11/1446 AH = 21/05/2025 (CMA resolution 1-54-2025) and
+# 4 Rabi' al-Awwal 1448 = 17/08/2026 (Umm al-Qura gazette).
+#
+# Matching is done on normalised Arabic (hamza/alef/taa-marbuta folded), so listed variants only
+# need to differ in letters, spacing or wording.
+
+version: "2026-10-23"
+
+hijri_months:
+  - number: 1
+    ar: محرم
+    ar_variants: [المحرم, محرّم]
+    en: Muharram
+    en_variants: [Muharram, Moharram, Muharam]
+  - number: 2
+    ar: صفر
+    ar_variants: []
+    en: Safar
+    en_variants: [Safar, Saffar]
+  - number: 3
+    ar: ربيع الأول
+    ar_variants: [ربيع أول, ربيع الاول, ربيع 1]
+    en: Rabi' al-Awwal
+    en_variants: [Rabi al-Awwal, Rabi I, Rabi' I, Rabia al-Awal, Rabi ul Awwal, Rabi Al Awwal]
+  - number: 4
+    ar: ربيع الآخر
+    ar_variants: [ربيع الثاني, ربيع ثاني, ربيع آخر, ربيع 2]
+    en: Rabi' al-Akhir
+    en_variants: [Rabi al-Thani, Rabi II, Rabi' II, Rabi al-Akhir, Rabi ul Akhir, Rabi Al Thani]
+  - number: 5
+    ar: جمادى الأولى
+    ar_variants: [جمادى الأول, جمادي الأولى, جمادى أولى, جمادى 1]
+    en: Jumada al-Ula
+    en_variants: [Jumada al-Awwal, Jumada I, Jumada al-Ula, Jumada Al Oula, Jumada al-Ola]
+  - number: 6
+    ar: جمادى الآخرة
+    ar_variants: [جمادى الثانية, جمادى الآخر, جمادي الآخرة, جمادى ثاني, جمادى 2]
+    en: Jumada al-Akhirah
+    en_variants: [Jumada al-Thani, Jumada II, Jumada al-Akhira, Jumada al-Thaniyah, Jumada Al Akhirah]
+  - number: 7
+    ar: رجب
+    ar_variants: []
+    en: Rajab
+    en_variants: [Rajab]
+  - number: 8
+    ar: شعبان
+    ar_variants: []
+    en: Sha'ban
+    en_variants: [Shaban, Sha'aban, Shaaban]
+  - number: 9
+    ar: رمضان
+    ar_variants: []
+    en: Ramadan
+    en_variants: [Ramadhan, Ramazan]
+  - number: 10
+    ar: شوال
+    ar_variants: []
+    en: Shawwal
+    en_variants: [Shawal, Shawwal]
+  - number: 11
+    ar: ذو القعدة
+    ar_variants: [ذي القعدة, ذو القعده, ذي القعده]
+    en: Dhu al-Qi'dah
+    en_variants: [Dhul Qadah, Dhu al-Qadah, Dhul Qi'dah, Zul Qadah, Dhu al-Qadah]
+  - number: 12
+    ar: ذو الحجة
+    ar_variants: [ذي الحجة, ذو الحجه, ذي الحجه]
+    en: Dhu al-Hijjah
+    en_variants: [Dhul Hijjah, Dhu al-Hijja, Zul Hijjah, Dhul-Hijjah]
+
+# Two families of Arabic names for Gregorian months are in use. Saudi documents normally use the
+# transliterated (Gulf/Egyptian) set; Levantine/Iraqi documents use the Syriac set.
+gregorian_months:
+  - number: 1
+    ar: يناير
+    ar_variants: [كانون الثاني, جانفي]
+    en: January
+  - number: 2
+    ar: فبراير
+    ar_variants: [شباط, فيفري]
+    en: February
+  - number: 3
+    ar: مارس
+    ar_variants: [آذار]
+    en: March
+  - number: 4
+    ar: أبريل
+    ar_variants: [ابريل, إبريل, نيسان, أفريل]
+    en: April
+  - number: 5
+    ar: مايو
+    ar_variants: [أيار, ماي]
+    en: May
+  - number: 6
+    ar: يونيو
+    ar_variants: [يونيه, حزيران, جوان]
+    en: June
+  - number: 7
+    ar: يوليو
+    ar_variants: [يوليه, تموز, جويلية]
+    en: July
+  - number: 8
+    ar: أغسطس
+    ar_variants: [اغسطس, آب, أوت]
+    en: August
+  - number: 9
+    ar: سبتمبر
+    ar_variants: [أيلول]
+    en: September
+  - number: 10
+    ar: أكتوبر
+    ar_variants: [اكتوبر, تشرين الأول]
+    en: October
+  - number: 11
+    ar: نوفمبر
+    ar_variants: [تشرين الثاني]
+    en: November
+  - number: 12
+    ar: ديسمبر
+    ar_variants: [كانون الأول]
+    en: December
+
+weekdays:
+  # Saudi weekend is Friday-Saturday (since 2013). number = ISO weekday (Mon=1)
+  - {number: 7, ar: الأحد, en: Sunday, working_day: true}
+  - {number: 1, ar: الاثنين, en: Monday, working_day: true}
+  - {number: 2, ar: الثلاثاء, en: Tuesday, working_day: true}
+  - {number: 3, ar: الأربعاء, en: Wednesday, working_day: true}
+  - {number: 4, ar: الخميس, en: Thursday, working_day: true}
+  - {number: 5, ar: الجمعة, en: Friday, working_day: false}
+  - {number: 6, ar: السبت, en: Saturday, working_day: false}
+
+# Markers that tell you which calendar a date is in.
+era_markers:
+  hijri:
+    ar: ["هـ", "ه", "هجري", "هجرية", "للهجرة"]
+    en: ["AH", "H", "Hijri"]
+  gregorian:
+    ar: ["م", "ميلادي", "ميلادية", "للميلاد"]
+    en: ["AD", "CE", "G", "Gregorian"]
+
+# Words that link a date to its equivalent in the other calendar, e.g.
+# "1446/11/23هـ الموافق 2025/05/21م" or "23/11/1446H corresponding to 21/05/2025G".
+equivalence_markers:
+  ar: ["الموافق", "الموافقة", "الموافق لـ", "الموافق ل", "يوافق", "وفق"]
+  en: ["corresponding to", "corresponding with", "which corresponds to", "equivalent to"]
+
+# Period words found in fund documents (durations, fee frequencies, lease terms).
+period_words:
+  - {unit: day,   ar: [يوم, أيام, يوماً, يوما], en: [day, days]}
+  - {unit: week,  ar: [أسبوع, أسابيع], en: [week, weeks]}
+  - {unit: month, ar: [شهر, أشهر, شهور, شهراً, شهرا], en: [month, months]}
+  - {unit: year,  ar: [سنة, سنوات, سنين, عام, أعوام, سنه], en: [year, years]}
+  - {unit: hijri_year, ar: [سنة هجرية, سنوات هجرية, عام هجري], en: [Hijri year, Hijri years, lunar year]}
+  - {unit: gregorian_year, ar: [سنة ميلادية, سنوات ميلادية, عام ميلادي], en: [Gregorian year, calendar year]}
+  - {unit: business_day, ar: [يوم عمل, أيام عمل], en: [business day, business days, working day]}
+  - {unit: calendar_day, ar: [يوم تقويمي, أيام تقويمية], en: [calendar day, calendar days]}
+
+# Conventions that matter when turning dates into a model timeline.
+conventions:
+  - id: dual_dating
+    en: >-
+      Saudi legal and regulatory documents usually give both Hijri and Gregorian dates. CMA regulations
+      put the Hijri date first. Treat the Hijri date as the legal date and the Gregorian as the
+      equivalent, and flag any pair that does not match the Umm al-Qura table.
+    ar: تذكر الوثائق النظامية السعودية عادة التاريخين الهجري والميلادي، ويقدم التاريخ الهجري أولاً في لوائح الهيئة.
+  - id: day_definition
+    en: >-
+      In CMA rules "day" (يوم) means a working day per CMA official working days, while "calendar day"
+      (يوم تقويمي) means any day. Notice periods and deadlines in T&Cs often follow this. Check which one
+      the document uses before computing deadlines.
+    ar: يقصد بـ"يوم" في لوائح الهيئة يوم العمل الرسمي، ويقصد بـ"يوم تقويمي" أي يوم سواء أكان يوم عمل أم لا.
+    source: CMA Glossary of Defined Terms (2025)
+  - id: hijri_year_length
+    en: >-
+      A Hijri year has 354 or 355 days, about 11 days shorter than a Gregorian year. Leases, older
+      government contracts and some fee clauses priced "per Hijri year" therefore escalate faster in
+      Gregorian terms: 100 Hijri years are about 97 Gregorian years.
+    ar: السنة الهجرية 354 أو 355 يوماً، أي أقصر من السنة الميلادية بنحو 11 يوماً.
+  - id: zakat_year
+    en: >-
+      Zakat is 2.5% for a Hijri year. When the financial year is Gregorian, ZATCA practice prorates the
+      rate by days (2.5% x 365/354, about 2.5776%). Verify against the current Zakat Implementing
+      Regulations before using.
+    ar: الزكاة 2.5% عن السنة الهجرية، وتعدل حسب عدد أيام السنة المالية إذا كانت ميلادية.
+  - id: fiscal_year
+    en: >-
+      The Saudi government budget moved to the Gregorian calendar in 2016/17, and fund financial
+      statements are normally Gregorian (fiscal year end usually 31 December). Hijri still appears in
+      deeds, Royal Decrees, CMA resolutions and some leases.
+    ar: تعد القوائم المالية للصناديق عادة على أساس السنة الميلادية.
+  - id: weekend
+    en: The Saudi weekend is Friday-Saturday (since 29 June 2013), and Tadawul trades Sunday-Thursday.
+    ar: عطلة نهاية الأسبوع في المملكة يوما الجمعة والسبت.
+  - id: holidays
+    en: >-
+      Official holidays follow the Hijri calendar (Eid al-Fitr and Eid al-Adha) plus Founding Day
+      (22 Feb) and National Day (23 Sep). Eid dates depend on moon sighting and can differ by a day from
+      the Umm al-Qura table, so use the Saudi Exchange or CMA holiday announcement for exact closures.
+    ar: تعتمد الإجازات الرسمية على التقويم الهجري للعيدين إضافة إلى يوم التأسيس واليوم الوطني.
+  - id: umm_al_qura_vs_sighting
+    en: >-
+      Umm al-Qura is the official civil/administrative calendar. Religious months such as Ramadan can
+      start a day off it on sighting. For contracts and fund documents, use Umm al-Qura.
+    ar: تقويم أم القرى هو التقويم الرسمي للمعاملات، وقد تختلف بداية بعض الأشهر بيوم بناءً على رؤية الهلال.

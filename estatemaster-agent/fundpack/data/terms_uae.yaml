@@ -1,0 +1,841 @@
+terms:
+- id: uae_cma
+  category: regulators
+  en: UAE Capital Market Authority
+  ar: هيئة سوق المال
+  en_syn:
+  - CMA (UAE)
+  - Capital Market Authority UAE
+  - Securities and Commodities Authority
+  - SCA
+  - UAE CMA
+  ar_syn:
+  - هيئة الأوراق المالية والسلع
+  - هيئة الاوراق المالية والسلع
+  def_en: Federal regulator of UAE onshore capital markets and funds. Formerly the Securities and Commodities Authority (SCA); reconstituted as the CMA on 1 Jan 2026 under Federal Law 32/2025. Not the Saudi
+    Capital Market Authority.
+  def_ar: الجهة الاتحادية المنظمة للأسواق المالية والصناديق داخل الدولة، وكانت تُعرف سابقاً بهيئة الأوراق المالية والسلع، وأُعيد تشكيلها اعتباراً من 1 يناير 2026 بموجب القانون الاتحادي رقم 32 لسنة 2025.
+    وهي ليست هيئة السوق المالية السعودية.
+  schema_path: fund.jurisdiction
+  verified: uae_official
+  source: u.ae financial markets page (Arabic name); Al Tamimi, Kayrouz (2026)
+  jurisdiction: UAE
+- id: dfsa
+  category: regulators
+  en: Dubai Financial Services Authority
+  ar: سلطة دبي للخدمات المالية
+  en_syn:
+  - DFSA
+  ar_syn:
+  - هيئة دبي للخدمات المالية
+  def_en: Regulator of financial services in the DIFC, including funds under the Collective Investment Rules (CIR).
+  def_ar: الجهة المنظمة للخدمات المالية في مركز دبي المالي العالمي، ومنها الصناديق بموجب قواعد الاستثمار الجماعي.
+  schema_path: fund.jurisdiction
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: fsra
+  category: regulators
+  en: Financial Services Regulatory Authority (ADGM)
+  ar: سلطة تنظيم الخدمات المالية
+  en_syn:
+  - FSRA
+  - ADGM FSRA
+  ar_syn:
+  - سلطة تنظيم الخدمات المالية في سوق أبوظبي العالمي
+  def_en: Regulator of financial services in ADGM, including funds under the Fund Rules.
+  def_ar: الجهة المنظمة للخدمات المالية في سوق أبوظبي العالمي، ومنها الصناديق بموجب قواعد الصناديق.
+  schema_path: fund.jurisdiction
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: difc
+  category: regulators
+  en: Dubai International Financial Centre
+  ar: مركز دبي المالي العالمي
+  en_syn:
+  - DIFC
+  ar_syn: []
+  def_en: Financial free zone in Dubai with its own common-law legal and regulatory regime (DFSA).
+  def_ar: منطقة مالية حرة في دبي لها نظام قانوني ورقابي خاص قائم على القانون العام.
+  schema_path: fund.jurisdiction
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: adgm
+  category: regulators
+  en: Abu Dhabi Global Market
+  ar: سوق أبوظبي العالمي
+  en_syn:
+  - ADGM
+  ar_syn:
+  - سوق ابوظبي العالمي
+  def_en: Financial free zone in Abu Dhabi with its own common-law regime (FSRA).
+  def_ar: منطقة مالية حرة في أبوظبي لها نظام قانوني ورقابي خاص قائم على القانون العام.
+  schema_path: fund.jurisdiction
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: dld
+  category: regulators
+  en: Dubai Land Department
+  ar: دائرة الأراضي والأملاك في دبي
+  en_syn:
+  - DLD
+  - Dubai Lands Department
+  ar_syn:
+  - دائرة الأراضي والأملاك
+  - دائرة الاراضي والاملاك
+  def_en: Dubai government body that registers property, collects transfer fees and runs the Real Estate Register.
+  def_ar: الجهة الحكومية في دبي المسؤولة عن تسجيل العقارات وتحصيل رسوم النقل وإدارة السجل العقاري.
+  schema_path: taxes.dld_transfer_fee
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: rera
+  category: regulators
+  en: Real Estate Regulatory Agency
+  ar: مؤسسة التنظيم العقاري
+  en_syn:
+  - RERA
+  ar_syn:
+  - ريرا
+  - المؤسسة العامة للتنظيم العقاري
+  def_en: DLD's regulator of developers, brokers, escrow and leasing in Dubai.
+  def_ar: الذراع التنظيمية لدائرة الأراضي والأملاك لتنظيم المطورين والوسطاء وحسابات الضمان والإيجارات في دبي.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: adrec
+  category: regulators
+  en: Abu Dhabi Real Estate Centre
+  ar: مركز أبوظبي العقاري
+  en_syn:
+  - ADREC
+  ar_syn:
+  - دائرة البلديات والنقل في أبوظبي
+  def_en: Abu Dhabi real estate registry and regulator (with the Department of Municipalities and Transport).
+  def_ar: الجهة المسؤولة عن التسجيل والتنظيم العقاري في أبوظبي.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: fta
+  category: regulators
+  en: Federal Tax Authority
+  ar: الهيئة الاتحادية للضرائب
+  en_syn:
+  - FTA
+  ar_syn: []
+  def_en: Federal authority administering UAE VAT and Corporate Tax.
+  def_ar: الهيئة الاتحادية المسؤولة عن إدارة ضريبة القيمة المضافة وضريبة الشركات.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_mof
+  category: regulators
+  en: Ministry of Finance (UAE)
+  ar: وزارة المالية
+  en_syn:
+  - MoF UAE
+  ar_syn: []
+  def_en: Issues Corporate Tax decisions, including Ministerial decisions on REIT and QIF conditions.
+  def_ar: تصدر قرارات ضريبة الشركات ومنها القرارات الوزارية المتعلقة بشروط الصناديق العقارية المتداولة والصناديق المؤهلة.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: dfm
+  category: regulators
+  en: Dubai Financial Market
+  ar: سوق دبي المالي
+  en_syn:
+  - DFM
+  ar_syn: []
+  def_en: Onshore Dubai stock exchange where UAE REITs list.
+  def_ar: سوق الأسهم في دبي، وتُدرج فيه الصناديق العقارية المتداولة.
+  schema_path: fund.listing_market
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: adx
+  category: regulators
+  en: Abu Dhabi Securities Exchange
+  ar: سوق أبوظبي للأوراق المالية
+  en_syn:
+  - ADX
+  ar_syn:
+  - سوق ابوظبي للاوراق المالية
+  def_en: Onshore Abu Dhabi stock exchange.
+  def_ar: سوق الأسهم في أبوظبي.
+  schema_path: fund.listing_market
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: nasdaq_dubai
+  category: regulators
+  en: Nasdaq Dubai
+  ar: ناسداك دبي
+  en_syn:
+  - NASDAQ Dubai
+  ar_syn: []
+  def_en: DIFC-based exchange; several UAE REITs list here.
+  def_ar: بورصة تقع في مركز دبي المالي العالمي وتُدرج فيها عدة صناديق عقارية متداولة.
+  schema_path: fund.listing_market
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_reit
+  category: fund_structure
+  en: UAE REIT
+  ar: صندوق استثمار عقاري متداول
+  en_syn:
+  - Real Estate Investment Trust
+  - REIT (UAE)
+  - listed REIT
+  ar_syn:
+  - ريت
+  - صندوق عقاري متداول
+  - صندوق الاستثمار العقاري المتداول
+  def_en: Closed-ended listed vehicle investing in income-generating real estate and distributing most income (80% of net income in DIFC/ADGM and onshore public REITs).
+  def_ar: وعاء استثماري مقفل ومدرج يستثمر في عقارات مدرّة للدخل ويوزع معظم الدخل (80% من صافي الدخل).
+  schema_path: fund.kind
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: property_fund
+  category: fund_structure
+  en: Property Fund
+  ar: صندوق عقاري
+  en_syn:
+  - real estate fund
+  - REF
+  - real estate investment fund
+  ar_syn:
+  - صندوق عقارات
+  - صندوق استثمار عقاري
+  def_en: Fund dedicated to real property and property-related securities (DFSA/FSRA term).
+  def_ar: صندوق مخصص للاستثمار في العقارات والأوراق المالية المرتبطة بها.
+  schema_path: fund.kind
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: public_property_fund
+  category: fund_structure
+  en: Public Property Fund
+  ar: صندوق عقاري عام
+  en_syn:
+  - public fund
+  - PF
+  ar_syn:
+  - صندوق عام
+  def_en: Property fund whose units may be offered to the public, including retail clients; registered with the regulator.
+  def_ar: صندوق عقاري يجوز طرح وحداته على الجمهور بمن فيهم العملاء الأفراد، ويسجَّل لدى الجهة المنظمة.
+  schema_path: fund.kind
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: exempt_fund
+  category: fund_structure
+  en: Exempt Fund
+  ar: صندوق معفى
+  en_syn:
+  - EF
+  - exempt property fund
+  ar_syn:
+  - صندوق معفي
+  def_en: Privately placed fund for professional clients; DIFC and ADGM minimum subscription USD 50,000.
+  def_ar: صندوق يُطرح طرحاً خاصاً للعملاء المحترفين؛ والحد الأدنى للاشتراك (50,000) دولار.
+  schema_path: fund.kind
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: qualified_investor_fund
+  category: fund_structure
+  en: Qualified Investor Fund (regulatory)
+  ar: صندوق المستثمرين المؤهلين
+  en_syn:
+  - QIF (regulatory)
+  - qualified investor fund
+  ar_syn:
+  - صندوق مستثمرين مؤهلين
+  def_en: DIFC/ADGM fund category for professional clients; ADGM minimum subscription USD 500,000. Not the same as the tax term Qualifying Investment Fund.
+  def_ar: فئة صناديق في مركز دبي المالي وسوق أبوظبي العالمي للعملاء المحترفين؛ والحد الأدنى في أبوظبي (500,000) دولار. وهي تختلف عن المصطلح الضريبي.
+  schema_path: fund.kind
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: qualifying_investment_fund
+  category: tax
+  en: Qualifying Investment Fund (tax)
+  ar: صندوق استثمار مؤهل
+  en_syn:
+  - QIF (tax)
+  - qualifying investment fund
+  - QIF
+  ar_syn:
+  - صندوق استثماري مؤهل
+  def_en: Fund exempt from UAE Corporate Tax under Cabinet Decision 34 of 2025 if its conditions are met (regulation, diversity of control, and so on).
+  def_ar: صندوق معفى من ضريبة الشركات بموجب قرار مجلس الوزراء رقم 34 لسنة 2025 متى استوفى الشروط.
+  schema_path: fund.reit_tax_exempt
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: qualifying_limited_partnership
+  category: tax
+  en: Qualifying Limited Partnership
+  ar: شراكة محدودة مؤهلة
+  en_syn:
+  - QLP
+  ar_syn: []
+  def_en: Partnership exempt from Corporate Tax if it mainly invests, has no UAE immovable property income and meets other conditions.
+  def_ar: شراكة معفاة من ضريبة الشركات إن كانت تمارس الاستثمار أساساً وليس لها دخل من عقارات في الدولة.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: investment_company
+  category: fund_structure
+  en: Investment Company
+  ar: شركة استثمار
+  en_syn:
+  - investment company vehicle
+  ar_syn: []
+  def_en: 'Fund vehicle: a company issuing shares; one of the two permitted REIT vehicles in DIFC/ADGM.'
+  def_ar: وعاء الصندوق في صورة شركة تصدر أسهماً.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: investment_trust
+  category: fund_structure
+  en: Investment Trust
+  ar: صندوق ائتماني استثماري
+  en_syn:
+  - unit trust
+  - trust fund
+  ar_syn:
+  - ائتمان استثماري
+  def_en: 'Fund vehicle: a trust with a trustee; the other permitted REIT vehicle in DIFC/ADGM.'
+  def_ar: وعاء الصندوق في صورة ائتمان له أمين.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: limited_investment_partnership
+  category: fund_structure
+  en: Limited Investment Partnership
+  ar: شراكة استثمارية محدودة
+  en_syn:
+  - LP
+  - limited partnership
+  ar_syn:
+  - شراكة محدودة
+  def_en: Partnership vehicle for property funds in ADGM (not for REITs).
+  def_ar: وعاء شراكة لصناديق العقارات في سوق أبوظبي العالمي.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_spv
+  category: fund_structure
+  en: SPV Property Portfolio
+  ar: شركة ذات غرض خاص
+  en_syn:
+  - SPV
+  - Prescribed Company
+  - special purpose vehicle
+  ar_syn:
+  - شركة غرض خاص
+  def_en: Holding company for property, not a collective investment fund; taxed at 9% with no fund exemption.
+  def_ar: شركة قابضة للعقارات وليست صندوق استثمار جماعي؛ تخضع لضريبة (9%) دون إعفاء الصناديق.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: professional_client
+  category: parties
+  en: Professional Client
+  ar: عميل محترف
+  en_syn:
+  - professional investor
+  - qualified investor (UAE)
+  ar_syn:
+  - مستثمر محترف
+  def_en: Investor category allowed into exempt funds and QIFs.
+  def_ar: فئة المستثمرين المسموح لهم بدخول الصناديق المعفاة وصناديق المستثمرين المؤهلين.
+  schema_path: fund.eligible_investors
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_trustee
+  category: parties
+  en: Trustee
+  ar: أمين
+  en_syn:
+  - fund trustee
+  - trustee office
+  ar_syn:
+  - أمين الصندوق
+  - مكتب الأمين
+  def_en: Holds trust assets for an investment-trust fund. In Dubai property, 'trustee office' also means the registration office that completes transfers.
+  def_ar: يحتفظ بأصول الصندوق الائتماني. وفي سوق العقارات بدبي يُطلق أيضاً على مكتب تسجيل نقل الملكية.
+  schema_path: parties.custodian
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_master_developer
+  category: parties
+  en: Master Developer
+  ar: المطور الرئيسي
+  en_syn:
+  - master developer
+  - master community developer
+  ar_syn: []
+  def_en: Developer of a whole community who sets service-charge and master-community rules.
+  def_ar: المطور المسؤول عن مجتمع متكامل وعن رسوم الخدمة وقواعد المجتمع.
+  schema_path: parties.developers
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: owners_association
+  category: parties
+  en: Owners Association
+  ar: اتحاد الملاك
+  en_syn:
+  - OA
+  - owners' association
+  ar_syn:
+  - جمعية الملاك
+  def_en: Body running jointly owned property under Dubai Law 6 of 2019.
+  def_ar: الجهة التي تدير العقار المشترك بموجب قانون دبي رقم 6 لسنة 2019.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: freehold
+  category: real_estate
+  en: Freehold
+  ar: تملك حر
+  en_syn:
+  - freehold ownership
+  - freehold area
+  ar_syn:
+  - تملك حر
+  - ملكية حرة
+  def_en: Full ownership of property, open to foreigners only in designated areas.
+  def_ar: ملكية كاملة للعقار، وتُتاح للأجانب في مناطق محددة فقط.
+  schema_path: assets.items
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: leasehold
+  category: real_estate
+  en: Long Leasehold
+  ar: حق إيجار طويل الأمد
+  en_syn:
+  - leasehold
+  - long lease
+  - musataha
+  ar_syn:
+  - مساطحة
+  - حق المساطحة
+  - إيجار طويل
+  def_en: Right to use property for a long fixed term (e.g. 10-99 years); registered with the DLD Real Estate Register.
+  def_ar: حق استخدام العقار لمدة طويلة محددة (10 إلى 99 سنة) ويسجَّل في السجل العقاري.
+  schema_path: assets.items
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_usufruct
+  category: real_estate
+  en: Usufruct
+  ar: حق انتفاع
+  en_syn:
+  - usufruct right (UAE)
+  ar_syn:
+  - حق الانتفاع
+  def_en: Right to use and benefit from property; capped in onshore public REITs when under 30 years remain.
+  def_ar: حق استعمال العقار والاستفادة منه؛ ويُحدَّد سقف له في الصناديق العقارية العامة إذا قلّت المدة المتبقية عن 30 سنة.
+  schema_path: assets.usufruct_pct_net_assets
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: off_plan
+  category: real_estate
+  en: Off-Plan
+  ar: بيع على الخارطة
+  en_syn:
+  - off plan
+  - off-plan sale
+  - under construction
+  ar_syn:
+  - على الخارطة
+  - بيع قيد الإنشاء
+  def_en: Sale of property before completion; buyer payments go to a project escrow account.
+  def_ar: بيع العقار قبل اكتماله وتودع دفعات المشتري في حساب ضمان المشروع.
+  schema_path: development.sales_plan
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: escrow_account
+  category: real_estate
+  en: Escrow Account
+  ar: حساب ضمان
+  en_syn:
+  - escrow
+  - project escrow
+  - RERA escrow
+  ar_syn:
+  - حساب الضمان
+  - حساب الضمان العقاري
+  - حساب ضمان المشروع
+  def_en: Project-specific account holding off-plan buyers' funds (Dubai Law 8 of 2007).
+  def_ar: حساب خاص بالمشروع تُودع فيه أموال مشتري العقارات على الخارطة (قانون دبي رقم 8 لسنة 2007).
+  schema_path: development.budget
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: retention_amount
+  category: real_estate
+  en: Retention
+  ar: مبلغ الاحتجاز
+  en_syn:
+  - escrow retention
+  - retention money
+  ar_syn:
+  - الاحتجاز
+  - نسبة الاحتجاز
+  def_en: Share of off-plan proceeds held back after completion. Percentage not verified here.
+  def_ar: جزء من متحصلات البيع على الخارطة يُحتجز بعد الإنجاز. لم تُتحقق النسبة هنا.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: oqood
+  category: real_estate
+  en: Oqood
+  ar: عقود
+  en_syn:
+  - Oqood registration
+  - interim register
+  ar_syn:
+  - عقود (التسجيل المبدئي)
+  - التسجيل المبدئي
+  def_en: Dubai off-plan interim registration of a sale before the title deed.
+  def_ar: التسجيل المبدئي لعقد البيع على الخارطة في دبي قبل صدور سند الملكية.
+  schema_path: taxes.dld_transfer_fee
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: ejari
+  category: real_estate
+  en: Ejari
+  ar: إيجاري
+  en_syn:
+  - Ejari registration
+  - tenancy contract registration
+  ar_syn:
+  - نظام إيجاري
+  - عقد إيجار موثق
+  def_en: Dubai tenancy contract registration system run by RERA.
+  def_ar: نظام تسجيل عقود الإيجار في دبي الذي تديره مؤسسة التنظيم العقاري.
+  schema_path: assets.items
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: tawtheeq
+  category: real_estate
+  en: Tawtheeq
+  ar: توثيق
+  en_syn:
+  - Tawtheeq registration
+  ar_syn:
+  - نظام توثيق
+  def_en: Abu Dhabi tenancy contract registration system for leases under four years.
+  def_ar: نظام تسجيل عقود الإيجار في أبوظبي للعقود التي تقل عن أربع سنوات.
+  schema_path: assets.items
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: service_charge
+  category: fees
+  en: Service Charge
+  ar: رسوم الخدمة
+  en_syn:
+  - service charges
+  - maintenance fee
+  - community charge
+  ar_syn:
+  - رسوم الخدمات
+  - رسوم الصيانة
+  - رسوم المجتمع
+  def_en: Annual charge per unit for common-area services, set per Dubai RERA rules; a property operating cost in the model.
+  def_ar: رسم سنوي على الوحدة مقابل خدمات المناطق المشتركة؛ وهو تكلفة تشغيل في النموذج.
+  schema_path: assets.items
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: mollak
+  category: real_estate
+  en: Mollak
+  ar: ملاك
+  en_syn:
+  - Mollak system
+  - Mollak portal
+  ar_syn:
+  - نظام ملاك
+  def_en: RERA system overseeing owners' association budgets and service charges.
+  def_ar: نظام تنظمه مؤسسة التنظيم العقاري لموازنات اتحادات الملاك ورسوم الخدمة.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: dld_transfer_fee
+  category: fees
+  en: DLD Transfer Fee
+  ar: رسوم نقل الملكية
+  en_syn:
+  - transfer fee
+  - DLD fee
+  - land department fee
+  - registration fee
+  ar_syn:
+  - رسم التسجيل
+  - رسوم دائرة الأراضي والأملاك
+  - رسوم التسجيل
+  def_en: Dubai fee of 4% of price (default; see tax_defaults) on registering a property transfer.
+  def_ar: رسم تسجيل نقل الملكية في دبي وقدره (4%) من السعر (القيمة الافتراضية).
+  schema_path: taxes.dld_transfer_fee
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_rent_cap
+  category: real_estate
+  en: RERA Rental Index
+  ar: المؤشر الإيجاري
+  en_syn:
+  - rental index
+  - RERA rental calculator
+  - rent cap
+  - rent increase cap
+  ar_syn:
+  - مؤشر الإيجارات
+  - مؤشر إيجار دبي
+  def_en: Dubai official rent index that governs permitted rent increases at renewal; relevant to residential rent-growth assumptions.
+  def_ar: المؤشر الرسمي للإيجارات في دبي الذي يحدد الزيادة المسموحة عند التجديد؛ ويؤثر في افتراضات نمو الإيجار السكني.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: handover
+  category: real_estate
+  en: Handover
+  ar: التسليم
+  en_syn:
+  - practical completion
+  - unit handover
+  - completion date
+  ar_syn:
+  - تسليم الوحدة
+  - موعد التسليم
+  def_en: Delivery of a completed unit to the buyer; the point at which off-plan payment plans and rent start.
+  def_ar: تسليم الوحدة المكتملة للمشتري؛ وعنده تنتهي خطط الدفع على الخارطة وتبدأ الإيجارات.
+  schema_path: development.schedule
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: payment_plan
+  category: real_estate
+  en: Payment Plan
+  ar: خطة السداد
+  en_syn:
+  - post-handover payment plan
+  - instalment plan
+  ar_syn:
+  - خطة الدفع
+  - خطة سداد ما بعد التسليم
+  def_en: Developer's instalment schedule for off-plan purchases, often extending past handover.
+  def_ar: جدول دفعات المطور لمشتريات العقارات على الخارطة وقد يمتد بعد التسليم.
+  schema_path: development.budget
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: service_apartments
+  category: real_estate
+  en: Serviced Apartments / Hospitality
+  ar: شقق فندقية
+  en_syn:
+  - serviced apartment
+  - hotel apartment
+  - branded residences
+  ar_syn:
+  - شقق مخدومة
+  - وحدات فندقية
+  def_en: Hospitality-style units whose income is revenue-per-available-room rather than lease rent; use an operating model.
+  def_ar: وحدات بنمط ضيافة يعتمد دخلها على الإشغال والسعر اليومي لا على الإيجار.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_corporate_tax
+  category: tax
+  en: UAE Corporate Tax
+  ar: ضريبة الشركات
+  en_syn:
+  - corporate tax
+  - CT
+  - UAE CT
+  ar_syn:
+  - ضريبة الشركات والأعمال
+  - ضريبة دخل الشركات
+  def_en: 9% on taxable income above AED 375,000 (Federal Decree-Law 47 of 2022).
+  def_ar: (9%) على الدخل الخاضع للضريبة الذي يتجاوز (375,000) درهم (المرسوم بقانون اتحادي رقم 47 لسنة 2022).
+  schema_path: taxes.corporate_tax
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_vat
+  category: tax
+  en: UAE VAT
+  ar: ضريبة القيمة المضافة (الإمارات)
+  en_syn:
+  - value added tax UAE
+  - VAT 5%
+  ar_syn:
+  - ضريبة القيمة المضافة
+  - القيمة المضافة
+  def_en: 5% federal VAT (Federal Decree-Law 8 of 2017). Distinct from Saudi VAT, which is 15%.
+  def_ar: ضريبة اتحادية بنسبة (5%) (المرسوم بقانون اتحادي رقم 8 لسنة 2017) وتختلف عن ضريبة السعودية (15%).
+  schema_path: taxes.uae_vat
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: qfzp
+  category: tax
+  en: Qualifying Free Zone Person
+  ar: شخص مؤهل في منطقة حرة
+  en_syn:
+  - QFZP
+  - free zone person
+  ar_syn:
+  - شخص مؤهل بالمنطقة الحرة
+  def_en: Free-zone company eligible for 0% on qualifying income; UAE immovable property income is an excluded activity.
+  def_ar: شركة في منطقة حرة تتمتع بمعدل صفر على الدخل المؤهل؛ ودخل العقارات في الدولة نشاط مستثنى.
+  schema_path: taxes.corporate_tax
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: widely_held
+  category: tax
+  en: Widely Held and Diversified
+  ar: واسع الملكية ومتنوع
+  en_syn:
+  - diversity of control
+  - diversification test
+  ar_syn:
+  - تنوع الملكية
+  - شرط التنوع
+  def_en: 'Condition for REIT/QIF exemption: no single investor above 50% (30% for funds under 10 investors).'
+  def_ar: 'شرط لإعفاء الصندوق: ألا يتجاوز مستثمر واحد (50%) (و30% للصناديق التي يقل مستثمروها عن 10).'
+  schema_path: investors.max_single_holder_pct
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: excluded_activity
+  category: tax
+  en: Excluded Activity
+  ar: نشاط مستثنى
+  en_syn:
+  - excluded activities
+  ar_syn:
+  - الأنشطة المستثناة
+  def_en: Activity whose income does not qualify for free-zone 0% tax, including UAE immovable property.
+  def_ar: نشاط لا يستفيد دخله من معدل الصفر في المنطقة الحرة، ومنه العقارات داخل الدولة.
+  schema_path: taxes.corporate_tax
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: rics_red_book
+  category: valuation
+  en: RICS Red Book
+  ar: الكتاب الأحمر
+  en_syn:
+  - Red Book
+  - RICS valuation standards
+  - IVS
+  ar_syn:
+  - معايير التقييم الدولية
+  - معايير ريكس
+  def_en: Valuation standards used for UAE fund valuations; RICS-regulated valuers dominate the market.
+  def_ar: معايير التقييم المعتمدة لتقييم أصول الصناديق في الدولة.
+  schema_path: valuation.method
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_valuer
+  category: parties
+  en: Independent Valuer
+  ar: مقيّم مستقل
+  en_syn:
+  - independent appraiser
+  - appraiser
+  - registered valuer
+  ar_syn:
+  - مقيم مستقل
+  - مقيّم عقاري
+  - مقيم معتمد
+  def_en: 'Independent party valuing property before acquisition/disposal and periodically. Onshore: reports valid three months.'
+  def_ar: جهة مستقلة تقيّم العقار قبل الاستحواذ أو التصرف ودورياً؛ ويسري التقرير ثلاثة أشهر داخل الدولة.
+  schema_path: parties.valuers
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_shariah_board
+  category: parties
+  en: Sharia Supervisory Board
+  ar: هيئة الرقابة الشرعية
+  en_syn:
+  - Shariah Supervisory Board
+  - Sharia board
+  ar_syn:
+  - هيئة شرعية
+  - هيئة الفتوى والرقابة الشرعية
+  def_en: Required for Islamic property funds; certifies Sharia compliance.
+  def_ar: مطلوبة للصناديق العقارية الإسلامية وتصدر الاعتماد الشرعي.
+  schema_path: parties.shariah_board
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: uae_exit_listing
+  category: fund_structure
+  en: Listing Deadline
+  ar: مهلة الإدراج
+  en_syn:
+  - list within three years
+  - listing requirement
+  ar_syn:
+  - مدة الإدراج
+  def_en: 'Time allowed to list: for example DIFC public property funds must list within three years of first offering.'
+  def_ar: المدة المسموح بها للإدراج؛ مثلاً ثلاث سنوات من أول طرح لصندوق العقارات العام في دبي.
+  schema_path: dates.listing_deadline_months
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE
+- id: golden_visa_property
+  category: real_estate
+  en: Golden Visa Property Threshold
+  ar: حد التأشيرة الذهبية
+  en_syn:
+  - golden visa
+  - investor visa
+  ar_syn:
+  - التأشيرة الذهبية
+  def_en: Property value threshold for residency; affects demand in some segments, not fund cash flows directly.
+  def_ar: حد قيمة العقار للإقامة؛ يؤثر في الطلب ولا يؤثر مباشرة في التدفقات النقدية للصندوق.
+  schema_path: null
+  verified: market_usage
+  source: UAE market usage; review with a UAE fund lawyer
+  jurisdiction: UAE

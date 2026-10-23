@@ -1,0 +1,21 @@
+# Signals for detecting which regulatory regime a fund document is under. Used by bohio_fundpack.jurisdiction.
+# NAME CLASH: Saudi "Capital Market Authority (CMA)" and the UAE "Capital Market Authority (CMA)" (the old SCA,
+# renamed 1 Jan 2026) share an acronym. In Arabic they differ by one word: Saudi هيئة السوق المالية,
+# UAE هيئة سوق المال. A bare "CMA" is NOT evidence; use the other signals.
+jurisdictions:
+  KSA_CMA:
+    name: {en: "Saudi Arabia - Capital Market Authority", ar: "المملكة العربية السعودية - هيئة السوق المالية"}
+    strong: ["هيئة السوق المالية", "المملكة العربية السعودية", "kingdom of saudi arabia", "saudi capital market authority", "tadawul", "تداول", "الشروط والاحكام", "الشروط والأحكام", "ريال سعودي", "saudi riyal", "zatca", "هيئة الزكاة", "ضريبة التصرفات العقارية", "رخصة هيئة السوق المالية"]
+    weak: ["sar", "ريال", "riyadh", "الرياض", "jeddah", "جدة", "1446", "1447", "هـ"]
+  UAE_ONSHORE:
+    name: {en: "UAE onshore - Capital Market Authority (formerly SCA)", ar: "الإمارات (داخل الدولة) - هيئة سوق المال"}
+    strong: ["هيئة سوق المال", "هيئة الاوراق المالية والسلع", "هيئة الأوراق المالية والسلع", "securities and commodities authority", "uae capital market authority", "united arab emirates", "الإمارات العربية المتحدة", "الامارات العربية المتحدة", "dubai financial market", "سوق دبي المالي", "abu dhabi securities exchange", "سوق ابوظبي للاوراق المالية", "رخصة هيئة الاوراق المالية والسلع"]
+    weak: ["aed", "درهم", "dirham", "dubai", "دبي", "abu dhabi", "ابوظبي", "أبوظبي", "sharjah", "الشارقة", "dld", "rera"]
+  DIFC:
+    name: {en: "DIFC - Dubai Financial Services Authority", ar: "مركز دبي المالي العالمي - سلطة دبي للخدمات المالية"}
+    strong: ["dfsa", "dubai financial services authority", "difc", "dubai international financial cent", "مركز دبي المالي العالمي", "سلطة دبي للخدمات المالية", "collective investment rules", "collective investment fund law"]
+    weak: ["nasdaq dubai", "ناسداك دبي", "exempt fund", "qualified investor fund"]
+  ADGM:
+    name: {en: "ADGM - Financial Services Regulatory Authority", ar: "سوق أبوظبي العالمي - سلطة تنظيم الخدمات المالية"}
+    strong: ["fsra", "financial services regulatory authority", "adgm", "abu dhabi global market", "سوق ابوظبي العالمي", "سوق أبوظبي العالمي", "سلطة تنظيم الخدمات المالية", "fund rules", "fsmr"]
+    weak: ["exempt fund", "qualified investor fund", "limited investment partnership"]

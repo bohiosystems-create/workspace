@@ -1,0 +1,75 @@
+# Section map of a Saudi real estate fund's Terms and Conditions, in the order CMA requires
+# (REIF Regulations Annex 1 for public funds; Annex 2 adds REIT items). Use it to locate sections
+# in a document and as a completeness checklist.
+#
+# en_heading  = the Annex 1 heading (CMA English translation)
+# ar_headings = Arabic headings commonly used for the section in Saudi T&Cs. The Arabic Annex
+#               text was not machine-readable when this was built, so these are market usage
+#               (ar_verified: false). Confirm them against the Arabic regulation and add the
+#               variants you see in real documents.
+# schema      = extraction fields this section feeds
+# model_critical = the financial model cannot run correctly without it
+
+version: "2026-10-23"
+source: REIF Regulations (as amended 21/05/2025), Annex 1 and Annex 2
+
+cover_page:
+  - {key: fund_name_class_type, en: Name of the fund, class and type, ar: [اسم الصندوق, نوع الصندوق, فئة الصندوق], schema: [fund.name, fund.kind, fund.structure]}
+  - {key: manager_name, en: Name of the fund manager, ar: [مدير الصندوق], schema: [parties.fund_manager]}
+  - {key: custodian_name, en: Name of the custodian, ar: [أمين الحفظ], schema: [parties.custodian]}
+  - {key: developer_name, en: Name of the developer (if any), ar: [المطور], schema: [parties.developers]}
+  - {key: shariah_statement, en: Shariah-compliance statement, ar: [متوافق مع أحكام الشريعة الإسلامية, الهيئة الشرعية], schema: [fund.shariah_compliant]}
+  - {key: spe_statement, en: SPE statement, ar: [منشأة ذات أغراض خاصة], schema: [fund.is_spe]}
+  - {key: issue_date, en: Issue date of the T&Cs and latest update, ar: [تاريخ إصدار الشروط والأحكام, تاريخ آخر تحديث], schema: [document.issue_date, document.last_update_date]}
+  - {key: cma_approval_date, en: Date of CMA approval to offer units, ar: [تاريخ موافقة الهيئة, موافقة هيئة السوق المالية على طرح وحدات الصندوق], schema: [dates.cma_approval_date]}
+  - {key: total_assets_increase, en: Statement of increase of total assets value (supplementary annex), ar: [زيادة إجمالي قيمة أصول الصندوق, الملحق التكميلي], schema: [capital.subsequent_offerings]}
+
+sections:
+  - {n: 1,  en: Name and type of the fund, ar_headings: [اسم الصندوق ونوعه], schema: [fund.name, fund.kind], model_critical: true}
+  - {n: 2,  en: Address of the fund manager's head office, ar_headings: [عنوان المكتب الرئيسي لمدير الصندوق], schema: [parties.fund_manager], model_critical: false}
+  - {n: 3,  en: Fund term and any extension periods, ar_headings: [مدة الصندوق, مدة الصندوق وفترات التمديد], schema: [dates.term_years, dates.extensions, dates.maturity_date], model_critical: true}
+  - {n: 4,  en: Fund objectives, ar_headings: [أهداف الصندوق, أغراض الصندوق], schema: [fund.article10_category], model_critical: true}
+  - {n: 5,  en: Objectives and investment objectives, with dividend distribution policy, ar_headings: [وصف لغرض الصندوق وأهدافه الاستثمارية, سياسة توزيع الأرباح], schema: [fund.article10_category, distributions], model_critical: true}
+  - {n: 6,  en: Summary of the fund's strategies (real estate types and deeds, concentration, allocation table min/max, business plan, borrowing rights, liquidity investment), ar_headings: [ملخص لاستراتيجيات الصندوق, استراتيجيات الاستثمار, سياسات الاستثمار, صلاحيات الاقتراض], schema: [assets, investment_policy, development.schedule, financing], model_critical: true}
+  - {n: 7,  en: Risks of investing in the fund (incl. risk classification), ar_headings: [مخاطر الاستثمار في الصندوق, المخاطر الرئيسية, درجة المخاطر], schema: [fund.risk_classification], model_critical: false}
+  - {n: 8,  en: Subscription (dates, minimum, in-kind, non-Saudi ownership undertaking, minimum raise, in-kind share, use of proceeds), ar_headings: [الاشتراك, الاشتراك في الصندوق, الحد الأدنى للاشتراك, الاشتراكات العينية], schema: [dates.offering_start, dates.offering_end, capital], model_critical: true}
+  - {n: 9,  en: Fees, charges and commissions (full table, calc method, frequency, cost ratio, waivers), ar_headings: [الرسوم ومقابل الخدمات والعمولات, الرسوم والمصاريف, مقابل الخدمات والعمولات وأتعاب الإدارة, جدول الرسوم], schema: [fees, performance_fee, fees_summary], model_critical: true}
+  - {n: 10, en: Valuing the fund's assets (method, frequency, unit price, announcement, errors), ar_headings: [تقييم أصول الصندوق, تقويم أصول الصندوق, تسعير الوحدات], schema: [valuation], model_critical: true}
+  - {n: 11, en: Trading of the fund's units, ar_headings: [تداول وحدات الصندوق], schema: [], model_critical: false}
+  - {n: 12, en: The fund's assets, ar_headings: [أصول الصندوق], schema: [assets], model_critical: true}
+  - {n: 13, en: Fund's board of directors, ar_headings: [مجلس إدارة الصندوق], schema: [governance.board_size, governance.independent_directors, fees], model_critical: false}
+  - {n: 14, en: Fund manager, ar_headings: [مدير الصندوق], schema: [parties.fund_manager], model_critical: false}
+  - {n: 15, en: Custodian, ar_headings: [أمين الحفظ], schema: [parties.custodian], model_critical: false}
+  - {n: 16, en: Developer, ar_headings: [المطور], schema: [parties.developers, development], model_critical: true}
+  - {n: 17, en: Engineering office, ar_headings: [المكتب الهندسي], schema: [parties.engineering_office], model_critical: false}
+  - {n: 18, en: The auditor, ar_headings: [مراجع الحسابات], schema: [parties.auditor], model_critical: false}
+  - {n: 19, en: Financial statements (fiscal year end), ar_headings: [القوائم المالية], schema: [dates.fiscal_year_end], model_critical: true}
+  - {n: 20, en: Reporting to unitholders, ar_headings: [رفع التقارير لمالكي الوحدات, التقارير], schema: [], model_critical: false}
+  - {n: 21, en: Dividend policy, ar_headings: [سياسة توزيع الأرباح, توزيع الأرباح], schema: [distributions], model_critical: true}
+  - {n: 22, en: Conflict of interests, ar_headings: [تعارض المصالح], schema: [], model_critical: false}
+  - {n: 23, en: Meeting of unitholders, ar_headings: [اجتماع مالكي الوحدات], schema: [governance], model_critical: false}
+  - {n: 24, en: List of unitholders' rights, ar_headings: [قائمة بحقوق مالكي الوحدات, حقوق مالكي الوحدات], schema: [], model_critical: false}
+  - {n: 25, en: Unitholders' liability, ar_headings: [مسؤولية مالكي الوحدات], schema: [], model_critical: false}
+  - {n: 26, en: Fund manager's declarations, ar_headings: [إقرارات مدير الصندوق], schema: [], model_critical: false}
+  - {n: 27, en: Other information, ar_headings: [معلومات أخرى], schema: [], model_critical: false}
+  - {n: 28, en: Additional information for certain fund types (SPE by-laws), ar_headings: [متطلبات المعلومات الإضافية لأنواع معينة من الصناديق], schema: [fund.is_spe], model_critical: false}
+  - {n: 29, en: Fund's disclosures, ar_headings: [إفصاحات الصندوق], schema: [], model_critical: false}
+  - {n: 30, en: Shariah board of the fund, ar_headings: [الهيئة الشرعية للصندوق, الهيئة الشرعية, اللجنة الشرعية], schema: [parties.shariah_board, fees], model_critical: false}
+  - {n: 31, en: Unit characteristics (classes), ar_headings: [خصائص الوحدات, فئات الوحدات], schema: [capital.unit_classes], model_critical: true}
+  - {n: 32, en: Amendments to the T&Cs, ar_headings: [تعديل شروط وأحكام الصندوق], schema: [], model_critical: false}
+  - {n: 33, en: Termination and liquidation (events, liquidation period, in-kind, fees after term), ar_headings: [إنهاء الصندوق وتصفيته, إنهاء وتصفية الصندوق], schema: [dates.liquidation_period_months, exit], model_critical: true}
+  - {n: 34, en: Governing law, ar_headings: [النظام المطبق, القانون الواجب التطبيق], schema: [], model_critical: false}
+
+reit_additions:   # Annex 2 items not in Annex 1
+  - {key: fund_size, en: Fund size, ar_headings: [حجم الصندوق], schema: [capital.target_size], model_critical: true}
+  - {key: units_offered, en: Number of offered units, ar_headings: [عدد الوحدات المطروحة], schema: [capital.units_offered], model_critical: true}
+  - {key: glossary, en: Glossary of terms, ar_headings: [قائمة المصطلحات, التعريفات], schema: [], model_critical: false}
+  - {key: fund_manual, en: Fund manual (directory), ar_headings: [دليل الصندوق], schema: [], model_critical: false}
+  - {key: offer_summary, en: Summary of the offer, ar_headings: [ملخص الطرح, ملخص الصندوق], schema: [capital], model_critical: true}
+
+# Private-fund documents (Investment Funds Regulations Part 5) do not follow Annex 1 order.
+# They usually also contain the sections below, which drive the model.
+private_fund_extras:
+  - {key: commitments, en: Commitments and capital calls / drawdowns, ar_headings: [الالتزامات الرأسمالية, طلبات السداد, استدعاء رأس المال], schema: [capital.commitments_total, capital.capital_calls]}
+  - {key: waterfall, en: Distribution waterfall / performance fee, ar_headings: [آلية توزيع العوائد, أتعاب الأداء, حصة الأداء], schema: [performance_fee]}
+  - {key: exit_strategy, en: Exit strategy, ar_headings: [استراتيجية التخارج, التخارج], schema: [exit]}

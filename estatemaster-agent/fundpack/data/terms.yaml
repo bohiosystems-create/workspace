@@ -1,0 +1,1523 @@
+# Bilingual (Arabic / English) term map for Saudi real-estate fund documents.
+#
+# Every entry:
+#   id            canonical key used everywhere in the pack (stable; never translate)
+#   category      grouping
+#   en / ar       preferred label in each language
+#   en_syn/ar_syn other phrasings seen in fund documents (add to these as you process real T&Cs)
+#   def_en/def_ar short definition (def_ar is the CMA wording where verified = cma_glossary)
+#   schema_path   where a value for this concept lands in schema/fund_extraction.schema.json
+#   verified      cma_glossary  -> term + definition taken from the CMA Glossary of Defined Terms
+#                                  (as amended by CMA Board resolution 1-54-2025)
+#                 cma_reif      -> term used in the Real Estate Investment Funds Regulations (2025)
+#                 market_usage  -> common Saudi/GCC market phrasing; have a Saudi fund lawyer
+#                                  or analyst confirm before relying on it
+#   source        citation
+#
+# Matching is done on normalised text (see bohio_fundpack/normalize.py), so you do not need
+# to list variants that differ only in hamza, alef forms, taa marbuta, diacritics or tatweel.
+
+version: "2026-10-23"
+
+terms:
+
+# ---------------------------------------------------------------- parties
+- id: fund_manager
+  category: parties
+  en: Fund Manager
+  ar: مدير الصندوق
+  en_syn: [manager, investment manager, GP, general partner, sponsor]
+  ar_syn: [مدير الاستثمار]
+  def_en: Capital market institution that manages the fund's assets and business and offers its units.
+  def_ar: مؤسسة السوق المالية التي تتولى إدارة أصول صندوق الاستثمار أو صندوق الاستثمار العقاري وإدارة أعماله وطرح وحداته.
+  schema_path: parties.fund_manager
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: fund_sub_manager
+  category: parties
+  en: Fund Sub-Manager
+  ar: مدير الصندوق من الباطن
+  en_syn: [sub-manager, sub-adviser]
+  ar_syn: []
+  def_en: Third party contracted by the fund manager to take some or all investment decisions on its behalf.
+  def_ar: طرف ثالث يتعاقد معه مدير الصندوق بموجب عقد، يتخذ نيابة عن مدير الصندوق كل أو بعض القرارات الاستثمارية.
+  schema_path: parties.fund_sub_manager
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: custodian
+  category: parties
+  en: Custodian
+  ar: أمين الحفظ
+  en_syn: [trustee, depositary]
+  ar_syn: [أمين حفظ الصندوق]
+  def_en: Person licensed under the Capital Market Institutions Regulations to carry out custody of securities.
+  def_ar: شخص يرخص له بموجب لائحة مؤسسات السوق المالية للقيام بنشاطات حفظ الأوراق المالية.
+  schema_path: parties.custodian
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: sub_custodian
+  category: parties
+  en: Fund Sub-Custodian
+  ar: أمين حفظ الصندوق من الباطن
+  en_syn: [sub-custodian]
+  ar_syn: [أمين الحفظ من الباطن]
+  def_en: Third party contracted by the custodian to perform some or all custody tasks for a fund.
+  def_ar: طرف ثالث يتعاقد معه أمين الحفظ للقيام ببعض أو كل مهام أمين الحفظ فيما يتعلق بصندوق استثمار.
+  schema_path: parties.sub_custodian
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: developer
+  category: parties
+  en: Developer
+  ar: المطور
+  en_syn: [development manager, master developer]
+  ar_syn: [المطور العقاري]
+  def_en: Person nominated by the fund manager, responsible for executing the technical aspects of the fund's purposes.
+  def_ar: شخص يرشحه مدير الصندوق، يكون مسؤولاً عن تنفيذ الجوانب الفنية لتحقيق أغراض الصندوق.
+  schema_path: parties.developers
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025); REIF Regulations art. 35
+
+- id: engineering_office
+  category: parties
+  en: Engineering Office
+  ar: المكتب الهندسي
+  en_syn: [engineering consultant, project supervisor, supervision consultant]
+  ar_syn: [الاستشاري الهندسي, المكتب الاستشاري, الاستشاري المشرف]
+  def_en: Independent engineering office that, at minimum, oversees implementation of the fund's business plan.
+  def_ar: مكتب هندسي مستقل عن الأطراف ذوي العلاقة يشرف على تنفيذ خطة عمل الصندوق.
+  schema_path: parties.engineering_office
+  verified: cma_reif
+  source: REIF Regulations art. 35
+
+- id: property_manager
+  category: parties
+  en: Property Manager
+  ar: مدير الأملاك
+  en_syn: [property management company, facility manager]
+  ar_syn: [شركة إدارة الأملاك, مدير العقار, شركة إدارة العقارات]
+  def_en: Company appointed to manage income-producing properties, including maintenance, leasing and rent collection.
+  def_ar: شركة يعينها مدير الصندوق لإدارة العقارات المدرة للدخل بما في ذلك الصيانة والتأجير وتحصيل الإيجارات.
+  schema_path: parties.property_managers
+  verified: cma_reif
+  source: REIF Regulations art. 34; Glossary (related parties list)
+
+- id: accredited_valuer
+  category: parties
+  en: Accredited Valuer
+  ar: المقيم المعتمد
+  en_syn: [valuer, independent valuer, appraiser, TAQEEM valuer]
+  ar_syn: [مقيم معتمد, المثمن, مقيم عقاري]
+  def_en: Natural or legal person licensed to practise valuation under the Accredited Valuers Law (real estate branch).
+  def_ar: شخص ذو صفة طبيعية أو اعتبارية مرخص له بمزاولة مهنة التقييم وفقاً لأحكام نظام المقيمين المعتمدين (فرع تقييم العقارات).
+  schema_path: parties.valuers
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025); REIF Regulations art. 36
+
+- id: auditor
+  category: parties
+  en: Auditor
+  ar: مراجع الحسابات
+  en_syn: [external auditor, statutory auditor]
+  ar_syn: [المحاسب القانوني, مراجع الحسابات الخارجي]
+  def_en: Independent auditor registered with the CMA, appointed before the fund is established.
+  def_ar: مراجع حسابات مستقل مسجل لدى الهيئة يعينه مدير الصندوق قبل تأسيس الصندوق.
+  schema_path: parties.auditor
+  verified: cma_reif
+  source: REIF Regulations art. 22
+
+- id: distributor
+  category: parties
+  en: Distributor
+  ar: الموزع
+  en_syn: [placement agent, receiving agent]
+  ar_syn: [الجهة المستلمة, وكيل الطرح]
+  def_en: Person assigned to offer the units of an investment fund in the Kingdom.
+  def_ar: شخص يكلف بطرح وحدات صندوق استثمار في المملكة.
+  schema_path: parties.distributor
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: shariah_board
+  category: parties
+  en: Shariah Board
+  ar: الهيئة الشرعية
+  en_syn: [shariah committee, shariah supervisory board, shariah adviser]
+  ar_syn: [اللجنة الشرعية, المستشار الشرعي, الهيئة الشرعية للصندوق]
+  def_en: Board certifying that the fund is Shariah compliant and supervising compliance.
+  def_ar: الهيئة المعينة للصندوق التي تجيز توافقه مع أحكام الشريعة الإسلامية وتراقب الالتزام بها.
+  schema_path: parties.shariah_board
+  verified: cma_reif
+  source: REIF Regulations Annex 1 (cover page g; item 30)
+
+- id: unitholder
+  category: parties
+  en: Unitholder
+  ar: مالك الوحدات
+  en_syn: [investor, limited partner, LP, subscriber, participant]
+  ar_syn: [مالكي الوحدات, حامل الوحدات, المستثمر, المشترك]
+  def_en: Person owning units in an investment fund or REIF, representing an undivided share in the fund's net assets.
+  def_ar: الشخص الذي يملك وحدات في صندوق الاستثمار أو صندوق الاستثمار العقاري تمثل حصة مشاعة في صافي أصول الصندوق.
+  schema_path: null
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: substantial_unitholder
+  category: parties
+  en: Substantial Unitholder
+  ar: مالك الوحدات الكبير
+  en_syn: [major unitholder]
+  ar_syn: [كبار مالكي الوحدات]
+  def_en: Person owning 5% or more of the units of a traded closed-ended fund or REIT.
+  def_ar: شخص يملك ما نسبته 5% أو أكثر من وحدات صندوق الاستثمار المغلق المتداول أو صندوق الاستثمار العقاري المتداول.
+  schema_path: null
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: related_parties
+  category: parties
+  en: Related Parties
+  ar: الأطراف ذوو العلاقة
+  en_syn: [related party, affiliated parties]
+  ar_syn: [الأطراف ذات العلاقة, طرف ذو علاقة]
+  def_en: Fund manager and sub-manager, custodian and sub-custodian, developer and engineering office, property manager, accredited valuer, auditor, fund board, their directors/officers/employees, any unitholder above 5% of net assets, and anyone affiliated with or controlling them.
+  def_ar: مدير الصندوق ومدير الصندوق من الباطن، وأمين الحفظ ومن الباطن، والمطوّر والمكتب الهندسي، ومدير الأملاك، والمقيّم المعتمد، ومراجع الحسابات، ومجلس إدارة الصندوق، وأعضاؤهم ومديروهم وموظفوهم، وأي مالك وحدات تتجاوز ملكيته 5% من صافي أصول الصندوق، وأي شخص تابع أو مسيطر على أي منهم.
+  schema_path: null
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+# ---------------------------------------------------------------- fund structure
+- id: real_estate_investment_fund
+  category: fund_structure
+  en: Real Estate Investment Fund
+  ar: صندوق الاستثمار العقاري
+  en_syn: [REIF, real estate fund, property fund]
+  ar_syn: [صندوق استثمار عقاري, الصندوق العقاري]
+  def_en: Collective real estate investment scheme giving investors the opportunity to share collectively in its profits, managed by the fund manager for specified fees.
+  def_ar: برنامج استثمار عقاري مشترك يهدف إلى إتاحة الفرصة للمستثمرين فيه للمشاركة جماعياً في أرباح البرنامج، ويديره مدير الصندوق مقابل رسوم محددة.
+  schema_path: fund.kind
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: reit
+  category: fund_structure
+  en: Real Estate Investment Traded Fund (REIT)
+  ar: صندوق الاستثمار العقاري المتداول
+  en_syn: [REIT, traded REIT, listed REIT]
+  ar_syn: [ريت, صندوق ريت, صندوق عقاري متداول]
+  def_en: REIF whose units trade on the Main or Parallel Market, investing mainly in constructionally developed income-producing real estate and distributing a set share of net profit in cash at least annually.
+  def_ar: صندوق استثمار عقاري تتداول وحداته في السوق الرئيسية أو السوق الموازية، ويتمثل هدفه الاستثماري الرئيس في الاستثمار في عقارات مطورة تطويراً إنشائياً قابلة لتحقيق دخل دوري وتأجيري، وتوزع نسبة محددة من صافي أرباحه نقداً بشكل سنوي بحد أدنى.
+  schema_path: fund.kind
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: private_real_estate_fund
+  category: fund_structure
+  en: Private Real Estate Fund
+  ar: الصندوق العقاري الخاص
+  en_syn: [private RE fund, private placement real estate fund]
+  ar_syn: [صندوق عقاري خاص, صندوق استثمار عقاري خاص]
+  def_en: Private fund whose main investment objective is investing in real estate.
+  def_ar: صندوق خاص يتمثل هدفه الاستثماري الرئيس الاستثمار في العقار.
+  schema_path: fund.kind
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: private_fund
+  category: fund_structure
+  en: Private Fund
+  ar: الصندوق الخاص
+  en_syn: []
+  ar_syn: [صندوق خاص]
+  def_en: Fund established in the Kingdom that is not a public fund; offered under Part 5 of the Investment Funds Regulations.
+  def_ar: صندوق استثمار مؤسس في المملكة لا يكون صندوقاً عاماً ويمكن طرح وحداته وفقاً للأحكام الواردة في الباب الخامس من لائحة صناديق الاستثمار.
+  schema_path: fund.kind
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: public_fund
+  category: fund_structure
+  en: Public Fund
+  ar: الصندوق العام
+  en_syn: [publicly offered fund]
+  ar_syn: [صندوق عام, صندوق طرح عام]
+  def_en: Fund established in the Kingdom whose units may be offered by any method other than private placement.
+  def_ar: صندوق استثمار مؤسس في المملكة ويمكن طرح وحداته على مستثمرين في المملكة بأي طريقة غير الطرح الخاص.
+  schema_path: fund.kind
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: closed_ended_fund
+  category: fund_structure
+  en: Closed-ended Fund
+  ar: صندوق استثمار مغلق
+  en_syn: [closed-end fund, closed fund]
+  ar_syn: [صندوق مقفل, عام مقفل, صندوق مغلق]
+  def_en: Any investment fund that is not open-ended.
+  def_ar: أي صندوق استثمار لا يكون صندوق استثمار مفتوح.
+  schema_path: fund.structure
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: open_ended_fund
+  category: fund_structure
+  en: Open-ended Fund
+  ar: صندوق استثمار مفتوح
+  en_syn: [open-end fund, evergreen fund]
+  ar_syn: [صندوق مفتوح]
+  def_en: Variable-capital fund whose units increase by new issues or decrease by redemptions at NAV on dealing days.
+  def_ar: صندوق استثمار ذو رأس مال متغير، تزداد وحداته بطرح وحدات جديدة أو تنقص باسترداد مالكي الوحدات لبعض أو كل وحداتهم وفقاً لصافي قيمتها في أيام التعامل.
+  schema_path: fund.structure
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: special_purposes_entity
+  category: fund_structure
+  en: Special Purposes Entity (SPE)
+  ar: منشأة ذات أغراض خاصة
+  en_syn: [SPE, SPV, special purpose vehicle]
+  ar_syn: [المنشأة ذات الأغراض الخاصة, شركة ذات غرض خاص]
+  def_en: Entity established and licensed under the Rules for Special Purposes Entities; a REIF may take this form.
+  def_ar: منشأة مؤسسة ومرخص لها بموجب القواعد المنظمة للمنشآت ذات الأغراض الخاصة.
+  schema_path: fund.is_spe
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025); REIF Regulations Part 5
+
+- id: terms_and_conditions
+  category: fund_structure
+  en: Terms and Conditions
+  ar: شروط وأحكام الصندوق
+  en_syn: [T&Cs, fund agreement, LPA, limited partnership agreement, offering memorandum, private placement memorandum, PPM, fund documents]
+  ar_syn: [الشروط والأحكام, مذكرة المعلومات, اتفاقية الصندوق]
+  def_en: The contracts containing the information and provisions required by the IFR/REIF Regulations, signed between the fund manager and unitholders. This is the Saudi equivalent of an LPA.
+  def_ar: العقود التي تحتوي البيانات والأحكام المطلوبة بموجب أحكام لائحة صناديق الاستثمار ولائحة صناديق الاستثمار العقاري، ويتم توقيعها بين مدير الصندوق ومالكي الوحدات.
+  schema_path: document
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: unit
+  category: fund_structure
+  en: Unit
+  ar: وحدة
+  en_syn: [units, fund unit, interest, LP interest, share]
+  ar_syn: [الوحدات, وحدة الصندوق, وحدات الصندوق]
+  def_en: Each owner's share in a fund consisting of units; each unit represents an undivided share in the fund's net assets.
+  def_ar: حصة أي مالك في أي صندوق يتكون من وحدات أو جزء منها، وتعامل كل وحدة على أنها تمثل حصة مشاعة في صافي أصول الصندوق.
+  schema_path: capital.units_offered
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: treasury_units
+  category: fund_structure
+  en: Treasury Units
+  ar: وحدات الخزينة
+  en_syn: [bought-back units]
+  ar_syn: []
+  def_en: Units bought back and held by the fund manager under the regulations; no votes and no distributions.
+  def_ar: الوحدات المشتراة التي يقوم مدير الصندوق بالاحتفاظ بها وفقاً لأحكام لائحة صناديق الاستثمار ولائحة صناديق الاستثمار العقاري.
+  schema_path: null
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025); REIF Regulations art. 49
+
+- id: unit_class
+  category: fund_structure
+  en: Unit Class
+  ar: فئة الوحدات
+  en_syn: [class of units, share class]
+  ar_syn: [فئات الوحدات, خصائص الوحدات]
+  def_en: A fund may issue more than one class of units; holders of the same class have equal rights.
+  def_ar: يجوز للصندوق إصدار أكثر من فئة من الوحدات ويتمتع مالكو الفئة الواحدة بالحقوق ذاتها.
+  schema_path: capital.unit_classes
+  verified: cma_reif
+  source: REIF Regulations art. 40(d); Annex 1 item 31
+
+- id: fund_term
+  category: fund_structure
+  en: Fund Term
+  ar: مدة الصندوق
+  en_syn: [term, fund life, duration, tenor of the fund]
+  ar_syn: [عمر الصندوق, فترة الصندوق]
+  def_en: The fund's life as stated in the T&Cs, plus any extension periods.
+  def_ar: مدة الصندوق المحددة في الشروط والأحكام وأي فترات تمديد.
+  schema_path: dates.term_years
+  verified: cma_reif
+  source: REIF Regulations Annex 1 inside cover item 3
+
+- id: term_extension
+  category: fund_structure
+  en: Term Extension
+  ar: تمديد مدة الصندوق
+  en_syn: [extension period, extension option]
+  ar_syn: [فترة التمديد, التمديد]
+  def_en: Extension of the fund term, e.g. to complete asset sales; a change to maturity is a fundamental change needing a special fund resolution.
+  def_ar: تمديد مدة الصندوق لاستكمال بيع الأصول أو غيره، ويعد تغيير تاريخ الاستحقاق تغييراً أساسياً يتطلب قرار صندوق خاص.
+  schema_path: dates.extensions
+  verified: cma_reif
+  source: REIF Regulations art. 27(e)(9), art. 44(c)
+
+- id: fund_termination
+  category: fund_structure
+  en: Fund Termination
+  ar: إنهاء الصندوق
+  en_syn: [termination, maturity, end of fund term]
+  ar_syn: [انتهاء الصندوق, انقضاء مدة الصندوق]
+  def_en: The date the fund ends per the term or event in its T&Cs, including the asset-sale stage and distribution of unitholders' dues.
+  def_ar: التاريخ الذي ينتهي به الصندوق وفقاً للمدة أو الحدث المحدد في شروط وأحكام الصندوق متضمنةً مرحلة بيع الأصول وتوزيع مستحقات مالكي الوحدات عليهم.
+  schema_path: dates.maturity_date
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: fund_liquidation
+  category: fund_structure
+  en: Fund Liquidation
+  ar: تصفية الصندوق
+  en_syn: [liquidation, wind-down, winding up, liquidation period]
+  ar_syn: [فترة التصفية, التصفية]
+  def_en: Period of at most 12 months from the day after termination during which all fund assets must be liquidated.
+  def_ar: فترة أقصاها اثنا عشر شهراً من اليوم التالي لتاريخ إنهاء الصندوق، ويتوجب خلالها تصفية أصول الصندوق بالكامل.
+  schema_path: dates.liquidation_period_months
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025); REIF Regulations art. 44(i)
+
+- id: offering_period
+  category: fund_structure
+  en: Offering Period
+  ar: فترة الطرح
+  en_syn: [subscription period, offer period, initial offering period, fundraising period]
+  ar_syn: [فترة الاشتراك, فترة الطرح الأولي, مدة الطرح]
+  def_en: Period during which units are offered; a REIF offering period may not exceed 60 days.
+  def_ar: الفترة التي تطرح خلالها وحدات الصندوق، ولا يجوز أن تتجاوز (60) يوماً لصندوق الاستثمار العقاري.
+  schema_path: dates.offering_start
+  verified: cma_reif
+  source: REIF Regulations art. 39(g)
+
+- id: operation_start
+  category: fund_structure
+  en: Fund Operation Start
+  ar: تاريخ بدء عمل الصندوق
+  en_syn: [commencement date, first closing, launch date, inception]
+  ar_syn: [تاريخ التشغيل, بدء تشغيل الصندوق, تاريخ الإطلاق, تاريخ بدء الصندوق]
+  def_en: Date the fund commences operations after the offering closes.
+  def_ar: التاريخ الذي يبدأ فيه الصندوق أعماله بعد انتهاء فترة الطرح.
+  schema_path: dates.operation_start
+  verified: market_usage
+  source: REIF Regulations art. 13(e)(10) (manager notifies CMA on commencement)
+
+- id: dealing_day
+  category: fund_structure
+  en: Dealing Day
+  ar: يوم التعامل
+  en_syn: [dealing date, subscription/redemption day]
+  ar_syn: [أيام التعامل]
+  def_en: Any day on which units may be subscribed for and redeemed.
+  def_ar: أي يوم يمكن فيه الاشتراك في وحدات صندوق استثمار واستردادها.
+  schema_path: null
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: valuation_day
+  category: fund_structure
+  en: Valuation Day
+  ar: يوم التقويم
+  en_syn: [valuation date, NAV date]
+  ar_syn: [يوم التقييم, تاريخ التقييم]
+  def_en: Day on which the fund's assets are valued and the unit price is calculated.
+  def_ar: اليوم الذي يتم فيه تقييم أصول الصندوق وحساب سعر الوحدة.
+  schema_path: valuation.valuation_dates
+  verified: market_usage
+  source: Market usage in Saudi T&Cs
+
+- id: fundamental_change
+  category: fund_structure
+  en: Fundamental Change
+  ar: التغيير الأساسي
+  en_syn: [material change]
+  ar_syn: [تغيير أساسي, التغييرات الأساسية]
+  def_en: Change in purpose, nature or class, risk profile, new or increased payments out of fund assets, maturity, or increase of total assets value; needs unitholder and CMA approval.
+  def_ar: التغيير المهم في أهداف الصندوق أو طبيعته أو فئته أو ملف مخاطره أو المدفوعات من أصوله أو تاريخ استحقاقه، ويتطلب موافقة مالكي الوحدات والهيئة.
+  schema_path: null
+  verified: cma_reif
+  source: REIF Regulations art. 27(e)
+
+- id: fund_kind_income
+  category: fund_structure
+  en: Income-Generating Fund (Art. 10 category)
+  ar: صندوق مدر للدخل
+  en_syn: [income fund, core fund, yield fund]
+  ar_syn: [صندوق الدخل, الاستثمار في عقارات مطورة قادرة على تحقيق دخل دوري وتأجيري]
+  def_en: Closed-ended REIF investing in constructionally developed real estate able to generate periodic rental income (art. 10(a)(4)-(5)).
+  def_ar: صندوق مقفل يستثمر في عقارات مطورة تطويراً إنشائياً قادرة على تحقيق دخل دوري وتأجيري.
+  schema_path: fund.article10_category
+  verified: cma_reif
+  source: REIF Regulations art. 10(a)
+- id: fund_kind_development
+  category: fund_structure
+  en: Development Fund (Art. 10 category)
+  ar: صندوق تطوير عقاري
+  en_syn: [development fund, build-to-sell fund, develop and sell]
+  ar_syn: [صندوق التطوير, تطوير إنشائي ثم البيع, تطوير أولي ثم البيع, صندوق تطوير]
+  def_en: Closed-ended REIF that owns raw or developed land, develops it (initial/infrastructure or constructional), then sells and terminates (art. 10(a)(1)-(3)).
+  def_ar: صندوق مقفل يتملك أرضاً خاماً أو مطورة ويقوم بتطويرها تطويراً أولياً أو إنشائياً ثم بيعها وإنهاء الصندوق.
+  schema_path: fund.article10_category
+  verified: cma_reif
+  source: REIF Regulations art. 10(a)
+
+# ---------------------------------------------------------------- governance
+- id: fund_board
+  category: governance
+  en: Fund Board of Directors
+  ar: مجلس إدارة الصندوق
+  en_syn: [fund board, board, LPAC, advisory committee]
+  ar_syn: [مجلس الإدارة]
+  def_en: Board appointed by the fund manager to monitor and supervise the manager's work; at least 3 members, independents not fewer than 2 or one third.
+  def_ar: مجلس يعين مدير الصندوق أعضاءه وفقاً لللائحة لمراقبة أعمال مدير الصندوق ذي العلاقة والإشراف عليها.
+  schema_path: governance.board_size
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025); REIF Regulations art. 11
+
+- id: independent_fund_director
+  category: governance
+  en: Independent Fund Director
+  ar: عضو مجلس إدارة صندوق مستقل
+  en_syn: [independent director, independent board member]
+  ar_syn: [العضو المستقل, عضو مستقل]
+  def_en: Fund board member with full independence (not employed by or having material dealings with the manager, sub-manager or custodian, etc.).
+  def_ar: عضو مجلس إدارة صندوق يتمتع بالاستقلالية التامة.
+  schema_path: governance.independent_directors
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: ordinary_fund_resolution
+  category: governance
+  en: Ordinary Fund Resolution
+  ar: قرار صندوق عادي
+  en_syn: [ordinary resolution, simple majority]
+  ar_syn: [القرار العادي]
+  def_en: Resolution requiring approval of unitholders holding more than 50% of units present at the meeting.
+  def_ar: قرار يتطلب موافقة مالكي الوحدات الذين تمثل نسبة ملكيتهم أكثر من 50% من مجموع الوحدات الحاضر مالكها في اجتماع مالكي الوحدات.
+  schema_path: governance.ordinary_resolution_pct
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: special_fund_resolution
+  category: governance
+  en: Special Fund Resolution
+  ar: قرار خاص للصندوق
+  en_syn: [special resolution, supermajority]
+  ar_syn: [قرار صندوق خاص, القرار الخاص]
+  def_en: Resolution requiring approval of unitholders holding 75% or more of units present at the meeting.
+  def_ar: قرار يتطلب موافقة مالكي الوحدات الذين تمثل نسبة ملكيتهم 75% أو أكثر من مجموع الوحدات الحاضر مالكها في اجتماع مالكي الوحدات.
+  schema_path: governance.special_resolution_pct
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: unitholders_meeting
+  category: governance
+  en: Unitholders' Meeting
+  ar: اجتماع مالكي الوحدات
+  en_syn: [general meeting, investors meeting, LP meeting]
+  ar_syn: [اجتماعات مالكي الوحدات, جمعية مالكي الوحدات]
+  def_en: Meeting of unitholders; quorum at least 25% of units by value unless the T&Cs set more.
+  def_ar: اجتماع مالكي الوحدات، ويكون النصاب (25%) على الأقل من قيمة وحدات الصندوق ما لم تحدد الشروط والأحكام نسبة أعلى.
+  schema_path: governance.meeting_quorum_pct
+  verified: cma_reif
+  source: REIF Regulations art. 24
+
+- id: conflict_of_interest
+  category: governance
+  en: Conflict of Interest
+  ar: تعارض المصالح
+  en_syn: [conflicts of interest, related party transaction]
+  ar_syn: [تعارض مصالح, صفقات الأطراف ذوي العلاقة]
+  def_en: Conflicts must be disclosed to and approved by the fund board before the manager proceeds.
+  def_ar: يجب الإفصاح عن أي تعارض مصالح لمجلس إدارة الصندوق والحصول على موافقته.
+  schema_path: null
+  verified: cma_reif
+  source: REIF Regulations art. 20
+
+# ---------------------------------------------------------------- capital & subscription
+- id: total_assets_value
+  category: capital
+  en: Total Value of Fund Assets
+  ar: إجمالي قيمة أصول الصندوق
+  en_syn: [total assets, GAV, gross asset value, total asset value, fund size]
+  ar_syn: [إجمالي أصول الصندوق, قيمة أصول الصندوق, حجم الصندوق, إجمالي الأصول]
+  def_en: Value of the fund's assets measured using the valuation method in the T&Cs. Common fee and borrowing basis.
+  def_ar: قيمة أصول الصندوق التي يتم تقييمها وفقاً لكيفية تقييم الأصول المذكورة في شروط وأحكام الصندوق.
+  schema_path: capital.target_size
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: fund_net_asset_value
+  category: capital
+  en: Net Asset Value of the Fund
+  ar: صافي قيمة أصول الصندوق
+  en_syn: [NAV, net assets, fund NAV]
+  ar_syn: [صافي أصول الصندوق]
+  def_en: Total value of fund assets less liabilities.
+  def_ar: إجمالي قيمة أصول الصندوق مخصوماً منها الخصوم.
+  schema_path: null
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: nav_per_unit
+  category: capital
+  en: Net Asset Value per Unit
+  ar: صافي قيمة الأصول
+  en_syn: [NAV per unit, unit price, benchmark price, reference price]
+  ar_syn: [صافي قيمة الأصول للوحدة, سعر الوحدة, السعر الاسترشادي للوحدة, قيمة الوحدة]
+  def_en: Fund NAV divided by the number of outstanding units (CMA uses "net asset value" for the per-unit figure).
+  def_ar: صافي قيمة أصول الصندوق مقسومة على عدد الوحدات القائمة.
+  schema_path: valuation.nav_method
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025); REIF Regulations art. 37(d)
+
+- id: unit_nominal_value
+  category: capital
+  en: Nominal Value per Unit
+  ar: القيمة الاسمية للوحدة
+  en_syn: [par value, unit par value, issue price, initial unit price]
+  ar_syn: [سعر الوحدة عند الطرح, سعر الطرح, القيمة الاسمية]
+  def_en: Unit issue value at offering; must be SAR 10 for a REIT.
+  def_ar: القيمة الاسمية للوحدة عند الطرح، ويجب أن تكون (10) ريالات سعودية للصندوق العقاري المتداول.
+  schema_path: capital.unit_nominal_value
+  verified: cma_reif
+  source: REIF Regulations art. 47(a)(3)
+
+- id: minimum_subscription
+  category: capital
+  en: Minimum Subscription
+  ar: الحد الأدنى للاشتراك
+  en_syn: [minimum investment, minimum commitment, minimum ticket]
+  ar_syn: [الحد الأدنى للاستثمار, أقل مبلغ اشتراك]
+  def_en: Minimum amount or units a subscriber must take.
+  def_ar: الحد الأدنى لمبلغ أو عدد الوحدات المطلوب للاشتراك في الصندوق.
+  schema_path: capital.minimum_subscription
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 8(b)
+
+- id: minimum_fund_size
+  category: capital
+  en: Minimum Amount to be Raised
+  ar: الحد الأدنى المطلوب جمعه
+  en_syn: [minimum fund size, minimum raise, minimum target]
+  ar_syn: [الحد الأدنى لحجم الصندوق, الحد الأدنى للمبلغ المطلوب]
+  def_en: Minimum the manager intends to raise; if not reached, subscriptions are returned within 5 days.
+  def_ar: الحد الأدنى الذي ينوي مدير الصندوق جمعه، وفي حال عدم الوصول إليه تعاد مبالغ الاشتراك خلال (5) أيام.
+  schema_path: capital.minimum_size
+  verified: cma_reif
+  source: REIF Regulations art. 39(f); Annex 1 item 8(e)
+
+- id: in_kind_contribution
+  category: capital
+  en: In-kind Contribution
+  ar: الاشتراك العيني
+  en_syn: [contribution in kind, asset contribution, in-kind subscription]
+  ar_syn: [المساهمة العينية, الحصة العينية, اشتراك عيني, المساهمات العينية]
+  def_en: Subscription by contributing real estate instead of cash; contributor may reduce holding to 50% only after one year.
+  def_ar: الاشتراك في الصندوق بتقديم عقار بدلاً من النقد، ولا يجوز للمشترك عينياً تخفيض ملكيته إلى أقل من 50% إلا بعد سنة.
+  schema_path: capital.in_kind_contributions
+  verified: cma_reif
+  source: REIF Regulations art. 39(i); Annex 1 item 8(c),(f)
+
+- id: cash_contribution
+  category: capital
+  en: Cash Contribution
+  ar: الاشتراك النقدي
+  en_syn: [cash subscription]
+  ar_syn: [المساهمة النقدية, الحصة النقدية, اشتراك نقدي]
+  def_en: Subscription paid in cash.
+  def_ar: الاشتراك في الصندوق بمبلغ نقدي.
+  schema_path: capital.cash_contributions
+  verified: market_usage
+  source: REIF Regulations art. 39(k)
+
+- id: capital_commitment
+  category: capital
+  en: Capital Commitment
+  ar: الالتزام الرأسمالي
+  en_syn: [commitment, undrawn commitment, committed capital]
+  ar_syn: [مبلغ الالتزام, الالتزام بالاشتراك, رأس المال الملتزم به]
+  def_en: Amount an investor agrees to fund over time when called (mainly private funds; public REIF units are fully paid at offering).
+  def_ar: المبلغ الذي يلتزم المستثمر بسداده عند طلبه (في الصناديق الخاصة غالباً).
+  schema_path: capital.commitments_total
+  verified: market_usage
+  source: Market usage; REIF Regulations art. 39(c) (public REIF units fully paid during offering)
+
+- id: capital_call
+  category: capital
+  en: Capital Call
+  ar: طلب سداد الالتزام الرأسمالي
+  en_syn: [drawdown, drawdown notice, call notice]
+  ar_syn: [استدعاء رأس المال, إشعار السداد, طلب السحب, طلب سداد رأس المال]
+  def_en: Notice requiring investors to pay in part of their commitment.
+  def_ar: إشعار يطلب من المستثمرين سداد جزء من التزاماتهم الرأسمالية.
+  schema_path: capital.capital_calls
+  verified: market_usage
+  source: Market usage (private funds)
+
+- id: use_of_proceeds
+  category: capital
+  en: Use of Offering Proceeds
+  ar: استخدام متحصلات الطرح
+  en_syn: [sources and uses, use of proceeds]
+  ar_syn: [تفاصيل استخدام متحصلات الطرح, المصادر والاستخدامات]
+  def_en: Disclosure of how offering proceeds will be used.
+  def_ar: الإفصاح عن تفاصيل استخدام متحصلات طرح الصندوق.
+  schema_path: capital.use_of_proceeds
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 8(g)
+
+- id: total_assets_increase
+  category: capital
+  en: Increase of Total Fund Assets
+  ar: زيادة إجمالي قيمة أصول الصندوق
+  en_syn: [capital increase, follow-on offering, subsequent offering]
+  ar_syn: [زيادة رأس مال الصندوق, طرح وحدات إضافية]
+  def_en: Increasing fund size by accepting additional cash and/or in-kind contributions (CMA approval first).
+  def_ar: زيادة حجم الصندوق بقبول اشتراكات نقدية أو عينية أو كليهما بعد موافقة الهيئة ومالكي الوحدات.
+  schema_path: capital.subsequent_offerings
+  verified: cma_reif
+  source: REIF Regulations art. 39(k)
+
+# ---------------------------------------------------------------- real estate
+- id: constructionally_developed_real_estate
+  category: real_estate
+  en: Constructionally Developed Real Estate
+  ar: عقارات مطورة تطويراً إنشائياً
+  en_syn: [built property, income-producing property, completed property, stabilised asset]
+  ar_syn: [عقار مطور, العقارات المطورة, عقارات مدرة للدخل]
+  def_en: Developed real estate ready for use and meeting regulatory requirements (residential, commercial, industrial, agricultural, etc.).
+  def_ar: العقارات المطورة الجاهزة للاستخدام والمستوفية للمتطلبات النظامية، ويشمل ذلك العقارات السكنية والتجارية والصناعية والزراعية وغيرها.
+  schema_path: assets[].status
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: white_land
+  category: real_estate
+  en: White Land
+  ar: الأراضي البيضاء
+  en_syn: [vacant land, undeveloped urban land, idle land]
+  ar_syn: [أرض بيضاء, الأراضي الفضاء]
+  def_en: Undeveloped land within urban boundaries; REITs may not invest in it; subject to the White Land and Vacant Property fee regime.
+  def_ar: الأراضي غير المطورة داخل النطاق العمراني، ولا يجوز للصندوق العقاري المتداول الاستثمار فيها.
+  schema_path: assets[].type
+  verified: cma_reif
+  source: REIF Regulations art. 47(b)(3)(a); White Land and Vacant Property Fees Law (amended 2025)
+
+- id: raw_land
+  category: real_estate
+  en: Raw Land
+  ar: الأرض الخام
+  en_syn: [unserviced land]
+  ar_syn: [أرض خام]
+  def_en: Undeveloped land to be serviced and subdivided (initial development).
+  def_ar: أرض غير مطورة يتم تطويرها تطويراً أولياً وتقسيمها.
+  schema_path: assets[].type
+  verified: cma_reif
+  source: REIF Regulations art. 10(a)(1)
+
+- id: title_deed
+  category: real_estate
+  en: Title Deed
+  ar: صك الملكية
+  en_syn: [deed, title, ownership deed, electronic deed]
+  ar_syn: [الصك, صك عقاري, رقم الصك, الصك الإلكتروني]
+  def_en: Ownership deed; all fund real estate must be held under valid deeds.
+  def_ar: صك ملكية العقار، ويجب أن تكون جميع عقارات الصندوق مملوكة بصكوك صحيحة.
+  schema_path: assets[].deed_number
+  verified: cma_reif
+  source: REIF Regulations art. 29(a); art. 30(g)
+
+- id: usufruct_right
+  category: real_estate
+  en: Usufruct Right
+  ar: حق المنفعة
+  en_syn: [leasehold, right of use, long lease]
+  ar_syn: [حقوق المنفعة, عقد منفعة, حق الانتفاع]
+  def_en: Right to use and earn income from an asset for a period without owning it; REITs must disclose 3 months before it ends.
+  def_ar: الحق في الانتفاع بالعقار واستغلاله لمدة محددة دون تملكه.
+  schema_path: assets[].tenure
+  verified: cma_reif
+  source: REIF Regulations art. 47(b)(3)(a)(5); art. 50(G)
+
+- id: lease_agreement
+  category: real_estate
+  en: Lease Agreement
+  ar: عقد الإيجار
+  en_syn: [lease, tenancy contract, master lease]
+  ar_syn: [عقود الإيجار, عقد إيجار موحد, عقد الإيجار الرئيسي]
+  def_en: Lease of fund property; must be legally documented (residential/commercial leases are registered on the Ejar platform).
+  def_ar: عقد تأجير عقار الصندوق، ويجب توثيقه نظاماً.
+  schema_path: assets[].leases
+  verified: market_usage
+  source: REIF Regulations art. 29(c)-(d)
+
+- id: market_rent
+  category: real_estate
+  en: Market Rental Value
+  ar: القيمة الإيجارية السوقية
+  en_syn: [ERV, estimated rental value, market rent]
+  ar_syn: [الإيجار السوقي, القيمة الإيجارية العادلة]
+  def_en: Valuers must report market rent where it differs from contractual rent.
+  def_ar: يجب أن تتضمن تقارير التقييم القيمة الإيجارية السوقية إذا كانت مختلفة عن القيمة الإيجارية التعاقدية.
+  schema_path: assets[].market_rent
+  verified: cma_reif
+  source: REIF Regulations art. 36(g); art. 37(c)
+
+- id: contractual_rent
+  category: real_estate
+  en: Contractual Rent
+  ar: القيمة الإيجارية التعاقدية
+  en_syn: [passing rent, contract rent, rent roll]
+  ar_syn: [الإيجار التعاقدي, الإيجار السنوي, قيمة الإيجار]
+  def_en: Rent payable under the signed leases.
+  def_ar: الإيجار المستحق بموجب عقود الإيجار الموقعة.
+  schema_path: assets[].annual_rent
+  verified: cma_reif
+  source: REIF Regulations art. 36(g)
+
+- id: occupancy_rate
+  category: real_estate
+  en: Occupancy Rate
+  ar: نسبة الإشغال
+  en_syn: [occupancy, vacancy rate (inverse)]
+  ar_syn: [معدل الإشغال, نسبة الشغور]
+  def_en: Share of leasable area or units currently leased.
+  def_ar: نسبة المساحة أو الوحدات المؤجرة من إجمالي المساحة القابلة للتأجير.
+  schema_path: assets[].occupancy_pct
+  verified: market_usage
+  source: Market usage
+
+- id: land_area
+  category: real_estate
+  en: Land Area
+  ar: مساحة الأرض
+  en_syn: [plot area, site area]
+  ar_syn: [المساحة, مساحة الأرض الإجمالية]
+  def_en: Plot area, normally in square metres.
+  def_ar: مساحة قطعة الأرض بالمتر المربع عادة.
+  schema_path: assets[].land_area_sqm
+  verified: market_usage
+  source: Market usage
+- id: built_up_area
+  category: real_estate
+  en: Built-up Area (BUA/GFA)
+  ar: مساحة البناء
+  en_syn: [GFA, gross floor area, BUA, built-up area, GLA, gross leasable area]
+  ar_syn: [مسطحات البناء, المساحة المبنية, المساحة التأجيرية, إجمالي المساحة القابلة للتأجير]
+  def_en: Built area; GLA is the leasable subset.
+  def_ar: إجمالي المساحات المبنية، والمساحة التأجيرية هي الجزء القابل للتأجير منها.
+  schema_path: assets[].gfa_sqm
+  verified: market_usage
+  source: Market usage
+
+- id: gdv
+  category: real_estate
+  en: Gross Development Value (GDV)
+  ar: القيمة الإجمالية للتطوير
+  en_syn: [GDV, sales value, end value]
+  ar_syn: [إجمالي قيمة المبيعات المتوقعة, القيمة البيعية]
+  def_en: Expected total sale value of a completed development.
+  def_ar: إجمالي القيمة البيعية المتوقعة للمشروع بعد اكتمال تطويره.
+  schema_path: development.gdv
+  verified: market_usage
+  source: Market usage
+
+- id: development_cost
+  category: real_estate
+  en: Development Cost
+  ar: تكاليف التطوير
+  en_syn: [construction cost, capex, hard costs, soft costs, project budget]
+  ar_syn: [تكاليف الإنشاء, تكلفة المشروع, ميزانية التطوير, التكاليف الإنشائية]
+  def_en: Total cost to build out a project, including hard and soft costs.
+  def_ar: إجمالي تكاليف تنفيذ المشروع بما فيها التكاليف الإنشائية وغير الإنشائية.
+  schema_path: development.budget
+  verified: market_usage
+  source: Market usage
+
+- id: business_plan
+  category: real_estate
+  en: Project Business Plan
+  ar: خطة عمل المشروع
+  en_syn: [development schedule, project timeline]
+  ar_syn: [الجدول الزمني للمشروع, خطة العمل, مراحل التطوير]
+  def_en: Business plan for projects approved by the developer, overseen by the engineering office.
+  def_ar: خطة عمل المشاريع المعتمدة من المطور التي يشرف المكتب الهندسي على تنفيذها.
+  schema_path: development.schedule
+  verified: cma_reif
+  source: REIF Regulations art. 35; Annex 1 item 6(d)
+
+# ---------------------------------------------------------------- valuation & returns
+- id: valuation
+  category: valuation
+  en: Valuation of Fund Assets
+  ar: تقييم أصول الصندوق
+  en_syn: [valuation, appraisal, revaluation]
+  ar_syn: [التقييم, تقويم أصول الصندوق]
+  def_en: Real estate assets valued at least every 6 months by two accredited valuers; reports no older than 3 months on purchase or sale.
+  def_ar: تقييم عقارات الصندوق مرة كل (6) أشهر على الأقل بناءً على تقييم يعده مقيّمان معتمدان.
+  schema_path: valuation
+  verified: cma_reif
+  source: REIF Regulations arts. 36-37
+
+- id: net_profit
+  category: valuation
+  en: Fund Net Profit
+  ar: صافي أرباح الصندوق
+  en_syn: [net income, distributable profit, FFO (approx.)]
+  ar_syn: [صافي الربح, صافي الدخل, الأرباح القابلة للتوزيع]
+  def_en: For REIF purposes, total fund returns after all expenses and fees borne by the fund, excluding other comprehensive income items.
+  def_ar: إجمالي عوائد صندوق الاستثمار العقاري بعد خصم إجمالي المصروفات والرسوم التي تحملها الصندوق باستثناء مكونات الدخل الشامل الآخر.
+  schema_path: distributions.basis
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+- id: dividend_policy
+  category: valuation
+  en: Dividend / Distribution Policy
+  ar: سياسة توزيع الأرباح
+  en_syn: [distribution policy, distributions, dividends]
+  ar_syn: [توزيع الأرباح, التوزيعات النقدية, سياسة التوزيعات]
+  def_en: How rental and sale proceeds are distributed; REITs must distribute at least 90% of net profit annually.
+  def_ar: كيفية توزيع متحصلات الإيجار أو البيع على مالكي الوحدات، ويجب ألا تقل التوزيعات في الصندوق المتداول عن (90%) من صافي الأرباح سنوياً.
+  schema_path: distributions
+  verified: cma_reif
+  source: REIF Regulations art. 47(b)(2); Annex 1 item 21
+
+- id: irr
+  category: valuation
+  en: Internal Rate of Return (IRR)
+  ar: معدل العائد الداخلي
+  en_syn: [IRR, target IRR, net IRR, gross IRR]
+  ar_syn: [العائد الداخلي, معدل العائد الداخلي المستهدف]
+  def_en: Discount rate at which net present value of cash flows equals zero.
+  def_ar: معدل الخصم الذي تساوي عنده القيمة الحالية لصافي التدفقات النقدية صفراً.
+  schema_path: performance_fee.hurdle_type
+  verified: market_usage
+  source: Market usage
+
+- id: hurdle_rate
+  category: valuation
+  en: Hurdle Rate / Preferred Return
+  ar: معدل العائد المستهدف
+  en_syn: [hurdle, preferred return, pref, threshold return, benchmark return]
+  ar_syn: [العائد التفضيلي, العائد الأدنى, عائد العتبة, العائد المستهدف, حد العائد]
+  def_en: Return unitholders must receive before the manager earns a performance fee.
+  def_ar: العائد الذي يجب أن يحققه مالكو الوحدات قبل استحقاق مدير الصندوق لأتعاب الأداء.
+  schema_path: performance_fee.hurdle_rate_pct
+  verified: market_usage
+  source: Market usage; ILPA Model LPA (concept)
+
+- id: catch_up
+  category: valuation
+  en: Catch-up
+  ar: اللحاق
+  en_syn: [GP catch-up, manager catch-up]
+  ar_syn: [مرحلة اللحاق, التعويض]
+  def_en: Waterfall tier where the manager receives a high share of profit until it reaches its agreed split.
+  def_ar: مرحلة في آلية التوزيع يحصل فيها المدير على نسبة مرتفعة من الأرباح حتى يصل إلى نسبته المتفق عليها.
+  schema_path: performance_fee.catch_up_pct
+  verified: market_usage
+  source: Market usage; ILPA Model LPA (concept)
+
+- id: distribution_waterfall
+  category: valuation
+  en: Distribution Waterfall
+  ar: آلية توزيع العوائد
+  en_syn: [waterfall, profit split, carry waterfall, whole-of-fund waterfall, deal-by-deal waterfall]
+  ar_syn: [تسلسل التوزيعات, هيكل التوزيع, أولوية التوزيع]
+  def_en: Order in which proceeds are split between unitholders and manager.
+  def_ar: الترتيب الذي توزع بموجبه المتحصلات بين مالكي الوحدات ومدير الصندوق.
+  schema_path: performance_fee.tiers
+  verified: market_usage
+  source: Market usage; ILPA Model LPA
+
+- id: return_of_capital
+  category: valuation
+  en: Return of Capital
+  ar: استرداد رأس المال
+  en_syn: [capital return, return of contributions]
+  ar_syn: [إعادة رأس المال, رد رأس المال]
+  def_en: First waterfall tier, in which investors recover contributed capital.
+  def_ar: المرحلة الأولى في آلية التوزيع، يسترد فيها المستثمرون رأس المال المدفوع.
+  schema_path: performance_fee.tiers
+  verified: market_usage
+  source: Market usage
+
+# ---------------------------------------------------------------- fees
+- id: fee_management
+  category: fees
+  en: Management Fee
+  ar: أتعاب الإدارة
+  en_syn: [management fees, fund management fee, base fee, AMC]
+  ar_syn: [رسوم الإدارة, أتعاب إدارة الصندوق, رسوم إدارة الصندوق]
+  def_en: Compensation, expenses and fees for advisory services paid to the fund manager. Stops once liquidation starts.
+  def_ar: التعويض والمصاريف والأتعاب المتعلقة بالخدمات الاستشارية التي يتم دفعها لمدير الصندوق.
+  schema_path: fees[type=management]
+  verified: cma_glossary
+  source: CMA Glossary (أتعاب إدارة الصندوق); REIF Regulations art. 44(n)
+
+- id: fee_subscription
+  category: fees
+  en: Subscription Fee
+  ar: رسوم الاشتراك
+  en_syn: [entry fee, front-end load, placement fee, initial charge]
+  ar_syn: [عمولة الاشتراك, رسوم الدخول]
+  def_en: Fee paid by unitholders when buying units, usually a % of the subscription amount.
+  def_ar: رسوم يدفعها مالك الوحدات عند الاشتراك في وحدات الصندوق، وتكون عادة نسبة من مبلغ الاشتراك.
+  schema_path: fees[type=subscription]
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 9(a)(1)
+
+- id: fee_custody
+  category: fees
+  en: Custody Fee
+  ar: رسوم الحفظ
+  en_syn: [custodian fee, trustee fee]
+  ar_syn: [أتعاب أمين الحفظ, رسوم أمين الحفظ]
+  def_en: Payment to the custodian.
+  def_ar: المبالغ المدفوعة لأمين الحفظ مقابل خدمات الحفظ.
+  schema_path: fees[type=custody]
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 9(a)(4)
+
+- id: fee_board
+  category: fees
+  en: Board Fees and Expenses
+  ar: مكافآت أعضاء مجلس إدارة الصندوق
+  en_syn: [board remuneration, directors' fees, independent director fees]
+  ar_syn: [أتعاب أعضاء مجلس الإدارة, مكافآت الأعضاء المستقلين, رسوم مجلس الإدارة]
+  def_en: Fees and expenses of the fund board.
+  def_ar: أتعاب ومصاريف أعضاء مجلس إدارة الصندوق.
+  schema_path: fees[type=board]
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 9(a)(3)
+
+- id: fee_audit
+  category: fees
+  en: Audit Fee
+  ar: أتعاب مراجع الحسابات
+  en_syn: [auditor fee, audit fees]
+  ar_syn: [رسوم مراجعة الحسابات, أتعاب المراجعة]
+  def_en: Fees paid to the auditor, set by the manager with board approval.
+  def_ar: الأتعاب المدفوعة لمراجع الحسابات.
+  schema_path: fees[type=audit]
+  verified: cma_reif
+  source: REIF Regulations art. 22(e); Annex 1 item 9(a)(5)
+
+- id: fee_financing
+  category: fees
+  en: Financing Costs
+  ar: تكاليف التمويل
+  en_syn: [finance charges, profit on financing, interest expense, arrangement fee, loan commission]
+  ar_syn: [عمولة التمويل, رسوم ترتيب التمويل, مصاريف التمويل, هامش الربح على التمويل]
+  def_en: Commissions and costs from loans/financing to the fund.
+  def_ar: أي عمولات ناتجة عن القروض أو التمويل الممنوح للصندوق.
+  schema_path: fees[type=financing]
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 9(a)(6)
+
+- id: fee_registration_admin
+  category: fees
+  en: Registration and Administration Fees
+  ar: رسوم التسجيل والخدمات الإدارية
+  en_syn: [registry fee, Tadawul registration fee, listing fee, fund administration fee, regulatory fee, CMA fee]
+  ar_syn: [رسوم تسجيل الوحدات, رسوم الإدراج, الرسوم الرقابية, رسوم السوق المالية, رسوم إدارية, رسوم تداول]
+  def_en: Charges for registering units or other administrative services, including regulatory and exchange fees.
+  def_ar: الرسوم المتعلقة بتسجيل وحدات الصندوق أو أي خدمات إدارية أخرى.
+  schema_path: fees[type=registration_admin]
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 9(a)(7)
+
+- id: fee_developer
+  category: fees
+  en: Developer and Engineering Office Fees
+  ar: أتعاب المطور والمكتب الهندسي
+  en_syn: [development fee, development management fee, supervision fee]
+  ar_syn: [أتعاب التطوير, رسوم المطور, أتعاب الإشراف الهندسي, أتعاب المكتب الهندسي]
+  def_en: Fees paid to the developer and engineering office.
+  def_ar: الأتعاب المدفوعة للمطور والمكتب الهندسي.
+  schema_path: fees[type=developer]
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 9(a)(8)
+
+- id: fee_property_management
+  category: fees
+  en: Property Management Fee
+  ar: أتعاب مدير الأملاك
+  en_syn: [property management fees, facility management fee, leasing fee]
+  ar_syn: [رسوم إدارة الأملاك, أتعاب إدارة العقار, رسوم إدارة المرافق]
+  def_en: Fees paid to the property manager, often a % of collected rent.
+  def_ar: الأتعاب المدفوعة لمدير الأملاك، وتكون غالباً نسبة من الإيجارات المحصلة.
+  schema_path: fees[type=property_management]
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 9(a)(9)
+
+- id: fee_early_redemption
+  category: fees
+  en: Early Redemption Fee
+  ar: رسوم الاسترداد المبكر
+  en_syn: [redemption fee, exit fee]
+  ar_syn: [رسوم الاسترداد]
+  def_en: Fee charged to unitholders on early redemption, if any.
+  def_ar: أي رسوم استرداد مبكر تحصل من مالكي الوحدات.
+  schema_path: fees[type=early_redemption]
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 9(a)(10)
+
+- id: fee_valuation
+  category: fees
+  en: Valuation Fees
+  ar: أتعاب المقيمين
+  en_syn: [valuer fees, appraisal fees]
+  ar_syn: [رسوم التقييم, أتعاب التقييم, أتعاب المقيمين المعتمدين]
+  def_en: Fees paid to the accredited valuers.
+  def_ar: الأتعاب المدفوعة للمقيمين المعتمدين.
+  schema_path: fees[type=valuation]
+  verified: market_usage
+  source: Annex 1 item 9(a)(11) (other amounts deducted from fund assets)
+
+- id: fee_acquisition
+  category: fees
+  en: Acquisition Fee
+  ar: رسوم الاستحواذ
+  en_syn: [transaction fee, deal fee, purchase fee]
+  ar_syn: [أتعاب الاستحواذ, رسوم الصفقة, رسوم الشراء, عمولة الاستحواذ]
+  def_en: Fee on acquisition of an asset, usually a % of purchase price.
+  def_ar: رسوم تستحق عند شراء أصل، وتكون عادة نسبة من سعر الشراء.
+  schema_path: fees[type=acquisition]
+  verified: market_usage
+  source: Annex 1 item 9(a)(11) (other amounts)
+
+- id: fee_disposal
+  category: fees
+  en: Disposal Fee
+  ar: رسوم البيع
+  en_syn: [sale fee, exit fee on assets, disposition fee]
+  ar_syn: [أتعاب البيع, رسوم التخارج, عمولة البيع]
+  def_en: Fee on sale of an asset, usually a % of sale price.
+  def_ar: رسوم تستحق عند بيع أصل، وتكون عادة نسبة من سعر البيع.
+  schema_path: fees[type=disposal]
+  verified: market_usage
+  source: Annex 1 item 9(a)(11) (other amounts)
+
+- id: fee_structuring
+  category: fees
+  en: Structuring Fee
+  ar: رسوم الهيكلة
+  en_syn: [arrangement fee, setup fee, establishment fee]
+  ar_syn: [أتعاب الهيكلة, رسوم التأسيس, مصاريف التأسيس]
+  def_en: One-off fee for structuring and setting up the fund.
+  def_ar: رسوم تدفع مرة واحدة مقابل هيكلة الصندوق وتأسيسه.
+  schema_path: fees[type=structuring]
+  verified: market_usage
+  source: Annex 1 item 9(a)(11) (other amounts); art. 25(b) offering expenses
+
+- id: fee_performance
+  category: fees
+  en: Performance Fee
+  ar: أتعاب الأداء
+  en_syn: [carried interest, carry, incentive fee, success fee, promote]
+  ar_syn: [رسوم الأداء, أتعاب حسن الأداء, حصة الأداء, عمولة الأداء, أتعاب النجاح]
+  def_en: Manager's share of returns above a hurdle.
+  def_ar: حصة مدير الصندوق من العوائد التي تتجاوز العائد المستهدف.
+  schema_path: performance_fee
+  verified: market_usage
+  source: Market usage
+
+- id: fee_other
+  category: fees
+  en: Other Expenses
+  ar: مصاريف أخرى
+  en_syn: [other fees, operating expenses, miscellaneous expenses, insurance, Shariah fees]
+  ar_syn: [المصاريف الأخرى, رسوم أخرى, مصاريف تشغيلية, أتعاب الهيئة الشرعية, التأمين]
+  def_en: Any other amount paid by unitholders or deducted from fund assets.
+  def_ar: أي مبالغ أخرى يدفعها مالكو الوحدات أو تخصم من أصول الصندوق.
+  schema_path: fees[type=other]
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 9(a)(11)
+
+- id: fund_cost_ratio
+  category: fees
+  en: Ratio of Fund Costs to Total Asset Value
+  ar: نسبة تكاليف الصندوق إلى إجمالي قيمة أصول الصندوق
+  en_syn: [TER, total expense ratio, expense ratio, cost ratio]
+  ar_syn: [نسبة التكاليف, نسبة المصروفات الإجمالية]
+  def_en: Total fund costs (fixed, variable and event-related) over the latest total asset value for the half or quarter.
+  def_ar: نسبة إجمالي تكاليف الصندوق إلى أحدث قيمة لإجمالي أصول الصندوق خلال النصف أو الربع المعني، وتشمل جميع المصروفات الثابتة والمتغيرة والمصاريف المرتبطة بأحداث معينة.
+  schema_path: fees_summary.cost_ratio_cap_pct
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025); Annex 1 item 9(a)(12),(d)
+
+- id: fee_basis_total_assets
+  category: fee_basis
+  en: of Total Asset Value
+  ar: من إجمالي قيمة أصول الصندوق
+  en_syn: [of GAV, of total assets, of gross assets]
+  ar_syn: [من إجمالي الأصول, من قيمة الأصول الإجمالية]
+  def_en: Fee basis = total value of fund assets.
+  def_ar: أساس احتساب الرسوم هو إجمالي قيمة أصول الصندوق.
+  schema_path: fees[].basis
+  verified: market_usage
+  source: Market usage
+- id: fee_basis_nav
+  category: fee_basis
+  en: of Net Asset Value
+  ar: من صافي قيمة أصول الصندوق
+  en_syn: [of NAV, of net assets]
+  ar_syn: [من صافي الأصول, من صافي قيمة الأصول]
+  def_en: Fee basis = fund NAV.
+  def_ar: أساس احتساب الرسوم هو صافي قيمة أصول الصندوق.
+  schema_path: fees[].basis
+  verified: market_usage
+  source: Market usage
+- id: fee_basis_subscription
+  category: fee_basis
+  en: of Subscription Amount
+  ar: من مبلغ الاشتراك
+  en_syn: [of amount subscribed, of commitment]
+  ar_syn: [من قيمة الاشتراك, من المبلغ المشترك به]
+  def_en: Fee basis = subscription amount.
+  def_ar: أساس احتساب الرسوم هو مبلغ الاشتراك.
+  schema_path: fees[].basis
+  verified: market_usage
+  source: Market usage
+- id: fee_basis_rent
+  category: fee_basis
+  en: of Rent Collected
+  ar: من الإيجارات المحصلة
+  en_syn: [of gross rental income, of collected rent, of revenue]
+  ar_syn: [من إجمالي الإيرادات الإيجارية, من الدخل الإيجاري, من الإيرادات]
+  def_en: Fee basis = collected or gross rental income.
+  def_ar: أساس احتساب الرسوم هو الإيجارات المحصلة أو الدخل الإيجاري.
+  schema_path: fees[].basis
+  verified: market_usage
+  source: Market usage
+- id: fee_basis_price
+  category: fee_basis
+  en: of Purchase / Sale Price
+  ar: من سعر الشراء أو البيع
+  en_syn: [of acquisition price, of sale price, of transaction value]
+  ar_syn: [من قيمة الصفقة, من سعر الشراء, من سعر البيع]
+  def_en: Fee basis = transaction price.
+  def_ar: أساس احتساب الرسوم هو قيمة الصفقة.
+  schema_path: fees[].basis
+  verified: market_usage
+  source: Market usage
+- id: fee_basis_dev_cost
+  category: fee_basis
+  en: of Development Cost
+  ar: من تكاليف التطوير
+  en_syn: [of construction cost, of project cost, of capex]
+  ar_syn: [من تكاليف الإنشاء, من تكلفة المشروع]
+  def_en: Fee basis = development or construction cost.
+  def_ar: أساس احتساب الرسوم هو تكاليف التطوير أو الإنشاء.
+  schema_path: fees[].basis
+  verified: market_usage
+  source: Market usage
+
+# ---------------------------------------------------------------- frequency words
+- id: freq_annual
+  category: frequency
+  en: annually
+  ar: سنوياً
+  en_syn: [per annum, p.a., yearly, each year, annual]
+  ar_syn: [سنوي, في السنة, كل سنة, بشكل سنوي]
+  def_en: Once a year.
+  def_ar: مرة كل سنة.
+  schema_path: fees[].frequency
+  verified: market_usage
+  source: Market usage
+- id: freq_semiannual
+  category: frequency
+  en: semi-annually
+  ar: نصف سنوي
+  en_syn: [half-yearly, every six months, biannually]
+  ar_syn: [كل ستة أشهر, كل (6) أشهر, نصف سنوياً, مرتين في السنة]
+  def_en: Twice a year.
+  def_ar: مرتين في السنة.
+  schema_path: fees[].frequency
+  verified: market_usage
+  source: Market usage
+- id: freq_quarterly
+  category: frequency
+  en: quarterly
+  ar: ربع سنوي
+  en_syn: [every quarter, each quarter, every three months]
+  ar_syn: [كل ثلاثة أشهر, ربع سنوياً, كل ربع سنة]
+  def_en: Four times a year.
+  def_ar: أربع مرات في السنة.
+  schema_path: fees[].frequency
+  verified: market_usage
+  source: Market usage
+- id: freq_monthly
+  category: frequency
+  en: monthly
+  ar: شهرياً
+  en_syn: [every month, per month]
+  ar_syn: [شهري, كل شهر]
+  def_en: Every month.
+  def_ar: كل شهر.
+  schema_path: fees[].frequency
+  verified: market_usage
+  source: Market usage
+- id: freq_once
+  category: frequency
+  en: one-off
+  ar: مرة واحدة
+  en_syn: [one time, once, upfront, at closing]
+  ar_syn: [لمرة واحدة, دفعة واحدة, عند الإغلاق]
+  def_en: Charged once.
+  def_ar: تدفع مرة واحدة.
+  schema_path: fees[].frequency
+  verified: market_usage
+  source: Market usage
+- id: freq_daily_accrual
+  category: frequency
+  en: accrued daily
+  ar: تحتسب يومياً
+  en_syn: [calculated daily, accrues daily, accrued on each valuation day]
+  ar_syn: [تستحق يومياً, تحتسب بشكل يومي, تحتسب في كل يوم تقويم]
+  def_en: Accrued daily, usually paid quarterly or semi-annually.
+  def_ar: تستحق يومياً وتدفع عادة بشكل ربع أو نصف سنوي.
+  schema_path: fees[].accrual
+  verified: market_usage
+  source: Market usage
+
+# ---------------------------------------------------------------- financing & Islamic finance
+- id: borrowing
+  category: financing
+  en: Borrowing / Financing
+  ar: الاقتراض
+  en_syn: [leverage, debt, financing, gearing, loan facility, credit facility]
+  ar_syn: [التمويل, التسهيلات الائتمانية, الحصول على تمويل, القروض, التسهيلات البنكية]
+  def_en: Fund borrowing; capped at 50% of total assets per last reviewed financial statements (100% for a parallel-market REIT).
+  def_ar: لا يجوز للصندوق الاقتراض بما يتجاوز (50%) من إجمالي قيمة أصوله وفقاً لآخر قوائم مالية مراجعة.
+  schema_path: financing.max_borrowing_pct
+  verified: cma_reif
+  source: REIF Regulations art. 41(b)
+
+- id: ltv
+  category: financing
+  en: Loan-to-Value (LTV)
+  ar: نسبة التمويل إلى القيمة
+  en_syn: [LTV, gearing ratio, debt to total assets]
+  ar_syn: [نسبة القرض إلى القيمة, نسبة المديونية, نسبة الدين إلى إجمالي الأصول]
+  def_en: Debt divided by asset value.
+  def_ar: نسبة التمويل إلى قيمة الأصول.
+  schema_path: financing.target_ltv_pct
+  verified: market_usage
+  source: Market usage
+
+- id: murabaha
+  category: islamic_finance
+  en: Murabaha
+  ar: المرابحة
+  en_syn: [murabaha facility, commodity murabaha, tawarruq]
+  ar_syn: [مرابحة, تمويل بالمرابحة, التورق, مرابحة السلع]
+  def_en: Cost-plus sale financing; the most common Shariah-compliant fund facility. Model the profit rate like interest.
+  def_ar: بيع بالتكلفة مع هامش ربح معلوم، وهي أكثر صيغ التمويل المتوافقة مع الشريعة شيوعاً للصناديق.
+  schema_path: financing.instrument
+  verified: market_usage
+  source: Market usage; AAOIFI Shariah Standard 8 (concept)
+
+- id: ijara
+  category: islamic_finance
+  en: Ijara
+  ar: الإجارة
+  en_syn: [ijarah, ijara muntahia bittamleek, lease-to-own financing]
+  ar_syn: [إجارة, الإجارة المنتهية بالتمليك]
+  def_en: Lease-based financing; the financier owns the asset and leases it to the fund.
+  def_ar: تمويل قائم على الإيجار يتملك فيه الممول الأصل ويؤجره للصندوق.
+  schema_path: financing.instrument
+  verified: market_usage
+  source: Market usage; AAOIFI Shariah Standard 9 (concept)
+
+- id: sukuk
+  category: islamic_finance
+  en: Sukuk
+  ar: الصكوك
+  en_syn: [sukuk issuance, Islamic bonds]
+  ar_syn: [صكوك, إصدار صكوك]
+  def_en: Shariah-compliant certificates representing ownership in assets or their returns.
+  def_ar: شهادات متوافقة مع الشريعة تمثل حصصاً في ملكية أصول أو عوائدها.
+  schema_path: financing.instrument
+  verified: market_usage
+  source: Market usage; AAOIFI Shariah Standard 17 (concept)
+
+- id: saibor
+  category: financing
+  en: SAIBOR
+  ar: سايبور
+  en_syn: [Saudi interbank offered rate, SIBOR]
+  ar_syn: [سعر العرض بين البنوك السعودية, معدل سايبور, سايبور 3 أشهر]
+  def_en: Saudi interbank benchmark used to price floating-rate facilities (rate + margin).
+  def_ar: سعر العرض بين البنوك السعودية، ويستخدم مرجعاً لتسعير التمويل بهامش متغير.
+  schema_path: financing.benchmark
+  verified: market_usage
+  source: Market usage
+
+- id: profit_margin_financing
+  category: financing
+  en: Financing Margin
+  ar: هامش الربح
+  en_syn: [margin, spread, profit rate]
+  ar_syn: [الهامش, معدل الربح, هامش التمويل]
+  def_en: Spread over benchmark charged by the financier.
+  def_ar: الهامش الذي يضيفه الممول على السعر المرجعي.
+  schema_path: financing.margin_pct
+  verified: market_usage
+  source: Market usage
+
+- id: shariah_compliant
+  category: islamic_finance
+  en: Shariah Compliant
+  ar: متوافق مع أحكام الشريعة الإسلامية
+  en_syn: [shariah-compliant, Islamic]
+  ar_syn: [متوافق مع ضوابط الشريعة الإسلامية, متوافق مع الشريعة, متوافق مع المعايير الشرعية]
+  def_en: Fund certified Shariah compliant by its Shariah board.
+  def_ar: صندوق أجازت هيئته الشرعية توافقه مع أحكام الشريعة الإسلامية.
+  schema_path: fund.shariah_compliant
+  verified: cma_reif
+  source: REIF Regulations Annex 1 cover page (g)
+
+# ---------------------------------------------------------------- tax & zakat
+- id: rett
+  category: tax
+  en: Real Estate Transaction Tax (RETT)
+  ar: ضريبة التصرفات العقارية
+  en_syn: [RETT, transfer tax, real estate disposal tax]
+  ar_syn: [ضريبة التصرف العقاري]
+  def_en: 5% of disposal value on real estate transfers, collected by ZATCA; exemptions exist (check implementing regulations).
+  def_ar: ضريبة بنسبة 5% من قيمة التصرف العقاري تحصلها هيئة الزكاة والضريبة والجمارك، مع وجود حالات إعفاء.
+  schema_path: taxes.rett
+  verified: market_usage
+  source: RETT Law (Royal Decree M/84) and Implementing Regulations effective 10 Apr 2025
+- id: vat
+  category: tax
+  en: Value Added Tax (VAT)
+  ar: ضريبة القيمة المضافة
+  en_syn: [VAT]
+  ar_syn: []
+  def_en: 15% standard rate; residential leases generally exempt, commercial leases standard-rated; fund fees usually quoted ex-VAT.
+  def_ar: بنسبة 15%، وتعفى عادة إيجارات العقارات السكنية بينما تخضع الإيجارات التجارية للنسبة الأساسية.
+  schema_path: taxes.vat
+  verified: market_usage
+  source: VAT Law; Trowers & Hamlins (Jul 2026)
+- id: zakat
+  category: tax
+  en: Zakat
+  ar: الزكاة
+  en_syn: [zakat base, zakat liability]
+  ar_syn: [الوعاء الزكوي, زكاة]
+  def_en: 2.5% on the zakat base for a Hijri year (adjusted by days for a Gregorian year). Fund-level treatment depends on the fund's ZATCA registration; check T&Cs.
+  def_ar: بنسبة 2.5% من الوعاء الزكوي عن السنة الهجرية، وتعدل حسب عدد الأيام للسنة الميلادية.
+  schema_path: taxes.zakat
+  verified: market_usage
+  source: ZATCA Zakat Implementing Regulations (verify current version)
+- id: white_land_fee
+  category: tax
+  en: White Land Fee
+  ar: رسوم الأراضي البيضاء
+  en_syn: [white land tax, vacant land levy, idle land fee]
+  ar_syn: [رسم الأراضي البيضاء, رسوم الأراضي البيضاء والعقارات الشاغرة]
+  def_en: Annual fee up to 10% of assessed value on qualifying undeveloped urban land (zones 2.5%-10%); vacant building fee also applies.
+  def_ar: رسم سنوي يصل إلى 10% من قيمة الأرض البيضاء المستحقة داخل النطاق العمراني.
+  schema_path: taxes.white_land_fee
+  verified: market_usage
+  source: White Land and Vacant Property Fees Law (amended 2025)
+- id: rega
+  category: regulators
+  en: Real Estate General Authority (REGA)
+  ar: الهيئة العامة للعقار
+  en_syn: [REGA]
+  ar_syn: []
+  def_en: Authority for real estate, including foreign ownership and the real estate registry.
+  def_ar: الجهة المختصة بتنظيم القطاع العقاري بما في ذلك تملك غير السعوديين.
+  schema_path: null
+  verified: market_usage
+  source: Law of Real Estate Ownership by Non-Saudis (in force 22 Jan 2026)
+- id: zatca
+  category: regulators
+  en: Zakat, Tax and Customs Authority (ZATCA)
+  ar: هيئة الزكاة والضريبة والجمارك
+  en_syn: [ZATCA, GAZT]
+  ar_syn: [الهيئة العامة للزكاة والدخل]
+  def_en: Tax and zakat authority.
+  def_ar: الجهة المسؤولة عن الزكاة والضرائب.
+  schema_path: null
+  verified: market_usage
+  source: Market usage
+- id: cma
+  category: regulators
+  en: Capital Market Authority (CMA)
+  ar: هيئة السوق المالية
+  en_syn: [CMA, the Authority]
+  ar_syn: [الهيئة]
+  def_en: Securities regulator; approves and supervises funds.
+  def_ar: الجهة المنظمة للسوق المالية في المملكة.
+  schema_path: null
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+- id: taqeem
+  category: regulators
+  en: Saudi Authority for Accredited Valuers (TAQEEM)
+  ar: الهيئة السعودية للمقيمين المعتمدين
+  en_syn: [TAQEEM]
+  ar_syn: [تقييم]
+  def_en: Licenses accredited valuers; fund valuers need its fellowship.
+  def_ar: الجهة المرخصة للمقيمين المعتمدين.
+  schema_path: null
+  verified: cma_reif
+  source: REIF Regulations art. 36(b),(g)
+- id: main_market
+  category: regulators
+  en: Main Market
+  ar: السوق الرئيسية
+  en_syn: [Tadawul main market, TASI]
+  ar_syn: [السوق الرئيسية تداول]
+  def_en: Main market of the Saudi Exchange.
+  def_ar: السوق التي تتداول فيها الأسهم المسجلة والمطروحة بموجب الباب الرابع من قواعد طرح الأوراق المالية والالتزامات المستمرة.
+  schema_path: fund.listing_market
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+- id: parallel_market
+  category: regulators
+  en: Parallel Market (Nomu)
+  ar: السوق الموازية
+  en_syn: [Nomu]
+  ar_syn: [نمو, السوق الموازية نمو]
+  def_en: Parallel market of the Saudi Exchange; REIT units there are limited to qualified investors.
+  def_ar: السوق التي تتداول فيها الأسهم المسجلة والمطروحة بموجب الباب الثامن من قواعد طرح الأوراق المالية والالتزامات المستمرة.
+  schema_path: fund.listing_market
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+- id: qualified_investor
+  category: parties
+  en: Qualified Investor
+  ar: مستثمر مؤهل
+  en_syn: [qualified investors, sophisticated investor]
+  ar_syn: [المستثمرون المؤهلون, المستثمر المؤهل]
+  def_en: Investor category eligible for parallel-market REIT offerings (institutions, funds, GCC entities, natural persons meeting wealth/experience tests).
+  def_ar: فئات المستثمرين المحددة في قائمة المصطلحات المؤهلة للاستثمار في الصناديق المتداولة في السوق الموازية.
+  schema_path: fund.eligible_investors
+  verified: cma_glossary
+  source: CMA Glossary of Defined Terms (2025)
+
+# ---------------------------------------------------------------- risk
+- id: risk_classification
+  category: risk
+  en: Risk Classification
+  ar: درجة المخاطر
+  en_syn: [risk rating, risk level, risk profile]
+  ar_syn: [تصنيف المخاطر, مستوى المخاطر]
+  def_en: Risk classification the T&Cs must set for the fund.
+  def_ar: تصنيف المخاطر الذي يجب أن تحدده الشروط والأحكام للصندوق.
+  schema_path: fund.risk_classification
+  verified: cma_reif
+  source: REIF Regulations Annex 1 item 7(c)

@@ -1,0 +1,6 @@
+# Tokens that appear when a PDF's text layer breaks Arabic ligatures (lam-alef, lam-mim, ta-ha, fa-ya …): letters come out
+# swapped. Many of them on a page mean its text is unreliable for numbers and defined terms. From the pack's
+# bohio_fundpack/normalize.py (arabic_extraction_quality); add to these as real documents show more.
+broken: {يف: في, إىل: إلى, اىل: الى, املالية: المالية, اهليئة: الهيئة, جملس: مجلس, حتت: تحت, حتديد: تحديد, الالئحة: اللائحة,
+  مبوجب: بموجب, اململكة: المملكة, املادة: المادة, املستثمر: المستثمر, اخلاصة: الخاصة, الئحة: لائحة, املوافق: الموافق}
+good: [في, إلى, المالية, الهيئة, مجلس, تحت, بموجب, المملكة, المادة, لائحة]

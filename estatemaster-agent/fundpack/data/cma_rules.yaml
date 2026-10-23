@@ -1,0 +1,304 @@
+# Regulatory limits used to sanity-check an extraction, plus model rules the engine should apply.
+#
+# Source: CMA Real Estate Investment Funds Regulations (REIF Regs), Board resolution 1-193-2006 as amended
+# by 1-54-2025 (21/05/2025), and the CMA Glossary of Defined Terms. These regs govern PUBLIC real estate funds
+# and REITs. Private real estate funds fall under Part 5 of the Investment Funds Regulations and their T&Cs.
+# Those private-fund rules are NOT encoded here, so private funds only get the completeness checks.
+#
+# fund kinds: public_reif | reit_main | reit_parallel | private_re_fund | other
+# op: max (value <= limit), min (value >= limit), eq, false (value must be false), lte_months, info
+
+version: "2026-10-23"
+regulation_version: "REIF Regulations as amended by CMA Board resolution 1-54-2025 (21/05/2025)"
+
+checks:
+  - id: borrowing_cap_public
+    field: financing.max_borrowing_pct
+    op: max
+    limit: 50
+    applies_to: [public_reif, reit_main]
+    severity: error
+    en: Borrowing may not exceed 50% of total fund assets (per last reviewed financial statements).
+    ar: لا يجوز أن يتجاوز اقتراض الصندوق (50%) من إجمالي قيمة أصوله وفقاً لآخر قوائم مالية مراجعة.
+    source: REIF Regs art. 41(b)
+
+  - id: borrowing_cap_parallel_reit
+    field: financing.max_borrowing_pct
+    op: max
+    limit: 100
+    applies_to: [reit_parallel]
+    severity: error
+    en: A Parallel Market REIT may not borrow more than 100% of total fund assets.
+    ar: لا يجوز أن يتجاوز اقتراض الصندوق المتداول في السوق الموازية (100%) من إجمالي قيمة أصوله.
+    source: REIF Regs art. 41(b)
+
+  - id: reit_min_distribution
+    field: distributions.min_pct_of_net_profit
+    op: min
+    limit: 90
+    applies_to: [reit_main, reit_parallel]
+    severity: error
+    en: A REIT must distribute at least 90% of net profit annually.
+    ar: يجب ألا تقل الأرباح الموزعة على مالكي الوحدات عن (90%) من صافي أرباح الصندوق سنوياً.
+    source: REIF Regs art. 47(b)(2)
+
+  - id: reit_income_assets_min
+    field: investment_policy.income_producing_min_pct
+    op: min
+    limit: 75
+    applies_to: [reit_main]
+    severity: error
+    en: At least 75% of total assets must be in constructionally developed, income-producing real estate.
+    ar: يجب ألا تقل استثمارات الصندوق في العقارات المطورة تطويراً إنشائياً المدرة للدخل عن (75%) من إجمالي قيمة أصوله.
+    source: REIF Regs art. 47(b)(1)
+
+  - id: reit_development_cap
+    field: investment_policy.development_max_pct
+    op: max
+    limit: 25
+    applies_to: [reit_main]
+    severity: error
+    en: Development, redevelopment, repurchase agreements, cash/funds, usufruct, treasury units and debt instruments together are capped at 25% of total assets. A Parallel Market REIT is exempt at establishment.
+    ar: يجوز للصندوق استثمار ما لا يتجاوز (25%) من إجمالي قيمة أصوله في التطوير العقاري وغيره من الاستثمارات المحددة.
+    source: REIF Regs art. 47(b)(3)(a)
+
+  - id: reit_outside_ksa_cap
+    field: investment_policy.outside_ksa_max_pct
+    op: max
+    limit: 25
+    applies_to: [reit_main, reit_parallel]
+    severity: error
+    en: No more than 25% of total assets in real estate outside the Kingdom.
+    ar: لا يجوز استثمار أكثر من (25%) من إجمالي قيمة أصول الصندوق في عقارات خارج المملكة.
+    source: REIF Regs art. 47(b)(3)(c)
+
+  - id: reit_no_white_land
+    field: investment_policy.white_land_allowed
+    op: "false"
+    applies_to: [reit_main, reit_parallel]
+    severity: error
+    en: A REIT may not invest in white land.
+    ar: لا يجوز لمدير الصندوق المتداول الاستثمار في الأراضي البيضاء.
+    source: REIF Regs art. 47(b)(3)(a)
+
+  - id: reit_unit_nominal
+    field: capital.unit_nominal_value
+    op: eq
+    limit: 10
+    unit: SAR
+    applies_to: [reit_main, reit_parallel]
+    severity: error
+    en: REIT unit nominal value must be SAR 10.
+    ar: يجب أن تكون القيمة الاسمية للوحدة (10) ريالات سعودية.
+    source: REIF Regs art. 47(a)(3)
+
+  - id: reit_min_size_main
+    field: capital.target_size
+    op: min
+    limit: 500000000
+    unit: SAR
+    applies_to: [reit_main]
+    severity: error
+    en: Main Market REIT total assets must be at least SAR 500 million at establishment.
+    ar: يجب ألا تقل قيمة إجمالي أصول الصندوق عند التأسيس عن (500) مليون ريال للطرح في السوق الرئيسية.
+    source: REIF Regs art. 47(a)(2)
+
+  - id: reit_min_size_parallel
+    field: capital.target_size
+    op: min
+    limit: 100000000
+    unit: SAR
+    applies_to: [reit_parallel]
+    severity: error
+    en: Parallel Market REIT total assets must be at least SAR 100 million at establishment.
+    ar: يجب ألا تقل قيمة إجمالي أصول الصندوق عند التأسيس عن (100) مليون ريال للطرح في السوق الموازية.
+    source: REIF Regs art. 47(a)(2)
+
+  - id: reit_closed_ended
+    field: fund.structure
+    op: eq
+    limit: closed
+    applies_to: [reit_main, reit_parallel]
+    severity: error
+    en: A REIT must be closed-ended.
+    ar: يجب أن يكون الصندوق العقاري المتداول صندوقاً مقفلاً.
+    source: REIF Regs art. 47(a)(1)
+
+  - id: reit_single_tenant_cap
+    field: assets.max_single_tenant_share_pct
+    op: max
+    limit: 25
+    applies_to: [reit_main, reit_parallel]
+    severity: warning
+    en: At application for offering, returns from any one lessee may not exceed 25% of total fund returns.
+    ar: يجب ألا تتجاوز العوائد من أي مستأجر (25%) من إجمالي عوائد الصندوق عند تقديم طلب الطرح.
+    source: REIF Regs art. 48(d)
+
+  - id: valuation_frequency
+    field: valuation.frequency_months
+    op: max
+    limit: 6
+    applies_to: [public_reif, reit_main, reit_parallel]
+    severity: error
+    en: Real estate assets must be valued at least once every 6 months.
+    ar: يجب تقييم أصول الصندوق العقارية مرة كل (6) أشهر على الأقل.
+    source: REIF Regs art. 37(c)
+
+  - id: valuers_count
+    field: valuation.valuers_count
+    op: min
+    limit: 2
+    applies_to: [public_reif, reit_main, reit_parallel]
+    severity: error
+    en: Valuations must be prepared by two accredited valuers.
+    ar: يجب أن يكون التقييم معداً من قبل مقيمين معتمدين اثنين.
+    source: REIF Regs arts. 36(a), 37(c)
+
+  - id: valuer_rotation
+    field: valuation.valuer_rotation_years
+    op: max
+    limit: 5
+    applies_to: [public_reif, reit_main, reit_parallel]
+    severity: warning
+    en: Accredited valuers must be replaced at least every 5 years.
+    ar: يجب على مدير الصندوق استبدال المقيمين المعتمدين كل (5) سنوات بحد أقصى.
+    source: REIF Regs art. 36(h)
+
+  - id: offering_period_max
+    field: dates.offering_period_days
+    op: max
+    limit: 60
+    applies_to: [public_reif, reit_main, reit_parallel]
+    severity: error
+    en: The offering period may not exceed 60 days.
+    ar: يجب ألا تتجاوز فترة طرح صندوق الاستثمار العقاري (60) يوماً.
+    source: REIF Regs art. 39(g)
+
+  - id: liquidation_period_max
+    field: dates.liquidation_period_months
+    op: max
+    limit: 12
+    applies_to: [public_reif, reit_main, reit_parallel]
+    severity: error
+    en: Assets must be liquidated within 12 months of the end of the fund term.
+    ar: يجب تصفية أصول الصندوق خلال مدة أقصاها (12) شهراً من تاريخ انتهاء مدة الصندوق.
+    source: REIF Regs art. 44(i); Glossary (تصفية الصندوق)
+
+  - id: board_min_size
+    field: governance.board_size
+    op: min
+    limit: 3
+    applies_to: [public_reif, reit_main, reit_parallel]
+    severity: error
+    en: The fund board must have at least 3 members.
+    ar: يجب ألا يقل عدد أعضاء مجلس إدارة الصندوق عن ثلاثة.
+    source: REIF Regs art. 11(b)
+
+  - id: board_independents
+    field: governance.independent_directors
+    op: min_independents
+    applies_to: [public_reif, reit_main, reit_parallel]
+    severity: error
+    en: Independent directors must be at least 2 or one third of the board, whichever is greater.
+    ar: يجب ألا يقل عدد الأعضاء المستقلين عن عضوين أو ثلث عدد أعضاء المجلس أيهما أكثر.
+    source: REIF Regs art. 11(b)
+
+  - id: meeting_quorum_min
+    field: governance.meeting_quorum_pct
+    op: min
+    limit: 25
+    applies_to: [public_reif, reit_main, reit_parallel]
+    severity: warning
+    en: The quorum for a unitholders' meeting is at least 25% of units by value.
+    ar: النصاب اللازم لعقد اجتماع مالكي الوحدات (25%) على الأقل من قيمة الوحدات.
+    source: REIF Regs art. 24(i)
+
+  - id: ordinary_resolution_threshold
+    field: governance.ordinary_resolution_pct
+    op: min
+    limit: 50
+    applies_to: [public_reif, reit_main, reit_parallel, private_re_fund]
+    severity: warning
+    en: An ordinary fund resolution needs more than 50% of units present.
+    ar: قرار الصندوق العادي يتطلب موافقة أكثر من 50% من الوحدات الحاضرة.
+    source: CMA Glossary (قرار صندوق عادي)
+
+  - id: special_resolution_threshold
+    field: governance.special_resolution_pct
+    op: min
+    limit: 75
+    applies_to: [public_reif, reit_main, reit_parallel, private_re_fund]
+    severity: warning
+    en: A special fund resolution needs 75% or more of units present.
+    ar: القرار الخاص للصندوق يتطلب موافقة 75% أو أكثر من الوحدات الحاضرة.
+    source: CMA Glossary (قرار خاص للصندوق)
+
+  - id: fees_need_calc_method
+    field: fees
+    op: each_fee_complete
+    applies_to: [public_reif, reit_main, reit_parallel, private_re_fund]
+    severity: warning
+    en: Each fee must state its type, rate or amount, calculation method (basis) and payment frequency.
+    ar: يجب أن يوضح لكل رسم نوعه ونسبته أو مبلغه وطريقة احتسابه وتكرار دفعه.
+    source: REIF Regs Annex 1 item 9(b)-(c)
+
+# Rules the financial model must apply on its timeline (not just validation).
+model_rules:
+  - id: no_management_fee_in_liquidation
+    en: Stop the management fee from the start of liquidation.
+    ar: لا يحق لمدير الصندوق تقاضي أتعاب إدارة من تاريخ بدء تصفية الصندوق.
+    source: REIF Regs art. 44(n)
+  - id: no_fees_after_manager_removal
+    en: A removed fund manager may not charge management or other fees from the date of the CMA removal decision.
+    ar: لا يحق لمدير الصندوق المعزول تقاضي أتعاب إدارة أو أي رسوم أخرى من تاريخ قرار العزل.
+    source: REIF Regs art. 16(i)
+  - id: liquidation_window
+    en: Model the asset sale/liquidation within 12 months after the term ends.
+    ar: يجب تصفية الأصول خلال 12 شهراً من انتهاء مدة الصندوق.
+    source: REIF Regs art. 44(i)
+  - id: borrowing_test_basis
+    en: Test the borrowing cap against total asset value in the last reviewed financial statements, not current market value.
+    ar: يحتسب حد الاقتراض على أساس إجمالي قيمة الأصول وفق آخر قوائم مالية مراجعة.
+    source: REIF Regs art. 41(b)
+  - id: reit_distribution_floor
+    en: For REITs, distribute at least 90% of net profit (glossary definition, excluding OCI) each year.
+    ar: توزيع ما لا يقل عن 90% من صافي الأرباح سنوياً للصناديق المتداولة.
+    source: REIF Regs art. 47(b)(2); Glossary (صافي أرباح الصندوق)
+  - id: failed_offering_refund
+    en: If the minimum raise is not met, refund subscriptions in full within 5 days of the offering end.
+    ar: إذا لم يتم جمع الحد الأدنى تعاد مبالغ الاشتراك كاملة خلال (5) أيام من انتهاء الطرح.
+    source: REIF Regs art. 39(f)
+  - id: asset_transfer_after_offering
+    en: For REITs and capital increases, assume transfer of title or usufruct within 60 days after the offering ends.
+    ar: نقل ملكية العقار أو منفعته لصالح الصندوق خلال (60) يوماً من انتهاء فترة الطرح.
+    source: REIF Regs arts. 39(k)(4), 48(g)
+
+# Tax and levy defaults (inputs, not regulatory checks). Always prefer what the T&Cs and tax advice say.
+tax_defaults:
+  as_of: "2026-10-23"
+  items:
+    - id: rett_rate
+      value: 5.0
+      unit: pct_of_disposal_value
+      en: Real Estate Transaction Tax on transfers; exemptions exist (e.g. some in-kind/related transfers). Check the RETT Implementing Regulations (effective 10 Apr 2025).
+      source: RETT Law (Royal Decree M/84); ZATCA
+    - id: non_saudi_fee
+      value: 2.0
+      unit: pct_of_value
+      en: Additional fee for non-Saudi acquirers in four cities, on top of RETT. Applies only to foreign buyers.
+      source: REGA statement via Amlak (2026)
+    - id: vat_standard
+      value: 15.0
+      unit: pct
+      en: VAT standard rate; fund fees and commercial leases are generally standard-rated, residential leases generally exempt.
+      source: VAT Law
+    - id: zakat_rate_hijri
+      value: 2.5
+      unit: pct_of_zakat_base
+      en: Zakat rate for a Hijri year; prorate by days for a Gregorian year (about 2.5776%).
+      source: ZATCA Zakat Implementing Regulations (verify)
+    - id: white_land_fee_max
+      value: 10.0
+      unit: pct_of_assessed_value_per_year
+      en: White land fee up to 10% per year depending on zone (2.5%-10%); plots of 5,000 sqm or more inside urban boundaries.
+      source: White Land and Vacant Property Fees Law (amended 2025)

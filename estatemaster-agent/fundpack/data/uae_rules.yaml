@@ -1,0 +1,409 @@
+# UAE regulatory limits, model rules and dated tax/fee defaults for real estate funds and REITs.
+# Companion to cma_rules.yaml (Saudi). Built 2026-10-23.
+#
+# IMPORTANT - read before relying on any number here
+#   * The UAE has four regimes, not one. `jurisdiction` is part of every rule:
+#       UAE_ONSHORE  federal regime, mainland. Regulator: the UAE Capital Market Authority (CMA), which replaced the
+#                    Securities and Commodities Authority (SCA) on 1 Jan 2026 under Federal Law 32/2025; Federal Law
+#                    33/2025 on Capital Market Regulation replaces the old SCA regime. NAME CLASH: this is NOT the
+#                    Saudi CMA (Arabic: UAE هيئة سوق المال vs Saudi هيئة السوق المالية). Always set fund.jurisdiction.
+#       DIFC         Dubai International Financial Centre, regulator DFSA (Collective Investment Rules, CIR).
+#       ADGM         Abu Dhabi Global Market, regulator FSRA (Fund Rules, FUNDS).
+#   * Unlike the Saudi pack, these limits come from law-firm summaries and regulator news pages, not from reading the
+#     rule text. Each rule carries `confidence`:
+#       secondary = reported consistently by one or more law-firm sources; not checked against the rule text
+#       low       = single source, or the source is dated; treat as a prompt to check, not as a finding of breach
+#   * The onshore regime is in transition (implementing regulations under Law 33/2025 were not yet issued as at the
+#     sources used; transition to 1 Jan 2027). The 2019 SCA real estate fund controls (Administrative Decision
+#     6/R.T of 2019) are the last rules we have a summary of. Re-verify onshore limits before relying on them.
+#   * Severity: `error` only where several sources agree. Everything else is `warning`.
+#
+# op: max | min | eq | false | arabic_required | qif_diversity
+# optional keys: basis (the denominator the limit is defined on; skipped with an info note if the document uses a
+#                different basis), when (dotted field that must be true for the rule to apply),
+#                unless (dotted field that, if true, disables the rule)
+# kinds: reit_public | reit_private | property_fund_public | property_fund_exempt | property_fund_qif |
+#        property_fund_private | other
+
+version: "2026-10-23"
+regulation_version: "UAE: SCA/CMA real estate fund controls (Admin. Decision 6/R.T of 2019, per secondary sources); DFSA CIR property funds; FSRA Fund Rules (VER06.250521 per secondary source); Cabinet Decision 34 of 2025 (QIF/REIT tax)"
+
+checks:
+  # ---------------------------------------------------------------- UAE onshore (CMA, formerly SCA)
+  - id: uae_on_borrowing_cap
+    jurisdiction: [UAE_ONSHORE]
+    field: financing.max_borrowing_pct
+    op: max
+    limit: 50
+    basis: total_assets
+    applies_to: [reit_public, reit_private]
+    severity: warning
+    confidence: secondary
+    en: "UAE onshore REIT borrowing is capped at 50% of total asset value, from a UAE-licensed bank."
+    ar: "يُحدَّد سقف اقتراض الصندوق العقاري المتداول داخل الدولة بـ(50%) من إجمالي قيمة الأصول، من بنك مرخص في الدولة."
+    source: "SCA Admin. Decision 6/R.T of 2019 (per Al Tamimi, May 2019 and Apr 2020)"
+
+  - id: uae_on_income_assets_public
+    jurisdiction: [UAE_ONSHORE]
+    field: investment_policy.income_producing_min_pct
+    op: min
+    limit: 75
+    applies_to: [reit_public]
+    severity: warning
+    confidence: secondary
+    en: "A public UAE onshore REIT must hold at least 75% of total assets in income-generating real estate."
+    ar: "يجب ألا تقل نسبة الأصول العقارية المدرّة للدخل في الصندوق العقاري المتداول العام عن (75%) من إجمالي الأصول."
+    source: "SCA Admin. Decision 6/R.T of 2019 (per Al Tamimi)"
+
+  - id: uae_on_revenue_90
+    jurisdiction: [UAE_ONSHORE]
+    field: investment_policy.income_revenue_min_pct
+    op: min
+    limit: 90
+    applies_to: [reit_public]
+    severity: warning
+    confidence: secondary
+    en: "At least 90% of a public UAE onshore REIT's total revenue must come from real estate, interest, dividends and capital gains tied to income-generating real estate."
+    ar: "يجب ألا تقل نسبة الإيرادات المتأتية من العقارات والفوائد وأرباح الأسهم والأرباح الرأسمالية المرتبطة بعقارات مدرّة للدخل عن (90%) من إجمالي الإيرادات."
+    source: "SCA Admin. Decision 6/R.T of 2019 (per Al Tamimi)"
+
+  - id: uae_on_distribution_80
+    jurisdiction: [UAE_ONSHORE]
+    field: distributions.min_pct_of_net_profit
+    op: min
+    limit: 80
+    applies_to: [reit_public]
+    severity: error
+    confidence: secondary
+    en: "A public UAE onshore REIT must distribute at least 80% of net profit to unitholders each year."
+    ar: "يجب على الصندوق العقاري المتداول العام توزيع ما لا يقل عن (80%) من صافي الأرباح على مالكي الوحدات سنوياً."
+    source: "SCA Admin. Decision 6/R.T of 2019 (per Al Tamimi, two articles)"
+
+  - id: uae_on_service_companies_20
+    jurisdiction: [UAE_ONSHORE]
+    field: assets.service_companies_pct
+    op: max
+    limit: 20
+    applies_to: [reit_public, reit_private]
+    severity: warning
+    confidence: secondary
+    en: "Investment in real estate service companies may not exceed 20% of total assets."
+    ar: "يجب ألا تتجاوز الاستثمارات في شركات الخدمات العقارية (20%) من إجمالي الأصول."
+    source: "SCA Admin. Decision 6/R.T of 2019 (per Al Tamimi)"
+
+  - id: uae_on_usufruct_25
+    jurisdiction: [UAE_ONSHORE]
+    field: assets.usufruct_pct_net_assets
+    op: max
+    limit: 25
+    applies_to: [reit_public]
+    severity: warning
+    confidence: low
+    en: "Usufruct rights with under 30 years remaining may not exceed 25% of net assets in a public REIT."
+    ar: "يجب ألا تتجاوز حقوق الانتفاع التي تقل مدتها المتبقية عن (30) سنة نسبة (25%) من صافي الأصول في الصندوق العقاري العام."
+    source: "SCA Admin. Decision 6/R.T of 2019 (per Al Tamimi, Apr 2020; single source)"
+
+  - id: uae_on_valuation_validity_3m
+    jurisdiction: [UAE_ONSHORE]
+    field: valuation.report_validity_months
+    op: max
+    limit: 3
+    applies_to: [reit_public, reit_private]
+    severity: warning
+    confidence: secondary
+    en: "A valuation report may be relied on for three months from its issue date; assets must be valued before acquisition or disposal."
+    ar: "يجوز الاعتماد على تقرير التقييم لمدة ثلاثة أشهر من تاريخ إصداره، ويجب تقييم الأصول قبل الاستحواذ عليها أو التصرف فيها."
+    source: "SCA Admin. Decision 6/R.T of 2019 (per Al Tamimi, May 2019)"
+
+  - id: uae_on_arabic_documents
+    jurisdiction: [UAE_ONSHORE]
+    field: document.language
+    op: arabic_required
+    applies_to: [reit_public, reit_private, property_fund_public, property_fund_private]
+    severity: warning
+    confidence: low
+    en: "Onshore fund documents must be available in Arabic. The document appears to be English only."
+    ar: "يجب أن تتوفر مستندات الصندوق داخل الدولة باللغة العربية. يبدو أن المستند باللغة الإنجليزية فقط."
+    source: "Al Tamimi, Apr 2020 (single source; confirm current requirement)"
+
+  # ---------------------------------------------------------------- DIFC (DFSA)
+  - id: difc_reit_distribution_80
+    jurisdiction: [DIFC]
+    field: distributions.min_pct_of_net_profit
+    op: min
+    limit: 80
+    applies_to: [reit_public, reit_private]
+    severity: error
+    confidence: secondary
+    en: "A DIFC REIT must distribute at least 80% of audited annual net income."
+    ar: "يجب على الصندوق العقاري المتداول في مركز دبي المالي العالمي توزيع ما لا يقل عن (80%) من صافي الدخل السنوي المدقق."
+    source: "DFSA CIR (per Al Tamimi Apr 2020; Kayrouz Mar 2026)"
+
+  - id: difc_reit_development_cap_30
+    jurisdiction: [DIFC]
+    field: investment_policy.development_max_pct_nav
+    op: max
+    limit: 30
+    basis: nav
+    applies_to: [reit_public, reit_private]
+    severity: warning
+    confidence: secondary
+    en: "Development property held on completion may not exceed 30% of the fund property's net asset value."
+    ar: "يجب ألا يتجاوز العقار قيد التطوير (30%) من صافي قيمة أصول الصندوق."
+    source: "DFSA CIR (per Al Tamimi Apr 2020)"
+
+  - id: difc_public_property_closed_ended
+    jurisdiction: [DIFC, ADGM]
+    field: fund.structure
+    op: eq
+    limit: closed
+    applies_to: [reit_public, reit_private, property_fund_public, property_fund_exempt, property_fund_qif]
+    severity: warning
+    confidence: secondary
+    en: "DFSA property funds must be closed-ended; REITs in DIFC and ADGM are closed-ended."
+    ar: "يجب أن تكون صناديق العقارات في مركز دبي المالي العالمي مقفلة؛ وكذلك الصناديق العقارية المتداولة في المركزين."
+    source: "Kayrouz Mar 2026; BSA Jun 2023"
+
+  - id: difc_public_property_listing_36m
+    jurisdiction: [DIFC]
+    field: dates.listing_deadline_months
+    op: max
+    limit: 36
+    applies_to: [property_fund_public]
+    severity: warning
+    confidence: low
+    en: "A DIFC public property fund must list within three years of first offering units."
+    ar: "يجب إدراج صندوق العقارات العام في مركز دبي المالي العالمي خلال ثلاث سنوات من أول طرح للوحدات."
+    source: "DFSA CIR (per Al Tamimi Apr 2020; single, dated source)"
+
+  - id: difc_public_property_borrowing_50
+    jurisdiction: [DIFC]
+    field: financing.max_borrowing_pct
+    op: max
+    limit: 50
+    basis: asset_value
+    applies_to: [property_fund_public]
+    severity: warning
+    confidence: low
+    en: "Public property funds in DIFC are capped at 50% of gross asset value. Exempt funds and QIFs have more flexibility."
+    ar: "يُحدَّد سقف اقتراض صناديق العقارات العامة في مركز دبي المالي العالمي بـ(50%) من إجمالي قيمة الأصول، وللصناديق المعفاة وصناديق المستثمرين المؤهلين مرونة أكبر."
+    source: "Kayrouz Mar 2026 (single source; DFSA text not checked)"
+
+  - id: difc_exempt_min_subscription
+    jurisdiction: [DIFC, ADGM]
+    field: capital.minimum_subscription_usd
+    op: min
+    limit: 50000
+    applies_to: [property_fund_exempt]
+    severity: warning
+    confidence: secondary
+    en: "Exempt Funds require a minimum initial subscription of USD 50,000 and professional-client investors."
+    ar: "يتطلب الصندوق المعفى حداً أدنى للاشتراك الأولي قدره (50,000) دولار أمريكي ومستثمرين من العملاء المحترفين."
+    source: "Kayrouz Mar 2026 (DFSA); BSA Jun 2023 (ADGM)"
+
+  # ---------------------------------------------------------------- ADGM (FSRA)
+  - id: adgm_reit_distribution_80
+    jurisdiction: [ADGM]
+    field: distributions.min_pct_of_net_profit
+    op: min
+    limit: 80
+    applies_to: [reit_public, reit_private]
+    severity: error
+    confidence: secondary
+    en: "An ADGM REIT must distribute at least 80% of audited annual net income; a fund may use the REIT label only if it is primarily income-generating and does so."
+    ar: "يجب على الصندوق العقاري المتداول في سوق أبوظبي العالمي توزيع ما لا يقل عن (80%) من صافي الدخل السنوي المدقق."
+    source: "FSRA Fund Rules (per BSA Jun 2023; Al Tamimi Apr 2020)"
+
+  - id: adgm_reit_borrowing_70_nav
+    jurisdiction: [ADGM]
+    field: financing.max_borrowing_pct
+    op: max
+    limit: 70
+    basis: nav
+    applies_to: [reit_public, reit_private]
+    severity: warning
+    confidence: low
+    en: "ADGM REIT borrowing is reported as capped at 70% of net asset value. Check the current FSRA Fund Rules; note the basis is NAV, not gross assets."
+    ar: "يُذكر أن سقف اقتراض الصندوق العقاري المتداول في سوق أبوظبي العالمي (70%) من صافي قيمة الأصول. يُرجى التحقق من قواعد الصناديق الحالية، مع ملاحظة أن الأساس هو صافي قيمة الأصول وليس إجمالي الأصول."
+    source: "BSA Jun 2023 summary of FSRA Fund Rules (single, dated source)"
+
+  - id: adgm_qif_min_subscription
+    jurisdiction: [ADGM]
+    field: capital.minimum_subscription_usd
+    op: min
+    limit: 500000
+    applies_to: [property_fund_qif]
+    severity: warning
+    confidence: secondary
+    en: "ADGM Qualified Investor Funds require a minimum initial subscription of USD 500,000."
+    ar: "تتطلب صناديق المستثمرين المؤهلين في سوق أبوظبي العالمي حداً أدنى للاشتراك الأولي قدره (500,000) دولار أمريكي."
+    source: "BSA Jun 2023 (FSRA Fund Rules)"
+
+  # ---------------------------------------------------------------- UAE Corporate Tax (all UAE regimes)
+  - id: uae_reit_exempt_size_100m
+    jurisdiction: [UAE_ONSHORE, DIFC, ADGM]
+    field: assets.immovable_property_value_aed
+    op: min
+    limit: 100000000
+    when: fund.reit_tax_exempt
+    applies_to: [reit_public, reit_private, property_fund_public, property_fund_exempt, property_fund_qif]
+    severity: warning
+    confidence: secondary
+    en: "REIT corporate-tax exemption needs immovable property (excluding land) owned or managed above AED 100 million."
+    ar: "يشترط لإعفاء الصندوق العقاري المتداول من ضريبة الشركات أن تتجاوز قيمة العقارات (دون الأراضي) المملوكة أو المدارة (100) مليون درهم."
+    source: "Cabinet Decision 34 of 2025 (per Kayrouz Mar 2026)"
+
+  - id: uae_reit_exempt_single_holder_50
+    jurisdiction: [UAE_ONSHORE, DIFC, ADGM]
+    field: investors.max_single_holder_pct
+    op: max
+    limit: 50
+    when: fund.reit_tax_exempt
+    unless: investors.max_single_holder_is_government
+    applies_to: [reit_public, reit_private]
+    severity: warning
+    confidence: secondary
+    en: "For REIT tax exemption no single investor, other than a government entity, may hold more than 50%; the REIT must be widely held and diversified."
+    ar: "يشترط لإعفاء الصندوق العقاري المتداول ألا يمتلك مستثمر واحد، غير الجهة الحكومية، أكثر من (50%)، وأن يكون الصندوق واسع الملكية ومتنوعاً."
+    source: "Cabinet Decision 34 of 2025 (per Kayrouz Mar 2026)"
+
+  - id: uae_qif_diversity
+    jurisdiction: [UAE_ONSHORE, DIFC, ADGM]
+    field: investors.max_single_holder_pct
+    op: qif_diversity
+    limit: {fewer_than_10_investors: 30, ten_or_more_investors: 50}
+    when: fund.reit_tax_exempt
+    applies_to: [property_fund_exempt, property_fund_qif, property_fund_private]
+    severity: warning
+    confidence: secondary
+    en: "QIF diversity of control: with fewer than 10 investors, a juridical investor and related parties at 30% or more of ownership, profits or board control cost the fund its exemption; with 10 or more investors the threshold is 50%. A two-year grace period applies from launch."
+    ar: "شرط تنوع الملكية في الصندوق الاستثماري المؤهل: إذا قل عدد المستثمرين عن (10) فإن بلوغ مستثمر اعتباري وأطرافه ذات العلاقة (30%) فأكثر من الملكية أو الأرباح أو مقاعد المجلس يُسقط الإعفاء؛ وإذا بلغ العدد (10) فأكثر فالحد (50%). وتُمنح مهلة سنتين من تاريخ البدء."
+    source: "Cabinet Decision 34 of 2025 (per Simmons & Simmons)"
+
+  - id: fees_need_calc_method_uae
+    jurisdiction: [UAE_ONSHORE, DIFC, ADGM]
+    field: fees
+    op: each_fee_complete
+    applies_to: [reit_public, reit_private, property_fund_public, property_fund_exempt, property_fund_qif, property_fund_private]
+    severity: warning
+    confidence: primary
+    en: "Every fee needs a rate or amount, a calculation basis and a payment frequency for the model."
+    ar: "يلزم لكل رسم نسبة أو مبلغ وأساس احتساب وتكرار دفع حتى يتمكن النموذج من احتسابه."
+    source: "Modelling requirement (not a regulation)"
+
+model_rules:
+  - id: uae_ct_standard_9
+    jurisdiction: [UAE_ONSHORE, DIFC, ADGM]
+    en: "Taxable entities pay 9% UAE Corporate Tax on taxable income above AED 375,000. A fund that qualifies as a REIT or QIF is exempt at fund level; confirm the status per fund before switching tax off."
+    ar: "تخضع الكيانات الخاضعة للضريبة لضريبة شركات بنسبة (9%) على الدخل الخاضع للضريبة الذي يتجاوز (375,000) درهم. ويُعفى الصندوق المؤهل كصندوق عقاري متداول أو صندوق استثماري مؤهل على مستوى الصندوق؛ يلزم تأكيد الوضع قبل إلغاء الضريبة في النموذج."
+    source: "Federal Decree-Law 47 of 2022; Cabinet Decision 34 of 2025"
+
+  - id: uae_investor_80pct_inclusion
+    jurisdiction: [UAE_ONSHORE, DIFC, ADGM]
+    en: "Model investor-level tax separately: corporate investors in a REIT, or in a QIF holding more than 10% UAE immovable property, are taxed on 80% of their share of immovable-property income. Individuals are not subject to corporate tax on REIT distributions."
+    ar: "يُحتسب الضريبة على مستوى المستثمر بشكل منفصل: يخضع المستثمرون الاعتباريون في الصندوق العقاري المتداول، أو في صندوق مؤهل تتجاوز عقاراته في الدولة (10%) من أصوله، للضريبة على (80%) من حصتهم من دخل العقارات. ولا يخضع الأفراد لضريبة الشركات على توزيعات الصندوق العقاري المتداول."
+    source: "Cabinet Decision 34 of 2025 (per Simmons & Simmons; Kayrouz)"
+
+  - id: uae_free_zone_spv_taxed
+    jurisdiction: [UAE_ONSHORE, DIFC, ADGM]
+    en: "A free-zone SPV that rents mainland property is still taxed at 9%: UAE immovable-property income is an excluded activity for Qualifying Free Zone Persons. Do not apply a 0% free-zone rate to such an SPV."
+    ar: "تخضع شركة الغرض الخاص في المنطقة الحرة التي تؤجر عقارات داخل الدولة لضريبة (9%) لأن دخل العقارات في الدولة نشاط مستثنى للشخص المؤهل في المنطقة الحرة. لا يُطبَّق معدل (0%) على هذه الشركة."
+    source: "Kayrouz Mar 2026 (QFZP excluded activities)"
+
+  - id: uae_no_distribution_wht
+    jurisdiction: [UAE_ONSHORE, DIFC, ADGM]
+    en: "UAE has no personal income tax and no withholding tax on distributions to resident or non-resident unitholders as far as the sources used here state. Confirm with a tax adviser before modelling net-of-tax returns for foreign investors."
+    ar: "لا توجد في الدولة ضريبة دخل شخصي ولا ضريبة استقطاع على التوزيعات للمستثمرين المقيمين وغير المقيمين بحسب المصادر المستخدمة. يلزم التأكد من مستشار ضريبي قبل احتساب العوائد الصافية للمستثمرين الأجانب."
+    source: "General position; verify (not confirmed in this build)"
+
+  - id: uae_acquisition_costs_dld
+    jurisdiction: [UAE_ONSHORE, DIFC, ADGM]
+    en: "In Dubai, model acquisition costs from the Dubai Land Department fee schedule (transfer fee 4% of price plus trustee, admin and mortgage registration fees; see tax_defaults) and add them to the all-in cost of each asset. They are cash costs and normally cannot be debt-financed."
+    ar: "في دبي تُحتسب تكاليف الاستحواذ وفق جدول رسوم دائرة الأراضي والأملاك (رسم نقل الملكية (4%) من السعر إضافة إلى رسوم مكتب الأمين والرسوم الإدارية وتسجيل الرهن) وتُضاف إلى التكلفة الإجمالية لكل أصل. وهي تكاليف نقدية ولا يمكن تمويلها عادةً بقرض."
+    source: "Property Finder, DLD fees guide (Jul 2026); verify with DLD"
+
+  - id: uae_weekend_and_dates
+    jurisdiction: [UAE_ONSHORE, DIFC, ADGM]
+    en: "UAE documents are almost always Gregorian-dated. The federal working week is Monday to Friday (half day Friday) with a Saturday-Sunday weekend since 2022; do not apply the Saudi Friday-Saturday weekend or Hijri year logic to UAE funds unless the document says so. Eid holidays still follow the Hijri calendar."
+    ar: "تُؤرَّخ مستندات الدولة بالتقويم الميلادي غالباً. أسبوع العمل الاتحادي من الاثنين إلى الجمعة (نصف يوم الجمعة) والعطلة السبت والأحد منذ عام 2022؛ لا تُطبَّق عطلة الجمعة والسبت السعودية ولا منطق السنة الهجرية على الصناديق الإماراتية ما لم ينص المستند على ذلك. وتتبع عطلات الأعياد التقويم الهجري."
+    source: "UAE federal weekend change effective 1 Jan 2022 (general knowledge; verify)"
+
+tax_defaults:
+  as_of: "2026-10-23"
+  note: "Dated defaults for a model's starting assumptions. Not tax advice. Each item says how well it was verified."
+  items:
+    - id: uae_ct_rate
+      value: 9.0
+      unit: pct_above_threshold
+      threshold_aed: 375000
+      confidence: secondary
+      en: "UAE Corporate Tax 9% on taxable income above AED 375,000."
+      source: "Kayrouz Mar 2026"
+    - id: uae_reit_qif_investor_inclusion
+      value: 80.0
+      unit: pct_of_immovable_property_income_taxed_for_corporate_investors
+      confidence: secondary
+      en: "Corporate investors in a REIT (or a QIF with more than 10% UAE immovable property) are taxed on 80% of that income."
+      source: "Cabinet Decision 34 of 2025 (Simmons & Simmons; Kayrouz)"
+    - id: dubai_dld_transfer_fee
+      value: 4.0
+      unit: pct_of_purchase_price
+      jurisdiction: Dubai
+      confidence: secondary
+      en: "Dubai transfer fee 4% of declared price (legally 2% buyer, 2% seller, usually all paid by the buyer); admin/title deed fee about AED 580 for most ready units."
+      source: "Property Finder, DLD fees guide (updated 3 Jul 2026); marketing blog, not official; verify with DLD"
+    - id: dubai_trustee_fee
+      value: [2000, 4000]
+      unit: aed_plus_5pct_vat
+      jurisdiction: Dubai
+      confidence: secondary
+      en: "Trustee office fee AED 2,000 for property under AED 500,000, AED 4,000 above, plus 5% VAT."
+      source: "Property Finder, DLD fees guide (Jul 2026)"
+    - id: dubai_mortgage_registration
+      value: 0.25
+      unit: pct_of_loan_plus_aed_290
+      jurisdiction: Dubai
+      confidence: secondary
+      en: "Mortgage registration 0.25% of the loan amount plus about AED 290 admin fee."
+      source: "Property Finder, DLD fees guide (Jul 2026)"
+    - id: uae_brokerage_norm
+      value: 2.0
+      unit: pct_of_price_plus_5pct_vat
+      confidence: secondary
+      en: "Brokerage commonly 2% of price plus 5% VAT, usually paid by the buyer. Institutional deals negotiate this."
+      source: "Property Finder, DLD fees guide (Jul 2026)"
+    - id: uae_vat_rate
+      value: 5.0
+      unit: pct
+      confidence: secondary
+      en: "UAE VAT 5% (confirmed on commissions and trustee fees in the source). Commercial leases and sales are generally standard-rated; residential leases are generally exempt; first supply of new residential within three years is generally zero-rated. The treatment of fund management fees depends on the fund type. Verify each."
+      source: "Federal Decree-Law 8 of 2017; Property Finder (5% on commission); rest is general knowledge, not verified in this build"
+    - id: abu_dhabi_registration_fee
+      value: 2.0
+      unit: pct_of_price
+      jurisdiction: Abu Dhabi
+      confidence: low
+      en: "Abu Dhabi registration fee is commonly cited as 2% of price. NOT verified in this build; check the Abu Dhabi Department of Municipalities and Transport / ADREC."
+      source: "General knowledge; unverified"
+    - id: dubai_escrow_retention
+      value: 5.0
+      unit: pct_retention_for_five_years
+      jurisdiction: Dubai
+      confidence: low
+      en: "Dubai escrow rules (Law 8 of 2007) hold buyers' off-plan payments in a project escrow account; a 5% retention for five years after completion is commonly cited. NOT verified in this build."
+      source: "General knowledge; Kayrouz 2026 confirms the escrow law but not the percentage"
+
+conventions:
+  as_of: "2026-10-23"
+  calendar:
+    primary: gregorian
+    hijri_use: "Eid and some religious holidays only; documents are Gregorian-dated, sometimes with a Hijri equivalent."
+    weekend: "Saturday-Sunday (federal, since 1 Jan 2022). Verify per emirate and per private-sector fund manager."
+    fiscal_year: "Usually calendar year; UAE Corporate Tax period follows the entity's financial year."
+  language:
+    onshore: "Arabic documents required onshore (verify); DIFC and ADGM documents are in English."
+  lease_registration:
+    dubai: "Leases under 10 years are registered with RERA (Ejari); 10-99 years with the DLD Real Estate Register."
+    abu_dhabi: "Leases under 4 years are registered on Tawtheeq."
+    source: "Kayrouz & Associates, UAE real estate laws 2026"
+  foreign_ownership: "Foreigners can own freehold in designated freehold areas, free zones and investment areas; elsewhere on the mainland, leases of 50 or 90 years."

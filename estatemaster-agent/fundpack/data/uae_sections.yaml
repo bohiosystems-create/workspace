@@ -1,0 +1,27 @@
+# Expected sections of a UAE real estate fund offering document (prospectus / offering memorandum / fund constitution
+# / T&Cs). Unlike Saudi CMA Annex 1 there is NO single mandated order for UAE funds: DFSA CIR and FSRA Fund Rules
+# prescribe prospectus CONTENT for public funds, onshore rules prescribe their own, and exempt/QIF/private documents
+# follow market practice. So this is a locating and completeness aid, all `market_usage`: search by meaning.
+# Arabic onshore documents may use different headings; add what you see.
+version: "2026-10-23"
+sections:
+  - {n: 1,  en: "Key facts / summary of terms", ar: ["ملخص الشروط", "نبذة عن الصندوق", "الحقائق الرئيسية"], schema: [fund, dates, capital], model_critical: true}
+  - {n: 2,  en: "Fund structure and vehicle", ar: ["هيكل الصندوق", "الشكل القانوني للصندوق"], schema: [fund.kind, fund.jurisdiction, fund.structure], model_critical: true}
+  - {n: 3,  en: "Regulatory status and eligible investors", ar: ["الوضع التنظيمي", "المستثمرون المؤهلون", "فئات المستثمرين"], schema: [fund.jurisdiction, fund.eligible_investors, capital.minimum_subscription_usd], model_critical: true}
+  - {n: 4,  en: "Investment objective and policy", ar: ["الهدف الاستثماري", "سياسة الاستثمار"], schema: [investment_policy], model_critical: true}
+  - {n: 5,  en: "Investment restrictions and borrowing limits", ar: ["قيود الاستثمار", "حدود الاقتراض", "سياسة التمويل"], schema: [financing, investment_policy], model_critical: true}
+  - {n: 6,  en: "Term, extensions and liquidation", ar: ["مدة الصندوق", "التمديد", "التصفية"], schema: [dates.term_years, dates.extensions, dates.liquidation_period_months], model_critical: true}
+  - {n: 7,  en: "Subscription, units and capital calls", ar: ["الاشتراك", "الوحدات", "طلبات رأس المال"], schema: [capital], model_critical: true}
+  - {n: 8,  en: "Fees, expenses and performance fee", ar: ["الرسوم والمصاريف", "أتعاب الأداء", "الرسوم"], schema: [fees, performance_fee, fees_summary], model_critical: true}
+  - {n: 9,  en: "Distributions", ar: ["التوزيعات", "سياسة التوزيع"], schema: [distributions], model_critical: true}
+  - {n: 10, en: "Valuation and NAV", ar: ["التقييم", "صافي قيمة الأصول"], schema: [valuation], model_critical: true}
+  - {n: 11, en: "Redemption, transfer and liquidity", ar: ["الاسترداد", "نقل الوحدات", "السيولة"], schema: [exit, fund.structure], model_critical: false}
+  - {n: 12, en: "Listing (REITs and public funds)", ar: ["الإدراج"], schema: [fund.listing_market, dates.listing_deadline_months], model_critical: false}
+  - {n: 13, en: "Parties: manager, trustee, custodian, valuer, auditor", ar: ["الأطراف", "مدير الصندوق", "الأمين", "أمين الحفظ", "المقيّم", "مراجع الحسابات"], schema: [parties], model_critical: false}
+  - {n: 14, en: "Governance: board, investment committee, Sharia board", ar: ["الحوكمة", "مجلس الإدارة", "لجنة الاستثمار", "هيئة الرقابة الشرعية"], schema: [governance, parties.shariah_board], model_critical: false}
+  - {n: 15, en: "Conflicts of interest and related-party transactions", ar: ["تعارض المصالح", "التعامل مع الأطراف ذات العلاقة"], schema: [open_questions], model_critical: false}
+  - {n: 16, en: "Taxation", ar: ["الضرائب", "المعاملة الضريبية"], schema: [taxes, fund.reit_tax_exempt, investors], model_critical: true}
+  - {n: 17, en: "Risk factors", ar: ["عوامل المخاطر", "المخاطر"], schema: [fund], model_critical: false}
+  - {n: 18, en: "Property portfolio, development and leasing", ar: ["المحفظة العقارية", "التطوير", "التأجير"], schema: [assets, development], model_critical: true}
+  - {n: 19, en: "Financial year, reporting, meetings", ar: ["السنة المالية", "التقارير", "اجتماعات مالكي الوحدات"], schema: [dates.fiscal_year_end], model_critical: true}
+  - {n: 20, en: "Governing law and dispute resolution", ar: ["القانون الواجب التطبيق", "تسوية المنازعات"], schema: [document], model_critical: false}
