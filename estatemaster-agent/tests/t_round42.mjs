@@ -33,6 +33,11 @@ ok(r.ref==='Returns!B3'&&/#NUM!.*never changes sign/.test(r.md)&&/No line of the
 r=await p.evaluate(async()=>{const x=latestExport();const a={checks:[],steps:[]};await auEvidence(x,a);return a.checks.map(c=>c.level+' '+c.code+' '+c.text)});
 ok(r.some(t=>/^error error-cell .*Side check.*#REF!/.test(t))&&r.some(t=>/error-cell .*Fee IRR.*#NUM!/.test(t))&&!r.some(t=>/ kink /.test(t)),'the debug reports the #REF! (an error) and the IRR with no root, with no false threshold on a low return',r);
 
+// 4b. LET and XLOOKUP on the path to the IRR (the LibreOffice in CI cannot referee them): by hand, Base −60M then 45M twice (IRR 31.87%, profit 30M), Low 39M twice (19.43%, 18M)
+await up('r42_modern_usd.xlsx');r=await p.evaluate(async()=>{const [b,l]=await xcQ(()=>xcCall({op:'run',runs:[[],[['Inputs!B2','Low']]],read:['Returns!B1','Returns!B2']}));return{b,l}});
+const irrOf=(c)=>{let lo=0,hi=1;for(let i=0;i<200;i++){const m=(lo+hi)/2,v=c.reduce((s,x,t)=>s+x/(1+m)**t,0);v>0?lo=m:hi=m}return lo};
+ok(near(r.b[0],irrOf([-60e6,45e6,45e6]),1e-8)&&r.b[1]===30e6&&near(r.l[0],irrOf([-60e6,39e6,39e6]),1e-8)&&r.l[1]===18e6,'LET and XLOOKUP recalculate as the hand calculation, in the base and the Low case',r);
+
 // 5. a damaged file is said plainly; a path in a file name is dropped
 await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',{name:'cut.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:fs.readFileSync(F+'r33_waha_sar.xlsx').subarray(0,3000)});await p.waitForTimeout(3500);
 r=await p.evaluate(()=>({info:document.querySelector('#npInfo').innerText,dis:document.querySelector('#npCreate').disabled}));await p.evaluate(()=>document.querySelector('#npModal').classList.remove('on'));
