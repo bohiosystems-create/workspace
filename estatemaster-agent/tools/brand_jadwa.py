@@ -220,7 +220,7 @@ EM_WORDS = [
     ("EstateMaster\u2019s own figure", "the workbook\u2019s own figure"), ("EstateMaster\u2019s own cash flow", "the workbook\u2019s own cash flow"),
     ("EstateMaster\u2019s own", "the workbook\u2019s own"), ("EstateMaster\u2019s", "the workbook\u2019s"), ("EstateMaster's", "the workbook's"),
     ("EstateMaster exports", "workbook versions"), ("EstateMaster export", "workbook version"), ("EstateMaster figures", "the workbook\u2019s figures"),
-    ("EstateMaster figure", "workbook figure"), ("EstateMaster model", "Excel model"), ("EstateMaster outputs", "the workbook\u2019s outputs"),
+    ("an EstateMaster figure", "a workbook figure"), ("EstateMaster figure", "workbook figure"), ("EstateMaster model", "Excel model"), ("EstateMaster outputs", "the workbook\u2019s outputs"),
     ("AI agent on EstateMaster", "AI agent on the model"), ("ARGUS EstateMaster figures and", "the"), ("EstateMaster is the trusted layer", "the workbook is the trusted layer"),
     ("from EstateMaster", "from the workbook"), ("(export ${x.id}", "(version ${x.id}"), (" (export ${x.id})", " (version ${x.id})"), ("option ${optOf(x)})", "case ${optOf(x)})"), ("No return figures found in the export.", "No return figures found in the workbook."), ("No exports yet", "No workbook versions yet"), ("No exports", "No workbook versions"), ("exports yet", "workbook versions yet"), ("by the latest export", "by the latest version"), ("latest export", "latest version"), ("in EstateMaster", "in the workbook"), ("EstateMaster", "the Excel model"),
 ]

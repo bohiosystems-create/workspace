@@ -1,0 +1,18 @@
+{
+ "note": "demo_nakheel_gate_v2.xlsx recalculated by LibreOffice: [levered IRR, minimum DSCR, maximum LTV in operation]",
+ "base": [
+  0.10682882304730415,
+  1.1908273737100918,
+  0.5585524395071595
+ ],
+ "k3": [
+  0.030897725699850248,
+  0.9616993166966087,
+  0.614361309790695
+ ],
+ "k3_no_saibor": [
+  0.045750671687431466,
+  1.105925765921088,
+  0.6038895790022518
+ ]
+}
