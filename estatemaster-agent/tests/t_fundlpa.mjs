@@ -27,7 +27,8 @@ const SEEN={read:[],map:0};
 await p.route(/api\.anthropic\.com|api\.openai\.com|\/api\/llm/,async r=>{if(r.request().method()==='GET')return r.fulfill({status:200,contentType:'application/json',body:'{"providers":{"anthropic":true,"openai":true}}'});
   let body={};try{body=JSON.parse(r.request().postData())}catch(e){}const pl=body.payload||body,sys=String(pl.system||(pl.messages&&pl.messages[0]&&pl.messages[0].role==='system'?pl.messages[0].content:''));const u=String(((pl.messages||[]).filter(m=>m.role==='user').pop()||{}).content||'');
   const oa=/openai/.test(r.request().url())||body.provider==='openai';let t='{}';
-  if(/You read a fund agreement/.test(sys)){SEEN.read.push({oa,len:u.length,pages:(u.match(/\[page \d+\]/g)||[]).length,hasDefs:/ARTICLE 1\. DEFINITIONS/.test(u)});
+  if(/You classify a document/.test(sys))t=JSON.stringify({contract:true,category:'fund',doc_type:'limited partnership agreement',language:'en'});
+  else if(/You read a contract that governs/.test(sys)){SEEN.read.push({oa,len:u.length,pages:(u.match(/\[page \d+\]/g)||[]).length,hasDefs:/ARTICLE 1\. DEFINITIONS/.test(u)});
     const terms=TERMS.filter(z=>!(oa&&z[0]==='escrow')).map(([key,value,unit,quote,page,article])=>({key,value,unit,quote,page,article}));if(oa)terms.find(z=>z.key==='extensions').value='two extensions of one year each';
     t=JSON.stringify({doc_type:'lpa',fund:'Aurora Real Estate Fund I',date:'12 January 2026',terms,definitions:DEFS.map(([term,quote,page])=>({term,quote,page}))})}
   else if(/You map the terms of a fund agreement/.test(sys)){SEEN.map++;t=JSON.stringify({cells:CELLS,rows:ROWS})}

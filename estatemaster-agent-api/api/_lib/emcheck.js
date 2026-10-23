@@ -26,7 +26,7 @@ function parseSens(rows, sheet) {
         const r = rows[k] || []; if (!r.some(c => c !== '' && c != null)) break;
         const vals = run_.map(j => numOf(r[j])); if (vals.filter(v => v != null).length < 2) break;
         const lead = r.slice(0, run_[0]).filter(c => c !== '' && c != null); const lab = lead.find(c => typeof c === 'string' && SHIFT(c) == null); const ysh = lead.map(SHIFT).find(v => v != null);
-        if (lab && /[a-z]{3}/i.test(lab) && !/^\s*\//.test(lab)) one.push({ metric: String(lab).trim(), values: vals }); else if (ysh != null) { ys.push(ysh); grid.push(vals); } else break;
+        if (lab && /[a-z\u0600-\u06FF]{3}/i.test(lab) && !/^\s*\//.test(lab)) one.push({ metric: String(lab).trim(), values: vals }); else if (ysh != null) { ys.push(ysh); grid.push(vals); } else break;
       }
       const norm = (key, vals) => vals.map(v => v == null ? null : (['irr', 'uirr', 'poc'].includes(key) && Math.abs(v) < 1 ? +(v * 100).toFixed(4) : +v));
       if (grid.length >= 2) {
@@ -174,14 +174,14 @@ const EM_UNIT_RX = /^\s*(%\s*[a-z.\s\/]{0,12}|sar|aud|usd|aed|eur|gbp|nzd|qar|kw
 /* units written in lower case in a units column (“beds”, “£/bed/week”, “weeks/yr”): a label is written “Beds” */
 const EM_UNIT2 = /^\s*([£€$]\s*(\/.{0,24})?|(beds?|keys?|homes?|lots?|rooms?|apartments?|doors?|mw|kw|sf|psf|#)(\s*\/.{0,16})?|(weeks?|months?|years?|days?)\s*\/\s*[a-z]{1,6})\s*$/;
 const EM_PAIR = /\b(sar|usd|eur|gbp|aed|qar|kwd|omr|bhd|chf|jpy|cny|inr|pln|sek|nok|dkk|aud|nzd|cad|hkd|sgd|brl|zar|try)\s*\/\s*(sar|usd|eur|gbp|aed|qar|kwd|omr|bhd|chf|jpy|cny|inr|pln|sek|nok|dkk|aud|nzd|cad|hkd|sgd|brl|zar|try)\b.*\s[a-z]{3,}/i;   // “GBP/USD drift a year” is a line, not a unit
-const emIsLabel = c => typeof c === 'string' && c.trim().length > 2 && /[a-z]/i.test(c) && (!EM_UNIT_RX.test(c) || EM_PAIR.test(c)) && !EM_UNIT2.test(c) && !/^\s*-?[\d,.]+\s*%?\s*$/.test(c) && !/^\s*(true|false|yes|no|y|n|n\/a|-)\s*$/i.test(c) && !/^\s*([a-z]{3}[- ]\d{2,4}|\d{1,2}[- ][a-z]{3}[- ]\d{2,4}|\d+\/\d+\/\d+)\s*$/i.test(c);   // a date typed as text is a value
+const emIsLabel = c => typeof c === 'string' && c.trim().length > 2 && /[a-z\u0600-\u06FF]/i.test(c) && (!EM_UNIT_RX.test(c) || EM_PAIR.test(c)) && !EM_UNIT2.test(c) && !/^\s*-?[\d,.]+\s*%?\s*$/.test(c) && !/^\s*(true|false|yes|no|y|n|n\/a|-)\s*$/i.test(c) && !/^\s*([a-z]{3}[- ]\d{2,4}|\d{1,2}[- ][a-z]{3}[- ]\d{2,4}|\d+\/\d+\/\d+)\s*$/i.test(c);   // a date typed as text is a value
 /* What a number is, from the cell's own Excel number format (the displayed text), never from its label: "5%" a percentage,
    "SOFR +500 bps" basis points, "$4,567,339" money, "2.78x" a multiple, "3,500,000" a plain number. */
 const emFmt = (t, pc) => { t = String(t == null ? '' : t); return pc || /%\s*\)?\s*$/.test(t.trim()) ? 'pct' : /\bbps\b|basis points/i.test(t) ? 'bps' : /[$€£¥﷼]|\b(SAR|USD|AED|EUR|GBP|AUD|QAR|KWD|SR)\b/i.test(t) ? 'money' : /^\s*-?[\d.,]+\s*x\s*$/i.test(t) ? 'x' : 'num'; };
 /* A row of period values (a year or month per column) has no single figure: only a column headed "Total" counts. */
 function emSeriesCol(rows, ri, j) { const row = rows[ri] || []; const nums = row.slice(j).filter(c => typeof c === 'number').length;
   // fewer than six values is still a series when the columns are headed by periods (year 0 1 2 3, dates, "Year 1", "Q2", "FY25")
-  const per = c => typeof c === 'number' ? (Number.isInteger(c) && c >= 0 && c <= 600) || (c > 20000 && c < 80000) : typeof c === 'string' && /^\s*(year|yr|month|mo|quarter|q[1-4]|fy|period|h[12])\b|^\s*(19|20)\d\d\s*$|^\s*[a-z]{3}[- ]?\d{2,4}\s*$/i.test(c);
+  const per = c => typeof c === 'number' ? (Number.isInteger(c) && c >= 0 && c <= 600) || (c > 20000 && c < 80000) : typeof c === 'string' && /^\s*(year|yr|month|mo|quarter|q[1-4]|fy|period|h[12])\b|^\s*(السنة|سنة|الفترة|فترة|الشهر|شهر|الربع|ربع)|^\s*(19|20)\d\d\s*$|^\s*[a-z]{3}[- ]?\d{2,4}\s*$/i.test(c);
   const headed = () => { for (let k = ri - 1; k >= Math.max(0, ri - 12); k--) { const h = rows[k] || []; let n = 0; for (let c = j; c < Math.min(h.length, j + 12); c++) if (per(h[c])) n++; if (n >= 3) return true } return false };
   if (nums < 3 || (nums < 6 && !headed())) return false;
   for (let k = ri - 1; k >= Math.max(0, ri - 10); k--) { const h = (rows[k] || [])[j]; if (typeof h === 'string' && /total|sum\b/i.test(h)) return false; } return true; }
@@ -357,6 +357,8 @@ function detectMeta(sheets, fileName) {
       const c = row[i]; if (typeof c !== 'string') continue; const t = c.trim();
       for (const m of t.matchAll(/(?:\b|(?<=\b(?:k|m|mn|bn)))(SAR|AUD|USD|AED|EUR|GBP|NZD|QAR|KWD|BHD|OMR|JOD|EGP|CHF|JPY|CNY|HKD|SGD|INR|CAD|ZAR|SEK|NOK|DKK|PLN|TRY|MAD|BRL|MXN|CLP|COP|KRW|TWD|THB|MYR|IDR|PHP|KES|NGN|ILS|CZK|HUF|RON)\b/g)) { const c = m[1] === 'AUD' ? 'USD' : m[1]; vote(c, `“${t.slice(0, 40)}”`); }
       if (/(^|[\s(\-–])(US)?\$\s?\d|^\s*(US)?\$\s*$/.test(t)) vote('USD', `“${t.slice(0, 40)}”`); { const dm = t.match(/(?:^|[^A-Z])(NZ|C|HK|S|R)\$/); if (dm) vote({ NZ: 'NZD', C: 'CAD', HK: 'HKD', S: 'SGD', R: 'BRL' }[dm[1]], `“${t.slice(0, 40)}”`); } if (/€/.test(t)) vote('EUR', `“${t.slice(0, 40)}”`); if (/₹/.test(t)) vote('INR', `“${t.slice(0, 40)}”`); if (/¥/.test(t) && !/\bCNY\b|RMB|元/.test(t)) vote('JPY', `“${t.slice(0, 40)}”`); if (/£/.test(t)) vote('GBP', `“${t.slice(0, 40)}”`); if (/﷼|ر\.س|\bSR\s?\d/.test(t)) vote('SAR', `“${t.slice(0, 40)}”`);
+      /* the currency named in Arabic (ريال سعودي, درهم…); a dinar or riyal of another country only when the country is said */
+      { const ar = t.match(/ريال سعودي|ريال قطري|ريال عماني|ريال|ر\.\s?س|درهم|دولار|يورو|جنيه استرليني|دينار كويتي|دينار بحريني/); if (ar) { const w = ar[0]; vote(/قطري/.test(w) ? 'QAR' : /عماني/.test(w) ? 'OMR' : /ريال|ر\./.test(w) ? 'SAR' : /درهم/.test(w) ? 'AED' : /دولار/.test(w) ? 'USD' : /يورو/.test(w) ? 'EUR' : /جنيه/.test(w) ? 'GBP' : /كويتي/.test(w) ? 'KWD' : 'BHD', `“${t.slice(0, 40)}”`); } }
       if (/^(.*,\s*)?(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\s*$/.test(t) && /,/.test(t)) usLoc = t;
       if (/estate\s*master|office\s*links|\bargus\b|cash flow title/i.test(t)) meta.source = 'estatemaster';
       if (!meta.title && /^(cash flow title|project name|project title|project|scheme name|development name|title)\s*:?$/i.test(t) && !(row.filter(c => typeof c === 'string' && c.trim()).length >= 3 && !row.some(c => typeof c === 'number'))) { const v = after(row, i); if (typeof v === 'string' && v.trim().length > 2) { meta.title = v.trim().slice(0, 80); meta.titleFrom = 'cell'; } }
@@ -367,6 +369,7 @@ function detectMeta(sheets, fileName) {
     }
   }
   if (!meta.type) { const all = sheets.slice(0, 3).flatMap(s => s.rows.slice(0, 80).flat()).filter(c => typeof c === 'string').join(' '); const m = all.match(/\b(industrial|logistics|warehouse|residential|retail|office|hotel|hospitality|mixed[- ]use|build to rent)\b/i); if (m) meta.type = m[1]; }
+  if (!meta.type) { const all = sheets.slice(0, 3).flatMap(s => s.rows.slice(0, 80).flat()).filter(c => typeof c === 'string').join(' '); const m = all.match(/سكني|تجاري|مكتبي|مكاتب|فندقي|فندق|لوجستي|مستودعات|صناعي|متعدد الاستخدامات/); if (m) meta.type = { 'سكني': 'residential', 'تجاري': 'retail', 'مكتبي': 'office', 'مكاتب': 'office', 'فندقي': 'hotel', 'فندق': 'hotel', 'لوجستي': 'logistics', 'مستودعات': 'warehouse', 'صناعي': 'industrial', 'متعدد الاستخدامات': 'mixed-use' }[m[0]]; }
   // the model's horizon: the last period of each timeline (a row headed Year / Month / Quarter followed by 0,1,2… or 1,2,3…), so a hold or exit
   // moved past the last column is flagged instead of shown as a result
   meta.horizon = {}; for (const s of sheets) for (const row of s.rows) { if (!row) continue; const i = row.findIndex(c => typeof c === 'string' && /^\s*(years?|yrs?|months?|quarters?|qtrs?|periods?)\s*$/i.test(c)); if (i < 0) continue;
