@@ -31,6 +31,9 @@ These rules hold for every change to this app. They come from the product owner 
 - Never an estimate in the AI's own words either: an IRR the answer states must be the model's own figure or one the tools computed for that answer; any other is flagged under the answer as not computed.
 - A currency conversion cannot move an IRR: lines the AI did not mark as money are added back only when the IRR then ends exactly where it was, and each is named.
 - Never assume. If the workbook does not say, ask the user in the chat.
+- One shared model record: every workbook made from a model (a contract fix, an extension, a new line or sheet, a what-if made the model, an earlier workbook restored) goes through `newModelVersion` and only through it. It keeps the model as it was (company database), and carries the headline cells, the map (moved by a row insert; read again only when the periods moved), the figures in the model's units, the inputs' roles, the user's verdicts and the regime. A tool never builds a new workbook record by itself.
+- Inputs have roles: the AI tags each typed input once at upload (revenue, cost, leverage, rate, yield, timing, count, switch, other), kept in the map so the roles travel with every version. The debug's direction and threshold checks and the plausibility ranges read the role; the label's words are only the fallback when no AI answered.
+- What was asked against what was done: a tool that does only part of the request, or something near it, says so with `noteGap` (shown as "Not as asked" under the answer), never a silent default (rounding, a nearest report, a dropped question). Every answer is then checked against the request itself (the AI; certain rules without one).
 
 ## 3. Working rules
 
