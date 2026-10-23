@@ -88,7 +88,8 @@ r=await A('quarterly_view',{method:'even'});ok(/On quarters the equity IRR is [\
 r=await A('market_benchmark',{assumptions:[{label:'Exit cap rate',value:'7.00%'}],location:'Riyadh'});ok(/Exit cap rate is more optimistic than the market/.test(r.plain)&&/Test market report, 2026-06/.test(r.plain),'market ranges come with their source and date',r.plain.slice(0,200));
 
 // 16/17. the projects together: a USD hold model and the SAR development (by hand: fund IRR 13.08%)
-await p.evaluate(()=>localStorage.clear());await p.reload();await p.waitForTimeout(1500);await up('r33_waha_sar.xlsx');await up('r32_hold_usd.xlsx');r=await A('fund_combine',{currency:'SAR'});
+/* the earlier steps' background work (map, audit, versions) can still save the projects: saving is stopped before the storage is cleared, so the reload starts empty */
+await p.evaluate(()=>{window.saveMem=()=>{};localStorage.clear()});await p.reload();await p.waitForTimeout(1500);await up('r33_waha_sar.xlsx');await up('r32_hold_usd.xlsx');r=await A('fund_combine',{currency:'SAR'});
 ok(/IRR 13\.08%/.test(r.plain)&&/USD→SAR 3\.75/.test(r.plain)&&r.chart&&r.chart.labels[0]==='2025','two projects in two currencies combined by calendar year: fund IRR 13.08% as by hand',r.plain.slice(0,300));
 r=await A('whatif_all_projects',{change:'exit cap rate +50 bps'});ok(/exit cap rate \+50 bps” on \d+ projects/.test(r.plain)&&(r.plain.match(/\| [\d.]+% \| [\d.]+%/g)||[]).length>=2,'one change on every project, each workbook recalculated',r.plain.slice(0,400));
 
