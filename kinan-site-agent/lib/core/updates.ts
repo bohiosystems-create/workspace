@@ -6,7 +6,7 @@ import { locationPath, score, terms } from "./query";
  * so it survives the daily roll (the demo programme is rebuilt for each new day, then the updates are re-applied).
  */
 
-const addDays = (iso: string, n: number) => { const d = new Date(iso.slice(0, 10) + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+import { addDays, daysBetween } from "../data/util";
 
 /** Apply one update to its activity. */
 function applyOne(a: Activity, u: ProgressUpdate) {
@@ -27,11 +27,53 @@ function applyOne(a: Activity, u: ProgressUpdate) {
   }
 }
 
+/**
+ * A delay flows down the programme: when an activity now finishes later, the work that follows it (not started yet)
+ * moves by the same amount, less any gap it already had after that activity — so overlaps and lags in the programme
+ * are kept, and practical completion moves when the delay reaches it. Earlier finishes do not pull work forward (that
+ * is a planning decision). Float goes down by the delay; an activity with no float left is critical. Returns the ids
+ * that moved.
+ */
+export function pushSuccessors(schedule: Activity[], moved: { id: string; oldFinish: string }[]): string[] {
+  const by = new Map(schedule.map((a) => [a.id, a]));
+  const next = new Map<string, Activity[]>();
+  for (const a of schedule) for (const p of a.predecessors) { if (!next.has(p)) next.set(p, []); next.get(p)!.push(a); }
+  const queue = [...moved], out = new Set<string>();
+  for (let guard = 0; queue.length && guard < 20_000; guard++) {
+    const { id, oldFinish } = queue.shift()!;
+    const p = by.get(id);
+    if (!p) continue;
+    const delay = daysBetween(oldFinish, p.finish);
+    if (delay <= 0) continue;
+    for (const s of next.get(id) ?? []) {
+      if (s.status !== "not_started") continue;
+      const push = delay - Math.max(0, daysBetween(oldFinish, s.start));
+      if (push <= 0) continue;
+      const was = s.finish;
+      s.start = addDays(s.start, push); s.finish = addDays(s.finish, push);
+      s.totalFloat -= push; if (s.totalFloat <= 0) s.critical = true;
+      out.add(s.id);
+      queue.push({ id: s.id, oldFinish: was });
+    }
+  }
+  return [...out];
+}
+/** Apply a change to one activity, then let a later finish flow to the work after it. */
+export function moveActivity(schedule: Activity[], a: Activity, change: () => void): string[] {
+  const oldFinish = a.finish;
+  change();
+  const delay = daysBetween(oldFinish, a.finish);
+  if (delay > 0) { a.totalFloat -= delay; if (a.totalFloat <= 0) a.critical = true; }
+  return pushSuccessors(schedule, [{ id: a.id, oldFinish }]);
+}
+/** The forecast of practical completion (the completion milestone, else the last finish). */
+export const completionDate = (data: ProjectData) => data.schedule.find((a) => a.id === "M-990")?.finish ?? data.schedule.reduce((m, a) => (a.finish > m ? a.finish : m), "");
+
 /** Re-apply every stored update (oldest first). Used after the daily roll rebuilds the programme. */
 export function applyUpdates(data: ProjectData) {
   if (!data.updates?.length) return;
   const byId = new Map(data.schedule.map((a) => [a.id, a]));
-  for (const u of [...data.updates].sort((x, y) => x.at.localeCompare(y.at))) { const a = byId.get(u.activityId); if (a) applyOne(a, u); }
+  for (const u of [...data.updates].sort((x, y) => x.at.localeCompare(y.at))) { const a = byId.get(u.activityId); if (a) moveActivity(data.schedule, a, () => applyOne(a, u)); }
 }
 
 /** Find the activity a site message is about: an exact id, else the best match on name + place. */
@@ -61,7 +103,7 @@ export function recordUpdate(db: Db, a: Activity, o: { state: ProgressUpdate["st
     ...(o.percent !== undefined ? { percent: o.percent } : {}), ...(o.note ? { note: o.note } : {}),
     evidence: o.evidence ?? [], before: { status: a.status, percent: a.percent, start: a.start, finish: a.finish },
   };
-  applyOne(a, u);
+  moveActivity(db.data.schedule, a, () => applyOne(a, u));
   (db.data.updates ??= []).unshift(u);
   db.data.updates = db.data.updates.slice(0, 2000);
   // evidence files live where the work is, and are tagged to the activity

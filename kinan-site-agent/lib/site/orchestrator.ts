@@ -6,6 +6,7 @@
 import type { Activity, Db, MaterialRequest } from "../types";
 import { addDays, daysBetween } from "../data/util";
 import { doubtLine } from "../proposals";
+import { completionDate, moveActivity } from "../core/updates";
 import type { SiteAction, SiteKind } from "./types";
 
 export const SITE_KIND_LABEL: Record<SiteKind, string> = {
@@ -54,12 +55,17 @@ export function proposeSite(db: Db, learned: SiteLearned, now = new Date()): Sit
         .sort((x, y) => x.start.localeCompare(y.start))[0];
       const pull = ready ? daysBetween(a.start, ready.start) : 0;
       const newStart = addDays(a.start, shift);
+      // what the move does to practical completion, through the programme's links (not just the activity's flag)
+      const sim = structuredClone(d), sa = sim.schedule.find((x) => x.id === a.id)!;
+      moveActivity(sim.schedule, sa, () => { sa.start = newStart; sa.finish = addDays(newStart, dur); });
+      const pcMove = daysBetween(completionDate(d), completionDate(sim));
       push({ id: `resequence:${a.id}:${p.forecastOnSite}`, domain: "site", kind: "resequence",
         title: ready ? `Resequence: start ${ready.id} now, move ${a.id} to ${fmt(newStart)} when ${p.id} arrives` : `Re-plan ${a.id} to start ${fmt(newStart)}, when ${p.id} arrives`,
         why: [`${a.id} ${a.name} was due to start ${fmt(a.start)}; ${p.name} now arrives ${fmt(p.forecastOnSite)}`,
           ...(ready ? [`${ready.id} ${ready.name} has all its predecessors done and the same crew (${a.contractor.replace(/ \(.*\)$/, "")}): it keeps them working instead of standing idle`] : ["No ready work for the same crew was found to bring forward"]),
-          a.critical ? `${a.id} is critical: the finish moves ${shift} days unless the package is recovered — approve together with the expedite` : `${a.id} has ${a.totalFloat} days float${shift > a.totalFloat ? ` — less than the ${shift}-day move: it becomes critical` : ""}`],
-        risk: a.critical || shift > a.totalFloat ? "high" : "medium", owner: contact(/planning|planner|project manager/i, /bunyan/i)?.name ?? "Planning", locationId: a.locationId,
+          pcMove > 0 ? `Practical completion moves ${pcMove} days (to ${fmt(completionDate(sim))}) unless the package is recovered — approve together with the expedite`
+            : `Practical completion does not move: ${d.schedule.some((x) => x.predecessors.includes(a.id)) ? `the work after ${a.id} has room to absorb ${shift} days` : `no other work depends on ${a.id}`}${shift > a.totalFloat ? ` (it uses up ${a.totalFloat > 0 ? `its ${a.totalFloat} days of` : "its remaining"} float)` : ""}`],
+        risk: pcMove > 0 ? "high" : "medium", owner: contact(/planning|planner|project manager/i, /bunyan/i)?.name ?? "Planning", locationId: a.locationId,
         targets: { activityId: a.id, packageId: p.id },
         patches: [{ t: "activity", id: a.id, start: newStart, finish: addDays(newStart, dur) }, ...(ready ? [{ t: "activity" as const, id: ready.id, start: date > a.start ? date : a.start, finish: addDays(date > a.start ? date : a.start, daysBetween(ready.start, ready.finish)) }] : [])],
         instruction: ready ? `Resequence approved: ${ready.id} starts now (brought forward ${pull} days); ${a.id} moves to ${fmt(newStart)} to follow ${p.id}.` : `${a.id} re-planned to ${fmt(newStart)} to follow ${p.id}.` });

@@ -1,10 +1,11 @@
 import type { Db, Doc, MaterialRequest, Note, UiAction } from "../types";
 import { FM_TOOLS } from "../fm/tools";
 import { HAS_OPERATIONS } from "../edition";
+import { fitJson } from "./fit";
 import { descendantIds, locationById, locationPath, resolveLocation, searchDocs } from "./query";
 import * as P from "./project";
 import { searchEmails, type InboxState } from "./emails";
-import { findActivity, recordUpdate, updatesFor } from "./updates";
+import { completionDate, findActivity, recordUpdate, updatesFor } from "./updates";
 
 /** Storage the tools run against — implemented by the server (fs) and the browser (IndexedDB). */
 export interface Repo {
@@ -90,13 +91,13 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "change_brief_layout", description: "Change the daily brief (the scheduled morning e-mail and ▶ Play): hide/show/move a section, limit lists to N items, focus on one project, add or clear a note, undo the last change, or reset to the standard brief. Sections: headline (always first), since, today, next48, critical, milestones, procurement, safety, projects. Use for 'remove the procurement section', 'move safety to the top', 'only Kinan Heights', 'top 3 items', 'add a note to the brief: …', 'undo'.",
     input_schema: obj({ ops: { type: "array", items: obj({ op: str("hide | show | move | limit | focus | add_note | clear_notes | reset"), section: str("for hide/show/move"), to: str("move: top | bottom | before | after"), ref: str("move before/after: the other section"), n: { type: "number", description: "limit: 1–10, or omit to lift the limit" }, project: str("focus: project name, or omit for all projects"), text: str("add_note: the note") }, ["op"]) }, undo: { type: "boolean", description: "true: undo the last change instead" }, lang: str("en | ar") }) },
   { name: "site_proposals", description: "The construction orchestrator: what it proposes for the site right now — expedite late packages, resequence work around a late delivery, night shifts to recover slipping work, material requests to raise or approve, expired permits to close, permits and overdue NCRs to chase — each with its reasons, risk, cost and who carries it out. Or approve / reject one (with the reason: not_now, already_handled, wrong_person, too_costly, disagree). Approving changes the programme/procurement records and leaves the instruction on the site plan. The user's approval limits apply.",
-    input_schema: obj({ kind: str("filter: expedite | resequence | recover | stock_mr | approve_mr | permit_close | permit_chase | ncr_escalate"), approve: str("proposal id"), reject: str("proposal id"), reason: str("for reject: not_now | already_handled | wrong_person | too_costly | disagree") }) },
+    input_schema: obj({ kind: str("filter: expedite | resequence | recover | stock_mr | approve_mr | permit_close | permit_chase | ncr_escalate"), approve: str("proposal id, or 'low_risk' for every low-risk one the user may approve"), reject: str("proposal id"), reason: str("for reject: not_now | already_handled | wrong_person | too_costly | disagree") }) },
   // facility management: the operations layer (lib/fm/tools.ts)
   ...(HAS_OPERATIONS ? (FM_TOOLS as ToolDef[]) : []),
 ];
 
-const MAX = 14_000;
-const J = (o: unknown) => { const s = JSON.stringify(o); return s.length > MAX ? s.slice(0, MAX) + '…"(truncated — narrow the query)"' : s; };
+// every answer reaches the model as valid JSON; long lists are shortened, and the answer says so (lib/core/fit.ts)
+const J = (o: unknown) => fitJson(o);
 
 export function docBrief(db: Db, d: Doc) {
   return {
@@ -128,8 +129,20 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
       case "site_proposals": {
         const { siteActions, decideSite } = await import("../site/api");
         const { canApprove } = await import("../auth/people");
+        const { isReason, REJECT_REASONS } = await import("../proposals");
+        const via = ctx.channel === "whatsapp" ? "whatsapp" : ctx.channel === "field" ? "field" : "web";
+        if (input.reject && input.reason && !isReason(input.reason)) return J({ error: `Reason must be one of: ${Object.keys(REJECT_REASONS).join(", ")}. Ask the user which fits.` });
+        if (input.approve === "low_risk") {
+          // "approve all the low-risk ones": each within the user's limits; the rest are listed, not approved
+          const done: string[] = [], skipped: string[] = [];
+          for (const a of siteActions(db).filter((x) => x.risk === "low")) {
+            try { done.push(decideSite(db, { actionId: a.id, decision: "approved" }, ctx.user, via).message); } catch (e) { skipped.push((e as Error).message); }
+          }
+          await repo.save();
+          return J({ approved: done.length, done, notApproved: skipped, stillProposed: siteActions(db).map((a) => ({ id: a.id, title: a.title, risk: a.risk })) });
+        }
         if (input.approve || input.reject) {
-          const r = decideSite(db, { actionId: String(input.approve ?? input.reject), decision: input.approve ? "approved" : "rejected", reason: input.reason }, ctx.user, ctx.channel === "whatsapp" ? "whatsapp" : ctx.channel === "field" ? "field" : "web");
+          const r = decideSite(db, { actionId: String(input.approve ?? input.reject), decision: input.approve ? "approved" : "rejected", reason: input.reason }, ctx.user, via);
           await repo.save();
           return J({ ok: true, message: r.message });
         }
@@ -232,11 +245,19 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
           return J({ error: f.candidates.length ? "Several activities match — ask the user which one, then call again with its id." : `No activity matches "${input.activity}".`, candidates: f.candidates.map((a) => ({ id: a.id, name: a.name, location: locationPath(db, a.locationId), status: a.status, percent: a.percent })) });
         const ev: string[] = Array.isArray(input.evidence_doc_ids) ? input.evidence_doc_ids.map(String).filter((id: string) => db.docs.some((d) => d.id === id)) : [];
         const pct = input.percent === undefined || input.percent === null || input.percent === "" ? undefined : Number(input.percent);
+        if (pct !== undefined && (!Number.isFinite(pct) || pct < 0 || pct > 100)) return J({ error: `${input.percent}% isn't a progress figure: give 0–100 (100 = completed). Ask the user what they meant.` });
         const a = f.activity;
-        const u = recordUpdate(db, a, { id: `U-${Date.now().toString(36)}`, state: state as "completed" | "in_progress" | "pending", percent: Number.isFinite(pct) ? pct : undefined, note: input.note ? String(input.note) : undefined, evidence: ev, by: ctx.author, channel: ctx.channel === "whatsapp" ? "whatsapp" : "web" });
+        const st = (state === "in_progress" && pct === 100 ? "completed" : state) as "completed" | "in_progress" | "pending";
+        const pcBefore = completionDate(db.data);
+        const u = recordUpdate(db, a, { id: `U-${Date.now().toString(36)}`, state: st, percent: Number.isFinite(pct) ? pct : undefined, note: input.note ? String(input.note) : undefined, evidence: ev, by: ctx.author, channel: ctx.channel === "whatsapp" ? "whatsapp" : "web" });
         await addNoteTo(repo, { text: `Progress: ${a.id} ${a.name} — ${state === "completed" ? "completed" : state === "pending" ? "pending" : `${a.percent}% complete`}${u.note ? `. ${u.note}` : ""}${ev.length ? ` (${ev.length} evidence file${ev.length > 1 ? "s" : ""})` : ""}`, locationId: a.locationId, docId: ev[0], kind: state === "pending" ? "issue" : "note", author: ctx.author, via: "agent" });
         await repo.save();
-        return J({ updated: { id: a.id, name: a.name, location: locationPath(db, a.locationId), was: u.before, now: { status: a.status, percent: a.percent, start: a.start, finish: a.finish, baselineFinish: a.baselineFinish, critical: a.critical }, evidence: ev.length } });
+        // work reported ahead of what it depends on is worth a question (a wrong activity, or work out of sequence)
+        const behind = st !== "pending" ? a.predecessors.map((id) => db.data.schedule.find((x) => x.id === id)).filter((p): p is NonNullable<typeof p> => !!p && p.status !== "completed") : [];
+        const pcAfter = completionDate(db.data);
+        return J({ updated: { id: a.id, name: a.name, location: locationPath(db, a.locationId), was: u.before, now: { status: a.status, percent: a.percent, start: a.start, finish: a.finish, baselineFinish: a.baselineFinish, critical: a.critical }, evidence: ev.length },
+          ...(pcAfter !== pcBefore ? { practicalCompletion: { was: pcBefore, now: pcAfter, note: "The work that follows moved with it." } } : {}),
+          ...(behind.length ? { warning: `Reported ahead of what it depends on: ${behind.map((p) => `${p.id} is ${p.status === "in_progress" ? `${p.percent}%` : "not started"}`).join(", ")}. Check with the user that this is the right activity, or note the work is out of sequence.` } : {}) });
       }
       case "drawing_register": return J(P.registerQuery(db, input));
       case "search_regulations": return J(P.regulationsQuery(db, input));
@@ -251,6 +272,7 @@ export async function runTool(repo: Repo, name: string, input: Record<string, an
         const qty = Number(input.qty);
         if (!input.item || !Number.isFinite(qty) || qty <= 0 || !input.unit || !/^\d{4}-\d{2}-\d{2}$/.test(String(input.needed_by ?? "")))
           return J({ error: "Need item, positive qty, unit and needed_by (YYYY-MM-DD)." });
+        if (String(input.needed_by) < db.data.meta.dataDate) return J({ error: `needed_by ${input.needed_by} is in the past (today is ${db.data.meta.dataDate}). Ask the user for the date it's needed.` });
         let locationId = ctx.focus?.locationId ?? "site";
         if (input.location) { const l = resolveLocation(db, String(input.location)); if (!l) return J({ error: `No place matches "${input.location}".` }); locationId = l.id; }
         const reqs = db.data.procurement.requests;

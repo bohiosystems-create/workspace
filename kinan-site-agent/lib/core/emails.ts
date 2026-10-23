@@ -29,7 +29,8 @@ export function plainText(html: string, isHtml = true): string {
   return t.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, 12_000);
 }
 
-const words = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}-]+/u).filter((w) => w.length > 1);
+const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const words = (s: string) => fold(s).split(/[^\p{L}\p{N}-]+/u).filter((w) => w.length > 1);
 /** Newest first; keyword match on subject, sender, company, body and attachment names. */
 export function searchEmails(all: Email[], q: { query?: string; from?: string; since?: string; until?: string; limit?: number }) {
   const ws = q.query ? words(q.query) : [];
@@ -37,9 +38,9 @@ export function searchEmails(all: Email[], q: { query?: string; from?: string; s
   const hits = all.filter((e) => {
     if (q.since && e.received.slice(0, 10) < q.since) return false;
     if (q.until && e.received.slice(0, 10) > q.until) return false;
-    if (from && !`${e.from} ${e.fromName} ${e.company}`.toLowerCase().includes(from)) return false;
+    if (from && !fold(`${e.from} ${e.fromName} ${e.company}`).includes(fold(from))) return false;
     if (!ws.length) return true;
-    const hay = `${e.subject} ${e.fromName} ${e.company} ${e.text} ${e.attachments.join(" ")}`.toLowerCase();
+    const hay = fold(`${e.subject} ${e.fromName} ${e.company} ${e.text} ${e.attachments.join(" ")}`);
     return ws.every((w) => hay.includes(w));
   }).sort((a, b) => b.received.localeCompare(a.received));
   return {

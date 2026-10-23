@@ -6,6 +6,7 @@ import { act, actions, facilityState, myDay, overview, topIssues } from "./api";
 import { fmToday, findAsset, isOpen, isOverdue, kpis, slaLeft, workload } from "./engine";
 import type { FmData } from "./types";
 import { canApprove } from "../auth/people";
+import { fitJson } from "../core/fit";
 
 const obj = (props: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties: props, required });
 const str = (description?: string) => ({ type: "string", ...(description ? { description } : {}) });
@@ -27,7 +28,7 @@ export const FM_TOOLS = [
   { name: "fm_spares", description: "Spare parts of a facility: stock against minimum, on order, lead time; low_only for those below minimum.", input_schema: obj({ facility: FAC, low_only: { type: "boolean" } }) },
 ];
 
-const J = (o: unknown) => { const s = JSON.stringify(o); return s.length > 14000 ? s.slice(0, 14000) + '…"(truncated)"' : s; };
+const J = (o: unknown) => fitJson(o);
 function facilityOf(d: FmData, q: unknown, ctx: ToolCtx): string | undefined {
   const s = String(q ?? "").toLowerCase().trim();
   if (!s) return ctx.fm?.facilityId;
@@ -82,6 +83,7 @@ async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx:
       return J({ ok: true, message: r.message });
     }
     case "fm_orchestrator": {
+      if (input.reject && input.reason && !["not_now", "already_handled", "wrong_person", "too_costly", "disagree"].includes(String(input.reason))) return J({ error: "Reason must be one of: not_now, already_handled, wrong_person, too_costly, disagree. Ask the user which fits." });
       if (input.approve || input.reject) {
         const ids = input.approve === "low_risk" ? actions(db, d, fid).filter((a) => a.risk === "low").map((a) => a.id) : [String(input.approve ?? input.reject)];
         const done: string[] = [];

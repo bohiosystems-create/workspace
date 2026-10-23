@@ -4,6 +4,8 @@ import type { Db, Note, ProjectData } from "../types";
 import { canApprove, type Person } from "../auth/people";
 import { closedIds, isReason, learnedDoubts, type DecisionLike, type RejectReason } from "../proposals";
 import { proposeSite } from "./orchestrator";
+import { completionDate, moveActivity } from "../core/updates";
+import { daysBetween } from "../data/util";
 import type { SiteAction, SiteDecision, SitePatch } from "./types";
 
 export const siteDecisionsLike = (data: ProjectData): DecisionLike[] =>
@@ -17,7 +19,8 @@ export function siteActions(db: Db): SiteAction[] {
 /** Apply one patch to the project data. */
 function applyPatch(data: ProjectData, p: SitePatch) {
   switch (p.t) {
-    case "activity": { const a = data.schedule.find((x) => x.id === p.id); if (a) { if (p.start) a.start = p.start; if (p.finish) a.finish = p.finish; } break; }
+    // a later finish flows to the work that follows (lib/core/updates.ts)
+    case "activity": { const a = data.schedule.find((x) => x.id === p.id); if (a) moveActivity(data.schedule, a, () => { if (p.start) a.start = p.start; if (p.finish) a.finish = p.finish; }); break; }
     case "permit": { const x = data.safety.permits.find((y) => y.id === p.id); if (x) { if (p.status) x.status = p.status; if (p.validTo) x.validTo = p.validTo; } break; }
     case "mr_status": { const r = data.procurement.requests.find((x) => x.id === p.id); if (r) r.status = p.status; break; }
     case "mr_add": if (!data.procurement.requests.some((x) => x.id === p.mr.id)) data.procurement.requests.push(structuredClone(p.mr)); break;
@@ -46,6 +49,7 @@ export function decideSite(db: Db, b: SiteDecideInput, user: Person | null | und
     patches: b.decision === "approved" ? a.patches : [] };
   (db.data.decisions ??= []).push(dec);
   db.data.decisions = db.data.decisions.slice(-1500);
+  const pcBefore = completionDate(db.data);
   if (b.decision === "approved") {
     for (const p of a.patches) applyPatch(db.data, p);
     if (a.instruction) {
@@ -54,5 +58,8 @@ export function decideSite(db: Db, b: SiteDecideInput, user: Person | null | und
       db.notes.unshift(n);
     }
   }
-  return { message: b.decision === "approved" ? `Done: ${a.title}.${a.owner ? ` ${a.owner} has the instruction.` : ""}` : `Rejected: ${a.title}. The orchestrator will take that into account.`, decision: dec };
+  // what it did to practical completion, when it moved the programme
+  const pcAfter = completionDate(db.data), moved = daysBetween(pcBefore, pcAfter);
+  const pc = a.patches.some((p) => p.t === "activity") && b.decision === "approved" ? ` Practical completion ${moved ? `moves ${moved > 0 ? "+" : ""}${moved} days to ${pcAfter}` : `unchanged (${pcAfter})`}.` : "";
+  return { message: b.decision === "approved" ? `Done: ${a.title}.${a.owner ? ` ${a.owner} has the instruction.` : ""}${pc}` : `Rejected: ${a.title}. The orchestrator will take that into account.`, decision: dec };
 }

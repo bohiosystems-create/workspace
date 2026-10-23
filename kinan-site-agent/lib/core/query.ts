@@ -70,12 +70,14 @@ export function resolveLocation(db: Db, q: string): Location | undefined {
 }
 
 /** Simple relevance scoring: +1 per term anywhere, +2 per term in the title/tags. */
+/** Lower case without accents: "Façade" and "facade" are the same word to a search. */
+export const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 export function score(terms: string[], hay: string, title: string): number {
   if (!terms.length) return 1;
-  const h = hay.toLowerCase(), t = title.toLowerCase();
+  const h = fold(hay), t = fold(title);
   return terms.reduce((a, w) => a + (h.includes(w) ? 1 : 0) + (t.includes(w) ? 2 : 0), 0);
 }
-export const terms = (q?: string) => (q ?? "").toLowerCase().split(/\s+/).filter((t) => t.length > 1);
+export const terms = (q?: string) => fold(q ?? "").split(/\s+/).filter((t) => t.length > 1);
 
 export function searchDocs(db: Db, o: { query?: string; category?: string; locationId?: string; discipline?: string; limit?: number }): Doc[] {
   const ids = o.locationId ? descendantIds(db, o.locationId) : null;

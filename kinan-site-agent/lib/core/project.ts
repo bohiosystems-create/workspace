@@ -175,7 +175,9 @@ export function getPo(db: Db, po: string) {
 }
 export function deliveriesQuery(db: Db, o: { from?: string; to?: string; status?: string; location?: string; po?: string; query?: string }) {
   const lf = locFilter(db, o.location); if (lf.error) return { error: lf.error };
-  const from = o.from ?? today(db), to = o.to ?? addDays(from, 7), t = terms(o.query);
+  let from = o.from ?? today(db), to = o.to ?? addDays(from, 7);
+  if (from > to) [from, to] = [to, from]; // a window given the wrong way round
+  const t = terms(o.query);
   const xs = D(db).procurement.deliveries.filter((d) =>
     (o.po ? poKey(d.po) === poKey(o.po) : d.date >= from && d.date <= to) &&
     (!o.status || d.status.toLowerCase() === o.status.toLowerCase()) && (!lf.ids || lf.ids.has(d.locationId)) &&
