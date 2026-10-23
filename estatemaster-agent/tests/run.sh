@@ -27,7 +27,7 @@ RO="http://localhost:4090/?mode=readonly"; AN="http://localhost:4090/?mode=analy
 
 ANALYST="t_feed t_play t_voice t_deck t_narr t_tapvoice t_turn t_turn55 t_bvoice t_cues t_resume t_qwin t_lag t_lag2 t_stt t_btns"
 API_ONLY="t_api"   # tests of the mock-API build only
-JADWA_SET="t_accuracy t_smoke t_round34 t_round37 t_round38 t_docs t_fundlpa t_lpa_us t_arabic t_cfix t_gulf t_xcalc t_round36 t_projects t_xldl t_round32 t_factsheet t_round33 t_round35 t_aifirst t_repupload"
+JADWA_SET="t_accuracy t_smoke t_round34 t_round37 t_round38 t_docs t_fundlpa t_lpa_us t_arabic t_cfix t_gulf t_integ t_xcalc t_round36 t_projects t_xldl t_round32 t_factsheet t_round33 t_round35 t_aifirst t_repupload"
 API_SET="t_em t_feed t_xmodel t_dbgempty t_dbgwin t_roa t_check t_shell t_menu t_chat t_tools t_api t_bridge t_fix14 t_a11y t_report"
 if [ "$MODE" = jadwa ]; then
   # the Jadwa edition (dist/jadwa-readonly: its own look and words) on the answer path, its documents and its report blocks; the tests that
@@ -43,7 +43,7 @@ elif [ "$MODE" = core ]; then
   echo "== browser tests (core)"
   lane(){ local f="$1"; shift; for t in "$@"; do if [ "$t" = t_em_api ]; then run "t_em api" node t_em.mjs "$AP" api; else run "$t readonly" node "$t.mjs" "$RO" readonly; fi; done > "$f" 2>&1; }
   LD=$(mktemp -d)
-  lane "$LD/a" t_accuracy t_smoke t_round34 t_round37 t_round38 t_docs t_audit2 & L1=$!
+  lane "$LD/a" t_accuracy t_smoke t_round34 t_round37 t_round38 t_docs t_audit2 t_integ & L1=$!
   lane "$LD/b" t_xcalc t_round36 t_projects t_xldl t_round32 t_factsheet t_engine t_arabic t_gulf & L2=$!
   lane "$LD/c" t_round33 t_round35 t_aifirst t_repupload t_em t_em_api t_addin t_cfix & L3=$!
   wait $L1 $L2 $L3   # the lanes only: a bare wait would also wait on the static servers
@@ -51,7 +51,7 @@ elif [ "$MODE" = core ]; then
   run "t_speed readonly" node t_speed.mjs "$RO" readonly
 elif [ "$MODE" = quick ]; then
   echo "== browser tests (quick)"
-  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y t_report t_hotelup t_talk t_syscheck t_chathist t_adr t_xcalc t_xcreview t_xcmodel2 t_xcread t_accuracy t_debugai t_nohurdle t_voicefail t_rdchat t_versions t_feas t_xldl t_drivers t_speed t_noest t_projects t_desk t_aifirst t_round11 t_repupload t_agents22 t_round22 t_round23 t_round24 t_round25 t_round26 t_round27 t_round28 t_aires t_aistrong t_round29 t_round30 t_round32 t_round33 t_round34 t_round35 t_round36 t_round37 t_round38 t_sens2 t_factsheet t_docs t_fundlpa t_lpa_us t_arabic t_cfix t_gulf t_addin; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
+  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y t_report t_hotelup t_talk t_syscheck t_chathist t_adr t_xcalc t_xcreview t_xcmodel2 t_xcread t_accuracy t_debugai t_nohurdle t_voicefail t_rdchat t_versions t_feas t_xldl t_drivers t_speed t_noest t_projects t_desk t_aifirst t_round11 t_repupload t_agents22 t_round22 t_round23 t_round24 t_round25 t_round26 t_round27 t_round28 t_aires t_aistrong t_round29 t_round30 t_round32 t_round33 t_round34 t_round35 t_round36 t_round37 t_round38 t_sens2 t_factsheet t_docs t_fundlpa t_lpa_us t_arabic t_cfix t_integ t_gulf t_addin; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
   for t in t_feed t_play t_deck t_btns; do run "$t analyst" node "$t.mjs" "$AN" analyst; done
   for t in t_em t_api t_fix14 t_a11y; do run "$t api" node "$t.mjs" "$AP" api; done
 else
