@@ -1,0 +1,57 @@
+{
+ "loop": {
+  "interest": 8333333.333333334,
+  "total_debt": 110333333.33333333,
+  "circ": [
+   "Loop!B2"
+  ],
+  "covenant": "Breached"
+ },
+ "table": {
+  "total_rent": 3566000,
+  "total_area": 19800,
+  "rent_next": 3672980.0,
+  "rows": 4
+ },
+ "spill": {
+  "total_rent": 889233.6046253871,
+  "npv": 631207.0824164705,
+  "spilled": [
+   "Cash Flow!C1",
+   "Cash Flow!D1",
+   "Cash Flow!E1",
+   "Cash Flow!F1",
+   "Cash Flow!G1",
+   "Cash Flow!H1",
+   "Cash Flow!I1"
+  ]
+ },
+ "dates": {
+  "xnpv": 1293585.8226455525,
+  "dateCells": [
+   "Cash Flow!B1",
+   "Cash Flow!C1",
+   "Cash Flow!D1",
+   "Cash Flow!E1",
+   "Cash Flow!F1",
+   "Cash Flow!G1"
+  ]
+ },
+ "xarr": {
+  "gross": 6060000,
+  "net": 5757000.0,
+  "units": 134
+ },
+ "merged": {
+  "cost": 90000000,
+  "value": 257142857.1428571,
+  "poc": 1.8571428571428568
+ },
+ "names": {
+  "irr": 0.13741358021117656,
+  "profit": 23255756.80984615
+ },
+ "extlink": {
+  "area": 10000
+ }
+}

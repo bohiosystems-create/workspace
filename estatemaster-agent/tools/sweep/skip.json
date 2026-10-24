@@ -18,5 +18,8 @@
   "r42_errs_sar.xlsx": "every headline is an error on purpose (a number typed as text, a #REF!, an IRR with no root): there is no figure for LibreOffice to referee; t_errdiag checks the causes and the fixes, and the levered IRR the fix gives against a hand calculation",
   "c43_jv_circ_sar.xlsx": "a circular construction loan with iterative calculation: LibreOffice's iteration does not settle on it (levered IRR 35.89% against the exact 25.37%), so it cannot referee it; golden_c43.py solves it exactly and round 43 checks the app against that",
   "c43_dyn_usd.xlsx": "Excel 365 functions (SEQUENCE spill, FILTER, UNIQUE) the LibreOffice in CI cannot compute; golden_c43.py computes it independently",
-  "lease_freq.xlsx": "uses FREQUENCY on purpose: the workbook the second engine (LibreOffice, t_loengine) takes over because the browser engine cannot run it"
+  "lease_freq.xlsx": "uses FREQUENCY on purpose: the workbook the second engine (LibreOffice, t_loengine) takes over because the browser engine cannot run it",
+  "pic_loop_sar.xlsx": "a circular loan (interest funded by the loan itself): LibreOffice's iteration settles short of the exact fixed point, which t_picture checks by hand",
+  "pic_spill_usd.xlsx": "a timeline spilled by SEQUENCE, which the LibreOffice in CI cannot compute; t_picture checks it against a hand calculation",
+  "pic_extlink_usd.xlsx": "a headline reading another workbook on purpose (an external link the file does not carry): there is no figure to referee; t_picture checks the error and its cause"
 }
