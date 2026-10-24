@@ -18,7 +18,7 @@ await p.goto(base);await p.evaluate(()=>localStorage.clear());await p.reload();a
 
 // 1. a sheet's money unit: every amount read from a sheet in SAR '000 is said in currency, wherever it is shown
 await up('mean_scale_sar.xlsx');let r=await p.evaluate(async()=>{const x=latestExport(),st=async()=>{};const t=await a33Trace(x,{figure:'Net profit'},st);const L=await a33Covenant(x,{lines:['Loan balance']},st);const c=L.out?a33CovOut(x,L):{md:''};
-  return{sc:xcScaleAt(x,"'Cash Flow'!A1"),out:x.out,trace:t.t?a33TraceOut(x,t).md:'',line:c.md,chart:(c.charts||[])[0]&&{unit:c.charts[0].unit,values:c.charts[0].values},card:mapCard(x).replace(/<[^>]+>/g,' ')}});
+  return{sc:xcSheetUnit(x,"'Cash Flow'!A1"),out:x.out,trace:t.t?a33TraceOut(x,t).md:'',line:c.md,chart:(c.charts||[])[0]&&{unit:c.charts[0].unit,values:c.charts[0].values},card:mapCard(x).replace(/<[^>]+>/g,' ')}});
 ok(r.sc===G.scale.scale&&near(r.out.net_profit,G.scale.net_profit_sar)&&near(r.out.peak_debt,G.scale.peak_debt_sar),'the sheet heading (SAR \'000) sets each amount\'s unit: the headlines in SAR',{sc:r.sc,out:r.out});
 ok(/Net profit \(Returns!B2\) = SAR 50(\.00)?M\*\* \(the cells on Returns are in thousands of SAR\)/.test(r.trace),'the trace says a money figure in currency, with the sheet\'s unit',r.trace.slice(0,200));
 ok(/highest SAR 80(\.00)?M/.test(r.line)&&/Peak SAR 80(\.00)?M in year 2; repaid in full by year 3/.test(r.line)&&r.chart&&r.chart.unit==='SAR M'&&JSON.stringify(r.chart.values)===JSON.stringify(G.scale.balance_sar.map(v=>+(v/1e6).toFixed(2))),'the loan balance over time in SAR, its peak and the year it is repaid, the chart in SAR M',{line:r.line.slice(0,300),chart:r.chart});

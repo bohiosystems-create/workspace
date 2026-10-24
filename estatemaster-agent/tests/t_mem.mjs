@@ -11,7 +11,7 @@ await p.route('**/api/llm',r=>{if(r.request().method()==='GET')return r.fulfill(
 await p.goto(base);await p.evaluate(()=>localStorage.clear());await p.reload();await p.waitForTimeout(1300);
 await p.evaluate(()=>{toggleDock(true);webAsk('what if sale price drops 15%')});await p.waitForTimeout(4000);
 await p.evaluate(()=>webAsk('try again'));await p.waitForTimeout(3000);
-const last=[...llm].reverse().find(j=>j.provider==='openai'&&/try again/.test(JSON.stringify(j.payload.messages)));
+const last=[...llm].reverse().find(j=>j.provider==='openai'&&/try again/.test(JSON.stringify(j.payload.messages))&&!/You compare a user/.test(JSON.stringify(j.payload)));   /* the agent's call, not the answer check's (it also quotes the request) */
 const msgs=last?last.payload.messages.map(m=>m.role+':'+String(typeof m.content==='string'?m.content:JSON.stringify(m.content)).slice(0,60)):[];
 ok(last&&msgs.some(m=>/^user:what if sale price drops 15%/.test(m))&&msgs.some(m=>/^assistant:/.test(m)),'“try again” reaches the AI with the earlier question and answer: '+JSON.stringify(msgs.slice(1,5)));
 ok(llm.some(j=>j.provider==='openai'&&j.payload.response_format&&j.payload.response_format.type==='json_object'),'OpenAI calculation calls use JSON mode');
