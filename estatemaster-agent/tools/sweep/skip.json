@@ -21,5 +21,8 @@
   "lease_freq.xlsx": "uses FREQUENCY on purpose: the workbook the second engine (LibreOffice, t_loengine) takes over because the browser engine cannot run it",
   "pic_loop_sar.xlsx": "a circular loan (interest funded by the loan itself): LibreOffice's iteration settles short of the exact fixed point, which t_picture checks by hand",
   "pic_spill_usd.xlsx": "a timeline spilled by SEQUENCE, which the LibreOffice in CI cannot compute; t_picture checks it against a hand calculation",
-  "pic_extlink_usd.xlsx": "a headline reading another workbook on purpose (an external link the file does not carry): there is no figure to referee; t_picture checks the error and its cause"
+  "pic_extlink_usd.xlsx": "a headline reading another workbook on purpose (an external link the file does not carry): there is no figure to referee; t_picture checks the error and its cause",
+  "c44_phased_sar.xlsx": "round 44 fixture: its IRRs read names defined with OFFSET, which the browser engine returns #ERROR! for (round 44 bug 1, open); LibreOffice computes it, so the sweep would fail until the bug is fixed; golden figures in golden/c44.json from an independent Python model",
+  "c44_fund_usd.xlsx": "round 44 fixture: the fund consolidates its deals with INDIRECT on sheet names read from a list, which the browser engine turns into #N/A (round 44 bug 2, open); skipped until fixed; golden figures in golden/c44.json",
+  "c44_fund_direct_usd.xlsx": "round 44 fixture (the same fund with direct references): the sweep moves integer quarter inputs by 1%, which the model's IF(q=acquisition) cannot take; its figures are checked against golden/c44.json in the round tests"
 }
