@@ -1,0 +1,1255 @@
+{
+ "vm_1.xlsx": {
+  "sheets": {
+   "Plain": {
+    "unit": 1,
+    "ccy": "GBP"
+   },
+   "Thousands": {
+    "unit": 1000,
+    "ccy": "USD"
+   },
+   "SAR000": {
+    "unit": 1000,
+    "ccy": "SAR"
+   },
+   "InThousands": {
+    "unit": 1000,
+    "ccy": "EUR"
+   }
+  },
+  "cells": {
+   "Plain!B3": {
+    "label": "Management fee (on commitments)",
+    "v": 0.015,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B4": {
+    "label": "Parking spaces",
+    "v": 410,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B5": {
+    "label": "Equity commitment (USD mn)",
+    "v": 210,
+    "kind": "money",
+    "show_scale": 1000000.0,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "Plain!B6": {
+    "label": "Construction cost per sqm",
+    "v": 7500,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B7": {
+    "label": "2-bed · Rent (a Month)",
+    "v": 8600,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B8": {
+    "label": "Residential NSA (sqm)",
+    "v": 30000,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B9": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B10": {
+    "label": "Sales price (£/sqm)",
+    "v": 8500,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B11": {
+    "label": "Investment period (years)",
+    "v": 4,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B12": {
+    "label": "Marketing budget",
+    "v": 1200000,
+    "kind": "money",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B13": {
+    "label": "Total commitments",
+    "v": 150000000,
+    "kind": "money",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B14": {
+    "label": "Preferred return",
+    "v": 0.08,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Plain!B17": {
+    "label": "Retail podium",
+    "v": 85000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "col": true
+   },
+   "Plain!C17": {
+    "label": "Retail podium",
+    "v": 12000,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "col": true
+   },
+   "Plain!B18": {
+    "label": "Office tower",
+    "v": 240000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "col": true
+   },
+   "Plain!C18": {
+    "label": "Office tower",
+    "v": 31000,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "col": true
+   },
+   "Thousands!B3": {
+    "label": "Sales price (£/sqm)",
+    "v": 8500,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "Thousands!B4": {
+    "label": "Build cost (£/sqm GIA)",
+    "v": 2800,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "Thousands!B5": {
+    "label": "Site area (sqm)",
+    "v": 6500,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Thousands!B6": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Thousands!B7": {
+    "label": "Parking spaces",
+    "v": 410,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Thousands!B8": {
+    "label": "Senior debt facility (SAR '000)",
+    "v": 250,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "Thousands!B9": {
+    "label": "Soft costs",
+    "v": 9500000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "Thousands!B10": {
+    "label": "Management fee (on commitments)",
+    "v": 0.015,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Thousands!B11": {
+    "label": "Total commitments",
+    "v": 150000000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "Thousands!B12": {
+    "label": "Exit yield",
+    "v": 0.075,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Thousands!B13": {
+    "label": "Hold (months)",
+    "v": 30,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Thousands!B14": {
+    "label": "Construction cost per key",
+    "v": 1150000,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "SAR000!B3": {
+    "label": "Interest rate",
+    "v": 0.07,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "SAR000!B4": {
+    "label": "2-bed · Rent (a Month)",
+    "v": 8600,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "SAR000!B5": {
+    "label": "Investment period (years)",
+    "v": 4,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "SAR000!B6": {
+    "label": "GP catch-up",
+    "v": 1.0,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "SAR000!B7": {
+    "label": "Studio",
+    "v": 60,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "SAR000!B8": {
+    "label": "Construction cost",
+    "v": 200000000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "SAR000!B9": {
+    "label": "Sale price ($/sf)",
+    "v": 680,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "SAR000!B10": {
+    "label": "Retail rent per sqm pa",
+    "v": 1200,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "SAR000!B11": {
+    "label": "GFA (sqm)",
+    "v": 50000,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "SAR000!B12": {
+    "label": "Minimum DSCR covenant",
+    "v": 1.25,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "SAR000!B13": {
+    "label": "Land acquisition ($000s)",
+    "v": 250,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "SAR000!B14": {
+    "label": "Contingency amount",
+    "v": 4000000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "InThousands!B3": {
+    "label": "Pre-opening and FF&E (total)",
+    "v": 48000000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "InThousands!B4": {
+    "label": "GP catch-up",
+    "v": 1.0,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "InThousands!B5": {
+    "label": "Hold (months)",
+    "v": 30,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "InThousands!B6": {
+    "label": "Units",
+    "v": 240,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "InThousands!B7": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "InThousands!B8": {
+    "label": "Residential sale price per sqm",
+    "v": 12,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "InThousands!B9": {
+    "label": "Senior debt facility (SAR '000)",
+    "v": 250,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "InThousands!B10": {
+    "label": "إيرادات التأجير السنوية",
+    "v": 18000000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "InThousands!B11": {
+    "label": "Retail rent per sqm pa",
+    "v": 1200,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "InThousands!B12": {
+    "label": "Unit price",
+    "v": 2400000,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "InThousands!B13": {
+    "label": "Preferred return",
+    "v": 0.08,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "InThousands!B14": {
+    "label": "Site area (sqm)",
+    "v": 6500,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   }
+  },
+  "total": 429861950000.0
+ },
+ "vm_2.xlsx": {
+  "sheets": {
+   "Millions": {
+    "unit": 1000000.0,
+    "ccy": "SAR"
+   },
+   "GBPm": {
+    "unit": 1000000.0,
+    "ccy": "GBP"
+   },
+   "ArK": {
+    "unit": 1000,
+    "ccy": "SAR"
+   },
+   "ArM": {
+    "unit": 1000000.0,
+    "ccy": "SAR"
+   }
+  },
+  "cells": {
+   "Millions!B3": {
+    "label": "Operating costs per unit (a year)",
+    "v": 9500,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "Millions!B4": {
+    "label": "Investment period (years)",
+    "v": 4,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Millions!B5": {
+    "label": "Sales price (£/sqm)",
+    "v": 8500,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "Millions!B6": {
+    "label": "Equity commitment (ألف ريال)",
+    "v": 12000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "Millions!B7": {
+    "label": "Exit yield",
+    "v": 0.075,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Millions!B8": {
+    "label": "Retail rent per sqm pa",
+    "v": 1200,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "Millions!B9": {
+    "label": "Retail NLA (sqm)",
+    "v": 8000,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Millions!B10": {
+    "label": "Total commitments",
+    "v": 150000000,
+    "kind": "money",
+    "show_scale": 1000000.0,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "Millions!B11": {
+    "label": "Parking spaces",
+    "v": 410,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Millions!B12": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "Millions!B13": {
+    "label": "Marketing budget",
+    "v": 1200000,
+    "kind": "money",
+    "show_scale": 1000000.0,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "Millions!B14": {
+    "label": "Interest rate",
+    "v": 0.07,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "GBPm!B3": {
+    "label": "Investment period (years)",
+    "v": 4,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "GBPm!B4": {
+    "label": "Unit price",
+    "v": 2400000,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "GBPm!B5": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "GBPm!B6": {
+    "label": "GP catch-up",
+    "v": 1.0,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "GBPm!B7": {
+    "label": "Hard cost ($/sf)",
+    "v": 320,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "GBPm!B8": {
+    "label": "إيرادات التأجير السنوية",
+    "v": 18000000,
+    "kind": "money",
+    "show_scale": 1000000.0,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "GBPm!B9": {
+    "label": "Residential NSA (sqm)",
+    "v": 30000,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "GBPm!B10": {
+    "label": "Loan to cost (%)",
+    "v": 60,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": true
+   },
+   "GBPm!B11": {
+    "label": "Equity commitment (USD k)",
+    "v": 45500,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "GBPm!B12": {
+    "label": "Residential sale price per sqm",
+    "v": 12,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "GBPm!B13": {
+    "label": "Studio",
+    "v": 60,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "GBPm!B14": {
+    "label": "Land cost",
+    "v": 25000000,
+    "kind": "money",
+    "show_scale": 1000000.0,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "ArK!B3": {
+    "label": "Hard cost ($/sf)",
+    "v": 320,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "ArK!B4": {
+    "label": "Stabilised occupancy",
+    "v": 0.94,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArK!B5": {
+    "label": "Residential sale price per sqm",
+    "v": 12,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "ArK!B6": {
+    "label": "Interest rate",
+    "v": 0.07,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArK!B7": {
+    "label": "Land",
+    "v": 38000000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "ArK!B8": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArK!B9": {
+    "label": "GFA (sqm)",
+    "v": 50000,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArK!B10": {
+    "label": "Stabilised ADR",
+    "v": 780,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "ArK!B11": {
+    "label": "Contingency amount",
+    "v": 4000000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "ArK!B12": {
+    "label": "Amortisation (years after opening)",
+    "v": 20,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArK!B13": {
+    "label": "Land acquisition ($000s)",
+    "v": 250,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "ArK!B14": {
+    "label": "Keys",
+    "v": 320,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArM!B3": {
+    "label": "Sale price ($/sf)",
+    "v": 680,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "ArM!B4": {
+    "label": "Stabilised ADR",
+    "v": 780,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "ArM!B5": {
+    "label": "Gross internal area (sqm)",
+    "v": 12000,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArM!B6": {
+    "label": "GP catch-up",
+    "v": 1.0,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArM!B7": {
+    "label": "Stabilised occupancy",
+    "v": 0.94,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArM!B8": {
+    "label": "Launch month",
+    "v": 6,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArM!B9": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArM!B10": {
+    "label": "Retail rent per sqm pa",
+    "v": 1200,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "ArM!B11": {
+    "label": "Parking spaces",
+    "v": 410,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "ArM!B12": {
+    "label": "Fund expenses (a year)",
+    "v": 350000,
+    "kind": "money",
+    "show_scale": 1000000.0,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "ArM!B13": {
+    "label": "Senior debt facility (USD k)",
+    "v": 12000,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "ArM!B14": {
+    "label": "Total commitments",
+    "v": 150000000,
+    "kind": "money",
+    "show_scale": 1000000.0,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   }
+  },
+  "total": 344592069750000.0
+ },
+ "vm_3.xlsx": {
+  "sheets": {
+   "TrapSqm": {
+    "unit": 1,
+    "ccy": "GBP"
+   },
+   "TrapSqm2": {
+    "unit": 1,
+    "ccy": "SAR"
+   },
+   "TrapMonths": {
+    "unit": 1,
+    "ccy": "USD"
+   },
+   "TrapPark": {
+    "unit": 1,
+    "ccy": "AED"
+   }
+  },
+  "cells": {
+   "TrapSqm!B3": {
+    "label": "Studio",
+    "v": 60,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm!B4": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm!B5": {
+    "label": "Construction length (quarters)",
+    "v": 6,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm!B6": {
+    "label": "Construction cost per key",
+    "v": 1150000,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm!B7": {
+    "label": "Selling costs",
+    "v": 0.02,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm!B8": {
+    "label": "Residential sale price per sqm",
+    "v": 12,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm!B9": {
+    "label": "Equity commitment (ألف ريال)",
+    "v": 250,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "TrapSqm!B10": {
+    "label": "Fund expenses (a year)",
+    "v": 350000,
+    "kind": "money",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm!B11": {
+    "label": "Construction cost",
+    "v": 200000000,
+    "kind": "money",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm!B12": {
+    "label": "Site area (sqm)",
+    "v": 6500,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm!B13": {
+    "label": "Retail rent per sqm pa",
+    "v": 1200,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm!B14": {
+    "label": "Management fee (on commitments)",
+    "v": 0.015,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B3": {
+    "label": "Unit price",
+    "v": 2400000,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B4": {
+    "label": "Stabilised occupancy",
+    "v": 0.94,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B5": {
+    "label": "Exit year",
+    "v": 10,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B6": {
+    "label": "Parking spaces",
+    "v": 410,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B7": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B8": {
+    "label": "Residential sale price per sqm",
+    "v": 12,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B9": {
+    "label": "Exit yield",
+    "v": 0.075,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B10": {
+    "label": "تكلفة الأرض",
+    "v": 120000000,
+    "kind": "money",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B11": {
+    "label": "Contingency amount",
+    "v": 4000000,
+    "kind": "money",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B12": {
+    "label": "Senior debt facility (USD mn)",
+    "v": 12.5,
+    "kind": "money",
+    "show_scale": 1000000.0,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "TrapSqm2!B13": {
+    "label": "Build cost (£/sqm GIA)",
+    "v": 2800,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapSqm2!B14": {
+    "label": "Site area (sqm)",
+    "v": 6500,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B3": {
+    "label": "Equity commitment (USD k)",
+    "v": 45500,
+    "kind": "money",
+    "show_scale": 1000,
+    "conv_scale": 1000,
+    "whole_pct": false
+   },
+   "TrapMonths!B4": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B5": {
+    "label": "Lease-up months",
+    "v": 12,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B6": {
+    "label": "Stabilised ADR",
+    "v": 780,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B7": {
+    "label": "Hard cost ($/sf)",
+    "v": 320,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B8": {
+    "label": "Fund expenses (a year)",
+    "v": 350000,
+    "kind": "money",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B9": {
+    "label": "Sales price (£/sqm)",
+    "v": 8500,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B10": {
+    "label": "Marketing budget",
+    "v": 1200000,
+    "kind": "money",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B11": {
+    "label": "Gross internal area (sqm)",
+    "v": 12000,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B12": {
+    "label": "Rent growth (a year)",
+    "v": 0.03,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B13": {
+    "label": "Parking spaces",
+    "v": 410,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapMonths!B14": {
+    "label": "Management fee (on commitments)",
+    "v": 0.015,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B3": {
+    "label": "Retail rent per sqm pa",
+    "v": 1200,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B4": {
+    "label": "Amortisation (years after opening)",
+    "v": 20,
+    "kind": "time",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B5": {
+    "label": "Senior debt facility (SAR m)",
+    "v": 48,
+    "kind": "money",
+    "show_scale": 1000000.0,
+    "conv_scale": 1000000.0,
+    "whole_pct": false
+   },
+   "TrapPark!B6": {
+    "label": "إيرادات التأجير السنوية",
+    "v": 18000000,
+    "kind": "money",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B7": {
+    "label": "سعر البيع للمتر المربع",
+    "v": 6500,
+    "kind": "per_area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B8": {
+    "label": "Construction cost",
+    "v": 200000000,
+    "kind": "money",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B9": {
+    "label": "Stabilised ADR",
+    "v": 780,
+    "kind": "per_unit",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B10": {
+    "label": "Number of villas",
+    "v": 85,
+    "kind": "count",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B11": {
+    "label": "Exit yield",
+    "v": 0.075,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B12": {
+    "label": "Rent growth (a year)",
+    "v": 0.03,
+    "kind": "pct",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B13": {
+    "label": "Site area (sqm)",
+    "v": 6500,
+    "kind": "area",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   },
+   "TrapPark!B14": {
+    "label": "Exit EBITDA multiple",
+    "v": 13.5,
+    "kind": "x",
+    "show_scale": 1,
+    "conv_scale": 1,
+    "whole_pct": false
+   }
+  },
+  "total": 650150000.0
+ }
+}

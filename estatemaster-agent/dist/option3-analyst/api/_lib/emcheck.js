@@ -231,13 +231,17 @@ function emMatrix(sheets) {
   return { out, found, cells };
 }
 /* Amounts stated in thousands or millions ("($000s)", "USD m", "in millions") are scaled to full units: from the label, the column heading or the sheet's title rows. */
-const EM_K = /\(\s*[^)]{0,8}?(000s?|'000s?|’000s?|k)\s*\)|\bk(chf|eur|usd|gbp|sar|aed|qar|kwd|jpy|inr|sgd|hkd)\b|in\s*thousands|\bthousands\b|['’]000s?\b|[$€£]\s*000s?\b|\b(usd|sar|eur|aed|gbp|qar)\s*(000s?|k)\b/i;
-const EM_M = /\(\s*[^)]{0,8}?(m|mm|mn|mio|millions?)\s*\)|\bm(chf|eur|usd|gbp|sar|aed)\b|in\s*millions|\bmillions?\b|\b(usd|sar|eur|aed|gbp|qar|us\$|\$|€|£)\s*(m|mm|mn)\b/i;
+const EM_K = /\(\s*[^)]{0,8}?(000s?|'000s?|’000s?)\s*\)|\(\s*(?:[^)]{0,8}?[^a-z)])?k\s*\)|بال[آا]لاف|[أا]لف (?:ريال|درهم|دولار|دينار)|\bk(chf|eur|usd|gbp|sar|aed|qar|kwd|jpy|inr|sgd|hkd)\b|in\s*thousands|\bthousands\b|['’]000s?\b|[$€£]\s*000s?\b|\b(usd|sar|eur|aed|gbp|qar)\s*(000s?|k)\b/i;
+const EM_M = /\(\s*(?:[^)]{0,8}?[^a-z)])?(?<!\bsq\.?\s?)(m|mm|mn|mio|millions?)\s*\)|بالملايين|مليون (?:ريال|درهم|دولار|دينار)|\bm(chf|eur|usd|gbp|sar|aed)\b|in\s*millions|\bmillions?\b|\b(usd|sar|eur|aed|gbp|qar|us\$|\$|€|£)\s*(m|mm|mn)\b/i;
 const EM_CR = /\bcrores?\b|\(\s*[^)]{0,6}?\bcr\.?\s*\)/i, EM_LK = /\blakhs?\b|\blacs?\b/i;   // Indian units: 1 crore = 10 million, 1 lakh = 100,000
 function emUnitScale(s, ri, j, label) {
   const sc = t => EM_CR.test(t) ? 1e7 : EM_LK.test(t) ? 1e5 : EM_M.test(t) ? 1e6 : EM_K.test(t) ? 1e3 : 0; let k = sc(label || ''); if (k) return { k, from: `“${String(label).trim().slice(0, 40)}”` };
   for (let r = ri - 1; r >= Math.max(0, ri - 15); r--) { const h = (s.rows[r] || [])[j]; if (typeof h === 'string' && (k = sc(h))) return { k, from: `column heading “${h.trim().slice(0, 30)}”` }; }
-  for (let r = 0; r < Math.min(6, s.rows.length); r++) for (const c of s.rows[r] || []) if (typeof c === 'string' && c.length < 90 && (k = sc(c))) return { k, from: `sheet heading “${c.trim().slice(0, 40)}”` };
+  // a sheet's title rows state its unit; a row's own label (“Land cost (SAR '000)”, its figures to its right) states only that row's,
+  // and a heading over periods (“Cash flow (SAR '000) | 2025 | 2026 …”) is still a heading
+  const isLab = (row, i) => { if (row.slice(0, i).some(c => typeof c === 'string' && c.trim())) return false; const ns = row.slice(i + 1).filter(c => typeof c === 'number'); if (!ns.length) return false;
+    const per = ns.length >= 2 && ns.every(n => Number.isInteger(n)) && (ns.every((n, q) => q === 0 || n === ns[q - 1] + 1) || ns.every(n => n >= 1900 && n <= 2200) || ns.every(n => n > 20000 && n < 80000)); return !per; };
+  for (let r = 0; r < Math.min(6, s.rows.length); r++) { const row = s.rows[r] || []; for (let i = 0; i < row.length; i++) { const c = row[i]; if (typeof c === 'string' && c.length < 90 && !isLab(row, i) && (k = sc(c))) return { k, from: `sheet heading “${c.trim().slice(0, 40)}”` }; } }
   return null;
 }
 /* The headline figures, the same way in the app and on the server: a returns table first, then each figure by its label, its value to the right of
