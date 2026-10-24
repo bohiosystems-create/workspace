@@ -16,5 +16,7 @@
   "fn_sweep.xlsx": "the Excel function sweep for t_engine: it holds FREQUENCY and LAMBDA on purpose, which the browser engine does not have, so it is checked cell by cell in t_engine (121 of 124 against Excel's stored results) rather than swept",
   "r42_modern_usd.xlsx": "LET and XLOOKUP on the path to the IRR, which the LibreOffice in CI cannot compute (it returns no value); the base and Low case are checked against a hand calculation in t_round42",
   "r42_errs_sar.xlsx": "every headline is an error on purpose (a number typed as text, a #REF!, an IRR with no root): there is no figure for LibreOffice to referee; t_errdiag checks the causes and the fixes, and the levered IRR the fix gives against a hand calculation",
+  "c43_jv_circ_sar.xlsx": "a circular construction loan with iterative calculation: LibreOffice's iteration does not settle on it (levered IRR 35.89% against the exact 25.37%), so it cannot referee it; golden_c43.py solves it exactly and round 43 checks the app against that",
+  "c43_dyn_usd.xlsx": "Excel 365 functions (SEQUENCE spill, FILTER, UNIQUE) the LibreOffice in CI cannot compute; golden_c43.py computes it independently",
   "lease_freq.xlsx": "uses FREQUENCY on purpose: the workbook the second engine (LibreOffice, t_loengine) takes over because the browser engine cannot run it"
 }
