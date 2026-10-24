@@ -31,7 +31,7 @@ ok(r.ref==='Returns!B3'&&/#NUM!.*never changes sign/.test(r.md)&&/No line of the
 
 // 4. the debug reports the #REF! and the IRR with no root, and a 2.1% IRR moving under a point is not a “threshold”
 r=await p.evaluate(async()=>{const x=latestExport();const a={checks:[],steps:[]};await auEvidence(x,a);return a.checks.map(c=>c.level+' '+c.code+' '+c.text)});
-ok(r.some(t=>/^error error-cell .*Side check.*#REF!/.test(t))&&r.some(t=>/error-cell .*Fee IRR.*#NUM!/.test(t))&&!r.some(t=>/ kink /.test(t)),'the debug reports the #REF! (an error) and the IRR with no root, with no false threshold on a low return',r);
+ok(r.some(t=>/^error error-root .*Side check.*#REF!/.test(t))&&r.some(t=>/error-root .*Fee IRR.*#NUM!.*never positive/.test(t))&&!r.some(t=>/ kink /.test(t)),'the debug reports the #REF! (an error) and the IRR with no root, with no false threshold on a low return',r);
 
 // 4b. LET and XLOOKUP on the path to the IRR (the LibreOffice in CI cannot referee them): by hand, Base −60M then 45M twice (IRR 31.87%, profit 30M), Low 39M twice (19.43%, 18M)
 await up('r42_modern_usd.xlsx');r=await p.evaluate(async()=>{const [b,l]=await xcQ(()=>xcCall({op:'run',runs:[[],[['Inputs!B2','Low']]],read:['Returns!B1','Returns!B2']}));return{b,l}});

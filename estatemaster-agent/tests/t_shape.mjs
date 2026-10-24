@@ -25,7 +25,7 @@ ok(r.a===null&&/above 100%/.test(r.why)&&JSON.stringify(r.c)==='[0,0,0.9,0.9]','
 
 // 2. a headline that gives an error is said at upload with its cell and code, not read as missing
 r=await p.evaluate(()=>[...document.querySelectorAll('#msgs .msg.agent')].map(m=>m.innerText).join('\n'));
-ok(/Levered IRR \(Returns!B2\) gives #NUM! in the workbook: the cash flow it reads never changes sign/.test(r),'the levered IRR that gives #NUM! is said at upload, with its cell',r.slice(-400));
+ok(/Levered IRR \(Returns!B2\) gives #NUM! in the workbook: the cash flow it reads \('Cash Flow'!B7:M7\) is never positive, so there is no IRR to find/.test(r),'the levered IRR that gives #NUM! is said at upload, with its cell',r.slice(-400));
 // after a change that leaves the unlevered IRR with no root, the answer names the error (no AI: the rules' reading is confirmed by sending it again)
 const ask=async q=>{const n0=await p.evaluate(()=>document.querySelectorAll('#msgs .msg.agent').length);await p.evaluate(t=>{toggleDock(true);webAsk(t)},q);await p.waitForTimeout(500);await p.waitForFunction(()=>!busy,null,{timeout:200000}).catch(()=>{});await p.waitForTimeout(1200);return p.evaluate(n0=>[...document.querySelectorAll('#msgs .msg.agent')].slice(n0).map(m=>m.innerText).join('\n'),n0)};
 await ask('Rent per sqm to 0');const t=await ask('Rent per sqm to 0');
