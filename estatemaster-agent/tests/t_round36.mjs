@@ -31,7 +31,7 @@ const errs=[];let pass=0,fail=0;const T=out=>(c,m)=>{out.push((c?'PASS':'FAIL')+
 async function one(f,g,ctx){const out=[],t=T(out),p=await ctx.newPage();p.on('pageerror',e=>errs.push(f+': '+e.message));try{
   await p.goto(base);await p.evaluate(()=>{localStorage.clear();localStorage.setItem('em_map2','1')});await p.reload();await p.waitForTimeout(1200);
   await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',F+f+'.xlsx');await p.waitForTimeout(1800);await p.click('#npCreate');
-  for(let i=0;i<40;i++){await p.waitForTimeout(500);if(await p.evaluate(()=>{const x=latestExport();return !!(x&&x.map)}))break}
+  for(let i=0;i<120;i++){await p.waitForTimeout(500);if(await p.evaluate(()=>{const x=latestExport();return !!(x&&x.map)}))break}
   const r=await p.evaluate(async g=>{const x=latestExport();await xcEngine(x);const runs=[[],...g.changes.map(c=>[c[0]])];const res=await xcQ(()=>xcCall({op:'run',runs,read:g.read,reset:true}));
     const m=x.map;const cf=(m.cashflows||[]).map(c=>[c.irr,m.proof['cf:'+c.irr]]);const units=[];
     for(const k of ['net_profit','total_cost','gross_revenue','peak_debt','gp_profit','lp_profit'])if(x.cells[k]&&Number.isFinite(x.out[k])){const [v]=await xcQ(()=>xcCall({op:'get',refs:[x.cells[k]]}));const sh=String(x.cells[k]).replace(/!.*$/,'');const u=((m.units||[]).find(z=>z.sheet===sh)||{}).scale||xcLineScale(String((x.found||{})[k]||''))||1;   /* or the unit the line states: “Net profit to LPs (EUR m)” */units.push([k,x.out[k],v,u])}

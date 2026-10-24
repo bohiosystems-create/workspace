@@ -1,0 +1,49 @@
+{
+ "scale": {
+  "net_profit_sar": 50000000.0,
+  "peak_debt_sar": 80000000.0,
+  "balance_sar": [
+   28000000.0,
+   80000000.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "levered_irr": 0.430449179269513,
+  "scale": 1000
+ },
+ "period": {
+  "irr": 0.10910104969175027,
+  "profit": 8676923.07692308,
+  "irr_exit_8": 0.12233916333671846,
+  "irr_exit_12": 0.10087471082473731,
+  "first": 1,
+  "last": 12
+ },
+ "case": {
+  "base_irr": 0.1419400033657564,
+  "down_irr": 0.087006582036813,
+  "down_profit": 26785714.28571427,
+  "names": [
+   "Base",
+   "Downside"
+  ]
+ },
+ "roles": {
+  "planted": "Inputs!B6",
+  "not_direction": [
+   "Inputs!B2",
+   "Inputs!B4"
+  ]
+ },
+ "fund": {
+  "gross": 0.11939942284934724,
+  "lp": 0.09163708705888862
+ },
+ "engine": {
+  "irr": 0.12,
+  "profit": 540,
+  "monthly_rate": 0.0311792009087698,
+  "trend": 130
+ }
+}

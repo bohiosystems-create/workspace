@@ -108,7 +108,7 @@ for y in range(1, 6):
 wb.defined_names['EQCF'] = DefinedName('EQCF', attr_text=f'OFFSET(Monthly!$C$13,0,0,1,COUNT(Monthly!$C$2:${last}$2))')
 wb.defined_names['UCF'] = DefinedName('UCF', attr_text=f'OFFSET(Monthly!$C$8,0,0,1,COUNT(Monthly!$C$2:${last}$2))')
 rt = wb.create_sheet('Returns'); rt['A1'] = "Returns (SAR '000)"
-for t, f, nf in [('Levered IRR', '=(1+IRR(EQCF))^12-1', '0.00%'), ('Unlevered IRR', '=(1+IRR(UCF))^12-1', '0.00%'), ('Net profit', f'=SUM(Monthly!C13:{last}13)', '#,##0'),
+for t, f, nf in [('Levered IRR', '=(1+IRR(EQCF,0.02))^12-1', '0.00%'), ('Unlevered IRR', '=(1+IRR(UCF))^12-1', '0.00%'), ('Net profit', f'=SUM(Monthly!C13:{last}13)', '#,##0'),
                  ('Total development cost', f'=SUM(Monthly!C3:{last}3)+SUM(Monthly!C4:{last}4)+SUM(Monthly!C10:{last}10)', '#,##0'), ('Profit on cost', '=B4/B5', '0.00%'),
                  ('Peak debt', f'=MAX(Monthly!C12:{last}12)', '#,##0'), ('Case run', '=Inputs!B2', None)]:
     rt.append([t, f])
