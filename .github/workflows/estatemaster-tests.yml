@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Playwright 1.56.1 has no Chromium build for ubuntu-latest (26.04)
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -66,7 +66,7 @@ jobs:
   # source or to tools/brand_jadwa.py that breaks the client's build is seen the next morning
   jadwa:
     if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Playwright 1.56.1 has no Chromium build for ubuntu-latest (26.04)
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -91,7 +91,7 @@ jobs:
   # every night: the second formula engine (lo-service, LibreOffice) end to end, on the workbook the browser engine cannot run
   server-engine:
     if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Playwright 1.56.1 has no Chromium build for ubuntu-latest (26.04)
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
