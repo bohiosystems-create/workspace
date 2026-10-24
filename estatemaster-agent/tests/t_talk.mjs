@@ -61,7 +61,8 @@ await p.waitForTimeout(400);calls=[];MODE='openai-down';r=await ev(async()=>{con
 t(r.steps.some(s=>/OpenAI.*could not answer: OpenAI is out of API credit.*takes its place/.test(s)),'reason said and a replacement named: '+r.steps.filter(s=>/could not/.test(s)).join(' | '));
 t(r.mode==='cross'&&r.names.length===2&&!/gpt-5$/.test(r.names[1]),'still cross-checked by two models: '+JSON.stringify(r.names));
 // 4. in the chat the exchange streams as bubbles (not after the fact) and folds behind the arrow
-MODE='apart';SLOW=true;await ev(()=>{toggleDock(true)});const seen=[];const poll=setInterval(async()=>{try{seen.push(await ev(()=>document.querySelectorAll('#msgs .talkbox .st.talk').length))}catch(e){}},150);
+MODE='apart';SLOW=true;await ev(()=>{aiCreditRetry();toggleDock(true)});   /* OpenAI topped up again: set aside after section 3, it is tried again as Settings → check again does */
+const seen=[];const poll=setInterval(async()=>{try{seen.push(await ev(()=>document.querySelectorAll('#msgs .talkbox .st.talk').length))}catch(e){}},150);
 await ev(()=>webAsk('what if sale price drops 10%'));await p.waitForFunction(()=>!document.querySelector('#msgs .kthink'),null,{timeout:60000}).catch(()=>{});clearInterval(poll);SLOW=false;
 const chat=await ev(()=>{const bx=[...document.querySelectorAll('#msgs .talkbox')].pop();return{talk:bx?bx.querySelectorAll('.st.talk').length:0,boxes:document.querySelectorAll('#msgs .talkbox').length,done:!!(bx&&bx.querySelector('.tb-sum'))}});
 t(chat.talk>=3&&chat.done,'the chat holds one box per test with the agents’ bubbles and the closing line: '+JSON.stringify(chat));const u=seen.filter((v,i,a)=>a.indexOf(v)===i);t(u.length>=3,'they appeared one by one while the agent worked: '+JSON.stringify(u));
