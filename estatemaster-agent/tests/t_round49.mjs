@@ -33,5 +33,13 @@ t(K.h&&new RegExp('as uploaded').test(K.h)&&K.h.includes(K.ver+' (tested)')&&K.h
 // 4. a report name made twice: the one on screen, else the latest
 const R=await p.evaluate(()=>{RPTS.zzold={name:'Board one-pager',blocks:['wb_figures']};RPTS.zznew={name:'Board one-pager',blocks:['wb_figures']};RSEL='ic';const latest=rptByName('Board one-pager');RSEL='zzold';const onScreen=rptByName('board one-pager');delete RPTS.zzold;delete RPTS.zznew;RSEL='ic';return{latest,onScreen}});
 t(R.latest==='zznew'&&R.onScreen==='zzold','a report name held by two reports: the one on screen, else the latest made: '+JSON.stringify(R));
+// 5. “every input ±10%”: a hold of 8 years moves in whole years; ramp lines are scaled, not asked about
+const TJ=await p.evaluate(async()=>{const jv=Object.values(PROJECTS).find(P=>/MANAR/i.test(P.name));switchProject(jv.id,true,true);window.GAPS=[];window.ASKED='the Al Manar JV: tornado on the levered IRR, every input by ±10%.';
+  const o=await handle('','web','analyst',{k:'a33',tool:'tornado',args:{metric:'levered_irr',uniform:{by:10,unit:'pct'}}});return{t:o.plain||'',gaps:window.GAPS.slice()}});
+const hold=(TJ.t.match(/Hold period \(years\)[^\n]*?[|\t]\s*([\d.]+) to ([\d.]+)/)||[]);
+t(hold[1]==='7'&&hold[2]==='9'&&TJ.gaps.some(g=>/whole number of periods/.test(g)),'±10% on every input: a hold of 8 years is tested at 7 and 9 years, said: '+JSON.stringify({hold:hold.slice(1),gaps:TJ.gaps}).slice(0,300));
+await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',sp+'models/r41_hotel_aed.xlsx');await p.waitForTimeout(1200);await p.click('#npCreate');await p.waitForTimeout(4000);
+const TH=await p.evaluate(async()=>{window.GAPS=[];window.ASKED='Marina Bay: tornado on the levered IRR, every input by ±10%.';const o=await handle('','web','analyst',{k:'a33',tool:'tornado',args:{metric:'levered_irr',uniform:{by:10,unit:'pct'}}});return{t:(o.plain||'').slice(0,300),gaps:window.GAPS.slice()}});
+t(!/how should they move/.test(TH.t)&&/What moves/.test(TH.t)&&TH.gaps.some(g=>/scaled by the same ±10%/.test(g)),'±10% on every input: the ramp lines are scaled by it and said, not asked about: '+JSON.stringify(TH).slice(0,300));
 t(!errs.length,'no page errors '+errs.slice(0,3).join(' | '));
 console.log(ok.join('\n'));await b.close();process.exit(ok.some(z=>z.startsWith('FAIL'))?1:0);

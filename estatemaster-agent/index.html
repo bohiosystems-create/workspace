@@ -8741,6 +8741,8 @@ function svUserRange(l,s,a){s=s||{};const isP=l.pct&&!l.whole,n=svN(s.steps,a);
     if(l.value>lo&&l.value<hi&&!mv.some(v=>Math.abs(v-l.value)<1e-12*Math.max(1,Math.abs(l.value)))){mv.push(l.value);mv.sort((p,q)=>p-q)}return{unit:'to',moves:mv,by:'you'}}
   const num=v=>v!=null&&v!==''&&Number.isFinite(+v)?Math.abs(+v):null;const by=num(s.by),dn=num(s.down)!=null?num(s.down):by,up=num(s.up)!=null?num(s.up):by;
   if(dn!=null&&up!=null&&(dn||up)){const ok=svUnitsFor(l);const unit=ok.includes(s.unit)?s.unit:SV_UNITS.includes(s.unit)&&s.unit!=='to'&&!l.series?s.unit:ok[0];return{unit,down:dn,up,by:'you'}}
+  /* a whole number of periods (a hold of 8 years, an exit quarter) moved by a percentage: whole periods each way (8.8 years is no exit year in the model), said */
+  if(a&&a.uniform&&num(a.uniform.by)&&a.uniform.unit!=='periods'&&!l.series&&!l.isDate&&svUnitsFor(l).includes('periods')&&Number.isInteger(+l.value)&&+l.value>0){const k=Math.max(1,Math.round(+l.value*num(a.uniform.by)/100));noteGap(`${l.label} is a whole number of periods (${l.value}): the ±${num(a.uniform.by)}% asked is tested as ±${k} period${k>1?'s':''}, the nearest whole move.`);return{unit:'periods',down:k,up:k,by:'you (every input, in whole periods)'}}
   if(a&&a.uniform&&num(a.uniform.by)){const ok=svUnitsFor(l);const unit=a.uniform.unit==='pct'&&!l.isDate&&!l.series?'pct':ok.includes(a.uniform.unit)?a.uniform.unit:ok.includes('pct')?'pct':ok[0];return{unit,down:num(a.uniform.by),up:num(a.uniform.by),by:'you (every input)'}}   /* “every input by the same ±10%” is relative on every input, a yield or a year included */
   return null}
 const svN=(steps,a)=>a33Clamp('Points per axis',steps!=null&&steps!==''?steps:a&&a.steps,3,11,5);   /* a count the grid cannot hold is said, not cut quietly */
@@ -8888,7 +8890,10 @@ async function a33Tornado(x,a,st){await a33Eng(x);const f=a33PickFig(x,a.metric)
     const pick=[...cands.filter(c=>!isT(c)&&est(c)>0).sort((p,q)=>est(q)-est(p)).slice(0,Math.min(40,top*2)),...cands.filter(c=>isT(c)&&mv[xcRefKey(c.cell)]!=null).slice(0,4)];
     for(const c of pick){const l=await svLever(x,{label:c.label,cell:c.cell,mode:a.series_mode},B.sets);if(l&&!l.ask)ls.push(l)}}}
   const seen=new Set();ls=ls.filter(l=>{const k=xcRefKey(l.cell);if(seen.has(k))return false;seen.add(k);return true});if(!ls.length)return{ask:'No input moves this result: which inputs should the tornado test?'};
-  for(const l of ls)if(l.series&&!l.mode&&a.series_mode)l.mode=a.series_mode;{const q=ls.filter(l=>l.series&&!l.mode);if(q.length)return svModeAsk(q)}
+  for(const l of ls)if(l.series&&!l.mode&&a.series_mode)l.mode=a.series_mode;
+  /* “every input by ±10%”: a line typed period by period is scaled as a whole by that move, said; asked only when no move was given */
+  {const sc=ls.filter(l=>l.series&&!l.mode&&a.uniform&&+a.uniform.by);for(const l of sc)l.mode='scale';if(sc.length)noteGap(`${sc.map(l=>l.label).join(' and ')} ${sc.length>1?'are lines':'is a line'} typed period by period: each period is scaled by the same ±${+a.uniform.by}% as every other input.`)}
+  {const q=ls.filter(l=>l.series&&!l.mode);if(q.length)return svModeAsk(q)}
   let pts=a33Clamp('Points per input',a.points,3,9,5);const room=()=>budget-(Date.now()-T0);
   if(!a.points&&tper*ls.length*pts>room()*0.7){pts=3;cut.push(`3 points per input instead of 5: one recalculation of this workbook takes ${(tper/1000).toFixed(1)} s`)}
   {const fit=Math.max(2,Math.floor(room()*0.7/Math.max(1,tper*pts)));if(ls.length>fit&&!direct&&!(Array.isArray(a.inputs)&&a.inputs.length)){cut.push(`${ls.length-fit} of the screened inputs not run over their ranges in the time (${ls.slice(fit).map(l=>l.label).slice(0,6).join(', ')}${ls.length-fit>6?'…':''})`);ls=ls.slice(0,fit)}}
