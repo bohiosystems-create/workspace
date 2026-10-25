@@ -124,9 +124,9 @@ try{
   const sets=Object.entries(B).filter(([k])=>k.startsWith('setup:')).map(([,v])=>v.cost),setup=sets.reduce((a,b)=>a+b,0)/Math.max(1,sets.length);
   const pool=P.slice(CAL),byKind=k=>pool.filter(z=>z.kind===k),order=[];const qs=['what-if','sensitivity','report','document'].map(byKind);
   for(let i=0;order.length<pool.length;i++)for(const q of qs)if(q[i])order.push(q[i]);   // in turn across the kinds
-  let left=BUDGET-spent,pick=[];const opened=new Set(Object.keys(PAGES));for(const z of order){const est=avg[z.kind]*1.15+(opened.has(z.model)?0:setup);if(pick.length>=NMAX||est>left*0.95)continue;pick.push(z);left-=est;opened.add(z.model)}
+  let left=BUDGET-spent,pick=[],cut=0;const opened=new Set(Object.keys(PAGES));for(const z of order){const est=avg[z.kind]*1.15+(opened.has(z.model)?0:setup);if(pick.length>=NMAX)break;if(est>left*0.95){cut++;continue}pick.push(z);left-=est;opened.add(z.model)}
   console.log(`calibration: $${spent.toFixed(2)} spent; per prompt ${Object.entries(avg).map(([k,v])=>k+' $'+v.toFixed(3)).join(', ')}; set-up per model $${setup.toFixed(3)}`);
-  console.log(`main run: ${pick.length} prompts (${['what-if','sensitivity','report','document'].map(k=>k+' '+pick.filter(z=>z.kind===k).length).join(', ')})${pick.length<NMIN?` — fewer than ${NMIN}: the budget holds no more at the calibrated cost`:''}`);
+  console.log(`main run: ${pick.length} prompts (${['what-if','sensitivity','report','document'].map(k=>k+' '+pick.filter(z=>z.kind===k).length).join(', ')})${cut?` (${cut} left out: the budget holds no more at the calibrated cost)`:''}${pick.length<NMIN?` — fewer than ${NMIN}`:''}`);
   const seq=[...new Set(pick.map(z=>z.model))].flatMap(m=>pick.filter(z=>z.model===m));   // one model at a time, so each is opened once
   for(const z of seq){await run(z);if(creditOut)throw new Error('the API key ran out of credit during the run')}
 }catch(e){stopped=String(e&&e.message||e);console.log('STOPPED | '+(e&&e.stack||e))}
