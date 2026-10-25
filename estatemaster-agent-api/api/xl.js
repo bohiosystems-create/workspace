@@ -192,8 +192,11 @@ module.exports = async function handler(req, res) {
   if (!configured()) return send(200, { ok: false, why: 'not set up' });
   try {
     if (req.method === 'GET') {
-      const r = await call('GET', `${(await folder())}?$select=id`);   // the folder answers: the app can reach it
-      return send(200, r.ok ? { ok: true, version: 'Microsoft Excel (Microsoft 365)' } : { ok: false, why: 'the folder does not answer (' + r.status + ')' });
+      // the folder answers: the app can reach it. Whatever fails is said in words (no secret is ever in these messages), so the system check can show it
+      try {
+        const r = await call('GET', `${(await folder())}?$select=id`);
+        return send(200, r.ok ? { ok: true, version: 'Microsoft Excel (Microsoft 365)' } : { ok: false, why: `the folder ${env('XL_FOLDER')} does not answer (${r.status}${r.j && r.j.error && r.j.error.message ? ': ' + r.j.error.message : ''})` });
+      } catch (e) { return send(200, { ok: false, why: String((e && e.message) || e).slice(0, 300) }); }
     }
     if (req.method !== 'POST') return send(405, { error: 'method not allowed' });
     let body = req.body;

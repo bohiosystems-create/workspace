@@ -88,6 +88,12 @@ const FX = path.join(__dirname, 'fixtures', 'models');
   process.env.LOGIN_BASE = `http://127.0.0.1:${port}/nowhere`; X.reset();
   r = await run('POST', { hash: h, read: [] });
   t(r.code === 502 && /sign-in failed|answered/.test(r.j.error), 'a refused sign-in is reported, not hidden: ' + r.j.error);
+  // the system check's GET says why in words, whatever fails (a refused sign-in, a folder that does not answer)
+  process.env.LOGIN_BASE = `http://127.0.0.1:${port}/nowhere`; X.reset(); r = await run('GET');
+  t(r.code === 200 && r.j.ok === false && /sign-in failed/.test(r.j.why), 'GET: a refused sign-in is said as the reason, not a bare failure: ' + r.j.why);
+  process.env.LOGIN_BASE = `http://127.0.0.1:${port}`; process.env.XL_FOLDER = '/sites/contoso.sharepoint.com:/sites/calc:/drive/root:/Missing Folder'; X.reset(); r = await run('GET');
+  t(r.code === 200 && r.j.ok === false && /Missing Folder.*does not answer \(404/.test(r.j.why), 'GET: a folder that does not answer is named with its status: ' + r.j.why);
+  process.env.XL_FOLDER = '/sites/contoso.sharepoint.com:/sites/calc:/drive/root:/Bohio Calc'; X.reset();
   // the reference reader
   const q = X.parseRef("'Cash ''Flow'''!$AB$12");
   t(q.sheet === "Cash 'Flow'" && q.addr === 'AB12' && q.col === 28 && q.row === 12, 'a quoted sheet name with an apostrophe and a column past Z are read');

@@ -49,4 +49,9 @@ ok(s5.v&&s5.v[0]===3&&s5.calls.length===3&&s5.calls[1].hash==='h_xl'&&!s5.calls[
   await ctx.route('**/api/xl',r=>r.fulfill({status:200,contentType:'application/json',body:'{"ok":true,"version":"Microsoft Excel (Microsoft 365)"}'}));await ctx.route('**/api/llm',r=>r.fulfill({status:200,contentType:'application/json',body:'{"providers":{}}'}));
   await p.goto(base);await p.waitForTimeout(2000);const d=await p.evaluate(async()=>{location.protocol;await sysCheck(false);const t=document.body.textContent;const i=t.indexOf('Excel engine');return i<0?'':t.slice(i,i+200)});
   ok(/Excel engine/.test(d)&&/Microsoft Excel answers/.test(d),'Settings → System check shows the Excel engine',d);await ctx.close()}
+// 7. set up but not answering: the card says why (the server's reason), never a bare failure
+{const ctx=await b.newContext(),p=await ctx.newPage();await ctx.route('**/api/health',r=>r.fulfill({status:200,contentType:'application/json',body:'{"ok":true,"services":{"excelEngine":true,"serverEngine":false}}'}));
+  await ctx.route('**/api/xl',r=>r.fulfill({status:200,contentType:'application/json',body:'{"ok":false,"why":"the folder /sites/x:/sites/y:/drive/root:/Z does not answer (404: itemNotFound)"}'}));await ctx.route('**/api/llm',r=>r.fulfill({status:200,contentType:'application/json',body:'{"providers":{}}'}));
+  await p.goto(base);await p.waitForTimeout(2000);const d=await p.evaluate(async()=>{await sysCheck(false);const t=document.body.textContent;const i=t.indexOf('Excel engine');return i<0?'':t.slice(i,i+400)});
+  ok(/Set up but not answering: the folder/.test(d)&&/404: itemNotFound/.test(d),'the card says why the Excel engine does not answer',d);await ctx.close()}
 await b.close();console.log(`${pass} pass, ${fail} fail`);process.exit(fail?1:0);
