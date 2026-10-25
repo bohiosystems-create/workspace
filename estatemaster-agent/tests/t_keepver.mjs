@@ -50,6 +50,6 @@ ok(r.latest!==w.id&&DB.saved.length===n1&&/kept on this device only: no company 
 
 // 6. KINAN: no model is changed, so nothing to keep and no “Make this the model”
 const kn=await p.evaluate(async()=>{window.BOHIO_BRAND='kinan';let e='';try{await keepVersion(latestExport(),'x')}catch(z){e=z.message}const h=xlBtn('V1');window.BOHIO_BRAND='jadwa';return{e,h}});
-ok(/In KINAN a model is changed at its source/.test(kn.e)&&!/data-mvpush/.test(kn.h)&&/data-xcdl/.test(kn.h),'in KINAN nothing changes a model’s structure: no version to keep, no “Make this the model”, the download stays',kn.e.slice(0,80));
+ok(/In (KINAN|Jadwa) a model is changed at its source/.test(kn.e)   /* the Jadwa build rewrites the brand word in every string */&&!/data-mvpush/.test(kn.h)&&/data-xcdl/.test(kn.h),'in KINAN nothing changes a model’s structure: no version to keep, no “Make this the model”, the download stays',kn.e.slice(0,80));
 ok(errs.length===0,'no page errors',errs.join(' | '));
 console.log(`\n${pass} pass, ${fail} fail`);await b.close();process.exit(fail?1:0);
