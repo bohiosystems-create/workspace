@@ -104,7 +104,7 @@ function score(z,o){const t=o.replace(/⟦[^⟧]*⟧/g,'');const nums=[...t.matc
   return{miss,verdict:!miss.length&&!/Not computed/.test(t)?'right':flagged||!figures?'flagged':'confidently wrong'}}   // the right figure marked by the app as not computed (an AI's own guess) is not right
 
 const R=[];
-async function run(z){if(spent>=BUDGET){R.push({...z,verdict:'not run (budget)',cost:0});return}
+async function run(z){if(spent>=BUDGET){R.push({...z,q:typeof z.q==='string'?z.q:`${z.q.cell} to ${z.q.v}`,verdict:'not run (budget)',cost:0});return}
   const {p,labs}=await project(z.model);let q=typeof z.q==='string'?z.q:words(z,labs);if(!q){R.push({...z,q:JSON.stringify(z.q),verdict:'not run (no label for the cell)',cost:0});return}
   bucket=z.id;const t0=Date.now();const ask=q=>p.evaluate(async q=>{try{const r=await Promise.race([execute(q,'web','Investment Director',async()=>{}),new Promise((_,j)=>setTimeout(()=>j(new Error('no answer in 6 minutes')),360000))]);
       const o=r.out||{};const h=String((o.html||'')+(o.keep||'')).replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/g,' ').replace(/<[^>]+>/g,' ');
@@ -135,7 +135,7 @@ await b.close();
 const done=R.filter(r=>/^(right|flagged|confidently wrong)$/.test(r.verdict)),cnt=v=>done.filter(r=>r.verdict===v).length,setupCost=Object.entries(B).filter(([k])=>/^setup|^probe/.test(k)).reduce((a,[,v])=>a+v.cost,0);
 const kinds=['what-if','sensitivity','report','document'],row=k=>{const xs=done.filter(r=>r.kind===k),c=xs.reduce((a,r)=>a+r.cost,0);return`| ${k} | ${xs.length} | ${xs.filter(r=>r.verdict==='right').length} | ${xs.filter(r=>r.verdict==='flagged').length} | ${xs.filter(r=>r.verdict==='confidently wrong').length} | $${c.toFixed(2)} | $${(c/Math.max(1,xs.length)).toFixed(3)} |`};
 const md=[`### Budgeted live-AI test (Anthropic only, budget $${BUDGET})`,'',stopped?`**Stopped:** ${stopped}\n`:'',
-  `${done.length} prompts scored (${R.filter(r=>r.id&&P.findIndex(z=>z.id===r.id)<CAL).length} calibration): **${cnt('right')} right, ${cnt('flagged')} flagged, ${cnt('confidently wrong')} confidently wrong**. Spent $${spent.toFixed(2)} ($${setupCost.toFixed(2)} on the probe, model uploads and document readings). OpenAI calls refused: ${openaiAsked}; calls refused at the budget: ${refused}; page errors: ${errs.length}.`,'',
+  `${done.length} prompts scored (${done.filter(r=>P.findIndex(z=>z.id===r.id)<CAL).length} of them calibration): **${cnt('right')} right, ${cnt('flagged')} flagged, ${cnt('confidently wrong')} confidently wrong**. Spent $${spent.toFixed(2)} ($${setupCost.toFixed(2)} on the probe, model uploads and document readings). OpenAI calls refused: ${openaiAsked}; calls refused at the budget: ${refused}; page errors: ${errs.length}.`,'',
   '| kind | prompts | right | flagged | confidently wrong | cost | per prompt |','|---|---|---|---|---|---|---|',...kinds.map(row),'',
   '| # | kind | model | prompt | verdict | missing | cost | calls | s |','|---|---|---|---|---|---|---|---|---|',
   ...R.map(r=>`| ${r.id} | ${r.kind} | ${r.model} | ${String(r.q).replace(/\|/g,'/')} | ${r.verdict}${r.asked?' (asked back)':''} | ${(r.miss||[]).join(', ')} | $${(r.cost||0).toFixed(3)} | ${r.calls||0} | ${r.secs||''} |`)].join('\n');
