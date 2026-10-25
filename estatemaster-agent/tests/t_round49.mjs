@@ -28,7 +28,7 @@ t(P.shown.includes('wb_whatifs')&&!P.left.includes('scenario_compare'),'the scen
 // 3. a report on a tested version: the workbook as uploaded against that version
 const K=await p.evaluate(async()=>{const x=latestExport();const base=x.out0.levered_irr;window.ASKED='Hard cost ($/sf) to 368';const o=await handle('Hard cost ($/sf) to 368','web','analyst').catch(e=>null);if(o&&o.fx)try{o.fx()}catch(e){}await new Promise(r=>setTimeout(r,3000));
   const L=wbVers();const v=L[L.length-1];if(!v)return{err:'no version'};xvSet(x,v);const h=BLOCKS.kpis.fn().replace(/<[^>]+>/g,' ').replace(/\s+/g,' ');xvSet(x,null);return{h:h.slice(0,400),base,ver:v.id}});
-t(K.h&&new RegExp('as uploaded').test(K.h)&&K.h.includes(K.ver+' (tested)')&&K.h.includes((K.base).toFixed(2)+'%'),'the first-against-latest table on a tested version: the uploaded figures under “as uploaded”, the version’s under its name: '+JSON.stringify(K).slice(0,420));
+t(K.h&&K.h.includes(K.ver+' (tested)')&&!/\(first\)|\(latest\)/.test(K.h)&&!K.h.includes((K.base).toFixed(2)+'%')&&/4\.99%/.test(K.h),'the headline table on a tested version: that version’s figures under its own name, never under “first” and “latest”: '+JSON.stringify(K).slice(0,420));
 
 // 4. a report name made twice: the one on screen, else the latest
 const R=await p.evaluate(()=>{RPTS.zzold={name:'Board one-pager',blocks:['wb_figures']};RPTS.zznew={name:'Board one-pager',blocks:['wb_figures']};RSEL='ic';const latest=rptByName('Board one-pager');RSEL='zzold';const onScreen=rptByName('board one-pager');delete RPTS.zzold;delete RPTS.zznew;RSEL='ic';return{latest,onScreen}});
