@@ -16,4 +16,5 @@ for p in sys.argv[1:]:
     if not any(h.get('source')=='/demo.webm' for h in hs):hs.append({'source':'/demo.webm','headers':[{'key':'Cache-Control','value':'public, max-age=86400'}]})
     import os
     if os.path.exists(os.path.join(os.path.dirname(p) or '.','api','lo.js')):vj.setdefault('functions',{}).setdefault('api/lo.js',{'maxDuration':120})   # the server engine's proxy: a large workbook's first check takes a while
+    if os.path.exists(os.path.join(os.path.dirname(p) or '.','api','xl.js')):vj.setdefault('functions',{}).setdefault('api/xl.js',{'maxDuration':120})   # the Excel engine: upload, a full recalculation and the reads, in one call
     json.dump(vj,open(p,'w'),indent=2);open(p,'a').write('\n');print('patched',p)

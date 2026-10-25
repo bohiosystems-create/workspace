@@ -14,6 +14,7 @@ module.exports = async function handler(req, res) {
       microsoft365: on('MS_TENANT_ID', 'MS_CLIENT_ID', 'MS_CLIENT_SECRET'),
       sessionGate: on('DEMO_SESSION_SECRET'),
       serverEngine: on('LO_URL', 'LO_TOKEN'),
+      excelEngine: on('MS_TENANT_ID', 'MS_CLIENT_ID', 'XL_FOLDER'),
     },
   };
   res.statusCode = 200;
