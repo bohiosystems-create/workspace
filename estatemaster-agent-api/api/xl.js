@@ -15,6 +15,10 @@ const crypto = require('crypto'), zlib = require('zlib');
 const env = k => process.env[k] || '';
 const MAX_BYTES = 60 * 1024 * 1024;
 const gbase = () => (env('GRAPH_BASE') || 'https://graph.microsoft.com') + '/v1.0';
+// the secret as pasted into the hosting settings: surrounding spaces, line breaks and quotation marks are not part of it
+const secret = () => env('MS_CLIENT_SECRET').trim().replace(/^(["'])([\s\S]*)\1$/, '$2').trim();
+// what the secret looks like, never the secret: the commonest mistake is the secret's ID (a GUID) pasted instead of its value (about 40 characters with a ~)
+const secretShape = () => { const raw = env('MS_CLIENT_SECRET'), s = secret(); return `the secret in the settings has ${raw.length} characters${raw.length !== s.length ? ` (${s.length} after trimming spaces and quotes)` : ''}, ${/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ? 'and looks like a secret ID, not its value' : s.includes('~') ? 'contains a ~ as a secret value does' : 'has no ~, which a secret value has'}`; };
 const configured = () => !!(env('MS_TENANT_ID') && env('MS_CLIENT_ID') && (env('MS_CLIENT_SECRET') || env('XL_REFRESH_TOKEN')) && env('XL_FOLDER'));
 
 let TOKEN = null;
@@ -22,11 +26,11 @@ async function token() {
   if (TOKEN && TOKEN.exp > Date.now() + 60000) return TOKEN.v;
   const p = env('XL_REFRESH_TOKEN')
     ? { client_id: env('MS_CLIENT_ID'), grant_type: 'refresh_token', refresh_token: env('XL_REFRESH_TOKEN'), scope: 'https://graph.microsoft.com/Files.ReadWrite.All offline_access' }
-    : { client_id: env('MS_CLIENT_ID'), client_secret: env('MS_CLIENT_SECRET'), grant_type: 'client_credentials', scope: 'https://graph.microsoft.com/.default' };
-  if (env('XL_REFRESH_TOKEN') && env('MS_CLIENT_SECRET')) p.client_secret = env('MS_CLIENT_SECRET');
+    : { client_id: env('MS_CLIENT_ID'), client_secret: secret(), grant_type: 'client_credentials', scope: 'https://graph.microsoft.com/.default' };
+  if (env('XL_REFRESH_TOKEN') && env('MS_CLIENT_SECRET')) p.client_secret = secret();
   const r = await fetch(`${env('LOGIN_BASE') || 'https://login.microsoftonline.com'}/${env('MS_TENANT_ID')}/oauth2/v2.0/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(p) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok || !j.access_token) throw new Error('Microsoft sign-in failed: ' + (j.error_description || j.error || r.status));
+  if (!r.ok || !j.access_token) { const why = String(j.error_description || j.error || r.status).split(/\r?\n/)[0]; throw new Error('Microsoft sign-in failed: ' + why + (/AADSTS7000215|invalid_client/.test(why + (j.error || '')) && !env('XL_REFRESH_TOKEN') ? ' (' + secretShape() + ')' : '')); }
   TOKEN = { v: j.access_token, exp: Date.now() + (+j.expires_in || 3000) * 1000 };
   return TOKEN.v;
 }

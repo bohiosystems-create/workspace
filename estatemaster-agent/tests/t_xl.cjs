@@ -12,6 +12,7 @@ const FX = path.join(__dirname, 'fixtures', 'models');
     const u = decodeURIComponent(req.url), J = (code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
     log.push(req.method + ' ' + u + (req.headers['workbook-session-id'] ? ' [s]' : ''));
     if (u.startsWith('/nowhere')) return J(400, { error: 'invalid_client', error_description: 'the client secret is wrong' });
+    if (u.includes('/oauth2/v2.0/token')) { const sec = new URLSearchParams(body.toString()).get('client_secret'); if (sec !== 'sec') return J(401, { error: 'invalid_client', error_description: 'AADSTS7000215: Invalid client secret provided. Ensure the secret being sent in the request is the client secret value, not the client secret ID.\r\nTrace ID: x' }); }
     if (u.includes('/oauth2/v2.0/token')) return J(200, { access_token: 'tok', expires_in: 3600 });
     if (req.headers.authorization !== 'Bearer tok') return J(401, { error: { message: 'no token' } });
     if (/^\/v1\.0\/sites\/contoso\.sharepoint\.com:\/sites\/calc\?/.test(u)) return J(200, { id: 'SITE1' });
@@ -94,6 +95,14 @@ const FX = path.join(__dirname, 'fixtures', 'models');
   process.env.LOGIN_BASE = `http://127.0.0.1:${port}`; process.env.XL_FOLDER = '/sites/contoso.sharepoint.com:/sites/calc:/drive/root:/Missing Folder'; X.reset(); r = await run('GET');
   t(r.code === 200 && r.j.ok === false && /Missing Folder.*does not answer \(404/.test(r.j.why), 'GET: a folder that does not answer is named with its status: ' + r.j.why);
   process.env.XL_FOLDER = '/sites/contoso.sharepoint.com:/sites/calc:/drive/root:/Bohio Calc'; X.reset();
+  // a secret pasted with quotes and a line break still works; a wrong one is described by its shape, never shown
+  process.env.MS_CLIENT_SECRET = ' "sec"\n'; X.reset(); r = await run('GET');
+  t(r.j.ok === true, 'a secret pasted with quotation marks and a line break is cleaned and accepted: ' + JSON.stringify(r.j));
+  process.env.MS_CLIENT_SECRET = '1a2b3c4d-1111-2222-3333-444455556666'; X.reset(); r = await run('GET');
+  t(r.j.ok === false && /AADSTS7000215/.test(r.j.why) && /looks like a secret ID/.test(r.j.why) && !r.j.why.includes('1a2b3c4d'), 'a secret ID pasted instead of the value is named as such, without showing it: ' + r.j.why);
+  process.env.MS_CLIENT_SECRET = 'abcDE8Q~wrongwrongwrongwrongwrongwrong1234'; X.reset(); r = await run('GET');
+  t(r.j.ok === false && /42 characters/.test(r.j.why) && /contains a ~/.test(r.j.why) && !r.j.why.includes('wrongwrong'), 'a wrong value is described by its length and shape only: ' + r.j.why);
+  process.env.MS_CLIENT_SECRET = 'sec'; X.reset();
   // the reference reader
   const q = X.parseRef("'Cash ''Flow'''!$AB$12");
   t(q.sheet === "Cash 'Flow'" && q.addr === 'AB12' && q.col === 28 && q.row === 12, 'a quoted sheet name with an apostrophe and a column past Z are read');
