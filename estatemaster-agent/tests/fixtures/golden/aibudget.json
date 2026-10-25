@@ -1,0 +1,15 @@
+{
+ "_about": "LibreOffice recalculations of r33_waha_sar.xlsx for t_aibudget: unlevered and levered IRR (Returns!B2, Returns!B3), fractions.",
+ "base": [
+  0.112081090900149,
+  0.153430736101346
+ ],
+ "escalation_4": [
+  0.120428809593606,
+  0.166570275387297
+ ],
+ "margin_65": [
+  0.112081090900149,
+  0.149392091169701
+ ]
+}

@@ -62,7 +62,7 @@ elif [ "$MODE" = quick ]; then
   for t in t_em t_api t_fix14 t_a11y; do run "$t api" node "$t.mjs" "$AP" api; done
 else
   echo "== browser tests (full)"
-  for f in t_*.mjs; do t="${f%.mjs}"; [ "$t" = t_liveai ] && continue;   # the live-AI evaluation has its own workflow (it needs the key)
+  for f in t_*.mjs; do t="${f%.mjs}"; { [ "$t" = t_liveai ] || [ "$t" = t_aibudget ]; } && continue;   # the live-AI evaluations have their own workflows (they need the key)
   case " $API_ONLY " in *" $t "*) continue;; esac; case " $ANALYST " in *" $t "*) run "$t analyst" node "$f" "$AN" analyst;; *) run "$t readonly" node "$f" "$RO" readonly;; esac; done
   for t in $API_SET; do [ -f "$t.mjs" ] && run "$t api" node "$t.mjs" "$AP" api; done
 fi

@@ -1,0 +1,50 @@
+name: EstateMaster live-AI test on a budget
+
+# The app with a real Claude behind it (Anthropic only: no OpenAI key is given to the run) answers what-ifs, sensitivities, reports and
+# documents on the synthetic models; each answer is scored against LibreOffice's figures as right, flagged or confidently wrong, and
+# every call is costed from the usage the API returns. Five calibration prompts set the cost per prompt; the main run takes as many
+# prompts (25 to 35) as the rest of the budget holds. Run by hand, or by a push to a claude/ branch whose commit message carries
+# [run-aibudget] (a branch's workflows cannot be dispatched before they reach the default branch). Skipped without the ANTHROPIC_API_KEY secret.
+on:
+  push:
+    branches: ['claude/**']
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: 'budget in dollars for the whole run (probe, uploads, calibration and main run)'
+        default: '12'
+
+concurrency:
+  group: estatemaster-aibudget
+  cancel-in-progress: false
+
+jobs:
+  aibudget:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-aibudget]')
+    runs-on: ubuntu-24.04   # Playwright 1.56.1 has no Chromium build for ubuntu-latest (26.04)
+    timeout-minutes: 300
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        if: env.ANTHROPIC_API_KEY != ''
+        run: cd estatemaster-agent/tests && npm init -y >/dev/null && npm i playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium
+      - name: Run
+        env:
+          AIB_BUDGET: ${{ github.event.inputs.budget || '12' }}
+          AIB_OUT: ${{ github.workspace }}/aibudget.json
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then echo "No ANTHROPIC_API_KEY secret: skipped"; exit 0; fi
+          python3 -m http.server 4090 -d estatemaster-agent >/dev/null 2>&1 &
+          for i in $(seq 1 30); do curl -s -o /dev/null localhost:4090/ && break; sleep 0.5; done
+          cd estatemaster-agent/tests && node t_aibudget.mjs "http://localhost:4090/?mode=readonly"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aibudget
+          path: aibudget.json
+          if-no-files-found: ignore
