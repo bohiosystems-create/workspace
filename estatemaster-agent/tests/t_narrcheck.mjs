@@ -43,6 +43,11 @@ t(/checked against them/.test(shown),'the report says its narrative’s numbers 
 const made=await p.evaluate(async()=>{aiCreditRetry();AI.keys.anthropic='sk-a';   /* the stand-in API is out of credit for every call; the upload's own AI reading set it aside */window.complete=async()=>({text:'Summary: A lender view.\nRationale: Hold.',p:'anthropic',model:'claude-opus-5-5'});for(const k of Object.keys(NARRS))delete NARRS[k];
   const o=await handle('','web','analyst',{k:'report',kind:'lender'});o.fx();for(let i=0;i<40&&!NARRS.lender;i++)await new Promise(r=>setTimeout(r,100));return{has:!!NARRS.lender,opt:!!(RPTS.lender.opts&&RPTS.lender.opts.narrative),keys:Object.keys(NARRS),rsel:RSEL,api:apiOn(),k:o.plain&&o.plain.slice(0,80)}});
 t(made.has,'a report built without the narrative switch still gets the AI narrative: '+JSON.stringify(made));
+// only the user's own words turn it off: the designer's narrative switch is off by default, an explicit “no narrative” is not
+const off=await p.evaluate(async()=>{const sp=t=>specFromAI({blocks:['wb_figures'],options:{narrative:false}},t).opts.noNarrative;const words={no:sp('Build the lender pack without a narrative.'),drop:sp('Remove the narrative from that report.'),with:sp('Add a narrative.'),plain:sp('Make it shorter.')};
+  applySpec('lender',{opts:{noNarrative:true}},'test','test');RSEL='lender';renderReport();const shown=/Narrative \(AI draft\)/.test((document.querySelector('#report')||document.body).innerHTML);
+  delete NARRS.lender;let asked=0;window.complete=async()=>{asked++;return{text:'Summary: x.',p:'anthropic',model:'m'}};rpNarrSoon('lender');await new Promise(r=>setTimeout(r,300));applySpec('lender',{opts:{noNarrative:false}},'test','test');return{words,shown,asked}});
+t(off.words.no===true&&off.words.drop===true&&off.words.with===false&&off.words.plain===undefined&&!off.shown&&!off.asked,'an explicit “no narrative” turns it off (not shown, not written); any other request leaves it on: '+JSON.stringify(off));
 
 // 4. out of credit: the first question tries the AI and falls back with a note; the next goes straight to the rules; asking again tries it
 const ask=async q=>p.evaluate(async q=>{window.GAPS=[];const res=await execute(q,'web','analyst',async()=>{});return{kind:res.kind,gaps:window.GAPS.slice()}},q);
