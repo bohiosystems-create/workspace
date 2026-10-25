@@ -1936,19 +1936,21 @@ const ctxCore=n=>String(n||'').split(/\s+[·–—|]\s+|\s+-\s+|\s*\(/)[0].toLow
 function ctxProjectNamed(q){q=' '+String(q).toLowerCase().replace(CTX_WORD,' ')+' ';const hits=[];const PS=Object.values(PROJECTS).filter(P=>!(typeof DELETED!=='undefined'&&DELETED&&DELETED.has&&DELETED.has(P.id)));
   const own=P=>ctxCore(P.name).filter(w=>!CTX_GENERIC.has(w)&&w.length>3&&!PS.some(Q=>Q!==P&&ctxCore(Q.name).includes(w)));   /* the words of a name no other project shares */
   for(const P of PS){const core=ctxCore(P.name);
-    let hit=false;for(let i=0;i+1<core.length&&!hit;i++){const two=core.slice(i,i+2);if(two.every(w=>CTX_GENERIC.has(w)))continue;if(q.includes(' '+two.join(' ')+' '))hit=true}
-    if(!hit&&core.length===1&&!CTX_GENERIC.has(core[0])&&core[0].length>3&&q.includes(' '+core[0]+' '))hit=true;
-    if(!hit&&own(P).some(w=>q.includes(' '+w+' ')))hit=true;
-    if(!hit&&P.nameAr){const ar=ctxCore(P.nameAr);if(ar.length===1?q.includes(' '+ar[0]+' '):ar.some((w,i)=>i+1<ar.length&&q.includes(' '+w+' '+ar[i+1]+' ')))hit=true}
-    if(hit)hits.push(P.id)}
-  return hits}
+    let hit=0;for(let i=0;i+1<core.length&&!hit;i++){const two=core.slice(i,i+2);if(two.every(w=>CTX_GENERIC.has(w)))continue;if(q.includes(' '+two.join(' ')+' '))hit=2}
+    if(!hit&&core.length===1&&!CTX_GENERIC.has(core[0])&&core[0].length>3&&q.includes(' '+core[0]+' '))hit=2;
+    if(!hit&&P.nameAr){const ar=ctxCore(P.nameAr);if(ar.length===1?q.includes(' '+ar[0]+' '):ar.some((w,i)=>i+1<ar.length&&q.includes(' '+w+' '+ar[i+1]+' ')))hit=2}
+    if(!hit&&own(P).some(w=>q.includes(' '+w+' ')))hit=1;
+    if(hit)hits.push([P.id,hit])}
+  /* a name's own phrase outweighs one of its words met alone: “the Al Manar JV … the main risk” names Al Manar, not Main Street */
+  const top=Math.max(0,...hits.map(h=>h[1]));return hits.filter(h=>h[1]===top).map(h=>h[0])}
 /* the case a question names, when the workbook has a scenario switch with that name (“on the Downside case”, “in the Upside scenario”) */
 function ctxCaseAsked(q,x){try{const sw=svSwitch(x);if(!sw||!(sw.names||[]).filter(Boolean).length)return null;const ql=' '+String(q).toLowerCase()+' ';if(!/\b(case|scenario)\b|حالة|سيناريو/i.test(ql))return null;
     return sw.names.filter(Boolean).find(n=>new RegExp('(^|[^a-z0-9\\u0600-\\u06FF])'+a33Esc(String(n).toLowerCase())+'(?=[^a-z0-9\\u0600-\\u06FF]|$)').test(ql))||null}catch(e){return null}}
 function ctxCross(it){return it&&(it.k==='projects'||it.k==='daily'||(it.k==='a33'&&['fund_combine','whatif_all_projects'].includes(it.tool)))}
 function ctxStruct(it){return it&&(['xextend','fundfix','map','xldl'].includes(it.k)||(it.k==='a33'&&STRUCT_TOOLS.includes(it.tool)))}
 function ctxResolve(it){const q=String(window.ASKED||'');const c={asked:{},applied:{},notes:[],sets:[],ex:null};if(!q||!it)return c;
-  if(!ctxCross(it)){const named=ctxProjectNamed(q);if(named.length===1&&named[0]!==PROJ.id&&!named.includes(PROJ.id)){const id=named[0],was=PROJ.id;c.asked.project=id;try{switchProject(id,true,true);c.applied.project=id;c.from=was}catch(e){c.notes.push(`${PROJECTS[id].name} was named, but the answer could not move to it: it is about ${PROJECTS[was].name}.`)}}}
+  if(!ctxCross(it)){const named=ctxProjectNamed(q);if(named.length===1&&named[0]!==PROJ.id&&!named.includes(PROJ.id)){const id=named[0],was=PROJ.id;c.asked.project=id;try{switchProject(id,true,true);c.applied.project=id;c.from=was}catch(e){c.notes.push(`${PROJECTS[id].name} was named, but the answer could not move to it: it is about ${PROJECTS[was].name}.`)}}
+    else if(named.length>1&&!named.includes(PROJ.id))c.notes.push(`${named.map(id=>PROJECTS[id].name).join(' and ')} are named: this answer is about ${PROJ.name}, the project open. Name one project to move to it.`)}
   if(ctxStruct(it))return c;
   const x=latestExport();if(!x||x.src!=='file')return c;const mc=String((x.meta&&x.meta.currency)||PROJ.currency||'').toUpperCase();
   const L=(MVERS[x.proj]||[]).filter(v=>!v.base&&v.ex===x.id&&(v.sets||[]).length);let v=null;
@@ -1987,6 +1989,8 @@ async function handle0(text,ch,role,forced){
   if(it.k==='jurset'){if(!JUR[it.j]&&it.j!=='other'){done('Say which regime applies: Saudi Arabia, UAE onshore, DIFC, ADGM or neither.');return out}const x=jurSet((latestExport()||{}).id,it.j,'you (in the chat)');done(x?`Recorded: ${x.file||x.id} falls under ${jurName(it.j)}.`:'There is no uploaded workbook to record it for.');return out}
   if(it.k==='fundfix'){const d=(DOCS[PROJ.id]||[]).filter(z=>z.kind==='fund').pop();if(!d){done('No contract has been read for this model yet: add it on the Financial modelling page (Documents).');return out}
     try{const f=await contractFix(d.id,it.answers||(d.fix&&d.fix.answers)||{});out.link=['model','Open Financial modelling'];if(!f){done(`${d.name}: nothing in the model is inconsistent with the agreement, so nothing was changed.`);return out}const md=fundFixMd(d);done(md,mdLite(md))}catch(e){done(`The workbook was not changed: ${e.message}`)}return out}
+  /* no contract read, but documents are (a lease, a term sheet): their terms against the model answer it, said; never “nothing has been read” */
+  if(it.k==='fundq'&&!docDocs().some(d=>d.kind==='fund')&&docDocs().length){const r=await docAnswer(it.q||text||'');out.link=['model','Open Financial modelling'];done(`No contract (an agreement whose terms the model must follow) has been read for this model; the documents read are compared with the model instead.\n\n${r.plain}`);return out}
   if(it.k==='fundq'){const r=fundAnswer(it.q||text||'');out.link=['model','Open Financial modelling'];done(r.plain,mdLite(r.plain));return out}
   if(it.byAI&&!PROJ.fromExport&&!['newmodel','napkinmodel','xline'].includes(it.k)){
     const ops=it.k==='mod'?[{t:'mods',mods:it.mods}]:it.k==='line'?[{t:'line',id:it.id,v:it.v}]:it.k==='align'?[{t:'mods',mods:alignDeltas()}]:it.k==='reset'?[{t:'reset'}]:it.k==='capital'&&it.mods&&Object.keys(it.mods).length?[{t:'ft',mods:it.mods}]:null;
@@ -2321,7 +2325,7 @@ async function handle0(text,ch,role,forced){
     {const xw=latestExport();if(PROJ.fromExport&&xw&&xw.src==='file'){const o=xw.out||{};const PL=rpPlan(RPTS[kind].blocks||[]),bl=PL.shown,left=PL.leftNames;
         const inv=/investor|\blps?\b|unit-?holder/i.test(RPTS[kind].aud||'');const KS=inv?['lp_irr','lp_multiple','levered_irr','unlevered_irr','net_profit']:['levered_irr','unlevered_irr','lp_irr','profit_on_cost','net_profit'];const figs=KS.filter(k=>Number.isFinite(+o[k])&&(MET[k]||/_irr$|_multiple$/.test(k))).map(k=>`${MET[k]?MET[k][0]:a33KLab(k)} ${MET[k]?fMet(k,+o[k]):/_irr$/.test(k)?(+o[k]).toFixed(2)+'%':(+o[k]).toFixed(2)+'x'}`);
         if(/\b(all|every|whole|entire|across|each)\b[^.?!]{0,30}\b(projects?|portfolio|models|book|funds?)\b/i.test(String(window.ASKED||''))&&Object.keys(PROJECTS).filter(id=>EXPORTS.some(e=>e.proj===id&&e.src==='file')).length>1)noteGap(`The report is built from one model (${xw.file||xw.id}), not the whole portfolio: a report reads one project's workbook.`);
-        done(`*${RPTS[kind].name} ready* for ${(PROJECTS[xw.proj]||PROJ).name}, built from ${xw.file||xw.id} (${xw.id}${xvLabel(xw)?', on '+xvLabel(xw):''})${figs.length?': '+figs.join(', '):''}.\nSections: ${bl.map(b=>BLOCKS[b].name).join(', ')}.${left.length?`\nLeft out (they need the full EstateMaster model): ${left.join(', ')}.`:''}${arNote}`);break}}
+        done(`*${RPTS[kind].name} ready* for ${(PROJECTS[xw.proj]||PROJ).name}, built from ${xw.file||xw.id} (${xw.id}${xvLabel(xw)?', on '+xvLabel(xw):''})${figs.length?': '+figs.join(', '):''}.\n${bl.length?`Sections: ${bl.map(b=>BLOCKS[b].name).join(', ')}.`:'No section of this report has data on an uploaded workbook.'}${left.length?`\nLeft out (they need the full EstateMaster model): ${left.join(', ')}.`:''}${arNote}`);break}}
     if(kind!=='ic'){const r=run(S),w=waterfall(r);
       done(`*${RPTS[kind].name} ready*\n`+(kind==='monthly'?`Levered IRR ${fP(r.irr)} (base ${fP(baseRes.irr)}), total cost ${fM(r.tc)}. Includes budget vs actuals, sales progress, next-quarter cash flow and flags.`:kind==='lender'?`Peak debt ${fM(r.peak)} in ${qLab(r.peakT)}, LTC ${apply(S).ltc.toFixed(0)}%. Includes covenant tests, drawdown schedule and debt under stress.`:kind==='investor'?`Fund LP net IRR ${fP(w.lpIrr)}, KINAN ${fP(w.gpIrr)}. Includes calls, distributions by year and returns under stress.`:kind==='compare'?`Base, current, market-aligned and two downside cases side by side.`:`${RPTS[kind].blocks.length} sections: ${RPTS[kind].blocks.map(b=>BLOCKS[b].name).join(', ')}.`));
       break}
@@ -3059,7 +3063,7 @@ Object.assign(BLOCKS,DS_BLOCKS);
    cover lines, its investor lines (LP, GP, promote) and the what-ifs recalculated on it. A demo-engine section asked for on such a model
    (facility, covenants, fund terms, cash flow) shows the matching workbook section instead of disappearing */
 const WB_DEBT=/debt|loan|facility|dscr|icr|llcr|plcr|ltv|ltc|gearing|(?<!carried )interest|cover|murabaha|ijara|drawn|lender|mezz|senior|refinanc|coupon|pik|repay/i,WB_INV=/\blp\b|\bgp\b|promote|carry|carried|investor|partner|distribut|equity|pref|hurdle|waterfall|catch.?up|multiple|moic|tvpi|dpi|irr/i;
-const WB_FOR={facility:'wb_debt',covenants:'wb_debt',drawdowns:'wb_debt',debt_stress:'wb_debt',capital_stack:'wb_debt',covenant_history:'wb_debt',fund_summary:'wb_investors',fund_terms:'wb_investors',fund_distributions:'wb_investors',fund_stress:'wb_investors',cashflow_annual:'wb_figures',cashflow_next4:'wb_figures',cost_breakdown:'wb_figures',valuation:'wb_figures',tornado_top:'wb_sensitivity'};
+const WB_FOR={facility:'wb_debt',covenants:'wb_debt',drawdowns:'wb_debt',debt_stress:'wb_debt',capital_stack:'wb_debt',covenant_history:'wb_debt',fund_summary:'wb_investors',fund_terms:'wb_investors',fund_distributions:'wb_investors',fund_stress:'wb_investors',cashflow_annual:'wb_figures',cashflow_next4:'wb_figures',cost_breakdown:'wb_figures',valuation:'wb_figures',tornado_top:'wb_sensitivity',scenario_compare:'wb_whatifs',scenario_library:'wb_whatifs'};   /* scenarios side by side on a workbook: the uploaded figures against each what-if recalculated on it */
 function wbRows(re){const x=latestExport();if(!x||x.src!=='file')return null;const C=x.cells||{},o=x.out||{};
   const head=Object.keys(C).filter(k=>C[k]&&(MET[k]||k==='equity_multiple')&&Number.isFinite(o[k])).map(k=>{const nm=MET[k]?MET[k][0]:'Equity multiple';return{label:typeof metLabel==='function'?metLabel(x,k,nm):nm,ref:C[k],s:k==='equity_multiple'&&!MET[k]?o[k].toFixed(2)+'x':fMet(k,o[k])}}).filter(h=>!re||re.test(h.label));
   for(const k of ['lp_irr','lp_multiple','lp_profit','gp_irr','gp_multiple','gp_profit'])if(C[k]&&Number.isFinite(o[k])&&!head.some(h=>xcRefKey(h.ref)===xcRefKey(C[k]))){const label=a33KLab(k);if(!re||re.test(label))head.push({label,ref:C[k],s:/_irr$/.test(k)?o[k].toFixed(2)+'%':/_multiple$/.test(k)?o[k].toFixed(2)+'x':fMet('net_profit',o[k])})}   /* a partner's own figures (LP IRR, GP profit) belong in the table as much as the scheme's */
@@ -8796,7 +8800,8 @@ async function svBase(x,a){const sets=[],said=[];const sw=svSwitch(x);const cn=(
     sets.push([sw.cell,sw.text?(sw.names[n-1]||n):n]);said.push(`${cn(sw,n)} (${sw.cell} set to ${n})`)}
   else if(sw)said.push(`${cn(sw,sw.value)} (${sw.cell} = ${sw.value}, as the workbook stands)`);
   for(const f of a.fixed||[]){const l=await svLever(x,f,sets);if(!l)continue;if(l.ask)return l;let v=+f.value;if(!Number.isFinite(v))return{ask:`At what value should ${l.label} be held?`};{const q=qtyTo(v,qtyLever(l),`${l.label} held`);v=q.v;if(q.note)noteGap(q.note)}sets.push([l.cell,v]);said.push(`${l.label} held at ${svLv(l,v)} (${l.cell})`)}
-  return{sets,text:said.length?said.join('; '):'the workbook as uploaded'}}
+  const vl=x.view&&typeof xvLabel==='function'?xvLabel(x):'';   /* a tested version the tool runs on is named, never called the workbook as uploaded */
+  return{sets,text:said.length?said.join('; ')+(vl?`, on ${vl}`:''):(vl||'the workbook as uploaded')}}
 /* what a figure cannot be: an error, or the model's own IFERROR fallback (an IRR that does not exist shows as 0) */
 async function svLimits(f){if(f.ifErr!==undefined)return;f.ifErr=null;try{const [ft]=await xcQ(()=>xcCall({op:'ftext',refs:[f.ref]}));const m=String(ft||'').match(/^=\s*IFERROR\((.*),\s*(-?\d+(?:\.\d+)?)\s*\)\s*$/i);if(m)f.ifErr={v:+m[2],inner:m[1].slice(0,80)}}catch(e){}}
 function svVal(f,v){if(typeof v!=='number'||!Number.isFinite(v))return{t:'not computed',lim:'err'};if(f.ifErr&&v===f.ifErr.v&&/irr/i.test(f.label+' '+(f.k||'')))return{t:'n/a ⓘ',lim:'iferr'};return{t:a33F(f,v)}}
@@ -9916,7 +9921,10 @@ function roInit(){
 function integHTML(){const it=MI().integ;if(!it)return'';return`<h3 style="margin:16px 0 6px;font-size:14px">Integration basis <span class="sub" style="margin:0;font-size:12px">what ARGUS EstateMaster offers, per Altus Group</span></h3>`+T(['EstateMaster integration','Status','How this agent uses it'],it.map(r=>[`<b>${esc(r[0])}</b>`,esc(r[1]),esc(r[2])]),false)}
 function modeCanHTML(){return`<div class="grid g2" style="gap:12px;margin-top:12px"><div><b>Can</b><ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.55">${MI().can.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div><div><b>Can’t</b><ul style="margin:6px 0 0 18px;font-size:13px;line-height:1.55">${MI().cant.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div></div>`}
 if(RO){
-  BLOCKS.kpis.fn=()=>{const a=firstExport(),b=latestExport();if(!b)return'<p class="meta">No EstateMaster export yet.</p>';return T(['Metric',a.id+' (first)',b.id+' (latest)'],EXROWS.filter(([k])=>b.src!=='file'||Number.isFinite(+(a.out||{})[k])||Number.isFinite(+(b.out||{})[k])).map(([k,l,u])=>[exLab(b,k,l),exFmt(a.out[k],u),exFmt(b.out[k],u)]))+`<p class="meta">All figures from EstateMaster’s exports (${b.src==='file'?esc(b.file):'simulated exports in this demo'}). The agent does not calculate returns.</p>`};
+  BLOCKS.kpis.fn=()=>{const a=firstExport(),b=latestExport();if(!b)return'<p class="meta">No EstateMaster export yet.</p>';
+    /* a report built on a tested version of one upload: the workbook as uploaded against that version, never the version under both headings */
+    const vw=a===b&&b.src==='file'&&b.view,A=vw?(b.out0||{}):a.out;
+    return T(['Metric',vw?b.id+' (as uploaded)':a.id+' (first)',vw?b.view+' (tested)':b.id+' (latest)'],EXROWS.filter(([k])=>b.src!=='file'||Number.isFinite(+(A||{})[k])||Number.isFinite(+(b.out||{})[k])).map(([k,l,u])=>[exLab(b,k,l),exFmt(A[k],u),exFmt(b.out[k],u)]))+`<p class="meta">All figures from EstateMaster’s exports (${b.src==='file'?esc(b.file):'simulated exports in this demo'}). The agent does not calculate returns.</p>`};
   document.addEventListener('click',e=>{const d=e.target.closest('[data-tdone]'),u=e.target.closest('[data-tup]'),w=e.target.closest('[data-twb]');
     if(d)completeTask(d.dataset.tdone);if(w)taskSheet(w.dataset.twb);
     if(u){const f=$('#exFile');f.dataset.task=u.dataset.tup;f.click()}
@@ -12325,7 +12333,10 @@ function toolIntent(name,a){if(typeof csViewer==='function'&&csViewer()&&VIEWER_
 /* strict: a report the user named that does not exist is said so (with the reports there are), never swapped for the IC pack */
 const rptMiss=r=>{const m=matchNamed('report',String(r).slice(0,80),Object.values(RPTS),v=>v.name,{quiet:true});return{k:'nohit',msg:m.how==='many'?`${missNamed('report',String(r).slice(0,80),m)}`:`There is no report called “${String(r).slice(0,80)}”. The reports are: ${Object.values(RPTS).map(v=>v.name).slice(0,14).join(', ')}. Which one, or shall I create it?`}};
 function rptByName(r,strict){r=String(r||'').trim();if(RPTS[r])return r;   /* the report the user named, through the one matcher: a close name is said, none is asked (rptMiss), and only a request naming no report gets the IC pack, said */
-  if(!r){if(!strict)noteGap('No report was named, so the Investment Committee pack is used.');return strict?null:'ic'}const m=matchNamed('report',r,Object.entries(RPTS),([k,v])=>v.name,{quiet:!!strict});return m.hit?m.hit[0]:strict?null:'ic'}
+  if(!r){if(!strict)noteGap('No report was named, so the Investment Committee pack is used.');return strict?null:'ic'}
+  /* several reports with exactly this name (a pack made again): the one on screen, else the latest made, never an older namesake */
+  {const same=Object.keys(RPTS).filter(k=>String(RPTS[k].name||'').trim().toLowerCase()===r.toLowerCase());if(same.length)return same.includes(RSEL)?RSEL:same[same.length-1]}
+  const m=matchNamed('report',r,Object.entries(RPTS),([k,v])=>v.name,{quiet:!!strict});return m.hit?m.hit[0]:strict?null:'ic'}
 function toolIntent0(name,a){
   a=a||{};
   switch(name){
