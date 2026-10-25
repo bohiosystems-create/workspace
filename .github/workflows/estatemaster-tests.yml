@@ -100,7 +100,7 @@ jobs:
           node-version: 22
       - name: Install LibreOffice and Playwright
         run: |
-          sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libreoffice-calc-nogui python3-uno
+          bash estatemaster-agent/tools/install_lo.sh libreoffice-calc-nogui python3-uno
           cd estatemaster-agent/tests && npm init -y >/dev/null && npm i playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium
       - name: Run the server engine test
         run: |

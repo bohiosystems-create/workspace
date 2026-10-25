@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: 22
       - name: Install LibreOffice and openpyxl
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libreoffice-calc python3-openpyxl >/dev/null
+        run: bash estatemaster-agent/tools/install_lo.sh libreoffice-calc python3-openpyxl
       - name: Install Playwright
         run: cd estatemaster-agent/tests && npm init -y >/dev/null && npm i playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium
       - name: Sweep

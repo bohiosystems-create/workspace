@@ -59,6 +59,6 @@ These rules hold for every change to this app. They come from the product owner 
 
 - EstateMaster is the trusted layer.
 - Test fixtures are synthetic. Never commit client workbooks.
-- Each model family has a synthetic replica with golden answers from LibreOffice (tests/fixtures/golden/props.json, swept by CI). A correction a user makes to a reading is logged (Settings → Corrections) and becomes a test case.
+- Each model family has a synthetic replica with golden answers from LibreOffice (tests/fixtures/golden/props.json, swept by CI). LibreOffice is installed only through `tools/install_lo.sh` (the LibreOffice team's archive, 25.2 or newer, or the job fails) in CI, and from Debian 13 (backports when newer) in the server engine (lo-service/Dockerfile). A correction a user makes to a reading is logged (Settings → Corrections) and becomes a test case.
 - Bug impact in test reports: a figure that comes out wrong is high impact by definition (an IRR, a profit, a cell value, a figure in a report or a view), whatever the tool, unless the difference is negligible (rounding, the last digit shown). Medium and low are for bugs that leave every figure right: a missing note, a wording, a slow answer, a layout fault.
 - Before a push run `bash tests/run.sh core` on its own (no other suite against the same port). CI runs the quick suite on every push and the full suite nightly; deploy only after GitHub CI is green on that commit.
