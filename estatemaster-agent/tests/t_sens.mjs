@@ -52,8 +52,8 @@ ck('routing: pinpoint on the smart tier, the grid on the calc tier for both prov
 await p.click('#asGrid .hm .c .fig-calc');await p.waitForTimeout(300);
 ck('clicking a cell opens the working: both models’ figures and the method',await ev(()=>$('#figWin').classList.contains('on')&&/Claude|GPT/.test($('#fwBody').textContent)&&/Method/.test($('#fwBody').textContent)),await ev(()=>$('#fwBody').textContent.slice(0,200)));
 await p.click('#fwClose');
-// the daily feed: every pending change gets its effect worked out live, with a follow-up box
-await p.evaluate(()=>showTab('appr'));await p.waitForTimeout(4000);
+// the daily feed: every pending change gets its effect worked out when its card is opened, with a follow-up box
+await p.evaluate(()=>{showTab('appr');crEffectsKick(pendingCRs())});await p.waitForTimeout(4000);
 const fd=await ev(()=>{const cards=[...document.querySelectorAll('#apList .em')];return{n:cards.length,done:cards.filter(c=>/Effect if approved/.test(c.textContent)).length,calc:cards.filter(c=>c.querySelector('.cr-ai .fig-calc')).length,em:cards.filter(c=>c.querySelector('.cr-ai .fig-em')).length,ask:cards.filter(c=>c.querySelector('[data-crq] input')).length,below:cards.filter(c=>/below hurdle/.test(c.textContent)).length,sub:$('#apSub').textContent}});
 ck('Daily feed: the effect of every pending change is worked out by Claude and OpenAI and shown live (EstateMaster now → AI estimate, clickable), with a follow-up box',fd.n>0&&fd.done===fd.n&&fd.calc===fd.n&&fd.em===fd.n&&fd.ask===fd.n&&fd.below===fd.n&&/\d+ (to decide|changes? to review)/.test(fd.sub),JSON.stringify(fd));
 // the approval use cases from the emails: a discount on a batch of units, a buyer incentive, rent-free; each with why and the modelled impact
