@@ -247,6 +247,9 @@ def apply(html):
     html = html.replace('<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">', FONTS, 1)
     assert html.index("</head>") < html.index("<body"), "the page head"   # later </head>s sit inside the report templates
     html = html.replace("</head>", "<style>" + CSS + "</style>\n</head>", 1)
+    # the tab and address-bar icon: Jadwa's square, never KINAN's chevron
+    html, n = re.subn(r'<link rel="icon" type="image/svg\+xml" href="[^"]*">', '<link rel="icon" type="image/svg+xml" href="' + data_uri(square_svg(64, label=False).replace(' style="display:block;width:64px;height:64px"', "")) + '">', html, count=1)
+    assert n == 1, "the KINAN icon link was not found"
     # the splash: Jadwa's, with the page's own timing script kept
     m = re.search(r"<!--ksplash:[^>]*-->(.*?)<!--/ksplash-->", html, flags=re.S)
     assert m, "splash block not found"

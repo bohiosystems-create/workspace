@@ -14,4 +14,8 @@ for (const m of s.matchAll(/([^{}]*(?::hover|:focus|:active|\.on\b|\.kd-primary|
   for (const c of m[2].match(/#[0-9a-fA-F]{6}\b|rgba?\([^)]*\)/g) || []) if (orange(c)) bad.push(m[1].trim().slice(-80) + ' { ' + c + ' }') }
 ok(!bad.length, 'Jadwa: no hovered, focused, pressed or selected element is orange', bad.slice(0, 8));
 ok(/\.kd-primary:hover:not\(:disabled\)\{background:#(?![fF][fF]6[aA]37)/.test(s), 'the deck’s main button keeps a Jadwa colour on hover');
+// the icon in the tab and the address bar is the company's own: KINAN's chevron in every KINAN build, Jadwa's square in Jadwa's
+const icon = f => { const m = fs.readFileSync(path.join(APP, f), 'utf8').match(/<link rel="icon" type="image\/svg\+xml" href="([^"]*)"/); return m ? decodeURIComponent(m[1].replace(/%23/g, '#')) : '' };
+for (const f of ['index.html', 'dist/option2-readonly/index.html', 'dist/option3-analyst/index.html']) { const u = icon(f); ok(/#f15a22/i.test(u) && !/#878378/.test(u), `${f}: the tab icon is KINAN's chevron`, u.slice(0, 120)) }
+{ const u = icon('dist/jadwa-readonly/index.html'); ok(/#878378/.test(u) && !/#f15a22/i.test(u), 'Jadwa: the tab icon is Jadwa’s square', u.slice(0, 120)) }
 console.log(`${pass} pass, ${fail} fail`); process.exit(fail ? 1 : 0);
