@@ -11187,7 +11187,7 @@ function kResumeSlide(){if(!KP)return;const p=KP.paused;KP.paused=null;
   kStartTimer()}
 function kGo(n){if(!KP)return;const {deck,root}=KP,to=Math.max(0,Math.min(deck.slides.length-1,n));if(to===KP.i)return;const s=deck.slides[to],prev=KP.i;
   clearTimeout(KP.timer);KP.raf.forEach(cancelAnimationFrame);KP.raf=[];kStopVoice();
-  if(KP.qa){const Q=KP.qa;Q.seq++;clearTimeout(Q.follow);Q.follow=null;Q.hold=null;if(Q.state!=='recording'&&Q.state!=='transcribing')Q.state=null;Q.note='';if(!Q.pending&&!Q.state){Q.cur=null;const bx=root.querySelector('.kd-qa');if(bx)bx.hidden=true;const inp=root.querySelector('.kd-qa-form input');if(inp)inp.value=''}}
+  if(KP.qa){const Q=KP.qa;Q.seq++;clearTimeout(Q.follow);Q.follow=null;Q.hold=null;Q.ended=false;if(Q.state!=='recording'&&Q.state!=='transcribing')Q.state=null;Q.note='';if(!Q.pending&&!Q.state){Q.cur=null;const bx=root.querySelector('.kd-qa');if(bx)bx.hidden=true;const inp=root.querySelector('.kd-qa-form input');if(inp)inp.value=''}}
   KP.i=to;KP.started=Date.now();KP.paused=null;
   root.querySelectorAll('[data-act=prev]').forEach(b=>b.disabled=to===0);root.querySelectorAll('[data-act=next]').forEach(b=>b.disabled=to===deck.slides.length-1);
   const bg=s.kind==='cover'?'orange':s.kind==='divider'||s.kind==='closing'?'dark':null;root.className='kd-root'+(bg?' kd-on-'+bg:'')+(deck.lang==='ar'?' kd-rtl':'');
@@ -11295,7 +11295,7 @@ function kAskQ(q){if(!KP)return;const Q=KP.qa;q=String(q).replace(/\s+/g,' ').tr
   if(Q.hold!=null||Q.state==='follow'||Q.state==='moveon'){Q.seq++;clearTimeout(Q.follow);Q.follow=null;Q.hold=null;Q.state=null;kStopVoice();KP.playing=false}
   const answer=kAnswer(q);answer.then(t=>{if(KP&&KP.voice&&KVOICE.mode==='eleven')kVoiceClip(kSpeech(stripMarks(t)))});
   Q.pending={q,answer};Q.cur={q,a:''};logEvent({kind:'question',actor:`${USERS.web} (${WS_ROLE})`,channel:'▶ Play',detail:`Question during “${KP.deck.title}”: ${q}`});
-  if(!KP.playing){kTakeQuestion(KP.i,false);return}Q.state='waiting';kQaRender()}
+  if(!KP.playing){kTakeQuestion(KP.i,!!Q.ended);return}Q.state='waiting';kQaRender()}   /* a question at the end of a slide keeps the slide over: after the answer, on to the next one, not the same slide again */
 async function kPlayText(text){const tr=kTrack([{t:text,f:null}],null);KP.qa.track=tr;return kSpeakTrack(tr,e=>{},'')}
 async function kTakeQuestion(i,ended){if(!KP)return;const Q=KP.qa,pend=Q.pending;if(!pend)return;{const c=KP.root.querySelector('.kd-qcue');if(c)c.classList.remove('on')}Q.pending=null;Q.seq++;Q.ended=!!ended;Q.qPaused=false;clearTimeout(Q.follow);Q.follow=null;Q.hold=null;clearTimeout(KP.timer);
   if(!ended&&KAUDIO&&KAUDIO._kResume&&!KAUDIO.ended){KP.paused={i,a:KAUDIO};KAUDIO.pause();KAUDIO=null}kStopVoice();if(KP.pace){KP.pace();KP.pace=null}
@@ -11470,12 +11470,12 @@ const KD_CSS=`.k-doc .fig{font-weight:700;border-bottom:2px solid #1b7a4f;white-
 .kd-slide.kd-dimmed [data-fig]:not(.kd-focus){opacity:.4}
 .kd-slide.kd-dimmed [data-fig].kd-seen:not(.kd-focus){opacity:.78}
 .kd-slide .kd-focus{opacity:1!important;filter:drop-shadow(0 0 12px rgba(241,90,34,.55))}
-.kd-slide div.kd-focus,.kd-slide li.kd-focus{transform:scale(1.02);transform-origin:left center;box-shadow:0 0 0 2px #f15a22,0 18px 40px rgba(46,46,47,.18);border-radius:8px;background:rgba(255,255,255,.92);z-index:2;position:relative;padding-left:8px;padding-right:8px;margin-left:-8px;margin-right:-8px}
+.kd-slide div.kd-focus,.kd-slide li.kd-focus{transform:none;box-shadow:0 0 0 2px #f15a22,0 18px 40px rgba(46,46,47,.18);border-radius:8px;background:rgba(255,255,255,.92);z-index:2;position:relative;padding-left:8px;padding-right:8px;margin-left:-8px;margin-right:-8px}
 .kd-slide li.kd-focus{padding-left:6px}
 .kd-slide .kd-li.kd-focus,.kd-slide .kd-hrow.kd-focus{transform:none}
 .kd-slide tr.kd-focus td{background:rgba(241,90,34,.14);font-weight:600}
 .kd-slide tr.kd-focus td:first-child{box-shadow:inset 4px 0 0 #f15a22}
-.kd-slide g.kd-focus,.kd-slide path.kd-focus{transform-box:fill-box;transform-origin:center bottom;transform:scale(1.08);filter:drop-shadow(0 0 14px rgba(241,90,34,.9)) drop-shadow(0 0 4px rgba(241,90,34,.9))}
+.kd-slide g.kd-focus,.kd-slide path.kd-focus{transform-box:fill-box;transform-origin:center bottom;transform:scale(1.08);filter:drop-shadow(0 0 1.5px rgba(241,90,34,.95)) drop-shadow(0 8px 14px rgba(46,46,47,.22))}   /* a thin accent edge and a neutral shadow: a wide coloured glow sat over the bar's own figure and blurred it */
 .kd-slide .kd-dimmed .kd-dseg:not(.kd-focus){opacity:.42}
 .kd-vmenu{position:absolute;bottom:64px;left:50%;transform:translateX(-50%);background:#fff;color:#2e2e2f;border:1px solid rgba(46,46,47,.18);border-radius:8px;box-shadow:0 18px 50px rgba(0,0,0,.28);max-height:min(420px,60vh);overflow:auto;z-index:9;text-align:left;min-width:280px}
 .kd-vm-lang{display:flex;gap:6px;padding:0 10px 8px}.kd-vm-l{border:1px solid rgba(46,46,47,.2);background:#fff;border-radius:999px;padding:4px 12px;font:inherit;font-size:12px;cursor:pointer}.kd-vm-l.on{background:#2e2e2f;color:#fff;border-color:#2e2e2f}
