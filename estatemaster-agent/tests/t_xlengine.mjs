@@ -54,4 +54,28 @@ ok(s5.v&&s5.v[0]===3&&s5.calls.length===3&&s5.calls[1].hash==='h_xl'&&!s5.calls[
   await ctx.route('**/api/xl',r=>r.fulfill({status:200,contentType:'application/json',body:'{"ok":false,"why":"the folder /sites/x:/sites/y:/drive/root:/Z does not answer (404: itemNotFound)"}'}));await ctx.route('**/api/llm',r=>r.fulfill({status:200,contentType:'application/json',body:'{"providers":{}}'}));
   await p.goto(base);await p.waitForTimeout(2000);const d=await p.evaluate(async()=>{await sysCheck(false);const t=document.body.textContent;const i=t.indexOf('Excel engine');return i<0?'':t.slice(i,i+400)});
   ok(/Set up but not answering: the folder/.test(d)&&/404: itemNotFound/.test(d),'the card says why the Excel engine does not answer',d);await ctx.close()}
+// 8. Excel confirms an answer the browser engine computed: the same change recalculated by Excel, compared figure by figure
+{const SP=new globalThis.URL('./fixtures/',import.meta.url).pathname;const ctx=await b.newContext(),p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));let mode='same';const posts=[];
+  await ctx.route('https://cdnjs.cloudflare.com/**',r=>r.fulfill({status:200,contentType:'application/javascript',body:fs.readFileSync(SP+'package/dist/xlsx.full.min.js')}));
+  await ctx.route('**/api/lo',r=>r.fulfill({status:200,contentType:'application/json',body:'{"ok":false,"why":"not set up"}'}));
+  await ctx.route('**/api/xl',async r=>{const q=r.request();if(q.method()==='GET')return r.fulfill({status:200,contentType:'application/json',body:'{"ok":true,"version":"Microsoft Excel (Microsoft 365)"}'});
+    const j=JSON.parse(q.postData()||'{}');posts.push({file:!!j.file,hash:j.hash||'',sets:(j.sets||[]).length,read:(j.read||[]).length,check:!!j.check});
+    if(mode==='err')return r.fulfill({status:502,contentType:'application/json',body:'{"error":"Excel session failed (503)"}'});
+    if(!j.file&&j.hash!=='h_xl')return r.fulfill({status:404,contentType:'application/json',body:'{"error":"unknown workbook","need_file":true}'});
+    // the browser engine's own figures for the same change (Excel agrees), or one of them 10% off (Excel differs)
+    const [vals]=await p.evaluate(m=>xcQ(()=>xcCall({op:'run',runs:[m.sets],read:m.read})),{sets:j.sets,read:j.read});const v=vals.slice();if(mode==='diff'){const i=v.findIndex(z=>typeof z==='number'&&z!==0);v[i]=v[i]*1.1}
+    r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({hash:'h_xl',values:v})})});
+  await p.goto(base);await p.evaluate(()=>localStorage.clear());await p.reload();await p.waitForTimeout(1500);
+  await p.evaluate(()=>openNewProject());await p.setInputFiles('#npFile',SP+'models/hotel_us.xlsx');await p.waitForTimeout(1200);await p.click('#npCreate');await p.waitForTimeout(2500);
+  const eng=await p.evaluate(async()=>{LO.avail=null;const e=await xcEngine(latestExport());return{engine:e&&e.engine,ok:e&&e.ok}});
+  const run=()=>p.evaluate(async()=>{const r=await xcTest([{text:'ADR down 10%'}],async()=>{});return r&&{excel:r.excel,m:r.metrics.map(m=>({k:m.k,v:m.value,warn:!!m.warn,checks:m.checks})),plain:xcTestPlain(r)}});
+  const r1=await run();
+  ok(eng.ok&&eng.engine!=='server'&&r1&&r1.excel&&r1.excel.ok&&r1.excel.n>0&&/Confirmed by Microsoft Excel/.test(r1.plain)&&r1.m.every(m=>!m.warn),'a what-if the browser engine computed is recalculated once by Excel, which confirms every figure, and the answer says so',{eng,excel:r1&&r1.excel,plain:r1&&r1.plain.slice(0,200)});
+  ok(posts.length===1&&posts[0].file&&posts[0].sets>0&&posts[0].read>0&&!posts[0].check,'one call to Excel: the workbook (Excel does not hold it yet), the change and the headline cells',posts);
+  mode='diff';const n0=posts.length;const r2=await run();const d=r2&&r2.m.find(m=>m.warn);
+  ok(r2&&r2.excel&&!r2.excel.ok&&d&&/Microsoft Excel gives .* Excel’s figure is shown/.test(d.checks.join(' '))&&/Excel’s figures are shown/.test(r2.plain)&&posts.slice(n0).every(z=>z.hash==='h_xl'&&!z.file),'Excel differs on a figure: Excel’s figure is the one shown, flagged with both (the workbook not sent again)',{excel:r2&&r2.excel,d});
+  const r1v=r1.m.find(m=>m.k===d.k);ok(d&&r1v&&Math.abs(d.v/r1v.v-1.1)<1e-6,'and the figure shown is Excel’s',{excel:d&&d.v,browser:r1v&&r1v.v});
+  mode='err';const r3=await run();
+  ok(r3&&r3.excel&&r3.excel.err&&/Not confirmed by Microsoft Excel \(Excel session failed/.test(r3.plain)&&r3.m.every(m=>!m.warn)&&r3.m.length===r1.m.length,'Excel cannot answer: the answer stands on the browser engine’s exact figures, with a note',{excel:r3&&r3.excel});
+  ok(!errs.length,'no page errors',errs);await ctx.close()}
 await b.close();console.log(`${pass} pass, ${fail} fail`);process.exit(fail?1:0);

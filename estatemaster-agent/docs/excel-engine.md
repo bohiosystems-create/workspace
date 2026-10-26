@@ -6,6 +6,13 @@ through Microsoft 365 (Microsoft Graph): nobody opens Excel, the server does it 
 second engine. Either is used for a workbook only when it reproduces at least 99% of the results Excel saved in the file, and every
 answer names the engine that computed it.
 
+## Excel confirms each answer
+
+When the browser engine reproduces a workbook (most do), it computes the figures, and Excel checks them: after each what-if the same
+change is recalculated once by Excel and the headline figures compared. The answer says “Confirmed by Microsoft Excel”; when Excel gives
+another figure, Excel's is shown and both are named; when Excel cannot answer, the answer stands on the browser's exact recalculation
+with a note. Long runs (sensitivity grids, Monte Carlo, goal-seek steps) stay in the browser, where one recalculation takes milliseconds.
+
 ## What happens to a workbook
 
 1. The server copies it into one SharePoint folder, named by its SHA-256 (no client or file name in the folder).
