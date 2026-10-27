@@ -16,4 +16,8 @@ ok((s.match(/alt="Adel Real Estate"/g) || []).length >= 2 && /function klogo/.te
 ok(!/viewBox="0 0 1051\.42 1051\.43"/.test(s), 'no sapling left in the page');
 ok(/module\.exports = \{\s*white: '[A-Za-z0-9+\/=]{1000,}'/.test(logo) && /ink: '[A-Za-z0-9+\/=]{1000,}'/.test(logo), 'the emails carry Adel\'s logo (white and charcoal)');
 ok(/window\.BOHIO_BRAND='jadwa'/.test(s), 'it keeps the financial-modelling feature set of the Jadwa edition');
+// nothing of Jadwa's artwork: its lockup's outlines and its sapling's outline appear nowhere in the build
+{const br = path.join(APP, 'brand/jadwa'), lg = fs.readFileSync(path.join(br, 'logo.svg'), 'utf8').match(/ d="([^"]{80,})"/), sy = fs.readFileSync(path.join(br, 'symbol.svg'), 'utf8').match(/ d="([^"]{80,})"/);
+  const all = [s, g, mail, logo].join('\n');
+  ok(lg && sy && !all.includes(lg[1].slice(0, 80)) && !all.includes(sy[1].slice(0, 80)), 'Jadwa\'s lockup and sapling artwork are nowhere in the Adel build')}
 console.log(`${pass} pass, ${fail} fail`); process.exit(fail ? 1 : 0);

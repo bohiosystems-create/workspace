@@ -84,6 +84,13 @@ def apply(html):
         html = J.apply(html)
     finally:
         J.mail_kit, J.logo_js = _J_MAIL_KIT, _J_LOGO_JS
+    # Jadwa's own klogo and kchev (the app's vector helpers, drawn from Jadwa's lockup and sapling) go; Adel's are defined at the end of the page
+    k = html.index("window.BOHIO_BRAND='jadwa';")   # Jadwa's block only: the app's own klogo and kchev before it stay (Adel's are defined after)
+    head, tail = html[:k], html[k:]
+    tail, n = re.subn(r"function klogo\(h=34,c='#fff'\)\{const col=[^\n]*\n", "", tail)
+    tail, m = re.subn(r"function kchev\(h=30,c=KD\.OR\)\{[^\n]*\n", "", tail)
+    html = head + tail
+    assert n == 1 and m == 1, ("Jadwa's klogo/kchev not found", n, m)
     # the marks: the header lockup, the splash, the tab icon, the deck and report cover mark, the sapling motifs and every sapling drawn inline
     html = html.replace(J.lockup_svg(J.SAGE, 46), _img(LOGO_DARK, 46))
     html = html.replace(J.square_svg(124, label=False), _img(MARK, 124))
