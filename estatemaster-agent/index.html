@@ -527,7 +527,7 @@ body.xproj .rep-only{display:none!important}
 .report .verdict{border-left:4px solid var(--ink);padding:8px 14px;background:rgba(46,46,47,.04);margin:10px 0}
 .report .verdict.bad{border-color:var(--alert)}
 .lineage{font-size:11.5px;color:var(--soft);margin-top:24px;border-top:1px solid var(--hair);padding-top:10px}
-@page{size:A4 landscape;margin:12mm}@media print{body *{visibility:hidden}.report,.report *{visibility:visible}.report{position:absolute;left:0;top:0;box-shadow:none;max-width:none;width:100%;padding:20px}}
+@page{size:A4 landscape;margin:12mm}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}*,*::before,*::after{animation:none!important;transition:none!important}.k-sec,.k-chart,.k-card,table.t tr{break-inside:avoid}.report{contain:none!important;overflow:visible!important}body *{visibility:hidden}.report,.report *{visibility:visible}.report{position:absolute;left:0;top:0;box-shadow:none;max-width:none;width:100%;padding:20px}}
 
 /* phone */
 .phone{width:340px;margin:0 auto;border-radius:44px;padding:12px;background:#2e2e2f;box-shadow:0 30px 60px rgba(46,46,47,.35),inset 0 0 0 2px #51473d}
@@ -1034,7 +1034,7 @@ input.num-c::-webkit-outer-spin-button,input.num-c::-webkit-inner-spin-button{-w
       <div class="card" style="margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <button class="rp-plus" id="rpPlus" title="New report from a template" aria-label="New report from a template">+</button><div><h2 style="margin:0" id="rpTitle">Investment Committee pack</h2><div class="sub" style="margin:0">Numbers from the EstateMaster extract; narrative optional (AI).</div></div><div class="rp-langs" id="rpLang" role="group" aria-label="Language"><button class="btn sm on" data-rplang="en" aria-pressed="true">English</button><button class="btn ghost sm" data-rplang="ar" aria-pressed="false">العربية</button></div><span id="rpLangNote" class="sub" style="margin:0;display:none"></span>
         <div class="rp-tools">
-          <button class="btn" id="rplay" title="Play as a presentation" aria-label="Play as a presentation">▶</button><button class="btn ghost" id="rread" title="Read the report aloud, section by section">🔊 Read</button><button class="btn ghost" id="rgen">Regenerate</button><button class="btn ghost" id="rnarr">Draft narrative (AI)</button><button class="btn ghost" id="rprint">Download PDF</button><button class="btn ghost" id="rhtml">Download HTML</button><button class="btn ghost" id="rpptx" title="Download as PowerPoint with native charts">Download PowerPoint</button><button class="btn ghost" id="rxls">Excel</button>
+          <button class="btn" id="rplay" title="Play as a presentation" aria-label="Play as a presentation">▶</button><button class="btn ghost" id="rread" title="Read the report aloud, section by section">🔊 Read</button><button class="btn ghost" id="rgen">Regenerate</button><button class="btn ghost" id="rnarr">Draft narrative (AI)</button><button class="btn ghost" id="rprint">Download PDF</button><button class="btn ghost" id="rhtml">Download HTML</button><button class="btn ghost" id="rpptx" title="Download as PowerPoint: every slide exactly as it is shown, with its speaker notes">Download PowerPoint</button><button class="btn ghost" id="rpptxe" title="An editable PowerPoint with native charts and PowerPoint's own fonts (it will not look exactly like the preview)">Editable</button><button class="btn ghost" id="rxls">Excel</button>
         </div>
       </div>
       <div class="report" id="report"></div><iframe id="reportAr" title="التقرير اليومي" style="display:none;width:100%;min-height:80vh;border:0;background:#fff"></iframe>
@@ -11167,7 +11167,7 @@ function openDeck(deck){
       if(Q.state==='recording'&&Q.rec){try{Q.rec.stop&&Q.rec.stop()}catch(e){}Q.state=null}
       {const inp=KP.root.querySelector('.kd-qa-form input');if(inp)inp.value='';Q.cur=null;KP.root.querySelector('.kd-qa').hidden=true}return}
     if(act==='lang'){kSwitchLang(kLang()==='ar'?'en':'ar');return}
-    if(act==='close')closeDeck();else if(act==='prev')kGo(KP.i-1);else if(act==='next')kGo(KP.i+1);else if(act==='pause'){if(a.dataset.st==='replay'){KP.playing=true;kSetPlay(a,'pause');kGo(0)}else kPause()}else if(act==='voice'){KP.voice=!KP.voice;kVoiceBtn(a);KP.started=Date.now();kStartTimer()}else if(act==='vmenu'){kVoiceMenu(a)}else if(act==='cc'){KP.cc=!KP.cc;a.setAttribute('aria-pressed',KP.cc);root.querySelector('.kd-cc').style.visibility=KP.cc?'':'hidden';if(KP.cc&&KP.segs){const f=KP.el&&KP.el.querySelector('.kd-focus');const g=KP.segs.find(x=>f&&x.f&&KP.figs.find(x.f)===f)||KP.segs[0];kCaption(g.t)}}else if(act==='full'){document.fullscreenElement?document.exitFullscreen():root.requestFullscreen&&root.requestFullscreen()}else if(act==='pptx'){a.disabled=true;a.textContent='Preparing…';deckToPptx(deck).then(()=>{a.disabled=false;a.textContent='⬇ PowerPoint'}).catch(err=>{a.disabled=false;a.textContent='⬇ PowerPoint';toast('PowerPoint: '+err.message)})}});
+    if(act==='close')closeDeck();else if(act==='prev')kGo(KP.i-1);else if(act==='next')kGo(KP.i+1);else if(act==='pause'){if(a.dataset.st==='replay'){KP.playing=true;kSetPlay(a,'pause');kGo(0)}else kPause()}else if(act==='voice'){KP.voice=!KP.voice;kVoiceBtn(a);KP.started=Date.now();kStartTimer()}else if(act==='vmenu'){kVoiceMenu(a)}else if(act==='cc'){KP.cc=!KP.cc;a.setAttribute('aria-pressed',KP.cc);root.querySelector('.kd-cc').style.visibility=KP.cc?'':'hidden';if(KP.cc&&KP.segs){const f=KP.el&&KP.el.querySelector('.kd-focus');const g=KP.segs.find(x=>f&&x.f&&KP.figs.find(x.f)===f)||KP.segs[0];kCaption(g.t)}}else if(act==='full'){document.fullscreenElement?document.exitFullscreen():root.requestFullscreen&&root.requestFullscreen()}else if(act==='pptx'){a.disabled=true;a.textContent='Preparing…';deckToPptxExact(deck,m=>{a.textContent=m}).then(()=>{a.disabled=false;a.textContent='⬇ PowerPoint'}).catch(err=>{a.disabled=false;a.textContent='⬇ PowerPoint';toast('PowerPoint: '+err.message)})}});
   root.addEventListener('pointermove',e=>{const t=e.target.closest('[data-tip]');const tip=root.querySelector('.kd-tip');if(!t){if(tip)tip.remove();return}let d;try{d=JSON.parse(t.dataset.tip)}catch(err){return}const box=t.closest('.kd-chart')||t.closest('.kd-slide');if(!box)return;const r=box.getBoundingClientRect();let el=tip;if(!el){el=document.createElement('div');el.className='kd-tip';box.style.position='relative';box.appendChild(el)}else if(el.parentElement!==box){el.remove();box.appendChild(el)}el.innerHTML=`<div class="kd-tip-t">${esc(d.t)}</div>${d.r.map(([v,l])=>`<div class="kd-tip-r"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('')}`;el.style.left=Math.min(Math.max(e.clientX-r.left+14,0),box.clientWidth-220)+'px';el.style.top=Math.max(0,e.clientY-r.top-70)+'px'});
   root.addEventListener('pointerleave',()=>{const tip=root.querySelector('.kd-tip');if(tip)tip.remove()});
   KP.key=e=>{if(!KP)return;if(e.target&&e.target.tagName==='INPUT'){if(e.key==='Escape'){const c=root.querySelector('[data-act=qaclose]');if(c)c.click()}return}const rtl=kLang()==='ar';if(e.key==='ArrowRight'||e.key==='ArrowLeft'){kGo(KP.i+((e.key==='ArrowRight')!==rtl?1:-1));return}if(e.key==='Escape'){if(!document.fullscreenElement)closeDeck()}else if(e.key==='ArrowRight')kGo(KP.i+1);else if(e.key==='ArrowLeft')kGo(KP.i-1);else if(e.key===' '){e.preventDefault();kPause()}else if(e.key==='f'||e.key==='F')root.querySelector('[data-act=full]').click();else if(e.key==='c'||e.key==='C')root.querySelector('[data-act=cc]').click();else if(e.key==='m'||e.key==='M')root.querySelector('[data-act=voice]').click()};
@@ -11392,6 +11392,37 @@ async function deckToPptx(deck){
       default:{kicker(sl,s.kicker||'');title(sl,s.title||'');frame(sl,n)}}});
   const name=(deck.title||'report').replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-|-$/g,'')+'.pptx';
   await p.writeFile({fileName:name});logEvent({kind:'export',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`PowerPoint downloaded: ${name} (${deck.slides.length} slides, native charts)`});return name}
+
+/* ---- PowerPoint exactly as shown: every slide is the player's own slide, drawn by the browser with the page's fonts and graphics
+   (html-to-image) and placed full-bleed, with its speaker notes; "editable" (native charts, PowerPoint's own fonts) stays beside it ---- */
+let h2iP=null;const loadH2I=()=>h2iP||(h2iP=loadScriptAny([VEND('html-to-image-1.11.13.js')],()=>!!window.htmlToImage,'the slide image library').catch(e=>{h2iP=null;throw e}));
+const KD_EXP_CSS='.kd-exp *{animation:none!important;transition:none!important}.kd-exp .kd-controls,.kd-exp .kd-cc,.kd-exp .kd-qa,.kd-exp .kd-vnote,.kd-exp .kd-qcue,.kd-exp .kd-timeline,.kd-exp [data-act=close],.kd-exp .kd-edge{display:none!important}';
+async function deckToPptxExact(deck,onStep=()=>{}){
+  await Promise.all([loadPptx(),loadH2I()]);try{await document.fonts.ready}catch(e){}
+  const had=!!KP,keepI=had?KP.i:0,keepVoice=had?KP.voice:false;
+  const st=document.createElement('style');st.textContent=KD_EXP_CSS;document.head.appendChild(st);
+  if(!had)openDeck(deck);
+  const P=KP;if(!P){st.remove();throw new Error('The slides could not be opened')}
+  P.voice=false;clearTimeout(P.timer);kStopVoice();P.playing=false;P.root.classList.add('kd-exp');
+  const D=P.deck,total=D.slides.length,T=s=>String(s??'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  try{
+    const R=P.root.getBoundingClientRect(),vw=Math.round(R.width),vh=Math.round(R.height),pr=Math.min(2,Math.max(1,2400/vw));
+    const p=new window.PptxGenJS(),W=13.333,Hh=+(W*vh/vw).toFixed(3);p.defineLayout({name:'KDECK',width:W,height:Hh});p.layout='KDECK';p.title=D.title;p.company='KINAN';p.author='Bohio agent on EstateMaster';
+    let fontCss=null;
+    for(let i=0;i<total;i++){
+      onStep(`Rendering slide ${i+1} of ${total}…`);
+      if(P.i!==i)kGo(i);
+      await new Promise(r=>setTimeout(r,450));
+      P.root.querySelectorAll('.kd-num-t[data-count]').forEach(e=>{e.textContent=(e.dataset.pre||'')+kfmt(+e.dataset.count,+e.dataset.dec||0)+(e.dataset.suf||'')});   // a figure counting up shows its final value
+      P.root.querySelectorAll('.kd-focus').forEach(x=>x.classList.remove('kd-focus'));
+      if(!fontCss)fontCss=await window.htmlToImage.getFontEmbedCSS(P.root);
+      const png=await window.htmlToImage.toPng(P.root,{width:vw,height:vh,pixelRatio:pr,cacheBust:false,fontEmbedCSS:fontCss});
+      const s=D.slides[i],sl=p.addSlide();sl.background={color:'FFFFFF'};sl.addImage({data:png,x:0,y:0,w:W,h:Hh,altText:T(kTitleOf(s))});
+      const sc=D.script&&D.script.segs&&D.script.segs[i],notes=sc&&sc.length?kSegText(sc):s.say;if(notes)sl.addNotes(T(notes))}
+    const name=(D.title||'report').replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-|-$/g,'')+'.pptx';
+    await p.writeFile({fileName:name});logEvent({kind:'export',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`PowerPoint downloaded: ${name} (${total} slides, as shown)`});return name
+  }finally{
+    st.remove();if(KP===P){P.root.classList.remove('kd-exp');P.voice=keepVoice;if(had){if(P.i!==keepI)kGo(keepI)}else closeDeck()}}}
 
 /* ---- styles: report document and player (keyframes animate FROM the start state, so print and PDF show the finished chart) ---- */
 const KD_CSS=`.k-doc .fig{font-weight:700;border-bottom:2px solid #1b7a4f;white-space:nowrap}.k-doc .tag{display:inline-block;margin-left:5px;font-size:8px;letter-spacing:.14em;text-transform:uppercase;padding:2px 5px;border-radius:3px;background:#1b7a4f;color:#fff;vertical-align:middle}.k-doc .k-fact td.lab{color:#6f6f6f}.k-doc .k-fact td.n b{color:inherit}
@@ -13103,7 +13134,8 @@ $('#schTest').onclick=()=>{const k=SCHED_EDIT,s=schedOf(k),ch0=s.ch,to0=s.to;s.c
 chipify($('#alTo'),rcpAllowed);$('#alTo').value=ALERT.to;$('#alEmail').checked=ALERT.email;$('#alWa').checked=ALERT.wa;
 $('#alSave').onclick=()=>{const to=$('#alTo').value.trim();if(to&&!/^[^\s@]+@[^\s@]+\.[^\s@]+(\s*[;,]\s*[^\s@]+@[^\s@]+\.[^\s@]+)*$/.test(to)){toast('Enter email addresses separated by commas');return}{const ext=persMail(to);if(ext.length){toast(persMailNo(ext).replace(/^\*Not sent\.\* /,'Not saved. ').replace(/Reports go/,'Alerts go'));return}}Object.assign(ALERT,{to,email:$('#alEmail').checked,wa:$('#alWa').checked});logEvent({kind:'settings',actor:`${USERS.web} (${WS_ROLE})`,channel:'Workspace',detail:`Assumption alerts: ${[ALERT.email&&'email',ALERT.wa&&'WhatsApp'].filter(Boolean).join(' + ')||'bell only'} to ${ALERT.to||'nobody'}`});renderDelivery();saveMem();toast('Alert settings saved')};
 $('#rread').onclick=()=>KR?kReadStop():kReadStart();
-$('#rpptx').onclick=async()=>{const b=$('#rpptx');b.disabled=true;b.textContent='Preparing…';try{const n=await deckToPptx(buildDeck(RSEL));toast('PowerPoint downloaded: '+n)}catch(e){toast('PowerPoint: '+e.message)}b.disabled=false;b.textContent='PowerPoint'};
+$('#rpptx').onclick=async()=>{const b=$('#rpptx');b.disabled=true;b.textContent='Preparing…';try{const n=await deckToPptxExact(buildDeck(RSEL),m=>{b.textContent=m});toast('PowerPoint downloaded: '+n)}catch(e){toast('PowerPoint: '+e.message)}b.disabled=false;b.textContent='PowerPoint'};
+$('#rpptxe').onclick=async()=>{const b=$('#rpptxe');b.disabled=true;b.textContent='Preparing…';try{const n=await deckToPptx(buildDeck(RSEL));toast('PowerPoint (editable) downloaded: '+n)}catch(e){toast('PowerPoint: '+e.message)}b.disabled=false;b.textContent='Editable'};
 document.addEventListener('change',e=>{const a=e.target.dataset.sch,b=e.target.dataset.ch;if(a){SCHED[a].on=e.target.checked;if(e.target.checked)SCHED[a].proj=RPTS[a]&&RPTS[a].proj&&!RPTS[a].template?RPTS[a].proj:PROJ.id;toast(`${RPTS[a].name}: ${e.target.checked?'scheduled':'schedule off'}`)}if(b){SCHED[b].ch=e.target.value}
   const g=e.target.dataset.reg;if(g){const v=parseFloat(e.target.value);if(Number.isFinite(v)&&Math.abs(v-lineVal(g))>1e-9)setTimeout(()=>RO?proposeLine(g,v):setLine(g,v,'Model data'),0)}
   const xk=e.target.dataset.xl;if(xk){const d=XBY(xk),raw=String(e.target.value).trim(),v=isText(d)?raw:parseFloat(raw.replace(/,/g,''));if(d&&raw!==''&&String(v)!==String(xVal(xk)))setTimeout(()=>{const cr=proposeXLine(xk,v,`${USERS.web} (${WS_ROLE})`,'Model data');if(cr)toast(`${cr.id} raised: ${d.label} → ${fmtX(d,v)}. Model lines run only in EstateMaster: approve it to run.`)},0)}

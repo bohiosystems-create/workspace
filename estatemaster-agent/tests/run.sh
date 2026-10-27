@@ -46,7 +46,7 @@ elif [ "$MODE" = core ]; then
   LD=$(mktemp -d)
   lane "$LD/a" t_accuracy t_smoke t_round34 t_round37 t_round38 t_docs t_audit2 t_integ t_round41 t_round42 & L1=$!
   lane "$LD/b" t_xcalc t_round36 t_projects t_xldl t_round32 t_factsheet t_engine t_arabic t_gulf t_keepver t_rootfix t_asked t_picture & L2=$!
-  lane "$LD/c" t_round33 t_round35 t_aifirst t_repupload t_em t_em_api t_addin t_cfix t_round40 t_store t_shape t_errdiag t_meaning t_wall t_context t_effects t_layers t_valuemeaning t_answerkind t_narrcheck t_round49 t_xlengine t_aicost t_deckfit t_deckq & L3=$!
+  lane "$LD/c" t_round33 t_round35 t_aifirst t_repupload t_em t_em_api t_addin t_cfix t_round40 t_store t_shape t_errdiag t_meaning t_wall t_context t_effects t_layers t_valuemeaning t_answerkind t_narrcheck t_round49 t_xlengine t_aicost t_deckfit t_deckq t_pptxexact & L3=$!
   # the tests that run a function this change edits, beyond the lanes (coverage_map.json; a function no recorded test runs is said)
   CORE=" $(sed -n '/^  lane "\$LD\/[abc]"/p' "$HERE/run.sh" | tr -s ' ' '\n' | grep '^t_' | tr '\n' ' ') "
   TOUCH=$(python3 -I "$HERE/touched.py" ${BASE:-} 2>"$LD/none" | while read -r t; do case "$CORE" in *" $t "*) ;; *) [ -f "$HERE/$t.mjs" ] && printf '%s ' "$t";; esac; done)
@@ -57,7 +57,7 @@ elif [ "$MODE" = core ]; then
   run "t_speed readonly" node t_speed.mjs "$RO" readonly
 elif [ "$MODE" = quick ]; then
   echo "== browser tests (quick)"
-  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y t_report t_hotelup t_talk t_syscheck t_chathist t_adr t_xcalc t_xcreview t_xcmodel2 t_xcread t_accuracy t_debugai t_nohurdle t_voicefail t_rdchat t_versions t_feas t_xldl t_drivers t_speed t_noest t_projects t_desk t_aifirst t_round11 t_repupload t_agents22 t_round22 t_round23 t_round24 t_round25 t_round26 t_round27 t_round28 t_aires t_aistrong t_round29 t_round30 t_round32 t_round33 t_round34 t_round35 t_round36 t_round37 t_round38 t_sens2 t_factsheet t_docs t_fundlpa t_lpa_us t_arabic t_cfix t_integ t_gulf t_addin t_round40 t_keepver t_round41 t_rootfix t_round42 t_store t_asked t_shape t_errdiag t_picture t_meaning t_wall t_context t_effects t_layers t_valuemeaning t_answerkind t_narrcheck t_round49 t_xlengine t_aicost t_deckfit t_deckq; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
+  for t in t_em t_shell t_sens t_check t_dbgwin t_dbgempty t_roa t_cfapp t_genclar t_fix14 t_xmodel t_smoke t_a11y t_report t_hotelup t_talk t_syscheck t_chathist t_adr t_xcalc t_xcreview t_xcmodel2 t_xcread t_accuracy t_debugai t_nohurdle t_voicefail t_rdchat t_versions t_feas t_xldl t_drivers t_speed t_noest t_projects t_desk t_aifirst t_round11 t_repupload t_agents22 t_round22 t_round23 t_round24 t_round25 t_round26 t_round27 t_round28 t_aires t_aistrong t_round29 t_round30 t_round32 t_round33 t_round34 t_round35 t_round36 t_round37 t_round38 t_sens2 t_factsheet t_docs t_fundlpa t_lpa_us t_arabic t_cfix t_integ t_gulf t_addin t_round40 t_keepver t_round41 t_rootfix t_round42 t_store t_asked t_shape t_errdiag t_picture t_meaning t_wall t_context t_effects t_layers t_valuemeaning t_answerkind t_narrcheck t_round49 t_xlengine t_aicost t_deckfit t_deckq t_pptxexact; do run "$t readonly" node "$t.mjs" "$RO" readonly; done
   for t in t_feed t_play t_deck t_btns; do run "$t analyst" node "$t.mjs" "$AN" analyst; done
   for t in t_em t_api t_fix14 t_a11y; do run "$t api" node "$t.mjs" "$AP" api; done
 else
