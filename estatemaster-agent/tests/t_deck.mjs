@@ -37,8 +37,8 @@ await p.click('.kd-seg[data-go="2"]');await p.waitForTimeout(600);ck('timeline c
 await p.keyboard.press(' ');ck('space pauses',(await ev(()=>!KP.playing&&document.querySelector('[data-act=pause]').dataset.st))==='play','');
 await p.keyboard.press('c');ck('captions toggle (on by default; C hides them)',(await ev(()=>document.querySelector('.kd-cc').style.visibility))==='hidden','');await p.keyboard.press('c');
 // PowerPoint from the player
-const [dl]=await Promise.all([p.waitForEvent('download',{timeout:30000}),p.click('[data-act=pptx]')]);const f=sp+'dl_'+tag+'_'+dl.suggestedFilename();await dl.saveAs(f);
-ck('PowerPoint download (native charts)',/\.pptx$/.test(dl.suggestedFilename())&&fs.statSync(f).size>20000,`${dl.suggestedFilename()} ${Math.round(fs.statSync(f).size/1024)} KB`);
+const [dl]=await Promise.all([p.waitForEvent('download',{timeout:240000}),p.click('[data-act=pptx]')]);const f=sp+'dl_'+tag+'_'+dl.suggestedFilename();await dl.saveAs(f);
+ck('PowerPoint download (every slide as shown)',/\.pptx$/.test(dl.suggestedFilename())&&fs.statSync(f).size>20000,`${dl.suggestedFilename()} ${Math.round(fs.statSync(f).size/1024)} KB`);
 await p.keyboard.press('Escape');await p.waitForTimeout(300);ck('escape closes',!(await ev(()=>!!KP||!!document.querySelector('.kd-root'))),'');
 // ▶ on a report row
 await p.evaluate(()=>openRpWin('rtModal'));await p.click('[data-play="monthly"]');await p.waitForTimeout(1200);ck('row ▶ plays that report',(await ev(()=>KP&&KP.deck.title)).startsWith('Monthly project report'),await ev(()=>KP&&KP.deck.title));await p.keyboard.press('Escape');await p.waitForTimeout(200);

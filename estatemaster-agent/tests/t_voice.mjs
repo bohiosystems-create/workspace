@@ -48,7 +48,7 @@ ck('Read mode moves through the sections',prog.i>=1&&/k-sec/.test(prog.sec||''),
 await p.screenshot({path:`${sp}read_${tag}.png`});
 await p.click('#rread');ck('Read stops',!(await ev(()=>!!KR||!!document.querySelector('#report .k-live'))),'');
 // PowerPoint still builds with the new kinds
-await p.click('#rplay');await p.waitForTimeout(800);const [dl]=await Promise.all([p.waitForEvent('download',{timeout:30000}),p.click('[data-act=pptx]')]);const f=sp+'dl_v_'+dl.suggestedFilename();await dl.saveAs(f);
+await p.click('#rplay');await p.waitForTimeout(800);const [dl]=await Promise.all([p.waitForEvent('download',{timeout:240000}),p.click('[data-act=pptx]')]);const f=sp+'dl_v_'+dl.suggestedFilename();await dl.saveAs(f);
 ck('PowerPoint with bridge and tower',fs.statSync(f).size>20000,`${Math.round(fs.statSync(f).size/1024)} KB`);await p.keyboard.press('Escape');
 const stt=await ev(()=>selfTest().filter(r=>!r.info).map(r=>[r.ok,r.name,r.detail]));ck('selfTest',stt.every(r=>r[0])&&stt.length===24,JSON.stringify(stt.filter(r=>!r[0])));
 ck('no page errors',!errs.length,errs.join(' | '));

@@ -11406,7 +11406,7 @@ async function deckToPptxExact(deck,onStep=()=>{}){
   P.voice=false;clearTimeout(P.timer);kStopVoice();P.playing=false;P.root.classList.add('kd-exp');
   const D=P.deck,total=D.slides.length,T=s=>String(s??'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
   try{
-    const R=P.root.getBoundingClientRect(),vw=Math.round(R.width),vh=Math.round(R.height),pr=Math.min(2,Math.max(1,2400/vw));
+    const R=P.root.getBoundingClientRect(),vw=Math.round(R.width),vh=Math.round(R.height),pr=Math.min(2,Math.max(1,1920/vw));
     const p=new window.PptxGenJS(),W=13.333,Hh=+(W*vh/vw).toFixed(3);p.defineLayout({name:'KDECK',width:W,height:Hh});p.layout='KDECK';p.title=D.title;p.company='KINAN';p.author='Bohio agent on EstateMaster';
     let fontCss=null;
     for(let i=0;i<total;i++){
@@ -11416,7 +11416,7 @@ async function deckToPptxExact(deck,onStep=()=>{}){
       P.root.querySelectorAll('.kd-num-t[data-count]').forEach(e=>{e.textContent=(e.dataset.pre||'')+kfmt(+e.dataset.count,+e.dataset.dec||0)+(e.dataset.suf||'')});   // a figure counting up shows its final value
       P.root.querySelectorAll('.kd-focus').forEach(x=>x.classList.remove('kd-focus'));
       if(!fontCss)fontCss=await window.htmlToImage.getFontEmbedCSS(P.root);
-      const png=await window.htmlToImage.toPng(P.root,{width:vw,height:vh,pixelRatio:pr,cacheBust:false,fontEmbedCSS:fontCss});
+      const png=await window.htmlToImage.toJpeg(P.root,{width:vw,height:vh,pixelRatio:pr,quality:.92,backgroundColor:'#ffffff',cacheBust:false,fontEmbedCSS:fontCss});   // a JPEG keeps the file mail-sized (a PNG of every slide ran to 25 MB)
       const s=D.slides[i],sl=p.addSlide();sl.background={color:'FFFFFF'};sl.addImage({data:png,x:0,y:0,w:W,h:Hh,altText:T(kTitleOf(s))});
       const sc=D.script&&D.script.segs&&D.script.segs[i],notes=sc&&sc.length?kSegText(sc):s.say;if(notes)sl.addNotes(T(notes))}
     const name=(D.title||'report').replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-|-$/g,'')+'.pptx';
