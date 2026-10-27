@@ -21,7 +21,7 @@ OPTIONS = {
     "readonly": ("option2-readonly", "Option 2 · Read-only agent"),
     "analyst": ("option3-analyst", "Option 3 · Analyst in the loop"),
 }
-BRANDS = {"jadwa": "readonly"}   # a client edition: the read-only option in that client's look (tools/brand_<name>.py), dist/<name>-readonly/
+BRANDS = {"jadwa": "readonly", "adel": "readonly"}   # a client edition: the read-only option in that client's look (tools/brand_<name>.py), dist/<name>-readonly/
 
 README = {
 "readonly": """# Bohio agent on EstateMaster · Option 2: read-only agent (demo)
