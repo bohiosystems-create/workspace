@@ -1,0 +1,39 @@
+{
+ "cost10": {
+  "lev": 0.106544760176798,
+  "mindscr": 1.17673366383016
+ },
+ "build36": {
+  "lev": 0.130786973265128,
+  "mindscr": 1.25703713475943
+ },
+ "price_gs": {
+  "lev": 0.119999977477195,
+  "mindscr": 1.25337592513063
+ },
+ "exit8": {
+  "lev": 0.13988187173277,
+  "mindscr": 1.25337592513063
+ },
+ "exit5": {
+  "lev": 0.14002073673135,
+  "mindscr": 0
+ },
+ "g_lo": {
+  "lev": 0.183451469088871,
+  "mindscr": 1.47554862470326
+ },
+ "g_hi": {
+  "lev": 0.0971234115230011,
+  "mindscr": 1.0673453557252
+ },
+ "base": {
+  "lev": 0.141076170177827,
+  "mindscr": 1.25337592513063
+ },
+ "downside": {
+  "lev": 0.0274696012302853,
+  "mindscr": 1.13740837695289
+ },
+ "note": "LibreOffice recalculation of tests/fixtures/models/demo_nakheel_adel.xlsx (gen/gen_demo.py --adel) with Inputs changed: cost10 C18=6820; build36 C11=36; price_gs C24=1587384.93; exit8 C12=66; exit5 C12=30; g_lo C57=4.5% C18=5580; g_hi C57=6.5% C18=6820; downside C5=3"
+}

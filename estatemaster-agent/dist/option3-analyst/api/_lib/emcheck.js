@@ -96,7 +96,7 @@ function parseInputs(sheets) {
         // up the label's own column, past the other rows' choices ("S-Curve", "Straight-Line"), to the column heading ("METHOD")
         const hl = (() => { let gap = 0; for (let r = ri - 1; r >= top; r--) { const rr = s.rows[r] || [], h = rr[i]; if (h == null || h === '') { if (++gap > 3) return ''; continue } gap = 0; if (typeof h !== 'string') continue;
           if (rr.slice(Math.max(0, i - 8), i + 3).some(c => typeof c === 'number')) continue; return h.trim().length < 50 ? h.trim() : '' } return '' })();
-        for (const c of cells) if (!c.h) c.h = headOf(s, ri, c.j, top);
+        for (const c of cells) if (!c.h) c.h = headOf(s, ri, c.j, Math.max(0, ri - 80));   // a case table's heading (Live · Base · Upside · Downside) can sit 40+ rows above its last lines: as far as headOf itself looks
         let rep = 0; for (let r = Math.max(0, ri - 20); r <= Math.min(s.rows.length - 1, ri + 20); r++) if (r !== ri && (s.rows[r] || [])[i] === row[i]) rep++;
         const colVal = !!hl && hl !== lab && !per(hl) && (rep >= 2 || /method|status|type|tenant|order|basis|timing|curve|profile|draw|option|source|structure|lender|class/i.test(hl) || /^(see\b|n\/a$|tbd$|\[)/i.test(lab));
         let kL = -1; for (let k = i - 1; k >= 0; k--) if (emIsLabel(row[k]) && String(row[k]).length <= 70) { kL = k; break; }

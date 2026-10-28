@@ -24,12 +24,12 @@ FONT_STACK = "'Cairo','IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif"
 COLOURS = [(J.NAVY, CHAR), (J.NAVY_DEEP, CHAR_DEEP), (J.SAND, GOLD), (J.SAGE, GOLD_DK), (J.BLUE, GOLD_ACC), (J.SAND_SOFT, SAND_SOFT),
            ("#102566", CHAR_SOFT), ("rgba(11,31,92", "rgba(61,57,53"), ("rgba(16,37,102", "rgba(74,69,63"), ("rgba(7,21,66", "rgba(43,40,37"),
            ("rgba(183,166,143", "rgba(202,168,98"), ("rgba(135,131,120", "rgba(138,119,70"), ("rgba(81,96,210", "rgba(166,124,46"), ("#2a3f8f", GOLD_DK),
-           ("'0B1F5C'", "'3D3935'"), ("'B7A68F'", "'CAA862'"), ("'878378'", "'8A7746'")]   # the deck exports write colours without the hash
+           ("#8fa0d6", "#b3a690"), ("'0B1F5C'", "'3D3935'"), ("'B7A68F'", "'CAA862'"), ("'878378'", "'8A7746'")]   # the deck exports write colours without the hash
 
 # what stays Jadwa's in the page's own words becomes Adel's
 SENTENCES = [("Jadwa Investment is a Saudi investment management and advisory firm, with real estate funds among its businesses", "Adel Real Estate is a Saudi real estate company"),
              ("for Jadwa Investment, an investment management and advisory firm", "for Adel Real Estate, a Saudi real estate company")]
-NAMES = [("Jadwa Investment", "Adel Real Estate"), ("@jadwa.example", "@adel.example"), ("cfo@jadwa.com", "cfo@adelrealestate.com"), ("www.jadwa.com", "www.adelrealestate.com"),
+NAMES = [("Jadwa Investment", "Adel Real Estate"), ("EXPANDING INVESTMENT HORIZONS", "ADEL REAL ESTATE"), ("@jadwa.example", "@adel.example"), ("cfo@jadwa.com", "cfo@adelrealestate.com"), ("www.jadwa.com", "www.adelrealestate.com"),
          ("jadwa.com", "adelrealestate.com"), ("jadwa-estatemaster", "adel-estatemaster"), ("jadwa${atts", "adel${atts"), ("jadwa-${atts", "adel-${atts")]
 
 
@@ -74,6 +74,17 @@ h1,h2,h3,.serif,.kd-root,.k-doc,.report{{font-family:{FONT_STACK}}}
 #ksplash .ks-sq{{background:transparent!important;box-shadow:none!important;display:grid;place-items:center;width:min(34vmin,170px)!important;height:min(34vmin,170px)!important}}
 #ksplash .ks-sq img{{width:78%;height:auto;animation:jSq 1.1s cubic-bezier(.2,.8,.2,1) .2s both}}
 .klogo img{{height:46px;width:auto}}
+/* the site's own look: a charcoal band with the white lockup, gold on dark for the navigation, a warm page */
+:root{{--bg:#f4f2ee}}
+header.kband{{background:{CHAR};color:#fff;box-shadow:0 0 0 100vmax {CHAR};border-bottom:1px solid rgba(202,168,98,.35)}}
+header.kband .k-gear,header.kband .k-ready,header.kband .demo-chip{{border-color:rgba(255,255,255,.28);color:#f3eee2;background:transparent}}
+header.kband .k-gear:hover{{background:{GOLD};border-color:{GOLD};color:{CHAR}}}header.kband .demo-chip b{{color:{GOLD}}}
+header.kband .eng{{border-color:{GOLD};color:{GOLD}}}header.kband .kbell{{color:#f3eee2}}
+.tabs{{background:{CHAR_DEEP}!important;box-shadow:0 0 0 100vmax {CHAR_DEEP}!important;border-bottom:0!important}}
+#tabs .tab,#tabs .tab.gtab-hidden{{color:#d9cfbd!important;opacity:1!important}}#tabs .tab:hover{{color:#fff!important}}#tabs .tab.on{{color:{GOLD}!important}}#tabs .tab::after{{background:{GOLD}!important}}
+.tabs .tab-model{{color:#fff!important;border-right-color:rgba(255,255,255,.18)!important}}.tabs .tab-model:before{{color:{GOLD}!important}}.tabs .tab-model small{{color:#d9cfbd!important}}
+.btn:hover:not(:disabled){{background:{CHAR_DEEP};border-color:{CHAR_DEEP}}}.btn.ghost:hover:not(:disabled){{background:{SAND_SOFT};color:{CHAR}}}
+#ksplash .ks-sq{{width:min(70vmin,420px)!important;height:auto!important}}#ksplash .ks-sq img{{width:100%!important}}#ksplash .ks-halo{{width:auto!important;height:auto!important;padding:48px}}
 """
 
 
@@ -92,8 +103,8 @@ def apply(html):
     html = head + tail
     assert n == 1 and m == 1, ("Jadwa's klogo/kchev not found", n, m)
     # the marks: the header lockup, the splash, the tab icon, the deck and report cover mark, the sapling motifs and every sapling drawn inline
-    html = html.replace(J.lockup_svg(J.SAGE, 46), _img(LOGO_DARK, 46))
-    html = html.replace(J.square_svg(124, label=False), _img(MARK, 124))
+    html = html.replace(J.lockup_svg(J.SAGE, 46), _img(LOGO_WHITE, 46))   # on the charcoal band, as on adelrealestate.com
+    html = html.replace(J.square_svg(124, label=False), _img(LOGO_WHITE, 104, "Adel Real Estate"))   # the opening: the white lockup on charcoal, as the site's own page
     html = html.replace(J.MARK.replace('width="40" height="40"', 'width="48" height="48"').replace('width:40px;height:40px', 'width:48px;height:48px'), _img(MARK, 48))
     for svg in (J.tree_svg(J.SAGE, 1), J.tree_svg("#ffffff", .13), J.tree_svg(J.SAND, .35), J.tree_svg(J.SAND, .5)):
         html = html.replace(J.data_uri(svg), MARK_FAINT)

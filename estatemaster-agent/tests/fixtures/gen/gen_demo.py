@@ -8,7 +8,13 @@ from openpyxl.styles import Font,PatternFill,Alignment,Border,Side
 from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.formatting.rule import CellIsRule
-OUT='/tmp/claude-0/-home-user-workspace/c7e8f42c-9ed0-5ba7-9852-d8a131185935/scratchpad/demo/'
+import sys
+# --adel: the copy given to Adel Real Estate for its demo, with a milder downside case (a stress that breaches the DSCR covenant, not one that
+# wipes out the equity); --out DIR: where the workbook is written (the default is the scratch folder the first version was made in)
+ADEL='--adel' in sys.argv
+OUT=sys.argv[sys.argv.index('--out')+1].rstrip('/')+'/' if '--out' in sys.argv else '/tmp/claude-0/-home-user-workspace/c7e8f42c-9ed0-5ba7-9852-d8a131185935/scratchpad/demo/'
+ADEL_DOWN={'BuildMonths':32,'BuildRate':6350,'ResPrice':1710000,'ResSalesMonths':36,'ResEscrowRel':0.95,'RetailRent':1790,'OfficeRent':1310,'StabOcc':0.90,
+ 'ADR':755,'HotelOcc':0.69,'ExitYield':0.075,'HotelMult':10.5,'SAIBOR':0.056,'Margin':300}
 os.makedirs(OUT,exist_ok=True)
 NAVY='1F2A44';TEAL='0E7C7B';GOLD='C9A227';GREY='F2F4F7';INPUT_BG='FFF7D6';BLUE='1F4FD8'
 P='0.0%';P2='0.00%';N='#,##0;(#,##0);"–"';NM='#,##0.0,,"m";(#,##0.0,,"m");"–"';X='0.00"x"';D='mmm-yy';D2='dd-mmm-yyyy'
@@ -27,7 +33,7 @@ def section(ws,r,text,width=12):
     ws.cell(r,1,text).font=H2
 
 # ---------------------------------------------------------------- Cover
-cv=wb.active;cv.title='Cover';banner(cv,'AL NAKHEEL GATE – MIXED-USE DEVELOPMENT, RIYADH (SAR)','Development and hold model · monthly, 96 months · synthetic demo data',10)
+cv=wb.active;cv.title='Cover';banner(cv,'AL NAKHEEL GATE – MIXED-USE DEVELOPMENT, RIYADH (SAR)','Development and hold model · monthly, 96 months · synthetic demo data'+(' prepared for Adel Real Estate' if ADEL else ''),10)
 rows=[('Purpose','Investment committee model for a mixed-use scheme: residential for sale, retail and office for lease, a 220-key hotel.'),
  ('Currency and units','SAR. Monthly cash flows on the Cash Flow sheet; annual summary on Annual; headline results on Dashboard.'),
  ('How to use','Change only the yellow cells on Inputs (blue figures). Pick the case on Inputs!C5. Every other figure is a formula.'),
@@ -48,6 +54,7 @@ for j,h in enumerate(['Live','Base','Upside','Downside'],2):c=ins.cell(7,j,h);c.
 ins.cell(7,1,'Assumption').font=HB;ins.cell(7,1).fill=FILL(TEAL);ins.cell(7,7,'Note').font=HB;ins.cell(7,7).fill=FILL(TEAL)
 NAMES={}
 def inp(r,name,label,base,up,down,fmt,note=''):
+    if ADEL and name in ADEL_DOWN:down=ADEL_DOWN[name]
     ins.cell(r,1,label);ins.cell(r,7,note).font=Font(name='Calibri',italic=True,color='667085')
     for j,v in enumerate([base,up,down],3):c=ins.cell(r,j,v);c.number_format=fmt;c.font=Font(name='Calibri',color=BLUE);c.fill=FILL(INPUT_BG)
     c=ins.cell(r,2,f'=CHOOSE($C$5,C{r},D{r},E{r})');c.number_format=fmt;c.font=Font(name='Calibri',bold=True)
