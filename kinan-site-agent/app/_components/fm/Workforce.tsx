@@ -18,7 +18,7 @@ const KIND_ICON: Record<string, string> = { quadruped: "🐕", drone: "🛸", cr
 const icon = (r: Robot) => (r.capabilities.includes("intrusion") && r.kind === "ugv" ? "🛡️" : r.capabilities.includes("manipulate") ? "🦾" : KIND_ICON[r.kind] ?? "🤖");
 const CONN: Record<string, string> = { sim: "simulated in this demo", rmf: "Open-RMF", vendor: "vendor API", platform: "vendor data platform (findings in)" };
 const HAZARD: Record<string, string> = { h2s: "H₂S", hydrocarbon: "hydrocarbons", high_voltage: "high voltage", confined_space: "confined space", height: "height", hot_surface: "hot surfaces", noise: "noise", marine: "marine", airside: "live airside" };
-const MODE_TONE: Record<string, string> = { "people only": "low", "robots only (AI-controlled)": "auto", "robot only (AI-controlled)": "auto", "people with an AI-controlled robot": "medium", "people with a piloted robot": "medium", "a person piloting a robot": "medium", "waiting for a pilot": "high" };
+const MODE_TONE: Record<string, string> = { "people only": "low", "robots only (AI-controlled)": "auto", "robot only (AI-controlled)": "auto", "AI-orchestrated people and robots": "medium", "people with a piloted robot": "medium", "a person piloting a robot": "medium", "waiting for a pilot": "high" };
 const ALERT_ICON: Record<string, string> = { fence: "🚧", person: "🚶", vehicle: "🚗", drone: "🛸", camera: "📹", fod: "🔩", wildlife: "🐦" };
 /** Text that fits a zone's width on the map (≈0.56 em per character). */
 const fit = (t: string, width: number, size: number) => { const n = Math.floor(width / (size * 0.56)); return t.length > n ? `${t.slice(0, Math.max(1, n - 1))}…` : t; };
@@ -83,7 +83,7 @@ export function WorkforcePanel({ s, onRobot }: { s: FS; onRobot: (id: string) =>
   const mixed = s.teams.jobs.filter((j) => j.robots.length);
   return (
     <section className="ops-panel wf">
-      <p className="muted small">Everyone and everything that can take a job: the facility&apos;s own people, contractor crews on site, and robots. The orchestrator picks among them by what the job needs — a skill, a sensor, access to a hazardous area — and who is free. Teams take every shape: people only, robots only (the AI drives them), people with an AI-controlled robot beside them, and people piloting robots.</p>
+      <p className="muted small">Everyone and everything that can take a job: the facility&apos;s own people, contractor crews on site, and robots. The orchestrator picks among them by what the job needs — a skill, a sensor, access to a hazardous area — and who is free. Teams take every shape: people only, robots only (the AI drives them), AI-orchestrated people and robots beside them, and people piloting robots.</p>
       <div className="rpt-label">Teams on the work · {s.teams.jobs.length} jobs, {s.teams.missions.length} robot missions</div>
       <ul className="ops-list wf-teams">
         {[...mixed, ...s.teams.jobs.filter((j) => !j.robots.length).slice(0, Math.max(3, 8 - mixed.length))].map((j) => (

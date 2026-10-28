@@ -379,7 +379,7 @@ export function robotOutcomes(d: FmData) {
 }
 
 /** Who works with what right now: every open job and live mission, by team shape — people only, robots only (the AI
- *  driving them), people with an AI-controlled robot beside them, or a person piloting a robot. */
+ *  driving them), AI-orchestrated people and robots beside them, or a person piloting a robot. */
 export function teams(d: FmData, facilityId: string) {
   const live = (id?: string) => d.missions.find((m) => m.id === id && (m.status === "planned" || m.status === "running"));
   const crewOf = (w: WorkOrder) => (w.crew ? d.crews.find((c) => c.id === w.crew) : undefined);
@@ -390,7 +390,7 @@ export function teams(d: FmData, facilityId: string) {
     const c = crewOf(w), t = person(w.assignee);
     const people = [...(c ? [`${c.name} (${c.size})`] : []), ...(t ? [t.name] : [])];
     const robots = [...(w.robot ? [robotRow(w.robot, "does the job", d.missions.find((m) => m.id === w.missionId))] : []), ...(w.support ?? []).filter((s) => live(s.missionId) || d.missions.find((m) => m.id === s.missionId)?.status === "done").map((s) => robotRow(s.robotId, s.role, d.missions.find((m) => m.id === s.missionId)))];
-    const mode = robots.length && people.length ? (robots.some((r) => r.control === "remote") ? "people with a piloted robot" : "people with an AI-controlled robot") : robots.length ? (robots.some((r) => r.control === "remote") ? "a person piloting a robot" : "robots only (AI-controlled)") : "people only";
+    const mode = robots.length && people.length ? (robots.some((r) => r.control === "remote") ? "people with a piloted robot" : "AI-orchestrated people and robots") : robots.length ? (robots.some((r) => r.control === "remote") ? "a person piloting a robot" : "robots only (AI-controlled)") : "people only";
     return { id: w.id, title: w.title, status: w.status, people, robots, mode };
   });
   // missions not tied to a job: robots on their own (AI) or with their pilot
