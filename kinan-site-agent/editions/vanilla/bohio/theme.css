@@ -54,7 +54,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .fd-top .logo { display: none; }
 .fd-top::before { font-size: 20px; }
 @keyframes bhSheen { 0%, 100% { background-position: 50% 14%; } 30% { background-position: 50% 52%; } 62% { background-position: 50% 26%; } 84% { background-position: 50% 58%; } }
-.brand-sub { font-family: var(--f-head); font-weight: 400; letter-spacing: .28em; color: rgba(15, 23, 34, .68); }
+.brand-sub { display: none; } /* the BOHIO wordmark stands alone */
 .top .chev .mark path { fill: #3a4656; }
 .avatar { background: linear-gradient(180deg, #2a3442, #0f1722); color: #ffffff; border-color: #0f1722; }
 
