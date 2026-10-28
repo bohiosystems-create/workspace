@@ -168,7 +168,7 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
   const [pilot, setPilot] = useState("");
   const [zone, setZone] = useState(allowed[0]?.id ?? "");
   const [asset, setAsset] = useState("");
-  const [kind, setKind] = useState<MissionKind>(r?.kind === "crawler" ? "thickness_survey" : r?.kind === "drone" ? "flare_inspection" : r?.kind === "rov" ? "subsea_inspection" : r?.kind === "fixed_wing" ? "pipeline_patrol" : r?.roles.includes("security") ? "security_patrol" : "inspection_round");
+  const [kind, setKind] = useState<MissionKind>(r?.kind === "crawler" ? "thickness_survey" : r?.kind === "drone" ? (s.facility.sector === "airport" ? "runway_inspection" : "flare_inspection") : r?.kind === "rov" ? "subsea_inspection" : r?.kind === "fixed_wing" ? "pipeline_patrol" : r?.roles.includes("security") ? "security_patrol" : "inspection_round");
   if (!r) return null;
   const ms = s.missions.filter((m) => m.robotId === r.id);
   const live = ms.find((m) => m.status === "running" || (m.status === "planned" && Date.parse(m.plannedStart) - Date.now() < 30 * 60_000 && Date.parse(m.plannedStart) > Date.now() - 60_000));
