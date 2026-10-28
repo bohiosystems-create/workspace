@@ -61,7 +61,7 @@ async function open(jadwa){const S={plan:[],read:[],reads:[],audit:null,lastAudi
   let a=await ask('Construction cost +12%, apartment prices −8%, construction 6 months longer and SAIBOR +150 bps, all together. Do we breach the covenants, and when?',
     {plan:[['test_assumptions',{changes:['construction cost +12%','average price per apartment -8%','construction period +6 months','SAIBOR +150 bps']}],['line_over_time',{lines:['DSCR','LTV'],version:'latest'}]],
      read:[{re:/Construction cost/i,kind:'pct',value:12},{re:/Average price per apartment/i,kind:'pct',value:-8},{re:/Construction period/i,kind:'abs',value:6},{re:/SAIBOR/,kind:'pts',value:1.5,late:true}]});
-  ok(S.reads.length>=1&&/SAIBOR \| Inputs!C57/.test(S.reads[0]),'the AI reader is shown every line the sentence names (SAIBOR, row 57 of a model with three cases), not the first 160 inputs');
+  ok(S.reads.length>=1&&/SAIBOR( · Base)? \| Inputs!C57/.test(S.reads[0]),'the AI reader is shown every line the sentence names (SAIBOR, row 57 of a model with three cases), not the first 160 inputs');
   ok(S.reads.length>=2&&/SAIBOR[^\n]*Inputs!C57\), which your reading leaves out/.test(S.reads[1]),'a clause the AI left out (SAIBOR +150 bps, read by the rules) goes back to it once, and it reads the sentence again',S.reads[1]&&S.reads[1].slice(-300));
   const v=await p.evaluate(()=>{const x=latestExport();const V=(MVERS[PROJ.id]||[]).filter(z=>!z.base&&z.ex===x.id);return V[V.length-1]||null});
   ok(v&&v.sets.length>=4&&near(v.out.levered_irr/100,N.k3[0],1e-6),'all four changes run together: levered IRR 3.09%, as LibreOffice gives it (3 changes would give 4.58%)',v&&{sets:v.sets,irr:v.out.levered_irr});
