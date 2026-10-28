@@ -15,7 +15,7 @@ ok(it.k==='aitest'&&/revenue by 15%/.test(it.changes[0]),'free-word what-if → 
 ok(['estimate','aitest'].includes((await p.evaluate(()=>intent('what if sale price drops 10%?'))).k),'known-variable what-if keeps its estimate path');
 ok((await p.evaluate(()=>intent('where are we on IRR'))).k==='status','plain status question stays a lookup');
 const rt=await p.evaluate(()=>route('what happens if in this model we drop revenue by 15%. how does that affect IRR'));
-ok(rt.lane==='api'&&rt.tier==='deep','every chat question goes through the AI agent (deep tier for a what-if): '+JSON.stringify({lane:rt.lane,tier:rt.tier}));
+ok(rt.lane==='api'&&rt.tier==='smart','every chat question goes through the AI agent (Opus for a what-if, the strongest model only after a failed check): '+JSON.stringify({lane:rt.lane,tier:rt.tier}));
 ok((await p.evaluate(()=>route('monthly report').lane))==='api'&&(await p.evaluate(()=>route('approve CR-101').lane))==='calc','reports too; approvals stay a fixed rule');
 ok(await p.evaluate(()=>TOOLS.some(t=>t.name==='set_hurdle')&&/Hurdle:/.test(sysPrompt('web','Investment Director'))),'the agent knows the hurdle state and can record a confirmed one');
 await p.evaluate(()=>{toggleDock(true);webAsk('what happens if in this model we drop revenue by 15%. how does that affect IRR')});await p.waitForTimeout(2500);

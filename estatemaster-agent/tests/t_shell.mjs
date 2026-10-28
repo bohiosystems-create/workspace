@@ -58,7 +58,7 @@ const [dl]=await Promise.all([p.waitForEvent('download',{timeout:15000}),ev(()=>
 ck('export arrow downloads the chart',/\.(png|html)$/.test(dl.suggestedFilename()),dl.suggestedFilename());
 // AI: reasoning labelled, chart tool
 llmOn=true;await p.reload();await p.waitForTimeout(1200);await p.evaluate(()=>toggleDock(true));ck('AI on',await ev(()=>apiOn()),'');
-const rt=await ev(()=>route('which past project overran its budget the most, and by how much?'));ck('data question with reasoning routes to the AI, deep tier',rt.lane==='api'&&rt.tier==='deep',JSON.stringify([rt.lane,rt.tier]));
+const rt=await ev(()=>route('which past project overran its budget the most, and by how much?'));ck('a figure looked up across projects routes to the AI, on the lookup tier (Sonnet; a failed check goes to the strongest model)',rt.lane==='api'&&rt.tier==='fast',JSON.stringify([rt.lane,rt.tier]));
 h=await ask('which past project overran its budget the most, and by how much?',3000);
 ck('AI answer: figures it worked out carry the AI badge and the note',(h.match(/fig-calc/g)||[]).length>=2&&/calcnote/.test(h)&&/not an? (EstateMaster|the model|model) figure|Not from (EstateMaster|the model)/i.test(h),h.replace(/<[^>]+>/g,' ').slice(0,200));
 ck('system prompt carries the ⟦calc⟧ rule and chart tools',llmReq.some(r=>/⟦calc: working⟧/.test(r.payload.system)&&r.payload.tools.some(t=>t.name==='make_chart')&&r.payload.tools.some(t=>t.name==='get_series')),'');

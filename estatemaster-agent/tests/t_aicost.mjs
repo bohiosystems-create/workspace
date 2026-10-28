@@ -23,6 +23,12 @@ await p.evaluate(id=>{const it=document.querySelector(`.feed-item[data-fi="${id}
 const after=await p.evaluate(id=>pendingCRs().map(c=>({id:c.id,on:!!(c.ai||c.aiErr||CRBUSY.has(c.id))})),id);
 ok(calls.length>0&&after.find(z=>z.id===id).on,'opening a change request’s card works out its impact',{id,calls:calls.length});
 ok(after.filter(z=>z.id!==id).every(z=>!z.on),'the other change requests wait until their own card is opened',after);
+// who answers: a figure looked up is Sonnet's, a what-if Opus's, writing Fable's; picking from a list the app checks is Sonnet's first
+{const r=await p.evaluate(async()=>{const used=[];const f0=window.callOne;window.callOne=async(pv,model)=>{used.push(model);return{text:'{"groups":{}}'}};
+  const t=['What is the peak debt?','How much is the total development cost?','Construction cost +10%: what happens to the IRR?','What is the IRR if SAIBOR rises 100 bps?','What sale price gives a 12% levered IRR?','Draft an IC memo on the project','What are the main risks?'].map(q=>aiTier(q.toLowerCase()));
+  const j=await a33Ai('Reply with JSON only.','x',100);window.callOne=f0;return{t,used,j:!!j,fast:chain('fast')[0].model}});
+  ok(r.t.join()==='fast,fast,smart,smart,smart,deep,deep','lookups to Sonnet, what-ifs and goal seeks to Opus, memos and risks to Fable',r.t);
+  ok(r.j&&r.used[0]===r.fast,'a pick from a list (a33Ai) asks Sonnet first',r.used)}
 ok(!errs.length,'no page errors',errs);await b.close();
 // the server: Opus at medium effort by default, the effort a call asks for kept
 {const llm=createRequire(import.meta.url)('../api/llm.js');process.env.ANTHROPIC_API_KEY='k';let sent=null;const f0=globalThis.fetch;
