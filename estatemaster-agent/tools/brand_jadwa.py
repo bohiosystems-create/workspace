@@ -212,6 +212,7 @@ KD = ("const KD={OR:'%s',CH:'%s',INK:'%s',SOFT:'%s',TAUPE:'%s',GREY:'%s',FAINT:'
 EM_WORDS = [
     ("<h2>EstateMaster exports</h2>", "<h2>Workbook versions</h2>"), ("<th>Export</th><th>Option / stage</th>", "<th>Version</th><th>Case</th>"),
     ("<th>Option / stage</th><th>Export</th>", "<th>Case</th><th>Version</th>"),
+    ("come from the full EstateMaster model; on this uploaded workbook they show as", "are not sections of this workbook; they show as"),
     ("comes from the full EstateMaster model; on this uploaded workbook it shows as", "is not a section of this workbook; it shows as"),
     ("needs the full EstateMaster model, which this uploaded workbook is not, so it is left out here", "is not in this workbook, so it is left out here"),
     ("drawn from the full EstateMaster model, which this uploaded workbook is not", "not in this workbook"),

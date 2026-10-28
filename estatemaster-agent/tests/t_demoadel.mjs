@@ -46,5 +46,9 @@ a=await run('How far can the apartment price fall before the levered IRR drops t
 ok(/\*\*1,587,384\.93\*\*/.test(a)&&Math.abs(G.price_gs.lev-0.12)<1e-6,'the goal seek on the apartment price: 1,587,385, where LibreOffice gives exactly 12.00%',a.slice(0,200));
 a=await run('Switch the model to the downside case: what happens to the levered IRR and the minimum DSCR?','estimate','Case running 3 [cells: Inputs!C5]');
 ok(a.includes(`→ **${pct(G.downside.lev)}**`)&&a.includes(`→ **${G.downside.mindscr.toFixed(2)}x**`),'the downside case: the levered IRR and the minimum DSCR as LibreOffice gives them',a.slice(0,300));
+// 5. reports: the debt section lists each figure once, and its terms in the case the model runs on
+const dr=await p.evaluate(()=>{const rows=wbRows(WB_DEBT)||[];const t=document.createElement('div');t.innerHTML=wbDebtTerms();return{labels:rows.map(r=>r.label),terms:[...t.querySelectorAll('td:first-child')].map(td=>td.textContent)}});
+ok(dr.labels.length>2&&new Set(dr.labels).size===dr.labels.length&&dr.labels.includes('Minimum DSCR'),'the debt section lists each figure once (the Dashboard repeating the Returns sheet)',dr.labels);
+ok(dr.terms.some(t=>/^DSCR covenant \(minimum\) \(Base case, the one the model runs on\)$/.test(t))&&!dr.terms.some(t=>/Upside|Downside/.test(t)),'the debt terms are shown once, in the Base case the model runs on',dr.terms);
 ok(!errs.length,'no page errors',errs.slice(0,3));
 console.log(`${pass} pass, ${fail} fail`);await b.close();process.exit(fail?1:0);
