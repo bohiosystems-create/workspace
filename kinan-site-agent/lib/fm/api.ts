@@ -7,7 +7,8 @@ import { effects, propose, KIND_LABEL, type Learned } from "./orchestrator";
 import type { Action, AssetStatus, AutopilotPolicy, Crew, FmData, FmEvent, Priority, Technician, WorkOrder, WoStatus, WoType } from "./types";
 import type { Capability, Mission } from "../robots/types";
 import { CAPABILITY_LABEL, MISSION_LABEL } from "../robots/types";
-import { robotMayEnter, waitingFor } from "./work";
+import { gasIn, robotMayEnter, turnaround, waitingFor } from "./work";
+import { findings } from "../robots/sim";
 import { closedIds, excludedPeople, learnedDoubts, isReason, type DecisionLike, type RejectReason } from "../proposals";
 import { canApprove, canSetPolicy, type Person } from "../auth/people";
 
@@ -63,8 +64,17 @@ export function facilityState(db: Db, facilityId: string) {
   if (!f) throw new Error("No such facility.");
   const by = <T extends { facilityId: string }>(xs: T[]) => xs.filter((x) => x.facilityId === facilityId);
   const log = (db.fmLog ?? []).filter((e) => eventFacility(d, e) === facilityId).slice(-40).reverse();
-  return { date: d.date, facility: f, sector: SECTOR_LABEL[f.sector], kpis: kpis(d, facilityId), systems: by(d.systems), assets: by(d.assets), technicians: by(d.technicians).map((t) => ({ ...t, load: workload(d, t.id) })),
-    workOrders: by(d.workOrders).map((w) => ({ ...w, slaLeft: Math.round(slaLeft(w) * 10) / 10, overdue: isOverdue(w) })), alarms: by(d.alarms), spares: by(d.spares), actions: actions(db, d, facilityId), autopilot: autopilotOn(db, facilityId), policy: policyOf(db, facilityId) ?? null, log, top: topIssues(d, facilityId) };
+  // the work layer: hazard zones (and gas in them now), contractor crews, robots and their missions, turnarounds
+  const crewJobs = (id: string) => d.workOrders.filter((w) => w.crew === id && isOpen(w)).map((w) => ({ id: w.id, title: w.title, status: w.status }));
+  const work = {
+    zones: by(d.zones).map((z) => ({ ...z, gas: gasIn(d, z)?.text ?? null })),
+    contractors: by(d.contractors).map((k) => ({ ...k, crews: d.crews.filter((c) => c.contractorId === k.id).map((c) => ({ id: c.id, name: c.name, size: c.size, status: c.status })) })),
+    crews: by(d.crews).map((c) => ({ ...c, contractor: d.contractors.find((k) => k.id === c.contractorId)?.name ?? "", rating: d.contractors.find((k) => k.id === c.contractorId)?.performance.rating ?? "good", jobs: crewJobs(c.id) })),
+    robots: by(d.robots), missions: by(d.missions).sort((a, b) => a.plannedStart.localeCompare(b.plannedStart)), findings: findings(d, facilityId),
+    turnarounds: [...new Set(by(d.workOrders).filter((w) => w.package).map((w) => w.package!))].map((pk) => turnaround(d, pk)!).filter(Boolean),
+  };
+  return { date: d.date, facility: f, sector: SECTOR_LABEL[f.sector], kpis: kpis(d, facilityId), ...work, systems: by(d.systems), assets: by(d.assets), technicians: by(d.technicians).map((t) => ({ ...t, load: workload(d, t.id) })),
+    workOrders: by(d.workOrders).map((w) => ({ ...w, slaLeft: Math.round(slaLeft(w) * 10) / 10, overdue: isOverdue(w), waitingFor: waitingFor(d, w) })), alarms: by(d.alarms), spares: by(d.spares), actions: actions(db, d, facilityId), autopilot: autopilotOn(db, facilityId), policy: policyOf(db, facilityId) ?? null, log, top: topIssues(d, facilityId) };
 }
 /** The control room as this person sees it: may they approve each proposal, and sign the autopilot policy? */
 export function facilityStateFor(db: Db, facilityId: string, user: Person | null | undefined) {
@@ -94,6 +104,14 @@ function eventFacility(d: FmData, e: FmEvent): string | undefined {
 /** One technician's day: their jobs in the order to do them, what is happening around them, and their team. */
 export function myDay(db: Db, techId: string) {
   const d = fmToday(db);
+  // a contractor crew's lead sees the crew's jobs, as a technician sees theirs
+  const crew = d.crews.find((c) => c.id === techId);
+  if (crew) {
+    const k = d.contractors.find((x) => x.id === crew.contractorId);
+    d.technicians.push({ id: crew.id, name: crew.lead, facilityId: crew.facilityId, role: `Crew lead — ${crew.name} (${k?.name ?? "contractor"})`, trades: crew.trades, shift: crew.shift, zone: crew.zone, phone: crew.leadPhone, years: 0,
+      status: crew.status === "on_job" ? "on_job" : crew.status === "off" ? "off" : "available" });
+    for (const w of d.workOrders) if (w.crew === crew.id) w.assignee = crew.id;
+  }
   const t = d.technicians.find((x) => x.id === techId);
   if (!t) throw new Error("No such technician.");
   const f = d.facilities.find((x) => x.id === t.facilityId)!;
@@ -237,6 +255,9 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       return { ok: true, message: `Alarm ${al.id} acknowledged.`, events: evs };
     }
     case "tech_status": {
+      // a crew lead's status from the field app is the crew's
+      const crew = d.crews.find((c) => c.id === b.techId);
+      if (crew && b.techStatus) return act(db, { action: "crew_status", crewId: crew.id, crewStatus: b.techStatus === "on_job" ? "on_job" : b.techStatus === "off" ? "off" : "available", cid: b.cid }, by, channel, user);
       const t = d.technicians.find((x) => x.id === b.techId);
       if (!t || !b.techStatus) throw new Error("Which technician and status?");
       add({ kind: "tech_status", techId: t.id, status: b.techStatus, summary: `${t.name} ${b.techStatus.replace("_", " ")}` });

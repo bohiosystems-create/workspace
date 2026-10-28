@@ -12,11 +12,12 @@ import type { Outcomes } from "@/lib/outcomes";
 import { Icon } from "../icons";
 import { Decide } from "../Decide";
 import { OutcomesPanel } from "../Outcomes";
+import { FindingsList, PlantMap, RobotSheet, TurnaroundPanel, WorkforcePanel } from "./Workforce";
 
 type Overview = ReturnType<typeof overview>;
 type FS = ReturnType<typeof facilityStateFor>;
 type WO = FS["workOrders"][number];
-const SECTOR_ICON: Record<string, string> = { energy: "chart", water: "layers", airport: "map" };
+const SECTOR_ICON: Record<string, string> = { energy: "chart", water: "layers", airport: "map", oil_gas: "flame" };
 const fmtN = (n: number, unit: string) => unit === "m³/day" || unit === "pax/day" ? n.toLocaleString("en-US") : String(n);
 const ago = (iso: string) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 1 ? "now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
 const RANK = { P1: 0, P2: 1, P3: 2, P4: 3 } as const;
@@ -65,7 +66,7 @@ export function FacilityCards({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 // ======================================================================== control room
-type Tab = "orchestrator" | "work" | "assets" | "alarms" | "team" | "spares" | "activity" | "outcomes";
+type Tab = "orchestrator" | "map" | "workforce" | "turnaround" | "work" | "assets" | "alarms" | "team" | "spares" | "activity" | "outcomes";
 export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facilityId: string; author: string; onBack: () => void; onSignIn: () => void }) {
   const [s, setS] = useState<FS | null>(null);
   const [tab, setTab] = useState<Tab>("orchestrator");
@@ -75,10 +76,13 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
   const [assetOpen, setAssetOpen] = useState<string | null>(null);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [oc, setOc] = useState<Outcomes | null>(null);
+  const [robotOpen, setRobotOpen] = useState<string | null>(null);
   const load = useCallback(() => { fetch(`/api/fm?facility=${facilityId}`, { cache: "no-store" }).then((r) => r.json()).then((j) => { if (j.error) setMsg({ text: j.error, bad: true }); else setS(j); }).catch(() => setMsg({ text: "Could not load the facility.", bad: true })); }, [facilityId]);
   useEffect(load, [load]);
   useLive(load);
   useEffect(() => { window.addEventListener("kinan:auth", load); return () => window.removeEventListener("kinan:auth", load); }, [load]);
+  // robots move and missions progress with the clock: keep the map, the workforce and the turnaround current
+  useEffect(() => { if (tab !== "map" && tab !== "workforce" && tab !== "turnaround" && !robotOpen) return; const id = setInterval(load, 20_000); return () => clearInterval(id); }, [tab, robotOpen, load]);
   useEffect(() => { if (tab === "outcomes") fetch(`/api/today?outcomes=${facilityId}`, { cache: "no-store" }).then((r) => r.json()).then((j) => !j.error && setOc(j)).catch(() => undefined); }, [tab, facilityId, s]);
   // Autopilot: while the control room is open, what the signed policy allows runs by itself every 15 s.
   useEffect(() => {
@@ -96,8 +100,12 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
   const k = s.kpis, f = s.facility;
   const tag = (id?: string) => s.assets.find((a) => a.id === id)?.tag ?? "";
   const who = (id?: string) => s.technicians.find((t) => t.id === id)?.name ?? "—";
+  /** who does a job: the crew, the robot or the person */
+  const doer = (w: { assignee?: string; crew?: string; robot?: string }) => (w.crew ? `${s.crews.find((c) => c.id === w.crew)?.name ?? "crew"} (${s.crews.find((c) => c.id === w.crew)?.contractor ?? ""})` : w.robot ? `robot ${s.robots.find((r) => r.id === w.robot)?.name ?? ""}` : who(w.assignee));
   const open = s.workOrders.filter((w) => w.status !== "done");
-  const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ["work", "Work orders", open.length], ["assets", "Assets"], ["alarms", "Alarms", k.activeAlarms], ["team", "Team"], ["spares", "Spares", k.sparesLow], ["outcomes", "Outcomes"], ["activity", "Activity"]];
+  const live = s.findings.filter((x) => !x.woId && !x.acknowledged && (x.severity === "high" || x.severity === "critical")).length;
+  const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ...(s.zones.length ? [["map", "Plant map", live] as [Tab, string, number]] : []),
+    ...(s.robots.length || s.crews.length ? [["workforce", "Workforce"] as [Tab, string]] : []), ...(s.turnarounds.length ? [["turnaround", "Turnaround"] as [Tab, string]] : []), ["work", "Work orders", open.length], ["assets", "Assets"], ["alarms", "Alarms", k.activeAlarms], ["team", "Team"], ["spares", "Spares", k.sparesLow], ["outcomes", "Outcomes"], ["activity", "Activity"]];
   const mine = s.actions.filter((a) => a.can.ok && a.risk === "low");
   const wo = woOpen ? s.workOrders.find((w) => w.id === woOpen) : undefined;
   const asset = assetOpen ? s.assets.find((a) => a.id === assetOpen) : undefined;
@@ -145,7 +153,17 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
 
       {tab === "outcomes" && (oc ? <OutcomesPanel o={oc} /> : <p className="muted">Loading…</p>)}
 
-      {tab === "work" && <WorkList s={s} tag={tag} who={who} onOpen={setWoOpen} />}
+      {tab === "map" && (
+        <section className="ops-panel">
+          <PlantMap s={s} onRobot={setRobotOpen} />
+          <div className="rpt-label">What the robots found today</div>
+          <FindingsList s={s} />
+        </section>
+      )}
+      {tab === "workforce" && <WorkforcePanel s={s} onRobot={setRobotOpen} />}
+      {tab === "turnaround" && <TurnaroundPanel s={s} onWo={setWoOpen} />}
+
+      {tab === "work" && <WorkList s={s} tag={tag} who={(id) => who(id)} doer={doer} onOpen={setWoOpen} />}
 
       {tab === "assets" && <AssetList s={s} onOpen={setAssetOpen} />}
 
@@ -198,6 +216,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
 
       {policyOpen && <PolicySheet s={s} busy={!!busy} onClose={() => setPolicyOpen(false)} onSign={async (policy) => { await doit("policy", { action: "policy", on: true, policy }); setPolicyOpen(false); }} onWithdraw={async () => { await doit("policy", { action: "policy", on: false }); setPolicyOpen(false); }} />}
       {wo && <WoDrawer s={s} wo={wo} tag={tag} onClose={() => setWoOpen(null)} doit={doit} busy={busy} />}
+      {robotOpen && <RobotSheet s={s} robotId={robotOpen} onClose={() => setRobotOpen(null)} doit={doit} busy={busy} />}
       {asset && <AssetDrawer s={s} asset={asset} onClose={() => setAssetOpen(null)} onWo={(id) => { setAssetOpen(null); setWoOpen(id); }} doit={doit} busy={busy} />}
     </div>
   );
@@ -218,7 +237,7 @@ export function Spark({ xs, low, high }: { xs: number[]; low?: number; high?: nu
   );
 }
 
-function WorkList({ s, tag, who, onOpen }: { s: FS; tag: (id?: string) => string; who: (id?: string) => string; onOpen: (id: string) => void }) {
+function WorkList({ s, tag, who, doer, onOpen }: { s: FS; tag: (id?: string) => string; who: (id?: string) => string; doer: (w: WO) => string; onOpen: (id: string) => void }) {
   const [f, setF] = useState<"open" | "overdue" | "hold" | "done" | "all">("open");
   const [q, setQ] = useState("");
   const xs = useMemo(() => s.workOrders.filter((w) => (f === "all" || (f === "open" ? w.status !== "done" : f === "overdue" ? w.overdue : f === "hold" ? w.status === "on_hold" : w.status === "done"))
@@ -235,8 +254,8 @@ function WorkList({ s, tag, who, onOpen }: { s: FS; tag: (id?: string) => string
         {xs.map((w) => (
           <li key={w.id}><button onClick={() => onOpen(w.id)}>
             <span className={`ops-pill pr ${w.priority}`}>{w.priority}</span>
-            <span className="grow"><b>{w.id} · {tag(w.assetId)}</b> {w.title}<em>{w.type} · {STATUS_LABEL[w.status]}{w.holdReason ? ` (${w.holdReason})` : ""} · {who(w.assignee)}{w.permit ? ` · permit ${w.permit.status}` : ""}</em></span>
-            {w.status !== "done" && <span className={`ops-sla ${w.overdue ? "bad" : w.type !== "PM" && w.slaLeft < w.slaHours * 0.3 ? "warn" : ""}`}>{w.overdue ? "past SLA" : w.type === "PM" ? `due ${w.due.slice(5)}` : `${Math.max(0, Math.round(w.slaLeft))} h left`}</span>}
+            <span className="grow"><b>{w.id} · {tag(w.assetId)}</b> {w.title}<em>{w.type} · {STATUS_LABEL[w.status]}{w.holdReason ? ` (${w.holdReason})` : ""} · {doer(w)}{w.permit ? ` · permit ${w.permit.status}` : ""}{w.gasTest ? ` · gas test ${w.gasTest.status}` : ""}{w.waitingFor.length ? ` · waits for ${w.waitingFor.join(", ")}` : ""}</em></span>
+            {w.status !== "done" && <span className={`ops-sla ${w.overdue ? "bad" : w.type !== "PM" && w.type !== "TAR" && w.slaLeft < w.slaHours * 0.3 ? "warn" : ""}`}>{w.overdue ? "past SLA" : w.type === "PM" || w.type === "TAR" ? `due ${w.due.slice(5)}` : `${Math.max(0, Math.round(w.slaLeft))} h left`}</span>}
           </button></li>
         ))}
       </ul>
@@ -289,7 +308,15 @@ function WoDrawer({ s, wo, tag, onClose, doit, busy }: { s: FS; wo: WO; tag: (id
         <p className="od-title"><span className={`ops-pill pr ${wo.priority}`}>{wo.priority}</span> {wo.title}</p>
         <p className="muted small">{wo.type} · {STATUS_LABEL[wo.status]}{wo.holdReason ? ` — ${wo.holdReason}` : ""} · raised {ago(wo.raised)} by {wo.raisedBy} ({wo.source}) · {wo.type === "PM" ? `due ${wo.due}` : wo.status === "done" ? "closed" : wo.overdue ? "past SLA" : `${Math.round(wo.slaLeft)} h of ${wo.slaHours} h SLA left`}</p>
         {wo.detail && wo.detail !== wo.title && <p>{wo.detail}</p>}
-        {wo.permit && <div className={`od-permit ${wo.permit.status}`}>Permit: {wo.permit.type} — {wo.permit.status === "required" ? "required, not issued yet: work may not start" : wo.permit.status}</div>}
+        {wo.permit && <div className={`od-permit ${wo.permit.status}`}>Permit: {wo.permit.type} — {wo.permit.status === "required" ? "required, not issued yet: work may not start" : wo.permit.status === "suspended" ? "suspended: work stopped until a clear gas test" : wo.permit.status}</div>}
+        {(wo.crew || wo.robot) && <p className="small"><b>{wo.crew ? "Crew" : "Robot"}:</b> {wo.crew ? `${s.crews.find((c) => c.id === wo.crew)?.name} — ${s.crews.find((c) => c.id === wo.crew)?.contractor}, lead ${s.crews.find((c) => c.id === wo.crew)?.lead}` : s.robots.find((r) => r.id === wo.robot)?.name}{wo.missionId ? ` · mission ${wo.missionId}` : ""}{wo.package ? ` · turnaround ${wo.package}, ${wo.plannedStart} → ${wo.plannedEnd}` : ""}</p>}
+        {wo.waitingFor.length > 0 && <div className="od-permit required">Waits for {wo.waitingFor.join(", ")} — it can&apos;t start before they are done.</div>}
+        {wo.gasTest && (
+          <div className={`od-permit ${wo.gasTest.status === "done" ? "issued" : "required"}`}>
+            Gas test: {wo.gasTest.status === "required" ? "required before work starts" : `${wo.gasTest.status === "done" ? "clear" : "not clear"} — ${wo.gasTest.reading ?? ""} (${wo.gasTest.by ?? ""})`}
+            {wo.status !== "done" && wo.gasTest.status !== "done" && <span className="od-acts"><button className="mini" disabled={!!busy} onClick={() => doit("gas", { action: "gas_test", woId: wo.id, result: "done" })}>Record a clear test</button><button className="mini" disabled={!!busy} onClick={() => doit("gas", { action: "gas_test", woId: wo.id, result: "failed", reading: note || "Gas detected" })}>Record gas found</button></span>}
+          </div>
+        )}
         <div className="od-grid">
           <label>Assigned to<select value={wo.assignee ?? ""} onChange={(e) => upd({ assignee: e.target.value })}><option value="">— nobody —</option>{s.technicians.filter((t) => t.shift !== "off").map((t) => <option key={t.id} value={t.id}>{t.name} · {t.role} · {t.load} jobs</option>)}</select></label>
           <div className="od-acts">

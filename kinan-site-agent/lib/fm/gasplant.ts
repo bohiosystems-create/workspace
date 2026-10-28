@@ -14,7 +14,7 @@ export const localAt = (date: string, h: number, m = 0) => new Date(Date.parse(`
 const Z = (id: string, name: string, hazards: ZoneDef["hazards"], atex: ZoneDef["atex"], x: number, y: number, w: number, h: number): ZoneDef => ({ id: `${FID}:${id}`, facilityId: FID, name, hazards, atex, x, y, w, h });
 export const GAS_ZONES: ZoneDef[] = [
   Z("cr", "Control room", [], null, 2, 2, 15, 10),
-  Z("dock", "Robot dock", [], null, 2, 14, 15, 8),
+  Z("dock", "Robot dock", [], null, 2, 14, 15, 20),
   Z("inl", "Inlet & separation", ["h2s", "hydrocarbon"], 1, 20, 2, 22, 18),
   Z("cmp", "Compression", ["hydrocarbon", "noise", "hot_surface"], 2, 45, 2, 30, 18),
   Z("flr", "Flare", ["height", "hot_surface"], null, 78, 2, 20, 18),

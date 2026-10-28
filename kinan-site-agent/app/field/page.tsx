@@ -43,11 +43,11 @@ function FieldApp() {
   if (!ready || me === undefined) return <div className="fieldapp"><Header title="Field app" /><main className="fd-main"><p className="muted">Loading…</p></main></div>;
   // signed out: no signal and a day on the phone still opens (the outbox sends once signed in and online)
   if (!me) return <div className="fieldapp"><SignInScreen auth={auth} hint={asTech} /></div>;
-  const lead = me.role !== "field";
-  const tech = asTech && (lead || asTech === me.techId) ? asTech : me.techId ?? null;
+  const lead = me.role !== "field" && me.orgType === "client"; // contractors see their own crew only
+  const tech = asTech && (lead || asTech === me.techId) ? asTech : me.techId ?? me.crewId ?? null;
   return (
     <div className="fieldapp">
-      {tech ? <MyDay techId={tech} me={me} viewing={tech !== me.techId} onSwitch={lead ? () => view(null) : undefined} /> : <Pick me={me} onPick={view} />}
+      {tech ? <MyDay techId={tech} me={me} viewing={tech !== (me.techId ?? me.crewId)} onSwitch={lead ? () => view(null) : undefined} /> : <Pick me={me} onPick={view} />}
     </div>
   );
 }
