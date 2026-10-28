@@ -4,6 +4,7 @@
 // and the orchestrator's changes are events applied on top (engine.ts). All names are fictional.
 import { rng } from "../data/util";
 import { addGasWork } from "./gasplant";
+import { addAirportWork } from "./airport";
 import type { Alarm, Asset, AssetStatus, Criticality, Facility, FmData, Priority, Reading, Sector, Technician, Trade, WorkOrder, WoStatus, WoType } from "./types";
 
 const addDays = (iso: string, n: number) => { const d = new Date(iso.slice(0, 10) + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -35,7 +36,7 @@ const PROFILES: Record<string, Prof[]> = {
   eds: [["thru", "Throughput", "bags/h", 640, 40], ["rej", "Rejection rate", "%", 3.1, 0.6, undefined, 6]],
   ups: [["load", "Load", "%", 54, 6, undefined, 85], ["batt", "Battery autonomy", "min", 14, 1.5, 10]],
   genset: [["fuel", "Fuel level", "%", 86, 6, 40], ["batt", "Starter battery", "V", 26.8, 0.3, 24]],
-  ccr: [["ir", "Circuit insulation", "MΩ", 28, 6, 10], ["lamps", "Lamps out", "", 3, 2, undefined, 12]],
+  ccr: [["ir", "Circuit insulation", "MΩ", 28, 6, 10], ["lamps", "Runway edge lamps out", "of 240", 11.5, 0.2, undefined, 12]],
   firepump: [["press", "Jockey pressure", "bar", 9.2, 0.3, 8], ["start", "Weekly churn test", "pass", 1, 0]],
   compressor: [["press", "Discharge pressure", "bar", 7.4, 0.2, 6.5, 8.5], ["temp", "Discharge temperature", "°C", 88, 5, undefined, 110]],
   // oil & gas
@@ -110,7 +111,8 @@ const AIRPORT: Plant = {
     ["HVAC", "Cooling & air handling", [["CH-01", "Chiller 1 (3,000 TR)", "chiller", "hvac", "A", "Central plant", "York-type", 60, ["Chiller oil filter"]], ["CH-02", "Chiller 2 (3,000 TR)", "chiller", "hvac", "A", "Central plant", "York-type", 60, ["Chiller oil filter"]], ["CH-03", "Chiller 3 (3,000 TR)", "chiller", "hvac", "A", "Central plant", "York-type", 60, ["Chiller oil filter"]], ["CH-04", "Chiller 4 (standby)", "chiller", "hvac", "A", "Central plant", "York-type", 60, ["Chiller oil filter"]], ["AHU-D12", "AHU departures hall 12", "ahu", "hvac", "B", "Departures", "Trane-type", 30, ["AHU filter set"]], ["AHU-B03", "AHU pier B 3", "ahu", "hvac", "B", "Pier B", "Trane-type", 30, ["AHU filter set"]]]],
     ["PWR", "Power & lighting", [["UPS-T2", "Terminal UPS", "ups", "electrical", "A", "Main substation", "Schneider-type", 90], ["GEN-T2-1", "Standby generator 1", "genset", "electrical", "A", "Main substation", "Caterpillar-type", 30], ["CCR-RWY", "Runway lighting regulators", "ccr", "electrical", "A", "Airfield", "ADB-type", 30], ["FP-01", "Fire pump set", "firepump", "mechanical", "A", "Central plant", "Grundfos-type", 7]]],
   ],
-  techs: [["Majed Al-Anazi", "Duty maintenance manager", ["mechanical", "electrical"], "day", "Airport operations centre", 15], ["Arun Pillai", "BHS technician", ["mechanical", "controls"], "day", "Baggage hall", 8], ["Saad Al-Mutairi", "BHS technician", ["mechanical"], "day", "Baggage hall", 3], ["Lina Haddad", "Electrical technician", ["electrical"], "day", "Pier B", 6], ["Tomasz Nowak", "Lift & escalator technician", ["lifts"], "day", "Departures", 10], ["Bilal Ahmed", "HVAC technician", ["hvac"], "day", "Central plant", 7], ["Turki Al-Shammari", "Airfield electrician", ["electrical"], "night", "Airfield", 9], ["Ravi Menon", "PBB technician", ["electrical", "mechanical"], "day", "Pier B", 5], ["Noura Al-Saud", "BMS engineer", ["controls", "hvac"], "day", "Airport operations centre", 6], ["Emre Kaya", "HVAC technician", ["hvac"], "night", "Central plant", 4]],
+  techs: [["Majed Al-Anazi", "Duty maintenance manager", ["mechanical", "electrical"], "day", "Airport operations centre", 15], ["Arun Pillai", "BHS technician", ["mechanical", "controls"], "day", "Baggage hall", 8], ["Saad Al-Mutairi", "BHS technician", ["mechanical"], "day", "Baggage hall", 3], ["Lina Haddad", "Electrical technician", ["electrical"], "day", "Pier B", 6], ["Tomasz Nowak", "Lift & escalator technician", ["lifts"], "day", "Departures", 10], ["Bilal Ahmed", "HVAC technician", ["hvac"], "day", "Central plant", 7], ["Turki Al-Shammari", "Airfield electrician", ["electrical"], "night", "Airfield", 9], ["Ravi Menon", "PBB technician", ["electrical", "mechanical"], "day", "Pier B", 5], ["Noura Al-Saud", "BMS engineer", ["controls", "hvac"], "day", "Airport operations centre", 6], ["Emre Kaya", "HVAC technician", ["hvac"], "night", "Central plant", 4],
+    ["Hessa Al-Dossary", "Airport security duty manager", ["process"], "day", "Airport operations centre", 11], ["Omar Bakri", "Airfield operations officer (wildlife & FOD)", ["process"], "day", "Airfield", 8]],
   spares: [["Sorter tray", 14, 10, 21, 1800, "BHS store"], ["Conveyor drive motor 4 kW", 1, 3, 18, 6200, "BHS store"], ["PBB drive wheel assembly", 0, 1, 35, 17500, "Apron store"], ["PCA filter set", 6, 8, 7, 950, "Apron store"], ["Escalator step chain", 1, 1, 60, 54000, "VT store"], ["Lift door operator", 1, 1, 21, 12800, "VT store"], ["Chiller oil filter", 5, 4, 10, 780, "Central plant store"], ["AHU filter set", 9, 12, 7, 1350, "Central plant store"]],
   story: [["PBB-03", "down", "critical", "Boarding bridge gate 203 drive fault: bridge cannot dock"], ["BHS-SRT-1", "degraded", "high", "Sorter 1: 14 jams in 24 h, tray 112 sticking"], ["CH-02", "running", "medium", "Chiller 2 efficiency 0.79 kW/TR: condenser fouling"], ["LF-07", "degraded", "medium", "PRM lift 7: 7 door faults in 24 h"]],
 };
@@ -293,5 +295,6 @@ export function generate(date: string): FmData {
   }
   // the gas plant's working world: zones, contractor crews, robots and their missions, the turnaround (gasplant.ts)
   addGasWork(out, date);
+  addAirportWork(out, date);
   return out;
 }

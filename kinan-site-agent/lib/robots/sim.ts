@@ -35,7 +35,7 @@ function readingsFor(d: FmData, wp: Waypoint, cap: Capability): { a: Asset; r: R
     case "thermal": return mine(HEAT);
     case "acoustic": return mine(SOUND);
     case "ut_thickness": return a ? a.readings.filter((r) => r.key === "wall").map((r) => ({ a, r })) : [];
-    case "visual": return a && a.class === "flare" ? a.readings.filter((r) => r.key === "pilot").map((r) => ({ a, r })) : [];
+    case "visual": return a && (a.class === "flare" || a.class === "ccr") ? a.readings.filter((r) => r.key === "pilot" || r.key === "lamps").map((r) => ({ a, r })) : [];
     case "sonar": return a ? a.readings.filter((r) => r.key === "span").map((r) => ({ a, r })) : [];
     case "gas": // the gas detectors in the area (the robot's own sensor reads what they read)
       return d.assets.filter((x) => x.class === "detector" && (x.id === a?.id || x.zone === zoneName)).flatMap((x) => x.readings.filter((r) => GAS.has(r.key)).map((r) => ({ a: x, r })));

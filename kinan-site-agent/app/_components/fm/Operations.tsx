@@ -106,7 +106,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
   const doer = (w: { assignee?: string; crew?: string; robot?: string }) => (w.crew ? `${s.crews.find((c) => c.id === w.crew)?.name ?? "crew"} (${s.crews.find((c) => c.id === w.crew)?.contractor ?? ""})` : w.robot ? `robot ${s.robots.find((r) => r.id === w.robot)?.name ?? ""}` : who(w.assignee));
   const open = s.workOrders.filter((w) => w.status !== "done");
   const live = s.findings.filter((x) => !x.woId && !x.acknowledged && (x.severity === "high" || x.severity === "critical")).length + s.securityAlerts.filter((a) => a.status === "open").length;
-  const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ...(s.zones.length ? [["map", "Plant map", live] as [Tab, string, number]] : []),
+  const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ...(s.zones.length ? [["map", s.facility.sector === "airport" ? "Airport map" : "Plant map", live] as [Tab, string, number]] : []),
     ...(s.robots.length || s.crews.length ? [["workforce", "Workforce"] as [Tab, string]] : []), ...(s.turnarounds.length ? [["turnaround", "Turnaround"] as [Tab, string]] : []), ["work", "Work orders", open.length], ["assets", "Assets"], ["alarms", "Alarms", k.activeAlarms], ["team", "Team"], ["spares", "Spares", k.sparesLow], ["outcomes", "Outcomes"], ["activity", "Activity"]];
   const mine = s.actions.filter((a) => a.can.ok && a.risk === "low");
   const wo = woOpen ? s.workOrders.find((w) => w.id === woOpen) : undefined;

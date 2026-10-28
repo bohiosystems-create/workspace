@@ -18,7 +18,7 @@ export function fmToday(db: Db, date = db.data?.meta?.dataDate ?? currentDataDat
   const d = generate(date);
   for (const e of db.fmLog ?? []) applyEvent(d, e);
   const t = simNow(date, now);
-  d.securityAlerts = d.securityAlerts.filter((a) => Date.parse(a.at) <= t); // alerts appear when they happen
+  d.securityAlerts = d.securityAlerts.filter((a) => Date.parse(a.at) < t + 1000); // alerts appear when they happen (the clock counts whole seconds)
   holdAirMissions(d);
   simulate(d, t);                 // robots and their missions at this moment (lib/robots/sim.ts)
   for (const e of db.fmLog ?? []) if (e.kind === "robot_report") applyReport(d, e.robotId, e.report, e.at); // real fleets say where they are

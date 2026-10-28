@@ -17,8 +17,19 @@ const local = (iso?: string) => (iso ? new Date(Date.parse(iso) + 3 * 3600_000).
 export const zoneNamed = (d: FmData, facilityId: string, name?: string) => d.zones.find((z) => z.facilityId === facilityId && z.name === name);
 /** Where a job is: its own zone, or its asset's. */
 export const zoneOfWo = (d: FmData, w: WorkOrder) => zoneNamed(d, w.facilityId, w.zone ?? d.assets.find((a) => a.id === w.assetId)?.zone);
-/** A robot may go where it is certified to: an Ex-rated robot anywhere; the others only outside hazardous areas. */
-export const robotMayEnter = (r: Robot, z?: ZoneDef) => !z || z.atex === null || r.exRated;
+/** A robot may go where it is certified to: an Ex-rated robot anywhere; the others only outside hazardous areas. Drones
+ *  don't fly inside buildings. */
+export const robotMayEnter = (r: Robot, z?: ZoneDef) => !z || ((z.atex === null || r.exRated) && !(z.indoor && DOMAIN_OF[r.kind] === "air"));
+/** Why a robot may not go somewhere, in words (null when it may). */
+export const whyNot = (r: Robot, z: ZoneDef) => (z.indoor && DOMAIN_OF[r.kind] === "air" ? `${r.name} is a drone — it doesn't fly inside ${z.name}` : z.atex !== null && !r.exRated ? `${r.name} isn't certified for hazardous areas — ${z.name} is zone ${z.atex}` : null);
+/** A live airside area (runway, taxiways) outside its closure: robots need air traffic control's clearance to go there. */
+export function airsideOpen(z: ZoneDef | undefined, now: number) {
+  if (!z?.closed) return false;
+  const t = new Date(now + 3 * 3600_000), h = t.getUTCHours() + t.getUTCMinutes() / 60;
+  return !(h >= z.closed[0] && h < z.closed[1]);
+}
+const hhmm = (h: number) => `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+export const closureText = (z: ZoneDef) => (z.closed ? `${hhmm(z.closed[0])}–${hhmm(z.closed[1])}` : "");
 const zoneLabel = (z?: ZoneDef) => (z ? `${z.name}${z.atex ? ` (hazardous area, zone ${z.atex})` : ""}` : "the area");
 
 /** Flammable gas or H₂S in an area now: the worst robot finding today, or a gas detector there near or over its alarm. */
@@ -60,7 +71,8 @@ export function pickRobot(d: FmData, facilityId: string, checks: Capability[], z
   const xs = d.robots.filter((r) => r.facilityId === facilityId).filter((r) => {
     const no = skip?.(r); if (no) { reasons.push(no); return false; }
     if (!checks.every((c) => r.capabilities.includes(c))) return false;
-    if (zones.some((z) => !robotMayEnter(r, z))) { reasons.push(`${r.name} isn't certified for hazardous areas`); return false; }
+    const barred = zones.find((z) => z && !robotMayEnter(r, z));
+    if (barred) { reasons.push(whyNot(r, barred)!); return false; }
     if (r.estop || r.status === "fault" || r.status === "offline") { reasons.push(`${r.name} is ${r.estop ? "on emergency stop" : r.status}`); return false; }
     if (r.status === "on_mission" || r.status === "returning") return false;
     if (d.missions.some((m) => m.robotId === r.id && m.status === "planned" && Date.parse(m.plannedStart) - now < (durationMin + 15) * MIN && Date.parse(m.plannedStart) > now)) return false;
@@ -179,6 +191,31 @@ export function workProposals(d: FmData, fac: (id: string) => boolean, push: (a:
   for (const al of d.securityAlerts.filter((x) => fac(x.facilityId) && x.status === "open")) {
     const z = d.zones.find((x) => x.id === al.zone), guard = d.technicians.find((t) => t.facilityId === al.facilityId && /security/i.test(t.role) && t.shift !== "off");
     const base = { facilityId: al.facilityId, kind: "security_response" as const, risk: "low" as const, effect: "security_update" as const, targets: { alertId: al.id, zoneId: al.zone } };
+    const airport = d.facilities.find((f) => f.id === al.facilityId)?.sector === "airport";
+    if (al.kind === "drone" && airport) {
+      push({ ...base, id: `security:${al.id}`, title: `Unidentified drone near the ${z?.name.toLowerCase() ?? "airfield"}: tell air traffic control and the police, keep our drones on the ground`,
+        why: [`${al.text} (${al.source}, ${local(al.at)})`, "Air traffic control decides whether to hold departures and arrivals; the police and the authorities handle the drone — the airport does not chase it", "Our drones stay docked for two hours so the tower doesn't mistake them for it; their flights wait", ...(guard ? [`${guard.name} (${guard.role}) makes the calls and logs them`] : [])],
+        auto: false, payload: { alertId: al.id, status: "escalated", note: `Air traffic control and the police told${guard ? ` by ${guard.name}` : ""}; own drones grounded for two hours.` } });
+      continue;
+    }
+    if (al.kind === "wildlife") {
+      const ops = d.technicians.find((t) => t.facilityId === al.facilityId && /wildlife|airfield operations/i.test(t.role) && t.shift !== "off");
+      push({ ...base, id: `security:${al.id}`, title: `Birds by the ${z?.name.toLowerCase() ?? "runway"}: send ${ops?.name ?? "wildlife control"} to disperse them and tell air traffic control`,
+        why: [`${al.text} (${al.source}, ${local(al.at)})`, "A bird strike risk on take-off and landing: the tower warns crews until the area is clear", "No drone near the birds — a drone among birds is a second hazard", ...(ops ? [`${ops.name} (${ops.role}) is on shift`] : [])],
+        auto: false, payload: { alertId: al.id, status: "checking", note: `${ops?.name ?? "Wildlife control"} sent to disperse the birds; air traffic control told.` }, targets: { ...base.targets, techId: ops?.id } });
+      continue;
+    }
+    if (al.kind === "fod") {
+      const ops = d.technicians.find((t) => t.facilityId === al.facilityId && /airfield operations/i.test(t.role) && t.shift !== "off");
+      const open = airsideOpen(z, now);
+      const { robot, why } = pickRobot(d, al.facilityId, ["fod"], [z], 30, now, (r) => (inAir(r) && open ? `${r.name} stays clear of a live taxiway — aircraft are moving` : dronesGrounded(d, al.facilityId, now) && inAir(r) ? `${r.name} stays down — unidentified drone reported` : null));
+      const m = robot ? newMission(d, robot, "runway_inspection", `Find and report the debris — ${al.text}`, [{ zone: al.zone, label: al.text, checks: ["fod", "visual"] }], 30, now) : undefined;
+      if (m) { m.alertId = al.id; if (open) m.note = "Ground control's clearance to enter the taxiway, given by the approver"; }
+      push({ ...base, id: `security:${al.id}`, title: robot ? `${open ? "With ground control's clearance, s" : "S"}end ${robot.name} to find the debris: ${al.text}` : `Send ${ops?.name ?? "airfield operations"} to find and remove the debris${open ? " with ground control's clearance" : ""}`,
+        why: [`${al.text} (${al.source}, ${local(al.at)})`, ...(open ? [`${z?.name} is live (closed to aircraft only ${closureText(z!)}): ground control gives a slot before anyone or anything goes on it`] : []), ...(robot ? why : []), "Debris on a runway or taxiway can be ingested by an engine: found, removed and reported to the tower", ...(ops ? [`${ops.name} removes what the robot finds`] : [])],
+        risk: open ? "medium" : "low", auto: false, effect: robot ? "mission_create" : "security_update", payload: robot ? { alertId: al.id, mission: m, status: "checking" } : { alertId: al.id, status: "checking", note: `${ops?.name ?? "Airfield operations"} sent.` }, targets: { ...base.targets, robotId: robot?.id, techId: ops?.id } });
+      continue;
+    }
     if (al.kind === "drone") {
       push({ ...base, id: `security:${al.id}`, title: `Unidentified drone over ${z?.name ?? "the plant"}: report it to the authorities and keep our drones on the ground`,
         why: [`${al.text} (${al.source}, ${local(al.at)})`, "Countering a drone is for the state's forces, not the plant: report it with the time, place and heading", "Our drones stay docked for two hours so they are not mistaken for it; their missions wait", `People working in the open in ${z?.name ?? "the area"} go indoors until security clears it`, ...(guard ? [`${guard.name} (${guard.role}) makes the report`] : [])],

@@ -21,7 +21,9 @@ import { completionDate } from "../lib/core/updates";
 import { HAS_OPERATIONS } from "../lib/edition";
 import { act as fmAct } from "../lib/fm/api";
 import { fmToday } from "../lib/fm/engine";
-import { dronesGrounded } from "../lib/fm/work";
+import { airsideOpen, dronesGrounded } from "../lib/fm/work";
+import { simNow } from "../lib/robots/sim";
+import { analyseImages } from "../lib/robots/vision";
 import fs from "node:fs";
 
 const arg = (k: string, d: number) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? Number(process.argv[i + 1]) : d; };
@@ -119,7 +121,8 @@ const KNOWN: Known[] = [
   { tool: "schedule_query", input: { from: "next Tuesday" }, expect: refused(/date/) },
   { tool: "schedule_query", input: { status: "In Progress", limit: 500 }, expect: refused(/limit/) },
   { tool: "contractor_emails", input: { query: "facade delay" }, expect: answered((o) => (o.emails?.length ? null : "no emails found without the accent")) },
-  { tool: "permits", input: { status: "active" }, expect: answered((o) => (Array.isArray(o.permits) && o.permits.length ? null : "no active permits found for 'active'")) },
+  // "active" is read as "Active" (how many are live depends on the time of day: permits expire in the evening)
+  { tool: "permits", input: { status: "active" }, expect: answered((o) => (!Array.isArray(o.permits) ? "no permit list for 'active'" : o.permits.some((p: { status: string }) => !/active/i.test(p.status)) ? "'active' listed permits that are not active" : null)) },
   { tool: "permits", input: { status: "Active" }, expect: answered((o) => { const c = `${today} 23:59`; const bad = (o.permits ?? []).filter((p: { validTo: string }) => p.validTo.slice(0, 16) < `${today} 00:00`); return bad.length ? `expired permits listed as live: ${bad.map((p: { id: string }) => p.id).join(", ")} (${c})` : null; }) },
   { tool: "hse_overview", input: {}, expect: answered((o) => ((o.activePermits ?? []).some((p: { validTo: string }) => p.validTo.slice(0, 10) < today) ? "hse_overview counts expired permits as live" : null)) },
   { tool: "add_note", input: { text: "", location: "Tower A level 12" }, expect: refused(/text/) },
@@ -182,6 +185,23 @@ async function orchestration() {
     const d1 = structuredClone(d0); d1.securityAlerts = [{ ...(al as object), id: "SA-T", kind: "drone", status: "open", at: new Date().toISOString(), zone: "kgpp:flr", source: "test", text: "test", facilityId: "kgpp" }];
     if (!dronesGrounded(d1, "kgpp", Date.now() + 30 * 60_000)) fail("(security)", null, "an unidentified drone did not ground our drones");
     if (dronesGrounded(d1, "kgpp", Date.now() + 3 * 3600_000)) fail("(security)", null, "our drones stayed grounded after two hours"); }
+  // the airport: no drone indoors; a live runway only in its closure or with air traffic control's clearance
+  { const majed = who(/Majed Al-Anazi/), d0 = fmToday(db), rwy = d0.zones.find((z) => z.id === "kgia:rwy");
+    const o1 = await call("fm_robot_command", { robot: "Drone-A1", command: "send", zone: "Departures", mission: "security_patrol" }, majed);
+    if (!/doesn't fly inside/.test(o1.error ?? "")) fail("fm_robot_command", { robot: "Drone-A1", zone: "Departures" }, `a drone was sent indoors: ${o1.error ?? o1.message}`);
+    if (rwy && airsideOpen(rwy, simNow(d0.date))) {
+      const o2 = await call("fm_robot_command", { robot: "FOD-1", command: "send", zone: "Airfield", mission: "runway_inspection" }, majed);
+      if (!/clearance/.test(o2.error ?? "")) fail("fm_robot_command", { robot: "FOD-1", zone: "Airfield" }, `a robot went onto the live runway without clearance: ${o2.error ?? o2.message}`);
+      const o3 = await call("fm_robot_command", { robot: "FOD-1", command: "send", zone: "Airfield", mission: "runway_inspection", atc_clearance: "GND-1452" }, majed);
+      if (o3.error) fail("fm_robot_command", { robot: "FOD-1", zone: "Airfield", atc_clearance: "GND-1452" }, `refused with a clearance: ${o3.error}`);
+    }
+    const kinds = new Set(d0.securityAlerts.filter((a) => a.facilityId === "kgia").map((a) => a.kind));
+    if (!kinds.has("fence")) fail("(airport)", null, "the airport's night fence alert is missing"); }
+  // images without an AI provider: said plainly, nothing invented
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
+    const seen = await analyseImages({} as never, { facility: "x", sector: "airport", robot: "Drone-A1", zones: [] }, [{ base64: "AAAA", mime: "image/jpeg" }]).catch((e) => ({ findings: [], alerts: [], errors: [String(e)] }));
+    if (seen.findings.length || seen.alerts.length || !/AI provider/.test(seen.errors.join(" "))) fail("(images)", null, `images without an AI provider: ${JSON.stringify(seen).slice(0, 160)}`);
+  }
   // the turnaround answer names the jobs; the fleet answer lists the five robots
   const tar = await call("fm_turnaround", { facility: "kgpp" }, majid);
   if (!JSON.stringify(tar).includes("WO-TAR06")) fail("fm_turnaround", { facility: "kgpp" }, "the turnaround doesn't list its jobs");

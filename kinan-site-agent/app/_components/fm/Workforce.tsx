@@ -15,13 +15,14 @@ type Doit = (k: string, b: Record<string, unknown>) => Promise<void>;
 
 const ROBOT_STATUS: Record<string, string> = { docked: "Docked", charging: "Charging", on_mission: "On a mission", returning: "Returning", fault: "Fault", estop: "Emergency stop", offline: "Offline" };
 const KIND_ICON: Record<string, string> = { quadruped: "🐕", drone: "🛸", crawler: "🧲", layout: "📐", rover: "🚙", ugv: "🚜", fixed_wing: "✈️", rov: "🐟", usv: "🚤", in_pipe: "🔩" };
-const icon = (r: Robot) => (r.roles.includes("security") && r.kind === "ugv" ? "🛡️" : r.capabilities.includes("manipulate") ? "🦾" : KIND_ICON[r.kind] ?? "🤖");
+const icon = (r: Robot) => (r.capabilities.includes("intrusion") && r.kind === "ugv" ? "🛡️" : r.capabilities.includes("manipulate") ? "🦾" : KIND_ICON[r.kind] ?? "🤖");
 const CONN: Record<string, string> = { sim: "simulated in this demo", rmf: "Open-RMF", vendor: "vendor API", platform: "vendor data platform (findings in)" };
-const HAZARD: Record<string, string> = { h2s: "H₂S", hydrocarbon: "hydrocarbons", high_voltage: "high voltage", confined_space: "confined space", height: "height", hot_surface: "hot surfaces", noise: "noise", marine: "marine" };
-const ALERT_ICON: Record<string, string> = { fence: "🚧", person: "🚶", vehicle: "🚗", drone: "🛸", camera: "📹" };
+const HAZARD: Record<string, string> = { h2s: "H₂S", hydrocarbon: "hydrocarbons", high_voltage: "high voltage", confined_space: "confined space", height: "height", hot_surface: "hot surfaces", noise: "noise", marine: "marine", airside: "live airside" };
+const ALERT_ICON: Record<string, string> = { fence: "🚧", person: "🚶", vehicle: "🚗", drone: "🛸", camera: "📹", fod: "🔩", wildlife: "🐦" };
 /** Text that fits a zone's width on the map (≈0.56 em per character). */
 const fit = (t: string, width: number, size: number) => { const n = Math.floor(width / (size * 0.56)); return t.length > n ? `${t.slice(0, Math.max(1, n - 1))}…` : t; };
 const time = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Riyadh" }) : "");
+const hm = (h: number) => `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
 const sar = (n: number) => `SAR ${Math.round(n).toLocaleString("en-US")}`;
 const centre = (s: FS, zoneId?: string) => { const z = s.zones.find((x) => x.id === zoneId || x.name === zoneId); return z ? { x: z.x + z.w / 2, y: z.y + z.h / 2 } : null; };
 
@@ -145,7 +146,9 @@ export function WorkforcePanel({ s, onRobot }: { s: FS; onRobot: (id: string) =>
 // ======================================================================== robot sheet
 export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId: string; onClose: () => void; doit: Doit; busy: string | null }) {
   const r = s.robots.find((x) => x.id === robotId) as Robot | undefined;
-  const allowed = useMemo(() => (r ? s.zones.filter((z) => z.atex === null || r.exRated) : []), [r, s.zones]);
+  const air = r ? DOMAIN_OF[r.kind] === "air" : false;
+  const allowed = useMemo(() => (r ? s.zones.filter((z) => (z.atex === null || r.exRated) && !(z.indoor && air)) : []), [r, s.zones, air]);
+  const [atc, setAtc] = useState("");
   const [zone, setZone] = useState(allowed[0]?.id ?? "");
   const [asset, setAsset] = useState("");
   const [kind, setKind] = useState<MissionKind>(r?.kind === "crawler" ? "thickness_survey" : r?.kind === "drone" ? "flare_inspection" : r?.kind === "rov" ? "subsea_inspection" : r?.kind === "fixed_wing" ? "pipeline_patrol" : r?.roles.includes("security") ? "security_patrol" : "inspection_round");
@@ -154,13 +157,14 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
   const live = ms.find((m) => m.status === "running" || (m.status === "planned" && Date.parse(m.plannedStart) - Date.now() < 30 * 60_000 && Date.parse(m.plannedStart) > Date.now() - 60_000));
   const assets = s.assets.filter((a) => s.zones.find((z) => z.id === zone)?.name === a.zone);
   const blocked = s.zones.filter((z) => !(z.atex === null || r.exRated));
+  const zSel = s.zones.find((z) => z.id === zone);
   return (
     <div className="modal" role="dialog" aria-label={r.name} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-card ops-drawer">
         <div className="sheet-h"><b>{icon(r)} {r.name} · {r.model}</b><button className="x" onClick={onClose} aria-label="Close">×</button></div>
         <p className="muted small">{ROBOT_STATUS[r.status]} · battery {r.battery}% · {s.zones.find((z) => z.id === r.zone)?.name} · {r.autonomy === "policy" ? "runs approved missions on its own" : "supervised: every mission approved"}</p>
         <p className="small"><b>{r.vendor}</b> · {DOMAIN_LABEL[DOMAIN_OF[r.kind]]} · used for {r.roles.map((x) => ROLE_LABEL[x]).join(", ")}{r.operator ? ` · operated by ${r.operator}` : ""}{r.platform ? ` · runs on ${r.platform}` : ""} · connected through {CONN[r.adapter]}{r.adapter !== "sim" && !s.fleets.find((f) => f.vendor === r.vendor)?.live ? " (not set up here: simulated)" : ""}{r.lastReport ? ` · last report ${time(r.lastReport)}` : ""}.</p>
-        <p className="small">Can: {r.capabilities.map((c) => CAPABILITY_LABEL[c]).join(", ")}. {r.exRated ? "Certified for hazardous areas (zones 1 and 2)." : `Not certified for hazardous areas: it may not enter ${blocked.map((z) => z.name).join(", ") || "them"}.`} {r.enduranceMin} min per charge{r.maxWindMs ? `, flies below ${r.maxWindMs} m/s wind` : ""}.</p>
+        <p className="small">Can: {r.capabilities.map((c) => CAPABILITY_LABEL[c]).join(", ")}. {r.exRated ? "Certified for hazardous areas (zones 1 and 2)." : blocked.length ? `Not certified for hazardous areas: it may not enter ${blocked.map((z) => z.name).join(", ")}.` : "Not certified for hazardous areas."}{air && s.zones.some((z) => z.indoor) ? " A drone: it doesn't fly indoors." : ""} {r.enduranceMin} min per charge{r.maxWindMs ? `, flies below ${r.maxWindMs} m/s wind` : ""}.</p>
         {r.estop && <div className="dc-no"><span>{r.note ?? "Emergency stop"} — a supervisor releases it after a look on site.</span></div>}
         <div className="od-acts">
           {!r.estop ? <button className="mini danger" disabled={!!busy} onClick={() => doit("estop", { action: "estop", robotId: r.id, on: true, note: "Stopped from the control room" })}>Emergency stop</button>
@@ -168,9 +172,10 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
           {live && <button className="mini" disabled={!!busy} onClick={() => doit("abort", { action: "mission_abort", missionId: live.id })}>Cancel {live.id}</button>}
         </div>
         <div className="rpt-label">Send it</div>
-        <form className="od-grid" onSubmit={(e) => { e.preventDefault(); doit("mission", { action: "mission", robotId: r.id, zone, asset: asset || undefined, missionKind: kind }); }}>
+        <form className="od-grid" onSubmit={(e) => { e.preventDefault(); doit("mission", { action: "mission", robotId: r.id, zone, asset: asset || undefined, missionKind: kind, atcClearance: atc || undefined }); }}>
           <label>Where<select value={zone} onChange={(e) => { setZone(e.target.value); setAsset(""); }}>{allowed.map((z) => <option key={z.id} value={z.id}>{z.name}{z.atex ? ` (zone ${z.atex})` : ""}</option>)}</select></label>
           <label>At<select value={asset} onChange={(e) => setAsset(e.target.value)}><option value="">The whole area</option>{assets.map((a) => <option key={a.id} value={a.tag}>{a.tag} {a.name}</option>)}</select></label>
+          {zSel?.closed && <label>ATC clearance<input value={atc} onChange={(e) => setAtc(e.target.value)} placeholder={`needed outside the ${zSel.closed.map(hm).join("–")} closure, e.g. GND-1452`} /></label>}
           <label>Mission<select value={kind} onChange={(e) => setKind(e.target.value as MissionKind)}>{(Object.keys(MISSION_LABEL) as MissionKind[]).filter((k) => fits(r, k)).map((k) => <option key={k} value={k}>{MISSION_LABEL[k]}</option>)}</select></label>
           <div className="od-acts"><button className="studio-add" disabled={!!busy || !!r.estop || !zone}>Send {r.name}</button></div>
         </form>

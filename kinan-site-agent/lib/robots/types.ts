@@ -9,11 +9,11 @@
 // same way and reports what it finds the same way; only its connection differs.
 
 /** What a robot can sense or do. */
-export type Capability = "visual" | "thermal" | "gas" | "acoustic" | "lidar" | "ut_thickness" | "layout" | "carry" | "intrusion" | "sonar" | "manipulate";
+export type Capability = "visual" | "thermal" | "gas" | "acoustic" | "lidar" | "ut_thickness" | "layout" | "carry" | "intrusion" | "sonar" | "manipulate" | "fod";
 export const CAPABILITY_LABEL: Record<Capability, string> = {
   visual: "camera", thermal: "thermal camera", gas: "gas detection", acoustic: "acoustic (leaks, bearings)", lidar: "lidar scan",
   ut_thickness: "ultrasonic wall thickness", layout: "layout marking", carry: "carries loads", intrusion: "intrusion detection (people, vehicles, drones)",
-  sonar: "sonar (subsea)", manipulate: "arm (turns valves, lifts)",
+  sonar: "sonar (subsea)", manipulate: "arm (turns valves, lifts)", fod: "debris detection (runways, taxiways)",
 };
 
 export type RobotKind = "quadruped" | "drone" | "crawler" | "layout" | "rover" | "ugv" | "fixed_wing" | "rov" | "usv" | "in_pipe";
@@ -64,12 +64,12 @@ export interface Robot {
 }
 
 export type MissionKind = "inspection_round" | "gas_survey" | "thermal_survey" | "confined_precheck" | "flare_inspection" | "thickness_survey" | "layout_marking" | "delivery"
-  | "security_patrol" | "alarm_check" | "emissions_survey" | "pipeline_patrol" | "subsea_inspection" | "valve_operation";
+  | "security_patrol" | "alarm_check" | "emissions_survey" | "pipeline_patrol" | "subsea_inspection" | "valve_operation" | "runway_inspection";
 export const MISSION_LABEL: Record<MissionKind, string> = {
   inspection_round: "inspection round", gas_survey: "gas survey", thermal_survey: "thermal survey", confined_precheck: "confined-space pre-entry check",
   flare_inspection: "flare inspection", thickness_survey: "wall-thickness survey", layout_marking: "layout marking", delivery: "delivery",
   security_patrol: "security patrol", alarm_check: "check a security alarm", emissions_survey: "emissions (methane) survey", pipeline_patrol: "pipeline patrol",
-  subsea_inspection: "subsea inspection", valve_operation: "valve operation",
+  subsea_inspection: "subsea inspection", valve_operation: "valve operation", runway_inspection: "runway and lighting inspection",
 };
 
 export interface Waypoint { zone: string; assetId?: string; label: string; checks: Capability[] }

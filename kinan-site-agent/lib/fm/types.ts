@@ -11,10 +11,15 @@ export type WoStatus = "open" | "assigned" | "in_progress" | "on_hold" | "done";
 export type Priority = "P1" | "P2" | "P3" | "P4";
 export type Trade = "mechanical" | "electrical" | "instrumentation" | "hvac" | "civil" | "controls" | "lifts" | "chemical" | "process" | "inspection" | "scaffolding" | "rotating";
 /** What makes a place dangerous: decides who (and which robot) may go there, and what a job there needs. */
-export type Hazard = "h2s" | "hydrocarbon" | "high_voltage" | "confined_space" | "height" | "hot_surface" | "noise" | "marine";
+export type Hazard = "h2s" | "hydrocarbon" | "high_voltage" | "confined_space" | "height" | "hot_surface" | "noise" | "marine" | "airside";
 /** An area of a facility, with its hazards and hazardous-area class (ATEX/IECEx zone 1 or 2; null = safe area). The
  *  plan coordinates (0–100 × 0–60) place it on the facility map, with the robots and crews in it. */
-export interface ZoneDef { id: string; facilityId: string; name: string; hazards: Hazard[]; atex: 1 | 2 | null; x: number; y: number; w: number; h: number }
+export interface ZoneDef { id: string; facilityId: string; name: string; hazards: Hazard[]; atex: 1 | 2 | null; x: number; y: number; w: number; h: number
+  /** airside areas with aircraft movements: the local hours when they are closed to aircraft (e.g. the nightly runway
+   *  closure, [2, 3.5]) — robots go there then, or with air traffic control's clearance */
+  closed?: [number, number];
+  /** inside a building: no drones */
+  indoor?: boolean }
 
 export interface Reading { key: string; name: string; value: number; unit: string; low?: number; high?: number; trend: number[]
   /** the value before a repair brought it back, until when — so a check made before the repair keeps what it saw */
@@ -105,7 +110,7 @@ export interface FmData {
 /** Something security must look at. A robot checks it first where it can (a patrol robot, a drone); people respond. */
 export interface SecurityAlert {
   id: string; facilityId: string; at: string;
-  kind: "fence" | "person" | "vehicle" | "drone" | "camera";
+  kind: "fence" | "person" | "vehicle" | "drone" | "camera" | "fod" | "wildlife";
   zone: string; source: string; text: string;
   status: "open" | "checking" | "cleared" | "escalated";
   missionId?: string; note?: string; by?: string;
@@ -115,6 +120,8 @@ export interface SecurityAlert {
 export interface RobotReport {
   robot: string; status?: import("../robots/types").RobotStatus; battery?: number; zone?: string;
   findings?: { asset?: string; zone?: string; sensor: import("../robots/types").Capability; label: string; value: number; unit: string; limit?: number; severity: "info" | "low" | "medium" | "high" | "critical"; at?: string; image?: string }[];
+  /** what the robot's camera (or the AI reading its images) saw that security must answer */
+  alerts?: { kind: SecurityAlert["kind"]; text: string; zone?: string }[];
   source: string;
 }
 
