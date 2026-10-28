@@ -1381,3 +1381,7 @@ input[type=checkbox]{border-radius:4px!important}input[type=radio]{border-radius
 .tar-st.done{border-color:var(--green);color:var(--green)}.tar-st.in_progress{border-color:var(--accent);color:var(--accent-strong)}.tar-st.on_hold{border-color:var(--red);color:var(--red)}.tar-st.assigned{border-color:var(--blue);color:var(--blue)}
 .tar-badges{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:40%}
 @media (max-width:700px){.tar-head{grid-template-columns:1fr 1fr}.tar-badges{max-width:none}}
+
+/* the control room's answer to a click: above any open sheet, cleared after a few seconds or on a tap */
+.ops-flash{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--top) + 14px);z-index:60;width:max-content;max-width:min(680px,calc(100vw - 32px));box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer}
+.ops-flash.studio-err{background:linear-gradient(var(--red-soft),var(--red-soft)),var(--bg)}.ops-flash.studio-ok{background:linear-gradient(var(--green-soft),var(--green-soft)),var(--bg)}

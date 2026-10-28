@@ -71,6 +71,8 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
   const [s, setS] = useState<FS | null>(null);
   const [tab, setTab] = useState<Tab>("orchestrator");
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
+  // the answer to a click floats above any open sheet, so a refusal is seen where the button was pressed
+  useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), msg.bad ? 9000 : 6000); return () => clearTimeout(t); }, [msg]);
   const [busy, setBusy] = useState<string | null>(null);
   const [woOpen, setWoOpen] = useState<string | null>(null);
   const [assetOpen, setAssetOpen] = useState<string | null>(null);
@@ -113,7 +115,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
     <div className="home ops">
       <button className="crumb" onClick={onBack}><Icon name="back" />Operations</button>
       <div className="home-head"><div><h1>{f.name}</h1><p>{s.sector} · {f.capacity} · {f.operator} · {s.date}</p></div></div>
-      {msg && <div className={msg.bad ? "studio-err" : "studio-ok"} role="status">{msg.text}</div>}
+      {msg && <div className={`ops-flash ${msg.bad ? "studio-err" : "studio-ok"}`} role={msg.bad ? "alert" : "status"} onClick={() => setMsg(null)}>{msg.text}</div>}
 
       <div className="ops-kpis">
         <Kpi label="Critical assets available" value={`${k.availability}%`} sub={k.criticalDown ? `${k.criticalDown} critical asset down` : "none down"} tone={k.criticalDown ? "bad" : k.availability < 97 ? "warn" : "good"} />
