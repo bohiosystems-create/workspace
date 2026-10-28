@@ -16,6 +16,9 @@ export const CAPABILITY_LABEL: Record<Capability, string> = {
   sonar: "sonar (subsea)", manipulate: "arm (turns valves, lifts)", fod: "debris detection (runways, taxiways)",
 };
 
+/** Who controls a robot, in words. */
+export const CONTROL_LABEL: Record<"policy" | "supervised" | "remote", string> = { policy: "AI-controlled", supervised: "AI-controlled, a person approves each mission", remote: "piloted by a person" };
+
 export type RobotKind = "quadruped" | "drone" | "crawler" | "layout" | "rover" | "ugv" | "fixed_wing" | "rov" | "usv" | "in_pipe";
 /** Where a robot works: on land, in the air, at sea, under water, inside a pipe, or climbing steel. */
 export type Domain = "land" | "air" | "sea" | "subsea" | "in_pipe" | "climbing";
@@ -35,9 +38,12 @@ export interface Robot {
   enduranceMin: number;
   /** where it docks and charges (a zone id) */
   dock: string;
-  /** how far it may act alone: "supervised" — a person approves every mission; "policy" — missions within the facility's
-   *  signed autopilot policy run by themselves */
-  autonomy: "supervised" | "policy";
+  /** who controls it: "policy" — the AI drives it and runs approved missions by itself (within the facility's signed
+   *  autopilot policy); "supervised" — the AI drives it, a person approves every mission and watches; "remote" — a
+   *  person pilots it (a licensed drone or ROV pilot, a robot operator): its missions wait until a pilot is on them */
+  autonomy: "supervised" | "policy" | "remote";
+  /** for a piloted robot: the pilot it needs, matched against people's roles (e.g. "drone pilot", "ROV pilot") */
+  pilotRole?: string;
   /** how it is reached: the simulator; Open-RMF; the vendor's own API (missions out, status and findings back); or the
    *  vendor's data platform only (findings come in, missions are planned in the vendor's own system) */
   adapter: "sim" | "rmf" | "vendor" | "platform";
@@ -64,12 +70,12 @@ export interface Robot {
 }
 
 export type MissionKind = "inspection_round" | "gas_survey" | "thermal_survey" | "confined_precheck" | "flare_inspection" | "thickness_survey" | "layout_marking" | "delivery"
-  | "security_patrol" | "alarm_check" | "emissions_survey" | "pipeline_patrol" | "subsea_inspection" | "valve_operation" | "runway_inspection";
+  | "security_patrol" | "alarm_check" | "emissions_survey" | "pipeline_patrol" | "subsea_inspection" | "valve_operation" | "runway_inspection" | "gas_watch";
 export const MISSION_LABEL: Record<MissionKind, string> = {
   inspection_round: "inspection round", gas_survey: "gas survey", thermal_survey: "thermal survey", confined_precheck: "confined-space pre-entry check",
   flare_inspection: "flare inspection", thickness_survey: "wall-thickness survey", layout_marking: "layout marking", delivery: "delivery",
   security_patrol: "security patrol", alarm_check: "check a security alarm", emissions_survey: "emissions (methane) survey", pipeline_patrol: "pipeline patrol",
-  subsea_inspection: "subsea inspection", valve_operation: "valve operation", runway_inspection: "runway and lighting inspection",
+  subsea_inspection: "subsea inspection", valve_operation: "valve operation", runway_inspection: "runway and lighting inspection", gas_watch: "gas watch beside a crew",
 };
 
 export interface Waypoint { zone: string; assetId?: string; label: string; checks: Capability[] }
@@ -84,6 +90,8 @@ export interface Mission {
   by: string; source: "schedule" | "orchestrator" | "control" | "whatsapp" | "field";
   /** the work order it serves, when it was sent for one; the security alert it checks */
   woId?: string; alertId?: string;
+  /** the person piloting it (a technician's id), for a robot a person controls */
+  pilotId?: string;
   /** a security patrol that also makes inspection checks on its way (one trip instead of two) */
   combined?: string[];
   /** the fleet manager's id for it, once dispatched to a real fleet */

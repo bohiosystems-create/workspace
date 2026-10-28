@@ -6,8 +6,8 @@ import { fmToday, findAsset, findTech, isOpen, isOverdue, kpis, newWoId, PRIORIT
 import { effects, propose, KIND_LABEL, type Learned } from "./orchestrator";
 import type { Action, AssetStatus, AutopilotPolicy, Crew, FmData, FmEvent, Priority, RobotReport, SecurityAlert, Technician, WorkOrder, WoStatus, WoType } from "./types";
 import type { Capability, Mission, Robot } from "../robots/types";
-import { CAPABILITY_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
-import { airsideOpen, closureText, dronesGrounded, gasIn, robotMayEnter, turnaround, waitingFor, whyNot } from "./work";
+import { CAPABILITY_LABEL, CONTROL_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
+import { airsideOpen, closureText, dronesGrounded, gasIn, pilotsFor, robotMayEnter, teams, turnaround, waitingFor, whyNot } from "./work";
 import { findings, simNow } from "../robots/sim";
 import { fleetConfig } from "../robots/adapter";
 import { closedIds, excludedPeople, learnedDoubts, isReason, type DecisionLike, type RejectReason } from "../proposals";
@@ -35,7 +35,7 @@ export function withinPolicy(db: Db, a: Action): boolean {
   const p = policyOf(db, a.facilityId);
   return !!p && a.auto && p.kinds.includes(a.kind) && (a.risk === "low" || (a.risk === "medium" && p.maxRisk === "medium")) && (a.cost ?? 0) <= p.maxSpend;
 }
-export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare", "safety_stop", "gas_test", "robot_recall", "robot_mission", "robot_finding", "security_response", "combine_missions"], maxRisk: "low", maxSpend: 25_000 };
+export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare", "safety_stop", "gas_test", "robot_recall", "robot_mission", "robot_finding", "security_response", "combine_missions", "assign_pilot", "robot_support"], maxRisk: "low", maxSpend: 25_000 };
 
 export function actions(db: Db, d: FmData, facilityId?: string): Action[] { return propose(d, learnedFrom(db), facilityId); }
 
@@ -74,7 +74,8 @@ export function facilityState(db: Db, facilityId: string) {
     robots: by(d.robots), missions: by(d.missions).sort((a, b) => a.plannedStart.localeCompare(b.plannedStart)), findings: findings(d, facilityId),
     turnarounds: [...new Set(by(d.workOrders).filter((w) => w.package).map((w) => w.package!))].map((pk) => turnaround(d, pk)!).filter(Boolean),
     securityAlerts: by(d.securityAlerts).sort((a, b) => b.at.localeCompare(a.at)), dronesGrounded: dronesGrounded(d, facilityId, simNow(d.date))?.id ?? null,
-    fleets: fleets(d, facilityId),
+    fleets: fleets(d, facilityId), teams: teams(d, facilityId),
+    pilots: by(d.technicians).filter((t) => /pilot|robot operator/i.test(t.role)).map((t) => ({ id: t.id, name: t.name, role: t.role, shift: t.shift })),
   };
   return { date: d.date, facility: f, sector: SECTOR_LABEL[f.sector], kpis: kpis(d, facilityId), ...work, systems: by(d.systems), assets: by(d.assets), technicians: by(d.technicians).map((t) => ({ ...t, load: workload(d, t.id) })),
     workOrders: by(d.workOrders).map((w) => ({ ...w, slaLeft: Math.round(slaLeft(w) * 10) / 10, overdue: isOverdue(w), waitingFor: waitingFor(d, w) })), alarms: by(d.alarms), spares: by(d.spares), actions: actions(db, d, facilityId), autopilot: autopilotOn(db, facilityId), policy: policyOf(db, facilityId) ?? null, log, top: topIssues(d, facilityId) };
@@ -103,7 +104,8 @@ function eventFacility(d: FmData, e: FmEvent): string | undefined {
     case "gas_test": return d.workOrders.find((w) => w.id === e.woId)?.facilityId;
     case "security_alert": return e.alert.facilityId;
     case "security_update": return d.securityAlerts.find((a) => a.id === e.alertId)?.facilityId ?? d.facilities.find((f) => e.alertId.includes(f.id))?.id;
-    case "robot_report": return d.robots.find((r) => r.id === e.robotId)?.facilityId;
+    case "robot_report": case "robot_control": return d.robots.find((r) => r.id === e.robotId)?.facilityId;
+    case "mission_pilot": return d.missions.find((m) => m.id === e.missionId)?.facilityId;
   }
 }
 
@@ -142,7 +144,7 @@ export function myDay(db: Db, techId: string) {
 // ------------------------------------------------------------------ writes
 export interface ActInput {
   action: "decide" | "autopilot" | "policy" | "tick" | "wo_create" | "wo_update" | "asset_status" | "alarm_ack" | "tech_status"
-    | "gas_test" | "mission" | "mission_abort" | "estop" | "crew_status" | "security" | "robot_report";
+    | "gas_test" | "mission" | "mission_abort" | "estop" | "crew_status" | "security" | "robot_report" | "pilot" | "control";
   facilityId?: string; actionId?: string; decision?: "approved" | "rejected"; reason?: RejectReason; on?: boolean;
   policy?: Partial<Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend">>;
   asset?: string; title?: string; detail?: string; priority?: Priority; type?: WoType;
@@ -156,6 +158,8 @@ export interface ActInput {
   robotId?: string; missionKind?: Mission["kind"]; zone?: string; checks?: Capability[]; missionId?: string;
   /** a contractor crew and its status */
   crewId?: string; crewStatus?: Crew["status"];
+  /** the person piloting a robot a person controls (technician id or name), and a robot's control mode */
+  pilotId?: string; control?: Robot["autonomy"];
   /** air traffic control's clearance reference, to send a robot onto a live runway or taxiway */
   atcClearance?: string;
   /** a security alert and what became of it */
@@ -320,10 +324,18 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       // as long as the job takes, but never more than the robot can run with a margin (a drone flies 35 minutes)
       const dur = Math.max(10, Math.min(kind === "inspection_round" || kind === "security_patrol" || kind === "pipeline_patrol" ? 45 : kind === "thickness_survey" || kind === "subsea_inspection" ? 60 : 20, Math.floor(r.enduranceMin * 0.6)));
       if (r.battery < 25 + (90 * dur) / r.enduranceMin) throw new Error(`${r.name} has ${r.battery}% — not enough for a ${dur}-minute ${MISSION_LABEL[kind]}. It is charging.`);
+      // a robot a person pilots goes with its pilot: qualified, on shift, free for the mission
+      let pilot: Technician | undefined;
+      if (r.autonomy === "remote") {
+        const ok = pilotsFor(d, r, Date.now() + 60_000, dur);
+        const want = String(b.pilotId ?? "").trim().toLowerCase();
+        pilot = want ? ok.find((t) => t.id.toLowerCase() === want || t.name.toLowerCase().includes(want)) : undefined;
+        if (!pilot) throw new Error(`${r.name} is piloted by a person: ${want ? `${b.pilotId} isn't a ${r.pilotRole ?? "pilot"} free now` : "say who pilots it"}.${ok.length ? ` Free now: ${ok.map((t) => t.name).join(", ")}.` : ` No ${r.pilotRole ?? "pilot"} is free now — or switch it to AI control.`}`);
+      }
       const m: Mission = { id: `MS-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`, facilityId: r.facilityId, robotId: r.id, kind, title: `${MISSION_LABEL[kind][0].toUpperCase()}${MISSION_LABEL[kind].slice(1)} — ${asset ? `${asset.tag} ${asset.name}` : zone.name}`,
-        waypoints: [{ zone: zone.id, ...(asset ? { assetId: asset.id } : {}), label: asset ? `${asset.tag} ${asset.name}` : zone.name, checks }], plannedStart: new Date(Date.now() + 60_000).toISOString(), durationMin: dur, status: "planned", by, source: channel === "whatsapp" ? "whatsapp" : channel === "field" ? "field" : "control", findings: [], ...(b.woId ? { woId: b.woId } : {}), ...(atc ? { note: `ATC clearance ${atc}` } : {}) };
+        waypoints: [{ zone: zone.id, ...(asset ? { assetId: asset.id } : {}), label: asset ? `${asset.tag} ${asset.name}` : zone.name, checks }], plannedStart: new Date(Date.now() + 60_000).toISOString(), durationMin: dur, status: "planned", by, source: channel === "whatsapp" ? "whatsapp" : channel === "field" ? "field" : "control", findings: [], ...(b.woId ? { woId: b.woId } : {}), ...(atc ? { note: `ATC clearance ${atc}` } : {}), ...(pilot ? { pilotId: pilot.id } : {}) };
       add({ kind: "mission_create", mission: m, summary: `${m.id}: ${r.name} — ${m.title}${atc ? ` (ATC clearance ${atc})` : ""}` });
-      return { ok: true, message: `${r.name} is on its way: ${m.title} (${dur} min, ${checks.map((c) => CAPABILITY_LABEL[c]).join(", ")}). Mission ${m.id}.`, events: evs };
+      return { ok: true, message: `${r.name} is on its way${pilot ? `, piloted by ${pilot.name}` : ""}: ${m.title} (${dur} min, ${checks.map((c) => CAPABILITY_LABEL[c]).join(", ")}). Mission ${m.id}.`, events: evs };
     }
     case "mission_abort": {
       const m = d.missions.find((x) => x.id === b.missionId);
@@ -341,6 +353,30 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       if (!user) throw new Error("Sign in to stop a robot (or use the stop button on the robot).");
       add({ kind: "robot_estop", robotId: r.id, on: b.on !== false, note: b.note, summary: `${r.name} ${b.on !== false ? "emergency stop" : "released"}${b.note ? `: ${b.note}` : ""}` });
       return { ok: true, message: b.on !== false ? `${r.name} stopped. Its mission is frozen; send it again once released.` : `${r.name} released — it is free for new missions.`, events: evs };
+    }
+    case "pilot": {
+      // give a piloted robot's mission its pilot (or take it off): a supervisor, or the pilot taking it themselves
+      const m = d.missions.find((x) => x.id === b.missionId);
+      if (!m) throw new Error("Which mission?");
+      const r = d.robots.find((x) => x.id === m.robotId)!;
+      if (m.status !== "planned" && m.status !== "running") throw new Error(`${m.id} is ${m.status}.`);
+      const want = String(b.pilotId ?? "").trim().toLowerCase();
+      const ok = pilotsFor(d, r, Date.parse(m.plannedStart), m.durationMin, m.id);
+      const p = want ? ok.find((t) => t.id.toLowerCase() === want || t.name.toLowerCase().includes(want)) : undefined;
+      if (want && !p) throw new Error(`${b.pilotId} isn't a ${r.pilotRole ?? "pilot"} free for ${m.id}.${ok.length ? ` Free: ${ok.map((t) => t.name).join(", ")}.` : ""}`);
+      const self = !!p && user?.techId === p.id;
+      if (!user || user.orgType !== "client" || (!self && !["supervisor", "manager", "director", "admin"].includes(user.role))) throw new Error("A supervisor gives a robot its pilot — or the pilot takes the mission themselves.");
+      add({ kind: "mission_pilot", missionId: m.id, pilotId: p?.id ?? null, summary: p ? `${p.name} pilots ${r.name} on ${m.id}` : `${m.id}: pilot taken off` });
+      return { ok: true, message: p ? `${p.name} pilots ${r.name} on "${m.title}".` : `${m.id} has no pilot now — it waits.`, events: evs };
+    }
+    case "control": {
+      // who controls a robot: the AI by itself, the AI with a person approving each mission, or a person piloting it
+      const r = d.robots.find((x) => x.id === b.robotId || x.name.toLowerCase() === String(b.robotId ?? "").toLowerCase());
+      if (!r) throw new Error("Which robot?");
+      if (!b.control || !["policy", "supervised", "remote"].includes(b.control)) throw new Error("Control: policy (AI by itself), supervised (AI, a person approves) or remote (a person pilots it).");
+      if (!user || user.orgType !== "client" || !["supervisor", "manager", "director", "admin"].includes(user.role)) throw new Error("Changing who controls a robot is a supervisor's call.");
+      add({ kind: "robot_control", robotId: r.id, control: b.control, summary: `${r.name}: ${CONTROL_LABEL[b.control]}` });
+      return { ok: true, message: `${r.name} is now ${CONTROL_LABEL[b.control]}.${b.control === "remote" ? " Its missions wait until a pilot is on them." : ""}`, events: evs };
     }
     case "security": {
       const al = d.securityAlerts.find((x) => x.id === b.alertId);

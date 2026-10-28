@@ -65,6 +65,8 @@ export function applyEvent(d: FmData, e: FmEvent) {
     case "security_alert": if (!d.securityAlerts.some((a) => a.id === e.alert.id)) d.securityAlerts.push(structuredClone(e.alert)); break;
     case "security_update": { const a = d.securityAlerts.find((x) => x.id === e.alertId); if (a) { a.status = e.status; if (e.missionId) a.missionId = e.missionId; if (e.note) a.note = e.note; a.by = e.by; } break; }
     case "robot_report": break; // applied after the simulator (fmToday)
+    case "mission_pilot": { const m = d.missions.find((x) => x.id === e.missionId); if (m) m.pilotId = e.pilotId ?? undefined; break; }
+    case "robot_control": { const r = d.robots.find((x) => x.id === e.robotId); if (r) r.autonomy = e.control; break; }
     case "wo_create": if (!d.workOrders.some((w) => w.id === e.wo.id)) d.workOrders.push(structuredClone(e.wo)); break;
     case "wo_update": {
       const w = d.workOrders.find((x) => x.id === e.woId); if (!w) break;

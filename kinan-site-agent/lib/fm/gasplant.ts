@@ -59,12 +59,12 @@ export const GAS_ROBOTS: Robot[] = [
   R("r1", "Ex-1", "ANYmal X-type (demo)", "ANYbotics-type", "quadruped", ["visual", "thermal", "gas", "acoustic", "lidar"], true, 90, ["inspection", "emergency"], { fleet: "quadrupeds", platform: "Vendor fleet manager (demo)" }),
   R("r5", "Ex-2", "ANYmal X-type (demo)", "ANYbotics-type", "quadruped", ["visual", "thermal", "gas", "acoustic", "lidar"], true, 90, ["inspection", "emergency"], { fleet: "quadrupeds", platform: "Vendor fleet manager (demo)" }),
   R("r2", "Spot-2", "Spot-type (demo)", "Boston Dynamics-type", "quadruped", ["visual", "thermal", "acoustic", "lidar"], false, 75, ["inspection"], { autonomy: "supervised", adapter: "rmf", fleet: "rmf" }),
-  R("r6", "Op-1", "Heavy-duty operator robot (demo)", "Taurob-type", "ugv", ["visual", "thermal", "gas", "acoustic", "lidar", "manipulate"], true, 240, ["inspection", "emergency"], { autonomy: "supervised", fleet: "operator", platform: "Vendor mission planner (demo)" }),
+  R("r6", "Op-1", "Heavy-duty operator robot (demo)", "Taurob-type", "ugv", ["visual", "thermal", "gas", "acoustic", "lidar", "manipulate"], true, 240, ["inspection", "emergency"], { autonomy: "remote", pilotRole: "robot operator", fleet: "operator", platform: "Vendor mission planner (demo)" }),
   R("r7", "Patrol-1", "Security patrol robot (demo)", "Micropolis-type", "ugv", ["visual", "thermal", "intrusion", "lidar", "acoustic"], false, 480, ["security", "inspection"], { dock: `${FID}:gate`, zone: `${FID}:gate`, adapter: "vendor", fleet: "security", platform: "Security operations centre software (demo)", operator: "Security integrator, through a local partner (demo)" }),
   R("r3", "Drone-1", "Dock-based drone (demo)", "Percepto-type", "drone", ["visual", "thermal", "gas", "intrusion"], false, 35, ["inspection", "security", "emissions"], { maxWindMs: 12, fleet: "drones-dock", platform: "Drone-in-a-box software (demo)" }),
-  R("r8", "VTOL-1", "Long-range fixed-wing VTOL drone (demo)", "Terra Drone-type", "fixed_wing", ["visual", "thermal", "gas"], false, 120, ["inspection", "emissions", "security"], { maxWindMs: 15, adapter: "vendor", fleet: "drone-service", platform: "Drone service provider's platform (demo)", operator: "Drone inspection service, through a local partner (demo)" }),
+  R("r8", "VTOL-1", "Long-range fixed-wing VTOL drone (demo)", "Terra Drone-type", "fixed_wing", ["visual", "thermal", "gas"], false, 120, ["inspection", "emissions", "security"], { maxWindMs: 15, autonomy: "remote", pilotRole: "drone", adapter: "vendor", fleet: "drone-service", platform: "Drone service provider's platform (demo)", operator: "Drone inspection service, through a local partner (demo)" }),
   R("r4", "Crawler-1", "Magnetic climbing crawler (demo)", "Gecko-type", "crawler", ["ut_thickness", "visual"], true, 120, ["inspection"], { autonomy: "supervised", adapter: "platform", fleet: "crawlers", platform: "Cantilever-type asset-integrity platform (demo)", operator: "Crawler inspection service (demo)" }),
-  R("r9", "ROV-1", "Shallow-water inspection drone (demo)", "Tethys-type", "rov", ["visual", "sonar"], false, 180, ["inspection"], { dock: `${FID}:jty`, zone: `${FID}:jty`, autonomy: "supervised", adapter: "platform", fleet: "subsea", platform: "Vendor survey platform (demo)", operator: "Marine services contractor (demo)" }),
+  R("r9", "ROV-1", "Shallow-water inspection drone (demo)", "Tethys-type", "rov", ["visual", "sonar"], false, 180, ["inspection"], { dock: `${FID}:jty`, zone: `${FID}:jty`, autonomy: "remote", pilotRole: "ROV", adapter: "platform", fleet: "subsea", platform: "Vendor survey platform (demo)", operator: "Marine services contractor (demo)" }),
 ];
 
 const asset = (tag: string) => `${FID}:${tag}`;
@@ -95,6 +95,7 @@ export function gasMissions(date: string): Mission[] {
     M(12, "r8", "pipeline_patrol", "Export line — right of way, leaks and encroachment", 7, 0, 75, [W("jty", "PL-01", "Export line right of way", ["visual", "thermal", "gas"])]),
     M(13, "r8", "emissions_survey", "Methane survey — flare, compression, tank farm", 15, 30, 50, [W("flr", "F-901", "Flare F-901", ["gas", "thermal"]), W("cmp", "GD-COMP-2", "Compression, from the air", ["gas"]), W("tnk", "T-701A", "Tank farm vents", ["gas"])]),
     M(14, "r9", "subsea_inspection", "Export line, subsea section — free spans and burial", 9, 0, 90, [W("jty", "PL-01", "Export line, subsea section KP 0–4", ["sonar", "visual"])]),
+    M(15, "r6", "valve_operation", "Valve operations for the box-up — K-201B suction and discharge valves", 16, 30, 60, [W("cmp", "K-201B", "K-201B suction and discharge valves", ["manipulate", "visual"])]),
   ];
 }
 
@@ -146,6 +147,9 @@ export function addGasWork(out: FmData, date: string) {
   out.contractors.push(...structuredClone(GAS_CONTRACTORS));
   out.crews.push(...structuredClone(GAS_CREWS));
   out.robots.push(...structuredClone(GAS_ROBOTS));
-  out.missions.push(...gasMissions(date));
+  // the piloted robots' missions have their pilot, except the afternoon valve job (the orchestrator proposes one)
+  const ms = gasMissions(date), pilot = (re: RegExp) => out.technicians.find((t) => t.facilityId === FID && re.test(t.role))?.id;
+  for (const m of ms) if (m.robotId === `${FID}:r8` || m.robotId === `${FID}:r9`) m.pilotId = pilot(/remote pilot/i);
+  out.missions.push(...ms);
   out.workOrders.push(...gasTurnaround(date));
 }

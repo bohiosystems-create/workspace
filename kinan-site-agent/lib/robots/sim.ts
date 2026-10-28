@@ -78,6 +78,8 @@ export function simulate(d: FmData, now: number) {
     for (const m of ms) {
       const start = Date.parse(m.started ?? m.plannedStart);
       if (now < start) { if (m.status === "running") m.status = "planned"; continue; }
+      // a robot a person pilots doesn't move without its pilot: the mission waits
+      if (r.autonomy === "remote" && !m.pilotId && m.status === "planned") { m.note = "Waiting for a pilot"; continue; }
       if (m.status === "aborted" && (!m.ended || Date.parse(m.ended) <= start)) continue; // cancelled before it began
       const dur = m.durationMin * MIN, end = start + dur;
       const stop = m.status === "aborted" || m.status === "paused" || m.status === "failed" ? Math.min(end, Date.parse(m.ended ?? new Date(now).toISOString())) : end;
@@ -85,9 +87,11 @@ export function simulate(d: FmData, now: number) {
       battery = Math.min(100, battery + Math.max(0, (start - free) / MIN) * CHARGE_PER_MIN);
       const frac = Math.max(0, Math.min(1, (cut - start) / dur));
       const n = m.waypoints.length;
-      const reached = m.waypoints.filter((_, i) => frac >= (i + 0.5) / n).length;
+      // a route reads each place half-way through its leg; a watch (one place, the whole time) reads from arrival
+      const arrive = (i: number) => (m.kind === "gas_watch" ? Math.min(1, 3 / m.durationMin) : (i + 0.5) / n);
+      const reached = m.waypoints.filter((_, i) => frac >= arrive(i)).length;
       const seen = new Set<string>();
-      m.findings = m.waypoints.slice(0, reached).flatMap((wp, i) => findingsAt(d, m, r, wp, i, start + ((i + 0.5) / n) * dur, seen));
+      m.findings = m.waypoints.slice(0, reached).flatMap((wp, i) => findingsAt(d, m, r, wp, i, start + arrive(i) * dur, seen));
       m.progress = Math.round(frac * 100) / 100; m.at = reached - 1;
       battery = Math.max(0, battery - (DRAIN * (cut - start)) / MIN / r.enduranceMin);
       free = cut + RETURN_MIN * MIN; lastEnd = cut;

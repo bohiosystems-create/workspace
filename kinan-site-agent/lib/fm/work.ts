@@ -5,7 +5,7 @@
 // (orchestrator.ts) turns these into proposals with their reasons; approved, they become events like everything else.
 import type { Action, Crew, FmData, FmEvent, Priority, WorkOrder, ZoneDef } from "./types";
 import type { Capability, Finding, Mission, Robot, Waypoint } from "../robots/types";
-import { CAPABILITY_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
+import { CAPABILITY_LABEL, CONTROL_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
 import { nearLimit } from "../robots/sim";
 import { GAS_HOLD, PRIORITY_SLA, bestTech, clearGasHold, isOpen } from "./engine";
 
@@ -89,6 +89,15 @@ export function pickRobot(d: FmData, facilityId: string, checks: Capability[], z
 export const dronesGrounded = (d: FmData, facilityId: string, now: number) =>
   d.securityAlerts.find((a) => a.facilityId === facilityId && a.kind === "drone" && a.status !== "cleared" && now - Date.parse(a.at) < 2 * 3600_000);
 const inAir = (r: Robot) => DOMAIN_OF[r.kind] === "air";
+
+/** The people who may pilot a robot a person controls: their role names what it needs ("ROV", "drone", "robot
+ *  operator"), they are on shift, and not piloting another mission at that time. */
+export function pilotsFor(d: FmData, r: Robot, start: number, durationMin: number, except?: string) {
+  // a robot switched to a person's control without a named pilot role takes any pilot or robot operator
+  const re = r.pilotRole ? new RegExp(r.pilotRole.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : /pilot|robot operator/i;
+  const busy = (techId: string) => d.missions.some((m) => m.id !== except && m.pilotId === techId && (m.status === "planned" || m.status === "running") && Date.parse(m.plannedStart) < start + durationMin * MIN && Date.parse(m.plannedStart) + m.durationMin * MIN > start);
+  return d.technicians.filter((t) => t.facilityId === r.facilityId && re.test(t.role) && t.shift !== "off" && t.status !== "off" && !busy(t.id));
+}
 
 const newMission = (d: FmData, r: Robot, kind: Mission["kind"], title: string, waypoints: Waypoint[], durationMin: number, now: number, woId?: string): Mission => ({
   id: `MS-${new Date(now).toISOString().slice(2, 10).replace(/-/g, "")}-${String(d.missions.length + 1).padStart(2, "0")}${Math.random().toString(36).slice(2, 4)}`, facilityId: r.facilityId, robotId: r.id, kind, title, waypoints,
@@ -259,6 +268,35 @@ export function workProposals(d: FmData, fac: (id: string) => boolean, push: (a:
       break;
     }
   }
+
+  // 9. A robot a person pilots, with a mission and no pilot: it won't move until someone flies or drives it. Give it a
+  //    qualified pilot who is on shift and free then.
+  for (const m of d.missions.filter((x) => fac(x.facilityId) && x.status === "planned" && !x.pilotId)) {
+    const r = d.robots.find((x) => x.id === m.robotId);
+    if (!r || r.autonomy !== "remote") continue;
+    const ps = pilotsFor(d, r, Date.parse(m.plannedStart), m.durationMin, m.id), p = ps[0];
+    if (!p) continue; // nobody qualified and free: the robot sheet says the mission waits for a pilot
+    push({ id: `pilot:${m.id}`, facilityId: m.facilityId, kind: "assign_pilot", title: p ? `Put ${p.name} on ${r.name} for "${m.title}" (${local(m.plannedStart)})` : `${r.name} has no pilot for "${m.title}" (${local(m.plannedStart)}) — find a ${r.pilotRole ?? "pilot"}`,
+      why: [`${r.name} (${r.model}) is ${CONTROL_LABEL.remote}: the mission waits until someone is on the controls`, ...(p ? [`${p.name}, ${p.role}: on shift, free ${local(m.plannedStart)}–${local(new Date(Date.parse(m.plannedStart) + m.durationMin * MIN).toISOString())}`, ...(ps.length > 1 ? [`Also qualified: ${ps.slice(1).map((x) => x.name).join(", ")}`] : [])] : [`Nobody on shift is a ${r.pilotRole ?? "pilot"} and free then`]), "The pilot flies or drives it; the orchestrator plans the route, watches the readings and raises what it finds"],
+      risk: "low", auto: !!p, effect: p ? "mission_pilot" : "mission_update", payload: p ? { missionId: m.id, pilotId: p.id } : { missionId: m.id }, targets: { robotId: r.id, techId: p?.id, missionId: m.id } });
+  }
+
+  // 10. People doing hot work or entering a confined space where gas can be: an AI-controlled robot stands beside them
+  //     on gas watch. The people work; the robot watches and stops the job the moment it reads gas.
+  for (const w of d.workOrders.filter((x) => fac(x.facilityId) && (x.status === "assigned" || x.status === "in_progress") && (x.crew || x.assignee) && (x.permit?.type === "hot work" || x.permit?.type === "confined space") && !waitingFor(d, x).length)) {
+    const z = zoneOfWo(d, w);
+    if (!z || !z.hazards.some((h) => h === "hydrocarbon" || h === "h2s")) continue;
+    if ((w.support ?? []).some((s) => d.missions.some((m) => m.id === s.missionId && (m.status === "planned" || m.status === "running")))) continue;
+    // as long as the robot can safely stay (on its battery); when it has to charge, the orchestrator proposes the next one
+    const { robot, why } = pickRobot(d, w.facilityId, ["gas"], [z], 45, now, (r) => (r.autonomy === "remote" ? `${r.name} needs a pilot — a gas watch beside a crew is AI-controlled` : null));
+    if (!robot) continue;
+    const stay = Math.min(120, Math.floor(robot.enduranceMin * 0.6));
+    const m = newMission(d, robot, "gas_watch", `Gas watch beside ${w.crew ? d.crews.find((c) => c.id === w.crew)?.name : d.technicians.find((t) => t.id === w.assignee)?.name} — ${w.id}`, [{ zone: z.id, assetId: w.assetId, label: `${w.id}: ${w.title}`, checks: ["gas"] }], stay, now, w.id);
+    const people = w.crew ? `${d.crews.find((c) => c.id === w.crew)?.name} (${d.crews.find((c) => c.id === w.crew)?.size} people)` : d.technicians.find((t) => t.id === w.assignee)?.name;
+    push({ id: `support:${w.id}`, facilityId: w.facilityId, kind: "robot_support", title: `Put ${robot.name} on gas watch beside ${people} on ${w.id} — AI-controlled, it stops the work if gas appears`,
+      why: [`${w.title}: ${w.permit!.type} in ${zoneLabel(z)}`, `The people do the work; the robot stands by the job reading LEL and H₂S for ${stay} min — then the next robot takes over`, ...why.filter((x) => !/^Battery/.test(x)), "Gas read: the job goes on hold and its permit is suspended at once, the crew is told to leave", "One person watches the robot's feed — no one has to stand gas watch in the area"],
+      risk: "low", auto: robot.autonomy === "policy", effect: "mission_create", payload: { mission: m, woId: w.id }, targets: { woId: w.id, robotId: robot.id, crewId: w.crew, techId: w.assignee } });
+  }
 }
 
 /** The events an approved work-layer proposal produces, or null if it isn't one. */
@@ -277,6 +315,13 @@ export function workEffects(d: FmData, a: Action, base: { at: string; by: string
     case "robot_finding": {
       const wo = { ...(a.payload.wo as WorkOrder), id: woId(a.facilityId), raised: base.at };
       return [{ ...base, id: id(), kind: "wo_create", wo, summary: `raised ${wo.id} ${wo.priority} — ${wo.title}` }, { ...base, id: id(), kind: "finding_ack", findingId: String(a.payload.findingId), woId: wo.id, summary: `finding → ${wo.id}` }];
+    }
+    case "assign_pilot": return a.payload.pilotId ? [{ ...base, id: id(), kind: "mission_pilot", missionId: String(a.payload.missionId), pilotId: String(a.payload.pilotId), summary: a.title }] : [];
+    case "robot_support": {
+      const m = { ...(a.payload.mission as Mission), plannedStart: new Date(Date.parse(base.at) + MIN).toISOString() };
+      const w = d.workOrders.find((x) => x.id === a.payload.woId);
+      return [{ ...base, id: id(), kind: "mission_create", mission: m, summary: `${m.id}: ${MISSION_LABEL[m.kind]} by ${d.robots.find((r) => r.id === m.robotId)?.name}` },
+        ...(w ? [{ ...base, id: id(), kind: "wo_update" as const, woId: w.id, patch: { support: [...(w.support ?? []), { robotId: m.robotId, role: "gas watch", missionId: m.id }], note: `${d.robots.find((r) => r.id === m.robotId)?.name} on gas watch beside the people on the job (${m.id}).` }, summary: `${w.id}: robot gas watch` }] : [])];
     }
     case "robot_recall": return [{ ...base, id: id(), kind: "mission_update", missionId: String(a.payload.missionId), status: "aborted", note: "Recalled: low battery", summary: a.title }];
     case "security_response": {
@@ -305,7 +350,16 @@ export function robotOutcomes(d: FmData) {
     if (seen.length) { al.status = "escalated"; al.note = `${r} saw: ${seen.map((f) => f.label).join("; ")} — security responding.`; }
     else { al.status = "cleared"; al.note = `${r} checked at ${local(m.ended)}: nobody there, fence intact.`; al.by = r; }
   }
-  for (const m of d.missions.filter((x) => x.woId && x.status === "done")) {
+  // a robot on gas watch beside people: gas read → the job stops at once (while it watches, not only at the end)
+  for (const m of d.missions.filter((x) => x.kind === "gas_watch" && x.woId && (x.status === "running" || x.status === "done"))) {
+    const w = d.workOrders.find((x) => x.id === m.woId), gas = m.findings.filter((f) => f.sensor === "gas" && f.severity !== "low" && f.severity !== "info");
+    if (!w || !gas.length || w.status === "done" || w.status === "on_hold") continue;
+    const robot = d.robots.find((r) => r.id === m.robotId)?.name ?? "the robot";
+    w.status = "on_hold"; w.holdReason = `Gas in the area — ${robot} on gas watch read ${gas[0].label}`;
+    if (w.permit && w.permit.status !== "closed") w.permit.status = "suspended";
+    w.notes.push({ at: gas[0].at, by: robot, text: `Work stopped: ${gas[0].label}. Crew told to leave the area.`, via: "orchestrator" as never });
+  }
+  for (const m of d.missions.filter((x) => x.woId && x.status === "done" && x.kind !== "gas_watch")) {
     const w = d.workOrders.find((x) => x.id === m.woId);
     if (!w || w.status === "done") continue;
     const gas = m.findings.filter((f) => f.sensor === "gas" && f.severity !== "low" && f.severity !== "info");
@@ -322,6 +376,29 @@ export function robotOutcomes(d: FmData) {
       if (w.requires?.length) { w.status = "done"; w.done = m.ended; w.evidence = [...new Set([...w.evidence, ...m.waypoints.map((x) => `photo — ${x.label}`)])]; w.checklist.forEach((c) => (c.done = true)); }
     }
   }
+}
+
+/** Who works with what right now: every open job and live mission, by team shape — people only, robots only (the AI
+ *  driving them), people with an AI-controlled robot beside them, or a person piloting a robot. */
+export function teams(d: FmData, facilityId: string) {
+  const live = (id?: string) => d.missions.find((m) => m.id === id && (m.status === "planned" || m.status === "running"));
+  const crewOf = (w: WorkOrder) => (w.crew ? d.crews.find((c) => c.id === w.crew) : undefined);
+  const person = (id?: string) => d.technicians.find((t) => t.id === id);
+  const robotRow = (robotId: string, role: string, m?: Mission) => { const r = d.robots.find((x) => x.id === robotId)!; const pilot = person(m?.pilotId);
+    return { robot: r.name, vendor: r.vendor, role, control: r.autonomy, pilot: pilot?.name ?? null, missionId: m?.id ?? null, status: m?.status ?? null }; };
+  const jobs = d.workOrders.filter((w) => w.facilityId === facilityId && isOpen(w) && (w.crew || w.assignee || w.robot || w.support?.length)).map((w) => {
+    const c = crewOf(w), t = person(w.assignee);
+    const people = [...(c ? [`${c.name} (${c.size})`] : []), ...(t ? [t.name] : [])];
+    const robots = [...(w.robot ? [robotRow(w.robot, "does the job", d.missions.find((m) => m.id === w.missionId))] : []), ...(w.support ?? []).filter((s) => live(s.missionId) || d.missions.find((m) => m.id === s.missionId)?.status === "done").map((s) => robotRow(s.robotId, s.role, d.missions.find((m) => m.id === s.missionId)))];
+    const mode = robots.length && people.length ? (robots.some((r) => r.control === "remote") ? "people with a piloted robot" : "people with an AI-controlled robot") : robots.length ? (robots.some((r) => r.control === "remote") ? "a person piloting a robot" : "robots only (AI-controlled)") : "people only";
+    return { id: w.id, title: w.title, status: w.status, people, robots, mode };
+  });
+  // missions not tied to a job: robots on their own (AI) or with their pilot
+  const missions = d.missions.filter((m) => m.facilityId === facilityId && (m.status === "planned" || m.status === "running") && !m.woId).map((m) => {
+    const r = d.robots.find((x) => x.id === m.robotId)!, p = person(m.pilotId);
+    return { id: m.id, title: m.title, start: m.plannedStart, status: m.status, robot: r.name, control: r.autonomy, pilot: p?.name ?? null, mode: r.autonomy === "remote" ? (p ? "a person piloting a robot" : "waiting for a pilot") : "robot only (AI-controlled)" };
+  });
+  return { jobs, missions };
 }
 
 /** A turnaround at a glance: progress, what is under way, waiting or not given out, the crews on it, the cost. */

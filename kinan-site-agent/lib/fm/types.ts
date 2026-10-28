@@ -54,6 +54,8 @@ export interface WorkOrder {
   crew?: string;
   /** a robot doing it (an inspection a robot can make), and its mission */
   robot?: string; missionId?: string;
+  /** robots working alongside the people on the job (a gas watch beside a crew, a camera overwatch, a carrier) */
+  support?: { robotId: string; role: string; missionId?: string }[];
   /** what the job needs to be done by a robot: its sensors/tools */
   requires?: import("../robots/types").Capability[];
   /** a turnaround (shutdown) package: the package id, the jobs it waits for, and its planned window */
@@ -134,7 +136,7 @@ export type FmEvent = {
   cid?: string;
 } & (
   | { kind: "wo_create"; wo: WorkOrder }
-  | { kind: "wo_update"; woId: string; patch: Partial<Pick<WorkOrder, "status" | "assignee" | "priority" | "due" | "holdReason" | "crew" | "robot" | "missionId">> & { note?: string; evidence?: string[]; checklist?: number[]; permitStatus?: "issued" | "closed" | "suspended" } }
+  | { kind: "wo_update"; woId: string; patch: Partial<Pick<WorkOrder, "status" | "assignee" | "priority" | "due" | "holdReason" | "crew" | "robot" | "missionId" | "support">> & { note?: string; evidence?: string[]; checklist?: number[]; permitStatus?: "issued" | "closed" | "suspended" } }
   | { kind: "asset_status"; assetId: string; status: AssetStatus; note?: string }
   | { kind: "alarm_ack"; alarmId: string; woId?: string }
   | { kind: "spare_order"; spareId: string; qty: number }
@@ -150,6 +152,8 @@ export type FmEvent = {
   | { kind: "security_alert"; alert: SecurityAlert }
   | { kind: "security_update"; alertId: string; status: SecurityAlert["status"]; missionId?: string; note?: string }
   | { kind: "robot_report"; robotId: string; report: RobotReport }
+  | { kind: "mission_pilot"; missionId: string; pilotId: string | null }
+  | { kind: "robot_control"; robotId: string; control: import("../robots/types").Robot["autonomy"] }
 );
 
 export interface FmConfig { autopilot: Record<string, boolean>; /** what the autopilot may do, signed by a manager, per facility */ policy?: Record<string, AutopilotPolicy> }
@@ -162,7 +166,7 @@ export interface AutopilotPolicy { kinds: Action["kind"][]; maxRisk: "low" | "me
 export interface Action {
   id: string; facilityId: string;
   kind: "raise_wo" | "assign" | "reschedule" | "escalate" | "order_spare" | "permit" | "isolate"
-    | "assign_crew" | "robot_mission" | "robot_finding" | "safety_stop" | "robot_recall" | "gas_test" | "security_response" | "combine_missions";
+    | "assign_crew" | "robot_mission" | "robot_finding" | "safety_stop" | "robot_recall" | "gas_test" | "security_response" | "combine_missions" | "assign_pilot" | "robot_support";
   title: string; why: string[];
   risk: "low" | "medium" | "high";
   /** money it commits (SAR), for approval limits */

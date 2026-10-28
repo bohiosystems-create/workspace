@@ -21,7 +21,7 @@ import { completionDate } from "../lib/core/updates";
 import { HAS_OPERATIONS } from "../lib/edition";
 import { act as fmAct } from "../lib/fm/api";
 import { fmToday } from "../lib/fm/engine";
-import { airsideOpen, dronesGrounded } from "../lib/fm/work";
+import { airsideOpen, dronesGrounded, robotOutcomes } from "../lib/fm/work";
 import { simNow } from "../lib/robots/sim";
 import { analyseImages } from "../lib/robots/vision";
 import fs from "node:fs";
@@ -185,6 +185,22 @@ async function orchestration() {
     const d1 = structuredClone(d0); d1.securityAlerts = [{ ...(al as object), id: "SA-T", kind: "drone", status: "open", at: new Date().toISOString(), zone: "kgpp:flr", source: "test", text: "test", facilityId: "kgpp" }];
     if (!dronesGrounded(d1, "kgpp", Date.now() + 30 * 60_000)) fail("(security)", null, "an unidentified drone did not ground our drones");
     if (dronesGrounded(d1, "kgpp", Date.now() + 3 * 3600_000)) fail("(security)", null, "our drones stayed grounded after two hours"); }
+  // teams of every shape: a piloted robot goes with its pilot; who controls a robot is a supervisor's call; a robot on
+  // gas watch beside people stops their job when it reads gas
+  { const o1 = await call("fm_robot_command", { robot: "ROV-1", command: "send", zone: "Export line & jetty", mission: "subsea_inspection" }, majid);
+    if (!/piloted by a person/.test(o1.error ?? "")) fail("fm_robot_command", { robot: "ROV-1" }, `a piloted robot went without a pilot: ${o1.error ?? o1.message}`);
+    const o2 = await call("fm_robot_command", { robot: "Ex-2", command: "control", control: "remote" }, viktor);
+    if (!/supervisor/.test(o2.error ?? "")) fail("fm_robot_command", { robot: "Ex-2", command: "control" }, `a contractor changed who controls a robot: ${o2.error ?? o2.message}`);
+    const o3 = await call("fm_robot_command", { robot: "Ex-2", command: "control", control: "remote" }, majid);
+    if (o3.error) fail("fm_robot_command", { robot: "Ex-2", command: "control" }, `the manager couldn't hand a robot to a pilot: ${o3.error}`);
+    const o4 = await call("fm_robot_command", { robot: "Ex-2", command: "send", zone: "Compression", mission: "gas_survey" }, majid);
+    if (!/piloted by a person/.test(o4.error ?? "")) fail("fm_robot_command", { robot: "Ex-2", command: "send" }, `a robot handed to a pilot went without one: ${o4.error ?? o4.message}`);
+    await call("fm_robot_command", { robot: "Ex-2", command: "control", control: "policy" }, majid);
+    const d0 = fmToday(db), w = d0.workOrders.find((x) => x.id === "WO-TAR04")!;
+    w.status = "in_progress"; w.holdReason = undefined;
+    d0.missions.push({ id: "MS-TEST-GW", facilityId: "kgpp", robotId: "kgpp:r5", kind: "gas_watch", title: "test", waypoints: [], plannedStart: new Date().toISOString(), durationMin: 30, status: "running", by: "test", source: "orchestrator", woId: w.id, findings: [{ id: "f", missionId: "MS-TEST-GW", robotId: "kgpp:r5", facilityId: "kgpp", zone: "kgpp:cmp", at: new Date().toISOString(), sensor: "gas", label: "Flammable gas 22 % LEL", value: 22, unit: "% LEL", limit: 20, severity: "high" }] });
+    robotOutcomes(d0);
+    if ((w.status as string) !== "on_hold" || !/gas watch/.test(w.holdReason ?? "")) fail("(gas watch)", null, `a robot on gas watch read gas and the people kept working: ${w.status} ${w.holdReason}`); }
   // the airport: no drone indoors; a live runway only in its closure or with air traffic control's clearance
   { const majed = who(/Majed Al-Anazi/), d0 = fmToday(db), rwy = d0.zones.find((z) => z.id === "kgia:rwy");
     const o1 = await call("fm_robot_command", { robot: "Drone-A1", command: "send", zone: "Departures", mission: "security_patrol" }, majed);

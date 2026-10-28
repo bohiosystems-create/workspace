@@ -19,7 +19,8 @@ export interface Learned {
 }
 export const KIND_LABEL: Record<Action["kind"], string> = { raise_wo: "raise work from an alarm", assign: "assign a job", reschedule: "reschedule overdue work", escalate: "escalate an SLA risk", order_spare: "order spares", permit: "issue a permit", isolate: "change over to standby",
   assign_crew: "give a job to a contractor crew", robot_mission: "send a robot", robot_finding: "raise work from a robot finding", safety_stop: "stop unsafe work", robot_recall: "recall a robot", gas_test: "test for gas before work",
-  security_response: "respond to a security alert", combine_missions: "combine robot missions" };
+  security_response: "respond to a security alert", combine_missions: "combine robot missions",
+  assign_pilot: "give a robot its pilot", robot_support: "put a robot beside a crew" };
 
 const PERMIT: Record<string, NonNullable<WorkOrder["permit"]>["type"]> = { electrical: "electrical isolation", transformer: "electrical isolation", breaker: "electrical isolation", ups: "electrical isolation", hrsg: "confined space", gt: "hot work", pbb: "work at height", escalator: "electrical isolation", lift: "electrical isolation",
   separator: "confined space", tank: "confined space", gascomp: "hot work", expander: "hot work", flare: "work at height", detector: "general" };

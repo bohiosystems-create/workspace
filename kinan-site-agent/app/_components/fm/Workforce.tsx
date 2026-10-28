@@ -7,7 +7,7 @@
  */
 import { useMemo, useState } from "react";
 import type { facilityStateFor } from "@/lib/fm/api";
-import { CAPABILITY_LABEL, DOMAIN_LABEL, DOMAIN_OF, MISSION_LABEL, ROLE_LABEL, type Capability, type Mission, type MissionKind } from "@/lib/robots/types";
+import { CAPABILITY_LABEL, CONTROL_LABEL, DOMAIN_LABEL, DOMAIN_OF, MISSION_LABEL, ROLE_LABEL, type Capability, type Mission, type MissionKind } from "@/lib/robots/types";
 
 type FS = ReturnType<typeof facilityStateFor>;
 type Robot = FS["robots"][number];
@@ -18,6 +18,7 @@ const KIND_ICON: Record<string, string> = { quadruped: "🐕", drone: "🛸", cr
 const icon = (r: Robot) => (r.capabilities.includes("intrusion") && r.kind === "ugv" ? "🛡️" : r.capabilities.includes("manipulate") ? "🦾" : KIND_ICON[r.kind] ?? "🤖");
 const CONN: Record<string, string> = { sim: "simulated in this demo", rmf: "Open-RMF", vendor: "vendor API", platform: "vendor data platform (findings in)" };
 const HAZARD: Record<string, string> = { h2s: "H₂S", hydrocarbon: "hydrocarbons", high_voltage: "high voltage", confined_space: "confined space", height: "height", hot_surface: "hot surfaces", noise: "noise", marine: "marine", airside: "live airside" };
+const MODE_TONE: Record<string, string> = { "people only": "low", "robots only (AI-controlled)": "auto", "robot only (AI-controlled)": "auto", "people with an AI-controlled robot": "medium", "people with a piloted robot": "medium", "a person piloting a robot": "medium", "waiting for a pilot": "high" };
 const ALERT_ICON: Record<string, string> = { fence: "🚧", person: "🚶", vehicle: "🚗", drone: "🛸", camera: "📹", fod: "🔩", wildlife: "🐦" };
 /** Text that fits a zone's width on the map (≈0.56 em per character). */
 const fit = (t: string, width: number, size: number) => { const n = Math.floor(width / (size * 0.56)); return t.length > n ? `${t.slice(0, Math.max(1, n - 1))}…` : t; };
@@ -79,9 +80,22 @@ export function PlantMap({ s, onRobot }: { s: FS; onRobot: (id: string) => void 
 
 // ======================================================================== the workforce
 export function WorkforcePanel({ s, onRobot }: { s: FS; onRobot: (id: string) => void }) {
+  const mixed = s.teams.jobs.filter((j) => j.robots.length);
   return (
     <section className="ops-panel wf">
-      <p className="muted small">Everyone and everything that can take a job: the facility&apos;s own people, contractor crews on site, and robots. The orchestrator picks among them by what the job needs — a skill, a sensor, access to a hazardous area — and who is free.</p>
+      <p className="muted small">Everyone and everything that can take a job: the facility&apos;s own people, contractor crews on site, and robots. The orchestrator picks among them by what the job needs — a skill, a sensor, access to a hazardous area — and who is free. Teams take every shape: people only, robots only (the AI drives them), people with an AI-controlled robot beside them, and people piloting robots.</p>
+      <div className="rpt-label">Teams on the work · {s.teams.jobs.length} jobs, {s.teams.missions.length} robot missions</div>
+      <ul className="ops-list wf-teams">
+        {[...mixed, ...s.teams.jobs.filter((j) => !j.robots.length).slice(0, Math.max(3, 8 - mixed.length))].map((j) => (
+          <li key={j.id}><span className={`ops-pill ${MODE_TONE[j.mode] ?? "low"}`}>{j.mode}</span>
+            <span className="grow"><b>{j.id}</b> {j.title}
+              <em>{j.people.length ? `People: ${j.people.join(", ")}` : "No people on it"}{j.robots.map((r) => ` · ${r.robot} — ${r.role}, ${r.control === "remote" ? (r.pilot ? `piloted by ${r.pilot}` : "waiting for a pilot") : CONTROL_LABEL[r.control]}`).join("")}</em></span></li>
+        ))}
+        {s.teams.missions.map((m) => (
+          <li key={m.id}><span className={`ops-pill ${MODE_TONE[m.mode] ?? "low"}`}>{m.mode}</span>
+            <span className="grow"><b>{time(m.start)}</b> {m.title}<em>{m.robot} · {m.control === "remote" ? (m.pilot ? `piloted by ${m.pilot}` : "no pilot yet — it waits") : CONTROL_LABEL[m.control]} · {m.status}</em></span></li>
+        ))}
+      </ul>
       <div className="rpt-label">Fleets · {s.fleets.length} makers, one plan</div>
       <div className="ops-tablewrap"><table className="ops-table wf-fleets">
         <thead><tr><th>Maker</th><th>Robots</th><th>Where</th><th>Used for</th><th>Runs on</th><th>Operated by</th><th>Connected</th></tr></thead>
@@ -99,7 +113,7 @@ export function WorkforcePanel({ s, onRobot }: { s: FS; onRobot: (id: string) =>
               return (
                 <li key={r.id}><button onClick={() => onRobot(r.id)}>
                   <span className={`wf-dot robot ${r.status}`} aria-hidden="true">{icon(r)}</span>
-                  <span className="grow"><b>{r.name}</b> <em>{r.vendor} · {DOMAIN_LABEL[DOMAIN_OF[r.kind]]} · {r.roles.map((x) => ROLE_LABEL[x]).join(", ")}{r.exRated ? " · Ex-certified" : ""}</em>
+                  <span className="grow"><b>{r.name}</b> <em>{r.vendor} · {DOMAIN_LABEL[DOMAIN_OF[r.kind]]} · {CONTROL_LABEL[r.autonomy]}{r.exRated ? " · Ex-certified" : ""}</em>
                     <em>{ROBOT_STATUS[r.status]}{m ? `: ${m.title} (${Math.round((m.progress ?? 0) * 100)}%)` : ""} · {s.zones.find((z) => z.id === r.zone)?.name ?? ""}</em></span>
                   <span className={`batt ${r.battery < 25 ? "bad" : r.battery < 50 ? "warn" : ""}`} title={`Battery ${r.battery}%`}><i style={{ width: `${r.battery}%` }} /><b>{r.battery}%</b></span>
                 </button></li>
@@ -149,6 +163,7 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
   const air = r ? DOMAIN_OF[r.kind] === "air" : false;
   const allowed = useMemo(() => (r ? s.zones.filter((z) => (z.atex === null || r.exRated) && !(z.indoor && air)) : []), [r, s.zones, air]);
   const [atc, setAtc] = useState("");
+  const [pilot, setPilot] = useState("");
   const [zone, setZone] = useState(allowed[0]?.id ?? "");
   const [asset, setAsset] = useState("");
   const [kind, setKind] = useState<MissionKind>(r?.kind === "crawler" ? "thickness_survey" : r?.kind === "drone" ? "flare_inspection" : r?.kind === "rov" ? "subsea_inspection" : r?.kind === "fixed_wing" ? "pipeline_patrol" : r?.roles.includes("security") ? "security_patrol" : "inspection_round");
@@ -162,7 +177,9 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
     <div className="modal" role="dialog" aria-label={r.name} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-card ops-drawer">
         <div className="sheet-h"><b>{icon(r)} {r.name} · {r.model}</b><button className="x" onClick={onClose} aria-label="Close">×</button></div>
-        <p className="muted small">{ROBOT_STATUS[r.status]} · battery {r.battery}% · {s.zones.find((z) => z.id === r.zone)?.name} · {r.autonomy === "policy" ? "runs approved missions on its own" : "supervised: every mission approved"}</p>
+        <p className="muted small">{ROBOT_STATUS[r.status]} · battery {r.battery}% · {s.zones.find((z) => z.id === r.zone)?.name}</p>
+        <div className="od-grid"><label>Who controls it<select value={r.autonomy} disabled={!!busy} onChange={(e) => doit("control", { action: "control", robotId: r.id, control: e.target.value })}>
+          <option value="policy">The AI, by itself (within the signed policy)</option><option value="supervised">The AI — a person approves each mission</option><option value="remote">A person pilots it{r.pilotRole ? ` (${r.pilotRole})` : ""}</option></select></label></div>
         <p className="small"><b>{r.vendor}</b> · {DOMAIN_LABEL[DOMAIN_OF[r.kind]]} · used for {r.roles.map((x) => ROLE_LABEL[x]).join(", ")}{r.operator ? ` · operated by ${r.operator}` : ""}{r.platform ? ` · runs on ${r.platform}` : ""} · connected through {CONN[r.adapter]}{r.adapter !== "sim" && !s.fleets.find((f) => f.vendor === r.vendor)?.live ? " (not set up here: simulated)" : ""}{r.lastReport ? ` · last report ${time(r.lastReport)}` : ""}.</p>
         <p className="small">Can: {r.capabilities.map((c) => CAPABILITY_LABEL[c]).join(", ")}. {r.exRated ? "Certified for hazardous areas (zones 1 and 2)." : blocked.length ? `Not certified for hazardous areas: it may not enter ${blocked.map((z) => z.name).join(", ")}.` : "Not certified for hazardous areas."}{air && s.zones.some((z) => z.indoor) ? " A drone: it doesn't fly indoors." : ""} {r.enduranceMin} min per charge{r.maxWindMs ? `, flies below ${r.maxWindMs} m/s wind` : ""}.</p>
         {r.estop && <div className="dc-no"><span>{r.note ?? "Emergency stop"} — a supervisor releases it after a look on site.</span></div>}
@@ -172,9 +189,10 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
           {live && <button className="mini" disabled={!!busy} onClick={() => doit("abort", { action: "mission_abort", missionId: live.id })}>Cancel {live.id}</button>}
         </div>
         <div className="rpt-label">Send it</div>
-        <form className="od-grid" onSubmit={(e) => { e.preventDefault(); doit("mission", { action: "mission", robotId: r.id, zone, asset: asset || undefined, missionKind: kind, atcClearance: atc || undefined }); }}>
+        <form className="od-grid" onSubmit={(e) => { e.preventDefault(); doit("mission", { action: "mission", robotId: r.id, zone, asset: asset || undefined, missionKind: kind, atcClearance: atc || undefined, pilotId: pilot || undefined }); }}>
           <label>Where<select value={zone} onChange={(e) => { setZone(e.target.value); setAsset(""); }}>{allowed.map((z) => <option key={z.id} value={z.id}>{z.name}{z.atex ? ` (zone ${z.atex})` : ""}</option>)}</select></label>
           <label>At<select value={asset} onChange={(e) => setAsset(e.target.value)}><option value="">The whole area</option>{assets.map((a) => <option key={a.id} value={a.tag}>{a.tag} {a.name}</option>)}</select></label>
+          {r.autonomy === "remote" && <label>Pilot<select value={pilot} onChange={(e) => setPilot(e.target.value)}><option value="">— who pilots it? —</option>{s.pilots.filter((t) => t.shift !== "off").map((t) => <option key={t.id} value={t.id}>{t.name} · {t.role}</option>)}</select></label>}
           {zSel?.closed && <label>ATC clearance<input value={atc} onChange={(e) => setAtc(e.target.value)} placeholder={`needed outside the ${zSel.closed.map(hm).join("–")} closure, e.g. GND-1452`} /></label>}
           <label>Mission<select value={kind} onChange={(e) => setKind(e.target.value as MissionKind)}>{(Object.keys(MISSION_LABEL) as MissionKind[]).filter((k) => fits(r, k)).map((k) => <option key={k} value={k}>{MISSION_LABEL[k]}</option>)}</select></label>
           <div className="od-acts"><button className="studio-add" disabled={!!busy || !!r.estop || !zone}>Send {r.name}</button></div>
@@ -182,7 +200,7 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
         <div className="rpt-label">Today&apos;s missions</div>
         <ul className="ops-list">
           {ms.length === 0 && <li className="muted">None.</li>}
-          {ms.map((m) => <MissionRow key={m.id} s={s} m={m} />)}
+          {ms.map((m) => <MissionRow key={m.id} s={s} m={m} pilotable={r.autonomy === "remote" && (m.status === "planned" || m.status === "running")} doit={doit} busy={busy} />)}
         </ul>
       </div>
     </div>
@@ -204,11 +222,13 @@ function fits(r: Robot, k: MissionKind) {
   }
 }
 
-function MissionRow({ s, m }: { s: FS; m: Mission }) {
+function MissionRow({ s, m, pilotable, doit, busy }: { s: FS; m: Mission; pilotable?: boolean; doit?: Doit; busy?: string | null }) {
+  const pilot = s.technicians.find((t) => t.id === m.pilotId);
   return (
     <li className={m.status === "done" || m.status === "aborted" ? "dim" : ""}>
       <span className={`ops-pill ${m.status === "running" ? "auto" : m.status === "aborted" || m.status === "paused" ? "high" : "low"}`}>{m.status}</span>
-      <span className="grow"><b>{time(m.plannedStart)}</b> {m.title}<em>{m.id} · {MISSION_LABEL[m.kind]} · {m.durationMin} min{m.status === "running" ? ` · ${Math.round((m.progress ?? 0) * 100)}%` : ""}{m.woId ? ` · for ${m.woId}` : ""}{m.note ? ` · ${m.note}` : ""}</em>
+      <span className="grow"><b>{time(m.plannedStart)}</b> {m.title}<em>{m.id} · {MISSION_LABEL[m.kind]} · {m.durationMin} min{m.status === "running" ? ` · ${Math.round((m.progress ?? 0) * 100)}%` : ""}{m.woId ? ` · for ${m.woId}` : ""}{pilot ? ` · piloted by ${pilot.name}` : ""}{m.note ? ` · ${m.note}` : ""}</em>
+        {pilotable && !pilot && doit && <span className="od-acts">{s.pilots.filter((t) => t.shift !== "off").slice(0, 3).map((t) => <button key={t.id} className="mini" disabled={!!busy} onClick={() => doit("pilot", { action: "pilot", missionId: m.id, pilotId: t.id })}>Pilot: {t.name}</button>)}</span>}
         {m.findings.length > 0 && <em className="mf">{m.findings.map((f) => `${f.severity}: ${f.label}`).join(" · ")}</em>}
         {m.status === "done" && !m.findings.length && <em className="mf ok">Nothing out of range on the route{s.assets.length ? "" : ""}</em>}</span>
     </li>

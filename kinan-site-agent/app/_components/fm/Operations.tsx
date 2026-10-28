@@ -103,7 +103,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
   const tag = (id?: string) => s.assets.find((a) => a.id === id)?.tag ?? "";
   const who = (id?: string) => s.technicians.find((t) => t.id === id)?.name ?? "—";
   /** who does a job: the crew, the robot or the person */
-  const doer = (w: { assignee?: string; crew?: string; robot?: string }) => (w.crew ? `${s.crews.find((c) => c.id === w.crew)?.name ?? "crew"} (${s.crews.find((c) => c.id === w.crew)?.contractor ?? ""})` : w.robot ? `robot ${s.robots.find((r) => r.id === w.robot)?.name ?? ""}` : who(w.assignee));
+  const doer = (w: { assignee?: string; crew?: string; robot?: string; support?: { robotId: string }[] }) => (w.support?.length ? `${w.crew ? s.crews.find((c) => c.id === w.crew)?.name ?? "crew" : s.technicians.find((t) => t.id === w.assignee)?.name ?? "people"} + ${w.support.map((x) => s.robots.find((r) => r.id === x.robotId)?.name).join(", ")}` : w.crew ? `${s.crews.find((c) => c.id === w.crew)?.name ?? "crew"} (${s.crews.find((c) => c.id === w.crew)?.contractor ?? ""})` : w.robot ? `robot ${s.robots.find((r) => r.id === w.robot)?.name ?? ""}` : who(w.assignee));
   const open = s.workOrders.filter((w) => w.status !== "done");
   const live = s.findings.filter((x) => !x.woId && !x.acknowledged && (x.severity === "high" || x.severity === "critical")).length + s.securityAlerts.filter((a) => a.status === "open").length;
   const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ...(s.zones.length ? [["map", s.facility.sector === "airport" ? "Airport map" : "Plant map", live] as [Tab, string, number]] : []),
@@ -314,6 +314,7 @@ function WoDrawer({ s, wo, tag, onClose, doit, busy }: { s: FS; wo: WO; tag: (id
         {wo.detail && wo.detail !== wo.title && <p>{wo.detail}</p>}
         {wo.permit && <div className={`od-permit ${wo.permit.status}`}>Permit: {wo.permit.type} — {wo.permit.status === "required" ? "required, not issued yet: work may not start" : wo.permit.status === "suspended" ? "suspended: work stopped until a clear gas test" : wo.permit.status}</div>}
         {(wo.crew || wo.robot) && <p className="small"><b>{wo.crew ? "Crew" : "Robot"}:</b> {wo.crew ? `${s.crews.find((c) => c.id === wo.crew)?.name} — ${s.crews.find((c) => c.id === wo.crew)?.contractor}, lead ${s.crews.find((c) => c.id === wo.crew)?.lead}` : s.robots.find((r) => r.id === wo.robot)?.name}{wo.missionId ? ` · mission ${wo.missionId}` : ""}{wo.package ? ` · turnaround ${wo.package}, ${wo.plannedStart} → ${wo.plannedEnd}` : ""}</p>}
+        {wo.support?.length ? <p className="small"><b>Working beside them:</b> {wo.support.map((x) => { const r = s.robots.find((y) => y.id === x.robotId); const m = s.missions.find((y) => y.id === x.missionId); return `${r?.name} — ${x.role}, ${r?.autonomy === "remote" ? "piloted" : "AI-controlled"}${m ? ` (${m.status})` : ""}`; }).join(" · ")}</p> : null}
         {wo.waitingFor.length > 0 && <div className="od-permit required">Waits for {wo.waitingFor.join(", ")} — it can&apos;t start before they are done.</div>}
         {wo.gasTest && (
           <div className={`od-permit ${wo.gasTest.status === "done" ? "issued" : "required"}`}>
