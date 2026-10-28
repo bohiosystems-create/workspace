@@ -50,7 +50,7 @@ Work in this source; the Kinan edition is what it builds. The vanilla edition is
 sample packs and the `KINAN_` variables, which become `APP_` — e.g. `APP_ADMINS`, `APP_DATA_DIR`), swaps the paper colours,
 the wordmark and the mark (`editions/vanilla/brand/`), appends the Bohio theme and splash (`editions/vanilla/bohio/`) and sets
 `NEXT_PUBLIC_EDITION=vanilla`. In the demo portal it lives in
-`bohio-demos/site-agent` (https://site-agent.bohiotech.com); regenerate it after every change here.
+`bohio-demos/site-agent` (https://rop.bohiotech.com); regenerate it after every change here.
 
 ## 1. How it fits together
 
