@@ -3,6 +3,7 @@
 // that day), so the demo always looks current: maintenance falls due, readings drift, alarms come and go. People's
 // and the orchestrator's changes are events applied on top (engine.ts). All names are fictional.
 import { rng } from "../data/util";
+import { addGasWork } from "./gasplant";
 import type { Alarm, Asset, AssetStatus, Criticality, Facility, FmData, Priority, Reading, Sector, Technician, Trade, WorkOrder, WoStatus, WoType } from "./types";
 
 const addDays = (iso: string, n: number) => { const d = new Date(iso.slice(0, 10) + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -37,9 +38,20 @@ const PROFILES: Record<string, Prof[]> = {
   ccr: [["ir", "Circuit insulation", "MΩ", 28, 6, 10], ["lamps", "Lamps out", "", 3, 2, undefined, 12]],
   firepump: [["press", "Jockey pressure", "bar", 9.2, 0.3, 8], ["start", "Weekly churn test", "pass", 1, 0]],
   compressor: [["press", "Discharge pressure", "bar", 7.4, 0.2, 6.5, 8.5], ["temp", "Discharge temperature", "°C", 88, 5, undefined, 110]],
+  // oil & gas
+  separator: [["lvl", "Liquid level", "%", 48, 6, 20, 80], ["press", "Pressure", "barg", 68, 1.2, undefined, 75], ["h2s", "H₂S in inlet gas", "%", 2.1, 0.1]],
+  gascomp: [["vib", "Vibration", "mm/s", 3.2, 0.5, undefined, 7.1], ["dt", "Discharge temperature", "°C", 128, 4, undefined, 150], ["sgas", "Seal-gas leakage", "Nm³/h", 4, 0.8, undefined, 9], ["pr", "Pressure ratio", "", 2.4, 0.05]],
+  amine: [["h2s", "H₂S in treated gas", "ppm", 2.1, 0.4, undefined, 4], ["load", "Rich amine loading", "mol/mol", 0.42, 0.02, undefined, 0.5]],
+  teg: [["dew", "Water dew point", "°C", -12, 1, undefined, -5], ["teg", "TEG purity", "%", 99.2, 0.1, 98.5]],
+  expander: [["spd", "Speed", "rpm", 18500, 300, undefined, 21000], ["vib", "Shaft vibration", "µm", 22, 3, undefined, 50]],
+  flare: [["pilot", "Pilots lit", "of 4", 4, 0, 3.5], ["flow", "Flare flow", "t/h", 2.1, 0.6, undefined, 8]],
+  tank: [["lvl", "Level", "%", 61, 8, undefined, 90], ["wall", "Minimum wall thickness", "mm", 9.2, 0.1, 8]],
+  pipeline: [["press", "Pressure", "barg", 82, 1, undefined, 90], ["cp", "Cathodic-protection potential", "mV", -980, 15, undefined, -850]],
+  detector: [["lel", "Flammable gas", "% LEL", 1, 0.8, undefined, 20], ["h2s", "H₂S", "ppm", 0.4, 0.3, undefined, 10]],
 };
 // The worst of the out-of-range readings decides how badly an asset is doing: which reading drifts on a degraded asset.
-const DRIFT: Record<string, string> = { pump: "vib", hpump: "brg", gt: "exh", st: "vib", hrsg: "stack", transformer: "h2", breaker: "sf6", ro: "dp", uf: "tmp", erd: "mix", dosing: "rate", screen: "dpw", chiller: "kwtr", ahu: "dpf", escalator: "trips", lift: "door", pbb: "faults", bhs: "jams", eds: "rej", ups: "batt", genset: "batt", ccr: "lamps", firepump: "press", compressor: "temp" };
+const DRIFT: Record<string, string> = { pump: "vib", hpump: "brg", gt: "exh", st: "vib", hrsg: "stack", transformer: "h2", breaker: "sf6", ro: "dp", uf: "tmp", erd: "mix", dosing: "rate", screen: "dpw", chiller: "kwtr", ahu: "dpf", escalator: "trips", lift: "door", pbb: "faults", bhs: "jams", eds: "rej", ups: "batt", genset: "batt", ccr: "lamps", firepump: "press", compressor: "temp",
+  separator: "press", gascomp: "sgas", amine: "h2s", teg: "dew", expander: "vib", flare: "pilot", tank: "wall", pipeline: "cp", detector: "lel" };
 
 // ------------------------------------------------------------------ the three facilities
 type A = [tag: string, name: string, cls: string, trade: Trade, crit: Criticality, zone: string, mfr: string, pmDays: number, spares?: string[]];
@@ -103,11 +115,31 @@ const AIRPORT: Plant = {
   story: [["PBB-03", "down", "critical", "Boarding bridge gate 203 drive fault: bridge cannot dock"], ["BHS-SRT-1", "degraded", "high", "Sorter 1: 14 jams in 24 h, tray 112 sticking"], ["CH-02", "running", "medium", "Chiller 2 efficiency 0.79 kW/TR: condenser fouling"], ["LF-07", "degraded", "medium", "PRM lift 7: 7 door faults in 24 h"]],
 };
 
-export const PLANTS: Plant[] = [ENERGY, WATER, AIRPORT];
+const GAS: Plant = {
+  f: { id: "kgpp", name: "Kinan Gas Processing Plant", sector: "oil_gas", location: "Eastern Province (demo)", operator: "Kinan Energy — Gas Operations", capacity: "600 MMSCFD sour gas · 3 compression trains · sales gas & NGL",
+    description: "Sour gas from the field is separated, compressed, sweetened in an amine unit, dried and chilled for NGL recovery, then exported as sales gas by pipeline. Compressor train B is in a turnaround this week, run by contractor crews; robots make the daily inspection rounds in the hazardous areas.",
+    output: { name: "Sales gas", unit: "MMSCFD", target: 520 }, efficiency: { name: "Fuel & flare loss", unit: "%", target: 2.0, base: 2.3, lowerIsBetter: true } },
+  systems: [
+    ["INL", "Inlet & separation", [["SC-100", "Slug catcher", "separator", "process", "A", "Inlet & separation", "Fabricated (demo)", 180], ["V-101", "Inlet separator", "separator", "process", "A", "Inlet & separation", "Fabricated (demo)", 180], ["GD-INL-1", "Gas detector, inlet area", "detector", "instrumentation", "A", "Inlet & separation", "Dräger-type", 90, ["Gas detector sensor head"]]]],
+    ["CMP", "Compression", [["K-201A", "Gas compressor train A", "gascomp", "rotating", "A", "Compression", "Siemens-type (demo)", 90, ["Dry gas seal cartridge", "Compressor bearing set"]], ["K-201B", "Gas compressor train B", "gascomp", "rotating", "A", "Compression", "Siemens-type (demo)", 90, ["Dry gas seal cartridge", "Compressor bearing set"]], ["K-201C", "Gas compressor train C (standby)", "gascomp", "rotating", "A", "Compression", "Siemens-type (demo)", 90, ["Dry gas seal cartridge", "Compressor bearing set"]], ["GD-COMP-2", "Gas detector, K-201A seal-gas panel", "detector", "instrumentation", "A", "Compression", "Dräger-type", 90, ["Gas detector sensor head"]]]],
+    ["AGR", "Gas treating (amine)", [["C-301", "Amine contactor", "amine", "process", "A", "Gas treating (amine)", "Fabricated (demo)", 365], ["P-303A", "Lean amine pump A", "pump", "mechanical", "A", "Gas treating (amine)", "Flowserve-type", 60, ["Mechanical seal 80 mm"]], ["P-303B", "Lean amine pump B (standby)", "pump", "mechanical", "A", "Gas treating (amine)", "Flowserve-type", 60, ["Mechanical seal 80 mm"]], ["GD-AGR-1", "Gas detector, amine unit (H₂S)", "detector", "instrumentation", "A", "Gas treating (amine)", "Dräger-type", 90, ["Gas detector sensor head"]]]],
+    ["DHY", "Dehydration & NGL", [["C-401", "TEG contactor", "teg", "process", "A", "Dehydration & NGL", "Fabricated (demo)", 365], ["X-501", "Turbo-expander", "expander", "rotating", "A", "Dehydration & NGL", "Atlas Copco-type (demo)", 120]]],
+    ["FLR", "Flare", [["F-901", "HP flare stack", "flare", "process", "A", "Flare", "Zeeco-type (demo)", 180, ["Flare pilot assembly"]]]],
+    ["TNK", "Tank farm", [["T-701A", "Condensate tank A", "tank", "inspection", "B", "Tank farm", "API 650 (demo)", 365], ["T-701B", "Condensate tank B", "tank", "inspection", "B", "Tank farm", "API 650 (demo)", 365]]],
+    ["UTL", "Utilities & power", [["GTG-1", "Gas turbine generator 1", "gt", "mechanical", "A", "Utilities & power", "Solar-type (demo)", 90, ["GT inlet filter set"]], ["K-961", "Instrument-air compressor", "compressor", "mechanical", "B", "Utilities & power", "Atlas-type", 30, ["Compressor service kit"]], ["P-951A", "Fire-water pump A", "firepump", "mechanical", "A", "Utilities & power", "Grundfos-type", 7], ["PL-01", "Sales-gas export pipeline", "pipeline", "inspection", "A", "Utilities & power", "48-inch (demo)", 180]]],
+  ],
+  techs: [["Majid Al-Rashid", "Operations manager", ["process"], "day", "Control room", 22], ["Abdulaziz Al-Mutlaq", "Control room supervisor", ["process", "mechanical"], "day", "Control room", 17], ["Hamad Al-Dosari", "Process operator", ["process"], "day", "Inlet & separation", 9], ["Feras Haddad", "Process operator", ["process"], "day", "Gas treating (amine)", 6],
+    ["Kevin D'Souza", "Rotating equipment technician", ["rotating", "mechanical"], "day", "Compression", 11], ["Yasser Al-Amri", "Mechanical technician", ["mechanical"], "day", "Utilities & power", 5], ["Rajesh Iyer", "I&E technician", ["electrical", "instrumentation"], "day", "Control room", 8],
+    ["Noura Al-Ghamdi", "HSE officer (gas tester)", ["process"], "day", "Control room", 7], ["Tom Walsh", "Inspection engineer", ["inspection"], "day", "Tank farm", 13], ["Saleh Al-Yami", "Process operator", ["process"], "night", "Compression", 10], ["Ali Hussain", "I&E technician", ["electrical", "instrumentation"], "night", "Utilities & power", 4]],
+  spares: [["Dry gas seal cartridge", 1, 2, 90, 185000, "Strategic store"], ["Compressor bearing set", 2, 1, 60, 46000, "Main store C-02"], ["Mechanical seal 80 mm", 1, 2, 21, 9800, "Main store A-12"], ["Flare pilot assembly", 0, 1, 30, 28000, "Main store F-01"], ["Gas detector sensor head", 4, 6, 14, 3200, "I&E store"], ["Compressor service kit", 1, 2, 7, 3400, "Main store C-01"], ["GT inlet filter set", 12, 8, 14, 1650, "Filter store"]],
+  story: [["K-201B", "maintenance", null, "Turnaround: compressor train B isolated for overhaul"], ["GD-COMP-2", "running", "high", "Gas detector GD-COMP-2: flammable gas above the 20 % LEL alarm at the K-201A seal-gas panel"], ["P-303A", "degraded", "medium", "Lean amine pump P-303A vibration rising (robot acoustic check, 06:00 round)"], ["F-901", "running", "medium", "Flare F-901: one of four pilots out"], ["T-701A", "running", "low", "Condensate tank T-701A roof plates thinning (last survey 8.6 mm)"], ["K-201C", "running", null, "Compressor train C running in place of B during the turnaround"]],
+};
+
+export const PLANTS: Plant[] = [ENERGY, WATER, AIRPORT, GAS];
 /** A technician's (fictional) mobile number: the same every day, so it can sign in to the field app and WhatsApp. */
 export const techPhone = (plant: number, i: number) => `+96655${plant + 1}${String(i + 1).padStart(2, "0")}${String(1000 + i * 37).slice(-3)}0`;
-export const SECTOR_LABEL: Record<Sector, string> = { energy: "Power & energy", water: "Water desalination", airport: "Airport" };
-const PREFIX: Record<string, string> = { kcps: "E", krsd: "W", kgia: "A" };
+export const SECTOR_LABEL: Record<Sector, string> = { energy: "Power & energy", water: "Water desalination", airport: "Airport", oil_gas: "Oil & gas" };
+const PREFIX: Record<string, string> = { kcps: "E", krsd: "W", kgia: "A", kgpp: "G" };
 
 const CHECK: Record<string, string[]> = {
   pump: ["Check vibration at both bearings", "Check bearing temperatures", "Inspect mechanical seal for leaks", "Check coupling alignment", "Record motor current"],
@@ -134,11 +166,20 @@ const CHECK: Record<string, string[]> = {
   ccr: ["Insulation test", "Replace failed lamps", "Check regulator output"],
   firepump: ["Weekly churn test", "Check jockey pressure", "Record run time"],
   compressor: ["Change oil and filters", "Check discharge temperature", "Drain receiver"],
+  separator: ["Check level transmitters against the gauge glass", "Test the high-level trip", "Inspect relief valve tags", "Record H₂S at the sample point (gas test first)"],
+  gascomp: ["Record vibration and bearing temperatures", "Check seal-gas panel flows", "Inspect for leaks with a gas detector", "Test anti-surge valve stroke"],
+  amine: ["Sample lean and rich amine", "Check foaming tendency", "Record treated-gas H₂S"],
+  teg: ["Record dew point", "Check TEG purity and pH", "Inspect reboiler fire tube"],
+  expander: ["Check bearing and seal oil", "Record vibration", "Test overspeed trip"],
+  flare: ["Check every pilot is lit (camera / thermal)", "Inspect tip from a safe distance (drone)", "Check knock-out drum level"],
+  tank: ["Ultrasonic wall thickness on the roof and lower shell", "Inspect the floating-roof seal", "Check earthing and vents"],
+  pipeline: ["Cathodic-protection survey", "Check pig launcher and receiver", "Walk the right of way"],
+  detector: ["Bump test with test gas", "Calibrate zero and span", "Check the alarm reaches the control room"],
 };
 
 /** The day's operating picture for every demo facility. */
 export function generate(date: string): FmData {
-  const out: FmData = { date, facilities: [], systems: [], assets: [], technicians: [], workOrders: [], alarms: [], spares: [] };
+  const out: FmData = { date, facilities: [], systems: [], assets: [], technicians: [], workOrders: [], alarms: [], spares: [], zones: [], contractors: [], crews: [], robots: [], missions: [], findingAcks: {} };
   const today = dayNo(date);
   for (const P of PLANTS) {
     const fid = P.f.id, pre = PREFIX[fid];
@@ -158,13 +199,14 @@ export function generate(date: string): FmData {
         const lastPm = addDays(date, -((today + phase) % pmDays) - 1);
         const prof = PROFILES[cls] ?? [];
         const readings: Reading[] = prof.map(([key, rname, unit, base, spread, low, high]) => {
-          const drift = st && DRIFT[cls] === key;
+          const drift = st && st[2] !== null && DRIFT[cls] === key; // a story without an alarm (a turnaround, a change-over) drifts nothing
           const towards = high ?? (low !== undefined ? low : base);
           const trend = Array.from({ length: 14 }, (_, k) => {
             const noise = (R() - 0.5) * spread * 1.2;
             const d = drift ? ((towards - base) * 1.12 * (k + 1)) / 14 * (low !== undefined && high === undefined ? 1.05 : 1) : 0;
-            return r1(standby && key !== "press" ? 0 : base + noise + d);
+            return r1((standby || status === "maintenance") && key !== "press" ? 0 : base + noise + d); // stopped: nothing to read
           });
+          if (unit.startsWith("of ")) trend.forEach((v, j) => (trend[j] = Math.floor(v))); // a count ("3 of 4 pilots lit")
           return { key, name: rname, value: trend[13], unit, low, high, trend };
         });
         const outOf = readings.filter((r) => (r.high !== undefined && r.value > r.high) || (r.low !== undefined && r.value < r.low)).length;
@@ -248,5 +290,7 @@ export function generate(date: string): FmData {
     const eff = P.f.efficiency;
     out.facilities.push({ ...P.f, output: { ...P.f.output, today: trend[13], trend }, efficiency: { name: eff.name, unit: eff.unit, target: eff.target, lowerIsBetter: eff.lowerIsBetter, value: r1(eff.base * (1 + (R() - 0.5) * 0.01) * (eff.lowerIsBetter ? 1 + derate / 2 : 1 - derate)) } });
   }
+  // the gas plant's working world: zones, contractor crews, robots and their missions, the turnaround (gasplant.ts)
+  addGasWork(out, date);
   return out;
 }

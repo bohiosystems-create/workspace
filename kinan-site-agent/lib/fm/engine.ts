@@ -4,6 +4,8 @@
 import type { Db } from "../types";
 import { currentDataDate } from "../data/util";
 import { generate } from "./data";
+import { simNow, simulate } from "../robots/sim";
+import { robotOutcomes } from "./work";
 import type { Asset, FmData, FmEvent, Kpis, Priority, Technician, WorkOrder } from "./types";
 
 const HOUR = 3600_000;
@@ -11,9 +13,11 @@ export const isOpen = (w: WorkOrder) => w.status !== "done";
 export const PRIORITY_SLA: Record<Priority, number> = { P1: 4, P2: 24, P3: 72, P4: 168 };
 
 /** Today's operating picture with every change applied. */
-export function fmToday(db: Db, date = db.data?.meta?.dataDate ?? currentDataDate()): FmData {
+export function fmToday(db: Db, date = db.data?.meta?.dataDate ?? currentDataDate(), now = Date.now()): FmData {
   const d = generate(date);
   for (const e of db.fmLog ?? []) applyEvent(d, e);
+  simulate(d, simNow(date, now)); // robots and their missions at this moment (lib/robots/sim.ts)
+  robotOutcomes(d);               // what finished robot checks mean for their jobs (work.ts)
   return d;
 }
 
@@ -29,6 +33,8 @@ export function applyEvent(d: FmData, e: FmEvent) {
         if (p.status === "done") { w.done = e.at; w.checklist.forEach((c) => (c.done = true)); w.holdReason = undefined;
           const a = d.assets.find((x) => x.id === w.assetId);
           if (a && w.type !== "PM" && (a.status === "down" || a.status === "degraded")) { a.status = /standby/i.test(a.name) ? "standby" : "running"; a.condition = Math.max(a.condition, 80); }
+          // a repair brings the readings back to normal (the leak fixed, the bearing changed): back to where they were two weeks ago
+          if (a && (w.type === "CM" || w.type === "Emergency")) for (const r of a.readings) { const out = (r.high !== undefined && r.value > r.high * 0.85) || (r.low !== undefined && r.value < r.low * 1.05); if (out) { r.was = { value: r.value, until: e.at }; r.value = r.trend[0]; } }
           if (a && w.type === "PM") { a.lastPm = e.at.slice(0, 10); a.nextPm = addDays(a.lastPm, a.pmEveryDays); }
           for (const al of d.alarms) if (al.woId === w.id) al.acknowledged = true;
         }
@@ -45,14 +51,47 @@ export function applyEvent(d: FmData, e: FmEvent) {
     case "alarm_ack": { const a = d.alarms.find((x) => x.id === e.alarmId); if (a) { a.acknowledged = true; if (e.woId) a.woId = e.woId; } break; }
     case "spare_order": { const s = d.spares.find((x) => x.id === e.spareId); if (s) s.onOrder = (s.onOrder ?? 0) + e.qty; break; }
     case "tech_status": { const t = d.technicians.find((x) => x.id === e.techId); if (t) { t.status = e.status; if (e.zone) t.zone = e.zone; } break; }
+    case "mission_create": if (!d.missions.some((m) => m.id === e.mission.id)) d.missions.push(structuredClone(e.mission)); break;
+    case "mission_update": {
+      const m = d.missions.find((x) => x.id === e.missionId); if (!m) break;
+      m.status = e.status; if (e.status !== "running") m.ended = e.at; if (e.note) m.note = e.note;
+      break;
+    }
+    case "robot_estop": {
+      const r = d.robots.find((x) => x.id === e.robotId); if (!r) break;
+      r.estop = e.on; r.note = e.on ? e.note ?? "Emergency stop" : undefined;
+      const t = Date.parse(e.at);
+      for (const m of d.missions.filter((x) => x.robotId === r.id)) {
+        // stopping freezes the mission under way; releasing does not restart it — it is sent again by a person
+        if (e.on && (m.status === "planned" || m.status === "running") && Date.parse(m.plannedStart) <= t && t < Date.parse(m.plannedStart) + m.durationMin * 60_000) { m.status = "paused"; m.ended = e.at; m.note = "Stopped by an emergency stop"; }
+        if (!e.on && m.status === "paused") { m.status = "aborted"; m.note = "Stopped by an emergency stop — send it again"; }
+      }
+      break;
+    }
+    case "finding_ack": d.findingAcks[e.findingId] = { ...(d.findingAcks[e.findingId] ?? {}), ...(e.woId ? { woId: e.woId } : {}) }; break;
+    case "crew_status": { const c = d.crews.find((x) => x.id === e.crewId); if (c) { c.status = e.status; if (e.zone) c.zone = e.zone; } break; }
+    case "gas_test": {
+      const w = d.workOrders.find((x) => x.id === e.woId); if (!w) break;
+      w.gasTest = { status: e.result, at: e.at, by: e.by, reading: e.reading };
+      if (e.result === "failed") { if (w.status !== "done") { w.status = "on_hold"; w.holdReason = `Not gas-free: ${e.reading}`; } }
+      else clearGasHold(w);
+      break;
+    }
     case "action": case "policy": break; // the decision itself (its effects are their own events), the autopilot mandate
   }
+}
+/** The hold reasons the gas rules set (and lift): not "waiting for a gas detector part". */
+export const GAS_HOLD = /^(gas in the area|not gas-free)/i;
+/** A job held for gas, now tested clear: back to its crew; the permit goes back to "required" (re-issued by a person). */
+export function clearGasHold(w: WorkOrder) {
+  if (w.status === "on_hold" && GAS_HOLD.test(w.holdReason ?? "")) { w.status = w.assignee || w.crew ? "assigned" : "open"; w.holdReason = undefined; }
+  if (w.permit?.status === "suspended") w.permit.status = "required";
 }
 const addDays = (iso: string, n: number) => { const x = new Date(iso.slice(0, 10) + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 
 /** Hours left before a work order breaches its SLA (negative: breached). Planned work runs to its due date. */
 export function slaLeft(w: WorkOrder, now = Date.now()) {
-  const end = w.type === "PM" ? Date.parse(w.due + "T23:59:00Z") : Date.parse(w.raised) + w.slaHours * HOUR;
+  const end = w.type === "PM" || w.type === "TAR" ? Date.parse(w.due + "T23:59:00Z") : Date.parse(w.raised) + w.slaHours * HOUR;
   return (end - now) / HOUR;
 }
 export const isOverdue = (w: WorkOrder, now = Date.now()) => isOpen(w) && slaLeft(w, now) < 0;

@@ -25,6 +25,8 @@ export interface SiteAction {
   cost?: number; costNote?: string;
   /** who carries it out once approved */
   owner?: string;
+  /** the company it concerns (paid, chased or escalated to): its own people can't decide it */
+  party?: string;
   locationId?: string;
   patches: SitePatch[];
   /** the instruction left on the site plan when approved */

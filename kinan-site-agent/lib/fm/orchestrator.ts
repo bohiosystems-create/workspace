@@ -5,6 +5,7 @@
 // AI agent can explain and act on exactly what the control room sees.
 import type { Action, FmData, FmEvent, Priority, WorkOrder } from "./types";
 import { PRIORITY_SLA, bestTech, isOpen, newWoId, slaLeft } from "./engine";
+import { waitingFor, workEffects, workProposals } from "./work";
 import { doubtLine } from "../proposals";
 
 /** What the orchestrator has learned from people's decisions (lib/proposals.ts). */
@@ -16,9 +17,11 @@ export interface Learned {
   /** "<facility>|<kind>" → mostly rejected here */
   doubts?: Map<string, { rejected: number; of: number; reasons: string[] }>;
 }
-export const KIND_LABEL: Record<Action["kind"], string> = { raise_wo: "raise work from an alarm", assign: "assign a job", reschedule: "reschedule overdue work", escalate: "escalate an SLA risk", order_spare: "order spares", permit: "issue a permit", isolate: "change over to standby" };
+export const KIND_LABEL: Record<Action["kind"], string> = { raise_wo: "raise work from an alarm", assign: "assign a job", reschedule: "reschedule overdue work", escalate: "escalate an SLA risk", order_spare: "order spares", permit: "issue a permit", isolate: "change over to standby",
+  assign_crew: "give a job to a contractor crew", robot_mission: "send a robot", robot_finding: "raise work from a robot finding", safety_stop: "stop unsafe work", robot_recall: "recall a robot", gas_test: "test for gas before work" };
 
-const PERMIT: Record<string, NonNullable<WorkOrder["permit"]>["type"]> = { electrical: "electrical isolation", transformer: "electrical isolation", breaker: "electrical isolation", ups: "electrical isolation", hrsg: "confined space", gt: "hot work", pbb: "work at height", escalator: "electrical isolation", lift: "electrical isolation" };
+const PERMIT: Record<string, NonNullable<WorkOrder["permit"]>["type"]> = { electrical: "electrical isolation", transformer: "electrical isolation", breaker: "electrical isolation", ups: "electrical isolation", hrsg: "confined space", gt: "hot work", pbb: "work at height", escalator: "electrical isolation", lift: "electrical isolation",
+  separator: "confined space", tank: "confined space", gascomp: "hot work", expander: "hot work", flare: "work at height", detector: "general" };
 
 export function propose(d: FmData, learned: Learned, facilityId?: string, now = Date.now()): Action[] {
   const decided = learned.closed;
@@ -55,7 +58,8 @@ export function propose(d: FmData, learned: Learned, facilityId?: string, now = 
   }
 
   // 3. Open work without anyone on it.
-  for (const w of d.workOrders.filter((x) => fac(x.facilityId) && x.status === "open" && !x.assignee)) {
+  // (contractor jobs go to crews, robot checks to robots: the work layer below)
+  for (const w of d.workOrders.filter((x) => fac(x.facilityId) && x.status === "open" && !x.assignee && !x.crew && !x.robot && x.type !== "TAR" && !x.requires?.length)) {
     const { tech, why } = bestTech(d, w, handed, learned.exclude?.get(`assign:${w.id}`));
     if (!tech) continue;
     push({ id: `assign:${w.id}`, facilityId: w.facilityId, kind: w.type === "PM" && w.due < d.date ? "reschedule" : "assign",
@@ -64,7 +68,8 @@ export function propose(d: FmData, learned: Learned, facilityId?: string, now = 
   }
 
   // 4. Urgent work about to breach its SLA without having started.
-  for (const w of d.workOrders.filter((x) => fac(x.facilityId) && isOpen(x) && x.type !== "PM" && (x.priority === "P1" || x.priority === "P2") && x.status !== "in_progress")) {
+  // (turnaround jobs run to their plan, not an SLA: the work layer watches what they wait for)
+  for (const w of d.workOrders.filter((x) => fac(x.facilityId) && isOpen(x) && x.type !== "PM" && x.type !== "TAR" && (x.priority === "P1" || x.priority === "P2") && x.status !== "in_progress")) {
     const left = slaLeft(w, now);
     if (left > w.slaHours * 0.5) continue;
     const sup = d.technicians.find((t) => t.facilityId === w.facilityId && /supervisor|manager/i.test(t.role));
@@ -86,11 +91,14 @@ export function propose(d: FmData, learned: Learned, facilityId?: string, now = 
   }
 
   // 6. Permits: assigned work on electrical / hot / confined / height jobs without a permit yet.
-  for (const w of d.workOrders.filter((x) => fac(x.facilityId) && (x.status === "assigned" || x.status === "in_progress") && x.permit?.status === "required")) {
+  // (not before the jobs it waits for are done, nor before its gas test)
+  for (const w of d.workOrders.filter((x) => fac(x.facilityId) && (x.status === "assigned" || x.status === "in_progress") && x.permit?.status === "required" && !waitingFor(d, x).length && x.gasTest?.status !== "required" && x.gasTest?.status !== "failed")) {
     push({ id: `permit:${w.id}`, facilityId: w.facilityId, kind: "permit", title: `Request a ${w.permit!.type} permit for ${w.id} (${asset(w.assetId).tag})`,
       why: [`${w.title}`, `No work may start on ${asset(w.assetId).tag} without a ${w.permit!.type} permit`, "Issued to the assigned technician; it shows on the job in the field app"],
       risk: "low", auto: true, effect: "wo_update", payload: { woId: w.id, patch: { note: `Permit issued: ${w.permit!.type}.`, permitStatus: "issued" } }, targets: { woId: w.id } });
   }
+  // 7. The work layer: robots first where they can go, contractor crews, robot findings, gas and hot work (work.ts)
+  workProposals(d, fac, push, handed, now, (k) => learned.exclude?.get(k));
   // what people keep rejecting here: no longer automatic, shown last, with the reason
   const doubt = (a: Action) => learned.doubts?.get(`${a.facilityId}|${a.kind}`);
   for (const a of out) { const l = doubt(a); if (l) { a.auto = false; a.why = [...a.why, doubtLine(KIND_LABEL[a.kind], l)]; } }
@@ -102,6 +110,8 @@ export function propose(d: FmData, learned: Learned, facilityId?: string, now = 
 export function effects(d: FmData, a: Action, by: string, channel: FmEvent["channel"], now = new Date()): FmEvent[] {
   const at = now.toISOString(), id = () => `ev_${Math.random().toString(36).slice(2, 10)}`;
   const base = { at, by, channel } as const;
+  const work = workEffects(d, a, base, id, (fid) => newWoId(d, fid));
+  if (work) return work;
   switch (a.kind) {
     case "raise_wo": {
       const wo = { ...(a.payload.wo as WorkOrder), id: newWoId(d, a.facilityId), raised: at };
@@ -116,5 +126,6 @@ export function effects(d: FmData, a: Action, by: string, channel: FmEvent["chan
       return [{ ...base, id: id(), kind: "wo_update", woId: String(a.payload.woId), patch: a.payload.patch as never, summary: a.title }];
     case "permit": return [{ ...base, id: id(), kind: "wo_update", woId: String(a.payload.woId), patch: a.payload.patch as never, summary: a.title }];
     case "order_spare": return [{ ...base, id: id(), kind: "spare_order", spareId: String(a.payload.spareId), qty: Number(a.payload.qty), summary: a.title }];
+    default: return [];
   }
 }

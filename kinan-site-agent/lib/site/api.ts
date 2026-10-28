@@ -40,7 +40,7 @@ export interface SiteDecideInput { actionId: string; decision: "approved" | "rej
 export function decideSite(db: Db, b: SiteDecideInput, user: Person | null | undefined, channel: SiteDecision["channel"]): { message: string; decision: SiteDecision } {
   const a = siteActions(db).find((x) => x.id === b.actionId);
   if (!a) throw new Error("That proposal is no longer open — the situation changed.");
-  const ok = b.decision === "approved" ? canApprove(user, { domain: "site", risk: a.risk, cost: a.cost }) : canApprove(user, { domain: "site", risk: "low" });
+  const ok = b.decision === "approved" ? canApprove(user, { domain: "site", risk: a.risk, cost: a.cost, kind: a.kind, party: a.party }) : canApprove(user, { domain: "site", risk: "low", kind: a.kind, party: a.party });
   if (!ok.ok) throw new Error(`${b.decision === "approved" ? "Can't approve" : "Can't reject"} “${a.title}”: ${ok.why}`);
   const at = new Date().toISOString();
   const reason = b.decision === "rejected" && isReason(b.reason) ? b.reason : undefined;

@@ -25,12 +25,12 @@ export interface ApprovalItem {
 export function approvals(db: Db, user: Person | null | undefined): ApprovalItem[] {
   const out: ApprovalItem[] = [];
   for (const a of siteActions(db)) out.push({ key: `site|${a.id}`, domain: "site", scopeId: "kinan-heights", scopeName: db.project.name, kind: a.kind, kindLabel: SITE_KIND_LABEL[a.kind],
-    title: a.title, why: a.why, risk: a.risk, ...(a.cost ? { cost: a.cost } : {}), ...(a.costNote ? { costNote: a.costNote } : {}), ...(a.owner ? { owner: a.owner } : {}), can: canApprove(user, { domain: "site", risk: a.risk, cost: a.cost }) });
+    title: a.title, why: a.why, risk: a.risk, ...(a.cost ? { cost: a.cost } : {}), ...(a.costNote ? { costNote: a.costNote } : {}), ...(a.owner ? { owner: a.owner } : {}), can: canApprove(user, { domain: "site", risk: a.risk, cost: a.cost, kind: a.kind, party: a.party }) });
   const d = fmToday(db);
   for (const a of HAS_OPERATIONS ? actions(db, d) : []) {
     const f = d.facilities.find((x) => x.id === a.facilityId)!;
     out.push({ key: `fm|${a.id}`, domain: "fm", scopeId: f.id, scopeName: f.name, kind: a.kind, kindLabel: KIND_LABEL[a.kind], title: a.title, why: a.why, risk: a.risk, ...(a.cost ? { cost: a.cost } : {}),
-      autopilot: autopilotOn(db, a.facilityId) && withinPolicy(db, a), can: canApprove(user, { domain: "fm", facilityId: a.facilityId, risk: a.risk, cost: a.cost }) });
+      autopilot: autopilotOn(db, a.facilityId) && withinPolicy(db, a), can: canApprove(user, { domain: "fm", facilityId: a.facilityId, risk: a.risk, cost: a.cost, kind: a.kind, party: a.party }) });
   }
   // what this person can act on first; within that, the riskiest first; the autopilot's own work last
   const r = { high: 0, medium: 1, low: 2 } as const;

@@ -4,7 +4,10 @@ import type { Db } from "../types";
 import { SECTOR_LABEL } from "./data";
 import { fmToday, findAsset, findTech, isOpen, isOverdue, kpis, newWoId, PRIORITY_SLA, slaLeft, workload } from "./engine";
 import { effects, propose, KIND_LABEL, type Learned } from "./orchestrator";
-import type { Action, AssetStatus, AutopilotPolicy, FmData, FmEvent, Priority, Technician, WorkOrder, WoStatus, WoType } from "./types";
+import type { Action, AssetStatus, AutopilotPolicy, Crew, FmData, FmEvent, Priority, Technician, WorkOrder, WoStatus, WoType } from "./types";
+import type { Capability, Mission } from "../robots/types";
+import { CAPABILITY_LABEL, MISSION_LABEL } from "../robots/types";
+import { robotMayEnter, waitingFor } from "./work";
 import { closedIds, excludedPeople, learnedDoubts, isReason, type DecisionLike, type RejectReason } from "../proposals";
 import { canApprove, canSetPolicy, type Person } from "../auth/people";
 
@@ -30,7 +33,7 @@ export function withinPolicy(db: Db, a: Action): boolean {
   const p = policyOf(db, a.facilityId);
   return !!p && a.auto && p.kinds.includes(a.kind) && (a.risk === "low" || (a.risk === "medium" && p.maxRisk === "medium")) && (a.cost ?? 0) <= p.maxSpend;
 }
-export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare"], maxRisk: "low", maxSpend: 25_000 };
+export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare", "safety_stop", "gas_test", "robot_recall", "robot_mission", "robot_finding"], maxRisk: "low", maxSpend: 25_000 };
 
 export function actions(db: Db, d: FmData, facilityId?: string): Action[] { return propose(d, learnedFrom(db), facilityId); }
 
@@ -66,7 +69,7 @@ export function facilityState(db: Db, facilityId: string) {
 /** The control room as this person sees it: may they approve each proposal, and sign the autopilot policy? */
 export function facilityStateFor(db: Db, facilityId: string, user: Person | null | undefined) {
   const st = facilityState(db, facilityId);
-  return { ...st, actions: st.actions.map((a) => ({ ...a, can: canApprove(user, { domain: "fm", facilityId, risk: a.risk, cost: a.cost }), byPolicy: autopilotOn(db, facilityId) && withinPolicy(db, a) })),
+  return { ...st, actions: st.actions.map((a) => ({ ...a, can: canApprove(user, { domain: "fm", facilityId, risk: a.risk, cost: a.cost, kind: a.kind, party: a.party }), byPolicy: autopilotOn(db, facilityId) && withinPolicy(db, a) })),
     canPolicy: canSetPolicy(user, facilityId), canPause: canApprove(user, { domain: "fm", facilityId, risk: "low" }), kindLabels: KIND_LABEL, defaultPolicy: DEFAULT_POLICY };
 }
 function eventFacility(d: FmData, e: FmEvent): string | undefined {
@@ -79,6 +82,12 @@ function eventFacility(d: FmData, e: FmEvent): string | undefined {
     case "tech_status": return d.technicians.find((t) => t.id === e.techId)?.facilityId;
     case "action": return e.facilityId ?? d.facilities.find((f) => e.summary.includes(f.name) || e.actionId.includes(f.id))?.id;
     case "policy": return e.facilityId;
+    case "mission_create": return e.mission.facilityId;
+    case "mission_update": return d.missions.find((m) => m.id === e.missionId)?.facilityId;
+    case "robot_estop": return d.robots.find((r) => r.id === e.robotId)?.facilityId;
+    case "finding_ack": return d.missions.find((m) => e.findingId.startsWith(m.id))?.facilityId;
+    case "crew_status": return d.crews.find((c) => c.id === e.crewId)?.facilityId;
+    case "gas_test": return d.workOrders.find((w) => w.id === e.woId)?.facilityId;
   }
 }
 
@@ -108,7 +117,8 @@ export function myDay(db: Db, techId: string) {
 
 // ------------------------------------------------------------------ writes
 export interface ActInput {
-  action: "decide" | "autopilot" | "policy" | "tick" | "wo_create" | "wo_update" | "asset_status" | "alarm_ack" | "tech_status";
+  action: "decide" | "autopilot" | "policy" | "tick" | "wo_create" | "wo_update" | "asset_status" | "alarm_ack" | "tech_status"
+    | "gas_test" | "mission" | "mission_abort" | "estop" | "crew_status";
   facilityId?: string; actionId?: string; decision?: "approved" | "rejected"; reason?: RejectReason; on?: boolean;
   policy?: Partial<Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend">>;
   asset?: string; title?: string; detail?: string; priority?: Priority; type?: WoType;
@@ -116,10 +126,16 @@ export interface ActInput {
   assetStatus?: AssetStatus; alarmId?: string; techId?: string; techStatus?: Technician["status"];
   /** the field app's id for this change (outbox retries are recorded once) */
   cid?: string;
+  /** a gas test's result and reading ("LEL 2 %, H₂S 0 ppm, O₂ 20.9 %") */
+  result?: "done" | "failed"; reading?: string;
+  /** robots: which robot, a mission (kind, where, what to check), which mission */
+  robotId?: string; missionKind?: Mission["kind"]; zone?: string; checks?: Capability[]; missionId?: string;
+  /** a contractor crew and its status */
+  crewId?: string; crewStatus?: Crew["status"];
 }
 /** Decide one proposal: approve (it runs) or reject (with the reason, which the orchestrator learns from). */
 function decideOne(db: Db, d: FmData, a: Action, b: { decision?: "approved" | "rejected"; reason?: RejectReason; note?: string }, by: string, channel: Channel, who: { byId?: string; role?: string }, user: Person | null | undefined): FmEvent[] {
-  const ok = b.decision === "approved" ? canApprove(user, { domain: "fm", facilityId: a.facilityId, risk: a.risk, cost: a.cost }) : canApprove(user, { domain: "fm", facilityId: a.facilityId, risk: "low" });
+  const ok = b.decision === "approved" ? canApprove(user, { domain: "fm", facilityId: a.facilityId, risk: a.risk, cost: a.cost, kind: a.kind, party: a.party }) : canApprove(user, { domain: "fm", facilityId: a.facilityId, risk: "low", kind: a.kind, party: a.party });
   if (!ok.ok) throw new Error(`${b.decision === "approved" ? "Can't approve" : "Can't reject"} “${a.title}”: ${ok.why}`);
   const evs: FmEvent[] = [];
   if (b.decision === "approved") for (const e of effects(d, a, by, channel)) evs.push(record(db, { ...e, ...who }));
@@ -197,6 +213,11 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       // the field team moves their own jobs (or unassigned ones); anyone may add a note or a photo
       if (user?.role === "field" && w.assignee && w.assignee !== user.techId && (b.status || b.assignee)) throw new Error(`${w.id} is ${d.technicians.find((t) => t.id === w.assignee)?.name ?? "someone else"}'s job — ask your supervisor to reassign it.`);
       if (b.status === "in_progress" && w.permit && w.permit.status === "required") throw new Error(`${w.id} needs a ${w.permit.type} permit before work starts — it has not been issued yet.`);
+      if (b.status === "in_progress" && w.permit?.status === "suspended") throw new Error(`${w.id}'s ${w.permit.type} permit is suspended (${w.holdReason ?? "gas in the area"}) — it restarts after a clear gas test.`);
+      if (b.status === "in_progress" && (w.gasTest?.status === "required" || w.gasTest?.status === "failed")) throw new Error(`${w.id} needs a clear gas test before work starts${w.gasTest.status === "failed" ? ` — the last one failed: ${w.gasTest.reading}` : ""}.`);
+      if (b.status === "in_progress" && waitingFor(d, w).length) throw new Error(`${w.id} waits for ${waitingFor(d, w).join(", ")} — they are not finished.`);
+      // a contractor's people work on their own crew's jobs only
+      if (user && user.orgType !== "client" && user.role !== "admin" && w.crew !== user.crewId) throw new Error(`${w.id} isn't ${user.crewId ? "your crew's" : `${user.org}'s`} job — the client's control room reassigns it.`);
       const tech = b.assignee ? findTech(d, b.assignee, w.facilityId) : undefined;
       const patch = { ...(b.status ? { status: b.status } : {}), ...(tech ? { assignee: tech.id } : {}), ...(b.note ? { note: b.note } : {}), ...(b.evidence?.length ? { evidence: b.evidence } : {}), ...(b.checklist !== undefined ? { checklist: [b.checklist] } : {}), ...(b.status === "on_hold" ? { holdReason: b.holdReason || b.note || "On hold" } : {}) };
       const words = b.status === "done" ? "closed" : b.status === "in_progress" ? "started" : b.status === "on_hold" ? "put on hold" : b.status ? b.status.replace("_", " ") : tech ? `given to ${tech.name}` : b.note ? "noted" : "updated";
@@ -220,6 +241,62 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       if (!t || !b.techStatus) throw new Error("Which technician and status?");
       add({ kind: "tech_status", techId: t.id, status: b.techStatus, summary: `${t.name} ${b.techStatus.replace("_", " ")}` });
       return { ok: true, message: `${t.name}: ${b.techStatus.replace("_", " ")}.`, events: evs };
+    }
+    case "gas_test": {
+      const w = d.workOrders.find((x) => x.id === b.woId);
+      if (!w) throw new Error("Which job was tested?");
+      if (b.result !== "done" && b.result !== "failed") throw new Error("Was it clear (done) or not (failed)?");
+      if (!user || (!/hse|safety|gas tester/i.test(user.title) && (user.orgType !== "client" || user.role === "field" || user.role === "guest"))) throw new Error("A gas test is recorded by an authorised gas tester or a supervisor.");
+      const reading = (b.reading ?? "").trim() || (b.result === "done" ? "LEL 0 %, H₂S 0 ppm, O₂ 20.9 %" : "");
+      if (b.result === "failed" && !reading) throw new Error("What did the detector read?");
+      add({ kind: "gas_test", woId: w.id, result: b.result, reading, summary: `gas test on ${w.id}: ${b.result === "done" ? "clear" : "not clear"} — ${reading}` });
+      return { ok: true, message: b.result === "done" ? `${w.id}: gas test clear (${reading}).${w.status === "on_hold" ? " The job goes back to its crew; the permit is to be re-issued." : ""}` : `${w.id}: not gas-free (${reading}) — the job stays on hold.`, events: evs };
+    }
+    case "mission": {
+      const r = d.robots.find((x) => x.id === b.robotId || x.name.toLowerCase() === String(b.robotId ?? "").toLowerCase());
+      if (!r) throw new Error("Which robot?");
+      if (!user || user.orgType !== "client" || user.role === "guest") throw new Error("Robots are sent by the facility's own staff.");
+      if (r.estop || r.status === "fault" || r.status === "offline") throw new Error(`${r.name} is ${r.estop ? "on emergency stop — release it on site first" : r.status}.`);
+      if (r.status === "on_mission" || d.missions.some((m) => m.robotId === r.id && (m.status === "running" || (m.status === "planned" && Math.abs(Date.parse(m.plannedStart) - Date.now()) < 30 * 60_000)))) throw new Error(`${r.name} is busy — on a mission or about to start one.`);
+      const hit = b.asset ? findAsset(d, b.asset, r.facilityId) : undefined;
+      const asset = hit?.asset;
+      const zone = d.zones.find((z) => z.facilityId === r.facilityId && (z.id === b.zone || z.name.toLowerCase() === String(b.zone ?? "").toLowerCase() || z.name === asset?.zone));
+      if (!zone) throw new Error(`Where should ${r.name} go? Name an asset or one of: ${d.zones.filter((z) => z.facilityId === r.facilityId).map((z) => z.name).join(", ")}.`);
+      if (!robotMayEnter(r, zone)) throw new Error(`${r.name} isn't certified for hazardous areas — ${zone.name} is zone ${zone.atex}. Send an Ex-rated robot.`);
+      const kind: Mission["kind"] = b.missionKind ?? "inspection_round";
+      const checks = (b.checks?.length ? b.checks : r.capabilities.filter((c) => c !== "lidar" && c !== "carry")) as Capability[];
+      const missing = checks.filter((c) => !r.capabilities.includes(c));
+      if (missing.length) throw new Error(`${r.name} has no ${missing.map((c) => CAPABILITY_LABEL[c]).join(", ")}.`);
+      const dur = kind === "inspection_round" ? 45 : kind === "thickness_survey" ? 60 : 20;
+      if (r.battery < 25 + (90 * dur) / r.enduranceMin) throw new Error(`${r.name} has ${r.battery}% — not enough for a ${dur}-minute ${MISSION_LABEL[kind]}. It is charging.`);
+      const m: Mission = { id: `MS-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`, facilityId: r.facilityId, robotId: r.id, kind, title: `${MISSION_LABEL[kind][0].toUpperCase()}${MISSION_LABEL[kind].slice(1)} — ${asset ? `${asset.tag} ${asset.name}` : zone.name}`,
+        waypoints: [{ zone: zone.id, ...(asset ? { assetId: asset.id } : {}), label: asset ? `${asset.tag} ${asset.name}` : zone.name, checks }], plannedStart: new Date(Date.now() + 60_000).toISOString(), durationMin: dur, status: "planned", by, source: channel === "whatsapp" ? "whatsapp" : channel === "field" ? "field" : "control", findings: [], ...(b.woId ? { woId: b.woId } : {}) };
+      add({ kind: "mission_create", mission: m, summary: `${m.id}: ${r.name} — ${m.title}` });
+      return { ok: true, message: `${r.name} is on its way: ${m.title} (${dur} min, ${checks.map((c) => CAPABILITY_LABEL[c]).join(", ")}). Mission ${m.id}.`, events: evs };
+    }
+    case "mission_abort": {
+      const m = d.missions.find((x) => x.id === b.missionId);
+      if (!m) throw new Error("Which mission?");
+      if (m.status !== "planned" && m.status !== "running") throw new Error(`${m.id} is ${m.status} already.`);
+      if (!user || user.orgType !== "client") throw new Error("Missions are cancelled by the facility's own staff (anyone can hit the robot's emergency stop).");
+      add({ kind: "mission_update", missionId: m.id, status: "aborted", note: b.note ?? `Cancelled by ${by}`, summary: `${m.id} cancelled` });
+      return { ok: true, message: `${m.id} cancelled — ${d.robots.find((r) => r.id === m.robotId)?.name} returns to its dock.`, events: evs };
+    }
+    case "estop": {
+      const r = d.robots.find((x) => x.id === b.robotId || x.name.toLowerCase() === String(b.robotId ?? "").toLowerCase());
+      if (!r) throw new Error("Which robot?");
+      // anyone signed in may stop a robot; releasing it is a supervisor's call, after a look on site
+      if (b.on === false && (!user || user.orgType !== "client" || !["supervisor", "manager", "director", "admin"].includes(user.role))) throw new Error("Releasing an emergency stop is a supervisor's call, after checking the robot on site.");
+      if (!user) throw new Error("Sign in to stop a robot (or use the stop button on the robot).");
+      add({ kind: "robot_estop", robotId: r.id, on: b.on !== false, note: b.note, summary: `${r.name} ${b.on !== false ? "emergency stop" : "released"}${b.note ? `: ${b.note}` : ""}` });
+      return { ok: true, message: b.on !== false ? `${r.name} stopped. Its mission is frozen; send it again once released.` : `${r.name} released — it is free for new missions.`, events: evs };
+    }
+    case "crew_status": {
+      const c = d.crews.find((x) => x.id === b.crewId);
+      if (!c || !b.crewStatus) throw new Error("Which crew and status?");
+      if (user && user.orgType !== "client" && user.crewId !== c.id) throw new Error(`${c.name} isn't your crew.`);
+      add({ kind: "crew_status", crewId: c.id, status: b.crewStatus, ...(b.zone ? { zone: b.zone } : {}), summary: `${c.name} ${b.crewStatus.replace("_", " ")}` });
+      return { ok: true, message: `${c.name}: ${b.crewStatus.replace("_", " ")}.`, events: evs };
     }
   }
 }

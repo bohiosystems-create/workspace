@@ -158,7 +158,7 @@ export async function runTool(repo: Repo, name: string, raw: Record<string, any>
         }
         const xs = siteActions(db).filter((a) => !input.kind || a.kind === input.kind);
         return J({ user: ctx.user ? `${ctx.user.name} (${ctx.user.role})` : "not signed in — can't approve", count: xs.length,
-          proposals: xs.map((a) => ({ id: a.id, kind: a.kind, title: a.title, why: a.why, risk: a.risk, cost: a.cost, costNote: a.costNote, owner: a.owner, userMayApprove: canApprove(ctx.user, { domain: "site", risk: a.risk, cost: a.cost }) })) });
+          proposals: xs.map((a) => ({ id: a.id, kind: a.kind, title: a.title, why: a.why, risk: a.risk, cost: a.cost, costNote: a.costNote, owner: a.owner, userMayApprove: canApprove(ctx.user, { domain: "site", risk: a.risk, cost: a.cost, kind: a.kind, party: a.party }) })) });
       }
       case "search_documents": {
         let locationId: string | undefined;

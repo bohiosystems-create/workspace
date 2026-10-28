@@ -3,15 +3,22 @@
 // demo), every change made by people or by the orchestrator is an event (FmEvent) kept in the database and
 // re-applied on top (engine.ts), and the orchestrator (orchestrator.ts) proposes the next actions with its reasons.
 
-export type Sector = "energy" | "water" | "airport";
+export type Sector = "energy" | "water" | "airport" | "oil_gas";
 export type Criticality = "A" | "B" | "C";
 export type AssetStatus = "running" | "standby" | "degraded" | "down" | "maintenance";
-export type WoType = "PM" | "CM" | "Inspection" | "Emergency";
+export type WoType = "PM" | "CM" | "Inspection" | "Emergency" | "TAR";
 export type WoStatus = "open" | "assigned" | "in_progress" | "on_hold" | "done";
 export type Priority = "P1" | "P2" | "P3" | "P4";
-export type Trade = "mechanical" | "electrical" | "instrumentation" | "hvac" | "civil" | "controls" | "lifts" | "chemical";
+export type Trade = "mechanical" | "electrical" | "instrumentation" | "hvac" | "civil" | "controls" | "lifts" | "chemical" | "process" | "inspection" | "scaffolding" | "rotating";
+/** What makes a place dangerous: decides who (and which robot) may go there, and what a job there needs. */
+export type Hazard = "h2s" | "hydrocarbon" | "high_voltage" | "confined_space" | "height" | "hot_surface" | "noise";
+/** An area of a facility, with its hazards and hazardous-area class (ATEX/IECEx zone 1 or 2; null = safe area). The
+ *  plan coordinates (0–100 × 0–60) place it on the facility map, with the robots and crews in it. */
+export interface ZoneDef { id: string; facilityId: string; name: string; hazards: Hazard[]; atex: 1 | 2 | null; x: number; y: number; w: number; h: number }
 
-export interface Reading { key: string; name: string; value: number; unit: string; low?: number; high?: number; trend: number[] }
+export interface Reading { key: string; name: string; value: number; unit: string; low?: number; high?: number; trend: number[]
+  /** the value before a repair brought it back, until when — so a check made before the repair keeps what it saw */
+  was?: { value: number; until: string } }
 
 export interface Asset {
   id: string; tag: string; name: string; facilityId: string; systemId: string; class: string; trade: Trade;
@@ -37,10 +44,22 @@ export interface Technician {
 export interface WorkOrder {
   id: string; facilityId: string; assetId: string; type: WoType; priority: Priority; status: WoStatus;
   title: string; detail: string; raised: string; due: string; slaHours: number;
-  assignee?: string; team?: string; source: "schedule" | "sensor" | "whatsapp" | "field" | "control" | "orchestrator";
+  assignee?: string; team?: string; source: "schedule" | "sensor" | "whatsapp" | "field" | "control" | "orchestrator" | "robot" | "turnaround";
+  /** a contractor crew on the job (Crew.id) instead of, or alongside, an in-house technician */
+  crew?: string;
+  /** a robot doing it (an inspection a robot can make), and its mission */
+  robot?: string; missionId?: string;
+  /** what the job needs to be done by a robot: its sensors/tools */
+  requires?: import("../robots/types").Capability[];
+  /** a turnaround (shutdown) package: the package id, the jobs it waits for, and its planned window */
+  package?: string; after?: string[]; plannedStart?: string; plannedEnd?: string;
+  /** a gas test before work (hazardous areas, hot work, confined space): required, done (with the reading) or failed */
+  gasTest?: { status: "required" | "done" | "failed"; at?: string; by?: string; reading?: string };
+  /** where the work is, when it isn't the asset's own zone */
+  zone?: string;
   raisedBy: string; started?: string; done?: string; holdReason?: string;
   checklist: { text: string; done: boolean }[];
-  permit?: { type: "electrical isolation" | "hot work" | "confined space" | "work at height" | "general"; status: "required" | "issued" | "closed" };
+  permit?: { type: "electrical isolation" | "hot work" | "confined space" | "work at height" | "general"; status: "required" | "issued" | "closed" | "suspended" };
   spares: { part: string; qty: number }[];
   notes: { at: string; by: string; text: string; via?: string }[];
   evidence: string[];
@@ -58,6 +77,11 @@ export interface Facility {
   efficiency: { name: string; unit: string; value: number; target: number; lowerIsBetter: boolean };
 }
 
+/** A contractor company working at a facility, with its contract and crews (lib/work for the construction side). */
+export interface FmContractor { id: string; facilityId: string; name: string; trades: Trade[]; scope: string; contractRef: string; until: string; /** SAR per crew-day */ dayRate: number; /** last 90 days */ performance: { onTimePct: number; reworkPct: number; ltiFreeDays: number; rating: "good" | "watch" | "poor"; note?: string } }
+/** A contractor's crew: assigned to jobs like a technician, paid by the day. */
+export interface Crew { id: string; contractorId: string; facilityId: string; name: string; lead: string; leadPhone: string; size: number; trades: Trade[]; zone: string; shift: "day" | "night"; status: "available" | "on_job" | "mobilising" | "off"; certs: string[] }
+
 export interface FmData {
   date: string;
   facilities: Facility[];
@@ -67,6 +91,13 @@ export interface FmData {
   workOrders: WorkOrder[];
   alarms: Alarm[];
   spares: Spare[];
+  zones: ZoneDef[];
+  contractors: FmContractor[];
+  crews: Crew[];
+  robots: import("../robots/types").Robot[];
+  missions: import("../robots/types").Mission[];
+  /** robot findings people have seen, and the work raised from them */
+  findingAcks: Record<string, { woId?: string }>;
 }
 
 /** One change, by a person or by the orchestrator. Re-applied in order on top of the generated day. */
@@ -78,13 +109,19 @@ export type FmEvent = {
   cid?: string;
 } & (
   | { kind: "wo_create"; wo: WorkOrder }
-  | { kind: "wo_update"; woId: string; patch: Partial<Pick<WorkOrder, "status" | "assignee" | "priority" | "due" | "holdReason">> & { note?: string; evidence?: string[]; checklist?: number[]; permitStatus?: "issued" | "closed" } }
+  | { kind: "wo_update"; woId: string; patch: Partial<Pick<WorkOrder, "status" | "assignee" | "priority" | "due" | "holdReason" | "crew" | "robot" | "missionId">> & { note?: string; evidence?: string[]; checklist?: number[]; permitStatus?: "issued" | "closed" | "suspended" } }
   | { kind: "asset_status"; assetId: string; status: AssetStatus; note?: string }
   | { kind: "alarm_ack"; alarmId: string; woId?: string }
   | { kind: "spare_order"; spareId: string; qty: number }
   | { kind: "action"; actionId: string; decision: "approved" | "rejected" | "auto"; actionKind?: Action["kind"]; facilityId?: string; reason?: import("../proposals").RejectReason; note?: string; targetTech?: string; cost?: number; risk?: Action["risk"] }
   | { kind: "policy"; facilityId: string; policy: AutopilotPolicy | null }
   | { kind: "tech_status"; techId: string; status: Technician["status"]; zone?: string }
+  | { kind: "mission_create"; mission: import("../robots/types").Mission }
+  | { kind: "mission_update"; missionId: string; status: "aborted" | "paused" | "running"; note?: string }
+  | { kind: "robot_estop"; robotId: string; on: boolean; note?: string }
+  | { kind: "finding_ack"; findingId: string; woId?: string }
+  | { kind: "crew_status"; crewId: string; status: Crew["status"]; zone?: string }
+  | { kind: "gas_test"; woId: string; result: "done" | "failed"; reading: string }
 );
 
 export interface FmConfig { autopilot: Record<string, boolean>; /** what the autopilot may do, signed by a manager, per facility */ policy?: Record<string, AutopilotPolicy> }
@@ -96,16 +133,19 @@ export interface AutopilotPolicy { kinds: Action["kind"][]; maxRisk: "low" | "me
 /** What the orchestrator proposes, with why. Approved actions become events. */
 export interface Action {
   id: string; facilityId: string;
-  kind: "raise_wo" | "assign" | "reschedule" | "escalate" | "order_spare" | "permit" | "isolate";
+  kind: "raise_wo" | "assign" | "reschedule" | "escalate" | "order_spare" | "permit" | "isolate"
+    | "assign_crew" | "robot_mission" | "robot_finding" | "safety_stop" | "robot_recall" | "gas_test";
   title: string; why: string[];
   risk: "low" | "medium" | "high";
   /** money it commits (SAR), for approval limits */
   cost?: number;
+  /** the company it concerns (a contractor crew hired, paid or escalated to): its own people can't decide it */
+  party?: string;
   /** low-risk actions run by themselves when autopilot is on */
   auto: boolean;
   effect: FmEvent["kind"];
   payload: Record<string, unknown>;
-  targets: { woId?: string; assetId?: string; techId?: string; spareId?: string; alarmId?: string };
+  targets: { woId?: string; assetId?: string; techId?: string; spareId?: string; alarmId?: string; crewId?: string; robotId?: string; findingId?: string; zoneId?: string };
 }
 
 export interface Kpis {

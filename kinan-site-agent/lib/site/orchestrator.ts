@@ -40,7 +40,7 @@ export function proposeSite(db: Db, learned: SiteLearned, now = new Date()): Sit
     push({ id: `expedite:${p.id}`, domain: "site", kind: "expedite", title: `Ask ${supplierName(p.supplierId)} to expedite ${p.name} (${late} days late)`,
       why: [`Needed on site ${fmt(p.requiredOnSite)}, forecast ${fmt(p.forecastOnSite)}`, ...(a ? [`Feeds ${a.id} ${a.name}${a.critical ? " — on the critical path" : ` (${a.totalFloat} days float)`}`] : []),
         ...(delayed.length ? [`${delayed.length} deliver${delayed.length > 1 ? "ies" : "y"} delayed: ${delayed[0].remarks ?? delayed[0].items}`] : []), `Status ${p.status}. ${p.notes}`.slice(0, 160)],
-      risk: "low", owner: procurementLead?.name ?? "Procurement", locationId: a?.locationId, targets: { packageId: p.id, activityId: a?.id },
+      risk: "low", owner: procurementLead?.name ?? "Procurement", party: supplierName(p.supplierId), locationId: a?.locationId, targets: { packageId: p.id, activityId: a?.id },
       patches: [{ t: "package_note", id: p.id, text: `Expedite requested ${date}: recover up to ${late} days on ${fmt(p.forecastOnSite)}.` }],
       instruction: `Expedite ${p.id} ${p.name} with ${supplierName(p.supplierId)}: confirm a recovery date within 48 h (forecast ${fmt(p.forecastOnSite)}, needed ${fmt(p.requiredOnSite)}).` });
 
@@ -78,7 +78,7 @@ export function proposeSite(db: Db, learned: SiteLearned, now = new Date()): Sit
     const cost = left * NIGHT_SHIFT_SAR;
     push({ id: `recover:${a.id}`, domain: "site", kind: "recover", title: `Night shift on ${a.id} for ${left} nights to recover ${rec} of ${slip(a)} days`,
       why: [`${a.name}: ${a.percent}% done, forecast ${fmt(a.finish)} vs baseline ${fmt(a.baselineFinish)} (+${slip(a)} days)`, a.critical ? "On the critical path: every day lost moves completion" : `Not critical yet, but ${slip(a)} days behind is eating the float of the work that follows (${a.trade.toLowerCase()} trade)`, `${left} nights at about ${sar(NIGHT_SHIFT_SAR)} each (crew, plant, lighting) — estimate`, "Night work needs the heat-stress and lighting controls in the method statement"],
-      risk: cost > 25_000 ? "medium" : "low", cost, costNote: `${left} × ${sar(NIGHT_SHIFT_SAR)} (estimate)`, owner: a.contractor.replace(/ \(.*\)$/, ""), locationId: a.locationId, targets: { activityId: a.id },
+      risk: cost > 25_000 ? "medium" : "low", cost, costNote: `${left} × ${sar(NIGHT_SHIFT_SAR)} (estimate)`, owner: a.contractor.replace(/ \(.*\)$/, ""), party: a.contractor, locationId: a.locationId, targets: { activityId: a.id },
       patches: [{ t: "activity", id: a.id, finish: addDays(a.finish, -rec) }],
       instruction: `Recovery approved: add a night shift on ${a.id} ${a.name} for ${left} nights to recover ${rec} days (target finish ${fmt(addDays(a.finish, -rec))}).` });
   }
@@ -127,7 +127,7 @@ export function proposeSite(db: Db, learned: SiteLearned, now = new Date()): Sit
     const over = daysBetween(n.due, date);
     const pm = contact(/project manager/i, new RegExp(n.contractor.split(" ")[0], "i"));
     push({ id: `ncr:${n.id}:${n.due}`, domain: "site", kind: "ncr_escalate", title: `Escalate ${n.id} to ${pm?.name ?? n.contractor}: ${over} day${over === 1 ? "" : "s"} overdue`,
-      why: [`${n.severity}: ${n.title}`, `Close-out was due ${fmt(n.due)}`, `Disposition: ${n.disposition}`.slice(0, 140)], risk: "low", owner: pm?.name ?? n.contractor, locationId: n.locationId, targets: { ncrId: n.id },
+      why: [`${n.severity}: ${n.title}`, `Close-out was due ${fmt(n.due)}`, `Disposition: ${n.disposition}`.slice(0, 140)], risk: "low", owner: pm?.name ?? n.contractor, party: n.contractor, locationId: n.locationId, targets: { ncrId: n.id },
       patches: [{ t: "ncr_due", id: n.id, due: addDays(date, n.severity === "Major" ? 3 : 7) }],
       instruction: `${n.id} escalated to ${pm?.name ?? n.contractor}: close out by ${fmt(addDays(date, n.severity === "Major" ? 3 : 7))} (${n.severity}, ${over} days overdue).` });
   }

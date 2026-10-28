@@ -92,7 +92,7 @@ async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx:
         await repo.save();
         return J({ done, stillProposed: actions(db, fmToday(db), fid).map((a) => ({ id: a.id, title: a.title, risk: a.risk })) });
       }
-      return J({ facility: fid, user: ctx.user ? `${ctx.user.name} (${ctx.user.role})` : "not signed in — can't approve", proposals: actions(db, d, fid).map((a) => ({ id: a.id, title: a.title, why: a.why, risk: a.risk, cost: a.cost, autopilotEligible: a.auto, userMayApprove: canApprove(ctx.user, { domain: "fm", facilityId: a.facilityId, risk: a.risk, cost: a.cost }) })) });
+      return J({ facility: fid, user: ctx.user ? `${ctx.user.name} (${ctx.user.role})` : "not signed in — can't approve", proposals: actions(db, d, fid).map((a) => ({ id: a.id, title: a.title, why: a.why, risk: a.risk, cost: a.cost, autopilotEligible: a.auto, userMayApprove: canApprove(ctx.user, { domain: "fm", facilityId: a.facilityId, risk: a.risk, cost: a.cost, kind: a.kind, party: a.party }) })) });
     }
     case "fm_team":
       return J(d.technicians.filter((t) => !fid || t.facilityId === fid).map((t) => ({ name: t.name, role: t.role, trades: t.trades, shift: t.shift, zone: t.zone, status: t.status, openJobs: workload(d, t.id) })));
