@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
+import { publishAfter } from "@/lib/integrations/outbound";
 import { getRepo } from "@/lib/store";
 import { act } from "@/lib/fm/api";
 import { HAS_OPERATIONS } from "@/lib/edition";
@@ -7,6 +8,11 @@ import type { RobotReport } from "@/lib/fm/types";
 import { fmToday } from "@/lib/fm/engine";
 import { analyseImages, MAX_IMAGE_BYTES, type DroneImage } from "@/lib/robots/vision";
 import { serverLlm } from "@/lib/llmConfig";
+import { ack, outbox } from "@/lib/robots/dispatch";
+import { vdaStateToReport } from "@/lib/robots/protocols/vda5050";
+import { djiOsdToReport, djiProgress } from "@/lib/robots/protocols/dji";
+import { orbitWebhookToReport } from "@/lib/robots/protocols/orbit";
+import { securityAlarmToReport } from "@/lib/robots/protocols/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,18 +25,61 @@ export const dynamic = "force-dynamic";
 //   "images"?: [{ "base64": "…", "mime": "image/jpeg", "asset"?: "PL-01", "zone"?: "Airfield", "purpose"?: "inspection" | "security", "note"?: "…" }]
 //     up to 4 per report, 4 MB each: the AI vision model reads them into findings and security alerts (lib/robots/vision.ts)
 //   or { "reports": [ …up to 50 of those… ] }
+// The machines' own formats, read into that shape (lib/robots/protocols):
+//   { "protocol": "vda5050", "robot": "FOD-1", "state": {…VDA 5050 state…} }        from the fleet bridge
+//   { "protocol": "dji", "robot": "Drone-A1", "method": "flighttask_progress" | "osd", "data": {…} }   from the fleet bridge
+//   POST /api/fm/robots?protocol=orbit     an Orbit webhook as Orbit sends it
+//   POST /api/fm/robots?protocol=security  a security robot's alarm (robot, type, message, zone, videoUrl)
+// The fleet bridge also collects its commands and acknowledges them:
+//   GET  /api/fm/robots?outbox=1[&protocol=vda5050|dji]   -> { commands: [{ commandId, robotId, missionId, protocol, messages: [{ topic, payload }] }] }
+//   POST /api/fm/robots { "acks": [{ "commandId": "…", "ok": true, "note": "…" }] }
+// Token: ROBOT_INGEST_TOKEN (fleets, webhooks) or FLEET_BRIDGE_TOKEN (the bridge).
 const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
-export async function POST(req: Request) {
+/** Either token lets a caller in; without one set, the endpoint is off. */
+function gate(req: Request): NextResponse | null {
   if (!HAS_OPERATIONS) return NextResponse.json({ error: "Facility operations are not part of this edition." }, { status: 404 });
-  const token = process.env.ROBOT_INGEST_TOKEN ?? "";
-  if (token.length < 16) return NextResponse.json({ error: "Robot reports are not switched on: set ROBOT_INGEST_TOKEN (16+ characters)." }, { status: 503 });
+  const tokens = [process.env.ROBOT_INGEST_TOKEN ?? "", process.env.FLEET_BRIDGE_TOKEN ?? ""].filter((t) => t.length >= 16);
+  if (!tokens.length) return NextResponse.json({ error: "Robot reports are not switched on: set ROBOT_INGEST_TOKEN or FLEET_BRIDGE_TOKEN (16+ characters)." }, { status: 503 });
   const got = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!same(got, token)) return NextResponse.json({ error: "Wrong or missing token." }, { status: 401 });
-  let body: { reports?: RobotReport[] } & Partial<RobotReport>;
+  return tokens.some((t) => same(got, t)) ? null : NextResponse.json({ error: "Wrong or missing token." }, { status: 401 });
+}
+
+export async function GET(req: Request) {
+  const no = gate(req); if (no) return no;
+  const q = new URL(req.url).searchParams;
+  if (!q.get("outbox")) return NextResponse.json({ error: "GET ?outbox=1 lists the commands waiting for the fleet bridge." }, { status: 400 });
+  return NextResponse.json({ commands: outbox((await getRepo()).db, q.get("protocol") ?? undefined) }, { headers: { "Cache-Control": "no-store" } });
+}
+
+/** A machine's own message, read into the common report (null when it isn't one). */
+function fromProtocol(protocol: string, b: Record<string, unknown>, nodes: Record<string, string>): RobotReport | null {
+  if (protocol === "vda5050") { const back = Object.fromEntries(Object.entries(nodes).map(([k, v]) => [v, k])); return typeof b.robot === "string" && b.state && typeof b.state === "object" ? vdaStateToReport(b.state as Record<string, unknown>, b.robot, (n) => back[n] ?? n) : null; }
+  if (protocol === "dji") {
+    if (typeof b.robot !== "string" || !b.data || typeof b.data !== "object") return null;
+    if (b.method === "flighttask_progress") { const p = djiProgress(b.data as Record<string, unknown>); return { robot: b.robot, source: "DJI Cloud API", ...(p.missionId ? { mission: { id: p.missionId, ...(p.status ? { status: p.status } : {}), ...(typeof p.percent === "number" ? { progress: p.percent } : {}) } } : {}) }; }
+    return djiOsdToReport(b.data as Record<string, unknown>, b.robot);
+  }
+  if (protocol === "orbit") return orbitWebhookToReport(b);
+  if (protocol === "security") return securityAlarmToReport(b);
+  return null;
+}
+
+export async function POST(req: Request) {
+  const no = gate(req); if (no) return no;
+  let body: { reports?: RobotReport[]; acks?: { commandId: string; ok: boolean; note?: string }[]; protocol?: string } & Partial<RobotReport>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Send JSON." }, { status: 400 }); }
-  const reports = (Array.isArray(body.reports) ? body.reports : [body as RobotReport]).slice(0, 50) as (RobotReport & { images?: DroneImage[] })[];
   const repo = await getRepo();
+  if (Array.isArray(body.acks)) { const out = ack(repo.db, body.acks); await repo.save(); await publishAfter(repo); return NextResponse.json({ results: out }); }
+  const protocol = String(new URL(req.url).searchParams.get("protocol") ?? body.protocol ?? "");
+  let raw: RobotReport[];
+  if (protocol) {
+    let nodes: Record<string, string> = {}; try { nodes = JSON.parse(process.env.VDA5050_NODES ?? "{}"); } catch { /* none mapped */ }
+    const r = fromProtocol(protocol, body as Record<string, unknown>, nodes);
+    if (!r) return NextResponse.json({ error: `Not a ${protocol} message this endpoint can read (see the comment at the top of app/api/fm/robots/route.ts).` }, { status: 400 });
+    raw = [r];
+  } else raw = Array.isArray(body.reports) ? body.reports : [body as RobotReport];
+  const reports = raw.slice(0, 50) as (RobotReport & { images?: DroneImage[] })[];
   const results: { ok: boolean; message?: string; error?: string; images?: string[] }[] = [];
   for (const report of reports) {
     try {
@@ -50,6 +99,6 @@ export async function POST(req: Request) {
       results.push({ ok: true, message: act(repo.db, { action: "robot_report", report: plain }, String(report?.source ?? "Robot fleet").slice(0, 60), "web", null).message, ...(notes.length ? { images: notes } : {}) });
     } catch (e) { results.push({ ok: false, error: (e as Error).message }); }
   }
-  if (results.some((r) => r.ok)) await repo.save();
+  if (results.some((r) => r.ok)) { await repo.save(); await publishAfter(repo); }
   return NextResponse.json({ results }, { status: results.every((r) => r.ok) ? 200 : results.some((r) => r.ok) ? 207 : 400 });
 }

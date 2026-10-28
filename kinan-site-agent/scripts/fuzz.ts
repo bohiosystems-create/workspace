@@ -19,7 +19,8 @@ import { canApprove, directory, findByPhone, type Person } from "../lib/auth/peo
 import { checkProgramme, checkReplay, shot } from "../lib/core/invariants";
 import { completionDate } from "../lib/core/updates";
 import { HAS_OPERATIONS } from "../lib/edition";
-import { act as fmAct } from "../lib/fm/api";
+import { act as fmAct, facilityStateFor } from "../lib/fm/api";
+import { DEFAULT_RULES } from "../lib/fm/rules";
 import { fmToday } from "../lib/fm/engine";
 import { airsideOpen, dronesGrounded, robotOutcomes } from "../lib/fm/work";
 import { simNow } from "../lib/robots/sim";
@@ -218,6 +219,25 @@ async function orchestration() {
     const seen = await analyseImages({} as never, { facility: "x", sector: "airport", robot: "Drone-A1", zones: [] }, [{ base64: "AAAA", mime: "image/jpeg" }]).catch((e) => ({ findings: [], alerts: [], errors: [String(e)] }));
     if (seen.findings.length || seen.alerts.length || !/AI provider/.test(seen.errors.join(" "))) fail("(images)", null, `images without an AI provider: ${JSON.stringify(seen).slice(0, 160)}`);
   }
+  // rules: the manager writes them, a contractor can't, a broken rule is refused plainly; the defaults make proposals
+  { const rules = (fmAct(db, { action: "rules", facilityId: "kgpp", rules: DEFAULT_RULES } as never, majid.name, "web", majid)).message;
+    if (!/Rules saved/.test(rules)) fail("(rules)", null, `the manager couldn't save the rules: ${rules}`);
+    const tryRules = (r: unknown, u: Person) => { try { fmAct(db, { action: "rules", facilityId: "kgpp", rules: r } as never, u.name, "web", u); return ""; } catch (e) { return (e as Error).message; } };
+    if (!/manager or director/.test(tryRules(DEFAULT_RULES, viktor))) fail("(rules)", null, "a contractor edited the rules");
+    if (!tryRules([{ id: "x1", name: "bad", when: { on: "finding", sensors: ["telepathy"] }, then: { do: "notify", channel: "teams" } }], majid)) fail("(rules)", null, "a rule with an unknown sensor was saved");
+    if (!tryRules([{ id: "x2", name: "bad", when: { on: "alert" }, then: { do: "send_robot", needs: ["gas"], mission: "teleport" } }], majid)) fail("(rules)", null, "a rule with an unknown mission was saved");
+    const props = facilityStateFor(db, "kgpp", majid).actions.filter((a) => a.kind === "rule");
+    if (!props.some((a) => a.effect === "notify") || !props.some((a) => a.effect === "mission_create")) fail("(rules)", null, `the default rules made ${props.length} proposals, not both a robot and a message`);
+    const robots = props.filter((a) => a.effect === "mission_create").map((a) => a.targets?.robotId);
+    if (new Set(robots).size !== robots.length) fail("(rules)", null, "one robot proposed for two rule checks at once"); }
+  // the exceptions queue: a mission that never reached its robot is the first thing the operator sees
+  { const d0 = fmToday(db), m = d0.missions.find((x) => x.facilityId === "kgpp" && x.status === "planned");
+    if (m) {
+      (db.fmLog ??= []).push({ id: "EV-TEST-DR", at: new Date().toISOString(), by: "test", channel: "web", kind: "dispatch_result", robotId: m.robotId, missionId: m.id, sent: false, note: "Fleet manager unreachable", adapter: "vendor", summary: "test" } as never);
+      const x = facilityStateFor(db, "kgpp", majid).exceptions;
+      if (x[0]?.severity !== "high" || !x.some((e) => e.id === "dispatch:EV-TEST-DR")) fail("(exceptions)", null, `a failed dispatch is not in the exceptions queue: ${JSON.stringify(x.slice(0, 2))}`);
+      db.fmLog = db.fmLog!.filter((e) => e.id !== "EV-TEST-DR");
+    } }
   // the turnaround answer names the jobs; the fleet answer lists the five robots
   const tar = await call("fm_turnaround", { facility: "kgpp" }, majid);
   if (!JSON.stringify(tar).includes("WO-TAR06")) fail("fm_turnaround", { facility: "kgpp" }, "the turnaround doesn't list its jobs");

@@ -12,8 +12,11 @@
 // {"kgpp:cmp": "compressor_bay"}). Written against the RMF API server's task API (dispatch_task / cancel_task); it has
 // not been run against a live RMF deployment yet — test it there before relying on it.
 import type { Mission, Robot } from "./types";
+import { vdaInstant, vdaOrder } from "./protocols/vda5050";
+import { djiCancel, djiFlight, type Wayline } from "./protocols/dji";
+import { orbitConfig, orbitDispatch, type OrbitConfig } from "./protocols/orbit";
 
-export interface DispatchResult { sent: boolean; externalId?: string; note: string }
+export interface DispatchResult { sent: boolean; externalId?: string; note: string; /** messages queued for the fleet bridge (MQTT) */ commands?: { topic: string; payload: unknown }[]; protocol?: string }
 export interface FleetAdapter {
   name: string;
   dispatch(m: Mission, r: Robot): Promise<DispatchResult>;
@@ -100,11 +103,54 @@ const platformAdapter: FleetAdapter = {
   estop: async () => ({ sent: false, note: "Use the robot's own stop or the vendor's console" }),
 };
 
+// ------------------------------------------------------------------ machines over MQTT, through the fleet bridge
+// VDA 5050 robots and DJI docks speak MQTT. The core (serverless) can't hold an MQTT connection, so it queues their
+// messages as commands; the fleet bridge (bridge/fleet-bridge.mjs, on the robots' network) collects them from
+// /api/fm/robots/outbox, publishes them on the broker, and posts back the machines' state and its acknowledgements.
+export const bridgeOn = (env: Env = process.env) => String(env.FLEET_BRIDGE_TOKEN ?? "").length >= 16;
+const json = <T,>(s: string | undefined, d: T): T => { try { return s ? (JSON.parse(s) as T) : d; } catch { return d; } };
+
+export function vdaAdapter(env: Env = process.env): FleetAdapter {
+  const nodes = json<Record<string, string>>(env.VDA5050_NODES, {});
+  return {
+    name: "VDA 5050 (fleet bridge)",
+    dispatch: async (m, r) => { const o = vdaOrder(m, r, nodes); return { sent: true, note: "Order queued for the fleet bridge", commands: [o], protocol: "vda5050" }; },
+    cancel: async (_m, r) => ({ sent: true, note: "cancelOrder queued for the fleet bridge", commands: [vdaInstant(r, "cancelOrder")], protocol: "vda5050" }),
+    // VDA 5050 has no remote emergency stop: the app pauses the robot; the stop on the robot is the safety stop
+    estop: async (r, on) => ({ sent: true, note: on ? "Pause queued (VDA 5050 has no remote emergency stop — use the robot's own stop)" : "Resume queued", commands: [vdaInstant(r, on ? "startPause" : "stopPause")], protocol: "vda5050" }),
+  };
+}
+export function djiAdapter(env: Env = process.env): FleetAdapter {
+  const waylines = json<Record<string, Wayline>>(env.DJI_WAYLINES, {});
+  return {
+    name: "DJI Cloud API (fleet bridge)",
+    dispatch: async (m, r) => { const f = djiFlight(m, r, waylines); return "error" in f ? { sent: false, note: f.error } : { sent: true, note: "Flight task queued for the fleet bridge", commands: f.messages, protocol: "dji" }; },
+    cancel: async (m, r) => ({ sent: true, note: m.status === "running" ? "Return home queued for the fleet bridge" : "Flight task undo queued", commands: [djiCancel(m, r, m.status === "running")], protocol: "dji" }),
+    estop: async () => ({ sent: false, note: "Use the dock's or the remote controller's emergency stop — the app brings the drone home with Cancel" }),
+  };
+}
+export function orbitAdapter(c: OrbitConfig, fetcher: typeof fetch = fetch): FleetAdapter {
+  return {
+    name: "Spot Orbit",
+    async dispatch(m, r) {
+      const req = orbitDispatch(m, r, c);
+      if ("error" in req) return { sent: false, note: req.error };
+      try { const res = await fetcher(req.url, req.init); const t = await res.text(); if (!res.ok) return { sent: false, note: `Orbit ${res.status}: ${t.slice(0, 160)}` }; return { sent: true, note: "Running in Orbit" }; } catch (e) { return { sent: false, note: (e as Error).message }; }
+    },
+    cancel: async () => ({ sent: false, note: "Stop the run in Orbit (its cancel call differs between releases)" }),
+    estop: async () => ({ sent: false, note: "Use Spot's own stop or Orbit's emergency stop" }),
+  };
+}
+
 /** The adapter for a robot. Without a configured connection a robot runs on the simulator (the demo). */
 export function adapterFor(r: Robot, env: Env = process.env): FleetAdapter {
   if (r.adapter === "rmf" && env.ROBOT_RMF_URL) return rmfAdapter(env);
+  if (r.adapter === "vda5050" && bridgeOn(env)) return vdaAdapter(env);
+  if (r.adapter === "dji" && bridgeOn(env)) return djiAdapter(env);
+  const oc = r.adapter === "orbit" ? orbitConfig(env) : null;
+  if (oc) return orbitAdapter(oc);
   const c = fleetConfig(r.fleet, env);
-  if (r.adapter === "vendor" && c) return vendorAdapter(c);
+  if ((r.adapter === "vendor" || r.adapter === "security") && c) return vendorAdapter(c);
   if (r.adapter === "platform" && c) return platformAdapter;
   return simAdapter;
 }

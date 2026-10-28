@@ -9,7 +9,10 @@ import type { Capability, Mission, Robot } from "../robots/types";
 import { CAPABILITY_LABEL, CONTROL_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
 import { airsideOpen, closureText, dronesGrounded, gasIn, pilotsFor, robotMayEnter, teams, turnaround, waitingFor, whyNot } from "./work";
 import { findings, simNow } from "../robots/sim";
-import { fleetConfig } from "../robots/adapter";
+import { bridgeOn, fleetConfig } from "../robots/adapter";
+import { orbitConfig } from "../robots/protocols/orbit";
+import { exceptions } from "./exceptions";
+import { DEFAULT_RULES, ruleText, validRules } from "./rules";
 import { closedIds, excludedPeople, learnedDoubts, isReason, type DecisionLike, type RejectReason } from "../proposals";
 import { canApprove, canSetPolicy, type Person } from "../auth/people";
 
@@ -26,7 +29,7 @@ export function record(db: Db, ev: DOmit<FmEvent, "id" | "at"> & { at?: string }
 }
 /** Every decision on a proposal, in the shape the learning rules read (lib/proposals.ts). */
 export const fmDecisions = (db: Db): DecisionLike[] => (db.fmLog ?? []).flatMap((e) => (e.kind === "action" ? [{ actionId: e.actionId, kind: e.actionKind, scope: e.facilityId, decision: e.decision, reason: e.reason, at: e.at, targetTech: e.targetTech }] : []));
-const learnedFrom = (db: Db): Learned => { const log = fmDecisions(db); return { closed: closedIds(log), exclude: excludedPeople(log), doubts: learnedDoubts(log) }; };
+const learnedFrom = (db: Db): Learned => { const log = fmDecisions(db); return { closed: closedIds(log), exclude: excludedPeople(log), doubts: learnedDoubts(log), rules: db.fmConfig?.rules }; };
 export const policyOf = (db: Db, facilityId: string): AutopilotPolicy | undefined => db.fmConfig?.policy?.[facilityId];
 /** Autopilot runs only with a signed policy. */
 export const autopilotOn = (db: Db, facilityId: string) => !!db.fmConfig?.autopilot?.[facilityId] && !!policyOf(db, facilityId);
@@ -35,7 +38,7 @@ export function withinPolicy(db: Db, a: Action): boolean {
   const p = policyOf(db, a.facilityId);
   return !!p && a.auto && p.kinds.includes(a.kind) && (a.risk === "low" || (a.risk === "medium" && p.maxRisk === "medium")) && (a.cost ?? 0) <= p.maxSpend;
 }
-export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare", "safety_stop", "gas_test", "robot_recall", "robot_mission", "robot_finding", "security_response", "combine_missions", "assign_pilot", "robot_support"], maxRisk: "low", maxSpend: 25_000 };
+export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare", "safety_stop", "gas_test", "robot_recall", "robot_mission", "robot_finding", "security_response", "combine_missions", "assign_pilot", "robot_support", "rule"], maxRisk: "low", maxSpend: 25_000 };
 
 export function actions(db: Db, d: FmData, facilityId?: string): Action[] { return propose(d, learnedFrom(db), facilityId); }
 
@@ -75,6 +78,9 @@ export function facilityState(db: Db, facilityId: string) {
     turnarounds: [...new Set(by(d.workOrders).filter((w) => w.package).map((w) => w.package!))].map((pk) => turnaround(d, pk)!).filter(Boolean),
     securityAlerts: by(d.securityAlerts).sort((a, b) => b.at.localeCompare(a.at)), dronesGrounded: dronesGrounded(d, facilityId, simNow(d.date))?.id ?? null,
     fleets: fleets(d, facilityId), teams: teams(d, facilityId),
+    exceptions: exceptions(db, d, facilityId),
+    rules: (db.fmConfig?.rules ?? DEFAULT_RULES).filter((r) => !r.facilityId || r.facilityId === facilityId).map((r) => ({ ...r, text: ruleText(r) })),
+    integrations: (db.integrationLog ?? []).filter((x) => !x.facilityId || x.facilityId === facilityId).slice(-15).reverse(),
     pilots: by(d.technicians).filter((t) => /pilot|robot operator/i.test(t.role)).map((t) => ({ id: t.id, name: t.name, role: t.role, shift: t.shift })),
   };
   return { date: d.date, facility: f, sector: SECTOR_LABEL[f.sector], kpis: kpis(d, facilityId), ...work, systems: by(d.systems), assets: by(d.assets), technicians: by(d.technicians).map((t) => ({ ...t, load: workload(d, t.id) })),
@@ -86,7 +92,7 @@ export function facilityStateFor(db: Db, facilityId: string, user: Person | null
   return { ...st, actions: st.actions.map((a) => ({ ...a, can: canApprove(user, { domain: "fm", facilityId, risk: a.risk, cost: a.cost, kind: a.kind, party: a.party }), byPolicy: autopilotOn(db, facilityId) && withinPolicy(db, a) })),
     canPolicy: canSetPolicy(user, facilityId), canPause: canApprove(user, { domain: "fm", facilityId, risk: "low" }), kindLabels: KIND_LABEL, defaultPolicy: DEFAULT_POLICY };
 }
-function eventFacility(d: FmData, e: FmEvent): string | undefined {
+export function eventFacility(d: FmData, e: FmEvent): string | undefined {
   switch (e.kind) {
     case "wo_create": return e.wo.facilityId;
     case "wo_update": return d.workOrders.find((w) => w.id === e.woId)?.facilityId;
@@ -106,6 +112,8 @@ function eventFacility(d: FmData, e: FmEvent): string | undefined {
     case "security_update": return d.securityAlerts.find((a) => a.id === e.alertId)?.facilityId ?? d.facilities.find((f) => e.alertId.includes(f.id))?.id;
     case "robot_report": case "robot_control": return d.robots.find((r) => r.id === e.robotId)?.facilityId;
     case "mission_pilot": return d.missions.find((m) => m.id === e.missionId)?.facilityId;
+    case "fleet_command": case "dispatch_result": return d.robots.find((r) => r.id === e.robotId)?.facilityId;
+    case "notify": return e.facilityId;
   }
 }
 
@@ -144,7 +152,7 @@ export function myDay(db: Db, techId: string) {
 // ------------------------------------------------------------------ writes
 export interface ActInput {
   action: "decide" | "autopilot" | "policy" | "tick" | "wo_create" | "wo_update" | "asset_status" | "alarm_ack" | "tech_status"
-    | "gas_test" | "mission" | "mission_abort" | "estop" | "crew_status" | "security" | "robot_report" | "pilot" | "control";
+    | "gas_test" | "mission" | "mission_abort" | "estop" | "crew_status" | "security" | "robot_report" | "pilot" | "control" | "rules";
   facilityId?: string; actionId?: string; decision?: "approved" | "rejected"; reason?: RejectReason; on?: boolean;
   policy?: Partial<Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend">>;
   asset?: string; title?: string; detail?: string; priority?: Priority; type?: WoType;
@@ -158,6 +166,8 @@ export interface ActInput {
   robotId?: string; missionKind?: Mission["kind"]; zone?: string; checks?: Capability[]; missionId?: string;
   /** a contractor crew and its status */
   crewId?: string; crewStatus?: Crew["status"];
+  /** the operator's rules, the whole list (rules.ts) */
+  rules?: unknown;
   /** the person piloting a robot a person controls (technician id or name), and a robot's control mode */
   pilotId?: string; control?: Robot["autonomy"];
   /** air traffic control's clearance reference, to send a robot onto a live runway or taxiway */
@@ -171,10 +181,10 @@ export interface ActInput {
 /** The fleet by maker: how many robots, in which domains, connected how, run by whom — one view across vendors. */
 export function fleets(d: FmData, facilityId: string) {
   const rs = d.robots.filter((r) => r.facilityId === facilityId);
-  const CONN: Record<Robot["adapter"], string> = { sim: "simulated", rmf: "Open-RMF", vendor: "vendor API", platform: "vendor data platform" };
+  const CONN: Record<Robot["adapter"], string> = { sim: "simulated", rmf: "Open-RMF", vendor: "vendor API", platform: "vendor data platform", vda5050: "VDA 5050 (MQTT)", dji: "DJI Cloud API (MQTT)", orbit: "Spot Orbit API", security: "security robot alarms + video" };
   return [...new Set(rs.map((r) => r.vendor))].map((v) => {
     const xs = rs.filter((r) => r.vendor === v), r0 = xs[0];
-    const live = r0.adapter === "rmf" ? !!process.env.ROBOT_RMF_URL : r0.adapter === "vendor" || r0.adapter === "platform" ? !!fleetConfig(r0.fleet) : false;
+    const live = r0.adapter === "rmf" ? !!process.env.ROBOT_RMF_URL : r0.adapter === "vendor" || r0.adapter === "platform" || r0.adapter === "security" ? !!fleetConfig(r0.fleet) : r0.adapter === "orbit" ? !!orbitConfig() : r0.adapter === "vda5050" || r0.adapter === "dji" ? bridgeOn() : false;
     return { vendor: v, robots: xs.map((r) => r.name), domains: [...new Set(xs.map((r) => DOMAIN_OF[r.kind]))], roles: [...new Set(xs.flatMap((r) => r.roles))], platform: r0.platform ?? null, operator: r0.operator ?? null,
       connection: CONN[r0.adapter], live, lastReport: xs.map((r) => r.lastReport).filter(Boolean).sort().slice(-1)[0] ?? null };
   });
@@ -355,6 +365,14 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       add({ kind: "robot_estop", robotId: r.id, on: b.on !== false, note: b.note, summary: `${r.name} ${b.on !== false ? "emergency stop" : "released"}${b.note ? `: ${b.note}` : ""}` });
       return { ok: true, message: b.on !== false ? `${r.name} stopped. Its mission is frozen; send it again once released.` : `${r.name} released — it is free for new missions.`, events: evs };
     }
+    case "rules": {
+      // the rules are the operator's to write: a manager or director (they decide what the robots do by themselves)
+      if (!user || user.orgType !== "client" || !["manager", "director", "admin"].includes(user.role)) throw new Error("Rules are written by a manager or director.");
+      const rules = validRules(b.rules);
+      db.fmConfig = { ...(db.fmConfig ?? { autopilot: {} }), rules };
+      add({ kind: "policy", facilityId: b.facilityId ?? "", policy: db.fmConfig?.policy?.[b.facilityId ?? ""] ?? null, summary: `rules updated by ${user.name}: ${rules.filter((r) => r.enabled).length} on, ${rules.filter((r) => !r.enabled).length} off` });
+      return { ok: true, message: `Rules saved: ${rules.filter((r) => r.enabled).length} on, ${rules.filter((r) => !r.enabled).length} off.`, events: evs };
+    }
     case "pilot": {
       // give a piloted robot's mission its pilot (or take it off): a supervisor, or the pilot taking it themselves
       const m = d.missions.find((x) => x.id === b.missionId);
@@ -398,7 +416,8 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       if (rep.battery !== undefined && !(typeof rep.battery === "number" && rep.battery >= 0 && rep.battery <= 100)) throw new Error("battery: 0–100.");
       const fs = (rep.findings ?? []).slice(0, 50);
       for (const f of fs) if (!f || !SENS.includes(f.sensor) || !SEV.includes(f.severity) || typeof f.value !== "number" || !Number.isFinite(f.value) || !String(f.label ?? "").trim()) throw new Error("Each finding needs sensor, label, value (a number), unit and severity (info, low, medium, high, critical).");
-      const clean: RobotReport = { robot: r.id, source: String(rep.source ?? r.platform ?? r.vendor).slice(0, 80), ...(rep.status ? { status: rep.status } : {}), ...(rep.battery !== undefined ? { battery: rep.battery } : {}), ...(rep.zone ? { zone: String(rep.zone).slice(0, 60) } : {}),
+      const clean: RobotReport = { robot: r.id, source: String(rep.source ?? r.platform ?? r.vendor).slice(0, 80), ...(rep.status ? { status: rep.status } : {}), ...(rep.battery !== undefined ? { battery: rep.battery } : {}), ...(rep.zone ? { zone: String(rep.zone).slice(0, 60) } : {}), ...(rep.video && /^(https?|rtsps?|wss?):\/\//i.test(String(rep.video)) ? { video: String(rep.video).slice(0, 400) } : {}),
+        ...(rep.mission && typeof rep.mission.id === "string" ? { mission: { id: rep.mission.id.slice(0, 80), ...(["running", "done", "failed", "aborted"].includes(String(rep.mission.status)) ? { status: rep.mission.status } : {}), ...(typeof rep.mission.progress === "number" && Number.isFinite(rep.mission.progress) ? { progress: rep.mission.progress } : {}) } } : {}),
         ...(fs.length ? { findings: fs.map((f) => ({ sensor: f.sensor, label: String(f.label).slice(0, 200), value: f.value, unit: String(f.unit ?? "").slice(0, 20), severity: f.severity, ...(f.limit !== undefined && Number.isFinite(f.limit) ? { limit: f.limit } : {}), ...(f.asset ? { asset: String(f.asset).slice(0, 40) } : {}), ...(f.at && !Number.isNaN(Date.parse(f.at)) ? { at: new Date(f.at).toISOString() } : {}), ...(f.image ? { image: String(f.image).slice(0, 200) } : {}) })) } : {}) };
       add({ kind: "robot_report", robotId: r.id, report: clean, summary: `${r.name}: report from ${clean.source}${fs.length ? ` — ${fs.length} finding${fs.length > 1 ? "s" : ""}` : ""}` });
       // what its camera saw that security must answer becomes an alert, where the robot is (or the area named)

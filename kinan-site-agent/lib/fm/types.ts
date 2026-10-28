@@ -124,6 +124,10 @@ export interface RobotReport {
   findings?: { asset?: string; zone?: string; sensor: import("../robots/types").Capability; label: string; value: number; unit: string; limit?: number; severity: "info" | "low" | "medium" | "high" | "critical"; at?: string; image?: string }[];
   /** what the robot's camera (or the AI reading its images) saw that security must answer */
   alerts?: { kind: SecurityAlert["kind"]; text: string; zone?: string }[];
+  /** its live video address (security robots) */
+  video?: string;
+  /** how its mission is going, from the machine itself (a DJI flight task's progress, a VDA 5050 order's end) */
+  mission?: { id: string; status?: "running" | "done" | "failed" | "aborted"; progress?: number };
   source: string;
 }
 
@@ -153,10 +157,18 @@ export type FmEvent = {
   | { kind: "security_update"; alertId: string; status: SecurityAlert["status"]; missionId?: string; note?: string }
   | { kind: "robot_report"; robotId: string; report: RobotReport }
   | { kind: "mission_pilot"; missionId: string; pilotId: string | null }
+  /** a command for a machine, waiting for the fleet bridge to carry it (MQTT: VDA 5050, DJI Cloud API) */
+  | { kind: "fleet_command"; commandId: string; robotId: string; missionId?: string; protocol: string; messages: { topic: string; payload: unknown }[] }
+  /** a message for people outside the app (Teams, email), sent by the northbound integrations */
+  | { kind: "notify"; facilityId: string; via: "teams" | "email"; to?: string; title: string; text: string }
+  /** what became of a dispatch: sent, refused or failed, by the adapter or the fleet bridge */
+  | { kind: "dispatch_result"; commandId?: string; robotId: string; missionId?: string; sent: boolean; note: string; adapter: string }
   | { kind: "robot_control"; robotId: string; control: import("../robots/types").Robot["autonomy"] }
 );
 
-export interface FmConfig { autopilot: Record<string, boolean>; /** what the autopilot may do, signed by a manager, per facility */ policy?: Record<string, AutopilotPolicy> }
+export interface FmConfig { autopilot: Record<string, boolean>; /** what the autopilot may do, signed by a manager, per facility */ policy?: Record<string, AutopilotPolicy>;
+  /** the operator's rules ("drone finds X → send a ground robot"); the defaults in rules.ts until someone edits */
+  rules?: import("./rules").Rule[] }
 
 /** The autopilot's mandate for one facility: which kinds of proposal it may carry out by itself, up to what risk and
  *  spend — signed by a manager or director, and logged. Nothing runs by itself without one. */
@@ -166,7 +178,7 @@ export interface AutopilotPolicy { kinds: Action["kind"][]; maxRisk: "low" | "me
 export interface Action {
   id: string; facilityId: string;
   kind: "raise_wo" | "assign" | "reschedule" | "escalate" | "order_spare" | "permit" | "isolate"
-    | "assign_crew" | "robot_mission" | "robot_finding" | "safety_stop" | "robot_recall" | "gas_test" | "security_response" | "combine_missions" | "assign_pilot" | "robot_support";
+    | "assign_crew" | "robot_mission" | "robot_finding" | "safety_stop" | "robot_recall" | "gas_test" | "security_response" | "combine_missions" | "assign_pilot" | "robot_support" | "rule";
   title: string; why: string[];
   risk: "low" | "medium" | "high";
   /** money it commits (SAR), for approval limits */

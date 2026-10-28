@@ -20,7 +20,9 @@ export function fmToday(db: Db, date = db.data?.meta?.dataDate ?? currentDataDat
   const t = simNow(date, now);
   d.securityAlerts = d.securityAlerts.filter((a) => Date.parse(a.at) < t + 1000); // alerts appear when they happen (the clock counts whole seconds)
   holdAirMissions(d);
-  simulate(d, t);                 // robots and their missions at this moment (lib/robots/sim.ts)
+  // robots that report for real (a connected fleet) are where they say; the simulator moves only the others
+  const real = new Set((db.fmLog ?? []).flatMap((e) => (e.kind === "robot_report" ? [e.robotId] : [])));
+  simulate(d, t, real);           // robots and their missions at this moment (lib/robots/sim.ts)
   for (const e of db.fmLog ?? []) if (e.kind === "robot_report") applyReport(d, e.robotId, e.report, e.at); // real fleets say where they are
   robotOutcomes(d);               // what finished robot checks mean for their jobs and alerts (work.ts)
   return d;
@@ -47,6 +49,17 @@ export function applyReport(d: FmData, robotId: string, rep: RobotReport, at: st
   const z = rep.zone ? d.zones.find((x) => x.facilityId === r.facilityId && (x.id === rep.zone || x.name.toLowerCase() === rep.zone!.toLowerCase())) : undefined;
   if (z) { r.zone = z.id; r.x = z.x + z.w / 2; r.y = z.y + z.h / 2; }
   r.lastReport = at;
+  if (rep.video) r.videoUrl = rep.video;
+  // the machine says how its mission is going: that, not the clock, decides for a real robot
+  const rm = rep.mission ? d.missions.find((x) => x.id === rep.mission!.id && x.robotId === r.id) : undefined;
+  if (rm && rep.mission) {
+    if (rep.mission.status) {
+      rm.status = rep.mission.status;
+      if (rep.mission.status === "running") { rm.started ??= at; r.status = "on_mission"; r.missionId = rm.id; }
+      else { rm.ended = at; if (!rep.status && (r.missionId === rm.id || r.status === "on_mission")) { r.status = "returning"; r.missionId = undefined; } }
+    }
+    if (typeof rep.mission.progress === "number") rm.progress = Math.max(0, Math.min(1, rep.mission.progress > 1 ? rep.mission.progress / 100 : rep.mission.progress));
+  }
   if (!rep.findings?.length) return;
   const mid = `RPT-${r.name}-${d.date}`;
   let m = d.missions.find((x) => x.id === mid);
@@ -65,6 +78,7 @@ export function applyEvent(d: FmData, e: FmEvent) {
     case "security_alert": if (!d.securityAlerts.some((a) => a.id === e.alert.id)) d.securityAlerts.push(structuredClone(e.alert)); break;
     case "security_update": { const a = d.securityAlerts.find((x) => x.id === e.alertId); if (a) { a.status = e.status; if (e.missionId) a.missionId = e.missionId; if (e.note) a.note = e.note; a.by = e.by; } break; }
     case "robot_report": break; // applied after the simulator (fmToday)
+    case "fleet_command": case "dispatch_result": case "notify": break; // the machines' record (exceptions.ts, the bridge's outbox)
     case "mission_pilot": { const m = d.missions.find((x) => x.id === e.missionId); if (m) m.pilotId = e.pilotId ?? undefined; break; }
     case "robot_control": { const r = d.robots.find((x) => x.id === e.robotId); if (r) r.autonomy = e.control; break; }
     case "wo_create": if (!d.workOrders.some((w) => w.id === e.wo.id)) d.workOrders.push(structuredClone(e.wo)); break;
@@ -224,7 +238,8 @@ export function bestTech(d: FmData, w: WorkOrder, extra?: Map<string, number>, e
 }
 
 export function newWoId(d: FmData, facilityId: string) {
-  const pre = facilityId === "kcps" ? "E" : facilityId === "krsd" ? "W" : "A";
-  const n = Math.max(24100, ...d.workOrders.filter((w) => w.facilityId === facilityId).map((w) => Number(w.id.replace(/\D/g, "")) || 0)) + 1;
+  // one letter per facility, and numbers counted over every work order with that letter: ids never collide across sites
+  const pre = ({ kcps: "E", krsd: "W", kgia: "A", kgpp: "G" } as Record<string, string>)[facilityId] ?? facilityId.slice(0, 2).toUpperCase();
+  const n = Math.max(24100, ...d.workOrders.filter((w) => w.id.startsWith(`WO-${pre}`)).map((w) => Number(w.id.slice(3 + pre.length)) || 0)) + 1;
   return `WO-${pre}${n}`;
 }

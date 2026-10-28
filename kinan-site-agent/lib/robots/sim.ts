@@ -68,9 +68,10 @@ function findingsAt(d: FmData, m: Mission, r: Robot, wp: Waypoint, i: number, at
 const centre = (d: FmData, zoneId: string) => { const z = d.zones.find((x) => x.id === zoneId); return z ? { x: z.x + z.w / 2, y: z.y + z.h / 2 } : { x: 0, y: 0 }; };
 
 /** Brings robots and missions to the moment `now`: status, battery, position, progress and findings. */
-export function simulate(d: FmData, now: number) {
+export function simulate(d: FmData, now: number, real: Set<string> = new Set()) {
   const dayStart = Date.parse(`${d.date}T00:00:00Z`) - 3 * 60 * MIN; // local midnight (Riyadh)
   for (const r of d.robots) {
+    if (real.has(r.id)) { if (r.estop) r.status = "estop"; continue; } // a connected robot: its reports say where it is
     const ms = d.missions.filter((m) => m.robotId === r.id).sort((a, b) => a.plannedStart.localeCompare(b.plannedStart));
     let battery = 100, free = dayStart, lastEnd = 0;
     const dock = centre(d, r.dock);

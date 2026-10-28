@@ -1,0 +1,11 @@
+{
+  "name": "fleet-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Carries messages between the Kinan Onsite Agent core and the robots' MQTT broker (VDA 5050, DJI Cloud API).",
+  "type": "module",
+  "main": "fleet-bridge.mjs",
+  "scripts": { "start": "node fleet-bridge.mjs" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "mqtt": "5.10.1" }
+}

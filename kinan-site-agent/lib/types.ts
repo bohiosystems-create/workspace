@@ -88,6 +88,10 @@ export interface Db {
   fmLog?: import("./fm/types").FmEvent[];
   /** Facility management settings (autopilot per facility). */
   fmConfig?: import("./fm/types").FmConfig;
+  /** what the northbound integrations sent to customer systems (work orders, Teams, email, webhooks), newest last */
+  integrationLog?: { id: string; at: string; target: string; what: string; ok: boolean; note: string; facilityId?: string; ref?: string; /** our record it is about (a work order id) */ subject?: string }[];
+  /** the last change the northbound integrations have handled (lib/integrations/outbound.ts) */
+  outboundCursor?: { id: string; at: string };
   /** People added or changed by an admin (lib/auth/people.ts): role, approval limits, facility. */
   people?: import("./auth/people").PersonEdit[];
 }

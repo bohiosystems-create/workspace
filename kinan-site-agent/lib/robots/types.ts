@@ -46,7 +46,7 @@ export interface Robot {
   pilotRole?: string;
   /** how it is reached: the simulator; Open-RMF; the vendor's own API (missions out, status and findings back); or the
    *  vendor's data platform only (findings come in, missions are planned in the vendor's own system) */
-  adapter: "sim" | "rmf" | "vendor" | "platform";
+  adapter: "sim" | "rmf" | "vendor" | "platform" | "vda5050" | "dji" | "orbit" | "security";
   /** the vendor connection it belongs to (ROBOT_FLEETS key), and the vendor's own system it is run from */
   fleet?: string; platform?: string;
   /** who operates it: the facility itself, or a service company (often through a local partner) */
@@ -56,6 +56,8 @@ export interface Robot {
   externalId?: string;
   /** the last report from a real fleet (ISO), when it is not simulated */
   lastReport?: string;
+  /** its live video, on its maker's video system (the core links to it, never carries it) */
+  videoUrl?: string;
   /** drones only: no flying above this wind speed (m/s) */
   maxWindMs?: number;
   // ---- live state (lib/robots/sim.ts computes it from the missions and the clock)

@@ -51,7 +51,20 @@ const short = (d: FmData, w: FmData["workOrders"][number]) => ({ id: w.id, asset
 /** Called by runTool, after the input has been checked against the tool's schema (lib/core/validate.ts). */
 export async function runFmTool(repo: Repo, name: string, input: Record<string, any>, ctx: ToolCtx): Promise<string> {
   // a tool that cannot do what was asked tells the agent why (no such asset, permit missing…) instead of failing the answer
-  try { return await fmTool(repo, name, input, ctx); } catch (e) { return J({ error: (e as Error).message }); }
+  const log = () => repo.db.fmLog ?? [], before = log()[log().length - 1]?.id;
+  try {
+    const out = await fmTool(repo, name, input, ctx);
+    // what the agent changed goes where the app's own changes go: missions and stops to the robots, the rest northbound
+    const i = log().findIndex((e) => e.id === before), fresh = before ? (i >= 0 ? log().slice(i + 1) : []) : log().slice();
+    if (fresh.length) {
+      const { toFleet } = await import("../robots/dispatch"), { publishAfter } = await import("../integrations/outbound");
+      const fleet = await toFleet(repo.db, fresh);
+      if (log()[log().length - 1]?.id !== fresh[fresh.length - 1].id) await repo.save();
+      await publishAfter(repo);
+      if (fleet) return out.replace(/\}$/, `,"fleet":${JSON.stringify(fleet.trim())}}`);
+    }
+    return out;
+  } catch (e) { return J({ error: (e as Error).message }); }
 }
 async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx: ToolCtx): Promise<string> {
   const db = repo.db, d = fmToday(db);

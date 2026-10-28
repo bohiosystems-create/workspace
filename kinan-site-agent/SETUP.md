@@ -23,7 +23,7 @@ The agent answers from the project's documents, programme, procurement, safety a
 7. [Connect the purchasing system](#7-connect-the-purchasing-system)
 8. [Load your real project data](#8-load-your-real-project-data)
 8b. [Daily report e-mail](#8b-daily-report-e-mail)
-8d. [Operations](#8d-operations--facility-management-with-an-ai-orchestration-layer) · 8f. [Work orchestration — contractors, crews and robots](#8f-work-orchestration--contractors-crews-and-robots)
+8d. [Operations](#8d-operations--facility-management-with-an-ai-orchestration-layer) · 8f. [Work orchestration — contractors, crews and robots](#8f-work-orchestration--contractors-crews-and-robots) · 8g. [Integration architecture](#8g-integration-architecture--machines-the-core-the-customers-systems)
 9. [Security & compliance checklist](#9-security--compliance-checklist)
 10. [Using it on site](#10-using-it-on-site)
 11. [Troubleshooting](#11-troubleshooting)
@@ -566,6 +566,51 @@ Operations is a **work orchestration layer**: it directs work done by the facili
 - *Reports in* — `POST /api/fm/robots` with `Authorization: Bearer <ROBOT_INGEST_TOKEN>` (16+ characters; without it the endpoint is off). Body: `{"robot": "ROV-1" or the vendor's id, "source": "…", "status"?: "on_mission", "battery"?: 64, "zone"?: "Export line & jetty", "findings"?: [{"asset": "PL-01", "sensor": "sonar", "label": "Free span 13.1 m at KP 3.2", "value": 13.1, "unit": "m", "limit": 12, "severity": "high"}]}`, or `{"reports": [ … up to 50 … ]}`. Malformed reports are refused one by one with the reason; findings show with the maker's name and are raised as work. The endpoint is outside the browser login (like the WhatsApp webhook) and protected by the token only — keep it secret and rotate it.
 - *Open-RMF*: set `ROBOT_RMF_URL` (the RMF API server) and optionally `ROBOT_RMF_TOKEN`, and set a robot's `adapter` to `rmf`. Missions become RMF *patrol* tasks over named places (`/tasks/dispatch_task`, `/tasks/cancel_task`); places default to the zone id (`kgpp:cmp` → `kgpp_cmp`) or map in `ROBOT_RMF_PLACES` (JSON, e.g. `{"kgpp:cmp":"compressor_bay"}`). RMF's task API has no remote emergency stop, so the app says so and points to the stop button on the robot. **This adapter has not been run against a live RMF deployment yet — test it there before relying on it.** A vendor's own fleet API goes behind the same interface.
 
+## 8g. Integration architecture — machines, the core, the customer's systems
+
+```
+ Customer systems     SAP PM · Maximo · CAFM work orders   ·   Teams / email alerts   ·   their SOC, BI, data lake
+                                  ▲  REST API (/api/v1) + signed webhooks + work-order sync
+ ───────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ CORE (this app)      data model: sites, assets, robots, jobs (work orders + missions), findings, alerts
+                      scheduler + rules ("a drone sees a hot spot → send a ground robot"; "gas → tell the control room on Teams")
+                      exceptions queue + operator cockpit (Operations → Exceptions, Rules)
+                      change log (the database) — and a message bus through the fleet bridge for MQTT machines
+                                  ▼  adapters (lib/robots/adapter.ts)
+ ───────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Adapters             DJI Cloud API (MQTT) → DJI Dock    Orbit REST / webhooks → Spot    VDA 5050 (MQTT) → mobile robots
+                      security robots: alarms + video address    Open-RMF    a maker's own API (vendor)    data platforms
+```
+
+**How a change travels.** Every change — from the app, the agent, WhatsApp, the API, a robot — is an event in the change log. After it is saved: missions, cancellations and stops go to each robot's adapter (`lib/robots/dispatch.ts`); MQTT machines get theirs as commands that the **fleet bridge** collects and acknowledges; what each dispatch became is recorded, so a mission that never reached its robot lands in the **exceptions queue** instead of silently not happening. Then the **northbound** side (`lib/integrations/outbound.ts`) carries the change on to the customer's systems, after the answer has gone, from a cursor in the change log so each change is sent once whichever door it came in by. Every send is logged and shown in the cockpit; a failed one is an exception.
+
+**Southbound — the machines.** Set `Robot.adapter` per robot:
+
+| Adapter | Machines | Transport | Set |
+|---|---|---|---|
+| `dji` | DJI Dock 2/3 and their drones | DJI Cloud API over MQTT, via the fleet bridge: `flighttask_prepare` → `flighttask_execute`, `flighttask_undo` / `return_home`; `osd` telemetry and `flighttask_progress` back | `FLEET_BRIDGE_TOKEN`, `DJI_WAYLINES` (place → wayline KMZ url + MD5 fingerprint, planned in DJI's tools); robot `externalId` = `dock-sn/drone-sn` |
+| `vda5050` | AMRs/AGVs and mobile robots that speak VDA 5050 2.0 (FOD rovers, carriers, inspection rovers) | MQTT via the fleet bridge: `order` (nodes/edges), `instantActions` (cancel, stop); `state` and `connection` back | `FLEET_BRIDGE_TOKEN`, `VDA5050_NODES` (place → node id on the robot's map); `externalId` = `manufacturer/serialNumber` |
+| `orbit` | Boston Dynamics Spot through Orbit | Orbit's REST API straight from the core (runs a recorded Autowalk mission); Orbit webhooks → `POST /api/fm/robots?protocol=orbit` | `ORBIT` = `{"url","token","dispatchPath","missions":{place: missionUuid}}` — the dispatch path differs by Orbit release: take it from your Orbit's API reference |
+| `security` | security patrol robots and their cameras | their software posts alarms to `POST /api/fm/robots?protocol=security`; the alarm becomes a security alert, the video address is kept (the stream stays on their video system) | `ROBOT_INGEST_TOKEN` |
+| `rmf`, `vendor`, `platform` | Open-RMF fleets; a maker's own fleet API behind a small bridge; a maker's data platform (findings in) | REST | §8f |
+
+ISO 21423 (the 2025 standard for interoperability between mobile robots' fleet managers) is not implemented separately: robots that speak VDA 5050 or sit behind Open-RMF are covered by those adapters.
+
+**The fleet bridge** (`bridge/`, see its README) runs on the robots' network, holds the MQTT connection the cloud app can't, and carries messages both ways: it collects commands (`GET /api/fm/robots?outbox=1`), publishes them, acknowledges them (`POST /api/fm/robots {acks}`), and posts the machines' state and progress back in their own shape. It answers what DJI docks expect from their cloud. Run it as a service next to the broker.
+
+**The core.** The data model and scheduler are the operations layer (§8d, §8f). **Rules** (Operations → Rules; managers and directors edit them; contractors can't) turn findings and alerts into work: send a robot with the right sensors (a ground robot after a drone, an Ex robot for gas), or tell people on Teams or by email. Each match is a proposal with the rule in its reasons; the autopilot runs it only within its signed policy. The **exceptions queue** (Operations → Exceptions) is the operator's first screen: a mission not sent, commands the bridge isn't collecting (2 min), a robot stopped, faulted, offline or silent (15 min), a mission that should have started (10 min) or failed, a security alert unanswered (10 min), a message a customer system didn't take. Under it, what the core is connected to and what it sent.
+
+**Northbound — the customer's systems.**
+- *Work orders* → their maintenance system, set in `CMMS` (JSON, one system or a list; `facilities` limits one to some sites):
+  - **Maximo**: `{"kind":"maximo","url":"https://host/maximo","apiKey":"…","siteId":"KGPP"}` — `POST /oslc/os/mxwo` creates the work order (WAPPR, asset by tag, priority, our id as `externalrefid`); started and done go through the `changeStatus` web method (INPRG, COMP).
+  - **SAP S/4HANA PM**: `{"kind":"sap","url":"https://host","user":"…","password":"…","plant":"1000","workCenter":"MECH","orderType":"PM01"}` — OData `API_MAINTENANCEORDER`: CSRF token, then `POST /MaintenanceOrder` (description, type, plant, work centre, priority, technical object = asset tag). Status changes are not pushed to SAP (order business transactions differ per customer); SAP sends its changes to us (below).
+  - **CAFM / any system with a webhook**: `{"kind":"cafm","url":"…","secret":"…"}` — every created or changed work order as signed JSON; `{"id"}` in the answer is kept as its reference.
+- *Alerts to people*: `TEAMS_WEBHOOK_URL` (or `TEAMS_WEBHOOKS` per site: `{"kgpp":"…","*":"…"}`) — a Teams incoming webhook or a Workflows "when a webhook request is received" URL, posted as an Adaptive Card; `ALERT_EMAIL_TO` — email through Outlook (`OUTLOOK_MODE=live`, §8c). Sent when a rule's notify proposal runs.
+- *Webhooks*: `WEBHOOKS` = `[{"url":"…","secret":"…","events":["alert.*","finding.created"],"facilities":["kgia"]}]`. Events: `work_order.created|updated`, `mission.created|updated`, `finding.created`, `alert.created|updated`, `robot.estop`, `exception.created`, `decision.made`, `notification`, `asset.updated`. Body `{id, type, at, facilityId, data}`; headers `X-Bohio-Event`, `X-Bohio-Delivery` (the event id: de-duplicate on it), `X-Bohio-Signature: t=<unix s>,v1=<hex HMAC-SHA256 of "t.body">` — recompute it with the secret and reject old timestamps.
+- *REST API*: `ORCH_API_TOKEN` (16+ characters; off without it), `Authorization: Bearer …`. `GET /api/v1/sites | assets | robots | jobs | missions | findings | alerts | exceptions | integrations` (`?site=`, `?status=`, `?since=`); `POST /api/v1/jobs` raises a work order from their system (`{site, asset, title, detail?, priority?, type?, externalId?}`); `POST /api/v1/jobs/{id}` records their change (`{status?, note?, assignee?, holdReason?}`) — under the same rules as the app (no start before the permit and gas test).
+
+**What has been tested, and what hasn't.** The bridge ran end to end against a local MQTT broker with a simulated VDA 5050 robot and a simulated DJI dock (orders and flight tasks out, acknowledgements and state back, missions done). The northbound side runs against local stand-ins for Maximo, SAP (CSRF handshake), a CAFM, Teams and webhook subscribers (`npx tsx scripts/northbound.ts`). None of it has run against a real DJI dock, VDA 5050 robot, Spot/Orbit, security robot, Maximo, SAP or Teams tenant: field names follow each vendor's published documentation, and each connection must be tested on the customer's systems before it is relied on (expect to adjust Maximo object structures, SAP order types and Orbit's dispatch path per customer).
+
 ## 9. Security & compliance checklist
 
 - [ ] **HTTPS only**; `APP_PASSWORD` set, long and random. For company SSO, put the app behind your identity proxy (Azure App Proxy, Cloudflare Access, Okta). The machine endpoints `/api/whatsapp`, `/api/integrations/*` and `/api/import` authenticate themselves.
@@ -695,5 +740,14 @@ Two packs of fictional documents ship with the app under `public/samples/` (serv
 | `ROBOT_RMF_PLACES` | — | JSON map of zone ids to RMF place names (§8f) |
 | `ROBOT_FLEETS` | — | JSON: vendor fleet bridges `{fleet: {url, token, estop}}` for robots whose adapter is `vendor` or `platform` (§8f) |
 | `ROBOT_INGEST_TOKEN` | — | Bearer token for `POST /api/fm/robots`, where fleets report status and findings (16+ characters; off without it) |
+| `FLEET_BRIDGE_TOKEN` | — | Shared with the fleet bridge (`bridge/`): it collects MQTT commands and posts machine state (16+ characters; §8g) |
+| `VDA5050_NODES` | — | JSON: place → node id on the VDA 5050 robot's map (§8g) |
+| `DJI_WAYLINES` | — | JSON: place → `{url, fingerprint}` of the DJI wayline KMZ (§8g) |
+| `ORBIT` | — | JSON: Spot's Orbit `{url, token, dispatchPath, missions}` (§8g) |
+| `CMMS` | — | JSON: maintenance system(s) for work orders — Maximo, SAP PM or a CAFM webhook (§8g) |
+| `TEAMS_WEBHOOK_URL` / `TEAMS_WEBHOOKS` | — | Teams channel(s) for rule alerts (§8g) |
+| `ALERT_EMAIL_TO` | — | Who gets email alerts (comma-separated; sent through Outlook, §8c) |
+| `WEBHOOKS` | — | JSON: signed webhook subscribers `[{url, secret, events, facilities}]` (§8g) |
+| `ORCH_API_TOKEN` | — | Bearer token for the REST API `/api/v1` (16+ characters; off without it) |
 
 *For testing only — never in production:* `WHATSAPP_SKIP_SIGNATURE`, `WHATSAPP_ALLOW_ALL`, `WHATSAPP_TEST_SYNC`, `WHATSAPP_GRAPH_BASE`.

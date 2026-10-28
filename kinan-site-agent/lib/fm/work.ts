@@ -8,6 +8,7 @@ import type { Capability, Finding, Mission, Robot, Waypoint } from "../robots/ty
 import { CAPABILITY_LABEL, CONTROL_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
 import { nearLimit } from "../robots/sim";
 import { GAS_HOLD, PRIORITY_SLA, bestTech, clearGasHold, isOpen } from "./engine";
+import { ruleMatches, type Rule } from "./rules";
 
 const MIN = 60_000;
 /** A time as the plant reads it (Riyadh, UTC+3). */
@@ -299,6 +300,34 @@ export function workProposals(d: FmData, fac: (id: string) => boolean, push: (a:
   }
 }
 
+/** The operator's rules, as proposals: send the robot the rule names to look closer (one that may go there and is free;
+ *  "a ground robot" after a drone), or tell people on Teams or by email. One proposal per rule and finding or alert. */
+export function ruleProposals(d: FmData, rules: Rule[], fac: (id: string) => boolean, push: (a: Action) => void, now: number) {
+  // one robot per rule and area (two readings in the same area are one survey), and a robot proposed once
+  const served = new Set<string>(), taken = new Set<string>();
+  for (const { rule, finding: f, alert: al } of ruleMatches(d, rules, fac)) {
+    const facilityId = f?.facilityId ?? al!.facilityId, key = f?.id ?? al!.id;
+    const z = d.zones.find((x) => x.id === (f?.zone ?? al?.zone));
+    const what = f ? `${f.label} — ${f.severity}, found by ${d.robots.find((r) => r.id === f.robotId)?.name ?? "a robot"} at ${local(f.at)}` : `${al!.text} (${al!.source}, ${local(al!.at)})`;
+    if (rule.then.do === "send_robot") {
+      const t = rule.then;
+      const area = `${rule.id}:${z?.id ?? key}`;
+      if (served.has(area) || d.missions.some((m) => m.note?.startsWith(`rule:${rule.id}:`) && (m.note === `rule:${rule.id}:${key}` || (z && m.waypoints.some((w) => w.zone === z.id) && (m.status === "planned" || m.status === "running"))))) continue;
+      const { robot, why } = pickRobot(d, facilityId, t.needs, [z], 30, now, (r) => (taken.has(r.id) ? `${r.name} is proposed for another check` : t.notBy && DOMAIN_OF[r.kind] === t.notBy ? `${r.name} is a ${t.notBy} robot — the rule wants another kind` : r.id === f?.robotId ? `${r.name} found it` : r.autonomy === "remote" ? `${r.name} needs a pilot` : null));
+      if (!robot) continue;
+      served.add(area); taken.add(robot.id);
+      const m = newMission(d, robot, t.mission, `${MISSION_LABEL[t.mission][0].toUpperCase()}${MISSION_LABEL[t.mission].slice(1)} — ${f?.label ?? al!.text}`, [{ zone: z?.id ?? robot.dock, ...(f?.assetId ? { assetId: f.assetId } : {}), label: f?.label ?? al!.text, checks: t.needs }], 30, now);
+      m.note = `rule:${rule.id}:${key}`;
+      push({ id: `rule:${rule.id}:${key}`, facilityId, kind: "rule", title: `${rule.name.split("→").pop()!.trim().replace(/^./, (c) => c.toUpperCase())}: send ${robot.name}`, why: [`Rule: ${rule.name}`, what, ...why],
+        risk: "low", auto: robot.autonomy === "policy", effect: "mission_create", payload: { mission: m }, targets: { robotId: robot.id, ...(f ? { findingId: f.id } : { alertId: al!.id }), zoneId: z?.id } });
+    } else {
+      const t = rule.then;
+      push({ id: `rule:${rule.id}:${key}`, facilityId, kind: "rule", title: `Tell people by ${t.channel === "teams" ? "Teams" : "email"}: ${f?.label ?? al!.text}`, why: [`Rule: ${rule.name}`, what, `${d.facilities.find((x) => x.id === facilityId)?.name}${z ? `, ${z.name}` : ""}`],
+        risk: "low", auto: true, effect: "notify", payload: { channel: t.channel, to: t.to, title: `${d.facilities.find((x) => x.id === facilityId)?.name}: ${f ? "robot finding" : `${al!.kind} alert`}`, text: `${what}${z ? ` — ${z.name}` : ""}.` }, targets: { ...(f ? { findingId: f.id } : { alertId: al!.id }), zoneId: z?.id } });
+    }
+  }
+}
+
 /** The events an approved work-layer proposal produces, or null if it isn't one. */
 export function workEffects(d: FmData, a: Action, base: { at: string; by: string; channel: FmEvent["channel"] }, id: () => string, woId: (fid: string) => string): FmEvent[] | null {
   switch (a.kind) {
@@ -315,6 +344,11 @@ export function workEffects(d: FmData, a: Action, base: { at: string; by: string
     case "robot_finding": {
       const wo = { ...(a.payload.wo as WorkOrder), id: woId(a.facilityId), raised: base.at };
       return [{ ...base, id: id(), kind: "wo_create", wo, summary: `raised ${wo.id} ${wo.priority} — ${wo.title}` }, { ...base, id: id(), kind: "finding_ack", findingId: String(a.payload.findingId), woId: wo.id, summary: `finding → ${wo.id}` }];
+    }
+    case "rule": {
+      if (a.effect === "notify") return [{ ...base, id: id(), kind: "notify", facilityId: a.facilityId, via: a.payload.channel as "teams" | "email", ...(a.payload.to ? { to: String(a.payload.to) } : {}), title: String(a.payload.title), text: String(a.payload.text), summary: a.title }];
+      const m = { ...(a.payload.mission as Mission), plannedStart: new Date(Date.parse(base.at) + MIN).toISOString() };
+      return [{ ...base, id: id(), kind: "mission_create", mission: m, summary: `${m.id}: ${MISSION_LABEL[m.kind]} by ${d.robots.find((r) => r.id === m.robotId)?.name} (${a.title})` }];
     }
     case "assign_pilot": return a.payload.pilotId ? [{ ...base, id: id(), kind: "mission_pilot", missionId: String(a.payload.missionId), pilotId: String(a.payload.pilotId), summary: a.title }] : [];
     case "robot_support": {
