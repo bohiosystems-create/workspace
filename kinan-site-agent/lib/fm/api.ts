@@ -322,6 +322,11 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       const zone = d.zones.find((z) => z.facilityId === r.facilityId && (z.id === b.zone || z.name.toLowerCase() === String(b.zone ?? "").toLowerCase() || z.name === asset?.zone));
       if (!zone) throw new Error(`Where should ${r.name} go? Name an asset or one of: ${d.zones.filter((z) => z.facilityId === r.facilityId).map((z) => z.name).join(", ")}.`);
       if (!robotMayEnter(r, zone)) throw new Error(`${whyNot(r, zone)}. ${zone.indoor ? "Send a ground robot." : "Send an Ex-rated robot."}`);
+      const kind: Mission["kind"] = b.missionKind ?? "inspection_round";
+      // what its connection can be sent on (capabilities()): a job it can't do, or a robot planned in its maker's software
+      const cap = adapterFor(r).capabilities(r);
+      if (cap.places && !cap.places.includes(zone.id) && !(asset && cap.places.includes(asset.id))) throw new Error(`${r.name} goes only where its connection has a route: ${cap.places.map((x) => d.zones.find((z) => z.id === x)?.name ?? d.assets.find((a) => a.id === x)?.tag ?? x).join(", ") || "none mapped yet"} (${cap.limits[0]}).`);
+      if (!cap.jobs.includes(kind)) throw new Error(cap.jobs.length ? `${r.name} can't do a ${MISSION_LABEL[kind]} — it can do: ${cap.jobs.map((k) => MISSION_LABEL[k]).join(", ")}.` : `${r.name}'s jobs are planned in its maker's own software (${cap.limits[0] ?? "not sent from here"}).`);
       // a live runway or taxiway: only in its closure, or with air traffic control's clearance (its reference is recorded)
       const atc = String(b.atcClearance ?? "").trim().slice(0, 60);
       if (airsideOpen(zone, simNow(d.date)) && !atc) throw new Error(`${zone.name} is live (closed to aircraft only ${closureText(zone)}): get ground control's clearance and give its reference, or send ${r.name} in the closure.`);
@@ -329,10 +334,6 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       if (r.status === "on_mission" || d.missions.some((m) => m.robotId === r.id && (m.status === "running" || (m.status === "planned" && Math.abs(Date.parse(m.plannedStart) - Date.now()) < 30 * 60_000)))) throw new Error(`${r.name} is busy — on a mission or about to start one.`);
       const grounded = DOMAIN_OF[r.kind] === "air" ? dronesGrounded(d, r.facilityId, simNow(d.date)) : undefined;
       if (grounded) throw new Error(`${r.name} stays on the ground: an unidentified drone was reported at ${new Date(Date.parse(grounded.at) + 3 * 3600_000).toISOString().slice(11, 16)} (${grounded.text.toLowerCase()}). Air missions wait two hours or until security clears it.`);
-      const kind: Mission["kind"] = b.missionKind ?? "inspection_round";
-      // what its connection can be sent on (capabilities()): a job it can't do, or a robot planned in its maker's software
-      const cap = adapterFor(r).capabilities(r);
-      if (!cap.jobs.includes(kind)) throw new Error(cap.jobs.length ? `${r.name} can't do a ${MISSION_LABEL[kind]} — it can do: ${cap.jobs.map((k) => MISSION_LABEL[k]).join(", ")}.` : `${r.name}'s jobs are planned in its maker's own software (${cap.limits[0] ?? "not sent from here"}).`);
       const checks = (b.checks?.length ? b.checks : r.capabilities.filter((c) => c !== "lidar" && c !== "carry")) as Capability[];
       const missing = checks.filter((c) => !r.capabilities.includes(c));
       if (missing.length) throw new Error(`${r.name} has no ${missing.map((c) => CAPABILITY_LABEL[c]).join(", ")}.`);

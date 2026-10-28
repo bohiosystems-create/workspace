@@ -76,6 +76,9 @@ srv.listen(18991, async () => {
   const majid = directory(db).find((p) => /Majid Al-Rashid/.test(p.name))!;
   let refused = ""; try { act(db, { action: "mission", robotId: "Crawler-1", zone: "Tank farm", missionKind: "thickness_survey" }, majid.name, "web", majid); } catch (e) { refused = (e as Error).message; }
   check("sending it is refused with the reason", /maker's own software/.test(refused), refused);
+  const majed = directory(db).find((p) => /Majed Al-Anazi/.test(p.name))!;
+  let off = ""; try { act(db, { action: "mission", robotId: "Drone-A1", zone: "Landside & car parks", missionKind: "security_patrol" }, majed.name, "web", majed); } catch (e) { off = (e as Error).message; }
+  check("a drone isn't sent where it has no wayline route", /only where its connection has a route: .*Perimeter/i.test(off), off);
 
   // 5. the poller: changes and results recorded once; a connection that doesn't answer is logged
   const p1 = await pollFleets(db, env);

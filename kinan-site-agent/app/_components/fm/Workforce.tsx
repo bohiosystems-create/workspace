@@ -161,7 +161,9 @@ export function WorkforcePanel({ s, onRobot }: { s: FS; onRobot: (id: string) =>
 export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId: string; onClose: () => void; doit: Doit; busy: string | null }) {
   const r = s.robots.find((x) => x.id === robotId) as Robot | undefined;
   const air = r ? DOMAIN_OF[r.kind] === "air" : false;
-  const allowed = useMemo(() => (r ? s.zones.filter((z) => (z.atex === null || r.exRated) && !(z.indoor && air)) : []), [r, s.zones, air]);
+  // where it may go, and where its connection has a route (DJI waylines, VDA 5050 map nodes, recorded Orbit missions)
+  const routes = r ? s.connections[r.id]?.places : null;
+  const allowed = useMemo(() => (r ? s.zones.filter((z) => (z.atex === null || r.exRated) && !(z.indoor && air) && (!routes || routes.includes(z.id) || s.assets.some((a) => routes.includes(a.id) && a.zone === z.name))) : []), [r, s.zones, s.assets, air, routes]);
   const [atc, setAtc] = useState("");
   const [pilot, setPilot] = useState("");
   const [zone, setZone] = useState(allowed[0]?.id ?? "");
