@@ -20,4 +20,5 @@ ok(/window\.BOHIO_BRAND='jadwa'/.test(s), 'it keeps the financial-modelling feat
 {const br = path.join(APP, 'brand/jadwa'), lg = fs.readFileSync(path.join(br, 'logo.svg'), 'utf8').match(/ d="([^"]{80,})"/), sy = fs.readFileSync(path.join(br, 'symbol.svg'), 'utf8').match(/ d="([^"]{80,})"/);
   const all = [s, g, mail, logo].join('\n');
   ok(lg && sy && !all.includes(lg[1].slice(0, 80)) && !all.includes(sy[1].slice(0, 80)), 'Jadwa\'s lockup and sapling artwork are nowhere in the Adel build')}
+ok(/\.tabs\{background:#3d3935!important;box-shadow:0 0 0 100vmax #3d3935/.test(s)&&/header\.kband\{background:#3d3935/.test(s)&&/#ksplash\{background:#3d3935/.test(s)&&/#ksplash \.ks-halo\{background:none/.test(s),'one charcoal for the opening, the band and the navigation (no second shade, no glow)');
 console.log(`${pass} pass, ${fail} fail`); process.exit(fail ? 1 : 0);

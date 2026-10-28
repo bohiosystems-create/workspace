@@ -70,17 +70,17 @@ CSS = f"""
 body,button,input,select,textarea{{font-family:{FONT_STACK}}}
 h1,h2,h3,.serif,.kd-root,.k-doc,.report{{font-family:{FONT_STACK}}}
 #ksplash{{background:{CHAR}!important}}
-#ksplash .ks-halo{{background:radial-gradient(circle,rgba(202,168,98,.16) 0,rgba(202,168,98,.05) 48%,rgba(61,57,53,0) 70%)!important}}
+#ksplash .ks-halo{{background:none!important}}   /* one flat charcoal, as the band below it */
 #ksplash .ks-sq{{background:transparent!important;box-shadow:none!important;display:grid;place-items:center;width:min(34vmin,170px)!important;height:min(34vmin,170px)!important}}
 #ksplash .ks-sq img{{width:78%;height:auto;animation:jSq 1.1s cubic-bezier(.2,.8,.2,1) .2s both}}
 .klogo img{{height:46px;width:auto}}
 /* the site's own look: a charcoal band with the white lockup, gold on dark for the navigation, a warm page */
 :root{{--bg:#f4f2ee}}
-header.kband{{background:{CHAR};color:#fff;box-shadow:0 0 0 100vmax {CHAR};border-bottom:1px solid rgba(202,168,98,.35)}}
+header.kband{{background:{CHAR};color:#fff;box-shadow:0 0 0 100vmax {CHAR};border-bottom:1px solid rgba(255,255,255,.08)}}
 header.kband .k-gear,header.kband .k-ready,header.kband .demo-chip{{border-color:rgba(255,255,255,.28);color:#f3eee2;background:transparent}}
 header.kband .k-gear:hover{{background:{GOLD};border-color:{GOLD};color:{CHAR}}}header.kband .demo-chip b{{color:{GOLD}}}
 header.kband .eng{{border-color:{GOLD};color:{GOLD}}}header.kband .kbell{{color:#f3eee2}}
-.tabs{{background:{CHAR_DEEP}!important;box-shadow:0 0 0 100vmax {CHAR_DEEP}!important;border-bottom:0!important}}
+.tabs{{background:{CHAR}!important;box-shadow:0 0 0 100vmax {CHAR}!important;border-bottom:0!important}}   /* the navigation is the band's own charcoal: one colour from the top of the page to the content */
 #tabs .tab,#tabs .tab.gtab-hidden{{color:#d9cfbd!important;opacity:1!important}}#tabs .tab:hover{{color:#fff!important}}#tabs .tab.on{{color:{GOLD}!important}}#tabs .tab::after{{background:{GOLD}!important}}
 .tabs .tab-model{{color:#fff!important;border-right-color:rgba(255,255,255,.18)!important}}.tabs .tab-model:before{{color:{GOLD}!important}}.tabs .tab-model small{{color:#d9cfbd!important}}
 .btn:hover:not(:disabled){{background:{CHAR_DEEP};border-color:{CHAR_DEEP}}}.btn.ghost:hover:not(:disabled){{background:{SAND_SOFT};color:{CHAR}}}
