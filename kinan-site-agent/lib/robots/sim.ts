@@ -36,6 +36,7 @@ function readingsFor(d: FmData, wp: Waypoint, cap: Capability): { a: Asset; r: R
     case "acoustic": return mine(SOUND);
     case "ut_thickness": return a ? a.readings.filter((r) => r.key === "wall").map((r) => ({ a, r })) : [];
     case "visual": return a && a.class === "flare" ? a.readings.filter((r) => r.key === "pilot").map((r) => ({ a, r })) : [];
+    case "sonar": return a ? a.readings.filter((r) => r.key === "span").map((r) => ({ a, r })) : [];
     case "gas": // the gas detectors in the area (the robot's own sensor reads what they read)
       return d.assets.filter((x) => x.class === "detector" && (x.id === a?.id || x.zone === zoneName)).flatMap((x) => x.readings.filter((r) => GAS.has(r.key)).map((r) => ({ a: x, r })));
     default: return [];
@@ -58,7 +59,7 @@ function findingsAt(d: FmData, m: Mission, r: Robot, wp: Waypoint, i: number, at
       const limit = rd.high ?? rd.low;
       out.push({ id: `${m.id}:${i}:${rd.key}`, missionId: m.id, robotId: r.id, facilityId: m.facilityId, zone: wp.zone, assetId: a.id, at: new Date(at).toISOString(), sensor: cap,
         label: `${rd.name} ${rd.value}${rd.unit ? ` ${rd.unit}` : ""} at ${a.tag}${limit !== undefined ? ` (limit ${limit}${rd.unit ? ` ${rd.unit}` : ""})` : ""}`, value: rd.value, unit: rd.unit, limit, severity: sev,
-        image: `${cap === "thermal" ? "thermal" : cap === "ut_thickness" ? "thickness map" : "photo"} — ${a.tag}` });
+        image: `${cap === "thermal" ? "thermal" : cap === "ut_thickness" ? "thickness map" : cap === "sonar" ? "sonar scan" : "photo"} — ${a.tag}` });
     }
   }
   return out;
@@ -107,6 +108,7 @@ export function simulate(d: FmData, now: number) {
     r.battery = Math.round(battery);
     if (r.estop) { r.status = "estop"; r.note = r.note ?? "Emergency stop — released by a person on site"; }
   }
+  // a robot on a real fleet is where its last report put it (lib/fm/engine.ts applies the reports after this)
   // what people did with the findings
   for (const m of d.missions) for (const f of m.findings) { const a = d.findingAcks[f.id]; if (a) { f.acknowledged = true; if (a.woId) f.woId = a.woId; } }
 }

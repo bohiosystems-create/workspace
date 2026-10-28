@@ -44,6 +44,7 @@ export async function POST(req: Request) {
   if (!HAS_OPERATIONS) return NextResponse.json({ error: "Facility operations are not part of this edition." }, { status: 404 });
   try {
     const b = (await req.json()) as ActInput & { by?: string; channel?: "web" | "field" };
+    if (b.action === "robot_report") return NextResponse.json({ error: "Robot reports go to /api/fm/robots with the fleet token." }, { status: 400 });
     const repo = await getRepo();
     // the signed-in person is who did it (their name, role and approval limits); otherwise the name typed in the app
     const me = await currentUser(req);

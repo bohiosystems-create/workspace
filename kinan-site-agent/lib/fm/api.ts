@@ -4,11 +4,12 @@ import type { Db } from "../types";
 import { SECTOR_LABEL } from "./data";
 import { fmToday, findAsset, findTech, isOpen, isOverdue, kpis, newWoId, PRIORITY_SLA, slaLeft, workload } from "./engine";
 import { effects, propose, KIND_LABEL, type Learned } from "./orchestrator";
-import type { Action, AssetStatus, AutopilotPolicy, Crew, FmData, FmEvent, Priority, Technician, WorkOrder, WoStatus, WoType } from "./types";
-import type { Capability, Mission } from "../robots/types";
-import { CAPABILITY_LABEL, MISSION_LABEL } from "../robots/types";
-import { gasIn, robotMayEnter, turnaround, waitingFor } from "./work";
-import { findings } from "../robots/sim";
+import type { Action, AssetStatus, AutopilotPolicy, Crew, FmData, FmEvent, Priority, RobotReport, SecurityAlert, Technician, WorkOrder, WoStatus, WoType } from "./types";
+import type { Capability, Mission, Robot } from "../robots/types";
+import { CAPABILITY_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
+import { dronesGrounded, gasIn, robotMayEnter, turnaround, waitingFor } from "./work";
+import { findings, simNow } from "../robots/sim";
+import { fleetConfig } from "../robots/adapter";
 import { closedIds, excludedPeople, learnedDoubts, isReason, type DecisionLike, type RejectReason } from "../proposals";
 import { canApprove, canSetPolicy, type Person } from "../auth/people";
 
@@ -34,7 +35,7 @@ export function withinPolicy(db: Db, a: Action): boolean {
   const p = policyOf(db, a.facilityId);
   return !!p && a.auto && p.kinds.includes(a.kind) && (a.risk === "low" || (a.risk === "medium" && p.maxRisk === "medium")) && (a.cost ?? 0) <= p.maxSpend;
 }
-export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare", "safety_stop", "gas_test", "robot_recall", "robot_mission", "robot_finding"], maxRisk: "low", maxSpend: 25_000 };
+export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare", "safety_stop", "gas_test", "robot_recall", "robot_mission", "robot_finding", "security_response", "combine_missions"], maxRisk: "low", maxSpend: 25_000 };
 
 export function actions(db: Db, d: FmData, facilityId?: string): Action[] { return propose(d, learnedFrom(db), facilityId); }
 
@@ -72,6 +73,8 @@ export function facilityState(db: Db, facilityId: string) {
     crews: by(d.crews).map((c) => ({ ...c, contractor: d.contractors.find((k) => k.id === c.contractorId)?.name ?? "", rating: d.contractors.find((k) => k.id === c.contractorId)?.performance.rating ?? "good", jobs: crewJobs(c.id) })),
     robots: by(d.robots), missions: by(d.missions).sort((a, b) => a.plannedStart.localeCompare(b.plannedStart)), findings: findings(d, facilityId),
     turnarounds: [...new Set(by(d.workOrders).filter((w) => w.package).map((w) => w.package!))].map((pk) => turnaround(d, pk)!).filter(Boolean),
+    securityAlerts: by(d.securityAlerts).sort((a, b) => b.at.localeCompare(a.at)), dronesGrounded: dronesGrounded(d, facilityId, simNow(d.date))?.id ?? null,
+    fleets: fleets(d, facilityId),
   };
   return { date: d.date, facility: f, sector: SECTOR_LABEL[f.sector], kpis: kpis(d, facilityId), ...work, systems: by(d.systems), assets: by(d.assets), technicians: by(d.technicians).map((t) => ({ ...t, load: workload(d, t.id) })),
     workOrders: by(d.workOrders).map((w) => ({ ...w, slaLeft: Math.round(slaLeft(w) * 10) / 10, overdue: isOverdue(w), waitingFor: waitingFor(d, w) })), alarms: by(d.alarms), spares: by(d.spares), actions: actions(db, d, facilityId), autopilot: autopilotOn(db, facilityId), policy: policyOf(db, facilityId) ?? null, log, top: topIssues(d, facilityId) };
@@ -98,6 +101,9 @@ function eventFacility(d: FmData, e: FmEvent): string | undefined {
     case "finding_ack": return d.missions.find((m) => e.findingId.startsWith(m.id))?.facilityId;
     case "crew_status": return d.crews.find((c) => c.id === e.crewId)?.facilityId;
     case "gas_test": return d.workOrders.find((w) => w.id === e.woId)?.facilityId;
+    case "security_alert": return e.alert.facilityId;
+    case "security_update": return d.securityAlerts.find((a) => a.id === e.alertId)?.facilityId ?? d.facilities.find((f) => e.alertId.includes(f.id))?.id;
+    case "robot_report": return d.robots.find((r) => r.id === e.robotId)?.facilityId;
   }
 }
 
@@ -136,7 +142,7 @@ export function myDay(db: Db, techId: string) {
 // ------------------------------------------------------------------ writes
 export interface ActInput {
   action: "decide" | "autopilot" | "policy" | "tick" | "wo_create" | "wo_update" | "asset_status" | "alarm_ack" | "tech_status"
-    | "gas_test" | "mission" | "mission_abort" | "estop" | "crew_status";
+    | "gas_test" | "mission" | "mission_abort" | "estop" | "crew_status" | "security" | "robot_report";
   facilityId?: string; actionId?: string; decision?: "approved" | "rejected"; reason?: RejectReason; on?: boolean;
   policy?: Partial<Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend">>;
   asset?: string; title?: string; detail?: string; priority?: Priority; type?: WoType;
@@ -150,6 +156,22 @@ export interface ActInput {
   robotId?: string; missionKind?: Mission["kind"]; zone?: string; checks?: Capability[]; missionId?: string;
   /** a contractor crew and its status */
   crewId?: string; crewStatus?: Crew["status"];
+  /** a security alert and what became of it */
+  alertId?: string; alertStatus?: SecurityAlert["status"];
+  /** a real fleet's report (status, place, findings), in the common shape */
+  report?: RobotReport;
+}
+
+/** The fleet by maker: how many robots, in which domains, connected how, run by whom — one view across vendors. */
+export function fleets(d: FmData, facilityId: string) {
+  const rs = d.robots.filter((r) => r.facilityId === facilityId);
+  const CONN: Record<Robot["adapter"], string> = { sim: "simulated", rmf: "Open-RMF", vendor: "vendor API", platform: "vendor data platform" };
+  return [...new Set(rs.map((r) => r.vendor))].map((v) => {
+    const xs = rs.filter((r) => r.vendor === v), r0 = xs[0];
+    const live = r0.adapter === "rmf" ? !!process.env.ROBOT_RMF_URL : r0.adapter === "vendor" || r0.adapter === "platform" ? !!fleetConfig(r0.fleet) : false;
+    return { vendor: v, robots: xs.map((r) => r.name), domains: [...new Set(xs.map((r) => DOMAIN_OF[r.kind]))], roles: [...new Set(xs.flatMap((r) => r.roles))], platform: r0.platform ?? null, operator: r0.operator ?? null,
+      connection: CONN[r0.adapter], live, lastReport: xs.map((r) => r.lastReport).filter(Boolean).sort().slice(-1)[0] ?? null };
+  });
 }
 /** Decide one proposal: approve (it runs) or reject (with the reason, which the orchestrator learns from). */
 function decideOne(db: Db, d: FmData, a: Action, b: { decision?: "approved" | "rejected"; reason?: RejectReason; note?: string }, by: string, channel: Channel, who: { byId?: string; role?: string }, user: Person | null | undefined): FmEvent[] {
@@ -185,7 +207,7 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
         add({ kind: "policy", facilityId: b.facilityId, policy: null, summary: "withdrew the autopilot policy" });
         return { ok: true, message: "Autopilot policy withdrawn: every proposal waits for approval.", events: evs };
       }
-      const kinds = (b.policy?.kinds ?? DEFAULT_POLICY.kinds).filter((k) => ["raise_wo", "assign", "reschedule", "escalate", "order_spare", "permit", "isolate"].includes(k));
+      const kinds = (b.policy?.kinds ?? DEFAULT_POLICY.kinds).filter((k) => k in KIND_LABEL);
       const pol: AutopilotPolicy = { kinds, maxRisk: b.policy?.maxRisk === "medium" ? "medium" : "low", maxSpend: Math.max(0, Math.min(250_000, Number(b.policy?.maxSpend ?? DEFAULT_POLICY.maxSpend) || 0)), signedBy: user!.name, signedById: user!.id, role: user!.role, at: new Date().toISOString() };
       db.fmConfig = { ...(db.fmConfig ?? { autopilot: {} }), autopilot: { ...(db.fmConfig?.autopilot ?? {}), [b.facilityId]: true }, policy: { ...(db.fmConfig?.policy ?? {}), [b.facilityId]: pol } };
       add({ kind: "policy", facilityId: b.facilityId, policy: pol, summary: `signed the autopilot policy: ${kinds.length} kinds, ${pol.maxRisk} risk, up to SAR ${pol.maxSpend.toLocaleString("en-US")}` });
@@ -284,11 +306,14 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       const zone = d.zones.find((z) => z.facilityId === r.facilityId && (z.id === b.zone || z.name.toLowerCase() === String(b.zone ?? "").toLowerCase() || z.name === asset?.zone));
       if (!zone) throw new Error(`Where should ${r.name} go? Name an asset or one of: ${d.zones.filter((z) => z.facilityId === r.facilityId).map((z) => z.name).join(", ")}.`);
       if (!robotMayEnter(r, zone)) throw new Error(`${r.name} isn't certified for hazardous areas — ${zone.name} is zone ${zone.atex}. Send an Ex-rated robot.`);
+      const grounded = DOMAIN_OF[r.kind] === "air" ? dronesGrounded(d, r.facilityId, simNow(d.date)) : undefined;
+      if (grounded) throw new Error(`${r.name} stays on the ground: an unidentified drone was reported at ${new Date(Date.parse(grounded.at) + 3 * 3600_000).toISOString().slice(11, 16)} (${grounded.text.toLowerCase()}). Air missions wait two hours or until security clears it.`);
       const kind: Mission["kind"] = b.missionKind ?? "inspection_round";
       const checks = (b.checks?.length ? b.checks : r.capabilities.filter((c) => c !== "lidar" && c !== "carry")) as Capability[];
       const missing = checks.filter((c) => !r.capabilities.includes(c));
       if (missing.length) throw new Error(`${r.name} has no ${missing.map((c) => CAPABILITY_LABEL[c]).join(", ")}.`);
-      const dur = kind === "inspection_round" ? 45 : kind === "thickness_survey" ? 60 : 20;
+      // as long as the job takes, but never more than the robot can run with a margin (a drone flies 35 minutes)
+      const dur = Math.max(10, Math.min(kind === "inspection_round" || kind === "security_patrol" || kind === "pipeline_patrol" ? 45 : kind === "thickness_survey" || kind === "subsea_inspection" ? 60 : 20, Math.floor(r.enduranceMin * 0.6)));
       if (r.battery < 25 + (90 * dur) / r.enduranceMin) throw new Error(`${r.name} has ${r.battery}% — not enough for a ${dur}-minute ${MISSION_LABEL[kind]}. It is charging.`);
       const m: Mission = { id: `MS-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`, facilityId: r.facilityId, robotId: r.id, kind, title: `${MISSION_LABEL[kind][0].toUpperCase()}${MISSION_LABEL[kind].slice(1)} — ${asset ? `${asset.tag} ${asset.name}` : zone.name}`,
         waypoints: [{ zone: zone.id, ...(asset ? { assetId: asset.id } : {}), label: asset ? `${asset.tag} ${asset.name}` : zone.name, checks }], plannedStart: new Date(Date.now() + 60_000).toISOString(), durationMin: dur, status: "planned", by, source: channel === "whatsapp" ? "whatsapp" : channel === "field" ? "field" : "control", findings: [], ...(b.woId ? { woId: b.woId } : {}) };
@@ -311,6 +336,30 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       if (!user) throw new Error("Sign in to stop a robot (or use the stop button on the robot).");
       add({ kind: "robot_estop", robotId: r.id, on: b.on !== false, note: b.note, summary: `${r.name} ${b.on !== false ? "emergency stop" : "released"}${b.note ? `: ${b.note}` : ""}` });
       return { ok: true, message: b.on !== false ? `${r.name} stopped. Its mission is frozen; send it again once released.` : `${r.name} released — it is free for new missions.`, events: evs };
+    }
+    case "security": {
+      const al = d.securityAlerts.find((x) => x.id === b.alertId);
+      if (!al) throw new Error("Which security alert?");
+      if (!b.alertStatus || !["checking", "cleared", "escalated"].includes(b.alertStatus)) throw new Error("Is it being checked, cleared or escalated?");
+      if (!user || user.orgType !== "client" || (user.role === "field" && !/security|hse|safety/i.test(user.title)) || user.role === "guest") throw new Error("Security alerts are handled by security, a supervisor or the control room.");
+      add({ kind: "security_update", alertId: al.id, status: b.alertStatus, ...(b.note ? { note: b.note } : {}), summary: `${al.source}: ${b.alertStatus}${b.note ? ` — ${b.note}` : ""}` });
+      return { ok: true, message: `${al.source}: ${b.alertStatus === "cleared" ? "cleared" : b.alertStatus === "escalated" ? "escalated — security responding" : "being checked"}.`, events: evs };
+    }
+    case "robot_report": {
+      // from a vendor's API or data platform (app/api/fm/robots): the robot by its name or its id in the vendor's system
+      const rep = b.report;
+      if (!rep || typeof rep !== "object") throw new Error("Send a report: { robot, status?, battery?, zone?, findings? }.");
+      const r = d.robots.find((x) => x.id === rep.robot || x.externalId === rep.robot || x.name.toLowerCase() === String(rep.robot ?? "").toLowerCase());
+      if (!r) throw new Error(`No robot ${rep.robot} in the fleet.`);
+      const SENS = Object.keys(CAPABILITY_LABEL), SEV = ["info", "low", "medium", "high", "critical"], ST = ["docked", "charging", "on_mission", "returning", "fault", "estop", "offline"];
+      if (rep.status && !ST.includes(rep.status)) throw new Error(`status: one of ${ST.join(", ")}.`);
+      if (rep.battery !== undefined && !(typeof rep.battery === "number" && rep.battery >= 0 && rep.battery <= 100)) throw new Error("battery: 0–100.");
+      const fs = (rep.findings ?? []).slice(0, 50);
+      for (const f of fs) if (!f || !SENS.includes(f.sensor) || !SEV.includes(f.severity) || typeof f.value !== "number" || !Number.isFinite(f.value) || !String(f.label ?? "").trim()) throw new Error("Each finding needs sensor, label, value (a number), unit and severity (info, low, medium, high, critical).");
+      const clean: RobotReport = { robot: r.id, source: String(rep.source ?? r.platform ?? r.vendor).slice(0, 80), ...(rep.status ? { status: rep.status } : {}), ...(rep.battery !== undefined ? { battery: rep.battery } : {}), ...(rep.zone ? { zone: String(rep.zone).slice(0, 60) } : {}),
+        ...(fs.length ? { findings: fs.map((f) => ({ sensor: f.sensor, label: String(f.label).slice(0, 200), value: f.value, unit: String(f.unit ?? "").slice(0, 20), severity: f.severity, ...(f.limit !== undefined && Number.isFinite(f.limit) ? { limit: f.limit } : {}), ...(f.asset ? { asset: String(f.asset).slice(0, 40) } : {}), ...(f.at && !Number.isNaN(Date.parse(f.at)) ? { at: new Date(f.at).toISOString() } : {}), ...(f.image ? { image: String(f.image).slice(0, 200) } : {}) })) } : {}) };
+      add({ kind: "robot_report", robotId: r.id, report: clean, summary: `${r.name}: report from ${clean.source}${fs.length ? ` — ${fs.length} finding${fs.length > 1 ? "s" : ""}` : ""}` });
+      return { ok: true, message: `${r.name}: report recorded${fs.length ? ` with ${fs.length} finding${fs.length > 1 ? "s" : ""}` : ""}.`, events: evs };
     }
     case "crew_status": {
       const c = d.crews.find((x) => x.id === b.crewId);

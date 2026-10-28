@@ -2,7 +2,7 @@
 // contractors and their crews on site this week, the robot fleet and today's robot missions, and the turnaround of
 // compressor train B — a week-long shutdown run by contractor crews, with permits, gas tests and robot pre-entry
 // checks. Everything is laid out for the calendar date, like the rest of the demo; changes are events (engine.ts).
-import type { Crew, FmContractor, FmData, Trade, WorkOrder, ZoneDef } from "./types";
+import type { SecurityAlert, Crew, FmContractor, FmData, Trade, WorkOrder, ZoneDef } from "./types";
 import type { Mission, Robot, Waypoint } from "../robots/types";
 
 const FID = "kgpp";
@@ -15,6 +15,7 @@ const Z = (id: string, name: string, hazards: ZoneDef["hazards"], atex: ZoneDef[
 export const GAS_ZONES: ZoneDef[] = [
   Z("cr", "Control room", [], null, 2, 2, 15, 10),
   Z("dock", "Robot dock", [], null, 2, 14, 15, 20),
+  Z("gate", "Main gate & security", [], null, 2, 37, 15, 12),
   Z("inl", "Inlet & separation", ["h2s", "hydrocarbon"], 1, 20, 2, 22, 18),
   Z("cmp", "Compression", ["hydrocarbon", "noise", "hot_surface"], 2, 45, 2, 30, 18),
   Z("flr", "Flare", ["height", "hot_surface"], null, 78, 2, 20, 18),
@@ -23,6 +24,7 @@ export const GAS_ZONES: ZoneDef[] = [
   Z("tnk", "Tank farm", ["hydrocarbon", "confined_space"], 1, 78, 23, 20, 17),
   Z("utl", "Utilities & power", ["high_voltage"], null, 20, 43, 30, 15),
   Z("lay", "Laydown (contractors)", [], null, 53, 43, 22, 15),
+  Z("jty", "Export line & jetty", ["marine", "hydrocarbon"], null, 78, 43, 20, 15),
 ];
 export const zoneByName = (name: string) => GAS_ZONES.find((z) => z.name === name);
 
@@ -47,14 +49,22 @@ const CREWS: [contractor: number, name: string, lead: string, size: number, trad
 export const GAS_CREWS: Crew[] = CREWS.map(([c, name, lead, size, trades, zone, status, certs], i) => ({ id: `${FID}:crew${i + 1}`, contractorId: GAS_CONTRACTORS[c].id, facilityId: FID, name, lead, leadPhone: crewPhone(i), size, trades, zone, shift: "day", status, certs }));
 
 // ------------------------------------------------------------------ the robot fleet
-const R = (id: string, name: string, model: string, vendor: string, kind: Robot["kind"], caps: Robot["capabilities"], exRated: boolean, enduranceMin: number, extra: Partial<Robot> = {}): Robot =>
-  ({ id: `${FID}:${id}`, facilityId: FID, name, model, vendor, kind, capabilities: caps, exRated, enduranceMin, dock: `${FID}:dock`, autonomy: "policy", adapter: "sim", status: "docked", battery: 100, zone: `${FID}:dock`, x: 9, y: 18, ...extra });
+// Many makers, one fleet — as at the operators this is built for: quadrupeds, a heavy "operator" robot that turns
+// valves, a security patrol robot, drones (a docked quadcopter and a long-range fixed-wing), a climbing crawler whose
+// data lives in its maker's platform, and an underwater drone for the export line. Each keeps its own software; the
+// orchestrator directs them all the same way. Makers are named "-type": demo stand-ins, not the vendors' products.
+const R = (id: string, name: string, model: string, vendor: string, kind: Robot["kind"], caps: Robot["capabilities"], exRated: boolean, enduranceMin: number, roles: Robot["roles"], extra: Partial<Robot> = {}): Robot =>
+  ({ id: `${FID}:${id}`, facilityId: FID, name, model, vendor, kind, capabilities: caps, exRated, enduranceMin, roles, dock: `${FID}:dock`, autonomy: "policy", adapter: "sim", operator: "Plant inspection team", status: "docked", battery: 100, zone: `${FID}:dock`, x: 9, y: 18, ...extra });
 export const GAS_ROBOTS: Robot[] = [
-  R("r1", "Ex-1", "ANYmal X-type (demo)", "ANYbotics-type", "quadruped", ["visual", "thermal", "gas", "acoustic", "lidar"], true, 90),
-  R("r5", "Ex-2", "ANYmal X-type (demo)", "ANYbotics-type", "quadruped", ["visual", "thermal", "gas", "acoustic", "lidar"], true, 90),
-  R("r2", "Spot-2", "Spot-type (demo)", "Boston Dynamics-type", "quadruped", ["visual", "thermal", "acoustic", "lidar"], false, 75, { autonomy: "supervised" }),
-  R("r3", "Drone-1", "Dock-based drone (demo)", "Percepto-type", "drone", ["visual", "thermal", "gas"], false, 35, { maxWindMs: 12 }),
-  R("r4", "Crawler-1", "Magnetic crawler (demo)", "Gecko-type", "crawler", ["ut_thickness", "visual"], true, 120, { autonomy: "supervised" }),
+  R("r1", "Ex-1", "ANYmal X-type (demo)", "ANYbotics-type", "quadruped", ["visual", "thermal", "gas", "acoustic", "lidar"], true, 90, ["inspection", "emergency"], { fleet: "quadrupeds", platform: "Vendor fleet manager (demo)" }),
+  R("r5", "Ex-2", "ANYmal X-type (demo)", "ANYbotics-type", "quadruped", ["visual", "thermal", "gas", "acoustic", "lidar"], true, 90, ["inspection", "emergency"], { fleet: "quadrupeds", platform: "Vendor fleet manager (demo)" }),
+  R("r2", "Spot-2", "Spot-type (demo)", "Boston Dynamics-type", "quadruped", ["visual", "thermal", "acoustic", "lidar"], false, 75, ["inspection"], { autonomy: "supervised", adapter: "rmf", fleet: "rmf" }),
+  R("r6", "Op-1", "Heavy-duty operator robot (demo)", "Taurob-type", "ugv", ["visual", "thermal", "gas", "acoustic", "lidar", "manipulate"], true, 240, ["inspection", "emergency"], { autonomy: "supervised", fleet: "operator", platform: "Vendor mission planner (demo)" }),
+  R("r7", "Patrol-1", "Security patrol robot (demo)", "Micropolis-type", "ugv", ["visual", "thermal", "intrusion", "lidar", "acoustic"], false, 480, ["security", "inspection"], { dock: `${FID}:gate`, zone: `${FID}:gate`, adapter: "vendor", fleet: "security", platform: "Security operations centre software (demo)", operator: "Security integrator, through a local partner (demo)" }),
+  R("r3", "Drone-1", "Dock-based drone (demo)", "Percepto-type", "drone", ["visual", "thermal", "gas", "intrusion"], false, 35, ["inspection", "security", "emissions"], { maxWindMs: 12, fleet: "drones-dock", platform: "Drone-in-a-box software (demo)" }),
+  R("r8", "VTOL-1", "Long-range fixed-wing VTOL drone (demo)", "Terra Drone-type", "fixed_wing", ["visual", "thermal", "gas"], false, 120, ["inspection", "emissions", "security"], { maxWindMs: 15, adapter: "vendor", fleet: "drone-service", platform: "Drone service provider's platform (demo)", operator: "Drone inspection service, through a local partner (demo)" }),
+  R("r4", "Crawler-1", "Magnetic climbing crawler (demo)", "Gecko-type", "crawler", ["ut_thickness", "visual"], true, 120, ["inspection"], { autonomy: "supervised", adapter: "platform", fleet: "crawlers", platform: "Cantilever-type asset-integrity platform (demo)", operator: "Crawler inspection service (demo)" }),
+  R("r9", "ROV-1", "Shallow-water inspection drone (demo)", "Tethys-type", "rov", ["visual", "sonar"], false, 180, ["inspection"], { dock: `${FID}:jty`, zone: `${FID}:jty`, autonomy: "supervised", adapter: "platform", fleet: "subsea", platform: "Vendor survey platform (demo)", operator: "Marine services contractor (demo)" }),
 ];
 
 const asset = (tag: string) => `${FID}:${tag}`;
@@ -65,17 +75,26 @@ const ROUND: Waypoint[] = [
   W("agr", "P-303A", "Amine pump P-303A", ["thermal", "acoustic"]), W("agr", "C-301", "Amine contactor C-301", ["gas"]),
 ];
 
+const PATROL: Waypoint[] = [W("gate", undefined, "Main gate", ["intrusion", "visual"]), W("lay", undefined, "Laydown and the north fence", ["intrusion", "visual"]), W("utl", undefined, "Utilities and the east fence", ["intrusion", "thermal"]), W("jty", undefined, "Jetty approach", ["intrusion", "visual"])];
+const UTIL: Waypoint[] = [W("utl", "GTG-1", "Generator GTG-1", ["thermal", "acoustic"]), W("utl", "K-961", "Instrument-air compressor K-961", ["acoustic", "thermal"]), W("utl", "P-951A", "Fire-water pump P-951A", ["acoustic"])];
+
 /** Today's robot missions: three rounds of the hazardous areas, a utilities round, the flare and a tank survey. */
 export function gasMissions(date: string): Mission[] {
   const M = (n: number, robot: string, kind: Mission["kind"], title: string, h: number, m: number, durationMin: number, waypoints: Waypoint[]): Mission =>
     ({ id: `MS-${date.replace(/-/g, "").slice(2)}-${String(n).padStart(2, "0")}`, facilityId: FID, robotId: `${FID}:${robot}`, kind, title, waypoints, plannedStart: localAt(date, h, m), durationMin, status: "planned", by: "Inspection plan", source: "schedule", findings: [] });
   return [
     M(1, "r1", "inspection_round", "Morning round — inlet, compression, amine", 6, 0, 70, ROUND),
-    M(2, "r2", "inspection_round", "Utilities round — generator, air, fire water", 8, 0, 45, [W("utl", "GTG-1", "Generator GTG-1", ["thermal", "acoustic"]), W("utl", "K-961", "Instrument-air compressor K-961", ["acoustic", "thermal"]), W("utl", "P-951A", "Fire-water pump P-951A", ["acoustic"])]),
+    M(2, "r2", "inspection_round", "Utilities round — generator, air, fire water", 8, 0, 45, UTIL),
     M(3, "r3", "flare_inspection", "Flare F-901 — pilots and tip", 10, 30, 25, [W("flr", "F-901", "Flare F-901 tip and pilots", ["visual", "thermal"])]),
     M(4, "r4", "thickness_survey", "Tank T-701A — roof and lower shell thickness", 13, 0, 110, [W("tnk", "T-701A", "Tank T-701A roof plates", ["ut_thickness", "visual"]), W("tnk", "T-701A", "Tank T-701A lower shell", ["ut_thickness"])]),
     M(5, "r1", "inspection_round", "Afternoon round — inlet, compression, amine", 14, 0, 70, ROUND),
     M(6, "r1", "inspection_round", "Night round — inlet, compression, amine", 22, 0, 70, ROUND),
+    // security patrols round the clock — the fence line, the gate, the laydown, utilities and the jetty
+    ...[[0, 30], [6, 30], [12, 30], [18, 30]].map(([h, m], i) => M(7 + i, "r7", "security_patrol", `${["Night", "Dawn", "Midday", "Evening"][i]} perimeter patrol — gate, laydown, utilities, jetty`, h, m, 60, PATROL)),
+    M(11, "r2", "inspection_round", "Evening utilities round — generator, air, fire water", 19, 0, 45, UTIL),
+    M(12, "r8", "pipeline_patrol", "Export line — right of way, leaks and encroachment", 7, 0, 75, [W("jty", "PL-01", "Export line right of way", ["visual", "thermal", "gas"])]),
+    M(13, "r8", "emissions_survey", "Methane survey — flare, compression, tank farm", 15, 30, 50, [W("flr", "F-901", "Flare F-901", ["gas", "thermal"]), W("cmp", "GD-COMP-2", "Compression, from the air", ["gas"]), W("tnk", "T-701A", "Tank farm vents", ["gas"])]),
+    M(14, "r9", "subsea_inspection", "Export line, subsea section — free spans and burial", 9, 0, 90, [W("jty", "PL-01", "Export line, subsea section KP 0–4", ["sonar", "visual"])]),
   ];
 }
 
@@ -108,7 +127,21 @@ export function gasTurnaround(date: string): WorkOrder[] {
 }
 
 /** Adds the plant's working world to the generated day. */
+// ------------------------------------------------------------------ security
+/** Today's security alerts: a fence sensor at night (checked and cleared by the patrol), a small drone seen over the
+ *  flare in the morning, a fence sensor at the laydown after lunch. Each shows from the moment it happened. */
+export function gasAlerts(date: string): SecurityAlert[] {
+  const A = (n: number, h: number, m: number, kind: SecurityAlert["kind"], zone: string, source: string, text: string, x: Partial<SecurityAlert> = {}): SecurityAlert =>
+    ({ id: `SA-${date.replace(/-/g, "").slice(2)}-${n}`, facilityId: FID, at: localAt(date, h, m), kind, zone: `${FID}:${zone}`, source, text, status: "open", ...x });
+  return [
+    A(1, 1, 12, "fence", "jty", "Fence sensor F-31", "Fence sensor F-31 tripped on the jetty approach", { status: "cleared", note: "Patrol-1 checked at 01:20: a stray dog under the fence; fence intact.", by: "Patrol-1" }),
+    A(2, 10, 52, "drone", "flr", "Drone-1 camera", "Small unidentified drone over the flare area, heading north-east, about 120 m up"),
+    A(3, 13, 5, "fence", "lay", "Fence sensor F-09", "Fence sensor F-09 tripped by the contractors' laydown"),
+  ];
+}
+
 export function addGasWork(out: FmData, date: string) {
+  out.securityAlerts.push(...gasAlerts(date));
   out.zones.push(...structuredClone(GAS_ZONES));
   out.contractors.push(...structuredClone(GAS_CONTRACTORS));
   out.crews.push(...structuredClone(GAS_CREWS));

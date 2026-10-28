@@ -5,11 +5,13 @@
 // (orchestrator.ts) turns these into proposals with their reasons; approved, they become events like everything else.
 import type { Action, Crew, FmData, FmEvent, Priority, WorkOrder, ZoneDef } from "./types";
 import type { Capability, Finding, Mission, Robot, Waypoint } from "../robots/types";
-import { CAPABILITY_LABEL, MISSION_LABEL } from "../robots/types";
+import { CAPABILITY_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
 import { nearLimit } from "../robots/sim";
 import { GAS_HOLD, PRIORITY_SLA, bestTech, clearGasHold, isOpen } from "./engine";
 
 const MIN = 60_000;
+/** A time as the plant reads it (Riyadh, UTC+3). */
+const local = (iso?: string) => (iso ? new Date(Date.parse(iso) + 3 * 3600_000).toISOString().slice(11, 16) : "");
 
 // ------------------------------------------------------------------ places
 export const zoneNamed = (d: FmData, facilityId: string, name?: string) => d.zones.find((z) => z.facilityId === facilityId && z.name === name);
@@ -29,7 +31,7 @@ export function gasIn(d: FmData, z?: ZoneDef): { text: string; ratio: number } |
   // a robot's gas reading counts until the source is repaired
   const repairedSince = (f: Finding) => d.assets.find((a) => a.id === f.assetId)?.readings.some((r) => r.was && r.was.until > f.at);
   for (const m of d.missions.filter((x) => x.facilityId === z.facilityId)) for (const f of m.findings.filter((x) => x.sensor === "gas" && x.zone === z.id && !repairedSince(x)))
-    take(`${f.label}, found by ${d.robots.find((r) => r.id === f.robotId)?.name ?? "a robot"} at ${f.at.slice(11, 16)} UTC`, f.limit ? f.value / f.limit : 1);
+    take(`${f.label}, found by ${d.robots.find((r) => r.id === f.robotId)?.name ?? "a robot"} at ${local(f.at)}`, f.limit ? f.value / f.limit : 1);
   return best;
 }
 
@@ -53,9 +55,10 @@ export function pickCrew(d: FmData, w: WorkOrder, trades: string[], taken: Set<s
 }
 
 /** A robot that can make these checks in these areas now: capable, certified for the area, idle and charged enough. */
-export function pickRobot(d: FmData, facilityId: string, checks: Capability[], zones: (ZoneDef | undefined)[], durationMin: number, now: number): { robot?: Robot; why: string[] } {
+export function pickRobot(d: FmData, facilityId: string, checks: Capability[], zones: (ZoneDef | undefined)[], durationMin: number, now: number, skip?: (r: Robot) => string | null): { robot?: Robot; why: string[] } {
   const reasons: string[] = [];
   const xs = d.robots.filter((r) => r.facilityId === facilityId).filter((r) => {
+    const no = skip?.(r); if (no) { reasons.push(no); return false; }
     if (!checks.every((c) => r.capabilities.includes(c))) return false;
     if (zones.some((z) => !robotMayEnter(r, z))) { reasons.push(`${r.name} isn't certified for hazardous areas`); return false; }
     if (r.estop || r.status === "fault" || r.status === "offline") { reasons.push(`${r.name} is ${r.estop ? "on emergency stop" : r.status}`); return false; }
@@ -68,6 +71,12 @@ export function pickRobot(d: FmData, facilityId: string, checks: Capability[], z
   if (!r) return { why: reasons };
   return { robot: r, why: [`${r.name} (${r.model}): ${checks.map((c) => CAPABILITY_LABEL[c]).join(", ")}${r.exRated ? "; Ex-certified for hazardous areas" : ""}`, `Battery ${r.battery}%, enough for ${durationMin} min`, r.autonomy === "policy" ? "Runs the route on its own; a person watches the feed" : "Supervised: a person approves and watches the mission"] };
 }
+
+/** An unidentified drone over the plant in the last two hours: our own drones stay on the ground, so nobody confuses
+ *  them with it and the airspace is clear for the authorities. */
+export const dronesGrounded = (d: FmData, facilityId: string, now: number) =>
+  d.securityAlerts.find((a) => a.facilityId === facilityId && a.kind === "drone" && a.status !== "cleared" && now - Date.parse(a.at) < 2 * 3600_000);
+const inAir = (r: Robot) => DOMAIN_OF[r.kind] === "air";
 
 const newMission = (d: FmData, r: Robot, kind: Mission["kind"], title: string, waypoints: Waypoint[], durationMin: number, now: number, woId?: string): Mission => ({
   id: `MS-${new Date(now).toISOString().slice(2, 10).replace(/-/g, "")}-${String(d.missions.length + 1).padStart(2, "0")}${Math.random().toString(36).slice(2, 4)}`, facilityId: r.facilityId, robotId: r.id, kind, title, waypoints,
@@ -115,21 +124,23 @@ export function workProposals(d: FmData, fac: (id: string) => boolean, push: (a:
       risk: "low", auto: !robot || robot.autonomy === "policy", effect: robot ? "mission_create" : "wo_update", payload: robot ? { mission: m, woId: w.id } : { woId: w.id, patch: { note: `Gas re-test of ${z.name} requested from ${tester?.name ?? "the gas tester"}.` } }, targets: { woId: w.id, robotId: robot?.id, zoneId: z.id } });
   }
 
-  // 3. A robot found something nobody is working on: raise the work for people.
+  // 3. A robot found something nobody is working on: raise the work for people (one job per asset, whoever found it).
+  const raised = new Set<string>();
   for (const m of d.missions.filter((x) => fac(x.facilityId))) for (const f of m.findings.filter((x) => !x.acknowledged && !x.woId && (x.severity === "medium" || x.severity === "high" || x.severity === "critical"))) {
     const a = f.assetId ? asset(f.assetId) : undefined;
-    if (!a) continue;
+    if (!a || raised.has(a.id)) continue;
+    raised.add(a.id);
     const covered = d.workOrders.some((w) => w.assetId === a.id && isOpen(w) && w.type !== "PM" && w.type !== "TAR") || d.alarms.some((al) => al.assetId === a.id && !al.acknowledged && !al.woId && al.severity !== "low");
     if (covered) continue;
     const pr = sevPri[f.severity], robot = d.robots.find((r) => r.id === f.robotId);
     const z = zoneNamed(d, a.facilityId, a.zone), hazardous = !!z?.atex;
     const wo: WorkOrder = { id: "", facilityId: a.facilityId, assetId: a.id, type: f.severity === "critical" ? "Emergency" : "CM", priority: pr, status: "open", title: `${f.sensor === "ut_thickness" ? "Assess and repair" : "Investigate"}: ${f.label}`,
-      detail: `Found by ${robot?.name ?? "a robot"} on "${m.title}" at ${f.at.slice(11, 16)} UTC (${f.sensor.replace("_", " ")}). ${f.image ? `Image: ${f.image}.` : ""}`, raised: new Date(now).toISOString(), due: new Date(now + PRIORITY_SLA[pr] * 3600_000).toISOString().slice(0, 10), slaHours: PRIORITY_SLA[pr],
+      detail: `Found by ${robot?.name ?? "a robot"} on "${m.title}" at ${local(f.at)} (${f.sensor.replace("_", " ")}). ${f.image ? `Image: ${f.image}.` : ""}`, raised: new Date(now).toISOString(), due: new Date(now + PRIORITY_SLA[pr] * 3600_000).toISOString().slice(0, 10), slaHours: PRIORITY_SLA[pr],
       source: "robot", raisedBy: robot?.name ?? "Robot", checklist: [{ text: "Gas test and permit before work", done: false }, { text: "Confirm the reading on site", done: false }, { text: "Repair or make safe", done: false }, { text: "Record; the next robot round re-checks it", done: false }], spares: [], notes: [], evidence: f.image ? [f.image] : [],
       ...(hazardous ? { gasTest: { status: "required" as const } } : {}) };
     const { tech, why } = bestTech(d, wo, handed, exclude?.(`finding:${f.id}`));
     push({ id: `finding:${f.id}`, facilityId: a.facilityId, kind: "robot_finding", title: `Raise ${pr} work from ${robot?.name ?? "the robot"}'s finding at ${a.tag}${tech ? ` and give it to ${tech.name}` : ""}`,
-      why: [`${f.label} — ${f.severity}`, `${m.title}, ${f.at.slice(11, 16)} UTC`, `${a.name}, criticality ${a.criticality}`, ...(tech ? why : []), ...(hazardous ? [`${zoneLabel(z)}: gas test before work`] : []), "The next round re-checks it after the repair"],
+      why: [`${f.label} — ${f.severity}`, `${m.title}, ${local(f.at)}`, `${a.name}, criticality ${a.criticality}`, ...(tech ? why : []), ...(hazardous ? [`${zoneLabel(z)}: gas test before work`] : []), "The next round re-checks it after the repair"],
       risk: pr === "P1" ? "medium" : "low", auto: pr !== "P1", effect: "wo_create", payload: { wo: { ...wo, ...(tech ? { assignee: tech.id, status: "assigned" } : {}) }, findingId: f.id }, targets: { assetId: a.id, techId: tech?.id, findingId: f.id, robotId: f.robotId } });
   }
 
@@ -162,6 +173,55 @@ export function workProposals(d: FmData, fac: (id: string) => boolean, push: (a:
     push({ id: `recall:${r.missionId}`, facilityId: r.facilityId, kind: "robot_recall", title: `Recall ${r.name}: battery ${r.battery}%`, why: [`On "${d.missions.find((m) => m.id === r.missionId)?.title}"`, "Below 20%: it must reach the dock before it stops in a hazardous area", "The rest of the route is planned again after charging"],
       risk: "low", auto: true, effect: "mission_update", payload: { missionId: r.missionId }, targets: { robotId: r.id } });
   }
+
+  // 7. Security alerts: a robot looks first — a patrol already passing that way, or a free robot that can — and security
+  //    is told. An unidentified drone is not ours to chase: the authorities are told, our drones stay down.
+  for (const al of d.securityAlerts.filter((x) => fac(x.facilityId) && x.status === "open")) {
+    const z = d.zones.find((x) => x.id === al.zone), guard = d.technicians.find((t) => t.facilityId === al.facilityId && /security/i.test(t.role) && t.shift !== "off");
+    const base = { facilityId: al.facilityId, kind: "security_response" as const, risk: "low" as const, effect: "security_update" as const, targets: { alertId: al.id, zoneId: al.zone } };
+    if (al.kind === "drone") {
+      push({ ...base, id: `security:${al.id}`, title: `Unidentified drone over ${z?.name ?? "the plant"}: report it to the authorities and keep our drones on the ground`,
+        why: [`${al.text} (${al.source}, ${local(al.at)})`, "Countering a drone is for the state's forces, not the plant: report it with the time, place and heading", "Our drones stay docked for two hours so they are not mistaken for it; their missions wait", `People working in the open in ${z?.name ?? "the area"} go indoors until security clears it`, ...(guard ? [`${guard.name} (${guard.role}) makes the report`] : [])],
+        auto: false, payload: { alertId: al.id, status: "escalated", note: `Reported to the authorities${guard ? ` by ${guard.name}` : ""}; own drones grounded for two hours.` } });
+      continue;
+    }
+    const passing = d.missions.find((m) => m.facilityId === al.facilityId && m.kind === "security_patrol" && m.status === "running" && m.waypoints.slice(Math.max(0, (m.at ?? -1) + 1)).some((w) => w.zone === al.zone));
+    if (passing) {
+      const r = d.robots.find((x) => x.id === passing.robotId)!;
+      push({ ...base, id: `security:${al.id}`, title: `${r.name} is passing ${z?.name ?? "there"} on its patrol — have it check ${al.source} on the way`, why: [`${al.text} (${local(al.at)})`, `"${passing.title}": ${Math.round((passing.progress ?? 0) * 100)}% done, ${z?.name} still ahead`, "No extra trip: the patrol looks with its cameras and intrusion detection", ...(guard ? [`${guard.name} watches the feed and goes if it sees anyone`] : [])],
+        auto: true, payload: { alertId: al.id, status: "checking", missionId: passing.id, note: `${r.name} checks it on "${passing.title}".` }, targets: { ...base.targets, robotId: r.id, missionId: passing.id } });
+      continue;
+    }
+    const grounded = dronesGrounded(d, al.facilityId, now);
+    const { robot, why } = pickRobot(d, al.facilityId, ["intrusion"], [z], 20, now, (r) => (grounded && inAir(r) ? `${r.name} stays down — unidentified drone reported at ${local(grounded.at)}` : null));
+    if (robot) {
+      const m = newMission(d, robot, "alarm_check", `Check ${al.source} — ${z?.name ?? ""}`, [{ zone: al.zone, label: al.text, checks: robot.capabilities.filter((c) => c === "intrusion" || c === "visual" || c === "thermal") }], 20, now);
+      m.alertId = al.id;
+      push({ ...base, id: `security:${al.id}`, title: `Send ${robot.name} to check ${al.source} (${z?.name ?? "the plant"})`, why: [`${al.text} (${local(al.at)})`, ...why, "It looks before anyone walks up to it; if it sees a person or a vehicle, security goes", ...(guard ? [`${guard.name} (${guard.role}) is told and watches the feed`] : [])],
+        auto: robot.autonomy === "policy", effect: "mission_create", payload: { alertId: al.id, mission: m, status: "checking" }, targets: { ...base.targets, robotId: robot.id } });
+    } else {
+      push({ ...base, id: `security:${al.id}`, title: `No robot can check ${al.source} now — send ${guard?.name ?? "a guard"} to look`, why: [`${al.text} (${local(al.at)})`, ...why], auto: false, payload: { alertId: al.id, status: "checking", note: `${guard?.name ?? "A guard"} sent to check.` }, targets: { ...base.targets, techId: guard?.id } });
+    }
+  }
+
+  // 8. One trip instead of two: an inspection round that a security patrol passes anyway, within the hour, by a patrol
+  //    robot that has the sensors and may go there — fold the round into the patrol and free the other robot.
+  const patrols = d.missions.filter((m) => fac(m.facilityId) && m.kind === "security_patrol" && m.status === "planned" && !m.combined && Date.parse(m.plannedStart) > now);
+  for (const m of d.missions.filter((x) => fac(x.facilityId) && x.kind === "inspection_round" && x.status === "planned" && Date.parse(x.plannedStart) > now)) {
+    for (const p of patrols) {
+      const pr = d.robots.find((r) => r.id === p.robotId)!, ir = d.robots.find((r) => r.id === m.robotId)!;
+      if (pr.id === ir.id || Math.abs(Date.parse(p.plannedStart) - Date.parse(m.plannedStart)) > 60 * MIN) continue;
+      const zs = new Set(p.waypoints.map((w) => w.zone));
+      if (!m.waypoints.every((w) => zs.has(w.zone) && w.checks.every((c) => pr.capabilities.includes(c)) && robotMayEnter(pr, d.zones.find((z) => z.id === w.zone)))) continue;
+      const route: Waypoint[] = p.waypoints.flatMap((w) => [w, ...m.waypoints.filter((x) => x.zone === w.zone)]);
+      const combined: Mission = { ...p, id: `${p.id}C`, title: `${p.title} + ${m.title.split(" — ")[0].toLowerCase()}`, waypoints: route, durationMin: p.durationMin + Math.round(m.durationMin / 3), combined: [p.id, m.id], by: "Orchestrator", source: "orchestrator", findings: [] };
+      push({ id: `combine:${m.id}:${p.id}`, facilityId: m.facilityId, kind: "combine_missions", title: `Fold ${ir.name}'s "${m.title.split(" — ")[0]}" into ${pr.name}'s ${p.title.split(" — ")[0].toLowerCase()}`,
+        why: [`${pr.name} passes ${[...new Set(m.waypoints.map((w) => d.zones.find((z) => z.id === w.zone)?.name))].join(", ")} on its patrol at ${local(p.plannedStart)} anyway`, `It has the sensors the round needs: ${[...new Set(m.waypoints.flatMap((w) => w.checks))].map((c) => CAPABILITY_LABEL[c]).join(", ")}`, `One trip instead of two: ${ir.name} is free for ${m.durationMin} min and keeps its charge`, `${pr.vendor} and ${ir.vendor} robots — different makers, one plan`],
+        risk: "low", auto: true, effect: "mission_create", payload: { mission: combined, abort: [p.id, m.id] }, targets: { robotId: pr.id, missionId: m.id } });
+      patrols.splice(patrols.indexOf(p), 1);
+      break;
+    }
+  }
 }
 
 /** The events an approved work-layer proposal produces, or null if it isn't one. */
@@ -182,12 +242,32 @@ export function workEffects(d: FmData, a: Action, base: { at: string; by: string
       return [{ ...base, id: id(), kind: "wo_create", wo, summary: `raised ${wo.id} ${wo.priority} — ${wo.title}` }, { ...base, id: id(), kind: "finding_ack", findingId: String(a.payload.findingId), woId: wo.id, summary: `finding → ${wo.id}` }];
     }
     case "robot_recall": return [{ ...base, id: id(), kind: "mission_update", missionId: String(a.payload.missionId), status: "aborted", note: "Recalled: low battery", summary: a.title }];
+    case "security_response": {
+      const m = a.payload.mission as Mission | undefined;
+      const mm = m ? { ...m, plannedStart: new Date(Date.parse(base.at) + MIN).toISOString() } : undefined;
+      return [...(mm ? [{ ...base, id: id(), kind: "mission_create" as const, mission: mm, summary: `${mm.id}: ${MISSION_LABEL[mm.kind]} by ${d.robots.find((r) => r.id === mm.robotId)?.name}` }] : []),
+        { ...base, id: id(), kind: "security_update", alertId: String(a.payload.alertId), status: a.payload.status as never, ...(mm || a.payload.missionId ? { missionId: mm?.id ?? String(a.payload.missionId) } : {}), ...(a.payload.note ? { note: String(a.payload.note) } : {}), summary: a.title }];
+    }
+    case "combine_missions": {
+      const m = a.payload.mission as Mission;
+      return [...(a.payload.abort as string[]).map((x) => ({ ...base, id: id(), kind: "mission_update" as const, missionId: x, status: "aborted" as const, note: `Combined into ${m.id}`, summary: `${x} → ${m.id}` })),
+        { ...base, id: id(), kind: "mission_create", mission: m, summary: `${m.id}: ${m.title}` }];
+    }
     default: return null;
   }
 }
 
-/** What finished robot checks mean for the jobs they were sent for: gas-free or not, recorded on the job. */
+/** What finished robot checks mean for the jobs they were sent for (gas-free or not, recorded on the job) and for the
+ *  security alerts they checked (cleared when nobody was seen). */
 export function robotOutcomes(d: FmData) {
+  for (const al of d.securityAlerts.filter((x) => x.status === "checking" && x.missionId)) {
+    const m = d.missions.find((x) => x.id === al.missionId);
+    if (!m || m.status !== "done") continue;
+    const seen = m.findings.filter((f) => f.sensor === "intrusion" && f.zone === al.zone);
+    const r = d.robots.find((x) => x.id === m.robotId)?.name ?? "the robot";
+    if (seen.length) { al.status = "escalated"; al.note = `${r} saw: ${seen.map((f) => f.label).join("; ")} — security responding.`; }
+    else { al.status = "cleared"; al.note = `${r} checked at ${local(m.ended)}: nobody there, fence intact.`; al.by = r; }
+  }
   for (const m of d.missions.filter((x) => x.woId && x.status === "done")) {
     const w = d.workOrders.find((x) => x.id === m.woId);
     if (!w || w.status === "done") continue;

@@ -55,8 +55,8 @@ export function orgTypeOf(org: string): OrgType {
 }
 /** Safety decisions anyone with a safety duty may take, whoever they work for: closing expired permits, stopping work,
  *  calling a robot back. Low risk only — they stop things, they don't commit money. */
-export const SAFETY_KINDS = new Set(["permit_close", "permit", "safety_stop", "robot_recall"]);
-const SAFETY_DUTY = /\bhse\b|safety|permit/i;
+export const SAFETY_KINDS = new Set(["permit_close", "permit", "safety_stop", "robot_recall", "security_response"]);
+const SAFETY_DUTY = /\bhse\b|safety|permit|security/i;
 
 export const digits = (x: string) => String(x ?? "").replace(/\D/g, "");
 

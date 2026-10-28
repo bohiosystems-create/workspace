@@ -11,7 +11,7 @@ export type WoStatus = "open" | "assigned" | "in_progress" | "on_hold" | "done";
 export type Priority = "P1" | "P2" | "P3" | "P4";
 export type Trade = "mechanical" | "electrical" | "instrumentation" | "hvac" | "civil" | "controls" | "lifts" | "chemical" | "process" | "inspection" | "scaffolding" | "rotating";
 /** What makes a place dangerous: decides who (and which robot) may go there, and what a job there needs. */
-export type Hazard = "h2s" | "hydrocarbon" | "high_voltage" | "confined_space" | "height" | "hot_surface" | "noise";
+export type Hazard = "h2s" | "hydrocarbon" | "high_voltage" | "confined_space" | "height" | "hot_surface" | "noise" | "marine";
 /** An area of a facility, with its hazards and hazardous-area class (ATEX/IECEx zone 1 or 2; null = safe area). The
  *  plan coordinates (0–100 × 0–60) place it on the facility map, with the robots and crews in it. */
 export interface ZoneDef { id: string; facilityId: string; name: string; hazards: Hazard[]; atex: 1 | 2 | null; x: number; y: number; w: number; h: number }
@@ -98,6 +98,24 @@ export interface FmData {
   missions: import("../robots/types").Mission[];
   /** robot findings people have seen, and the work raised from them */
   findingAcks: Record<string, { woId?: string }>;
+  /** security alerts: fence sensors, cameras, patrols, a drone seen over the plant */
+  securityAlerts: SecurityAlert[];
+}
+
+/** Something security must look at. A robot checks it first where it can (a patrol robot, a drone); people respond. */
+export interface SecurityAlert {
+  id: string; facilityId: string; at: string;
+  kind: "fence" | "person" | "vehicle" | "drone" | "camera";
+  zone: string; source: string; text: string;
+  status: "open" | "checking" | "cleared" | "escalated";
+  missionId?: string; note?: string; by?: string;
+}
+
+/** A report from a real fleet (a vendor's API or data platform), in one shape whoever made the robot. */
+export interface RobotReport {
+  robot: string; status?: import("../robots/types").RobotStatus; battery?: number; zone?: string;
+  findings?: { asset?: string; zone?: string; sensor: import("../robots/types").Capability; label: string; value: number; unit: string; limit?: number; severity: "info" | "low" | "medium" | "high" | "critical"; at?: string; image?: string }[];
+  source: string;
 }
 
 /** One change, by a person or by the orchestrator. Re-applied in order on top of the generated day. */
@@ -122,6 +140,9 @@ export type FmEvent = {
   | { kind: "finding_ack"; findingId: string; woId?: string }
   | { kind: "crew_status"; crewId: string; status: Crew["status"]; zone?: string }
   | { kind: "gas_test"; woId: string; result: "done" | "failed"; reading: string }
+  | { kind: "security_alert"; alert: SecurityAlert }
+  | { kind: "security_update"; alertId: string; status: SecurityAlert["status"]; missionId?: string; note?: string }
+  | { kind: "robot_report"; robotId: string; report: RobotReport }
 );
 
 export interface FmConfig { autopilot: Record<string, boolean>; /** what the autopilot may do, signed by a manager, per facility */ policy?: Record<string, AutopilotPolicy> }
@@ -134,7 +155,7 @@ export interface AutopilotPolicy { kinds: Action["kind"][]; maxRisk: "low" | "me
 export interface Action {
   id: string; facilityId: string;
   kind: "raise_wo" | "assign" | "reschedule" | "escalate" | "order_spare" | "permit" | "isolate"
-    | "assign_crew" | "robot_mission" | "robot_finding" | "safety_stop" | "robot_recall" | "gas_test";
+    | "assign_crew" | "robot_mission" | "robot_finding" | "safety_stop" | "robot_recall" | "gas_test" | "security_response" | "combine_missions";
   title: string; why: string[];
   risk: "low" | "medium" | "high";
   /** money it commits (SAR), for approval limits */
@@ -145,7 +166,7 @@ export interface Action {
   auto: boolean;
   effect: FmEvent["kind"];
   payload: Record<string, unknown>;
-  targets: { woId?: string; assetId?: string; techId?: string; spareId?: string; alarmId?: string; crewId?: string; robotId?: string; findingId?: string; zoneId?: string };
+  targets: { woId?: string; assetId?: string; techId?: string; spareId?: string; alarmId?: string; crewId?: string; robotId?: string; findingId?: string; zoneId?: string; alertId?: string; missionId?: string };
 }
 
 export interface Kpis {

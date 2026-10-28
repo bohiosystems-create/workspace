@@ -46,7 +46,7 @@ const PROFILES: Record<string, Prof[]> = {
   expander: [["spd", "Speed", "rpm", 18500, 300, undefined, 21000], ["vib", "Shaft vibration", "µm", 22, 3, undefined, 50]],
   flare: [["pilot", "Pilots lit", "of 4", 4, 0, 3.5], ["flow", "Flare flow", "t/h", 2.1, 0.6, undefined, 8]],
   tank: [["lvl", "Level", "%", 61, 8, undefined, 90], ["wall", "Minimum wall thickness", "mm", 9.2, 0.1, 8]],
-  pipeline: [["press", "Pressure", "barg", 82, 1, undefined, 90], ["cp", "Cathodic-protection potential", "mV", -980, 15, undefined, -850]],
+  pipeline: [["press", "Pressure", "barg", 82, 1, undefined, 90], ["cp", "Cathodic-protection potential", "mV", -980, 15, undefined, -850], ["span", "Longest free span (subsea section)", "m", 11.3, 0.15, undefined, 12]],
   detector: [["lel", "Flammable gas", "% LEL", 1, 0.8, undefined, 20], ["h2s", "H₂S", "ppm", 0.4, 0.3, undefined, 10]],
 };
 // The worst of the out-of-range readings decides how badly an asset is doing: which reading drifts on a degraded asset.
@@ -126,11 +126,12 @@ const GAS: Plant = {
     ["DHY", "Dehydration & NGL", [["C-401", "TEG contactor", "teg", "process", "A", "Dehydration & NGL", "Fabricated (demo)", 365], ["X-501", "Turbo-expander", "expander", "rotating", "A", "Dehydration & NGL", "Atlas Copco-type (demo)", 120]]],
     ["FLR", "Flare", [["F-901", "HP flare stack", "flare", "process", "A", "Flare", "Zeeco-type (demo)", 180, ["Flare pilot assembly"]]]],
     ["TNK", "Tank farm", [["T-701A", "Condensate tank A", "tank", "inspection", "B", "Tank farm", "API 650 (demo)", 365], ["T-701B", "Condensate tank B", "tank", "inspection", "B", "Tank farm", "API 650 (demo)", 365]]],
-    ["UTL", "Utilities & power", [["GTG-1", "Gas turbine generator 1", "gt", "mechanical", "A", "Utilities & power", "Solar-type (demo)", 90, ["GT inlet filter set"]], ["K-961", "Instrument-air compressor", "compressor", "mechanical", "B", "Utilities & power", "Atlas-type", 30, ["Compressor service kit"]], ["P-951A", "Fire-water pump A", "firepump", "mechanical", "A", "Utilities & power", "Grundfos-type", 7], ["PL-01", "Sales-gas export pipeline", "pipeline", "inspection", "A", "Utilities & power", "48-inch (demo)", 180]]],
+    ["UTL", "Utilities & power", [["GTG-1", "Gas turbine generator 1", "gt", "mechanical", "A", "Utilities & power", "Solar-type (demo)", 90, ["GT inlet filter set"]], ["K-961", "Instrument-air compressor", "compressor", "mechanical", "B", "Utilities & power", "Atlas-type", 30, ["Compressor service kit"]], ["P-951A", "Fire-water pump A", "firepump", "mechanical", "A", "Utilities & power", "Grundfos-type", 7], ["PL-01", "Sales-gas export pipeline (to the coast and the export jetty)", "pipeline", "inspection", "A", "Export line & jetty", "48-inch (demo)", 180]]],
   ],
   techs: [["Majid Al-Rashid", "Operations manager", ["process"], "day", "Control room", 22], ["Abdulaziz Al-Mutlaq", "Control room supervisor", ["process", "mechanical"], "day", "Control room", 17], ["Hamad Al-Dosari", "Process operator", ["process"], "day", "Inlet & separation", 9], ["Feras Haddad", "Process operator", ["process"], "day", "Gas treating (amine)", 6],
     ["Kevin D'Souza", "Rotating equipment technician", ["rotating", "mechanical"], "day", "Compression", 11], ["Yasser Al-Amri", "Mechanical technician", ["mechanical"], "day", "Utilities & power", 5], ["Rajesh Iyer", "I&E technician", ["electrical", "instrumentation"], "day", "Control room", 8],
-    ["Noura Al-Ghamdi", "HSE officer (gas tester)", ["process"], "day", "Control room", 7], ["Tom Walsh", "Inspection engineer", ["inspection"], "day", "Tank farm", 13], ["Saleh Al-Yami", "Process operator", ["process"], "night", "Compression", 10], ["Ali Hussain", "I&E technician", ["electrical", "instrumentation"], "night", "Utilities & power", 4]],
+    ["Noura Al-Ghamdi", "HSE officer (gas tester)", ["process"], "day", "Control room", 7], ["Tom Walsh", "Inspection engineer", ["inspection"], "day", "Tank farm", 13], ["Saleh Al-Yami", "Process operator", ["process"], "night", "Compression", 10], ["Ali Hussain", "I&E technician", ["electrical", "instrumentation"], "night", "Utilities & power", 4],
+    ["Fahad Al-Qahtani", "Security shift supervisor", ["process"], "day", "Main gate & security", 12]],
   spares: [["Dry gas seal cartridge", 1, 2, 90, 185000, "Strategic store"], ["Compressor bearing set", 2, 1, 60, 46000, "Main store C-02"], ["Mechanical seal 80 mm", 1, 2, 21, 9800, "Main store A-12"], ["Flare pilot assembly", 0, 1, 30, 28000, "Main store F-01"], ["Gas detector sensor head", 4, 6, 14, 3200, "I&E store"], ["Compressor service kit", 1, 2, 7, 3400, "Main store C-01"], ["GT inlet filter set", 12, 8, 14, 1650, "Filter store"]],
   story: [["K-201B", "maintenance", null, "Turnaround: compressor train B isolated for overhaul"], ["GD-COMP-2", "running", "high", "Gas detector GD-COMP-2: flammable gas above the 20 % LEL alarm at the K-201A seal-gas panel"], ["P-303A", "degraded", "medium", "Lean amine pump P-303A vibration rising (robot acoustic check, 06:00 round)"], ["F-901", "running", "medium", "Flare F-901: one of four pilots out"], ["T-701A", "running", "low", "Condensate tank T-701A roof plates thinning (last survey 8.6 mm)"], ["K-201C", "running", null, "Compressor train C running in place of B during the turnaround"]],
 };
@@ -179,7 +180,7 @@ const CHECK: Record<string, string[]> = {
 
 /** The day's operating picture for every demo facility. */
 export function generate(date: string): FmData {
-  const out: FmData = { date, facilities: [], systems: [], assets: [], technicians: [], workOrders: [], alarms: [], spares: [], zones: [], contractors: [], crews: [], robots: [], missions: [], findingAcks: {} };
+  const out: FmData = { date, facilities: [], systems: [], assets: [], technicians: [], workOrders: [], alarms: [], spares: [], zones: [], contractors: [], crews: [], robots: [], missions: [], findingAcks: {}, securityAlerts: [] };
   const today = dayNo(date);
   for (const P of PLANTS) {
     const fid = P.f.id, pre = PREFIX[fid];

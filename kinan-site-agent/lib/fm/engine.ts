@@ -5,8 +5,9 @@ import type { Db } from "../types";
 import { currentDataDate } from "../data/util";
 import { generate } from "./data";
 import { simNow, simulate } from "../robots/sim";
+import { DOMAIN_OF } from "../robots/types";
 import { robotOutcomes } from "./work";
-import type { Asset, FmData, FmEvent, Kpis, Priority, Technician, WorkOrder } from "./types";
+import type { Asset, FmData, FmEvent, Kpis, Priority, RobotReport, Technician, WorkOrder } from "./types";
 
 const HOUR = 3600_000;
 export const isOpen = (w: WorkOrder) => w.status !== "done";
@@ -16,13 +17,54 @@ export const PRIORITY_SLA: Record<Priority, number> = { P1: 4, P2: 24, P3: 72, P
 export function fmToday(db: Db, date = db.data?.meta?.dataDate ?? currentDataDate(), now = Date.now()): FmData {
   const d = generate(date);
   for (const e of db.fmLog ?? []) applyEvent(d, e);
-  simulate(d, simNow(date, now)); // robots and their missions at this moment (lib/robots/sim.ts)
-  robotOutcomes(d);               // what finished robot checks mean for their jobs (work.ts)
+  const t = simNow(date, now);
+  d.securityAlerts = d.securityAlerts.filter((a) => Date.parse(a.at) <= t); // alerts appear when they happen
+  holdAirMissions(d);
+  simulate(d, t);                 // robots and their missions at this moment (lib/robots/sim.ts)
+  for (const e of db.fmLog ?? []) if (e.kind === "robot_report") applyReport(d, e.robotId, e.report, e.at); // real fleets say where they are
+  robotOutcomes(d);               // what finished robot checks mean for their jobs and alerts (work.ts)
   return d;
+}
+
+/** While an unidentified drone is reported (two hours, or until security clears it), our own air missions wait. */
+function holdAirMissions(d: FmData) {
+  for (const al of d.securityAlerts.filter((a) => a.kind === "drone" && a.status !== "cleared")) {
+    const from = Date.parse(al.at), to = from + 2 * 3600_000;
+    for (const m of d.missions.filter((x) => x.facilityId === al.facilityId && x.status === "planned" && !x.started)) {
+      const r = d.robots.find((x) => x.id === m.robotId);
+      const s = Date.parse(m.plannedStart);
+      if (r && DOMAIN_OF[r.kind] === "air" && s >= from && s < to) { m.plannedStart = new Date(to).toISOString(); m.note = `Held until ${new Date(to).toISOString().slice(11, 16)} UTC: unidentified drone reported (${al.id})`; }
+    }
+  }
+}
+
+/** A real fleet's report, in the common shape: where the robot is, its state, and what it found (kept as the findings of
+ *  one "reported" mission a day per robot, so they are raised as work like any robot's). */
+export function applyReport(d: FmData, robotId: string, rep: RobotReport, at: string) {
+  const r = d.robots.find((x) => x.id === robotId); if (!r) return;
+  if (rep.status) r.status = rep.status;
+  if (typeof rep.battery === "number") r.battery = Math.max(0, Math.min(100, Math.round(rep.battery)));
+  const z = rep.zone ? d.zones.find((x) => x.facilityId === r.facilityId && (x.id === rep.zone || x.name.toLowerCase() === rep.zone!.toLowerCase())) : undefined;
+  if (z) { r.zone = z.id; r.x = z.x + z.w / 2; r.y = z.y + z.h / 2; }
+  r.lastReport = at;
+  if (!rep.findings?.length) return;
+  const mid = `RPT-${r.name}-${d.date}`;
+  let m = d.missions.find((x) => x.id === mid);
+  if (!m) { m = { id: mid, facilityId: r.facilityId, robotId: r.id, kind: "inspection_round", title: `Reported by ${rep.source || r.platform || r.vendor}`, waypoints: [], plannedStart: at, durationMin: 1, status: "done", started: at, ended: at, by: rep.source || r.vendor, source: "control", findings: [] }; d.missions.push(m); }
+  for (const f of rep.findings) {
+    const a = f.asset ? d.assets.find((x) => x.facilityId === r.facilityId && (x.tag.toLowerCase() === f.asset!.toLowerCase() || x.id === f.asset)) : undefined;
+    const zone = a ? d.zones.find((x) => x.facilityId === r.facilityId && x.name === a.zone)?.id : z?.id ?? r.zone;
+    const id = `${mid}:${m.findings.length}`;
+    m.findings.push({ id, missionId: mid, robotId: r.id, facilityId: r.facilityId, zone: zone ?? r.zone, ...(a ? { assetId: a.id } : {}), at: f.at ?? at, sensor: f.sensor, label: f.label, value: f.value, unit: f.unit, ...(f.limit !== undefined ? { limit: f.limit } : {}), severity: f.severity, ...(f.image ? { image: f.image } : {}) });
+    const ack = d.findingAcks[id]; if (ack) { m.findings[m.findings.length - 1].acknowledged = true; if (ack.woId) m.findings[m.findings.length - 1].woId = ack.woId; }
+  }
 }
 
 export function applyEvent(d: FmData, e: FmEvent) {
   switch (e.kind) {
+    case "security_alert": if (!d.securityAlerts.some((a) => a.id === e.alert.id)) d.securityAlerts.push(structuredClone(e.alert)); break;
+    case "security_update": { const a = d.securityAlerts.find((x) => x.id === e.alertId); if (a) { a.status = e.status; if (e.missionId) a.missionId = e.missionId; if (e.note) a.note = e.note; a.by = e.by; } break; }
+    case "robot_report": break; // applied after the simulator (fmToday)
     case "wo_create": if (!d.workOrders.some((w) => w.id === e.wo.id)) d.workOrders.push(structuredClone(e.wo)); break;
     case "wo_update": {
       const w = d.workOrders.find((x) => x.id === e.woId); if (!w) break;

@@ -19,6 +19,9 @@ import { canApprove, directory, findByPhone, type Person } from "../lib/auth/peo
 import { checkProgramme, checkReplay, shot } from "../lib/core/invariants";
 import { completionDate } from "../lib/core/updates";
 import { HAS_OPERATIONS } from "../lib/edition";
+import { act as fmAct } from "../lib/fm/api";
+import { fmToday } from "../lib/fm/engine";
+import { dronesGrounded } from "../lib/fm/work";
 import fs from "node:fs";
 
 const arg = (k: string, d: number) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? Number(process.argv[i + 1]) : d; };
@@ -153,6 +156,10 @@ async function orchestration() {
     { what: "a contractor records a gas test", tool: "fm_gas_test", input: { wo: "WO-TAR06", result: "done" }, user: viktor, ok: false, re: /gas tester|supervisor/ },
     { what: "gas found without a reading", tool: "fm_gas_test", input: { wo: "WO-TAR06", result: "failed" }, user: noura, ok: false, re: /read/ },
     { what: "the gas tester records a clear test", tool: "fm_gas_test", input: { wo: "WO-TAR06", result: "done", reading: "LEL 0 %, H2S 0 ppm, O2 20.9 %" }, user: noura, ok: true },
+    { what: "a security patrol robot (not Ex) into a hazardous area", tool: "fm_robot_command", input: { robot: "Patrol-1", command: "send", zone: "Compression", mission: "security_patrol" }, user: majid, ok: false, re: /certified|Ex-rated/ },
+    { what: "security alerts", tool: "fm_security", input: { facility: "kgpp" }, user: majid, ok: true },
+    { what: "a contractor clears a security alert", tool: "fm_security", input: { facility: "kgpp", alert: `SA-${today.replace(/-/g, "").slice(2)}-1`, status: "cleared" }, user: viktor, ok: false, re: /security|supervisor|control room/ },
+    { what: "the manager escalates a security alert", tool: "fm_security", input: { facility: "kgpp", alert: `SA-${today.replace(/-/g, "").slice(2)}-1`, status: "escalated", note: "fence cut" }, user: majid, ok: true },
     { what: "the turnaround", tool: "fm_turnaround", input: { facility: "kgpp" }, user: majid, ok: true },
     { what: "the fleet", tool: "fm_robots", input: { facility: "kgpp" }, user: majid, ok: true },
   ];
@@ -162,6 +169,19 @@ async function orchestration() {
     if (!c.ok && !o.error) fail(c.tool, c.input, `${c.what}: should have been refused, got ${msg(o).slice(0, 120)}`);
     if (!c.ok && o.error && c.re && !c.re.test(o.error)) fail(c.tool, c.input, `${c.what}: refused for the wrong reason — ${o.error}`);
   }
+  // reports from a vendor's fleet: refused when malformed, turned into findings (and work) when right
+  const report = (r: unknown) => { try { return fmAct(db, { action: "robot_report", report: r as never }, "fleet", "web", null).message; } catch (e) { if (process.env.FUZZ_DEBUG) console.error(e); return `ERR ${(e as Error).message}`; } };
+  if (!report({ robot: "ROV-1", findings: [{ sensor: "telepathy", label: "x", value: 1, unit: "", severity: "high" }] }).startsWith("ERR")) fail("(robot report)", null, "a finding with an unknown sensor was accepted");
+  if (!report({ robot: "Nobody-9" }).startsWith("ERR")) fail("(robot report)", null, "a report for a robot not in the fleet was accepted");
+  if (!report({ robot: "ROV-1", battery: 140 }).startsWith("ERR")) fail("(robot report)", null, "a battery of 140 % was accepted");
+  const good = report({ robot: "ROV-1", source: "Vendor survey platform", findings: [{ asset: "PL-01", sensor: "sonar", label: "Free span 13.4 m at KP 3.1", value: 13.4, unit: "m", limit: 12, severity: "high" }] });
+  if (good.startsWith("ERR")) fail("(robot report)", null, `a good report was refused: ${good}`);
+  else if (!fmToday(db).missions.some((m) => m.findings.some((f) => f.label === "Free span 13.4 m at KP 3.1"))) fail("(robot report)", null, "the reported finding is not among the robots' findings");
+  // an unidentified drone grounds our own drones for two hours
+  { const d0 = fmToday(db), al = d0.securityAlerts.find((a) => a.kind === "drone") ?? { at: `${today}T07:52:00.000Z`, facilityId: "kgpp" };
+    const d1 = structuredClone(d0); d1.securityAlerts = [{ ...(al as object), id: "SA-T", kind: "drone", status: "open", at: new Date().toISOString(), zone: "kgpp:flr", source: "test", text: "test", facilityId: "kgpp" }];
+    if (!dronesGrounded(d1, "kgpp", Date.now() + 30 * 60_000)) fail("(security)", null, "an unidentified drone did not ground our drones");
+    if (dronesGrounded(d1, "kgpp", Date.now() + 3 * 3600_000)) fail("(security)", null, "our drones stayed grounded after two hours"); }
   // the turnaround answer names the jobs; the fleet answer lists the five robots
   const tar = await call("fm_turnaround", { facility: "kgpp" }, majid);
   if (!JSON.stringify(tar).includes("WO-TAR06")) fail("fm_turnaround", { facility: "kgpp" }, "the turnaround doesn't list its jobs");

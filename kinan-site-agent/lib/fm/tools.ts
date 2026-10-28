@@ -7,7 +7,9 @@ import { fmToday, findAsset, isOpen, isOverdue, kpis, slaLeft, workload } from "
 import type { FmData } from "./types";
 import { canApprove } from "../auth/people";
 import { fitJson } from "../core/fit";
-import { turnaround } from "./work";
+import { dronesGrounded, turnaround } from "./work";
+import { simNow } from "../robots/sim";
+import { DOMAIN_OF } from "../robots/types";
 
 const obj = (props: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties: props, required });
 const str = (description?: string) => ({ type: "string", ...(description ? { description } : {}) });
@@ -30,9 +32,11 @@ export const FM_TOOLS = [
   { name: "fm_workforce", description: "Who and what can take work at a facility: the facility's own people, contractor crews on site (company, size, trades, record, current jobs) and robots (kind, sensors, hazardous-area rating, status, battery, mission). Use for 'who is free', 'which crews are on site', 'where are the robots', 'how is contractor X doing'.", input_schema: obj({ facility: FAC }) },
   { name: "fm_robots", description: "The robot fleet in detail: each robot's status, battery, where it is, today's missions (planned, running, done) with progress, and every finding (gas, heat, vibration, wall thickness) with its severity and any work raised from it.", input_schema: obj({ facility: FAC, robot: str("robot name, optional") }) },
   { name: "fm_robot_command", description: "Send a robot on a mission, cancel a mission, emergency-stop a robot or release the stop. Only robots certified for hazardous areas may enter them — the tool refuses otherwise and says which robot can go. Sending and cancelling need the facility's own staff; anyone signed in may stop a robot; releasing a stop is a supervisor's call.",
-    input_schema: obj({ robot: str("robot name, e.g. 'Ex-2', 'Drone-1'"), command: oneOf(["send", "cancel", "estop", "release"]), zone: str("area name for 'send', e.g. 'Compression', 'Tank farm'"), asset: str("asset tag for 'send', optional"), mission: oneOf(["inspection_round", "gas_survey", "thermal_survey", "confined_precheck", "flare_inspection", "thickness_survey"], "for 'send'"), mission_id: str("for 'cancel'; defaults to the robot's current mission"), facility: FAC }, ["robot", "command"]) },
+    input_schema: obj({ robot: str("robot name, e.g. 'Ex-2', 'Drone-1'"), command: oneOf(["send", "cancel", "estop", "release"]), zone: str("area name for 'send', e.g. 'Compression', 'Tank farm'"), asset: str("asset tag for 'send', optional"), mission: oneOf(["inspection_round", "gas_survey", "thermal_survey", "confined_precheck", "flare_inspection", "thickness_survey", "security_patrol", "alarm_check", "emissions_survey", "pipeline_patrol", "subsea_inspection", "valve_operation"], "for 'send'"), mission_id: str("for 'cancel'; defaults to the robot's current mission"), facility: FAC }, ["robot", "command"]) },
   { name: "fm_turnaround", description: "A turnaround (planned shutdown) at a facility: progress, days left, each job with its crew or robot, what it waits for, its permit and gas test, people on site and the money committed in crew-days.", input_schema: obj({ facility: FAC }) },
   { name: "fm_gas_test", description: "Record a gas test on a job (by the gas tester or a supervisor): clear ('done') or gas found ('failed') with the reading. A clear test lets a job held for gas restart (its permit is re-issued); a failed one keeps it on hold.", input_schema: obj({ wo: str("e.g. WO-TAR06"), result: oneOf(["done", "failed"]), reading: str("what the detector read, e.g. 'LEL 0 %, H2S 0 ppm, O2 20.9 %'") }, ["wo", "result"]) },
+  { name: "fm_security", description: "Security at a facility: today's alerts (fence sensors, cameras, a drone seen over the plant) with their status (open, checking, cleared, escalated) and what the patrol robots found; with alert and status, mark one checking, cleared or escalated. An unidentified drone is reported to the authorities — the plant does not chase it, and its own drones stay on the ground meanwhile.",
+    input_schema: obj({ facility: FAC, alert: str("alert id, e.g. 'SA-261028-3', to update one"), status: oneOf(["checking", "cleared", "escalated"], "with alert"), note: str("what was seen, optional") }) },
   { name: "fm_spares", description: "Spare parts of a facility: stock against minimum, on order, lead time; low_only for those below minimum.", input_schema: obj({ facility: FAC, low_only: { type: "boolean" } }) },
 ];
 
@@ -114,7 +118,7 @@ async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx:
     case "fm_workforce": {
       const at = <T extends { facilityId: string }>(xs: T[]) => xs.filter((x) => !fid || x.facilityId === fid);
       return J({ facility: fid,
-        robots: at(d.robots).map((r) => ({ name: r.name, kind: r.kind, sensors: r.capabilities, hazardousAreas: r.exRated ? "certified" : "not allowed", status: r.status, battery: r.battery, area: d.zones.find((z) => z.id === r.zone)?.name, mission: d.missions.find((m) => m.id === r.missionId)?.title })),
+        robots: at(d.robots).map((r) => ({ name: r.name, kind: r.kind, maker: r.vendor, domain: DOMAIN_OF[r.kind], usedFor: r.roles, sensors: r.capabilities, hazardousAreas: r.exRated ? "certified" : "not allowed", status: r.status, battery: r.battery, area: d.zones.find((z) => z.id === r.zone)?.name, mission: d.missions.find((m) => m.id === r.missionId)?.title })),
         crews: at(d.crews).map((c) => { const k = d.contractors.find((x) => x.id === c.contractorId)!; return { name: c.name, contractor: k.name, record: k.performance.rating, onTimePct: k.performance.onTimePct, people: c.size, trades: c.trades, status: c.status, area: c.zone, lead: c.lead, jobs: d.workOrders.filter((w) => w.crew === c.id && isOpen(w)).map((w) => `${w.id} ${w.title} (${w.status})`) }; }),
         people: at(d.technicians).filter((t) => t.shift !== "off").map((t) => ({ name: t.name, role: t.role, status: t.status, area: t.zone, openJobs: workload(d, t.id) })),
         contractors: at(d.contractors).map((k) => ({ name: k.name, scope: k.scope, contract: k.contractRef, until: k.until, dayRate: k.dayRate, ...k.performance })) });
@@ -122,7 +126,7 @@ async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx:
     case "fm_robots": {
       const rs = d.robots.filter((r) => (!fid || r.facilityId === fid) && (!input.robot || r.name.toLowerCase() === String(input.robot).toLowerCase()));
       if (!rs.length) return J({ error: input.robot ? `No robot called ${input.robot}.` : "No robots at this facility." });
-      return J({ robots: rs.map((r) => ({ name: r.name, model: r.model, status: r.status, battery: r.battery, area: d.zones.find((z) => z.id === r.zone)?.name, estop: !!r.estop,
+      return J({ robots: rs.map((r) => ({ name: r.name, model: r.model, maker: r.vendor, domain: DOMAIN_OF[r.kind], usedFor: r.roles, operatedBy: r.operator, runsOn: r.platform, connection: r.adapter, status: r.status, battery: r.battery, area: d.zones.find((z) => z.id === r.zone)?.name, estop: !!r.estop,
         missions: d.missions.filter((m) => m.robotId === r.id).map((m) => ({ id: m.id, title: m.title, start: m.plannedStart.slice(11, 16) + " UTC", status: m.status, progress: m.progress, forJob: m.woId, findings: m.findings.map((f) => ({ severity: f.severity, what: f.label, workRaised: f.woId ?? null })) })) })) });
     }
     case "fm_robot_command": {
@@ -134,6 +138,17 @@ async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx:
         : act(db, { action: "estop", robotId: r.id, on: c === "estop", note: c === "estop" ? `Stopped by ${by} (${channel})` : undefined }, by, channel, ctx.user);
       await repo.save();
       return J({ ok: true, message: r2.message });
+    }
+    case "fm_security": {
+      if (input.alert) {
+        const r = act(db, { action: "security", alertId: String(input.alert).toUpperCase(), alertStatus: input.status, note: input.note }, by, channel, ctx.user);
+        await repo.save();
+        return J({ ok: true, message: r.message });
+      }
+      const xs = d.securityAlerts.filter((a) => !fid || a.facilityId === fid);
+      return J({ facility: fid, dronesGrounded: !!dronesGrounded(d, fid ?? xs[0]?.facilityId ?? "", simNow(d.date)),
+        alerts: xs.map((a) => ({ id: a.id, at: a.at.slice(11, 16) + " UTC", kind: a.kind, where: d.zones.find((z) => z.id === a.zone)?.name, source: a.source, what: a.text, status: a.status, checkedBy: d.missions.find((m) => m.id === a.missionId)?.title, note: a.note })),
+        patrols: d.missions.filter((m) => (!fid || m.facilityId === fid) && (m.kind === "security_patrol" || m.kind === "alarm_check")).map((m) => ({ id: m.id, robot: d.robots.find((r) => r.id === m.robotId)?.name, title: m.title, start: m.plannedStart.slice(11, 16) + " UTC", status: m.status, combinedWith: m.combined })) });
     }
     case "fm_turnaround": {
       const pk = [...new Set(d.workOrders.filter((w) => w.package && (!fid || w.facilityId === fid)).map((w) => w.package!))];
@@ -165,6 +180,7 @@ Rules:
 - When someone says they started, paused (waiting for parts, permit) or finished a job, update it with fm_update_work_order. Finished corrective work returns the asset to service. Attach photo evidence ids when given.
 - Never let anyone start electrical, hot, confined-space or height work without the permit: check the job's permit and say so plainly.
 - Work is done by the facility's own people, contractor crews and robots (fm_workforce). Robots go first where a check can keep people out of danger: gas tests, pre-entry checks, rounds in hazardous areas. Only Ex-certified robots enter hazardous areas. When a robot finds something, say what, where and when, and the work raised from it.
+- The fleet has many makers (land, air, sea): treat them as one. Say which robot and which maker when it matters. Security alerts (fm_security): a robot checks first where it can, security responds; an unidentified drone is reported to the authorities, never chased, and our own drones stay down meanwhile.
 - Gas: no hot work where there is flammable gas; no entry to a confined space before a clear gas test. If the orchestrator proposes stopping work for gas, say so first. A gas test is recorded with fm_gas_test.
 - Contractors' people carry out and report their own crew's work; they approve no client decision. Say which contractor a crew belongs to and its record when it matters.
 - Anyone may emergency-stop a robot (fm_robot_command estop) — do it at once when someone asks or reports danger near one.
