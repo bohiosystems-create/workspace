@@ -22,7 +22,7 @@ ck('ambient scene: drifting lights, grid, grain',await ev(()=>!!document.querySe
 await p.waitForTimeout(800);
 const vb=await ev(()=>document.querySelector('[data-act=voice]').textContent);ck('voice button: the speaker icon',vb==='🔊',vb);
 await p.waitForTimeout(1500);
-ck('narration requested from /api/voice (cover) and the next slide preloaded',voiceCalls>=2&&voiceTexts.some(t=>/Let’s walk through/.test(t))&&!voiceTexts.some(t=>/Committee pack/i.test(t))&&voiceTexts.some(t=>/levered (IRR|I R R) comes in at/.test(t)),`${voiceCalls} calls: ${voiceTexts.map(t=>t.slice(0,40)).join(' | ')}`);
+ck('narration requested from /api/voice (cover) and the next slide preloaded',voiceCalls>=2&&voiceTexts.some(t=>/Let’s walk through/.test(t))&&!voiceTexts.some(t=>/Committee pack/i.test(t))&&voiceTexts.some(t=>/levered (IRR|irr) comes in at/.test(t)),`${voiceCalls} calls: ${voiceTexts.map(t=>t.slice(0,40)).join(' | ')}`);
 // auto-advance after the audio ended (0.4 s audio, 4.5 s minimum show)
 await p.waitForTimeout(5500);ck('auto-advances after the narration ends',(await ev(()=>KP.i))>=1,'slide '+(await ev(()=>KP.i+1)));
 const bi=kinds.indexOf('bridge');await ev(i=>kGo(i),bi);await p.waitForTimeout(2600);await p.screenshot({path:`${sp}play_${tag}_bridge.png`});
