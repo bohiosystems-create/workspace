@@ -12,7 +12,7 @@ import { NewProject, ProjectHome, ProjectView } from "./_components/Projects";
 import Reports from "./_components/Reports";
 import Readiness from "./_components/Readiness";
 import Chat from "./_components/Chat";
-import { ControlRoom, FacilityCards } from "./_components/fm/Operations";
+import { ControlRoom, DEMO_FACILITY, FacilityHome, useFacilities } from "./_components/fm/Operations";
 import Today from "./_components/Today";
 import People from "./_components/People";
 import { SignInSheet, signOut, useMe } from "./_components/auth";
@@ -28,7 +28,7 @@ const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
 type Tab = "map" | "project" | "docs";
 /** home = project list · site = the live Kinan Heights app · new = create from documents · p:<id> = a generated project
  *  · reports = the scheduled daily status e-mail */
-type Screen = "today" | "home" | "site" | "new" | "reports" | "ready" | "people" | `p:${string}` | `fm:${string}`;
+type Screen = "today" | "home" | "site" | "new" | "reports" | "ready" | "people" | "fm" | `p:${string}` | `fm:${string}`;
 /** A tab label: the full wording on the desktop tab row, a short one under the icon on the phone's bottom bar. */
 const Tl = ({ full, short }: { full: string; short: string }) => <><span className="tl">{full}</span><span className="ts">{short}</span></>;
 
@@ -65,6 +65,8 @@ export default function Home() {
   const genId = screen.startsWith("p:") ? screen.slice(2) : null;
   const fmId = HAS_OPERATIONS && screen.startsWith("fm:") ? screen.slice(3) : null;
   const gen = genId ? projects.find((p) => p.id === genId) : undefined;
+  // two modules, chosen in the side menu: facility management (its home: the airport demo) and project management
+  const mod: "fm" | "pm" = HAS_OPERATIONS && (screen === "fm" || !!fmId) ? "fm" : "pm";
   const [selId, setSelId] = useState<string | undefined>();
   const [viewerId, setViewerId] = useState<string | undefined>();
   const [dropMode, setDropMode] = useState(false);
@@ -139,7 +141,7 @@ export default function Home() {
   }
 
   return (
-    <div className="app">
+    <div className={HAS_OPERATIONS ? "app has-side" : "app"}>
       {/* Kinan header, as in the other Kinan agents: charcoal band, white logo, product line in spaced caps,
           a square settings button and the orange chevron; the tab bar sits underneath on white. */}
       <header className="top">
@@ -152,7 +154,12 @@ export default function Home() {
           <span className="chev" aria-hidden="true"><Mark /></span>
         </div>
       </header>
+      {HAS_OPERATIONS && <SideMenu mod={mod} fmId={fmId} onModule={(m) => setScreen(m === "fm" ? "fm" : "today")} onFacility={(id) => setScreen(`fm:${id}`)} />}
       <nav className="tabs" aria-label="Sections">
+        {mod === "fm" ? <>
+          <button className={screen === "fm" ? "on" : ""} onClick={() => setScreen("fm")}><Icon name="grid" /><Tl full="Facilities" short="Facilities" /></button>
+          {fmId && <button className="on"><Icon name="layers" /><Tl full={fmId === DEMO_FACILITY ? "Airport control room" : "Control room"} short="Control" /></button>}
+        </> : <>
         <button className={screen === "today" ? "on" : ""} onClick={() => setScreen("today")}><Icon name="check" /><Tl full="Today" short="Today" /></button>
         <button className={screen === "home" ? "on" : ""} onClick={() => setScreen("home")}><Icon name="grid" /><Tl full="Projects" short="Projects" /></button>
         {screen === "site" && ([["map", "Site map", "Map", "map"], ["project", "Project schedule", "Schedule", "chart"], ["docs", "Documents", "Docs", "folder"]] as const).map(([id, label, short, icon]) => (
@@ -160,8 +167,9 @@ export default function Home() {
         ))}
         {screen === "new" && <button className="on"><Icon name="plus" /><Tl full="New project" short="New" /></button>}
         {gen && <button className="on"><Icon name="cube" /><Tl full={gen.result.spec.name} short={gen.result.spec.name.replace(/^Kinan\s+/i, "")} /></button>}
-        {fmId && <button className="on"><Icon name="layers" /><Tl full="Operations" short="Ops" /></button>}
+        {!HAS_OPERATIONS && fmId && <button className="on"><Icon name="layers" /><Tl full="Operations" short="Ops" /></button>}
         <button className={screen === "reports" ? "on" : ""} onClick={() => setScreen("reports")}><Icon name="notes" /><Tl full="Briefs" short="Briefs" /></button>
+        </>}
       </nav>
       {meOpen && (
         <div className="me" role="dialog" aria-label="Your settings">
@@ -205,9 +213,10 @@ export default function Home() {
               site={{ name: state.project.name, code: state.project.code, client: state.project.client }} projects={projects}
               onOpenSite={() => setScreen("site")} onOpen={(id) => setScreen(`p:${id}`)} onNew={() => setScreen("new")}
               onDelete={(id) => putProjects(projects.filter((p) => p.id !== id), [id])}
-            >{HAS_OPERATIONS && <FacilityCards onOpen={(id) => setScreen(`fm:${id}`)} />}</ProjectHome>
+            />
           )}
-          {fmId && <ControlRoom key={fmId} facilityId={fmId} author={author} onBack={() => setScreen("home")} onSignIn={() => setSignIn(true)} />}
+          {screen === "fm" && <FacilityHome onOpen={(id) => setScreen(`fm:${id}`)} />}
+          {fmId && <ControlRoom key={fmId} facilityId={fmId} author={author} onBack={() => setScreen(HAS_OPERATIONS ? "fm" : "home")} onSignIn={() => setSignIn(true)} />}
           {screen === "new" && <NewProject onCancel={() => setScreen("home")} onCreated={(p) => { putProjects([p, ...projects]); setScreen(`p:${p.id}`); }} />}
           {gen && <ProjectView key={gen.id} project={gen} onBack={() => setScreen("home")} />}
           {screen === "reports" && <Reports author={author} />}
@@ -263,7 +272,7 @@ export default function Home() {
       {live && !error && <div className="toast live" role="status"><span className="live-dot" aria-hidden="true" />{live.via === "whatsapp" ? "WhatsApp · " : live.via === "field" ? "Field app · " : "Updated · "}{live.text}</div>}
 
       {/* the AI chat, on every screen; tool actions open the document or show the place on the map */}
-      <Chat author={author} place={screen === "site" ? tab : screen.startsWith("p:") ? "project" : screen} fm={fmId ? { facilityId: fmId } : undefined}
+      <Chat author={author} place={screen === "site" ? tab : screen.startsWith("p:") ? "project" : screen} fm={fmId ? { facilityId: fmId } : screen === "fm" ? { facilityId: DEMO_FACILITY } : undefined}
         focus={{ docId: viewerId, locationId: selId }}
         onAction={(a) => { if (a.type === "open_doc") { setScreen("site"); setViewerId(a.docId); } else if (a.type === "focus_location") { setScreen("site"); selectLocation(a.locationId); } }} />
 
@@ -287,5 +296,26 @@ export default function Home() {
         />
       )}
     </div>
+  );
+}
+
+/** The side menu (editions with facility operations): two modules, and under facility management its facilities, the
+ *  airport demo first. On phones it is a two-way switch under the header. */
+function SideMenu({ mod, fmId, onModule, onFacility }: { mod: "fm" | "pm"; fmId: string | null; onModule: (m: "fm" | "pm") => void; onFacility: (id: string) => void }) {
+  const o = useFacilities();
+  const facs = [...(o?.facilities ?? [])].sort((a, b) => (a.facility.id === DEMO_FACILITY ? -1 : b.facility.id === DEMO_FACILITY ? 1 : 0));
+  return (
+    <aside className="side" aria-label="Modules">
+      <div className="side-l">Modules</div>
+      <button className={`side-mod${mod === "fm" ? " on" : ""}`} aria-current={mod === "fm" ? "page" : undefined} onClick={() => onModule("fm")}><Icon name="layers" /><span>Facility management</span></button>
+      {mod === "fm" && facs.length > 0 && (
+        <ul className="side-sub">
+          {facs.map(({ facility: f }) => (
+            <li key={f.id}><button className={fmId === f.id ? "on" : ""} onClick={() => onFacility(f.id)}>{f.id === DEMO_FACILITY ? <><span>Airport</span><i>demo</i></> : <span>{f.name.replace(/^(Meridian|Kinan)\s+/, "").replace(/\s+—.*$/, "")}</span>}</button></li>
+          ))}
+        </ul>
+      )}
+      <button className={`side-mod${mod === "pm" ? " on" : ""}`} aria-current={mod === "pm" ? "page" : undefined} onClick={() => onModule("pm")}><Icon name="grid" /><span>Project management</span></button>
+    </aside>
   );
 }

@@ -1385,3 +1385,37 @@ input[type=checkbox]{border-radius:4px!important}input[type=radio]{border-radius
 /* the control room's answer to a click: above any open sheet, cleared after a few seconds or on a tap */
 .ops-flash{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--top) + 14px);z-index:60;width:max-content;max-width:min(680px,calc(100vw - 32px));box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer}
 .ops-flash.studio-err{background:linear-gradient(var(--red-soft),var(--red-soft)),var(--bg)}.ops-flash.studio-ok{background:linear-gradient(var(--green-soft),var(--green-soft)),var(--bg)}
+
+/* ---------- side menu: the two modules, facility management (its facilities underneath, the airport demo first)
+   and project management — editions with facility operations. A column on the left on desktop, a two-way switch
+   under the header on phones. ---------- */
+.side{display:none}
+.has-side .side{display:flex;flex-direction:column;gap:2px}
+.side-l{font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);padding:4px 12px 10px}
+.side-mod{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:11px 12px;border-radius:10px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;text-align:left}
+.side-mod svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8}
+.side-mod:hover{background:var(--card-2)}
+.side-mod.on{background:var(--accent-soft);color:var(--ink)}
+.side-sub{list-style:none;margin:2px 0 10px;padding:0 0 0 28px;display:flex;flex-direction:column;gap:1px}
+.side-sub button{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;background:none;padding:7px 10px;border-radius:8px;font:inherit;font-size:12.5px;color:var(--ink-2);cursor:pointer;text-align:left}
+.side-sub button:hover{background:var(--card-2)}
+.side-sub button.on{color:var(--ink);font-weight:600;background:var(--card-2)}
+.side-sub i{font-style:normal;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;border:1px solid currentColor;border-radius:999px;padding:1px 7px;color:var(--accent-strong)}
+@media (min-width:900px){
+  .has-side .side{position:fixed;left:0;top:0;bottom:0;width:236px;padding:calc(var(--top) + env(safe-area-inset-top) + 20px) 14px 20px;background:var(--card);border-right:1px solid var(--line);z-index:4;overflow-y:auto}
+  .app.has-side>:not(.top):not(.side){margin-left:236px}
+  .has-side .top{position:relative;z-index:6;padding-left:30px}
+  .has-side .tabs{padding-left:26px}
+}
+@media (max-width:899px){
+  .has-side .side{flex-direction:row;gap:6px;padding:8px 12px;background:var(--card);border-bottom:1px solid var(--line)}
+  .has-side .side-l,.has-side .side-sub{display:none}
+  .has-side .side-mod{flex:1 1 0;justify-content:center;padding:9px 6px;font-size:12px}
+}
+/* the facility management home: the airport demo as a wide card with what it shows beside it */
+.fm-hero{display:grid;gap:14px;margin-bottom:22px}
+.fm-hero .pcard.hero{min-height:190px}
+.fm-open{margin-top:auto;font-size:12px;font-weight:700;color:var(--accent-strong)}
+.fm-hero-pts{list-style:none;margin:0;padding:0;display:grid;gap:10px;font-size:13px;line-height:1.5;color:var(--ink-2)}
+.fm-hero-pts b{color:var(--ink)}
+@media (min-width:900px){.fm-hero{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start}}

@@ -10,6 +10,7 @@ import type { facilityStateFor, overview } from "@/lib/fm/api";
 import type { Action, Asset, AutopilotPolicy, Reading, WorkOrder } from "@/lib/fm/types";
 import type { Outcomes } from "@/lib/outcomes";
 import { Icon } from "../icons";
+import { HAS_OPERATIONS } from "@/lib/edition";
 import { Decide } from "../Decide";
 import { OutcomesPanel } from "../Outcomes";
 import { ExceptionsPanel, RulesPanel } from "./Cockpit";
@@ -35,11 +36,66 @@ async function post(body: Record<string, unknown>) {
 }
 
 // ======================================================================== home page cards
-export function FacilityCards({ onOpen }: { onOpen: (id: string) => void }) {
+/** Every facility with its KPIs, kept fresh (the module home, the cards and the side menu). */
+export function useFacilities() {
   const [o, setO] = useState<Overview | null>(null);
   const load = useCallback(() => { fetch("/api/fm", { cache: "no-store" }).then((r) => r.json()).then((j) => !j.error && setO(j)).catch(() => undefined); }, []);
   useEffect(load, [load]);
   useLive(load);
+  return o;
+}
+/** The facility the module opens on: the airport demo. */
+export const DEMO_FACILITY = "kgia";
+
+type Fac = Overview["facilities"][number];
+function FacilityCard({ x, onOpen, hero }: { x: Fac; onOpen: (id: string) => void; hero?: boolean }) {
+  const { facility: f, sector, kpis: k, pending, autopilot } = x;
+  return (
+    <button className={`pcard ops ${f.sector}${hero ? " hero" : ""}`} onClick={() => onOpen(f.id)}>
+      <span className="pband"><Icon name={SECTOR_ICON[f.sector]} /><i>{hero ? "Demo · " : ""}{sector}{autopilot ? " · autopilot" : ""}</i></span>
+      <b>{f.name}</b>
+      <em>{f.capacity}</em>
+      <span className="ops-mini">
+        <span><b className={k.availability < 95 ? "warn" : ""}>{k.availability}%</b> available</span>
+        <span><b>{Math.round((k.output.value / k.output.target) * 100)}%</b> of target</span>
+        <span><b className={k.criticalAlarms ? "bad" : ""}>{k.activeAlarms}</b> alarms</span>
+        <span><b>{k.openWos}</b> open jobs</span>
+      </span>
+      {pending > 0 && <span className="ops-pending">{pending} action{pending > 1 ? "s" : ""} proposed by the orchestrator</span>}
+      {hero && <span className="fm-open">Open the airport control room ›</span>}
+    </button>
+  );
+}
+
+/** The facility management module's home: the airport demo first, then the other facilities. */
+export function FacilityHome({ onOpen }: { onOpen: (id: string) => void }) {
+  const o = useFacilities();
+  if (!o) return <div className="home"><p className="muted">Loading the facilities…</p></div>;
+  const demo = o.facilities.find((x) => x.facility.id === DEMO_FACILITY), rest = o.facilities.filter((x) => x.facility.id !== DEMO_FACILITY);
+  return (
+    <div className="home">
+      <section className="ops-home">
+        <div className="home-head"><div><h1>Facility management</h1><p>An AI orchestration layer over the facility: it watches every asset, raises the work, picks the right person, contractor crew or robot, orders the parts and asks before anything risky. Each technician has a personal agent on their phone.</p></div></div>
+        {demo && <>
+          <div className="rpt-label">The airport demo</div>
+          <div className="fm-hero"><FacilityCard x={demo} onOpen={onOpen} hero /><ul className="fm-hero-pts">
+            <li><b>Airside rules</b> — robots on a live runway only in its closure or with ATC clearance; no drones indoors</li>
+            <li><b>Drone, debris, birds, doors</b> — security alerts answered by the orchestrator, robots sent to look first</li>
+            <li><b>Mixed teams</b> — technicians, contractor crews and robots (DJI dock drone, debris rover, security robot) on one plan</li>
+            <li><b>Connected</b> — work orders to the maintenance system, alerts to Teams, the exceptions queue for what needs a person</li>
+          </ul></div>
+        </>}
+        {rest.length > 0 && <>
+          <div className="rpt-label">More facilities in the demo</div>
+          <ul className="home-grid">{rest.map((x) => <li key={x.facility.id}><FacilityCard x={x} onOpen={onOpen} /></li>)}</ul>
+        </>}
+      </section>
+    </div>
+  );
+}
+
+export function FacilityCards({ onOpen }: { onOpen: (id: string) => void }) {
+  const o = useFacilities();
   if (!o) return null;
   return (
     <section className="ops-home">
@@ -99,7 +155,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
     catch (e) { setMsg({ text: (e as Error).message, bad: true }); }
     finally { setBusy(null); }
   };
-  if (!s) return <div className="home"><button className="crumb" onClick={onBack}><Icon name="back" />Operations</button><p className="muted">{msg?.text ?? "Loading…"}</p></div>;
+  if (!s) return <div className="home"><button className="crumb" onClick={onBack}><Icon name="back" />{HAS_OPERATIONS ? "Facilities" : "Operations"}</button><p className="muted">{msg?.text ?? "Loading…"}</p></div>;
   const k = s.kpis, f = s.facility;
   const tag = (id?: string) => s.assets.find((a) => a.id === id)?.tag ?? "";
   const who = (id?: string) => s.technicians.find((t) => t.id === id)?.name ?? "—";
@@ -114,7 +170,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
   const asset = assetOpen ? s.assets.find((a) => a.id === assetOpen) : undefined;
   return (
     <div className="home ops">
-      <button className="crumb" onClick={onBack}><Icon name="back" />Operations</button>
+      <button className="crumb" onClick={onBack}><Icon name="back" />{HAS_OPERATIONS ? "Facilities" : "Operations"}</button>
       <div className="home-head"><div><h1>{f.name}</h1><p>{s.sector} · {f.capacity} · {f.operator} · {s.date}</p></div></div>
       {msg && <div className={`ops-flash ${msg.bad ? "studio-err" : "studio-ok"}`} role={msg.bad ? "alert" : "status"} onClick={() => setMsg(null)}>{msg.text}</div>}
 
