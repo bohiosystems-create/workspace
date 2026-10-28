@@ -126,11 +126,12 @@ export function canApprove(p: Person | null | undefined, a: { domain: "site" | "
   const safety = !!a.kind && SAFETY_KINDS.has(a.kind) && a.risk === "low" && SAFETY_DUTY.test(p.title);
   if (p.orgType !== "client" && p.role !== "admin" && !safety)
     return { ok: false, why: `${p.org} is ${p.orgType === "authority" ? "an authority" : `a ${p.orgType}`} here: its people carry out and report their own work; the client's staff approve.` };
+  // where they work comes first, a safety duty included: an HSE officer stops work on their own site or facility
+  if (p.domain !== "all" && p.domain !== a.domain) return { ok: false, why: `${p.name} approves ${p.domain === "site" ? "construction" : "operations"} proposals only.` };
+  if (a.domain === "fm" && p.facilityId && a.facilityId && p.facilityId !== a.facilityId && p.role !== "director" && p.role !== "admin") return { ok: false, why: "Another facility's proposal." };
   if (safety) return { ok: true };
   const lim = LIMITS[p.role];
   if (!lim.risk) return { ok: false, why: `${ROLE_LABEL[p.role]}: ${lim.label.toLowerCase()}.` };
-  if (p.domain !== "all" && p.domain !== a.domain) return { ok: false, why: `${p.name} approves ${p.domain === "site" ? "construction" : "operations"} proposals only.` };
-  if (a.domain === "fm" && p.facilityId && a.facilityId && p.facilityId !== a.facilityId && p.role !== "director" && p.role !== "admin") return { ok: false, why: "Another facility's proposal." };
   if (RANK[a.risk] > RANK[lim.risk]) return { ok: false, why: `${a.risk} risk needs a ${a.risk === "high" ? "director" : "manager"}.` };
   if ((a.cost ?? 0) > lim.spend) return { ok: false, why: `SAR ${Math.round(a.cost ?? 0).toLocaleString("en-US")} is above the ${ROLE_LABEL[p.role].toLowerCase()} limit of SAR ${lim.spend.toLocaleString("en-US")}.` };
   return { ok: true };

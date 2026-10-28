@@ -15,7 +15,7 @@ import { seedDb } from "../lib/seed";
 import { runTool, TOOL_DEFS, type Repo, type ToolCtx, type ToolDef } from "../lib/core/tools";
 import { FM_TOOLS } from "../lib/fm/tools";
 import { demoEmails } from "../lib/core/emails";
-import { directory, findByPhone, type Person } from "../lib/auth/people";
+import { canApprove, directory, findByPhone, type Person } from "../lib/auth/people";
 import { checkProgramme, checkReplay, shot } from "../lib/core/invariants";
 import { completionDate } from "../lib/core/updates";
 import { HAS_OPERATIONS } from "../lib/edition";
@@ -136,6 +136,8 @@ async function orchestration() {
   if (!HAS_OPERATIONS) return; // the construction-only edition has no plant
   const majid = who(/Majid Al-Rashid/), noura = who(/Noura Al-Ghamdi/), viktor = who(/Viktor Petrenko/);
   if (!majid || !noura || !viktor) return fail("(work layer)", null, "the gas plant's people are missing from the directory");
+  if (canApprove(noura, { domain: "site", risk: "low", kind: "permit_close" }).ok) fail("(work layer)", null, "the gas plant's HSE officer may close a permit on the building site");
+  if (!canApprove(noura, { domain: "fm", facilityId: "kgpp", risk: "low", kind: "safety_stop" }).ok) fail("(work layer)", null, "the HSE officer may not stop unsafe work at her own plant");
   if (viktor.orgType !== "contractor" || majid.orgType !== "client") fail("(work layer)", null, `employers: Viktor ${viktor.orgType}, Majid ${majid.orgType}`);
   const cases: { what: string; tool: string; input: Record<string, unknown>; user: Person | null; ok: boolean; re?: RegExp }[] = [
     { what: "a robot that isn't Ex-rated into a hazardous area", tool: "fm_robot_command", input: { robot: "Spot-2", command: "send", zone: "Compression", mission: "inspection_round" }, user: majid, ok: false, re: /certified|Ex-rated/ },

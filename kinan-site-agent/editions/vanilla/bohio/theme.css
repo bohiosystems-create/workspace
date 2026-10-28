@@ -83,7 +83,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* Glass panels. */
 .pcard, .studio-card, .ops-panel, .ops-kpi, .td-day, .ops-actions > li, .fd-card, .fd-job, .me, .modal-card, .sheet, .chat-drawer, .panel, .rows li, .notes li, .doclist button, .rep-list button, .rep-btn, .ops-team > li, .fd-people button, .fd-sheet-in, .tl4d, .ap-bar, .si-code {
   background: var(--card); border: 1px solid var(--hair); border-top: 1px solid rgba(230, 226, 226, .34);
-  box-shadow: 0 10px 34px rgba(0, 0, 0, .32); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: 0;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .32); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: var(--round-card);
 }
 .ops-actions > li, .fd-job { border-inline-start-width: 3px; }
 .ops-actions > li.risk-low { border-inline-start-color: var(--green); } .ops-actions > li.risk-medium { border-inline-start-color: var(--amber); } .ops-actions > li.risk-high { border-inline-start-color: var(--red); }
@@ -126,13 +126,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .mini.on, .chip.on, .chip.hot, .seg button.on, .seg3 button.on, .kinds button.on { background: rgba(230, 238, 243, .2); border-color: #e6eef3; color: #fff; }
 .chip i { opacity: .7; }
 .seg3 { border: 0; gap: 6px; } .seg3 button + button { border-left: 1px solid rgba(230, 226, 226, .45); }
-.rep-btn { border-radius: 0; border-left: 3px solid #aebdca; } .rep-list li.on button { border-color: #e6eef3; background: rgba(230, 238, 243, .1); }
+.rep-btn { border-radius: var(--round-sm); border-left: 3px solid #aebdca; } .rep-list li.on button { border-color: #e6eef3; background: rgba(230, 238, 243, .1); }
 .studio-add:disabled, .primary:disabled, .fd-btn:disabled { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .12); color: var(--mute); box-shadow: none; }
 
 /* Inputs. */
 input, select, textarea, .ops-search, .mapsearch input, .me input, .modal-card input, .modal-card select, .od-grid select, .od-note input, .fd-f input, .fd-f textarea, .fd-f select, .fd-sheet-in textarea, .chat-input textarea, .docs .search, .projbody .search {
-  background: rgba(255, 255, 255, .045); color: var(--ink); border: 1px solid rgba(230, 226, 226, .32); border-radius: 2px; box-shadow: none;
+  background: rgba(255, 255, 255, .045); color: var(--ink); border: 1px solid rgba(230, 226, 226, .32); border-radius: 999px; box-shadow: none;
 }
+textarea, .fd-f textarea, .fd-sheet-in textarea, .chat-input textarea { border-radius: var(--round-sm); }
 input:focus, select:focus, textarea:focus, .chat-input textarea:focus { border-color: #e6eef3; box-shadow: 0 0 0 3px rgba(190, 215, 235, .16); }
 .mapsearch ul { background: rgba(3, 12, 28, .96); border-top-color: #e6eef3; }
 .ops-table th { color: rgba(230, 226, 226, .74); border-bottom-color: rgba(230, 226, 226, .32); } .ops-table td { border-bottom-color: var(--hair); }
@@ -168,3 +169,25 @@ input:focus, select:focus, textarea:focus, .chat-input textarea:focus { border-c
 .pcard.ops .pband svg { stroke: #e6eef3; }
 .fd-nav button { font-size: 10.5px; letter-spacing: .08em; }
 .ops-home { margin-top: 26px; }
+
+/* Round corners everywhere: controls are pills, panels and sheets have deep rounded corners. */
+:root { --round-card: 24px; --round-sm: 16px; --r: 16px; --rc: 24px; --rc-sm: 16px; --rc-xs: 12px; }
+.modal-card, .sheet, .chat-drawer, .fd-sheet-in, .me { border-radius: 28px; overflow: hidden; }
+.ops-pill, .td-cost, .oa-auto, .oa-kind, .tag, .badge, .pill, .status, .st, .wf-dot, .batt, .batt i, .bar, .bar i, .prog, .prog i, .meter, .meter i, .toast, .toast.live, .tmpwarn, .ops-top, .fd-permitbar, .fd-n, .si-qr, .kbd, .dc-no, .dc-why, .ops-msg, .od-grid select { border-radius: 999px; }
+.ops-top, .tmpwarn, .fd-permitbar, .dc-no, .toast, .toast.live, .ops-msg { padding-inline: 16px; }
+.ops-table, table, .tablewrap, img, video, canvas, .tl4d-stats, .mapsearch ul, .chat-msg, .bubble, .fd-brief, .wf-list > li, .tar-jobs > li, .pm-legend, .ops-kpis > *, .kpi { border-radius: var(--round-sm); }
+.ops-table, table, .tablewrap { overflow: hidden; }
+.pm-svg rect { rx: 2.2px; ry: 2.2px; }
+/* every control is a pill and every card a soft rounded box. The app's own corner rules use !important, so these
+   are scoped under :root body to outrank them; cards repeat :root to outrank the pill rule. */
+:root body :is(button, .mini, .chip, .x, button.x, .btn, .kd-btn, .fd-btn, .studio-add, .studio-go, .studio-back, .primary, .me-done, .pdel, .big, .fab, .home-fab, .chat-fab, .chat-sugg button, .chat-head button, .kretry, .chat-input button, .tl4d-today-btn, .tl4d-speed button, .tar-st, .st, .slip, .badge, .rep-badge, .kc-chip, .seg, .seg3, .kinds, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .ops-pill, .ops-tabs i, .toast, .banner, .gl-label, .placechip, .k, .ph, .conf) { border-radius: 999px !important; }
+:root:root:root:root body :is(.pcard, .studio-card, .ops-panel, .ops-kpi, .td-day, .ops-actions > li, .fd-card, .fd-job, .panel, .rows li, .notes li, .doclist button, .rep-list button, .rep-btn, .ops-team > li, .fd-people button, .tl4d, .ap-bar, .si-code, .kpis > div, .kpi, .studio-kpis div, .wf-list button, .tar-jobs button, .si-demo li button, .mapsearch li button, .mail-row, .me-check, .rpt-alert, .rpt-item, .disclaimer, .studio-doc, .studio-pre, .studio-tablewrap, .studio-ok, .studio-err, .mapsearch ul, .rpt-view iframe, .rpt-view .rpt-frame, .studio-ico, .doclist .ico, .scaletxt, .kmsg, .ktip, textarea, .crumb, .mapask, .who, .layerbtn, .mapctl > button) { border-radius: var(--round-sm) !important; }
+:root:root:root:root:root body :is(.pcard, .studio-card, .ops-panel, .td-day, .panel, .tl4d, .studio-doc, .rpt-view iframe, .rpt-view .rpt-frame) { border-radius: var(--round-card) !important; }
+:root:root:root:root:root body :is(.modal-card, .me, .chat-drawer, .fd-sheet-in) { border-radius: 28px !important; overflow: hidden; }
+:root body .sheet { border-radius: 28px 28px 0 0 !important; }
+@media (min-width: 600px) { :root body .sheet { border-radius: 28px 0 0 28px !important; } }
+:root:root:root:root body :is(.tabs button, .ops-tabs button, .fd-nav button, .seg2 button) { border-radius: 0 !important; } /* tabs are text over an underline, not boxes */
+:root body .chat-drawer.full { border-radius: 0 !important; }
+:root body input[type="checkbox"] { border-radius: 6px !important; }
+/* the app draws squircle corners where the browser can; this edition wants them completely round */
+@supports (corner-shape: round) { :root body *, :root body *::before, :root body *::after { corner-shape: round !important; } }
