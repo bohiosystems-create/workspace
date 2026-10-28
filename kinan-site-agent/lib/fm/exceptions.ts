@@ -41,7 +41,7 @@ export function exceptions(db: Db, d: FmData, facilityId: string, now = simNow(d
     out.push({ id: `alert:${a.id}`, severity: a.kind === "drone" || a.kind === "person" ? "high" : "medium", title: `Unanswered: ${a.text}`, detail: `${a.source} at ${hm(a.at)}`, at: a.at, alertId: a.id });
   // 6. messages to customer systems that didn't go (work orders, Teams, email, webhooks) in the last day
   for (const x of (db.integrationLog ?? []).filter((y) => !y.ok && (!y.facilityId || y.facilityId === facilityId) && Date.now() - Date.parse(y.at) < 24 * 60 * MIN).slice(-20))
-    out.push({ id: `sync:${x.id}`, severity: "medium", title: `${x.target}: ${x.what} not delivered`, detail: `${x.note} (${hm(x.at)})`, at: x.at });
+    out.push({ id: `sync:${x.id}`, severity: "medium", title: `${x.target}: ${x.what} failed`, detail: `${x.note} (${hm(x.at)})`, at: x.at, ...(x.subject && rid.has(x.subject) ? { robotId: x.subject } : {}) });
   const rank = { high: 0, medium: 1, low: 2 };
   return out.sort((a, b) => rank[a.severity] - rank[b.severity] || b.at.localeCompare(a.at));
 }

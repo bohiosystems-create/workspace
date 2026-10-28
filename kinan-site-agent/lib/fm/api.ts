@@ -9,8 +9,7 @@ import type { Capability, Mission, Robot } from "../robots/types";
 import { CAPABILITY_LABEL, CONTROL_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
 import { airsideOpen, closureText, dronesGrounded, gasIn, pilotsFor, robotMayEnter, teams, turnaround, waitingFor, whyNot } from "./work";
 import { findings, simNow } from "../robots/sim";
-import { bridgeOn, fleetConfig } from "../robots/adapter";
-import { orbitConfig } from "../robots/protocols/orbit";
+import { adapterFor, connectionOf } from "../robots/adapter";
 import { exceptions } from "./exceptions";
 import { DEFAULT_RULES, ruleText, validRules } from "./rules";
 import { closedIds, excludedPeople, learnedDoubts, isReason, type DecisionLike, type RejectReason } from "../proposals";
@@ -78,6 +77,8 @@ export function facilityState(db: Db, facilityId: string) {
     turnarounds: [...new Set(by(d.workOrders).filter((w) => w.package).map((w) => w.package!))].map((pk) => turnaround(d, pk)!).filter(Boolean),
     securityAlerts: by(d.securityAlerts).sort((a, b) => b.at.localeCompare(a.at)), dronesGrounded: dronesGrounded(d, facilityId, simNow(d.date))?.id ?? null,
     fleets: fleets(d, facilityId), teams: teams(d, facilityId),
+    // each robot's connection: what its adapter says it can do, and whether it is asked (pull) or tells (push)
+    connections: Object.fromEntries(d.robots.filter((r) => r.facilityId === facilityId).map((r) => [r.id, connectionOf(r)])),
     exceptions: exceptions(db, d, facilityId),
     rules: (db.fmConfig?.rules ?? DEFAULT_RULES).filter((r) => !r.facilityId || r.facilityId === facilityId).map((r) => ({ ...r, text: ruleText(r) })),
     integrations: (db.integrationLog ?? []).filter((x) => !x.facilityId || x.facilityId === facilityId).slice(-15).reverse(),
@@ -184,7 +185,7 @@ export function fleets(d: FmData, facilityId: string) {
   const CONN: Record<Robot["adapter"], string> = { sim: "simulated", rmf: "Open-RMF", vendor: "vendor API", platform: "vendor data platform", vda5050: "VDA 5050 (MQTT)", dji: "DJI Cloud API (MQTT)", orbit: "Spot Orbit API", security: "security robot alarms + video" };
   return [...new Set(rs.map((r) => r.vendor))].map((v) => {
     const xs = rs.filter((r) => r.vendor === v), r0 = xs[0];
-    const live = r0.adapter === "rmf" ? !!process.env.ROBOT_RMF_URL : r0.adapter === "vendor" || r0.adapter === "platform" || r0.adapter === "security" ? !!fleetConfig(r0.fleet) : r0.adapter === "orbit" ? !!orbitConfig() : r0.adapter === "vda5050" || r0.adapter === "dji" ? bridgeOn() : false;
+    const live = adapterFor(r0).mode !== "simulated";
     return { vendor: v, robots: xs.map((r) => r.name), domains: [...new Set(xs.map((r) => DOMAIN_OF[r.kind]))], roles: [...new Set(xs.flatMap((r) => r.roles))], platform: r0.platform ?? null, operator: r0.operator ?? null,
       connection: CONN[r0.adapter], live, lastReport: xs.map((r) => r.lastReport).filter(Boolean).sort().slice(-1)[0] ?? null };
   });
@@ -329,6 +330,9 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       const grounded = DOMAIN_OF[r.kind] === "air" ? dronesGrounded(d, r.facilityId, simNow(d.date)) : undefined;
       if (grounded) throw new Error(`${r.name} stays on the ground: an unidentified drone was reported at ${new Date(Date.parse(grounded.at) + 3 * 3600_000).toISOString().slice(11, 16)} (${grounded.text.toLowerCase()}). Air missions wait two hours or until security clears it.`);
       const kind: Mission["kind"] = b.missionKind ?? "inspection_round";
+      // what its connection can be sent on (capabilities()): a job it can't do, or a robot planned in its maker's software
+      const cap = adapterFor(r).capabilities(r);
+      if (!cap.jobs.includes(kind)) throw new Error(cap.jobs.length ? `${r.name} can't do a ${MISSION_LABEL[kind]} — it can do: ${cap.jobs.map((k) => MISSION_LABEL[k]).join(", ")}.` : `${r.name}'s jobs are planned in its maker's own software (${cap.limits[0] ?? "not sent from here"}).`);
       const checks = (b.checks?.length ? b.checks : r.capabilities.filter((c) => c !== "lidar" && c !== "carry")) as Capability[];
       const missing = checks.filter((c) => !r.capabilities.includes(c));
       if (missing.length) throw new Error(`${r.name} has no ${missing.map((c) => CAPABILITY_LABEL[c]).join(", ")}.`);

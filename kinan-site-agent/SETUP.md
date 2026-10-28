@@ -584,6 +584,20 @@ Operations is a **work orchestration layer**: it directs work done by the facili
 
 **How a change travels.** Every change — from the app, the agent, WhatsApp, the API, a robot — is an event in the change log. After it is saved: missions, cancellations and stops go to each robot's adapter (`lib/robots/dispatch.ts`); MQTT machines get theirs as commands that the **fleet bridge** collects and acknowledges; what each dispatch became is recorded, so a mission that never reached its robot lands in the **exceptions queue** instead of silently not happening. Then the **northbound** side (`lib/integrations/outbound.ts`) carries the change on to the customer's systems, after the answer has gone, from a cursor in the change log so each change is sent once whichever door it came in by. Every send is logged and shown in the cockpit; a failed one is an exception.
 
+**The adapter contract.** Every connection, whoever made the robot, is an adapter (`lib/robots/adapter.ts`) with the same five functions, so the orchestrator, the cockpit, the agent and the API never need to know which maker is behind a robot:
+
+| Function | What it does |
+|---|---|
+| `status()` | Position, battery, online/offline, current job |
+| `capabilities()` | What this robot can do through its connection (thermal photos, gauge reads, patrols, flies…), the jobs it can be sent on, and what the connection limits (only mapped wayline routes, only recorded Orbit missions, no remote stop…) |
+| `dispatch(job)` | Send a job, translated into the vendor's format |
+| `cancel(job)` | Stop or abort it |
+| `results()` | Photos, readings and alerts, converted into our format (the common robot report) |
+
+plus `estop()` where the vendor allows a remote emergency stop. Machines either **answer when asked** (pull: Open-RMF, a vendor's REST bridge) — the poller calls their `status()` and `results()` every minute (`/api/fm/robots/poll`, Vercel Cron, `CRON_SECRET`) and records what changed — or **tell us as it happens** (push: MQTT machines through the fleet bridge, Orbit webhooks, security alarms), and their adapter's `parse()` converts what they send. The robot sheet shows what each connection says the robot can do; a person can't send a robot on a job its connection can't do (`capabilities()` decides); `GET /api/v1/robots/{id}` returns the five answers for one robot, status asked live. A connection that doesn't answer is logged and shows in the exceptions queue. Tested against stand-ins: `NEXT_PUBLIC_EDITION=vanilla npx tsx scripts/adapters.ts`.
+
+A maker's own fleet joins through a small bridge (theirs, or a service that translates to their API) that speaks one API — set in `ROBOT_FLEETS`: `GET {url}/robots/{id}` → `{online, status, battery, zone?, x?, y?, job?: {id, status?, progress?}}`; `GET {url}/robots/{id}/results?since=` → `{reports: [the common robot report]}`; `POST {url}/missions` ← the job → `{id}`; `POST {url}/missions/{id}/cancel`; `POST {url}/robots/{id}/estop` ← `{on}` (only with `"estop": true`).
+
 **Southbound — the machines.** Set `Robot.adapter` per robot:
 
 | Adapter | Machines | Transport | Set |
@@ -709,7 +723,7 @@ Two packs of fictional documents ship with the app under `public/samples/` (serv
 | `WHATSAPP_PHONE_NUMBER_ID` | — | Sending number id |
 | `WHATSAPP_APP_SECRET` | — | Webhook signature check (required in production) |
 | `REPORTS_CRON_KEY` | — | Enables `/api/reports/run` for the daily report (§8b) |
-| `CRON_SECRET` | — | Vercel Cron's bearer secret, accepted by the cron endpoints |
+| `CRON_SECRET` | — | Vercel Cron's bearer secret, accepted by the cron endpoints (daily report, robot polling `/api/fm/robots/poll`) |
 | `REPORTS_ALLOWED_DOMAINS` / `REPORTS_ALLOWED_RECIPIENTS` | sender's domain / — | Who may receive the daily report |
 | `OUTLOOK_MODE` | `mock` | `live` sends the daily report through Microsoft Graph |
 | `OUTLOOK_SENDER` | — | Mailbox the report is sent from |

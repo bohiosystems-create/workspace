@@ -7,7 +7,7 @@
  */
 import { useMemo, useState } from "react";
 import type { facilityStateFor } from "@/lib/fm/api";
-import { CAPABILITY_LABEL, CONTROL_LABEL, DOMAIN_LABEL, DOMAIN_OF, MISSION_LABEL, ROLE_LABEL, type Capability, type Mission, type MissionKind } from "@/lib/robots/types";
+import { CAPABILITY_LABEL, CONTROL_LABEL, DOMAIN_LABEL, DOMAIN_OF, MISSION_LABEL, ROLE_LABEL, missionFits, type Capability, type Mission, type MissionKind } from "@/lib/robots/types";
 
 type FS = ReturnType<typeof facilityStateFor>;
 type Robot = FS["robots"][number];
@@ -173,6 +173,9 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
   const assets = s.assets.filter((a) => s.zones.find((z) => z.id === zone)?.name === a.zone);
   const blocked = s.zones.filter((z) => !(z.atex === null || r.exRated));
   const zSel = s.zones.find((z) => z.id === zone);
+  // what its connection can be sent on (a robot planned in its maker's software can't be sent from here)
+  const conn = s.connections[r.id], jobs = conn?.jobs ?? (Object.keys(MISSION_LABEL) as MissionKind[]).filter((k) => missionFits(r, k));
+  const job = jobs.includes(kind) ? kind : jobs[0];
   return (
     <div className="modal" role="dialog" aria-label={r.name} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-card ops-drawer">
@@ -181,7 +184,8 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
         <div className="od-grid"><label>Who controls it<select value={r.autonomy} disabled={!!busy} onChange={(e) => doit("control", { action: "control", robotId: r.id, control: e.target.value })}>
           <option value="policy">The AI, by itself (within the signed policy)</option><option value="supervised">The AI — a person approves each mission</option><option value="remote">A person pilots it{r.pilotRole ? ` (${r.pilotRole})` : ""}</option></select></label></div>
         <p className="small"><b>{r.vendor}</b> · {DOMAIN_LABEL[DOMAIN_OF[r.kind]]} · used for {r.roles.map((x) => ROLE_LABEL[x]).join(", ")}{r.operator ? ` · operated by ${r.operator}` : ""}{r.platform ? ` · runs on ${r.platform}` : ""} · connected through {CONN[r.adapter]}{r.adapter !== "sim" && !s.fleets.find((f) => f.vendor === r.vendor)?.live ? " (not set up here: simulated)" : ""}{r.lastReport ? ` · last report ${time(r.lastReport)}` : ""}.</p>
-        <p className="small">Can: {r.capabilities.map((c) => CAPABILITY_LABEL[c]).join(", ")}. {r.exRated ? "Certified for hazardous areas (zones 1 and 2)." : blocked.length ? `Not certified for hazardous areas: it may not enter ${blocked.map((z) => z.name).join(", ")}.` : "Not certified for hazardous areas."}{air && s.zones.some((z) => z.indoor) ? " A drone: it doesn't fly indoors." : ""} {r.enduranceMin} min per charge{r.maxWindMs ? `, flies below ${r.maxWindMs} m/s wind` : ""}.</p>
+        <p className="small"><b>Can</b> (as its connection, {conn?.adapter ?? "the simulator"}, says): {(conn?.can ?? r.capabilities.map((c) => CAPABILITY_LABEL[c])).join(", ")}.{conn?.limits.length ? ` ${conn.limits.join(". ")}.` : ""} {conn?.mode === "pull" ? "Its status and results are asked for every minute." : conn?.mode === "push" ? "It sends its status and results as they happen." : "Simulated here: its status and findings follow the plant's readings."}</p>
+        <p className="small">{r.exRated ? "Certified for hazardous areas (zones 1 and 2)." : blocked.length ? `Not certified for hazardous areas: it may not enter ${blocked.map((z) => z.name).join(", ")}.` : "Not certified for hazardous areas."}{air && s.zones.some((z) => z.indoor) ? " A drone: it doesn't fly indoors." : ""} {r.enduranceMin} min per charge{r.maxWindMs ? `, flies below ${r.maxWindMs} m/s wind` : ""}.</p>
         {r.videoUrl && <p className="small"><b>Live video:</b> <a href={r.videoUrl} target="_blank" rel="noreferrer">open the feed</a> (on the maker&apos;s video system)</p>}
         {r.estop && <div className="dc-no"><span>{r.note ?? "Emergency stop"} — a supervisor releases it after a look on site.</span></div>}
         <div className="od-acts">
@@ -190,14 +194,14 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
           {live && <button className="mini" disabled={!!busy} onClick={() => doit("abort", { action: "mission_abort", missionId: live.id })}>Cancel {live.id}</button>}
         </div>
         <div className="rpt-label">Send it</div>
-        <form className="od-grid" onSubmit={(e) => { e.preventDefault(); doit("mission", { action: "mission", robotId: r.id, zone, asset: asset || undefined, missionKind: kind, atcClearance: atc || undefined, pilotId: pilot || undefined }); }}>
+        {jobs.length === 0 ? <p className="muted small">Its jobs are planned in its maker&apos;s own software; what it finds comes in here.</p> : <form className="od-grid" onSubmit={(e) => { e.preventDefault(); doit("mission", { action: "mission", robotId: r.id, zone, asset: asset || undefined, missionKind: job, atcClearance: atc || undefined, pilotId: pilot || undefined }); }}>
           <label>Where<select value={zone} onChange={(e) => { setZone(e.target.value); setAsset(""); }}>{allowed.map((z) => <option key={z.id} value={z.id}>{z.name}{z.atex ? ` (zone ${z.atex})` : ""}</option>)}</select></label>
           <label>At<select value={asset} onChange={(e) => setAsset(e.target.value)}><option value="">The whole area</option>{assets.map((a) => <option key={a.id} value={a.tag}>{a.tag} {a.name}</option>)}</select></label>
           {r.autonomy === "remote" && <label>Pilot<select value={pilot} onChange={(e) => setPilot(e.target.value)}><option value="">— who pilots it? —</option>{s.pilots.filter((t) => t.shift !== "off").map((t) => <option key={t.id} value={t.id}>{t.name} · {t.role}</option>)}</select></label>}
           {zSel?.closed && <label>ATC clearance<input value={atc} onChange={(e) => setAtc(e.target.value)} placeholder={`needed outside the ${zSel.closed.map(hm).join("–")} closure, e.g. GND-1452`} /></label>}
-          <label>Mission<select value={kind} onChange={(e) => setKind(e.target.value as MissionKind)}>{(Object.keys(MISSION_LABEL) as MissionKind[]).filter((k) => fits(r, k)).map((k) => <option key={k} value={k}>{MISSION_LABEL[k]}</option>)}</select></label>
+          <label>Mission<select value={job} onChange={(e) => setKind(e.target.value as MissionKind)}>{jobs.map((k) => <option key={k} value={k}>{MISSION_LABEL[k]}</option>)}</select></label>
           <div className="od-acts"><button className="studio-add" disabled={!!busy || !!r.estop || !zone}>Send {r.name}</button></div>
-        </form>
+        </form>}
         <div className="rpt-label">Today&apos;s missions</div>
         <ul className="ops-list">
           {ms.length === 0 && <li className="muted">None.</li>}
@@ -206,21 +210,6 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
       </div>
     </div>
   );
-}
-
-/** The missions a robot can fly, drive or swim: what its sensors and its domain allow. */
-function fits(r: Robot, k: MissionKind) {
-  const d = DOMAIN_OF[r.kind], c = (x: Capability) => r.capabilities.includes(x);
-  switch (k) {
-    case "layout_marking": case "delivery": return false;
-    case "subsea_inspection": return d === "subsea" || d === "sea";
-    case "security_patrol": case "alarm_check": return c("intrusion");
-    case "valve_operation": return c("manipulate");
-    case "thickness_survey": return c("ut_thickness");
-    case "gas_survey": case "confined_precheck": case "emissions_survey": return c("gas") && d !== "subsea";
-    case "flare_inspection": case "pipeline_patrol": return d === "air";
-    default: return d !== "subsea" && (c("visual") || c("thermal"));
-  }
 }
 
 function MissionRow({ s, m, pilotable, doit, busy }: { s: FS; m: Mission; pilotable?: boolean; doit?: Doit; busy?: string | null }) {

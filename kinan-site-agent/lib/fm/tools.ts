@@ -1,6 +1,7 @@
 // The AI agent's facility-management tools: the same operations as the control room and the field app, so a question
 // or an instruction by chat, WhatsApp or voice ("SWP-102 tripped again", "close WO-W24117, seal replaced", "approve the
 // low-risk actions at the airport") does exactly what the screens do.
+import { connectionOf } from "../robots/adapter";
 import type { Repo, ToolCtx } from "../core/tools";
 import { act, actions, facilityState, myDay, overview, topIssues } from "./api";
 import { fmToday, findAsset, isOpen, isOverdue, kpis, slaLeft, workload } from "./engine";
@@ -9,7 +10,7 @@ import { canApprove } from "../auth/people";
 import { fitJson } from "../core/fit";
 import { dronesGrounded, teams, turnaround } from "./work";
 import { simNow } from "../robots/sim";
-import { CONTROL_LABEL, DOMAIN_OF } from "../robots/types";
+import { CONTROL_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
 
 const obj = (props: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties: props, required });
 const str = (description?: string) => ({ type: "string", ...(description ? { description } : {}) });
@@ -140,7 +141,7 @@ async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx:
     case "fm_robots": {
       const rs = d.robots.filter((r) => (!fid || r.facilityId === fid) && (!input.robot || r.name.toLowerCase() === String(input.robot).toLowerCase()));
       if (!rs.length) return J({ error: input.robot ? `No robot called ${input.robot}.` : "No robots at this facility." });
-      return J({ robots: rs.map((r) => ({ name: r.name, model: r.model, maker: r.vendor, domain: DOMAIN_OF[r.kind], usedFor: r.roles, operatedBy: r.operator, runsOn: r.platform, connection: r.adapter, status: r.status, battery: r.battery, area: d.zones.find((z) => z.id === r.zone)?.name, estop: !!r.estop,
+      return J({ robots: rs.map((r) => ({ name: r.name, model: r.model, maker: r.vendor, domain: DOMAIN_OF[r.kind], usedFor: r.roles, operatedBy: r.operator, runsOn: r.platform, connection: (({ adapter, mode, can, jobs, places, limits }) => ({ adapter, reports: mode === "pull" ? "asked every minute" : mode === "push" ? "sends as it happens" : "simulated", can, jobs: jobs.map((k) => MISSION_LABEL[k]), onlyTo: places, limits }))(connectionOf(r)), status: r.status, battery: r.battery, area: d.zones.find((z) => z.id === r.zone)?.name, estop: !!r.estop,
         missions: d.missions.filter((m) => m.robotId === r.id).map((m) => ({ id: m.id, title: m.title, start: m.plannedStart.slice(11, 16) + " UTC", status: m.status, progress: m.progress, forJob: m.woId, findings: m.findings.map((f) => ({ severity: f.severity, what: f.label, workRaised: f.woId ?? null })) })) })) });
     }
     case "fm_robot_command": {

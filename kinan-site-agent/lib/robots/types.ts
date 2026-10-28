@@ -114,3 +114,18 @@ export interface Finding {
   /** the photo/thermal image name the robot took (demo: described, not stored) */
   image?: string;
 }
+
+/** The missions a robot can fly, drive or swim: what its sensors and its domain allow. */
+export function missionFits(r: Robot, k: MissionKind) {
+  const d = DOMAIN_OF[r.kind], c = (x: Capability) => r.capabilities.includes(x);
+  switch (k) {
+    case "layout_marking": case "delivery": return false;
+    case "subsea_inspection": return d === "subsea" || d === "sea";
+    case "security_patrol": case "alarm_check": return c("intrusion");
+    case "valve_operation": return c("manipulate");
+    case "thickness_survey": return c("ut_thickness");
+    case "gas_survey": case "confined_precheck": case "emissions_survey": return c("gas") && d !== "subsea";
+    case "flare_inspection": case "pipeline_patrol": return d === "air";
+    default: return d !== "subsea" && (c("visual") || c("thermal"));
+  }
+}

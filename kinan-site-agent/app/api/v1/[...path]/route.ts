@@ -8,6 +8,7 @@ import { bearerOk } from "@/lib/integrations/http";
 import { publishAfter } from "@/lib/integrations/outbound";
 import { integrationsConfigured } from "@/lib/integrations/status";
 import { toFleet } from "@/lib/robots/dispatch";
+import { adapterFor } from "@/lib/robots/adapter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export const dynamic = "force-dynamic";
 // GET  /api/v1/sites                         facilities
 // GET  /api/v1/assets?site=kgpp              assets (tag, class, status, criticality, condition, zone)
 // GET  /api/v1/robots?site=                  robots: kind, vendor, adapter, status, battery, control, mission
+// GET  /api/v1/robots/{id}                   one robot through its adapter: status (live where the vendor answers), capabilities, results
 // GET  /api/v1/jobs?site=&status=            work orders (people, crews, robots on them)
 // GET  /api/v1/missions?site=&status=        robot missions
 // GET  /api/v1/findings?site=&since=ISO      what robots found
@@ -48,7 +50,13 @@ export async function GET(req: Request, { params }: Ctx) {
   switch (what) {
     case "sites": return ok({ sites: d.facilities.map((f) => ({ id: f.id, name: f.name, sector: f.sector })) });
     case "assets": return ok({ assets: d.assets.filter((a) => here(a.facilityId) && (!id || a.id === id || a.tag === id)).map((a) => ({ id: a.id, tag: a.tag, name: a.name, site: a.facilityId, class: a.class, status: a.status, criticality: a.criticality, condition: a.condition, zone: a.zone, nextPm: a.nextPm })) });
-    case "robots": return ok({ robots: d.robots.filter((r) => here(r.facilityId)).map((r) => ({ id: r.id, name: r.name, site: r.facilityId, kind: r.kind, vendor: r.vendor, model: r.model, adapter: r.adapter ?? "sim", externalId: r.externalId, status: r.status, battery: r.battery, zone: r.zone, control: r.autonomy ?? "policy", estop: !!r.estop, missionId: r.missionId, lastReport: r.lastReport })) });
+    case "robots": if (id) {
+      // one robot through its adapter: status() asked now (live for pull connections), capabilities(), results' route
+      const r = d.robots.find((x) => x.id === id || x.name.toLowerCase() === id.toLowerCase() || x.externalId === id);
+      if (!r || !here(r.facilityId)) return no(`No robot ${id}.`, 404);
+      const ad = adapterFor(r), [status, results] = await Promise.all([ad.status(r), ad.results(r, since)]);
+      return ok({ robot: { id: r.id, name: r.name, site: r.facilityId, kind: r.kind, vendor: r.vendor, model: r.model, externalId: r.externalId }, adapter: ad.name, mode: ad.mode, status, capabilities: ad.capabilities(r), results });
+    } else return ok({ robots: d.robots.filter((r) => here(r.facilityId)).map((r) => ({ id: r.id, name: r.name, site: r.facilityId, kind: r.kind, vendor: r.vendor, model: r.model, adapter: r.adapter ?? "sim", externalId: r.externalId, status: r.status, battery: r.battery, zone: r.zone, control: r.autonomy ?? "policy", estop: !!r.estop, missionId: r.missionId, lastReport: r.lastReport })) });
     case "jobs": return ok({ jobs: d.workOrders.filter((w) => here(w.facilityId) && (!status || w.status === status) && (!id || w.id === id)).map((w) => ({ id: w.id, site: w.facilityId, asset: d.assets.find((a) => a.id === w.assetId)?.tag, type: w.type, priority: w.priority, status: w.status, title: w.title, detail: w.detail, raised: w.raised, due: w.due, holdReason: w.holdReason,
       assignee: d.technicians.find((t) => t.id === w.assignee)?.name, crew: w.crew, robot: name(w.robot), missionId: w.missionId, support: w.support?.map((s) => ({ robot: name(s.robotId), role: s.role })), source: w.source })) });
     case "missions": return ok({ missions: d.missions.filter((m) => here(m.facilityId) && (!status || m.status === status) && (!id || m.id === id)).map((m) => ({ id: m.id, site: m.facilityId, robot: name(m.robotId), kind: m.kind, title: m.title, status: m.status, plannedStart: m.plannedStart, started: m.started, ended: m.ended, progress: m.progress, workOrder: m.woId, findings: m.findings.length })) });

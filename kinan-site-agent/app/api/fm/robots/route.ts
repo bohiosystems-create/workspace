@@ -9,10 +9,7 @@ import { fmToday } from "@/lib/fm/engine";
 import { analyseImages, MAX_IMAGE_BYTES, type DroneImage } from "@/lib/robots/vision";
 import { serverLlm } from "@/lib/llmConfig";
 import { ack, outbox } from "@/lib/robots/dispatch";
-import { vdaStateToReport } from "@/lib/robots/protocols/vda5050";
-import { djiOsdToReport, djiProgress } from "@/lib/robots/protocols/dji";
-import { orbitWebhookToReport } from "@/lib/robots/protocols/orbit";
-import { securityAlarmToReport } from "@/lib/robots/protocols/security";
+import { parserFor } from "@/lib/robots/adapter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,19 +49,6 @@ export async function GET(req: Request) {
   return NextResponse.json({ commands: outbox((await getRepo()).db, q.get("protocol") ?? undefined) }, { headers: { "Cache-Control": "no-store" } });
 }
 
-/** A machine's own message, read into the common report (null when it isn't one). */
-function fromProtocol(protocol: string, b: Record<string, unknown>, nodes: Record<string, string>): RobotReport | null {
-  if (protocol === "vda5050") { const back = Object.fromEntries(Object.entries(nodes).map(([k, v]) => [v, k])); return typeof b.robot === "string" && b.state && typeof b.state === "object" ? vdaStateToReport(b.state as Record<string, unknown>, b.robot, (n) => back[n] ?? n) : null; }
-  if (protocol === "dji") {
-    if (typeof b.robot !== "string" || !b.data || typeof b.data !== "object") return null;
-    if (b.method === "flighttask_progress") { const p = djiProgress(b.data as Record<string, unknown>); return { robot: b.robot, source: "DJI Cloud API", ...(p.missionId ? { mission: { id: p.missionId, ...(p.status ? { status: p.status } : {}), ...(typeof p.percent === "number" ? { progress: p.percent } : {}) } } : {}) }; }
-    return djiOsdToReport(b.data as Record<string, unknown>, b.robot);
-  }
-  if (protocol === "orbit") return orbitWebhookToReport(b);
-  if (protocol === "security") return securityAlarmToReport(b);
-  return null;
-}
-
 export async function POST(req: Request) {
   const no = gate(req); if (no) return no;
   let body: { reports?: RobotReport[]; acks?: { commandId: string; ok: boolean; note?: string }[]; protocol?: string } & Partial<RobotReport>;
@@ -74,9 +58,9 @@ export async function POST(req: Request) {
   const protocol = String(new URL(req.url).searchParams.get("protocol") ?? body.protocol ?? "");
   let raw: RobotReport[];
   if (protocol) {
-    let nodes: Record<string, string> = {}; try { nodes = JSON.parse(process.env.VDA5050_NODES ?? "{}"); } catch { /* none mapped */ }
-    const r = fromProtocol(protocol, body as Record<string, unknown>, nodes);
-    if (!r) return NextResponse.json({ error: `Not a ${protocol} message this endpoint can read (see the comment at the top of app/api/fm/robots/route.ts).` }, { status: 400 });
+    // each machine's adapter converts its own format into the common report (lib/robots/adapter.ts, parse())
+    const r = parserFor(protocol)?.(body as Record<string, unknown>) ?? null;
+    if (!r) return NextResponse.json({ error: `Not a ${protocol} message this endpoint can read (protocols: vda5050, dji, orbit, security — see the comment at the top of app/api/fm/robots/route.ts).` }, { status: 400 });
     raw = [r];
   } else raw = Array.isArray(body.reports) ? body.reports : [body as RobotReport];
   const reports = raw.slice(0, 50) as (RobotReport & { images?: DroneImage[] })[];
