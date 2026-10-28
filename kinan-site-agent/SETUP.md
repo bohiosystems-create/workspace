@@ -23,6 +23,7 @@ The agent answers from the project's documents, programme, procurement, safety a
 7. [Connect the purchasing system](#7-connect-the-purchasing-system)
 8. [Load your real project data](#8-load-your-real-project-data)
 8b. [Daily report e-mail](#8b-daily-report-e-mail)
+8d. [Operations](#8d-operations--facility-management-with-an-ai-orchestration-layer) · 8f. [Work orchestration — contractors, crews and robots](#8f-work-orchestration--contractors-crews-and-robots)
 9. [Security & compliance checklist](#9-security--compliance-checklist)
 10. [Using it on site](#10-using-it-on-site)
 11. [Troubleshooting](#11-troubleshooting)
@@ -468,7 +469,7 @@ How it syncs: mail from the last 60 days on the first sync, then only new mail; 
 
 *Vanilla edition only (§0): the Kinan edition has no facility operations.*
 
-For running large infrastructure once it is built: power and energy, water desalination, airports. Three demo facilities ship with the app (all fictional): **Kinan Coastal Power Station** (1,250 MW combined cycle), **Kinan Red Sea Desalination Plant** (400,000 m³/day SWRO) and **Kinan Gulf International Airport — Terminal 2**. Their day is generated for the calendar like the construction data, so maintenance falls due and readings drift every day; every change people or the orchestrator make is kept as an event and re-applied (`lib/fm`).
+For running large infrastructure once it is built: power and energy, water desalination, airports. Four demo facilities ship with the app (all fictional; the gas plant is in §8f): **Kinan Coastal Power Station** (1,250 MW combined cycle), **Kinan Red Sea Desalination Plant** (400,000 m³/day SWRO) and **Kinan Gulf International Airport — Terminal 2**. Their day is generated for the calendar like the construction data, so maintenance falls due and readings drift every day; every change people or the orchestrator make is kept as an event and re-applied (`lib/fm`).
 
 **Home page → Operations** shows a card per facility. The **control room** for a facility has:
 - **KPIs**: availability of critical assets, output against target (MW, m³/day, passengers), efficiency (heat rate, kWh/m³, on-time departures), open and late work, alarms, planned-maintenance compliance, MTTR / MTBF, people on shift.
@@ -510,6 +511,37 @@ For running large infrastructure once it is built: power and energy, water desal
 - *One input check at the tool boundary* (`lib/core/validate.ts`): every call is checked against the tool's own description — types, allowed values, ranges (0–100 %, a positive quantity), real dates (today or later for a need-by), required fields. What can be read safely is normalised ("60%" → 60, "In Progress" → in_progress, "done" → completed, "tomorrow" → the date, a window given backwards is turned round); anything else is refused with the field and what is allowed, so the agent asks instead of recording a guess.
 - *The programme's rules* (`lib/core/invariants.ts`), checked after every progress report and every approved proposal: work not yet started never moves closer to what it depends on than the programme had it, practical completion never comes earlier because something slipped, and the daily roll rebuilds the same programme (reported progress and approvals are replayed in the order they happened). A broken rule is logged as a bug.
 - *The "sloppy director" test* (`scripts/fuzz.ts`): ~4,000 calls over every tool with empty, huge, oddly worded and out-of-range inputs, a busy day of progress reports and approvals, then today's and tomorrow's roll. Every answer must be valid JSON within 14,000 characters and either right or a clear refusal; ~30 known cases must get the right answer. `npm run fuzz -- --n 200 --seed 7` for a longer run. In GitHub it runs on every change, next to the eval, and needs no secrets.
+
+## 8f. Work orchestration — contractors, crews and robots
+
+*Vanilla edition only (§0).*
+
+Operations is a **work orchestration layer**: it directs work done by the facility's own people, **contractor crews** and **robots**, across facility management, maintenance, construction and oil & gas. The orchestrator gives each job to whoever fits — a person, a crew, or a robot when the check can keep people out of danger — and checks the safety rules between them before anything starts (`lib/fm/work.ts`, `lib/robots`).
+
+**The gas plant demo.** A fourth facility, **Kinan Gas Processing Plant** (600 MMSCFD sour gas, fictional), shows the whole thing in one day:
+- **Hazardous-area zones** (ATEX zone 1 and 2) on a **Plant map** tab, with gas readings, crews, people and robots drawn where they are.
+- **5 contractors, 6 crews** (scaffolding, valves, compressors, pipe & welding, insulation, NDT), each with a lead, size, trades, certificates and a performance record.
+- **5 robots**: two Ex-rated quadrupeds (Ex-1, Ex-2), a quadruped *not* rated for hazardous areas (Spot-2), an inspection drone (Drone-1) and an Ex-rated crawler for wall thickness (Crawler-1). Six scheduled missions a day (rounds, gas surveys, the flare, the tank farm).
+- **Turnaround TAR-K201B**: ten jobs on compressor K-201B (isolate, scaffold, gas-free check, open the casing, valves, a hot-work weld repair, the dry gas seal, NDT, box-up, strike scaffold), each with its crew or robot, what it waits for, its permit and its gas test.
+- The story: a gas leak at the K-201A seal-gas panel, vibration on P-303A, the flare pilot out, a thin wall on T-701A.
+
+**What the orchestrator proposes, and why** (on top of §8d):
+- **Stop hot work where there is gas.** A robot or detector reads flammable gas in an area with hot work or confined-space entry in progress: the job goes on hold and its permit is suspended. Safety and permit staff (HSE officers, safety officers, permit coordinators) may approve a low-risk safety stop whoever employs them; otherwise the normal limits of §8e apply.
+- **Robot first.** A gas-free check or pre-entry inspection is offered to a free Ex-rated robot before a person goes in. A robot that isn't rated never enters a hazardous area — the tool refuses and names one that can.
+- **Re-test once clear.** After the leak is fixed, one robot gas survey releases every job held for gas in that area; hot work then still needs a gas test recorded by a person.
+- **Raise work from what robots find** (gas, heat, vibration, wall thickness), with the reading, severity and the image reference.
+- **Hire a crew** for a job that needs a trade the facility doesn't have, with the cost in crew-days × day rate.
+- **Gas test before work**, and **recall a robot** whose battery is low.
+
+**Authority by employer.** Everyone in the directory belongs to the client, a contractor, a consultant or an authority. A contractor's people approve none of the client's decisions — and nobody approves anything concerning their own company — except that their safety staff may approve safety stops; they move only their own crew's jobs. Releasing a robot's emergency stop is a client supervisor's call; **anyone** signed in may stop a robot. Gas tests are recorded by the gas tester or a client supervisor. The same rules hold in the app, the field app, WhatsApp and the agent's tools.
+
+**Screens.** Control room → **Plant map**, **Workforce** (people, crews, robots — tap a robot for its sheet: missions, findings, **Emergency stop**, send it somewhere, cancel), **Turnaround** (job by job, money committed, people on site). A work order shows its crew or robot, what it waits for, its gas test (**Record a clear test** / **Record gas found**) and a suspended permit. Crew leads sign in to the field app with their phone number and see their crew's jobs.
+
+**The agent** has `fm_workforce`, `fm_robots`, `fm_robot_command` (send, cancel, stop, release), `fm_turnaround` and `fm_gas_test`, with the same rules.
+
+**Robots — simulated or real.** Each robot has an adapter (`lib/robots/adapter.ts`). Every mission, cancel and stop is first recorded as an event (the plant's own record), then handed to the adapter; an adapter that isn't set up or fails never loses the mission.
+- *Simulator* (default): position, battery, progress and findings are worked out from the missions and the clock, so it needs no background process and works the same on Vercel, in the standalone page and in tests. Robots read the same equipment readings as the control room, so what they find is what is really out of range; a check made before a repair keeps what it saw then.
+- *Open-RMF*: set `ROBOT_RMF_URL` (the RMF API server) and optionally `ROBOT_RMF_TOKEN`, and set a robot's `adapter` to `rmf`. Missions become RMF *patrol* tasks over named places (`/tasks/dispatch_task`, `/tasks/cancel_task`); places default to the zone id (`kgpp:cmp` → `kgpp_cmp`) or map in `ROBOT_RMF_PLACES` (JSON, e.g. `{"kgpp:cmp":"compressor_bay"}`). RMF's task API has no remote emergency stop, so the app says so and points to the stop button on the robot. **This adapter has not been run against a live RMF deployment yet — test it there before relying on it.** A vendor's own fleet API goes behind the same interface.
 
 ## 9. Security & compliance checklist
 
@@ -636,5 +668,7 @@ Two packs of fictional documents ship with the app under `public/samples/` (serv
 | `CRON_SECRET` | — | Vercel Cron auth for scheduled ERP sync |
 | `AGENT_DEADLINE_MS` | 50000 on Vercel, 110000 elsewhere | Time budget per answer |
 | `DOMAIN` | — | Used by docker-compose/Caddy for HTTPS |
+| `ROBOT_RMF_URL` / `ROBOT_RMF_TOKEN` | — | Open-RMF API server for robots whose adapter is `rmf` (§8f); without it they run on the simulator |
+| `ROBOT_RMF_PLACES` | — | JSON map of zone ids to RMF place names (§8f) |
 
 *For testing only — never in production:* `WHATSAPP_SKIP_SIGNATURE`, `WHATSAPP_ALLOW_ALL`, `WHATSAPP_TEST_SYNC`, `WHATSAPP_GRAPH_BASE`.

@@ -87,7 +87,7 @@ async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx:
       return J({ ok: true, message: r.message, note: "Tell the person the WO number and SLA; the orchestrator will propose who takes it if nobody was named." });
     }
     case "fm_update_work_order": {
-      const r = act(db, { action: "wo_update", woId: input.wo, status: input.status, note: input.note, holdReason: input.hold_reason, assignee: input.assignee, checklist: input.checklist_step, evidence: input.evidence_doc_ids }, by, channel);
+      const r = act(db, { action: "wo_update", woId: input.wo, status: input.status, note: input.note, holdReason: input.hold_reason, assignee: input.assignee, checklist: input.checklist_step, evidence: input.evidence_doc_ids }, by, channel, ctx.user);
       await repo.save();
       return J({ ok: true, message: r.message });
     }

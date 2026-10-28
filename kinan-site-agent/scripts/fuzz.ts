@@ -15,9 +15,10 @@ import { seedDb } from "../lib/seed";
 import { runTool, TOOL_DEFS, type Repo, type ToolCtx, type ToolDef } from "../lib/core/tools";
 import { FM_TOOLS } from "../lib/fm/tools";
 import { demoEmails } from "../lib/core/emails";
-import { findByPhone, type Person } from "../lib/auth/people";
+import { directory, findByPhone, type Person } from "../lib/auth/people";
 import { checkProgramme, checkReplay, shot } from "../lib/core/invariants";
 import { completionDate } from "../lib/core/updates";
+import { HAS_OPERATIONS } from "../lib/edition";
 import fs from "node:fs";
 
 const arg = (k: string, d: number) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? Number(process.argv[i + 1]) : d; };
@@ -127,6 +128,53 @@ const KNOWN: Known[] = [
   { tool: "fm_update_work_order", input: { wo: "WO-W24109", checklist_step: 1.5 }, expect: refused(/whole number/) },
 ];
 
+// ---------------------------------------------------------------- 5. the work layer: who may direct whom, robots, gas
+// at the gas plant: the operations manager (client), the HSE gas tester (client) and a contractor's crew lead
+const who = (re: RegExp) => directory(db).find((p) => re.test(p.name))!;
+const msg = (o: Record<string, any>) => String(o.error ?? o.message ?? JSON.stringify(o.results ?? o.done ?? o));
+async function orchestration() {
+  if (!HAS_OPERATIONS) return; // the construction-only edition has no plant
+  const majid = who(/Majid Al-Rashid/), noura = who(/Noura Al-Ghamdi/), viktor = who(/Viktor Petrenko/);
+  if (!majid || !noura || !viktor) return fail("(work layer)", null, "the gas plant's people are missing from the directory");
+  if (viktor.orgType !== "contractor" || majid.orgType !== "client") fail("(work layer)", null, `employers: Viktor ${viktor.orgType}, Majid ${majid.orgType}`);
+  const cases: { what: string; tool: string; input: Record<string, unknown>; user: Person | null; ok: boolean; re?: RegExp }[] = [
+    { what: "a robot that isn't Ex-rated into a hazardous area", tool: "fm_robot_command", input: { robot: "Spot-2", command: "send", zone: "Compression", mission: "inspection_round" }, user: majid, ok: false, re: /certified|Ex-rated/ },
+    { what: "a robot that doesn't exist", tool: "fm_robot_command", input: { robot: "Robo-9", command: "estop" }, user: majid, ok: false, re: /No robot/ },
+    { what: "a contractor sends a robot", tool: "fm_robot_command", input: { robot: "Ex-2", command: "send", zone: "Compression", mission: "gas_survey" }, user: viktor, ok: false, re: /own staff/ },
+    { what: "nobody signed in sends a robot", tool: "fm_robot_command", input: { robot: "Ex-2", command: "send", zone: "Compression", mission: "gas_survey" }, user: null, ok: false, re: /own staff/ },
+    { what: "a contractor stops a robot (anyone may)", tool: "fm_robot_command", input: { robot: "Drone-1", command: "estop" }, user: viktor, ok: true },
+    { what: "a stopped robot is sent", tool: "fm_robot_command", input: { robot: "Drone-1", command: "send", zone: "Flare", mission: "flare_inspection" }, user: majid, ok: false, re: /emergency stop/ },
+    { what: "a contractor releases the stop", tool: "fm_robot_command", input: { robot: "Drone-1", command: "release" }, user: viktor, ok: false, re: /supervisor/ },
+    { what: "the manager releases the stop", tool: "fm_robot_command", input: { robot: "Drone-1", command: "release" }, user: majid, ok: true },
+    { what: "hot work started before its gas test", tool: "fm_update_work_order", input: { wo: "WO-TAR06", status: "in_progress" }, user: majid, ok: false, re: /gas test/ },
+    { what: "a contractor moves another crew's job", tool: "fm_update_work_order", input: { wo: "WO-TAR05", status: "on_hold", hold_reason: "waiting for parts" }, user: viktor, ok: false, re: /job/ },
+    { what: "a contractor records a gas test", tool: "fm_gas_test", input: { wo: "WO-TAR06", result: "done" }, user: viktor, ok: false, re: /gas tester|supervisor/ },
+    { what: "gas found without a reading", tool: "fm_gas_test", input: { wo: "WO-TAR06", result: "failed" }, user: noura, ok: false, re: /read/ },
+    { what: "the gas tester records a clear test", tool: "fm_gas_test", input: { wo: "WO-TAR06", result: "done", reading: "LEL 0 %, H2S 0 ppm, O2 20.9 %" }, user: noura, ok: true },
+    { what: "the turnaround", tool: "fm_turnaround", input: { facility: "kgpp" }, user: majid, ok: true },
+    { what: "the fleet", tool: "fm_robots", input: { facility: "kgpp" }, user: majid, ok: true },
+  ];
+  for (const c of cases) {
+    const o = await call(c.tool, c.input, c.user);
+    if (c.ok && o.error) fail(c.tool, c.input, `${c.what}: refused — ${o.error}`);
+    if (!c.ok && !o.error) fail(c.tool, c.input, `${c.what}: should have been refused, got ${msg(o).slice(0, 120)}`);
+    if (!c.ok && o.error && c.re && !c.re.test(o.error)) fail(c.tool, c.input, `${c.what}: refused for the wrong reason — ${o.error}`);
+  }
+  // the turnaround answer names the jobs; the fleet answer lists the five robots
+  const tar = await call("fm_turnaround", { facility: "kgpp" }, majid);
+  if (!JSON.stringify(tar).includes("WO-TAR06")) fail("fm_turnaround", { facility: "kgpp" }, "the turnaround doesn't list its jobs");
+  // a contractor's crew lead can't approve hiring their own company; the operations manager can
+  const list = await call("fm_orchestrator", { facility: "kgpp" }, majid);
+  const crew = (list.proposals ?? list.actions ?? []).find((a: { id: string; kind?: string }) => /^crew:/.test(a.id));
+  if (!crew) fail("fm_orchestrator", { facility: "kgpp" }, "no proposal to assign a contractor crew at the gas plant");
+  else {
+    const v = await call("fm_orchestrator", { facility: "kgpp", approve: crew.id }, viktor);
+    if (!/own company|can't approve|cannot approve|not .*approve|limit/i.test(msg(v))) fail("fm_orchestrator", { approve: crew.id }, `a contractor approved hiring their own crew: ${msg(v).slice(0, 160)}`);
+    const m = await call("fm_orchestrator", { facility: "kgpp", approve: crew.id }, majid);
+    if (m.error || /can't approve|cannot approve|not allowed/i.test(msg(m))) fail("fm_orchestrator", { approve: crew.id }, `the operations manager couldn't approve the crew: ${msg(m).slice(0, 160)}`);
+  }
+}
+
 async function main() {
   const t0 = Date.now();
   for (const k of KNOWN) {
@@ -134,6 +182,7 @@ async function main() {
     const why = k.expect(o);
     if (why) fail(k.tool, k.input, why);
   }
+  await orchestration();
   for (const d of DEFS) {
     const s = d.input_schema as S;
     await call(d.name, {});
