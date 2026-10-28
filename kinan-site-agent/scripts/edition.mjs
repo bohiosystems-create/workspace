@@ -65,11 +65,11 @@ for (const f of files) {
   n++;
 }
 
-// the Bohio look (editions/vanilla/bohio): the theme goes after the app's own styles, with the Dallas Light font and
+// the Bohio look (editions/vanilla/bohio): the theme goes after the app's own styles, with
 // the faceted backdrop inlined (the single-file build carries them too); Libre Franklin comes from Google Fonts
 const bohio = path.join(root, "editions", "vanilla", "bohio");
 const dataUri = (f, mime) => `data:${mime};base64,${fs.readFileSync(path.join(bohio, f)).toString("base64")}`;
-const theme = fs.readFileSync(path.join(bohio, "theme.css"), "utf8").replaceAll("__DALLAS__", dataUri("Dallas-Light.woff2", "font/woff2")).replaceAll("__FACETS__", dataUri("bohio-facets.svg", "image/svg+xml"));
+const theme = fs.readFileSync(path.join(bohio, "theme.css"), "utf8").replaceAll("__FACETS__", dataUri("bohio-facets.svg", "image/svg+xml"));
 const gcss = path.join(dest, "app", "globals.css");
 fs.writeFileSync(gcss, `@import url("https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700&display=swap");\n${fs.readFileSync(gcss, "utf8")}\n${theme}`);
 const layout = path.join(dest, "app", "layout.tsx");
@@ -83,7 +83,7 @@ fs.writeFileSync(sb, fs.readFileSync(sb, "utf8").replace('theme-color" content="
   // the single-file build is always this edition (esbuild does not read .env files)
   .replace(/JSON\.stringify\(process\.env\.NEXT_PUBLIC_EDITION === "vanilla" \? "vanilla" : "\w+"\)/, '\'"vanilla"\''));
 
-// the brand: the Bohio wordmark (Dallas Light) and sun mark, no texture; the home-screen icon; the deck's embedded artwork
+// the brand: the Bohio wordmark and sun mark, no texture; the home-screen icon; the deck's embedded artwork
 const vb = path.join(root, "editions", "vanilla", "brand");
 const logo = fs.readFileSync(path.join(vb, "logo.svg"), "utf8"), mark = fs.readFileSync(path.join(vb, "mark.svg"), "utf8");
 const lc = NAME.toLowerCase();

@@ -38,7 +38,7 @@ One source, two apps (`lib/edition.ts`, set at build time with `NEXT_PUBLIC_EDIT
 | | **Kinan** (default) | **Vanilla** |
 |---|---|---|
 | Who it is for | Kinan | any client |
-| Brand | Kinan logo, chevron, orange, faceted texture | the Bohio website's look (navy, faceted backdrop, brushed-metal titles in Dallas Light, Libre Franklin, glass panels, pill buttons; `editions/vanilla/bohio/`); the data belongs to a fictional developer, *Meridian* |
+| Brand | Kinan logo, chevron, orange, faceted texture | the Bohio look on white (dark steel titles, one typeface — Libre Franklin — throughout, round panels, pill buttons; `editions/vanilla/bohio/`); the data belongs to a fictional developer, *Meridian* |
 | Building site, 4D, programme, documents, procurement, permits | ✓ | ✓ |
 | Projects from documents, daily brief and ▶ Play, WhatsApp, Outlook | ✓ | ✓ |
 | Construction proposals, Today, sign-in and approval limits, eval | ✓ | ✓ |

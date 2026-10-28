@@ -4,7 +4,7 @@
 // data-kloading).
 const LETTERS = "BOHIO".split("");
 const CSS = `#ksplash{position:fixed;inset:0;z-index:2147483000;overflow:hidden;background:#ffffff;color:#0f1722;font-family:"Libre Franklin",Montserrat,system-ui,sans-serif;display:grid;place-items:center;align-content:center;gap:0;padding:24px;text-align:center;-webkit-font-smoothing:antialiased}
-#ksplash .ks-w{margin:0;display:flex;font-family:"Dallas Light","Libre Franklin",system-ui,sans-serif;font-weight:300;font-size:clamp(56px,14vw,150px);line-height:1;letter-spacing:.06em;padding-left:.06em}
+#ksplash .ks-w{margin:0;display:flex;font-family:"Libre Franklin",Montserrat,system-ui,sans-serif;font-weight:300;font-size:clamp(56px,14vw,150px);line-height:1;letter-spacing:.06em;padding-left:.06em}
 #ksplash .ks-l{display:inline-block;background-image:linear-gradient(173deg,#0f1722 0%,#2a3442 18%,#6b7785 30%,#9aa6b2 36%,#3a4656 46%,#0f1722 55%,#4a5563 68%,#8a96a3 76%,#2a3442 88%,#0f1722 100%);background-size:100% 230%;background-position:50% 32%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;transform:translate3d(0,108%,0) rotate(2deg);opacity:0;animation:ksRise 1.2s cubic-bezier(.16,1,.3,1) both,ksSheen 17s cubic-bezier(.42,0,.3,1) 1.4s infinite}
 #ksplash .ks-rule{height:1px;width:min(420px,70vw);margin:26px 0 0;background:#0f1722;transform-origin:left;transform:scaleX(0);animation:ksRule 1.4s cubic-bezier(.16,1,.3,1) .9s both}
 #ksplash .ks-t{margin:22px 0 0;font-weight:300;font-size:clamp(13px,2.2vw,17px);letter-spacing:.42em;text-transform:uppercase;padding-left:.42em;opacity:0;animation:ksFade 1s ease-out 1.3s both}
