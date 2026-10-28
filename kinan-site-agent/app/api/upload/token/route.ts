@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
  * app login (middleware), and tokens only allow private uploads under uploads/direct/.
  */
 export async function POST(req: NextRequest) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return NextResponse.json({ error: "Direct upload needs a Vercel Blob store" }, { status: 400 });
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) return NextResponse.json({ error: "Direct upload needs a Vercel Blob store" }, { status: 400 });
   const prefix = (process.env.BLOB_PREFIX ?? "kinan/").replace(/^\/+/, "") + "uploads/direct/";
   try {
     const body = (await req.json()) as HandleUploadBody;

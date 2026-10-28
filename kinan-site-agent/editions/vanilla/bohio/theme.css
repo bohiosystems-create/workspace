@@ -1,13 +1,17 @@
 /* ===================================================================== Bohio theme (vanilla edition)
    The Bohio look on white: white ground, dark steel titles in
-   titles, labels and text all in Libre Franklin, glass panels with hairline borders, pill buttons with a metal fill for the
+   titles, labels and text all in Libre Franklin — except the word BOHIO itself, which is always set in Dallas (the
+   website's wordmark face, inlined as __DALLAS__), glass panels with hairline borders, pill buttons with a metal fill for the
    primary action. One look in every theme state (the appearance picker is not shown in this edition). The brief and
    the ▶ Play deck keep their own paper look. Appended to globals.css by scripts/edition.mjs, which also inlines the
    backdrop (__FACETS__) so the single-file build carries them too. */
 
+@font-face { font-family: "Dallas"; src: url("__DALLAS__") format("woff2"); font-weight: 300; font-style: normal; font-display: swap; }
+
 :root, :root[data-theme="light"], :root[data-theme="dark"], :root:not([data-theme="light"]) {
   --font: "Libre Franklin", Montserrat, "IBM Plex Sans Arabic", "Segoe UI", system-ui, sans-serif;
   --f-head: var(--font); /* one typeface for the whole platform */
+  --f-mark: "Dallas", Georgia, serif; /* the BOHIO wordmark only */
   --metal: linear-gradient(173deg, #0f1722 0%, #2a3442 18%, #6b7785 30%, #9aa6b2 36%, #3a4656 46%, #0f1722 55%, #4a5563 68%, #8a96a3 76%, #2a3442 88%, #0f1722 100%);
   --metal-flat: linear-gradient(180deg, #0f1722 0%, #2a3442 45%, #56616e 100%);
   --chrome: rgba(255, 255, 255, .9); --chrome-ink: #0f1722; --chrome-soft: rgba(15, 23, 34, .12); --chrome-line: rgba(15, 23, 34, .3);
@@ -47,7 +51,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .top { background: rgba(255, 255, 255, .9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--hair); box-shadow: none; }
 .brand .logo { display: none; }
 .brand::before, .boot::before, .fd-top::before {
-  content: "BOHIO"; font-family: var(--f-head); font-weight: 300; font-size: 25px; letter-spacing: .14em; line-height: 1; padding-inline-end: .14em;
+  content: "BOHIO"; font-family: var(--f-mark); font-weight: 300; font-size: 25px; letter-spacing: .14em; line-height: 1; padding-inline-end: .14em;
   background-image: var(--metal); background-size: 100% 230%; background-position: 50% 32%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
   filter: none; animation: bhSheen 17s cubic-bezier(.42, 0, .3, 1) 1.4s infinite; white-space: nowrap;
 }

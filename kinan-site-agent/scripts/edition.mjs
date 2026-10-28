@@ -66,10 +66,11 @@ for (const f of files) {
 }
 
 // the Bohio look (editions/vanilla/bohio): the theme goes after the app's own styles, with
-// the faceted backdrop inlined (the single-file build carries them too); Libre Franklin comes from Google Fonts
+// the faceted backdrop and the wordmark's Dallas face inlined (the single-file build carries them too); Libre Franklin
+// comes from Google Fonts
 const bohio = path.join(root, "editions", "vanilla", "bohio");
 const dataUri = (f, mime) => `data:${mime};base64,${fs.readFileSync(path.join(bohio, f)).toString("base64")}`;
-const theme = fs.readFileSync(path.join(bohio, "theme.css"), "utf8").replaceAll("__FACETS__", dataUri("bohio-facets.svg", "image/svg+xml"));
+const theme = fs.readFileSync(path.join(bohio, "theme.css"), "utf8").replaceAll("__FACETS__", dataUri("bohio-facets.svg", "image/svg+xml")).replaceAll("__DALLAS__", dataUri("Dallas-Light.woff2", "font/woff2"));
 const gcss = path.join(dest, "app", "globals.css");
 fs.writeFileSync(gcss, `@import url("https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700&display=swap");\n${fs.readFileSync(gcss, "utf8")}\n${theme}`);
 const layout = path.join(dest, "app", "layout.tsx");
