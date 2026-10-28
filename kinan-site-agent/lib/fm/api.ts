@@ -306,7 +306,6 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       if (!r) throw new Error("Which robot?");
       if (!user || user.orgType !== "client" || user.role === "guest") throw new Error("Robots are sent by the facility's own staff.");
       if (r.estop || r.status === "fault" || r.status === "offline") throw new Error(`${r.name} is ${r.estop ? "on emergency stop — release it on site first" : r.status}.`);
-      if (r.status === "on_mission" || d.missions.some((m) => m.robotId === r.id && (m.status === "running" || (m.status === "planned" && Math.abs(Date.parse(m.plannedStart) - Date.now()) < 30 * 60_000)))) throw new Error(`${r.name} is busy — on a mission or about to start one.`);
       const hit = b.asset ? findAsset(d, b.asset, r.facilityId) : undefined;
       const asset = hit?.asset;
       const zone = d.zones.find((z) => z.facilityId === r.facilityId && (z.id === b.zone || z.name.toLowerCase() === String(b.zone ?? "").toLowerCase() || z.name === asset?.zone));
@@ -315,6 +314,8 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       // a live runway or taxiway: only in its closure, or with air traffic control's clearance (its reference is recorded)
       const atc = String(b.atcClearance ?? "").trim().slice(0, 60);
       if (airsideOpen(zone, simNow(d.date)) && !atc) throw new Error(`${zone.name} is live (closed to aircraft only ${closureText(zone)}): get ground control's clearance and give its reference, or send ${r.name} in the closure.`);
+      // only now whether it is free: first whether it may go there at all
+      if (r.status === "on_mission" || d.missions.some((m) => m.robotId === r.id && (m.status === "running" || (m.status === "planned" && Math.abs(Date.parse(m.plannedStart) - Date.now()) < 30 * 60_000)))) throw new Error(`${r.name} is busy — on a mission or about to start one.`);
       const grounded = DOMAIN_OF[r.kind] === "air" ? dronesGrounded(d, r.facilityId, simNow(d.date)) : undefined;
       if (grounded) throw new Error(`${r.name} stays on the ground: an unidentified drone was reported at ${new Date(Date.parse(grounded.at) + 3 * 3600_000).toISOString().slice(11, 16)} (${grounded.text.toLowerCase()}). Air missions wait two hours or until security clears it.`);
       const kind: Mission["kind"] = b.missionKind ?? "inspection_round";
