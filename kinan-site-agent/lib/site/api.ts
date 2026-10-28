@@ -29,11 +29,11 @@ function applyPatch(data: ProjectData, p: SitePatch) {
     case "ncr_due": { const n = data.quality.ncrs.find((x) => x.id === p.id); if (n) n.due = p.due; break; }
   }
 }
-const sticky = (p: SitePatch) => p.t === "activity" || p.t === "mr_add" || p.t === "package_note";
-
-/** After the daily roll rebuilds the demo data: an approved change comes back (a day-bound one on its day only). */
+/** After the daily roll rebuilds the demo data: an approved change comes back, every day — a closed permit stays closed,
+ *  an approved material request stays approved, an extended NCR deadline stays extended (they used to come back only on
+ *  the day they were decided, so the next morning undid them and nobody was asked again). */
 export function applyDecision(data: ProjectData, x: SiteDecision) {
-  if (x.decision === "approved") for (const p of x.patches) if (sticky(p) || x.date === data.meta.dataDate) applyPatch(data, p);
+  if (x.decision === "approved") for (const p of x.patches) applyPatch(data, p);
 }
 
 export interface SiteDecideInput { actionId: string; decision: "approved" | "rejected"; reason?: RejectReason; note?: string }

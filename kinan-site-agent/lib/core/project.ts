@@ -1,11 +1,15 @@
 import type { Activity, Db } from "../types";
-import { descendantIds, locationPath, resolveLocation, score, terms } from "./query";
+import { descendantIds, fold, locationPath, resolveLocation, score, terms } from "./query";
+import { localClock, permitState } from "../data/util";
+import { liveCritical } from "../critical";
 
 /** Domain queries over db.data, returning compact, model-friendly objects. */
 const D = (db: Db) => db.data;
 const addDays = (iso: string, n: number) => { const d = new Date(iso.slice(0, 10) + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const diff = (a: string, b: string) => Math.round((Date.parse(b.slice(0, 10)) - Date.parse(a.slice(0, 10))) / 86400000);
 export const today = (db: Db) => D(db).meta.dataDate;
+/** Permits with their state right now ("Expired" when an active permit has run out). */
+const permitsNow = (db: Db) => { const c = localClock(today(db)); return D(db).safety.permits.map((p) => ({ ...p, status: permitState(p, c) })); };
 
 function locFilter(db: Db, location?: string): { ids: Set<string> | null; error?: string; name?: string } {
   if (!location) return { ids: null };
@@ -32,7 +36,12 @@ export function scheduleQuery(db: Db, o: { location?: string; query?: string; st
     (!o.trade || a.trade.toLowerCase().includes(o.trade.toLowerCase())) &&
     (!o.from || a.finish >= o.from) && (!o.to || a.start <= o.to) &&
     (!t.length || score(t, `${a.trade} ${a.contractor} ${a.wbs}`, `${a.id} ${a.name}`) > 0));
-  xs = xs.sort((a, b) => (o.late ? slip(b) - slip(a) : a.start.localeCompare(b.start)));
+  if (t.length) {
+    // what was typed decides the order: best match first, and only the close matches (every word, or nearly)
+    const sc = new Map(xs.map((a) => [a.id, score(t, `${a.trade} ${a.contractor} ${a.wbs}`, `${a.id} ${a.name}`) + (fold(`${a.id} ${a.name}`).includes(fold(o.query ?? "").trim()) ? 4 : 0)]));
+    const best = Math.max(0, ...sc.values());
+    xs = xs.filter((a) => sc.get(a.id)! >= best * 0.7).sort((a, b) => sc.get(b.id)! - sc.get(a.id)! || a.start.localeCompare(b.start));
+  } else xs = xs.sort((a, b) => (o.late ? slip(b) - slip(a) : a.start.localeCompare(b.start)));
   return { dataDate: today(db), location: lf.name, count: xs.length, activities: xs.slice(0, o.limit ?? 25).map((a) => actBrief(db, a)) };
 }
 
@@ -56,7 +65,7 @@ export function lookahead(db: Db, o: { weeks?: number; location?: string }) {
 }
 
 export function scheduleSummary(db: Db) {
-  const S = D(db).schedule, d0 = today(db);
+  const S = D(db).schedule, d0 = today(db), cp = liveCritical(db);
   const dur = (a: Activity) => Math.max(1, diff(a.start, a.finish));
   const bdur = (a: Activity) => Math.max(1, diff(a.baselineStart, a.baselineFinish));
   const earned = S.reduce((s, a) => s + dur(a) * a.percent, 0) / S.reduce((s, a) => s + dur(a), 0);
@@ -69,7 +78,8 @@ export function scheduleSummary(db: Db) {
     progressPercent: Math.round(earned * 10) / 10, plannedPercent: Math.round(planned * 10) / 10,
     spi: Math.round((earned / Math.max(planned, 0.1)) * 100) / 100,
     completed: S.filter((a) => a.status === "completed").length, inProgress: S.filter((a) => a.status === "in_progress").length,
-    criticalLate: S.filter((a) => a.critical && slip(a) > 0 && a.status !== "completed").length,
+    // the same counts as the Programme screen and the brief (lib/critical.ts): late now, at risk, and later ones already forecast late
+    criticalLate: cp.late.length, criticalAtRisk: cp.atRisk.length, criticalForecastLater: cp.slipped.length,
     practicalCompletion: ms.find((m) => m.id === "M-990"),
     upcomingMilestones: ms.filter((m) => m.status !== "completed").sort((a, b) => a.forecast.localeCompare(b.forecast)).slice(0, 10),
     biggestSlippages: worst,
@@ -123,7 +133,8 @@ export function safetyFor(db: Db, o: { activity?: string; location?: string; que
   const match = (xs: string[], extra: string) => k.some((w) => xs.some((a) => a.toLowerCase().includes(w) || w.includes(a.toLowerCase())) || extra.toLowerCase().includes(w));
   const reqs = S.requirements.filter((r) => match(r.appliesTo, `${r.topic} ${r.requirement}`)).sort((a, b) => Number(b.critical) - Number(a.critical));
   const ids = loc ? descendantIds(db, loc.id) : null;
-  const permits = S.permits.filter((p) => (p.status === "Active" || p.status === "Suspended") && (!ids || ids.has(p.locationId)));
+  const permits = permitsNow(db).filter((p) => (p.status === "Active" || p.status === "Suspended") && (!ids || ids.has(p.locationId)));
+  const expiredHere = permitsNow(db).filter((p) => p.status === "Expired" && (!ids || ids.has(p.locationId)));
   const risks = S.risks.filter((r) => k.some((w) => `${r.activity} ${r.hazards.join(" ")}`.toLowerCase().includes(w)));
   const incidents = S.incidents.filter((i) => ids?.has(i.locationId)).slice(0, 5);
   const ppe = new Set<string>(); reqs.forEach((r) => r.ppe.forEach((p) => ppe.add(p)));
@@ -131,20 +142,21 @@ export function safetyFor(db: Db, o: { activity?: string; location?: string; que
     location: loc ? locationPath(db, loc.id) : undefined,
     requirements: reqs.slice(0, 12), ppeRequired: [...ppe],
     permitsRequired: [...new Set(reqs.map((r) => r.permit).filter(Boolean))],
-    activePermitsHere: permits, riskAssessments: risks.slice(0, 5), recentIncidentsHere: incidents,
+    activePermitsHere: permits, ...(expiredHere.length ? { expiredPermitsHere: expiredHere.map((p) => ({ id: p.id, type: p.type, validTo: p.validTo, note: "Expired — work under it must stop until re-issued" })) } : {}), riskAssessments: risks.slice(0, 5), recentIncidentsHere: incidents,
   };
 }
 export function hseOverview(db: Db) {
   const S = D(db).safety;
   return {
-    stats: S.stats, activePermits: S.permits.filter((p) => p.status === "Active").map((p) => ({ id: p.id, type: p.type, location: locationPath(db, p.locationId), description: p.description, validTo: p.validTo })),
+    stats: S.stats, activePermits: permitsNow(db).filter((p) => p.status === "Active").map((p) => ({ id: p.id, type: p.type, location: locationPath(db, p.locationId), description: p.description, validTo: p.validTo })),
+    expiredPermits: permitsNow(db).filter((p) => p.status === "Expired").map((p) => ({ id: p.id, type: p.type, location: locationPath(db, p.locationId), description: p.description, validTo: p.validTo })),
     openIncidents: S.incidents.filter((i) => i.status === "Open"), recentIncidents: S.incidents.slice(0, 8).map((i) => ({ id: i.id, date: i.date, type: i.type, location: locationPath(db, i.locationId), description: i.description })),
     ppeMatrix: S.ppeMatrix,
   };
 }
 export function permitsQuery(db: Db, o: { status?: string; location?: string; type?: string }) {
   const lf = locFilter(db, o.location); if (lf.error) return { error: lf.error };
-  const xs = D(db).safety.permits.filter((p) => (!o.status || p.status.toLowerCase() === o.status.toLowerCase()) && (!lf.ids || lf.ids.has(p.locationId)) && (!o.type || p.type.toLowerCase().includes(o.type.toLowerCase())));
+  const xs = permitsNow(db).filter((p) => (!o.status || p.status.toLowerCase() === o.status.toLowerCase()) && (!lf.ids || lf.ids.has(p.locationId)) && (!o.type || p.type.toLowerCase().includes(o.type.toLowerCase())));
   return { count: xs.length, permits: xs.map((p) => ({ ...p, location: locationPath(db, p.locationId) })) };
 }
 

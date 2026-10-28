@@ -116,6 +116,8 @@ const KNOWN: Known[] = [
   { tool: "schedule_query", input: { status: "In Progress", limit: 500 }, expect: refused(/limit/) },
   { tool: "contractor_emails", input: { query: "facade delay" }, expect: answered((o) => (o.emails?.length ? null : "no emails found without the accent")) },
   { tool: "permits", input: { status: "active" }, expect: answered((o) => (Array.isArray(o.permits) && o.permits.length ? null : "no active permits found for 'active'")) },
+  { tool: "permits", input: { status: "Active" }, expect: answered((o) => { const c = `${today} 23:59`; const bad = (o.permits ?? []).filter((p: { validTo: string }) => p.validTo.slice(0, 16) < `${today} 00:00`); return bad.length ? `expired permits listed as live: ${bad.map((p: { id: string }) => p.id).join(", ")} (${c})` : null; }) },
+  { tool: "hse_overview", input: {}, expect: answered((o) => ((o.activePermits ?? []).some((p: { validTo: string }) => p.validTo.slice(0, 10) < today) ? "hse_overview counts expired permits as live" : null)) },
   { tool: "add_note", input: { text: "", location: "Tower A level 12" }, expect: refused(/text/) },
   { tool: "add_note", input: { text: "x".repeat(3000), location: "Tower A level 12" }, expect: refused(/too long/) },
   { tool: "get_document", input: {}, expect: refused(/id/) },
@@ -170,6 +172,11 @@ async function main() {
     else {
       for (const a of db.data.schedule) if (a.status === "completed" && by.get(a.id)?.status !== "completed") fail("(next day)", null, `${a.id} was completed, is ${by.get(a.id)?.status} the next day`);
       if (completionDate(next) < completionDate(db.data)) fail("(next day)", null, `practical completion ${completionDate(db.data)} → ${completionDate(next)}`);
+      // what was approved yesterday is still in force: closed permits stay closed, approved requests stay approved
+      for (const x of (db.data.decisions ?? []).filter((y) => y.decision === "approved")) for (const p of x.patches) {
+        if (p.t === "permit" && p.status && next.safety.permits.find((q) => q.id === p.id)?.status !== p.status) fail("(next day)", null, `${x.actionId}: permit ${p.id} is no longer ${p.status}`);
+        if (p.t === "mr_status" && next.procurement.requests.find((q) => q.id === p.id)?.status !== p.status) fail("(next day)", null, `${x.actionId}: ${p.id} is no longer ${p.status}`);
+      }
     }
   }
   if (process.env.FUZZ_DUMP) fs.writeFileSync(process.env.FUZZ_DUMP, JSON.stringify(db.data));

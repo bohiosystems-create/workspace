@@ -1206,7 +1206,7 @@ input[type=checkbox]{border-radius:4px!important}input[type=radio]{border-radius
 .od-ev{display:flex;gap:6px;flex-wrap:wrap}.od-ev img{width:84px;height:84px;object-fit:cover;border-radius:var(--r)}
 
 /* ===================================================================== Field app (/field) */
-.field{min-height:100dvh;background:var(--bg);color:var(--ink);font-family:var(--font);display:flex;flex-direction:column}
+.fieldapp{min-height:100dvh;background:var(--bg);color:var(--ink);font-family:var(--font);display:flex;flex-direction:column}
 .fd-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;background:var(--chrome);color:#fff;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px}
 .fd-top .grow{flex:1;min-width:0;display:flex;flex-direction:column}.fd-top b{font-size:15px}.fd-top em{font-style:normal;font-size:11px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fd-switch{background:none;border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:999px;padding:5px 10px;font:inherit;font-size:11px}
@@ -1328,5 +1328,5 @@ input[type=checkbox]{border-radius:4px!important}input[type=radio]{border-radius
 .fd-net.off{background:var(--amber-soft);color:var(--amber-ink)}
 .fd-net .grow{flex:1;min-width:0}.fd-net em{display:block;font-style:normal;font-size:12px;margin-top:2px;opacity:.9}
 .fd-job em.fd-wait{color:var(--amber);font-weight:600}
-.field .signin .studio-add{border-radius:999px}
+.fieldapp .signin .studio-add{border-radius:999px}
 .fd-mark{display:inline-flex;width:16px;height:24px;flex:none}.fd-mark svg{width:100%;height:100%}

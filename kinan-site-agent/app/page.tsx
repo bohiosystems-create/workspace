@@ -121,9 +121,11 @@ export default function Home() {
     if (q.length < 2) return [];
     // Every word must appear: "laydown 3" → "Laydown Area 3 — Precast", "tower a" → "Tower A".
     const words = q.split(/\s+/).filter(Boolean);
+    // floors only when a number was typed ("Tower A level 12", "L12") — otherwise 42 levels would bury the buildings
+    const wantsLevel = /\d/.test(q);
     return locs.filter((l) => {
-      if (l.type === "level") return false;
-      const hay = `${l.name} ${(l.aliases ?? []).join(" ")} ${l.id}`.toLowerCase();
+      if (l.type === "level" && !wantsLevel) return false;
+      const hay = `${l.name} ${(l.aliases ?? []).join(" ")} ${l.id} ${l.id.replace(/-/g, " ")}`.toLowerCase().replace(/\blevel\s*(\d+)/g, "level $1 l$1");
       return words.every((w) => hay.includes(w));
     }).sort((a, b) => a.name.length - b.name.length).slice(0, 7);
   }, [search, locs]);

@@ -52,7 +52,7 @@ export function today(db: Db, user: Person | null | undefined) {
   const list = approvals(db, user);
   const mine = list.filter((x) => x.can.ok && !x.autopilot);
   const lines: { tone: "ok" | "warn" | "bad"; text: string; go?: string }[] = [];
-  lines.push({ tone: s.spi >= 0.97 ? "ok" : s.spi >= 0.9 ? "warn" : "bad", go: "site", text: `${db.project.name}: ${s.progressPercent}% built against ${s.plannedPercent}% planned (SPI ${s.spi}); ${s.criticalLate} critical activities late${s.practicalCompletion ? `, completion forecast ${s.practicalCompletion.forecast} (${s.practicalCompletion.varianceDays > 0 ? `+${s.practicalCompletion.varianceDays}` : s.practicalCompletion.varianceDays} days)` : ""}.` });
+  lines.push({ tone: s.spi >= 0.97 ? "ok" : s.spi >= 0.9 ? "warn" : "bad", go: "site", text: `${db.project.name}: ${s.progressPercent}% built against ${s.plannedPercent}% planned (SPI ${s.spi}); ${s.criticalLate} critical activit${s.criticalLate === 1 ? "y" : "ies"} late now${s.criticalForecastLater ? ` (${s.criticalForecastLater} later ones forecast late)` : ""}${s.practicalCompletion ? `, completion forecast ${s.practicalCompletion.forecast} (${s.practicalCompletion.varianceDays > 0 ? `+${s.practicalCompletion.varianceDays}` : s.practicalCompletion.varianceDays} days)` : ""}.` });
   const pkg = db.data.procurement.packages.filter((p) => p.forecastOnSite > p.requiredOnSite && p.status !== "Complete");
   if (pkg.length) lines.push({ tone: "warn", go: "site", text: `${pkg.length} package${pkg.length > 1 ? "s" : ""} late for the work that needs ${pkg.length > 1 ? "them" : "it"}: ${pkg.slice(0, 2).map((p) => p.name).join("; ")}.` });
   for (const f of fm.facilities) {

@@ -4,13 +4,13 @@
 // its reasons, its risk, what it costs (when it commits money) and who carries it out. Deterministic and pure: the
 // server, the agent's tools, WhatsApp and the standalone page all see the same list.
 import type { Activity, Db, MaterialRequest } from "../types";
-import { addDays, daysBetween } from "../data/util";
+import { addDays, daysBetween, localClock, permitState } from "../data/util";
 import { doubtLine } from "../proposals";
 import { completionDate, moveActivity } from "../core/updates";
 import type { SiteAction, SiteKind } from "./types";
 
 export const SITE_KIND_LABEL: Record<SiteKind, string> = {
-  expedite: "expedite a package", resequence: "resequence around a late delivery", recover: "recover a slipping critical activity",
+  expedite: "expedite a package", resequence: "resequence around a late delivery", recover: "recover a slipping activity",
   stock_mr: "raise a material request", approve_mr: "approve a material request", permit_close: "close an expired permit",
   permit_chase: "chase a permit", ncr_escalate: "escalate an overdue NCR",
 };
@@ -31,7 +31,6 @@ export function proposeSite(db: Db, learned: SiteLearned, now = new Date()): Sit
   const contact = (re: RegExp, company?: RegExp) => d.contacts.find((c) => re.test(c.role) && (!company || company.test(c.company)));
   const supplierName = (id?: string) => d.procurement.suppliers.find((s) => s.id === id)?.name ?? "the supplier";
   const procurementLead = contact(/procurement|commercial/i, /kinan/i) ?? contact(/procurement/i);
-  const nowIso = now.toISOString().slice(0, 16).replace("T", " ");
 
   // 1. Packages that will arrive after the work needs them: expedite, and resequence the work around them.
   for (const p of d.procurement.packages.filter((x) => x.forecastOnSite > x.requiredOnSite && x.status !== "Complete")) {
@@ -106,7 +105,8 @@ export function proposeSite(db: Db, learned: SiteLearned, now = new Date()): Sit
   }
 
   // 5. Permits: still "active" after they expired; requested and never issued.
-  const expired = d.safety.permits.filter((x) => x.status === "Active" && x.validTo < nowIso);
+  const clock = localClock(date, now);
+  const expired = d.safety.permits.filter((x) => permitState(x, clock) === "Expired");
   if (expired.length) {
     const types = [...new Set(expired.map((p) => p.type.replace(/ Permit.*$/, "").toLowerCase()))];
     push({ id: `permit_close:${expired.map((p) => p.id).join(",")}`, domain: "site", kind: "permit_close", title: expired.length > 1 ? `Close ${expired.length} expired permits (${types.join(", ")})` : `Close expired permit ${expired[0].id} (${expired[0].type})`,

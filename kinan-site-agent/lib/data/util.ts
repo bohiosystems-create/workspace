@@ -19,6 +19,17 @@ export function currentDataDate(): string {
   return t < DATA_DATE ? DATA_DATE : t > DATA_DATE_MAX ? DATA_DATE_MAX : t;
 }
 
+/** The local clock (Riyadh) on the data date, as the permits write it: "YYYY-MM-DD HH:MM". The data date leads (it can be
+ *  frozen with DATA_DATE_FIXED); the time of day is the real one, so permits run out at their hour. */
+export function localClock(dataDate: string, now = new Date()): string {
+  const hm = now.toLocaleTimeString("en-GB", { timeZone: "Asia/Riyadh", hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${dataDate} ${hm}`;
+}
+/** A permit's state right now: an "Active" permit past its end time has expired (and must not be shown as live). */
+export function permitState<P extends { status: string; validTo: string }>(p: P, clock: string): P["status"] | "Expired" {
+  return p.status === "Active" && p.validTo.slice(0, 16) < clock ? "Expired" : p.status;
+}
+
 export function rng(seed: number) {
   let a = seed >>> 0;
   return () => {

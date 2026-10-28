@@ -230,7 +230,7 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
         <Panel title="Safety performance" sub="Total recordable incident rate and the permits live now">
           <div className="side">
             <Gauge value={Number(st.trir)} min={0} max={2} decimals={2} label="TRIR" bands={[{ to: 0.5, color: C.good, name: "Excellent" }, { to: 1, color: C.warn, name: "Watch" }, { to: 2, color: C.crit, name: "High" }]} />
-            <Donut3D centre={String(h.activePermits.length)} centreSub="permits" selected={picked("permit")} onPick={(t) => pickOn("permit", t, t, "permits")} segs={permitTypes.map(([k, v], i) => ({ label: k, value: v, color: PERMIT_COLORS[i % PERMIT_COLORS.length] }))} />
+            <Donut3D centre={String(h.activePermits.length)} centreSub="live permits" selected={picked("permit")} onPick={(t) => pickOn("permit", t, t, "permits")} segs={permitTypes.map(([k, v], i) => ({ label: k, value: v, color: PERMIT_COLORS[i % PERMIT_COLORS.length] }))} />
           </div>
         </Panel>
         <Panel title="Incidents by type" sub="Year to date, all severities">
@@ -238,7 +238,9 @@ export default function ProjectTab({ locations, refreshKey, onSelectLocation, on
         </Panel>
         {chips([["permits", "Active permits"], ["rules", "Requirements"], ["incidents", "Incidents"], ["ppe", "PPE matrix"]])}
         {pickBar(["permit", "incident"])}
-        {(f === "" || f === "permits") && <ul className="rows">{h.activePermits.filter((p) => !picked("permit") || p.type === picked("permit")).map((p) => <li key={p.id}><span className="t"><b>{p.type}</b><em>{p.id} · {p.location} · until {p.validTo}</em><em className="note">{p.description}</em></span></li>)}</ul>}
+        {(f === "" || f === "permits") && <ul className="rows">{h.activePermits.filter((p) => !picked("permit") || p.type === picked("permit")).map((p) => <li key={p.id}><span className="t"><b>{p.type}</b><em>{p.id} · {p.location} · until {p.validTo}</em><em className="note">{p.description}</em></span><span className="st received">Live</span></li>)}
+          {/* run out but not closed yet: not live — work under them must stop until they are re-issued */}
+          {h.expiredPermits.filter((p) => !picked("permit") || p.type === picked("permit")).map((p) => <li key={p.id}><span className="t"><b>{p.type}</b><em>{p.id} · {p.location} · ended {p.validTo}</em><em className="note">{p.description} — work under it must stop until it is re-issued.</em></span><span className="st delayed">Expired</span></li>)}</ul>}
         {f === "rules" && <>{search("Search: hot work, edge, crane, heat…")}<ul className="rows">{reqs.map((r) => <li key={r.id}><span className="t"><b>{r.critical ? "⚠ " : ""}{r.topic}</b><em className="note">{r.requirement}</em><em>{r.permit ? `Permit: ${r.permit} · ` : ""}PPE: {r.ppe.join(", ")} · {r.source}</em></span></li>)}</ul></>}
         {f === "incidents" && <ul className="rows">{data.safety.incidents.filter((i) => !picked("incident") || i.type === picked("incident")).map((i) => <li key={i.id}><span className="t"><b>{i.type}: {i.description}</b><em>{i.id} · {i.date} · <Loc id={i.locationId} /> · {i.status}</em><em className="note">Root cause: {i.rootCause}. Action: {i.actions}</em></span></li>)}</ul>}
         {f === "ppe" && <ul className="rows">{Object.entries(data.safety.ppeMatrix).map(([k, v]) => <li key={k}><span className="t"><b>{k}</b><em className="note">{v.join(" · ")}</em></span></li>)}</ul>}

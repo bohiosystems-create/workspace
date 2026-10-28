@@ -155,6 +155,7 @@ export interface RiskAssessment {
 export interface Permit {
   id: string; type: string; locationId: string; description: string; issuer: string; holder: string;
   validFrom: string; validTo: string; status: "Active" | "Closed" | "Suspended" | "Requested"; conditions: string[];
+  /* an Active permit past validTo reads as "Expired" (lib/data/util permitState) — never stored */
 }
 export interface Incident {
   id: string; date: string; type: "Near Miss" | "First Aid" | "Medical Treatment" | "Property Damage" | "Environmental" | "Unsafe Condition";

@@ -75,9 +75,12 @@ export const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g
 export function score(terms: string[], hay: string, title: string): number {
   if (!terms.length) return 1;
   const h = fold(hay), t = fold(title);
-  return terms.reduce((a, w) => a + (h.includes(w) ? 1 : 0) + (t.includes(w) ? 2 : 0), 0);
+  // a number matches as a whole number ("zone 4" is not zone 14 or L14)
+  const has = (s: string, w: string) => (/^\d+$/.test(w) ? new RegExp(`(^|[^0-9])${w}([^0-9]|$)`).test(s) : s.includes(w));
+  return terms.reduce((a, w) => a + (has(h, w) ? 1 : 0) + (has(t, w) ? 2 : 0), 0);
 }
-export const terms = (q?: string) => fold(q ?? "").split(/\s+/).filter((t) => t.length > 1);
+/** Search words: two letters or more, and numbers of any length ("zone 4", "level 9"). */
+export const terms = (q?: string) => fold(q ?? "").split(/[\s,]+/).filter((t) => t.length > 1 || /^\d$/.test(t));
 
 export function searchDocs(db: Db, o: { query?: string; category?: string; locationId?: string; discipline?: string; limit?: number }): Doc[] {
   const ids = o.locationId ? descendantIds(db, o.locationId) : null;

@@ -27,7 +27,7 @@ export function rebase(d: ProjectData, date: string): ProjectData {
     else if (a.start > date) { a.percent = 0; a.status = "not_started"; }
     else { const tot = Math.max(1, daysBetween(a.start, a.finish)); a.percent = Math.min(99, Math.max(1, Math.round((daysBetween(a.start, date) / tot) * 100))); a.status = "in_progress"; }
   }
-  if (!k) return d;
+  if (!k) return alignDelayed(d);
   const sh = (x: string) => (x ? addDays(x.slice(0, 10), k) + x.slice(10) : x);
   const pr = d.procurement;
   for (const x of pr.deliveries) x.date = sh(x.date);
@@ -42,6 +42,17 @@ export function rebase(d: ProjectData, date: string): ProjectData {
   st.manhoursToDate = Number(st.manhoursToDate) + k * 16_500;
   for (const key of ["lastDrill", "nextDrill"]) if (typeof st[key] === "string") st[key] = sh(String(st[key]));
   for (const x of d.quality.ncrs) { x.raised = sh(x.raised); if (x.due) x.due = sh(x.due); }
+  return alignDelayed(d);
+}
+
+/** A delayed delivery is booked for the date its package is now forecast on site — not its old slot (the look-ahead,
+ *  the gate plan and the brief would otherwise expect it before the supplier can deliver). */
+function alignDelayed(d: ProjectData): ProjectData {
+  const pr = d.procurement;
+  for (const x of pr.deliveries.filter((y) => y.status === "Delayed")) {
+    const pk = pr.packages.find((p) => p.id === pr.pos.find((po) => po.po === x.po)?.packageId);
+    if (pk && pk.forecastOnSite > x.date.slice(0, 10)) x.date = pk.forecastOnSite + x.date.slice(10);
+  }
   return d;
 }
 

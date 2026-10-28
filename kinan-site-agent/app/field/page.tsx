@@ -25,7 +25,7 @@ const hhmm = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-di
 
 export default function Field() {
   // the field app belongs to facility operations: in an edition without them it says so
-  if (!HAS_OPERATIONS) return <div className="field"><Header title="Field app" /><main className="fd-main"><p className="fd-lead">{"The technicians' field app is part of facility operations, which this edition doesn't include."}</p><button className="fd-btn" onClick={() => location.assign("/")}>Open the Onsite Agent</button></main></div>;
+  if (!HAS_OPERATIONS) return <div className="fieldapp"><Header title="Field app" /><main className="fd-main"><p className="fd-lead">{"The technicians' field app is part of facility operations, which this edition doesn't include."}</p><button className="fd-btn" onClick={() => location.assign("/")}>Open the Onsite Agent</button></main></div>;
   return <FieldApp />;
 }
 function FieldApp() {
@@ -40,13 +40,13 @@ function FieldApp() {
     if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("/field-sw.js").catch(() => undefined);
   }, []);
   const view = (id: string | null) => { setAsTech(id); history.replaceState(null, "", id ? `/field?tech=${encodeURIComponent(id)}` : "/field"); };
-  if (!ready || me === undefined) return <div className="field"><Header title="Field app" /><main className="fd-main"><p className="muted">Loading…</p></main></div>;
+  if (!ready || me === undefined) return <div className="fieldapp"><Header title="Field app" /><main className="fd-main"><p className="muted">Loading…</p></main></div>;
   // signed out: no signal and a day on the phone still opens (the outbox sends once signed in and online)
-  if (!me) return <div className="field"><SignInScreen auth={auth} hint={asTech} /></div>;
+  if (!me) return <div className="fieldapp"><SignInScreen auth={auth} hint={asTech} /></div>;
   const lead = me.role !== "field";
   const tech = asTech && (lead || asTech === me.techId) ? asTech : me.techId ?? null;
   return (
-    <div className="field">
+    <div className="fieldapp">
       {tech ? <MyDay techId={tech} me={me} viewing={tech !== me.techId} onSwitch={lead ? () => view(null) : undefined} /> : <Pick me={me} onPick={view} />}
     </div>
   );
