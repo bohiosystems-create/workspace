@@ -30,11 +30,13 @@ export const DEFAULT_RULES: Rule[] = [
   { id: "thin-wall-email", name: "A wall thinner than its limit → email the integrity engineer", enabled: true, when: { on: "finding", sensors: ["ut_thickness"], minSeverity: "high" }, then: { do: "notify", channel: "email" } },
 ];
 
+const ALERT_WORD: Record<SecurityAlert["kind"], string> = { fence: "a fence sensor", person: "a person", vehicle: "a vehicle", drone: "a drone", camera: "a camera", fod: "debris (FOD)", wildlife: "birds or animals" };
+
 /** A rule in one sentence, for the cockpit. */
 export function ruleText(r: Rule) {
   const w = r.when.on === "finding"
     ? `a robot${r.when.by ? ` in the ${r.when.by === "air" ? "air" : r.when.by}` : ""} finds ${r.when.sensors?.length ? r.when.sensors.map((c) => CAPABILITY_LABEL[c]).join(" or ") : "anything"}${r.when.minSeverity ? ` at ${r.when.minSeverity} or worse` : ""}`
-    : `an alert comes in${r.when.kinds?.length ? `: ${r.when.kinds.join(", ")}` : ""}`;
+    : `an alert comes in${r.when.kinds?.length ? `: ${r.when.kinds.map((k) => ALERT_WORD[k] ?? k).join(", ")}` : ""}`;
   const t = r.then.do === "send_robot" ? `send a${r.then.notBy === "air" ? " ground" : ""} robot with ${r.then.needs.map((c) => CAPABILITY_LABEL[c]).join(", ")} on a ${MISSION_LABEL[r.then.mission]}` : `tell people by ${r.then.channel === "teams" ? "Teams" : "email"}${r.then.to ? ` (${r.then.to})` : ""}`;
   return `When ${w}, ${t}.`;
 }

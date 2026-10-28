@@ -20,7 +20,7 @@ export function exceptions(db: Db, d: FmData, facilityId: string, now = simNow(d
 
   // 1. dispatches that failed, for missions still meant to happen
   const results = log.filter((e) => e.kind === "dispatch_result" && rid.has(e.robotId)) as Extract<(typeof log)[number], { kind: "dispatch_result" }>[];
-  for (const e of results.filter((x) => !x.sent && live(x.missionId))) out.push({ id: `dispatch:${e.id}`, severity: "high", title: `${name(e.robotId)}: mission not sent`, detail: `${e.missionId ?? ""} — ${e.note} (${e.adapter})`, at: e.at, robotId: e.robotId, missionId: e.missionId });
+  for (const e of results.filter((x) => !x.sent && live(x.missionId))) out.push({ id: `dispatch:${e.id}`, severity: "high", title: `${name(e.robotId)}: mission not sent`, detail: `${e.missionId ?? ""} — ${e.note} (${e.adapter}, ${hm(e.at)})`, at: e.at, robotId: e.robotId, missionId: e.missionId });
   // 2. commands waiting for the fleet bridge for more than two minutes: it isn't collecting
   const acked = new Set(results.flatMap((e) => (e.commandId ? [e.commandId] : [])));
   for (const e of log.filter((x) => x.kind === "fleet_command" && rid.has(x.robotId) && !acked.has(x.commandId) && Date.now() - Date.parse(x.at) > 2 * MIN) as Extract<(typeof log)[number], { kind: "fleet_command" }>[])
@@ -34,14 +34,14 @@ export function exceptions(db: Db, d: FmData, facilityId: string, now = simNow(d
   // 4. missions late to start, and missions that failed
   for (const m of d.missions.filter((x) => x.facilityId === facilityId)) {
     if (m.status === "planned" && now - Date.parse(m.plannedStart) > 10 * MIN) out.push({ id: `late:${m.id}`, severity: "medium", title: `${name(m.robotId)}: "${m.title}" hasn't started`, detail: `Due at ${hm(m.plannedStart)}${m.note ? ` — ${m.note}` : ""}`, at: m.plannedStart, robotId: m.robotId, missionId: m.id });
-    if (m.status === "failed") out.push({ id: `failed:${m.id}`, severity: "high", title: `${name(m.robotId)}: "${m.title}" failed`, detail: m.note ?? "Reported failed by the machine", at: m.ended ?? m.plannedStart, robotId: m.robotId, missionId: m.id });
+    if (m.status === "failed") out.push({ id: `failed:${m.id}`, severity: "high", title: `${name(m.robotId)}: "${m.title}" failed`, detail: `${m.note ?? "Reported failed by the machine"}${m.ended ? ` (${hm(m.ended)})` : ""}`, at: m.ended ?? m.plannedStart, robotId: m.robotId, missionId: m.id });
   }
   // 5. security alerts nobody has answered in ten minutes
   for (const a of d.securityAlerts.filter((x) => x.facilityId === facilityId && x.status === "open" && now - Date.parse(x.at) > 10 * MIN))
     out.push({ id: `alert:${a.id}`, severity: a.kind === "drone" || a.kind === "person" ? "high" : "medium", title: `Unanswered: ${a.text}`, detail: `${a.source} at ${hm(a.at)}`, at: a.at, alertId: a.id });
   // 6. messages to customer systems that didn't go (work orders, Teams, email, webhooks) in the last day
   for (const x of (db.integrationLog ?? []).filter((y) => !y.ok && (!y.facilityId || y.facilityId === facilityId) && Date.now() - Date.parse(y.at) < 24 * 60 * MIN).slice(-20))
-    out.push({ id: `sync:${x.id}`, severity: "medium", title: `${x.target}: ${x.what} not delivered`, detail: x.note, at: x.at });
+    out.push({ id: `sync:${x.id}`, severity: "medium", title: `${x.target}: ${x.what} not delivered`, detail: `${x.note} (${hm(x.at)})`, at: x.at });
   const rank = { high: 0, medium: 1, low: 2 };
   return out.sort((a, b) => rank[a.severity] - rank[b.severity] || b.at.localeCompare(a.at));
 }

@@ -22,8 +22,9 @@ export function ExceptionsPanel({ s, onRobot }: { s: FS; onRobot: (id: string) =
         {s.exceptions.map((x) => (
           <li key={x.id}>
             <span className={`ops-pill ${x.severity}`}>{x.severity}</span>
-            <span className="grow"><b>{x.title}</b><em>{x.detail} · {time(x.at)}</em></span>
-            {x.robotId && <button className="mini" onClick={() => onRobot(x.robotId!)}>Open the robot</button>}
+            <span className="grow"><b>{x.title}</b><em>{x.detail}</em></span>
+            {/* wrapped: a button straight in an .ops-list row is the whole row's button */}
+            {x.robotId && <span><button className="mini" onClick={() => onRobot(x.robotId!)}>Open the robot</button></span>}
           </li>
         ))}
       </ul>
@@ -84,17 +85,17 @@ export function RulesPanel({ s, doit, busy }: { s: FS; doit: Doit; busy: string 
   };
   return (
     <section className="ops-panel">
-      <p className="muted small">Rules turn what robots find and what alerts come in into work: send a robot that can look closer, or tell people on Teams or by email. Each match becomes a proposal with the rule in its reasons; the autopilot runs it only within its signed policy. Managers and directors edit the rules.</p>
+      <p className="muted small">Rules turn what robots find and what alerts come in into work: send a robot that can look closer, or tell people on Teams or by email. Each match becomes a proposal with the rule in its reasons; the autopilot runs it only within its signed policy. {s.canRules ? "You can edit them." : "The site's managers and directors edit them; you can read them."}</p>
       <ul className="ops-list">
         {s.rules.map((r) => (
           <li key={r.id} className={r.enabled ? "" : "dim"}>
             <span className={`ops-pill ${r.enabled ? "low" : "medium"}`}>{r.enabled ? "on" : "off"}</span>
             <span className="grow"><b>{r.name}</b><em>{r.text}</em></span>
-            <button className="mini" disabled={!!busy} onClick={() => save(all.map((x) => (x.id === r.id ? { ...x, enabled: !x.enabled } : x)))}>{r.enabled ? "Turn off" : "Turn on"}</button>
+            <span><button className="mini" disabled={!!busy || !s.canRules} onClick={() => save(all.map((x) => (x.id === r.id ? { ...x, enabled: !x.enabled } : x)))}>{r.enabled ? "Turn off" : "Turn on"}</button></span>
           </li>
         ))}
       </ul>
-      <div className="rpt-label">Add a rule</div>
+      {s.canRules && <><div className="rpt-label">Add a rule</div>
       <form className="od-grid" onSubmit={(e) => { e.preventDefault(); add(); }}>
         <label>When<select id="rule-on" value={on} onChange={(e) => setOn(e.target.value as "finding" | "alert")}><option value="finding">a robot finds</option><option value="alert">an alert comes in</option></select></label>
         {on === "finding" ? <>
@@ -108,7 +109,7 @@ export function RulesPanel({ s, doit, busy }: { s: FS; doit: Doit; busy: string 
           <label>On a<select id="rule-mission" value={mission} onChange={(e) => setMission(e.target.value as MissionKind)}>{(["thermal_survey", "gas_survey", "inspection_round", "alarm_check", "runway_inspection", "thickness_survey"] as MissionKind[]).map((k) => <option key={k} value={k}>{MISSION_LABEL[k]}</option>)}</select></label>
         </> : <label>By<select id="rule-channel" value={channel} onChange={(e) => setChannel(e.target.value as "teams" | "email")}><option value="teams">Teams</option><option value="email">email</option></select></label>}
         <div className="od-acts"><button className="studio-add" disabled={!!busy}>Add the rule</button></div>
-      </form>
+      </form></>}
     </section>
   );
 }

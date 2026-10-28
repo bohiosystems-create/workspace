@@ -90,7 +90,7 @@ export function facilityState(db: Db, facilityId: string) {
 export function facilityStateFor(db: Db, facilityId: string, user: Person | null | undefined) {
   const st = facilityState(db, facilityId);
   return { ...st, actions: st.actions.map((a) => ({ ...a, can: canApprove(user, { domain: "fm", facilityId, risk: a.risk, cost: a.cost, kind: a.kind, party: a.party }), byPolicy: autopilotOn(db, facilityId) && withinPolicy(db, a) })),
-    canPolicy: canSetPolicy(user, facilityId), canPause: canApprove(user, { domain: "fm", facilityId, risk: "low" }), kindLabels: KIND_LABEL, defaultPolicy: DEFAULT_POLICY };
+    canPolicy: canSetPolicy(user, facilityId), canRules: !!user && user.orgType === "client" && ["manager", "director", "admin"].includes(user.role), canPause: canApprove(user, { domain: "fm", facilityId, risk: "low" }), kindLabels: KIND_LABEL, defaultPolicy: DEFAULT_POLICY };
 }
 export function eventFacility(d: FmData, e: FmEvent): string | undefined {
   switch (e.kind) {
