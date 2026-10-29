@@ -77,6 +77,7 @@ const layout = path.join(dest, "app", "layout.tsx");
 fs.writeFileSync(layout, fs.readFileSync(layout, "utf8").replace("family=Montserrat:", "family=Libre+Franklin:wght@300;400;500;600;700&family=Montserrat:").replace(/themeColor: "#2e2e2f"/, 'themeColor: "#ffffff"'));
 const splash = path.join(dest, "app", "_components", `${NAME}Splash.tsx`);
 fs.writeFileSync(splash, fs.readFileSync(path.join(bohio, "Splash.tsx"), "utf8"));
+fs.copyFileSync(path.join(bohio, "splash.jpg"), path.join(dest, "public", "splash.jpg")); // the painting the splash shows
 const manifest = path.join(dest, "public", "manifest.webmanifest");
 fs.writeFileSync(manifest, fs.readFileSync(manifest, "utf8").replace(/#2e2e2f/g, "#ffffff"));
 const sb = path.join(dest, "standalone", "build.mjs");
