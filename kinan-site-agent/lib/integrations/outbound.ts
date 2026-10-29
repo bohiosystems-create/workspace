@@ -42,6 +42,8 @@ function hookType(e: FmEvent): string | null {
     case "action": return "decision.made";
     case "notify": return "notification";
     case "asset_status": return "asset.updated";
+    case "complaint_create": return "complaint.created";
+    case "complaint_update": return "complaint.updated";
     default: return null;
   }
 }

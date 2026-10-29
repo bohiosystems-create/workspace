@@ -21,6 +21,8 @@ import { completionDate } from "../lib/core/updates";
 import { HAS_OPERATIONS } from "../lib/edition";
 import { act as fmAct, facilityStateFor } from "../lib/fm/api";
 import { DEFAULT_RULES } from "../lib/fm/rules";
+import { predictions } from "../lib/fm/predict";
+import { scoreJobs } from "../lib/fm/priority";
 import { fmToday } from "../lib/fm/engine";
 import { airsideOpen, dronesGrounded, robotOutcomes } from "../lib/fm/work";
 import { simNow } from "../lib/robots/sim";
@@ -238,6 +240,41 @@ async function orchestration() {
       if (x[0]?.severity !== "high" || !x.some((e) => e.id === "dispatch:EV-TEST-DR")) fail("(exceptions)", null, `a failed dispatch is not in the exceptions queue: ${JSON.stringify(x.slice(0, 2))}`);
       db.fmLog = db.fmLog!.filter((e) => e.id !== "EV-TEST-DR");
     } }
+  // agentic facility management at the airport: predictions, complaints into work, the loop closed with the tenants
+  { const majed = who(/Majed Al-Anazi/), d0 = fmToday(db);
+    const ahu = predictions(d0, "kgia").find((p) => p.tag === "AHU-B03");
+    if (!ahu || ahu.days < 3 || ahu.days > 9 || ahu.risk !== "high") fail("(predictive)", null, `the Pier B air handler's rising supply-air temperature is not predicted: ${JSON.stringify(ahu)?.slice(0, 160)}`);
+    if (predictions(d0, "kgia").some((p) => p.tag.startsWith("PBB-0") && p.reading.key === "avail" && p.fit < 0.6)) fail("(predictive)", null, "noise taken for a trend");
+    const logged = fmAct(db, { action: "complaint", facilityId: "kgia", complaint: { text: "Water dripping from the ceiling at gate 204, the floor is slippery", from: "Passenger", channel: "qr" } }, "QR form", "web", null);
+    const c = logged.events.find((e) => e.kind === "complaint_create");
+    if (!c || c.kind !== "complaint_create" || c.complaint.category !== "leak" || c.complaint.severity !== "high" || c.complaint.zone !== "Pier B") fail("(complaints)", null, `a leak at gate 204 was read as ${c && c.kind === "complaint_create" ? `${c.complaint.category}/${c.complaint.severity}/${c.complaint.zone}` : "nothing"}`);
+    const ar = fmAct(db, { action: "complaint", facilityId: "kgia", complaint: { text: "المصعد ٧ عالق والباب لا يفتح", from: "مسافر", channel: "whatsapp" } }, "WhatsApp", "whatsapp", null).events[0];
+    if (ar.kind !== "complaint_create" || ar.complaint.category !== "lift_escalator" || ar.complaint.severity !== "high") fail("(complaints)", null, `an Arabic complaint about a stuck lift was read as ${ar.kind === "complaint_create" ? `${ar.complaint.category}/${ar.complaint.severity}` : ar.kind}`);
+    let refused = ""; try { fmAct(db, { action: "complaint_update", complaint: { ids: [`CMP-${today.replace(/-/g, "").slice(2)}-03`], status: "resolved" } }, viktor.name, "web", viktor); } catch (e) { refused = (e as Error).message; }
+    if (!/own staff/.test(refused)) fail("(complaints)", null, `a contractor closed a tenant's complaint: ${refused || "allowed"}`);
+    const props = facilityStateFor(db, "kgia", majed).actions;
+    const fix = props.find((a) => a.id.startsWith("pdm-now:kgia:AHU-B03"));
+    if (!fix) fail("(complaints)", null, `no proposal to fix the Pier B air handler that four tenants complain about: ${props.filter((a) => a.kind === "predictive" || a.kind === "complaint").map((a) => a.title).join(" | ").slice(0, 300)}`);
+    else {
+      const r = fmAct(db, { action: "decide", actionId: fix.id, decision: "approved" }, majed.name, "web", majed);
+      const wo = r.events.find((e) => e.kind === "wo_create"), d1 = fmToday(db);
+      const heat = d1.complaints.filter((x) => x.assetId === "kgia:AHU-B03" && fix.id.includes(x.id));
+      if (!wo || wo.kind !== "wo_create" || heat.length < 4 || heat.some((x) => x.woId !== wo.wo.id || x.status !== "in_progress")) fail("(complaints)", null, "approving the fix did not put the four heat complaints on the new job");
+      else {
+        fmAct(db, { action: "wo_update", woId: wo.wo.id, status: "done", note: "Coil cleaned, valve actuator replaced; 13.9 °C supply air" }, majed.name, "web", majed);
+        const close = facilityStateFor(db, "kgia", majed).actions.find((a) => a.id === `cmp-close:${wo.wo.id}`);
+        if (!close) fail("(complaints)", null, "the job is done but nobody proposes to tell the tenants");
+        else {
+          const r2 = fmAct(db, { action: "decide", actionId: close.id, decision: "approved" }, majed.name, "web", majed);
+          const d2 = fmToday(db);
+          if (d2.complaints.filter((x) => x.woId === wo.wo.id).some((x) => x.status !== "resolved" || !x.reply)) fail("(complaints)", null, "the tenants' complaints were not closed with a reply");
+          if (!r2.events.some((e) => e.kind === "notify" && e.via === "email" && /lounge/.test(e.to ?? ""))) fail("(complaints)", null, "the lounge, which left an e-mail, was not told it is fixed");
+        }
+      }
+    }
+    const sc = scoreJobs(fmToday(db), "kgia");
+    if (sc.length && sc.some((x, i) => i > 0 && !x.blocked && !sc[i - 1].blocked && x.score > sc[i - 1].score)) fail("(team plan)", null, "jobs are not in score order");
+  }
   // the turnaround answer names the jobs; the fleet answer lists the five robots
   const tar = await call("fm_turnaround", { facility: "kgpp" }, majid);
   if (!JSON.stringify(tar).includes("WO-TAR06")) fail("fm_turnaround", { facility: "kgpp" }, "the turnaround doesn't list its jobs");

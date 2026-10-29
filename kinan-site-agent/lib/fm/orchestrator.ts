@@ -5,6 +5,7 @@
 // AI agent can explain and act on exactly what the control room sees.
 import { DEFAULT_RULES } from "./rules";
 import { ruleProposals } from "./work";
+import { agenticEffects, agenticProposals } from "./agentic";
 import type { Action, FmData, FmEvent, Priority, WorkOrder } from "./types";
 import { PRIORITY_SLA, bestTech, isOpen, newWoId, slaLeft } from "./engine";
 import { waitingFor, workEffects, workProposals } from "./work";
@@ -24,7 +25,8 @@ export interface Learned {
 export const KIND_LABEL: Record<Action["kind"], string> = { raise_wo: "raise work from an alarm", assign: "assign a job", reschedule: "reschedule overdue work", escalate: "escalate an SLA risk", order_spare: "order spares", permit: "issue a permit", isolate: "change over to standby",
   assign_crew: "give a job to a contractor crew", robot_mission: "send a robot", robot_finding: "raise work from a robot finding", safety_stop: "stop unsafe work", robot_recall: "recall a robot", gas_test: "test for gas before work",
   security_response: "respond to a security alert", combine_missions: "combine robot missions",
-  assign_pilot: "give a robot its pilot", robot_support: "put a robot beside a crew", rule: "follow a rule" };
+  assign_pilot: "give a robot its pilot", robot_support: "put a robot beside a crew", rule: "follow a rule",
+  predictive: "act on a prediction", reprioritise: "set a job's priority", complaint: "act on tenants' complaints" };
 
 const PERMIT: Record<string, NonNullable<WorkOrder["permit"]>["type"]> = { electrical: "electrical isolation", transformer: "electrical isolation", breaker: "electrical isolation", ups: "electrical isolation", hrsg: "confined space", gt: "hot work", pbb: "work at height", escalator: "electrical isolation", lift: "electrical isolation",
   separator: "confined space", tank: "confined space", gascomp: "hot work", expander: "hot work", flare: "work at height", detector: "general" };
@@ -75,7 +77,7 @@ export function propose(d: FmData, learned: Learned, facilityId?: string, now = 
 
   // 4. Urgent work about to breach its SLA without having started.
   // (turnaround jobs run to their plan, not an SLA: the work layer watches what they wait for)
-  for (const w of d.workOrders.filter((x) => fac(x.facilityId) && isOpen(x) && x.type !== "PM" && x.type !== "TAR" && (x.priority === "P1" || x.priority === "P2") && x.status !== "in_progress")) {
+  for (const w of d.workOrders.filter((x) => fac(x.facilityId) && isOpen(x) && x.type !== "PM" && x.type !== "PdM" && x.type !== "TAR" && (x.priority === "P1" || x.priority === "P2") && x.status !== "in_progress")) {
     const left = slaLeft(w, now);
     if (left > w.slaHours * 0.5) continue;
     const sup = d.technicians.find((t) => t.facilityId === w.facilityId && /supervisor|manager/i.test(t.role));
@@ -106,6 +108,8 @@ export function propose(d: FmData, learned: Learned, facilityId?: string, now = 
   // 7. The work layer: robots first where they can go, contractor crews, robot findings, gas and hot work (work.ts)
   workProposals(d, fac, push, handed, now, (k) => learned.exclude?.get(k));
   ruleProposals(d, learned.rules ?? DEFAULT_RULES, fac, push, now);
+  // 8. The agentic layer: predictive maintenance, the team's priorities, tenants' complaints (agentic.ts)
+  agenticProposals(d, fac, push, handed, now);
   // what people keep rejecting here: no longer automatic, shown last, with the reason
   const doubt = (a: Action) => learned.doubts?.get(`${a.facilityId}|${a.kind}`);
   for (const a of out) { const l = doubt(a); if (l) { a.auto = false; a.why = [...a.why, doubtLine(KIND_LABEL[a.kind], l)]; } }
@@ -117,7 +121,7 @@ export function propose(d: FmData, learned: Learned, facilityId?: string, now = 
 export function effects(d: FmData, a: Action, by: string, channel: FmEvent["channel"], now = new Date()): FmEvent[] {
   const at = now.toISOString(), id = () => `ev_${Math.random().toString(36).slice(2, 10)}`;
   const base = { at, by, channel } as const;
-  const work = workEffects(d, a, base, id, (fid) => newWoId(d, fid));
+  const work = workEffects(d, a, base, id, (fid) => newWoId(d, fid)) ?? agenticEffects(d, a, base, id, (fid) => newWoId(d, fid));
   if (work) return work;
   switch (a.kind) {
     case "raise_wo": {

@@ -14,6 +14,7 @@ import { HAS_OPERATIONS } from "@/lib/edition";
 import { Decide } from "../Decide";
 import { OutcomesPanel } from "../Outcomes";
 import { ExceptionsPanel, RulesPanel } from "./Cockpit";
+import { ComplaintsPanel, PredictivePanel, TeamPlanPanel } from "./Agentic";
 import { FindingsList, PlantMap, RobotSheet, SecurityList, TurnaroundPanel, WorkforcePanel } from "./Workforce";
 
 type Overview = ReturnType<typeof overview>;
@@ -123,7 +124,7 @@ export function FacilityCards({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 // ======================================================================== control room
-type Tab = "orchestrator" | "exceptions" | "rules" | "map" | "workforce" | "turnaround" | "work" | "assets" | "alarms" | "team" | "spares" | "activity" | "outcomes";
+type Tab = "orchestrator" | "plan" | "predictive" | "complaints" | "exceptions" | "rules" | "map" | "workforce" | "turnaround" | "work" | "assets" | "alarms" | "team" | "spares" | "activity" | "outcomes";
 export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facilityId: string; author: string; onBack: () => void; onSignIn: () => void }) {
   const [s, setS] = useState<FS | null>(null);
   const [tab, setTab] = useState<Tab>("orchestrator");
@@ -163,7 +164,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
   const doer = (w: { assignee?: string; crew?: string; robot?: string; support?: { robotId: string }[] }) => (w.support?.length ? `${w.crew ? s.crews.find((c) => c.id === w.crew)?.name ?? "crew" : s.technicians.find((t) => t.id === w.assignee)?.name ?? "people"} + ${w.support.map((x) => s.robots.find((r) => r.id === x.robotId)?.name).join(", ")}` : w.crew ? `${s.crews.find((c) => c.id === w.crew)?.name ?? "crew"} (${s.crews.find((c) => c.id === w.crew)?.contractor ?? ""})` : w.robot ? `robot ${s.robots.find((r) => r.id === w.robot)?.name ?? ""}` : who(w.assignee));
   const open = s.workOrders.filter((w) => w.status !== "done");
   const live = s.findings.filter((x) => !x.woId && !x.acknowledged && (x.severity === "high" || x.severity === "critical")).length + s.securityAlerts.filter((a) => a.status === "open").length;
-  const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ...(s.robots.length ? [["exceptions", "Exceptions", s.exceptions.length] as [Tab, string, number], ["rules", "Rules"] as [Tab, string]] : []), ...(s.zones.length ? [["map", s.facility.sector === "airport" ? "Airport map" : "Plant map", live] as [Tab, string, number]] : []),
+  const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ["plan", "Team plan"], ["predictive", "Predictive", s.predictions.filter((p) => p.risk !== "low").length], ["complaints", "Complaints", s.complaintInsights.open], ...(s.robots.length ? [["exceptions", "Exceptions", s.exceptions.length] as [Tab, string, number], ["rules", "Rules"] as [Tab, string]] : []), ...(s.zones.length ? [["map", s.facility.sector === "airport" ? "Airport map" : "Plant map", live] as [Tab, string, number]] : []),
     ...(s.robots.length || s.crews.length ? [["workforce", "Workforce"] as [Tab, string]] : []), ...(s.turnarounds.length ? [["turnaround", "Turnaround"] as [Tab, string]] : []), ["work", "Work orders", open.length], ["assets", "Assets"], ["alarms", "Alarms", k.activeAlarms], ["team", "Team"], ["spares", "Spares", k.sparesLow], ["outcomes", "Outcomes"], ["activity", "Activity"]];
   const mine = s.actions.filter((a) => a.can.ok && a.risk === "low");
   const wo = woOpen ? s.workOrders.find((w) => w.id === woOpen) : undefined;
@@ -183,6 +184,8 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
         <Kpi label="Planned maintenance" value={`${k.pmCompliance}%`} sub="done on time" tone={k.pmCompliance < 90 ? "warn" : "good"} />
         <Kpi label="MTTR · MTBF" value={`${k.mttrHours} h`} sub={`MTBF ${k.mtbfHours.toLocaleString("en-US")} h`} />
         <Kpi label="Team on shift" value={`${k.techsBusy}/${k.techsOnShift}`} sub="busy / on shift" />
+        {s.complaints.length > 0 && <Kpi label="Tenant complaints" value={String(s.complaintInsights.open)} sub={`${s.complaintInsights.today} today${s.complaintInsights.resolveHours ? ` · ${s.complaintInsights.resolveHours} h to resolve` : ""}`} tone={s.complaintInsights.unlinked ? "warn" : "good"} />}
+        {s.predictions.some((p) => p.risk === "high") && <Kpi label="Predicted to fail" value={String(s.predictions.filter((p) => p.risk === "high").length)} sub={`soonest in ${Math.round(Math.min(...s.predictions.map((p) => p.days)))} days`} tone="warn" />}
       </div>
 
       <nav className="ops-tabs" role="tablist">{tabs.map(([id, label, n]) => <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>{label}{n ? <i>{n}</i> : null}</button>)}</nav>
@@ -222,6 +225,9 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
         </section>
       )}
       {tab === "workforce" && <WorkforcePanel s={s} onRobot={setRobotOpen} />}
+      {tab === "plan" && <TeamPlanPanel s={s} onWo={setWoOpen} />}
+      {tab === "predictive" && <PredictivePanel s={s} onAsset={setAssetOpen} />}
+      {tab === "complaints" && <ComplaintsPanel s={s} doit={doit} busy={busy} onWo={setWoOpen} />}
       {tab === "exceptions" && <ExceptionsPanel s={s} onRobot={setRobotOpen} />}
       {tab === "rules" && <RulesPanel s={s} doit={doit} busy={busy} />}
       {tab === "turnaround" && <TurnaroundPanel s={s} onWo={setWoOpen} />}

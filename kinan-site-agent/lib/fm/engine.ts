@@ -76,6 +76,8 @@ export function applyReport(d: FmData, robotId: string, rep: RobotReport, at: st
 export function applyEvent(d: FmData, e: FmEvent) {
   switch (e.kind) {
     case "security_alert": if (!d.securityAlerts.some((a) => a.id === e.alert.id)) d.securityAlerts.push(structuredClone(e.alert)); break;
+    case "complaint_create": if (!d.complaints.some((c) => c.id === e.complaint.id)) d.complaints.push(structuredClone(e.complaint)); break;
+    case "complaint_update": for (const c of d.complaints.filter((x) => e.ids.includes(x.id))) { Object.assign(c, e.patch); if (e.patch.status === "resolved") c.resolvedAt = e.at; } break;
     case "security_update": { const a = d.securityAlerts.find((x) => x.id === e.alertId); if (a) { a.status = e.status; if (e.missionId) a.missionId = e.missionId; if (e.note) a.note = e.note; a.by = e.by; } break; }
     case "robot_report": break; // applied after the simulator (fmToday)
     case "fleet_command": case "dispatch_result": case "notify": break; // the machines' record (exceptions.ts, the bridge's outbox)
@@ -149,7 +151,7 @@ const addDays = (iso: string, n: number) => { const x = new Date(iso.slice(0, 10
 
 /** Hours left before a work order breaches its SLA (negative: breached). Planned work runs to its due date. */
 export function slaLeft(w: WorkOrder, now = Date.now()) {
-  const end = w.type === "PM" || w.type === "TAR" ? Date.parse(w.due + "T23:59:00Z") : Date.parse(w.raised) + w.slaHours * HOUR;
+  const end = w.type === "PM" || w.type === "PdM" || w.type === "TAR" ? Date.parse(w.due + "T23:59:00Z") : Date.parse(w.raised) + w.slaHours * HOUR;
   return (end - now) / HOUR;
 }
 export const isOverdue = (w: WorkOrder, now = Date.now()) => isOpen(w) && slaLeft(w, now) < 0;

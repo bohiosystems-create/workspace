@@ -1,6 +1,9 @@
 // The AI agent's facility-management tools: the same operations as the control room and the field app, so a question
 // or an instruction by chat, WhatsApp or voice ("SWP-102 tripped again", "close WO-W24117, seal replaced", "approve the
 // low-risk actions at the airport") does exactly what the screens do.
+import { CATEGORY_LABEL, complaintInsights } from "./complaints";
+import { predictions, predictionText } from "./predict";
+import { scoreJobs, teamPlan } from "./priority";
 import { connectionOf } from "../robots/adapter";
 import type { Repo, ToolCtx } from "../core/tools";
 import { act, actions, facilityState, myDay, overview, topIssues } from "./api";
@@ -36,6 +39,12 @@ export const FM_TOOLS = [
     input_schema: obj({ robot: str("robot name, e.g. 'Ex-2', 'Drone-1'"), command: oneOf(["send", "cancel", "estop", "release", "pilot", "control"]), pilot: str("the person piloting it, for a robot a person controls (send), or to put on a mission (pilot)"), control: oneOf(["policy", "supervised", "remote"], "for 'control': policy = the AI drives it by itself, supervised = the AI drives it and a person approves each mission, remote = a person pilots it"), zone: str("area name for 'send', e.g. 'Compression', 'Tank farm'"), asset: str("asset tag for 'send', optional"), mission: oneOf(["inspection_round", "gas_survey", "thermal_survey", "confined_precheck", "flare_inspection", "thickness_survey", "security_patrol", "alarm_check", "emissions_survey", "pipeline_patrol", "subsea_inspection", "valve_operation", "runway_inspection"], "for 'send'"), atc_clearance: str("air traffic control's clearance reference, needed to send a robot onto a live runway or taxiway"), mission_id: str("for 'cancel'; defaults to the robot's current mission"), facility: FAC }, ["robot", "command"]) },
   { name: "fm_turnaround", description: "A turnaround (planned shutdown) at a facility: progress, days left, each job with its crew or robot, what it waits for, its permit and gas test, people on site and the money committed in crew-days.", input_schema: obj({ facility: FAC }) },
   { name: "fm_gas_test", description: "Record a gas test on a job (by the gas tester or a supervisor): clear ('done') or gas found ('failed') with the reading. A clear test lets a job held for gas restart (its permit is re-issued); a failed one keeps it on hold.", input_schema: obj({ wo: str("e.g. WO-TAR06"), result: oneOf(["done", "failed"]), reading: str("what the detector read, e.g. 'LEL 0 %, H2S 0 ppm, O2 20.9 %'") }, ["wo", "result"]) },
+  { name: "fm_complaints", description: "Tenants' and occupants' complaints at a facility (too hot, a leak, a lift stopping…): the open ones with what they are about, where, the equipment and the job they are linked to, plus the analysis — clusters (several about the same thing in one place, with what the equipment says there), categories this week against last, tenants who keep complaining, average time to resolve. With text, LOG a new complaint (when someone tells you about a problem in the building: who, where, what); it is classified, placed and tied to the equipment, and the orchestrator raises or links the work. With ids and status/category, update complaints (staff only).",
+    input_schema: obj({ facility: FAC, text: str("to log one: the complaint in the tenant's words"), from: str("who: a tenant (lounge, café, airline) or 'Passenger'"), where: str("where, in their words: 'gate 206', 'lounge, Pier B'"), contact: str("e-mail or phone to tell them when it is fixed, optional"), channel: oneOf(["app", "whatsapp", "qr", "helpdesk", "email", "api"], "how it came in"), ids: { type: "array", items: { type: "string" }, description: "complaint ids, to update" }, status: oneOf(["open", "in_progress", "resolved"], "with ids"), category: oneOf(["temperature", "leak", "lift_escalator", "lighting", "cleaning", "odour", "noise", "power", "baggage", "access", "other"], "with ids: correct the category") }) },
+  { name: "fm_predictive", description: "Predictive maintenance at a facility: equipment whose readings are trending towards their limit, with the rate, how well the trend fits, and when it will cross (days and date), the risk, whether the planned maintenance comes first, open work, and spares too short for the time left. Use it for 'what is going to fail', 'what should we do this week before it breaks'.",
+    input_schema: obj({ facility: FAC }) },
+  { name: "fm_team_plan", description: "The team's priorities at a facility, set automatically: every open job scored (priority, critical equipment, down or degraded, SLA left, safety, tenant complaints, predicted failure) with its reasons and the priority it should have; and the plan for each technician on shift — what they are on now and what comes next, including unassigned jobs suggested for them. Use it for 'what should the team do first', 'who is doing what', 'why is this job first'.",
+    input_schema: obj({ facility: FAC }) },
   { name: "fm_security", description: "Security at a facility: today's alerts (fence sensors, cameras, a drone seen over the plant) with their status (open, checking, cleared, escalated) and what the patrol robots found; with alert and status, mark one checking, cleared or escalated. An unidentified drone is reported to the authorities — the plant does not chase it, and its own drones stay on the ground meanwhile.",
     input_schema: obj({ facility: FAC, alert: str("alert id, e.g. 'SA-261028-3', to update one"), status: oneOf(["checking", "cleared", "escalated"], "with alert"), note: str("what was seen, optional") }) },
   { name: "fm_spares", description: "Spare parts of a facility: stock against minimum, on order, lead time; low_only for those below minimum.", input_schema: obj({ facility: FAC, low_only: { type: "boolean" } }) },
@@ -156,6 +165,36 @@ async function fmTool(repo: Repo, name: string, input: Record<string, any>, ctx:
       await repo.save();
       return J({ ok: true, message: r2.message });
     }
+    case "fm_complaints": {
+      if (input.text) {
+        const r = act(db, { action: "complaint", facilityId: fid ?? undefined, complaint: { text: input.text, from: input.from, where: input.where, contact: input.contact, channel: input.channel ?? (ctx.channel === "whatsapp" ? "whatsapp" : "app") } }, by, channel, ctx.user);
+        await repo.save();
+        return J({ ok: true, message: r.message });
+      }
+      if (input.ids?.length) {
+        const r = act(db, { action: "complaint_update", complaint: { ids: input.ids, status: input.status, category: input.category } }, by, channel, ctx.user);
+        await repo.save();
+        return J({ ok: true, message: r.message });
+      }
+      if (!fid) return J({ error: "Which facility?" });
+      const tag = (id?: string) => d.assets.find((a) => a.id === id)?.tag;
+      const ins = complaintInsights(d, fid);
+      return J({ facility: fid, open: d.complaints.filter((c) => c.facilityId === fid && c.status !== "resolved").map((c) => ({ id: c.id, at: c.at.slice(0, 16).replace("T", " ") + " UTC", from: c.from, where: c.where ?? c.zone, what: c.text, category: CATEGORY_LABEL[c.category], severity: c.severity, equipment: tag(c.assetId), job: c.woId, status: c.status })),
+        analysis: { ...ins, perDay: ins.perDay.map((x) => `${x.day.slice(5)}: ${x.n}`).join(", "), clusters: ins.clusters.map((c) => ({ about: CATEGORY_LABEL[c.category], where: c.zone, complaints: c.ids.length, equipment: tag(c.assetId), job: c.woId, equipmentSays: c.signal })) } });
+    }
+    case "fm_predictive": {
+      if (!fid) return J({ error: "Which facility?" });
+      return J({ facility: fid, predictions: predictions(d, fid).map((p) => ({ equipment: `${p.tag} ${p.name}`, criticality: p.criticality, risk: p.risk, what: predictionText(p), trendFit: p.fit, plannedMaintenance: `${p.nextPm}${p.pmFirst ? " (before the crossing)" : " (after the crossing — too late)"}`, openJob: p.openWo, spareShort: p.spareShort ? `${p.spareShort.part}: ${p.spareShort.stock} in stock, ${p.spareShort.leadDays} days to arrive` : undefined })),
+        note: "Straight-line trend over each reading's last 14 days; only clear trends (fit ≥ 0.6) within 30 days. The orchestrator proposes a predictive job (or brings the planned maintenance forward) before the crossing." });
+    }
+    case "fm_team_plan": {
+      if (!fid) return J({ error: "Which facility?" });
+      const t = (id: string) => d.workOrders.find((w) => w.id === id);
+      const tp = teamPlan(d, fid);
+      return J({ facility: fid, jobs: scoreJobs(d, fid).slice(0, 25).map((x) => ({ job: x.woId, title: t(x.woId)?.title, score: x.score, priority: x.priority, shouldBe: x.suggested, why: x.reasons.join(", "), blocked: x.blocked })),
+        plan: tp.rows.map((r) => ({ technician: `${r.tech.name} (${r.tech.role})`, now: r.now ? `${r.now.woId} ${r.now.title}` : null, next: r.next.map((x) => `${x.woId}${x.suggestedFor ? " (suggested, unassigned)" : ""} — ${x.title}`) })),
+        nobodyFits: tp.unplanned.map((x) => `${x.woId} ${x.title}`) });
+    }
     case "fm_security": {
       if (input.alert) {
         const r = act(db, { action: "security", alertId: String(input.alert).toUpperCase(), alertStatus: input.status, note: input.note }, by, channel, ctx.user);
@@ -198,6 +237,7 @@ Rules:
 - Never let anyone start electrical, hot, confined-space or height work without the permit: check the job's permit and say so plainly.
 - Work is done by the facility's own people, contractor crews and robots (fm_workforce). Robots go first where a check can keep people out of danger: gas tests, pre-entry checks, rounds in hazardous areas. Only Ex-certified robots enter hazardous areas. When a robot finds something, say what, where and when, and the work raised from it.
 - Teams come in every shape: people only; robots only, driven by the AI; people working with an AI-controlled robot beside them (a gas watch that stops the job if it reads gas); and people piloting robots (a drone or ROV pilot, a robot operator) — a piloted robot's mission waits until its pilot is on it. fm_workforce lists the teams; fm_robot_command sends with a pilot, puts a pilot on a mission, or switches who controls a robot (a supervisor's call).
+- Facility management is agentic: fm_predictive says what is heading for its limit and when (act before, not after); fm_team_plan says what the team should do first and why (the scores set priorities by themselves); fm_complaints logs and analyses tenants' complaints — when someone reports a problem in the building, log it with fm_complaints (who, where, what) and say what happens next.
 - The fleet has many makers (land, air, sea): treat them as one. Say which robot and which maker when it matters. Security alerts (fm_security): a robot checks first where it can, security responds; an unidentified drone is reported to the authorities, never chased, and our own drones stay down meanwhile. At an airport: live runways and taxiways only in the nightly closure or with air traffic control's clearance; drones never fly indoors; an unidentified drone near the airfield goes to air traffic control and the police; birds and debris on the airfield are airside safety, told to the tower.
 - Gas: no hot work where there is flammable gas; no entry to a confined space before a clear gas test. If the orchestrator proposes stopping work for gas, say so first. A gas test is recorded with fm_gas_test.
 - Contractors' people carry out and report their own crew's work; they approve no client decision. Say which contractor a crew belongs to and its record when it matters.

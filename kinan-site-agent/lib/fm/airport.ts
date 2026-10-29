@@ -3,7 +3,8 @@
 // robots of several makers are one fleet; what is particular here is the airfield: the runway and taxiways are live,
 // so robots go there in the nightly runway closure or with air traffic control's clearance, drones never fly indoors,
 // and an unidentified drone near the runway approach is air traffic control's and the police's to handle.
-import type { FmData, SecurityAlert, ZoneDef } from "./types";
+import type { Complaint, FmData, SecurityAlert, ZoneDef } from "./types";
+import { makeComplaint } from "./complaints";
 import type { Mission, Robot, Waypoint } from "../robots/types";
 import { localAt } from "./gasplant";
 
@@ -75,4 +76,71 @@ export function addAirportWork(out: FmData, date: string) {
   out.robots.push(...structuredClone(AIRPORT_ROBOTS));
   out.missions.push(...airportMissions(date));
   out.securityAlerts.push(...airportAlerts(date));
+  addBuilding(out, date);
+  addDrifts(out);
+  out.complaints.push(...airportComplaints(out, date));
+}
+
+// ------------------------------------------------------------------ the building itself (washrooms, fabric, cleaning)
+// What tenants complain about is often not a machine: a leak under a basin, a dirty washroom, a light out. Those jobs
+// go on the terminal building itself, looked after by the soft-services contractor.
+function addBuilding(out: FmData, date: string) {
+  out.systems.push({ id: `${FID}:BLD`, facilityId: FID, name: "Building & soft services", code: "BLD" });
+  out.assets.push({ id: `${FID}:BLD-T2`, tag: "BLD-T2", name: "Terminal 2 building — washrooms, fabric, lighting, cleaning", facilityId: FID, systemId: `${FID}:BLD`, class: "building", trade: "civil", criticality: "B", status: "running", zone: "Departures",
+    manufacturer: "—", model: "T2", installed: "2014-03-01", runHours: 0, condition: 84, pmEveryDays: 7, lastPm: date, nextPm: date, readings: [], spares: [] });
+}
+
+// ------------------------------------------------------------------ equipment heading for its limit (predict.ts)
+// Five machines whose readings have been creeping for two weeks but are not yet in alarm — the cases where acting a
+// few days early saves the failure. [tag, reading, where it is today as a share of the way to its limit]
+const DRIFTS: [string, string, number][] = [["AHU-B03", "sat", 0.68], ["ES-D02", "brk", 0.67], ["CH-03", "appr", 0.72], ["UPS-T2", "batt", 0.6], ["BHS-SRT-2", "mtr", 0.55]];
+function addDrifts(out: FmData) {
+  for (const [tag, key, share] of DRIFTS) {
+    const a = out.assets.find((x) => x.id === `${FID}:${tag}`), r = a?.readings.find((x) => x.key === key);
+    if (!a || !r || a.status !== "running") continue;
+    const limit = r.high ?? r.low!, start = r.trend[0], end = start + (limit - start) * share;
+    r.trend = r.trend.map((_, k) => Math.round((start + ((end - start) * k) / 13 + Math.abs(limit - start) * 0.025 * Math.sin(k * 2.1)) * 10) / 10);
+    r.value = r.trend[13];
+    a.condition = Math.min(a.condition, 64);
+  }
+}
+
+// ------------------------------------------------------------------ tenants' complaints
+// Today: people say Pier B is hot (four, from the lounge, a café, ground staff and a passenger) — and the Pier B air
+// handler's supply-air temperature has been rising for two weeks; escalator D2 has stopped (its brake is running hot);
+// the PRM lift keeps reopening; the bridge at gate 203 is still down; a leak in a washroom. Before today: two weeks of
+// complaints, resolved, so the trends have something to show.
+function airportComplaints(out: FmData, date: string): Complaint[] {
+  const ymd = date.replace(/-/g, "").slice(2);
+  const C = (n: string, at: string, channel: Complaint["channel"], from: string, where: string, text: string, x: Partial<Complaint> = {}): Complaint =>
+    ({ ...makeComplaint(out, { id: `CMP-${ymd}-${n}`, facilityId: FID, at, channel, from, where, text }), ...x });
+  const today = [
+    C("01", localAt(date, 6, 50), "whatsapp", "Saudia ground staff, gate 203", "Gate 203", "The bridge at 203 is still not working, we are bussing passengers again."),
+    C("02", localAt(date, 7, 5), "helpdesk", "PRM assistance team", "Pier B", "PRM lift 7 doors keep reopening, a passenger in a wheelchair waited 10 minutes."),
+    C("03", localAt(date, 7, 40), "qr", "Passenger (QR code at gate 206)", "Gate 206", "The waiting area at gate 206 is really hot, no cool air at all."),
+    C("04", localAt(date, 8, 15), "app", "Al Fursan lounge, Pier B", "Lounge, Pier B", "Lounge temperature is 27 °C since this morning, guests are complaining about the heat.", { contact: "lounge.duty@example.com" }),
+    C("05", localAt(date, 8, 30), "app", "Duty Free, departures", "Departures", "Escalator D2 stopped twice this morning, customers can't come up to the shop.", { contact: "dutyfree.ops@example.com" }),
+    C("06", localAt(date, 8, 50), "whatsapp", "Bateel café, gate 205", "Gate 205", "It's too warm at our counter, the pastries are sweating."),
+    C("07", localAt(date, 9, 20), "helpdesk", "Passenger (information desk)", "Gate 207", "Gate 207 is hot and stuffy."),
+    C("08", localAt(date, 9, 35), "app", "Cleaning contractor supervisor", "Washroom near gate 201", "Water leaking under the basins in the gents' washroom near gate 201, floor is wet.", { contact: "cleaning.sup@example.com" }),
+  ];
+  // two weeks before: resolved, of every kind, a few a day
+  const PAST: [string, Complaint["channel"], string, string][] = [
+    ["Arrivals", "qr", "Passenger (QR code, arrivals)", "Bad smell near the reclaim toilets."], ["Departures", "app", "Starbucks, departures", "Lights flickering above our seating area."],
+    ["Baggage hall", "helpdesk", "Passenger (information desk)", "Bags from the Riyadh flight took 50 minutes, the belt kept stopping."], ["Pier B", "qr", "Passenger (QR code at gate 204)", "Bins at gate 204 are overflowing."],
+    ["Departures", "app", "Duty Free, departures", "Air conditioning very weak near the shop entrance, it's warm."], ["Arrivals", "whatsapp", "Flynas ground staff", "Carousel A3 is making a loud squealing noise."],
+    ["Pier B", "app", "Al Fursan lounge, Pier B", "Washroom tap in the lounge is dripping all night."], ["Departures", "helpdesk", "Passenger (information desk)", "Escalator D1 was stopped for twenty minutes."],
+    ["Pier B", "qr", "Passenger (QR code at gate 208)", "Gate 208 area is a bit warm."], ["Arrivals", "app", "Car rental desk, arrivals", "Power socket at our desk is dead."],
+  ];
+  const past: Complaint[] = [];
+  for (let k = 1; k <= 13; k++) {
+    const n = 1 + ((k * 7) % 3); // one to three a day
+    for (let j = 0; j < n; j++) {
+      const [where, ch, from, text] = PAST[(k * 3 + j) % PAST.length];
+      const d0 = new Date(Date.parse(`${date}T00:00:00Z`) - k * 86_400_000).toISOString().slice(0, 10);
+      const at = localAt(d0, 8 + ((k + j * 5) % 11), (k * 13 + j * 7) % 60);
+      past.push({ ...makeComplaint(out, { id: `CMP-${ymd}-P${String(k).padStart(2, "0")}${j}`, facilityId: FID, at, channel: ch, from, where, text }), woId: undefined, status: "resolved", resolvedAt: new Date(Date.parse(at) + (2 + ((k + j) % 9)) * 3600_000).toISOString(), reply: "Fixed — thank you for telling us." });
+    }
+  }
+  return [...today, ...past];
 }

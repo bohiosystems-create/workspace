@@ -183,7 +183,7 @@ const CHECK: Record<string, string[]> = {
 
 /** The day's operating picture for every demo facility. */
 export function generate(date: string): FmData {
-  const out: FmData = { date, facilities: [], systems: [], assets: [], technicians: [], workOrders: [], alarms: [], spares: [], zones: [], contractors: [], crews: [], robots: [], missions: [], findingAcks: {}, securityAlerts: [] };
+  const out: FmData = { date, facilities: [], systems: [], assets: [], technicians: [], workOrders: [], alarms: [], spares: [], zones: [], contractors: [], crews: [], robots: [], missions: [], findingAcks: {}, securityAlerts: [], complaints: [] };
   const today = dayNo(date);
   for (const P of PLANTS) {
     const fid = P.f.id, pre = PREFIX[fid];

@@ -6,7 +6,8 @@
 export type Sector = "energy" | "water" | "airport" | "oil_gas";
 export type Criticality = "A" | "B" | "C";
 export type AssetStatus = "running" | "standby" | "degraded" | "down" | "maintenance";
-export type WoType = "PM" | "CM" | "Inspection" | "Emergency" | "TAR";
+/** PdM: predictive maintenance — raised before a reading crosses its limit (predict.ts) */
+export type WoType = "PM" | "PdM" | "CM" | "Inspection" | "Emergency" | "TAR";
 export type WoStatus = "open" | "assigned" | "in_progress" | "on_hold" | "done";
 export type Priority = "P1" | "P2" | "P3" | "P4";
 export type Trade = "mechanical" | "electrical" | "instrumentation" | "hvac" | "civil" | "controls" | "lifts" | "chemical" | "process" | "inspection" | "scaffolding" | "rotating";
@@ -107,6 +108,27 @@ export interface FmData {
   findingAcks: Record<string, { woId?: string }>;
   /** security alerts: fence sensors, cameras, patrols, a drone seen over the plant */
   securityAlerts: SecurityAlert[];
+  /** what tenants and occupants report: too hot, a leak, a lift stuck (complaints.ts) */
+  complaints: Complaint[];
+}
+
+/** What a complaint is about: read from its words (complaints.ts), or set by a person. */
+export type ComplaintCategory = "temperature" | "leak" | "lift_escalator" | "lighting" | "cleaning" | "odour" | "noise" | "power" | "baggage" | "access" | "other";
+/** A tenant's or occupant's complaint: logged from the app, WhatsApp, a QR code on site, the helpdesk or a tenant
+ *  portal (API); classified, tied to the area and the asset behind it, and linked to the work that fixes it. */
+export interface Complaint {
+  id: string; facilityId: string; at: string;
+  channel: "app" | "whatsapp" | "qr" | "helpdesk" | "email" | "api";
+  /** who: a tenant (a lounge, a café, an airline) or an occupant (a passenger, a visitor) */
+  from: string; contact?: string;
+  /** where, in their words, and the area it was placed in */
+  where?: string; zone?: string;
+  text: string; category: ComplaintCategory; severity: "low" | "medium" | "high";
+  assetId?: string; woId?: string;
+  status: "open" | "in_progress" | "resolved";
+  resolvedAt?: string;
+  /** what the tenant was told when it was fixed */
+  reply?: string;
 }
 
 /** Something security must look at. A robot checks it first where it can (a patrol robot, a drone); people respond. */
@@ -164,6 +186,8 @@ export type FmEvent = {
   /** what became of a dispatch: sent, refused or failed, by the adapter or the fleet bridge */
   | { kind: "dispatch_result"; commandId?: string; robotId: string; missionId?: string; sent: boolean; note: string; adapter: string }
   | { kind: "robot_control"; robotId: string; control: import("../robots/types").Robot["autonomy"] }
+  | { kind: "complaint_create"; complaint: Complaint }
+  | { kind: "complaint_update"; ids: string[]; patch: Partial<Pick<Complaint, "status" | "woId" | "assetId" | "category" | "severity" | "reply" | "zone">> }
 );
 
 export interface FmConfig { autopilot: Record<string, boolean>; /** what the autopilot may do, signed by a manager, per facility */ policy?: Record<string, AutopilotPolicy>;
@@ -178,7 +202,8 @@ export interface AutopilotPolicy { kinds: Action["kind"][]; maxRisk: "low" | "me
 export interface Action {
   id: string; facilityId: string;
   kind: "raise_wo" | "assign" | "reschedule" | "escalate" | "order_spare" | "permit" | "isolate"
-    | "assign_crew" | "robot_mission" | "robot_finding" | "safety_stop" | "robot_recall" | "gas_test" | "security_response" | "combine_missions" | "assign_pilot" | "robot_support" | "rule";
+    | "assign_crew" | "robot_mission" | "robot_finding" | "safety_stop" | "robot_recall" | "gas_test" | "security_response" | "combine_missions" | "assign_pilot" | "robot_support" | "rule"
+    | "predictive" | "reprioritise" | "complaint";
   title: string; why: string[];
   risk: "low" | "medium" | "high";
   /** money it commits (SAR), for approval limits */

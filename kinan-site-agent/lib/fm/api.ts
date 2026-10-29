@@ -1,10 +1,13 @@
 // Facility management operations, shared by the API route, the AI agent's tools, WhatsApp and the standalone page.
 // Reads build today's picture (engine.fmToday); writes append events to db.fmLog (the caller saves the database).
+import { CATEGORY_LABEL, complaintInsights, makeComplaint } from "./complaints";
+import { predictions } from "./predict";
+import { scoreJobs, teamPlan } from "./priority";
 import type { Db } from "../types";
 import { SECTOR_LABEL } from "./data";
 import { fmToday, findAsset, findTech, isOpen, isOverdue, kpis, newWoId, PRIORITY_SLA, slaLeft, workload } from "./engine";
 import { effects, propose, KIND_LABEL, type Learned } from "./orchestrator";
-import type { Action, AssetStatus, AutopilotPolicy, Crew, FmData, FmEvent, Priority, RobotReport, SecurityAlert, Technician, WorkOrder, WoStatus, WoType } from "./types";
+import type { Action, AssetStatus, AutopilotPolicy, Complaint, ComplaintCategory, Crew, FmData, FmEvent, Priority, RobotReport, SecurityAlert, Technician, WorkOrder, WoStatus, WoType } from "./types";
 import type { Capability, Mission, Robot } from "../robots/types";
 import { CAPABILITY_LABEL, CONTROL_LABEL, DOMAIN_OF, MISSION_LABEL } from "../robots/types";
 import { airsideOpen, closureText, dronesGrounded, gasIn, pilotsFor, robotMayEnter, teams, turnaround, waitingFor, whyNot } from "./work";
@@ -37,7 +40,7 @@ export function withinPolicy(db: Db, a: Action): boolean {
   const p = policyOf(db, a.facilityId);
   return !!p && a.auto && p.kinds.includes(a.kind) && (a.risk === "low" || (a.risk === "medium" && p.maxRisk === "medium")) && (a.cost ?? 0) <= p.maxSpend;
 }
-export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare", "safety_stop", "gas_test", "robot_recall", "robot_mission", "robot_finding", "security_response", "combine_missions", "assign_pilot", "robot_support", "rule"], maxRisk: "low", maxSpend: 25_000 };
+export const DEFAULT_POLICY: Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend"> = { kinds: ["raise_wo", "assign", "reschedule", "escalate", "permit", "order_spare", "safety_stop", "gas_test", "robot_recall", "robot_mission", "robot_finding", "security_response", "combine_missions", "assign_pilot", "robot_support", "rule", "predictive", "reprioritise", "complaint"], maxRisk: "low", maxSpend: 25_000 };
 
 export function actions(db: Db, d: FmData, facilityId?: string): Action[] { return propose(d, learnedFrom(db), facilityId); }
 
@@ -80,6 +83,12 @@ export function facilityState(db: Db, facilityId: string) {
     // each robot's connection: what its adapter says it can do, and whether it is asked (pull) or tells (push)
     connections: Object.fromEntries(d.robots.filter((r) => r.facilityId === facilityId).map((r) => [r.id, connectionOf(r)])),
     exceptions: exceptions(db, d, facilityId),
+    // the agentic layer: what is heading for its limit, the team's priorities and plan, tenants' complaints
+    predictions: predictions(d, facilityId),
+    jobScores: scoreJobs(d, facilityId),
+    teamPlan: teamPlan(d, facilityId),
+    complaints: d.complaints.filter((c) => c.facilityId === facilityId).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 60),
+    complaintInsights: complaintInsights(d, facilityId),
     rules: (db.fmConfig?.rules ?? DEFAULT_RULES).filter((r) => !r.facilityId || r.facilityId === facilityId).map((r) => ({ ...r, text: ruleText(r) })),
     integrations: (db.integrationLog ?? []).filter((x) => !x.facilityId || x.facilityId === facilityId).slice(-15).reverse(),
     pilots: by(d.technicians).filter((t) => /pilot|robot operator/i.test(t.role)).map((t) => ({ id: t.id, name: t.name, role: t.role, shift: t.shift })),
@@ -115,6 +124,8 @@ export function eventFacility(d: FmData, e: FmEvent): string | undefined {
     case "mission_pilot": return d.missions.find((m) => m.id === e.missionId)?.facilityId;
     case "fleet_command": case "dispatch_result": return d.robots.find((r) => r.id === e.robotId)?.facilityId;
     case "notify": return e.facilityId;
+    case "complaint_create": return e.complaint.facilityId;
+    case "complaint_update": return d.complaints.find((c) => e.ids.includes(c.id))?.facilityId;
   }
 }
 
@@ -153,7 +164,8 @@ export function myDay(db: Db, techId: string) {
 // ------------------------------------------------------------------ writes
 export interface ActInput {
   action: "decide" | "autopilot" | "policy" | "tick" | "wo_create" | "wo_update" | "asset_status" | "alarm_ack" | "tech_status"
-    | "gas_test" | "mission" | "mission_abort" | "estop" | "crew_status" | "security" | "robot_report" | "pilot" | "control" | "rules";
+    | "gas_test" | "mission" | "mission_abort" | "estop" | "crew_status" | "security" | "robot_report" | "pilot" | "control" | "rules"
+    | "complaint" | "complaint_update";
   facilityId?: string; actionId?: string; decision?: "approved" | "rejected"; reason?: RejectReason; on?: boolean;
   policy?: Partial<Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend">>;
   asset?: string; title?: string; detail?: string; priority?: Priority; type?: WoType;
@@ -161,6 +173,8 @@ export interface ActInput {
   assetStatus?: AssetStatus; alarmId?: string; techId?: string; techStatus?: Technician["status"];
   /** the field app's id for this change (outbox retries are recorded once) */
   cid?: string;
+  /** a tenant's complaint: their words, who, where, how it came in; or changes to complaints (ids, status, category) */
+  complaint?: { text?: string; from?: string; contact?: string; where?: string; channel?: Complaint["channel"]; ids?: string[]; status?: Complaint["status"]; category?: ComplaintCategory; woId?: string; reply?: string };
   /** a gas test's result and reading ("LEL 2 %, H₂S 0 ppm, O₂ 20.9 %") */
   result?: "done" | "failed"; reading?: string;
   /** robots: which robot, a mission (kind, where, what to check), which mission */
@@ -401,6 +415,34 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       if (!user || user.orgType !== "client" || !["supervisor", "manager", "director", "admin"].includes(user.role)) throw new Error("Changing who controls a robot is a supervisor's call.");
       add({ kind: "robot_control", robotId: r.id, control: b.control, summary: `${r.name}: ${CONTROL_LABEL[b.control]}` });
       return { ok: true, message: `${r.name} is now ${CONTROL_LABEL[b.control]}.${b.control === "remote" ? " Its missions wait until a pilot is on them." : ""}`, events: evs };
+    }
+    case "complaint": {
+      // anyone may report (a tenant through the app or WhatsApp, the helpdesk, a QR code): it is classified, placed,
+      // tied to the equipment and to the job already open on it; the orchestrator takes it from there
+      const c = b.complaint ?? {};
+      const fid = b.facilityId ?? (user?.facilityId as string | undefined);
+      if (!fid || !d.facilities.some((f) => f.id === fid)) throw new Error("Which facility is the complaint about?");
+      const text = String(c.text ?? "").trim();
+      if (text.length < 4) throw new Error("What is the complaint? A few words: what, where.");
+      const ch = (["app", "whatsapp", "qr", "helpdesk", "email", "api"] as const).includes(c.channel as never) ? c.channel! : channel === "whatsapp" ? "whatsapp" : "app";
+      const x = makeComplaint(d, { facilityId: fid, text, from: String(c.from || by).slice(0, 80), contact: c.contact, where: c.where, channel: ch });
+      add({ kind: "complaint_create", complaint: x, summary: `complaint ${x.id} (${CATEGORY_LABEL[x.category].toLowerCase()}${x.zone ? `, ${x.zone}` : ""}) from ${x.from}` });
+      const a = d.assets.find((y) => y.id === x.assetId);
+      return { ok: true, message: `Logged ${x.id}: ${CATEGORY_LABEL[x.category].toLowerCase()}${x.zone ? ` in ${x.zone}` : ""}${a ? `, about ${a.tag} ${a.name}` : ""}${x.woId ? ` — linked to ${x.woId}, already being worked on` : " — the orchestrator will raise the work"}.`, events: evs };
+    }
+    case "complaint_update": {
+      // correcting or closing complaints is the facility's own staff's job
+      if (!user || user.orgType !== "client" || user.role === "guest") throw new Error("Complaints are updated by the facility's own staff.");
+      const c = b.complaint ?? {};
+      const ids = (c.ids ?? []).filter((id) => d.complaints.some((y) => y.id === id));
+      if (!ids.length) throw new Error("Which complaints?");
+      if (c.category && !(c.category in CATEGORY_LABEL)) throw new Error(`Category: one of ${Object.keys(CATEGORY_LABEL).join(", ")}.`);
+      if (c.status && !["open", "in_progress", "resolved"].includes(c.status)) throw new Error("Status: open, in_progress or resolved.");
+      if (c.woId && !d.workOrders.some((w) => w.id === c.woId)) throw new Error(`No work order ${c.woId}.`);
+      const patch = { ...(c.status ? { status: c.status } : {}), ...(c.category ? { category: c.category } : {}), ...(c.woId ? { woId: c.woId } : {}), ...(c.reply ? { reply: String(c.reply).slice(0, 400) } : {}) };
+      if (!Object.keys(patch).length) throw new Error("What changes: status, category, the job it belongs to, or the reply?");
+      add({ kind: "complaint_update", ids, patch, summary: `${ids.length} complaint(s): ${Object.entries(patch).map(([k, v]) => `${k} ${v}`).join(", ")}` });
+      return { ok: true, message: `Updated ${ids.join(", ")}.`, events: evs };
     }
     case "security": {
       const al = d.securityAlerts.find((x) => x.id === b.alertId);

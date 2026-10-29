@@ -9,6 +9,9 @@ import { publishAfter } from "@/lib/integrations/outbound";
 import { integrationsConfigured } from "@/lib/integrations/status";
 import { toFleet } from "@/lib/robots/dispatch";
 import { adapterFor } from "@/lib/robots/adapter";
+import { complaintInsights } from "@/lib/fm/complaints";
+import { predictions } from "@/lib/fm/predict";
+import { scoreJobs, teamPlan } from "@/lib/fm/priority";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +30,10 @@ export const dynamic = "force-dynamic";
 // GET  /api/v1/integrations                  what is configured and what was sent lately
 // POST /api/v1/jobs                          raise a work order from their system: {site, asset, title, detail?, priority?, type?, externalId?}
 // POST /api/v1/jobs/{id}                     their system moved one of ours: {status?, note?, assignee?, externalId?}
+// GET  /api/v1/complaints?site=&status=      tenants' complaints, with the analysis (clusters, categories, repeat, time to resolve)
+// POST /api/v1/complaints                    a complaint from a tenant portal, helpdesk or QR form: {site, text, from, where?, contact?, channel?}
+// GET  /api/v1/predictions?site=             equipment heading for its limit, and when
+// GET  /api/v1/team-plan?site=               every open job scored with its reasons; each technician's now and next
 // Everything else is refused. Changes are recorded as made by "the customer's system" and go through the same rules as
 // the app's (a job can't start before its permit and gas test, and so on).
 const ok = (b: unknown, status = 200) => NextResponse.json(b, { status, headers: { "Cache-Control": "no-store" } });
@@ -63,27 +70,34 @@ export async function GET(req: Request, { params }: Ctx) {
     case "findings": return ok({ findings: d.missions.filter((m) => here(m.facilityId)).flatMap((m) => m.findings).filter((f) => !since || f.at >= since).map((f) => ({ ...f, robot: name(f.robotId), asset: d.assets.find((a) => a.id === f.assetId)?.tag })) });
     case "alerts": return ok({ alerts: d.securityAlerts.filter((a) => here(a.facilityId) && (!status || a.status === status)) });
     case "exceptions": return ok({ exceptions: d.facilities.filter((f) => here(f.id)).flatMap((f) => exceptions(db, d, f.id).map((x) => ({ site: f.id, ...x }))) });
+    case "complaints": return ok({ complaints: d.complaints.filter((c) => here(c.facilityId) && (!status || c.status === status)).sort((a, b) => b.at.localeCompare(a.at)), ...(site ? { analysis: complaintInsights(d, site) } : {}) });
+    case "predictions": return ok({ predictions: predictions(d, site) });
+    case "team-plan": if (!site) return no("Which site? ?site=kgia");
+      return ok({ jobs: scoreJobs(d, site), plan: teamPlan(d, site) });
     case "integrations": return ok({ configured: integrationsConfigured(), sent: (db.integrationLog ?? []).slice(-50).reverse() });
-    default: return no("Unknown resource: sites, assets, robots, jobs, missions, findings, alerts, exceptions, integrations.", 404);
+    default: return no("Unknown resource: sites, assets, robots, jobs, missions, findings, alerts, exceptions, complaints, predictions, team-plan, integrations.", 404);
   }
 }
 
 export async function POST(req: Request, { params }: Ctx) {
   const g = gate(req); if (g) return g;
   const [what, id] = (await params).path;
-  if (what !== "jobs") return no("POST takes /api/v1/jobs (raise one) or /api/v1/jobs/{id} (update one).", 404);
+  if (what !== "jobs" && what !== "complaints") return no("POST takes /api/v1/jobs (raise one), /api/v1/jobs/{id} (update one) or /api/v1/complaints (log one).", 404);
   let b: Record<string, unknown>;
   try { b = await req.json(); } catch { return no("Send JSON."); }
   const repo = await getRepo(), str = (k: string) => (typeof b[k] === "string" ? (b[k] as string).slice(0, 2000) : undefined);
   const by = `${str("system") ?? "Customer system"}${str("externalId") ? ` (${str("externalId")})` : ""}`.slice(0, 60);
   try {
-    const r = id
+    const r = what === "complaints"
+      ? act(repo.db, { action: "complaint", facilityId: str("site"), complaint: { text: str("text"), from: str("from") ?? "Tenant portal", where: str("where"), contact: str("contact"), channel: (str("channel") as never) ?? "api" } }, by, "web", null)
+      : id
       ? act(repo.db, { action: "wo_update", woId: id, status: str("status") as never, note: str("note"), assignee: str("assignee"), holdReason: str("holdReason") }, by, "web", null)
       : act(repo.db, { action: "wo_create", facilityId: str("site"), asset: str("asset") ?? "", title: str("title"), detail: str("detail"), priority: str("priority") as never, type: str("type") as never, note: str("externalId") ? `External reference ${str("externalId")}` : undefined }, by, "web", null);
     await toFleet(repo.db, r.events);
     await repo.save();
     await publishAfter(repo);
     const wo = r.events.find((e) => e.kind === "wo_create");
-    return ok({ ok: true, message: r.message, ...(wo && wo.kind === "wo_create" ? { id: wo.wo.id } : {}) }, id ? 200 : 201);
+    const cmp = r.events.find((e) => e.kind === "complaint_create");
+    return ok({ ok: true, message: r.message, ...(wo && wo.kind === "wo_create" ? { id: wo.wo.id } : {}), ...(cmp && cmp.kind === "complaint_create" ? { id: cmp.complaint.id, category: cmp.complaint.category, linkedTo: cmp.complaint.woId } : {}) }, id ? 200 : 201);
   } catch (e) { return no((e as Error).message, 422); }
 }
