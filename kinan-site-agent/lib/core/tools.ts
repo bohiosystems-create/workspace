@@ -96,7 +96,12 @@ export const TOOL_DEFS: ToolDef[] = [
   { name: "change_brief_layout", description: "Change the daily brief (the scheduled morning e-mail and ▶ Play): hide/show/move a section, limit lists to N items, focus on one project, add or clear a note, undo the last change, or reset to the standard brief. Sections: headline (always first), since, today, next48, critical, milestones, procurement, safety, projects. Use for 'remove the procurement section', 'move safety to the top', 'only Kinan Heights', 'top 3 items', 'add a note to the brief: …', 'undo'.",
     input_schema: obj({ ops: { type: "array", items: obj({ op: oneOf(["hide", "show", "move", "limit", "focus", "add_note", "clear_notes", "reset"]), section: str("for hide/show/move"), to: str("move: top | bottom | before | after"), ref: str("move before/after: the other section"), n: { type: "integer", description: "limit: 1–10, or omit to lift the limit", minimum: 1, maximum: 10 }, project: str("focus: project name, or omit for all projects"), text: str("add_note: the note", { maxLength: 500 }) }, ["op"]) }, undo: { type: "boolean", description: "true: undo the last change instead" }, lang: oneOf(["en", "ar"]) }) },
   { name: "site_proposals", description: "The construction orchestrator: what it proposes for the site right now — expedite late packages, resequence work around a late delivery, night shifts to recover slipping work, material requests to raise or approve, expired permits to close, permits and overdue NCRs to chase — each with its reasons, risk, cost and who carries it out. Or approve / reject one (with the reason: not_now, already_handled, wrong_person, too_costly, disagree). Approving changes the programme/procurement records and leaves the instruction on the site plan. The user's approval limits apply.",
-    input_schema: obj({ kind: oneOf(["expedite", "resequence", "recover", "stock_mr", "approve_mr", "permit_close", "permit_chase", "ncr_escalate"], "filter"), approve: str("proposal id, or 'low_risk' for every low-risk one the user may approve"), reject: str("proposal id"), reason: oneOf(["not_now", "already_handled", "wrong_person", "too_costly", "disagree"], "for reject") }) },
+    input_schema: obj({ kind: oneOf(["expedite", "resequence", "recover", "stock_mr", "approve_mr", "permit_close", "permit_chase", "ncr_escalate", "recovery_option", "p6_progress"], "filter"), approve: str("proposal id, or 'low_risk' for every low-risk one the user may approve"), reject: str("proposal id"), reason: oneOf(["not_now", "already_handled", "wrong_person", "too_costly", "disagree"], "for reject") }) },
+  // the schedule agent over Primavera P6 (lib/pm)
+  { name: "schedule_agent", description: "The schedule agent over the Primavera P6 programme: when it will finish (P6's date, the critical path recalculated on today's progress, earned schedule at the pace so far and if the rest goes to plan, SPI(t)); the programme's health (DCMA 14-point check, with the activities behind each failure); what changed since the last P6 update (completion moved, critical slips, durations cut without progress, logic deleted, baselines changed, activities added or deleted); what the site reported that P6 doesn't show; recovery options to get the contract date back, each tried on the logic (crash, overlap, challenge a lag) and the recommended plan; the driving path to completion; and the changes waiting to go back to P6. Use it for 'when will we finish', 'can we trust the programme', 'what changed in the update', 'how do we recover', 'is P6 up to date'. Approve a recovery option or put site progress in P6 with site_proposals (kinds recovery_option, p6_progress).",
+    input_schema: obj({ section: oneOf(["all", "forecast", "health", "changes", "field", "recovery", "critical", "outbox"], "default: all (shortened)") }) },
+  { name: "schedule_whatif", description: "What-if on the P6 programme's logic: delay (positive days) or bring forward (negative) one activity, and see how far practical completion and the milestones move — and the activity's float. Nothing is saved. Use for 'what if the L18 slab slips 10 days', 'does a week on the lifts matter'.",
+    input_schema: obj({ activity: str("activity id, e.g. TA-STR-L18"), days: int("days late (+) or early (−)", -365, 365) }, ["activity", "days"]) },
   // facility management: the operations layer (lib/fm/tools.ts)
   ...(HAS_OPERATIONS ? (FM_TOOLS as ToolDef[]) : []),
 ];
@@ -138,6 +143,24 @@ export async function runTool(repo: Repo, name: string, raw: Record<string, any>
     if (PROCUREMENT_TOOLS.has(name) && repo.syncProcurement) await repo.syncProcurement().catch(() => undefined);
     switch (name) {
       case "search_project": return J(P.searchProject(db, String(input.query ?? "")));
+      case "schedule_agent": {
+        const s = (await import("../pm/api")).programmeState(db), sec = String(input.section ?? "all");
+        const pick = {
+          forecast: { source: s.source.name, ...s.forecast, curve: undefined },
+          health: { passed: s.health.passed, of: 14, score: s.health.score, checks: s.health.checks.map((c) => ({ ...c, ids: c.ids.slice(0, 8) })) },
+          changes: s.compare,
+          field: s.fieldGaps,
+          recovery: { ...s.recovery, approve: s.proposals.filter((p) => p.kind === "recovery_option").map((p) => ({ id: p.id, title: p.title })) },
+          critical: s.critical,
+          outbox: { pending: s.outbox.filter((x) => x.status === "pending"), p6Connected: s.p6.connected, sent: s.outbox.filter((x) => x.status !== "pending").length },
+        } as Record<string, unknown>;
+        if (sec !== "all") return J(pick[sec] ?? { error: "Unknown section." });
+        return J({ ...pick, health: { passed: s.health.passed, of: 14, failed: s.health.checks.filter((c) => !c.pass).map((c) => `${c.n}. ${c.name}: ${c.value} (${c.threshold})`) }, critical: { count: s.critical.count, path: s.critical.path.map((a) => a.id) } });
+      }
+      case "schedule_whatif": {
+        const { whatIf } = await import("../pm/recovery");
+        return J(whatIf(db.data.schedule, db.data.meta.dataDate, String(input.activity ?? "").trim().toUpperCase(), Number(input.days) || 0));
+      }
       case "site_proposals": {
         const { siteActions, decideSite } = await import("../site/api");
         const { canApprove } = await import("../auth/people");

@@ -76,7 +76,7 @@ const JUNK = /"(NaN|undefined|Invalid Date)"|: ?NaN\b|NaN%|undefined%|Invalid Da
 let calls = 0, refusals = 0;
 
 async function call(name: string, input: unknown, user: Person | null = director): Promise<Record<string, any>> {
-  const before = shot(db.data), pc0 = completionDate(db.data);
+  const before = shot(db.data), pc0 = completionDate(db.data), nDec = db.data.decisions?.length ?? 0;
   let r: unknown;
   try { r = await runTool(repo, name, input as Record<string, unknown>, ctx(user)); }
   catch (e) { fail(name, input, `threw: ${(e as Error).message}`); return {}; }
@@ -92,8 +92,11 @@ async function call(name: string, input: unknown, user: Person | null = director
     else if (LEAK.test(o.error)) fail(name, input, `a crash reached the agent: ${o.error.slice(0, 160)}`);
   }
   if (JUNK.test(text)) fail(name, input, `junk in the answer: ${JUNK.exec(text)![0]} in ${text.slice(Math.max(0, JUNK.exec(text)!.index - 80), JUNK.exec(text)!.index + 40)}`);
-  for (const p of checkProgramme(db.data, before)) fail(name, input, `programme rule: ${p}`);
-  if (completionDate(db.data) < pc0) fail(name, input, "practical completion moved earlier");
+  // an approved change to the logic (a recovery option) reschedules: work may come earlier and links overlap — then
+  // only each activity's own rules apply
+  const relogic = (db.data.decisions ?? []).slice(nDec).some((x) => x.decision === "approved" && x.patches.some((q) => q.t === "recalc"));
+  for (const p of checkProgramme(db.data, relogic ? undefined : before)) fail(name, input, `programme rule: ${p}`);
+  if (!relogic && completionDate(db.data) < pc0) fail(name, input, "practical completion moved earlier");
   return o;
 }
 
@@ -133,6 +136,12 @@ const KNOWN: Known[] = [
   { tool: "get_document", input: {}, expect: refused(/id/) },
   { tool: "no_such_tool", input: {}, expect: refused(/Unknown tool/) },
   { tool: "fm_orchestrator", input: { reject: "x", reason: "meh" }, expect: refused(/reason/) },
+  { tool: "schedule_whatif", input: { activity: "TA-STR-L18", days: 10 }, expect: answered((o) => (o.completionMoves === 10 ? null : `a critical slab 10 days late moved completion ${o.completionMoves}`)) },
+  { tool: "schedule_whatif", input: { activity: "TB-FIN-L23", days: 10 }, expect: answered((o) => (o.completionMoves === 0 && o.floatBefore > 10 ? null : `a floating activity moved completion ${o.completionMoves} (float ${o.floatBefore})`)) },
+  { tool: "schedule_whatif", input: { activity: "NOPE-1", days: 5 }, expect: refused(/No activity/) },
+  { tool: "schedule_agent", input: { section: "health" }, expect: answered((o) => (o.checks?.length === 14 ? null : `${o.checks?.length} DCMA checks`)) },
+  { tool: "schedule_agent", input: { section: "changes" }, expect: answered((o) => (o.findings?.some((f: { kind: string; ids: string[] }) => f.kind === "duration_cut" && f.ids.includes("TA-LIFT")) ? null : "the lifts' 12-day duration cut was not flagged")) },
+  { tool: "schedule_agent", input: { section: "field" }, expect: answered((o) => (Array.isArray(o) && o.length >= 3 ? null : `site vs P6: ${JSON.stringify(o).slice(0, 80)}`)) },
   { tool: "fm_work_orders", input: { priority: "p1" }, expect: answered((o) => (o.workOrders?.every((w: { priority: string }) => w.priority === "P1") ? null : "priority p1 not read as P1")) },
   { tool: "fm_update_work_order", input: { wo: "WO-W24109", checklist_step: 1.5 }, expect: refused(/whole number/) },
 ];
@@ -290,6 +299,39 @@ async function orchestration() {
   }
 }
 
+// ---------------------------------------------------------------- 6. the schedule agent over P6 (lib/pm), on copies
+async function scheduleAgent() {
+  const X = await import("../lib/pm/xer"), C = await import("../lib/pm/cpm"), M = await import("../lib/pm/api"), S = await import("../lib/site/api");
+  const D = db.data.meta.dataDate;
+  // an XER written and read back gives the same programme: same activities, same logic, same finish
+  const back = X.readXer(X.writeXer(db.data.schedule, { projectCode: "FUZZ", dataDate: D }));
+  if (back.activities.length !== db.data.schedule.length) fail("(xer)", null, `${db.data.schedule.length} activities written, ${back.activities.length} read`);
+  const f0 = C.cpm(C.network(db.data.schedule, D)).finish, f1 = C.cpm(C.network(back.activities, back.dataDate)).finish;
+  if (f0 !== f1) fail("(xer)", null, `the finish changed through an XER: ${f0} → ${f1}`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(back.dataDate)) fail("(xer)", null, `data date ${back.dataDate}`);
+  try { X.readXer("hello"); fail("(xer)", null, "a file that isn't an XER was read"); } catch { /* refused, as it should */ }
+  // approving a recovery option: completion comes earlier, the change is queued for P6, and it survives the roll
+  const copy = structuredClone(db), pc0 = completionDate(copy.data);
+  const rec = S.siteActions(copy).find((a) => a.kind === "recovery_option");
+  if (!rec) fail("(recovery)", null, "no recovery option proposed with negative float");
+  else {
+    S.decideSite(copy, { actionId: rec.id, decision: "approved" }, director, "web");
+    if (!(completionDate(copy.data) < pc0)) fail("(recovery)", null, `approving ${rec.id} left completion at ${completionDate(copy.data)}`);
+    if (!copy.p6Outbox?.some((c) => c.from === rec.id && c.status === "pending")) fail("(recovery)", null, "the approved change was not queued for P6");
+    const { rollToToday } = await import("../lib/data");
+    const c2 = structuredClone(copy.data); c2.meta.dataDate = "1970-01-01";
+    const fresh = rollToToday(c2, D);
+    if (fresh && completionDate(fresh) !== completionDate(copy.data)) fail("(recovery)", null, `after the roll completion is ${completionDate(fresh)}, was ${completionDate(copy.data)}`);
+  }
+  // importing an XER keeps the current programme as the previous update, and the comparison sees the difference
+  const imp = structuredClone(db), x = X.readXer(X.writeXer(imp.data.schedule.map((a) => (a.id === "TA-TC" ? { ...a, finish: C.plus(a.finish, 20) } : a)), { projectCode: "FUZZ", dataDate: D }));
+  M.importProgramme(imp, { activities: x.activities, dataDate: D, kind: "xer", name: "FUZZ (XER)" });
+  // same data date: the previous snapshot is kept but not compared (an update compares against an earlier one)
+  if ((imp.scheduleSnapshots?.length ?? 0) < 1) fail("(import)", null, "no snapshot kept on import");
+  if (!imp.data.meta.fixed) fail("(import)", null, "an imported programme still moves with the calendar");
+  if (imp.data.schedule.filter((a) => a.locationId !== "site").length < imp.data.schedule.length * 0.5) fail("(import)", null, "most imported activities have no place on the site");
+}
+
 async function main() {
   const t0 = Date.now();
   for (const k of KNOWN) {
@@ -298,6 +340,7 @@ async function main() {
     if (why) fail(k.tool, k.input, why);
   }
   await orchestration();
+  await scheduleAgent();
   for (const d of DEFS) {
     const s = d.input_schema as S;
     await call(d.name, {});

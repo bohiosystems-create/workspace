@@ -5,7 +5,7 @@
 import type { MaterialRequest, Permit } from "../types";
 import type { RejectReason } from "../proposals";
 
-export type SiteKind = "expedite" | "resequence" | "recover" | "stock_mr" | "approve_mr" | "permit_close" | "permit_chase" | "ncr_escalate";
+export type SiteKind = "expedite" | "resequence" | "recover" | "stock_mr" | "approve_mr" | "permit_close" | "permit_chase" | "ncr_escalate" | "recovery_option" | "p6_progress";
 
 /** A change to the project data. `sticky` patches hold across days; the others only on the day decided (the demo's
  *  rolling records — permits, NCR due dates, the demo requests — are rebuilt each day). */
@@ -15,7 +15,11 @@ export type SitePatch =
   | { t: "mr_status"; id: string; status: MaterialRequest["status"] }
   | { t: "mr_add"; mr: MaterialRequest }
   | { t: "package_note"; id: string; text: string }
-  | { t: "ncr_due"; id: string; due: string };
+  | { t: "ncr_due"; id: string; due: string }
+  // the programme's logic (lib/pm): a remaining duration, a relationship's type and lag; then reschedule by the critical path
+  | { t: "duration"; id: string; remaining: number }
+  | { t: "rel"; id: string; pred: string; type: "FS" | "SS" | "FF" | "SF"; lag: number }
+  | { t: "recalc" };
 
 export interface SiteAction {
   id: string; domain: "site"; kind: SiteKind;
@@ -32,6 +36,8 @@ export interface SiteAction {
   /** the instruction left on the site plan when approved */
   instruction?: string;
   targets: { activityId?: string; packageId?: string; permitId?: string; mrId?: string; ncrId?: string };
+  /** the changes queued for Primavera P6 when approved (lib/pm/p6.ts) */
+  p6?: { activityId: string; kind: "progress" | "duration" | "relationship"; fields: Record<string, string | number>; reason: string }[];
 }
 
 export interface SiteDecision {

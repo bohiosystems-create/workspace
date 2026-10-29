@@ -8,6 +8,7 @@ import UploadSheet from "./_components/UploadSheet";
 import DocViewer from "./_components/DocViewer";
 import DocsTab from "./_components/DocsTab";
 import ProjectTab from "./_components/ProjectTab";
+import ScheduleAgent from "./_components/ScheduleAgent";
 import { NewProject, ProjectHome, ProjectView } from "./_components/Projects";
 import Reports from "./_components/Reports";
 import Readiness from "./_components/Readiness";
@@ -25,7 +26,7 @@ import { BOHIO_LOOK, HAS_OPERATIONS } from "@/lib/edition";
 // Optional official logo (e.g. /brand/kinan-logo.svg placed in public/) — set by Kinan's team.
 const LOGO = process.env.NEXT_PUBLIC_BRAND_LOGO || "";
 
-type Tab = "map" | "project" | "docs";
+type Tab = "map" | "project" | "p6" | "docs";
 /** home = project list · site = the live Kinan Heights app · new = create from documents · p:<id> = a generated project
  *  · reports = the scheduled daily status e-mail */
 type Screen = "today" | "home" | "site" | "new" | "reports" | "ready" | "people" | "fm" | `p:${string}` | `fm:${string}`;
@@ -162,8 +163,8 @@ export default function Home() {
         </> : <>
         <button className={screen === "today" ? "on" : ""} onClick={() => setScreen("today")}><Icon name="check" /><Tl full="Today" short="Today" /></button>
         <button className={screen === "home" ? "on" : ""} onClick={() => setScreen("home")}><Icon name="grid" /><Tl full="Projects" short="Projects" /></button>
-        {screen === "site" && ([["map", "Site map", "Map", "map"], ["project", "Project schedule", "Schedule", "chart"], ["docs", "Documents", "Docs", "folder"]] as const).map(([id, label, short, icon]) => (
-          <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project") setProjKey((k) => k + 1); }}><Icon name={icon} /><Tl full={label} short={short} /></button>
+        {screen === "site" && ([["map", "Site map", "Map", "map"], ["project", "Project schedule", "Schedule", "chart"], ["p6", "Schedule agent", "Agent", "layers"], ["docs", "Documents", "Docs", "folder"]] as const).map(([id, label, short, icon]) => (
+          <button key={id} className={tab === id ? "on" : ""} onClick={() => { setTab(id); if (id === "project" || id === "p6") setProjKey((k) => k + 1); }}><Icon name={icon} /><Tl full={label} short={short} /></button>
         ))}
         {screen === "new" && <button className="on"><Icon name="plus" /><Tl full="New project" short="New" /></button>}
         {gen && <button className="on"><Icon name="cube" /><Tl full={gen.result.spec.name} short={gen.result.spec.name.replace(/^Kinan\s+/i, "")} /></button>}
@@ -260,6 +261,10 @@ export default function Home() {
             <ProjectTab locations={locs} refreshKey={projKey} onSelectLocation={selectLocation} onOpenDoc={setViewerId} />
           </section>
   
+          <section className={"pane" + (tab === "p6" ? "" : " off")}>
+            {tab === "p6" && <ScheduleAgent refreshKey={projKey} />}
+          </section>
+
           <section className={"pane" + (tab === "docs" ? "" : " off")}>
             <DocsTab docs={docs} locations={locs} notes={notes} onOpen={setViewerId} onToggleNote={toggleNote} onSelectLocation={selectLocation} />
           </section>

@@ -5,8 +5,10 @@ import { canApprove, type Person } from "../auth/people";
 import { closedIds, isReason, learnedDoubts, type DecisionLike, type RejectReason } from "../proposals";
 import { proposeSite } from "./orchestrator";
 import { completionDate, moveActivity } from "../core/updates";
-import { guard, shot } from "../core/invariants";
 import { daysBetween } from "../data/util";
+import { checkProgramme, guard, shot } from "../core/invariants";
+import { reschedule } from "../pm/cpm";
+import { queueChange } from "../pm/p6";
 import type { SiteAction, SiteDecision, SitePatch } from "./types";
 
 export const siteDecisionsLike = (data: ProjectData): DecisionLike[] =>
@@ -27,6 +29,16 @@ function applyPatch(data: ProjectData, p: SitePatch) {
     case "mr_add": if (!data.procurement.requests.some((x) => x.id === p.mr.id)) data.procurement.requests.push(structuredClone(p.mr)); break;
     case "package_note": { const k = data.procurement.packages.find((x) => x.id === p.id); if (k && !k.notes.includes(p.text)) k.notes = `${p.text} ${k.notes}`; break; }
     case "ncr_due": { const n = data.quality.ncrs.find((x) => x.id === p.id); if (n) n.due = p.due; break; }
+    case "duration": { const a = data.schedule.find((x) => x.id === p.id); if (a && a.status !== "completed") a.remaining = p.remaining; break; }
+    case "rel": {
+      const a = data.schedule.find((x) => x.id === p.id); if (!a) break;
+      const rels = (a.rels ??= a.predecessors.map((id) => ({ id, type: "FS" as const, lag: 0 })));
+      const r = rels.find((x) => x.id === p.pred);
+      if (r) { r.type = p.type; r.lag = p.lag; } else rels.push({ id: p.pred, type: p.type, lag: p.lag });
+      if (!a.predecessors.includes(p.pred)) a.predecessors.push(p.pred);
+      break;
+    }
+    case "recalc": reschedule(data.schedule, data.meta.dataDate); break;
   }
 }
 /** After the daily roll rebuilds the demo data: an approved change comes back, every day — a closed permit stays closed,
@@ -52,7 +64,11 @@ export function decideSite(db: Db, b: SiteDecideInput, user: Person | null | und
   const pcBefore = completionDate(db.data), rules = shot(db.data);
   if (b.decision === "approved") {
     for (const p of a.patches) applyPatch(db.data, p);
-    guard(`approving ${a.id}`, db.data, rules);
+    // a change to the logic is rescheduled by the critical path: work may come earlier, links may overlap — only each
+    // activity's own rules apply then
+    if (a.patches.some((p) => p.t === "recalc")) { const bad = checkProgramme(db.data); if (bad.length) console.error(`[programme rules] after approving ${a.id}: ${bad.slice(0, 5).join("; ")}`); }
+    else guard(`approving ${a.id}`, db.data, rules);
+    for (const c of a.p6 ?? []) queueChange(db, { ...c, by: user!.name, from: a.id });
     if (a.instruction) {
       const n: Note = { id: `n_${Math.random().toString(16).slice(2, 12)}`, createdAt: at, status: "open", kind: "instruction", author: user!.name, via: "agent",
         text: `${a.instruction}${a.owner ? ` — action: ${a.owner}` : ""} (approved by ${user!.name})`, ...(a.locationId ? { locationId: a.locationId } : {}) };
@@ -61,6 +77,6 @@ export function decideSite(db: Db, b: SiteDecideInput, user: Person | null | und
   }
   // what it did to practical completion, when it moved the programme
   const pcAfter = completionDate(db.data), moved = daysBetween(pcBefore, pcAfter);
-  const pc = a.patches.some((p) => p.t === "activity") && b.decision === "approved" ? ` Practical completion ${moved ? `moves ${moved > 0 ? "+" : ""}${moved} days to ${pcAfter}` : `unchanged (${pcAfter})`}.` : "";
-  return { message: b.decision === "approved" ? `Done: ${a.title}.${a.owner ? ` ${a.owner} has the instruction.` : ""}${pc}` : `Rejected: ${a.title}. The orchestrator will take that into account.`, decision: dec };
+  const pc = a.patches.some((p) => p.t === "activity" || p.t === "recalc") && b.decision === "approved" ? ` Practical completion ${moved ? `moves ${moved > 0 ? "+" : ""}${moved} days to ${pcAfter}` : `unchanged (${pcAfter})`}.` : "";
+  return { message: b.decision === "approved" ? `Done: ${a.title}.${a.owner ? ` ${a.owner} has the instruction.` : ""}${pc}${a.p6?.length ? ` ${a.p6.length} change${a.p6.length > 1 ? "s" : ""} queued for P6.` : ""}` : `Rejected: ${a.title}. The orchestrator will take that into account.`, decision: dec };
 }

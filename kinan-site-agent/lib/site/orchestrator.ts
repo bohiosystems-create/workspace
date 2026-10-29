@@ -7,12 +7,17 @@ import type { Activity, Db, MaterialRequest } from "../types";
 import { addDays, daysBetween, localClock, permitState } from "../data/util";
 import { doubtLine } from "../proposals";
 import { completionDate, moveActivity } from "../core/updates";
+import { recoveryOptions } from "../pm/recovery";
+import { completionOf } from "../pm/cpm";
+import { fieldCheck } from "../pm/compare";
+import { progressChange } from "../pm/p6";
 import type { SiteAction, SiteKind } from "./types";
 
 export const SITE_KIND_LABEL: Record<SiteKind, string> = {
   expedite: "expedite a package", resequence: "resequence around a late delivery", recover: "recover a slipping activity",
   stock_mr: "raise a material request", approve_mr: "approve a material request", permit_close: "close an expired permit",
   permit_chase: "chase a permit", ncr_escalate: "escalate an overdue NCR",
+  recovery_option: "change the programme's logic to recover", p6_progress: "put site progress in P6",
 };
 /** Night-shift cost assumption for recovery proposals (crew of ~25 on overtime, plant and lighting), SAR per night. */
 export const NIGHT_SHIFT_SAR = 6_500;
@@ -130,6 +135,38 @@ export function proposeSite(db: Db, learned: SiteLearned, now = new Date()): Sit
       why: [`${n.severity}: ${n.title}`, `Close-out was due ${fmt(n.due)}`, `Disposition: ${n.disposition}`.slice(0, 140)], risk: "low", owner: pm?.name ?? n.contractor, party: n.contractor, locationId: n.locationId, targets: { ncrId: n.id },
       patches: [{ t: "ncr_due", id: n.id, due: addDays(date, n.severity === "Major" ? 3 : 7) }],
       instruction: `${n.id} escalated to ${pm?.name ?? n.contractor}: close out by ${fmt(addDays(date, n.severity === "Major" ? 3 : 7))} (${n.severity}, ${over} days overdue).` });
+  }
+
+  // 7. The programme can't make its contract date: recovery options on the critical path, each tried on the network
+  //    (lib/pm/recovery.ts). Those in the recommended plan first; approving one changes the logic, reschedules, and
+  //    queues the change for P6.
+  const planner = contact(/planning|planner/i)?.name ?? contact(/project manager/i, /bunyan/i)?.name ?? "Planning";
+  const rec = recoveryOptions(d.schedule, date, completionOf(d.schedule));
+  if (rec.negativeFloat > 0) {
+    const inPlan = new Set(rec.plan.ids);
+    for (const o of [...rec.options.filter((x) => inPlan.has(x.id)), ...rec.options.filter((x) => !inPlan.has(x.id)).slice(0, 2)]) {
+      const a = act.get(o.activityId);
+      const patches: SiteAction["patches"] = [...(o.change.duration ? [{ t: "duration" as const, id: o.change.duration.id, remaining: o.change.duration.remaining }] : []),
+        ...(o.change.rel ? [{ t: "rel" as const, id: o.change.rel.succ, pred: o.change.rel.pred, type: o.change.rel.type, lag: o.change.rel.lag }] : []), { t: "recalc" as const }];
+      push({ id: `recovery:${o.id}`, domain: "site", kind: "recovery_option", title: `${o.title} — ${o.saves} day${o.saves > 1 ? "s" : ""} back`,
+        why: [o.detail, `Practical completion is ${rec.negativeFloat} days past the contract date; tried on the programme's logic, this brings it forward ${o.saves} days`,
+          inPlan.has(o.id) ? `Part of the recommended plan (${rec.plan.ids.length} change${rec.plan.ids.length > 1 ? "s" : ""}, ${rec.plan.saves} days, ${sar(rec.plan.cost)})` : "An alternative to the recommended plan",
+          o.cost ? `About ${sar(o.cost)} (estimate)` : o.kind === "overlap" ? "No direct cost: a coordination and rework risk" : "No direct cost: needs the inspection or curing period confirmed shorter"],
+        risk: o.risk, ...(o.cost ? { cost: o.cost, costNote: "crew-days (estimate)" } : {}), owner: planner, ...(a?.contractor ? { party: a.contractor } : {}), locationId: a?.locationId, targets: { activityId: o.activityId },
+        patches, instruction: `Recovery approved: ${o.title}. Update P6 (queued in the P6 outbox) and brief ${a?.contractor || "the contractor"}.`,
+        p6: [o.change.duration ? { activityId: o.activityId, kind: "duration" as const, fields: { RemainingDuration: o.change.duration.remaining }, reason: o.title }
+          : { activityId: o.change.rel!.succ, kind: "relationship" as const, fields: { PredecessorActivityId: o.change.rel!.pred, Type: o.change.rel!.type, Lag: o.change.rel!.lag }, reason: o.title }] });
+    }
+  }
+
+  // 8. What the site reported that P6 doesn't show (lib/pm/compare.ts): put it in P6.
+  for (const g of fieldCheck(db, d.schedule)) {
+    const a = act.get(g.id); if (!a) continue;
+    const ch = progressChange(a, g.site, date);
+    push({ id: `p6_progress:${g.id}:${g.site.date}:${g.site.state}:${g.site.percent ?? ""}`, domain: "site", kind: "p6_progress", title: `Put ${g.id} in P6 as the site reported it (${g.site.state === "completed" ? "finished" : g.site.state === "pending" ? "blocked" : `${g.site.percent ?? "?"} %`})`,
+      why: [g.text, `Reported by ${g.site.by}${g.site.photos ? ` with ${g.site.photos} photo${g.site.photos > 1 ? "s" : ""}` : ""}`, `P6 gets: ${Object.entries(ch.fields).map(([k, v]) => `${k} ${v}`).join(", ")}`],
+      risk: a.critical ? "medium" : "low", owner: planner, locationId: a.locationId, targets: { activityId: a.id }, patches: [],
+      p6: [{ ...ch, reason: `Site report ${g.site.date} (${g.site.by})` }] });
   }
 
   const doubt = (a: SiteAction) => learned.doubts?.get(`site|${a.kind}`);

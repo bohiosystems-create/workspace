@@ -1,5 +1,6 @@
 import type { Activity } from "../types";
 import { DATA_DATE, addDays, daysBetween, int, rng } from "./util";
+import { logicise } from "../pm/logic";
 
 /**
  * Level-3 construction programme for Kinan Heights (~540 activities).
@@ -175,4 +176,6 @@ act({ id: "IN-090", name: "NWC water connection & SEC permanent supply agreement
 ms("M-900", "Civil Defense final inspection — whole development", "9.1", "site", "2028-05-20", "2028-04-20", ["TA-M20", "TB-M20", "HC-M20"]);
 ms("M-990", "Practical completion — Kinan Heights", "9.2", "site", "2028-07-31", "2028-06-30", ["M-900"]);
 
-export const SCHEDULE: Activity[] = out;
+// the logic a planner's P6 programme carries (relationship types, lags, the contract-date constraint), and float and
+// the critical path from it (lib/pm/logic.ts)
+export const SCHEDULE: Activity[] = logicise(out, DATA_DATE);

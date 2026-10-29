@@ -90,6 +90,10 @@ export interface Db {
   fmConfig?: import("./fm/types").FmConfig;
   /** what the northbound integrations sent to customer systems (work orders, Teams, email, webhooks), newest last */
   integrationLog?: { id: string; at: string; target: string; what: string; ok: boolean; note: string; facilityId?: string; ref?: string; /** our record it is about (a work order id) */ subject?: string }[];
+  /** the programme as it stood at each import or sync from P6 (newest last, a few kept): what changed between updates */
+  scheduleSnapshots?: import("./pm/compare").Snapshot[];
+  /** changes waiting to go back to P6: field progress, approved recovery changes (lib/pm/p6.ts) */
+  p6Outbox?: import("./pm/p6").P6Change[];
   /** the last change the northbound integrations have handled (lib/integrations/outbound.ts) */
   outboundCursor?: { id: string; at: string };
   /** People added or changed by an admin (lib/auth/people.ts): role, approval limits, facility. */
@@ -114,6 +118,15 @@ export interface Activity {
   totalFloat: number;      // days
   predecessors: string[];
   milestone?: boolean;
+  /** the logic as P6 has it (an XER import or the P6 API): relationship type and lag in days per predecessor; when
+   *  absent, every predecessor is finish-to-start with no lag (lib/pm/net.ts) */
+  rels?: { id: string; type: "FS" | "SS" | "FF" | "SF"; lag: number }[];
+  /** a date constraint from P6: start no earlier than, finish no later than, must start/finish on */
+  constraint?: { type: "SNET" | "SNLT" | "FNET" | "FNLT" | "MSO" | "MFO"; date: string };
+  /** the activity's remaining duration in P6 (days), when it differs from what its dates give */
+  remaining?: number;
+  /** the activity's identity in P6, for writing back */
+  p6?: { taskId?: string; objectId?: string };
 }
 
 export interface DrawingSheet {
@@ -205,6 +218,10 @@ export interface ProjectData {
   updates?: ProgressUpdate[];
   /** Decisions on the construction proposals (lib/site), with the changes they made — kept across the daily roll. */
   decisions?: import("./site/types").SiteDecision[];
+  /** the demo's site reports of the last day, not yet in P6 (lib/data rebuilds them each day; real reports are in updates) */
+  siteReports?: ProgressUpdate[];
+  /** where the programme comes from (P6 by XER, the P6 API, a CSV export) and when it was last read */
+  programmeSource?: { kind: "xer" | "p6-api" | "csv" | "demo"; name?: string; at: string; projectId?: string };
 }
 
 /** One progress report on an activity, with the photos sent as evidence. */

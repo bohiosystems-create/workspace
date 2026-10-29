@@ -27,6 +27,7 @@ export function rebase(d: ProjectData, date: string): ProjectData {
     else if (a.start > date) { a.percent = 0; a.status = "not_started"; }
     else { const tot = Math.max(1, daysBetween(a.start, a.finish)); a.percent = Math.min(99, Math.max(1, Math.round((daysBetween(a.start, date) / tot) * 100))); a.status = "in_progress"; }
   }
+  d.siteReports = demoSiteReports(d, date);
   if (!k) return alignDelayed(d);
   const sh = (x: string) => (x ? addDays(x.slice(0, 10), k) + x.slice(10) : x);
   const pr = d.procurement;
@@ -43,6 +44,22 @@ export function rebase(d: ProjectData, date: string): ProjectData {
   for (const key of ["lastDrill", "nextDrill"]) if (typeof st[key] === "string") st[key] = sh(String(st[key]));
   for (const x of d.quality.ncrs) { x.raised = sh(x.raised); if (x.due) x.due = sh(x.due); }
   return alignDelayed(d);
+}
+
+/** The demo's site reports of the last day — WhatsApp messages and photos from the foremen that P6 doesn't have yet:
+ *  one behind what P6 claims, one blocked, one ahead, one started that P6 shows not started (lib/pm/compare.ts). */
+function demoSiteReports(d: ProjectData, date: string): NonNullable<ProjectData["siteReports"]> {
+  const prog = d.schedule.filter((a) => a.status === "in_progress" && !a.milestone && a.percent >= 30 && a.percent <= 85).sort((a, b) => a.totalFloat - b.totalFloat || a.id.localeCompare(b.id));
+  const soon = d.schedule.filter((a) => a.status === "not_started" && !a.milestone && daysBetween(date, a.start) >= 1 && daysBetween(date, a.start) <= 6).sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
+  const at = (h: number) => `${addDays(date, -1)}T${String(h).padStart(2, "0")}:20:00.000Z`;
+  const out: NonNullable<ProjectData["siteReports"]> = [];
+  const R = (n: number, a: (typeof prog)[number] | undefined, state: "in_progress" | "pending" | "completed", percent: number | undefined, by: string, note: string, photos: number, h: number) =>
+    a && out.push({ id: `sr-${date}-${n}`, activityId: a.id, at: at(h), date: addDays(date, -1), by, channel: "whatsapp", state, ...(percent !== undefined ? { percent } : {}), note, evidence: Array.from({ length: photos }, (_, i) => `photo-${a.id}-${i + 1}`), before: { status: a.status, percent: a.percent, start: a.start, finish: a.finish } });
+  R(1, prog[0], "in_progress", prog[0] ? Math.max(5, prog[0].percent - 25) : 0, "Foreman, Al-Bunyan", "Half the crew moved to the podium today; this floor is behind.", 3, 9);
+  R(2, prog[1], "pending", prog[1]?.percent, "Section engineer", "Stopped: waiting for the revised drawings (RFI still open).", 2, 11);
+  R(3, prog[2], "in_progress", prog[2] ? Math.min(99, prog[2].percent + 20) : 0, "Site engineer", "Second crew added this week, ahead of the programme.", 4, 13);
+  R(4, soon[0], "in_progress", 10, "Foreman, Al-Bunyan", "Started early — formwork in place.", 2, 15);
+  return out;
 }
 
 /** A delayed delivery is booked for the date its package is now forecast on site — not its old slot (the look-ahead,
@@ -79,7 +96,9 @@ function baseData(): ProjectData {
  * the purchasing system — is kept as it is. Material requests raised by the team are kept. Returns true if it changed.
  */
 export function rollToToday(data: ProjectData, date = currentDataDate()): ProjectData | null {
-  if (data.meta.fixed || data.meta.dataDate === date) return null;
+  // demo data saved before the programme carried its logic (lib/pm) is rebuilt the same day, not the next
+  const stale = !data.schedule.some((a) => a.rels);
+  if (data.meta.fixed || (data.meta.dataDate === date && !stale)) return null;
   const fresh = buildProjectData(date);
   const demoIds = new Set(fresh.procurement.requests.map((r) => r.id));
   if (data.procurement.source !== "demo") fresh.procurement = data.procurement;

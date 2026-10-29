@@ -402,6 +402,32 @@ curl -X POST "https://siteagent.kinan.example/api/import?type=schedule&dataDate=
 ```
 This **replaces** the programme. If there is no `Location` column, the place is inferred from the start of the activity name ("Tower A L13 …"). The response tells you how many activities couldn't be mapped. Re-import weekly after each schedule update. See `samples/schedule-p6-export.csv`.
 
+### 8.1a The schedule agent over Primavera P6
+The **Schedule agent** tab (Project management → the project → *Schedule agent*) and the agent's tools `schedule_agent` / `schedule_whatif` sit on top of the P6 programme. They work on the programme's own logic (FS/SS/FF/SF relationships with lags, constraints), not on its dates alone:
+
+| What | How |
+|---|---|
+| **When it finishes** | P6's date; the critical path recalculated on today's progress (forward/backward pass from the data date); earned schedule — SPI(t), the date at the pace so far and if the rest goes to plan; S-curve planned vs earned |
+| **Can the programme be trusted** | DCMA 14-point check (logic, leads, lags, relationship types, hard constraints, high/negative float, long durations, invalid dates, resources, missed tasks, critical path test, CPLI, BEI), with the activities behind each failure |
+| **What changed in the update** | Each import is kept (the last six); the next is compared: completion moved, critical slips, durations cut without progress (recovery on paper), relationships deleted, baselines changed, constraints added, activities added or deleted |
+| **Site vs P6** | Progress reported from site (WhatsApp, photos, the field app) against P6: P6 complete but the site says open, finished on site but not in P6, % apart by 15 or more, blocked, started early. Each becomes a proposal *Put in P6* |
+| **Recovery** | Options on the critical path, each tried on the network before it is proposed (a near-critical path can eat the gain): crash (a second crew: a quarter off the remaining duration, at a cost), overlap (FS → SS at 60 %), challenge a long lag. Then the cheapest combination that recovers the negative float. Each is a proposal (`recovery_option`): approving changes the logic here, reschedules, and queues the change for P6 |
+| **What-if** | Any activity, ± days: how far completion and the milestones move, and its float. Nothing saved |
+
+**Bringing the programme in.** In the tab, *Import XER* (P6: File → Export → Primavera PM, XER) — a manager or above. Or by script:
+```bash
+curl -X POST "https://siteagent.example/api/import?type=xer" -H "Authorization: Bearer $IMPORT_SECRET" --data-binary @update.xer
+```
+The current programme becomes the previous update; the data date comes from the XER; the demo stops moving with the calendar. Places are inferred from activity names, as for the CSV import.
+
+**Getting changes back into P6.** Nothing reaches P6 without a person: progress goes in when someone presses *Put in P6* (or approves the proposal), recovery changes when a manager approves them. They wait in the **P6 outbox**:
+- *Download XER* — the whole programme as it now stands, for File → Import → *update existing project*. Try the first one on a copy of the project.
+- *Download CSV* — the changes, one row each (activity, % complete, actual dates, remaining duration, suspend date, relationship and lag), for the planner.
+- *Send to P6* — with the P6 EPPM REST API connected: set `P6` to `{"url":"https://p6.example.com","user":"…","password":"…","projectObjectId":"4711","database":"PMDB"}`. *Read from P6* then loads activities and relationships (`/p6ws/restapi/activity`, `/relationship`); *Send to P6* writes progress and remaining durations (PUT `/activity`) and relationship type/lag (PUT or POST `/relationship`). Durations are converted at 8 h a day. **Built to Oracle's published REST reference and not yet run against a live P6** — test on a copy of the project, with a P6 user limited to it.
+- *Mark entered* — after the planner has keyed in or imported the changes by hand.
+
+The calendar is simplified to calendar days (the same for every scenario, so what a change *does* — the difference between two runs — is right; absolute dates can differ from P6's working-day calendars by a few days). P6's own date is shown alongside.
+
 ### 8.2 Drawing register
 Export from document control (Aconex, ACC, Procore, SharePoint…) and upload. This **upserts** by sheet number and keeps revision history:
 ```bash
@@ -753,7 +779,8 @@ Two packs of fictional documents ship with the app under `public/samples/` (serv
 | `SAP_*` | — | §7.1 |
 | `ORACLE_*` | — | §7.2 |
 | `PROCUREMENT_REST_*` | — | §7.3 |
-| `IMPORT_SECRET` | — | Bearer secret for CSV imports |
+| `IMPORT_SECRET` | — | Bearer secret for CSV and XER imports |
+| `P6` | — | Primavera P6 EPPM REST API, JSON `{"url","user","password","projectObjectId","database"}` (§8.1a) |
 | `KINAN_DATA_DIR` | `./data` (`/data` in Docker) | Database, uploads, WhatsApp sessions (own server) |
 | `BLOB_READ_WRITE_TOKEN` | set by Vercel | Use Vercel Blob (private) for all data |
 | `BLOB_PREFIX` | `kinan/` | Folder inside the Blob store |

@@ -129,6 +129,29 @@ async function handle(method: string, url: URL, init?: RequestInit): Promise<Res
       return json({ ok: true, message: r.message });
     } catch (e) { return json({ error: (e as Error).message }, 400); }
   }
+  // the schedule agent over P6 (lib/pm): the same engine; no P6 API from a page — import an XER, download the changes
+  if (p === "/api/pm") {
+    const M = await import("../lib/pm/api"), X = await import("../lib/pm/xer"), P6 = await import("../lib/pm/p6"), R = await import("../lib/pm/recovery");
+    try {
+      const ex = url.searchParams.get("export");
+      if (method === "GET" && ex === "xer") return new Response(X.writeXer(db.data.schedule, { projectCode: "KINAN-HEIGHTS", dataDate: db.data.meta.dataDate }), { headers: { "content-type": "text/plain" } });
+      if (method === "GET" && ex === "csv") return new Response(P6.outboxCsv(db.p6Outbox ?? []), { headers: { "content-type": "text/csv" } });
+      if (method === "GET") return json(M.programmeState(db));
+      const manager = () => { if (!me || !["manager", "director", "admin"].includes(me.role)) throw new Error("Only a manager (or above) can change the programme or what goes to P6 — sign in first."); };
+      if (url.searchParams.get("import") === "xer") {
+        manager();
+        const x = X.readXer(String(init?.body ?? ""), url.searchParams.get("project") ?? undefined);
+        const r = M.importProgramme(db, { activities: x.activities, dataDate: x.dataDate, kind: "xer", name: `${x.code} (XER, ${x.dataDate})`, projectId: x.id });
+        repo.save();
+        return json({ ok: true, ...r, warnings: x.warnings });
+      }
+      const b = await body();
+      if (b.op === "whatif") return json(R.whatIf(db.data.schedule, db.data.meta.dataDate, String(b.activityId ?? "").trim().toUpperCase(), Math.max(-365, Math.min(365, Math.round(Number(b.days) || 0)))));
+      manager();
+      if (b.op === "mark") { const ids = new Set<string>(b.ids ?? []); for (const x of db.p6Outbox ?? []) if (ids.has(x.id)) { x.status = b.status === "pending" ? "pending" : "sent"; x.note = x.status === "sent" ? `Marked in P6 by ${me!.name}` : undefined; } repo.save(); return json({ ok: true }); }
+      return json({ error: "The P6 API needs the server. Import an XER and download the changes instead." }, 400);
+    } catch (e) { return json({ error: (e as Error).message }, 400); }
+  }
   // facility management: the same engine and orchestrator, over this page's own copy of the data
   if (p === "/api/fm") {
     if (!(await import("../lib/edition")).HAS_OPERATIONS) return json({ error: "Facility operations are not part of this edition." }, 404);
