@@ -1,5 +1,6 @@
 // Facility management operations, shared by the API route, the AI agent's tools, WhatsApp and the standalone page.
 // Reads build today's picture (engine.fmToday); writes append events to db.fmLog (the caller saves the database).
+import { inspectionPlan, missionFit } from "../robots/inspection";
 import { CATEGORY_LABEL, complaintInsights, makeComplaint } from "./complaints";
 import { predictions } from "./predict";
 import { scoreJobs, teamPlan } from "./priority";
@@ -85,6 +86,8 @@ export function facilityState(db: Db, facilityId: string) {
     exceptions: exceptions(db, d, facilityId),
     // the agentic layer: what is heading for its limit, the team's priorities and plan, tenants' complaints
     predictions: predictions(d, facilityId),
+    // the inspection plan from the robotics reviews (lib/robots/inspection.ts): each surface, its method and robot
+    inspection: inspectionPlan(d, facilityId),
     jobScores: scoreJobs(d, facilityId),
     teamPlan: teamPlan(d, facilityId),
     complaints: d.complaints.filter((c) => c.facilityId === facilityId).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 60),
@@ -335,7 +338,10 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       const asset = hit?.asset;
       const zone = d.zones.find((z) => z.facilityId === r.facilityId && (z.id === b.zone || z.name.toLowerCase() === String(b.zone ?? "").toLowerCase() || z.name === asset?.zone));
       if (!zone) throw new Error(`Where should ${r.name} go? Name an asset or one of: ${d.zones.filter((z) => z.facilityId === r.facilityId).map((z) => z.name).join(", ")}.`);
-      if (!robotMayEnter(r, zone)) throw new Error(`${whyNot(r, zone)}. ${zone.indoor ? "Send a ground robot." : "Send an Ex-rated robot."}`);
+      // a robot without Ex certification may still go inside a vessel or pipe that is isolated and gas-freed: for a job
+      // whose gas test is clear (the inside is then not a hazardous atmosphere — the reviews' caged drone and in-pipe crawlers)
+      const gasFree = !!b.woId && d.workOrders.find((w) => w.id === b.woId)?.gasTest?.status === "done" && (b.missionKind === "internal_inspection" || b.missionKind === "inline_inspection");
+      if (!robotMayEnter(r, zone) && !(gasFree && zone.atex !== null && !zone.indoor)) throw new Error(`${whyNot(r, zone)}. ${zone.indoor ? "Send a ground robot." : (b.missionKind === "internal_inspection" || b.missionKind === "inline_inspection") ? "Send an Ex-rated robot, or send it for a job whose gas test is clear (the vessel isolated and gas-freed)." : "Send an Ex-rated robot."}`);
       const kind: Mission["kind"] = b.missionKind ?? "inspection_round";
       // what its connection can be sent on (capabilities()): a job it can't do, or a robot planned in its maker's software
       const cap = adapterFor(r).capabilities(r);
@@ -348,11 +354,15 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       if (r.status === "on_mission" || d.missions.some((m) => m.robotId === r.id && (m.status === "running" || (m.status === "planned" && Math.abs(Date.parse(m.plannedStart) - Date.now()) < 30 * 60_000)))) throw new Error(`${r.name} is busy — on a mission or about to start one.`);
       const grounded = DOMAIN_OF[r.kind] === "air" ? dronesGrounded(d, r.facilityId, simNow(d.date)) : undefined;
       if (grounded) throw new Error(`${r.name} stays on the ground: an unidentified drone was reported at ${new Date(Date.parse(grounded.at) + 3 * 3600_000).toISOString().slice(11, 16)} (${grounded.text.toLowerCase()}). Air missions wait two hours or until security clears it.`);
+      // the asset's surface: whether this robot reaches it, holds on to it and carries a method that finds the damage
+      // there (lib/robots/inspection.ts) — a magnetic crawler can't climb stainless, a drone can't measure a wall
+      const ifit = asset ? missionFit(r, asset, kind) : null;
+      if (ifit && !ifit.ok) throw new Error(`${ifit.why}.`);
       const checks = (b.checks?.length ? b.checks : r.capabilities.filter((c) => c !== "lidar" && c !== "carry")) as Capability[];
       const missing = checks.filter((c) => !r.capabilities.includes(c));
       if (missing.length) throw new Error(`${r.name} has no ${missing.map((c) => CAPABILITY_LABEL[c]).join(", ")}.`);
       // as long as the job takes, but never more than the robot can run with a margin (a drone flies 35 minutes)
-      const dur = Math.max(10, Math.min(kind === "inspection_round" || kind === "security_patrol" || kind === "pipeline_patrol" ? 45 : kind === "thickness_survey" || kind === "subsea_inspection" ? 60 : 20, Math.floor(r.enduranceMin * 0.6)));
+      const dur = Math.max(10, Math.min(kind === "inspection_round" || kind === "security_patrol" || kind === "pipeline_patrol" ? 45 : kind === "thickness_survey" || kind === "subsea_inspection" || kind === "inline_inspection" || kind === "internal_inspection" ? 60 : 20, Math.floor(r.enduranceMin * 0.6)));
       if (r.battery < 25 + (90 * dur) / r.enduranceMin) throw new Error(`${r.name} has ${r.battery}% — not enough for a ${dur}-minute ${MISSION_LABEL[kind]}. It is charging.`);
       // a robot a person pilots goes with its pilot: qualified, on shift, free for the mission
       let pilot: Technician | undefined;
@@ -365,7 +375,7 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       const m: Mission = { id: `MS-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`, facilityId: r.facilityId, robotId: r.id, kind, title: `${MISSION_LABEL[kind][0].toUpperCase()}${MISSION_LABEL[kind].slice(1)} — ${asset ? `${asset.tag} ${asset.name}` : zone.name}`,
         waypoints: [{ zone: zone.id, ...(asset ? { assetId: asset.id } : {}), label: asset ? `${asset.tag} ${asset.name}` : zone.name, checks }], plannedStart: new Date(Date.now() + 60_000).toISOString(), durationMin: dur, status: "planned", by, source: channel === "whatsapp" ? "whatsapp" : channel === "field" ? "field" : "control", findings: [], ...(b.woId ? { woId: b.woId } : {}), ...(atc ? { note: `ATC clearance ${atc}` } : {}), ...(pilot ? { pilotId: pilot.id } : {}) };
       add({ kind: "mission_create", mission: m, summary: `${m.id}: ${r.name} — ${m.title}${atc ? ` (ATC clearance ${atc})` : ""}` });
-      return { ok: true, message: `${r.name} is on its way${pilot ? `, piloted by ${pilot.name}` : ""}: ${m.title} (${dur} min, ${checks.map((c) => CAPABILITY_LABEL[c]).join(", ")}). Mission ${m.id}.`, events: evs };
+      return { ok: true, message: `${r.name} is on its way${pilot ? `, piloted by ${pilot.name}` : ""}: ${m.title} (${dur} min, ${checks.map((c) => CAPABILITY_LABEL[c]).join(", ")}). Mission ${m.id}.${ifit?.cautions.length ? ` Note: ${ifit.cautions.join("; ")}.` : ""}`, events: evs };
     }
     case "mission_abort": {
       const m = d.missions.find((x) => x.id === b.missionId);

@@ -5,6 +5,7 @@
  * assets with live readings, alarms, the team (each with their own field app), spares and the activity log.
  * Everything reloads by itself when anything changes (WhatsApp, the field app, another user).
  */
+import { InspectionPanel } from "./Inspection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { facilityStateFor, overview } from "@/lib/fm/api";
 import type { Action, Asset, AutopilotPolicy, Reading, WorkOrder } from "@/lib/fm/types";
@@ -124,7 +125,7 @@ export function FacilityCards({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 // ======================================================================== control room
-type Tab = "orchestrator" | "plan" | "predictive" | "complaints" | "exceptions" | "rules" | "map" | "workforce" | "turnaround" | "work" | "assets" | "alarms" | "team" | "spares" | "activity" | "outcomes";
+type Tab = "orchestrator" | "plan" | "predictive" | "complaints" | "exceptions" | "rules" | "map" | "workforce" | "turnaround" | "work" | "assets" | "alarms" | "team" | "spares" | "activity" | "outcomes" | "inspection";
 export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facilityId: string; author: string; onBack: () => void; onSignIn: () => void }) {
   const [s, setS] = useState<FS | null>(null);
   const [tab, setTab] = useState<Tab>("orchestrator");
@@ -165,7 +166,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
   const open = s.workOrders.filter((w) => w.status !== "done");
   const live = s.findings.filter((x) => !x.woId && !x.acknowledged && (x.severity === "high" || x.severity === "critical")).length + s.securityAlerts.filter((a) => a.status === "open").length;
   const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ["plan", "Team plan"], ["predictive", "Predictive", s.predictions.filter((p) => p.risk !== "low").length], ["complaints", "Complaints", s.complaintInsights.open], ...(s.robots.length ? [["exceptions", "Exceptions", s.exceptions.length] as [Tab, string, number], ["rules", "Rules"] as [Tab, string]] : []), ...(s.zones.length ? [["map", s.facility.sector === "airport" ? "Airport map" : "Plant map", live] as [Tab, string, number]] : []),
-    ...(s.robots.length || s.crews.length ? [["workforce", "Workforce"] as [Tab, string]] : []), ...(s.turnarounds.length ? [["turnaround", "Turnaround"] as [Tab, string]] : []), ["work", "Work orders", open.length], ["assets", "Assets"], ["alarms", "Alarms", k.activeAlarms], ["team", "Team"], ["spares", "Spares", k.sparesLow], ["outcomes", "Outcomes"], ["activity", "Activity"]];
+    ...(s.robots.length || s.crews.length ? [["workforce", "Workforce"] as [Tab, string]] : []), ...(s.turnarounds.length ? [["turnaround", "Turnaround"] as [Tab, string]] : []), ...(s.inspection.length ? [["inspection", "Inspection", s.inspection.filter((r) => r.gap).length] as [Tab, string, number]] : []), ["work", "Work orders", open.length], ["assets", "Assets"], ["alarms", "Alarms", k.activeAlarms], ["team", "Team"], ["spares", "Spares", k.sparesLow], ["outcomes", "Outcomes"], ["activity", "Activity"]];
   const mine = s.actions.filter((a) => a.can.ok && a.risk === "low");
   const wo = woOpen ? s.workOrders.find((w) => w.id === woOpen) : undefined;
   const asset = assetOpen ? s.assets.find((a) => a.id === assetOpen) : undefined;
@@ -231,6 +232,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
       {tab === "exceptions" && <ExceptionsPanel s={s} onRobot={setRobotOpen} />}
       {tab === "rules" && <RulesPanel s={s} doit={doit} busy={busy} />}
       {tab === "turnaround" && <TurnaroundPanel s={s} onWo={setWoOpen} />}
+      {tab === "inspection" && <InspectionPanel s={s} onRobot={setRobotOpen} onAsset={setAssetOpen} />}
 
       {tab === "work" && <WorkList s={s} tag={tag} who={(id) => who(id)} doer={doer} onOpen={setWoOpen} />}
 

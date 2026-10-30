@@ -82,9 +82,9 @@ const MIN = 60_000;
 const SENSOR_WORDS: Record<Capability, string[]> = {
   visual: ["photos", "gauge reads"], thermal: ["thermal photos"], gas: ["gas readings"], acoustic: ["leak and bearing listening"], lidar: ["3D scans"],
   ut_thickness: ["wall-thickness readings"], layout: ["layout marking"], carry: ["carries loads"], intrusion: ["intrusion detection"], sonar: ["subsea sonar"],
-  manipulate: ["turns valves"], fod: ["debris detection"],
+  manipulate: ["turns valves"], fod: ["debris detection"], mfl: ["metal-loss maps (MFL)"], eddy_current: ["surface-crack scans (eddy current)"],
 };
-const MOVE_WORDS = { land: "patrols", air: "flies", sea: "sails", subsea: "dives", in_pipe: "travels inside pipes", climbing: "climbs steel" } as const;
+const MOVE_WORDS = { land: "patrols", air: "flies", sea: "sails", subsea: "dives", in_pipe: "travels inside pipes", climbing: "climbs steel", in_tank: "works inside tanks in service" } as const;
 
 /** What the robot itself can do: its sensors and tools, how it moves, the jobs those allow. */
 export function declaredCapabilities(r: Robot): RobotCapabilities {

@@ -9,21 +9,22 @@
 // same way and reports what it finds the same way; only its connection differs.
 
 /** What a robot can sense or do. */
-export type Capability = "visual" | "thermal" | "gas" | "acoustic" | "lidar" | "ut_thickness" | "layout" | "carry" | "intrusion" | "sonar" | "manipulate" | "fod";
+export type Capability = "visual" | "thermal" | "gas" | "acoustic" | "lidar" | "ut_thickness" | "layout" | "carry" | "intrusion" | "sonar" | "manipulate" | "fod" | "mfl" | "eddy_current";
 export const CAPABILITY_LABEL: Record<Capability, string> = {
   visual: "camera", thermal: "thermal camera", gas: "gas detection", acoustic: "acoustic (leaks, bearings)", lidar: "lidar scan",
   ut_thickness: "ultrasonic wall thickness", layout: "layout marking", carry: "carries loads", intrusion: "intrusion detection (people, vehicles, drones)",
   sonar: "sonar (subsea)", manipulate: "arm (turns valves, lifts)", fod: "debris detection (runways, taxiways)",
+  mfl: "magnetic flux leakage (metal loss)", eddy_current: "eddy current (surface cracks)",
 };
 
 /** Who controls a robot, in words. */
 export const CONTROL_LABEL: Record<"policy" | "supervised" | "remote", string> = { policy: "AI-controlled", supervised: "AI-controlled, a person approves each mission", remote: "piloted by a person" };
 
-export type RobotKind = "quadruped" | "drone" | "crawler" | "layout" | "rover" | "ugv" | "fixed_wing" | "rov" | "usv" | "in_pipe";
+export type RobotKind = "quadruped" | "drone" | "crawler" | "layout" | "rover" | "ugv" | "fixed_wing" | "rov" | "usv" | "in_pipe" | "tank_crawler";
 /** Where a robot works: on land, in the air, at sea, under water, inside a pipe, or climbing steel. */
-export type Domain = "land" | "air" | "sea" | "subsea" | "in_pipe" | "climbing";
-export const DOMAIN_OF: Record<RobotKind, Domain> = { quadruped: "land", rover: "land", ugv: "land", layout: "land", drone: "air", fixed_wing: "air", usv: "sea", rov: "subsea", in_pipe: "in_pipe", crawler: "climbing" };
-export const DOMAIN_LABEL: Record<Domain, string> = { land: "Land", air: "Air", sea: "Sea", subsea: "Subsea", in_pipe: "In-pipe", climbing: "Climbing" };
+export type Domain = "land" | "air" | "sea" | "subsea" | "in_pipe" | "climbing" | "in_tank";
+export const DOMAIN_OF: Record<RobotKind, Domain> = { quadruped: "land", rover: "land", ugv: "land", layout: "land", drone: "air", fixed_wing: "air", usv: "sea", rov: "subsea", in_pipe: "in_pipe", crawler: "climbing", tank_crawler: "in_tank" };
+export const DOMAIN_LABEL: Record<Domain, string> = { land: "Land", air: "Air", sea: "Sea", subsea: "Subsea", in_pipe: "In-pipe", climbing: "Climbing", in_tank: "In-tank" };
 /** What a robot is used for: one fleet across inspection, security, emissions, logistics and emergencies. */
 export type RobotRole = "inspection" | "security" | "emissions" | "logistics" | "emergency";
 export const ROLE_LABEL: Record<RobotRole, string> = { inspection: "inspection", security: "security", emissions: "emissions", logistics: "logistics", emergency: "emergency response" };
@@ -58,6 +59,12 @@ export interface Robot {
   lastReport?: string;
   /** its live video, on its maker's video system (the core links to it, never carries it) */
   videoUrl?: string;
+  /** how it moves and holds on (lib/robots/inspection.ts): what surfaces and pipes it can reach */
+  locomotion?: import("./inspection").Locomotion;
+  /** an in-pipe robot or a pig: the pipe sizes it is built for (inches, smallest–largest) */
+  pipeBoreIn?: [number, number];
+  /** a tethered robot: its cable length (m) — power and data through the cable, and as far as it reaches */
+  tetherM?: number;
   /** drones only: no flying above this wind speed (m/s) */
   maxWindMs?: number;
   // ---- live state (lib/robots/sim.ts computes it from the missions and the clock)
@@ -72,12 +79,14 @@ export interface Robot {
 }
 
 export type MissionKind = "inspection_round" | "gas_survey" | "thermal_survey" | "confined_precheck" | "flare_inspection" | "thickness_survey" | "layout_marking" | "delivery"
-  | "security_patrol" | "alarm_check" | "emissions_survey" | "pipeline_patrol" | "subsea_inspection" | "valve_operation" | "runway_inspection" | "gas_watch";
+  | "security_patrol" | "alarm_check" | "emissions_survey" | "pipeline_patrol" | "subsea_inspection" | "valve_operation" | "runway_inspection" | "gas_watch"
+  | "inline_inspection" | "internal_inspection";
 export const MISSION_LABEL: Record<MissionKind, string> = {
   inspection_round: "inspection round", gas_survey: "gas survey", thermal_survey: "thermal survey", confined_precheck: "confined-space pre-entry check",
   flare_inspection: "flare inspection", thickness_survey: "wall-thickness survey", layout_marking: "layout marking", delivery: "delivery",
   security_patrol: "security patrol", alarm_check: "check a security alarm", emissions_survey: "emissions (methane) survey", pipeline_patrol: "pipeline patrol",
   subsea_inspection: "subsea inspection", valve_operation: "valve operation", runway_inspection: "runway and lighting inspection", gas_watch: "gas watch beside a crew",
+  inline_inspection: "in-line inspection (inside the pipe)", internal_inspection: "internal inspection (inside a vessel or tank)",
 };
 
 export interface Waypoint { zone: string; assetId?: string; label: string; checks: Capability[] }
@@ -123,9 +132,13 @@ export function missionFits(r: Robot, k: MissionKind) {
     case "subsea_inspection": return d === "subsea" || d === "sea";
     case "security_patrol": case "alarm_check": return c("intrusion");
     case "valve_operation": return c("manipulate");
-    case "thickness_survey": return c("ut_thickness");
+    case "thickness_survey": return c("ut_thickness") || c("mfl") || c("eddy_current");
+    // inside a pipe: an in-pipe robot or a pig; inside a vessel or tank: a tank robot, an in-pipe robot, or a drone
+    // built to fly in confined spaces (a collision-tolerant cage)
+    case "inline_inspection": return d === "in_pipe";
+    case "internal_inspection": return d === "in_tank" || d === "in_pipe" || r.locomotion === "caged_drone";
     case "gas_survey": case "confined_precheck": case "emissions_survey": return c("gas") && d !== "subsea";
     case "flare_inspection": case "pipeline_patrol": return d === "air";
-    default: return d !== "subsea" && (c("visual") || c("thermal"));
+    default: return d !== "subsea" && d !== "in_pipe" && d !== "in_tank" && (c("visual") || c("thermal"));
   }
 }

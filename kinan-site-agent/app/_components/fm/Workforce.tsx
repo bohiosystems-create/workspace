@@ -7,6 +7,7 @@
  */
 import { useMemo, useState } from "react";
 import type { facilityStateFor } from "@/lib/fm/api";
+import { AUTONOMY_LEVEL, LOCOMOTION, locomotionOf } from "@/lib/robots/inspection";
 import { CAPABILITY_LABEL, CONTROL_LABEL, DOMAIN_LABEL, DOMAIN_OF, MISSION_LABEL, ROLE_LABEL, missionFits, type Capability, type Mission, type MissionKind } from "@/lib/robots/types";
 
 type FS = ReturnType<typeof facilityStateFor>;
@@ -14,7 +15,7 @@ type Robot = FS["robots"][number];
 type Doit = (k: string, b: Record<string, unknown>) => Promise<void>;
 
 const ROBOT_STATUS: Record<string, string> = { docked: "Docked", charging: "Charging", on_mission: "On a mission", returning: "Returning", fault: "Fault", estop: "Emergency stop", offline: "Offline" };
-const KIND_ICON: Record<string, string> = { quadruped: "🐕", drone: "🛸", crawler: "🧲", layout: "📐", rover: "🚙", ugv: "🚜", fixed_wing: "✈️", rov: "🐟", usv: "🚤", in_pipe: "🔩" };
+const KIND_ICON: Record<string, string> = { quadruped: "🐕", drone: "🛸", crawler: "🧲", layout: "📐", rover: "🚙", ugv: "🚜", fixed_wing: "✈️", rov: "🐟", usv: "🚤", in_pipe: "🔩", tank_crawler: "🛢️" };
 const icon = (r: Robot) => (r.capabilities.includes("intrusion") && r.kind === "ugv" ? "🛡️" : r.capabilities.includes("manipulate") ? "🦾" : KIND_ICON[r.kind] ?? "🤖");
 const CONN: Record<string, string> = { sim: "simulated in this demo", rmf: "Open-RMF", vendor: "vendor API", platform: "vendor data platform (findings in)", vda5050: "VDA 5050 over MQTT (fleet bridge)", dji: "DJI Cloud API over MQTT (fleet bridge)", orbit: "Spot Orbit API", security: "security alarms and live video" };
 const HAZARD: Record<string, string> = { h2s: "H₂S", hydrocarbon: "hydrocarbons", high_voltage: "high voltage", confined_space: "confined space", height: "height", hot_surface: "hot surfaces", noise: "noise", marine: "marine", airside: "live airside" };
@@ -168,7 +169,7 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
   const [pilot, setPilot] = useState("");
   const [zone, setZone] = useState(allowed[0]?.id ?? "");
   const [asset, setAsset] = useState("");
-  const [kind, setKind] = useState<MissionKind>(r?.kind === "crawler" ? "thickness_survey" : r?.kind === "drone" ? (s.facility.sector === "airport" ? "runway_inspection" : "flare_inspection") : r?.kind === "rov" ? "subsea_inspection" : r?.kind === "fixed_wing" ? "pipeline_patrol" : r?.roles.includes("security") ? "security_patrol" : "inspection_round");
+  const [kind, setKind] = useState<MissionKind>(r?.kind === "crawler" ? "thickness_survey" : r?.kind === "in_pipe" ? "inline_inspection" : r?.kind === "tank_crawler" || r?.locomotion === "caged_drone" ? "internal_inspection" : r?.kind === "drone" ? (s.facility.sector === "airport" ? "runway_inspection" : "flare_inspection") : r?.kind === "rov" ? "subsea_inspection" : r?.kind === "fixed_wing" ? "pipeline_patrol" : r?.roles.includes("security") ? "security_patrol" : "inspection_round");
   if (!r) return null;
   const ms = s.missions.filter((m) => m.robotId === r.id);
   const live = ms.find((m) => m.status === "running" || (m.status === "planned" && Date.parse(m.plannedStart) - Date.now() < 30 * 60_000 && Date.parse(m.plannedStart) > Date.now() - 60_000));
@@ -188,6 +189,8 @@ export function RobotSheet({ s, robotId, onClose, doit, busy }: { s: FS; robotId
         <p className="small"><b>{r.vendor}</b> · {DOMAIN_LABEL[DOMAIN_OF[r.kind]]} · used for {r.roles.map((x) => ROLE_LABEL[x]).join(", ")}{r.operator ? ` · operated by ${r.operator}` : ""}{r.platform ? ` · runs on ${r.platform}` : ""} · connected through {CONN[r.adapter]}{r.adapter !== "sim" && !s.fleets.find((f) => f.vendor === r.vendor)?.live ? " (not set up here: simulated)" : ""}{r.lastReport ? ` · last report ${time(r.lastReport)}` : ""}.</p>
         <p className="small"><b>Can</b> (as its connection, {conn?.adapter ?? "the simulator"}, says): {(conn?.can ?? r.capabilities.map((c) => CAPABILITY_LABEL[c])).join(", ")}.{conn?.limits.length ? ` ${conn.limits.join(". ")}.` : ""} {conn?.mode === "pull" ? "Its status and results are asked for every minute." : conn?.mode === "push" ? "It sends its status and results as they happen." : "Simulated here: its status and findings follow the plant's readings."}</p>
         <p className="small">{r.exRated ? "Certified for hazardous areas (zones 1 and 2)." : blocked.length ? `Not certified for hazardous areas: it may not enter ${blocked.map((z) => z.name).join(", ")}.` : "Not certified for hazardous areas."}{air && s.zones.some((z) => z.indoor) ? " A drone: it doesn't fly indoors." : ""} {r.enduranceMin} min per charge{r.maxWindMs ? `, flies below ${r.maxWindMs} m/s wind` : ""}.</p>
+        {(() => { const lo = LOCOMOTION[locomotionOf(r)], au = AUTONOMY_LEVEL[r.autonomy]; return (
+          <p className="small"><b>How it moves:</b> {lo.name.toLowerCase()} — {lo.good.join("; ")}. <b>Limits:</b> {lo.limits.join("; ")}.{r.tetherM ? ` Tethered (${r.tetherM} m): power and data through the cable, as far as it reaches.` : ""} <b>Autonomy:</b> {au.level} — {au.note.replace(/ \[S\]$/, "")}.</p>); })()}
         {r.videoUrl && <p className="small"><b>Live video:</b> <a href={r.videoUrl} target="_blank" rel="noreferrer">open the feed</a> (on the maker&apos;s video system)</p>}
         {r.estop && <div className="dc-no"><span>{r.note ?? "Emergency stop"} — a supervisor releases it after a look on site.</span></div>}
         <div className="od-acts">

@@ -136,6 +136,15 @@ const KNOWN: Known[] = [
   { tool: "get_document", input: {}, expect: refused(/id/) },
   { tool: "no_such_tool", input: {}, expect: refused(/Unknown tool/) },
   { tool: "fm_orchestrator", input: { reject: "x", reason: "meh" }, expect: refused(/reason/) },
+  // the inspection knowledge (lib/robots/inspection.ts): the right robot for the surface, refusals with the reason
+  ...(HAS_OPERATIONS ? [
+    { tool: "fm_inspection", input: { facility: "kgpp", asset: "T-701B" }, expect: answered((o) => (o.surfaces?.some((x: { part: string; robots: { robot: string }[] }) => x.part === "floor" && x.robots.some((r) => r.robot === "Tank-1")) ? null : "the tank floor isn't given to the in-service tank robot")) },
+    { tool: "fm_inspection", input: { reference: "methods" }, expect: answered((o) => (o.methods?.mfl?.materials === "ferromagnetic" ? null : "MFL isn't marked ferromagnetic-only")) },
+    { tool: "fm_inspection", input: { facility: "kgpp", asset: "PL-01" }, expect: answered((o) => (o.surfaces?.find((x: { part: string }) => /in-line/.test(x.part))?.robots.some((r: { robot: string }) => r.robot === "Pipe-1") ? "a 6–24 inch crawler offered for the 48-inch line" : null)) },
+    { tool: "fm_robot_command", input: { robot: "Pipe-1", command: "send", asset: "PL-01", mission: "inline_inspection", facility: "kgpp" }, expect: refused(/48 inch/) },
+    { tool: "fm_robot_command", input: { robot: "Cage-1", command: "send", asset: "V-101", mission: "internal_inspection", facility: "kgpp" }, expect: refused(/gas test/) },
+    { tool: "fm_robot_command", input: { robot: "Drone-1", command: "send", asset: "T-701A", mission: "thickness_survey", facility: "kgpp" }, expect: refused() },
+  ] as Known[] : []),
   { tool: "schedule_whatif", input: { activity: "TA-STR-L18", days: 10 }, expect: answered((o) => (o.completionMoves === 10 ? null : `a critical slab 10 days late moved completion ${o.completionMoves}`)) },
   { tool: "schedule_whatif", input: { activity: "TB-FIN-L23", days: 10 }, expect: answered((o) => (o.completionMoves === 0 && o.floatBefore > 10 ? null : `a floating activity moved completion ${o.completionMoves} (float ${o.floatBefore})`)) },
   { tool: "schedule_whatif", input: { activity: "NOPE-1", days: 5 }, expect: refused(/No activity/) },

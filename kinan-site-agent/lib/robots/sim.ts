@@ -34,7 +34,7 @@ function readingsFor(d: FmData, wp: Waypoint, cap: Capability): { a: Asset; r: R
   switch (cap) {
     case "thermal": return mine(HEAT);
     case "acoustic": return mine(SOUND);
-    case "ut_thickness": return a ? a.readings.filter((r) => r.key === "wall").map((r) => ({ a, r })) : [];
+    case "ut_thickness": case "mfl": case "eddy_current": return a ? a.readings.filter((r) => r.key === "wall").map((r) => ({ a, r })) : [];
     case "visual": return a && (a.class === "flare" || a.class === "ccr") ? a.readings.filter((r) => r.key === "pilot" || r.key === "lamps").map((r) => ({ a, r })) : [];
     case "sonar": return a ? a.readings.filter((r) => r.key === "span").map((r) => ({ a, r })) : [];
     case "gas": // the gas detectors in the area (the robot's own sensor reads what they read)
@@ -59,7 +59,7 @@ function findingsAt(d: FmData, m: Mission, r: Robot, wp: Waypoint, i: number, at
       const limit = rd.high ?? rd.low;
       out.push({ id: `${m.id}:${i}:${rd.key}`, missionId: m.id, robotId: r.id, facilityId: m.facilityId, zone: wp.zone, assetId: a.id, at: new Date(at).toISOString(), sensor: cap,
         label: `${rd.name} ${rd.value}${rd.unit ? ` ${rd.unit}` : ""} at ${a.tag}${limit !== undefined ? ` (limit ${limit}${rd.unit ? ` ${rd.unit}` : ""})` : ""}`, value: rd.value, unit: rd.unit, limit, severity: sev,
-        image: `${cap === "thermal" ? "thermal" : cap === "ut_thickness" ? "thickness map" : cap === "sonar" ? "sonar scan" : "photo"} — ${a.tag}` });
+        image: `${cap === "thermal" ? "thermal" : cap === "ut_thickness" ? "thickness map" : cap === "mfl" ? "metal-loss map" : cap === "eddy_current" ? "eddy-current scan" : cap === "sonar" ? "sonar scan" : "photo"} — ${a.tag}` });
     }
   }
   return out;
