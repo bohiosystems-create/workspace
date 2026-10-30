@@ -5,6 +5,7 @@
 import { rng } from "../data/util";
 import { addGasWork } from "./gasplant";
 import { addAirportWork } from "./airport";
+import { FAILURE_MODES } from "./pdm";
 import type { Alarm, Asset, AssetStatus, Criticality, Facility, FmData, Priority, Reading, Sector, Technician, Trade, WorkOrder, WoStatus, WoType } from "./types";
 
 const addDays = (iso: string, n: number) => { const d = new Date(iso.slice(0, 10) + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -287,6 +288,19 @@ export function generate(date: string): FmData {
       const raised = atTime(addDays(date, -ago), 6 + Math.floor(R() * 8));
       out.workOrders.push(mk(a, R() < 0.35 ? "CM" : "Inspection", R() < 0.2 ? "P2" : "P3", "done", R() < 0.5 ? `Fault reset and inspection — ${a.name}` : `Routine inspection — ${a.name}`, ago, -ago + 1, 72,
         { assignee: tech(a.trade, k), started: raised, done: new Date(Date.parse(raised) + hrs * 3600_000).toISOString(), raised, notes: [{ at: raised, by: "Field technician", text: "Done, back in service." }] }));
+    }
+    // the predictive engine's past jobs and what the technicians found (lib/fm/pdm.ts learns its precision per failure
+    // mode from them) — drawn from their own random stream, so the rest of the day's data stays as it was
+    const Q = rng(dayNo(date) * 31 + PLANTS.indexOf(P) * 7 + 3);
+    const withModes = out.assets.filter((x) => x.facilityId === fid && FAILURE_MODES.some((m) => m.classes.includes(x.class)));
+    for (let k = 0; k < 7 && withModes.length; k++) {
+      const a = withModes[Math.floor(Q() * withModes.length)], modes = FAILURE_MODES.filter((m) => m.classes.includes(a.class)), m = modes[Math.floor(Q() * modes.length)];
+      const ago = 12 + Math.floor(Q() * 70), raised = atTime(addDays(date, -ago), 7 + Math.floor(Q() * 6)), confirmed = Q() < 0.78;
+      const done = atTime(addDays(date, -ago + 2), 13);
+      out.workOrders.push({ id: `WO-${pre}P${String(k + 1).padStart(2, "0")}`, facilityId: fid, assetId: a.id, type: "PdM", priority: "P3", status: "done", title: `Predictive: ${m.name.toLowerCase()} on ${a.tag}`, detail: m.action,
+        raised, due: addDays(date, -ago + 5), slaHours: 168, source: "orchestrator", raisedBy: "Orchestrator", started: atTime(addDays(date, -ago + 2), 8), done,
+        checklist: m.checklist.map((text) => ({ text, done: true })), spares: [], evidence: [], notes: [{ at: done, by: "Field technician", text: confirmed ? `Found it: ${m.name.toLowerCase()}. Corrected.` : "Checked: nothing wrong found." }],
+        pdm: { modeId: m.id, mode: m.name, p30: Math.round((0.5 + Q() * 0.45) * 100) / 100, rulDays: 5 + Math.floor(Q() * 20), predictedAt: raised, outcome: confirmed ? "confirmed" : "not_found" } });
     }
     // output today and the last 14 days
     const derate = P.story.filter((x) => x[1] === "down" || x[1] === "degraded").length * 0.012;

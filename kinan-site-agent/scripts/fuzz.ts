@@ -136,6 +136,12 @@ const KNOWN: Known[] = [
   { tool: "get_document", input: {}, expect: refused(/id/) },
   { tool: "no_such_tool", input: {}, expect: refused(/Unknown tool/) },
   { tool: "fm_orchestrator", input: { reject: "x", reason: "meh" }, expect: refused(/reason/) },
+  // the predictive engine through the agent
+  ...(HAS_OPERATIONS ? [
+    { tool: "fm_predictive", input: { facility: "kgia", asset: "UPS-T2" }, expect: answered((o) => (o.assets?.[0]?.diagnosis?.mode === "Battery degradation" && o.assets[0].remainingLife?.p10 <= o.assets[0].remainingLife?.p90 ? null : `UPS-T2: ${JSON.stringify(o).slice(0, 160)}`)) },
+    { tool: "fm_predictive", input: { facility: "kgia", asset: "NOPE-9" }, expect: refused(/isn't watched/) },
+    { tool: "fm_update_work_order", input: { wo: "WO-A24100", status: "done", fault_found: "confirmed" }, expect: refused(/predictive engine/) },
+  ] as Known[] : []),
   // the inspection knowledge (lib/robots/inspection.ts): the right robot for the surface, refusals with the reason
   ...(HAS_OPERATIONS ? [
     { tool: "fm_inspection", input: { facility: "kgpp", asset: "T-701B" }, expect: answered((o) => (o.surfaces?.some((x: { part: string; robots: { robot: string }[] }) => x.part === "floor" && x.robots.some((r) => r.robot === "Tank-1")) ? null : "the tank floor isn't given to the in-service tank robot")) },
@@ -261,7 +267,8 @@ async function orchestration() {
   // agentic facility management at the airport: predictions, complaints into work, the loop closed with the tenants
   { const majed = who(/Majed Al-Anazi/), d0 = fmToday(db);
     const ahu = predictions(d0, "kgia").find((p) => p.tag === "AHU-B03");
-    if (!ahu || ahu.days < 3 || ahu.days > 9 || ahu.risk !== "high") fail("(predictive)", null, `the Pier B air handler's rising supply-air temperature is not predicted: ${JSON.stringify(ahu)?.slice(0, 160)}`);
+    // the engine's remaining life (P50) within two weeks, most of its probability within the month, acted on
+    if (!ahu || ahu.days < 3 || ahu.days > 14 || ahu.p30 < 0.8 || ahu.risk === "low" || ahu.rul.p10 > ahu.days || ahu.rul.p90 < ahu.days) fail("(predictive)", null, `the Pier B air handler's rising supply-air temperature is not predicted: ${JSON.stringify(ahu)?.slice(0, 160)}`);
     if (predictions(d0, "kgia").some((p) => p.tag.startsWith("PBB-0") && p.reading.key === "avail" && p.fit < 0.6)) fail("(predictive)", null, "noise taken for a trend");
     const logged = fmAct(db, { action: "complaint", facilityId: "kgia", complaint: { text: "Water dripping from the ceiling at gate 204, the floor is slippery", from: "Passenger", channel: "qr" } }, "QR form", "web", null);
     const c = logged.events.find((e) => e.kind === "complaint_create");
@@ -341,6 +348,58 @@ async function scheduleAgent() {
   if (imp.data.schedule.filter((a) => a.locationId !== "site").length < imp.data.schedule.length * 0.5) fail("(import)", null, "most imported activities have no place on the site");
 }
 
+// ---------------------------------------------------------------- 7. the predictive engine (lib/fm/pdm.ts), on copies
+async function pdmEngine() {
+  const P = await import("../lib/fm/pdm"), E = await import("../lib/fm/engine"), A = await import("../lib/fm/api");
+  const copy = structuredClone(db), d = E.fmToday(copy);
+  // every number in range: P10 ≤ P50 ≤ P90, P(7 d) ≤ P(30 d), probabilities and health within bounds
+  for (const f of d.facilities) {
+    const r = P.pdmReport(d, f.id);
+    for (const a of r.assets) {
+      if (!(a.health >= 0 && a.health <= 100) || !(a.p30 >= 0 && a.p30 <= 1)) fail("(pdm)", a.tag, `health ${a.health}, p30 ${a.p30}`);
+      for (const x of a.series) {
+        if (!(x.p7 <= x.p30 + 1e-9 && x.p30 <= 1 && x.p7 >= 0)) fail("(pdm)", `${a.tag} ${x.key}`, `p7 ${x.p7} > p30 ${x.p30}`);
+        if (x.rul && !(x.rul.p10 <= x.rul.p50 && x.rul.p50 <= x.rul.p90)) fail("(pdm)", `${a.tag} ${x.key}`, `RUL out of order ${JSON.stringify(x.rul)}`);
+        if (JSON.stringify(x).match(/NaN|null,"p50"/)) fail("(pdm)", `${a.tag} ${x.key}`, "NaN in the engine's numbers");
+      }
+    }
+    const bt = r.backtest;
+    if (bt.falseAlarmRate !== null && bt.falseAlarmRate > 0.15) fail("(pdm backtest)", f.id, `false alarms ${bt.falseAlarmRate}`);
+    if (bt.coverage !== null && bt.checks >= 10 && bt.coverage < 0.5) fail("(pdm backtest)", f.id, `only ${bt.coverage} of real remaining lives inside P10–P90`);
+  }
+  // the airport's UPS battery: diagnosed, with a remaining life of days, not months
+  const ups = P.pdmReport(d, "kgia").assets.find((a) => a.tag === "UPS-T2");
+  if (!ups || ups.diagnosis?.modeId !== "ups-battery" || !ups.rul || ups.rul.p50 > 20) fail("(pdm)", "UPS-T2", `expected battery degradation within ~10 days, got ${ups?.diagnosis?.name} ${JSON.stringify(ups?.rul)}`);
+  // the historian: good rows kept as daily means, bad rows refused with the reason; the engine then reads them
+  const store: import("../lib/fm/pdm").HistoryStore = {};
+  const a = d.assets.find((x) => x.tag === "P-303A")!, key = a.readings.find((x) => x.key === "vib")!.key;
+  const rows = [...Array.from({ length: 30 }, (_, i) => ({ asset: "P-303A", key, at: new Date(Date.parse(d.date) - (29 - i) * 86_400_000 + 3600_000).toISOString(), value: 2.5 + i * 0.12 })),
+    { asset: "NOPE-1", key: "vib", at: d.date, value: 1 }, { asset: "P-303A", key: "colour", at: d.date, value: 1 }, { asset: "P-303A", key, at: "2099-01-01", value: 1 }, { asset: "P-303A", key, at: d.date, value: "high" }];
+  const ing = P.ingestReadings(store, d.assets, rows, undefined, Date.parse(d.date) + 12 * 3600_000);
+  if (ing.accepted !== 30 || ing.rejected !== 4) fail("(historian)", null, `accepted ${ing.accepted}, rejected ${ing.rejected}: ${JSON.stringify(ing.errors)}`);
+  d.history = store;
+  const h = P.pdmReport(d, a.facilityId, store);
+  if (!h.sources.historian) fail("(historian)", null, "the engine didn't read the historian's series");
+  // the loop: the orchestrator raises a predictive job; closing it with the verdict teaches the engine
+  const fdb = structuredClone(db), dir = directory(fdb), boss = dir.find((p) => p.role === "director" && (p.domain === "fm" || p.domain === "all"))!;
+  const st = A.facilityStateFor(fdb, "kgia", boss);
+  const pa = st.actions.find((x) => x.id.startsWith("pdm:"));
+  if (!pa) fail("(pdm loop)", null, "no predictive job proposed at the airport");
+  else {
+    fmAct(fdb, { action: "decide", actionId: pa.id, decision: "approved" }, boss.name, "web", boss);
+    const wo = E.fmToday(fdb).workOrders.find((w) => w.pdm && w.status !== "done" && w.title.startsWith("Predictive"));
+    if (!wo) fail("(pdm loop)", pa.id, "approved, but no predictive job carries the engine's diagnosis");
+    else {
+      const before = P.feedbackOf(E.fmToday(fdb), "kgia").find((f) => f.modeId === wo.pdm!.modeId)?.confirmed ?? 0;
+      let refusal = ""; try { fmAct(fdb, { action: "wo_update", woId: wo.id, pdmOutcome: "confirmed" }, boss.name, "web", boss); } catch (e) { refusal = (e as Error).message; }
+      if (!/closing/.test(refusal)) fail("(pdm loop)", wo.id, `a verdict before closing should be refused, got "${refusal}"`);
+      fmAct(fdb, { action: "wo_update", woId: wo.id, status: "done", pdmOutcome: "confirmed" }, boss.name, "web", boss);
+      const after = P.feedbackOf(E.fmToday(fdb), "kgia").find((f) => f.modeId === wo.pdm!.modeId)?.confirmed ?? 0;
+      if (after !== before + 1) fail("(pdm loop)", wo.id, `the verdict wasn't counted (${before} → ${after})`);
+    }
+  }
+}
+
 async function main() {
   const t0 = Date.now();
   for (const k of KNOWN) {
@@ -350,6 +409,7 @@ async function main() {
   }
   await orchestration();
   await scheduleAgent();
+  if (HAS_OPERATIONS) await pdmEngine();
   for (const d of DEFS) {
     const s = d.input_schema as S;
     await call(d.name, {});

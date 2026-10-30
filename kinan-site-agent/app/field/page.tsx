@@ -282,7 +282,10 @@ function JobSheet({ job: j, day, me, onClose, doit }: { job: Job; day: Day; me: 
               {j.status !== "in_progress" && <button className="fd-btn" disabled={busy || !!permitBlock} onClick={() => upd({ status: "in_progress", note: note.trim() || undefined }, "started").then((ok) => ok && setNote(""))}>Start</button>}
               <button className="fd-btn fd-ghost" disabled={busy} onClick={() => file.current?.click()}>📷 Photo</button>
               {j.status !== "on_hold" && <button className="fd-btn fd-ghost" disabled={busy} onClick={() => upd({ status: "on_hold", holdReason: note.trim() || "Waiting", note: note.trim() || undefined }, "on hold").then((ok) => ok && setNote(""))}>Hold</button>}
-              <button className="fd-btn done" disabled={busy} onClick={() => upd({ status: "done", note: note.trim() || "Completed." }, "done").then((ok) => { if (ok) { setNote(""); onClose(); } })}>Done</button>
+              {j.pdm ? <>
+                <button className="fd-btn done" disabled={busy} onClick={() => upd({ status: "done", pdmOutcome: "confirmed", note: note.trim() || `Found it: ${j.pdm!.mode.toLowerCase()}.` }, "done").then((ok) => { if (ok) { setNote(""); onClose(); } })}>Done — found it</button>
+                <button className="fd-btn fd-ghost" disabled={busy} onClick={() => upd({ status: "done", pdmOutcome: "not_found", note: note.trim() || "Checked: the predicted fault was not there." }, "done").then((ok) => { if (ok) { setNote(""); onClose(); } })}>Done — nothing wrong</button>
+              </> : <button className="fd-btn done" disabled={busy} onClick={() => upd({ status: "done", note: note.trim() || "Completed." }, "done").then((ok) => { if (ok) { setNote(""); onClose(); } })}>Done</button>}
             </div>
             <input ref={file} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { photo(e.target.files?.[0]); e.target.value = ""; }} />
           </>

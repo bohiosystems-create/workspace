@@ -1,6 +1,7 @@
 // Facility management operations, shared by the API route, the AI agent's tools, WhatsApp and the standalone page.
 // Reads build today's picture (engine.fmToday); writes append events to db.fmLog (the caller saves the database).
 import { inspectionPlan, missionFit } from "../robots/inspection";
+import { pdmReport, pdmView } from "./pdm";
 import { CATEGORY_LABEL, complaintInsights, makeComplaint } from "./complaints";
 import { predictions } from "./predict";
 import { scoreJobs, teamPlan } from "./priority";
@@ -86,6 +87,9 @@ export function facilityState(db: Db, facilityId: string) {
     exceptions: exceptions(db, d, facilityId),
     // the agentic layer: what is heading for its limit, the team's priorities and plan, tenants' complaints
     predictions: predictions(d, facilityId),
+    // the predictive engine's view of every asset (lib/fm/pdm.ts): health, failure probability, remaining life, diagnosis,
+    // risk in SAR, its backtest and the technicians' verdicts
+    pdm: pdmView(pdmReport(d, facilityId)),
     // the inspection plan from the robotics reviews (lib/robots/inspection.ts): each surface, its method and robot
     inspection: inspectionPlan(d, facilityId),
     jobScores: scoreJobs(d, facilityId),
@@ -173,6 +177,8 @@ export interface ActInput {
   policy?: Partial<Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend">>;
   asset?: string; title?: string; detail?: string; priority?: Priority; type?: WoType;
   woId?: string; status?: WoStatus; note?: string; assignee?: string; checklist?: number; evidence?: string[]; holdReason?: string;
+  /** a predictive job: whether the predicted fault was found (the engine's feedback) */
+  pdmOutcome?: "confirmed" | "not_found";
   assetStatus?: AssetStatus; alarmId?: string; techId?: string; techStatus?: Technician["status"];
   /** the field app's id for this change (outbox retries are recorded once) */
   cid?: string;
@@ -292,11 +298,14 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       if (b.status === "in_progress" && waitingFor(d, w).length) throw new Error(`${w.id} waits for ${waitingFor(d, w).join(", ")} — they are not finished.`);
       // a contractor's people work on their own crew's jobs only
       if (user && user.orgType !== "client" && user.role !== "admin" && w.crew !== user.crewId) throw new Error(`${w.id} isn't ${user.crewId ? "your crew's" : `${user.org}'s`} job — the client's control room reassigns it.`);
+      if (b.pdmOutcome && !w.pdm) throw new Error(`${w.id} wasn't raised by the predictive engine — there is no prediction to confirm.`);
+      if (b.pdmOutcome && b.pdmOutcome !== "confirmed" && b.pdmOutcome !== "not_found") throw new Error("Was the predicted fault there: confirmed or not_found?");
+      if (b.pdmOutcome && w.status !== "done" && b.status !== "done") throw new Error(`Say whether the fault was there when closing ${w.id}.`);
       const tech = b.assignee ? findTech(d, b.assignee, w.facilityId) : undefined;
-      const patch = { ...(b.status ? { status: b.status } : {}), ...(tech ? { assignee: tech.id } : {}), ...(b.note ? { note: b.note } : {}), ...(b.evidence?.length ? { evidence: b.evidence } : {}), ...(b.checklist !== undefined ? { checklist: [b.checklist] } : {}), ...(b.status === "on_hold" ? { holdReason: b.holdReason || b.note || "On hold" } : {}) };
+      const patch = { ...(b.pdmOutcome ? { pdmOutcome: b.pdmOutcome } : {}), ...(b.status ? { status: b.status } : {}), ...(tech ? { assignee: tech.id } : {}), ...(b.note ? { note: b.note } : {}), ...(b.evidence?.length ? { evidence: b.evidence } : {}), ...(b.checklist !== undefined ? { checklist: [b.checklist] } : {}), ...(b.status === "on_hold" ? { holdReason: b.holdReason || b.note || "On hold" } : {}) };
       const words = b.status === "done" ? "closed" : b.status === "in_progress" ? "started" : b.status === "on_hold" ? "put on hold" : b.status ? b.status.replace("_", " ") : tech ? `given to ${tech.name}` : b.note ? "noted" : "updated";
       add({ kind: "wo_update", woId: w.id, patch, summary: `${w.id} on ${a.tag} ${words}${b.note ? `: ${b.note.slice(0, 80)}` : ""}` });
-      return { ok: true, message: `${w.id} ${words}.${b.status === "done" && (a.status === "down" || a.status === "degraded") && w.type !== "PM" ? ` ${a.tag} is back in service.` : ""}`, events: evs };
+      return { ok: true, message: `${w.id} ${words}.${b.status === "done" && (a.status === "down" || a.status === "degraded") && w.type !== "PM" ? ` ${a.tag} is back in service.` : ""}${b.pdmOutcome ? ` The predictive engine notes the ${w.pdm!.mode.toLowerCase()} was ${b.pdmOutcome === "confirmed" ? "confirmed" : "not found"}.` : ""}`, events: evs };
     }
     case "asset_status": {
       const hit = findAsset(d, b.asset ?? "", b.facilityId);

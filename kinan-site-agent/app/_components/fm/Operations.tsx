@@ -6,6 +6,7 @@
  * Everything reloads by itself when anything changes (WhatsApp, the field app, another user).
  */
 import { InspectionPanel } from "./Inspection";
+import { PdmPanel } from "./Predictive";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { facilityStateFor, overview } from "@/lib/fm/api";
 import type { Action, Asset, AutopilotPolicy, Reading, WorkOrder } from "@/lib/fm/types";
@@ -15,7 +16,7 @@ import { HAS_OPERATIONS } from "@/lib/edition";
 import { Decide } from "../Decide";
 import { OutcomesPanel } from "../Outcomes";
 import { ExceptionsPanel, RulesPanel } from "./Cockpit";
-import { ComplaintsPanel, PredictivePanel, TeamPlanPanel } from "./Agentic";
+import { ComplaintsPanel, TeamPlanPanel } from "./Agentic";
 import { FindingsList, PlantMap, RobotSheet, SecurityList, TurnaroundPanel, WorkforcePanel } from "./Workforce";
 
 type Overview = ReturnType<typeof overview>;
@@ -165,7 +166,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
   const doer = (w: { assignee?: string; crew?: string; robot?: string; support?: { robotId: string }[] }) => (w.support?.length ? `${w.crew ? s.crews.find((c) => c.id === w.crew)?.name ?? "crew" : s.technicians.find((t) => t.id === w.assignee)?.name ?? "people"} + ${w.support.map((x) => s.robots.find((r) => r.id === x.robotId)?.name).join(", ")}` : w.crew ? `${s.crews.find((c) => c.id === w.crew)?.name ?? "crew"} (${s.crews.find((c) => c.id === w.crew)?.contractor ?? ""})` : w.robot ? `robot ${s.robots.find((r) => r.id === w.robot)?.name ?? ""}` : who(w.assignee));
   const open = s.workOrders.filter((w) => w.status !== "done");
   const live = s.findings.filter((x) => !x.woId && !x.acknowledged && (x.severity === "high" || x.severity === "critical")).length + s.securityAlerts.filter((a) => a.status === "open").length;
-  const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ["plan", "Team plan"], ["predictive", "Predictive", s.predictions.filter((p) => p.risk !== "low").length], ["complaints", "Complaints", s.complaintInsights.open], ...(s.robots.length ? [["exceptions", "Exceptions", s.exceptions.length] as [Tab, string, number], ["rules", "Rules"] as [Tab, string]] : []), ...(s.zones.length ? [["map", s.facility.sector === "airport" ? "Airport map" : "Plant map", live] as [Tab, string, number]] : []),
+  const tabs: [Tab, string, number?][] = [["orchestrator", "Orchestrator", s.actions.length], ["plan", "Team plan"], ["predictive", "Predictive", s.pdm.atRisk], ["complaints", "Complaints", s.complaintInsights.open], ...(s.robots.length ? [["exceptions", "Exceptions", s.exceptions.length] as [Tab, string, number], ["rules", "Rules"] as [Tab, string]] : []), ...(s.zones.length ? [["map", s.facility.sector === "airport" ? "Airport map" : "Plant map", live] as [Tab, string, number]] : []),
     ...(s.robots.length || s.crews.length ? [["workforce", "Workforce"] as [Tab, string]] : []), ...(s.turnarounds.length ? [["turnaround", "Turnaround"] as [Tab, string]] : []), ...(s.inspection.length ? [["inspection", "Inspection", s.inspection.filter((r) => r.gap).length] as [Tab, string, number]] : []), ["work", "Work orders", open.length], ["assets", "Assets"], ["alarms", "Alarms", k.activeAlarms], ["team", "Team"], ["spares", "Spares", k.sparesLow], ["outcomes", "Outcomes"], ["activity", "Activity"]];
   const mine = s.actions.filter((a) => a.can.ok && a.risk === "low");
   const wo = woOpen ? s.workOrders.find((w) => w.id === woOpen) : undefined;
@@ -227,7 +228,7 @@ export function ControlRoom({ facilityId, author, onBack, onSignIn }: { facility
       )}
       {tab === "workforce" && <WorkforcePanel s={s} onRobot={setRobotOpen} />}
       {tab === "plan" && <TeamPlanPanel s={s} onWo={setWoOpen} />}
-      {tab === "predictive" && <PredictivePanel s={s} onAsset={setAssetOpen} />}
+      {tab === "predictive" && <PdmPanel s={s} onAsset={setAssetOpen} onWo={setWoOpen} />}
       {tab === "complaints" && <ComplaintsPanel s={s} doit={doit} busy={busy} onWo={setWoOpen} />}
       {tab === "exceptions" && <ExceptionsPanel s={s} onRobot={setRobotOpen} />}
       {tab === "rules" && <RulesPanel s={s} doit={doit} busy={busy} />}
@@ -394,7 +395,10 @@ function WoDrawer({ s, wo, tag, onClose, doit, busy }: { s: FS; wo: WO; tag: (id
           <div className="od-acts">
             {wo.status !== "in_progress" && wo.status !== "done" && <button className="mini" disabled={!!busy} onClick={() => upd({ status: "in_progress" })}>Start</button>}
             {wo.status !== "on_hold" && wo.status !== "done" && <button className="mini" disabled={!!busy} onClick={() => upd({ status: "on_hold", holdReason: note || "Waiting" })}>Hold</button>}
-            {wo.status !== "done" && <button className="studio-add" disabled={!!busy} onClick={() => upd({ status: "done", note: note || undefined })}>Close as done</button>}
+            {wo.status !== "done" && (wo.pdm ? <>
+              <button className="studio-add" disabled={!!busy} onClick={() => upd({ status: "done", pdmOutcome: "confirmed", note: note || `Found it: ${wo.pdm!.mode.toLowerCase()}.` })}>Done — fault found</button>
+              <button className="mini" disabled={!!busy} onClick={() => upd({ status: "done", pdmOutcome: "not_found", note: note || "Checked: the predicted fault was not there." })}>Done — nothing found</button>
+            </> : <button className="studio-add" disabled={!!busy} onClick={() => upd({ status: "done", note: note || undefined })}>Close as done</button>)}
           </div>
         </div>
         <div className="rpt-label">Checklist</div>

@@ -34,7 +34,9 @@ export function agenticProposals(d: FmData, fac: (id: string) => boolean, push: 
       const a = d.assets.find((x) => x.id === p.assetId)!;
       const due = ymd(Math.max(now, Date.parse(p.crosses) - DAY));
       const pm = d.workOrders.find((w) => w.assetId === a.id && isOpen(w) && w.type === "PM");
-      const why = [predictionText(p), `Trend over 14 days fits a straight line ${Math.round(p.fit * 100)} %`, `${a.criticality === "A" ? "Critical" : "Important"} equipment: ${a.name}`];
+      const why = [predictionText(p), ...(p.mode ? [`Diagnosis: ${p.mode.name} (${Math.round(p.mode.score * 100)} %) — ${p.mode.evidence.join("; ")}`] : []),
+        `Predictive engine: ${p.model} degradation since ${p.onsetDaysAgo} days ago (fit ${Math.round(p.fit * 100)} %), health ${p.health}/100`, `${a.criticality === "A" ? "Critical" : "Important"} equipment: ${a.name}`];
+      const pdmTag = { modeId: p.mode?.id ?? `generic:${p.reading.key}`, mode: p.mode?.name ?? `${p.reading.name} ${p.side === "high" ? "rising" : "falling"}`, p30: p.p30, rulDays: p.days, predictedAt: new Date(now).toISOString() };
       // tenants already feel it: one job now, the complaints on it — not a job in a few days and another for the complaints
       const cs = groups.get(a.id);
       if (cs?.length) {
@@ -54,11 +56,12 @@ export function agenticProposals(d: FmData, fac: (id: string) => boolean, push: 
           risk: "low", auto: true, effect: "wo_update", payload: { woId: pm.id, patch: { due, note: `Brought forward by the orchestrator: ${predictionText(p)}.` } }, targets: { woId: pm.id, assetId: a.id } });
       } else if (!pm || pm.due > ymd(now + 2 * DAY)) {
         const pr: Priority = p.days <= 7 ? "P2" : "P3";
-        const wo = job(d, a.id, { type: "PdM", priority: pr, title: `Predictive: ${p.reading.name.toLowerCase()} trending to its limit on ${a.tag}`, detail: `${predictionText(p)}. Find the cause and correct it before the alarm.`, due, now,
-          checklist: [`Confirm the ${p.reading.name.toLowerCase()} reading on site`, "Find the cause (filters, coils, belts, bearings, settings)", "Correct it", "Record the reading after the work"] });
+        const wo = job(d, a.id, { type: "PdM", priority: pr, title: `Predictive: ${p.mode ? `${p.mode.name.toLowerCase().replace(/ — cause not in the library$/, "")} on ${a.tag}` : `${p.reading.name.toLowerCase()} trending to its limit on ${a.tag}`}`, detail: `${predictionText(p)}.${p.mode ? ` Diagnosis: ${p.mode.name} — ${p.mode.evidence.join("; ")}.` : ""} Find the cause and correct it before the alarm. When done, say whether the fault was there (confirmed / not found): the engine learns from it.`, due, now,
+          checklist: p.mode?.checklist ?? [`Confirm the ${p.reading.name.toLowerCase()} reading on site`, "Find the cause (filters, coils, belts, bearings, settings)", "Correct it", "Record the reading after the work"] });
+        wo.pdm = pdmTag;
         const { tech, why: tw } = bestTech(d, wo, handed);
         if (tech) { wo.assignee = tech.id; wo.status = "assigned"; }
-        push({ id: `pdm:${a.id}:${p.reading.key}`, facilityId: fid, kind: "predictive", title: `Predictive job on ${a.tag}: ${p.reading.name.toLowerCase()} crosses its limit in ~${Math.round(p.days)} days${tech ? ` — ${tech.name}` : ""}`,
+        push({ id: `pdm:${a.id}:${p.reading.key}`, facilityId: fid, kind: "predictive", title: `Predictive job on ${a.tag}: ${p.mode && !p.mode.id.startsWith("generic:") ? `${p.mode.name.toLowerCase()} — ` : ""}${p.reading.name.toLowerCase()} crosses its limit in ~${Math.round(p.days)} days (${Math.round(p.p30 * 100)} %)${tech ? ` — ${tech.name}` : ""}`,
           why: [...why, ...(pm ? [`Its planned maintenance (${pm.id}) is not until ${pm.due}`] : []), ...tw], risk: "low", auto: true, effect: "wo_create", payload: { wo }, targets: { assetId: a.id, ...(tech ? { techId: tech.id } : {}) } });
       }
       if (p.spareShort) {

@@ -16,6 +16,7 @@ export const PRIORITY_SLA: Record<Priority, number> = { P1: 4, P2: 24, P3: 72, P
 /** Today's operating picture with every change applied. */
 export function fmToday(db: Db, date = db.data?.meta?.dataDate ?? currentDataDate(), now = Date.now()): FmData {
   const d = generate(date);
+  if (db.fmHistory) d.history = db.fmHistory;
   for (const e of db.fmLog ?? []) applyEvent(d, e);
   const t = simNow(date, now);
   d.securityAlerts = d.securityAlerts.filter((a) => Date.parse(a.at) < t + 1000); // alerts appear when they happen (the clock counts whole seconds)
@@ -86,7 +87,8 @@ export function applyEvent(d: FmData, e: FmEvent) {
     case "wo_create": if (!d.workOrders.some((w) => w.id === e.wo.id)) d.workOrders.push(structuredClone(e.wo)); break;
     case "wo_update": {
       const w = d.workOrders.find((x) => x.id === e.woId); if (!w) break;
-      const { note, evidence, checklist, permitStatus, ...p } = e.patch;
+      const { note, evidence, checklist, permitStatus, pdmOutcome, ...p } = e.patch;
+      if (pdmOutcome && w.pdm) w.pdm.outcome = pdmOutcome;
       if (permitStatus && w.permit) w.permit.status = permitStatus;
       if (p.status && p.status !== w.status) {
         if (p.status === "in_progress" && !w.started) w.started = e.at;
@@ -94,7 +96,7 @@ export function applyEvent(d: FmData, e: FmEvent) {
           const a = d.assets.find((x) => x.id === w.assetId);
           if (a && w.type !== "PM" && (a.status === "down" || a.status === "degraded")) { a.status = /standby/i.test(a.name) ? "standby" : "running"; a.condition = Math.max(a.condition, 80); }
           // a repair brings the readings back to normal (the leak fixed, the bearing changed): back to where they were two weeks ago
-          if (a && (w.type === "CM" || w.type === "Emergency")) for (const r of a.readings) { const out = (r.high !== undefined && r.value > r.high * 0.85) || (r.low !== undefined && r.value < r.low * 1.05); if (out) { r.was = { value: r.value, until: e.at }; r.value = r.trend[0]; } }
+          if (a && (w.type === "CM" || w.type === "Emergency" || w.type === "PdM")) for (const r of a.readings) { const out = (r.high !== undefined && r.value > r.high * 0.85) || (r.low !== undefined && r.value < r.low * 1.05); if (out) { r.was = { value: r.value, until: e.at }; r.value = r.trend[0]; } }
           if (a && w.type === "PM") { a.lastPm = e.at.slice(0, 10); a.nextPm = addDays(a.lastPm, a.pmEveryDays); }
           for (const al of d.alarms) if (al.woId === w.id) al.acknowledged = true;
         }

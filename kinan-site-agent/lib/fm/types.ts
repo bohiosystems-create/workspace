@@ -71,6 +71,9 @@ export interface WorkOrder {
   spares: { part: string; qty: number }[];
   notes: { at: string; by: string; text: string; via?: string }[];
   evidence: string[];
+  /** raised by the predictive engine (lib/fm/pdm.ts): the failure mode it diagnosed, its probability and remaining life
+   *  when raised — and, once done, what the technician found (the engine learns its precision per failure mode) */
+  pdm?: { modeId: string; mode: string; p30: number; rulDays?: number; predictedAt: string; outcome?: "confirmed" | "not_found" };
 }
 
 export interface Alarm { id: string; facilityId: string; assetId: string; at: string; severity: "critical" | "high" | "medium" | "low"; message: string; reading?: string; acknowledged: boolean; woId?: string }
@@ -92,6 +95,8 @@ export interface Crew { id: string; contractorId: string; facilityId: string; na
 
 export interface FmData {
   date: string;
+  /** the plant historian's readings (daily means), pushed to /api/v1/readings — the predictive engine's history */
+  history?: import("./pdm").HistoryStore;
   facilities: Facility[];
   systems: SystemDef[];
   assets: Asset[];
@@ -162,7 +167,7 @@ export type FmEvent = {
   cid?: string;
 } & (
   | { kind: "wo_create"; wo: WorkOrder }
-  | { kind: "wo_update"; woId: string; patch: Partial<Pick<WorkOrder, "status" | "assignee" | "priority" | "due" | "holdReason" | "crew" | "robot" | "missionId" | "support">> & { note?: string; evidence?: string[]; checklist?: number[]; permitStatus?: "issued" | "closed" | "suspended" } }
+  | { kind: "wo_update"; woId: string; patch: Partial<Pick<WorkOrder, "status" | "assignee" | "priority" | "due" | "holdReason" | "crew" | "robot" | "missionId" | "support">> & { note?: string; evidence?: string[]; checklist?: number[]; permitStatus?: "issued" | "closed" | "suspended"; pdmOutcome?: "confirmed" | "not_found" } }
   | { kind: "asset_status"; assetId: string; status: AssetStatus; note?: string }
   | { kind: "alarm_ack"; alarmId: string; woId?: string }
   | { kind: "spare_order"; spareId: string; qty: number }

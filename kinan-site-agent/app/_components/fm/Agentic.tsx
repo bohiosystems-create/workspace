@@ -48,41 +48,6 @@ export function TeamPlanPanel({ s, onWo }: { s: FS; onWo: (id: string) => void }
   );
 }
 
-// ======================================================================== predictive maintenance
-function Trend({ ys, limit }: { ys: number[]; limit: number }) {
-  const lo = Math.min(...ys, limit), hi = Math.max(...ys, limit), span = hi - lo || 1, W = 160, H = 44;
-  const y = (v: number) => H - 4 - ((v - lo) / span) * (H - 8), x = (i: number) => (i / (ys.length - 1)) * (W - 4) + 2;
-  return (
-    <svg className="ag-trend" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Fourteen days, and the limit">
-      <line x1="0" x2={W} y1={y(limit)} y2={y(limit)} className="lim" />
-      <polyline points={ys.map((v, i) => `${x(i)},${y(v)}`).join(" ")} />
-      <circle cx={x(ys.length - 1)} cy={y(ys[ys.length - 1])} r="2.6" />
-    </svg>
-  );
-}
-export function PredictivePanel({ s, onAsset }: { s: FS; onAsset: (id: string) => void }) {
-  return (
-    <section className="ops-panel">
-      <p className="muted small">Equipment heading for its limit: a straight line through each reading&apos;s last fourteen days says how fast it moves and when it crosses its alarm — only clear trends, within a month. The orchestrator acts before the crossing: a predictive job due the day before, the planned maintenance brought forward, or the spare ordered when it can&apos;t arrive in time.</p>
-      {s.predictions.length === 0 && <p className="studio-ok">Nothing is trending towards its limit in the next month.</p>}
-      <ul className="ag-preds">
-        {s.predictions.map((p) => (
-          <li key={`${p.assetId}:${p.reading.key}`} className={`risk-${p.risk}`}>
-            <button onClick={() => onAsset(p.assetId)}>
-              <div className="ag-ph"><span className={`ops-pill ${p.risk}`}>{p.risk}</span><b>{p.tag}</b><span className="grow">{p.name}</span><span className="ag-days"><b>{p.days < 1 ? "<1" : Math.round(p.days)}</b> days</span></div>
-              <div className="ag-pb">
-                <Trend ys={p.trend} limit={p.limit} />
-                <div><b>{p.reading.name}</b> {p.value} {p.reading.unit}, {p.side === "high" ? "rising" : "falling"} {Math.abs(p.slopePerDay)} {p.reading.unit}/day → {p.limit} {p.reading.unit} on <b>{dm(p.crosses + "T12:00:00Z")}</b>
-                  <em>trend fit {Math.round(p.fit * 100)}% · planned maintenance {p.nextPm.slice(5)}{p.pmFirst ? " (before)" : " (after — too late)"}{p.openWo ? ` · ${p.openWo} open` : ""}{p.spareShort ? ` · ${p.spareShort.part}: ${p.spareShort.stock} in stock, ${p.spareShort.leadDays} days to arrive` : ""}</em></div>
-              </div>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 // ======================================================================== tenants' complaints
 const CHANNEL: Record<Complaint["channel"], string> = { app: "app", whatsapp: "WhatsApp", qr: "QR code", helpdesk: "helpdesk", email: "e-mail", api: "tenant portal" };
 export function ComplaintsPanel({ s, doit, busy, onWo }: { s: FS; doit: Doit; busy: string | null; onWo: (id: string) => void }) {

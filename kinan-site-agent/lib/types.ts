@@ -86,6 +86,8 @@ export interface Db {
   data: ProjectData;
   /** Facility management: every change made by people or the orchestrator (lib/fm), re-applied to the day's data. */
   fmLog?: import("./fm/types").FmEvent[];
+  /** the plant historian's readings for the predictive engine (lib/fm/pdm.ts), daily means per asset and reading */
+  fmHistory?: import("./fm/pdm").HistoryStore;
   /** Facility management settings (autopilot per facility). */
   fmConfig?: import("./fm/types").FmConfig;
   /** what the northbound integrations sent to customer systems (work orders, Teams, email, webhooks), newest last */

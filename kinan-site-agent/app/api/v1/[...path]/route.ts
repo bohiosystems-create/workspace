@@ -11,6 +11,7 @@ import { toFleet } from "@/lib/robots/dispatch";
 import { adapterFor } from "@/lib/robots/adapter";
 import { complaintInsights } from "@/lib/fm/complaints";
 import { predictions } from "@/lib/fm/predict";
+import { ingestReadings, pdmReport } from "@/lib/fm/pdm";
 import { scoreJobs, teamPlan } from "@/lib/fm/priority";
 
 export const runtime = "nodejs";
@@ -29,10 +30,12 @@ export const dynamic = "force-dynamic";
 // GET  /api/v1/exceptions?site=              what the automation couldn't finish (the operator's queue)
 // GET  /api/v1/integrations                  what is configured and what was sent lately
 // POST /api/v1/jobs                          raise a work order from their system: {site, asset, title, detail?, priority?, type?, externalId?}
-// POST /api/v1/jobs/{id}                     their system moved one of ours: {status?, note?, assignee?, externalId?}
+// POST /api/v1/jobs/{id}                     their system moved one of ours: {status?, note?, assignee?, externalId?, faultFound?: confirmed|not_found}
 // GET  /api/v1/complaints?site=&status=      tenants' complaints, with the analysis (clusters, categories, repeat, time to resolve)
 // POST /api/v1/complaints                    a complaint from a tenant portal, helpdesk or QR form: {site, text, from, where?, contact?, channel?}
-// GET  /api/v1/predictions?site=             equipment heading for its limit, and when
+// GET  /api/v1/predictions?site=             equipment heading for its limit, and when (remaining life P10/P50/P90, probability, diagnosis)
+// GET  /api/v1/health?site=                  the predictive engine: every asset's health, failure probability, diagnosis, risk in SAR, backtest
+// POST /api/v1/readings                      the plant historian's readings: {site?, readings: [{asset, key, at, value}]} (up to 5,000 a call)
 // GET  /api/v1/team-plan?site=               every open job scored with its reasons; each technician's now and next
 // Everything else is refused. Changes are recorded as made by "the customer's system" and go through the same rules as
 // the app's (a job can't start before its permit and gas test, and so on).
@@ -71,7 +74,12 @@ export async function GET(req: Request, { params }: Ctx) {
     case "alerts": return ok({ alerts: d.securityAlerts.filter((a) => here(a.facilityId) && (!status || a.status === status)) });
     case "exceptions": return ok({ exceptions: d.facilities.filter((f) => here(f.id)).flatMap((f) => exceptions(db, d, f.id).map((x) => ({ site: f.id, ...x }))) });
     case "complaints": return ok({ complaints: d.complaints.filter((c) => here(c.facilityId) && (!status || c.status === status)).sort((a, b) => b.at.localeCompare(a.at)), ...(site ? { analysis: complaintInsights(d, site) } : {}) });
-    case "predictions": return ok({ predictions: predictions(d, site) });
+    case "predictions": return ok({ predictions: predictions(d, site).map(({ trend: _t, ...p }) => p) });
+    case "health": {
+      const fids = d.facilities.filter((f) => here(f.id)).map((f) => f.id);
+      return ok({ sites: fids.map((fid) => { const r = pdmReport(d, fid); return { site: fid, atRisk: r.atRisk, expectedLoss30d: r.expectedLoss, sources: r.sources, backtest: { ...r.backtest, examples: undefined }, feedback: r.feedback,
+        assets: r.assets.map(({ series, ...a }) => ({ ...a, readings: series.map(({ values: _v, projection: _p, logMu: _m, logSd: _s, ...x }) => x) })) }; }) });
+    }
     case "team-plan": if (!site) return no("Which site? ?site=kgia");
       return ok({ jobs: scoreJobs(d, site), plan: teamPlan(d, site) });
     case "integrations": return ok({ configured: integrationsConfigured(), sent: (db.integrationLog ?? []).slice(-50).reverse() });
@@ -82,16 +90,23 @@ export async function GET(req: Request, { params }: Ctx) {
 export async function POST(req: Request, { params }: Ctx) {
   const g = gate(req); if (g) return g;
   const [what, id] = (await params).path;
-  if (what !== "jobs" && what !== "complaints") return no("POST takes /api/v1/jobs (raise one), /api/v1/jobs/{id} (update one) or /api/v1/complaints (log one).", 404);
+  if (what !== "jobs" && what !== "complaints" && what !== "readings") return no("POST takes /api/v1/jobs (raise one), /api/v1/jobs/{id} (update one), /api/v1/complaints (log one) or /api/v1/readings (the historian's readings).", 404);
   let b: Record<string, unknown>;
   try { b = await req.json(); } catch { return no("Send JSON."); }
+  if (what === "readings") {
+    if (!Array.isArray(b.readings) || !b.readings.length) return no("Send {readings: [{asset, key, at, value}, …]}.");
+    const repo = await getRepo(), d = fmToday(repo.db);
+    const r = ingestReadings((repo.db.fmHistory ??= {}), d.assets, b.readings, typeof b.site === "string" ? b.site : undefined);
+    if (r.accepted) await repo.save();
+    return ok({ ok: r.accepted > 0, ...r }, r.accepted ? 202 : 422);
+  }
   const repo = await getRepo(), str = (k: string) => (typeof b[k] === "string" ? (b[k] as string).slice(0, 2000) : undefined);
   const by = `${str("system") ?? "Customer system"}${str("externalId") ? ` (${str("externalId")})` : ""}`.slice(0, 60);
   try {
     const r = what === "complaints"
       ? act(repo.db, { action: "complaint", facilityId: str("site"), complaint: { text: str("text"), from: str("from") ?? "Tenant portal", where: str("where"), contact: str("contact"), channel: (str("channel") as never) ?? "api" } }, by, "web", null)
       : id
-      ? act(repo.db, { action: "wo_update", woId: id, status: str("status") as never, note: str("note"), assignee: str("assignee"), holdReason: str("holdReason") }, by, "web", null)
+      ? act(repo.db, { action: "wo_update", woId: id, status: str("status") as never, note: str("note"), assignee: str("assignee"), holdReason: str("holdReason"), pdmOutcome: str("faultFound") as never }, by, "web", null)
       : act(repo.db, { action: "wo_create", facilityId: str("site"), asset: str("asset") ?? "", title: str("title"), detail: str("detail"), priority: str("priority") as never, type: str("type") as never, note: str("externalId") ? `External reference ${str("externalId")}` : undefined }, by, "web", null);
     await toFleet(repo.db, r.events);
     await repo.save();
