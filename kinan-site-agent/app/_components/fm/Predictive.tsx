@@ -32,7 +32,7 @@ export function PdmPanel({ s, onAsset, onWo }: { s: FS; onAsset: (id: string) =>
         <div><b>{sar(r.expectedLoss)}</b><span>expected cost of failures, 30 days</span></div>
         <div><b>{bt.detectionRate !== null ? pct(bt.detectionRate) : "—"}</b><span>past failures seen coming</span></div>
         <div><b>{bt.medianLeadDays ?? "—"} d</b><span>warning ahead (median)</span></div>
-        <div><b>{bt.maeDays ?? "—"} d</b><span>remaining-life error (mean)</span></div>
+        <div><b>{bt.maeDays !== null ? Math.round(bt.maeDays * 10) / 10 : "—"} d</b><span>remaining-life error (mean)</span></div>
         <div><b>{bt.coverage !== null ? pct(bt.coverage) : "—"}</b><span>inside the P10–P90 band</span></div>
         <div><b>{bt.falseAlarmRate !== null ? pct(bt.falseAlarmRate) : "—"}</b><span>false alarms</span></div>
       </div>
