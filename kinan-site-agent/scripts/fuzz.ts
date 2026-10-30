@@ -142,6 +142,10 @@ const KNOWN: Known[] = [
     { tool: "fm_predictive", input: { facility: "kgia", asset: "NOPE-9" }, expect: refused(/isn't watched/) },
     { tool: "fm_update_work_order", input: { wo: "WO-A24100", status: "done", fault_found: "confirmed" }, expect: refused(/predictive engine/) },
   ] as Known[] : []),
+  ...(HAS_OPERATIONS ? [
+    { tool: "fm_routes", input: { facility: "kgpp" }, expect: answered((o) => (o.routes?.length && o.routes.some((r: { files: string[] }) => r.files.includes("qgc_plan")) ? null : `no routes with a MAVLink plan: ${JSON.stringify(o).slice(0, 160)}`)) },
+    { tool: "fm_routes", input: { facility: "kgpp", robot: "Nope-9" }, expect: refused(/No route/) },
+  ] as Known[] : []),
   // the inspection knowledge (lib/robots/inspection.ts): the right robot for the surface, refusals with the reason
   ...(HAS_OPERATIONS ? [
     { tool: "fm_inspection", input: { facility: "kgpp", asset: "T-701B" }, expect: answered((o) => (o.surfaces?.some((x: { part: string; robots: { robot: string }[] }) => x.part === "floor" && x.robots.some((r) => r.robot === "Tank-1")) ? null : "the tank floor isn't given to the in-service tank robot")) },
@@ -400,6 +404,55 @@ async function pdmEngine() {
   }
 }
 
+// ---------------------------------------------------------------- 8. inspection routes designed by the schedule, on copies
+async function robotRoutes() {
+  const R = await import("../lib/robots/routes"), X = await import("../lib/robots/export"), E = await import("../lib/fm/engine"), W = await import("../lib/fm/work"), A = await import("../lib/robots/adapter");
+  const nodeCrypto = await import("node:crypto");
+  const copy = structuredClone(db), d = E.fmToday(copy);
+  for (const fid of ["kgpp", "kgia"]) {
+    const p = R.planRoutes(d, fid);
+    if (!p.routes.length) fail("(routes)", fid, "no route designed");
+    for (const r of p.routes) {
+      const robot = d.robots.find((x) => x.id === r.robotId)!;
+      for (const so of r.sorties) {
+        if (!(so.batteryPct > 0 && so.batteryPct <= 100) || !(so.durationMin > 0)) fail("(routes)", `${r.name} sortie ${so.n}`, `battery ${so.batteryPct}%, ${so.durationMin} min`);
+        if (so.points[0].kind !== "dock" || so.points[so.points.length - 1].kind !== "dock") fail("(routes)", `${r.name} sortie ${so.n}`, "doesn't start and end at the dock");
+        for (const pt of so.points) {
+          for (const c of pt.checks) if (!robot.capabilities.includes(c)) fail("(routes)", `${r.name} ${pt.label}`, `has no ${c}`);
+          const z = d.zones.find((x) => x.id === pt.zone);
+          if (pt.checks.length && z && !W.robotMayEnter(robot, z)) fail("(routes)", `${r.name} ${pt.label}`, `may not enter ${z.name}`);
+          if (!Number.isFinite(pt.lat) || !Number.isFinite(pt.lon)) fail("(routes)", `${r.name} ${pt.label}`, "no coordinates");
+        }
+        // every file it offers is well formed
+        for (const fmt of r.formats) {
+          const f = X.exportSortie(fmt, r, so, p.frame);
+          if (fmt === "dji_kmz") { const b = f.data as Uint8Array; if (b[0] !== 0x50 || b[1] !== 0x4b) fail("(routes)", f.filename, "not a zip"); }
+          else { try { JSON.parse(f.data as string); } catch { fail("(routes)", f.filename, "not valid JSON"); } }
+          if (fmt === "qgc_plan" && robot.kind === "rov" && JSON.parse(f.data as string).mission.items.some((it: { command: number; params: number[] }) => it.command === 16 && it.params[6] >= 0)) fail("(routes)", f.filename, "an underwater waypoint above the surface");
+        }
+      }
+    }
+  }
+  for (const s of ["", "abc", "x".repeat(777)]) if (X.md5(new TextEncoder().encode(s)) !== nodeCrypto.createHash("md5").update(s).digest("hex")) fail("(routes)", null, `md5 wrong for a ${s.length}-byte input`);
+  // sending: every sendable route becomes missions carrying its geometry; a second send is refused; a guest can't send
+  const sdb = structuredClone(db), boss = directory(sdb).find((p) => p.role === "director" && (p.domain === "fm" || p.domain === "all"))!;
+  let guest = ""; try { fmAct(sdb, { action: "routes_send", facilityId: "kgpp" }, "Guest", "web", null); } catch (e) { guest = (e as Error).message; }
+  if (!/facility's own staff/.test(guest)) fail("(routes)", null, `a guest sent routes: ${guest}`);
+  const res = fmAct(sdb, { action: "routes_send", facilityId: "kgpp" }, boss.name, "web", boss);
+  const ms = E.fmToday(sdb).missions.filter((m) => m.route);
+  if (!ms.length) fail("(routes)", null, `sent, but no mission carries a route: ${res.message}`);
+  let again = ""; try { fmAct(sdb, { action: "routes_send", facilityId: "kgpp", robotIds: [ms[0].robotId] }, boss.name, "web", boss); } catch (e) { again = (e as Error).message; }
+  if (!/already sent/.test(again)) fail("(routes)", null, `a route sent twice: ${again}`);
+  // a DJI dock gets the designed wayline: its address and MD5 fingerprint
+  const m = ms.find((x) => E.fmToday(sdb).robots.find((r) => r.id === x.robotId)?.kind === "drone");
+  if (m) {
+    const r = { ...E.fmToday(sdb).robots.find((x) => x.id === m.robotId)!, adapter: "dji" as const, externalId: "DOCK-SN/DRONE-SN" };
+    const out = await A.djiAdapter({ APP_URL: "https://app.example" }).dispatch(m, r);
+    const file = (out.commands?.[0] as { payload?: { data?: { file?: { url: string; fingerprint: string } } } })?.payload?.data?.file;
+    if (!out.sent || !file || !/\/api\/fm\/robots\/route\/.+\.kmz$/.test(file.url) || !/^[0-9a-f]{32}$/.test(file.fingerprint)) fail("(routes)", m.id, `the dock didn't get the designed wayline: ${JSON.stringify(out).slice(0, 200)}`);
+  }
+}
+
 async function main() {
   const t0 = Date.now();
   for (const k of KNOWN) {
@@ -410,6 +463,7 @@ async function main() {
   await orchestration();
   await scheduleAgent();
   if (HAS_OPERATIONS) await pdmEngine();
+  if (HAS_OPERATIONS) await robotRoutes();
   for (const d of DEFS) {
     const s = d.input_schema as S;
     await call(d.name, {});

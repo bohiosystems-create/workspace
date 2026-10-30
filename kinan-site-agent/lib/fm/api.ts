@@ -2,6 +2,7 @@
 // Reads build today's picture (engine.fmToday); writes append events to db.fmLog (the caller saves the database).
 import { inspectionPlan, missionFit } from "../robots/inspection";
 import { pdmReport, pdmView } from "./pdm";
+import { planRoutes } from "../robots/routes";
 import { CATEGORY_LABEL, complaintInsights, makeComplaint } from "./complaints";
 import { predictions } from "./predict";
 import { scoreJobs, teamPlan } from "./priority";
@@ -90,6 +91,8 @@ export function facilityState(db: Db, facilityId: string) {
     // the predictive engine's view of every asset (lib/fm/pdm.ts): health, failure probability, remaining life, diagnosis,
     // risk in SAR, its backtest and the technicians' verdicts
     pdm: pdmView(pdmReport(d, facilityId)),
+    // inspection routes the schedule designs for the fleet (lib/robots/routes.ts), ready to export and send
+    routes: d.robots.some((r) => r.facilityId === facilityId) ? planRoutes(d, facilityId) : null,
     // the inspection plan from the robotics reviews (lib/robots/inspection.ts): each surface, its method and robot
     inspection: inspectionPlan(d, facilityId),
     jobScores: scoreJobs(d, facilityId),
@@ -170,10 +173,12 @@ export function myDay(db: Db, techId: string) {
 
 // ------------------------------------------------------------------ writes
 export interface ActInput {
-  action: "decide" | "autopilot" | "policy" | "tick" | "wo_create" | "wo_update" | "asset_status" | "alarm_ack" | "tech_status"
+  action: "decide" | "routes_send" | "autopilot" | "policy" | "tick" | "wo_create" | "wo_update" | "asset_status" | "alarm_ack" | "tech_status"
     | "gas_test" | "mission" | "mission_abort" | "estop" | "crew_status" | "security" | "robot_report" | "pilot" | "control" | "rules"
     | "complaint" | "complaint_update";
   facilityId?: string; actionId?: string; decision?: "approved" | "rejected"; reason?: RejectReason; on?: boolean;
+  /** routes_send: the robots whose designed routes to send (ids or names; all when empty) */
+  robotIds?: string[];
   policy?: Partial<Pick<AutopilotPolicy, "kinds" | "maxRisk" | "maxSpend">>;
   asset?: string; title?: string; detail?: string; priority?: Priority; type?: WoType;
   woId?: string; status?: WoStatus; note?: string; assignee?: string; checklist?: number; evidence?: string[]; holdReason?: string;
@@ -337,6 +342,36 @@ export function act(db: Db, b: ActInput, by: string, channel: Channel, user?: Pe
       if (b.result === "failed" && !reading) throw new Error("What did the detector read?");
       add({ kind: "gas_test", woId: w.id, result: b.result, reading, summary: `gas test on ${w.id}: ${b.result === "done" ? "clear" : "not clear"} — ${reading}` });
       return { ok: true, message: b.result === "done" ? `${w.id}: gas test clear (${reading}).${w.status === "on_hold" ? " The job goes back to its crew; the permit is to be re-issued." : ""}` : `${w.id}: not gas-free (${reading}) — the job stays on hold.`, events: evs };
+    }
+    case "routes_send": {
+      // the routes the schedule designed (lib/robots/routes.ts), each sortie as a mission carrying its geometry: the
+      // adapter sends it in the machine's own format (a DJI wayline, a VDA 5050 order with positions…)
+      if (!user || user.orgType !== "client" || user.role === "guest") throw new Error("Robots are sent by the facility's own staff.");
+      const fid = b.facilityId ?? "";
+      if (!d.facilities.some((f) => f.id === fid)) throw new Error("Which facility?");
+      const plan = planRoutes(d, fid, Date.now());
+      const want = b.robotIds?.length ? new Set(b.robotIds.map((x) => String(x).toLowerCase())) : null;
+      const pick = plan.routes.filter((x) => !want || want.has(x.robotId.toLowerCase()) || want.has(x.name.toLowerCase()));
+      if (!pick.length) throw new Error(want ? `No designed route for ${[...want].join(", ")} — nothing on the schedule for ${want.size > 1 ? "them" : "it"} to check.` : "No route to send: nothing on the schedule needs a robot's check now.");
+      const sent: string[] = [], skipped: string[] = [];
+      for (const rr of pick) {
+        const r = d.robots.find((x) => x.id === rr.robotId)!;
+        if (!rr.sendable) { skipped.push(`${rr.name}: ${rr.sendNote}`); continue; }
+        if (d.missions.some((m) => m.robotId === r.id && m.route && (m.status === "planned" || m.status === "running"))) { skipped.push(`${rr.name}: its route is already sent`); continue; }
+        const kind: Mission["kind"] = DOMAIN_OF[r.kind] === "subsea" ? "subsea_inspection" : DOMAIN_OF[r.kind] === "climbing" ? "thickness_survey" : "inspection_round";
+        for (const so of rr.sorties) {
+          const seen = new Set<string>();
+          const wps = so.points.filter((p) => p.checks.length && p.zone && !seen.has(p.label) && seen.add(p.label)).map((p) => ({ zone: p.zone!, ...(p.assetId ? { assetId: p.assetId } : {}), label: p.label, checks: p.checks }));
+          const tags = [...new Set(so.points.filter((p) => p.tag).map((p) => p.tag))];
+          const m: Mission = { id: `MS-RT-${so.start.slice(2, 10).replace(/-/g, "")}-${r.name.replace(/[^A-Za-z0-9]/g, "")}-${so.n}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`, facilityId: fid, robotId: r.id, kind,
+            title: `Designed route ${so.n}/${rr.sorties.length}${so.airside ? " (airside, in the closure)" : ""} — ${tags.slice(0, 6).join(", ")}${tags.length > 6 ? ` +${tags.length - 6}` : ""}`, waypoints: wps, plannedStart: so.start, durationMin: so.durationMin, status: "planned", by, source: "orchestrator", findings: [],
+            route: { key: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}${Math.random()}`).replace(/[^a-f0-9]/gi, "").slice(0, 24), frame: plan.frame, sortie: so } };
+          add({ kind: "mission_create", mission: m, summary: `${m.id}: ${r.name} — ${m.title}` });
+        }
+        sent.push(`${rr.name} (${rr.sorties.length} sortie${rr.sorties.length > 1 ? "s" : ""}, ${rr.tasks} asset${rr.tasks > 1 ? "s" : ""}${r.autonomy === "remote" ? ", waits for its pilot" : ""})`);
+      }
+      if (!sent.length) throw new Error(`Nothing sent. ${skipped.join(". ")}.`);
+      return { ok: true, message: `Routes sent: ${sent.join("; ")}.${skipped.length ? ` Not sent: ${skipped.join("; ")}.` : ""}`, events: evs };
     }
     case "mission": {
       const r = d.robots.find((x) => x.id === b.robotId || x.name.toLowerCase() === String(b.robotId ?? "").toLowerCase());

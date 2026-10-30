@@ -30,6 +30,23 @@ import { DOMAIN_OF, MISSION_LABEL, missionFits } from "./types";
 import type { RobotReport } from "../fm/types";
 import { vdaInstant, vdaOrder, vdaStateToReport } from "./protocols/vda5050";
 import { djiCancel, djiFlight, djiOsdToReport, djiProgress, type Wayline } from "./protocols/dji";
+import { djiKmz, md5, vdaOrderWithPositions } from "./export";
+import { routeOf } from "./routes";
+import { vdaIds, vdaTopic } from "./protocols/vda5050";
+
+/** The wayline of a designed route, where the dock fetches it: the app's own address, guarded by the route's key. */
+function routeWayline(m: Mission, r: Robot, env: Env): Record<string, Wayline> {
+  const kmz = djiKmz(routeOf(r, m.route!.sortie), m.route!.sortie, m.route!.frame).data as Uint8Array;
+  const base = (env.APP_URL || (env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : "")).replace(/\/+$/, "");
+  const file = { url: `${base}/api/fm/robots/route/${m.id}/${m.route!.key}.kmz`, fingerprint: md5(kmz) };
+  const w = m.waypoints[0];
+  return w ? { [w.assetId ?? w.zone]: file, [w.zone]: file } : {};
+}
+/** A VDA 5050 order for a designed route: each node with its position on the robot's map. */
+function vdaRouteOrder(m: Mission, r: Robot) {
+  const id = vdaIds(r), o = JSON.parse(vdaOrderWithPositions(routeOf(r, m.route!.sortie), m.route!.sortie, m.route!.frame, m.id).data as string);
+  return { topic: vdaTopic(id, "order"), payload: { ...o, manufacturer: id.manufacturer, serialNumber: id.serialNumber, timestamp: new Date().toISOString() } };
+}
 import { orbitConfig, orbitDispatch, orbitWebhookToReport, type OrbitConfig } from "./protocols/orbit";
 import { securityAlarmToReport } from "./protocols/security";
 
@@ -240,7 +257,7 @@ export function vdaAdapter(env: Env = process.env): FleetAdapter {
     name: "VDA 5050 (fleet bridge)", mode: "push",
     status: async (r) => lastKnown(r, "reported"),
     capabilities: (r) => withLimits(r, { ...(Object.keys(nodes).length ? { places: Object.keys(nodes) } : {}), limits: ["Goes only to places mapped to nodes of its own map (VDA5050_NODES)", "No remote emergency stop in VDA 5050 — the app can pause it"] }),
-    dispatch: async (m, r) => ({ sent: true, note: "Order queued for the fleet bridge", commands: [vdaOrder(m, r, nodes)], protocol: "vda5050" }),
+    dispatch: async (m, r) => ({ sent: true, note: m.route ? "Order with each node's position queued for the fleet bridge" : "Order queued for the fleet bridge", commands: [m.route ? vdaRouteOrder(m, r) : vdaOrder(m, r, nodes)], protocol: "vda5050" }),
     cancel: async (_m, r) => ({ sent: true, note: "cancelOrder queued for the fleet bridge", commands: [vdaInstant(r, "cancelOrder")], protocol: "vda5050" }),
     results: async () => pushed("the robot's state, through the fleet bridge"),
     estop: async (r, on) => ({ sent: true, note: on ? "Pause queued (VDA 5050 has no remote emergency stop — use the robot's own stop)" : "Resume queued", commands: [vdaInstant(r, on ? "startPause" : "stopPause")], protocol: "vda5050" }),
@@ -254,7 +271,8 @@ export function djiAdapter(env: Env = process.env): FleetAdapter {
     name: "DJI Cloud API (fleet bridge)", mode: "push",
     status: async (r) => lastKnown(r, "reported"),
     capabilities: (r) => withLimits(r, { places: Object.keys(waylines), limits: ["Flies only routes planned as waylines in DJI's tools (DJI_WAYLINES)", "Emergency stop from the dock or the remote controller"] }),
-    dispatch: async (m, r) => { const f = djiFlight(m, r, waylines); return "error" in f ? { sent: false, note: f.error } : { sent: true, note: "Flight task queued for the fleet bridge", commands: f.messages, protocol: "dji" }; },
+    // a route designed here flies its own wayline: the dock downloads the KMZ from the app (its MD5 as fingerprint)
+    dispatch: async (m, r) => { const f = djiFlight(m, r, m.route ? { ...waylines, ...routeWayline(m, r, env) } : waylines); return "error" in f ? { sent: false, note: f.error } : { sent: true, note: m.route ? "Flight task with the designed wayline queued for the fleet bridge" : "Flight task queued for the fleet bridge", commands: f.messages, protocol: "dji" }; },
     cancel: async (m, r) => ({ sent: true, note: m.status === "running" ? "Return home queued for the fleet bridge" : "Flight task undo queued", commands: [djiCancel(m, r, m.status === "running")], protocol: "dji" }),
     results: async () => pushed("telemetry and flight progress through the fleet bridge; photos by the dock's media upload, posted with the report for the AI to read"),
     estop: async () => ({ sent: false, note: "Use the dock's or the remote controller's emergency stop — the app brings the drone home with Cancel" }),

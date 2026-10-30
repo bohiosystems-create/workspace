@@ -112,6 +112,9 @@ export interface Mission {
   /** what it found, as the route is covered */
   findings: Finding[];
   note?: string;
+  /** a route designed by the schedule (routes.ts): the sortie's waypoints on the earth, with heights, depths, headings
+   *  and camera angles — exported in the machine's own format when it is sent; the key guards the file's address */
+  route?: { key: string; frame: import("./routes").SiteFrame; sortie: import("./routes").Sortie };
 }
 
 export interface Finding {

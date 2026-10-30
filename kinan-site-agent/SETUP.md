@@ -556,6 +556,25 @@ The control room's **Inspection** tab (gas plant) and the agent's `fm_inspection
 
 The gas plant's fleet gained the robots the reviews describe: an in-service tank-floor robot (Tank-1, surveying T-701B today without emptying it), a tracked in-pipe crawler for 6–24 inch piping (Pipe-1), a collision-tolerant drone for vessel internals (Cage-1) and the export line's MFL pig (Pig-1, run by the in-line inspection contractor). New capabilities: `mfl`, `eddy_current`; new missions: `inline_inspection`, `internal_inspection`.
 
+### 8d.4 Inspection routes designed by the schedule, loaded straight into the machines
+Control room → **Robot routes** (facilities with a robot fleet), the agent's `fm_routes`, `lib/robots/routes.ts` and `lib/robots/export.ts`.
+
+1. **What needs checking** — from the schedule: planned maintenance due today or tomorrow (the robot-checkable part of it), the predictive engine's assets degrading, abnormal or past a limit (§8d.3), the inspection plan's surfaces not inspected by a robot for a week (contact methods: a month, §8d.2), and robot findings nobody has looked at.
+2. **Who checks it** — each asset goes to the robot that can make most of its checks there: its sensors, the area's hazards (only Ex-certified robots in zones 1 and 2; no drones indoors; drones stay down while an unidentified drone is reported), air for what is high (flare, columns, tank roofs) or long (the pipeline), a climbing crawler for wall thickness, an underwater vehicle for the subsea line. Special-purpose robots (pig, in-pipe and tank robots, the caged drone) are planned one by one from the Inspection tab. What no robot can check is listed for a technician.
+3. **The route** — from the dock, the shortest round (nearest neighbour, then 2-opt), cut into sorties within 75 % of the robot's endurance, after the missions it already has today; airside work waits for the nightly closure. Drones get a stand-off point per asset (60 m from a flare's tip), height, heading and camera pitch; underwater vehicles a survey line along the subsea section with depth.
+4. **On the earth** — map units become WGS84 coordinates through the site frame: the plan's top-left corner and metres per unit. **The demo's coordinates are made up**: set the surveyed values before anything flies — `SITE_FRAMES={"kgpp":{"lat":…,"lon":…,"mPerUnit":12,"elevM":96}}`.
+5. **Into the machine** — each sortie downloads in its machine's format, or is sent:
+
+| Format | For | Sent how |
+|---|---|---|
+| DJI WPML wayline (KMZ: `wpmz/template.kml` + `wpmz/waylines.wpml`) | DJI Dock, DJI Pilot 2, FlightHub 2 | Send: a `flighttask_prepare` whose file is the app's own `…/api/fm/robots/route/{mission}/{key}.kmz` with its MD5 fingerprint — the dock downloads it (needs `APP_URL` reachable from the dock) |
+| QGroundControl `.plan` (MAVLink mission: takeoff, waypoints with hold and yaw, gimbal, photo, return) | PX4 and ArduPilot drones; ArduSub underwater vehicles (depth as negative altitude) | Load in QGroundControl, or upload through a MAVLink bridge |
+| VDA 5050 v2 order, each node with its position (m) and heading on the robot's map | AGVs, AMRs, ground robots | Send: the order goes to the fleet bridge |
+| Open-RMF `compose` task (go to place, perform the inspection) | Robots under Open-RMF | Post to the RMF API server |
+| Route JSON | Anything else | — |
+
+Sending (*Send to …*, *Send all routes*, or `fm_routes` with `send`) is for the facility's own staff; each sortie becomes a mission carrying its geometry; a piloted robot's mission waits for its pilot; robots planned in their maker's own software (a data-platform crawler, a security robot) get the file to load there. The formats are written to their published specifications and checked for structure; **none has been flown or driven on a real machine yet** — open the first file of each kind in the machine's own software (DJI Pilot 2, QGroundControl's simulator, the fleet manager) before use. The DJI aircraft model in the wayline (`droneEnumValue`) is set for an M30-series dock drone; change it for other aircraft.
+
 ## 8e. Today, approvals, people & permissions, offline field app, outcomes, agent eval
 
 **Today is the first screen.** For a manager the product is the morning picture and the decisions waiting: the day in a few lines (the building site and every facility — tap a line for the detail), then **one approvals queue** across construction and all facilities: each proposal with its reasons, risk, cost and who carries it out, and **Approve** / **Reject**. Rejecting asks why in one tap (*not now · already handled · wrong person · too costly · disagree*). The orchestrators learn from it: *not now* brings the proposal back tomorrow, *wrong person* proposes someone else for the same job, and a kind of proposal people keep rejecting in one place stops running by itself and drops to the bottom, saying why. Below: **How the decisions are working out** (next paragraph but one). Projects, the site map, schedules and control rooms are one tap away.
@@ -814,6 +833,7 @@ Two packs of fictional documents ship with the app under `public/samples/` (serv
 | `ORACLE_*` | — | §7.2 |
 | `PROCUREMENT_REST_*` | — | §7.3 |
 | `IMPORT_SECRET` | — | Bearer secret for CSV and XER imports |
+| `SITE_FRAMES` | demo frames | Each facility plan's surveyed top-left corner (lat, lon), metres per map unit and ground elevation, JSON keyed by facility — the routes' coordinates (§8d.4) |
 | `P6` | — | Primavera P6 EPPM REST API, JSON `{"url","user","password","projectObjectId","database"}` (§8.1a) |
 | `KINAN_DATA_DIR` | `./data` (`/data` in Docker) | Database, uploads, WhatsApp sessions (own server) |
 | `BLOB_READ_WRITE_TOKEN` | set by Vercel | Use Vercel Blob (private) for all data |
