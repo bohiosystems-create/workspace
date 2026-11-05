@@ -7,16 +7,21 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="bar">
-  <div class="wrap bar-in">
-    <div class="brand"><span class="mark"></span>SAF Ledger</div>
-    <span id="demo" class="tag" hidden>Demo mode</span>
+<div class="shell">
+<nav class="side" aria-label="Main">
+  <div class="brand"><span class="mark"></span>SAF Ledger</div>
+  <div class="links">
+    <a href="#dashboard" data-view="dashboard">SAF certificates</a>
+    <a href="#aviation" data-view="aviation">Aviation emissions</a>
   </div>
-</header>
+  <span id="demo" class="tag" hidden>Demo mode</span>
+</nav>
 
-<main class="wrap">
+<main class="main">
+
+
   <div id="toast" class="toast" hidden></div>
-
+<div id="view-dashboard">
   <section class="hero">
     <p class="eyebrow">Total emissions avoided</p>
     <h1><span id="co2">—</span><small> tCO₂e</small></h1>
@@ -63,7 +68,85 @@
   </section>
 
   <footer class="fine foot">Conversion: 1 tonne SAF ≈ <span id="factor">2.53</span> tCO₂e avoided (3.16 tCO₂ per tonne of jet fuel × ~80% lifecycle reduction). Car equivalent uses 4.6 tCO₂ per car per year (US EPA).</footer>
+</div>
+
+<div id="view-aviation" hidden>
+  <section class="hero small">
+    <p class="eyebrow">Aviation emissions · business travel and air freight</p>
+    <h1><span id="av-total">—</span><small> tCO₂e</small></h1>
+    <p class="sub" id="av-cover"></p>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><p class="eyebrow">Business travel</p><p class="num" id="av-travel">—</p></div>
+    <div class="stat"><p class="eyebrow">Air freight</p><p class="num" id="av-freight">—</p></div>
+    <div class="stat"><p class="eyebrow">Covered by SAF</p><p class="num" id="av-pct">—</p></div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="panel-h"><h2>Emissions log</h2><span class="muted" id="av-count"></span></div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Date</th><th>Type</th><th>Route</th><th class="r">km</th><th class="r">tCO₂e</th><th></th></tr></thead>
+          <tbody id="av-rows"></tbody>
+        </table>
+      </div>
+      <div class="cover" id="av-cta" hidden>
+        <p><b id="av-gap"></b> tCO₂e of aviation emissions are not yet covered by your SAF certificates.</p>
+        <button class="cta" id="av-buy" type="button">Buy certificates to cover it →</button>
+      </div>
+    </div>
+
+    <aside class="panel buy">
+      <div class="panel-h"><h2>Add emissions</h2></div>
+      <div class="seg" role="tablist">
+        <button type="button" role="tab" id="t-travel" aria-selected="true">Business travel</button>
+        <button type="button" role="tab" id="t-freight" aria-selected="false">Air freight</button>
+      </div>
+      <form id="av-form" autocomplete="off">
+        <div class="row2">
+          <div><label for="f-from">From (airport)</label><input id="f-from" list="airports" placeholder="RUH" maxlength="40"></div>
+          <div><label for="f-to">To (airport)</label><input id="f-to" list="airports" placeholder="LHR" maxlength="40"></div>
+        </div>
+        <datalist id="airports"></datalist>
+        <label for="f-km">Or distance in km <span class="muted">(optional)</span></label>
+        <input id="f-km" type="number" min="1" inputmode="numeric" placeholder="e.g. 4,800">
+
+        <div data-for="travel">
+          <div class="row2">
+            <div><label for="f-trip">Trip</label><select id="f-trip"><option value="return">Return</option><option value="oneway">One-way</option></select></div>
+            <div><label for="f-pax">Passengers</label><input id="f-pax" type="number" min="1" value="1" inputmode="numeric"></div>
+          </div>
+          <label for="f-cabin">Cabin class</label>
+          <select id="f-cabin"><option value="economy">Economy</option><option value="premium">Premium economy</option><option value="business">Business</option><option value="first">First</option></select>
+        </div>
+
+        <div data-for="freight" hidden>
+          <label for="f-kg">Cargo weight</label>
+          <div class="row2 w">
+            <input id="f-kg" type="number" min="0" step="any" value="1000" inputmode="decimal">
+            <select id="f-unit"><option value="kg">kg</option><option value="t">tonnes</option></select>
+          </div>
+        </div>
+
+        <label for="f-date">Date</label>
+        <input id="f-date" type="date">
+        <label class="check"><input id="f-rf" type="checkbox" checked> Include radiative forcing (×1.7)</label>
+
+        <dl class="quote">
+          <div><dt>Distance flown</dt><dd id="r-km">—</dd></div>
+          <div class="total"><dt>Emissions</dt><dd id="r-co2">—</dd></div>
+        </dl>
+        <p class="err" id="f-err" hidden></p>
+        <button class="cta" id="av-add" type="submit">Add to log</button>
+      </form>
+      <p class="fine">Distances are great-circle +8% for routing. Factors are indicative; replace them with the set your reporting standard requires.</p>
+    </aside>
+  </section>
+</div>
 </main>
-<script src="app.js"></script>
+</div>
+<script type="module" src="app.js"></script>
 </body>
 </html>

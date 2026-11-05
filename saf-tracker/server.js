@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildEntry } from "./public/emissions.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -128,5 +129,28 @@ app.get("/api/confirm", async (req, res) => {
     res.status(400).json({ error: e.message });
   }
 });
+
+// --- aviation emissions log (business travel + air freight) ---
+const FLIGHTS_FILE = path.join(path.dirname(DATA_FILE), "flights.json");
+let flights = fs.existsSync(FLIGHTS_FILE) ? JSON.parse(fs.readFileSync(FLIGHTS_FILE, "utf8")) : null;
+if (!flights) {
+  flights = DEMO ? [
+    { kind: "travel", date: "2026-02-10", from: "RUH", to: "LHR", rf: true, cabin: "business", pax: 2, trip: "return" },
+    { kind: "travel", date: "2026-04-18", from: "JED", to: "DXB", rf: true, cabin: "economy", pax: 4, trip: "return" },
+    { kind: "freight", date: "2026-06-03", from: "DMM", to: "FRA", rf: true, kg: 3200, unit: "kg" },
+    { kind: "travel", date: "2026-09-22", from: "RUH", to: "SIN", rf: true, cabin: "economy", pax: 3, trip: "return" },
+  ].map((b, i) => ({ id: `AV-${String(i + 1).padStart(4, "0")}`, source: "sample", ...buildEntry(b) })) : [];
+  fs.writeFileSync(FLIGHTS_FILE, JSON.stringify(flights, null, 2));
+}
+const saveFlights = () => fs.writeFileSync(FLIGHTS_FILE, JSON.stringify(flights, null, 2));
+app.get("/api/flights", (_req, res) => res.json([...flights].reverse()));
+app.post("/api/flights", (req, res) => {
+  try {
+    const next = Math.max(0, ...flights.map((f) => Number(f.id.slice(3)))) + 1;
+    const e = { id: `AV-${String(next).padStart(4, "0")}`, ...buildEntry(req.body || {}) };
+    flights.push(e); saveFlights(); res.json(e);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+app.delete("/api/flights/:id", (req, res) => { flights = flights.filter((f) => f.id !== req.params.id); saveFlights(); res.json({ ok: true }); });
 
 app.listen(PORT, () => console.log(`SAF tracker on ${BASE_URL} ${DEMO ? "(demo mode — set STRIPE_SECRET_KEY for real checkout)" : ""}`));
