@@ -1,0 +1,54 @@
+:root{--ink:#000;--paper:#fff;--line:#000;--soft:#f4f4f4;--mute:#6b6b6b}
+*{box-sizing:border-box;margin:0}
+body{background:var(--paper);color:var(--ink);font:16px/1.5 Inter,-apple-system,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+.bar{border-bottom:1px solid var(--line)}
+.bar-in{display:flex;justify-content:space-between;align-items:center;height:60px}
+.brand{font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.mark{width:14px;height:14px;background:var(--ink);border-radius:50%}
+.tag{font-size:12px;border:1px solid var(--line);padding:2px 10px;border-radius:99px}
+.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--mute)}
+.muted{color:var(--mute);font-size:14px}
+.hero{padding:56px 0 36px}
+.hero h1{font-size:clamp(56px,13vw,132px);line-height:1;letter-spacing:-.045em;font-weight:800;margin:8px 0 12px}
+.hero h1 small{font-size:.22em;letter-spacing:0;font-weight:500}
+.sub{font-size:18px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.stat{padding:22px 20px 22px 0}
+.stat+.stat{padding-left:20px;border-left:1px solid var(--line)}
+.num{font-size:clamp(26px,4vw,40px);font-weight:700;letter-spacing:-.02em}
+.grid{display:grid;grid-template-columns:1fr 340px;gap:32px;margin:40px 0;align-items:start}
+.panel{border:1px solid var(--line)}
+.panel-h{display:flex;justify-content:space-between;align-items:baseline;padding:16px 20px;border-bottom:1px solid var(--line)}
+h2{font-size:18px;font-weight:700}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute);font-weight:600;text-align:left;padding:12px 20px;border-bottom:1px solid var(--line)}
+td{padding:14px 20px;border-bottom:1px solid #e5e5e5;vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--soft)}
+.r{text-align:right}.id{font-weight:600;font-variant-numeric:tabular-nums}
+td small{display:block;color:var(--mute);font-size:12px}
+.buy{padding-bottom:20px}.buy>*:not(.panel-h){margin-left:20px;margin-right:20px}
+.buy label{display:block;margin-top:20px}
+.stepper{display:flex;border:1px solid var(--line);margin-top:8px}
+.stepper button{width:48px;background:var(--paper);border:0;font-size:22px;cursor:pointer}
+.stepper button:hover{background:var(--soft)}
+.stepper input{flex:1;min-width:0;text-align:center;font:700 22px Inter,-apple-system,Arial,sans-serif;border:0;border-inline:1px solid var(--line);padding:10px;outline:0;-moz-appearance:textfield}
+.stepper input::-webkit-inner-spin-button{-webkit-appearance:none}
+.chips{display:flex;gap:8px;margin-top:10px}
+.chips button{flex:1;padding:6px;border:1px solid var(--line);background:var(--paper);cursor:pointer;font:inherit;font-size:14px;border-radius:99px}
+.chips button:hover{background:var(--ink);color:var(--paper)}
+.quote{margin-top:22px;border-top:1px solid var(--line)}
+.quote div{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e5e5e5;font-size:14px}
+.quote dt{color:var(--mute)}.quote dd{font-weight:600}
+.quote .total{border-bottom:0;font-size:18px}.quote .total dt{color:var(--ink)}
+.cta{display:block;width:calc(100% - 40px);margin-top:12px;padding:16px;background:var(--ink);color:var(--paper);border:1px solid var(--ink);font:600 16px Inter,-apple-system,Arial,sans-serif;cursor:pointer}
+.cta:hover{background:var(--paper);color:var(--ink)}
+.cta:disabled{opacity:.5;cursor:wait}
+.fine{font-size:12px;color:var(--mute);margin-top:12px}
+.foot{border-top:1px solid var(--line);padding:18px 0 40px;margin:0}
+.toast{background:var(--ink);color:var(--paper);padding:14px 20px;margin-top:20px}
+.toast.err{background:var(--paper);color:var(--ink);border:2px solid var(--ink)}
+@media(max-width:860px){.grid{grid-template-columns:1fr}.hero{padding-top:36px}}
+@media(max-width:520px){.stats{grid-template-columns:1fr}.stat+.stat{padding-left:0;border-left:0;border-top:1px solid var(--line)}}

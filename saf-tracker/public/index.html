@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAF Ledger</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="wrap bar-in">
+    <div class="brand"><span class="mark"></span>SAF Ledger</div>
+    <span id="demo" class="tag" hidden>Demo mode</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="toast" class="toast" hidden></div>
+
+  <section class="hero">
+    <p class="eyebrow">Total emissions avoided</p>
+    <h1><span id="co2">—</span><small> tCO₂e</small></h1>
+    <p class="sub">Equivalent to <b id="cars">—</b> passenger cars off the road for a year.</p>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><p class="eyebrow">Certificates held</p><p class="num" id="certs">—</p></div>
+    <div class="stat"><p class="eyebrow">SAF purchased</p><p class="num" id="saf">—</p></div>
+    <div class="stat"><p class="eyebrow">Total spend</p><p class="num" id="spend">—</p></div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="panel-h"><h2>Certificates</h2><span class="muted" id="count"></span></div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>ID</th><th>Date</th><th>Supplier / pathway</th><th class="r">Qty</th><th class="r">tCO₂e</th><th class="r">Paid</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <aside class="panel buy">
+      <div class="panel-h"><h2>Buy more</h2></div>
+      <label class="muted" for="qty">Certificates (1 = 1 tonne SAF)</label>
+      <div class="stepper">
+        <button type="button" id="minus" aria-label="Decrease">−</button>
+        <input id="qty" type="number" min="1" max="1000" value="10" inputmode="numeric">
+        <button type="button" id="plus" aria-label="Increase">+</button>
+      </div>
+      <div class="chips">
+        <button type="button" data-q="5">5</button><button type="button" data-q="10">10</button>
+        <button type="button" data-q="25">25</button><button type="button" data-q="100">100</button>
+      </div>
+      <dl class="quote">
+        <div><dt>Price per certificate</dt><dd id="unit">—</dd></div>
+        <div><dt>You will offset</dt><dd id="q-co2">—</dd></div>
+        <div class="total"><dt>Total</dt><dd id="q-total">—</dd></div>
+      </dl>
+      <button class="cta" id="buy">Checkout with Stripe →</button>
+      <p class="fine">Secure payment by Stripe. Certificates are added to your ledger once payment clears.</p>
+    </aside>
+  </section>
+
+  <footer class="fine foot">Conversion: 1 tonne SAF ≈ <span id="factor">2.53</span> tCO₂e avoided (3.16 tCO₂ per tonne of jet fuel × ~80% lifecycle reduction). Car equivalent uses 4.6 tCO₂ per car per year (US EPA).</footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
